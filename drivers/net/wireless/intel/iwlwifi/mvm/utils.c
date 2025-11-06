@@ -1237,3 +1237,167 @@ bool iwl_mvm_vif_is_active(struct iwl_mvm_vif *mvmvif)
 
 	return false;
 }
+
+static u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags)
+{
+	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK_V1;
+	int idx;
+	bool ofdm = !(rate_n_flags & RATE_MCS_CCK_MSK_V1);
+	int offset = ofdm ? IWL_FIRST_OFDM_RATE : 0;
+	int last = ofdm ? IWL_RATE_COUNT_LEGACY : IWL_FIRST_OFDM_RATE;
+
+	for (idx = offset; idx < last; idx++)
+		if (iwl_fw_rate_idx_to_plcp(idx) == rate)
+			return idx - offset;
+	return IWL_RATE_INVALID;
+}
+
+u32 iwl_mvm_v3_rate_from_fw(__le32 rate, u8 rate_ver)
+{
+	u32 rate_v3 = 0, rate_v1;
+	u32 dup = 0;
+
+	if (rate_ver > 1)
+		return iwl_v3_rate_from_v2_v3(rate, rate_ver >= 3);
+
+	rate_v1 = le32_to_cpu(rate);
+	if (rate_v1 == 0)
+		return rate_v1;
+	/* convert rate */
+	if (rate_v1 & RATE_MCS_HT_MSK_V1) {
+		u32 nss;
+
+		rate_v3 |= RATE_MCS_MOD_TYPE_HT;
+		rate_v3 |=
+			rate_v1 & RATE_HT_MCS_RATE_CODE_MSK_V1;
+		nss = u32_get_bits(rate_v1, RATE_HT_MCS_MIMO2_MSK);
+		rate_v3 |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
+	} else if (rate_v1 & RATE_MCS_VHT_MSK_V1 ||
+		   rate_v1 & RATE_MCS_HE_MSK_V1) {
+		u32 nss = u32_get_bits(rate_v1, RATE_VHT_MCS_NSS_MSK);
+
+		rate_v3 |= rate_v1 & RATE_VHT_MCS_RATE_CODE_MSK;
+
+		rate_v3 |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
+
+		if (rate_v1 & RATE_MCS_HE_MSK_V1) {
+			u32 he_type_bits = rate_v1 & RATE_MCS_HE_TYPE_MSK_V1;
+			u32 he_type = he_type_bits >> RATE_MCS_HE_TYPE_POS_V1;
+			u32 he_106t = (rate_v1 & RATE_MCS_HE_106T_MSK_V1) >>
+				RATE_MCS_HE_106T_POS_V1;
+			u32 he_gi_ltf = (rate_v1 & RATE_MCS_HE_GI_LTF_MSK_V1) >>
+				RATE_MCS_HE_GI_LTF_POS;
+
+			if ((he_type_bits == RATE_MCS_HE_TYPE_SU ||
+			     he_type_bits == RATE_MCS_HE_TYPE_EXT_SU) &&
+			    he_gi_ltf == RATE_MCS_HE_SU_4_LTF)
+				/* the new rate have an additional bit to
+				 * represent the value 4 rather then using SGI
+				 * bit for this purpose - as it was done in the
+				 * old rate
+				 */
+				he_gi_ltf += (rate_v1 & RATE_MCS_SGI_MSK_V1) >>
+					RATE_MCS_SGI_POS_V1;
+
+			rate_v3 |= he_gi_ltf << RATE_MCS_HE_GI_LTF_POS;
+			rate_v3 |= he_type << RATE_MCS_HE_TYPE_POS;
+			rate_v3 |= he_106t << RATE_MCS_HE_106T_POS;
+			rate_v3 |= rate_v1 & RATE_HE_DUAL_CARRIER_MODE_MSK;
+			rate_v3 |= RATE_MCS_MOD_TYPE_HE;
+		} else {
+			rate_v3 |= RATE_MCS_MOD_TYPE_VHT;
+		}
+	/* if legacy format */
+	} else {
+		u32 legacy_rate = iwl_legacy_rate_to_fw_idx(rate_v1);
+
+		if (WARN_ON_ONCE(legacy_rate == IWL_RATE_INVALID))
+			legacy_rate = (rate_v1 & RATE_MCS_CCK_MSK_V1) ?
+				IWL_FIRST_CCK_RATE : IWL_FIRST_OFDM_RATE;
+
+		rate_v3 |= legacy_rate;
+		if (!(rate_v1 & RATE_MCS_CCK_MSK_V1))
+			rate_v3 |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
+	}
+
+	/* convert flags */
+	if (rate_v1 & RATE_MCS_LDPC_MSK_V1)
+		rate_v3 |= RATE_MCS_LDPC_MSK;
+	rate_v3 |= (rate_v1 & RATE_MCS_CHAN_WIDTH_MSK_V1) |
+		(rate_v1 & RATE_MCS_ANT_AB_MSK) |
+		(rate_v1 & RATE_MCS_STBC_MSK) |
+		(rate_v1 & RATE_MCS_BF_MSK);
+
+	dup = (rate_v1 & RATE_MCS_DUP_MSK_V1) >> RATE_MCS_DUP_POS_V1;
+	if (dup) {
+		rate_v3 |= RATE_MCS_DUP_MSK;
+		rate_v3 |= dup << RATE_MCS_CHAN_WIDTH_POS;
+	}
+
+	if ((!(rate_v1 & RATE_MCS_HE_MSK_V1)) &&
+	    (rate_v1 & RATE_MCS_SGI_MSK_V1))
+		rate_v3 |= RATE_MCS_SGI_MSK;
+
+	return rate_v3;
+}
+
+__le32 iwl_mvm_v3_rate_to_fw(u32 rate, u8 rate_ver)
+{
+	u32 result = 0;
+	int rate_idx;
+
+	if (rate_ver > 1)
+		return iwl_v3_rate_to_v2_v3(rate, rate_ver > 2);
+
+	switch (rate & RATE_MCS_MOD_TYPE_MSK) {
+	case RATE_MCS_MOD_TYPE_CCK:
+		result = RATE_MCS_CCK_MSK_V1;
+		fallthrough;
+	case RATE_MCS_MOD_TYPE_LEGACY_OFDM:
+		rate_idx = u32_get_bits(rate, RATE_LEGACY_RATE_MSK);
+		if (!(result & RATE_MCS_CCK_MSK_V1))
+			rate_idx += IWL_FIRST_OFDM_RATE;
+		result |= u32_encode_bits(iwl_fw_rate_idx_to_plcp(rate_idx),
+					  RATE_LEGACY_RATE_MSK_V1);
+		break;
+	case RATE_MCS_MOD_TYPE_HT:
+		result = RATE_MCS_HT_MSK_V1;
+		result |= u32_encode_bits(u32_get_bits(rate,
+						       RATE_HT_MCS_CODE_MSK),
+					  RATE_HT_MCS_RATE_CODE_MSK_V1);
+		result |= u32_encode_bits(u32_get_bits(rate,
+						       RATE_MCS_NSS_MSK),
+					  RATE_HT_MCS_MIMO2_MSK);
+		break;
+	case RATE_MCS_MOD_TYPE_VHT:
+		result = RATE_MCS_VHT_MSK_V1;
+		result |= u32_encode_bits(u32_get_bits(rate,
+						       RATE_VHT_MCS_NSS_MSK),
+					  RATE_MCS_CODE_MSK);
+		result |= u32_encode_bits(u32_get_bits(rate, RATE_MCS_NSS_MSK),
+					  RATE_VHT_MCS_NSS_MSK);
+		break;
+	case RATE_MCS_MOD_TYPE_HE: /* not generated */
+	default:
+		WARN_ONCE(1, "bad modulation type %d\n",
+			  u32_get_bits(rate, RATE_MCS_MOD_TYPE_MSK));
+		return 0;
+	}
+
+	if (rate & RATE_MCS_LDPC_MSK)
+		result |= RATE_MCS_LDPC_MSK_V1;
+	WARN_ON_ONCE(u32_get_bits(rate, RATE_MCS_CHAN_WIDTH_MSK) >
+			RATE_MCS_CHAN_WIDTH_160_VAL);
+	result |= (rate & RATE_MCS_CHAN_WIDTH_MSK_V1) |
+		  (rate & RATE_MCS_ANT_AB_MSK) |
+		  (rate & RATE_MCS_STBC_MSK) |
+		  (rate & RATE_MCS_BF_MSK);
+
+	/* not handling DUP since we don't use it */
+	WARN_ON_ONCE(rate & RATE_MCS_DUP_MSK);
+
+	if (rate & RATE_MCS_SGI_MSK)
+		result |= RATE_MCS_SGI_MSK_V1;
+
+	return cpu_to_le32(result);
+}

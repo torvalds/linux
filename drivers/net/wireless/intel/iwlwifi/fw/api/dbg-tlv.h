@@ -16,7 +16,7 @@
 #define IWL_FW_INI_PRESET_DISABLE		0xff
 
 /**
- * struct iwl_fw_ini_hcmd
+ * struct iwl_fw_ini_hcmd - debug configuration host command
  *
  * @id: the debug configuration command type for instance: 0xf6 / 0xf5 / DHC
  * @group: the desired cmd group
@@ -199,7 +199,7 @@ struct iwl_fw_ini_region_tlv {
 } __packed; /* FW_TLV_DEBUG_REGION_API_S_VER_1 */
 
 /**
- * struct iwl_fw_ini_debug_info_tlv
+ * struct iwl_fw_ini_debug_info_tlv - debug info TLV
  *
  * debug configuration name for a specific image
  *
@@ -311,7 +311,7 @@ struct iwl_fw_ini_conf_set_tlv {
 } __packed; /* FW_TLV_DEBUG_CONFIG_SET_API_S_VER_1 */
 
 /**
- * enum iwl_fw_ini_config_set_type
+ * enum iwl_fw_ini_config_set_type - configuration set type
  *
  * @IWL_FW_INI_CONFIG_SET_TYPE_INVALID: invalid config set
  * @IWL_FW_INI_CONFIG_SET_TYPE_DEVICE_PERIPHERY_MAC: for PERIPHERY MAC configuration
@@ -337,7 +337,7 @@ enum iwl_fw_ini_config_set_type {
 } __packed;
 
 /**
- * enum iwl_fw_ini_allocation_id
+ * enum iwl_fw_ini_allocation_id - allocation ID
  *
  * @IWL_FW_INI_ALLOCATION_INVALID: invalid
  * @IWL_FW_INI_ALLOCATION_ID_DBGC1: allocation meant for DBGC1 configuration
@@ -356,7 +356,7 @@ enum iwl_fw_ini_allocation_id {
 }; /* FW_DEBUG_TLV_ALLOCATION_ID_E_VER_1 */
 
 /**
- * enum iwl_fw_ini_buffer_location
+ * enum iwl_fw_ini_buffer_location - buffer location
  *
  * @IWL_FW_INI_LOCATION_INVALID: invalid
  * @IWL_FW_INI_LOCATION_SRAM_PATH: SRAM location
@@ -373,7 +373,7 @@ enum iwl_fw_ini_buffer_location {
 }; /* FW_DEBUG_TLV_BUFFER_LOCATION_E_VER_1 */
 
 /**
- * enum iwl_fw_ini_region_type
+ * enum iwl_fw_ini_region_type - region type
  *
  * @IWL_FW_INI_REGION_INVALID: invalid
  * @IWL_FW_INI_REGION_TLV: uCode and debug TLVs
@@ -437,7 +437,7 @@ enum iwl_fw_ini_region_device_memory_subtype {
 }; /* FW_TLV_DEBUG_REGION_DEVICE_MEMORY_SUBTYPE_API_E */
 
 /**
- * enum iwl_fw_ini_time_point
+ * enum iwl_fw_ini_time_point - time point type
  *
  * Hard coded time points in which the driver can send hcmd or perform dump
  * collection

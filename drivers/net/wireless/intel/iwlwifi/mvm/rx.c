@@ -519,6 +519,8 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 			return;
 		}
 		rx_status->rate_idx = rate;
+		/* override BW - it could be DUP and indicate the wrong BW */
+		rx_status->bw = RATE_INFO_BW_20;
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS

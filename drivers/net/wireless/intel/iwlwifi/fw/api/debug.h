@@ -421,7 +421,7 @@ struct iwl_dbgc1_info {
 } __packed; /* INIT_DRAM_FRAGS_ALLOCATIONS_S_VER_1 */
 
 /**
- * struct iwl_dbg_host_event_cfg_cmd
+ * struct iwl_dbg_host_event_cfg_cmd - host event config command
  * @enabled_severities: enabled severities
  */
 struct iwl_dbg_host_event_cfg_cmd {

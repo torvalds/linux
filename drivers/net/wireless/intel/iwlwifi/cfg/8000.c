@@ -50,7 +50,6 @@ static const struct iwl_family_base_params iwl8000_base = {
 	.smem_offset = IWL8260_SMEM_OFFSET,
 	.smem_len = IWL8260_SMEM_LEN,
 	.apmg_not_supported = true,
-	.min_umac_error_event_table = 0x800000,
 };
 
 static const struct iwl_tt_params iwl8000_tt_params = {

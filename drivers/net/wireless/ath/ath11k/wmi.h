@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH11K_WMI_H
@@ -3463,20 +3463,6 @@ struct scan_cancel_param {
 	u32 pdev_id;
 };
 
-struct  wmi_bcn_send_from_host_cmd {
-	u32 tlv_header;
-	u32 vdev_id;
-	u32 data_len;
-	union {
-		u32 frag_ptr;
-		u32 frag_ptr_lo;
-	};
-	u32 frame_ctrl;
-	u32 dtim_flag;
-	u32 bcn_antenna;
-	u32 frag_ptr_hi;
-};
-
 #define WMI_CHAN_INFO_MODE		GENMASK(5, 0)
 #define WMI_CHAN_INFO_HT40_PLUS		BIT(6)
 #define WMI_CHAN_INFO_PASSIVE		BIT(7)
@@ -4133,8 +4119,10 @@ struct wmi_rate_set {
 struct wmi_vht_rate_set {
 	u32 tlv_header;
 	u32 rx_max_rate;
+	/* MCS at which the peer can transmit */
 	u32 rx_mcs_set;
 	u32 tx_max_rate;
+	/* MCS at which the peer can receive */
 	u32 tx_mcs_set;
 	u32 tx_max_mcs_nss;
 } __packed;
