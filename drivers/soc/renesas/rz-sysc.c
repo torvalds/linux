@@ -16,6 +16,7 @@
 
 #include "rz-sysc.h"
 
+#undef field_get
 #define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
 
 /**
