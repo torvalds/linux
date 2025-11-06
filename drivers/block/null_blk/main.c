@@ -1161,7 +1161,7 @@ static int copy_to_nullb(struct nullb *nullb, struct page *source,
 	return 0;
 }
 
-static int copy_from_nullb(struct nullb *nullb, struct page *dest,
+static void copy_from_nullb(struct nullb *nullb, struct page *dest,
 	unsigned int off, sector_t sector, size_t n)
 {
 	size_t temp, count = 0;
@@ -1184,7 +1184,6 @@ static int copy_from_nullb(struct nullb *nullb, struct page *dest,
 		count += temp;
 		sector += temp >> SECTOR_SHIFT;
 	}
-	return 0;
 }
 
 static void nullb_fill_pattern(struct nullb *nullb, struct page *page,
@@ -1248,8 +1247,8 @@ static int null_transfer(struct nullb *nullb, struct page *page,
 				sector, len);
 
 		if (valid_len) {
-			err = copy_from_nullb(nullb, page, off,
-				sector, valid_len);
+			copy_from_nullb(nullb, page, off, sector,
+					valid_len);
 			off += valid_len;
 			len -= valid_len;
 		}
