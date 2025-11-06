@@ -72,6 +72,37 @@ static void soc_v1_0_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.max_assignment = AMDGPU_SOC_V1_0_DOORBELL_MAX_ASSIGNMENT << 1;
 }
 
+/* Fixed pattern for upper 32bits smn addressing.
+ *   bit[47:40]: Socket ID
+ *   bit[39:34]: Die ID
+ *   bit[32]: local or remote die in same socket
+ * The ext_id is comprised of socket_id and die_id.
+ *   ext_id = (socket_id << 6) | (die_id)
+*/
+u64 soc_v1_0_encode_ext_smn_addressing(int ext_id)
+{
+	u64 ext_offset;
+	int socket_id, die_id;
+
+	/* local die routing for MID0 on local socket */
+	if (ext_id == 0)
+		return 0;
+
+	die_id = ext_id & 0x3;
+	socket_id = (ext_id >> 6) & 0xff;
+
+	/* Initiated from host, accessing to non-MID0 is cross-die traffic */
+	if (socket_id == 0)
+		ext_offset = ((u64)die_id << 34) | (1ULL << 32);
+	else if (socket_id != 0 && die_id != 0)
+		ext_offset = ((u64)socket_id << 40) | ((u64)die_id << 34) |
+				(3ULL << 32);
+	else
+		ext_offset = ((u64)socket_id << 40) | (1ULL << 33);
+
+	return ext_offset;
+}
+
 static u32 soc_v1_0_get_config_memsize(struct amdgpu_device *adev)
 {
 	return adev->nbio.funcs->get_memsize(adev);
@@ -211,6 +242,7 @@ static const struct amdgpu_asic_funcs soc_v1_0_asic_funcs = {
 	.need_full_reset = &soc_v1_0_need_full_reset,
 	.init_doorbell_index = &soc_v1_0_doorbell_index_init,
 	.need_reset_on_init = &soc_v1_0_need_reset_on_init,
+	.encode_ext_smn_addressing = &soc_v1_0_encode_ext_smn_addressing,
 	.reset = soc_v1_0_asic_reset,
 };
 
