@@ -3390,11 +3390,21 @@ lpfc_cmpl_els_disc_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_cmpl_els_edc(phba, cmdiocb, rspiocb);
 		return;
 	}
+
 	if (ulp_status) {
 		/* ELS discovery cmd completes with error */
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS | LOG_CGN_MGMT,
 				 "4203 ELS cmd x%x error: x%x x%X\n", cmd,
 				 ulp_status, ulp_word4);
+
+		/* In the case where the ELS cmd completes with an error and
+		 * the node does not have RPI registered, the node is
+		 * outstanding and should put its initial reference.
+		 */
+		if ((cmd == ELS_CMD_SCR || cmd == ELS_CMD_RDF) &&
+		    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD) &&
+		    !test_and_set_bit(NLP_DROPPED, &ndlp->nlp_flag))
+			lpfc_nlp_put(ndlp);
 		goto out;
 	}
 
@@ -3463,6 +3473,7 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry)
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	struct lpfc_nodelist *ndlp;
+	bool node_created = false;
 
 	cmdsize = (sizeof(uint32_t) + sizeof(SCR));
 
@@ -3472,21 +3483,21 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry)
 		if (!ndlp)
 			return 1;
 		lpfc_enqueue_node(vport, ndlp);
+		node_created = true;
 	}
 
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_SCR);
 	if (!elsiocb)
-		return 1;
+		goto out_node_created;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		rc = lpfc_reg_fab_ctrl_node(vport, ndlp);
 		if (rc) {
-			lpfc_els_free_iocb(phba, elsiocb);
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
 					 "0937 %s: Failed to reg fc node, rc %d\n",
 					 __func__, rc);
-			return 1;
+			goto out_free_iocb;
 		}
 	}
 	pcmd = (uint8_t *)elsiocb->cmd_dmabuf->virt;
@@ -3505,23 +3516,27 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry)
 	phba->fc_stat.elsXmitSCR++;
 	elsiocb->cmd_cmpl = lpfc_cmpl_els_disc_cmd;
 	elsiocb->ndlp = lpfc_nlp_get(ndlp);
-	if (!elsiocb->ndlp) {
-		lpfc_els_free_iocb(phba, elsiocb);
-		return 1;
-	}
+	if (!elsiocb->ndlp)
+		goto out_free_iocb;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 			      "Issue SCR:     did:x%x refcnt %d",
 			      ndlp->nlp_DID, kref_read(&ndlp->kref), 0);
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
-	if (rc == IOCB_ERROR) {
-		lpfc_els_free_iocb(phba, elsiocb);
-		lpfc_nlp_put(ndlp);
-		return 1;
-	}
+	if (rc == IOCB_ERROR)
+		goto out_iocb_error;
 
 	return 0;
+
+out_iocb_error:
+	lpfc_nlp_put(ndlp);
+out_free_iocb:
+	lpfc_els_free_iocb(phba, elsiocb);
+out_node_created:
+	if (node_created)
+		lpfc_nlp_put(ndlp);
+	return 1;
 }
 
 /**
@@ -3734,7 +3749,12 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
  *
  * Return code
  *   0 - Successfully issued rdf command
- *   1 - Failed to issue rdf command
+ *   < 0 - Failed to issue rdf command
+ *   -EACCES - RDF not required for NPIV_PORT
+ *   -ENODEV - No fabric controller device available
+ *   -ENOMEM - No available memory
+ *   -EIO - The mailbox failed to complete successfully.
+ *
  **/
 int
 lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
@@ -3745,8 +3765,14 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 	struct lpfc_nodelist *ndlp;
 	uint16_t cmdsize;
 	int rc;
+	bool node_created = false;
+	int err;
 
 	cmdsize = sizeof(*prdf);
+
+	/* RDF ELS is not required on an NPIV VN_Port. */
+	if (vport->port_type == LPFC_NPIV_PORT)
+		return -EACCES;
 
 	ndlp = lpfc_findnode_did(vport, Fabric_Cntl_DID);
 	if (!ndlp) {
@@ -3754,16 +3780,15 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 		if (!ndlp)
 			return -ENODEV;
 		lpfc_enqueue_node(vport, ndlp);
+		node_created = true;
 	}
-
-	/* RDF ELS is not required on an NPIV VN_Port. */
-	if (vport->port_type == LPFC_NPIV_PORT)
-		return -EACCES;
 
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_RDF);
-	if (!elsiocb)
-		return -ENOMEM;
+	if (!elsiocb) {
+		err = -ENOMEM;
+		goto out_node_created;
+	}
 
 	/* Configure the payload for the supported FPIN events. */
 	prdf = (struct lpfc_els_rdf_req *)elsiocb->cmd_dmabuf->virt;
@@ -3789,8 +3814,8 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 	elsiocb->cmd_cmpl = lpfc_cmpl_els_disc_cmd;
 	elsiocb->ndlp = lpfc_nlp_get(ndlp);
 	if (!elsiocb->ndlp) {
-		lpfc_els_free_iocb(phba, elsiocb);
-		return -EIO;
+		err = -EIO;
+		goto out_free_iocb;
 	}
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
@@ -3799,11 +3824,19 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
-		lpfc_els_free_iocb(phba, elsiocb);
-		lpfc_nlp_put(ndlp);
-		return -EIO;
+		err = -EIO;
+		goto out_iocb_error;
 	}
 	return 0;
+
+out_iocb_error:
+	lpfc_nlp_put(ndlp);
+out_free_iocb:
+	lpfc_els_free_iocb(phba, elsiocb);
+out_node_created:
+	if (node_created)
+		lpfc_nlp_put(ndlp);
+	return err;
 }
 
  /**
@@ -3824,19 +3857,23 @@ static int
 lpfc_els_rcv_rdf(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		 struct lpfc_nodelist *ndlp)
 {
+	int rc;
+
+	rc = lpfc_els_rsp_acc(vport, ELS_CMD_RDF, cmdiocb, ndlp, NULL);
 	/* Send LS_ACC */
-	if (lpfc_els_rsp_acc(vport, ELS_CMD_RDF, cmdiocb, ndlp, NULL)) {
+	if (rc) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS | LOG_CGN_MGMT,
-				 "1623 Failed to RDF_ACC from x%x for x%x\n",
-				 ndlp->nlp_DID, vport->fc_myDID);
+				 "1623 Failed to RDF_ACC from x%x for x%x Data: %d\n",
+				 ndlp->nlp_DID, vport->fc_myDID, rc);
 		return -EIO;
 	}
 
+	rc = lpfc_issue_els_rdf(vport, 0);
 	/* Issue new RDF for reregistering */
-	if (lpfc_issue_els_rdf(vport, 0)) {
+	if (rc) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS | LOG_CGN_MGMT,
-				 "2623 Failed to re register RDF for x%x\n",
-				 vport->fc_myDID);
+				 "2623 Failed to re register RDF for x%x Data: %d\n",
+				 vport->fc_myDID, rc);
 		return -EIO;
 	}
 
