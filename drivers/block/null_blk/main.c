@@ -1129,8 +1129,8 @@ again:
 	return 0;
 }
 
-static blk_status_t copy_to_nullb(struct nullb *nullb, struct page *source,
-	unsigned int off, sector_t sector, size_t n, bool is_fua)
+static blk_status_t copy_to_nullb(struct nullb *nullb, void *source,
+				  sector_t sector, size_t n, bool is_fua)
 {
 	size_t temp, count = 0;
 	unsigned int offset;
@@ -1148,7 +1148,7 @@ static blk_status_t copy_to_nullb(struct nullb *nullb, struct page *source,
 		if (!t_page)
 			return BLK_STS_NOSPC;
 
-		memcpy_page(t_page->page, offset, source, off + count, temp);
+		memcpy_to_page(t_page->page, offset, source + count, temp);
 
 		__set_bit(sector & SECTOR_MASK, t_page->bitmap);
 
@@ -1161,8 +1161,8 @@ static blk_status_t copy_to_nullb(struct nullb *nullb, struct page *source,
 	return BLK_STS_OK;
 }
 
-static void copy_from_nullb(struct nullb *nullb, struct page *dest,
-	unsigned int off, sector_t sector, size_t n)
+static void copy_from_nullb(struct nullb *nullb, void *dest, sector_t sector,
+			    size_t n)
 {
 	size_t temp, count = 0;
 	unsigned int offset;
@@ -1176,20 +1176,14 @@ static void copy_from_nullb(struct nullb *nullb, struct page *dest,
 			!null_cache_active(nullb));
 
 		if (t_page)
-			memcpy_page(dest, off + count, t_page->page, offset,
-				    temp);
+			memcpy_from_page(dest + count, t_page->page, offset,
+					 temp);
 		else
-			memzero_page(dest, off + count, temp);
+			memset(dest + count, 0, temp);
 
 		count += temp;
 		sector += temp >> SECTOR_SHIFT;
 	}
-}
-
-static void nullb_fill_pattern(struct nullb *nullb, struct page *page,
-			       unsigned int len, unsigned int off)
-{
-	memset_page(page, off, 0xff, len);
 }
 
 blk_status_t null_handle_discard(struct nullb_device *dev,
@@ -1240,27 +1234,29 @@ static blk_status_t null_transfer(struct nullb *nullb, struct page *page,
 	struct nullb_device *dev = nullb->dev;
 	blk_status_t err = BLK_STS_OK;
 	unsigned int valid_len = len;
+	void *p;
 
+	p = kmap_local_page(page) + off;
 	if (!is_write) {
 		if (dev->zoned)
 			valid_len = null_zone_valid_read_len(nullb,
 				sector, len);
 
 		if (valid_len) {
-			copy_from_nullb(nullb, page, off, sector,
-					valid_len);
+			copy_from_nullb(nullb, p, sector, valid_len);
 			off += valid_len;
 			len -= valid_len;
 		}
 
 		if (len)
-			nullb_fill_pattern(nullb, page, len, off);
+			memset(p + valid_len, 0xff, len);
 		flush_dcache_page(page);
 	} else {
 		flush_dcache_page(page);
-		err = copy_to_nullb(nullb, page, off, sector, len, is_fua);
+		err = copy_to_nullb(nullb, p, sector, len, is_fua);
 	}
 
+	kunmap_local(p);
 	return err;
 }
 
