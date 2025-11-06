@@ -3504,16 +3504,16 @@ static void __split_folio_to_order(struct folio *folio, int old_order,
  *            will be split until its order becomes @new_order.
  * @xas: xa_state pointing to folio->mapping->i_pages and locked by caller
  * @mapping: @folio->mapping
- * @uniform_split: if the split is uniform or not (buddy allocator like split)
+ * @split_type: if the split is uniform or not (buddy allocator like split)
  *
  *
  * 1. uniform split: the given @folio into multiple @new_order small folios,
  *    where all small folios have the same order. This is done when
- *    uniform_split is true.
+ *    split_type is SPLIT_TYPE_UNIFORM.
  * 2. buddy allocator like (non-uniform) split: the given @folio is split into
  *    half and one of the half (containing the given page) is split into half
  *    until the given @folio's order becomes @new_order. This is done when
- *    uniform_split is false.
+ *    split_type is SPLIT_TYPE_NON_UNIFORM.
  *
  * The high level flow for these two methods are:
  *
@@ -3536,11 +3536,11 @@ static void __split_folio_to_order(struct folio *folio, int old_order,
  */
 static int __split_unmapped_folio(struct folio *folio, int new_order,
 		struct page *split_at, struct xa_state *xas,
-		struct address_space *mapping, bool uniform_split)
+		struct address_space *mapping, enum split_type split_type)
 {
 	const bool is_anon = folio_test_anon(folio);
 	int old_order = folio_order(folio);
-	int start_order = uniform_split ? new_order : old_order - 1;
+	int start_order = split_type == SPLIT_TYPE_UNIFORM ? new_order : old_order - 1;
 	int split_order;
 
 	/*
@@ -3562,7 +3562,7 @@ static int __split_unmapped_folio(struct folio *folio, int new_order,
 			 * irq is disabled to allocate enough memory, whereas
 			 * non-uniform split can handle ENOMEM.
 			 */
-			if (uniform_split)
+			if (split_type == SPLIT_TYPE_UNIFORM)
 				xas_split(xas, folio, old_order);
 			else {
 				xas_set_order(xas, folio->index, split_order);
@@ -3659,7 +3659,7 @@ bool uniform_split_supported(struct folio *folio, unsigned int new_order,
  * @split_at: a page within the new folio
  * @lock_at: a page within @folio to be left locked to caller
  * @list: after-split folios will be put on it if non NULL
- * @uniform_split: perform uniform split or not (non-uniform split)
+ * @split_type: perform uniform split or not (non-uniform split)
  * @unmapped: The pages are already unmapped, they are migration entries.
  *
  * It calls __split_unmapped_folio() to perform uniform and non-uniform split.
@@ -3676,7 +3676,7 @@ bool uniform_split_supported(struct folio *folio, unsigned int new_order,
  */
 static int __folio_split(struct folio *folio, unsigned int new_order,
 		struct page *split_at, struct page *lock_at,
-		struct list_head *list, bool uniform_split, bool unmapped)
+		struct list_head *list, enum split_type split_type, bool unmapped)
 {
 	struct deferred_split *ds_queue = get_deferred_split_queue(folio);
 	XA_STATE(xas, &folio->mapping->i_pages, folio->index);
@@ -3711,10 +3711,10 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 	if (new_order >= old_order)
 		return -EINVAL;
 
-	if (uniform_split && !uniform_split_supported(folio, new_order, true))
+	if (split_type == SPLIT_TYPE_UNIFORM && !uniform_split_supported(folio, new_order, true))
 		return -EINVAL;
 
-	if (!uniform_split &&
+	if (split_type == SPLIT_TYPE_NON_UNIFORM &&
 	    !non_uniform_split_supported(folio, new_order, true))
 		return -EINVAL;
 
@@ -3764,7 +3764,7 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 			goto out;
 		}
 
-		if (uniform_split) {
+		if (split_type == SPLIT_TYPE_UNIFORM) {
 			xas_set_order(&xas, folio->index, new_order);
 			xas_split_alloc(&xas, folio, old_order, gfp);
 			if (xas_error(&xas)) {
@@ -3869,7 +3869,7 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 		lruvec = folio_lruvec_lock(folio);
 
 		ret = __split_unmapped_folio(folio, new_order, split_at, &xas,
-					     mapping, uniform_split);
+					     mapping, split_type);
 
 		/*
 		 * Unfreeze after-split folios and put them back to the right
@@ -4045,8 +4045,8 @@ int __split_huge_page_to_list_to_order(struct page *page, struct list_head *list
 {
 	struct folio *folio = page_folio(page);
 
-	return __folio_split(folio, new_order, &folio->page, page, list, true,
-				unmapped);
+	return __folio_split(folio, new_order, &folio->page, page, list,
+			     SPLIT_TYPE_UNIFORM, unmapped);
 }
 
 /**
@@ -4077,7 +4077,7 @@ int folio_split(struct folio *folio, unsigned int new_order,
 		struct page *split_at, struct list_head *list)
 {
 	return __folio_split(folio, new_order, split_at, &folio->page, list,
-			false, false);
+			     SPLIT_TYPE_NON_UNIFORM, false);
 }
 
 int min_order_for_split(struct folio *folio)
