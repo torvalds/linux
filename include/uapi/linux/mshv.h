@@ -89,7 +89,7 @@ enum {
  * @rsvd: MBZ
  *
  * Map or unmap a region of userspace memory to Guest Physical Addresses (GPA).
- * Mappings can't overlap in GPA space or userspace.
+ * Mappings can't overlap in GPA space.
  * To unmap, these fields must match an existing mapping.
  */
 struct mshv_user_mem_region {
