@@ -1319,7 +1319,7 @@ static void do_sched_yield(void)
 	rq = this_rq_lock_irq(&rf);
 
 	schedstat_inc(rq->yld_count);
-	current->sched_class->yield_task(rq);
+	rq->donor->sched_class->yield_task(rq);
 
 	preempt_disable();
 	rq_unlock_irq(rq, &rf);
@@ -1388,12 +1388,13 @@ EXPORT_SYMBOL(yield);
  */
 int __sched yield_to(struct task_struct *p, bool preempt)
 {
-	struct task_struct *curr = current;
+	struct task_struct *curr;
 	struct rq *rq, *p_rq;
 	int yielded = 0;
 
 	scoped_guard (raw_spinlock_irqsave, &p->pi_lock) {
 		rq = this_rq();
+		curr = rq->donor;
 
 again:
 		p_rq = task_rq(p);

@@ -1474,7 +1474,7 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
 static void yield_task_scx(struct rq *rq)
 {
 	struct scx_sched *sch = scx_root;
-	struct task_struct *p = rq->curr;
+	struct task_struct *p = rq->donor;
 
 	if (SCX_HAS_OP(sch, yield))
 		SCX_CALL_OP_2TASKS_RET(sch, SCX_KF_REST, yield, rq, p, NULL);
@@ -1485,7 +1485,7 @@ static void yield_task_scx(struct rq *rq)
 static bool yield_to_task_scx(struct rq *rq, struct task_struct *to)
 {
 	struct scx_sched *sch = scx_root;
-	struct task_struct *from = rq->curr;
+	struct task_struct *from = rq->donor;
 
 	if (SCX_HAS_OP(sch, yield))
 		return SCX_CALL_OP_2TASKS_RET(sch, SCX_KF_REST, yield, rq,
