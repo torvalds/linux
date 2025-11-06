@@ -831,6 +831,7 @@ int usbnet_stop(struct net_device *net)
 
 	clear_bit(EVENT_DEV_OPEN, &dev->flags);
 	netif_stop_queue (net);
+	netdev_reset_queue(net);
 
 	netif_info(dev, ifdown, dev->net,
 		   "stop stats: rx/tx %lu/%lu, errs %lu/%lu\n",
@@ -939,6 +940,7 @@ int usbnet_open(struct net_device *net)
 	}
 
 	set_bit(EVENT_DEV_OPEN, &dev->flags);
+	netdev_reset_queue(net);
 	netif_start_queue (net);
 	netif_info(dev, ifup, dev->net,
 		   "open: enable queueing (rx %d, tx %d) mtu %d %s framing\n",
@@ -1500,6 +1502,7 @@ netdev_tx_t usbnet_start_xmit(struct sk_buff *skb, struct net_device *net)
 	case 0:
 		netif_trans_update(net);
 		__usbnet_queue_skb(&dev->txq, skb, tx_start);
+		netdev_sent_queue(net, skb->len);
 		if (dev->txq.qlen >= TX_QLEN (dev))
 			netif_stop_queue (net);
 	}
@@ -1563,6 +1566,7 @@ static inline void usb_free_skb(struct sk_buff *skb)
 static void usbnet_bh(struct timer_list *t)
 {
 	struct usbnet		*dev = timer_container_of(dev, t, delay);
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 	struct sk_buff		*skb;
 	struct skb_data		*entry;
 
@@ -1574,6 +1578,8 @@ static void usbnet_bh(struct timer_list *t)
 				usb_free_skb(skb);
 			continue;
 		case tx_done:
+			bytes_compl += skb->len;
+			pkts_compl++;
 			kfree(entry->urb->sg);
 			fallthrough;
 		case rx_cleanup:
@@ -1583,6 +1589,10 @@ static void usbnet_bh(struct timer_list *t)
 			netdev_dbg(dev->net, "bogus skb state %d\n", entry->state);
 		}
 	}
+
+	spin_lock_bh(&dev->bql_spinlock);
+	netdev_completed_queue(dev->net, pkts_compl, bytes_compl);
+	spin_unlock_bh(&dev->bql_spinlock);
 
 	/* restart RX again after disabling due to high error rate */
 	clear_bit(EVENT_RX_KILL, &dev->flags);
@@ -1755,6 +1765,7 @@ usbnet_probe(struct usb_interface *udev, const struct usb_device_id *prod)
 	skb_queue_head_init (&dev->txq);
 	skb_queue_head_init (&dev->done);
 	skb_queue_head_init(&dev->rxq_pause);
+	spin_lock_init(&dev->bql_spinlock);
 	INIT_WORK(&dev->bh_work, usbnet_bh_work);
 	INIT_WORK (&dev->kevent, usbnet_deferred_kevent);
 	init_usb_anchor(&dev->deferred);
