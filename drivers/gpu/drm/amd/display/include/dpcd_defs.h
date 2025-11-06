@@ -61,6 +61,21 @@
 #ifndef DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 0x1b1
 #endif /* DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 */
+#ifndef DP_PR_ERROR_STATUS                  // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_ERROR_STATUS                  0x2020  /* DP 2.0 */
+#endif /* DP_PR_ERROR_STATUS */
+#ifndef DP_PR_LINK_CRC_ERROR               // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_LINK_CRC_ERROR               (1 << 0)
+#endif /* DP_PR_LINK_CRC_ERROR */
+#ifndef DP_PR_RFB_STORAGE_ERROR            // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_RFB_STORAGE_ERROR            (1 << 1)
+#endif /* DP_PR_RFB_STORAGE_ERROR */
+#ifndef DP_PR_VSC_SDP_UNCORRECTABLE_ERROR // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_VSC_SDP_UNCORRECTABLE_ERROR  (1 << 2) /* eDP 1.4 */
+#endif /* DP_PR_VSC_SDP_UNCORRECTABLE_ERROR */
+#ifndef DP_PR_ASSDP_MISSING_ERROR          // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_ASSDP_MISSING_ERROR          (1 << 3) /* eDP 1.5 */
+#endif /* DP_PR_ASSDP_MISSING_ERROR */
 
 enum dpcd_revision {
 	DPCD_REV_10 = 0x10,

@@ -1423,6 +1423,17 @@ union dpcd_sink_active_vtotal_control_mode {
 	unsigned char raw;
 };
 
+union pr_error_status {
+	struct {
+		unsigned char LINK_CRC_ERROR        :1;
+		unsigned char RFB_STORAGE_ERROR     :1;
+		unsigned char VSC_SDP_ERROR         :1;
+		unsigned char ASSDP_MISSING_ERROR   :1;
+		unsigned char RESERVED              :4;
+	} bits;
+	unsigned char raw;
+};
+
 union psr_error_status {
 	struct {
 		unsigned char LINK_CRC_ERROR        :1;
