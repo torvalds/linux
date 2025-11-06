@@ -99,10 +99,30 @@
 #define VOD_MID_RANGE				0x3
 #define VOD_BIG_RANGE				0x7
 #define VOD_MAX_RANGE				0xf
+/* Analog Register Part: reg18 */
+#define LANE0_PRE_EMPHASIS_ENABLE_MASK		BIT(6)
+#define LANE0_PRE_EMPHASIS_ENABLE		BIT(6)
+#define LANE0_PRE_EMPHASIS_DISABLE		0
+#define LANE1_PRE_EMPHASIS_ENABLE_MASK		BIT(5)
+#define LANE1_PRE_EMPHASIS_ENABLE		BIT(5)
+#define LANE1_PRE_EMPHASIS_DISABLE		0
+/* Analog Register Part: reg19 */
+#define PRE_EMPHASIS_RANGE_SET_MASK		GENMASK(7, 6)
+#define PRE_EMPHASIS_RANGE_SET(x)		UPDATE(x, 7, 6)
 /* Analog Register Part: reg1E */
 #define PLL_MODE_SEL_MASK			GENMASK(6, 5)
 #define PLL_MODE_SEL_LVDS_MODE			0
 #define PLL_MODE_SEL_MIPI_MODE			BIT(5)
+/* Analog Register Part: reg20 */
+#define LANE0_PRE_EMPHASIS_RANGE_SET_MASK	GENMASK(7, 6)
+#define LANE0_PRE_EMPHASIS_RANGE_SET(x)		UPDATE(x, 7, 6)
+/* Analog Register Part: reg21 */
+#define LANE1_PRE_EMPHASIS_RANGE_SET_MASK	GENMASK(7, 6)
+#define LANE1_PRE_EMPHASIS_RANGE_SET(x)		UPDATE(x, 7, 6)
+#define PRE_EMPHASIS_MIN_RANGE			0x0
+#define PRE_EMPHASIS_MID_RANGE			0x1
+#define PRE_EMPHASIS_MAX_RANGE			0x2
+#define PRE_EMPHASIS_RESERVED_RANGE		0x3
 /* Digital Register Part: reg00 */
 #define REG_DIG_RSTN_MASK			BIT(0)
 #define REG_DIG_RSTN_NORMAL			BIT(0)
@@ -193,6 +213,7 @@
 
 enum phy_max_rate {
 	MAX_1GHZ,
+	MAX_1_5GHZ,
 	MAX_2_5GHZ,
 };
 
@@ -200,6 +221,7 @@ struct inno_video_phy_plat_data {
 	const struct inno_mipi_dphy_timing *inno_mipi_dphy_timing_table;
 	const unsigned int num_timings;
 	enum phy_max_rate max_rate;
+	unsigned int max_lanes;
 };
 
 struct inno_dsidphy {
@@ -256,6 +278,24 @@ struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_1ghz[] = {
 	{ 700000000, 0x0, 0x3e, 0x1e, 0x08, 0x6a},
 	{ 800000000, 0x0, 0x21, 0x1f, 0x09, 0x29},
 	{1000000000, 0x0, 0x09, 0x20, 0x09, 0x27},
+};
+
+static const
+struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_1_5ghz[] = {
+	{ 110, 0x02, 0x7f, 0x16, 0x02, 0x02},
+	{ 150, 0x02, 0x7f, 0x16, 0x03, 0x02},
+	{ 200, 0x02, 0x7f, 0x17, 0x04, 0x02},
+	{ 250, 0x02, 0x7f, 0x17, 0x05, 0x04},
+	{ 300, 0x02, 0x7f, 0x18, 0x06, 0x04},
+	{ 400, 0x03, 0x7e, 0x19, 0x07, 0x04},
+	{ 500, 0x03, 0x7c, 0x1b, 0x07, 0x08},
+	{ 600, 0x03, 0x70, 0x1d, 0x08, 0x10},
+	{ 700, 0x05, 0x40, 0x1e, 0x08, 0x30},
+	{ 800, 0x05, 0x02, 0x1f, 0x09, 0x30},
+	{1000, 0x05, 0x08, 0x20, 0x09, 0x30},
+	{1200, 0x06, 0x03, 0x32, 0x14, 0x0f},
+	{1400, 0x09, 0x03, 0x32, 0x14, 0x0f},
+	{1500, 0x0d, 0x42, 0x36, 0x0e, 0x0f},
 };
 
 static const
@@ -372,6 +412,7 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	u32 hs_exit, clk_post, clk_pre, wakeup, lpx, ta_go, ta_sure, ta_wait;
 	u32 hs_prepare, hs_trail, hs_zero, clk_lane_hs_zero, data_lane_hs_zero;
 	unsigned int i;
+	u32 val;
 
 	timings = inno->pdata->inno_mipi_dphy_timing_table;
 
@@ -390,6 +431,23 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	if (inno->pdata->max_rate == MAX_2_5GHZ) {
 		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
 				PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
+				CLOCK_LANE_VOD_RANGE_SET_MASK,
+				CLOCK_LANE_VOD_RANGE_SET(VOD_MAX_RANGE));
+	} else if (inno->pdata->max_rate == MAX_1_5GHZ) {
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x18,
+				LANE0_PRE_EMPHASIS_ENABLE_MASK, LANE0_PRE_EMPHASIS_ENABLE);
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x18,
+				LANE1_PRE_EMPHASIS_ENABLE_MASK, LANE1_PRE_EMPHASIS_ENABLE);
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x19,
+				PRE_EMPHASIS_RANGE_SET_MASK,
+				PRE_EMPHASIS_RANGE_SET(PRE_EMPHASIS_MID_RANGE));
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1a,
+				LANE0_PRE_EMPHASIS_RANGE_SET_MASK,
+				LANE0_PRE_EMPHASIS_RANGE_SET(PRE_EMPHASIS_MID_RANGE));
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1b,
+				LANE1_PRE_EMPHASIS_RANGE_SET_MASK,
+				LANE1_PRE_EMPHASIS_RANGE_SET(PRE_EMPHASIS_MID_RANGE));
 		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
 				CLOCK_LANE_VOD_RANGE_SET_MASK,
 				CLOCK_LANE_VOD_RANGE_SET(VOD_MAX_RANGE));
@@ -518,10 +576,25 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 				T_TA_WAIT_CNT(ta_wait));
 	}
 
-	/* Enable all lanes on analog part */
+	/* Enable lanes on analog part */
+	switch (inno->pdata->max_lanes) {
+	case 1:
+		val =  LANE_EN_0;
+		break;
+	case 2:
+		val =  LANE_EN_0 | LANE_EN_1;
+		break;
+	case 3:
+		val = LANE_EN_0 | LANE_EN_1 | LANE_EN_2;
+		break;
+	case 4:
+	default:
+		val = LANE_EN_0 | LANE_EN_1 | LANE_EN_2 | LANE_EN_3;
+		break;
+	}
+
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
-			LANE_EN_MASK, LANE_EN_CK | LANE_EN_3 | LANE_EN_2 |
-			LANE_EN_1 | LANE_EN_0);
+			LANE_EN_MASK, LANE_EN_CK | val);
 }
 
 static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
@@ -680,12 +753,21 @@ static const struct inno_video_phy_plat_data max_1ghz_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_1ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_1ghz),
 	.max_rate = MAX_1GHZ,
+	.max_lanes = 4,
+};
+
+static const struct inno_video_phy_plat_data max_1_5ghz_video_phy_plat_data = {
+	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_1_5ghz,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_1_5ghz),
+	.max_rate = MAX_1_5GHZ,
+	.max_lanes = 2,
 };
 
 static const struct inno_video_phy_plat_data max_2_5ghz_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_2_5ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_2_5ghz),
 	.max_rate = MAX_2_5GHZ,
+	.max_lanes = 4,
 };
 
 static int inno_dsidphy_probe(struct platform_device *pdev)
@@ -767,6 +849,9 @@ static const struct of_device_id inno_dsidphy_of_match[] = {
 	}, {
 		.compatible = "rockchip,rk3368-dsi-dphy",
 		.data = &max_1ghz_video_phy_plat_data,
+	}, {
+		.compatible = "rockchip,rk3506-dsi-dphy",
+		.data = &max_1_5ghz_video_phy_plat_data,
 	}, {
 		.compatible = "rockchip,rk3568-dsi-dphy",
 		.data = &max_2_5ghz_video_phy_plat_data,
