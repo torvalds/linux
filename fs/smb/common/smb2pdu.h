@@ -1016,6 +1016,8 @@ struct smb2_set_info_rsp {
 #define FILE_ACTION_REMOVED_STREAM              0x00000007
 #define FILE_ACTION_MODIFIED_STREAM             0x00000008
 #define FILE_ACTION_REMOVED_BY_DELETE           0x00000009
+#define FILE_ACTION_ID_NOT_TUNNELLED            0x0000000A
+#define FILE_ACTION_TUNNELLED_ID_COLLISION      0x0000000B
 
 /* See MS-SMB2 2.2.35 */
 struct smb2_change_notify_req {
