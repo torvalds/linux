@@ -795,6 +795,7 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	__le16 fc = hdr->frame_control, sc = hdr->seq_ctrl;
 	u16 seqno = le16_to_cpu(sc);
+	bool hw_bigtk = false;
 	u8 fc_type, fc_stype;
 	u32 val;
 
@@ -820,7 +821,11 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 	    info->flags & IEEE80211_TX_CTL_USE_MINRATE)
 		val |= MT_TXD1_FIXED_RATE;
 
-	if (key && multicast && ieee80211_is_robust_mgmt_frame(skb)) {
+	if (is_mt7990(&dev->mt76) && ieee80211_is_beacon(fc) &&
+	    (wcid->hw_key_idx2 == 6 || wcid->hw_key_idx2 == 7))
+		hw_bigtk = true;
+
+	if ((key && multicast && ieee80211_is_robust_mgmt_frame(skb)) || hw_bigtk) {
 		val |= MT_TXD1_BIP;
 		txwi[3] &= ~cpu_to_le32(MT_TXD3_PROTECT_FRAME);
 	}
