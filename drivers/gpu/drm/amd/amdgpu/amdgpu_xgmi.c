@@ -333,6 +333,10 @@ static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link
 	}
 
 	i = global_link_num / n;
+
+	if (!(adev->aid_mask & BIT(i)))
+		return U32_MAX;
+
 	addr += adev->asic_funcs->encode_ext_smn_addressing(i);
 
 	return RREG32_PCIE_EXT(addr);
