@@ -562,8 +562,7 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
 			bio = gfs2_log_alloc_bio(sdp, dblock, gfs2_end_log_read);
 			bio->bi_opf = REQ_OP_READ;
 add_block_to_new_bio:
-			if (!bio_add_folio(bio, folio, bsize, off))
-				BUG();
+			bio_add_folio_nofail(bio, folio, bsize, off);
 block_added:
 			off += bsize;
 			if (off == folio_size(folio))
