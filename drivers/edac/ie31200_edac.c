@@ -140,6 +140,7 @@
 #define IE31200_CAPID0_ECC		BIT(1)
 
 /* Non-constant mask variant of FIELD_GET() */
+#undef field_get
 #define field_get(_mask, _reg)  (((_reg) & (_mask)) >> (ffs(_mask) - 1))
 
 static int nr_channels;
