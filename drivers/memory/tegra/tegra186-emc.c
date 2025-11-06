@@ -322,9 +322,11 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 				     "failed to get BPMP\n");
 
 	emc->clk = devm_clk_get(&pdev->dev, "emc");
-	if (IS_ERR(emc->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(emc->clk),
-				     "failed to get EMC clock\n");
+	if (IS_ERR(emc->clk)) {
+		err = dev_err_probe(&pdev->dev, PTR_ERR(emc->clk),
+				    "failed to get EMC clock\n");
+		goto put_bpmp;
+	}
 
 	platform_set_drvdata(pdev, emc);
 	emc->dev = &pdev->dev;
