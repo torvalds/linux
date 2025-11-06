@@ -5220,11 +5220,13 @@ int trace_keep_overwrite(struct tracer *tracer, u64 mask, int set)
 
 int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 {
-	if ((mask == TRACE_ITER(RECORD_TGID)) ||
-	    (mask == TRACE_ITER(RECORD_CMD)) ||
-	    (mask == TRACE_ITER(TRACE_PRINTK)) ||
-	    (mask == TRACE_ITER(COPY_MARKER)))
+	switch (mask) {
+	case TRACE_ITER(RECORD_TGID):
+	case TRACE_ITER(RECORD_CMD):
+	case TRACE_ITER(TRACE_PRINTK):
+	case TRACE_ITER(COPY_MARKER):
 		lockdep_assert_held(&event_mutex);
+	}
 
 	/* do nothing if flag is already set */
 	if (!!(tr->trace_flags & mask) == !!enabled)
@@ -5235,7 +5237,8 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 		if (tr->current_trace->flag_changed(tr, mask, !!enabled))
 			return -EINVAL;
 
-	if (mask == TRACE_ITER(TRACE_PRINTK)) {
+	switch (mask) {
+	case TRACE_ITER(TRACE_PRINTK):
 		if (enabled) {
 			update_printk_trace(tr);
 		} else {
@@ -5252,9 +5255,9 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 			if (printk_trace == tr)
 				update_printk_trace(&global_trace);
 		}
-	}
+		break;
 
-	if (mask == TRACE_ITER(COPY_MARKER)) {
+	case TRACE_ITER(COPY_MARKER):
 		update_marker_trace(tr, enabled);
 		/* update_marker_trace updates the tr->trace_flags */
 		return 0;
@@ -5265,10 +5268,12 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 	else
 		tr->trace_flags &= ~mask;
 
-	if (mask == TRACE_ITER(RECORD_CMD))
+	switch (mask) {
+	case TRACE_ITER(RECORD_CMD):
 		trace_event_enable_cmd_record(enabled);
+		break;
 
-	if (mask == TRACE_ITER(RECORD_TGID)) {
+	case TRACE_ITER(RECORD_TGID):
 
 		if (trace_alloc_tgid_map() < 0) {
 			tr->trace_flags &= ~TRACE_ITER(RECORD_TGID);
@@ -5276,24 +5281,27 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 		}
 
 		trace_event_enable_tgid_record(enabled);
-	}
+		break;
 
-	if (mask == TRACE_ITER(EVENT_FORK))
+	case TRACE_ITER(EVENT_FORK):
 		trace_event_follow_fork(tr, enabled);
+		break;
 
-	if (mask == TRACE_ITER(FUNC_FORK))
+	case TRACE_ITER(FUNC_FORK):
 		ftrace_pid_follow_fork(tr, enabled);
+		break;
 
-	if (mask == TRACE_ITER(OVERWRITE)) {
+	case TRACE_ITER(OVERWRITE):
 		ring_buffer_change_overwrite(tr->array_buffer.buffer, enabled);
 #ifdef CONFIG_TRACER_MAX_TRACE
 		ring_buffer_change_overwrite(tr->max_buffer.buffer, enabled);
 #endif
-	}
+		break;
 
-	if (mask == TRACE_ITER(PRINTK)) {
+	case TRACE_ITER(PRINTK):
 		trace_printk_start_stop_comm(enabled);
 		trace_printk_control(enabled);
+		break;
 	}
 
 	return 0;
