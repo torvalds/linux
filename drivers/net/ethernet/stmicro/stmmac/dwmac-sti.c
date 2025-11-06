@@ -77,10 +77,9 @@
  *	001-RGMII
  *	010-SGMII
  *	100-RMII
- * These are the DW MAC phy_intf_sel values
+ * These are the DW MAC phy_intf_sel values.
  */
 #define MII_PHY_SEL_MASK	GENMASK(4, 2)
-#define MII_PHY_SEL_VAL(val)	FIELD_PREP_CONST(MII_PHY_SEL_MASK, val)
 
 struct sti_dwmac {
 	phy_interface_t interface;	/* MII interface */
@@ -97,15 +96,6 @@ struct sti_dwmac {
 
 struct sti_dwmac_of_data {
 	void (*fix_retime_src)(void *priv, int speed, unsigned int mode);
-};
-
-static u8 phy_intf_sels[] = {
-	[PHY_INTERFACE_MODE_MII] = PHY_INTF_SEL_GMII_MII,
-	[PHY_INTERFACE_MODE_GMII] = PHY_INTF_SEL_GMII_MII,
-	[PHY_INTERFACE_MODE_RGMII] = PHY_INTF_SEL_RGMII,
-	[PHY_INTERFACE_MODE_RGMII_ID] = PHY_INTF_SEL_RGMII,
-	[PHY_INTERFACE_MODE_SGMII] = PHY_INTF_SEL_SGMII,
-	[PHY_INTERFACE_MODE_RMII] = PHY_INTF_SEL_RMII,
 };
 
 enum {
@@ -160,13 +150,19 @@ static int sti_dwmac_set_mode(struct sti_dwmac *dwmac)
 {
 	struct regmap *regmap = dwmac->regmap;
 	u32 reg = dwmac->ctrl_reg;
-	u8 phy_intf_sel;
+	int phy_intf_sel;
 	u32 val;
 
 	if (dwmac->gmac_en)
 		regmap_update_bits(regmap, reg, EN_MASK, EN);
 
-	phy_intf_sel = phy_intf_sels[dwmac->interface];
+	phy_intf_sel = stmmac_get_phy_intf_sel(dwmac->interface);
+	if (phy_intf_sel != PHY_INTF_SEL_GMII_MII &&
+	    phy_intf_sel != PHY_INTF_SEL_RGMII &&
+	    phy_intf_sel != PHY_INTF_SEL_SGMII &&
+	    phy_intf_sel != PHY_INTF_SEL_RMII)
+		phy_intf_sel = PHY_INTF_SEL_GMII_MII;
+
 	regmap_update_bits(regmap, reg, MII_PHY_SEL_MASK,
 			   FIELD_PREP(MII_PHY_SEL_MASK, phy_intf_sel));
 
