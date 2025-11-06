@@ -22,8 +22,8 @@
 /* Register defines for CREG syscon */
 #define LPC18XX_CREG_CREG6			0x12c
 # define LPC18XX_CREG_CREG6_ETHMODE_MASK	0x7
-# define LPC18XX_CREG_CREG6_ETHMODE_MII		0x0
-# define LPC18XX_CREG_CREG6_ETHMODE_RMII	0x4
+# define LPC18XX_CREG_CREG6_ETHMODE_MII		PHY_INTF_SEL_GMII_MII
+# define LPC18XX_CREG_CREG6_ETHMODE_RMII	PHY_INTF_SEL_RMII
 
 static int lpc18xx_dwmac_probe(struct platform_device *pdev)
 {
