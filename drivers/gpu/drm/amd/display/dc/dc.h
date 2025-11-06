@@ -2455,6 +2455,48 @@ bool dc_link_set_replay_allow_active(struct dc_link *dc_link, const bool *enable
 
 bool dc_link_get_replay_state(const struct dc_link *dc_link, uint64_t *state);
 
+/*
+ * Enable or disable Panel Replay on the specified link:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @enable: enable or disable Panel Replay
+ *
+ * return: true if successful, false otherwise
+ */
+bool dc_link_set_pr_enable(struct dc_link *link, bool enable);
+
+/*
+ * Update Panel Replay state parameters:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @update_state_data: pointer to state update data structure
+ *
+ * return: true if successful, false otherwise
+ */
+bool dc_link_update_pr_state(struct dc_link *link,
+		struct dmub_cmd_pr_update_state_data *update_state_data);
+
+/*
+ * Send general command to Panel Replay firmware:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @general_cmd_data: pointer to general command data structure
+ *
+ * return: true if successful, false otherwise
+ */
+bool dc_link_set_pr_general_cmd(struct dc_link *link,
+		struct dmub_cmd_pr_general_cmd_data *general_cmd_data);
+
+/*
+ * Get Panel Replay state:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @state: pointer to store the Panel Replay state
+ *
+ * return: true if successful, false otherwise
+ */
+bool dc_link_get_pr_state(const struct dc_link *link, uint64_t *state);
+
 /* On eDP links this function call will stall until T12 has elapsed.
  * If the panel is not in power off state, this function will return
  * immediately.
