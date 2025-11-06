@@ -27,7 +27,7 @@
  * These are the standard error codes as defined by the I3C specification.
  * When -EIO is returned by the i3c_device_do_priv_xfers() or
  * i3c_device_send_hdr_cmds() one can check the error code in
- * &struct_i3c_priv_xfer.err or &struct i3c_hdr_cmd.err to get a better idea of
+ * &struct_i3c_xfer.err or &struct i3c_hdr_cmd.err to get a better idea of
  * what went wrong.
  *
  */
@@ -312,7 +312,7 @@ int i3c_device_do_xfers(struct i3c_device *dev, struct i3c_xfer *xfers,
 			int nxfers, enum i3c_xfer_mode mode);
 
 static inline int i3c_device_do_priv_xfers(struct i3c_device *dev,
-					   struct i3c_priv_xfer *xfers,
+					   struct i3c_xfer *xfers,
 					   int nxfers)
 {
 	return i3c_device_do_xfers(dev, xfers, nxfers, I3C_SDR);
