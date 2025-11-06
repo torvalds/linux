@@ -841,6 +841,13 @@ static inline u32 __tcp_set_rto(const struct tcp_sock *tp)
 	return usecs_to_jiffies((tp->srtt_us >> 3) + tp->rttvar_us);
 }
 
+static inline unsigned long tcp_reqsk_timeout(struct request_sock *req)
+{
+	u64 timeout = (u64)req->timeout << req->num_timeout;
+
+	return (unsigned long)min_t(u64, timeout, TCP_RTO_MAX);
+}
+
 u32 tcp_delack_max(const struct sock *sk);
 
 /* Compute the actual rto_min value */
