@@ -464,7 +464,7 @@ static void intel_pmdemand_poll(struct intel_display *display)
 
 	ret = intel_de_wait_custom(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1),
 				   XELPDP_PMDEMAND_REQ_ENABLE, 0,
-				   50, timeout_ms, &status);
+				   2, timeout_ms, &status);
 
 	if (ret == -ETIMEDOUT)
 		drm_err(display->drm,
