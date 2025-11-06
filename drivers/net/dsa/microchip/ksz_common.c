@@ -808,6 +808,8 @@ static const u16 ksz9477_regs[] = {
 static const u32 ksz9477_masks[] = {
 	[ALU_STAT_WRITE]		= 0,
 	[ALU_STAT_READ]			= 1,
+	[ALU_STAT_DIRECT]		= 0,
+	[ALU_RESV_MCAST_ADDR]		= BIT(1),
 	[P_MII_TX_FLOW_CTRL]		= BIT(5),
 	[P_MII_RX_FLOW_CTRL]		= BIT(3),
 };
@@ -835,6 +837,8 @@ static const u8 ksz9477_xmii_ctrl1[] = {
 static const u32 lan937x_masks[] = {
 	[ALU_STAT_WRITE]		= 1,
 	[ALU_STAT_READ]			= 2,
+	[ALU_STAT_DIRECT]		= BIT(3),
+	[ALU_RESV_MCAST_ADDR]		= BIT(2),
 	[P_MII_TX_FLOW_CTRL]		= BIT(5),
 	[P_MII_RX_FLOW_CTRL]		= BIT(3),
 };

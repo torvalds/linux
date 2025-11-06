@@ -109,7 +109,7 @@ endif
 ifdef CONFIG_RUSTC_HAS_ANNOTATE_TABLEJUMP
 KBUILD_RUSTFLAGS		+= -Cllvm-args=--loongarch-annotate-tablejump
 else
-KBUILD_RUSTFLAGS		+= -Zno-jump-tables # keep compatibility with older compilers
+KBUILD_RUSTFLAGS		+= $(if $(call rustc-min-version,109300),-Cjump-tables=n,-Zno-jump-tables) # keep compatibility with older compilers
 endif
 ifdef CONFIG_LTO_CLANG
 # The annotate-tablejump option can not be passed to LLVM backend when LTO is enabled.

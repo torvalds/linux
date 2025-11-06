@@ -4819,6 +4819,7 @@ F:	drivers/net/dsa/b53/*
 F:	drivers/net/dsa/bcm_sf2*
 F:	include/linux/dsa/brcm.h
 F:	include/linux/platform_data/b53.h
+F:	net/dsa/tag_brcm.c
 
 BROADCOM BCM2711/BCM2835 ARM ARCHITECTURE
 M:	Florian Fainelli <florian.fainelli@broadcom.com>
@@ -12521,6 +12522,7 @@ F:	include/linux/avf/virtchnl.h
 F:	include/linux/net/intel/*/
 
 INTEL ETHERNET PROTOCOL DRIVER FOR RDMA
+M:	Krzysztof Czurylo <krzysztof.czurylo@intel.com>
 M:	Tatyana Nikolova <tatyana.e.nikolova@intel.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
@@ -12861,7 +12863,8 @@ F:	tools/testing/selftests/sgx/*
 K:	\bSGX_
 
 INTEL SKYLAKE INT3472 ACPI DEVICE DRIVER
-M:	Daniel Scally <djrscally@gmail.com>
+M:	Daniel Scally <dan.scally@ideasonboard.com>
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 S:	Maintained
 F:	drivers/platform/x86/intel/int3472/
 F:	include/linux/platform_data/x86/int3472.h
@@ -13425,9 +13428,12 @@ F:	mm/kasan/
 F:	scripts/Makefile.kasan
 
 KCONFIG
+M:	Nathan Chancellor <nathan@kernel.org>
+M:	Nicolas Schier <nsc@kernel.org>
 L:	linux-kbuild@vger.kernel.org
-S:	Orphan
+S:	Odd Fixes
 Q:	https://patchwork.kernel.org/project/linux-kbuild/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kbuild/linux.git
 F:	Documentation/kbuild/kconfig*
 F:	scripts/Kconfig.include
 F:	scripts/kconfig/
@@ -13612,7 +13618,7 @@ F:	fs/smb/server/
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
 M:	Brendan Higgins <brendan.higgins@linux.dev>
 M:	David Gow <davidgow@google.com>
-R:	Rae Moar <rmoar@google.com>
+R:	Rae Moar <raemoar63@gmail.com>
 L:	linux-kselftest@vger.kernel.org
 L:	kunit-dev@googlegroups.com
 S:	Maintained

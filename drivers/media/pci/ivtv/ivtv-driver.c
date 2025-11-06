@@ -1247,14 +1247,11 @@ err:
 
 int ivtv_init_on_first_open(struct ivtv *itv)
 {
-	struct v4l2_frequency vf;
 	/* Needed to call ioctls later */
-	struct ivtv_open_id fh;
+	struct ivtv_stream *s = &itv->streams[IVTV_ENC_STREAM_TYPE_MPG];
+	struct v4l2_frequency vf;
 	int fw_retry_count = 3;
 	int video_input;
-
-	fh.itv = itv;
-	fh.type = IVTV_ENC_STREAM_TYPE_MPG;
 
 	if (test_bit(IVTV_F_I_FAILED, &itv->i_flags))
 		return -ENXIO;
@@ -1297,13 +1294,13 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 
 	video_input = itv->active_input;
 	itv->active_input++;	/* Force update of input */
-	ivtv_s_input(NULL, &fh, video_input);
+	ivtv_do_s_input(itv, video_input);
 
 	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
 	   in one place. */
 	itv->std++;		/* Force full standard initialization */
 	itv->std_out = itv->std;
-	ivtv_s_frequency(NULL, &fh, &vf);
+	ivtv_do_s_frequency(s, &vf);
 
 	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
 		/* Turn on the TV-out: ivtv_init_mpeg_decoder() initializes
