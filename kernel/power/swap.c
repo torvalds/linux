@@ -635,7 +635,7 @@ struct cmp_data {
 };
 
 /* Indicates the image size after compression */
-static atomic_t compressed_size = ATOMIC_INIT(0);
+static atomic64_t compressed_size = ATOMIC_INIT(0);
 
 /*
  * Compression function that runs in its own thread.
@@ -664,7 +664,7 @@ static int compress_threadfn(void *data)
 		d->ret = crypto_acomp_compress(d->cr);
 		d->cmp_len = d->cr->dlen;
 
-		atomic_set(&compressed_size, atomic_read(&compressed_size) + d->cmp_len);
+		atomic64_add(d->cmp_len, &compressed_size);
 		atomic_set_release(&d->stop, 1);
 		wake_up(&d->done);
 	}
@@ -696,7 +696,7 @@ static int save_compressed_image(struct swap_map_handle *handle,
 
 	hib_init_batch(&hb);
 
-	atomic_set(&compressed_size, 0);
+	atomic64_set(&compressed_size, 0);
 
 	/*
 	 * We'll limit the number of threads for compression to limit memory
@@ -879,8 +879,8 @@ out_finish:
 		ret = err2;
 	if (!ret) {
 		swsusp_show_speed(start, stop, nr_to_write, "Wrote");
-		pr_info("Image size after compression: %d kbytes\n",
-			(atomic_read(&compressed_size) / 1024));
+		pr_info("Image size after compression: %lld kbytes\n",
+			(atomic64_read(&compressed_size) / 1024));
 		pr_info("Image saving done\n");
 	} else {
 		pr_err("Image saving failed: %d\n", ret);
