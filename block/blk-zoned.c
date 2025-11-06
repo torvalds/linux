@@ -895,8 +895,14 @@ static int blkdev_report_zone_fallback(struct block_device *bdev,
 		.data = zone,
 		.report_active = true,
 	};
+	int error;
 
-	return blkdev_do_report_zones(bdev, sector, 1, &args);
+	error = blkdev_do_report_zones(bdev, sector, 1, &args);
+	if (error < 0)
+		return error;
+	if (error == 0)
+		return -EIO;
+	return 0;
 }
 
 /*
