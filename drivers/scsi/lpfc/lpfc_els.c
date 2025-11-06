@@ -3263,7 +3263,7 @@ lpfc_reg_fab_ctrl_node(struct lpfc_vport *vport, struct lpfc_nodelist *fc_ndlp)
 		return -ENOMEM;
 	}
 	rc = lpfc_reg_rpi(phba, vport->vpi, fc_ndlp->nlp_DID,
-			  (u8 *)&vport->fc_sparam, mbox, fc_ndlp->nlp_rpi);
+			  (u8 *)&ns_ndlp->fc_sparam, mbox, fc_ndlp->nlp_rpi);
 	if (rc) {
 		rc = -EACCES;
 		goto out;
