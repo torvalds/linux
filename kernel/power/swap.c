@@ -877,11 +877,14 @@ out_finish:
 	stop = ktime_get();
 	if (!ret)
 		ret = err2;
-	if (!ret)
+	if (!ret) {
+		swsusp_show_speed(start, stop, nr_to_write, "Wrote");
+		pr_info("Image size after compression: %d kbytes\n",
+			(atomic_read(&compressed_size) / 1024));
 		pr_info("Image saving done\n");
-	swsusp_show_speed(start, stop, nr_to_write, "Wrote");
-	pr_info("Image size after compression: %d kbytes\n",
-		(atomic_read(&compressed_size) / 1024));
+	} else {
+		pr_err("Image saving failed: %d\n", ret);
+	}
 
 out_clean:
 	hib_finish_batch(&hb);
