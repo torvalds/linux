@@ -881,6 +881,16 @@ config REGULATOR_MT6315
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6316
+	tristate "MT6316 SPMI PMIC regulator driver"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  Say Y here to enable support for 2+2, 3+1 and 4 phase regulators
+	  found in the MediaTek MT6316 BP, CP, DP, HP, VP and TP SPMI PMICs.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
 config REGULATOR_MT6323
 	tristate "MediaTek MT6323 PMIC"
 	depends on MFD_MT6397
@@ -943,6 +953,16 @@ config REGULATOR_MT6360
 	  This is support MT6360 PMIC/LDO part include
 	  2-channel buck with Thermal Shutdown and Overload Protection
 	  6-channel High PSRR and Low Dropout LDO.
+
+config REGULATOR_MT6363
+	tristate "MT6363 SPMI PMIC regulator driver"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  Say Y here to enable support for regulators found in the MediaTek
+	  MT6363 SPMI PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
 
 config REGULATOR_MT6370
 	tristate "MT6370 SubPMIC Regulator"
