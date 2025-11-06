@@ -851,9 +851,9 @@ static bool spa_maps_hpa(const struct cxl_region_params *p,
 		return false;
 
 	/*
-	 * If an extended linear cache region then the CXL range is assumed
-	 * to be fronted by the DRAM range in current known implementation.
-	 * This assumption will be made until a variant implementation exists.
+	 * The extended linear cache region is constructed by a 1:1 ratio
+	 * where the SPA maps equal amounts of DRAM and CXL HPA capacity with
+	 * CXL decoders at the high end of the SPA range.
 	 */
 	return p->res->start + p->cache_size == range->start &&
 		p->res->end == range->end;
