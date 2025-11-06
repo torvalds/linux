@@ -1130,25 +1130,27 @@ again:
 }
 
 static blk_status_t copy_to_nullb(struct nullb *nullb, void *source,
-				  sector_t sector, size_t n, bool is_fua)
+				  loff_t pos, size_t n, bool is_fua)
 {
 	size_t temp, count = 0;
-	unsigned int offset;
 	struct nullb_page *t_page;
+	sector_t sector;
 
 	while (count < n) {
-		temp = min_t(size_t, nullb->dev->blocksize, n - count);
+		temp = min3(nullb->dev->blocksize, n - count,
+			    PAGE_SIZE - offset_in_page(pos));
+		sector = pos >> SECTOR_SHIFT;
 
 		if (null_cache_active(nullb) && !is_fua)
 			null_make_cache_space(nullb, PAGE_SIZE);
 
-		offset = (sector & SECTOR_MASK) << SECTOR_SHIFT;
 		t_page = null_insert_page(nullb, sector,
 			!null_cache_active(nullb) || is_fua);
 		if (!t_page)
 			return BLK_STS_NOSPC;
 
-		memcpy_to_page(t_page->page, offset, source + count, temp);
+		memcpy_to_page(t_page->page, offset_in_page(pos),
+			       source + count, temp);
 
 		__set_bit(sector & SECTOR_MASK, t_page->bitmap);
 
@@ -1156,33 +1158,33 @@ static blk_status_t copy_to_nullb(struct nullb *nullb, void *source,
 			null_free_sector(nullb, sector, true);
 
 		count += temp;
-		sector += temp >> SECTOR_SHIFT;
+		pos += temp;
 	}
 	return BLK_STS_OK;
 }
 
-static void copy_from_nullb(struct nullb *nullb, void *dest, sector_t sector,
+static void copy_from_nullb(struct nullb *nullb, void *dest, loff_t pos,
 			    size_t n)
 {
 	size_t temp, count = 0;
-	unsigned int offset;
 	struct nullb_page *t_page;
+	sector_t sector;
 
 	while (count < n) {
-		temp = min_t(size_t, nullb->dev->blocksize, n - count);
+		temp = min3(nullb->dev->blocksize, n - count,
+			    PAGE_SIZE - offset_in_page(pos));
+		sector = pos >> SECTOR_SHIFT;
 
-		offset = (sector & SECTOR_MASK) << SECTOR_SHIFT;
 		t_page = null_lookup_page(nullb, sector, false,
 			!null_cache_active(nullb));
-
 		if (t_page)
-			memcpy_from_page(dest + count, t_page->page, offset,
-					 temp);
+			memcpy_from_page(dest + count, t_page->page,
+					 offset_in_page(pos), temp);
 		else
 			memset(dest + count, 0, temp);
 
 		count += temp;
-		sector += temp >> SECTOR_SHIFT;
+		pos += temp;
 	}
 }
 
@@ -1228,7 +1230,7 @@ static blk_status_t null_handle_flush(struct nullb *nullb)
 }
 
 static blk_status_t null_transfer(struct nullb *nullb, struct page *page,
-	unsigned int len, unsigned int off, bool is_write, sector_t sector,
+	unsigned int len, unsigned int off, bool is_write, loff_t pos,
 	bool is_fua)
 {
 	struct nullb_device *dev = nullb->dev;
@@ -1240,10 +1242,10 @@ static blk_status_t null_transfer(struct nullb *nullb, struct page *page,
 	if (!is_write) {
 		if (dev->zoned)
 			valid_len = null_zone_valid_read_len(nullb,
-				sector, len);
+				pos >> SECTOR_SHIFT, len);
 
 		if (valid_len) {
-			copy_from_nullb(nullb, p, sector, valid_len);
+			copy_from_nullb(nullb, p, pos, valid_len);
 			off += valid_len;
 			len -= valid_len;
 		}
@@ -1253,7 +1255,7 @@ static blk_status_t null_transfer(struct nullb *nullb, struct page *page,
 		flush_dcache_page(page);
 	} else {
 		flush_dcache_page(page);
-		err = copy_to_nullb(nullb, p, sector, len, is_fua);
+		err = copy_to_nullb(nullb, p, pos, len, is_fua);
 	}
 
 	kunmap_local(p);
@@ -1271,7 +1273,7 @@ static blk_status_t null_handle_data_transfer(struct nullb_cmd *cmd,
 	struct nullb *nullb = cmd->nq->dev->nullb;
 	blk_status_t err = BLK_STS_OK;
 	unsigned int len;
-	sector_t sector = blk_rq_pos(rq);
+	loff_t pos = blk_rq_pos(rq) << SECTOR_SHIFT;
 	unsigned int max_bytes = nr_sectors << SECTOR_SHIFT;
 	unsigned int transferred_bytes = 0;
 	struct req_iterator iter;
@@ -1283,11 +1285,11 @@ static blk_status_t null_handle_data_transfer(struct nullb_cmd *cmd,
 		if (transferred_bytes + len > max_bytes)
 			len = max_bytes - transferred_bytes;
 		err = null_transfer(nullb, bvec.bv_page, len, bvec.bv_offset,
-				     op_is_write(req_op(rq)), sector,
+				     op_is_write(req_op(rq)), pos,
 				     rq->cmd_flags & REQ_FUA);
 		if (err)
 			break;
-		sector += len >> SECTOR_SHIFT;
+		pos += len;
 		transferred_bytes += len;
 		if (transferred_bytes >= max_bytes)
 			break;
@@ -1944,6 +1946,7 @@ static int null_add_dev(struct nullb_device *dev)
 		.logical_block_size	= dev->blocksize,
 		.physical_block_size	= dev->blocksize,
 		.max_hw_sectors		= dev->max_sectors,
+		.dma_alignment		= 1,
 	};
 
 	struct nullb *nullb;
