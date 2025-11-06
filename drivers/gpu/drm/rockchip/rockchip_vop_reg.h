@@ -1033,4 +1033,18 @@
 #define RK3066_DSP_LUT_ADDR		0x800
 /* rk3066 register definition end */
 
+/* rk3506 register definition */
+#define RK3506_REG_CFG_DONE		0x00
+#define RK3506_SYS_CTRL2		0x18
+#define RK3506_DSP_CTRL0		0x20
+#define RK3506_DSP_CTRL2		0x28
+#define RK3506_WIN1_CTRL0		0x90
+#define RK3506_WIN1_CTRL1		0x94
+#define RK3506_WIN1_VIR			0x98
+#define RK3506_WIN1_MST			0xa0
+#define RK3506_WIN1_DSP_INFO		0xa4
+#define RK3506_WIN1_DSP_ST		0xa8
+#define RK3506_WIN1_ALPHA_CTRL		0xbc
+/* rk3506 register definition end */
+
 #endif /* _ROCKCHIP_VOP_REG_H */

@@ -1180,6 +1180,61 @@ static const struct vop_data rk3328_vop = {
 	.max_output = { 4096, 2160 },
 };
 
+static const struct vop_common rk3506_common = {
+	.standby = VOP_REG_SYNC(RK3506_SYS_CTRL2, 0x1, 1),
+	.out_mode = VOP_REG(RK3506_DSP_CTRL2, 0xf, 16),
+	.dsp_blank = VOP_REG(RK3506_DSP_CTRL2, 0x1, 14),
+	.dither_down_en = VOP_REG(RK3506_DSP_CTRL2, 0x1, 8),
+	.dither_down_sel = VOP_REG(RK3506_DSP_CTRL2, 0x1, 7),
+	.dither_down_mode = VOP_REG(RK3506_DSP_CTRL2, 0x1, 6),
+	.dsp_lut_en = VOP_REG(RK3506_DSP_CTRL2, 0x1, 5),
+	.dither_up = VOP_REG(RK3506_DSP_CTRL2, 0x1, 2),
+	.cfg_done = VOP_REG_SYNC(RK3506_REG_CFG_DONE, 0x1, 0),
+};
+
+static const struct vop_output rk3506_output = {
+	.rgb_en = VOP_REG(RK3506_DSP_CTRL0, 0x1, 0),
+	.rgb_pin_pol = VOP_REG(RK3506_DSP_CTRL0, 0x7, 2),
+	.mipi_en = VOP_REG(RK3506_DSP_CTRL0, 0x1, 24),
+	.mipi_dclk_pol = VOP_REG(RK3506_DSP_CTRL0, 0x1, 25),
+	.mipi_pin_pol = VOP_REG(RK3506_DSP_CTRL0, 0x7, 26),
+};
+
+static const struct vop_win_phy rk3506_win1_data = {
+	.data_formats = formats_win_lite,
+	.nformats = ARRAY_SIZE(formats_win_lite),
+	.format_modifiers = format_modifiers_win_lite,
+	.enable = VOP_REG(RK3506_WIN1_CTRL0, 0x1, 0),
+	.format = VOP_REG(RK3506_WIN1_CTRL0, 0x7, 4),
+	.rb_swap = VOP_REG(RK3506_WIN1_CTRL0, 0x1, 12),
+	.channel = VOP_REG(RK3506_WIN1_CTRL1, 0xf, 8),
+	.yrgb_vir = VOP_REG(RK3506_WIN1_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK3506_WIN1_MST, 0xffffffff, 0),
+	.dsp_info = VOP_REG(RK3506_WIN1_DSP_INFO, 0xffffffff, 0),
+	.dsp_st = VOP_REG(RK3506_WIN1_DSP_ST, 0xffffffff, 0),
+	.alpha_en = VOP_REG(RK3506_WIN1_ALPHA_CTRL, 0x1, 0),
+	.alpha_mode = VOP_REG(RK3506_WIN1_ALPHA_CTRL, 0x1, 1),
+	.alpha_pre_mul = VOP_REG(RK3506_WIN1_ALPHA_CTRL, 0x1, 2),
+};
+
+static const struct vop_win_data rk3506_vop_win_data[] = {
+	{ .base = 0x00, .phy = &rk3506_win1_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+};
+
+static const struct vop_data rk3506_vop = {
+	.version = VOP_VERSION(2, 0xe),
+	.feature = VOP_FEATURE_INTERNAL_RGB,
+	.intr = &px30_intr,
+	.common = &rk3506_common,
+	.modeset = &px30_modeset,
+	.output = &rk3506_output,
+	.win = rk3506_vop_win_data,
+	.win_size = ARRAY_SIZE(rk3506_vop_win_data),
+	.lut_size = 256,
+	.max_output = { 1280, 1280 },
+};
+
 static const struct vop_common rv1126_common = {
 	.standby = VOP_REG_SYNC(PX30_SYS_CTRL2, 0x1, 1),
 	.out_mode = VOP_REG(PX30_DSP_CTRL2, 0xf, 16),
@@ -1260,6 +1315,8 @@ static const struct of_device_id vop_driver_dt_match[] = {
 	  .data = &rk3228_vop },
 	{ .compatible = "rockchip,rk3328-vop",
 	  .data = &rk3328_vop },
+	{ .compatible = "rockchip,rk3506-vop",
+	  .data = &rk3506_vop },
 	{ .compatible = "rockchip,rv1126-vop",
 	  .data = &rv1126_vop },
 	{},
