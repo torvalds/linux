@@ -956,6 +956,8 @@ static int smu_v13_0_12_get_badpage_count(struct amdgpu_device *adev, uint32_t *
 		now = (uint64_t)ktime_to_ms(ktime_get());
 	} while (now < end);
 
+	dev_err(adev->dev,
+			 "smu get bad page count timeout!\n");
 	return ret;
 }
 
