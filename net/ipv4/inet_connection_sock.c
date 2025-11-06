@@ -1096,9 +1096,11 @@ static void reqsk_timer_handler(struct timer_list *t)
 			young <<= 1;
 		}
 	}
+
 	syn_ack_recalc(req, max_syn_ack_retries, READ_ONCE(queue->rskq_defer_accept),
 		       &expire, &resend);
-	req->rsk_ops->syn_ack_timeout(req);
+	tcp_syn_ack_timeout(req);
+
 	if (!expire &&
 	    (!resend ||
 	     !tcp_rtx_synack(sk_listener, req) ||
