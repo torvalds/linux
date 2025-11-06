@@ -101,6 +101,8 @@
 #define ON true
 #define OFF false
 
+#define MAX_CTL_NAMELEN	19
+
 /*
  * PCI-defined configuration space registers
  */
@@ -362,7 +364,7 @@ struct amd64_pvt {
 	/* x4, x8, or x16 syndromes in use */
 	u8 ecc_sym_sz;
 
-	const char *ctl_name;
+	char ctl_name[MAX_CTL_NAMELEN];
 	u16 f1_id, f2_id;
 	/* Maximum number of memory controllers per die/node. */
 	u8 max_mcs;
