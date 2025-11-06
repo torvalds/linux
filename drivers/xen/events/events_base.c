@@ -581,7 +581,7 @@ static void lateeoi_list_add(struct irq_info *info)
 					eoi_list);
 	if (!elem || info->eoi_time < elem->eoi_time) {
 		list_add(&info->eoi_list, &eoi->eoi_list);
-		mod_delayed_work_on(info->eoi_cpu, system_wq,
+		mod_delayed_work_on(info->eoi_cpu, system_percpu_wq,
 				    &eoi->delayed, delay);
 	} else {
 		list_for_each_entry_reverse(elem, &eoi->eoi_list, eoi_list) {
@@ -666,7 +666,7 @@ static void xen_irq_lateeoi_worker(struct work_struct *work)
 			break;
 
 		if (now < info->eoi_time) {
-			mod_delayed_work_on(info->eoi_cpu, system_wq,
+			mod_delayed_work_on(info->eoi_cpu, system_percpu_wq,
 					    &eoi->delayed,
 					    info->eoi_time - now);
 			break;
@@ -782,7 +782,7 @@ static void xen_free_irq(struct irq_info *info)
 
 	WARN_ON(info->refcnt > 0);
 
-	queue_rcu_work(system_wq, &info->rwork);
+	queue_rcu_work(system_percpu_wq, &info->rwork);
 }
 
 /* Not called for lateeoi events. */
