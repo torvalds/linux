@@ -106,13 +106,14 @@ static struct tracepoint_user *__tracepoint_user_init(const char *name, struct t
 	if (!tuser->name)
 		return NULL;
 
+	/* Register tracepoint if it is loaded. */
 	if (tpoint) {
+		tuser->tpoint = tpoint;
 		ret = tracepoint_user_register(tuser);
 		if (ret)
 			return ERR_PTR(ret);
 	}
 
-	tuser->tpoint = tpoint;
 	tuser->refcount = 1;
 	INIT_LIST_HEAD(&tuser->list);
 	list_add(&tuser->list, &tracepoint_user_list);
