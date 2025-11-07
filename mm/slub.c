@@ -759,34 +759,29 @@ static __always_inline void slab_unlock(struct slab *slab)
 }
 
 static inline bool
-__update_freelist_fast(struct slab *slab,
-		      void *freelist_old, unsigned long counters_old,
-		      void *freelist_new, unsigned long counters_new)
+__update_freelist_fast(struct slab *slab, struct freelist_counters *old,
+		       struct freelist_counters *new)
 {
 #ifdef system_has_freelist_aba
-	struct freelist_counters old = { .freelist = freelist_old, .counters = counters_old };
-	struct freelist_counters new = { .freelist = freelist_new, .counters = counters_new };
-
 	return try_cmpxchg_freelist(&slab->freelist_counters,
-				    &old.freelist_counters,
-				    new.freelist_counters);
+				    &old->freelist_counters,
+				    new->freelist_counters);
 #else
 	return false;
 #endif
 }
 
 static inline bool
-__update_freelist_slow(struct slab *slab,
-		      void *freelist_old, unsigned long counters_old,
-		      void *freelist_new, unsigned long counters_new)
+__update_freelist_slow(struct slab *slab, struct freelist_counters *old,
+		       struct freelist_counters *new)
 {
 	bool ret = false;
 
 	slab_lock(slab);
-	if (slab->freelist == freelist_old &&
-	    slab->counters == counters_old) {
-		slab->freelist = freelist_new;
-		slab->counters = counters_new;
+	if (slab->freelist == old->freelist &&
+	    slab->counters == old->counters) {
+		slab->freelist = new->freelist;
+		slab->counters = new->counters;
 		ret = true;
 	}
 	slab_unlock(slab);
@@ -802,22 +797,18 @@ __update_freelist_slow(struct slab *slab,
  * interrupt the operation.
  */
 static inline bool __slab_update_freelist(struct kmem_cache *s, struct slab *slab,
-		void *freelist_old, unsigned long counters_old,
-		void *freelist_new, unsigned long counters_new,
-		const char *n)
+		struct freelist_counters *old, struct freelist_counters *new, const char *n)
 {
 	bool ret;
 
 	if (USE_LOCKLESS_FAST_PATH())
 		lockdep_assert_irqs_disabled();
 
-	if (s->flags & __CMPXCHG_DOUBLE) {
-		ret = __update_freelist_fast(slab, freelist_old, counters_old,
-				            freelist_new, counters_new);
-	} else {
-		ret = __update_freelist_slow(slab, freelist_old, counters_old,
-				            freelist_new, counters_new);
-	}
+	if (s->flags & __CMPXCHG_DOUBLE)
+		ret = __update_freelist_fast(slab, old, new);
+	else
+		ret = __update_freelist_slow(slab, old, new);
+
 	if (likely(ret))
 		return true;
 
@@ -832,21 +823,17 @@ static inline bool __slab_update_freelist(struct kmem_cache *s, struct slab *sla
 }
 
 static inline bool slab_update_freelist(struct kmem_cache *s, struct slab *slab,
-		void *freelist_old, unsigned long counters_old,
-		void *freelist_new, unsigned long counters_new,
-		const char *n)
+		struct freelist_counters *old, struct freelist_counters *new, const char *n)
 {
 	bool ret;
 
 	if (s->flags & __CMPXCHG_DOUBLE) {
-		ret = __update_freelist_fast(slab, freelist_old, counters_old,
-				            freelist_new, counters_new);
+		ret = __update_freelist_fast(slab, old, new);
 	} else {
 		unsigned long flags;
 
 		local_irq_save(flags);
-		ret = __update_freelist_slow(slab, freelist_old, counters_old,
-				            freelist_new, counters_new);
+		ret = __update_freelist_slow(slab, old, new);
 		local_irq_restore(flags);
 	}
 	if (likely(ret))
@@ -3774,10 +3761,7 @@ static void deactivate_slab(struct kmem_cache *s, struct slab *slab,
 		} else {
 			new.freelist = old.freelist;
 		}
-	} while (!slab_update_freelist(s, slab,
-		old.freelist, old.counters,
-		new.freelist, new.counters,
-		"unfreezing slab"));
+	} while (!slab_update_freelist(s, slab, &old, &new, "unfreezing slab"));
 
 	/*
 	 * Stage three: Manipulate the slab list based on the updated state.
@@ -4389,27 +4373,24 @@ __update_cpu_freelist_fast(struct kmem_cache *s,
  */
 static inline void *get_freelist(struct kmem_cache *s, struct slab *slab)
 {
-	struct freelist_counters new;
-	unsigned long counters;
-	void *freelist;
+	struct freelist_counters old, new;
 
 	lockdep_assert_held(this_cpu_ptr(&s->cpu_slab->lock));
 
 	do {
-		freelist = slab->freelist;
-		counters = slab->counters;
+		old.freelist = slab->freelist;
+		old.counters = slab->counters;
 
-		new.counters = counters;
+		new.freelist = NULL;
+		new.counters = old.counters;
 
-		new.inuse = slab->objects;
-		new.frozen = freelist != NULL;
+		new.inuse = old.objects;
+		new.frozen = old.freelist != NULL;
 
-	} while (!__slab_update_freelist(s, slab,
-		freelist, counters,
-		NULL, new.counters,
-		"get_freelist"));
 
-	return freelist;
+	} while (!__slab_update_freelist(s, slab, &old, &new, "get_freelist"));
+
+	return old.freelist;
 }
 
 /*
@@ -4417,26 +4398,22 @@ static inline void *get_freelist(struct kmem_cache *s, struct slab *slab)
  */
 static inline void *freeze_slab(struct kmem_cache *s, struct slab *slab)
 {
-	struct freelist_counters new;
-	unsigned long counters;
-	void *freelist;
+	struct freelist_counters old, new;
 
 	do {
-		freelist = slab->freelist;
-		counters = slab->counters;
+		old.freelist = slab->freelist;
+		old.counters = slab->counters;
 
-		new.counters = counters;
+		new.freelist = NULL;
+		new.counters = old.counters;
 		VM_BUG_ON(new.frozen);
 
-		new.inuse = slab->objects;
+		new.inuse = old.objects;
 		new.frozen = 1;
 
-	} while (!slab_update_freelist(s, slab,
-		freelist, counters,
-		NULL, new.counters,
-		"freeze_slab"));
+	} while (!slab_update_freelist(s, slab, &old, &new, "freeze_slab"));
 
-	return freelist;
+	return old.freelist;
 }
 
 /*
@@ -5864,10 +5841,8 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 			unsigned long addr)
 
 {
-	void *old_head;
 	bool was_frozen, was_full;
-	struct freelist_counters new;
-	unsigned long counters;
+	struct freelist_counters old, new;
 	struct kmem_cache_node *n = NULL;
 	unsigned long flags;
 	bool on_node_partial;
@@ -5891,13 +5866,19 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 			spin_unlock_irqrestore(&n->list_lock, flags);
 			n = NULL;
 		}
-		old_head = slab->freelist;
-		counters = slab->counters;
-		set_freepointer(s, tail, old_head);
-		new.counters = counters;
-		was_frozen = !!new.frozen;
-		was_full = (old_head == NULL);
+
+		old.freelist = slab->freelist;
+		old.counters = slab->counters;
+
+		was_full = (old.freelist == NULL);
+		was_frozen = old.frozen;
+
+		set_freepointer(s, tail, old.freelist);
+
+		new.freelist = head;
+		new.counters = old.counters;
 		new.inuse -= cnt;
+
 		/*
 		 * Might need to be taken off (due to becoming empty) or added
 		 * to (due to not being full anymore) the partial list.
@@ -5926,10 +5907,7 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 			}
 		}
 
-	} while (!slab_update_freelist(s, slab,
-		old_head, counters,
-		head, new.counters,
-		"__slab_free"));
+	} while (!slab_update_freelist(s, slab, &old, &new, "__slab_free"));
 
 	if (likely(!n)) {
 
