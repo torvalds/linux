@@ -1188,10 +1188,8 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	val = intel_de_read(display, DSPCNTR(display, i9xx_plane));
 
 	if (DISPLAY_VER(display) >= 4) {
-		if (val & DISP_TILED) {
-			plane_config->tiling = I915_TILING_X;
+		if (val & DISP_TILED)
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
-		}
 
 		if (val & DISP_ROTATE_180)
 			plane_config->rotation = DRM_MODE_ROTATE_180;
@@ -1211,7 +1209,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 				       DSPOFFSET(display, i9xx_plane));
 		base = intel_de_read(display, DSPSURF(display, i9xx_plane)) & DISP_ADDR_MASK;
 	} else if (DISPLAY_VER(display) >= 4) {
-		if (plane_config->tiling)
+		if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 			offset = intel_de_read(display,
 					       DSPTILEOFF(display, i9xx_plane));
 		else
