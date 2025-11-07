@@ -1982,7 +1982,7 @@ u32 intel_fb_max_stride(struct intel_display *display,
 	 */
 	if (DISPLAY_VER(display) < 4 || intel_fb_is_ccs_modifier(modifier) ||
 	    intel_fb_modifier_uses_dpt(display, modifier))
-		return intel_plane_fb_max_stride(display->drm, pixel_format, modifier);
+		return intel_plane_fb_max_stride(display, pixel_format, modifier);
 	else if (DISPLAY_VER(display) >= 7)
 		return 256 * 1024;
 	else
@@ -1996,7 +1996,7 @@ intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 	unsigned int tile_width;
 
 	if (is_surface_linear(fb, color_plane)) {
-		unsigned int max_stride = intel_plane_fb_max_stride(display->drm,
+		unsigned int max_stride = intel_plane_fb_max_stride(display,
 								    fb->format->format,
 								    fb->modifier);
 

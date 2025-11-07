@@ -547,15 +547,11 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 		intel_wait_for_pipe_off(old_crtc_state);
 }
 
-u32 intel_plane_fb_max_stride(struct drm_device *drm,
+u32 intel_plane_fb_max_stride(struct intel_display *display,
 			      u32 pixel_format, u64 modifier)
 {
-	struct intel_display *display = to_intel_display(drm);
 	struct intel_crtc *crtc;
 	struct intel_plane *plane;
-
-	if (!HAS_DISPLAY(display))
-		return 0;
 
 	/*
 	 * We assume the primary plane for pipe A has
@@ -570,6 +566,17 @@ u32 intel_plane_fb_max_stride(struct drm_device *drm,
 
 	return plane->max_stride(plane, pixel_format, modifier,
 				 DRM_MODE_ROTATE_0);
+}
+
+u32 intel_dumb_fb_max_stride(struct drm_device *drm,
+			     u32 pixel_format, u64 modifier)
+{
+	struct intel_display *display = to_intel_display(drm);
+
+	if (!HAS_DISPLAY(display))
+		return 0;
+
+	return intel_plane_fb_max_stride(display, pixel_format, modifier);
 }
 
 void intel_set_plane_visible(struct intel_crtc_state *crtc_state,
