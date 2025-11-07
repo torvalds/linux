@@ -58,6 +58,17 @@ struct b53_io_ops {
 				bool link_up);
 };
 
+struct b53_arl_entry;
+
+struct b53_arl_ops {
+	void (*arl_read_entry)(struct b53_device *dev,
+			       struct b53_arl_entry *ent, u8 idx);
+	void (*arl_write_entry)(struct b53_device *dev,
+				const struct b53_arl_entry *ent, u8 idx);
+	void (*arl_search_read)(struct b53_device *dev, u8 idx,
+				struct b53_arl_entry *ent);
+};
+
 #define B53_INVALID_LANE	0xff
 
 enum {
@@ -127,6 +138,7 @@ struct b53_device {
 	struct mutex stats_mutex;
 	struct mutex arl_mutex;
 	const struct b53_io_ops *ops;
+	const struct b53_arl_ops *arl_ops;
 
 	/* chip specific data */
 	u32 chip_id;
@@ -369,6 +381,24 @@ static inline void b53_arl_from_entry_25(u64 *mac_vid,
 		*mac_vid |= ARLTBL_STATIC_25;
 	if (ent->is_age)
 		*mac_vid |= ARLTBL_AGE_25;
+}
+
+static inline void b53_arl_read_entry(struct b53_device *dev,
+				      struct b53_arl_entry *ent, u8 idx)
+{
+	dev->arl_ops->arl_read_entry(dev, ent, idx);
+}
+
+static inline void b53_arl_write_entry(struct b53_device *dev,
+				       const struct b53_arl_entry *ent, u8 idx)
+{
+	dev->arl_ops->arl_write_entry(dev, ent, idx);
+}
+
+static inline void b53_arl_search_read(struct b53_device *dev, u8 idx,
+				       struct b53_arl_entry *ent)
+{
+	dev->arl_ops->arl_search_read(dev, idx, ent);
 }
 
 #ifdef CONFIG_BCM47XX
