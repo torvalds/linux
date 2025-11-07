@@ -411,6 +411,23 @@ static bool data_check_size(struct prb_data_ring *data_ring, unsigned int size)
 	return to_blk_size(size) <= DATA_SIZE(data_ring) / 2;
 }
 
+/*
+ * Compare the current and requested logical position and decide
+ * whether more space is needed.
+ *
+ * Return false when @lpos_current is already at or beyond @lpos_target.
+ *
+ * Also return false when the difference between the positions is bigger
+ * than the size of the data buffer. It might happen only when the caller
+ * raced with another CPU(s) which already made and used the space.
+ */
+static bool need_more_space(struct prb_data_ring *data_ring,
+			    unsigned long lpos_current,
+			    unsigned long lpos_target)
+{
+	return lpos_target - lpos_current - 1 < DATA_SIZE(data_ring);
+}
+
 /* Query the state of a descriptor. */
 static enum desc_state get_desc_state(unsigned long id,
 				      unsigned long state_val)
@@ -577,7 +594,7 @@ static bool data_make_reusable(struct printk_ringbuffer *rb,
 	unsigned long id;
 
 	/* Loop until @lpos_begin has advanced to or beyond @lpos_end. */
-	while ((lpos_end - lpos_begin) - 1 < DATA_SIZE(data_ring)) {
+	while (need_more_space(data_ring, lpos_begin, lpos_end)) {
 		blk = to_block(data_ring, lpos_begin);
 
 		/*
@@ -668,7 +685,7 @@ static bool data_push_tail(struct printk_ringbuffer *rb, unsigned long lpos)
 	 * sees the new tail lpos, any descriptor states that transitioned to
 	 * the reusable state must already be visible.
 	 */
-	while ((lpos - tail_lpos) - 1 < DATA_SIZE(data_ring)) {
+	while (need_more_space(data_ring, tail_lpos, lpos)) {
 		/*
 		 * Make all descriptors reusable that are associated with
 		 * data blocks before @lpos.
@@ -1148,8 +1165,15 @@ static char *data_realloc(struct printk_ringbuffer *rb, unsigned int size,
 
 	next_lpos = get_next_lpos(data_ring, blk_lpos->begin, size);
 
-	/* If the data block does not increase, there is nothing to do. */
-	if (head_lpos - next_lpos < DATA_SIZE(data_ring)) {
+	/*
+	 * Use the current data block when the size does not increase, i.e.
+	 * when @head_lpos is already able to accommodate the new @next_lpos.
+	 *
+	 * Note that need_more_space() could never return false here because
+	 * the difference between the positions was bigger than the data
+	 * buffer size. The data block is reopened and can't get reused.
+	 */
+	if (!need_more_space(data_ring, head_lpos, next_lpos)) {
 		if (wrapped)
 			blk = to_block(data_ring, 0);
 		else
