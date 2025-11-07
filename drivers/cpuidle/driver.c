@@ -152,7 +152,7 @@ static void cpuidle_setup_broadcast_timer(void *arg)
  * __cpuidle_driver_init - initialize the driver's internal data
  * @drv: a valid pointer to a struct cpuidle_driver
  */
-static void __cpuidle_driver_init(struct cpuidle_driver *drv)
+static int __cpuidle_driver_init(struct cpuidle_driver *drv)
 {
 	int i;
 
@@ -193,7 +193,17 @@ static void __cpuidle_driver_init(struct cpuidle_driver *drv)
 			s->exit_latency_ns =  0;
 		else
 			s->exit_latency = div_u64(s->exit_latency_ns, NSEC_PER_USEC);
+
+		/*
+		 * Ensure that the exit latency of a CPU idle state does not
+		 * exceed its target residency which is assumed in cpuidle in
+		 * multiple places.
+		 */
+		if (s->exit_latency_ns > s->target_residency_ns)
+			return -EINVAL;
 	}
+
+	return 0;
 }
 
 /**
@@ -223,7 +233,9 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
 	if (cpuidle_disabled())
 		return -ENODEV;
 
-	__cpuidle_driver_init(drv);
+	ret = __cpuidle_driver_init(drv);
+	if (ret)
+		return ret;
 
 	ret = __cpuidle_set_driver(drv);
 	if (ret)
