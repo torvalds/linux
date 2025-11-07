@@ -955,9 +955,9 @@ static void ravb_rx_rcar_hwstamp(struct ravb_private *priv, int q,
 	bool get_ts;
 
 	if (q == RAVB_NC)
-		get_ts = priv->tstamp_rx_ctrl == HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		get_ts = priv->tstamp_rx_ctrl != HWTSTAMP_FILTER_NONE;
 	else
-		get_ts = priv->tstamp_rx_ctrl != HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		get_ts = priv->tstamp_rx_ctrl == HWTSTAMP_FILTER_ALL;
 
 	if (!get_ts)
 		return;
