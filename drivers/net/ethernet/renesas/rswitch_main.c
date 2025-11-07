@@ -30,6 +30,8 @@
 #include "rswitch.h"
 #include "rswitch_l2.h"
 
+#define RSWITCH_GPTP_OFFSET_S4 0x00018000
+
 static int rswitch_reg_wait(void __iomem *addr, u32 offs, u32 mask, u32 expected)
 {
 	u32 val;
@@ -843,7 +845,7 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 		if (!skb)
 			goto out;
 
-		get_ts = rdev->priv->ptp_priv->tstamp_rx_ctrl & RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT;
+		get_ts = rdev->priv->tstamp_rx_ctrl != HWTSTAMP_FILTER_NONE;
 		if (get_ts) {
 			struct skb_shared_hwtstamps *shhwtstamps;
 			struct timespec64 ts;
@@ -1797,24 +1799,11 @@ static int rswitch_hwstamp_get(struct net_device *ndev,
 			       struct kernel_hwtstamp_config *config)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
-	struct rcar_gen4_ptp_private *ptp_priv;
-
-	ptp_priv = rdev->priv->ptp_priv;
+	struct rswitch_private *priv = rdev->priv;
 
 	config->flags = 0;
-	config->tx_type = ptp_priv->tstamp_tx_ctrl ? HWTSTAMP_TX_ON :
-						    HWTSTAMP_TX_OFF;
-	switch (ptp_priv->tstamp_rx_ctrl & RCAR_GEN4_RXTSTAMP_TYPE) {
-	case RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT:
-		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
-		break;
-	case RCAR_GEN4_RXTSTAMP_TYPE_ALL:
-		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		break;
-	default:
-		config->rx_filter = HWTSTAMP_FILTER_NONE;
-		break;
-	}
+	config->tx_type = priv->tstamp_tx_ctrl;
+	config->rx_filter = priv->tstamp_rx_ctrl;
 
 	return 0;
 }
@@ -1824,18 +1813,16 @@ static int rswitch_hwstamp_set(struct net_device *ndev,
 			       struct netlink_ext_ack *extack)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
-	u32 tstamp_rx_ctrl = RCAR_GEN4_RXTSTAMP_ENABLED;
-	u32 tstamp_tx_ctrl;
+	enum hwtstamp_rx_filters tstamp_rx_ctrl;
+	enum hwtstamp_tx_types tstamp_tx_ctrl;
 
 	if (config->flags)
 		return -EINVAL;
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
-		tstamp_tx_ctrl = 0;
-		break;
 	case HWTSTAMP_TX_ON:
-		tstamp_tx_ctrl = RCAR_GEN4_TXTSTAMP_ENABLED;
+		tstamp_tx_ctrl = config->tx_type;
 		break;
 	default:
 		return -ERANGE;
@@ -1843,19 +1830,17 @@ static int rswitch_hwstamp_set(struct net_device *ndev,
 
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		tstamp_rx_ctrl = 0;
-		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
-		tstamp_rx_ctrl |= RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT;
+		tstamp_rx_ctrl = config->rx_filter;
 		break;
 	default:
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		tstamp_rx_ctrl |= RCAR_GEN4_RXTSTAMP_TYPE_ALL;
+		tstamp_rx_ctrl = HWTSTAMP_FILTER_ALL;
 		break;
 	}
 
-	rdev->priv->ptp_priv->tstamp_tx_ctrl = tstamp_tx_ctrl;
-	rdev->priv->ptp_priv->tstamp_rx_ctrl = tstamp_rx_ctrl;
+	rdev->priv->tstamp_tx_ctrl = tstamp_tx_ctrl;
+	rdev->priv->tstamp_rx_ctrl = tstamp_rx_ctrl;
 
 	return 0;
 }
@@ -2175,7 +2160,7 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->addr))
 		return PTR_ERR(priv->addr);
 
-	priv->ptp_priv->addr = priv->addr + RCAR_GEN4_GPTP_OFFSET_S4;
+	priv->ptp_priv->addr = priv->addr + RSWITCH_GPTP_OFFSET_S4;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
 	if (ret < 0) {

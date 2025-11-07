@@ -946,6 +946,30 @@ refill:
 	return rx_packets;
 }
 
+static void ravb_rx_rcar_hwstamp(struct ravb_private *priv, int q,
+				 struct ravb_ex_rx_desc *desc,
+				 struct sk_buff *skb)
+{
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct timespec64 ts;
+	bool get_ts;
+
+	if (q == RAVB_NC)
+		get_ts = priv->tstamp_rx_ctrl == HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+	else
+		get_ts = priv->tstamp_rx_ctrl != HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+
+	if (!get_ts)
+		return;
+
+	shhwtstamps = skb_hwtstamps(skb);
+	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+	ts.tv_sec = ((u64)le16_to_cpu(desc->ts_sh) << 32)
+		| le32_to_cpu(desc->ts_sl);
+	ts.tv_nsec = le32_to_cpu(desc->ts_n);
+	shhwtstamps->hwtstamp = timespec64_to_ktime(ts);
+}
+
 /* Packet receive function for Ethernet AVB */
 static int ravb_rx_rcar(struct net_device *ndev, int budget, int q)
 {
@@ -955,7 +979,6 @@ static int ravb_rx_rcar(struct net_device *ndev, int budget, int q)
 	struct ravb_ex_rx_desc *desc;
 	unsigned int limit, i;
 	struct sk_buff *skb;
-	struct timespec64 ts;
 	int rx_packets = 0;
 	u8  desc_status;
 	u16 pkt_len;
@@ -992,7 +1015,6 @@ static int ravb_rx_rcar(struct net_device *ndev, int budget, int q)
 			if (desc_status & MSC_CEEF)
 				stats->rx_missed_errors++;
 		} else {
-			u32 get_ts = priv->tstamp_rx_ctrl & RAVB_RXTSTAMP_TYPE;
 			struct ravb_rx_buffer *rx_buff;
 			void *rx_addr;
 
@@ -1010,19 +1032,8 @@ static int ravb_rx_rcar(struct net_device *ndev, int budget, int q)
 				break;
 			}
 			skb_mark_for_recycle(skb);
-			get_ts &= (q == RAVB_NC) ?
-					RAVB_RXTSTAMP_TYPE_V2_L2_EVENT :
-					~RAVB_RXTSTAMP_TYPE_V2_L2_EVENT;
-			if (get_ts) {
-				struct skb_shared_hwtstamps *shhwtstamps;
 
-				shhwtstamps = skb_hwtstamps(skb);
-				memset(shhwtstamps, 0, sizeof(*shhwtstamps));
-				ts.tv_sec = ((u64) le16_to_cpu(desc->ts_sh) <<
-					     32) | le32_to_cpu(desc->ts_sl);
-				ts.tv_nsec = le32_to_cpu(desc->ts_n);
-				shhwtstamps->hwtstamp = timespec64_to_ktime(ts);
-			}
+			ravb_rx_rcar_hwstamp(priv, q, desc, skb);
 
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
@@ -2414,18 +2425,8 @@ static int ravb_hwtstamp_get(struct net_device *ndev,
 	struct ravb_private *priv = netdev_priv(ndev);
 
 	config->flags = 0;
-	config->tx_type = priv->tstamp_tx_ctrl ? HWTSTAMP_TX_ON :
-						 HWTSTAMP_TX_OFF;
-	switch (priv->tstamp_rx_ctrl & RAVB_RXTSTAMP_TYPE) {
-	case RAVB_RXTSTAMP_TYPE_V2_L2_EVENT:
-		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
-		break;
-	case RAVB_RXTSTAMP_TYPE_ALL:
-		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		break;
-	default:
-		config->rx_filter = HWTSTAMP_FILTER_NONE;
-	}
+	config->tx_type = priv->tstamp_tx_ctrl;
+	config->rx_filter = priv->tstamp_rx_ctrl;
 
 	return 0;
 }
@@ -2436,15 +2437,13 @@ static int ravb_hwtstamp_set(struct net_device *ndev,
 			     struct netlink_ext_ack *extack)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	u32 tstamp_rx_ctrl = RAVB_RXTSTAMP_ENABLED;
-	u32 tstamp_tx_ctrl;
+	enum hwtstamp_rx_filters tstamp_rx_ctrl;
+	enum hwtstamp_tx_types tstamp_tx_ctrl;
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
-		tstamp_tx_ctrl = 0;
-		break;
 	case HWTSTAMP_TX_ON:
-		tstamp_tx_ctrl = RAVB_TXTSTAMP_ENABLED;
+		tstamp_tx_ctrl = config->tx_type;
 		break;
 	default:
 		return -ERANGE;
@@ -2452,14 +2451,12 @@ static int ravb_hwtstamp_set(struct net_device *ndev,
 
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		tstamp_rx_ctrl = 0;
-		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
-		tstamp_rx_ctrl |= RAVB_RXTSTAMP_TYPE_V2_L2_EVENT;
+		tstamp_rx_ctrl = config->rx_filter;
 		break;
 	default:
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		tstamp_rx_ctrl |= RAVB_RXTSTAMP_TYPE_ALL;
+		tstamp_rx_ctrl = HWTSTAMP_FILTER_ALL;
 	}
 
 	priv->tstamp_tx_ctrl = tstamp_tx_ctrl;
