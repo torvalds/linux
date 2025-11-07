@@ -59,6 +59,8 @@ void machine_kexec(struct kimage *image)
 
 #ifdef CONFIG_CRASH_RESERVE
 
+static unsigned long long crashk_cma_size;
+
 static unsigned long long __init get_crash_base(unsigned long long crash_base)
 {
 
@@ -110,7 +112,7 @@ void __init arch_reserve_crashkernel(void)
 
 	/* use common parsing */
 	ret = parse_crashkernel(boot_command_line, total_mem_sz, &crash_size,
-				&crash_base, NULL, NULL, NULL);
+				&crash_base, NULL, &crashk_cma_size, NULL);
 
 	if (ret)
 		return;
@@ -128,6 +130,12 @@ void __init arch_reserve_crashkernel(void)
 	}
 
 	reserve_crashkernel_generic(crash_size, crash_base, 0, false);
+}
+
+void __init kdump_cma_reserve(void)
+{
+	if (crashk_cma_size)
+		reserve_crashkernel_cma(crashk_cma_size);
 }
 
 int __init overlaps_crashkernel(unsigned long start, unsigned long size)
