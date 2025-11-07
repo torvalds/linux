@@ -197,7 +197,46 @@ static bool nft_flowtable_find_dev(const struct net_device *dev,
 	return found;
 }
 
-static void nft_dev_forward_path(struct nf_flow_route *route,
+static int nft_flow_tunnel_update_route(const struct nft_pktinfo *pkt,
+					struct flow_offload_tunnel *tun,
+					struct nf_flow_route *route,
+					enum ip_conntrack_dir dir)
+{
+	struct dst_entry *cur_dst = route->tuple[dir].dst;
+	struct dst_entry *tun_dst = NULL;
+	struct flowi fl = {};
+
+	switch (nft_pf(pkt)) {
+	case NFPROTO_IPV4:
+		fl.u.ip4.daddr = tun->dst_v4.s_addr;
+		fl.u.ip4.saddr = tun->src_v4.s_addr;
+		fl.u.ip4.flowi4_iif = nft_in(pkt)->ifindex;
+		fl.u.ip4.flowi4_dscp = ip4h_dscp(ip_hdr(pkt->skb));
+		fl.u.ip4.flowi4_mark = pkt->skb->mark;
+		fl.u.ip4.flowi4_flags = FLOWI_FLAG_ANYSRC;
+		break;
+	case NFPROTO_IPV6:
+		fl.u.ip6.daddr = tun->dst_v6;
+		fl.u.ip6.saddr = tun->src_v6;
+		fl.u.ip6.flowi6_iif = nft_in(pkt)->ifindex;
+		fl.u.ip6.flowlabel = ip6_flowinfo(ipv6_hdr(pkt->skb));
+		fl.u.ip6.flowi6_mark = pkt->skb->mark;
+		fl.u.ip6.flowi6_flags = FLOWI_FLAG_ANYSRC;
+		break;
+	}
+
+	nf_route(nft_net(pkt), &tun_dst, &fl, false, nft_pf(pkt));
+	if (!tun_dst)
+		return -ENOENT;
+
+	route->tuple[dir].dst = tun_dst;
+	dst_release(cur_dst);
+
+	return 0;
+}
+
+static void nft_dev_forward_path(const struct nft_pktinfo *pkt,
+				 struct nf_flow_route *route,
 				 const struct nf_conn *ct,
 				 enum ip_conntrack_dir dir,
 				 struct nft_flowtable *ft)
@@ -220,7 +259,8 @@ static void nft_dev_forward_path(struct nf_flow_route *route,
 		route->tuple[!dir].in.encap[i].proto = info.encap[i].proto;
 	}
 
-	if (info.num_tuns) {
+	if (info.num_tuns &&
+	    !nft_flow_tunnel_update_route(pkt, &info.tun, route, dir)) {
 		route->tuple[!dir].in.tun.src_v6 = info.tun.dst_v6;
 		route->tuple[!dir].in.tun.dst_v6 = info.tun.src_v6;
 		route->tuple[!dir].in.tun.l3_proto = info.tun.l3_proto;
@@ -281,9 +321,9 @@ int nft_flow_route(const struct nft_pktinfo *pkt, const struct nf_conn *ct,
 	nft_default_forward_path(route, other_dst, !dir);
 
 	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH)
-		nft_dev_forward_path(route, ct, dir, ft);
+		nft_dev_forward_path(pkt, route, ct, dir, ft);
 	if (route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH)
-		nft_dev_forward_path(route, ct, !dir, ft);
+		nft_dev_forward_path(pkt, route, ct, !dir, ft);
 
 	return 0;
 }
