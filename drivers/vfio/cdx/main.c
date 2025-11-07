@@ -129,9 +129,11 @@ static int vfio_cdx_ioctl_get_info(struct vfio_cdx_device *vdev,
 	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
 }
 
-static int vfio_cdx_ioctl_get_region_info(struct vfio_cdx_device *vdev,
+static int vfio_cdx_ioctl_get_region_info(struct vfio_device *core_vdev,
 					  struct vfio_region_info __user *arg)
 {
+	struct vfio_cdx_device *vdev =
+		container_of(core_vdev, struct vfio_cdx_device, vdev);
 	unsigned long minsz = offsetofend(struct vfio_region_info, offset);
 	struct cdx_device *cdx_dev = to_cdx_device(vdev->vdev.dev);
 	struct vfio_region_info info;
@@ -219,8 +221,6 @@ static long vfio_cdx_ioctl(struct vfio_device *core_vdev,
 	switch (cmd) {
 	case VFIO_DEVICE_GET_INFO:
 		return vfio_cdx_ioctl_get_info(vdev, uarg);
-	case VFIO_DEVICE_GET_REGION_INFO:
-		return vfio_cdx_ioctl_get_region_info(vdev, uarg);
 	case VFIO_DEVICE_GET_IRQ_INFO:
 		return vfio_cdx_ioctl_get_irq_info(vdev, uarg);
 	case VFIO_DEVICE_SET_IRQS:
@@ -284,6 +284,7 @@ static const struct vfio_device_ops vfio_cdx_ops = {
 	.open_device	= vfio_cdx_open_device,
 	.close_device	= vfio_cdx_close_device,
 	.ioctl		= vfio_cdx_ioctl,
+	.get_region_info = vfio_cdx_ioctl_get_region_info,
 	.device_feature = vfio_cdx_ioctl_feature,
 	.mmap		= vfio_cdx_mmap,
 	.bind_iommufd	= vfio_iommufd_physical_bind,
