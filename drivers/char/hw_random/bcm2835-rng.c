@@ -138,6 +138,7 @@ static const struct of_device_id bcm2835_rng_of_match[] = {
 	{ .compatible = "brcm,bcm6368-rng"},
 	{},
 };
+MODULE_DEVICE_TABLE(of, bcm2835_rng_of_match);
 
 static int bcm2835_rng_probe(struct platform_device *pdev)
 {
@@ -190,8 +191,6 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 
 	return err;
 }
-
-MODULE_DEVICE_TABLE(of, bcm2835_rng_of_match);
 
 static const struct platform_device_id bcm2835_rng_devtype[] = {
 	{ .name = "bcm2835-rng" },
