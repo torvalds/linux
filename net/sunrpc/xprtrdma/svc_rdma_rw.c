@@ -860,7 +860,7 @@ static int svc_rdma_copy_inline_range(struct svc_rqst *rqstp,
 		offset += page_len;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 /**
