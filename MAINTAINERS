@@ -22685,7 +22685,7 @@ ROHM BD71828 CHARGER
 M:	Andreas Kemnade <andreas@kemnade.info>
 M:	Matti Vaittinen <mazziesaccount@gmail.com>
 S:	Maintained
-F:	drivers/power/supply/bd71828-charger.c
+F:	drivers/power/supply/bd71828-power.c
 
 ROHM BD79703 DAC
 M:	Matti Vaittinen <mazziesaccount@gmail.com>
