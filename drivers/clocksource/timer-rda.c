@@ -13,6 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/sched_clock.h>
 
 #include "timer-of.h"
 
@@ -153,7 +154,7 @@ static struct timer_of rda_ostimer_of = {
 	},
 };
 
-static u64 rda_hwtimer_read(struct clocksource *cs)
+static u64 rda_hwtimer_clocksource_read(void)
 {
 	void __iomem *base = timer_of_base(&rda_ostimer_of);
 	u32 lo, hi;
@@ -165,6 +166,11 @@ static u64 rda_hwtimer_read(struct clocksource *cs)
 	} while (hi != readl_relaxed(base + RDA_HWTIMER_LOCKVAL_H));
 
 	return ((u64)hi << 32) | lo;
+}
+
+static u64 rda_hwtimer_read(struct clocksource *cs)
+{
+	return rda_hwtimer_clocksource_read();
 }
 
 static struct clocksource rda_hwtimer_clocksource = {
@@ -185,6 +191,7 @@ static int __init rda_timer_init(struct device_node *np)
 		return ret;
 
 	clocksource_register_hz(&rda_hwtimer_clocksource, rate);
+	sched_clock_register(rda_hwtimer_clocksource_read, 64, rate);
 
 	clockevents_config_and_register(&rda_ostimer_of.clkevt, rate,
 					0x2, UINT_MAX);
