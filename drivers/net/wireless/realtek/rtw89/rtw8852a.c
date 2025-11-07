@@ -48,6 +48,48 @@ static const struct rtw89_hfc_param_ini rtw8852a_hfc_param_ini_pcie[] = {
 	[RTW89_QTA_INVALID] = {NULL},
 };
 
+static const struct rtw89_hfc_ch_cfg rtw8852a_hfc_chcfg_usb[] = {
+	{22, 402, grp_0}, /* ACH 0 */
+	{0, 0, grp_0}, /* ACH 1 */
+	{22, 402, grp_0}, /* ACH 2 */
+	{0, 0, grp_0}, /* ACH 3 */
+	{22, 402, grp_0}, /* ACH 4 */
+	{0, 0, grp_0}, /* ACH 5 */
+	{22, 402, grp_0}, /* ACH 6 */
+	{0, 0, grp_0}, /* ACH 7 */
+	{22, 402, grp_0}, /* B0MGQ */
+	{0, 0, grp_0}, /* B0HIQ */
+	{22, 402, grp_0}, /* B1MGQ */
+	{0, 0, grp_0}, /* B1HIQ */
+	{0, 0, 0} /* FWCMDQ */
+};
+
+static const struct rtw89_hfc_pub_cfg rtw8852a_hfc_pubcfg_usb = {
+	512, /* Group 0 */
+	0, /* Group 1 */
+	512, /* Public Max */
+	104 /* WP threshold */
+};
+
+static const struct rtw89_hfc_prec_cfg rtw8852a_hfc_preccfg_usb = {
+	11, /* CH 0-11 pre-cost */
+	32, /* H2C pre-cost */
+	76, /* WP CH 0-7 pre-cost */
+	25, /* WP CH 8-11 pre-cost */
+	1, /* CH 0-11 full condition */
+	1, /* H2C full condition */
+	1, /* WP CH 0-7 full condition */
+	1, /* WP CH 8-11 full condition */
+};
+
+static const struct rtw89_hfc_param_ini rtw8852a_hfc_param_ini_usb[] = {
+	[RTW89_QTA_SCC] = {rtw8852a_hfc_chcfg_usb, &rtw8852a_hfc_pubcfg_usb,
+			   &rtw8852a_hfc_preccfg_usb, RTW89_HCIFC_STF},
+	[RTW89_QTA_DLFW] = {NULL, NULL,
+			    &rtw8852a_hfc_preccfg_usb, RTW89_HCIFC_STF},
+	[RTW89_QTA_INVALID] = {NULL},
+};
+
 static const struct rtw89_dle_mem rtw8852a_dle_mem_pcie[] = {
 	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_mac_size.wde_size0,
 			   &rtw89_mac_size.ple_size0, &rtw89_mac_size.wde_qt0,
@@ -2237,7 +2279,9 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.max_amsdu_limit	= 3500,
 	.dis_2g_40m_ul_ofdma	= true,
 	.rsvd_ple_ofst		= 0x6f800,
-	.hfc_param_ini		= {rtw8852a_hfc_param_ini_pcie, NULL, NULL},
+	.hfc_param_ini		= {rtw8852a_hfc_param_ini_pcie,
+				   rtw8852a_hfc_param_ini_usb,
+				   NULL},
 	.dle_mem		= {rtw8852a_dle_mem_pcie,
 				   rtw8852a_dle_mem_usb,
 				   rtw8852a_dle_mem_usb,
