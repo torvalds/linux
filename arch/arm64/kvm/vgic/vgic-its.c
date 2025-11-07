@@ -115,21 +115,18 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 		/* Someone was faster with adding this LPI, lets use that. */
 		kfree(irq);
 		irq = oldirq;
-
-		goto out_unlock;
+	} else {
+		ret = xa_err(__xa_store(&dist->lpi_xa, intid, irq, 0));
 	}
 
-	ret = xa_err(__xa_store(&dist->lpi_xa, intid, irq, 0));
+	xa_unlock_irqrestore(&dist->lpi_xa, flags);
+
 	if (ret) {
 		xa_release(&dist->lpi_xa, intid);
 		kfree(irq);
-	}
 
-out_unlock:
-	xa_unlock_irqrestore(&dist->lpi_xa, flags);
-
-	if (ret)
 		return ERR_PTR(ret);
+	}
 
 	/*
 	 * We "cache" the configuration table entries in our struct vgic_irq's.
