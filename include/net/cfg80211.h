@@ -786,8 +786,7 @@ struct vif_params {
  * @key: key material
  * @key_len: length of key material
  * @cipher: cipher suite selector
- * @seq: sequence counter (IV/PN) for TKIP and CCMP keys, only used
- *	with the get_key() callback, must be in little endian,
+ * @seq: sequence counter (IV/PN), must be in little endian,
  *	length given by @seq_len.
  * @seq_len: length of @seq.
  * @vlan_id: vlan_id for VLAN group key (if nonzero)
