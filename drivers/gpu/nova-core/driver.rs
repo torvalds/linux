@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 
 use kernel::{
-    auxiliary, c_str,
+    auxiliary,
+    c_str,
     device::Core,
     pci,
-    pci::{Class, ClassMask, Vendor},
+    pci::{
+        Class,
+        ClassMask,
+        Vendor, //
+    },
     prelude::*,
     sizes::SZ_16M,
-    sync::Arc,
+    sync::Arc, //
 };
 
 use crate::gpu::Gpu;

@@ -2,16 +2,23 @@
 
 use core::ops::Range;
 
-use kernel::prelude::*;
-use kernel::ptr::{Alignable, Alignment};
-use kernel::sizes::*;
-use kernel::sync::aref::ARef;
-use kernel::{dev_warn, device};
+use kernel::{
+    device,
+    prelude::*,
+    ptr::{
+        Alignable,
+        Alignment, //
+    },
+    sizes::*,
+    sync::aref::ARef, //
+};
 
-use crate::dma::DmaObject;
-use crate::driver::Bar0;
-use crate::gpu::Chipset;
-use crate::regs;
+use crate::{
+    dma::DmaObject,
+    driver::Bar0,
+    gpu::Chipset,
+    regs, //
+};
 
 mod hal;
 

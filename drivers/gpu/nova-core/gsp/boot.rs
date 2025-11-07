@@ -1,21 +1,35 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use kernel::device;
-use kernel::pci;
-use kernel::prelude::*;
-
-use crate::driver::Bar0;
-use crate::falcon::{gsp::Gsp, sec2::Sec2, Falcon};
-use crate::fb::FbLayout;
-use crate::firmware::{
-    booter::{BooterFirmware, BooterKind},
-    fwsec::{FwsecCommand, FwsecFirmware},
-    gsp::GspFirmware,
-    FIRMWARE_VERSION,
+use kernel::{
+    device,
+    pci,
+    prelude::*, //
 };
-use crate::gpu::Chipset;
-use crate::regs;
-use crate::vbios::Vbios;
+
+use crate::{
+    driver::Bar0,
+    falcon::{
+        gsp::Gsp,
+        sec2::Sec2,
+        Falcon, //
+    },
+    fb::FbLayout,
+    firmware::{
+        booter::{
+            BooterFirmware,
+            BooterKind, //
+        },
+        fwsec::{
+            FwsecCommand,
+            FwsecFirmware, //
+        },
+        gsp::GspFirmware,
+        FIRMWARE_VERSION, //
+    },
+    gpu::Chipset,
+    regs,
+    vbios::Vbios,
+};
 
 impl super::Gsp {
     /// Helper function to load and run the FWSEC-FRTS firmware and confirm that it has properly

@@ -4,20 +4,37 @@
 //! running on [`Sec2`], that is used on Turing/Ampere to load the GSP firmware into the GSP falcon
 //! (and optionally unload it through a separate firmware image).
 
-use core::marker::PhantomData;
-use core::mem::size_of;
-use core::ops::Deref;
+use core::{
+    marker::PhantomData,
+    ops::Deref, //
+};
 
-use kernel::device;
-use kernel::prelude::*;
-use kernel::transmute::FromBytes;
+use kernel::{
+    device,
+    prelude::*,
+    transmute::FromBytes, //
+};
 
-use crate::dma::DmaObject;
-use crate::driver::Bar0;
-use crate::falcon::sec2::Sec2;
-use crate::falcon::{Falcon, FalconBromParams, FalconFirmware, FalconLoadParams, FalconLoadTarget};
-use crate::firmware::{BinFirmware, FirmwareDmaObject, FirmwareSignature, Signed, Unsigned};
-use crate::gpu::Chipset;
+use crate::{
+    dma::DmaObject,
+    driver::Bar0,
+    falcon::{
+        sec2::Sec2,
+        Falcon,
+        FalconBromParams,
+        FalconFirmware,
+        FalconLoadParams,
+        FalconLoadTarget, //
+    },
+    firmware::{
+        BinFirmware,
+        FirmwareDmaObject,
+        FirmwareSignature,
+        Signed,
+        Unsigned, //
+    },
+    gpu::Chipset,
+};
 
 /// Local convenience function to return a copy of `S` by reinterpreting the bytes starting at
 /// `offset` in `slice`.

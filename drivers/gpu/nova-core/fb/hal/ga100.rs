@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 
-struct Ga100;
-
 use kernel::prelude::*;
 
-use crate::driver::Bar0;
-use crate::fb::hal::FbHal;
-use crate::regs;
+use crate::{
+    driver::Bar0,
+    fb::hal::FbHal,
+    regs, //
+};
 
 use super::tu102::FLUSH_SYSMEM_ADDR_SHIFT;
+
+struct Ga100;
 
 pub(super) fn read_sysmem_flush_page_ga100(bar: &Bar0) -> u64 {
     u64::from(regs::NV_PFB_NISO_FLUSH_SYSMEM_ADDR::read(bar).adr_39_08()) << FLUSH_SYSMEM_ADDR_SHIFT

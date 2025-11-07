@@ -4,17 +4,20 @@
 //! to be loaded into a given execution unit.
 
 use core::marker::PhantomData;
-use core::mem::size_of;
 
-use kernel::device;
-use kernel::firmware;
-use kernel::prelude::*;
-use kernel::str::CString;
-use kernel::transmute::FromBytes;
+use kernel::{
+    device,
+    firmware,
+    prelude::*,
+    str::CString,
+    transmute::FromBytes, //
+};
 
-use crate::dma::DmaObject;
-use crate::falcon::FalconFirmware;
-use crate::gpu;
+use crate::{
+    dma::DmaObject,
+    falcon::FalconFirmware,
+    gpu, //
+};
 
 pub(crate) mod booter;
 pub(crate) mod fwsec;

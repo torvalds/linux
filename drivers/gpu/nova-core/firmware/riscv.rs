@@ -5,13 +5,17 @@
 
 use core::mem::size_of;
 
-use kernel::device;
-use kernel::firmware::Firmware;
-use kernel::prelude::*;
-use kernel::transmute::FromBytes;
+use kernel::{
+    device,
+    firmware::Firmware,
+    prelude::*,
+    transmute::FromBytes, //
+};
 
-use crate::dma::DmaObject;
-use crate::firmware::BinFirmware;
+use crate::{
+    dma::DmaObject,
+    firmware::BinFirmware, //
+};
 
 /// Descriptor for microcode running on a RISC-V core.
 #[repr(C)]

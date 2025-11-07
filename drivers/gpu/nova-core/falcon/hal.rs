@@ -2,9 +2,15 @@
 
 use kernel::prelude::*;
 
-use crate::driver::Bar0;
-use crate::falcon::{Falcon, FalconBromParams, FalconEngine};
-use crate::gpu::Chipset;
+use crate::{
+    driver::Bar0,
+    falcon::{
+        Falcon,
+        FalconBromParams,
+        FalconEngine, //
+    },
+    gpu::Chipset,
+};
 
 mod ga102;
 

@@ -2,16 +2,24 @@
 
 use core::marker::PhantomData;
 
-use kernel::device;
-use kernel::io::poll::read_poll_timeout;
-use kernel::prelude::*;
-use kernel::time::Delta;
-
-use crate::driver::Bar0;
-use crate::falcon::{
-    Falcon, FalconBromParams, FalconEngine, FalconModSelAlgo, PeregrineCoreSelect,
+use kernel::{
+    device,
+    io::poll::read_poll_timeout,
+    prelude::*,
+    time::Delta, //
 };
-use crate::regs;
+
+use crate::{
+    driver::Bar0,
+    falcon::{
+        Falcon,
+        FalconBromParams,
+        FalconEngine,
+        FalconModSelAlgo,
+        PeregrineCoreSelect, //
+    },
+    regs,
+};
 
 use super::FalconHal;
 

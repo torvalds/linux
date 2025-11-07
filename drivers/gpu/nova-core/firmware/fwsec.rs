@@ -10,20 +10,44 @@
 //! - The command to be run, as this firmware can perform several tasks ;
 //! - The ucode signature, so the GSP falcon can run FWSEC in HS mode.
 
-use core::marker::PhantomData;
-use core::mem::{align_of, size_of};
-use core::ops::Deref;
+use core::{
+    marker::PhantomData,
+    mem::{
+        align_of,
+        size_of, //
+    },
+    ops::Deref,
+};
 
-use kernel::device::{self, Device};
-use kernel::prelude::*;
-use kernel::transmute::FromBytes;
+use kernel::{
+    device::{
+        self,
+        Device, //
+    },
+    prelude::*,
+    transmute::FromBytes,
+};
 
-use crate::dma::DmaObject;
-use crate::driver::Bar0;
-use crate::falcon::gsp::Gsp;
-use crate::falcon::{Falcon, FalconBromParams, FalconFirmware, FalconLoadParams, FalconLoadTarget};
-use crate::firmware::{FalconUCodeDescV3, FirmwareDmaObject, FirmwareSignature, Signed, Unsigned};
-use crate::vbios::Vbios;
+use crate::{
+    dma::DmaObject,
+    driver::Bar0,
+    falcon::{
+        gsp::Gsp,
+        Falcon,
+        FalconBromParams,
+        FalconFirmware,
+        FalconLoadParams,
+        FalconLoadTarget, //
+    },
+    firmware::{
+        FalconUCodeDescV3,
+        FirmwareDmaObject,
+        FirmwareSignature,
+        Signed,
+        Unsigned, //
+    },
+    vbios::Vbios,
+};
 
 const NVFW_FALCON_APPIF_ID_DMEMMAPPER: u32 = 0x4;
 

@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use crate::driver::Bar0;
-use crate::fb::hal::FbHal;
-use crate::regs;
 use kernel::prelude::*;
+
+use crate::{
+    driver::Bar0,
+    fb::hal::FbHal,
+    regs, //
+};
 
 /// Shift applied to the sysmem address before it is written into `NV_PFB_NISO_FLUSH_SYSMEM_ADDR`,
 /// to be used by HALs.

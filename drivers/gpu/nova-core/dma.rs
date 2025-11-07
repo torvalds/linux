@@ -2,12 +2,17 @@
 
 //! Simple DMA object wrapper.
 
-use core::ops::{Deref, DerefMut};
+use core::ops::{
+    Deref,
+    DerefMut, //
+};
 
-use kernel::device;
-use kernel::dma::CoherentAllocation;
-use kernel::page::PAGE_SIZE;
-use kernel::prelude::*;
+use kernel::{
+    device,
+    dma::CoherentAllocation,
+    page::PAGE_SIZE,
+    prelude::*, //
+};
 
 pub(crate) struct DmaObject {
     dma: CoherentAllocation<u8>,

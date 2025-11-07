@@ -7,12 +7,26 @@
 #[macro_use]
 pub(crate) mod macros;
 
-use crate::falcon::{
-    DmaTrfCmdSize, FalconCoreRev, FalconCoreRevSubversion, FalconFbifMemType, FalconFbifTarget,
-    FalconModSelAlgo, FalconSecurityModel, PFalcon2Base, PFalconBase, PeregrineCoreSelect,
-};
-use crate::gpu::{Architecture, Chipset};
 use kernel::prelude::*;
+
+use crate::{
+    falcon::{
+        DmaTrfCmdSize,
+        FalconCoreRev,
+        FalconCoreRevSubversion,
+        FalconFbifMemType,
+        FalconFbifTarget,
+        FalconModSelAlgo,
+        FalconSecurityModel,
+        PFalcon2Base,
+        PFalconBase,
+        PeregrineCoreSelect, //
+    },
+    gpu::{
+        Architecture,
+        Chipset, //
+    },
+};
 
 // PMC
 

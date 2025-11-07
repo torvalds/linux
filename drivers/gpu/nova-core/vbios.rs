@@ -2,16 +2,26 @@
 
 //! VBIOS extraction and parsing.
 
-use crate::driver::Bar0;
-use crate::firmware::fwsec::Bcrt30Rsa3kSignature;
-use crate::firmware::FalconUCodeDescV3;
 use core::convert::TryFrom;
-use kernel::device;
-use kernel::error::Result;
-use kernel::prelude::*;
-use kernel::ptr::{Alignable, Alignment};
-use kernel::transmute::FromBytes;
-use kernel::types::ARef;
+
+use kernel::{
+    device,
+    prelude::*,
+    ptr::{
+        Alignable,
+        Alignment, //
+    },
+    transmute::FromBytes,
+    types::ARef,
+};
+
+use crate::{
+    driver::Bar0,
+    firmware::{
+        fwsec::Bcrt30Rsa3kSignature,
+        FalconUCodeDescV3, //
+    },
+};
 
 /// The offset of the VBIOS ROM in the BAR0 space.
 const ROM_OFFSET: usize = 0x300000;

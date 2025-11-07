@@ -2,16 +2,29 @@
 
 use core::mem::size_of_val;
 
-use kernel::device;
-use kernel::dma::{DataDirection, DmaAddress};
-use kernel::kvec;
-use kernel::prelude::*;
-use kernel::scatterlist::{Owned, SGTable};
+use kernel::{
+    device,
+    dma::{
+        DataDirection,
+        DmaAddress, //
+    },
+    kvec,
+    prelude::*,
+    scatterlist::{
+        Owned,
+        SGTable, //
+    },
+};
 
-use crate::dma::DmaObject;
-use crate::firmware::riscv::RiscvFirmware;
-use crate::gpu::{Architecture, Chipset};
-use crate::gsp::GSP_PAGE_SIZE;
+use crate::{
+    dma::DmaObject,
+    firmware::riscv::RiscvFirmware,
+    gpu::{
+        Architecture,
+        Chipset, //
+    },
+    gsp::GSP_PAGE_SIZE,
+};
 
 /// Ad-hoc and temporary module to extract sections from ELF images.
 ///

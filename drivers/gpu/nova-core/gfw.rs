@@ -18,12 +18,16 @@
 //!
 //! Note that the devinit sequence also needs to run during suspend/resume.
 
-use kernel::io::poll::read_poll_timeout;
-use kernel::prelude::*;
-use kernel::time::Delta;
+use kernel::{
+    io::poll::read_poll_timeout,
+    prelude::*,
+    time::Delta, //
+};
 
-use crate::driver::Bar0;
-use crate::regs;
+use crate::{
+    driver::Bar0,
+    regs, //
+};
 
 /// Wait for the `GFW` (GPU firmware) boot completion signal (`GFW_BOOT`), or a 4 seconds timeout.
 ///
