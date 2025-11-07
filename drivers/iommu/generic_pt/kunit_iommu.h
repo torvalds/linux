@@ -8,7 +8,7 @@
 #define GENERIC_PT_KUNIT 1
 #include <kunit/device.h>
 #include <kunit/test.h>
-#include <../../iommu-pages.h>
+#include "../iommu-pages.h"
 #include "pt_iter.h"
 
 #define pt_iommu_table_cfg CONCATENATE(pt_iommu_table, _cfg)
