@@ -1850,6 +1850,28 @@ static int b53_arl_rw_op(struct b53_device *dev, unsigned int op)
 	return b53_arl_op_wait(dev);
 }
 
+static void b53_arl_read_entry_25(struct b53_device *dev,
+				  struct b53_arl_entry *ent, u8 idx)
+{
+	u64 mac_vid;
+
+	b53_read64(dev, B53_ARLIO_PAGE, B53_ARLTBL_MAC_VID_ENTRY(idx),
+		   &mac_vid);
+	b53_arl_to_entry_25(ent, mac_vid);
+}
+
+static void b53_arl_read_entry_95(struct b53_device *dev,
+				  struct b53_arl_entry *ent, u8 idx)
+{
+	u32 fwd_entry;
+	u64 mac_vid;
+
+	b53_read64(dev, B53_ARLIO_PAGE, B53_ARLTBL_MAC_VID_ENTRY(idx),
+		   &mac_vid);
+	b53_read32(dev, B53_ARLIO_PAGE, B53_ARLTBL_DATA_ENTRY(idx), &fwd_entry);
+	b53_arl_to_entry(ent, mac_vid, fwd_entry);
+}
+
 static int b53_arl_read(struct b53_device *dev, const u8 *mac,
 			u16 vid, struct b53_arl_entry *ent, u8 *idx)
 {
@@ -1865,52 +1887,10 @@ static int b53_arl_read(struct b53_device *dev, const u8 *mac,
 
 	/* Read the bins */
 	for (i = 0; i < dev->num_arl_bins; i++) {
-		u64 mac_vid;
-		u32 fwd_entry;
-
-		b53_read64(dev, B53_ARLIO_PAGE,
-			   B53_ARLTBL_MAC_VID_ENTRY(i), &mac_vid);
-		b53_read32(dev, B53_ARLIO_PAGE,
-			   B53_ARLTBL_DATA_ENTRY(i), &fwd_entry);
-		b53_arl_to_entry(ent, mac_vid, fwd_entry);
-
-		if (!ent->is_valid) {
-			set_bit(i, free_bins);
-			continue;
-		}
-		if (!ether_addr_equal(ent->mac, mac))
-			continue;
-		if (dev->vlan_enabled && ent->vid != vid)
-			continue;
-		*idx = i;
-		return 0;
-	}
-
-	*idx = find_first_bit(free_bins, dev->num_arl_bins);
-	return *idx >= dev->num_arl_bins ? -ENOSPC : -ENOENT;
-}
-
-static int b53_arl_read_25(struct b53_device *dev, const u8 *mac,
-			   u16 vid, struct b53_arl_entry *ent, u8 *idx)
-{
-	DECLARE_BITMAP(free_bins, B53_ARLTBL_MAX_BIN_ENTRIES);
-	unsigned int i;
-	int ret;
-
-	ret = b53_arl_op_wait(dev);
-	if (ret)
-		return ret;
-
-	bitmap_zero(free_bins, dev->num_arl_bins);
-
-	/* Read the bins */
-	for (i = 0; i < dev->num_arl_bins; i++) {
-		u64 mac_vid;
-
-		b53_read64(dev, B53_ARLIO_PAGE,
-			   B53_ARLTBL_MAC_VID_ENTRY(i), &mac_vid);
-
-		b53_arl_to_entry_25(ent, mac_vid);
+		if (is5325(dev) || is5365(dev))
+			b53_arl_read_entry_25(dev, ent, i);
+		else
+			b53_arl_read_entry_95(dev, ent, i);
 
 		if (!ent->is_valid) {
 			set_bit(i, free_bins);
@@ -1950,10 +1930,7 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	if (ret)
 		return ret;
 
-	if (is5325(dev) || is5365(dev))
-		ret = b53_arl_read_25(dev, addr, vid, &ent, &idx);
-	else
-		ret = b53_arl_read(dev, addr, vid, &ent, &idx);
+	ret = b53_arl_read(dev, addr, vid, &ent, &idx);
 
 	/* If this is a read, just finish now */
 	if (op)
