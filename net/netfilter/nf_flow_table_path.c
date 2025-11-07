@@ -80,6 +80,8 @@ struct nft_forward_info {
 		__be16	proto;
 	} encap[NF_FLOW_TABLE_ENCAP_MAX];
 	u8 num_encaps;
+	struct flow_offload_tunnel tun;
+	u8 num_tuns;
 	u8 ingress_vlans;
 	u8 h_source[ETH_ALEN];
 	u8 h_dest[ETH_ALEN];
@@ -102,6 +104,7 @@ static void nft_dev_path_info(const struct net_device_path_stack *stack,
 		case DEV_PATH_DSA:
 		case DEV_PATH_VLAN:
 		case DEV_PATH_PPPOE:
+		case DEV_PATH_TUN:
 			info->indev = path->dev;
 			if (is_zero_ether_addr(info->h_source))
 				memcpy(info->h_source, path->dev->dev_addr, ETH_ALEN);
@@ -113,14 +116,27 @@ static void nft_dev_path_info(const struct net_device_path_stack *stack,
 				break;
 			}
 
-			/* DEV_PATH_VLAN and DEV_PATH_PPPOE */
-			if (info->num_encaps >= NF_FLOW_TABLE_ENCAP_MAX) {
-				info->indev = NULL;
-				break;
+			/* DEV_PATH_VLAN, DEV_PATH_PPPOE and DEV_PATH_TUN */
+			if (path->type == DEV_PATH_TUN) {
+				if (info->num_tuns) {
+					info->indev = NULL;
+					break;
+				}
+				info->tun.src_v6 = path->tun.src_v6;
+				info->tun.dst_v6 = path->tun.dst_v6;
+				info->tun.l3_proto = path->tun.l3_proto;
+				info->num_tuns++;
+			} else {
+				if (info->num_encaps >= NF_FLOW_TABLE_ENCAP_MAX) {
+					info->indev = NULL;
+					break;
+				}
+				info->encap[info->num_encaps].id =
+					path->encap.id;
+				info->encap[info->num_encaps].proto =
+					path->encap.proto;
+				info->num_encaps++;
 			}
-			info->encap[info->num_encaps].id = path->encap.id;
-			info->encap[info->num_encaps].proto = path->encap.proto;
-			info->num_encaps++;
 			if (path->type == DEV_PATH_PPPOE)
 				memcpy(info->h_dest, path->encap.h_dest, ETH_ALEN);
 			break;
@@ -203,6 +219,14 @@ static void nft_dev_forward_path(struct nf_flow_route *route,
 		route->tuple[!dir].in.encap[i].id = info.encap[i].id;
 		route->tuple[!dir].in.encap[i].proto = info.encap[i].proto;
 	}
+
+	if (info.num_tuns) {
+		route->tuple[!dir].in.tun.src_v6 = info.tun.dst_v6;
+		route->tuple[!dir].in.tun.dst_v6 = info.tun.src_v6;
+		route->tuple[!dir].in.tun.l3_proto = info.tun.l3_proto;
+		route->tuple[!dir].in.num_tuns = info.num_tuns;
+	}
+
 	route->tuple[!dir].in.num_encaps = info.num_encaps;
 	route->tuple[!dir].in.ingress_vlans = info.ingress_vlans;
 	route->tuple[dir].out.ifindex = info.outdev->ifindex;

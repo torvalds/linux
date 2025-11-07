@@ -107,6 +107,19 @@ enum flow_offload_xmit_type {
 
 #define NF_FLOW_TABLE_ENCAP_MAX		2
 
+struct flow_offload_tunnel {
+	union {
+		struct in_addr	src_v4;
+		struct in6_addr	src_v6;
+	};
+	union {
+		struct in_addr	dst_v4;
+		struct in6_addr	dst_v6;
+	};
+
+	u8	l3_proto;
+};
+
 struct flow_offload_tuple {
 	union {
 		struct in_addr		src_v4;
@@ -130,12 +143,15 @@ struct flow_offload_tuple {
 		__be16			proto;
 	} encap[NF_FLOW_TABLE_ENCAP_MAX];
 
+	struct flow_offload_tunnel	tun;
+
 	/* All members above are keys for lookups, see flow_offload_hash(). */
 	struct { }			__hash;
 
 	u8				dir:2,
 					xmit_type:3,
 					encap_num:2,
+					tun_num:2,
 					in_vlan_ingress:2;
 	u16				mtu;
 	union {
@@ -206,7 +222,9 @@ struct nf_flow_route {
 				u16		id;
 				__be16		proto;
 			} encap[NF_FLOW_TABLE_ENCAP_MAX];
+			struct flow_offload_tunnel tun;
 			u8			num_encaps:2,
+						num_tuns:2,
 						ingress_vlans:2;
 		} in;
 		struct {
