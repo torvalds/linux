@@ -346,12 +346,20 @@
 #define   ARLTBL_STATIC			BIT(15)
 #define   ARLTBL_VALID			BIT(16)
 
+/* BCM5389 ARL Table Data Entry N Register format (16 bit) */
+#define   ARLTBL_DATA_PORT_ID_MASK_89	GENMASK(8, 0)
+#define   ARLTBL_TC_MASK_89		GENMASK(12, 10)
+#define   ARLTBL_AGE_89			BIT(13)
+#define   ARLTBL_STATIC_89		BIT(14)
+#define   ARLTBL_VALID_89		BIT(15)
+
 /* Maximum number of bin entries in the ARL for all switches */
 #define B53_ARLTBL_MAX_BIN_ENTRIES	4
 
 /* ARL Search Control Register (8 bit) */
 #define B53_ARL_SRCH_CTL		0x50
 #define B53_ARL_SRCH_CTL_25		0x20
+#define B53_ARL_SRCH_CTL_89		0x30
 #define   ARL_SRCH_VLID			BIT(0)
 #define   ARL_SRCH_STDN			BIT(7)
 
@@ -359,10 +367,12 @@
 #define B53_ARL_SRCH_ADDR		0x51
 #define B53_ARL_SRCH_ADDR_25		0x22
 #define B53_ARL_SRCH_ADDR_65		0x24
+#define B53_ARL_SRCH_ADDR_89		0x31
 #define  ARL_ADDR_MASK			GENMASK(14, 0)
 
 /* ARL Search MAC/VID Result (64 bit) */
 #define B53_ARL_SRCH_RSTL_0_MACVID	0x60
+#define B53_ARL_SRCH_RSLT_MACVID_89	0x33
 
 /* Single register search result on 5325 */
 #define B53_ARL_SRCH_RSTL_0_MACVID_25	0x24
@@ -371,6 +381,9 @@
 
 /* ARL Search Data Result (32 bit) */
 #define B53_ARL_SRCH_RSTL_0		0x68
+
+/* BCM5389 ARL Search Data Result (16 bit) */
+#define B53_ARL_SRCH_RSLT_89		0x3b
 
 #define B53_ARL_SRCH_RSTL_MACVID(x)	(B53_ARL_SRCH_RSTL_0_MACVID + ((x) * 0x10))
 #define B53_ARL_SRCH_RSTL(x)		(B53_ARL_SRCH_RSTL_0 + ((x) * 0x10))
