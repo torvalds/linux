@@ -1162,9 +1162,11 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 	struct kfd_dev *dev = adev->kfd.dev;
 	uint32_t i;
 
-	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 5, 0))
+	/*
+	 * On multi-aid system, attempt per-node matching. Otherwise,
+	 * fall back to the first node.
+	 */
+	if (!amdgpu_is_multi_aid(adev))
 		return dev->nodes[0];
 
 	for (i = 0; i < dev->num_nodes; i++)
