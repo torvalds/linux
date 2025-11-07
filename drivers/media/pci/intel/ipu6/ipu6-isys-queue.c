@@ -355,8 +355,6 @@ static void buf_queue(struct vb2_buffer *vb)
 		vb2_buffer_to_ipu6_isys_video_buffer(vvb);
 	struct ipu6_isys_buffer *ib = &ivb->ib;
 	struct device *dev = &av->isys->adev->auxdev.dev;
-	struct media_pipeline *media_pipe =
-		media_entity_pipeline(&av->vdev.entity);
 	struct ipu6_fw_isys_frame_buff_set_abi *buf = NULL;
 	struct ipu6_isys_stream *stream = av->stream;
 	struct ipu6_isys_buffer_list bl;
@@ -374,8 +372,8 @@ static void buf_queue(struct vb2_buffer *vb)
 	list_add(&ib->head, &aq->incoming);
 	spin_unlock_irqrestore(&aq->lock, flags);
 
-	if (!media_pipe || !vb->vb2_queue->start_streaming_called) {
-		dev_dbg(dev, "media pipeline is not ready for %s\n",
+	if (!vb2_start_streaming_called(vb->vb2_queue)) {
+		dev_dbg(dev, "start_streaming hasn't been called yet on %s\n",
 			av->vdev.name);
 		return;
 	}
