@@ -1295,11 +1295,26 @@ static int rtw89_mac_sub_pwr_seq(struct rtw89_dev *rtwdev, u8 cv_msk,
 static int rtw89_mac_pwr_seq(struct rtw89_dev *rtwdev,
 			     const struct rtw89_pwr_cfg * const *cfg_seq)
 {
+	u8 intf_msk;
 	int ret;
+
+	switch (rtwdev->hci.type) {
+	case RTW89_HCI_TYPE_PCIE:
+		intf_msk = PWR_INTF_MSK_PCIE;
+		break;
+	case RTW89_HCI_TYPE_USB:
+		intf_msk = PWR_INTF_MSK_USB;
+		break;
+	case RTW89_HCI_TYPE_SDIO:
+		intf_msk = PWR_INTF_MSK_SDIO;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	for (; *cfg_seq; cfg_seq++) {
 		ret = rtw89_mac_sub_pwr_seq(rtwdev, BIT(rtwdev->hal.cv),
-					    PWR_INTF_MSK_PCIE, *cfg_seq);
+					    intf_msk, *cfg_seq);
 		if (ret)
 			return -EBUSY;
 	}
