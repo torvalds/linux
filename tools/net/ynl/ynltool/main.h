@@ -59,4 +59,7 @@ struct cmd {
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	       int (*help)(int argc, char **argv));
 
+/* subcommands */
+int do_page_pool(int argc, char **argv);
+
 #endif /* __YNLTOOL_H */

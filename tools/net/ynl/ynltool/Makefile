@@ -10,7 +10,7 @@ CFLAGS := -Wall -Wextra -Werror -O2
 ifeq ("$(DEBUG)","1")
   CFLAGS += -g -fsanitize=address -fsanitize=leak -static-libasan
 endif
-CFLAGS += -I../lib
+CFLAGS += -I../lib -I../generated -I../../../include/uapi/
 
 SRC_VERSION := \
 	$(shell make --no-print-directory -sC ../../../.. kernelversion || \
@@ -29,13 +29,16 @@ all: $(YNLTOOL)
 
 Q = @
 
-$(YNLTOOL): $(OBJS)
+$(YNLTOOL): ../libynl.a $(OBJS)
 	$(Q)echo -e "\tLINK $@"
-	$(Q)$(CC) $(CFLAGS) -o $@ $(OBJS)
+	$(Q)$(CC) $(CFLAGS) -o $@ $(OBJS) ../libynl.a -lmnl
 
-%.o: %.c main.h json_writer.h
+%.o: %.c ../libynl.a
 	$(Q)echo -e "\tCC $@"
 	$(Q)$(COMPILE.c) -MMD -c -o $@ $<
+
+../libynl.a:
+	$(Q)$(MAKE) -C ../
 
 clean:
 	rm -f *.o *.d *~

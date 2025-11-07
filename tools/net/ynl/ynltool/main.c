@@ -47,7 +47,7 @@ static int do_help(int argc __attribute__((unused)),
 		"Usage: %s [OPTIONS] OBJECT { COMMAND | help }\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { }\n"
+		"       OBJECT := { page-pool }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, bin_name);
@@ -71,6 +71,7 @@ static int do_version(int argc __attribute__((unused)),
 
 static const struct cmd commands[] = {
 	{ "help",	do_help },
+	{ "page-pool",	do_page_pool },
 	{ "version",	do_version },
 	{ 0 }
 };
