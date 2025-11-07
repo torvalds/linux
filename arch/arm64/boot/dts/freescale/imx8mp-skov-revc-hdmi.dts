@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+#include "imx8mp-skov-revb-hdmi.dts"
+
+/ {
+	model = "SKOV IMX8MP CPU revC - HDMI";
+	compatible = "skov,imx8mp-skov-revc-hdmi", "fsl,imx8mp";
+};
