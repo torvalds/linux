@@ -3430,6 +3430,12 @@ ptp_ocp_tty_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 	struct ptp_ocp *bp = dev_get_drvdata(dev);
 
+	/*
+	 * NOTE: This output does not include a trailing newline for backward
+	 * compatibility. Existing userspace software uses this value directly
+	 * as a device path (e.g., "/dev/ttyS4"), and adding a newline would
+	 * break those applications. Do not add a newline to this output.
+	 */
 	return sysfs_emit(buf, "ttyS%d", bp->port[(uintptr_t)ea->var].line);
 }
 
