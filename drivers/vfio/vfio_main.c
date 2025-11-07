@@ -1297,13 +1297,13 @@ static long vfio_device_fops_unl_ioctl(struct file *filep,
 		break;
 
 	case VFIO_DEVICE_GET_REGION_INFO:
-		if (!device->ops->get_region_info)
-			goto ioctl_fallback;
-		ret = device->ops->get_region_info(device, uptr);
+		if (unlikely(!device->ops->get_region_info))
+			ret = -EINVAL;
+		else
+			ret = device->ops->get_region_info(device, uptr);
 		break;
 
 	default:
-ioctl_fallback:
 		if (unlikely(!device->ops->ioctl))
 			ret = -EINVAL;
 		else
