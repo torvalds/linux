@@ -1437,19 +1437,19 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		 */
 		if (!perf_data__is_pipe(session->data))
 			lseek(fd, file_offset, SEEK_SET);
-		err = tool->tracing_data(session, event);
+		err = tool->tracing_data(tool, session, event);
 		break;
 	case PERF_RECORD_HEADER_BUILD_ID:
-		err = tool->build_id(session, event);
+		err = tool->build_id(tool, session, event);
 		break;
 	case PERF_RECORD_FINISHED_ROUND:
 		err = tool->finished_round(tool, event, oe);
 		break;
 	case PERF_RECORD_ID_INDEX:
-		err = tool->id_index(session, event);
+		err = tool->id_index(tool, session, event);
 		break;
 	case PERF_RECORD_AUXTRACE_INFO:
-		err = tool->auxtrace_info(session, event);
+		err = tool->auxtrace_info(tool, session, event);
 		break;
 	case PERF_RECORD_AUXTRACE:
 		/*
@@ -1459,45 +1459,45 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		 */
 		if (!perf_data__is_pipe(session->data))
 			lseek(fd, file_offset + event->header.size, SEEK_SET);
-		err = tool->auxtrace(session, event);
+		err = tool->auxtrace(tool, session, event);
 		break;
 	case PERF_RECORD_AUXTRACE_ERROR:
 		perf_session__auxtrace_error_inc(session, event);
-		err = tool->auxtrace_error(session, event);
+		err = tool->auxtrace_error(tool, session, event);
 		break;
 	case PERF_RECORD_THREAD_MAP:
-		err = tool->thread_map(session, event);
+		err = tool->thread_map(tool, session, event);
 		break;
 	case PERF_RECORD_CPU_MAP:
-		err = tool->cpu_map(session, event);
+		err = tool->cpu_map(tool, session, event);
 		break;
 	case PERF_RECORD_STAT_CONFIG:
-		err = tool->stat_config(session, event);
+		err = tool->stat_config(tool, session, event);
 		break;
 	case PERF_RECORD_STAT:
-		err = tool->stat(session, event);
+		err = tool->stat(tool, session, event);
 		break;
 	case PERF_RECORD_STAT_ROUND:
-		err = tool->stat_round(session, event);
+		err = tool->stat_round(tool, session, event);
 		break;
 	case PERF_RECORD_TIME_CONV:
 		session->time_conv = event->time_conv;
-		err = tool->time_conv(session, event);
+		err = tool->time_conv(tool, session, event);
 		break;
 	case PERF_RECORD_HEADER_FEATURE:
-		err = tool->feature(session, event);
+		err = tool->feature(tool, session, event);
 		break;
 	case PERF_RECORD_COMPRESSED:
 	case PERF_RECORD_COMPRESSED2:
-		err = tool->compressed(session, event, file_offset, file_path);
+		err = tool->compressed(tool, session, event, file_offset, file_path);
 		if (err)
 			dump_event(session->evlist, event, file_offset, &sample, file_path);
 		break;
 	case PERF_RECORD_FINISHED_INIT:
-		err = tool->finished_init(session, event);
+		err = tool->finished_init(tool, session, event);
 		break;
 	case PERF_RECORD_BPF_METADATA:
-		err = tool->bpf_metadata(session, event);
+		err = tool->bpf_metadata(tool, session, event);
 		break;
 	default:
 		err = -EINVAL;
@@ -2647,7 +2647,8 @@ static int perf_session__set_guest_cpu(struct perf_session *session, pid_t pid,
 	return 0;
 }
 
-int perf_event__process_id_index(struct perf_session *session,
+int perf_event__process_id_index(const struct perf_tool *tool __maybe_unused,
+				 struct perf_session *session,
 				 union perf_event *event)
 {
 	struct evlist *evlist = session->evlist;

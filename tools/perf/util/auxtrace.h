@@ -615,11 +615,14 @@ void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
 			  const char *msg, u64 timestamp);
 
-int perf_event__process_auxtrace_info(struct perf_session *session,
+int perf_event__process_auxtrace_info(const struct perf_tool *tool,
+				      struct perf_session *session,
 				      union perf_event *event);
-s64 perf_event__process_auxtrace(struct perf_session *session,
+s64 perf_event__process_auxtrace(const struct perf_tool *tool,
+				 struct perf_session *session,
 				 union perf_event *event);
-int perf_event__process_auxtrace_error(struct perf_session *session,
+int perf_event__process_auxtrace_error(const struct perf_tool *tool,
+				       struct perf_session *session,
 				       union perf_event *event);
 int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 			       const char *str, int unset);
@@ -728,21 +731,24 @@ int auxtrace_record__options(struct auxtrace_record *itr __maybe_unused,
 }
 
 static inline
-int perf_event__process_auxtrace_info(struct perf_session *session __maybe_unused,
+int perf_event__process_auxtrace_info(const struct perf_tool *tool __maybe_unused,
+				      struct perf_session *session __maybe_unused,
 				      union perf_event *event __maybe_unused)
 {
 	return 0;
 }
 
 static inline
-s64 perf_event__process_auxtrace(struct perf_session *session __maybe_unused,
+s64 perf_event__process_auxtrace(const struct perf_tool *tool __maybe_unused,
+				 struct perf_session *session __maybe_unused,
 				 union perf_event *event __maybe_unused)
 {
 	return 0;
 }
 
 static inline
-int perf_event__process_auxtrace_error(struct perf_session *session __maybe_unused,
+int perf_event__process_auxtrace_error(const struct perf_tool *tool __maybe_unused,
+				       struct perf_session *session __maybe_unused,
 				       union perf_event *event __maybe_unused)
 {
 	return 0;

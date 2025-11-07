@@ -13,7 +13,8 @@
 #include <unistd.h>
 
 #ifdef HAVE_ZSTD_SUPPORT
-static int perf_session__process_compressed_event(struct perf_session *session,
+static int perf_session__process_compressed_event(const struct perf_tool *tool __maybe_unused,
+						  struct perf_session *session,
 						  union perf_event *event, u64 file_offset,
 						  const char *file_path)
 {
@@ -79,10 +80,9 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 }
 #endif
 
-static int process_event_synth_tracing_data_stub(struct perf_session *session
-						 __maybe_unused,
-						 union perf_event *event
-						 __maybe_unused)
+static int process_event_synth_tracing_data_stub(const struct perf_tool *tool __maybe_unused,
+						 struct perf_session *session __maybe_unused,
+						 union perf_event *event __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -90,8 +90,7 @@ static int process_event_synth_tracing_data_stub(struct perf_session *session
 
 static int process_event_synth_attr_stub(const struct perf_tool *tool __maybe_unused,
 					 union perf_event *event __maybe_unused,
-					 struct evlist **pevlist
-					 __maybe_unused)
+					 struct evlist **pevlist __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -99,8 +98,7 @@ static int process_event_synth_attr_stub(const struct perf_tool *tool __maybe_un
 
 static int process_event_synth_event_update_stub(const struct perf_tool *tool __maybe_unused,
 						 union perf_event *event __maybe_unused,
-						 struct evlist **pevlist
-						 __maybe_unused)
+						 struct evlist **pevlist __maybe_unused)
 {
 	if (dump_trace)
 		perf_event__fprintf_event_update(event, stdout);
@@ -151,7 +149,8 @@ static int skipn(int fd, off_t n)
 	return 0;
 }
 
-static s64 process_event_auxtrace_stub(struct perf_session *session __maybe_unused,
+static s64 process_event_auxtrace_stub(const struct perf_tool *tool __maybe_unused,
+				       struct perf_session *session __maybe_unused,
 				       union perf_event *event)
 {
 	dump_printf(": unhandled!\n");
@@ -160,7 +159,8 @@ static s64 process_event_auxtrace_stub(struct perf_session *session __maybe_unus
 	return event->auxtrace.size;
 }
 
-static int process_event_op2_stub(struct perf_session *session __maybe_unused,
+static int process_event_op2_stub(const struct perf_tool *tool __maybe_unused,
+				  struct perf_session *session __maybe_unused,
 				  union perf_event *event __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
@@ -169,7 +169,8 @@ static int process_event_op2_stub(struct perf_session *session __maybe_unused,
 
 
 static
-int process_event_thread_map_stub(struct perf_session *session __maybe_unused,
+int process_event_thread_map_stub(const struct perf_tool *tool __maybe_unused,
+				  struct perf_session *session __maybe_unused,
 				  union perf_event *event __maybe_unused)
 {
 	if (dump_trace)
@@ -180,7 +181,8 @@ int process_event_thread_map_stub(struct perf_session *session __maybe_unused,
 }
 
 static
-int process_event_cpu_map_stub(struct perf_session *session __maybe_unused,
+int process_event_cpu_map_stub(const struct perf_tool *tool __maybe_unused,
+			       struct perf_session *session __maybe_unused,
 			       union perf_event *event __maybe_unused)
 {
 	if (dump_trace)
@@ -191,7 +193,8 @@ int process_event_cpu_map_stub(struct perf_session *session __maybe_unused,
 }
 
 static
-int process_event_stat_config_stub(struct perf_session *session __maybe_unused,
+int process_event_stat_config_stub(const struct perf_tool *tool __maybe_unused,
+				   struct perf_session *session __maybe_unused,
 				   union perf_event *event __maybe_unused)
 {
 	if (dump_trace)
@@ -201,7 +204,8 @@ int process_event_stat_config_stub(struct perf_session *session __maybe_unused,
 	return 0;
 }
 
-static int process_stat_stub(struct perf_session *perf_session __maybe_unused,
+static int process_stat_stub(const struct perf_tool *tool __maybe_unused,
+			     struct perf_session *perf_session __maybe_unused,
 			     union perf_event *event)
 {
 	if (dump_trace)
@@ -211,7 +215,8 @@ static int process_stat_stub(struct perf_session *perf_session __maybe_unused,
 	return 0;
 }
 
-static int process_stat_round_stub(struct perf_session *perf_session __maybe_unused,
+static int process_stat_round_stub(const struct perf_tool *tool __maybe_unused,
+				   struct perf_session *perf_session __maybe_unused,
 				   union perf_event *event)
 {
 	if (dump_trace)
@@ -221,7 +226,8 @@ static int process_stat_round_stub(struct perf_session *perf_session __maybe_unu
 	return 0;
 }
 
-static int process_event_time_conv_stub(struct perf_session *perf_session __maybe_unused,
+static int process_event_time_conv_stub(const struct perf_tool *tool __maybe_unused,
+					struct perf_session *perf_session __maybe_unused,
 					union perf_event *event)
 {
 	if (dump_trace)
@@ -231,7 +237,8 @@ static int process_event_time_conv_stub(struct perf_session *perf_session __mayb
 	return 0;
 }
 
-static int perf_session__process_compressed_event_stub(struct perf_session *session __maybe_unused,
+static int perf_session__process_compressed_event_stub(const struct perf_tool *tool __maybe_unused,
+						       struct perf_session *session __maybe_unused,
 						       union perf_event *event __maybe_unused,
 						       u64 file_offset __maybe_unused,
 						       const char *file_path __maybe_unused)
@@ -240,7 +247,8 @@ static int perf_session__process_compressed_event_stub(struct perf_session *sess
 	return 0;
 }
 
-static int perf_event__process_bpf_metadata_stub(struct perf_session *perf_session __maybe_unused,
+static int perf_event__process_bpf_metadata_stub(const struct perf_tool *tool __maybe_unused,
+						 struct perf_session *perf_session __maybe_unused,
 						 union perf_event *event)
 {
 	if (dump_trace)

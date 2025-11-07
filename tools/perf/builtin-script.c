@@ -2729,7 +2729,8 @@ static int process_switch_event(const struct perf_tool *tool,
 			   sample->tid);
 }
 
-static int process_auxtrace_error(struct perf_session *session,
+static int process_auxtrace_error(const struct perf_tool *tool,
+				  struct perf_session *session,
 				  union perf_event *event)
 {
 	if (scripting_ops && scripting_ops->process_auxtrace_error) {
@@ -2737,7 +2738,7 @@ static int process_auxtrace_error(struct perf_session *session,
 		return 0;
 	}
 
-	return perf_event__process_auxtrace_error(session, event);
+	return perf_event__process_auxtrace_error(tool, session, event);
 }
 
 static int
@@ -2785,7 +2786,8 @@ process_bpf_events(const struct perf_tool *tool __maybe_unused,
 }
 
 static int
-process_bpf_metadata_event(struct perf_session *session __maybe_unused,
+process_bpf_metadata_event(const struct perf_tool *tool __maybe_unused,
+			   struct perf_session *session __maybe_unused,
 			   union perf_event *event)
 {
 	perf_event__fprintf(event, NULL, stdout);
@@ -3544,7 +3546,8 @@ static void script__setup_sample_type(struct perf_script *script)
 	}
 }
 
-static int process_stat_round_event(struct perf_session *session,
+static int process_stat_round_event(const struct perf_tool *tool __maybe_unused,
+				    struct perf_session *session,
 				    union perf_event *event)
 {
 	struct perf_record_stat_round *round = &event->stat_round;
@@ -3559,7 +3562,8 @@ static int process_stat_round_event(struct perf_session *session,
 	return 0;
 }
 
-static int process_stat_config_event(struct perf_session *session __maybe_unused,
+static int process_stat_config_event(const struct perf_tool *tool __maybe_unused,
+				     struct perf_session *session __maybe_unused,
 				     union perf_event *event)
 {
 	perf_event__read_stat_config(&stat_config, &event->stat_config);
@@ -3593,10 +3597,10 @@ static int set_maps(struct perf_script *script)
 }
 
 static
-int process_thread_map_event(struct perf_session *session,
+int process_thread_map_event(const struct perf_tool *tool,
+			     struct perf_session *session __maybe_unused,
 			     union perf_event *event)
 {
-	const struct perf_tool *tool = session->tool;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 
 	if (dump_trace)
@@ -3615,10 +3619,10 @@ int process_thread_map_event(struct perf_session *session,
 }
 
 static
-int process_cpu_map_event(struct perf_session *session,
+int process_cpu_map_event(const struct perf_tool *tool,
+			  struct perf_session *session __maybe_unused,
 			  union perf_event *event)
 {
-	const struct perf_tool *tool = session->tool;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 
 	if (dump_trace)
@@ -3636,7 +3640,8 @@ int process_cpu_map_event(struct perf_session *session,
 	return set_maps(script);
 }
 
-static int process_feature_event(struct perf_session *session,
+static int process_feature_event(const struct perf_tool *tool __maybe_unused,
+				 struct perf_session *session,
 				 union perf_event *event)
 {
 	if (event->feat.feat_id < HEADER_LAST_FEATURE)
@@ -3645,13 +3650,13 @@ static int process_feature_event(struct perf_session *session,
 }
 
 #ifdef HAVE_AUXTRACE_SUPPORT
-static int perf_script__process_auxtrace_info(struct perf_session *session,
+static int perf_script__process_auxtrace_info(const struct perf_tool *tool,
+					      struct perf_session *session,
 					      union perf_event *event)
 {
-	int ret = perf_event__process_auxtrace_info(session, event);
+	int ret = perf_event__process_auxtrace_info(tool, session, event);
 
 	if (ret == 0) {
-		const struct perf_tool *tool = session->tool;
 		struct perf_script *script = container_of(tool, struct perf_script, tool);
 
 		ret = perf_script__setup_per_event_dump(script);
