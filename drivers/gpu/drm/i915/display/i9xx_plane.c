@@ -1203,7 +1203,8 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	pixel_format = val & DISP_FORMAT_MASK;
 	fourcc = i9xx_format_to_fourcc(pixel_format);
-	fb->format = drm_format_info(fourcc);
+
+	fb->format = drm_get_format_info(display->drm, fourcc, fb->modifier);
 
 	if (display->platform.haswell || display->platform.broadwell) {
 		offset = intel_de_read(display,
