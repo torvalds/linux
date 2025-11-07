@@ -205,9 +205,9 @@ static int nvgrace_gpu_mmap(struct vfio_device *core_vdev,
 	return 0;
 }
 
-static long
+static int
 nvgrace_gpu_ioctl_get_region_info(struct vfio_device *core_vdev,
-				  unsigned long arg)
+				  struct vfio_region_info __user *arg)
 {
 	struct nvgrace_gpu_pci_core_device *nvdev =
 		container_of(core_vdev, struct nvgrace_gpu_pci_core_device,
@@ -220,7 +220,7 @@ nvgrace_gpu_ioctl_get_region_info(struct vfio_device *core_vdev,
 	u32 size;
 	int ret;
 
-	if (copy_from_user(&info, (void __user *)arg, minsz))
+	if (copy_from_user(&info, arg, minsz))
 		return -EFAULT;
 
 	if (info.argsz < minsz)
@@ -232,8 +232,7 @@ nvgrace_gpu_ioctl_get_region_info(struct vfio_device *core_vdev,
 	 */
 	memregion = nvgrace_gpu_memregion(info.index, nvdev);
 	if (!memregion)
-		return vfio_pci_core_ioctl(core_vdev,
-					   VFIO_DEVICE_GET_REGION_INFO, arg);
+		return vfio_pci_ioctl_get_region_info(core_vdev, arg);
 
 	size = struct_size(sparse, areas, 1);
 
@@ -285,16 +284,13 @@ nvgrace_gpu_ioctl_get_region_info(struct vfio_device *core_vdev,
 		}
 		kfree(caps.buf);
 	}
-	return copy_to_user((void __user *)arg, &info, minsz) ?
-			    -EFAULT : 0;
+	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
 }
 
 static long nvgrace_gpu_ioctl(struct vfio_device *core_vdev,
 			      unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
-	case VFIO_DEVICE_GET_REGION_INFO:
-		return nvgrace_gpu_ioctl_get_region_info(core_vdev, arg);
 	case VFIO_DEVICE_IOEVENTFD:
 		return -ENOTTY;
 	case VFIO_DEVICE_RESET:
@@ -690,6 +686,7 @@ static const struct vfio_device_ops nvgrace_gpu_pci_ops = {
 	.open_device	= nvgrace_gpu_open_device,
 	.close_device	= nvgrace_gpu_close_device,
 	.ioctl		= nvgrace_gpu_ioctl,
+	.get_region_info = nvgrace_gpu_ioctl_get_region_info,
 	.device_feature	= vfio_pci_core_ioctl_feature,
 	.read		= nvgrace_gpu_read,
 	.write		= nvgrace_gpu_write,
