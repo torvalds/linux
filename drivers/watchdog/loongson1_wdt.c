@@ -18,10 +18,14 @@
 #define DEFAULT_HEARTBEAT	30
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0444);
+module_param(nowayout, bool, 0);
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned int heartbeat;
-module_param(heartbeat, uint, 0444);
+module_param(heartbeat, uint, 0);
+MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (default="
+		 __MODULE_STRING(DEFAULT_HEARTBEAT) ")");
 
 struct ls1x_wdt_drvdata {
 	void __iomem *base;
