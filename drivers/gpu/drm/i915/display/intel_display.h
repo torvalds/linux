@@ -34,6 +34,7 @@ struct drm_atomic_state;
 struct drm_device;
 struct drm_display_mode;
 struct drm_encoder;
+struct drm_format_info;
 struct drm_modeset_acquire_ctx;
 struct intel_atomic_state;
 struct intel_crtc;
@@ -403,7 +404,8 @@ void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int bw_overhead,
 			    struct intel_link_m_n *m_n);
 u32 intel_plane_fb_max_stride(struct intel_display *display,
-			      u32 pixel_format, u64 modifier);
+			      const struct drm_format_info *info,
+			      u64 modifier);
 u32 intel_dumb_fb_max_stride(struct drm_device *drm,
 			     u32 pixel_format, u64 modifier);
 enum drm_mode_status

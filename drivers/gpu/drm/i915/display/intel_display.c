@@ -548,7 +548,8 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 }
 
 u32 intel_plane_fb_max_stride(struct intel_display *display,
-			      u32 pixel_format, u64 modifier)
+			      const struct drm_format_info *info,
+			      u64 modifier)
 {
 	struct intel_crtc *crtc;
 	struct intel_plane *plane;
@@ -564,7 +565,7 @@ u32 intel_plane_fb_max_stride(struct intel_display *display,
 
 	plane = to_intel_plane(crtc->base.primary);
 
-	return plane->max_stride(plane, pixel_format, modifier,
+	return plane->max_stride(plane, info, modifier,
 				 DRM_MODE_ROTATE_0);
 }
 
@@ -576,7 +577,9 @@ u32 intel_dumb_fb_max_stride(struct drm_device *drm,
 	if (!HAS_DISPLAY(display))
 		return 0;
 
-	return intel_plane_fb_max_stride(display, pixel_format, modifier);
+	return intel_plane_fb_max_stride(display,
+					 drm_get_format_info(drm, pixel_format, modifier),
+					 modifier);
 }
 
 void intel_set_plane_visible(struct intel_crtc_state *crtc_state,

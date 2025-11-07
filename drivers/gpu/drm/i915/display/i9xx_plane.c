@@ -754,10 +754,9 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 
 static unsigned int
 hsw_primary_max_stride(struct intel_plane *plane,
-		       u32 pixel_format, u64 modifier,
-		       unsigned int rotation)
+		       const struct drm_format_info *info,
+		       u64 modifier, unsigned int rotation)
 {
-	const struct drm_format_info *info = drm_format_info(pixel_format);
 	int cpp = info->cpp[0];
 
 	/* Limit to 8k pixels to guarantee OFFSET.x doesn't get too big. */
@@ -766,10 +765,9 @@ hsw_primary_max_stride(struct intel_plane *plane,
 
 static unsigned int
 ilk_primary_max_stride(struct intel_plane *plane,
-		       u32 pixel_format, u64 modifier,
-		       unsigned int rotation)
+		       const struct drm_format_info *info,
+		       u64 modifier, unsigned int rotation)
 {
-	const struct drm_format_info *info = drm_format_info(pixel_format);
 	int cpp = info->cpp[0];
 
 	/* Limit to 4k pixels to guarantee TILEOFF.x doesn't get too big. */
@@ -781,10 +779,9 @@ ilk_primary_max_stride(struct intel_plane *plane,
 
 unsigned int
 i965_plane_max_stride(struct intel_plane *plane,
-		      u32 pixel_format, u64 modifier,
-		      unsigned int rotation)
+		      const struct drm_format_info *info,
+		      u64 modifier, unsigned int rotation)
 {
-	const struct drm_format_info *info = drm_format_info(pixel_format);
 	int cpp = info->cpp[0];
 
 	/* Limit to 4k pixels to guarantee TILEOFF.x doesn't get too big. */
@@ -796,8 +793,8 @@ i965_plane_max_stride(struct intel_plane *plane,
 
 static unsigned int
 i915_plane_max_stride(struct intel_plane *plane,
-		      u32 pixel_format, u64 modifier,
-		      unsigned int rotation)
+		      const struct drm_format_info *info,
+		      u64 modifier, unsigned int rotation)
 {
 	if (modifier == I915_FORMAT_MOD_X_TILED)
 		return 8 * 1024;
@@ -807,8 +804,8 @@ i915_plane_max_stride(struct intel_plane *plane,
 
 static unsigned int
 i8xx_plane_max_stride(struct intel_plane *plane,
-		      u32 pixel_format, u64 modifier,
-		      unsigned int rotation)
+		      const struct drm_format_info *info,
+		      u64 modifier, unsigned int rotation)
 {
 	if (plane->i9xx_plane == PLANE_C)
 		return 4 * 1024;

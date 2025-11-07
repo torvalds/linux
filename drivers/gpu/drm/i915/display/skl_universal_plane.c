@@ -465,12 +465,11 @@ static int icl_plane_max_height(const struct drm_framebuffer *fb,
 
 static unsigned int
 plane_max_stride(struct intel_plane *plane,
-		 u32 pixel_format, u64 modifier,
-		 unsigned int rotation,
+		 const struct drm_format_info *info,
+		 u64 modifier, unsigned int rotation,
 		 unsigned int max_pixels,
 		 unsigned int max_bytes)
 {
-	const struct drm_format_info *info = drm_format_info(pixel_format);
 	int cpp = info->cpp[0];
 
 	if (drm_rotation_90_or_270(rotation))
@@ -481,26 +480,26 @@ plane_max_stride(struct intel_plane *plane,
 
 static unsigned int
 adl_plane_max_stride(struct intel_plane *plane,
-		     u32 pixel_format, u64 modifier,
-		     unsigned int rotation)
+		     const struct drm_format_info *info,
+		     u64 modifier, unsigned int rotation)
 {
 	unsigned int max_pixels = 65536; /* PLANE_OFFSET limit */
 	unsigned int max_bytes = 128 * 1024;
 
-	return plane_max_stride(plane, pixel_format,
+	return plane_max_stride(plane, info,
 				modifier, rotation,
 				max_pixels, max_bytes);
 }
 
 static unsigned int
 skl_plane_max_stride(struct intel_plane *plane,
-		     u32 pixel_format, u64 modifier,
-		     unsigned int rotation)
+		     const struct drm_format_info *info,
+		     u64 modifier, unsigned int rotation)
 {
 	unsigned int max_pixels = 8192; /* PLANE_OFFSET limit */
 	unsigned int max_bytes = 32 * 1024;
 
-	return plane_max_stride(plane, pixel_format,
+	return plane_max_stride(plane, info,
 				modifier, rotation,
 				max_pixels, max_bytes);
 }

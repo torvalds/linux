@@ -1326,7 +1326,7 @@ static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 	 * unclear in Bspec, for now no checking.
 	 */
 	stride = intel_fb_pitch(fb, 0, rotation);
-	max_stride = plane->max_stride(plane, fb->base.format->format,
+	max_stride = plane->max_stride(plane, fb->base.format,
 				       fb->base.modifier, rotation);
 
 	return stride > max_stride;
@@ -1972,7 +1972,8 @@ void intel_add_fb_offsets(int *x, int *y,
 
 static
 u32 intel_fb_max_stride(struct intel_display *display,
-			u32 pixel_format, u64 modifier)
+			const struct drm_format_info *info,
+			u64 modifier)
 {
 	/*
 	 * Arbitrary limit for gen4+ chosen to match the
@@ -1982,7 +1983,7 @@ u32 intel_fb_max_stride(struct intel_display *display,
 	 */
 	if (DISPLAY_VER(display) < 4 || intel_fb_is_ccs_modifier(modifier) ||
 	    intel_fb_modifier_uses_dpt(display, modifier))
-		return intel_plane_fb_max_stride(display, pixel_format, modifier);
+		return intel_plane_fb_max_stride(display, info, modifier);
 	else if (DISPLAY_VER(display) >= 7)
 		return 256 * 1024;
 	else
@@ -1997,7 +1998,7 @@ intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 
 	if (is_surface_linear(fb, color_plane)) {
 		unsigned int max_stride = intel_plane_fb_max_stride(display,
-								    fb->format->format,
+								    fb->format,
 								    fb->modifier);
 
 		/*
@@ -2055,7 +2056,7 @@ static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 
 	/* FIXME other color planes? */
 	stride = plane_state->view.color_plane[0].mapping_stride;
-	max_stride = plane->max_stride(plane, fb->format->format,
+	max_stride = plane->max_stride(plane, fb->format,
 				       fb->modifier, rotation);
 
 	if (stride > max_stride) {
@@ -2243,8 +2244,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		goto err_bo_framebuffer_fini;
 	}
 
-	max_stride = intel_fb_max_stride(display, mode_cmd->pixel_format,
-					 mode_cmd->modifier[0]);
+	max_stride = intel_fb_max_stride(display, info, mode_cmd->modifier[0]);
 	if (mode_cmd->pitches[0] > max_stride) {
 		drm_dbg_kms(display->drm,
 			    "%s pitch (%u) must be at most %d\n",
