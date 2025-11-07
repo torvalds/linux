@@ -45,7 +45,7 @@
 #define FF_S302M_DEFAULT_PTS_OFFSET 100000
 
 /* Used by the tone generator: number of samples for PI */
-#define PI		180
+#define PI_SAMPLES		180
 
 static const u8 reverse[256] = {
 	/* from ffmpeg */
@@ -259,10 +259,10 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 		if (!ctx->last_tone)
 			return 0x8000;
 
-		pos = (2 * PI * ctx->note_offset * ctx->last_tone) / S302M_SAMPLING_RATE_HZ;
+		pos = (2 * PI_SAMPLES * ctx->note_offset * ctx->last_tone) / S302M_SAMPLING_RATE_HZ;
 		ctx->note_offset++;
 
-		return (fixp_sin32(pos % (2 * PI)) >> 16) + 0x8000;
+		return (fixp_sin32(pos % (2 * PI_SAMPLES)) >> 16) + 0x8000;
 	}
 
 	/* bug somewhere */
