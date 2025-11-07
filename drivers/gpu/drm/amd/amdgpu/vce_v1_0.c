@@ -34,6 +34,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_vce.h"
+#include "amdgpu_gart.h"
 #include "sid.h"
 #include "vce_v1_0.h"
 #include "vce/vce_1_0_d.h"
@@ -45,6 +46,11 @@
 #define VCE_V1_0_STACK_SIZE	(64 * 1024)
 #define VCE_V1_0_DATA_SIZE	(7808 * (AMDGPU_MAX_VCE_HANDLES + 1))
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
+
+#define VCE_V1_0_GART_PAGE_START \
+	(AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS)
+#define VCE_V1_0_GART_ADDR_START \
+	(VCE_V1_0_GART_PAGE_START * AMDGPU_GPU_PAGE_SIZE)
 
 static void vce_v1_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v1_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -513,6 +519,49 @@ static int vce_v1_0_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
+/**
+ * vce_v1_0_ensure_vcpu_bo_32bit_addr() - ensure the VCPU BO has a 32-bit address
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Due to various hardware limitations, the VCE1 requires
+ * the VCPU BO to be in the low 32 bit address range.
+ * Ensure that the VCPU BO has a 32-bit GPU address,
+ * or return an error code when that isn't possible.
+ *
+ * To accomodate that, we put GART to the LOW address range
+ * and reserve some GART pages where we map the VCPU BO,
+ * so that it gets a 32-bit address.
+ */
+static int vce_v1_0_ensure_vcpu_bo_32bit_addr(struct amdgpu_device *adev)
+{
+	u64 gpu_addr = amdgpu_bo_gpu_offset(adev->vce.vcpu_bo);
+	u64 bo_size = amdgpu_bo_size(adev->vce.vcpu_bo);
+	u64 max_vcpu_bo_addr = 0xffffffff - bo_size;
+	u64 num_pages = ALIGN(bo_size, AMDGPU_GPU_PAGE_SIZE) / AMDGPU_GPU_PAGE_SIZE;
+	u64 pa = amdgpu_gmc_vram_pa(adev, adev->vce.vcpu_bo);
+	u64 flags = AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE | AMDGPU_PTE_VALID;
+
+	/*
+	 * Check if the VCPU BO already has a 32-bit address.
+	 * Eg. if MC is configured to put VRAM in the low address range.
+	 */
+	if (gpu_addr <= max_vcpu_bo_addr)
+		return 0;
+
+	/* Check if we can map the VCPU BO in GART to a 32-bit address. */
+	if (adev->gmc.gart_start + VCE_V1_0_GART_ADDR_START > max_vcpu_bo_addr)
+		return -EINVAL;
+
+	amdgpu_gart_map_vram_range(adev, pa, VCE_V1_0_GART_PAGE_START,
+				   num_pages, flags, adev->gart.ptr);
+	adev->vce.gpu_addr = adev->gmc.gart_start + VCE_V1_0_GART_ADDR_START;
+	if (adev->vce.gpu_addr > max_vcpu_bo_addr)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int vce_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -532,6 +581,9 @@ static int vce_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 	r = vce_v1_0_load_fw_signature(adev);
+	if (r)
+		return r;
+	r = vce_v1_0_ensure_vcpu_bo_32bit_addr(adev);
 	if (r)
 		return r;
 
@@ -647,6 +699,9 @@ static int vce_v1_0_resume(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 	r = vce_v1_0_load_fw_signature(adev);
+	if (r)
+		return r;
+	r = vce_v1_0_ensure_vcpu_bo_32bit_addr(adev);
 	if (r)
 		return r;
 
