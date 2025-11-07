@@ -1385,37 +1385,33 @@ static ssize_t hisi_acc_vfio_pci_read(struct vfio_device *core_vdev,
 	return vfio_pci_core_read(core_vdev, buf, new_count, ppos);
 }
 
-static long hisi_acc_vfio_pci_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
-				    unsigned long arg)
+static int hisi_acc_vfio_ioctl_get_region(struct vfio_device *core_vdev,
+					  struct vfio_region_info __user *arg)
 {
-	if (cmd == VFIO_DEVICE_GET_REGION_INFO) {
-		struct vfio_pci_core_device *vdev =
-			container_of(core_vdev, struct vfio_pci_core_device, vdev);
-		struct vfio_region_info info;
-		unsigned long minsz;
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	struct vfio_region_info info;
+	unsigned long minsz;
 
-		minsz = offsetofend(struct vfio_region_info, offset);
+	minsz = offsetofend(struct vfio_region_info, offset);
 
-		if (copy_from_user(&info, (void __user *)arg, minsz))
-			return -EFAULT;
+	if (copy_from_user(&info, arg, minsz))
+		return -EFAULT;
 
-		if (info.argsz < minsz)
-			return -EINVAL;
+	if (info.argsz < minsz)
+		return -EINVAL;
 
-		if (info.index == VFIO_PCI_BAR2_REGION_INDEX) {
-			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
+	if (info.index != VFIO_PCI_BAR2_REGION_INDEX)
+		return vfio_pci_ioctl_get_region_info(core_vdev, arg);
 
-			info.size = hisi_acc_get_resource_len(vdev, info.index);
+	info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
 
-			info.flags = VFIO_REGION_INFO_FLAG_READ |
-					VFIO_REGION_INFO_FLAG_WRITE |
-					VFIO_REGION_INFO_FLAG_MMAP;
+	info.size = hisi_acc_get_resource_len(vdev, info.index);
 
-			return copy_to_user((void __user *)arg, &info, minsz) ?
-					    -EFAULT : 0;
-		}
-	}
-	return vfio_pci_core_ioctl(core_vdev, cmd, arg);
+	info.flags = VFIO_REGION_INFO_FLAG_READ | VFIO_REGION_INFO_FLAG_WRITE |
+		     VFIO_REGION_INFO_FLAG_MMAP;
+
+	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
 }
 
 static int hisi_acc_vf_debug_check(struct seq_file *seq, struct vfio_device *vdev)
@@ -1613,7 +1609,8 @@ static const struct vfio_device_ops hisi_acc_vfio_pci_migrn_ops = {
 	.release = vfio_pci_core_release_dev,
 	.open_device = hisi_acc_vfio_pci_open_device,
 	.close_device = hisi_acc_vfio_pci_close_device,
-	.ioctl = hisi_acc_vfio_pci_ioctl,
+	.ioctl = vfio_pci_core_ioctl,
+	.get_region_info = hisi_acc_vfio_ioctl_get_region,
 	.device_feature = vfio_pci_core_ioctl_feature,
 	.read = hisi_acc_vfio_pci_read,
 	.write = hisi_acc_vfio_pci_write,
