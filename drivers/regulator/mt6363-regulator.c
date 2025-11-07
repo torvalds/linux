@@ -363,7 +363,7 @@ static unsigned int mt6363_regulator_get_mode(struct regulator_dev *rdev)
 			return REGULATOR_MODE_FAST;
 	} else {
 		val = 0;
-	};
+	}
 
 	ret = regmap_read(rdev->regmap, info->hw_lp_mode_reg, &val);
 	val &= info->hw_lp_mode_mask;
