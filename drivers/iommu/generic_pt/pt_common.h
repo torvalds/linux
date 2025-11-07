@@ -353,7 +353,7 @@ static inline unsigned int pt_max_sw_bit(struct pt_common *common);
 
 /**
  * pt_test_sw_bit_acquire() - Read a software bit in an item
- * @pts: Entry to set
+ * @pts: Entry to read
  * @bitnr: Bit to read
  *
  * Software bits are ignored by HW and can be used for any purpose by the
@@ -365,7 +365,7 @@ static inline bool pt_test_sw_bit_acquire(struct pt_state *pts,
 /**
  * pt_set_sw_bit_release() - Set a software bit in an item
  * @pts: Entry to set
- * @bitnr: Bit to read
+ * @bitnr: Bit to set
  *
  * Software bits are ignored by HW and can be used for any purpose by the
  * software. This does a set bit and release operation.
