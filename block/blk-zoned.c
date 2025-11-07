@@ -950,7 +950,7 @@ int blkdev_get_zone_info(struct block_device *bdev, sector_t sector,
 		return -EINVAL;
 
 	memset(zone, 0, sizeof(*zone));
-	sector = ALIGN_DOWN(sector, zone_sectors);
+	sector = bdev_zone_start(bdev, sector);
 
 	if (!blkdev_has_cached_report_zones(bdev))
 		return blkdev_report_zone_fallback(bdev, sector, zone);
@@ -1068,7 +1068,7 @@ int blkdev_report_zones_cached(struct block_device *bdev, sector_t sector,
 		return blkdev_do_report_zones(bdev, sector, nr_zones, &args);
 	}
 
-	for (sector = ALIGN_DOWN(sector, zone_sectors);
+	for (sector = bdev_zone_start(bdev, sector);
 	     sector < capacity && idx < nr_zones;
 	     sector += zone_sectors, idx++) {
 		ret = blkdev_get_zone_info(bdev, sector, &zone);
