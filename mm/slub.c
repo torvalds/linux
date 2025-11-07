@@ -411,18 +411,22 @@ enum stat_item {
 };
 
 #ifndef CONFIG_SLUB_TINY
+struct freelist_tid {
+	union {
+		struct {
+			void *freelist;		/* Pointer to next available object */
+			unsigned long tid;	/* Globally unique transaction id */
+		};
+		freelist_full_t freelist_tid;
+	};
+};
+
 /*
  * When changing the layout, make sure freelist and tid are still compatible
  * with this_cpu_cmpxchg_double() alignment requirements.
  */
 struct kmem_cache_cpu {
-	union {
-		struct {
-			void **freelist;	/* Pointer to next available object */
-			unsigned long tid;	/* Globally unique transaction id */
-		};
-		freelist_aba_t freelist_tid;
-	};
+	struct freelist_tid;
 	struct slab *slab;	/* The slab from which we are allocating */
 #ifdef CONFIG_SLUB_CPU_PARTIAL
 	struct slab *partial;	/* Partially allocated slabs */
@@ -4367,11 +4371,11 @@ __update_cpu_freelist_fast(struct kmem_cache *s,
 			   void *freelist_old, void *freelist_new,
 			   unsigned long tid)
 {
-	freelist_aba_t old = { .freelist = freelist_old, .counter = tid };
-	freelist_aba_t new = { .freelist = freelist_new, .counter = next_tid(tid) };
+	struct freelist_tid old = { .freelist = freelist_old, .tid = tid };
+	struct freelist_tid new = { .freelist = freelist_new, .tid = next_tid(tid) };
 
-	return this_cpu_try_cmpxchg_freelist(s->cpu_slab->freelist_tid.full,
-					     &old.full, new.full);
+	return this_cpu_try_cmpxchg_freelist(s->cpu_slab->freelist_tid,
+					     &old.freelist_tid, new.freelist_tid);
 }
 
 /*
