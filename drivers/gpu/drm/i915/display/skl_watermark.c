@@ -635,6 +635,7 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_plane *plane = to_intel_plane(crtc_state->uapi.crtc->cursor);
+	const struct drm_mode_config *mode_config = &display->drm->mode_config;
 	const struct drm_format_info *info;
 	struct skl_wm_level wm = {};
 	int ret, min_ddb_alloc = 0;
@@ -648,7 +649,7 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 
 	info  = drm_get_format_info(display->drm, format, modifier);
 
-	ret = skl_compute_wm_params(crtc_state, 256,
+	ret = skl_compute_wm_params(crtc_state, mode_config->cursor_width,
 				    info, modifier, DRM_MODE_ROTATE_0,
 				    crtc_state->pixel_rate, &wp, 0, 0);
 	drm_WARN_ON(display->drm, ret);
