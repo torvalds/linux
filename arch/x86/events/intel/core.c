@@ -2582,9 +2582,6 @@ static inline void __intel_pmu_update_event_ext(int idx, u64 ext)
 
 static void intel_pmu_disable_event_ext(struct perf_event *event)
 {
-	if (!x86_pmu.arch_pebs)
-		return;
-
 	/*
 	 * Only clear CFG_C MSR for PEBS counter group events,
 	 * it avoids the HW counter's value to be added into
@@ -2602,6 +2599,8 @@ static void intel_pmu_disable_event_ext(struct perf_event *event)
 	__intel_pmu_update_event_ext(event->hw.idx, 0);
 }
 
+DEFINE_STATIC_CALL_NULL(intel_pmu_disable_event_ext, intel_pmu_disable_event_ext);
+
 static void intel_pmu_disable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -2610,11 +2609,11 @@ static void intel_pmu_disable_event(struct perf_event *event)
 	switch (idx) {
 	case 0 ... INTEL_PMC_IDX_FIXED - 1:
 		intel_clear_masks(event, idx);
-		intel_pmu_disable_event_ext(event);
+		static_call_cond(intel_pmu_disable_event_ext)(event);
 		x86_pmu_disable_event(event);
 		break;
 	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS - 1:
-		intel_pmu_disable_event_ext(event);
+		static_call_cond(intel_pmu_disable_event_ext)(event);
 		fallthrough;
 	case INTEL_PMC_IDX_METRIC_BASE ... INTEL_PMC_IDX_METRIC_END:
 		intel_pmu_disable_fixed(event);
@@ -2990,9 +2989,6 @@ static void intel_pmu_enable_event_ext(struct perf_event *event)
 	struct arch_pebs_cap cap;
 	u64 ext = 0;
 
-	if (!x86_pmu.arch_pebs)
-		return;
-
 	cap = hybrid(cpuc->pmu, arch_pebs_cap);
 
 	if (event->attr.precise_ip) {
@@ -3056,6 +3052,8 @@ static void intel_pmu_enable_event_ext(struct perf_event *event)
 		__intel_pmu_update_event_ext(hwc->idx, ext);
 }
 
+DEFINE_STATIC_CALL_NULL(intel_pmu_enable_event_ext, intel_pmu_enable_event_ext);
+
 static void intel_pmu_enable_event(struct perf_event *event)
 {
 	u64 enable_mask = ARCH_PERFMON_EVENTSEL_ENABLE;
@@ -3071,12 +3069,12 @@ static void intel_pmu_enable_event(struct perf_event *event)
 			enable_mask |= ARCH_PERFMON_EVENTSEL_BR_CNTR;
 		intel_set_masks(event, idx);
 		static_call_cond(intel_pmu_enable_acr_event)(event);
-		intel_pmu_enable_event_ext(event);
+		static_call_cond(intel_pmu_enable_event_ext)(event);
 		__x86_pmu_enable_event(hwc, enable_mask);
 		break;
 	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS - 1:
 		static_call_cond(intel_pmu_enable_acr_event)(event);
-		intel_pmu_enable_event_ext(event);
+		static_call_cond(intel_pmu_enable_event_ext)(event);
 		fallthrough;
 	case INTEL_PMC_IDX_METRIC_BASE ... INTEL_PMC_IDX_METRIC_END:
 		intel_pmu_enable_fixed(event);
@@ -8106,8 +8104,13 @@ __init int intel_pmu_init(void)
 	if (!is_hybrid() && boot_cpu_has(X86_FEATURE_ARCH_PERFMON_EXT))
 		update_pmu_cap(NULL);
 
-	if (x86_pmu.arch_pebs)
+	if (x86_pmu.arch_pebs) {
+		static_call_update(intel_pmu_disable_event_ext,
+				   intel_pmu_disable_event_ext);
+		static_call_update(intel_pmu_enable_event_ext,
+				   intel_pmu_enable_event_ext);
 		pr_cont("Architectural PEBS, ");
+	}
 
 	intel_pmu_check_counters_mask(&x86_pmu.cntr_mask64,
 				      &x86_pmu.fixed_cntr_mask64,
