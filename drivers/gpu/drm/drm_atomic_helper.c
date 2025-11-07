@@ -1831,10 +1831,12 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 	}
 
 	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
+		wait_queue_head_t *queue = drm_crtc_vblank_waitqueue(crtc);
+
 		if (!(crtc_mask & drm_crtc_mask(crtc)))
 			continue;
 
-		ret = wait_event_timeout(dev->vblank[i].queue,
+		ret = wait_event_timeout(*queue,
 					 state->crtcs[i].last_vblank_count !=
 						drm_crtc_vblank_count(crtc),
 					 msecs_to_jiffies(100));
