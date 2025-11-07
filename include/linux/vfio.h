@@ -133,8 +133,6 @@ struct vfio_device_ops {
 			 size_t count, loff_t *size);
 	long	(*ioctl)(struct vfio_device *vdev, unsigned int cmd,
 			 unsigned long arg);
-	int	(*get_region_info)(struct vfio_device *vdev,
-				   struct vfio_region_info __user *arg);
 	int	(*get_region_info_caps)(struct vfio_device *vdev,
 					struct vfio_region_info *info,
 					struct vfio_info_cap *caps);

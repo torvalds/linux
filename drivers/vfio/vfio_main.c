@@ -1267,42 +1267,36 @@ static long vfio_get_region_info(struct vfio_device *device,
 	struct vfio_info_cap caps = {};
 	int ret;
 
+	if (unlikely(!device->ops->get_region_info_caps))
+		return -EINVAL;
+
 	if (copy_from_user(&info, arg, minsz))
 		return -EFAULT;
 	if (info.argsz < minsz)
 		return -EINVAL;
 
-	if (device->ops->get_region_info_caps) {
-		ret = device->ops->get_region_info_caps(device, &info, &caps);
-		if (ret)
-			goto out_free;
+	ret = device->ops->get_region_info_caps(device, &info, &caps);
+	if (ret)
+		goto out_free;
 
-		if (caps.size) {
-			info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
-			if (info.argsz < sizeof(info) + caps.size) {
-				info.argsz = sizeof(info) + caps.size;
-				info.cap_offset = 0;
-			} else {
-				vfio_info_cap_shift(&caps, sizeof(info));
-				if (copy_to_user(arg + 1, caps.buf,
-						 caps.size)) {
-					ret = -EFAULT;
-					goto out_free;
-				}
-				info.cap_offset = sizeof(info);
+	if (caps.size) {
+		info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
+		if (info.argsz < sizeof(info) + caps.size) {
+			info.argsz = sizeof(info) + caps.size;
+			info.cap_offset = 0;
+		} else {
+			vfio_info_cap_shift(&caps, sizeof(info));
+			if (copy_to_user(arg + 1, caps.buf, caps.size)) {
+				ret = -EFAULT;
+				goto out_free;
 			}
+			info.cap_offset = sizeof(info);
 		}
+	}
 
-		if (copy_to_user(arg, &info, minsz)) {
-			ret = -EFAULT;
-			goto out_free;
-		}
-	} else if (device->ops->get_region_info) {
-		ret = device->ops->get_region_info(device, arg);
-		if (ret)
-			return ret;
-	} else {
-		return -EINVAL;
+	if (copy_to_user(arg, &info, minsz)){
+		ret = -EFAULT;
+		goto out_free;
 	}
 
 out_free:
