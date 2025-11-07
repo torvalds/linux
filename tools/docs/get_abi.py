@@ -14,7 +14,7 @@ import sys
 
 # Import Python modules
 
-LIB_DIR = "lib/abi"
+LIB_DIR = "../../scripts/lib/abi"
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR))
