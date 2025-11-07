@@ -3725,8 +3725,7 @@ static void deactivate_slab(struct kmem_cache *s, struct slab *slab,
 	void *nextfree, *freelist_iter, *freelist_tail;
 	int tail = DEACTIVATE_TO_HEAD;
 	unsigned long flags = 0;
-	struct slab new;
-	struct slab old;
+	struct freelist_counters old, new;
 
 	if (READ_ONCE(slab->freelist)) {
 		stat(s, DEACTIVATE_REMOTE_FREES);
@@ -4390,7 +4389,7 @@ __update_cpu_freelist_fast(struct kmem_cache *s,
  */
 static inline void *get_freelist(struct kmem_cache *s, struct slab *slab)
 {
-	struct slab new;
+	struct freelist_counters new;
 	unsigned long counters;
 	void *freelist;
 
@@ -4418,7 +4417,7 @@ static inline void *get_freelist(struct kmem_cache *s, struct slab *slab)
  */
 static inline void *freeze_slab(struct kmem_cache *s, struct slab *slab)
 {
-	struct slab new;
+	struct freelist_counters new;
 	unsigned long counters;
 	void *freelist;
 
@@ -5867,7 +5866,7 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 {
 	void *old_head;
 	bool was_frozen, was_full;
-	struct slab new;
+	struct freelist_counters new;
 	unsigned long counters;
 	struct kmem_cache_node *n = NULL;
 	unsigned long flags;
