@@ -2234,13 +2234,13 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (ret)
 		goto err_frontbuffer_put;
 
-	ret = -EINVAL;
 	if (!drm_any_plane_has_format(display->drm,
 				      mode_cmd->pixel_format,
 				      mode_cmd->modifier[0])) {
 		drm_dbg_kms(display->drm,
 			    "unsupported pixel format %p4cc / modifier 0x%llx\n",
 			    &mode_cmd->pixel_format, mode_cmd->modifier[0]);
+		ret = -EINVAL;
 		goto err_bo_framebuffer_fini;
 	}
 
@@ -2251,6 +2251,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			    mode_cmd->modifier[0] != DRM_FORMAT_MOD_LINEAR ?
 			    "tiled" : "linear",
 			    mode_cmd->pitches[0], max_stride);
+		ret = -EINVAL;
 		goto err_bo_framebuffer_fini;
 	}
 
@@ -2259,6 +2260,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		drm_dbg_kms(display->drm,
 			    "plane 0 offset (0x%08x) must be 0\n",
 			    mode_cmd->offsets[0]);
+		ret = -EINVAL;
 		goto err_bo_framebuffer_fini;
 	}
 
@@ -2269,6 +2271,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 		if (mode_cmd->handles[i] != mode_cmd->handles[0]) {
 			drm_dbg_kms(display->drm, "bad plane %d handle\n", i);
+			ret = -EINVAL;
 			goto err_bo_framebuffer_fini;
 		}
 
@@ -2277,6 +2280,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			drm_dbg_kms(display->drm,
 				    "plane %d pitch (%d) must be at least %u byte aligned\n",
 				    i, fb->pitches[i], stride_alignment);
+			ret = -EINVAL;
 			goto err_bo_framebuffer_fini;
 		}
 
@@ -2287,6 +2291,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 				drm_dbg_kms(display->drm,
 					    "ccs aux plane %d pitch (%d) must be %d\n",
 					    i, fb->pitches[i], ccs_aux_stride);
+				ret = -EINVAL;
 				goto err_bo_framebuffer_fini;
 			}
 		}
