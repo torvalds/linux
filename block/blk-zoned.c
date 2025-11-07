@@ -800,18 +800,18 @@ static unsigned int blk_zone_wp_offset(struct blk_zone *zone)
 	case BLK_ZONE_COND_IMP_OPEN:
 	case BLK_ZONE_COND_EXP_OPEN:
 	case BLK_ZONE_COND_CLOSED:
+	case BLK_ZONE_COND_ACTIVE:
 		return zone->wp - zone->start;
-	case BLK_ZONE_COND_FULL:
-		return zone->len;
 	case BLK_ZONE_COND_EMPTY:
 		return 0;
+	case BLK_ZONE_COND_FULL:
 	case BLK_ZONE_COND_NOT_WP:
 	case BLK_ZONE_COND_OFFLINE:
 	case BLK_ZONE_COND_READONLY:
 	default:
 		/*
-		 * Conventional, offline and read-only zones do not have a valid
-		 * write pointer.
+		 * Conventional, full, offline and read-only zones do not have
+		 * a valid write pointer.
 		 */
 		return UINT_MAX;
 	}
