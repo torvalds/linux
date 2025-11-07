@@ -1386,32 +1386,22 @@ static ssize_t hisi_acc_vfio_pci_read(struct vfio_device *core_vdev,
 }
 
 static int hisi_acc_vfio_ioctl_get_region(struct vfio_device *core_vdev,
-					  struct vfio_region_info __user *arg)
+					  struct vfio_region_info *info,
+					  struct vfio_info_cap *caps)
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(core_vdev, struct vfio_pci_core_device, vdev);
-	struct vfio_region_info info;
-	unsigned long minsz;
 
-	minsz = offsetofend(struct vfio_region_info, offset);
+	if (info->index != VFIO_PCI_BAR2_REGION_INDEX)
+		return vfio_pci_ioctl_get_region_info(core_vdev, info, caps);
 
-	if (copy_from_user(&info, arg, minsz))
-		return -EFAULT;
+	info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
 
-	if (info.argsz < minsz)
-		return -EINVAL;
+	info->size = hisi_acc_get_resource_len(vdev, info->index);
 
-	if (info.index != VFIO_PCI_BAR2_REGION_INDEX)
-		return vfio_pci_ioctl_get_region_info(core_vdev, arg);
-
-	info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-
-	info.size = hisi_acc_get_resource_len(vdev, info.index);
-
-	info.flags = VFIO_REGION_INFO_FLAG_READ | VFIO_REGION_INFO_FLAG_WRITE |
+	info->flags = VFIO_REGION_INFO_FLAG_READ | VFIO_REGION_INFO_FLAG_WRITE |
 		     VFIO_REGION_INFO_FLAG_MMAP;
-
-	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
+	return 0;
 }
 
 static int hisi_acc_vf_debug_check(struct seq_file *seq, struct vfio_device *vdev)
@@ -1610,7 +1600,7 @@ static const struct vfio_device_ops hisi_acc_vfio_pci_migrn_ops = {
 	.open_device = hisi_acc_vfio_pci_open_device,
 	.close_device = hisi_acc_vfio_pci_close_device,
 	.ioctl = vfio_pci_core_ioctl,
-	.get_region_info = hisi_acc_vfio_ioctl_get_region,
+	.get_region_info_caps = hisi_acc_vfio_ioctl_get_region,
 	.device_feature = vfio_pci_core_ioctl_feature,
 	.read = hisi_acc_vfio_pci_read,
 	.write = hisi_acc_vfio_pci_write,
@@ -1631,7 +1621,7 @@ static const struct vfio_device_ops hisi_acc_vfio_pci_ops = {
 	.open_device = hisi_acc_vfio_pci_open_device,
 	.close_device = vfio_pci_core_close_device,
 	.ioctl = vfio_pci_core_ioctl,
-	.get_region_info = vfio_pci_ioctl_get_region_info,
+	.get_region_info_caps = vfio_pci_ioctl_get_region_info,
 	.device_feature = vfio_pci_core_ioctl_feature,
 	.read = vfio_pci_core_read,
 	.write = vfio_pci_core_write,

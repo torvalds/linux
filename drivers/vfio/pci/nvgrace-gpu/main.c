@@ -205,34 +205,25 @@ static int nvgrace_gpu_mmap(struct vfio_device *core_vdev,
 	return 0;
 }
 
-static int
-nvgrace_gpu_ioctl_get_region_info(struct vfio_device *core_vdev,
-				  struct vfio_region_info __user *arg)
+static int nvgrace_gpu_ioctl_get_region_info(struct vfio_device *core_vdev,
+					     struct vfio_region_info *info,
+					     struct vfio_info_cap *caps)
 {
 	struct nvgrace_gpu_pci_core_device *nvdev =
 		container_of(core_vdev, struct nvgrace_gpu_pci_core_device,
 			     core_device.vdev);
-	unsigned long minsz = offsetofend(struct vfio_region_info, offset);
-	struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
 	struct vfio_region_info_cap_sparse_mmap *sparse;
-	struct vfio_region_info info;
 	struct mem_region *memregion;
 	u32 size;
 	int ret;
-
-	if (copy_from_user(&info, arg, minsz))
-		return -EFAULT;
-
-	if (info.argsz < minsz)
-		return -EINVAL;
 
 	/*
 	 * Request to determine the BAR region information. Send the
 	 * GPU memory information.
 	 */
-	memregion = nvgrace_gpu_memregion(info.index, nvdev);
+	memregion = nvgrace_gpu_memregion(info->index, nvdev);
 	if (!memregion)
-		return vfio_pci_ioctl_get_region_info(core_vdev, arg);
+		return vfio_pci_ioctl_get_region_info(core_vdev, info, caps);
 
 	size = struct_size(sparse, areas, 1);
 
@@ -251,40 +242,22 @@ nvgrace_gpu_ioctl_get_region_info(struct vfio_device *core_vdev,
 	sparse->header.id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
 	sparse->header.version = 1;
 
-	ret = vfio_info_add_capability(&caps, &sparse->header, size);
+	ret = vfio_info_add_capability(caps, &sparse->header, size);
 	kfree(sparse);
 	if (ret)
 		return ret;
 
-	info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
+	info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
 	/*
 	 * The region memory size may not be power-of-2 aligned.
 	 * Given that the memory is a BAR and may not be
 	 * aligned, roundup to the next power-of-2.
 	 */
-	info.size = memregion->bar_size;
-	info.flags = VFIO_REGION_INFO_FLAG_READ |
+	info->size = memregion->bar_size;
+	info->flags = VFIO_REGION_INFO_FLAG_READ |
 		     VFIO_REGION_INFO_FLAG_WRITE |
 		     VFIO_REGION_INFO_FLAG_MMAP;
-
-	if (caps.size) {
-		info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
-		if (info.argsz < sizeof(info) + caps.size) {
-			info.argsz = sizeof(info) + caps.size;
-			info.cap_offset = 0;
-		} else {
-			vfio_info_cap_shift(&caps, sizeof(info));
-			if (copy_to_user((void __user *)arg +
-					 sizeof(info), caps.buf,
-					 caps.size)) {
-				kfree(caps.buf);
-				return -EFAULT;
-			}
-			info.cap_offset = sizeof(info);
-		}
-		kfree(caps.buf);
-	}
-	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
+	return 0;
 }
 
 static long nvgrace_gpu_ioctl(struct vfio_device *core_vdev,
@@ -686,7 +659,7 @@ static const struct vfio_device_ops nvgrace_gpu_pci_ops = {
 	.open_device	= nvgrace_gpu_open_device,
 	.close_device	= nvgrace_gpu_close_device,
 	.ioctl		= nvgrace_gpu_ioctl,
-	.get_region_info = nvgrace_gpu_ioctl_get_region_info,
+	.get_region_info_caps = nvgrace_gpu_ioctl_get_region_info,
 	.device_feature	= vfio_pci_core_ioctl_feature,
 	.read		= nvgrace_gpu_read,
 	.write		= nvgrace_gpu_write,
@@ -707,7 +680,7 @@ static const struct vfio_device_ops nvgrace_gpu_pci_core_ops = {
 	.open_device	= nvgrace_gpu_open_device,
 	.close_device	= vfio_pci_core_close_device,
 	.ioctl		= vfio_pci_core_ioctl,
-	.get_region_info = vfio_pci_ioctl_get_region_info,
+	.get_region_info_caps = vfio_pci_ioctl_get_region_info,
 	.device_feature	= vfio_pci_core_ioctl_feature,
 	.read		= vfio_pci_core_read,
 	.write		= vfio_pci_core_write,

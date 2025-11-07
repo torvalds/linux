@@ -997,43 +997,35 @@ static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 }
 
 int vfio_pci_ioctl_get_region_info(struct vfio_device *core_vdev,
-				   struct vfio_region_info __user *arg)
+				   struct vfio_region_info *info,
+				   struct vfio_info_cap *caps)
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(core_vdev, struct vfio_pci_core_device, vdev);
-	unsigned long minsz = offsetofend(struct vfio_region_info, offset);
 	struct pci_dev *pdev = vdev->pdev;
-	struct vfio_region_info info;
-	struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
 	int i, ret;
 
-	if (copy_from_user(&info, arg, minsz))
-		return -EFAULT;
-
-	if (info.argsz < minsz)
-		return -EINVAL;
-
-	switch (info.index) {
+	switch (info->index) {
 	case VFIO_PCI_CONFIG_REGION_INDEX:
-		info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-		info.size = pdev->cfg_size;
-		info.flags = VFIO_REGION_INFO_FLAG_READ |
-			     VFIO_REGION_INFO_FLAG_WRITE;
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = pdev->cfg_size;
+		info->flags = VFIO_REGION_INFO_FLAG_READ |
+			      VFIO_REGION_INFO_FLAG_WRITE;
 		break;
 	case VFIO_PCI_BAR0_REGION_INDEX ... VFIO_PCI_BAR5_REGION_INDEX:
-		info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-		info.size = pci_resource_len(pdev, info.index);
-		if (!info.size) {
-			info.flags = 0;
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = pci_resource_len(pdev, info->index);
+		if (!info->size) {
+			info->flags = 0;
 			break;
 		}
 
-		info.flags = VFIO_REGION_INFO_FLAG_READ |
-			     VFIO_REGION_INFO_FLAG_WRITE;
-		if (vdev->bar_mmap_supported[info.index]) {
-			info.flags |= VFIO_REGION_INFO_FLAG_MMAP;
-			if (info.index == vdev->msix_bar) {
-				ret = msix_mmappable_cap(vdev, &caps);
+		info->flags = VFIO_REGION_INFO_FLAG_READ |
+			      VFIO_REGION_INFO_FLAG_WRITE;
+		if (vdev->bar_mmap_supported[info->index]) {
+			info->flags |= VFIO_REGION_INFO_FLAG_MMAP;
+			if (info->index == vdev->msix_bar) {
+				ret = msix_mmappable_cap(vdev, caps);
 				if (ret)
 					return ret;
 			}
@@ -1045,9 +1037,9 @@ int vfio_pci_ioctl_get_region_info(struct vfio_device *core_vdev,
 		size_t size;
 		u16 cmd;
 
-		info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-		info.flags = 0;
-		info.size = 0;
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->flags = 0;
+		info->size = 0;
 
 		if (pci_resource_start(pdev, PCI_ROM_RESOURCE)) {
 			/*
@@ -1057,16 +1049,17 @@ int vfio_pci_ioctl_get_region_info(struct vfio_device *core_vdev,
 			cmd = vfio_pci_memory_lock_and_enable(vdev);
 			io = pci_map_rom(pdev, &size);
 			if (io) {
-				info.flags = VFIO_REGION_INFO_FLAG_READ;
+				info->flags = VFIO_REGION_INFO_FLAG_READ;
 				/* Report the BAR size, not the ROM size. */
-				info.size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
+				info->size = pci_resource_len(pdev,
+							      PCI_ROM_RESOURCE);
 				pci_unmap_rom(pdev, io);
 			}
 			vfio_pci_memory_unlock_and_restore(vdev, cmd);
 		} else if (pdev->rom && pdev->romlen) {
-			info.flags = VFIO_REGION_INFO_FLAG_READ;
+			info->flags = VFIO_REGION_INFO_FLAG_READ;
 			/* Report BAR size as power of two. */
-			info.size = roundup_pow_of_two(pdev->romlen);
+			info->size = roundup_pow_of_two(pdev->romlen);
 		}
 
 		break;
@@ -1075,10 +1068,10 @@ int vfio_pci_ioctl_get_region_info(struct vfio_device *core_vdev,
 		if (!vdev->has_vga)
 			return -EINVAL;
 
-		info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-		info.size = 0xc0000;
-		info.flags = VFIO_REGION_INFO_FLAG_READ |
-			     VFIO_REGION_INFO_FLAG_WRITE;
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = 0xc0000;
+		info->flags = VFIO_REGION_INFO_FLAG_READ |
+			      VFIO_REGION_INFO_FLAG_WRITE;
 
 		break;
 	default: {
@@ -1087,52 +1080,34 @@ int vfio_pci_ioctl_get_region_info(struct vfio_device *core_vdev,
 			.header.version = 1
 		};
 
-		if (info.index >= VFIO_PCI_NUM_REGIONS + vdev->num_regions)
+		if (info->index >= VFIO_PCI_NUM_REGIONS + vdev->num_regions)
 			return -EINVAL;
-		info.index = array_index_nospec(
-			info.index, VFIO_PCI_NUM_REGIONS + vdev->num_regions);
+		info->index = array_index_nospec(
+			info->index, VFIO_PCI_NUM_REGIONS + vdev->num_regions);
 
-		i = info.index - VFIO_PCI_NUM_REGIONS;
+		i = info->index - VFIO_PCI_NUM_REGIONS;
 
-		info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-		info.size = vdev->region[i].size;
-		info.flags = vdev->region[i].flags;
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = vdev->region[i].size;
+		info->flags = vdev->region[i].flags;
 
 		cap_type.type = vdev->region[i].type;
 		cap_type.subtype = vdev->region[i].subtype;
 
-		ret = vfio_info_add_capability(&caps, &cap_type.header,
+		ret = vfio_info_add_capability(caps, &cap_type.header,
 					       sizeof(cap_type));
 		if (ret)
 			return ret;
 
 		if (vdev->region[i].ops->add_capability) {
 			ret = vdev->region[i].ops->add_capability(
-				vdev, &vdev->region[i], &caps);
+				vdev, &vdev->region[i], caps);
 			if (ret)
 				return ret;
 		}
 	}
 	}
-
-	if (caps.size) {
-		info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
-		if (info.argsz < sizeof(info) + caps.size) {
-			info.argsz = sizeof(info) + caps.size;
-			info.cap_offset = 0;
-		} else {
-			vfio_info_cap_shift(&caps, sizeof(info));
-			if (copy_to_user(arg + 1, caps.buf, caps.size)) {
-				kfree(caps.buf);
-				return -EFAULT;
-			}
-			info.cap_offset = sizeof(*arg);
-		}
-
-		kfree(caps.buf);
-	}
-
-	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(vfio_pci_ioctl_get_region_info);
 

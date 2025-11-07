@@ -110,7 +110,8 @@ void virtiovf_migration_reset_done(struct pci_dev *pdev);
 #ifdef CONFIG_VIRTIO_VFIO_PCI_ADMIN_LEGACY
 int virtiovf_open_legacy_io(struct virtiovf_pci_core_device *virtvdev);
 int virtiovf_pci_ioctl_get_region_info(struct vfio_device *core_vdev,
-				       struct vfio_region_info __user *arg);
+				       struct vfio_region_info *info,
+				       struct vfio_info_cap *caps);
 ssize_t virtiovf_pci_core_write(struct vfio_device *core_vdev,
 				const char __user *buf, size_t count,
 				loff_t *ppos);

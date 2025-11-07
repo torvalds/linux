@@ -116,7 +116,8 @@ long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 int vfio_pci_core_ioctl_feature(struct vfio_device *device, u32 flags,
 				void __user *arg, size_t argsz);
 int vfio_pci_ioctl_get_region_info(struct vfio_device *core_vdev,
-				   struct vfio_region_info __user *arg);
+				   struct vfio_region_info *info,
+				   struct vfio_info_cap *caps);
 ssize_t vfio_pci_core_read(struct vfio_device *core_vdev, char __user *buf,
 		size_t count, loff_t *ppos);
 ssize_t vfio_pci_core_write(struct vfio_device *core_vdev, const char __user *buf,
