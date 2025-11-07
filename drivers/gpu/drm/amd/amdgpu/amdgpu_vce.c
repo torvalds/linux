@@ -314,39 +314,22 @@ int amdgpu_vce_suspend(struct amdgpu_device *adev)
  */
 int amdgpu_vce_resume(struct amdgpu_device *adev)
 {
-	void *cpu_addr;
 	const struct common_firmware_header *hdr;
 	unsigned int offset;
-	int r, idx;
+	int idx;
 
 	if (adev->vce.vcpu_bo == NULL)
 		return -EINVAL;
-
-	r = amdgpu_bo_reserve(adev->vce.vcpu_bo, false);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to reserve VCE bo\n", r);
-		return r;
-	}
-
-	r = amdgpu_bo_kmap(adev->vce.vcpu_bo, &cpu_addr);
-	if (r) {
-		amdgpu_bo_unreserve(adev->vce.vcpu_bo);
-		dev_err(adev->dev, "(%d) VCE map failed\n", r);
-		return r;
-	}
 
 	hdr = (const struct common_firmware_header *)adev->vce.fw->data;
 	offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
 
 	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
-		memcpy_toio(cpu_addr, adev->vce.fw->data + offset,
+		memset_io(adev->vce.cpu_addr, 0, amdgpu_bo_size(adev->vce.vcpu_bo));
+		memcpy_toio(adev->vce.cpu_addr, adev->vce.fw->data + offset,
 			    adev->vce.fw->size - offset);
 		drm_dev_exit(idx);
 	}
-
-	amdgpu_bo_kunmap(adev->vce.vcpu_bo);
-
-	amdgpu_bo_unreserve(adev->vce.vcpu_bo);
 
 	return 0;
 }
