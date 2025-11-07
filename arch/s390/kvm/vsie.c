@@ -782,7 +782,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		else if ((gpa & ~0x1fffUL) == kvm_s390_get_prefix(vcpu))
 			rc = set_validity_icpt(scb_s, 0x0011U);
 		else if ((gpa & PAGE_MASK) !=
-			 ((gpa + sizeof(struct bsca_block) - 1) & PAGE_MASK))
+			 ((gpa + offsetof(struct bsca_block, cpu[0]) - 1) & PAGE_MASK))
 			rc = set_validity_icpt(scb_s, 0x003bU);
 		if (!rc) {
 			rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
