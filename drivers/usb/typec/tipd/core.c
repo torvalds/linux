@@ -1701,6 +1701,7 @@ tps25750_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 	typec_cap.data = ret;
 	typec_cap.revision = USB_TYPEC_REV_1_3;
 	typec_cap.pd_revision = 0x300;
+	typec_cap.orientation_aware = true;
 	typec_cap.driver_data = tps;
 	typec_cap.ops = &tps6598x_ops;
 	typec_cap.fwnode = fwnode;
