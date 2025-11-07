@@ -817,23 +817,24 @@ static unsigned int blk_zone_wp_offset(struct blk_zone *zone)
 	}
 }
 
-static void disk_zone_wplug_sync_wp_offset(struct gendisk *disk,
-					   struct blk_zone *zone)
+static unsigned int disk_zone_wplug_sync_wp_offset(struct gendisk *disk,
+						   struct blk_zone *zone)
 {
 	struct blk_zone_wplug *zwplug;
-	unsigned long flags;
+	unsigned int wp_offset = blk_zone_wp_offset(zone);
 
 	zwplug = disk_get_zone_wplug(disk, zone->start);
-	if (!zwplug)
-		return;
+	if (zwplug) {
+		unsigned long flags;
 
-	spin_lock_irqsave(&zwplug->lock, flags);
-	if (zwplug->flags & BLK_ZONE_WPLUG_NEED_WP_UPDATE)
-		disk_zone_wplug_set_wp_offset(disk, zwplug,
-					      blk_zone_wp_offset(zone));
-	spin_unlock_irqrestore(&zwplug->lock, flags);
+		spin_lock_irqsave(&zwplug->lock, flags);
+		if (zwplug->flags & BLK_ZONE_WPLUG_NEED_WP_UPDATE)
+			disk_zone_wplug_set_wp_offset(disk, zwplug, wp_offset);
+		spin_unlock_irqrestore(&zwplug->lock, flags);
+		disk_put_zone_wplug(zwplug);
+	}
 
-	disk_put_zone_wplug(zwplug);
+	return wp_offset;
 }
 
 /**
@@ -2101,9 +2102,7 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	if (!queue_emulates_zone_append(disk->queue) || !disk->zone_wplugs_hash)
 		return 0;
 
-	disk_zone_wplug_sync_wp_offset(disk, zone);
-
-	wp_offset = blk_zone_wp_offset(zone);
+	wp_offset = disk_zone_wplug_sync_wp_offset(disk, zone);
 	if (!wp_offset || wp_offset >= zone->capacity)
 		return 0;
 
