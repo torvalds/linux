@@ -1669,6 +1669,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	/* PCIE 64 */
 	.wde_size0 = {RTW89_WDE_PG_64, 4095, 1,},
 	.wde_size0_v1 = {RTW89_WDE_PG_64, 3328, 0, 0,},
+	/* 8852A USB */
+	.wde_size1 = {RTW89_WDE_PG_64, 768, 0,},
 	/* DLFW */
 	.wde_size4 = {RTW89_WDE_PG_64, 0, 4096,},
 	.wde_size4_v1 = {RTW89_WDE_PG_64, 0, 3328, 0,},
@@ -1692,6 +1694,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	/* PCIE */
 	.ple_size0 = {RTW89_PLE_PG_128, 1520, 16,},
 	.ple_size0_v1 = {RTW89_PLE_PG_128, 2688, 240, 212992,},
+	/* 8852A USB */
+	.ple_size1 = {RTW89_PLE_PG_128, 3184, 16,},
 	.ple_size3_v1 = {RTW89_PLE_PG_128, 2928, 0, 212992,},
 	/* DLFW */
 	.ple_size4 = {RTW89_PLE_PG_128, 64, 1472,},
@@ -1715,6 +1719,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	/* PCIE 64 */
 	.wde_qt0 = {3792, 196, 0, 107,},
 	.wde_qt0_v1 = {3302, 6, 0, 20,},
+	/* 8852A USB */
+	.wde_qt1 = {512, 196, 0, 60,},
 	/* DLFW */
 	.wde_qt4 = {0, 0, 0, 0,},
 	/* PCIE 64 */
@@ -1743,6 +1749,9 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_qt13 = {0, 0, 16, 48, 0, 0, 0, 0, 0, 0, 0,},
 	/* PCIE 64 */
 	.ple_qt18 = {147, 0, 16, 20, 17, 13, 89, 0, 32, 14, 8, 0,},
+	/* 8852A USB SCC */
+	.ple_qt25 = {1536, 0, 16, 48, 13, 13, 360, 0, 32, 40, 8, 0,},
+	.ple_qt26 = {2654, 0, 1134, 48, 64, 13, 1478, 0, 64, 128, 120, 0,},
 	/* USB 52C USB3.0 */
 	.ple_qt42 = {1068, 0, 16, 48, 4, 13, 178, 0, 16, 1, 8, 16, 0,},
 	/* USB 52C USB3.0 */
