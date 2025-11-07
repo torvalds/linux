@@ -12729,7 +12729,7 @@ static u32 tg3_get_rx_ring_count(struct net_device *dev)
 	if (netif_running(tp->dev))
 		return tp->rxq_cnt;
 
-	return min(num_online_cpus(), TG3_RSS_MAX_NUM_QS);
+	return min_t(u32, netif_get_num_default_rss_queues(), tp->rxq_max);
 }
 
 static u32 tg3_get_rxfh_indir_size(struct net_device *dev)
