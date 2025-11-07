@@ -7241,10 +7241,18 @@ finish:
 }
 
 /**
- * amdgpu_dm_connector_poll() - Poll a connector to see if it's connected to a display
+ * amdgpu_dm_connector_poll - Poll a connector to see if it's connected to a display
+ * @aconnector: DM connector to poll (owns @base drm_connector and @dc_link)
+ * @force: if true, force polling even when DAC load detection was used
  *
- * Used for connectors that don't support HPD (hotplug detection)
- * to periodically checked whether the connector is connected to a display.
+ * Used for connectors that don't support HPD (hotplug detection) to
+ * periodically check whether the connector is connected to a display.
+ *
+ * When connection was determined via DAC load detection, we avoid
+ * re-running it on normal polls to prevent visible glitches, unless
+ * @force is set.
+ *
+ * Return: The probed connector status (connected/disconnected/unknown).
  */
 static enum drm_connector_status
 amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force)
@@ -7312,6 +7320,14 @@ amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force)
  * 1. This interface is NOT called in context of HPD irq.
  * 2. This interface *is called* in context of user-mode ioctl. Which
  *    makes it a bad place for *any* MST-related activity.
+ *
+ * @connector: The DRM connector we are checking. We convert it to
+ *             amdgpu_dm_connector so we can read the DC link and state.
+ * @force:     If true, do a full detect again. This is used even when
+ *             a lighter check would normally be used to avoid flicker.
+ *
+ * Return: The connector status (connected, disconnected, or unknown).
+ *
  */
 static enum drm_connector_status
 amdgpu_dm_connector_detect(struct drm_connector *connector, bool force)
