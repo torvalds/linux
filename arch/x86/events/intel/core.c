@@ -5425,6 +5425,8 @@ enum dyn_constr_type {
 	DYN_CONSTR_BR_CNTR,
 	DYN_CONSTR_ACR_CNTR,
 	DYN_CONSTR_ACR_CAUSE,
+	DYN_CONSTR_PEBS,
+	DYN_CONSTR_PDIST,
 
 	DYN_CONSTR_MAX,
 };
@@ -5434,6 +5436,8 @@ static const char * const dyn_constr_type_name[] = {
 	[DYN_CONSTR_BR_CNTR] = "a branch counter logging event",
 	[DYN_CONSTR_ACR_CNTR] = "an auto-counter reload event",
 	[DYN_CONSTR_ACR_CAUSE] = "an auto-counter reload cause event",
+	[DYN_CONSTR_PEBS] = "a PEBS event",
+	[DYN_CONSTR_PDIST] = "a PEBS PDIST event",
 };
 
 static void __intel_pmu_check_dyn_constr(struct event_constraint *constr,
@@ -5537,6 +5541,14 @@ static void intel_pmu_check_dyn_constr(struct pmu *pmu,
 			if (hybrid(pmu, acr_cntr_mask64) == hybrid(pmu, acr_cause_mask64))
 				continue;
 			mask = hybrid(pmu, acr_cause_mask64) & GENMASK_ULL(INTEL_PMC_MAX_GENERIC - 1, 0);
+			break;
+		case DYN_CONSTR_PEBS:
+			if (x86_pmu.arch_pebs)
+				mask = hybrid(pmu, arch_pebs_cap).counters;
+			break;
+		case DYN_CONSTR_PDIST:
+			if (x86_pmu.arch_pebs)
+				mask = hybrid(pmu, arch_pebs_cap).pdists;
 			break;
 		default:
 			pr_warn("Unsupported dynamic constraint type %d\n", i);
