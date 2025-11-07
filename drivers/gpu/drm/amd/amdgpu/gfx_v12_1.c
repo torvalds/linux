@@ -2631,24 +2631,6 @@ static void gfx_v12_1_xcc_disable_gpa_mode(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCPG_PSP_DEBUG, data);
 }
 
-static void gfx_v12_1_xcc_setup_tcp_thrashing_ctrl(struct amdgpu_device *adev,
-					 int xcc_id)
-{
-	uint32_t val;
-
-	/* Set the TCP UTCL0 register to enable atomics */
-	val = RREG32_SOC15(GC, GET_INST(GC, xcc_id),
-					regTCP_UTCL0_THRASHING_CTRL);
-	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL, THRASHING_EN, 0x2);
-	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL,
-					RETRY_FRAGMENT_THRESHOLD_UP_EN, 0x1);
-	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL,
-					RETRY_FRAGMENT_THRESHOLD_DOWN_EN, 0x1);
-
-	WREG32_SOC15(GC, GET_INST(GC, xcc_id),
-					regTCP_UTCL0_THRASHING_CTRL, val);
-}
-
 static void gfx_v12_1_xcc_enable_atomics(struct amdgpu_device *adev,
 					 int xcc_id)
 {
@@ -2697,7 +2679,6 @@ static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
 	for (i = 0; i < NUM_XCC(adev->gfx.xcc_mask); i++) {
 		gfx_v12_1_xcc_disable_burst(adev, i);
 		gfx_v12_1_xcc_enable_atomics(adev, i);
-		gfx_v12_1_xcc_setup_tcp_thrashing_ctrl(adev, i);
 		gfx_v12_1_xcc_disable_early_write_ack(adev, i);
 		gfx_v12_1_xcc_disable_tcp_spill_cache(adev, i);
 	}
