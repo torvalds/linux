@@ -257,7 +257,7 @@ pub trait BinaryReader {
 }
 
 // Delegate for `Mutex<T>`: Support a `T` with an outer `Mutex`.
-impl<T: BinaryReaderMut> BinaryReader for Mutex<T> {
+impl<T: BinaryReaderMut + Unpin> BinaryReader for Mutex<T> {
     fn read_from_slice(
         &self,
         reader: &mut UserSliceReader,
