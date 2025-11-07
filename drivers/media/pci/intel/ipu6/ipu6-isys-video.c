@@ -745,17 +745,16 @@ int ipu6_isys_video_prepare_stream(struct ipu6_isys_video *av,
 	stream->stream_source = stream->asd->source;
 	csi2 = ipu6_isys_subdev_to_csi2(stream->asd);
 	csi2->receiver_errors = 0;
-	stream->source_entity = source_entity;
 
 	dev_dbg(&av->isys->adev->auxdev.dev,
 		"prepare stream: external entity %s\n",
-		stream->source_entity->name);
+		source_entity->name);
 
 	return 0;
 }
 
 void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
-					  bool state)
+					  struct media_entity *source)
 {
 	struct ipu6_isys *isys = av->isys;
 	struct ipu6_isys_csi2 *csi2 = NULL;
@@ -769,10 +768,7 @@ void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
 	u64 pixel_rate = 0;
 	int ret;
 
-	if (!state)
-		return;
-
-	esd = media_entity_to_v4l2_subdev(av->stream->source_entity);
+	esd = media_entity_to_v4l2_subdev(source);
 
 	av->watermark.width = ipu6_isys_get_frame_width(av);
 	av->watermark.height = ipu6_isys_get_frame_height(av);
@@ -804,7 +800,7 @@ void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
 		iwake_watermark->force_iwake_disable = true;
 		mutex_unlock(&iwake_watermark->mutex);
 		dev_warn(dev, "unexpected pixel_rate from %s, disable iwake.\n",
-			 av->stream->source_entity->name);
+			 source->name);
 	}
 }
 
@@ -1011,9 +1007,6 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 
 	dev_dbg(dev, "set stream: %d\n", state);
 
-	if (WARN(!stream->source_entity, "No source entity for stream\n"))
-		return -ENODEV;
-
 	sd = &stream->asd->sd;
 	r_pad = media_pad_remote_pad_first(&av->pad);
 	r_stream = ipu6_isys_get_src_stream_by_src_pad(sd, r_pad->index);
@@ -1179,7 +1172,8 @@ void ipu6_isys_fw_close(struct ipu6_isys *isys)
 }
 
 int ipu6_isys_setup_video(struct ipu6_isys_video *av,
-			  struct media_entity **source_entity, int *nr_queues)
+			  struct media_pad *remote_pad,
+			  struct media_pad *source_pad, int *nr_queues)
 {
 	const struct ipu6_isys_pixelformat *pfmt =
 		ipu6_isys_get_isys_format(ipu6_isys_get_format(av), 0);
@@ -1188,29 +1182,13 @@ int ipu6_isys_setup_video(struct ipu6_isys_video *av,
 	struct v4l2_subdev_route *route = NULL;
 	struct v4l2_subdev_route *r;
 	struct v4l2_subdev_state *state;
-	struct ipu6_isys_subdev *asd;
-	struct v4l2_subdev *remote_sd;
+	struct v4l2_subdev *remote_sd =
+		media_entity_to_v4l2_subdev(remote_pad->entity);
+	struct ipu6_isys_subdev *asd = to_ipu6_isys_subdev(remote_sd);
 	struct media_pipeline *pipeline;
-	struct media_pad *source_pad, *remote_pad;
 	int ret = -EINVAL;
 
 	*nr_queues = 0;
-
-	remote_pad = media_pad_remote_pad_unique(&av->pad);
-	if (IS_ERR(remote_pad)) {
-		dev_dbg(dev, "failed to get remote pad\n");
-		return PTR_ERR(remote_pad);
-	}
-
-	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
-	asd = to_ipu6_isys_subdev(remote_sd);
-	source_pad = media_pad_remote_pad_unique(&remote_pad->entity->pads[0]);
-	if (IS_ERR(source_pad)) {
-		dev_dbg(dev, "No external source entity\n");
-		return PTR_ERR(source_pad);
-	}
-
-	*source_entity = source_pad->entity;
 
 	/* Find the root */
 	state = v4l2_subdev_lock_and_get_active_state(remote_sd);
@@ -1231,7 +1209,7 @@ int ipu6_isys_setup_video(struct ipu6_isys_video *av,
 
 	ret = ipu6_isys_csi2_get_remote_desc(av->source_stream,
 					     to_ipu6_isys_csi2(asd),
-					     *source_entity, &entry);
+					     source_pad->entity, &entry);
 	if (ret == -ENOIOCTLCMD) {
 		av->vc = 0;
 		av->dt = ipu6_isys_mbus_code_to_mipi(pfmt->code);

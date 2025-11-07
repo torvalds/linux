@@ -43,7 +43,6 @@ struct sequence_info {
  */
 struct ipu6_isys_stream {
 	struct mutex mutex;
-	struct media_entity *source_entity;
 	atomic_t sequence;
 	unsigned int seq_index;
 	struct sequence_info seq[IPU6_ISYS_MAX_PARALLEL_SOF];
@@ -113,7 +112,8 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 int ipu6_isys_fw_open(struct ipu6_isys *isys);
 void ipu6_isys_fw_close(struct ipu6_isys *isys);
 int ipu6_isys_setup_video(struct ipu6_isys_video *av,
-			  struct media_entity **source_entity, int *nr_queues);
+			  struct media_pad *remote_pad,
+			  struct media_pad *source_pad, int *nr_queues);
 int ipu6_isys_video_init(struct ipu6_isys_video *av);
 void ipu6_isys_video_cleanup(struct ipu6_isys_video *av);
 void ipu6_isys_put_stream(struct ipu6_isys_stream *stream);
@@ -123,7 +123,7 @@ struct ipu6_isys_stream *
 ipu6_isys_query_stream_by_source(struct ipu6_isys *isys, int source, u8 vc);
 
 void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
-					  bool state);
+					  struct media_entity *source);
 void ipu6_isys_update_stream_watermark(struct ipu6_isys_video *av, bool state);
 
 u32 ipu6_isys_get_format(struct ipu6_isys_video *av);
