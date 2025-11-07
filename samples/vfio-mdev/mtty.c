@@ -1717,10 +1717,12 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 	return ret;
 }
 
-static int mtty_get_region_info(struct mdev_state *mdev_state,
-			 struct vfio_region_info *region_info,
-			 u16 *cap_type_id, void **cap_type)
+static int mtty_ioctl_get_region_info(struct vfio_device *vdev,
+				      struct vfio_region_info *region_info,
+				      struct vfio_info_cap *caps)
 {
+	struct mdev_state *mdev_state =
+		container_of(vdev, struct mdev_state, vdev);
 	unsigned int size = 0;
 	u32 bar_index;
 
@@ -1782,34 +1784,6 @@ static int mtty_get_device_info(struct vfio_device_info *dev_info)
 	dev_info->num_regions = VFIO_PCI_NUM_REGIONS;
 	dev_info->num_irqs = VFIO_PCI_NUM_IRQS;
 
-	return 0;
-}
-
-static int mtty_ioctl_get_region_info(struct vfio_device *vdev,
-				      struct vfio_region_info __user *arg)
-{
-	struct mdev_state *mdev_state =
-		container_of(vdev, struct mdev_state, vdev);
-	struct vfio_region_info info;
-	void *cap_type = NULL;
-	u16 cap_type_id = 0;
-	unsigned long minsz;
-	int ret;
-
-	minsz = offsetofend(struct vfio_region_info, offset);
-
-	if (copy_from_user(&info, arg, minsz))
-		return -EFAULT;
-
-	if (info.argsz < minsz)
-		return -EINVAL;
-
-	ret = mtty_get_region_info(mdev_state, &info, &cap_type_id, &cap_type);
-	if (ret)
-		return ret;
-
-	if (copy_to_user(arg, &info, minsz))
-		return -EFAULT;
 	return 0;
 }
 
@@ -1953,7 +1927,7 @@ static const struct vfio_device_ops mtty_dev_ops = {
 	.read = mtty_read,
 	.write = mtty_write,
 	.ioctl = mtty_ioctl,
-	.get_region_info = mtty_ioctl_get_region_info,
+	.get_region_info_caps = mtty_ioctl_get_region_info,
 	.bind_iommufd	= vfio_iommufd_emulated_bind,
 	.unbind_iommufd	= vfio_iommufd_emulated_unbind,
 	.attach_ioas	= vfio_iommufd_emulated_attach_ioas,

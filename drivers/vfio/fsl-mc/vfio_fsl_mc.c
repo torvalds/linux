@@ -117,34 +117,21 @@ static void vfio_fsl_mc_close_device(struct vfio_device *core_vdev)
 	fsl_mc_cleanup_irq_pool(mc_cont);
 }
 
-static int
-vfio_fsl_mc_ioctl_get_region_info(struct vfio_device *core_vdev,
-				  struct vfio_region_info __user *arg)
+static int vfio_fsl_mc_ioctl_get_region_info(struct vfio_device *core_vdev,
+					     struct vfio_region_info *info,
+					     struct vfio_info_cap *caps)
 {
 	struct vfio_fsl_mc_device *vdev =
 		container_of(core_vdev, struct vfio_fsl_mc_device, vdev);
 	struct fsl_mc_device *mc_dev = vdev->mc_dev;
-	struct vfio_region_info info;
-	unsigned long minsz;
 
-	minsz = offsetofend(struct vfio_region_info, offset);
-
-	if (copy_from_user(&info, arg, minsz))
-		return -EFAULT;
-
-	if (info.argsz < minsz)
-		return -EINVAL;
-
-	if (info.index >= mc_dev->obj_desc.region_count)
+	if (info->index >= mc_dev->obj_desc.region_count)
 		return -EINVAL;
 
 	/* map offset to the physical address  */
-	info.offset = VFIO_FSL_MC_INDEX_TO_OFFSET(info.index);
-	info.size = vdev->regions[info.index].size;
-	info.flags = vdev->regions[info.index].flags;
-
-	if (copy_to_user(arg, &info, minsz))
-		return -EFAULT;
+	info->offset = VFIO_FSL_MC_INDEX_TO_OFFSET(info->index);
+	info->size = vdev->regions[info->index].size;
+	info->flags = vdev->regions[info->index].flags;
 	return 0;
 }
 
@@ -596,7 +583,7 @@ static const struct vfio_device_ops vfio_fsl_mc_ops = {
 	.open_device	= vfio_fsl_mc_open_device,
 	.close_device	= vfio_fsl_mc_close_device,
 	.ioctl		= vfio_fsl_mc_ioctl,
-	.get_region_info = vfio_fsl_mc_ioctl_get_region_info,
+	.get_region_info_caps = vfio_fsl_mc_ioctl_get_region_info,
 	.read		= vfio_fsl_mc_read,
 	.write		= vfio_fsl_mc_write,
 	.mmap		= vfio_fsl_mc_mmap,

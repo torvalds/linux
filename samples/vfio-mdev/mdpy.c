@@ -435,10 +435,13 @@ static int mdpy_mmap(struct vfio_device *vdev, struct vm_area_struct *vma)
 	return remap_vmalloc_range(vma, mdev_state->memblk, 0);
 }
 
-static int mdpy_get_region_info(struct mdev_state *mdev_state,
-				struct vfio_region_info *region_info,
-				u16 *cap_type_id, void **cap_type)
+static int mdpy_ioctl_get_region_info(struct vfio_device *vdev,
+				      struct vfio_region_info *region_info,
+				      struct vfio_info_cap *caps)
 {
+	struct mdev_state *mdev_state =
+		container_of(vdev, struct mdev_state, vdev);
+
 	if (region_info->index >= VFIO_PCI_NUM_REGIONS &&
 	    region_info->index != MDPY_DISPLAY_REGION)
 		return -EINVAL;
@@ -509,34 +512,6 @@ static int mdpy_query_gfx_plane(struct mdev_state *mdev_state,
 	plane->x_hot	      = 0;
 	plane->y_hot	      = 0;
 
-	return 0;
-}
-
-static int mdpy_ioctl_get_region_info(struct vfio_device *vdev,
-				      struct vfio_region_info __user *arg)
-{
-	struct mdev_state *mdev_state =
-		container_of(vdev, struct mdev_state, vdev);
-	struct vfio_region_info info;
-	void *cap_type = NULL;
-	u16 cap_type_id = 0;
-	unsigned long minsz;
-	int ret;
-
-	minsz = offsetofend(struct vfio_region_info, offset);
-
-	if (copy_from_user(&info, arg, minsz))
-		return -EFAULT;
-
-	if (info.argsz < minsz)
-		return -EINVAL;
-
-	ret = mdpy_get_region_info(mdev_state, &info, &cap_type_id, &cap_type);
-	if (ret)
-		return ret;
-
-	if (copy_to_user(arg, &info, minsz))
-		return -EFAULT;
 	return 0;
 }
 
@@ -669,7 +644,7 @@ static const struct vfio_device_ops mdpy_dev_ops = {
 	.read = mdpy_read,
 	.write = mdpy_write,
 	.ioctl = mdpy_ioctl,
-	.get_region_info = mdpy_ioctl_get_region_info,
+	.get_region_info_caps = mdpy_ioctl_get_region_info,
 	.mmap = mdpy_mmap,
 	.bind_iommufd	= vfio_iommufd_emulated_bind,
 	.unbind_iommufd	= vfio_iommufd_emulated_unbind,
