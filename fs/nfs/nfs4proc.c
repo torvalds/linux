@@ -67,6 +67,7 @@
 #include "nfs4idmap.h"
 #include "nfs4session.h"
 #include "fscache.h"
+#include "nfs40.h"
 #include "nfs42.h"
 
 #include "nfs4trace.h"
@@ -769,12 +770,6 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
 		do_renew_lease(clp, timestamp);
 }
 
-struct nfs4_call_sync_data {
-	const struct nfs_server *seq_server;
-	struct nfs4_sequence_args *seq_args;
-	struct nfs4_sequence_res *seq_res;
-};
-
 void nfs4_init_sequence(struct nfs4_sequence_args *args,
 			struct nfs4_sequence_res *res, int cache_reply,
 			int privileged)
@@ -1173,24 +1168,6 @@ out_sleep:
 	return -EAGAIN;
 }
 EXPORT_SYMBOL_GPL(nfs4_setup_sequence);
-
-static void nfs40_call_sync_prepare(struct rpc_task *task, void *calldata)
-{
-	struct nfs4_call_sync_data *data = calldata;
-	nfs4_setup_sequence(data->seq_server->nfs_client,
-				data->seq_args, data->seq_res, task);
-}
-
-static void nfs40_call_sync_done(struct rpc_task *task, void *calldata)
-{
-	struct nfs4_call_sync_data *data = calldata;
-	nfs4_sequence_done(task, data->seq_res);
-}
-
-static const struct rpc_call_ops nfs40_call_sync_ops = {
-	.rpc_call_prepare = nfs40_call_sync_prepare,
-	.rpc_call_done = nfs40_call_sync_done,
-};
 
 static int nfs4_call_sync_custom(struct rpc_task_setup *task_setup)
 {
