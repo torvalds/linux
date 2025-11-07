@@ -12,10 +12,11 @@ endif
 libdir  ?= $(prefix)/$(libdir_relative)
 includedir ?= $(prefix)/include
 
-SUBDIRS = lib generated samples
+SUBDIRS = lib generated samples ynltool
 
 all: $(SUBDIRS) libynl.a
 
+ynltool: | lib generated libynl.a
 samples: | lib generated
 libynl.a: | lib generated
 	@echo -e "\tAR $@"
