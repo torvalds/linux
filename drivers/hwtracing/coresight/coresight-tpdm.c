@@ -1402,11 +1402,11 @@ static int tpdm_probe(struct device *dev, struct resource *res)
 		if (ret)
 			return ret;
 
-		if (drvdata && tpdm_has_dsb_dataset(drvdata))
+		if (tpdm_has_dsb_dataset(drvdata))
 			of_property_read_u32(drvdata->dev->of_node,
 					     "qcom,dsb-msrs-num", &drvdata->dsb_msr_num);
 
-		if (drvdata && tpdm_has_cmb_dataset(drvdata))
+		if (tpdm_has_cmb_dataset(drvdata))
 			of_property_read_u32(drvdata->dev->of_node,
 					     "qcom,cmb-msrs-num", &drvdata->cmb_msr_num);
 	} else {
