@@ -5635,3 +5635,16 @@ bool mem_cgroup_node_allowed(struct mem_cgroup *memcg, int nid)
 {
 	return memcg ? cpuset_node_allowed(memcg->css.cgroup, nid) : true;
 }
+
+void mem_cgroup_show_protected_memory(struct mem_cgroup *memcg)
+{
+	if (mem_cgroup_disabled() || !cgroup_subsys_on_dfl(memory_cgrp_subsys))
+		return;
+
+	if (!memcg)
+		memcg = root_mem_cgroup;
+
+	pr_warn("Memory cgroup min protection %lukB -- low protection %lukB",
+		K(atomic_long_read(&memcg->memory.children_min_usage)*PAGE_SIZE),
+		K(atomic_long_read(&memcg->memory.children_low_usage)*PAGE_SIZE));
+}

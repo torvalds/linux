@@ -472,6 +472,7 @@ static void dump_header(struct oom_control *oc)
 		if (should_dump_unreclaim_slab())
 			dump_unreclaimable_slab();
 	}
+	mem_cgroup_show_protected_memory(oc->memcg);
 	if (sysctl_oom_dump_tasks)
 		dump_tasks(oc);
 }

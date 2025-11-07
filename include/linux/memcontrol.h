@@ -1764,6 +1764,7 @@ static inline void count_objcg_events(struct obj_cgroup *objcg,
 
 bool mem_cgroup_node_allowed(struct mem_cgroup *memcg, int nid);
 
+void mem_cgroup_show_protected_memory(struct mem_cgroup *memcg);
 #else
 static inline bool mem_cgroup_kmem_disabled(void)
 {
@@ -1829,6 +1830,10 @@ static inline ino_t page_cgroup_ino(struct page *page)
 static inline bool mem_cgroup_node_allowed(struct mem_cgroup *memcg, int nid)
 {
 	return true;
+}
+
+static inline void mem_cgroup_show_protected_memory(struct mem_cgroup *memcg)
+{
 }
 #endif /* CONFIG_MEMCG */
 
