@@ -1,0 +1,40 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Generic dynamic event - enable/disable tracepoint probe events
+# requires: dynamic_events "t[:[<group>/][<event>]] <tracepoint> [<args>]":README
+
+echo 0 > events/enable
+echo > dynamic_events
+
+TRACEPOINT=sched_switch
+ENABLEFILE=events/tracepoints/myprobe/enable
+
+:;: "Add tracepoint event on $TRACEPOINT" ;:
+
+echo "t:myprobe ${TRACEPOINT}" >> dynamic_events
+
+:;: "Check enable/disable to ensure it works" ;:
+
+echo 1 > $ENABLEFILE
+
+grep -q $TRACEPOINT trace
+
+echo 0 > $ENABLEFILE
+
+echo > trace
+
+! grep -q $TRACEPOINT trace
+
+:;: "Repeat enable/disable to ensure it works" ;:
+
+echo 1 > $ENABLEFILE
+
+grep -q $TRACEPOINT trace
+
+echo 0 > $ENABLEFILE
+
+echo > trace
+
+! grep -q $TRACEPOINT trace
+
+exit 0
