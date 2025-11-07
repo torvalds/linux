@@ -156,14 +156,6 @@ void xe_sriov_vf_migration_disable(struct xe_device *xe, const char *fmt, ...)
 
 static void vf_migration_init_early(struct xe_device *xe)
 {
-	/*
-	 * TODO: Add conditions to allow specific platforms, when they're
-	 * supported at production quality.
-	 */
-	if (!IS_ENABLED(CONFIG_DRM_XE_DEBUG))
-		return xe_sriov_vf_migration_disable(xe,
-				"experimental feature not available on production builds");
-
 	if (!xe_device_has_memirq(xe))
 		return xe_sriov_vf_migration_disable(xe, "requires memory-based IRQ support");
 
