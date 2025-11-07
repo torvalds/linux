@@ -102,4 +102,13 @@ int process_event_sample_stub(const struct perf_tool *tool,
 			      struct evsel *evsel,
 			      struct machine *machine);
 
+struct delegate_tool {
+	/** @tool: The actual tool that calls the delegate. */
+	struct perf_tool tool;
+	/** @delegate: The tool that is delegated to. */
+	struct perf_tool *delegate;
+};
+
+void delegate_tool__init(struct delegate_tool *tool, struct perf_tool *delegate);
+
 #endif /* __PERF_TOOL_H */
