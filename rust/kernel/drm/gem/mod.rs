@@ -164,7 +164,7 @@ impl<T: IntoGEMObject> BaseObject for T {}
 
 /// A base GEM object.
 ///
-/// Invariants
+/// # Invariants
 ///
 /// - `self.obj` is a valid instance of a `struct drm_gem_object`.
 #[repr(C)]
