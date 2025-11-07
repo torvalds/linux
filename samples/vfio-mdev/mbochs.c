@@ -1185,13 +1185,42 @@ static int mbochs_get_gfx_dmabuf(struct mdev_state *mdev_state, u32 id)
 	return dma_buf_fd(dmabuf->buf, 0);
 }
 
+static int mbochs_ioctl_get_region_info(struct vfio_device *vdev,
+					struct vfio_region_info __user *arg)
+{
+	struct mdev_state *mdev_state =
+		container_of(vdev, struct mdev_state, vdev);
+	struct vfio_region_info_ext info;
+	unsigned long minsz, outsz;
+	int ret;
+
+	minsz = offsetofend(typeof(info), base.offset);
+
+	if (copy_from_user(&info, arg, minsz))
+		return -EFAULT;
+
+	outsz = info.base.argsz;
+	if (outsz < minsz)
+		return -EINVAL;
+	if (outsz > sizeof(info))
+		return -EINVAL;
+
+	ret = mbochs_get_region_info(mdev_state, &info);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(arg, &info, outsz))
+		return -EFAULT;
+	return 0;
+}
+
 static long mbochs_ioctl(struct vfio_device *vdev, unsigned int cmd,
 			 unsigned long arg)
 {
 	struct mdev_state *mdev_state =
 		container_of(vdev, struct mdev_state, vdev);
 	int ret = 0;
-	unsigned long minsz, outsz;
+	unsigned long minsz;
 
 	switch (cmd) {
 	case VFIO_DEVICE_GET_INFO:
@@ -1211,30 +1240,6 @@ static long mbochs_ioctl(struct vfio_device *vdev, unsigned int cmd,
 			return ret;
 
 		if (copy_to_user((void __user *)arg, &info, minsz))
-			return -EFAULT;
-
-		return 0;
-	}
-	case VFIO_DEVICE_GET_REGION_INFO:
-	{
-		struct vfio_region_info_ext info;
-
-		minsz = offsetofend(typeof(info), base.offset);
-
-		if (copy_from_user(&info, (void __user *)arg, minsz))
-			return -EFAULT;
-
-		outsz = info.base.argsz;
-		if (outsz < minsz)
-			return -EINVAL;
-		if (outsz > sizeof(info))
-			return -EINVAL;
-
-		ret = mbochs_get_region_info(mdev_state, &info);
-		if (ret)
-			return ret;
-
-		if (copy_to_user((void __user *)arg, &info, outsz))
 			return -EFAULT;
 
 		return 0;
@@ -1376,6 +1381,7 @@ static const struct vfio_device_ops mbochs_dev_ops = {
 	.read = mbochs_read,
 	.write = mbochs_write,
 	.ioctl = mbochs_ioctl,
+	.get_region_info = mbochs_ioctl_get_region_info,
 	.mmap = mbochs_mmap,
 	.bind_iommufd	= vfio_iommufd_emulated_bind,
 	.unbind_iommufd	= vfio_iommufd_emulated_unbind,
