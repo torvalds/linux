@@ -436,6 +436,7 @@ void __nested_copy_vmcb_control_to_cache(struct kvm_vcpu *vcpu,
 	to->msrpm_base_pa       = from->msrpm_base_pa;
 	to->tsc_offset          = from->tsc_offset;
 	to->tlb_ctl             = from->tlb_ctl;
+	to->erap_ctl            = from->erap_ctl;
 	to->int_ctl             = from->int_ctl;
 	to->int_vector          = from->int_vector;
 	to->int_state           = from->int_state;
@@ -886,6 +887,19 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
 	}
 
 	/*
+	 * Take ALLOW_LARGER_RAP from vmcb12 even though it should be safe to
+	 * let L2 use a larger RAP since KVM will emulate the necessary clears,
+	 * as it's possible L1 deliberately wants to restrict L2 to the legacy
+	 * RAP size.  Unconditionally clear the RAP on nested VMRUN, as KVM is
+	 * responsible for emulating the host vs. guest tags (L1 is the "host",
+	 * L2 is the "guest").
+	 */
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_ERAPS))
+		vmcb02->control.erap_ctl = (svm->nested.ctl.erap_ctl &
+					    ERAP_CONTROL_ALLOW_LARGER_RAP) |
+					   ERAP_CONTROL_CLEAR_RAP;
+
+	/*
 	 * Merge guest and host intercepts - must be called with vcpu in
 	 * guest-mode to take effect.
 	 */
@@ -1179,6 +1193,9 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
 	kvm_nested_vmexit_handle_ibrs(vcpu);
+
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_ERAPS))
+		vmcb01->control.erap_ctl |= ERAP_CONTROL_CLEAR_RAP;
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
 
@@ -1686,6 +1703,7 @@ static void nested_copy_vmcb_cache_to_control(struct vmcb_control_area *dst,
 	dst->tsc_offset           = from->tsc_offset;
 	dst->asid                 = from->asid;
 	dst->tlb_ctl              = from->tlb_ctl;
+	dst->erap_ctl             = from->erap_ctl;
 	dst->int_ctl              = from->int_ctl;
 	dst->int_vector           = from->int_vector;
 	dst->int_state            = from->int_state;

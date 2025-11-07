@@ -195,7 +195,15 @@ enum kvm_reg {
 
 	VCPU_EXREG_PDPTR = NR_VCPU_REGS,
 	VCPU_EXREG_CR0,
+	/*
+	 * Alias AMD's ERAPS (not a real register) to CR3 so that common code
+	 * can trigger emulation of the RAP (Return Address Predictor) with
+	 * minimal support required in common code.  Piggyback CR3 as the RAP
+	 * is cleared on writes to CR3, i.e. marking CR3 dirty will naturally
+	 * mark ERAPS dirty as well.
+	 */
 	VCPU_EXREG_CR3,
+	VCPU_EXREG_ERAPS = VCPU_EXREG_CR3,
 	VCPU_EXREG_CR4,
 	VCPU_EXREG_RFLAGS,
 	VCPU_EXREG_SEGMENTS,
