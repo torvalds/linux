@@ -1918,6 +1918,14 @@ static int si_set_vce_clocks(struct amdgpu_device *adev, u32 evclk, u32 ecclk)
 		     ~VCEPLL_BYPASS_EN_MASK);
 
 	if (!evclk || !ecclk) {
+		/*
+		 * On some chips, the PLL takes way too long to get out of
+		 * sleep mode, causing a timeout waiting on CTLACK/CTLACK2.
+		 * Leave the PLL running in bypass mode.
+		 */
+		if (adev->pdev->device == 0x6780)
+			return 0;
+
 		/* Keep the Bypass mode, put PLL to sleep */
 		WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, VCEPLL_SLEEP_MASK,
 			     ~VCEPLL_SLEEP_MASK);
