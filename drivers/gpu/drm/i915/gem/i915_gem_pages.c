@@ -3,9 +3,11 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
+#include <linux/vmalloc.h>
+
 #include <drm/drm_cache.h>
 #include <drm/drm_panic.h>
-#include <linux/vmalloc.h>
+#include <drm/drm_print.h>
 
 #include "display/intel_fb.h"
 #include "display/intel_display_types.h"

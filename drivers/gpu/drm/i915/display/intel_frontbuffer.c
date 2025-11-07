@@ -56,6 +56,7 @@
  */
 
 #include <drm/drm_gem.h>
+#include <drm/drm_print.h>
 
 #include "i915_active.h"
 #include "i915_vma.h"

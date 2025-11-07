@@ -16,6 +16,8 @@
 #include <linux/reset.h>
 #include <linux/thermal.h>
 
+#include <drm/drm_print.h>
+
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_dump.h"
 #include "etnaviv_gpu.h"

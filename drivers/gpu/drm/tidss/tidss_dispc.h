@@ -119,8 +119,7 @@ void dispc_ovr_enable_layer(struct dispc_device *dispc,
 
 void dispc_vp_prepare(struct dispc_device *dispc, u32 hw_videoport,
 		      const struct drm_crtc_state *state);
-void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
-		     const struct drm_crtc_state *state);
+void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport);
 void dispc_vp_disable(struct dispc_device *dispc, u32 hw_videoport);
 void dispc_vp_unprepare(struct dispc_device *dispc, u32 hw_videoport);
 bool dispc_vp_go_busy(struct dispc_device *dispc, u32 hw_videoport);

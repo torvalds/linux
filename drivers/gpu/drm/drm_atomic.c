@@ -200,6 +200,8 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 
 	drm_dbg_atomic(dev, "Clearing atomic state %p\n", state);
 
+	state->checked = false;
+
 	for (i = 0; i < state->num_connector; i++) {
 		struct drm_connector *connector = state->connectors[i].ptr;
 
@@ -348,6 +350,7 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 	struct drm_crtc_state *crtc_state;
 
 	WARN_ON(!state->acquire_ctx);
+	drm_WARN_ON(state->dev, state->checked);
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	if (crtc_state)
@@ -528,6 +531,7 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	struct drm_plane_state *plane_state;
 
 	WARN_ON(!state->acquire_ctx);
+	drm_WARN_ON(state->dev, state->checked);
 
 	/* the legacy pointers should never be set */
 	WARN_ON(plane->fb);
@@ -836,6 +840,9 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 	struct __drm_private_objs_state *arr;
 	struct drm_private_state *obj_state;
 
+	WARN_ON(!state->acquire_ctx);
+	drm_WARN_ON(state->dev, state->checked);
+
 	obj_state = drm_atomic_get_new_private_obj_state(state, obj);
 	if (obj_state)
 		return obj_state;
@@ -1129,6 +1136,7 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	struct drm_connector_state *connector_state;
 
 	WARN_ON(!state->acquire_ctx);
+	drm_WARN_ON(state->dev, state->checked);
 
 	ret = drm_modeset_lock(&config->connection_mutex, state->acquire_ctx);
 	if (ret)
@@ -1540,6 +1548,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		WARN(!state->allow_modeset, "adding CRTC not allowed without modesets: requested 0x%x, affected 0x%0x\n",
 		     requested_crtc, affected_crtc);
 	}
+
+	state->checked = true;
 
 	return 0;
 }

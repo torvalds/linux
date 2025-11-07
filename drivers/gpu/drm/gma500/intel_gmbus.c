@@ -32,6 +32,8 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 
+#include <drm/drm_print.h>
+
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"

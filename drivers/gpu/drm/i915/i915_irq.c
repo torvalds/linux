@@ -32,6 +32,7 @@
 #include <linux/sysrq.h>
 
 #include <drm/drm_drv.h>
+#include <drm/drm_print.h>
 
 #include "display/intel_display_irq.h"
 #include "display/intel_hotplug.h"

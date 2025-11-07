@@ -13,9 +13,10 @@
 struct amdxdna_hwctx_priv;
 
 enum ert_cmd_opcode {
-	ERT_START_CU      = 0,
-	ERT_CMD_CHAIN     = 19,
-	ERT_START_NPU     = 20,
+	ERT_START_CU = 0,
+	ERT_CMD_CHAIN = 19,
+	ERT_START_NPU = 20,
+	ERT_INVALID_CMD	= ~0U,
 };
 
 enum ert_cmd_state {
@@ -63,6 +64,8 @@ struct amdxdna_cmd {
 	u32 header;
 	u32 data[];
 };
+
+#define INVALID_CU_IDX		(~0U)
 
 struct amdxdna_hwctx {
 	struct amdxdna_client		*client;
@@ -116,6 +119,7 @@ struct amdxdna_sched_job {
 	/* user can wait on this fence */
 	struct dma_fence	*out_fence;
 	bool			job_done;
+	bool			job_timeout;
 	u64			seq;
 	struct amdxdna_drv_cmd	*drv_cmd;
 	struct amdxdna_gem_obj	*cmd_bo;
@@ -149,7 +153,7 @@ amdxdna_cmd_get_state(struct amdxdna_gem_obj *abo)
 }
 
 void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size);
-int amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo);
+u32 amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo);
 
 void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job);
 void amdxdna_hwctx_remove_all(struct amdxdna_client *client);

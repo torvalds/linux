@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 
 #include <drm/panfrost_drm.h>
+#include <drm/drm_print.h>
 #include "panfrost_device.h"
 #include "panfrost_gem.h"
 #include "panfrost_mmu.h"

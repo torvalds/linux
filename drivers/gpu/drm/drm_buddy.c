@@ -11,6 +11,7 @@
 #include <linux/sizes.h>
 
 #include <drm/drm_buddy.h>
+#include <drm/drm_print.h>
 
 enum drm_buddy_free_tree {
 	DRM_BUDDY_CLEAR_TREE = 0,

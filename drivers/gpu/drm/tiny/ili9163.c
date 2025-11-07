@@ -15,6 +15,7 @@
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_print.h>
 
 #include <video/mipi_display.h>
 

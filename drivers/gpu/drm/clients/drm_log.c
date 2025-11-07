@@ -100,7 +100,7 @@ static void drm_log_clear_line(struct drm_log_scanout *scanout, u32 line)
 		return;
 	iosys_map_memset(&map, r.y1 * fb->pitches[0], 0, height * fb->pitches[0]);
 	drm_client_buffer_vunmap_local(scanout->buffer);
-	drm_client_framebuffer_flush(scanout->buffer, &r);
+	drm_client_buffer_flush(scanout->buffer, &r);
 }
 
 static void drm_log_draw_line(struct drm_log_scanout *scanout, const char *s,
@@ -133,7 +133,7 @@ static void drm_log_draw_line(struct drm_log_scanout *scanout, const char *s,
 	if (scanout->line >= scanout->rows)
 		scanout->line = 0;
 	drm_client_buffer_vunmap_local(scanout->buffer);
-	drm_client_framebuffer_flush(scanout->buffer, &r);
+	drm_client_buffer_flush(scanout->buffer, &r);
 }
 
 static void drm_log_draw_new_line(struct drm_log_scanout *scanout,
@@ -204,7 +204,7 @@ static int drm_log_setup_modeset(struct drm_client_dev *client,
 	if (format == DRM_FORMAT_INVALID)
 		return -EINVAL;
 
-	scanout->buffer = drm_client_framebuffer_create(client, width, height, format);
+	scanout->buffer = drm_client_buffer_create_dumb(client, width, height, format);
 	if (IS_ERR(scanout->buffer)) {
 		drm_warn(client->dev, "drm_log can't create framebuffer %d %d %p4cc\n",
 			 width, height, &format);
@@ -272,7 +272,7 @@ static void drm_log_init_client(struct drm_log *dlog)
 
 err_failed_commit:
 	for (i = 0; i < n_modeset; i++)
-		drm_client_framebuffer_delete(dlog->scanout[i].buffer);
+		drm_client_buffer_delete(dlog->scanout[i].buffer);
 
 err_nomodeset:
 	kfree(dlog->scanout);
@@ -286,7 +286,7 @@ static void drm_log_free_scanout(struct drm_client_dev *client)
 
 	if (dlog->n_scanout) {
 		for (i = 0; i < dlog->n_scanout; i++)
-			drm_client_framebuffer_delete(dlog->scanout[i].buffer);
+			drm_client_buffer_delete(dlog->scanout[i].buffer);
 		dlog->n_scanout = 0;
 		kfree(dlog->scanout);
 		dlog->scanout = NULL;

@@ -159,26 +159,23 @@ To return to graphical mode, do::
 
   sudo systemctl isolate graphical.target
 
-Once you are in text only mode, you can run tests using the --device switch
-or IGT_DEVICE variable to specify the device filter for the driver we want
-to test. IGT_DEVICE can also be used with the run-test.sh script to run the
+Once you are in text only mode, you can run tests using the IGT_FORCE_DRIVER
+variable to specify the device filter for the driver we want to test.
+IGT_FORCE_DRIVER can also be used with the run-tests.sh script to run the
 tests for a specific driver::
 
-  sudo ./build/tests/<name of test> --device "sys:/sys/devices/platform/vkms"
-  sudo IGT_DEVICE="sys:/sys/devices/platform/vkms" ./build/tests/<name of test>
-  sudo IGT_DEVICE="sys:/sys/devices/platform/vkms" ./scripts/run-tests.sh -t <name of test>
+  sudo IGT_FORCE_DRIVER="vkms" ./build/tests/<name of test>
+  sudo IGT_FORCE_DRIVER="vkms" ./scripts/run-tests.sh -t <name of test>
 
 For example, to test the functionality of the writeback library,
 we can run the kms_writeback test::
 
-  sudo ./build/tests/kms_writeback --device "sys:/sys/devices/platform/vkms"
-  sudo IGT_DEVICE="sys:/sys/devices/platform/vkms" ./build/tests/kms_writeback
-  sudo IGT_DEVICE="sys:/sys/devices/platform/vkms" ./scripts/run-tests.sh -t kms_writeback
+  sudo IGT_FORCE_DRIVER="vkms" ./build/tests/kms_writeback
+  sudo IGT_FORCE_DRIVER="vkms" ./scripts/run-tests.sh -t kms_writeback
 
 You can also run subtests if you do not want to run the entire test::
 
-  sudo ./build/tests/kms_flip --run-subtest basic-plain-flip --device "sys:/sys/devices/platform/vkms"
-  sudo IGT_DEVICE="sys:/sys/devices/platform/vkms" ./build/tests/kms_flip --run-subtest basic-plain-flip
+  sudo IGT_FORCE_DRIVER="vkms" ./build/tests/kms_flip --run-subtest basic-plain-flip
 
 Testing With KUnit
 ==================

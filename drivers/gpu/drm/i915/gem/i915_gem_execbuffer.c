@@ -9,6 +9,7 @@
 #include <linux/uaccess.h>
 
 #include <drm/drm_auth.h>
+#include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
 
 #include "gem/i915_gem_ioctls.h"

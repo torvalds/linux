@@ -19,6 +19,7 @@
 #include <linux/dma-buf.h>
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 
 #include "vc4_drv.h"
 #include "uapi/drm/vc4_drm.h"

@@ -31,14 +31,15 @@
 #include <linux/iosys-map.h>
 #include <linux/dma-fence.h>
 
-#include <drm/drm_print.h>
 #include <drm/ttm/ttm_caching.h>
 #include <drm/ttm/ttm_kmap_iter.h>
 
 #define TTM_MAX_BO_PRIORITY	4U
 #define TTM_NUM_MEM_TYPES 9
 
+struct dentry;
 struct dmem_cgroup_device;
+struct drm_printer;
 struct ttm_device;
 struct ttm_resource_manager;
 struct ttm_resource;

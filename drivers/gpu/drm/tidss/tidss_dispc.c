@@ -27,6 +27,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #include "tidss_crtc.h"
 #include "tidss_dispc.h"
@@ -1163,6 +1164,9 @@ void dispc_vp_prepare(struct dispc_device *dispc, u32 hw_videoport,
 {
 	const struct tidss_crtc_state *tstate = to_tidss_crtc_state(state);
 	const struct dispc_bus_format *fmt;
+	const struct drm_display_mode *mode = &state->adjusted_mode;
+	bool align, onoff, rf, ieo, ipc, ihs, ivs;
+	u32 hsw, hfp, hbp, vsw, vfp, vbp;
 
 	fmt = dispc_vp_find_bus_fmt(dispc, hw_videoport, tstate->bus_format,
 				    tstate->bus_flags);
@@ -1175,22 +1179,6 @@ void dispc_vp_prepare(struct dispc_device *dispc, u32 hw_videoport,
 
 		dispc_enable_am65x_oldi(dispc, hw_videoport, fmt);
 	}
-}
-
-void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
-		     const struct drm_crtc_state *state)
-{
-	const struct drm_display_mode *mode = &state->adjusted_mode;
-	const struct tidss_crtc_state *tstate = to_tidss_crtc_state(state);
-	bool align, onoff, rf, ieo, ipc, ihs, ivs;
-	const struct dispc_bus_format *fmt;
-	u32 hsw, hfp, hbp, vsw, vfp, vbp;
-
-	fmt = dispc_vp_find_bus_fmt(dispc, hw_videoport, tstate->bus_format,
-				    tstate->bus_flags);
-
-	if (WARN_ON(!fmt))
-		return;
 
 	dispc_set_num_datalines(dispc, hw_videoport, fmt->data_width);
 
@@ -1246,7 +1234,10 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 				  mode->crtc_hdisplay - 1) |
 		       FIELD_PREP(DISPC_VP_SIZE_SCREEN_VDISPLAY_MASK,
 				  mode->crtc_vdisplay - 1));
+}
 
+void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport)
+{
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONTROL, 1,
 		       DISPC_VP_CONTROL_ENABLE_MASK);
 }

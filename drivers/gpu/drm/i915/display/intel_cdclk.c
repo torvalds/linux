@@ -26,6 +26,7 @@
 #include <linux/time.h>
 
 #include <drm/drm_fixed.h>
+#include <drm/drm_print.h>
 
 #include "soc/intel_dram.h"
 
