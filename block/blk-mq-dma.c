@@ -142,7 +142,7 @@ static inline void blk_rq_map_iter_init(struct request *rq,
 				.bi_size = rq->special_vec.bv_len,
 			}
 		};
-       } else if (bio) {
+	} else if (bio) {
 		*iter = (struct blk_map_iter) {
 			.bio = bio,
 			.bvecs = bio->bi_io_vec,
@@ -150,7 +150,7 @@ static inline void blk_rq_map_iter_init(struct request *rq,
 		};
 	} else {
 		/* the internal flush request may not have bio attached */
-	        *iter = (struct blk_map_iter) {};
+		*iter = (struct blk_map_iter) {};
 	}
 }
 
