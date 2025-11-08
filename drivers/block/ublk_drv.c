@@ -963,8 +963,9 @@ static inline bool ublk_need_unmap_req(const struct request *req)
 	       (req_op(req) == REQ_OP_READ || req_op(req) == REQ_OP_DRV_IN);
 }
 
-static int ublk_map_io(const struct ublk_queue *ubq, const struct request *req,
-		       const struct ublk_io *io)
+static unsigned int ublk_map_io(const struct ublk_queue *ubq,
+				const struct request *req,
+				const struct ublk_io *io)
 {
 	const unsigned int rq_bytes = blk_rq_bytes(req);
 
@@ -986,7 +987,7 @@ static int ublk_map_io(const struct ublk_queue *ubq, const struct request *req,
 	return rq_bytes;
 }
 
-static int ublk_unmap_io(bool need_map,
+static unsigned int ublk_unmap_io(bool need_map,
 		const struct request *req,
 		const struct ublk_io *io)
 {
