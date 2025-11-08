@@ -39,9 +39,8 @@ static void *zstd_alloc_stream(void)
 
 	params = zstd_get_params(ZSTD_DEF_LEVEL, ZSTD_MAX_SIZE);
 
-	wksp_size = max_t(size_t,
-			  zstd_cstream_workspace_bound(&params.cParams),
-			  zstd_dstream_workspace_bound(ZSTD_MAX_SIZE));
+	wksp_size = max(zstd_cstream_workspace_bound(&params.cParams),
+			zstd_dstream_workspace_bound(ZSTD_MAX_SIZE));
 	if (!wksp_size)
 		return ERR_PTR(-EINVAL);
 
