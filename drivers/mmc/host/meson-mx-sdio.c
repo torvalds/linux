@@ -493,22 +493,29 @@ static struct mmc_host_ops meson_mx_mmc_ops = {
 
 static struct platform_device *meson_mx_mmc_slot_pdev(struct device *parent)
 {
-	struct device_node *slot_node;
-	struct platform_device *pdev;
+	struct platform_device *pdev = NULL;
 
-	/*
-	 * TODO: the MMC core framework currently does not support
-	 * controllers with multiple slots properly. So we only register
-	 * the first slot for now
-	 */
-	slot_node = of_get_compatible_child(parent->of_node, "mmc-slot");
-	if (!slot_node) {
-		dev_warn(parent, "no 'mmc-slot' sub-node found\n");
-		return ERR_PTR(-ENOENT);
+	for_each_available_child_of_node_scoped(parent->of_node, slot_node) {
+		if (!of_device_is_compatible(slot_node, "mmc-slot"))
+			continue;
+
+		/*
+		 * TODO: the MMC core framework currently does not support
+		 * controllers with multiple slots properly. So we only
+		 * register the first slot for now.
+		 */
+		if (pdev) {
+			dev_warn(parent,
+				 "more than one 'mmc-slot' compatible child found - using the first one and ignoring all subsequent ones\n");
+			break;
+		}
+
+		pdev = of_platform_device_create(slot_node, NULL, parent);
+		if (!pdev)
+			dev_err(parent,
+				"Failed to create platform device for mmc-slot node '%pOF'\n",
+				slot_node);
 	}
-
-	pdev = of_platform_device_create(slot_node, NULL, parent);
-	of_node_put(slot_node);
 
 	return pdev;
 }
@@ -642,8 +649,6 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 	slot_pdev = meson_mx_mmc_slot_pdev(&pdev->dev);
 	if (!slot_pdev)
 		return -ENODEV;
-	else if (IS_ERR(slot_pdev))
-		return PTR_ERR(slot_pdev);
 
 	mmc = devm_mmc_alloc_host(&slot_pdev->dev, sizeof(*host));
 	if (!mmc) {
