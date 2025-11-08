@@ -520,16 +520,14 @@ static int meson_mx_mmc_add_host(struct meson_mx_mmc_host *host)
 	struct device *slot_dev = mmc_dev(mmc);
 	int ret;
 
-	if (of_property_read_u32(slot_dev->of_node, "reg", &host->slot_id)) {
-		dev_err(slot_dev, "missing 'reg' property\n");
-		return -EINVAL;
-	}
+	if (of_property_read_u32(slot_dev->of_node, "reg", &host->slot_id))
+		return dev_err_probe(slot_dev, -EINVAL,
+				     "missing 'reg' property\n");
 
-	if (host->slot_id >= MESON_MX_SDIO_MAX_SLOTS) {
-		dev_err(slot_dev, "invalid 'reg' property value %d\n",
-			host->slot_id);
-		return -EINVAL;
-	}
+	if (host->slot_id >= MESON_MX_SDIO_MAX_SLOTS)
+		return dev_err_probe(slot_dev, -EINVAL,
+				     "invalid 'reg' property value %d\n",
+				     host->slot_id);
 
 	/* Get regulators and the supported OCR mask */
 	ret = mmc_regulator_get_supply(mmc);
@@ -666,7 +664,8 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 	host->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					     &meson_mx_sdio_regmap_config);
 	if (IS_ERR(host->regmap)) {
-		ret = PTR_ERR(host->regmap);
+		ret = dev_err_probe(host->controller_dev, PTR_ERR(host->regmap),
+				    "Failed to initialize regmap\n");
 		goto error_unregister_slot_pdev;
 	}
 
@@ -680,12 +679,16 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 					meson_mx_mmc_irq,
 					meson_mx_mmc_irq_thread, IRQF_ONESHOT,
 					NULL, host);
-	if (ret)
+	if (ret) {
+		dev_err_probe(host->controller_dev, ret,
+			      "Failed to request IRQ\n");
 		goto error_unregister_slot_pdev;
+	}
 
 	core_clk = devm_clk_get_enabled(host->controller_dev, "core");
 	if (IS_ERR(core_clk)) {
-		ret = PTR_ERR(core_clk);
+		ret = dev_err_probe(host->controller_dev, PTR_ERR(core_clk),
+				    "Failed to get and enable 'core' clock\n");
 		goto error_unregister_slot_pdev;
 	}
 
@@ -697,7 +700,8 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(host->cfg_div_clk);
 	if (ret) {
-		dev_err(host->controller_dev, "Failed to enable MMC clock\n");
+		dev_err_probe(host->controller_dev, ret,
+			      "Failed to enable MMC (cfg div) clock\n");
 		goto error_unregister_slot_pdev;
 	}
 
