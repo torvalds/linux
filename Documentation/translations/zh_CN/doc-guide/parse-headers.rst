@@ -13,20 +13,20 @@
 有时，为了描述用户空间API并在代码和文档之间生成交叉引用，需要包含头文件和示例
 C代码。为用户空间API文件添加交叉引用还有一个好处：如果在文档中找不到相应符号，
 Sphinx将生成警告。这有助于保持用户空间API文档与内核更改同步。
-:ref:`parse_headers.pl <parse_headers_zh>` 提供了生成此类交叉引用的一种方法。
+:ref:`parse_headers.py <parse_headers_zh>` 提供了生成此类交叉引用的一种方法。
 在构建文档时，必须通过Makefile调用它。有关如何在内核树中使用它的示例，请参阅
 ``Documentation/userspace-api/media/Makefile`` 。
 
 .. _parse_headers_zh:
 
-parse_headers.pl
+parse_headers.py
 ----------------
 
 脚本名称
 ~~~~~~~~
 
 
-parse_headers.pl——解析一个C文件，识别函数、结构体、枚举、定义并对Sphinx文档
+parse_headers.py——解析一个C文件，识别函数、结构体、枚举、定义并对Sphinx文档
 创建交叉引用。
 
 
@@ -34,7 +34,7 @@ parse_headers.pl——解析一个C文件，识别函数、结构体、枚举、
 ~~~~~~~~
 
 
-\ **parse_headers.pl**\  [<选项>] <C文件> <输出文件> [<例外文件>]
+\ **parse_headers.py**\  [<选项>] <C文件> <输出文件> [<例外文件>]
 
 <选项> 可以是： --debug, --help 或 --usage 。
 
