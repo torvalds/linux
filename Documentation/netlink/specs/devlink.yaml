@@ -99,6 +99,8 @@ definitions:
         name: legacy
       -
         name: switchdev
+      -
+        name: switchdev-inactive
   -
     type: enum
     name: eswitch-inline-mode
