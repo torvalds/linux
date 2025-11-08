@@ -1740,20 +1740,25 @@ static int dmirror_device_init(struct dmirror_device *mdevice, int id)
 
 	ret = dev_set_name(&mdevice->device, "hmm_dmirror%u", id);
 	if (ret)
-		return ret;
+		goto put_device;
 
 	ret = cdev_device_add(&mdevice->cdevice, &mdevice->device);
 	if (ret)
-		return ret;
+		goto put_device;
 
 	/* Build a list of free ZONE_DEVICE struct pages */
 	return dmirror_allocate_chunk(mdevice, NULL, false);
+
+put_device:
+	put_device(&mdevice->device);
+	return ret;
 }
 
 static void dmirror_device_remove(struct dmirror_device *mdevice)
 {
 	dmirror_device_remove_chunks(mdevice);
 	cdev_device_del(&mdevice->cdevice, &mdevice->device);
+	put_device(&mdevice->device);
 }
 
 static int __init hmm_dmirror_init(void)
