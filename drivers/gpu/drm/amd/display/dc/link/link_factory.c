@@ -73,7 +73,6 @@ static void construct_link_service_detection(struct link_service *link_srv)
 	link_srv->add_remote_sink = link_add_remote_sink;
 	link_srv->remove_remote_sink = link_remove_remote_sink;
 	link_srv->get_hpd_state = link_get_hpd_state;
-	link_srv->get_hpd_gpio = link_get_hpd_gpio;
 	link_srv->enable_hpd = link_enable_hpd;
 	link_srv->disable_hpd = link_disable_hpd;
 	link_srv->enable_hpd_filter = link_enable_hpd_filter;
@@ -363,11 +362,6 @@ static void link_destruct(struct dc_link *link)
 {
 	int i;
 
-	if (link->hpd_gpio) {
-		dal_gpio_destroy_irq(&link->hpd_gpio);
-		link->hpd_gpio = NULL;
-	}
-
 	if (link->ddc)
 		link_destroy_ddc_service(&link->ddc);
 
@@ -536,99 +530,6 @@ static bool construct_phy(struct dc_link *link,
 	if (link->dc->res_pool->funcs->link_init)
 		link->dc->res_pool->funcs->link_init(link);
 
-	link->hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
-				      link->ctx->gpio_service);
-
-	if (link->hpd_gpio) {
-		dal_gpio_open(link->hpd_gpio, GPIO_MODE_INTERRUPT);
-		dal_gpio_unlock_pin(link->hpd_gpio);
-		link->irq_source_hpd = dal_irq_get_source(link->hpd_gpio);
-
-		DC_LOG_DC("BIOS object table - hpd_gpio id: %d", link->hpd_gpio->id);
-		DC_LOG_DC("BIOS object table - hpd_gpio en: %d", link->hpd_gpio->en);
-	}
-
-	switch (link->link_id.id) {
-	case CONNECTOR_ID_HDMI_TYPE_A:
-		link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
-
-		if (link->hpd_gpio)
-			link->irq_source_read_request =
-					dal_irq_get_read_request(link->hpd_gpio);
-		break;
-	case CONNECTOR_ID_SINGLE_LINK_DVID:
-	case CONNECTOR_ID_SINGLE_LINK_DVII:
-		link->connector_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
-		break;
-	case CONNECTOR_ID_DUAL_LINK_DVID:
-	case CONNECTOR_ID_DUAL_LINK_DVII:
-		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
-		break;
-	case CONNECTOR_ID_VGA:
-		link->connector_signal = SIGNAL_TYPE_RGB;
-		break;
-	case CONNECTOR_ID_DISPLAY_PORT:
-	case CONNECTOR_ID_MXM:
-	case CONNECTOR_ID_USBC:
-		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
-
-		if (link->hpd_gpio)
-			link->irq_source_hpd_rx =
-					dal_irq_get_rx_source(link->hpd_gpio);
-
-		break;
-	case CONNECTOR_ID_EDP:
-		// If smartmux is supported, only create the link on the primary eDP.
-		// Dual eDP is not supported with smartmux.
-		if (!(!link->dc->config.smart_mux_version || dc_ctx->dc_edp_id_count == 0))
-			goto create_fail;
-
-		link->connector_signal = SIGNAL_TYPE_EDP;
-
-		if (link->hpd_gpio) {
-			if (!link->dc->config.allow_edp_hotplug_detection
-				&& !is_smartmux_suported(link))
-				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-
-			switch (link->dc->config.allow_edp_hotplug_detection) {
-			case HPD_EN_FOR_ALL_EDP:
-				link->irq_source_hpd_rx =
-						dal_irq_get_rx_source(link->hpd_gpio);
-				break;
-			case HPD_EN_FOR_PRIMARY_EDP_ONLY:
-				if (link->link_index == 0)
-					link->irq_source_hpd_rx =
-						dal_irq_get_rx_source(link->hpd_gpio);
-				else
-					link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-				break;
-			case HPD_EN_FOR_SECONDARY_EDP_ONLY:
-				if (link->link_index == 1)
-					link->irq_source_hpd_rx =
-						dal_irq_get_rx_source(link->hpd_gpio);
-				else
-					link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-				break;
-			default:
-				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-				break;
-			}
-		}
-
-		break;
-	case CONNECTOR_ID_LVDS:
-		link->connector_signal = SIGNAL_TYPE_LVDS;
-		break;
-	default:
-		DC_LOG_WARNING("Unsupported Connector type:%d!\n",
-			       link->link_id.id);
-		goto create_fail;
-	}
-
-	LINK_INFO("Connector[%d] description: signal: %s\n",
-		  init_params->connector_index,
-		  signal_type_to_string(link->connector_signal));
-
 	ddc_service_init_data.ctx = link->ctx;
 	ddc_service_init_data.id = link->link_id;
 	ddc_service_init_data.link = link;
@@ -650,12 +551,34 @@ static bool construct_phy(struct dc_link *link,
 	enc_init_data.ctx = dc_ctx;
 	enc_init_data.connector = link->link_id;
 	enc_init_data.channel = get_ddc_line(link);
-	enc_init_data.hpd_source = get_hpd_line(link);
 	enc_init_data.transmitter = transmitter_from_encoder;
 	enc_init_data.encoder = link_encoder;
 	enc_init_data.analog_engine = link_analog_engine;
+	enc_init_data.hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
+				      link->ctx->gpio_service);
 
-	link->hpd_src = enc_init_data.hpd_source;
+	if (enc_init_data.hpd_gpio) {
+		dal_gpio_open(enc_init_data.hpd_gpio, GPIO_MODE_INTERRUPT);
+		dal_gpio_unlock_pin(enc_init_data.hpd_gpio);
+		link->irq_source_hpd = dal_irq_get_source(enc_init_data.hpd_gpio);
+		enc_init_data.hpd_source = get_hpd_line(link);
+		link->hpd_src = enc_init_data.hpd_source;
+
+		DC_LOG_DC("BIOS object table - hpd_gpio id: %d", enc_init_data.hpd_gpio->id);
+		DC_LOG_DC("BIOS object table - hpd_gpio en: %d", enc_init_data.hpd_gpio->en);
+	} else {
+		struct graphics_object_hpd_info hpd_info;
+
+		if (link->ctx->dc_bios->funcs->get_hpd_info(link->ctx->dc_bios, link->link_id, &hpd_info) == BP_RESULT_OK) {
+			link->hpd_src = hpd_info.hpd_int_gpio_uid - 1;
+			link->irq_source_hpd =  DC_IRQ_SOURCE_HPD1 + link->hpd_src;
+			enc_init_data.hpd_source = link->hpd_src;
+			DC_LOG_DC("BIOS object table - hpd_int_gpio_uid id: %d", hpd_info.hpd_int_gpio_uid);
+		} else {
+			ASSERT(0);
+			enc_init_data.hpd_source = HPD_SOURCEID_UNKNOWN;
+		}
+	}
 
 	link->link_enc =
 		link->dc->res_pool->funcs->link_enc_create(dc_ctx, &enc_init_data);
@@ -667,6 +590,99 @@ static bool construct_phy(struct dc_link *link,
 
 	DC_LOG_DC("BIOS object table - DP_IS_USB_C: %d", link->link_enc->features.flags.bits.DP_IS_USB_C);
 	DC_LOG_DC("BIOS object table - IS_DP2_CAPABLE: %d", link->link_enc->features.flags.bits.IS_DP2_CAPABLE);
+
+	switch (link->link_id.id) {
+	case CONNECTOR_ID_HDMI_TYPE_A:
+		link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
+
+		if (link->link_enc->hpd_gpio)
+			link->irq_source_read_request =
+					dal_irq_get_read_request(link->link_enc->hpd_gpio);
+		else if (link->hpd_src != HPD_SOURCEID_UNKNOWN)
+			link->irq_source_read_request = DC_IRQ_SOURCE_DCI2C_RR_DDC1 + link->hpd_src;
+		break;
+	case CONNECTOR_ID_SINGLE_LINK_DVID:
+	case CONNECTOR_ID_SINGLE_LINK_DVII:
+		link->connector_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		break;
+	case CONNECTOR_ID_DUAL_LINK_DVID:
+	case CONNECTOR_ID_DUAL_LINK_DVII:
+		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+		break;
+	case CONNECTOR_ID_VGA:
+		link->connector_signal = SIGNAL_TYPE_RGB;
+		break;
+	case CONNECTOR_ID_DISPLAY_PORT:
+	case CONNECTOR_ID_MXM:
+	case CONNECTOR_ID_USBC:
+		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+
+		if (link->link_enc->hpd_gpio)
+			link->irq_source_hpd_rx =
+					dal_irq_get_rx_source(link->link_enc->hpd_gpio);
+		else if (link->hpd_src != HPD_SOURCEID_UNKNOWN)
+			link->irq_source_hpd_rx = DC_IRQ_SOURCE_HPD1RX + link->hpd_src;
+
+		break;
+	case CONNECTOR_ID_EDP:
+		// If smartmux is supported, only create the link on the primary eDP.
+		// Dual eDP is not supported with smartmux.
+		if (!(!link->dc->config.smart_mux_version || dc_ctx->dc_edp_id_count == 0))
+			goto create_fail;
+
+		link->connector_signal = SIGNAL_TYPE_EDP;
+		if (!link->dc->config.allow_edp_hotplug_detection
+			&& !is_smartmux_suported(link))
+			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+
+		switch (link->dc->config.allow_edp_hotplug_detection) {
+		case HPD_EN_FOR_ALL_EDP:
+			if (link->link_enc->hpd_gpio) {
+				link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->link_enc->hpd_gpio);
+				} else if (link->hpd_src != HPD_SOURCEID_UNKNOWN) {
+					link->irq_source_hpd_rx = DC_IRQ_SOURCE_HPD1RX + link->hpd_src;
+				}
+			break;
+		case HPD_EN_FOR_PRIMARY_EDP_ONLY:
+			if (link->link_index == 0) {
+				if (link->link_enc->hpd_gpio) {
+					link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->link_enc->hpd_gpio);
+				} else if (link->hpd_src != HPD_SOURCEID_UNKNOWN) {
+					link->irq_source_hpd_rx = DC_IRQ_SOURCE_HPD1RX + link->hpd_src;
+				}
+			} else
+				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			break;
+		case HPD_EN_FOR_SECONDARY_EDP_ONLY:
+			if (link->link_index == 1) {
+				if (link->link_enc->hpd_gpio) {
+					link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->link_enc->hpd_gpio);
+				} else if (link->hpd_src != HPD_SOURCEID_UNKNOWN) {
+					link->irq_source_hpd_rx = DC_IRQ_SOURCE_HPD1RX + link->hpd_src;
+				}
+			} else
+				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			break;
+		default:
+			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			break;
+		}
+		break;
+	case CONNECTOR_ID_LVDS:
+		link->connector_signal = SIGNAL_TYPE_LVDS;
+		break;
+	default:
+		DC_LOG_WARNING("Unsupported Connector type:%d!\n",
+			       link->link_id.id);
+		goto create_fail;
+	}
+
+	LINK_INFO("Connector[%d] description: signal: %s\n",
+		  init_params->connector_index,
+		  signal_type_to_string(link->connector_signal));
 
 	/* Update link encoder tracking variables. These are used for the dynamic
 	 * assignment of link encoders to streams.
@@ -776,19 +792,16 @@ static bool construct_phy(struct dc_link *link,
 	DC_LOG_DC("BIOS object table - %s finished successfully.\n", __func__);
 	return true;
 device_tag_fail:
-	link->link_enc->funcs->destroy(&link->link_enc);
 link_enc_create_fail:
-	if (link->panel_cntl != NULL)
-		link->panel_cntl->funcs->destroy(&link->panel_cntl);
 panel_cntl_create_fail:
-	link_destroy_ddc_service(&link->ddc);
 ddc_create_fail:
 create_fail:
-
-	if (link->hpd_gpio) {
-		dal_gpio_destroy_irq(&link->hpd_gpio);
-		link->hpd_gpio = NULL;
-	}
+	if (link->ddc)
+		link_destroy_ddc_service(&link->ddc);
+	if (link->panel_cntl)
+		link->panel_cntl->funcs->destroy(&link->panel_cntl);
+	if (link->link_enc)
+		link->link_enc->funcs->destroy(&link->link_enc);
 
 	DC_LOG_DC("BIOS object table - %s failed.\n", __func__);
 	return false;

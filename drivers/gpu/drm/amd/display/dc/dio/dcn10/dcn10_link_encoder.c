@@ -88,7 +88,10 @@ static const struct link_encoder_funcs dcn10_lnk_enc_funcs = {
 	.get_dig_mode = dcn10_get_dig_mode,
 	.destroy = dcn10_link_encoder_destroy,
 	.get_max_link_cap = dcn10_link_encoder_get_max_link_cap,
+	.get_hpd_state = dcn10_get_hpd_state,
+	.program_hpd_filter = dcn10_program_hpd_filter,
 };
+
 
 static enum bp_result link_transmitter_control(
 	struct dcn10_link_encoder *enc10,
@@ -682,6 +685,7 @@ void dcn10_link_encoder_construct(
 	enc10->base.ctx = init_data->ctx;
 	enc10->base.id = init_data->encoder;
 
+	enc10->base.hpd_gpio = init_data->hpd_gpio;
 	enc10->base.hpd_source = init_data->hpd_source;
 	enc10->base.connector = init_data->connector;
 
@@ -873,6 +877,11 @@ void dcn10_link_encoder_hw_init(
 
 void dcn10_link_encoder_destroy(struct link_encoder **enc)
 {
+	if ((*enc)->hpd_gpio) {
+		dal_gpio_destroy_irq(&(*enc)->hpd_gpio);
+		(*enc)->hpd_gpio = NULL;
+	}
+
 	kfree(TO_DCN10_LINK_ENC(*enc));
 	*enc = NULL;
 }
@@ -1471,4 +1480,38 @@ void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,
 		max_link_cap.link_rate = LINK_RATE_UHBR20;
 
 	*link_settings = max_link_cap;
+}
+
+bool dcn10_get_hpd_state(struct link_encoder *enc)
+{
+	uint32_t state = 0;
+
+	if (!enc->hpd_gpio)
+		return false;
+
+	dal_gpio_lock_pin(enc->hpd_gpio);
+	dal_gpio_get_value(enc->hpd_gpio, &state);
+	dal_gpio_unlock_pin(enc->hpd_gpio);
+
+	return state;
+}
+
+bool dcn10_program_hpd_filter(struct link_encoder *enc, int delay_on_connect_in_ms, int delay_on_disconnect_in_ms)
+{
+	/* Setup HPD filtering */
+	if (enc->hpd_gpio && dal_gpio_lock_pin(enc->hpd_gpio) == GPIO_RESULT_OK) {
+		struct gpio_hpd_config config;
+
+		config.delay_on_connect = delay_on_connect_in_ms;
+		config.delay_on_disconnect = delay_on_disconnect_in_ms;
+
+		dal_irq_setup_hpd_filter(enc->hpd_gpio, &config);
+
+		dal_gpio_unlock_pin(enc->hpd_gpio);
+
+		return true;
+	} else {
+		ASSERT(0);
+		return false;
+	}
 }

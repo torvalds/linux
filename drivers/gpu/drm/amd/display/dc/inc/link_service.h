@@ -114,9 +114,6 @@ struct link_service {
 			struct dc_sink_init_data *init_data);
 	void (*remove_remote_sink)(struct dc_link *link, struct dc_sink *sink);
 	bool (*get_hpd_state)(struct dc_link *link);
-	struct gpio *(*get_hpd_gpio)(struct dc_bios *dcb,
-			struct graphics_object_id link_id,
-			struct gpio_service *gpio_service);
 	void (*enable_hpd)(const struct dc_link *link);
 	void (*disable_hpd)(const struct dc_link *link);
 	void (*enable_hpd_filter)(struct dc_link *link, bool enable);

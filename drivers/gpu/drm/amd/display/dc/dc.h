@@ -1708,7 +1708,6 @@ struct dc_scratch_space {
 	struct dc_link_status link_status;
 	struct dprx_states dprx_states;
 
-	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
 	bool is_dds;
 	bool is_display_mux_present;

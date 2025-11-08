@@ -1400,8 +1400,6 @@ static bool link_detect_analog(struct dc_link *link, enum dc_connection_type *ty
  */
 bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *type)
 {
-	uint32_t is_hpd_high = 0;
-
 	if (link->connector_signal == SIGNAL_TYPE_LVDS) {
 		*type = dc_connection_single;
 		return true;
@@ -1436,10 +1434,7 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 	}
 
 
-	if (!query_hpd_status(link, &is_hpd_high))
-		goto hpd_gpio_failure;
-
-	if (is_hpd_high) {
+	if (link_get_hpd_state(link)) {
 		*type = dc_connection_single;
 		/* TODO: need to do the actual detection */
 	} else {
@@ -1452,9 +1447,6 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 	}
 
 	return true;
-
-hpd_gpio_failure:
-	return false;
 }
 
 bool link_detect(struct dc_link *link, enum dc_detect_reason reason)

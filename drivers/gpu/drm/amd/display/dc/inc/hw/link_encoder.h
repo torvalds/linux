@@ -44,6 +44,7 @@ struct pipe_ctx;
 struct encoder_init_data {
 	enum channel_id channel;
 	struct graphics_object_id connector;
+	struct gpio *hpd_gpio;
 	enum hpd_source_id hpd_source;
 	/* TODO: in DAL2, here was pointer to EventManagerInterface */
 	struct graphics_object_id encoder;
@@ -87,6 +88,7 @@ struct link_encoder {
 	enum engine_id analog_engine;
 	struct encoder_feature_support features;
 	enum transmitter transmitter;
+	struct gpio *hpd_gpio;
 	enum hpd_source_id hpd_source;
 	bool usbc_combo_phy;
 };
@@ -178,6 +180,8 @@ struct link_encoder_funcs {
 	void (*disable_dpia_output)(struct link_encoder *link_enc,
 		uint8_t dpia_id,
 		uint8_t digmode);
+	bool (*get_hpd_state)(struct link_encoder *enc);
+	bool (*program_hpd_filter)(struct link_encoder *enc, int delay_on_connect_in_ms, int delay_on_disconnect_in_ms);
 };
 
 /*
