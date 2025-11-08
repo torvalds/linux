@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/net.h>
+#include <linux/overflow.h>
 #include <linux/vmalloc.h>
 #include <linux/zstd.h>
 #include <crypto/internal/acompress.h>
@@ -25,7 +26,7 @@ struct zstd_ctx {
 	zstd_dctx *dctx;
 	size_t wksp_size;
 	zstd_parameters params;
-	u8 wksp[] __aligned(8);
+	u8 wksp[] __aligned(8) __counted_by(wksp_size);
 };
 
 static DEFINE_MUTEX(zstd_stream_lock);
@@ -44,7 +45,7 @@ static void *zstd_alloc_stream(void)
 	if (!wksp_size)
 		return ERR_PTR(-EINVAL);
 
-	ctx = kvmalloc(sizeof(*ctx) + wksp_size, GFP_KERNEL);
+	ctx = kvmalloc(struct_size(ctx, wksp, wksp_size), GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
