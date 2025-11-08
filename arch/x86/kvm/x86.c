@@ -209,7 +209,7 @@ struct kvm_user_return_msrs {
 u32 __read_mostly kvm_nr_uret_msrs;
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_nr_uret_msrs);
 static u32 __read_mostly kvm_uret_msrs_list[KVM_MAX_NR_USER_RETURN_MSRS];
-static struct kvm_user_return_msrs __percpu *user_return_msrs;
+static DEFINE_PER_CPU(struct kvm_user_return_msrs, user_return_msrs);
 
 #define KVM_SUPPORTED_XCR0     (XFEATURE_MASK_FP | XFEATURE_MASK_SSE \
 				| XFEATURE_MASK_YMM | XFEATURE_MASK_BNDREGS \
@@ -572,25 +572,14 @@ static inline void kvm_async_pf_hash_reset(struct kvm_vcpu *vcpu)
 		vcpu->arch.apf.gfns[i] = ~0;
 }
 
-static int kvm_init_user_return_msrs(void)
-{
-	user_return_msrs = alloc_percpu(struct kvm_user_return_msrs);
-	if (!user_return_msrs) {
-		pr_err("failed to allocate percpu user_return_msrs\n");
-		return -ENOMEM;
-	}
-	kvm_nr_uret_msrs = 0;
-	return 0;
-}
-
-static void kvm_free_user_return_msrs(void)
+static void kvm_destroy_user_return_msrs(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		WARN_ON_ONCE(per_cpu_ptr(user_return_msrs, cpu)->registered);
+		WARN_ON_ONCE(per_cpu(user_return_msrs, cpu).registered);
 
-	free_percpu(user_return_msrs);
+	kvm_nr_uret_msrs = 0;
 }
 
 static void kvm_on_user_return(struct user_return_notifier *urn)
@@ -653,7 +642,7 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_find_user_return_msr);
 
 static void kvm_user_return_msr_cpu_online(void)
 {
-	struct kvm_user_return_msrs *msrs = this_cpu_ptr(user_return_msrs);
+	struct kvm_user_return_msrs *msrs = this_cpu_ptr(&user_return_msrs);
 	u64 value;
 	int i;
 
@@ -675,7 +664,7 @@ static void kvm_user_return_register_notifier(struct kvm_user_return_msrs *msrs)
 
 int kvm_set_user_return_msr(unsigned slot, u64 value, u64 mask)
 {
-	struct kvm_user_return_msrs *msrs = this_cpu_ptr(user_return_msrs);
+	struct kvm_user_return_msrs *msrs = this_cpu_ptr(&user_return_msrs);
 	int err;
 
 	value = (value & mask) | (msrs->values[slot].host & ~mask);
@@ -693,13 +682,13 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_set_user_return_msr);
 
 u64 kvm_get_user_return_msr(unsigned int slot)
 {
-	return this_cpu_ptr(user_return_msrs)->values[slot].curr;
+	return this_cpu_ptr(&user_return_msrs)->values[slot].curr;
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_get_user_return_msr);
 
 static void drop_user_return_notifiers(void)
 {
-	struct kvm_user_return_msrs *msrs = this_cpu_ptr(user_return_msrs);
+	struct kvm_user_return_msrs *msrs = this_cpu_ptr(&user_return_msrs);
 
 	if (msrs->registered)
 		kvm_on_user_return(&msrs->urn);
@@ -10022,13 +10011,9 @@ int kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 		return -ENOMEM;
 	}
 
-	r = kvm_init_user_return_msrs();
-	if (r)
-		goto out_free_x86_emulator_cache;
-
 	r = kvm_mmu_vendor_module_init();
 	if (r)
-		goto out_free_percpu;
+		goto out_free_x86_emulator_cache;
 
 	kvm_caps.supported_vm_types = BIT(KVM_X86_DEFAULT_VM);
 	kvm_caps.supported_mce_cap = MCG_CTL_P | MCG_SER_P;
@@ -10052,6 +10037,8 @@ int kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 
 	if (boot_cpu_has(X86_FEATURE_ARCH_CAPABILITIES))
 		rdmsrq(MSR_IA32_ARCH_CAPABILITIES, kvm_host.arch_capabilities);
+
+	WARN_ON_ONCE(kvm_nr_uret_msrs);
 
 	r = ops->hardware_setup();
 	if (r != 0)
@@ -10125,9 +10112,8 @@ out_unwind_ops:
 	kvm_x86_ops.enable_virtualization_cpu = NULL;
 	kvm_x86_call(hardware_unsetup)();
 out_mmu_exit:
+	kvm_destroy_user_return_msrs();
 	kvm_mmu_vendor_module_exit();
-out_free_percpu:
-	kvm_free_user_return_msrs();
 out_free_x86_emulator_cache:
 	kmem_cache_destroy(x86_emulator_cache);
 	return r;
@@ -10155,8 +10141,8 @@ void kvm_x86_vendor_exit(void)
 	cancel_work_sync(&pvclock_gtod_work);
 #endif
 	kvm_x86_call(hardware_unsetup)();
+	kvm_destroy_user_return_msrs();
 	kvm_mmu_vendor_module_exit();
-	kvm_free_user_return_msrs();
 	kmem_cache_destroy(x86_emulator_cache);
 #ifdef CONFIG_KVM_XEN
 	static_key_deferred_flush(&kvm_xen_enabled);
