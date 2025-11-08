@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Test SYN+ACK RTX with 1s RTO.
+//
+`./defaults.sh
+ ./set_sysctls.py /proc/sys/net/ipv4/tcp_rto_max_ms=1000`
+
+//
+// Test 1: TFO SYN+ACK
+//
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 0:10(10) win 1000 <mss 1460,sackOK,nop,nop,FO TFO_COOKIE,nop,nop>
+   +0 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK>
+
+// RTO must be capped to 1s
+   +1 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK>
+   +1 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK>
+   +1 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK>
+
+   +0 < . 11:11(0) ack 1 win 1000 <mss 1460,nop,nop,sackOK>
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) != 0, tcpi_options }%
+
+   +0 close(4) = 0
+   +0 close(3) = 0
+
+
+//
+// Test 2: non-TFO SYN+ACK
+//
+   +0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 1000 <mss 1460,sackOK,nop,nop>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK>
+
+// RTO must be capped to 1s
+   +1 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK>
+   +1 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK>
+   +1 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK>
+
+   +0 < . 1:1(0) ack 1 win 1000 <mss 1460,nop,nop,sackOK>
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) == 0, tcpi_options }%
+
+   +0 close(4) = 0
+   +0 close(3) = 0

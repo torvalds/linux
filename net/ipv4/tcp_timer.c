@@ -458,7 +458,7 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 	struct tcp_sock *tp = tcp_sk(sk);
 	int max_retries;
 
-	req->rsk_ops->syn_ack_timeout(req);
+	tcp_syn_ack_timeout(req);
 
 	/* Add one more retry for fastopen.
 	 * Paired with WRITE_ONCE() in tcp_sock_set_syncnt()
@@ -752,7 +752,6 @@ void tcp_syn_ack_timeout(const struct request_sock *req)
 
 	__NET_INC_STATS(net, LINUX_MIB_TCPTIMEOUTS);
 }
-EXPORT_IPV6_MOD(tcp_syn_ack_timeout);
 
 void tcp_reset_keepalive_timer(struct sock *sk, unsigned long len)
 {

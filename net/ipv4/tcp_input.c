@@ -7531,15 +7531,11 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		sock_put(fastopen_sk);
 	} else {
 		tcp_rsk(req)->tfo_listener = false;
-		if (!want_cookie) {
-			req->timeout = tcp_timeout_init((struct sock *)req);
-			if (unlikely(!inet_csk_reqsk_queue_hash_add(sk, req,
-								    req->timeout))) {
-				reqsk_free(req);
-				dst_release(dst);
-				return 0;
-			}
-
+		if (!want_cookie &&
+		    unlikely(!inet_csk_reqsk_queue_hash_add(sk, req))) {
+			reqsk_free(req);
+			dst_release(dst);
+			return 0;
 		}
 		af_ops->send_synack(sk, dst, &fl, req, &foc,
 				    !want_cookie ? TCP_SYNACK_NORMAL :
