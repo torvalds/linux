@@ -27,6 +27,8 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/lockdep.h>
+#include <linux/dmi.h>
+#include <linux/of.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -8447,6 +8449,70 @@ lpfc_set_host_tm(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_get_platform_uuid - Attempts to extract a platform uuid
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine attempts to first read SMBIOS DMI data for the System
+ * Information structure offset 08h called System UUID.  Else, no platform
+ * UUID will be advertised.
+ **/
+static void
+lpfc_get_platform_uuid(struct lpfc_hba *phba)
+{
+	int rc;
+	const char *uuid;
+	char pni[17] = {0}; /* 16 characters + '\0' */
+	bool is_ff = true, is_00 = true;
+	u8 i;
+
+	/* First attempt SMBIOS DMI */
+	uuid = dmi_get_system_info(DMI_PRODUCT_UUID);
+	if (uuid) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"2088 SMBIOS UUID %s\n",
+				uuid);
+	} else {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"2099 Could not extract UUID\n");
+	}
+
+	if (uuid && uuid_is_valid(uuid)) {
+		/* Generate PNI from UUID format.
+		 *
+		 * 1.) Extract lower 64 bits from UUID format.
+		 * 2.) Set 3h for NAA Locally Assigned Name Identifier format.
+		 *
+		 * e.g. xxxxxxxx-xxxx-xxxx-yyyy-yyyyyyyyyyyy
+		 *
+		 * extract the yyyy-yyyyyyyyyyyy portion
+		 * final PNI   3yyyyyyyyyyyyyyy
+		 */
+		scnprintf(pni, sizeof(pni), "3%c%c%c%s",
+			  uuid[20], uuid[21], uuid[22], &uuid[24]);
+
+		/* Sanitize the converted PNI */
+		for (i = 1; i < 16 && (is_ff || is_00); i++) {
+			if (pni[i] != '0')
+				is_00 = false;
+			if (pni[i] != 'f' && pni[i] != 'F')
+				is_ff = false;
+		}
+
+		/* Convert from char* to unsigned long */
+		rc = kstrtoul(pni, 16, &phba->pni);
+		if (!rc && !is_ff && !is_00) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2100 PNI 0x%016lx\n", phba->pni);
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2101 PNI %s generation status %d\n",
+					pni, rc);
+			phba->pni = 0;
+		}
+	}
+}
+
+/**
  * lpfc_sli4_hba_setup - SLI4 device initialization PCI function
  * @phba: Pointer to HBA context object.
  *
@@ -8528,6 +8594,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	} else {
 		clear_bit(HBA_FCOE_MODE, &phba->hba_flag);
 	}
+
+	/* Obtain platform UUID, only for SLI4 FC adapters */
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag))
+		lpfc_get_platform_uuid(phba);
 
 	if (bf_get(lpfc_mbx_rd_rev_cee_ver, &mqe->un.read_rev) ==
 		LPFC_DCBX_CEE_MODE)
@@ -19858,13 +19928,15 @@ lpfc_sli4_remove_rpis(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_resume_rpi - Remove the rpi bitmask region
+ * lpfc_sli4_resume_rpi - Resume traffic relative to an RPI
  * @ndlp: pointer to lpfc nodelist data structure.
  * @cmpl: completion call-back.
  * @iocbq: data to load as mbox ctx_u information
  *
- * This routine is invoked to remove the memory region that
- * provided rpi via a bitmask.
+ * Return codes
+ *	0 - successful
+ *	-ENOMEM - No available memory
+ *	-EIO - The mailbox failed to complete successfully.
  **/
 int
 lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
@@ -19894,7 +19966,6 @@ lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
 		return -EIO;
 	}
 
-	/* Post all rpi memory regions to the port. */
 	lpfc_resume_rpi(mboxq, ndlp);
 	if (cmpl) {
 		mboxq->mbox_cmpl = cmpl;

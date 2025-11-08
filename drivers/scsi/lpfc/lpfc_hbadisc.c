@@ -424,6 +424,7 @@ lpfc_check_nlp_post_devloss(struct lpfc_vport *vport,
 			    struct lpfc_nodelist *ndlp)
 {
 	if (test_and_clear_bit(NLP_IN_RECOV_POST_DEV_LOSS, &ndlp->save_flags)) {
+		clear_bit(NLP_DROPPED, &ndlp->nlp_flag);
 		lpfc_nlp_get(ndlp);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY | LOG_NODE,
 				 "8438 Devloss timeout reversed on DID x%x "
@@ -566,7 +567,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 			return fcf_inuse;
 		}
 
-		lpfc_nlp_put(ndlp);
+		if (!test_and_set_bit(NLP_DROPPED, &ndlp->nlp_flag))
+			lpfc_nlp_put(ndlp);
 		return fcf_inuse;
 	}
 
@@ -4371,6 +4373,8 @@ out:
 		lpfc_ns_cmd(vport, SLI_CTNS_RNN_ID, 0, 0);
 		lpfc_ns_cmd(vport, SLI_CTNS_RSNN_NN, 0, 0);
 		lpfc_ns_cmd(vport, SLI_CTNS_RSPN_ID, 0, 0);
+		if (phba->pni)
+			lpfc_ns_cmd(vport, SLI_CTNS_RSPNI_PNI, 0, 0);
 		lpfc_ns_cmd(vport, SLI_CTNS_RFT_ID, 0, 0);
 
 		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||

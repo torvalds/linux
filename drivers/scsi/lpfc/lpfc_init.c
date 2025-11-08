@@ -3057,12 +3057,6 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		lpfc_vmid_vport_cleanup(vport);
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_DID == Fabric_Cntl_DID &&
-		    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
-			lpfc_nlp_put(ndlp);
-			continue;
-		}
-
 		/* Fabric Ports not in UNMAPPED state are cleaned up in the
 		 * DEVICE_RM event.
 		 */
@@ -9082,9 +9076,9 @@ lpfc_setup_fdmi_mask(struct lpfc_vport *vport)
 			vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
 	}
 
-	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			"6077 Setup FDMI mask: hba x%x port x%x\n",
-			vport->fdmi_hba_mask, vport->fdmi_port_mask);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "6077 Setup FDMI mask: hba x%x port x%x\n",
+			 vport->fdmi_hba_mask, vport->fdmi_port_mask);
 }
 
 /**
