@@ -11773,7 +11773,8 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 
 	event = container_of(hrtimer, struct perf_event, hw.hrtimer);
 
-	if (event->state != PERF_EVENT_STATE_ACTIVE)
+	if (event->state != PERF_EVENT_STATE_ACTIVE ||
+	    event->hw.state & PERF_HES_STOPPED)
 		return HRTIMER_NORESTART;
 
 	event->pmu->read(event);
@@ -11819,15 +11820,20 @@ static void perf_swevent_cancel_hrtimer(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	/*
-	 * The throttle can be triggered in the hrtimer handler.
-	 * The HRTIMER_NORESTART should be used to stop the timer,
-	 * rather than hrtimer_cancel(). See perf_swevent_hrtimer()
+	 * Careful: this function can be triggered in the hrtimer handler,
+	 * for cpu-clock events, so hrtimer_cancel() would cause a
+	 * deadlock.
+	 *
+	 * So use hrtimer_try_to_cancel() to try to stop the hrtimer,
+	 * and the cpu-clock handler also sets the PERF_HES_STOPPED flag,
+	 * which guarantees that perf_swevent_hrtimer() will stop the
+	 * hrtimer once it sees the PERF_HES_STOPPED flag.
 	 */
 	if (is_sampling_event(event) && (hwc->interrupts != MAX_INTERRUPTS)) {
 		ktime_t remaining = hrtimer_get_remaining(&hwc->hrtimer);
 		local64_set(&hwc->period_left, ktime_to_ns(remaining));
 
-		hrtimer_cancel(&hwc->hrtimer);
+		hrtimer_try_to_cancel(&hwc->hrtimer);
 	}
 }
 
@@ -11871,12 +11877,14 @@ static void cpu_clock_event_update(struct perf_event *event)
 
 static void cpu_clock_event_start(struct perf_event *event, int flags)
 {
+	event->hw.state = 0;
 	local64_set(&event->hw.prev_count, local_clock());
 	perf_swevent_start_hrtimer(event);
 }
 
 static void cpu_clock_event_stop(struct perf_event *event, int flags)
 {
+	event->hw.state = PERF_HES_STOPPED;
 	perf_swevent_cancel_hrtimer(event);
 	if (flags & PERF_EF_UPDATE)
 		cpu_clock_event_update(event);
@@ -11950,12 +11958,14 @@ static void task_clock_event_update(struct perf_event *event, u64 now)
 
 static void task_clock_event_start(struct perf_event *event, int flags)
 {
+	event->hw.state = 0;
 	local64_set(&event->hw.prev_count, event->ctx->time);
 	perf_swevent_start_hrtimer(event);
 }
 
 static void task_clock_event_stop(struct perf_event *event, int flags)
 {
+	event->hw.state = PERF_HES_STOPPED;
 	perf_swevent_cancel_hrtimer(event);
 	if (flags & PERF_EF_UPDATE)
 		task_clock_event_update(event, event->ctx->time);
