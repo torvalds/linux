@@ -2251,6 +2251,9 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_keee *data);
 int genphy_c45_an_config_eee_aneg(struct phy_device *phydev);
+int genphy_c45_oatc14_cable_test_start(struct phy_device *phydev);
+int genphy_c45_oatc14_cable_test_get_status(struct phy_device *phydev,
+					    bool *finished);
 
 /* The gen10g_* functions are the old Clause 45 stub */
 int gen10g_config_aneg(struct phy_device *phydev);
