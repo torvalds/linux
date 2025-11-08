@@ -1149,11 +1149,10 @@ void skb_release_head_state(struct sk_buff *skb)
 				skb);
 
 #endif
+		skb->destructor = NULL;
 	}
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	nf_conntrack_put(skb_nfct(skb));
-#endif
-	skb_ext_put(skb);
+	nf_reset_ct(skb);
+	skb_ext_reset(skb);
 }
 
 /* Free everything but the sk_buff shell. */
@@ -1476,6 +1475,11 @@ void napi_consume_skb(struct sk_buff *skb, int budget)
 	}
 
 	DEBUG_NET_WARN_ON_ONCE(!in_softirq());
+
+	if (skb->alloc_cpu != smp_processor_id() && !skb_shared(skb)) {
+		skb_release_head_state(skb);
+		return skb_attempt_defer_free(skb);
+	}
 
 	if (!skb_unref(skb))
 		return;
