@@ -19,6 +19,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
+#include <linux/regmap.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 
@@ -108,7 +109,7 @@ struct meson_mx_mmc_host {
 	struct clk_fixed_factor		fixed_factor;
 	struct clk			*fixed_factor_clk;
 
-	void __iomem			*base;
+	struct regmap			*regmap;
 	int				irq;
 	spinlock_t			irq_lock;
 
@@ -122,22 +123,10 @@ struct meson_mx_mmc_host {
 	int				error;
 };
 
-static void meson_mx_mmc_mask_bits(struct mmc_host *mmc, char reg, u32 mask,
-				   u32 val)
-{
-	struct meson_mx_mmc_host *host = mmc_priv(mmc);
-	u32 regval;
-
-	regval = readl(host->base + reg);
-	regval &= ~mask;
-	regval |= (val & mask);
-
-	writel(regval, host->base + reg);
-}
-
 static void meson_mx_mmc_soft_reset(struct meson_mx_mmc_host *host)
 {
-	writel(MESON_MX_SDIO_IRQC_SOFT_RESET, host->base + MESON_MX_SDIO_IRQC);
+	regmap_write(host->regmap, MESON_MX_SDIO_IRQC,
+		     MESON_MX_SDIO_IRQC_SOFT_RESET);
 	udelay(2);
 }
 
@@ -158,7 +147,7 @@ static void meson_mx_mmc_start_cmd(struct mmc_host *mmc,
 	struct meson_mx_mmc_host *host = mmc_priv(mmc);
 	unsigned int pack_size;
 	unsigned long irqflags, timeout;
-	u32 mult, send = 0, ext = 0;
+	u32 send = 0, ext = 0;
 
 	host->cmd = cmd;
 
@@ -215,25 +204,22 @@ static void meson_mx_mmc_start_cmd(struct mmc_host *mmc,
 
 	spin_lock_irqsave(&host->irq_lock, irqflags);
 
-	mult = readl(host->base + MESON_MX_SDIO_MULT);
-	mult &= ~MESON_MX_SDIO_MULT_PORT_SEL_MASK;
-	mult |= FIELD_PREP(MESON_MX_SDIO_MULT_PORT_SEL_MASK, host->slot_id);
-	mult |= BIT(31);
-	writel(mult, host->base + MESON_MX_SDIO_MULT);
+	regmap_update_bits(host->regmap, MESON_MX_SDIO_MULT,
+			   MESON_MX_SDIO_MULT_PORT_SEL_MASK | BIT(31),
+			   FIELD_PREP(MESON_MX_SDIO_MULT_PORT_SEL_MASK,
+				      host->slot_id) | BIT(31));
 
 	/* enable the CMD done interrupt */
-	meson_mx_mmc_mask_bits(mmc, MESON_MX_SDIO_IRQC,
-			       MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN,
-			       MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN);
+	regmap_set_bits(host->regmap, MESON_MX_SDIO_IRQC,
+			MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN);
 
 	/* clear pending interrupts */
-	meson_mx_mmc_mask_bits(mmc, MESON_MX_SDIO_IRQS,
-			       MESON_MX_SDIO_IRQS_CMD_INT,
-			       MESON_MX_SDIO_IRQS_CMD_INT);
+	regmap_set_bits(host->regmap, MESON_MX_SDIO_IRQS,
+			MESON_MX_SDIO_IRQS_CMD_INT);
 
-	writel(cmd->arg, host->base + MESON_MX_SDIO_ARGU);
-	writel(ext, host->base + MESON_MX_SDIO_EXT);
-	writel(send, host->base + MESON_MX_SDIO_SEND);
+	regmap_write(host->regmap, MESON_MX_SDIO_ARGU, cmd->arg);
+	regmap_write(host->regmap, MESON_MX_SDIO_EXT, ext);
+	regmap_write(host->regmap, MESON_MX_SDIO_SEND, send);
 
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
@@ -263,14 +249,13 @@ static void meson_mx_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_1:
-		meson_mx_mmc_mask_bits(mmc, MESON_MX_SDIO_CONF,
-				       MESON_MX_SDIO_CONF_BUS_WIDTH, 0);
+		regmap_clear_bits(host->regmap, MESON_MX_SDIO_CONF,
+				  MESON_MX_SDIO_CONF_BUS_WIDTH);
 		break;
 
 	case MMC_BUS_WIDTH_4:
-		meson_mx_mmc_mask_bits(mmc, MESON_MX_SDIO_CONF,
-				       MESON_MX_SDIO_CONF_BUS_WIDTH,
-				       MESON_MX_SDIO_CONF_BUS_WIDTH);
+		regmap_set_bits(host->regmap, MESON_MX_SDIO_CONF,
+				MESON_MX_SDIO_CONF_BUS_WIDTH);
 		break;
 
 	case MMC_BUS_WIDTH_8:
@@ -351,8 +336,8 @@ static void meson_mx_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 
 	if (mrq->data)
-		writel(sg_dma_address(mrq->data->sg),
-		       host->base + MESON_MX_SDIO_ADDR);
+		regmap_write(host->regmap, MESON_MX_SDIO_ADDR,
+			     sg_dma_address(mrq->data->sg));
 
 	if (mrq->sbc)
 		meson_mx_mmc_start_cmd(mmc, mrq->sbc);
@@ -364,24 +349,26 @@ static void meson_mx_mmc_read_response(struct mmc_host *mmc,
 				       struct mmc_command *cmd)
 {
 	struct meson_mx_mmc_host *host = mmc_priv(mmc);
-	u32 mult;
-	int i, resp[4];
+	unsigned int i, resp[4];
 
-	mult = readl(host->base + MESON_MX_SDIO_MULT);
-	mult |= MESON_MX_SDIO_MULT_WR_RD_OUT_INDEX;
-	mult &= ~MESON_MX_SDIO_MULT_RESP_READ_INDEX_MASK;
-	mult |= FIELD_PREP(MESON_MX_SDIO_MULT_RESP_READ_INDEX_MASK, 0);
-	writel(mult, host->base + MESON_MX_SDIO_MULT);
+	regmap_update_bits(host->regmap, MESON_MX_SDIO_MULT,
+			   MESON_MX_SDIO_MULT_WR_RD_OUT_INDEX |
+			   MESON_MX_SDIO_MULT_RESP_READ_INDEX_MASK,
+			   MESON_MX_SDIO_MULT_WR_RD_OUT_INDEX |
+			   FIELD_PREP(MESON_MX_SDIO_MULT_RESP_READ_INDEX_MASK,
+				      0));
 
 	if (cmd->flags & MMC_RSP_136) {
 		for (i = 0; i <= 3; i++)
-			resp[3 - i] = readl(host->base + MESON_MX_SDIO_ARGU);
+			regmap_read(host->regmap, MESON_MX_SDIO_ARGU,
+				    &resp[3 - i]);
+
 		cmd->resp[0] = (resp[0] << 8) | ((resp[1] >> 24) & 0xff);
 		cmd->resp[1] = (resp[1] << 8) | ((resp[2] >> 24) & 0xff);
 		cmd->resp[2] = (resp[2] << 8) | ((resp[3] >> 24) & 0xff);
 		cmd->resp[3] = (resp[3] << 8);
 	} else if (cmd->flags & MMC_RSP_PRESENT) {
-		cmd->resp[0] = readl(host->base + MESON_MX_SDIO_ARGU);
+		regmap_read(host->regmap, MESON_MX_SDIO_ARGU, &cmd->resp[0]);
 	}
 }
 
@@ -422,8 +409,8 @@ static irqreturn_t meson_mx_mmc_irq(int irq, void *data)
 
 	spin_lock(&host->irq_lock);
 
-	irqs = readl(host->base + MESON_MX_SDIO_IRQS);
-	send = readl(host->base + MESON_MX_SDIO_SEND);
+	regmap_read(host->regmap, MESON_MX_SDIO_IRQS, &irqs);
+	regmap_read(host->regmap, MESON_MX_SDIO_SEND, &send);
 
 	if (irqs & MESON_MX_SDIO_IRQS_CMD_INT)
 		ret = meson_mx_mmc_process_cmd_irq(host, irqs, send);
@@ -431,7 +418,7 @@ static irqreturn_t meson_mx_mmc_irq(int irq, void *data)
 		ret = IRQ_HANDLED;
 
 	/* finally ACK all pending interrupts */
-	writel(irqs, host->base + MESON_MX_SDIO_IRQS);
+	regmap_write(host->regmap, MESON_MX_SDIO_IRQS, irqs);
 
 	spin_unlock(&host->irq_lock);
 
@@ -470,14 +457,13 @@ static void meson_mx_mmc_timeout(struct timer_list *t)
 	struct meson_mx_mmc_host *host = timer_container_of(host, t,
 							    cmd_timeout);
 	unsigned long irqflags;
-	u32 irqc;
+	u32 irqs, argu;
 
 	spin_lock_irqsave(&host->irq_lock, irqflags);
 
 	/* disable the CMD interrupt */
-	irqc = readl(host->base + MESON_MX_SDIO_IRQC);
-	irqc &= ~MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN;
-	writel(irqc, host->base + MESON_MX_SDIO_IRQC);
+	regmap_clear_bits(host->regmap, MESON_MX_SDIO_IRQC,
+			  MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN);
 
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
@@ -488,10 +474,12 @@ static void meson_mx_mmc_timeout(struct timer_list *t)
 	if (!host->cmd)
 		return;
 
+	regmap_read(host->regmap, MESON_MX_SDIO_IRQS, &irqs);
+	regmap_read(host->regmap, MESON_MX_SDIO_ARGU, &argu);
+
 	dev_dbg(mmc_dev(host->mmc),
 		"Timeout on CMD%u (IRQS = 0x%08x, ARGU = 0x%08x)\n",
-		host->cmd->opcode, readl(host->base + MESON_MX_SDIO_IRQS),
-		readl(host->base + MESON_MX_SDIO_ARGU));
+		host->cmd->opcode, irqs, argu);
 
 	host->cmd->error = -ETIMEDOUT;
 
@@ -578,7 +566,8 @@ static int meson_mx_mmc_add_host(struct meson_mx_mmc_host *host)
 	return 0;
 }
 
-static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
+static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host,
+				      void __iomem *base)
 {
 	struct clk_init_data init;
 	const char *clk_div_parent, *clk_fixed_factor_parent;
@@ -613,7 +602,7 @@ static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
 	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = &clk_div_parent;
 	init.num_parents = 1;
-	host->cfg_div.reg = host->base + MESON_MX_SDIO_CONF;
+	host->cfg_div.reg = base + MESON_MX_SDIO_CONF;
 	host->cfg_div.shift = MESON_MX_SDIO_CONF_CMD_CLK_DIV_SHIFT;
 	host->cfg_div.width = MESON_MX_SDIO_CONF_CMD_CLK_DIV_WIDTH;
 	host->cfg_div.hw.init = &init;
@@ -629,11 +618,22 @@ static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
 
 static int meson_mx_mmc_probe(struct platform_device *pdev)
 {
+	const struct regmap_config meson_mx_sdio_regmap_config = {
+		.reg_bits = 8,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = MESON_MX_SDIO_EXT,
+	};
 	struct platform_device *slot_pdev;
 	struct mmc_host *mmc;
 	struct meson_mx_mmc_host *host;
+	void __iomem *base;
 	int ret, irq;
 	u32 conf;
+
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	slot_pdev = meson_mx_mmc_slot_pdev(&pdev->dev);
 	if (!slot_pdev)
@@ -656,9 +656,10 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	host->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(host->base)) {
-		ret = PTR_ERR(host->base);
+	host->regmap = devm_regmap_init_mmio(&pdev->dev, base,
+					     &meson_mx_sdio_regmap_config);
+	if (IS_ERR(host->regmap)) {
+		ret = PTR_ERR(host->regmap);
 		goto error_free_mmc;
 	}
 
@@ -687,7 +688,7 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 		goto error_free_mmc;
 	}
 
-	ret = meson_mx_mmc_register_clks(host);
+	ret = meson_mx_mmc_register_clks(host, base);
 	if (ret)
 		goto error_free_mmc;
 
@@ -708,7 +709,7 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 	conf |= FIELD_PREP(MESON_MX_SDIO_CONF_M_ENDIAN_MASK, 0x3);
 	conf |= FIELD_PREP(MESON_MX_SDIO_CONF_WRITE_NWR_MASK, 0x2);
 	conf |= FIELD_PREP(MESON_MX_SDIO_CONF_WRITE_CRC_OK_STATUS_MASK, 0x2);
-	writel(conf, host->base + MESON_MX_SDIO_CONF);
+	regmap_write(host->regmap, MESON_MX_SDIO_CONF, conf);
 
 	meson_mx_mmc_soft_reset(host);
 
