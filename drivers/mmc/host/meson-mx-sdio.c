@@ -103,7 +103,6 @@ struct meson_mx_mmc_host {
 	struct device			*controller_dev;
 
 	struct clk			*parent_clk;
-	struct clk			*core_clk;
 	struct clk_divider		cfg_div;
 	struct clk			*cfg_div_clk;
 	struct clk_fixed_factor		fixed_factor;
@@ -627,6 +626,7 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 	struct platform_device *slot_pdev;
 	struct mmc_host *mmc;
 	struct meson_mx_mmc_host *host;
+	struct clk *core_clk;
 	void __iomem *base;
 	int ret, irq;
 	u32 conf;
@@ -676,9 +676,9 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_free_mmc;
 
-	host->core_clk = devm_clk_get(host->controller_dev, "core");
-	if (IS_ERR(host->core_clk)) {
-		ret = PTR_ERR(host->core_clk);
+	core_clk = devm_clk_get_enabled(host->controller_dev, "core");
+	if (IS_ERR(core_clk)) {
+		ret = PTR_ERR(core_clk);
 		goto error_free_mmc;
 	}
 
@@ -692,16 +692,10 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_free_mmc;
 
-	ret = clk_prepare_enable(host->core_clk);
-	if (ret) {
-		dev_err(host->controller_dev, "Failed to enable core clock\n");
-		goto error_free_mmc;
-	}
-
 	ret = clk_prepare_enable(host->cfg_div_clk);
 	if (ret) {
 		dev_err(host->controller_dev, "Failed to enable MMC clock\n");
-		goto error_disable_core_clk;
+		goto error_free_mmc;
 	}
 
 	conf = 0;
@@ -715,14 +709,12 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 
 	ret = meson_mx_mmc_add_host(host);
 	if (ret)
-		goto error_disable_clks;
+		goto error_disable_div_clk;
 
 	return 0;
 
-error_disable_clks:
+error_disable_div_clk:
 	clk_disable_unprepare(host->cfg_div_clk);
-error_disable_core_clk:
-	clk_disable_unprepare(host->core_clk);
 error_free_mmc:
 	mmc_free_host(mmc);
 error_unregister_slot_pdev:
@@ -742,7 +734,6 @@ static void meson_mx_mmc_remove(struct platform_device *pdev)
 	of_platform_device_destroy(slot_dev, NULL);
 
 	clk_disable_unprepare(host->cfg_div_clk);
-	clk_disable_unprepare(host->core_clk);
 
 	mmc_free_host(host->mmc);
 }
