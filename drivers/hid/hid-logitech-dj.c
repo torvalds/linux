@@ -148,6 +148,7 @@ struct dj_receiver_dev {
 	struct kfifo notif_fifo;
 	unsigned long last_query; /* in jiffies */
 	bool ready;
+	bool dj_mode;
 	enum recvr_type type;
 	unsigned int unnumbered_application;
 	spinlock_t lock;
@@ -557,6 +558,8 @@ static const u8 hid_reportid_size_map[NUMBER_OF_HID_REPORTS] = {
 static const struct hid_ll_driver logi_dj_ll_driver;
 
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev);
+static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
+					  unsigned int timeout);
 static void delayedwork_callback(struct work_struct *work);
 
 static LIST_HEAD(dj_hdev_list);
@@ -841,6 +844,9 @@ static void delayedwork_callback(struct work_struct *work)
 		logi_dj_recv_destroy_djhid_device(djrcv_dev, &workitem);
 		break;
 	case WORKITEM_TYPE_UNKNOWN:
+		if (!djrcv_dev->dj_mode)
+			logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
+
 		logi_dj_recv_query_paired_devices(djrcv_dev);
 		break;
 	case WORKITEM_TYPE_EMPTY:
@@ -1234,6 +1240,9 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 
 	djrcv_dev->last_query = jiffies;
 
+	if (!djrcv_dev->dj_mode)
+		return 0;
+
 	if (djrcv_dev->type != recvr_type_dj) {
 		retval = logi_dj_recv_query_hidpp_devices(djrcv_dev);
 		goto out;
@@ -1317,6 +1326,7 @@ out:
 	if (retval < 0)
 		hid_err(hdev, "%s error:%d\n", __func__, retval);
 
+	djrcv_dev->dj_mode = retval >= 0;
 	return retval;
 }
 
@@ -1837,9 +1847,11 @@ static int logi_dj_probe(struct hid_device *hdev,
 	}
 
 	if (has_hidpp) {
-		retval = logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
-		if (retval < 0)
-			goto switch_to_dj_mode_fail;
+		/*
+		 * This can fail with a KVM. Ignore errors to let the probe
+		 * succeed, logi_dj_recv_queue_unknown_work will retry later.
+		 */
+		logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
 	}
 
 	/* This is enabling the polling urb on the IN endpoint */
@@ -1857,17 +1869,13 @@ static int logi_dj_probe(struct hid_device *hdev,
 		spin_lock_irqsave(&djrcv_dev->lock, flags);
 		djrcv_dev->ready = true;
 		spin_unlock_irqrestore(&djrcv_dev->lock, flags);
-		/*
-		 * This can fail with a KVM. Ignore errors to let the probe
-		 * succeed, logi_dj_recv_queue_unknown_work will retry later.
-		 */
+		/* This too can fail with a KVM, ignore errors. */
 		logi_dj_recv_query_paired_devices(djrcv_dev);
 	}
 
 	return 0;
 
 llopen_failed:
-switch_to_dj_mode_fail:
 	hid_hw_stop(hdev);
 
 hid_hw_start_fail:
