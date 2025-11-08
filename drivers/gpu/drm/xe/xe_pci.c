@@ -333,7 +333,7 @@ static const struct xe_device_desc mtl_desc = {
 	.has_pxp = true,
 	.max_gt_per_tile = 2,
 	.va_bits = 48,
-	.vm_max_level = 4,
+	.vm_max_level = 3,
 };
 
 static const struct xe_device_desc lnl_desc = {
