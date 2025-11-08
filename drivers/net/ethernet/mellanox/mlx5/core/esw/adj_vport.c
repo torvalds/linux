@@ -4,13 +4,8 @@
 #include "fs_core.h"
 #include "eswitch.h"
 
-enum {
-	MLX5_ADJ_VPORT_DISCONNECT = 0x0,
-	MLX5_ADJ_VPORT_CONNECT = 0x1,
-};
-
-static int mlx5_esw_adj_vport_modify(struct mlx5_core_dev *dev,
-				     u16 vport, bool connect)
+int mlx5_esw_adj_vport_modify(struct mlx5_core_dev *dev, u16 vport,
+			      bool connect)
 {
 	u32 in[MLX5_ST_SZ_DW(modify_vport_state_in)] = {};
 
@@ -24,7 +19,7 @@ static int mlx5_esw_adj_vport_modify(struct mlx5_core_dev *dev,
 	MLX5_SET(modify_vport_state_in, in, egress_connect_valid, 1);
 	MLX5_SET(modify_vport_state_in, in, ingress_connect, connect);
 	MLX5_SET(modify_vport_state_in, in, egress_connect, connect);
-
+	MLX5_SET(modify_vport_state_in, in, admin_state, connect);
 	return mlx5_cmd_exec_in(dev, modify_vport_state, in);
 }
 
@@ -96,7 +91,6 @@ static int mlx5_esw_adj_vport_create(struct mlx5_eswitch *esw, u16 vhca_id,
 	if (err)
 		goto acl_ns_remove;
 
-	mlx5_esw_adj_vport_modify(esw->dev, vport_num, MLX5_ADJ_VPORT_CONNECT);
 	return 0;
 
 acl_ns_remove:
@@ -117,8 +111,7 @@ static void mlx5_esw_adj_vport_destroy(struct mlx5_eswitch *esw,
 
 	esw_debug(esw->dev, "Destroying adjacent vport %d for vhca_id 0x%x\n",
 		  vport_num, vport->vhca_id);
-	mlx5_esw_adj_vport_modify(esw->dev, vport_num,
-				  MLX5_ADJ_VPORT_DISCONNECT);
+
 	mlx5_esw_offloads_rep_remove(esw, vport);
 	mlx5_fs_vport_egress_acl_ns_remove(esw->dev->priv.steering,
 					   vport->index);

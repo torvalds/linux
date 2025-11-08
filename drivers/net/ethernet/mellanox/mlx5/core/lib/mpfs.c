@@ -167,7 +167,7 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 		if (err)
 			goto free_l2table_index;
 		mlx5_core_dbg(dev, "MPFS entry %pM, set @index (%d)\n",
-			      l2addr->node.addr, l2addr->index);
+			      l2addr->node.addr, index);
 	}
 
 	l2addr->index = index;

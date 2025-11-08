@@ -1577,6 +1577,7 @@ esw_chains_create(struct mlx5_eswitch *esw, struct mlx5_flow_table *miss_fdb)
 	attr.max_grp_num = esw->params.large_group_num;
 	attr.default_ft = miss_fdb;
 	attr.mapping = esw->offloads.reg_c0_obj_pool;
+	attr.fs_base_prio = FDB_BYPASS_PATH;
 
 	chains = mlx5_chains_create(dev, &attr);
 	if (IS_ERR(chains)) {
@@ -2353,6 +2354,131 @@ static void esw_mode_change(struct mlx5_eswitch *esw, u16 mode)
 	esw->dev->priv.flags &= ~MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
 	mlx5_rescan_drivers_locked(esw->dev);
 	mlx5_devcom_comp_unlock(esw->dev->priv.hca_devcom_comp);
+}
+
+static void mlx5_esw_fdb_drop_destroy(struct mlx5_eswitch *esw)
+{
+	if (!esw->fdb_table.offloads.drop_root)
+		return;
+
+	esw_debug(esw->dev, "Destroying FDB drop root table %#x fc %#x\n",
+		  esw->fdb_table.offloads.drop_root->id,
+		  esw->fdb_table.offloads.drop_root_fc->id);
+	mlx5_del_flow_rules(esw->fdb_table.offloads.drop_root_rule);
+	/* Don't free flow counter here, can be reused on a later activation */
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.drop_root);
+	esw->fdb_table.offloads.drop_root_rule = NULL;
+	esw->fdb_table.offloads.drop_root = NULL;
+}
+
+static int mlx5_esw_fdb_drop_create(struct mlx5_eswitch *esw)
+{
+	struct mlx5_flow_destination drop_fc_dst = {};
+	struct mlx5_flow_table_attr ft_attr = {};
+	struct mlx5_flow_destination *dst = NULL;
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_flow_namespace *root_ns;
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *flow_rule;
+	struct mlx5_flow_table *table;
+	int err = 0, dst_num = 0;
+
+	if (esw->fdb_table.offloads.drop_root)
+		return 0;
+
+	root_ns = esw->fdb_table.offloads.ns;
+
+	ft_attr.prio = FDB_DROP_ROOT;
+	ft_attr.max_fte = 1;
+	ft_attr.autogroup.max_num_groups = 1;
+	table = mlx5_create_auto_grouped_flow_table(root_ns, &ft_attr);
+	if (IS_ERR(table)) {
+		esw_warn(dev, "Failed to create fdb drop root table, err %pe\n",
+			 table);
+		return PTR_ERR(table);
+	}
+
+	/* Drop FC reusable, create once on first deactivation of FDB */
+	if (!esw->fdb_table.offloads.drop_root_fc) {
+		struct mlx5_fc *counter = mlx5_fc_create(dev, 0);
+
+		err = PTR_ERR_OR_ZERO(counter);
+		if (err)
+			esw_warn(esw->dev, "create fdb drop fc err %d\n", err);
+		else
+			esw->fdb_table.offloads.drop_root_fc = counter;
+	}
+
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
+
+	if (esw->fdb_table.offloads.drop_root_fc) {
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		drop_fc_dst.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+		drop_fc_dst.counter = esw->fdb_table.offloads.drop_root_fc;
+		dst = &drop_fc_dst;
+		dst_num++;
+	}
+
+	flow_rule = mlx5_add_flow_rules(table, NULL, &flow_act, dst, dst_num);
+	err = PTR_ERR_OR_ZERO(flow_rule);
+	if (err) {
+		esw_warn(esw->dev,
+			 "fs offloads: Failed to add vport rx drop rule err %d\n",
+			 err);
+		goto err_flow_rule;
+	}
+
+	esw->fdb_table.offloads.drop_root = table;
+	esw->fdb_table.offloads.drop_root_rule = flow_rule;
+	esw_debug(esw->dev, "Created FDB drop root table %#x fc %#x\n",
+		  table->id, dst ? dst->counter->id : 0);
+	return 0;
+
+err_flow_rule:
+	/* no need to free drop fc, esw_offloads_steering_cleanup will do it */
+	mlx5_destroy_flow_table(table);
+	return err;
+}
+
+static void mlx5_esw_fdb_active(struct mlx5_eswitch *esw)
+{
+	struct mlx5_vport *vport;
+	unsigned long i;
+
+	mlx5_esw_fdb_drop_destroy(esw);
+	mlx5_mpfs_enable(esw->dev);
+
+	mlx5_esw_for_each_vf_vport(esw, i, vport, U16_MAX) {
+		if (!vport->adjacent)
+			continue;
+		esw_debug(esw->dev, "Connecting vport %d to eswitch\n",
+			  vport->vport);
+		mlx5_esw_adj_vport_modify(esw->dev, vport->vport, true);
+	}
+
+	esw->offloads_inactive = false;
+	esw_warn(esw->dev, "MPFS/FDB active\n");
+}
+
+static void mlx5_esw_fdb_inactive(struct mlx5_eswitch *esw)
+{
+	struct mlx5_vport *vport;
+	unsigned long i;
+
+	mlx5_mpfs_disable(esw->dev);
+	mlx5_esw_fdb_drop_create(esw);
+
+	mlx5_esw_for_each_vf_vport(esw, i, vport, U16_MAX) {
+		if (!vport->adjacent)
+			continue;
+		esw_debug(esw->dev, "Disconnecting vport %u from eswitch\n",
+			  vport->vport);
+
+		mlx5_esw_adj_vport_modify(esw->dev, vport->vport, false);
+	}
+
+	esw->offloads_inactive = true;
+	esw_warn(esw->dev, "MPFS/FDB inactive\n");
 }
 
 static int esw_offloads_start(struct mlx5_eswitch *esw,
@@ -3438,6 +3564,10 @@ create_indir_err:
 
 static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 {
+	mlx5_esw_fdb_drop_destroy(esw);
+	if (esw->fdb_table.offloads.drop_root_fc)
+		mlx5_fc_destroy(esw->dev, esw->fdb_table.offloads.drop_root_fc);
+	esw->fdb_table.offloads.drop_root_fc = NULL;
 	esw_destroy_vport_rx_drop_rule(esw);
 	esw_destroy_vport_rx_drop_group(esw);
 	esw_destroy_vport_rx_group(esw);
@@ -3600,6 +3730,11 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 	if (err)
 		goto err_steering_init;
 
+	if (esw->offloads_inactive)
+		mlx5_esw_fdb_inactive(esw);
+	else
+		mlx5_esw_fdb_active(esw);
+
 	/* Representor will control the vport link state */
 	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs)
 		vport->info.link_state = MLX5_VPORT_ADMIN_STATE_DOWN;
@@ -3666,6 +3801,9 @@ void esw_offloads_disable(struct mlx5_eswitch *esw)
 	esw_offloads_metadata_uninit(esw);
 	mlx5_rdma_disable_roce(esw->dev);
 	mlx5_esw_adjacent_vhcas_cleanup(esw);
+	/* must be done after vhcas cleanup to avoid adjacent vports connect */
+	if (esw->offloads_inactive)
+		mlx5_esw_fdb_active(esw); /* legacy mode always active */
 	mutex_destroy(&esw->offloads.termtbl_mutex);
 }
 
@@ -3676,6 +3814,7 @@ static int esw_mode_from_devlink(u16 mode, u16 *mlx5_mode)
 		*mlx5_mode = MLX5_ESWITCH_LEGACY;
 		break;
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
+	case DEVLINK_ESWITCH_MODE_SWITCHDEV_INACTIVE:
 		*mlx5_mode = MLX5_ESWITCH_OFFLOADS;
 		break;
 	default:
@@ -3685,14 +3824,17 @@ static int esw_mode_from_devlink(u16 mode, u16 *mlx5_mode)
 	return 0;
 }
 
-static int esw_mode_to_devlink(u16 mlx5_mode, u16 *mode)
+static int esw_mode_to_devlink(struct mlx5_eswitch *esw, u16 *mode)
 {
-	switch (mlx5_mode) {
+	switch (esw->mode) {
 	case MLX5_ESWITCH_LEGACY:
 		*mode = DEVLINK_ESWITCH_MODE_LEGACY;
 		break;
 	case MLX5_ESWITCH_OFFLOADS:
-		*mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
+		if (esw->offloads_inactive)
+			*mode = DEVLINK_ESWITCH_MODE_SWITCHDEV_INACTIVE;
+		else
+			*mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
 		break;
 	default:
 		return -EINVAL;
@@ -3798,6 +3940,45 @@ static bool mlx5_devlink_netdev_netns_immutable_set(struct devlink *devlink,
 	return ret;
 }
 
+/* Returns true when only changing between active and inactive switchdev mode */
+static bool mlx5_devlink_switchdev_active_mode_change(struct mlx5_eswitch *esw,
+						      u16 devlink_mode)
+{
+	/* current mode is not switchdev */
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
+		return false;
+
+	/* new mode is not switchdev */
+	if (devlink_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV &&
+	    devlink_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV_INACTIVE)
+		return false;
+
+	/* already inactive: no change in current state */
+	if (devlink_mode == DEVLINK_ESWITCH_MODE_SWITCHDEV_INACTIVE &&
+	    esw->offloads_inactive)
+		return false;
+
+	/* already active: no change in current state */
+	if (devlink_mode == DEVLINK_ESWITCH_MODE_SWITCHDEV &&
+	    !esw->offloads_inactive)
+		return false;
+
+	down_write(&esw->mode_lock);
+	esw->offloads_inactive = !esw->offloads_inactive;
+	esw->eswitch_operation_in_progress = true;
+	up_write(&esw->mode_lock);
+
+	if (esw->offloads_inactive)
+		mlx5_esw_fdb_inactive(esw);
+	else
+		mlx5_esw_fdb_active(esw);
+
+	down_write(&esw->mode_lock);
+	esw->eswitch_operation_in_progress = false;
+	up_write(&esw->mode_lock);
+	return true;
+}
+
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 				  struct netlink_ext_ack *extack)
 {
@@ -3812,11 +3993,15 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	if (esw_mode_from_devlink(mode, &mlx5_mode))
 		return -EINVAL;
 
-	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV && mlx5_get_sd(esw->dev)) {
+	if (mlx5_mode == MLX5_ESWITCH_OFFLOADS && mlx5_get_sd(esw->dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't change E-Switch mode to switchdev when multi-PF netdev (Socket Direct) is configured.");
 		return -EPERM;
 	}
+
+	/* Avoid try_lock, active/inactive mode change is not restricted */
+	if (mlx5_devlink_switchdev_active_mode_change(esw, mode))
+		return 0;
 
 	mlx5_lag_disable_change(esw->dev);
 	err = mlx5_esw_try_lock(esw);
@@ -3840,7 +4025,7 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	esw->eswitch_operation_in_progress = true;
 	up_write(&esw->mode_lock);
 
-	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV &&
+	if (mlx5_mode == MLX5_ESWITCH_OFFLOADS &&
 	    !mlx5_devlink_netdev_netns_immutable_set(devlink, true)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't change E-Switch mode to switchdev when netdev net namespace has diverged from the devlink's.");
@@ -3848,25 +4033,27 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		goto skip;
 	}
 
-	if (mode == DEVLINK_ESWITCH_MODE_LEGACY)
+	if (mlx5_mode == MLX5_ESWITCH_LEGACY)
 		esw->dev->priv.flags |= MLX5_PRIV_FLAGS_SWITCH_LEGACY;
 	mlx5_eswitch_disable_locked(esw);
-	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV) {
+	if (mlx5_mode == MLX5_ESWITCH_OFFLOADS) {
 		if (mlx5_devlink_trap_get_num_active(esw->dev)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Can't change mode while devlink traps are active");
 			err = -EOPNOTSUPP;
 			goto skip;
 		}
+		esw->offloads_inactive =
+			(mode == DEVLINK_ESWITCH_MODE_SWITCHDEV_INACTIVE);
 		err = esw_offloads_start(esw, extack);
-	} else if (mode == DEVLINK_ESWITCH_MODE_LEGACY) {
+	} else if (mlx5_mode == MLX5_ESWITCH_LEGACY) {
 		err = esw_offloads_stop(esw, extack);
 	} else {
 		err = -EINVAL;
 	}
 
 skip:
-	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV && err)
+	if (mlx5_mode == MLX5_ESWITCH_OFFLOADS && err)
 		mlx5_devlink_netdev_netns_immutable_set(devlink, false);
 	down_write(&esw->mode_lock);
 	esw->eswitch_operation_in_progress = false;
@@ -3885,7 +4072,7 @@ int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
-	return esw_mode_to_devlink(esw->mode, mode);
+	return esw_mode_to_devlink(esw, mode);
 }
 
 static int mlx5_esw_vports_inline_set(struct mlx5_eswitch *esw, u8 mlx5_mode,
