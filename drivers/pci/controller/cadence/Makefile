@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-pcie-cadence-mod-y := pcie-cadence.o
-pcie-cadence-host-mod-y := pcie-cadence-host-common.o pcie-cadence-host.o
+pcie-cadence-mod-y := pcie-cadence-hpa.o pcie-cadence.o
+pcie-cadence-host-mod-y := pcie-cadence-host-common.o pcie-cadence-host.o pcie-cadence-host-hpa.o
 pcie-cadence-ep-mod-y := pcie-cadence-ep.o
 
 obj-$(CONFIG_PCIE_CADENCE) = pcie-cadence-mod.o
