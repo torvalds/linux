@@ -294,7 +294,6 @@ void __ns_ref_active_put(struct ns_common *ns);
 
 static __always_inline struct ns_common *__must_check ns_get_unless_inactive(struct ns_common *ns)
 {
-	VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) && !__ns_ref_read(ns));
 	if (!__ns_ref_active_read(ns)) {
 		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
 		return NULL;

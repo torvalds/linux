@@ -170,8 +170,10 @@ void __ns_ref_active_put(struct ns_common *ns)
 	if (is_ns_init_id(ns))
 		return;
 
-	if (!atomic_dec_and_test(&ns->__ns_ref_active))
+	if (!atomic_dec_and_test(&ns->__ns_ref_active)) {
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) < 0);
 		return;
+	}
 
 	VFS_WARN_ON_ONCE(is_ns_init_id(ns));
 	VFS_WARN_ON_ONCE(!__ns_ref_read(ns));
@@ -181,8 +183,10 @@ void __ns_ref_active_put(struct ns_common *ns)
 		if (!ns)
 			return;
 		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
-		if (!atomic_dec_and_test(&ns->__ns_ref_active))
+		if (!atomic_dec_and_test(&ns->__ns_ref_active)) {
+			VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) < 0);
 			return;
+		}
 	}
 }
 
@@ -280,12 +284,16 @@ void __ns_ref_active_put(struct ns_common *ns)
  */
 void __ns_ref_active_get(struct ns_common *ns)
 {
+	int prev;
+
 	/* Initial namespaces are always active. */
 	if (is_ns_init_id(ns))
 		return;
 
 	/* If we didn't resurrect the namespace we're done. */
-	if (atomic_fetch_add(1, &ns->__ns_ref_active))
+	prev = atomic_fetch_add(1, &ns->__ns_ref_active);
+	VFS_WARN_ON_ONCE(prev < 0);
+	if (likely(prev))
 		return;
 
 	/*
@@ -298,7 +306,9 @@ void __ns_ref_active_get(struct ns_common *ns)
 			return;
 
 		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
-		if (atomic_fetch_add(1, &ns->__ns_ref_active))
+		prev = atomic_fetch_add(1, &ns->__ns_ref_active);
+		VFS_WARN_ON_ONCE(prev < 0);
+		if (likely(prev))
 			return;
 	}
 }
