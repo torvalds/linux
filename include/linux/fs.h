@@ -781,14 +781,13 @@ enum inode_state_flags_t {
 struct inode {
 	umode_t			i_mode;
 	unsigned short		i_opflags;
-	kuid_t			i_uid;
-	kgid_t			i_gid;
 	unsigned int		i_flags;
-
 #ifdef CONFIG_FS_POSIX_ACL
 	struct posix_acl	*i_acl;
 	struct posix_acl	*i_default_acl;
 #endif
+	kuid_t			i_uid;
+	kgid_t			i_gid;
 
 	const struct inode_operations	*i_op;
 	struct super_block	*i_sb;
