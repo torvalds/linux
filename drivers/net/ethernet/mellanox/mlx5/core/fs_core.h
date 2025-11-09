@@ -103,24 +103,6 @@ enum fs_node_type {
 	FS_TYPE_FLOW_DEST
 };
 
-enum fs_flow_table_type {
-	FS_FT_NIC_RX          = 0x0,
-	FS_FT_NIC_TX          = 0x1,
-	FS_FT_ESW_EGRESS_ACL  = 0x2,
-	FS_FT_ESW_INGRESS_ACL = 0x3,
-	FS_FT_FDB             = 0X4,
-	FS_FT_SNIFFER_RX	= 0X5,
-	FS_FT_SNIFFER_TX	= 0X6,
-	FS_FT_RDMA_RX		= 0X7,
-	FS_FT_RDMA_TX		= 0X8,
-	FS_FT_PORT_SEL		= 0X9,
-	FS_FT_FDB_RX		= 0xa,
-	FS_FT_FDB_TX		= 0xb,
-	FS_FT_RDMA_TRANSPORT_RX	= 0xd,
-	FS_FT_RDMA_TRANSPORT_TX	= 0xe,
-	FS_FT_MAX_TYPE = FS_FT_RDMA_TRANSPORT_TX,
-};
-
 enum fs_flow_table_op_mod {
 	FS_FT_OP_MOD_NORMAL,
 	FS_FT_OP_MOD_LAG_DEMUX,
@@ -205,6 +187,7 @@ struct mlx5_flow_table {
 	};
 	u32				id;
 	u16				vport;
+	u16				esw_owner_vhca_id;
 	unsigned int			max_fte;
 	unsigned int			level;
 	enum fs_flow_table_type		type;
