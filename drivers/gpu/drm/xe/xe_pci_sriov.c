@@ -94,6 +94,20 @@ static int resize_vf_vram_bar(struct xe_device *xe, int num_vfs)
 	return pci_iov_vf_bar_set_size(pdev, VF_LMEM_BAR, __fls(sizes));
 }
 
+static int pf_prepare_vfs_enabling(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+	/* make sure we are not locked-down by other components */
+	return xe_sriov_pf_arm_guard(xe, &xe->sriov.pf.guard_vfs_enabling, false, NULL);
+}
+
+static void pf_finish_vfs_enabling(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+	/* allow other components to lockdown VFs enabling */
+	xe_sriov_pf_disarm_guard(xe, &xe->sriov.pf.guard_vfs_enabling, false, NULL);
+}
+
 static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -106,6 +120,10 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 	xe_sriov_dbg(xe, "enabling %u VF%s\n", num_vfs, str_plural(num_vfs));
 
 	err = xe_sriov_pf_wait_ready(xe);
+	if (err)
+		goto out;
+
+	err = pf_prepare_vfs_enabling(xe);
 	if (err)
 		goto out;
 
@@ -148,6 +166,7 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 failed:
 	xe_sriov_pf_unprovision_vfs(xe, num_vfs);
 	xe_pm_runtime_put(xe);
+	pf_finish_vfs_enabling(xe);
 out:
 	xe_sriov_notice(xe, "Failed to enable %u VF%s (%pe)\n",
 			num_vfs, str_plural(num_vfs), ERR_PTR(err));
@@ -178,6 +197,8 @@ static int pf_disable_vfs(struct xe_device *xe)
 
 	/* not needed anymore - see pf_enable_vfs() */
 	xe_pm_runtime_put(xe);
+
+	pf_finish_vfs_enabling(xe);
 
 	xe_sriov_info(xe, "Disabled %u VF%s\n", num_vfs, str_plural(num_vfs));
 	return 0;

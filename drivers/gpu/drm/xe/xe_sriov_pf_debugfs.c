@@ -98,10 +98,40 @@ static inline int xe_sriov_pf_restore_auto_provisioning(struct xe_device *xe)
 
 DEFINE_SRIOV_ATTRIBUTE(restore_auto_provisioning);
 
+static int lockdown_vfs_enabling_open(struct inode *inode, struct file *file)
+{
+	struct dentry *dent = file_dentry(file);
+	struct xe_device *xe = extract_xe(dent);
+	ssize_t ret;
+
+	ret = xe_sriov_pf_lockdown(xe);
+	if (ret < 0)
+		return ret;
+
+	file->private_data = xe;
+	return nonseekable_open(inode, file);
+}
+
+static int lockdown_vfs_enabling_release(struct inode *inode, struct file *file)
+{
+	struct xe_device *xe = file->private_data;
+
+	xe_sriov_pf_end_lockdown(xe);
+	return 0;
+}
+
+static const struct file_operations lockdown_vfs_enabling_fops = {
+	.owner		= THIS_MODULE,
+	.open		= lockdown_vfs_enabling_open,
+	.release	= lockdown_vfs_enabling_release,
+};
+
 static void pf_populate_root(struct xe_device *xe, struct dentry *dent)
 {
 	debugfs_create_file("restore_auto_provisioning", 0200, dent, xe,
 			    &restore_auto_provisioning_fops);
+	debugfs_create_file("lockdown_vfs_enabling", 0400, dent, xe,
+			    &lockdown_vfs_enabling_fops);
 }
 
 static int simple_show(struct seq_file *m, void *data)
