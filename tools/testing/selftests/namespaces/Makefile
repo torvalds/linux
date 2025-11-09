@@ -11,7 +11,8 @@ TEST_GEN_PROGS := nsid_test \
 		  siocgskns_test \
 		  cred_change_test \
 		  stress_test \
-		  listns_pagination_bug
+		  listns_pagination_bug \
+		  regression_pidfd_setns_test
 
 include ../lib.mk
 
@@ -22,4 +23,5 @@ $(OUTPUT)/siocgskns_test: ../filesystems/utils.c
 $(OUTPUT)/cred_change_test: ../filesystems/utils.c
 $(OUTPUT)/stress_test: ../filesystems/utils.c
 $(OUTPUT)/listns_pagination_bug: ../filesystems/utils.c
+$(OUTPUT)/regression_pidfd_setns_test: ../filesystems/utils.c
 
