@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Script that generates test vectors for the given cryptographic hash function.
+# Script that generates test vectors for the given hash function.
 #
 # Copyright 2025 Google LLC
 
@@ -50,11 +50,42 @@ class Poly1305:
         m = (self.h + self.s) % 2**128
         return m.to_bytes(16, byteorder='little')
 
+POLYVAL_POLY = sum((1 << i) for i in [128, 127, 126, 121, 0])
+POLYVAL_BLOCK_SIZE = 16
+
+# A straightforward, unoptimized implementation of POLYVAL.
+# Reference: https://datatracker.ietf.org/doc/html/rfc8452
+class Polyval:
+    def __init__(self, key):
+        assert len(key) == 16
+        self.h = int.from_bytes(key, byteorder='little')
+        self.acc = 0
+
+    # Note: this supports partial blocks only at the end.
+    def update(self, data):
+        for i in range(0, len(data), 16):
+            # acc += block
+            self.acc ^= int.from_bytes(data[i:i+16], byteorder='little')
+            # acc = (acc * h * x^-128) mod POLYVAL_POLY
+            product = 0
+            for j in range(128):
+                if (self.h & (1 << j)) != 0:
+                    product ^= self.acc << j
+                if (product & (1 << j)) != 0:
+                    product ^= POLYVAL_POLY << j
+            self.acc = product >> 128
+        return self
+
+    def digest(self):
+        return self.acc.to_bytes(16, byteorder='little')
+
 def hash_init(alg):
     if alg == 'poly1305':
         # Use a fixed random key here, to present Poly1305 as an unkeyed hash.
         # This allows all the test cases for unkeyed hashes to work on Poly1305.
         return Poly1305(rand_bytes(POLY1305_KEY_SIZE))
+    if alg == 'polyval':
+        return Polyval(rand_bytes(POLYVAL_BLOCK_SIZE))
     return hashlib.new(alg)
 
 def hash_update(ctx, data):
@@ -165,9 +196,18 @@ def gen_additional_poly1305_testvecs():
             'poly1305_allones_macofmacs[POLY1305_DIGEST_SIZE]',
             Poly1305(key).update(data).digest())
 
+def gen_additional_polyval_testvecs():
+    key = b'\xff' * POLYVAL_BLOCK_SIZE
+    hashes = b''
+    for data_len in range(0, 4097, 16):
+        hashes += Polyval(key).update(b'\xff' * data_len).digest()
+    print_static_u8_array_definition(
+            'polyval_allones_hashofhashes[POLYVAL_DIGEST_SIZE]',
+            Polyval(key).update(hashes).digest())
+
 if len(sys.argv) != 2:
     sys.stderr.write('Usage: gen-hash-testvecs.py ALGORITHM\n')
-    sys.stderr.write('ALGORITHM may be any supported by Python hashlib, or poly1305 or sha3.\n')
+    sys.stderr.write('ALGORITHM may be any supported by Python hashlib; or poly1305, polyval, or sha3.\n')
     sys.stderr.write('Example: gen-hash-testvecs.py sha512\n')
     sys.exit(1)
 
@@ -180,6 +220,9 @@ if alg.startswith('blake2'):
 elif alg == 'poly1305':
     gen_unkeyed_testvecs(alg)
     gen_additional_poly1305_testvecs()
+elif alg == 'polyval':
+    gen_unkeyed_testvecs(alg)
+    gen_additional_polyval_testvecs()
 elif alg == 'sha3':
     print()
     print('/* SHA3-256 test vectors */')
