@@ -202,6 +202,7 @@ obj-$(CONFIG_CRYPTO_LIB_POLYVAL) += libpolyval.o
 libpolyval-y := polyval.o
 ifeq ($(CONFIG_CRYPTO_LIB_POLYVAL_ARCH),y)
 CFLAGS_polyval.o += -I$(src)/$(SRCARCH)
+libpolyval-$(CONFIG_ARM64) += arm64/polyval-ce-core.o
 endif
 
 ################################################################################

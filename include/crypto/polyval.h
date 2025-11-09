@@ -39,10 +39,18 @@ struct polyval_elem {
  * This may contain just the raw key H, or it may contain precomputed key
  * powers, depending on the platform's POLYVAL implementation.  Use
  * polyval_preparekey() to initialize this.
+ *
+ * By H^i we mean H^(i-1) * H * x^-128, with base case H^1 = H.  I.e. the
+ * exponentiation repeats the POLYVAL dot operation, with its "extra" x^-128.
  */
 struct polyval_key {
 #ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
+#ifdef CONFIG_ARM64
+	/** @h_powers: Powers of the hash key H^8 through H^1 */
+	struct polyval_elem h_powers[8];
+#else
 #error "Unhandled arch"
+#endif
 #else /* CONFIG_CRYPTO_LIB_POLYVAL_ARCH */
 	/** @h: The hash key H */
 	struct polyval_elem h;

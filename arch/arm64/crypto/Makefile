@@ -29,9 +29,6 @@ sm4-neon-y := sm4-neon-glue.o sm4-neon-core.o
 obj-$(CONFIG_CRYPTO_GHASH_ARM64_CE) += ghash-ce.o
 ghash-ce-y := ghash-ce-glue.o ghash-ce-core.o
 
-obj-$(CONFIG_CRYPTO_POLYVAL_ARM64_CE) += polyval-ce.o
-polyval-ce-y := polyval-ce-glue.o polyval-ce-core.o
-
 obj-$(CONFIG_CRYPTO_AES_ARM64_CE) += aes-ce-cipher.o
 aes-ce-cipher-y := aes-ce-core.o aes-ce-glue.o
 
