@@ -177,6 +177,7 @@ void __ns_ref_active_put_owner(struct ns_common *ns)
 		ns = ns_owner(ns);
 		if (!ns)
 			return;
+		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
 		if (!atomic_dec_and_test(&ns->__ns_ref_active))
 			return;
 	}
@@ -276,6 +277,10 @@ void __ns_ref_active_put_owner(struct ns_common *ns)
  */
 void __ns_ref_active_resurrect(struct ns_common *ns)
 {
+	/* Initial namespaces are always active. */
+	if (is_ns_init_id(ns))
+		return;
+
 	/* If we didn't resurrect the namespace we're done. */
 	if (atomic_fetch_add(1, &ns->__ns_ref_active))
 		return;
@@ -289,6 +294,7 @@ void __ns_ref_active_resurrect(struct ns_common *ns)
 		if (!ns)
 			return;
 
+		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
 		if (atomic_fetch_add(1, &ns->__ns_ref_active))
 			return;
 	}

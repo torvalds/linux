@@ -141,6 +141,12 @@ static __always_inline bool is_initial_namespace(struct ns_common *ns)
 				 IPC_NS_INIT_INO - MNT_NS_INIT_INO + 1));
 }
 
+static __always_inline bool is_ns_init_id(const struct ns_common *ns)
+{
+	VFS_WARN_ON_ONCE(ns->ns_id == 0);
+	return ns->ns_id <= NS_LAST_INIT_ID;
+}
+
 #define to_ns_common(__ns)                                    \
 	_Generic((__ns),                                      \
 		struct cgroup_namespace *:       &(__ns)->ns, \
@@ -285,14 +291,19 @@ void __ns_ref_active_get_owner(struct ns_common *ns);
 
 static __always_inline void __ns_ref_active_get(struct ns_common *ns)
 {
-	WARN_ON_ONCE(atomic_add_negative(1, &ns->__ns_ref_active));
-	VFS_WARN_ON_ONCE(is_initial_namespace(ns) && __ns_ref_active_read(ns) <= 0);
+	/* Initial namespaces are always active. */
+	if (!is_ns_init_id(ns))
+		WARN_ON_ONCE(atomic_add_negative(1, &ns->__ns_ref_active));
 }
 #define ns_ref_active_get(__ns) \
 	do { if (__ns) __ns_ref_active_get(to_ns_common(__ns)); } while (0)
 
 static __always_inline bool __ns_ref_active_get_not_zero(struct ns_common *ns)
 {
+	/* Initial namespaces are always active. */
+	if (is_ns_init_id(ns))
+		return true;
+
 	if (atomic_inc_not_zero(&ns->__ns_ref_active)) {
 		VFS_WARN_ON_ONCE(!__ns_ref_read(ns));
 		return true;
@@ -307,6 +318,10 @@ void __ns_ref_active_put_owner(struct ns_common *ns);
 
 static __always_inline void __ns_ref_active_put(struct ns_common *ns)
 {
+	/* Initial namespaces are always active. */
+	if (is_ns_init_id(ns))
+		return;
+
 	if (atomic_dec_and_test(&ns->__ns_ref_active)) {
 		VFS_WARN_ON_ONCE(is_initial_namespace(ns));
 		VFS_WARN_ON_ONCE(!__ns_ref_read(ns));
@@ -319,8 +334,10 @@ static __always_inline void __ns_ref_active_put(struct ns_common *ns)
 static __always_inline struct ns_common *__must_check ns_get_unless_inactive(struct ns_common *ns)
 {
 	VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) && !__ns_ref_read(ns));
-	if (!__ns_ref_active_read(ns))
+	if (!__ns_ref_active_read(ns)) {
+		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
 		return NULL;
+	}
 	if (!__ns_ref_get(ns))
 		return NULL;
 	return ns;
