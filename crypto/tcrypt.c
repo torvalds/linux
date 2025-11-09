@@ -1690,10 +1690,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret = min(ret, tcrypt_test("ccm(sm4)"));
 		break;
 
-	case 57:
-		ret = min(ret, tcrypt_test("polyval"));
-		break;
-
 	case 58:
 		ret = min(ret, tcrypt_test("gcm(aria)"));
 		break;
