@@ -114,13 +114,6 @@ struct ns_common *__must_check ns_owner(struct ns_common *ns)
 	return to_ns_common(owner);
 }
 
-void __ns_ref_active_get_owner(struct ns_common *ns)
-{
-	ns = ns_owner(ns);
-	if (ns)
-		WARN_ON_ONCE(atomic_add_negative(1, &ns->__ns_ref_active));
-}
-
 /*
  * The active reference count works by having each namespace that gets
  * created take a single active reference on its owning user namespace.
@@ -171,8 +164,18 @@ void __ns_ref_active_get_owner(struct ns_common *ns)
  * The iteration stops once we reach a namespace that still has active
  * references.
  */
-void __ns_ref_active_put_owner(struct ns_common *ns)
+void __ns_ref_active_put(struct ns_common *ns)
 {
+	/* Initial namespaces are always active. */
+	if (is_ns_init_id(ns))
+		return;
+
+	if (!atomic_dec_and_test(&ns->__ns_ref_active))
+		return;
+
+	VFS_WARN_ON_ONCE(is_ns_init_id(ns));
+	VFS_WARN_ON_ONCE(!__ns_ref_read(ns));
+
 	for (;;) {
 		ns = ns_owner(ns);
 		if (!ns)
@@ -275,7 +278,7 @@ void __ns_ref_active_put_owner(struct ns_common *ns)
  * it also needs to take another reference on its owning user namespace
  * and so on.
  */
-void __ns_ref_active_resurrect(struct ns_common *ns)
+void __ns_ref_active_get(struct ns_common *ns)
 {
 	/* Initial namespaces are always active. */
 	if (is_ns_init_id(ns))

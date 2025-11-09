@@ -287,47 +287,8 @@ static __always_inline __must_check int __ns_ref_read(const struct ns_common *ns
 #define ns_ref_active_read(__ns) \
 	((__ns) ? __ns_ref_active_read(to_ns_common(__ns)) : 0)
 
-void __ns_ref_active_get_owner(struct ns_common *ns);
+void __ns_ref_active_put(struct ns_common *ns);
 
-static __always_inline void __ns_ref_active_get(struct ns_common *ns)
-{
-	/* Initial namespaces are always active. */
-	if (!is_ns_init_id(ns))
-		WARN_ON_ONCE(atomic_add_negative(1, &ns->__ns_ref_active));
-}
-#define ns_ref_active_get(__ns) \
-	do { if (__ns) __ns_ref_active_get(to_ns_common(__ns)); } while (0)
-
-static __always_inline bool __ns_ref_active_get_not_zero(struct ns_common *ns)
-{
-	/* Initial namespaces are always active. */
-	if (is_ns_init_id(ns))
-		return true;
-
-	if (atomic_inc_not_zero(&ns->__ns_ref_active)) {
-		VFS_WARN_ON_ONCE(!__ns_ref_read(ns));
-		return true;
-	}
-	return false;
-}
-
-#define ns_ref_active_get_owner(__ns) \
-	do { if (__ns) __ns_ref_active_get_owner(to_ns_common(__ns)); } while (0)
-
-void __ns_ref_active_put_owner(struct ns_common *ns);
-
-static __always_inline void __ns_ref_active_put(struct ns_common *ns)
-{
-	/* Initial namespaces are always active. */
-	if (is_ns_init_id(ns))
-		return;
-
-	if (atomic_dec_and_test(&ns->__ns_ref_active)) {
-		VFS_WARN_ON_ONCE(is_initial_namespace(ns));
-		VFS_WARN_ON_ONCE(!__ns_ref_read(ns));
-		__ns_ref_active_put_owner(ns);
-	}
-}
 #define ns_ref_active_put(__ns) \
 	do { if (__ns) __ns_ref_active_put(to_ns_common(__ns)); } while (0)
 
@@ -343,9 +304,9 @@ static __always_inline struct ns_common *__must_check ns_get_unless_inactive(str
 	return ns;
 }
 
-void __ns_ref_active_resurrect(struct ns_common *ns);
+void __ns_ref_active_get(struct ns_common *ns);
 
-#define ns_ref_active_resurrect(__ns) \
-	do { if (__ns) __ns_ref_active_resurrect(to_ns_common(__ns)); } while (0)
+#define ns_ref_active_get(__ns) \
+	do { if (__ns) __ns_ref_active_get(to_ns_common(__ns)); } while (0)
 
 #endif

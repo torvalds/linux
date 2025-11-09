@@ -430,7 +430,7 @@ static int nsfs_init_inode(struct inode *inode, void *data)
 	 * ioctl on such a socket will resurrect the relevant namespace
 	 * subtree.
 	 */
-	__ns_ref_active_resurrect(ns);
+	__ns_ref_active_get(ns);
 	return 0;
 }
 
