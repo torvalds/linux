@@ -450,9 +450,7 @@ API, but the filenames mode still does.
         - CONFIG_CRYPTO_HCTR2
     - Recommended:
         - arm64: CONFIG_CRYPTO_AES_ARM64_CE_BLK
-        - arm64: CONFIG_CRYPTO_POLYVAL_ARM64_CE
         - x86: CONFIG_CRYPTO_AES_NI_INTEL
-        - x86: CONFIG_CRYPTO_POLYVAL_CLMUL_NI
 
 - Adiantum
     - Mandatory:
