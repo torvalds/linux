@@ -59,7 +59,7 @@ static void *elf_kexec_load(struct kimage *image,
 	int ret;
 	unsigned long text_offset, kernel_segment_number;
 	struct elfhdr ehdr;
-	struct kexec_buf kbuf;
+	struct kexec_buf kbuf = {};
 	struct kexec_elf_info elf_info;
 	struct kexec_segment *kernel_segment;
 
