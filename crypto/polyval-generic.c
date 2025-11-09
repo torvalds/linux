@@ -99,7 +99,7 @@ static int polyval_setkey(struct crypto_shash *tfm,
 	return 0;
 }
 
-static int polyval_init(struct shash_desc *desc)
+static int polyval_generic_init(struct shash_desc *desc)
 {
 	struct polyval_desc_ctx *dctx = shash_desc_ctx(desc);
 
@@ -108,8 +108,8 @@ static int polyval_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int polyval_update(struct shash_desc *desc,
-			 const u8 *src, unsigned int srclen)
+static int polyval_generic_update(struct shash_desc *desc,
+				  const u8 *src, unsigned int srclen)
 {
 	struct polyval_desc_ctx *dctx = shash_desc_ctx(desc);
 	const struct polyval_tfm_ctx *ctx = crypto_shash_ctx(desc->tfm);
@@ -135,7 +135,7 @@ static int polyval_finup(struct shash_desc *desc, const u8 *src,
 		u8 tmp[POLYVAL_BLOCK_SIZE] = {};
 
 		memcpy(tmp, src, len);
-		polyval_update(desc, tmp, POLYVAL_BLOCK_SIZE);
+		polyval_generic_update(desc, tmp, POLYVAL_BLOCK_SIZE);
 	}
 	copy_and_reverse(dst, dctx->buffer);
 	return 0;
@@ -166,8 +166,8 @@ static void polyval_exit_tfm(struct crypto_shash *tfm)
 
 static struct shash_alg polyval_alg = {
 	.digestsize	= POLYVAL_DIGEST_SIZE,
-	.init		= polyval_init,
-	.update		= polyval_update,
+	.init		= polyval_generic_init,
+	.update		= polyval_generic_update,
 	.finup		= polyval_finup,
 	.setkey		= polyval_setkey,
 	.export		= polyval_export,
