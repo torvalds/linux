@@ -54,7 +54,7 @@ static void ns_debug(struct ns_common *ns, const struct proc_ns_operations *ops)
 
 int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_operations *ops, int inum)
 {
-	int ret;
+	int ret = 0;
 
 	refcount_set(&ns->__ns_ref, 1);
 	ns->stashed = NULL;
@@ -74,11 +74,10 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 	ns_debug(ns, ops);
 #endif
 
-	if (inum) {
+	if (inum)
 		ns->inum = inum;
-		return 0;
-	}
-	ret = proc_alloc_inum(&ns->inum);
+	else
+		ret = proc_alloc_inum(&ns->inum);
 	if (ret)
 		return ret;
 	/*
