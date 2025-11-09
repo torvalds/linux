@@ -259,7 +259,6 @@
 #define GPSR7_1		F_(AVB0_AVTP_CAPTURE,	IP0SR7_7_4)
 #define GPSR7_0		F_(AVB0_AVTP_PPS,	IP0SR7_3_0)
 
-
 /* SR0 */
 /* IP0SR0 */		/* 0 */			/* 1 */			/* 2 */		/* 3		4	 5	  6	   7	    8	     9	      A	       B	C	 D	  E	   F */
 #define IP0SR0_3_0	F_(0, 0)		FM(ERROROUTC_N_B)	FM(TCLK2_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)

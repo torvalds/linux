@@ -85,7 +85,6 @@
 	/* Port320 - Port329 */						\
 	PORT_10(320, fn, pfx##32, sfx)
 
-
 enum {
 	PINMUX_RESERVED = 0,
 
@@ -226,7 +225,6 @@ enum {
 	PINMUX_FUNCTION_END,
 
 	PINMUX_MARK_BEGIN,
-
 
 #define F1(a)	a##_MARK
 #define F2(a)	a##_MARK
