@@ -784,9 +784,12 @@ void fw_core_remove_card(struct fw_card *card)
 	/* Switch off most of the card driver interface. */
 	dummy_driver.free_iso_context	= card->driver->free_iso_context;
 	dummy_driver.stop_iso		= card->driver->stop_iso;
+	dummy_driver.disable		= card->driver->disable;
 	card->driver = &dummy_driver;
+
 	drain_workqueue(card->isoc_wq);
 	drain_workqueue(card->async_wq);
+	card->driver->disable(card);
 
 	scoped_guard(spinlock_irqsave, &card->lock)
 		fw_destroy_nodes(card);

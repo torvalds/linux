@@ -2408,6 +2408,41 @@ static int ohci_enable(struct fw_card *card,
 	return 0;
 }
 
+static void ohci_disable(struct fw_card *card)
+{
+	struct pci_dev *pdev = to_pci_dev(card->device);
+	struct fw_ohci *ohci = pci_get_drvdata(pdev);
+	int i, irq = pci_irq_vector(pdev, 0);
+
+	// If the removal is happening from the suspend state, LPS won't be enabled and host
+	// registers (eg., IntMaskClear) won't be accessible.
+	if (!(reg_read(ohci, OHCI1394_HCControlSet) & OHCI1394_HCControl_LPS))
+		return;
+
+	reg_write(ohci, OHCI1394_IntMaskClear, ~0);
+	flush_writes(ohci);
+
+	if (irq >= 0)
+		synchronize_irq(irq);
+
+	flush_work(&ohci->ar_request_ctx.work);
+	flush_work(&ohci->ar_response_ctx.work);
+	flush_work(&ohci->at_request_ctx.work);
+	flush_work(&ohci->at_response_ctx.work);
+
+	for (i = 0; i < ohci->n_ir; ++i) {
+		if (!(ohci->ir_context_mask & BIT(i)))
+			flush_work(&ohci->ir_context_list[i].base.work);
+	}
+	for (i = 0; i < ohci->n_it; ++i) {
+		if (!(ohci->it_context_mask & BIT(i)))
+			flush_work(&ohci->it_context_list[i].base.work);
+	}
+
+	at_context_flush(&ohci->at_request_ctx);
+	at_context_flush(&ohci->at_response_ctx);
+}
+
 static int ohci_set_config_rom(struct fw_card *card,
 			       const __be32 *config_rom, size_t length)
 {
@@ -3442,6 +3477,7 @@ static int ohci_flush_iso_completions(struct fw_iso_context *base)
 
 static const struct fw_card_driver ohci_driver = {
 	.enable			= ohci_enable,
+	.disable		= ohci_disable,
 	.read_phy_reg		= ohci_read_phy_reg,
 	.update_phy_reg		= ohci_update_phy_reg,
 	.set_config_rom		= ohci_set_config_rom,
@@ -3681,14 +3717,6 @@ static void pci_remove(struct pci_dev *dev)
 	struct fw_ohci *ohci = pci_get_drvdata(dev);
 	int irq;
 
-	/*
-	 * If the removal is happening from the suspend state, LPS won't be
-	 * enabled and host registers (eg., IntMaskClear) won't be accessible.
-	 */
-	if (reg_read(ohci, OHCI1394_HCControlSet) & OHCI1394_HCControl_LPS) {
-		reg_write(ohci, OHCI1394_IntMaskClear, ~0);
-		flush_writes(ohci);
-	}
 	fw_core_remove_card(&ohci->card);
 
 	/*

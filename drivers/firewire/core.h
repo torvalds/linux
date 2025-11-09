@@ -65,6 +65,9 @@ struct fw_card_driver {
 	int (*enable)(struct fw_card *card,
 		      const __be32 *config_rom, size_t length);
 
+	// After returning the call, any function is no longer triggered to handle hardware event.
+	void (*disable)(struct fw_card *card);
+
 	int (*read_phy_reg)(struct fw_card *card, int address);
 	int (*update_phy_reg)(struct fw_card *card, int address,
 			      int clear_bits, int set_bits);
