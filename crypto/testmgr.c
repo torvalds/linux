@@ -5059,8 +5059,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "hctr2(aes)",
-		.generic_driver =
-		    "hctr2_base(xctr(aes-generic),polyval-generic)",
+		.generic_driver = "hctr2_base(xctr(aes-generic),polyval-lib)",
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(aes_hctr2_tv_template)

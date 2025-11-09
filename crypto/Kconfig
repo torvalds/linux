@@ -696,7 +696,7 @@ config CRYPTO_ECB
 config CRYPTO_HCTR2
 	tristate "HCTR2"
 	select CRYPTO_XCTR
-	select CRYPTO_POLYVAL
+	select CRYPTO_LIB_POLYVAL
 	select CRYPTO_MANAGER
 	help
 	  HCTR2 length-preserving encryption mode
