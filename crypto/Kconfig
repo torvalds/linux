@@ -948,16 +948,6 @@ config CRYPTO_MICHAEL_MIC
 	  This algorithm is required for TKIP, but it should not be used for
 	  other purposes because of the weakness of the algorithm.
 
-config CRYPTO_POLYVAL
-	tristate
-	select CRYPTO_HASH
-	select CRYPTO_LIB_GF128MUL
-	help
-	  POLYVAL hash function for HCTR2
-
-	  This is used in HCTR2.  It is not a general-purpose
-	  cryptographic hash function.
-
 config CRYPTO_RMD160
 	tristate "RIPEMD-160"
 	select CRYPTO_HASH
