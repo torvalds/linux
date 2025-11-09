@@ -505,13 +505,13 @@ static inline bool __must_check may_list_ns(const struct klistns *kls,
 	return false;
 }
 
-static void __ns_put(struct ns_common *ns)
+static inline void ns_put(struct ns_common *ns)
 {
-	if (ns->ops)
+	if (ns && ns->ops)
 		ns->ops->put(ns);
 }
 
-DEFINE_FREE(ns_put, struct ns_common *, if (!IS_ERR_OR_NULL(_T)) __ns_put(_T))
+DEFINE_FREE(ns_put, struct ns_common *, if (!IS_ERR_OR_NULL(_T)) ns_put(_T))
 
 static inline struct ns_common *__must_check legitimize_ns(const struct klistns *kls,
 							   struct ns_common *candidate)
@@ -535,7 +535,7 @@ static ssize_t do_listns_userns(struct klistns *kls)
 {
 	u64 __user *ns_ids = kls->uns_ids;
 	size_t nr_ns_ids = kls->nr_ns_ids;
-	struct ns_common *ns = NULL, *first_ns = NULL;
+	struct ns_common *ns = NULL, *first_ns = NULL, *prev = NULL;
 	const struct list_head *head;
 	ssize_t ret;
 
@@ -568,9 +568,10 @@ static ssize_t do_listns_userns(struct klistns *kls)
 
 	if (!first_ns)
 		first_ns = list_entry_rcu(head->next, typeof(*ns), ns_owner_entry);
+
 	for (ns = first_ns; &ns->ns_owner_entry != head && nr_ns_ids;
 	     ns = list_entry_rcu(ns->ns_owner_entry.next, typeof(*ns), ns_owner_entry)) {
-		struct ns_common *valid __free(ns_put);
+		struct ns_common *valid;
 
 		valid = legitimize_ns(kls, ns);
 		if (!valid)
@@ -578,8 +579,14 @@ static ssize_t do_listns_userns(struct klistns *kls)
 
 		rcu_read_unlock();
 
-		if (put_user(valid->ns_id, ns_ids + ret))
+		ns_put(prev);
+		prev = valid;
+
+		if (put_user(valid->ns_id, ns_ids + ret)) {
+			ns_put(prev);
 			return -EINVAL;
+		}
+
 		nr_ns_ids--;
 		ret++;
 
@@ -587,6 +594,7 @@ static ssize_t do_listns_userns(struct klistns *kls)
 	}
 
 	rcu_read_unlock();
+	ns_put(prev);
 	return ret;
 }
 
@@ -668,7 +676,7 @@ static ssize_t do_listns(struct klistns *kls)
 {
 	u64 __user *ns_ids = kls->uns_ids;
 	size_t nr_ns_ids = kls->nr_ns_ids;
-	struct ns_common *ns, *first_ns = NULL;
+	struct ns_common *ns, *first_ns = NULL, *prev = NULL;
 	struct ns_tree *ns_tree = NULL;
 	const struct list_head *head;
 	u32 ns_type;
@@ -705,7 +713,7 @@ static ssize_t do_listns(struct klistns *kls)
 
 	for (ns = first_ns; !ns_common_is_head(ns, head, ns_tree) && nr_ns_ids;
 	     ns = next_ns_common(ns, ns_tree)) {
-		struct ns_common *valid __free(ns_put);
+		struct ns_common *valid;
 
 		valid = legitimize_ns(kls, ns);
 		if (!valid)
@@ -713,8 +721,13 @@ static ssize_t do_listns(struct klistns *kls)
 
 		rcu_read_unlock();
 
-		if (put_user(valid->ns_id, ns_ids + ret))
+		ns_put(prev);
+		prev = valid;
+
+		if (put_user(valid->ns_id, ns_ids + ret)) {
+			ns_put(prev);
 			return -EINVAL;
+		}
 
 		nr_ns_ids--;
 		ret++;
@@ -723,6 +736,7 @@ static ssize_t do_listns(struct klistns *kls)
 	}
 
 	rcu_read_unlock();
+	ns_put(prev);
 	return ret;
 }
 
