@@ -132,6 +132,9 @@ static void kvm_lose_pmu(struct kvm_vcpu *vcpu)
 	 * Clear KVM_LARCH_PMU if the guest is not using PMU CSRs when
 	 * exiting the guest, so that the next time trap into the guest.
 	 * We don't need to deal with PMU CSRs contexts.
+	 *
+	 * Otherwise set the request bit KVM_REQ_PMU to restore guest PMU
+	 * before entering guest VM
 	 */
 	val = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_PERFCTRL0);
 	val |= kvm_read_sw_gcsr(csr, LOONGARCH_CSR_PERFCTRL1);
@@ -139,6 +142,8 @@ static void kvm_lose_pmu(struct kvm_vcpu *vcpu)
 	val |= kvm_read_sw_gcsr(csr, LOONGARCH_CSR_PERFCTRL3);
 	if (!(val & KVM_PMU_EVENT_ENABLED))
 		vcpu->arch.aux_inuse &= ~KVM_LARCH_PMU;
+	else
+		kvm_make_request(KVM_REQ_PMU, vcpu);
 
 	kvm_restore_host_pmu(vcpu);
 }
