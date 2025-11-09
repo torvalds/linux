@@ -421,6 +421,13 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	__be64 *pas;
 	u32 i;
 
+	conn->cq.mcq.cqe_sz     = 64;
+	conn->cq.mcq.set_ci_db  = conn->cq.wq_ctrl.db.db;
+	conn->cq.mcq.arm_db     = conn->cq.wq_ctrl.db.db + 1;
+	*conn->cq.mcq.set_ci_db = 0;
+	conn->cq.mcq.vector     = 0;
+	conn->cq.mcq.comp       = mlx5_fpga_conn_cq_complete;
+
 	cq_size = roundup_pow_of_two(cq_size);
 	MLX5_SET(cqc, temp_cqc, log_cq_size, ilog2(cq_size));
 
@@ -468,15 +475,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	if (err)
 		goto err_cqwq;
 
-	conn->cq.mcq.cqe_sz     = 64;
-	conn->cq.mcq.set_ci_db  = conn->cq.wq_ctrl.db.db;
-	conn->cq.mcq.arm_db     = conn->cq.wq_ctrl.db.db + 1;
-	*conn->cq.mcq.set_ci_db = 0;
-	*conn->cq.mcq.arm_db    = 0;
-	conn->cq.mcq.vector     = 0;
-	conn->cq.mcq.comp       = mlx5_fpga_conn_cq_complete;
 	tasklet_setup(&conn->cq.tasklet, mlx5_fpga_conn_cq_tasklet);
-
 	mlx5_fpga_dbg(fdev, "Created CQ #0x%x\n", conn->cq.mcq.cqn);
 
 	goto out;

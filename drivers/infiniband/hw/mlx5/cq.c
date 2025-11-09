@@ -1020,15 +1020,18 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN)
 		MLX5_SET(cqc, cqc, oi, 1);
 
+	if (udata) {
+		cq->mcq.comp = mlx5_add_cq_to_tasklet;
+		cq->mcq.tasklet_ctx.comp = mlx5_ib_cq_comp;
+	} else {
+		cq->mcq.comp  = mlx5_ib_cq_comp;
+	}
+
 	err = mlx5_core_create_cq(dev->mdev, &cq->mcq, cqb, inlen, out, sizeof(out));
 	if (err)
 		goto err_cqb;
 
 	mlx5_ib_dbg(dev, "cqn 0x%x\n", cq->mcq.cqn);
-	if (udata)
-		cq->mcq.tasklet_ctx.comp = mlx5_ib_cq_comp;
-	else
-		cq->mcq.comp  = mlx5_ib_cq_comp;
 	cq->mcq.event = mlx5_ib_cq_event;
 
 	INIT_LIST_HEAD(&cq->wc_list);
