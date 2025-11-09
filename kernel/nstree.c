@@ -584,7 +584,7 @@ static ssize_t do_listns_userns(struct klistns *kls)
 
 		if (put_user(valid->ns_id, ns_ids + ret)) {
 			ns_put(prev);
-			return -EINVAL;
+			return -EFAULT;
 		}
 
 		nr_ns_ids--;
@@ -726,7 +726,7 @@ static ssize_t do_listns(struct klistns *kls)
 
 		if (put_user(valid->ns_id, ns_ids + ret)) {
 			ns_put(prev);
-			return -EINVAL;
+			return -EFAULT;
 		}
 
 		nr_ns_ids--;
