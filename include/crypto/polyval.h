@@ -48,6 +48,9 @@ struct polyval_key {
 #ifdef CONFIG_ARM64
 	/** @h_powers: Powers of the hash key H^8 through H^1 */
 	struct polyval_elem h_powers[8];
+#elif defined(CONFIG_X86)
+	/** @h_powers: Powers of the hash key H^8 through H^1 */
+	struct polyval_elem h_powers[8];
 #else
 #error "Unhandled arch"
 #endif
