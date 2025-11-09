@@ -106,7 +106,7 @@ static __attribute__((unused))
 void *sbrk(intptr_t inc)
 {
 	/* first call to find current end */
-	void *ret = sys_brk(0);
+	void *ret = sys_brk(NULL);
 
 	if (ret && sys_brk(ret + inc) == ret + inc)
 		return ret + inc;
