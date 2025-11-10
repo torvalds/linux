@@ -8,8 +8,6 @@
 #define ATH12K_DP_MON_H
 
 #include "core.h"
-#include "wifi7/hal_desc.h"
-#include "wifi7/hal_rx.h"
 
 #define ATH12K_MON_RX_DOT11_OFFSET	5
 #define ATH12K_MON_RX_PKT_OFFSET	8
@@ -110,16 +108,9 @@ void
 ath12k_dp_mon_get_buf_len(struct hal_rx_msdu_desc_info *info,
 			  bool *is_frag, u32 *total_len,
 			  u32 *frag_len, u32 *msdu_cnt);
-void ath12k_dp_mon_next_link_desc_get(struct ath12k_base *ab,
-				      struct hal_rx_msdu_link *msdu_link,
-				      dma_addr_t *paddr, u32 *sw_cookie, u8 *rbm,
-				      struct ath12k_buffer_addr **pp_buf_addr_info);
 u32 ath12k_dp_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id);
 int
 ath12k_dp_mon_parse_status_buf(struct ath12k_pdev_dp *dp_pdev,
 			       struct ath12k_mon_data *pmon,
 			       const struct dp_mon_packet_info *packet_info);
-void
-ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
-				    const struct hal_rx_msdu_end *msdu_end);
 #endif

@@ -11,41 +11,6 @@
 #include "dp_tx.h"
 #include "peer.h"
 
-static void ath12k_dp_mon_parse_rx_msdu_end_err(u32 info, u32 *errmap)
-{
-	if (info & RX_MSDU_END_INFO13_FCS_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_FCS;
-
-	if (info & RX_MSDU_END_INFO13_DECRYPT_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_DECRYPT;
-
-	if (info & RX_MSDU_END_INFO13_TKIP_MIC_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_TKIP_MIC;
-
-	if (info & RX_MSDU_END_INFO13_A_MSDU_ERROR)
-		*errmap |= HAL_RX_MPDU_ERR_AMSDU_ERR;
-
-	if (info & RX_MSDU_END_INFO13_OVERFLOW_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_OVERFLOW;
-
-	if (info & RX_MSDU_END_INFO13_MSDU_LEN_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_MSDU_LEN;
-
-	if (info & RX_MSDU_END_INFO13_MPDU_LEN_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_MPDU_LEN;
-}
-
-void
-ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
-				    const struct hal_rx_msdu_end *msdu_end)
-{
-	ath12k_dp_mon_parse_rx_msdu_end_err(__le32_to_cpu(msdu_end->info2),
-					    &pmon->err_bitmap);
-	pmon->decap_format = le32_get_bits(msdu_end->info1,
-					   RX_MSDU_END_INFO11_DECAP_FORMAT);
-}
-EXPORT_SYMBOL(ath12k_dp_mon_parse_status_msdu_end);
-
 static void
 ath12k_dp_mon_fill_rx_stats_info(struct hal_rx_mon_ppdu_info *ppdu_info,
 				 struct ieee80211_rx_status *rx_status)
@@ -138,21 +103,6 @@ u32 ath12k_dp_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id)
 	return ret;
 }
 EXPORT_SYMBOL(ath12k_dp_mon_comp_ppduid);
-
-void ath12k_dp_mon_next_link_desc_get(struct ath12k_base *ab,
-				      struct hal_rx_msdu_link *msdu_link,
-				      dma_addr_t *paddr, u32 *sw_cookie, u8 *rbm,
-				      struct ath12k_buffer_addr **pp_buf_addr_info)
-{
-	struct ath12k_buffer_addr *buf_addr_info;
-
-	buf_addr_info = &msdu_link->buf_addr_info;
-
-	ath12k_hal_rx_buf_addr_info_get(&ab->hal, buf_addr_info, paddr, sw_cookie, rbm);
-
-	*pp_buf_addr_info = buf_addr_info;
-}
-EXPORT_SYMBOL(ath12k_dp_mon_next_link_desc_get);
 
 static void
 ath12k_dp_mon_fill_rx_rate(struct ath12k_pdev_dp *dp_pdev,
