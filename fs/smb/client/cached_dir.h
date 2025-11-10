@@ -48,8 +48,10 @@ struct cached_fid {
 	struct dentry *dentry;
 	struct work_struct put_work;
 	struct work_struct close_work;
-	struct smb2_file_all_info file_all_info;
 	struct cached_dirents dirents;
+
+	/* Must be last as it ends in a flexible-array member. */
+	struct smb2_file_all_info file_all_info;
 };
 
 /* default MAX_CACHED_FIDS is 16 */
