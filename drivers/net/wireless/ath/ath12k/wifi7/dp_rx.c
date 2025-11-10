@@ -2141,3 +2141,14 @@ void ath12k_wifi7_dp_rx_process_reo_status(struct ath12k_dp *dp)
 
 	spin_unlock_bh(&srng->lock);
 }
+
+bool
+ath12k_wifi7_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
+				  struct hal_rx_desc *rx_desc)
+{
+	u32 tlv_tag;
+
+	tlv_tag = ab->hal.ops->rx_desc_get_mpdu_start_tag(rx_desc);
+
+	return tlv_tag == HAL_RX_MPDU_START;
+}

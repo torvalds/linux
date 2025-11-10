@@ -313,11 +313,6 @@ struct hal_rx_rxpcu_classification_overview {
 	u32 rsvd0;
 } __packed;
 
-struct hal_rx_msdu_desc_info {
-	u32 msdu_flags;
-	u16 msdu_len; /* 14 bits for length */
-};
-
 #define HAL_RX_NUM_MSDU_DESC 6
 struct hal_rx_msdu_list {
 	struct hal_rx_msdu_desc_info msdu_info[HAL_RX_NUM_MSDU_DESC];

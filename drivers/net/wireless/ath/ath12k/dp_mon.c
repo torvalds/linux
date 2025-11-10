@@ -17,16 +17,6 @@
 #define ATH12K_LE64_DEC_ENC(value, dec_bits, enc_bits) \
 		u32_encode_bits(le64_get_bits(value, dec_bits), enc_bits)
 
-static bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
-					struct hal_rx_desc *rx_desc)
-{
-	u32 tlv_tag;
-
-	tlv_tag = ab->hal.ops->rx_desc_get_mpdu_start_tag(rx_desc);
-
-	return tlv_tag == HAL_RX_MPDU_START;
-}
-
 static void
 ath12k_dp_mon_rx_handle_ofdma_info(const struct hal_rx_ppdu_end_user_stats *ppdu_end_user,
 				   struct hal_rx_user_status *rx_user_status)
@@ -1807,7 +1797,7 @@ fail_alloc_skb:
 }
 EXPORT_SYMBOL(ath12k_dp_rx_alloc_mon_status_buf);
 
-static u32 ath12k_dp_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id)
+u32 ath12k_dp_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id)
 {
 	u32 ret = 0;
 
@@ -1826,8 +1816,8 @@ static u32 ath12k_dp_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id)
 	}
 	return ret;
 }
+EXPORT_SYMBOL(ath12k_dp_mon_comp_ppduid);
 
-static
 void ath12k_dp_mon_next_link_desc_get(struct ath12k_base *ab,
 				      struct hal_rx_msdu_link *msdu_link,
 				      dma_addr_t *paddr, u32 *sw_cookie, u8 *rbm,
@@ -1841,6 +1831,7 @@ void ath12k_dp_mon_next_link_desc_get(struct ath12k_base *ab,
 
 	*pp_buf_addr_info = buf_addr_info;
 }
+EXPORT_SYMBOL(ath12k_dp_mon_next_link_desc_get);
 
 static void
 ath12k_dp_mon_fill_rx_rate(struct ath12k_pdev_dp *dp_pdev,
@@ -2400,7 +2391,7 @@ EXPORT_SYMBOL(ath12k_dp_pkt_set_pktlen);
  */
 #define RXDMA_DATA_DMA_BLOCK_SIZE 128
 
-static void
+void
 ath12k_dp_mon_get_buf_len(struct hal_rx_msdu_desc_info *info,
 			  bool *is_frag, u32 *total_len,
 			  u32 *frag_len, u32 *msdu_cnt)
@@ -2420,6 +2411,7 @@ ath12k_dp_mon_get_buf_len(struct hal_rx_msdu_desc_info *info,
 		*msdu_cnt -= 1;
 	}
 }
+EXPORT_SYMBOL(ath12k_dp_mon_get_buf_len);
 
 static int
 ath12k_dp_mon_parse_status_buf(struct ath12k_pdev_dp *dp_pdev,
@@ -3649,192 +3641,3 @@ ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k_base *ab,
 		ath12k_dp_mon_rx_update_user_stats(ab, ppdu_info, i);
 }
 EXPORT_SYMBOL(ath12k_dp_mon_rx_update_peer_mu_stats);
-
-u32
-ath12k_dp_rx_mon_mpdu_pop(struct ath12k *ar, int mac_id,
-			  void *ring_entry, struct sk_buff **head_msdu,
-			  struct sk_buff **tail_msdu,
-			  struct list_head *used_list,
-			  u32 *npackets, u32 *ppdu_id)
-{
-	struct ath12k_mon_data *pmon = (struct ath12k_mon_data *)&ar->dp.mon_data;
-	struct ath12k_base *ab = ar->ab;
-	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
-	struct ath12k_buffer_addr *p_buf_addr_info, *p_last_buf_addr_info;
-	u32 msdu_ppdu_id = 0, msdu_cnt = 0, total_len = 0, frag_len = 0;
-	u32 rx_buf_size, rx_pkt_offset, sw_cookie;
-	bool is_frag, is_first_msdu, drop_mpdu = false;
-	struct hal_reo_entrance_ring *ent_desc =
-		(struct hal_reo_entrance_ring *)ring_entry;
-	u32 rx_bufs_used = 0, i = 0, desc_bank = 0;
-	struct hal_rx_desc *rx_desc, *tail_rx_desc;
-	struct hal_rx_msdu_link *msdu_link_desc;
-	struct sk_buff *msdu = NULL, *last = NULL;
-	struct ath12k_rx_desc_info *desc_info;
-	struct ath12k_buffer_addr buf_info;
-	struct hal_rx_msdu_list msdu_list;
-	struct ath12k_skb_rxcb *rxcb;
-	u16 num_msdus = 0;
-	dma_addr_t paddr;
-	u8 rbm;
-
-	ath12k_hal_rx_reo_ent_buf_paddr_get(&ab->hal, ring_entry, &paddr,
-					    &sw_cookie,
-					    &p_last_buf_addr_info, &rbm,
-					    &msdu_cnt);
-
-	spin_lock_bh(&pmon->mon_lock);
-
-	if (le32_get_bits(ent_desc->info1,
-			  HAL_REO_ENTR_RING_INFO1_RXDMA_PUSH_REASON) ==
-			  HAL_REO_DEST_RING_PUSH_REASON_ERR_DETECTED) {
-		u8 rxdma_err = le32_get_bits(ent_desc->info1,
-					     HAL_REO_ENTR_RING_INFO1_RXDMA_ERROR_CODE);
-		if (rxdma_err == HAL_REO_ENTR_RING_RXDMA_ECODE_FLUSH_REQUEST_ERR ||
-		    rxdma_err == HAL_REO_ENTR_RING_RXDMA_ECODE_MPDU_LEN_ERR ||
-		    rxdma_err == HAL_REO_ENTR_RING_RXDMA_ECODE_OVERFLOW_ERR) {
-			drop_mpdu = true;
-			pmon->rx_mon_stats.dest_mpdu_drop++;
-		}
-	}
-
-	is_frag = false;
-	is_first_msdu = true;
-	rx_pkt_offset = sizeof(struct hal_rx_desc);
-
-	do {
-		if (pmon->mon_last_linkdesc_paddr == paddr) {
-			pmon->rx_mon_stats.dup_mon_linkdesc_cnt++;
-			spin_unlock_bh(&pmon->mon_lock);
-			return rx_bufs_used;
-		}
-
-		desc_bank = u32_get_bits(sw_cookie, DP_LINK_DESC_BANK_MASK);
-		msdu_link_desc =
-			dp->link_desc_banks[desc_bank].vaddr +
-			(paddr - dp->link_desc_banks[desc_bank].paddr);
-
-		ath12k_hal_rx_msdu_list_get(&ar->ab->hal, ar, msdu_link_desc, &msdu_list,
-					    &num_msdus);
-		desc_info = ath12k_dp_get_rx_desc(ar->ab->dp,
-						  msdu_list.sw_cookie[num_msdus - 1]);
-		tail_rx_desc = (struct hal_rx_desc *)(desc_info->skb)->data;
-
-		for (i = 0; i < num_msdus; i++) {
-			u32 l2_hdr_offset;
-
-			if (pmon->mon_last_buf_cookie == msdu_list.sw_cookie[i]) {
-				ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
-					   "i %d last_cookie %d is same\n",
-					   i, pmon->mon_last_buf_cookie);
-				drop_mpdu = true;
-				pmon->rx_mon_stats.dup_mon_buf_cnt++;
-				continue;
-			}
-
-			desc_info =
-				ath12k_dp_get_rx_desc(ar->ab->dp, msdu_list.sw_cookie[i]);
-			msdu = desc_info->skb;
-
-			if (!msdu) {
-				ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
-					   "msdu_pop: invalid msdu (%d/%d)\n",
-					   i + 1, num_msdus);
-				goto next_msdu;
-			}
-			rxcb = ATH12K_SKB_RXCB(msdu);
-			if (rxcb->paddr != msdu_list.paddr[i]) {
-				ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
-					   "i %d paddr %lx != %lx\n",
-					   i, (unsigned long)rxcb->paddr,
-					   (unsigned long)msdu_list.paddr[i]);
-				drop_mpdu = true;
-				continue;
-			}
-			if (!rxcb->unmapped) {
-				dma_unmap_single(ar->ab->dev, rxcb->paddr,
-						 msdu->len +
-						 skb_tailroom(msdu),
-						 DMA_FROM_DEVICE);
-				rxcb->unmapped = 1;
-			}
-			if (drop_mpdu) {
-				ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
-					   "i %d drop msdu %p *ppdu_id %x\n",
-					   i, msdu, *ppdu_id);
-				dev_kfree_skb_any(msdu);
-				msdu = NULL;
-				goto next_msdu;
-			}
-
-			rx_desc = (struct hal_rx_desc *)msdu->data;
-			l2_hdr_offset = ath12k_dp_rx_h_l3pad(ar->ab, tail_rx_desc);
-			if (is_first_msdu) {
-				if (!ath12k_dp_rxdesc_mpdu_valid(ar->ab, rx_desc)) {
-					drop_mpdu = true;
-					dev_kfree_skb_any(msdu);
-					msdu = NULL;
-					pmon->mon_last_linkdesc_paddr = paddr;
-					goto next_msdu;
-				}
-				msdu_ppdu_id =
-					ath12k_dp_rxdesc_get_ppduid(ar->ab, rx_desc);
-
-				if (ath12k_dp_mon_comp_ppduid(msdu_ppdu_id,
-							      ppdu_id)) {
-					spin_unlock_bh(&pmon->mon_lock);
-					return rx_bufs_used;
-				}
-				pmon->mon_last_linkdesc_paddr = paddr;
-				is_first_msdu = false;
-			}
-			ath12k_dp_mon_get_buf_len(&msdu_list.msdu_info[i],
-						  &is_frag, &total_len,
-						  &frag_len, &msdu_cnt);
-			rx_buf_size = rx_pkt_offset + l2_hdr_offset + frag_len;
-
-			if (ath12k_dp_pkt_set_pktlen(msdu, rx_buf_size)) {
-				dev_kfree_skb_any(msdu);
-				goto next_msdu;
-			}
-
-			if (!(*head_msdu))
-				*head_msdu = msdu;
-			else if (last)
-				last->next = msdu;
-
-			last = msdu;
-next_msdu:
-			pmon->mon_last_buf_cookie = msdu_list.sw_cookie[i];
-			rx_bufs_used++;
-			desc_info->skb = NULL;
-			list_add_tail(&desc_info->list, used_list);
-		}
-
-		ath12k_hal_rx_buf_addr_info_set(&ab->hal, &buf_info, paddr,
-						sw_cookie, rbm);
-
-		ath12k_dp_mon_next_link_desc_get(ab, msdu_link_desc, &paddr,
-						 &sw_cookie, &rbm,
-						 &p_buf_addr_info);
-
-		ath12k_dp_arch_rx_link_desc_return(ar->ab->dp, &buf_info,
-						   HAL_WBM_REL_BM_ACT_PUT_IN_IDLE);
-
-		p_last_buf_addr_info = p_buf_addr_info;
-
-	} while (paddr && msdu_cnt);
-
-	spin_unlock_bh(&pmon->mon_lock);
-
-	if (last)
-		last->next = NULL;
-
-	*tail_msdu = msdu;
-
-	if (msdu_cnt == 0)
-		*npackets = 1;
-
-	return rx_bufs_used;
-}
-EXPORT_SYMBOL(ath12k_dp_rx_mon_mpdu_pop);

@@ -592,6 +592,11 @@ struct hal_rx_eht_info {
 	u32 user_info[EHT_MAX_USER_INFO];
 };
 
+struct hal_rx_msdu_desc_info {
+	u32 msdu_flags;
+	u16 msdu_len; /* 14 bits for length */
+};
+
 struct hal_rx_mon_ppdu_info {
 	u32 ppdu_id;
 	u32 last_ppdu_id;

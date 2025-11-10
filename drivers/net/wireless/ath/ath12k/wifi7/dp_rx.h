@@ -49,6 +49,9 @@ int ath12k_wifi7_peer_rx_tid_reo_update(struct ath12k_dp *dp,
 					struct ath12k_dp_rx_tid *rx_tid,
 					u32 ba_win_sz, u16 ssn,
 					bool update_ssn);
+bool
+ath12k_wifi7_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
+				  struct hal_rx_desc *rx_desc);
 static inline
 void ath12k_wifi7_dp_extract_rx_desc_data(struct ath12k_hal *hal,
 					  struct hal_rx_desc_data *rx_info,

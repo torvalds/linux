@@ -101,12 +101,6 @@ ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k_base *ab,
 				      struct hal_rx_mon_ppdu_info *ppdu_info);
 void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k_dp_link_peer *peer,
 					   struct hal_rx_mon_ppdu_info *ppdu_info);
-u32
-ath12k_dp_rx_mon_mpdu_pop(struct ath12k *ar, int mac_id,
-			  void *ring_entry, struct sk_buff **head_msdu,
-			  struct sk_buff **tail_msdu,
-			  struct list_head *used_list,
-			  u32 *npackets, u32 *ppdu_id);
 int ath12k_dp_pkt_set_pktlen(struct sk_buff *skb, u32 len);
 int ath12k_dp_mon_rx_deliver(struct ath12k_pdev_dp *dp_pdev,
 			     struct dp_mon_mpdu *mon_mpdu,
@@ -125,4 +119,13 @@ struct sk_buff
 *ath12k_dp_rx_alloc_mon_status_buf(struct ath12k_base *ab,
 				   struct dp_rxdma_mon_ring *rx_ring,
 				   int *buf_id);
+void
+ath12k_dp_mon_get_buf_len(struct hal_rx_msdu_desc_info *info,
+			  bool *is_frag, u32 *total_len,
+			  u32 *frag_len, u32 *msdu_cnt);
+void ath12k_dp_mon_next_link_desc_get(struct ath12k_base *ab,
+				      struct hal_rx_msdu_link *msdu_link,
+				      dma_addr_t *paddr, u32 *sw_cookie, u8 *rbm,
+				      struct ath12k_buffer_addr **pp_buf_addr_info);
+u32 ath12k_dp_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id);
 #endif
