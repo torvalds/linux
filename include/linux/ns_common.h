@@ -69,6 +69,7 @@ static __always_inline __must_check bool __ns_ref_put(struct ns_common *ns)
 {
 	if (is_ns_init_id(ns)) {
 		VFS_WARN_ON_ONCE(__ns_ref_read(ns) != 1);
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) != 1);
 		return false;
 	}
 	if (refcount_dec_and_test(&ns->__ns_ref)) {
@@ -82,6 +83,7 @@ static __always_inline __must_check bool __ns_ref_get(struct ns_common *ns)
 {
 	if (is_ns_init_id(ns)) {
 		VFS_WARN_ON_ONCE(__ns_ref_read(ns) != 1);
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) != 1);
 		return true;
 	}
 	if (refcount_inc_not_zero(&ns->__ns_ref))
@@ -94,6 +96,7 @@ static __always_inline void __ns_ref_inc(struct ns_common *ns)
 {
 	if (is_ns_init_id(ns)) {
 		VFS_WARN_ON_ONCE(__ns_ref_read(ns) != 1);
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) != 1);
 		return;
 	}
 	refcount_inc(&ns->__ns_ref);
@@ -104,6 +107,7 @@ static __always_inline __must_check bool __ns_ref_dec_and_lock(struct ns_common 
 {
 	if (is_ns_init_id(ns)) {
 		VFS_WARN_ON_ONCE(__ns_ref_read(ns) != 1);
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) != 1);
 		return false;
 	}
 	return refcount_dec_and_lock(&ns->__ns_ref, ns_lock);
