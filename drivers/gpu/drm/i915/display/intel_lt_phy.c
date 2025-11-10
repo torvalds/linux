@@ -1981,9 +1981,9 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 			     XELPDP_LANE_PCLK_PLL_REQUEST(0), 0);
 
 		/* 8. Poll for PORT_CLOCK_CTL[PCLK PLL Ack LN0]= 0. */
-		if (intel_de_wait_us(display, XELPDP_PORT_CLOCK_CTL(display, port),
-				     XELPDP_LANE_PCLK_PLL_ACK(0), 0,
-				     XE3PLPD_MACCLK_TURNOFF_LATENCY_US, NULL))
+		if (intel_de_wait_for_clear_us(display, XELPDP_PORT_CLOCK_CTL(display, port),
+					       XELPDP_LANE_PCLK_PLL_ACK(0),
+					       XE3PLPD_MACCLK_TURNOFF_LATENCY_US))
 			drm_warn(display->drm, "PHY %c PLL MacCLK ack deassertion timeout\n",
 				 phy_name(phy));
 
@@ -2087,9 +2087,9 @@ void intel_lt_phy_pll_disable(struct intel_encoder *encoder)
 		     lane_pipe_reset);
 
 	/* 3. Poll for PORT_BUF_CTL2<port> Lane<PHY Lanes Owned> PHY Current Status == 1. */
-	if (intel_de_wait_us(display, XELPDP_PORT_BUF_CTL2(display, port),
-			     lane_phy_current_status, lane_phy_current_status,
-			     XE3PLPD_RESET_START_LATENCY_US, NULL))
+	if (intel_de_wait_for_set_us(display, XELPDP_PORT_BUF_CTL2(display, port),
+				     lane_phy_current_status,
+				     XE3PLPD_RESET_START_LATENCY_US))
 		drm_warn(display->drm, "PHY %c failed to reset lane\n",
 			 phy_name(phy));
 
@@ -2110,9 +2110,9 @@ void intel_lt_phy_pll_disable(struct intel_encoder *encoder)
 	intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), 0);
 
 	/* 8. Poll for PORT_CLOCK_CTL[PCLK PLL Ack LN0]= 0. */
-	if (intel_de_wait_us(display, XELPDP_PORT_CLOCK_CTL(display, port),
-			     XELPDP_LANE_PCLK_PLL_ACK(0), 0,
-			     XE3PLPD_MACCLK_TURNOFF_LATENCY_US, NULL))
+	if (intel_de_wait_for_clear_us(display, XELPDP_PORT_CLOCK_CTL(display, port),
+				       XELPDP_LANE_PCLK_PLL_ACK(0),
+				       XE3PLPD_MACCLK_TURNOFF_LATENCY_US))
 		drm_warn(display->drm, "PHY %c PLL MacCLK ack deassertion timeout\n",
 			 phy_name(phy));
 

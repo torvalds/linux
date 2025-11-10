@@ -148,8 +148,9 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
 
-		ret = intel_de_wait_us(display, DSI_LP_MSG(dsi_trans),
-				       LPTX_IN_PROGRESS, 0, 20, NULL);
+		ret = intel_de_wait_for_clear_us(display,
+						 DSI_LP_MSG(dsi_trans),
+						 LPTX_IN_PROGRESS, 20);
 		if (ret)
 			drm_err(display->drm, "LPTX bit not cleared\n");
 	}
@@ -533,8 +534,8 @@ static void gen11_dsi_enable_ddi_buffer(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		intel_de_rmw(display, DDI_BUF_CTL(port), 0, DDI_BUF_CTL_ENABLE);
 
-		ret = intel_de_wait_us(display, DDI_BUF_CTL(port),
-				       DDI_BUF_IS_IDLE, 0, 500, NULL);
+		ret = intel_de_wait_for_clear_us(display, DDI_BUF_CTL(port),
+						 DDI_BUF_IS_IDLE, 500);
 		if (ret)
 			drm_err(display->drm, "DDI port:%c buffer idle\n",
 				port_name(port));
@@ -855,9 +856,9 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 
 		dsi_trans = dsi_port_to_transcoder(port);
 
-		ret = intel_de_wait_us(display,
-				       DSI_TRANS_FUNC_CONF(dsi_trans),
-				       LINK_READY, LINK_READY, 2500, NULL);
+		ret = intel_de_wait_for_set_us(display,
+					       DSI_TRANS_FUNC_CONF(dsi_trans),
+					       LINK_READY, 2500);
 		if (ret)
 			drm_err(display->drm, "DSI link not ready\n");
 	}
@@ -1356,8 +1357,8 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 		tmp &= ~LINK_ULPS_TYPE_LP11;
 		intel_de_write(display, DSI_LP_MSG(dsi_trans), tmp);
 
-		ret = intel_de_wait_us(display, DSI_LP_MSG(dsi_trans),
-				       LINK_IN_ULPS, LINK_IN_ULPS, 10, NULL);
+		ret = intel_de_wait_for_set_us(display, DSI_LP_MSG(dsi_trans),
+					       LINK_IN_ULPS, 10);
 		if (ret)
 			drm_err(display->drm, "DSI link not in ULPS\n");
 	}
@@ -1392,9 +1393,8 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		intel_de_rmw(display, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
-		ret = intel_de_wait_us(display, DDI_BUF_CTL(port),
-				       DDI_BUF_IS_IDLE, DDI_BUF_IS_IDLE, 8,
-				       NULL);
+		ret = intel_de_wait_for_set_us(display, DDI_BUF_CTL(port),
+					       DDI_BUF_IS_IDLE, 8);
 
 		if (ret)
 			drm_err(display->drm,

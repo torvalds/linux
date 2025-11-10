@@ -2057,9 +2057,9 @@ static void bxt_ddi_pll_enable(struct intel_display *display,
 		intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port),
 			     0, PORT_PLL_POWER_ENABLE);
 
-		ret = intel_de_wait_us(display, BXT_PORT_PLL_ENABLE(port),
-				       PORT_PLL_POWER_STATE,
-				       PORT_PLL_POWER_STATE, 200, NULL);
+		ret = intel_de_wait_for_set_us(display,
+					       BXT_PORT_PLL_ENABLE(port),
+					       PORT_PLL_POWER_STATE, 200);
 		if (ret)
 			drm_err(display->drm,
 				"Power state not set for PLL:%d\n", port);
@@ -2122,8 +2122,8 @@ static void bxt_ddi_pll_enable(struct intel_display *display,
 	intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port), 0, PORT_PLL_ENABLE);
 	intel_de_posting_read(display, BXT_PORT_PLL_ENABLE(port));
 
-	ret = intel_de_wait_us(display, BXT_PORT_PLL_ENABLE(port),
-			       PORT_PLL_LOCK, PORT_PLL_LOCK, 200, NULL);
+	ret = intel_de_wait_for_set_us(display, BXT_PORT_PLL_ENABLE(port),
+				       PORT_PLL_LOCK, 200);
 	if (ret)
 		drm_err(display->drm, "PLL %d not locked\n", port);
 
@@ -2157,8 +2157,9 @@ static void bxt_ddi_pll_disable(struct intel_display *display,
 		intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port),
 			     PORT_PLL_POWER_ENABLE, 0);
 
-		ret = intel_de_wait_us(display, BXT_PORT_PLL_ENABLE(port),
-				       PORT_PLL_POWER_STATE, 0, 200, NULL);
+		ret = intel_de_wait_for_clear_us(display,
+						 BXT_PORT_PLL_ENABLE(port),
+						 PORT_PLL_POWER_STATE, 200);
 		if (ret)
 			drm_err(display->drm,
 				"Power state not reset for PLL:%d\n", port);
