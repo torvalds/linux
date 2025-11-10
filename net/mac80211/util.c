@@ -2206,9 +2206,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
+	/* Passing NULL means an interface is picked for configuration */
 	if (local->virt_monitors > 0 &&
 	    local->virt_monitors == local->open_count)
-		ieee80211_add_virtual_monitor(local);
+		ieee80211_add_virtual_monitor(local, NULL);
 
 	if (!suspended)
 		return 0;
