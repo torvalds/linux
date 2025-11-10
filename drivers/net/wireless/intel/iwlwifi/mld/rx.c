@@ -396,11 +396,11 @@ iwl_mld_decode_he_mu(struct iwl_mld_rx_phy_data *phy_data,
 {
 	u32 rate_n_flags = phy_data->rate_n_flags;
 
-	he_mu->flags1 |= RTAP_ENC_HE(phy_data->ntfy->sigs.he.b,
-				     OFDM_RX_FRAME_HE_SIGB_DCM,
+	he_mu->flags1 |= RTAP_ENC_HE(phy_data->ntfy->sigs.he.a1,
+				     OFDM_RX_FRAME_HE_DCM,
 				     IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM);
-	he_mu->flags1 |= RTAP_ENC_HE(phy_data->ntfy->sigs.he.b,
-				     OFDM_RX_FRAME_HE_SIGB_MCS,
+	he_mu->flags1 |= RTAP_ENC_HE(phy_data->ntfy->sigs.he.a1,
+				     OFDM_RX_FRAME_HE_MCS,
 				     IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS);
 	he_mu->flags2 |= RTAP_ENC_HE(phy_data->ntfy->sigs.he.a1,
 				     OFDM_RX_FRAME_HE_PRMBL_PUNC_TYPE,
@@ -408,7 +408,7 @@ iwl_mld_decode_he_mu(struct iwl_mld_rx_phy_data *phy_data,
 	he_mu->flags2 |= RTAP_ENC_HE(phy_data->ntfy->sigs.he.a2,
 				     OFDM_RX_FRAME_HE_MU_NUM_OF_SIGB_SYM_OR_USER_NUM,
 				     IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_SYMS_USERS);
-	he_mu->flags2 |= RTAP_ENC_HE(phy_data->ntfy->sigs.he.b,
+	he_mu->flags2 |= RTAP_ENC_HE(phy_data->ntfy->sigs.he.a2,
 				     OFDM_RX_FRAME_HE_MU_SIGB_COMP,
 				     IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_COMP);
 
