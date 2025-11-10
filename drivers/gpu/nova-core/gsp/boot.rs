@@ -29,7 +29,10 @@ use crate::{
         FIRMWARE_VERSION, //
     },
     gpu::Chipset,
-    gsp::GspFwWprMeta,
+    gsp::{
+        commands,
+        GspFwWprMeta, //
+    },
     regs,
     vbios::Vbios,
 };
@@ -119,7 +122,7 @@ impl super::Gsp {
     ///
     /// Upon return, the GSP is up and running, and its runtime object given as return value.
     pub(crate) fn boot(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         pdev: &pci::Device<device::Bound>,
         bar: &Bar0,
         chipset: Chipset,
@@ -152,6 +155,9 @@ impl super::Gsp {
         let wpr_meta =
             CoherentAllocation::<GspFwWprMeta>::alloc_coherent(dev, 1, GFP_KERNEL | __GFP_ZERO)?;
         dma_write!(wpr_meta[0] = GspFwWprMeta::new(&gsp_fw, &fb_layout))?;
+
+        self.cmdq
+            .send_command(bar, commands::SetSystemInfo::new(pdev))?;
 
         Ok(())
     }

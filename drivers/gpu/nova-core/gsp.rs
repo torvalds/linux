@@ -15,6 +15,7 @@ use kernel::{
 };
 
 pub(crate) mod cmdq;
+pub(crate) mod commands;
 mod fw;
 
 pub(crate) use fw::{
