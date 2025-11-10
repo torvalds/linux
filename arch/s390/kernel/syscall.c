@@ -122,7 +122,7 @@ void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
 		goto out;
 	regs->gprs[2] = -ENOSYS;
 	if (likely(nr < NR_syscalls))
-		regs->gprs[2] = current->thread.sys_call_table[nr](regs);
+		regs->gprs[2] = sys_call_table[nr](regs);
 out:
 	syscall_exit_to_user_mode(regs);
 }

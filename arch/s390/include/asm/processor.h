@@ -175,7 +175,6 @@ struct thread_struct {
 	unsigned long system_timer;		/* task cputime in kernel space */
 	unsigned long hardirq_timer;		/* task cputime in hardirq context */
 	unsigned long softirq_timer;		/* task cputime in softirq context */
-	const sys_call_ptr_t *sys_call_table;	/* system call table address */
 	union teid gmap_teid;			/* address and flags of last gmap fault */
 	unsigned int gmap_int_code;		/* int code of last gmap fault */
 	int ufpu_flags;				/* user fpu flags */

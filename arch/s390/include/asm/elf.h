@@ -217,7 +217,6 @@ extern char elf_platform[];
 do {								\
 	set_personality(PER_LINUX |				\
 		(current->personality & (~PER_MASK)));		\
-	current->thread.sys_call_table = sys_call_table;	\
 } while (0)
 
 /*
