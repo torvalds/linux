@@ -329,6 +329,7 @@ xchk_quota(
 	/* Now look for things that the quota verifiers won't complain about. */
 	xchk_dqiter_init(&cursor, sc, dqtype);
 	while ((error = xchk_dquot_iter(&cursor, &dq)) == 1) {
+		mutex_lock(&dq->q_qlock);
 		error = xchk_quota_item(&sqi, dq);
 		mutex_unlock(&dq->q_qlock);
 		xfs_qm_dqrele(dq);

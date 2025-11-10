@@ -675,6 +675,7 @@ xqcheck_compare_dqtype(
 	/* Compare what we observed against the actual dquots. */
 	xchk_dqiter_init(&cursor, sc, dqtype);
 	while ((error = xchk_dquot_iter(&cursor, &dq)) == 1) {
+		mutex_lock(&dq->q_qlock);
 		error = xqcheck_compare_dquot(xqc, dqtype, dq);
 		mutex_unlock(&dq->q_qlock);
 		xfs_qm_dqrele(dq);

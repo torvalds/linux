@@ -205,7 +205,6 @@ xchk_dquot_iter(
 	if (error)
 		return error;
 
-	mutex_lock(&dq->q_qlock);
 	cursor->id = dq->q_id + 1;
 	*dqpp = dq;
 	return 1;
