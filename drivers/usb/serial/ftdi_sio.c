@@ -107,7 +107,6 @@ struct ftdi_quirk {
 };
 
 static int   ftdi_jtag_probe(struct usb_serial *serial);
-static int   ftdi_ndi_probe(struct usb_serial *serial);
 static int   ftdi_stmclite_probe(struct usb_serial *serial);
 static int   ftdi_8u2232c_probe(struct usb_serial *serial);
 static void  ftdi_usb_uirt_setup(struct ftdi_private *priv);
@@ -118,7 +117,6 @@ static const struct ftdi_quirk ftdi_jtag_quirk = {
 };
 
 static const struct ftdi_quirk ftdi_ndi_quirk = {
-	.probe	= ftdi_ndi_probe,
 };
 
 static const struct ftdi_quirk ftdi_usb_uirt_quirk = {
@@ -2204,7 +2202,9 @@ static int ftdi_port_probe(struct usb_serial_port *port)
 		goto err_free;
 
 	ftdi_set_max_packet_size(port);
-	if (read_latency_timer(port) < 0)
+	if (quirk == &ftdi_ndi_quirk)
+		priv->latency = 1;
+	else if (read_latency_timer(port) < 0)
 		priv->latency = 16;
 	write_latency_timer(port);
 
@@ -2244,38 +2244,6 @@ static void ftdi_he_tira1_setup(struct ftdi_private *priv)
 	priv->custom_divisor = 240;
 	priv->force_baud = 38400;
 	priv->force_rtscts = 1;
-}
-
-/*
- * Module parameter to control latency timer for NDI FTDI-based USB devices.
- * If this value is not set in /etc/modprobe.d/ its value will be set
- * to 1ms.
- */
-static int ndi_latency_timer = 1;
-
-/*
- * Setup for the NDI FTDI-based USB devices, which requires hardwired
- * baudrate (19200 gets mapped to 1200000).
- */
-static int ftdi_ndi_probe(struct usb_serial *serial)
-{
-	struct usb_device *udev = serial->dev;
-	int latency = ndi_latency_timer;
-
-	if (latency == 0)
-		latency = 1;
-	if (latency > 99)
-		latency = 99;
-
-	dev_dbg(&udev->dev, "%s setting NDI device latency to %d\n", __func__, latency);
-	dev_info(&udev->dev, "NDI device with a latency value of %d\n", latency);
-
-	/* FIXME: errors are not returned */
-	usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
-				FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
-				latency, 0, NULL, 0, WDR_TIMEOUT);
-	return 0;
 }
 
 /*
@@ -2905,6 +2873,3 @@ module_usb_serial_driver(serial_drivers, id_table_combined);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(ndi_latency_timer, int, 0644);
-MODULE_PARM_DESC(ndi_latency_timer, "NDI device latency timer override");
