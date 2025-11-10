@@ -297,19 +297,8 @@ xfs_qm_dqattach_one(
 	struct xfs_dquot	*dqp;
 	int			error;
 
+	ASSERT(!*IO_idqpp);
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
-	error = 0;
-
-	/*
-	 * See if we already have it in the inode itself. IO_idqpp is &i_udquot
-	 * or &i_gdquot. This made the code look weird, but made the logic a lot
-	 * simpler.
-	 */
-	dqp = *IO_idqpp;
-	if (dqp) {
-		trace_xfs_dqattach_found(dqp);
-		return 0;
-	}
 
 	/*
 	 * Find the dquot from somewhere. This bumps the reference count of
