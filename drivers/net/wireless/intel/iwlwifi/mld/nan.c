@@ -131,6 +131,12 @@ int iwl_mld_stop_nan(struct ieee80211_hw *hw,
 	iwl_mld_flush_link_sta_txqs(mld, mld_vif->aux_sta.sta_id);
 	iwl_mld_remove_aux_sta(mld, vif);
 
+	/* cancel based on object type being NAN, as the NAN objects do
+	 * not have a unique identifier associated with them
+	 */
+	iwl_mld_cancel_notifications_of_object(mld,
+					       IWL_MLD_OBJECT_TYPE_NAN,
+					       0);
 	return 0;
 }
 
@@ -138,10 +144,43 @@ void iwl_mld_handle_nan_cluster_notif(struct iwl_mld *mld,
 				      struct iwl_rx_packet *pkt)
 {
 	struct iwl_nan_cluster_notif *notif = (void *)pkt->data;
+	struct wireless_dev *wdev = mld->nan_device_vif ?
+		ieee80211_vif_to_wdev(mld->nan_device_vif) : NULL;
+	bool new_cluster = !!(notif->flags &
+			      IWL_NAN_CLUSTER_NOTIF_FLAG_NEW_CLUSTER);
+	u8 cluster_id[ETH_ALEN] __aligned(2) = {
+		0x50, 0x6f, 0x9a, 0x01, 0x00, 0x00
+	};
+	u16 id = le16_to_cpu(notif->cluster_id);
 
 	IWL_DEBUG_INFO(mld,
 		       "NAN: cluster event: cluster_id=0x%x, flags=0x%x\n",
-		       le16_to_cpu(notif->cluster_id), notif->flags);
+		       id, notif->flags);
+
+	if (IWL_FW_CHECK(mld, !wdev, "NAN: cluster event without wdev\n"))
+		return;
+
+	if (IWL_FW_CHECK(mld, !ieee80211_vif_nan_started(mld->nan_device_vif),
+			 "NAN: cluster event without NAN started\n"))
+		return;
+
+	*((u16 *)(cluster_id + 4)) = id;
+
+	cfg80211_nan_cluster_joined(wdev, cluster_id, new_cluster, GFP_KERNEL);
+}
+
+bool iwl_mld_cancel_nan_cluster_notif(struct iwl_mld *mld,
+				      struct iwl_rx_packet *pkt,
+				      u32 obj_id)
+{
+	return true;
+}
+
+bool iwl_mld_cancel_nan_dw_end_notif(struct iwl_mld *mld,
+				     struct iwl_rx_packet *pkt,
+				     u32 obj_id)
+{
+	return true;
 }
 
 void iwl_mld_handle_nan_dw_end_notif(struct iwl_mld *mld,
@@ -151,10 +190,16 @@ void iwl_mld_handle_nan_dw_end_notif(struct iwl_mld *mld,
 	struct iwl_mld_vif *mld_vif = mld->nan_device_vif ?
 		iwl_mld_vif_from_mac80211(mld->nan_device_vif) :
 		NULL;
+	struct wireless_dev *wdev;
+	struct ieee80211_channel *chan;
 
 	IWL_INFO(mld, "NAN: DW end: band=%u\n", notif->band);
 
-	if (!mld_vif)
+	if (IWL_FW_CHECK(mld, !mld_vif, "NAN: DW end without mld_vif\n"))
+		return;
+
+	if (IWL_FW_CHECK(mld, !ieee80211_vif_nan_started(mld->nan_device_vif),
+			 "NAN: DW end without NAN started\n"))
 		return;
 
 	if (WARN_ON(mld_vif->aux_sta.sta_id == IWL_INVALID_STA))
@@ -164,4 +209,26 @@ void iwl_mld_handle_nan_dw_end_notif(struct iwl_mld *mld,
 		       mld_vif->aux_sta.sta_id);
 
 	iwl_mld_flush_link_sta_txqs(mld, mld_vif->aux_sta.sta_id);
+
+	/* TODO: currently the notification specified the band on which the DW
+	 * ended. Need to change that to the actual channel on which the next DW
+	 * will be started.
+	 */
+	switch (notif->band) {
+	case IWL_NAN_BAND_2GHZ:
+		chan = ieee80211_get_channel(mld->wiphy, 2437);
+		break;
+	case IWL_NAN_BAND_5GHZ:
+		/* TODO: use the actual channel */
+		chan = ieee80211_get_channel(mld->wiphy, 5745);
+		break;
+	default:
+		IWL_FW_CHECK(mld, false,
+			     "NAN: Invalid band %u in DW end notif\n",
+			     notif->band);
+		return;
+	}
+
+	wdev = ieee80211_vif_to_wdev(mld->nan_device_vif);
+	cfg80211_next_nan_dw_notif(wdev, chan, GFP_KERNEL);
 }

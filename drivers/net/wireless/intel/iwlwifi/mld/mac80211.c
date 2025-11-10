@@ -344,6 +344,22 @@ static void iwl_mac_hw_set_wiphy(struct iwl_mld *mld)
 		if (mld->nvm_data->bands[NL80211_BAND_5GHZ].n_channels)
 			hw->wiphy->nan_supported_bands |=
 				BIT(NL80211_BAND_5GHZ);
+
+		hw->wiphy->nan_capa.flags = WIPHY_NAN_FLAGS_CONFIGURABLE_SYNC |
+					    WIPHY_NAN_FLAGS_USERSPACE_DE;
+
+		hw->wiphy->nan_capa.op_mode = NAN_OP_MODE_PHY_MODE_MASK |
+					      NAN_OP_MODE_80P80MHZ |
+					      NAN_OP_MODE_160MHZ;
+
+		/* Support 2 antenna's for Tx and Rx */
+		hw->wiphy->nan_capa.n_antennas = 0x22;
+
+		/* Maximal channel switch time is 4 msec */
+		hw->wiphy->nan_capa.max_channel_switch_time = 4;
+		hw->wiphy->nan_capa.dev_capabilities =
+			NAN_DEV_CAPA_EXT_KEY_ID_SUPPORTED |
+			NAN_DEV_CAPA_NDPE_SUPPORTED;
 	} else {
 		wiphy->iface_combinations = iwl_mld_iface_combinations;
 		/* Do not include NAN combinations */

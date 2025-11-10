@@ -111,6 +111,9 @@ static bool iwl_mld_cancel_##name##_notif(struct iwl_mld *mld,			\
 #define RX_HANDLER_OF_FTM_REQ(_grp, _cmd, _name)				\
 	RX_HANDLER_OF_OBJ(_grp, _cmd, _name, FTM_REQ)
 
+#define RX_HANDLER_OF_NAN(_grp, _cmd, _name)				\
+	RX_HANDLER_OF_OBJ(_grp, _cmd, _name, NAN)
+
 static void iwl_mld_handle_mfuart_notif(struct iwl_mld *mld,
 					struct iwl_rx_packet *pkt)
 {
@@ -461,10 +464,10 @@ const struct iwl_rx_handler iwl_mld_rx_handlers[] = {
 			   beacon_filter_notif)
 	RX_HANDLER_OF_FTM_REQ(LOCATION_GROUP, TOF_RANGE_RESPONSE_NOTIF,
 			      ftm_resp_notif)
-	RX_HANDLER_NO_OBJECT(MAC_CONF_GROUP, NAN_JOINED_CLUSTER_NOTIF,
-			     nan_cluster_notif, RX_HANDLER_ASYNC)
-	RX_HANDLER_NO_OBJECT(MAC_CONF_GROUP, NAN_DW_END_NOTIF,
-			     nan_dw_end_notif, RX_HANDLER_ASYNC)
+	RX_HANDLER_OF_NAN(MAC_CONF_GROUP, NAN_JOINED_CLUSTER_NOTIF,
+			  nan_cluster_notif)
+	RX_HANDLER_OF_NAN(MAC_CONF_GROUP, NAN_DW_END_NOTIF,
+			  nan_dw_end_notif)
 };
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_rx_handlers);
 
