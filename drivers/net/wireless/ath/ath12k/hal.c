@@ -402,6 +402,7 @@ void *ath12k_hal_srng_src_next_peek(struct ath12k_base *ab,
 
 	return desc;
 }
+EXPORT_SYMBOL(ath12k_hal_srng_src_next_peek);
 
 void *ath12k_hal_srng_src_get_next_entry(struct ath12k_base *ab,
 					 struct hal_srng *srng)
@@ -447,6 +448,7 @@ void *ath12k_hal_srng_src_peek(struct ath12k_base *ab, struct hal_srng *srng)
 
 	return srng->ring_base_vaddr + srng->u.src_ring.hp;
 }
+EXPORT_SYMBOL(ath12k_hal_srng_src_peek);
 
 void *ath12k_hal_srng_src_reap_next(struct ath12k_base *ab,
 				    struct hal_srng *srng)

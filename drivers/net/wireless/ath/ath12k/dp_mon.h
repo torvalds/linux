@@ -78,11 +78,6 @@ struct dp_mon_tx_ppdu_info {
 	struct dp_mon_mpdu *tx_mon_mpdu;
 };
 
-enum hal_rx_mon_status
-ath12k_dp_mon_rx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
-				  struct ath12k_mon_data *pmon,
-				  struct sk_buff *skb,
-				  struct napi_struct *napi);
 int ath12k_dp_mon_buf_replenish(struct ath12k_base *ab,
 				struct dp_rxdma_mon_ring *buf_ring,
 				int req_entries);
@@ -101,18 +96,33 @@ ath12k_dp_mon_tx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
 				  struct napi_struct *napi,
 				  u32 ppdu_id);
 void ath12k_dp_mon_rx_process_ulofdma(struct hal_rx_mon_ppdu_info *ppdu_info);
-enum hal_rx_mon_status
-ath12k_dp_mon_parse_rx_dest(struct ath12k_pdev_dp *dp_pdev, struct ath12k_mon_data *pmon,
-			    struct sk_buff *skb);
-int ath12k_dp_rx_reap_mon_status_ring(struct ath12k_base *ab, int mac_id,
-				      int *budget, struct sk_buff_head *skb_list);
-void ath12k_dp_rx_mon_dest_process(struct ath12k *ar, int mac_id,
-				   u32 quota, struct napi_struct *napi);
 void
 ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k_base *ab,
 				      struct hal_rx_mon_ppdu_info *ppdu_info);
 void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k_dp_link_peer *peer,
 					   struct hal_rx_mon_ppdu_info *ppdu_info);
-void
-ath12k_dp_mon_rx_memset_ppdu_info(struct hal_rx_mon_ppdu_info *ppdu_info);
+u32
+ath12k_dp_rx_mon_mpdu_pop(struct ath12k *ar, int mac_id,
+			  void *ring_entry, struct sk_buff **head_msdu,
+			  struct sk_buff **tail_msdu,
+			  struct list_head *used_list,
+			  u32 *npackets, u32 *ppdu_id);
+int ath12k_dp_pkt_set_pktlen(struct sk_buff *skb, u32 len);
+int ath12k_dp_mon_rx_deliver(struct ath12k_pdev_dp *dp_pdev,
+			     struct dp_mon_mpdu *mon_mpdu,
+			     struct hal_rx_mon_ppdu_info *ppduinfo,
+			     struct napi_struct *napi);
+int
+ath12k_dp_mon_parse_rx_dest_tlv(struct ath12k_pdev_dp *dp_pdev,
+				struct ath12k_mon_data *pmon,
+				enum hal_rx_mon_status hal_status,
+				const void *tlv_data);
+enum hal_rx_mon_status
+ath12k_dp_mon_rx_parse_status_tlv(struct ath12k_pdev_dp *dp_pdev,
+				  struct ath12k_mon_data *pmon,
+				  const struct hal_tlv_64_hdr *tlv);
+struct sk_buff
+*ath12k_dp_rx_alloc_mon_status_buf(struct ath12k_base *ab,
+				   struct dp_rxdma_mon_ring *rx_ring,
+				   int *buf_id);
 #endif
