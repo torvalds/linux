@@ -1358,6 +1358,7 @@ static void assert_chv_phy_status(struct intel_display *display)
 	u32 phy_control = display->power.chv_phy_control;
 	u32 phy_status = 0;
 	u32 phy_status_mask = 0xffffffff;
+	u32 val;
 
 	/*
 	 * The BIOS can leave the PHY is some weird state
@@ -1446,11 +1447,10 @@ static void assert_chv_phy_status(struct intel_display *display)
 	 * so the power state can take a while to actually change.
 	 */
 	if (intel_de_wait_ms(display, DISPLAY_PHY_STATUS,
-			     phy_status_mask, phy_status, 10, NULL))
+			     phy_status_mask, phy_status, 10, &val))
 		drm_err(display->drm,
 			"Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
-			intel_de_read(display, DISPLAY_PHY_STATUS) & phy_status_mask,
-			phy_status, display->power.chv_phy_control);
+			val & phy_status_mask, phy_status, display->power.chv_phy_control);
 }
 
 #undef BITS_SET
