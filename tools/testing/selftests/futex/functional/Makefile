@@ -22,7 +22,8 @@ TEST_GEN_PROGS := \
 	futex_priv_hash \
 	futex_numa_mpol \
 	futex_waitv \
-	futex_numa
+	futex_numa \
+	robust_list
 
 TEST_PROGS := run.sh
 
