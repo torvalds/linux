@@ -7,15 +7,20 @@
 
 #include "sdm660.dtsi"
 
-/*
- * According to the downstream DTS,
- * 636 is basically a 660 except for
- * different CPU frequencies, Adreno
- * 509 instead of 512 and lack of
- * turing IP. These differences will
- * be addressed when the aforementioned
- * peripherals will be enabled upstream.
- */
+/delete-node/ &remoteproc_cdsp;
+/delete-node/ &cdsp_smmu;
+/delete-node/ &cdsp_region;
+
+/ {
+	/delete-node/ smp2p-cdsp;
+
+	reserved-memory {
+		buffer_mem: tzbuffer@94a00000 {
+			reg = <0x0 0x94a00000 0x00 0x100000>;
+			no-map;
+		};
+	};
+};
 
 &adreno_gpu {
 	compatible = "qcom,adreno-509.0", "qcom,adreno";
