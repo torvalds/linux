@@ -895,7 +895,7 @@ xfs_qm_dqget_checks(
 
 /*
  * Given the file system, id, and type (UDQUOT/GDQUOT/PDQUOT), return a
- * locked dquot, doing an allocation (if requested) as needed.
+ * dquot, doing an allocation (if requested) as needed.
  */
 int
 xfs_qm_dqget(
@@ -940,7 +940,6 @@ restart:
 	trace_xfs_dqget_miss(dqp);
 found:
 	*O_dqpp = dqp;
-	mutex_lock(&dqp->q_qlock);
 	return 0;
 }
 
@@ -1098,6 +1097,7 @@ xfs_qm_dqget_next(
 		else if (error != 0)
 			break;
 
+		mutex_lock(&dqp->q_qlock);
 		if (!XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
 			*dqpp = dqp;
 			return 0;

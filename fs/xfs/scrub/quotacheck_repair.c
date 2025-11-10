@@ -187,6 +187,7 @@ xqcheck_commit_dqtype(
 		if (error)
 			return error;
 
+		mutex_lock(&dq->q_qlock);
 		error = xqcheck_commit_dquot(xqc, dqtype, dq);
 		mutex_unlock(&dq->q_qlock);
 		xfs_qm_dqrele(dq);

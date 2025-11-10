@@ -73,6 +73,7 @@ xfs_qm_statvfs(
 	struct xfs_dquot	*dqp;
 
 	if (!xfs_qm_dqget(mp, ip->i_projid, XFS_DQTYPE_PROJ, false, &dqp)) {
+		mutex_lock(&dqp->q_qlock);
 		xfs_fill_statvfs_from_dquot(statp, ip, dqp);
 		mutex_unlock(&dqp->q_qlock);
 		xfs_qm_dqrele(dqp);

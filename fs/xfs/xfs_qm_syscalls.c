@@ -302,6 +302,7 @@ xfs_qm_scall_setqlim(
 		return error;
 	}
 
+	mutex_lock(&dqp->q_qlock);
 	defq = xfs_get_defquota(q, xfs_dquot_type(dqp));
 	mutex_unlock(&dqp->q_qlock);
 
@@ -459,6 +460,7 @@ xfs_qm_scall_getquota(
 	 * If everything's NULL, this dquot doesn't quite exist as far as
 	 * our utility programs are concerned.
 	 */
+	mutex_lock(&dqp->q_qlock);
 	if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
 		error = -ENOENT;
 		goto out_put;
