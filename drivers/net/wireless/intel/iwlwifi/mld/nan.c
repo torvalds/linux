@@ -11,30 +11,30 @@
 #define IWL_NAN_RSSI_CLOSE 55
 #define IWL_NAN_RSSI_MIDDLE 70
 
-/* possible discovery channels for the 5 GHz band*/
-#define IWL_NAN_CHANNEL_UNII1 44
-#define IWL_NAN_CHANNEL_UNII3 149
-
 bool iwl_mld_nan_supported(struct iwl_mld *mld)
 {
 	return fw_has_capa(&mld->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_NAN_SYNC_SUPPORT);
 }
 
-static bool iwl_mld_nan_can_beacon(struct ieee80211_vif *vif,
-				   enum nl80211_band band, u8 channel)
+static int iwl_mld_nan_send_config_cmd(struct iwl_mld *mld,
+				       struct iwl_nan_config_cmd *cmd,
+				       u8 *beacon_data, size_t beacon_data_len)
 {
-	struct wiphy *wiphy = ieee80211_vif_to_wdev(vif)->wiphy;
-	int freq = ieee80211_channel_to_frequency(channel, band);
-	struct ieee80211_channel *chan = ieee80211_get_channel(wiphy,
-							       freq);
-	struct cfg80211_chan_def def;
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(MAC_CONF_GROUP, NAN_CFG_CMD),
+	};
 
-	if (!chan)
-		return false;
+	hcmd.len[0] = sizeof(*cmd);
+	hcmd.data[0] = cmd;
 
-	cfg80211_chandef_create(&def, chan, NL80211_CHAN_NO_HT);
-	return cfg80211_reg_can_beacon(wiphy, &def, vif->type);
+	if (beacon_data_len) {
+		hcmd.len[1] = beacon_data_len;
+		hcmd.data[1] = beacon_data;
+		hcmd.dataflags[1] = IWL_HCMD_DFL_DUP;
+	}
+
+	return iwl_mld_send_cmd(mld, &hcmd);
 }
 
 int iwl_mld_start_nan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -45,21 +45,8 @@ int iwl_mld_start_nan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct iwl_mld_int_sta *aux_sta = &mld_vif->aux_sta;
 	struct iwl_nan_config_cmd cmd = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
-		.discovery_beacon_interval =
-			cpu_to_le32(IWL_NAN_DISOVERY_BEACON_INTERNVAL_TU),
-		.band_config = {
-			{
-				.rssi_close = IWL_NAN_RSSI_CLOSE,
-				.rssi_middle = IWL_NAN_RSSI_MIDDLE,
-				.dw_interval = 1,
-			},
-			{
-				.rssi_close = IWL_NAN_RSSI_CLOSE,
-				.rssi_middle = IWL_NAN_RSSI_MIDDLE,
-				.dw_interval = 1,
-			},
-		},
 	};
+	u8 *data __free(kfree) = NULL;
 	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
@@ -68,25 +55,66 @@ int iwl_mld_start_nan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	ether_addr_copy(cmd.nmi_addr, vif->addr);
 	cmd.master_pref = conf->master_pref;
-	cmd.flags = IWL_NAN_FLAG_DW_END_NOTIF_ENABLED;
 
-	if (WARN_ON(!(conf->bands & BIT(NL80211_BAND_2GHZ))))
-		return -EINVAL;
+	if (conf->cluster_id)
+		cmd.cluster_id =
+			cpu_to_le16(*(const u16 *)(conf->cluster_id + 4));
 
-	if (conf->bands & BIT(NL80211_BAND_5GHZ)) {
-		if (iwl_mld_nan_can_beacon(vif, NL80211_BAND_5GHZ,
-					   IWL_NAN_CHANNEL_UNII1)) {
-			cmd.hb_channel = IWL_NAN_CHANNEL_UNII1;
-		} else if (iwl_mld_nan_can_beacon(vif, NL80211_BAND_5GHZ,
-						  IWL_NAN_CHANNEL_UNII3)) {
-			cmd.hb_channel = IWL_NAN_CHANNEL_UNII3;
-		} else {
-			IWL_ERR(mld, "NAN: Can't beacon on 5 GHz band\n");
-			ret = -EINVAL;
-		}
-	} else {
-		memset(&cmd.band_config[IWL_NAN_BAND_5GHZ], 0,
-		       sizeof(cmd.band_config[0]));
+	cmd.scan_period = conf->scan_period < 255 ? conf->scan_period : 255;
+	cmd.dwell_time =
+		conf->scan_dwell_time < 255 ? conf->scan_dwell_time : 255;
+
+	if (conf->discovery_beacon_interval)
+		cmd.discovery_beacon_interval =
+			cpu_to_le32(conf->discovery_beacon_interval);
+	else
+		cmd.discovery_beacon_interval =
+			cpu_to_le32(IWL_NAN_DISOVERY_BEACON_INTERNVAL_TU);
+
+	if (conf->enable_dw_notification)
+		cmd.flags = IWL_NAN_FLAG_DW_END_NOTIF_ENABLED;
+
+	/* 2 GHz band must be supported */
+	cmd.band_config[IWL_NAN_BAND_2GHZ].rssi_close =
+		abs(conf->band_cfgs[NL80211_BAND_2GHZ].rssi_close);
+	cmd.band_config[IWL_NAN_BAND_2GHZ].rssi_middle =
+		abs(conf->band_cfgs[NL80211_BAND_2GHZ].rssi_middle);
+	cmd.band_config[IWL_NAN_BAND_2GHZ].dw_interval =
+		conf->band_cfgs[NL80211_BAND_2GHZ].awake_dw_interval;
+
+	/* 5 GHz band operation is optional. Configure its operation if
+	 * supported. Note that conf->bands might be zero, so we need to check
+	 * the channel pointer, not the band mask.
+	 */
+	if (conf->band_cfgs[NL80211_BAND_5GHZ].chan) {
+		cmd.hb_channel =
+			conf->band_cfgs[NL80211_BAND_5GHZ].chan->hw_value;
+
+		cmd.band_config[IWL_NAN_BAND_5GHZ].rssi_close =
+			abs(conf->band_cfgs[NL80211_BAND_5GHZ].rssi_close);
+		cmd.band_config[IWL_NAN_BAND_5GHZ].rssi_middle =
+			abs(conf->band_cfgs[NL80211_BAND_5GHZ].rssi_middle);
+		cmd.band_config[IWL_NAN_BAND_5GHZ].dw_interval =
+			conf->band_cfgs[NL80211_BAND_5GHZ].awake_dw_interval;
+	}
+
+	if (conf->extra_nan_attrs_len || conf->vendor_elems_len) {
+		data = kmalloc(conf->extra_nan_attrs_len +
+			       conf->vendor_elems_len, GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+
+		cmd.nan_attr_len = cpu_to_le32(conf->extra_nan_attrs_len);
+		cmd.nan_vendor_elems_len = cpu_to_le32(conf->vendor_elems_len);
+
+		if (conf->extra_nan_attrs_len)
+			memcpy(data, conf->extra_nan_attrs,
+			       conf->extra_nan_attrs_len);
+
+		if (conf->vendor_elems_len)
+			memcpy(data + conf->extra_nan_attrs_len,
+			       conf->vendor_elems,
+			       conf->vendor_elems_len);
 	}
 
 	ret = iwl_mld_add_aux_sta(mld, aux_sta);
@@ -95,10 +123,9 @@ int iwl_mld_start_nan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	cmd.sta_id = aux_sta->sta_id;
 
-	ret = iwl_mld_send_cmd_pdu(mld,
-				   WIDE_ID(MAC_CONF_GROUP, NAN_CFG_CMD),
-				   &cmd);
-
+	ret = iwl_mld_nan_send_config_cmd(mld, &cmd, data,
+					  conf->extra_nan_attrs_len +
+					  conf->vendor_elems_len);
 	if (ret) {
 		IWL_ERR(mld, "Failed to start NAN. ret=%d\n", ret);
 		iwl_mld_remove_aux_sta(mld, vif);
