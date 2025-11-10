@@ -951,6 +951,18 @@ struct dc_bounding_box_overrides {
 	int min_dcfclk_mhz;
 };
 
+struct dc_qos_info {
+	uint32_t actual_peak_bw_in_mbps;
+	uint32_t qos_bandwidth_lb_in_mbps;
+	uint32_t actual_avg_bw_in_mbps;
+	uint32_t calculated_avg_bw_in_mbps;
+	uint32_t actual_max_latency_in_ns;
+	uint32_t qos_max_latency_ub_in_ns;
+	uint32_t actual_avg_latency_in_ns;
+	uint32_t qos_avg_latency_ub_in_ns;
+	uint32_t dcn_bandwidth_ub_in_mbps;
+};
+
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
@@ -3321,5 +3333,29 @@ struct dc_register_software_state {
  * Return: true if state was successfully captured, false on error
  */
 bool dc_capture_register_software_state(struct dc *dc, struct dc_register_software_state *state);
+
+/**
+ * dc_get_qos_info() - Retrieve Quality of Service (QoS) information from display core
+ * @dc: DC context containing current display configuration
+ * @info: Pointer to dc_qos_info structure to populate with QoS metrics
+ *
+ * This function retrieves QoS metrics from the display core that can be used by
+ * benchmark tools to analyze display system performance. The function may take
+ * several milliseconds to execute due to hardware measurement requirements.
+ *
+ * QoS information includes:
+ * - Bandwidth bounds (lower limits in Mbps)
+ * - Latency bounds (upper limits in nanoseconds)
+ * - Hardware-measured bandwidth metrics (peak/average in Mbps)
+ * - Hardware-measured latency metrics (maximum/average in nanoseconds)
+ *
+ * The function will populate the provided dc_qos_info structure with current
+ * QoS measurements. If hardware measurement functions are not available for
+ * the current DCN version, the function returns false with zero'd info structure.
+ *
+ * Return: true if QoS information was successfully retrieved, false if measurement
+ *         functions are unavailable or hardware measurements cannot be performed
+ */
+bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info);
 
 #endif /* DC_INTERFACE_H_ */

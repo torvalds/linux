@@ -1287,6 +1287,43 @@ struct hw_sequencer_funcs {
 	void (*get_underflow_debug_data)(const struct dc *dc,
 			struct timing_generator *tg,
 			struct dc_underflow_debug_data *out_data);
+
+	/**
+	 * measure_peak_bw_mbps - Measure actual peak bandwidth in Mbps
+	 * @dc: DC structure
+	 *
+	 * Returns the measured peak bandwidth value in Mbps from hardware
+	 * performance counters or registers.
+	 */
+	uint32_t (*measure_peak_bw_mbps)(struct dc *dc);
+
+	/**
+	 * measure_avg_bw_mbps - Measure actual average bandwidth in Mbps
+	 * @dc: DC structure
+	 *
+	 * Returns the measured average bandwidth value in Mbps from hardware
+	 * performance counters or registers.
+	 */
+	uint32_t (*measure_avg_bw_mbps)(struct dc *dc);
+
+	/**
+	 * measure_max_latency_ns - Measure actual maximum latency in nanoseconds
+	 * @dc: DC structure
+	 *
+	 * Returns the measured maximum latency value in nanoseconds from hardware
+	 * performance counters or registers.
+	 */
+	uint32_t (*measure_max_latency_ns)(struct dc *dc);
+
+	/**
+	 * measure_avg_latency_ns - Measure actual average latency in nanoseconds
+	 * @dc: DC structure
+	 *
+	 * Returns the measured average latency value in nanoseconds from hardware
+	 * performance counters or registers.
+	 */
+	uint32_t (*measure_avg_latency_ns)(struct dc *dc);
+
 };
 
 void color_space_to_black_color(

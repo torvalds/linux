@@ -7091,3 +7091,27 @@ void dc_log_preos_dmcub_info(const struct dc *dc)
 {
 	dc_dmub_srv_log_preos_dmcub_info(dc->ctx->dmub_srv);
 }
+
+bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info)
+{
+	const struct dc_clocks *clk = &dc->current_state->bw_ctx.bw.dcn.clk;
+
+	memset(info, 0, sizeof(*info));
+
+	// Check if all measurement functions are available
+	if (!dc->hwss.measure_peak_bw_mbps ||
+	    !dc->hwss.measure_avg_bw_mbps ||
+	    !dc->hwss.measure_max_latency_ns ||
+	    !dc->hwss.measure_avg_latency_ns) {
+		return false;
+	}
+
+	// Call measurement functions to get actual values
+	info->actual_peak_bw_in_mbps = dc->hwss.measure_peak_bw_mbps(dc);
+	info->actual_avg_bw_in_mbps = dc->hwss.measure_avg_bw_mbps(dc);
+	info->actual_max_latency_in_ns = dc->hwss.measure_max_latency_ns(dc);
+	info->actual_avg_latency_in_ns = dc->hwss.measure_avg_latency_ns(dc);
+	info->dcn_bandwidth_ub_in_mbps = (uint32_t)(clk->fclk_khz / 1000 * 64);
+
+	return true;
+}
