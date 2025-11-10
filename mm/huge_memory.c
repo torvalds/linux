@@ -3783,10 +3783,10 @@ static int __folio_freeze_and_split_unmapped(struct folio *folio, unsigned int n
 			if (folio_test_pmd_mappable(folio) &&
 			    new_order < HPAGE_PMD_ORDER) {
 				if (folio_test_swapbacked(folio)) {
-					__lruvec_stat_mod_folio(folio,
+					lruvec_stat_mod_folio(folio,
 							NR_SHMEM_THPS, -nr);
 				} else {
-					__lruvec_stat_mod_folio(folio,
+					lruvec_stat_mod_folio(folio,
 							NR_FILE_THPS, -nr);
 					filemap_nr_thps_dec(mapping);
 				}
