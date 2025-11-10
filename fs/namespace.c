@@ -138,7 +138,7 @@ static inline struct mnt_namespace *node_to_mnt_ns(const struct rb_node *node)
 
 	if (!node)
 		return NULL;
-	ns = rb_entry(node, struct ns_common, ns_tree_node);
+	ns = rb_entry(node, struct ns_common, ns_tree_node.ns_node);
 	return container_of(ns, struct mnt_namespace, ns);
 }
 

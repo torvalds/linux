@@ -26,20 +26,19 @@ static __always_inline bool is_ns_init_id(const struct ns_common *ns)
 	return ns->ns_id <= NS_LAST_INIT_ID;
 }
 
-
-#define NS_COMMON_INIT(nsname, refs)							\
-{											\
-	.ns_type		= ns_common_type(&nsname),				\
-	.ns_id			= ns_init_id(&nsname),					\
-	.inum			= ns_init_inum(&nsname),				\
-	.ops			= to_ns_operations(&nsname),				\
-	.stashed		= NULL,							\
-	.__ns_ref		= REFCOUNT_INIT(refs),					\
-	.__ns_ref_active	= ATOMIC_INIT(1),					\
-	.ns_list_node		= LIST_HEAD_INIT(nsname.ns.ns_list_node),		\
-	.ns_owner_entry		= LIST_HEAD_INIT(nsname.ns.ns_owner_entry),		\
-	.ns_owner		= LIST_HEAD_INIT(nsname.ns.ns_owner),			\
-	.ns_unified_list_node	= LIST_HEAD_INIT(nsname.ns.ns_unified_list_node),	\
+#define NS_COMMON_INIT(nsname, refs)									\
+{													\
+	.ns_type			= ns_common_type(&nsname),					\
+	.ns_id				= ns_init_id(&nsname),						\
+	.inum				= ns_init_inum(&nsname),					\
+	.ops				= to_ns_operations(&nsname),					\
+	.stashed			= NULL,								\
+	.__ns_ref			= REFCOUNT_INIT(refs),						\
+	.__ns_ref_active		= ATOMIC_INIT(1),						\
+	.ns_unified_node.ns_list_entry	= LIST_HEAD_INIT(nsname.ns.ns_unified_node.ns_list_entry),	\
+	.ns_tree_node.ns_list_entry	= LIST_HEAD_INIT(nsname.ns.ns_tree_node.ns_list_entry),		\
+	.ns_owner_node.ns_list_entry	= LIST_HEAD_INIT(nsname.ns.ns_owner_node.ns_list_entry),	\
+	.ns_owner_root.ns_list_head	= LIST_HEAD_INIT(nsname.ns.ns_owner_root.ns_list_head),		\
 }
 
 #define ns_common_init(__ns)                     \

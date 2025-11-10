@@ -3,6 +3,7 @@
 #define _LINUX_NS_COMMON_TYPES_H
 
 #include <linux/atomic.h>
+#include <linux/ns/nstree_types.h>
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
@@ -98,6 +99,13 @@ extern const struct proc_ns_operations utsns_operations;
  * Initial namespaces:
  *   Boot-time namespaces (init_net, init_pid_ns, etc.) start with
  *   __ns_ref_active = 1 and remain active forever.
+ *
+ * @ns_type: type of namespace (e.g., CLONE_NEWNET)
+ * @stashed: cached dentry to be used by the vfs
+ * @ops: namespace operations
+ * @inum: namespace inode number (quickly recycled for non-initial namespaces)
+ * @__ns_ref: main reference count (do not use directly)
+ * @ns_tree: namespace tree nodes and active reference count
  */
 struct ns_common {
 	u32 ns_type;
@@ -106,24 +114,7 @@ struct ns_common {
 	unsigned int inum;
 	refcount_t __ns_ref; /* do not use directly */
 	union {
-		struct {
-			u64 ns_id;
-			struct /* global namespace rbtree and list */ {
-				struct rb_node ns_unified_tree_node;
-				struct list_head ns_unified_list_node;
-			};
-			struct /* per type rbtree and list */ {
-				struct rb_node ns_tree_node;
-				struct list_head ns_list_node;
-			};
-			struct /* namespace ownership rbtree and list */ {
-				struct rb_root ns_owner_tree; /* rbtree of namespaces owned by this namespace */
-				struct list_head ns_owner; /* list of namespaces owned by this namespace */
-				struct rb_node ns_owner_tree_node; /* node in the owner namespace's rbtree */
-				struct list_head ns_owner_entry; /* node in the owner namespace's ns_owned list */
-			};
-			atomic_t __ns_ref_active; /* do not use directly */
-		};
+		struct ns_tree;
 		struct rcu_head ns_rcu;
 	};
 };
