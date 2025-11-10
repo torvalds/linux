@@ -1173,6 +1173,7 @@ void vlv_wait_port_ready(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	u32 port_mask;
 	i915_reg_t dpll_reg;
+	u32 val;
 
 	switch (encoder->port) {
 	default:
@@ -1193,10 +1194,9 @@ void vlv_wait_port_ready(struct intel_encoder *encoder,
 		break;
 	}
 
-	if (intel_de_wait_ms(display, dpll_reg, port_mask, expected_mask, 1000, NULL))
+	if (intel_de_wait_ms(display, dpll_reg, port_mask, expected_mask, 1000, &val))
 		drm_WARN(display->drm, 1,
 			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
 			 encoder->base.base.id, encoder->base.name,
-			 intel_de_read(display, dpll_reg) & port_mask,
-			 expected_mask);
+			 val & port_mask, expected_mask);
 }
