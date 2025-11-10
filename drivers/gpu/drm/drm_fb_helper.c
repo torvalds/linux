@@ -32,7 +32,6 @@
 #include <linux/console.h>
 #include <linux/export.h>
 #include <linux/pci.h>
-#include <linux/sysrq.h>
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_atomic.h>
@@ -269,42 +268,6 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper, b
 	return __drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper, force);
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
-
-#ifdef CONFIG_MAGIC_SYSRQ
-/* emergency restore, don't bother with error reporting */
-static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
-{
-	struct drm_fb_helper *helper;
-
-	mutex_lock(&kernel_fb_helper_lock);
-	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
-		struct drm_device *dev = helper->dev;
-
-		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-			continue;
-
-		mutex_lock(&helper->lock);
-		drm_client_modeset_commit_locked(&helper->client);
-		mutex_unlock(&helper->lock);
-	}
-	mutex_unlock(&kernel_fb_helper_lock);
-}
-
-static DECLARE_WORK(drm_fb_helper_restore_work, drm_fb_helper_restore_work_fn);
-
-static void drm_fb_helper_sysrq(u8 dummy1)
-{
-	schedule_work(&drm_fb_helper_restore_work);
-}
-
-static const struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
-	.handler = drm_fb_helper_sysrq,
-	.help_msg = "force-fb(v)",
-	.action_msg = "Restore framebuffer console",
-};
-#else
-static const struct sysrq_key_op sysrq_drm_fb_helper_restore_op = { };
-#endif
 
 static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 {
@@ -602,11 +565,8 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	drm_fb_helper_release_info(fb_helper);
 
 	mutex_lock(&kernel_fb_helper_lock);
-	if (!list_empty(&fb_helper->kernel_fb_list)) {
+	if (!list_empty(&fb_helper->kernel_fb_list))
 		list_del(&fb_helper->kernel_fb_list);
-		if (list_empty(&kernel_fb_helper_list))
-			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
-	}
 	mutex_unlock(&kernel_fb_helper_lock);
 
 	if (!fb_helper->client.funcs)
@@ -1840,9 +1800,6 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 		 info->node, info->fix.id);
 
 	mutex_lock(&kernel_fb_helper_lock);
-	if (list_empty(&kernel_fb_helper_list))
-		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
-
 	list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
 	mutex_unlock(&kernel_fb_helper_lock);
 
