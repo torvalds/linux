@@ -498,6 +498,7 @@ it desires to recover the workload.
 
 When SSR occurs for a specific NSP, the assigned DBC goes through the
 following state transactions in order:
+
 DBC_STATE_BEFORE_SHUTDOWN
 	Indicates that the affected NSP was found in an unrecoverable error
 	condition.
