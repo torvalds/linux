@@ -462,9 +462,9 @@ static void intel_pmdemand_poll(struct intel_display *display)
 	u32 status;
 	int ret;
 
-	ret = intel_de_wait_custom(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1),
-				   XELPDP_PMDEMAND_REQ_ENABLE, 0,
-				   2, timeout_ms, &status);
+	ret = intel_de_wait_ms(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1),
+			       XELPDP_PMDEMAND_REQ_ENABLE, 0,
+			       timeout_ms, &status);
 
 	if (ret == -ETIMEDOUT)
 		drm_err(display->drm,

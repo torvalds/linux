@@ -164,11 +164,10 @@ int intel_cx0_wait_for_ack(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	enum phy phy = intel_encoder_to_phy(encoder);
 
-	if (intel_de_wait_custom(display,
-				 XELPDP_PORT_P2M_MSGBUS_STATUS(display, port, lane),
-				 XELPDP_PORT_P2M_RESPONSE_READY,
-				 XELPDP_PORT_P2M_RESPONSE_READY,
-				 2, XELPDP_MSGBUS_TIMEOUT_MS, val)) {
+	if (intel_de_wait_ms(display, XELPDP_PORT_P2M_MSGBUS_STATUS(display, port, lane),
+			     XELPDP_PORT_P2M_RESPONSE_READY,
+			     XELPDP_PORT_P2M_RESPONSE_READY,
+			     XELPDP_MSGBUS_TIMEOUT_MS, val)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for message ACK. Status: 0x%x\n",
 			    phy_name(phy), *val);
@@ -2827,9 +2826,9 @@ void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 		     intel_cx0_get_powerdown_update(lane_mask));
 
 	/* Update Timeout Value */
-	if (intel_de_wait_custom(display, buf_ctl2_reg,
-				 intel_cx0_get_powerdown_update(lane_mask), 0,
-				 2, XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_MS, NULL))
+	if (intel_de_wait_ms(display, buf_ctl2_reg,
+			     intel_cx0_get_powerdown_update(lane_mask), 0,
+			     XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_MS, NULL))
 		drm_warn(display->drm,
 			 "PHY %c failed to bring out of lane reset\n",
 			 phy_name(phy));

@@ -1201,10 +1201,9 @@ intel_lt_phy_lane_reset(struct intel_encoder *encoder,
 		     XELPDP_LANE_PCLK_PLL_REQUEST(0),
 		     XELPDP_LANE_PCLK_PLL_REQUEST(0));
 
-	if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, port),
-				 XELPDP_LANE_PCLK_PLL_ACK(0),
-				 XELPDP_LANE_PCLK_PLL_ACK(0),
-				 2, XE3PLPD_MACCLK_TURNON_LATENCY_MS, NULL))
+	if (intel_de_wait_ms(display, XELPDP_PORT_CLOCK_CTL(display, port),
+			     XELPDP_LANE_PCLK_PLL_ACK(0), XELPDP_LANE_PCLK_PLL_ACK(0),
+			     XE3PLPD_MACCLK_TURNON_LATENCY_MS, NULL))
 		drm_warn(display->drm, "PHY %c PLL MacCLK assertion ack not done\n",
 			 phy_name(phy));
 
@@ -1215,15 +1214,15 @@ intel_lt_phy_lane_reset(struct intel_encoder *encoder,
 	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port),
 		     lane_pipe_reset | lane_phy_pulse_status, 0);
 
-	if (intel_de_wait_custom(display, XELPDP_PORT_BUF_CTL2(display, port),
-				 lane_phy_current_status, 0,
-				 2, XE3PLPD_RESET_END_LATENCY_MS, NULL))
+	if (intel_de_wait_ms(display, XELPDP_PORT_BUF_CTL2(display, port),
+			     lane_phy_current_status, 0,
+			     XE3PLPD_RESET_END_LATENCY_MS, NULL))
 		drm_warn(display->drm, "PHY %c failed to bring out of lane reset\n",
 			 phy_name(phy));
 
-	if (intel_de_wait_custom(display, XELPDP_PORT_BUF_CTL2(display, port),
-				 lane_phy_pulse_status, lane_phy_pulse_status,
-				 2, XE3PLPD_RATE_CALIB_DONE_LATENCY_MS, NULL))
+	if (intel_de_wait_ms(display, XELPDP_PORT_BUF_CTL2(display, port),
+			     lane_phy_pulse_status, lane_phy_pulse_status,
+			     XE3PLPD_RATE_CALIB_DONE_LATENCY_MS, NULL))
 		drm_warn(display->drm, "PHY %c PLL rate not changed\n",
 			 phy_name(phy));
 
@@ -2002,10 +2001,9 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 			     XELPDP_LANE_PCLK_PLL_REQUEST(0));
 
 		/* 12. Poll for PORT_CLOCK_CTL[PCLK PLL Ack LN0]= 1. */
-		if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, port),
-					 XELPDP_LANE_PCLK_PLL_ACK(0),
-					 XELPDP_LANE_PCLK_PLL_ACK(0),
-					 2, XE3PLPD_MACCLK_TURNON_LATENCY_MS, NULL))
+		if (intel_de_wait_ms(display, XELPDP_PORT_CLOCK_CTL(display, port),
+				     XELPDP_LANE_PCLK_PLL_ACK(0), XELPDP_LANE_PCLK_PLL_ACK(0),
+				     XE3PLPD_MACCLK_TURNON_LATENCY_MS, NULL))
 			drm_warn(display->drm, "PHY %c PLL MacCLK ack assertion timeout\n",
 				 phy_name(phy));
 
@@ -2031,9 +2029,9 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 				   rate_update, MB_WRITE_COMMITTED);
 
 		/* 16. Poll for PORT_BUF_CTL2 register PHY Pulse Status = 1 for Owned PHY Lanes. */
-		if (intel_de_wait_custom(display, XELPDP_PORT_BUF_CTL2(display, port),
-					 lane_phy_pulse_status, lane_phy_pulse_status,
-					 2, XE3PLPD_RATE_CALIB_DONE_LATENCY_MS, NULL))
+		if (intel_de_wait_ms(display, XELPDP_PORT_BUF_CTL2(display, port),
+				     lane_phy_pulse_status, lane_phy_pulse_status,
+				     XE3PLPD_RATE_CALIB_DONE_LATENCY_MS, NULL))
 			drm_warn(display->drm, "PHY %c PLL rate not changed\n",
 				 phy_name(phy));
 
