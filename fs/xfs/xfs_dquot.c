@@ -31,7 +31,7 @@
  *
  * ip->i_lock
  *   qi->qi_tree_lock
- *     dquot->q_qlock (xfs_dqlock() and friends)
+ *     dquot->q_qlock
  *       dquot->q_flush (xfs_dqflock() and friends)
  *       qi->qi_lru_lock
  *
@@ -816,9 +816,9 @@ restart:
 		return NULL;
 	}
 
-	xfs_dqlock(dqp);
+	mutex_lock(&dqp->q_qlock);
 	if (dqp->q_flags & XFS_DQFLAG_FREEING) {
-		xfs_dqunlock(dqp);
+		mutex_unlock(&dqp->q_qlock);
 		mutex_unlock(&qi->qi_tree_lock);
 		trace_xfs_dqget_freeing(dqp);
 		delay(1);
@@ -865,7 +865,7 @@ xfs_qm_dqget_cache_insert(
 	}
 
 	/* Return a locked dquot to the caller, with a reference taken. */
-	xfs_dqlock(dqp);
+	mutex_lock(&dqp->q_qlock);
 	dqp->q_nrefs = 1;
 	qi->qi_dquots++;
 
@@ -1051,7 +1051,7 @@ restart:
 		if (dqp1) {
 			xfs_qm_dqdestroy(dqp);
 			dqp = dqp1;
-			xfs_dqlock(dqp);
+			mutex_lock(&dqp->q_qlock);
 			goto dqret;
 		}
 	} else {
@@ -1136,7 +1136,7 @@ xfs_qm_dqput(
 		if (list_lru_add_obj(&qi->qi_lru, &dqp->q_lru))
 			XFS_STATS_INC(dqp->q_mount, xs_qm_dquot_unused);
 	}
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 }
 
 /*
@@ -1152,7 +1152,7 @@ xfs_qm_dqrele(
 
 	trace_xfs_dqrele(dqp);
 
-	xfs_dqlock(dqp);
+	mutex_lock(&dqp->q_qlock);
 	/*
 	 * We don't care to flush it if the dquot is dirty here.
 	 * That will create stutters that we want to avoid.

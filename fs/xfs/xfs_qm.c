@@ -128,7 +128,7 @@ xfs_qm_dqpurge(
 	struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
 	int			error = -EAGAIN;
 
-	xfs_dqlock(dqp);
+	mutex_lock(&dqp->q_qlock);
 	if ((dqp->q_flags & XFS_DQFLAG_FREEING) || dqp->q_nrefs != 0)
 		goto out_unlock;
 
@@ -177,7 +177,7 @@ out_funlock:
 		!test_bit(XFS_LI_IN_AIL, &dqp->q_logitem.qli_item.li_flags));
 
 	xfs_dqfunlock(dqp);
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 
 	radix_tree_delete(xfs_dquot_tree(qi, xfs_dquot_type(dqp)), dqp->q_id);
 	qi->qi_dquots--;
@@ -194,7 +194,7 @@ out_funlock:
 	return 0;
 
 out_unlock:
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 	return error;
 }
 
@@ -329,7 +329,7 @@ xfs_qm_dqattach_one(
 	 * that the dquot returned is the one that should go in the inode.
 	 */
 	*IO_idqpp = dqp;
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 	return 0;
 }
 
@@ -468,7 +468,7 @@ xfs_qm_dquot_isolate(
 	struct xfs_qm_isolate	*isol = arg;
 	enum lru_status		ret = LRU_SKIP;
 
-	if (!xfs_dqlock_nowait(dqp))
+	if (!mutex_trylock(&dqp->q_qlock))
 		goto out_miss_busy;
 
 	/*
@@ -494,7 +494,7 @@ xfs_qm_dquot_isolate(
 	 * the freelist and try again.
 	 */
 	if (dqp->q_nrefs) {
-		xfs_dqunlock(dqp);
+		mutex_unlock(&dqp->q_qlock);
 		XFS_STATS_INC(dqp->q_mount, xs_qm_dqwants);
 
 		trace_xfs_dqreclaim_want(dqp);
@@ -519,7 +519,7 @@ xfs_qm_dquot_isolate(
 	 * Prevent lookups now that we are past the point of no return.
 	 */
 	dqp->q_flags |= XFS_DQFLAG_FREEING;
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 
 	ASSERT(dqp->q_nrefs == 0);
 	list_lru_isolate_move(lru, &dqp->q_lru, &isol->dispose);
@@ -529,7 +529,7 @@ xfs_qm_dquot_isolate(
 	return LRU_REMOVED;
 
 out_miss_unlock:
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 out_miss_busy:
 	trace_xfs_dqreclaim_busy(dqp);
 	XFS_STATS_INC(dqp->q_mount, xs_qm_dqreclaim_misses);
@@ -1467,7 +1467,7 @@ xfs_qm_flush_one(
 	struct xfs_buf		*bp = NULL;
 	int			error = 0;
 
-	xfs_dqlock(dqp);
+	mutex_lock(&dqp->q_qlock);
 	if (dqp->q_flags & XFS_DQFLAG_FREEING)
 		goto out_unlock;
 	if (!XFS_DQ_IS_DIRTY(dqp))
@@ -1489,7 +1489,7 @@ xfs_qm_flush_one(
 		xfs_buf_delwri_queue(bp, buffer_list);
 	xfs_buf_relse(bp);
 out_unlock:
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 	return error;
 }
 
@@ -1952,7 +1952,7 @@ xfs_qm_vop_dqalloc(
 			/*
 			 * Get the ilock in the right order.
 			 */
-			xfs_dqunlock(uq);
+			mutex_unlock(&uq->q_qlock);
 			lockflags = XFS_ILOCK_SHARED;
 			xfs_ilock(ip, lockflags);
 		} else {
@@ -1974,7 +1974,7 @@ xfs_qm_vop_dqalloc(
 				ASSERT(error != -ENOENT);
 				goto error_rele;
 			}
-			xfs_dqunlock(gq);
+			mutex_unlock(&gq->q_qlock);
 			lockflags = XFS_ILOCK_SHARED;
 			xfs_ilock(ip, lockflags);
 		} else {
@@ -1992,7 +1992,7 @@ xfs_qm_vop_dqalloc(
 				ASSERT(error != -ENOENT);
 				goto error_rele;
 			}
-			xfs_dqunlock(pq);
+			mutex_unlock(&pq->q_qlock);
 			lockflags = XFS_ILOCK_SHARED;
 			xfs_ilock(ip, lockflags);
 		} else {
@@ -2079,7 +2079,7 @@ xfs_qm_vop_chown(
 	 * back now.
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	xfs_dqlock(prevdq);
+	mutex_lock(&prevdq->q_qlock);
 	if (isrt) {
 		ASSERT(prevdq->q_rtb.reserved >= ip->i_delayed_blks);
 		prevdq->q_rtb.reserved -= ip->i_delayed_blks;
@@ -2087,7 +2087,7 @@ xfs_qm_vop_chown(
 		ASSERT(prevdq->q_blk.reserved >= ip->i_delayed_blks);
 		prevdq->q_blk.reserved -= ip->i_delayed_blks;
 	}
-	xfs_dqunlock(prevdq);
+	mutex_unlock(&prevdq->q_qlock);
 
 	/*
 	 * Take an extra reference, because the inode is going to keep

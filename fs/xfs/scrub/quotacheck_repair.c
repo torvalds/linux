@@ -53,9 +53,9 @@ xqcheck_commit_dquot(
 	int			error = 0;
 
 	/* Unlock the dquot just long enough to allocate a transaction. */
-	xfs_dqunlock(dq);
+	mutex_unlock(&dq->q_qlock);
 	error = xchk_trans_alloc(xqc->sc, 0);
-	xfs_dqlock(dq);
+	mutex_lock(&dq->q_qlock);
 	if (error)
 		return error;
 
@@ -122,7 +122,7 @@ xqcheck_commit_dquot(
 	 * dquot).
 	 */
 	error = xrep_trans_commit(xqc->sc);
-	xfs_dqlock(dq);
+	mutex_lock(&dq->q_qlock);
 	return error;
 
 out_unlock:
@@ -131,7 +131,7 @@ out_cancel:
 	xchk_trans_cancel(xqc->sc);
 
 	/* Re-lock the dquot so the caller can put the reference. */
-	xfs_dqlock(dq);
+	mutex_lock(&dq->q_qlock);
 	return error;
 }
 

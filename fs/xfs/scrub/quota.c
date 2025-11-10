@@ -158,9 +158,9 @@ xchk_quota_item(
 	 * However, dqiterate gave us a locked dquot, so drop the dquot lock to
 	 * get the ILOCK.
 	 */
-	xfs_dqunlock(dq);
+	mutex_unlock(&dq->q_qlock);
 	xchk_ilock(sc, XFS_ILOCK_SHARED);
-	xfs_dqlock(dq);
+	mutex_lock(&dq->q_qlock);
 
 	/*
 	 * Except for the root dquot, the actual dquot we got must either have

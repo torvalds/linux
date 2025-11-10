@@ -303,13 +303,13 @@ xfs_qm_scall_setqlim(
 	}
 
 	defq = xfs_get_defquota(q, xfs_dquot_type(dqp));
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_setqlim, 0, 0, 0, &tp);
 	if (error)
 		goto out_rele;
 
-	xfs_dqlock(dqp);
+	mutex_lock(&dqp->q_qlock);
 	xfs_trans_dqjoin(tp, dqp);
 
 	/*

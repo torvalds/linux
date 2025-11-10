@@ -187,9 +187,9 @@ xrep_quota_item(
 	 * dqiterate gave us a locked dquot, so drop the dquot lock to get the
 	 * ILOCK_EXCL.
 	 */
-	xfs_dqunlock(dq);
+	mutex_unlock(&dq->q_qlock);
 	xchk_ilock(sc, XFS_ILOCK_EXCL);
-	xfs_dqlock(dq);
+	mutex_lock(&dq->q_qlock);
 
 	error = xrep_quota_item_bmap(sc, dq, &dirty);
 	xchk_iunlock(sc, XFS_ILOCK_EXCL);
@@ -258,7 +258,7 @@ xrep_quota_item(
 	}
 	xfs_trans_log_dquot(sc->tp, dq);
 	error = xfs_trans_roll(&sc->tp);
-	xfs_dqlock(dq);
+	mutex_lock(&dq->q_qlock);
 	return error;
 }
 
