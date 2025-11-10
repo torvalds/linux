@@ -67,7 +67,7 @@
 //! ```
 //!
 //! ```rust
-//! # #![expect(unreachable_pub, clippy::disallowed_names)]
+//! # #![expect(clippy::disallowed_names)]
 //! use kernel::{prelude::*, types::Opaque};
 //! use core::{ptr::addr_of_mut, marker::PhantomPinned, pin::Pin};
 //! # mod bindings {
