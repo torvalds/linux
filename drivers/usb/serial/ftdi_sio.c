@@ -1311,7 +1311,8 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 			     (product_id == FTDI_NDI_SPECTRA_SCU_PID)	||
 			     (product_id == FTDI_NDI_FUTURE_2_PID)	||
 			     (product_id == FTDI_NDI_FUTURE_3_PID)	||
-			     (product_id == FTDI_NDI_AURORA_SCU_PID))	&&
+			     (product_id == FTDI_NDI_AURORA_SCU_PID)	||
+			     (product_id == FTDI_NDI_EMGUIDE_GEMINI_PID)) &&
 			    (baud == 19200)) {
 				baud = 1200000;
 			}
