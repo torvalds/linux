@@ -62,6 +62,8 @@ static __always_inline __must_check int __ns_ref_active_read(const struct ns_com
 
 static __always_inline __must_check bool __ns_ref_put(struct ns_common *ns)
 {
+	if (is_ns_init_id(ns))
+		return false;
 	if (refcount_dec_and_test(&ns->__ns_ref)) {
 		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns));
 		return true;
@@ -71,6 +73,8 @@ static __always_inline __must_check bool __ns_ref_put(struct ns_common *ns)
 
 static __always_inline __must_check bool __ns_ref_get(struct ns_common *ns)
 {
+	if (is_ns_init_id(ns))
+		return true;
 	if (refcount_inc_not_zero(&ns->__ns_ref))
 		return true;
 	VFS_WARN_ON_ONCE(__ns_ref_active_read(ns));
@@ -82,12 +86,27 @@ static __always_inline __must_check int __ns_ref_read(const struct ns_common *ns
 	return refcount_read(&ns->__ns_ref);
 }
 
+static __always_inline void __ns_ref_inc(struct ns_common *ns)
+{
+	if (is_ns_init_id(ns))
+		return;
+	refcount_inc(&ns->__ns_ref);
+}
+
+static __always_inline __must_check bool __ns_ref_dec_and_lock(struct ns_common *ns,
+							       spinlock_t *ns_lock)
+{
+	if (is_ns_init_id(ns))
+		return false;
+	return refcount_dec_and_lock(&ns->__ns_ref, ns_lock);
+}
+
 #define ns_ref_read(__ns) __ns_ref_read(to_ns_common((__ns)))
-#define ns_ref_inc(__ns) refcount_inc(&to_ns_common((__ns))->__ns_ref)
+#define ns_ref_inc(__ns) __ns_ref_inc(to_ns_common((__ns)))
 #define ns_ref_get(__ns) __ns_ref_get(to_ns_common((__ns)))
 #define ns_ref_put(__ns) __ns_ref_put(to_ns_common((__ns)))
-#define ns_ref_put_and_lock(__ns, __lock) \
-	refcount_dec_and_lock(&to_ns_common((__ns))->__ns_ref, (__lock))
+#define ns_ref_put_and_lock(__ns, __ns_lock) \
+	__ns_ref_dec_and_lock(to_ns_common((__ns)), __ns_lock)
 
 #define ns_ref_active_read(__ns) \
 	((__ns) ? __ns_ref_active_read(to_ns_common(__ns)) : 0)
