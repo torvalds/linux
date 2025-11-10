@@ -6,8 +6,6 @@
 
 #include "dp_mon.h"
 #include "debug.h"
-#include "wifi7/hal_qcn9274.h"
-#include "wifi7/dp_rx.h"
 #include "dp_tx.h"
 #include "peer.h"
 
@@ -205,7 +203,7 @@ static void ath12k_dp_mon_rx_msdus_set_payload(struct ath12k_base *ab,
 	skb_pull(head_msdu, total_offset);
 }
 
-static struct sk_buff *
+struct sk_buff *
 ath12k_dp_mon_rx_merg_msdus(struct ath12k_pdev_dp *dp_pdev,
 			    struct dp_mon_mpdu *mon_mpdu,
 			    struct hal_rx_mon_ppdu_info *ppdu_info,
@@ -333,6 +331,7 @@ err_merge_fail:
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(ath12k_dp_mon_rx_merg_msdus);
 
 static void
 ath12k_dp_mon_rx_update_radiotap_he(struct hal_rx_mon_ppdu_info *rx_status,
@@ -382,10 +381,10 @@ ath12k_dp_mon_rx_update_radiotap_he_mu(struct hal_rx_mon_ppdu_info *rx_status,
 	rtap_buf[rtap_len] = rx_status->he_RU[3];
 }
 
-static void ath12k_dp_mon_update_radiotap(struct ath12k_pdev_dp *dp_pdev,
-					  struct hal_rx_mon_ppdu_info *ppduinfo,
-					  struct sk_buff *mon_skb,
-					  struct ieee80211_rx_status *rxs)
+void ath12k_dp_mon_update_radiotap(struct ath12k_pdev_dp *dp_pdev,
+				   struct hal_rx_mon_ppdu_info *ppduinfo,
+				   struct sk_buff *mon_skb,
+				   struct ieee80211_rx_status *rxs)
 {
 	struct ath12k *ar = ath12k_pdev_dp_to_ar(dp_pdev);
 	struct ieee80211_supported_band *sband;
@@ -487,12 +486,13 @@ static void ath12k_dp_mon_update_radiotap(struct ath12k_pdev_dp *dp_pdev,
 
 	rxs->mactime = ppduinfo->tsft;
 }
+EXPORT_SYMBOL(ath12k_dp_mon_update_radiotap);
 
-static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
-					  struct napi_struct *napi,
-					  struct sk_buff *msdu,
-					  struct ieee80211_rx_status *status,
-					  u8 decap)
+void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
+				   struct napi_struct *napi,
+				   struct sk_buff *msdu,
+				   struct ieee80211_rx_status *status,
+				   u8 decap)
 {
 	struct ath12k_dp *dp = dp_pdev->dp;
 	struct ath12k_base *ab = dp->ab;
@@ -521,7 +521,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 		status->flag |= RX_FLAG_RADIOTAP_HE;
 	}
 
-	ath12k_wifi7_dp_extract_rx_desc_data(dp->hal, &rx_info, rx_desc, rx_desc);
+	ath12k_dp_extract_rx_desc_data(dp->hal, &rx_info, rx_desc, rx_desc);
 
 	rcu_read_lock();
 	spin_lock_bh(&dp->dp_lock);
@@ -581,62 +581,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 
 	ieee80211_rx_napi(ath12k_pdev_dp_to_hw(dp_pdev), pubsta, msdu, napi);
 }
-
-int ath12k_dp_mon_rx_deliver(struct ath12k_pdev_dp *dp_pdev,
-			     struct dp_mon_mpdu *mon_mpdu,
-			     struct hal_rx_mon_ppdu_info *ppduinfo,
-			     struct napi_struct *napi)
-{
-	struct sk_buff *mon_skb, *skb_next, *header;
-	struct ieee80211_rx_status *rxs = &dp_pdev->rx_status;
-	u8 decap = DP_RX_DECAP_TYPE_RAW;
-
-	mon_skb = ath12k_dp_mon_rx_merg_msdus(dp_pdev, mon_mpdu, ppduinfo, rxs);
-	if (!mon_skb)
-		goto mon_deliver_fail;
-
-	header = mon_skb;
-	rxs->flag = 0;
-
-	if (mon_mpdu->err_bitmap & HAL_RX_MPDU_ERR_FCS)
-		rxs->flag = RX_FLAG_FAILED_FCS_CRC;
-
-	do {
-		skb_next = mon_skb->next;
-		if (!skb_next)
-			rxs->flag &= ~RX_FLAG_AMSDU_MORE;
-		else
-			rxs->flag |= RX_FLAG_AMSDU_MORE;
-
-		if (mon_skb == header) {
-			header = NULL;
-			rxs->flag &= ~RX_FLAG_ALLOW_SAME_PN;
-		} else {
-			rxs->flag |= RX_FLAG_ALLOW_SAME_PN;
-		}
-		rxs->flag |= RX_FLAG_ONLY_MONITOR;
-
-		if (!(rxs->flag & RX_FLAG_ONLY_MONITOR))
-			decap = mon_mpdu->decap_format;
-
-		ath12k_dp_mon_update_radiotap(dp_pdev, ppduinfo, mon_skb, rxs);
-		ath12k_dp_mon_rx_deliver_msdu(dp_pdev, napi, mon_skb, rxs, decap);
-		mon_skb = skb_next;
-	} while (mon_skb);
-	rxs->flag = 0;
-
-	return 0;
-
-mon_deliver_fail:
-	mon_skb = mon_mpdu->head;
-	while (mon_skb) {
-		skb_next = mon_skb->next;
-		dev_kfree_skb_any(mon_skb);
-		mon_skb = skb_next;
-	}
-	return -EINVAL;
-}
-EXPORT_SYMBOL(ath12k_dp_mon_rx_deliver);
+EXPORT_SYMBOL(ath12k_dp_mon_rx_deliver_msdu);
 
 int ath12k_dp_pkt_set_pktlen(struct sk_buff *skb, u32 len)
 {
@@ -656,33 +601,6 @@ int ath12k_dp_pkt_set_pktlen(struct sk_buff *skb, u32 len)
 	return 0;
 }
 EXPORT_SYMBOL(ath12k_dp_pkt_set_pktlen);
-
-/* Hardware fill buffer with 128 bytes aligned. So need to reap it
- * with 128 bytes aligned.
- */
-#define RXDMA_DATA_DMA_BLOCK_SIZE 128
-
-void
-ath12k_dp_mon_get_buf_len(struct hal_rx_msdu_desc_info *info,
-			  bool *is_frag, u32 *total_len,
-			  u32 *frag_len, u32 *msdu_cnt)
-{
-	if (info->msdu_flags & RX_MSDU_DESC_INFO0_MSDU_CONTINUATION) {
-		*is_frag = true;
-		*frag_len = (RX_MON_STATUS_BASE_BUF_SIZE -
-			     sizeof(struct hal_rx_desc)) &
-			     ~(RXDMA_DATA_DMA_BLOCK_SIZE - 1);
-		*total_len += *frag_len;
-	} else {
-		if (*is_frag)
-			*frag_len = info->msdu_len - *total_len;
-		else
-			*frag_len = info->msdu_len;
-
-		*msdu_cnt -= 1;
-	}
-}
-EXPORT_SYMBOL(ath12k_dp_mon_get_buf_len);
 
 int
 ath12k_dp_mon_parse_status_buf(struct ath12k_pdev_dp *dp_pdev,

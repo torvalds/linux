@@ -524,7 +524,7 @@ static int ath12k_wifi7_dp_rx_process_msdu(struct ath12k_pdev_dp *dp_pdev,
 	rx_desc = (struct hal_rx_desc *)msdu->data;
 	lrx_desc = (struct hal_rx_desc *)last_buf->data;
 
-	ath12k_wifi7_dp_extract_rx_desc_data(hal, rx_info, rx_desc, lrx_desc);
+	ath12k_dp_extract_rx_desc_data(hal, rx_info, rx_desc, lrx_desc);
 	if (!rx_info->msdu_done) {
 		ath12k_warn(dp->ab, "msdu_done bit in msdu_end is not set\n");
 		ret = -EIO;
@@ -1035,7 +1035,7 @@ mic_fail:
 	(ATH12K_SKB_RXCB(msdu))->is_first_msdu = true;
 	(ATH12K_SKB_RXCB(msdu))->is_last_msdu = true;
 
-	ath12k_wifi7_dp_extract_rx_desc_data(hal, rx_info, rx_desc, rx_desc);
+	ath12k_dp_extract_rx_desc_data(hal, rx_info, rx_desc, rx_desc);
 
 	rxs->flag |= RX_FLAG_MMIC_ERROR | RX_FLAG_MMIC_STRIPPED |
 		    RX_FLAG_IV_STRIPPED | RX_FLAG_DECRYPTED;
@@ -1333,7 +1333,7 @@ ath12k_wifi7_dp_process_rx_err_buf(struct ath12k_pdev_dp *dp_pdev,
 	}
 
 	rx_desc = (struct hal_rx_desc *)msdu->data;
-	ath12k_wifi7_dp_extract_rx_desc_data(hal, &rx_info, rx_desc, rx_desc);
+	ath12k_dp_extract_rx_desc_data(hal, &rx_info, rx_desc, rx_desc);
 
 	msdu_len = rx_info.msdu_len;
 	if ((msdu_len + hal_rx_desc_sz) > DP_RX_BUFFER_SIZE) {
@@ -1714,7 +1714,7 @@ static void ath12k_wifi7_dp_rx_wbm_err(struct ath12k_pdev_dp *dp_pdev,
 	rx_info.addr2_present = false;
 	rx_info.rx_status = &rxs;
 
-	ath12k_wifi7_dp_extract_rx_desc_data(dp->hal, &rx_info, rx_desc, rx_desc);
+	ath12k_dp_extract_rx_desc_data(dp->hal, &rx_info, rx_desc, rx_desc);
 
 	switch (rxcb->err_rel_src) {
 	case HAL_WBM_REL_SRC_MODULE_REO:

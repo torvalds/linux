@@ -73,6 +73,16 @@ struct ath12k_base;
 #define HAL_RX_MAX_NSS         8
 #define HAL_RX_MAX_NUM_LEGACY_RATES 12
 
+#define HAL_RX_UL_OFDMA_USER_INFO_V0_W0_VALID		BIT(30)
+#define HAL_RX_UL_OFDMA_USER_INFO_V0_W0_VER		BIT(31)
+#define HAL_RX_UL_OFDMA_USER_INFO_V0_W1_NSS		GENMASK(2, 0)
+#define HAL_RX_UL_OFDMA_USER_INFO_V0_W1_MCS		GENMASK(6, 3)
+#define HAL_RX_UL_OFDMA_USER_INFO_V0_W1_LDPC		BIT(7)
+#define HAL_RX_UL_OFDMA_USER_INFO_V0_W1_DCM		BIT(8)
+#define HAL_RX_UL_OFDMA_USER_INFO_V0_W1_RU_START	GENMASK(15, 9)
+#define HAL_RX_UL_OFDMA_USER_INFO_V0_W1_RU_SIZE		GENMASK(18, 16)
+#define HAL_RX_FCS_LEN                          4
+
 enum hal_srng_ring_id {
 	HAL_SRNG_RING_ID_REO2SW0 = 0,
 	HAL_SRNG_RING_ID_REO2SW1,
@@ -595,6 +605,24 @@ struct hal_rx_eht_info {
 struct hal_rx_msdu_desc_info {
 	u32 msdu_flags;
 	u16 msdu_len; /* 14 bits for length */
+};
+
+/* hal_mon_buf_ring
+ *	Producer : SW
+ *	Consumer : Monitor
+ *
+ * paddr_lo
+ *	Lower 32-bit physical address of the buffer pointer from the source ring.
+ * paddr_hi
+ *	bit range 7-0 : upper 8 bit of the physical address.
+ *	bit range 31-8 : reserved.
+ * cookie
+ *	Consumer: RxMon/TxMon 64 bit cookie of the buffers.
+ */
+struct hal_mon_buf_ring {
+	__le32 paddr_lo;
+	__le32 paddr_hi;
+	__le64 cookie;
 };
 
 struct hal_rx_mon_ppdu_info {

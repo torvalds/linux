@@ -31,6 +31,32 @@ ath12k_wifi7_dp_mon_rx_memset_ppdu_info(struct hal_rx_mon_ppdu_info *ppdu_info)
 	ppdu_info->peer_id = HAL_INVALID_PEERID;
 }
 
+/* Hardware fill buffer with 128 bytes aligned. So need to reap it
+ * with 128 bytes aligned.
+ */
+#define RXDMA_DATA_DMA_BLOCK_SIZE 128
+
+static void
+ath12k_wifi7_dp_mon_get_buf_len(struct hal_rx_msdu_desc_info *info,
+				bool *is_frag, u32 *total_len,
+				u32 *frag_len, u32 *msdu_cnt)
+{
+	if (info->msdu_flags & RX_MSDU_DESC_INFO0_MSDU_CONTINUATION) {
+		*is_frag = true;
+		*frag_len = (RX_MON_STATUS_BASE_BUF_SIZE -
+			     sizeof(struct hal_rx_desc)) &
+			     ~(RXDMA_DATA_DMA_BLOCK_SIZE - 1);
+		*total_len += *frag_len;
+	} else {
+		if (*is_frag)
+			*frag_len = info->msdu_len - *total_len;
+		else
+			*frag_len = info->msdu_len;
+
+		*msdu_cnt -= 1;
+	}
+}
+
 static void
 ath12k_wifi7_dp_mon_rx_handle_ofdma_info(const struct hal_rx_ppdu_end_user_stats *ppdu_end_user,
 					 struct hal_rx_user_status *rx_user_status)
@@ -2373,6 +2399,62 @@ ath12k_wifi7_dp_mon_tx_status_get_num_user(u16 tlv_tag,
 	return tlv_status;
 }
 
+static int
+ath12k_wifi7_dp_mon_rx_deliver(struct ath12k_pdev_dp *dp_pdev,
+			       struct dp_mon_mpdu *mon_mpdu,
+			       struct hal_rx_mon_ppdu_info *ppduinfo,
+			       struct napi_struct *napi)
+{
+	struct sk_buff *mon_skb, *skb_next, *header;
+	struct ieee80211_rx_status *rxs = &dp_pdev->rx_status;
+	u8 decap = DP_RX_DECAP_TYPE_RAW;
+
+	mon_skb = ath12k_dp_mon_rx_merg_msdus(dp_pdev, mon_mpdu, ppduinfo, rxs);
+	if (!mon_skb)
+		goto mon_deliver_fail;
+
+	header = mon_skb;
+	rxs->flag = 0;
+
+	if (mon_mpdu->err_bitmap & HAL_RX_MPDU_ERR_FCS)
+		rxs->flag = RX_FLAG_FAILED_FCS_CRC;
+
+	do {
+		skb_next = mon_skb->next;
+		if (!skb_next)
+			rxs->flag &= ~RX_FLAG_AMSDU_MORE;
+		else
+			rxs->flag |= RX_FLAG_AMSDU_MORE;
+
+		if (mon_skb == header) {
+			header = NULL;
+			rxs->flag &= ~RX_FLAG_ALLOW_SAME_PN;
+		} else {
+			rxs->flag |= RX_FLAG_ALLOW_SAME_PN;
+		}
+		rxs->flag |= RX_FLAG_ONLY_MONITOR;
+
+		if (!(rxs->flag & RX_FLAG_ONLY_MONITOR))
+			decap = mon_mpdu->decap_format;
+
+		ath12k_dp_mon_update_radiotap(dp_pdev, ppduinfo, mon_skb, rxs);
+		ath12k_dp_mon_rx_deliver_msdu(dp_pdev, napi, mon_skb, rxs, decap);
+		mon_skb = skb_next;
+	} while (mon_skb);
+	rxs->flag = 0;
+
+	return 0;
+
+mon_deliver_fail:
+	mon_skb = mon_mpdu->head;
+	while (mon_skb) {
+		skb_next = mon_skb->next;
+		dev_kfree_skb_any(mon_skb);
+		mon_skb = skb_next;
+	}
+	return -EINVAL;
+}
+
 static void
 ath12k_wifi7_dp_mon_tx_process_ppdu_info(struct ath12k_pdev_dp *dp_pdev,
 					 struct napi_struct *napi,
@@ -2385,8 +2467,8 @@ ath12k_wifi7_dp_mon_tx_process_ppdu_info(struct ath12k_pdev_dp *dp_pdev,
 		list_del(&mon_mpdu->list);
 
 		if (mon_mpdu->head)
-			ath12k_dp_mon_rx_deliver(dp_pdev, mon_mpdu,
-						 &tx_ppdu_info->rx_status, napi);
+			ath12k_wifi7_dp_mon_rx_deliver(dp_pdev, mon_mpdu,
+						       &tx_ppdu_info->rx_status, napi);
 
 		kfree(mon_mpdu);
 	}
@@ -2606,9 +2688,9 @@ ath12k_wifi7_dp_rx_mon_mpdu_pop(struct ath12k *ar, int mac_id,
 				pmon->mon_last_linkdesc_paddr = paddr;
 				is_first_msdu = false;
 			}
-			ath12k_dp_mon_get_buf_len(&msdu_list.msdu_info[i],
-						  &is_frag, &total_len,
-						  &frag_len, &msdu_cnt);
+			ath12k_wifi7_dp_mon_get_buf_len(&msdu_list.msdu_info[i],
+							&is_frag, &total_len,
+							&frag_len, &msdu_cnt);
 			rx_buf_size = rx_pkt_offset + l2_hdr_offset + frag_len;
 
 			if (ath12k_dp_pkt_set_pktlen(msdu, rx_buf_size)) {
@@ -2748,8 +2830,8 @@ ath12k_wifi7_dp_rx_mon_dest_process(struct ath12k *ar, int mac_id,
 			tmp_mpdu->tail = tail_msdu;
 			tmp_mpdu->err_bitmap = pmon->err_bitmap;
 			tmp_mpdu->decap_format = pmon->decap_format;
-			ath12k_dp_mon_rx_deliver(&ar->dp, tmp_mpdu,
-						 &pmon->mon_ppdu_info, napi);
+			ath12k_wifi7_dp_mon_rx_deliver(&ar->dp, tmp_mpdu,
+						       &pmon->mon_ppdu_info, napi);
 			rx_mon_stats->dest_mpdu_done++;
 			kfree(tmp_mpdu);
 		}
@@ -2883,7 +2965,8 @@ ath12k_wifi7_dp_mon_rx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
 		list_del(&mon_mpdu->list);
 
 		if (mon_mpdu->head && mon_mpdu->tail)
-			ath12k_dp_mon_rx_deliver(dp_pdev, mon_mpdu, ppdu_info, napi);
+			ath12k_wifi7_dp_mon_rx_deliver(dp_pdev, mon_mpdu,
+						       ppdu_info, napi);
 
 		kfree(mon_mpdu);
 	}

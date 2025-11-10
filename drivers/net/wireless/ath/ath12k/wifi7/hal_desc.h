@@ -2681,25 +2681,6 @@ struct hal_tcl_entrance_from_ppe_ring {
 	__le32 info0;
 } __packed;
 
-struct hal_mon_buf_ring {
-	__le32 paddr_lo;
-	__le32 paddr_hi;
-	__le64 cookie;
-};
-
-/* hal_mon_buf_ring
- *	Producer : SW
- *	Consumer : Monitor
- *
- * paddr_lo
- *	Lower 32-bit physical address of the buffer pointer from the source ring.
- * paddr_hi
- *	bit range 7-0 : upper 8 bit of the physical address.
- *	bit range 31-8 : reserved.
- * cookie
- *	Consumer: RxMon/TxMon 64 bit cookie of the buffers.
- */
-
 #define HAL_MON_DEST_COOKIE_BUF_ID      GENMASK(17, 0)
 
 #define HAL_MON_DEST_INFO0_END_OFFSET		GENMASK(11, 0)

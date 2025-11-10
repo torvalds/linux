@@ -165,6 +165,15 @@ static inline void ath12k_dp_clean_up_skb_list(struct sk_buff_head *skb_list)
 		dev_kfree_skb_any(skb);
 }
 
+static inline
+void ath12k_dp_extract_rx_desc_data(struct ath12k_hal *hal,
+				    struct hal_rx_desc_data *rx_info,
+				    struct hal_rx_desc *rx_desc,
+				    struct hal_rx_desc *ldesc)
+{
+	hal->ops->extract_rx_desc_data(rx_info, rx_desc, ldesc);
+}
+
 void ath12k_dp_rx_h_undecap(struct ath12k_pdev_dp *dp_pdev, struct sk_buff *msdu,
 			    struct hal_rx_desc *rx_desc,
 			    enum hal_encrypt_type enctype,

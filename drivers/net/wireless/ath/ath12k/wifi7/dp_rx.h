@@ -52,12 +52,4 @@ int ath12k_wifi7_peer_rx_tid_reo_update(struct ath12k_dp *dp,
 bool
 ath12k_wifi7_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
 				  struct hal_rx_desc *rx_desc);
-static inline
-void ath12k_wifi7_dp_extract_rx_desc_data(struct ath12k_hal *hal,
-					  struct hal_rx_desc_data *rx_info,
-					  struct hal_rx_desc *rx_desc,
-					  struct hal_rx_desc *ldesc)
-{
-	hal->ops->extract_rx_desc_data(rx_info, rx_desc, ldesc);
-}
 #endif
