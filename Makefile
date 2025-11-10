@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 18
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc3
 NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*
@@ -1060,6 +1060,9 @@ NOSTDINC_FLAGS += -nostdinc
 # arrays. Enforce this for everything that may examine structure sizes and
 # perform bounds checking.
 KBUILD_CFLAGS += $(call cc-option, -fstrict-flex-arrays=3)
+
+# Allow including a tagged struct or union anonymously in another struct/union.
+KBUILD_CFLAGS += -fms-extensions
 
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= -fno-strict-overflow
