@@ -10135,6 +10135,30 @@ static inline int cfg80211_color_change_notify(struct net_device *dev,
 }
 
 /**
+ * cfg80211_6ghz_power_type - determine AP regulatory power type
+ * @control: control flags
+ *
+ * Return: regulatory power type from &enum ieee80211_ap_reg_power
+ */
+static inline enum ieee80211_ap_reg_power
+cfg80211_6ghz_power_type(u8 control)
+{
+	switch (u8_get_bits(control, IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
+	case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
+		return IEEE80211_REG_LPI_AP;
+	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD:
+		return IEEE80211_REG_SP_AP;
+	case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
+		return IEEE80211_REG_VLP_AP;
+	default:
+		return IEEE80211_REG_UNSET_AP;
+	}
+}
+
+/**
  * cfg80211_links_removed - Notify about removed STA MLD setup links.
  * @dev: network device.
  * @link_mask: BIT mask of removed STA MLD setup link IDs.

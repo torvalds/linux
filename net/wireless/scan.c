@@ -2230,20 +2230,7 @@ cfg80211_get_6ghz_power_type(const u8 *elems, size_t elems_len)
 	if (!he_6ghz_oper)
 		return IEEE80211_REG_UNSET_AP;
 
-	switch (u8_get_bits(he_6ghz_oper->control,
-			    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
-	case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
-		return IEEE80211_REG_LPI_AP;
-	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD:
-		return IEEE80211_REG_SP_AP;
-	case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
-		return IEEE80211_REG_VLP_AP;
-	default:
-		return IEEE80211_REG_UNSET_AP;
-	}
+	return cfg80211_6ghz_power_type(he_6ghz_oper->control);
 }
 
 static bool cfg80211_6ghz_power_type_valid(const u8 *elems, size_t elems_len,

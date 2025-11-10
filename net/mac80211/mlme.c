@@ -6034,24 +6034,6 @@ ieee80211_determine_our_sta_mode_assoc(struct ieee80211_sub_if_data *sdata,
 			       conn->bw_limit, tmp.bw_limit);
 }
 
-static enum ieee80211_ap_reg_power
-ieee80211_ap_power_type(u8 control)
-{
-	switch (u8_get_bits(control, IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
-	case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
-		return IEEE80211_REG_LPI_AP;
-	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD:
-		return IEEE80211_REG_SP_AP;
-	case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
-		return IEEE80211_REG_VLP_AP;
-	default:
-		return IEEE80211_REG_UNSET_AP;
-	}
-}
-
 static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_link_data *link,
 				  int link_id,
@@ -6094,7 +6076,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		he_6ghz_oper = ieee80211_he_6ghz_oper(elems->he_operation);
 		if (he_6ghz_oper)
 			link->conf->power_type =
-				ieee80211_ap_power_type(he_6ghz_oper->control);
+				cfg80211_6ghz_power_type(he_6ghz_oper->control);
 		else
 			link_info(link,
 				  "HE 6 GHz operation missing (on %d MHz), expect issues\n",
