@@ -504,22 +504,36 @@ enum iwl_link_modify_bandwidth {
 };
 
 /**
+ * enum iwl_npca_flags - NPCA flags
+ * @IWL_NPCA_FLAG_MAC_HDR_BASED: MAC header based NPCA operation
+ *	permitted in the BSS (MOPLEN)
+ */
+enum iwl_npca_flags {
+	IWL_NPCA_FLAG_MAC_HDR_BASED = BIT(0),
+}; /* NPCA_FLAG_E */
+
+/**
  * struct iwl_npca_params - NPCA parameters (non-primary channel access)
  *
+ * @dis_subch_bmap: disabled subchannel bitmap for NPCA
  * @switch_delay: after switch, delay TX according to destination AP
  * @switch_back_delay: switch back to control channel before OBSS frame end
+ * @initial_qsrc: Indicates the value that is used to initialize the
+ *	EDCAF QSRC[AC] variables
  * @min_dur_threshold: minimum PPDU time to switch to the non-primary
- *	NPCA channel
- * @flags: NPCA flags - bit 0: puncturing allowed, bit 1: new TX allowed
+ *	NPCA channel (usec)
+ * @flags: NPCA flags, see &enum iwl_npca_flags
  * @reserved: reserved for alignment purposes
  */
 struct iwl_npca_params {
+	__le16 dis_subch_bmap;
 	u8 switch_delay;
 	u8 switch_back_delay;
-	__le16 min_dur_threshold;
-	__le16 flags;
-	__le16 reserved;
-} __packed; /* NPCA_PARAM_API_S_VER_1 */
+	u8 initial_qsrc;
+	u8 min_dur_threshold;
+	u8 flags;
+	u8 reserved;
+} __packed; /* NPCA_PARAM_API_S_VER_2 */
 
 /**
  * struct iwl_link_config_cmd - command structure to configure the LINK context
@@ -630,7 +644,8 @@ struct iwl_link_config_cmd {
 	struct iwl_npca_params npca_params; /* since _VER_7 */
 	struct iwl_ac_qos prio_edca_params; /* since _VER_7 */
 	__le32 reserved3[4];
-} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4, _VER_5, _VER_6, _VER_7 */
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4,
+	     *				    _VER_5, _VER_6, _VER_7, _VER_8 */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.
