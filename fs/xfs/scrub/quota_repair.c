@@ -513,7 +513,8 @@ xrep_quota_problems(
 	xchk_dqiter_init(&cursor, sc, dqtype);
 	while ((error = xchk_dquot_iter(&cursor, &dq)) == 1) {
 		error = xrep_quota_item(&rqi, dq);
-		xfs_qm_dqput(dq);
+		mutex_unlock(&dq->q_qlock);
+		xfs_qm_dqrele(dq);
 		if (error)
 			break;
 	}

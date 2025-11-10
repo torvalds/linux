@@ -467,7 +467,8 @@ xfs_qm_scall_getquota(
 	xfs_qm_scall_getquota_fill_qc(mp, type, dqp, dst);
 
 out_put:
-	xfs_qm_dqput(dqp);
+	mutex_unlock(&dqp->q_qlock);
+	xfs_qm_dqrele(dqp);
 	return error;
 }
 
@@ -497,7 +498,8 @@ xfs_qm_scall_getquota_next(
 	*id = dqp->q_id;
 
 	xfs_qm_scall_getquota_fill_qc(mp, type, dqp, dst);
+	mutex_unlock(&dqp->q_qlock);
 
-	xfs_qm_dqput(dqp);
+	xfs_qm_dqrele(dqp);
 	return error;
 }

@@ -1105,44 +1105,15 @@ xfs_qm_dqget_next(
 			return 0;
 		}
 
-		xfs_qm_dqput(dqp);
+		mutex_unlock(&dqp->q_qlock);
+		xfs_qm_dqrele(dqp);
 	}
 
 	return error;
 }
 
 /*
- * Release a reference to the dquot (decrement ref-count) and unlock it.
- *
- * If there is a group quota attached to this dquot, carefully release that
- * too without tripping over deadlocks'n'stuff.
- */
-void
-xfs_qm_dqput(
-	struct xfs_dquot	*dqp)
-{
-	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-
-	trace_xfs_dqput(dqp);
-
-	if (lockref_put_or_lock(&dqp->q_lockref))
-		goto out_unlock;
-
-	if (!--dqp->q_lockref.count) {
-		struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
-		trace_xfs_dqput_free(dqp);
-
-		if (list_lru_add_obj(&qi->qi_lru, &dqp->q_lru))
-			XFS_STATS_INC(dqp->q_mount, xs_qm_dquot_unused);
-	}
-	spin_unlock(&dqp->q_lockref.lock);
-out_unlock:
-	mutex_unlock(&dqp->q_qlock);
-}
-
-/*
- * Release a dquot. Flush it if dirty, then dqput() it.
- * dquot must not be locked.
+ * Release a reference to the dquot.
  */
 void
 xfs_qm_dqrele(
@@ -1153,14 +1124,16 @@ xfs_qm_dqrele(
 
 	trace_xfs_dqrele(dqp);
 
-	mutex_lock(&dqp->q_qlock);
-	/*
-	 * We don't care to flush it if the dquot is dirty here.
-	 * That will create stutters that we want to avoid.
-	 * Instead we do a delayed write when we try to reclaim
-	 * a dirty dquot. Also xfs_sync will take part of the burden...
-	 */
-	xfs_qm_dqput(dqp);
+	if (lockref_put_or_lock(&dqp->q_lockref))
+		return;
+	if (!--dqp->q_lockref.count) {
+		struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
+
+		trace_xfs_dqrele_free(dqp);
+		if (list_lru_add_obj(&qi->qi_lru, &dqp->q_lru))
+			XFS_STATS_INC(dqp->q_mount, xs_qm_dquot_unused);
+	}
+	spin_unlock(&dqp->q_lockref.lock);
 }
 
 /*

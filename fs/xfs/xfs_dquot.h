@@ -218,7 +218,6 @@ int		xfs_qm_dqget_next(struct xfs_mount *mp, xfs_dqid_t id,
 int		xfs_qm_dqget_uncached(struct xfs_mount *mp,
 				xfs_dqid_t id, xfs_dqtype_t type,
 				struct xfs_dquot **dqpp);
-void		xfs_qm_dqput(struct xfs_dquot *dqp);
 
 void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);
 void		xfs_dqlockn(struct xfs_dqtrx *q);
