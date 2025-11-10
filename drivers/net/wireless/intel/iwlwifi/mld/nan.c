@@ -37,21 +37,18 @@ static int iwl_mld_nan_send_config_cmd(struct iwl_mld *mld,
 	return iwl_mld_send_cmd(mld, &hcmd);
 }
 
-int iwl_mld_start_nan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		      struct cfg80211_nan_conf *conf)
+static int iwl_mld_nan_config(struct iwl_mld *mld,
+			      struct ieee80211_vif *vif,
+			      struct cfg80211_nan_conf *conf,
+			      enum iwl_ctxt_action action)
 {
-	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-	struct iwl_mld_int_sta *aux_sta = &mld_vif->aux_sta;
 	struct iwl_nan_config_cmd cmd = {
-		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
+		.action = cpu_to_le32(action),
 	};
 	u8 *data __free(kfree) = NULL;
-	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
-
-	IWL_DEBUG_MAC80211(mld, "Start NAN: bands=0x%x\n", conf->bands);
 
 	ether_addr_copy(cmd.nmi_addr, vif->addr);
 	cmd.master_pref = conf->master_pref;
@@ -117,21 +114,50 @@ int iwl_mld_start_nan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			       conf->vendor_elems_len);
 	}
 
+	cmd.sta_id = mld_vif->aux_sta.sta_id;
+	return iwl_mld_nan_send_config_cmd(mld, &cmd, data,
+					   conf->extra_nan_attrs_len +
+					   conf->vendor_elems_len);
+}
+
+int iwl_mld_start_nan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct cfg80211_nan_conf *conf)
+{
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct iwl_mld_int_sta *aux_sta = &mld_vif->aux_sta;
+	int ret;
+
+	IWL_DEBUG_MAC80211(mld, "NAN: start: bands=0x%x\n", conf->bands);
+
 	ret = iwl_mld_add_aux_sta(mld, aux_sta);
 	if (ret)
 		return ret;
 
-	cmd.sta_id = aux_sta->sta_id;
-
-	ret = iwl_mld_nan_send_config_cmd(mld, &cmd, data,
-					  conf->extra_nan_attrs_len +
-					  conf->vendor_elems_len);
+	ret = iwl_mld_nan_config(mld, vif, conf, FW_CTXT_ACTION_ADD);
 	if (ret) {
 		IWL_ERR(mld, "Failed to start NAN. ret=%d\n", ret);
 		iwl_mld_remove_aux_sta(mld, vif);
 	}
 
 	return ret;
+}
+
+int iwl_mld_nan_change_config(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct cfg80211_nan_conf *conf,
+			      u32 changes)
+{
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+
+	IWL_DEBUG_MAC80211(mld, "NAN: change: changes=0x%x, bands=0x%x\n",
+			   changes, conf->bands);
+
+	/* Note that we do not use 'changes' as the FW always expects the
+	 * complete configuration, and mac80211 always provides the complete
+	 * configuration.
+	 */
+	return iwl_mld_nan_config(mld, vif, conf, FW_CTXT_ACTION_MODIFY);
 }
 
 int iwl_mld_stop_nan(struct ieee80211_hw *hw,
