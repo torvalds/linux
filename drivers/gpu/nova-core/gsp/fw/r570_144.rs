@@ -24,5 +24,8 @@
     unreachable_pub,
     unsafe_op_in_unsafe_fn
 )]
-use kernel::ffi;
+use kernel::{
+    ffi,
+    prelude::Zeroable, //
+};
 include!("r570_144/bindings.rs");
