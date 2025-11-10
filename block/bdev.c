@@ -217,9 +217,26 @@ int set_blocksize(struct file *file, int size)
 
 EXPORT_SYMBOL(set_blocksize);
 
+static int sb_validate_large_blocksize(struct super_block *sb, int size)
+{
+	const char *err_str = NULL;
+
+	if (!(sb->s_type->fs_flags & FS_LBS))
+		err_str = "not supported by filesystem";
+	else if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+		err_str = "is only supported with CONFIG_TRANSPARENT_HUGEPAGE";
+
+	if (!err_str)
+		return 0;
+
+	pr_warn_ratelimited("%s: block size(%d) > page size(%lu) %s\n",
+				sb->s_type->name, size, PAGE_SIZE, err_str);
+	return -EINVAL;
+}
+
 int sb_set_blocksize(struct super_block *sb, int size)
 {
-	if (!(sb->s_type->fs_flags & FS_LBS) && size > PAGE_SIZE)
+	if (size > PAGE_SIZE && sb_validate_large_blocksize(sb, size))
 		return 0;
 	if (set_blocksize(sb->s_bdev_file, size))
 		return 0;
