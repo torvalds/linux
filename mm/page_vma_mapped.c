@@ -16,6 +16,7 @@ static inline bool not_found(struct page_vma_mapped_walk *pvmw)
 static bool map_pte(struct page_vma_mapped_walk *pvmw, pmd_t *pmdvalp,
 		    spinlock_t **ptlp)
 {
+	bool is_migration;
 	pte_t ptent;
 
 	if (pvmw->flags & PVMW_SYNC) {
@@ -26,6 +27,7 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw, pmd_t *pmdvalp,
 		return !!pvmw->pte;
 	}
 
+	is_migration = pvmw->flags & PVMW_MIGRATION;
 again:
 	/*
 	 * It is important to return the ptl corresponding to pte,
@@ -41,11 +43,14 @@ again:
 
 	ptent = ptep_get(pvmw->pte);
 
-	if (pvmw->flags & PVMW_MIGRATION) {
-		if (!is_swap_pte(ptent))
+	if (pte_none(ptent)) {
+		return false;
+	} else if (pte_present(ptent)) {
+		if (is_migration)
 			return false;
-	} else if (is_swap_pte(ptent)) {
+	} else if (!is_migration) {
 		swp_entry_t entry;
+
 		/*
 		 * Handle un-addressable ZONE_DEVICE memory.
 		 *
@@ -66,8 +71,6 @@ again:
 		if (!is_device_private_entry(entry) &&
 		    !is_device_exclusive_entry(entry))
 			return false;
-	} else if (!pte_present(ptent)) {
-		return false;
 	}
 	spin_lock(*ptlp);
 	if (unlikely(!pmd_same(*pmdvalp, pmdp_get_lockless(pvmw->pmd)))) {
@@ -113,21 +116,17 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw, unsigned long pte_nr)
 			return false;
 
 		pfn = softleaf_to_pfn(entry);
-	} else if (is_swap_pte(ptent)) {
-		swp_entry_t entry;
+	} else if (pte_present(ptent)) {
+		pfn = pte_pfn(ptent);
+	} else {
+		const softleaf_t entry = softleaf_from_pte(ptent);
 
 		/* Handle un-addressable ZONE_DEVICE memory */
-		entry = pte_to_swp_entry(ptent);
-		if (!is_device_private_entry(entry) &&
-		    !is_device_exclusive_entry(entry))
+		if (!softleaf_is_device_private(entry) &&
+		    !softleaf_is_device_exclusive(entry))
 			return false;
 
-		pfn = swp_offset_pfn(entry);
-	} else {
-		if (!pte_present(ptent))
-			return false;
-
-		pfn = pte_pfn(ptent);
+		pfn = softleaf_to_pfn(entry);
 	}
 
 	if ((pfn + pte_nr - 1) < pvmw->pfn)

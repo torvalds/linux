@@ -185,12 +185,15 @@ static inline bool swap_cached_writable(swp_entry_t entry)
 	       is_writable_migration_entry(entry);
 }
 
-static inline void page_table_check_pte_flags(pte_t pte)
+static void page_table_check_pte_flags(pte_t pte)
 {
-	if (pte_present(pte) && pte_uffd_wp(pte))
-		WARN_ON_ONCE(pte_write(pte));
-	else if (is_swap_pte(pte) && pte_swp_uffd_wp(pte))
-		WARN_ON_ONCE(swap_cached_writable(pte_to_swp_entry(pte)));
+	if (pte_present(pte)) {
+		WARN_ON_ONCE(pte_uffd_wp(pte) && pte_write(pte));
+	} else if (pte_swp_uffd_wp(pte)) {
+		const swp_entry_t entry = pte_to_swp_entry(pte);
+
+		WARN_ON_ONCE(swap_cached_writable(entry));
+	}
 }
 
 void __page_table_check_ptes_set(struct mm_struct *mm, pte_t *ptep, pte_t pte,

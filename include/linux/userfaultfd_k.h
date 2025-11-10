@@ -441,9 +441,8 @@ static inline bool userfaultfd_wp_use_markers(struct vm_area_struct *vma)
 static inline bool pte_swp_uffd_wp_any(pte_t pte)
 {
 #ifdef CONFIG_PTE_MARKER_UFFD_WP
-	if (!is_swap_pte(pte))
+	if (pte_present(pte))
 		return false;
-
 	if (pte_swp_uffd_wp(pte))
 		return true;
 
