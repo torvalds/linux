@@ -128,20 +128,6 @@ void ath12k_dp_mon_parse_l_sig_b(const struct hal_rx_lsig_b_info *lsigb,
 void ath12k_dp_mon_parse_l_sig_a(const struct hal_rx_lsig_a_info *lsiga,
 				 struct hal_rx_mon_ppdu_info *ppdu_info);
 void
-ath12k_dp_mon_parse_he_sig_b2_ofdma(const struct hal_rx_he_sig_b2_ofdma_info *ofdma,
-				    struct hal_rx_mon_ppdu_info *ppdu_info);
-void
-ath12k_dp_mon_parse_he_sig_b2_mu(const struct hal_rx_he_sig_b2_mu_info *he_sig_b2_mu,
-				 struct hal_rx_mon_ppdu_info *ppdu_info);
-void ath12k_dp_mon_parse_he_sig_su(const struct hal_rx_he_sig_a_su_info *he_sig_a,
-				   struct hal_rx_mon_ppdu_info *ppdu_info);
-void
-ath12k_dp_mon_parse_he_sig_b1_mu(const struct hal_rx_he_sig_b1_mu_info *he_sig_b1_mu,
-				 struct hal_rx_mon_ppdu_info *ppdu_info);
-void
-ath12k_dp_mon_parse_he_sig_mu(const struct hal_rx_he_sig_a_mu_dl_info *he_sig_a_mu_dl,
-			      struct hal_rx_mon_ppdu_info *ppdu_info);
-void
 ath12k_dp_mon_hal_rx_parse_user_info(const struct hal_receive_user_info *rx_usr_info,
 				     u16 user_id,
 				     struct hal_rx_mon_ppdu_info *ppdu_info);
