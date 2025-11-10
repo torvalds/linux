@@ -210,6 +210,10 @@ static void qlt_queue_unknown_atio(scsi_qla_host_t *vha,
 	struct qla_tgt_sess_op *u;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 	unsigned long flags;
+	unsigned int add_cdb_len = 0;
+
+	/* atio must be the last member of qla_tgt_sess_op for add_cdb_len */
+	BUILD_BUG_ON(offsetof(struct qla_tgt_sess_op, atio) + sizeof(u->atio) != sizeof(*u));
 
 	if (tgt->tgt_stop) {
 		ql_dbg(ql_dbg_async, vha, 0x502c,
@@ -218,12 +222,17 @@ static void qlt_queue_unknown_atio(scsi_qla_host_t *vha,
 		goto out_term;
 	}
 
-	u = kzalloc(sizeof(*u), GFP_ATOMIC);
+	if (atio->u.raw.entry_type == ATIO_TYPE7 &&
+	    atio->u.isp24.fcp_cmnd.task_mgmt_flags == 0)
+		add_cdb_len =
+			((unsigned int) atio->u.isp24.fcp_cmnd.add_cdb_len) * 4;
+
+	u = kzalloc(sizeof(*u) + add_cdb_len, GFP_ATOMIC);
 	if (u == NULL)
 		goto out_term;
 
 	u->vha = vha;
-	memcpy(&u->atio, atio, sizeof(*atio));
+	memcpy(&u->atio, atio, sizeof(*atio) + add_cdb_len);
 	INIT_LIST_HEAD(&u->cmd_list);
 
 	spin_lock_irqsave(&vha->cmd_list_lock, flags);
@@ -3831,6 +3840,13 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 		qlt_decr_num_pend_cmds(cmd->vha);
 
 	BUG_ON(cmd->sg_mapped);
+
+	if (unlikely(cmd->cdb != &cmd->atio.u.isp24.fcp_cmnd.cdb[0])) {
+		kfree(cmd->cdb);
+		cmd->cdb = &cmd->atio.u.isp24.fcp_cmnd.cdb[0];
+		cmd->cdb_len = 16;
+	}
+
 	cmd->jiffies_at_free = get_jiffies_64();
 
 	if (!sess || !sess->se_sess) {
@@ -4130,7 +4146,6 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	struct qla_hw_data *ha = vha->hw;
 	struct fc_port *sess = cmd->sess;
 	struct atio_from_isp *atio = &cmd->atio;
-	unsigned char *cdb;
 	unsigned long flags;
 	uint32_t data_length;
 	int ret, fcp_task_attr, data_dir, bidi = 0;
@@ -4146,7 +4161,6 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 		goto out_term;
 	}
 
-	cdb = &atio->u.isp24.fcp_cmnd.cdb[0];
 	cmd->se_cmd.tag = le32_to_cpu(atio->u.isp24.exchange_addr);
 
 	if (atio->u.isp24.fcp_cmnd.rddata &&
@@ -4164,7 +4178,7 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	    atio->u.isp24.fcp_cmnd.task_attr);
 	data_length = get_datalen_for_atio(atio);
 
-	ret = ha->tgt.tgt_ops->handle_cmd(vha, cmd, cdb, data_length,
+	ret = ha->tgt.tgt_ops->handle_cmd(vha, cmd, cmd->cdb, data_length,
 				          fcp_task_attr, data_dir, bidi);
 	if (ret != 0)
 		goto out_term;
@@ -4185,6 +4199,11 @@ out_term:
 	qlt_send_term_exchange(qpair, NULL, &cmd->atio, 1);
 
 	qlt_decr_num_pend_cmds(vha);
+	if (unlikely(cmd->cdb != &cmd->atio.u.isp24.fcp_cmnd.cdb[0])) {
+		kfree(cmd->cdb);
+		cmd->cdb = &cmd->atio.u.isp24.fcp_cmnd.cdb[0];
+		cmd->cdb_len = 16;
+	}
 	cmd->vha->hw->tgt.tgt_ops->rel_cmd(cmd);
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
@@ -4308,18 +4327,43 @@ out:
 	cmd->se_cmd.cpuid = h->cpuid;
 }
 
+/*
+ * Safely make a fixed-length copy of a variable-length atio by truncating the
+ * CDB if necessary.
+ */
+static void memcpy_atio(struct atio_from_isp *dst,
+	const struct atio_from_isp *src)
+{
+	int len;
+
+	memcpy(dst, src, sizeof(*dst));
+
+	/*
+	 * If the CDB was truncated, prevent get_datalen_for_atio() from
+	 * accessing invalid memory.
+	 */
+	len = src->u.isp24.fcp_cmnd.add_cdb_len;
+	if (unlikely(len != 0)) {
+		dst->u.isp24.fcp_cmnd.add_cdb_len = 0;
+		memcpy(&dst->u.isp24.fcp_cmnd.add_cdb[0],
+		       &src->u.isp24.fcp_cmnd.add_cdb[len * 4],
+		       4);
+	}
+}
+
 static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 				       struct fc_port *sess,
 				       struct atio_from_isp *atio)
 {
 	struct qla_tgt_cmd *cmd;
+	int add_cdb_len;
 
 	cmd = vha->hw->tgt.tgt_ops->get_cmd(sess);
 	if (!cmd)
 		return NULL;
 
 	cmd->cmd_type = TYPE_TGT_CMD;
-	memcpy(&cmd->atio, atio, sizeof(*atio));
+	memcpy_atio(&cmd->atio, atio);
 	INIT_LIST_HEAD(&cmd->sess_cmd_list);
 	cmd->state = QLA_TGT_STATE_NEW;
 	cmd->tgt = vha->vha_tgt.qla_tgt;
@@ -4338,6 +4382,29 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	cmd->reset_count = vha->hw->base_qpair->chip_reset;
 	cmd->vp_idx = vha->vp_idx;
 	cmd->edif = sess->edif.enable;
+
+	cmd->cdb = &cmd->atio.u.isp24.fcp_cmnd.cdb[0];
+	cmd->cdb_len = 16;
+
+	/*
+	 * NOTE: memcpy_atio() set cmd->atio.u.isp24.fcp_cmnd.add_cdb_len to 0,
+	 * so use the original value here.
+	 */
+	add_cdb_len = atio->u.isp24.fcp_cmnd.add_cdb_len;
+	if (unlikely(add_cdb_len != 0)) {
+		int cdb_len = 16 + add_cdb_len * 4;
+		u8 *cdb;
+
+		cdb = kmalloc(cdb_len, GFP_ATOMIC);
+		if (unlikely(!cdb)) {
+			vha->hw->tgt.tgt_ops->free_cmd(cmd);
+			return NULL;
+		}
+		/* CAUTION: copy CDB from atio not cmd->atio */
+		memcpy(cdb, atio->u.isp24.fcp_cmnd.cdb, cdb_len);
+		cmd->cdb = cdb;
+		cmd->cdb_len = cdb_len;
+	}
 
 	return cmd;
 }
@@ -5486,13 +5553,15 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 
 	qlt_incr_num_pend_cmds(vha);
 	INIT_LIST_HEAD(&cmd->cmd_list);
-	memcpy(&cmd->atio, atio, sizeof(*atio));
+	memcpy_atio(&cmd->atio, atio);
 
 	cmd->tgt = vha->vha_tgt.qla_tgt;
 	cmd->vha = vha;
 	cmd->reset_count = ha->base_qpair->chip_reset;
 	cmd->q_full = 1;
 	cmd->qpair = ha->base_qpair;
+	cmd->cdb = &cmd->atio.u.isp24.fcp_cmnd.cdb[0];
+	cmd->cdb_len = 16;
 
 	if (qfull) {
 		cmd->q_full = 1;

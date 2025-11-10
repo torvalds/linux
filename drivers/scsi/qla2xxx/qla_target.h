@@ -830,11 +830,13 @@ struct qla_tgt {
 struct qla_tgt_sess_op {
 	struct scsi_qla_host *vha;
 	uint32_t chip_reset;
-	struct atio_from_isp atio;
 	struct work_struct work;
 	struct list_head cmd_list;
 	bool aborted;
 	struct rsp_que *rsp;
+
+	struct atio_from_isp atio;
+	/* DO NOT ADD ANYTHING ELSE HERE - atio must be last member */
 };
 
 enum trace_flags {
@@ -925,8 +927,9 @@ struct qla_tgt_cmd {
 	uint8_t scsi_status, sense_key, asc, ascq;
 
 	struct crc_context *ctx;
-	const uint8_t	*cdb;
+	uint8_t		*cdb;
 	uint64_t	lba;
+	int		cdb_len;
 	uint16_t	a_guard, e_guard, a_app_tag, e_app_tag;
 	uint32_t	a_ref_tag, e_ref_tag;
 #define DIF_BUNDL_DMA_VALID 1
