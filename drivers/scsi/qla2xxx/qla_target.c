@@ -1909,6 +1909,10 @@ static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
 	 * ABTS response. So, in it ID fields are reversed.
 	 */
 
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0xe082,
+	    "qla_target(%d): tag %u: Sending TERM EXCH CTIO for ABTS\n",
+	    vha->vp_idx, le32_to_cpu(entry->exchange_addr_to_abort));
+
 	ctio->entry_type = CTIO_TYPE7;
 	ctio->entry_count = 1;
 	ctio->nport_handle = entry->nport_handle;
@@ -3620,15 +3624,23 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 {
 	struct scsi_qla_host *vha = qpair->vha;
 	struct ctio7_to_24xx *ctio24;
-	struct qla_hw_data *ha = vha->hw;
 	request_t *pkt;
 	int ret = 0;
 	uint16_t temp;
 
-	ql_dbg(ql_dbg_tgt, vha, 0xe009, "Sending TERM EXCH CTIO (ha=%p)\n", ha);
-
 	if (cmd)
 		vha = cmd->vha;
+
+	if (cmd) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe009,
+		    "qla_target(%d): tag %lld: Sending TERM EXCH CTIO state %d cmd_sent_to_fw %u\n",
+		    vha->vp_idx, cmd->se_cmd.tag, cmd->state,
+		    cmd->cmd_sent_to_fw);
+	} else {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe009,
+		    "qla_target(%d): tag %u: Sending TERM EXCH CTIO (no cmd)\n",
+		    vha->vp_idx, le32_to_cpu(atio->u.isp24.exchange_addr));
+	}
 
 	pkt = (request_t *)qla2x00_alloc_iocbs_ready(qpair, NULL);
 	if (pkt == NULL) {
@@ -3920,6 +3932,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 	struct se_cmd *se_cmd;
 	struct qla_tgt_cmd *cmd;
 	struct qla_qpair *qpair = rsp->qpair;
+	uint16_t ctio_flags;
 
 	if (handle & CTIO_INTERMEDIATE_HANDLE_MARK) {
 		/* That could happen only in case of an error/reset/abort */
@@ -3931,11 +3944,28 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 		return;
 	}
 
-	cmd = qlt_ctio_to_cmd(vha, rsp, handle, ctio);
-	if (cmd == NULL)
-		return;
+	ctio_flags = le16_to_cpu(ctio->flags);
 
-	if ((le16_to_cpu(ctio->flags) & CTIO7_FLAGS_DATA_OUT) && cmd->sess)
+	cmd = qlt_ctio_to_cmd(vha, rsp, handle, ctio);
+	if (unlikely(cmd == NULL)) {
+		if ((handle & ~QLA_TGT_HANDLE_MASK) == QLA_TGT_SKIP_HANDLE &&
+		    (ctio_flags & 0xe1ff) == (CTIO7_FLAGS_STATUS_MODE_1 |
+		     CTIO7_FLAGS_TERMINATE)) {
+			u32 tag = le32_to_cpu(ctio->exchange_address);
+
+			if (status == CTIO_SUCCESS)
+				ql_dbg(ql_dbg_tgt_mgt, vha, 0xe083,
+				    "qla_target(%d): tag %u: term exchange successful\n",
+				    vha->vp_idx, tag);
+			else
+				ql_dbg(ql_dbg_tgt_mgt, vha, 0xe084,
+				    "qla_target(%d): tag %u: term exchange failed; status = 0x%x\n",
+				    vha->vp_idx, tag, status);
+		}
+		return;
+	}
+
+	if ((ctio_flags & CTIO7_FLAGS_DATA_OUT) && cmd->sess)
 		qlt_chk_edif_rx_sa_delete_pending(vha, cmd->sess, ctio);
 
 	se_cmd = &cmd->se_cmd;
