@@ -126,10 +126,6 @@ void
 ath12k_dp_mon_rx_populate_mu_user_info(const struct hal_rx_ppdu_end_user_stats *rx_tlv,
 				       struct hal_rx_mon_ppdu_info *ppdu_info,
 				       struct hal_rx_user_status *rx_user_status);
-void ath12k_dp_mon_parse_l_sig_b(const struct hal_rx_lsig_b_info *lsigb,
-				 struct hal_rx_mon_ppdu_info *ppdu_info);
-void ath12k_dp_mon_parse_l_sig_a(const struct hal_rx_lsig_a_info *lsiga,
-				 struct hal_rx_mon_ppdu_info *ppdu_info);
 void
 ath12k_dp_mon_hal_rx_parse_user_info(const struct hal_receive_user_info *rx_usr_info,
 				     u16 user_id,
@@ -137,7 +133,4 @@ ath12k_dp_mon_hal_rx_parse_user_info(const struct hal_receive_user_info *rx_usr_
 void
 ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
 				    const struct hal_rx_msdu_end *msdu_end);
-void
-ath12k_dp_mon_hal_rx_parse_u_sig_hdr(const struct hal_mon_usig_hdr *usig,
-				     struct hal_rx_mon_ppdu_info *ppdu_info);
 #endif

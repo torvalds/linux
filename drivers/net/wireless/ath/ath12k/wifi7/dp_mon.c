@@ -32,6 +32,270 @@ ath12k_wifi7_dp_mon_rx_memset_ppdu_info(struct hal_rx_mon_ppdu_info *ppdu_info)
 }
 
 static void
+ath12k_wifi7_dp_mon_parse_l_sig_b(const struct hal_rx_lsig_b_info *lsigb,
+				  struct hal_rx_mon_ppdu_info *ppdu_info)
+{
+	u32 info0 = __le32_to_cpu(lsigb->info0);
+	u8 rate;
+
+	rate = u32_get_bits(info0, HAL_RX_LSIG_B_INFO_INFO0_RATE);
+	switch (rate) {
+	case 1:
+		rate = HAL_RX_LEGACY_RATE_1_MBPS;
+		break;
+	case 2:
+	case 5:
+		rate = HAL_RX_LEGACY_RATE_2_MBPS;
+		break;
+	case 3:
+	case 6:
+		rate = HAL_RX_LEGACY_RATE_5_5_MBPS;
+		break;
+	case 4:
+	case 7:
+		rate = HAL_RX_LEGACY_RATE_11_MBPS;
+		break;
+	default:
+		rate = HAL_RX_LEGACY_RATE_INVALID;
+	}
+
+	ppdu_info->rate = rate;
+	ppdu_info->cck_flag = 1;
+}
+
+static void
+ath12k_wifi7_dp_mon_parse_l_sig_a(const struct hal_rx_lsig_a_info *lsiga,
+				  struct hal_rx_mon_ppdu_info *ppdu_info)
+{
+	u32 info0 = __le32_to_cpu(lsiga->info0);
+	u8 rate;
+
+	rate = u32_get_bits(info0, HAL_RX_LSIG_A_INFO_INFO0_RATE);
+	switch (rate) {
+	case 8:
+		rate = HAL_RX_LEGACY_RATE_48_MBPS;
+		break;
+	case 9:
+		rate = HAL_RX_LEGACY_RATE_24_MBPS;
+		break;
+	case 10:
+		rate = HAL_RX_LEGACY_RATE_12_MBPS;
+		break;
+	case 11:
+		rate = HAL_RX_LEGACY_RATE_6_MBPS;
+		break;
+	case 12:
+		rate = HAL_RX_LEGACY_RATE_54_MBPS;
+		break;
+	case 13:
+		rate = HAL_RX_LEGACY_RATE_36_MBPS;
+		break;
+	case 14:
+		rate = HAL_RX_LEGACY_RATE_18_MBPS;
+		break;
+	case 15:
+		rate = HAL_RX_LEGACY_RATE_9_MBPS;
+		break;
+	default:
+		rate = HAL_RX_LEGACY_RATE_INVALID;
+	}
+
+	ppdu_info->rate = rate;
+}
+
+static void
+ath12k_wifi7_dp_mon_hal_rx_parse_u_sig_cmn(const struct hal_mon_usig_cmn *cmn,
+					   struct hal_rx_mon_ppdu_info *ppdu_info)
+{
+	u32 common;
+
+	ppdu_info->u_sig_info.bw = le32_get_bits(cmn->info0,
+						 HAL_RX_USIG_CMN_INFO0_BW);
+	ppdu_info->u_sig_info.ul_dl = le32_get_bits(cmn->info0,
+						    HAL_RX_USIG_CMN_INFO0_UL_DL);
+
+	common = __le32_to_cpu(ppdu_info->u_sig_info.usig.common);
+	common |= IEEE80211_RADIOTAP_EHT_USIG_COMMON_PHY_VER_KNOWN |
+		  IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW_KNOWN |
+		  IEEE80211_RADIOTAP_EHT_USIG_COMMON_UL_DL_KNOWN |
+		  IEEE80211_RADIOTAP_EHT_USIG_COMMON_BSS_COLOR_KNOWN |
+		  IEEE80211_RADIOTAP_EHT_USIG_COMMON_TXOP_KNOWN |
+		  ATH12K_LE32_DEC_ENC(cmn->info0,
+				      HAL_RX_USIG_CMN_INFO0_PHY_VERSION,
+				      IEEE80211_RADIOTAP_EHT_USIG_COMMON_PHY_VER) |
+		  u32_encode_bits(ppdu_info->u_sig_info.bw,
+				  IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW) |
+		  u32_encode_bits(ppdu_info->u_sig_info.ul_dl,
+				  IEEE80211_RADIOTAP_EHT_USIG_COMMON_UL_DL) |
+		  ATH12K_LE32_DEC_ENC(cmn->info0,
+				      HAL_RX_USIG_CMN_INFO0_BSS_COLOR,
+				      IEEE80211_RADIOTAP_EHT_USIG_COMMON_BSS_COLOR) |
+		  ATH12K_LE32_DEC_ENC(cmn->info0,
+				      HAL_RX_USIG_CMN_INFO0_TXOP,
+				      IEEE80211_RADIOTAP_EHT_USIG_COMMON_TXOP);
+	ppdu_info->u_sig_info.usig.common = cpu_to_le32(common);
+
+	switch (ppdu_info->u_sig_info.bw) {
+	default:
+		fallthrough;
+	case HAL_EHT_BW_20:
+		ppdu_info->bw = HAL_RX_BW_20MHZ;
+		break;
+	case HAL_EHT_BW_40:
+		ppdu_info->bw = HAL_RX_BW_40MHZ;
+		break;
+	case HAL_EHT_BW_80:
+		ppdu_info->bw = HAL_RX_BW_80MHZ;
+		break;
+	case HAL_EHT_BW_160:
+		ppdu_info->bw = HAL_RX_BW_160MHZ;
+		break;
+	case HAL_EHT_BW_320_1:
+	case HAL_EHT_BW_320_2:
+		ppdu_info->bw = HAL_RX_BW_320MHZ;
+		break;
+	}
+}
+
+static void
+ath12k_wifi7_dp_mon_hal_rx_parse_u_sig_tb(const struct hal_mon_usig_tb *usig_tb,
+					  struct hal_rx_mon_ppdu_info *ppdu_info)
+{
+	struct ieee80211_radiotap_eht_usig *usig = &ppdu_info->u_sig_info.usig;
+	enum ieee80211_radiotap_eht_usig_tb spatial_reuse1, spatial_reuse2;
+	u32 common, value, mask;
+
+	spatial_reuse1 = IEEE80211_RADIOTAP_EHT_USIG2_TB_B3_B6_SPATIAL_REUSE_1;
+	spatial_reuse2 = IEEE80211_RADIOTAP_EHT_USIG2_TB_B7_B10_SPATIAL_REUSE_2;
+
+	common = __le32_to_cpu(usig->common);
+	value = __le32_to_cpu(usig->value);
+	mask = __le32_to_cpu(usig->mask);
+
+	ppdu_info->u_sig_info.ppdu_type_comp_mode =
+				le32_get_bits(usig_tb->info0,
+					      HAL_RX_USIG_TB_INFO0_PPDU_TYPE_COMP_MODE);
+
+	common |= ATH12K_LE32_DEC_ENC(usig_tb->info0,
+				      HAL_RX_USIG_TB_INFO0_RX_INTEG_CHECK_PASS,
+				      IEEE80211_RADIOTAP_EHT_USIG_COMMON_BAD_USIG_CRC);
+
+	value |= IEEE80211_RADIOTAP_EHT_USIG1_TB_B20_B25_DISREGARD |
+		 u32_encode_bits(ppdu_info->u_sig_info.ppdu_type_comp_mode,
+				 IEEE80211_RADIOTAP_EHT_USIG2_TB_B0_B1_PPDU_TYPE) |
+		 IEEE80211_RADIOTAP_EHT_USIG2_TB_B2_VALIDATE |
+		 ATH12K_LE32_DEC_ENC(usig_tb->info0,
+				     HAL_RX_USIG_TB_INFO0_SPATIAL_REUSE_1,
+				     spatial_reuse1) |
+		 ATH12K_LE32_DEC_ENC(usig_tb->info0,
+				     HAL_RX_USIG_TB_INFO0_SPATIAL_REUSE_2,
+				     spatial_reuse2) |
+		 IEEE80211_RADIOTAP_EHT_USIG2_TB_B11_B15_DISREGARD |
+		 ATH12K_LE32_DEC_ENC(usig_tb->info0,
+				     HAL_RX_USIG_TB_INFO0_CRC,
+				     IEEE80211_RADIOTAP_EHT_USIG2_TB_B16_B19_CRC) |
+		 ATH12K_LE32_DEC_ENC(usig_tb->info0,
+				     HAL_RX_USIG_TB_INFO0_TAIL,
+				     IEEE80211_RADIOTAP_EHT_USIG2_TB_B20_B25_TAIL);
+
+	mask |= IEEE80211_RADIOTAP_EHT_USIG1_TB_B20_B25_DISREGARD |
+		IEEE80211_RADIOTAP_EHT_USIG2_TB_B0_B1_PPDU_TYPE |
+		IEEE80211_RADIOTAP_EHT_USIG2_TB_B2_VALIDATE |
+		spatial_reuse1 | spatial_reuse2 |
+		IEEE80211_RADIOTAP_EHT_USIG2_TB_B11_B15_DISREGARD |
+		IEEE80211_RADIOTAP_EHT_USIG2_TB_B16_B19_CRC |
+		IEEE80211_RADIOTAP_EHT_USIG2_TB_B20_B25_TAIL;
+
+	usig->common = cpu_to_le32(common);
+	usig->value = cpu_to_le32(value);
+	usig->mask = cpu_to_le32(mask);
+}
+
+static void
+ath12k_wifi7_dp_mon_hal_rx_parse_u_sig_mu(const struct hal_mon_usig_mu *usig_mu,
+					  struct hal_rx_mon_ppdu_info *ppdu_info)
+{
+	struct ieee80211_radiotap_eht_usig *usig = &ppdu_info->u_sig_info.usig;
+	enum ieee80211_radiotap_eht_usig_mu sig_symb, punc;
+	u32 common, value, mask;
+
+	sig_symb = IEEE80211_RADIOTAP_EHT_USIG2_MU_B11_B15_EHT_SIG_SYMBOLS;
+	punc = IEEE80211_RADIOTAP_EHT_USIG2_MU_B3_B7_PUNCTURED_INFO;
+
+	common = __le32_to_cpu(usig->common);
+	value = __le32_to_cpu(usig->value);
+	mask = __le32_to_cpu(usig->mask);
+
+	ppdu_info->u_sig_info.ppdu_type_comp_mode =
+				le32_get_bits(usig_mu->info0,
+					      HAL_RX_USIG_MU_INFO0_PPDU_TYPE_COMP_MODE);
+	ppdu_info->u_sig_info.eht_sig_mcs =
+				le32_get_bits(usig_mu->info0,
+					      HAL_RX_USIG_MU_INFO0_EHT_SIG_MCS);
+	ppdu_info->u_sig_info.num_eht_sig_sym =
+				le32_get_bits(usig_mu->info0,
+					      HAL_RX_USIG_MU_INFO0_NUM_EHT_SIG_SYM);
+
+	common |= ATH12K_LE32_DEC_ENC(usig_mu->info0,
+				      HAL_RX_USIG_MU_INFO0_RX_INTEG_CHECK_PASS,
+				      IEEE80211_RADIOTAP_EHT_USIG_COMMON_BAD_USIG_CRC);
+
+	value |= IEEE80211_RADIOTAP_EHT_USIG1_MU_B20_B24_DISREGARD |
+		 IEEE80211_RADIOTAP_EHT_USIG1_MU_B25_VALIDATE |
+		 u32_encode_bits(ppdu_info->u_sig_info.ppdu_type_comp_mode,
+				 IEEE80211_RADIOTAP_EHT_USIG2_MU_B0_B1_PPDU_TYPE) |
+		 IEEE80211_RADIOTAP_EHT_USIG2_MU_B2_VALIDATE |
+		 ATH12K_LE32_DEC_ENC(usig_mu->info0,
+				     HAL_RX_USIG_MU_INFO0_PUNC_CH_INFO,
+				     punc) |
+		 IEEE80211_RADIOTAP_EHT_USIG2_MU_B8_VALIDATE |
+		 u32_encode_bits(ppdu_info->u_sig_info.eht_sig_mcs,
+				 IEEE80211_RADIOTAP_EHT_USIG2_MU_B9_B10_SIG_MCS) |
+		 u32_encode_bits(ppdu_info->u_sig_info.num_eht_sig_sym,
+				 sig_symb) |
+		 ATH12K_LE32_DEC_ENC(usig_mu->info0,
+				     HAL_RX_USIG_MU_INFO0_CRC,
+				     IEEE80211_RADIOTAP_EHT_USIG2_MU_B16_B19_CRC) |
+		 ATH12K_LE32_DEC_ENC(usig_mu->info0,
+				     HAL_RX_USIG_MU_INFO0_TAIL,
+				     IEEE80211_RADIOTAP_EHT_USIG2_MU_B20_B25_TAIL);
+
+	mask |= IEEE80211_RADIOTAP_EHT_USIG1_MU_B20_B24_DISREGARD |
+		IEEE80211_RADIOTAP_EHT_USIG1_MU_B25_VALIDATE |
+		IEEE80211_RADIOTAP_EHT_USIG2_MU_B0_B1_PPDU_TYPE |
+		IEEE80211_RADIOTAP_EHT_USIG2_MU_B2_VALIDATE |
+		punc |
+		IEEE80211_RADIOTAP_EHT_USIG2_MU_B8_VALIDATE |
+		IEEE80211_RADIOTAP_EHT_USIG2_MU_B9_B10_SIG_MCS |
+		sig_symb |
+		IEEE80211_RADIOTAP_EHT_USIG2_MU_B16_B19_CRC |
+		IEEE80211_RADIOTAP_EHT_USIG2_MU_B20_B25_TAIL;
+
+	usig->common = cpu_to_le32(common);
+	usig->value = cpu_to_le32(value);
+	usig->mask = cpu_to_le32(mask);
+}
+
+static void
+ath12k_wifi7_dp_mon_hal_rx_parse_u_sig_hdr(const struct hal_mon_usig_hdr *usig,
+					   struct hal_rx_mon_ppdu_info *ppdu_info)
+{
+	u8 comp_mode;
+
+	ppdu_info->eht_usig = true;
+
+	ath12k_wifi7_dp_mon_hal_rx_parse_u_sig_cmn(&usig->cmn, ppdu_info);
+
+	comp_mode = le32_get_bits(usig->non_cmn.mu.info0,
+				  HAL_RX_USIG_MU_INFO0_PPDU_TYPE_COMP_MODE);
+
+	if (comp_mode == 0 && ppdu_info->u_sig_info.ul_dl)
+		ath12k_wifi7_dp_mon_hal_rx_parse_u_sig_tb(&usig->non_cmn.tb, ppdu_info);
+	else
+		ath12k_wifi7_dp_mon_hal_rx_parse_u_sig_mu(&usig->non_cmn.mu, ppdu_info);
+}
+
+static void
 ath12k_wifi7_dp_mon_parse_vht_sig_a(const struct hal_rx_vht_sig_a_info *vht_sig,
 				    struct hal_rx_mon_ppdu_info *ppdu_info)
 {
@@ -956,11 +1220,11 @@ ath12k_wifi7_dp_mon_rx_parse_status_tlv(struct ath12k_pdev_dp *dp_pdev,
 		break;
 
 	case HAL_PHYRX_L_SIG_B:
-		ath12k_dp_mon_parse_l_sig_b(tlv_data, ppdu_info);
+		ath12k_wifi7_dp_mon_parse_l_sig_b(tlv_data, ppdu_info);
 		break;
 
 	case HAL_PHYRX_L_SIG_A:
-		ath12k_dp_mon_parse_l_sig_a(tlv_data, ppdu_info);
+		ath12k_wifi7_dp_mon_parse_l_sig_a(tlv_data, ppdu_info);
 		break;
 
 	case HAL_PHYRX_VHT_SIG_A:
@@ -1058,7 +1322,7 @@ ath12k_wifi7_dp_mon_rx_parse_status_tlv(struct ath12k_pdev_dp *dp_pdev,
 	case HAL_RX_MPDU_END:
 		return HAL_RX_MON_STATUS_MPDU_END;
 	case HAL_PHYRX_GENERIC_U_SIG:
-		ath12k_dp_mon_hal_rx_parse_u_sig_hdr(tlv_data, ppdu_info);
+		ath12k_wifi7_dp_mon_hal_rx_parse_u_sig_hdr(tlv_data, ppdu_info);
 		break;
 	case HAL_PHYRX_GENERIC_EHT_SIG:
 		/* Handle the case where aggregation is in progress
@@ -1621,11 +1885,11 @@ ath12k_wifi7_dp_mon_tx_parse_status_tlv(struct ath12k_base *ab,
 		break;
 
 	case HAL_MACTX_L_SIG_A:
-		ath12k_dp_mon_parse_l_sig_a(tlv_data, &tx_ppdu_info->rx_status);
+		ath12k_wifi7_dp_mon_parse_l_sig_a(tlv_data, &tx_ppdu_info->rx_status);
 		break;
 
 	case HAL_MACTX_L_SIG_B:
-		ath12k_dp_mon_parse_l_sig_b(tlv_data, &tx_ppdu_info->rx_status);
+		ath12k_wifi7_dp_mon_parse_l_sig_b(tlv_data, &tx_ppdu_info->rx_status);
 		break;
 
 	case HAL_RX_FRAME_BITMAP_ACK: {
