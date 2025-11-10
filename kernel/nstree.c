@@ -73,6 +73,91 @@ struct ns_tree time_ns_tree = {
 	.type = CLONE_NEWTIME,
 };
 
+/**
+ * ns_tree_node_init - Initialize a namespace tree node
+ * @node: The node to initialize
+ *
+ * Initializes both the rbtree node and list entry.
+ */
+void ns_tree_node_init(struct ns_tree_node *node)
+{
+	RB_CLEAR_NODE(&node->ns_node);
+	INIT_LIST_HEAD(&node->ns_list_entry);
+}
+
+/**
+ * ns_tree_root_init - Initialize a namespace tree root
+ * @root: The root to initialize
+ *
+ * Initializes both the rbtree root and list head.
+ */
+void ns_tree_root_init(struct ns_tree_root *root)
+{
+	root->ns_rb = RB_ROOT;
+	INIT_LIST_HEAD(&root->ns_list_head);
+}
+
+/**
+ * ns_tree_node_empty - Check if a namespace tree node is empty
+ * @node: The node to check
+ *
+ * Returns true if the node is not in any tree.
+ */
+bool ns_tree_node_empty(const struct ns_tree_node *node)
+{
+	return RB_EMPTY_NODE(&node->ns_node);
+}
+
+/**
+ * ns_tree_node_add - Add a node to a namespace tree
+ * @node: The node to add
+ * @root: The tree root to add to
+ * @cmp: Comparison function for rbtree insertion
+ *
+ * Adds the node to both the rbtree and the list, maintaining sorted order.
+ * The list is maintained in the same order as the rbtree to enable efficient
+ * iteration.
+ *
+ * Returns: NULL if insertion succeeded, existing node if duplicate found
+ */
+struct rb_node *ns_tree_node_add(struct ns_tree_node *node,
+				  struct ns_tree_root *root,
+				  int (*cmp)(struct rb_node *, const struct rb_node *))
+{
+	struct rb_node *ret, *prev;
+
+	/* Add to rbtree */
+	ret = rb_find_add_rcu(&node->ns_node, &root->ns_rb, cmp);
+
+	/* Add to list in sorted order */
+	prev = rb_prev(&node->ns_node);
+	if (!prev) {
+		/* No previous node, add at head */
+		list_add_rcu(&node->ns_list_entry, &root->ns_list_head);
+	} else {
+		/* Add after previous node */
+		struct ns_tree_node *prev_node;
+		prev_node = rb_entry(prev, struct ns_tree_node, ns_node);
+		list_add_rcu(&node->ns_list_entry, &prev_node->ns_list_entry);
+	}
+
+	return ret;
+}
+
+/**
+ * ns_tree_node_del - Remove a node from a namespace tree
+ * @node: The node to remove
+ * @root: The tree root to remove from
+ *
+ * Removes the node from both the rbtree and the list atomically.
+ */
+void ns_tree_node_del(struct ns_tree_node *node, struct ns_tree_root *root)
+{
+	rb_erase(&node->ns_node, &root->ns_rb);
+	RB_CLEAR_NODE(&node->ns_node);
+	list_bidir_del_rcu(&node->ns_list_entry);
+}
+
 static inline struct ns_common *node_to_ns(const struct rb_node *node)
 {
 	if (!node)

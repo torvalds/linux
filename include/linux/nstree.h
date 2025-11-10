@@ -22,6 +22,14 @@ extern struct ns_tree time_ns_tree;
 extern struct ns_tree user_ns_tree;
 extern struct ns_tree uts_ns_tree;
 
+void ns_tree_node_init(struct ns_tree_node *node);
+void ns_tree_root_init(struct ns_tree_root *root);
+bool ns_tree_node_empty(const struct ns_tree_node *node);
+struct rb_node *ns_tree_node_add(struct ns_tree_node *node,
+				  struct ns_tree_root *root,
+				  int (*cmp)(struct rb_node *, const struct rb_node *));
+void ns_tree_node_del(struct ns_tree_node *node, struct ns_tree_root *root);
+
 #define to_ns_tree(__ns)					\
 	_Generic((__ns),					\
 		struct cgroup_namespace *: &(cgroup_ns_tree),	\
