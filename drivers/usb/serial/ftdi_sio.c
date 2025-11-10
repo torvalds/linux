@@ -2230,9 +2230,10 @@ err_free:
 	return result;
 }
 
-/* Setup for the USB-UIRT device, which requires hardwired
- * baudrate (38400 gets mapped to 312500) */
-/* Called from usbserial:serial_probe */
+/*
+ * Setup for the USB-UIRT device, which requires hardwired baudrate
+ * (38400 gets mapped to 312500).
+ */
 static void ftdi_USB_UIRT_setup(struct ftdi_private *priv)
 {
 	priv->flags |= ASYNC_SPD_CUST;
@@ -2240,9 +2241,10 @@ static void ftdi_USB_UIRT_setup(struct ftdi_private *priv)
 	priv->force_baud = 38400;
 }
 
-/* Setup for the HE-TIRA1 device, which requires hardwired
- * baudrate (38400 gets mapped to 100000) and RTS-CTS enabled.  */
-
+/*
+ * Setup for the HE-TIRA1 device, which requires hardwired baudrate
+ * (38400 gets mapped to 100000) and RTS-CTS enabled.
+ */
 static void ftdi_HE_TIRA1_setup(struct ftdi_private *priv)
 {
 	priv->flags |= ASYNC_SPD_CUST;
@@ -2258,10 +2260,9 @@ static void ftdi_HE_TIRA1_setup(struct ftdi_private *priv)
  */
 static int ndi_latency_timer = 1;
 
-/* Setup for the NDI FTDI-based USB devices, which requires hardwired
+/*
+ * Setup for the NDI FTDI-based USB devices, which requires hardwired
  * baudrate (19200 gets mapped to 1200000).
- *
- * Called from usbserial:serial_probe.
  */
 static int ftdi_NDI_device_setup(struct usb_serial *serial)
 {
