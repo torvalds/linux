@@ -3,6 +3,7 @@
 #ifndef _LINUX_NSTREE_H
 #define _LINUX_NSTREE_H
 
+#include <linux/ns/nstree_types.h>
 #include <linux/nsproxy.h>
 #include <linux/rbtree.h>
 #include <linux/seqlock.h>
