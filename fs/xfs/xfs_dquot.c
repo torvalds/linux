@@ -994,7 +994,7 @@ xfs_qm_dqget_inode(
 	struct xfs_inode	*ip,
 	xfs_dqtype_t		type,
 	bool			can_alloc,
-	struct xfs_dquot	**O_dqpp)
+	struct xfs_dquot	**dqpp)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
@@ -1002,6 +1002,9 @@ xfs_qm_dqget_inode(
 	struct xfs_dquot	*dqp;
 	xfs_dqid_t		id;
 	int			error;
+
+	ASSERT(!*dqpp);
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 
 	error = xfs_qm_dqget_checks(mp, type);
 	if (error)
@@ -1068,8 +1071,8 @@ dqret:
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	trace_xfs_dqget_miss(dqp);
 found:
-	*O_dqpp = dqp;
-	mutex_lock(&dqp->q_qlock);
+	trace_xfs_dqattach_get(dqp);
+	*dqpp = dqp;
 	return 0;
 }
 

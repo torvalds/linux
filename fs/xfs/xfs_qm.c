@@ -287,40 +287,6 @@ xfs_qm_unmount_quotas(
 		xfs_qm_destroy_quotainos(mp->m_quotainfo);
 }
 
-STATIC int
-xfs_qm_dqattach_one(
-	struct xfs_inode	*ip,
-	xfs_dqtype_t		type,
-	bool			doalloc,
-	struct xfs_dquot	**IO_idqpp)
-{
-	struct xfs_dquot	*dqp;
-	int			error;
-
-	ASSERT(!*IO_idqpp);
-	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
-
-	/*
-	 * Find the dquot from somewhere. This bumps the reference count of
-	 * dquot and returns it locked.  This can return ENOENT if dquot didn't
-	 * exist on disk and we didn't ask it to allocate; ESRCH if quotas got
-	 * turned off suddenly.
-	 */
-	error = xfs_qm_dqget_inode(ip, type, doalloc, &dqp);
-	if (error)
-		return error;
-
-	trace_xfs_dqattach_get(dqp);
-
-	/*
-	 * dqget may have dropped and re-acquired the ilock, but it guarantees
-	 * that the dquot returned is the one that should go in the inode.
-	 */
-	*IO_idqpp = dqp;
-	mutex_unlock(&dqp->q_qlock);
-	return 0;
-}
-
 static bool
 xfs_qm_need_dqattach(
 	struct xfs_inode	*ip)
@@ -360,7 +326,7 @@ xfs_qm_dqattach_locked(
 	ASSERT(!xfs_is_metadir_inode(ip));
 
 	if (XFS_IS_UQUOTA_ON(mp) && !ip->i_udquot) {
-		error = xfs_qm_dqattach_one(ip, XFS_DQTYPE_USER,
+		error = xfs_qm_dqget_inode(ip, XFS_DQTYPE_USER,
 				doalloc, &ip->i_udquot);
 		if (error)
 			goto done;
@@ -368,7 +334,7 @@ xfs_qm_dqattach_locked(
 	}
 
 	if (XFS_IS_GQUOTA_ON(mp) && !ip->i_gdquot) {
-		error = xfs_qm_dqattach_one(ip, XFS_DQTYPE_GROUP,
+		error = xfs_qm_dqget_inode(ip, XFS_DQTYPE_GROUP,
 				doalloc, &ip->i_gdquot);
 		if (error)
 			goto done;
@@ -376,7 +342,7 @@ xfs_qm_dqattach_locked(
 	}
 
 	if (XFS_IS_PQUOTA_ON(mp) && !ip->i_pdquot) {
-		error = xfs_qm_dqattach_one(ip, XFS_DQTYPE_PROJ,
+		error = xfs_qm_dqget_inode(ip, XFS_DQTYPE_PROJ,
 				doalloc, &ip->i_pdquot);
 		if (error)
 			goto done;
