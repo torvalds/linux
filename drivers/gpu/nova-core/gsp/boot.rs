@@ -2,6 +2,8 @@
 
 use kernel::{
     device,
+    dma::CoherentAllocation,
+    dma_write,
     pci,
     prelude::*, //
 };
@@ -27,6 +29,7 @@ use crate::{
         FIRMWARE_VERSION, //
     },
     gpu::Chipset,
+    gsp::GspFwWprMeta,
     regs,
     vbios::Vbios,
 };
@@ -145,6 +148,10 @@ impl super::Gsp {
             sec2_falcon,
             bar,
         )?;
+
+        let wpr_meta =
+            CoherentAllocation::<GspFwWprMeta>::alloc_coherent(dev, 1, GFP_KERNEL | __GFP_ZERO)?;
+        dma_write!(wpr_meta[0] = GspFwWprMeta::new(&gsp_fw, &fb_layout))?;
 
         Ok(())
     }
