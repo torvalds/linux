@@ -9,6 +9,7 @@
 #include "../dp_tx.h"
 #include "hal_desc.h"
 #include "../dp_mon.h"
+#include "dp_mon.h"
 #include "../dp_cmn.h"
 #include "dp_rx.h"
 #include "dp.h"
@@ -66,8 +67,9 @@ static int ath12k_wifi7_dp_service_srng(struct ath12k_dp *dp,
 
 				if (ring_mask & BIT(id)) {
 					work_done =
-					ath12k_dp_mon_process_ring(dp, id, napi, budget,
-								   0);
+					ath12k_wifi7_dp_mon_process_ring(dp, id, napi,
+									 budget,
+									 0);
 					budget -= work_done;
 					tot_work_done += work_done;
 					if (budget <= 0)
@@ -86,8 +88,9 @@ static int ath12k_wifi7_dp_service_srng(struct ath12k_dp *dp,
 
 				if (ring_mask & BIT(id)) {
 					work_done =
-					ath12k_dp_mon_process_ring(dp, id, napi, budget,
-								   monitor_mode);
+					ath12k_wifi7_dp_mon_process_ring(dp, id, napi,
+									 budget,
+									 monitor_mode);
 					budget -= work_done;
 					tot_work_done += work_done;
 
@@ -107,8 +110,9 @@ static int ath12k_wifi7_dp_service_srng(struct ath12k_dp *dp,
 
 				if (ring_mask & BIT(id)) {
 					work_done =
-					ath12k_dp_mon_process_ring(dp, id, napi, budget,
-								   monitor_mode);
+					ath12k_wifi7_dp_mon_process_ring(dp, id,
+									 napi, budget,
+									 monitor_mode);
 					budget -= work_done;
 					tot_work_done += work_done;
 

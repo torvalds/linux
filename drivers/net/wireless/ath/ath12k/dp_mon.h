@@ -89,9 +89,6 @@ int ath12k_dp_mon_buf_replenish(struct ath12k_base *ab,
 int ath12k_dp_mon_status_bufs_replenish(struct ath12k_base *ab,
 					struct dp_rxdma_mon_ring *rx_ring,
 					int req_entries);
-int ath12k_dp_mon_process_ring(struct ath12k_dp *dp, int mac_id,
-			       struct napi_struct *napi, int budget,
-			       enum dp_monitor_mode monitor_mode);
 struct sk_buff *ath12k_dp_mon_tx_alloc_skb(void);
 enum dp_mon_tx_tlv_status
 ath12k_dp_mon_tx_status_get_num_user(u16 tlv_tag,
@@ -104,6 +101,18 @@ ath12k_dp_mon_tx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
 				  struct napi_struct *napi,
 				  u32 ppdu_id);
 void ath12k_dp_mon_rx_process_ulofdma(struct hal_rx_mon_ppdu_info *ppdu_info);
-int ath12k_dp_mon_srng_process(struct ath12k_pdev_dp *pdev_dp, int *budget,
-			       struct napi_struct *napi);
+enum hal_rx_mon_status
+ath12k_dp_mon_parse_rx_dest(struct ath12k_pdev_dp *dp_pdev, struct ath12k_mon_data *pmon,
+			    struct sk_buff *skb);
+int ath12k_dp_rx_reap_mon_status_ring(struct ath12k_base *ab, int mac_id,
+				      int *budget, struct sk_buff_head *skb_list);
+void ath12k_dp_rx_mon_dest_process(struct ath12k *ar, int mac_id,
+				   u32 quota, struct napi_struct *napi);
+void
+ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k_base *ab,
+				      struct hal_rx_mon_ppdu_info *ppdu_info);
+void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k_dp_link_peer *peer,
+					   struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_rx_memset_ppdu_info(struct hal_rx_mon_ppdu_info *ppdu_info);
 #endif
