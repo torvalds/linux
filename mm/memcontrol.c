@@ -757,7 +757,7 @@ static void mod_memcg_lruvec_state(struct lruvec *lruvec,
 }
 
 /**
- * __mod_lruvec_state - update lruvec memory statistics
+ * mod_lruvec_state - update lruvec memory statistics
  * @lruvec: the lruvec
  * @idx: the stat item
  * @val: delta to add to the counter, can be negative
@@ -766,7 +766,7 @@ static void mod_memcg_lruvec_state(struct lruvec *lruvec,
  * function updates the all three counters that are affected by a
  * change of state at this level: per-node, per-cgroup, per-lruvec.
  */
-void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
+void mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
 			int val)
 {
 	/* Update node */
@@ -794,7 +794,7 @@ void __lruvec_stat_mod_folio(struct folio *folio, enum node_stat_item idx,
 	}
 
 	lruvec = mem_cgroup_lruvec(memcg, pgdat);
-	__mod_lruvec_state(lruvec, idx, val);
+	mod_lruvec_state(lruvec, idx, val);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(__lruvec_stat_mod_folio);
@@ -818,7 +818,7 @@ void mod_lruvec_kmem_state(void *p, enum node_stat_item idx, int val)
 		mod_node_page_state(pgdat, idx, val);
 	} else {
 		lruvec = mem_cgroup_lruvec(memcg, pgdat);
-		__mod_lruvec_state(lruvec, idx, val);
+		mod_lruvec_state(lruvec, idx, val);
 	}
 	rcu_read_unlock();
 }
