@@ -38,7 +38,7 @@ static const struct regmap_config mpfs_clk_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
-	.max_register = REG_SUBBLK_CLOCK_CR,
+	.max_register = REG_SUBBLK_RESET_CR,
 };
 
 /*
@@ -502,7 +502,7 @@ static inline int mpfs_clk_old_format_probe(struct mpfs_clock_data *clk_data,
 	if (IS_ERR(clk_data->regmap))
 		return PTR_ERR(clk_data->regmap);
 
-	return mpfs_reset_controller_register(dev, clk_data->base + REG_SUBBLK_RESET_CR);
+	return mpfs_reset_controller_register(dev, clk_data->regmap);
 }
 
 static int mpfs_clk_probe(struct platform_device *pdev)
