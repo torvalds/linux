@@ -860,7 +860,6 @@ xfs_qm_dqget_cache_insert(
 	mutex_lock(&qi->qi_tree_lock);
 	error = radix_tree_insert(tree, id, dqp);
 	if (unlikely(error)) {
-		/* Duplicate found!  Caller must try again. */
 		trace_xfs_dqget_dup(dqp);
 		goto out_unlock;
 	}
@@ -935,13 +934,16 @@ restart:
 
 	error = xfs_qm_dqget_cache_insert(mp, qi, tree, id, dqp);
 	if (error) {
-		/*
-		 * Duplicate found. Just throw away the new dquot and start
-		 * over.
-		 */
 		xfs_qm_dqdestroy(dqp);
-		XFS_STATS_INC(mp, xs_qm_dquot_dups);
-		goto restart;
+		if (error == -EEXIST) {
+			/*
+			 * Duplicate found. Just throw away the new dquot and
+			 * start over.
+			 */
+			XFS_STATS_INC(mp, xs_qm_dquot_dups);
+			goto restart;
+		}
+		return error;
 	}
 
 	trace_xfs_dqget_miss(dqp);
@@ -1060,13 +1062,16 @@ restart:
 
 	error = xfs_qm_dqget_cache_insert(mp, qi, tree, id, dqp);
 	if (error) {
-		/*
-		 * Duplicate found. Just throw away the new dquot and start
-		 * over.
-		 */
 		xfs_qm_dqdestroy(dqp);
-		XFS_STATS_INC(mp, xs_qm_dquot_dups);
-		goto restart;
+		if (error == -EEXIST) {
+			/*
+			 * Duplicate found. Just throw away the new dquot and
+			 * start over.
+			 */
+			XFS_STATS_INC(mp, xs_qm_dquot_dups);
+			goto restart;
+		}
+		return error;
 	}
 
 dqret:
