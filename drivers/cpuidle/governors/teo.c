@@ -155,7 +155,7 @@ static DEFINE_PER_CPU(struct teo_cpu, teo_cpus);
  */
 static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
-	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
+	struct teo_cpu *cpu_data = this_cpu_ptr(&teo_cpus);
 	int i, idx_timer = 0, idx_duration = 0;
 	s64 target_residency_ns;
 	u64 measured_ns;
@@ -268,7 +268,7 @@ static int teo_find_shallower_state(struct cpuidle_driver *drv,
 static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		      bool *stop_tick)
 {
-	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
+	struct teo_cpu *cpu_data = this_cpu_ptr(&teo_cpus);
 	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
 	ktime_t delta_tick = TICK_NSEC / 2;
 	unsigned int idx_intercept_sum = 0;
@@ -504,7 +504,7 @@ out_tick:
  */
 static void teo_reflect(struct cpuidle_device *dev, int state)
 {
-	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
+	struct teo_cpu *cpu_data = this_cpu_ptr(&teo_cpus);
 
 	dev->last_state_idx = state;
 	if (dev->poll_time_limit ||
