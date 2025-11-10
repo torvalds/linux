@@ -730,8 +730,6 @@ static void record__sig_exit(void)
 	raise(signr);
 }
 
-#ifdef HAVE_AUXTRACE_SUPPORT
-
 static int record__process_auxtrace(const struct perf_tool *tool,
 				    struct mmap *map,
 				    union perf_event *event, void *data1,
@@ -888,40 +886,6 @@ static int record__auxtrace_init(struct record *rec)
 
 	return auxtrace_parse_filters(rec->evlist);
 }
-
-#else
-
-static inline
-int record__auxtrace_mmap_read(struct record *rec __maybe_unused,
-			       struct mmap *map __maybe_unused)
-{
-	return 0;
-}
-
-static inline
-void record__read_auxtrace_snapshot(struct record *rec __maybe_unused,
-				    bool on_exit __maybe_unused)
-{
-}
-
-static inline
-int auxtrace_record__snapshot_start(struct auxtrace_record *itr __maybe_unused)
-{
-	return 0;
-}
-
-static inline
-int record__auxtrace_snapshot_exit(struct record *rec __maybe_unused)
-{
-	return 0;
-}
-
-static int record__auxtrace_init(struct record *rec __maybe_unused)
-{
-	return 0;
-}
-
-#endif
 
 static int record__config_text_poke(struct evlist *evlist)
 {

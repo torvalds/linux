@@ -84,8 +84,6 @@ include ../scripts/utilities.mak
 #
 # Define NO_LZMA if you do not want to support compressed (xz) kernel modules
 #
-# Define NO_AUXTRACE if you do not want AUX area tracing support
-#
 # Define NO_LIBBPF if you do not want BPF support
 #
 # Define NO_LIBCAP if you do not want process capabilities considered by perf

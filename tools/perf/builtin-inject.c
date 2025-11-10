@@ -239,8 +239,6 @@ static int perf_event__repipe_event_update(const struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-#ifdef HAVE_AUXTRACE_SUPPORT
-
 static int copy_bytes(struct perf_inject *inject, struct perf_data *data, off_t size)
 {
 	char buf[4096];
@@ -296,19 +294,6 @@ static s64 perf_event__repipe_auxtrace(const struct perf_tool *tool,
 
 	return event->auxtrace.size;
 }
-
-#else
-
-static s64
-perf_event__repipe_auxtrace(const struct perf_tool *tool __maybe_unused,
-			    struct perf_session *session __maybe_unused,
-			    union perf_event *event __maybe_unused)
-{
-	pr_err("AUX area tracing not supported\n");
-	return -EINVAL;
-}
-
-#endif
 
 static int perf_event__repipe(const struct perf_tool *tool,
 			      union perf_event *event,

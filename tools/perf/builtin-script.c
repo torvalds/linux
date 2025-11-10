@@ -2000,7 +2000,6 @@ static int perf_sample__fprintf_synth_iflag_chg(struct perf_sample *sample, FILE
 	return len + perf_sample__fprintf_pt_spacing(len, fp);
 }
 
-#ifdef HAVE_AUXTRACE_SUPPORT
 static int perf_sample__fprintf_synth_vpadtl(struct perf_sample *data, FILE *fp)
 {
 	struct powerpc_vpadtl_entry *dtl = (struct powerpc_vpadtl_entry *)data->raw_data;
@@ -2019,13 +2018,6 @@ static int perf_sample__fprintf_synth_vpadtl(struct perf_sample *data, FILE *fp)
 
 	return len;
 }
-#else
-static int perf_sample__fprintf_synth_vpadtl(struct perf_sample *data __maybe_unused,
-		FILE *fp __maybe_unused)
-{
-	return 0;
-}
-#endif
 
 static int perf_sample__fprintf_synth(struct perf_sample *sample,
 				      struct evsel *evsel, FILE *fp)
@@ -3856,7 +3848,6 @@ static int process_feature_event(const struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-#ifdef HAVE_AUXTRACE_SUPPORT
 static int perf_script__process_auxtrace_info(const struct perf_tool *tool,
 					      struct perf_session *session,
 					      union perf_event *event)
@@ -3871,9 +3862,6 @@ static int perf_script__process_auxtrace_info(const struct perf_tool *tool,
 
 	return ret;
 }
-#else
-#define perf_script__process_auxtrace_info 0
-#endif
 
 static int parse_insn_trace(const struct option *opt __maybe_unused,
 			    const char *str, int unset __maybe_unused)

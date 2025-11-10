@@ -20,7 +20,6 @@ void perf_pmu__arch_init(struct perf_pmu *pmu)
 {
 	struct perf_cpu_map *intersect, *online = cpu_map__online();
 
-#ifdef HAVE_AUXTRACE_SUPPORT
 	if (!strcmp(pmu->name, CORESIGHT_ETM_PMU_NAME)) {
 		/* add ETM default config here */
 		pmu->auxtrace = true;
@@ -39,7 +38,6 @@ void perf_pmu__arch_init(struct perf_pmu *pmu)
 		pmu->selectable = true;
 #endif
 	}
-#endif
 	/* Workaround some ARM PMU's failing to correctly set CPU maps for online processors. */
 	intersect = perf_cpu_map__intersect(online, pmu->cpus);
 	perf_cpu_map__put(online);
