@@ -31,6 +31,32 @@
 #define INTEL_LT_PHY_BOTH_LANES		(INTEL_LT_PHY_LANE1 |\
 					 INTEL_LT_PHY_LANE0)
 #define MODE_DP				3
+#define Q32_TO_INT(x)	((x) >> 32)
+#define Q32_TO_FRAC(x)	((x) & 0xFFFFFFFF)
+#define DCO_MIN_FREQ_MHZ	11850
+#define REF_CLK_KHZ	38400
+#define TDC_RES_MULTIPLIER	10000000ULL
+
+struct phy_param_t {
+	u32 val;
+	u32 addr;
+};
+
+struct lt_phy_params {
+	struct phy_param_t pll_reg4;
+	struct phy_param_t pll_reg3;
+	struct phy_param_t pll_reg5;
+	struct phy_param_t pll_reg57;
+	struct phy_param_t lf;
+	struct phy_param_t tdc;
+	struct phy_param_t ssc;
+	struct phy_param_t bias2;
+	struct phy_param_t bias_trim;
+	struct phy_param_t dco_med;
+	struct phy_param_t dco_fine;
+	struct phy_param_t ssc_inj;
+	struct phy_param_t surv_bonus;
+};
 
 static const struct intel_lt_phy_pll_state xe3plpd_lt_dp_rbr = {
 	.clock = 162000,
@@ -1354,10 +1380,308 @@ intel_lt_phy_pll_is_ssc_enabled(struct intel_crtc_state *crtc_state,
 	return false;
 }
 
+static u64 mul_q32_u32(u64 a_q32, u32 b)
+{
+	u64 p0, p1, carry, result;
+	u64 x_hi = a_q32 >> 32;
+	u64 x_lo = a_q32 & 0xFFFFFFFFULL;
+
+	p0 = x_lo * (u64)b;
+	p1 = x_hi * (u64)b;
+	carry = p0 >> 32;
+	result = (p1 << 32) + (carry << 32) + (p0 & 0xFFFFFFFFULL);
+
+	return result;
+}
+
+static bool
+calculate_target_dco_and_loop_cnt(u32 frequency_khz, u64 *target_dco_mhz, u32 *loop_cnt)
+{
+	u32 ppm_value = 1;
+	u32 dco_min_freq = DCO_MIN_FREQ_MHZ;
+	u32 dco_max_freq = 16200;
+	u32 dco_min_freq_low = 10000;
+	u32 dco_max_freq_low = 12000;
+	u64 val = 0;
+	u64 refclk_khz = REF_CLK_KHZ;
+	u64 m2div = 0;
+	u64 val_with_frac = 0;
+	u64 ppm = 0;
+	u64 temp0 = 0, temp1, scale;
+	int ppm_cnt, dco_count, y;
+
+	for (ppm_cnt = 0; ppm_cnt < 5; ppm_cnt++) {
+		ppm_value = ppm_cnt == 2 ? 2 : 1;
+		for (dco_count = 0; dco_count < 2; dco_count++) {
+			if (dco_count == 1) {
+				dco_min_freq = dco_min_freq_low;
+				dco_max_freq = dco_max_freq_low;
+			}
+			for (y = 2; y <= 255; y += 2) {
+				val = div64_u64((u64)y * frequency_khz, 200);
+				m2div = div64_u64(((u64)(val) << 32), refclk_khz);
+				m2div = mul_q32_u32(m2div, 500);
+				val_with_frac = mul_q32_u32(m2div, refclk_khz);
+				val_with_frac = div64_u64(val_with_frac, 500);
+				temp1 = Q32_TO_INT(val_with_frac);
+				temp0 = (temp1 > val) ? (temp1 - val) :
+					(val - temp1);
+				ppm = div64_u64(temp0, val);
+				if (temp1 >= dco_min_freq &&
+				    temp1 <= dco_max_freq &&
+				    ppm < ppm_value) {
+					/* Round to two places */
+					scale = (1ULL << 32) / 100;
+					temp0 = DIV_ROUND_UP_ULL(val_with_frac,
+								 scale);
+					*target_dco_mhz = temp0 * scale;
+					*loop_cnt = y;
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+static void set_phy_vdr_addresses(struct lt_phy_params *p, int pll_type)
+{
+	p->pll_reg4.addr = PLL_REG_ADDR(PLL_REG4_ADDR, pll_type);
+	p->pll_reg3.addr = PLL_REG_ADDR(PLL_REG3_ADDR, pll_type);
+	p->pll_reg5.addr = PLL_REG_ADDR(PLL_REG5_ADDR, pll_type);
+	p->pll_reg57.addr = PLL_REG_ADDR(PLL_REG57_ADDR, pll_type);
+	p->lf.addr = PLL_REG_ADDR(PLL_LF_ADDR, pll_type);
+	p->tdc.addr = PLL_REG_ADDR(PLL_TDC_ADDR, pll_type);
+	p->ssc.addr = PLL_REG_ADDR(PLL_SSC_ADDR, pll_type);
+	p->bias2.addr = PLL_REG_ADDR(PLL_BIAS2_ADDR, pll_type);
+	p->bias_trim.addr = PLL_REG_ADDR(PLL_BIAS_TRIM_ADDR, pll_type);
+	p->dco_med.addr = PLL_REG_ADDR(PLL_DCO_MED_ADDR, pll_type);
+	p->dco_fine.addr = PLL_REG_ADDR(PLL_DCO_FINE_ADDR, pll_type);
+	p->ssc_inj.addr = PLL_REG_ADDR(PLL_SSC_INJ_ADDR, pll_type);
+	p->surv_bonus.addr = PLL_REG_ADDR(PLL_SURV_BONUS_ADDR, pll_type);
+}
+
+static void compute_ssc(struct lt_phy_params *p, u32 ana_cfg)
+{
+	int ssc_stepsize = 0;
+	int ssc_steplen = 0;
+	int ssc_steplog = 0;
+
+	p->ssc.val = (1 << 31) | (ana_cfg << 24) | (ssc_steplog << 16) |
+		(ssc_stepsize << 8) | ssc_steplen;
+}
+
+static void compute_bias2(struct lt_phy_params *p)
+{
+	u32 ssc_en_local = 0;
+	u64 dynctrl_ovrd_en = 0;
+
+	p->bias2.val = (dynctrl_ovrd_en << 31) | (ssc_en_local << 30) |
+		(1 << 23) | (1 << 24) | (32 << 16) | (1 << 8);
+}
+
+static void compute_tdc(struct lt_phy_params *p, u64 tdc_fine)
+{
+	u32 settling_time = 15;
+	u32 bias_ovr_en = 1;
+	u32 coldstart = 1;
+	u32 true_lock = 2;
+	u32 early_lock = 1;
+	u32 lock_ovr_en = 1;
+	u32 lock_thr = tdc_fine ? 3 : 5;
+	u32 unlock_thr = tdc_fine ? 5 : 11;
+
+	p->tdc.val = (u32)((2 << 30) + (settling_time << 16) + (bias_ovr_en << 15) +
+		    (lock_ovr_en << 14) + (coldstart << 12) + (true_lock << 10) +
+		    (early_lock << 8) + (unlock_thr << 4) + lock_thr);
+}
+
+static void compute_dco_med(struct lt_phy_params *p)
+{
+	u32 cselmed_en = 0;
+	u32 cselmed_dyn_adj = 0;
+	u32 cselmed_ratio = 39;
+	u32 cselmed_thr = 8;
+
+	p->dco_med.val = (cselmed_en << 31) + (cselmed_dyn_adj << 30) +
+		(cselmed_ratio << 24) + (cselmed_thr << 21);
+}
+
+static void compute_dco_fine(struct lt_phy_params *p, u32 dco_12g)
+{
+	u32 dco_fine0_tune_2_0 = 0;
+	u32 dco_fine1_tune_2_0 = 0;
+	u32 dco_fine2_tune_2_0 = 0;
+	u32 dco_fine3_tune_2_0 = 0;
+	u32 dco_dith0_tune_2_0 = 0;
+	u32 dco_dith1_tune_2_0 = 0;
+
+	dco_fine0_tune_2_0 = dco_12g ? 4 : 3;
+	dco_fine1_tune_2_0 = 2;
+	dco_fine2_tune_2_0 = dco_12g ? 2 : 1;
+	dco_fine3_tune_2_0 = 5;
+	dco_dith0_tune_2_0 = dco_12g ? 4 : 3;
+	dco_dith1_tune_2_0 = 2;
+
+	p->dco_fine.val = (dco_dith1_tune_2_0 << 19) +
+		(dco_dith0_tune_2_0 << 16) +
+		(dco_fine3_tune_2_0 << 11) +
+		(dco_fine2_tune_2_0 << 8) +
+		(dco_fine1_tune_2_0 << 3) +
+		dco_fine0_tune_2_0;
+}
+
+int
+intel_lt_phy_calculate_hdmi_state(struct intel_lt_phy_pll_state *lt_state,
+				  u32 frequency_khz)
+{
+#define DATA_ASSIGN(i, pll_reg)	\
+	do {			\
+		lt_state->data[i][0] = (u8)((((pll_reg).val) & 0xFF000000) >> 24); \
+		lt_state->data[i][1] = (u8)((((pll_reg).val) & 0x00FF0000) >> 16); \
+		lt_state->data[i][2] = (u8)((((pll_reg).val) & 0x0000FF00) >> 8); \
+		lt_state->data[i][3] = (u8)((((pll_reg).val) & 0x000000FF));	\
+	} while (0)
+#define ADDR_ASSIGN(i, pll_reg)	\
+	do {			\
+		lt_state->addr_msb[i] = ((pll_reg).addr >> 8) & 0xFF;	\
+		lt_state->addr_lsb[i] = (pll_reg).addr & 0xFF;		\
+	} while (0)
+
+	bool found = false;
+	struct lt_phy_params p;
+	u32 dco_fmin = DCO_MIN_FREQ_MHZ;
+	u64 refclk_khz = REF_CLK_KHZ;
+	u32 refclk_mhz_int = REF_CLK_KHZ / 1000;
+	u64 m2div = 0;
+	u64 target_dco_mhz = 0;
+	u64 tdc_fine, tdc_targetcnt;
+	u64 feedfwd_gain ,feedfwd_cal_en;
+	u64 tdc_res = 30;
+	u32 prop_coeff;
+	u32 int_coeff;
+	u32 ndiv = 1;
+	u32 m1div = 1, m2div_int, m2div_frac;
+	u32 frac_en;
+	u32 ana_cfg;
+	u32 loop_cnt = 0;
+	u32 gain_ctrl = 2;
+	u32 postdiv = 0;
+	u32 dco_12g = 0;
+	u32 pll_type = 0;
+	u32 d1 = 2, d3 = 5, d4 = 0, d5 = 0;
+	u32 d6 = 0, d6_new = 0;
+	u32 d7, d8 = 0;
+	u32 bonus_7_0 = 0;
+	u32 csel2fo = 11;
+	u32 csel2fo_ovrd_en = 1;
+	u64 temp0, temp1, temp2, temp3;
+
+	p.surv_bonus.val = (bonus_7_0 << 16);
+	p.pll_reg4.val = (refclk_mhz_int << 17) +
+		(ndiv << 9) + (1 << 4);
+	p.bias_trim.val = (csel2fo_ovrd_en << 30) + (csel2fo << 24);
+	p.ssc_inj.val = 0;
+	found = calculate_target_dco_and_loop_cnt(frequency_khz, &target_dco_mhz, &loop_cnt);
+	if (!found)
+		return -EINVAL;
+
+	m2div = div64_u64(target_dco_mhz, (refclk_khz * ndiv * m1div));
+	m2div = mul_q32_u32(m2div, 1000);
+	if (Q32_TO_INT(m2div) > 511)
+		return -EINVAL;
+
+	m2div_int = (u32)Q32_TO_INT(m2div);
+	m2div_frac = (u32)(Q32_TO_FRAC(m2div));
+	frac_en = (m2div_frac > 0) ? 1 : 0;
+
+	if (frac_en > 0)
+		tdc_res = 70;
+	else
+		tdc_res = 36;
+	tdc_fine = tdc_res > 50 ? 1 : 0;
+	temp0 = tdc_res * 40 * 11;
+	temp1 = div64_u64(((4 * TDC_RES_MULTIPLIER) + temp0) * 500, temp0 * refclk_khz);
+	temp2 = div64_u64(temp0 * refclk_khz, 1000);
+	temp3 = div64_u64(((8 * TDC_RES_MULTIPLIER) + temp2), temp2);
+	tdc_targetcnt = tdc_res < 50 ? (int)(temp1) : (int)(temp3);
+	tdc_targetcnt = (int)(tdc_targetcnt / 2);
+	temp0 = mul_q32_u32(target_dco_mhz, tdc_res);
+	temp0 >>= 32;
+	feedfwd_gain = (m2div_frac > 0) ? div64_u64(m1div * TDC_RES_MULTIPLIER, temp0) : 0;
+	feedfwd_cal_en = frac_en;
+
+	temp0 = (u32)Q32_TO_INT(target_dco_mhz);
+	prop_coeff = (temp0 >= dco_fmin) ? 3 : 4;
+	int_coeff = (temp0 >= dco_fmin) ? 7 : 8;
+	ana_cfg = (temp0 >= dco_fmin) ? 8 : 6;
+	dco_12g = (temp0 >= dco_fmin) ? 0 : 1;
+
+	if (temp0 > 12960)
+		d7 = 10;
+	else
+		d7 = 8;
+
+	d8 = loop_cnt / 2;
+	d4 = d8 * 2;
+
+	/* Compute pll_reg3,5,57 & lf */
+	p.pll_reg3.val = (u32)((d4 << 21) + (d3 << 18) + (d1 << 15) + (m2div_int << 5));
+	p.pll_reg5.val = m2div_frac;
+	postdiv = (d5 == 0) ? 9 : d5;
+	d6_new = (d6 == 0) ? 40 : d6;
+	p.pll_reg57.val = (d7 << 24) + (postdiv << 15) + (d8 << 7) + d6_new;
+	p.lf.val = (u32)((frac_en << 31) + (1 << 30) + (frac_en << 29) +
+		   (feedfwd_cal_en << 28) + (tdc_fine << 27) +
+		   (gain_ctrl << 24) + (feedfwd_gain << 16) +
+		   (int_coeff << 12) + (prop_coeff << 8) + tdc_targetcnt);
+
+	compute_ssc(&p, ana_cfg);
+	compute_bias2(&p);
+	compute_tdc(&p, tdc_fine);
+	compute_dco_med(&p);
+	compute_dco_fine(&p, dco_12g);
+
+	pll_type = ((frequency_khz == 10000) || (frequency_khz == 20000) ||
+		    (frequency_khz == 2500) || (dco_12g == 1)) ? 0 : 1;
+	set_phy_vdr_addresses(&p, pll_type);
+
+	lt_state->config[0] = 0x84;
+	lt_state->config[1] = 0x2d;
+	ADDR_ASSIGN(0, p.pll_reg4);
+	ADDR_ASSIGN(1, p.pll_reg3);
+	ADDR_ASSIGN(2, p.pll_reg5);
+	ADDR_ASSIGN(3, p.pll_reg57);
+	ADDR_ASSIGN(4, p.lf);
+	ADDR_ASSIGN(5, p.tdc);
+	ADDR_ASSIGN(6, p.ssc);
+	ADDR_ASSIGN(7, p.bias2);
+	ADDR_ASSIGN(8, p.bias_trim);
+	ADDR_ASSIGN(9, p.dco_med);
+	ADDR_ASSIGN(10, p.dco_fine);
+	ADDR_ASSIGN(11, p.ssc_inj);
+	ADDR_ASSIGN(12, p.surv_bonus);
+	DATA_ASSIGN(0, p.pll_reg4);
+	DATA_ASSIGN(1, p.pll_reg3);
+	DATA_ASSIGN(2, p.pll_reg5);
+	DATA_ASSIGN(3, p.pll_reg57);
+	DATA_ASSIGN(4, p.lf);
+	DATA_ASSIGN(5, p.tdc);
+	DATA_ASSIGN(6, p.ssc);
+	DATA_ASSIGN(7, p.bias2);
+	DATA_ASSIGN(8, p.bias_trim);
+	DATA_ASSIGN(9, p.dco_med);
+	DATA_ASSIGN(10, p.dco_fine);
+	DATA_ASSIGN(11, p.ssc_inj);
+	DATA_ASSIGN(12, p.surv_bonus);
+
+	return 0;
+}
+
 static int
 intel_lt_phy_calc_hdmi_port_clock(const struct intel_lt_phy_pll_state *lt_state)
 {
-#define REF_CLK_KHZ 38400
 #define REGVAL(i) (				\
 	(lt_state->data[i][3])		|	\
 	(lt_state->data[i][2] << 8)	|	\
@@ -1470,7 +1794,10 @@ intel_lt_phy_pll_calc_state(struct intel_crtc_state *crtc_state,
 		}
 	}
 
-	/* TODO: Add a function to compute the data for HDMI TMDS*/
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		return intel_lt_phy_calculate_hdmi_state(&crtc_state->dpll_hw_state.ltpll,
+							 crtc_state->port_clock);
+	}
 
 	return -EINVAL;
 }
