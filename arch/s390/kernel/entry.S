@@ -614,12 +614,3 @@ SYM_DATA_START(sys_call_table)
 #include <asm/syscall_table.h>
 SYM_DATA_END(sys_call_table)
 #undef SYSCALL
-
-#ifdef CONFIG_COMPAT
-
-#define SYSCALL(esame,emu)	.quad __s390_ ## emu
-SYM_DATA_START(sys_call_table_emu)
-#include <asm/syscall_table.h>
-SYM_DATA_END(sys_call_table_emu)
-#undef SYSCALL
-#endif

@@ -8,7 +8,6 @@
 #include <linux/perf_event.h>
 #include <linux/stacktrace.h>
 #include <linux/uaccess.h>
-#include <linux/compat.h>
 #include <asm/asm-offsets.h>
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
@@ -107,8 +106,6 @@ void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *coo
 	unsigned long ip, sp;
 	bool first = true;
 
-	if (is_compat_task())
-		return;
 	if (!current->mm)
 		return;
 	ip = instruction_pointer(regs);

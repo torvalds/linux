@@ -15,7 +15,6 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
-#include <linux/compat.h>
 #include <linux/sysfs.h>
 #include <asm/stacktrace.h>
 #include <asm/irq.h>

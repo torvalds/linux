@@ -1689,7 +1689,6 @@ static const struct file_operations cfset_fops = {
 	.open = cfset_open,
 	.release = cfset_release,
 	.unlocked_ioctl	= cfset_ioctl,
-	.compat_ioctl = cfset_ioctl,
 };
 
 static struct miscdevice cfset_dev = {
