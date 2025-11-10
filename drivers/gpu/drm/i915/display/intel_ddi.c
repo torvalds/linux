@@ -2577,9 +2577,7 @@ mtl_ddi_enable_d2d(struct intel_encoder *encoder)
 
 	intel_de_rmw(display, reg, 0, set_bits);
 
-	ret = intel_de_wait_custom(display, reg,
-				   wait_bits, wait_bits,
-				   100, 0, NULL);
+	ret = intel_de_wait_us(display, reg, wait_bits, wait_bits, 100, NULL);
 	if (ret) {
 		drm_err(display->drm, "Timeout waiting for D2D Link enable for DDI/PORT_BUF_CTL %c\n",
 			port_name(port));
@@ -3079,9 +3077,7 @@ mtl_ddi_disable_d2d(struct intel_encoder *encoder)
 
 	intel_de_rmw(display, reg, clr_bits, 0);
 
-	ret = intel_de_wait_custom(display, reg,
-				   wait_bits, 0,
-				   100, 0, NULL);
+	ret = intel_de_wait_us(display, reg, wait_bits, 0, 100, NULL);
 	if (ret)
 		drm_err(display->drm, "Timeout waiting for D2D Link disable for DDI/PORT_BUF_CTL %c\n",
 			port_name(port));
