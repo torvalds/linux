@@ -902,7 +902,8 @@ static void restore_exclusive_pte(struct vm_area_struct *vma,
 static int try_restore_exclusive_pte(struct vm_area_struct *vma,
 		unsigned long addr, pte_t *ptep, pte_t orig_pte)
 {
-	struct page *page = pfn_swap_entry_to_page(pte_to_swp_entry(orig_pte));
+	const softleaf_t entry = softleaf_from_pte(orig_pte);
+	struct page *page = softleaf_to_page(entry);
 	struct folio *folio = page_folio(page);
 
 	if (folio_trylock(folio)) {

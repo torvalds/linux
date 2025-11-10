@@ -844,7 +844,7 @@ static void __init pmd_softleaf_tests(struct pgtable_debug_args *args) { }
 static void __init swap_migration_tests(struct pgtable_debug_args *args)
 {
 	struct page *page;
-	swp_entry_t swp;
+	softleaf_t entry;
 
 	if (!IS_ENABLED(CONFIG_MIGRATION))
 		return;
@@ -867,17 +867,17 @@ static void __init swap_migration_tests(struct pgtable_debug_args *args)
 	 * be locked, otherwise it stumbles upon a BUG_ON().
 	 */
 	__SetPageLocked(page);
-	swp = make_writable_migration_entry(page_to_pfn(page));
-	WARN_ON(!is_migration_entry(swp));
-	WARN_ON(!is_writable_migration_entry(swp));
+	entry = make_writable_migration_entry(page_to_pfn(page));
+	WARN_ON(!softleaf_is_migration(entry));
+	WARN_ON(!softleaf_is_migration_write(entry));
 
-	swp = make_readable_migration_entry(swp_offset(swp));
-	WARN_ON(!is_migration_entry(swp));
-	WARN_ON(is_writable_migration_entry(swp));
+	entry = make_readable_migration_entry(swp_offset(entry));
+	WARN_ON(!softleaf_is_migration(entry));
+	WARN_ON(softleaf_is_migration_write(entry));
 
-	swp = make_readable_migration_entry(page_to_pfn(page));
-	WARN_ON(!is_migration_entry(swp));
-	WARN_ON(is_writable_migration_entry(swp));
+	entry = make_readable_migration_entry(page_to_pfn(page));
+	WARN_ON(!softleaf_is_migration(entry));
+	WARN_ON(softleaf_is_migration_write(entry));
 	__ClearPageLocked(page);
 }
 

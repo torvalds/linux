@@ -632,14 +632,14 @@ static int break_ksm_pmd_entry(pmd_t *pmdp, unsigned long addr, unsigned long en
 		if (pte_present(pte)) {
 			folio = vm_normal_folio(walk->vma, addr, pte);
 		} else if (!pte_none(pte)) {
-			swp_entry_t entry = pte_to_swp_entry(pte);
+			const softleaf_t entry = softleaf_from_pte(pte);
 
 			/*
 			 * As KSM pages remain KSM pages until freed, no need to wait
 			 * here for migration to end.
 			 */
-			if (is_migration_entry(entry))
-				folio = pfn_swap_entry_folio(entry);
+			if (softleaf_is_migration(entry))
+				folio = softleaf_to_folio(entry);
 		}
 		/* return 1 if the page is an normal ksm page or KSM-placed zero page */
 		found = (folio && folio_test_ksm(folio)) ||

@@ -483,7 +483,7 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 	spinlock_t *ptl;
 	pte_t *ptep;
 	pte_t pte;
-	swp_entry_t entry;
+	softleaf_t entry;
 
 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
 	if (!ptep)
@@ -495,8 +495,8 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 	if (pte_none(pte) || pte_present(pte))
 		goto out;
 
-	entry = pte_to_swp_entry(pte);
-	if (!is_migration_entry(entry))
+	entry = softleaf_from_pte(pte);
+	if (!softleaf_is_migration(entry))
 		goto out;
 
 	migration_entry_wait_on_locked(entry, ptl);

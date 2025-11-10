@@ -49,7 +49,7 @@ again:
 		if (is_migration)
 			return false;
 	} else if (!is_migration) {
-		swp_entry_t entry;
+		softleaf_t entry;
 
 		/*
 		 * Handle un-addressable ZONE_DEVICE memory.
@@ -67,9 +67,9 @@ again:
 		 * For more details on device private memory see HMM
 		 * (include/linux/hmm.h or mm/hmm.c).
 		 */
-		entry = pte_to_swp_entry(ptent);
-		if (!is_device_private_entry(entry) &&
-		    !is_device_exclusive_entry(entry))
+		entry = softleaf_from_pte(ptent);
+		if (!softleaf_is_device_private(entry) &&
+		    !softleaf_is_device_exclusive(entry))
 			return false;
 	}
 	spin_lock(*ptlp);

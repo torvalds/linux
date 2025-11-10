@@ -4934,7 +4934,7 @@ again:
 		} else if (unlikely(softleaf_is_migration(softleaf))) {
 			bool uffd_wp = pte_swp_uffd_wp(entry);
 
-			if (!is_readable_migration_entry(softleaf) && cow) {
+			if (!softleaf_is_migration_read(softleaf) && cow) {
 				/*
 				 * COW mappings require pages in both
 				 * parent and child to be set to read.

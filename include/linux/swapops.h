@@ -28,7 +28,7 @@
 #define SWP_OFFSET_MASK	((1UL << SWP_TYPE_SHIFT) - 1)
 
 /*
- * Definitions only for PFN swap entries (see is_pfn_swap_entry()).  To
+ * Definitions only for PFN swap entries (see leafeant_has_pfn()).  To
  * store PFN, we only need SWP_PFN_BITS bits.  Each of the pfn swap entries
  * can use the extra bits to store other information besides PFN.
  */
@@ -65,8 +65,6 @@
 
 #define SWP_MIG_YOUNG			BIT(SWP_MIG_YOUNG_BIT)
 #define SWP_MIG_DIRTY			BIT(SWP_MIG_DIRTY_BIT)
-
-static inline bool is_pfn_swap_entry(swp_entry_t entry);
 
 /* Clear all flags but only keep swp_entry_t related information */
 static inline pte_t pte_swp_clear_flags(pte_t pte)
@@ -107,17 +105,6 @@ static inline unsigned swp_type(swp_entry_t entry)
 static inline pgoff_t swp_offset(swp_entry_t entry)
 {
 	return entry.val & SWP_OFFSET_MASK;
-}
-
-/*
- * This should only be called upon a pfn swap entry to get the PFN stored
- * in the swap entry.  Please refers to is_pfn_swap_entry() for definition
- * of pfn swap entry.
- */
-static inline unsigned long swp_offset_pfn(swp_entry_t entry)
-{
-	VM_BUG_ON(!is_pfn_swap_entry(entry));
-	return swp_offset(entry) & SWP_PFN_MASK;
 }
 
 /*
@@ -169,25 +156,9 @@ static inline swp_entry_t make_writable_device_private_entry(pgoff_t offset)
 	return swp_entry(SWP_DEVICE_WRITE, offset);
 }
 
-static inline bool is_device_private_entry(swp_entry_t entry)
-{
-	int type = swp_type(entry);
-	return type == SWP_DEVICE_READ || type == SWP_DEVICE_WRITE;
-}
-
-static inline bool is_writable_device_private_entry(swp_entry_t entry)
-{
-	return unlikely(swp_type(entry) == SWP_DEVICE_WRITE);
-}
-
 static inline swp_entry_t make_device_exclusive_entry(pgoff_t offset)
 {
 	return swp_entry(SWP_DEVICE_EXCLUSIVE, offset);
-}
-
-static inline bool is_device_exclusive_entry(swp_entry_t entry)
-{
-	return swp_type(entry) == SWP_DEVICE_EXCLUSIVE;
 }
 
 #else /* CONFIG_DEVICE_PRIVATE */
@@ -201,50 +172,14 @@ static inline swp_entry_t make_writable_device_private_entry(pgoff_t offset)
 	return swp_entry(0, 0);
 }
 
-static inline bool is_device_private_entry(swp_entry_t entry)
-{
-	return false;
-}
-
-static inline bool is_writable_device_private_entry(swp_entry_t entry)
-{
-	return false;
-}
-
 static inline swp_entry_t make_device_exclusive_entry(pgoff_t offset)
 {
 	return swp_entry(0, 0);
 }
 
-static inline bool is_device_exclusive_entry(swp_entry_t entry)
-{
-	return false;
-}
-
 #endif /* CONFIG_DEVICE_PRIVATE */
 
 #ifdef CONFIG_MIGRATION
-static inline int is_migration_entry(swp_entry_t entry)
-{
-	return unlikely(swp_type(entry) == SWP_MIGRATION_READ ||
-			swp_type(entry) == SWP_MIGRATION_READ_EXCLUSIVE ||
-			swp_type(entry) == SWP_MIGRATION_WRITE);
-}
-
-static inline int is_writable_migration_entry(swp_entry_t entry)
-{
-	return unlikely(swp_type(entry) == SWP_MIGRATION_WRITE);
-}
-
-static inline int is_readable_migration_entry(swp_entry_t entry)
-{
-	return unlikely(swp_type(entry) == SWP_MIGRATION_READ);
-}
-
-static inline int is_readable_exclusive_migration_entry(swp_entry_t entry)
-{
-	return unlikely(swp_type(entry) == SWP_MIGRATION_READ_EXCLUSIVE);
-}
 
 static inline swp_entry_t make_readable_migration_entry(pgoff_t offset)
 {
@@ -310,23 +245,10 @@ static inline swp_entry_t make_writable_migration_entry(pgoff_t offset)
 	return swp_entry(0, 0);
 }
 
-static inline int is_migration_entry(swp_entry_t swp)
-{
-	return 0;
-}
-
 static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 					unsigned long address) { }
 static inline void migration_entry_wait_huge(struct vm_area_struct *vma,
 					     unsigned long addr, pte_t *pte) { }
-static inline int is_writable_migration_entry(swp_entry_t entry)
-{
-	return 0;
-}
-static inline int is_readable_migration_entry(swp_entry_t entry)
-{
-	return 0;
-}
 
 static inline swp_entry_t make_migration_entry_young(swp_entry_t entry)
 {
@@ -408,47 +330,6 @@ static inline swp_entry_t make_poisoned_swp_entry(void)
 static inline swp_entry_t make_guard_swp_entry(void)
 {
 	return make_pte_marker_entry(PTE_MARKER_GUARD);
-}
-
-static inline struct page *pfn_swap_entry_to_page(swp_entry_t entry)
-{
-	struct page *p = pfn_to_page(swp_offset_pfn(entry));
-
-	/*
-	 * Any use of migration entries may only occur while the
-	 * corresponding page is locked
-	 */
-	BUG_ON(is_migration_entry(entry) && !PageLocked(p));
-
-	return p;
-}
-
-static inline struct folio *pfn_swap_entry_folio(swp_entry_t entry)
-{
-	struct folio *folio = pfn_folio(swp_offset_pfn(entry));
-
-	/*
-	 * Any use of migration entries may only occur while the
-	 * corresponding folio is locked
-	 */
-	BUG_ON(is_migration_entry(entry) && !folio_test_locked(folio));
-
-	return folio;
-}
-
-/*
- * A pfn swap entry is a special type of swap entry that always has a pfn stored
- * in the swap offset. They can either be used to represent unaddressable device
- * memory, to restrict access to a page undergoing migration or to represent a
- * pfn which has been hwpoisoned and unmapped.
- */
-static inline bool is_pfn_swap_entry(swp_entry_t entry)
-{
-	/* Make sure the swp offset can always store the needed fields */
-	BUILD_BUG_ON(SWP_TYPE_SHIFT < SWP_PFN_BITS);
-
-	return is_migration_entry(entry) || is_device_private_entry(entry) ||
-	       is_device_exclusive_entry(entry) || is_hwpoison_entry(entry);
 }
 
 struct page_vma_mapped_walk;
