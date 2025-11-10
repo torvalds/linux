@@ -9,6 +9,7 @@
 
 #include "core.h"
 #include "wifi7/hal_desc.h"
+#include "wifi7/hal_rx.h"
 
 #define ATH12K_MON_RX_DOT11_OFFSET	5
 #define ATH12K_MON_RX_PKT_OFFSET	8
@@ -106,15 +107,6 @@ int ath12k_dp_mon_rx_deliver(struct ath12k_pdev_dp *dp_pdev,
 			     struct dp_mon_mpdu *mon_mpdu,
 			     struct hal_rx_mon_ppdu_info *ppduinfo,
 			     struct napi_struct *napi);
-int
-ath12k_dp_mon_parse_rx_dest_tlv(struct ath12k_pdev_dp *dp_pdev,
-				struct ath12k_mon_data *pmon,
-				enum hal_rx_mon_status hal_status,
-				const void *tlv_data);
-enum hal_rx_mon_status
-ath12k_dp_mon_rx_parse_status_tlv(struct ath12k_pdev_dp *dp_pdev,
-				  struct ath12k_mon_data *pmon,
-				  const struct hal_tlv_64_hdr *tlv);
 struct sk_buff
 *ath12k_dp_rx_alloc_mon_status_buf(struct ath12k_base *ab,
 				   struct dp_rxdma_mon_ring *rx_ring,
@@ -128,4 +120,53 @@ void ath12k_dp_mon_next_link_desc_get(struct ath12k_base *ab,
 				      dma_addr_t *paddr, u32 *sw_cookie, u8 *rbm,
 				      struct ath12k_buffer_addr **pp_buf_addr_info);
 u32 ath12k_dp_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id);
+int
+ath12k_dp_mon_parse_status_buf(struct ath12k_pdev_dp *dp_pdev,
+			       struct ath12k_mon_data *pmon,
+			       const struct dp_mon_packet_info *packet_info);
+void ath12k_dp_mon_parse_ht_sig(const struct hal_rx_ht_sig_info *ht_sig,
+				struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_parse_eht_sig_hdr(struct hal_rx_mon_ppdu_info *ppdu_info,
+				const void *tlv_data);
+void
+ath12k_dp_mon_rx_handle_ofdma_info(const struct hal_rx_ppdu_end_user_stats *ppdu_end_user,
+				   struct hal_rx_user_status *rx_user_status);
+void
+ath12k_dp_mon_rx_populate_mu_user_info(const struct hal_rx_ppdu_end_user_stats *rx_tlv,
+				       struct hal_rx_mon_ppdu_info *ppdu_info,
+				       struct hal_rx_user_status *rx_user_status);
+void ath12k_dp_mon_parse_l_sig_b(const struct hal_rx_lsig_b_info *lsigb,
+				 struct hal_rx_mon_ppdu_info *ppdu_info);
+void ath12k_dp_mon_parse_l_sig_a(const struct hal_rx_lsig_a_info *lsiga,
+				 struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_parse_he_sig_b2_ofdma(const struct hal_rx_he_sig_b2_ofdma_info *ofdma,
+				    struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_parse_he_sig_b2_mu(const struct hal_rx_he_sig_b2_mu_info *he_sig_b2_mu,
+				 struct hal_rx_mon_ppdu_info *ppdu_info);
+void ath12k_dp_mon_parse_vht_sig_a(const struct hal_rx_vht_sig_a_info *vht_sig,
+				   struct hal_rx_mon_ppdu_info *ppdu_info);
+void ath12k_dp_mon_parse_he_sig_su(const struct hal_rx_he_sig_a_su_info *he_sig_a,
+				   struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_parse_he_sig_b1_mu(const struct hal_rx_he_sig_b1_mu_info *he_sig_b1_mu,
+				 struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_parse_he_sig_mu(const struct hal_rx_he_sig_a_mu_dl_info *he_sig_a_mu_dl,
+			      struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_hal_rx_parse_user_info(const struct hal_receive_user_info *rx_usr_info,
+				     u16 user_id,
+				     struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
+				    const struct hal_rx_msdu_end *msdu_end);
+void
+ath12k_dp_mon_hal_rx_parse_u_sig_hdr(const struct hal_mon_usig_hdr *usig,
+				     struct hal_rx_mon_ppdu_info *ppdu_info);
+void
+ath12k_dp_mon_hal_aggr_tlv(struct hal_rx_mon_ppdu_info *ppdu_info,
+			   u16 tlv_len, const void *tlv_data);
 #endif

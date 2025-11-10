@@ -10,6 +10,7 @@
 #include "../debug.h"
 #include "hal_qcn9274.h"
 #include "dp_rx.h"
+#include "../dp_tx.h"
 #include "../peer.h"
 
 static void
@@ -17,6 +18,317 @@ ath12k_wifi7_dp_mon_rx_memset_ppdu_info(struct hal_rx_mon_ppdu_info *ppdu_info)
 {
 	memset(ppdu_info, 0, sizeof(*ppdu_info));
 	ppdu_info->peer_id = HAL_INVALID_PEERID;
+}
+
+static enum hal_rx_mon_status
+ath12k_wifi7_dp_mon_rx_parse_status_tlv(struct ath12k_pdev_dp *dp_pdev,
+					struct ath12k_mon_data *pmon,
+					const struct hal_tlv_64_hdr *tlv)
+{
+	struct hal_rx_mon_ppdu_info *ppdu_info = &pmon->mon_ppdu_info;
+	const void *tlv_data = tlv->value;
+	u32 info[7], userid;
+	u16 tlv_tag, tlv_len;
+
+	tlv_tag = le64_get_bits(tlv->tl, HAL_TLV_64_HDR_TAG);
+	tlv_len = le64_get_bits(tlv->tl, HAL_TLV_64_HDR_LEN);
+	userid = le64_get_bits(tlv->tl, HAL_TLV_64_USR_ID);
+
+	if (ppdu_info->tlv_aggr.in_progress && ppdu_info->tlv_aggr.tlv_tag != tlv_tag) {
+		ath12k_dp_mon_parse_eht_sig_hdr(ppdu_info, ppdu_info->tlv_aggr.buf);
+
+		ppdu_info->tlv_aggr.in_progress = false;
+		ppdu_info->tlv_aggr.cur_len = 0;
+	}
+
+	switch (tlv_tag) {
+	case HAL_RX_PPDU_START: {
+		const struct hal_rx_ppdu_start *ppdu_start = tlv_data;
+
+		u64 ppdu_ts = ath12k_le32hilo_to_u64(ppdu_start->ppdu_start_ts_63_32,
+						     ppdu_start->ppdu_start_ts_31_0);
+
+		info[0] = __le32_to_cpu(ppdu_start->info0);
+
+		ppdu_info->ppdu_id = u32_get_bits(info[0],
+						  HAL_RX_PPDU_START_INFO0_PPDU_ID);
+
+		info[1] = __le32_to_cpu(ppdu_start->info1);
+		ppdu_info->chan_num = u32_get_bits(info[1],
+						   HAL_RX_PPDU_START_INFO1_CHAN_NUM);
+		ppdu_info->freq = u32_get_bits(info[1],
+					       HAL_RX_PPDU_START_INFO1_CHAN_FREQ);
+		ppdu_info->ppdu_ts = ppdu_ts;
+
+		if (ppdu_info->ppdu_id != ppdu_info->last_ppdu_id) {
+			ppdu_info->last_ppdu_id = ppdu_info->ppdu_id;
+			ppdu_info->num_users = 0;
+			memset(&ppdu_info->mpdu_fcs_ok_bitmap, 0,
+			       HAL_RX_NUM_WORDS_PER_PPDU_BITMAP *
+			       sizeof(ppdu_info->mpdu_fcs_ok_bitmap[0]));
+		}
+		break;
+	}
+	case HAL_RX_PPDU_END_USER_STATS: {
+		const struct hal_rx_ppdu_end_user_stats *eu_stats = tlv_data;
+		u32 tid_bitmap;
+
+		info[0] = __le32_to_cpu(eu_stats->info0);
+		info[1] = __le32_to_cpu(eu_stats->info1);
+		info[2] = __le32_to_cpu(eu_stats->info2);
+		info[4] = __le32_to_cpu(eu_stats->info4);
+		info[5] = __le32_to_cpu(eu_stats->info5);
+		info[6] = __le32_to_cpu(eu_stats->info6);
+
+		ppdu_info->ast_index =
+			u32_get_bits(info[2], HAL_RX_PPDU_END_USER_STATS_INFO2_AST_INDEX);
+		ppdu_info->fc_valid =
+			u32_get_bits(info[1], HAL_RX_PPDU_END_USER_STATS_INFO1_FC_VALID);
+		tid_bitmap = u32_get_bits(info[6],
+					  HAL_RX_PPDU_END_USER_STATS_INFO6_TID_BITMAP);
+		ppdu_info->tid = ffs(tid_bitmap) - 1;
+		ppdu_info->tcp_msdu_count =
+			u32_get_bits(info[4],
+				     HAL_RX_PPDU_END_USER_STATS_INFO4_TCP_MSDU_CNT);
+		ppdu_info->udp_msdu_count =
+			u32_get_bits(info[4],
+				     HAL_RX_PPDU_END_USER_STATS_INFO4_UDP_MSDU_CNT);
+		ppdu_info->other_msdu_count =
+			u32_get_bits(info[5],
+				     HAL_RX_PPDU_END_USER_STATS_INFO5_OTHER_MSDU_CNT);
+		ppdu_info->tcp_ack_msdu_count =
+			u32_get_bits(info[5],
+				     HAL_RX_PPDU_END_USER_STATS_INFO5_TCP_ACK_MSDU_CNT);
+		ppdu_info->preamble_type =
+			u32_get_bits(info[1],
+				     HAL_RX_PPDU_END_USER_STATS_INFO1_PKT_TYPE);
+		ppdu_info->num_mpdu_fcs_ok =
+			u32_get_bits(info[1],
+				     HAL_RX_PPDU_END_USER_STATS_INFO1_MPDU_CNT_FCS_OK);
+		ppdu_info->num_mpdu_fcs_err =
+			u32_get_bits(info[0],
+				     HAL_RX_PPDU_END_USER_STATS_INFO0_MPDU_CNT_FCS_ERR);
+		ppdu_info->peer_id =
+			u32_get_bits(info[0], HAL_RX_PPDU_END_USER_STATS_INFO0_PEER_ID);
+
+		switch (ppdu_info->preamble_type) {
+		case HAL_RX_PREAMBLE_11N:
+			ppdu_info->ht_flags = 1;
+			break;
+		case HAL_RX_PREAMBLE_11AC:
+			ppdu_info->vht_flags = 1;
+			break;
+		case HAL_RX_PREAMBLE_11AX:
+			ppdu_info->he_flags = 1;
+			break;
+		case HAL_RX_PREAMBLE_11BE:
+			ppdu_info->is_eht = true;
+			break;
+		default:
+			break;
+		}
+
+		if (userid < HAL_MAX_UL_MU_USERS) {
+			struct hal_rx_user_status *rxuser_stats =
+				&ppdu_info->userstats[userid];
+
+			if (ppdu_info->num_mpdu_fcs_ok > 1 ||
+			    ppdu_info->num_mpdu_fcs_err > 1)
+				ppdu_info->userstats[userid].ampdu_present = true;
+
+			ppdu_info->num_users += 1;
+
+			ath12k_dp_mon_rx_handle_ofdma_info(eu_stats, rxuser_stats);
+			ath12k_dp_mon_rx_populate_mu_user_info(eu_stats, ppdu_info,
+							       rxuser_stats);
+		}
+		ppdu_info->mpdu_fcs_ok_bitmap[0] = __le32_to_cpu(eu_stats->rsvd1[0]);
+		ppdu_info->mpdu_fcs_ok_bitmap[1] = __le32_to_cpu(eu_stats->rsvd1[1]);
+		break;
+	}
+	case HAL_RX_PPDU_END_USER_STATS_EXT: {
+		const struct hal_rx_ppdu_end_user_stats_ext *eu_stats = tlv_data;
+
+		ppdu_info->mpdu_fcs_ok_bitmap[2] = __le32_to_cpu(eu_stats->info1);
+		ppdu_info->mpdu_fcs_ok_bitmap[3] = __le32_to_cpu(eu_stats->info2);
+		ppdu_info->mpdu_fcs_ok_bitmap[4] = __le32_to_cpu(eu_stats->info3);
+		ppdu_info->mpdu_fcs_ok_bitmap[5] = __le32_to_cpu(eu_stats->info4);
+		ppdu_info->mpdu_fcs_ok_bitmap[6] = __le32_to_cpu(eu_stats->info5);
+		ppdu_info->mpdu_fcs_ok_bitmap[7] = __le32_to_cpu(eu_stats->info6);
+		break;
+	}
+	case HAL_PHYRX_HT_SIG:
+		ath12k_dp_mon_parse_ht_sig(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_L_SIG_B:
+		ath12k_dp_mon_parse_l_sig_b(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_L_SIG_A:
+		ath12k_dp_mon_parse_l_sig_a(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_VHT_SIG_A:
+		ath12k_dp_mon_parse_vht_sig_a(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_HE_SIG_A_SU:
+		ath12k_dp_mon_parse_he_sig_su(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_HE_SIG_A_MU_DL:
+		ath12k_dp_mon_parse_he_sig_mu(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_HE_SIG_B1_MU:
+		ath12k_dp_mon_parse_he_sig_b1_mu(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_HE_SIG_B2_MU:
+		ath12k_dp_mon_parse_he_sig_b2_mu(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_HE_SIG_B2_OFDMA:
+		ath12k_dp_mon_parse_he_sig_b2_ofdma(tlv_data, ppdu_info);
+		break;
+
+	case HAL_PHYRX_RSSI_LEGACY: {
+		const struct hal_rx_phyrx_rssi_legacy_info *rssi = tlv_data;
+
+		info[0] = __le32_to_cpu(rssi->info0);
+		info[1] = __le32_to_cpu(rssi->info1);
+
+		/* TODO: Please note that the combined rssi will not be accurate
+		 * in MU case. Rssi in MU needs to be retrieved from
+		 * PHYRX_OTHER_RECEIVE_INFO TLV.
+		 */
+		ppdu_info->rssi_comb =
+			u32_get_bits(info[1],
+				     HAL_RX_PHYRX_RSSI_LEGACY_INFO_INFO1_RSSI_COMB);
+
+		ppdu_info->bw = u32_get_bits(info[0],
+					     HAL_RX_PHYRX_RSSI_LEGACY_INFO_INFO0_RX_BW);
+		break;
+	}
+	case HAL_PHYRX_OTHER_RECEIVE_INFO: {
+		const struct hal_phyrx_common_user_info *cmn_usr_info = tlv_data;
+
+		ppdu_info->gi = le32_get_bits(cmn_usr_info->info0,
+					      HAL_RX_PHY_CMN_USER_INFO0_GI);
+		break;
+	}
+	case HAL_RX_PPDU_START_USER_INFO:
+		ath12k_dp_mon_hal_rx_parse_user_info(tlv_data, userid, ppdu_info);
+		break;
+
+	case HAL_RXPCU_PPDU_END_INFO: {
+		const struct hal_rx_ppdu_end_duration *ppdu_rx_duration = tlv_data;
+
+		info[0] = __le32_to_cpu(ppdu_rx_duration->info0);
+		ppdu_info->rx_duration =
+			u32_get_bits(info[0], HAL_RX_PPDU_END_DURATION);
+		ppdu_info->tsft = __le32_to_cpu(ppdu_rx_duration->rsvd0[1]);
+		ppdu_info->tsft = (ppdu_info->tsft << 32) |
+				   __le32_to_cpu(ppdu_rx_duration->rsvd0[0]);
+		break;
+	}
+	case HAL_RX_MPDU_START: {
+		const struct hal_rx_mpdu_start *mpdu_start = tlv_data;
+		u16 peer_id;
+
+		info[1] = __le32_to_cpu(mpdu_start->info1);
+		peer_id = u32_get_bits(info[1], HAL_RX_MPDU_START_INFO1_PEERID);
+		if (peer_id)
+			ppdu_info->peer_id = peer_id;
+
+		ppdu_info->mpdu_len += u32_get_bits(info[1],
+						    HAL_RX_MPDU_START_INFO2_MPDU_LEN);
+		if (userid < HAL_MAX_UL_MU_USERS) {
+			info[0] = __le32_to_cpu(mpdu_start->info0);
+			ppdu_info->userid = userid;
+			ppdu_info->userstats[userid].ampdu_id =
+				u32_get_bits(info[0], HAL_RX_MPDU_START_INFO0_PPDU_ID);
+		}
+
+		return HAL_RX_MON_STATUS_MPDU_START;
+	}
+	case HAL_RX_MSDU_START:
+		/* TODO: add msdu start parsing logic */
+		break;
+	case HAL_MON_BUF_ADDR:
+		return HAL_RX_MON_STATUS_BUF_ADDR;
+	case HAL_RX_MSDU_END:
+		ath12k_dp_mon_parse_status_msdu_end(pmon, tlv_data);
+		return HAL_RX_MON_STATUS_MSDU_END;
+	case HAL_RX_MPDU_END:
+		return HAL_RX_MON_STATUS_MPDU_END;
+	case HAL_PHYRX_GENERIC_U_SIG:
+		ath12k_dp_mon_hal_rx_parse_u_sig_hdr(tlv_data, ppdu_info);
+		break;
+	case HAL_PHYRX_GENERIC_EHT_SIG:
+		/* Handle the case where aggregation is in progress
+		 * or the current TLV is one of the TLVs which should be
+		 * aggregated
+		 */
+		if (!ppdu_info->tlv_aggr.in_progress) {
+			ppdu_info->tlv_aggr.in_progress = true;
+			ppdu_info->tlv_aggr.tlv_tag = tlv_tag;
+			ppdu_info->tlv_aggr.cur_len = 0;
+		}
+
+		ppdu_info->is_eht = true;
+
+		ath12k_dp_mon_hal_aggr_tlv(ppdu_info, tlv_len, tlv_data);
+		break;
+	case HAL_DUMMY:
+		return HAL_RX_MON_STATUS_BUF_DONE;
+	case HAL_RX_PPDU_END_STATUS_DONE:
+	case 0:
+		return HAL_RX_MON_STATUS_PPDU_DONE;
+	default:
+		break;
+	}
+
+	return HAL_RX_MON_STATUS_PPDU_NOT_DONE;
+}
+
+static int
+ath12k_wifi7_dp_mon_parse_rx_dest_tlv(struct ath12k_pdev_dp *dp_pdev,
+				      struct ath12k_mon_data *pmon,
+				      enum hal_rx_mon_status hal_status,
+				      const void *tlv_data)
+{
+	switch (hal_status) {
+	case HAL_RX_MON_STATUS_MPDU_START:
+		if (WARN_ON_ONCE(pmon->mon_mpdu))
+			break;
+
+		pmon->mon_mpdu = kzalloc(sizeof(*pmon->mon_mpdu), GFP_ATOMIC);
+		if (!pmon->mon_mpdu)
+			return -ENOMEM;
+		break;
+	case HAL_RX_MON_STATUS_BUF_ADDR:
+		return ath12k_dp_mon_parse_status_buf(dp_pdev, pmon, tlv_data);
+	case HAL_RX_MON_STATUS_MPDU_END:
+		/* If no MSDU then free empty MPDU */
+		if (pmon->mon_mpdu->tail) {
+			pmon->mon_mpdu->tail->next = NULL;
+			list_add_tail(&pmon->mon_mpdu->list, &pmon->dp_rx_mon_mpdu_list);
+		} else {
+			kfree(pmon->mon_mpdu);
+		}
+		pmon->mon_mpdu = NULL;
+		break;
+	case HAL_RX_MON_STATUS_MSDU_END:
+		pmon->mon_mpdu->decap_format = pmon->decap_format;
+		pmon->mon_mpdu->err_bitmap = pmon->err_bitmap;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 static u32
@@ -389,11 +701,12 @@ ath12k_wifi7_dp_mon_parse_rx_dest(struct ath12k_pdev_dp *dp_pdev,
 		else
 			tlv_len = le64_get_bits(tlv->tl, HAL_TLV_64_HDR_LEN);
 
-		hal_status = ath12k_dp_mon_rx_parse_status_tlv(dp_pdev, pmon, tlv);
+		hal_status = ath12k_wifi7_dp_mon_rx_parse_status_tlv(dp_pdev, pmon,
+								     tlv);
 
 		if (ar->monitor_started && ar->ab->hw_params->rxdma1_enable &&
-		    ath12k_dp_mon_parse_rx_dest_tlv(dp_pdev, pmon, hal_status,
-						    tlv->value))
+		    ath12k_wifi7_dp_mon_parse_rx_dest_tlv(dp_pdev, pmon, hal_status,
+							  tlv->value))
 			return HAL_RX_MON_STATUS_PPDU_DONE;
 
 		ptr += sizeof(*tlv) + tlv_len;
