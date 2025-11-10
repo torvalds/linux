@@ -183,26 +183,33 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 				      int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
+	const u32 step = min(fs_info->nodesize, PAGE_SIZE);
+	const u32 nr_steps = eb->len / step;
+	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
 	int ret = 0;
 
 	if (sb_rdonly(fs_info->sb))
 		return -EROFS;
 
-	for (int i = 0; i < num_extent_folios(eb); i++) {
+	for (int i = 0; i < num_extent_pages(eb); i++) {
 		struct folio *folio = eb->folios[i];
-		u64 start = max_t(u64, eb->start, folio_pos(folio));
-		u64 end = min_t(u64, eb->start + eb->len,
-				folio_pos(folio) + eb->folio_size);
-		u32 len = end - start;
-		phys_addr_t paddr = PFN_PHYS(folio_pfn(folio)) +
-				    offset_in_folio(folio, start);
 
-		ret = btrfs_repair_io_failure(fs_info, 0, start, len, start,
-					      paddr, mirror_num);
-		if (ret)
-			break;
+		/* No large folio support yet. */
+		ASSERT(folio_order(folio) == 0);
+		ASSERT(i < nr_steps);
+
+		/*
+		 * For nodesize < page size, there is just one paddr, with some
+		 * offset inside the page.
+		 *
+		 * For nodesize >= page size, it's one or more paddrs, and eb->start
+		 * must be aligned to page boundary.
+		 */
+		paddrs[i] = page_to_phys(&folio->page) + offset_in_page(eb->start);
 	}
 
+	ret = btrfs_repair_io_failure(fs_info, 0, eb->start, eb->len, eb->start,
+				      paddrs, step, mirror_num);
 	return ret;
 }
 
