@@ -694,9 +694,8 @@ int walk_page_range_debug(struct mm_struct *mm, unsigned long start,
 	return walk_pgd_range(start, end, &walk);
 }
 
-int walk_page_range_vma(struct vm_area_struct *vma, unsigned long start,
-			unsigned long end, const struct mm_walk_ops *ops,
-			void *private)
+int walk_page_range_vma_unsafe(struct vm_area_struct *vma, unsigned long start,
+		unsigned long end, const struct mm_walk_ops *ops, void *private)
 {
 	struct mm_walk walk = {
 		.ops		= ops,
@@ -709,12 +708,20 @@ int walk_page_range_vma(struct vm_area_struct *vma, unsigned long start,
 		return -EINVAL;
 	if (start < vma->vm_start || end > vma->vm_end)
 		return -EINVAL;
-	if (!check_ops_safe(ops))
-		return -EINVAL;
 
 	process_mm_walk_lock(walk.mm, ops->walk_lock);
 	process_vma_walk_lock(vma, ops->walk_lock);
 	return __walk_page_range(start, end, &walk);
+}
+
+int walk_page_range_vma(struct vm_area_struct *vma, unsigned long start,
+			unsigned long end, const struct mm_walk_ops *ops,
+			void *private)
+{
+	if (!check_ops_safe(ops))
+		return -EINVAL;
+
+	return walk_page_range_vma_unsafe(vma, start, end, ops, private);
 }
 
 int walk_page_vma(struct vm_area_struct *vma, const struct mm_walk_ops *ops,

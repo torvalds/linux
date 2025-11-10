@@ -1122,18 +1122,17 @@ static int guard_install_set_pte(unsigned long addr, unsigned long next,
 	return 0;
 }
 
-static const struct mm_walk_ops guard_install_walk_ops = {
-	.pud_entry		= guard_install_pud_entry,
-	.pmd_entry		= guard_install_pmd_entry,
-	.pte_entry		= guard_install_pte_entry,
-	.install_pte		= guard_install_set_pte,
-	.walk_lock		= PGWALK_RDLOCK,
-};
-
 static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 {
 	struct vm_area_struct *vma = madv_behavior->vma;
 	struct madvise_behavior_range *range = &madv_behavior->range;
+	struct mm_walk_ops walk_ops = {
+		.pud_entry	= guard_install_pud_entry,
+		.pmd_entry	= guard_install_pmd_entry,
+		.pte_entry	= guard_install_pte_entry,
+		.install_pte	= guard_install_set_pte,
+		.walk_lock	= get_walk_lock(madv_behavior->lock_mode),
+	};
 	long err;
 	int i;
 
@@ -1150,8 +1149,14 @@ static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 	/*
 	 * If anonymous and we are establishing page tables the VMA ought to
 	 * have an anon_vma associated with it.
+	 *
+	 * We will hold an mmap read lock if this is necessary, this is checked
+	 * as part of the VMA lock logic.
 	 */
 	if (vma_is_anonymous(vma)) {
+		VM_WARN_ON_ONCE(!vma->anon_vma &&
+				madv_behavior->lock_mode != MADVISE_MMAP_READ_LOCK);
+
 		err = anon_vma_prepare(vma);
 		if (err)
 			return err;
@@ -1159,12 +1164,14 @@ static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 
 	/*
 	 * Optimistically try to install the guard marker pages first. If any
-	 * non-guard pages are encountered, give up and zap the range before
-	 * trying again.
+	 * non-guard pages or THP huge pages are encountered, give up and zap
+	 * the range before trying again.
 	 *
 	 * We try a few times before giving up and releasing back to userland to
-	 * loop around, releasing locks in the process to avoid contention. This
-	 * would only happen if there was a great many racing page faults.
+	 * loop around, releasing locks in the process to avoid contention.
+	 *
+	 * This would only happen due to races with e.g. page faults or
+	 * khugepaged.
 	 *
 	 * In most cases we should simply install the guard markers immediately
 	 * with no zap or looping.
@@ -1173,8 +1180,13 @@ static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 		unsigned long nr_pages = 0;
 
 		/* Returns < 0 on error, == 0 if success, > 0 if zap needed. */
-		err = walk_page_range_mm_unsafe(vma->vm_mm, range->start,
-				range->end, &guard_install_walk_ops, &nr_pages);
+		if (madv_behavior->lock_mode == MADVISE_VMA_READ_LOCK)
+			err = walk_page_range_vma_unsafe(madv_behavior->vma,
+					range->start, range->end, &walk_ops,
+					&nr_pages);
+		else
+			err = walk_page_range_mm_unsafe(vma->vm_mm, range->start,
+					range->end, &walk_ops, &nr_pages);
 		if (err < 0)
 			return err;
 
@@ -1195,8 +1207,7 @@ static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 	}
 
 	/*
-	 * We were unable to install the guard pages due to being raced by page
-	 * faults. This should not happen ordinarily. We return to userspace and
+	 * We were unable to install the guard pages, return to userspace and
 	 * immediately retry, relieving lock contention.
 	 */
 	return restart_syscall();
@@ -1240,17 +1251,16 @@ static int guard_remove_pte_entry(pte_t *pte, unsigned long addr,
 	return 0;
 }
 
-static const struct mm_walk_ops guard_remove_walk_ops = {
-	.pud_entry		= guard_remove_pud_entry,
-	.pmd_entry		= guard_remove_pmd_entry,
-	.pte_entry		= guard_remove_pte_entry,
-	.walk_lock		= PGWALK_RDLOCK,
-};
-
 static long madvise_guard_remove(struct madvise_behavior *madv_behavior)
 {
 	struct vm_area_struct *vma = madv_behavior->vma;
 	struct madvise_behavior_range *range = &madv_behavior->range;
+	struct mm_walk_ops wallk_ops = {
+		.pud_entry = guard_remove_pud_entry,
+		.pmd_entry = guard_remove_pmd_entry,
+		.pte_entry = guard_remove_pte_entry,
+		.walk_lock = get_walk_lock(madv_behavior->lock_mode),
+	};
 
 	/*
 	 * We're ok with removing guards in mlock()'d ranges, as this is a
@@ -1260,7 +1270,7 @@ static long madvise_guard_remove(struct madvise_behavior *madv_behavior)
 		return -EINVAL;
 
 	return walk_page_range_vma(vma, range->start, range->end,
-			       &guard_remove_walk_ops, NULL);
+				   &wallk_ops, NULL);
 }
 
 #ifdef CONFIG_64BIT
@@ -1573,6 +1583,47 @@ static bool process_madvise_remote_valid(int behavior)
 	}
 }
 
+/* Does this operation invoke anon_vma_prepare()? */
+static bool prepares_anon_vma(int behavior)
+{
+	switch (behavior) {
+	case MADV_GUARD_INSTALL:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/*
+ * We have acquired a VMA read lock, is the VMA valid to be madvise'd under VMA
+ * read lock only now we have a VMA to examine?
+ */
+static bool is_vma_lock_sufficient(struct vm_area_struct *vma,
+		struct madvise_behavior *madv_behavior)
+{
+	/* Must span only a single VMA.*/
+	if (madv_behavior->range.end > vma->vm_end)
+		return false;
+	/* Remote processes unsupported. */
+	if (current->mm != vma->vm_mm)
+		return false;
+	/* Userfaultfd unsupported. */
+	if (userfaultfd_armed(vma))
+		return false;
+	/*
+	 * anon_vma_prepare() explicitly requires an mmap lock for
+	 * serialisation, so we cannot use a VMA lock in this case.
+	 *
+	 * Note we might race with anon_vma being set, however this makes this
+	 * check overly paranoid which is safe.
+	 */
+	if (vma_is_anonymous(vma) &&
+	    prepares_anon_vma(madv_behavior->behavior) && !vma->anon_vma)
+		return false;
+
+	return true;
+}
+
 /*
  * Try to acquire a VMA read lock if possible.
  *
@@ -1594,15 +1645,12 @@ static bool try_vma_read_lock(struct madvise_behavior *madv_behavior)
 	vma = lock_vma_under_rcu(mm, madv_behavior->range.start);
 	if (!vma)
 		goto take_mmap_read_lock;
-	/*
-	 * Must span only a single VMA; uffd and remote processes are
-	 * unsupported.
-	 */
-	if (madv_behavior->range.end > vma->vm_end || current->mm != mm ||
-	    userfaultfd_armed(vma)) {
+
+	if (!is_vma_lock_sufficient(vma, madv_behavior)) {
 		vma_end_read(vma);
 		goto take_mmap_read_lock;
 	}
+
 	madv_behavior->vma = vma;
 	return true;
 
@@ -1715,9 +1763,9 @@ static enum madvise_lock_mode get_lock_mode(struct madvise_behavior *madv_behavi
 	case MADV_POPULATE_READ:
 	case MADV_POPULATE_WRITE:
 	case MADV_COLLAPSE:
+		return MADVISE_MMAP_READ_LOCK;
 	case MADV_GUARD_INSTALL:
 	case MADV_GUARD_REMOVE:
-		return MADVISE_MMAP_READ_LOCK;
 	case MADV_DONTNEED:
 	case MADV_DONTNEED_LOCKED:
 	case MADV_FREE:
