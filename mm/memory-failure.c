@@ -51,7 +51,7 @@
 #include <linux/backing-dev.h>
 #include <linux/migrate.h>
 #include <linux/slab.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/hugetlb.h>
 #include <linux/memory_hotplug.h>
 #include <linux/mm_inline.h>

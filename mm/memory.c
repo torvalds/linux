@@ -1218,7 +1218,7 @@ copy_pte_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
 	spinlock_t *src_ptl, *dst_ptl;
 	int progress, max_nr, ret = 0;
 	int rss[NR_MM_COUNTERS];
-	swp_entry_t entry = (swp_entry_t){0};
+	softleaf_t entry = softleaf_mk_none();
 	struct folio *prealloc = NULL;
 	int nr;
 
@@ -1282,7 +1282,7 @@ again:
 						  dst_vma, src_vma,
 						  addr, rss);
 			if (ret == -EIO) {
-				entry = pte_to_swp_entry(ptep_get(src_pte));
+				entry = softleaf_from_pte(ptep_get(src_pte));
 				break;
 			} else if (ret == -EBUSY) {
 				break;
@@ -4446,13 +4446,13 @@ static struct folio *__alloc_swap_folio(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct folio *folio;
-	swp_entry_t entry;
+	softleaf_t entry;
 
 	folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE, 0, vma, vmf->address);
 	if (!folio)
 		return NULL;
 
-	entry = pte_to_swp_entry(vmf->orig_pte);
+	entry = softleaf_from_pte(vmf->orig_pte);
 	if (mem_cgroup_swapin_charge_folio(folio, vma->vm_mm,
 					   GFP_KERNEL, entry)) {
 		folio_put(folio);
@@ -4470,7 +4470,7 @@ static struct folio *__alloc_swap_folio(struct vm_fault *vmf)
 static bool can_swapin_thp(struct vm_fault *vmf, pte_t *ptep, int nr_pages)
 {
 	unsigned long addr;
-	swp_entry_t entry;
+	softleaf_t entry;
 	int idx;
 	pte_t pte;
 
@@ -4480,7 +4480,7 @@ static bool can_swapin_thp(struct vm_fault *vmf, pte_t *ptep, int nr_pages)
 
 	if (!pte_same(pte, pte_move_swp_offset(vmf->orig_pte, -idx)))
 		return false;
-	entry = pte_to_swp_entry(pte);
+	entry = softleaf_from_pte(pte);
 	if (swap_pte_batch(ptep, nr_pages, pte) != nr_pages)
 		return false;
 
@@ -4526,7 +4526,7 @@ static struct folio *alloc_swap_folio(struct vm_fault *vmf)
 	unsigned long orders;
 	struct folio *folio;
 	unsigned long addr;
-	swp_entry_t entry;
+	softleaf_t entry;
 	spinlock_t *ptl;
 	pte_t *pte;
 	gfp_t gfp;
@@ -4547,7 +4547,7 @@ static struct folio *alloc_swap_folio(struct vm_fault *vmf)
 	if (!zswap_never_enabled())
 		goto fallback;
 
-	entry = pte_to_swp_entry(vmf->orig_pte);
+	entry = softleaf_from_pte(vmf->orig_pte);
 	/*
 	 * Get a list of all the (large) orders below PMD_ORDER that are enabled
 	 * and suitable for swapping THP.

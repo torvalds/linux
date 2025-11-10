@@ -54,11 +54,16 @@ static inline softleaf_t softleaf_mk_none(void)
  */
 static inline softleaf_t softleaf_from_pte(pte_t pte)
 {
+	softleaf_t arch_entry;
+
 	if (pte_present(pte) || pte_none(pte))
 		return softleaf_mk_none();
 
+	pte = pte_swp_clear_flags(pte);
+	arch_entry = __pte_to_swp_entry(pte);
+
 	/* Temporary until swp_entry_t eliminated. */
-	return pte_to_swp_entry(pte);
+	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
 }
 
 /**

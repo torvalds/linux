@@ -334,7 +334,7 @@ unsigned int folio_pte_batch(struct folio *folio, pte_t *ptep, pte_t pte,
  */
 static inline pte_t pte_move_swp_offset(pte_t pte, long delta)
 {
-	swp_entry_t entry = pte_to_swp_entry(pte);
+	const softleaf_t entry = softleaf_from_pte(pte);
 	pte_t new = __swp_entry_to_pte(__swp_entry(swp_type(entry),
 						   (swp_offset(entry) + delta)));
 
@@ -389,11 +389,14 @@ static inline int swap_pte_batch(pte_t *start_ptep, int max_nr, pte_t pte)
 
 	cgroup_id = lookup_swap_cgroup_id(entry);
 	while (ptep < end_ptep) {
+		softleaf_t entry;
+
 		pte = ptep_get(ptep);
 
 		if (!pte_same(pte, expected_pte))
 			break;
-		if (lookup_swap_cgroup_id(pte_to_swp_entry(pte)) != cgroup_id)
+		entry = softleaf_from_pte(pte);
+		if (lookup_swap_cgroup_id(entry) != cgroup_id)
 			break;
 		expected_pte = pte_next_swp_offset(expected_pte);
 		ptep++;

@@ -108,19 +108,6 @@ static inline pgoff_t swp_offset(swp_entry_t entry)
 }
 
 /*
- * Convert the arch-dependent pte representation of a swp_entry_t into an
- * arch-independent swp_entry_t.
- */
-static inline swp_entry_t pte_to_swp_entry(pte_t pte)
-{
-	swp_entry_t arch_entry;
-
-	pte = pte_swp_clear_flags(pte);
-	arch_entry = __pte_to_swp_entry(pte);
-	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
-}
-
-/*
  * Convert the arch-independent representation of a swp_entry_t into the
  * arch-dependent pte representation.
  */
