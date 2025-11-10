@@ -18434,7 +18434,6 @@ L:	linux-tegra@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/rtc/nvidia,vrs-10.yaml
 F:	drivers/rtc/rtc-nvidia-vrs10.c
-F:	include/linux/rtc/rtc-nvidia-vrs10.h
 
 NVIDIA WMI EC BACKLIGHT DRIVER
 M:	Daniel Dadap <ddadap@nvidia.com>
