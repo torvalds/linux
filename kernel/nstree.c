@@ -598,10 +598,14 @@ static ssize_t do_listns_userns(struct klistns *kls)
 	rcu_read_lock();
 
 	if (!first_ns)
-		first_ns = list_entry_rcu(head->next, typeof(*ns), ns_owner_node.ns_list_entry);
-	for (ns = first_ns; &ns->ns_owner_node.ns_list_entry != head && nr_ns_ids;
-	     ns = list_entry_rcu(ns->ns_owner_node.ns_list_entry.next, typeof(*ns), ns_owner_node.ns_list_entry)) {
+		first_ns = list_entry_rcu(head->next, typeof(*first_ns), ns_owner_node.ns_list_entry);
+
+	ns = first_ns;
+	list_for_each_entry_from_rcu(ns, head, ns_owner_node.ns_list_entry) {
 		struct ns_common *valid;
+
+		if (!nr_ns_ids)
+			break;
 
 		valid = legitimize_ns(kls, ns);
 		if (!valid)
