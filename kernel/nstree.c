@@ -10,6 +10,14 @@
 
 static __cacheline_aligned_in_smp DEFINE_SEQLOCK(ns_tree_lock);
 
+DEFINE_LOCK_GUARD_0(ns_tree_writer,
+		    write_seqlock(&ns_tree_lock),
+		    write_sequnlock(&ns_tree_lock))
+
+DEFINE_LOCK_GUARD_0(ns_tree_locked_reader,
+		    read_seqlock_excl(&ns_tree_lock),
+		    read_sequnlock_excl(&ns_tree_lock))
+
 static struct ns_tree_root ns_unified_root = { /* protected by ns_tree_lock */
 	.ns_rb = RB_ROOT,
 	.ns_list_head = LIST_HEAD_INIT(ns_unified_root.ns_list_head),
@@ -193,7 +201,7 @@ void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree_root *ns_tree)
 
 	VFS_WARN_ON_ONCE(!ns->ns_id);
 
-	write_seqlock(&ns_tree_lock);
+	guard(ns_tree_writer)();
 
 	/* Add to per-type tree and list */
 	node = ns_tree_node_add(&ns->ns_tree_node, ns_tree, ns_cmp);
@@ -218,7 +226,6 @@ void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree_root *ns_tree)
 			VFS_WARN_ON_ONCE(ns != to_ns_common(&init_user_ns));
 		}
 	}
-	write_sequnlock(&ns_tree_lock);
 
 	VFS_WARN_ON_ONCE(node);
 }
@@ -461,9 +468,9 @@ static struct ns_common *lookup_ns_owner_at(u64 ns_id, struct ns_common *owner)
 
 	VFS_WARN_ON_ONCE(owner->ns_type != CLONE_NEWUSER);
 
-	read_seqlock_excl(&ns_tree_lock);
-	node = owner->ns_owner_root.ns_rb.rb_node;
+	guard(ns_tree_locked_reader)();
 
+	node = owner->ns_owner_root.ns_rb.rb_node;
 	while (node) {
 		struct ns_common *ns;
 
@@ -480,7 +487,6 @@ static struct ns_common *lookup_ns_owner_at(u64 ns_id, struct ns_common *owner)
 
 	if (ret)
 		ret = ns_get_unless_inactive(ret);
-	read_sequnlock_excl(&ns_tree_lock);
 	return ret;
 }
 
@@ -648,7 +654,8 @@ static struct ns_common *lookup_ns_id_at(u64 ns_id, int ns_type)
 			return NULL;
 	}
 
-	read_seqlock_excl(&ns_tree_lock);
+	guard(ns_tree_locked_reader)();
+
 	if (ns_tree)
 		node = ns_tree->ns_rb.rb_node;
 	else
@@ -677,7 +684,6 @@ static struct ns_common *lookup_ns_id_at(u64 ns_id, int ns_type)
 
 	if (ret)
 		ret = ns_get_unless_inactive(ret);
-	read_sequnlock_excl(&ns_tree_lock);
 	return ret;
 }
 
