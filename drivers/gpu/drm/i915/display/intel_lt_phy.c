@@ -1680,7 +1680,7 @@ intel_lt_phy_calculate_hdmi_state(struct intel_lt_phy_pll_state *lt_state,
 }
 
 static int
-intel_lt_phy_calc_hdmi_port_clock(const struct intel_lt_phy_pll_state *lt_state)
+intel_lt_phy_calc_hdmi_port_clock(const struct intel_crtc_state *crtc_state)
 {
 #define REGVAL(i) (				\
 	(lt_state->data[i][3])		|	\
@@ -1689,6 +1689,9 @@ intel_lt_phy_calc_hdmi_port_clock(const struct intel_lt_phy_pll_state *lt_state)
 	(lt_state->data[i][0] << 24)		\
 )
 
+	struct intel_display *display = to_intel_display(crtc_state);
+	const struct intel_lt_phy_pll_state *lt_state =
+		&crtc_state->dpll_hw_state.ltpll;
 	int clk = 0;
 	u32 d8, pll_reg_5, pll_reg_3, pll_reg_57, m2div_frac, m2div_int;
 	u64 temp0, temp1;
@@ -1731,11 +1734,14 @@ intel_lt_phy_calc_hdmi_port_clock(const struct intel_lt_phy_pll_state *lt_state)
 	 * frequency = (m2div * refclk_khz / (d8 * 10))
 	 */
 	d8 = (pll_reg_57 & REG_GENMASK(14, 7)) >> 7;
+	if (d8 == 0) {
+		drm_WARN_ON(display->drm,
+			    "Invalid port clock using lowest HDMI portclock\n");
+		return xe3plpd_lt_hdmi_252.clock;
+	}
 	m2div_int = (pll_reg_3  & REG_GENMASK(14, 5)) >> 5;
 	temp0 = ((u64)m2div_frac * REF_CLK_KHZ) >> 32;
 	temp1 = (u64)m2div_int * REF_CLK_KHZ;
-	if (d8 == 0)
-		return 0;
 
 	clk = div_u64((temp1 + temp0), d8 * 10);
 
@@ -1764,7 +1770,7 @@ intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
 				      lt_state->config[0]);
 		clk = intel_lt_phy_get_dp_clock(rate);
 	} else {
-		clk = intel_lt_phy_calc_hdmi_port_clock(lt_state);
+		clk = intel_lt_phy_calc_hdmi_port_clock(crtc_state);
 	}
 
 	return clk;
