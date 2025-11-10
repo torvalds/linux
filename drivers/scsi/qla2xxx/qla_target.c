@@ -4002,7 +4002,8 @@ static int qlt_prepare_srr_ctio(struct qla_qpair *qpair,
 
 /* ha->hardware_lock supposed to be held on entry */
 static void *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
-	struct rsp_que *rsp, uint32_t handle, void *ctio)
+	struct rsp_que *rsp, uint32_t handle, uint8_t cmd_type,
+	const void *ctio)
 {
 	void *cmd = NULL;
 	struct req_que *req;
@@ -4025,29 +4026,97 @@ static void *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 
 	h &= QLA_CMD_HANDLE_MASK;
 
-	if (h != QLA_TGT_NULL_HANDLE) {
-		if (unlikely(h >= req->num_outstanding_cmds)) {
-			ql_dbg(ql_dbg_tgt, vha, 0xe052,
-			    "qla_target(%d): Wrong handle %x received\n",
-			    vha->vp_idx, handle);
-			return NULL;
-		}
-
-		cmd = req->outstanding_cmds[h];
-		if (unlikely(cmd == NULL)) {
-			ql_dbg(ql_dbg_async, vha, 0xe053,
-			    "qla_target(%d): Suspicious: unable to find the command with handle %x req->id %d rsp->id %d\n",
-				vha->vp_idx, handle, req->id, rsp->id);
-			return NULL;
-		}
-		req->outstanding_cmds[h] = NULL;
-	} else if (ctio != NULL) {
+	if (h == QLA_TGT_NULL_HANDLE) {
 		/* We can't get loop ID from CTIO7 */
 		ql_dbg(ql_dbg_tgt, vha, 0xe054,
 		    "qla_target(%d): Wrong CTIO received: QLA24xx doesn't "
 		    "support NULL handles\n", vha->vp_idx);
 		return NULL;
 	}
+	if (unlikely(h >= req->num_outstanding_cmds)) {
+		ql_dbg(ql_dbg_tgt, vha, 0xe052,
+		    "qla_target(%d): Wrong handle %x received\n",
+		    vha->vp_idx, handle);
+		return NULL;
+	}
+
+	/*
+	 * We passed a numeric handle for a cmd to the hardware, and the
+	 * hardware passed the handle back to us.  Look up the associated cmd,
+	 * and validate that the cmd_type and exchange address match what the
+	 * caller expects.  This guards against buggy HBA firmware that returns
+	 * the same CTIO multiple times.
+	 */
+
+	cmd = req->outstanding_cmds[h];
+
+	if (unlikely(cmd == NULL)) {
+		if (cmd_type == TYPE_TGT_CMD) {
+			__le32 ctio_exchange_addr =
+				((const struct ctio7_from_24xx *)ctio)->
+				exchange_address;
+
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe053,
+			    "qla_target(%d): tag %u: handle %x: cmd detached; ignoring CTIO (handle %x req->id %d rsp->id %d)\n",
+			    vha->vp_idx, le32_to_cpu(ctio_exchange_addr), h,
+			    handle, req->id, rsp->id);
+		} else {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe053,
+			    "qla_target(%d): cmd detached; ignoring CTIO (handle %x req->id %d rsp->id %d)\n",
+			    vha->vp_idx, handle, req->id, rsp->id);
+		}
+		return NULL;
+	}
+
+	if (unlikely(((srb_t *)cmd)->cmd_type != cmd_type)) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe087,
+		    "qla_target(%d): handle %x: cmd detached; ignoring CTIO (cmd_type mismatch)\n",
+		    vha->vp_idx, h);
+		return NULL;
+	}
+
+	switch (cmd_type) {
+	case TYPE_TGT_CMD: {
+		__le32 ctio_exchange_addr =
+			((const struct ctio7_from_24xx *)ctio)->
+			exchange_address;
+		__le32 cmd_exchange_addr =
+			((struct qla_tgt_cmd *)cmd)->
+			atio.u.isp24.exchange_addr;
+
+		BUILD_BUG_ON(offsetof(struct ctio7_from_24xx,
+				      exchange_address) !=
+			     offsetof(struct ctio_crc_from_fw,
+				      exchange_address));
+
+		if (unlikely(ctio_exchange_addr != cmd_exchange_addr)) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe088,
+			    "qla_target(%d): tag %u: handle %x: cmd detached; ignoring CTIO (exchange address mismatch)\n",
+			    vha->vp_idx, le32_to_cpu(ctio_exchange_addr), h);
+			return NULL;
+		}
+		break;
+	}
+
+	case TYPE_TGT_TMCMD: {
+		__le32 ctio_exchange_addr =
+			((const struct abts_resp_from_24xx_fw *)ctio)->
+			exchange_address;
+		__le32 cmd_exchange_addr =
+			((struct qla_tgt_mgmt_cmd *)cmd)->
+			orig_iocb.abts.exchange_address;
+
+		if (unlikely(ctio_exchange_addr != cmd_exchange_addr)) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe089,
+			    "qla_target(%d): ABTS: handle %x: cmd detached; ignoring CTIO (exchange address mismatch)\n",
+			    vha->vp_idx, h);
+			return NULL;
+		}
+		break;
+	}
+	}
+
+	req->outstanding_cmds[h] = NULL;
 
 	return cmd;
 }
@@ -4076,7 +4145,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 
 	ctio_flags = le16_to_cpu(ctio->flags);
 
-	cmd = qlt_ctio_to_cmd(vha, rsp, handle, ctio);
+	cmd = qlt_ctio_to_cmd(vha, rsp, handle, TYPE_TGT_CMD, ctio);
 	if (unlikely(cmd == NULL)) {
 		if ((handle & ~QLA_TGT_HANDLE_MASK) == QLA_TGT_SKIP_HANDLE &&
 		    (ctio_flags & 0xe1ff) == (CTIO7_FLAGS_STATUS_MODE_1 |
@@ -6838,7 +6907,7 @@ static void qlt_handle_abts_completion(struct scsi_qla_host *vha,
 	struct qla_tgt_mgmt_cmd *mcmd;
 	struct qla_hw_data *ha = vha->hw;
 
-	mcmd = qlt_ctio_to_cmd(vha, rsp, pkt->handle, pkt);
+	mcmd = qlt_ctio_to_cmd(vha, rsp, pkt->handle, TYPE_TGT_TMCMD, pkt);
 	if (mcmd == NULL && h != QLA_TGT_SKIP_HANDLE) {
 		ql_dbg(ql_dbg_async, vha, 0xe064,
 		    "qla_target(%d): ABTS Comp without mcmd\n",
