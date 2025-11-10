@@ -5,7 +5,7 @@
 #include <linux/hugetlb.h>
 #include <linux/mmu_context.h>
 #include <linux/swap.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 
 #include <asm/tlbflush.h>
 
@@ -973,10 +973,10 @@ pmd_table:
 				goto found;
 			}
 		} else if ((flags & FW_MIGRATION) &&
-			   is_pmd_migration_entry(pmd)) {
-			swp_entry_t entry = pmd_to_swp_entry(pmd);
+			   pmd_is_migration_entry(pmd)) {
+			const softleaf_t entry = softleaf_from_pmd(pmd);
 
-			page = pfn_swap_entry_to_page(entry);
+			page = softleaf_to_page(entry);
 			expose_page = false;
 			goto found;
 		}

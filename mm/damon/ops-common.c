@@ -11,7 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 #include <linux/swap.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 
 #include "../internal.h"
 #include "ops-common.h"
@@ -51,7 +51,7 @@ void damon_ptep_mkold(pte_t *pte, struct vm_area_struct *vma, unsigned long addr
 	if (likely(pte_present(pteval)))
 		pfn = pte_pfn(pteval);
 	else
-		pfn = swp_offset_pfn(pte_to_swp_entry(pteval));
+		pfn = softleaf_to_pfn(softleaf_from_pte(pteval));
 
 	folio = damon_get_folio(pfn);
 	if (!folio)
@@ -83,7 +83,7 @@ void damon_pmdp_mkold(pmd_t *pmd, struct vm_area_struct *vma, unsigned long addr
 	if (likely(pmd_present(pmdval)))
 		pfn = pmd_pfn(pmdval);
 	else
-		pfn = swp_offset_pfn(pmd_to_swp_entry(pmdval));
+		pfn = softleaf_to_pfn(softleaf_from_pmd(pmdval));
 
 	folio = damon_get_folio(pfn);
 	if (!folio)

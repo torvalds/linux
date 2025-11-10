@@ -283,28 +283,12 @@ static inline swp_entry_t make_migration_entry_young(swp_entry_t entry)
 	return entry;
 }
 
-static inline bool is_migration_entry_young(swp_entry_t entry)
-{
-	if (migration_entry_supports_ad())
-		return swp_offset(entry) & SWP_MIG_YOUNG;
-	/* Keep the old behavior of aging page after migration */
-	return false;
-}
-
 static inline swp_entry_t make_migration_entry_dirty(swp_entry_t entry)
 {
 	if (migration_entry_supports_ad())
 		return swp_entry(swp_type(entry),
 				 swp_offset(entry) | SWP_MIG_DIRTY);
 	return entry;
-}
-
-static inline bool is_migration_entry_dirty(swp_entry_t entry)
-{
-	if (migration_entry_supports_ad())
-		return swp_offset(entry) & SWP_MIG_DIRTY;
-	/* Keep the old behavior of clean page after migration */
-	return false;
 }
 
 extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
@@ -349,20 +333,11 @@ static inline swp_entry_t make_migration_entry_young(swp_entry_t entry)
 	return entry;
 }
 
-static inline bool is_migration_entry_young(swp_entry_t entry)
-{
-	return false;
-}
-
 static inline swp_entry_t make_migration_entry_dirty(swp_entry_t entry)
 {
 	return entry;
 }
 
-static inline bool is_migration_entry_dirty(swp_entry_t entry)
-{
-	return false;
-}
 #endif	/* CONFIG_MIGRATION */
 
 #ifdef CONFIG_MEMORY_FAILURE
@@ -487,18 +462,6 @@ extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
 
 extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
 
-static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
-{
-	swp_entry_t arch_entry;
-
-	if (pmd_swp_soft_dirty(pmd))
-		pmd = pmd_swp_clear_soft_dirty(pmd);
-	if (pmd_swp_uffd_wp(pmd))
-		pmd = pmd_swp_clear_uffd_wp(pmd);
-	arch_entry = __pmd_to_swp_entry(pmd);
-	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
-}
-
 static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
 {
 	swp_entry_t arch_entry;
@@ -507,23 +470,7 @@ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
 	return __swp_entry_to_pmd(arch_entry);
 }
 
-static inline int is_pmd_migration_entry(pmd_t pmd)
-{
-	swp_entry_t entry;
-
-	if (pmd_present(pmd))
-		return 0;
-
-	entry = pmd_to_swp_entry(pmd);
-	return is_migration_entry(entry);
-}
 #else  /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
-static inline int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
-		struct page *page)
-{
-	BUILD_BUG();
-}
-
 static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
 		struct page *new)
 {
@@ -532,63 +479,16 @@ static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
 
 static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
 
-static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
-{
-	return swp_entry(0, 0);
-}
-
 static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
 {
 	return __pmd(0);
 }
 
-static inline int is_pmd_migration_entry(pmd_t pmd)
-{
-	return 0;
-}
 #endif  /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
-
-#if defined(CONFIG_ZONE_DEVICE) && defined(CONFIG_ARCH_ENABLE_THP_MIGRATION)
-
-/**
- * is_pmd_device_private_entry() - Check if PMD contains a device private swap entry
- * @pmd: The PMD to check
- *
- * Returns true if the PMD contains a swap entry that represents a device private
- * page mapping. This is used for zone device private pages that have been
- * swapped out but still need special handling during various memory management
- * operations.
- *
- * Return: 1 if PMD contains device private entry, 0 otherwise
- */
-static inline int is_pmd_device_private_entry(pmd_t pmd)
-{
-	swp_entry_t entry;
-
-	if (pmd_present(pmd))
-		return 0;
-
-	entry = pmd_to_swp_entry(pmd);
-	return is_device_private_entry(entry);
-}
-
-#else /* CONFIG_ZONE_DEVICE && CONFIG_ARCH_ENABLE_THP_MIGRATION */
-
-static inline int is_pmd_device_private_entry(pmd_t pmd)
-{
-	return 0;
-}
-
-#endif /* CONFIG_ZONE_DEVICE && CONFIG_ARCH_ENABLE_THP_MIGRATION */
 
 static inline int non_swap_entry(swp_entry_t entry)
 {
 	return swp_type(entry) >= MAX_SWAPFILES;
-}
-
-static inline int is_pmd_non_present_folio_entry(pmd_t pmd)
-{
-	return is_pmd_migration_entry(pmd) || is_pmd_device_private_entry(pmd);
 }
 
 #endif /* CONFIG_MMU */
