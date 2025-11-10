@@ -14,6 +14,12 @@
 #define ATH12K_MON_RX_DOT11_OFFSET	5
 #define ATH12K_MON_RX_PKT_OFFSET	8
 
+#define ATH12K_LE32_DEC_ENC(value, dec_bits, enc_bits)	\
+		u32_encode_bits(le32_get_bits(value, dec_bits), enc_bits)
+
+#define ATH12K_LE64_DEC_ENC(value, dec_bits, enc_bits) \
+		u32_encode_bits(le64_get_bits(value, dec_bits), enc_bits)
+
 enum dp_monitor_mode {
 	ATH12K_DP_TX_MONITOR_MODE,
 	ATH12K_DP_RX_MONITOR_MODE
@@ -114,9 +120,6 @@ ath12k_dp_mon_parse_status_buf(struct ath12k_pdev_dp *dp_pdev,
 			       struct ath12k_mon_data *pmon,
 			       const struct dp_mon_packet_info *packet_info);
 void
-ath12k_dp_mon_parse_eht_sig_hdr(struct hal_rx_mon_ppdu_info *ppdu_info,
-				const void *tlv_data);
-void
 ath12k_dp_mon_rx_handle_ofdma_info(const struct hal_rx_ppdu_end_user_stats *ppdu_end_user,
 				   struct hal_rx_user_status *rx_user_status);
 void
@@ -137,7 +140,4 @@ ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
 void
 ath12k_dp_mon_hal_rx_parse_u_sig_hdr(const struct hal_mon_usig_hdr *usig,
 				     struct hal_rx_mon_ppdu_info *ppdu_info);
-void
-ath12k_dp_mon_hal_aggr_tlv(struct hal_rx_mon_ppdu_info *ppdu_info,
-			   u16 tlv_len, const void *tlv_data);
 #endif
