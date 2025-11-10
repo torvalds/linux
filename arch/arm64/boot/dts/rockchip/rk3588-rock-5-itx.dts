@@ -345,6 +345,10 @@
 	};
 };
 
+&hdmi1_sound {
+	status = "okay";
+};
+
 &hdptxphy1 {
 	status = "okay";
 };
@@ -544,6 +548,11 @@
 			remote-endpoint = <&es8316_p0_0>;
 		};
 	};
+};
+
+/* HDMI1 ("HDMI TX1 8K") audio */
+&i2s6_8ch {
+	status = "okay";
 };
 
 &package_thermal {
