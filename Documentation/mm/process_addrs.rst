@@ -48,7 +48,8 @@ Terminology
 * **VMA locks** - The VMA lock is at VMA granularity (of course) which behaves
   as a read/write semaphore in practice. A VMA read lock is obtained via
   :c:func:`!lock_vma_under_rcu` (and unlocked via :c:func:`!vma_end_read`) and a
-  write lock via :c:func:`!vma_start_write` (all VMA write locks are unlocked
+  write lock via vma_start_write() or vma_start_write_killable()
+  (all VMA write locks are unlocked
   automatically when the mmap write lock is released). To take a VMA write lock
   you **must** have already acquired an :c:func:`!mmap_write_lock`.
 * **rmap locks** - When trying to access VMAs through the reverse mapping via a
@@ -907,3 +908,9 @@ Stack expansion
 Stack expansion throws up additional complexities in that we cannot permit there
 to be racing page faults, as a result we invoke :c:func:`!vma_start_write` to
 prevent this in :c:func:`!expand_downwards` or :c:func:`!expand_upwards`.
+
+------------------------
+Functions and structures
+------------------------
+
+.. kernel-doc:: include/linux/mmap_lock.h
