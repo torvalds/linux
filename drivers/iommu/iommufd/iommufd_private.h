@@ -614,7 +614,6 @@ struct iommufd_veventq {
 	struct iommufd_eventq common;
 	struct iommufd_viommu *viommu;
 	struct list_head node; /* for iommufd_viommu::veventqs */
-	struct iommufd_vevent lost_events_header;
 
 	enum iommu_veventq_type type;
 	unsigned int depth;
@@ -622,6 +621,9 @@ struct iommufd_veventq {
 	/* Use common.lock for protection */
 	u32 num_events;
 	u32 sequence;
+
+	/* Must be last as it ends in a flexible-array member. */
+	struct iommufd_vevent lost_events_header;
 };
 
 static inline struct iommufd_veventq *
