@@ -56,7 +56,6 @@ FILES=                                          \
          test-lzma.bin                          \
          test-bpf.bin                           \
          test-libbpf.bin                        \
-         test-get_cpuid.bin                     \
          test-sdt.bin                           \
          test-cxx.bin                           \
          test-gettid.bin			\
@@ -317,9 +316,6 @@ $(OUTPUT)test-zlib.bin:
 
 $(OUTPUT)test-lzma.bin:
 	$(BUILD) -llzma
-
-$(OUTPUT)test-get_cpuid.bin:
-	$(BUILD)
 
 $(OUTPUT)test-bpf.bin:
 	$(BUILD)
