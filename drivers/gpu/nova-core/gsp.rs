@@ -14,6 +14,7 @@ use kernel::{
     transmute::AsBytes, //
 };
 
+pub(crate) mod cmdq;
 mod fw;
 
 pub(crate) use fw::{
@@ -22,6 +23,7 @@ pub(crate) use fw::{
 };
 
 use crate::{
+    gsp::cmdq::Cmdq,
     gsp::fw::LibosMemoryRegionInitArgument,
     num, //
 };
@@ -104,6 +106,8 @@ pub(crate) struct Gsp {
     logintr: LogBuffer,
     /// RM log buffer.
     logrm: LogBuffer,
+    /// Command queue.
+    pub(crate) cmdq: Cmdq,
 }
 
 impl Gsp {
@@ -128,11 +132,14 @@ impl Gsp {
         let logrm = LogBuffer::new(dev)?;
         dma_write!(libos[2] = LibosMemoryRegionInitArgument::new("LOGRM", &logrm.0))?;
 
+        let cmdq = Cmdq::new(dev)?;
+
         Ok(try_pin_init!(Self {
             libos,
             loginit,
             logintr,
             logrm,
+            cmdq,
         }))
     }
 }

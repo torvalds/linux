@@ -50,7 +50,6 @@ where
     /// let sum: u8 = sbuffer.sum();
     /// assert_eq!(sum, 45);
     /// ```
-    #[expect(unused)]
     pub(crate) fn new_reader(slices: impl IntoIterator<IntoIter = I>) -> Self
     where
         I: Iterator<Item = &'a [u8]>,
@@ -72,7 +71,6 @@ where
     /// assert_eq!(buf2, [5, 6, 7, 8, 9]);
     ///
     /// ```
-    #[expect(unused)]
     pub(crate) fn new_writer(slices: impl IntoIterator<IntoIter = I>) -> Self
     where
         I: Iterator<Item = &'a mut [u8]>,
@@ -131,7 +129,6 @@ where
     }
 
     /// Returns whether this buffer still has data available.
-    #[expect(unused)]
     pub(crate) fn is_empty(&self) -> bool {
         self.cur_slice.is_none()
     }
