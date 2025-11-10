@@ -2826,9 +2826,9 @@ void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 		     intel_cx0_get_powerdown_update(lane_mask));
 
 	/* Update Timeout Value */
-	if (intel_de_wait_ms(display, buf_ctl2_reg,
-			     intel_cx0_get_powerdown_update(lane_mask), 0,
-			     XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_MS, NULL))
+	if (intel_de_wait_for_clear_ms(display, buf_ctl2_reg,
+				       intel_cx0_get_powerdown_update(lane_mask),
+				       XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_MS))
 		drm_warn(display->drm,
 			 "PHY %c failed to bring out of lane reset\n",
 			 phy_name(phy));
