@@ -3,13 +3,14 @@
 #ifndef _LINUX_NSTREE_H
 #define _LINUX_NSTREE_H
 
-#include <linux/ns_common.h>
 #include <linux/nsproxy.h>
 #include <linux/rbtree.h>
 #include <linux/seqlock.h>
 #include <linux/rculist.h>
 #include <linux/cookie.h>
 #include <uapi/linux/nsfs.h>
+
+struct ns_common;
 
 extern struct ns_tree cgroup_ns_tree;
 extern struct ns_tree ipc_ns_tree;
