@@ -14,7 +14,7 @@
 #include <linux/mman.h>
 #include <linux/syscalls.h>
 #include <linux/swap.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/shmem_fs.h>
 #include <linux/hugetlb.h>
 #include <linux/pgtable.h>
@@ -42,7 +42,7 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
 	} else {
 		const pte_t ptep = huge_ptep_get(walk->mm, addr, pte);
 
-		if (huge_pte_none(ptep) || is_pte_marker(ptep))
+		if (huge_pte_none(ptep) || pte_is_marker(ptep))
 			present = 0;
 		else
 			present = 1;
@@ -187,7 +187,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 
 		step = 1;
 		/* We need to do cache lookup too for markers */
-		if (pte_none(pte) || is_pte_marker(pte))
+		if (pte_none(pte) || pte_is_marker(pte))
 			__mincore_unmapped_range(addr, addr + PAGE_SIZE,
 						 vma, vec);
 		else if (pte_present(pte)) {

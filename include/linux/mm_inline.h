@@ -8,7 +8,7 @@
 #include <linux/swap.h>
 #include <linux/string.h>
 #include <linux/userfaultfd_k.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 
 /**
  * folio_is_file_lru - Should the folio be on a file LRU or anon LRU?
@@ -541,9 +541,9 @@ static inline bool mm_tlb_flush_nested(const struct mm_struct *mm)
  * The caller should insert a new pte created with make_pte_marker().
  */
 static inline pte_marker copy_pte_marker(
-		swp_entry_t entry, struct vm_area_struct *dst_vma)
+		softleaf_t entry, struct vm_area_struct *dst_vma)
 {
-	pte_marker srcm = pte_marker_get(entry);
+	const pte_marker srcm = softleaf_to_marker(entry);
 	/* Always copy error entries. */
 	pte_marker dstm = srcm & (PTE_MARKER_POISONED | PTE_MARKER_GUARD);
 

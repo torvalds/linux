@@ -3,7 +3,7 @@
 #include <linux/rmap.h>
 #include <linux/hugetlb.h>
 #include <linux/swap.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 
 #include "internal.h"
 
@@ -107,15 +107,12 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw, unsigned long pte_nr)
 	pte_t ptent = ptep_get(pvmw->pte);
 
 	if (pvmw->flags & PVMW_MIGRATION) {
-		swp_entry_t entry;
-		if (!is_swap_pte(ptent))
-			return false;
-		entry = pte_to_swp_entry(ptent);
+		const softleaf_t entry = softleaf_from_pte(ptent);
 
-		if (!is_migration_entry(entry))
+		if (!softleaf_is_migration(entry))
 			return false;
 
-		pfn = swp_offset_pfn(entry);
+		pfn = softleaf_to_pfn(entry);
 	} else if (is_swap_pte(ptent)) {
 		swp_entry_t entry;
 

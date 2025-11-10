@@ -29,7 +29,7 @@
 #include <linux/ioctl.h>
 #include <linux/security.h>
 #include <linux/hugetlb.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/miscdevice.h>
 #include <linux/uio.h>
 
@@ -251,7 +251,7 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
 	if (huge_pte_none(pte))
 		return true;
 	/* UFFD PTE markers require userspace to resolve the fault. */
-	if (is_uffd_pte_marker(pte))
+	if (pte_is_uffd_marker(pte))
 		return true;
 	/*
 	 * If VMA has UFFD WP faults enabled and WP fault, wait for userspace to
@@ -337,7 +337,7 @@ again:
 	if (pte_none(ptent))
 		goto out;
 	/* UFFD PTE markers require userspace to resolve the fault. */
-	if (is_uffd_pte_marker(ptent))
+	if (pte_is_uffd_marker(ptent))
 		goto out;
 	/*
 	 * If VMA has UFFD WP faults enabled and WP fault, wait for userspace to

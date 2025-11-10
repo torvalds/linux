@@ -29,7 +29,7 @@
 #include <linux/backing-dev.h>
 #include <linux/pagewalk.h>
 #include <linux/swap.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/shmem_fs.h>
 #include <linux/mmu_notifier.h>
 
@@ -690,17 +690,16 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 		 * (page allocation + zeroing).
 		 */
 		if (!pte_present(ptent)) {
-			swp_entry_t entry;
+			softleaf_t entry = softleaf_from_pte(ptent);
 
-			entry = pte_to_swp_entry(ptent);
-			if (!non_swap_entry(entry)) {
+			if (softleaf_is_swap(entry)) {
 				max_nr = (end - addr) / PAGE_SIZE;
 				nr = swap_pte_batch(pte, max_nr, ptent);
 				nr_swap -= nr;
 				free_swap_and_cache_nr(entry, nr);
 				clear_not_present_full_ptes(mm, addr, pte, nr, tlb->fullmm);
-			} else if (is_hwpoison_entry(entry) ||
-				   is_poisoned_swp_entry(entry)) {
+			} else if (softleaf_is_hwpoison(entry) ||
+				   softleaf_is_poison_marker(entry)) {
 				pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
 			}
 			continue;
@@ -1071,8 +1070,9 @@ static bool is_valid_guard_vma(struct vm_area_struct *vma, bool allow_locked)
 
 static bool is_guard_pte_marker(pte_t ptent)
 {
-	return is_swap_pte(ptent) &&
-	       is_guard_swp_entry(pte_to_swp_entry(ptent));
+	const softleaf_t entry = softleaf_from_pte(ptent);
+
+	return softleaf_is_guard_marker(entry);
 }
 
 static int guard_install_pud_entry(pud_t *pud, unsigned long addr,

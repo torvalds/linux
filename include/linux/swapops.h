@@ -426,21 +426,6 @@ static inline swp_entry_t make_pte_marker_entry(pte_marker marker)
 	return swp_entry(SWP_PTE_MARKER, marker);
 }
 
-static inline bool is_pte_marker_entry(swp_entry_t entry)
-{
-	return swp_type(entry) == SWP_PTE_MARKER;
-}
-
-static inline pte_marker pte_marker_get(swp_entry_t entry)
-{
-	return swp_offset(entry) & PTE_MARKER_MASK;
-}
-
-static inline bool is_pte_marker(pte_t pte)
-{
-	return is_swap_pte(pte) && is_pte_marker_entry(pte_to_swp_entry(pte));
-}
-
 static inline pte_t make_pte_marker(pte_marker marker)
 {
 	return swp_entry_to_pte(make_pte_marker_entry(marker));
@@ -451,22 +436,9 @@ static inline swp_entry_t make_poisoned_swp_entry(void)
 	return make_pte_marker_entry(PTE_MARKER_POISONED);
 }
 
-static inline int is_poisoned_swp_entry(swp_entry_t entry)
-{
-	return is_pte_marker_entry(entry) &&
-	    (pte_marker_get(entry) & PTE_MARKER_POISONED);
-
-}
-
 static inline swp_entry_t make_guard_swp_entry(void)
 {
 	return make_pte_marker_entry(PTE_MARKER_GUARD);
-}
-
-static inline int is_guard_swp_entry(swp_entry_t entry)
-{
-	return is_pte_marker_entry(entry) &&
-		(pte_marker_get(entry) & PTE_MARKER_GUARD);
 }
 
 static inline struct page *pfn_swap_entry_to_page(swp_entry_t entry)

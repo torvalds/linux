@@ -10,7 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 #include <linux/swap.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/userfaultfd_k.h>
 #include <linux/mmu_notifier.h>
 #include <linux/hugetlb.h>
@@ -208,7 +208,7 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 	 * MISSING|WP registered, we firstly wr-protect a none pte which has no
 	 * page cache page backing it, then access the page.
 	 */
-	if (!pte_none(dst_ptep) && !is_uffd_pte_marker(dst_ptep))
+	if (!pte_none(dst_ptep) && !pte_is_uffd_marker(dst_ptep))
 		goto out_unlock;
 
 	if (page_in_cache) {
@@ -590,7 +590,7 @@ retry:
 		if (!uffd_flags_mode_is(flags, MFILL_ATOMIC_CONTINUE)) {
 			const pte_t ptep = huge_ptep_get(dst_mm, dst_addr, dst_pte);
 
-			if (!huge_pte_none(ptep) && !is_uffd_pte_marker(ptep)) {
+			if (!huge_pte_none(ptep) && !pte_is_uffd_marker(ptep)) {
 				err = -EEXIST;
 				hugetlb_vma_unlock_read(dst_vma);
 				mutex_unlock(&hugetlb_fault_mutex_table[hash]);

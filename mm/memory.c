@@ -60,7 +60,7 @@
 #include <linux/writeback.h>
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/elf.h>
 #include <linux/gfp.h>
 #include <linux/migrate.h>
@@ -109,7 +109,7 @@ static __always_inline bool vmf_orig_pte_uffd_wp(struct vm_fault *vmf)
 	if (!(vmf->flags & FAULT_FLAG_ORIG_PTE_VALID))
 		return false;
 
-	return pte_marker_uffd_wp(vmf->orig_pte);
+	return pte_is_uffd_wp_marker(vmf->orig_pte);
 }
 
 /*
@@ -927,10 +927,10 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 {
 	vm_flags_t vm_flags = dst_vma->vm_flags;
 	pte_t orig_pte = ptep_get(src_pte);
+	softleaf_t entry = softleaf_from_pte(orig_pte);
 	pte_t pte = orig_pte;
 	struct folio *folio;
 	struct page *page;
-	swp_entry_t entry = pte_to_swp_entry(orig_pte);
 
 	if (likely(!non_swap_entry(entry))) {
 		if (swap_duplicate(entry) < 0)
@@ -1016,7 +1016,7 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		if (try_restore_exclusive_pte(src_vma, addr, src_pte, orig_pte))
 			return -EBUSY;
 		return -ENOENT;
-	} else if (is_pte_marker_entry(entry)) {
+	} else if (softleaf_is_marker(entry)) {
 		pte_marker marker = copy_pte_marker(entry, dst_vma);
 
 		if (marker)
@@ -1711,14 +1711,14 @@ static inline int zap_nonpresent_ptes(struct mmu_gather *tlb,
 		unsigned int max_nr, unsigned long addr,
 		struct zap_details *details, int *rss, bool *any_skipped)
 {
-	swp_entry_t entry;
+	softleaf_t entry;
 	int nr = 1;
 
 	*any_skipped = true;
-	entry = pte_to_swp_entry(ptent);
-	if (is_device_private_entry(entry) ||
-		is_device_exclusive_entry(entry)) {
-		struct page *page = pfn_swap_entry_to_page(entry);
+	entry = softleaf_from_pte(ptent);
+	if (softleaf_is_device_private(entry) ||
+	    softleaf_is_device_exclusive(entry)) {
+		struct page *page = softleaf_to_page(entry);
 		struct folio *folio = page_folio(page);
 
 		if (unlikely(!should_zap_folio(details, folio)))
@@ -1733,7 +1733,7 @@ static inline int zap_nonpresent_ptes(struct mmu_gather *tlb,
 		rss[mm_counter(folio)]--;
 		folio_remove_rmap_pte(folio, page, vma);
 		folio_put(folio);
-	} else if (!non_swap_entry(entry)) {
+	} else if (softleaf_is_swap(entry)) {
 		/* Genuine swap entries, hence a private anon pages */
 		if (!should_zap_cows(details))
 			return 1;
@@ -1741,20 +1741,20 @@ static inline int zap_nonpresent_ptes(struct mmu_gather *tlb,
 		nr = swap_pte_batch(pte, max_nr, ptent);
 		rss[MM_SWAPENTS] -= nr;
 		free_swap_and_cache_nr(entry, nr);
-	} else if (is_migration_entry(entry)) {
-		struct folio *folio = pfn_swap_entry_folio(entry);
+	} else if (softleaf_is_migration(entry)) {
+		struct folio *folio = softleaf_to_folio(entry);
 
 		if (!should_zap_folio(details, folio))
 			return 1;
 		rss[mm_counter(folio)]--;
-	} else if (pte_marker_entry_uffd_wp(entry)) {
+	} else if (softleaf_is_uffd_wp_marker(entry)) {
 		/*
 		 * For anon: always drop the marker; for file: only
 		 * drop the marker if explicitly requested.
 		 */
 		if (!vma_is_anonymous(vma) && !zap_drop_markers(details))
 			return 1;
-	} else if (is_guard_swp_entry(entry)) {
+	} else if (softleaf_is_guard_marker(entry)) {
 		/*
 		 * Ordinary zapping should not remove guard PTE
 		 * markers. Only do so if we should remove PTE markers
@@ -1762,7 +1762,8 @@ static inline int zap_nonpresent_ptes(struct mmu_gather *tlb,
 		 */
 		if (!zap_drop_markers(details))
 			return 1;
-	} else if (is_hwpoison_entry(entry) || is_poisoned_swp_entry(entry)) {
+	} else if (softleaf_is_hwpoison(entry) ||
+		   softleaf_is_poison_marker(entry)) {
 		if (!should_zap_cows(details))
 			return 1;
 	} else {
@@ -4380,7 +4381,7 @@ static vm_fault_t pte_marker_clear(struct vm_fault *vmf)
 	 *
 	 * This should also cover the case where e.g. the pte changed
 	 * quickly from a PTE_MARKER_UFFD_WP into PTE_MARKER_POISONED.
-	 * So is_pte_marker() check is not enough to safely drop the pte.
+	 * So pte_is_marker() check is not enough to safely drop the pte.
 	 */
 	if (pte_same(vmf->orig_pte, ptep_get(vmf->pte)))
 		pte_clear(vmf->vma->vm_mm, vmf->address, vmf->pte);
@@ -4414,8 +4415,8 @@ static vm_fault_t pte_marker_handle_uffd_wp(struct vm_fault *vmf)
 
 static vm_fault_t handle_pte_marker(struct vm_fault *vmf)
 {
-	swp_entry_t entry = pte_to_swp_entry(vmf->orig_pte);
-	unsigned long marker = pte_marker_get(entry);
+	const softleaf_t entry = softleaf_from_pte(vmf->orig_pte);
+	const pte_marker marker = softleaf_to_marker(entry);
 
 	/*
 	 * PTE markers should never be empty.  If anything weird happened,
@@ -4432,7 +4433,7 @@ static vm_fault_t handle_pte_marker(struct vm_fault *vmf)
 	if (marker & PTE_MARKER_GUARD)
 		return VM_FAULT_SIGSEGV;
 
-	if (pte_marker_entry_uffd_wp(entry))
+	if (softleaf_is_uffd_wp_marker(entry))
 		return pte_marker_handle_uffd_wp(vmf);
 
 	/* This is an unknown pte marker */
@@ -4680,7 +4681,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 			}
 		} else if (is_hwpoison_entry(entry)) {
 			ret = VM_FAULT_HWPOISON;
-		} else if (is_pte_marker_entry(entry)) {
+		} else if (softleaf_is_marker(entry)) {
 			ret = handle_pte_marker(vmf);
 		} else {
 			print_bad_pte(vma, vmf->address, vmf->orig_pte, NULL);
