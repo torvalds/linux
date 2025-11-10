@@ -72,7 +72,7 @@ EXPORT_SYMBOL_GPL(dw_pcie_ep_reset_bar);
 static u8 dw_pcie_ep_find_capability(struct dw_pcie_ep *ep, u8 func_no, u8 cap)
 {
 	return PCI_FIND_NEXT_CAP(dw_pcie_ep_read_cfg, PCI_CAPABILITY_LIST,
-				 cap, ep, func_no);
+				 cap, NULL, ep, func_no);
 }
 
 /**

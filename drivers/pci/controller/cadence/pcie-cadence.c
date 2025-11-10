@@ -13,13 +13,13 @@
 u8 cdns_pcie_find_capability(struct cdns_pcie *pcie, u8 cap)
 {
 	return PCI_FIND_NEXT_CAP(cdns_pcie_read_cfg, PCI_CAPABILITY_LIST,
-				 cap, pcie);
+				 cap, NULL, pcie);
 }
 EXPORT_SYMBOL_GPL(cdns_pcie_find_capability);
 
 u16 cdns_pcie_find_ext_capability(struct cdns_pcie *pcie, u8 cap)
 {
-	return PCI_FIND_NEXT_EXT_CAP(cdns_pcie_read_cfg, 0, cap, pcie);
+	return PCI_FIND_NEXT_EXT_CAP(cdns_pcie_read_cfg, 0, cap, NULL, pcie);
 }
 EXPORT_SYMBOL_GPL(cdns_pcie_find_ext_capability);
 
