@@ -184,7 +184,7 @@ struct pid_namespace *copy_pid_ns(u64 flags,
 
 void put_pid_ns(struct pid_namespace *ns)
 {
-	if (ns && ns != &init_pid_ns && ns_ref_put(ns))
+	if (ns && ns_ref_put(ns))
 		schedule_work(&ns->work);
 }
 EXPORT_SYMBOL_GPL(put_pid_ns);
