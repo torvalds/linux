@@ -102,7 +102,7 @@ enum {
 typedef struct {
 	unsigned int mask;
 	unsigned int addr;
-} psw_t32 __aligned(8);
+} psw32_t __aligned(8);
 
 #define PGM_INT_CODE_MASK	0x7f
 #define PGM_INT_CODE_PER	0x80

@@ -33,7 +33,7 @@ typedef struct {
 } _s390_fp_regs32;
 
 typedef struct {
-	psw_t32		psw;
+	psw32_t		psw;
 	__u32		gprs[__NUM_GPRS];
 	__u32		acrs[__NUM_ACRS];
 } _s390_regs_common32;
