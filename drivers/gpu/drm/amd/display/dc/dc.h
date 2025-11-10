@@ -42,7 +42,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#include "dml2/dml2_wrapper.h"
+#include "dml2_0/dml2_wrapper.h"
 
 #include "dmub/inc/dmub_cmd.h"
 
@@ -54,8 +54,16 @@ struct abm_save_restore;
 struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
+struct dcn_hubbub_reg_state;
+struct dcn_hubp_reg_state;
+struct dcn_dpp_reg_state;
+struct dcn_mpc_reg_state;
+struct dcn_opp_reg_state;
+struct dcn_dsc_reg_state;
+struct dcn_optc_reg_state;
+struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.351"
+#define DC_VER "3.2.356"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -278,6 +286,15 @@ struct dc_scl_caps {
 	bool sharpener_support;
 };
 
+struct dc_check_config {
+	/**
+	 * max video plane width that can be safely assumed to be always
+	 * supported by single DPP pipe.
+	 */
+	unsigned int max_optimizable_video_width;
+	bool enable_legacy_fast_update;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;
@@ -293,11 +310,6 @@ struct dc_caps {
 	unsigned int max_cursor_size;
 	unsigned int max_buffered_cursor_size;
 	unsigned int max_video_width;
-	/*
-	 * max video plane width that can be safely assumed to be always
-	 * supported by single DPP pipe.
-	 */
-	unsigned int max_optimizable_video_width;
 	unsigned int min_horizontal_blanking_period;
 	int linear_pitch_alignment;
 	bool dcc_const_color;
@@ -455,6 +467,19 @@ enum surface_update_type {
 	UPDATE_TYPE_FULL, /* may need to shuffle resources */
 };
 
+enum dc_lock_descriptor {
+	LOCK_DESCRIPTOR_NONE = 0x0,
+	LOCK_DESCRIPTOR_STATE = 0x1,
+	LOCK_DESCRIPTOR_LINK = 0x2,
+	LOCK_DESCRIPTOR_STREAM = 0x4,
+	LOCK_DESCRIPTOR_PLANE = 0x8,
+};
+
+struct surface_update_descriptor {
+	enum surface_update_type update_type;
+	enum dc_lock_descriptor lock_descriptor;
+};
+
 /* Forward declaration*/
 struct dc;
 struct dc_plane_state;
@@ -530,6 +555,7 @@ struct dc_config {
 	bool set_pipe_unlock_order;
 	bool enable_dpia_pre_training;
 	bool unify_link_enc_assignment;
+	bool enable_cursor_offload;
 	struct spl_sharpness_range dcn_sharpness_range;
 	struct spl_sharpness_range dcn_override_sharpness_range;
 };
@@ -849,8 +875,7 @@ union dpia_debug_options {
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
 		uint32_t enable_usb4_bw_zero_alloc_patch:1; /* bit 6 */
-		uint32_t enable_bw_allocation_mode:1; /* bit 7 */
-		uint32_t reserved:24;
+		uint32_t reserved:25;
 	} bits;
 	uint32_t raw;
 };
@@ -1120,7 +1145,6 @@ struct dc_debug_options {
 	uint32_t fpo_vactive_min_active_margin_us;
 	uint32_t fpo_vactive_max_blank_us;
 	bool enable_hpo_pg_support;
-	bool enable_legacy_fast_update;
 	bool disable_dc_mode_overwrite;
 	bool replay_skip_crtc_disabled;
 	bool ignore_pg;/*do nothing, let pmfw control it*/
@@ -1152,7 +1176,6 @@ struct dc_debug_options {
 	bool enable_ips_visual_confirm;
 	unsigned int sharpen_policy;
 	unsigned int scale_to_sharpness_policy;
-	bool skip_full_updated_if_possible;
 	unsigned int enable_oled_edp_power_up_opt;
 	bool enable_hblank_borrow;
 	bool force_subvp_df_throttle;
@@ -1164,6 +1187,7 @@ struct dc_debug_options {
 	unsigned int auxless_alpm_lfps_t1t2_us;
 	short auxless_alpm_lfps_t1t2_offset_us;
 	bool disable_stutter_for_wm_program;
+	bool enable_block_sequence_programming;
 };
 
 
@@ -1702,6 +1726,7 @@ struct dc {
 	struct dc_debug_options debug;
 	struct dc_versions versions;
 	struct dc_caps caps;
+	struct dc_check_config check_config;
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;
 	struct dc_bounding_box_overrides bb_overrides;
@@ -1830,20 +1855,14 @@ struct dc_surface_update {
 };
 
 struct dc_underflow_debug_data {
-	uint32_t otg_inst;
-	uint32_t otg_underflow;
-	uint32_t h_position;
-	uint32_t v_position;
-	uint32_t otg_frame_count;
-	struct dc_underflow_per_hubp_debug_data {
-		uint32_t hubp_underflow;
-		uint32_t hubp_in_blank;
-		uint32_t hubp_readline;
-		uint32_t det_config_error;
-	} hubps[MAX_PIPES];
-	uint32_t curr_det_sizes[MAX_PIPES];
-	uint32_t target_det_sizes[MAX_PIPES];
-	uint32_t compbuf_config_error;
+	struct dcn_hubbub_reg_state *hubbub_reg_state;
+	struct dcn_hubp_reg_state *hubp_reg_state[MAX_PIPES];
+	struct dcn_dpp_reg_state *dpp_reg_state[MAX_PIPES];
+	struct dcn_mpc_reg_state *mpc_reg_state[MAX_PIPES];
+	struct dcn_opp_reg_state *opp_reg_state[MAX_PIPES];
+	struct dcn_dsc_reg_state *dsc_reg_state[MAX_PIPES];
+	struct dcn_optc_reg_state *optc_reg_state[MAX_PIPES];
+	struct dcn_dccg_reg_state *dccg_reg_state[MAX_PIPES];
 };
 
 /*
@@ -2721,6 +2740,8 @@ unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context);
 
 bool dc_get_host_router_index(const struct dc_link *link, unsigned int *host_router_index);
 
+void dc_log_preos_dmcub_info(const struct dc *dc);
+
 /* DSC Interfaces */
 #include "dc_dsc.h"
 
@@ -2736,7 +2757,7 @@ bool dc_is_timing_changed(struct dc_stream_state *cur_stream,
 		       struct dc_stream_state *new_stream);
 
 bool dc_is_cursor_limit_pending(struct dc *dc);
-bool dc_can_clear_cursor_limit(struct dc *dc);
+bool dc_can_clear_cursor_limit(const struct dc *dc);
 
 /**
  * dc_get_underflow_debug_data_for_otg() - Retrieve underflow debug data.

@@ -37,11 +37,11 @@
 #include "soc/intel_rom.h"
 
 #include "i915_drv.h"
-#include "i915_utils.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_gmbus.h"
 
 #define _INTEL_BIOS_PRIVATE

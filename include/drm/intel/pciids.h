@@ -880,7 +880,10 @@
 	MACRO__(0xB08F, ## __VA_ARGS__), \
 	MACRO__(0xB090, ## __VA_ARGS__), \
 	MACRO__(0xB0A0, ## __VA_ARGS__), \
-	MACRO__(0xB0B0, ## __VA_ARGS__), \
+	MACRO__(0xB0B0, ## __VA_ARGS__)
+
+/* WCL */
+#define INTEL_WCL_IDS(MACRO__, ...) \
 	MACRO__(0xFD80, ## __VA_ARGS__), \
 	MACRO__(0xFD81, ## __VA_ARGS__)
 
@@ -892,5 +895,9 @@
 	MACRO__(0xD743, ## __VA_ARGS__), \
 	MACRO__(0xD744, ## __VA_ARGS__), \
 	MACRO__(0xD745, ## __VA_ARGS__)
+
+/* CRI */
+#define INTEL_CRI_IDS(MACRO__, ...) \
+	MACRO__(0x674C, ## __VA_ARGS__)
 
 #endif /* __PCIIDS_H__ */

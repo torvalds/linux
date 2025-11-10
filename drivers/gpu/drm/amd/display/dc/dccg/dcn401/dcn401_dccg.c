@@ -886,6 +886,7 @@ static const struct dccg_funcs dccg401_funcs = {
 	.enable_symclk_se = dccg401_enable_symclk_se,
 	.disable_symclk_se = dccg401_disable_symclk_se,
 	.set_dtbclk_p_src = dccg401_set_dtbclk_p_src,
+	.dccg_read_reg_state = dccg31_read_reg_state
 };
 
 struct dccg *dccg401_create(

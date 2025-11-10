@@ -37,6 +37,12 @@
 #define GMD_ID					XE_REG(0xd8c)
 #define   GMD_ID_ARCH_MASK			REG_GENMASK(31, 22)
 #define   GMD_ID_RELEASE_MASK			REG_GENMASK(21, 14)
+/*
+ * Spec defines these bits as "Reserved", but then make them assume some
+ * meaning that depends on the ARCH. To avoid any confusion, call them
+ * SUBIP_FLAG_MASK.
+ */
+#define   GMD_ID_SUBIP_FLAG_MASK		REG_GENMASK(13, 6)
 #define   GMD_ID_REVID				REG_GENMASK(5, 0)
 
 #define FORCEWAKE_ACK_GSC			XE_REG(0xdf8)
@@ -168,6 +174,7 @@
 
 #define XEHP_SLICE_COMMON_ECO_CHICKEN1		XE_REG_MCR(0x731c, XE_REG_OPTION_MASKED)
 #define   MSC_MSAA_REODER_BUF_BYPASS_DISABLE	REG_BIT(14)
+#define   FAST_CLEAR_VALIGN_FIX			REG_BIT(13)
 
 #define XE2LPM_CCCHKNREG1			XE_REG(0x82a8)
 
@@ -543,6 +550,9 @@
 
 #define SARB_CHICKEN1				XE_REG_MCR(0xe90c)
 #define   COMP_CKN_IN				REG_GENMASK(30, 29)
+
+#define MAIN_GAMCTRL_MODE			XE_REG(0xef00)
+#define   MAIN_GAMCTRL_QUEUE_SELECT		REG_BIT(0)
 
 #define RCU_MODE				XE_REG(0x14800, XE_REG_OPTION_MASKED)
 #define   RCU_MODE_FIXED_SLICE_CCS_MODE		REG_BIT(1)

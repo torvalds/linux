@@ -159,7 +159,6 @@ static ssize_t amdgpu_securedisplay_debugfs_write(struct file *f, const char __u
 		dev_err(adev->dev, "Invalid input: %s\n", str);
 	}
 
-	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
 	return size;

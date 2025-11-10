@@ -19,6 +19,7 @@
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
+#include "intel_dbuf_bw.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display.h"
@@ -176,6 +177,7 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 	intel_cdclk_crtc_disable_noatomic(crtc);
 	skl_wm_crtc_disable_noatomic(crtc);
 	intel_bw_crtc_disable_noatomic(crtc);
+	intel_dbuf_bw_crtc_disable_noatomic(crtc);
 
 	intel_pmdemand_update_port_clock(display, pmdemand_state, pipe, 0);
 }
@@ -851,17 +853,22 @@ static void intel_modeset_readout_hw_state(struct intel_display *display)
 			 */
 			if (plane_state->uapi.visible && plane->min_cdclk) {
 				if (crtc_state->double_wide || DISPLAY_VER(display) >= 10)
-					crtc_state->min_cdclk[plane->id] =
+					crtc_state->plane_min_cdclk[plane->id] =
 						DIV_ROUND_UP(crtc_state->pixel_rate, 2);
 				else
-					crtc_state->min_cdclk[plane->id] =
+					crtc_state->plane_min_cdclk[plane->id] =
 						crtc_state->pixel_rate;
 			}
 			drm_dbg_kms(display->drm,
 				    "[PLANE:%d:%s] min_cdclk %d kHz\n",
 				    plane->base.base.id, plane->base.name,
-				    crtc_state->min_cdclk[plane->id]);
+				    crtc_state->plane_min_cdclk[plane->id]);
 		}
+
+		crtc_state->min_cdclk = intel_crtc_min_cdclk(crtc_state);
+
+		drm_dbg_kms(display->drm, "[CRTC:%d:%s] min_cdclk %d kHz\n",
+			    crtc->base.base.id, crtc->base.name, crtc_state->min_cdclk);
 
 		intel_pmdemand_update_port_clock(display, pmdemand_state, pipe,
 						 crtc_state->port_clock);
@@ -872,6 +879,7 @@ static void intel_modeset_readout_hw_state(struct intel_display *display)
 		intel_wm_get_hw_state(display);
 
 	intel_bw_update_hw_state(display);
+	intel_dbuf_bw_update_hw_state(display);
 	intel_cdclk_update_hw_state(display);
 
 	intel_pmdemand_init_pmdemand_params(display, pmdemand_state);

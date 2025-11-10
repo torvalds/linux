@@ -997,6 +997,8 @@ static void pf_exit_vf_flr_wip(struct xe_gt *gt, unsigned int vfid)
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_GUC_DONE);
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_WAIT_GUC);
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_SEND_START);
+
+		xe_sriov_pf_control_sync_flr(gt_to_xe(gt), vfid);
 	}
 }
 

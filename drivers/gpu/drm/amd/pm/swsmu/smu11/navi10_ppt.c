@@ -1469,7 +1469,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
 	uint16_t *curve_settings;
-	int i, levels, size = 0, ret = 0;
+	int i, levels, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
@@ -1484,6 +1484,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	uint32_t min_value, max_value;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
+	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -1497,11 +1498,11 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_DCEFCLK:
 		ret = navi10_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
 		if (ret)
-			return size;
+			return size - start_offset;
 
 		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
-			return size;
+			return size - start_offset;
 
 		ret = navi10_is_support_fine_grained_dpm(smu, clk_type);
 		if (ret < 0)
@@ -1511,7 +1512,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			for (i = 0; i < count; i++) {
 				ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, i, &value);
 				if (ret)
-					return size;
+					return size - start_offset;
 
 				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
 						cur_value == value ? "*" : "");
@@ -1519,10 +1520,10 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		} else {
 			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
 			if (ret)
-				return size;
+				return size - start_offset;
 			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
 			if (ret)
-				return size;
+				return size - start_offset;
 
 			freq_values[1] = cur_value;
 			mark_index = cur_value == freq_values[0] ? 0 :
@@ -1653,7 +1654,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	return size - start_offset;
 }
 
 static int navi10_force_clk_levels(struct smu_context *smu,

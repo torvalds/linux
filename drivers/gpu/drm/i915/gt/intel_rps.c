@@ -7,8 +7,8 @@
 
 #include <drm/intel/i915_drm.h>
 
-#include "display/intel_display.h"
 #include "display/intel_display_rps.h"
+#include "display/vlv_clock.h"
 #include "soc/intel_dram.h"
 
 #include "i915_drv.h"
@@ -1690,10 +1690,7 @@ static void vlv_init_gpll_ref_freq(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 
-	rps->gpll_ref_freq =
-		vlv_get_cck_clock(&i915->drm, "GPLL ref",
-				  CCK_GPLL_CLOCK_CONTROL,
-				  i915->czclk_freq);
+	rps->gpll_ref_freq = vlv_clock_get_gpll(&i915->drm);
 
 	drm_dbg(&i915->drm, "GPLL reference freq: %d kHz\n",
 		rps->gpll_ref_freq);
@@ -1703,12 +1700,12 @@ static void vlv_rps_init(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 
+	vlv_init_gpll_ref_freq(rps);
+
 	vlv_iosf_sb_get(&i915->drm,
 			BIT(VLV_IOSF_SB_PUNIT) |
 			BIT(VLV_IOSF_SB_NC) |
 			BIT(VLV_IOSF_SB_CCK));
-
-	vlv_init_gpll_ref_freq(rps);
 
 	rps->max_freq = vlv_rps_max_freq(rps);
 	rps->rp0_freq = rps->max_freq;
@@ -1737,12 +1734,12 @@ static void chv_rps_init(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 
+	vlv_init_gpll_ref_freq(rps);
+
 	vlv_iosf_sb_get(&i915->drm,
 			BIT(VLV_IOSF_SB_PUNIT) |
 			BIT(VLV_IOSF_SB_NC) |
 			BIT(VLV_IOSF_SB_CCK));
-
-	vlv_init_gpll_ref_freq(rps);
 
 	rps->max_freq = chv_rps_max_freq(rps);
 	rps->rp0_freq = rps->max_freq;
@@ -1780,6 +1777,7 @@ static void vlv_c0_read(struct intel_uncore *uncore, struct intel_rps_ei *ei)
 
 static u32 vlv_wa_c0_ei(struct intel_rps *rps, u32 pm_iir)
 {
+	struct drm_i915_private *i915 = rps_to_i915(rps);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	const struct intel_rps_ei *prev = &rps->ei;
 	struct intel_rps_ei now;
@@ -1796,7 +1794,7 @@ static u32 vlv_wa_c0_ei(struct intel_rps *rps, u32 pm_iir)
 
 		time = ktime_us_delta(now.ktime, prev->ktime);
 
-		time *= rps_to_i915(rps)->czclk_freq;
+		time *= vlv_clock_get_czclk(&i915->drm);
 
 		/* Workload can be split between render + media,
 		 * e.g. SwapBuffers being blitted in X after being rendered in

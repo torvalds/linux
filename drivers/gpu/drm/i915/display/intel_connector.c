@@ -32,7 +32,7 @@
 #include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
-#include "i915_utils.h"
+#include "i915_utils.h" /* for i915_inject_probe_failure() */
 #include "intel_connector.h"
 #include "intel_display_core.h"
 #include "intel_display_debugfs.h"

@@ -31,7 +31,6 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/sched/mm.h>
-#include <linux/hmm.h>
 #include "kfd_priv.h"
 #include "kfd_svm.h"
 

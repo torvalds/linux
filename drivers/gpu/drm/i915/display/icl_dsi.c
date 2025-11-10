@@ -35,7 +35,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "icl_dsi.h"
 #include "icl_dsi_regs.h"
 #include "intel_atomic.h"
@@ -48,6 +47,7 @@
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
+#include "intel_display_utils.h"
 #include "intel_dsi.h"
 #include "intel_dsi_vbt.h"
 #include "intel_panel.h"
@@ -1655,7 +1655,7 @@ static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	crtc_state->dsc.compression_enable = true;
+	intel_dsc_enable_on_crtc(crtc_state);
 
 	return 0;
 }

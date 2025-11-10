@@ -11,12 +11,11 @@
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_print.h>
 
-#include "i915_drv.h"
-#include "i915_utils.h"
 #include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
@@ -548,8 +547,6 @@ static bool plane_has_modifier(struct intel_display *display,
 			       u8 plane_caps,
 			       const struct intel_modifier_desc *md)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (!IS_DISPLAY_VER(display, md->display_ver.from, md->display_ver.until))
 		return false;
 
@@ -561,15 +558,15 @@ static bool plane_has_modifier(struct intel_display *display,
 	 * where supported.
 	 */
 	if (intel_fb_is_ccs_modifier(md->modifier) &&
-	    HAS_FLAT_CCS(i915) != !md->ccs.packed_aux_planes)
+	    HAS_AUX_CCS(display) != !!md->ccs.packed_aux_planes)
 		return false;
 
 	if (md->modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS &&
-	    (GRAPHICS_VER(i915) < 20 || !display->platform.dgfx))
+	    (DISPLAY_VER(display) < 14 || !display->platform.dgfx))
 		return false;
 
 	if (md->modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS &&
-	    (GRAPHICS_VER(i915) < 20 || display->platform.dgfx))
+	    (DISPLAY_VER(display) < 20 || display->platform.dgfx))
 		return false;
 
 	return true;
@@ -778,7 +775,6 @@ unsigned int
 intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 {
 	struct intel_display *display = to_intel_display(fb->dev);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int cpp = fb->format->cpp[color_plane];
 
 	switch (fb->modifier) {
@@ -815,7 +811,7 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 			return 64;
 		fallthrough;
 	case I915_FORMAT_MOD_Y_TILED:
-		if (DISPLAY_VER(display) == 2 || HAS_128_BYTE_Y_TILING(i915))
+		if (HAS_128B_Y_TILING(display))
 			return 128;
 		else
 			return 512;
@@ -2118,6 +2114,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 
+	kfree(intel_fb->panic);
 	kfree(intel_fb);
 }
 
@@ -2216,18 +2213,24 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	struct intel_display *display = to_intel_display(obj->dev);
 	struct drm_framebuffer *fb = &intel_fb->base;
 	u32 max_stride;
-	int ret = -EINVAL;
+	int ret;
 	int i;
+
+	intel_fb->panic = intel_panic_alloc();
+	if (!intel_fb->panic)
+		return -ENOMEM;
 
 	/*
 	 * intel_frontbuffer_get() must be done before
 	 * intel_fb_bo_framebuffer_init() to avoid set_tiling vs. addfb race.
 	 */
 	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
-	if (!intel_fb->frontbuffer)
-		return -ENOMEM;
+	if (!intel_fb->frontbuffer) {
+		ret = -ENOMEM;
+		goto err_free_panic;
+	}
 
-	ret = intel_fb_bo_framebuffer_init(fb, obj, mode_cmd);
+	ret = intel_fb_bo_framebuffer_init(obj, mode_cmd);
 	if (ret)
 		goto err_frontbuffer_put;
 
@@ -2324,6 +2327,9 @@ err_bo_framebuffer_fini:
 	intel_fb_bo_framebuffer_fini(obj);
 err_frontbuffer_put:
 	intel_frontbuffer_put(intel_fb->frontbuffer);
+err_free_panic:
+	kfree(intel_fb->panic);
+
 	return ret;
 }
 
@@ -2350,19 +2356,10 @@ intel_user_framebuffer_create(struct drm_device *dev,
 struct intel_framebuffer *intel_framebuffer_alloc(void)
 {
 	struct intel_framebuffer *intel_fb;
-	struct intel_panic *panic;
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb)
 		return NULL;
-
-	panic = intel_panic_alloc();
-	if (!panic) {
-		kfree(intel_fb);
-		return NULL;
-	}
-
-	intel_fb->panic = panic;
 
 	return intel_fb;
 }

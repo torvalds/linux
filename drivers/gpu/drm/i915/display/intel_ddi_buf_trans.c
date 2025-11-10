@@ -3,13 +3,14 @@
  * Copyright © 2020 Intel Corporation
  */
 
-#include "i915_utils.h"
 #include "intel_cx0_phy.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dp.h"
+#include "intel_lt_phy.h"
 
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share
  * them for both DP and FDI transports, allowing those ports to
@@ -1115,6 +1116,69 @@ static const struct intel_ddi_buf_trans mtl_c20_trans_uhbr = {
 	.num_entries = ARRAY_SIZE(_mtl_c20_trans_uhbr),
 };
 
+/* DP1.4 */
+static const union intel_ddi_buf_trans_entry _xe3plpd_lt_trans_dp14[] = {
+	{ .lt = { 1, 0, 0, 21, 0  } },
+	{ .lt = { 1, 1, 0, 24, 3  } },
+	{ .lt = { 1, 2, 0, 28, 7  } },
+	{ .lt = { 0, 3, 0, 35, 13 } },
+	{ .lt = { 1, 1, 0, 27, 0  } },
+	{ .lt = { 1, 2, 0, 31, 4  } },
+	{ .lt = { 0, 3, 0, 39, 9  } },
+	{ .lt = { 1, 2, 0, 35, 0  } },
+	{ .lt = { 0, 3, 0, 41, 7  } },
+	{ .lt = { 0, 3, 0, 48, 0  } },
+};
+
+/* DP2.1 */
+static const union intel_ddi_buf_trans_entry _xe3plpd_lt_trans_uhbr[] = {
+	{ .lt = { 0, 0, 0, 48, 0  } },
+	{ .lt = { 0, 0, 0, 43, 5  } },
+	{ .lt = { 0, 0, 0, 40, 8  } },
+	{ .lt = { 0, 0, 0, 37, 11 } },
+	{ .lt = { 0, 0, 0, 33, 15 } },
+	{ .lt = { 0, 0, 2, 46, 0  } },
+	{ .lt = { 0, 0, 2, 42, 4  } },
+	{ .lt = { 0, 0, 2, 38, 8  } },
+	{ .lt = { 0, 0, 2, 35, 11 } },
+	{ .lt = { 0, 0, 2, 33, 13 } },
+	{ .lt = { 0, 0, 4, 44, 0  } },
+	{ .lt = { 0, 0, 4, 40, 4  } },
+	{ .lt = { 0, 0, 4, 37, 7  } },
+	{ .lt = { 0, 0, 4, 33, 11 } },
+	{ .lt = { 0, 0, 8, 40, 0  } },
+	{ .lt = { 1, 0, 2, 26, 2  } },
+};
+
+/* eDp */
+static const union intel_ddi_buf_trans_entry _xe3plpd_lt_trans_edp[] = {
+	{ .lt = { 1, 0, 0, 12, 0 } },
+	{ .lt = { 1, 1, 0, 13, 1 } },
+	{ .lt = { 1, 2, 0, 15, 3 } },
+	{ .lt = { 1, 3, 0, 19, 7 } },
+	{ .lt = { 1, 1, 0, 14, 0 } },
+	{ .lt = { 1, 2, 0, 16, 2 } },
+	{ .lt = { 1, 3, 0, 21, 5 } },
+	{ .lt = { 1, 2, 0, 18, 0 } },
+	{ .lt = { 1, 3, 0, 22, 4 } },
+	{ .lt = { 1, 3, 0, 26, 0 } },
+};
+
+static const struct intel_ddi_buf_trans xe3plpd_lt_trans_dp14 = {
+	.entries = _xe3plpd_lt_trans_dp14,
+	.num_entries = ARRAY_SIZE(_xe3plpd_lt_trans_dp14),
+};
+
+static const struct intel_ddi_buf_trans xe3plpd_lt_trans_uhbr = {
+	.entries = _xe3plpd_lt_trans_uhbr,
+	.num_entries = ARRAY_SIZE(_xe3plpd_lt_trans_uhbr),
+};
+
+static const struct intel_ddi_buf_trans xe3plpd_lt_trans_edp = {
+	.entries = _xe3plpd_lt_trans_edp,
+	.num_entries = ARRAY_SIZE(_xe3plpd_lt_trans_edp),
+};
+
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table)
 {
 	return table == &tgl_combo_phy_trans_edp_hbr2_hobl;
@@ -1707,11 +1771,26 @@ mtl_get_c20_buf_trans(struct intel_encoder *encoder,
 		return intel_get_buf_trans(&mtl_c20_trans_dp14, n_entries);
 }
 
+static const struct intel_ddi_buf_trans *
+xe3plpd_get_lt_buf_trans(struct intel_encoder *encoder,
+			 const struct intel_crtc_state *crtc_state,
+			 int *n_entries)
+{
+	if (intel_crtc_has_dp_encoder(crtc_state) && intel_dp_is_uhbr(crtc_state))
+		return intel_get_buf_trans(&xe3plpd_lt_trans_uhbr, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+		return intel_get_buf_trans(&xe3plpd_lt_trans_edp, n_entries);
+	else
+		return intel_get_buf_trans(&xe3plpd_lt_trans_dp14, n_entries);
+}
+
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 
-	if (DISPLAY_VER(display) >= 14) {
+	if (HAS_LT_PHY(display)) {
+		encoder->get_buf_trans = xe3plpd_get_lt_buf_trans;
+	} else if (DISPLAY_VER(display) >= 14) {
 		if (intel_encoder_is_c10phy(encoder))
 			encoder->get_buf_trans = mtl_get_c10_buf_trans;
 		else

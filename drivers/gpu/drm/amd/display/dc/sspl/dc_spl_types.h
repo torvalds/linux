@@ -545,6 +545,7 @@ struct spl_in	{
 	enum linear_light_scaling lls_pref;	//	Linear Light Scaling
 	bool prefer_easf;
 	bool disable_easf;
+	bool override_easf; /* If true, keep EASF enabled but use provided in_taps */
 	struct spl_debug debug;
 	bool is_fullscreen;
 	bool is_hdr_on;

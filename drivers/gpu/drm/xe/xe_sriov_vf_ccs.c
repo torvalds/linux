@@ -10,6 +10,8 @@
 #include "xe_device.h"
 #include "xe_exec_queue.h"
 #include "xe_exec_queue_types.h"
+#include "xe_gt_sriov_vf.h"
+#include "xe_guc.h"
 #include "xe_guc_submit.h"
 #include "xe_lrc.h"
 #include "xe_migrate.h"
@@ -260,6 +262,45 @@ int xe_sriov_vf_ccs_register_context(struct xe_device *xe)
 	return err;
 }
 
+/*
+ * Whether GuC requires CCS copy BBs for VF migration.
+ * @xe: the &xe_device instance.
+ *
+ * Only selected platforms require VF KMD to maintain CCS copy BBs and linked LRCAs.
+ *
+ * Return: true if VF driver must participate in the CCS migration, false otherwise.
+ */
+static bool vf_migration_ccs_bb_needed(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_VF(xe));
+
+	return !IS_DGFX(xe) && xe_device_has_flat_ccs(xe);
+}
+
+/*
+ * Check for disable migration due to no CCS BBs support in GuC FW.
+ * @xe: the &xe_device instance.
+ *
+ * Performs late disable of VF migration feature in case GuC FW cannot support it.
+ *
+ * Returns: True if VF migration with CCS BBs is supported, false otherwise.
+ */
+static bool vf_migration_ccs_bb_support_check(struct xe_device *xe)
+{
+	struct xe_gt *gt = xe_root_mmio_gt(xe);
+	struct xe_uc_fw_version guc_version;
+
+	xe_gt_sriov_vf_guc_versions(gt, NULL, &guc_version);
+	if (MAKE_GUC_VER_STRUCT(guc_version) < MAKE_GUC_VER(1, 23, 0)) {
+		xe_sriov_vf_migration_disable(xe,
+					      "CCS migration requires GuC ABI >= 1.23 but only %u.%u found",
+					      guc_version.major, guc_version.minor);
+		return false;
+	}
+
+	return true;
+}
+
 static void xe_sriov_vf_ccs_fini(void *arg)
 {
 	struct xe_sriov_vf_ccs_ctx *ctx = arg;
@@ -292,9 +333,10 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 	int err;
 
 	xe_assert(xe, IS_SRIOV_VF(xe));
-	xe_assert(xe, xe_sriov_vf_migration_supported(xe));
 
-	if (IS_DGFX(xe) || !xe_device_has_flat_ccs(xe))
+	if (!xe_sriov_vf_migration_supported(xe) ||
+	    !vf_migration_ccs_bb_needed(xe) ||
+	    !vf_migration_ccs_bb_support_check(xe))
 		return 0;
 
 	for_each_ccs_rw_ctx(ctx_id) {

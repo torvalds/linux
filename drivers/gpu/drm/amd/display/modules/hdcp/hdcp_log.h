@@ -31,6 +31,7 @@
 #define HDCP_LOG_FSM(hdcp, ...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define HDCP_LOG_TOP(hdcp, ...) pr_debug("[HDCP_TOP]:"__VA_ARGS__)
 #define HDCP_LOG_DDC(hdcp, ...) pr_debug("[HDCP_DDC]:"__VA_ARGS__)
+#define HDCP_LOG_TRA(hdcp) do {} while (0)
 
 /* default logs */
 #define HDCP_ERROR_TRACE(hdcp, status) \
@@ -129,6 +130,11 @@
 #define HDCP_TOP_INTERFACE_TRACE_WITH_INDEX(hdcp, i) do { \
 		HDCP_LOG_TOP(hdcp, "\n"); \
 		HDCP_LOG_TOP(hdcp, "[Link %d] %s display %d", hdcp->config.index, __func__, i); \
+} while (0)
+
+#define HDCP_AUTH_COMPLETE_TRACE(hdcp) do { \
+		mod_hdcp_log_ddc_trace(hdcp); \
+		HDCP_LOG_TRA(hdcp); \
 } while (0)
 
 #endif // MOD_HDCP_LOG_H_

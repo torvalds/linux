@@ -1920,7 +1920,7 @@ static bool guc_exec_queue_reset_status(struct xe_exec_queue *q)
 }
 
 /*
- * All of these functions are an abstraction layer which other parts of XE can
+ * All of these functions are an abstraction layer which other parts of Xe can
  * use to trap into the GuC backend. All of these functions, aside from init,
  * really shouldn't do much other than trap into the DRM scheduler which
  * synchronizes these operations.

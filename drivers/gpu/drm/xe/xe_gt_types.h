@@ -66,19 +66,12 @@ struct xe_mmio_range {
  */
 enum xe_steering_type {
 	L3BANK,
+	NODE,
 	MSLICE,
 	LNCF,
 	DSS,
 	OADDRM,
 	SQIDI_PSMI,
-
-	/*
-	 * The bspec lists multiple ranges as "PSMI," but the different
-	 * ranges with that label have different grpid steering values so we
-	 * treat them independently in code.  Note that the ranges with grpid=0
-	 * are included in the INSTANCE0 group above.
-	 */
-	PSMI19,
 
 	/*
 	 * Although most GAM ranges must be steered to (0,0) and thus use the

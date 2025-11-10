@@ -174,6 +174,7 @@ struct i915_selftest_stash {
 struct drm_i915_private {
 	struct drm_device drm;
 
+	/* display device data, must be placed after drm device member */
 	struct intel_display *display;
 
 	/* FIXME: Device release actions should all be moved to drmm_ */
@@ -234,13 +235,10 @@ struct drm_i915_private {
 	/* Sideband mailbox protection */
 	struct mutex sb_lock;
 
-	/** Cached value of IMR to avoid reads in updating the bitfield */
-	u32 irq_mask;
+	/* Cached value of gen 2-4 IMR to avoid reads in updating the bitfield */
+	u32 gen2_imr_mask;
 
 	bool preserve_bios_swizzle;
-
-	unsigned int hpll_freq;
-	unsigned int czclk_freq;
 
 	/**
 	 * wq - Driver workqueue for GEM.
@@ -490,16 +488,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_ALDERLAKE_P(i915) IS_PLATFORM(i915, INTEL_ALDERLAKE_P)
 #define IS_DG2(i915)	IS_PLATFORM(i915, INTEL_DG2)
 #define IS_METEORLAKE(i915) IS_PLATFORM(i915, INTEL_METEORLAKE)
-/*
- * Display code shared by i915 and Xe relies on macros like IS_LUNARLAKE,
- * so we need to define these even on platforms that the i915 base driver
- * doesn't support.  Ensure the parameter is used in the definition to
- * avoid 'unused variable' warnings when compiling the shared display code
- * for i915.
- */
-#define IS_LUNARLAKE(i915) (0 && i915)
-#define IS_BATTLEMAGE(i915)  (0 && i915)
-#define IS_PANTHERLAKE(i915) (0 && i915)
 
 #define IS_ARROWLAKE_H(i915) \
 	IS_SUBPLATFORM(i915, INTEL_METEORLAKE, INTEL_SUBPLATFORM_ARL_H)
@@ -604,8 +592,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
  */
-#define HAS_128_BYTE_Y_TILING(i915) (GRAPHICS_VER(i915) != 2 && \
-					 !(IS_I915G(i915) || IS_I915GM(i915)))
+#define HAS_128_BYTE_Y_TILING(i915) (!IS_I915G(i915) && !IS_I915GM(i915))
 
 #define HAS_RC6(i915)		 (INTEL_INFO(i915)->has_rc6)
 #define HAS_RC6p(i915)		 (INTEL_INFO(i915)->has_rc6p)

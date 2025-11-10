@@ -52,7 +52,7 @@ struct xe_vm_pgtable_update_op;
  * struct xe_vma_mem_attr - memory attributes associated with vma
  */
 struct xe_vma_mem_attr {
-	/** @preferred_loc: perferred memory_location */
+	/** @preferred_loc: preferred memory_location */
 	struct {
 		/** @preferred_loc.migration_policy: Pages migration policy */
 		u32 migration_policy;
@@ -338,7 +338,7 @@ struct xe_vm {
 	u64 tlb_flush_seqno;
 	/** @batch_invalidate_tlb: Always invalidate TLB before batch start */
 	bool batch_invalidate_tlb;
-	/** @xef: XE file handle for tracking this VM's drm client */
+	/** @xef: Xe file handle for tracking this VM's drm client */
 	struct xe_file *xef;
 };
 

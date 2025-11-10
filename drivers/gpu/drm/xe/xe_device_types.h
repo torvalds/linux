@@ -222,11 +222,16 @@ struct xe_tile {
 };
 
 /**
- * struct xe_device - Top level struct of XE device
+ * struct xe_device - Top level struct of Xe device
  */
 struct xe_device {
 	/** @drm: drm device */
 	struct drm_device drm;
+
+#if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)
+	/** @display: display device data, must be placed after drm device member */
+	struct intel_display *display;
+#endif
 
 	/** @devcoredump: device coredump */
 	struct xe_devcoredump devcoredump;
@@ -245,9 +250,9 @@ struct xe_device {
 		u32 media_verx100;
 		/** @info.mem_region_mask: mask of valid memory regions */
 		u32 mem_region_mask;
-		/** @info.platform: XE platform enum */
+		/** @info.platform: Xe platform enum */
 		enum xe_platform platform;
-		/** @info.subplatform: XE subplatform enum */
+		/** @info.subplatform: Xe subplatform enum */
 		enum xe_subplatform subplatform;
 		/** @info.devid: device ID */
 		u16 devid;
@@ -300,6 +305,8 @@ struct xe_device {
 		 * pcode mailbox commands.
 		 */
 		u8 has_mbx_power_limits:1;
+		/** @info.has_mem_copy_instr: Device supports MEM_COPY instruction */
+		u8 has_mem_copy_instr:1;
 		/** @info.has_pxp: Device has PXP support */
 		u8 has_pxp:1;
 		/** @info.has_range_tlb_inval: Has range based TLB invalidations */
@@ -630,8 +637,6 @@ struct xe_device {
 	 * drm_i915_private during build. After cleanup these should go away,
 	 * migrating to the right sub-structs
 	 */
-	struct intel_display *display;
-
 	const struct dram_info *dram_info;
 
 	/*
@@ -643,23 +648,14 @@ struct xe_device {
 	/* To shut up runtime pm macros.. */
 	struct xe_runtime_pm {} runtime_pm;
 
-	/* only to allow build, not used functionally */
-	u32 irq_mask;
-
 	struct intel_uncore {
 		spinlock_t lock;
 	} uncore;
-
-	/* only to allow build, not used functionally */
-	struct {
-		unsigned int hpll_freq;
-		unsigned int czclk_freq;
-	};
 #endif
 };
 
 /**
- * struct xe_file - file handle for XE driver
+ * struct xe_file - file handle for Xe driver
  */
 struct xe_file {
 	/** @xe: xe DEVICE **/

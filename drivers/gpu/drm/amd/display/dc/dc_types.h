@@ -185,6 +185,10 @@ struct dc_panel_patch {
 	unsigned int wait_after_dpcd_poweroff_ms;
 };
 
+/**
+ * struct dc_edid_caps - Capabilities read from EDID.
+ * @analog: Whether the monitor is analog. Used by DVI-I handling.
+ */
 struct dc_edid_caps {
 	/* sink identification */
 	uint16_t manufacturer_id;
@@ -212,6 +216,8 @@ struct dc_edid_caps {
 	bool edid_hdmi;
 	bool hdr_supported;
 	bool rr_capable;
+	bool scdc_present;
+	bool analog;
 
 	struct dc_panel_patch panel_patch;
 };
@@ -347,7 +353,8 @@ enum dc_connection_type {
 	dc_connection_none,
 	dc_connection_single,
 	dc_connection_mst_branch,
-	dc_connection_sst_branch
+	dc_connection_sst_branch,
+	dc_connection_dac_load
 };
 
 struct dc_csc_adjustments {

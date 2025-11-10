@@ -25,6 +25,7 @@ enum xe_platform {
 	XE_BATTLEMAGE,
 	XE_PANTHERLAKE,
 	XE_NOVALAKE_S,
+	XE_CRESCENTISLAND,
 };
 
 enum xe_subplatform {

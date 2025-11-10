@@ -199,6 +199,8 @@ void dpp_reset(struct dpp *dpp_base)
 
 	memset(&dpp->scl_data, 0, sizeof(dpp->scl_data));
 	memset(&dpp->pwl_data, 0, sizeof(dpp->pwl_data));
+
+	dpp_base->cursor_offload = false;
 }
 
 
@@ -484,10 +486,12 @@ void dpp1_set_cursor_position(
 		cur_en = 0;  /* not visible beyond top edge*/
 
 	if (dpp_base->pos.cur0_ctl.bits.cur0_enable != cur_en) {
-		REG_UPDATE(CURSOR0_CONTROL, CUR0_ENABLE, cur_en);
-
-		dpp_base->pos.cur0_ctl.bits.cur0_enable = cur_en;
+		if (!dpp_base->cursor_offload)
+			REG_UPDATE(CURSOR0_CONTROL, CUR0_ENABLE, cur_en);
 	}
+
+	dpp_base->pos.cur0_ctl.bits.cur0_enable = cur_en;
+	dpp_base->att.cur0_ctl.bits.cur0_enable = cur_en;
 }
 
 void dpp1_cnv_set_optional_cursor_attributes(
@@ -497,8 +501,13 @@ void dpp1_cnv_set_optional_cursor_attributes(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	if (attr) {
-		REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_BIAS,  attr->bias);
-		REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_SCALE, attr->scale);
+		if (!dpp_base->cursor_offload) {
+			REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_BIAS,  attr->bias);
+			REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_SCALE, attr->scale);
+		}
+
+		dpp_base->att.fp_scale_bias.bits.fp_bias = attr->bias;
+		dpp_base->att.fp_scale_bias.bits.fp_scale = attr->scale;
 	}
 }
 

@@ -12,6 +12,7 @@ struct pci_dev;
 struct pci_device_id;
 struct drm_i915_private;
 struct drm_printer;
+struct intel_display_parent_interface;
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
@@ -24,6 +25,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915);
 
 int i915_driver_resume_switcheroo(struct drm_i915_private *i915);
 int i915_driver_suspend_switcheroo(struct drm_i915_private *i915, pm_message_t state);
+const struct intel_display_parent_interface *i915_driver_parent_interface(void);
 
 void
 i915_print_iommu_status(struct drm_i915_private *i915, struct drm_printer *p);

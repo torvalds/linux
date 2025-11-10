@@ -297,6 +297,16 @@ struct oppbuf_params {
 	uint32_t num_segment_padded_pixels;
 };
 
+struct dcn_opp_reg_state {
+	uint32_t dpg_control;
+	uint32_t fmt_control;
+	uint32_t oppbuf_control;
+	uint32_t opp_pipe_control;
+	uint32_t opp_pipe_crc_control;
+	uint32_t opp_abm_control;
+	uint32_t dscrm_dsc_forward_config;
+};
+
 struct opp_funcs {
 
 
@@ -368,6 +378,9 @@ struct opp_funcs {
 			struct output_pixel_processor *opp,
 			enum dc_pixel_encoding pixel_encoding,
 			bool is_primary);
+
+	void (*opp_read_reg_state)(
+			struct output_pixel_processor *opp, struct dcn_opp_reg_state *opp_reg_state);
 };
 
 #endif
