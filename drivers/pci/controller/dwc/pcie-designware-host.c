@@ -1115,6 +1115,17 @@ int dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 
 	dw_pcie_dbi_ro_wr_dis(pci);
 
+	/*
+	 * The iMSI-RX module does not support receiving MSI or MSI-X generated
+	 * by the Root Port. If iMSI-RX is used as the MSI controller, remove
+	 * the MSI and MSI-X capabilities of the Root Port to allow the drivers
+	 * to fall back to INTx instead.
+	 */
+	if (pp->has_msi_ctrl) {
+		dw_pcie_remove_capability(pci, PCI_CAP_ID_MSI);
+		dw_pcie_remove_capability(pci, PCI_CAP_ID_MSIX);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dw_pcie_setup_rc);
