@@ -738,12 +738,11 @@ int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val, ktime_t *abs_time
 static long futex_wait_restart(struct restart_block *restart)
 {
 	u32 __user *uaddr = restart->futex.uaddr;
-	ktime_t t, *tp = NULL;
+	ktime_t *tp = NULL;
 
-	if (restart->futex.flags & FLAGS_HAS_TIMEOUT) {
-		t = restart->futex.time;
-		tp = &t;
-	}
+	if (restart->futex.flags & FLAGS_HAS_TIMEOUT)
+		tp = &restart->futex.time;
+
 	restart->fn = do_no_restart_syscall;
 
 	return (long)futex_wait(uaddr, restart->futex.flags,
