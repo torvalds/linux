@@ -427,8 +427,8 @@ static void _bxt_dpio_phy_init(struct intel_display *display, enum dpio_phy phy)
 	 * The flag should get set in 100us according to the HW team, but
 	 * use 1ms due to occasional timeouts observed with that.
 	 */
-	if (intel_de_wait_fw_ms(display, BXT_PORT_CL1CM_DW0(phy),
-				PHY_RESERVED | PHY_POWER_GOOD, PHY_POWER_GOOD, 1, NULL))
+	if (intel_de_wait_ms(display, BXT_PORT_CL1CM_DW0(phy),
+			     PHY_RESERVED | PHY_POWER_GOOD, PHY_POWER_GOOD, 1, NULL))
 		drm_err(display->drm, "timeout during PHY%d power on\n",
 			phy);
 
