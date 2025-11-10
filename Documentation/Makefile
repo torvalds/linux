@@ -115,6 +115,6 @@ dochelp:
 	@echo  '  make PAPER={a4|letter} Specifies the paper size used for LaTeX/PDF output.'
 	@echo
 	@echo  '  make FONTS_CONF_DENY_VF={path} sets a deny list to block variable Noto CJK fonts'
-	@echo  '  for PDF build. See tools/docs/lib/latex_fonts.py for more details'
+	@echo  '  for PDF build. See tools/lib/python/kdoc/latex_fonts.py for more details'
 	@echo
 	@echo  '  Default location for the generated documents is Documentation/output'

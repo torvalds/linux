@@ -32,8 +32,11 @@ import re
 import subprocess
 import sys
 from glob import glob
+import os.path
 
-from lib.python_version import PythonVersion
+src_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(src_dir, '../lib/python/kdoc'))
+from python_version import PythonVersion
 
 RECOMMENDED_VERSION = PythonVersion("3.4.3").version
 MIN_PYTHON_VERSION = PythonVersion("3.7").version

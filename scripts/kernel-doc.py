@@ -111,7 +111,7 @@ import sys
 
 # Import Python modules
 
-LIB_DIR = "lib/kdoc"
+LIB_DIR = "../tools/lib/python/kdoc"
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR))

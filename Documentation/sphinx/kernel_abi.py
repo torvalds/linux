@@ -43,7 +43,7 @@ from sphinx.util.docutils import switch_source_input
 from sphinx.util import logging
 
 srctree = os.path.abspath(os.environ["srctree"])
-sys.path.insert(0, os.path.join(srctree, "scripts/lib/abi"))
+sys.path.insert(0, os.path.join(srctree, "tools/lib/python/abi"))
 
 from abi_parser import AbiParser
 
