@@ -17,9 +17,9 @@ import sys
 import os.path
 
 src_dir = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, os.path.join(src_dir, '../lib/python/kdoc'))
+sys.path.insert(0, os.path.join(src_dir, '../lib/python'))
 
-from latex_fonts import LatexFontChecker
+from kdoc.latex_fonts import LatexFontChecker
 
 checker = LatexFontChecker()
 

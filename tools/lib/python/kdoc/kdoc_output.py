@@ -19,8 +19,8 @@ import os
 import re
 from datetime import datetime
 
-from kdoc_parser import KernelDoc, type_param
-from kdoc_re import KernRe
+from kdoc.kdoc_parser import KernelDoc, type_param
+from kdoc.kdoc_re import KernRe
 
 
 function_pointer = KernRe(r"([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)", cache=False)

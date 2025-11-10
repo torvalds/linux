@@ -28,9 +28,9 @@ import argparse, sys
 import os.path
 
 src_dir = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, os.path.join(src_dir, '../lib/python/kdoc'))
-from parse_data_structs import ParseDataStructs
-from enrich_formatter import EnrichFormatter
+sys.path.insert(0, os.path.join(src_dir, '../lib/python'))
+from kdoc.parse_data_structs import ParseDataStructs
+from kdoc.enrich_formatter import EnrichFormatter
 
 def main():
     """Main function"""

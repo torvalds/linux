@@ -17,7 +17,7 @@ from random import randrange, seed
 
 # Import Python modules
 
-from helpers import AbiDebug, ABI_DIR
+from abi.helpers import AbiDebug, ABI_DIR
 
 
 class AbiParser:

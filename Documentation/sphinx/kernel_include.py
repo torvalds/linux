@@ -97,9 +97,9 @@ from docutils.parsers.rst.directives.body import CodeBlock, NumberLines
 from sphinx.util import logging
 
 srctree = os.path.abspath(os.environ["srctree"])
-sys.path.insert(0, os.path.join(srctree, "tools/lib/python/kdoc"))
+sys.path.insert(0, os.path.join(srctree, "tools/lib/python"))
 
-from parse_data_structs import ParseDataStructs
+from kdoc.parse_data_structs import ParseDataStructs
 
 __version__ = "1.0"
 logger = logging.getLogger(__name__)

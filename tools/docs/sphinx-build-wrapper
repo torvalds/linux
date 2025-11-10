@@ -61,10 +61,9 @@ LIB_DIR = "../lib/python"
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR))
-sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR + '/kdoc'))  # temporary
 
-from python_version import PythonVersion
-from latex_fonts import LatexFontChecker
+from kdoc.python_version import PythonVersion
+from kdoc.latex_fonts import LatexFontChecker
 from jobserver import JobserverExec         # pylint: disable=C0413,C0411,E0401
 
 #

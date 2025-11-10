@@ -12,8 +12,8 @@ import sys
 
 from pprint import pformat
 
-from abi_parser import AbiParser
-from helpers import AbiDebug
+from abi.abi_parser import AbiParser
+from abi.helpers import AbiDebug
 
 class AbiRegex(AbiParser):
     """Extends AbiParser to search ABI nodes with regular expressions"""

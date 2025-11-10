@@ -14,15 +14,15 @@ import sys
 
 # Import Python modules
 
-LIB_DIR = "../lib/python/abi"
+LIB_DIR = "../lib/python"
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR))
 
-from abi_parser import AbiParser                # pylint: disable=C0413
-from abi_regex import AbiRegex                  # pylint: disable=C0413
-from helpers import ABI_DIR, DEBUG_HELP         # pylint: disable=C0413
-from system_symbols import SystemSymbols        # pylint: disable=C0413
+from abi.abi_parser import AbiParser                # pylint: disable=C0413
+from abi.abi_regex import AbiRegex                  # pylint: disable=C0413
+from abi.helpers import ABI_DIR, DEBUG_HELP         # pylint: disable=C0413
+from abi.system_symbols import SystemSymbols        # pylint: disable=C0413
 
 # Command line classes
 
