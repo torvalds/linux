@@ -754,6 +754,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_STATE_NEED_DATA		1 /* target needs data to continue */
 #define QLA_TGT_STATE_DATA_IN		2 /* Data arrived + target processing */
 #define QLA_TGT_STATE_PROCESSED		3 /* target done processing */
+#define QLA_TGT_STATE_DONE		4 /* cmd being freed */
 
 /* ATIO task_codes field */
 #define ATIO_SIMPLE_QUEUE           0
@@ -876,8 +877,6 @@ struct qla_tgt_cmd {
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 
-	spinlock_t cmd_lock;
-	/* to save extra sess dereferences */
 	unsigned int conf_compl_supported:1;
 	unsigned int sg_mapped:1;
 	unsigned int write_data_transferred:1;
@@ -887,13 +886,14 @@ struct qla_tgt_cmd {
 	unsigned int cmd_in_wq:1;
 	unsigned int edif:1;
 
+	/* Set if the exchange has been terminated. */
+	unsigned int sent_term_exchg:1;
+
 	/*
-	 * This variable may be set from outside the LIO and I/O completion
-	 * callback functions. Do not declare this member variable as a
-	 * bitfield to avoid a read-modify-write operation when this variable
-	 * is set.
+	 * Set if sent_term_exchg is set, or if the cmd was aborted by a TMR,
+	 * or if some other error prevents normal processing of the command.
 	 */
-	unsigned int aborted;
+	unsigned int aborted:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
@@ -932,6 +932,7 @@ struct qla_tgt_cmd {
 #define DIF_BUNDL_DMA_VALID 1
 	uint16_t prot_flags;
 
+	unsigned long jiffies_at_term_exchg;
 	uint64_t jiffies_at_alloc;
 	uint64_t jiffies_at_free;
 
@@ -1055,6 +1056,8 @@ extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, struct rsp_que *,
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
 extern int qlt_abort_cmd(struct qla_tgt_cmd *);
+void qlt_send_term_exchange(struct qla_qpair *qpair,
+	struct qla_tgt_cmd *cmd, struct atio_from_isp *atio, int ha_locked);
 extern void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_cmd(struct qla_tgt_cmd *cmd);

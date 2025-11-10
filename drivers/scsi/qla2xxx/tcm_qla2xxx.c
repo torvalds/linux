@@ -303,6 +303,8 @@ static void tcm_qla2xxx_rel_cmd(struct qla_tgt_cmd *cmd)
  */
 static void tcm_qla2xxx_free_cmd(struct qla_tgt_cmd *cmd)
 {
+	cmd->state = QLA_TGT_STATE_DONE;
+
 	cmd->qpair->tgt_counters.core_qla_free_cmd++;
 	cmd->cmd_in_wq = 1;
 
