@@ -134,10 +134,9 @@ zfcpdump:
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 archheaders:
-	$(Q)$(MAKE) $(build)=$(syscalls) uapi
+	$(Q)$(MAKE) $(build)=$(syscalls) all
 
 archprepare:
-	$(Q)$(MAKE) $(build)=$(syscalls) kapi
 	$(Q)$(MAKE) $(build)=$(tools) kapi $(extra_tools)
 ifeq ($(KBUILD_EXTMOD),)
 # We need to generate vdso-offsets.h before compiling certain files in kernel/.

@@ -39,6 +39,16 @@
 
 #include "entry.h"
 
+#define __SYSCALL(nr, sym) long __s390x_##sym(struct pt_regs *);
+#include <asm/syscall_table.h>
+#undef __SYSCALL
+
+#define __SYSCALL(nr, sym) [nr] = (__s390x_##sym),
+const sys_call_ptr_t sys_call_table[__NR_syscalls] = {
+#include <asm/syscall_table.h>
+};
+#undef __SYSCALL
+
 #ifdef CONFIG_SYSVIPC
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls.
