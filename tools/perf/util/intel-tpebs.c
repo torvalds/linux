@@ -25,6 +25,7 @@
 #include "stat.h"
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <errno.h>
 #include <poll.h>
 #include <math.h>
 

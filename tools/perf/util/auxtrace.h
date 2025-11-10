@@ -7,7 +7,6 @@
 #ifndef __PERF_AUXTRACE_H
 #define __PERF_AUXTRACE_H
 
-#include <errno.h>
 #include <stdio.h> // FILE
 #include <linux/perf_event.h>
 #include <linux/types.h>

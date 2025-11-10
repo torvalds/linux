@@ -4,6 +4,7 @@
  */
 
 #include <linux/string.h>
+#include <errno.h>
 #include <inttypes.h>
 #include "color.h"
 #include "evlist.h"

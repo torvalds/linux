@@ -4,7 +4,7 @@
  *
  * Written by Namhyung Kim <namhyung@kernel.org>
  */
-
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
