@@ -18,11 +18,13 @@
 #define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
 #endif
 
+#ifndef WARN_CONDITION_STR
 #ifdef CONFIG_DEBUG_BUGVERBOSE_DETAILED
-# define WARN_CONDITION_STR(cond_str) cond_str
+# define WARN_CONDITION_STR(cond_str) "[" cond_str "] "
 #else
 # define WARN_CONDITION_STR(cond_str)
 #endif
+#endif /* WARN_CONDITION_STR */
 
 #ifndef __ASSEMBLY__
 #include <linux/panic.h>
@@ -107,7 +109,7 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 #define WARN_ON(condition) ({						\
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on))					\
-		__WARN_FLAGS("["#condition"] ",				\
+		__WARN_FLAGS(#condition,				\
 			     BUGFLAG_TAINT(TAINT_WARN));		\
 	unlikely(__ret_warn_on);					\
 })
@@ -117,7 +119,7 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 #define WARN_ON_ONCE(condition) ({					\
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on))					\
-		__WARN_FLAGS("["#condition"] ",				\
+		__WARN_FLAGS(#condition,				\
 			     BUGFLAG_ONCE |				\
 			     BUGFLAG_TAINT(TAINT_WARN));		\
 	unlikely(__ret_warn_on);					\

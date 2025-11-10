@@ -74,13 +74,19 @@
 	".popsection\n"							\
 	extra
 
+#ifdef CONFIG_DEBUG_BUGVERBOSE_DETAILED
+#define WARN_CONDITION_STR(cond_str) cond_str
+#else
+#define WARN_CONDITION_STR(cond_str) NULL
+#endif
+
 #define _BUG_FLAGS(cond_str, ins, flags, extra)				\
 do {									\
 	asm_inline volatile(_BUG_FLAGS_ASM(ins, "%c[fmt]", "%c[file]",	\
 					   "%c[line]", "%c[fl]",	\
 					   "%c[size]", extra)		\
-		   : : [fmt] "i" (NULL),				\
-		       [file] "i" (WARN_CONDITION_STR(cond_str) __FILE__), \
+		   : : [fmt] "i" (WARN_CONDITION_STR(cond_str)),	\
+		       [file] "i" (__FILE__),				\
 		       [line] "i" (__LINE__),				\
 		       [fl] "i" (flags),				\
 		       [size] "i" (sizeof(struct bug_entry)));		\
