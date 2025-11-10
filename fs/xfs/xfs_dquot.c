@@ -826,15 +826,13 @@ restart:
 
 	trace_xfs_dqget_hit(dqp);
 	XFS_STATS_INC(mp, xs_qm_dqcachehits);
-	mutex_lock(&dqp->q_qlock);
 	return dqp;
 }
 
 /*
  * Try to insert a new dquot into the in-core cache.  If an error occurs the
  * caller should throw away the dquot and start over.  Otherwise, the dquot
- * is returned locked (and held by the cache) as if there had been a cache
- * hit.
+ * is returned (and held by the cache) as if there had been a cache hit.
  *
  * The insert needs to be done under memalloc_nofs context because the radix
  * tree can do memory allocation during insert. The qi->qi_tree_lock is taken in
@@ -861,8 +859,6 @@ xfs_qm_dqget_cache_insert(
 		goto out_unlock;
 	}
 
-	/* Return a locked dquot to the caller, with a reference taken. */
-	mutex_lock(&dqp->q_qlock);
 	lockref_init(&dqp->q_lockref);
 	qi->qi_dquots++;
 
@@ -920,10 +916,8 @@ xfs_qm_dqget(
 
 restart:
 	dqp = xfs_qm_dqget_cache_lookup(mp, qi, tree, id);
-	if (dqp) {
-		*O_dqpp = dqp;
-		return 0;
-	}
+	if (dqp)
+		goto found;
 
 	error = xfs_qm_dqread(mp, id, type, can_alloc, &dqp);
 	if (error)
@@ -944,7 +938,9 @@ restart:
 	}
 
 	trace_xfs_dqget_miss(dqp);
+found:
 	*O_dqpp = dqp;
+	mutex_lock(&dqp->q_qlock);
 	return 0;
 }
 
@@ -1019,10 +1015,8 @@ xfs_qm_dqget_inode(
 
 restart:
 	dqp = xfs_qm_dqget_cache_lookup(mp, qi, tree, id);
-	if (dqp) {
-		*O_dqpp = dqp;
-		return 0;
-	}
+	if (dqp)
+		goto found;
 
 	/*
 	 * Dquot cache miss. We don't want to keep the inode lock across
@@ -1048,7 +1042,6 @@ restart:
 		if (dqp1) {
 			xfs_qm_dqdestroy(dqp);
 			dqp = dqp1;
-			mutex_lock(&dqp->q_qlock);
 			goto dqret;
 		}
 	} else {
@@ -1074,7 +1067,9 @@ restart:
 dqret:
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	trace_xfs_dqget_miss(dqp);
+found:
 	*O_dqpp = dqp;
+	mutex_lock(&dqp->q_qlock);
 	return 0;
 }
 
