@@ -2755,13 +2755,13 @@ static inline void gbe_unregister_cpts(struct gbe_priv *gbe_dev)
 {
 }
 
-static inline int gbe_hwtstamp_get(struct gbe_intf *gbe_intf,
+static inline int gbe_hwtstamp_get(void *intf_priv,
 				   struct kernel_hwtstamp_config *cfg)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int gbe_hwtstamp_set(struct gbe_intf *gbe_intf,
+static inline int gbe_hwtstamp_set(void *intf_priv,
 				   struct kernel_hwtstamp_config *cfg,
 				   struct netlink_ext_ack *extack)
 {
