@@ -3622,14 +3622,35 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 	struct qla_tgt_cmd *cmd,
 	struct atio_from_isp *atio)
 {
-	struct scsi_qla_host *vha = qpair->vha;
 	struct ctio7_to_24xx *ctio24;
-	request_t *pkt;
-	int ret = 0;
+	struct scsi_qla_host *vha;
+	uint16_t loop_id;
 	uint16_t temp;
 
-	if (cmd)
+	if (cmd) {
 		vha = cmd->vha;
+		loop_id = cmd->loop_id;
+	} else {
+		port_id_t id = be_to_port_id(atio->u.isp24.fcp_hdr.s_id);
+		struct qla_hw_data *ha;
+		struct fc_port *sess;
+		unsigned long flags;
+
+		vha = qpair->vha;
+		ha = vha->hw;
+
+		/*
+		 * CTIO7_NHANDLE_UNRECOGNIZED works when aborting an idle
+		 * command but not when aborting a command with an active CTIO
+		 * exchange.
+		 */
+		loop_id = CTIO7_NHANDLE_UNRECOGNIZED;
+		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
+		sess = qla2x00_find_fcport_by_nportid(vha, &id, 1);
+		if (sess)
+			loop_id = sess->loop_id;
+		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+	}
 
 	if (cmd) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe009,
@@ -3642,31 +3663,20 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 		    vha->vp_idx, le32_to_cpu(atio->u.isp24.exchange_addr));
 	}
 
-	pkt = (request_t *)qla2x00_alloc_iocbs_ready(qpair, NULL);
-	if (pkt == NULL) {
+	ctio24 = qla2x00_alloc_iocbs_ready(qpair, NULL);
+	if (!ctio24) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe050,
 		    "qla_target(%d): %s failed: unable to allocate "
 		    "request packet\n", vha->vp_idx, __func__);
 		return -ENOMEM;
 	}
 
-	if (cmd != NULL) {
-		if (cmd->state < QLA_TGT_STATE_PROCESSED) {
-			ql_dbg(ql_dbg_tgt, vha, 0xe051,
-			    "qla_target(%d): Terminating cmd %p with "
-			    "incorrect state %d\n", vha->vp_idx, cmd,
-			    cmd->state);
-		} else
-			ret = 1;
-	}
-
 	qpair->tgt_counters.num_term_xchg_sent++;
-	pkt->entry_count = 1;
-	pkt->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
 
-	ctio24 = (struct ctio7_to_24xx *)pkt;
 	ctio24->entry_type = CTIO_TYPE7;
-	ctio24->nport_handle = cpu_to_le16(CTIO7_NHANDLE_UNRECOGNIZED);
+	ctio24->entry_count = 1;
+	ctio24->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
+	ctio24->nport_handle = cpu_to_le16(loop_id);
 	ctio24->timeout = cpu_to_le16(QLA_TGT_TIMEOUT);
 	ctio24->vp_index = vha->vp_idx;
 	ctio24->initiator_id = be_id_to_le(atio->u.isp24.fcp_hdr.s_id);
@@ -3683,7 +3693,7 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 		qpair->reqq_start_iocbs(qpair);
 	else
 		qla2x00_start_iocbs(vha, qpair->req);
-	return ret;
+	return 0;
 }
 
 static void qlt_send_term_exchange(struct qla_qpair *qpair,
