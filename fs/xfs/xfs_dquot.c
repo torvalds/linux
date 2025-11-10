@@ -816,20 +816,17 @@ restart:
 		return NULL;
 	}
 
-	mutex_lock(&dqp->q_qlock);
-	if (dqp->q_flags & XFS_DQFLAG_FREEING) {
-		mutex_unlock(&dqp->q_qlock);
+	if (!lockref_get_not_dead(&dqp->q_lockref)) {
 		mutex_unlock(&qi->qi_tree_lock);
 		trace_xfs_dqget_freeing(dqp);
 		delay(1);
 		goto restart;
 	}
-
-	dqp->q_nrefs++;
 	mutex_unlock(&qi->qi_tree_lock);
 
 	trace_xfs_dqget_hit(dqp);
 	XFS_STATS_INC(mp, xs_qm_dqcachehits);
+	mutex_lock(&dqp->q_qlock);
 	return dqp;
 }
 
@@ -866,7 +863,7 @@ xfs_qm_dqget_cache_insert(
 
 	/* Return a locked dquot to the caller, with a reference taken. */
 	mutex_lock(&dqp->q_qlock);
-	dqp->q_nrefs = 1;
+	lockref_init(&dqp->q_lockref);
 	qi->qi_dquots++;
 
 out_unlock:
@@ -1124,18 +1121,22 @@ void
 xfs_qm_dqput(
 	struct xfs_dquot	*dqp)
 {
-	ASSERT(dqp->q_nrefs > 0);
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
 	trace_xfs_dqput(dqp);
 
-	if (--dqp->q_nrefs == 0) {
+	if (lockref_put_or_lock(&dqp->q_lockref))
+		goto out_unlock;
+
+	if (!--dqp->q_lockref.count) {
 		struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
 		trace_xfs_dqput_free(dqp);
 
 		if (list_lru_add_obj(&qi->qi_lru, &dqp->q_lru))
 			XFS_STATS_INC(dqp->q_mount, xs_qm_dquot_unused);
 	}
+	spin_unlock(&dqp->q_lockref.lock);
+out_unlock:
 	mutex_unlock(&dqp->q_qlock);
 }
 

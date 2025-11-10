@@ -126,14 +126,16 @@ xfs_qm_dqpurge(
 	void			*data)
 {
 	struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
-	int			error = -EAGAIN;
+
+	spin_lock(&dqp->q_lockref.lock);
+	if (dqp->q_lockref.count > 0 || __lockref_is_dead(&dqp->q_lockref)) {
+		spin_unlock(&dqp->q_lockref.lock);
+		return -EAGAIN;
+	}
+	lockref_mark_dead(&dqp->q_lockref);
+	spin_unlock(&dqp->q_lockref.lock);
 
 	mutex_lock(&dqp->q_qlock);
-	if ((dqp->q_flags & XFS_DQFLAG_FREEING) || dqp->q_nrefs != 0)
-		goto out_unlock;
-
-	dqp->q_flags |= XFS_DQFLAG_FREEING;
-
 	xfs_qm_dqunpin_wait(dqp);
 	xfs_dqflock(dqp);
 
@@ -144,6 +146,7 @@ xfs_qm_dqpurge(
 	 */
 	if (XFS_DQ_IS_DIRTY(dqp)) {
 		struct xfs_buf	*bp = NULL;
+		int		error;
 
 		/*
 		 * We don't care about getting disk errors here. We need
@@ -151,9 +154,9 @@ xfs_qm_dqpurge(
 		 */
 		error = xfs_dquot_use_attached_buf(dqp, &bp);
 		if (error == -EAGAIN) {
-			xfs_dqfunlock(dqp);
-			dqp->q_flags &= ~XFS_DQFLAG_FREEING;
-			goto out_unlock;
+			/* resurrect the refcount from the dead. */
+			dqp->q_lockref.count = 0;
+			goto out_funlock;
 		}
 		if (!bp)
 			goto out_funlock;
@@ -192,10 +195,6 @@ out_funlock:
 
 	xfs_qm_dqdestroy(dqp);
 	return 0;
-
-out_unlock:
-	mutex_unlock(&dqp->q_qlock);
-	return error;
 }
 
 /*
@@ -468,7 +467,7 @@ xfs_qm_dquot_isolate(
 	struct xfs_qm_isolate	*isol = arg;
 	enum lru_status		ret = LRU_SKIP;
 
-	if (!mutex_trylock(&dqp->q_qlock))
+	if (!spin_trylock(&dqp->q_lockref.lock))
 		goto out_miss_busy;
 
 	/*
@@ -476,7 +475,7 @@ xfs_qm_dquot_isolate(
 	 * from the LRU, leave it for the freeing task to complete the freeing
 	 * process rather than risk it being free from under us here.
 	 */
-	if (dqp->q_flags & XFS_DQFLAG_FREEING)
+	if (__lockref_is_dead(&dqp->q_lockref))
 		goto out_miss_unlock;
 
 	/*
@@ -485,16 +484,15 @@ xfs_qm_dquot_isolate(
 	 * again.
 	 */
 	ret = LRU_ROTATE;
-	if (XFS_DQ_IS_DIRTY(dqp) || atomic_read(&dqp->q_pincount) > 0) {
+	if (XFS_DQ_IS_DIRTY(dqp) || atomic_read(&dqp->q_pincount) > 0)
 		goto out_miss_unlock;
-	}
 
 	/*
 	 * This dquot has acquired a reference in the meantime remove it from
 	 * the freelist and try again.
 	 */
-	if (dqp->q_nrefs) {
-		mutex_unlock(&dqp->q_qlock);
+	if (dqp->q_lockref.count) {
+		spin_unlock(&dqp->q_lockref.lock);
 		XFS_STATS_INC(dqp->q_mount, xs_qm_dqwants);
 
 		trace_xfs_dqreclaim_want(dqp);
@@ -518,10 +516,9 @@ xfs_qm_dquot_isolate(
 	/*
 	 * Prevent lookups now that we are past the point of no return.
 	 */
-	dqp->q_flags |= XFS_DQFLAG_FREEING;
-	mutex_unlock(&dqp->q_qlock);
+	lockref_mark_dead(&dqp->q_lockref);
+	spin_unlock(&dqp->q_lockref.lock);
 
-	ASSERT(dqp->q_nrefs == 0);
 	list_lru_isolate_move(lru, &dqp->q_lru, &isol->dispose);
 	XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot_unused);
 	trace_xfs_dqreclaim_done(dqp);
@@ -529,7 +526,7 @@ xfs_qm_dquot_isolate(
 	return LRU_REMOVED;
 
 out_miss_unlock:
-	mutex_unlock(&dqp->q_qlock);
+	spin_unlock(&dqp->q_lockref.lock);
 out_miss_busy:
 	trace_xfs_dqreclaim_busy(dqp);
 	XFS_STATS_INC(dqp->q_mount, xs_qm_dqreclaim_misses);
@@ -1467,9 +1464,10 @@ xfs_qm_flush_one(
 	struct xfs_buf		*bp = NULL;
 	int			error = 0;
 
+	if (!lockref_get_not_dead(&dqp->q_lockref))
+		return 0;
+
 	mutex_lock(&dqp->q_qlock);
-	if (dqp->q_flags & XFS_DQFLAG_FREEING)
-		goto out_unlock;
 	if (!XFS_DQ_IS_DIRTY(dqp))
 		goto out_unlock;
 
@@ -1489,7 +1487,7 @@ xfs_qm_flush_one(
 		xfs_buf_delwri_queue(bp, buffer_list);
 	xfs_buf_relse(bp);
 out_unlock:
-	mutex_unlock(&dqp->q_qlock);
+	xfs_qm_dqput(dqp);
 	return error;
 }
 

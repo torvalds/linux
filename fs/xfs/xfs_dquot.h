@@ -71,7 +71,7 @@ struct xfs_dquot {
 	xfs_dqtype_t		q_type;
 	uint16_t		q_flags;
 	xfs_dqid_t		q_id;
-	uint			q_nrefs;
+	struct lockref		q_lockref;
 	int			q_bufoffset;
 	xfs_daddr_t		q_blkno;
 	xfs_fileoff_t		q_fileoffset;
@@ -231,9 +231,7 @@ void xfs_dquot_detach_buf(struct xfs_dquot *dqp);
 
 static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
 {
-	mutex_lock(&dqp->q_qlock);
-	dqp->q_nrefs++;
-	mutex_unlock(&dqp->q_qlock);
+	lockref_get(&dqp->q_lockref);
 	return dqp;
 }
 
