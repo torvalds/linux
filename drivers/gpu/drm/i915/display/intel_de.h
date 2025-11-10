@@ -166,6 +166,20 @@ intel_de_wait_fw_ms(struct intel_display *display, i915_reg_t reg,
 }
 
 static inline int
+intel_de_wait_for_set_us(struct intel_display *display, i915_reg_t reg,
+			 u32 mask, unsigned int timeout_us)
+{
+	return intel_de_wait_us(display, reg, mask, mask, timeout_us, NULL);
+}
+
+static inline int
+intel_de_wait_for_clear_us(struct intel_display *display, i915_reg_t reg,
+			   u32 mask, unsigned int timeout_us)
+{
+	return intel_de_wait_us(display, reg, mask, 0, timeout_us, NULL);
+}
+
+static inline int
 intel_de_wait_for_set_ms(struct intel_display *display, i915_reg_t reg,
 			 u32 mask, unsigned int timeout_ms)
 {
