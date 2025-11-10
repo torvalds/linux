@@ -420,7 +420,7 @@ out:
 
 static int ipu6_isys_link_fmt_validate(struct ipu6_isys_queue *aq)
 {
-	struct v4l2_mbus_framefmt format;
+	struct v4l2_mbus_framefmt format, *__format;
 	struct ipu6_isys_video *av = ipu6_isys_queue_to_video(aq);
 	struct device *dev = &av->isys->adev->auxdev.dev;
 	struct media_pad *remote_pad =
@@ -435,13 +435,20 @@ static int ipu6_isys_link_fmt_validate(struct ipu6_isys_queue *aq)
 	sd = media_entity_to_v4l2_subdev(remote_pad->entity);
 	r_stream = ipu6_isys_get_src_stream_by_src_pad(sd, remote_pad->index);
 
-	ret = ipu6_isys_get_stream_pad_fmt(sd, remote_pad->index, r_stream,
-					   &format);
+	struct v4l2_subdev_state *state =
+		v4l2_subdev_lock_and_get_active_state(sd);
 
-	if (ret) {
+	__format = v4l2_subdev_state_get_format(state, remote_pad->index,
+						r_stream);
+	if (__format)
+		format = *__format;
+
+	v4l2_subdev_unlock_state(state);
+
+	if (!__format) {
 		dev_dbg(dev, "failed to get %s: pad %d, stream:%d format\n",
 			sd->entity.name, remote_pad->index, r_stream);
-		return ret;
+		return -EPIPE;
 	}
 
 	if (format.width != ipu6_isys_get_frame_width(av) ||
