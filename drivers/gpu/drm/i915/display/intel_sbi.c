@@ -21,7 +21,8 @@ static int intel_sbi_rw(struct intel_display *display, u16 reg,
 
 	lockdep_assert_held(&display->sbi.lock);
 
-	if (intel_de_wait_fw(display, SBI_CTL_STAT, SBI_STATUS_MASK, SBI_STATUS_READY, 100, NULL)) {
+	if (intel_de_wait_fw_ms(display, SBI_CTL_STAT,
+				SBI_STATUS_MASK, SBI_STATUS_READY, 100, NULL)) {
 		drm_err(display->drm, "timeout waiting for SBI to become ready\n");
 		return -EBUSY;
 	}
@@ -37,7 +38,8 @@ static int intel_sbi_rw(struct intel_display *display, u16 reg,
 		cmd |= SBI_CTL_OP_WR;
 	intel_de_write_fw(display, SBI_CTL_STAT, cmd | SBI_STATUS_BUSY);
 
-	if (intel_de_wait_fw(display, SBI_CTL_STAT, SBI_STATUS_MASK, SBI_STATUS_READY, 100, &cmd)) {
+	if (intel_de_wait_fw_ms(display, SBI_CTL_STAT,
+				SBI_STATUS_MASK, SBI_STATUS_READY, 100, &cmd)) {
 		drm_err(display->drm, "timeout waiting for SBI to complete read\n");
 		return -ETIMEDOUT;
 	}

@@ -56,7 +56,7 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 		 * the HW state readout code will complain that the expected
 		 * IPS_CTL value is not the one we read.
 		 */
-		if (intel_de_wait_for_set(display, IPS_CTL, IPS_ENABLE, 50))
+		if (intel_de_wait_for_set_ms(display, IPS_CTL, IPS_ENABLE, 50))
 			drm_err(display->drm,
 				"Timed out waiting for IPS enable\n");
 	}
@@ -78,7 +78,7 @@ bool hsw_ips_disable(const struct intel_crtc_state *crtc_state)
 		 * 42ms timeout value leads to occasional timeouts so use 100ms
 		 * instead.
 		 */
-		if (intel_de_wait_for_clear(display, IPS_CTL, IPS_ENABLE, 100))
+		if (intel_de_wait_for_clear_ms(display, IPS_CTL, IPS_ENABLE, 100))
 			drm_err(display->drm,
 				"Timed out waiting for IPS disable\n");
 	} else {

@@ -1114,7 +1114,7 @@ static void skl_dpll0_enable(struct intel_display *display, int vco)
 	intel_de_rmw(display, LCPLL1_CTL,
 		     0, LCPLL_PLL_ENABLE);
 
-	if (intel_de_wait_for_set(display, LCPLL1_CTL, LCPLL_PLL_LOCK, 5))
+	if (intel_de_wait_for_set_ms(display, LCPLL1_CTL, LCPLL_PLL_LOCK, 5))
 		drm_err(display->drm, "DPLL0 not locked\n");
 
 	display->cdclk.hw.vco = vco;
@@ -1128,7 +1128,7 @@ static void skl_dpll0_disable(struct intel_display *display)
 	intel_de_rmw(display, LCPLL1_CTL,
 		     LCPLL_PLL_ENABLE, 0);
 
-	if (intel_de_wait_for_clear(display, LCPLL1_CTL, LCPLL_PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display, LCPLL1_CTL, LCPLL_PLL_LOCK, 1))
 		drm_err(display->drm, "Couldn't disable DPLL0\n");
 
 	display->cdclk.hw.vco = 0;
@@ -1835,8 +1835,8 @@ static void bxt_de_pll_disable(struct intel_display *display)
 	intel_de_write(display, BXT_DE_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_clear(display,
-				    BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display,
+				       BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
 		drm_err(display->drm, "timeout waiting for DE PLL unlock\n");
 
 	display->cdclk.hw.vco = 0;
@@ -1852,8 +1852,8 @@ static void bxt_de_pll_enable(struct intel_display *display, int vco)
 	intel_de_write(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_set(display,
-				  BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+	if (intel_de_wait_for_set_ms(display,
+				     BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
 		drm_err(display->drm, "timeout waiting for DE PLL lock\n");
 
 	display->cdclk.hw.vco = vco;
@@ -1865,7 +1865,7 @@ static void icl_cdclk_pll_disable(struct intel_display *display)
 		     BXT_DE_PLL_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_clear(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
 		drm_err(display->drm, "timeout waiting for CDCLK PLL unlock\n");
 
 	display->cdclk.hw.vco = 0;
@@ -1883,7 +1883,7 @@ static void icl_cdclk_pll_enable(struct intel_display *display, int vco)
 	intel_de_write(display, BXT_DE_PLL_ENABLE, val);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_set(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+	if (intel_de_wait_for_set_ms(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
 		drm_err(display->drm, "timeout waiting for CDCLK PLL lock\n");
 
 	display->cdclk.hw.vco = vco;
@@ -1903,8 +1903,8 @@ static void adlp_cdclk_pll_crawl(struct intel_display *display, int vco)
 	intel_de_write(display, BXT_DE_PLL_ENABLE, val);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_set(display, BXT_DE_PLL_ENABLE,
-				  BXT_DE_PLL_LOCK | BXT_DE_PLL_FREQ_REQ_ACK, 1))
+	if (intel_de_wait_for_set_ms(display, BXT_DE_PLL_ENABLE,
+				     BXT_DE_PLL_LOCK | BXT_DE_PLL_FREQ_REQ_ACK, 1))
 		drm_err(display->drm, "timeout waiting for FREQ change request ack\n");
 
 	val &= ~BXT_DE_PLL_FREQ_REQ;

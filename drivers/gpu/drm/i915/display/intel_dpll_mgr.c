@@ -1395,7 +1395,7 @@ static void skl_ddi_pll_enable(struct intel_display *display,
 	/* the enable bit is always bit 31 */
 	intel_de_rmw(display, regs[id].ctl, 0, LCPLL_PLL_ENABLE);
 
-	if (intel_de_wait_for_set(display, DPLL_STATUS, DPLL_LOCK(id), 5))
+	if (intel_de_wait_for_set_ms(display, DPLL_STATUS, DPLL_LOCK(id), 5))
 		drm_err(display->drm, "DPLL %d not locked\n", id);
 }
 
@@ -3921,7 +3921,7 @@ static void icl_pll_power_enable(struct intel_display *display,
 	 * The spec says we need to "wait" but it also says it should be
 	 * immediate.
 	 */
-	if (intel_de_wait_for_set(display, enable_reg, PLL_POWER_STATE, 1))
+	if (intel_de_wait_for_set_ms(display, enable_reg, PLL_POWER_STATE, 1))
 		drm_err(display->drm, "PLL %d Power not enabled\n",
 			pll->info->id);
 }
@@ -3933,7 +3933,7 @@ static void icl_pll_enable(struct intel_display *display,
 	intel_de_rmw(display, enable_reg, 0, PLL_ENABLE);
 
 	/* Timeout is actually 600us. */
-	if (intel_de_wait_for_set(display, enable_reg, PLL_LOCK, 1))
+	if (intel_de_wait_for_set_ms(display, enable_reg, PLL_LOCK, 1))
 		drm_err(display->drm, "PLL %d not locked\n", pll->info->id);
 }
 
@@ -4046,7 +4046,7 @@ static void icl_pll_disable(struct intel_display *display,
 	intel_de_rmw(display, enable_reg, PLL_ENABLE, 0);
 
 	/* Timeout is actually 1us. */
-	if (intel_de_wait_for_clear(display, enable_reg, PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display, enable_reg, PLL_LOCK, 1))
 		drm_err(display->drm, "PLL %d locked\n", pll->info->id);
 
 	/* DVFS post sequence would be here. See the comment above. */
@@ -4057,7 +4057,7 @@ static void icl_pll_disable(struct intel_display *display,
 	 * The spec says we need to "wait" but it also says it should be
 	 * immediate.
 	 */
-	if (intel_de_wait_for_clear(display, enable_reg, PLL_POWER_STATE, 1))
+	if (intel_de_wait_for_clear_ms(display, enable_reg, PLL_POWER_STATE, 1))
 		drm_err(display->drm, "PLL %d Power not disabled\n",
 			pll->info->id);
 }

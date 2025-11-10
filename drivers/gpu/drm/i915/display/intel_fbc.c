@@ -328,8 +328,8 @@ static void i8xx_fbc_deactivate(struct intel_fbc *fbc)
 	intel_de_write(display, FBC_CONTROL, fbc_ctl);
 
 	/* Wait for compressing bit to clear */
-	if (intel_de_wait_for_clear(display, FBC_STATUS,
-				    FBC_STAT_COMPRESSING, 10)) {
+	if (intel_de_wait_for_clear_ms(display, FBC_STATUS,
+				       FBC_STAT_COMPRESSING, 10)) {
 		drm_dbg_kms(display->drm, "FBC idle timed out\n");
 		return;
 	}

@@ -359,8 +359,8 @@ intel_wait_for_pipe_off(const struct intel_crtc_state *old_crtc_state)
 		enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
 		/* Wait for the Pipe State to go off */
-		if (intel_de_wait_for_clear(display, TRANSCONF(display, cpu_transcoder),
-					    TRANSCONF_STATE_ENABLE, 100))
+		if (intel_de_wait_for_clear_ms(display, TRANSCONF(display, cpu_transcoder),
+					       TRANSCONF_STATE_ENABLE, 100))
 			drm_WARN(display->drm, 1, "pipe_off wait timed out\n");
 	} else {
 		intel_wait_for_pipe_scanline_stopped(crtc);

@@ -1305,7 +1305,7 @@ static void hsw_disable_lcpll(struct intel_display *display,
 	intel_de_write(display, LCPLL_CTL, val);
 	intel_de_posting_read(display, LCPLL_CTL);
 
-	if (intel_de_wait_for_clear(display, LCPLL_CTL, LCPLL_PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display, LCPLL_CTL, LCPLL_PLL_LOCK, 1))
 		drm_err(display->drm, "LCPLL still locked\n");
 
 	val = hsw_read_dcomp(display);
@@ -1362,7 +1362,7 @@ static void hsw_restore_lcpll(struct intel_display *display)
 	val &= ~LCPLL_PLL_DISABLE;
 	intel_de_write(display, LCPLL_CTL, val);
 
-	if (intel_de_wait_for_set(display, LCPLL_CTL, LCPLL_PLL_LOCK, 5))
+	if (intel_de_wait_for_set_ms(display, LCPLL_CTL, LCPLL_PLL_LOCK, 5))
 		drm_err(display->drm, "LCPLL not locked yet\n");
 
 	if (val & LCPLL_CD_SOURCE_FCLK) {

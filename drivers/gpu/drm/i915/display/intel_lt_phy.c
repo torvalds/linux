@@ -1067,9 +1067,9 @@ static int __intel_lt_phy_p2p_write_once(struct intel_encoder *encoder,
 	int ack;
 	u32 val;
 
-	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
-				    XELPDP_PORT_P2P_TRANSACTION_PENDING,
-				    XELPDP_MSGBUS_TIMEOUT_MS)) {
+	if (intel_de_wait_for_clear_ms(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
+				       XELPDP_PORT_P2P_TRANSACTION_PENDING,
+				       XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for previous transaction to complete. Resetting bus.\n",
 			    phy_name(phy));

@@ -1048,8 +1048,8 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 			     TRANSCONF_ENABLE);
 
 		/* wait for transcoder to be enabled */
-		if (intel_de_wait_for_set(display, TRANSCONF(display, dsi_trans),
-					  TRANSCONF_STATE_ENABLE, 10))
+		if (intel_de_wait_for_set_ms(display, TRANSCONF(display, dsi_trans),
+					     TRANSCONF_STATE_ENABLE, 10))
 			drm_err(display->drm,
 				"DSI transcoder not enabled\n");
 	}
@@ -1317,8 +1317,8 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 			     TRANSCONF_ENABLE, 0);
 
 		/* wait for transcoder to be disabled */
-		if (intel_de_wait_for_clear(display, TRANSCONF(display, dsi_trans),
-					    TRANSCONF_STATE_ENABLE, 50))
+		if (intel_de_wait_for_clear_ms(display, TRANSCONF(display, dsi_trans),
+					       TRANSCONF_STATE_ENABLE, 50))
 			drm_err(display->drm,
 				"DSI trancoder not disabled\n");
 	}

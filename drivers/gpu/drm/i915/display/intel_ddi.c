@@ -210,8 +210,8 @@ void intel_wait_ddi_buf_idle(struct intel_display *display, enum port port)
 	}
 
 	static_assert(DDI_BUF_IS_IDLE == XELPDP_PORT_BUF_PHY_IDLE);
-	if (intel_de_wait_for_set(display, intel_ddi_buf_status_reg(display, port),
-				  DDI_BUF_IS_IDLE, 10))
+	if (intel_de_wait_for_set_ms(display, intel_ddi_buf_status_reg(display, port),
+				     DDI_BUF_IS_IDLE, 10))
 		drm_err(display->drm, "Timeout waiting for DDI BUF %c to get idle\n",
 			port_name(port));
 }
@@ -235,8 +235,8 @@ static void intel_wait_ddi_buf_active(struct intel_encoder *encoder)
 	}
 
 	static_assert(DDI_BUF_IS_IDLE == XELPDP_PORT_BUF_PHY_IDLE);
-	if (intel_de_wait_for_clear(display, intel_ddi_buf_status_reg(display, port),
-				    DDI_BUF_IS_IDLE, 10))
+	if (intel_de_wait_for_clear_ms(display, intel_ddi_buf_status_reg(display, port),
+				       DDI_BUF_IS_IDLE, 10))
 		drm_err(display->drm, "Timeout waiting for DDI BUF %c to get active\n",
 			port_name(port));
 }
@@ -2307,8 +2307,8 @@ void intel_ddi_wait_for_act_sent(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 
-	if (intel_de_wait_for_set(display, dp_tp_status_reg(encoder, crtc_state),
-				  DP_TP_STATUS_ACT_SENT, 1))
+	if (intel_de_wait_for_set_ms(display, dp_tp_status_reg(encoder, crtc_state),
+				     DP_TP_STATUS_ACT_SENT, 1))
 		drm_err(display->drm, "Timed out waiting for ACT sent\n");
 }
 
@@ -2383,11 +2383,11 @@ int intel_ddi_wait_for_fec_status(struct intel_encoder *encoder,
 		return 0;
 
 	if (enabled)
-		ret = intel_de_wait_for_set(display, dp_tp_status_reg(encoder, crtc_state),
-					    DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
+		ret = intel_de_wait_for_set_ms(display, dp_tp_status_reg(encoder, crtc_state),
+					       DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
 	else
-		ret = intel_de_wait_for_clear(display, dp_tp_status_reg(encoder, crtc_state),
-					      DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
+		ret = intel_de_wait_for_clear_ms(display, dp_tp_status_reg(encoder, crtc_state),
+						 DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
 
 	if (ret) {
 		drm_err(display->drm,
@@ -3868,9 +3868,9 @@ static void intel_ddi_set_idle_link_train(struct intel_dp *intel_dp,
 	if (port == PORT_A && DISPLAY_VER(display) < 12)
 		return;
 
-	if (intel_de_wait_for_set(display,
-				  dp_tp_status_reg(encoder, crtc_state),
-				  DP_TP_STATUS_IDLE_DONE, 2))
+	if (intel_de_wait_for_set_ms(display,
+				     dp_tp_status_reg(encoder, crtc_state),
+				     DP_TP_STATUS_IDLE_DONE, 2))
 		drm_err(display->drm,
 			"Timed out waiting for DP idle patterns\n");
 }
