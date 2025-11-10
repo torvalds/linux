@@ -92,9 +92,3 @@
 #define BMG_PCIE_CAP			XE_REG(0x138340)
 #define   LINK_DOWNGRADE		REG_GENMASK(1, 0)
 #define     DOWNGRADE_CAPABLE		2
-
-struct pcode_err_decode {
-	int errno;
-	const char *str;
-};
-
