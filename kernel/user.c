@@ -35,7 +35,7 @@ EXPORT_SYMBOL_GPL(init_binfmt_misc);
  * and 1 for... ?
  */
 struct user_namespace init_user_ns = {
-	.ns = NS_COMMON_INIT(init_user_ns, 3),
+	.ns = NS_COMMON_INIT(init_user_ns),
 	.uid_map = {
 		{
 			.extent[0] = {

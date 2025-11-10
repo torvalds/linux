@@ -5986,7 +5986,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 }
 
 struct mnt_namespace init_mnt_ns = {
-	.ns		= NS_COMMON_INIT(init_mnt_ns, 1),
+	.ns		= NS_COMMON_INIT(init_mnt_ns),
 	.user_ns	= &init_user_ns,
 	.passive	= REFCOUNT_INIT(1),
 	.mounts		= RB_ROOT,

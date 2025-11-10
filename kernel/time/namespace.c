@@ -478,7 +478,7 @@ const struct proc_ns_operations timens_for_children_operations = {
 };
 
 struct time_namespace init_time_ns = {
-	.ns		= NS_COMMON_INIT(init_time_ns, 3),
+	.ns		= NS_COMMON_INIT(init_time_ns),
 	.user_ns	= &init_user_ns,
 	.frozen_offsets	= true,
 };
