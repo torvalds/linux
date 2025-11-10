@@ -8,11 +8,11 @@
 
 #include <linux/types.h>
 
-struct drm_i915_private;
+struct drm_device;
 struct intel_rom;
 
-struct intel_rom *intel_rom_spi(struct drm_i915_private *i915);
-struct intel_rom *intel_rom_pci(struct drm_i915_private *i915);
+struct intel_rom *intel_rom_spi(struct drm_device *drm);
+struct intel_rom *intel_rom_pci(struct drm_device *drm);
 
 u32 intel_rom_read32(struct intel_rom *rom, loff_t offset);
 u16 intel_rom_read16(struct intel_rom *rom, loff_t offset);
