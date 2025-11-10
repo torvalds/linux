@@ -3684,14 +3684,12 @@ err_fput:
 static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 {
 	struct io_uring_params p;
-	int i;
 
 	if (copy_from_user(&p, params, sizeof(p)))
 		return -EFAULT;
-	for (i = 0; i < ARRAY_SIZE(p.resv); i++) {
-		if (p.resv[i])
-			return -EINVAL;
-	}
+
+	if (!mem_is_zero(&p.resv, sizeof(p.resv)))
+		return -EINVAL;
 
 	if (p.flags & ~IORING_SETUP_FLAGS)
 		return -EINVAL;
