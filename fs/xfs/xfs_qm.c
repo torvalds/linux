@@ -1861,15 +1861,11 @@ xfs_qm_vop_dqalloc(
 	struct xfs_dquot	*gq = NULL;
 	struct xfs_dquot	*pq = NULL;
 	int			error;
-	uint			lockflags;
 
 	if (!XFS_IS_QUOTA_ON(mp))
 		return 0;
 
 	ASSERT(!xfs_is_metadir_inode(ip));
-
-	lockflags = XFS_ILOCK_EXCL;
-	xfs_ilock(ip, lockflags);
 
 	if ((flags & XFS_QMOPT_INHERIT) && XFS_INHERIT_GID(ip))
 		gid = inode->i_gid;
@@ -1879,37 +1875,22 @@ xfs_qm_vop_dqalloc(
 	 * if necessary. The dquot(s) will not be locked.
 	 */
 	if (XFS_NOT_DQATTACHED(mp, ip)) {
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		error = xfs_qm_dqattach_locked(ip, true);
-		if (error) {
-			xfs_iunlock(ip, lockflags);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		if (error)
 			return error;
-		}
 	}
 
 	if ((flags & XFS_QMOPT_UQUOTA) && XFS_IS_UQUOTA_ON(mp)) {
 		ASSERT(O_udqpp);
 		if (!uid_eq(inode->i_uid, uid)) {
-			/*
-			 * What we need is the dquot that has this uid, and
-			 * if we send the inode to dqget, the uid of the inode
-			 * takes priority over what's sent in the uid argument.
-			 * We must unlock inode here before calling dqget if
-			 * we're not sending the inode, because otherwise
-			 * we'll deadlock by doing trans_reserve while
-			 * holding ilock.
-			 */
-			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, from_kuid(user_ns, uid),
 					XFS_DQTYPE_USER, true, &uq);
 			if (error) {
 				ASSERT(error != -ENOENT);
 				return error;
 			}
-			/*
-			 * Get the ilock in the right order.
-			 */
-			lockflags = XFS_ILOCK_SHARED;
-			xfs_ilock(ip, lockflags);
 		} else {
 			/*
 			 * Take an extra reference, because we'll return
@@ -1922,15 +1903,12 @@ xfs_qm_vop_dqalloc(
 	if ((flags & XFS_QMOPT_GQUOTA) && XFS_IS_GQUOTA_ON(mp)) {
 		ASSERT(O_gdqpp);
 		if (!gid_eq(inode->i_gid, gid)) {
-			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, from_kgid(user_ns, gid),
 					XFS_DQTYPE_GROUP, true, &gq);
 			if (error) {
 				ASSERT(error != -ENOENT);
 				goto error_rele;
 			}
-			lockflags = XFS_ILOCK_SHARED;
-			xfs_ilock(ip, lockflags);
 		} else {
 			ASSERT(ip->i_gdquot);
 			gq = xfs_qm_dqhold(ip->i_gdquot);
@@ -1939,15 +1917,12 @@ xfs_qm_vop_dqalloc(
 	if ((flags & XFS_QMOPT_PQUOTA) && XFS_IS_PQUOTA_ON(mp)) {
 		ASSERT(O_pdqpp);
 		if (ip->i_projid != prid) {
-			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, prid,
 					XFS_DQTYPE_PROJ, true, &pq);
 			if (error) {
 				ASSERT(error != -ENOENT);
 				goto error_rele;
 			}
-			lockflags = XFS_ILOCK_SHARED;
-			xfs_ilock(ip, lockflags);
 		} else {
 			ASSERT(ip->i_pdquot);
 			pq = xfs_qm_dqhold(ip->i_pdquot);
@@ -1955,7 +1930,6 @@ xfs_qm_vop_dqalloc(
 	}
 	trace_xfs_dquot_dqalloc(ip);
 
-	xfs_iunlock(ip, lockflags);
 	if (O_udqpp)
 		*O_udqpp = uq;
 	else
