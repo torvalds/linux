@@ -38,22 +38,22 @@
  * named __s390x_sys_*()
  */
 #define COMPAT_SYSCALL_DEFINE0(sname)					\
-	long __s390_compat_sys_##sname(void);				\
+	long __s390_compat_sys_##sname(struct pt_regs *__unused);	\
 	ALLOW_ERROR_INJECTION(__s390_compat_sys_##sname, ERRNO);	\
-	long __s390_compat_sys_##sname(void)
+	long __s390_compat_sys_##sname(struct pt_regs *__unused)
 
 #define SYSCALL_DEFINE0(sname)						\
 	SYSCALL_METADATA(_##sname, 0);					\
-	long __s390_sys_##sname(void);					\
+	long __s390_sys_##sname(struct pt_regs *__unused);		\
 	ALLOW_ERROR_INJECTION(__s390_sys_##sname, ERRNO);		\
-	long __s390x_sys_##sname(void);					\
+	long __s390x_sys_##sname(struct pt_regs *__unused);		\
 	ALLOW_ERROR_INJECTION(__s390x_sys_##sname, ERRNO);		\
 	static inline long __do_sys_##sname(void);			\
-	long __s390_sys_##sname(void)					\
+	long __s390_sys_##sname(struct pt_regs *__unused)		\
 	{								\
 		return __do_sys_##sname();				\
 	}								\
-	long __s390x_sys_##sname(void)					\
+	long __s390x_sys_##sname(struct pt_regs *__unused)		\
 	{								\
 		return __do_sys_##sname();				\
 	}								\
@@ -104,10 +104,10 @@
 
 #define SYSCALL_DEFINE0(sname)						\
 	SYSCALL_METADATA(_##sname, 0);					\
-	long __s390x_sys_##sname(void);					\
+	long __s390x_sys_##sname(struct pt_regs *__unused);		\
 	ALLOW_ERROR_INJECTION(__s390x_sys_##sname, ERRNO);		\
 	static inline long __do_sys_##sname(void);			\
-	long __s390x_sys_##sname(void)					\
+	long __s390x_sys_##sname(struct pt_regs *__unused)		\
 	{								\
 		return __do_sys_##sname();				\
 	}								\
