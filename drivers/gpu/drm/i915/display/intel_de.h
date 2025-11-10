@@ -166,25 +166,6 @@ intel_de_wait_fw_ms(struct intel_display *display, i915_reg_t reg,
 }
 
 static inline int
-intel_de_wait_custom(struct intel_display *display, i915_reg_t reg,
-		     u32 mask, u32 value,
-		     unsigned int fast_timeout_us,
-		     unsigned int slow_timeout_ms, u32 *out_value)
-{
-	int ret;
-
-	intel_dmc_wl_get(display, reg);
-
-	ret = __intel_wait_for_register(__to_uncore(display), reg, mask,
-					value,
-					fast_timeout_us, slow_timeout_ms, out_value);
-
-	intel_dmc_wl_put(display, reg);
-
-	return ret;
-}
-
-static inline int
 intel_de_wait_for_set_ms(struct intel_display *display, i915_reg_t reg,
 			 u32 mask, unsigned int timeout_ms)
 {
