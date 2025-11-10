@@ -667,6 +667,12 @@ iwl_mld_get_tx_queue_id(struct iwl_mld *mld, struct ieee80211_txq *txq,
 
 		WARN_ON(!ieee80211_is_mgmt(fc));
 		return mld_vif->aux_sta.queue_id;
+	case NL80211_IFTYPE_NAN:
+		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
+
+		WARN_ON(!ieee80211_is_mgmt(fc));
+
+		return mld_vif->aux_sta.queue_id;
 	default:
 		WARN_ONCE(1, "Unsupported vif type\n");
 		break;
