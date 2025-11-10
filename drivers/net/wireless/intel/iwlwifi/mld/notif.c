@@ -540,6 +540,8 @@ static void iwl_mld_rx_notif(struct iwl_mld *mld,
 			     struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_rx_packet *pkt)
 {
+	union iwl_dbg_tlv_tp_data tp_data = { .fw_pkt = pkt };
+
 	for (int i = 0; i < ARRAY_SIZE(iwl_mld_rx_handlers); i++) {
 		const struct iwl_rx_handler *rx_h = &iwl_mld_rx_handlers[i];
 		struct iwl_async_handler_entry *entry;
@@ -580,6 +582,8 @@ static void iwl_mld_rx_notif(struct iwl_mld *mld,
 	}
 
 	iwl_notification_wait_notify(&mld->notif_wait, pkt);
+	iwl_dbg_tlv_time_point(&mld->fwrt,
+			       IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF, &tp_data);
 }
 
 void iwl_mld_rx(struct iwl_op_mode *op_mode, struct napi_struct *napi,
