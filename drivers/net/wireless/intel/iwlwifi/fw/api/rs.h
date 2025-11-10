@@ -73,6 +73,7 @@ enum iwl_tlc_mng_cfg_chains {
  * @IWL_TLC_MNG_MODE_VHT: enable VHT
  * @IWL_TLC_MNG_MODE_HE: enable HE
  * @IWL_TLC_MNG_MODE_EHT: enable EHT
+ * @IWL_TLC_MNG_MODE_UHR: enable UHR
  */
 enum iwl_tlc_mng_cfg_mode {
 	IWL_TLC_MNG_MODE_CCK = 0,
@@ -82,6 +83,7 @@ enum iwl_tlc_mng_cfg_mode {
 	IWL_TLC_MNG_MODE_VHT,
 	IWL_TLC_MNG_MODE_HE,
 	IWL_TLC_MNG_MODE_EHT,
+	IWL_TLC_MNG_MODE_UHR,
 };
 
 /**
