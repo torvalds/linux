@@ -82,7 +82,7 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 	 * active use (installed in nsproxy) and decremented when all
 	 * active uses are gone. Initial namespaces are always active.
 	 */
-	if (is_initial_namespace(ns))
+	if (is_ns_init_inum(ns))
 		atomic_set(&ns->__ns_ref_active, 1);
 	else
 		atomic_set(&ns->__ns_ref_active, 0);
