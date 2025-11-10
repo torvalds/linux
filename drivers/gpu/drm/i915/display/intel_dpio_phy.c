@@ -1193,7 +1193,7 @@ void vlv_wait_port_ready(struct intel_encoder *encoder,
 		break;
 	}
 
-	if (intel_de_wait(display, dpll_reg, port_mask, expected_mask, 1000))
+	if (intel_de_wait(display, dpll_reg, port_mask, expected_mask, 1000, NULL))
 		drm_WARN(display->drm, 1,
 			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
 			 encoder->base.base.id, encoder->base.name,
