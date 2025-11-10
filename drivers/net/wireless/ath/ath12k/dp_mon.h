@@ -120,17 +120,6 @@ ath12k_dp_mon_parse_status_buf(struct ath12k_pdev_dp *dp_pdev,
 			       struct ath12k_mon_data *pmon,
 			       const struct dp_mon_packet_info *packet_info);
 void
-ath12k_dp_mon_rx_handle_ofdma_info(const struct hal_rx_ppdu_end_user_stats *ppdu_end_user,
-				   struct hal_rx_user_status *rx_user_status);
-void
-ath12k_dp_mon_rx_populate_mu_user_info(const struct hal_rx_ppdu_end_user_stats *rx_tlv,
-				       struct hal_rx_mon_ppdu_info *ppdu_info,
-				       struct hal_rx_user_status *rx_user_status);
-void
-ath12k_dp_mon_hal_rx_parse_user_info(const struct hal_receive_user_info *rx_usr_info,
-				     u16 user_id,
-				     struct hal_rx_mon_ppdu_info *ppdu_info);
-void
 ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
 				    const struct hal_rx_msdu_end *msdu_end);
 #endif
