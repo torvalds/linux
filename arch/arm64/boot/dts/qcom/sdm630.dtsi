@@ -1217,6 +1217,11 @@
 			reg = <0x05100000 0x40000>;
 			#iommu-cells = <1>;
 
+			clocks = <&gcc GCC_HLOS1_VOTE_LPASS_ADSP_SMMU_CLK>;
+			clock-names = "bus";
+
+			power-domains = <&gcc HLOS1_VOTE_LPASS_ADSP_GDSC>;
+
 			#global-interrupts = <2>;
 			interrupts =
 				<GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>,
