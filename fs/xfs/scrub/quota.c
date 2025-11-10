@@ -155,10 +155,7 @@ xchk_quota_item(
 	 * We want to validate the bmap record for the storage backing this
 	 * dquot, so we need to lock the dquot and the quota file.  For quota
 	 * operations, the locking order is first the ILOCK and then the dquot.
-	 * However, dqiterate gave us a locked dquot, so drop the dquot lock to
-	 * get the ILOCK.
 	 */
-	mutex_unlock(&dq->q_qlock);
 	xchk_ilock(sc, XFS_ILOCK_SHARED);
 	mutex_lock(&dq->q_qlock);
 
@@ -251,6 +248,7 @@ xchk_quota_item(
 	xchk_quota_item_timer(sc, offset, &dq->q_rtb);
 
 out:
+	mutex_unlock(&dq->q_qlock);
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return -ECANCELED;
 
@@ -329,9 +327,7 @@ xchk_quota(
 	/* Now look for things that the quota verifiers won't complain about. */
 	xchk_dqiter_init(&cursor, sc, dqtype);
 	while ((error = xchk_dquot_iter(&cursor, &dq)) == 1) {
-		mutex_lock(&dq->q_qlock);
 		error = xchk_quota_item(&sqi, dq);
-		mutex_unlock(&dq->q_qlock);
 		xfs_qm_dqrele(dq);
 		if (error)
 			break;
