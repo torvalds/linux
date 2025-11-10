@@ -801,10 +801,11 @@ xfs_dq_get_next_id(
 static struct xfs_dquot *
 xfs_qm_dqget_cache_lookup(
 	struct xfs_mount	*mp,
-	struct xfs_quotainfo	*qi,
-	struct radix_tree_root	*tree,
-	xfs_dqid_t		id)
+	xfs_dqid_t		id,
+	xfs_dqtype_t		type)
 {
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 
 restart:
@@ -843,11 +844,12 @@ restart:
 static int
 xfs_qm_dqget_cache_insert(
 	struct xfs_mount	*mp,
-	struct xfs_quotainfo	*qi,
-	struct radix_tree_root	*tree,
 	xfs_dqid_t		id,
+	xfs_dqtype_t		type,
 	struct xfs_dquot	*dqp)
 {
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	unsigned int		nofs_flags;
 	int			error;
 
@@ -905,8 +907,6 @@ xfs_qm_dqget(
 	bool			can_alloc,
 	struct xfs_dquot	**O_dqpp)
 {
-	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	int			error;
 
@@ -915,7 +915,7 @@ xfs_qm_dqget(
 		return error;
 
 restart:
-	dqp = xfs_qm_dqget_cache_lookup(mp, qi, tree, id);
+	dqp = xfs_qm_dqget_cache_lookup(mp, id, type);
 	if (dqp)
 		goto found;
 
@@ -923,7 +923,7 @@ restart:
 	if (error)
 		return error;
 
-	error = xfs_qm_dqget_cache_insert(mp, qi, tree, id, dqp);
+	error = xfs_qm_dqget_cache_insert(mp, id, type, dqp);
 	if (error) {
 		xfs_qm_dqdestroy(dqp);
 		if (error == -EEXIST) {
@@ -996,8 +996,6 @@ xfs_qm_dqget_inode(
 	struct xfs_dquot	**dqpp)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	xfs_dqid_t		id;
 	int			error;
@@ -1016,7 +1014,7 @@ xfs_qm_dqget_inode(
 	id = xfs_qm_id_for_quotatype(ip, type);
 
 restart:
-	dqp = xfs_qm_dqget_cache_lookup(mp, qi, tree, id);
+	dqp = xfs_qm_dqget_cache_lookup(mp, id, type);
 	if (dqp)
 		goto found;
 
@@ -1052,7 +1050,7 @@ restart:
 		return -ESRCH;
 	}
 
-	error = xfs_qm_dqget_cache_insert(mp, qi, tree, id, dqp);
+	error = xfs_qm_dqget_cache_insert(mp, id, type, dqp);
 	if (error) {
 		xfs_qm_dqdestroy(dqp);
 		if (error == -EEXIST) {
