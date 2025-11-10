@@ -3430,6 +3430,9 @@ static int io_uring_sanitise_params(struct io_uring_params *p)
 {
 	unsigned flags = p->flags;
 
+	if (flags & ~IORING_SETUP_FLAGS)
+		return -EINVAL;
+
 	/* There is no way to mmap rings without a real fd */
 	if ((flags & IORING_SETUP_REGISTERED_FD_ONLY) &&
 	    !(flags & IORING_SETUP_NO_MMAP))
@@ -3691,8 +3694,6 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 	if (!mem_is_zero(&p.resv, sizeof(p.resv)))
 		return -EINVAL;
 
-	if (p.flags & ~IORING_SETUP_FLAGS)
-		return -EINVAL;
 	p.sq_entries = entries;
 	return io_uring_create(&p, params);
 }
