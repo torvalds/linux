@@ -85,17 +85,6 @@ int ath12k_dp_mon_buf_replenish(struct ath12k_base *ab,
 int ath12k_dp_mon_status_bufs_replenish(struct ath12k_base *ab,
 					struct dp_rxdma_mon_ring *rx_ring,
 					int req_entries);
-struct sk_buff *ath12k_dp_mon_tx_alloc_skb(void);
-enum dp_mon_tx_tlv_status
-ath12k_dp_mon_tx_status_get_num_user(u16 tlv_tag,
-				     struct hal_tlv_hdr *tx_tlv,
-				     u8 *num_users);
-enum hal_rx_mon_status
-ath12k_dp_mon_tx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
-				  struct ath12k_mon_data *pmon,
-				  struct sk_buff *skb,
-				  struct napi_struct *napi,
-				  u32 ppdu_id);
 void ath12k_dp_mon_rx_process_ulofdma(struct hal_rx_mon_ppdu_info *ppdu_info);
 void
 ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k_base *ab,
