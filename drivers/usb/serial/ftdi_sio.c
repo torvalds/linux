@@ -2302,16 +2302,21 @@ static int ftdi_jtag_probe(struct usb_serial *serial)
 
 static int ftdi_8u2232c_probe(struct usb_serial *serial)
 {
+	struct usb_interface *intf = serial->interface;
 	struct usb_device *udev = serial->dev;
+	int ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
-	if (udev->manufacturer && !strcmp(udev->manufacturer, "CALAO Systems"))
-		return ftdi_jtag_probe(serial);
+	if (ifnum == 0) {
+		if (udev->manufacturer &&
+				!strcmp(udev->manufacturer, "CALAO Systems"))
+			return -ENODEV;
 
-	if (udev->product &&
-		(!strcmp(udev->product, "Arrow USB Blaster") ||
-		 !strcmp(udev->product, "BeagleBone/XDS100V2") ||
-		 !strcmp(udev->product, "SNAP Connect E10")))
-		return ftdi_jtag_probe(serial);
+		if (udev->product &&
+				(!strcmp(udev->product, "Arrow USB Blaster") ||
+				 !strcmp(udev->product, "BeagleBone/XDS100V2") ||
+				 !strcmp(udev->product, "SNAP Connect E10")))
+			return -ENODEV;
+	}
 
 	return 0;
 }
