@@ -54,7 +54,7 @@ static void ns_debug(struct ns_common *ns, const struct proc_ns_operations *ops)
 
 int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_operations *ops, int inum)
 {
-	int ret;
+	int ret = 0;
 
 	refcount_set(&ns->__ns_ref, 1);
 	ns->stashed = NULL;
@@ -74,11 +74,10 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 	ns_debug(ns, ops);
 #endif
 
-	if (inum) {
+	if (inum)
 		ns->inum = inum;
-		return 0;
-	}
-	ret = proc_alloc_inum(&ns->inum);
+	else
+		ret = proc_alloc_inum(&ns->inum);
 	if (ret)
 		return ret;
 	/*
@@ -113,13 +112,6 @@ struct ns_common *__must_check ns_owner(struct ns_common *ns)
 	if (owner == &init_user_ns)
 		return NULL;
 	return to_ns_common(owner);
-}
-
-void __ns_ref_active_get_owner(struct ns_common *ns)
-{
-	ns = ns_owner(ns);
-	if (ns)
-		WARN_ON_ONCE(atomic_add_negative(1, &ns->__ns_ref_active));
 }
 
 /*
@@ -172,14 +164,29 @@ void __ns_ref_active_get_owner(struct ns_common *ns)
  * The iteration stops once we reach a namespace that still has active
  * references.
  */
-void __ns_ref_active_put_owner(struct ns_common *ns)
+void __ns_ref_active_put(struct ns_common *ns)
 {
+	/* Initial namespaces are always active. */
+	if (is_ns_init_id(ns))
+		return;
+
+	if (!atomic_dec_and_test(&ns->__ns_ref_active)) {
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) < 0);
+		return;
+	}
+
+	VFS_WARN_ON_ONCE(is_ns_init_id(ns));
+	VFS_WARN_ON_ONCE(!__ns_ref_read(ns));
+
 	for (;;) {
 		ns = ns_owner(ns);
 		if (!ns)
 			return;
-		if (!atomic_dec_and_test(&ns->__ns_ref_active))
+		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
+		if (!atomic_dec_and_test(&ns->__ns_ref_active)) {
+			VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) < 0);
 			return;
+		}
 	}
 }
 
@@ -275,10 +282,18 @@ void __ns_ref_active_put_owner(struct ns_common *ns)
  * it also needs to take another reference on its owning user namespace
  * and so on.
  */
-void __ns_ref_active_resurrect(struct ns_common *ns)
+void __ns_ref_active_get(struct ns_common *ns)
 {
+	int prev;
+
+	/* Initial namespaces are always active. */
+	if (is_ns_init_id(ns))
+		return;
+
 	/* If we didn't resurrect the namespace we're done. */
-	if (atomic_fetch_add(1, &ns->__ns_ref_active))
+	prev = atomic_fetch_add(1, &ns->__ns_ref_active);
+	VFS_WARN_ON_ONCE(prev < 0);
+	if (likely(prev))
 		return;
 
 	/*
@@ -290,7 +305,10 @@ void __ns_ref_active_resurrect(struct ns_common *ns)
 		if (!ns)
 			return;
 
-		if (atomic_fetch_add(1, &ns->__ns_ref_active))
+		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
+		prev = atomic_fetch_add(1, &ns->__ns_ref_active);
+		VFS_WARN_ON_ONCE(prev < 0);
+		if (likely(prev))
 			return;
 	}
 }
