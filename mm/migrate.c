@@ -515,16 +515,18 @@ out:
 void migration_entry_wait_huge(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	spinlock_t *ptl = huge_pte_lockptr(hstate_vma(vma), vma->vm_mm, ptep);
+	softleaf_t entry;
 	pte_t pte;
 
 	hugetlb_vma_assert_locked(vma);
 	spin_lock(ptl);
 	pte = huge_ptep_get(vma->vm_mm, addr, ptep);
 
-	if (unlikely(!is_hugetlb_entry_migration(pte))) {
-		spin_unlock(ptl);
-		hugetlb_vma_unlock_read(vma);
-	} else {
+	if (huge_pte_none(pte))
+		goto fail;
+
+	entry = softleaf_from_pte(pte);
+	if (softleaf_is_migration(entry)) {
 		/*
 		 * If migration entry existed, safe to release vma lock
 		 * here because the pgtable page won't be freed without the
@@ -533,7 +535,12 @@ void migration_entry_wait_huge(struct vm_area_struct *vma, unsigned long addr, p
 		 */
 		hugetlb_vma_unlock_read(vma);
 		migration_entry_wait_on_locked(pte_to_swp_entry(pte), ptl);
+		return;
 	}
+
+fail:
+	spin_unlock(ptl);
+	hugetlb_vma_unlock_read(vma);
 }
 #endif
 

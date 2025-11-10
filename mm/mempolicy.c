@@ -768,16 +768,21 @@ static int queue_folios_hugetlb(pte_t *pte, unsigned long hmask,
 	unsigned long flags = qp->flags;
 	struct folio *folio;
 	spinlock_t *ptl;
-	pte_t entry;
+	pte_t ptep;
 
 	ptl = huge_pte_lock(hstate_vma(walk->vma), walk->mm, pte);
-	entry = huge_ptep_get(walk->mm, addr, pte);
-	if (!pte_present(entry)) {
-		if (unlikely(is_hugetlb_entry_migration(entry)))
-			qp->nr_failed++;
+	ptep = huge_ptep_get(walk->mm, addr, pte);
+	if (!pte_present(ptep)) {
+		if (!huge_pte_none(ptep)) {
+			const softleaf_t entry = softleaf_from_pte(ptep);
+
+			if (unlikely(softleaf_is_migration(entry)))
+				qp->nr_failed++;
+		}
+
 		goto unlock;
 	}
-	folio = pfn_folio(pte_pfn(entry));
+	folio = pfn_folio(pte_pfn(ptep));
 	if (!queue_folio_required(folio, qp))
 		goto unlock;
 	if (!(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) ||
