@@ -84,20 +84,13 @@ intel_de_write(struct intel_display *display, i915_reg_t reg, u32 val)
 }
 
 static inline u32
-__intel_de_rmw_nowl(struct intel_display *display, i915_reg_t reg,
-		    u32 clear, u32 set)
-{
-	return intel_uncore_rmw(__to_uncore(display), reg, clear, set);
-}
-
-static inline u32
 intel_de_rmw(struct intel_display *display, i915_reg_t reg, u32 clear, u32 set)
 {
 	u32 val;
 
 	intel_dmc_wl_get(display, reg);
 
-	val = __intel_de_rmw_nowl(display, reg, clear, set);
+	val = intel_uncore_rmw(__to_uncore(display), reg, clear, set);
 
 	intel_dmc_wl_put(display, reg);
 
@@ -217,6 +210,18 @@ intel_de_write_fw(struct intel_display *display, i915_reg_t reg, u32 val)
 {
 	trace_i915_reg_rw(true, reg, val, sizeof(val), true);
 	intel_uncore_write_fw(__to_uncore(display), reg, val);
+}
+
+static inline u32
+intel_de_rmw_fw(struct intel_display *display, i915_reg_t reg, u32 clear, u32 set)
+{
+	u32 old, val;
+
+	old = intel_de_read_fw(display, reg);
+	val = (old & ~clear) | set;
+	intel_de_write_fw(display, reg, val);
+
+	return old;
 }
 
 static inline u32
