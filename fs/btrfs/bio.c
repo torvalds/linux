@@ -867,21 +867,23 @@ static void assert_bbio_alignment(struct btrfs_bio *bbio)
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 	const u32 blocksize = fs_info->sectorsize;
+	const u32 alignment = min(blocksize, PAGE_SIZE);
+	const u64 logical = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
+	const u32 length = bbio->bio.bi_iter.bi_size;
 
-	/* Metadata has no extra bs > ps alignment requirement. */
-	if (!is_data_bbio(bbio))
-		return;
+	/* The logical and length should still be aligned to blocksize. */
+	ASSERT(IS_ALIGNED(logical, blocksize) && IS_ALIGNED(length, blocksize) &&
+	       length != 0, "root=%llu inode=%llu logical=%llu length=%u",
+	       btrfs_root_id(bbio->inode->root),
+	       btrfs_ino(bbio->inode), logical, length);
 
 	bio_for_each_bvec(bvec, &bbio->bio, iter)
-		ASSERT(IS_ALIGNED(bvec.bv_offset, blocksize) &&
-		       IS_ALIGNED(bvec.bv_len, blocksize),
+		ASSERT(IS_ALIGNED(bvec.bv_offset, alignment) &&
+		       IS_ALIGNED(bvec.bv_len, alignment),
 		"root=%llu inode=%llu logical=%llu length=%u index=%u bv_offset=%u bv_len=%u",
 		btrfs_root_id(bbio->inode->root),
-		btrfs_ino(bbio->inode),
-		bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT,
-		bbio->bio.bi_iter.bi_size, iter.bi_idx,
-		bvec.bv_offset,
-		bvec.bv_len);
+		btrfs_ino(bbio->inode), logical, length, iter.bi_idx,
+		bvec.bv_offset, bvec.bv_len);
 #endif
 }
 

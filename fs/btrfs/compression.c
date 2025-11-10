@@ -340,21 +340,20 @@ static void end_bbio_compressed_write(struct btrfs_bio *bbio)
 
 static void btrfs_add_compressed_bio_folios(struct compressed_bio *cb)
 {
-	struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
 	struct bio *bio = &cb->bbio.bio;
 	u32 offset = 0;
+	unsigned int findex = 0;
 
 	while (offset < cb->compressed_len) {
-		struct folio *folio;
+		struct folio *folio = cb->compressed_folios[findex];
+		u32 len = min_t(u32, cb->compressed_len - offset, folio_size(folio));
 		int ret;
-		u32 len = min_t(u32, cb->compressed_len - offset,
-				btrfs_min_folio_size(fs_info));
 
-		folio = cb->compressed_folios[offset >> (PAGE_SHIFT + fs_info->block_min_order)];
 		/* Maximum compressed extent is smaller than bio size limit. */
 		ret = bio_add_folio(bio, folio, len, 0);
 		ASSERT(ret);
 		offset += len;
+		findex++;
 	}
 }
 
