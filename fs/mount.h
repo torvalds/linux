@@ -27,6 +27,7 @@ struct mnt_namespace {
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
 	refcount_t		passive; /* number references not pinning @mounts */
+	bool			is_anon;
 } __randomize_layout;
 
 struct mnt_pcp {
@@ -175,7 +176,7 @@ static inline bool is_local_mountpoint(const struct dentry *dentry)
 
 static inline bool is_anon_ns(struct mnt_namespace *ns)
 {
-	return ns->ns.ns_id == 0;
+	return ns->is_anon;
 }
 
 static inline bool anon_ns_root(const struct mount *m)
