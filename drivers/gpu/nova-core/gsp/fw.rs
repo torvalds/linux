@@ -31,7 +31,10 @@ use crate::{
     fb::FbLayout,
     firmware::gsp::GspFirmware,
     gpu::Chipset,
-    gsp::GSP_PAGE_SIZE,
+    gsp::{
+        cmdq::Cmdq, //
+        GSP_PAGE_SIZE,
+    },
     num::{
         self,
         FromSafeCast, //
@@ -568,3 +571,42 @@ unsafe impl AsBytes for GspMsgElement {}
 // SAFETY: This struct only contains integer types for which all bit patterns
 // are valid.
 unsafe impl FromBytes for GspMsgElement {}
+
+/// Arguments for GSP startup.
+#[repr(transparent)]
+pub(crate) struct GspArgumentsCached(bindings::GSP_ARGUMENTS_CACHED);
+
+impl GspArgumentsCached {
+    /// Creates the arguments for starting the GSP up using `cmdq` as its command queue.
+    pub(crate) fn new(cmdq: &Cmdq) -> Self {
+        Self(bindings::GSP_ARGUMENTS_CACHED {
+            messageQueueInitArguments: MessageQueueInitArguments::new(cmdq).0,
+            bDmemStack: 1,
+            ..Default::default()
+        })
+    }
+}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for GspArgumentsCached {}
+
+// SAFETY: This struct only contains integer types for which all bit patterns
+// are valid.
+unsafe impl FromBytes for GspArgumentsCached {}
+
+/// Init arguments for the message queue.
+#[repr(transparent)]
+struct MessageQueueInitArguments(bindings::MESSAGE_QUEUE_INIT_ARGUMENTS);
+
+impl MessageQueueInitArguments {
+    /// Creates a new init arguments structure for `cmdq`.
+    fn new(cmdq: &Cmdq) -> Self {
+        Self(bindings::MESSAGE_QUEUE_INIT_ARGUMENTS {
+            sharedMemPhysAddr: cmdq.dma_handle(),
+            pageTableEntryCount: num::usize_into_u32::<{ Cmdq::NUM_PTES }>(),
+            cmdQueueOffset: num::usize_as_u64(Cmdq::CMDQ_OFFSET),
+            statQueueOffset: num::usize_as_u64(Cmdq::STATQ_OFFSET),
+            ..Default::default()
+        })
+    }
+}
