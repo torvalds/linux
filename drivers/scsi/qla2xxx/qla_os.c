@@ -1893,7 +1893,7 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 				 * Currently, only ABTS response gets on the
 				 * outstanding_cmds[]
 				 */
-				ha->tgt.tgt_ops->free_mcmd(
+				qlt_free_ul_mcmd(ha,
 					(struct qla_tgt_mgmt_cmd *) sp);
 				break;
 			default:

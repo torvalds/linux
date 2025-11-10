@@ -2005,7 +2005,6 @@ static void qlt_do_tmr_work(struct work_struct *work)
 	struct qla_hw_data *ha = mcmd->vha->hw;
 	int rc;
 	uint32_t tag;
-	unsigned long flags;
 
 	switch (mcmd->tmr_func) {
 	case QLA_TGT_ABTS:
@@ -2020,34 +2019,12 @@ static void qlt_do_tmr_work(struct work_struct *work)
 	    mcmd->tmr_func, tag);
 
 	if (rc != 0) {
-		spin_lock_irqsave(mcmd->qpair->qp_lock_ptr, flags);
-		switch (mcmd->tmr_func) {
-		case QLA_TGT_ABTS:
-			mcmd->fc_tm_rsp = FCP_TMF_REJECTED;
-			qlt_build_abts_resp_iocb(mcmd);
-			break;
-		case QLA_TGT_LUN_RESET:
-		case QLA_TGT_CLEAR_TS:
-		case QLA_TGT_ABORT_TS:
-		case QLA_TGT_CLEAR_ACA:
-		case QLA_TGT_TARGET_RESET:
-			qlt_send_busy(mcmd->qpair, &mcmd->orig_iocb.atio,
-			    qla_sam_status);
-			break;
-
-		case QLA_TGT_ABORT_ALL:
-		case QLA_TGT_NEXUS_LOSS_SESS:
-		case QLA_TGT_NEXUS_LOSS:
-			qlt_send_notify_ack(mcmd->qpair,
-			    &mcmd->orig_iocb.imm_ntfy, 0, 0, 0, 0, 0, 0);
-			break;
-		}
-		spin_unlock_irqrestore(mcmd->qpair->qp_lock_ptr, flags);
-
 		ql_dbg(ql_dbg_tgt_mgt, mcmd->vha, 0xf052,
 		    "qla_target(%d):  tgt_ops->handle_tmr() failed: %d\n",
 		    mcmd->vha->vp_idx, rc);
-		mempool_free(mcmd, qla_tgt_mgmt_cmd_mempool);
+		mcmd->flags |= QLA24XX_MGMT_LLD_OWNED;
+		mcmd->fc_tm_rsp = FCP_TMF_FAILED;
+		qlt_xmit_tm_rsp(mcmd);
 	}
 }
 
@@ -2235,6 +2212,21 @@ void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *mcmd)
 EXPORT_SYMBOL(qlt_free_mcmd);
 
 /*
+ * If the upper layer knows about this mgmt cmd, then call its ->free_cmd()
+ * callback, which will eventually call qlt_free_mcmd().  Otherwise, call
+ * qlt_free_mcmd() directly.
+ */
+void qlt_free_ul_mcmd(struct qla_hw_data *ha, struct qla_tgt_mgmt_cmd *mcmd)
+{
+	if (!mcmd)
+		return;
+	if (mcmd->flags & QLA24XX_MGMT_LLD_OWNED)
+		qlt_free_mcmd(mcmd);
+	else
+		ha->tgt.tgt_ops->free_mcmd(mcmd);
+}
+
+/*
  * ha->hardware_lock supposed to be held on entry. Might drop it, then
  * reacquire
  */
@@ -2326,12 +2318,12 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 			"RESET-TMR online/active/old-count/new-count = %d/%d/%d/%d.\n",
 			vha->flags.online, qla2x00_reset_active(vha),
 			mcmd->reset_count, qpair->chip_reset);
-		ha->tgt.tgt_ops->free_mcmd(mcmd);
+		qlt_free_ul_mcmd(ha, mcmd);
 		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 		return;
 	}
 
-	if (mcmd->flags == QLA24XX_MGMT_SEND_NACK) {
+	if (mcmd->flags & QLA24XX_MGMT_SEND_NACK) {
 		switch (mcmd->orig_iocb.imm_ntfy.u.isp24.status_subcode) {
 		case ELS_LOGO:
 		case ELS_PRLO:
@@ -2364,7 +2356,7 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 	 * qlt_xmit_tm_rsp() returns here..
 	 */
 	if (free_mcmd)
-		ha->tgt.tgt_ops->free_mcmd(mcmd);
+		qlt_free_ul_mcmd(ha, mcmd);
 
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 }
@@ -5742,7 +5734,7 @@ static void qlt_handle_abts_completion(struct scsi_qla_host *vha,
 		if (le32_to_cpu(entry->error_subcode1) == 0x1E &&
 		    le32_to_cpu(entry->error_subcode2) == 0) {
 			if (qlt_chk_unresolv_exchg(vha, rsp->qpair, entry)) {
-				ha->tgt.tgt_ops->free_mcmd(mcmd);
+				qlt_free_ul_mcmd(ha, mcmd);
 				return;
 			}
 			qlt_24xx_retry_term_exchange(vha, rsp->qpair,
@@ -5753,10 +5745,10 @@ static void qlt_handle_abts_completion(struct scsi_qla_host *vha,
 			    vha->vp_idx, entry->compl_status,
 			    entry->error_subcode1,
 			    entry->error_subcode2);
-			ha->tgt.tgt_ops->free_mcmd(mcmd);
+			qlt_free_ul_mcmd(ha, mcmd);
 		}
 	} else if (mcmd) {
-		ha->tgt.tgt_ops->free_mcmd(mcmd);
+		qlt_free_ul_mcmd(ha, mcmd);
 	}
 }
 

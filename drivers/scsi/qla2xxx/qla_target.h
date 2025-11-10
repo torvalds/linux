@@ -966,6 +966,7 @@ struct qla_tgt_mgmt_cmd {
 	unsigned int flags;
 #define QLA24XX_MGMT_SEND_NACK	BIT_0
 #define QLA24XX_MGMT_ABORT_IO_ATTR_VALID BIT_1
+#define QLA24XX_MGMT_LLD_OWNED	BIT_2
 	uint32_t reset_count;
 	struct work_struct work;
 	uint64_t unpacked_lun;
@@ -1059,6 +1060,7 @@ extern int qlt_abort_cmd(struct qla_tgt_cmd *);
 void qlt_send_term_exchange(struct qla_qpair *qpair,
 	struct qla_tgt_cmd *cmd, struct atio_from_isp *atio, int ha_locked);
 extern void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *);
+void qlt_free_ul_mcmd(struct qla_hw_data *ha, struct qla_tgt_mgmt_cmd *mcmd);
 extern void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_cmd(struct qla_tgt_cmd *cmd);
 extern void qlt_unmap_sg(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd);
