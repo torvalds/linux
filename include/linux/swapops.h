@@ -469,24 +469,6 @@ static inline int is_guard_swp_entry(swp_entry_t entry)
 		(pte_marker_get(entry) & PTE_MARKER_GUARD);
 }
 
-/*
- * This is a special version to check pte_none() just to cover the case when
- * the pte is a pte marker.  It existed because in many cases the pte marker
- * should be seen as a none pte; it's just that we have stored some information
- * onto the none pte so it becomes not-none any more.
- *
- * It should be used when the pte is file-backed, ram-based and backing
- * userspace pages, like shmem.  It is not needed upon pgtables that do not
- * support pte markers at all.  For example, it's not needed on anonymous
- * memory, kernel-only memory (including when the system is during-boot),
- * non-ram based generic file-system.  It's fine to be used even there, but the
- * extra pte marker check will be pure overhead.
- */
-static inline int pte_none_mostly(pte_t pte)
-{
-	return pte_none(pte) || is_pte_marker(pte);
-}
-
 static inline struct page *pfn_swap_entry_to_page(swp_entry_t entry)
 {
 	struct page *p = pfn_to_page(swp_offset_pfn(entry));

@@ -244,7 +244,12 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 	uint64_t pfn_req_flags = *hmm_pfn;
 	uint64_t new_pfn_flags = 0;
 
-	if (pte_none_mostly(pte)) {
+	/*
+	 * Any other marker than a UFFD WP marker will result in a fault error
+	 * that will be correctly handled, so we need only check for UFFD WP
+	 * here.
+	 */
+	if (pte_none(pte) || pte_marker_uffd_wp(pte)) {
 		required_fault =
 			hmm_pte_need_fault(hmm_vma_walk, pfn_req_flags, 0);
 		if (required_fault)

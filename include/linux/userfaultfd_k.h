@@ -479,4 +479,25 @@ static inline bool pte_swp_uffd_wp_any(pte_t pte)
 	return false;
 }
 
+
+static inline bool is_uffd_pte_marker(pte_t pte)
+{
+	swp_entry_t entry;
+
+	if (pte_present(pte))
+		return false;
+
+	entry = pte_to_swp_entry(pte);
+	if (!is_pte_marker_entry(entry))
+		return false;
+
+	/* UFFD WP, poisoned swap entries are UFFD handled. */
+	if (pte_marker_entry_uffd_wp(entry))
+		return true;
+	if (is_poisoned_swp_entry(entry))
+		return true;
+
+	return false;
+}
+
 #endif /* _LINUX_USERFAULTFD_K_H */

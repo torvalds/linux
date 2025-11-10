@@ -178,6 +178,7 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 	spinlock_t *ptl;
 	struct folio *folio = page_folio(page);
 	bool page_in_cache = folio_mapping(folio);
+	pte_t dst_ptep;
 
 	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
 	_dst_pte = pte_mkdirty(_dst_pte);
@@ -199,12 +200,15 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 	}
 
 	ret = -EEXIST;
+
+	dst_ptep = ptep_get(dst_pte);
+
 	/*
-	 * We allow to overwrite a pte marker: consider when both MISSING|WP
-	 * registered, we firstly wr-protect a none pte which has no page cache
-	 * page backing it, then access the page.
+	 * We are allowed to overwrite a UFFD pte marker: consider when both
+	 * MISSING|WP registered, we firstly wr-protect a none pte which has no
+	 * page cache page backing it, then access the page.
 	 */
-	if (!pte_none_mostly(ptep_get(dst_pte)))
+	if (!pte_none(dst_ptep) && !is_uffd_pte_marker(dst_ptep))
 		goto out_unlock;
 
 	if (page_in_cache) {
@@ -583,12 +587,15 @@ retry:
 			goto out_unlock;
 		}
 
-		if (!uffd_flags_mode_is(flags, MFILL_ATOMIC_CONTINUE) &&
-		    !huge_pte_none_mostly(huge_ptep_get(dst_mm, dst_addr, dst_pte))) {
-			err = -EEXIST;
-			hugetlb_vma_unlock_read(dst_vma);
-			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-			goto out_unlock;
+		if (!uffd_flags_mode_is(flags, MFILL_ATOMIC_CONTINUE)) {
+			const pte_t ptep = huge_ptep_get(dst_mm, dst_addr, dst_pte);
+
+			if (!huge_pte_none(ptep) && !is_uffd_pte_marker(ptep)) {
+				err = -EEXIST;
+				hugetlb_vma_unlock_read(dst_vma);
+				mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+				goto out_unlock;
+			}
 		}
 
 		err = hugetlb_mfill_atomic_pte(dst_pte, dst_vma, dst_addr,
