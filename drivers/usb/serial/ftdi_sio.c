@@ -107,26 +107,26 @@ struct ftdi_quirk {
 };
 
 static int   ftdi_jtag_probe(struct usb_serial *serial);
-static int   ftdi_NDI_device_setup(struct usb_serial *serial);
+static int   ftdi_ndi_probe(struct usb_serial *serial);
 static int   ftdi_stmclite_probe(struct usb_serial *serial);
 static int   ftdi_8u2232c_probe(struct usb_serial *serial);
-static void  ftdi_USB_UIRT_setup(struct ftdi_private *priv);
-static void  ftdi_HE_TIRA1_setup(struct ftdi_private *priv);
+static void  ftdi_usb_uirt_setup(struct ftdi_private *priv);
+static void  ftdi_he_tira1_setup(struct ftdi_private *priv);
 
 static const struct ftdi_quirk ftdi_jtag_quirk = {
 	.probe	= ftdi_jtag_probe,
 };
 
-static const struct ftdi_quirk ftdi_NDI_device_quirk = {
-	.probe	= ftdi_NDI_device_setup,
+static const struct ftdi_quirk ftdi_ndi_quirk = {
+	.probe	= ftdi_ndi_probe,
 };
 
-static const struct ftdi_quirk ftdi_USB_UIRT_quirk = {
-	.port_probe = ftdi_USB_UIRT_setup,
+static const struct ftdi_quirk ftdi_usb_uirt_quirk = {
+	.port_probe = ftdi_usb_uirt_setup,
 };
 
-static const struct ftdi_quirk ftdi_HE_TIRA1_quirk = {
-	.port_probe = ftdi_HE_TIRA1_setup,
+static const struct ftdi_quirk ftdi_he_tira1_quirk = {
+	.port_probe = ftdi_he_tira1_setup,
 };
 
 static const struct ftdi_quirk ftdi_stmclite_quirk = {
@@ -590,9 +590,9 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(OCT_VID, OCT_US101_PID) },
 	{ USB_DEVICE(OCT_VID, OCT_DK201_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_HE_TIRA1_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_HE_TIRA1_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_he_tira1_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_USB_UIRT_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_USB_UIRT_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_usb_uirt_quirk },
 	{ USB_DEVICE(FTDI_VID, PROTEGO_SPECIAL_1) },
 	{ USB_DEVICE(FTDI_VID, PROTEGO_R2X0) },
 	{ USB_DEVICE(FTDI_VID, PROTEGO_SPECIAL_3) },
@@ -792,17 +792,17 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_TACTRIX_OPENPORT_13U_PID) },
 	{ USB_DEVICE(ELEKTOR_VID, ELEKTOR_FT323R_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_NDI_HUC_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_ndi_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_NDI_SPECTRA_SCU_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_ndi_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_NDI_FUTURE_2_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_ndi_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_NDI_FUTURE_3_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_ndi_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_NDI_AURORA_SCU_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_ndi_quirk },
 	{ USB_DEVICE(FTDI_NDI_VID, FTDI_NDI_EMGUIDE_GEMINI_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_ndi_quirk },
 	{ USB_DEVICE(TELLDUS_VID, TELLDUS_TELLSTICK_PID) },
 	{ USB_DEVICE(NOVITUS_VID, NOVITUS_BONO_E_PID) },
 	{ USB_DEVICE(FTDI_VID, RTSYSTEMS_USB_VX8_PID) },
@@ -2234,7 +2234,7 @@ err_free:
  * Setup for the USB-UIRT device, which requires hardwired baudrate
  * (38400 gets mapped to 312500).
  */
-static void ftdi_USB_UIRT_setup(struct ftdi_private *priv)
+static void ftdi_usb_uirt_setup(struct ftdi_private *priv)
 {
 	priv->flags |= ASYNC_SPD_CUST;
 	priv->custom_divisor = 77;
@@ -2245,7 +2245,7 @@ static void ftdi_USB_UIRT_setup(struct ftdi_private *priv)
  * Setup for the HE-TIRA1 device, which requires hardwired baudrate
  * (38400 gets mapped to 100000) and RTS-CTS enabled.
  */
-static void ftdi_HE_TIRA1_setup(struct ftdi_private *priv)
+static void ftdi_he_tira1_setup(struct ftdi_private *priv)
 {
 	priv->flags |= ASYNC_SPD_CUST;
 	priv->custom_divisor = 240;
@@ -2264,7 +2264,7 @@ static int ndi_latency_timer = 1;
  * Setup for the NDI FTDI-based USB devices, which requires hardwired
  * baudrate (19200 gets mapped to 1200000).
  */
-static int ftdi_NDI_device_setup(struct usb_serial *serial)
+static int ftdi_ndi_probe(struct usb_serial *serial)
 {
 	struct usb_device *udev = serial->dev;
 	int latency = ndi_latency_timer;
