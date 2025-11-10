@@ -1246,6 +1246,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 static u32 get_ftdi_divisor(struct tty_struct *tty,
 						struct usb_serial_port *port)
 {
+	const struct ftdi_quirk *quirk = usb_get_serial_data(port->serial);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct device *dev = &port->dev;
 	u32 div_value = 0;
@@ -1305,17 +1306,8 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 	case FT232R:
 	case FTX:
 		if (baud <= 3000000) {
-			u16 product_id = le16_to_cpu(
-				port->serial->dev->descriptor.idProduct);
-			if (((product_id == FTDI_NDI_HUC_PID)		||
-			     (product_id == FTDI_NDI_SPECTRA_SCU_PID)	||
-			     (product_id == FTDI_NDI_FUTURE_2_PID)	||
-			     (product_id == FTDI_NDI_FUTURE_3_PID)	||
-			     (product_id == FTDI_NDI_AURORA_SCU_PID)	||
-			     (product_id == FTDI_NDI_EMGUIDE_GEMINI_PID)) &&
-			    (baud == 19200)) {
+			if (quirk == &ftdi_ndi_quirk && baud == 19200)
 				baud = 1200000;
-			}
 			div_value = ftdi_232bm_baud_to_divisor(baud);
 		} else {
 			dev_dbg(dev, "%s - Baud rate too high!\n", __func__);
