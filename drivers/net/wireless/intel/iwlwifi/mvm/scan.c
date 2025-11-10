@@ -2568,16 +2568,16 @@ static int iwl_mvm_scan_umac_v14_and_above(struct iwl_mvm *mvm,
 					       bitmap_ssid,
 					       version);
 		return 0;
-	} else {
-		pb->preq = params->preq;
 	}
 
-	cp->flags = iwl_mvm_scan_umac_chan_flags_v2(mvm, params, vif);
-	cp->n_aps_override[0] = IWL_SCAN_ADWELL_N_APS_GO_FRIENDLY;
-	cp->n_aps_override[1] = IWL_SCAN_ADWELL_N_APS_SOCIAL_CHS;
+	pb->preq = params->preq;
 
 	iwl_mvm_umac_scan_fill_6g_chan_list(mvm, params, pb);
 
+	/* Explicitly clear the flags since most of them are not
+	 * relevant for 6 GHz scan.
+	 */
+	cp->flags = 0;
 	cp->count = iwl_mvm_umac_scan_cfg_channels_v7_6g(mvm, params,
 							 params->n_channels,
 							 pb, cp, vif->type,
