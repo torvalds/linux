@@ -416,7 +416,7 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	/* properties that are always inherited */
 	p.flags |= (ctx->flags & COPY_FLAGS);
 
-	ret = io_uring_fill_params(p.sq_entries, &p);
+	ret = io_uring_fill_params(&p);
 	if (unlikely(ret))
 		return ret;
 
