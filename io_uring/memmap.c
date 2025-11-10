@@ -134,7 +134,7 @@ static int io_region_init_ptr(struct io_mapped_region *mr)
 static int io_region_pin_pages(struct io_mapped_region *mr,
 			       struct io_uring_region_desc *reg)
 {
-	unsigned long size = mr->nr_pages << PAGE_SHIFT;
+	size_t size = io_region_size(mr);
 	struct page **pages;
 	int nr_pages;
 
@@ -154,7 +154,7 @@ static int io_region_allocate_pages(struct io_mapped_region *mr,
 				    unsigned long mmap_offset)
 {
 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN;
-	size_t size = (size_t) mr->nr_pages << PAGE_SHIFT;
+	size_t size = io_region_size(mr);
 	unsigned long nr_allocated;
 	struct page **pages;
 
