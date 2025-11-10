@@ -1316,6 +1316,8 @@ static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 			goto err_disable_phy;
 	}
 
+	dw_pcie_remove_capability(pcie->pci, PCI_CAP_ID_MSIX);
+
 	qcom_ep_reset_deassert(pcie);
 
 	if (pcie->cfg->ops->config_sid) {
