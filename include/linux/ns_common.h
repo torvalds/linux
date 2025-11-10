@@ -13,7 +13,7 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 void __ns_common_free(struct ns_common *ns);
 struct ns_common *__must_check ns_owner(struct ns_common *ns);
 
-static __always_inline bool is_initial_namespace(struct ns_common *ns)
+static __always_inline bool is_initial_namespace(const struct ns_common *ns)
 {
 	VFS_WARN_ON_ONCE(ns->inum == 0);
 	return unlikely(in_range(ns->inum, MNT_NS_INIT_INO,
