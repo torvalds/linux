@@ -181,9 +181,9 @@ static void intel_dmc_wl_work(struct work_struct *work)
 
 	intel_de_rmw_fw(display, DMC_WAKELOCK1_CTL, DMC_WAKELOCK_CTL_REQ, 0);
 
-	if (__intel_de_wait_for_register_atomic_nowl(display, DMC_WAKELOCK1_CTL,
-						     DMC_WAKELOCK_CTL_ACK, 0,
-						     DMC_WAKELOCK_CTL_TIMEOUT_US)) {
+	if (intel_de_wait_fw_us_atomic(display, DMC_WAKELOCK1_CTL,
+				       DMC_WAKELOCK_CTL_ACK, 0,
+				       DMC_WAKELOCK_CTL_TIMEOUT_US, NULL)) {
 		WARN_RATELIMIT(1, "DMC wakelock release timed out");
 		goto out_unlock;
 	}
@@ -213,10 +213,10 @@ static void __intel_dmc_wl_take(struct intel_display *display)
 	 * We need to use the atomic variant of the waiting routine
 	 * because the DMC wakelock is also taken in atomic context.
 	 */
-	if (__intel_de_wait_for_register_atomic_nowl(display, DMC_WAKELOCK1_CTL,
-						     DMC_WAKELOCK_CTL_ACK,
-						     DMC_WAKELOCK_CTL_ACK,
-						     DMC_WAKELOCK_CTL_TIMEOUT_US)) {
+	if (intel_de_wait_fw_us_atomic(display, DMC_WAKELOCK1_CTL,
+				       DMC_WAKELOCK_CTL_ACK,
+				       DMC_WAKELOCK_CTL_ACK,
+				       DMC_WAKELOCK_CTL_TIMEOUT_US, NULL)) {
 		WARN_RATELIMIT(1, "DMC wakelock ack timed out");
 		return;
 	}
