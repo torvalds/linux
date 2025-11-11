@@ -1106,6 +1106,8 @@ static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
 	struct scx_dispatch_q *dsq = p->scx.dsq;
 	bool is_local = dsq == &rq->scx.local_dsq;
 
+	lockdep_assert_rq_held(rq);
+
 	if (!dsq) {
 		/*
 		 * If !dsq && on-list, @p is on @rq's ddsp_deferred_locals.
@@ -1150,6 +1152,20 @@ static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
 
 	if (!is_local)
 		raw_spin_unlock(&dsq->lock);
+}
+
+/*
+ * Abbreviated version of dispatch_dequeue() that can be used when both @p's rq
+ * and dsq are locked.
+ */
+static void dispatch_dequeue_locked(struct task_struct *p,
+				    struct scx_dispatch_q *dsq)
+{
+	lockdep_assert_rq_held(task_rq(p));
+	lockdep_assert_held(&dsq->lock);
+
+	task_unlink_from_dsq(p, dsq);
+	p->scx.dsq = NULL;
 }
 
 static struct scx_dispatch_q *find_dsq_for_dispatch(struct scx_sched *sch,
@@ -1812,8 +1828,7 @@ static struct rq *move_task_between_dsqs(struct scx_sched *sch,
 		 * @p is going from a non-local DSQ to a non-local DSQ. As
 		 * $src_dsq is already locked, do an abbreviated dequeue.
 		 */
-		task_unlink_from_dsq(p, src_dsq);
-		p->scx.dsq = NULL;
+		dispatch_dequeue_locked(p, src_dsq);
 		raw_spin_unlock(&src_dsq->lock);
 
 		dispatch_enqueue(sch, dst_dsq, p, enq_flags);
