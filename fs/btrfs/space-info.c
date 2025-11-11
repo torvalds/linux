@@ -173,6 +173,15 @@
  *   thing with or without extra unallocated space.
  */
 
+struct reserve_ticket {
+	u64 bytes;
+	int error;
+	bool steal;
+	struct list_head list;
+	wait_queue_head_t wait;
+	spinlock_t lock;
+};
+
 /*
  * after adding space to the filesystem, we need to clear the full flags
  * on all the space infos.

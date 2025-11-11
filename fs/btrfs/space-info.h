@@ -224,15 +224,6 @@ struct btrfs_space_info {
 	s64 reclaimable_bytes;
 };
 
-struct reserve_ticket {
-	u64 bytes;
-	int error;
-	bool steal;
-	struct list_head list;
-	wait_queue_head_t wait;
-	spinlock_t lock;
-};
-
 static inline bool btrfs_mixed_space_info(const struct btrfs_space_info *space_info)
 {
 	return ((space_info->flags & BTRFS_BLOCK_GROUP_METADATA) &&
