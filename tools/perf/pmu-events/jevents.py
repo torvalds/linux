@@ -755,7 +755,10 @@ static const struct pmu_events_map pmu_events_map[] = {
 \t\t.pmus = pmu_events__common,
 \t\t.num_pmus = ARRAY_SIZE(pmu_events__common),
 \t},
-\t.metric_table = {},
+\t.metric_table = {
+\t\t.pmus = pmu_metrics__common,
+\t\t.num_pmus = ARRAY_SIZE(pmu_metrics__common),
+\t},
 },
 """)
     else:
@@ -1235,6 +1238,22 @@ const struct pmu_metrics_table *pmu_metrics_table__find(void)
         const struct pmu_events_map *map = map_for_cpu(cpu);
 
         return map ? &map->metric_table : NULL;
+}
+
+const struct pmu_metrics_table *pmu_metrics_table__default(void)
+{
+        int i = 0;
+
+        for (;;) {
+                const struct pmu_events_map *map = &pmu_events_map[i++];
+
+                if (!map->arch)
+                        break;
+
+                if (!strcmp(map->cpuid, "common"))
+                        return &map->metric_table;
+        }
+        return NULL;
 }
 
 const struct pmu_events_table *find_core_events_table(const char *arch, const char *cpuid)

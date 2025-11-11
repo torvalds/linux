@@ -424,10 +424,18 @@ int metricgroup__for_each_metric(const struct pmu_metrics_table *table, pmu_metr
 		.fn = fn,
 		.data = data,
 	};
+	const struct pmu_metrics_table *tables[2] = {
+		table,
+		pmu_metrics_table__default(),
+	};
 
-	if (table) {
-		int ret = pmu_metrics_table__for_each_metric(table, fn, data);
+	for (size_t i = 0; i < ARRAY_SIZE(tables); i++) {
+		int ret;
 
+		if (!tables[i])
+			continue;
+
+		ret = pmu_metrics_table__for_each_metric(tables[i], fn, data);
 		if (ret)
 			return ret;
 	}
@@ -1581,19 +1589,22 @@ static int metricgroup__has_metric_or_groups_callback(const struct pmu_metric *p
 
 bool metricgroup__has_metric_or_groups(const char *pmu, const char *metric_or_groups)
 {
-	const struct pmu_metrics_table *table = pmu_metrics_table__find();
+	const struct pmu_metrics_table *tables[2] = {
+		pmu_metrics_table__find(),
+		pmu_metrics_table__default(),
+	};
 	struct metricgroup__has_metric_data data = {
 		.pmu = pmu,
 		.metric_or_groups = metric_or_groups,
 	};
 
-	if (!table)
-		return false;
-
-	return pmu_metrics_table__for_each_metric(table,
-						  metricgroup__has_metric_or_groups_callback,
-						  &data)
-		? true : false;
+	for (size_t i = 0; i < ARRAY_SIZE(tables); i++) {
+		if (pmu_metrics_table__for_each_metric(tables[i],
+							metricgroup__has_metric_or_groups_callback,
+							&data))
+			return true;
+	}
+	return false;
 }
 
 static int metricgroup__topdown_max_level_callback(const struct pmu_metric *pm,
