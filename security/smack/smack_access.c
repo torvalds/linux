@@ -576,6 +576,7 @@ int smack_populate_secattr(struct smack_known *skp)
  * smk_import_valid_allocated_label - import a label, return the list entry
  * @smack: a text string that is a valid Smack label and may be kfree()ed.
  *         It is consumed: either becomes a part of the entry or kfree'ed.
+ * @gfp: Allocation type
  *
  * Returns: see description of smk_import_entry()
  */
