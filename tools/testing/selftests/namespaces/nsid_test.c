@@ -6,6 +6,7 @@
 #include <libgen.h>
 #include <limits.h>
 #include <pthread.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/mount.h>
 #include <poll.h>
@@ -14,11 +15,29 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <linux/fs.h>
 #include <linux/limits.h>
 #include <linux/nsfs.h>
 #include "../kselftest_harness.h"
+
+/* Fixture for tests that create child processes */
+FIXTURE(nsid) {
+	pid_t child_pid;
+};
+
+FIXTURE_SETUP(nsid) {
+	self->child_pid = 0;
+}
+
+FIXTURE_TEARDOWN(nsid) {
+	/* Clean up any child process that may still be running */
+	if (self->child_pid > 0) {
+		kill(self->child_pid, SIGKILL);
+		waitpid(self->child_pid, NULL, 0);
+	}
+}
 
 TEST(nsid_mntns_basic)
 {
@@ -44,7 +63,7 @@ TEST(nsid_mntns_basic)
 	close(fd_mntns);
 }
 
-TEST(nsid_mntns_separate)
+TEST_F(nsid, mntns_separate)
 {
 	__u64 parent_mnt_ns_id = 0;
 	__u64 child_mnt_ns_id = 0;
@@ -90,6 +109,9 @@ TEST(nsid_mntns_separate)
 		_exit(0);
 	}
 
+	/* Track child for cleanup */
+	self->child_pid = pid;
+
 	/* Parent process */
 	close(pipefd[1]);
 
@@ -99,8 +121,6 @@ TEST(nsid_mntns_separate)
 
 	if (buf == 'S') {
 		/* Child couldn't create namespace, skip test */
-		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
 		close(fd_parent_mntns);
 		SKIP(return, "No permission to create mount namespace");
 	}
@@ -123,10 +143,6 @@ TEST(nsid_mntns_separate)
 
 	close(fd_parent_mntns);
 	close(fd_child_mntns);
-
-	/* Clean up child process */
-	kill(pid, SIGTERM);
-	waitpid(pid, NULL, 0);
 }
 
 TEST(nsid_cgroupns_basic)
@@ -153,7 +169,7 @@ TEST(nsid_cgroupns_basic)
 	close(fd_cgroupns);
 }
 
-TEST(nsid_cgroupns_separate)
+TEST_F(nsid, cgroupns_separate)
 {
 	__u64 parent_cgroup_ns_id = 0;
 	__u64 child_cgroup_ns_id = 0;
@@ -199,6 +215,9 @@ TEST(nsid_cgroupns_separate)
 		_exit(0);
 	}
 
+	/* Track child for cleanup */
+	self->child_pid = pid;
+
 	/* Parent process */
 	close(pipefd[1]);
 
@@ -208,8 +227,6 @@ TEST(nsid_cgroupns_separate)
 
 	if (buf == 'S') {
 		/* Child couldn't create namespace, skip test */
-		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
 		close(fd_parent_cgroupns);
 		SKIP(return, "No permission to create cgroup namespace");
 	}
@@ -232,10 +249,6 @@ TEST(nsid_cgroupns_separate)
 
 	close(fd_parent_cgroupns);
 	close(fd_child_cgroupns);
-
-	/* Clean up child process */
-	kill(pid, SIGTERM);
-	waitpid(pid, NULL, 0);
 }
 
 TEST(nsid_ipcns_basic)
@@ -262,7 +275,7 @@ TEST(nsid_ipcns_basic)
 	close(fd_ipcns);
 }
 
-TEST(nsid_ipcns_separate)
+TEST_F(nsid, ipcns_separate)
 {
 	__u64 parent_ipc_ns_id = 0;
 	__u64 child_ipc_ns_id = 0;
@@ -308,6 +321,9 @@ TEST(nsid_ipcns_separate)
 		_exit(0);
 	}
 
+	/* Track child for cleanup */
+	self->child_pid = pid;
+
 	/* Parent process */
 	close(pipefd[1]);
 
@@ -317,8 +333,6 @@ TEST(nsid_ipcns_separate)
 
 	if (buf == 'S') {
 		/* Child couldn't create namespace, skip test */
-		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
 		close(fd_parent_ipcns);
 		SKIP(return, "No permission to create IPC namespace");
 	}
@@ -341,10 +355,6 @@ TEST(nsid_ipcns_separate)
 
 	close(fd_parent_ipcns);
 	close(fd_child_ipcns);
-
-	/* Clean up child process */
-	kill(pid, SIGTERM);
-	waitpid(pid, NULL, 0);
 }
 
 TEST(nsid_utsns_basic)
@@ -371,7 +381,7 @@ TEST(nsid_utsns_basic)
 	close(fd_utsns);
 }
 
-TEST(nsid_utsns_separate)
+TEST_F(nsid, utsns_separate)
 {
 	__u64 parent_uts_ns_id = 0;
 	__u64 child_uts_ns_id = 0;
@@ -417,6 +427,9 @@ TEST(nsid_utsns_separate)
 		_exit(0);
 	}
 
+	/* Track child for cleanup */
+	self->child_pid = pid;
+
 	/* Parent process */
 	close(pipefd[1]);
 
@@ -426,8 +439,6 @@ TEST(nsid_utsns_separate)
 
 	if (buf == 'S') {
 		/* Child couldn't create namespace, skip test */
-		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
 		close(fd_parent_utsns);
 		SKIP(return, "No permission to create UTS namespace");
 	}
@@ -450,10 +461,6 @@ TEST(nsid_utsns_separate)
 
 	close(fd_parent_utsns);
 	close(fd_child_utsns);
-
-	/* Clean up child process */
-	kill(pid, SIGTERM);
-	waitpid(pid, NULL, 0);
 }
 
 TEST(nsid_userns_basic)
@@ -480,7 +487,7 @@ TEST(nsid_userns_basic)
 	close(fd_userns);
 }
 
-TEST(nsid_userns_separate)
+TEST_F(nsid, userns_separate)
 {
 	__u64 parent_user_ns_id = 0;
 	__u64 child_user_ns_id = 0;
@@ -526,6 +533,9 @@ TEST(nsid_userns_separate)
 		_exit(0);
 	}
 
+	/* Track child for cleanup */
+	self->child_pid = pid;
+
 	/* Parent process */
 	close(pipefd[1]);
 
@@ -535,8 +545,6 @@ TEST(nsid_userns_separate)
 
 	if (buf == 'S') {
 		/* Child couldn't create namespace, skip test */
-		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
 		close(fd_parent_userns);
 		SKIP(return, "No permission to create user namespace");
 	}
@@ -559,10 +567,6 @@ TEST(nsid_userns_separate)
 
 	close(fd_parent_userns);
 	close(fd_child_userns);
-
-	/* Clean up child process */
-	kill(pid, SIGTERM);
-	waitpid(pid, NULL, 0);
 }
 
 TEST(nsid_timens_basic)
@@ -591,7 +595,7 @@ TEST(nsid_timens_basic)
 	close(fd_timens);
 }
 
-TEST(nsid_timens_separate)
+TEST_F(nsid, timens_separate)
 {
 	__u64 parent_time_ns_id = 0;
 	__u64 child_time_ns_id = 0;
@@ -652,6 +656,9 @@ TEST(nsid_timens_separate)
 		}
 	}
 
+	/* Track child for cleanup */
+	self->child_pid = pid;
+
 	/* Parent process */
 	close(pipefd[1]);
 
@@ -660,8 +667,6 @@ TEST(nsid_timens_separate)
 
 	if (buf == 'S') {
 		/* Child couldn't create namespace, skip test */
-		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
 		close(fd_parent_timens);
 		close(pipefd[0]);
 		SKIP(return, "Cannot create time namespace");
@@ -689,10 +694,6 @@ TEST(nsid_timens_separate)
 
 	close(fd_parent_timens);
 	close(fd_child_timens);
-
-	/* Clean up child process */
-	kill(pid, SIGTERM);
-	waitpid(pid, NULL, 0);
 }
 
 TEST(nsid_pidns_basic)
@@ -719,7 +720,7 @@ TEST(nsid_pidns_basic)
 	close(fd_pidns);
 }
 
-TEST(nsid_pidns_separate)
+TEST_F(nsid, pidns_separate)
 {
 	__u64 parent_pid_ns_id = 0;
 	__u64 child_pid_ns_id = 0;
@@ -776,6 +777,9 @@ TEST(nsid_pidns_separate)
 		}
 	}
 
+	/* Track child for cleanup */
+	self->child_pid = pid;
+
 	/* Parent process */
 	close(pipefd[1]);
 
@@ -784,8 +788,6 @@ TEST(nsid_pidns_separate)
 
 	if (buf == 'S') {
 		/* Child couldn't create namespace, skip test */
-		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
 		close(fd_parent_pidns);
 		close(pipefd[0]);
 		SKIP(return, "No permission to create PID namespace");
@@ -813,10 +815,6 @@ TEST(nsid_pidns_separate)
 
 	close(fd_parent_pidns);
 	close(fd_child_pidns);
-
-	/* Clean up child process */
-	kill(pid, SIGTERM);
-	waitpid(pid, NULL, 0);
 }
 
 TEST(nsid_netns_basic)
@@ -860,7 +858,7 @@ TEST(nsid_netns_basic)
 	close(fd_netns);
 }
 
-TEST(nsid_netns_separate)
+TEST_F(nsid, netns_separate)
 {
 	__u64 parent_net_ns_id = 0;
 	__u64 parent_netns_cookie = 0;
@@ -920,6 +918,9 @@ TEST(nsid_netns_separate)
 		_exit(0);
 	}
 
+	/* Track child for cleanup */
+	self->child_pid = pid;
+
 	/* Parent process */
 	close(pipefd[1]);
 
@@ -929,8 +930,6 @@ TEST(nsid_netns_separate)
 
 	if (buf == 'S') {
 		/* Child couldn't create namespace, skip test */
-		kill(pid, SIGTERM);
-		waitpid(pid, NULL, 0);
 		close(fd_parent_netns);
 		close(parent_sock);
 		SKIP(return, "No permission to create network namespace");
@@ -977,10 +976,6 @@ TEST(nsid_netns_separate)
 	close(fd_parent_netns);
 	close(fd_child_netns);
 	close(parent_sock);
-
-	/* Clean up child process */
-	kill(pid, SIGTERM);
-	waitpid(pid, NULL, 0);
 }
 
 TEST_HARNESS_MAIN

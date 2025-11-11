@@ -2,6 +2,7 @@
 /* Copyright (c) 2025 Christian Brauner <brauner@kernel.org> */
 
 #include <linux/ns_common.h>
+#include <linux/nstree.h>
 #include <linux/proc_ns.h>
 #include <linux/user_namespace.h>
 #include <linux/vfsdebug.h>
@@ -61,14 +62,10 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 	ns->ops = ops;
 	ns->ns_id = 0;
 	ns->ns_type = ns_type;
-	RB_CLEAR_NODE(&ns->ns_tree_node);
-	RB_CLEAR_NODE(&ns->ns_unified_tree_node);
-	RB_CLEAR_NODE(&ns->ns_owner_tree_node);
-	INIT_LIST_HEAD(&ns->ns_list_node);
-	INIT_LIST_HEAD(&ns->ns_unified_list_node);
-	ns->ns_owner_tree = RB_ROOT;
-	INIT_LIST_HEAD(&ns->ns_owner);
-	INIT_LIST_HEAD(&ns->ns_owner_entry);
+	ns_tree_node_init(&ns->ns_tree_node);
+	ns_tree_node_init(&ns->ns_unified_node);
+	ns_tree_node_init(&ns->ns_owner_node);
+	ns_tree_root_init(&ns->ns_owner_root);
 
 #ifdef CONFIG_DEBUG_VFS
 	ns_debug(ns, ops);
@@ -85,7 +82,7 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 	 * active use (installed in nsproxy) and decremented when all
 	 * active uses are gone. Initial namespaces are always active.
 	 */
-	if (is_initial_namespace(ns))
+	if (is_ns_init_inum(ns))
 		atomic_set(&ns->__ns_ref_active, 1);
 	else
 		atomic_set(&ns->__ns_ref_active, 0);

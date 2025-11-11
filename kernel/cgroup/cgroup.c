@@ -250,7 +250,7 @@ bool cgroup_enable_per_threadgroup_rwsem __read_mostly;
 
 /* cgroup namespace for init task */
 struct cgroup_namespace init_cgroup_ns = {
-	.ns		= NS_COMMON_INIT(init_cgroup_ns, 2),
+	.ns		= NS_COMMON_INIT(init_cgroup_ns),
 	.user_ns	= &init_user_ns,
 	.root_cset	= &init_css_set,
 };
