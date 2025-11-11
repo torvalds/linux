@@ -73,7 +73,7 @@ static struct snd_soc_jack_zone headset_key_zones[] = {
 static int headset_jack_check(void *data)
 {
 	struct snd_soc_component *codec = data;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(codec);
 	struct midas_priv *priv = snd_soc_card_get_drvdata(codec->card);
 	int adc, ret;
 	int jack_type = 0;
@@ -285,7 +285,7 @@ static int midas_ext_spkmode(struct snd_soc_dapm_widget *w,
 static int midas_fm_set(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_card *card = w->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct midas_priv *priv = snd_soc_card_get_drvdata(card);
 
 	if (!priv->gpio_fm_sel)
@@ -306,7 +306,7 @@ static int midas_fm_set(struct snd_soc_dapm_widget *w,
 static int midas_line_set(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_card *card = w->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct midas_priv *priv = snd_soc_card_get_drvdata(card);
 
 	if (!priv->gpio_lineout_sel)
@@ -376,7 +376,7 @@ static int midas_set_bias_level(struct snd_soc_card *card,
 						  &card->dai_link[0]);
 	struct snd_soc_dai *aif1_dai = snd_soc_rtd_to_codec(rtd, 0);
 
-	if (dapm->dev != aif1_dai->dev)
+	if (snd_soc_dapm_to_dev(dapm) != aif1_dai->dev)
 		return 0;
 
 	switch (level) {
