@@ -53,7 +53,7 @@ enum {
 	EDYNSCS_INVALID_CFA_OPCODE		= 4,
 };
 
-int __pi_scs_patch(const u8 eh_frame[], int size);
+int __pi_scs_patch(const u8 eh_frame[], int size, bool skip_dry_run);
 
 #endif /* __ASSEMBLY __ */
 

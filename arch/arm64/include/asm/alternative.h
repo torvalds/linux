@@ -26,9 +26,12 @@ void __init apply_alternatives_all(void);
 bool alternative_is_applied(u16 cpucap);
 
 #ifdef CONFIG_MODULES
-void apply_alternatives_module(void *start, size_t length);
+int apply_alternatives_module(void *start, size_t length);
 #else
-static inline void apply_alternatives_module(void *start, size_t length) { }
+static inline int apply_alternatives_module(void *start, size_t length)
+{
+	return 0;
+}
 #endif
 
 void alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
