@@ -1818,48 +1818,11 @@ static struct rq *move_task_between_dsqs(struct scx_sched *sch,
 	return dst_rq;
 }
 
-/*
- * A poorly behaving BPF scheduler can live-lock the system by e.g. incessantly
- * banging on the same DSQ on a large NUMA system to the point where switching
- * to the bypass mode can take a long time. Inject artificial delays while the
- * bypass mode is switching to guarantee timely completion.
- */
-static void scx_breather(struct rq *rq)
-{
-	u64 until;
-
-	lockdep_assert_rq_held(rq);
-
-	if (likely(!READ_ONCE(scx_aborting)))
-		return;
-
-	raw_spin_rq_unlock(rq);
-
-	until = ktime_get_ns() + NSEC_PER_MSEC;
-
-	do {
-		int cnt = 1024;
-		while (READ_ONCE(scx_aborting) && --cnt)
-			cpu_relax();
-	} while (READ_ONCE(scx_aborting) &&
-		 time_before64(ktime_get_ns(), until));
-
-	raw_spin_rq_lock(rq);
-}
-
 static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
 			       struct scx_dispatch_q *dsq)
 {
 	struct task_struct *p;
 retry:
-	/*
-	 * This retry loop can repeatedly race against scx_bypass() dequeueing
-	 * tasks from @dsq trying to put the system into the bypass mode. On
-	 * some multi-socket machines (e.g. 2x Intel 8480c), this can live-lock
-	 * the machine into soft lockups. Give a breather.
-	 */
-	scx_breather(rq);
-
 	/*
 	 * The caller can't expect to successfully consume a task if the task's
 	 * addition to @dsq isn't guaranteed to be visible somehow. Test
@@ -1872,6 +1835,17 @@ retry:
 
 	nldsq_for_each_task(p, dsq) {
 		struct rq *task_rq = task_rq(p);
+
+		/*
+		 * This loop can lead to multiple lockup scenarios, e.g. the BPF
+		 * scheduler can put an enormous number of affinitized tasks into
+		 * a contended DSQ, or the outer retry loop can repeatedly race
+		 * against scx_bypass() dequeueing tasks from @dsq trying to put
+		 * the system into the bypass mode. This can easily live-lock the
+		 * machine. If aborting, exit from all non-bypass DSQs.
+		 */
+		if (unlikely(READ_ONCE(scx_aborting)) && dsq->id != SCX_DSQ_BYPASS)
+			break;
 
 		if (rq == task_rq) {
 			task_unlink_from_dsq(p, dsq);
@@ -5637,6 +5611,13 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 		return false;
 
 	/*
+	 * If the BPF scheduler keeps calling this function repeatedly, it can
+	 * cause similar live-lock conditions as consume_dispatch_q().
+	 */
+	if (unlikely(READ_ONCE(scx_aborting)))
+		return false;
+
+	/*
 	 * Can be called from either ops.dispatch() locking this_rq() or any
 	 * context where no rq lock is held. If latter, lock @p's task_rq which
 	 * we'll likely need anyway.
@@ -5655,13 +5636,6 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 	} else {
 		raw_spin_rq_lock(src_rq);
 	}
-
-	/*
-	 * If the BPF scheduler keeps calling this function repeatedly, it can
-	 * cause similar live-lock conditions as consume_dispatch_q(). Insert a
-	 * breather if necessary.
-	 */
-	scx_breather(src_rq);
 
 	locked_rq = src_rq;
 	raw_spin_lock(&src_dsq->lock);
