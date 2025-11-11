@@ -693,6 +693,7 @@ static const struct acpi_device_id int3400_thermal_match[] = {
 	{"INTC10A0", 0},
 	{"INTC10D4", 0},
 	{"INTC10FC", 0},
+	{"INTC10F3", 0},
 	{}
 };
 

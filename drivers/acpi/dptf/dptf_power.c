@@ -240,6 +240,8 @@ static const struct acpi_device_id int3407_device_ids[] = {
 	{"INTC10D9", 0},
 	{"INTC1100", 0},
 	{"INTC1101", 0},
+	{"INTC10F7", 0},
+	{"INTC10F8", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, int3407_device_ids);
