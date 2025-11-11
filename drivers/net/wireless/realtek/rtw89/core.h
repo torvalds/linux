@@ -1182,6 +1182,8 @@ struct rtw89_tx_desc_info {
 	u8 sec_seq[6];
 	u16 data_rate;
 	u16 data_retry_lowest_rate;
+	u8 data_bw;
+	u8 gi_ltf;
 	bool fw_dl;
 	u16 seq;
 	bool a_ctrl_bsr;

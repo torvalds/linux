@@ -321,6 +321,26 @@ static const struct ieee80211_supported_band rtw89_sband_6ghz = {
 	.n_bitrates	= ARRAY_SIZE(rtw89_bitrates) - 4,
 };
 
+static const struct rtw89_hw_rate_def {
+	enum rtw89_hw_rate ht;
+	enum rtw89_hw_rate vht[RTW89_NSS_NUM];
+} rtw89_hw_rate[RTW89_CHIP_GEN_NUM] = {
+	[RTW89_CHIP_AX] = {
+		.ht = RTW89_HW_RATE_MCS0,
+		.vht = {RTW89_HW_RATE_VHT_NSS1_MCS0,
+			RTW89_HW_RATE_VHT_NSS2_MCS0,
+			RTW89_HW_RATE_VHT_NSS3_MCS0,
+			RTW89_HW_RATE_VHT_NSS4_MCS0},
+	},
+	[RTW89_CHIP_BE] = {
+		.ht = RTW89_HW_RATE_V1_MCS0,
+		.vht = {RTW89_HW_RATE_V1_VHT_NSS1_MCS0,
+			RTW89_HW_RATE_V1_VHT_NSS2_MCS0,
+			RTW89_HW_RATE_V1_VHT_NSS3_MCS0,
+			RTW89_HW_RATE_V1_VHT_NSS4_MCS0},
+	},
+};
+
 static void __rtw89_traffic_stats_accu(struct rtw89_traffic_stats *stats,
 				       struct sk_buff *skb, bool tx)
 {
@@ -1097,6 +1117,44 @@ notify:
 	rtw89_mac_notify_wake(rtwdev);
 }
 
+static void rtw89_core_tx_update_injection(struct rtw89_dev *rtwdev,
+					   struct rtw89_core_tx_request *tx_req,
+					   struct ieee80211_tx_info *info)
+{
+	const struct rtw89_hw_rate_def *hw_rate = &rtw89_hw_rate[rtwdev->chip->chip_gen];
+	enum mac80211_rate_control_flags flags = info->control.rates[0].flags;
+	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
+	const struct rtw89_chan *chan;
+	u8 idx = info->control.rates[0].idx;
+	u8 nss, mcs;
+
+	desc_info->use_rate = true;
+	desc_info->dis_data_fb = true;
+
+	if (flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
+		desc_info->data_bw = 3;
+	else if (flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+		desc_info->data_bw = 2;
+	else if (flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		desc_info->data_bw = 1;
+
+	if (flags & IEEE80211_TX_RC_SHORT_GI)
+		desc_info->gi_ltf = 1;
+
+	if (flags & IEEE80211_TX_RC_VHT_MCS) {
+		nss = umin(idx >> 4, ARRAY_SIZE(hw_rate->vht) - 1);
+		mcs = idx & 0xf;
+		desc_info->data_rate = hw_rate->vht[nss] + mcs;
+	} else if (flags & IEEE80211_TX_RC_MCS) {
+		desc_info->data_rate = hw_rate->ht + idx;
+	} else {
+		chan = rtw89_chan_get(rtwdev, tx_req->rtwvif_link->chanctx_idx);
+
+		desc_info->data_rate = idx + (chan->band_type == RTW89_BAND_2G ?
+					      RTW89_HW_RATE_CCK1 : RTW89_HW_RATE_OFDM6);
+	}
+}
+
 static void
 rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 			       struct rtw89_core_tx_request *tx_req)
@@ -1157,6 +1215,9 @@ rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 	default:
 		break;
 	}
+
+	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED))
+		rtw89_core_tx_update_injection(rtwdev, tx_req, info);
 }
 
 static void rtw89_tx_wait_work(struct wiphy *wiphy, struct wiphy_work *work)
@@ -1385,6 +1446,8 @@ static __le32 rtw89_build_txwd_body5(struct rtw89_tx_desc_info *desc_info)
 static __le32 rtw89_build_txwd_body7_v1(struct rtw89_tx_desc_info *desc_info)
 {
 	u32 dword = FIELD_PREP(RTW89_TXWD_BODY7_USE_RATE_V1, desc_info->use_rate) |
+		    FIELD_PREP(RTW89_TXWD_BODY7_DATA_BW, desc_info->data_bw) |
+		    FIELD_PREP(RTW89_TXWD_BODY7_GI_LTF, desc_info->gi_ltf) |
 		    FIELD_PREP(RTW89_TXWD_BODY7_DATA_RATE, desc_info->data_rate);
 
 	return cpu_to_le32(dword);
@@ -1393,6 +1456,8 @@ static __le32 rtw89_build_txwd_body7_v1(struct rtw89_tx_desc_info *desc_info)
 static __le32 rtw89_build_txwd_info0(struct rtw89_tx_desc_info *desc_info)
 {
 	u32 dword = FIELD_PREP(RTW89_TXWD_INFO0_USE_RATE, desc_info->use_rate) |
+		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_BW, desc_info->data_bw) |
+		    FIELD_PREP(RTW89_TXWD_INFO0_GI_LTF, desc_info->gi_ltf) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_RATE, desc_info->data_rate) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_STBC, desc_info->stbc) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_LDPC, desc_info->ldpc) |
@@ -1585,6 +1650,8 @@ static __le32 rtw89_build_txwd_body6_v2(struct rtw89_tx_desc_info *desc_info)
 static __le32 rtw89_build_txwd_body7_v2(struct rtw89_tx_desc_info *desc_info)
 {
 	u32 dword = FIELD_PREP(BE_TXD_BODY7_USERATE_SEL, desc_info->use_rate) |
+		    FIELD_PREP(BE_TXD_BODY7_DATA_BW, desc_info->data_bw) |
+		    FIELD_PREP(BE_TXD_BODY7_GI_LTF, desc_info->gi_ltf) |
 		    FIELD_PREP(BE_TXD_BODY7_DATA_ER, desc_info->er_cap) |
 		    FIELD_PREP(BE_TXD_BODY7_DATA_BW_ER, 0) |
 		    FIELD_PREP(BE_TXD_BODY7_DATARATE, desc_info->data_rate);
