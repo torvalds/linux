@@ -541,7 +541,7 @@ static int mlx5_devlink_num_doorbells_validate(struct devlink *devlink, u32 id,
 	max_num_channels = mlx5e_get_max_num_channels(mdev);
 	if (val32 > max_num_channels) {
 		NL_SET_ERR_MSG_FMT_MOD(extack,
-				       "Requested num_doorbells (%u) exceeds maximum number of channels (%u)",
+				       "Requested num_doorbells (%u) exceeds max number of channels (%u)",
 				       val32, max_num_channels);
 		return -EINVAL;
 	}
