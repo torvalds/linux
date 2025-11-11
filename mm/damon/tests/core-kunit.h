@@ -692,6 +692,102 @@ static void damos_test_commit_quota(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, dst.weight_age, src.weight_age);
 }
 
+static int damos_test_help_dests_setup(struct damos_migrate_dests *dests,
+		unsigned int *node_id_arr, unsigned int *weight_arr,
+		size_t nr_dests)
+{
+	size_t i;
+
+	dests->node_id_arr = kmalloc_array(nr_dests,
+			sizeof(*dests->node_id_arr), GFP_KERNEL);
+	if (!dests->node_id_arr)
+		return -ENOMEM;
+	dests->weight_arr = kmalloc_array(nr_dests,
+			sizeof(*dests->weight_arr), GFP_KERNEL);
+	if (!dests->weight_arr) {
+		kfree(dests->node_id_arr);
+		dests->node_id_arr = NULL;
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < nr_dests; i++) {
+		dests->node_id_arr[i] = node_id_arr[i];
+		dests->weight_arr[i] = weight_arr[i];
+	}
+	dests->nr_dests = nr_dests;
+	return 0;
+}
+
+static void damos_test_help_dests_free(struct damos_migrate_dests *dests)
+{
+	kfree(dests->node_id_arr);
+	kfree(dests->weight_arr);
+}
+
+static void damos_test_commit_dests_for(struct kunit *test,
+		unsigned int *dst_node_id_arr, unsigned int *dst_weight_arr,
+		size_t dst_nr_dests,
+		unsigned int *src_node_id_arr, unsigned int *src_weight_arr,
+		size_t src_nr_dests)
+{
+	struct damos_migrate_dests dst = {}, src = {};
+	int i, err;
+	bool skip = true;
+
+	err = damos_test_help_dests_setup(&dst, dst_node_id_arr,
+			dst_weight_arr, dst_nr_dests);
+	if (err)
+		kunit_skip(test, "dests setup fail");
+	err = damos_test_help_dests_setup(&src, src_node_id_arr,
+			src_weight_arr, src_nr_dests);
+	if (err) {
+		damos_test_help_dests_free(&dst);
+		kunit_skip(test, "src setup fail");
+	}
+	err = damos_commit_dests(&dst, &src);
+	if (err)
+		goto out;
+	skip = false;
+
+	KUNIT_EXPECT_EQ(test, dst.nr_dests, src_nr_dests);
+	for (i = 0; i < dst.nr_dests; i++) {
+		KUNIT_EXPECT_EQ(test, dst.node_id_arr[i], src_node_id_arr[i]);
+		KUNIT_EXPECT_EQ(test, dst.weight_arr[i], src_weight_arr[i]);
+	}
+
+out:
+	damos_test_help_dests_free(&dst);
+	damos_test_help_dests_free(&src);
+	if (skip)
+		kunit_skip(test, "skip");
+}
+
+static void damos_test_commit_dests(struct kunit *test)
+{
+	damos_test_commit_dests_for(test,
+			(unsigned int[]){1, 2, 3}, (unsigned int[]){2, 3, 4},
+			3,
+			(unsigned int[]){4, 5, 6}, (unsigned int[]){5, 6, 7},
+			3);
+	damos_test_commit_dests_for(test,
+			(unsigned int[]){1, 2}, (unsigned int[]){2, 3},
+			2,
+			(unsigned int[]){4, 5, 6}, (unsigned int[]){5, 6, 7},
+			3);
+	damos_test_commit_dests_for(test,
+			NULL, NULL, 0,
+			(unsigned int[]){4, 5, 6}, (unsigned int[]){5, 6, 7},
+			3);
+	damos_test_commit_dests_for(test,
+			(unsigned int[]){1, 2, 3}, (unsigned int[]){2, 3, 4},
+			3,
+			(unsigned int[]){4, 5}, (unsigned int[]){5, 6}, 2);
+	damos_test_commit_dests_for(test,
+			(unsigned int[]){1, 2, 3}, (unsigned int[]){2, 3, 4},
+			3,
+			NULL, NULL, 0);
+}
+
 static void damos_test_commit_filter_for(struct kunit *test,
 		struct damos_filter *dst, struct damos_filter *src)
 {
@@ -980,6 +1076,7 @@ static struct kunit_case damon_test_cases[] = {
 	KUNIT_CASE(damos_test_commit_quota_goal),
 	KUNIT_CASE(damos_test_commit_quota_goals),
 	KUNIT_CASE(damos_test_commit_quota),
+	KUNIT_CASE(damos_test_commit_dests),
 	KUNIT_CASE(damos_test_commit_filter),
 	KUNIT_CASE(damos_test_filter_out),
 	KUNIT_CASE(damon_test_feed_loop_next_input),
