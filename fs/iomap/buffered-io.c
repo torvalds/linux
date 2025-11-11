@@ -38,10 +38,28 @@ static inline bool ifs_is_fully_uptodate(struct folio *folio,
 	return bitmap_full(ifs->state, i_blocks_per_folio(inode, folio));
 }
 
-static inline bool ifs_block_is_uptodate(struct iomap_folio_state *ifs,
-		unsigned int block)
+/*
+ * Find the next uptodate block in the folio. end_blk is inclusive.
+ * If no uptodate block is found, this will return end_blk + 1.
+ */
+static unsigned ifs_next_uptodate_block(struct folio *folio,
+		unsigned start_blk, unsigned end_blk)
 {
-	return test_bit(block, ifs->state);
+	struct iomap_folio_state *ifs = folio->private;
+
+	return find_next_bit(ifs->state, end_blk + 1, start_blk);
+}
+
+/*
+ * Find the next non-uptodate block in the folio. end_blk is inclusive.
+ * If no non-uptodate block is found, this will return end_blk + 1.
+ */
+static unsigned ifs_next_nonuptodate_block(struct folio *folio,
+		unsigned start_blk, unsigned end_blk)
+{
+	struct iomap_folio_state *ifs = folio->private;
+
+	return find_next_zero_bit(ifs->state, end_blk + 1, start_blk);
 }
 
 static bool ifs_set_range_uptodate(struct folio *folio,
@@ -277,14 +295,11 @@ static void iomap_adjust_read_range(struct inode *inode, struct folio *folio,
 	 * to avoid reading in already uptodate ranges.
 	 */
 	if (ifs) {
-		unsigned int i, blocks_skipped;
+		unsigned int next, blocks_skipped;
 
-		/* move forward for each leading block marked uptodate */
-		for (i = first; i <= last; i++)
-			if (!ifs_block_is_uptodate(ifs, i))
-				break;
+		next = ifs_next_nonuptodate_block(folio, first, last);
+		blocks_skipped = next - first;
 
-		blocks_skipped = i - first;
 		if (blocks_skipped) {
 			unsigned long block_offset = *pos & (block_size - 1);
 			unsigned bytes_skipped =
@@ -294,15 +309,15 @@ static void iomap_adjust_read_range(struct inode *inode, struct folio *folio,
 			poff += bytes_skipped;
 			plen -= bytes_skipped;
 		}
-		first = i;
+		first = next;
 
 		/* truncate len if we find any trailing uptodate block(s) */
-		while (++i <= last) {
-			if (ifs_block_is_uptodate(ifs, i)) {
+		if (++next <= last) {
+			next = ifs_next_uptodate_block(folio, next, last);
+			if (next <= last) {
 				plen -= iomap_bytes_to_truncate(*pos + plen,
-						block_bits, last - i + 1);
-				last = i - 1;
-				break;
+						block_bits, last - next + 1);
+				last = next - 1;
 			}
 		}
 	}
@@ -639,7 +654,7 @@ bool iomap_is_partially_uptodate(struct folio *folio, size_t from, size_t count)
 {
 	struct iomap_folio_state *ifs = folio->private;
 	struct inode *inode = folio->mapping->host;
-	unsigned first, last, i;
+	unsigned first, last;
 
 	if (!ifs)
 		return false;
@@ -651,10 +666,7 @@ bool iomap_is_partially_uptodate(struct folio *folio, size_t from, size_t count)
 	first = from >> inode->i_blkbits;
 	last = (from + count - 1) >> inode->i_blkbits;
 
-	for (i = first; i <= last; i++)
-		if (!ifs_block_is_uptodate(ifs, i))
-			return false;
-	return true;
+	return ifs_next_nonuptodate_block(folio, first, last) > last;
 }
 EXPORT_SYMBOL_GPL(iomap_is_partially_uptodate);
 
