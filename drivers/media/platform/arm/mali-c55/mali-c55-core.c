@@ -294,6 +294,16 @@ static int mali_c55_create_links(struct mali_c55 *mali_c55)
 		goto err_remove_links;
 	}
 
+	ret = media_create_pad_link(&mali_c55->params.vdev.entity, 0,
+				    &mali_c55->isp.sd.entity,
+				    MALI_C55_ISP_PAD_SINK_PARAMS,
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret) {
+		dev_err(mali_c55->dev,
+			"failed to link ISP and parameters video node\n");
+		goto err_remove_links;
+	}
+
 	return 0;
 
 err_remove_links:
@@ -308,6 +318,7 @@ static void mali_c55_unregister_entities(struct mali_c55 *mali_c55)
 	mali_c55_unregister_isp(mali_c55);
 	mali_c55_unregister_resizers(mali_c55);
 	mali_c55_unregister_capture_devs(mali_c55);
+	mali_c55_unregister_params(mali_c55);
 	mali_c55_unregister_stats(mali_c55);
 }
 
@@ -341,6 +352,10 @@ static int mali_c55_register_entities(struct mali_c55 *mali_c55)
 		goto err_unregister_entities;
 
 	ret = mali_c55_register_capture_devs(mali_c55);
+	if (ret)
+		goto err_unregister_entities;
+
+	ret = mali_c55_register_params(mali_c55);
 	if (ret)
 		goto err_unregister_entities;
 
@@ -433,6 +448,7 @@ static int mali_c55_media_frameworks_init(struct mali_c55 *mali_c55)
 		sizeof(mali_c55->media_dev.model));
 
 	media_device_init(&mali_c55->media_dev);
+
 	ret = media_device_register(&mali_c55->media_dev);
 	if (ret)
 		goto err_cleanup_media_device;
@@ -492,11 +508,13 @@ bool mali_c55_pipeline_ready(struct mali_c55 *mali_c55)
 {
 	struct mali_c55_cap_dev *fr = &mali_c55->cap_devs[MALI_C55_CAP_DEV_FR];
 	struct mali_c55_cap_dev *ds = &mali_c55->cap_devs[MALI_C55_CAP_DEV_DS];
+	struct mali_c55_params *params = &mali_c55->params;
 	struct mali_c55_stats *stats = &mali_c55->stats;
 
 	return vb2_start_streaming_called(&fr->queue) &&
 	       (!(mali_c55->capabilities & MALI_C55_GPS_DS_PIPE_FITTED) ||
 		vb2_start_streaming_called(&ds->queue)) &&
+	       vb2_start_streaming_called(&params->queue) &&
 	       vb2_start_streaming_called(&stats->queue);
 }
 
@@ -573,6 +591,14 @@ static irqreturn_t mali_c55_isr(int irq, void *context)
 			curr_config &= MALI_C55_REG_PING_PONG_READ_MASK;
 			curr_config >>= ffs(MALI_C55_REG_PING_PONG_READ_MASK) - 1;
 			mali_c55->next_config = curr_config ^ 1;
+
+			/*
+			 * Write the configuration parameters received from
+			 * userspace into the configuration buffer, which will
+			 * be transferred to the 'next' active config space at
+			 * by mali_c55_swap_next_config().
+			 */
+			mali_c55_params_write_config(mali_c55);
 
 			mali_c55_stats_fill_buffer(mali_c55,
 						   mali_c55->next_config ^ 1);
