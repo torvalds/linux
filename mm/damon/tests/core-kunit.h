@@ -964,6 +964,70 @@ static void damos_test_commit(struct kunit *test)
 			});
 }
 
+static struct damon_target *damon_test_help_setup_target(
+		unsigned long region_start_end[][2], int nr_regions)
+{
+	struct damon_target *t;
+	struct damon_region *r;
+	int i;
+
+	t = damon_new_target();
+	if (!t)
+		return NULL;
+	for (i = 0; i < nr_regions; i++) {
+		r = damon_new_region(region_start_end[i][0],
+				region_start_end[i][1]);
+		if (!r) {
+			damon_free_target(t);
+			return NULL;
+		}
+		damon_add_region(r, t);
+	}
+	return t;
+}
+
+static void damon_test_commit_target_regions_for(struct kunit *test,
+		unsigned long dst_start_end[][2], int nr_dst_regions,
+		unsigned long src_start_end[][2], int nr_src_regions,
+		unsigned long expect_start_end[][2], int nr_expect_regions)
+{
+	struct damon_target *dst_target, *src_target;
+	struct damon_region *r;
+	int i;
+
+	dst_target = damon_test_help_setup_target(dst_start_end, nr_dst_regions);
+	if (!dst_target)
+		kunit_skip(test, "dst target setup fail");
+	src_target = damon_test_help_setup_target(src_start_end, nr_src_regions);
+	if (!src_target) {
+		damon_free_target(dst_target);
+		kunit_skip(test, "src target setup fail");
+	}
+	damon_commit_target_regions(dst_target, src_target, 1);
+	i = 0;
+	damon_for_each_region(r, dst_target) {
+		KUNIT_EXPECT_EQ(test, r->ar.start, expect_start_end[i][0]);
+		KUNIT_EXPECT_EQ(test, r->ar.end, expect_start_end[i][1]);
+		i++;
+	}
+	KUNIT_EXPECT_EQ(test, damon_nr_regions(dst_target), nr_expect_regions);
+	KUNIT_EXPECT_EQ(test, i, nr_expect_regions);
+	damon_free_target(dst_target);
+	damon_free_target(src_target);
+}
+
+static void damon_test_commit_target_regions(struct kunit *test)
+{
+	damon_test_commit_target_regions_for(test,
+			(unsigned long[][2]) {{3, 8}, {8, 10}}, 2,
+			(unsigned long[][2]) {{4, 6}}, 1,
+			(unsigned long[][2]) {{4, 6}}, 1);
+	damon_test_commit_target_regions_for(test,
+			(unsigned long[][2]) {{3, 8}, {8, 10}}, 2,
+			(unsigned long[][2]) {}, 0,
+			(unsigned long[][2]) {{3, 8}, {8, 10}}, 2);
+}
+
 static void damos_test_filter_out(struct kunit *test)
 {
 	struct damon_target *t;
@@ -1170,6 +1234,7 @@ static struct kunit_case damon_test_cases[] = {
 	KUNIT_CASE(damos_test_commit_dests),
 	KUNIT_CASE(damos_test_commit_filter),
 	KUNIT_CASE(damos_test_commit),
+	KUNIT_CASE(damon_test_commit_target_regions),
 	KUNIT_CASE(damos_test_filter_out),
 	KUNIT_CASE(damon_test_feed_loop_next_input),
 	KUNIT_CASE(damon_test_set_filters_default_reject),
