@@ -35,6 +35,10 @@
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(0);
 
+static int quirk_override = -1;
+module_param_named(quirk, quirk_override, int, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
+
 static int sof_rt5682_quirk_cb(const struct dmi_system_id *id)
 {
 	sof_rt5682_quirk = (unsigned long)id->driver_data;
@@ -642,6 +646,12 @@ static int sof_audio_probe(struct platform_device *pdev)
 		sof_rt5682_quirk = (unsigned long)pdev->id_entry->driver_data;
 
 	dmi_check_system(sof_rt5682_quirk_table);
+
+	if (quirk_override != -1) {
+		dev_info(&pdev->dev, "Overriding quirk 0x%lx => 0x%x\n",
+			 sof_rt5682_quirk, quirk_override);
+		sof_rt5682_quirk = quirk_override;
+	}
 
 	dev_dbg(&pdev->dev, "sof_rt5682_quirk = %lx\n", sof_rt5682_quirk);
 
