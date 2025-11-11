@@ -452,7 +452,7 @@ struct cgroup_freezer_state {
 	int nr_frozen_tasks;
 
 	/* Freeze time data consistency protection */
-	seqcount_t freeze_seq;
+	seqcount_spinlock_t freeze_seq;
 
 	/*
 	 * Most recent time the cgroup was requested to freeze.

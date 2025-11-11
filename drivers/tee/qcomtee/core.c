@@ -424,7 +424,7 @@ static int qcomtee_prepare_msg(struct qcomtee_object_invoke_ctx *oic,
 		if (!(u[i].flags & QCOMTEE_ARG_FLAGS_UADDR))
 			memcpy(msgptr, u[i].b.addr, u[i].b.size);
 		else if (copy_from_user(msgptr, u[i].b.uaddr, u[i].b.size))
-			return -EINVAL;
+			return -EFAULT;
 
 		offset += qcomtee_msg_offset_align(u[i].b.size);
 		ib++;

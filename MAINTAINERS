@@ -1997,6 +1997,10 @@ F:	include/uapi/linux/if_arcnet.h
 
 ARM AND ARM64 SoC SUB-ARCHITECTURES (COMMON PARTS)
 M:	Arnd Bergmann <arnd@arndb.de>
+M:	Krzysztof Kozlowski <krzk@kernel.org>
+M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
+M:	Linus Walleij <linus.walleij@linaro.org>
+R:	Drew Fustini <fustini@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	soc@lists.linux.dev
 S:	Maintained
@@ -3841,6 +3845,7 @@ F:	drivers/hwmon/asus-ec-sensors.c
 ASUS NOTEBOOKS AND EEEPC ACPI/WMI EXTRAS DRIVERS
 M:	Corentin Chary <corentin.chary@gmail.com>
 M:	Luke D. Jones <luke@ljones.dev>
+M:	Denis Benato <benato.denis96@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 W:	https://asus-linux.org/
@@ -13111,6 +13116,15 @@ F:	include/uapi/linux/io_uring.h
 F:	include/uapi/linux/io_uring/
 F:	io_uring/
 
+IO_URING ZCRX
+M:	Pavel Begunkov <asml.silence@gmail.com>
+L:	io-uring@vger.kernel.org
+L:	netdev@vger.kernel.org
+T:	git https://github.com/isilence/linux.git zcrx/for-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux.git
+S:	Maintained
+F:	io_uring/zcrx.*
+
 IPMI SUBSYSTEM
 M:	Corey Minyard <corey@minyard.net>
 L:	openipmi-developer@lists.sourceforge.net (moderated for non-subscribers)
@@ -14394,6 +14408,7 @@ F:	tools/memory-model/
 
 LINUX-NEXT TREE
 M:	Stephen Rothwell <sfr@canb.auug.org.au>
+M:	Mark Brown <broonie@kernel.org>
 L:	linux-next@vger.kernel.org
 S:	Supported
 B:	mailto:linux-next@vger.kernel.org and the appropriate development tree
@@ -26885,7 +26900,7 @@ S:	Maintained
 F:	drivers/vfio/cdx/*
 
 VFIO DRIVER
-M:	Alex Williamson <alex.williamson@redhat.com>
+M:	Alex Williamson <alex@shazbot.org>
 L:	kvm@vger.kernel.org
 S:	Maintained
 T:	git https://github.com/awilliam/linux-vfio.git
@@ -27048,7 +27063,7 @@ T:	git git://linuxtv.org/media.git
 F:	drivers/media/test-drivers/vimc/*
 
 VIRT LIB
-M:	Alex Williamson <alex.williamson@redhat.com>
+M:	Alex Williamson <alex@shazbot.org>
 M:	Paolo Bonzini <pbonzini@redhat.com>
 L:	kvm@vger.kernel.org
 S:	Supported

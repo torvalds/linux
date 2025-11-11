@@ -219,6 +219,13 @@ static inline void btrfs_delayed_node_ref_tracker_dir_print(struct btrfs_delayed
 	if (!btrfs_test_opt(node->root->fs_info, REF_TRACKER))
 		return;
 
+	/*
+	 * Only print if there are leaked references. The caller is
+	 * holding one reference, so if refs == 1 there is no leak.
+	 */
+	if (refcount_read(&node->refs) == 1)
+		return;
+
 	ref_tracker_dir_print(&node->ref_dir.dir,
 			      BTRFS_DELAYED_NODE_REF_TRACKER_DISPLAY_LIMIT);
 }
