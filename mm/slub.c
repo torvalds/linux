@@ -3032,13 +3032,10 @@ static void barn_init(struct node_barn *barn)
 
 static void barn_shrink(struct kmem_cache *s, struct node_barn *barn)
 {
-	struct list_head empty_list;
-	struct list_head full_list;
+	LIST_HEAD(empty_list);
+	LIST_HEAD(full_list);
 	struct slab_sheaf *sheaf, *sheaf2;
 	unsigned long flags;
-
-	INIT_LIST_HEAD(&empty_list);
-	INIT_LIST_HEAD(&full_list);
 
 	spin_lock_irqsave(&barn->lock, flags);
 
