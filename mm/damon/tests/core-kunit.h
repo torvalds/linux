@@ -580,6 +580,86 @@ static void damos_test_commit_quota_goal(struct kunit *test)
 			});
 }
 
+static void damos_test_commit_quota_goals_for(struct kunit *test,
+		struct damos_quota_goal *dst_goals, int nr_dst_goals,
+		struct damos_quota_goal *src_goals, int nr_src_goals)
+{
+	struct damos_quota dst, src;
+	struct damos_quota_goal *goal, *next;
+	bool skip = true;
+	int i;
+
+	INIT_LIST_HEAD(&dst.goals);
+	INIT_LIST_HEAD(&src.goals);
+
+	for (i = 0; i < nr_dst_goals; i++) {
+		/*
+		 * When nr_src_goals is smaller than dst_goals,
+		 * damos_commit_quota_goals() will kfree() the dst goals.
+		 * Make it kfree()-able.
+		 */
+		goal = damos_new_quota_goal(dst_goals[i].metric,
+				dst_goals[i].target_value);
+		if (!goal)
+			goto out;
+		damos_add_quota_goal(&dst, goal);
+	}
+	skip = false;
+	for (i = 0; i < nr_src_goals; i++)
+		damos_add_quota_goal(&src, &src_goals[i]);
+
+	damos_commit_quota_goals(&dst, &src);
+
+	i = 0;
+	damos_for_each_quota_goal(goal, (&dst)) {
+		KUNIT_EXPECT_EQ(test, goal->metric, src_goals[i].metric);
+		KUNIT_EXPECT_EQ(test, goal->target_value,
+				src_goals[i++].target_value);
+	}
+	KUNIT_EXPECT_EQ(test, i, nr_src_goals);
+
+out:
+	damos_for_each_quota_goal_safe(goal, next, (&dst))
+		damos_destroy_quota_goal(goal);
+	if (skip)
+		kunit_skip(test, "goal alloc fail");
+}
+
+static void damos_test_commit_quota_goals(struct kunit *test)
+{
+	damos_test_commit_quota_goals_for(test,
+			(struct damos_quota_goal[]){}, 0,
+			(struct damos_quota_goal[]){
+				{
+				.metric = DAMOS_QUOTA_USER_INPUT,
+				.target_value = 123,
+				},
+			}, 1);
+	damos_test_commit_quota_goals_for(test,
+			(struct damos_quota_goal[]){
+				{
+				.metric = DAMOS_QUOTA_USER_INPUT,
+				.target_value = 234,
+				},
+
+			}, 1,
+			(struct damos_quota_goal[]){
+				{
+				.metric = DAMOS_QUOTA_USER_INPUT,
+				.target_value = 345,
+				},
+			}, 1);
+	damos_test_commit_quota_goals_for(test,
+			(struct damos_quota_goal[]){
+				{
+				.metric = DAMOS_QUOTA_USER_INPUT,
+				.target_value = 456,
+				},
+
+			}, 1,
+			(struct damos_quota_goal[]){}, 0);
+}
+
 static void damos_test_commit_filter_for(struct kunit *test,
 		struct damos_filter *dst, struct damos_filter *src)
 {
@@ -866,6 +946,7 @@ static struct kunit_case damon_test_cases[] = {
 	KUNIT_CASE(damon_test_moving_sum),
 	KUNIT_CASE(damos_test_new_filter),
 	KUNIT_CASE(damos_test_commit_quota_goal),
+	KUNIT_CASE(damos_test_commit_quota_goals),
 	KUNIT_CASE(damos_test_commit_filter),
 	KUNIT_CASE(damos_test_filter_out),
 	KUNIT_CASE(damon_test_feed_loop_next_input),
