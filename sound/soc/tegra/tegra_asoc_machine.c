@@ -78,8 +78,8 @@ static struct snd_soc_jack_gpio tegra_machine_mic_jack_gpio = {
 static int tegra_machine_event(struct snd_soc_dapm_widget *w,
 			       struct snd_kcontrol *k, int event)
 {
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct tegra_machine *machine = snd_soc_card_get_drvdata(dapm->card);
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
+	struct tegra_machine *machine = snd_soc_card_get_drvdata(card);
 
 	if (!snd_soc_dapm_widget_name_cmp(w, "Int Spk") ||
 	    !snd_soc_dapm_widget_name_cmp(w, "Speakers"))
@@ -659,7 +659,9 @@ static const struct tegra_asoc_data tegra_wm8753_data = {
 
 static int tegra_wm9712_init(struct snd_soc_pcm_runtime *rtd)
 {
-	return snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "Mic Bias");
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(rtd->card);
+
+	return snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
 }
 
 SND_SOC_DAILINK_DEFS(wm9712_hifi,
@@ -839,13 +841,14 @@ static const struct tegra_asoc_data tegra_trimslice_data = {
 static int tegra_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int err;
 
 	err = tegra_asoc_machine_init(rtd);
 	if (err)
 		return err;
 
-	snd_soc_dapm_force_enable_pin(&card->dapm, "MICBIAS1");
+	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS1");
 
 	return 0;
 }
