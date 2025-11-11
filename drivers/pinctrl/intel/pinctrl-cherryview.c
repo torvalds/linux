@@ -92,12 +92,6 @@ struct intel_community_context {
 
 #define PINMODE(m, i)		((m) | ((i) * PINMODE_INVERT_OE))
 
-#define CHV_GPP(start, end)			\
-	{					\
-		.base = (start),		\
-		.size = (end) - (start) + 1,	\
-	}
-
 #define CHV_COMMUNITY(g, i, a)			\
 	{					\
 		.gpps = (g),			\
@@ -258,13 +252,13 @@ static const struct intel_function southwest_functions[] = {
 };
 
 static const struct intel_padgroup southwest_gpps[] = {
-	CHV_GPP(0, 7),
-	CHV_GPP(15, 22),
-	CHV_GPP(30, 37),
-	CHV_GPP(45, 52),
-	CHV_GPP(60, 67),
-	CHV_GPP(75, 82),
-	CHV_GPP(90, 97),
+	INTEL_GPP(0, 0, 7, 0),
+	INTEL_GPP(1, 15, 22, 15),
+	INTEL_GPP(2, 30, 37, 30),
+	INTEL_GPP(3, 45, 52, 45),
+	INTEL_GPP(4, 60, 67, 60),
+	INTEL_GPP(5, 75, 82, 75),
+	INTEL_GPP(6, 90, 97, 90),
 };
 
 /*
@@ -354,11 +348,11 @@ static const struct pinctrl_pin_desc north_pins[] = {
 };
 
 static const struct intel_padgroup north_gpps[] = {
-	CHV_GPP(0, 8),
-	CHV_GPP(15, 27),
-	CHV_GPP(30, 41),
-	CHV_GPP(45, 56),
-	CHV_GPP(60, 72),
+	INTEL_GPP(0, 0, 8, 0),
+	INTEL_GPP(1, 15, 27, 15),
+	INTEL_GPP(2, 30, 41, 30),
+	INTEL_GPP(3, 45, 56, 45),
+	INTEL_GPP(4, 60, 72, 60),
 };
 
 /*
@@ -406,8 +400,8 @@ static const struct pinctrl_pin_desc east_pins[] = {
 };
 
 static const struct intel_padgroup east_gpps[] = {
-	CHV_GPP(0, 11),
-	CHV_GPP(15, 26),
+	INTEL_GPP(0, 0, 11, 0),
+	INTEL_GPP(1, 15, 26, 15),
 };
 
 static const struct intel_community east_communities[] = {
@@ -526,12 +520,12 @@ static const struct intel_function southeast_functions[] = {
 };
 
 static const struct intel_padgroup southeast_gpps[] = {
-	CHV_GPP(0, 7),
-	CHV_GPP(15, 26),
-	CHV_GPP(30, 35),
-	CHV_GPP(45, 52),
-	CHV_GPP(60, 69),
-	CHV_GPP(75, 85),
+	INTEL_GPP(0, 0, 7, 0),
+	INTEL_GPP(1, 15, 26, 15),
+	INTEL_GPP(2, 30, 35, 30),
+	INTEL_GPP(3, 45, 52, 45),
+	INTEL_GPP(4, 60, 69, 60),
+	INTEL_GPP(5, 75, 85, 75),
 };
 
 static const struct intel_community southeast_communities[] = {
