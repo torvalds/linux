@@ -25,7 +25,13 @@
 #define __AMDGPU_VIRT_RAS_CMD_H__
 #include "ras.h"
 
+struct remote_batch_trace_mgr {
+	struct ras_log_batch_overview  batch_overview;
+	struct ras_cmd_batch_trace_record_rsp  batch_trace;
+};
+
 struct amdgpu_virt_ras_cmd {
+	struct remote_batch_trace_mgr batch_mgr;
 };
 
 int amdgpu_virt_ras_sw_init(struct amdgpu_device *adev);
