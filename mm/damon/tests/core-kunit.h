@@ -497,6 +497,15 @@ static void damos_test_new_filter(struct kunit *test)
 	damos_destroy_filter(filter);
 }
 
+static void damos_test_commit_filter_for(struct kunit *test,
+		struct damos_filter *dst, struct damos_filter *src)
+{
+	damos_commit_filter(dst, src);
+	KUNIT_EXPECT_EQ(test, dst->type, src->type);
+	KUNIT_EXPECT_EQ(test, dst->matching, src->matching);
+	KUNIT_EXPECT_EQ(test, dst->allow, src->allow);
+}
+
 static void damos_test_commit_filter(struct kunit *test)
 {
 	struct damos_filter src_filter = {
@@ -509,10 +518,7 @@ static void damos_test_commit_filter(struct kunit *test)
 		.allow = false,
 	};
 
-	damos_commit_filter(&dst_filter, &src_filter);
-	KUNIT_EXPECT_EQ(test, dst_filter.type, src_filter.type);
-	KUNIT_EXPECT_EQ(test, dst_filter.matching, src_filter.matching);
-	KUNIT_EXPECT_EQ(test, dst_filter.allow, src_filter.allow);
+	damos_test_commit_filter_for(test, &dst_filter, &src_filter);
 }
 
 static void damos_test_filter_out(struct kunit *test)
