@@ -199,8 +199,9 @@ union amd_sriov_ras_caps {
 		uint64_t block_jpeg			: 1;
 		uint64_t block_ih			: 1;
 		uint64_t block_mpio			: 1;
+		uint64_t block_mmsch			: 1;
 		uint64_t poison_propogation_mode	: 1;
-		uint64_t reserved			: 44;
+		uint64_t reserved			: 43;
 	} bits;
 	uint64_t all;
 };
