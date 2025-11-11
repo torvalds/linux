@@ -504,6 +504,26 @@ static void damos_test_commit_filter_for(struct kunit *test,
 	KUNIT_EXPECT_EQ(test, dst->type, src->type);
 	KUNIT_EXPECT_EQ(test, dst->matching, src->matching);
 	KUNIT_EXPECT_EQ(test, dst->allow, src->allow);
+	switch (src->type) {
+	case DAMOS_FILTER_TYPE_MEMCG:
+		KUNIT_EXPECT_EQ(test, dst->memcg_id, src->memcg_id);
+		break;
+	case DAMOS_FILTER_TYPE_ADDR:
+		KUNIT_EXPECT_EQ(test, dst->addr_range.start,
+				src->addr_range.start);
+		KUNIT_EXPECT_EQ(test, dst->addr_range.end,
+				src->addr_range.end);
+		break;
+	case DAMOS_FILTER_TYPE_TARGET:
+		KUNIT_EXPECT_EQ(test, dst->target_idx, src->target_idx);
+		break;
+	case DAMOS_FILTER_TYPE_HUGEPAGE_SIZE:
+		KUNIT_EXPECT_EQ(test, dst->sz_range.min, src->sz_range.min);
+		KUNIT_EXPECT_EQ(test, dst->sz_range.max, src->sz_range.max);
+		break;
+	default:
+		break;
+	}
 }
 
 static void damos_test_commit_filter(struct kunit *test)
