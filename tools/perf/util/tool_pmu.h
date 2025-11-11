@@ -22,6 +22,8 @@ enum tool_pmu_event {
 	TOOL_PMU__EVENT_SLOTS,
 	TOOL_PMU__EVENT_SMT_ON,
 	TOOL_PMU__EVENT_SYSTEM_TSC_FREQ,
+	TOOL_PMU__EVENT_CORE_WIDE,
+	TOOL_PMU__EVENT_TARGET_CPU,
 
 	TOOL_PMU__EVENT_MAX,
 };
@@ -34,7 +36,12 @@ enum tool_pmu_event tool_pmu__str_to_event(const char *str);
 bool tool_pmu__skip_event(const char *name);
 int tool_pmu__num_skip_events(void);
 
-bool tool_pmu__read_event(enum tool_pmu_event ev, struct evsel *evsel, u64 *result);
+bool tool_pmu__read_event(enum tool_pmu_event ev,
+			  struct evsel *evsel,
+			  bool system_wide,
+			  const char *user_requested_cpu_list,
+			  u64 *result);
+
 
 u64 tool_pmu__cpu_slots_per_cycle(void);
 

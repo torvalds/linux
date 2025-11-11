@@ -6,6 +6,7 @@
 #include "pmu.h"
 #include "print-events.h"
 #include "smt.h"
+#include "stat.h"
 #include "time-utils.h"
 #include "tool_pmu.h"
 #include "tsc.h"
@@ -30,6 +31,8 @@ static const char *const tool_pmu__event_names[TOOL_PMU__EVENT_MAX] = {
 	"slots",
 	"smt_on",
 	"system_tsc_freq",
+	"core_wide",
+	"target_cpu",
 };
 
 bool tool_pmu__skip_event(const char *name __maybe_unused)
@@ -329,7 +332,11 @@ static bool has_pmem(void)
 	return has_pmem;
 }
 
-bool tool_pmu__read_event(enum tool_pmu_event ev, struct evsel *evsel, u64 *result)
+bool tool_pmu__read_event(enum tool_pmu_event ev,
+			  struct evsel *evsel,
+			  bool system_wide,
+			  const char *user_requested_cpu_list,
+			  u64 *result)
 {
 	const struct cpu_topology *topology;
 
@@ -421,6 +428,14 @@ bool tool_pmu__read_event(enum tool_pmu_event ev, struct evsel *evsel, u64 *resu
 		*result = arch_get_tsc_freq();
 		return true;
 
+	case TOOL_PMU__EVENT_CORE_WIDE:
+		*result = core_wide(system_wide, user_requested_cpu_list) ? 1 : 0;
+		return true;
+
+	case TOOL_PMU__EVENT_TARGET_CPU:
+		*result = system_wide || (user_requested_cpu_list != NULL) ? 1 : 0;
+		return true;
+
 	case TOOL_PMU__EVENT_NONE:
 	case TOOL_PMU__EVENT_DURATION_TIME:
 	case TOOL_PMU__EVENT_USER_TIME:
@@ -452,11 +467,16 @@ int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 	case TOOL_PMU__EVENT_SLOTS:
 	case TOOL_PMU__EVENT_SMT_ON:
 	case TOOL_PMU__EVENT_SYSTEM_TSC_FREQ:
+	case TOOL_PMU__EVENT_CORE_WIDE:
+	case TOOL_PMU__EVENT_TARGET_CPU:
 		if (evsel->prev_raw_counts)
 			old_count = perf_counts(evsel->prev_raw_counts, cpu_map_idx, thread);
 		val = 0;
 		if (cpu_map_idx == 0 && thread == 0) {
-			if (!tool_pmu__read_event(ev, evsel, &val)) {
+			if (!tool_pmu__read_event(ev, evsel,
+						  stat_config.system_wide,
+						  stat_config.user_requested_cpu_list,
+						  &val)) {
 				count->lost++;
 				val = 0;
 			}

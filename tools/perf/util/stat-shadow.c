@@ -72,6 +72,8 @@ static int prepare_metric(const struct metric_expr *mexp,
 			case TOOL_PMU__EVENT_SLOTS:
 			case TOOL_PMU__EVENT_SMT_ON:
 			case TOOL_PMU__EVENT_SYSTEM_TSC_FREQ:
+			case TOOL_PMU__EVENT_CORE_WIDE:
+			case TOOL_PMU__EVENT_TARGET_CPU:
 			default:
 				pr_err("Unexpected tool event '%s'", evsel__name(metric_events[i]));
 				abort();
