@@ -873,6 +873,97 @@ static void damos_test_commit_filter(struct kunit *test)
 			});
 }
 
+static void damos_test_help_initailize_scheme(struct damos *scheme)
+{
+	INIT_LIST_HEAD(&scheme->quota.goals);
+	INIT_LIST_HEAD(&scheme->filters);
+	INIT_LIST_HEAD(&scheme->ops_filters);
+}
+
+static void damos_test_commit_for(struct kunit *test, struct damos *dst,
+		struct damos *src)
+{
+	int err;
+
+	damos_test_help_initailize_scheme(dst);
+	damos_test_help_initailize_scheme(src);
+
+	err = damos_commit(dst, src);
+	if (err)
+		kunit_skip(test, "damos_commit fail");
+
+	KUNIT_EXPECT_EQ(test, dst->pattern.min_sz_region,
+			src->pattern.min_sz_region);
+	KUNIT_EXPECT_EQ(test, dst->pattern.max_sz_region,
+			src->pattern.max_sz_region);
+	KUNIT_EXPECT_EQ(test, dst->pattern.min_nr_accesses,
+			src->pattern.min_nr_accesses);
+	KUNIT_EXPECT_EQ(test, dst->pattern.max_nr_accesses,
+			src->pattern.max_nr_accesses);
+	KUNIT_EXPECT_EQ(test, dst->pattern.min_age_region,
+			src->pattern.min_age_region);
+	KUNIT_EXPECT_EQ(test, dst->pattern.max_age_region,
+			src->pattern.max_age_region);
+
+	KUNIT_EXPECT_EQ(test, dst->action, src->action);
+	KUNIT_EXPECT_EQ(test, dst->apply_interval_us, src->apply_interval_us);
+
+	KUNIT_EXPECT_EQ(test, dst->wmarks.metric, src->wmarks.metric);
+	KUNIT_EXPECT_EQ(test, dst->wmarks.interval, src->wmarks.interval);
+	KUNIT_EXPECT_EQ(test, dst->wmarks.high, src->wmarks.high);
+	KUNIT_EXPECT_EQ(test, dst->wmarks.mid, src->wmarks.mid);
+	KUNIT_EXPECT_EQ(test, dst->wmarks.low, src->wmarks.low);
+
+	switch (src->action) {
+	case DAMOS_MIGRATE_COLD:
+	case DAMOS_MIGRATE_HOT:
+		KUNIT_EXPECT_EQ(test, dst->target_nid, src->target_nid);
+		break;
+	default:
+		break;
+	}
+}
+
+static void damos_test_commit(struct kunit *test)
+{
+	damos_test_commit_for(test,
+			&(struct damos){
+				.pattern = (struct damos_access_pattern){
+					1, 2, 3, 4, 5, 6},
+				.action = DAMOS_PAGEOUT,
+				.apply_interval_us = 1000000,
+				.wmarks = (struct damos_watermarks){
+					DAMOS_WMARK_FREE_MEM_RATE,
+					900, 100, 50},
+			},
+			&(struct damos){
+				.pattern = (struct damos_access_pattern){
+					2, 3, 4, 5, 6, 7},
+				.action = DAMOS_PAGEOUT,
+				.apply_interval_us = 2000000,
+				.wmarks = (struct damos_watermarks){
+					DAMOS_WMARK_FREE_MEM_RATE,
+					800, 50, 30},
+			});
+	damos_test_commit_for(test,
+			&(struct damos){
+				.pattern = (struct damos_access_pattern){
+					1, 2, 3, 4, 5, 6},
+				.action = DAMOS_PAGEOUT,
+				.apply_interval_us = 1000000,
+				.wmarks = (struct damos_watermarks){
+					DAMOS_WMARK_FREE_MEM_RATE,
+					900, 100, 50},
+			},
+			&(struct damos){
+				.pattern = (struct damos_access_pattern){
+					2, 3, 4, 5, 6, 7},
+				.action = DAMOS_MIGRATE_HOT,
+				.apply_interval_us = 2000000,
+				.target_nid = 5,
+			});
+}
+
 static void damos_test_filter_out(struct kunit *test)
 {
 	struct damon_target *t;
@@ -1078,6 +1169,7 @@ static struct kunit_case damon_test_cases[] = {
 	KUNIT_CASE(damos_test_commit_quota),
 	KUNIT_CASE(damos_test_commit_dests),
 	KUNIT_CASE(damos_test_commit_filter),
+	KUNIT_CASE(damos_test_commit),
 	KUNIT_CASE(damos_test_filter_out),
 	KUNIT_CASE(damon_test_feed_loop_next_input),
 	KUNIT_CASE(damon_test_set_filters_default_reject),
