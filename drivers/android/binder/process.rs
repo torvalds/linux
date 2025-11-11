@@ -1362,8 +1362,12 @@ impl Process {
             work.into_arc().cancel();
         }
 
-        let delivered_deaths = take(&mut self.inner.lock().delivered_deaths);
-        drop(delivered_deaths);
+        // Clear delivered_deaths list.
+        //
+        // Scope ensures that MutexGuard is dropped while executing the body.
+        while let Some(delivered_death) = { self.inner.lock().delivered_deaths.pop_front() } {
+            drop(delivered_death);
+        }
 
         // Free any resources kept alive by allocated buffers.
         let omapping = self.inner.lock().mapping.take();
