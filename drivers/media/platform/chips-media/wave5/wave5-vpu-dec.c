@@ -1835,8 +1835,10 @@ static int wave5_vpu_open_dec(struct file *filp)
 	INIT_LIST_HEAD(&inst->avail_src_bufs);
 
 	inst->codec_info = kzalloc(sizeof(*inst->codec_info), GFP_KERNEL);
-	if (!inst->codec_info)
+	if (!inst->codec_info) {
+		kfree(inst);
 		return -ENOMEM;
+	}
 
 	v4l2_fh_init(&inst->v4l2_fh, vdev);
 	v4l2_fh_add(&inst->v4l2_fh, filp);
