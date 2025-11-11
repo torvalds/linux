@@ -337,7 +337,7 @@ static void send_hsr_supervision_frame(struct hsr_port *port,
 	}
 
 	hsr_stag->tlv.HSR_TLV_type = type;
-	/* TODO: Why 12 in HSRv0? */
+	/* HSRv0 has 6 unused bytes after the MAC */
 	hsr_stag->tlv.HSR_TLV_length = hsr->prot_version ?
 				sizeof(struct hsr_sup_payload) : 12;
 
