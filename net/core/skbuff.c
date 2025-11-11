@@ -1152,6 +1152,7 @@ void skb_release_head_state(struct sk_buff *skb)
 
 #endif
 		skb->destructor = NULL;
+		skb->sk = NULL;
 	}
 	nf_reset_ct(skb);
 	skb_ext_reset(skb);
