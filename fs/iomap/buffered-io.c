@@ -394,16 +394,16 @@ static void iomap_read_init(struct folio *folio)
  * Else the IO helper will end the read after all submitted ranges have been
  * read.
  */
-static void iomap_read_end(struct folio *folio, size_t bytes_pending)
+static void iomap_read_end(struct folio *folio, size_t bytes_submitted)
 {
 	struct iomap_folio_state *ifs;
 
 	/*
-	 * If there are no bytes pending, this means we are responsible for
+	 * If there are no bytes submitted, this means we are responsible for
 	 * unlocking the folio here, since no IO helper has taken ownership of
 	 * it.
 	 */
-	if (!bytes_pending) {
+	if (!bytes_submitted) {
 		folio_unlock(folio);
 		return;
 	}
@@ -416,11 +416,11 @@ static void iomap_read_end(struct folio *folio, size_t bytes_pending)
 		 * read_bytes_pending but skipped for IO.
 		 * The +1 accounts for the bias we added in iomap_read_init().
 		 */
-		size_t bytes_accounted = folio_size(folio) + 1 -
-				bytes_pending;
+		size_t bytes_not_submitted = folio_size(folio) + 1 -
+				bytes_submitted;
 
 		spin_lock_irq(&ifs->state_lock);
-		ifs->read_bytes_pending -= bytes_accounted;
+		ifs->read_bytes_pending -= bytes_not_submitted;
 		/*
 		 * If !ifs->read_bytes_pending, this means all pending reads
 		 * by the IO helper have already completed, which means we need
@@ -437,7 +437,7 @@ static void iomap_read_end(struct folio *folio, size_t bytes_pending)
 }
 
 static int iomap_read_folio_iter(struct iomap_iter *iter,
-		struct iomap_read_folio_ctx *ctx, size_t *bytes_pending)
+		struct iomap_read_folio_ctx *ctx, size_t *bytes_submitted)
 {
 	const struct iomap *iomap = &iter->iomap;
 	loff_t pos = iter->pos;
@@ -478,9 +478,9 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 			folio_zero_range(folio, poff, plen);
 			iomap_set_range_uptodate(folio, poff, plen);
 		} else {
-			if (!*bytes_pending)
+			if (!*bytes_submitted)
 				iomap_read_init(folio);
-			*bytes_pending += plen;
+			*bytes_submitted += plen;
 			ret = ctx->ops->read_folio_range(iter, ctx, plen);
 			if (ret)
 				return ret;
@@ -504,39 +504,40 @@ void iomap_read_folio(const struct iomap_ops *ops,
 		.pos		= folio_pos(folio),
 		.len		= folio_size(folio),
 	};
-	size_t bytes_pending = 0;
+	size_t bytes_submitted = 0;
 	int ret;
 
 	trace_iomap_readpage(iter.inode, 1);
 
 	while ((ret = iomap_iter(&iter, ops)) > 0)
-		iter.status = iomap_read_folio_iter(&iter, ctx, &bytes_pending);
+		iter.status = iomap_read_folio_iter(&iter, ctx,
+				&bytes_submitted);
 
 	if (ctx->ops->submit_read)
 		ctx->ops->submit_read(ctx);
 
-	iomap_read_end(folio, bytes_pending);
+	iomap_read_end(folio, bytes_submitted);
 }
 EXPORT_SYMBOL_GPL(iomap_read_folio);
 
 static int iomap_readahead_iter(struct iomap_iter *iter,
-		struct iomap_read_folio_ctx *ctx, size_t *cur_bytes_pending)
+		struct iomap_read_folio_ctx *ctx, size_t *cur_bytes_submitted)
 {
 	int ret;
 
 	while (iomap_length(iter)) {
 		if (ctx->cur_folio &&
 		    offset_in_folio(ctx->cur_folio, iter->pos) == 0) {
-			iomap_read_end(ctx->cur_folio, *cur_bytes_pending);
+			iomap_read_end(ctx->cur_folio, *cur_bytes_submitted);
 			ctx->cur_folio = NULL;
 		}
 		if (!ctx->cur_folio) {
 			ctx->cur_folio = readahead_folio(ctx->rac);
 			if (WARN_ON_ONCE(!ctx->cur_folio))
 				return -EINVAL;
-			*cur_bytes_pending = 0;
+			*cur_bytes_submitted = 0;
 		}
-		ret = iomap_read_folio_iter(iter, ctx, cur_bytes_pending);
+		ret = iomap_read_folio_iter(iter, ctx, cur_bytes_submitted);
 		if (ret)
 			return ret;
 	}
@@ -568,19 +569,19 @@ void iomap_readahead(const struct iomap_ops *ops,
 		.pos	= readahead_pos(rac),
 		.len	= readahead_length(rac),
 	};
-	size_t cur_bytes_pending;
+	size_t cur_bytes_submitted;
 
 	trace_iomap_readahead(rac->mapping->host, readahead_count(rac));
 
 	while (iomap_iter(&iter, ops) > 0)
 		iter.status = iomap_readahead_iter(&iter, ctx,
-					&cur_bytes_pending);
+					&cur_bytes_submitted);
 
 	if (ctx->ops->submit_read)
 		ctx->ops->submit_read(ctx);
 
 	if (ctx->cur_folio)
-		iomap_read_end(ctx->cur_folio, cur_bytes_pending);
+		iomap_read_end(ctx->cur_folio, cur_bytes_submitted);
 }
 EXPORT_SYMBOL_GPL(iomap_readahead);
 
