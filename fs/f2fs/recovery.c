@@ -872,8 +872,9 @@ next:
 
 int f2fs_recover_fsync_data(struct f2fs_sb_info *sbi, bool check_only)
 {
-	struct list_head inode_list, tmp_inode_list;
-	struct list_head dir_list;
+	LIST_HEAD(inode_list);
+	LIST_HEAD(tmp_inode_list);
+	LIST_HEAD(dir_list);
 	int err;
 	int ret = 0;
 	unsigned long s_flags = sbi->sb->s_flags;
@@ -885,10 +886,6 @@ int f2fs_recover_fsync_data(struct f2fs_sb_info *sbi, bool check_only)
 
 	if (is_sbi_flag_set(sbi, SBI_IS_WRITABLE))
 		f2fs_info(sbi, "recover fsync data on readonly fs");
-
-	INIT_LIST_HEAD(&inode_list);
-	INIT_LIST_HEAD(&tmp_inode_list);
-	INIT_LIST_HEAD(&dir_list);
 
 	/* prevent checkpoint */
 	f2fs_down_write(&sbi->cp_global_sem);
