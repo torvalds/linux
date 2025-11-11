@@ -1262,6 +1262,54 @@ void cs35l56_remove_cal_debugfs(struct cs35l56_base *cs35l56_base)
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_remove_cal_debugfs, "SND_SOC_CS35L56_SHARED");
 
+const char * const cs35l56_cal_set_status_text[] = {
+	"Unknown", "Default", "Set",
+};
+EXPORT_SYMBOL_NS_GPL(cs35l56_cal_set_status_text, "SND_SOC_CS35L56_SHARED");
+
+int cs35l56_cal_set_status_get(struct cs35l56_base *cs35l56_base,
+			       struct snd_ctl_elem_value *uvalue)
+{
+	struct cs_dsp *dsp = cs35l56_base->dsp;
+	__be32 cal_set_status_be;
+	int alg_id;
+	int ret;
+
+	switch (cs35l56_base->type) {
+	case 0x54:
+	case 0x56:
+	case 0x57:
+		alg_id = 0x9f210;
+		break;
+	default:
+		alg_id = 0xbf210;
+		break;
+	}
+
+	scoped_guard(mutex, &dsp->pwr_lock) {
+		ret = cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(dsp,
+							    "CAL_SET_STATUS",
+							    WMFW_ADSP2_YM, alg_id),
+					      0, &cal_set_status_be,
+					      sizeof(cal_set_status_be));
+	}
+	if (ret) {
+		uvalue->value.enumerated.item[0] = CS35L56_CAL_SET_STATUS_UNKNOWN;
+		return 0;
+	}
+
+	switch (be32_to_cpu(cal_set_status_be)) {
+	case CS35L56_CAL_SET_STATUS_DEFAULT:
+	case CS35L56_CAL_SET_STATUS_SET:
+		uvalue->value.enumerated.item[0] = be32_to_cpu(cal_set_status_be);
+		return 0;
+	default:
+		uvalue->value.enumerated.item[0] = CS35L56_CAL_SET_STATUS_UNKNOWN;
+		return 0;
+	}
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_cal_set_status_get, "SND_SOC_CS35L56_SHARED");
+
 int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 			     bool *fw_missing, unsigned int *fw_version)
 {

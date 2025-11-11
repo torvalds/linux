@@ -66,6 +66,18 @@ static int cs35l56_dspwait_put_volsw(struct snd_kcontrol *kcontrol,
 
 static DECLARE_TLV_DB_SCALE(vol_tlv, -10000, 25, 0);
 
+static SOC_ENUM_SINGLE_DECL(cs35l56_cal_set_status_enum, SND_SOC_NOPM, 0,
+			    cs35l56_cal_set_status_text);
+
+static int cs35l56_cal_set_status_ctl_get(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+
+	return cs35l56_cal_set_status_get(&cs35l56->base, ucontrol);
+}
+
 static const struct snd_kcontrol_new cs35l56_controls[] = {
 	SOC_SINGLE_EXT("Speaker Switch",
 		       CS35L56_MAIN_RENDER_USER_MUTE, 0, 1, 1,
@@ -83,6 +95,8 @@ static const struct snd_kcontrol_new cs35l56_controls[] = {
 	SOC_SINGLE_EXT("Posture Number", CS35L56_MAIN_POSTURE_NUMBER,
 		       0, 255, 0,
 		       cs35l56_dspwait_get_volsw, cs35l56_dspwait_put_volsw),
+	SOC_ENUM_EXT("CAL_SET_STATUS", cs35l56_cal_set_status_enum,
+		     cs35l56_cal_set_status_ctl_get, NULL),
 };
 
 static const struct snd_kcontrol_new cs35l63_controls[] = {
@@ -102,6 +116,8 @@ static const struct snd_kcontrol_new cs35l63_controls[] = {
 	SOC_SINGLE_EXT("Posture Number", CS35L63_MAIN_POSTURE_NUMBER,
 		       0, 255, 0,
 		       cs35l56_dspwait_get_volsw, cs35l56_dspwait_put_volsw),
+	SOC_ENUM_EXT("CAL_SET_STATUS", cs35l56_cal_set_status_enum,
+		     cs35l56_cal_set_status_ctl_get, NULL),
 };
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx1_enum,

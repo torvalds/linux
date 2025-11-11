@@ -16,6 +16,8 @@
 #include <linux/spi/spi.h>
 #include <sound/cs-amp-lib.h>
 
+struct snd_ctl_elem_value;
+
 #define CS35L56_DEVID					0x0000000
 #define CS35L56_REVID					0x0000004
 #define CS35L56_RELID					0x000000C
@@ -268,6 +270,10 @@
 #define CS35L56_CAL_STATUS_SUCCESS			1
 #define CS35L56_CAL_STATUS_OUT_OF_RANGE			3
 
+#define CS35L56_CAL_SET_STATUS_UNKNOWN			0
+#define CS35L56_CAL_SET_STATUS_DEFAULT			1
+#define CS35L56_CAL_SET_STATUS_SET			2
+
 #define CS35L56_CONTROL_PORT_READY_US			2200
 #define CS35L56_HALO_STATE_POLL_US			1000
 #define CS35L56_HALO_STATE_TIMEOUT_US			250000
@@ -363,6 +369,7 @@ extern const struct regmap_config cs35l63_regmap_i2c;
 extern const struct regmap_config cs35l63_regmap_sdw;
 
 extern const struct cirrus_amp_cal_controls cs35l56_calibration_controls;
+extern const char * const cs35l56_cal_set_status_text[3];
 
 extern const char * const cs35l56_tx_input_texts[CS35L56_NUM_INPUT_SRC];
 extern const unsigned int cs35l56_tx_input_values[CS35L56_NUM_INPUT_SRC];
@@ -396,6 +403,8 @@ ssize_t cs35l56_cal_data_debugfs_write(struct cs35l56_base *cs35l56_base,
 void cs35l56_create_cal_debugfs(struct cs35l56_base *cs35l56_base,
 				const struct cs35l56_cal_debugfs_fops *fops);
 void cs35l56_remove_cal_debugfs(struct cs35l56_base *cs35l56_base);
+int cs35l56_cal_set_status_get(struct cs35l56_base *cs35l56_base,
+			       struct snd_ctl_elem_value *uvalue);
 int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 			     bool *fw_missing, unsigned int *fw_version);
 void cs35l56_log_tuning(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
