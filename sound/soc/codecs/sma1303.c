@@ -518,7 +518,7 @@ static int sma1303_aif_in_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 			snd_soc_dapm_to_component(w->dapm);
 	struct sma1303_priv *sma1303 = snd_soc_component_get_drvdata(component);
-	unsigned int mux = dapm_kcontrol_get_value(w->kcontrols[0]);
+	unsigned int mux = snd_soc_dapm_kcontrol_get_value(w->kcontrols[0]);
 	int ret = 0;
 	bool change = false, temp = false;
 
@@ -588,7 +588,7 @@ static int sma1303_aif_out_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 			snd_soc_dapm_to_component(w->dapm);
 	struct sma1303_priv *sma1303 = snd_soc_component_get_drvdata(component);
-	unsigned int mux = dapm_kcontrol_get_value(w->kcontrols[0]);
+	unsigned int mux = snd_soc_dapm_kcontrol_get_value(w->kcontrols[0]);
 	int ret = 0;
 	bool change = false, temp = false;
 
@@ -1557,8 +1557,7 @@ static void sma1303_check_fault_worker(struct work_struct *work)
 
 static int sma1303_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_dapm_sync(dapm);
 
