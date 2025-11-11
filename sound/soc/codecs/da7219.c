@@ -1807,6 +1807,7 @@ static int da7219_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	switch (level) {
@@ -1814,7 +1815,7 @@ static int da7219_set_bias_level(struct snd_soc_component *component,
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		/* Enable MCLK for transition to ON state */
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_STANDBY) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_STANDBY) {
 			if (da7219->mclk) {
 				ret = clk_prepare_enable(da7219->mclk);
 				if (ret) {
@@ -1827,13 +1828,13 @@ static int da7219_set_bias_level(struct snd_soc_component *component,
 
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF)
 			/* Master bias */
 			snd_soc_component_update_bits(component, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK,
 					    DA7219_BIAS_EN_MASK);
 
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_PREPARE) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_PREPARE) {
 			/* Remove MCLK */
 			if (da7219->mclk)
 				clk_disable_unprepare(da7219->mclk);
@@ -2613,12 +2614,13 @@ static void da7219_remove(struct snd_soc_component *component)
 static int da7219_suspend(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	/* Suspend AAD if we're not a wake-up source */
 	if (!da7219->wakeup_source)
 		da7219_aad_suspend(component);
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -2626,8 +2628,9 @@ static int da7219_suspend(struct snd_soc_component *component)
 static int da7219_resume(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	/* Resume AAD if previously suspended */
 	if (!da7219->wakeup_source)
