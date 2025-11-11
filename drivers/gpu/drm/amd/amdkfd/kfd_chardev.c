@@ -2804,8 +2804,12 @@ static int runtime_enable(struct kfd_process *p, uint64_t r_debug,
 		 * SET_SHADER_DEBUGGER clears any stale process context data
 		 * saved in MES.
 		 */
-		if (pdd->dev->kfd->shared_resources.enable_mes)
-			kfd_dbg_set_mes_debug_mode(pdd, !kfd_dbg_has_cwsr_workaround(pdd->dev));
+		if (pdd->dev->kfd->shared_resources.enable_mes) {
+			ret = kfd_dbg_set_mes_debug_mode(
+				pdd, !kfd_dbg_has_cwsr_workaround(pdd->dev));
+			if (ret)
+				return ret;
+		}
 	}
 
 	p->runtime_info.runtime_state = DEBUG_RUNTIME_STATE_ENABLED;
