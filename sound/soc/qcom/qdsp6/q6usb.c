@@ -138,10 +138,11 @@ static int q6usb_audio_ports_of_xlate_dai_name(struct snd_soc_component *compone
 
 static int q6usb_get_pcm_id_from_widget(struct snd_soc_dapm_widget *w)
 {
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai *dai;
 
-	for_each_card_rtds(w->dapm->card, rtd) {
+	for_each_card_rtds(card, rtd) {
 		dai = snd_soc_rtd_to_cpu(rtd, 0);
 		/*
 		 * Only look for playback widget. RTD number carries the assigned
