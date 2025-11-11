@@ -2054,6 +2054,12 @@ static int smu_disable_dpms(struct smu_context *smu)
 	    smu->is_apu && (amdgpu_in_reset(adev) || adev->in_s0ix))
 		return 0;
 
+	/* vangogh s0ix */
+	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 5, 0) ||
+	     amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 5, 2)) &&
+	    adev->in_s0ix)
+		return 0;
+
 	/*
 	 * For gpu reset, runpm and hibernation through BACO,
 	 * BACO feature has to be kept enabled.
@@ -2796,6 +2802,17 @@ const struct amdgpu_ip_block_version smu_v14_0_ip_block = {
 	.rev = 0,
 	.funcs = &smu_ip_funcs,
 };
+
+const struct ras_smu_drv *smu_get_ras_smu_driver(void *handle)
+{
+	struct smu_context *smu = (struct smu_context *)handle;
+	const struct ras_smu_drv *tmp = NULL;
+	int ret;
+
+	ret = smu_get_ras_smu_drv(smu, &tmp);
+
+	return ret ? NULL : tmp;
+}
 
 static int smu_load_microcode(void *handle)
 {

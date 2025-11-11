@@ -46,5 +46,7 @@ void dmub_hw_lock_mgr_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
  * Return: true if the inbox1 lock should be used, false otherwise
  */
 bool should_use_dmub_inbox1_lock(const struct dc *dc, const struct dc_link *link);
+bool dmub_hw_lock_mgr_does_link_require_lock(const struct dc *dc, const struct dc_link *link);
+bool dmub_hw_lock_mgr_does_context_require_lock(const struct dc *dc, const struct dc_state *context);
 
 #endif /*_DMUB_HW_LOCK_MGR_H_ */

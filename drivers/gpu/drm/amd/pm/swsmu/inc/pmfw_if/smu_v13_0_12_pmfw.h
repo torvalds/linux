@@ -87,7 +87,7 @@ typedef enum {
 /*37*/  FEATURE_DVO                         = 37,
 /*38*/  FEATURE_XVMINORPSM_CLKSTOP_DS       = 38,
 /*39*/  FEATURE_GLOBAL_DPM                  = 39,
-/*40*/  FEATURE_NODE_POWER_MANAGER          = 40,
+/*40*/  FEATURE_HROM_EN                     = 40,
 
 /*41*/  NUM_FEATURES                        = 41
 } FEATURE_LIST_e;

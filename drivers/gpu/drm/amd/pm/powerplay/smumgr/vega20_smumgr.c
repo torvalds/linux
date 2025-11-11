@@ -192,7 +192,7 @@ static int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
 			return ret);
 
-	amdgpu_asic_invalidate_hdp(adev, NULL);
+	amdgpu_hdp_invalidate(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -223,7 +223,7 @@ static int vega20_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
 
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_hdp_flush(adev, NULL);
 
 	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
@@ -256,7 +256,7 @@ int vega20_set_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].table, table,
 			priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size);
 
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_hdp_flush(adev, NULL);
 
 	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
@@ -306,7 +306,7 @@ int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 			"[GetActivityMonitor] Attempt to Transfer Table From SMU Failed!",
 			return ret);
 
-	amdgpu_asic_invalidate_hdp(adev, NULL);
+	amdgpu_hdp_invalidate(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].table,
 			priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size);

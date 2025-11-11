@@ -66,7 +66,7 @@
 #define DMUB_SCRATCH_MEM_SIZE (1024)
 
 /* Default indirect buffer size. */
-#define DMUB_IB_MEM_SIZE (1280)
+#define DMUB_IB_MEM_SIZE (2560)
 
 /* Default LSDMA ring buffer size. */
 #define DMUB_LSDMA_RB_SIZE (64 * 1024)

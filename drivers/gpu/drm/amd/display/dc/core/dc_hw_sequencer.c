@@ -38,6 +38,7 @@
 #include "dccg.h"
 #include "abm.h"
 #include "dcn10/dcn10_hubbub.h"
+#include "dce/dmub_hw_lock_mgr.h"
 
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
 #define MAX_NUM_MCACHE 8
@@ -764,7 +765,9 @@ void hwss_build_fast_sequence(struct dc *dc,
 	if (dc->hwss.dmub_hw_control_lock_fast) {
 		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.dc = dc;
 		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.lock = true;
-		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.is_required = dc_state_is_fams2_in_use(dc, context);
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.is_required =
+			dc_state_is_fams2_in_use(dc, context) ||
+			dmub_hw_lock_mgr_does_link_require_lock(dc, stream->link);
 		block_sequence[*num_steps].func = DMUB_HW_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
