@@ -775,6 +775,7 @@ static int nau8810_pcm_hw_params(struct snd_pcm_substream *substream,
 static int nau8810_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct nau8810 *nau8810 = snd_soc_component_get_drvdata(component);
 	struct regmap *map = nau8810->regmap;
 
@@ -790,7 +791,7 @@ static int nau8810_set_bias_level(struct snd_soc_component *component,
 			NAU8810_IOBUF_EN | NAU8810_ABIAS_EN,
 			NAU8810_IOBUF_EN | NAU8810_ABIAS_EN);
 
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			regcache_sync(map);
 			regmap_update_bits(map, NAU8810_REG_POWER1,
 				NAU8810_REFIMP_MASK, NAU8810_REFIMP_3K);
