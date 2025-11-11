@@ -588,6 +588,7 @@ static void uda1380_pcm_shutdown(struct snd_pcm_substream *substream,
 static int uda1380_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int pm = uda1380_read_reg_cache(component, UDA1380_PM);
 	int reg;
 	struct uda1380_platform_data *pdata = component->dev->platform_data;
@@ -599,7 +600,7 @@ static int uda1380_set_bias_level(struct snd_soc_component *component,
 		uda1380_write(component, UDA1380_PM, R02_PON_BIAS | pm);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			if (gpio_is_valid(pdata->gpio_power)) {
 				gpio_set_value(pdata->gpio_power, 1);
 				mdelay(1);
