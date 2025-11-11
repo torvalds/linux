@@ -902,7 +902,7 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 										 &num, from, &out);
 			} while (from != NULL);
 		} else {
-			perf_stat__print_shadow_stats(config, counter, uval, aggr_idx, &out);
+			perf_stat__print_shadow_stats(config, counter, aggr_idx, &out);
 		}
 	} else {
 		pm(config, os, METRIC_THRESHOLD_UNKNOWN, /*format=*/NULL, /*unit=*/NULL, /*val=*/0);
@@ -1274,7 +1274,7 @@ static void print_metric_headers(struct perf_stat_config *config,
 
 		os.evsel = counter;
 
-		perf_stat__print_shadow_stats(config, counter, 0, 0, &out);
+		perf_stat__print_shadow_stats(config, counter, /*aggr_idx=*/0, &out);
 	}
 
 	if (!config->json_output)

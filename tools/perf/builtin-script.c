@@ -2371,7 +2371,6 @@ static void perf_sample__fprint_metric(struct thread *thread,
 	evlist__for_each_entry(evsel->evlist, pos) {
 		cpu_aggr_map__for_each_idx(aggr_idx, stat_config.aggr_map) {
 			perf_stat__print_shadow_stats(&stat_config, pos,
-						count->val,
 						aggr_idx,
 						&ctx);
 		}
