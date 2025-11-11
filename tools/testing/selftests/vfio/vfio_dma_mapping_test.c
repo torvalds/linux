@@ -3,6 +3,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <uapi/linux/types.h>
+#include <linux/iommufd.h>
 #include <linux/limits.h>
 #include <linux/mman.h>
 #include <linux/sizes.h>
@@ -219,7 +221,10 @@ FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES();
 FIXTURE_SETUP(vfio_dma_map_limit_test)
 {
 	struct vfio_dma_region *region = &self->region;
+	struct iommu_iova_range *ranges;
 	u64 region_size = getpagesize();
+	iova_t last_iova;
+	u32 nranges;
 
 	/*
 	 * Over-allocate mmap by double the size to provide enough backing vaddr
@@ -232,8 +237,13 @@ FIXTURE_SETUP(vfio_dma_map_limit_test)
 			     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	ASSERT_NE(region->vaddr, MAP_FAILED);
 
-	/* One page prior to the end of address space */
-	region->iova = ~(iova_t)0 & ~(region_size - 1);
+	ranges = vfio_pci_iova_ranges(self->device, &nranges);
+	VFIO_ASSERT_NOT_NULL(ranges);
+	last_iova = ranges[nranges - 1].last;
+	free(ranges);
+
+	/* One page prior to the last iova */
+	region->iova = last_iova & ~(region_size - 1);
 	region->size = region_size;
 }
 
@@ -276,6 +286,7 @@ TEST_F(vfio_dma_map_limit_test, overflow)
 	struct vfio_dma_region *region = &self->region;
 	int rc;
 
+	region->iova = ~(iova_t)0 & ~(region->size - 1);
 	region->size = self->mmap_size;
 
 	rc = __vfio_pci_dma_map(self->device, region);
