@@ -1283,6 +1283,7 @@ static enum evict_behavior evict_should_delete(struct inode *inode,
 static int evict_unlinked_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_glock *gl = ip->i_gl;
 	int ret;
 
 	if (S_ISDIR(inode->i_mode) &&
@@ -1317,8 +1318,8 @@ static int evict_unlinked_inode(struct inode *inode)
 	 */
 
 	ret = gfs2_dinode_dealloc(ip);
-	if (!ret && ip->i_gl)
-		gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
+	if (!ret && gl)
+		gfs2_inode_remember_delete(gl, ip->i_no_formal_ino);
 
 out:
 	return ret;
@@ -1362,18 +1363,19 @@ static int evict_linked_inode(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_glock *gl = ip->i_gl;
 	struct address_space *metamapping;
 	int ret;
 
-	gfs2_log_flush(sdp, ip->i_gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
+	gfs2_log_flush(sdp, gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
 		       GFS2_LFC_EVICT_INODE);
-	metamapping = gfs2_glock2aspace(ip->i_gl);
-	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags)) {
+	metamapping = gfs2_glock2aspace(gl);
+	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
 		filemap_fdatawrite(metamapping);
 		filemap_fdatawait(metamapping);
 	}
 	write_inode_now(inode, 1);
-	gfs2_ail_flush(ip->i_gl, 0);
+	gfs2_ail_flush(gl, 0);
 
 	ret = gfs2_truncate_inode_pages(inode);
 	if (ret)
