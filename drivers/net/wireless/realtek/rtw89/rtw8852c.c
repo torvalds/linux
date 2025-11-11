@@ -670,12 +670,16 @@ static void rtw8852c_phycap_parsing_thermal_trim(struct rtw89_dev *rtwdev,
 	}
 }
 
+#define __THM_MASK_SIGN BIT(0)
+#define __THM_MASK_3BITS GENMASK(3, 1)
+#define __THM_MASK_VAL8 BIT(4)
+
 static void rtw8852c_thermal_trim(struct rtw89_dev *rtwdev)
 {
-#define __thm_setting(raw)				\
-({							\
-	u8 __v = (raw);					\
-	((__v & 0x1) << 3) | ((__v & 0x1f) >> 1);	\
+#define __thm_setting(raw)						  \
+({									  \
+	u8 __v = (raw);							  \
+	((__v & __THM_MASK_SIGN) << 3) | ((__v & __THM_MASK_3BITS) >> 1); \
 })
 	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
 	u8 i, val;
@@ -2516,13 +2520,26 @@ static void rtw8852c_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 
 static u8 rtw8852c_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
 {
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	s8 comp = 0;
+	u8 val;
+
 	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
 	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x0);
 	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
 
 	fsleep(200);
 
-	return rtw89_read_rf(rtwdev, rf_path, RR_TM, RR_TM_VAL);
+	val = rtw89_read_rf(rtwdev, rf_path, RR_TM, RR_TM_VAL);
+
+	if (info->pg_thermal_trim) {
+		u8 trim = info->thermal_trim[rf_path];
+
+		if (trim & __THM_MASK_VAL8)
+			comp = 8 * (trim & __THM_MASK_SIGN ? -1 : 1);
+	}
+
+	return val + comp;
 }
 
 static void rtw8852c_btc_set_rfe(struct rtw89_dev *rtwdev)
