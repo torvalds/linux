@@ -953,8 +953,7 @@ static const DECLARE_TLV_DB_RANGE(max98397_spk_tlv,
 static int max98396_mux_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
 	struct max98396_priv *max98396 = snd_soc_component_get_drvdata(component);
 	int reg, val;
 
@@ -973,9 +972,8 @@ static int max98396_mux_get(struct snd_kcontrol *kcontrol,
 static int max98396_mux_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_dapm_kcontrol_component(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
 	struct max98396_priv *max98396 = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
@@ -1107,6 +1105,7 @@ static int max98396_adc_value_get(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct max98396_priv *max98396 = snd_soc_component_get_drvdata(component);
@@ -1115,7 +1114,7 @@ static int max98396_adc_value_get(struct snd_kcontrol *kcontrol,
 	int reg = mc->reg;
 
 	/* ADC value is not available if the device is powered down */
-	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
+	if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF)
 		goto exit;
 
 	if (max98396->device_id == CODEC_TYPE_MAX98397) {
