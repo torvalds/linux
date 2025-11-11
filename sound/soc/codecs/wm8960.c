@@ -488,7 +488,7 @@ static int wm8960_add_widgets(struct snd_soc_component *component)
 {
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
 	struct wm8960_data *pdata = &wm8960->pdata;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct snd_soc_dapm_widget *w;
 
 	snd_soc_dapm_new_controls(dapm, wm8960_dapm_widgets,
@@ -913,6 +913,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 				      enum snd_soc_bias_level level)
 {
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	u16 pm2 = snd_soc_component_read(component, WM8960_POWER2);
 	int ret;
 	ktime_t tout;
@@ -922,7 +923,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		switch (snd_soc_component_get_bias_level(component)) {
+		switch (snd_soc_dapm_get_bias_level(dapm)) {
 		case SND_SOC_BIAS_STANDBY:
 			if (!IS_ERR(wm8960->mclk)) {
 				ret = clk_prepare_enable(wm8960->mclk);
@@ -961,7 +962,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			/* ensure discharge is complete */
 			tout = WM8960_DSCH_TOUT - ktime_ms_delta(ktime_get(), wm8960->dsch_start);
 			if (tout > 0)
@@ -1009,6 +1010,7 @@ static int wm8960_set_bias_level_capless(struct snd_soc_component *component,
 					 enum snd_soc_bias_level level)
 {
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	u16 pm2 = snd_soc_component_read(component, WM8960_POWER2);
 	int reg, ret;
 
@@ -1017,7 +1019,7 @@ static int wm8960_set_bias_level_capless(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		switch (snd_soc_component_get_bias_level(component)) {
+		switch (snd_soc_dapm_get_bias_level(dapm)) {
 		case SND_SOC_BIAS_STANDBY:
 			/* Enable anti pop mode */
 			snd_soc_component_update_bits(component, WM8960_APOP1,
@@ -1100,7 +1102,7 @@ static int wm8960_set_bias_level_capless(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		switch (snd_soc_component_get_bias_level(component)) {
+		switch (snd_soc_dapm_get_bias_level(dapm)) {
 		case SND_SOC_BIAS_PREPARE:
 			/* Disable HP discharge */
 			snd_soc_component_update_bits(component, WM8960_APOP2,
