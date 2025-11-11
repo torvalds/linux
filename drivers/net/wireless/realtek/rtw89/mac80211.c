@@ -220,6 +220,8 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto unset_link;
 
+	rtwdev->pure_monitor_mode_vif = vif->type == NL80211_IFTYPE_MONITOR ?
+					rtwvif : NULL;
 	rtw89_recalc_lps(rtwdev);
 	return 0;
 
@@ -266,6 +268,8 @@ bottom:
 	list_del_init(&rtwvif->list);
 	rtw89_core_release_bit_map(rtwdev->hw_port, port);
 	rtw89_release_mac_id(rtwdev, macid);
+
+	rtwdev->pure_monitor_mode_vif = NULL;
 
 	rtw89_recalc_lps(rtwdev);
 	rtw89_enter_ips_by_hwflags(rtwdev);

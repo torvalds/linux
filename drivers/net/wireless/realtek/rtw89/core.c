@@ -470,6 +470,22 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	__rtw89_core_set_chip_txpwr(rtwdev, chan, RTW89_PHY_1);
 }
 
+static void rtw89_chip_rfk_channel_for_pure_mon_vif(struct rtw89_dev *rtwdev,
+						    enum rtw89_phy_idx phy_idx)
+{
+	struct rtw89_vif *rtwvif = rtwdev->pure_monitor_mode_vif;
+	struct rtw89_vif_link *rtwvif_link;
+
+	if (!rtwvif)
+		return;
+
+	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, phy_idx);
+	if (!rtwvif_link)
+		return;
+
+	rtw89_chip_rfk_channel(rtwdev, rtwvif_link);
+}
+
 static void __rtw89_set_channel(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
 				enum rtw89_mac_idx mac_idx,
@@ -498,6 +514,8 @@ static void __rtw89_set_channel(struct rtw89_dev *rtwdev,
 	}
 
 	rtw89_set_entity_state(rtwdev, phy_idx, true);
+
+	rtw89_chip_rfk_channel_for_pure_mon_vif(rtwdev, phy_idx);
 }
 
 int rtw89_set_channel(struct rtw89_dev *rtwdev)

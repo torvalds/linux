@@ -6125,6 +6125,7 @@ struct rtw89_dev {
 	int napi_budget_countdown;
 
 	struct rtw89_debugfs *debugfs;
+	struct rtw89_vif *pure_monitor_mode_vif;
 
 	/* HCI related data, keep last */
 	u8 priv[] __aligned(sizeof(void *));
