@@ -23,6 +23,11 @@ enum scx_consts {
 	 * scx_tasks_lock to avoid causing e.g. CSD and RCU stalls.
 	 */
 	SCX_TASK_ITER_BATCH		= 32,
+
+	SCX_BYPASS_LB_DFL_INTV_US	= 500 * USEC_PER_MSEC,
+	SCX_BYPASS_LB_DONOR_PCT		= 125,
+	SCX_BYPASS_LB_MIN_DELTA_DIV	= 4,
+	SCX_BYPASS_LB_BATCH		= 256,
 };
 
 enum scx_exit_kind {
@@ -963,6 +968,7 @@ enum scx_enq_flags {
 
 	SCX_ENQ_CLEAR_OPSS	= 1LLU << 56,
 	SCX_ENQ_DSQ_PRIQ	= 1LLU << 57,
+	SCX_ENQ_NESTED		= 1LLU << 58,
 };
 
 enum scx_deq_flags {
