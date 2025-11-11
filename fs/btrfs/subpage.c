@@ -180,7 +180,7 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 	/* Basic checks */
 	ASSERT(folio_test_private(folio) && folio_get_private(folio));
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
-	       IS_ALIGNED(len, fs_info->sectorsize));
+	       IS_ALIGNED(len, fs_info->sectorsize), "start=%llu len=%u", start, len);
 	/*
 	 * The range check only works for mapped page, we can still have
 	 * unmapped page like dummy extent buffer pages.
@@ -249,7 +249,9 @@ static bool btrfs_subpage_end_and_test_lock(const struct btrfs_fs_info *fs_info,
 		clear_bit(bit, bfs->bitmaps);
 		cleared++;
 	}
-	ASSERT(atomic_read(&bfs->nr_locked) >= cleared);
+	ASSERT(atomic_read(&bfs->nr_locked) >= cleared,
+	       "atomic_read(&bfs->nr_locked)=%d cleared=%d",
+	       atomic_read(&bfs->nr_locked), cleared);
 	last = atomic_sub_and_test(cleared, &bfs->nr_locked);
 	spin_unlock_irqrestore(&bfs->lock, flags);
 	return last;
@@ -328,7 +330,9 @@ void btrfs_folio_end_lock_bitmap(const struct btrfs_fs_info *fs_info,
 		if (test_and_clear_bit(bit + start_bit, bfs->bitmaps))
 			cleared++;
 	}
-	ASSERT(atomic_read(&bfs->nr_locked) >= cleared);
+	ASSERT(atomic_read(&bfs->nr_locked) >= cleared,
+	       "atomic_read(&bfs->nr_locked)=%d cleared=%d",
+	       atomic_read(&bfs->nr_locked), cleared);
 	last = atomic_sub_and_test(cleared, &bfs->nr_locked);
 	spin_unlock_irqrestore(&bfs->lock, flags);
 	if (last)

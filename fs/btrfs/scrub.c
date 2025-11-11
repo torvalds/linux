@@ -966,8 +966,9 @@ static void scrub_stripe_submit_repair_read(struct scrub_stripe *stripe,
 	const unsigned long old_error_bitmap = scrub_bitmap_read_error(stripe);
 	int i;
 
-	ASSERT(stripe->mirror_num >= 1);
-	ASSERT(atomic_read(&stripe->pending_io) == 0);
+	ASSERT(stripe->mirror_num >= 1, "stripe->mirror_num=%d", stripe->mirror_num);
+	ASSERT(atomic_read(&stripe->pending_io) == 0,
+	       "atomic_read(&stripe->pending_io)=%d", atomic_read(&stripe->pending_io));
 
 	for_each_set_bit(i, &old_error_bitmap, stripe->nr_sectors) {
 		/* The current sector cannot be merged, submit the bio. */
@@ -1030,7 +1031,7 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 		int ret;
 
 		/* For scrub, our mirror_num should always start at 1. */
-		ASSERT(stripe->mirror_num >= 1);
+		ASSERT(stripe->mirror_num >= 1, "stripe->mirror_num=%d", stripe->mirror_num);
 		ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
 				      stripe->logical, &mapped_len, &bioc,
 				      NULL, NULL);
@@ -1170,7 +1171,7 @@ static void scrub_stripe_read_repair_worker(struct work_struct *work)
 	int mirror;
 	int i;
 
-	ASSERT(stripe->mirror_num > 0);
+	ASSERT(stripe->mirror_num >= 1, "stripe->mirror_num=%d", stripe->mirror_num);
 
 	wait_scrub_stripe_io(stripe);
 	scrub_verify_one_stripe(stripe, scrub_bitmap_read_has_extent(stripe));
@@ -1486,7 +1487,7 @@ static int compare_extent_item_range(struct btrfs_path *path,
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 	ASSERT(key.type == BTRFS_EXTENT_ITEM_KEY ||
-	       key.type == BTRFS_METADATA_ITEM_KEY);
+	       key.type == BTRFS_METADATA_ITEM_KEY, "key.type=%u", key.type);
 	if (key.type == BTRFS_METADATA_ITEM_KEY)
 		len = fs_info->nodesize;
 	else
@@ -1591,7 +1592,7 @@ static void get_extent_info(struct btrfs_path *path, u64 *extent_start_ret,
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 	ASSERT(key.type == BTRFS_METADATA_ITEM_KEY ||
-	       key.type == BTRFS_EXTENT_ITEM_KEY);
+	       key.type == BTRFS_EXTENT_ITEM_KEY, "key.type=%u", key.type);
 	*extent_start_ret = key.objectid;
 	if (key.type == BTRFS_METADATA_ITEM_KEY)
 		*size_ret = path->nodes[0]->fs_info->nodesize;
@@ -1689,7 +1690,9 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 	scrub_stripe_reset_bitmaps(stripe);
 
 	/* The range must be inside the bg. */
-	ASSERT(logical_start >= bg->start && logical_end <= bg->start + bg->length);
+	ASSERT(logical_start >= bg->start && logical_end <= bg->start + bg->length,
+	       "bg->start=%llu logical_start=%llu logical_end=%llu end=%llu",
+	       bg->start, logical_start, logical_end, bg->start + bg->length);
 
 	ret = find_first_extent_item(extent_root, extent_path, logical_start,
 				     logical_len);

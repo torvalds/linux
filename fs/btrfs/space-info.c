@@ -211,7 +211,7 @@ static u64 calc_chunk_size(const struct btrfs_fs_info *fs_info, u64 flags)
 	if (btrfs_is_zoned(fs_info))
 		return fs_info->zone_size;
 
-	ASSERT(flags & BTRFS_BLOCK_GROUP_TYPE_MASK);
+	ASSERT(flags & BTRFS_BLOCK_GROUP_TYPE_MASK, "flags=%llu", flags);
 
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		return BTRFS_MAX_DATA_CHUNK_SIZE;
@@ -262,8 +262,9 @@ static int create_space_info_sub_group(struct btrfs_space_info *parent, u64 flag
 	struct btrfs_space_info *sub_group;
 	int ret;
 
-	ASSERT(parent->subgroup_id == BTRFS_SUB_GROUP_PRIMARY);
-	ASSERT(id != BTRFS_SUB_GROUP_PRIMARY);
+	ASSERT(parent->subgroup_id == BTRFS_SUB_GROUP_PRIMARY,
+	       "parent->subgroup_id=%d", parent->subgroup_id);
+	ASSERT(id != BTRFS_SUB_GROUP_PRIMARY, "id=%d", id);
 
 	sub_group = kzalloc(sizeof(*sub_group), GFP_NOFS);
 	if (!sub_group)
@@ -531,7 +532,9 @@ static void remove_ticket(struct btrfs_space_info *space_info,
 
 	if (!list_empty(&ticket->list)) {
 		list_del_init(&ticket->list);
-		ASSERT(space_info->reclaim_size >= ticket->bytes);
+		ASSERT(space_info->reclaim_size >= ticket->bytes,
+		       "space_info->reclaim_size=%llu ticket->bytes=%llu",
+		       space_info->reclaim_size, ticket->bytes);
 		space_info->reclaim_size -= ticket->bytes;
 	}
 
@@ -1671,7 +1674,7 @@ static int handle_reserve_ticket(struct btrfs_space_info *space_info,
 		priority_reclaim_data_space(space_info, ticket);
 		break;
 	default:
-		ASSERT(0);
+		ASSERT(0, "flush=%d", flush);
 		break;
 	}
 
@@ -1683,7 +1686,8 @@ static int handle_reserve_ticket(struct btrfs_space_info *space_info,
 	 * releasing reserved space (if an error happens the expectation is that
 	 * space wasn't reserved at all).
 	 */
-	ASSERT(!(ticket->bytes == 0 && ticket->error));
+	ASSERT(!(ticket->bytes == 0 && ticket->error),
+	       "ticket->bytes=%llu ticket->error=%d", ticket->bytes, ticket->error);
 	trace_btrfs_reserve_ticket(space_info->fs_info, space_info->flags,
 				   orig_bytes, start_ns, flush, ticket->error);
 	return ret;
@@ -1758,7 +1762,7 @@ static int reserve_bytes(struct btrfs_space_info *space_info, u64 orig_bytes,
 	int ret = -ENOSPC;
 	bool pending_tickets;
 
-	ASSERT(orig_bytes);
+	ASSERT(orig_bytes, "orig_bytes=%llu", orig_bytes);
 	/*
 	 * If have a transaction handle (current->journal_info != NULL), then
 	 * the flush method can not be neither BTRFS_RESERVE_FLUSH_ALL* nor
@@ -1767,9 +1771,9 @@ static int reserve_bytes(struct btrfs_space_info *space_info, u64 orig_bytes,
 	 */
 	if (current->journal_info) {
 		/* One assert per line for easier debugging. */
-		ASSERT(flush != BTRFS_RESERVE_FLUSH_ALL);
-		ASSERT(flush != BTRFS_RESERVE_FLUSH_ALL_STEAL);
-		ASSERT(flush != BTRFS_RESERVE_FLUSH_EVICT);
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_ALL, "flush=%d", flush);
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_ALL_STEAL, "flush=%d", flush);
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_EVICT, "flush=%d", flush);
 	}
 
 	if (flush == BTRFS_RESERVE_FLUSH_DATA)
@@ -1930,8 +1934,10 @@ int btrfs_reserve_data_bytes(struct btrfs_space_info *space_info, u64 bytes,
 
 	ASSERT(flush == BTRFS_RESERVE_FLUSH_DATA ||
 	       flush == BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE ||
-	       flush == BTRFS_RESERVE_NO_FLUSH);
-	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_DATA);
+	       flush == BTRFS_RESERVE_NO_FLUSH, "flush=%d", flush);
+	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_DATA,
+	       "current->journal_info=0x%lx flush=%d",
+	       (unsigned long)current->journal_info, flush);
 
 	ret = reserve_bytes(space_info, bytes, flush);
 	if (ret == -ENOSPC) {
