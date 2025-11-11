@@ -27,8 +27,7 @@ static const struct snd_kcontrol_new card_controls[] = {
 static int
 avs_rt274_clock_control(struct snd_soc_dapm_widget *w, struct snd_kcontrol *control, int event)
 {
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
@@ -93,6 +92,7 @@ static int avs_rt274_codec_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_jack_pin *pins;
 	struct snd_soc_jack *jack;
 	struct snd_soc_card *card = runtime->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int num_pins, ret;
 
 	jack = snd_soc_card_get_drvdata(card);
@@ -117,7 +117,7 @@ static int avs_rt274_codec_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	card->dapm.idle_bias = false;
+	snd_soc_dapm_set_idle_bias(dapm, false);
 
 	return 0;
 }
