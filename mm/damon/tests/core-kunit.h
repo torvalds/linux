@@ -660,6 +660,38 @@ static void damos_test_commit_quota_goals(struct kunit *test)
 			(struct damos_quota_goal[]){}, 0);
 }
 
+static void damos_test_commit_quota(struct kunit *test)
+{
+	struct damos_quota dst = {
+		.reset_interval = 1,
+		.ms = 2,
+		.sz = 3,
+		.weight_sz = 4,
+		.weight_nr_accesses = 5,
+		.weight_age = 6,
+	};
+	struct damos_quota src = {
+		.reset_interval = 7,
+		.ms = 8,
+		.sz = 9,
+		.weight_sz = 10,
+		.weight_nr_accesses = 11,
+		.weight_age = 12,
+	};
+
+	INIT_LIST_HEAD(&dst.goals);
+	INIT_LIST_HEAD(&src.goals);
+
+	damos_commit_quota(&dst, &src);
+
+	KUNIT_EXPECT_EQ(test, dst.reset_interval, src.reset_interval);
+	KUNIT_EXPECT_EQ(test, dst.ms, src.ms);
+	KUNIT_EXPECT_EQ(test, dst.sz, src.sz);
+	KUNIT_EXPECT_EQ(test, dst.weight_sz, src.weight_sz);
+	KUNIT_EXPECT_EQ(test, dst.weight_nr_accesses, src.weight_nr_accesses);
+	KUNIT_EXPECT_EQ(test, dst.weight_age, src.weight_age);
+}
+
 static void damos_test_commit_filter_for(struct kunit *test,
 		struct damos_filter *dst, struct damos_filter *src)
 {
@@ -947,6 +979,7 @@ static struct kunit_case damon_test_cases[] = {
 	KUNIT_CASE(damos_test_new_filter),
 	KUNIT_CASE(damos_test_commit_quota_goal),
 	KUNIT_CASE(damos_test_commit_quota_goals),
+	KUNIT_CASE(damos_test_commit_quota),
 	KUNIT_CASE(damos_test_commit_filter),
 	KUNIT_CASE(damos_test_filter_out),
 	KUNIT_CASE(damon_test_feed_loop_next_input),
