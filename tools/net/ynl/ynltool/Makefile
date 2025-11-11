@@ -49,7 +49,7 @@ distclean: clean
 bindir ?= /usr/bin
 
 install: $(YNLTOOL)
-	install -m 0755 $(YNLTOOL) $(DESTDIR)$(bindir)/$(YNLTOOL)
+	$(INSTALL) -m 0755 $(YNLTOOL) $(DESTDIR)$(bindir)/$(YNLTOOL)
 
 .PHONY: all clean distclean
 .DEFAULT_GOAL=all
