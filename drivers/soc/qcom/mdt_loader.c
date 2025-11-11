@@ -332,10 +332,22 @@ static bool qcom_mdt_bins_are_split(const struct firmware *fw)
 	return false;
 }
 
-static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
-			   const char *fw_name, void *mem_region,
-			   phys_addr_t mem_phys, size_t mem_size,
-			   phys_addr_t *reloc_base)
+/**
+ * qcom_mdt_load_no_init() - load the firmware which header is loaded as fw
+ * @dev:	device handle to associate resources with
+ * @fw:		firmware object for the mdt file
+ * @fw_name:	name of the firmware, for construction of segment file names
+ * @mem_region:	allocated memory region to load firmware into
+ * @mem_phys:	physical address of allocated memory region
+ * @mem_size:	size of the allocated memory region
+ * @reloc_base:	adjusted physical address after relocation
+ *
+ * Returns 0 on success, negative errno otherwise.
+ */
+int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
+			  const char *fw_name, void *mem_region,
+			  phys_addr_t mem_phys, size_t mem_size,
+			  phys_addr_t *reloc_base)
 {
 	const struct elf32_phdr *phdrs;
 	const struct elf32_phdr *phdr;
@@ -435,6 +447,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(qcom_mdt_load_no_init);
 
 /**
  * qcom_mdt_load() - load the firmware which header is loaded as fw
@@ -460,31 +473,10 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	if (ret)
 		return ret;
 
-	return __qcom_mdt_load(dev, fw, firmware, mem_region, mem_phys,
-			       mem_size, reloc_base);
+	return qcom_mdt_load_no_init(dev, fw, firmware, mem_region, mem_phys,
+				     mem_size, reloc_base);
 }
 EXPORT_SYMBOL_GPL(qcom_mdt_load);
-
-/**
- * qcom_mdt_load_no_init() - load the firmware which header is loaded as fw
- * @dev:	device handle to associate resources with
- * @fw:		firmware object for the mdt file
- * @firmware:	name of the firmware, for construction of segment file names
- * @mem_region:	allocated memory region to load firmware into
- * @mem_phys:	physical address of allocated memory region
- * @mem_size:	size of the allocated memory region
- * @reloc_base:	adjusted physical address after relocation
- *
- * Returns 0 on success, negative errno otherwise.
- */
-int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
-			  const char *firmware, void *mem_region, phys_addr_t mem_phys,
-			  size_t mem_size, phys_addr_t *reloc_base)
-{
-	return __qcom_mdt_load(dev, fw, firmware, mem_region, mem_phys,
-			       mem_size, reloc_base);
-}
-EXPORT_SYMBOL_GPL(qcom_mdt_load_no_init);
 
 MODULE_DESCRIPTION("Firmware parser for Qualcomm MDT format");
 MODULE_LICENSE("GPL v2");
