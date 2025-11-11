@@ -1040,14 +1040,9 @@ static const struct stmmac_ops sun8i_dwmac_ops = {
 	.set_mac_loopback = sun8i_dwmac_set_mac_loopback,
 };
 
-static struct mac_device_info *sun8i_dwmac_setup(void *ppriv)
+static int sun8i_dwmac_setup(void *ppriv, struct mac_device_info *mac)
 {
-	struct mac_device_info *mac;
 	struct stmmac_priv *priv = ppriv;
-
-	mac = devm_kzalloc(priv->device, sizeof(*mac), GFP_KERNEL);
-	if (!mac)
-		return NULL;
 
 	mac->pcsr = priv->ioaddr;
 	mac->mac = &sun8i_dwmac_ops;
@@ -1079,7 +1074,7 @@ static struct mac_device_info *sun8i_dwmac_setup(void *ppriv)
 	/* Synopsys Id is not available */
 	priv->synopsys_id = 0;
 
-	return mac;
+	return 0;
 }
 
 static struct regmap *sun8i_dwmac_get_syscon_from_dev(struct device_node *node)
@@ -1192,7 +1187,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	plat_dat->bsp_priv = gmac;
 	plat_dat->init = sun8i_dwmac_init;
 	plat_dat->exit = sun8i_dwmac_exit;
-	plat_dat->setup = sun8i_dwmac_setup;
+	plat_dat->mac_setup = sun8i_dwmac_setup;
 	plat_dat->tx_fifo_size = 4096;
 	plat_dat->rx_fifo_size = 16384;
 

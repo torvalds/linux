@@ -320,10 +320,9 @@ static int loongson_dwmac_dma_interrupt(struct stmmac_priv *priv,
 	return ret;
 }
 
-static struct mac_device_info *loongson_dwmac_setup(void *apriv)
+static int loongson_dwmac_setup(void *apriv, struct mac_device_info *mac)
 {
 	struct stmmac_priv *priv = apriv;
-	struct mac_device_info *mac;
 	struct stmmac_dma_ops *dma;
 	struct loongson_data *ld;
 	struct pci_dev *pdev;
@@ -331,13 +330,9 @@ static struct mac_device_info *loongson_dwmac_setup(void *apriv)
 	ld = priv->plat->bsp_priv;
 	pdev = to_pci_dev(priv->device);
 
-	mac = devm_kzalloc(priv->device, sizeof(*mac), GFP_KERNEL);
-	if (!mac)
-		return NULL;
-
 	dma = devm_kzalloc(priv->device, sizeof(*dma), GFP_KERNEL);
 	if (!dma)
-		return NULL;
+		return -ENOMEM;
 
 	/* The Loongson GMAC and GNET devices are based on the DW GMAC
 	 * v3.50a and v3.73a IP-cores. But the HW designers have changed
@@ -396,7 +391,7 @@ static struct mac_device_info *loongson_dwmac_setup(void *apriv)
 	mac->mii.clk_csr_shift = 2;
 	mac->mii.clk_csr_mask = GENMASK(5, 2);
 
-	return mac;
+	return 0;
 }
 
 static int loongson_dwmac_msi_config(struct pci_dev *pdev,
@@ -598,7 +593,7 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 		goto err_disable_device;
 
 	plat->bsp_priv = ld;
-	plat->setup = loongson_dwmac_setup;
+	plat->mac_setup = loongson_dwmac_setup;
 	plat->fix_soc_reset = loongson_dwmac_fix_reset;
 	plat->suspend = loongson_dwmac_suspend;
 	plat->resume = loongson_dwmac_resume;
