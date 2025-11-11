@@ -353,9 +353,10 @@ struct ns_common *ns_tree_lookup_rcu(u64 ns_id, int ns_type)
 }
 
 /**
- * ns_tree_adjoined_rcu - find the next/previous namespace in the same
+ * __ns_tree_adjoined_rcu - find the next/previous namespace in the same
  * tree
  * @ns: namespace to start from
+ * @ns_tree: namespace tree to search in
  * @previous: if true find the previous namespace, otherwise the next
  *
  * Find the next or previous namespace in the same tree as @ns. If
@@ -379,7 +380,7 @@ struct ns_common *__ns_tree_adjoined_rcu(struct ns_common *ns,
 }
 
 /**
- * ns_tree_gen_id - generate a new namespace id
+ * __ns_tree_gen_id - generate a new namespace id
  * @ns: namespace to generate id for
  * @id: if non-zero, this is the initial namespace and this is a fixed id
  *
