@@ -962,8 +962,8 @@ int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_get_calibration, "SND_SOC_CS35L56_SHARED");
 
-static int cs35l56_stash_calibration(struct cs35l56_base *cs35l56_base,
-				     const struct cirrus_amp_cal_data *data)
+int cs35l56_stash_calibration(struct cs35l56_base *cs35l56_base,
+			      const struct cirrus_amp_cal_data *data)
 {
 
 	/* Ignore if it is empty */
@@ -980,6 +980,7 @@ static int cs35l56_stash_calibration(struct cs35l56_base *cs35l56_base,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(cs35l56_stash_calibration, "SND_SOC_CS35L56_SHARED");
 
 static int cs35l56_perform_calibration(struct cs35l56_base *cs35l56_base)
 {

@@ -388,6 +388,8 @@ int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base);
 int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_soundwire);
 void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base);
+int cs35l56_stash_calibration(struct cs35l56_base *cs35l56_base,
+			      const struct cirrus_amp_cal_data *data);
 ssize_t cs35l56_calibrate_debugfs_write(struct cs35l56_base *cs35l56_base,
 					const char __user *from, size_t count,
 					loff_t *ppos);
