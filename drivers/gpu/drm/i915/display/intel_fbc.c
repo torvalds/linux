@@ -1521,6 +1521,16 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		return 0;
 	}
 
+	/*
+	 * Wa_15018326506:
+	 * Fixes: Underrun during media decode
+	 * Workaround: Do not enable FBC
+	 */
+	if (intel_display_wa(display, 15018326506)) {
+		plane_state->no_fbc_reason = "Wa_15018326506";
+		return 0;
+	}
+
 	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
 	if (intel_display_vtd_active(display) &&
 	    (display->platform.skylake || display->platform.broxton)) {
