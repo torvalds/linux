@@ -1143,8 +1143,8 @@ static int audioreach_get_audio_mixer(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
-	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *c = snd_soc_dapm_to_component(dapm);
 	struct snd_ar_control *dapm_scontrol = dw->dobj.private;
 	struct snd_ar_control *scontrol = mc->dobj.private;
@@ -1164,8 +1164,8 @@ static int audioreach_put_audio_mixer(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
-	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *c = snd_soc_dapm_to_component(dapm);
 	struct snd_ar_control *dapm_scontrol = dw->dobj.private;
 	struct snd_ar_control *scontrol = mc->dobj.private;
@@ -1184,7 +1184,7 @@ static int audioreach_put_audio_mixer(struct snd_kcontrol *kcontrol,
 static int audioreach_get_vol_ctrl_audio_mixer(struct snd_kcontrol *kcontrol,
 					       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct audioreach_module *mod = dw->dobj.private;
 
 	ucontrol->value.integer.value[0] = mod->gain;
@@ -1195,7 +1195,7 @@ static int audioreach_get_vol_ctrl_audio_mixer(struct snd_kcontrol *kcontrol,
 static int audioreach_put_vol_ctrl_audio_mixer(struct snd_kcontrol *kcontrol,
 					       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct audioreach_module *mod = dw->dobj.private;
 
 	mod->gain = ucontrol->value.integer.value[0];
