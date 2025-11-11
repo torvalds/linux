@@ -131,7 +131,7 @@ static int cs530x_put_volsw_vu(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct cs530x_priv *cs530x = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = cs530x->regmap;
 	int ret;
@@ -522,7 +522,7 @@ static const struct snd_soc_dapm_route adc_ch5_8_routes[] = {
 
 static void cs530x_add_12_adc_widgets(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_add_component_controls(component,
 				       cs530x_in_1_to_2_controls,
@@ -537,7 +537,7 @@ static void cs530x_add_12_adc_widgets(struct snd_soc_component *component)
 
 static void cs530x_add_34_adc_widgets(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_add_component_controls(component,
 				       cs530x_in_3_to_4_controls,
@@ -669,7 +669,7 @@ static const struct snd_soc_dapm_route dac_ch5_8_routes[] = {
 
 static void cs530x_add_12_dac_widgets(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_add_component_controls(component,
 				       cs530x_out_1_to_2_controls,
@@ -684,7 +684,7 @@ static void cs530x_add_12_dac_widgets(struct snd_soc_component *component)
 
 static void cs530x_add_34_dac_widgets(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_add_component_controls(component,
 				       cs530x_out_3_to_4_controls,
@@ -1007,7 +1007,7 @@ static int cs530x_set_pll(struct snd_soc_component *component, int pll_id,
 static int cs530x_component_probe(struct snd_soc_component *component)
 {
 	struct cs530x_priv *cs530x = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int num_widgets;
 
 	snd_soc_dapm_new_controls(dapm, cs530x_gen_dapm_widgets,
