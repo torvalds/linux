@@ -491,9 +491,10 @@ static int rt1015_bypass_boost_get(struct snd_kcontrol *kcontrol,
 static void rt1015_calibrate(struct rt1015_priv *rt1015)
 {
 	struct snd_soc_component *component = rt1015->component;
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct regmap *regmap = rt1015->regmap;
 
-	snd_soc_dapm_mutex_lock(&component->dapm);
+	snd_soc_dapm_mutex_lock(dapm);
 	regcache_cache_bypass(regmap, true);
 
 	regmap_write(regmap, RT1015_CLK_DET, 0x0000);
@@ -515,7 +516,7 @@ static void rt1015_calibrate(struct rt1015_priv *rt1015)
 	regcache_cache_bypass(regmap, false);
 	regcache_mark_dirty(regmap);
 	regcache_sync(regmap);
-	snd_soc_dapm_mutex_unlock(&component->dapm);
+	snd_soc_dapm_mutex_unlock(dapm);
 }
 
 static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
