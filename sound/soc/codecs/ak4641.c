@@ -415,6 +415,7 @@ static int ak4641_mute(struct snd_soc_dai *dai, int mute, int direction)
 static int ak4641_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct ak4641_priv *ak4641 = snd_soc_component_get_drvdata(component);
 	struct ak4641_platform_data *pdata = component->dev->platform_data;
 	int ret;
@@ -429,7 +430,7 @@ static int ak4641_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component, AK4641_DAC, 0x20, 0x20);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			if (pdata && gpio_is_valid(pdata->gpio_power))
 				gpio_set_value(pdata->gpio_power, 1);
 			mdelay(1);
