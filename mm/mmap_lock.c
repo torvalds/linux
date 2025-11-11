@@ -241,6 +241,7 @@ retry:
 		if (PTR_ERR(vma) == -EAGAIN) {
 			count_vm_vma_lock_event(VMA_LOCK_MISS);
 			/* The area was replaced with another one */
+			mas_set(&mas, address);
 			goto retry;
 		}
 
