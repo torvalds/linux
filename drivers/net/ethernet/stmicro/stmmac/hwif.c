@@ -103,12 +103,10 @@ static int stmmac_dwxlgmac_quirks(struct stmmac_priv *priv)
 	return 0;
 }
 
-int stmmac_reset(struct stmmac_priv *priv, void __iomem *ioaddr)
+int stmmac_reset(struct stmmac_priv *priv)
 {
-	struct plat_stmmacenet_data *plat = priv ? priv->plat : NULL;
-
-	if (!priv)
-		return -EINVAL;
+	struct plat_stmmacenet_data *plat = priv->plat;
+	void __iomem *ioaddr = priv->ioaddr;
 
 	if (plat && plat->fix_soc_reset)
 		return plat->fix_soc_reset(priv, ioaddr);

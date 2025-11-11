@@ -698,7 +698,7 @@ extern const struct stmmac_tc_ops dwmac510_tc_ops;
 #define GMAC_VERSION		0x00000020	/* GMAC CORE Version */
 #define GMAC4_VERSION		0x00000110	/* GMAC4+ CORE Version */
 
-int stmmac_reset(struct stmmac_priv *priv, void __iomem *ioaddr);
+int stmmac_reset(struct stmmac_priv *priv);
 int stmmac_hwif_init(struct stmmac_priv *priv);
 
 #endif /* __STMMAC_HWIF_H__ */

@@ -3162,7 +3162,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	if (ret)
 		return ret;
 
-	ret = stmmac_reset(priv, priv->ioaddr);
+	ret = stmmac_reset(priv);
 	if (ret) {
 		netdev_err(priv->dev, "Failed to reset the dma\n");
 		return ret;
