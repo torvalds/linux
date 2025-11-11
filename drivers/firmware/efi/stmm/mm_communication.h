@@ -32,7 +32,7 @@
 
 /**
  * struct efi_mm_communicate_header - Header used for SMM variable communication
-
+ *
  * @header_guid:  header use for disambiguation of content
  * @message_len:  length of the message. Does not include the size of the
  *                header
@@ -111,7 +111,7 @@ struct efi_mm_communicate_header {
 
 /**
  * struct smm_variable_communicate_header - Used for SMM variable communication
-
+ *
  * @function:     function to call in Smm.
  * @ret_status:   return status
  * @data:         payload
@@ -128,7 +128,7 @@ struct smm_variable_communicate_header {
 /**
  * struct smm_variable_access - Used to communicate with StMM by
  *                              SetVariable and GetVariable.
-
+ *
  * @guid:         vendor GUID
  * @data_size:    size of EFI variable data
  * @name_size:    size of EFI name
