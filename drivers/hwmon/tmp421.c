@@ -250,7 +250,6 @@ static umode_t tmp421_is_visible(const void *data, enum hwmon_sensor_types type,
 	switch (attr) {
 	case hwmon_temp_fault:
 	case hwmon_temp_input:
-		return 0444;
 	case hwmon_temp_label:
 		return 0444;
 	case hwmon_temp_enable:
