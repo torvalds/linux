@@ -134,7 +134,7 @@ dmub_get_fw_meta_info_from_blob(const uint8_t *blob, uint32_t blob_size, uint32_
 }
 
 static const struct dmub_fw_meta_info *
-dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
+dmub_get_fw_meta_info(const struct dmub_srv_fw_meta_info_params *params)
 {
 	const struct dmub_fw_meta_info *info = NULL;
 
@@ -157,6 +157,46 @@ dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
 	}
 
 	return info;
+}
+
+enum dmub_status
+dmub_srv_get_fw_meta_info_from_raw_fw(struct dmub_srv_fw_meta_info_params *params,
+				      struct dmub_fw_meta_info *fw_info_out)
+{
+	const struct dmub_fw_meta_info *fw_info = NULL;
+	uint32_t inst_const_size_temp = params->inst_const_size;
+
+	/* First try custom psp footer size, if present */
+	if (params->custom_psp_footer_size) {
+		params->inst_const_size -= params->custom_psp_footer_size;
+		fw_info = dmub_get_fw_meta_info(params);
+		if (fw_info) {
+			memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+			return DMUB_STATUS_OK;
+		}
+		params->inst_const_size = inst_const_size_temp;
+	}
+
+	/* Try 256-byte psp footer size */
+	params->inst_const_size -= PSP_FOOTER_BYTES_256;
+	fw_info = dmub_get_fw_meta_info(params);
+	if (fw_info) {
+		memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+		return DMUB_STATUS_OK;
+	}
+
+	/* Try 512-byte psp footer size - final attempt */
+	params->inst_const_size -= PSP_FOOTER_BYTES_256; // 256 bytes already subtracted, subtract 256 again
+	fw_info = dmub_get_fw_meta_info(params);
+	if (fw_info) {
+		memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+		return DMUB_STATUS_OK;
+	}
+
+	/* Restore original inst_const_size and subtract default PSP footer size - default behaviour */
+	params->inst_const_size = inst_const_size_temp - PSP_FOOTER_BYTES_256;
+
+	return DMUB_STATUS_INVALID;
 }
 
 static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
@@ -524,7 +564,6 @@ enum dmub_status
 		const struct dmub_srv_region_params *params,
 		struct dmub_srv_region_info *out)
 {
-	const struct dmub_fw_meta_info *fw_info;
 	uint32_t fw_state_size = DMUB_FW_STATE_SIZE;
 	uint32_t trace_buffer_size = DMUB_TRACE_BUFFER_SIZE;
 	uint32_t shared_state_size = DMUB_FW_HEADER_SHARED_STATE_SIZE;
@@ -538,14 +577,12 @@ enum dmub_status
 
 	out->num_regions = DMUB_NUM_WINDOWS;
 
-	fw_info = dmub_get_fw_meta_info(params);
+	if (params->fw_info) {
+		memcpy(&dmub->meta_info, params->fw_info, sizeof(*params->fw_info));
 
-	if (fw_info) {
-		memcpy(&dmub->meta_info, fw_info, sizeof(*fw_info));
-
-		fw_state_size = fw_info->fw_region_size;
-		trace_buffer_size = fw_info->trace_buffer_size;
-		shared_state_size = fw_info->shared_state_size;
+		fw_state_size = params->fw_info->fw_region_size;
+		trace_buffer_size = params->fw_info->trace_buffer_size;
+		shared_state_size = params->fw_info->shared_state_size;
 
 		/**
 		 * If DM didn't fill in a version, then fill it in based on
@@ -555,7 +592,7 @@ enum dmub_status
 		 * pass during creation.
 		 */
 		if (dmub->fw_version == 0)
-			dmub->fw_version = fw_info->fw_version;
+			dmub->fw_version = params->fw_info->fw_version;
 	}
 
 	window_sizes[DMUB_WINDOW_0_INST_CONST] = params->inst_const_size;

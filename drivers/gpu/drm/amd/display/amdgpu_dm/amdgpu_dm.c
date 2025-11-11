@@ -152,12 +152,6 @@ MODULE_FIRMWARE(FIRMWARE_DCN_36_DMUB);
 #define FIRMWARE_DCN_401_DMUB "amdgpu/dcn_4_0_1_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_DCN_401_DMUB);
 
-/* Number of bytes in PSP header for firmware. */
-#define PSP_HEADER_BYTES 0x100
-
-/* Number of bytes in PSP footer for firmware. */
-#define PSP_FOOTER_BYTES 0x100
-
 /**
  * DOC: overview
  *
@@ -1298,15 +1292,14 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 
 	fw_inst_const = dmub_fw->data +
 			le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
-			PSP_HEADER_BYTES;
+			PSP_HEADER_BYTES_256;
 
 	fw_bss_data = dmub_fw->data +
 		      le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
 		      le32_to_cpu(hdr->inst_const_bytes);
 
 	/* Copy firmware and bios info into FB memory. */
-	fw_inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
-			     PSP_HEADER_BYTES - PSP_FOOTER_BYTES;
+	fw_inst_const_size = adev->dm.fw_inst_size;
 
 	fw_bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
 
@@ -2437,9 +2430,11 @@ static void amdgpu_dm_dmub_reg_write(void *ctx, uint32_t address,
 static int dm_dmub_sw_init(struct amdgpu_device *adev)
 {
 	struct dmub_srv_create_params create_params;
+	struct dmub_srv_fw_meta_info_params fw_meta_info_params;
 	struct dmub_srv_region_params region_params;
 	struct dmub_srv_region_info region_info;
 	struct dmub_srv_memory_params memory_params;
+	struct dmub_fw_meta_info fw_info;
 	struct dmub_srv_fb_info *fb_info;
 	struct dmub_srv *dmub_srv;
 	const struct dmcub_firmware_header_v1_0 *hdr;
@@ -2547,22 +2542,37 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	/* Extract the FW meta info. */
+	memset(&fw_meta_info_params, 0, sizeof(fw_meta_info_params));
+
+	fw_meta_info_params.inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
+					      PSP_HEADER_BYTES_256;
+	fw_meta_info_params.bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
+	fw_meta_info_params.fw_inst_const = adev->dm.dmub_fw->data +
+					    le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
+					    PSP_HEADER_BYTES_256;
+	fw_meta_info_params.fw_bss_data = region_params.bss_data_size ? adev->dm.dmub_fw->data +
+					  le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
+					  le32_to_cpu(hdr->inst_const_bytes) : NULL;
+	fw_meta_info_params.custom_psp_footer_size = 0;
+
+	status = dmub_srv_get_fw_meta_info_from_raw_fw(&fw_meta_info_params, &fw_info);
+	if (status != DMUB_STATUS_OK) {
+		/* Skip returning early, just log the error. */
+		drm_err(adev_to_drm(adev), "Error getting DMUB FW meta info: %d\n", status);
+		// return -EINVAL;
+	}
+
 	/* Calculate the size of all the regions for the DMUB service. */
 	memset(&region_params, 0, sizeof(region_params));
 
-	region_params.inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
-					PSP_HEADER_BYTES - PSP_FOOTER_BYTES;
-	region_params.bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
+	region_params.inst_const_size = fw_meta_info_params.inst_const_size;
+	region_params.bss_data_size = fw_meta_info_params.bss_data_size;
 	region_params.vbios_size = adev->bios_size;
-	region_params.fw_bss_data = region_params.bss_data_size ?
-		adev->dm.dmub_fw->data +
-		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
-		le32_to_cpu(hdr->inst_const_bytes) : NULL;
-	region_params.fw_inst_const =
-		adev->dm.dmub_fw->data +
-		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
-		PSP_HEADER_BYTES;
+	region_params.fw_bss_data = fw_meta_info_params.fw_bss_data;
+	region_params.fw_inst_const = fw_meta_info_params.fw_inst_const;
 	region_params.window_memory_type = window_memory_type;
+	region_params.fw_info = (status == DMUB_STATUS_OK) ? &fw_info : NULL;
 
 	status = dmub_srv_calc_region_info(dmub_srv, &region_params,
 					   &region_info);
@@ -2609,6 +2619,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	}
 
 	adev->dm.bb_from_dmub = dm_dmub_get_vbios_bounding_box(adev);
+	adev->dm.fw_inst_size = fw_meta_info_params.inst_const_size;
 
 	return 0;
 }

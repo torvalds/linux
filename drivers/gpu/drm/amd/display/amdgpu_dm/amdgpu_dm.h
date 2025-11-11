@@ -414,6 +414,13 @@ struct amdgpu_display_manager {
 	uint32_t dmcub_fw_version;
 
 	/**
+	 * @fw_inst_size:
+	 *
+	 * Size of the firmware instruction buffer.
+	 */
+	uint32_t fw_inst_size;
+
+	/**
 	 * @cgs_device:
 	 *
 	 * The Common Graphics Services device. It provides an interface for
