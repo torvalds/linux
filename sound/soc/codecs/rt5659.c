@@ -1213,7 +1213,7 @@ static int rt5659_hp_vol_put(struct snd_kcontrol *kcontrol,
 static void rt5659_enable_push_button_irq(struct snd_soc_component *component,
 	bool enable)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	if (enable) {
 		snd_soc_component_write(component, RT5659_4BTN_IL_CMD_1, 0x000b);
@@ -1257,7 +1257,7 @@ static void rt5659_enable_push_button_irq(struct snd_soc_component *component,
 
 static int rt5659_headset_detect(struct snd_soc_component *component, int jack_insert)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int val, i = 0, sleep_time[5] = {300, 150, 100, 50, 30};
 	int reg_63;
 
@@ -3611,7 +3611,7 @@ static int rt5659_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 static int rt5659_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct rt5659_priv *rt5659 = snd_soc_component_get_drvdata(component);
 	int ret;
 
@@ -3631,7 +3631,7 @@ static int rt5659_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (dapm->bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			ret = clk_prepare_enable(rt5659->mclk);
 			if (ret) {
 				dev_err(component->dev,
@@ -3662,8 +3662,7 @@ static int rt5659_set_bias_level(struct snd_soc_component *component,
 
 static int rt5659_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct rt5659_priv *rt5659 = snd_soc_component_get_drvdata(component);
 
 	rt5659->component = component;
