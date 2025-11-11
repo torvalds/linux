@@ -696,6 +696,11 @@ struct hubp_program_mcache_id_and_split_coordinate_params {
 	struct mcache_regs_struct *mcache_regs;
 };
 
+struct abort_cursor_offload_update_params {
+	struct dc *dc;
+	struct pipe_ctx *pipe_ctx;
+};
+
 struct set_cursor_attribute_params {
 	struct dc *dc;
 	struct pipe_ctx *pipe_ctx;
@@ -842,6 +847,7 @@ union block_sequence_params {
 	struct mpc_insert_plane_params mpc_insert_plane_params;
 	struct dpp_set_scaler_params dpp_set_scaler_params;
 	struct hubp_mem_program_viewport_params hubp_mem_program_viewport_params;
+	struct abort_cursor_offload_update_params abort_cursor_offload_update_params;
 	struct set_cursor_attribute_params set_cursor_attribute_params;
 	struct set_cursor_position_params set_cursor_position_params;
 	struct set_cursor_sdr_white_level_params set_cursor_sdr_white_level_params;
@@ -960,6 +966,7 @@ enum block_sequence_func {
 	MPC_INSERT_PLANE,
 	DPP_SET_SCALER,
 	HUBP_MEM_PROGRAM_VIEWPORT,
+	ABORT_CURSOR_OFFLOAD_UPDATE,
 	SET_CURSOR_ATTRIBUTE,
 	SET_CURSOR_POSITION,
 	SET_CURSOR_SDR_WHITE_LEVEL,
@@ -1565,6 +1572,8 @@ void hwss_dpp_set_scaler(union block_sequence_params *params);
 
 void hwss_hubp_mem_program_viewport(union block_sequence_params *params);
 
+void hwss_abort_cursor_offload_update(union block_sequence_params *params);
+
 void hwss_set_cursor_attribute(union block_sequence_params *params);
 
 void hwss_set_cursor_position(union block_sequence_params *params);
@@ -1960,6 +1969,10 @@ void hwss_add_hubp_mem_program_viewport(struct block_sequence_state *seq_state,
 		struct hubp *hubp,
 		const struct rect *viewport,
 		const struct rect *viewport_c);
+
+void hwss_add_abort_cursor_offload_update(struct block_sequence_state *seq_state,
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx);
 
 void hwss_add_set_cursor_attribute(struct block_sequence_state *seq_state,
 		struct dc *dc,

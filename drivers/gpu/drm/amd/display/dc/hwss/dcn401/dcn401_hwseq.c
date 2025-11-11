@@ -3673,6 +3673,8 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 	     pipe_ctx->update_flags.bits.scaler || viewport_changed == true) &&
 	    pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
 
+		hwss_add_abort_cursor_offload_update(seq_state, dc, pipe_ctx);
+
 		hwss_add_set_cursor_attribute(seq_state, dc, pipe_ctx);
 
 		/* Step 15: Cursor position setup */

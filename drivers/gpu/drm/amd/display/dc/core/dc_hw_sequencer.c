@@ -1293,6 +1293,9 @@ void hwss_execute_sequence(struct dc *dc,
 		case HUBP_MEM_PROGRAM_VIEWPORT:
 			hwss_hubp_mem_program_viewport(params);
 			break;
+		case ABORT_CURSOR_OFFLOAD_UPDATE:
+			hwss_abort_cursor_offload_update(params);
+			break;
 		case SET_CURSOR_ATTRIBUTE:
 			hwss_set_cursor_attribute(params);
 			break;
@@ -3076,6 +3079,15 @@ void hwss_hubp_mem_program_viewport(union block_sequence_params *params)
 		hubp->funcs->mem_program_viewport(hubp, viewport, viewport_c);
 }
 
+void hwss_abort_cursor_offload_update(union block_sequence_params *params)
+{
+	struct dc *dc = params->abort_cursor_offload_update_params.dc;
+	struct pipe_ctx *pipe_ctx = params->abort_cursor_offload_update_params.pipe_ctx;
+
+	if (dc && dc->hwss.abort_cursor_offload_update)
+		dc->hwss.abort_cursor_offload_update(dc, pipe_ctx);
+}
+
 void hwss_set_cursor_attribute(union block_sequence_params *params)
 {
 	struct dc *dc = params->set_cursor_attribute_params.dc;
@@ -3930,6 +3942,18 @@ void hwss_add_hubp_mem_program_viewport(struct block_sequence_state *seq_state,
 		seq_state->steps[*seq_state->num_steps].params.hubp_mem_program_viewport_params.hubp = hubp;
 		seq_state->steps[*seq_state->num_steps].params.hubp_mem_program_viewport_params.viewport = viewport;
 		seq_state->steps[*seq_state->num_steps].params.hubp_mem_program_viewport_params.viewport_c = viewport_c;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_abort_cursor_offload_update(struct block_sequence_state *seq_state,
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = ABORT_CURSOR_OFFLOAD_UPDATE;
+		seq_state->steps[*seq_state->num_steps].params.abort_cursor_offload_update_params.dc = dc;
+		seq_state->steps[*seq_state->num_steps].params.abort_cursor_offload_update_params.pipe_ctx = pipe_ctx;
 		(*seq_state->num_steps)++;
 	}
 }
