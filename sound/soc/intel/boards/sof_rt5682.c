@@ -408,7 +408,7 @@ static const struct snd_soc_ops sof_rt5682_ops = {
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_dapm_context *dapm = &card->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int err;
 
 	if (ctx->amp_type == CODEC_MAX98373) {
@@ -462,9 +462,10 @@ static const struct snd_soc_dapm_route rt5650_spk_dapm_routes[] = {
 static int rt5650_spk_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt5650_spk_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, rt5650_spk_widgets,
 					ARRAY_SIZE(rt5650_spk_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "fail to add rt5650 spk widgets, ret %d\n",
@@ -480,7 +481,7 @@ static int rt5650_spk_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt5650_spk_dapm_routes,
+	ret = snd_soc_dapm_add_routes(dapm, rt5650_spk_dapm_routes,
 				      ARRAY_SIZE(rt5650_spk_dapm_routes));
 	if (ret)
 		dev_err(rtd->dev, "fail to add dapm routes, ret=%d\n", ret);
