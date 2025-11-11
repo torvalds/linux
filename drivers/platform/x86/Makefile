@@ -5,7 +5,6 @@
 #
 
 # Windows Management Interface
-obj-$(CONFIG_ACPI_WMI)		+= wmi.o
 obj-$(CONFIG_WMI_BMOF)		+= wmi-bmof.o
 
 # WMI drivers

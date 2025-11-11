@@ -16,36 +16,6 @@ menuconfig X86_PLATFORM_DEVICES
 
 if X86_PLATFORM_DEVICES
 
-config ACPI_WMI
-	tristate "WMI"
-	depends on ACPI
-	help
-	  This driver adds support for the ACPI-WMI (Windows Management
-	  Instrumentation) mapper device (PNP0C14) found on some systems.
-
-	  ACPI-WMI is a proprietary extension to ACPI to expose parts of the
-	  ACPI firmware to userspace - this is done through various vendor
-	  defined methods and data blocks in a PNP0C14 device, which are then
-	  made available for userspace to call.
-
-	  The implementation of this in Linux currently only exposes this to
-	  other kernel space drivers.
-
-	  This driver is a required dependency to build the firmware specific
-	  drivers needed on many machines, including Acer and HP laptops.
-
-	  It is safe to enable this driver even if your DSDT doesn't define
-	  any ACPI-WMI devices.
-
-config ACPI_WMI_LEGACY_DEVICE_NAMES
-	bool "Use legacy WMI device naming scheme"
-	depends on ACPI_WMI
-	help
-	  Say Y here to force the WMI driver core to use the old WMI device naming
-	  scheme when creating WMI devices. Doing so might be necessary for some
-	  userspace applications but will cause the registration of WMI devices with
-	  the same GUID to fail in some corner cases.
-
 config WMI_BMOF
 	tristate "WMI embedded Binary MOF driver"
 	depends on ACPI_WMI

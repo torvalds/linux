@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# ACPI WMI Core
+#
+
+menuconfig ACPI_WMI
+	tristate "ACPI-WMI support"
+	depends on ACPI && X86
+	help
+	  This option enables support for the ACPI-WMI driver core.
+
+	  The ACPI-WMI interface is a proprietary extension of ACPI allowing
+	  the platform firmware to expose WMI (Windows Management Instrumentation)
+	  objects used for managing various aspects of the underlying system.
+	  Mapping between ACPI control methods and WMI objects happens through
+	  special mapper devices (PNP0C14) defined inside the ACPI tables.
+
+	  Enabling this option is necessary for building the vendor specific
+	  ACPI-WMI client drivers for Acer, Dell an HP machines (among others).
+
+	  It is safe to enable this option even for machines that do not contain
+	  any ACPI-WMI mapper devices at all.
+
+if ACPI_WMI
+
+config ACPI_WMI_LEGACY_DEVICE_NAMES
+	bool "Use legacy WMI device naming scheme"
+	help
+	  Say Y here to force the WMI driver core to use the old WMI device naming
+	  scheme when creating WMI devices. Doing so might be necessary for some
+	  userspace applications but will cause the registration of WMI devices with
+	  the same GUID to fail in some corner cases.
+
+endif # ACPI_WMI
