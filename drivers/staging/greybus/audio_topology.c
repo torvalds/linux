@@ -380,7 +380,7 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	struct gbaudio_module_info *module;
 	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct device *codec_dev = widget->dapm->dev;
+	struct device *codec_dev = snd_soc_dapm_to_dev(widget->dapm);
 	struct gbaudio_codec_info *gb = dev_get_drvdata(codec_dev);
 	struct gb_bundle *bundle;
 
@@ -393,7 +393,7 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	bundle = to_gb_bundle(module->dev);
 
 	if (data->vcount == 2)
-		dev_warn(widget->dapm->dev,
+		dev_warn(codec_dev,
 			 "GB: Control '%s' is stereo, which is not supported\n",
 			 kcontrol->id.name);
 
@@ -429,7 +429,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	struct gbaudio_module_info *module;
 	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct device *codec_dev = widget->dapm->dev;
+	struct device *codec_dev = snd_soc_dapm_to_dev(widget->dapm);
 	struct gbaudio_codec_info *gb = dev_get_drvdata(codec_dev);
 	struct gb_bundle *bundle;
 
@@ -443,7 +443,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	bundle = to_gb_bundle(module->dev);
 
 	if (data->vcount == 2)
-		dev_warn(widget->dapm->dev,
+		dev_warn(codec_dev,
 			 "GB: Control '%s' is stereo, which is not supported\n",
 			 kcontrol->id.name);
 
@@ -712,7 +712,7 @@ static int gbcodec_enum_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct gbaudio_module_info *module;
 	struct gb_audio_ctl_elem_value gbvalue;
-	struct device *codec_dev = widget->dapm->dev;
+	struct device *codec_dev = snd_soc_dapm_to_dev(widget->dapm);
 	struct gbaudio_codec_info *gb = dev_get_drvdata(codec_dev);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct gb_bundle *bundle;
@@ -759,7 +759,7 @@ static int gbcodec_enum_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct gb_audio_ctl_elem_value gbvalue;
 	struct gbaudio_module_info *module;
-	struct device *codec_dev = widget->dapm->dev;
+	struct device *codec_dev = snd_soc_dapm_to_dev(widget->dapm);
 	struct gbaudio_codec_info *gb = dev_get_drvdata(codec_dev);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct gb_bundle *bundle;
@@ -924,7 +924,7 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 {
 	int wid;
 	int ret;
-	struct device *codec_dev = w->dapm->dev;
+	struct device *codec_dev = snd_soc_dapm_to_dev(w->dapm);
 	struct gbaudio_codec_info *gbcodec = dev_get_drvdata(codec_dev);
 	struct gbaudio_module_info *module;
 	struct gb_bundle *bundle;
