@@ -475,10 +475,16 @@ static int etm4_enable_trace_unit(struct etmv4_drvdata *drvdata)
 	}
 
 	/*
-	 * As recommended by section 4.3.7 ("Synchronization when using the
-	 * memory-mapped interface") of ARM IHI 0064D
+	 * As recommended in section 4.3.7 (Synchronization of register updates)
+	 * of ARM IHI 0064H.b, the self-hosted trace analyzer always executes an
+	 * ISB instruction after programming the trace unit registers.
+	 *
+	 * For the memory-mapped interface, the registers are mapped as Device
+	 * type (Device-nGnRE). Reading back the value of any register in the
+	 * trace unit ensures that all writes have completed. Therefore, polling
+	 * on TRCSTATR guarantees that the writing TRCPRGCTLR is complete, and
+	 * no explicit dsb() is required at here.
 	 */
-	dsb(sy);
 	isb();
 
 	return 0;
@@ -974,8 +980,15 @@ static void etm4_disable_trace_unit(struct etmv4_drvdata *drvdata)
 		dev_err(etm_dev,
 			"timeout while waiting for PM stable Trace Status\n");
 	/*
-	 * As recommended by section 4.3.7 (Synchronization of register updates)
-	 * of ARM IHI 0064H.b.
+	 * As recommended in section 4.3.7 (Synchronization of register updates)
+	 * of ARM IHI 0064H.b, the self-hosted trace analyzer always executes an
+	 * ISB instruction after programming the trace unit registers.
+	 *
+	 * For the memory-mapped interface, the registers are mapped as Device
+	 * type (Device-nGnRE). Reading back the value of any register in the
+	 * trace unit ensures that all writes have completed. Therefore, polling
+	 * on TRCSTATR guarantees that the writing TRCPRGCTLR is complete, and
+	 * no explicit dsb() is required at here.
 	 */
 	isb();
 }
