@@ -1857,28 +1857,6 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	return 0;
 }
 
-/* Add legacy hardware/hardware-cache event to evlist for all core PMUs without wildcarding. */
-static int parse_hardware_event(struct evlist *evlist, const char *event,
-				struct parse_events_error *err)
-{
-	char buf[256];
-	struct perf_pmu *pmu = NULL;
-
-	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
-		int ret;
-
-		if (perf_pmus__num_core_pmus() == 1)
-			snprintf(buf, sizeof(buf), "%s/%s,name=%s/", pmu->name, event, event);
-		else
-			snprintf(buf, sizeof(buf), "%s/%s/", pmu->name, event);
-
-		ret = parse_events(evlist, buf, err);
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
 /*
  * Add default events, if there were no attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
@@ -2006,22 +1984,34 @@ static int add_default_events(void)
 		 * threshold computation, but it will be computed if the events
 		 * are present.
 		 */
-		if (metricgroup__has_metric_or_groups(pmu, "Default")) {
-			struct evlist *metric_evlist = evlist__new();
+		const char *default_metricgroup_names[] = {
+			"Default", "Default2", "Default3", "Default4",
+		};
 
+		for (size_t i = 0; i < ARRAY_SIZE(default_metricgroup_names); i++) {
+			struct evlist *metric_evlist;
+
+			if (!metricgroup__has_metric_or_groups(pmu, default_metricgroup_names[i]))
+				continue;
+
+			if ((int)i > detailed_run)
+				break;
+
+			metric_evlist = evlist__new();
 			if (!metric_evlist) {
 				ret = -ENOMEM;
-				goto out;
+				break;
 			}
-			if (metricgroup__parse_groups(metric_evlist, pmu, "Default",
+			if (metricgroup__parse_groups(metric_evlist, pmu, default_metricgroup_names[i],
 							/*metric_no_group=*/false,
 							/*metric_no_merge=*/false,
 							/*metric_no_threshold=*/true,
 							stat_config.user_requested_cpu_list,
 							stat_config.system_wide,
 							stat_config.hardware_aware_grouping) < 0) {
+				evlist__delete(metric_evlist);
 				ret = -1;
-				goto out;
+				break;
 			}
 
 			evlist__for_each_entry(metric_evlist, evsel)
@@ -2032,62 +2022,6 @@ static int add_default_events(void)
 							&evlist->metric_events,
 							&metric_evlist->metric_events);
 			evlist__delete(metric_evlist);
-		}
-	}
-
-	/* Detailed events get appended to the event list: */
-
-	if (!ret && detailed_run >=  1) {
-		/*
-		 * Detailed stats (-d), covering the L1 and last level data
-		 * caches:
-		 */
-		const char *hw_events[] = {
-			"L1-dcache-loads",
-			"L1-dcache-load-misses",
-			"LLC-loads",
-			"LLC-load-misses",
-		};
-
-		for (size_t i = 0; i < ARRAY_SIZE(hw_events); i++) {
-			ret = parse_hardware_event(evlist, hw_events[i], &err);
-			if (ret)
-				goto out;
-		}
-	}
-	if (!ret && detailed_run >=  2) {
-		/*
-		 * Very detailed stats (-d -d), covering the instruction cache
-		 * and the TLB caches:
-		 */
-		const char *hw_events[] = {
-			"L1-icache-loads",
-			"L1-icache-load-misses",
-			"dTLB-loads",
-			"dTLB-load-misses",
-			"iTLB-loads",
-			"iTLB-load-misses",
-		};
-
-		for (size_t i = 0; i < ARRAY_SIZE(hw_events); i++) {
-			ret = parse_hardware_event(evlist, hw_events[i], &err);
-			if (ret)
-				goto out;
-		}
-	}
-	if (!ret && detailed_run >=  3) {
-		/*
-		 * Very, very detailed stats (-d -d -d), adding prefetch events:
-		 */
-		const char *hw_events[] = {
-			"L1-dcache-prefetches",
-			"L1-dcache-prefetch-misses",
-		};
-
-		for (size_t i = 0; i < ARRAY_SIZE(hw_events); i++) {
-			ret = parse_hardware_event(evlist, hw_events[i], &err);
-			if (ret)
-				goto out;
 		}
 	}
 out:
