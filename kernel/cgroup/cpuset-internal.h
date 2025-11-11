@@ -159,6 +159,13 @@ struct cpuset {
 	int partition_root_state;
 
 	/*
+	 * Whether cpuset is a remote partition.
+	 * It used to be a list anchoring all remote partitions — we can switch back
+	 * to a list if we need to iterate over the remote partitions.
+	 */
+	bool remote_partition;
+
+	/*
 	 * number of SCHED_DEADLINE tasks attached to this cpuset, so that we
 	 * know when to rebuild associated root domain bandwidth information.
 	 */
@@ -171,9 +178,6 @@ struct cpuset {
 
 	/* Handle for cpuset.cpus.partition */
 	struct cgroup_file partition_file;
-
-	/* Remote partition silbling list anchored at remote_children */
-	struct list_head remote_sibling;
 
 	/* Used to merge intersecting subsets for generate_sched_domains */
 	struct uf_node node;
