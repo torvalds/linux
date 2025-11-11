@@ -351,7 +351,7 @@ bool blk_rq_integrity_dma_map_iter_start(struct request *req,
 EXPORT_SYMBOL_GPL(blk_rq_integrity_dma_map_iter_start);
 
 /**
- * blk_rq_integrity_dma_map_iter_start - map the next integrity DMA segment for
+ * blk_rq_integrity_dma_map_iter_next - map the next integrity DMA segment for
  * 					 a request
  * @req:	request to map
  * @dma_dev:	device to map to
