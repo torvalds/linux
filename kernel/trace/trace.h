@@ -392,6 +392,7 @@ struct trace_array {
 	int			buffer_percent;
 	unsigned int		n_err_log_entries;
 	struct tracer		*current_trace;
+	struct tracer_flags	*current_trace_flags;
 	u64			trace_flags;
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
 	unsigned int		flags;
@@ -406,6 +407,7 @@ struct trace_array {
 	struct list_head	systems;
 	struct list_head	events;
 	struct list_head	marker_list;
+	struct list_head	tracers;
 	struct trace_event_file *trace_marker_file;
 	cpumask_var_t		tracing_cpumask; /* only trace on set CPUs */
 	/* one per_cpu trace_pipe can be opened by only one user */
@@ -637,6 +639,7 @@ struct tracer {
 						u64 mask, int set);
 	struct tracer		*next;
 	struct tracer_flags	*flags;
+	struct tracer_flags	*default_flags;
 	int			enabled;
 	bool			print_max;
 	bool			allow_instances;

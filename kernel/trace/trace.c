@@ -94,6 +94,13 @@ static bool tracepoint_printk_stop_on_boot __initdata;
 static bool traceoff_after_boot __initdata;
 static DEFINE_STATIC_KEY_FALSE(tracepoint_printk_key);
 
+/* Store tracers and their flags per instance */
+struct tracers {
+	struct list_head	list;
+	struct tracer		*tracer;
+	struct tracer_flags	*flags;
+};
+
 /*
  * To prevent the comm cache from being overwritten when no
  * tracing is active, only save the comm when a trace event
@@ -2164,6 +2171,7 @@ static int save_selftest(struct tracer *type)
 static int run_tracer_selftest(struct tracer *type)
 {
 	struct trace_array *tr = &global_trace;
+	struct tracer_flags *saved_flags = tr->current_trace_flags;
 	struct tracer *saved_tracer = tr->current_trace;
 	int ret;
 
@@ -2194,6 +2202,7 @@ static int run_tracer_selftest(struct tracer *type)
 	tracing_reset_online_cpus(&tr->array_buffer);
 
 	tr->current_trace = type;
+	tr->current_trace_flags = type->flags ? : type->default_flags;
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 	if (type->use_max_tr) {
@@ -2210,6 +2219,7 @@ static int run_tracer_selftest(struct tracer *type)
 	ret = type->selftest(type, tr);
 	/* the test is responsible for resetting too */
 	tr->current_trace = saved_tracer;
+	tr->current_trace_flags = saved_flags;
 	if (ret) {
 		printk(KERN_CONT "FAILED!\n");
 		/* Add the warning after printing 'FAILED' */
@@ -2302,9 +2312,22 @@ static inline int do_run_tracer_selftest(struct tracer *type)
 }
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
-static int add_tracer_options(struct trace_array *tr, struct tracer *t);
+static int add_tracer(struct trace_array *tr, struct tracer *t);
 
 static void __init apply_trace_boot_options(void);
+
+static void free_tracers(struct trace_array *tr)
+{
+	struct tracers *t, *n;
+
+	lockdep_assert_held(&trace_types_lock);
+
+	list_for_each_entry_safe(t, n, &tr->tracers, list) {
+		list_del(&t->list);
+		kfree(t->flags);
+		kfree(t);
+	}
+}
 
 /**
  * register_tracer - register a tracer with the ftrace system.
@@ -2314,6 +2337,7 @@ static void __init apply_trace_boot_options(void);
  */
 int __init register_tracer(struct tracer *type)
 {
+	struct trace_array *tr;
 	struct tracer *t;
 	int ret = 0;
 
@@ -2353,10 +2377,13 @@ int __init register_tracer(struct tracer *type)
 	if (ret < 0)
 		goto out;
 
-	ret = add_tracer_options(&global_trace, type);
-	if (ret < 0) {
-		pr_warn("Failed to create tracer options for %s\n", type->name);
-		goto out;
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		ret = add_tracer(tr, type);
+		if (ret < 0) {
+			/* The tracer will still exist but without options */
+			pr_warn("Failed to create tracer options for %s\n", type->name);
+			break;
+		}
 	}
 
 	type->next = trace_types;
@@ -2373,7 +2400,7 @@ int __init register_tracer(struct tracer *type)
 
 	printk(KERN_INFO "Starting tracer '%s'\n", type->name);
 	/* Do we want this tracer to start on bootup? */
-	tracing_set_tracer(&global_trace, type->name);
+	WARN_ON(tracing_set_tracer(&global_trace, type->name) < 0);
 	default_bootup_tracer = NULL;
 
 	apply_trace_boot_options();
@@ -5139,6 +5166,7 @@ static int tracing_trace_options_show(struct seq_file *m, void *v)
 {
 	struct tracer_opt *trace_opts;
 	struct trace_array *tr = m->private;
+	struct tracer_flags *flags;
 	struct tracer *trace;
 	u32 tracer_flags;
 	int i;
@@ -5152,12 +5180,14 @@ static int tracing_trace_options_show(struct seq_file *m, void *v)
 			seq_printf(m, "no%s\n", trace_options[i]);
 	}
 
-	trace = tr->current_trace;
-	if (!trace->flags || !trace->flags->opts)
+	flags = tr->current_trace_flags;
+	if (!flags || !flags->opts)
 		return 0;
 
-	tracer_flags = tr->current_trace->flags->val;
-	trace_opts = tr->current_trace->flags->opts;
+	trace = tr->current_trace;
+
+	tracer_flags = flags->val;
+	trace_opts = flags->opts;
 
 	for (i = 0; trace_opts[i].name; i++) {
 		if (tracer_flags & trace_opts[i].bit)
@@ -5191,8 +5221,7 @@ static int __set_tracer_option(struct trace_array *tr,
 /* Try to assign a tracer specific option */
 static int set_tracer_option(struct trace_array *tr, char *cmp, int neg)
 {
-	struct tracer *trace = tr->current_trace;
-	struct tracer_flags *tracer_flags = trace->flags;
+	struct tracer_flags *tracer_flags = tr->current_trace_flags;
 	struct tracer_opt *opts = NULL;
 	int i;
 
@@ -5203,7 +5232,7 @@ static int set_tracer_option(struct trace_array *tr, char *cmp, int neg)
 		opts = &tracer_flags->opts[i];
 
 		if (strcmp(cmp, opts->name) == 0)
-			return __set_tracer_option(tr, trace->flags, opts, neg);
+			return __set_tracer_option(tr, tracer_flags, opts, neg);
 	}
 
 	return -EINVAL;
@@ -6235,11 +6264,6 @@ int tracing_update_buffers(struct trace_array *tr)
 	return ret;
 }
 
-struct trace_option_dentry;
-
-static int
-create_trace_option_files(struct trace_array *tr, struct tracer *tracer);
-
 /*
  * Used to clear out the tracer before deletion of an instance.
  * Must have trace_types_lock held.
@@ -6255,26 +6279,15 @@ static void tracing_set_nop(struct trace_array *tr)
 		tr->current_trace->reset(tr);
 
 	tr->current_trace = &nop_trace;
+	tr->current_trace_flags = nop_trace.flags;
 }
 
 static bool tracer_options_updated;
 
-static int add_tracer_options(struct trace_array *tr, struct tracer *t)
-{
-	/* Only enable if the directory has been created already. */
-	if (!tr->dir && !(tr->flags & TRACE_ARRAY_FL_GLOBAL))
-		return 0;
-
-	/* Only create trace option files after update_tracer_options finish */
-	if (!tracer_options_updated)
-		return 0;
-
-	return create_trace_option_files(tr, t);
-}
-
 int tracing_set_tracer(struct trace_array *tr, const char *buf)
 {
-	struct tracer *t;
+	struct tracer *trace = NULL;
+	struct tracers *t;
 #ifdef CONFIG_TRACER_MAX_TRACE
 	bool had_max_tr;
 #endif
@@ -6292,18 +6305,20 @@ int tracing_set_tracer(struct trace_array *tr, const char *buf)
 		ret = 0;
 	}
 
-	for (t = trace_types; t; t = t->next) {
-		if (strcmp(t->name, buf) == 0)
+	list_for_each_entry(t, &tr->tracers, list) {
+		if (strcmp(t->tracer->name, buf) == 0) {
+			trace = t->tracer;
 			break;
+		}
 	}
-	if (!t)
+	if (!trace)
 		return -EINVAL;
 
-	if (t == tr->current_trace)
+	if (trace == tr->current_trace)
 		return 0;
 
 #ifdef CONFIG_TRACER_SNAPSHOT
-	if (t->use_max_tr) {
+	if (trace->use_max_tr) {
 		local_irq_disable();
 		arch_spin_lock(&tr->max_lock);
 		ret = tr->cond_snapshot ? -EBUSY : 0;
@@ -6314,14 +6329,14 @@ int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	}
 #endif
 	/* Some tracers won't work on kernel command line */
-	if (system_state < SYSTEM_RUNNING && t->noboot) {
+	if (system_state < SYSTEM_RUNNING && trace->noboot) {
 		pr_warn("Tracer '%s' is not allowed on command line, ignored\n",
-			t->name);
+			trace->name);
 		return -EINVAL;
 	}
 
 	/* Some tracers are only allowed for the top level buffer */
-	if (!trace_ok_for_array(t, tr))
+	if (!trace_ok_for_array(trace, tr))
 		return -EINVAL;
 
 	/* If trace pipe files are being read, we can't change the tracer */
@@ -6340,8 +6355,9 @@ int tracing_set_tracer(struct trace_array *tr, const char *buf)
 
 	/* Current trace needs to be nop_trace before synchronize_rcu */
 	tr->current_trace = &nop_trace;
+	tr->current_trace_flags = nop_trace.flags;
 
-	if (had_max_tr && !t->use_max_tr) {
+	if (had_max_tr && !trace->use_max_tr) {
 		/*
 		 * We need to make sure that the update_max_tr sees that
 		 * current_trace changed to nop_trace to keep it from
@@ -6354,7 +6370,7 @@ int tracing_set_tracer(struct trace_array *tr, const char *buf)
 		tracing_disarm_snapshot(tr);
 	}
 
-	if (!had_max_tr && t->use_max_tr) {
+	if (!had_max_tr && trace->use_max_tr) {
 		ret = tracing_arm_snapshot_locked(tr);
 		if (ret)
 			return ret;
@@ -6363,18 +6379,21 @@ int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	tr->current_trace = &nop_trace;
 #endif
 
-	if (t->init) {
-		ret = tracer_init(t, tr);
+	tr->current_trace_flags = t->flags ? : t->tracer->flags;
+
+	if (trace->init) {
+		ret = tracer_init(trace, tr);
 		if (ret) {
 #ifdef CONFIG_TRACER_MAX_TRACE
-			if (t->use_max_tr)
+			if (trace->use_max_tr)
 				tracing_disarm_snapshot(tr);
 #endif
+			tr->current_trace_flags = nop_trace.flags;
 			return ret;
 		}
 	}
 
-	tr->current_trace = t;
+	tr->current_trace = trace;
 	tr->current_trace->enabled++;
 	trace_branch_enable(tr);
 
@@ -9598,39 +9617,19 @@ create_trace_option_file(struct trace_array *tr,
 
 	topt->entry = trace_create_file(opt->name, TRACE_MODE_WRITE,
 					t_options, topt, &trace_options_fops);
-
 }
 
 static int
-create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
+create_trace_option_files(struct trace_array *tr, struct tracer *tracer,
+			  struct tracer_flags *flags)
 {
 	struct trace_option_dentry *topts;
 	struct trace_options *tr_topts;
-	struct tracer_flags *flags;
 	struct tracer_opt *opts;
 	int cnt;
-	int i;
-
-	if (!tracer)
-		return 0;
-
-	flags = tracer->flags;
 
 	if (!flags || !flags->opts)
 		return 0;
-
-	/*
-	 * If this is an instance, only create flags for tracers
-	 * the instance may have.
-	 */
-	if (!trace_ok_for_array(tracer, tr))
-		return 0;
-
-	for (i = 0; i < tr->nr_topts; i++) {
-		/* Make sure there's no duplicate flags. */
-		if (WARN_ON_ONCE(tr->topts[i].tracer->flags == tracer->flags))
-			return -EINVAL;
-	}
 
 	opts = flags->opts;
 
@@ -9661,6 +9660,96 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 			  opts[cnt].name);
 	}
 	return 0;
+}
+
+static int get_global_flags_val(struct tracer *tracer)
+{
+	struct tracers *t;
+
+	list_for_each_entry(t, &global_trace.tracers, list) {
+		if (t->tracer != tracer)
+			continue;
+		if (!t->flags)
+			return -1;
+		return t->flags->val;
+	}
+	return -1;
+}
+
+static int add_tracer_options(struct trace_array *tr, struct tracers *t)
+{
+	struct tracer *tracer = t->tracer;
+	struct tracer_flags *flags = t->flags ?: tracer->flags;
+
+	if (!flags)
+		return 0;
+
+	/* Only add tracer options after update_tracer_options finish */
+	if (!tracer_options_updated)
+		return 0;
+
+	return create_trace_option_files(tr, tracer, flags);
+}
+
+static int add_tracer(struct trace_array *tr, struct tracer *tracer)
+{
+	struct tracer_flags *flags;
+	struct tracers *t;
+	int ret;
+
+	/* Only enable if the directory has been created already. */
+	if (!tr->dir && !(tr->flags & TRACE_ARRAY_FL_GLOBAL))
+		return 0;
+
+	/*
+	 * If this is an instance, only create flags for tracers
+	 * the instance may have.
+	 */
+	if (!trace_ok_for_array(tracer, tr))
+		return 0;
+
+	t = kmalloc(sizeof(*t), GFP_KERNEL);
+	if (!t)
+		return -ENOMEM;
+
+	t->tracer = tracer;
+	t->flags = NULL;
+	list_add(&t->list, &tr->tracers);
+
+	flags = tracer->flags;
+	if (!flags) {
+		if (!tracer->default_flags)
+			return 0;
+
+		/*
+		 * If the tracer defines default flags, it means the flags are
+		 * per trace instance.
+		 */
+		flags = kmalloc(sizeof(*flags), GFP_KERNEL);
+		if (!flags)
+			return -ENOMEM;
+
+		*flags = *tracer->default_flags;
+		flags->trace = tracer;
+
+		t->flags = flags;
+
+		/* If this is an instance, inherit the global_trace flags */
+		if (!(tr->flags & TRACE_ARRAY_FL_GLOBAL)) {
+			int val = get_global_flags_val(tracer);
+			if (!WARN_ON_ONCE(val < 0))
+				flags->val = val;
+		}
+	}
+
+	ret = add_tracer_options(tr, t);
+	if (ret < 0) {
+		list_del(&t->list);
+		kfree(t->flags);
+		kfree(t);
+	}
+
+	return ret;
 }
 
 static struct dentry *
@@ -10111,13 +10200,27 @@ static void init_trace_flags_index(struct trace_array *tr)
 		tr->trace_flags_index[i] = i;
 }
 
-static int __update_tracer_options(struct trace_array *tr)
+static int __update_tracer(struct trace_array *tr)
 {
 	struct tracer *t;
 	int ret = 0;
 
 	for (t = trace_types; t && !ret; t = t->next)
+		ret = add_tracer(tr, t);
+
+	return ret;
+}
+
+static __init int __update_tracer_options(struct trace_array *tr)
+{
+	struct tracers *t;
+	int ret = 0;
+
+	list_for_each_entry(t, &tr->tracers, list) {
 		ret = add_tracer_options(tr, t);
+		if (ret < 0)
+			break;
+	}
 
 	return ret;
 }
@@ -10171,7 +10274,7 @@ static int trace_array_create_dir(struct trace_array *tr)
 	}
 
 	init_tracer_tracefs(tr, tr->dir);
-	ret = __update_tracer_options(tr);
+	ret = __update_tracer(tr);
 	if (ret) {
 		event_trace_del_tracer(tr);
 		tracefs_remove(tr->dir);
@@ -10226,11 +10329,13 @@ trace_array_create_systems(const char *name, const char *systems,
 	spin_lock_init(&tr->snapshot_trigger_lock);
 #endif
 	tr->current_trace = &nop_trace;
+	tr->current_trace_flags = nop_trace.flags;
 
 	INIT_LIST_HEAD(&tr->systems);
 	INIT_LIST_HEAD(&tr->events);
 	INIT_LIST_HEAD(&tr->hist_vars);
 	INIT_LIST_HEAD(&tr->err_log);
+	INIT_LIST_HEAD(&tr->tracers);
 	INIT_LIST_HEAD(&tr->marker_list);
 
 #ifdef CONFIG_MODULES
@@ -10403,6 +10508,7 @@ static int __remove_instance(struct trace_array *tr)
 	free_percpu(tr->last_func_repeats);
 	free_trace_buffers(tr);
 	clear_tracing_err_log(tr);
+	free_tracers(tr);
 
 	if (tr->range_name) {
 		reserve_mem_release_by_name(tr->range_name);
@@ -11437,6 +11543,7 @@ __init static int tracer_alloc_buffers(void)
 	 * just a bootstrap of current_trace anyway.
 	 */
 	global_trace.current_trace = &nop_trace;
+	global_trace.current_trace_flags = nop_trace.flags;
 
 	global_trace.max_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 #ifdef CONFIG_TRACER_MAX_TRACE
@@ -11450,10 +11557,7 @@ __init static int tracer_alloc_buffers(void)
 
 	init_trace_flags_index(&global_trace);
 
-	register_tracer(&nop_trace);
-
-	/* Function tracing may start here (via kernel command line) */
-	init_function_trace();
+	INIT_LIST_HEAD(&global_trace.tracers);
 
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
@@ -11473,6 +11577,11 @@ __init static int tracer_alloc_buffers(void)
 	INIT_LIST_HEAD(&global_trace.err_log);
 	list_add(&global_trace.marker_list, &marker_copies);
 	list_add(&global_trace.list, &ftrace_trace_arrays);
+
+	register_tracer(&nop_trace);
+
+	/* Function tracing may start here (via kernel command line) */
+	init_function_trace();
 
 	apply_trace_boot_options();
 
