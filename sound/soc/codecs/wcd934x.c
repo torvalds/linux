@@ -3250,9 +3250,10 @@ static int wcd934x_rx_hph_mode_put(struct snd_kcontrol *kc,
 static int slim_rx_mux_get(struct snd_kcontrol *kc,
 			   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kc);
-	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kc);
-	struct wcd934x_codec *wcd = dev_get_drvdata(dapm->dev);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kc);
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_to_widget(kc);
+	struct device *dev = snd_soc_dapm_to_dev(dapm);
+	struct wcd934x_codec *wcd = dev_get_drvdata(dev);
 
 	ucontrol->value.enumerated.item[0] = wcd->rx_port_value[w->shift];
 
@@ -3287,8 +3288,9 @@ static int slim_rx_mux_to_dai_id(int mux)
 static int slim_rx_mux_put(struct snd_kcontrol *kc,
 			   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kc);
-	struct wcd934x_codec *wcd = dev_get_drvdata(w->dapm->dev);
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_to_widget(kc);
+	struct device *dev = snd_soc_dapm_to_dev(w->dapm);
+	struct wcd934x_codec *wcd = dev_get_drvdata(dev);
 	struct soc_enum *e = (struct soc_enum *)kc->private_value;
 	struct snd_soc_dapm_update *update = NULL;
 	struct wcd934x_slim_ch *ch, *c;
@@ -3355,7 +3357,7 @@ static int wcd934x_int_dem_inp_mux_put(struct snd_kcontrol *kc,
 	struct snd_soc_component *component;
 	int reg, val;
 
-	component = snd_soc_dapm_kcontrol_component(kc);
+	component = snd_soc_dapm_kcontrol_to_component(kc);
 	val = ucontrol->value.enumerated.item[0];
 	if (e->reg == WCD934X_CDC_RX0_RX_PATH_SEC0)
 		reg = WCD934X_CDC_RX0_RX_PATH_CFG0;
@@ -3388,7 +3390,7 @@ static int wcd934x_dec_enum_put(struct snd_kcontrol *kcontrol,
 	u16 mic_sel_reg = 0;
 	u8 mic_sel;
 
-	comp = snd_soc_dapm_kcontrol_component(kcontrol);
+	comp = snd_soc_dapm_kcontrol_to_component(kcontrol);
 
 	val = ucontrol->value.enumerated.item[0];
 	if (val > e->items - 1)
@@ -3767,8 +3769,9 @@ static const struct snd_kcontrol_new cdc_if_tx13_inp1_mux =
 static int slim_tx_mixer_get(struct snd_kcontrol *kc,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kc);
-	struct wcd934x_codec *wcd = dev_get_drvdata(dapm->dev);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kc);
+	struct device *dev = snd_soc_dapm_to_dev(dapm);
+	struct wcd934x_codec *wcd = dev_get_drvdata(dev);
 	struct soc_mixer_control *mixer =
 			(struct soc_mixer_control *)kc->private_value;
 	int port_id = mixer->shift;
@@ -3781,8 +3784,9 @@ static int slim_tx_mixer_get(struct snd_kcontrol *kc,
 static int slim_tx_mixer_put(struct snd_kcontrol *kc,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_widget(kc);
-	struct wcd934x_codec *wcd = dev_get_drvdata(widget->dapm->dev);
+	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_to_widget(kc);
+	struct device *dev = snd_soc_dapm_to_dev(widget->dapm);
+	struct wcd934x_codec *wcd = dev_get_drvdata(dev);
 	struct snd_soc_dapm_update *update = NULL;
 	struct soc_mixer_control *mixer =
 			(struct soc_mixer_control *)kc->private_value;
