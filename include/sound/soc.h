@@ -1467,22 +1467,22 @@ static inline void _snd_soc_dapm_mutex_assert_held_c(struct snd_soc_card *card)
 
 static inline void _snd_soc_dapm_mutex_lock_root_d(struct snd_soc_dapm_context *dapm)
 {
-	_snd_soc_dapm_mutex_lock_root_c(dapm->card);
+	_snd_soc_dapm_mutex_lock_root_c(snd_soc_dapm_to_card(dapm));
 }
 
 static inline void _snd_soc_dapm_mutex_lock_d(struct snd_soc_dapm_context *dapm)
 {
-	_snd_soc_dapm_mutex_lock_c(dapm->card);
+	_snd_soc_dapm_mutex_lock_c(snd_soc_dapm_to_card(dapm));
 }
 
 static inline void _snd_soc_dapm_mutex_unlock_d(struct snd_soc_dapm_context *dapm)
 {
-	_snd_soc_dapm_mutex_unlock_c(dapm->card);
+	_snd_soc_dapm_mutex_unlock_c(snd_soc_dapm_to_card(dapm));
 }
 
 static inline void _snd_soc_dapm_mutex_assert_held_d(struct snd_soc_dapm_context *dapm)
 {
-	_snd_soc_dapm_mutex_assert_held_c(dapm->card);
+	_snd_soc_dapm_mutex_assert_held_c(snd_soc_dapm_to_card(dapm));
 }
 
 #define snd_soc_dapm_mutex_lock_root(x) _Generic((x),			\
