@@ -729,7 +729,17 @@ static inline bool kvm_arch_has_private_mem(struct kvm *kvm)
 #endif
 
 #ifdef CONFIG_KVM_GUEST_MEMFD
-bool kvm_arch_supports_gmem_mmap(struct kvm *kvm);
+bool kvm_arch_supports_gmem_init_shared(struct kvm *kvm);
+
+static inline u64 kvm_gmem_get_supported_flags(struct kvm *kvm)
+{
+	u64 flags = GUEST_MEMFD_FLAG_MMAP;
+
+	if (!kvm || kvm_arch_supports_gmem_init_shared(kvm))
+		flags |= GUEST_MEMFD_FLAG_INIT_SHARED;
+
+	return flags;
+}
 #endif
 
 #ifndef kvm_arch_has_readonly_mem

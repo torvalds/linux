@@ -3070,7 +3070,7 @@ static int __init tk_aux_sysfs_init(void)
 		return -ENOMEM;
 	}
 
-	for (int i = 0; i <= MAX_AUX_CLOCKS; i++) {
+	for (int i = 0; i < MAX_AUX_CLOCKS; i++) {
 		char id[2] = { [0] = '0' + i, };
 		struct kobject *clk = kobject_create_and_add(id, auxo);
 

@@ -64,7 +64,7 @@ config CRYPTO_LIB_CURVE25519
 config CRYPTO_LIB_CURVE25519_ARCH
 	bool
 	depends on CRYPTO_LIB_CURVE25519 && !UML && !KMSAN
-	default y if ARM && KERNEL_MODE_NEON
+	default y if ARM && KERNEL_MODE_NEON && !CPU_BIG_ENDIAN
 	default y if PPC64 && CPU_LITTLE_ENDIAN
 	default y if X86_64
 
@@ -97,7 +97,7 @@ config CRYPTO_LIB_POLY1305
 
 config CRYPTO_LIB_POLY1305_ARCH
 	bool
-	depends on CRYPTO_LIB_POLY1305 && !UML
+	depends on CRYPTO_LIB_POLY1305 && !UML && !KMSAN
 	default y if ARM
 	default y if ARM64 && KERNEL_MODE_NEON
 	default y if MIPS

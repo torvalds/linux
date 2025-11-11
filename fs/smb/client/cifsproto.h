@@ -9,6 +9,7 @@
 #define _CIFSPROTO_H
 #include <linux/nls.h>
 #include <linux/ctype.h>
+#include "cifsglob.h"
 #include "trace.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dfs_cache.h"
@@ -615,6 +616,8 @@ extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 extern struct TCP_Server_Info *
 cifs_find_tcp_session(struct smb3_fs_context *ctx);
 
+struct cifs_tcon *cifs_setup_ipc(struct cifs_ses *ses, bool seal);
+
 void __cifs_put_smb_ses(struct cifs_ses *ses);
 
 extern struct cifs_ses *
@@ -632,9 +635,13 @@ int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			   struct cifs_sb_info *cifs_sb,
 			   const unsigned char *path, char *pbuf,
 			   unsigned int *pbytes_written);
-int __cifs_calc_signature(struct smb_rqst *rqst,
-			struct TCP_Server_Info *server, char *signature,
-			struct shash_desc *shash);
+struct cifs_calc_sig_ctx {
+	struct md5_ctx *md5;
+	struct hmac_sha256_ctx *hmac;
+	struct shash_desc *shash;
+};
+int __cifs_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
+			  char *signature, struct cifs_calc_sig_ctx *ctx);
 enum securityEnum cifs_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
 

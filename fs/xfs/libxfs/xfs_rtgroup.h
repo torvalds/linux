@@ -50,6 +50,12 @@ struct xfs_rtgroup {
 		uint8_t			*rtg_rsum_cache;
 		struct xfs_open_zone	*rtg_open_zone;
 	};
+
+	/*
+	 * Count of outstanding GC operations for zoned XFS.  Any RTG with a
+	 * non-zero rtg_gccount will not be picked as new GC victim.
+	 */
+	atomic_t		rtg_gccount;
 };
 
 /*
