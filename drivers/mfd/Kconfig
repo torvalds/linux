@@ -896,7 +896,7 @@ config MFD_88PM886_PMIC
 
 config MFD_MAX5970
 	tristate "Maxim 5970/5978 power switch and monitor"
-	depends on I2C && OF
+	depends on I2C
 	select MFD_SIMPLE_MFD_I2C
 	help
 	  This driver controls a Maxim 5970/5978 switch via I2C bus.
