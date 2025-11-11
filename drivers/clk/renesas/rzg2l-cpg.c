@@ -1177,7 +1177,7 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		goto fail;
 	}
 
-	if (IS_ERR_OR_NULL(clk))
+	if (IS_ERR(clk))
 		goto fail;
 
 	dev_dbg(dev, "Core clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
