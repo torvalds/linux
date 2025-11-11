@@ -26,9 +26,10 @@ static const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
 int asoc_sdw_maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, max_98373_dapm_routes, 2);
+	ret = snd_soc_dapm_add_routes(dapm, max_98373_dapm_routes, 2);
 	if (ret)
 		dev_err(rtd->dev, "failed to add first SPK map: %d\n", ret);
 
@@ -50,8 +51,7 @@ static int asoc_sdw_mx8373_enable_spk_pin(struct snd_pcm_substream *substream, b
 
 	cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	for_each_rtd_codec_dais(rtd, j, codec_dai) {
-		struct snd_soc_dapm_context *dapm =
-				snd_soc_component_get_dapm(cpu_dai->component);
+		struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cpu_dai->component);
 		char pin_name[16];
 
 		snprintf(pin_name, ARRAY_SIZE(pin_name), "%s Spk",
@@ -104,7 +104,7 @@ static const struct snd_soc_ops max_98373_sdw_ops = {
 
 static int asoc_sdw_mx8373_sdw_late_probe(struct snd_soc_card *card)
 {
-	struct snd_soc_dapm_context *dapm = &card->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 
 	/* Disable Left and Right Spk pin after boot */
 	snd_soc_dapm_disable_pin(dapm, "Left Spk");
