@@ -1552,7 +1552,7 @@ nfsd_create_locked(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	err = 0;
 	switch (type) {
 	case S_IFREG:
-		host_err = vfs_create(&nop_mnt_idmap, dchild, iap->ia_mode);
+		host_err = vfs_create(&nop_mnt_idmap, dchild, iap->ia_mode, NULL);
 		if (!host_err)
 			nfsd_check_ignore_resizing(iap);
 		break;

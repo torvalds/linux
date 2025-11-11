@@ -3463,6 +3463,7 @@ static inline umode_t vfs_prepare_mode(struct mnt_idmap *idmap,
  * @idmap:	idmap of the mount the inode was found from
  * @dentry:	dentry of the child file
  * @mode:	mode of the child file
+ * @di:		returns parent inode, if the inode is delegated.
  *
  * Create a new file.
  *
@@ -3472,7 +3473,8 @@ static inline umode_t vfs_prepare_mode(struct mnt_idmap *idmap,
  * On non-idmapped mounts or if permission checking is to be performed on the
  * raw inode simply pass @nop_mnt_idmap.
  */
-int vfs_create(struct mnt_idmap *idmap, struct dentry *dentry, umode_t mode)
+int vfs_create(struct mnt_idmap *idmap, struct dentry *dentry, umode_t mode,
+	       struct delegated_inode *di)
 {
 	struct inode *dir = d_inode(dentry->d_parent);
 	int error;
@@ -3486,6 +3488,9 @@ int vfs_create(struct mnt_idmap *idmap, struct dentry *dentry, umode_t mode)
 
 	mode = vfs_prepare_mode(idmap, dir, mode, S_IALLUGO, S_IFREG);
 	error = security_inode_create(dir, dentry, mode);
+	if (error)
+		return error;
+	error = try_break_deleg(dir, di);
 	if (error)
 		return error;
 	error = dir->i_op->create(idmap, dir, dentry, mode, true);
@@ -4358,6 +4363,7 @@ static int may_mknod(umode_t mode)
 static int do_mknodat(int dfd, struct filename *name, umode_t mode,
 		unsigned int dev)
 {
+	struct delegated_inode di = { };
 	struct mnt_idmap *idmap;
 	struct dentry *dentry;
 	struct path path;
@@ -4381,7 +4387,7 @@ retry:
 	idmap = mnt_idmap(path.mnt);
 	switch (mode & S_IFMT) {
 		case 0: case S_IFREG:
-			error = vfs_create(idmap, dentry, mode);
+			error = vfs_create(idmap, dentry, mode, &di);
 			if (!error)
 				security_path_post_mknod(idmap, dentry);
 			break;
@@ -4396,6 +4402,11 @@ retry:
 	}
 out2:
 	end_creating_path(&path, dentry);
+	if (is_delegated(&di)) {
+		error = break_deleg_wait(&di);
+		if (!error)
+			goto retry;
+	}
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;

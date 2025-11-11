@@ -1171,7 +1171,7 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 	if (IS_ERR(f))
 		return f;
 
-	error = vfs_create(mnt_idmap(path->mnt), path->dentry, mode);
+	error = vfs_create(mnt_idmap(path->mnt), path->dentry, mode, NULL);
 	if (!error)
 		error = vfs_open(path, f);
 

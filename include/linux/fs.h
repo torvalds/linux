@@ -2111,7 +2111,8 @@ bool inode_owner_or_capable(struct mnt_idmap *idmap,
 /*
  * VFS helper functions..
  */
-int vfs_create(struct mnt_idmap *, struct dentry *, umode_t);
+int vfs_create(struct mnt_idmap *, struct dentry *, umode_t,
+	       struct delegated_inode *);
 struct dentry *vfs_mkdir(struct mnt_idmap *, struct inode *,
 			 struct dentry *, umode_t, struct delegated_inode *);
 int vfs_mknod(struct mnt_idmap *, struct inode *, struct dentry *,
