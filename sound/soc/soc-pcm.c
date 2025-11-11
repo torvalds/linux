@@ -1463,7 +1463,7 @@ EXPORT_SYMBOL_GPL(widget_in_list);
 
 bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget, enum snd_soc_dapm_direction dir)
 {
-	struct snd_soc_card *card = widget->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(widget->dapm);
 	struct snd_soc_pcm_runtime *rtd;
 	int stream;
 
