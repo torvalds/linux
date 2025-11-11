@@ -479,7 +479,7 @@ static int ecryptfs_symlink(struct mnt_idmap *idmap,
 	if (rc)
 		goto out_lock;
 	rc = vfs_symlink(&nop_mnt_idmap, lower_dir, lower_dentry,
-			 encoded_symname);
+			 encoded_symname, NULL);
 	kfree(encoded_symname);
 	if (rc || d_really_is_negative(lower_dentry))
 		goto out_lock;

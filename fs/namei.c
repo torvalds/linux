@@ -4845,6 +4845,7 @@ SYSCALL_DEFINE1(unlink, const char __user *, pathname)
  * @dir:	inode of the parent directory
  * @dentry:	dentry of the child symlink file
  * @oldname:	name of the file to link to
+ * @delegated_inode: returns victim inode, if the inode is delegated.
  *
  * Create a symlink.
  *
@@ -4855,7 +4856,8 @@ SYSCALL_DEFINE1(unlink, const char __user *, pathname)
  * raw inode simply pass @nop_mnt_idmap.
  */
 int vfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
-		struct dentry *dentry, const char *oldname)
+		struct dentry *dentry, const char *oldname,
+		struct delegated_inode *delegated_inode)
 {
 	int error;
 
@@ -4867,6 +4869,10 @@ int vfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		return -EPERM;
 
 	error = security_inode_symlink(dir, dentry, oldname);
+	if (error)
+		return error;
+
+	error = try_break_deleg(dir, delegated_inode);
 	if (error)
 		return error;
 
@@ -4883,6 +4889,7 @@ int do_symlinkat(struct filename *from, int newdfd, struct filename *to)
 	struct dentry *dentry;
 	struct path path;
 	unsigned int lookup_flags = 0;
+	struct delegated_inode delegated_inode = { };
 
 	if (IS_ERR(from)) {
 		error = PTR_ERR(from);
@@ -4897,8 +4904,13 @@ retry:
 	error = security_path_symlink(&path, dentry, from->name);
 	if (!error)
 		error = vfs_symlink(mnt_idmap(path.mnt), path.dentry->d_inode,
-				    dentry, from->name);
+				    dentry, from->name, &delegated_inode);
 	end_creating_path(&path, dentry);
+	if (is_delegated(&delegated_inode)) {
+		error = break_deleg_wait(&delegated_inode);
+		if (!error)
+			goto retry;
+	}
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;

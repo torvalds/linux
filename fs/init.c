@@ -209,7 +209,7 @@ int __init init_symlink(const char *oldname, const char *newname)
 	error = security_path_symlink(&path, dentry, oldname);
 	if (!error)
 		error = vfs_symlink(mnt_idmap(path.mnt), path.dentry->d_inode,
-				    dentry, oldname);
+				    dentry, oldname, NULL);
 	end_creating_path(&path, dentry);
 	return error;
 }
