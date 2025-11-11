@@ -2780,7 +2780,8 @@ int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,
 			orientation_ctrl = V4L2_CAMERA_ORIENTATION_EXTERNAL;
 			break;
 		default:
-			return -EINVAL;
+			hdl->error = -EINVAL;
+			return hdl->error;
 		}
 		if (!v4l2_ctrl_new_std_menu(hdl, ctrl_ops,
 					    V4L2_CID_CAMERA_ORIENTATION,
