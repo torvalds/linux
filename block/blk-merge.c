@@ -737,6 +737,9 @@ u8 bio_seg_gap(struct request_queue *q, struct bio *prev, struct bio *next,
 {
 	struct bio_vec pb, nb;
 
+	if (!bio_has_data(prev))
+		return 0;
+
 	gaps_bit = min_not_zero(gaps_bit, prev->bi_bvec_gap_bit);
 	gaps_bit = min_not_zero(gaps_bit, next->bi_bvec_gap_bit);
 
