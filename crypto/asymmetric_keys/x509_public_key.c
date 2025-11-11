@@ -148,7 +148,7 @@ not_self_signed:
  */
 static int x509_key_preparse(struct key_preparsed_payload *prep)
 {
-	struct x509_certificate *cert __free(x509_free_certificate);
+	struct x509_certificate *cert __free(x509_free_certificate) = NULL;
 	struct asymmetric_key_ids *kids __free(kfree) = NULL;
 	char *p, *desc __free(kfree) = NULL;
 	const char *q;
