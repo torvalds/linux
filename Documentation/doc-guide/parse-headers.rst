@@ -89,7 +89,7 @@ defines the C namespace to be used.
 It is meant to allow having more comprehensive documentation, where
 uAPI headers will create cross-reference links to the code.
 
-The output is written at the (``FILE_OUT``).
+The output is written at the ``FILE_OUT``.
 
 The ``FILE_RULES`` may contain contain three types of statements:
 **ignore**, **replace** and **namespace**.
