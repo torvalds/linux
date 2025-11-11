@@ -426,6 +426,7 @@ static struct platform_driver arch_timer_mmio_drv = {
 	.driver	= {
 		.name = "arch-timer-mmio",
 		.of_match_table	= arch_timer_mmio_of_table,
+		.suppress_bind_attrs = true,
 	},
 	.probe	= arch_timer_mmio_probe,
 };
@@ -434,6 +435,7 @@ builtin_platform_driver(arch_timer_mmio_drv);
 static struct platform_driver arch_timer_mmio_acpi_drv = {
 	.driver	= {
 		.name = "gtdt-arm-mmio-timer",
+		.suppress_bind_attrs = true,
 	},
 	.probe	= arch_timer_mmio_probe,
 };
