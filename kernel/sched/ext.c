@@ -174,18 +174,21 @@ MODULE_PARM_DESC(slice_bypass_us, "bypass slice in microseconds, applied on [un]
 static void process_ddsp_deferred_locals(struct rq *rq);
 static u32 reenq_local(struct rq *rq);
 static void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags);
-static void scx_vexit(struct scx_sched *sch, enum scx_exit_kind kind,
+static bool scx_vexit(struct scx_sched *sch, enum scx_exit_kind kind,
 		      s64 exit_code, const char *fmt, va_list args);
 
-static __printf(4, 5) void scx_exit(struct scx_sched *sch,
+static __printf(4, 5) bool scx_exit(struct scx_sched *sch,
 				    enum scx_exit_kind kind, s64 exit_code,
 				    const char *fmt, ...)
 {
 	va_list args;
+	bool ret;
 
 	va_start(args, fmt);
-	scx_vexit(sch, kind, exit_code, fmt, args);
+	ret = scx_vexit(sch, kind, exit_code, fmt, args);
 	va_end(args);
+
+	return ret;
 }
 
 #define scx_error(sch, fmt, args...)	scx_exit((sch), SCX_EXIT_ERROR, 0, fmt, ##args)
@@ -4400,14 +4403,14 @@ static void scx_error_irq_workfn(struct irq_work *irq_work)
 	kthread_queue_work(sch->helper, &sch->disable_work);
 }
 
-static void scx_vexit(struct scx_sched *sch,
+static bool scx_vexit(struct scx_sched *sch,
 		      enum scx_exit_kind kind, s64 exit_code,
 		      const char *fmt, va_list args)
 {
 	struct scx_exit_info *ei = sch->exit_info;
 
 	if (!scx_claim_exit(sch, kind))
-		return;
+		return false;
 
 	ei->exit_code = exit_code;
 #ifdef CONFIG_STACKTRACE
@@ -4424,6 +4427,7 @@ static void scx_vexit(struct scx_sched *sch,
 	ei->reason = scx_exit_reason(ei->kind);
 
 	irq_work_queue(&sch->error_irq_work);
+	return true;
 }
 
 static int alloc_kick_syncs(void)
