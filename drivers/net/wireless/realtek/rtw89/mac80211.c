@@ -1147,12 +1147,17 @@ int rtw89_ops_set_antenna(struct ieee80211_hw *hw, int radio_idx, u32 tx_ant, u3
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chip_info *chip;
 
 	lockdep_assert_wiphy(hw->wiphy);
+
+	chip = rtwdev->chip;
 
 	if (hal->ant_diversity) {
 		if (tx_ant != rx_ant || hweight32(tx_ant) != 1)
 			return -EINVAL;
+	} else if (chip->ops->cfg_txrx_path) {
+		/* With cfg_txrx_path ops, chips can configure rx_ant */
 	} else if (rx_ant != hw->wiphy->available_antennas_rx && rx_ant != hal->antenna_rx) {
 		return -EINVAL;
 	}

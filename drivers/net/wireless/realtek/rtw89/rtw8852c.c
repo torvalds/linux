@@ -2502,10 +2502,20 @@ static void rtw8852c_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
 static void rtw8852c_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
+	u8 nrx_path = RF_PATH_AB;
+	u8 rx_nss = hal->rx_nss;
 
-	rtw8852c_bb_cfg_rx_path(rtwdev, RF_PATH_AB);
+	if (hal->antenna_rx == RF_A)
+		nrx_path = RF_PATH_A;
+	else if (hal->antenna_rx == RF_B)
+		nrx_path = RF_PATH_B;
 
-	if (hal->rx_nss == 1) {
+	if (nrx_path != RF_PATH_AB)
+		rx_nss = 1;
+
+	rtw8852c_bb_cfg_rx_path(rtwdev, nrx_path);
+
+	if (rx_nss == 1) {
 		rtw89_phy_write32_mask(rtwdev, R_RXHT_MCS_LIMIT, B_RXHT_MCS_LIMIT, 0);
 		rtw89_phy_write32_mask(rtwdev, R_RXVHT_MCS_LIMIT, B_RXVHT_MCS_LIMIT, 0);
 		rtw89_phy_write32_mask(rtwdev, R_RXHE, B_RXHE_MAX_NSS, 0);
