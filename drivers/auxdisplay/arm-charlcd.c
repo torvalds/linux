@@ -7,13 +7,17 @@
  *
  * Author: Linus Walleij <triad@df.lth.se>
  */
+#include <linux/completion.h>
+#include <linux/container_of.h>
+#include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
-#include <linux/completion.h>
-#include <linux/delay.h>
-#include <linux/io.h>
+#include <linux/string.h>
+#include <linux/types.h>
 #include <linux/workqueue.h>
 #include <generated/utsrelease.h>
 
