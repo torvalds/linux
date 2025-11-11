@@ -56,6 +56,7 @@
  */
 
 #include <drm/drm_gem.h>
+#include <drm/drm_print.h>
 
 #include "intel_bo.h"
 #include "intel_display_trace.h"

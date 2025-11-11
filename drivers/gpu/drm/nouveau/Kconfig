@@ -28,6 +28,7 @@ config DRM_NOUVEAU
 	select THERMAL if ACPI && X86
 	select ACPI_VIDEO if ACPI && X86
 	select SND_HDA_COMPONENT if SND_HDA_CORE
+	select PM_DEVFREQ if ARCH_TEGRA
 	help
 	  Choose this option for open-source NVIDIA support.
 

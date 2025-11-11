@@ -3,6 +3,8 @@
  * Copyright © 2013-2021 Intel Corporation
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_wait_util.h"

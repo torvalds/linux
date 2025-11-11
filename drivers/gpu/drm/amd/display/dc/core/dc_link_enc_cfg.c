@@ -522,10 +522,10 @@ struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
 struct link_encoder *link_enc_cfg_get_next_avail_link_enc(struct dc *dc)
 {
 	struct link_encoder *link_enc = NULL;
-	enum engine_id encs_assigned[MAX_DIG_LINK_ENCODERS];
+	enum engine_id encs_assigned[MAX_LINK_ENCODERS];
 	int i;
 
-	for (i = 0; i < MAX_DIG_LINK_ENCODERS; i++)
+	for (i = 0; i < MAX_LINK_ENCODERS; i++)
 		encs_assigned[i] = ENGINE_ID_UNKNOWN;
 
 	/* Add assigned encoders to list. */

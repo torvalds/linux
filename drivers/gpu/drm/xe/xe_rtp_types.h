@@ -10,6 +10,7 @@
 
 #include "regs/xe_reg_defs.h"
 
+struct xe_device;
 struct xe_hw_engine;
 struct xe_gt;
 
@@ -86,7 +87,8 @@ struct xe_rtp_rule {
 			u8 engine_class;
 		};
 		/* MATCH_FUNC */
-		bool (*match_func)(const struct xe_gt *gt,
+		bool (*match_func)(const struct xe_device *xe,
+				   const struct xe_gt *gt,
 				   const struct xe_hw_engine *hwe);
 	};
 };

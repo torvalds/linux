@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/iopoll.h>
 
+#include <drm/drm_print.h>
 #include <drm/display/drm_hdcp_helper.h>
 
 #include "i915_drv.h"

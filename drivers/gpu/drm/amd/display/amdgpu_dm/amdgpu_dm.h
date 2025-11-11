@@ -631,13 +631,6 @@ struct amdgpu_display_manager {
 	u32 actual_brightness[AMDGPU_DM_MAX_NUM_EDP];
 
 	/**
-	 * @restore_backlight:
-	 *
-	 * Flag to indicate whether to restore backlight after modeset.
-	 */
-	bool restore_backlight;
-
-	/**
 	 * @aux_hpd_discon_quirk:
 	 *
 	 * quirk for hpd discon while aux is on-going.
@@ -1000,6 +993,7 @@ struct dm_connector_state {
 	bool underscan_enable;
 	bool freesync_capable;
 	bool update_hdcp;
+	bool abm_sysfs_forbidden;
 	uint8_t abm_level;
 	int vcpi_slots;
 	uint64_t pbn;

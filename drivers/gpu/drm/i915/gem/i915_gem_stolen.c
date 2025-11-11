@@ -7,6 +7,7 @@
 #include <linux/mutex.h>
 
 #include <drm/drm_mm.h>
+#include <drm/drm_print.h>
 #include <drm/intel/i915_drm.h>
 
 #include "gem/i915_gem_lmem.h"

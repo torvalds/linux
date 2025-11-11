@@ -36,7 +36,7 @@
  * - act_freq: The actual resolved frequency decided by PCODE.
  * - cur_freq: The current one requested by GuC PC to the PCODE.
  * - rpn_freq: The Render Performance (RP) N level, which is the minimal one.
- * - rpa_freq: The Render Performance (RP) A level, which is the achiveable one.
+ * - rpa_freq: The Render Performance (RP) A level, which is the achievable one.
  *   Calculated by PCODE at runtime based on multiple running conditions
  * - rpe_freq: The Render Performance (RP) E level, which is the efficient one.
  *   Calculated by PCODE at runtime based on multiple running conditions
@@ -99,13 +99,8 @@ static ssize_t rp0_freq_show(struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct xe_guc_pc *pc = dev_to_pc(dev);
-	u32 freq;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
-	freq = xe_guc_pc_get_rp0_freq(pc);
-	xe_pm_runtime_put(dev_to_xe(dev));
-
-	return sysfs_emit(buf, "%d\n", freq);
+	return sysfs_emit(buf, "%d\n", xe_guc_pc_get_rp0_freq(pc));
 }
 static struct kobj_attribute attr_rp0_freq = __ATTR_RO(rp0_freq);
 

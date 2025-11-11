@@ -65,7 +65,6 @@ union defer_reg_writes {
 	} bits;
 	uint32_t raw;
 };
-
 struct dpp {
 	const struct dpp_funcs *funcs;
 	struct dc_context *ctx;
@@ -84,6 +83,7 @@ struct dpp {
 
 	struct pwl_params shaper_params;
 	bool cm_bypass_mode;
+	bool cursor_offload;
 
 	struct cursor_position_cache_dpp  pos;
 	struct cursor_attribute_cache_dpp att;
@@ -202,6 +202,19 @@ struct dcn_dpp_state {
 	uint32_t gamcor_mode;
 };
 
+struct dcn_dpp_reg_state {
+	uint32_t recout_start;
+	uint32_t recout_size;
+	uint32_t scl_horz_filter_scale_ratio;
+	uint32_t scl_vert_filter_scale_ratio;
+	uint32_t scl_mode;
+	uint32_t cm_control;
+	uint32_t dpp_control;
+	uint32_t dscl_control;
+	uint32_t obuf_control;
+	uint32_t mpc_size;
+};
+
 struct CM_bias_params {
 	uint32_t cm_bias_cr_r;
 	uint32_t cm_bias_y_g;
@@ -224,6 +237,8 @@ struct dpp_funcs {
 		struct CM_bias_params *bias_params);
 
 	void (*dpp_read_state)(struct dpp *dpp, struct dcn_dpp_state *s);
+
+	void (*dpp_read_reg_state)(struct dpp *dpp, struct dcn_dpp_reg_state *dpp_reg_state);
 
 	void (*dpp_reset)(struct dpp *dpp);
 

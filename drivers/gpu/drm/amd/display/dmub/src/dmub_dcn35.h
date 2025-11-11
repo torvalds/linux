@@ -285,4 +285,6 @@ bool dmub_dcn35_is_hw_powered_up(struct dmub_srv *dmub);
 
 void dmub_srv_dcn35_regs_init(struct dmub_srv *dmub, struct dc_context *ctx);
 
+bool dmub_dcn35_get_preos_fw_info(struct dmub_srv *dmub);
+
 #endif /* _DMUB_DCN35_H_ */

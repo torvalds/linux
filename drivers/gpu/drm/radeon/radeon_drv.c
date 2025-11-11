@@ -262,6 +262,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	unsigned long flags = 0;
 	struct drm_device *ddev;
 	struct radeon_device *rdev;
+	struct device *dev = &pdev->dev;
 	const struct drm_format_info *format;
 	int ret;
 
@@ -277,7 +278,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 		case CHIP_VERDE:
 		case CHIP_OLAND:
 		case CHIP_HAINAN:
-			dev_info(&pdev->dev,
+			dev_info(dev,
 				 "SI support disabled by module param\n");
 			return -ENODEV;
 		}
@@ -289,7 +290,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 		case CHIP_HAWAII:
 		case CHIP_KABINI:
 		case CHIP_MULLINS:
-			dev_info(&pdev->dev,
+			dev_info(dev,
 				 "CIK support disabled by module param\n");
 			return -ENODEV;
 		}
@@ -303,28 +304,28 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	rdev = devm_drm_dev_alloc(&pdev->dev, &kms_driver, typeof(*rdev), ddev);
+	rdev = devm_drm_dev_alloc(dev, &kms_driver, typeof(*rdev), ddev);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
-	rdev->dev = &pdev->dev;
+	rdev->dev = dev;
 	rdev->pdev = pdev;
 	ddev = rdev_to_drm(rdev);
 	ddev->dev_private = rdev;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
-		goto err_free;
+		return ret;
 
 	pci_set_drvdata(pdev, ddev);
 
 	ret = radeon_driver_load_kms(ddev, flags);
 	if (ret)
-		goto err_agp;
+		goto err;
 
 	ret = drm_dev_register(ddev, flags);
 	if (ret)
-		goto err_agp;
+		goto err;
 
 	if (rdev->mc.real_vram_size <= (8 * 1024 * 1024))
 		format = drm_format_info(DRM_FORMAT_C8);
@@ -337,30 +338,14 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 
-err_agp:
+err:
 	pci_disable_device(pdev);
-err_free:
-	drm_dev_put(ddev);
 	return ret;
-}
-
-static void
-radeon_pci_remove(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
-
-	drm_put_dev(dev);
 }
 
 static void
 radeon_pci_shutdown(struct pci_dev *pdev)
 {
-	/* if we are running in a VM, make sure the device
-	 * torn down properly on reboot/shutdown
-	 */
-	if (radeon_device_is_virtual())
-		radeon_pci_remove(pdev);
-
 #if defined(CONFIG_PPC64) || defined(CONFIG_MACH_LOONGSON64)
 	/*
 	 * Some adapters need to be suspended before a
@@ -477,7 +462,6 @@ static int radeon_pmops_runtime_idle(struct device *dev)
 		}
 	}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_autosuspend(dev);
 	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
 	return 1;
@@ -499,7 +483,6 @@ long radeon_drm_ioctl(struct file *filp,
 
 	ret = drm_ioctl(filp, cmd, arg);
 
-	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
 }
@@ -613,7 +596,6 @@ static struct pci_driver radeon_kms_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
 	.probe = radeon_pci_probe,
-	.remove = radeon_pci_remove,
 	.shutdown = radeon_pci_shutdown,
 	.driver.pm = &radeon_pm_ops,
 };

@@ -1594,6 +1594,12 @@ do {								\
 #define ata_dev_dbg(dev, fmt, ...)				\
 	ata_dev_printk(debug, dev, fmt, ##__VA_ARGS__)
 
+#define ata_dev_warn_once(dev, fmt, ...)			\
+	pr_warn_once("ata%u.%02u: " fmt,			\
+		     (dev)->link->ap->print_id,			\
+		     (dev)->link->pmp + (dev)->devno,		\
+		     ##__VA_ARGS__)
+
 static inline void ata_print_version_once(const struct device *dev,
 					  const char *version)
 {

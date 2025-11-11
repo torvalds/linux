@@ -17,7 +17,7 @@
 #include "xe_mmio.h"
 #include "xe_res_cursor.h"
 #include "xe_sriov.h"
-#include "xe_sriov_printk.h"
+#include "xe_tile_sriov_printk.h"
 
 /**
  * DOC: Local Memory Translation Table
@@ -32,7 +32,7 @@
  */
 
 #define lmtt_assert(lmtt, condition)	xe_tile_assert(lmtt_to_tile(lmtt), condition)
-#define lmtt_debug(lmtt, msg...)	xe_sriov_dbg_verbose(lmtt_to_xe(lmtt), "LMTT: " msg)
+#define lmtt_debug(lmtt, msg...)	xe_tile_sriov_dbg_verbose(lmtt_to_tile(lmtt), "LMTT: " msg)
 
 static bool xe_has_multi_level_lmtt(struct xe_device *xe)
 {
@@ -267,15 +267,14 @@ static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)
  */
 void xe_lmtt_invalidate_hw(struct xe_lmtt *lmtt)
 {
-	struct xe_device *xe = lmtt_to_xe(lmtt);
 	int err;
 
-	lmtt_assert(lmtt, IS_SRIOV_PF(xe));
+	lmtt_assert(lmtt, IS_SRIOV_PF(lmtt_to_xe(lmtt)));
 
 	err = lmtt_invalidate_hw(lmtt);
 	if (err)
-		xe_sriov_warn(xe, "LMTT%u invalidation failed (%pe)",
-			      lmtt_to_tile(lmtt)->id, ERR_PTR(err));
+		xe_tile_sriov_err(lmtt_to_tile(lmtt), "LMTT invalidation failed (%pe)",
+				  ERR_PTR(err));
 }
 
 static void lmtt_write_pte(struct xe_lmtt *lmtt, struct xe_lmtt_pt *pt,

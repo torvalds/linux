@@ -33,6 +33,8 @@
  *
  */
 
+#include <drm/drm_print.h>
+
 #include "gt/intel_context.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"

@@ -24,7 +24,9 @@
 
 #include <linux/sched/mm.h>
 #include <linux/dma-fence-array.h>
+
 #include <drm/drm_gem.h>
+#include <drm/drm_print.h>
 
 #include "display/intel_fb.h"
 #include "display/intel_frontbuffer.h"

@@ -9,7 +9,6 @@
 
 #include "xe_assert.h"
 #include "xe_ggtt.h"
-#include "xe_gt_sriov_vf.h"
 #include "xe_sriov.h"
 #include "xe_sriov_printk.h"
 #include "xe_tile_sriov_vf.h"
@@ -40,10 +39,10 @@ static int vf_init_ggtt_balloons(struct xe_tile *tile)
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int xe_tile_sriov_vf_balloon_ggtt_locked(struct xe_tile *tile)
+static int xe_tile_sriov_vf_balloon_ggtt_locked(struct xe_tile *tile)
 {
-	u64 ggtt_base = xe_gt_sriov_vf_ggtt_base(tile->primary_gt);
-	u64 ggtt_size = xe_gt_sriov_vf_ggtt(tile->primary_gt);
+	u64 ggtt_base = tile->sriov.vf.self_config.ggtt_base;
+	u64 ggtt_size = tile->sriov.vf.self_config.ggtt_size;
 	struct xe_device *xe = tile_to_xe(tile);
 	u64 wopcm = xe_wopcm_size(xe);
 	u64 start, end;
@@ -232,7 +231,7 @@ int xe_tile_sriov_vf_prepare_ggtt(struct xe_tile *tile)
  */
 
 /**
- * xe_tile_sriov_vf_fixup_ggtt_nodes - Shift GGTT allocations to match assigned range.
+ * xe_tile_sriov_vf_fixup_ggtt_nodes_locked - Shift GGTT allocations to match assigned range.
  * @tile: the &xe_tile struct instance
  * @shift: the shift value
  *
@@ -240,15 +239,112 @@ int xe_tile_sriov_vf_prepare_ggtt(struct xe_tile *tile)
  * within the global space. This range might have changed during migration,
  * which requires all memory addresses pointing to GGTT to be shifted.
  */
-void xe_tile_sriov_vf_fixup_ggtt_nodes(struct xe_tile *tile, s64 shift)
+void xe_tile_sriov_vf_fixup_ggtt_nodes_locked(struct xe_tile *tile, s64 shift)
 {
 	struct xe_ggtt *ggtt = tile->mem.ggtt;
 
-	mutex_lock(&ggtt->lock);
+	lockdep_assert_held(&ggtt->lock);
 
 	xe_tile_sriov_vf_deballoon_ggtt_locked(tile);
 	xe_ggtt_shift_nodes_locked(ggtt, shift);
 	xe_tile_sriov_vf_balloon_ggtt_locked(tile);
+}
 
-	mutex_unlock(&ggtt->lock);
+/**
+ * xe_tile_sriov_vf_lmem - VF LMEM configuration.
+ * @tile: the &xe_tile
+ *
+ * This function is for VF use only.
+ *
+ * Return: size of the LMEM assigned to VF.
+ */
+u64 xe_tile_sriov_vf_lmem(struct xe_tile *tile)
+{
+	struct xe_tile_sriov_vf_selfconfig *config = &tile->sriov.vf.self_config;
+
+	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
+
+	return config->lmem_size;
+}
+
+/**
+ * xe_tile_sriov_vf_lmem_store - Store VF LMEM configuration
+ * @tile: the &xe_tile
+ * @lmem_size: VF LMEM size to store
+ *
+ * This function is for VF use only.
+ */
+void xe_tile_sriov_vf_lmem_store(struct xe_tile *tile, u64 lmem_size)
+{
+	struct xe_tile_sriov_vf_selfconfig *config = &tile->sriov.vf.self_config;
+
+	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
+
+	config->lmem_size = lmem_size;
+}
+
+/**
+ * xe_tile_sriov_vf_ggtt - VF GGTT configuration.
+ * @tile: the &xe_tile
+ *
+ * This function is for VF use only.
+ *
+ * Return: size of the GGTT assigned to VF.
+ */
+u64 xe_tile_sriov_vf_ggtt(struct xe_tile *tile)
+{
+	struct xe_tile_sriov_vf_selfconfig *config = &tile->sriov.vf.self_config;
+
+	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
+
+	return config->ggtt_size;
+}
+
+/**
+ * xe_tile_sriov_vf_ggtt_store - Store VF GGTT configuration
+ * @tile: the &xe_tile
+ * @ggtt_size: VF GGTT size to store
+ *
+ * This function is for VF use only.
+ */
+void xe_tile_sriov_vf_ggtt_store(struct xe_tile *tile, u64 ggtt_size)
+{
+	struct xe_tile_sriov_vf_selfconfig *config = &tile->sriov.vf.self_config;
+
+	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
+
+	config->ggtt_size = ggtt_size;
+}
+
+/**
+ * xe_tile_sriov_vf_ggtt_base - VF GGTT base configuration.
+ * @tile: the &xe_tile
+ *
+ * This function is for VF use only.
+ *
+ * Return: base of the GGTT assigned to VF.
+ */
+u64 xe_tile_sriov_vf_ggtt_base(struct xe_tile *tile)
+{
+	struct xe_tile_sriov_vf_selfconfig *config = &tile->sriov.vf.self_config;
+
+	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
+
+	return config->ggtt_base;
+}
+
+/**
+ * xe_tile_sriov_vf_ggtt_base_store - Store VF GGTT base configuration
+ * @tile: the &xe_tile
+ * @ggtt_base: VF GGTT base to store
+ *
+ * This function is for VF use only.
+ */
+void xe_tile_sriov_vf_ggtt_base_store(struct xe_tile *tile, u64 ggtt_base)
+{
+	struct xe_tile_sriov_vf_selfconfig *config = &tile->sriov.vf.self_config;
+
+	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
+
+	config->ggtt_base = ggtt_base;
 }

@@ -25,6 +25,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_print.h>
 #include <video/mipi_display.h>
 
 #define HX8357D_SETOSC 0xb0

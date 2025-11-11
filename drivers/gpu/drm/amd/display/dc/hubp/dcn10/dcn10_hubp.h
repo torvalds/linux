@@ -105,7 +105,9 @@
 	SRI(DCN_CUR0_TTU_CNTL0, HUBPREQ, id),\
 	SRI(DCN_CUR0_TTU_CNTL1, HUBPREQ, id),\
 	SRI(HUBP_CLK_CNTL, HUBP, id),\
-	SRI(HUBPRET_READ_LINE_VALUE, HUBPRET, id)
+	SRI(HUBPRET_READ_LINE_VALUE, HUBPRET, id),\
+	SRI(HUBP_MEASURE_WIN_CTRL_DCFCLK, HUBP, id),\
+	SRI(HUBP_MEASURE_WIN_CTRL_DPPCLK, HUBP, id)
 
 /* Register address initialization macro for ASICs with VM */
 #define HUBP_REG_LIST_DCN_VM(id)\
@@ -251,7 +253,19 @@
 	uint32_t CURSOR_HOT_SPOT; \
 	uint32_t CURSOR_DST_OFFSET; \
 	uint32_t HUBP_CLK_CNTL; \
-	uint32_t HUBPRET_READ_LINE_VALUE
+	uint32_t HUBPRET_READ_LINE_VALUE; \
+	uint32_t HUBP_MEASURE_WIN_CTRL_DCFCLK; \
+	uint32_t HUBP_MEASURE_WIN_CTRL_DPPCLK; \
+	uint32_t HUBPRET_INTERRUPT; \
+	uint32_t HUBPRET_MEM_PWR_CTRL; \
+	uint32_t HUBPRET_MEM_PWR_STATUS; \
+	uint32_t HUBPRET_READ_LINE_CTRL0; \
+	uint32_t HUBPRET_READ_LINE_CTRL1; \
+	uint32_t HUBPRET_READ_LINE0; \
+	uint32_t HUBPRET_READ_LINE1; \
+	uint32_t HUBPREQ_MEM_PWR_CTRL; \
+	uint32_t HUBPREQ_MEM_PWR_STATUS
+
 
 #define HUBP_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -688,6 +702,123 @@ struct dcn_fl_regs_st {
 	uint32_t lut_fl_mode;
 	uint32_t lut_fl_format;
 };
+struct dcn_hubp_reg_state {
+	uint32_t hubp_cntl;
+	uint32_t mall_config;
+	uint32_t mall_sub_vp;
+	uint32_t hubp_req_size_config;
+	uint32_t hubp_req_size_config_c;
+	uint32_t vmpg_config;
+	uint32_t addr_config;
+	uint32_t pri_viewport_dimension;
+	uint32_t pri_viewport_dimension_c;
+	uint32_t pri_viewport_start;
+	uint32_t pri_viewport_start_c;
+	uint32_t sec_viewport_dimension;
+	uint32_t sec_viewport_dimension_c;
+	uint32_t sec_viewport_start;
+	uint32_t sec_viewport_start_c;
+	uint32_t surface_config;
+	uint32_t tiling_config;
+	uint32_t clk_cntl;
+	uint32_t mall_status;
+	uint32_t measure_win_ctrl_dcfclk;
+	uint32_t measure_win_ctrl_dppclk;
+
+	uint32_t blank_offset_0;
+	uint32_t blank_offset_1;
+	uint32_t cursor_settings;
+	uint32_t dcn_cur0_ttu_cntl0;
+	uint32_t dcn_cur0_ttu_cntl1;
+	uint32_t dcn_cur1_ttu_cntl0;
+	uint32_t dcn_cur1_ttu_cntl1;
+	uint32_t dcn_dmdat_vm_cntl;
+	uint32_t dcn_expansion_mode;
+	uint32_t dcn_global_ttu_cntl;
+	uint32_t dcn_surf0_ttu_cntl0;
+	uint32_t dcn_surf0_ttu_cntl1;
+	uint32_t dcn_surf1_ttu_cntl0;
+	uint32_t dcn_surf1_ttu_cntl1;
+	uint32_t dcn_ttu_qos_wm;
+	uint32_t dcn_vm_mx_l1_tlb_cntl;
+	uint32_t dcn_vm_system_aperture_high_addr;
+	uint32_t dcn_vm_system_aperture_low_addr;
+	uint32_t dcsurf_flip_control;
+	uint32_t dcsurf_flip_control2;
+	uint32_t dcsurf_primary_meta_surface_address;
+	uint32_t dcsurf_primary_meta_surface_address_c;
+	uint32_t dcsurf_primary_meta_surface_address_high;
+	uint32_t dcsurf_primary_meta_surface_address_high_c;
+	uint32_t dcsurf_primary_surface_address;
+	uint32_t dcsurf_primary_surface_address_c;
+	uint32_t dcsurf_primary_surface_address_high;
+	uint32_t dcsurf_primary_surface_address_high_c;
+	uint32_t dcsurf_secondary_meta_surface_address;
+	uint32_t dcsurf_secondary_meta_surface_address_c;
+	uint32_t dcsurf_secondary_meta_surface_address_high;
+	uint32_t dcsurf_secondary_meta_surface_address_high_c;
+	uint32_t dcsurf_secondary_surface_address;
+	uint32_t dcsurf_secondary_surface_address_c;
+	uint32_t dcsurf_secondary_surface_address_high;
+	uint32_t dcsurf_secondary_surface_address_high_c;
+	uint32_t dcsurf_surface_control;
+	uint32_t dcsurf_surface_earliest_inuse;
+	uint32_t dcsurf_surface_earliest_inuse_c;
+	uint32_t dcsurf_surface_earliest_inuse_high;
+	uint32_t dcsurf_surface_earliest_inuse_high_c;
+	uint32_t dcsurf_surface_flip_interrupt;
+	uint32_t dcsurf_surface_inuse;
+	uint32_t dcsurf_surface_inuse_c;
+	uint32_t dcsurf_surface_inuse_high;
+	uint32_t dcsurf_surface_inuse_high_c;
+	uint32_t dcsurf_surface_pitch;
+	uint32_t dcsurf_surface_pitch_c;
+	uint32_t dst_after_scaler;
+	uint32_t dst_dimensions;
+	uint32_t dst_y_delta_drq_limit;
+	uint32_t flip_parameters_0;
+	uint32_t flip_parameters_1;
+	uint32_t flip_parameters_2;
+	uint32_t flip_parameters_3;
+	uint32_t flip_parameters_4;
+	uint32_t flip_parameters_5;
+	uint32_t flip_parameters_6;
+	uint32_t hubpreq_mem_pwr_ctrl;
+	uint32_t hubpreq_mem_pwr_status;
+	uint32_t nom_parameters_0;
+	uint32_t nom_parameters_1;
+	uint32_t nom_parameters_2;
+	uint32_t nom_parameters_3;
+	uint32_t nom_parameters_4;
+	uint32_t nom_parameters_5;
+	uint32_t nom_parameters_6;
+	uint32_t nom_parameters_7;
+	uint32_t per_line_delivery;
+	uint32_t per_line_delivery_pre;
+	uint32_t prefetch_settings;
+	uint32_t prefetch_settings_c;
+	uint32_t ref_freq_to_pix_freq;
+	uint32_t uclk_pstate_force;
+	uint32_t vblank_parameters_0;
+	uint32_t vblank_parameters_1;
+	uint32_t vblank_parameters_2;
+	uint32_t vblank_parameters_3;
+	uint32_t vblank_parameters_4;
+	uint32_t vblank_parameters_5;
+	uint32_t vblank_parameters_6;
+	uint32_t vmid_settings_0;
+
+	uint32_t hubpret_control;
+	uint32_t hubpret_interrupt;
+	uint32_t hubpret_mem_pwr_ctrl;
+	uint32_t hubpret_mem_pwr_status;
+	uint32_t hubpret_read_line_ctrl0;
+	uint32_t hubpret_read_line_ctrl1;
+	uint32_t hubpret_read_line_status;
+	uint32_t hubpret_read_line_value;
+	uint32_t hubpret_read_line0;
+	uint32_t hubpret_read_line1;
+};
 
 struct dcn_hubp_state {
 	struct _vcs_dpi_display_dlg_regs_st dlg_attr;
@@ -718,7 +849,6 @@ struct dcn_hubp_state {
 	uint32_t hubp_cntl;
 	uint32_t flip_control;
 };
-
 struct dcn10_hubp {
 	struct hubp base;
 	struct dcn_hubp_state state;

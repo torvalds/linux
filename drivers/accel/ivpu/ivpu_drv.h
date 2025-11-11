@@ -27,6 +27,7 @@
 #define PCI_DEVICE_ID_LNL	0x643e
 #define PCI_DEVICE_ID_PTL_P	0xb03e
 #define PCI_DEVICE_ID_WCL	0xfd3e
+#define PCI_DEVICE_ID_NVL	0xd71d
 
 #define IVPU_HW_IP_37XX 37
 #define IVPU_HW_IP_40XX 40
@@ -78,6 +79,7 @@
 #define IVPU_DBG_KREF	 BIT(11)
 #define IVPU_DBG_RPM	 BIT(12)
 #define IVPU_DBG_MMU_MAP BIT(13)
+#define IVPU_DBG_IOCTL   BIT(14)
 
 #define ivpu_err(vdev, fmt, ...) \
 	drm_err(&(vdev)->drm, "%s(): " fmt, __func__, ##__VA_ARGS__)
@@ -245,6 +247,8 @@ static inline int ivpu_hw_ip_gen(struct ivpu_device *vdev)
 	case PCI_DEVICE_ID_PTL_P:
 	case PCI_DEVICE_ID_WCL:
 		return IVPU_HW_IP_50XX;
+	case PCI_DEVICE_ID_NVL:
+		return IVPU_HW_IP_60XX;
 	default:
 		dump_stack();
 		ivpu_err(vdev, "Unknown NPU IP generation\n");
@@ -261,6 +265,7 @@ static inline int ivpu_hw_btrs_gen(struct ivpu_device *vdev)
 	case PCI_DEVICE_ID_LNL:
 	case PCI_DEVICE_ID_PTL_P:
 	case PCI_DEVICE_ID_WCL:
+	case PCI_DEVICE_ID_NVL:
 		return IVPU_HW_BTRS_LNL;
 	default:
 		dump_stack();

@@ -504,6 +504,7 @@ struct ras_critical_region {
 };
 
 struct amdgpu_ras {
+	void *ras_mgr;
 	/* ras infrastructure */
 	/* for ras itself. */
 	uint32_t features;
@@ -909,7 +910,7 @@ static inline void amdgpu_ras_intr_cleared(void)
 	atomic_set(&amdgpu_ras_in_intr, 0);
 }
 
-void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);
+int amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);
 
 void amdgpu_ras_set_error_query_ready(struct amdgpu_device *adev, bool ready);
 

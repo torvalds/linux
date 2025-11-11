@@ -18,6 +18,7 @@
 #include <drm/drm.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_dumb_buffers.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_print.h>
@@ -48,6 +49,64 @@ static const struct drm_gem_object_funcs drm_gem_shmem_funcs = {
 	.vm_ops = &drm_gem_shmem_vm_ops,
 };
 
+static int __drm_gem_shmem_init(struct drm_device *dev, struct drm_gem_shmem_object *shmem,
+				size_t size, bool private, struct vfsmount *gemfs)
+{
+	struct drm_gem_object *obj = &shmem->base;
+	int ret = 0;
+
+	if (!obj->funcs)
+		obj->funcs = &drm_gem_shmem_funcs;
+
+	if (private) {
+		drm_gem_private_object_init(dev, obj, size);
+		shmem->map_wc = false; /* dma-buf mappings use always writecombine */
+	} else {
+		ret = drm_gem_object_init_with_mnt(dev, obj, size, gemfs);
+	}
+	if (ret) {
+		drm_gem_private_object_fini(obj);
+		return ret;
+	}
+
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto err_release;
+
+	INIT_LIST_HEAD(&shmem->madv_list);
+
+	if (!private) {
+		/*
+		 * Our buffers are kept pinned, so allocating them
+		 * from the MOVABLE zone is a really bad idea, and
+		 * conflicts with CMA. See comments above new_inode()
+		 * why this is required _and_ expected if you're
+		 * going to pin these pages.
+		 */
+		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER |
+				     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	}
+
+	return 0;
+err_release:
+	drm_gem_object_release(obj);
+	return ret;
+}
+
+/**
+ * drm_gem_shmem_init - Initialize an allocated object.
+ * @dev: DRM device
+ * @obj: The allocated shmem GEM object.
+ *
+ * Returns:
+ * 0 on success, or a negative error code on failure.
+ */
+int drm_gem_shmem_init(struct drm_device *dev, struct drm_gem_shmem_object *shmem, size_t size)
+{
+	return __drm_gem_shmem_init(dev, shmem, size, false, NULL);
+}
+EXPORT_SYMBOL_GPL(drm_gem_shmem_init);
+
 static struct drm_gem_shmem_object *
 __drm_gem_shmem_create(struct drm_device *dev, size_t size, bool private,
 		       struct vfsmount *gemfs)
@@ -70,46 +129,13 @@ __drm_gem_shmem_create(struct drm_device *dev, size_t size, bool private,
 		obj = &shmem->base;
 	}
 
-	if (!obj->funcs)
-		obj->funcs = &drm_gem_shmem_funcs;
-
-	if (private) {
-		drm_gem_private_object_init(dev, obj, size);
-		shmem->map_wc = false; /* dma-buf mappings use always writecombine */
-	} else {
-		ret = drm_gem_object_init_with_mnt(dev, obj, size, gemfs);
-	}
+	ret = __drm_gem_shmem_init(dev, shmem, size, private, gemfs);
 	if (ret) {
-		drm_gem_private_object_fini(obj);
-		goto err_free;
-	}
-
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto err_release;
-
-	INIT_LIST_HEAD(&shmem->madv_list);
-
-	if (!private) {
-		/*
-		 * Our buffers are kept pinned, so allocating them
-		 * from the MOVABLE zone is a really bad idea, and
-		 * conflicts with CMA. See comments above new_inode()
-		 * why this is required _and_ expected if you're
-		 * going to pin these pages.
-		 */
-		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER |
-				     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+		kfree(obj);
+		return ERR_PTR(ret);
 	}
 
 	return shmem;
-
-err_release:
-	drm_gem_object_release(obj);
-err_free:
-	kfree(obj);
-
-	return ERR_PTR(ret);
 }
 /**
  * drm_gem_shmem_create - Allocate an object with the given size
@@ -150,13 +176,13 @@ struct drm_gem_shmem_object *drm_gem_shmem_create_with_mnt(struct drm_device *de
 EXPORT_SYMBOL_GPL(drm_gem_shmem_create_with_mnt);
 
 /**
- * drm_gem_shmem_free - Free resources associated with a shmem GEM object
- * @shmem: shmem GEM object to free
+ * drm_gem_shmem_release - Release resources associated with a shmem GEM object.
+ * @shmem: shmem GEM object
  *
- * This function cleans up the GEM object state and frees the memory used to
- * store the object itself.
+ * This function cleans up the GEM object state, but does not free the memory used to store the
+ * object itself. This function is meant to be a dedicated helper for the Rust GEM bindings.
  */
-void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
+void drm_gem_shmem_release(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 
@@ -183,6 +209,19 @@ void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
 	}
 
 	drm_gem_object_release(obj);
+}
+EXPORT_SYMBOL_GPL(drm_gem_shmem_release);
+
+/**
+ * drm_gem_shmem_free - Free resources associated with a shmem GEM object
+ * @shmem: shmem GEM object to free
+ *
+ * This function cleans up the GEM object state and frees the memory used to
+ * store the object itself.
+ */
+void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
+{
+	drm_gem_shmem_release(shmem);
 	kfree(shmem);
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_free);
@@ -518,18 +557,11 @@ EXPORT_SYMBOL_GPL(drm_gem_shmem_purge_locked);
 int drm_gem_shmem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			      struct drm_mode_create_dumb *args)
 {
-	u32 min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+	int ret;
 
-	if (!args->pitch || !args->size) {
-		args->pitch = min_pitch;
-		args->size = PAGE_ALIGN(args->pitch * args->height);
-	} else {
-		/* ensure sane minimum values */
-		if (args->pitch < min_pitch)
-			args->pitch = min_pitch;
-		if (args->size < args->pitch * args->height)
-			args->size = PAGE_ALIGN(args->pitch * args->height);
-	}
+	ret = drm_mode_size_dumb(dev, args, SZ_8, 0);
+	if (ret)
+		return ret;
 
 	return drm_gem_shmem_create_with_handle(file, dev, args->size, &args->handle);
 }

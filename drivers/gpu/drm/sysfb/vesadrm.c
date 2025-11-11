@@ -22,6 +22,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include <video/edid.h>
@@ -295,7 +296,8 @@ static int vesadrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs vesadrm_primary_plane_helper_funcs = {
-	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.begin_fb_access = drm_sysfb_plane_helper_begin_fb_access,
+	.end_fb_access = drm_gem_end_shadow_fb_access,
 	.atomic_check = vesadrm_primary_plane_helper_atomic_check,
 	.atomic_update = drm_sysfb_plane_helper_atomic_update,
 	.atomic_disable = drm_sysfb_plane_helper_atomic_disable,

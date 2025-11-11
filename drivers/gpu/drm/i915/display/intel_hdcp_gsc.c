@@ -3,6 +3,7 @@
  * Copyright 2023, Intel Corporation.
  */
 
+#include <drm/drm_print.h>
 #include <drm/intel/i915_hdcp_interface.h>
 
 #include "gem/i915_gem_region.h"

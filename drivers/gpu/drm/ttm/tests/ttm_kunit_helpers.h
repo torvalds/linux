@@ -28,12 +28,9 @@ struct ttm_test_devices {
 /* Building blocks for test-specific init functions */
 int ttm_device_kunit_init(struct ttm_test_devices *priv,
 			  struct ttm_device *ttm,
-			  bool use_dma_alloc,
-			  bool use_dma32);
+			  unsigned int alloc_flags);
 int ttm_device_kunit_init_bad_evict(struct ttm_test_devices *priv,
-				    struct ttm_device *ttm,
-				    bool use_dma_alloc,
-				    bool use_dma32);
+				    struct ttm_device *ttm);
 struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 					    struct ttm_test_devices *devs,
 					    size_t size,

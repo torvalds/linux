@@ -3,6 +3,8 @@
  * Copyright(c) 2021-2022, Intel Corporation. All rights reserved.
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 
 #include "gem/i915_gem_region.h"

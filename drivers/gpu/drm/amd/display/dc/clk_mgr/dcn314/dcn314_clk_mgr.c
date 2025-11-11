@@ -509,16 +509,16 @@ void dcn314_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_b
 	regs_and_bypass->dtbclk = internal.CLK1_CLK4_CURRENT_CNT / 10;
 
 	regs_and_bypass->dppclk_bypass = internal.CLK1_CLK1_BYPASS_CNTL & 0x0007;
-	if (regs_and_bypass->dppclk_bypass < 0 || regs_and_bypass->dppclk_bypass > 4)
+	if (regs_and_bypass->dppclk_bypass > 4)
 		regs_and_bypass->dppclk_bypass = 0;
 	regs_and_bypass->dcfclk_bypass = internal.CLK1_CLK3_BYPASS_CNTL & 0x0007;
-	if (regs_and_bypass->dcfclk_bypass < 0 || regs_and_bypass->dcfclk_bypass > 4)
+	if (regs_and_bypass->dcfclk_bypass > 4)
 		regs_and_bypass->dcfclk_bypass = 0;
 	regs_and_bypass->dispclk_bypass = internal.CLK1_CLK0_BYPASS_CNTL & 0x0007;
-	if (regs_and_bypass->dispclk_bypass < 0 || regs_and_bypass->dispclk_bypass > 4)
+	if (regs_and_bypass->dispclk_bypass > 4)
 		regs_and_bypass->dispclk_bypass = 0;
 	regs_and_bypass->dprefclk_bypass = internal.CLK1_CLK2_BYPASS_CNTL & 0x0007;
-	if (regs_and_bypass->dprefclk_bypass < 0 || regs_and_bypass->dprefclk_bypass > 4)
+	if (regs_and_bypass->dprefclk_bypass > 4)
 		regs_and_bypass->dprefclk_bypass = 0;
 
 }

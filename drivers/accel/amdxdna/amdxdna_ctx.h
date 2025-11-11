@@ -13,9 +13,10 @@
 struct amdxdna_hwctx_priv;
 
 enum ert_cmd_opcode {
-	ERT_START_CU      = 0,
-	ERT_CMD_CHAIN     = 19,
-	ERT_START_NPU     = 20,
+	ERT_START_CU = 0,
+	ERT_CMD_CHAIN = 19,
+	ERT_START_NPU = 20,
+	ERT_INVALID_CMD	= ~0U,
 };
 
 enum ert_cmd_state {
@@ -64,6 +65,8 @@ struct amdxdna_cmd {
 	u32 data[];
 };
 
+#define INVALID_CU_IDX		(~0U)
+
 struct amdxdna_hwctx {
 	struct amdxdna_client		*client;
 	struct amdxdna_hwctx_priv	*priv;
@@ -95,6 +98,17 @@ struct amdxdna_hwctx {
 #define drm_job_to_xdna_job(j) \
 	container_of(j, struct amdxdna_sched_job, base)
 
+enum amdxdna_job_opcode {
+	SYNC_DEBUG_BO,
+	ATTACH_DEBUG_BO,
+	DETACH_DEBUG_BO,
+};
+
+struct amdxdna_drv_cmd {
+	enum amdxdna_job_opcode	opcode;
+	u32			result;
+};
+
 struct amdxdna_sched_job {
 	struct drm_sched_job	base;
 	struct kref		refcnt;
@@ -105,7 +119,9 @@ struct amdxdna_sched_job {
 	/* user can wait on this fence */
 	struct dma_fence	*out_fence;
 	bool			job_done;
+	bool			job_timeout;
 	u64			seq;
+	struct amdxdna_drv_cmd	*drv_cmd;
 	struct amdxdna_gem_obj	*cmd_bo;
 	size_t			bo_cnt;
 	struct drm_gem_object	*bos[] __counted_by(bo_cnt);
@@ -137,15 +153,17 @@ amdxdna_cmd_get_state(struct amdxdna_gem_obj *abo)
 }
 
 void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size);
-int amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo);
+u32 amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo);
 
 void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job);
 void amdxdna_hwctx_remove_all(struct amdxdna_client *client);
 int amdxdna_hwctx_walk(struct amdxdna_client *client, void *arg,
 		       int (*walk)(struct amdxdna_hwctx *hwctx, void *arg));
+int amdxdna_hwctx_sync_debug_bo(struct amdxdna_client *client, u32 debug_bo_hdl);
 
 int amdxdna_cmd_submit(struct amdxdna_client *client,
-		       u32 cmd_bo_hdls, u32 *arg_bo_hdls, u32 arg_bo_cnt,
+		       struct amdxdna_drv_cmd *drv_cmd, u32 cmd_bo_hdls,
+		       u32 *arg_bo_hdls, u32 arg_bo_cnt,
 		       u32 hwctx_hdl, u64 *seq);
 
 int amdxdna_cmd_wait(struct amdxdna_client *client, u32 hwctx_hdl,

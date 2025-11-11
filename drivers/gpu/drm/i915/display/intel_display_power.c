@@ -6,6 +6,8 @@
 #include <linux/iopoll.h>
 #include <linux/string_helpers.h>
 
+#include <drm/drm_print.h>
+
 #include "soc/intel_dram.h"
 
 #include "i915_drv.h"

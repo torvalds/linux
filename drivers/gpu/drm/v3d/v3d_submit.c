@@ -4,6 +4,7 @@
  * Copyright (C) 2023 Raspberry Pi
  */
 
+#include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
 
 #include "v3d_drv.h"

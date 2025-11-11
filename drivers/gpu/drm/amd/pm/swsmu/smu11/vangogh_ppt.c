@@ -565,7 +565,7 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_legacy_t metrics;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	int i, idx, size = 0, ret = 0;
+	int i, idx, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	bool cur_value_match_level = false;
 
@@ -576,6 +576,7 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 		return ret;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
+	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -658,7 +659,7 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	return size - start_offset;
 }
 
 static int vangogh_print_clk_levels(struct smu_context *smu,
@@ -666,7 +667,7 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 {
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_t metrics;
-	int i, idx, size = 0, ret = 0;
+	int i, idx, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	bool cur_value_match_level = false;
 	uint32_t min, max;
@@ -678,6 +679,7 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 		return ret;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
+	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -779,7 +781,7 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	return size - start_offset;
 }
 
 static int vangogh_common_print_clk_levels(struct smu_context *smu,
@@ -2308,8 +2310,7 @@ static int vangogh_get_power_limit(struct smu_context *smu,
 				   uint32_t *max_power_limit,
 				   uint32_t *min_power_limit)
 {
-	struct smu_11_5_power_context *power_context =
-								smu->smu_power.power_context;
+	struct smu_11_5_power_context *power_context = smu->smu_power.power_context;
 	uint32_t ppt_limit;
 	int ret = 0;
 
@@ -2345,12 +2346,11 @@ static int vangogh_get_power_limit(struct smu_context *smu,
 }
 
 static int vangogh_get_ppt_limit(struct smu_context *smu,
-								uint32_t *ppt_limit,
-								enum smu_ppt_limit_type type,
-								enum smu_ppt_limit_level level)
+				 uint32_t *ppt_limit,
+				 enum smu_ppt_limit_type type,
+				 enum smu_ppt_limit_level level)
 {
-	struct smu_11_5_power_context *power_context =
-							smu->smu_power.power_context;
+	struct smu_11_5_power_context *power_context = smu->smu_power.power_context;
 
 	if (!power_context)
 		return -EOPNOTSUPP;
@@ -2399,7 +2399,6 @@ static int vangogh_set_power_limit(struct smu_context *smu,
 		smu->current_power_limit = ppt_limit;
 		break;
 	case SMU_FAST_PPT_LIMIT:
-		ppt_limit &= ~(SMU_FAST_PPT_LIMIT << 24);
 		if (ppt_limit > power_context->max_fast_ppt_limit) {
 			dev_err(smu->adev->dev,
 				"New power limit (%d) is over the max allowed %d\n",

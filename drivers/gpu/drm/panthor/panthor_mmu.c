@@ -7,6 +7,7 @@
 #include <drm/drm_exec.h>
 #include <drm/drm_gpuvm.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/panthor_drm.h>
 

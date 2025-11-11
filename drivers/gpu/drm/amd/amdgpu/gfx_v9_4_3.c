@@ -2152,7 +2152,8 @@ static int gfx_v9_4_3_xcc_kiq_init_queue(struct amdgpu_ring *ring, int xcc_id)
 	return 0;
 }
 
-static int gfx_v9_4_3_xcc_kcq_init_queue(struct amdgpu_ring *ring, int xcc_id, bool restore)
+static void gfx_v9_4_3_xcc_kcq_init_queue(struct amdgpu_ring *ring, int xcc_id,
+					  bool restore)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct v9_mqd *mqd = ring->mqd_ptr;
@@ -2186,8 +2187,6 @@ static int gfx_v9_4_3_xcc_kcq_init_queue(struct amdgpu_ring *ring, int xcc_id, b
 		atomic64_set((atomic64_t *)&adev->wb.wb[ring->wptr_offs], 0);
 		amdgpu_ring_clear_ring(ring);
 	}
-
-	return 0;
 }
 
 static int gfx_v9_4_3_xcc_kcq_fini_register(struct amdgpu_device *adev, int xcc_id)
@@ -2220,7 +2219,7 @@ static int gfx_v9_4_3_xcc_kiq_resume(struct amdgpu_device *adev, int xcc_id)
 static int gfx_v9_4_3_xcc_kcq_resume(struct amdgpu_device *adev, int xcc_id)
 {
 	struct amdgpu_ring *ring;
-	int i, r;
+	int i;
 
 	gfx_v9_4_3_xcc_cp_compute_enable(adev, true, xcc_id);
 
@@ -2228,9 +2227,7 @@ static int gfx_v9_4_3_xcc_kcq_resume(struct amdgpu_device *adev, int xcc_id)
 		ring = &adev->gfx.compute_ring[i + xcc_id *
 			adev->gfx.num_compute_rings];
 
-		r = gfx_v9_4_3_xcc_kcq_init_queue(ring, xcc_id, false);
-		if (r)
-			return r;
+		gfx_v9_4_3_xcc_kcq_init_queue(ring, xcc_id, false);
 	}
 
 	return amdgpu_gfx_enable_kcq(adev, xcc_id);
@@ -3605,11 +3602,8 @@ pipe_reset:
 			return r;
 	}
 
-	r = gfx_v9_4_3_xcc_kcq_init_queue(ring, ring->xcc_id, true);
-	if (r) {
-		dev_err(adev->dev, "fail to init kcq\n");
-		return r;
-	}
+	gfx_v9_4_3_xcc_kcq_init_queue(ring, ring->xcc_id, true);
+
 	spin_lock_irqsave(&kiq->ring_lock, flags);
 	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size);
 	if (r) {
@@ -4798,6 +4792,7 @@ static const struct amdgpu_ring_funcs gfx_v9_4_3_ring_funcs_kiq = {
 	.emit_wreg = gfx_v9_4_3_ring_emit_wreg,
 	.emit_reg_wait = gfx_v9_4_3_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = gfx_v9_4_3_ring_emit_reg_write_reg_wait,
+	.emit_hdp_flush = gfx_v9_4_3_ring_emit_hdp_flush,
 };
 
 static void gfx_v9_4_3_set_ring_funcs(struct amdgpu_device *adev)

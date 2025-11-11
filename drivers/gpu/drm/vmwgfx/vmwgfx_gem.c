@@ -37,7 +37,7 @@ static void vmw_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gobj);
 	if (bo)
-		ttm_bo_put(bo);
+		ttm_bo_fini(bo);
 }
 
 static int vmw_gem_object_open(struct drm_gem_object *obj,

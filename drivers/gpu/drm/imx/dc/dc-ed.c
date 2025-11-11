@@ -15,12 +15,12 @@
 #include "dc-pe.h"
 
 #define PIXENGCFG_STATIC	0x8
-#define  POWERDOWN		BIT(4)
-#define  SYNC_MODE		BIT(8)
-#define  SINGLE			0
 #define  DIV_MASK		GENMASK(23, 16)
 #define  DIV(x)			FIELD_PREP(DIV_MASK, (x))
 #define  DIV_RESET		0x80
+#define  SYNC_MODE		BIT(8)
+#define  SINGLE			0
+#define  POWERDOWN		BIT(4)
 
 #define PIXENGCFG_DYNAMIC	0xc
 
@@ -28,9 +28,9 @@
 #define  SYNC_TRIGGER		BIT(0)
 
 #define STATICCONTROL		0x8
+#define  PERFCOUNTMODE		BIT(12)
 #define  KICK_MODE		BIT(8)
 #define  EXTERNAL		BIT(8)
-#define  PERFCOUNTMODE		BIT(12)
 
 #define CONTROL			0xc
 #define  GAMMAAPPLYENABLE	BIT(0)

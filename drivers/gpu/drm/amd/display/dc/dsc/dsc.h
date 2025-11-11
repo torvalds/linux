@@ -41,6 +41,7 @@ struct dsc_config {
 	enum dc_color_depth color_depth;  /* Bits per component */
 	bool is_odm;
 	struct dc_dsc_config dc_dsc_cfg;
+	uint32_t dsc_padding;
 };
 
 
@@ -65,6 +66,10 @@ struct dcn_dsc_state {
 	uint32_t dsc_opp_source;
 };
 
+struct dcn_dsc_reg_state {
+	uint32_t dsc_top_control;
+	uint32_t dscc_interrupt_control_status;
+};
 
 /* DSC encoder capabilities
  * They differ from the DPCD DSC caps because they are based on AMD DSC encoder caps.
@@ -99,6 +104,7 @@ struct dsc_enc_caps {
 struct dsc_funcs {
 	void (*dsc_get_enc_caps)(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
 	void (*dsc_read_state)(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
+	void (*dsc_read_reg_state)(struct display_stream_compressor *dsc, struct dcn_dsc_reg_state *dccg_reg_state);
 	bool (*dsc_validate_stream)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
 	void (*dsc_set_config)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 			struct dsc_optc_config *dsc_optc_cfg);

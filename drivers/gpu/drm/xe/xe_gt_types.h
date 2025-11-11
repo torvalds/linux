@@ -66,11 +66,19 @@ struct xe_mmio_range {
  */
 enum xe_steering_type {
 	L3BANK,
+	NODE,
 	MSLICE,
 	LNCF,
 	DSS,
 	OADDRM,
 	SQIDI_PSMI,
+
+	/*
+	 * Although most GAM ranges must be steered to (0,0) and thus use the
+	 * INSTANCE0 type farther down, some platforms have special rules
+	 * for specific subtypes that require steering to (1,0) instead.
+	 */
+	GAM1,
 
 	/*
 	 * On some platforms there are multiple types of MCR registers that
@@ -202,14 +210,14 @@ struct xe_gt {
 		/**
 		 * @usm.bb_pool: Pool from which batchbuffers, for USM operations
 		 * (e.g. migrations, fixing page tables), are allocated.
-		 * Dedicated pool needed so USM operations to not get blocked
+		 * Dedicated pool needed so USM operations do not get blocked
 		 * behind any user operations which may have resulted in a
 		 * fault.
 		 */
 		struct xe_sa_manager *bb_pool;
 		/**
 		 * @usm.reserved_bcs_instance: reserved BCS instance used for USM
-		 * operations (e.g. mmigrations, fixing page tables)
+		 * operations (e.g. migrations, fixing page tables)
 		 */
 		u16 reserved_bcs_instance;
 		/** @usm.pf_wq: page fault work queue, unbound, high priority */
@@ -220,8 +228,8 @@ struct xe_gt {
 		 * @usm.pf_queue: Page fault queue used to sync faults so faults can
 		 * be processed not under the GuC CT lock. The queue is sized so
 		 * it can sync all possible faults (1 per physical engine).
-		 * Multiple queues exists for page faults from different VMs are
-		 * be processed in parallel.
+		 * Multiple queues exist for page faults from different VMs to be
+		 * processed in parallel.
 		 */
 		struct pf_queue {
 			/** @usm.pf_queue.gt: back pointer to GT */
@@ -387,7 +395,7 @@ struct xe_gt {
 		/**
 		 * @wa_active.oob_initialized: mark oob as initialized to help
 		 * detecting misuse of XE_GT_WA() - it can only be called on
-		 * initialization after OOB WAs have being processed
+		 * initialization after OOB WAs have been processed
 		 */
 		bool oob_initialized;
 	} wa_active;

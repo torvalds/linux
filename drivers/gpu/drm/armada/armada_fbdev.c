@@ -13,6 +13,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 
 #include "armada_crtc.h"
 #include "armada_drm.h"
@@ -28,8 +29,6 @@ static void armada_fbdev_fb_destroy(struct fb_info *info)
 	fbh->fb->funcs->destroy(fbh->fb);
 
 	drm_client_release(&fbh->client);
-	drm_fb_helper_unprepare(fbh);
-	kfree(fbh);
 }
 
 static const struct fb_ops armada_fb_ops = {

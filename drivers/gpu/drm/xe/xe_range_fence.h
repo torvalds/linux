@@ -13,13 +13,13 @@
 struct xe_range_fence_tree;
 struct xe_range_fence;
 
-/** struct xe_range_fence_ops - XE range fence ops */
+/** struct xe_range_fence_ops - Xe range fence ops */
 struct xe_range_fence_ops {
 	/** @free: free range fence op */
 	void (*free)(struct xe_range_fence *rfence);
 };
 
-/** struct xe_range_fence - XE range fence (address conflict tracking) */
+/** struct xe_range_fence - Xe range fence (address conflict tracking) */
 struct xe_range_fence {
 	/** @rb: RB tree node inserted into interval tree */
 	struct rb_node rb;

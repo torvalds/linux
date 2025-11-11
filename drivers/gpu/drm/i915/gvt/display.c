@@ -33,6 +33,7 @@
  */
 
 #include <drm/display/drm_dp.h>
+#include <drm/drm_print.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"

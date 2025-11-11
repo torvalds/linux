@@ -16,6 +16,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_print.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
@@ -42,8 +43,6 @@ static void exynos_drm_fb_destroy(struct fb_info *info)
 	drm_framebuffer_remove(fb);
 
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 static const struct fb_ops exynos_drm_fb_ops = {

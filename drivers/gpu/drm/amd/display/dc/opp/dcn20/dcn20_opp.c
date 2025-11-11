@@ -377,6 +377,18 @@ uint32_t opp2_get_left_edge_extra_pixel_count(struct output_pixel_processor *opp
 		return 0;
 }
 
+void opp2_read_reg_state(struct output_pixel_processor *opp, struct dcn_opp_reg_state *opp_reg_state)
+{
+	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
+
+	opp_reg_state->dpg_control = REG_READ(DPG_CONTROL);
+	opp_reg_state->fmt_control = REG_READ(FMT_CONTROL);
+	opp_reg_state->opp_pipe_control = REG_READ(OPP_PIPE_CONTROL);
+	opp_reg_state->opp_pipe_crc_control = REG_READ(OPP_PIPE_CRC_CONTROL);
+	opp_reg_state->oppbuf_control = REG_READ(OPPBUF_CONTROL);
+	opp_reg_state->dscrm_dsc_forward_config = REG_READ(DSCRM_DSC_FORWARD_CONFIG);
+}
+
 /*****************************************/
 /* Constructor, Destructor               */
 /*****************************************/
@@ -395,6 +407,7 @@ static struct opp_funcs dcn20_opp_funcs = {
 		.opp_destroy = opp1_destroy,
 		.opp_program_left_edge_extra_pixel = opp2_program_left_edge_extra_pixel,
 		.opp_get_left_edge_extra_pixel_count = opp2_get_left_edge_extra_pixel_count,
+		.opp_read_reg_state = opp2_read_reg_state
 };
 
 void dcn20_opp_construct(struct dcn20_opp *oppn20,

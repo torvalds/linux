@@ -36,6 +36,7 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_umc.h"
 #include "amdgpu_reset.h"
+#include "amdgpu_ras_mgr.h"
 
 /* Total memory size in system memory and all GPU VRAM. Used to
  * estimate worst case amount of memory to reserve for page tables
@@ -746,6 +747,20 @@ void amdgpu_amdkfd_ras_pasid_poison_consumption_handler(struct amdgpu_device *ad
 				enum amdgpu_ras_block block, uint16_t pasid,
 				pasid_notify pasid_fn, void *data, uint32_t reset)
 {
+
+	if (amdgpu_uniras_enabled(adev)) {
+		struct ras_ih_info ih_info;
+
+		memset(&ih_info, 0, sizeof(ih_info));
+		ih_info.block = block;
+		ih_info.pasid = pasid;
+		ih_info.reset = reset;
+		ih_info.pasid_fn = pasid_fn;
+		ih_info.data = data;
+		amdgpu_ras_mgr_handle_consumer_interrupt(adev, &ih_info);
+		return;
+	}
+
 	amdgpu_umc_pasid_poison_handler(adev, block, pasid, pasid_fn, data, reset);
 }
 

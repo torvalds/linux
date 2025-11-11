@@ -34,6 +34,7 @@
 #include <drm/ttm/ttm_resource.h>
 #include <drm/ttm/ttm_tt.h>
 
+#include <drm/drm_print.h>
 #include <drm/drm_util.h>
 
 /* Detach the cursor from the bulk move list*/
@@ -586,6 +587,9 @@ EXPORT_SYMBOL(ttm_resource_manager_evict_all);
 uint64_t ttm_resource_manager_usage(struct ttm_resource_manager *man)
 {
 	uint64_t usage;
+
+	if (WARN_ON_ONCE(!man->bdev))
+		return 0;
 
 	spin_lock(&man->bdev->lru_lock);
 	usage = man->usage;

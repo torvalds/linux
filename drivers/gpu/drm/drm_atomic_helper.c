@@ -3236,7 +3236,7 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		old_conn_state->state = state;
 		new_conn_state->state = NULL;
 
-		state->connectors[i].state = old_conn_state;
+		state->connectors[i].state_to_destroy = old_conn_state;
 		connector->state = new_conn_state;
 	}
 
@@ -3246,7 +3246,7 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		old_crtc_state->state = state;
 		new_crtc_state->state = NULL;
 
-		state->crtcs[i].state = old_crtc_state;
+		state->crtcs[i].state_to_destroy = old_crtc_state;
 		crtc->state = new_crtc_state;
 
 		if (new_crtc_state->commit) {
@@ -3266,7 +3266,7 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		old_plane_state->state = state;
 		new_plane_state->state = NULL;
 
-		state->planes[i].state = old_plane_state;
+		state->planes[i].state_to_destroy = old_plane_state;
 		plane->state = new_plane_state;
 	}
 	drm_panic_unlock(state->dev, flags);
@@ -3277,7 +3277,7 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		old_obj_state->state = state;
 		new_obj_state->state = NULL;
 
-		state->private_objs[i].state = old_obj_state;
+		state->private_objs[i].state_to_destroy = old_obj_state;
 		obj->state = new_obj_state;
 	}
 

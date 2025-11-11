@@ -29,6 +29,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
+#include <drm/drm_print.h>
 #include <drm/drm_rect.h>
 
 #define ILI9225_DRIVER_READ_CODE	0x00

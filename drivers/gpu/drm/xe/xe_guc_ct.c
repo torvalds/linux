@@ -25,7 +25,6 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_monitor.h"
-#include "xe_gt_sriov_printk.h"
 #include "xe_guc.h"
 #include "xe_guc_log.h"
 #include "xe_guc_relay.h"
@@ -33,6 +32,7 @@
 #include "xe_guc_tlb_inval.h"
 #include "xe_map.h"
 #include "xe_pm.h"
+#include "xe_sriov_vf.h"
 #include "xe_trace_guc.h"
 
 static void receive_g2h(struct xe_guc_ct *ct);
@@ -92,8 +92,6 @@ struct g2h_fence {
 	bool fail;
 	bool done;
 };
-
-#define make_u64(hi, lo) ((u64)((u64)(u32)(hi) << 32 | (u32)(lo)))
 
 static void g2h_fence_init(struct g2h_fence *g2h_fence, u32 *response_buffer)
 {
@@ -169,6 +167,7 @@ ct_to_xe(struct xe_guc_ct *ct)
  */
 
 #define CTB_DESC_SIZE		ALIGN(sizeof(struct guc_ct_buffer_desc), SZ_2K)
+#define CTB_H2G_BUFFER_OFFSET	(CTB_DESC_SIZE * 2)
 #define CTB_H2G_BUFFER_SIZE	(SZ_4K)
 #define CTB_G2H_BUFFER_SIZE	(SZ_128K)
 #define G2H_ROOM_BUFFER_SIZE	(CTB_G2H_BUFFER_SIZE / 2)
@@ -192,7 +191,7 @@ long xe_guc_ct_queue_proc_time_jiffies(struct xe_guc_ct *ct)
 
 static size_t guc_ct_size(void)
 {
-	return 2 * CTB_DESC_SIZE + CTB_H2G_BUFFER_SIZE +
+	return CTB_H2G_BUFFER_OFFSET + CTB_H2G_BUFFER_SIZE +
 		CTB_G2H_BUFFER_SIZE;
 }
 
@@ -333,7 +332,7 @@ static void guc_ct_ctb_h2g_init(struct xe_device *xe, struct guc_ctb *h2g,
 	h2g->desc = *map;
 	xe_map_memset(xe, &h2g->desc, 0, 0, sizeof(struct guc_ct_buffer_desc));
 
-	h2g->cmds = IOSYS_MAP_INIT_OFFSET(map, CTB_DESC_SIZE * 2);
+	h2g->cmds = IOSYS_MAP_INIT_OFFSET(map, CTB_H2G_BUFFER_OFFSET);
 }
 
 static void guc_ct_ctb_g2h_init(struct xe_device *xe, struct guc_ctb *g2h,
@@ -351,7 +350,7 @@ static void guc_ct_ctb_g2h_init(struct xe_device *xe, struct guc_ctb *g2h,
 	g2h->desc = IOSYS_MAP_INIT_OFFSET(map, CTB_DESC_SIZE);
 	xe_map_memset(xe, &g2h->desc, 0, 0, sizeof(struct guc_ct_buffer_desc));
 
-	g2h->cmds = IOSYS_MAP_INIT_OFFSET(map, CTB_DESC_SIZE * 2 +
+	g2h->cmds = IOSYS_MAP_INIT_OFFSET(map, CTB_H2G_BUFFER_OFFSET +
 					    CTB_H2G_BUFFER_SIZE);
 }
 
@@ -362,7 +361,7 @@ static int guc_ct_ctb_h2g_register(struct xe_guc_ct *ct)
 	int err;
 
 	desc_addr = xe_bo_ggtt_addr(ct->bo);
-	ctb_addr = xe_bo_ggtt_addr(ct->bo) + CTB_DESC_SIZE * 2;
+	ctb_addr = xe_bo_ggtt_addr(ct->bo) + CTB_H2G_BUFFER_OFFSET;
 	size = ct->ctbs.h2g.info.size * sizeof(u32);
 
 	err = xe_guc_self_cfg64(guc,
@@ -389,7 +388,7 @@ static int guc_ct_ctb_g2h_register(struct xe_guc_ct *ct)
 	int err;
 
 	desc_addr = xe_bo_ggtt_addr(ct->bo) + CTB_DESC_SIZE;
-	ctb_addr = xe_bo_ggtt_addr(ct->bo) + CTB_DESC_SIZE * 2 +
+	ctb_addr = xe_bo_ggtt_addr(ct->bo) + CTB_H2G_BUFFER_OFFSET +
 		CTB_H2G_BUFFER_SIZE;
 	size = ct->ctbs.g2h.info.size * sizeof(u32);
 
@@ -503,7 +502,7 @@ static void ct_exit_safe_mode(struct xe_guc_ct *ct)
 		xe_gt_dbg(ct_to_gt(ct), "GuC CT safe-mode disabled\n");
 }
 
-int xe_guc_ct_enable(struct xe_guc_ct *ct)
+static int __xe_guc_ct_start(struct xe_guc_ct *ct, bool needs_register)
 {
 	struct xe_device *xe = ct_to_xe(ct);
 	struct xe_gt *gt = ct_to_gt(ct);
@@ -511,21 +510,29 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 
 	xe_gt_assert(gt, !xe_guc_ct_enabled(ct));
 
-	xe_map_memset(xe, &ct->bo->vmap, 0, 0, xe_bo_size(ct->bo));
-	guc_ct_ctb_h2g_init(xe, &ct->ctbs.h2g, &ct->bo->vmap);
-	guc_ct_ctb_g2h_init(xe, &ct->ctbs.g2h, &ct->bo->vmap);
+	if (needs_register) {
+		xe_map_memset(xe, &ct->bo->vmap, 0, 0, xe_bo_size(ct->bo));
+		guc_ct_ctb_h2g_init(xe, &ct->ctbs.h2g, &ct->bo->vmap);
+		guc_ct_ctb_g2h_init(xe, &ct->ctbs.g2h, &ct->bo->vmap);
 
-	err = guc_ct_ctb_h2g_register(ct);
-	if (err)
-		goto err_out;
+		err = guc_ct_ctb_h2g_register(ct);
+		if (err)
+			goto err_out;
 
-	err = guc_ct_ctb_g2h_register(ct);
-	if (err)
-		goto err_out;
+		err = guc_ct_ctb_g2h_register(ct);
+		if (err)
+			goto err_out;
 
-	err = guc_ct_control_toggle(ct, true);
-	if (err)
-		goto err_out;
+		err = guc_ct_control_toggle(ct, true);
+		if (err)
+			goto err_out;
+	} else {
+		ct->ctbs.h2g.info.broken = false;
+		ct->ctbs.g2h.info.broken = false;
+		/* Skip everything in H2G buffer */
+		xe_map_memset(xe, &ct->bo->vmap, CTB_H2G_BUFFER_OFFSET, 0,
+			      CTB_H2G_BUFFER_SIZE);
+	}
 
 	guc_ct_change_state(ct, XE_GUC_CT_STATE_ENABLED);
 
@@ -557,6 +564,32 @@ err_out:
 	return err;
 }
 
+/**
+ * xe_guc_ct_restart() - Restart GuC CT
+ * @ct: the &xe_guc_ct
+ *
+ * Restart GuC CT to an empty state without issuing a CT register MMIO command.
+ *
+ * Return: 0 on success, or a negative errno on failure.
+ */
+int xe_guc_ct_restart(struct xe_guc_ct *ct)
+{
+	return __xe_guc_ct_start(ct, false);
+}
+
+/**
+ * xe_guc_ct_enable() - Enable GuC CT
+ * @ct: the &xe_guc_ct
+ *
+ * Enable GuC CT to an empty state and issue a CT register MMIO command.
+ *
+ * Return: 0 on success, or a negative errno on failure.
+ */
+int xe_guc_ct_enable(struct xe_guc_ct *ct)
+{
+	return __xe_guc_ct_start(ct, true);
+}
+
 static void stop_g2h_handler(struct xe_guc_ct *ct)
 {
 	cancel_work_sync(&ct->g2h_worker);
@@ -574,6 +607,16 @@ void xe_guc_ct_disable(struct xe_guc_ct *ct)
 	guc_ct_change_state(ct, XE_GUC_CT_STATE_DISABLED);
 	ct_exit_safe_mode(ct);
 	stop_g2h_handler(ct);
+}
+
+/**
+ * xe_guc_ct_flush_and_stop - Flush and stop all processing of G2H / H2G
+ * @ct: the &xe_guc_ct
+ */
+void xe_guc_ct_flush_and_stop(struct xe_guc_ct *ct)
+{
+	receive_g2h(ct);
+	xe_guc_ct_stop(ct);
 }
 
 /**
@@ -739,6 +782,28 @@ static u16 next_ct_seqno(struct xe_guc_ct *ct, bool is_g2h_fence)
 	return seqno;
 }
 
+#define MAKE_ACTION(type, __action)				\
+({								\
+	FIELD_PREP(GUC_HXG_MSG_0_TYPE, type) |			\
+	FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |			\
+		   GUC_HXG_EVENT_MSG_0_DATA0, __action);	\
+})
+
+static bool vf_action_can_safely_fail(struct xe_device *xe, u32 action)
+{
+	/*
+	 * When resuming a VF, we can't reliably track whether context
+	 * registration has completed in the GuC state machine. It is harmless
+	 * to resend the request, as it will fail silently if GUC_HXG_TYPE_EVENT
+	 * is used. Additionally, if there is an H2G protocol issue on a VF,
+	 * subsequent H2G messages sent as GUC_HXG_TYPE_FAST_REQUEST will likely
+	 * fail.
+	 */
+	return IS_SRIOV_VF(xe) && xe_sriov_vf_migration_supported(xe) &&
+		(action == XE_GUC_ACTION_REGISTER_CONTEXT_MULTI_LRC ||
+		 action == XE_GUC_ACTION_REGISTER_CONTEXT);
+}
+
 #define H2G_CT_HEADERS (GUC_CTB_HDR_LEN + 1) /* one DW CTB header and one DW HxG header */
 
 static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
@@ -810,18 +875,14 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 		FIELD_PREP(GUC_CTB_MSG_0_NUM_DWORDS, len) |
 		FIELD_PREP(GUC_CTB_MSG_0_FENCE, ct_fence_value);
 	if (want_response) {
-		cmd[1] =
-			FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_REQUEST) |
-			FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
-				   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
+		cmd[1] = MAKE_ACTION(GUC_HXG_TYPE_REQUEST, action[0]);
+	} else if (vf_action_can_safely_fail(xe, action[0])) {
+		cmd[1] = MAKE_ACTION(GUC_HXG_TYPE_EVENT, action[0]);
 	} else {
 		fast_req_track(ct, ct_fence_value,
 			       FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, action[0]));
 
-		cmd[1] =
-			FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_FAST_REQUEST) |
-			FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
-				   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
+		cmd[1] = MAKE_ACTION(GUC_HXG_TYPE_FAST_REQUEST, action[0]);
 	}
 
 	/* H2G header in cmd[1] replaces action[0] so: */
@@ -854,7 +915,7 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 				u32 len, u32 g2h_len, u32 num_g2h,
 				struct g2h_fence *g2h_fence)
 {
-	struct xe_gt *gt __maybe_unused = ct_to_gt(ct);
+	struct xe_gt *gt = ct_to_gt(ct);
 	u16 seqno;
 	int ret;
 
@@ -875,7 +936,7 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 		goto out;
 	}
 
-	if (ct->state == XE_GUC_CT_STATE_STOPPED) {
+	if (ct->state == XE_GUC_CT_STATE_STOPPED || xe_gt_recovery_pending(gt)) {
 		ret = -ECANCELED;
 		goto out;
 	}
@@ -930,22 +991,15 @@ static void kick_reset(struct xe_guc_ct *ct)
 
 static int dequeue_one_g2h(struct xe_guc_ct *ct);
 
-static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
-			      u32 g2h_len, u32 num_g2h,
-			      struct g2h_fence *g2h_fence)
+/*
+ * wait before retry of sending h2g message
+ * Return: true if ready for retry, false if the wait timeouted
+ */
+static bool guc_ct_send_wait_for_retry(struct xe_guc_ct *ct, u32 len,
+				       u32 g2h_len, struct g2h_fence *g2h_fence,
+				       unsigned int *sleep_period_ms)
 {
 	struct xe_device *xe = ct_to_xe(ct);
-	struct xe_gt *gt = ct_to_gt(ct);
-	unsigned int sleep_period_ms = 1;
-	int ret;
-
-	xe_gt_assert(gt, !g2h_len || !g2h_fence);
-	lockdep_assert_held(&ct->lock);
-	xe_device_assert_mem_access(ct_to_xe(ct));
-
-try_again:
-	ret = __guc_ct_send_locked(ct, action, len, g2h_len, num_g2h,
-				   g2h_fence);
 
 	/*
 	 * We wait to try to restore credits for about 1 second before bailing.
@@ -954,24 +1008,22 @@ try_again:
 	 * the case of G2H we process any G2H in the channel, hopefully freeing
 	 * credits as we consume the G2H messages.
 	 */
-	if (unlikely(ret == -EBUSY &&
-		     !h2g_has_room(ct, len + GUC_CTB_HDR_LEN))) {
+	if (!h2g_has_room(ct, len + GUC_CTB_HDR_LEN)) {
 		struct guc_ctb *h2g = &ct->ctbs.h2g;
 
-		if (sleep_period_ms == 1024)
-			goto broken;
+		if (*sleep_period_ms == 1024)
+			return false;
 
 		trace_xe_guc_ct_h2g_flow_control(xe, h2g->info.head, h2g->info.tail,
 						 h2g->info.size,
 						 h2g->info.space,
 						 len + GUC_CTB_HDR_LEN);
-		msleep(sleep_period_ms);
-		sleep_period_ms <<= 1;
-
-		goto try_again;
-	} else if (unlikely(ret == -EBUSY)) {
+		msleep(*sleep_period_ms);
+		*sleep_period_ms <<= 1;
+	} else {
 		struct xe_device *xe = ct_to_xe(ct);
 		struct guc_ctb *g2h = &ct->ctbs.g2h;
+		int ret;
 
 		trace_xe_guc_ct_g2h_flow_control(xe, g2h->info.head,
 						 desc_read(xe, g2h, tail),
@@ -985,7 +1037,7 @@ try_again:
 	(desc_read(ct_to_xe(ct), (&ct->ctbs.g2h), tail) != ct->ctbs.g2h.info.head)
 		if (!wait_event_timeout(ct->wq, !ct->g2h_outstanding ||
 					g2h_avail(ct), HZ))
-			goto broken;
+			return false;
 #undef g2h_avail
 
 		ret = dequeue_one_g2h(ct);
@@ -993,9 +1045,32 @@ try_again:
 			if (ret != -ECANCELED)
 				xe_gt_err(ct_to_gt(ct), "CTB receive failed (%pe)",
 					  ERR_PTR(ret));
-			goto broken;
+			return false;
 		}
+	}
+	return true;
+}
 
+static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
+			      u32 g2h_len, u32 num_g2h,
+			      struct g2h_fence *g2h_fence)
+{
+	struct xe_gt *gt = ct_to_gt(ct);
+	unsigned int sleep_period_ms = 1;
+	int ret;
+
+	xe_gt_assert(gt, !g2h_len || !g2h_fence);
+	lockdep_assert_held(&ct->lock);
+	xe_device_assert_mem_access(ct_to_xe(ct));
+
+try_again:
+	ret = __guc_ct_send_locked(ct, action, len, g2h_len, num_g2h,
+				   g2h_fence);
+
+	if (unlikely(ret == -EBUSY)) {
+		if (!guc_ct_send_wait_for_retry(ct, len, g2h_len, g2h_fence,
+						&sleep_period_ms))
+			goto broken;
 		goto try_again;
 	}
 
@@ -1336,6 +1411,10 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 				  type, fence);
 
 		fast_req_report(ct, fence);
+
+		/* FIXME: W/A race in the GuC, will get in firmware soon */
+		if (xe_gt_recovery_pending(gt))
+			return 0;
 
 		CT_DEAD(ct, NULL, PARSE_G2H_RESPONSE);
 
@@ -1791,186 +1870,6 @@ static void g2h_worker_func(struct work_struct *w)
 	struct xe_guc_ct *ct = container_of(w, struct xe_guc_ct, g2h_worker);
 
 	receive_g2h(ct);
-}
-
-static void xe_fixup_u64_in_cmds(struct xe_device *xe, struct iosys_map *cmds,
-				 u32 size, u32 idx, s64 shift)
-{
-	u32 hi, lo;
-	u64 offset;
-
-	lo = xe_map_rd_ring_u32(xe, cmds, idx, size);
-	hi = xe_map_rd_ring_u32(xe, cmds, idx + 1, size);
-	offset = make_u64(hi, lo);
-	offset += shift;
-	lo = lower_32_bits(offset);
-	hi = upper_32_bits(offset);
-	xe_map_wr_ring_u32(xe, cmds, idx, size, lo);
-	xe_map_wr_ring_u32(xe, cmds, idx + 1, size, hi);
-}
-
-/*
- * Shift any GGTT addresses within a single message left within CTB from
- * before post-migration recovery.
- * @ct: pointer to CT struct of the target GuC
- * @cmds: iomap buffer containing CT messages
- * @head: start of the target message within the buffer
- * @len: length of the target message
- * @size: size of the commands buffer
- * @shift: the address shift to be added to each GGTT reference
- * Return: true if the message was fixed or needed no fixups, false on failure
- */
-static bool ct_fixup_ggtt_in_message(struct xe_guc_ct *ct,
-				     struct iosys_map *cmds, u32 head,
-				     u32 len, u32 size, s64 shift)
-{
-	struct xe_gt *gt = ct_to_gt(ct);
-	struct xe_device *xe = ct_to_xe(ct);
-	u32 msg[GUC_HXG_MSG_MIN_LEN];
-	u32 action, i, n;
-
-	xe_gt_assert(gt, len >= GUC_HXG_MSG_MIN_LEN);
-
-	msg[0] = xe_map_rd_ring_u32(xe, cmds, head, size);
-	action = FIELD_GET(GUC_HXG_REQUEST_MSG_0_ACTION, msg[0]);
-
-	xe_gt_sriov_dbg_verbose(gt, "fixing H2G %#x\n", action);
-
-	switch (action) {
-	case XE_GUC_ACTION_REGISTER_CONTEXT:
-		if (len != XE_GUC_REGISTER_CONTEXT_MSG_LEN)
-			goto err_len;
-		xe_fixup_u64_in_cmds(xe, cmds, size, head +
-				     XE_GUC_REGISTER_CONTEXT_DATA_5_WQ_DESC_ADDR_LOWER,
-				     shift);
-		xe_fixup_u64_in_cmds(xe, cmds, size, head +
-				     XE_GUC_REGISTER_CONTEXT_DATA_7_WQ_BUF_BASE_LOWER,
-				     shift);
-		xe_fixup_u64_in_cmds(xe, cmds, size, head +
-				     XE_GUC_REGISTER_CONTEXT_DATA_10_HW_LRC_ADDR, shift);
-		break;
-	case XE_GUC_ACTION_REGISTER_CONTEXT_MULTI_LRC:
-		if (len < XE_GUC_REGISTER_CONTEXT_MULTI_LRC_MSG_MIN_LEN)
-			goto err_len;
-		n = xe_map_rd_ring_u32(xe, cmds, head +
-				       XE_GUC_REGISTER_CONTEXT_MULTI_LRC_DATA_10_NUM_CTXS, size);
-		if (len != XE_GUC_REGISTER_CONTEXT_MULTI_LRC_MSG_MIN_LEN + 2 * n)
-			goto err_len;
-		xe_fixup_u64_in_cmds(xe, cmds, size, head +
-				     XE_GUC_REGISTER_CONTEXT_MULTI_LRC_DATA_5_WQ_DESC_ADDR_LOWER,
-				     shift);
-		xe_fixup_u64_in_cmds(xe, cmds, size, head +
-				     XE_GUC_REGISTER_CONTEXT_MULTI_LRC_DATA_7_WQ_BUF_BASE_LOWER,
-				     shift);
-		for (i = 0; i < n; i++)
-			xe_fixup_u64_in_cmds(xe, cmds, size, head +
-					     XE_GUC_REGISTER_CONTEXT_MULTI_LRC_DATA_11_HW_LRC_ADDR
-					     + 2 * i, shift);
-		break;
-	default:
-		break;
-	}
-	return true;
-
-err_len:
-	xe_gt_err(gt, "Skipped G2G %#x message fixups, unexpected length (%u)\n", action, len);
-	return false;
-}
-
-/*
- * Apply fixups to the next outgoing CT message within given CTB
- * @ct: the &xe_guc_ct struct instance representing the target GuC
- * @h2g: the &guc_ctb struct instance of the target buffer
- * @shift: shift to be added to all GGTT addresses within the CTB
- * @mhead: pointer to an integer storing message start position; the
- *   position is changed to next message before this function return
- * @avail: size of the area available for parsing, that is length
- *   of all remaining messages stored within the CTB
- * Return: size of the area available for parsing after one message
- *   has been parsed, that is length remaining from the updated mhead
- */
-static int ct_fixup_ggtt_in_buffer(struct xe_guc_ct *ct, struct guc_ctb *h2g,
-				   s64 shift, u32 *mhead, s32 avail)
-{
-	struct xe_gt *gt = ct_to_gt(ct);
-	struct xe_device *xe = ct_to_xe(ct);
-	u32 msg[GUC_HXG_MSG_MIN_LEN];
-	u32 size = h2g->info.size;
-	u32 head = *mhead;
-	u32 len;
-
-	xe_gt_assert(gt, avail >= (s32)GUC_CTB_MSG_MIN_LEN);
-
-	/* Read header */
-	msg[0] = xe_map_rd_ring_u32(xe, &h2g->cmds, head, size);
-	len = FIELD_GET(GUC_CTB_MSG_0_NUM_DWORDS, msg[0]) + GUC_CTB_MSG_MIN_LEN;
-
-	if (unlikely(len > (u32)avail)) {
-		xe_gt_err(gt, "H2G channel broken on read, avail=%d, len=%d, fixups skipped\n",
-			  avail, len);
-		return 0;
-	}
-
-	head = (head + GUC_CTB_MSG_MIN_LEN) % size;
-	if (!ct_fixup_ggtt_in_message(ct, &h2g->cmds, head, msg_len_to_hxg_len(len), size, shift))
-		return 0;
-	*mhead = (head + msg_len_to_hxg_len(len)) % size;
-
-	return avail - len;
-}
-
-/**
- * xe_guc_ct_fixup_messages_with_ggtt - Fixup any pending H2G CTB messages
- * @ct: pointer to CT struct of the target GuC
- * @ggtt_shift: shift to be added to all GGTT addresses within the CTB
- *
- * Messages in GuC to Host CTB are owned by GuC and any fixups in them
- * are made by GuC. But content of the Host to GuC CTB is owned by the
- * KMD, so fixups to GGTT references in any pending messages need to be
- * applied here.
- * This function updates GGTT offsets in payloads of pending H2G CTB
- * messages (messages which were not consumed by GuC before the VF got
- * paused).
- */
-void xe_guc_ct_fixup_messages_with_ggtt(struct xe_guc_ct *ct, s64 ggtt_shift)
-{
-	struct guc_ctb *h2g = &ct->ctbs.h2g;
-	struct xe_guc *guc = ct_to_guc(ct);
-	struct xe_gt *gt = guc_to_gt(guc);
-	u32 head, tail, size;
-	s32 avail;
-
-	if (unlikely(h2g->info.broken))
-		return;
-
-	h2g->info.head = desc_read(ct_to_xe(ct), h2g, head);
-	head = h2g->info.head;
-	tail = READ_ONCE(h2g->info.tail);
-	size = h2g->info.size;
-
-	if (unlikely(head > size))
-		goto corrupted;
-
-	if (unlikely(tail >= size))
-		goto corrupted;
-
-	avail = tail - head;
-
-	/* beware of buffer wrap case */
-	if (unlikely(avail < 0))
-		avail += size;
-	xe_gt_dbg(gt, "available %d (%u:%u:%u)\n", avail, head, tail, size);
-	xe_gt_assert(gt, avail >= 0);
-
-	while (avail > 0)
-		avail = ct_fixup_ggtt_in_buffer(ct, h2g, ggtt_shift, &head, avail);
-
-	return;
-
-corrupted:
-	xe_gt_err(gt, "Corrupted H2G descriptor head=%u tail=%u size=%u, fixups not applied\n",
-		  head, tail, size);
-	h2g->info.broken = true;
 }
 
 static struct xe_guc_ct_snapshot *guc_ct_snapshot_alloc(struct xe_guc_ct *ct, bool atomic,

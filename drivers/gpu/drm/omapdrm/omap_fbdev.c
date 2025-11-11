@@ -15,6 +15,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 #include <drm/drm_util.h>
 
 #include "omap_drv.h"
@@ -103,8 +104,6 @@ static void omap_fbdev_fb_destroy(struct fb_info *info)
 	drm_framebuffer_remove(fb);
 
 	drm_client_release(&helper->client);
-	drm_fb_helper_unprepare(helper);
-	kfree(helper);
 }
 
 /*

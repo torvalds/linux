@@ -568,6 +568,23 @@ static const struct xe_mocs_ops xe2_mocs_ops = {
 	.dump = xe2_mocs_dump,
 };
 
+/*
+ * Note that the "L3" and "L4" register fields actually control the L2 and L3
+ * caches respectively on this platform.
+ */
+static const struct xe_mocs_entry xe3p_xpc_mocs_table[] = {
+	/* Defer to PAT */
+	MOCS_ENTRY(0, XE2_L3_0_WB | L4_3_UC, 0),
+	/* UC */
+	MOCS_ENTRY(1, IG_PAT | XE2_L3_3_UC | L4_3_UC, 0),
+	/* L2 */
+	MOCS_ENTRY(2, IG_PAT | XE2_L3_0_WB | L4_3_UC, 0),
+	/* L3 */
+	MOCS_ENTRY(3, IG_PAT | XE2_L3_3_UC | L4_0_WB, 0),
+	/* L2 + L3 */
+	MOCS_ENTRY(4, IG_PAT | XE2_L3_0_WB | L4_0_WB, 0),
+};
+
 static unsigned int get_mocs_settings(struct xe_device *xe,
 				      struct xe_mocs_info *info)
 {
@@ -576,6 +593,16 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	memset(info, 0, sizeof(struct xe_mocs_info));
 
 	switch (xe->info.platform) {
+	case XE_CRESCENTISLAND:
+		info->ops = &xe2_mocs_ops;
+		info->table_size = ARRAY_SIZE(xe3p_xpc_mocs_table);
+		info->table = xe3p_xpc_mocs_table;
+		info->num_mocs_regs = XE2_NUM_MOCS_ENTRIES;
+		info->uc_index = 1;
+		info->wb_index = 4;
+		info->unused_entries_index = 4;
+		break;
+	case XE_NOVALAKE_S:
 	case XE_PANTHERLAKE:
 	case XE_LUNARLAKE:
 	case XE_BATTLEMAGE:
@@ -772,12 +799,20 @@ void xe_mocs_init(struct xe_gt *gt)
 		init_l3cc_table(gt, &table);
 }
 
-void xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_mocs_dump() - Dump MOCS table.
+ * @gt: the &xe_gt with MOCS table
+ * @p: the &drm_printer to dump info to
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	enum xe_force_wake_domains domain;
 	struct xe_mocs_info table;
 	unsigned int fw_ref, flags;
+	int err = 0;
 
 	flags = get_mocs_settings(xe, &table);
 
@@ -785,14 +820,17 @@ void xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
 	xe_pm_runtime_get_noresume(xe);
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), domain);
 
-	if (!xe_force_wake_ref_has_domain(fw_ref, domain))
+	if (!xe_force_wake_ref_has_domain(fw_ref, domain)) {
+		err = -ETIMEDOUT;
 		goto err_fw;
+	}
 
 	table.ops->dump(&table, flags, gt, p);
 
 err_fw:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	xe_pm_runtime_put(xe);
+	return err;
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

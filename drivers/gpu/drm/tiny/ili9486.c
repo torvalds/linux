@@ -23,6 +23,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_print.h>
 
 #define ILI9486_ITFCTR1         0xb0
 #define ILI9486_PWCTRL1         0xc2
