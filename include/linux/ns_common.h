@@ -114,11 +114,14 @@ static __always_inline __must_check bool __ns_ref_dec_and_lock(struct ns_common 
 }
 
 #define ns_ref_read(__ns) __ns_ref_read(to_ns_common((__ns)))
-#define ns_ref_inc(__ns) __ns_ref_inc(to_ns_common((__ns)))
-#define ns_ref_get(__ns) __ns_ref_get(to_ns_common((__ns)))
-#define ns_ref_put(__ns) __ns_ref_put(to_ns_common((__ns)))
+#define ns_ref_inc(__ns) \
+	do { if (__ns) __ns_ref_inc(to_ns_common((__ns))); } while (0)
+#define ns_ref_get(__ns) \
+	((__ns) ? __ns_ref_get(to_ns_common((__ns))) : false)
+#define ns_ref_put(__ns) \
+	((__ns) ? __ns_ref_put(to_ns_common((__ns))) : false)
 #define ns_ref_put_and_lock(__ns, __ns_lock) \
-	__ns_ref_dec_and_lock(to_ns_common((__ns)), __ns_lock)
+	((__ns) ? __ns_ref_dec_and_lock(to_ns_common((__ns)), __ns_lock) : false)
 
 #define ns_ref_active_read(__ns) \
 	((__ns) ? __ns_ref_active_read(to_ns_common(__ns)) : 0)
