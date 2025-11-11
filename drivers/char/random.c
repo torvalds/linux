@@ -741,7 +741,7 @@ static void __cold _credit_init_bits(size_t bits)
 
 	if (orig < POOL_READY_BITS && new >= POOL_READY_BITS) {
 		crng_reseed(NULL); /* Sets crng_init to CRNG_READY under base_crng.lock. */
-		if (static_key_initialized && system_dfl_wq)
+		if (system_dfl_wq)
 			queue_work(system_dfl_wq, &set_ready);
 		atomic_notifier_call_chain(&random_ready_notifier, 0, NULL);
 #ifdef CONFIG_VDSO_GETRANDOM
@@ -915,9 +915,8 @@ void __init random_init(void)
 	add_latent_entropy();
 
 	/*
-	 * If we were initialized by the cpu or bootloader before jump labels
-	 * or workqueues are initialized, then we should enable the static
-	 * branch here, where it's guaranteed that these have been initialized.
+	 * If we were initialized by the cpu or bootloader before workqueues
+	 * are initialized, then we should enable the static branch here.
 	 */
 	if (!static_branch_likely(&crng_is_ready) && crng_init >= CRNG_READY)
 		crng_set_ready(NULL);
