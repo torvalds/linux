@@ -3461,10 +3461,8 @@ static inline umode_t vfs_prepare_mode(struct mnt_idmap *idmap,
 /**
  * vfs_create - create new file
  * @idmap:	idmap of the mount the inode was found from
- * @dir:	inode of the parent directory
  * @dentry:	dentry of the child file
  * @mode:	mode of the child file
- * @want_excl:	whether the file must not yet exist
  *
  * Create a new file.
  *
@@ -3474,9 +3472,9 @@ static inline umode_t vfs_prepare_mode(struct mnt_idmap *idmap,
  * On non-idmapped mounts or if permission checking is to be performed on the
  * raw inode simply pass @nop_mnt_idmap.
  */
-int vfs_create(struct mnt_idmap *idmap, struct inode *dir,
-	       struct dentry *dentry, umode_t mode, bool want_excl)
+int vfs_create(struct mnt_idmap *idmap, struct dentry *dentry, umode_t mode)
 {
+	struct inode *dir = d_inode(dentry->d_parent);
 	int error;
 
 	error = may_create(idmap, dir, dentry);
@@ -3490,7 +3488,7 @@ int vfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	error = security_inode_create(dir, dentry, mode);
 	if (error)
 		return error;
-	error = dir->i_op->create(idmap, dir, dentry, mode, want_excl);
+	error = dir->i_op->create(idmap, dir, dentry, mode, true);
 	if (!error)
 		fsnotify_create(dir, dentry);
 	return error;
@@ -4383,8 +4381,7 @@ retry:
 	idmap = mnt_idmap(path.mnt);
 	switch (mode & S_IFMT) {
 		case 0: case S_IFREG:
-			error = vfs_create(idmap, path.dentry->d_inode,
-					   dentry, mode, true);
+			error = vfs_create(idmap, dentry, mode);
 			if (!error)
 				security_path_post_mknod(idmap, dentry);
 			break;
