@@ -154,11 +154,11 @@ static int function_trace_init(struct trace_array *tr)
 	if (!tr->ops)
 		return -ENOMEM;
 
-	func = select_trace_function(func_flags.val);
+	func = select_trace_function(tr->current_trace_flags->val);
 	if (!func)
 		return -EINVAL;
 
-	if (!handle_func_repeats(tr, func_flags.val))
+	if (!handle_func_repeats(tr, tr->current_trace_flags->val))
 		return -ENOMEM;
 
 	ftrace_init_array_ops(tr, func);
@@ -459,14 +459,14 @@ func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	u32 new_flags;
 
 	/* Do nothing if already set. */
-	if (!!set == !!(func_flags.val & bit))
+	if (!!set == !!(tr->current_trace_flags->val & bit))
 		return 0;
 
 	/* We can change this flag only when not running. */
 	if (tr->current_trace != &function_trace)
 		return 0;
 
-	new_flags = (func_flags.val & ~bit) | (set ? bit : 0);
+	new_flags = (tr->current_trace_flags->val & ~bit) | (set ? bit : 0);
 	func = select_trace_function(new_flags);
 	if (!func)
 		return -EINVAL;
@@ -491,7 +491,7 @@ static struct tracer function_trace __tracer_data =
 	.init		= function_trace_init,
 	.reset		= function_trace_reset,
 	.start		= function_trace_start,
-	.flags		= &func_flags,
+	.default_flags	= &func_flags,
 	.set_flag	= func_set_flag,
 	.allow_instances = true,
 #ifdef CONFIG_FTRACE_SELFTEST
