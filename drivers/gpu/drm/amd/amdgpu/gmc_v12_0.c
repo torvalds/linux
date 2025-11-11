@@ -771,6 +771,7 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
 	struct amdgpu_device *adev = ip_block->adev;
+	int i;
 
 	adev->mmhub.funcs->init(adev);
 
@@ -800,7 +801,8 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(12, 1, 0):
 		bitmap_set(adev->vmhubs_mask, AMDGPU_GFXHUB(0),
 				NUM_XCC(adev->gfx.xcc_mask));
-		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
+		for (i = 0; i < hweight32(adev->aid_mask); i++)
+			set_bit(AMDGPU_MMHUB0(i), adev->vmhubs_mask);
 		/*
 		 * To fulfill 4-level page support,
 		 * vm size is 256TB (48bit), maximum size,
