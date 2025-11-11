@@ -537,7 +537,7 @@ queue:
 
 		val = arch_mcs_spin_lock_contended(&node->locked);
 		if (val == RES_TIMEOUT_VAL) {
-			ret = -EDEADLK;
+			ret = -ETIMEDOUT;
 			goto waitq_timeout;
 		}
 
