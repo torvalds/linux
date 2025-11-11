@@ -39,6 +39,8 @@ extern const struct ieee80211_ops rtw89_ops;
 #define RFREG_MASK 0xfffff
 #define INV_RF_DATA 0xffffffff
 #define BYPASS_CR_DATA 0xbabecafe
+#define RTW89_R32_EA 0xEAEAEAEA
+#define RTW89_R32_DEAD 0xDEADBEEF
 
 #define RTW89_TRACK_WORK_PERIOD	round_jiffies_relative(HZ * 2)
 #define RTW89_TRACK_PS_WORK_PERIOD msecs_to_jiffies(100)
@@ -3674,6 +3676,8 @@ struct rtw89_hci_ops {
 	void (*write16)(struct rtw89_dev *rtwdev, u32 addr, u16 data);
 	void (*write32)(struct rtw89_dev *rtwdev, u32 addr, u32 data);
 
+	u32 (*read32_pci_cfg)(struct rtw89_dev *rtwdev, u32 addr);
+
 	int (*mac_pre_init)(struct rtw89_dev *rtwdev);
 	int (*mac_pre_deinit)(struct rtw89_dev *rtwdev);
 	int (*mac_post_init)(struct rtw89_dev *rtwdev);
@@ -6656,6 +6660,15 @@ rtw89_write_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 	mutex_lock(&rtwdev->rf_mutex);
 	rtwdev->chip->ops->write_rf(rtwdev, rf_path, addr, mask, data);
 	mutex_unlock(&rtwdev->rf_mutex);
+}
+
+static inline u32 rtw89_read32_pci_cfg(struct rtw89_dev *rtwdev, u32 addr)
+{
+	if (rtwdev->hci.type != RTW89_HCI_TYPE_PCIE ||
+	    !rtwdev->hci.ops->read32_pci_cfg)
+		return RTW89_R32_EA;
+
+	return rtwdev->hci.ops->read32_pci_cfg(rtwdev, addr);
 }
 
 static inline struct ieee80211_txq *rtw89_txq_to_txq(struct rtw89_txq *rtwtxq)

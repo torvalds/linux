@@ -581,8 +581,6 @@ enum rtw89_mac_bf_rrsc_rate {
 	RTW89_MAC_BF_RRSC_MAX = 32
 };
 
-#define RTW89_R32_EA		0xEAEAEAEA
-#define RTW89_R32_DEAD		0xDEADBEEF
 #define MAC_REG_POOL_COUNT	10
 #define ACCESS_CMAC(_addr) \
 	({typeof(_addr) __addr = (_addr); \
