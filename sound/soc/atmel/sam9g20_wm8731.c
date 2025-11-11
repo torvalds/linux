@@ -80,7 +80,7 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 #ifndef ENABLE_MIC_INPUT
-	snd_soc_dapm_nc_pin(&rtd->card->dapm, "Int Mic");
+	snd_soc_dapm_disable_pin(snd_soc_card_to_dapm(rtd->card), "Int Mic");
 #endif
 
 	return 0;
