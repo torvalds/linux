@@ -1641,16 +1641,25 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(iomap_page_mkwrite);
 
-void iomap_start_folio_write(struct inode *inode, struct folio *folio,
-		size_t len)
+static void iomap_writeback_init(struct inode *inode, struct folio *folio)
 {
 	struct iomap_folio_state *ifs = folio->private;
 
 	WARN_ON_ONCE(i_blocks_per_folio(inode, folio) > 1 && !ifs);
-	if (ifs)
-		atomic_add(len, &ifs->write_bytes_pending);
+	if (ifs) {
+		WARN_ON_ONCE(atomic_read(&ifs->write_bytes_pending) != 0);
+		/*
+		 * Set this to the folio size. After processing the folio for
+		 * writeback in iomap_writeback_folio(), we'll subtract any
+		 * ranges not written back.
+		 *
+		 * We do this because otherwise, we would have to atomically
+		 * increment ifs->write_bytes_pending every time a range in the
+		 * folio needs to be written back.
+		 */
+		atomic_set(&ifs->write_bytes_pending, folio_size(folio));
+	}
 }
-EXPORT_SYMBOL_GPL(iomap_start_folio_write);
 
 void iomap_finish_folio_write(struct inode *inode, struct folio *folio,
 		size_t len)
@@ -1667,7 +1676,7 @@ EXPORT_SYMBOL_GPL(iomap_finish_folio_write);
 
 static int iomap_writeback_range(struct iomap_writepage_ctx *wpc,
 		struct folio *folio, u64 pos, u32 rlen, u64 end_pos,
-		bool *wb_pending)
+		size_t *bytes_submitted)
 {
 	do {
 		ssize_t ret;
@@ -1681,11 +1690,11 @@ static int iomap_writeback_range(struct iomap_writepage_ctx *wpc,
 		pos += ret;
 
 		/*
-		 * Holes are not be written back by ->writeback_range, so track
+		 * Holes are not written back by ->writeback_range, so track
 		 * if we did handle anything that is not a hole here.
 		 */
 		if (wpc->iomap.type != IOMAP_HOLE)
-			*wb_pending = true;
+			*bytes_submitted += ret;
 	} while (rlen);
 
 	return 0;
@@ -1756,7 +1765,7 @@ int iomap_writeback_folio(struct iomap_writepage_ctx *wpc, struct folio *folio)
 	u64 pos = folio_pos(folio);
 	u64 end_pos = pos + folio_size(folio);
 	u64 end_aligned = 0;
-	bool wb_pending = false;
+	size_t bytes_submitted = 0;
 	int error = 0;
 	u32 rlen;
 
@@ -1776,14 +1785,7 @@ int iomap_writeback_folio(struct iomap_writepage_ctx *wpc, struct folio *folio)
 			iomap_set_range_dirty(folio, 0, end_pos - pos);
 		}
 
-		/*
-		 * Keep the I/O completion handler from clearing the writeback
-		 * bit until we have submitted all blocks by adding a bias to
-		 * ifs->write_bytes_pending, which is dropped after submitting
-		 * all blocks.
-		 */
-		WARN_ON_ONCE(atomic_read(&ifs->write_bytes_pending) != 0);
-		iomap_start_folio_write(inode, folio, 1);
+		iomap_writeback_init(inode, folio);
 	}
 
 	/*
@@ -1798,13 +1800,13 @@ int iomap_writeback_folio(struct iomap_writepage_ctx *wpc, struct folio *folio)
 	end_aligned = round_up(end_pos, i_blocksize(inode));
 	while ((rlen = iomap_find_dirty_range(folio, &pos, end_aligned))) {
 		error = iomap_writeback_range(wpc, folio, pos, rlen, end_pos,
-				&wb_pending);
+				&bytes_submitted);
 		if (error)
 			break;
 		pos += rlen;
 	}
 
-	if (wb_pending)
+	if (bytes_submitted)
 		wpc->nr_folios++;
 
 	/*
@@ -1822,12 +1824,20 @@ int iomap_writeback_folio(struct iomap_writepage_ctx *wpc, struct folio *folio)
 	 * bit ourselves right after unlocking the page.
 	 */
 	if (ifs) {
-		if (atomic_dec_and_test(&ifs->write_bytes_pending))
-			folio_end_writeback(folio);
-	} else {
-		if (!wb_pending)
-			folio_end_writeback(folio);
+		/*
+		 * Subtract any bytes that were initially accounted to
+		 * write_bytes_pending but skipped for writeback.
+		 */
+		size_t bytes_not_submitted = folio_size(folio) -
+				bytes_submitted;
+
+		if (bytes_not_submitted)
+			iomap_finish_folio_write(inode, folio,
+					bytes_not_submitted);
+	} else if (!bytes_submitted) {
+		folio_end_writeback(folio);
 	}
+
 	mapping_set_error(inode->i_mapping, error);
 	return error;
 }
