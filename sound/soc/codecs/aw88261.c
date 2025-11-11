@@ -1131,7 +1131,7 @@ static int aw88261_request_firmware_file(struct aw88261 *aw88261)
 
 static int aw88261_codec_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(component);
 	int ret;
 
