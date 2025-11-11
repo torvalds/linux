@@ -149,6 +149,13 @@ struct scx_dsq_list_node {
 	u32			priv;		/* can be used by iter cursor */
 };
 
+#define INIT_DSQ_LIST_CURSOR(__node, __flags, __priv)				\
+	(struct scx_dsq_list_node) {						\
+		.node = LIST_HEAD_INIT((__node).node),				\
+		.flags = SCX_DSQ_LNODE_ITER_CURSOR | (__flags),			\
+		.priv = (__priv),						\
+	}
+
 /*
  * The following is embedded in task_struct and contains all fields necessary
  * for a task to be scheduled by SCX.
