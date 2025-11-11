@@ -803,7 +803,6 @@
 	cap-sd-highspeed;
 	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	disable-wp;
-	max-frequency = <200000000>;
 	no-sdio;
 	no-mmc;
 	pinctrl-names = "default";
