@@ -1193,7 +1193,7 @@ static int adc3xxx_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(dai->component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(dai->component);
 	struct adc3xxx *adc3xxx = snd_soc_component_get_drvdata(component);
 	int i, width = 16;
 	u8 iface_len, bdiv;
@@ -1299,7 +1299,7 @@ static int adc3xxx_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int adc3xxx_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = codec_dai->component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct adc3xxx *adc3xxx = snd_soc_component_get_drvdata(component);
 	u8 clkdir = 0, format = 0;
 	int master = 0;
