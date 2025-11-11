@@ -287,6 +287,8 @@ void fw_fill_response(struct fw_packet *response, u32 *request_header,
 void fw_request_get(struct fw_request *request);
 void fw_request_put(struct fw_request *request);
 
+void fw_cancel_pending_transactions(struct fw_card *card);
+
 // Convert the value of IEEE 1394 CYCLE_TIME register to the format of timeStamp field in
 // descriptors of 1394 OHCI.
 static inline u32 cycle_time_to_ohci_tstamp(u32 tstamp)

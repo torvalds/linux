@@ -3719,11 +3719,6 @@ static void pci_remove(struct pci_dev *dev)
 
 	fw_core_remove_card(&ohci->card);
 
-	/*
-	 * FIXME: Fail all pending packets here, now that the upper
-	 * layers can't queue any more.
-	 */
-
 	software_reset(ohci);
 
 	irq = pci_irq_vector(dev, 0);
