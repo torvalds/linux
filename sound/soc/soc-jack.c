@@ -40,7 +40,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 		return;
 	trace_snd_soc_jack_report(jack, mask, status);
 
-	dapm = &jack->card->dapm;
+	dapm = snd_soc_card_to_dapm(jack->card);
 
 	mutex_lock(&jack->mutex);
 
