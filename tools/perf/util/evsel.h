@@ -122,6 +122,7 @@ struct evsel {
 	bool			reset_group;
 	bool			needs_auxtrace_mmap;
 	bool			default_metricgroup; /* A member of the Default metricgroup */
+	bool			default_show_events; /* If a default group member, show the event */
 	bool			needs_uniquify;
 	struct hashmap		*per_pkg_mask;
 	int			err;

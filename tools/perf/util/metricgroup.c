@@ -152,6 +152,8 @@ struct metric {
 	 * Should events of the metric be grouped?
 	 */
 	bool group_events;
+	/** Show events even if in the Default metric group. */
+	bool default_show_events;
 	/**
 	 * Parsed events for the metric. Optional as events may be taken from a
 	 * different metric whose group contains all the IDs necessary for this
@@ -255,6 +257,7 @@ static struct metric *metric__new(const struct pmu_metric *pm,
 	m->pctx->sctx.runtime = runtime;
 	m->pctx->sctx.system_wide = system_wide;
 	m->group_events = !metric_no_group && metric__group_events(pm, metric_no_threshold);
+	m->default_show_events = pm->default_show_events;
 	m->metric_refs = NULL;
 	m->evlist = NULL;
 
@@ -1512,6 +1515,16 @@ static int parse_groups(struct evlist *perf_evlist,
 			free(expr);
 			free(metric_events);
 			goto out;
+		}
+		if (m->default_show_events) {
+			struct evsel *pos;
+
+			for (int i = 0; metric_events[i]; i++)
+				metric_events[i]->default_show_events = true;
+			evlist__for_each_entry(metric_evlist, pos) {
+				if (pos->metric_leader && pos->metric_leader->default_show_events)
+					pos->default_show_events = true;
+			}
 		}
 		expr->metric_threshold = m->metric_threshold;
 		expr->metric_unit = m->metric_unit;

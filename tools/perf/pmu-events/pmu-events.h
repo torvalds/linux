@@ -74,6 +74,7 @@ struct pmu_metric {
 	const char *default_metricgroup_name;
 	enum aggr_mode_class aggr_mode;
 	enum metric_event_groups event_grouping;
+	bool default_show_events;
 };
 
 struct pmu_events_table;

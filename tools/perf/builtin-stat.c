@@ -1857,16 +1857,6 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	return 0;
 }
 
-/* Add given software event to evlist without wildcarding. */
-static int parse_software_event(struct evlist *evlist, const char *event,
-				struct parse_events_error *err)
-{
-	char buf[256];
-
-	snprintf(buf, sizeof(buf), "software/%s,name=%s/", event, event);
-	return parse_events(evlist, buf, err);
-}
-
 /* Add legacy hardware/hardware-cache event to evlist for all core PMUs without wildcarding. */
 static int parse_hardware_event(struct evlist *evlist, const char *event,
 				struct parse_events_error *err)
@@ -2011,36 +2001,10 @@ static int add_default_events(void)
 		stat_config.topdown_level = 1;
 
 	if (!evlist->core.nr_entries && !evsel_list->core.nr_entries) {
-		/* No events so add defaults. */
-		const char *sw_events[] = {
-			target__has_cpu(&target) ? "cpu-clock" : "task-clock",
-			"context-switches",
-			"cpu-migrations",
-			"page-faults",
-		};
-		const char *hw_events[] = {
-			"instructions",
-			"cycles",
-			"stalled-cycles-frontend",
-			"stalled-cycles-backend",
-			"branches",
-			"branch-misses",
-		};
-
-		for (size_t i = 0; i < ARRAY_SIZE(sw_events); i++) {
-			ret = parse_software_event(evlist, sw_events[i], &err);
-			if (ret)
-				goto out;
-		}
-		for (size_t i = 0; i < ARRAY_SIZE(hw_events); i++) {
-			ret = parse_hardware_event(evlist, hw_events[i], &err);
-			if (ret)
-				goto out;
-		}
-
 		/*
-		 * Add TopdownL1 metrics if they exist. To minimize
-		 * multiplexing, don't request threshold computation.
+		 * Add Default metrics. To minimize multiplexing, don't request
+		 * threshold computation, but it will be computed if the events
+		 * are present.
 		 */
 		if (metricgroup__has_metric_or_groups(pmu, "Default")) {
 			struct evlist *metric_evlist = evlist__new();

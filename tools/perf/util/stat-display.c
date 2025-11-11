@@ -872,7 +872,7 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 	out.ctx = os;
 	out.force_header = false;
 
-	if (!config->metric_only && !counter->default_metricgroup) {
+	if (!config->metric_only && (!counter->default_metricgroup || counter->default_show_events)) {
 		abs_printout(config, os, os->id, os->aggr_nr, counter, uval, ok);
 
 		print_noise(config, os, counter, noise, /*before_metric=*/true);
@@ -880,7 +880,7 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 	}
 
 	if (ok) {
-		if (!config->metric_only && counter->default_metricgroup) {
+		if (!config->metric_only && counter->default_metricgroup && !counter->default_show_events) {
 			void *from = NULL;
 
 			aggr_printout(config, os, os->evsel, os->id, os->aggr_nr);

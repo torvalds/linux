@@ -5,7 +5,8 @@
         "MetricGroup": "Default",
         "MetricName": "CPUs_utilized",
         "ScaleUnit": "1CPUs",
-        "MetricConstraint": "NO_GROUP_EVENTS"
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Context switches per CPU second",
@@ -13,7 +14,8 @@
         "MetricGroup": "Default",
         "MetricName": "cs_per_second",
         "ScaleUnit": "1cs/sec",
-        "MetricConstraint": "NO_GROUP_EVENTS"
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Process migrations to a new CPU per CPU second",
@@ -21,7 +23,8 @@
         "MetricGroup": "Default",
         "MetricName": "migrations_per_second",
         "ScaleUnit": "1migrations/sec",
-        "MetricConstraint": "NO_GROUP_EVENTS"
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Page faults per CPU second",
@@ -29,7 +32,8 @@
         "MetricGroup": "Default",
         "MetricName": "page_faults_per_second",
         "ScaleUnit": "1faults/sec",
-        "MetricConstraint": "NO_GROUP_EVENTS"
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Instructions Per Cycle",
@@ -37,27 +41,31 @@
         "MetricGroup": "Default",
         "MetricName": "insn_per_cycle",
         "MetricThreshold": "insn_per_cycle < 1",
-        "ScaleUnit": "1instructions"
+        "ScaleUnit": "1instructions",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Max front or backend stalls per instruction",
         "MetricExpr": "max(stalled\\-cycles\\-frontend, stalled\\-cycles\\-backend) / instructions",
         "MetricGroup": "Default",
-        "MetricName": "stalled_cycles_per_instruction"
+        "MetricName": "stalled_cycles_per_instruction",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Frontend stalls per cycle",
         "MetricExpr": "stalled\\-cycles\\-frontend / cpu\\-cycles",
         "MetricGroup": "Default",
         "MetricName": "frontend_cycles_idle",
-        "MetricThreshold": "frontend_cycles_idle > 0.1"
+        "MetricThreshold": "frontend_cycles_idle > 0.1",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Backend stalls per cycle",
         "MetricExpr": "stalled\\-cycles\\-backend / cpu\\-cycles",
         "MetricGroup": "Default",
         "MetricName": "backend_cycles_idle",
-        "MetricThreshold": "backend_cycles_idle > 0.2"
+        "MetricThreshold": "backend_cycles_idle > 0.2",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Cycles per CPU second",
@@ -65,7 +73,8 @@
         "MetricGroup": "Default",
         "MetricName": "cycles_frequency",
         "ScaleUnit": "1GHz",
-        "MetricConstraint": "NO_GROUP_EVENTS"
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Branches per CPU second",
@@ -73,7 +82,8 @@
         "MetricGroup": "Default",
         "MetricName": "branch_frequency",
         "ScaleUnit": "1000M/sec",
-        "MetricConstraint": "NO_GROUP_EVENTS"
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Branch miss rate",
@@ -81,6 +91,7 @@
         "MetricGroup": "Default",
         "MetricName": "branch_miss_rate",
         "MetricThreshold": "branch_miss_rate > 0.05",
-        "ScaleUnit": "100%"
+        "ScaleUnit": "100%",
+        "DefaultShowEvents": "1"
     }
 ]

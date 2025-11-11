@@ -665,7 +665,7 @@ void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
 			if (strcmp(name, mexp->default_metricgroup_name))
 				return (void *)mexp;
 			/* Only print the name of the metricgroup once */
-			if (!header_printed) {
+			if (!header_printed && !evsel->default_show_events) {
 				header_printed = true;
 				perf_stat__print_metricgroup_header(config, evsel, ctxp,
 								    name, out);
