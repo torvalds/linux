@@ -3712,6 +3712,24 @@ void scx_softlockup(u32 dur_s)
 }
 
 /**
+ * scx_hardlockup - sched_ext hardlockup handler
+ *
+ * A poorly behaving BPF scheduler can trigger hard lockup by e.g. putting
+ * numerous affinitized tasks in a single queue and directing all CPUs at it.
+ * Try kicking out the current scheduler in an attempt to recover the system to
+ * a good state before taking more drastic actions.
+ */
+bool scx_hardlockup(void)
+{
+	if (!handle_lockup("hard lockup - CPU %d", smp_processor_id()))
+		return false;
+
+	printk_deferred(KERN_ERR "sched_ext: Hard lockup - CPU %d, disabling BPF scheduler\n",
+			smp_processor_id());
+	return true;
+}
+
+/**
  * scx_bypass - [Un]bypass scx_ops and guarantee forward progress
  * @bypass: true for bypass, false for unbypass
  *
