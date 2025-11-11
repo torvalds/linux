@@ -284,6 +284,16 @@ static int mali_c55_create_links(struct mali_c55 *mali_c55)
 		}
 	}
 
+	ret = media_create_pad_link(&mali_c55->isp.sd.entity,
+				    MALI_C55_ISP_PAD_SOURCE_STATS,
+				    &mali_c55->stats.vdev.entity, 0,
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret) {
+		dev_err(mali_c55->dev,
+			"failed to link ISP and 3a stats node\n");
+		goto err_remove_links;
+	}
+
 	return 0;
 
 err_remove_links:
@@ -298,18 +308,12 @@ static void mali_c55_unregister_entities(struct mali_c55 *mali_c55)
 	mali_c55_unregister_isp(mali_c55);
 	mali_c55_unregister_resizers(mali_c55);
 	mali_c55_unregister_capture_devs(mali_c55);
+	mali_c55_unregister_stats(mali_c55);
 }
 
 static void mali_c55_swap_next_config(struct mali_c55 *mali_c55)
 {
 	struct mali_c55_context *ctx = mali_c55_get_active_context(mali_c55);
-
-	u32 curr_config;
-
-	curr_config = mali_c55_read(mali_c55, MALI_C55_REG_PING_PONG_READ);
-	curr_config = (curr_config & MALI_C55_REG_PING_PONG_READ_MASK)
-		      >> (ffs(MALI_C55_REG_PING_PONG_READ_MASK) - 1);
-	mali_c55->next_config = curr_config ^ 1;
 
 	mali_c55_config_write(ctx, mali_c55->next_config ?
 			      MALI_C55_CONFIG_PING : MALI_C55_CONFIG_PONG,
@@ -337,6 +341,10 @@ static int mali_c55_register_entities(struct mali_c55 *mali_c55)
 		goto err_unregister_entities;
 
 	ret = mali_c55_register_capture_devs(mali_c55);
+	if (ret)
+		goto err_unregister_entities;
+
+	ret = mali_c55_register_stats(mali_c55);
 	if (ret)
 		goto err_unregister_entities;
 
@@ -484,10 +492,12 @@ bool mali_c55_pipeline_ready(struct mali_c55 *mali_c55)
 {
 	struct mali_c55_cap_dev *fr = &mali_c55->cap_devs[MALI_C55_CAP_DEV_FR];
 	struct mali_c55_cap_dev *ds = &mali_c55->cap_devs[MALI_C55_CAP_DEV_DS];
+	struct mali_c55_stats *stats = &mali_c55->stats;
 
 	return vb2_start_streaming_called(&fr->queue) &&
 	       (!(mali_c55->capabilities & MALI_C55_GPS_DS_PIPE_FITTED) ||
-		vb2_start_streaming_called(&ds->queue));
+		vb2_start_streaming_called(&ds->queue)) &&
+	       vb2_start_streaming_called(&stats->queue);
 }
 
 static int mali_c55_check_hwcfg(struct mali_c55 *mali_c55)
@@ -529,6 +539,7 @@ static irqreturn_t mali_c55_isr(int irq, void *context)
 	struct device *dev = context;
 	struct mali_c55 *mali_c55 = dev_get_drvdata(dev);
 	unsigned long interrupt_status;
+	u32 curr_config;
 	unsigned int i;
 
 	interrupt_status = mali_c55_read(mali_c55,
@@ -549,6 +560,22 @@ static irqreturn_t mali_c55_isr(int irq, void *context)
 			mali_c55_set_next_buffer(&mali_c55->cap_devs[MALI_C55_CAP_DEV_FR]);
 			if (mali_c55->capabilities & MALI_C55_GPS_DS_PIPE_FITTED)
 				mali_c55_set_next_buffer(&mali_c55->cap_devs[MALI_C55_CAP_DEV_DS]);
+
+			/*
+			 * When the ISP starts a frame we have some work to do:
+			 *
+			 * 1. Copy over the config for the **next** frame
+			 * 2. Read out the metering stats for the **last** frame
+			 */
+
+			curr_config = mali_c55_read(mali_c55,
+						    MALI_C55_REG_PING_PONG_READ);
+			curr_config &= MALI_C55_REG_PING_PONG_READ_MASK;
+			curr_config >>= ffs(MALI_C55_REG_PING_PONG_READ_MASK) - 1;
+			mali_c55->next_config = curr_config ^ 1;
+
+			mali_c55_stats_fill_buffer(mali_c55,
+						   mali_c55->next_config ^ 1);
 
 			mali_c55_swap_next_config(mali_c55);
 

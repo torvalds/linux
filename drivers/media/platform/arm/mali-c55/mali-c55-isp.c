@@ -5,6 +5,8 @@
  * Copyright (C) 2025 Ideas on Board Oy
  */
 
+#include <linux/media/arm/mali-c55-config.h>
+
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/property.h>
@@ -490,6 +492,14 @@ static int mali_c55_isp_init_state(struct v4l2_subdev *sd,
 	in_crop->width = MALI_C55_DEFAULT_WIDTH;
 	in_crop->height = MALI_C55_DEFAULT_HEIGHT;
 
+	src_fmt = v4l2_subdev_state_get_format(state,
+					       MALI_C55_ISP_PAD_SOURCE_STATS);
+
+	src_fmt->width = 0;
+	src_fmt->height = 0;
+	src_fmt->field = V4L2_FIELD_NONE;
+	src_fmt->code = MEDIA_BUS_FMT_METADATA_FIXED;
+
 	return 0;
 }
 
@@ -586,6 +596,7 @@ int mali_c55_register_isp(struct mali_c55 *mali_c55)
 						       MEDIA_PAD_FL_MUST_CONNECT;
 	isp->pads[MALI_C55_ISP_PAD_SOURCE_VIDEO].flags = MEDIA_PAD_FL_SOURCE;
 	isp->pads[MALI_C55_ISP_PAD_SOURCE_BYPASS].flags = MEDIA_PAD_FL_SOURCE;
+	isp->pads[MALI_C55_ISP_PAD_SOURCE_STATS].flags = MEDIA_PAD_FL_SOURCE;
 
 	ret = media_entity_pads_init(&sd->entity, MALI_C55_ISP_NUM_PADS,
 				     isp->pads);
