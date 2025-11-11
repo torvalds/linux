@@ -637,7 +637,7 @@ static int sst_swm_mixer_event(struct snd_soc_dapm_widget *w,
 	 * inputs as an IPC to the DSP.
 	 */
 	for (i = 0; i < w->num_kcontrols; i++) {
-		if (dapm_kcontrol_get_value(w->kcontrols[i])) {
+		if (snd_soc_dapm_kcontrol_get_value(w->kcontrols[i])) {
 			mc = (struct soc_mixer_control *)(w->kcontrols[i])->private_value;
 			val |= 1 << mc->shift;
 		}
@@ -1530,8 +1530,7 @@ static int sst_map_modules_to_pipe(struct snd_soc_component *component)
 int sst_dsp_init_v2_dpcm(struct snd_soc_component *component)
 {
 	int i, ret = 0;
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct sst_data *drv = snd_soc_component_get_drvdata(component);
 	unsigned int gains = ARRAY_SIZE(sst_gain_controls)/3;
 
@@ -1544,7 +1543,7 @@ int sst_dsp_init_v2_dpcm(struct snd_soc_component *component)
 			ARRAY_SIZE(sst_dapm_widgets));
 	snd_soc_dapm_add_routes(dapm, intercon,
 			ARRAY_SIZE(intercon));
-	snd_soc_dapm_new_widgets(dapm->card);
+	snd_soc_dapm_new_widgets(component->card);
 
 	for (i = 0; i < gains; i++) {
 		sst_gains[i].mute = SST_GAIN_MUTE_DEFAULT;
