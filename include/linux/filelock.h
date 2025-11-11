@@ -486,25 +486,35 @@ static inline int break_deleg(struct inode *inode, unsigned int flags)
 	return 0;
 }
 
-static inline int try_break_deleg(struct inode *inode, struct inode **delegated_inode)
+struct delegated_inode {
+	struct inode *di_inode;
+};
+
+static inline bool is_delegated(struct delegated_inode *di)
+{
+	return di->di_inode;
+}
+
+static inline int try_break_deleg(struct inode *inode,
+				  struct delegated_inode *di)
 {
 	int ret;
 
 	ret = break_deleg(inode, LEASE_BREAK_NONBLOCK);
-	if (ret == -EWOULDBLOCK && delegated_inode) {
-		*delegated_inode = inode;
+	if (ret == -EWOULDBLOCK && di) {
+		di->di_inode = inode;
 		ihold(inode);
 	}
 	return ret;
 }
 
-static inline int break_deleg_wait(struct inode **delegated_inode)
+static inline int break_deleg_wait(struct delegated_inode *di)
 {
 	int ret;
 
-	ret = break_deleg(*delegated_inode, 0);
-	iput(*delegated_inode);
-	*delegated_inode = NULL;
+	ret = break_deleg(di->di_inode, 0);
+	iput(di->di_inode);
+	di->di_inode = NULL;
 	return ret;
 }
 
@@ -523,6 +533,13 @@ static inline int break_layout(struct inode *inode, bool wait)
 }
 
 #else /* !CONFIG_FILE_LOCKING */
+struct delegated_inode { };
+
+static inline bool is_delegated(struct delegated_inode *di)
+{
+	return false;
+}
+
 static inline int break_lease(struct inode *inode, bool wait)
 {
 	return 0;
@@ -533,12 +550,13 @@ static inline int break_deleg(struct inode *inode, unsigned int flags)
 	return 0;
 }
 
-static inline int try_break_deleg(struct inode *inode, struct inode **delegated_inode)
+static inline int try_break_deleg(struct inode *inode,
+				  struct delegated_inode *delegated_inode)
 {
 	return 0;
 }
 
-static inline int break_deleg_wait(struct inode **delegated_inode)
+static inline int break_deleg_wait(struct delegated_inode *delegated_inode)
 {
 	BUG();
 	return 0;
