@@ -192,6 +192,7 @@ static __printf(4, 5) bool scx_exit(struct scx_sched *sch,
 }
 
 #define scx_error(sch, fmt, args...)	scx_exit((sch), SCX_EXIT_ERROR, 0, fmt, ##args)
+#define scx_verror(sch, fmt, args)	scx_vexit((sch), SCX_EXIT_ERROR, 0, fmt, args)
 
 #define SCX_HAS_OP(sch, op)	test_bit(SCX_OP_IDX(op), (sch)->has_op)
 
@@ -3654,6 +3655,29 @@ bool scx_allow_ttwu_queue(const struct task_struct *p)
 	return false;
 }
 
+static __printf(1, 2) bool handle_lockup(const char *fmt, ...)
+{
+	struct scx_sched *sch;
+	va_list args;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return false;
+
+	switch (scx_enable_state()) {
+	case SCX_ENABLING:
+	case SCX_ENABLED:
+		va_start(args, fmt);
+		scx_verror(sch, fmt, args);
+		va_end(args);
+		return true;
+	default:
+		return false;
+	}
+}
+
 /**
  * scx_rcu_cpu_stall - sched_ext RCU CPU stall handler
  *
@@ -3664,29 +3688,7 @@ bool scx_allow_ttwu_queue(const struct task_struct *p)
  */
 bool scx_rcu_cpu_stall(void)
 {
-	struct scx_sched *sch;
-
-	rcu_read_lock();
-
-	sch = rcu_dereference(scx_root);
-	if (unlikely(!sch)) {
-		rcu_read_unlock();
-		return false;
-	}
-
-	switch (scx_enable_state()) {
-	case SCX_ENABLING:
-	case SCX_ENABLED:
-		break;
-	default:
-		rcu_read_unlock();
-		return false;
-	}
-
-	scx_error(sch, "RCU CPU stall detected!");
-	rcu_read_unlock();
-
-	return true;
+	return handle_lockup("RCU CPU stall detected!");
 }
 
 /**
@@ -3701,28 +3703,11 @@ bool scx_rcu_cpu_stall(void)
  */
 void scx_softlockup(u32 dur_s)
 {
-	struct scx_sched *sch;
+	if (!handle_lockup("soft lockup - CPU %d stuck for %us", smp_processor_id(), dur_s))
+		return;
 
-	rcu_read_lock();
-
-	sch = rcu_dereference(scx_root);
-	if (unlikely(!sch))
-		goto out_unlock;
-
-	switch (scx_enable_state()) {
-	case SCX_ENABLING:
-	case SCX_ENABLED:
-		break;
-	default:
-		goto out_unlock;
-	}
-
-	printk_deferred(KERN_ERR "sched_ext: Soft lockup - CPU%d stuck for %us, disabling \"%s\"\n",
-			smp_processor_id(), dur_s, scx_root->ops.name);
-
-	scx_error(sch, "soft lockup - CPU#%d stuck for %us", smp_processor_id(), dur_s);
-out_unlock:
-	rcu_read_unlock();
+	printk_deferred(KERN_ERR "sched_ext: Soft lockup - CPU %d stuck for %us, disabling BPF scheduler\n",
+			smp_processor_id(), dur_s);
 }
 
 /**
