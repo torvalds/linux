@@ -1331,6 +1331,7 @@ static int wm8753_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8753_priv *wm8753 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	u16 pwr_reg = snd_soc_component_read(component, WM8753_PWR1) & 0xfe3e;
 
 	switch (level) {
@@ -1343,7 +1344,7 @@ static int wm8753_set_bias_level(struct snd_soc_component *component,
 		flush_delayed_work(&wm8753->charge_work);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			/* set vmid to 5k for quick power up */
 			snd_soc_component_write(component, WM8753_PWR1, pwr_reg | 0x01c1);
 			schedule_delayed_work(&wm8753->charge_work,
