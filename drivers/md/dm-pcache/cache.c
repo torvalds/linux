@@ -411,7 +411,7 @@ void pcache_cache_stop(struct dm_pcache *pcache)
 {
 	struct pcache_cache *cache = &pcache->cache;
 
-	cache_flush(cache);
+	pcache_cache_flush(cache);
 
 	cancel_delayed_work_sync(&cache->gc_work);
 	flush_work(&cache->clean_work);
