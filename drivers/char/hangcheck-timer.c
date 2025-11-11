@@ -142,7 +142,7 @@ static void hangcheck_fire(struct timer_list *unused)
 	/*
 	 * Enable to investigate delays in detail
 	 */
-	pr_debug("Hangcheck: called %Ld ns since last time (%Ld ns overshoot)\n",
+	pr_debug("Hangcheck: called %lld ns since last time (%lld ns overshoot)\n",
 			tsc_diff, tsc_diff - hangcheck_tick*TIMER_FREQ);
 #endif
 	mod_timer(&hangcheck_ticktock, jiffies + (hangcheck_tick*HZ));
