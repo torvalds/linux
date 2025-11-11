@@ -1287,7 +1287,7 @@ static const struct snd_soc_dapm_route sun8i_codec_legacy_routes[] = {
 
 static int sun8i_codec_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(component);
 	int ret;
 
@@ -1331,7 +1331,7 @@ static int sun8i_codec_component_probe(struct snd_soc_component *component)
 
 static void sun8i_codec_set_hmic_bias(struct sun8i_codec *scodec, bool enable)
 {
-	struct snd_soc_dapm_context *dapm = &scodec->component->card->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(scodec->component->card);
 	int irq_mask = BIT(SUN8I_HMIC_CTRL1_HMIC_DATA_IRQ_EN);
 
 	if (enable)
