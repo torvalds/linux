@@ -369,7 +369,11 @@ static int tmp421_probe_child_from_dt(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	of_property_read_string(child, "label", &data->channel[i].label);
+	err = of_property_read_string(child, "label", &data->channel[i].label);
+	if (err == -ENODATA || err == -EILSEQ) {
+		dev_err(dev, "invalid label property in %pOFn\n", child);
+		return err;
+	}
 	if (data->channel[i].label)
 		data->temp_config[i] |= HWMON_T_LABEL;
 
