@@ -1204,8 +1204,6 @@ static inline void disk_zone_wplug_add_bio(struct gendisk *disk,
 				struct blk_zone_wplug *zwplug,
 				struct bio *bio, unsigned int nr_segs)
 {
-	bool schedule_bio_work = false;
-
 	/*
 	 * Grab an extra reference on the BIO request queue usage counter.
 	 * This reference will be reused to submit a request for the BIO for
@@ -1222,16 +1220,6 @@ static inline void disk_zone_wplug_add_bio(struct gendisk *disk,
 	bio_clear_polled(bio);
 
 	/*
-	 * REQ_NOWAIT BIOs are always handled using the zone write plug BIO
-	 * work, which can block. So clear the REQ_NOWAIT flag and schedule the
-	 * work if this is the first BIO we are plugging.
-	 */
-	if (bio->bi_opf & REQ_NOWAIT) {
-		schedule_bio_work = !(zwplug->flags & BLK_ZONE_WPLUG_PLUGGED);
-		bio->bi_opf &= ~REQ_NOWAIT;
-	}
-
-	/*
 	 * Reuse the poll cookie field to store the number of segments when
 	 * split to the hardware limits.
 	 */
@@ -1246,11 +1234,6 @@ static inline void disk_zone_wplug_add_bio(struct gendisk *disk,
 	bio_list_add(&zwplug->bio_list, bio);
 	trace_disk_zone_wplug_add_bio(zwplug->disk->queue, zwplug->zone_no,
 				      bio->bi_iter.bi_sector, bio_sectors(bio));
-
-	zwplug->flags |= BLK_ZONE_WPLUG_PLUGGED;
-
-	if (schedule_bio_work)
-		disk_zone_wplug_schedule_bio_work(disk, zwplug);
 }
 
 /*
@@ -1461,14 +1444,17 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 	bio_set_flag(bio, BIO_ZONE_WRITE_PLUGGING);
 
 	/*
-	 * If the zone is already plugged, add the BIO to the plug BIO list.
-	 * Do the same for REQ_NOWAIT BIOs to ensure that we will not see a
-	 * BLK_STS_AGAIN failure if we let the BIO execute.
-	 * Otherwise, plug and let the BIO execute.
+	 * Add REQ_NOWAIT BIOs to the plug list to ensure that we will not see a
+	 * BLK_STS_AGAIN failure if we let the caller submit the BIO.
 	 */
-	if ((zwplug->flags & BLK_ZONE_WPLUG_PLUGGED) ||
-	    (bio->bi_opf & REQ_NOWAIT))
-		goto plug;
+	if (bio->bi_opf & REQ_NOWAIT) {
+		bio->bi_opf &= ~REQ_NOWAIT;
+		goto queue_bio;
+	}
+
+	/* If the zone is already plugged, add the BIO to the BIO plug list. */
+	if (zwplug->flags & BLK_ZONE_WPLUG_PLUGGED)
+		goto queue_bio;
 
 	if (!blk_zone_wplug_prepare_bio(zwplug, bio)) {
 		spin_unlock_irqrestore(&zwplug->lock, flags);
@@ -1476,14 +1462,20 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 		return true;
 	}
 
+	/* Otherwise, plug and let the caller submit the BIO. */
 	zwplug->flags |= BLK_ZONE_WPLUG_PLUGGED;
 
 	spin_unlock_irqrestore(&zwplug->lock, flags);
 
 	return false;
 
-plug:
+queue_bio:
 	disk_zone_wplug_add_bio(disk, zwplug, bio, nr_segs);
+
+	if (!(zwplug->flags & BLK_ZONE_WPLUG_PLUGGED)) {
+		zwplug->flags |= BLK_ZONE_WPLUG_PLUGGED;
+		disk_zone_wplug_schedule_bio_work(disk, zwplug);
+	}
 
 	spin_unlock_irqrestore(&zwplug->lock, flags);
 
