@@ -192,14 +192,12 @@ static unsigned long btrfs_compr_pool_count(struct shrinker *sh, struct shrink_c
 
 static unsigned long btrfs_compr_pool_scan(struct shrinker *sh, struct shrink_control *sc)
 {
-	struct list_head remove;
+	LIST_HEAD(remove);
 	struct list_head *tmp, *next;
 	int freed;
 
 	if (compr_pool.count == 0)
 		return SHRINK_STOP;
-
-	INIT_LIST_HEAD(&remove);
 
 	/* For now, just simply drain the whole list. */
 	spin_lock(&compr_pool.lock);
