@@ -432,16 +432,6 @@ static int autofs_dev_ioctl_timeout(struct file *fp,
 		if (!autofs_type_indirect(sbi->type))
 			return -EINVAL;
 
-		/* An expire timeout greater than the superblock timeout
-		 * could be a problem at shutdown but the super block
-		 * timeout itself can change so all we can really do is
-		 * warn the user.
-		 */
-		if (timeout >= sbi->exp_timeout)
-			pr_warn("per-mount expire timeout is greater than "
-				"the parent autofs mount timeout which could "
-				"prevent shutdown\n");
-
 		dentry = try_lookup_noperm(&QSTR_LEN(param->path, path_len),
 					   base);
 		if (IS_ERR_OR_NULL(dentry))
@@ -470,6 +460,18 @@ static int autofs_dev_ioctl_timeout(struct file *fp,
 			ino->flags |= AUTOFS_INF_EXPIRE_SET;
 			ino->exp_timeout = timeout * HZ;
 		}
+
+		/* An expire timeout greater than the superblock timeout
+		 * could be a problem at shutdown but the super block
+		 * timeout itself can change so all we can really do is
+		 * warn the user.
+		 */
+		if (ino->flags & AUTOFS_INF_EXPIRE_SET &&
+		    ino->exp_timeout > sbi->exp_timeout)
+			pr_warn("per-mount expire timeout is greater than "
+				"the parent autofs mount timeout which could "
+				"prevent shutdown\n");
+
 		dput(dentry);
 	}
 
