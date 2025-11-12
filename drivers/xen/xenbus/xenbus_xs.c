@@ -410,7 +410,7 @@ static char *join(const char *dir, const char *name)
 	return (!buffer) ? ERR_PTR(-ENOMEM) : buffer;
 }
 
-static char **split(char *strings, unsigned int len, unsigned int *num)
+static char **split_strings(char *strings, unsigned int len, unsigned int *num)
 {
 	char *p, **ret;
 
@@ -448,7 +448,7 @@ char **xenbus_directory(struct xenbus_transaction t,
 	if (IS_ERR(strings))
 		return ERR_CAST(strings);
 
-	return split(strings, len, num);
+	return split_strings(strings, len, num);
 }
 EXPORT_SYMBOL_GPL(xenbus_directory);
 
