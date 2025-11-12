@@ -72,11 +72,14 @@ struct hns_roce_bond_group {
 	enum netdev_lag_hash hash_type;
 	struct mutex bond_mutex;
 	struct notifier_block bond_nb;
+	struct delayed_work bond_work;
 };
 
 struct hns_roce_die_info {
 	u8 bond_id_mask;
 	struct hns_roce_bond_group *bgrps[ROCE_BOND_NUM_MAX];
+	struct mutex die_mutex;
+	u8 suspend_cnt;
 };
 
 struct hns_roce_bond_group *hns_roce_get_bond_grp(struct net_device *net_dev,
@@ -86,5 +89,7 @@ void hns_roce_dealloc_bond_grp(void);
 void hns_roce_cleanup_bond(struct hns_roce_bond_group *bond_grp);
 bool hns_roce_bond_is_active(struct hns_roce_dev *hr_dev);
 int hns_roce_bond_init(struct hns_roce_dev *hr_dev);
+void hns_roce_bond_suspend(struct hnae3_handle *handle);
+void hns_roce_bond_resume(struct hnae3_handle *handle);
 
 #endif

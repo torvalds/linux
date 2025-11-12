@@ -7204,14 +7204,20 @@ reset_chk_err:
 static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 					   bool reset)
 {
+	/* Suspend bond to avoid concurrency */
+	hns_roce_bond_suspend(handle);
+
 	if (handle->rinfo.instance_state != HNS_ROCE_STATE_INITED)
-		return;
+		goto out;
 
 	handle->rinfo.instance_state = HNS_ROCE_STATE_UNINIT;
 
 	__hns_roce_hw_v2_uninit_instance(handle, reset, true);
 
 	handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
+
+out:
+	hns_roce_bond_resume(handle);
 }
 
 struct hns_roce_dev
@@ -7251,6 +7257,9 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 {
 	struct hns_roce_dev *hr_dev;
 
+	/* Suspend bond to avoid concurrency */
+	hns_roce_bond_suspend(handle);
+
 	if (handle->rinfo.instance_state != HNS_ROCE_STATE_INITED) {
 		set_bit(HNS_ROCE_RST_DIRECT_RETURN, &handle->rinfo.state);
 		return 0;
@@ -7281,6 +7290,7 @@ static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 	if (test_and_clear_bit(HNS_ROCE_RST_DIRECT_RETURN,
 			       &handle->rinfo.state)) {
 		handle->rinfo.reset_state = HNS_ROCE_STATE_RST_INITED;
+		hns_roce_bond_resume(handle);
 		return 0;
 	}
 
@@ -7300,6 +7310,7 @@ static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 		dev_info(dev, "reset done, RoCE client reinit finished.\n");
 	}
 
+	hns_roce_bond_resume(handle);
 	return ret;
 }
 
