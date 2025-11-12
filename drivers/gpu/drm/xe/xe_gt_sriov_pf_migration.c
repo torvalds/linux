@@ -5,10 +5,13 @@
 
 #include <drm/drm_managed.h>
 
+#include "regs/xe_guc_regs.h"
+
 #include "abi/guc_actions_sriov_abi.h"
 #include "xe_bo.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
+#include "xe_gt_sriov_pf.h"
 #include "xe_gt_sriov_pf_config.h"
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_helpers.h"
@@ -16,6 +19,7 @@
 #include "xe_gt_sriov_printk.h"
 #include "xe_guc_buf.h"
 #include "xe_guc_ct.h"
+#include "xe_mmio.h"
 #include "xe_sriov.h"
 #include "xe_sriov_packet.h"
 #include "xe_sriov_packet_types.h"
@@ -358,6 +362,149 @@ int xe_gt_sriov_pf_migration_guc_restore(struct xe_gt *gt, unsigned int vfid,
 	return pf_restore_vf_guc_state(gt, vfid, data);
 }
 
+static ssize_t pf_migration_mmio_size(struct xe_gt *gt, unsigned int vfid)
+{
+	if (xe_gt_is_media_type(gt))
+		return MED_VF_SW_FLAG_COUNT * sizeof(u32);
+	else
+		return VF_SW_FLAG_COUNT * sizeof(u32);
+}
+
+static int pf_migration_mmio_save(struct xe_gt *gt, unsigned int vfid, void *buf, size_t size)
+{
+	struct xe_mmio mmio;
+	u32 *regs = buf;
+	int n;
+
+	if (size != pf_migration_mmio_size(gt, vfid))
+		return -EINVAL;
+
+	xe_mmio_init_vf_view(&mmio, &gt->mmio, vfid);
+
+	if (xe_gt_is_media_type(gt))
+		for (n = 0; n < MED_VF_SW_FLAG_COUNT; n++)
+			regs[n] = xe_mmio_read32(&gt->mmio, MED_VF_SW_FLAG(n));
+	else
+		for (n = 0; n < VF_SW_FLAG_COUNT; n++)
+			regs[n] = xe_mmio_read32(&gt->mmio, VF_SW_FLAG(n));
+
+	return 0;
+}
+
+static int pf_migration_mmio_restore(struct xe_gt *gt, unsigned int vfid,
+				     const void *buf, size_t size)
+{
+	const u32 *regs = buf;
+	struct xe_mmio mmio;
+	int n;
+
+	if (size != pf_migration_mmio_size(gt, vfid))
+		return -EINVAL;
+
+	xe_mmio_init_vf_view(&mmio, &gt->mmio, vfid);
+
+	if (xe_gt_is_media_type(gt))
+		for (n = 0; n < MED_VF_SW_FLAG_COUNT; n++)
+			xe_mmio_write32(&gt->mmio, MED_VF_SW_FLAG(n), regs[n]);
+	else
+		for (n = 0; n < VF_SW_FLAG_COUNT; n++)
+			xe_mmio_write32(&gt->mmio, VF_SW_FLAG(n), regs[n]);
+
+	return 0;
+}
+
+static int pf_save_vf_mmio_mig_data(struct xe_gt *gt, unsigned int vfid)
+{
+	struct xe_sriov_packet *data;
+	size_t size;
+	int ret;
+
+	size = pf_migration_mmio_size(gt, vfid);
+	xe_gt_assert(gt, size);
+
+	data = xe_sriov_packet_alloc(gt_to_xe(gt));
+	if (!data)
+		return -ENOMEM;
+
+	ret = xe_sriov_packet_init(data, gt->tile->id, gt->info.id,
+				   XE_SRIOV_PACKET_TYPE_MMIO, 0, size);
+	if (ret)
+		goto fail;
+
+	ret = pf_migration_mmio_save(gt, vfid, data->vaddr, size);
+	if (ret)
+		goto fail;
+
+	pf_dump_mig_data(gt, vfid, data, "MMIO data save");
+
+	ret = xe_gt_sriov_pf_migration_save_produce(gt, vfid, data);
+	if (ret)
+		goto fail;
+
+	return 0;
+
+fail:
+	xe_sriov_packet_free(data);
+	xe_gt_sriov_err(gt, "Failed to save VF%u MMIO data (%pe)\n", vfid, ERR_PTR(ret));
+	return ret;
+}
+
+static int pf_restore_vf_mmio_mig_data(struct xe_gt *gt, unsigned int vfid,
+				       struct xe_sriov_packet *data)
+{
+	int ret;
+
+	pf_dump_mig_data(gt, vfid, data, "MMIO data restore");
+
+	ret = pf_migration_mmio_restore(gt, vfid, data->vaddr, data->hdr.size);
+	if (ret) {
+		xe_gt_sriov_err(gt, "Failed to restore VF%u MMIO data (%pe)\n",
+				vfid, ERR_PTR(ret));
+
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * xe_gt_sriov_pf_migration_mmio_save() - Save VF MMIO migration data.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be 0)
+ *
+ * This function is for PF only.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_migration_mmio_save(struct xe_gt *gt, unsigned int vfid)
+{
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid != PFID);
+	xe_gt_assert(gt, vfid <= xe_sriov_pf_get_totalvfs(gt_to_xe(gt)));
+
+	return pf_save_vf_mmio_mig_data(gt, vfid);
+}
+
+/**
+ * xe_gt_sriov_pf_migration_mmio_restore() - Restore VF MMIO migration data.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be 0)
+ * @data: the &xe_sriov_packet containing migration data
+ *
+ * This function is for PF only.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_migration_mmio_restore(struct xe_gt *gt, unsigned int vfid,
+					  struct xe_sriov_packet *data)
+{
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid != PFID);
+	xe_gt_assert(gt, vfid <= xe_sriov_pf_get_totalvfs(gt_to_xe(gt)));
+
+	return pf_restore_vf_mmio_mig_data(gt, vfid, data);
+}
+
 /**
  * xe_gt_sriov_pf_migration_size() - Total size of migration data from all components within a GT.
  * @gt: the &xe_gt
@@ -384,6 +531,13 @@ ssize_t xe_gt_sriov_pf_migration_size(struct xe_gt *gt, unsigned int vfid)
 	total += size;
 
 	size = pf_migration_ggtt_size(gt, vfid);
+	if (size < 0)
+		return size;
+	if (size > 0)
+		size += sizeof(struct xe_sriov_packet_hdr);
+	total += size;
+
+	size = pf_migration_mmio_size(gt, vfid);
 	if (size < 0)
 		return size;
 	if (size > 0)
@@ -458,6 +612,9 @@ void xe_gt_sriov_pf_migration_save_init(struct xe_gt *gt, unsigned int vfid)
 
 	if (pf_migration_ggtt_size(gt, vfid) > 0)
 		pf_migration_save_data_todo(gt, vfid, XE_SRIOV_PACKET_TYPE_GGTT);
+
+	xe_gt_assert(gt, pf_migration_mmio_size(gt, vfid) > 0);
+	pf_migration_save_data_todo(gt, vfid, XE_SRIOV_PACKET_TYPE_MMIO);
 }
 
 /**
