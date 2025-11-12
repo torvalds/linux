@@ -444,7 +444,7 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
 
 		if (!pmd_present(pmde))
 			goto huge_out;
-		folio = damon_get_folio(pmd_pfn(pmde));
+		folio = vm_normal_folio_pmd(walk->vma, addr, pmde);
 		if (!folio)
 			goto huge_out;
 		if (pmd_young(pmde) || !folio_test_idle(folio) ||
@@ -452,7 +452,6 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
 						addr))
 			priv->young = true;
 		*priv->folio_sz = HPAGE_PMD_SIZE;
-		folio_put(folio);
 huge_out:
 		spin_unlock(ptl);
 		return 0;
@@ -465,14 +464,13 @@ huge_out:
 	ptent = ptep_get(pte);
 	if (!pte_present(ptent))
 		goto out;
-	folio = damon_get_folio(pte_pfn(ptent));
+	folio = vm_normal_folio(walk->vma, addr, ptent);
 	if (!folio)
 		goto out;
 	if (pte_young(ptent) || !folio_test_idle(folio) ||
 			mmu_notifier_test_young(walk->mm, addr))
 		priv->young = true;
 	*priv->folio_sz = folio_size(folio);
-	folio_put(folio);
 out:
 	pte_unmap_unlock(pte, ptl);
 	return 0;
@@ -720,18 +718,16 @@ static int damos_va_migrate_pmd_entry(pmd_t *pmd, unsigned long addr,
 	/* Tell page walk code to not split the PMD */
 	walk->action = ACTION_CONTINUE;
 
-	folio = damon_get_folio(pmd_pfn(pmde));
+	folio = vm_normal_folio_pmd(walk->vma, addr, pmde);
 	if (!folio)
 		goto unlock;
 
 	if (damos_va_filter_out(s, folio, walk->vma, addr, NULL, pmd))
-		goto put_folio;
+		goto unlock;
 
 	damos_va_migrate_dests_add(folio, walk->vma, addr, dests,
 		migration_lists);
 
-put_folio:
-	folio_put(folio);
 unlock:
 	spin_unlock(ptl);
 	return 0;
@@ -754,18 +750,15 @@ static int damos_va_migrate_pte_entry(pte_t *pte, unsigned long addr,
 	if (pte_none(ptent) || !pte_present(ptent))
 		return 0;
 
-	folio = damon_get_folio(pte_pfn(ptent));
+	folio = vm_normal_folio(walk->vma, addr, ptent);
 	if (!folio)
 		return 0;
 
 	if (damos_va_filter_out(s, folio, walk->vma, addr, pte, NULL))
-		goto put_folio;
+		return 0;
 
 	damos_va_migrate_dests_add(folio, walk->vma, addr, dests,
 		migration_lists);
-
-put_folio:
-	folio_put(folio);
 	return 0;
 }
 
