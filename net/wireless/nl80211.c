@@ -6748,7 +6748,7 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	beacon_check.relax = true;
 	beacon_check.reg_power =
 		cfg80211_get_6ghz_power_type(params->beacon.tail,
-					     params->beacon.tail_len);
+					     params->beacon.tail_len, 0);
 	if (!cfg80211_reg_check_beaconing(&rdev->wiphy, &params->chandef,
 					  &beacon_check)) {
 		err = -EINVAL;
@@ -6927,7 +6927,7 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 	beacon_check.relax = true;
 	beacon_check.reg_power =
 		cfg80211_get_6ghz_power_type(params->beacon.tail,
-					     params->beacon.tail_len);
+					     params->beacon.tail_len, 0);
 	if (!cfg80211_reg_check_beaconing(&rdev->wiphy,
 					  &wdev->links[link_id].ap.chandef,
 					  &beacon_check)) {

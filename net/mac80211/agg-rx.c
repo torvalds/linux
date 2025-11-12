@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 /**
@@ -206,7 +206,10 @@ u8 ieee80211_retrieve_addba_ext_data(struct sta_info *sta,
 	if (elem_len <= 0)
 		return 0;
 
-	elems = ieee802_11_parse_elems(elem_data, elem_len, true, NULL);
+	elems = ieee802_11_parse_elems(elem_data, elem_len,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_ACTION,
+				       NULL);
 
 	if (!elems || elems->parse_error || !elems->addba_ext_ie)
 		goto free;

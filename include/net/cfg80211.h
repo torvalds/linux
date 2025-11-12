@@ -685,7 +685,7 @@ ieee80211_get_he_6ghz_capa(const struct ieee80211_supported_band *sband,
 }
 
 /**
- * ieee80211_get_eht_iftype_cap - return ETH capabilities for an sband's iftype
+ * ieee80211_get_eht_iftype_cap - return EHT capabilities for an sband's iftype
  * @sband: the sband to search for the iftype on
  * @iftype: enum nl80211_iftype
  *
@@ -786,8 +786,7 @@ struct vif_params {
  * @key: key material
  * @key_len: length of key material
  * @cipher: cipher suite selector
- * @seq: sequence counter (IV/PN) for TKIP and CCMP keys, only used
- *	with the get_key() callback, must be in little endian,
+ * @seq: sequence counter (IV/PN), must be in little endian,
  *	length given by @seq_len.
  * @seq_len: length of @seq.
  * @vlan_id: vlan_id for VLAN group key (if nonzero)
@@ -10133,6 +10132,35 @@ static inline int cfg80211_color_change_notify(struct net_device *dev,
 	return cfg80211_bss_color_notify(dev,
 					 NL80211_CMD_COLOR_CHANGE_COMPLETED,
 					 0, 0, link_id);
+}
+
+/**
+ * cfg80211_6ghz_power_type - determine AP regulatory power type
+ * @control: control flags
+ * @client_flags: &enum ieee80211_channel_flags for station mode to enable
+ *	SP to LPI fallback, zero otherwise.
+ *
+ * Return: regulatory power type from &enum ieee80211_ap_reg_power
+ */
+static inline enum ieee80211_ap_reg_power
+cfg80211_6ghz_power_type(u8 control, u32 client_flags)
+{
+	switch (u8_get_bits(control, IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
+	case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
+		return IEEE80211_REG_LPI_AP;
+	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD:
+		return IEEE80211_REG_SP_AP;
+	case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
+		return IEEE80211_REG_VLP_AP;
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
+		if (client_flags & IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT)
+			return IEEE80211_REG_LPI_AP;
+		return IEEE80211_REG_SP_AP;
+	default:
+		return IEEE80211_REG_UNSET_AP;
+	}
 }
 
 /**

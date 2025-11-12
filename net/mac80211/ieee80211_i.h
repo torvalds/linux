@@ -916,9 +916,6 @@ struct ieee80211_chanctx {
 	struct list_head list;
 	struct rcu_head rcu_head;
 
-	struct list_head assigned_links;
-	struct list_head reserved_links;
-
 	enum ieee80211_chanctx_replace_state replace_state;
 	struct ieee80211_chanctx *replace_ctx;
 
@@ -1070,9 +1067,6 @@ struct ieee80211_link_data_ap {
 struct ieee80211_link_data {
 	struct ieee80211_sub_if_data *sdata;
 	unsigned int link_id;
-
-	struct list_head assigned_chanctx_list; /* protected by wiphy mutex */
-	struct list_head reserved_chanctx_list; /* protected by wiphy mutex */
 
 	/* multicast keys only */
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS +
@@ -1239,9 +1233,12 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	for (struct ieee80211_sub_if_data *___sdata = NULL;		\
 	     !___sdata;							\
 	     ___sdata = (void *)~0 /* always stop */)			\
+	for (int ___link_id = ARRAY_SIZE(___sdata->link);		\
+	     ___link_id; ___link_id = 0 /* always stop */)		\
 	list_for_each_entry(___sdata, &(_local)->interfaces, list)	\
-	if (ieee80211_sdata_running(___sdata))				\
-	for (int ___link_id = 0;					\
+	if (___link_id == ARRAY_SIZE(___sdata->link) &&			\
+	    ieee80211_sdata_running(___sdata))				\
+	for (___link_id = 0;						\
 	     ___link_id < ARRAY_SIZE(___sdata->link);			\
 	     ___link_id++)						\
 	if ((_link = wiphy_dereference((_local)->hw.wiphy,		\
@@ -1255,9 +1252,12 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	for (struct ieee80211_sub_if_data *___sdata = NULL;				\
 	     !___sdata;									\
 	     ___sdata = (void *)~0 /* always stop */)					\
-	list_for_each_entry_rcu(___sdata, &(_local)->interfaces, list)			\
-	if (ieee80211_sdata_running(___sdata))						\
-	for (int ___link_id = 0;							\
+	for (int ___link_id = ARRAY_SIZE(___sdata->link);		\
+	     ___link_id; ___link_id = 0 /* always stop */)		\
+	list_for_each_entry(___sdata, &(_local)->interfaces, list)	\
+	if (___link_id == ARRAY_SIZE(___sdata->link) &&			\
+	    ieee80211_sdata_running(___sdata))				\
+	for (___link_id = 0;						\
 	     ___link_id < ARRAY_SIZE((___sdata)->link);					\
 	     ___link_id++)								\
 	if ((_link = rcu_dereference((___sdata)->link[___link_id])))
@@ -2107,7 +2107,8 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 				    const int offset);
 int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up);
 void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata);
-int ieee80211_add_virtual_monitor(struct ieee80211_local *local);
+int ieee80211_add_virtual_monitor(struct ieee80211_local *local,
+				  struct ieee80211_sub_if_data *creator_sdata);
 void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 
 bool __ieee80211_recalc_txpower(struct ieee80211_link_data *link);
@@ -2422,7 +2423,8 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  * @mode: connection mode for parsing
  * @start: pointer to the elements
  * @len: length of the elements
- * @action: %true if the elements came from an action frame
+ * @type: type of the frame the elements came from
+ *	(action, probe response, beacon, etc.)
  * @filter: bitmap of element IDs to filter out while calculating
  *	the element CRC
  * @crc: CRC starting value
@@ -2440,7 +2442,7 @@ struct ieee80211_elems_parse_params {
 	enum ieee80211_conn_mode mode;
 	const u8 *start;
 	size_t len;
-	bool action;
+	u8 type;
 	u64 filter;
 	u32 crc;
 	struct cfg80211_bss *bss;
@@ -2452,29 +2454,19 @@ struct ieee802_11_elems *
 ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params);
 
 static inline struct ieee802_11_elems *
-ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
-			   u64 filter, u32 crc,
-			   struct cfg80211_bss *bss)
+ieee802_11_parse_elems(const u8 *start, size_t len, u8 type,
+		       struct cfg80211_bss *bss)
 {
 	struct ieee80211_elems_parse_params params = {
 		.mode = IEEE80211_CONN_MODE_HIGHEST,
 		.start = start,
 		.len = len,
-		.action = action,
-		.filter = filter,
-		.crc = crc,
+		.type = type,
 		.bss = bss,
 		.link_id = -1,
 	};
 
 	return ieee802_11_parse_elems_full(&params);
-}
-
-static inline struct ieee802_11_elems *
-ieee802_11_parse_elems(const u8 *start, size_t len, bool action,
-		       struct cfg80211_bss *bss)
-{
-	return ieee802_11_parse_elems_crc(start, len, action, 0, 0, bss);
 }
 
 extern const int ieee802_1d_to_ac[8];
@@ -2768,9 +2760,7 @@ int ieee80211_chanctx_refcount(struct ieee80211_local *local,
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *chanctx);
 void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
-				      struct ieee80211_chanctx *ctx,
-				      struct ieee80211_link_data *rsvd_for,
-				      bool check_reserved);
+				      struct ieee80211_chanctx *ctx);
 bool ieee80211_is_radar_required(struct ieee80211_local *local,
 				 struct cfg80211_scan_request *req);
 bool ieee80211_is_radio_idx_in_scan_req(struct wiphy *wiphy,

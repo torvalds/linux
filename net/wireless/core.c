@@ -1066,12 +1066,12 @@ int wiphy_register(struct wiphy *wiphy)
 	wiphy_regulatory_register(wiphy);
 
 	if (wiphy->regulatory_flags & REGULATORY_CUSTOM_REG) {
-		struct regulatory_request request;
-
-		request.wiphy_idx = get_wiphy_idx(wiphy);
-		request.initiator = NL80211_REGDOM_SET_BY_DRIVER;
-		request.alpha2[0] = '9';
-		request.alpha2[1] = '9';
+		struct regulatory_request request = {
+			.wiphy_idx = get_wiphy_idx(wiphy),
+			.initiator = NL80211_REGDOM_SET_BY_DRIVER,
+			.alpha2[0] = '9',
+			.alpha2[1] = '9',
+		};
 
 		nl80211_send_reg_change_event(&request);
 	}
