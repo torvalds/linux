@@ -2264,8 +2264,11 @@ static int vsc85xx_probe_common(struct phy_device *phydev,
 	/* Set up package if needed */
 	if (cfg->use_package) {
 		vsc8584_get_base_addr(phydev);
-		devm_phy_package_join(&phydev->mdio.dev, phydev,
-				      vsc8531->base_addr, cfg->shared_size);
+		ret = devm_phy_package_join(&phydev->mdio.dev, phydev,
+					    vsc8531->base_addr,
+					    cfg->shared_size);
+		if (ret)
+			return ret;
 	}
 
 	/* Configure LED settings */
