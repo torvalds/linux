@@ -188,8 +188,6 @@ int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
 		       const unsigned char *addr, union vxlan_addr ip,
 		       __be16 port, __be32 src_vni, __be32 vni,
 		       u32 ifindex, bool swdev_notify);
-u32 eth_vni_hash(const unsigned char *addr, __be32 vni);
-u32 fdb_head_index(struct vxlan_dev *vxlan, const u8 *mac, __be32 vni);
 int vxlan_fdb_update(struct vxlan_dev *vxlan,
 		     const u8 *mac, union vxlan_addr *ip,
 		     __u16 state, __u16 flags,
