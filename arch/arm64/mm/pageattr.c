@@ -185,6 +185,15 @@ static int change_memory_common(unsigned long addr, int numpages,
 	 */
 	if (rodata_full && (pgprot_val(set_mask) == PTE_RDONLY ||
 			    pgprot_val(clear_mask) == PTE_RDONLY)) {
+		/*
+		 * Note: One may wonder what happens if the calls to
+		 * set_area_direct_map() in vm_reset_perms() fail due ENOMEM on
+		 * linear map split failure. Observe that we care about those
+		 * calls to succeed *only* for the region whose permissions
+		 * are not default. Such a region is guaranteed to be
+		 * pte-mapped, because the below call can change those
+		 * permissions to non-default only after splitting that region.
+		 */
 		for (i = 0; i < area->nr_pages; i++) {
 			ret = __change_memory_common((u64)page_address(area->pages[i]),
 					       PAGE_SIZE, set_mask, clear_mask);
