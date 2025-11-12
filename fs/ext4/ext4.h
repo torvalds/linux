@@ -695,13 +695,22 @@ enum {
 	/* Caller is from the delayed allocation writeout path
 	 * finally doing the actual allocation of delayed blocks */
 #define EXT4_GET_BLOCKS_DELALLOC_RESERVE	0x0004
-	/* caller is from the direct IO path, request to creation of an
-	unwritten extents if not allocated, split the unwritten
-	extent if blocks has been preallocated already*/
-#define EXT4_GET_BLOCKS_PRE_IO			0x0008
-#define EXT4_GET_BLOCKS_CONVERT			0x0010
-#define EXT4_GET_BLOCKS_IO_CREATE_EXT		(EXT4_GET_BLOCKS_PRE_IO|\
+	/*
+	 * This means that we cannot merge newly allocated extents, and if we
+	 * found an unwritten extent, we need to split it.
+	 */
+#define EXT4_GET_BLOCKS_SPLIT_NOMERGE		0x0008
+	/*
+	 * Caller is from the dio or dioread_nolock buffered IO, reqest to
+	 * create an unwritten extent if it does not exist or split the
+	 * found unwritten extent. Also do not merge the newly created
+	 * unwritten extent, io end will convert unwritten to written,
+	 * and try to merge the written extent.
+	 */
+#define EXT4_GET_BLOCKS_IO_CREATE_EXT		(EXT4_GET_BLOCKS_SPLIT_NOMERGE|\
 					 EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT)
+	/* Convert unwritten extent to initialized. */
+#define EXT4_GET_BLOCKS_CONVERT			0x0010
 	/* Eventual metadata allocation (due to growing extent tree)
 	 * should not fail, so try to use reserved blocks for that.*/
 #define EXT4_GET_BLOCKS_METADATA_NOFAIL		0x0020

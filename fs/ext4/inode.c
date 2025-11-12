@@ -653,7 +653,7 @@ static int ext4_map_create_blocks(handle_t *handle, struct inode *inode,
 	 * If the extent has been zeroed out, we don't need to update
 	 * extent status tree.
 	 */
-	if (flags & EXT4_GET_BLOCKS_PRE_IO &&
+	if (flags & EXT4_GET_BLOCKS_SPLIT_NOMERGE &&
 	    ext4_es_lookup_extent(inode, map->m_lblk, NULL, &es, &map->m_seq)) {
 		if (ext4_es_is_written(&es))
 			return retval;
