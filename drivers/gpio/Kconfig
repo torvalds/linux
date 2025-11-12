@@ -6,6 +6,9 @@
 config GPIOLIB_LEGACY
 	def_bool y
 
+config HAVE_SHARED_GPIOS
+	bool
+
 menuconfig GPIOLIB
 	bool "GPIO Support"
 	help
@@ -49,6 +52,11 @@ config OF_GPIO_MM_GPIOCHIP
 	  from PowerPC. Existing drivers using this interface need to select
 	  this symbol, but new drivers should use the generic gpio-regmap
 	  infrastructure instead.
+
+config GPIO_SHARED
+	def_bool y
+	depends on HAVE_SHARED_GPIOS || COMPILE_TEST
+	select AUXILIARY_BUS
 
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
