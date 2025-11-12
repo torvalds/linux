@@ -1891,7 +1891,7 @@ xlog_write_iovec(
 	void			*buf,
 	uint32_t		buf_len)
 {
-	ASSERT(xlog_write_space_left(data) > 0);
+	ASSERT(xlog_write_space_left(data) >= buf_len);
 	ASSERT(data->log_offset % sizeof(int32_t) == 0);
 	ASSERT(buf_len % sizeof(int32_t) == 0);
 
