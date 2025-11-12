@@ -20,4 +20,9 @@ struct xe_sriov_packet *
 xe_sriov_pf_migration_save_consume(struct xe_device *xe, unsigned int vfid);
 wait_queue_head_t *xe_sriov_pf_migration_waitqueue(struct xe_device *xe, unsigned int vfid);
 
+ssize_t xe_sriov_pf_migration_read(struct xe_device *xe, unsigned int vfid,
+				   char __user *buf, size_t len);
+ssize_t xe_sriov_pf_migration_write(struct xe_device *xe, unsigned int vfid,
+				    const char __user *buf, size_t len);
+
 #endif

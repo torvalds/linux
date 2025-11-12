@@ -19,4 +19,10 @@ int xe_sriov_packet_init(struct xe_sriov_packet *data, u8 tile_id, u8 gt_id,
 			 enum xe_sriov_packet_type, loff_t offset, size_t size);
 int xe_sriov_packet_init_from_hdr(struct xe_sriov_packet *data);
 
+ssize_t xe_sriov_packet_read_single(struct xe_device *xe, unsigned int vfid,
+				    char __user *buf, size_t len);
+ssize_t xe_sriov_packet_write_single(struct xe_device *xe, unsigned int vfid,
+				     const char __user *buf, size_t len);
+int xe_sriov_packet_save_init(struct xe_device *xe, unsigned int vfid);
+
 #endif
