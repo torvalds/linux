@@ -489,7 +489,10 @@ clean_kernel() {
 
 build_kernel() {
 	local log="$TMP_DIR/build.log"
+	local objtool_args=()
 	local cmd=()
+
+	objtool_args=("--checksum")
 
 	cmd=("make")
 
@@ -513,6 +516,7 @@ build_kernel() {
 	cmd+=("$VERBOSE")
 	cmd+=("-j$JOBS")
 	cmd+=("KCFLAGS=-ffunction-sections -fdata-sections")
+	cmd+=("OBJTOOL_ARGS=${objtool_args[*]}")
 	cmd+=("vmlinux")
 	cmd+=("modules")
 
