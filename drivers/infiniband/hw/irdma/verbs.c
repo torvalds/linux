@@ -5210,7 +5210,7 @@ static int irdma_create_user_ah(struct ib_ah *ibah,
 	struct irdma_ah *parent_ah;
 	int err;
 
-	if (udata && udata->outlen < IRDMA_CREATE_AH_MIN_RESP_LEN)
+	if (udata->outlen < IRDMA_CREATE_AH_MIN_RESP_LEN)
 		return -EINVAL;
 
 	err = irdma_setup_ah(ibah, attr);
