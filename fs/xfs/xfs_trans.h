@@ -9,6 +9,7 @@
 /* kernel only transaction subsystem defines */
 
 struct xlog;
+struct xlog_format_buf;
 struct xfs_buf;
 struct xfs_buftarg;
 struct xfs_efd_log_item;
@@ -70,7 +71,8 @@ struct xfs_log_item {
 struct xfs_item_ops {
 	unsigned flags;
 	void (*iop_size)(struct xfs_log_item *, int *, int *);
-	void (*iop_format)(struct xfs_log_item *, struct xfs_log_vec *);
+	void (*iop_format)(struct xfs_log_item *lip,
+			struct xlog_format_buf *lfb);
 	void (*iop_pin)(struct xfs_log_item *);
 	void (*iop_unpin)(struct xfs_log_item *, int remove);
 	uint64_t (*iop_sort)(struct xfs_log_item *lip);
