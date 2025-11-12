@@ -334,8 +334,6 @@ static void i3c_device_remove(struct device *dev)
 
 	if (driver->remove)
 		driver->remove(i3cdev);
-
-	i3c_device_free_ibi(i3cdev);
 }
 
 const struct bus_type i3c_bus_type = {
