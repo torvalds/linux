@@ -20,6 +20,8 @@ struct xe_gt_sriov_migration_data {
 	struct {
 		/** @save.data_remaining: bitmap of migration types that need to be saved */
 		unsigned long data_remaining;
+		/** @save.vram_offset: last saved offset within VRAM, used for chunked VRAM save */
+		loff_t vram_offset;
 	} save;
 };
 
