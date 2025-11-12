@@ -48,6 +48,8 @@ enum arm_spe_2nd_op_ldst {
 	ARM_SPE_OP_MEMCPY		= 1 << 14,
 	ARM_SPE_OP_MEMSET		= 1 << 15,
 	ARM_SPE_OP_GCS			= 1 << 16,
+	ARM_SPE_OP_SME			= 1 << 17,
+	ARM_SPE_OP_ASE			= 1 << 18,
 
 	/* Assisted information for memory / SIMD */
 	ARM_SPE_OP_LD			= 1 << 20,
@@ -59,6 +61,8 @@ enum arm_spe_2nd_op_ldst {
 	ARM_SPE_OP_PRED			= 1 << 26,	/* Predicated */
 	ARM_SPE_OP_SG			= 1 << 27,	/* Gather/Scatter */
 	ARM_SPE_OP_COMM			= 1 << 28,	/* Common */
+	ARM_SPE_OP_FP			= 1 << 29,	/* Floating-point */
+	ARM_SPE_OP_COND			= 1 << 30,	/* Conditional */
 };
 
 enum arm_spe_2nd_op_branch {
