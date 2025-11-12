@@ -25,7 +25,7 @@ static struct scx_sched __rcu *scx_root;
  * guarantee system safety. Maintain a dedicated task list which contains every
  * task between its fork and eventual free.
  */
-static DEFINE_SPINLOCK(scx_tasks_lock);
+static DEFINE_RAW_SPINLOCK(scx_tasks_lock);
 static LIST_HEAD(scx_tasks);
 
 /* ops enable/disable */
@@ -476,7 +476,7 @@ static void scx_task_iter_start(struct scx_task_iter *iter)
 	BUILD_BUG_ON(__SCX_DSQ_ITER_ALL_FLAGS &
 		     ((1U << __SCX_DSQ_LNODE_PRIV_SHIFT) - 1));
 
-	spin_lock_irq(&scx_tasks_lock);
+	raw_spin_lock_irq(&scx_tasks_lock);
 
 	iter->cursor = (struct sched_ext_entity){ .flags = SCX_TASK_CURSOR };
 	list_add(&iter->cursor.tasks_node, &scx_tasks);
@@ -507,14 +507,14 @@ static void scx_task_iter_unlock(struct scx_task_iter *iter)
 	__scx_task_iter_rq_unlock(iter);
 	if (iter->list_locked) {
 		iter->list_locked = false;
-		spin_unlock_irq(&scx_tasks_lock);
+		raw_spin_unlock_irq(&scx_tasks_lock);
 	}
 }
 
 static void __scx_task_iter_maybe_relock(struct scx_task_iter *iter)
 {
 	if (!iter->list_locked) {
-		spin_lock_irq(&scx_tasks_lock);
+		raw_spin_lock_irq(&scx_tasks_lock);
 		iter->list_locked = true;
 	}
 }
@@ -2940,9 +2940,9 @@ void scx_post_fork(struct task_struct *p)
 		}
 	}
 
-	spin_lock_irq(&scx_tasks_lock);
+	raw_spin_lock_irq(&scx_tasks_lock);
 	list_add_tail(&p->scx.tasks_node, &scx_tasks);
-	spin_unlock_irq(&scx_tasks_lock);
+	raw_spin_unlock_irq(&scx_tasks_lock);
 
 	percpu_up_read(&scx_fork_rwsem);
 }
@@ -2966,9 +2966,9 @@ void sched_ext_free(struct task_struct *p)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&scx_tasks_lock, flags);
+	raw_spin_lock_irqsave(&scx_tasks_lock, flags);
 	list_del_init(&p->scx.tasks_node);
-	spin_unlock_irqrestore(&scx_tasks_lock, flags);
+	raw_spin_unlock_irqrestore(&scx_tasks_lock, flags);
 
 	/*
 	 * @p is off scx_tasks and wholly ours. scx_enable()'s READY -> ENABLED
