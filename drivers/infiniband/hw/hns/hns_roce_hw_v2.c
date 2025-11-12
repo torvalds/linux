@@ -43,11 +43,13 @@
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
 
+#include "hclge_main.h"
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
 #include "hns_roce_hw_v2.h"
+#include "hns_roce_bond.h"
 
 #define CREATE_TRACE_POINTS
 #include "hns_roce_trace.h"
@@ -2269,6 +2271,9 @@ static int hns_roce_query_caps(struct hns_roce_dev *hr_dev)
 	caps->flags = hr_reg_read(resp_c, PF_CAPS_C_CAP_FLAGS);
 	caps->flags |= le16_to_cpu(resp_d->cap_flags_ex) <<
 		       HNS_ROCE_CAP_FLAGS_EX_SHIFT;
+
+	if (hr_dev->is_vf)
+		caps->flags &= ~HNS_ROCE_CAP_FLAG_BOND;
 
 	caps->num_cqs = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_CQS);
 	caps->gid_table_len[0] = hr_reg_read(resp_c, PF_CAPS_C_MAX_GID);
@@ -7260,6 +7265,7 @@ static int __init hns_roce_hw_v2_init(void)
 
 static void __exit hns_roce_hw_v2_exit(void)
 {
+	hns_roce_dealloc_bond_grp();
 	hnae3_unregister_client(&hns_roce_hw_v2_client);
 	hns_roce_cleanup_debugfs();
 }

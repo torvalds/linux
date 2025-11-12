@@ -40,6 +40,7 @@
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
 #include "hns_roce_hw_v2.h"
+#include "hns_roce_bond.h"
 
 static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u32 port,
 			    const u8 *addr)
@@ -744,6 +745,16 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_restrack_ops);
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_BOND) {
+		ret = hns_roce_alloc_bond_grp(hr_dev);
+		if (ret) {
+			dev_err(dev, "failed to alloc bond_grp for bus %u, ret = %d\n",
+				get_hr_bus_num(hr_dev), ret);
+			return ret;
+		}
+	}
+
 	for (i = 0; i < hr_dev->caps.num_ports; i++) {
 		net_dev = get_hr_netdev(hr_dev, i);
 		if (!net_dev)
