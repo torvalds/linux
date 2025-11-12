@@ -34,30 +34,20 @@ EXPORT_SYMBOL_GPL(gpio_free);
  */
 int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 {
-	struct gpio_desc *desc;
 	int err;
 
-	/* Compatibility: assume unavailable "valid" GPIOs will appear later */
-	desc = gpio_to_desc(gpio);
-	if (!desc)
-		return -EPROBE_DEFER;
-
-	err = gpiod_request(desc, label);
+	err = gpio_request(gpio, label);
 	if (err)
 		return err;
 
 	if (flags & GPIOF_IN)
-		err = gpiod_direction_input(desc);
+		err = gpio_direction_input(gpio);
 	else
-		err = gpiod_direction_output_raw(desc, !!(flags & GPIOF_OUT_INIT_HIGH));
+		err = gpio_direction_output(gpio, !!(flags & GPIOF_OUT_INIT_HIGH));
 
 	if (err)
-		goto free_gpio;
+		gpio_free(gpio);
 
-	return 0;
-
- free_gpio:
-	gpiod_free(desc);
 	return err;
 }
 EXPORT_SYMBOL_GPL(gpio_request_one);
