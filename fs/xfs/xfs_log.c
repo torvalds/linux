@@ -858,14 +858,15 @@ xlog_write_one_vec(
 	struct xfs_log_vec	lv = {
 		.lv_niovecs	= 1,
 		.lv_iovecp	= reg,
+		.lv_bytes	= reg->i_len,
 	};
 	LIST_HEAD		(lv_chain);
 
 	/* account for space used by record data */
-	ticket->t_curr_res -= reg->i_len;
+	ticket->t_curr_res -= lv.lv_bytes;
 
 	list_add(&lv.lv_list, &lv_chain);
-	return xlog_write(log, ctx, &lv_chain, ticket, reg->i_len);
+	return xlog_write(log, ctx, &lv_chain, ticket, lv.lv_bytes);
 }
 
 /*
