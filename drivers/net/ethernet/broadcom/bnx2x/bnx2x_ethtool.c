@@ -3355,19 +3355,11 @@ static int bnx2x_get_rxfh_fields(struct net_device *dev,
 	return 0;
 }
 
-static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-			   u32 *rules __always_unused)
+static u32 bnx2x_get_rx_ring_count(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = BNX2X_NUM_ETH_QUEUES(bp);
-		return 0;
-	default:
-		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
-		return -EOPNOTSUPP;
-	}
+	return BNX2X_NUM_ETH_QUEUES(bp);
 }
 
 static int bnx2x_set_rxfh_fields(struct net_device *dev,
@@ -3674,7 +3666,7 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_strings		= bnx2x_get_strings,
 	.set_phys_id		= bnx2x_set_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
-	.get_rxnfc		= bnx2x_get_rxnfc,
+	.get_rx_ring_count	= bnx2x_get_rx_ring_count,
 	.get_rxfh_indir_size	= bnx2x_get_rxfh_indir_size,
 	.get_rxfh		= bnx2x_get_rxfh,
 	.set_rxfh		= bnx2x_set_rxfh,
@@ -3702,7 +3694,7 @@ static const struct ethtool_ops bnx2x_vf_ethtool_ops = {
 	.get_sset_count		= bnx2x_get_sset_count,
 	.get_strings		= bnx2x_get_strings,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
-	.get_rxnfc		= bnx2x_get_rxnfc,
+	.get_rx_ring_count	= bnx2x_get_rx_ring_count,
 	.get_rxfh_indir_size	= bnx2x_get_rxfh_indir_size,
 	.get_rxfh		= bnx2x_get_rxfh,
 	.set_rxfh		= bnx2x_set_rxfh,
