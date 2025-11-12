@@ -1240,9 +1240,12 @@ static blk_status_t null_transfer(struct nullb *nullb, struct page *page,
 
 	p = kmap_local_page(page) + off;
 	if (!is_write) {
-		if (dev->zoned)
+		if (dev->zoned) {
 			valid_len = null_zone_valid_read_len(nullb,
 				pos >> SECTOR_SHIFT, len);
+			if (valid_len && valid_len != len)
+				valid_len -= pos & (SECTOR_SIZE - 1);
+		}
 
 		if (valid_len) {
 			copy_from_nullb(nullb, p, pos, valid_len);

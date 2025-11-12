@@ -242,7 +242,7 @@ size_t null_zone_valid_read_len(struct nullb *nullb,
 {
 	struct nullb_device *dev = nullb->dev;
 	struct nullb_zone *zone = &dev->zones[null_zone_no(dev, sector)];
-	unsigned int nr_sectors = DIV_ROUND_UP(len, SECTOR_SHIFT);
+	unsigned int nr_sectors = DIV_ROUND_UP(len, SECTOR_SIZE);
 
 	/* Read must be below the write pointer position */
 	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL ||
