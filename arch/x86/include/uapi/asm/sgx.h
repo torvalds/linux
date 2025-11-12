@@ -143,6 +143,12 @@ struct sgx_enclave_run;
 /**
  * typedef sgx_enclave_user_handler_t - Exit handler function accepted by
  *					__vdso_sgx_enter_enclave()
+ * @rdi:	RDI at the time of EEXIT, undefined on AEX
+ * @rsi:	RSI at the time of EEXIT, undefined on AEX
+ * @rdx:	RDX at the time of EEXIT, undefined on AEX
+ * @rsp:	RSP (untrusted) at the time of EEXIT or AEX
+ * @r8:		R8 at the time of EEXIT, undefined on AEX
+ * @r9:		R9 at the time of EEXIT, undefined on AEX
  * @run:	The run instance given by the caller
  *
  * The register parameters contain the snapshot of their values at enclave
