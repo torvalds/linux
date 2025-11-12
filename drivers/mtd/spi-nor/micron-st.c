@@ -204,6 +204,16 @@ static const struct flash_info micron_nor_parts[] = {
 		.fixup_flags = SPI_NOR_IO_MODE_EN_VOLATILE,
 		.fixups = &mt35xu01gbba_fixups,
 	}, {
+		/*
+		 * The MT35XU02GCBA flash device does not support chip erase,
+		 * according to its datasheet. It supports die erase, which
+		 * means the current driver implementation will likely need to
+		 * be converted to use die erase. Furthermore, similar to the
+		 * MT35XU01GBBA, the SPI_NOR_IO_MODE_EN_VOLATILE flag probably
+		 * needs to be enabled.
+		 *
+		 * TODO: Fix these and test on real hardware.
+		 */
 		.id = SNOR_ID(0x2c, 0x5b, 0x1c),
 		.name = "mt35xu02g",
 		.sector_size = SZ_128K,
