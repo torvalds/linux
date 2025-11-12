@@ -22055,6 +22055,14 @@ F:	Documentation/devicetree/bindings/riscv/andes.yaml
 F:	Documentation/devicetree/bindings/timer/andestech,plmt0.yaml
 F:	arch/riscv/boot/dts/andes/
 
+RISC-V ANLOGIC SoC SUPPORT
+M:	Conor Dooley <conor@kernel.org>
+T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
+L:	linux-riscv@lists.infradead.org
+S:	Odd Fixes
+F:	Documentation/devicetree/bindings/riscv/anlogic.yaml
+F:	arch/riscv/boot/dts/anlogic/
+
 RISC-V ARCHITECTURE
 M:	Paul Walmsley <pjw@kernel.org>
 M:	Palmer Dabbelt <palmer@dabbelt.com>
