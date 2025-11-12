@@ -164,7 +164,7 @@ static bool opts_valid(void)
 
 #ifndef BUILD_KLP
 	if (opts.checksum) {
-		ERROR("--checksum not supported; install xxhash-devel/libxxhash-dev and recompile");
+		ERROR("--checksum not supported; install xxhash-devel/libxxhash-dev (version >= 0.8) and recompile");
 		return false;
 	}
 #endif
