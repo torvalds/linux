@@ -1885,21 +1885,31 @@ static inline uint32_t xlog_write_space_left(struct xlog_write_data *data)
 	return data->iclog->ic_size - data->log_offset;
 }
 
+static void *
+xlog_write_space_advance(
+	struct xlog_write_data	*data,
+	unsigned int		len)
+{
+	void			*p = data->iclog->ic_datap + data->log_offset;
+
+	ASSERT(xlog_write_space_left(data) >= len);
+	ASSERT(data->log_offset % sizeof(int32_t) == 0);
+	ASSERT(len % sizeof(int32_t) == 0);
+
+	data->data_cnt += len;
+	data->log_offset += len;
+	data->bytes_left -= len;
+	return p;
+}
+
 static inline void
 xlog_write_iovec(
 	struct xlog_write_data	*data,
 	void			*buf,
 	uint32_t		buf_len)
 {
-	ASSERT(xlog_write_space_left(data) >= buf_len);
-	ASSERT(data->log_offset % sizeof(int32_t) == 0);
-	ASSERT(buf_len % sizeof(int32_t) == 0);
-
-	memcpy(data->iclog->ic_datap + data->log_offset, buf, buf_len);
-	data->log_offset += buf_len;
-	data->bytes_left -= buf_len;
+	memcpy(xlog_write_space_advance(data, buf_len), buf, buf_len);
 	data->record_cnt++;
-	data->data_cnt += buf_len;
 }
 
 /*
@@ -2040,7 +2050,8 @@ xlog_write_partial(
 			if (error)
 				return error;
 
-			ophdr = data->iclog->ic_datap + data->log_offset;
+			ophdr = xlog_write_space_advance(data,
+					sizeof(struct xlog_op_header));
 			ophdr->oh_tid = cpu_to_be32(data->ticket->t_tid);
 			ophdr->oh_clientid = XFS_TRANSACTION;
 			ophdr->oh_res2 = 0;
@@ -2048,9 +2059,6 @@ xlog_write_partial(
 
 			data->ticket->t_curr_res -=
 				sizeof(struct xlog_op_header);
-			data->log_offset += sizeof(struct xlog_op_header);
-			data->data_cnt += sizeof(struct xlog_op_header);
-			data->bytes_left -= sizeof(struct xlog_op_header);
 
 			/*
 			 * If rlen fits in the iclog, then end the region
