@@ -9,9 +9,6 @@
 #include <sound/core.h>
 #include <sound/gus.h>
 
-extern int snd_gf1_synth_init(struct snd_gus_card * gus);
-extern void snd_gf1_synth_done(struct snd_gus_card * gus);
-
 /*
  *  ok.. default interrupt handlers...
  */
