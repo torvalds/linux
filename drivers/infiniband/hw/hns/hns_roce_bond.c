@@ -160,6 +160,15 @@ static void hns_roce_bond_get_active_slave(struct hns_roce_bond_group *bond_grp)
 	bond_grp->active_slave_map = active_slave_map;
 }
 
+static int hns_roce_recover_bond(struct hns_roce_bond_group *bond_grp,
+				 struct hns_roce_dev *hr_dev)
+{
+	bond_grp->main_hr_dev = hr_dev;
+	hns_roce_bond_get_active_slave(bond_grp);
+
+	return hns_roce_cmd_bond(bond_grp, HNS_ROCE_SET_BOND);
+}
+
 static void hns_roce_slave_uninit(struct hns_roce_bond_group *bond_grp,
 				  u8 func_idx)
 {
@@ -918,10 +927,21 @@ void hns_roce_dealloc_bond_grp(void)
 int hns_roce_bond_init(struct hns_roce_dev *hr_dev)
 {
 	struct net_device *net_dev = get_hr_netdev(hr_dev, 0);
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_bond_group *bond_grp;
 	u8 bus_num = get_hr_bus_num(hr_dev);
+	int ret;
 
 	bond_grp = hns_roce_get_bond_grp(net_dev, bus_num);
+
+	if (priv->handle->rinfo.reset_state == HNS_ROCE_STATE_RST_INIT) {
+		ret = hns_roce_recover_bond(bond_grp, hr_dev);
+		if (ret) {
+			dev_err(hr_dev->dev,
+				"failed to recover RoCE bond, ret = %d.\n", ret);
+			return ret;
+		}
+	}
 
 	return hns_roce_set_bond_netdev(bond_grp, hr_dev);
 }
