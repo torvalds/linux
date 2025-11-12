@@ -1358,6 +1358,7 @@ DECLARE_EVENT_CLASS(f2fs__folio,
 		__field(int, type)
 		__field(int, dir)
 		__field(pgoff_t, index)
+		__field(pgoff_t, nrpages)
 		__field(int, dirty)
 		__field(int, uptodate)
 	),
@@ -1368,16 +1369,18 @@ DECLARE_EVENT_CLASS(f2fs__folio,
 		__entry->type	= type;
 		__entry->dir	= S_ISDIR(folio->mapping->host->i_mode);
 		__entry->index	= folio->index;
+		__entry->nrpages= folio_nr_pages(folio);
 		__entry->dirty	= folio_test_dirty(folio);
 		__entry->uptodate = folio_test_uptodate(folio);
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, "
+	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, nr_pages = %lu, "
 		"dirty = %d, uptodate = %d",
 		show_dev_ino(__entry),
 		show_block_type(__entry->type),
 		show_file_type(__entry->dir),
 		(unsigned long)__entry->index,
+		(unsigned long)__entry->nrpages,
 		__entry->dirty,
 		__entry->uptodate)
 );
@@ -1397,6 +1400,13 @@ DEFINE_EVENT(f2fs__folio, f2fs_do_write_data_page,
 );
 
 DEFINE_EVENT(f2fs__folio, f2fs_readpage,
+
+	TP_PROTO(struct folio *folio, int type),
+
+	TP_ARGS(folio, type)
+);
+
+DEFINE_EVENT(f2fs__folio, f2fs_read_folio,
 
 	TP_PROTO(struct folio *folio, int type),
 

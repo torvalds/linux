@@ -2514,6 +2514,7 @@ submit_and_realloc:
 		index++;
 		offset++;
 	}
+	trace_f2fs_read_folio(folio, DATA);
 	if (rac) {
 		folio = readahead_folio(rac);
 		goto next_folio;
