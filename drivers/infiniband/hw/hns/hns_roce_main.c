@@ -614,9 +614,40 @@ static int hns_roce_get_hw_stats(struct ib_device *device,
 	return num_counters;
 }
 
-static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
+static void
+	hns_roce_unregister_bond_cleanup(struct hns_roce_dev *hr_dev,
+					 struct hns_roce_bond_group *bond_grp)
 {
+	struct net_device *net_dev;
+	int i;
+
+	/* To avoid the loss of other slave devices when main_hr_dev
+	 * is unregistered, re-initialize the remaining slaves before
+	 * the bond resources cleanup.
+	 */
+	bond_grp->bond_state = HNS_ROCE_BOND_NOT_BONDED;
+	for (i = 0; i < ROCE_BOND_FUNC_MAX; i++) {
+		net_dev = bond_grp->bond_func_info[i].net_dev;
+		if (net_dev && net_dev != get_hr_netdev(hr_dev, 0))
+			hns_roce_bond_init_client(bond_grp, i);
+	}
+
+	hns_roce_cleanup_bond(bond_grp);
+}
+
+static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev,
+				       bool bond_cleanup)
+{
+	struct net_device *net_dev = get_hr_netdev(hr_dev, 0);
 	struct hns_roce_ib_iboe *iboe = &hr_dev->iboe;
+	struct hns_roce_bond_group *bond_grp;
+	u8 bus_num = get_hr_bus_num(hr_dev);
+
+	if (bond_cleanup && hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_BOND) {
+		bond_grp = hns_roce_get_bond_grp(net_dev, bus_num);
+		if (bond_grp)
+			hns_roce_unregister_bond_cleanup(hr_dev, bond_grp);
+	}
 
 	hr_dev->active = false;
 	unregister_netdevice_notifier(&iboe->nb);
@@ -746,6 +777,8 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_restrack_ops);
 
+	dma_set_max_seg_size(dev, SZ_2G);
+
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_BOND) {
 		ret = hns_roce_alloc_bond_grp(hr_dev);
 		if (ret) {
@@ -755,17 +788,26 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		}
 	}
 
-	for (i = 0; i < hr_dev->caps.num_ports; i++) {
-		net_dev = get_hr_netdev(hr_dev, i);
-		if (!net_dev)
-			continue;
-
-		ret = ib_device_set_netdev(ib_dev, net_dev, i + 1);
-		if (ret)
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_BOND &&
+	    hns_roce_bond_is_active(hr_dev)) {
+		ret = hns_roce_bond_init(hr_dev);
+		if (ret) {
+			dev_err(dev, "failed to init bond!\n");
 			return ret;
+		}
+		ret = ib_register_device(ib_dev, "hns_bond_%d", dev);
+	} else {
+		for (i = 0; i < hr_dev->caps.num_ports; i++) {
+			net_dev = get_hr_netdev(hr_dev, i);
+			if (!net_dev)
+				continue;
+
+			ret = ib_device_set_netdev(ib_dev, net_dev, i + 1);
+			if (ret)
+				return ret;
+		}
+		ret = ib_register_device(ib_dev, "hns_%d", dev);
 	}
-	dma_set_max_seg_size(dev, SZ_2G);
-	ret = ib_register_device(ib_dev, "hns_%d", dev);
 	if (ret) {
 		dev_err(dev, "ib_register_device failed!\n");
 		return ret;
@@ -1165,10 +1207,10 @@ error_failed_alloc_dfx_cnt:
 	return ret;
 }
 
-void hns_roce_exit(struct hns_roce_dev *hr_dev)
+void hns_roce_exit(struct hns_roce_dev *hr_dev, bool bond_cleanup)
 {
 	hns_roce_unregister_debugfs(hr_dev);
-	hns_roce_unregister_device(hr_dev);
+	hns_roce_unregister_device(hr_dev, bond_cleanup);
 
 	if (hr_dev->hw->hw_exit)
 		hr_dev->hw->hw_exit(hr_dev);

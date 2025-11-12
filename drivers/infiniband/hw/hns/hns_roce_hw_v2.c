@@ -7141,7 +7141,7 @@ error_failed_kzalloc:
 }
 
 static void __hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
-					   bool reset)
+					   bool reset, bool bond_cleanup)
 {
 	struct hns_roce_dev *hr_dev = handle->priv;
 
@@ -7153,7 +7153,7 @@ static void __hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 	hr_dev->state = HNS_ROCE_DEVICE_STATE_UNINIT;
 	hns_roce_handle_device_err(hr_dev);
 
-	hns_roce_exit(hr_dev);
+	hns_roce_exit(hr_dev, bond_cleanup);
 	kfree(hr_dev->priv);
 	ib_dealloc_device(&hr_dev->ib_dev);
 }
@@ -7209,7 +7209,40 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 
 	handle->rinfo.instance_state = HNS_ROCE_STATE_UNINIT;
 
-	__hns_roce_hw_v2_uninit_instance(handle, reset);
+	__hns_roce_hw_v2_uninit_instance(handle, reset, true);
+
+	handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
+}
+
+struct hns_roce_dev
+	*hns_roce_bond_init_client(struct hns_roce_bond_group *bond_grp,
+				   int func_idx)
+{
+	struct hnae3_handle *handle;
+	int ret;
+
+	handle = bond_grp->bond_func_info[func_idx].handle;
+	if (!handle || !handle->client)
+		return NULL;
+
+	ret = hns_roce_hw_v2_init_instance(handle);
+	if (ret)
+		return NULL;
+
+	return handle->priv;
+}
+
+void hns_roce_bond_uninit_client(struct hns_roce_bond_group *bond_grp,
+				 int func_idx)
+{
+	struct hnae3_handle *handle = bond_grp->bond_func_info[func_idx].handle;
+
+	if (handle->rinfo.instance_state != HNS_ROCE_STATE_INITED)
+		return;
+
+	handle->rinfo.instance_state = HNS_ROCE_STATE_BOND_UNINIT;
+
+	__hns_roce_hw_v2_uninit_instance(handle, false, false);
 
 	handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
 }
@@ -7278,7 +7311,7 @@ static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
 	handle->rinfo.reset_state = HNS_ROCE_STATE_RST_UNINIT;
 	dev_info(&handle->pdev->dev, "In reset process RoCE client uninit.\n");
 	msleep(HNS_ROCE_V2_HW_RST_UNINT_DELAY);
-	__hns_roce_hw_v2_uninit_instance(handle, false);
+	__hns_roce_hw_v2_uninit_instance(handle, false, false);
 
 	return 0;
 }

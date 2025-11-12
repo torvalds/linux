@@ -179,6 +179,7 @@ enum hns_roce_instance_state {
 	HNS_ROCE_STATE_INIT,
 	HNS_ROCE_STATE_INITED,
 	HNS_ROCE_STATE_UNINIT,
+	HNS_ROCE_STATE_BOND_UNINIT,
 };
 
 enum {
@@ -1304,7 +1305,7 @@ void hns_roce_flush_cqe(struct hns_roce_dev *hr_dev, u32 qpn);
 void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type);
 void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
-void hns_roce_exit(struct hns_roce_dev *hr_dev);
+void hns_roce_exit(struct hns_roce_dev *hr_dev, bool bond_cleanup);
 int hns_roce_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ib_cq);
 int hns_roce_fill_res_cq_entry_raw(struct sk_buff *msg, struct ib_cq *ib_cq);
 int hns_roce_fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ib_qp);

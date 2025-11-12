@@ -14,6 +14,9 @@
 
 #define BOND_ID(id) BIT(id)
 
+#define BOND_ERR_LOG(fmt, ...)				\
+	pr_err("HNS RoCE Bonding: " fmt, ##__VA_ARGS__)
+
 enum {
 	BOND_MODE_1,
 	BOND_MODE_2_4,
@@ -80,5 +83,8 @@ struct hns_roce_bond_group *hns_roce_get_bond_grp(struct net_device *net_dev,
 						  u8 bus_num);
 int hns_roce_alloc_bond_grp(struct hns_roce_dev *hr_dev);
 void hns_roce_dealloc_bond_grp(void);
+void hns_roce_cleanup_bond(struct hns_roce_bond_group *bond_grp);
+bool hns_roce_bond_is_active(struct hns_roce_dev *hr_dev);
+int hns_roce_bond_init(struct hns_roce_dev *hr_dev);
 
 #endif
