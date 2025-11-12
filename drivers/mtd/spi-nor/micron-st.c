@@ -185,6 +185,11 @@ static const struct spi_nor_fixups mt35xu512aba_fixups = {
 	.post_sfdp = mt35xu512aba_post_sfdp_fixup,
 };
 
+static const struct spi_nor_fixups mt35xu01gbba_fixups = {
+	.post_sfdp = mt35xu512aba_post_sfdp_fixup,
+	.late_init = micron_st_nor_two_die_late_init,
+};
+
 static const struct flash_info micron_nor_parts[] = {
 	{
 		/* MT35XU512ABA */
@@ -192,6 +197,12 @@ static const struct flash_info micron_nor_parts[] = {
 		.mfr_flags = USE_FSR,
 		.fixup_flags = SPI_NOR_IO_MODE_EN_VOLATILE,
 		.fixups = &mt35xu512aba_fixups,
+	}, {
+		/* MT35XU01GBBA */
+		.id = SNOR_ID(0x2c, 0x5b, 0x1b),
+		.mfr_flags = USE_FSR,
+		.fixup_flags = SPI_NOR_IO_MODE_EN_VOLATILE,
+		.fixups = &mt35xu01gbba_fixups,
 	}, {
 		.id = SNOR_ID(0x2c, 0x5b, 0x1c),
 		.name = "mt35xu02g",
