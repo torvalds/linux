@@ -455,7 +455,7 @@ int ivpu_shutdown(struct ivpu_device *vdev)
 static const struct file_operations ivpu_fops = {
 	.owner		= THIS_MODULE,
 	DRM_ACCEL_FOPS,
-#if CONFIG_PROC_FS
+#ifdef CONFIG_PROC_FS
 	.show_fdinfo = drm_show_fdinfo,
 #endif
 };
@@ -472,7 +472,7 @@ static const struct drm_driver driver = {
 	.ioctls = ivpu_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(ivpu_drm_ioctls),
 	.fops = &ivpu_fops,
-#if CONFIG_PROC_FS
+#ifdef CONFIG_PROC_FS
 	.show_fdinfo = drm_show_memory_stats,
 #endif
 
