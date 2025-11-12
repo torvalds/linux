@@ -1697,11 +1697,6 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 		ACCESS_PRIVATE(indio_dev, priv) = (char *)iio_dev_opaque +
 			ALIGN(sizeof(*iio_dev_opaque), IIO_DMA_MINALIGN);
 
-	indio_dev->dev.parent = parent;
-	indio_dev->dev.type = &iio_device_type;
-	indio_dev->dev.bus = &iio_bus_type;
-	device_initialize(&indio_dev->dev);
-
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
 	iio_dev_opaque->id = ida_alloc(&iio_ida, GFP_KERNEL);
@@ -1726,6 +1721,11 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 
 	mutex_init(&iio_dev_opaque->mlock);
 	mutex_init(&iio_dev_opaque->info_exist_lock);
+
+	indio_dev->dev.parent = parent;
+	indio_dev->dev.type = &iio_device_type;
+	indio_dev->dev.bus = &iio_bus_type;
+	device_initialize(&indio_dev->dev);
 
 	return indio_dev;
 }
