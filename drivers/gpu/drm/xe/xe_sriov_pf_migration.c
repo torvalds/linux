@@ -177,8 +177,14 @@ xe_sriov_pf_migration_save_consume(struct xe_device *xe, unsigned int vfid)
 static int pf_handle_descriptor(struct xe_device *xe, unsigned int vfid,
 				struct xe_sriov_packet *data)
 {
+	int ret;
+
 	if (data->hdr.tile_id != 0 || data->hdr.gt_id != 0)
 		return -EINVAL;
+
+	ret = xe_sriov_packet_process_descriptor(xe, vfid, data);
+	if (ret)
+		return ret;
 
 	xe_sriov_packet_free(data);
 
