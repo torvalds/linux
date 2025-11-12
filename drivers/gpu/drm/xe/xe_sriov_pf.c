@@ -15,6 +15,7 @@
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
 #include "xe_sriov_pf_helpers.h"
+#include "xe_sriov_pf_migration.h"
 #include "xe_sriov_pf_service.h"
 #include "xe_sriov_pf_sysfs.h"
 #include "xe_sriov_printk.h"
@@ -99,6 +100,10 @@ int xe_sriov_pf_init_early(struct xe_device *xe)
 		return -ENOMEM;
 
 	err = drmm_mutex_init(&xe->drm, &xe->sriov.pf.master_lock);
+	if (err)
+		return err;
+
+	err = xe_sriov_pf_migration_init(xe);
 	if (err)
 		return err;
 
