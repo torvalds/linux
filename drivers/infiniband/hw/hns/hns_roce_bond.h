@@ -14,6 +14,17 @@
 
 #define BOND_ID(id) BIT(id)
 
+enum {
+	BOND_MODE_1,
+	BOND_MODE_2_4,
+};
+
+enum hns_roce_bond_hashtype {
+	BOND_HASH_L2,
+	BOND_HASH_L34,
+	BOND_HASH_L23,
+};
+
 enum bond_support_type {
 	BOND_NOT_SUPPORT,
 	/*
@@ -32,6 +43,12 @@ enum hns_roce_bond_state {
 	HNS_ROCE_BOND_SLAVE_CHANGESTATE,
 };
 
+enum hns_roce_bond_cmd_type {
+	HNS_ROCE_SET_BOND,
+	HNS_ROCE_CHANGE_BOND,
+	HNS_ROCE_CLEAR_BOND,
+};
+
 struct hns_roce_func_info {
 	struct net_device *net_dev;
 	struct hnae3_handle *handle;
@@ -40,6 +57,9 @@ struct hns_roce_func_info {
 struct hns_roce_bond_group {
 	struct net_device *upper_dev;
 	struct hns_roce_dev *main_hr_dev;
+	u8 active_slave_num;
+	u32 slave_map;
+	u32 active_slave_map;
 	u8 bond_id;
 	u8 bus_num;
 	struct hns_roce_func_info bond_func_info[ROCE_BOND_FUNC_MAX];
