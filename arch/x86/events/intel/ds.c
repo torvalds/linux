@@ -2979,8 +2979,7 @@ static void intel_pmu_drain_arch_pebs(struct pt_regs *iregs,
 	}
 
 	base = cpuc->pebs_vaddr;
-	top = (void *)((u64)cpuc->pebs_vaddr +
-		       (index.wr << ARCH_PEBS_INDEX_WR_SHIFT));
+	top = cpuc->pebs_vaddr + (index.wr << ARCH_PEBS_INDEX_WR_SHIFT);
 
 	index.wr = 0;
 	index.full = 0;
