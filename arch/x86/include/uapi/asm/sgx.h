@@ -166,7 +166,7 @@ typedef int (*sgx_enclave_user_handler_t)(long rdi, long rsi, long rdx,
  * @exception_addr:		The address that triggered the exception
  * @user_handler:		User provided callback run on exception
  * @user_data:			Data passed to the user handler
- * @reserved			Reserved for future extensions
+ * @reserved:			Reserved for future extensions
  *
  * If @user_handler is provided, the handler will be invoked on all return paths
  * of the normal flow.  The user handler may transfer control, e.g. via a
