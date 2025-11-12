@@ -23,6 +23,7 @@ properties:
               - bananapi,bpi-f3
               - milkv,jupiter
               - spacemit,musepi-pro
+              - xunlong,orangepi-r2s
               - xunlong,orangepi-rv2
           - const: spacemit,k1
 
