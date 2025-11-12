@@ -13,6 +13,12 @@ struct xlog;
 struct xlog_ticket;
 struct xfs_mount;
 
+struct xfs_log_iovec {
+	void			*i_addr;/* beginning address of region */
+	int			i_len;	/* length in bytes of region */
+	uint			i_type;	/* type of region */
+};
+
 /*
  * get client id from packed copy.
  *
