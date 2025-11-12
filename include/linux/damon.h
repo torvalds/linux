@@ -492,7 +492,7 @@ struct damos_migrate_dests {
  * @wmarks:		Watermarks for automated (in)activation of this scheme.
  * @migrate_dests:	Destination nodes if @action is "migrate_{hot,cold}".
  * @target_nid:		Destination node if @action is "migrate_{hot,cold}".
- * @filters:		Additional set of &struct damos_filter for &action.
+ * @core_filters:	Additional set of &struct damos_filter for &action.
  * @ops_filters:	ops layer handling &struct damos_filter objects list.
  * @last_applied:	Last @action applied ops-managing entity.
  * @stat:		Statistics of this scheme.
@@ -518,7 +518,7 @@ struct damos_migrate_dests {
  *
  * Before applying the &action to a memory region, &struct damon_operations
  * implementation could check pages of the region and skip &action to respect
- * &filters
+ * &core_filters
  *
  * The minimum entity that @action can be applied depends on the underlying
  * &struct damon_operations.  Since it may not be aligned with the core layer
@@ -562,7 +562,7 @@ struct damos {
 			struct damos_migrate_dests migrate_dests;
 		};
 	};
-	struct list_head filters;
+	struct list_head core_filters;
 	struct list_head ops_filters;
 	void *last_applied;
 	struct damos_stat stat;
@@ -872,10 +872,10 @@ static inline unsigned long damon_sz_region(struct damon_region *r)
 	list_for_each_entry_safe(goal, next, &(quota)->goals, list)
 
 #define damos_for_each_core_filter(f, scheme) \
-	list_for_each_entry(f, &(scheme)->filters, list)
+	list_for_each_entry(f, &(scheme)->core_filters, list)
 
 #define damos_for_each_core_filter_safe(f, next, scheme) \
-	list_for_each_entry_safe(f, next, &(scheme)->filters, list)
+	list_for_each_entry_safe(f, next, &(scheme)->core_filters, list)
 
 #define damos_for_each_ops_filter(f, scheme) \
 	list_for_each_entry(f, &(scheme)->ops_filters, list)

@@ -876,7 +876,7 @@ static void damos_test_commit_filter(struct kunit *test)
 static void damos_test_help_initailize_scheme(struct damos *scheme)
 {
 	INIT_LIST_HEAD(&scheme->quota.goals);
-	INIT_LIST_HEAD(&scheme->filters);
+	INIT_LIST_HEAD(&scheme->core_filters);
 	INIT_LIST_HEAD(&scheme->ops_filters);
 }
 
@@ -1140,7 +1140,7 @@ static void damon_test_set_filters_default_reject(struct kunit *test)
 	struct damos scheme;
 	struct damos_filter *target_filter, *anon_filter;
 
-	INIT_LIST_HEAD(&scheme.filters);
+	INIT_LIST_HEAD(&scheme.core_filters);
 	INIT_LIST_HEAD(&scheme.ops_filters);
 
 	damos_set_filters_default_reject(&scheme);
