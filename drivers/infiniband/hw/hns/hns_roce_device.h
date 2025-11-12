@@ -33,6 +33,7 @@
 #ifndef _HNS_ROCE_DEVICE_H
 #define _HNS_ROCE_DEVICE_H
 
+#include <linux/pci.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/hns-abi.h>
 #include "hns_roce_debugfs.h"
@@ -1163,6 +1164,17 @@ static inline u8 get_tclass(const struct ib_global_route *grh)
 {
 	return grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP ?
 	       grh->traffic_class >> DSCP_SHIFT : grh->traffic_class;
+}
+
+static inline struct net_device *get_hr_netdev(struct hns_roce_dev *hr_dev,
+					       u8 port)
+{
+	return hr_dev->iboe.netdevs[port];
+}
+
+static inline u8 get_hr_bus_num(struct hns_roce_dev *hr_dev)
+{
+	return hr_dev->pci_dev->bus->number;
 }
 
 void hns_roce_init_uar_table(struct hns_roce_dev *dev);
