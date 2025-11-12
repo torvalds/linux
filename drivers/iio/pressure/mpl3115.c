@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/property.h>
+#include <linux/unaligned.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
@@ -125,7 +126,7 @@ static int mpl3115_read_info_raw(struct mpl3115_data *data,
 
 	switch (chan->type) {
 	case IIO_PRESSURE: { /* in 0.25 pascal / LSB */
-		__be32 tmp = 0;
+		u8 press_be24[3];
 
 		guard(mutex)(&data->lock);
 		ret = mpl3115_request(data);
@@ -134,11 +135,17 @@ static int mpl3115_read_info_raw(struct mpl3115_data *data,
 
 		ret = i2c_smbus_read_i2c_block_data(data->client,
 						    MPL3115_OUT_PRESS,
-						    3, (u8 *) &tmp);
+						    sizeof(press_be24),
+						    press_be24);
 		if (ret < 0)
 			return ret;
 
-		*val = be32_to_cpu(tmp) >> chan->scan_type.shift;
+		/*
+		 * The pressure channel shift is applied in the case where the
+		 * data (24-bit big endian) is read into a 32-bit buffer. Here
+		 * the data is stored in a 24-bit buffer, so the shift is 4.
+		 */
+		*val = get_unaligned_be24(press_be24) >> 4;
 		return IIO_VAL_INT;
 	}
 	case IIO_TEMP: { /* in 0.0625 celsius / LSB */
