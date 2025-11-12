@@ -2757,8 +2757,8 @@ static void io_rings_free(struct io_ring_ctx *ctx)
 	ctx->sq_sqes = NULL;
 }
 
-int rings_size(unsigned int flags, unsigned int sq_entries,
-		unsigned int cq_entries, struct io_rings_layout *rl)
+static int rings_size(unsigned int flags, unsigned int sq_entries,
+		      unsigned int cq_entries, struct io_rings_layout *rl)
 {
 	struct io_rings *rings;
 	size_t sqe_size;
@@ -3353,20 +3353,17 @@ bool io_is_uring_fops(struct file *file)
 }
 
 static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
-					 struct io_uring_params *p)
+					 struct io_ctx_config *config)
 {
+	struct io_uring_params *p = &config->p;
+	struct io_rings_layout *rl = &config->layout;
 	struct io_uring_region_desc rd;
-	struct io_rings_layout __rl, *rl = &__rl;
 	struct io_rings *rings;
 	int ret;
 
 	/* make sure these are sane, as we already accounted them */
 	ctx->sq_entries = p->sq_entries;
 	ctx->cq_entries = p->cq_entries;
-
-	ret = rings_size(ctx->flags, p->sq_entries, p->cq_entries, rl);
-	if (ret)
-		return ret;
 
 	memset(&rd, 0, sizeof(rd));
 	rd.size = PAGE_ALIGN(rl->rings_size);
@@ -3378,7 +3375,6 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	if (ret)
 		return ret;
 	ctx->rings = rings = io_region_get_ptr(&ctx->ring_region);
-
 	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))
 		ctx->sq_array = (u32 *)((char *)rings + rl->sq_array_offset);
 
@@ -3560,6 +3556,14 @@ int io_prepare_config(struct io_ctx_config *config)
 	if (ret)
 		return ret;
 
+	ret = rings_size(p->flags, p->sq_entries, p->cq_entries,
+			 &config->layout);
+	if (ret)
+		return ret;
+
+	if (!(p->flags & IORING_SETUP_NO_SQARRAY))
+		p->sq_off.array = config->layout.sq_array_offset;
+
 	return 0;
 }
 
@@ -3632,12 +3636,9 @@ static __cold int io_uring_create(struct io_ctx_config *config)
 	mmgrab(current->mm);
 	ctx->mm_account = current->mm;
 
-	ret = io_allocate_scq_urings(ctx, p);
+	ret = io_allocate_scq_urings(ctx, config);
 	if (ret)
 		goto err;
-
-	if (!(p->flags & IORING_SETUP_NO_SQARRAY))
-		p->sq_off.array = (char *)ctx->sq_array - (char *)ctx->rings;
 
 	ret = io_sq_offload_create(ctx, p);
 	if (ret)

@@ -27,6 +27,7 @@ struct io_rings_layout {
 
 struct io_ctx_config {
 	struct io_uring_params p;
+	struct io_rings_layout layout;
 	struct io_uring_params __user *uptr;
 };
 
@@ -147,8 +148,6 @@ static inline bool io_should_wake(struct io_wait_queue *iowq)
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
 
-int rings_size(unsigned int flags, unsigned int sq_entries,
-		unsigned int cq_entries, struct io_rings_layout *rl);
 int io_prepare_config(struct io_ctx_config *config);
 
 bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow, bool cqe32);

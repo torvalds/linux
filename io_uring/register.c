@@ -423,10 +423,6 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	if (unlikely(ret))
 		return ret;
 
-	ret = rings_size(p->flags, p->sq_entries, p->cq_entries, rl);
-	if (ret)
-		return ret;
-
 	memset(&rd, 0, sizeof(rd));
 	rd.size = PAGE_ALIGN(rl->rings_size);
 	if (p->flags & IORING_SETUP_NO_MMAP) {
