@@ -145,11 +145,57 @@ static void fair_doorbells(struct kunit *test)
 		KUNIT_ASSERT_EQ(test, SZ_128, pf_profile_fair_dbs(gt, num_vfs));
 }
 
+static void fair_ggtt_1vf(struct kunit *test)
+{
+	struct xe_gt *gt = test->priv;
+	struct xe_device *xe = gt_to_xe(gt);
+
+	pf_set_admin_mode(xe, false);
+	KUNIT_ASSERT_FALSE(test, xe_sriov_pf_admin_only(xe));
+	KUNIT_EXPECT_EQ(test, SZ_2G, pf_profile_fair_ggtt(gt, 1));
+
+	pf_set_admin_mode(xe, true);
+	KUNIT_ASSERT_TRUE(test, xe_sriov_pf_admin_only(xe));
+	KUNIT_EXPECT_EQ(test, SZ_2G + SZ_1G + SZ_512M, pf_profile_fair_ggtt(gt, 1));
+}
+
+static void fair_ggtt(struct kunit *test)
+{
+	unsigned int num_vfs = (unsigned long)test->param_value;
+	struct xe_gt *gt = test->priv;
+	struct xe_device *xe = gt_to_xe(gt);
+	u64 alignment = pf_get_ggtt_alignment(gt);
+	u64 shareable = SZ_2G + SZ_1G + SZ_512M;
+
+	pf_set_admin_mode(xe, false);
+	KUNIT_ASSERT_FALSE(test, xe_sriov_pf_admin_only(xe));
+
+	KUNIT_EXPECT_TRUE(test, IS_ALIGNED(pf_profile_fair_ggtt(gt, num_vfs), alignment));
+	KUNIT_EXPECT_GE(test, shareable, num_vfs * pf_profile_fair_ggtt(gt, num_vfs));
+
+	if (num_vfs > 56)
+		KUNIT_ASSERT_EQ(test, SZ_64M - SZ_8M, pf_profile_fair_ggtt(gt, num_vfs));
+	else if (num_vfs > 28)
+		KUNIT_ASSERT_EQ(test, SZ_64M, pf_profile_fair_ggtt(gt, num_vfs));
+	else if (num_vfs > 14)
+		KUNIT_ASSERT_EQ(test, SZ_128M, pf_profile_fair_ggtt(gt, num_vfs));
+	else if (num_vfs > 7)
+		KUNIT_ASSERT_EQ(test, SZ_256M, pf_profile_fair_ggtt(gt, num_vfs));
+	else if (num_vfs > 3)
+		KUNIT_ASSERT_EQ(test, SZ_512M, pf_profile_fair_ggtt(gt, num_vfs));
+	else if (num_vfs > 1)
+		KUNIT_ASSERT_EQ(test, SZ_1G, pf_profile_fair_ggtt(gt, num_vfs));
+	else
+		KUNIT_ASSERT_EQ(test, SZ_2G, pf_profile_fair_ggtt(gt, num_vfs));
+}
+
 static struct kunit_case pf_gt_config_test_cases[] = {
 	KUNIT_CASE(fair_contexts_1vf),
 	KUNIT_CASE(fair_doorbells_1vf),
+	KUNIT_CASE(fair_ggtt_1vf),
 	KUNIT_CASE_PARAM(fair_contexts, num_vfs_gen_param),
 	KUNIT_CASE_PARAM(fair_doorbells, num_vfs_gen_param),
+	KUNIT_CASE_PARAM(fair_ggtt, num_vfs_gen_param),
 	{}
 };
 

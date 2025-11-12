@@ -9,6 +9,7 @@
 #include "abi/guc_actions_sriov_abi.h"
 #include "abi/guc_klvs_abi.h"
 
+#include "regs/xe_gtt_defs.h"
 #include "regs/xe_guc_regs.h"
 
 #include "xe_bo.h"
@@ -697,6 +698,22 @@ static u64 pf_estimate_fair_ggtt(struct xe_gt *gt, unsigned int num_vfs)
 	return fair;
 }
 
+static u64 pf_profile_fair_ggtt(struct xe_gt *gt, unsigned int num_vfs)
+{
+	bool admin_only_pf = xe_sriov_pf_admin_only(gt_to_xe(gt));
+	u64 shareable = ALIGN_DOWN(GUC_GGTT_TOP, SZ_512M);
+	u64 alignment = pf_get_ggtt_alignment(gt);
+
+	if (admin_only_pf && num_vfs == 1)
+		return ALIGN_DOWN(shareable, alignment);
+
+	/* need to hardcode due to ~512M of GGTT being reserved */
+	if (num_vfs > 56)
+		return SZ_64M - SZ_8M;
+
+	return rounddown_pow_of_two(shareable / num_vfs);
+}
+
 /**
  * xe_gt_sriov_pf_config_set_fair_ggtt - Provision many VFs with fair GGTT.
  * @gt: the &xe_gt (can't be media)
@@ -710,6 +727,7 @@ static u64 pf_estimate_fair_ggtt(struct xe_gt *gt, unsigned int num_vfs)
 int xe_gt_sriov_pf_config_set_fair_ggtt(struct xe_gt *gt, unsigned int vfid,
 					unsigned int num_vfs)
 {
+	u64 profile = pf_profile_fair_ggtt(gt, num_vfs);
 	u64 fair;
 
 	xe_gt_assert(gt, vfid);
@@ -722,6 +740,11 @@ int xe_gt_sriov_pf_config_set_fair_ggtt(struct xe_gt *gt, unsigned int vfid,
 
 	if (!fair)
 		return -ENOSPC;
+
+	fair = min(fair, profile);
+	if (fair < profile)
+		xe_gt_sriov_info(gt, "Using non-profile provisioning (%s %llu vs %llu)\n",
+				 "GGTT", fair, profile);
 
 	return xe_gt_sriov_pf_config_bulk_set_ggtt(gt, vfid, num_vfs, fair);
 }
