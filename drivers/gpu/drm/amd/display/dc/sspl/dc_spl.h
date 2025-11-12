@@ -9,14 +9,6 @@
 #define BLACK_OFFSET_RGB_Y 0x0
 #define BLACK_OFFSET_CBCR  0x8000
 
-#ifndef SPL_PFX_
-#define SPL_PFX_
-#endif
-
-#define SPL_EXPAND2(a, b)         a##b
-#define SPL_EXPAND(a, b)          SPL_EXPAND2(a, b)
-#define SPL_NAMESPACE(symbol)     SPL_EXPAND(SPL_PFX_, symbol)
-
 
 /* SPL interfaces */
 

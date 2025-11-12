@@ -44,7 +44,8 @@ static inline unsigned long long spl_complete_integer_division_u64(
 #define GET_FRACTIONAL_PART(x) \
 	(FRACTIONAL_PART_MASK & (x))
 
-struct spl_fixed31_32 spl_fixpt_from_fraction(long long numerator, long long denominator)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_from_fraction(
+	long long numerator, long long denominator))
 {
 	struct spl_fixed31_32 res;
 
@@ -96,7 +97,8 @@ struct spl_fixed31_32 spl_fixpt_from_fraction(long long numerator, long long den
 	return res;
 }
 
-struct spl_fixed31_32 spl_fixpt_mul(struct spl_fixed31_32 arg1, struct spl_fixed31_32 arg2)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_mul(
+	struct spl_fixed31_32 arg1, struct spl_fixed31_32 arg2))
 {
 	struct spl_fixed31_32 res;
 
@@ -147,7 +149,7 @@ struct spl_fixed31_32 spl_fixpt_mul(struct spl_fixed31_32 arg1, struct spl_fixed
 	return res;
 }
 
-struct spl_fixed31_32 spl_fixpt_sqr(struct spl_fixed31_32 arg)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_sqr(struct spl_fixed31_32 arg))
 {
 	struct spl_fixed31_32 res;
 
@@ -187,19 +189,19 @@ struct spl_fixed31_32 spl_fixpt_sqr(struct spl_fixed31_32 arg)
 	return res;
 }
 
-struct spl_fixed31_32 spl_fixpt_recip(struct spl_fixed31_32 arg)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_recip(struct spl_fixed31_32 arg))
 {
 	/*
 	 * @note
 	 * Good idea to use Newton's method
 	 */
 
-	return spl_fixpt_from_fraction(
+	return SPL_NAMESPACE(spl_fixpt_from_fraction(
 		spl_fixpt_one.value,
-		arg.value);
+		arg.value));
 }
 
-struct spl_fixed31_32 spl_fixpt_sinc(struct spl_fixed31_32 arg)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_sinc(struct spl_fixed31_32 arg))
 {
 	struct spl_fixed31_32 square;
 
@@ -221,15 +223,15 @@ struct spl_fixed31_32 spl_fixpt_sinc(struct spl_fixed31_32 arg)
 					spl_fixpt_two_pi.value)));
 	}
 
-	square = spl_fixpt_sqr(arg_norm);
+	square = SPL_NAMESPACE(spl_fixpt_sqr(arg_norm));
 
 	do {
 		res = spl_fixpt_sub(
 			spl_fixpt_one,
 			spl_fixpt_div_int(
-				spl_fixpt_mul(
+				SPL_NAMESPACE(spl_fixpt_mul(
 					square,
-					res),
+					res)),
 				n * (n - 1)));
 
 		n -= 2;
@@ -237,24 +239,24 @@ struct spl_fixed31_32 spl_fixpt_sinc(struct spl_fixed31_32 arg)
 
 	if (arg.value != arg_norm.value)
 		res = spl_fixpt_div(
-			spl_fixpt_mul(res, arg_norm),
+			SPL_NAMESPACE(spl_fixpt_mul(res, arg_norm)),
 			arg);
 
 	return res;
 }
 
-struct spl_fixed31_32 spl_fixpt_sin(struct spl_fixed31_32 arg)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_sin(struct spl_fixed31_32 arg))
 {
-	return spl_fixpt_mul(
+	return SPL_NAMESPACE(spl_fixpt_mul(
 		arg,
-		spl_fixpt_sinc(arg));
+		SPL_NAMESPACE(spl_fixpt_sinc(arg))));
 }
 
-struct spl_fixed31_32 spl_fixpt_cos(struct spl_fixed31_32 arg)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_cos(struct spl_fixed31_32 arg))
 {
 	/* TODO implement argument normalization */
 
-	const struct spl_fixed31_32 square = spl_fixpt_sqr(arg);
+	const struct spl_fixed31_32 square = SPL_NAMESPACE(spl_fixpt_sqr(arg));
 
 	struct spl_fixed31_32 res = spl_fixpt_one;
 
@@ -264,9 +266,9 @@ struct spl_fixed31_32 spl_fixpt_cos(struct spl_fixed31_32 arg)
 		res = spl_fixpt_sub(
 			spl_fixpt_one,
 			spl_fixpt_div_int(
-				spl_fixpt_mul(
+				SPL_NAMESPACE(spl_fixpt_mul(
 					square,
-					res),
+					res)),
 				n * (n - 1)));
 
 		n -= 2;
@@ -286,9 +288,9 @@ static struct spl_fixed31_32 spl_fixed31_32_exp_from_taylor_series(struct spl_fi
 {
 	unsigned int n = 9;
 
-	struct spl_fixed31_32 res = spl_fixpt_from_fraction(
+	struct spl_fixed31_32 res = SPL_NAMESPACE(spl_fixpt_from_fraction(
 		n + 2,
-		n + 1);
+		n + 1));
 	/* TODO find correct res */
 
 	SPL_ASSERT(spl_fixpt_lt(arg, spl_fixpt_one));
@@ -297,20 +299,20 @@ static struct spl_fixed31_32 spl_fixed31_32_exp_from_taylor_series(struct spl_fi
 		res = spl_fixpt_add(
 			spl_fixpt_one,
 			spl_fixpt_div_int(
-				spl_fixpt_mul(
+				SPL_NAMESPACE(spl_fixpt_mul(
 					arg,
-					res),
+					res)),
 				n));
 	while (--n != 1);
 
 	return spl_fixpt_add(
 		spl_fixpt_one,
-		spl_fixpt_mul(
+		SPL_NAMESPACE(spl_fixpt_mul(
 			arg,
-			res));
+			res)));
 }
 
-struct spl_fixed31_32 spl_fixpt_exp(struct spl_fixed31_32 arg)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_exp(struct spl_fixed31_32 arg))
 {
 	/*
 	 * @brief
@@ -353,7 +355,7 @@ struct spl_fixed31_32 spl_fixpt_exp(struct spl_fixed31_32 arg)
 		return spl_fixpt_one;
 }
 
-struct spl_fixed31_32 spl_fixpt_log(struct spl_fixed31_32 arg)
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_log(struct spl_fixed31_32 arg))
 {
 	struct spl_fixed31_32 res = spl_fixpt_neg(spl_fixpt_one);
 	/* TODO improve 1st estimation */
@@ -371,7 +373,7 @@ struct spl_fixed31_32 spl_fixpt_log(struct spl_fixed31_32 arg)
 				spl_fixpt_one),
 			spl_fixpt_div(
 				arg,
-				spl_fixpt_exp(res)));
+				SPL_NAMESPACE(spl_fixpt_exp(res))));
 
 		error = spl_fixpt_sub(
 			res,
@@ -427,37 +429,37 @@ static inline unsigned int spl_clamp_ux_dy(
 		return min_clamp;
 }
 
-unsigned int spl_fixpt_u4d19(struct spl_fixed31_32 arg)
+unsigned int SPL_NAMESPACE(spl_fixpt_u4d19(struct spl_fixed31_32 arg))
 {
 	return spl_ux_dy(arg.value, 4, 19);
 }
 
-unsigned int spl_fixpt_u3d19(struct spl_fixed31_32 arg)
+unsigned int SPL_NAMESPACE(spl_fixpt_u3d19(struct spl_fixed31_32 arg))
 {
 	return spl_ux_dy(arg.value, 3, 19);
 }
 
-unsigned int spl_fixpt_u2d19(struct spl_fixed31_32 arg)
+unsigned int SPL_NAMESPACE(spl_fixpt_u2d19(struct spl_fixed31_32 arg))
 {
 	return spl_ux_dy(arg.value, 2, 19);
 }
 
-unsigned int spl_fixpt_u0d19(struct spl_fixed31_32 arg)
+unsigned int SPL_NAMESPACE(spl_fixpt_u0d19(struct spl_fixed31_32 arg))
 {
 	return spl_ux_dy(arg.value, 0, 19);
 }
 
-unsigned int spl_fixpt_clamp_u0d14(struct spl_fixed31_32 arg)
+unsigned int SPL_NAMESPACE(spl_fixpt_clamp_u0d14(struct spl_fixed31_32 arg))
 {
 	return spl_clamp_ux_dy(arg.value, 0, 14, 1);
 }
 
-unsigned int spl_fixpt_clamp_u0d10(struct spl_fixed31_32 arg)
+unsigned int SPL_NAMESPACE(spl_fixpt_clamp_u0d10(struct spl_fixed31_32 arg))
 {
 	return spl_clamp_ux_dy(arg.value, 0, 10, 1);
 }
 
-int spl_fixpt_s4d19(struct spl_fixed31_32 arg)
+int SPL_NAMESPACE(spl_fixpt_s4d19(struct spl_fixed31_32 arg))
 {
 	if (arg.value < 0)
 		return -(int)spl_ux_dy(spl_fixpt_abs(arg).value, 4, 19);
@@ -465,9 +467,9 @@ int spl_fixpt_s4d19(struct spl_fixed31_32 arg)
 		return spl_ux_dy(arg.value, 4, 19);
 }
 
-struct spl_fixed31_32 spl_fixpt_from_ux_dy(unsigned int value,
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_from_ux_dy(unsigned int value,
 	unsigned int integer_bits,
-	unsigned int fractional_bits)
+	unsigned int fractional_bits))
 {
 	struct spl_fixed31_32 fixpt_value = spl_fixpt_zero;
 	struct spl_fixed31_32 fixpt_int_value = spl_fixpt_zero;
@@ -481,10 +483,10 @@ struct spl_fixed31_32 spl_fixpt_from_ux_dy(unsigned int value,
 	return fixpt_value;
 }
 
-struct spl_fixed31_32 spl_fixpt_from_int_dy(unsigned int int_value,
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_from_int_dy(unsigned int int_value,
 	unsigned int frac_value,
 	unsigned int integer_bits,
-	unsigned int fractional_bits)
+	unsigned int fractional_bits))
 {
 	struct spl_fixed31_32 fixpt_value = spl_fixpt_from_int(int_value);
 
