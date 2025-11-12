@@ -2050,10 +2050,10 @@ xlog_write_partial(
 			 * consumes hasn't been accounted to the lv we are
 			 * writing.
 			 */
+			*len += sizeof(struct xlog_op_header);
 			error = xlog_write_get_more_iclog_space(ticket,
-					&iclog, log_offset,
-					*len + sizeof(struct xlog_op_header),
-					record_cnt, data_cnt);
+					&iclog, log_offset, *len, record_cnt,
+					data_cnt);
 			if (error)
 				return error;
 
@@ -2066,6 +2066,7 @@ xlog_write_partial(
 			ticket->t_curr_res -= sizeof(struct xlog_op_header);
 			*log_offset += sizeof(struct xlog_op_header);
 			*data_cnt += sizeof(struct xlog_op_header);
+			*len -= sizeof(struct xlog_op_header);
 
 			/*
 			 * If rlen fits in the iclog, then end the region
