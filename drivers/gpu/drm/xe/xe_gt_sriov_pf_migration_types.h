@@ -16,6 +16,11 @@
 struct xe_gt_sriov_migration_data {
 	/** @ring: queue containing VF save / restore migration data */
 	struct ptr_ring ring;
+	/** @save: structure for currently processed save migration data */
+	struct {
+		/** @save.data_remaining: bitmap of migration types that need to be saved */
+		unsigned long data_remaining;
+	} save;
 };
 
 #endif
