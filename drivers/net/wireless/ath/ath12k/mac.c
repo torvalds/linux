@@ -5079,8 +5079,6 @@ int ath12k_mac_get_fw_stats(struct ath12k *ar,
 	if (ah->state != ATH12K_HW_STATE_ON)
 		return -ENETDOWN;
 
-	ath12k_fw_stats_reset(ar);
-
 	reinit_completion(&ar->fw_stats_complete);
 	reinit_completion(&ar->fw_stats_done);
 
@@ -5178,6 +5176,7 @@ static int ath12k_mac_op_get_txpower(struct ieee80211_hw *hw,
 	ar->chan_tx_pwr = pdev->chan_tx_power / 2;
 	spin_unlock_bh(&ar->data_lock);
 	ar->last_tx_power_update = jiffies;
+	ath12k_fw_stats_reset(ar);
 
 send_tx_power:
 	*dbm = ar->chan_tx_pwr;
@@ -13208,14 +13207,18 @@ static void ath12k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 
 	if (!signal &&
 	    ahsta->ahvif->vdev_type == WMI_VDEV_TYPE_STA &&
-	    !(ath12k_mac_get_fw_stats(ar, &params)))
+	    !(ath12k_mac_get_fw_stats(ar, &params))) {
 		signal = arsta->rssi_beacon;
+		ath12k_fw_stats_reset(ar);
+	}
 
 	params.stats_id = WMI_REQUEST_RSSI_PER_CHAIN_STAT;
 	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_CHAIN_SIGNAL)) &&
 	    ahsta->ahvif->vdev_type == WMI_VDEV_TYPE_STA &&
-	    !(ath12k_mac_get_fw_stats(ar, &params)))
+	    !(ath12k_mac_get_fw_stats(ar, &params))) {
 		ath12k_mac_put_chain_rssi(sinfo, arsta);
+		ath12k_fw_stats_reset(ar);
+	}
 
 	spin_lock_bh(&ar->data_lock);
 	noise_floor = ath12k_pdev_get_noise_floor(ar);
@@ -13299,8 +13302,10 @@ static void ath12k_mac_op_link_sta_statistics(struct ieee80211_hw *hw,
 
 	if (!signal &&
 	    ahsta->ahvif->vdev_type == WMI_VDEV_TYPE_STA &&
-	    !(ath12k_mac_get_fw_stats(ar, &params)))
+	    !(ath12k_mac_get_fw_stats(ar, &params))) {
 		signal = arsta->rssi_beacon;
+		ath12k_fw_stats_reset(ar);
+	}
 
 	if (signal) {
 		link_sinfo->signal =
