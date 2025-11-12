@@ -2663,6 +2663,37 @@ static int decode_sections(struct objtool_file *file)
 	return 0;
 }
 
+/*
+ * Certain function names are disallowed due to section name ambiguities
+ * introduced by -ffunction-sections.
+ *
+ * See the comment above TEXT_MAIN in include/asm-generic/vmlinux.lds.h.
+ */
+static int validate_function_names(struct objtool_file *file)
+{
+	struct symbol *func;
+	int warnings = 0;
+
+	for_each_sym(file->elf, func) {
+		if (!is_func_sym(func))
+			continue;
+
+		if (!strcmp(func->name, "startup")	|| strstarts(func->name, "startup.")	||
+		    !strcmp(func->name, "exit")		|| strstarts(func->name, "exit.")	||
+		    !strcmp(func->name, "split")	|| strstarts(func->name, "split.")	||
+		    !strcmp(func->name, "unlikely")	|| strstarts(func->name, "unlikely.")	||
+		    !strcmp(func->name, "hot")		|| strstarts(func->name, "hot.")	||
+		    !strcmp(func->name, "unknown")	|| strstarts(func->name, "unknown.")) {
+
+			WARN("%s() function name creates ambiguity with -ffunction-sections",
+			     func->name);
+			warnings++;
+		}
+	}
+
+	return warnings;
+}
+
 static bool is_special_call(struct instruction *insn)
 {
 	if (insn->type == INSN_CALL) {
@@ -4931,6 +4962,8 @@ int check(struct objtool_file *file)
 
 	if (!nr_insns)
 		goto out;
+
+	warnings += validate_function_names(file);
 
 	if (opts.retpoline)
 		warnings += validate_retpoline(file);
