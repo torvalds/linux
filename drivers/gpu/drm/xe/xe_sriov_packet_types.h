@@ -9,6 +9,25 @@
 #include <linux/types.h>
 
 /**
+ * enum xe_sriov_packet_type - Xe SR-IOV VF migration data packet type
+ * @XE_SRIOV_PACKET_TYPE_DESCRIPTOR: Descriptor with VF device metadata
+ * @XE_SRIOV_PACKET_TYPE_TRAILER: Trailer indicating end-of-stream
+ * @XE_SRIOV_PACKET_TYPE_GGTT: Global GTT migration data
+ * @XE_SRIOV_PACKET_TYPE_MMIO: MMIO registers migration data
+ * @XE_SRIOV_PACKET_TYPE_GUC: GuC firmware migration data
+ * @XE_SRIOV_PACKET_TYPE_VRAM: VRAM migration data
+ */
+enum xe_sriov_packet_type {
+	/* Skipping 0 to catch uninitialized data */
+	XE_SRIOV_PACKET_TYPE_DESCRIPTOR = 1,
+	XE_SRIOV_PACKET_TYPE_TRAILER,
+	XE_SRIOV_PACKET_TYPE_GGTT,
+	XE_SRIOV_PACKET_TYPE_MMIO,
+	XE_SRIOV_PACKET_TYPE_GUC,
+	XE_SRIOV_PACKET_TYPE_VRAM,
+};
+
+/**
  * struct xe_sriov_packet_hdr - Xe SR-IOV VF migration data packet header
  */
 struct xe_sriov_packet_hdr {
