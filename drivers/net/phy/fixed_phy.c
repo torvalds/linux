@@ -19,7 +19,6 @@
 #include <linux/of.h>
 #include <linux/idr.h>
 #include <linux/netdevice.h>
-#include <linux/linkmode.h>
 
 #include "swphy.h"
 
@@ -183,29 +182,6 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 	of_node_get(np);
 	phy->mdio.dev.of_node = np;
 	phy->is_pseudo_fixed_link = true;
-
-	switch (status->speed) {
-	case SPEED_1000:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				 phy->supported);
-		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				 phy->supported);
-		fallthrough;
-	case SPEED_100:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				 phy->supported);
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				 phy->supported);
-		fallthrough;
-	case SPEED_10:
-	default:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-				 phy->supported);
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-				 phy->supported);
-	}
-
-	phy_advertise_supported(phy);
 
 	ret = phy_device_register(phy);
 	if (ret) {
