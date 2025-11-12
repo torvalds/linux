@@ -34,12 +34,7 @@ int osnoise_set_runtime_period(struct osnoise_context *context,
 			       unsigned long long period);
 void osnoise_restore_runtime_period(struct osnoise_context *context);
 
-int osnoise_set_stop_us(struct osnoise_context *context,
-			long long stop_us);
 void osnoise_restore_stop_us(struct osnoise_context *context);
-
-int osnoise_set_stop_total_us(struct osnoise_context *context,
-			      long long stop_total_us);
 void osnoise_restore_stop_total_us(struct osnoise_context *context);
 
 int osnoise_set_timerlat_period_us(struct osnoise_context *context,

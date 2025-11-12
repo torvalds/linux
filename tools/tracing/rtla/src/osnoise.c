@@ -1128,18 +1128,6 @@ osnoise_apply_config(struct osnoise_tool *tool, struct osnoise_params *params)
 		goto out_err;
 	}
 
-	retval = osnoise_set_stop_us(tool->context, params->common.stop_us);
-	if (retval) {
-		err_msg("Failed to set stop us\n");
-		goto out_err;
-	}
-
-	retval = osnoise_set_stop_total_us(tool->context, params->common.stop_total_us);
-	if (retval) {
-		err_msg("Failed to set stop total us\n");
-		goto out_err;
-	}
-
 	retval = osnoise_set_tracing_thresh(tool->context, params->threshold);
 	if (retval) {
 		err_msg("Failed to set tracing_thresh\n");
@@ -1184,8 +1172,11 @@ int osnoise_enable(struct osnoise_tool *tool)
 			debug_msg("Error cleaning up the buffer");
 			return retval;
 		}
-
 	}
+
+	retval = osn_set_stop(tool);
+	if (retval)
+		return retval;
 
 	return 0;
 }

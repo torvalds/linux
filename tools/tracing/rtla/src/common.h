@@ -152,7 +152,11 @@ void osnoise_destroy_tool(struct osnoise_tool *top);
 struct osnoise_tool *osnoise_init_tool(char *tool_name);
 struct osnoise_tool *osnoise_init_trace_tool(const char *tracer);
 bool osnoise_trace_is_off(struct osnoise_tool *tool, struct osnoise_tool *record);
+int osnoise_set_stop_us(struct osnoise_context *context, long long stop_us);
+int osnoise_set_stop_total_us(struct osnoise_context *context,
+			      long long stop_total_us);
 
 int common_apply_config(struct osnoise_tool *tool, struct common_params *params);
 int top_main_loop(struct osnoise_tool *tool);
 int hist_main_loop(struct osnoise_tool *tool);
+int osn_set_stop(struct osnoise_tool *tool);

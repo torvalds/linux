@@ -348,3 +348,23 @@ int hist_main_loop(struct osnoise_tool *tool)
 
 	return retval;
 }
+
+int osn_set_stop(struct osnoise_tool *tool)
+{
+	struct common_params *params = tool->params;
+	int retval;
+
+	retval = osnoise_set_stop_us(tool->context, params->stop_us);
+	if (retval) {
+		err_msg("Failed to set stop us\n");
+		return retval;
+	}
+
+	retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
+	if (retval) {
+		err_msg("Failed to set stop total us\n");
+		return retval;
+	}
+
+	return 0;
+}
