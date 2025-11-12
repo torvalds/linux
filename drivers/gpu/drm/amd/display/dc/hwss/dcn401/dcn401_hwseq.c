@@ -1213,6 +1213,9 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	if (recout_y_pos + (int)hubp->curs_attr.height <= 0)
 		pos_cpy.enable = false;  /* not visible beyond top edge*/
 
+	pos_cpy.x = x_pos;
+	pos_cpy.y = y_pos;
+
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
 	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width, hubp->curs_attr.height);
 }
