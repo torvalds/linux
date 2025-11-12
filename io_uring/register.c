@@ -398,12 +398,15 @@ static void io_register_free_rings(struct io_ring_ctx *ctx,
 
 static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 {
+	struct io_ctx_config config;
 	struct io_uring_region_desc rd;
 	struct io_ring_ctx_rings o = { }, n = { }, *to_free = NULL;
 	size_t size, sq_array_offset;
 	unsigned i, tail, old_head;
-	struct io_uring_params __p, *p = &__p;
+	struct io_uring_params *p = &config.p;
 	int ret;
+
+	memset(&config, 0, sizeof(config));
 
 	/* limited to DEFER_TASKRUN for now */
 	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN))
@@ -416,7 +419,7 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	/* properties that are always inherited */
 	p->flags |= (ctx->flags & COPY_FLAGS);
 
-	ret = io_uring_fill_params(p);
+	ret = io_prepare_config(&config);
 	if (unlikely(ret))
 		return ret;
 
