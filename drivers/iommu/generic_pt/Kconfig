@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 menuconfig GENERIC_PT
-	bool "Generic Radix Page Table"
+	bool "Generic Radix Page Table" if COMPILE_TEST
 	help
 	  Generic library for building radix tree page tables.
 
