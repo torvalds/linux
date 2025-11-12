@@ -6115,7 +6115,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		if (!plane->async_flip)
 			continue;
 
-		if (!intel_plane_can_async_flip(plane, new_plane_state->hw.fb->format->format,
+		if (!intel_plane_can_async_flip(plane, new_plane_state->hw.fb->format,
 						new_plane_state->hw.fb->modifier)) {
 			drm_dbg_kms(display->drm,
 				    "[PLANE:%d:%s] pixel format %p4cc / modifier 0x%llx does not support async flip\n",

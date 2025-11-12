@@ -178,25 +178,29 @@ bool intel_plane_needs_physical(struct intel_plane *plane)
 		DISPLAY_INFO(display)->cursor_needs_physical;
 }
 
-bool intel_plane_can_async_flip(struct intel_plane *plane, u32 format,
+bool intel_plane_can_async_flip(struct intel_plane *plane,
+				const struct drm_format_info *info,
 				u64 modifier)
 {
-	if (intel_format_info_is_yuv_semiplanar(drm_format_info(format), modifier) ||
-	    format == DRM_FORMAT_C8)
+	if (intel_format_info_is_yuv_semiplanar(info, modifier) ||
+	    info->format == DRM_FORMAT_C8)
 		return false;
 
 	return plane->can_async_flip && plane->can_async_flip(modifier);
 }
 
-bool intel_plane_format_mod_supported_async(struct drm_plane *plane,
-					    u32 format,
-					    u64 modifier)
+bool intel_plane_format_mod_supported_async(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
-	if (!plane->funcs->format_mod_supported(plane, format, modifier))
+	struct intel_plane *plane = to_intel_plane(_plane);
+	const struct drm_format_info *info;
+
+	if (!plane->base.funcs->format_mod_supported(&plane->base, format, modifier))
 		return false;
 
-	return intel_plane_can_async_flip(to_intel_plane(plane),
-					format, modifier);
+	info = drm_get_format_info(plane->base.dev, format, modifier);
+
+	return intel_plane_can_async_flip(plane, info, modifier);
 }
 
 unsigned int intel_adjusted_rate(const struct drm_rect *src,
