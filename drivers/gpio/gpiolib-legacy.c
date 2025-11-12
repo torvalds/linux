@@ -68,11 +68,9 @@ int gpio_request(unsigned gpio, const char *label)
 }
 EXPORT_SYMBOL_GPL(gpio_request);
 
-static void devm_gpio_release(struct device *dev, void *res)
+static void devm_gpio_release(void *gpio)
 {
-	unsigned *gpio = res;
-
-	gpio_free(*gpio);
+	gpio_free((unsigned)(unsigned long)gpio);
 }
 
 /**
@@ -90,22 +88,22 @@ static void devm_gpio_release(struct device *dev, void *res)
 int devm_gpio_request_one(struct device *dev, unsigned gpio,
 			  unsigned long flags, const char *label)
 {
-	unsigned *dr;
 	int rc;
 
-	dr = devres_alloc(devm_gpio_release, sizeof(unsigned), GFP_KERNEL);
-	if (!dr)
-		return -ENOMEM;
+	rc = gpio_request(gpio, label);
+	if (rc)
+		return rc;
 
-	rc = gpio_request_one(gpio, flags, label);
+	if (flags & GPIOF_IN)
+		rc = gpio_direction_input(gpio);
+	else
+		rc = gpio_direction_output(gpio, !!(flags & GPIOF_OUT_INIT_HIGH));
+
 	if (rc) {
-		devres_free(dr);
+		gpio_free(gpio);
 		return rc;
 	}
 
-	*dr = gpio;
-	devres_add(dev, dr);
-
-	return 0;
+	return devm_add_action_or_reset(dev, devm_gpio_release, (void *)(unsigned long)gpio);
 }
 EXPORT_SYMBOL_GPL(devm_gpio_request_one);
