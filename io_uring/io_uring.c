@@ -2761,7 +2761,9 @@ unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 			 unsigned int cq_entries, size_t *sq_offset)
 {
 	struct io_rings *rings;
-	size_t off, sq_array_size;
+	size_t off;
+
+	*sq_offset = SIZE_MAX;
 
 	off = struct_size(rings, cqes, cq_entries);
 	if (off == SIZE_MAX)
@@ -2785,19 +2787,17 @@ unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 		return SIZE_MAX;
 #endif
 
-	if (flags & IORING_SETUP_NO_SQARRAY) {
-		*sq_offset = SIZE_MAX;
-		return off;
+	if (!(flags & IORING_SETUP_NO_SQARRAY)) {
+		size_t sq_array_size;
+
+		*sq_offset = off;
+
+		sq_array_size = array_size(sizeof(u32), sq_entries);
+		if (sq_array_size == SIZE_MAX)
+			return SIZE_MAX;
+		if (check_add_overflow(off, sq_array_size, &off))
+			return SIZE_MAX;
 	}
-
-	*sq_offset = off;
-
-	sq_array_size = array_size(sizeof(u32), sq_entries);
-	if (sq_array_size == SIZE_MAX)
-		return SIZE_MAX;
-
-	if (check_add_overflow(off, sq_array_size, &off))
-		return SIZE_MAX;
 
 	return off;
 }
