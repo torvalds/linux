@@ -1880,13 +1880,18 @@ xlog_print_trans(
 	}
 }
 
+static inline uint32_t xlog_write_space_left(struct xlog_write_data *data)
+{
+	return data->iclog->ic_size - data->log_offset;
+}
+
 static inline void
 xlog_write_iovec(
 	struct xlog_write_data	*data,
 	void			*buf,
 	uint32_t		buf_len)
 {
-	ASSERT(data->log_offset < data->iclog->ic_log->l_iclog_size);
+	ASSERT(xlog_write_space_left(data) > 0);
 	ASSERT(data->log_offset % sizeof(int32_t) == 0);
 	ASSERT(buf_len % sizeof(int32_t) == 0);
 
@@ -1908,7 +1913,7 @@ xlog_write_full(
 {
 	int			index;
 
-	ASSERT(data->log_offset + data->bytes_left <= data->iclog->ic_size ||
+	ASSERT(data->bytes_left <= xlog_write_space_left(data) ||
 		data->iclog->ic_state == XLOG_STATE_WANT_SYNC);
 
 	/*
@@ -1980,7 +1985,7 @@ xlog_write_partial(
 		 * Hence if there isn't space for region data after the
 		 * opheader, then we need to start afresh with a new iclog.
 		 */
-		if (data->iclog->ic_size - data->log_offset <=
+		if (xlog_write_space_left(data) <=
 					sizeof(struct xlog_op_header)) {
 			error = xlog_write_get_more_iclog_space(data);
 			if (error)
@@ -1988,8 +1993,7 @@ xlog_write_partial(
 		}
 
 		ophdr = reg->i_addr;
-		rlen = min_t(uint32_t, reg->i_len,
-			data->iclog->ic_size - data->log_offset);
+		rlen = min_t(uint32_t, reg->i_len, xlog_write_space_left(data));
 
 		ophdr->oh_tid = cpu_to_be32(data->ticket->t_tid);
 		ophdr->oh_len = cpu_to_be32(rlen - sizeof(struct xlog_op_header));
@@ -2054,13 +2058,13 @@ xlog_write_partial(
 			 */
 			reg_offset += rlen;
 			rlen = reg->i_len - reg_offset;
-			if (rlen <= data->iclog->ic_size - data->log_offset)
+			if (rlen <= xlog_write_space_left(data))
 				ophdr->oh_flags |= XLOG_END_TRANS;
 			else
 				ophdr->oh_flags |= XLOG_CONTINUE_TRANS;
 
 			rlen = min_t(uint32_t, rlen,
-				data->iclog->ic_size - data->log_offset);
+					xlog_write_space_left(data));
 			ophdr->oh_len = cpu_to_be32(rlen);
 
 			xlog_write_iovec(data, reg->i_addr + reg_offset, rlen);
@@ -2137,7 +2141,7 @@ xlog_write(
 	if (error)
 		return error;
 
-	ASSERT(data.log_offset <= data.iclog->ic_size - 1);
+	ASSERT(xlog_write_space_left(&data) > 0);
 
 	/*
 	 * If we have a context pointer, pass it the first iclog we are
@@ -2153,7 +2157,7 @@ xlog_write(
 		 * the partial copy loop which can handle this case.
 		 */
 		if (lv->lv_niovecs &&
-		    lv->lv_bytes > data.iclog->ic_size - data.log_offset) {
+		    lv->lv_bytes > xlog_write_space_left(&data)) {
 			error = xlog_write_partial(lv, &data);
 			if (error) {
 				/*
