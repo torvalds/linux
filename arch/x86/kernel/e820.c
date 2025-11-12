@@ -16,6 +16,7 @@
 #include <linux/firmware-map.h>
 #include <linux/sort.h>
 #include <linux/memory_hotplug.h>
+#include <linux/kvm_types.h>
 
 #include <asm/e820/api.h>
 #include <asm/setup.h>
@@ -95,7 +96,7 @@ bool e820__mapped_raw_any(u64 start, u64 end, enum e820_type type)
 {
 	return _e820__mapped_any(e820_table_firmware, start, end, type);
 }
-EXPORT_SYMBOL_GPL(e820__mapped_raw_any);
+EXPORT_SYMBOL_FOR_KVM(e820__mapped_raw_any);
 
 bool e820__mapped_any(u64 start, u64 end, enum e820_type type)
 {

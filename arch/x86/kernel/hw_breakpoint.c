@@ -24,6 +24,7 @@
 #include <linux/percpu.h>
 #include <linux/kdebug.h>
 #include <linux/kernel.h>
+#include <linux/kvm_types.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -489,7 +490,7 @@ void hw_breakpoint_restore(void)
 	set_debugreg(DR6_RESERVED, 6);
 	set_debugreg(__this_cpu_read(cpu_dr7), 7);
 }
-EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
+EXPORT_SYMBOL_FOR_KVM(hw_breakpoint_restore);
 
 /*
  * Handle debug exception notifications.

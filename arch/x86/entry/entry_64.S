@@ -19,6 +19,7 @@
  * - idtentry:		Define exception entry points.
  */
 #include <linux/export.h>
+#include <linux/kvm_types.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/cache.h>
@@ -1566,5 +1567,5 @@ SYM_FUNC_START(clear_bhb_loop)
 	pop	%rbp
 	RET
 SYM_FUNC_END(clear_bhb_loop)
-EXPORT_SYMBOL_GPL(clear_bhb_loop)
+EXPORT_SYMBOL_FOR_KVM(clear_bhb_loop)
 STACK_FRAME_NON_STANDARD(clear_bhb_loop)
