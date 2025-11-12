@@ -362,31 +362,30 @@ static int arm_spe_pkt_desc_op_type(const struct arm_spe_pkt *packet,
 		arm_spe_pkt_out_string(&err, &buf, &buf_len,
 				       payload & 0x1 ? "ST" : "LD");
 
-		if (SPE_OP_PKT_IS_LDST_ATOMIC(payload)) {
+		if (SPE_OP_PKT_LDST_SUBCLASS_EXTENDED(payload)) {
 			if (payload & SPE_OP_PKT_AT)
 				arm_spe_pkt_out_string(&err, &buf, &buf_len, " AT");
 			if (payload & SPE_OP_PKT_EXCL)
 				arm_spe_pkt_out_string(&err, &buf, &buf_len, " EXCL");
 			if (payload & SPE_OP_PKT_AR)
 				arm_spe_pkt_out_string(&err, &buf, &buf_len, " AR");
-		}
-
-		if (SPE_OP_PKT_LDST_SUBCLASS_SIMD_FP(payload))
+		} else if (SPE_OP_PKT_LDST_SUBCLASS_SIMD_FP(payload)) {
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " SIMD-FP");
-		else if (SPE_OP_PKT_LDST_SUBCLASS_GP_REG(payload))
+		} else if (SPE_OP_PKT_LDST_SUBCLASS_GP_REG(payload)) {
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " GP-REG");
-		else if (SPE_OP_PKT_LDST_SUBCLASS_UNSPEC_REG(payload))
+		} else if (SPE_OP_PKT_LDST_SUBCLASS_UNSPEC_REG(payload)) {
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " UNSPEC-REG");
-		else if (SPE_OP_PKT_LDST_SUBCLASS_NV_SYSREG(payload))
+		} else if (SPE_OP_PKT_LDST_SUBCLASS_NV_SYSREG(payload)) {
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " NV-SYSREG");
-		else if (SPE_OP_PKT_LDST_SUBCLASS_MTE_TAG(payload))
+		} else if (SPE_OP_PKT_LDST_SUBCLASS_MTE_TAG(payload)) {
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " MTE-TAG");
-		else if (SPE_OP_PKT_LDST_SUBCLASS_MEMCPY(payload))
+		} else if (SPE_OP_PKT_LDST_SUBCLASS_MEMCPY(payload)) {
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " MEMCPY");
-		else if (SPE_OP_PKT_LDST_SUBCLASS_MEMSET(payload))
+		} else if (SPE_OP_PKT_LDST_SUBCLASS_MEMSET(payload)) {
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " MEMSET");
+		} else if (SPE_OP_PKT_LDST_SUBCLASS_SVE_SME_REG(payload)) {
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, " SVE-SME-REG");
 
-		if (SPE_OP_PKT_IS_LDST_SVE(payload)) {
 			/* SVE effective vector length */
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " EVLEN %d",
 					       SPE_OP_PKG_SVE_EVL(payload));

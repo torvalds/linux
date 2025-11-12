@@ -200,7 +200,7 @@ static int arm_spe_read_record(struct arm_spe_decoder *decoder)
 					decoder->record.op |= ARM_SPE_OP_ST;
 				else
 					decoder->record.op |= ARM_SPE_OP_LD;
-				if (SPE_OP_PKT_IS_LDST_SVE(payload))
+				if (SPE_OP_PKT_LDST_SUBCLASS_SVE_SME_REG(payload))
 					decoder->record.op |= ARM_SPE_OP_SVE_LDST;
 				break;
 			case SPE_OP_PKT_HDR_CLASS_OTHER:
