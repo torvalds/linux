@@ -922,13 +922,6 @@ static int fuse_iomap_read_folio_range_async(const struct iomap_iter *iter,
 
 	if (ctx->rac) {
 		ret = fuse_handle_readahead(folio, ctx->rac, data, pos, len);
-		/*
-		 * If fuse_handle_readahead was successful, fuse_readpages_end
-		 * will do the iomap_finish_folio_read, else we need to call it
-		 * here
-		 */
-		if (ret)
-			iomap_finish_folio_read(folio, off, len, ret);
 	} else {
 		/*
 		 *  for non-readahead read requests, do reads synchronously
@@ -936,7 +929,8 @@ static int fuse_iomap_read_folio_range_async(const struct iomap_iter *iter,
 		 *  out-of-order reads
 		 */
 		ret = fuse_do_readfolio(file, folio, off, len);
-		iomap_finish_folio_read(folio, off, len, ret);
+		if (!ret)
+			iomap_finish_folio_read(folio, off, len, ret);
 	}
 	return ret;
 }
@@ -1885,7 +1879,8 @@ static void fuse_writepage_finish(struct fuse_writepage_args *wpa)
 		 * scope of the fi->lock alleviates xarray lock
 		 * contention and noticeably improves performance.
 		 */
-		iomap_finish_folio_write(inode, ap->folios[i], 1);
+		iomap_finish_folio_write(inode, ap->folios[i],
+					 ap->descs[i].length);
 
 	wake_up(&fi->page_waitq);
 }
@@ -2221,7 +2216,6 @@ static ssize_t fuse_iomap_writeback_range(struct iomap_writepage_ctx *wpc,
 		ap = &wpa->ia.ap;
 	}
 
-	iomap_start_folio_write(inode, folio, 1);
 	fuse_writepage_args_page_fill(wpa, folio, ap->num_folios,
 				      offset, len);
 	data->nr_bytes += len;

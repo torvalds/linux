@@ -149,10 +149,9 @@ These ``struct kiocb`` flags are significant for buffered I/O with iomap:
 iomap calls these functions:
 
   - ``read_folio_range``: Called to read in the range. This must be provided
-    by the caller. The caller is responsible for calling
-    iomap_finish_folio_read() after reading in the folio range. This should be
-    done even if an error is encountered during the read. This returns 0 on
-    success or a negative error on failure.
+    by the caller. If this succeeds, iomap_finish_folio_read() must be called
+    after the range is read in, regardless of whether the read succeeded or
+    failed.
 
   - ``submit_read``: Submit any pending read requests. This function is
     optional.
@@ -361,6 +360,9 @@ The fields are as follows:
     delalloc reservations to avoid having delalloc reservations for
     clean pagecache.
     This function must be supplied by the filesystem.
+    If this succeeds, iomap_finish_folio_write() must be called once writeback
+    completes for the range, regardless of whether the writeback succeeded or
+    failed.
 
   - ``writeback_submit``: Submit the previous built writeback context.
     Block based file systems should use the iomap_ioend_writeback_submit

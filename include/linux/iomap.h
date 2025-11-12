@@ -435,6 +435,10 @@ struct iomap_writeback_ops {
 	 * An existing mapping from a previous call to this method can be reused
 	 * by the file system if it is still valid.
 	 *
+	 * If this succeeds, iomap_finish_folio_write() must be called once
+	 * writeback completes for the range, regardless of whether the
+	 * writeback succeeded or failed.
+	 *
 	 * Returns the number of bytes processed or a negative errno.
 	 */
 	ssize_t (*writeback_range)(struct iomap_writepage_ctx *wpc,
@@ -474,8 +478,6 @@ int iomap_ioend_writeback_submit(struct iomap_writepage_ctx *wpc, int error);
 
 void iomap_finish_folio_read(struct folio *folio, size_t off, size_t len,
 		int error);
-void iomap_start_folio_write(struct inode *inode, struct folio *folio,
-		size_t len);
 void iomap_finish_folio_write(struct inode *inode, struct folio *folio,
 		size_t len);
 
@@ -493,9 +495,8 @@ struct iomap_read_ops {
 	/*
 	 * Read in a folio range.
 	 *
-	 * The caller is responsible for calling iomap_finish_folio_read() after
-	 * reading in the folio range. This should be done even if an error is
-	 * encountered during the read.
+	 * If this succeeds, iomap_finish_folio_read() must be called after the
+	 * range is read in, regardless of whether the read succeeded or failed.
 	 *
 	 * Returns 0 on success or a negative error on failure.
 	 */
