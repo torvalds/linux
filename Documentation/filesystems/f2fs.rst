@@ -1033,3 +1033,46 @@ the reserved space back to F2FS for its own use.
 So, the key idea is, user can do any file operations on /dev/vdc, and
 reclaim the space after the use, while the space is counted as /data.
 That doesn't require modifying partition size and filesystem format.
+
+Per-file Read-Only Large Folio Support
+--------------------------------------
+
+F2FS implements large folio support on the read path to leverage high-order
+page allocation for significant performance gains. To minimize code complexity,
+this support is currently excluded from the write path, which requires handling
+complex optimizations such as compression and block allocation modes.
+
+This optional feature is triggered only when a file's immutable bit is set.
+Consequently, F2FS will return EOPNOTSUPP if a user attempts to open a cached
+file with write permissions, even immediately after clearing the bit. Write
+access is only restored once the cached inode is dropped. The usage flow is
+demonstrated below:
+
+.. code-block::
+
+   # f2fs_io setflags immutable /data/testfile_read_seq
+
+   /* flush and reload the inode to enable the large folio */
+   # sync && echo 3 > /proc/sys/vm/drop_caches
+
+   /* mmap(MAP_POPULATE) + mlock() */
+   # f2fs_io read 128 0 1024 mmap 1 0 /data/testfile_read_seq
+
+   /* mmap() + fadvise(POSIX_FADV_WILLNEED) + mlock() */
+   # f2fs_io read 128 0 1024 fadvise 1 0 /data/testfile_read_seq
+
+   /* mmap() + mlock2(MLOCK_ONFAULT) + madvise(MADV_POPULATE_READ) */
+   # f2fs_io read 128 0 1024 madvise 1 0 /data/testfile_read_seq
+
+   # f2fs_io clearflags immutable /data/testfile_read_seq
+
+   # f2fs_io write 1 0 1 zero buffered /data/testfile_read_seq
+   Failed to open /mnt/test/test: Operation not supported
+
+   /* flush and reload the inode to disable the large folio */
+   # sync && echo 3 > /proc/sys/vm/drop_caches
+
+   # f2fs_io write 1 0 1 zero buffered /data/testfile_read_seq
+   Written 4096 bytes with pattern = zero, total_time = 29 us, max_latency = 28 us
+
+   # rm /data/testfile_read_seq
