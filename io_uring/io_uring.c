@@ -2757,47 +2757,57 @@ static void io_rings_free(struct io_ring_ctx *ctx)
 	ctx->sq_sqes = NULL;
 }
 
-unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
-			 unsigned int cq_entries, size_t *sq_offset)
+int rings_size(unsigned int flags, unsigned int sq_entries,
+		unsigned int cq_entries, struct io_rings_layout *rl)
 {
 	struct io_rings *rings;
+	size_t sqe_size;
 	size_t off;
-
-	*sq_offset = SIZE_MAX;
 
 	if (flags & IORING_SETUP_CQE_MIXED) {
 		if (cq_entries < 2)
-			return SIZE_MAX;
+			return -EOVERFLOW;
 	}
 	if (flags & IORING_SETUP_SQE_MIXED) {
 		if (sq_entries < 2)
-			return SIZE_MAX;
+			return -EOVERFLOW;
 	}
+
+	rl->sq_array_offset = SIZE_MAX;
+
+	sqe_size = sizeof(struct io_uring_sqe);
+	if (flags & IORING_SETUP_SQE128)
+		sqe_size *= 2;
+
+	rl->sq_size = array_size(sqe_size, sq_entries);
+	if (rl->sq_size == SIZE_MAX)
+		return -EOVERFLOW;
 
 	off = struct_size(rings, cqes, cq_entries);
 	if (flags & IORING_SETUP_CQE32)
 		off = size_mul(off, 2);
 	if (off == SIZE_MAX)
-		return SIZE_MAX;
+		return -EOVERFLOW;
 
 #ifdef CONFIG_SMP
 	off = ALIGN(off, SMP_CACHE_BYTES);
 	if (off == 0)
-		return SIZE_MAX;
+		return -EOVERFLOW;
 #endif
 
 	if (!(flags & IORING_SETUP_NO_SQARRAY)) {
 		size_t sq_array_size;
 
-		*sq_offset = off;
+		rl->sq_array_offset = off;
 
 		sq_array_size = array_size(sizeof(u32), sq_entries);
 		off = size_add(off, sq_array_size);
 		if (off == SIZE_MAX)
-			return SIZE_MAX;
+			return -EOVERFLOW;
 	}
 
-	return off;
+	rl->rings_size = off;
+	return 0;
 }
 
 static __cold void __io_req_caches_free(struct io_ring_ctx *ctx)
@@ -3346,28 +3356,20 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 					 struct io_uring_params *p)
 {
 	struct io_uring_region_desc rd;
+	struct io_rings_layout __rl, *rl = &__rl;
 	struct io_rings *rings;
-	size_t sq_array_offset;
-	size_t sq_size, cq_size, sqe_size;
 	int ret;
 
 	/* make sure these are sane, as we already accounted them */
 	ctx->sq_entries = p->sq_entries;
 	ctx->cq_entries = p->cq_entries;
 
-	sqe_size = sizeof(struct io_uring_sqe);
-	if (p->flags & IORING_SETUP_SQE128)
-		sqe_size *= 2;
-	sq_size = array_size(sqe_size, p->sq_entries);
-	if (sq_size == SIZE_MAX)
-		return -EOVERFLOW;
-	cq_size = rings_size(ctx->flags, p->sq_entries, p->cq_entries,
-			  &sq_array_offset);
-	if (cq_size == SIZE_MAX)
-		return -EOVERFLOW;
+	ret = rings_size(ctx->flags, p->sq_entries, p->cq_entries, rl);
+	if (ret)
+		return ret;
 
 	memset(&rd, 0, sizeof(rd));
-	rd.size = PAGE_ALIGN(cq_size);
+	rd.size = PAGE_ALIGN(rl->rings_size);
 	if (ctx->flags & IORING_SETUP_NO_MMAP) {
 		rd.user_addr = p->cq_off.user_addr;
 		rd.flags |= IORING_MEM_REGION_TYPE_USER;
@@ -3378,10 +3380,10 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	ctx->rings = rings = io_region_get_ptr(&ctx->ring_region);
 
 	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))
-		ctx->sq_array = (u32 *)((char *)rings + sq_array_offset);
+		ctx->sq_array = (u32 *)((char *)rings + rl->sq_array_offset);
 
 	memset(&rd, 0, sizeof(rd));
-	rd.size = PAGE_ALIGN(sq_size);
+	rd.size = PAGE_ALIGN(rl->sq_size);
 	if (ctx->flags & IORING_SETUP_NO_MMAP) {
 		rd.user_addr = p->sq_off.user_addr;
 		rd.flags |= IORING_MEM_REGION_TYPE_USER;

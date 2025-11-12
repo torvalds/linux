@@ -17,6 +17,14 @@
 #include <trace/events/io_uring.h>
 #endif
 
+struct io_rings_layout {
+	/* size of CQ + headers + SQ offset array */
+	size_t rings_size;
+	size_t sq_size;
+
+	size_t sq_array_offset;
+};
+
 struct io_ctx_config {
 	struct io_uring_params p;
 	struct io_uring_params __user *uptr;
@@ -139,8 +147,8 @@ static inline bool io_should_wake(struct io_wait_queue *iowq)
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
 
-unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
-			 unsigned int cq_entries, size_t *sq_offset);
+int rings_size(unsigned int flags, unsigned int sq_entries,
+		unsigned int cq_entries, struct io_rings_layout *rl);
 int io_prepare_config(struct io_ctx_config *config);
 
 bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow, bool cqe32);
