@@ -112,7 +112,7 @@ enum sgx_miscselect {
 #define SGX_SSA_MISC_EXINFO_SIZE	16
 
 /**
- * enum sgx_attributes - the attributes field in &struct sgx_secs
+ * enum sgx_attribute - the attributes field in &struct sgx_secs
  * @SGX_ATTR_INIT:		Enclave can be entered (is initialized).
  * @SGX_ATTR_DEBUG:		Allow ENCLS(EDBGRD) and ENCLS(EDBGWR).
  * @SGX_ATTR_MODE64BIT:		Tell that this a 64-bit enclave.
