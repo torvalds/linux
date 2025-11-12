@@ -89,30 +89,75 @@ static int hns_roce_del_gid(const struct ib_gid_attr *attr, void **context)
 	return ret;
 }
 
-static int handle_en_event(struct hns_roce_dev *hr_dev, u32 port,
-			   unsigned long event)
+static int hns_roce_get_port_state(struct hns_roce_dev *hr_dev, u32 port_num,
+				   enum ib_port_state *state)
 {
+	struct hns_roce_bond_group *bond_grp;
+	u8 bus_num = get_hr_bus_num(hr_dev);
+	struct net_device *net_dev;
+
+	net_dev = ib_device_get_netdev(&hr_dev->ib_dev, port_num);
+	if (!net_dev)
+		return -ENODEV;
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_BOND) {
+		bond_grp = hns_roce_get_bond_grp(net_dev, bus_num);
+		if (bond_grp) {
+			*state = ib_get_curr_port_state(bond_grp->upper_dev);
+			goto out;
+		}
+	}
+
+	*state = ib_get_curr_port_state(net_dev);
+out:
+	dev_put(net_dev);
+	return 0;
+}
+
+static int handle_en_event(struct net_device *netdev,
+			   struct hns_roce_dev *hr_dev,
+			   u32 port, unsigned long event)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct device *dev = hr_dev->dev;
-	struct net_device *netdev;
+	enum ib_port_state curr_state;
+	struct ib_event ibevent;
 	int ret = 0;
 
-	netdev = hr_dev->iboe.netdevs[port];
 	if (!netdev) {
 		dev_err(dev, "can't find netdev on port(%u)!\n", port);
 		return -ENODEV;
 	}
 
 	switch (event) {
-	case NETDEV_UP:
-	case NETDEV_CHANGE:
 	case NETDEV_REGISTER:
 	case NETDEV_CHANGEADDR:
 		ret = hns_roce_set_mac(hr_dev, port, netdev->dev_addr);
 		break;
+	case NETDEV_UP:
+	case NETDEV_CHANGE:
+		ret = hns_roce_set_mac(hr_dev, port, netdev->dev_addr);
+		if (ret)
+			return ret;
+		fallthrough;
 	case NETDEV_DOWN:
-		/*
-		 * In v1 engine, only support all ports closed together.
-		 */
+		if (!netif_is_lag_master(netdev))
+			break;
+		curr_state = ib_get_curr_port_state(netdev);
+
+		write_lock_irq(&ibdev->cache_lock);
+		if (ibdev->port_data[port].cache.last_port_state == curr_state) {
+			write_unlock_irq(&ibdev->cache_lock);
+			return 0;
+		}
+		ibdev->port_data[port].cache.last_port_state = curr_state;
+		write_unlock_irq(&ibdev->cache_lock);
+
+		ibevent.event = (curr_state == IB_PORT_DOWN) ?
+				IB_EVENT_PORT_ERR : IB_EVENT_PORT_ACTIVE;
+		ibevent.device = ibdev;
+		ibevent.element.port_num = port + 1;
+		ib_dispatch_event(&ibevent);
 		break;
 	default:
 		dev_dbg(dev, "NETDEV event = 0x%x!\n", (u32)(event));
@@ -126,17 +171,25 @@ static int hns_roce_netdev_event(struct notifier_block *self,
 				 unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct hns_roce_bond_group *bond_grp;
 	struct hns_roce_ib_iboe *iboe = NULL;
 	struct hns_roce_dev *hr_dev = NULL;
+	struct net_device *upper = NULL;
 	int ret;
 	u32 port;
 
 	hr_dev = container_of(self, struct hns_roce_dev, iboe.nb);
 	iboe = &hr_dev->iboe;
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_BOND) {
+		bond_grp = hns_roce_get_bond_grp(get_hr_netdev(hr_dev, 0),
+						 get_hr_bus_num(hr_dev));
+		upper = bond_grp ? bond_grp->upper_dev : NULL;
+	}
 
 	for (port = 0; port < hr_dev->caps.num_ports; port++) {
-		if (dev == iboe->netdevs[port]) {
-			ret = handle_en_event(hr_dev, port, event);
+		if ((!upper && dev == iboe->netdevs[port]) ||
+		    (upper && dev == upper)) {
+			ret = handle_en_event(dev, hr_dev, port, event);
 			if (ret)
 				return NOTIFY_DONE;
 			break;
@@ -222,9 +275,7 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u32 port_num,
 			       struct ib_port_attr *props)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
-	struct device *dev = hr_dev->dev;
 	struct net_device *net_dev;
-	unsigned long flags;
 	enum ib_mtu mtu;
 	u32 port;
 	int ret;
@@ -245,26 +296,26 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u32 port_num,
 	if (ret)
 		ibdev_warn(ib_dev, "failed to get speed, ret = %d.\n", ret);
 
-	spin_lock_irqsave(&hr_dev->iboe.lock, flags);
-
-	net_dev = get_hr_netdev(hr_dev, port);
+	net_dev = ib_device_get_netdev(ib_dev, port_num);
 	if (!net_dev) {
-		spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
-		dev_err(dev, "find netdev %u failed!\n", port);
+		ibdev_err(ib_dev, "find netdev %u failed!\n", port);
 		return -EINVAL;
 	}
 
 	mtu = iboe_get_mtu(net_dev->mtu);
 	props->active_mtu = mtu ? min(props->max_mtu, mtu) : IB_MTU_256;
-	props->state = netif_running(net_dev) && netif_carrier_ok(net_dev) ?
-			       IB_PORT_ACTIVE :
-			       IB_PORT_DOWN;
+
+	dev_put(net_dev);
+
+	ret = hns_roce_get_port_state(hr_dev, port_num, &props->state);
+	if (ret) {
+		ibdev_err(ib_dev, "failed to get port state.\n");
+		return ret;
+	}
+
 	props->phys_state = props->state == IB_PORT_ACTIVE ?
 				    IB_PORT_PHYS_STATE_LINK_UP :
 				    IB_PORT_PHYS_STATE_DISABLED;
-
-	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
-
 	return 0;
 }
 

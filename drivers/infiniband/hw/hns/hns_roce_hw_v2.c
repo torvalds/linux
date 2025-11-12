@@ -7358,6 +7358,14 @@ static void hns_roce_hw_v2_link_status_change(struct hnae3_handle *handle,
 	if (linkup || !hr_dev)
 		return;
 
+	/* For bond device, the link status depends on the upper netdev,
+	 * and the upper device's link status depends on all the slaves'
+	 * netdev but not only one. So bond device cannot get a correct
+	 * link status from this path.
+	 */
+	if (hns_roce_get_bond_grp(netdev, get_hr_bus_num(hr_dev)))
+		return;
+
 	ib_dispatch_port_state_event(&hr_dev->ib_dev, netdev);
 }
 
