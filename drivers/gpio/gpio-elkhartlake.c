@@ -2,43 +2,46 @@
 /*
  * Intel Elkhart Lake PSE GPIO driver
  *
- * Copyright (c) 2023 Intel Corporation.
+ * Copyright (c) 2023, 2025 Intel Corporation.
  *
  * Authors: Pandith N <pandith.n@intel.com>
  *          Raag Jadav <raag.jadav@intel.com>
  */
 
+#include <linux/auxiliary_bus.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/pm.h>
+
+#include <linux/ehl_pse_io_aux.h>
 
 #include "gpio-tangier.h"
 
 /* Each Intel EHL PSE GPIO Controller has 30 GPIO pins */
 #define EHL_PSE_NGPIO		30
 
-static int ehl_gpio_probe(struct platform_device *pdev)
+static int ehl_gpio_probe(struct auxiliary_device *adev, const struct auxiliary_device_id *id)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = &adev->dev;
+	struct ehl_pse_io_data *data;
 	struct tng_gpio *priv;
-	int irq, ret;
+	int ret;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
+	data = dev_get_platdata(dev);
+	if (!data)
+		return -ENODATA;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->reg_base = devm_platform_ioremap_resource(pdev, 0);
+	priv->reg_base = devm_ioremap_resource(dev, &data->mem);
 	if (IS_ERR(priv->reg_base))
 		return PTR_ERR(priv->reg_base);
 
 	priv->dev = dev;
-	priv->irq = irq;
+	priv->irq = data->irq;
 
 	priv->info.base = -1;
 	priv->info.ngpio = EHL_PSE_NGPIO;
@@ -51,25 +54,24 @@ static int ehl_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "tng_gpio_probe error\n");
 
-	platform_set_drvdata(pdev, priv);
+	auxiliary_set_drvdata(adev, priv);
 	return 0;
 }
 
-static const struct platform_device_id ehl_gpio_ids[] = {
-	{ "gpio-elkhartlake" },
+static const struct auxiliary_device_id ehl_gpio_ids[] = {
+	{ EHL_PSE_IO_NAME "." EHL_PSE_GPIO_NAME },
 	{ }
 };
-MODULE_DEVICE_TABLE(platform, ehl_gpio_ids);
+MODULE_DEVICE_TABLE(auxiliary, ehl_gpio_ids);
 
-static struct platform_driver ehl_gpio_driver = {
+static struct auxiliary_driver ehl_gpio_driver = {
 	.driver	= {
-		.name	= "gpio-elkhartlake",
 		.pm	= pm_sleep_ptr(&tng_gpio_pm_ops),
 	},
 	.probe		= ehl_gpio_probe,
 	.id_table	= ehl_gpio_ids,
 };
-module_platform_driver(ehl_gpio_driver);
+module_auxiliary_driver(ehl_gpio_driver);
 
 MODULE_AUTHOR("Pandith N <pandith.n@intel.com>");
 MODULE_AUTHOR("Raag Jadav <raag.jadav@intel.com>");
