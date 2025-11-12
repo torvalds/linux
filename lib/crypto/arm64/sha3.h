@@ -7,7 +7,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <asm/neon.h>
 #include <asm/simd.h>
 #include <linux/cpufeature.h>
 
@@ -23,10 +22,9 @@ static void sha3_absorb_blocks(struct sha3_state *state, const u8 *data,
 		do {
 			size_t rem;
 
-			kernel_neon_begin();
-			rem = sha3_ce_transform(state, data, nblocks,
-						block_size);
-			kernel_neon_end();
+			scoped_ksimd()
+				rem = sha3_ce_transform(state, data, nblocks,
+							block_size);
 			data += (nblocks - rem) * block_size;
 			nblocks = rem;
 		} while (nblocks);
@@ -46,9 +44,8 @@ static void sha3_keccakf(struct sha3_state *state)
 		 */
 		static const u8 zeroes[SHA3_512_BLOCK_SIZE];
 
-		kernel_neon_begin();
-		sha3_ce_transform(state, zeroes, 1, sizeof(zeroes));
-		kernel_neon_end();
+		scoped_ksimd()
+			sha3_ce_transform(state, zeroes, 1, sizeof(zeroes));
 	} else {
 		sha3_keccakf_generic(state);
 	}
