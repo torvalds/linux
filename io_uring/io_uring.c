@@ -2765,13 +2765,6 @@ unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 
 	*sq_offset = SIZE_MAX;
 
-	off = struct_size(rings, cqes, cq_entries);
-	if (off == SIZE_MAX)
-		return SIZE_MAX;
-	if (flags & IORING_SETUP_CQE32) {
-		if (check_shl_overflow(off, 1, &off))
-			return SIZE_MAX;
-	}
 	if (flags & IORING_SETUP_CQE_MIXED) {
 		if (cq_entries < 2)
 			return SIZE_MAX;
@@ -2780,6 +2773,12 @@ unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 		if (sq_entries < 2)
 			return SIZE_MAX;
 	}
+
+	off = struct_size(rings, cqes, cq_entries);
+	if (flags & IORING_SETUP_CQE32)
+		off = size_mul(off, 2);
+	if (off == SIZE_MAX)
+		return SIZE_MAX;
 
 #ifdef CONFIG_SMP
 	off = ALIGN(off, SMP_CACHE_BYTES);
@@ -2793,9 +2792,8 @@ unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 		*sq_offset = off;
 
 		sq_array_size = array_size(sizeof(u32), sq_entries);
-		if (sq_array_size == SIZE_MAX)
-			return SIZE_MAX;
-		if (check_add_overflow(off, sq_array_size, &off))
+		off = size_add(off, sq_array_size);
+		if (off == SIZE_MAX)
 			return SIZE_MAX;
 	}
 
