@@ -913,6 +913,9 @@ static bool should_skip_zero_counter(struct perf_stat_config *config,
 	if (verbose == 0 && counter->skippable && !counter->supported)
 		return true;
 
+	/* Metric only counts won't be displayed but the metric wants to be computed. */
+	if (config->metric_only)
+		return false;
 	/*
 	 * Skip value 0 when enabling --per-thread globally,
 	 * otherwise it will have too many 0 output.
