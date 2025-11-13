@@ -380,6 +380,50 @@ out:
 }
 EXPORT_SYMBOL(mempool_resize);
 
+static void *mempool_alloc_from_pool(struct mempool *pool, gfp_t gfp_mask)
+{
+	unsigned long flags;
+	void *element;
+
+	spin_lock_irqsave(&pool->lock, flags);
+	if (unlikely(!pool->curr_nr))
+		goto fail;
+	element = remove_element(pool);
+	spin_unlock_irqrestore(&pool->lock, flags);
+
+	/* Paired with rmb in mempool_free(), read comment there. */
+	smp_wmb();
+
+	/*
+	 * Update the allocation stack trace as this is more useful for
+	 * debugging.
+	 */
+	kmemleak_update_trace(element);
+	return element;
+
+fail:
+	if (gfp_mask & __GFP_DIRECT_RECLAIM) {
+		DEFINE_WAIT(wait);
+
+		prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
+		spin_unlock_irqrestore(&pool->lock, flags);
+
+		/*
+		 * Wait for someone else to return an element to @pool.
+		 *
+		 * FIXME: this should be io_schedule().  The timeout is there as
+		 * a workaround for some DM problems in 2.6.18.
+		 */
+		io_schedule_timeout(5 * HZ);
+		finish_wait(&pool->wait, &wait);
+	} else {
+		/* We must not sleep if __GFP_DIRECT_RECLAIM is not set. */
+		spin_unlock_irqrestore(&pool->lock, flags);
+	}
+
+	return NULL;
+}
+
 /*
  * Adjust the gfp flags for mempool allocations, as we never want to dip into
  * the global emergency reserves or retry in the page allocator.
@@ -413,8 +457,6 @@ void *mempool_alloc_noprof(mempool_t *pool, gfp_t gfp_mask)
 {
 	gfp_t gfp_temp = mempool_adjust_gfp(&gfp_mask);
 	void *element;
-	unsigned long flags;
-	wait_queue_entry_t wait;
 
 	VM_WARN_ON_ONCE(gfp_mask & __GFP_ZERO);
 	might_alloc(gfp_mask);
@@ -428,53 +470,27 @@ repeat_alloc:
 		element = pool->alloc(gfp_temp, pool->pool_data);
 	}
 
-	if (likely(element))
-		return element;
-
-	spin_lock_irqsave(&pool->lock, flags);
-	if (likely(pool->curr_nr)) {
-		element = remove_element(pool);
-		spin_unlock_irqrestore(&pool->lock, flags);
-		/* paired with rmb in mempool_free(), read comment there */
-		smp_wmb();
+	if (unlikely(!element)) {
 		/*
-		 * Update the allocation stack trace as this is more useful
-		 * for debugging.
+		 * Try to allocate an element from the pool.
+		 *
+		 * The first pass won't have __GFP_DIRECT_RECLAIM and won't
+		 * sleep in mempool_alloc_from_pool.  Retry the allocation
+		 * with all flags set in that case.
 		 */
-		kmemleak_update_trace(element);
-		return element;
+		element = mempool_alloc_from_pool(pool, gfp_temp);
+		if (!element) {
+			if (gfp_temp != gfp_mask) {
+				gfp_temp = gfp_mask;
+				goto repeat_alloc;
+			}
+			if (gfp_mask & __GFP_DIRECT_RECLAIM) {
+				goto repeat_alloc;
+			}
+		}
 	}
 
-	/*
-	 * We use gfp mask w/o direct reclaim or IO for the first round.  If
-	 * alloc failed with that and @pool was empty, retry immediately.
-	 */
-	if (gfp_temp != gfp_mask) {
-		spin_unlock_irqrestore(&pool->lock, flags);
-		gfp_temp = gfp_mask;
-		goto repeat_alloc;
-	}
-
-	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
-	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {
-		spin_unlock_irqrestore(&pool->lock, flags);
-		return NULL;
-	}
-
-	/* Let's wait for someone else to return an element to @pool */
-	init_wait(&wait);
-	prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
-
-	spin_unlock_irqrestore(&pool->lock, flags);
-
-	/*
-	 * FIXME: this should be io_schedule().  The timeout is there as a
-	 * workaround for some DM problems in 2.6.18.
-	 */
-	io_schedule_timeout(5*HZ);
-
-	finish_wait(&pool->wait, &wait);
-	goto repeat_alloc;
+	return element;
 }
 EXPORT_SYMBOL(mempool_alloc_noprof);
 
@@ -492,25 +508,7 @@ EXPORT_SYMBOL(mempool_alloc_noprof);
  */
 void *mempool_alloc_preallocated(mempool_t *pool)
 {
-	void *element;
-	unsigned long flags;
-
-	spin_lock_irqsave(&pool->lock, flags);
-	if (likely(pool->curr_nr)) {
-		element = remove_element(pool);
-		spin_unlock_irqrestore(&pool->lock, flags);
-		/* paired with rmb in mempool_free(), read comment there */
-		smp_wmb();
-		/*
-		 * Update the allocation stack trace as this is more useful
-		 * for debugging.
-		 */
-		kmemleak_update_trace(element);
-		return element;
-	}
-	spin_unlock_irqrestore(&pool->lock, flags);
-
-	return NULL;
+	return mempool_alloc_from_pool(pool, GFP_NOWAIT);
 }
 EXPORT_SYMBOL(mempool_alloc_preallocated);
 
