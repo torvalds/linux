@@ -19,7 +19,6 @@ struct cxl_mock_ops {
 	bool (*is_mock_bus)(struct pci_bus *bus);
 	bool (*is_mock_port)(struct device *dev);
 	bool (*is_mock_dev)(struct device *dev);
-	int (*devm_cxl_port_enumerate_dports)(struct cxl_port *port);
 	int (*devm_cxl_switch_port_decoders_setup)(struct cxl_port *port);
 	int (*devm_cxl_endpoint_decoders_setup)(struct cxl_port *port);
 	void (*cxl_endpoint_parse_cdat)(struct cxl_port *port);

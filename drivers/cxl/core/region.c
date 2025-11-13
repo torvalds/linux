@@ -245,6 +245,9 @@ static void cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 	struct cxl_region_params *p = &cxlr->params;
 	int i;
 
+	if (test_bit(CXL_REGION_F_LOCK, &cxlr->flags))
+		return;
+
 	/*
 	 * Before region teardown attempt to flush, evict any data cached for
 	 * this region, or scream loudly about missing arch / platform support
@@ -418,6 +421,9 @@ static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
 			return rc;
 		return len;
 	}
+
+	if (test_bit(CXL_REGION_F_LOCK, &cxlr->flags))
+		return -EPERM;
 
 	rc = queue_reset(cxlr);
 	if (rc)
@@ -838,16 +844,16 @@ static int match_free_decoder(struct device *dev, const void *data)
 	return 1;
 }
 
-static bool region_res_match_cxl_range(const struct cxl_region_params *p,
-				       const struct range *range)
+static bool spa_maps_hpa(const struct cxl_region_params *p,
+			 const struct range *range)
 {
 	if (!p->res)
 		return false;
 
 	/*
-	 * If an extended linear cache region then the CXL range is assumed
-	 * to be fronted by the DRAM range in current known implementation.
-	 * This assumption will be made until a variant implementation exists.
+	 * The extended linear cache region is constructed by a 1:1 ratio
+	 * where the SPA maps equal amounts of DRAM and CXL HPA capacity with
+	 * CXL decoders at the high end of the SPA range.
 	 */
 	return p->res->start + p->cache_size == range->start &&
 		p->res->end == range->end;
@@ -865,7 +871,7 @@ static int match_auto_decoder(struct device *dev, const void *data)
 	cxld = to_cxl_decoder(dev);
 	r = &cxld->hpa_range;
 
-	if (region_res_match_cxl_range(p, r))
+	if (spa_maps_hpa(p, r))
 		return 1;
 
 	return 0;
@@ -1059,6 +1065,16 @@ static int cxl_rr_assign_decoder(struct cxl_port *port, struct cxl_region *cxlr,
 	return 0;
 }
 
+static void cxl_region_set_lock(struct cxl_region *cxlr,
+				struct cxl_decoder *cxld)
+{
+	if (!test_bit(CXL_DECODER_F_LOCK, &cxld->flags))
+		return;
+
+	set_bit(CXL_REGION_F_LOCK, &cxlr->flags);
+	clear_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
+}
+
 /**
  * cxl_port_attach_region() - track a region's interest in a port by endpoint
  * @port: port to add a new region reference 'struct cxl_region_ref'
@@ -1169,6 +1185,8 @@ static int cxl_port_attach_region(struct cxl_port *port,
 			goto out_erase;
 		}
 	}
+
+	cxl_region_set_lock(cxlr, cxld);
 
 	rc = cxl_rr_ep_add(cxl_rr, cxled);
 	if (rc) {
@@ -1465,7 +1483,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 	if (test_bit(CXL_REGION_F_AUTO, &cxlr->flags)) {
 		if (cxld->interleave_ways != iw ||
 		    (iw > 1 && cxld->interleave_granularity != ig) ||
-		    !region_res_match_cxl_range(p, &cxld->hpa_range) ||
+		    !spa_maps_hpa(p, &cxld->hpa_range) ||
 		    ((cxld->flags & CXL_DECODER_F_ENABLE) == 0)) {
 			dev_err(&cxlr->dev,
 				"%s:%s %s expected iw: %d ig: %d %pr\n",
@@ -2439,6 +2457,7 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_region_type;
 	cxlr->id = id;
+	cxl_region_set_lock(cxlr, &cxlrd->cxlsd.cxld);
 
 	return cxlr;
 }
@@ -3398,7 +3417,7 @@ static int match_region_by_range(struct device *dev, const void *data)
 	p = &cxlr->params;
 
 	guard(rwsem_read)(&cxl_rwsem.region);
-	return region_res_match_cxl_range(p, r);
+	return spa_maps_hpa(p, r);
 }
 
 static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
