@@ -427,11 +427,11 @@ void blk_mq_free_sched_tags(struct elevator_tags *et,
 	kfree(et);
 }
 
-void blk_mq_free_sched_tags_batch(struct xarray *et_table,
+void blk_mq_free_sched_tags_batch(struct xarray *elv_tbl,
 		struct blk_mq_tag_set *set)
 {
 	struct request_queue *q;
-	struct elevator_tags *et;
+	struct elv_change_ctx *ctx;
 
 	lockdep_assert_held_write(&set->update_nr_hwq_lock);
 
@@ -444,13 +444,47 @@ void blk_mq_free_sched_tags_batch(struct xarray *et_table,
 		 * concurrently.
 		 */
 		if (q->elevator) {
-			et = xa_load(et_table, q->id);
-			if (unlikely(!et))
+			ctx = xa_load(elv_tbl, q->id);
+			if (!ctx || !ctx->et) {
 				WARN_ON_ONCE(1);
-			else
-				blk_mq_free_sched_tags(et, set);
+				continue;
+			}
+			blk_mq_free_sched_tags(ctx->et, set);
+			ctx->et = NULL;
 		}
 	}
+}
+
+void blk_mq_free_sched_ctx_batch(struct xarray *elv_tbl)
+{
+	unsigned long i;
+	struct elv_change_ctx *ctx;
+
+	xa_for_each(elv_tbl, i, ctx) {
+		xa_erase(elv_tbl, i);
+		kfree(ctx);
+	}
+}
+
+int blk_mq_alloc_sched_ctx_batch(struct xarray *elv_tbl,
+		struct blk_mq_tag_set *set)
+{
+	struct request_queue *q;
+	struct elv_change_ctx *ctx;
+
+	lockdep_assert_held_write(&set->update_nr_hwq_lock);
+
+	list_for_each_entry(q, &set->tag_list, tag_set_list) {
+		ctx = kzalloc(sizeof(struct elv_change_ctx), GFP_KERNEL);
+		if (!ctx)
+			return -ENOMEM;
+
+		if (xa_insert(elv_tbl, q->id, ctx, GFP_KERNEL)) {
+			kfree(ctx);
+			return -ENOMEM;
+		}
+	}
+	return 0;
 }
 
 struct elevator_tags *blk_mq_alloc_sched_tags(struct blk_mq_tag_set *set,
@@ -497,12 +531,13 @@ out:
 	return NULL;
 }
 
-int blk_mq_alloc_sched_tags_batch(struct xarray *et_table,
+int blk_mq_alloc_sched_tags_batch(struct xarray *elv_tbl,
 		struct blk_mq_tag_set *set, unsigned int nr_hw_queues)
 {
+	struct elv_change_ctx *ctx;
 	struct request_queue *q;
 	struct elevator_tags *et;
-	gfp_t gfp = GFP_NOIO | __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY;
+	int ret = -ENOMEM;
 
 	lockdep_assert_held_write(&set->update_nr_hwq_lock);
 
@@ -515,26 +550,31 @@ int blk_mq_alloc_sched_tags_batch(struct xarray *et_table,
 		 * concurrently.
 		 */
 		if (q->elevator) {
-			et = blk_mq_alloc_sched_tags(set, nr_hw_queues,
-					blk_mq_default_nr_requests(set));
-			if (!et)
+			ctx = xa_load(elv_tbl, q->id);
+			if (WARN_ON_ONCE(!ctx)) {
+				ret = -ENOENT;
 				goto out_unwind;
-			if (xa_insert(et_table, q->id, et, gfp))
-				goto out_free_tags;
+			}
+
+			ctx->et = blk_mq_alloc_sched_tags(set, nr_hw_queues,
+					blk_mq_default_nr_requests(set));
+			if (!ctx->et)
+				goto out_unwind;
+
 		}
 	}
 	return 0;
-out_free_tags:
-	blk_mq_free_sched_tags(et, set);
 out_unwind:
 	list_for_each_entry_continue_reverse(q, &set->tag_list, tag_set_list) {
 		if (q->elevator) {
-			et = xa_load(et_table, q->id);
-			if (et)
-				blk_mq_free_sched_tags(et, set);
+			ctx = xa_load(elv_tbl, q->id);
+			if (ctx && ctx->et) {
+				blk_mq_free_sched_tags(ctx->et, set);
+				ctx->et = NULL;
+			}
 		}
 	}
-	return -ENOMEM;
+	return ret;
 }
 
 /* caller must have a reference to @e, will grab another one if successful */
