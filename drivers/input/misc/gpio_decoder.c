@@ -6,11 +6,13 @@
  * encoded numeric value into an input event.
  */
 
+#include <linux/bitmap.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
+#include <linux/minmax.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -26,23 +28,18 @@ struct gpio_decoder {
 static int gpio_decoder_get_gpios_state(struct gpio_decoder *decoder)
 {
 	struct gpio_descs *gpios = decoder->input_gpios;
-	unsigned int ret = 0;
-	int i, val;
+	DECLARE_BITMAP(values, 32);
+	unsigned int size;
+	int err;
 
-	for (i = 0; i < gpios->ndescs; i++) {
-		val = gpiod_get_value_cansleep(gpios->desc[i]);
-		if (val < 0) {
-			dev_err(decoder->dev,
-				"Error reading gpio %d: %d\n",
-				desc_to_gpio(gpios->desc[i]), val);
-			return val;
-		}
-
-		val = !!val;
-		ret = (ret << 1) | val;
+	size = min(gpios->ndescs, 32U);
+	err = gpiod_get_array_value_cansleep(size, gpios->desc, gpios->info, values);
+	if (err) {
+		dev_err(decoder->dev, "Error reading GPIO: %d\n", err);
+		return err;
 	}
 
-	return ret;
+	return bitmap_read(values, 0, size);
 }
 
 static void gpio_decoder_poll_gpios(struct input_dev *input)
@@ -80,6 +77,9 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 
 	if (decoder->input_gpios->ndescs < 2)
 		return dev_err_probe(dev, -EINVAL, "not enough gpios found\n");
+
+	if (decoder->input_gpios->ndescs > 31)
+		return dev_err_probe(dev, -EINVAL, "too many gpios found\n");
 
 	if (device_property_read_u32(dev, "decoder-max-value", &max))
 		max = (1U << decoder->input_gpios->ndescs) - 1;
