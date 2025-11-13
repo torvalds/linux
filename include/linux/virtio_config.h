@@ -150,7 +150,7 @@ struct virtio_config_ops {
  *      size: the buffer size
  *      dir: mapping direction
  *      attrs: mapping attributes
- *      Returns: the mapped address
+ *      Returns the mapped address
  * @unmap_page: unmap a buffer from the device
  *      map: device specific mapping map
  *      map_handle: the mapped address
@@ -172,7 +172,7 @@ struct virtio_config_ops {
  *      size: the size of the buffer
  *      map_handle: the mapping address to sync
  *      gfp: allocation flag (GFP_XXX)
- *      Returns: virtual address of the allocated buffer
+ *      Returns virtual address of the allocated buffer
  * @free: free a coherent buffer mapping
  *      map: metadata for performing mapping
  *      size: the size of the buffer
@@ -182,13 +182,13 @@ struct virtio_config_ops {
  * @need_sync: if the buffer needs synchronization
  *      map: metadata for performing mapping
  *      map_handle: the mapped address
- *      Returns: whether the buffer needs synchronization
+ *      Returns whether the buffer needs synchronization
  * @mapping_error: if the mapping address is error
  *      map: metadata for performing mapping
  *      map_handle: the mapped address
  * @max_mapping_size: get the maximum buffer size that can be mapped
  *      map: metadata for performing mapping
- *      Returns: the maximum buffer size that can be mapped
+ *      Returns the maximum buffer size that can be mapped
  */
 struct virtio_map_ops {
 	dma_addr_t (*map_page)(union virtio_map map, struct page *page,
