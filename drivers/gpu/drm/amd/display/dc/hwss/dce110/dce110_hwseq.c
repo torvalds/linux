@@ -1139,6 +1139,9 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 	if (!pipe_ctx || !pipe_ctx->stream)
 		return;
 
+	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
+		return;
+
 	dc = pipe_ctx->stream->ctx->dc;
 	clk_mgr = dc->clk_mgr;
 	link_hwss = get_link_hwss(pipe_ctx->stream->link, &pipe_ctx->link_res);
@@ -1193,8 +1196,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc);
 
-	if (!dc_is_rgb_signal(pipe_ctx->stream->signal))
-		dc->hwss.disable_audio_stream(pipe_ctx);
+	dc->hwss.disable_audio_stream(pipe_ctx);
 
 	link_hwss->reset_stream_encoder(pipe_ctx);
 
