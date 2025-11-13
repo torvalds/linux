@@ -15,6 +15,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -134,6 +135,9 @@ static resource_size_t get_res_add_align(struct list_head *head,
 static void restore_dev_resource(struct pci_dev_resource *dev_res)
 {
 	struct resource *res = dev_res->res;
+
+	if (WARN_ON_ONCE(res->parent))
+		return;
 
 	res->start = dev_res->start;
 	res->end = dev_res->end;
