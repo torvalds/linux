@@ -1848,7 +1848,7 @@ static void nfs_state_set_open_stateid(struct nfs4_state *state,
 	write_sequnlock(&state->seqlock);
 }
 
-static void nfs_state_clear_open_state_flags(struct nfs4_state *state)
+void nfs_state_clear_open_state_flags(struct nfs4_state *state)
 {
 	clear_bit(NFS_O_RDWR_STATE, &state->flags);
 	clear_bit(NFS_O_WRONLY_STATE, &state->flags);
@@ -1870,7 +1870,7 @@ static void nfs_state_set_delegation(struct nfs4_state *state,
 	write_sequnlock(&state->seqlock);
 }
 
-static void nfs_state_clear_delegation(struct nfs4_state *state)
+void nfs_state_clear_delegation(struct nfs4_state *state)
 {
 	write_seqlock(&state->seqlock);
 	nfs4_stateid_copy(&state->stateid, &state->open_stateid);
@@ -2862,7 +2862,7 @@ out:
 	return err;
 }
 
-static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
+int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
 {
 	struct nfs_open_context *ctx;
 	int ret;
@@ -2875,25 +2875,11 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	return ret;
 }
 
-static void nfs_finish_clear_delegation_stateid(struct nfs4_state *state,
+void nfs_finish_clear_delegation_stateid(struct nfs4_state *state,
 		const nfs4_stateid *stateid)
 {
 	nfs_remove_bad_delegation(state->inode, stateid);
 	nfs_state_clear_delegation(state);
-}
-
-static void nfs40_clear_delegation_stateid(struct nfs4_state *state)
-{
-	if (rcu_access_pointer(NFS_I(state->inode)->delegation) != NULL)
-		nfs_finish_clear_delegation_stateid(state, NULL);
-}
-
-static int nfs40_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
-{
-	/* NFSv4.0 doesn't allow for delegation recovery on open expire */
-	nfs40_clear_delegation_stateid(state);
-	nfs_state_clear_open_state_flags(state);
-	return nfs4_open_expired(sp, state);
 }
 
 static int nfs40_test_and_free_expired_stateid(struct nfs_server *server,
@@ -7669,7 +7655,7 @@ int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request)
 	return err;
 }
 
-static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request)
+int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs4_exception exception = {
@@ -10814,17 +10800,7 @@ static const struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
 	.reclaim_complete = nfs41_proc_reclaim_complete,
 	.detect_trunking = nfs41_discover_server_trunking,
 };
-#endif /* CONFIG_NFS_V4_1 */
 
-static const struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
-	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
-	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
-	.recover_open	= nfs40_open_expired,
-	.recover_lock	= nfs4_lock_expired,
-	.establish_clid = nfs4_init_clientid,
-};
-
-#if defined(CONFIG_NFS_V4_1)
 static const struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
 	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,

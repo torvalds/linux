@@ -351,7 +351,13 @@ extern void nfs4_update_changeattr(struct inode *dir,
 extern int nfs4_buf_to_pages_noslab(const void *buf, size_t buflen,
 				    struct page **pages);
 extern int nfs4_open_reclaim(struct nfs4_state_owner *, struct nfs4_state *);
+extern int nfs4_open_expired(struct nfs4_state_owner *, struct nfs4_state *);
 extern int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request);
+extern int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request);
+extern void nfs_state_clear_delegation(struct nfs4_state *state);
+extern void nfs_finish_clear_delegation_stateid(struct nfs4_state *state,
+						const nfs4_stateid *stateid);
+extern void nfs_state_clear_open_state_flags(struct nfs4_state *state);
 
 #if defined(CONFIG_NFS_V4_1)
 extern int nfs41_sequence_done(struct rpc_task *, struct nfs4_sequence_res *);
