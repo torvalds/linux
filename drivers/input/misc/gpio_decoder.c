@@ -60,7 +60,7 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_decoder *decoder;
 	struct input_dev *input;
-	u32  max;
+	u32 max;
 	int err;
 
 	decoder = devm_kzalloc(dev, sizeof(*decoder), GFP_KERNEL);
@@ -82,7 +82,7 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, -EINVAL, "too many gpios found\n");
 
 	if (device_property_read_u32(dev, "decoder-max-value", &max))
-		max = (1U << decoder->input_gpios->ndescs) - 1;
+		max = BIT(decoder->input_gpios->ndescs) - 1;
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
