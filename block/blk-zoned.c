@@ -854,7 +854,7 @@ static unsigned int disk_zone_wplug_sync_wp_offset(struct gendisk *disk,
 int disk_report_zone(struct gendisk *disk, struct blk_zone *zone,
 		     unsigned int idx, struct blk_report_zones_args *args)
 {
-	if (args->report_active) {
+	if (args && args->report_active) {
 		/*
 		 * If we come here, then this is a report zones as a fallback
 		 * for a cached report. So collapse the implicit open, explicit
