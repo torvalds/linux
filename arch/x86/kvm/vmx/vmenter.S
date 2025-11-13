@@ -92,7 +92,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	/* Save @vmx for SPEC_CTRL handling */
 	push %_ASM_ARG1
 
-	/* Save @flags for SPEC_CTRL handling */
+	/* Save @flags (used for VMLAUNCH vs. VMRESUME and mitigations). */
 	push %_ASM_ARG3
 
 	/*
@@ -100,9 +100,6 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * @regs is needed after VM-Exit to save the guest's register values.
 	 */
 	push %_ASM_ARG2
-
-	/* Copy @flags to EBX, _ASM_ARG3 is volatile. */
-	mov %_ASM_ARG3L, %ebx
 
 	lea (%_ASM_SP), %_ASM_ARG2
 	call vmx_update_host_rsp
@@ -137,9 +134,6 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	/* Load @regs to RAX. */
 	mov (%_ASM_SP), %_ASM_AX
 
-	/* Check if vmlaunch or vmresume is needed */
-	bt   $VMX_RUN_VMRESUME_SHIFT, %ebx
-
 	/* Load guest registers.  Don't clobber flags. */
 	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
 	mov VCPU_RDX(%_ASM_AX), %_ASM_DX
@@ -163,8 +157,9 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	/* Clobbers EFLAGS.ZF */
 	CLEAR_CPU_BUFFERS
 
-	/* Check EFLAGS.CF from the VMX_RUN_VMRESUME bit test above. */
-	jnc .Lvmlaunch
+	/* Check @flags to see if VMLAUNCH or VMRESUME is needed. */
+	testl $VMX_RUN_VMRESUME, WORD_SIZE(%_ASM_SP)
+	jz .Lvmlaunch
 
 	/*
 	 * After a successful VMRESUME/VMLAUNCH, control flow "magically"
