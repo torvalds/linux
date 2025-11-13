@@ -7,16 +7,17 @@
  */
 
 #include <linux/bitmap.h>
-#include <linux/device.h>
+#include <linux/dev_printk.h>
+#include <linux/device/devres.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/input.h>
-#include <linux/kernel.h>
 #include <linux/minmax.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/types.h>
 
 struct gpio_decoder {
 	struct gpio_descs *input_gpios;
