@@ -227,6 +227,21 @@ zl3073x_dev_ref_is_enabled(struct zl3073x_dev *zldev, u8 index)
 	return zl3073x_ref_is_enabled(ref);
 }
 
+/*
+ * zl3073x_dev_ref_is_status_ok - check the given input reference status
+ * @zldev: pointer to zl3073x device
+ * @index: input reference index
+ *
+ * Return: true if the status is ok, false otherwise
+ */
+static inline bool
+zl3073x_dev_ref_is_status_ok(struct zl3073x_dev *zldev, u8 index)
+{
+	const struct zl3073x_ref *ref = zl3073x_ref_state_get(zldev, index);
+
+	return zl3073x_ref_is_status_ok(ref);
+}
+
 /**
  * zl3073x_dev_synth_dpll_get - get DPLL ID the synth is driven by
  * @zldev: pointer to zl3073x device

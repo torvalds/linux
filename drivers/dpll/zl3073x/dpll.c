@@ -497,19 +497,10 @@ zl3073x_dpll_connected_ref_get(struct zl3073x_dpll *zldpll, u8 *ref)
 	if (rc)
 		return rc;
 
-	if (ZL3073X_DPLL_REF_IS_VALID(*ref)) {
-		u8 ref_status;
-
-		/* Read the reference monitor status */
-		rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(*ref),
-				     &ref_status);
-		if (rc)
-			return rc;
-
-		/* If the monitor indicates an error nothing is connected */
-		if (ref_status != ZL_REF_MON_STATUS_OK)
-			*ref = ZL3073X_DPLL_REF_NONE;
-	}
+	/* If the monitor indicates an error nothing is connected */
+	if (ZL3073X_DPLL_REF_IS_VALID(*ref) &&
+	    !zl3073x_dev_ref_is_status_ok(zldev, *ref))
+		*ref = ZL3073X_DPLL_REF_NONE;
 
 	return 0;
 }
@@ -524,7 +515,7 @@ zl3073x_dpll_input_pin_phase_offset_get(const struct dpll_pin *dpll_pin,
 	struct zl3073x_dpll *zldpll = dpll_priv;
 	struct zl3073x_dev *zldev = zldpll->dev;
 	struct zl3073x_dpll_pin *pin = pin_priv;
-	u8 conn_ref, ref, ref_status;
+	u8 conn_ref, ref;
 	s64 ref_phase;
 	int rc;
 
@@ -537,21 +528,9 @@ zl3073x_dpll_input_pin_phase_offset_get(const struct dpll_pin *dpll_pin,
 	 * monitor feature is disabled.
 	 */
 	ref = zl3073x_input_pin_ref_get(pin->id);
-	if (!zldpll->phase_monitor && ref != conn_ref) {
+	if ((!zldpll->phase_monitor && ref != conn_ref) ||
+	    !zl3073x_dev_ref_is_status_ok(zldev, ref)) {
 		*phase_offset = 0;
-
-		return 0;
-	}
-
-	/* Get this pin monitor status */
-	rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(ref), &ref_status);
-	if (rc)
-		return rc;
-
-	/* Report phase offset only if the input pin signal is present */
-	if (ref_status != ZL_REF_MON_STATUS_OK) {
-		*phase_offset = 0;
-
 		return 0;
 	}
 
@@ -777,7 +756,7 @@ zl3073x_dpll_ref_state_get(struct zl3073x_dpll_pin *pin,
 {
 	struct zl3073x_dpll *zldpll = pin->dpll;
 	struct zl3073x_dev *zldev = zldpll->dev;
-	u8 ref, ref_conn, status;
+	u8 ref, ref_conn;
 	int rc;
 
 	ref = zl3073x_input_pin_ref_get(pin->id);
@@ -797,20 +776,9 @@ zl3073x_dpll_ref_state_get(struct zl3073x_dpll_pin *pin,
 	 * pin as selectable.
 	 */
 	if (zldpll->refsel_mode == ZL_DPLL_MODE_REFSEL_MODE_AUTO &&
-	    pin->selectable) {
-		/* Read reference monitor status */
-		rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(ref),
-				     &status);
-		if (rc)
-			return rc;
-
-		/* If the monitor indicates errors report the reference
-		 * as disconnected
-		 */
-		if (status == ZL_REF_MON_STATUS_OK) {
-			*state = DPLL_PIN_STATE_SELECTABLE;
-			return 0;
-		}
+	    zl3073x_dev_ref_is_status_ok(zldev, ref) && pin->selectable) {
+		*state = DPLL_PIN_STATE_SELECTABLE;
+		return 0;
 	}
 
 	/* Otherwise report the pin as disconnected */
@@ -2036,37 +2004,23 @@ zl3073x_dpll_pin_phase_offset_check(struct zl3073x_dpll_pin *pin)
 
 	ref = zl3073x_input_pin_ref_get(pin->id);
 
+	/* No phase offset if the ref monitor reports signal errors */
+	if (!zl3073x_dev_ref_is_status_ok(zldev, ref))
+		return false;
+
 	/* Select register to read phase offset value depending on pin and
 	 * phase monitor state:
 	 * 1) For connected pin use dpll_phase_err_data register
 	 * 2) For other pins use appropriate ref_phase register if the phase
-	 *    monitor feature is enabled and reference monitor does not
-	 *    report signal errors for given input pin
+	 *    monitor feature is enabled.
 	 */
-	if (pin->pin_state == DPLL_PIN_STATE_CONNECTED) {
+	if (pin->pin_state == DPLL_PIN_STATE_CONNECTED)
 		reg = ZL_REG_DPLL_PHASE_ERR_DATA(zldpll->id);
-	} else if (zldpll->phase_monitor) {
-		u8 status;
-
-		/* Get reference monitor status */
-		rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(ref),
-				     &status);
-		if (rc) {
-			dev_err(zldev->dev,
-				"Failed to read %s refmon status: %pe\n",
-				pin->label, ERR_PTR(rc));
-
-			return false;
-		}
-
-		if (status != ZL_REF_MON_STATUS_OK)
-			return false;
-
+	else if (zldpll->phase_monitor)
 		reg = ZL_REG_REF_PHASE(ref);
-	} else {
+	else
 		/* The pin is not connected or phase monitor disabled */
 		return false;
-	}
 
 	/* Read measured phase offset value */
 	rc = zl3073x_read_u48(zldev, reg, &phase_offset);
@@ -2105,22 +2059,14 @@ zl3073x_dpll_pin_ffo_check(struct zl3073x_dpll_pin *pin)
 {
 	struct zl3073x_dpll *zldpll = pin->dpll;
 	struct zl3073x_dev *zldev = zldpll->dev;
-	u8 ref, status;
 	s64 ffo;
-	int rc;
+	u8 ref;
 
 	/* Get reference monitor status */
 	ref = zl3073x_input_pin_ref_get(pin->id);
-	rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(ref), &status);
-	if (rc) {
-		dev_err(zldev->dev, "Failed to read %s refmon status: %pe\n",
-			pin->label, ERR_PTR(rc));
-
-		return false;
-	}
 
 	/* Do not report ffo changes if the reference monitor report errors */
-	if (status != ZL_REF_MON_STATUS_OK)
+	if (!zl3073x_dev_ref_is_status_ok(zldev, ref))
 		return false;
 
 	/* Get the latest measured ref's ffo */
