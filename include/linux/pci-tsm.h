@@ -147,11 +147,5 @@ static inline int pci_tsm_register(struct tsm_dev *tsm_dev)
 static inline void pci_tsm_unregister(struct tsm_dev *tsm_dev)
 {
 }
-static inline int pci_tsm_doe_transfer(struct pci_dev *pdev, u8 type,
-				       const void *req, size_t req_sz,
-				       void *resp, size_t resp_sz)
-{
-	return -ENXIO;
-}
 #endif
 #endif /*__PCI_TSM_H */
