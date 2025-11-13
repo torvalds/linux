@@ -2382,9 +2382,6 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 	ca->bdev = file_bdev(bdev_file);
 	ca->sb_disk = sb_disk;
 
-	if (bdev_max_discard_sectors(file_bdev(bdev_file)))
-		ca->discard = CACHE_DISCARD(&ca->sb);
-
 	ret = cache_alloc(ca);
 	if (ret != 0) {
 		if (ret == -ENOMEM)

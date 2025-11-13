@@ -805,8 +805,7 @@ static int bch_writeback_thread(void *arg)
 			 * may set BCH_ENABLE_AUTO_GC via sysfs, then when
 			 * BCH_DO_AUTO_GC is set, garbage collection thread
 			 * will be wake up here. After moving gc, the shrunk
-			 * btree and discarded free buckets SSD space may be
-			 * helpful for following write requests.
+			 * btree may be helpful for following write requests.
 			 */
 			if (c->gc_after_writeback ==
 			    (BCH_ENABLE_AUTO_GC|BCH_DO_AUTO_GC)) {
