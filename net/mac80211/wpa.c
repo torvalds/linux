@@ -870,7 +870,8 @@ ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
 	 * MIC = AES-128-CMAC(IGTK, AAD || Management Frame Body || MMIE, 64)
 	 */
 	if (ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
-			       skb->data + 24, skb->len - 24, mmie->mic))
+			       skb->data + 24, skb->len - 24, mmie->mic,
+			       IEEE80211_CMAC_128_MIC_LEN))
 		return TX_DROP;
 
 	return TX_CONTINUE;
@@ -917,8 +918,9 @@ ieee80211_crypto_aes_cmac_256_encrypt(struct ieee80211_tx_data *tx)
 
 	/* MIC = AES-256-CMAC(IGTK, AAD || Management Frame Body || MMIE, 128)
 	 */
-	if (ieee80211_aes_cmac_256(key->u.aes_cmac.tfm, aad,
-				   skb->data + 24, skb->len - 24, mmie->mic))
+	if (ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
+			       skb->data + 24, skb->len - 24, mmie->mic,
+			       IEEE80211_CMAC_256_MIC_LEN))
 		return TX_DROP;
 
 	return TX_CONTINUE;
@@ -959,7 +961,8 @@ ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
 		/* hardware didn't decrypt/verify MIC */
 		bip_aad(skb, aad);
 		if (ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
-				       skb->data + 24, skb->len - 24, mic))
+				       skb->data + 24, skb->len - 24, mic,
+				       IEEE80211_CMAC_128_MIC_LEN))
 			return RX_DROP_U_DECRYPT_FAIL;
 		if (crypto_memneq(mic, mmie->mic, sizeof(mmie->mic))) {
 			key->u.aes_cmac.icverrors++;
@@ -1009,8 +1012,9 @@ ieee80211_crypto_aes_cmac_256_decrypt(struct ieee80211_rx_data *rx)
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
 		/* hardware didn't decrypt/verify MIC */
 		bip_aad(skb, aad);
-		if (ieee80211_aes_cmac_256(key->u.aes_cmac.tfm, aad,
-					   skb->data + 24, skb->len - 24, mic))
+		if (ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
+				       skb->data + 24, skb->len - 24, mic,
+				       IEEE80211_CMAC_256_MIC_LEN))
 			return RX_DROP_U_DECRYPT_FAIL;
 		if (crypto_memneq(mic, mmie->mic, sizeof(mmie->mic))) {
 			key->u.aes_cmac.icverrors++;

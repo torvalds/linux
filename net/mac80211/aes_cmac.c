@@ -21,7 +21,8 @@
 static const u8 zero[IEEE80211_CMAC_256_MIC_LEN];
 
 int ieee80211_aes_cmac(struct crypto_shash *tfm, const u8 *aad,
-		       const u8 *data, size_t data_len, u8 *mic)
+		       const u8 *data, size_t data_len, u8 *mic,
+		       unsigned int mic_len)
 {
 	int err;
 	SHASH_DESC_ON_STACK(desc, tfm);
@@ -42,56 +43,21 @@ int ieee80211_aes_cmac(struct crypto_shash *tfm, const u8 *aad,
 		err = crypto_shash_update(desc, zero, 8);
 		if (err)
 			return err;
-		err = crypto_shash_update(desc, data + 8, data_len - 8 -
-					  IEEE80211_CMAC_128_MIC_LEN);
+		err = crypto_shash_update(desc, data + 8,
+					  data_len - 8 - mic_len);
 		if (err)
 			return err;
 	} else {
-		err = crypto_shash_update(desc, data, data_len -
-					  IEEE80211_CMAC_128_MIC_LEN);
+		err = crypto_shash_update(desc, data, data_len - mic_len);
 		if (err)
 			return err;
 	}
-	err = crypto_shash_finup(desc, zero, IEEE80211_CMAC_128_MIC_LEN, out);
+	err = crypto_shash_finup(desc, zero, mic_len, out);
 	if (err)
 		return err;
-	memcpy(mic, out, IEEE80211_CMAC_128_MIC_LEN);
+	memcpy(mic, out, mic_len);
 
 	return 0;
-}
-
-int ieee80211_aes_cmac_256(struct crypto_shash *tfm, const u8 *aad,
-			   const u8 *data, size_t data_len, u8 *mic)
-{
-	int err;
-	SHASH_DESC_ON_STACK(desc, tfm);
-	const __le16 *fc;
-
-	desc->tfm = tfm;
-
-	err = crypto_shash_init(desc);
-	if (err)
-		return err;
-	err = crypto_shash_update(desc, aad, AAD_LEN);
-	if (err)
-		return err;
-	fc = (const __le16 *)aad;
-	if (ieee80211_is_beacon(*fc)) {
-		/* mask Timestamp field to zero */
-		err = crypto_shash_update(desc, zero, 8);
-		if (err)
-			return err;
-		err = crypto_shash_update(desc, data + 8, data_len - 8 -
-					  IEEE80211_CMAC_256_MIC_LEN);
-		if (err)
-			return err;
-	} else {
-		err = crypto_shash_update(desc, data, data_len -
-					  IEEE80211_CMAC_256_MIC_LEN);
-		if (err)
-			return err;
-	}
-	return crypto_shash_finup(desc, zero, IEEE80211_CMAC_256_MIC_LEN, mic);
 }
 
 struct crypto_shash *ieee80211_aes_cmac_key_setup(const u8 key[],
