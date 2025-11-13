@@ -637,6 +637,30 @@ DEFINE_GUARD_COND(pm_runtime_active_auto, _try,
 DEFINE_GUARD_COND(pm_runtime_active_auto, _try_enabled,
 		  pm_runtime_resume_and_get(_T), _RET == 0)
 
+/* ACQUIRE() wrapper macros for the guards defined above. */
+
+#define PM_RUNTIME_ACQUIRE(_dev, _var)			\
+	ACQUIRE(pm_runtime_active_try, _var)(_dev)
+
+#define PM_RUNTIME_ACQUIRE_AUTOSUSPEND(_dev, _var)	\
+	ACQUIRE(pm_runtime_active_auto_try, _var)(_dev)
+
+#define PM_RUNTIME_ACQUIRE_IF_ENABLED(_dev, _var)	\
+	ACQUIRE(pm_runtime_active_try_enabled, _var)(_dev)
+
+#define PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(_dev, _var)	\
+	ACQUIRE(pm_runtime_active_auto_try_enabled, _var)(_dev)
+
+/*
+ * ACQUIRE_ERR() wrapper macro for guard pm_runtime_active.
+ *
+ * Always check PM_RUNTIME_ACQUIRE_ERR() after using one of the
+ * PM_RUNTIME_ACQUIRE*() macros defined above (yes, it can be used with
+ * any of them) and if it is nonzero, avoid accessing the given device.
+ */
+#define PM_RUNTIME_ACQUIRE_ERR(_var_ptr)	\
+	ACQUIRE_ERR(pm_runtime_active, _var_ptr)
+
 /**
  * pm_runtime_put_sync - Drop device usage counter and run "idle check" if 0.
  * @dev: Target device.
