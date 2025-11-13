@@ -24,6 +24,13 @@ static const char * const si_names[] = {
 	[ilog2(SYS_INFO_BLOCKED_TASKS)]		= "blocked_tasks",
 };
 
+/*
+ * Default kernel sys_info mask.
+ * If a kernel module calls sys_info() with "parameter == 0", then
+ * this mask will be used.
+ */
+static unsigned long kernel_si_mask;
+
 /* Expecting string like "xxx_sys_info=tasks,mem,timers,locks,ftrace,..." */
 unsigned long sys_info_parse_param(char *str)
 {
@@ -110,9 +117,26 @@ int sysctl_sys_info_handler(const struct ctl_table *ro_table, int write,
 	else
 		return sys_info_read_handler(&table, buffer, lenp, ppos, ro_table->data);
 }
+
+static const struct ctl_table sys_info_sysctls[] = {
+	{
+		.procname	= "kernel_sys_info",
+		.data		= &kernel_si_mask,
+		.maxlen         = sizeof(kernel_si_mask),
+		.mode		= 0644,
+		.proc_handler	= sysctl_sys_info_handler,
+	},
+};
+
+static int __init sys_info_sysctl_init(void)
+{
+	register_sysctl_init("kernel", sys_info_sysctls);
+	return 0;
+}
+subsys_initcall(sys_info_sysctl_init);
 #endif
 
-void sys_info(unsigned long si_mask)
+static void __sys_info(unsigned long si_mask)
 {
 	if (si_mask & SYS_INFO_TASKS)
 		show_state();
@@ -134,4 +158,9 @@ void sys_info(unsigned long si_mask)
 
 	if (si_mask & SYS_INFO_BLOCKED_TASKS)
 		show_state_filter(TASK_UNINTERRUPTIBLE);
+}
+
+void sys_info(unsigned long si_mask)
+{
+	__sys_info(si_mask ? : kernel_si_mask);
 }
