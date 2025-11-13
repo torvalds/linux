@@ -61,6 +61,8 @@
 
 #define PCIE_CHANNEL 2
 
+#define MPT3_MAX_LUNS (255)
+
 /* forward proto's */
 static void _scsih_expander_node_remove(struct MPT3SAS_ADAPTER *ioc,
 	struct _sas_node *sas_expander);
@@ -70,13 +72,23 @@ static void _scsih_remove_device(struct MPT3SAS_ADAPTER *ioc,
 	struct _sas_device *sas_device);
 static int _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	u8 retry_count, u8 is_pd);
-static int _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle);
+static int _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle,
+	u8 retry_count);
 static void _scsih_pcie_device_remove_from_sml(struct MPT3SAS_ADAPTER *ioc,
 	struct _pcie_device *pcie_device);
 static void
 _scsih_pcie_check_device(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 static u8 _scsih_check_for_pending_tm(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 static void _scsih_complete_devices_scanning(struct MPT3SAS_ADAPTER *ioc);
+static enum device_responsive_state
+_scsih_wait_for_target_to_become_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle,
+	u8 retry_count, u8 is_pd, u8 tr_timeout, u8 tr_method);
+static enum device_responsive_state
+_scsih_ata_pass_thru_idd(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 *is_ssd_device,
+	u8 tr_timeout, u8 tr_method);
+static enum device_responsive_state
+_scsih_wait_for_device_to_become_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle,
+	u8 retry_count, u8 is_pd, int lun, u8 tr_timeout, u8 tr_method);
 
 /* global parameters */
 LIST_HEAD(mpt3sas_ioc_list);
@@ -159,6 +171,15 @@ module_param(enable_sdev_max_qd, bool, 0444);
 MODULE_PARM_DESC(enable_sdev_max_qd,
 	"Enable sdev max qd as can_queue, def=disabled(0)");
 
+/*
+ * permit overriding the SCSI command issuing capability of
+ * the driver to bring the drive to READY state
+ */
+static int issue_scsi_cmd_to_bringup_drive = 1;
+module_param(issue_scsi_cmd_to_bringup_drive, int, 0444);
+MODULE_PARM_DESC(issue_scsi_cmd_to_bringup_drive, "allow host driver to\n"
+	"issue SCSI commands to bring the drive to READY state, default=1 ");
+
 static int multipath_on_hba = -1;
 module_param(multipath_on_hba, int, 0);
 MODULE_PARM_DESC(multipath_on_hba,
@@ -177,6 +198,24 @@ MODULE_PARM_DESC(host_tagset_enable,
 static struct raid_template *mpt3sas_raid_template;
 static struct raid_template *mpt2sas_raid_template;
 
+/**
+ * enum device_responsive_state - responsive state
+ * @DEVICE_READY: device is ready to be added
+ * @DEVICE_RETRY: device can be retried later
+ * @DEVICE_RETRY_UA: retry unit attentions
+ * @DEVICE_START_UNIT: requires start unit
+ * @DEVICE_STOP_UNIT: requires stop unit
+ * @DEVICE_ERROR: device reported some fatal error
+ *
+ */
+enum device_responsive_state {
+	DEVICE_READY,
+	DEVICE_RETRY,
+	DEVICE_RETRY_UA,
+	DEVICE_START_UNIT,
+	DEVICE_STOP_UNIT,
+	DEVICE_ERROR,
+};
 
 /**
  * struct sense_info - common structure for obtaining sense keys
@@ -205,6 +244,9 @@ struct sense_info {
 
 /**
  * struct fw_event_work - firmware event struct
+ * @retries: retry count for processing the event
+ * @delayed_work_active: flag indicating if delayed work is active
+ * @delayed_work: delayed work item for deferred event handling
  * @list: link list framework
  * @work: work object (ioc->fault_reset_work_q)
  * @ioc: per adapter object
@@ -219,6 +261,9 @@ struct sense_info {
  * This object stored on ioc->fw_event_list.
  */
 struct fw_event_work {
+	u8			*retries;
+	u8                      delayed_work_active;
+	struct delayed_work     delayed_work;
 	struct list_head	list;
 	struct work_struct	work;
 
@@ -955,6 +1000,7 @@ _scsih_sas_device_remove(struct MPT3SAS_ADAPTER *ioc,
 		sas_device_put(sas_device);
 	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+
 }
 
 /**
@@ -2528,6 +2574,8 @@ scsih_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 	char *r_level = "";
 	u16 handle, volume_handle = 0;
 	u64 volume_wwid = 0;
+	enum device_responsive_state retval;
+	u8 count = 0;
 
 	qdepth = 1;
 	sas_device_priv_data = sdev->hostdata;
@@ -2686,6 +2734,7 @@ scsih_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 
 		pcie_device_put(pcie_device);
 		spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
+
 		mpt3sas_scsih_change_queue_depth(sdev, qdepth);
 		lim->virt_boundary_mask = ioc->page_size - 1;
 		return 0;
@@ -2737,8 +2786,15 @@ scsih_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 	sas_device_put(sas_device);
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-	if (!ssp_target)
+	if (!ssp_target) {
 		_scsih_display_sata_capabilities(ioc, handle, sdev);
+
+		do {
+			retval = _scsih_ata_pass_thru_idd(ioc, handle,
+				    &sas_device->ssd_device, 30, 0);
+		} while ((retval == DEVICE_RETRY || retval == DEVICE_RETRY_UA)
+			&& count++ < 3);
+	}
 
 
 	mpt3sas_scsih_change_queue_depth(sdev, qdepth);
@@ -3842,7 +3898,7 @@ _scsih_ublock_io_all_device(struct MPT3SAS_ADAPTER *ioc, u8 no_turs)
 		if (!sas_device_priv_data->block)
 			continue;
 
-		if (no_turs) {
+		if ((no_turs) || (!issue_scsi_cmd_to_bringup_drive)) {
 			sdev_printk(KERN_WARNING, sdev, "device_unblocked handle(0x%04x)\n",
 				sas_device_priv_data->sas_target->handle);
 			_scsih_internal_device_unblock(sdev, sas_device_priv_data);
@@ -3856,6 +3912,137 @@ _scsih_ublock_io_all_device(struct MPT3SAS_ADAPTER *ioc, u8 no_turs)
 	}
 }
 
+/**
+ * _scsih_ublock_io_device_wait - unblock IO for target
+ * @ioc: per adapter object
+ * @sas_address: sas address
+ * @port: hba port entry
+ *
+ * make sure device is reponsponding before unblocking
+ */
+static void
+_scsih_ublock_io_device_wait(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+			     struct hba_port *port)
+{
+	struct MPT3SAS_DEVICE *sas_device_priv_data;
+	struct MPT3SAS_TARGET *sas_target;
+	enum device_responsive_state rc;
+	struct scsi_device *sdev;
+	int host_reset_completion_count;
+	struct _sas_device *sas_device;
+	struct _pcie_device *pcie_device;
+	u8 tr_timeout = 30;
+	u8 tr_method = 0;
+
+	/* moving devices from SDEV_OFFLINE to SDEV_BLOCK */
+	shost_for_each_device(sdev, ioc->shost) {
+		sas_device_priv_data = sdev->hostdata;
+		if (!sas_device_priv_data)
+			continue;
+		sas_target = sas_device_priv_data->sas_target;
+		if (!sas_target)
+			continue;
+		if (sas_target->sas_address != sas_address ||
+		    sas_target->port != port)
+			continue;
+		if (sdev->sdev_state == SDEV_OFFLINE) {
+			sas_device_priv_data->block = 1;
+			sas_device_priv_data->deleted = 0;
+			scsi_device_set_state(sdev, SDEV_RUNNING);
+			scsi_internal_device_block_nowait(sdev);
+		}
+	}
+
+	/* moving devices from SDEV_BLOCK to SDEV_RUNNING state */
+	shost_for_each_device(sdev, ioc->shost) {
+		sas_device_priv_data = sdev->hostdata;
+		if (!sas_device_priv_data)
+			continue;
+		sas_target = sas_device_priv_data->sas_target;
+		if (!sas_target)
+			continue;
+		if (sas_target->sas_address != sas_address ||
+		    sas_target->port != port)
+			continue;
+		if (!sas_device_priv_data->block)
+			continue;
+
+		do {
+			host_reset_completion_count = 0;
+			pcie_device = mpt3sas_get_pdev_by_handle(ioc, sas_target->handle);
+			if (pcie_device && (!ioc->tm_custom_handling) &&
+				(!(mpt3sas_scsih_is_pcie_scsi_device(pcie_device->device_info)))) {
+				tr_timeout = pcie_device->reset_timeout;
+				tr_method = MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
+			}
+			rc = _scsih_wait_for_device_to_become_ready(ioc,
+			      sas_target->handle, 0, (sas_target->flags &
+			      MPT_TARGET_FLAGS_RAID_COMPONENT), sdev->lun, tr_timeout, tr_method);
+			if (rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+			    rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA) {
+				do {
+					msleep(500);
+					host_reset_completion_count++;
+				} while (rc == DEVICE_RETRY &&
+							ioc->shost_recovery);
+				if (host_reset_completion_count > 1) {
+					rc = _scsih_wait_for_device_to_become_ready(ioc,
+						sas_target->handle, 0, (sas_target->flags &
+						MPT_TARGET_FLAGS_RAID_COMPONENT), sdev->lun,
+						tr_timeout, tr_method);
+					if (rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+					    rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA)
+						msleep(500);
+				}
+				continue;
+			}
+			if (pcie_device)
+				pcie_device_put(pcie_device);
+		} while ((rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+		    rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA));
+
+		sas_device_priv_data->block = 0;
+		if (rc != DEVICE_READY)
+			sas_device_priv_data->deleted = 1;
+		scsi_internal_device_unblock_nowait(sdev, SDEV_RUNNING);
+
+		if (rc != DEVICE_READY) {
+			sdev_printk(KERN_WARNING, sdev,
+			    "%s: device_offlined, handle(0x%04x)\n",
+			    __func__, sas_device_priv_data->sas_target->handle);
+
+			sas_device = mpt3sas_get_sdev_by_handle(ioc,
+				sas_device_priv_data->sas_target->handle);
+			if (sas_device) {
+				_scsih_display_enclosure_chassis_info(NULL, sas_device, sdev, NULL);
+				sas_device_put(sas_device);
+			} else {
+				pcie_device = mpt3sas_get_pdev_by_handle(ioc,
+							sas_device_priv_data->sas_target->handle);
+				if (pcie_device) {
+					if (pcie_device->enclosure_handle != 0)
+						sdev_printk(KERN_INFO, sdev,
+							"device_offlined, enclosure logical id(0x%016llx),\n"
+							" slot(%d)\n", (unsigned long long)
+							pcie_device->enclosure_logical_id,
+							pcie_device->slot);
+					if (pcie_device->connector_name[0] != '\0')
+						sdev_printk(KERN_WARNING, sdev,
+							"device_offlined, enclosure level(0x%04x),\n"
+							"connector name( %s)\n",
+							pcie_device->enclosure_level,
+							pcie_device->connector_name);
+					pcie_device_put(pcie_device);
+				}
+			}
+			scsi_device_set_state(sdev, SDEV_OFFLINE);
+		} else {
+			sdev_printk(KERN_WARNING, sdev,
+				"device_unblocked, handle(0x%04x)\n",
+				sas_device_priv_data->sas_target->handle);
+		}
+	}
+}
 
 /**
  * _scsih_ublock_io_device - prepare device to be deleted
@@ -7116,10 +7303,769 @@ _scsih_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	return 1;
 }
 
+/**
+ * _scsi_send_scsi_io - send internal SCSI_IO to target
+ * @ioc: per adapter object
+ * @transfer_packet: packet describing the transfer
+ * @tr_timeout: Target Reset Timeout
+ * @tr_method: Target Reset Method
+ * Context: user
+ *
+ * Returns 0 for success, non-zero for failure.
+ */
+static int
+_scsi_send_scsi_io(struct MPT3SAS_ADAPTER *ioc, struct _scsi_io_transfer
+	*transfer_packet, u8 tr_timeout, u8 tr_method)
+{
+	Mpi2SCSIIOReply_t *mpi_reply;
+	Mpi2SCSIIORequest_t *mpi_request;
+	u16 smid;
+	u8 issue_reset = 0;
+	int rc;
+	void *priv_sense;
+	u32 mpi_control;
+	void *psge;
+	dma_addr_t data_out_dma = 0;
+	dma_addr_t data_in_dma = 0;
+	size_t data_in_sz = 0;
+	size_t data_out_sz = 0;
+	u16 handle;
+	u8 retry_count = 0, host_reset_count = 0;
+	int tm_return_code;
 
+	if (ioc->pci_error_recovery) {
+		pr_info("%s: pci error recovery in progress!\n", __func__);
+		return -EFAULT;
+	}
 
+	if (ioc->shost_recovery) {
+		pr_info("%s: host recovery in progress!\n", __func__);
+		return -EAGAIN;
+	}
 
-#define MPT3_MAX_LUNS (255)
+	handle = transfer_packet->handle;
+	if (handle == MPT3SAS_INVALID_DEVICE_HANDLE) {
+		pr_info("%s: no device!\n",  __func__);
+		return -EFAULT;
+	}
+
+	mutex_lock(&ioc->scsih_cmds.mutex);
+
+	if (ioc->scsih_cmds.status != MPT3_CMD_NOT_USED) {
+		pr_err("%s: scsih_cmd in use\n", __func__);
+		rc = -EAGAIN;
+		goto out;
+	}
+
+ retry_loop:
+	if (test_bit(handle, ioc->device_remove_in_progress)) {
+		pr_info("%s: device removal in progress\n", __func__);
+		rc = -EFAULT;
+		goto out;
+	}
+
+	ioc->scsih_cmds.status = MPT3_CMD_PENDING;
+
+	rc = mpt3sas_wait_for_ioc(ioc, 10);
+	if (rc)
+		goto out;
+
+	/* Use second reserved smid for discovery related IOs */
+	smid = ioc->shost->can_queue + INTERNAL_SCSIIO_FOR_DISCOVERY;
+
+	rc = 0;
+	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
+	ioc->scsih_cmds.smid = smid;
+	memset(mpi_request, 0, sizeof(Mpi2SCSIIORequest_t));
+	if (transfer_packet->is_raid)
+		mpi_request->Function = MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
+	else
+		mpi_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
+	mpi_request->DevHandle = cpu_to_le16(handle);
+
+	switch (transfer_packet->dir) {
+	case DMA_TO_DEVICE:
+		mpi_control = MPI2_SCSIIO_CONTROL_WRITE;
+		data_out_dma = transfer_packet->data_dma;
+		data_out_sz = transfer_packet->data_length;
+		break;
+	case DMA_FROM_DEVICE:
+		mpi_control = MPI2_SCSIIO_CONTROL_READ;
+		data_in_dma = transfer_packet->data_dma;
+		data_in_sz = transfer_packet->data_length;
+		break;
+	case DMA_BIDIRECTIONAL:
+		mpi_control = MPI2_SCSIIO_CONTROL_BIDIRECTIONAL;
+		/* TODO - is BIDI support needed ?? */
+		WARN_ON_ONCE(true);
+		break;
+	default:
+	case DMA_NONE:
+		mpi_control = MPI2_SCSIIO_CONTROL_NODATATRANSFER;
+		break;
+	}
+
+	psge = &mpi_request->SGL;
+	ioc->build_sg(ioc, psge, data_out_dma, data_out_sz, data_in_dma,
+	    data_in_sz);
+
+	mpi_request->Control = cpu_to_le32(mpi_control |
+	    MPI2_SCSIIO_CONTROL_SIMPLEQ);
+	mpi_request->DataLength = cpu_to_le32(transfer_packet->data_length);
+	mpi_request->MsgFlags = MPI2_SCSIIO_MSGFLAGS_SYSTEM_SENSE_ADDR;
+	mpi_request->SenseBufferLength = SCSI_SENSE_BUFFERSIZE;
+	mpi_request->SenseBufferLowAddress =
+	    mpt3sas_base_get_sense_buffer_dma(ioc, smid);
+	priv_sense = mpt3sas_base_get_sense_buffer(ioc, smid);
+	mpi_request->SGLOffset0 = offsetof(Mpi2SCSIIORequest_t, SGL) / 4;
+	mpi_request->IoFlags = cpu_to_le16(transfer_packet->cdb_length);
+	int_to_scsilun(transfer_packet->lun, (struct scsi_lun *)
+	    mpi_request->LUN);
+	memcpy(mpi_request->CDB.CDB32, transfer_packet->cdb,
+	    transfer_packet->cdb_length);
+	init_completion(&ioc->scsih_cmds.done);
+	if (likely(mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST))
+		ioc->put_smid_scsi_io(ioc, smid, handle);
+	else
+		ioc->put_smid_default(ioc, smid);
+	wait_for_completion_timeout(&ioc->scsih_cmds.done,
+	    transfer_packet->timeout*HZ);
+	if (!(ioc->scsih_cmds.status & MPT3_CMD_COMPLETE)) {
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->scsih_cmds.status, mpi_request,
+		    sizeof(Mpi2SCSIIORequest_t)/4, issue_reset);
+		goto issue_target_reset;
+	}
+	if (ioc->scsih_cmds.status & MPT3_CMD_REPLY_VALID) {
+		transfer_packet->valid_reply = 1;
+		mpi_reply = ioc->scsih_cmds.reply;
+		transfer_packet->sense_length =
+		   le32_to_cpu(mpi_reply->SenseCount);
+		if (transfer_packet->sense_length)
+			memcpy(transfer_packet->sense, priv_sense,
+			    transfer_packet->sense_length);
+		transfer_packet->transfer_length =
+		    le32_to_cpu(mpi_reply->TransferCount);
+		transfer_packet->ioc_status =
+		    le16_to_cpu(mpi_reply->IOCStatus) &
+		    MPI2_IOCSTATUS_MASK;
+		transfer_packet->scsi_state = mpi_reply->SCSIState;
+		transfer_packet->scsi_status = mpi_reply->SCSIStatus;
+		transfer_packet->log_info =
+		    le32_to_cpu(mpi_reply->IOCLogInfo);
+	}
+	goto out;
+
+ issue_target_reset:
+	if (issue_reset) {
+		pr_info("issue target reset: handle (0x%04x)\n", handle);
+		tm_return_code =
+			mpt3sas_scsih_issue_locked_tm(ioc, handle,
+				0xFFFFFFFF, 0xFFFFFFFF, 0,
+				MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, smid, 0,
+				tr_timeout, tr_method);
+
+		if (tm_return_code == SUCCESS) {
+			pr_info("target reset completed: handle (0x%04x)\n", handle);
+			/* If the command is successfully aborted due to
+			 * target reset TM then do up to three retries else
+			 * command will be terminated by the host reset TM and
+			 * hence retry once.
+			 */
+			if (((ioc->scsih_cmds.status & MPT3_CMD_COMPLETE) &&
+			    retry_count++ < 3) ||
+			    ((ioc->scsih_cmds.status & MPT3_CMD_RESET) &&
+			    host_reset_count++ == 0)) {
+				pr_info("issue retry: handle (0x%04x)\n", handle);
+				goto retry_loop;
+			}
+		} else
+			pr_info("target reset didn't complete:  handle(0x%04x)\n", handle);
+		rc = -EFAULT;
+	} else
+		rc = -EAGAIN;
+
+ out:
+	ioc->scsih_cmds.status = MPT3_CMD_NOT_USED;
+	mutex_unlock(&ioc->scsih_cmds.mutex);
+	return rc;
+}
+
+/**
+ * _scsih_determine_disposition -
+ * @ioc: per adapter object
+ * @transfer_packet: packet describing the transfer
+ * Context: user
+ *
+ * Determines if an internal generated scsi_io is good data, or
+ * whether it needs to be retried or treated as an error.
+ *
+ * Returns device_responsive_state
+ */
+static enum device_responsive_state
+_scsih_determine_disposition(struct MPT3SAS_ADAPTER *ioc,
+	struct _scsi_io_transfer *transfer_packet)
+{
+	static enum device_responsive_state rc;
+	struct sense_info sense_info = {0, 0, 0};
+	u8 check_sense = 0;
+	char *desc = NULL;
+
+	if (!transfer_packet->valid_reply)
+		return DEVICE_READY;
+
+	switch (transfer_packet->ioc_status) {
+	case MPI2_IOCSTATUS_BUSY:
+	case MPI2_IOCSTATUS_INSUFFICIENT_RESOURCES:
+	case MPI2_IOCSTATUS_SCSI_TASK_TERMINATED:
+	case MPI2_IOCSTATUS_SCSI_IO_DATA_ERROR:
+	case MPI2_IOCSTATUS_SCSI_EXT_TERMINATED:
+		rc = DEVICE_RETRY;
+		break;
+	case MPI2_IOCSTATUS_SCSI_IOC_TERMINATED:
+		if (transfer_packet->log_info ==  0x31170000) {
+			rc = DEVICE_RETRY;
+			break;
+		}
+		if (transfer_packet->cdb[0] == REPORT_LUNS)
+			rc = DEVICE_READY;
+		else
+			rc = DEVICE_RETRY;
+		break;
+	case MPI2_IOCSTATUS_SCSI_DATA_UNDERRUN:
+	case MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR:
+	case MPI2_IOCSTATUS_SUCCESS:
+		if (!transfer_packet->scsi_state &&
+		    !transfer_packet->scsi_status) {
+			rc = DEVICE_READY;
+			break;
+		}
+		if (transfer_packet->scsi_state &
+		    MPI2_SCSI_STATE_AUTOSENSE_VALID) {
+			rc = DEVICE_ERROR;
+			check_sense = 1;
+			break;
+		}
+		if (transfer_packet->scsi_state &
+		    (MPI2_SCSI_STATE_AUTOSENSE_FAILED |
+		    MPI2_SCSI_STATE_NO_SCSI_STATUS |
+		    MPI2_SCSI_STATE_TERMINATED)) {
+			rc = DEVICE_RETRY;
+			break;
+		}
+		if (transfer_packet->scsi_status >=
+		    MPI2_SCSI_STATUS_BUSY) {
+			rc = DEVICE_RETRY;
+			break;
+		}
+		rc = DEVICE_READY;
+		break;
+	case MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR:
+		if (transfer_packet->scsi_state &
+		    MPI2_SCSI_STATE_TERMINATED)
+			rc = DEVICE_RETRY;
+		else
+			rc = DEVICE_ERROR;
+		break;
+	case MPI2_IOCSTATUS_INSUFFICIENT_POWER:
+	default:
+		rc = DEVICE_ERROR;
+		break;
+	}
+
+	if (check_sense) {
+		_scsih_normalize_sense(transfer_packet->sense, &sense_info);
+		if (sense_info.skey == UNIT_ATTENTION)
+			rc = DEVICE_RETRY_UA;
+		else if (sense_info.skey == NOT_READY) {
+			/* medium isn't present */
+			if (sense_info.asc == 0x3a)
+				rc = DEVICE_READY;
+			/* LOGICAL UNIT NOT READY */
+			else if (sense_info.asc == 0x04) {
+				if (sense_info.ascq == 0x03 ||
+				   sense_info.ascq == 0x0b ||
+				   sense_info.ascq == 0x0c) {
+					rc = DEVICE_ERROR;
+				} else
+					rc = DEVICE_START_UNIT;
+			}
+			/* LOGICAL UNIT HAS NOT SELF-CONFIGURED YET */
+			else if (sense_info.asc == 0x3e && !sense_info.ascq)
+				rc = DEVICE_START_UNIT;
+		} else if (sense_info.skey == ILLEGAL_REQUEST &&
+		    transfer_packet->cdb[0] == REPORT_LUNS) {
+			rc = DEVICE_READY;
+		} else if (sense_info.skey == MEDIUM_ERROR) {
+
+			/* medium is corrupt, lets add the device so
+			 * users can collect some info as needed
+			 */
+
+			if (sense_info.asc == 0x31)
+				rc = DEVICE_READY;
+		} else if (sense_info.skey == HARDWARE_ERROR) {
+			/* Defect List Error, still add the device */
+			if (sense_info.asc == 0x19)
+				rc = DEVICE_READY;
+		}
+	}
+
+	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) {
+		switch (rc) {
+		case DEVICE_READY:
+			desc = "ready";
+			break;
+		case DEVICE_RETRY:
+			desc = "retry";
+			break;
+		case DEVICE_RETRY_UA:
+			desc = "retry_ua";
+			break;
+		case DEVICE_START_UNIT:
+			desc = "start_unit";
+			break;
+		case DEVICE_STOP_UNIT:
+			desc = "stop_unit";
+			break;
+		case DEVICE_ERROR:
+			desc = "error";
+			break;
+		}
+
+		pr_info("ioc_status(0x%04x),\n"
+		    "loginfo(0x%08x), scsi_status(0x%02x),\n"
+		    "scsi_state(0x%02x), rc(%s)\n",
+			transfer_packet->ioc_status,
+			transfer_packet->log_info, transfer_packet->scsi_status,
+			transfer_packet->scsi_state, desc);
+
+		if (check_sense)
+			pr_info("\t[sense_key,asc,ascq]:\n"
+			    "[0x%02x,0x%02x,0x%02x]\n",
+			    sense_info.skey, sense_info.asc, sense_info.ascq);
+	}
+	return rc;
+}
+
+/**
+ * _scsih_report_luns - send REPORT_LUNS to target
+ * @ioc: per adapter object
+ * @handle: expander handle
+ * @data: report luns data payload
+ * @data_length: length of data in bytes
+ * @retry_count: Requeue count
+ * @is_pd: is this hidden raid component
+ * @tr_timeout: Target Reset Timeout
+ * @tr_method: Target Reset Method
+ * Context: user
+ *
+ * Returns device_responsive_state
+ */
+static enum device_responsive_state
+_scsih_report_luns(struct MPT3SAS_ADAPTER *ioc, u16 handle, void *data,
+	u32 data_length, u8 retry_count, u8 is_pd, u8 tr_timeout, u8 tr_method)
+{
+	struct _scsi_io_transfer *transfer_packet;
+	enum device_responsive_state rc;
+	void *lun_data;
+	int return_code;
+	int retries;
+
+	lun_data = NULL;
+	transfer_packet = kzalloc(sizeof(struct _scsi_io_transfer), GFP_KERNEL);
+	if (!transfer_packet) {
+
+		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_RETRY;
+		goto out;
+	}
+
+	lun_data = dma_alloc_coherent(&ioc->pdev->dev, data_length,
+		&transfer_packet->data_dma, GFP_ATOMIC);
+	if (!lun_data) {
+
+		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_RETRY;
+		goto out;
+	}
+
+	for (retries = 0; retries < 4; retries++) {
+		rc = DEVICE_ERROR;
+		ioc_info(ioc, "REPORT_LUNS: handle(0x%04x),\n"
+		    "retries(%d)\n", handle, retries);
+		memset(lun_data, 0, data_length);
+		transfer_packet->handle = handle;
+		transfer_packet->dir = DMA_FROM_DEVICE;
+		transfer_packet->data_length = data_length;
+		transfer_packet->cdb_length = 12;
+		transfer_packet->cdb[0] = REPORT_LUNS;
+		transfer_packet->cdb[6] = (data_length >> 24) & 0xFF;
+		transfer_packet->cdb[7] = (data_length >> 16) & 0xFF;
+		transfer_packet->cdb[8] = (data_length >>  8) & 0xFF;
+		transfer_packet->cdb[9] = data_length & 0xFF;
+		transfer_packet->timeout = 30;
+		transfer_packet->is_raid = is_pd;
+
+		return_code = _scsi_send_scsi_io(ioc, transfer_packet, tr_timeout, tr_method);
+		switch (return_code) {
+		case 0:
+			rc = _scsih_determine_disposition(ioc, transfer_packet);
+			if (rc == DEVICE_READY) {
+				memcpy(data, lun_data, data_length);
+				goto out;
+			} else if (rc == DEVICE_ERROR)
+				goto out;
+			break;
+		case -EAGAIN:
+			rc = DEVICE_RETRY;
+			break;
+		case -EFAULT:
+		default:
+			ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+			goto out;
+		}
+	}
+ out:
+
+	if (lun_data)
+		dma_free_coherent(&ioc->pdev->dev, data_length, lun_data,
+		    transfer_packet->data_dma);
+	kfree(transfer_packet);
+
+	if ((rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+	    rc == DEVICE_RETRY_UA))
+		rc = DEVICE_ERROR;
+
+	return rc;
+}
+
+/**
+ * _scsih_start_unit - send START_UNIT to target
+ * @ioc: per adapter object
+ * @handle: expander handle
+ * @lun: lun number
+ * @is_pd: is this hidden raid component
+ * @tr_timeout: Target Reset Timeout
+ * @tr_method: Target Reset Method
+ * Context: user
+ *
+ * Returns device_responsive_state
+ */
+static enum device_responsive_state
+_scsih_start_unit(struct MPT3SAS_ADAPTER *ioc, u16 handle, u32 lun, u8 is_pd,
+	u8 tr_timeout, u8 tr_method)
+{
+	struct _scsi_io_transfer *transfer_packet;
+	enum device_responsive_state rc;
+	int return_code;
+
+	transfer_packet = kzalloc(sizeof(struct _scsi_io_transfer), GFP_KERNEL);
+	if (!transfer_packet) {
+
+		pr_info("failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_RETRY;
+		goto out;
+	}
+
+	rc = DEVICE_READY;
+	transfer_packet->handle = handle;
+	transfer_packet->dir = DMA_NONE;
+	transfer_packet->lun = lun;
+	transfer_packet->cdb_length = 6;
+	transfer_packet->cdb[0] = START_STOP;
+	transfer_packet->cdb[1] = 1;
+	transfer_packet->cdb[4] = 1;
+	transfer_packet->timeout = 30;
+	transfer_packet->is_raid = is_pd;
+
+	pr_info("START_UNIT: handle(0x%04x), lun(%d)\n", handle, lun);
+
+	return_code = _scsi_send_scsi_io(ioc, transfer_packet, tr_timeout, tr_method);
+	switch (return_code) {
+	case 0:
+		rc = _scsih_determine_disposition(ioc, transfer_packet);
+		break;
+	case -EAGAIN:
+		rc = DEVICE_RETRY;
+		break;
+	case -EFAULT:
+	default:
+		pr_err("failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_ERROR;
+		break;
+	}
+ out:
+	kfree(transfer_packet);
+	return rc;
+}
+
+/**
+ * _scsih_test_unit_ready - send TUR to target
+ * @ioc: per adapter object
+ * @handle: expander handle
+ * @lun: lun number
+ * @is_pd: is this hidden raid component
+ * @tr_timeout: Target Reset timeout value for Pcie devie
+ * @tr_method: pcie device Target reset method
+ * Context: user
+ *
+ * Returns device_responsive_state
+ */
+static enum device_responsive_state
+_scsih_test_unit_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle, u32 lun,
+	u8 is_pd, u8 tr_timeout, u8 tr_method)
+{
+	struct _scsi_io_transfer *transfer_packet;
+	enum device_responsive_state rc;
+	int return_code;
+	int sata_init_failure = 0;
+
+	transfer_packet = kzalloc(sizeof(struct _scsi_io_transfer), GFP_KERNEL);
+	if (!transfer_packet) {
+
+		pr_info("failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_RETRY;
+		goto out;
+	}
+
+	rc = DEVICE_READY;
+	transfer_packet->handle = handle;
+	transfer_packet->dir = DMA_NONE;
+	transfer_packet->lun = lun;
+	transfer_packet->cdb_length = 6;
+	transfer_packet->cdb[0] = TEST_UNIT_READY;
+	transfer_packet->timeout = 30;
+	transfer_packet->is_raid = is_pd;
+
+ sata_init_retry:
+	pr_info("TEST_UNIT_READY: handle(0x%04x) lun(%d)\n", handle, lun);
+
+	return_code = _scsi_send_scsi_io(ioc, transfer_packet, tr_timeout, tr_method);
+	switch (return_code) {
+	case 0:
+		rc = _scsih_determine_disposition(ioc, transfer_packet);
+		if (rc == DEVICE_RETRY &&
+		    transfer_packet->log_info == 0x31111000) {
+			if (!sata_init_failure++) {
+				pr_info("SATA Initialization Timeout sending a retry\n");
+				rc = DEVICE_READY;
+				goto sata_init_retry;
+			} else {
+				pr_err("SATA Initialization Failed\n");
+				rc = DEVICE_ERROR;
+			}
+		}
+		break;
+	case -EAGAIN:
+		rc = DEVICE_RETRY;
+		break;
+	case -EFAULT:
+	default:
+		pr_err("failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_ERROR;
+		break;
+	}
+ out:
+	kfree(transfer_packet);
+	return rc;
+}
+
+/**
+ * _scsih_ata_pass_thru_idd - obtain SATA device Identify Device Data
+ * @ioc: per adapter object
+ * @handle: device handle
+ * @is_ssd_device : is this SATA SSD device
+ * @tr_timeout: Target Reset Timeout
+ * @tr_method: Target Reset Method
+ * Context: user
+ *
+ * Returns device_responsive_state
+ */
+static enum device_responsive_state
+_scsih_ata_pass_thru_idd(struct MPT3SAS_ADAPTER *ioc, u16 handle,
+	u8 *is_ssd_device, u8 tr_timeout, u8 tr_method)
+{
+	struct _scsi_io_transfer *transfer_packet;
+	enum device_responsive_state rc;
+	u16 *idd_data;
+	int return_code;
+	u32 data_length;
+
+	idd_data = NULL;
+	transfer_packet = kzalloc(sizeof(struct _scsi_io_transfer), GFP_KERNEL);
+	if (!transfer_packet) {
+
+		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_RETRY;
+		goto out;
+	}
+	data_length = 512;
+	idd_data = dma_alloc_coherent(&ioc->pdev->dev, data_length,
+		&transfer_packet->data_dma, GFP_ATOMIC);
+	if (!idd_data) {
+
+		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_RETRY;
+		goto out;
+	}
+	rc = DEVICE_READY;
+	memset(idd_data, 0, data_length);
+	transfer_packet->handle = handle;
+	transfer_packet->dir = DMA_FROM_DEVICE;
+	transfer_packet->data_length = data_length;
+	transfer_packet->cdb_length = 12;
+	transfer_packet->cdb[0] = ATA_12;
+	transfer_packet->cdb[1] = 0x8;
+	transfer_packet->cdb[2] = 0xd;
+	transfer_packet->cdb[3] = 0x1;
+	transfer_packet->cdb[9] = 0xec;
+	transfer_packet->timeout = 30;
+
+	return_code = _scsi_send_scsi_io(ioc, transfer_packet, 30, 0);
+	switch (return_code) {
+	case 0:
+		rc = _scsih_determine_disposition(ioc, transfer_packet);
+		if (rc == DEVICE_READY) {
+			// Check if nominal media rotation rate is set to 1 i.e. SSD device
+			if (idd_data[217] == 1)
+				*is_ssd_device = 1;
+		}
+		break;
+	case -EAGAIN:
+		rc = DEVICE_RETRY;
+		break;
+	case -EFAULT:
+	default:
+
+		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		rc = DEVICE_ERROR;
+		break;
+	}
+
+ out:
+	if (idd_data) {
+		dma_free_coherent(&ioc->pdev->dev, data_length, idd_data,
+		    transfer_packet->data_dma);
+	}
+	kfree(transfer_packet);
+	return rc;
+}
+
+/**
+ * _scsih_wait_for_device_to_become_ready - handle busy devices
+ * @ioc: per adapter object
+ * @handle: expander handle
+ * @retry_count: number of times this event has been retried
+ * @is_pd: is this hidden raid component
+ * @lun: lun number
+ * @tr_timeout: Target Reset Timeout
+ * @tr_method: Target Reset Method
+ *
+ * Some devices spend too much time in busy state, queue event later
+ *
+ * Return the device_responsive_state.
+ */
+
+static enum device_responsive_state
+_scsih_wait_for_device_to_become_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle,
+	u8 retry_count, u8 is_pd, int lun, u8 tr_timeout, u8 tr_method)
+{
+	enum device_responsive_state rc;
+
+	if (ioc->pci_error_recovery)
+		return DEVICE_ERROR;
+
+	if (ioc->shost_recovery)
+		return DEVICE_RETRY;
+
+	rc = _scsih_test_unit_ready(ioc, handle, lun, is_pd, tr_timeout, tr_method);
+	if (rc == DEVICE_READY || rc == DEVICE_ERROR)
+		return rc;
+	else if (rc == DEVICE_START_UNIT) {
+		rc = _scsih_start_unit(ioc, handle, lun, is_pd, tr_timeout, tr_method);
+		if (rc == DEVICE_ERROR)
+			return rc;
+		rc = _scsih_test_unit_ready(ioc, handle, lun, is_pd, tr_timeout, tr_method);
+	}
+
+	if ((rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+	    rc == DEVICE_RETRY_UA))
+		rc = DEVICE_ERROR;
+	return rc;
+}
+
+static inline int mpt_scsilun_to_int(struct scsi_lun *scsilun)
+{
+	return scsilun_to_int(scsilun);
+}
+
+/**
+ * _scsih_wait_for_target_to_become_ready - handle busy devices
+ * @ioc: per adapter object
+ * @handle: expander handle
+ * @retry_count: number of times this event has been retried
+ * @is_pd: is this hidden raid component
+ * @tr_timeout: Target Reset timeout value
+ * @tr_method: Target Reset method Hot/Protocol level.
+ *
+ * Some devices spend too much time in busy state, queue event later
+ *
+ * Return the device_responsive_state.
+ */
+static enum device_responsive_state
+_scsih_wait_for_target_to_become_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle,
+	u8 retry_count, u8 is_pd, u8 tr_timeout, u8 tr_method)
+{
+	enum device_responsive_state rc;
+	struct scsi_lun *lun_data;
+	u32 length, num_luns;
+	u8 *data;
+	int lun;
+	struct scsi_lun *lunp;
+
+	lun_data = kcalloc(MPT3_MAX_LUNS, sizeof(struct scsi_lun), GFP_KERNEL);
+	if (!lun_data) {
+
+		ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+		return DEVICE_RETRY;
+	}
+
+	rc = _scsih_report_luns(ioc, handle, lun_data,
+	    MPT3_MAX_LUNS * sizeof(struct scsi_lun), retry_count, is_pd,
+	    tr_timeout, tr_method);
+
+	if (rc != DEVICE_READY)
+		goto out;
+
+	/* some debug bits*/
+	data = (u8 *)lun_data;
+	length = ((data[0] << 24) | (data[1] << 16) |
+		(data[2] << 8) | (data[3] << 0));
+
+	num_luns = (length / sizeof(struct scsi_lun));
+
+	lunp = &lun_data[1];
+	lun = (num_luns) ? mpt_scsilun_to_int(&lun_data[1]) : 0;
+	rc = _scsih_wait_for_device_to_become_ready(ioc, handle, retry_count,
+	    is_pd, lun, tr_timeout, tr_method);
+
+	if (rc == DEVICE_ERROR) {
+		struct scsi_lun *lunq;
+
+		for (lunq = lunp++; lunq <= &lun_data[num_luns]; lunq++) {
+
+			rc = _scsih_wait_for_device_to_become_ready(ioc, handle,
+					retry_count, is_pd, mpt_scsilun_to_int(lunq),
+					tr_timeout, tr_method);
+			if (rc != DEVICE_ERROR)
+				goto out;
+		}
+	}
+out:
+	kfree(lun_data);
+	return rc;
+}
 
 
 /**
@@ -7247,8 +8193,8 @@ _scsih_check_device(struct MPT3SAS_ADAPTER *ioc,
 			sas_device->handle, handle);
 		sas_target_priv_data->handle = handle;
 		sas_device->handle = handle;
-		if (le16_to_cpu(sas_device_pg0.Flags) &
-		     MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
+		if ((le16_to_cpu(sas_device_pg0.Flags) & MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID)
+		    && (ioc->hba_mpi_version_belonged != MPI2_VERSION)) {
 			sas_device->enclosure_level =
 				sas_device_pg0.EnclosureLevel;
 			memcpy(sas_device->connector_name,
@@ -7290,7 +8236,11 @@ _scsih_check_device(struct MPT3SAS_ADAPTER *ioc,
 		goto out_unlock;
 
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-	_scsih_ublock_io_device(ioc, sas_address, port);
+
+	if (issue_scsi_cmd_to_bringup_drive)
+		_scsih_ublock_io_device_wait(ioc, sas_address, port);
+	else
+		_scsih_ublock_io_device(ioc, sas_address, port);
 
 	if (sas_device)
 		sas_device_put(sas_device);
@@ -7306,7 +8256,7 @@ out_unlock:
  * _scsih_add_device -  creating sas device object
  * @ioc: per adapter object
  * @handle: sas device handle
- * @phy_num: phy number end device attached to
+ * @retry_count: number of times this event has been retried
  * @is_pd: is this hidden raid component
  *
  * Creating end device object, stored in ioc->sas_device_list.
@@ -7314,16 +8264,18 @@ out_unlock:
  * Return: 0 for success, non-zero for failure.
  */
 static int
-_scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
+_scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 retry_count,
 	u8 is_pd)
 {
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasDevicePage0_t sas_device_pg0;
 	struct _sas_device *sas_device;
 	struct _enclosure_node *enclosure_dev = NULL;
+	enum device_responsive_state rc;
 	u32 ioc_status;
 	u64 sas_address;
 	u32 device_info;
+	u8 connector_name[5];
 	u8 port_id;
 
 	if ((mpt3sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
@@ -7377,6 +8329,48 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
 		if (enclosure_dev == NULL)
 			ioc_info(ioc, "Enclosure handle(0x%04x) doesn't match with enclosure device!\n",
 				 sas_device_pg0.EnclosureHandle);
+	}
+
+	/*
+	 * Wait for device that is becoming ready
+	 * queue request later if device is busy.
+	 */
+	if ((!ioc->wait_for_discovery_to_complete) &&
+		(issue_scsi_cmd_to_bringup_drive)) {
+		ioc_info(ioc, "detecting: handle(0x%04x),\n"
+				"sas_address(0x%016llx), phy(%d)\n", handle,
+				(unsigned long long)sas_address, sas_device_pg0.PhyNum);
+		rc = _scsih_wait_for_target_to_become_ready(ioc, handle,
+		    retry_count, is_pd, 30, 0);
+		if (rc != DEVICE_READY) {
+			if (le16_to_cpu(sas_device_pg0.EnclosureHandle) != 0)
+				dewtprintk(ioc, ioc_info(ioc, "%s:\n"
+				    "device not ready: slot(%d)\n", __func__,
+				    le16_to_cpu(sas_device_pg0.Slot)));
+			if ((le16_to_cpu(sas_device_pg0.Flags) &
+			    MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) &&
+			    (ioc->hba_mpi_version_belonged != MPI2_VERSION)) {
+				memcpy(connector_name,
+					sas_device_pg0.ConnectorName, 4);
+				connector_name[4] = '\0';
+				dewtprintk(ioc, ioc_info(ioc, "%s:\n"
+				    "device not ready:\n"
+				    "enclosure level(0x%04x),\n"
+				    "connector name( %s)\n",  __func__,
+				    sas_device_pg0.EnclosureLevel, connector_name));
+			}
+
+			if ((enclosure_dev) && (le16_to_cpu(enclosure_dev->pg0.Flags) &
+			    MPI2_SAS_ENCLS0_FLAGS_CHASSIS_SLOT_VALID))
+				ioc_info(ioc, "chassis slot(0x%04x)\n",
+						enclosure_dev->pg0.ChassisSlot);
+
+			if (rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+			    rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA)
+				return 1;
+			else if (rc == DEVICE_ERROR)
+				return 0;
+		}
 	}
 
 	sas_device = kzalloc(sizeof(struct _sas_device),
@@ -7594,10 +8588,12 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 	struct fw_event_work *fw_event)
 {
 	int i;
+	int rc;
 	u16 parent_handle, handle;
 	u16 reason_code;
 	u8 phy_number, max_phys;
 	struct _sas_node *sas_expander;
+	struct _sas_device *sas_device;
 	u64 sas_address;
 	unsigned long flags;
 	u8 link_rate, prev_link_rate;
@@ -7664,6 +8660,13 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 		    MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT) && (reason_code !=
 		    MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING))
 				continue;
+		if (fw_event->delayed_work_active && (reason_code ==
+		    MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING)) {
+			dewtprintk(ioc, ioc_info(ioc, "ignoring\n"
+			    "Targ not responding event phy in re-queued event processing\n"));
+			continue;
+		}
+
 		handle = le16_to_cpu(event_data->PHY[i].AttachedDevHandle);
 		if (!handle)
 			continue;
@@ -7687,8 +8690,31 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			_scsih_check_device(ioc, sas_address, handle,
 			    phy_number, link_rate);
 
+			/* This code after this point handles the test case
+			 * where a device has been added, however its returning
+			 * BUSY for sometime.  Then before the Device Missing
+			 * Delay expires and the device becomes READY, the
+			 * device is removed and added back.
+			 */
+			spin_lock_irqsave(&ioc->sas_device_lock, flags);
+			sas_device = __mpt3sas_get_sdev_by_handle(ioc,
+			    handle);
+			spin_unlock_irqrestore(&ioc->sas_device_lock,
+			    flags);
+
+			if (sas_device) {
+				sas_device_put(sas_device);
+				break;
+			}
+
 			if (!test_bit(handle, ioc->pend_os_device_add))
 				break;
+
+			dewtprintk(ioc, ioc_info(ioc, "handle(0x%04x) device not found: convert\n"
+			    "event to a device add\n", handle));
+			event_data->PHY[i].PhyStatus &= 0xF0;
+			event_data->PHY[i].PhyStatus |=
+			    MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED;
 
 			fallthrough;
 
@@ -7700,7 +8726,16 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			mpt3sas_transport_update_links(ioc, sas_address,
 			    handle, phy_number, link_rate, port);
 
-			_scsih_add_device(ioc, handle, phy_number, 0);
+			if (link_rate < MPI2_SAS_NEG_LINK_RATE_1_5)
+				break;
+
+			rc = _scsih_add_device(ioc, handle,
+			    fw_event->retries[i], 0);
+			if (rc) /* retry due to busy device */
+				fw_event->retries[i]++;
+			else  /* mark entry vacant */
+				event_data->PHY[i].PhyStatus |=
+						MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT;
 
 			break;
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING:
@@ -8086,7 +9121,10 @@ _scsih_pcie_check_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
 	pcie_device_put(pcie_device);
 
-	_scsih_ublock_io_device(ioc, wwid, NULL);
+	if (issue_scsi_cmd_to_bringup_drive)
+		_scsih_ublock_io_device_wait(ioc, wwid, NULL);
+	else
+		_scsih_ublock_io_device(ioc, wwid, NULL);
 
 	return;
 }
@@ -8095,19 +9133,24 @@ _scsih_pcie_check_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
  * _scsih_pcie_add_device -  creating pcie device object
  * @ioc: per adapter object
  * @handle: pcie device handle
+ * @retry_count: number of times this event has been retried
  *
  * Creating end device object, stored in ioc->pcie_device_list.
  *
  * Return: 1 means queue the event later, 0 means complete the event
  */
 static int
-_scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
+_scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 retry_count)
 {
 	Mpi26PCIeDevicePage0_t pcie_device_pg0;
 	Mpi26PCIeDevicePage2_t pcie_device_pg2;
 	Mpi2ConfigReply_t mpi_reply;
 	struct _pcie_device *pcie_device;
 	struct _enclosure_node *enclosure_dev;
+	enum device_responsive_state rc;
+	u8 connector_name[5];
+	u8 tr_timeout = 30;
+	u8 tr_method = 0;
 	u32 ioc_status;
 	u64 wwid;
 
@@ -8174,6 +9217,53 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 			    "failure at %s:%d/%s()!\n", __FILE__,
 			    __LINE__, __func__);
 			return 0;
+		}
+
+		if (!ioc->tm_custom_handling) {
+			tr_method = MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
+			if (pcie_device_pg2.ControllerResetTO)
+				tr_timeout = pcie_device_pg2.ControllerResetTO;
+
+		}
+	}
+
+	/*
+	 * Wait for device that is becoming ready
+	 * queue request later if device is busy.
+	 */
+	if ((!ioc->wait_for_discovery_to_complete) &&
+		(issue_scsi_cmd_to_bringup_drive) &&
+		(pcie_device_pg0.AccessStatus !=
+			MPI26_PCIEDEV0_ASTATUS_DEVICE_BLOCKED)) {
+		ioc_info(ioc, "detecting: handle(0x%04x),\n"
+		    "wwid(0x%016llx), port(%d)\n", handle,
+		    (unsigned long long)wwid, pcie_device_pg0.PortNum);
+
+		rc = _scsih_wait_for_target_to_become_ready(ioc, handle,
+		    retry_count, 0, tr_timeout, tr_method);
+		if (rc != DEVICE_READY) {
+			if (le16_to_cpu(pcie_device_pg0.EnclosureHandle) != 0)
+				dewtprintk(ioc, ioc_info(ioc, "%s:\n"
+				    "device not ready: slot(%d)\n",
+				    __func__,
+				    le16_to_cpu(pcie_device_pg0.Slot)));
+
+			if (le32_to_cpu(pcie_device_pg0.Flags) &
+			    MPI26_PCIEDEV0_FLAGS_ENCL_LEVEL_VALID) {
+				memcpy(connector_name,
+				    pcie_device_pg0.ConnectorName, 4);
+				connector_name[4] = '\0';
+				dewtprintk(ioc, ioc_info(ioc, "%s: device not ready: enclosure\n"
+				    "level(0x%04x), connector name( %s)\n", __func__,
+				    pcie_device_pg0.EnclosureLevel,
+				    connector_name));
+			}
+
+			if (rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+				rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA)
+				return 1;
+			else if (rc == DEVICE_ERROR)
+				return 0;
 		}
 	}
 
@@ -8365,7 +9455,7 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 	}
 
 	/* handle siblings events */
-	for (i = 0; i < event_data->NumEntries; i++) {
+	for (i = 0 ; i < event_data->NumEntries; i++) {
 		if (fw_event->ignore) {
 			dewtprintk(ioc,
 				   ioc_info(ioc, "ignoring switch event\n"));
@@ -8426,8 +9516,11 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			if (link_rate < MPI26_EVENT_PCIE_TOPO_PI_RATE_2_5)
 				break;
 
-			rc = _scsih_pcie_add_device(ioc, handle);
-			if (!rc) {
+			rc = _scsih_pcie_add_device(ioc, handle, fw_event->retries[i]);
+			if (rc) {/* retry due to busy device */
+
+				fw_event->retries[i]++;
+			} else {
 				/* mark entry vacant */
 				/* TODO This needs to be reviewed and fixed,
 				 * we dont have an entry
@@ -10632,7 +11725,8 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 		}
 		retry_count = 0;
 		parent_handle = le16_to_cpu(pcie_device_pg0.ParentDevHandle);
-		_scsih_pcie_add_device(ioc, handle);
+		while (_scsih_pcie_add_device(ioc, handle, retry_count++))
+			ssleep(1);
 
 		ioc_info(ioc, "\tAFTER adding pcie end device: handle (0x%04x), wwid(0x%016llx)\n",
 			 handle, (u64)le64_to_cpu(pcie_device_pg0.WWID));

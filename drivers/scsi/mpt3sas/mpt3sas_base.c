@@ -1564,6 +1564,8 @@ _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 	int i;
 	u16 ctl_smid = ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT + 1;
 	u8 cb_idx = 0xFF;
+	u16 discovery_smid =
+	    ioc->shost->can_queue + INTERNAL_SCSIIO_FOR_DISCOVERY;
 
 	if (smid < ioc->hi_priority_smid) {
 		struct scsiio_tracker *st;
@@ -1572,8 +1574,10 @@ _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 			st = _get_st_from_smid(ioc, smid);
 			if (st)
 				cb_idx = st->cb_idx;
-		} else if (smid == ctl_smid)
+		} else if (smid < discovery_smid)
 			cb_idx = ioc->ctl_cb_idx;
+		else
+			cb_idx = ioc->scsih_cb_idx;
 	} else if (smid < ioc->internal_smid) {
 		i = smid - ioc->hi_priority_smid;
 		cb_idx = ioc->hpr_lookup[i].cb_idx;

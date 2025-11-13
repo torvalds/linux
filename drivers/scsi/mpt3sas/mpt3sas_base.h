@@ -147,6 +147,7 @@
 #define INTERNAL_CMDS_COUNT		10	/* reserved cmds */
 /* reserved for issuing internally framed scsi io cmds */
 #define INTERNAL_SCSIIO_CMDS_COUNT	3
+#define INTERNAL_SCSIIO_FOR_DISCOVERY	2
 
 #define MPI3_HIM_MASK			0xFFFFFFFF /* mask every bit*/
 
@@ -480,6 +481,7 @@ struct MPT3SAS_DEVICE {
 	u32	flags;
 	u8	configured_lun;
 	u8	block;
+	u8	deleted;
 	u8	tlr_snoop_check;
 	u8	ignore_delay_remove;
 	/* Iopriority Command Handling */
@@ -577,7 +579,9 @@ struct _sas_device {
 	u8	chassis_slot;
 	u8	is_chassis_slot_valid;
 	u8	connector_name[5];
+	u8	ssd_device;
 	struct kref refcount;
+
 	u8	port_type;
 	struct hba_port *port;
 	struct sas_rphy *rphy;
