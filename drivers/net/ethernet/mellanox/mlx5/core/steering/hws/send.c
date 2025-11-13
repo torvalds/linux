@@ -873,12 +873,6 @@ err_free_sqc:
 	return err;
 }
 
-static void hws_cq_complete(struct mlx5_core_cq *mcq,
-			    struct mlx5_eqe *eqe)
-{
-	pr_err("CQ completion CQ: #%u\n", mcq->cqn);
-}
-
 static int hws_send_ring_alloc_cq(struct mlx5_core_dev *mdev,
 				  int numa_node,
 				  struct mlx5hws_send_engine *queue,
@@ -901,7 +895,6 @@ static int hws_send_ring_alloc_cq(struct mlx5_core_dev *mdev,
 	mcq->cqe_sz = 64;
 	mcq->set_ci_db = cq->wq_ctrl.db.db;
 	mcq->arm_db = cq->wq_ctrl.db.db + 1;
-	mcq->comp = hws_cq_complete;
 
 	for (i = 0; i < mlx5_cqwq_get_size(&cq->wq); i++) {
 		cqe = mlx5_cqwq_get_wqe(&cq->wq, i);

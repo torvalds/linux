@@ -4502,12 +4502,6 @@ static int lan8814_config_init(struct phy_device *phydev)
 {
 	struct kszphy_priv *lan8814 = phydev->priv;
 
-	/* Reset the PHY */
-	lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
-			       LAN8814_QSGMII_SOFT_RESET,
-			       LAN8814_QSGMII_SOFT_RESET_BIT,
-			       LAN8814_QSGMII_SOFT_RESET_BIT);
-
 	/* Disable ANEG with QSGMII PCS Host side */
 	lanphy_modify_page_reg(phydev, LAN8814_PAGE_PORT_REGS,
 			       LAN8814_QSGMII_PCS1G_ANEG_CONFIG,
@@ -4605,6 +4599,12 @@ static int lan8814_probe(struct phy_device *phydev)
 				 err == LAN8814_REV_LAN8818;
 
 	if (phy_package_init_once(phydev)) {
+		/* Reset the PHY */
+		lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+				       LAN8814_QSGMII_SOFT_RESET,
+				       LAN8814_QSGMII_SOFT_RESET_BIT,
+				       LAN8814_QSGMII_SOFT_RESET_BIT);
+
 		err = lan8814_release_coma_mode(phydev);
 		if (err)
 			return err;
