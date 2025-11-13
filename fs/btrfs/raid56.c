@@ -711,20 +711,25 @@ static phys_addr_t rbio_stripe_paddr(const struct btrfs_raid_bio *rbio,
 	return rbio->stripe_paddrs[rbio_paddr_index(rbio, stripe_nr, sector_nr, 0)];
 }
 
-/* Grab a paddr inside P stripe */
-static phys_addr_t rbio_pstripe_paddr(const struct btrfs_raid_bio *rbio,
-				      unsigned int sector_nr)
+static phys_addr_t rbio_stripe_step_paddr(const struct btrfs_raid_bio *rbio,
+					  unsigned int stripe_nr, unsigned int sector_nr,
+					  unsigned int step_nr)
 {
-	return rbio_stripe_paddr(rbio, rbio->nr_data, sector_nr);
+	return rbio->stripe_paddrs[rbio_paddr_index(rbio, stripe_nr, sector_nr, step_nr)];
 }
 
-/* Grab a paddr inside Q stripe, return INVALID_PADDR if not RAID6 */
-static phys_addr_t rbio_qstripe_paddr(const struct btrfs_raid_bio *rbio,
-				      unsigned int sector_nr)
+static phys_addr_t rbio_pstripe_step_paddr(const struct btrfs_raid_bio *rbio,
+					   unsigned int sector_nr, unsigned int step_nr)
+{
+	return rbio_stripe_step_paddr(rbio, rbio->nr_data, sector_nr, step_nr);
+}
+
+static phys_addr_t rbio_qstripe_step_paddr(const struct btrfs_raid_bio *rbio,
+					   unsigned int sector_nr, unsigned int step_nr)
 {
 	if (rbio->nr_data + 1 == rbio->real_stripes)
 		return INVALID_PADDR;
-	return rbio_stripe_paddr(rbio, rbio->nr_data + 1, sector_nr);
+	return rbio_stripe_step_paddr(rbio, rbio->nr_data + 1, sector_nr, step_nr);
 }
 
 /*
@@ -995,6 +1000,38 @@ static phys_addr_t sector_paddr_in_rbio(struct btrfs_raid_bio *rbio,
 	}
 	spin_unlock(&rbio->bio_list_lock);
 
+	return rbio->stripe_paddrs[index];
+}
+
+/*
+ * Similar to sector_paddr_in_rbio(), but with extra consideration for
+ * bs > ps cases, where we can have multiple steps for a fs block.
+ */
+static phys_addr_t step_paddr_in_rbio(struct btrfs_raid_bio *rbio,
+				      int stripe_nr, int sector_nr, int step_nr,
+				      bool bio_list_only)
+{
+	phys_addr_t ret = INVALID_PADDR;
+	int index;
+
+	ASSERT_RBIO_STRIPE(stripe_nr >= 0 && stripe_nr < rbio->real_stripes,
+			   rbio, stripe_nr);
+	ASSERT_RBIO_SECTOR(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors,
+			   rbio, sector_nr);
+	ASSERT_RBIO_SECTOR(step_nr >= 0 && step_nr < rbio->sector_nsteps,
+			   rbio, sector_nr);
+
+	index = (stripe_nr * rbio->stripe_nsectors + sector_nr) * rbio->sector_nsteps + step_nr;
+	ASSERT(index >= 0 && index < rbio->nr_sectors * rbio->sector_nsteps);
+
+	scoped_guard(spinlock, &rbio->bio_list_lock) {
+		if (rbio->bio_paddrs[index] != INVALID_PADDR || bio_list_only) {
+			/* Don't return sector without a valid page pointer */
+			if (rbio->bio_paddrs[index] != INVALID_PADDR)
+				ret = rbio->bio_paddrs[index];
+			return ret;
+		}
+	}
 	return rbio->stripe_paddrs[index];
 }
 
@@ -1319,43 +1356,54 @@ static inline void *kmap_local_paddr(phys_addr_t paddr)
 	return kmap_local_page(phys_to_page(paddr)) + offset_in_page(paddr);
 }
 
-/* Generate PQ for one vertical stripe. */
-static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
+static void generate_pq_vertical_step(struct btrfs_raid_bio *rbio, unsigned int sector_nr,
+				      unsigned int step_nr)
 {
 	void **pointers = rbio->finish_pointers;
-	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	const u32 step = min(rbio->bioc->fs_info->sectorsize, PAGE_SIZE);
 	int stripe;
 	const bool has_qstripe = rbio->bioc->map_type & BTRFS_BLOCK_GROUP_RAID6;
 
 	/* First collect one sector from each data stripe */
 	for (stripe = 0; stripe < rbio->nr_data; stripe++)
 		pointers[stripe] = kmap_local_paddr(
-				sector_paddr_in_rbio(rbio, stripe, sectornr, 0));
+				step_paddr_in_rbio(rbio, stripe, sector_nr, step_nr, 0));
 
 	/* Then add the parity stripe */
-	set_bit(rbio_sector_index(rbio, rbio->nr_data, sectornr),
-		rbio->stripe_uptodate_bitmap);
-	pointers[stripe++] = kmap_local_paddr(rbio_pstripe_paddr(rbio, sectornr));
+	pointers[stripe++] = kmap_local_paddr(rbio_pstripe_step_paddr(rbio, sector_nr, step_nr));
 
 	if (has_qstripe) {
 		/*
 		 * RAID6, add the qstripe and call the library function
 		 * to fill in our p/q
 		 */
-		set_bit(rbio_sector_index(rbio, rbio->nr_data + 1, sectornr),
-			rbio->stripe_uptodate_bitmap);
-		pointers[stripe++] = kmap_local_paddr(rbio_qstripe_paddr(rbio, sectornr));
+		pointers[stripe++] = kmap_local_paddr(
+				rbio_qstripe_step_paddr(rbio, sector_nr, step_nr));
 
 		assert_rbio(rbio);
-		raid6_call.gen_syndrome(rbio->real_stripes, sectorsize,
-					pointers);
+		raid6_call.gen_syndrome(rbio->real_stripes, step, pointers);
 	} else {
 		/* raid5 */
-		memcpy(pointers[rbio->nr_data], pointers[0], sectorsize);
-		run_xor(pointers + 1, rbio->nr_data - 1, sectorsize);
+		memcpy(pointers[rbio->nr_data], pointers[0], step);
+		run_xor(pointers + 1, rbio->nr_data - 1, step);
 	}
 	for (stripe = stripe - 1; stripe >= 0; stripe--)
 		kunmap_local(pointers[stripe]);
+}
+
+/* Generate PQ for one vertical stripe. */
+static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
+{
+	const bool has_qstripe = (rbio->bioc->map_type & BTRFS_BLOCK_GROUP_RAID6);
+
+	for (int i = 0; i < rbio->sector_nsteps; i++)
+		generate_pq_vertical_step(rbio, sectornr, i);
+
+	set_bit(rbio_sector_index(rbio, rbio->nr_data, sectornr),
+		rbio->stripe_uptodate_bitmap);
+	if (has_qstripe)
+		set_bit(rbio_sector_index(rbio, rbio->nr_data + 1, sectornr),
+			rbio->stripe_uptodate_bitmap);
 }
 
 static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
