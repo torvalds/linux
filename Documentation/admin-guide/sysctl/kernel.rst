@@ -422,6 +422,11 @@ the system boot.
 
 This file shows up if ``CONFIG_DETECT_HUNG_TASK`` is enabled.
 
+hung_task_sys_info
+==================
+A comma separated list of extra system information to be dumped when
+hung task is detected, for example, "tasks,mem,timers,locks,...".
+Refer 'panic_sys_info' section below for more details.
 
 hung_task_timeout_secs
 ======================
