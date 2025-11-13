@@ -90,10 +90,10 @@ struct ccp_device {
 	u8 *cmd_buffer;
 	u8 *buffer;
 	int buffer_recv_size; /* number of received bytes in buffer */
-	int target[6];
+	int target[NUM_FANS];
 	DECLARE_BITMAP(temp_cnct, NUM_TEMP_SENSORS);
 	DECLARE_BITMAP(fan_cnct, NUM_FANS);
-	char fan_label[6][LABEL_LENGTH];
+	char fan_label[NUM_FANS][LABEL_LENGTH];
 	u8 firmware_ver[3];
 	u8 bootloader_ver[2];
 };
