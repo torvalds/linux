@@ -421,6 +421,54 @@ static void svm_init_osvw(struct kvm_vcpu *vcpu)
 		vcpu->arch.osvw.status |= 1;
 }
 
+static void svm_init_os_visible_workarounds(void)
+{
+	u64 len, status;
+	int err;
+
+	/*
+	 * Get OS-Visible Workarounds (OSVW) bits.
+	 *
+	 * Note that it is possible to have a system with mixed processor
+	 * revisions and therefore different OSVW bits. If bits are not the same
+	 * on different processors then choose the worst case (i.e. if erratum
+	 * is present on one processor and not on another then assume that the
+	 * erratum is present everywhere).
+	 *
+	 * Note #2!  The OSVW MSRs are used to communciate that an erratum is
+	 * NOT present!  Software must assume erratum as present if its bit is
+	 * set in OSVW_STATUS *or* the bit number exceeds OSVW_ID_LENGTH.  If
+	 * either RDMSR fails, simply zero out the length to treat all errata
+	 * as being present.  Similarly, use the *minimum* length across all
+	 * CPUs, not the maximum length.
+	 *
+	 * If the length is zero, then is KVM already treating all errata as
+	 * being present and there's nothing left to do.
+	 */
+	if (!osvw_len)
+		return;
+
+	if (!boot_cpu_has(X86_FEATURE_OSVW)) {
+		osvw_status = osvw_len = 0;
+		return;
+	}
+
+	err = native_read_msr_safe(MSR_AMD64_OSVW_ID_LENGTH, &len);
+	if (!err)
+		err = native_read_msr_safe(MSR_AMD64_OSVW_STATUS, &status);
+
+	guard(spinlock)(&osvw_lock);
+
+	if (err) {
+		osvw_status = osvw_len = 0;
+	} else {
+		if (len < osvw_len)
+			osvw_len = len;
+		osvw_status |= status;
+		osvw_status &= (1ULL << osvw_len) - 1;
+	}
+}
+
 static bool __kvm_is_svm_supported(void)
 {
 	int cpu = smp_processor_id();
@@ -541,47 +589,7 @@ static int svm_enable_virtualization_cpu(void)
 		__svm_write_tsc_multiplier(SVM_TSC_RATIO_DEFAULT);
 	}
 
-
-	/*
-	 * Get OS-Visible Workarounds (OSVW) bits.
-	 *
-	 * Note that it is possible to have a system with mixed processor
-	 * revisions and therefore different OSVW bits. If bits are not the same
-	 * on different processors then choose the worst case (i.e. if erratum
-	 * is present on one processor and not on another then assume that the
-	 * erratum is present everywhere).
-	 *
-	 * Note #2!  The OSVW MSRs are used to communciate that an erratum is
-	 * NOT present!  Software must assume erratum as present if its bit is
-	 * set in OSVW_STATUS *or* the bit number exceeds OSVW_ID_LENGTH.  If
-	 * either RDMSR fails, simply zero out the length to treat all errata
-	 * as being present.  Similarly, use the *minimum* length across all
-	 * CPUs, not the maximum length.
-	 *
-	 * If the length is zero, then is KVM already treating all errata as
-	 * being present and there's nothing left to do.
-	 */
-	if (osvw_len && cpu_has(&boot_cpu_data, X86_FEATURE_OSVW)) {
-		u64 len, status = 0;
-		int err;
-
-		err = native_read_msr_safe(MSR_AMD64_OSVW_ID_LENGTH, &len);
-		if (!err)
-			err = native_read_msr_safe(MSR_AMD64_OSVW_STATUS, &status);
-
-		guard(spinlock)(&osvw_lock);
-
-		if (err) {
-			osvw_status = osvw_len = 0;
-		} else {
-			if (len < osvw_len)
-				osvw_len = len;
-			osvw_status |= status;
-			osvw_status &= (1ULL << osvw_len) - 1;
-		}
-	} else {
-		osvw_status = osvw_len = 0;
-	}
+	svm_init_os_visible_workarounds();
 
 	svm_init_erratum_383();
 
