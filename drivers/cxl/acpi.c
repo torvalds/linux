@@ -372,7 +372,7 @@ static int cxl_acpi_set_cache_size(struct cxl_root_decoder *cxlrd)
 
 	rc = hmat_get_extended_linear_cache_size(&res, nid, &cache_size);
 	if (rc)
-		return rc;
+		return 0;
 
 	/*
 	 * The cache range is expected to be within the CFMWS.
@@ -397,21 +397,18 @@ static void cxl_setup_extended_linear_cache(struct cxl_root_decoder *cxlrd)
 	int rc;
 
 	rc = cxl_acpi_set_cache_size(cxlrd);
-	if (!rc)
-		return;
-
-	if (rc != -EOPNOTSUPP) {
+	if (rc) {
 		/*
-		 * Failing to support extended linear cache region resize does not
+		 * Failing to retrieve extended linear cache region resize does not
 		 * prevent the region from functioning. Only causes cxl list showing
 		 * incorrect region size.
 		 */
 		dev_warn(cxlrd->cxlsd.cxld.dev.parent,
-			 "Extended linear cache calculation failed rc:%d\n", rc);
-	}
+			 "Extended linear cache retrieval failed rc:%d\n", rc);
 
-	/* Ignoring return code */
-	cxlrd->cache_size = 0;
+		/* Ignoring return code */
+		cxlrd->cache_size = 0;
+	}
 }
 
 DEFINE_FREE(put_cxlrd, struct cxl_root_decoder *,

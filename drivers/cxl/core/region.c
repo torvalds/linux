@@ -467,21 +467,6 @@ static ssize_t commit_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(commit);
 
-static umode_t cxl_region_visible(struct kobject *kobj, struct attribute *a,
-				  int n)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct cxl_region *cxlr = to_cxl_region(dev);
-
-	/*
-	 * Support tooling that expects to find a 'uuid' attribute for all
-	 * regions regardless of mode.
-	 */
-	if (a == &dev_attr_uuid.attr && cxlr->mode != CXL_PARTMODE_PMEM)
-		return 0444;
-	return a->mode;
-}
-
 static ssize_t interleave_ways_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -760,6 +745,21 @@ static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(size);
 
+static ssize_t extended_linear_cache_size_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	ssize_t rc;
+
+	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
+		return rc;
+	return sysfs_emit(buf, "%#llx\n", p->cache_size);
+}
+static DEVICE_ATTR_RO(extended_linear_cache_size);
+
 static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_uuid.attr,
 	&dev_attr_commit.attr,
@@ -768,8 +768,33 @@ static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_resource.attr,
 	&dev_attr_size.attr,
 	&dev_attr_mode.attr,
+	&dev_attr_extended_linear_cache_size.attr,
 	NULL,
 };
+
+static umode_t cxl_region_visible(struct kobject *kobj, struct attribute *a,
+				  int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_region *cxlr = to_cxl_region(dev);
+
+	/*
+	 * Support tooling that expects to find a 'uuid' attribute for all
+	 * regions regardless of mode.
+	 */
+	if (a == &dev_attr_uuid.attr && cxlr->mode != CXL_PARTMODE_PMEM)
+		return 0444;
+
+	/*
+	 * Don't display extended linear cache attribute if there is no
+	 * extended linear cache.
+	 */
+	if (a == &dev_attr_extended_linear_cache_size.attr &&
+	    cxlr->params.cache_size == 0)
+		return 0;
+
+	return a->mode;
+}
 
 static const struct attribute_group cxl_region_group = {
 	.attrs = cxl_region_attrs,
@@ -3579,6 +3604,10 @@ static int __construct_region(struct cxl_region *cxlr,
 		dev_warn(cxlmd->dev.parent,
 			 "Extended linear cache calculation failed rc:%d\n", rc);
 	}
+
+	rc = sysfs_update_group(&cxlr->dev.kobj, &cxl_region_group);
+	if (rc)
+		return rc;
 
 	rc = insert_resource(cxlrd->res, res);
 	if (rc) {
