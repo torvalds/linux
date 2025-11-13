@@ -2543,6 +2543,20 @@ static int rtw89_mac_typ_fltr_opt_ax(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+void rtw89_mac_set_rx_fltr(struct rtw89_dev *rtwdev, u8 mac_idx, u32 rx_fltr)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 reg;
+	u32 val;
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, mac_idx);
+
+	val = rtw89_read32(rtwdev, reg);
+	/* B_AX_RX_FLTR_CFG_MASK is not a consecutive bit mask */
+	val = (val & ~B_AX_RX_FLTR_CFG_MASK) | (rx_fltr & B_AX_RX_FLTR_CFG_MASK);
+	rtw89_write32(rtwdev, reg, val);
+}
+
 static int rx_fltr_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 	int ret, i;
