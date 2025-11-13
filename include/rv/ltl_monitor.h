@@ -17,12 +17,7 @@
 #endif
 
 #define RV_MONITOR_NAME CONCATENATE(rv_, MONITOR_NAME)
-
-#ifdef CONFIG_RV_REACTORS
 static struct rv_monitor RV_MONITOR_NAME;
-#else
-extern struct rv_monitor RV_MONITOR_NAME;
-#endif
 
 static int ltl_monitor_slot = RV_PER_TASK_MONITOR_INIT;
 
