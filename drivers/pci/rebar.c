@@ -5,6 +5,7 @@
 
 #include <linux/bits.h>
 #include <linux/bitfield.h>
+#include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/ioport.h>
@@ -141,6 +142,28 @@ bool pci_rebar_size_supported(struct pci_dev *pdev, int bar, int size)
 	return BIT(size) & sizes;
 }
 EXPORT_SYMBOL_GPL(pci_rebar_size_supported);
+
+/**
+ * pci_rebar_get_max_size - get the maximum supported size of a BAR
+ * @pdev: PCI device
+ * @bar: BAR to query
+ *
+ * Get the largest supported size of a resizable BAR as a size.
+ *
+ * Return: the encoded maximum BAR size as defined in the PCIe spec
+ *	   (0=1MB, 31=128TB), or %-NOENT on error.
+ */
+int pci_rebar_get_max_size(struct pci_dev *pdev, int bar)
+{
+	u32 sizes;
+
+	sizes = pci_rebar_get_possible_sizes(pdev, bar);
+	if (!sizes)
+		return -ENOENT;
+
+	return __fls(sizes);
+}
+EXPORT_SYMBOL_GPL(pci_rebar_get_max_size);
 
 /**
  * pci_rebar_get_current_size - get the current size of a Resizable BAR
