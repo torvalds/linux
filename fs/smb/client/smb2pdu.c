@@ -2229,21 +2229,20 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	return rc;
 }
 
-
-static struct create_durable *
+static create_durable_req_t *
 create_durable_buf(void)
 {
-	struct create_durable *buf;
+	create_durable_req_t *buf;
 
-	buf = kzalloc(sizeof(struct create_durable), GFP_KERNEL);
+	buf = kzalloc(sizeof(create_durable_req_t), GFP_KERNEL);
 	if (!buf)
 		return NULL;
 
 	buf->ccontext.DataOffset = cpu_to_le16(offsetof
-					(struct create_durable, Data));
+					(create_durable_req_t, Data));
 	buf->ccontext.DataLength = cpu_to_le32(16);
 	buf->ccontext.NameOffset = cpu_to_le16(offsetof
-				(struct create_durable, Name));
+				(create_durable_req_t, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
 	/* SMB2_CREATE_DURABLE_HANDLE_REQUEST is "DHnQ" */
 	buf->Name[0] = 'D';
@@ -2253,20 +2252,20 @@ create_durable_buf(void)
 	return buf;
 }
 
-static struct create_durable *
+static create_durable_req_t *
 create_reconnect_durable_buf(struct cifs_fid *fid)
 {
-	struct create_durable *buf;
+	create_durable_req_t *buf;
 
-	buf = kzalloc(sizeof(struct create_durable), GFP_KERNEL);
+	buf = kzalloc(sizeof(create_durable_req_t), GFP_KERNEL);
 	if (!buf)
 		return NULL;
 
 	buf->ccontext.DataOffset = cpu_to_le16(offsetof
-					(struct create_durable, Data));
+					(create_durable_req_t, Data));
 	buf->ccontext.DataLength = cpu_to_le32(16);
 	buf->ccontext.NameOffset = cpu_to_le16(offsetof
-				(struct create_durable, Name));
+				(create_durable_req_t, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
 	buf->Data.Fid.PersistentFileId = fid->persistent_fid;
 	buf->Data.Fid.VolatileFileId = fid->volatile_fid;
@@ -2552,7 +2551,7 @@ add_durable_context(struct kvec *iov, unsigned int *num_iovec,
 		iov[num].iov_base = create_durable_buf();
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
-	iov[num].iov_len = sizeof(struct create_durable);
+	iov[num].iov_len = sizeof(create_durable_req_t);
 	*num_iovec = num + 1;
 	return 0;
 }
