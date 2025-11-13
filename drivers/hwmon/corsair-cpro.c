@@ -40,7 +40,7 @@
 #define CTL_GET_TMP		0x11	/*
 					 * send: byte 1 is channel, rest zero
 					 * rcv:  returns temp for channel in centi-degree celsius
-					 * in bytes 1 and 2
+					 * in bytes 1 and 2 as a two's complement value
 					 * returns 0x11 in byte 0 if no sensor is connected
 					 */
 #define CTL_GET_VOLT		0x12	/*
@@ -258,7 +258,7 @@ static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
 			ret = get_data(ccp, CTL_GET_TMP, channel, true);
 			if (ret < 0)
 				return ret;
-			*val = ret * 10;
+			*val = (s16)ret * 10;
 			return 0;
 		default:
 			break;
