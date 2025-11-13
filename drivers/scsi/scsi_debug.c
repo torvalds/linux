@@ -6396,11 +6396,6 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 			atomic_inc(&sdebug_miss_cpus);
 	}
 
-	if (!scp) {
-		pr_err("scmd=NULL\n");
-		return;
-	}
-
 	spin_lock_irqsave(&sdsc->lock, flags);
 	aborted = sd_dp->aborted;
 	if (unlikely(aborted))
