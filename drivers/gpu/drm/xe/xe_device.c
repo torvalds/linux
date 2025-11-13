@@ -988,16 +988,16 @@ void xe_device_shutdown(struct xe_device *xe)
 
 	drm_dbg(&xe->drm, "Shutting down device\n");
 
-	if (xe_driver_flr_disabled(xe)) {
-		xe_display_pm_shutdown(xe);
+	xe_display_pm_shutdown(xe);
 
-		xe_irq_suspend(xe);
+	xe_irq_suspend(xe);
 
-		for_each_gt(gt, xe, id)
-			xe_gt_shutdown(gt);
+	for_each_gt(gt, xe, id)
+		xe_gt_shutdown(gt);
 
-		xe_display_pm_shutdown_late(xe);
-	} else {
+	xe_display_pm_shutdown_late(xe);
+
+	if (!xe_driver_flr_disabled(xe)) {
 		/* BOOM! */
 		__xe_driver_flr(xe);
 	}
@@ -1070,7 +1070,7 @@ void xe_device_l2_flush(struct xe_device *xe)
 	spin_lock(&gt->global_invl_lock);
 
 	xe_mmio_write32(&gt->mmio, XE2_GLOBAL_INVAL, 0x1);
-	if (xe_mmio_wait32(&gt->mmio, XE2_GLOBAL_INVAL, 0x1, 0x0, 500, NULL, true))
+	if (xe_mmio_wait32(&gt->mmio, XE2_GLOBAL_INVAL, 0x1, 0x0, 1000, NULL, true))
 		xe_gt_err_once(gt, "Global invalidation timeout\n");
 
 	spin_unlock(&gt->global_invl_lock);

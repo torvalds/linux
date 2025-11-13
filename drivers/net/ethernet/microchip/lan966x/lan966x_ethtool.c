@@ -294,7 +294,7 @@ static void lan966x_stats_update(struct lan966x *lan966x)
 {
 	int i, j;
 
-	mutex_lock(&lan966x->stats_lock);
+	spin_lock(&lan966x->stats_lock);
 
 	for (i = 0; i < lan966x->num_phys_ports; i++) {
 		uint idx = i * lan966x->num_stats;
@@ -310,7 +310,7 @@ static void lan966x_stats_update(struct lan966x *lan966x)
 		}
 	}
 
-	mutex_unlock(&lan966x->stats_lock);
+	spin_unlock(&lan966x->stats_lock);
 }
 
 static int lan966x_get_sset_count(struct net_device *dev, int sset)
@@ -365,7 +365,7 @@ static void lan966x_get_eth_mac_stats(struct net_device *dev,
 
 	idx = port->chip_port * lan966x->num_stats;
 
-	mutex_lock(&lan966x->stats_lock);
+	spin_lock(&lan966x->stats_lock);
 
 	mac_stats->FramesTransmittedOK =
 		lan966x->stats[idx + SYS_COUNT_TX_UC] +
@@ -416,7 +416,7 @@ static void lan966x_get_eth_mac_stats(struct net_device *dev,
 		lan966x->stats[idx + SYS_COUNT_RX_LONG] +
 		lan966x->stats[idx + SYS_COUNT_RX_PMAC_LONG];
 
-	mutex_unlock(&lan966x->stats_lock);
+	spin_unlock(&lan966x->stats_lock);
 }
 
 static const struct ethtool_rmon_hist_range lan966x_rmon_ranges[] = {
@@ -442,7 +442,7 @@ static void lan966x_get_eth_rmon_stats(struct net_device *dev,
 
 	idx = port->chip_port * lan966x->num_stats;
 
-	mutex_lock(&lan966x->stats_lock);
+	spin_lock(&lan966x->stats_lock);
 
 	rmon_stats->undersize_pkts =
 		lan966x->stats[idx + SYS_COUNT_RX_SHORT] +
@@ -500,7 +500,7 @@ static void lan966x_get_eth_rmon_stats(struct net_device *dev,
 		lan966x->stats[idx + SYS_COUNT_TX_SZ_1024_1526] +
 		lan966x->stats[idx + SYS_COUNT_TX_PMAC_SZ_1024_1526];
 
-	mutex_unlock(&lan966x->stats_lock);
+	spin_unlock(&lan966x->stats_lock);
 
 	*ranges = lan966x_rmon_ranges;
 }
@@ -603,7 +603,7 @@ void lan966x_stats_get(struct net_device *dev,
 
 	idx = port->chip_port * lan966x->num_stats;
 
-	mutex_lock(&lan966x->stats_lock);
+	spin_lock(&lan966x->stats_lock);
 
 	stats->rx_bytes = lan966x->stats[idx + SYS_COUNT_RX_OCT] +
 		lan966x->stats[idx + SYS_COUNT_RX_PMAC_OCT];
@@ -685,7 +685,7 @@ void lan966x_stats_get(struct net_device *dev,
 
 	stats->collisions = lan966x->stats[idx + SYS_COUNT_TX_COL];
 
-	mutex_unlock(&lan966x->stats_lock);
+	spin_unlock(&lan966x->stats_lock);
 }
 
 int lan966x_stats_init(struct lan966x *lan966x)
@@ -701,7 +701,7 @@ int lan966x_stats_init(struct lan966x *lan966x)
 		return -ENOMEM;
 
 	/* Init stats worker */
-	mutex_init(&lan966x->stats_lock);
+	spin_lock_init(&lan966x->stats_lock);
 	snprintf(queue_name, sizeof(queue_name), "%s-stats",
 		 dev_name(lan966x->dev));
 	lan966x->stats_queue = create_singlethread_workqueue(queue_name);

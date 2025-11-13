@@ -43,6 +43,9 @@ extern unsigned long __phys_addr_symbol(unsigned long);
 void clear_page_orig(void *page);
 void clear_page_rep(void *page);
 void clear_page_erms(void *page);
+KCFI_REFERENCE(clear_page_orig);
+KCFI_REFERENCE(clear_page_rep);
+KCFI_REFERENCE(clear_page_erms);
 
 static inline void clear_page(void *page)
 {

@@ -1859,13 +1859,16 @@ void kvm_nested_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 {
 	u64 guest_mdcr = __vcpu_sys_reg(vcpu, MDCR_EL2);
 
+	if (is_nested_ctxt(vcpu))
+		vcpu->arch.mdcr_el2 |= (guest_mdcr & NV_MDCR_GUEST_INCLUDE);
 	/*
 	 * In yet another example where FEAT_NV2 is fscking broken, accesses
 	 * to MDSCR_EL1 are redirected to the VNCR despite having an effect
 	 * at EL2. Use a big hammer to apply sanity.
+	 *
+	 * Unless of course we have FEAT_FGT, in which case we can precisely
+	 * trap MDSCR_EL1.
 	 */
-	if (is_hyp_ctxt(vcpu))
+	else if (!cpus_have_final_cap(ARM64_HAS_FGT))
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
-	else
-		vcpu->arch.mdcr_el2 |= (guest_mdcr & NV_MDCR_GUEST_INCLUDE);
 }

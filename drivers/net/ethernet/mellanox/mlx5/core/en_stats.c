@@ -1614,7 +1614,9 @@ void mlx5e_stats_fec_get(struct mlx5e_priv *priv,
 
 	fec_set_corrected_bits_total(priv, fec_stats);
 	fec_set_block_stats(priv, mode, fec_stats);
-	fec_set_histograms_stats(priv, mode, hist);
+
+	if (MLX5_CAP_PCAM_REG(priv->mdev, pphcr))
+		fec_set_histograms_stats(priv, mode, hist);
 }
 
 #define PPORT_ETH_EXT_OFF(c) \

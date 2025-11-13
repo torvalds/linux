@@ -1290,6 +1290,7 @@ struct amdgpu_device {
 	bool                            debug_disable_gpu_ring_reset;
 	bool                            debug_vm_userptr;
 	bool                            debug_disable_ce_logs;
+	bool                            debug_enable_ce_cs;
 
 	/* Protection for the following isolation structure */
 	struct mutex                    enforce_isolation_mutex;

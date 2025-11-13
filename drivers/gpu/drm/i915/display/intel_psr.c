@@ -3402,6 +3402,7 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 
 	if (DISPLAY_VER(display) < 20 && intel_dp->psr.psr2_sel_fetch_enabled) {
+		/* Selective fetch prior LNL */
 		if (intel_dp->psr.psr2_sel_fetch_cff_enabled) {
 			/* can we turn CFF off? */
 			if (intel_dp->psr.busy_frontbuffer_bits == 0)
@@ -3420,12 +3421,19 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
 		intel_psr_configure_full_frame_update(intel_dp);
 
 		intel_psr_force_update(intel_dp);
+	} else if (!intel_dp->psr.psr2_sel_fetch_enabled) {
+		/*
+		 * PSR1 on all platforms
+		 * PSR2 HW tracking
+		 * Panel Replay Full frame update
+		 */
+		intel_psr_force_update(intel_dp);
 	} else {
+		/* Selective update LNL onwards */
 		intel_psr_exit(intel_dp);
 	}
 
-	if ((!intel_dp->psr.psr2_sel_fetch_enabled || DISPLAY_VER(display) >= 20) &&
-	    !intel_dp->psr.busy_frontbuffer_bits)
+	if (!intel_dp->psr.active && !intel_dp->psr.busy_frontbuffer_bits)
 		queue_work(display->wq.unordered, &intel_dp->psr.work);
 }
 

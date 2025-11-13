@@ -557,7 +557,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e,
 	if (blk_mq_is_shared_tags(flags)) {
 		/* Shared tags are stored at index 0 in @et->tags. */
 		q->sched_shared_tags = et->tags[0];
-		blk_mq_tag_update_sched_shared_tags(q);
+		blk_mq_tag_update_sched_shared_tags(q, et->nr_requests);
 	}
 
 	queue_for_each_hw_ctx(q, hctx, i) {
