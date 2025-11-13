@@ -287,23 +287,6 @@ static int iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
 	return 0;
 }
 
-/*
- * Use a FUA write if we need datasync semantics and this is a pure data I/O
- * that doesn't require any metadata updates (including after I/O completion
- * such as unwritten extent conversion) and the underlying device either
- * doesn't have a volatile write cache or supports FUA.
- * This allows us to avoid cache flushes on I/O completion.
- */
-static inline bool iomap_dio_can_use_fua(const struct iomap *iomap,
-		struct iomap_dio *dio)
-{
-	if (iomap->flags & (IOMAP_F_SHARED | IOMAP_F_DIRTY))
-		return false;
-	if (!(dio->flags & IOMAP_DIO_WRITE_THROUGH))
-		return false;
-	return !bdev_write_cache(iomap->bdev) || bdev_fua(iomap->bdev);
-}
-
 static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 {
 	const struct iomap *iomap = &iter->iomap;
@@ -332,7 +315,24 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		return -EINVAL;
 
 	if (dio->flags & IOMAP_DIO_WRITE) {
-		bio_opf |= REQ_OP_WRITE;
+		bool need_completion_work = true;
+
+		switch (iomap->type) {
+		case IOMAP_MAPPED:
+			/*
+			 * Directly mapped I/O does not inherently need to do
+			 * work at I/O completion time.  But there are various
+			 * cases below where this will get set again.
+			 */
+			need_completion_work = false;
+			break;
+		case IOMAP_UNWRITTEN:
+			dio->flags |= IOMAP_DIO_UNWRITTEN;
+			need_zeroout = true;
+			break;
+		default:
+			break;
+		}
 
 		if (iomap->flags & IOMAP_F_ATOMIC_BIO) {
 			/*
@@ -345,22 +345,40 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 			bio_opf |= REQ_ATOMIC;
 		}
 
-		if (iomap->type == IOMAP_UNWRITTEN) {
-			dio->flags |= IOMAP_DIO_UNWRITTEN;
+		if (iomap->flags & IOMAP_F_SHARED) {
+			/*
+			 * Unsharing of needs to update metadata at I/O
+			 * completion time.
+			 */
+			need_completion_work = true;
+			dio->flags |= IOMAP_DIO_COW;
+		}
+
+		if (iomap->flags & IOMAP_F_NEW) {
+			/*
+			 * Newly allocated blocks might need recording in
+			 * metadata at I/O completion time.
+			 */
+			need_completion_work = true;
 			need_zeroout = true;
 		}
 
-		if (iomap->flags & IOMAP_F_SHARED)
-			dio->flags |= IOMAP_DIO_COW;
-
-		if (iomap->flags & IOMAP_F_NEW)
-			need_zeroout = true;
-		else if (iomap->type == IOMAP_MAPPED &&
-			 iomap_dio_can_use_fua(iomap, dio))
-			bio_opf |= REQ_FUA;
-
-		if (!(bio_opf & REQ_FUA))
-			dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
+		/*
+		 * Use a FUA write if we need datasync semantics and this is a
+		 * pure overwrite that doesn't require any metadata updates.
+		 *
+		 * This allows us to avoid cache flushes on I/O completion.
+		 */
+		if (dio->flags & IOMAP_DIO_WRITE_THROUGH) {
+			if (!need_completion_work &&
+			    !(iomap->flags & IOMAP_F_DIRTY) &&
+			    (!bdev_write_cache(iomap->bdev) ||
+			     bdev_fua(iomap->bdev)))
+				bio_opf |= REQ_FUA;
+			else
+				dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
+		}
+		bio_opf |= REQ_OP_WRITE;
 	} else {
 		bio_opf |= REQ_OP_READ;
 	}
