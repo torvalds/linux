@@ -291,14 +291,35 @@ struct idpf_fsteer_fltr {
 
 /**
  * struct idpf_q_vec_rsrc - handle for queue and vector resources
+ * @dev: device pointer for DMA mapping
  * @q_vectors: array of queue vectors
  * @q_vector_idxs: starting index of queue vectors
  * @num_q_vectors: number of IRQ vectors allocated
  * @noirq_v_idx: ID of the NOIRQ vector
  * @noirq_dyn_ctl_ena: value to write to the above to enable it
  * @noirq_dyn_ctl: register to enable/disable the vector for NOIRQ queues
+ * @txq_grps: array of TX queue groups
+ * @txq_desc_count: TX queue descriptor count
+ * @complq_desc_count: completion queue descriptor count
+ * @txq_model: split queue or single queue queuing model
+ * @num_txq: number of allocated TX queues
+ * @num_complq: number of allocated completion queues
+ * @num_txq_grp: number of TX queue groups
+ * @num_rxq_grp: number of RX queues in a group
+ * @rxq_model: splitq queue or single queue queuing model
+ * @rxq_grps: total number of RX groups. Number of groups * number of RX per
+ *	      group will yield total number of RX queues.
+ * @num_rxq: number of allocated RX queues
+ * @num_bufq: number of allocated buffer queues
+ * @rxq_desc_count: RX queue descriptor count. *MUST* have enough descriptors
+ *		    to complete all buffer descriptors for all buffer queues in
+ *		    the worst case.
+ * @bufq_desc_count: buffer queue descriptor count
+ * @num_bufqs_per_qgrp: buffer queues per RX queue in a given grouping
+ * @base_rxd: true if the driver should use base descriptors instead of flex
  */
 struct idpf_q_vec_rsrc {
+	struct device		*dev;
 	struct idpf_q_vector	*q_vectors;
 	u16			*q_vector_idxs;
 	u16			num_q_vectors;
@@ -306,36 +327,36 @@ struct idpf_q_vec_rsrc {
 	u32			noirq_dyn_ctl_ena;
 	void __iomem		*noirq_dyn_ctl;
 
+	struct idpf_txq_group	*txq_grps;
+	u32			txq_desc_count;
+	u32			complq_desc_count;
+	u32			txq_model;
+	u16			num_txq;
+	u16			num_complq;
+	u16			num_txq_grp;
+
+	u16			num_rxq_grp;
+	u32			rxq_model;
+	struct idpf_rxq_group	*rxq_grps;
+	u16			num_rxq;
+	u16			num_bufq;
+	u32			rxq_desc_count;
+	u32			bufq_desc_count[IDPF_MAX_BUFQS_PER_RXQ_GRP];
+	u8			num_bufqs_per_qgrp;
+	bool			base_rxd;
 };
 
 /**
  * struct idpf_vport - Handle for netdevices and queue resources
  * @dflt_qv_rsrc: contains default queue and vector resources
  * @num_txq: Number of allocated TX queues
- * @num_complq: Number of allocated completion queues
- * @txq_desc_count: TX queue descriptor count
- * @complq_desc_count: Completion queue descriptor count
  * @compln_clean_budget: Work budget for completion clean
- * @num_txq_grp: Number of TX queue groups
- * @txq_grps: Array of TX queue groups
- * @txq_model: Split queue or single queue queuing model
  * @txqs: Used only in hotpath to get to the right queue very fast
  * @crc_enable: Enable CRC insertion offload
  * @xdpsq_share: whether XDPSQ sharing is enabled
  * @num_xdp_txq: number of XDPSQs
  * @xdp_txq_offset: index of the first XDPSQ (== number of regular SQs)
  * @xdp_prog: installed XDP program
- * @num_rxq: Number of allocated RX queues
- * @num_bufq: Number of allocated buffer queues
- * @rxq_desc_count: RX queue descriptor count. *MUST* have enough descriptors
- *		    to complete all buffer descriptors for all buffer queues in
- *		    the worst case.
- * @num_bufqs_per_qgrp: Buffer queues per RX queue in a given grouping
- * @bufq_desc_count: Buffer queue descriptor count
- * @num_rxq_grp: Number of RX queues in a group
- * @rxq_grps: Total number of RX groups. Number of groups * number of RX per
- *	      group will yield total number of RX queues.
- * @rxq_model: Splitq queue or single queue queuing model
  * @rx_ptype_lkup: Lookup table for ptypes on RX
  * @vdev_info: IDC vport device info pointer
  * @adapter: back pointer to associated adapter
@@ -346,7 +367,6 @@ struct idpf_q_vec_rsrc {
  * @vport_id: Device given vport identifier
  * @idx: Software index in adapter vports struct
  * @default_vport: Use this vport if one isn't specified
- * @base_rxd: True if the driver should use base descriptors instead of flex
  * @max_mtu: device given max possible MTU
  * @default_mac_addr: device will give a default MAC to use
  * @rx_itr_profile: RX profiles for Dynamic Interrupt Moderation
@@ -361,13 +381,7 @@ struct idpf_q_vec_rsrc {
 struct idpf_vport {
 	struct idpf_q_vec_rsrc dflt_qv_rsrc;
 	u16 num_txq;
-	u16 num_complq;
-	u32 txq_desc_count;
-	u32 complq_desc_count;
 	u32 compln_clean_budget;
-	u16 num_txq_grp;
-	struct idpf_txq_group *txq_grps;
-	u32 txq_model;
 	struct idpf_tx_queue **txqs;
 	bool crc_enable;
 
@@ -376,14 +390,6 @@ struct idpf_vport {
 	u16 xdp_txq_offset;
 	struct bpf_prog *xdp_prog;
 
-	u16 num_rxq;
-	u16 num_bufq;
-	u32 rxq_desc_count;
-	u8 num_bufqs_per_qgrp;
-	u32 bufq_desc_count[IDPF_MAX_BUFQS_PER_RXQ_GRP];
-	u16 num_rxq_grp;
-	struct idpf_rxq_group *rxq_grps;
-	u32 rxq_model;
 	struct libeth_rx_pt *rx_ptype_lkup;
 
 	struct iidc_rdma_vport_dev_info *vdev_info;
@@ -395,7 +401,6 @@ struct idpf_vport {
 	u32 vport_id;
 	u16 idx;
 	bool default_vport;
-	bool base_rxd;
 
 	u16 max_mtu;
 	u8 default_mac_addr[ETH_ALEN];

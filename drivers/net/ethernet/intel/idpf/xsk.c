@@ -26,13 +26,14 @@ static void idpf_xsk_setup_rxq(const struct idpf_vport *vport,
 static void idpf_xsk_setup_bufq(const struct idpf_vport *vport,
 				struct idpf_buf_queue *bufq)
 {
+	const struct idpf_q_vec_rsrc *rsrc = &vport->dflt_qv_rsrc;
 	struct xsk_buff_pool *pool;
 	u32 qid = U32_MAX;
 
-	for (u32 i = 0; i < vport->num_rxq_grp; i++) {
-		const struct idpf_rxq_group *grp = &vport->rxq_grps[i];
+	for (u32 i = 0; i < rsrc->num_rxq_grp; i++) {
+		const struct idpf_rxq_group *grp = &rsrc->rxq_grps[i];
 
-		for (u32 j = 0; j < vport->num_bufqs_per_qgrp; j++) {
+		for (u32 j = 0; j < rsrc->num_bufqs_per_qgrp; j++) {
 			if (&grp->splitq.bufq_sets[j].bufq == bufq) {
 				qid = grp->splitq.rxq_sets[0]->rxq.idx;
 				goto setup;

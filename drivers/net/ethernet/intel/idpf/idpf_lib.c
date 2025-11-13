@@ -991,7 +991,7 @@ static void idpf_vport_stop(struct idpf_vport *vport, bool rtnl)
 
 	idpf_send_disable_vport_msg(vport);
 	idpf_send_disable_queues_msg(vport);
-	idpf_send_map_unmap_queue_vector_msg(vport, false);
+	idpf_send_map_unmap_queue_vector_msg(vport, rsrc, false);
 	/* Normally we ask for queues in create_vport, but if the number of
 	 * initially requested queues have changed, for example via ethtool
 	 * set channels, we do delete queues and then add the queues back
@@ -1004,8 +1004,8 @@ static void idpf_vport_stop(struct idpf_vport *vport, bool rtnl)
 
 	vport->link_up = false;
 	idpf_vport_intr_deinit(vport, rsrc);
-	idpf_xdp_rxq_info_deinit_all(vport);
-	idpf_vport_queues_rel(vport);
+	idpf_xdp_rxq_info_deinit_all(rsrc);
+	idpf_vport_queues_rel(vport, rsrc);
 	idpf_vport_intr_rel(rsrc);
 	clear_bit(IDPF_VPORT_UP, np->state);
 
@@ -1159,7 +1159,7 @@ static void idpf_vport_dealloc(struct idpf_vport *vport)
  */
 static bool idpf_is_hsplit_supported(const struct idpf_vport *vport)
 {
-	return idpf_is_queue_model_split(vport->rxq_model) &&
+	return idpf_is_queue_model_split(vport->dflt_qv_rsrc.rxq_model) &&
 	       idpf_is_cap_ena_all(vport->adapter, IDPF_HSPLIT_CAPS,
 				   IDPF_CAP_HSPLIT);
 }
@@ -1277,6 +1277,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 			       idpf_get_default_vports(adapter);
 
 	rsrc = &vport->dflt_qv_rsrc;
+	rsrc->dev = &adapter->pdev->dev;
 	rsrc->q_vector_idxs = kcalloc(num_max_q, sizeof(u16), GFP_KERNEL);
 	if (!rsrc->q_vector_idxs)
 		goto free_vport;
@@ -1427,9 +1428,10 @@ static void idpf_restore_features(struct idpf_vport *vport)
  */
 static int idpf_set_real_num_queues(struct idpf_vport *vport)
 {
-	int err, txq = vport->num_txq - vport->num_xdp_txq;
+	int err, txq = vport->dflt_qv_rsrc.num_txq - vport->num_xdp_txq;
 
-	err = netif_set_real_num_rx_queues(vport->netdev, vport->num_rxq);
+	err = netif_set_real_num_rx_queues(vport->netdev,
+					   vport->dflt_qv_rsrc.num_rxq);
 	if (err)
 		return err;
 
@@ -1454,17 +1456,17 @@ static void idpf_up_complete(struct idpf_vport *vport)
 
 /**
  * idpf_rx_init_buf_tail - Write initial buffer ring tail value
- * @vport: virtual port struct
+ * @rsrc: pointer to queue and vector resources
  */
-static void idpf_rx_init_buf_tail(struct idpf_vport *vport)
+static void idpf_rx_init_buf_tail(struct idpf_q_vec_rsrc *rsrc)
 {
 	int i, j;
 
-	for (i = 0; i < vport->num_rxq_grp; i++) {
-		struct idpf_rxq_group *grp = &vport->rxq_grps[i];
+	for (i = 0; i < rsrc->num_rxq_grp; i++) {
+		struct idpf_rxq_group *grp = &rsrc->rxq_grps[i];
 
-		if (idpf_is_queue_model_split(vport->rxq_model)) {
-			for (j = 0; j < vport->num_bufqs_per_qgrp; j++) {
+		if (idpf_is_queue_model_split(rsrc->rxq_model)) {
+			for (j = 0; j < rsrc->num_bufqs_per_qgrp; j++) {
 				const struct idpf_buf_queue *q =
 					&grp->splitq.bufq_sets[j].bufq;
 
@@ -1511,14 +1513,14 @@ static int idpf_vport_open(struct idpf_vport *vport, bool rtnl)
 		goto err_rtnl_unlock;
 	}
 
-	err = idpf_vport_queues_alloc(vport);
+	err = idpf_vport_queues_alloc(vport, rsrc);
 	if (err)
 		goto intr_rel;
 
 	vport_config = adapter->vport_config[vport->idx];
 	chunks = &vport_config->qid_reg_info;
 
-	err = idpf_vport_queue_ids_init(vport, chunks);
+	err = idpf_vport_queue_ids_init(vport, rsrc, chunks);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to initialize queue ids for vport %u: %d\n",
 			vport->vport_id, err);
@@ -1532,23 +1534,23 @@ static int idpf_vport_open(struct idpf_vport *vport, bool rtnl)
 		goto queues_rel;
 	}
 
-	err = idpf_queue_reg_init(vport, chunks);
+	err = idpf_queue_reg_init(vport, rsrc, chunks);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to initialize queue registers for vport %u: %d\n",
 			vport->vport_id, err);
 		goto intr_deinit;
 	}
 
-	err = idpf_rx_bufs_init_all(vport);
+	err = idpf_rx_bufs_init_all(vport, rsrc);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to initialize RX buffers for vport %u: %d\n",
 			vport->vport_id, err);
 		goto intr_deinit;
 	}
 
-	idpf_rx_init_buf_tail(vport);
+	idpf_rx_init_buf_tail(rsrc);
 
-	err = idpf_xdp_rxq_info_init_all(vport);
+	err = idpf_xdp_rxq_info_init_all(rsrc);
 	if (err) {
 		netdev_err(vport->netdev,
 			   "Failed to initialize XDP RxQ info for vport %u: %pe\n",
@@ -1558,14 +1560,14 @@ static int idpf_vport_open(struct idpf_vport *vport, bool rtnl)
 
 	idpf_vport_intr_ena(vport, rsrc);
 
-	err = idpf_send_config_queues_msg(vport);
+	err = idpf_send_config_queues_msg(vport, rsrc);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to configure queues for vport %u, %d\n",
 			vport->vport_id, err);
 		goto rxq_deinit;
 	}
 
-	err = idpf_send_map_unmap_queue_vector_msg(vport, true);
+	err = idpf_send_map_unmap_queue_vector_msg(vport, rsrc, true);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to map queue vectors for vport %u: %d\n",
 			vport->vport_id, err);
@@ -1608,13 +1610,13 @@ disable_vport:
 disable_queues:
 	idpf_send_disable_queues_msg(vport);
 unmap_queue_vectors:
-	idpf_send_map_unmap_queue_vector_msg(vport, false);
+	idpf_send_map_unmap_queue_vector_msg(vport, rsrc, false);
 rxq_deinit:
-	idpf_xdp_rxq_info_deinit_all(vport);
+	idpf_xdp_rxq_info_deinit_all(rsrc);
 intr_deinit:
 	idpf_vport_intr_deinit(vport, rsrc);
 queues_rel:
-	idpf_vport_queues_rel(vport);
+	idpf_vport_queues_rel(vport, rsrc);
 intr_rel:
 	idpf_vport_intr_rel(rsrc);
 
@@ -2003,8 +2005,10 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 {
 	struct idpf_netdev_priv *np = netdev_priv(vport->netdev);
 	bool vport_is_up = test_bit(IDPF_VPORT_UP, np->state);
+	struct idpf_q_vec_rsrc *rsrc = &vport->dflt_qv_rsrc;
 	struct idpf_adapter *adapter = vport->adapter;
 	struct idpf_vport_config *vport_config;
+	struct idpf_q_vec_rsrc *new_rsrc;
 	struct idpf_vport *new_vport;
 	int err, tmp_err = 0;
 
@@ -2031,16 +2035,18 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	 */
 	memcpy(new_vport, vport, offsetof(struct idpf_vport, link_up));
 
+	new_rsrc = &new_vport->dflt_qv_rsrc;
+
 	/* Adjust resource parameters prior to reallocating resources */
 	switch (reset_cause) {
 	case IDPF_SR_Q_CHANGE:
-		err = idpf_vport_adjust_qs(new_vport);
+		err = idpf_vport_adjust_qs(new_vport, new_rsrc);
 		if (err)
 			goto free_vport;
 		break;
 	case IDPF_SR_Q_DESC_CHANGE:
 		/* Update queue parameters before allocating resources */
-		idpf_vport_calc_num_q_desc(new_vport);
+		idpf_vport_calc_num_q_desc(new_vport, new_rsrc);
 		break;
 	case IDPF_SR_MTU_CHANGE:
 		idpf_idc_vdev_mtu_event(vport->vdev_info,
@@ -2069,10 +2075,10 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	 * to add code to add_queues to change the vport config within
 	 * vport itself as it will be wiped with a memcpy later.
 	 */
-	err = idpf_send_add_queues_msg(vport, new_vport->num_txq,
-				       new_vport->num_complq,
-				       new_vport->num_rxq,
-				       new_vport->num_bufq);
+	err = idpf_send_add_queues_msg(vport, new_rsrc->num_txq,
+				       new_rsrc->num_complq,
+				       new_rsrc->num_rxq,
+				       new_rsrc->num_bufq);
 	if (err)
 		goto err_reset;
 
@@ -2098,9 +2104,9 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	goto free_vport;
 
 err_reset:
-	tmp_err = idpf_send_add_queues_msg(vport, vport->num_txq,
-					   vport->num_complq, vport->num_rxq,
-					   vport->num_bufq);
+	tmp_err = idpf_send_add_queues_msg(vport, rsrc->num_txq,
+					   rsrc->num_complq, rsrc->num_rxq,
+					   rsrc->num_bufq);
 
 err_open:
 	if (!tmp_err && vport_is_up)

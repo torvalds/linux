@@ -105,8 +105,10 @@ void idpf_vc_core_deinit(struct idpf_adapter *adapter);
 int idpf_get_reg_intr_vecs(struct idpf_vport *vport,
 			   struct idpf_vec_regs *reg_vals);
 int idpf_queue_reg_init(struct idpf_vport *vport,
+			struct idpf_q_vec_rsrc *rsrc,
 			struct idpf_queue_id_reg_info *chunks);
 int idpf_vport_queue_ids_init(struct idpf_vport *vport,
+			      struct idpf_q_vec_rsrc *rsrc,
 			      struct idpf_queue_id_reg_info *chunks);
 static inline void
 idpf_vport_deinit_queue_reg_chunks(struct idpf_vport_config *vport_cfg)
@@ -152,8 +154,9 @@ int idpf_send_disable_queue_set_msg(const struct idpf_queue_set *qs);
 int idpf_send_config_queue_set_msg(const struct idpf_queue_set *qs);
 
 int idpf_send_disable_queues_msg(struct idpf_vport *vport);
-int idpf_send_config_queues_msg(struct idpf_vport *vport);
 int idpf_send_enable_queues_msg(struct idpf_vport *vport);
+int idpf_send_config_queues_msg(struct idpf_vport *vport,
+				struct idpf_q_vec_rsrc *rsrc);
 
 int idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q);
 u32 idpf_get_vport_id(struct idpf_vport *vport);
@@ -163,7 +166,8 @@ int idpf_send_destroy_vport_msg(struct idpf_vport *vport);
 int idpf_send_enable_vport_msg(struct idpf_vport *vport);
 int idpf_send_disable_vport_msg(struct idpf_vport *vport);
 
-int idpf_vport_adjust_qs(struct idpf_vport *vport);
+int idpf_vport_adjust_qs(struct idpf_vport *vport,
+			 struct idpf_q_vec_rsrc *rsrc);
 int idpf_vport_alloc_max_qs(struct idpf_adapter *adapter,
 			    struct idpf_vport_max_q *max_q);
 void idpf_vport_dealloc_max_qs(struct idpf_adapter *adapter,
@@ -180,7 +184,9 @@ int idpf_get_vec_ids(struct idpf_adapter *adapter,
 		     struct virtchnl2_vector_chunks *chunks);
 int idpf_send_alloc_vectors_msg(struct idpf_adapter *adapter, u16 num_vectors);
 int idpf_send_dealloc_vectors_msg(struct idpf_adapter *adapter);
-int idpf_send_map_unmap_queue_vector_msg(struct idpf_vport *vport, bool map);
+int idpf_send_map_unmap_queue_vector_msg(struct idpf_vport *vport,
+					 struct idpf_q_vec_rsrc *rsrc,
+					 bool map);
 
 int idpf_add_del_mac_filters(struct idpf_vport *vport,
 			     struct idpf_netdev_priv *np,
