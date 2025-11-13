@@ -18,6 +18,7 @@
 #include <linux/clockchips.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/export.h>
 #include <clocksource/hyperv_timer.h>
 #include <asm/mshyperv.h>
 #include <linux/set_memory.h>
@@ -25,6 +26,7 @@
 
 /* The one and only */
 struct hv_context hv_context;
+EXPORT_SYMBOL_FOR_MODULES(hv_context, "mshv_vtl");
 
 /*
  * hv_init - Main initialization routine.
@@ -104,6 +106,7 @@ int hv_post_message(union hv_connection_id connection_id,
 
 	return hv_result(status);
 }
+EXPORT_SYMBOL_FOR_MODULES(hv_post_message, "mshv_vtl");
 
 static int hv_alloc_page(void **page, bool decrypt, const char *note)
 {
