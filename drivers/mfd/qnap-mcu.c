@@ -78,6 +78,13 @@ static u8 qnap_mcu_csum(const u8 *buf, size_t size)
 	return csum;
 }
 
+static bool qnap_mcu_verify_checksum(const u8 *buf, size_t size)
+{
+	u8 crc = qnap_mcu_csum(buf, size - QNAP_MCU_CHECKSUM_SIZE);
+
+	return crc == buf[size - QNAP_MCU_CHECKSUM_SIZE];
+}
+
 static int qnap_mcu_write(struct qnap_mcu *mcu, const u8 *data, u8 data_size)
 {
 	unsigned char tx[QNAP_MCU_TX_BUFFER_SIZE];
@@ -150,7 +157,6 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 	size_t length = reply_data_size + QNAP_MCU_CHECKSUM_SIZE;
 	struct qnap_mcu_reply *reply = &mcu->reply;
 	int ret = 0;
-	u8 crc;
 
 	if (length > sizeof(rx)) {
 		dev_err(&mcu->serdev->dev, "expected data too big for receive buffer");
@@ -175,8 +181,7 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 		return -ETIMEDOUT;
 	}
 
-	crc = qnap_mcu_csum(rx, reply->received - QNAP_MCU_CHECKSUM_SIZE);
-	if (crc != rx[reply->received - QNAP_MCU_CHECKSUM_SIZE]) {
+	if (!qnap_mcu_verify_checksum(rx, reply->received)) {
 		dev_err(&mcu->serdev->dev, "Invalid Checksum received\n");
 		return -EPROTO;
 	}
