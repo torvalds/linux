@@ -177,7 +177,7 @@ struct virtio_config_ops {
  *      map: metadata for performing mapping
  *      size: the size of the buffer
  *      vaddr: virtual address of the buffer
- *      map_handle: the mapping address to sync
+ *      map_handle: the mapping address that needs to be freed
  *      attrs: unmapping attributes
  * @need_sync: if the buffer needs synchronization
  *      map: metadata for performing mapping
