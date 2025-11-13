@@ -687,9 +687,12 @@ def _test_xdp_native_ifc_stats(cfg, act):
         "/dev/null"
     # Listener runs on "remote" in case of XDP_TX
     rx_host = cfg.remote if act == XDPAction.TX else None
-    # We want to spew 2000 packets quickly, bash seems to do a good enough job
-    tx_udp =  f"exec 5<>/dev/udp/{cfg.addr}/{port}; " \
-        "for i in `seq 2000`; do echo a >&5; done; exec 5>&-"
+    # We want to spew 1000 packets quickly, bash seems to do a good enough job
+    # Each reopening of the socket gives us a differenot local port (for RSS)
+    tx_udp = "for _ in `seq 20`; do " \
+        f"exec 5<>/dev/udp/{cfg.addr}/{port}; " \
+        "for i in `seq 50`; do echo a >&5; done; " \
+        "exec 5>&-; done"
 
     cfg.wait_hw_stats_settle()
     # Qstats have more clearly defined semantics than rtnetlink.
@@ -704,11 +707,11 @@ def _test_xdp_native_ifc_stats(cfg, act):
     cfg.wait_hw_stats_settle()
     after = cfg.netnl.qstats_get({"ifindex": cfg.ifindex}, dump=True)[0]
 
-    ksft_ge(after['rx-packets'] - before['rx-packets'], 2000)
+    expected_pkts = 1000
+    ksft_ge(after['rx-packets'] - before['rx-packets'], expected_pkts)
     if act == XDPAction.TX:
-        ksft_ge(after['tx-packets'] - before['tx-packets'], 2000)
+        ksft_ge(after['tx-packets'] - before['tx-packets'], expected_pkts)
 
-    expected_pkts = 2000
     stats = _get_stats(prog_info["maps"]["map_xdp_stats"])
     ksft_eq(stats[XDPStats.RX.value], expected_pkts, "XDP RX stats mismatch")
     if act == XDPAction.TX:
