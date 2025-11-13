@@ -208,6 +208,9 @@ fbnic_phylink_mac_link_up(struct phylink_config *config,
 	struct fbnic_net *fbn = netdev_priv(netdev);
 	struct fbnic_dev *fbd = fbn->fbd;
 
+	fbn->tx_pause = tx_pause;
+	fbnic_config_drop_mode(fbn, tx_pause);
+
 	fbd->mac->link_up(fbd, tx_pause, rx_pause);
 }
 
