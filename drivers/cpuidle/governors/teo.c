@@ -133,17 +133,19 @@ struct teo_bin {
  * @sleep_length_ns: Time till the closest timer event (at the selection time).
  * @state_bins: Idle state data bins for this CPU.
  * @total: Grand total of the "intercepts" and "hits" metrics for all bins.
+ * @total_tick: Wakeups by the scheduler tick.
  * @tick_intercepts: "Intercepts" before TICK_NSEC.
  * @short_idles: Wakeups after short idle periods.
- * @artificial_wakeup: Set if the wakeup has been triggered by a safety net.
+ * @tick_wakeup: Set if the last wakeup was by the scheduler tick.
  */
 struct teo_cpu {
 	s64 sleep_length_ns;
 	struct teo_bin state_bins[CPUIDLE_STATE_MAX];
 	unsigned int total;
+	unsigned int total_tick;
 	unsigned int tick_intercepts;
 	unsigned int short_idles;
-	bool artificial_wakeup;
+	bool tick_wakeup;
 };
 
 static DEFINE_PER_CPU(struct teo_cpu, teo_cpus);
@@ -172,9 +174,10 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 	teo_decay(&cpu_data->short_idles);
 
-	if (cpu_data->artificial_wakeup) {
+	if (dev->poll_time_limit) {
+		dev->poll_time_limit = false;
 		/*
-		 * If one of the safety nets has triggered, assume that this
+		 * Polling state timeout has triggered, so assume that this
 		 * might have been a long sleep.
 		 */
 		measured_ns = S64_MAX;
@@ -223,6 +226,21 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	cpu_data->total = total + PULSE;
 
 	teo_decay(&cpu_data->tick_intercepts);
+
+	teo_decay(&cpu_data->total_tick);
+	if (cpu_data->tick_wakeup) {
+		cpu_data->total_tick += PULSE;
+		/*
+		 * If tick wakeups dominate the wakeup pattern, count this one
+		 * as a hit on the deepest available idle state to increase the
+		 * likelihood of stopping the tick.
+		 */
+		if (3 * cpu_data->total_tick > 2 * cpu_data->total) {
+			cpu_data->state_bins[drv->state_count-1].hits += PULSE;
+			return;
+		}
+	}
+
 	/*
 	 * If the measured idle duration falls into the same bin as the sleep
 	 * length, this is a "hit", so update the "hits" metric for that bin.
@@ -512,18 +530,9 @@ static void teo_reflect(struct cpuidle_device *dev, int state)
 {
 	struct teo_cpu *cpu_data = this_cpu_ptr(&teo_cpus);
 
+	cpu_data->tick_wakeup = tick_nohz_idle_got_tick();
+
 	dev->last_state_idx = state;
-	if (dev->poll_time_limit ||
-	    (tick_nohz_idle_got_tick() && cpu_data->sleep_length_ns > TICK_NSEC)) {
-		/*
-		 * The wakeup was not "genuine", but triggered by one of the
-		 * safety nets.
-		 */
-		dev->poll_time_limit = false;
-		cpu_data->artificial_wakeup = true;
-	} else {
-		cpu_data->artificial_wakeup = false;
-	}
 }
 
 /**
