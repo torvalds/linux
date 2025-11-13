@@ -59,15 +59,21 @@ int ovl_cleanup(struct ovl_fs *ofs, struct dentry *workdir,
 	return 0;
 }
 
-struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir)
+#define OVL_TEMPNAME_SIZE 20
+static void ovl_tempname(char name[OVL_TEMPNAME_SIZE])
 {
-	struct dentry *temp;
-	char name[20];
 	static atomic_t temp_id = ATOMIC_INIT(0);
 
 	/* counter is allowed to wrap, since temp dentries are ephemeral */
-	snprintf(name, sizeof(name), "#%x", atomic_inc_return(&temp_id));
+	snprintf(name, OVL_TEMPNAME_SIZE, "#%x", atomic_inc_return(&temp_id));
+}
 
+struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir)
+{
+	struct dentry *temp;
+	char name[OVL_TEMPNAME_SIZE];
+
+	ovl_tempname(name);
 	temp = ovl_lookup_upper(ofs, name, workdir, strlen(name));
 	if (!IS_ERR(temp) && temp->d_inode) {
 		pr_err("workdir/%s already exists\n", name);
@@ -78,48 +84,52 @@ struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir)
 	return temp;
 }
 
+static struct dentry *ovl_start_creating_temp(struct ovl_fs *ofs,
+					      struct dentry *workdir)
+{
+	char name[OVL_TEMPNAME_SIZE];
+
+	ovl_tempname(name);
+	return start_creating(ovl_upper_mnt_idmap(ofs), workdir,
+			      &QSTR(name));
+}
+
 static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 {
 	int err;
-	struct dentry *whiteout;
+	struct dentry *whiteout, *link;
 	struct dentry *workdir = ofs->workdir;
 	struct inode *wdir = workdir->d_inode;
 
 	guard(mutex)(&ofs->whiteout_lock);
 
 	if (!ofs->whiteout) {
-		inode_lock_nested(wdir, I_MUTEX_PARENT);
-		whiteout = ovl_lookup_temp(ofs, workdir);
-		if (!IS_ERR(whiteout)) {
-			err = ovl_do_whiteout(ofs, wdir, whiteout);
-			if (err) {
-				dput(whiteout);
-				whiteout = ERR_PTR(err);
-			}
-		}
-		inode_unlock(wdir);
+		whiteout = ovl_start_creating_temp(ofs, workdir);
 		if (IS_ERR(whiteout))
 			return whiteout;
-		ofs->whiteout = whiteout;
+		err = ovl_do_whiteout(ofs, wdir, whiteout);
+		if (!err)
+			ofs->whiteout = dget(whiteout);
+		end_creating(whiteout, workdir);
+		if (err)
+			return ERR_PTR(err);
 	}
 
 	if (!ofs->no_shared_whiteout) {
-		inode_lock_nested(wdir, I_MUTEX_PARENT);
-		whiteout = ovl_lookup_temp(ofs, workdir);
-		if (!IS_ERR(whiteout)) {
-			err = ovl_do_link(ofs, ofs->whiteout, wdir, whiteout);
-			if (err) {
-				dput(whiteout);
-				whiteout = ERR_PTR(err);
-			}
-		}
-		inode_unlock(wdir);
-		if (!IS_ERR(whiteout))
-			return whiteout;
-		if (PTR_ERR(whiteout) != -EMLINK) {
-			pr_warn("Failed to link whiteout - disabling whiteout inode sharing(nlink=%u, err=%lu)\n",
+		link = ovl_start_creating_temp(ofs, workdir);
+		if (IS_ERR(link))
+			return link;
+		err = ovl_do_link(ofs, ofs->whiteout, wdir, link);
+		if (!err)
+			whiteout = dget(link);
+		end_creating(link, workdir);
+		if (!err)
+			return whiteout;;
+
+		if (err != -EMLINK) {
+			pr_warn("Failed to link whiteout - disabling whiteout inode sharing(nlink=%u, err=%u)\n",
 				ofs->whiteout->d_inode->i_nlink,
-				PTR_ERR(whiteout));
+				err);
 			ofs->no_shared_whiteout = true;
 		}
 	}
@@ -252,10 +262,13 @@ struct dentry *ovl_create_temp(struct ovl_fs *ofs, struct dentry *workdir,
 			       struct ovl_cattr *attr)
 {
 	struct dentry *ret;
-	inode_lock_nested(workdir->d_inode, I_MUTEX_PARENT);
-	ret = ovl_create_real(ofs, workdir,
-			      ovl_lookup_temp(ofs, workdir), attr);
-	inode_unlock(workdir->d_inode);
+	ret = ovl_start_creating_temp(ofs, workdir);
+	if (IS_ERR(ret))
+		return ret;
+	ret = ovl_create_real(ofs, workdir, ret, attr);
+	if (!IS_ERR(ret))
+		dget(ret);
+	end_creating(ret, workdir);
 	return ret;
 }
 
@@ -354,18 +367,21 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 {
 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
-	struct inode *udir = upperdir->d_inode;
 	struct dentry *newdentry;
 	int err;
 
-	inode_lock_nested(udir, I_MUTEX_PARENT);
-	newdentry = ovl_create_real(ofs, upperdir,
-				    ovl_lookup_upper(ofs, dentry->d_name.name,
-						     upperdir, dentry->d_name.len),
-				    attr);
-	inode_unlock(udir);
+	newdentry = ovl_start_creating_upper(ofs, upperdir,
+					     &QSTR_LEN(dentry->d_name.name,
+						       dentry->d_name.len));
 	if (IS_ERR(newdentry))
 		return PTR_ERR(newdentry);
+	newdentry = ovl_create_real(ofs, upperdir, newdentry, attr);
+	if (IS_ERR(newdentry)) {
+		end_creating(newdentry, upperdir);
+		return PTR_ERR(newdentry);
+	}
+	dget(newdentry);
+	end_creating(newdentry, upperdir);
 
 	if (ovl_type_merge(dentry->d_parent) && d_is_dir(newdentry) &&
 	    !ovl_allow_offline_changes(ofs)) {

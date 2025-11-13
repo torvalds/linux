@@ -415,6 +415,14 @@ static inline struct dentry *ovl_lookup_upper_unlocked(struct ovl_fs *ofs,
 				   &QSTR_LEN(name, len), base);
 }
 
+static inline struct dentry *ovl_start_creating_upper(struct ovl_fs *ofs,
+						      struct dentry *parent,
+						      struct qstr *name)
+{
+	return start_creating(ovl_upper_mnt_idmap(ofs),
+			      parent, name);
+}
+
 static inline bool ovl_open_flags_need_copy_up(int flags)
 {
 	if (!flags)

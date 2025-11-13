@@ -613,9 +613,9 @@ static int ovl_link_up(struct ovl_copy_up_ctx *c)
 	if (err)
 		goto out;
 
-	inode_lock_nested(udir, I_MUTEX_PARENT);
-	upper = ovl_lookup_upper(ofs, c->dentry->d_name.name, upperdir,
-				 c->dentry->d_name.len);
+	upper = ovl_start_creating_upper(ofs, upperdir,
+					 &QSTR_LEN(c->dentry->d_name.name,
+						   c->dentry->d_name.len));
 	err = PTR_ERR(upper);
 	if (!IS_ERR(upper)) {
 		err = ovl_do_link(ofs, ovl_dentry_upper(c->dentry), udir, upper);
@@ -626,9 +626,8 @@ static int ovl_link_up(struct ovl_copy_up_ctx *c)
 			ovl_dentry_set_upper_alias(c->dentry);
 			ovl_dentry_update_reval(c->dentry, upper);
 		}
-		dput(upper);
+		end_creating(upper, upperdir);
 	}
-	inode_unlock(udir);
 	if (err)
 		goto out;
 
@@ -894,16 +893,14 @@ static int ovl_copy_up_tmpfile(struct ovl_copy_up_ctx *c)
 	if (err)
 		goto out;
 
-	inode_lock_nested(udir, I_MUTEX_PARENT);
-
-	upper = ovl_lookup_upper(ofs, c->destname.name, c->destdir,
-				 c->destname.len);
+	upper = ovl_start_creating_upper(ofs, c->destdir,
+					 &QSTR_LEN(c->destname.name,
+						   c->destname.len));
 	err = PTR_ERR(upper);
 	if (!IS_ERR(upper)) {
 		err = ovl_do_link(ofs, temp, udir, upper);
-		dput(upper);
+		end_creating(upper, c->destdir);
 	}
-	inode_unlock(udir);
 
 	if (err)
 		goto out;

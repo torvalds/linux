@@ -3221,6 +3221,33 @@ struct dentry *lookup_noperm_positive_unlocked(struct qstr *name,
 }
 EXPORT_SYMBOL(lookup_noperm_positive_unlocked);
 
+/**
+ * start_creating - prepare to create a given name with permission checking
+ * @idmap:  idmap of the mount
+ * @parent: directory in which to prepare to create the name
+ * @name:   the name to be created
+ *
+ * Locks are taken and a lookup is performed prior to creating
+ * an object in a directory.  Permission checking (MAY_EXEC) is performed
+ * against @idmap.
+ *
+ * If the name already exists, a positive dentry is returned, so
+ * behaviour is similar to O_CREAT without O_EXCL, which doesn't fail
+ * with -EEXIST.
+ *
+ * Returns: a negative or positive dentry, or an error.
+ */
+struct dentry *start_creating(struct mnt_idmap *idmap, struct dentry *parent,
+			      struct qstr *name)
+{
+	int err = lookup_one_common(idmap, name, parent);
+
+	if (err)
+		return ERR_PTR(err);
+	return start_dirop(parent, name, LOOKUP_CREATE);
+}
+EXPORT_SYMBOL(start_creating);
+
 #ifdef CONFIG_UNIX98_PTYS
 int path_pts(struct path *path)
 {
@@ -4306,13 +4333,7 @@ EXPORT_SYMBOL(start_creating_path);
  */
 void end_creating_path(const struct path *path, struct dentry *dentry)
 {
-	if (IS_ERR(dentry))
-		/* The parent is still locked despite the error from
-		 * vfs_mkdir() - must unlock it.
-		 */
-		inode_unlock(path->dentry->d_inode);
-	else
-		end_dirop(dentry);
+	end_creating(dentry, path->dentry);
 	mnt_drop_write(path->mnt);
 	path_put(path);
 }

@@ -310,8 +310,7 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 	bool retried = false;
 
 retry:
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	work = ovl_lookup_upper(ofs, name, ofs->workbasedir, strlen(name));
+	work = ovl_start_creating_upper(ofs, ofs->workbasedir, &QSTR(name));
 
 	if (!IS_ERR(work)) {
 		struct iattr attr = {
@@ -320,14 +319,13 @@ retry:
 		};
 
 		if (work->d_inode) {
-			err = -EEXIST;
-			inode_unlock(dir);
-			if (retried)
-				goto out_dput;
-
+			dget(work);
+			end_creating(work, ofs->workbasedir);
 			if (persist)
 				return work;
-
+			err = -EEXIST;
+			if (retried)
+				goto out_dput;
 			retried = true;
 			err = ovl_workdir_cleanup(ofs, ofs->workbasedir, mnt, work, 0);
 			dput(work);
@@ -338,7 +336,9 @@ retry:
 		}
 
 		work = ovl_do_mkdir(ofs, dir, work, attr.ia_mode);
-		inode_unlock(dir);
+		if (!IS_ERR(work))
+			dget(work);
+		end_creating(work, ofs->workbasedir);
 		err = PTR_ERR(work);
 		if (IS_ERR(work))
 			goto out_err;
@@ -376,7 +376,6 @@ retry:
 		if (err)
 			goto out_dput;
 	} else {
-		inode_unlock(dir);
 		err = PTR_ERR(work);
 		goto out_err;
 	}
@@ -626,14 +625,17 @@ static struct dentry *ovl_lookup_or_create(struct ovl_fs *ofs,
 					   struct dentry *parent,
 					   const char *name, umode_t mode)
 {
-	size_t len = strlen(name);
 	struct dentry *child;
 
-	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
-	child = ovl_lookup_upper(ofs, name, parent, len);
-	if (!IS_ERR(child) && !child->d_inode)
-		child = ovl_create_real(ofs, parent, child, OVL_CATTR(mode));
-	inode_unlock(parent->d_inode);
+	child = ovl_start_creating_upper(ofs, parent, &QSTR(name));
+	if (!IS_ERR(child)) {
+		if (!child->d_inode)
+			child = ovl_create_real(ofs, parent, child,
+						OVL_CATTR(mode));
+		if (!IS_ERR(child))
+			dget(child);
+		end_creating(child, parent);
+	}
 	dput(parent);
 
 	return child;
