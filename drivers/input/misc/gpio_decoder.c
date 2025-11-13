@@ -7,6 +7,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
@@ -73,15 +74,12 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "linux,axis", &decoder->axis);
 
 	decoder->input_gpios = devm_gpiod_get_array(dev, NULL, GPIOD_IN);
-	if (IS_ERR(decoder->input_gpios)) {
-		dev_err(dev, "unable to acquire input gpios\n");
-		return PTR_ERR(decoder->input_gpios);
-	}
+	if (IS_ERR(decoder->input_gpios))
+		return dev_err_probe(dev, PTR_ERR(decoder->input_gpios),
+				     "unable to acquire input gpios\n");
 
-	if (decoder->input_gpios->ndescs < 2) {
-		dev_err(dev, "not enough gpios found\n");
-		return -EINVAL;
-	}
+	if (decoder->input_gpios->ndescs < 2)
+		return dev_err_probe(dev, -EINVAL, "not enough gpios found\n");
 
 	if (device_property_read_u32(dev, "decoder-max-value", &max))
 		max = (1U << decoder->input_gpios->ndescs) - 1;
@@ -97,16 +95,12 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 	input_set_abs_params(input, decoder->axis, 0, max, 0, 0);
 
 	err = input_setup_polling(input, gpio_decoder_poll_gpios);
-	if (err) {
-		dev_err(dev, "failed to set up polling\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "failed to set up polling\n");
 
 	err = input_register_device(input);
-	if (err) {
-		dev_err(dev, "failed to register input device\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "failed to register input device\n");
 
 	return 0;
 }
