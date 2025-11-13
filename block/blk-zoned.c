@@ -1118,17 +1118,20 @@ static void blk_zone_reset_all_bio_endio(struct bio *bio)
 	sector_t sector;
 	unsigned int i;
 
-	/* Update the condition of all zone write plugs. */
-	rcu_read_lock();
-	for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++) {
-		hlist_for_each_entry_rcu(zwplug, &disk->zone_wplugs_hash[i],
-					 node) {
-			spin_lock_irqsave(&zwplug->lock, flags);
-			disk_zone_wplug_set_wp_offset(disk, zwplug, 0);
-			spin_unlock_irqrestore(&zwplug->lock, flags);
+	if (atomic_read(&disk->nr_zone_wplugs)) {
+		/* Update the condition of all zone write plugs. */
+		rcu_read_lock();
+		for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++) {
+			hlist_for_each_entry_rcu(zwplug,
+						 &disk->zone_wplugs_hash[i],
+						 node) {
+				spin_lock_irqsave(&zwplug->lock, flags);
+				disk_zone_wplug_set_wp_offset(disk, zwplug, 0);
+				spin_unlock_irqrestore(&zwplug->lock, flags);
+			}
 		}
+		rcu_read_unlock();
 	}
-	rcu_read_unlock();
 
 	/* Update the cached zone conditions. */
 	for (sector = 0; sector < capacity;
