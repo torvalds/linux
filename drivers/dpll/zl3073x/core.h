@@ -198,6 +198,21 @@ zl3073x_dev_ref_ffo_get(struct zl3073x_dev *zldev, u8 index)
 }
 
 /**
+ * zl3073x_dev_ref_freq_get - get input reference frequency
+ * @zldev: pointer to zl3073x device
+ * @index: input reference index
+ *
+ * Return: frequency of given input reference
+ */
+static inline u32
+zl3073x_dev_ref_freq_get(struct zl3073x_dev *zldev, u8 index)
+{
+	const struct zl3073x_ref *ref = zl3073x_ref_state_get(zldev, index);
+
+	return zl3073x_ref_freq_get(ref);
+}
+
+/**
  * zl3073x_dev_ref_is_diff - check if the given input reference is differential
  * @zldev: pointer to zl3073x device
  * @index: input reference index
