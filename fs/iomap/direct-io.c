@@ -17,7 +17,7 @@
  * iomap.h:
  */
 #define IOMAP_DIO_NO_INVALIDATE	(1U << 26)
-#define IOMAP_DIO_INLINE_COMP	(1U << 27)
+#define IOMAP_DIO_COMP_WORK	(1U << 27)
 #define IOMAP_DIO_WRITE_THROUGH	(1U << 28)
 #define IOMAP_DIO_NEED_SYNC	(1U << 29)
 #define IOMAP_DIO_WRITE		(1U << 30)
@@ -182,7 +182,7 @@ static void iomap_dio_done(struct iomap_dio *dio)
 	 * for error handling.
 	 */
 	if (dio->error)
-		dio->flags &= ~IOMAP_DIO_INLINE_COMP;
+		dio->flags |= IOMAP_DIO_COMP_WORK;
 
 	/*
 	 * Never invalidate pages from this context to avoid deadlocks with
@@ -192,17 +192,14 @@ static void iomap_dio_done(struct iomap_dio *dio)
 	 * right between this check and the actual completion.
 	 */
 	if ((dio->flags & IOMAP_DIO_WRITE) &&
-	    (dio->flags & IOMAP_DIO_INLINE_COMP)) {
+	    !(dio->flags & IOMAP_DIO_COMP_WORK)) {
 		if (dio->iocb->ki_filp->f_mapping->nrpages)
-			dio->flags &= ~IOMAP_DIO_INLINE_COMP;
+			dio->flags |= IOMAP_DIO_COMP_WORK;
 		else
 			dio->flags |= IOMAP_DIO_NO_INVALIDATE;
 	}
 
-	if (dio->flags & IOMAP_DIO_INLINE_COMP) {
-		WRITE_ONCE(iocb->private, NULL);
-		iomap_dio_complete_work(&dio->aio.work);
-	} else {
+	if (dio->flags & IOMAP_DIO_COMP_WORK) {
 		struct inode *inode = file_inode(iocb->ki_filp);
 
 		/*
@@ -213,7 +210,11 @@ static void iomap_dio_done(struct iomap_dio *dio)
 		 */
 		INIT_WORK(&dio->aio.work, iomap_dio_complete_work);
 		queue_work(inode->i_sb->s_dio_done_wq, &dio->aio.work);
+		return;
 	}
+
+	WRITE_ONCE(iocb->private, NULL);
+	iomap_dio_complete_work(&dio->aio.work);
 }
 
 void iomap_dio_bio_end_io(struct bio *bio)
@@ -251,7 +252,7 @@ u32 iomap_finish_ioend_direct(struct iomap_ioend *ioend)
 		 * that we are already called from the ioend completion
 		 * workqueue.
 		 */
-		dio->flags |= IOMAP_DIO_INLINE_COMP;
+		dio->flags &= ~IOMAP_DIO_COMP_WORK;
 		iomap_dio_done(dio);
 	}
 
@@ -399,7 +400,7 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		 * handled in __iomap_dio_rw().
 		 */
 		if (need_completion_work)
-			dio->flags &= ~IOMAP_DIO_INLINE_COMP;
+			dio->flags |= IOMAP_DIO_COMP_WORK;
 
 		bio_opf |= REQ_OP_WRITE;
 	} else {
@@ -422,7 +423,7 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	 * ones we set for inline and deferred completions. If none of those
 	 * are available for this IO, clear the polled flag.
 	 */
-	if (!(dio->flags & IOMAP_DIO_INLINE_COMP))
+	if (dio->flags & IOMAP_DIO_COMP_WORK)
 		dio->iocb->ki_flags &= ~IOCB_HIPRI;
 
 	if (need_zeroout) {
@@ -661,12 +662,6 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	if (dio_flags & IOMAP_DIO_FSBLOCK_ALIGNED)
 		dio->flags |= IOMAP_DIO_FSBLOCK_ALIGNED;
 
-	/*
-	 * Try to complete inline if we can.  For reads this is always possible,
-	 * but for writes we'll end up clearing this more often than not.
-	 */
-	dio->flags |= IOMAP_DIO_INLINE_COMP;
-
 	if (iov_iter_rw(iter) == READ) {
 		if (iomi.pos >= dio->i_size)
 			goto out_free_dio;
@@ -713,7 +708,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		 * i_size updates must to happen from process context.
 		 */
 		if (iomi.pos + iomi.len > dio->i_size)
-			dio->flags &= ~IOMAP_DIO_INLINE_COMP;
+			dio->flags |= IOMAP_DIO_COMP_WORK;
 
 		/*
 		 * Try to invalidate cache pages for the range we are writing.
@@ -794,7 +789,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	if (dio->flags & IOMAP_DIO_WRITE_THROUGH)
 		dio->flags &= ~IOMAP_DIO_NEED_SYNC;
 	else if (dio->flags & IOMAP_DIO_NEED_SYNC)
-		dio->flags &= ~IOMAP_DIO_INLINE_COMP;
+		dio->flags |= IOMAP_DIO_COMP_WORK;
 
 	/*
 	 * We are about to drop our additional submission reference, which
