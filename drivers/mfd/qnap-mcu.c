@@ -178,7 +178,7 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 	crc = qnap_mcu_csum(rx, reply->received - QNAP_MCU_CHECKSUM_SIZE);
 	if (crc != rx[reply->received - QNAP_MCU_CHECKSUM_SIZE]) {
 		dev_err(&mcu->serdev->dev, "Invalid Checksum received\n");
-		return -EIO;
+		return -EPROTO;
 	}
 
 	memcpy(reply_data, rx, reply_data_size);
