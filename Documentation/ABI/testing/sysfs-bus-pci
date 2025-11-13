@@ -655,6 +655,36 @@ Description:
 		(WO) Write the name of the TSM device that was specified
 		to 'connect' to teardown the connection.
 
+What:		/sys/bus/pci/devices/.../tsm/dsm
+Contact:	linux-coco@lists.linux.dev
+Description:	(RO) Return PCI device name of this device's DSM (Device
+		Security Manager). When a device is in the connected state it
+		indicates that the platform TSM (TEE Security Manager) has made
+		a secure-session connection with a device's DSM. A DSM is always
+		physical function 0 and when the device supports TDISP (TEE
+		Device Interface Security Protocol) its managed functions also
+		populate this tsm/dsm attribute. The managed functions of a DSM
+		are SR-IOV (Single Root I/O Virtualization) virtual functions,
+		non-zero functions of a multi-function device, or downstream
+		endpoints depending on whether the DSM is an SR-IOV physical
+		function, function0 of a multi-function device, or an upstream
+		PCIe switch port. This is a "link" TSM attribute, see
+		Documentation/ABI/testing/sysfs-class-tsm.
+
+What:		/sys/bus/pci/devices/.../tsm/bound
+Contact:	linux-coco@lists.linux.dev
+Description:	(RO) Return the device name of the TSM when the device is in a
+		TDISP (TEE Device Interface Security Protocol) operational state
+		(LOCKED, RUN, or ERROR, not UNLOCKED). Bound devices consume
+		platform TSM resources and depend on the device's configuration
+		(e.g. BME (Bus Master Enable) and MSE (Memory Space Enable)
+		among other settings) to remain stable for the duration of the
+		bound state. This attribute is only visible for devices that
+		support TDISP operation, and it is only populated after
+		successful connect and TSM bind. The TSM bind operation is
+		initiated by VFIO/IOMMUFD. This is a "link" TSM attribute, see
+		Documentation/ABI/testing/sysfs-class-tsm.
+
 What:		/sys/bus/pci/devices/.../authenticated
 Contact:	linux-pci@vger.kernel.org
 Description:

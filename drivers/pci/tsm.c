@@ -151,6 +151,25 @@ static void pci_tsm_walk_fns_reverse(struct pci_dev *pdev,
 	}
 }
 
+static void link_sysfs_disable(struct pci_dev *pdev)
+{
+	sysfs_update_group(&pdev->dev.kobj, &pci_tsm_auth_attr_group);
+	sysfs_update_group(&pdev->dev.kobj, &pci_tsm_attr_group);
+}
+
+static void link_sysfs_enable(struct pci_dev *pdev)
+{
+	bool tee = has_tee(pdev);
+
+	pci_dbg(pdev, "%s Security Manager detected (%s%s%s)\n",
+		pdev->tsm ? "Device" : "Platform TEE",
+		pdev->ide_cap ? "IDE" : "", pdev->ide_cap && tee ? " " : "",
+		tee ? "TEE" : "");
+
+	sysfs_update_group(&pdev->dev.kobj, &pci_tsm_auth_attr_group);
+	sysfs_update_group(&pdev->dev.kobj, &pci_tsm_attr_group);
+}
+
 static int probe_fn(struct pci_dev *pdev, void *dsm)
 {
 	struct pci_dev *dsm_dev = dsm;
@@ -159,6 +178,8 @@ static int probe_fn(struct pci_dev *pdev, void *dsm)
 	pdev->tsm = ops->probe(dsm_dev->tsm->tsm_dev, pdev);
 	pci_dbg(pdev, "setup TSM context: DSM: %s status: %s\n",
 		pci_name(dsm_dev), pdev->tsm ? "success" : "failed");
+	if (pdev->tsm)
+		link_sysfs_enable(pdev);
 	return 0;
 }
 
@@ -267,6 +288,7 @@ static DEVICE_ATTR_RW(connect);
 static int remove_fn(struct pci_dev *pdev, void *data)
 {
 	tsm_remove(pdev->tsm);
+	link_sysfs_disable(pdev);
 	return 0;
 }
 
@@ -468,12 +490,74 @@ static ssize_t disconnect_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(disconnect);
 
+static ssize_t bound_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_tsm_pf0 *tsm_pf0;
+	struct pci_tsm *tsm;
+	int rc;
+
+	ACQUIRE(rwsem_read_intr, lock)(&pci_tsm_rwsem);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &lock)))
+		return rc;
+
+	tsm = pdev->tsm;
+	if (!tsm)
+		return sysfs_emit(buf, "\n");
+	tsm_pf0 = to_pci_tsm_pf0(tsm);
+
+	ACQUIRE(mutex_intr, ops_lock)(&tsm_pf0->lock);
+	if ((rc = ACQUIRE_ERR(mutex_intr, &ops_lock)))
+		return rc;
+
+	if (!tsm->tdi)
+		return sysfs_emit(buf, "\n");
+	return sysfs_emit(buf, "%s\n", dev_name(&tsm->tsm_dev->dev));
+}
+static DEVICE_ATTR_RO(bound);
+
+static ssize_t dsm_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_tsm *tsm;
+	int rc;
+
+	ACQUIRE(rwsem_read_intr, lock)(&pci_tsm_rwsem);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &lock)))
+		return rc;
+
+	tsm = pdev->tsm;
+	if (!tsm)
+		return sysfs_emit(buf, "\n");
+
+	return sysfs_emit(buf, "%s\n", pci_name(tsm->dsm_dev));
+}
+static DEVICE_ATTR_RO(dsm);
+
 /* The 'authenticated' attribute is exclusive to the presence of a 'link' TSM */
 static bool pci_tsm_link_group_visible(struct kobject *kobj)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 
-	return pci_tsm_link_count && is_pci_tsm_pf0(pdev);
+	if (!pci_tsm_link_count)
+		return false;
+
+	if (!pci_is_pcie(pdev))
+		return false;
+
+	if (is_pci_tsm_pf0(pdev))
+		return true;
+
+	/*
+	 * Show 'authenticated' and other attributes for the managed
+	 * sub-functions of a DSM.
+	 */
+	if (pdev->tsm)
+		return true;
+
+	return false;
 }
 DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(pci_tsm_link);
 
@@ -485,9 +569,27 @@ static umode_t pci_tsm_attr_visible(struct kobject *kobj,
 				    struct attribute *attr, int n)
 {
 	if (pci_tsm_link_group_visible(kobj)) {
+		struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
+
+		if (attr == &dev_attr_bound.attr) {
+			if (is_pci_tsm_pf0(pdev) && has_tee(pdev))
+				return attr->mode;
+			if (pdev->tsm && has_tee(pdev->tsm->dsm_dev))
+				return attr->mode;
+		}
+
+		if (attr == &dev_attr_dsm.attr) {
+			if (is_pci_tsm_pf0(pdev))
+				return attr->mode;
+			if (pdev->tsm && has_tee(pdev->tsm->dsm_dev))
+				return attr->mode;
+		}
+
 		if (attr == &dev_attr_connect.attr ||
-		    attr == &dev_attr_disconnect.attr)
-			return attr->mode;
+		    attr == &dev_attr_disconnect.attr) {
+			if (is_pci_tsm_pf0(pdev))
+				return attr->mode;
+		}
 	}
 
 	return 0;
@@ -502,6 +604,8 @@ DEFINE_SYSFS_GROUP_VISIBLE(pci_tsm);
 static struct attribute *pci_tsm_attrs[] = {
 	&dev_attr_connect.attr,
 	&dev_attr_disconnect.attr,
+	&dev_attr_bound.attr,
+	&dev_attr_dsm.attr,
 	NULL
 };
 
@@ -657,18 +761,6 @@ void pci_tsm_pf0_destructor(struct pci_tsm_pf0 *pf0_tsm)
 }
 EXPORT_SYMBOL_GPL(pci_tsm_pf0_destructor);
 
-static void pf0_sysfs_enable(struct pci_dev *pdev)
-{
-	bool tee = has_tee(pdev);
-
-	pci_dbg(pdev, "Device Security Manager detected (%s%s%s)\n",
-		pdev->ide_cap ? "IDE" : "", pdev->ide_cap && tee ? " " : "",
-		tee ? "TEE" : "");
-
-	sysfs_update_group(&pdev->dev.kobj, &pci_tsm_auth_attr_group);
-	sysfs_update_group(&pdev->dev.kobj, &pci_tsm_attr_group);
-}
-
 int pci_tsm_register(struct tsm_dev *tsm_dev)
 {
 	struct pci_dev *pdev = NULL;
@@ -689,7 +781,7 @@ int pci_tsm_register(struct tsm_dev *tsm_dev)
 	if (is_link_tsm(tsm_dev) && pci_tsm_link_count++ == 0) {
 		for_each_pci_dev(pdev)
 			if (is_pci_tsm_pf0(pdev))
-				pf0_sysfs_enable(pdev);
+				link_sysfs_enable(pdev);
 	} else if (is_devsec_tsm(tsm_dev)) {
 		pci_tsm_devsec_count++;
 	}
@@ -723,10 +815,8 @@ static void __pci_tsm_destroy(struct pci_dev *pdev, struct tsm_dev *tsm_dev)
 	 * skipped if the device itself is being removed since sysfs goes away
 	 * naturally at that point
 	 */
-	if (is_link_tsm(tsm_dev) && is_pci_tsm_pf0(pdev) && !pci_tsm_link_count) {
-		sysfs_update_group(&pdev->dev.kobj, &pci_tsm_auth_attr_group);
-		sysfs_update_group(&pdev->dev.kobj, &pci_tsm_attr_group);
-	}
+	if (is_link_tsm(tsm_dev) && is_pci_tsm_pf0(pdev) && !pci_tsm_link_count)
+		link_sysfs_disable(pdev);
 
 	/* Nothing else to do if this device never attached to the departing TSM */
 	if (!tsm)
