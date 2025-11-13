@@ -1729,12 +1729,8 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	pci_write_config_word(adev->pdev, PCI_COMMAND,
 			      cmd & ~PCI_COMMAND_MEMORY);
 
-	/* Free the VRAM and doorbell BAR, we most likely need to move both. */
+	/* Tear down doorbell as resizing will release BARs */
 	amdgpu_doorbell_fini(adev);
-	if (adev->asic_type >= CHIP_BONAIRE)
-		pci_release_resource(adev->pdev, 2);
-
-	pci_release_resource(adev->pdev, 0);
 
 	r = pci_resize_resource(adev->pdev, 0, rbar_size,
 				(adev->asic_type >= CHIP_BONAIRE) ? 1 << 5
@@ -1744,8 +1740,6 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 			 "Not enough PCI address space for a large BAR.");
 	else if (r && r != -ENOTSUPP)
 		dev_err(adev->dev, "Problem resizing BAR0 (%d).", r);
-
-	pci_assign_unassigned_bus_resources(adev->pdev->bus);
 
 	/* When the doorbell or fb BAR isn't available we have no chance of
 	 * using the device.
