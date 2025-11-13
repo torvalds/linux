@@ -911,8 +911,8 @@ to 'panic_print'. Possible values are:
 =============   ===================================================
 tasks           print all tasks info
 mem             print system memory info
-timer           print timers info
-lock            print locks info if CONFIG_LOCKDEP is on
+timers          print timers info
+locks           print locks info if CONFIG_LOCKDEP is on
 ftrace          print ftrace buffer
 all_bt          print all CPUs backtrace (if available in the arch)
 blocked_tasks   print only tasks in uninterruptible (blocked) state
