@@ -1058,9 +1058,6 @@ static void idpf_decfg_netdev(struct idpf_vport *vport)
 	struct idpf_adapter *adapter = vport->adapter;
 	u16 idx = vport->idx;
 
-	kfree(vport->rx_ptype_lkup);
-	vport->rx_ptype_lkup = NULL;
-
 	if (test_and_clear_bit(IDPF_VPORT_REG_NETDEV,
 			       adapter->vport_config[idx]->flags)) {
 		unregister_netdev(vport->netdev);
@@ -1116,8 +1113,6 @@ static void idpf_vport_rel(struct idpf_vport *vport)
 	adapter->vport_params_recvd[idx] = NULL;
 	kfree(adapter->vport_params_reqd[idx]);
 	adapter->vport_params_reqd[idx] = NULL;
-	kfree(vport->rx_ptype_lkup);
-	vport->rx_ptype_lkup = NULL;
 
 	kfree(vport);
 	adapter->num_alloc_vports--;
@@ -1686,10 +1681,6 @@ void idpf_init_task(struct work_struct *work)
 		idpf_vport_dealloc_max_qs(adapter, &max_q);
 		goto unwind_vports;
 	}
-
-	err = idpf_send_get_rx_ptype_msg(vport);
-	if (err)
-		goto unwind_vports;
 
 	index = vport->idx;
 	vport_config = adapter->vport_config[index];
