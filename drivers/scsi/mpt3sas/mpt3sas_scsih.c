@@ -89,6 +89,7 @@ _scsih_ata_pass_thru_idd(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 *is_ssd_dev
 static enum device_responsive_state
 _scsih_wait_for_device_to_become_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	u8 retry_count, u8 is_pd, int lun, u8 tr_timeout, u8 tr_method);
+static void _firmware_event_work_delayed(struct work_struct *work);
 
 /* global parameters */
 LIST_HEAD(mpt3sas_ioc_list);
@@ -275,11 +276,16 @@ struct fw_event_work {
 	u16			event;
 	struct kref		refcount;
 	char			event_data[] __aligned(4);
+
 };
 
 static void fw_event_work_free(struct kref *r)
 {
-	kfree(container_of(r, struct fw_event_work, refcount));
+	struct fw_event_work *fw_work;
+
+	fw_work = container_of(r, struct fw_event_work, refcount);
+	kfree(fw_work->retries);
+	kfree(fw_work);
 }
 
 static void fw_event_work_get(struct fw_event_work *fw_work)
@@ -3651,6 +3657,37 @@ _scsih_fw_event_del_from_list(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
+/**
+ * _scsih_fw_event_requeue - requeue an event
+ * @ioc: per adapter object
+ * @fw_event: object describing the event
+ * @delay: time in milliseconds to wait before retrying the event
+ *
+ * Context: This function will acquire ioc->fw_event_lock.
+ *
+ * Return nothing.
+ */
+static void
+_scsih_fw_event_requeue(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work
+	*fw_event, unsigned long delay)
+{
+	unsigned long flags;
+
+	if (ioc->firmware_event_thread == NULL)
+		return;
+
+	spin_lock_irqsave(&ioc->fw_event_lock, flags);
+	fw_event_work_get(fw_event);
+	list_add_tail(&fw_event->list, &ioc->fw_event_list);
+	if (!fw_event->delayed_work_active) {
+		fw_event->delayed_work_active = 1;
+		INIT_DELAYED_WORK(&fw_event->delayed_work,
+		    _firmware_event_work_delayed);
+	}
+	queue_delayed_work(ioc->firmware_event_thread, &fw_event->delayed_work,
+	    msecs_to_jiffies(delay));
+	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+}
 
  /**
  * mpt3sas_send_trigger_data_event - send event for processing trigger data
@@ -8589,6 +8626,7 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 {
 	int i;
 	int rc;
+	int requeue_event;
 	u16 parent_handle, handle;
 	u16 reason_code;
 	u8 phy_number, max_phys;
@@ -8643,7 +8681,7 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 
 	/* handle siblings events */
-	for (i = 0; i < event_data->NumEntries; i++) {
+	for (i = 0, requeue_event = 0; i < event_data->NumEntries; i++) {
 		if (fw_event->ignore) {
 			dewtprintk(ioc,
 				   ioc_info(ioc, "ignoring expander event\n"));
@@ -8663,7 +8701,14 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 		if (fw_event->delayed_work_active && (reason_code ==
 		    MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING)) {
 			dewtprintk(ioc, ioc_info(ioc, "ignoring\n"
-			    "Targ not responding event phy in re-queued event processing\n"));
+			    "Target not responding event phy in re-queued event processing\n"));
+			continue;
+		}
+
+		if (fw_event->delayed_work_active && (reason_code ==
+		    MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING)) {
+			dewtprintk(ioc, ioc_info(ioc, "ignoring Target not responding\n"
+						"event phy in re-queued event processing\n"));
 			continue;
 		}
 
@@ -8714,7 +8759,7 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			    "event to a device add\n", handle));
 			event_data->PHY[i].PhyStatus &= 0xF0;
 			event_data->PHY[i].PhyStatus |=
-			    MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED;
+						MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED;
 
 			fallthrough;
 
@@ -8731,11 +8776,13 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 
 			rc = _scsih_add_device(ioc, handle,
 			    fw_event->retries[i], 0);
-			if (rc) /* retry due to busy device */
+			if (rc) {/* retry due to busy device */
 				fw_event->retries[i]++;
-			else  /* mark entry vacant */
+				requeue_event = 1;
+			} else {/* mark entry vacant */
 				event_data->PHY[i].PhyStatus |=
-						MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT;
+			    MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT;
+			}
 
 			break;
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING:
@@ -8750,7 +8797,7 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 	    sas_expander)
 		mpt3sas_expander_remove(ioc, sas_address, port);
 
-	return 0;
+	return requeue_event;
 }
 
 /**
@@ -9428,7 +9475,7 @@ _scsih_pcie_topology_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
  * Context: user.
  *
  */
-static void
+static int
 _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 	struct fw_event_work *fw_event)
 {
@@ -9438,6 +9485,7 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 	u8 link_rate, prev_link_rate;
 	unsigned long flags;
 	int rc;
+	int requeue_event;
 	Mpi26EventDataPCIeTopologyChangeList_t *event_data =
 		(Mpi26EventDataPCIeTopologyChangeList_t *) fw_event->event_data;
 	struct _pcie_device *pcie_device;
@@ -9447,22 +9495,22 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 
 	if (ioc->shost_recovery || ioc->remove_host ||
 		ioc->pci_error_recovery)
-		return;
+		return 0;
 
 	if (fw_event->ignore) {
 		dewtprintk(ioc, ioc_info(ioc, "ignoring switch event\n"));
-		return;
+		return 0;
 	}
 
 	/* handle siblings events */
-	for (i = 0 ; i < event_data->NumEntries; i++) {
+	for (i = 0, requeue_event = 0; i < event_data->NumEntries; i++) {
 		if (fw_event->ignore) {
 			dewtprintk(ioc,
 				   ioc_info(ioc, "ignoring switch event\n"));
-			return;
+			return 0;
 		}
 		if (ioc->remove_host || ioc->pci_error_recovery)
-			return;
+			return 0;
 		reason_code = event_data->PortEntry[i].PortStatus;
 		handle =
 			le16_to_cpu(event_data->PortEntry[i].AttachedDevHandle);
@@ -9518,8 +9566,8 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 
 			rc = _scsih_pcie_add_device(ioc, handle, fw_event->retries[i]);
 			if (rc) {/* retry due to busy device */
-
 				fw_event->retries[i]++;
+				requeue_event = 1;
 			} else {
 				/* mark entry vacant */
 				/* TODO This needs to be reviewed and fixed,
@@ -9535,11 +9583,12 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 			break;
 		}
 	}
+	return requeue_event;
 }
 
 /**
  * _scsih_pcie_device_status_change_event_debug - debug for device event
- * @ioc: ?
+ * @ioc: per adapter object
  * @event_data: event data payload
  * Context: user.
  */
@@ -11870,7 +11919,11 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 		_scsih_turn_on_pfa_led(ioc, fw_event->device_handle);
 		break;
 	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
-		_scsih_sas_topology_change_event(ioc, fw_event);
+		if (_scsih_sas_topology_change_event(ioc, fw_event)) {
+			_scsih_fw_event_requeue(ioc, fw_event, 1000);
+			ioc->current_event = NULL;
+			return;
+		}
 		break;
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
 		if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
@@ -11910,7 +11963,11 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 		_scsih_pcie_enumeration_event(ioc, fw_event);
 		break;
 	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
-		_scsih_pcie_topology_change_event(ioc, fw_event);
+		if (_scsih_pcie_topology_change_event(ioc, fw_event)) {
+			_scsih_fw_event_requeue(ioc, fw_event, 1000);
+			ioc->current_event = NULL;
+			return;
+		}
 		break;
 	}
 out:
@@ -11931,6 +11988,15 @@ _firmware_event_work(struct work_struct *work)
 {
 	struct fw_event_work *fw_event = container_of(work,
 	    struct fw_event_work, work);
+
+	_mpt3sas_fw_work(fw_event->ioc, fw_event);
+}
+
+static void
+_firmware_event_work_delayed(struct work_struct *work)
+{
+	struct fw_event_work *fw_event = container_of(work,
+	    struct fw_event_work, delayed_work.work);
 
 	_mpt3sas_fw_work(fw_event->ioc, fw_event);
 }
@@ -12113,6 +12179,34 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
 		return 1;
+	}
+
+	if (event == MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST) {
+		Mpi2EventDataSasTopologyChangeList_t *topo_event_data =
+		    (Mpi2EventDataSasTopologyChangeList_t *)
+		    mpi_reply->EventData;
+		fw_event->retries = kzalloc(topo_event_data->NumEntries,
+		    GFP_ATOMIC);
+		if (!fw_event->retries) {
+
+			ioc_err(ioc, "failure at %s:%d/%s()!\n",  __FILE__, __LINE__, __func__);
+			kfree(fw_event->event_data);
+			fw_event_work_put(fw_event);
+			return 1;
+		}
+	}
+
+	if (event == MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST) {
+		Mpi26EventDataPCIeTopologyChangeList_t *topo_event_data =
+			(Mpi26EventDataPCIeTopologyChangeList_t *) mpi_reply->EventData;
+		fw_event->retries = kzalloc(topo_event_data->NumEntries,
+			GFP_ATOMIC);
+		if (!fw_event->retries) {
+
+			ioc_err(ioc, "failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__);
+			fw_event_work_put(fw_event);
+			return 1;
+		}
 	}
 
 	memcpy(fw_event->event_data, mpi_reply->EventData, sz);
