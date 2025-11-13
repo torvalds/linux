@@ -1039,7 +1039,7 @@ void kgd2kfd_suspend(struct kfd_dev *kfd, bool suspend_proc)
 
 int kgd2kfd_resume(struct kfd_dev *kfd, bool resume_proc)
 {
-	int ret, i;
+	int ret = 0, i;
 
 	if (!kfd->init_complete)
 		return 0;
