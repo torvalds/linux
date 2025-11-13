@@ -10,9 +10,10 @@
 #include <linux/gpio/consumer.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 struct gpio_decoder {
 	struct gpio_descs *input_gpios;
@@ -110,19 +111,17 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id gpio_decoder_of_match[] = {
 	{ .compatible = "gpio-decoder", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, gpio_decoder_of_match);
-#endif
 
 static struct platform_driver gpio_decoder_driver = {
 	.probe		= gpio_decoder_probe,
 	.driver		= {
 		.name	= "gpio-decoder",
-		.of_match_table = of_match_ptr(gpio_decoder_of_match),
+		.of_match_table = gpio_decoder_of_match,
 	}
 };
 module_platform_driver(gpio_decoder_driver);
