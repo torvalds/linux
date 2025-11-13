@@ -730,7 +730,9 @@ struct idpf_chunked_msg_params {
 	u32			vc_op;
 };
 
-struct idpf_queue_set *idpf_alloc_queue_set(struct idpf_vport *vport, u32 num)
+struct idpf_queue_set *idpf_alloc_queue_set(struct idpf_vport *vport,
+					    struct idpf_q_vec_rsrc *qv_rsrc,
+					    u32 num)
 {
 	struct idpf_queue_set *qp;
 
@@ -739,6 +741,7 @@ struct idpf_queue_set *idpf_alloc_queue_set(struct idpf_vport *vport, u32 num)
 		return NULL;
 
 	qp->vport = vport;
+	qp->qv_rsrc = qv_rsrc;
 	qp->num = num;
 
 	return qp;
@@ -845,7 +848,7 @@ static int idpf_wait_for_marker_event(struct idpf_vport *vport)
 {
 	struct idpf_queue_set *qs __free(kfree) = NULL;
 
-	qs = idpf_alloc_queue_set(vport, vport->num_txq);
+	qs = idpf_alloc_queue_set(vport, &vport->dflt_qv_rsrc, vport->num_txq);
 	if (!qs)
 		return -ENOMEM;
 
@@ -1858,7 +1861,7 @@ static int idpf_send_config_tx_queues_msg(struct idpf_vport *vport)
 	u32 totqs = vport->num_txq + vport->num_complq;
 	u32 k = 0;
 
-	qs = idpf_alloc_queue_set(vport, totqs);
+	qs = idpf_alloc_queue_set(vport, &vport->dflt_qv_rsrc, totqs);
 	if (!qs)
 		return -ENOMEM;
 
@@ -2043,7 +2046,7 @@ static int idpf_send_config_rx_queues_msg(struct idpf_vport *vport)
 	u32 totqs = vport->num_rxq + vport->num_bufq;
 	u32 k = 0;
 
-	qs = idpf_alloc_queue_set(vport, totqs);
+	qs = idpf_alloc_queue_set(vport, &vport->dflt_qv_rsrc, totqs);
 	if (!qs)
 		return -ENOMEM;
 
@@ -2188,7 +2191,7 @@ static int idpf_send_ena_dis_queues_msg(struct idpf_vport *vport, bool en)
 	num_txq = vport->num_txq + vport->num_complq;
 	num_q = num_txq + vport->num_rxq + vport->num_bufq;
 
-	qs = idpf_alloc_queue_set(vport, num_q);
+	qs = idpf_alloc_queue_set(vport, &vport->dflt_qv_rsrc, num_q);
 	if (!qs)
 		return -ENOMEM;
 
@@ -2326,7 +2329,7 @@ idpf_send_map_unmap_queue_set_vector_msg(const struct idpf_queue_set *qs,
 				v_idx = vec->v_idx;
 				itr_idx = vec->rx_itr_idx;
 			} else {
-				v_idx = qs->vport->noirq_v_idx;
+				v_idx = qs->qv_rsrc->noirq_v_idx;
 				itr_idx = VIRTCHNL2_ITR_IDX_0;
 			}
 			break;
@@ -2346,7 +2349,7 @@ idpf_send_map_unmap_queue_set_vector_msg(const struct idpf_queue_set *qs,
 				v_idx = vec->v_idx;
 				itr_idx = vec->tx_itr_idx;
 			} else {
-				v_idx = qs->vport->noirq_v_idx;
+				v_idx = qs->qv_rsrc->noirq_v_idx;
 				itr_idx = VIRTCHNL2_ITR_IDX_1;
 			}
 			break;
@@ -2376,7 +2379,7 @@ int idpf_send_map_unmap_queue_vector_msg(struct idpf_vport *vport, bool map)
 	u32 num_q = vport->num_txq + vport->num_rxq;
 	u32 k = 0;
 
-	qs = idpf_alloc_queue_set(vport, num_q);
+	qs = idpf_alloc_queue_set(vport, &vport->dflt_qv_rsrc, num_q);
 	if (!qs)
 		return -ENOMEM;
 
@@ -3622,20 +3625,22 @@ void idpf_vc_core_deinit(struct idpf_adapter *adapter)
 /**
  * idpf_vport_alloc_vec_indexes - Get relative vector indexes
  * @vport: virtual port data struct
+ * @rsrc: pointer to queue and vector resources
  *
  * This function requests the vector information required for the vport and
  * stores the vector indexes received from the 'global vector distribution'
  * in the vport's queue vectors array.
  *
- * Return 0 on success, error on failure
+ * Return: 0 on success, error on failure
  */
-int idpf_vport_alloc_vec_indexes(struct idpf_vport *vport)
+int idpf_vport_alloc_vec_indexes(struct idpf_vport *vport,
+				 struct idpf_q_vec_rsrc *rsrc)
 {
 	struct idpf_vector_info vec_info;
 	int num_alloc_vecs;
 	u32 req;
 
-	vec_info.num_curr_vecs = vport->num_q_vectors;
+	vec_info.num_curr_vecs = rsrc->num_q_vectors;
 	if (vec_info.num_curr_vecs)
 		vec_info.num_curr_vecs += IDPF_RESERVED_VECS;
 
@@ -3648,7 +3653,7 @@ int idpf_vport_alloc_vec_indexes(struct idpf_vport *vport)
 	vec_info.index = vport->idx;
 
 	num_alloc_vecs = idpf_req_rel_vector_indexes(vport->adapter,
-						     vport->q_vector_idxs,
+						     rsrc->q_vector_idxs,
 						     &vec_info);
 	if (num_alloc_vecs <= 0) {
 		dev_err(&vport->adapter->pdev->dev, "Vector distribution failed: %d\n",
@@ -3656,7 +3661,7 @@ int idpf_vport_alloc_vec_indexes(struct idpf_vport *vport)
 		return -EINVAL;
 	}
 
-	vport->num_q_vectors = num_alloc_vecs - IDPF_RESERVED_VECS;
+	rsrc->num_q_vectors = num_alloc_vecs - IDPF_RESERVED_VECS;
 
 	return 0;
 }
@@ -3672,6 +3677,7 @@ int idpf_vport_alloc_vec_indexes(struct idpf_vport *vport)
  */
 int idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q)
 {
+	struct idpf_q_vec_rsrc *rsrc = &vport->dflt_qv_rsrc;
 	struct idpf_adapter *adapter = vport->adapter;
 	struct virtchnl2_create_vport *vport_msg;
 	struct idpf_vport_config *vport_config;
@@ -3716,7 +3722,7 @@ int idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q)
 	idpf_vport_init_num_qs(vport, vport_msg);
 	idpf_vport_calc_num_q_desc(vport);
 	idpf_vport_calc_num_q_groups(vport);
-	idpf_vport_alloc_vec_indexes(vport);
+	idpf_vport_alloc_vec_indexes(vport, rsrc);
 
 	vport->crc_enable = adapter->crc_enable;
 

@@ -137,12 +137,15 @@ struct idpf_queue_ptr {
 
 struct idpf_queue_set {
 	struct idpf_vport		*vport;
+	struct idpf_q_vec_rsrc		*qv_rsrc;
 
 	u32				num;
 	struct idpf_queue_ptr		qs[] __counted_by(num);
 };
 
-struct idpf_queue_set *idpf_alloc_queue_set(struct idpf_vport *vport, u32 num);
+struct idpf_queue_set *idpf_alloc_queue_set(struct idpf_vport *vport,
+					    struct idpf_q_vec_rsrc *rsrc,
+					    u32 num);
 
 int idpf_send_enable_queue_set_msg(const struct idpf_queue_set *qs);
 int idpf_send_disable_queue_set_msg(const struct idpf_queue_set *qs);
@@ -170,7 +173,8 @@ int idpf_send_add_queues_msg(const struct idpf_vport *vport, u16 num_tx_q,
 int idpf_send_delete_queues_msg(struct idpf_vport *vport,
 				struct idpf_queue_id_reg_info *chunks);
 
-int idpf_vport_alloc_vec_indexes(struct idpf_vport *vport);
+int idpf_vport_alloc_vec_indexes(struct idpf_vport *vport,
+				 struct idpf_q_vec_rsrc *rsrc);
 int idpf_get_vec_ids(struct idpf_adapter *adapter,
 		     u16 *vecids, int num_vecids,
 		     struct virtchnl2_vector_chunks *chunks);

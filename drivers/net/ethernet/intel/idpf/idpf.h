@@ -8,6 +8,7 @@
 struct idpf_adapter;
 struct idpf_vport;
 struct idpf_vport_max_q;
+struct idpf_q_vec_rsrc;
 
 #include <net/pkt_sched.h>
 #include <linux/aer.h>
@@ -201,7 +202,8 @@ struct idpf_vport_max_q {
 struct idpf_reg_ops {
 	void (*ctlq_reg_init)(struct idpf_adapter *adapter,
 			      struct idpf_ctlq_create_info *cq);
-	int (*intr_reg_init)(struct idpf_vport *vport);
+	int (*intr_reg_init)(struct idpf_vport *vport,
+			     struct idpf_q_vec_rsrc *rsrc);
 	void (*mb_intr_reg_init)(struct idpf_adapter *adapter);
 	void (*reset_reg_init)(struct idpf_adapter *adapter);
 	void (*trigger_reset)(struct idpf_adapter *adapter,
@@ -288,7 +290,27 @@ struct idpf_fsteer_fltr {
 };
 
 /**
+ * struct idpf_q_vec_rsrc - handle for queue and vector resources
+ * @q_vectors: array of queue vectors
+ * @q_vector_idxs: starting index of queue vectors
+ * @num_q_vectors: number of IRQ vectors allocated
+ * @noirq_v_idx: ID of the NOIRQ vector
+ * @noirq_dyn_ctl_ena: value to write to the above to enable it
+ * @noirq_dyn_ctl: register to enable/disable the vector for NOIRQ queues
+ */
+struct idpf_q_vec_rsrc {
+	struct idpf_q_vector	*q_vectors;
+	u16			*q_vector_idxs;
+	u16			num_q_vectors;
+	u16			noirq_v_idx;
+	u32			noirq_dyn_ctl_ena;
+	void __iomem		*noirq_dyn_ctl;
+
+};
+
+/**
  * struct idpf_vport - Handle for netdevices and queue resources
+ * @dflt_qv_rsrc: contains default queue and vector resources
  * @num_txq: Number of allocated TX queues
  * @num_complq: Number of allocated completion queues
  * @txq_desc_count: TX queue descriptor count
@@ -325,12 +347,6 @@ struct idpf_fsteer_fltr {
  * @idx: Software index in adapter vports struct
  * @default_vport: Use this vport if one isn't specified
  * @base_rxd: True if the driver should use base descriptors instead of flex
- * @num_q_vectors: Number of IRQ vectors allocated
- * @q_vectors: Array of queue vectors
- * @q_vector_idxs: Starting index of queue vectors
- * @noirq_dyn_ctl: register to enable/disable the vector for NOIRQ queues
- * @noirq_dyn_ctl_ena: value to write to the above to enable it
- * @noirq_v_idx: ID of the NOIRQ vector
  * @max_mtu: device given max possible MTU
  * @default_mac_addr: device will give a default MAC to use
  * @rx_itr_profile: RX profiles for Dynamic Interrupt Moderation
@@ -343,6 +359,7 @@ struct idpf_fsteer_fltr {
  * @tstamp_stats: Tx timestamping statistics
  */
 struct idpf_vport {
+	struct idpf_q_vec_rsrc dflt_qv_rsrc;
 	u16 num_txq;
 	u16 num_complq;
 	u32 txq_desc_count;
@@ -379,14 +396,6 @@ struct idpf_vport {
 	u16 idx;
 	bool default_vport;
 	bool base_rxd;
-
-	u16 num_q_vectors;
-	struct idpf_q_vector *q_vectors;
-	u16 *q_vector_idxs;
-
-	void __iomem *noirq_dyn_ctl;
-	u32 noirq_dyn_ctl_ena;
-	u16 noirq_v_idx;
 
 	u16 max_mtu;
 	u8 default_mac_addr[ETH_ALEN];
