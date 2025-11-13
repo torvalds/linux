@@ -697,6 +697,9 @@ enum io_uring_register_op {
 	/* query various aspects of io_uring, see linux/io_uring/query.h */
 	IORING_REGISTER_QUERY			= 35,
 
+	/* auxiliary zcrx configuration, see enum zcrx_ctrl_op */
+	IORING_REGISTER_ZCRX_CTRL		= 36,
+
 	/* this goes last */
 	IORING_REGISTER_LAST,
 
@@ -1076,6 +1079,16 @@ struct io_uring_zcrx_ifq_reg {
 	__u32	zcrx_id;
 	__u32	__resv2;
 	__u64	__resv[3];
+};
+
+enum zcrx_ctrl_op {
+	__ZCRX_CTRL_LAST,
+};
+
+struct zcrx_ctrl {
+	__u32	zcrx_id;
+	__u32	op; /* see enum zcrx_ctrl_op */
+	__u64	__resv[8];
 };
 
 #ifdef __cplusplus
