@@ -35,13 +35,6 @@ enum {
 	P_L3_PLL,
 };
 
-struct apss_clk {
-	struct notifier_block cpu_clk_notifier;
-	struct clk_hw *hw;
-	struct device *dev;
-	struct clk *l3_clk;
-};
-
 static const struct alpha_pll_config apss_pll_config = {
 	.l = 0x3b,
 	.config_ctl_val = 0x08200920,
