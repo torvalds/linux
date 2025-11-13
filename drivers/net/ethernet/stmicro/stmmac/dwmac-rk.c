@@ -234,14 +234,14 @@ static void rk_gmac_integrated_fephy_powerdown(struct rk_priv_data *priv,
 #define PX30_GRF_GMAC_CON1		0x0904
 
 /* PX30_GRF_GMAC_CON1 */
-#define PX30_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RMII)
+#define PX30_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(6, 4, val)
 #define PX30_GMAC_SPEED_10M		GRF_CLR_BIT(2)
 #define PX30_GMAC_SPEED_100M		GRF_BIT(2)
 
 static void px30_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, PX30_GRF_GMAC_CON1,
-		     PX30_GMAC_PHY_INTF_SEL_RMII);
+		     PX30_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII));
 }
 
 static int px30_set_speed(struct rk_priv_data *bsp_priv,
@@ -290,8 +290,7 @@ static const struct rk_gmac_ops px30_ops = {
 #define RK3128_GMAC_CLK_TX_DL_CFG(val) GRF_FIELD(6, 0, val)
 
 /* RK3128_GRF_MAC_CON1 */
-#define RK3128_GMAC_PHY_INTF_SEL_RGMII GRF_FIELD(8, 6, PHY_INTF_SEL_RGMII)
-#define RK3128_GMAC_PHY_INTF_SEL_RMII  GRF_FIELD(8, 6, PHY_INTF_SEL_RMII)
+#define RK3128_GMAC_PHY_INTF_SEL(val)  GRF_FIELD(8, 6, val)
 #define RK3128_GMAC_FLOW_CTRL          GRF_BIT(9)
 #define RK3128_GMAC_FLOW_CTRL_CLR      GRF_CLR_BIT(9)
 #define RK3128_GMAC_SPEED_10M          GRF_CLR_BIT(10)
@@ -308,7 +307,7 @@ static void rk3128_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1,
-		     RK3128_GMAC_PHY_INTF_SEL_RGMII |
+		     RK3128_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RK3128_GMAC_RMII_MODE_CLR);
 	regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON0,
 		     DELAY_ENABLE(RK3128, tx_delay, rx_delay) |
@@ -319,7 +318,8 @@ static void rk3128_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rk3128_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1,
-		     RK3128_GMAC_PHY_INTF_SEL_RMII | RK3128_GMAC_RMII_MODE);
+		     RK3128_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII) |
+		     RK3128_GMAC_RMII_MODE);
 }
 
 static const struct rk_reg_speed_data rk3128_reg_speed_data = {
@@ -353,8 +353,7 @@ static const struct rk_gmac_ops rk3128_ops = {
 #define RK3228_GMAC_CLK_TX_DL_CFG(val)	GRF_FIELD(6, 0, val)
 
 /* RK3228_GRF_MAC_CON1 */
-#define RK3228_GMAC_PHY_INTF_SEL_RGMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RGMII)
-#define RK3228_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RMII)
+#define RK3228_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(6, 4, val)
 #define RK3228_GMAC_FLOW_CTRL		GRF_BIT(3)
 #define RK3228_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(3)
 #define RK3228_GMAC_SPEED_10M		GRF_CLR_BIT(2)
@@ -378,7 +377,7 @@ static void rk3228_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1,
-		     RK3228_GMAC_PHY_INTF_SEL_RGMII |
+		     RK3228_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RK3228_GMAC_RMII_MODE_CLR |
 		     DELAY_ENABLE(RK3228, tx_delay, rx_delay));
 
@@ -390,7 +389,7 @@ static void rk3228_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rk3228_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1,
-		     RK3228_GMAC_PHY_INTF_SEL_RMII |
+		     RK3228_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII) |
 		     RK3228_GMAC_RMII_MODE);
 
 	/* set MAC to RMII mode */
@@ -432,8 +431,7 @@ static const struct rk_gmac_ops rk3228_ops = {
 #define RK3288_GRF_SOC_CON3	0x0250
 
 /*RK3288_GRF_SOC_CON1*/
-#define RK3288_GMAC_PHY_INTF_SEL_RGMII	GRF_FIELD(8, 6, PHY_INTF_SEL_RGMII)
-#define RK3288_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(8, 6, PHY_INTF_SEL_RMII)
+#define RK3288_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(8, 6, val)
 #define RK3288_GMAC_FLOW_CTRL		GRF_BIT(9)
 #define RK3288_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(9)
 #define RK3288_GMAC_SPEED_10M		GRF_CLR_BIT(10)
@@ -458,7 +456,7 @@ static void rk3288_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1,
-		     RK3288_GMAC_PHY_INTF_SEL_RGMII |
+		     RK3288_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RK3288_GMAC_RMII_MODE_CLR);
 	regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON3,
 		     DELAY_ENABLE(RK3288, tx_delay, rx_delay) |
@@ -469,7 +467,8 @@ static void rk3288_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rk3288_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1,
-		     RK3288_GMAC_PHY_INTF_SEL_RMII | RK3288_GMAC_RMII_MODE);
+		     RK3288_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII) |
+		     RK3288_GMAC_RMII_MODE);
 }
 
 static const struct rk_reg_speed_data rk3288_reg_speed_data = {
@@ -496,7 +495,7 @@ static const struct rk_gmac_ops rk3288_ops = {
 #define RK3308_GRF_MAC_CON0		0x04a0
 
 /* RK3308_GRF_MAC_CON0 */
-#define RK3308_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(4, 2, PHY_INTF_SEL_RMII)
+#define RK3308_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(4, 2, val)
 #define RK3308_GMAC_FLOW_CTRL		GRF_BIT(3)
 #define RK3308_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(3)
 #define RK3308_GMAC_SPEED_10M		GRF_CLR_BIT(0)
@@ -505,7 +504,7 @@ static const struct rk_gmac_ops rk3288_ops = {
 static void rk3308_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RK3308_GRF_MAC_CON0,
-		     RK3308_GMAC_PHY_INTF_SEL_RMII);
+		     RK3308_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII));
 }
 
 static const struct rk_reg_speed_data rk3308_reg_speed_data = {
@@ -535,8 +534,7 @@ static const struct rk_gmac_ops rk3308_ops = {
 #define RK3328_GMAC_CLK_TX_DL_CFG(val)	GRF_FIELD(6, 0, val)
 
 /* RK3328_GRF_MAC_CON1 */
-#define RK3328_GMAC_PHY_INTF_SEL_RGMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RGMII)
-#define RK3328_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RMII)
+#define RK3328_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(6, 4, val)
 #define RK3328_GMAC_FLOW_CTRL		GRF_BIT(3)
 #define RK3328_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(3)
 #define RK3328_GMAC_SPEED_10M		GRF_CLR_BIT(2)
@@ -558,7 +556,7 @@ static void rk3328_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	regmap_write(bsp_priv->grf, RK3328_GRF_MAC_CON1,
-		     RK3328_GMAC_PHY_INTF_SEL_RGMII |
+		     RK3328_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RK3328_GMAC_RMII_MODE_CLR |
 		     RK3328_GMAC_RXCLK_DLY_ENABLE |
 		     RK3328_GMAC_TXCLK_DLY_ENABLE);
@@ -576,7 +574,7 @@ static void rk3328_set_to_rmii(struct rk_priv_data *bsp_priv)
 		  RK3328_GRF_MAC_CON1;
 
 	regmap_write(bsp_priv->grf, reg,
-		     RK3328_GMAC_PHY_INTF_SEL_RMII |
+		     RK3328_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII) |
 		     RK3328_GMAC_RMII_MODE);
 }
 
@@ -622,8 +620,7 @@ static const struct rk_gmac_ops rk3328_ops = {
 #define RK3366_GRF_SOC_CON7	0x041c
 
 /* RK3366_GRF_SOC_CON6 */
-#define RK3366_GMAC_PHY_INTF_SEL_RGMII	GRF_FIELD(11, 9, PHY_INTF_SEL_RGMII)
-#define RK3366_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(11, 9, PHY_INTF_SEL_RMII)
+#define RK3366_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(11, 9, val)
 #define RK3366_GMAC_FLOW_CTRL		GRF_BIT(8)
 #define RK3366_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(8)
 #define RK3366_GMAC_SPEED_10M		GRF_CLR_BIT(7)
@@ -648,7 +645,7 @@ static void rk3366_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6,
-		     RK3366_GMAC_PHY_INTF_SEL_RGMII |
+		     RK3366_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RK3366_GMAC_RMII_MODE_CLR);
 	regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON7,
 		     DELAY_ENABLE(RK3366, tx_delay, rx_delay) |
@@ -659,7 +656,8 @@ static void rk3366_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rk3366_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6,
-		     RK3366_GMAC_PHY_INTF_SEL_RMII | RK3366_GMAC_RMII_MODE);
+		     RK3366_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII) |
+		     RK3366_GMAC_RMII_MODE);
 }
 
 static const struct rk_reg_speed_data rk3366_reg_speed_data = {
@@ -687,8 +685,7 @@ static const struct rk_gmac_ops rk3366_ops = {
 #define RK3368_GRF_SOC_CON16	0x0440
 
 /* RK3368_GRF_SOC_CON15 */
-#define RK3368_GMAC_PHY_INTF_SEL_RGMII	GRF_FIELD(11, 9, PHY_INTF_SEL_RGMII)
-#define RK3368_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(11, 9, PHY_INTF_SEL_RMII)
+#define RK3368_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(11, 9, val)
 #define RK3368_GMAC_FLOW_CTRL		GRF_BIT(8)
 #define RK3368_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(8)
 #define RK3368_GMAC_SPEED_10M		GRF_CLR_BIT(7)
@@ -713,7 +710,7 @@ static void rk3368_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15,
-		     RK3368_GMAC_PHY_INTF_SEL_RGMII |
+		     RK3368_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RK3368_GMAC_RMII_MODE_CLR);
 	regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON16,
 		     DELAY_ENABLE(RK3368, tx_delay, rx_delay) |
@@ -724,7 +721,8 @@ static void rk3368_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rk3368_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15,
-		     RK3368_GMAC_PHY_INTF_SEL_RMII | RK3368_GMAC_RMII_MODE);
+		     RK3368_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII) |
+		     RK3368_GMAC_RMII_MODE);
 }
 
 static const struct rk_reg_speed_data rk3368_reg_speed_data = {
@@ -752,8 +750,7 @@ static const struct rk_gmac_ops rk3368_ops = {
 #define RK3399_GRF_SOC_CON6	0xc218
 
 /* RK3399_GRF_SOC_CON5 */
-#define RK3399_GMAC_PHY_INTF_SEL_RGMII	GRF_FIELD(11, 9, PHY_INTF_SEL_RGMII)
-#define RK3399_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(11, 9, PHY_INTF_SEL_RMII)
+#define RK3399_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(11, 9, val)
 #define RK3399_GMAC_FLOW_CTRL		GRF_BIT(8)
 #define RK3399_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(8)
 #define RK3399_GMAC_SPEED_10M		GRF_CLR_BIT(7)
@@ -778,7 +775,7 @@ static void rk3399_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5,
-		     RK3399_GMAC_PHY_INTF_SEL_RGMII |
+		     RK3399_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RK3399_GMAC_RMII_MODE_CLR);
 	regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON6,
 		     DELAY_ENABLE(RK3399, tx_delay, rx_delay) |
@@ -789,7 +786,8 @@ static void rk3399_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rk3399_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5,
-		     RK3399_GMAC_PHY_INTF_SEL_RMII | RK3399_GMAC_RMII_MODE);
+		     RK3399_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII) |
+		     RK3399_GMAC_RMII_MODE);
 }
 
 static const struct rk_reg_speed_data rk3399_reg_speed_data = {
@@ -1015,8 +1013,7 @@ static const struct rk_gmac_ops rk3528_ops = {
 #define RK3568_GRF_GMAC1_CON1		0x038c
 
 /* RK3568_GRF_GMAC0_CON1 && RK3568_GRF_GMAC1_CON1 */
-#define RK3568_GMAC_PHY_INTF_SEL_RGMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RGMII)
-#define RK3568_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RMII)
+#define RK3568_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(6, 4, val)
 #define RK3568_GMAC_FLOW_CTRL			GRF_BIT(3)
 #define RK3568_GMAC_FLOW_CTRL_CLR		GRF_CLR_BIT(3)
 #define RK3568_GMAC_RXCLK_DLY_ENABLE		GRF_BIT(1)
@@ -1043,7 +1040,7 @@ static void rk3568_set_to_rgmii(struct rk_priv_data *bsp_priv,
 		     RK3568_GMAC_CLK_TX_DL_CFG(tx_delay));
 
 	regmap_write(bsp_priv->grf, con1,
-		     RK3568_GMAC_PHY_INTF_SEL_RGMII |
+		     RK3568_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RK3568_GMAC_RXCLK_DLY_ENABLE |
 		     RK3568_GMAC_TXCLK_DLY_ENABLE);
 }
@@ -1054,7 +1051,8 @@ static void rk3568_set_to_rmii(struct rk_priv_data *bsp_priv)
 
 	con1 = (bsp_priv->id == 1) ? RK3568_GRF_GMAC1_CON1 :
 				     RK3568_GRF_GMAC0_CON1;
-	regmap_write(bsp_priv->grf, con1, RK3568_GMAC_PHY_INTF_SEL_RMII);
+	regmap_write(bsp_priv->grf, con1,
+		     RK3568_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII));
 }
 
 static const struct rk_gmac_ops rk3568_ops = {
@@ -1208,10 +1206,8 @@ static const struct rk_gmac_ops rk3576_ops = {
 #define RK3588_GRF_GMAC_CON0			0X0008
 #define RK3588_GRF_CLK_CON1			0X0070
 
-#define RK3588_GMAC_PHY_INTF_SEL_RGMII(id)	\
-	(GRF_FIELD(5, 3, PHY_INTF_SEL_RGMII) << ((id) * 6))
-#define RK3588_GMAC_PHY_INTF_SEL_RMII(id)	\
-	(GRF_FIELD(5, 3, PHY_INTF_SEL_RMII) << ((id) * 6))
+#define RK3588_GMAC_PHY_INTF_SEL(id, val)	\
+	(GRF_FIELD(5, 3, val) << ((id) * 6))
 
 #define RK3588_GMAC_CLK_RMII_MODE(id)		GRF_BIT(5 * (id))
 #define RK3588_GMAC_CLK_RGMII_MODE(id)		GRF_CLR_BIT(5 * (id))
@@ -1241,7 +1237,7 @@ static void rk3588_set_to_rgmii(struct rk_priv_data *bsp_priv,
 					 RK3588_GRF_GMAC_CON8;
 
 	regmap_write(bsp_priv->php_grf, RK3588_GRF_GMAC_CON0,
-		     RK3588_GMAC_PHY_INTF_SEL_RGMII(id));
+		     RK3588_GMAC_PHY_INTF_SEL(id, PHY_INTF_SEL_RGMII));
 
 	regmap_write(bsp_priv->php_grf, RK3588_GRF_CLK_CON1,
 		     RK3588_GMAC_CLK_RGMII_MODE(id));
@@ -1258,7 +1254,7 @@ static void rk3588_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rk3588_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->php_grf, RK3588_GRF_GMAC_CON0,
-		     RK3588_GMAC_PHY_INTF_SEL_RMII(bsp_priv->id));
+		     RK3588_GMAC_PHY_INTF_SEL(bsp_priv->id, PHY_INTF_SEL_RMII));
 
 	regmap_write(bsp_priv->php_grf, RK3588_GRF_CLK_CON1,
 		     RK3588_GMAC_CLK_RMII_MODE(bsp_priv->id));
@@ -1328,7 +1324,7 @@ static const struct rk_gmac_ops rk3588_ops = {
 #define RV1108_GRF_GMAC_CON0		0X0900
 
 /* RV1108_GRF_GMAC_CON0 */
-#define RV1108_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RMII)
+#define RV1108_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(6, 4, val)
 #define RV1108_GMAC_FLOW_CTRL		GRF_BIT(3)
 #define RV1108_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(3)
 #define RV1108_GMAC_SPEED_10M		GRF_CLR_BIT(2)
@@ -1339,7 +1335,7 @@ static const struct rk_gmac_ops rk3588_ops = {
 static void rv1108_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RV1108_GRF_GMAC_CON0,
-		     RV1108_GMAC_PHY_INTF_SEL_RMII);
+		     RV1108_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII));
 }
 
 static const struct rk_reg_speed_data rv1108_reg_speed_data = {
@@ -1364,8 +1360,7 @@ static const struct rk_gmac_ops rv1108_ops = {
 #define RV1126_GRF_GMAC_CON2		0X0078
 
 /* RV1126_GRF_GMAC_CON0 */
-#define RV1126_GMAC_PHY_INTF_SEL_RGMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RGMII)
-#define RV1126_GMAC_PHY_INTF_SEL_RMII	GRF_FIELD(6, 4, PHY_INTF_SEL_RMII)
+#define RV1126_GMAC_PHY_INTF_SEL(val)	GRF_FIELD(6, 4, val)
 #define RV1126_GMAC_FLOW_CTRL			GRF_BIT(7)
 #define RV1126_GMAC_FLOW_CTRL_CLR		GRF_CLR_BIT(7)
 #define RV1126_GMAC_M0_RXCLK_DLY_ENABLE		GRF_BIT(1)
@@ -1388,7 +1383,7 @@ static void rv1126_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	regmap_write(bsp_priv->grf, RV1126_GRF_GMAC_CON0,
-		     RV1126_GMAC_PHY_INTF_SEL_RGMII |
+		     RV1126_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RGMII) |
 		     RV1126_GMAC_M0_RXCLK_DLY_ENABLE |
 		     RV1126_GMAC_M0_TXCLK_DLY_ENABLE |
 		     RV1126_GMAC_M1_RXCLK_DLY_ENABLE |
@@ -1406,7 +1401,7 @@ static void rv1126_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rv1126_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	regmap_write(bsp_priv->grf, RV1126_GRF_GMAC_CON0,
-		     RV1126_GMAC_PHY_INTF_SEL_RMII);
+		     RV1126_GMAC_PHY_INTF_SEL(PHY_INTF_SEL_RMII));
 }
 
 static const struct rk_gmac_ops rv1126_ops = {
