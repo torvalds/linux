@@ -8820,8 +8820,14 @@ static void amdgpu_dm_connector_add_freesync_modes(struct drm_connector *connect
 	if (!(amdgpu_freesync_vid_mode && drm_edid))
 		return;
 
-	if (!amdgpu_dm_connector->dc_sink || amdgpu_dm_connector->dc_sink->edid_caps.analog ||
-		!dc_supports_vrr(amdgpu_dm_connector->dc_sink->ctx->dce_version))
+	if (!amdgpu_dm_connector->dc_sink || !amdgpu_dm_connector->dc_link)
+		return;
+
+	if (!dc_supports_vrr(amdgpu_dm_connector->dc_sink->ctx->dce_version))
+		return;
+
+	if (dc_connector_supports_analog(amdgpu_dm_connector->dc_link->link_id.id) &&
+	    amdgpu_dm_connector->dc_sink->edid_caps.analog)
 		return;
 
 	if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
@@ -8848,7 +8854,10 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 			amdgpu_dm_connector->num_modes +=
 				drm_add_modes_noedid(connector, 1920, 1080);
 
-		if (amdgpu_dm_connector->dc_sink && amdgpu_dm_connector->dc_sink->edid_caps.analog) {
+		if (amdgpu_dm_connector->dc_sink &&
+		    amdgpu_dm_connector->dc_link &&
+		    amdgpu_dm_connector->dc_sink->edid_caps.analog &&
+		    dc_connector_supports_analog(amdgpu_dm_connector->dc_link->link_id.id)) {
 			/* Analog monitor connected by DAC load detection.
 			 * Add common modes. It will be up to the user to select one that works.
 			 */

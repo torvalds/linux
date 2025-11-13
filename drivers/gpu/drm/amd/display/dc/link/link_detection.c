@@ -1224,8 +1224,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			break;
 		}
 
-		sink->edid_caps.analog &= dc_connector_supports_analog(link->link_id.id);
-
 		// Check if edid is the same
 		if ((prev_sink) &&
 		    (edid_status == EDID_THE_SAME || edid_status == EDID_OK))
