@@ -27,32 +27,31 @@ typedef struct mempool {
 	wait_queue_head_t wait;
 } mempool_t;
 
-static inline bool mempool_initialized(mempool_t *pool)
+static inline bool mempool_initialized(struct mempool *pool)
 {
 	return pool->elements != NULL;
 }
 
-static inline bool mempool_is_saturated(mempool_t *pool)
+static inline bool mempool_is_saturated(struct mempool *pool)
 {
 	return READ_ONCE(pool->curr_nr) >= pool->min_nr;
 }
 
-void mempool_exit(mempool_t *pool);
-int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
-		      mempool_free_t *free_fn, void *pool_data,
-		      gfp_t gfp_mask, int node_id);
-
-int mempool_init_noprof(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
-		 mempool_free_t *free_fn, void *pool_data);
+void mempool_exit(struct mempool *pool);
+int mempool_init_node(struct mempool *pool, int min_nr,
+		mempool_alloc_t *alloc_fn, mempool_free_t *free_fn,
+		void *pool_data, gfp_t gfp_mask, int node_id);
+int mempool_init_noprof(struct mempool *pool, int min_nr,
+		mempool_alloc_t *alloc_fn, mempool_free_t *free_fn,
+		void *pool_data);
 #define mempool_init(...)						\
 	alloc_hooks(mempool_init_noprof(__VA_ARGS__))
 
-extern mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
-			mempool_free_t *free_fn, void *pool_data);
-
-extern mempool_t *mempool_create_node_noprof(int min_nr, mempool_alloc_t *alloc_fn,
-			mempool_free_t *free_fn, void *pool_data,
-			gfp_t gfp_mask, int nid);
+struct mempool *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+		mempool_free_t *free_fn, void *pool_data);
+struct mempool *mempool_create_node_noprof(int min_nr,
+		mempool_alloc_t *alloc_fn, mempool_free_t *free_fn,
+		void *pool_data, gfp_t gfp_mask, int nid);
 #define mempool_create_node(...)					\
 	alloc_hooks(mempool_create_node_noprof(__VA_ARGS__))
 
@@ -60,10 +59,10 @@ extern mempool_t *mempool_create_node_noprof(int min_nr, mempool_alloc_t *alloc_
 	mempool_create_node(_min_nr, _alloc_fn, _free_fn, _pool_data,	\
 			    GFP_KERNEL, NUMA_NO_NODE)
 
-extern int mempool_resize(mempool_t *pool, int new_min_nr);
-extern void mempool_destroy(mempool_t *pool);
+int mempool_resize(struct mempool *pool, int new_min_nr);
+void mempool_destroy(struct mempool *pool);
 
-extern void *mempool_alloc_noprof(mempool_t *pool, gfp_t gfp_mask) __malloc;
+void *mempool_alloc_noprof(struct mempool *pool, gfp_t gfp_mask) __malloc;
 #define mempool_alloc(...)						\
 	alloc_hooks(mempool_alloc_noprof(__VA_ARGS__))
 int mempool_alloc_bulk_noprof(struct mempool *pool, void **elem,
@@ -71,8 +70,8 @@ int mempool_alloc_bulk_noprof(struct mempool *pool, void **elem,
 #define mempool_alloc_bulk(...)						\
 	alloc_hooks(mempool_alloc_bulk_noprof(__VA_ARGS__))
 
-extern void *mempool_alloc_preallocated(mempool_t *pool) __malloc;
-extern void mempool_free(void *element, mempool_t *pool);
+void *mempool_alloc_preallocated(struct mempool *pool) __malloc;
+void mempool_free(void *element, struct mempool *pool);
 unsigned int mempool_free_bulk(struct mempool *pool, void **elem,
 		unsigned int count);
 

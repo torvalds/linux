@@ -40,7 +40,7 @@ static int __init mempool_faul_inject_init(void)
 late_initcall(mempool_faul_inject_init);
 
 #ifdef CONFIG_SLUB_DEBUG_ON
-static void poison_error(mempool_t *pool, void *element, size_t size,
+static void poison_error(struct mempool *pool, void *element, size_t size,
 			 size_t byte)
 {
 	const int nr = pool->curr_nr;
@@ -57,7 +57,7 @@ static void poison_error(mempool_t *pool, void *element, size_t size,
 	dump_stack();
 }
 
-static void __check_element(mempool_t *pool, void *element, size_t size)
+static void __check_element(struct mempool *pool, void *element, size_t size)
 {
 	u8 *obj = element;
 	size_t i;
@@ -73,7 +73,7 @@ static void __check_element(mempool_t *pool, void *element, size_t size)
 	memset(obj, POISON_INUSE, size);
 }
 
-static void check_element(mempool_t *pool, void *element)
+static void check_element(struct mempool *pool, void *element)
 {
 	/* Skip checking: KASAN might save its metadata in the element. */
 	if (kasan_enabled())
@@ -102,7 +102,7 @@ static void __poison_element(void *element, size_t size)
 	obj[size - 1] = POISON_END;
 }
 
-static void poison_element(mempool_t *pool, void *element)
+static void poison_element(struct mempool *pool, void *element)
 {
 	/* Skip poisoning: KASAN might save its metadata in the element. */
 	if (kasan_enabled())
@@ -123,15 +123,16 @@ static void poison_element(mempool_t *pool, void *element)
 	}
 }
 #else /* CONFIG_SLUB_DEBUG_ON */
-static inline void check_element(mempool_t *pool, void *element)
+static inline void check_element(struct mempool *pool, void *element)
 {
 }
-static inline void poison_element(mempool_t *pool, void *element)
+static inline void poison_element(struct mempool *pool, void *element)
 {
 }
 #endif /* CONFIG_SLUB_DEBUG_ON */
 
-static __always_inline bool kasan_poison_element(mempool_t *pool, void *element)
+static __always_inline bool kasan_poison_element(struct mempool *pool,
+		void *element)
 {
 	if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
 		return kasan_mempool_poison_object(element);
@@ -141,7 +142,7 @@ static __always_inline bool kasan_poison_element(mempool_t *pool, void *element)
 	return true;
 }
 
-static void kasan_unpoison_element(mempool_t *pool, void *element)
+static void kasan_unpoison_element(struct mempool *pool, void *element)
 {
 	if (pool->alloc == mempool_kmalloc)
 		kasan_mempool_unpoison_object(element, (size_t)pool->pool_data);
@@ -153,7 +154,7 @@ static void kasan_unpoison_element(mempool_t *pool, void *element)
 					     (unsigned long)pool->pool_data);
 }
 
-static __always_inline void add_element(mempool_t *pool, void *element)
+static __always_inline void add_element(struct mempool *pool, void *element)
 {
 	BUG_ON(pool->min_nr != 0 && pool->curr_nr >= pool->min_nr);
 	poison_element(pool, element);
@@ -161,7 +162,7 @@ static __always_inline void add_element(mempool_t *pool, void *element)
 		pool->elements[pool->curr_nr++] = element;
 }
 
-static void *remove_element(mempool_t *pool)
+static void *remove_element(struct mempool *pool)
 {
 	void *element = pool->elements[--pool->curr_nr];
 
@@ -182,7 +183,7 @@ static void *remove_element(mempool_t *pool)
  * May be called on a zeroed but uninitialized mempool (i.e. allocated with
  * kzalloc()).
  */
-void mempool_exit(mempool_t *pool)
+void mempool_exit(struct mempool *pool)
 {
 	while (pool->curr_nr) {
 		void *element = remove_element(pool);
@@ -201,7 +202,7 @@ EXPORT_SYMBOL(mempool_exit);
  * Free all reserved elements in @pool and @pool itself.  This function
  * only sleeps if the free_fn() function sleeps.
  */
-void mempool_destroy(mempool_t *pool)
+void mempool_destroy(struct mempool *pool)
 {
 	if (unlikely(!pool))
 		return;
@@ -211,9 +212,9 @@ void mempool_destroy(mempool_t *pool)
 }
 EXPORT_SYMBOL(mempool_destroy);
 
-int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
-		      mempool_free_t *free_fn, void *pool_data,
-		      gfp_t gfp_mask, int node_id)
+int mempool_init_node(struct mempool *pool, int min_nr,
+		mempool_alloc_t *alloc_fn, mempool_free_t *free_fn,
+		void *pool_data, gfp_t gfp_mask, int node_id)
 {
 	spin_lock_init(&pool->lock);
 	pool->min_nr	= min_nr;
@@ -263,8 +264,9 @@ EXPORT_SYMBOL(mempool_init_node);
  *
  * Return: %0 on success, negative error code otherwise.
  */
-int mempool_init_noprof(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
-			mempool_free_t *free_fn, void *pool_data)
+int mempool_init_noprof(struct mempool *pool, int min_nr,
+		mempool_alloc_t *alloc_fn, mempool_free_t *free_fn,
+		void *pool_data)
 {
 	return mempool_init_node(pool, min_nr, alloc_fn, free_fn,
 				 pool_data, GFP_KERNEL, NUMA_NO_NODE);
@@ -290,11 +292,11 @@ EXPORT_SYMBOL(mempool_init_noprof);
  *
  * Return: pointer to the created memory pool object or %NULL on error.
  */
-mempool_t *mempool_create_node_noprof(int min_nr, mempool_alloc_t *alloc_fn,
-				      mempool_free_t *free_fn, void *pool_data,
-				      gfp_t gfp_mask, int node_id)
+struct mempool *mempool_create_node_noprof(int min_nr,
+		mempool_alloc_t *alloc_fn, mempool_free_t *free_fn,
+		void *pool_data, gfp_t gfp_mask, int node_id)
 {
-	mempool_t *pool;
+	struct mempool *pool;
 
 	pool = kmalloc_node_noprof(sizeof(*pool), gfp_mask | __GFP_ZERO, node_id);
 	if (!pool)
@@ -328,7 +330,7 @@ EXPORT_SYMBOL(mempool_create_node_noprof);
  *
  * Return: %0 on success, negative error code otherwise.
  */
-int mempool_resize(mempool_t *pool, int new_min_nr)
+int mempool_resize(struct mempool *pool, int new_min_nr)
 {
 	void *element;
 	void **new_elements;
@@ -530,7 +532,7 @@ EXPORT_SYMBOL_GPL(mempool_alloc_bulk_noprof);
  * an element.  Allocation failure can only happen when @gfp_mask does not
  * include %__GFP_DIRECT_RECLAIM.
  */
-void *mempool_alloc_noprof(mempool_t *pool, gfp_t gfp_mask)
+void *mempool_alloc_noprof(struct mempool *pool, gfp_t gfp_mask)
 {
 	gfp_t gfp_temp = mempool_adjust_gfp(&gfp_mask);
 	void *element;
@@ -582,7 +584,7 @@ EXPORT_SYMBOL(mempool_alloc_noprof);
  * Return: pointer to the allocated element or %NULL if no elements are
  * available.
  */
-void *mempool_alloc_preallocated(mempool_t *pool)
+void *mempool_alloc_preallocated(struct mempool *pool)
 {
 	void *element = NULL;
 
