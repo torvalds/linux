@@ -6012,6 +6012,12 @@ bool dc_smart_power_oled_enable(const struct dc_link *link, bool enable, uint16_
 	if (pipe_ctx)
 		otg_inst = pipe_ctx->stream_res.tg->inst;
 
+	// before enable smart power OLED, we need to call set pipe for DMUB to set ABM config
+	if (enable) {
+		if (dc->hwss.set_pipe && pipe_ctx)
+			dc->hwss.set_pipe(pipe_ctx);
+	}
+
 	// fill in cmd
 	memset(&cmd, 0, sizeof(cmd));
 
