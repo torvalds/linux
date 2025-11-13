@@ -428,11 +428,16 @@ void blk_mq_free_sched_tags(struct elevator_tags *et,
 }
 
 void blk_mq_free_sched_res(struct elevator_resources *res,
+		struct elevator_type *type,
 		struct blk_mq_tag_set *set)
 {
 	if (res->et) {
 		blk_mq_free_sched_tags(res->et, set);
 		res->et = NULL;
+	}
+	if (res->data) {
+		blk_mq_free_sched_data(type, res->data);
+		res->data = NULL;
 	}
 }
 
@@ -458,7 +463,7 @@ void blk_mq_free_sched_res_batch(struct xarray *elv_tbl,
 				WARN_ON_ONCE(1);
 				continue;
 			}
-			blk_mq_free_sched_res(&ctx->res, set);
+			blk_mq_free_sched_res(&ctx->res, ctx->type, set);
 		}
 	}
 }
@@ -540,7 +545,9 @@ out:
 }
 
 int blk_mq_alloc_sched_res(struct request_queue *q,
-		struct elevator_resources *res, unsigned int nr_hw_queues)
+		struct elevator_type *type,
+		struct elevator_resources *res,
+		unsigned int nr_hw_queues)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 
@@ -548,6 +555,12 @@ int blk_mq_alloc_sched_res(struct request_queue *q,
 			blk_mq_default_nr_requests(set));
 	if (!res->et)
 		return -ENOMEM;
+
+	res->data = blk_mq_alloc_sched_data(q, type);
+	if (IS_ERR(res->data)) {
+		blk_mq_free_sched_tags(res->et, set);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -576,19 +589,21 @@ int blk_mq_alloc_sched_res_batch(struct xarray *elv_tbl,
 				goto out_unwind;
 			}
 
-			ret = blk_mq_alloc_sched_res(q, &ctx->res,
-					nr_hw_queues);
+			ret = blk_mq_alloc_sched_res(q, q->elevator->type,
+					&ctx->res, nr_hw_queues);
 			if (ret)
 				goto out_unwind;
 		}
 	}
 	return 0;
+
 out_unwind:
 	list_for_each_entry_continue_reverse(q, &set->tag_list, tag_set_list) {
 		if (q->elevator) {
 			ctx = xa_load(elv_tbl, q->id);
 			if (ctx)
-				blk_mq_free_sched_res(&ctx->res, set);
+				blk_mq_free_sched_res(&ctx->res,
+						ctx->type, set);
 		}
 	}
 	return ret;
@@ -605,7 +620,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e,
 	unsigned long i;
 	int ret;
 
-	eq = elevator_alloc(q, e, et);
+	eq = elevator_alloc(q, e, res);
 	if (!eq)
 		return -ENOMEM;
 
