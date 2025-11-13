@@ -1290,13 +1290,13 @@ static bool ufshcd_is_devfreq_scaling_required(struct ufs_hba *hba,
  */
 static u32 ufshcd_pending_cmds(struct ufs_hba *hba)
 {
-	const struct scsi_device *sdev;
+	struct scsi_device *sdev;
 	unsigned long flags;
 	u32 pending = 0;
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	__shost_for_each_device(sdev, hba->host)
-		pending += sbitmap_weight(&sdev->budget_map);
+		pending += scsi_device_busy(sdev);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	return pending;
