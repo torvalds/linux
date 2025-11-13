@@ -150,6 +150,8 @@ static void amdgpu_ras_critical_region_fini(struct amdgpu_device *adev);
 
 #ifdef CONFIG_X86_MCE_AMD
 static void amdgpu_register_bad_pages_mca_notifier(struct amdgpu_device *adev);
+static void
+amdgpu_unregister_bad_pages_mca_notifier(struct amdgpu_device *adev);
 struct mce_notifier_adev_list {
 	struct amdgpu_device *devs[MAX_GPU_INSTANCE];
 	int num_gpu;
@@ -3954,7 +3956,9 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 	mutex_unlock(&con->recovery_lock);
 
 	amdgpu_ras_critical_region_init(adev);
-
+#ifdef CONFIG_X86_MCE_AMD
+	amdgpu_unregister_bad_pages_mca_notifier(adev);
+#endif
 	return 0;
 }
 /* recovery end */
@@ -4986,6 +4990,28 @@ static void amdgpu_register_bad_pages_mca_notifier(struct amdgpu_device *adev)
 	if (notifier_registered == false) {
 		mce_register_decode_chain(&amdgpu_bad_page_nb);
 		notifier_registered = true;
+	}
+}
+static void amdgpu_unregister_bad_pages_mca_notifier(struct amdgpu_device *adev)
+{
+	int i, j;
+
+	if (!notifier_registered && !mce_adev_list.num_gpu)
+		return;
+	for (i = 0, j = 0; i < mce_adev_list.num_gpu; i++) {
+		if (mce_adev_list.devs[i] == adev)
+			mce_adev_list.devs[i] = NULL;
+		if (!mce_adev_list.devs[i])
+			++j;
+	}
+
+	if (j == mce_adev_list.num_gpu) {
+		mce_adev_list.num_gpu = 0;
+		/* Unregister x86 notifier with MCE subsystem. */
+		if (notifier_registered) {
+			mce_unregister_decode_chain(&amdgpu_bad_page_nb);
+			notifier_registered = false;
+		}
 	}
 }
 #endif
