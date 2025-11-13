@@ -28,7 +28,11 @@
  */
 #define VHOST_TEST_PKT_WEIGHT 256
 
-#define VHOST_TEST_FEATURES VHOST_FEATURES
+static const int vhost_test_bits[] = {
+	VHOST_FEATURES
+};
+
+#define VHOST_TEST_FEATURES VHOST_FEATURES_U64(vhost_test_bits, 0)
 
 enum {
 	VHOST_TEST_VQ = 0,
