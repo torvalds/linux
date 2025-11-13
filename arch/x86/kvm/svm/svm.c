@@ -77,6 +77,7 @@ static bool erratum_383_found __read_mostly;
  * are published and we know what the new status bits are
  */
 static uint64_t osvw_len = 4, osvw_status;
+static DEFINE_SPINLOCK(osvw_lock);
 
 static DEFINE_PER_CPU(u64, current_tsc_ratio);
 
@@ -558,16 +559,19 @@ static int svm_enable_virtualization_cpu(void)
 		if (!err)
 			err = native_read_msr_safe(MSR_AMD64_OSVW_STATUS, &status);
 
-		if (err)
+		guard(spinlock)(&osvw_lock);
+
+		if (err) {
 			osvw_status = osvw_len = 0;
-		else {
+		} else {
 			if (len < osvw_len)
 				osvw_len = len;
 			osvw_status |= status;
 			osvw_status &= (1ULL << osvw_len) - 1;
 		}
-	} else
+	} else {
 		osvw_status = osvw_len = 0;
+	}
 
 	svm_init_erratum_383();
 
