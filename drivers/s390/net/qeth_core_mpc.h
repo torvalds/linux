@@ -857,8 +857,9 @@ enum qeth_ipa_arp_return_codes {
 	QETH_IPA_ARP_RC_Q_NO_DATA    = 0x0008,
 };
 
-extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
-extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
+const char *qeth_get_ipa_msg(enum qeth_ipa_cmds cmd,
+			     enum qeth_ipa_return_codes rc);
+const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 
 /* Helper functions */
 #define IS_IPA_REPLY(cmd) ((cmd)->hdr.initiator == IPA_CMD_INITIATOR_HOST)
