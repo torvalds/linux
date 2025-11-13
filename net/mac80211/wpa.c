@@ -1117,7 +1117,7 @@ ieee80211_crypto_aes_gmac_decrypt(struct ieee80211_rx_data *rx)
 		memcpy(nonce, hdr->addr2, ETH_ALEN);
 		memcpy(nonce + ETH_ALEN, ipn, 6);
 
-		mic = kmalloc(GMAC_MIC_LEN, GFP_ATOMIC);
+		mic = kmalloc(IEEE80211_GMAC_MIC_LEN, GFP_ATOMIC);
 		if (!mic)
 			return RX_DROP_U_OOM;
 		if (ieee80211_aes_gmac(key->u.aes_gmac.tfm, aad, nonce,
