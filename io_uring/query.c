@@ -22,6 +22,8 @@ static ssize_t io_query_ops(union io_query_data *data)
 	e->ring_setup_flags = IORING_SETUP_FLAGS;
 	e->enter_flags = IORING_ENTER_FLAGS;
 	e->sqe_flags = SQE_VALID_FLAGS;
+	e->nr_query_opcodes = __IO_URING_QUERY_MAX;
+	e->__pad = 0;
 	return sizeof(*e);
 }
 
