@@ -28,6 +28,7 @@ properties:
           - const: mediatek,mt6577-uart-dma
       - enum:
           - mediatek,mt6577-uart-dma
+          - mediatek,mt6795-uart-dma
 
   reg:
     minItems: 1
