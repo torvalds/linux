@@ -113,6 +113,15 @@ static int dm_report_zones_cb(struct blk_zone *zone, unsigned int idx,
 
 	args->next_sector = zone->start + zone->len;
 
+	/* If we have an internal callback, call it first. */
+	if (args->cb) {
+		int ret;
+
+		ret = args->cb(zone, args->zone_idx, args->data);
+		if (ret)
+			return ret;
+	}
+
 	return disk_report_zone(args->disk, zone, args->zone_idx++,
 				args->rep_args);
 }
