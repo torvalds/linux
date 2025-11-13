@@ -2126,6 +2126,7 @@ static bool set_target_expiration(struct kvm_lapic *apic, u32 count_reg)
 
 static void advance_periodic_target_expiration(struct kvm_lapic *apic)
 {
+	struct kvm_timer *ktimer = &apic->lapic_timer;
 	ktime_t now = ktime_get();
 	u64 tscl = rdtsc();
 	ktime_t delta;
@@ -2137,9 +2138,8 @@ static void advance_periodic_target_expiration(struct kvm_lapic *apic)
 	 * over time as differences in the periods accumulate, e.g. due to
 	 * differences in the underlying clocks or numerical approximation errors.
 	 */
-	apic->lapic_timer.target_expiration =
-		ktime_add_ns(apic->lapic_timer.target_expiration,
-				apic->lapic_timer.period);
+	ktimer->target_expiration = ktime_add_ns(ktimer->target_expiration,
+						 ktimer->period);
 
 	/*
 	 * If the new expiration is in the past, e.g. because userspace stopped
@@ -2150,17 +2150,17 @@ static void advance_periodic_target_expiration(struct kvm_lapic *apic)
 	 * past will do nothing more than waste host cycles, and can even lead
 	 * to a hard lockup in extreme cases.
 	 */
-	if (ktime_before(apic->lapic_timer.target_expiration, now))
-		apic->lapic_timer.target_expiration = now;
+	if (ktime_before(ktimer->target_expiration, now))
+		ktimer->target_expiration = now;
 
 	/*
 	 * Note, ensuring the expiration isn't in the past also prevents delta
 	 * from going negative, which could cause the TSC deadline to become
 	 * excessively large due to it an unsigned value.
 	 */
-	delta = ktime_sub(apic->lapic_timer.target_expiration, now);
-	apic->lapic_timer.tscdeadline = kvm_read_l1_tsc(apic->vcpu, tscl) +
-		nsec_to_cycles(apic->vcpu, delta);
+	delta = ktime_sub(ktimer->target_expiration, now);
+	ktimer->tscdeadline = kvm_read_l1_tsc(apic->vcpu, tscl) +
+			      nsec_to_cycles(apic->vcpu, delta);
 }
 
 static void start_sw_period(struct kvm_lapic *apic)
