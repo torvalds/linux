@@ -180,20 +180,20 @@ static irqreturn_t mchp_ipc_cluster_aggr_isr(int irq, void *data)
 	/* Find out the hart that originated the irq */
 	for_each_online_cpu(i) {
 		hartid = cpuid_to_hartid_map(i);
-		if (irq == ipc->cluster_cfg[hartid].irq)
+		if (irq == ipc->cluster_cfg[i].irq)
 			break;
 	}
 
 	status_msg.cluster = hartid;
-	memcpy(ipc->cluster_cfg[hartid].buf_base, &status_msg, sizeof(struct mchp_ipc_status));
+	memcpy(ipc->cluster_cfg[i].buf_base, &status_msg, sizeof(struct mchp_ipc_status));
 
-	ret = mchp_ipc_sbi_send(SBI_EXT_IPC_STATUS, ipc->cluster_cfg[hartid].buf_base_addr);
+	ret = mchp_ipc_sbi_send(SBI_EXT_IPC_STATUS, ipc->cluster_cfg[i].buf_base_addr);
 	if (ret < 0) {
 		dev_err_ratelimited(ipc->dev, "could not get IHC irq status ret=%d\n", ret);
 		return IRQ_HANDLED;
 	}
 
-	memcpy(&status_msg, ipc->cluster_cfg[hartid].buf_base, sizeof(struct mchp_ipc_status));
+	memcpy(&status_msg, ipc->cluster_cfg[i].buf_base, sizeof(struct mchp_ipc_status));
 
 	/*
 	 * Iterate over each bit set in the IHC interrupt status register (IRQ_STATUS) to identify
@@ -385,21 +385,21 @@ static int mchp_ipc_get_cluster_aggr_irq(struct mchp_ipc_sbi_mbox *ipc)
 		if (ret <= 0)
 			continue;
 
-		ipc->cluster_cfg[hartid].irq = ret;
-		ret = devm_request_irq(ipc->dev, ipc->cluster_cfg[hartid].irq,
+		ipc->cluster_cfg[cpuid].irq = ret;
+		ret = devm_request_irq(ipc->dev, ipc->cluster_cfg[cpuid].irq,
 				       mchp_ipc_cluster_aggr_isr, IRQF_SHARED,
 				       "miv-ihc-irq", ipc);
 		if (ret)
 			return ret;
 
-		ipc->cluster_cfg[hartid].buf_base = devm_kmalloc(ipc->dev,
-								 sizeof(struct mchp_ipc_status),
-								 GFP_KERNEL);
+		ipc->cluster_cfg[cpuid].buf_base = devm_kmalloc(ipc->dev,
+								sizeof(struct mchp_ipc_status),
+								GFP_KERNEL);
 
-		if (!ipc->cluster_cfg[hartid].buf_base)
+		if (!ipc->cluster_cfg[cpuid].buf_base)
 			return -ENOMEM;
 
-		ipc->cluster_cfg[hartid].buf_base_addr = __pa(ipc->cluster_cfg[hartid].buf_base);
+		ipc->cluster_cfg[cpuid].buf_base_addr = __pa(ipc->cluster_cfg[cpuid].buf_base);
 
 		irq_found = true;
 	}
