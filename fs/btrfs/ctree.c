@@ -4565,7 +4565,6 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 				free_extent_buffer(leaf);
 				if (ret < 0)
 					return ret;
-				ret = 0;
 			} else {
 				/* if we're still in the path, make sure
 				 * we're dirty.  Otherwise, one of the
