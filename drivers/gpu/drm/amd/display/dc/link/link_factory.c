@@ -529,15 +529,15 @@ static bool construct_phy(struct dc_link *link,
 	enc_init_data.transmitter = translate_encoder_to_transmitter(enc_init_data.encoder);
 	enc_init_data.analog_engine = find_analog_engine(link);
 
-	if (!transmitter_supported(enc_init_data.transmitter) &&
-		!analog_engine_supported(enc_init_data.analog_engine)) {
-		DC_LOG_WARNING("link_id %d has unsupported encoder\n", link->link_id.id);
-		return false;
-	}
-
 	link->ep_type = DISPLAY_ENDPOINT_PHY;
 
 	DC_LOG_DC("BIOS object table - link_id: %d", link->link_id.id);
+
+	if (!transmitter_supported(enc_init_data.transmitter) &&
+	    !analog_engine_supported(enc_init_data.analog_engine)) {
+		DC_LOG_WARNING("link_id %d has unsupported encoder\n", link->link_id.id);
+		goto unsupported_fail;
+	}
 
 	if (bios->funcs->get_disp_connector_caps_info) {
 		bios->funcs->get_disp_connector_caps_info(bios, link->link_id, &disp_connect_caps_info);
@@ -806,6 +806,7 @@ create_fail:
 		link->hpd_gpio = NULL;
 	}
 
+unsupported_fail:
 	DC_LOG_DC("BIOS object table - %s failed.\n", __func__);
 	return false;
 }
