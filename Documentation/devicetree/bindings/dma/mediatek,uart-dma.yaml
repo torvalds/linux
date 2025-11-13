@@ -59,6 +59,7 @@ properties:
 
   mediatek,dma-33bits:
     type: boolean
+    deprecated: true
     description: Enable 33-bits UART APDMA support
 
 required:
