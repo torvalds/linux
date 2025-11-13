@@ -212,6 +212,8 @@ typedef __bitwise unsigned int vm_fault_t;
 
 #define ASSERT_EXCLUSIVE_WRITER(x)
 
+#define pgtable_supports_soft_dirty() 1
+
 /**
  * swap - swap values of @a and @b
  * @a: first value
