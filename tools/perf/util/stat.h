@@ -129,8 +129,6 @@ static inline void init_stats(struct stats *stats)
 struct evsel;
 struct evlist;
 
-extern struct stats walltime_nsecs_stats;
-
 enum metric_threshold_classify {
 	METRIC_THRESHOLD_UNKNOWN,
 	METRIC_THRESHOLD_BAD,

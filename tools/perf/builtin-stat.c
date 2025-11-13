@@ -239,7 +239,7 @@ static inline void diff_timespec(struct timespec *r, struct timespec *a,
 static void perf_stat__reset_stats(void)
 {
 	evlist__reset_stats(evsel_list);
-	perf_stat__reset_shadow_stats();
+	memset(stat_config.walltime_nsecs_stats, 0, sizeof(*stat_config.walltime_nsecs_stats));
 }
 
 static int process_synthesized_event(const struct perf_tool *tool __maybe_unused,
@@ -455,8 +455,8 @@ static void process_interval(void)
 			pr_err("failed to write stat round event\n");
 	}
 
-	init_stats(&walltime_nsecs_stats);
-	update_stats(&walltime_nsecs_stats, stat_config.interval * 1000000ULL);
+	init_stats(stat_config.walltime_nsecs_stats);
+	update_stats(stat_config.walltime_nsecs_stats, stat_config.interval * 1000000ULL);
 	print_counters(&rs, 0, NULL);
 }
 
@@ -988,14 +988,14 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	if (interval && stat_config.summary) {
 		stat_config.interval = 0;
 		stat_config.stop_read_counter = true;
-		init_stats(&walltime_nsecs_stats);
-		update_stats(&walltime_nsecs_stats, t1 - t0);
+		init_stats(stat_config.walltime_nsecs_stats);
+		update_stats(stat_config.walltime_nsecs_stats, t1 - t0);
 
 		evlist__copy_prev_raw_counts(evsel_list);
 		evlist__reset_prev_raw_counts(evsel_list);
 		evlist__reset_aggr_stats(evsel_list);
 	} else {
-		update_stats(&walltime_nsecs_stats, t1 - t0);
+		update_stats(stat_config.walltime_nsecs_stats, t1 - t0);
 		update_rusage_stats(&stat_config.ru_data);
 	}
 
@@ -2167,7 +2167,7 @@ static int process_stat_round_event(const struct perf_tool *tool __maybe_unused,
 	process_counters();
 
 	if (stat_round->type == PERF_STAT_ROUND_TYPE__FINAL)
-		update_stats(&walltime_nsecs_stats, stat_round->time);
+		update_stats(stat_config.walltime_nsecs_stats, stat_round->time);
 
 	if (stat_config.interval && stat_round->time) {
 		tsh.tv_sec  = stat_round->time / NSEC_PER_SEC;
@@ -2975,7 +2975,7 @@ int cmd_stat(int argc, const char **argv)
 		}
 
 		if (!interval) {
-			if (WRITE_STAT_ROUND_EVENT(walltime_nsecs_stats.max, FINAL))
+			if (WRITE_STAT_ROUND_EVENT(stat_config.walltime_nsecs_stats->max, FINAL))
 				pr_err("failed to write stat round event\n");
 		}
 

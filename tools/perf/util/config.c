@@ -37,6 +37,8 @@
 
 #define METRIC_ONLY_LEN 20
 
+static struct stats walltime_nsecs_stats;
+
 struct perf_stat_config stat_config = {
 	.aggr_mode		= AGGR_GLOBAL,
 	.aggr_level		= MAX_CACHE_LVL + 1,
