@@ -90,6 +90,8 @@ struct dentry *lookup_one_positive_killable(struct mnt_idmap *idmap,
 
 struct dentry *start_creating(struct mnt_idmap *idmap, struct dentry *parent,
 			      struct qstr *name);
+struct dentry *start_removing(struct mnt_idmap *idmap, struct dentry *parent,
+			      struct qstr *name);
 
 /**
  * end_creating - finish action started with start_creating
@@ -119,6 +121,22 @@ static inline void end_creating(struct dentry *child, struct dentry *parent)
 		inode_unlock(parent->d_inode);
 	else
 		end_dirop(child);
+}
+
+/**
+ * end_removing - finish action started with start_removing
+ * @child:  dentry returned by start_removing()
+ * @parent: dentry given to start_removing()
+ *
+ * Unlock and release the child.
+ *
+ * This is identical to end_dirop().  It can be passed the result of
+ * start_removing() whether that was successful or not, but it not needed
+ * if start_removing() failed.
+ */
+static inline void end_removing(struct dentry *child)
+{
+	end_dirop(child);
 }
 
 extern int follow_down_one(struct path *);
