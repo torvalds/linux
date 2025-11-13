@@ -6726,7 +6726,7 @@ static bool scsi_debug_stop_cmnd(struct scsi_cmnd *cmnd)
 {
 	struct sdebug_scsi_cmd *sdsc = scsi_cmd_priv(cmnd);
 	struct sdebug_defer *sd_dp = &sdsc->sd_dp;
-	enum sdeb_defer_type defer_t = READ_ONCE(sd_dp->defer_t);
+	enum sdeb_defer_type defer_t = sd_dp->defer_t;
 
 	lockdep_assert_held(&sdsc->lock);
 
@@ -7288,12 +7288,12 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		if (polled) {
 			spin_lock_irqsave(&sdsc->lock, flags);
 			sd_dp->cmpl_ts = ktime_add(ns_to_ktime(ns_from_boot), kt);
-			WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_POLL);
+			sd_dp->defer_t = SDEB_DEFER_POLL;
 			spin_unlock_irqrestore(&sdsc->lock, flags);
 		} else {
 			/* schedule the invocation of scsi_done() for a later time */
 			spin_lock_irqsave(&sdsc->lock, flags);
-			WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_HRT);
+			sd_dp->defer_t = SDEB_DEFER_HRT;
 			hrtimer_start(&sd_dp->hrt, kt, HRTIMER_MODE_REL_PINNED);
 			/*
 			 * The completion handler will try to grab sqcp->lock,
@@ -7317,11 +7317,11 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		if (polled) {
 			spin_lock_irqsave(&sdsc->lock, flags);
 			sd_dp->cmpl_ts = ns_to_ktime(ns_from_boot);
-			WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_POLL);
+			sd_dp->defer_t = SDEB_DEFER_POLL;
 			spin_unlock_irqrestore(&sdsc->lock, flags);
 		} else {
 			spin_lock_irqsave(&sdsc->lock, flags);
-			WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_WQ);
+			sd_dp->defer_t = SDEB_DEFER_WQ;
 			schedule_work(&sd_dp->ew.work);
 			spin_unlock_irqrestore(&sdsc->lock, flags);
 		}
@@ -9125,7 +9125,7 @@ static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
 
 	spin_lock_irqsave(&sdsc->lock, flags);
 	sd_dp = &sdsc->sd_dp;
-	if (READ_ONCE(sd_dp->defer_t) != SDEB_DEFER_POLL) {
+	if (sd_dp->defer_t != SDEB_DEFER_POLL) {
 		spin_unlock_irqrestore(&sdsc->lock, flags);
 		return true;
 	}
