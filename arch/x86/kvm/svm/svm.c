@@ -1867,8 +1867,8 @@ static int npf_interception(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int rc;
 
-	u64 fault_address = svm->vmcb->control.exit_info_2;
 	u64 error_code = svm->vmcb->control.exit_info_1;
+	gpa_t gpa = svm->vmcb->control.exit_info_2;
 
 	/*
 	 * WARN if hardware generates a fault with an error code that collides
@@ -1882,14 +1882,14 @@ static int npf_interception(struct kvm_vcpu *vcpu)
 	if (sev_snp_guest(vcpu->kvm) && (error_code & PFERR_GUEST_ENC_MASK))
 		error_code |= PFERR_PRIVATE_ACCESS;
 
-	trace_kvm_page_fault(vcpu, fault_address, error_code);
-	rc = kvm_mmu_page_fault(vcpu, fault_address, error_code,
+	trace_kvm_page_fault(vcpu, gpa, error_code);
+	rc = kvm_mmu_page_fault(vcpu, gpa, error_code,
 				static_cpu_has(X86_FEATURE_DECODEASSISTS) ?
 				svm->vmcb->control.insn_bytes : NULL,
 				svm->vmcb->control.insn_len);
 
 	if (rc > 0 && error_code & PFERR_GUEST_RMP_MASK)
-		sev_handle_rmp_fault(vcpu, fault_address, error_code);
+		sev_handle_rmp_fault(vcpu, gpa, error_code);
 
 	return rc;
 }
