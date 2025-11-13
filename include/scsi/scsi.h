@@ -106,12 +106,15 @@ enum scsi_disposition {
 };
 
 /*
- * Midlevel queue return values.
+ * Status values returned by the .queuecommand() callback if a command has not
+ * been queued.
  */
-#define SCSI_MLQUEUE_HOST_BUSY   0x1055
-#define SCSI_MLQUEUE_DEVICE_BUSY 0x1056
-#define SCSI_MLQUEUE_EH_RETRY    0x1057
-#define SCSI_MLQUEUE_TARGET_BUSY 0x1058
+enum scsi_qc_status {
+	SCSI_MLQUEUE_HOST_BUSY   = 0x1055,
+	SCSI_MLQUEUE_DEVICE_BUSY = 0x1056,
+	SCSI_MLQUEUE_EH_RETRY    = 0x1057,
+	SCSI_MLQUEUE_TARGET_BUSY = 0x1058,
+};
 
 /*
  *  Use these to separate status msg and our bytes

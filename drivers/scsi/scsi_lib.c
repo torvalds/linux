@@ -76,7 +76,7 @@ int scsi_init_sense_cache(struct Scsi_Host *shost)
 }
 
 static void
-scsi_set_blocked(struct scsi_cmnd *cmd, int reason)
+scsi_set_blocked(struct scsi_cmnd *cmd, enum scsi_qc_status reason)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct scsi_device *device = cmd->device;
@@ -139,7 +139,8 @@ static void scsi_mq_requeue_cmd(struct scsi_cmnd *cmd, unsigned long msecs)
  * for a requeue after completion, which should only occur in this
  * file.
  */
-static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, bool unbusy)
+static void __scsi_queue_insert(struct scsi_cmnd *cmd,
+				enum scsi_qc_status reason, bool unbusy)
 {
 	struct scsi_device *device = cmd->device;
 
@@ -179,7 +180,7 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, bool unbusy)
  * Context: This could be called either from an interrupt context or a normal
  * process context.
  */
-void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
+void scsi_queue_insert(struct scsi_cmnd *cmd, enum scsi_qc_status reason)
 {
 	__scsi_queue_insert(cmd, reason, true);
 }
@@ -1577,7 +1578,7 @@ static void scsi_complete(struct request *rq)
  * Return: nonzero return request was rejected and device's queue needs to be
  * plugged.
  */
-static int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
+static enum scsi_qc_status scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	int rtn = 0;
@@ -1826,7 +1827,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct Scsi_Host *shost = sdev->host;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	blk_status_t ret;
-	int reason;
+	enum scsi_qc_status reason;
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
