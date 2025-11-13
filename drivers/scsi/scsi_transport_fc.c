@@ -441,7 +441,8 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host->next_vport_number = 0;
 	fc_host->npiv_vports_inuse = 0;
 
-	fc_host->work_q = alloc_workqueue("fc_wq_%d", 0, 0, shost->host_no);
+	fc_host->work_q = alloc_workqueue("fc_wq_%d", WQ_PERCPU, 0,
+					  shost->host_no);
 	if (!fc_host->work_q)
 		return -ENOMEM;
 
@@ -3088,7 +3089,7 @@ fc_remote_port_create(struct Scsi_Host *shost, int channel,
 
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	rport->devloss_work_q = alloc_workqueue("fc_dl_%d_%d", 0, 0,
+	rport->devloss_work_q = alloc_workqueue("fc_dl_%d_%d", WQ_PERCPU, 0,
 						shost->host_no, rport->number);
 	if (!rport->devloss_work_q) {
 		printk(KERN_ERR "FC Remote Port alloc_workqueue failed\n");
