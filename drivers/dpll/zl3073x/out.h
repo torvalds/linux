@@ -12,10 +12,20 @@ struct zl3073x_dev;
 
 /**
  * struct zl3073x_out - output state
+ * @div: output divisor
+ * @width: output pulse width
+ * @esync_n_period: embedded sync or n-pin period (for n-div formats)
+ * @esync_n_width: embedded sync or n-pin pulse width
+ * @phase_comp: phase compensation
  * @ctrl: output control
  * @mode: output mode
  */
 struct zl3073x_out {
+	u32	div;
+	u32	width;
+	u32	esync_n_period;
+	u32	esync_n_width;
+	s32	phase_comp;
 	u8	ctrl;
 	u8	mode;
 };
@@ -23,6 +33,9 @@ struct zl3073x_out {
 int zl3073x_out_state_fetch(struct zl3073x_dev *zldev, u8 index);
 const struct zl3073x_out *zl3073x_out_state_get(struct zl3073x_dev *zldev,
 						u8 index);
+
+int zl3073x_out_state_set(struct zl3073x_dev *zldev, u8 index,
+			  const struct zl3073x_out *out);
 
 /**
  * zl3073x_out_signal_format_get - get output signal format
