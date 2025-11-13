@@ -3825,11 +3825,12 @@ _scsih_internal_device_unblock(struct scsi_device *sdev,
 /**
  * _scsih_ublock_io_all_device - unblock every device
  * @ioc: per adapter object
+ * @no_turs: flag to disable TEST UNIT READY checks during device unblocking
  *
  * change the device state from block to running
  */
 static void
-_scsih_ublock_io_all_device(struct MPT3SAS_ADAPTER *ioc)
+_scsih_ublock_io_all_device(struct MPT3SAS_ADAPTER *ioc, u8 no_turs)
 {
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	struct scsi_device *sdev;
@@ -3840,6 +3841,13 @@ _scsih_ublock_io_all_device(struct MPT3SAS_ADAPTER *ioc)
 			continue;
 		if (!sas_device_priv_data->block)
 			continue;
+
+		if (no_turs) {
+			sdev_printk(KERN_WARNING, sdev, "device_unblocked handle(0x%04x)\n",
+				sas_device_priv_data->sas_target->handle);
+			_scsih_internal_device_unblock(sdev, sas_device_priv_data);
+			continue;
+		}
 
 		dewtprintk(ioc, sdev_printk(KERN_INFO, sdev,
 			"device_running, handle(0x%04x)\n",
@@ -8810,7 +8818,7 @@ _scsih_sas_broadcast_primitive_event(struct MPT3SAS_ADAPTER *ioc,
 
 	ioc->broadcast_aen_busy = 0;
 	if (!ioc->shost_recovery)
-		_scsih_ublock_io_all_device(ioc);
+		_scsih_ublock_io_all_device(ioc, 1);
 	mutex_unlock(&ioc->tm_cmds.mutex);
 }
 
@@ -10344,7 +10352,7 @@ _scsih_remove_unresponding_devices(struct MPT3SAS_ADAPTER *ioc)
 	ioc_info(ioc, "removing unresponding devices: complete\n");
 
 	/* unblock devices */
-	_scsih_ublock_io_all_device(ioc);
+	_scsih_ublock_io_all_device(ioc, 0);
 }
 
 static void
