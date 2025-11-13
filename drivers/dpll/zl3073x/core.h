@@ -29,38 +29,38 @@ struct zl3073x_dpll;
 
 /**
  * struct zl3073x_ref - input reference invariant info
- * @enabled: input reference is enabled or disabled
- * @diff: true if input reference is differential
  * @ffo: current fractional frequency offset
+ * @config: reference config
  */
 struct zl3073x_ref {
-	bool	enabled;
-	bool	diff;
 	s64	ffo;
+	u8	config;
 };
 
 /**
  * struct zl3073x_out - output invariant info
- * @enabled: out is enabled or disabled
- * @synth: synthesizer the out is connected to
- * @signal_format: out signal format
+ * @ctrl: output control
+ * @mode: output mode
  */
 struct zl3073x_out {
-	bool	enabled;
-	u8	synth;
-	u8	signal_format;
+	u8	ctrl;
+	u8	mode;
 };
 
 /**
  * struct zl3073x_synth - synthesizer invariant info
- * @freq: synthesizer frequency
- * @dpll: ID of DPLL the synthesizer is driven by
- * @enabled: synth is enabled or disabled
+ * @freq_mult: frequency multiplier
+ * @freq_base: frequency base
+ * @freq_m: frequency numerator
+ * @freq_n: frequency denominator
+ * @ctrl: synth control
  */
 struct zl3073x_synth {
-	u32	freq;
-	u8	dpll;
-	bool	enabled;
+	u32	freq_mult;
+	u16	freq_base;
+	u16	freq_m;
+	u16	freq_n;
+	u8	ctrl;
 };
 
 /**
@@ -239,7 +239,10 @@ zl3073x_ref_ffo_get(struct zl3073x_dev *zldev, u8 index)
 static inline bool
 zl3073x_ref_is_diff(struct zl3073x_dev *zldev, u8 index)
 {
-	return zldev->ref[index].diff;
+	if (FIELD_GET(ZL_REF_CONFIG_DIFF_EN, zldev->ref[index].config))
+		return true;
+
+	return false;
 }
 
 /**
@@ -252,7 +255,10 @@ zl3073x_ref_is_diff(struct zl3073x_dev *zldev, u8 index)
 static inline bool
 zl3073x_ref_is_enabled(struct zl3073x_dev *zldev, u8 index)
 {
-	return zldev->ref[index].enabled;
+	if (FIELD_GET(ZL_REF_CONFIG_ENABLE, zldev->ref[index].config))
+		return true;
+
+	return false;
 }
 
 /**
@@ -265,7 +271,7 @@ zl3073x_ref_is_enabled(struct zl3073x_dev *zldev, u8 index)
 static inline u8
 zl3073x_synth_dpll_get(struct zl3073x_dev *zldev, u8 index)
 {
-	return zldev->synth[index].dpll;
+	return FIELD_GET(ZL_SYNTH_CTRL_DPLL_SEL, zldev->synth[index].ctrl);
 }
 
 /**
@@ -278,7 +284,10 @@ zl3073x_synth_dpll_get(struct zl3073x_dev *zldev, u8 index)
 static inline u32
 zl3073x_synth_freq_get(struct zl3073x_dev *zldev, u8 index)
 {
-	return zldev->synth[index].freq;
+	struct zl3073x_synth *synth = &zldev->synth[index];
+
+	return mul_u64_u32_div(synth->freq_base * synth->freq_m,
+			       synth->freq_mult, synth->freq_n);
 }
 
 /**
@@ -291,7 +300,7 @@ zl3073x_synth_freq_get(struct zl3073x_dev *zldev, u8 index)
 static inline bool
 zl3073x_synth_is_enabled(struct zl3073x_dev *zldev, u8 index)
 {
-	return zldev->synth[index].enabled;
+	return FIELD_GET(ZL_SYNTH_CTRL_EN, zldev->synth[index].ctrl);
 }
 
 /**
@@ -304,7 +313,7 @@ zl3073x_synth_is_enabled(struct zl3073x_dev *zldev, u8 index)
 static inline u8
 zl3073x_out_synth_get(struct zl3073x_dev *zldev, u8 index)
 {
-	return zldev->out[index].synth;
+	return FIELD_GET(ZL_OUTPUT_CTRL_SYNTH_SEL, zldev->out[index].ctrl);
 }
 
 /**
@@ -321,10 +330,10 @@ zl3073x_out_is_enabled(struct zl3073x_dev *zldev, u8 index)
 
 	/* Output is enabled only if associated synth is enabled */
 	synth = zl3073x_out_synth_get(zldev, index);
-	if (zl3073x_synth_is_enabled(zldev, synth))
-		return zldev->out[index].enabled;
+	if (!zl3073x_synth_is_enabled(zldev, synth))
+		return false;
 
-	return false;
+	return FIELD_GET(ZL_OUTPUT_CTRL_EN, zldev->out[index].ctrl);
 }
 
 /**
@@ -337,7 +346,7 @@ zl3073x_out_is_enabled(struct zl3073x_dev *zldev, u8 index)
 static inline u8
 zl3073x_out_signal_format_get(struct zl3073x_dev *zldev, u8 index)
 {
-	return zldev->out[index].signal_format;
+	return FIELD_GET(ZL_OUTPUT_MODE_SIGNAL_FORMAT, zldev->out[index].mode);
 }
 
 /**

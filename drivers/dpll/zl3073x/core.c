@@ -598,25 +598,22 @@ int zl3073x_write_hwreg_seq(struct zl3073x_dev *zldev,
  * @zldev: pointer to zl3073x_dev structure
  * @index: input reference index to fetch state for
  *
- * Function fetches information for the given input reference that are
- * invariant and stores them for later use.
+ * Function fetches state for the given input reference and stores it for
+ * later user.
  *
  * Return: 0 on success, <0 on error
  */
 static int
 zl3073x_ref_state_fetch(struct zl3073x_dev *zldev, u8 index)
 {
-	struct zl3073x_ref *input = &zldev->ref[index];
-	u8 ref_config;
+	struct zl3073x_ref *ref = &zldev->ref[index];
 	int rc;
 
 	/* If the input is differential then the configuration for N-pin
 	 * reference is ignored and P-pin config is used for both.
 	 */
-	if (zl3073x_is_n_pin(index) &&
-	    zl3073x_ref_is_diff(zldev, index - 1)) {
-		input->enabled = zl3073x_ref_is_enabled(zldev, index - 1);
-		input->diff = true;
+	if (zl3073x_is_n_pin(index) && zl3073x_ref_is_diff(zldev, index - 1)) {
+		memcpy(ref, &zldev->ref[index - 1], sizeof(*ref));
 
 		return 0;
 	}
@@ -630,16 +627,14 @@ zl3073x_ref_state_fetch(struct zl3073x_dev *zldev, u8 index)
 		return rc;
 
 	/* Read ref_config register */
-	rc = zl3073x_read_u8(zldev, ZL_REG_REF_CONFIG, &ref_config);
+	rc = zl3073x_read_u8(zldev, ZL_REG_REF_CONFIG, &ref->config);
 	if (rc)
 		return rc;
 
-	input->enabled = FIELD_GET(ZL_REF_CONFIG_ENABLE, ref_config);
-	input->diff = FIELD_GET(ZL_REF_CONFIG_DIFF_EN, ref_config);
-
 	dev_dbg(zldev->dev, "REF%u is %s and configured as %s\n", index,
-		str_enabled_disabled(input->enabled),
-		input->diff ? "differential" : "single-ended");
+		str_enabled_disabled(zl3073x_ref_is_enabled(zldev, index)),
+		zl3073x_ref_is_diff(zldev, index)
+			? "differential" : "single-ended");
 
 	return rc;
 }
@@ -649,8 +644,8 @@ zl3073x_ref_state_fetch(struct zl3073x_dev *zldev, u8 index)
  * @zldev: pointer to zl3073x_dev structure
  * @index: output index to fetch state for
  *
- * Function fetches information for the given output (not output pin)
- * that are invariant and stores them for later use.
+ * Function fetches state of the given output (not output pin) and stores it
+ * for later use.
  *
  * Return: 0 on success, <0 on error
  */
@@ -658,22 +653,16 @@ static int
 zl3073x_out_state_fetch(struct zl3073x_dev *zldev, u8 index)
 {
 	struct zl3073x_out *out = &zldev->out[index];
-	u8 output_ctrl, output_mode;
 	int rc;
 
 	/* Read output configuration */
-	rc = zl3073x_read_u8(zldev, ZL_REG_OUTPUT_CTRL(index), &output_ctrl);
+	rc = zl3073x_read_u8(zldev, ZL_REG_OUTPUT_CTRL(index), &out->ctrl);
 	if (rc)
 		return rc;
 
-	/* Store info about output enablement and synthesizer the output
-	 * is connected to.
-	 */
-	out->enabled = FIELD_GET(ZL_OUTPUT_CTRL_EN, output_ctrl);
-	out->synth = FIELD_GET(ZL_OUTPUT_CTRL_SYNTH_SEL, output_ctrl);
-
 	dev_dbg(zldev->dev, "OUT%u is %s and connected to SYNTH%u\n", index,
-		str_enabled_disabled(out->enabled), out->synth);
+		str_enabled_disabled(zl3073x_out_is_enabled(zldev, index)),
+		zl3073x_out_synth_get(zldev, index));
 
 	guard(mutex)(&zldev->multiop_lock);
 
@@ -683,17 +672,13 @@ zl3073x_out_state_fetch(struct zl3073x_dev *zldev, u8 index)
 	if (rc)
 		return rc;
 
-	/* Read output_mode */
-	rc = zl3073x_read_u8(zldev, ZL_REG_OUTPUT_MODE, &output_mode);
+	/* Read output mode */
+	rc = zl3073x_read_u8(zldev, ZL_REG_OUTPUT_MODE, &out->mode);
 	if (rc)
 		return rc;
 
-	/* Extract and store output signal format */
-	out->signal_format = FIELD_GET(ZL_OUTPUT_MODE_SIGNAL_FORMAT,
-				       output_mode);
-
 	dev_dbg(zldev->dev, "OUT%u has signal format 0x%02x\n", index,
-		out->signal_format);
+		zl3073x_out_signal_format_get(zldev, index));
 
 	return rc;
 }
@@ -703,8 +688,7 @@ zl3073x_out_state_fetch(struct zl3073x_dev *zldev, u8 index)
  * @zldev: pointer to zl3073x_dev structure
  * @index: synth index to fetch state for
  *
- * Function fetches information for the given synthesizer that are
- * invariant and stores them for later use.
+ * Function fetches state of the given synthesizer and stores it for later use.
  *
  * Return: 0 on success, <0 on error
  */
@@ -712,24 +696,12 @@ static int
 zl3073x_synth_state_fetch(struct zl3073x_dev *zldev, u8 index)
 {
 	struct zl3073x_synth *synth = &zldev->synth[index];
-	u16 base, m, n;
-	u8 synth_ctrl;
-	u32 mult;
 	int rc;
 
 	/* Read synth control register */
-	rc = zl3073x_read_u8(zldev, ZL_REG_SYNTH_CTRL(index), &synth_ctrl);
+	rc = zl3073x_read_u8(zldev, ZL_REG_SYNTH_CTRL(index), &synth->ctrl);
 	if (rc)
 		return rc;
-
-	/* Store info about synth enablement and DPLL channel the synth is
-	 * driven by.
-	 */
-	synth->enabled = FIELD_GET(ZL_SYNTH_CTRL_EN, synth_ctrl);
-	synth->dpll = FIELD_GET(ZL_SYNTH_CTRL_DPLL_SEL, synth_ctrl);
-
-	dev_dbg(zldev->dev, "SYNTH%u is %s and driven by DPLL%u\n", index,
-		str_enabled_disabled(synth->enabled), synth->dpll);
 
 	guard(mutex)(&zldev->multiop_lock);
 
@@ -744,35 +716,32 @@ zl3073x_synth_state_fetch(struct zl3073x_dev *zldev, u8 index)
 	 *
 	 * Read registers with these values
 	 */
-	rc = zl3073x_read_u16(zldev, ZL_REG_SYNTH_FREQ_BASE, &base);
+	rc = zl3073x_read_u16(zldev, ZL_REG_SYNTH_FREQ_BASE, &synth->freq_base);
 	if (rc)
 		return rc;
 
-	rc = zl3073x_read_u32(zldev, ZL_REG_SYNTH_FREQ_MULT, &mult);
+	rc = zl3073x_read_u32(zldev, ZL_REG_SYNTH_FREQ_MULT, &synth->freq_mult);
 	if (rc)
 		return rc;
 
-	rc = zl3073x_read_u16(zldev, ZL_REG_SYNTH_FREQ_M, &m);
+	rc = zl3073x_read_u16(zldev, ZL_REG_SYNTH_FREQ_M, &synth->freq_m);
 	if (rc)
 		return rc;
 
-	rc = zl3073x_read_u16(zldev, ZL_REG_SYNTH_FREQ_N, &n);
+	rc = zl3073x_read_u16(zldev, ZL_REG_SYNTH_FREQ_N, &synth->freq_n);
 	if (rc)
 		return rc;
 
 	/* Check denominator for zero to avoid div by 0 */
-	if (!n) {
+	if (!synth->freq_n) {
 		dev_err(zldev->dev,
 			"Zero divisor for SYNTH%u retrieved from device\n",
 			index);
 		return -EINVAL;
 	}
 
-	/* Compute and store synth frequency */
-	zldev->synth[index].freq = div_u64(mul_u32_u32(base * m, mult), n);
-
 	dev_dbg(zldev->dev, "SYNTH%u frequency: %u Hz\n", index,
-		zldev->synth[index].freq);
+		zl3073x_synth_freq_get(zldev, index));
 
 	return rc;
 }
