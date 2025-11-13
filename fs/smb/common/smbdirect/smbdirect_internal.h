@@ -132,4 +132,6 @@ int smbdirect_connection_create_mr_list(struct smbdirect_socket *sc);
 __SMBDIRECT_PRIVATE__
 void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc);
 
+void smbdirect_accept_negotiate_finish(struct smbdirect_socket *sc, u32 ntstatus);
+
 #endif /* __FS_SMB_COMMON_SMBDIRECT_INTERNAL_H__ */

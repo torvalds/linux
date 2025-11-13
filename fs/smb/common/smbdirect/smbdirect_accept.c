@@ -301,12 +301,7 @@ static void smbdirect_accept_negotiate_recv_work(struct work_struct *work)
 	u32 preferred_send_size;
 	u32 max_receive_size;
 	u32 max_fragmented_size;
-	struct smbdirect_send_io *send_io = NULL;
-	struct smbdirect_negotiate_resp *nrep;
 	u32 ntstatus;
-	int posted;
-	u16 new_credits;
-	int ret;
 
 	if (sc->first_error)
 		return;
@@ -459,6 +454,25 @@ static void smbdirect_accept_negotiate_recv_work(struct work_struct *work)
 	 */
 	sp->max_fragmented_send_size = max_fragmented_size;
 
+	ntstatus = le32_to_cpu(STATUS_SUCCESS);
+
+not_supported:
+	smbdirect_accept_negotiate_finish(sc, ntstatus);
+}
+
+void smbdirect_accept_negotiate_finish(struct smbdirect_socket *sc, u32 ntstatus)
+{
+	const struct smbdirect_socket_parameters *sp = &sc->parameters;
+	struct smbdirect_recv_io *recv_io;
+	struct smbdirect_send_io *send_io;
+	struct smbdirect_negotiate_resp *nrep;
+	int posted;
+	u16 new_credits;
+	int ret;
+
+	if (ntstatus)
+		goto not_supported;
+
 	/*
 	 * Prepare for receiving data_transfer messages
 	 */
@@ -485,8 +499,6 @@ static void smbdirect_accept_negotiate_recv_work(struct work_struct *work)
 	 * smbdirect_recv_io messages.
 	 */
 	new_credits = smbdirect_connection_grant_recv_credits(sc);
-
-	ntstatus = le32_to_cpu(STATUS_SUCCESS);
 
 not_supported:
 	send_io = smbdirect_connection_alloc_send_io(sc);
