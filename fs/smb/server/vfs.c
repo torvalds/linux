@@ -69,7 +69,7 @@ int ksmbd_vfs_lock_parent(struct dentry *parent, struct dentry *child)
 
 static int ksmbd_vfs_path_lookup(struct ksmbd_share_config *share_conf,
 				 char *pathname, unsigned int flags,
-				 struct path *path, bool do_lock)
+				 struct path *path, bool for_remove)
 {
 	struct qstr last;
 	struct filename *filename __free(putname) = NULL;
@@ -99,22 +99,20 @@ static int ksmbd_vfs_path_lookup(struct ksmbd_share_config *share_conf,
 		return -ENOENT;
 	}
 
-	if (do_lock) {
+	if (for_remove) {
 		err = mnt_want_write(path->mnt);
 		if (err) {
 			path_put(path);
 			return -ENOENT;
 		}
 
-		inode_lock_nested(path->dentry->d_inode, I_MUTEX_PARENT);
-		d = lookup_one_qstr_excl(&last, path->dentry, 0);
+		d = start_removing_noperm(path->dentry, &last);
 
 		if (!IS_ERR(d)) {
 			dput(path->dentry);
 			path->dentry = d;
 			return 0;
 		}
-		inode_unlock(path->dentry->d_inode);
 		mnt_drop_write(path->mnt);
 		path_put(path);
 		return -ENOENT;
@@ -1207,7 +1205,7 @@ static int ksmbd_vfs_lookup_in_dir(const struct path *dir, char *name,
 static
 int __ksmbd_vfs_kern_path(struct ksmbd_work *work, char *filepath,
 			  unsigned int flags,
-			  struct path *path, bool caseless, bool do_lock)
+			  struct path *path, bool caseless, bool for_remove)
 {
 	struct ksmbd_share_config *share_conf = work->tcon->share_conf;
 	struct path parent_path;
@@ -1215,7 +1213,7 @@ int __ksmbd_vfs_kern_path(struct ksmbd_work *work, char *filepath,
 	int err;
 
 retry:
-	err = ksmbd_vfs_path_lookup(share_conf, filepath, flags, path, do_lock);
+	err = ksmbd_vfs_path_lookup(share_conf, filepath, flags, path, for_remove);
 	if (!err || !caseless)
 		return err;
 
@@ -1286,7 +1284,7 @@ int ksmbd_vfs_kern_path(struct ksmbd_work *work, char *filepath,
 }
 
 /**
- * ksmbd_vfs_kern_path_locked() - lookup a file and get path info
+ * ksmbd_vfs_kern_path_start_remove() - lookup a file and get path info prior to removal
  * @work:		work
  * @filepath:		file path that is relative to share
  * @flags:		lookup flags
@@ -1298,20 +1296,19 @@ int ksmbd_vfs_kern_path(struct ksmbd_work *work, char *filepath,
  * filesystem will have been gained.
  * Return:	0 on if file was found, otherwise error
  */
-int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *filepath,
-			       unsigned int flags,
-			       struct path *path, bool caseless)
+int ksmbd_vfs_kern_path_start_removing(struct ksmbd_work *work, char *filepath,
+				       unsigned int flags,
+				       struct path *path, bool caseless)
 {
 	return __ksmbd_vfs_kern_path(work, filepath, flags, path,
 				     caseless, true);
 }
 
-void ksmbd_vfs_kern_path_unlock(const struct path *path)
+void ksmbd_vfs_kern_path_end_removing(const struct path *path)
 {
-	/* While lock is still held, ->d_parent is safe */
-	inode_unlock(d_inode(path->dentry->d_parent));
+	end_removing(path->dentry);
 	mnt_drop_write(path->mnt);
-	path_put(path);
+	mntput(path->mnt);
 }
 
 struct dentry *ksmbd_vfs_kern_path_create(struct ksmbd_work *work,
