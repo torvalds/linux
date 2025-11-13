@@ -19,6 +19,7 @@ struct io_uring_query_hdr {
 enum {
 	IO_URING_QUERY_OPCODES			= 0,
 	IO_URING_QUERY_ZCRX			= 1,
+	IO_URING_QUERY_SCQ			= 2,
 
 	__IO_URING_QUERY_MAX,
 };
@@ -55,6 +56,13 @@ struct io_uring_query_zcrx {
 	/* The alignment for the header */
 	__u32 rq_hdr_alignment;
 	__u64 __resv2;
+};
+
+struct io_uring_query_scq {
+	/* The SQ/CQ rings header size */
+	__u64 hdr_size;
+	/* The alignment for the header */
+	__u64 hdr_alignment;
 };
 
 #endif

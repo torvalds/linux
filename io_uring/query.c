@@ -9,6 +9,7 @@
 union io_query_data {
 	struct io_uring_query_opcode opcodes;
 	struct io_uring_query_zcrx zcrx;
+	struct io_uring_query_scq scq;
 };
 
 #define IO_MAX_QUERY_SIZE		sizeof(union io_query_data)
@@ -43,6 +44,15 @@ static ssize_t io_query_zcrx(union io_query_data *data)
 	return sizeof(*e);
 }
 
+static ssize_t io_query_scq(union io_query_data *data)
+{
+	struct io_uring_query_scq *e = &data->scq;
+
+	e->hdr_size = sizeof(struct io_rings);
+	e->hdr_alignment = SMP_CACHE_BYTES;
+	return sizeof(*e);
+}
+
 static int io_handle_query_entry(struct io_ring_ctx *ctx,
 				 union io_query_data *data, void __user *uhdr,
 				 u64 *next_entry)
@@ -73,6 +83,9 @@ static int io_handle_query_entry(struct io_ring_ctx *ctx,
 		break;
 	case IO_URING_QUERY_ZCRX:
 		ret = io_query_zcrx(data);
+		break;
+	case IO_URING_QUERY_SCQ:
+		ret = io_query_scq(data);
 		break;
 	}
 
