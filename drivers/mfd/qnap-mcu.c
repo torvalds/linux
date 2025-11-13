@@ -19,6 +19,7 @@
 /* The longest command found so far is 5 bytes long */
 #define QNAP_MCU_MAX_CMD_SIZE		5
 #define QNAP_MCU_MAX_DATA_SIZE		36
+#define QNAP_MCU_ERROR_SIZE		2
 #define QNAP_MCU_CHECKSUM_SIZE		1
 
 #define QNAP_MCU_RX_BUFFER_SIZE		\
@@ -103,6 +104,48 @@ static int qnap_mcu_write(struct qnap_mcu *mcu, const u8 *data, u8 data_size)
 	return serdev_device_write(mcu->serdev, tx, length, HZ);
 }
 
+static bool qnap_mcu_is_error_msg(size_t size)
+{
+	return (size == QNAP_MCU_ERROR_SIZE + QNAP_MCU_CHECKSUM_SIZE);
+}
+
+static bool qnap_mcu_reply_is_generic_error(unsigned char *buf, size_t size)
+{
+	if (!qnap_mcu_is_error_msg(size))
+		return false;
+
+	if (buf[0] == '@' && buf[1] == '9')
+		return true;
+
+	return false;
+}
+
+static bool qnap_mcu_reply_is_checksum_error(unsigned char *buf, size_t size)
+{
+	if (!qnap_mcu_is_error_msg(size))
+		return false;
+
+	if (buf[0] == '@' && buf[1] == '8')
+		return true;
+
+	return false;
+}
+
+static bool qnap_mcu_reply_is_any_error(struct qnap_mcu *mcu, unsigned char *buf, size_t size)
+{
+	if (qnap_mcu_reply_is_generic_error(buf, size)) {
+		dev_err(&mcu->serdev->dev, "Controller sent generic error response\n");
+		return true;
+	}
+
+	if (qnap_mcu_reply_is_checksum_error(buf, size)) {
+		dev_err(&mcu->serdev->dev, "Controller received invalid checksum for the command\n");
+		return true;
+	}
+
+	return false;
+}
+
 static size_t qnap_mcu_receive_buf(struct serdev_device *serdev, const u8 *buf, size_t size)
 {
 	struct device *dev = &serdev->dev;
@@ -134,6 +177,24 @@ static size_t qnap_mcu_receive_buf(struct serdev_device *serdev, const u8 *buf, 
 			 */
 			return src - buf;
 		}
+	}
+
+	/*
+	 * We received everything the uart had to offer for now.
+	 * This could mean that either the uart will send more in a 2nd
+	 * receive run, or that the MCU cut the reply short because it
+	 * sent an error code instead of the expected reply.
+	 *
+	 * So check if the received data has the correct size for an error
+	 * reply and if it matches, is an actual error code.
+	 */
+	if (qnap_mcu_is_error_msg(reply->received) &&
+	    qnap_mcu_verify_checksum(reply->data, reply->received) &&
+	    qnap_mcu_reply_is_any_error(mcu, reply->data, reply->received)) {
+		/* The reply was an error code, we're done */
+		reply->length = 0;
+
+		complete(&reply->done);
 	}
 
 	/*
@@ -182,9 +243,12 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 	}
 
 	if (!qnap_mcu_verify_checksum(rx, reply->received)) {
-		dev_err(&mcu->serdev->dev, "Invalid Checksum received\n");
+		dev_err(&mcu->serdev->dev, "Invalid Checksum received from controller\n");
 		return -EPROTO;
 	}
+
+	if (qnap_mcu_reply_is_any_error(mcu, rx, reply->received))
+		return -EPROTO;
 
 	memcpy(reply_data, rx, reply_data_size);
 
