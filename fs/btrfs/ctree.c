@@ -4106,7 +4106,7 @@ void btrfs_extend_item(struct btrfs_trans_handle *trans,
 	nritems = btrfs_header_nritems(leaf);
 	data_end = leaf_data_end(leaf);
 
-	if (btrfs_leaf_free_space(leaf) < data_size) {
+	if (unlikely(btrfs_leaf_free_space(leaf) < data_size)) {
 		btrfs_print_leaf(leaf);
 		BUG();
 	}
