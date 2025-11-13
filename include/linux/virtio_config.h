@@ -141,8 +141,8 @@ struct virtio_config_ops {
 
 /**
  * struct virtio_map_ops - operations for mapping buffer for a virtio device
- * Note: For transport that has its own mapping logic it must
- * implements all of the operations
+ * Note: For a transport that has its own mapping logic it must
+ * implement all of the operations
  * @map_page: map a buffer to the device
  *      map: metadata for performing mapping
  *      page: the page that will be mapped by the device
