@@ -447,12 +447,8 @@ static void svm_init_os_visible_workarounds(void)
 	if (!osvw_len)
 		return;
 
-	if (!boot_cpu_has(X86_FEATURE_OSVW)) {
-		osvw_status = osvw_len = 0;
-		return;
-	}
-
-	if (native_read_msr_safe(MSR_AMD64_OSVW_ID_LENGTH, &len) ||
+	if (!this_cpu_has(X86_FEATURE_OSVW) ||
+	    native_read_msr_safe(MSR_AMD64_OSVW_ID_LENGTH, &len) ||
 	    native_read_msr_safe(MSR_AMD64_OSVW_STATUS, &status))
 		len = status = 0;
 
