@@ -230,6 +230,8 @@ struct console_flush_type {
 	bool	legacy_offload;
 };
 
+extern bool console_irqwork_blocked;
+
 /*
  * Identify which console flushing methods should be used in the context of
  * the caller.
@@ -241,7 +243,7 @@ static inline void printk_get_console_flush_type(struct console_flush_type *ft)
 	switch (nbcon_get_default_prio()) {
 	case NBCON_PRIO_NORMAL:
 		if (have_nbcon_console && !have_boot_console) {
-			if (printk_kthreads_running)
+			if (printk_kthreads_running && !console_irqwork_blocked)
 				ft->nbcon_offload = true;
 			else
 				ft->nbcon_atomic = true;
@@ -251,7 +253,7 @@ static inline void printk_get_console_flush_type(struct console_flush_type *ft)
 		if (have_legacy_console || have_boot_console) {
 			if (!is_printk_legacy_deferred())
 				ft->legacy_direct = true;
-			else
+			else if (!console_irqwork_blocked)
 				ft->legacy_offload = true;
 		}
 		break;
@@ -264,7 +266,7 @@ static inline void printk_get_console_flush_type(struct console_flush_type *ft)
 		if (have_legacy_console || have_boot_console) {
 			if (!is_printk_legacy_deferred())
 				ft->legacy_direct = true;
-			else
+			else if (!console_irqwork_blocked)
 				ft->legacy_offload = true;
 		}
 		break;
