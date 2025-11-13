@@ -1615,17 +1615,15 @@ static void kfree_rcu_work(struct work_struct *work)
 static bool kfree_rcu_sheaf(void *obj)
 {
 	struct kmem_cache *s;
-	struct folio *folio;
 	struct slab *slab;
 
 	if (is_vmalloc_addr(obj))
 		return false;
 
-	folio = virt_to_folio(obj);
-	if (unlikely(!folio_test_slab(folio)))
+	slab = virt_to_slab(obj);
+	if (unlikely(!slab))
 		return false;
 
-	slab = folio_slab(folio);
 	s = slab->slab_cache;
 	if (s->cpu_sheaves) {
 		if (likely(!IS_ENABLED(CONFIG_NUMA) ||
