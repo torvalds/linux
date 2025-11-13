@@ -5451,6 +5451,15 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	tp->aspm_manageable = !rc;
 
+	/* Fiber mode on RTL8127AF isn't supported */
+	if (rtl_is_8125(tp)) {
+		u16 data = r8168_mac_ocp_read(tp, 0xd006);
+
+		if ((data & 0xff) == 0x07)
+			return dev_err_probe(&pdev->dev, -ENODEV,
+					     "Fiber mode not supported\n");
+	}
+
 	tp->dash_type = rtl_get_dash_type(tp);
 	tp->dash_enabled = rtl_dash_is_enabled(tp);
 
