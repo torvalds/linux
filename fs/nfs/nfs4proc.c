@@ -2331,7 +2331,7 @@ static int nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state 
 	return err;
 }
 
-static int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *state)
+int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *state)
 {
 	struct nfs_open_context *ctx;
 	int ret;
@@ -7649,7 +7649,7 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 	return ret;
 }
 
-static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request)
+int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs4_exception exception = {
@@ -10803,15 +10803,6 @@ static bool nfs4_match_stateid(const nfs4_stateid *s1,
 	return nfs4_stateid_match(s1, s2);
 }
 
-
-static const struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
-	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
-	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
-	.recover_open	= nfs4_open_reclaim,
-	.recover_lock	= nfs4_lock_reclaim,
-	.establish_clid = nfs4_init_clientid,
-	.detect_trunking = nfs40_discover_server_trunking,
-};
 
 #if defined(CONFIG_NFS_V4_1)
 static const struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {

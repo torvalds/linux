@@ -739,9 +739,6 @@ extern ssize_t nfs_dreq_bytes_left(struct nfs_direct_req *dreq, loff_t offset);
 /* nfs4proc.c */
 extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 			    const struct nfs_client_initdata *);
-extern int nfs40_walk_client_list(struct nfs_client *clp,
-				struct nfs_client **result,
-				const struct cred *cred);
 extern int nfs41_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
 				const struct cred *cred);

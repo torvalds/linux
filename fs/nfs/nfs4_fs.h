@@ -277,6 +277,11 @@ int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
 /* fs_context.c */
 extern struct file_system_type nfs4_fs_type;
 
+/* nfs4client.c */
+struct nfs_net;
+int nfs4_match_client(struct nfs_client *pos, struct nfs_client *new,
+		      struct nfs_client **prev, struct nfs_net *nn);
+
 /* nfs4namespace.c */
 struct rpc_clnt *nfs4_negotiate_security(struct rpc_clnt *, struct inode *,
 					 const struct qstr *);
@@ -345,6 +350,8 @@ extern void nfs4_update_changeattr(struct inode *dir,
 				   unsigned long cache_validity);
 extern int nfs4_buf_to_pages_noslab(const void *buf, size_t buflen,
 				    struct page **pages);
+extern int nfs4_open_reclaim(struct nfs4_state_owner *, struct nfs4_state *);
+extern int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request);
 
 #if defined(CONFIG_NFS_V4_1)
 extern int nfs41_sequence_done(struct rpc_task *, struct nfs4_sequence_res *);
