@@ -322,4 +322,84 @@ struct mshv_get_set_vp_state {
  * #define MSHV_ROOT_HVCALL			_IOWR(MSHV_IOCTL, 0x07, struct mshv_root_hvcall)
  */
 
+/* Structure definitions, macros and IOCTLs for mshv_vtl */
+
+#define MSHV_CAP_CORE_API_STABLE        0x0
+#define MSHV_CAP_REGISTER_PAGE          0x1
+#define MSHV_CAP_VTL_RETURN_ACTION      0x2
+#define MSHV_CAP_DR6_SHARED             0x3
+#define MSHV_MAX_RUN_MSG_SIZE                256
+
+struct mshv_vp_registers {
+	__u32 count;	/* supports only 1 register at a time */
+	__u32 reserved; /* Reserved for alignment or future use */
+	__u64 regs_ptr;	/* pointer to struct hv_register_assoc */
+};
+
+struct mshv_vtl_set_eventfd {
+	__s32 fd;
+	__u32 flag;
+};
+
+struct mshv_vtl_signal_event {
+	__u32 connection_id;
+	__u32 flag;
+};
+
+struct mshv_vtl_sint_post_msg {
+	__u64 message_type;
+	__u32 connection_id;
+	__u32 payload_size; /* Must not exceed HV_MESSAGE_PAYLOAD_BYTE_COUNT */
+	__u64 payload_ptr; /* pointer to message payload (bytes) */
+};
+
+struct mshv_vtl_ram_disposition {
+	__u64 start_pfn;
+	__u64 last_pfn;
+};
+
+struct mshv_vtl_set_poll_file {
+	__u32 cpu;
+	__u32 fd;
+};
+
+struct mshv_vtl_hvcall_setup {
+	__u64 bitmap_array_size; /* stores number of bytes */
+	__u64 allow_bitmap_ptr;
+};
+
+struct mshv_vtl_hvcall {
+	__u64 control;      /* Hypercall control code */
+	__u64 input_size;   /* Size of the input data */
+	__u64 input_ptr;    /* Pointer to the input struct */
+	__u64 status;       /* Status of the hypercall (output) */
+	__u64 output_size;  /* Size of the output data */
+	__u64 output_ptr;   /* Pointer to the output struct */
+};
+
+struct mshv_sint_mask {
+	__u8 mask;
+	__u8 reserved[7];
+};
+
+/* /dev/mshv device IOCTL */
+#define MSHV_CHECK_EXTENSION    _IOW(MSHV_IOCTL, 0x00, __u32)
+
+/* vtl device */
+#define MSHV_CREATE_VTL			_IOR(MSHV_IOCTL, 0x1D, char)
+#define MSHV_ADD_VTL0_MEMORY	_IOW(MSHV_IOCTL, 0x21, struct mshv_vtl_ram_disposition)
+#define MSHV_SET_POLL_FILE		_IOW(MSHV_IOCTL, 0x25, struct mshv_vtl_set_poll_file)
+#define MSHV_RETURN_TO_LOWER_VTL	_IO(MSHV_IOCTL, 0x27)
+#define MSHV_GET_VP_REGISTERS		_IOWR(MSHV_IOCTL, 0x05, struct mshv_vp_registers)
+#define MSHV_SET_VP_REGISTERS		_IOW(MSHV_IOCTL, 0x06, struct mshv_vp_registers)
+
+/* VMBus device IOCTLs */
+#define MSHV_SINT_SIGNAL_EVENT    _IOW(MSHV_IOCTL, 0x22, struct mshv_vtl_signal_event)
+#define MSHV_SINT_POST_MESSAGE    _IOW(MSHV_IOCTL, 0x23, struct mshv_vtl_sint_post_msg)
+#define MSHV_SINT_SET_EVENTFD     _IOW(MSHV_IOCTL, 0x24, struct mshv_vtl_set_eventfd)
+#define MSHV_SINT_PAUSE_MESSAGE_STREAM     _IOW(MSHV_IOCTL, 0x25, struct mshv_sint_mask)
+
+/* hv_hvcall device */
+#define MSHV_HVCALL_SETUP        _IOW(MSHV_IOCTL, 0x1E, struct mshv_vtl_hvcall_setup)
+#define MSHV_HVCALL              _IOWR(MSHV_IOCTL, 0x1F, struct mshv_vtl_hvcall)
 #endif
