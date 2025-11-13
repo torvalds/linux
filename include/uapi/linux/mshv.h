@@ -26,6 +26,7 @@ enum {
 	MSHV_PT_BIT_LAPIC,
 	MSHV_PT_BIT_X2APIC,
 	MSHV_PT_BIT_GPA_SUPER_PAGES,
+	MSHV_PT_BIT_CPU_AND_XSAVE_FEATURES,
 	MSHV_PT_BIT_COUNT,
 };
 
@@ -41,6 +42,8 @@ enum {
  * @pt_flags: Bitmask of 1 << MSHV_PT_BIT_*
  * @pt_isolation: MSHV_PT_ISOLATION_*
  *
+ * This is the initial/v1 version for backward compatibility.
+ *
  * Returns a file descriptor to act as a handle to a guest partition.
  * At this point the partition is not yet initialized in the hypervisor.
  * Some operations must be done with the partition in this state, e.g. setting
@@ -51,6 +54,37 @@ struct mshv_create_partition {
 	__u64 pt_flags;
 	__u64 pt_isolation;
 };
+
+#define MSHV_NUM_CPU_FEATURES_BANKS 2
+
+/**
+ * struct mshv_create_partition_v2
+ *
+ * This is extended version of the above initial MSHV_CREATE_PARTITION
+ * ioctl and allows for following additional parameters:
+ *
+ * @pt_num_cpu_fbanks: Must be set to MSHV_NUM_CPU_FEATURES_BANKS.
+ * @pt_cpu_fbanks: Disabled processor feature banks array.
+ * @pt_disabled_xsave: Disabled xsave feature bits.
+ *
+ * pt_cpu_fbanks and pt_disabled_xsave are passed through as-is to the create
+ * partition hypercall.
+ *
+ * Returns : same as above original mshv_create_partition
+ */
+struct mshv_create_partition_v2 {
+	__u64 pt_flags;
+	__u64 pt_isolation;
+	__u16 pt_num_cpu_fbanks;
+	__u8  pt_rsvd[6];		/* MBZ */
+	__u64 pt_cpu_fbanks[MSHV_NUM_CPU_FEATURES_BANKS];
+	__u64 pt_rsvd1[2];		/* MBZ */
+#if defined(__x86_64__)
+	__u64 pt_disabled_xsave;
+#else
+	__u64 pt_rsvd2;			/* MBZ */
+#endif
+} __packed;
 
 /* /dev/mshv */
 #define MSHV_CREATE_PARTITION	_IOW(MSHV_IOCTL, 0x00, struct mshv_create_partition)

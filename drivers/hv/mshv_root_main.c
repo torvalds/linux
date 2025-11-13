@@ -1855,42 +1855,118 @@ add_partition(struct mshv_partition *partition)
 	return 0;
 }
 
-static long
-mshv_ioctl_create_partition(void __user *user_arg, struct device *module_dev)
-{
-	struct mshv_create_partition args;
-	u64 creation_flags;
-	struct hv_partition_creation_properties creation_properties = {};
-	union hv_partition_isolation_properties isolation_properties = {};
-	struct mshv_partition *partition;
-	struct file *file;
-	int fd;
-	long ret;
+static_assert(MSHV_NUM_CPU_FEATURES_BANKS ==
+	      HV_PARTITION_PROCESSOR_FEATURES_BANKS);
 
-	if (copy_from_user(&args, user_arg, sizeof(args)))
+static long mshv_ioctl_process_pt_flags(void __user *user_arg, u64 *pt_flags,
+					struct hv_partition_creation_properties *cr_props,
+					union hv_partition_isolation_properties *isol_props)
+{
+	int i;
+	struct mshv_create_partition_v2 args;
+	union hv_partition_processor_features *disabled_procs;
+	union hv_partition_processor_xsave_features *disabled_xsave;
+
+	/* First, copy v1 struct in case user is on previous versions */
+	if (copy_from_user(&args, user_arg,
+			   sizeof(struct mshv_create_partition)))
 		return -EFAULT;
 
 	if ((args.pt_flags & ~MSHV_PT_FLAGS_MASK) ||
 	    args.pt_isolation >= MSHV_PT_ISOLATION_COUNT)
 		return -EINVAL;
 
-	/* Only support EXO partitions */
-	creation_flags = HV_PARTITION_CREATION_FLAG_EXO_PARTITION |
-			 HV_PARTITION_CREATION_FLAG_INTERCEPT_MESSAGE_PAGE_ENABLED;
+	disabled_procs = &cr_props->disabled_processor_features;
+	disabled_xsave = &cr_props->disabled_processor_xsave_features;
 
-	if (args.pt_flags & BIT(MSHV_PT_BIT_LAPIC))
-		creation_flags |= HV_PARTITION_CREATION_FLAG_LAPIC_ENABLED;
-	if (args.pt_flags & BIT(MSHV_PT_BIT_X2APIC))
-		creation_flags |= HV_PARTITION_CREATION_FLAG_X2APIC_CAPABLE;
-	if (args.pt_flags & BIT(MSHV_PT_BIT_GPA_SUPER_PAGES))
-		creation_flags |= HV_PARTITION_CREATION_FLAG_GPA_SUPER_PAGES_ENABLED;
+	/* Check if user provided newer struct with feature fields */
+	if (args.pt_flags & BIT_ULL(MSHV_PT_BIT_CPU_AND_XSAVE_FEATURES)) {
+		if (copy_from_user(&args, user_arg, sizeof(args)))
+			return -EFAULT;
+
+		/* Re-validate v1 fields after second copy_from_user() */
+		if ((args.pt_flags & ~MSHV_PT_FLAGS_MASK) ||
+		    args.pt_isolation >= MSHV_PT_ISOLATION_COUNT)
+			return -EINVAL;
+
+		if (args.pt_num_cpu_fbanks != MSHV_NUM_CPU_FEATURES_BANKS ||
+		    mshv_field_nonzero(args, pt_rsvd) ||
+		    mshv_field_nonzero(args, pt_rsvd1))
+			return -EINVAL;
+
+		/*
+		 * Note this assumes MSHV_NUM_CPU_FEATURES_BANKS will never
+		 * change and equals HV_PARTITION_PROCESSOR_FEATURES_BANKS
+		 * (i.e. 2).
+		 *
+		 * Further banks (index >= 2) will be modifiable as 'early'
+		 * properties via the set partition property hypercall.
+		 */
+		for (i = 0; i < HV_PARTITION_PROCESSOR_FEATURES_BANKS; i++)
+			disabled_procs->as_uint64[i] = args.pt_cpu_fbanks[i];
+
+#if IS_ENABLED(CONFIG_X86_64)
+		disabled_xsave->as_uint64 = args.pt_disabled_xsave;
+#else
+		/*
+		 * In practice this field is ignored on arm64, but safer to
+		 * zero it in case it is ever used.
+		 */
+		disabled_xsave->as_uint64 = 0;
+
+		if (mshv_field_nonzero(args, pt_rsvd2))
+			return -EINVAL;
+#endif
+	} else {
+		/*
+		 * v1 behavior: try to enable everything. The hypervisor will
+		 * disable features that are not supported. The banks can be
+		 * queried via the get partition property hypercall.
+		 */
+		for (i = 0; i < HV_PARTITION_PROCESSOR_FEATURES_BANKS; i++)
+			disabled_procs->as_uint64[i] = 0;
+
+		disabled_xsave->as_uint64 = 0;
+	}
+
+	/* Only support EXO partitions */
+	*pt_flags = HV_PARTITION_CREATION_FLAG_EXO_PARTITION |
+		    HV_PARTITION_CREATION_FLAG_INTERCEPT_MESSAGE_PAGE_ENABLED;
+
+	if (args.pt_flags & BIT_ULL(MSHV_PT_BIT_LAPIC))
+		*pt_flags |= HV_PARTITION_CREATION_FLAG_LAPIC_ENABLED;
+	if (args.pt_flags & BIT_ULL(MSHV_PT_BIT_X2APIC))
+		*pt_flags |= HV_PARTITION_CREATION_FLAG_X2APIC_CAPABLE;
+	if (args.pt_flags & BIT_ULL(MSHV_PT_BIT_GPA_SUPER_PAGES))
+		*pt_flags |= HV_PARTITION_CREATION_FLAG_GPA_SUPER_PAGES_ENABLED;
+
+	isol_props->as_uint64 = 0;
 
 	switch (args.pt_isolation) {
 	case MSHV_PT_ISOLATION_NONE:
-		isolation_properties.isolation_type =
-			HV_PARTITION_ISOLATION_TYPE_NONE;
+		isol_props->isolation_type = HV_PARTITION_ISOLATION_TYPE_NONE;
 		break;
 	}
+
+	return 0;
+}
+
+static long
+mshv_ioctl_create_partition(void __user *user_arg, struct device *module_dev)
+{
+	u64 creation_flags;
+	struct hv_partition_creation_properties creation_properties;
+	union hv_partition_isolation_properties isolation_properties;
+	struct mshv_partition *partition;
+	struct file *file;
+	int fd;
+	long ret;
+
+	ret = mshv_ioctl_process_pt_flags(user_arg, &creation_flags,
+					  &creation_properties,
+					  &isolation_properties);
+	if (ret)
+		return ret;
 
 	partition = kzalloc(sizeof(*partition), GFP_KERNEL);
 	if (!partition)
