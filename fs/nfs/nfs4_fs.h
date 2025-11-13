@@ -358,6 +358,7 @@ extern void nfs_state_clear_delegation(struct nfs4_state *state);
 extern void nfs_finish_clear_delegation_stateid(struct nfs4_state *state,
 						const nfs4_stateid *stateid);
 extern void nfs_state_clear_open_state_flags(struct nfs4_state *state);
+extern void do_renew_lease(struct nfs_client *clp, unsigned long timestamp);
 
 #if defined(CONFIG_NFS_V4_1)
 extern int nfs41_sequence_done(struct rpc_task *, struct nfs4_sequence_res *);

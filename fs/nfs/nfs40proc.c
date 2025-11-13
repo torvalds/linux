@@ -3,7 +3,9 @@
 #include <linux/nfs.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/nfs_fs.h>
+#include "internal.h"
 #include "nfs4_fs.h"
+#include "nfs4trace.h"
 
 static void nfs40_call_sync_prepare(struct rpc_task *task, void *calldata)
 {
@@ -32,6 +34,98 @@ static int nfs40_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
 	return nfs4_open_expired(sp, state);
 }
 
+struct nfs4_renewdata {
+	struct nfs_client	*client;
+	unsigned long		timestamp;
+};
+
+/*
+ * nfs4_proc_async_renew(): This is not one of the nfs_rpc_ops; it is a special
+ * standalone procedure for queueing an asynchronous RENEW.
+ */
+static void nfs4_renew_release(void *calldata)
+{
+	struct nfs4_renewdata *data = calldata;
+	struct nfs_client *clp = data->client;
+
+	if (refcount_read(&clp->cl_count) > 1)
+		nfs4_schedule_state_renewal(clp);
+	nfs_put_client(clp);
+	kfree(data);
+}
+
+static void nfs4_renew_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_renewdata *data = calldata;
+	struct nfs_client *clp = data->client;
+	unsigned long timestamp = data->timestamp;
+
+	trace_nfs4_renew_async(clp, task->tk_status);
+	switch (task->tk_status) {
+	case 0:
+		break;
+	case -NFS4ERR_LEASE_MOVED:
+		nfs4_schedule_lease_moved_recovery(clp);
+		break;
+	default:
+		/* Unless we're shutting down, schedule state recovery! */
+		if (test_bit(NFS_CS_RENEWD, &clp->cl_res_state) == 0)
+			return;
+		if (task->tk_status != NFS4ERR_CB_PATH_DOWN) {
+			nfs4_schedule_lease_recovery(clp);
+			return;
+		}
+		nfs4_schedule_path_down_recovery(clp);
+	}
+	do_renew_lease(clp, timestamp);
+}
+
+static const struct rpc_call_ops nfs4_renew_ops = {
+	.rpc_call_done = nfs4_renew_done,
+	.rpc_release = nfs4_renew_release,
+};
+
+static int nfs4_proc_async_renew(struct nfs_client *clp, const struct cred *cred, unsigned renew_flags)
+{
+	struct rpc_message msg = {
+		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_RENEW],
+		.rpc_argp	= clp,
+		.rpc_cred	= cred,
+	};
+	struct nfs4_renewdata *data;
+
+	if (renew_flags == 0)
+		return 0;
+	if (!refcount_inc_not_zero(&clp->cl_count))
+		return -EIO;
+	data = kmalloc(sizeof(*data), GFP_NOFS);
+	if (data == NULL) {
+		nfs_put_client(clp);
+		return -ENOMEM;
+	}
+	data->client = clp;
+	data->timestamp = jiffies;
+	return rpc_call_async(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT,
+			&nfs4_renew_ops, data);
+}
+
+static int nfs4_proc_renew(struct nfs_client *clp, const struct cred *cred)
+{
+	struct rpc_message msg = {
+		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_RENEW],
+		.rpc_argp	= clp,
+		.rpc_cred	= cred,
+	};
+	unsigned long now = jiffies;
+	int status;
+
+	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
+	if (status < 0)
+		return status;
+	do_renew_lease(clp, now);
+	return 0;
+}
+
 const struct rpc_call_ops nfs40_call_sync_ops = {
 	.rpc_call_prepare = nfs40_call_sync_prepare,
 	.rpc_call_done = nfs40_call_sync_done,
@@ -52,4 +146,10 @@ const struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
 	.recover_open	= nfs40_open_expired,
 	.recover_lock	= nfs4_lock_expired,
 	.establish_clid = nfs4_init_clientid,
+};
+
+const struct nfs4_state_maintenance_ops nfs40_state_renewal_ops = {
+	.sched_state_renewal = nfs4_proc_async_renew,
+	.get_state_renewal_cred = nfs4_get_renew_cred,
+	.renew_lease = nfs4_proc_renew,
 };
