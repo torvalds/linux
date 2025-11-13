@@ -16,8 +16,7 @@
  * Private flags for iomap_dio, must not overlap with the public ones in
  * iomap.h:
  */
-#define IOMAP_DIO_NO_INVALIDATE	(1U << 25)
-#define IOMAP_DIO_CALLER_COMP	(1U << 26)
+#define IOMAP_DIO_NO_INVALIDATE	(1U << 26)
 #define IOMAP_DIO_INLINE_COMP	(1U << 27)
 #define IOMAP_DIO_WRITE_THROUGH	(1U << 28)
 #define IOMAP_DIO_NEED_SYNC	(1U << 29)
@@ -140,11 +139,6 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 }
 EXPORT_SYMBOL_GPL(iomap_dio_complete);
 
-static ssize_t iomap_dio_deferred_complete(void *data)
-{
-	return iomap_dio_complete(data);
-}
-
 static void iomap_dio_complete_work(struct work_struct *work)
 {
 	struct iomap_dio *dio = container_of(work, struct iomap_dio, aio.work);
@@ -182,29 +176,6 @@ static void iomap_dio_done(struct iomap_dio *dio)
 	} else if (dio->flags & IOMAP_DIO_INLINE_COMP) {
 		WRITE_ONCE(iocb->private, NULL);
 		iomap_dio_complete_work(&dio->aio.work);
-	} else if (dio->flags & IOMAP_DIO_CALLER_COMP) {
-		/*
-		 * If this dio is flagged with IOMAP_DIO_CALLER_COMP, then
-		 * schedule our completion that way to avoid an async punt to a
-		 * workqueue.
-		 */
-		/* only polled IO cares about private cleared */
-		iocb->private = dio;
-		iocb->dio_complete = iomap_dio_deferred_complete;
-
-		/*
-		 * Invoke ->ki_complete() directly. We've assigned our
-		 * dio_complete callback handler, and since the issuer set
-		 * IOCB_DIO_CALLER_COMP, we know their ki_complete handler will
-		 * notice ->dio_complete being set and will defer calling that
-		 * handler until it can be done from a safe task context.
-		 *
-		 * Note that the 'res' being passed in here is not important
-		 * for this case. The actual completion value of the request
-		 * will be gotten from dio_complete when that is run by the
-		 * issuer.
-		 */
-		iocb->ki_complete(iocb, 0);
 	} else {
 		struct inode *inode = file_inode(iocb->ki_filp);
 
@@ -261,7 +232,6 @@ u32 iomap_finish_ioend_direct(struct iomap_ioend *ioend)
 			dio->flags |= IOMAP_DIO_INLINE_COMP;
 			dio->flags |= IOMAP_DIO_NO_INVALIDATE;
 		}
-		dio->flags &= ~IOMAP_DIO_CALLER_COMP;
 		iomap_dio_done(dio);
 	}
 
@@ -380,19 +350,6 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 
 		if (!(bio_opf & REQ_FUA))
 			dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
-
-		/*
-		 * We can only do deferred completion for pure overwrites that
-		 * don't require additional I/O at completion time.
-		 *
-		 * This rules out writes that need zeroing or extent conversion,
-		 * extend the file size, or issue metadata I/O or cache flushes
-		 * during completion processing.
-		 */
-		if (need_zeroout || (pos >= i_size_read(inode)) ||
-		    ((dio->flags & IOMAP_DIO_NEED_SYNC) &&
-		     !(bio_opf & REQ_FUA)))
-			dio->flags &= ~IOMAP_DIO_CALLER_COMP;
 	} else {
 		bio_opf |= REQ_OP_READ;
 	}
@@ -413,7 +370,7 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	 * ones we set for inline and deferred completions. If none of those
 	 * are available for this IO, clear the polled flag.
 	 */
-	if (!(dio->flags & (IOMAP_DIO_INLINE_COMP|IOMAP_DIO_CALLER_COMP)))
+	if (!(dio->flags & IOMAP_DIO_INLINE_COMP))
 		dio->iocb->ki_flags &= ~IOCB_HIPRI;
 
 	if (need_zeroout) {
@@ -668,15 +625,6 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	} else {
 		iomi.flags |= IOMAP_WRITE;
 		dio->flags |= IOMAP_DIO_WRITE;
-
-		/*
-		 * Flag as supporting deferred completions, if the issuer
-		 * groks it. This can avoid a workqueue punt for writes.
-		 * We may later clear this flag if we need to do other IO
-		 * as part of this IO completion.
-		 */
-		if (iocb->ki_flags & IOCB_DIO_CALLER_COMP)
-			dio->flags |= IOMAP_DIO_CALLER_COMP;
 
 		if (dio_flags & IOMAP_DIO_OVERWRITE_ONLY) {
 			ret = -EAGAIN;

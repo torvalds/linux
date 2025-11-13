@@ -227,12 +227,6 @@ ssize_t backing_file_write_iter(struct file *file, struct iov_iter *iter,
 	    !(file->f_mode & FMODE_CAN_ODIRECT))
 		return -EINVAL;
 
-	/*
-	 * Stacked filesystems don't support deferred completions, don't copy
-	 * this property in case it is set by the issuer.
-	 */
-	flags &= ~IOCB_DIO_CALLER_COMP;
-
 	old_cred = override_creds(ctx->cred);
 	if (is_sync_kiocb(iocb)) {
 		rwf_t rwf = iocb_to_rw_flags(flags);
