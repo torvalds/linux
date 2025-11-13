@@ -192,14 +192,6 @@ EXPORT_SYMBOL_GPL(cpu_buf_idle_clear);
  */
 DEFINE_STATIC_KEY_FALSE(switch_mm_cond_l1d_flush);
 
-/*
- * Controls CPU Fill buffer clear before VMenter. This is a subset of
- * X86_FEATURE_CLEAR_CPU_BUF_VM, and should only be enabled when KVM-only
- * mitigation is required.
- */
-DEFINE_STATIC_KEY_FALSE(cpu_buf_vm_clear);
-EXPORT_SYMBOL_GPL(cpu_buf_vm_clear);
-
 #undef pr_fmt
 #define pr_fmt(fmt)	"mitigations: " fmt
 
@@ -751,9 +743,8 @@ static void __init mmio_apply_mitigation(void)
 	if (verw_clear_cpu_buf_mitigation_selected) {
 		setup_force_cpu_cap(X86_FEATURE_CLEAR_CPU_BUF);
 		setup_force_cpu_cap(X86_FEATURE_CLEAR_CPU_BUF_VM);
-		static_branch_disable(&cpu_buf_vm_clear);
 	} else {
-		static_branch_enable(&cpu_buf_vm_clear);
+		setup_force_cpu_cap(X86_FEATURE_CLEAR_CPU_BUF_VM_MMIO);
 	}
 
 	/*
