@@ -582,17 +582,18 @@ char *number(char *buf, char *end, unsigned long long num,
 	return buf;
 }
 
+#define special_hex_spec(size)					\
+(struct printf_spec) {						\
+	.field_width = 2 + 2 * (size),		/* 0x + hex */	\
+	.flags = SPECIAL | SMALL | ZEROPAD,			\
+	.base = 16,						\
+	.precision = -1,					\
+}
+
 static noinline_for_stack
 char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
 {
-	struct printf_spec spec;
-
-	spec.field_width = 2 + 2 * size;	/* 0x + hex */
-	spec.flags = SPECIAL | SMALL | ZEROPAD;
-	spec.base = 16;
-	spec.precision = -1;
-
-	return number(buf, end, num, spec);
+	return number(buf, end, num, special_hex_spec(size));
 }
 
 static void move_right(char *buf, char *end, unsigned len, unsigned spaces)
@@ -1164,18 +1165,11 @@ char *range_string(char *buf, char *end, const struct range *range,
 	char sym[sizeof("[range 0x0123456789abcdef-0x0123456789abcdef]")];
 	char *p = sym, *pend = sym + sizeof(sym);
 
-	struct printf_spec range_spec = {
-		.field_width = 2 + 2 * sizeof(range->start), /* 0x + 2 * 8 */
-		.flags = SPECIAL | SMALL | ZEROPAD,
-		.base = 16,
-		.precision = -1,
-	};
-
 	if (check_pointer(&buf, end, range, spec))
 		return buf;
 
 	p = string_nocheck(p, pend, "[range ", default_str_spec);
-	p = hex_range(p, pend, range->start, range->end, range_spec);
+	p = hex_range(p, pend, range->start, range->end, special_hex_spec(sizeof(range->start)));
 	*p++ = ']';
 	*p = '\0';
 
