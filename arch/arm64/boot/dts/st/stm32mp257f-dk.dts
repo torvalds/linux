@@ -53,6 +53,16 @@
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
+
+		led-green {
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpioh 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-orange {
+			color = <LED_COLOR_ID_ORANGE>;
+			gpios = <&gpioh 6 GPIO_ACTIVE_HIGH>;
+		};
 	};
 
 	memory@80000000 {
