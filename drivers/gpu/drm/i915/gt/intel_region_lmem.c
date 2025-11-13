@@ -18,24 +18,12 @@
 #include "gt/intel_gt_regs.h"
 
 #ifdef CONFIG_64BIT
-static void _release_bars(struct pci_dev *pdev)
-{
-	int resno;
-
-	for (resno = PCI_STD_RESOURCES; resno < PCI_STD_RESOURCE_END; resno++) {
-		if (pci_resource_len(pdev, resno))
-			pci_release_resource(pdev, resno);
-	}
-}
-
 static void
 _resize_bar(struct drm_i915_private *i915, int resno, resource_size_t size)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int bar_size = pci_rebar_bytes_to_size(size);
 	int ret;
-
-	_release_bars(pdev);
 
 	ret = pci_resize_resource(pdev, resno, bar_size, 0);
 	if (ret) {
