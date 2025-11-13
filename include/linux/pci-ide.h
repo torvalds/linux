@@ -97,6 +97,12 @@ struct pci_ide {
 	struct tsm_dev *tsm_dev;
 };
 
+/*
+ * Some devices need help with aliased stream-ids even for idle streams. Use
+ * this id as the "never enabled" place holder.
+ */
+#define PCI_IDE_RESERVED_STREAM_ID 255
+
 void pci_ide_set_nr_streams(struct pci_host_bridge *hb, u16 nr);
 struct pci_ide_partner *pci_ide_to_settings(struct pci_dev *pdev,
 					    struct pci_ide *ide);

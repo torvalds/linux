@@ -35,8 +35,50 @@ static int sel_ide_offset(struct pci_dev *pdev,
 				settings->stream_index, pdev->nr_ide_mem);
 }
 
+static bool reserve_stream_index(struct pci_dev *pdev, u8 idx)
+{
+	int ret;
+
+	ret = ida_alloc_range(&pdev->ide_stream_ida, idx, idx, GFP_KERNEL);
+	return ret >= 0;
+}
+
+static bool reserve_stream_id(struct pci_host_bridge *hb, u8 id)
+{
+	int ret;
+
+	ret = ida_alloc_range(&hb->ide_stream_ids_ida, id, id, GFP_KERNEL);
+	return ret >= 0;
+}
+
+static bool claim_stream(struct pci_host_bridge *hb, u8 stream_id,
+			 struct pci_dev *pdev, u8 stream_idx)
+{
+	dev_info(&hb->dev, "Stream ID %d active at init\n", stream_id);
+	if (!reserve_stream_id(hb, stream_id)) {
+		dev_info(&hb->dev, "Failed to claim %s Stream ID %d\n",
+			 stream_id == PCI_IDE_RESERVED_STREAM_ID ? "reserved" :
+								   "active",
+			 stream_id);
+		return false;
+	}
+
+	/* No stream index to reserve in the Link IDE case */
+	if (!pdev)
+		return true;
+
+	if (!reserve_stream_index(pdev, stream_idx)) {
+		pci_info(pdev, "Failed to claim active Selective Stream %d\n",
+			 stream_idx);
+		return false;
+	}
+
+	return true;
+}
+
 void pci_ide_init(struct pci_dev *pdev)
 {
+	struct pci_host_bridge *hb = pci_find_host_bridge(pdev->bus);
 	u16 nr_link_ide, nr_ide_mem, nr_streams;
 	u16 ide_cap;
 	u32 val;
@@ -83,6 +125,7 @@ void pci_ide_init(struct pci_dev *pdev)
 		int pos = __sel_ide_offset(ide_cap, nr_link_ide, i, nr_ide_mem);
 		int nr_assoc;
 		u32 val;
+		u8 id;
 
 		pci_read_config_dword(pdev, pos + PCI_IDE_SEL_CAP, &val);
 
@@ -98,6 +141,51 @@ void pci_ide_init(struct pci_dev *pdev)
 		}
 
 		nr_ide_mem = nr_assoc;
+
+		/*
+		 * Claim Stream IDs and Selective Stream blocks that are already
+		 * active on the device
+		 */
+		pci_read_config_dword(pdev, pos + PCI_IDE_SEL_CTL, &val);
+		id = FIELD_GET(PCI_IDE_SEL_CTL_ID, val);
+		if ((val & PCI_IDE_SEL_CTL_EN) &&
+		    !claim_stream(hb, id, pdev, i))
+			return;
+	}
+
+	/* Reserve link stream-ids that are already active on the device */
+	for (u16 i = 0; i < nr_link_ide; ++i) {
+		int pos = ide_cap + PCI_IDE_LINK_STREAM_0 + i * PCI_IDE_LINK_BLOCK_SIZE;
+		u8 id;
+
+		pci_read_config_dword(pdev, pos + PCI_IDE_LINK_CTL_0, &val);
+		id = FIELD_GET(PCI_IDE_LINK_CTL_ID, val);
+		if ((val & PCI_IDE_LINK_CTL_EN) &&
+		    !claim_stream(hb, id, NULL, -1))
+			return;
+	}
+
+	for (u16 i = 0; i < nr_streams; i++) {
+		int pos = __sel_ide_offset(ide_cap, nr_link_ide, i, nr_ide_mem);
+
+		pci_read_config_dword(pdev, pos + PCI_IDE_SEL_CAP, &val);
+		if (val & PCI_IDE_SEL_CTL_EN)
+			continue;
+		val &= ~PCI_IDE_SEL_CTL_ID;
+		val |= FIELD_PREP(PCI_IDE_SEL_CTL_ID, PCI_IDE_RESERVED_STREAM_ID);
+		pci_write_config_dword(pdev, pos + PCI_IDE_SEL_CTL, val);
+	}
+
+	for (u16 i = 0; i < nr_link_ide; ++i) {
+		int pos = ide_cap + PCI_IDE_LINK_STREAM_0 +
+			  i * PCI_IDE_LINK_BLOCK_SIZE;
+
+		pci_read_config_dword(pdev, pos, &val);
+		if (val & PCI_IDE_LINK_CTL_EN)
+			continue;
+		val &= ~PCI_IDE_LINK_CTL_ID;
+		val |= FIELD_PREP(PCI_IDE_LINK_CTL_ID, PCI_IDE_RESERVED_STREAM_ID);
+		pci_write_config_dword(pdev, pos, val);
 	}
 
 	pdev->ide_cap = ide_cap;
@@ -301,6 +389,28 @@ void pci_ide_stream_release(struct pci_ide *ide)
 }
 EXPORT_SYMBOL_GPL(pci_ide_stream_release);
 
+struct pci_ide_stream_id {
+	struct pci_host_bridge *hb;
+	u8 stream_id;
+};
+
+static struct pci_ide_stream_id *
+request_stream_id(struct pci_host_bridge *hb, u8 stream_id,
+		  struct pci_ide_stream_id *sid)
+{
+	if (!reserve_stream_id(hb, stream_id))
+		return NULL;
+
+	*sid = (struct pci_ide_stream_id) {
+		.hb = hb,
+		.stream_id = stream_id,
+	};
+
+	return sid;
+}
+DEFINE_FREE(free_stream_id, struct pci_ide_stream_id *,
+	    if (_T) ida_free(&_T->hb->ide_stream_ids_ida, _T->stream_id))
+
 /**
  * pci_ide_stream_register() - Prepare to activate an IDE Stream
  * @ide: IDE settings descriptor
@@ -313,12 +423,20 @@ int pci_ide_stream_register(struct pci_ide *ide)
 {
 	struct pci_dev *pdev = ide->pdev;
 	struct pci_host_bridge *hb = pci_find_host_bridge(pdev->bus);
+	struct pci_ide_stream_id __sid;
 	u8 ep_stream, rp_stream;
 	int rc;
 
 	if (ide->stream_id < 0 || ide->stream_id > U8_MAX) {
 		pci_err(pdev, "Setup fail: Invalid Stream ID: %d\n", ide->stream_id);
 		return -ENXIO;
+	}
+
+	struct pci_ide_stream_id *sid __free(free_stream_id) =
+		request_stream_id(hb, ide->stream_id, &__sid);
+	if (!sid) {
+		pci_err(pdev, "Setup fail: Stream ID %d in use\n", ide->stream_id);
+		return -EBUSY;
 	}
 
 	ep_stream = ide->partner[PCI_IDE_EP].stream_index;
@@ -334,6 +452,9 @@ int pci_ide_stream_register(struct pci_ide *ide)
 		return rc;
 
 	ide->name = no_free_ptr(name);
+
+	/* Stream ID reservation recorded in @ide is now successfully registered */
+	retain_and_null_ptr(sid);
 
 	return 0;
 }
@@ -353,6 +474,7 @@ void pci_ide_stream_unregister(struct pci_ide *ide)
 
 	sysfs_remove_link(&hb->dev.kobj, ide->name);
 	kfree(ide->name);
+	ida_free(&hb->ide_stream_ids_ida, ide->stream_id);
 	ide->name = NULL;
 }
 EXPORT_SYMBOL_GPL(pci_ide_stream_unregister);
@@ -616,6 +738,8 @@ void pci_ide_init_host_bridge(struct pci_host_bridge *hb)
 {
 	hb->nr_ide_streams = 256;
 	ida_init(&hb->ide_stream_ida);
+	ida_init(&hb->ide_stream_ids_ida);
+	reserve_stream_id(hb, PCI_IDE_RESERVED_STREAM_ID);
 }
 
 static ssize_t available_secure_streams_show(struct device *dev,
@@ -684,3 +808,8 @@ void pci_ide_set_nr_streams(struct pci_host_bridge *hb, u16 nr)
 	sysfs_update_group(&hb->dev.kobj, &pci_ide_attr_group);
 }
 EXPORT_SYMBOL_NS_GPL(pci_ide_set_nr_streams, "PCI_IDE");
+
+void pci_ide_destroy(struct pci_dev *pdev)
+{
+	ida_destroy(&pdev->ide_stream_ida);
+}
