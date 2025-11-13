@@ -503,7 +503,7 @@ static int idpf_set_rxfh(struct net_device *netdev,
 	}
 
 	if (test_bit(IDPF_VPORT_UP, np->state))
-		err = idpf_config_rss(vport);
+		err = idpf_config_rss(vport, rss_data);
 
 unlock_mutex:
 	idpf_vport_ctrl_unlock(netdev);

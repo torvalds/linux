@@ -1098,10 +1098,11 @@ int idpf_vport_intr_init(struct idpf_vport *vport,
 			 struct idpf_q_vec_rsrc *rsrc);
 void idpf_vport_intr_ena(struct idpf_vport *vport,
 			 struct idpf_q_vec_rsrc *rsrc);
-void idpf_fill_dflt_rss_lut(struct idpf_vport *vport);
-int idpf_config_rss(struct idpf_vport *vport);
-int idpf_init_rss_lut(struct idpf_vport *vport);
-void idpf_deinit_rss_lut(struct idpf_vport *vport);
+void idpf_fill_dflt_rss_lut(struct idpf_vport *vport,
+			    struct idpf_rss_data *rss_data);
+int idpf_config_rss(struct idpf_vport *vport, struct idpf_rss_data *rss_data);
+int idpf_init_rss_lut(struct idpf_vport *vport, struct idpf_rss_data *rss_data);
+void idpf_deinit_rss_lut(struct idpf_rss_data *rss_data);
 int idpf_rx_bufs_init_all(struct idpf_vport *vport,
 			  struct idpf_q_vec_rsrc *rsrc);
 
