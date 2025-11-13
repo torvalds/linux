@@ -49,7 +49,7 @@ class GlobSourceFiles:
             for entry in obj:
                 name = os.path.join(dirname, entry.name)
 
-                if entry.is_dir():
+                if entry.is_dir(follow_symlinks=False):
                     yield from self._parse_dir(name)
 
                 if not entry.is_file():
