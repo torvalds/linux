@@ -71,6 +71,7 @@
  * @regs:	unsigned long * (to guest registers)
  * @flags:	VMX_RUN_VMRESUME:	use VMRESUME instead of VMLAUNCH
  *		VMX_RUN_SAVE_SPEC_CTRL: save guest SPEC_CTRL into vmx->spec_ctrl
+ *		VMX_RUN_CLEAR_CPU_BUFFERS_FOR_MMIO: vCPU can access host MMIO
  *
  * Returns:
  *	0 on VM-Exit, 1 on VM-Fail
@@ -154,8 +155,19 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	/* Load guest RAX.  This kills the @regs pointer! */
 	mov VCPU_RAX(%_ASM_AX), %_ASM_AX
 
-	/* Clobbers EFLAGS.ZF */
-	VM_CLEAR_CPU_BUFFERS
+	/*
+	 * Note, ALTERNATIVE_2 works in reverse order.  If CLEAR_CPU_BUF_VM is
+	 * enabled, do VERW unconditionally.  If CPU_BUF_VM_MMIO is enabled,
+	 * check @flags to see if the vCPU has access to host MMIO, and if so,
+	 * do VERW.  Else, do nothing (no mitigations needed/enabled).
+	 */
+	ALTERNATIVE_2 "",									  \
+		      __stringify(testl $VMX_RUN_CLEAR_CPU_BUFFERS_FOR_MMIO, WORD_SIZE(%_ASM_SP); \
+				  jz .Lskip_mmio_verw;						  \
+				  VERW;								  \
+				  .Lskip_mmio_verw:),					  	  \
+		      X86_FEATURE_CLEAR_CPU_BUF_VM_MMIO,					  \
+		      __stringify(VERW), X86_FEATURE_CLEAR_CPU_BUF_VM
 
 	/* Check @flags to see if VMLAUNCH or VMRESUME is needed. */
 	testl $VMX_RUN_VMRESUME, WORD_SIZE(%_ASM_SP)
