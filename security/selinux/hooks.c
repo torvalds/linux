@@ -215,7 +215,7 @@ static void cred_init_security(void)
 	/* NOTE: the lsm framework zeros out the buffer on allocation */
 
 	tsec = selinux_cred(unrcu_pointer(current->real_cred));
-	tsec->osid = tsec->sid = tsec->avdcache.sid = SECINITSID_KERNEL;
+	tsec->osid = tsec->sid = SECINITSID_KERNEL;
 }
 
 /*
@@ -3110,10 +3110,10 @@ static noinline int audit_inode_permission(struct inode *inode,
  * Clear the task's AVD cache in @tsec and reset it to the current policy's
  * and task's info.
  */
-static inline void task_avdcache_reset(struct cred_security_struct *tsec)
+static inline void task_avdcache_reset(struct task_security_struct *tsec)
 {
 	memset(&tsec->avdcache.dir, 0, sizeof(tsec->avdcache.dir));
-	tsec->avdcache.sid = tsec->sid;
+	tsec->avdcache.sid = current_sid();
 	tsec->avdcache.seqno = avc_policy_seqno();
 	tsec->avdcache.dir_spot = TSEC_AVDC_DIR_SIZE - 1;
 }
@@ -3127,7 +3127,7 @@ static inline void task_avdcache_reset(struct cred_security_struct *tsec)
  * Search @tsec for a AVD cache entry that matches @isec and return it to the
  * caller via @avdc.  Returns 0 if a match is found, negative values otherwise.
  */
-static inline int task_avdcache_search(struct cred_security_struct *tsec,
+static inline int task_avdcache_search(struct task_security_struct *tsec,
 				       struct inode_security_struct *isec,
 				       struct avdc_entry **avdc)
 {
@@ -3137,7 +3137,7 @@ static inline int task_avdcache_search(struct cred_security_struct *tsec,
 	if (isec->sclass != SECCLASS_DIR)
 		return -ENOENT;
 
-	if (unlikely(tsec->sid != tsec->avdcache.sid ||
+	if (unlikely(current_sid() != tsec->avdcache.sid ||
 		     tsec->avdcache.seqno != avc_policy_seqno())) {
 		task_avdcache_reset(tsec);
 		return -ENOENT;
@@ -3167,7 +3167,7 @@ static inline int task_avdcache_search(struct cred_security_struct *tsec,
  * Update the AVD cache in @tsec with the @avdc and @audited info associated
  * with @isec.
  */
-static inline void task_avdcache_update(struct cred_security_struct *tsec,
+static inline void task_avdcache_update(struct task_security_struct *tsec,
 					struct inode_security_struct *isec,
 					struct av_decision *avd,
 					u32 audited)
@@ -3201,7 +3201,8 @@ static int selinux_inode_permission(struct inode *inode, int requested)
 {
 	int mask;
 	u32 perms;
-	struct cred_security_struct *tsec;
+	u32 sid = current_sid();
+	struct task_security_struct *tsec;
 	struct inode_security_struct *isec;
 	struct avdc_entry *avdc;
 	int rc, rc2;
@@ -3213,8 +3214,8 @@ static int selinux_inode_permission(struct inode *inode, int requested)
 	if (!mask)
 		return 0;
 
-	tsec = selinux_cred(current_cred());
-	if (task_avdcache_permnoaudit(tsec))
+	tsec = selinux_task(current);
+	if (task_avdcache_permnoaudit(tsec, sid))
 		return 0;
 
 	isec = inode_security_rcu(inode, requested & MAY_NOT_BLOCK);
@@ -3234,7 +3235,7 @@ static int selinux_inode_permission(struct inode *inode, int requested)
 		struct av_decision avd;
 
 		/* Cache miss. */
-		rc = avc_has_perm_noaudit(tsec->sid, isec->sid, isec->sclass,
+		rc = avc_has_perm_noaudit(sid, isec->sid, isec->sclass,
 					  perms, 0, &avd);
 		audited = avc_audit_required(perms, &avd, rc,
 			(requested & MAY_ACCESS) ? FILE__AUDIT_ACCESS : 0,
@@ -3283,11 +3284,11 @@ static int selinux_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 static int selinux_inode_getattr(const struct path *path)
 {
-	struct cred_security_struct *tsec;
+	struct task_security_struct *tsec;
 
-	tsec = selinux_cred(current_cred());
+	tsec = selinux_task(current);
 
-	if (task_avdcache_permnoaudit(tsec))
+	if (task_avdcache_permnoaudit(tsec, current_sid()))
 		return 0;
 
 	return path_has_perm(current_cred(), path, FILE__GETATTR);
@@ -4151,7 +4152,10 @@ static int selinux_task_alloc(struct task_struct *task,
 			      u64 clone_flags)
 {
 	u32 sid = current_sid();
+	struct task_security_struct *old_tsec = selinux_task(current);
+	struct task_security_struct *new_tsec = selinux_task(task);
 
+	*new_tsec = *old_tsec;
 	return avc_has_perm(sid, sid, SECCLASS_PROCESS, PROCESS__FORK, NULL);
 }
 
@@ -7138,6 +7142,7 @@ static int selinux_bpf_token_create(struct bpf_token *token, union bpf_attr *att
 
 struct lsm_blob_sizes selinux_blob_sizes __ro_after_init = {
 	.lbs_cred = sizeof(struct cred_security_struct),
+	.lbs_task = sizeof(struct task_security_struct),
 	.lbs_file = sizeof(struct file_security_struct),
 	.lbs_inode = sizeof(struct inode_security_struct),
 	.lbs_ipc = sizeof(struct ipc_security_struct),
