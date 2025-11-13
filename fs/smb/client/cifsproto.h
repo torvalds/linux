@@ -616,6 +616,8 @@ extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 extern struct TCP_Server_Info *
 cifs_find_tcp_session(struct smb3_fs_context *ctx);
 
+struct cifs_tcon *cifs_setup_ipc(struct cifs_ses *ses, bool seal);
+
 void __cifs_put_smb_ses(struct cifs_ses *ses);
 
 extern struct cifs_ses *

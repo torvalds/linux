@@ -246,6 +246,14 @@ xfs_zoned_map_extent(
 	 * If a data write raced with this GC write, keep the existing data in
 	 * the data fork, mark our newly written GC extent as reclaimable, then
 	 * move on to the next extent.
+	 *
+	 * Note that this can also happen when racing with operations that do
+	 * not actually invalidate the data, but just move it to a different
+	 * inode (XFS_IOC_EXCHANGE_RANGE), or to a different offset inside the
+	 * inode (FALLOC_FL_COLLAPSE_RANGE / FALLOC_FL_INSERT_RANGE).  If the
+	 * data was just moved around, GC fails to free the zone, but the zone
+	 * becomes a GC candidate again as soon as all previous GC I/O has
+	 * finished and these blocks will be moved out eventually.
 	 */
 	if (old_startblock != NULLFSBLOCK &&
 	    old_startblock != data.br_startblock)

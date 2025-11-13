@@ -13260,10 +13260,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git mast
 F:	drivers/infiniband/ulp/isert
 
 ISDN/CMTP OVER BLUETOOTH
-M:	Karsten Keil <isdn@linux-pingi.de>
-L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 L:	netdev@vger.kernel.org
-S:	Odd Fixes
+S:	Orphan
 W:	http://www.isdn4linux.de
 F:	Documentation/isdn/
 F:	drivers/isdn/capi/
@@ -13272,10 +13270,8 @@ F:	include/uapi/linux/isdn/
 F:	net/bluetooth/cmtp/
 
 ISDN/mISDN SUBSYSTEM
-M:	Karsten Keil <isdn@linux-pingi.de>
-L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 W:	http://www.isdn4linux.de
 F:	drivers/isdn/Kconfig
 F:	drivers/isdn/Makefile
@@ -13429,9 +13425,12 @@ F:	mm/kasan/
 F:	scripts/Makefile.kasan
 
 KCONFIG
+M:	Nathan Chancellor <nathan@kernel.org>
+M:	Nicolas Schier <nsc@kernel.org>
 L:	linux-kbuild@vger.kernel.org
-S:	Orphan
+S:	Odd Fixes
 Q:	https://patchwork.kernel.org/project/linux-kbuild/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kbuild/linux.git
 F:	Documentation/kbuild/kconfig*
 F:	scripts/Kconfig.include
 F:	scripts/kconfig/
@@ -13616,7 +13615,7 @@ F:	fs/smb/server/
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
 M:	Brendan Higgins <brendan.higgins@linux.dev>
 M:	David Gow <davidgow@google.com>
-R:	Rae Moar <rmoar@google.com>
+R:	Rae Moar <raemoar63@gmail.com>
 L:	linux-kselftest@vger.kernel.org
 L:	kunit-dev@googlegroups.com
 S:	Maintained
@@ -21332,6 +21331,7 @@ F:	drivers/media/platform/qcom/venus/
 QUALCOMM WCN36XX WIRELESS DRIVER
 M:	Loic Poulain <loic.poulain@oss.qualcomm.com>
 L:	wcn36xx@lists.infradead.org
+L:	linux-wireless@vger.kernel.org
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/wcn36xx
 F:	drivers/net/wireless/ath/wcn36xx/

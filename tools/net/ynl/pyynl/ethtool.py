@@ -44,6 +44,9 @@ def print_field(reply, *desc):
     Pretty-print a set of fields from the reply. desc specifies the
     fields and the optional type (bool/yn).
     """
+    if not reply:
+        return
+
     if len(desc) == 0:
         return print_field(reply, *zip(reply.keys(), reply.keys()))
 

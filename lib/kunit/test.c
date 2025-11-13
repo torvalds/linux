@@ -745,7 +745,8 @@ int kunit_run_tests(struct kunit_suite *suite)
 					.param_index = ++test.param_index,
 					.parent = &test,
 				};
-				kunit_init_test(&param_test, test_case->name, test_case->log);
+				kunit_init_test(&param_test, test_case->name, NULL);
+				param_test.log = test_case->log;
 				kunit_run_case_catch_errors(suite, test_case, &param_test);
 
 				if (param_desc[0] == '\0') {
