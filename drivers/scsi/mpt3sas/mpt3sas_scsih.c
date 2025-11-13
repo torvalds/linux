@@ -195,6 +195,11 @@ module_param(host_tagset_enable, int, 0444);
 MODULE_PARM_DESC(host_tagset_enable,
 	"Shared host tagset enable/disable Default: enable(1)");
 
+static int command_retry_count = 144;
+module_param(command_retry_count, int, 0444);
+MODULE_PARM_DESC(command_retry_count, "Device discovery TUR command retry\n"
+	"count: (default=144)");
+
 /* raid transport support */
 static struct raid_template *mpt3sas_raid_template;
 static struct raid_template *mpt2sas_raid_template;
@@ -3927,11 +3932,24 @@ _scsih_ublock_io_all_device(struct MPT3SAS_ADAPTER *ioc, u8 no_turs)
 {
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	struct scsi_device *sdev;
+	struct MPT3SAS_TARGET *sas_target;
+	enum device_responsive_state rc;
+	struct _sas_device *sas_device = NULL;
+	struct _pcie_device *pcie_device = NULL;
+	int count = 0;
+	u8 tr_method = 0;
+	u8 tr_timeout = 30;
+
 
 	shost_for_each_device(sdev, ioc->shost) {
 		sas_device_priv_data = sdev->hostdata;
 		if (!sas_device_priv_data)
 			continue;
+
+		sas_target = sas_device_priv_data->sas_target;
+		if (!sas_target || sas_target->deleted)
+			continue;
+
 		if (!sas_device_priv_data->block)
 			continue;
 
@@ -3942,10 +3960,62 @@ _scsih_ublock_io_all_device(struct MPT3SAS_ADAPTER *ioc, u8 no_turs)
 			continue;
 		}
 
-		dewtprintk(ioc, sdev_printk(KERN_INFO, sdev,
-			"device_running, handle(0x%04x)\n",
-		    sas_device_priv_data->sas_target->handle));
+		do {
+			pcie_device = mpt3sas_get_pdev_by_handle(ioc, sas_target->handle);
+			if (pcie_device && (!ioc->tm_custom_handling) &&
+				(!(mpt3sas_scsih_is_pcie_scsi_device(pcie_device->device_info)))) {
+				tr_timeout = pcie_device->reset_timeout;
+				tr_method = MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
+			}
+			rc = _scsih_wait_for_device_to_become_ready(ioc,
+			    sas_target->handle, 0, (sas_target->flags &
+			    MPT_TARGET_FLAGS_RAID_COMPONENT), sdev->lun, tr_timeout, tr_method);
+			if (rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+			    rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA)
+				ssleep(1);
+			if (pcie_device)
+				pcie_device_put(pcie_device);
+		} while ((rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
+		    rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA)
+			&& count++ < command_retry_count);
+		sas_device_priv_data->block = 0;
+		if (rc != DEVICE_READY)
+			sas_device_priv_data->deleted = 1;
+
 		_scsih_internal_device_unblock(sdev, sas_device_priv_data);
+
+		if (rc != DEVICE_READY) {
+			sdev_printk(KERN_WARNING, sdev, "%s: device_offlined,\n"
+			    "handle(0x%04x)\n",
+			    __func__, sas_device_priv_data->sas_target->handle);
+			scsi_device_set_state(sdev, SDEV_OFFLINE);
+			sas_device = mpt3sas_get_sdev_by_addr(ioc,
+					sas_device_priv_data->sas_target->sas_address,
+					sas_device_priv_data->sas_target->port);
+			if (sas_device) {
+				_scsih_display_enclosure_chassis_info(NULL, sas_device, sdev, NULL);
+				sas_device_put(sas_device);
+			} else {
+				pcie_device = mpt3sas_get_pdev_by_wwid(ioc,
+						    sas_device_priv_data->sas_target->sas_address);
+				if (pcie_device) {
+					if (pcie_device->enclosure_handle != 0)
+						sdev_printk(KERN_INFO, sdev, "enclosure logical id\n"
+						    "(0x%016llx), slot(%d)\n", (unsigned long long)
+							pcie_device->enclosure_logical_id,
+							pcie_device->slot);
+					if (pcie_device->connector_name[0] != '\0')
+						sdev_printk(KERN_INFO, sdev, "enclosure level(0x%04x),\n"
+							" connector name( %s)\n",
+							pcie_device->enclosure_level,
+							pcie_device->connector_name);
+					pcie_device_put(pcie_device);
+				}
+			}
+		} else
+			sdev_printk(KERN_WARNING, sdev, "device_unblocked,\n"
+			    "handle(0x%04x)\n",
+			    sas_device_priv_data->sas_target->handle);
 	}
 }
 
@@ -3970,6 +4040,7 @@ _scsih_ublock_io_device_wait(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 	struct _pcie_device *pcie_device;
 	u8 tr_timeout = 30;
 	u8 tr_method = 0;
+	int count = 0;
 
 	/* moving devices from SDEV_OFFLINE to SDEV_BLOCK */
 	shost_for_each_device(sdev, ioc->shost) {
@@ -4036,7 +4107,8 @@ _scsih_ublock_io_device_wait(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 			if (pcie_device)
 				pcie_device_put(pcie_device);
 		} while ((rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
-		    rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA));
+		    rc == DEVICE_STOP_UNIT || rc == DEVICE_RETRY_UA)
+			&& count++ <= command_retry_count);
 
 		sas_device_priv_data->block = 0;
 		if (rc != DEVICE_READY)
@@ -7771,7 +7843,7 @@ _scsih_report_luns(struct MPT3SAS_ADAPTER *ioc, u16 handle, void *data,
 	kfree(transfer_packet);
 
 	if ((rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
-	    rc == DEVICE_RETRY_UA))
+	    rc == DEVICE_RETRY_UA) && retry_count >= command_retry_count)
 		rc = DEVICE_ERROR;
 
 	return rc;
@@ -8027,7 +8099,7 @@ _scsih_wait_for_device_to_become_ready(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	}
 
 	if ((rc == DEVICE_RETRY || rc == DEVICE_START_UNIT ||
-	    rc == DEVICE_RETRY_UA))
+	    rc == DEVICE_RETRY_UA) && retry_count >= command_retry_count)
 		rc = DEVICE_ERROR;
 	return rc;
 }
