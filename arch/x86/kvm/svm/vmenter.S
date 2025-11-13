@@ -92,6 +92,8 @@
 	jmp 901b
 .endm
 
+#define SVM_CLEAR_CPU_BUFFERS \
+	ALTERNATIVE "", __CLEAR_CPU_BUFFERS, X86_FEATURE_CLEAR_CPU_BUF_VM
 
 /**
  * __svm_vcpu_run - Run a vCPU via a transition to SVM guest mode
@@ -170,7 +172,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	mov VCPU_RDI(%_ASM_DI), %_ASM_DI
 
 	/* Clobbers EFLAGS.ZF */
-	VM_CLEAR_CPU_BUFFERS
+	SVM_CLEAR_CPU_BUFFERS
 
 	/* Enter guest mode */
 3:	vmrun %_ASM_AX
@@ -339,7 +341,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	mov KVM_VMCB_pa(%rax), %rax
 
 	/* Clobbers EFLAGS.ZF */
-	VM_CLEAR_CPU_BUFFERS
+	SVM_CLEAR_CPU_BUFFERS
 
 	/* Enter guest mode */
 1:	vmrun %rax
