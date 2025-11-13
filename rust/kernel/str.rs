@@ -277,15 +277,14 @@ impl fmt::Display for CStr {
     /// Formats printable ASCII characters, escaping the rest.
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::prelude::fmt;
     /// # use kernel::str::CStr;
     /// # use kernel::str::CString;
-    /// let penguin = c_str!("🐧");
+    /// let penguin = c"🐧";
     /// let s = CString::try_from_fmt(fmt!("{penguin}"))?;
     /// assert_eq!(s.to_bytes_with_nul(), "\\xf0\\x9f\\x90\\xa7\0".as_bytes());
     ///
-    /// let ascii = c_str!("so \"cool\"");
+    /// let ascii = c"so \"cool\"";
     /// let s = CString::try_from_fmt(fmt!("{ascii}"))?;
     /// assert_eq!(s.to_bytes_with_nul(), "so \"cool\"\0".as_bytes());
     /// # Ok::<(), kernel::error::Error>(())
@@ -724,43 +723,43 @@ unsafe fn kstrtobool_raw(string: *const u8) -> Result<bool> {
 /// # Examples
 ///
 /// ```
-/// # use kernel::{c_str, str::kstrtobool};
+/// # use kernel::str::kstrtobool;
 ///
 /// // Lowercase
-/// assert_eq!(kstrtobool(c_str!("true")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("tr")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("t")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("twrong")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("false")), Ok(false));
-/// assert_eq!(kstrtobool(c_str!("f")), Ok(false));
-/// assert_eq!(kstrtobool(c_str!("yes")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("no")), Ok(false));
-/// assert_eq!(kstrtobool(c_str!("on")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("off")), Ok(false));
+/// assert_eq!(kstrtobool(c"true"), Ok(true));
+/// assert_eq!(kstrtobool(c"tr"), Ok(true));
+/// assert_eq!(kstrtobool(c"t"), Ok(true));
+/// assert_eq!(kstrtobool(c"twrong"), Ok(true));
+/// assert_eq!(kstrtobool(c"false"), Ok(false));
+/// assert_eq!(kstrtobool(c"f"), Ok(false));
+/// assert_eq!(kstrtobool(c"yes"), Ok(true));
+/// assert_eq!(kstrtobool(c"no"), Ok(false));
+/// assert_eq!(kstrtobool(c"on"), Ok(true));
+/// assert_eq!(kstrtobool(c"off"), Ok(false));
 ///
 /// // Camel case
-/// assert_eq!(kstrtobool(c_str!("True")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("False")), Ok(false));
-/// assert_eq!(kstrtobool(c_str!("Yes")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("No")), Ok(false));
-/// assert_eq!(kstrtobool(c_str!("On")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("Off")), Ok(false));
+/// assert_eq!(kstrtobool(c"True"), Ok(true));
+/// assert_eq!(kstrtobool(c"False"), Ok(false));
+/// assert_eq!(kstrtobool(c"Yes"), Ok(true));
+/// assert_eq!(kstrtobool(c"No"), Ok(false));
+/// assert_eq!(kstrtobool(c"On"), Ok(true));
+/// assert_eq!(kstrtobool(c"Off"), Ok(false));
 ///
 /// // All caps
-/// assert_eq!(kstrtobool(c_str!("TRUE")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("FALSE")), Ok(false));
-/// assert_eq!(kstrtobool(c_str!("YES")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("NO")), Ok(false));
-/// assert_eq!(kstrtobool(c_str!("ON")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("OFF")), Ok(false));
+/// assert_eq!(kstrtobool(c"TRUE"), Ok(true));
+/// assert_eq!(kstrtobool(c"FALSE"), Ok(false));
+/// assert_eq!(kstrtobool(c"YES"), Ok(true));
+/// assert_eq!(kstrtobool(c"NO"), Ok(false));
+/// assert_eq!(kstrtobool(c"ON"), Ok(true));
+/// assert_eq!(kstrtobool(c"OFF"), Ok(false));
 ///
 /// // Numeric
-/// assert_eq!(kstrtobool(c_str!("1")), Ok(true));
-/// assert_eq!(kstrtobool(c_str!("0")), Ok(false));
+/// assert_eq!(kstrtobool(c"1"), Ok(true));
+/// assert_eq!(kstrtobool(c"0"), Ok(false));
 ///
 /// // Invalid input
-/// assert_eq!(kstrtobool(c_str!("invalid")), Err(EINVAL));
-/// assert_eq!(kstrtobool(c_str!("2")), Err(EINVAL));
+/// assert_eq!(kstrtobool(c"invalid"), Err(EINVAL));
+/// assert_eq!(kstrtobool(c"2"), Err(EINVAL));
 /// ```
 pub fn kstrtobool(string: &CStr) -> Result<bool> {
     // SAFETY:
