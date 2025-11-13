@@ -48,7 +48,7 @@ enum btrfs_rbio_ops {
  * If there is no bio covering a sector, then btrfs_raid_bio::bio_paddrs[i] will
  * be INVALID_PADDR.
  *
- * The length of each entry in bio_paddrs[] is sectorsize.
+ * The length of each entry in bio_paddrs[] is a step (aka, min(sectorsize, PAGE_SIZE)).
  *
  * [PAGES FOR INTERNAL USAGES]
  * Pages not covered by any bio or belonging to P/Q stripes are stored in
@@ -70,7 +70,7 @@ enum btrfs_rbio_ops {
  * If the corresponding page of stripe_paddrs[i] is not allocated, the value of
  * stripe_paddrs[i] will be INVALID_PADDR.
  *
- * The length of each entry in stripe_paddrs[] is sectorsize.
+ * The length of each entry in stripe_paddrs[] is a step.
  *
  * [LOCATING A SECTOR]
  * To locate a sector for IO, we need the following info:
@@ -83,7 +83,15 @@ enum btrfs_rbio_ops {
  *   Starts from 0 (representing the first sector of the stripe), ends
  *   at BTRFS_STRIPE_LEN / sectorsize - 1.
  *
- *   All existing bitmaps are based on sector numbers.
+ * - step_nr
+ *   A step is min(sector_size, PAGE_SIZE).
+ *
+ *   Starts from 0 (representing the first step of the sector), ends
+ *   at @sector_nsteps - 1.
+ *
+ *   For most call sites they do not need to bother this parameter.
+ *   It is for bs > ps support and only for vertical stripe related works.
+ *   (e.g. RMW/recover)
  *
  * - from which array
  *   Whether grabbing from stripe_paddrs[] (aka, internal pages) or from the
@@ -150,6 +158,14 @@ struct btrfs_raid_bio {
 
 	/* How many sectors there are for each stripe */
 	u8 stripe_nsectors;
+
+	/*
+	 * How many steps there are for one sector.
+	 *
+	 * For bs > ps cases, it's sectorsize / PAGE_SIZE.
+	 * For bs <= ps cases, it's always 1.
+	 */
+	u8 sector_nsteps;
 
 	/* Stripe number that we're scrubbing  */
 	u8 scrubp;
