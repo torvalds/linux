@@ -183,21 +183,6 @@ zl3073x_output_pin_out_get(u8 id)
 }
 
 /**
- * zl3073x_dev_ref_ffo_get - get current fractional frequency offset
- * @zldev: pointer to zl3073x device
- * @index: input reference index
- *
- * Return: the latest measured fractional frequency offset
- */
-static inline s64
-zl3073x_dev_ref_ffo_get(struct zl3073x_dev *zldev, u8 index)
-{
-	const struct zl3073x_ref *ref = zl3073x_ref_state_get(zldev, index);
-
-	return zl3073x_ref_ffo_get(ref);
-}
-
-/**
  * zl3073x_dev_ref_freq_get - get input reference frequency
  * @zldev: pointer to zl3073x device
  * @index: input reference index
@@ -227,21 +212,6 @@ zl3073x_dev_ref_is_diff(struct zl3073x_dev *zldev, u8 index)
 	return zl3073x_ref_is_diff(ref);
 }
 
-/**
- * zl3073x_dev_ref_is_enabled - check if the given input reference is enabled
- * @zldev: pointer to zl3073x device
- * @index: input reference index
- *
- * Return: true if input refernce is enabled, false otherwise
- */
-static inline bool
-zl3073x_dev_ref_is_enabled(struct zl3073x_dev *zldev, u8 index)
-{
-	const struct zl3073x_ref *ref = zl3073x_ref_state_get(zldev, index);
-
-	return zl3073x_ref_is_enabled(ref);
-}
-
 /*
  * zl3073x_dev_ref_is_status_ok - check the given input reference status
  * @zldev: pointer to zl3073x device
@@ -258,22 +228,6 @@ zl3073x_dev_ref_is_status_ok(struct zl3073x_dev *zldev, u8 index)
 }
 
 /**
- * zl3073x_dev_synth_dpll_get - get DPLL ID the synth is driven by
- * @zldev: pointer to zl3073x device
- * @index: synth index
- *
- * Return: ID of DPLL the given synthetizer is driven by
- */
-static inline u8
-zl3073x_dev_synth_dpll_get(struct zl3073x_dev *zldev, u8 index)
-{
-	const struct zl3073x_synth *synth;
-
-	synth = zl3073x_synth_state_get(zldev, index);
-	return zl3073x_synth_dpll_get(synth);
-}
-
-/**
  * zl3073x_dev_synth_freq_get - get synth current freq
  * @zldev: pointer to zl3073x device
  * @index: synth index
@@ -287,22 +241,6 @@ zl3073x_dev_synth_freq_get(struct zl3073x_dev *zldev, u8 index)
 
 	synth = zl3073x_synth_state_get(zldev, index);
 	return zl3073x_synth_freq_get(synth);
-}
-
-/**
- * zl3073x_dev_synth_is_enabled - check if the given synth is enabled
- * @zldev: pointer to zl3073x device
- * @index: synth index
- *
- * Return: true if synth is enabled, false otherwise
- */
-static inline bool
-zl3073x_dev_synth_is_enabled(struct zl3073x_dev *zldev, u8 index)
-{
-	const struct zl3073x_synth *synth;
-
-	synth = zl3073x_synth_state_get(zldev, index);
-	return zl3073x_synth_is_enabled(synth);
 }
 
 /**
@@ -339,21 +277,6 @@ zl3073x_dev_out_is_enabled(struct zl3073x_dev *zldev, u8 index)
 	synth = zl3073x_synth_state_get(zldev, synth_id);
 
 	return zl3073x_synth_is_enabled(synth) && zl3073x_out_is_enabled(out);
-}
-
-/**
- * zl3073x_dev_out_signal_format_get - get output signal format
- * @zldev: pointer to zl3073x device
- * @index: output index
- *
- * Return: signal format of given output
- */
-static inline u8
-zl3073x_dev_out_signal_format_get(struct zl3073x_dev *zldev, u8 index)
-{
-	const struct zl3073x_out *out = zl3073x_out_state_get(zldev, index);
-
-	return zl3073x_out_signal_format_get(out);
 }
 
 /**
