@@ -155,7 +155,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	mov VCPU_RAX(%_ASM_AX), %_ASM_AX
 
 	/* Clobbers EFLAGS.ZF */
-	CLEAR_CPU_BUFFERS
+	VM_CLEAR_CPU_BUFFERS
 
 	/* Check @flags to see if VMLAUNCH or VMRESUME is needed. */
 	testl $VMX_RUN_VMRESUME, WORD_SIZE(%_ASM_SP)
