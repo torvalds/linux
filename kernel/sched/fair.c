@@ -12856,21 +12856,16 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
 	 */
 	rq_unpin_lock(this_rq, rf);
 
-	rcu_read_lock();
 	sd = rcu_dereference_sched_domain(this_rq->sd);
-	if (!sd) {
-		rcu_read_unlock();
+	if (!sd)
 		goto out;
-	}
 
 	if (!get_rd_overloaded(this_rq->rd) ||
 	    this_rq->avg_idle < sd->max_newidle_lb_cost) {
 
 		update_next_balance(sd, &next_balance);
-		rcu_read_unlock();
 		goto out;
 	}
-	rcu_read_unlock();
 
 	/*
 	 * Include sched_balance_update_blocked_averages() in the cost
@@ -12883,7 +12878,6 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
 	rq_modified_clear(this_rq);
 	raw_spin_rq_unlock(this_rq);
 
-	rcu_read_lock();
 	for_each_domain(this_cpu, sd) {
 		u64 domain_cost;
 
@@ -12933,7 +12927,6 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
 		if (pulled_task || !continue_balancing)
 			break;
 	}
-	rcu_read_unlock();
 
 	raw_spin_rq_lock(this_rq);
 
