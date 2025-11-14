@@ -875,8 +875,9 @@ tcp_comp_sack_slack_ns - LONG INTEGER
 	timer used by SACK compression. This gives extra time
 	for small RTT flows, and reduces system overhead by allowing
 	opportunistic reduction of timer interrupts.
+	Too big values might reduce goodput.
 
-	Default : 100,000 ns (100 us)
+	Default : 10,000 ns (10 us)
 
 tcp_comp_sack_nr - INTEGER
 	Max number of SACK that can be compressed.
