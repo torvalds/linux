@@ -1952,6 +1952,10 @@ When the reclaim targets ancestors of A, the effective protection of B is
 capped by the protection value configured for A (and any other intermediate
 ancestors between A and the target).
 
+To express indifference about relative sibling protection, it is suggested to
+use memory_recursiveprot. Configuring all descendants of a parent with finite
+protection to "max" works but it may unnecessarily skew memory.events:low
+field.
 
 Memory Ownership
 ~~~~~~~~~~~~~~~~
