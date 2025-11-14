@@ -633,9 +633,9 @@ static struct btrfs_path *alloc_path_for_send(void)
 	path = btrfs_alloc_path();
 	if (!path)
 		return NULL;
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
-	path->need_commit_sem = 1;
+	path->search_commit_root = true;
+	path->skip_locking = true;
+	path->need_commit_sem = true;
 	return path;
 }
 
@@ -7622,10 +7622,10 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 		goto out;
 	}
 
-	left_path->search_commit_root = 1;
-	left_path->skip_locking = 1;
-	right_path->search_commit_root = 1;
-	right_path->skip_locking = 1;
+	left_path->search_commit_root = true;
+	left_path->skip_locking = true;
+	right_path->search_commit_root = true;
+	right_path->skip_locking = true;
 
 	/*
 	 * Strategy: Go to the first items of both trees. Then do

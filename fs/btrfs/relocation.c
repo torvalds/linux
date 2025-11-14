@@ -3165,8 +3165,8 @@ again:
 		key.offset = blocksize;
 	}
 
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
+	path->search_commit_root = true;
+	path->skip_locking = true;
 	ret = btrfs_search_slot(NULL, rc->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
@@ -3358,8 +3358,8 @@ int find_next_extent(struct reloc_control *rc, struct btrfs_path *path,
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 		key.offset = 0;
 
-		path->search_commit_root = 1;
-		path->skip_locking = 1;
+		path->search_commit_root = true;
+		path->skip_locking = true;
 		ret = btrfs_search_slot(NULL, rc->extent_root, &key, path,
 					0, 0);
 		if (ret < 0)

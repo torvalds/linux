@@ -968,8 +968,8 @@ int load_free_space_cache(struct btrfs_block_group *block_group)
 	path = btrfs_alloc_path();
 	if (!path)
 		return 0;
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
+	path->search_commit_root = true;
+	path->skip_locking = true;
 
 	/*
 	 * We must pass a path with search_commit_root set to btrfs_iget in

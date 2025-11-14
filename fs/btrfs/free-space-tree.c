@@ -1694,8 +1694,8 @@ int btrfs_load_free_space_tree(struct btrfs_caching_control *caching_ctl)
 	 * Just like caching_thread() doesn't want to deadlock on the extent
 	 * tree, we don't want to deadlock on the free space tree.
 	 */
-	path->skip_locking = 1;
-	path->search_commit_root = 1;
+	path->skip_locking = true;
+	path->search_commit_root = true;
 	path->reada = READA_FORWARD;
 
 	info = btrfs_search_free_space_info(NULL, block_group, path, 0);

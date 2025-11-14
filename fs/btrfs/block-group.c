@@ -613,8 +613,8 @@ static int sample_block_group_extent_item(struct btrfs_caching_control *caching_
 	extent_root = btrfs_extent_root(fs_info, max_t(u64, block_group->start,
 						       BTRFS_SUPER_INFO_OFFSET));
 
-	path->skip_locking = 1;
-	path->search_commit_root = 1;
+	path->skip_locking = true;
+	path->search_commit_root = true;
 	path->reada = READA_FORWARD;
 
 	search_offset = index * div_u64(block_group->length, max_index);
@@ -744,8 +744,8 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 	 * root to add free space.  So we skip locking and search the commit
 	 * root, since its read-only
 	 */
-	path->skip_locking = 1;
-	path->search_commit_root = 1;
+	path->skip_locking = true;
+	path->search_commit_root = true;
 	path->reada = READA_FORWARD;
 
 	key.objectid = last;

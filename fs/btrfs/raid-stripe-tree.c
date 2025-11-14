@@ -388,8 +388,8 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 		return -ENOMEM;
 
 	if (stripe->rst_search_commit_root) {
-		path->skip_locking = 1;
-		path->search_commit_root = 1;
+		path->skip_locking = true;
+		path->search_commit_root = true;
 	}
 
 	ret = btrfs_search_slot(NULL, stripe_root, &stripe_key, path, 0, 0);

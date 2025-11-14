@@ -463,10 +463,10 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
 	sctx->fs_info = fs_info;
-	sctx->extent_path.search_commit_root = 1;
-	sctx->extent_path.skip_locking = 1;
-	sctx->csum_path.search_commit_root = 1;
-	sctx->csum_path.skip_locking = 1;
+	sctx->extent_path.search_commit_root = true;
+	sctx->extent_path.skip_locking = true;
+	sctx->csum_path.search_commit_root = true;
+	sctx->csum_path.skip_locking = true;
 	for (i = 0; i < SCRUB_TOTAL_STRIPES; i++) {
 		int ret;
 
@@ -2202,10 +2202,10 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	 * as the data stripe bytenr may be smaller than previous extent.  Thus
 	 * we have to use our own extent/csum paths.
 	 */
-	extent_path.search_commit_root = 1;
-	extent_path.skip_locking = 1;
-	csum_path.search_commit_root = 1;
-	csum_path.skip_locking = 1;
+	extent_path.search_commit_root = true;
+	extent_path.skip_locking = true;
+	csum_path.search_commit_root = true;
+	csum_path.skip_locking = true;
 
 	for (int i = 0; i < data_stripes; i++) {
 		int stripe_index;
@@ -2688,8 +2688,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		return -ENOMEM;
 
 	path->reada = READA_FORWARD;
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
+	path->search_commit_root = true;
+	path->skip_locking = true;
 
 	key.objectid = scrub_dev->devid;
 	key.type = BTRFS_DEV_EXTENT_KEY;

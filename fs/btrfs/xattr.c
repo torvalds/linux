@@ -85,7 +85,7 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->skip_release_on_error = 1;
+	path->skip_release_on_error = true;
 
 	if (!value) {
 		di = btrfs_lookup_xattr(trans, root, path,

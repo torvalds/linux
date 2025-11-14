@@ -602,9 +602,9 @@ static int overwrite_item(struct walk_control *wc)
 insert:
 	btrfs_release_path(wc->subvol_path);
 	/* try to insert the key into the destination tree */
-	wc->subvol_path->skip_release_on_error = 1;
+	wc->subvol_path->skip_release_on_error = true;
 	ret = btrfs_insert_empty_item(trans, root, wc->subvol_path, &wc->log_key, item_size);
-	wc->subvol_path->skip_release_on_error = 0;
+	wc->subvol_path->skip_release_on_error = false;
 
 	dst_eb = wc->subvol_path->nodes[0];
 	dst_slot = wc->subvol_path->slots[0];
@@ -5706,8 +5706,8 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 	search_path = btrfs_alloc_path();
 	if (!search_path)
 		return -ENOMEM;
-	search_path->search_commit_root = 1;
-	search_path->skip_locking = 1;
+	search_path->search_commit_root = true;
+	search_path->skip_locking = true;
 
 	while (cur_offset < item_size) {
 		u64 parent;
@@ -6026,8 +6026,8 @@ static int conflicting_inode_is_dir(struct btrfs_root *root, u64 ino,
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
+	path->search_commit_root = true;
+	path->skip_locking = true;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (WARN_ON_ONCE(ret > 0)) {
@@ -6047,8 +6047,8 @@ static int conflicting_inode_is_dir(struct btrfs_root *root, u64 ino,
 	}
 
 	btrfs_release_path(path);
-	path->search_commit_root = 0;
-	path->skip_locking = 0;
+	path->search_commit_root = false;
+	path->skip_locking = false;
 
 	return ret;
 }
@@ -7169,8 +7169,8 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->skip_locking = 1;
-	path->search_commit_root = 1;
+	path->skip_locking = true;
+	path->search_commit_root = true;
 
 	key.objectid = ino;
 	key.type = BTRFS_INODE_REF_KEY;

@@ -1408,12 +1408,12 @@ static int find_parent_nodes(struct btrfs_backref_walk_ctx *ctx,
 	if (!path)
 		return -ENOMEM;
 	if (!ctx->trans) {
-		path->search_commit_root = 1;
-		path->skip_locking = 1;
+		path->search_commit_root = true;
+		path->skip_locking = true;
 	}
 
 	if (ctx->time_seq == BTRFS_SEQ_LAST)
-		path->skip_locking = 1;
+		path->skip_locking = true;
 
 again:
 	head = NULL;
@@ -1560,7 +1560,7 @@ again:
 
 	btrfs_release_path(path);
 
-	ret = add_missing_keys(ctx->fs_info, &preftrees, path->skip_locking == 0);
+	ret = add_missing_keys(ctx->fs_info, &preftrees, !path->skip_locking);
 	if (ret)
 		goto out;
 
@@ -2825,8 +2825,8 @@ struct btrfs_backref_iter *btrfs_backref_iter_alloc(struct btrfs_fs_info *fs_inf
 	}
 
 	/* Current backref iterator only supports iteration in commit root */
-	ret->path->search_commit_root = 1;
-	ret->path->skip_locking = 1;
+	ret->path->search_commit_root = true;
+	ret->path->skip_locking = true;
 	ret->fs_info = fs_info;
 
 	return ret;
@@ -3299,8 +3299,8 @@ static int handle_indirect_tree_backref(struct btrfs_trans_handle *trans,
 	level = cur->level + 1;
 
 	/* Search the tree to find parent blocks referring to the block */
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
+	path->search_commit_root = true;
+	path->skip_locking = true;
 	path->lowest_level = level;
 	ret = btrfs_search_slot(NULL, root, tree_key, path, 0, 0);
 	path->lowest_level = 0;

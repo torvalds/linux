@@ -789,7 +789,7 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	want = extent_ref_type(parent, owner);
 	if (insert) {
 		extra_size = btrfs_extent_inline_ref_size(want);
-		path->search_for_extension = 1;
+		path->search_for_extension = true;
 	} else
 		extra_size = -1;
 
@@ -955,7 +955,7 @@ again:
 
 		if (!path->keep_locks) {
 			btrfs_release_path(path);
-			path->keep_locks = 1;
+			path->keep_locks = true;
 			goto again;
 		}
 
@@ -976,11 +976,11 @@ out_no_entry:
 	*ref_ret = (struct btrfs_extent_inline_ref *)ptr;
 out:
 	if (path->keep_locks) {
-		path->keep_locks = 0;
+		path->keep_locks = false;
 		btrfs_unlock_up_safe(path, 1);
 	}
 	if (insert)
-		path->search_for_extension = 0;
+		path->search_for_extension = false;
 	return ret;
 }
 

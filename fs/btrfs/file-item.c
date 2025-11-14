@@ -394,8 +394,8 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	 * between reading the free space cache and updating the csum tree.
 	 */
 	if (btrfs_is_free_space_inode(inode)) {
-		path->search_commit_root = 1;
-		path->skip_locking = 1;
+		path->search_commit_root = true;
+		path->skip_locking = true;
 	}
 
 	/*
@@ -423,8 +423,8 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	 * from across transactions.
 	 */
 	if (bbio->csum_search_commit_root) {
-		path->search_commit_root = 1;
-		path->skip_locking = 1;
+		path->search_commit_root = true;
+		path->skip_locking = true;
 		down_read(&fs_info->commit_root_sem);
 	}
 
@@ -1177,10 +1177,10 @@ again:
 	}
 
 	btrfs_release_path(path);
-	path->search_for_extension = 1;
+	path->search_for_extension = true;
 	ret = btrfs_search_slot(trans, root, &file_key, path,
 				csum_size, 1);
-	path->search_for_extension = 0;
+	path->search_for_extension = false;
 	if (ret < 0)
 		goto out;
 
