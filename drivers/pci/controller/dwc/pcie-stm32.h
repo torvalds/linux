@@ -6,6 +6,9 @@
  * Author: Christian Bruel <christian.bruel@foss.st.com>
  */
 
+#include <linux/bits.h>
+#include <linux/device.h>
+
 #define to_stm32_pcie(x)	dev_get_drvdata((x)->dev)
 
 #define STM32MP25_PCIECR_TYPE_MASK	GENMASK(11, 8)

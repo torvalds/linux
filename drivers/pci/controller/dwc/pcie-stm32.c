@@ -7,18 +7,30 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/gpio/consumer.h>
+#include <linux/irq.h>
 #include <linux/mfd/syscon.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/stddef.h>
+
+#include "../../pci.h"
+
 #include "pcie-designware.h"
 #include "pcie-stm32.h"
-#include "../../pci.h"
 
 struct stm32_pcie {
 	struct dw_pcie pci;
