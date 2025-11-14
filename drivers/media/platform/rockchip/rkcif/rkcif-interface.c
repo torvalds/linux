@@ -157,15 +157,41 @@ static int rkcif_interface_set_routing(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
+	for (unsigned int i = 0; i < routing->num_routes; i++) {
+		const struct v4l2_subdev_route *route = &routing->routes[i];
+
+		if (route->source_stream >= RKCIF_ID_MAX)
+			return -EINVAL;
+	}
+
 	ret = v4l2_subdev_set_routing(sd, state, routing);
 
 	return ret;
+}
+
+static int rkcif_interface_apply_crop(struct rkcif_stream *stream,
+				      struct v4l2_subdev_state *state)
+{
+	struct rkcif_interface *interface = stream->interface;
+	struct v4l2_rect *crop;
+
+	crop = v4l2_subdev_state_get_crop(state, RKCIF_IF_PAD_SRC, stream->id);
+	if (!crop)
+		return -EINVAL;
+
+	if (interface->set_crop)
+		interface->set_crop(stream, crop->left, crop->top);
+
+	return 0;
 }
 
 static int rkcif_interface_enable_streams(struct v4l2_subdev *sd,
 					  struct v4l2_subdev_state *state,
 					  u32 pad, u64 streams_mask)
 {
+	struct rkcif_interface *interface = to_rkcif_interface(sd);
+	struct rkcif_stream *stream;
+	struct v4l2_subdev_route *route;
 	struct v4l2_subdev *remote_sd;
 	struct media_pad *remote_pad;
 	u64 mask;
@@ -173,6 +199,17 @@ static int rkcif_interface_enable_streams(struct v4l2_subdev *sd,
 	remote_pad =
 		media_pad_remote_pad_first(&sd->entity.pads[RKCIF_IF_PAD_SINK]);
 	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
+
+	/* DVP has one crop setting for all IDs */
+	if (interface->type == RKCIF_IF_DVP) {
+		stream = &interface->streams[RKCIF_ID0];
+		rkcif_interface_apply_crop(stream, state);
+	} else {
+		for_each_active_route(&state->routing, route) {
+			stream = &interface->streams[route->sink_stream];
+			rkcif_interface_apply_crop(stream, state);
+		}
+	}
 
 	mask = v4l2_subdev_state_xlate_streams(state, RKCIF_IF_PAD_SINK,
 					       RKCIF_IF_PAD_SRC, &streams_mask);

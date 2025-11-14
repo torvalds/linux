@@ -33,6 +33,14 @@ enum rkcif_format_type {
 	RKCIF_FMT_TYPE_RAW,
 };
 
+enum rkcif_id_index {
+	RKCIF_ID0,
+	RKCIF_ID1,
+	RKCIF_ID2,
+	RKCIF_ID3,
+	RKCIF_ID_MAX
+};
+
 enum rkcif_interface_index {
 	RKCIF_DVP,
 	RKCIF_MIPI_BASE,
@@ -63,11 +71,30 @@ enum rkcif_interface_type {
 	RKCIF_IF_MIPI,
 };
 
+struct rkcif_buffer {
+	struct vb2_v4l2_buffer vb;
+	struct list_head queue;
+	dma_addr_t buff_addr[VIDEO_MAX_PLANES];
+	bool is_dummy;
+};
+
+struct rkcif_dummy_buffer {
+	struct rkcif_buffer buffer;
+	void *vaddr;
+	u32 size;
+};
+
 struct rkcif_input_fmt {
 	u32 mbus_code;
 
 	enum rkcif_format_type fmt_type;
 	enum v4l2_field field;
+};
+
+struct rkcif_output_fmt {
+	u32 fourcc;
+	u32 mbus_code;
+	u8 cplanes;
 };
 
 struct rkcif_interface;
@@ -77,6 +104,42 @@ struct rkcif_remote {
 	struct v4l2_subdev *sd;
 
 	struct rkcif_interface *interface;
+};
+
+struct rkcif_stream {
+	enum rkcif_id_index id;
+	struct rkcif_device *rkcif;
+	struct rkcif_interface *interface;
+	const struct rkcif_output_fmt *out_fmts;
+	unsigned int out_fmts_num;
+
+	/* in ping-pong mode, two buffers can be provided to the HW */
+	struct rkcif_buffer *buffers[2];
+	int frame_idx;
+	int frame_phase;
+
+	/* in case of no available buffer, HW can write to the dummy buffer */
+	struct rkcif_dummy_buffer dummy;
+
+	bool stopping;
+	wait_queue_head_t wq_stopped;
+
+	/* queue of available buffers plus spinlock that protects it */
+	spinlock_t driver_queue_lock;
+	struct list_head driver_queue;
+
+	/* lock used by the V4L2 core */
+	struct mutex vlock;
+
+	struct media_pad pad;
+	struct media_pipeline pipeline;
+	struct v4l2_pix_format_mplane pix;
+	struct vb2_queue buf_queue;
+	struct video_device vdev;
+
+	void (*queue_buffer)(struct rkcif_stream *stream, unsigned int index);
+	int (*start_streaming)(struct rkcif_stream *stream);
+	void (*stop_streaming)(struct rkcif_stream *stream);
 };
 
 struct rkcif_dvp {
@@ -89,6 +152,8 @@ struct rkcif_interface {
 	enum rkcif_interface_index index;
 	struct rkcif_device *rkcif;
 	struct rkcif_remote *remote;
+	struct rkcif_stream streams[RKCIF_ID_MAX];
+	unsigned int streams_num;
 	const struct rkcif_input_fmt *in_fmts;
 	unsigned int in_fmts_num;
 
@@ -99,6 +164,8 @@ struct rkcif_interface {
 	union {
 		struct rkcif_dvp dvp;
 	};
+
+	void (*set_crop)(struct rkcif_stream *stream, u16 left, u16 top);
 };
 
 struct rkcif_match_data {
