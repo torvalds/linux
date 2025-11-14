@@ -3,6 +3,7 @@
 #include "nfs4_fs.h"
 #include "nfs4session.h"
 #include "callback.h"
+#include "delegation.h"
 #include "internal.h"
 #include "netns.h"
 #include "nfs40.h"
@@ -78,6 +79,28 @@ int nfs40_init_client(struct nfs_client *clp)
 
 	clp->cl_slot_tbl = tbl;
 	return 0;
+}
+
+/*
+ * nfs40_handle_cb_pathdown - return all delegations after NFS4ERR_CB_PATH_DOWN
+ * @clp: client to process
+ *
+ * Set the NFS4CLNT_LEASE_EXPIRED state in order to force a
+ * resend of the SETCLIENTID and hence re-establish the
+ * callback channel. Then return all existing delegations.
+ */
+void nfs40_handle_cb_pathdown(struct nfs_client *clp)
+{
+	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+	nfs_expire_all_delegations(clp);
+	dprintk("%s: handling CB_PATHDOWN recovery for server %s\n", __func__,
+			clp->cl_hostname);
+}
+
+void nfs4_schedule_path_down_recovery(struct nfs_client *clp)
+{
+	nfs40_handle_cb_pathdown(clp);
+	nfs4_schedule_state_manager(clp);
 }
 
 /**
