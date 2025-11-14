@@ -732,6 +732,13 @@ static phys_addr_t rbio_qstripe_step_paddr(const struct btrfs_raid_bio *rbio,
 	return rbio_stripe_step_paddr(rbio, rbio->nr_data + 1, sector_nr, step_nr);
 }
 
+/* Return a paddr pointer into the rbio::stripe_paddrs[] for the specified sector. */
+static phys_addr_t *rbio_stripe_paddrs(const struct btrfs_raid_bio *rbio,
+				       unsigned int stripe_nr, unsigned int sector_nr)
+{
+	return &rbio->stripe_paddrs[rbio_paddr_index(rbio, stripe_nr, sector_nr, 0)];
+}
+
 /*
  * The first stripe in the table for a logical address
  * has the lock.  rbios are added in one of three ways:
@@ -1001,6 +1008,41 @@ static phys_addr_t sector_paddr_in_rbio(struct btrfs_raid_bio *rbio,
 	spin_unlock(&rbio->bio_list_lock);
 
 	return rbio->stripe_paddrs[index];
+}
+
+/*
+ * Get paddr pointer for the sector specified by its @stripe_nr and @sector_nr.
+ *
+ * @rbio:               The raid bio
+ * @stripe_nr:          Stripe number, valid range [0, real_stripe)
+ * @sector_nr:		Sector number inside the stripe,
+ *			valid range [0, stripe_nsectors)
+ * @bio_list_only:      Whether to use sectors inside the bio list only.
+ *
+ * The read/modify/write code wants to reuse the original bio page as much
+ * as possible, and only use stripe_sectors as fallback.
+ *
+ * Return NULL if bio_list_only is set but the specified sector has no
+ * coresponding bio.
+ */
+static phys_addr_t *sector_paddrs_in_rbio(struct btrfs_raid_bio *rbio,
+					  int stripe_nr, int sector_nr,
+					  bool bio_list_only)
+{
+	phys_addr_t *ret = NULL;
+	const int index = rbio_paddr_index(rbio, stripe_nr, sector_nr, 0);
+
+	ASSERT(index >= 0 && index < rbio->nr_sectors * rbio->sector_nsteps);
+
+	scoped_guard(spinlock, &rbio->bio_list_lock) {
+		if (rbio->bio_paddrs[index] != INVALID_PADDR || bio_list_only) {
+			/* Don't return sector without a valid page pointer */
+			if (rbio->bio_paddrs[index] != INVALID_PADDR)
+				ret = &rbio->bio_paddrs[index];
+			return ret;
+		}
+	}
+	return &rbio->stripe_paddrs[index];
 }
 
 /*
@@ -1832,10 +1874,9 @@ static int verify_one_sector(struct btrfs_raid_bio *rbio,
 			     int stripe_nr, int sector_nr)
 {
 	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
-	phys_addr_t paddr;
+	phys_addr_t *paddrs;
 	u8 csum_buf[BTRFS_CSUM_SIZE];
 	u8 *csum_expected;
-	int ret;
 
 	if (!rbio->csum_bitmap || !rbio->csum_buf)
 		return 0;
@@ -1848,16 +1889,18 @@ static int verify_one_sector(struct btrfs_raid_bio *rbio,
 	 * bio list if possible.
 	 */
 	if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
-		paddr = sector_paddr_in_rbio(rbio, stripe_nr, sector_nr, 0);
+		paddrs = sector_paddrs_in_rbio(rbio, stripe_nr, sector_nr, 0);
 	} else {
-		paddr = rbio_stripe_paddr(rbio, stripe_nr, sector_nr);
+		paddrs = rbio_stripe_paddrs(rbio, stripe_nr, sector_nr);
 	}
 
 	csum_expected = rbio->csum_buf +
 			(stripe_nr * rbio->stripe_nsectors + sector_nr) *
 			fs_info->csum_size;
-	ret = btrfs_check_block_csum(fs_info, paddr, csum_buf, csum_expected);
-	return ret;
+	btrfs_calculate_block_csum_pages(fs_info, paddrs, csum_buf);
+	if (unlikely(memcmp(csum_buf, csum_expected, fs_info->csum_size) != 0))
+		return -EIO;
+	return 0;
 }
 
 static void recover_vertical_step(struct btrfs_raid_bio *rbio,
