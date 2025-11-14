@@ -2188,10 +2188,6 @@ static int gve_set_ts_config(struct net_device *dev,
 		}
 
 		kernel_config->rx_filter = HWTSTAMP_FILTER_ALL;
-		gve_clock_nic_ts_read(priv);
-		ptp_schedule_worker(priv->ptp->clock, 0);
-	} else {
-		ptp_cancel_worker_sync(priv->ptp->clock);
 	}
 
 	priv->ts_config.rx_filter = kernel_config->rx_filter;
