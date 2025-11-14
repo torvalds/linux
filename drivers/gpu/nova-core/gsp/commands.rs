@@ -17,6 +17,7 @@ use kernel::{
 };
 
 use crate::{
+    driver::Bar0,
     gsp::{
         cmdq::{
             Cmdq,
@@ -29,6 +30,7 @@ use crate::{
         },
     },
     sbuffer::SBufferIter,
+    util,
 };
 
 /// The `GspSetSystemInfo` command.
@@ -166,6 +168,60 @@ pub(crate) fn wait_gsp_init_done(cmdq: &mut Cmdq) -> Result {
             Ok(_) => break Ok(()),
             Err(ERANGE) => continue,
             Err(e) => break Err(e),
+        }
+    }
+}
+
+/// The `GetGspStaticInfo` command.
+struct GetGspStaticInfo;
+
+impl CommandToGsp for GetGspStaticInfo {
+    const FUNCTION: MsgFunction = MsgFunction::GetGspStaticInfo;
+    type Command = GspStaticConfigInfo;
+    type InitError = Infallible;
+
+    fn init(&self) -> impl Init<Self::Command, Self::InitError> {
+        GspStaticConfigInfo::init_zeroed()
+    }
+}
+
+/// The reply from the GSP to the [`GetGspInfo`] command.
+pub(crate) struct GetGspStaticInfoReply {
+    gpu_name: [u8; 64],
+}
+
+impl MessageFromGsp for GetGspStaticInfoReply {
+    const FUNCTION: MsgFunction = MsgFunction::GetGspStaticInfo;
+    type Message = GspStaticConfigInfo;
+    type InitError = Infallible;
+
+    fn read(
+        msg: &Self::Message,
+        _sbuffer: &mut SBufferIter<array::IntoIter<&[u8], 2>>,
+    ) -> Result<Self, Self::InitError> {
+        Ok(GetGspStaticInfoReply {
+            gpu_name: msg.gpu_name_str(),
+        })
+    }
+}
+
+impl GetGspStaticInfoReply {
+    /// Returns the name of the GPU as a string, or `None` if the string given by the GSP was
+    /// invalid.
+    pub(crate) fn gpu_name(&self) -> Option<&str> {
+        util::str_from_null_terminated(&self.gpu_name)
+    }
+}
+
+/// Send the [`GetGspInfo`] command and awaits for its reply.
+pub(crate) fn get_gsp_info(cmdq: &mut Cmdq, bar: &Bar0) -> Result<GetGspStaticInfoReply> {
+    cmdq.send_command(bar, GetGspStaticInfo)?;
+
+    loop {
+        match cmdq.receive_msg::<GetGspStaticInfoReply>(Delta::from_secs(5)) {
+            Ok(info) => return Ok(info),
+            Err(ERANGE) => continue,
+            Err(e) => return Err(e),
         }
     }
 }

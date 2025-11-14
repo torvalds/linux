@@ -104,3 +104,25 @@ unsafe impl AsBytes for PackedRegistryTable {}
 // SAFETY: This struct only contains integer types for which all bit patterns
 // are valid.
 unsafe impl FromBytes for PackedRegistryTable {}
+
+/// Payload of the `GetGspStaticInfo` command and message.
+#[repr(transparent)]
+pub(crate) struct GspStaticConfigInfo(bindings::GspStaticConfigInfo_t);
+
+impl GspStaticConfigInfo {
+    /// Returns a bytes array containing the (hopefully) zero-terminated name of this GPU.
+    pub(crate) fn gpu_name_str(&self) -> [u8; 64] {
+        self.0.gpuNameString
+    }
+}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for GspStaticConfigInfo {}
+
+// SAFETY: This struct only contains integer types for which all bit patterns
+// are valid.
+unsafe impl FromBytes for GspStaticConfigInfo {}
+
+// SAFETY: This struct only contains integer types and fixed-size arrays for which
+// all bit patterns are valid.
+unsafe impl Zeroable for GspStaticConfigInfo {}

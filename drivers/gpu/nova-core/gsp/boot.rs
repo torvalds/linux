@@ -239,6 +239,14 @@ impl super::Gsp {
         // Wait until GSP is fully initialized.
         commands::wait_gsp_init_done(&mut self.cmdq)?;
 
+        // Obtain and display basic GPU information.
+        let info = commands::get_gsp_info(&mut self.cmdq, bar)?;
+        dev_info!(
+            pdev.as_ref(),
+            "GPU name: {}\n",
+            info.gpu_name().unwrap_or("invalid GPU name")
+        );
+
         Ok(())
     }
 }
