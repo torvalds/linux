@@ -7565,8 +7565,10 @@ struct plat_stmmacenet_data *stmmac_plat_dat_alloc(struct device *dev)
 
 	/* Set the defaults:
 	 * - phy autodetection
+	 * - determine GMII_Address CR field from CSR clock
 	 */
 	plat_dat->phy_addr = -1;
+	plat_dat->clk_csr = -1;
 
 	return plat_dat;
 }
