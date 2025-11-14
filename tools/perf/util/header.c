@@ -1560,7 +1560,7 @@ static int __write_pmu_caps(struct feat_fd *ff, struct perf_pmu *pmu,
 static int write_cpu_pmu_caps(struct feat_fd *ff,
 			      struct evlist *evlist __maybe_unused)
 {
-	struct perf_pmu *cpu_pmu = perf_pmus__find("cpu");
+	struct perf_pmu *cpu_pmu = perf_pmus__find_core_pmu();
 	int ret;
 
 	if (!cpu_pmu)
