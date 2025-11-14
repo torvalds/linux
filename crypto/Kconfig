@@ -25,7 +25,7 @@ menu "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
-	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && CRYPTO_SELFTESTS
+	depends on CRYPTO_DRBG && CRYPTO_SELFTESTS
 	depends on (MODULE_SIG || !MODULES)
 	help
 	  This option enables the fips boot option which is
@@ -1168,17 +1168,6 @@ config CRYPTO_ZSTD
 endmenu
 
 menu "Random number generation"
-
-config CRYPTO_ANSI_CPRNG
-	tristate "ANSI PRNG (Pseudo Random Number Generator)"
-	select CRYPTO_AES
-	select CRYPTO_RNG
-	help
-	  Pseudo RNG (random number generator) (ANSI X9.31 Appendix A.2.4)
-
-	  This uses the AES cipher algorithm.
-
-	  Note that this option must be enabled if CRYPTO_FIPS is selected
 
 menuconfig CRYPTO_DRBG_MENU
 	tristate "NIST SP800-90A DRBG (Deterministic Random Bit Generator)"
