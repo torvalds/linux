@@ -76,6 +76,9 @@ pub(crate) enum GspSeqCmd {
     RegPoll(fw::RegPollPayload),
     DelayUs(fw::DelayUsPayload),
     RegStore(fw::RegStorePayload),
+    CoreReset,
+    CoreStart,
+    CoreWaitForHalt,
 }
 
 impl GspSeqCmd {
@@ -110,6 +113,9 @@ impl GspSeqCmd {
                 let size = opcode_size + size_of_val(&payload);
                 (GspSeqCmd::RegStore(payload), size)
             }
+            fw::SeqBufOpcode::CoreReset => (GspSeqCmd::CoreReset, opcode_size),
+            fw::SeqBufOpcode::CoreStart => (GspSeqCmd::CoreStart, opcode_size),
+            fw::SeqBufOpcode::CoreWaitForHalt => (GspSeqCmd::CoreWaitForHalt, opcode_size),
             _ => return Err(EINVAL),
         };
 
@@ -214,6 +220,19 @@ impl GspSeqCmdRunner for GspSeqCmd {
             GspSeqCmd::RegPoll(cmd) => cmd.run(seq),
             GspSeqCmd::DelayUs(cmd) => cmd.run(seq),
             GspSeqCmd::RegStore(cmd) => cmd.run(seq),
+            GspSeqCmd::CoreReset => {
+                seq.gsp_falcon.reset(seq.bar)?;
+                seq.gsp_falcon.dma_reset(seq.bar);
+                Ok(())
+            }
+            GspSeqCmd::CoreStart => {
+                seq.gsp_falcon.start(seq.bar)?;
+                Ok(())
+            }
+            GspSeqCmd::CoreWaitForHalt => {
+                seq.gsp_falcon.wait_till_halted(seq.bar)?;
+                Ok(())
+            }
         }
     }
 }
