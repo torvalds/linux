@@ -482,7 +482,6 @@ extern const u32 nfs4_pathconf_bitmap[3];
 extern const u32 nfs4_fsinfo_bitmap[3];
 extern const u32 nfs4_fs_locations_bitmap[3];
 
-void nfs40_shutdown_client(struct nfs_client *);
 void nfs41_shutdown_client(struct nfs_client *);
 int nfs40_init_client(struct nfs_client *);
 int nfs41_init_client(struct nfs_client *);

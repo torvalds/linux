@@ -189,14 +189,6 @@ void nfs41_shutdown_client(struct nfs_client *clp)
 }
 #endif	/* CONFIG_NFS_V4_1 */
 
-void nfs40_shutdown_client(struct nfs_client *clp)
-{
-	if (clp->cl_slot_tbl) {
-		nfs4_shutdown_slot_table(clp->cl_slot_tbl);
-		kfree(clp->cl_slot_tbl);
-	}
-}
-
 struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 {
 	char buf[INET6_ADDRSTRLEN + 1];

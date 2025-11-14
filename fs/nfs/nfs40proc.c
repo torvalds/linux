@@ -5,6 +5,7 @@
 #include <linux/nfs_fs.h>
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "nfs40.h"
 #include "nfs4trace.h"
 
 static void nfs40_call_sync_prepare(struct rpc_task *task, void *calldata)

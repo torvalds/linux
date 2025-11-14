@@ -3,6 +3,9 @@
 #define __LINUX_FS_NFS_NFS4_0_H
 
 
+/* nfs40client.c */
+void nfs40_shutdown_client(struct nfs_client *);
+
 /* nfs40proc.c */
 extern const struct nfs4_minor_version_ops nfs_v4_0_minor_ops;
 

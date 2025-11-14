@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/nfs_fs.h>
 #include "nfs4_fs.h"
+#include "nfs4session.h"
 #include "callback.h"
 #include "internal.h"
 #include "netns.h"
@@ -42,6 +43,14 @@ static void nfs4_swap_callback_idents(struct nfs_client *keep,
 static bool nfs4_same_verifier(nfs4_verifier *v1, nfs4_verifier *v2)
 {
 	return memcmp(v1->data, v2->data, sizeof(v1->data)) == 0;
+}
+
+void nfs40_shutdown_client(struct nfs_client *clp)
+{
+	if (clp->cl_slot_tbl) {
+		nfs4_shutdown_slot_table(clp->cl_slot_tbl);
+		kfree(clp->cl_slot_tbl);
+	}
 }
 
 /**
