@@ -661,6 +661,8 @@ static int pf_restore_vf_vram_mig_data(struct xe_gt *gt, unsigned int vfid,
 		goto err;
 	}
 
+	xe_bo_put(vram);
+
 	return 0;
 err:
 	xe_bo_put(vram);
