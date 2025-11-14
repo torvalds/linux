@@ -1278,7 +1278,7 @@ static inline aa_state_t match_component(struct aa_profile *profile,
  * @request: permissions to request
  * @perms: perms struct to set
  *
- * Returns: 0 on success else ERROR
+ * Returns: state match stopped at or DFA_NOMATCH if aborted early
  *
  * For the label A//&B//&C this does the perm match for A//&B//&C
  * @perms should be preinitialized with allperms OR a previous permission
@@ -1305,7 +1305,7 @@ static int label_compound_match(struct aa_profile *profile,
 
 	/* no component visible */
 	*perms = allperms;
-	return 0;
+	return state;
 
 next:
 	label_for_each_cont(i, label, tp) {
@@ -1317,14 +1317,11 @@ next:
 			goto fail;
 	}
 	*perms = *aa_lookup_perms(rules->policy, state);
-	if ((perms->allow & request) != request)
-		return -EACCES;
-
-	return 0;
+	return state;
 
 fail:
 	*perms = nullperms;
-	return state;
+	return DFA_NOMATCH;
 }
 
 /**
@@ -1406,11 +1403,12 @@ int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
 		   struct aa_label *label, aa_state_t state, bool subns,
 		   u32 request, struct aa_perms *perms)
 {
-	int error = label_compound_match(profile, rules, label, state, subns,
-					 request, perms);
-	if (!error)
-		return error;
+	aa_state_t tmp = label_compound_match(profile, rules, label, state, subns,
+					request, perms);
+	if ((perms->allow & request) == request)
+		return 0;
 
+	/* failed compound_match try component matches */
 	*perms = allperms;
 	return label_components_match(profile, rules, label, state, subns,
 				      request, perms);
