@@ -648,9 +648,9 @@ int sbi_debug_console_read(char *bytes, unsigned int num_bytes)
 
 void __init sbi_init(void)
 {
+	bool srst_power_off = false;
 	int ret;
 
-	sbi_set_power_off();
 	ret = sbi_get_spec_version();
 	if (ret > 0)
 		sbi_spec_version = ret;
@@ -683,6 +683,7 @@ void __init sbi_init(void)
 		    sbi_probe_extension(SBI_EXT_SRST)) {
 			pr_info("SBI SRST extension detected\n");
 			register_platform_power_off(sbi_srst_power_off);
+			srst_power_off = true;
 			sbi_srst_reboot_nb.notifier_call = sbi_srst_reboot;
 			sbi_srst_reboot_nb.priority = 192;
 			register_restart_handler(&sbi_srst_reboot_nb);
@@ -702,4 +703,7 @@ void __init sbi_init(void)
 		__sbi_send_ipi	= __sbi_send_ipi_v01;
 		__sbi_rfence	= __sbi_rfence_v01;
 	}
+
+	if (!srst_power_off)
+		sbi_set_power_off();
 }
