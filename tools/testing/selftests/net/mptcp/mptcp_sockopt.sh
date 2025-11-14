@@ -178,7 +178,7 @@ do_transfer()
 				${local_addr} < "$sin" > "$sout" &
 	local spid=$!
 
-	sleep 1
+	mptcp_lib_wait_local_port_listen "${listener_ns}" "${port}"
 
 	timeout ${timeout_test} \
 		ip netns exec ${connector_ns} \
