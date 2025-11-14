@@ -707,7 +707,7 @@ static void __mali_c55_power_off(struct mali_c55 *mali_c55)
 	clk_bulk_disable_unprepare(ARRAY_SIZE(mali_c55->clks), mali_c55->clks);
 }
 
-static int mali_c55_runtime_suspend(struct device *dev)
+static int __maybe_unused mali_c55_runtime_suspend(struct device *dev)
 {
 	struct mali_c55 *mali_c55 = dev_get_drvdata(dev);
 
@@ -770,7 +770,7 @@ static int __mali_c55_power_on(struct mali_c55 *mali_c55)
 	return 0;
 }
 
-static int mali_c55_runtime_resume(struct device *dev)
+static int __maybe_unused mali_c55_runtime_resume(struct device *dev)
 {
 	struct mali_c55 *mali_c55 = dev_get_drvdata(dev);
 	int ret;
