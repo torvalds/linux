@@ -67,7 +67,7 @@ examples:
             compatible = "u-blox,neo-8";
             v-bckp-supply = <&gnss_v_bckp_reg>;
             vcc-supply = <&gnss_vcc_reg>;
-            reset-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
-            safeboot-gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
+            reset-gpios = <&gpio 1 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+            safeboot-gpios = <&gpio 2 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
         };
     };
