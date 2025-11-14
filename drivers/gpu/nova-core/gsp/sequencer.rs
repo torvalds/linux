@@ -4,11 +4,15 @@
 
 use core::{
     array,
-    mem::size_of, //
+    mem::{
+        size_of,
+        size_of_val, //
+    },
 };
 
 use kernel::{
     device,
+    io::poll::read_poll_timeout,
     prelude::*,
     time::Delta,
     transmute::FromBytes,
@@ -29,6 +33,7 @@ use crate::{
         },
         fw,
     },
+    num::FromSafeCast,
     sbuffer::SBufferIter,
 };
 
@@ -61,18 +66,50 @@ const CMD_SIZE: usize = size_of::<fw::SequencerBufferCmd>();
 
 /// GSP Sequencer Command types with payload data.
 /// Commands have an opcode and an opcode-dependent struct.
-#[allow(dead_code)]
-pub(crate) enum GspSeqCmd {}
+#[allow(clippy::enum_variant_names)]
+pub(crate) enum GspSeqCmd {
+    RegWrite(fw::RegWritePayload),
+    RegModify(fw::RegModifyPayload),
+    RegPoll(fw::RegPollPayload),
+    RegStore(fw::RegStorePayload),
+}
 
 impl GspSeqCmd {
     /// Creates a new `GspSeqCmd` from raw data returning the command and its size in bytes.
-    pub(crate) fn new(data: &[u8], _dev: &device::Device) -> Result<(Self, usize)> {
-        let _fw_cmd = fw::SequencerBufferCmd::from_bytes(data).ok_or(EINVAL)?;
-        let _opcode_size = core::mem::size_of::<u32>();
+    pub(crate) fn new(data: &[u8], dev: &device::Device) -> Result<(Self, usize)> {
+        let fw_cmd = fw::SequencerBufferCmd::from_bytes(data).ok_or(EINVAL)?;
+        let opcode_size = core::mem::size_of::<u32>();
 
-        // NOTE: At this commit, NO opcodes exist yet, so just return error.
-        // Later commits will add match arms here.
-        Err(EINVAL)
+        let (cmd, size) = match fw_cmd.opcode()? {
+            fw::SeqBufOpcode::RegWrite => {
+                let payload = fw_cmd.reg_write_payload()?;
+                let size = opcode_size + size_of_val(&payload);
+                (GspSeqCmd::RegWrite(payload), size)
+            }
+            fw::SeqBufOpcode::RegModify => {
+                let payload = fw_cmd.reg_modify_payload()?;
+                let size = opcode_size + size_of_val(&payload);
+                (GspSeqCmd::RegModify(payload), size)
+            }
+            fw::SeqBufOpcode::RegPoll => {
+                let payload = fw_cmd.reg_poll_payload()?;
+                let size = opcode_size + size_of_val(&payload);
+                (GspSeqCmd::RegPoll(payload), size)
+            }
+            fw::SeqBufOpcode::RegStore => {
+                let payload = fw_cmd.reg_store_payload()?;
+                let size = opcode_size + size_of_val(&payload);
+                (GspSeqCmd::RegStore(payload), size)
+            }
+            _ => return Err(EINVAL),
+        };
+
+        if data.len() < size {
+            dev_err!(dev, "Data is not enough for command");
+            return Err(EINVAL);
+        }
+
+        Ok((cmd, size))
     }
 }
 
@@ -100,9 +137,67 @@ pub(crate) trait GspSeqCmdRunner {
     fn run(&self, sequencer: &GspSequencer<'_>) -> Result;
 }
 
+impl GspSeqCmdRunner for fw::RegWritePayload {
+    fn run(&self, sequencer: &GspSequencer<'_>) -> Result {
+        let addr = usize::from_safe_cast(self.addr());
+
+        sequencer.bar.try_write32(self.val(), addr)
+    }
+}
+
+impl GspSeqCmdRunner for fw::RegModifyPayload {
+    fn run(&self, sequencer: &GspSequencer<'_>) -> Result {
+        let addr = usize::from_safe_cast(self.addr());
+
+        sequencer.bar.try_read32(addr).and_then(|val| {
+            sequencer
+                .bar
+                .try_write32((val & !self.mask()) | self.val(), addr)
+        })
+    }
+}
+
+impl GspSeqCmdRunner for fw::RegPollPayload {
+    fn run(&self, sequencer: &GspSequencer<'_>) -> Result {
+        let addr = usize::from_safe_cast(self.addr());
+
+        // Default timeout to 4 seconds.
+        let timeout_us = if self.timeout() == 0 {
+            4_000_000
+        } else {
+            i64::from(self.timeout())
+        };
+
+        // First read.
+        sequencer.bar.try_read32(addr)?;
+
+        // Poll the requested register with requested timeout.
+        read_poll_timeout(
+            || sequencer.bar.try_read32(addr),
+            |current| (current & self.mask()) == self.val(),
+            Delta::ZERO,
+            Delta::from_micros(timeout_us),
+        )
+        .map(|_| ())
+    }
+}
+
+impl GspSeqCmdRunner for fw::RegStorePayload {
+    fn run(&self, sequencer: &GspSequencer<'_>) -> Result {
+        let addr = usize::from_safe_cast(self.addr());
+
+        sequencer.bar.try_read32(addr).map(|_| ())
+    }
+}
+
 impl GspSeqCmdRunner for GspSeqCmd {
-    fn run(&self, _seq: &GspSequencer<'_>) -> Result {
-        Ok(())
+    fn run(&self, seq: &GspSequencer<'_>) -> Result {
+        match self {
+            GspSeqCmd::RegWrite(cmd) => cmd.run(seq),
+            GspSeqCmd::RegModify(cmd) => cmd.run(seq),
+            GspSeqCmd::RegPoll(cmd) => cmd.run(seq),
+            GspSeqCmd::RegStore(cmd) => cmd.run(seq),
+        }
     }
 }
 

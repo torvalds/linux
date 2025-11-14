@@ -389,7 +389,6 @@ impl From<SeqBufOpcode> for u32 {
 #[derive(Copy, Clone)]
 pub(crate) struct RegWritePayload(r570_144::GSP_SEQ_BUF_PAYLOAD_REG_WRITE);
 
-#[expect(unused)]
 impl RegWritePayload {
     /// Returns the register address.
     pub(crate) fn addr(&self) -> u32 {
@@ -413,7 +412,6 @@ unsafe impl AsBytes for RegWritePayload {}
 #[derive(Copy, Clone)]
 pub(crate) struct RegModifyPayload(r570_144::GSP_SEQ_BUF_PAYLOAD_REG_MODIFY);
 
-#[expect(unused)]
 impl RegModifyPayload {
     /// Returns the register address.
     pub(crate) fn addr(&self) -> u32 {
@@ -442,7 +440,6 @@ unsafe impl AsBytes for RegModifyPayload {}
 #[derive(Copy, Clone)]
 pub(crate) struct RegPollPayload(r570_144::GSP_SEQ_BUF_PAYLOAD_REG_POLL);
 
-#[expect(unused)]
 impl RegPollPayload {
     /// Returns the register address.
     pub(crate) fn addr(&self) -> u32 {
@@ -495,7 +492,6 @@ unsafe impl AsBytes for DelayUsPayload {}
 #[derive(Copy, Clone)]
 pub(crate) struct RegStorePayload(r570_144::GSP_SEQ_BUF_PAYLOAD_REG_STORE);
 
-#[expect(unused)]
 impl RegStorePayload {
     /// Returns the register address.
     pub(crate) fn addr(&self) -> u32 {
@@ -503,6 +499,7 @@ impl RegStorePayload {
     }
 
     /// Returns the storage index.
+    #[allow(unused)]
     pub(crate) fn index(&self) -> u32 {
         self.0.index
     }
