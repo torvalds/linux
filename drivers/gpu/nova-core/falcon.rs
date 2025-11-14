@@ -578,6 +578,39 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         Ok(())
     }
 
+    /// Writes values to the mailbox registers if provided.
+    pub(crate) fn write_mailboxes(&self, bar: &Bar0, mbox0: Option<u32>, mbox1: Option<u32>) {
+        if let Some(mbox0) = mbox0 {
+            regs::NV_PFALCON_FALCON_MAILBOX0::default()
+                .set_value(mbox0)
+                .write(bar, &E::ID);
+        }
+
+        if let Some(mbox1) = mbox1 {
+            regs::NV_PFALCON_FALCON_MAILBOX1::default()
+                .set_value(mbox1)
+                .write(bar, &E::ID);
+        }
+    }
+
+    /// Reads the value from `mbox0` register.
+    pub(crate) fn read_mailbox0(&self, bar: &Bar0) -> u32 {
+        regs::NV_PFALCON_FALCON_MAILBOX0::read(bar, &E::ID).value()
+    }
+
+    /// Reads the value from `mbox1` register.
+    pub(crate) fn read_mailbox1(&self, bar: &Bar0) -> u32 {
+        regs::NV_PFALCON_FALCON_MAILBOX1::read(bar, &E::ID).value()
+    }
+
+    /// Reads values from both mailbox registers.
+    pub(crate) fn read_mailboxes(&self, bar: &Bar0) -> (u32, u32) {
+        let mbox0 = self.read_mailbox0(bar);
+        let mbox1 = self.read_mailbox1(bar);
+
+        (mbox0, mbox1)
+    }
+
     /// Start running the loaded firmware.
     ///
     /// `mbox0` and `mbox1` are optional parameters to write into the `MBOX0` and `MBOX1` registers
@@ -591,27 +624,10 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         mbox0: Option<u32>,
         mbox1: Option<u32>,
     ) -> Result<(u32, u32)> {
-        if let Some(mbox0) = mbox0 {
-            regs::NV_PFALCON_FALCON_MAILBOX0::default()
-                .set_value(mbox0)
-                .write(bar, &E::ID);
-        }
-
-        if let Some(mbox1) = mbox1 {
-            regs::NV_PFALCON_FALCON_MAILBOX1::default()
-                .set_value(mbox1)
-                .write(bar, &E::ID);
-        }
-
+        self.write_mailboxes(bar, mbox0, mbox1);
         self.start(bar)?;
         self.wait_till_halted(bar)?;
-
-        let (mbox0, mbox1) = (
-            regs::NV_PFALCON_FALCON_MAILBOX0::read(bar, &E::ID).value(),
-            regs::NV_PFALCON_FALCON_MAILBOX1::read(bar, &E::ID).value(),
-        );
-
-        Ok((mbox0, mbox1))
+        Ok(self.read_mailboxes(bar))
     }
 
     /// Returns the fused version of the signature to use in order to run a HS firmware on this
