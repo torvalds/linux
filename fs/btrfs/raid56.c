@@ -1070,8 +1070,12 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	const unsigned int sector_nsteps = fs_info->sectorsize / step;
 	struct btrfs_raid_bio *rbio;
 
-	/* PAGE_SIZE must also be aligned to sectorsize for subpage support */
-	ASSERT(IS_ALIGNED(PAGE_SIZE, fs_info->sectorsize));
+	/*
+	 * For bs <= ps cases, ps must be aligned to bs.
+	 * For bs > ps cases, bs must be aligned to ps.
+	 */
+	ASSERT(IS_ALIGNED(PAGE_SIZE, fs_info->sectorsize) ||
+	       IS_ALIGNED(fs_info->sectorsize, PAGE_SIZE));
 	/*
 	 * Our current stripe len should be fixed to 64k thus stripe_nsectors
 	 * (at most 16) should be no larger than BITS_PER_LONG.
@@ -3013,9 +3017,6 @@ void raid56_parity_cache_data_folios(struct btrfs_raid_bio *rbio,
 	unsigned int findex = 0;
 	unsigned int foffset = 0;
 	int ret;
-
-	/* We shouldn't hit RAID56 for bs > ps cases for now. */
-	ASSERT(fs_info->sectorsize <= PAGE_SIZE);
 
 	/*
 	 * If we hit ENOMEM temporarily, but later at
