@@ -13,7 +13,6 @@ enum bip_flags {
 	BIP_CHECK_GUARD		= 1 << 5, /* guard check */
 	BIP_CHECK_REFTAG	= 1 << 6, /* reftag check */
 	BIP_CHECK_APPTAG	= 1 << 7, /* apptag check */
-	BIP_P2P_DMA		= 1 << 8, /* using P2P address */
 
 	BIP_MEMPOOL		= 1 << 15, /* buffer backed by mempool */
 };
