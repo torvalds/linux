@@ -157,12 +157,12 @@ static void __bpf_local_storage_free(struct bpf_local_storage *local_storage,
 
 static void bpf_local_storage_free(struct bpf_local_storage *local_storage,
 				   struct bpf_local_storage_map *smap,
-				   bool bpf_ma, bool reuse_now)
+				   bool reuse_now)
 {
 	if (!local_storage)
 		return;
 
-	if (!bpf_ma) {
+	if (!local_storage->bpf_ma) {
 		__bpf_local_storage_free(local_storage, reuse_now);
 		return;
 	}
@@ -336,47 +336,12 @@ static bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_stor
 	return free_local_storage;
 }
 
-static bool check_storage_bpf_ma(struct bpf_local_storage *local_storage,
-				 struct bpf_local_storage_map *storage_smap,
-				 struct bpf_local_storage_elem *selem)
-{
-
-	struct bpf_local_storage_map *selem_smap;
-
-	/* local_storage->smap may be NULL. If it is, get the bpf_ma
-	 * from any selem in the local_storage->list. The bpf_ma of all
-	 * local_storage and selem should have the same value
-	 * for the same map type.
-	 *
-	 * If the local_storage->list is already empty, the caller will not
-	 * care about the bpf_ma value also because the caller is not
-	 * responsible to free the local_storage.
-	 */
-
-	if (storage_smap)
-		return storage_smap->bpf_ma;
-
-	if (!selem) {
-		struct hlist_node *n;
-
-		n = rcu_dereference_check(hlist_first_rcu(&local_storage->list),
-					  bpf_rcu_lock_held());
-		if (!n)
-			return false;
-
-		selem = hlist_entry(n, struct bpf_local_storage_elem, snode);
-	}
-	selem_smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
-
-	return selem_smap->bpf_ma;
-}
-
 static void bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem,
 				     bool reuse_now)
 {
 	struct bpf_local_storage_map *storage_smap;
 	struct bpf_local_storage *local_storage;
-	bool bpf_ma, free_local_storage = false;
+	bool free_local_storage = false;
 	HLIST_HEAD(selem_free_list);
 	unsigned long flags;
 
@@ -388,7 +353,6 @@ static void bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem,
 					      bpf_rcu_lock_held());
 	storage_smap = rcu_dereference_check(local_storage->smap,
 					     bpf_rcu_lock_held());
-	bpf_ma = check_storage_bpf_ma(local_storage, storage_smap, selem);
 
 	raw_spin_lock_irqsave(&local_storage->lock, flags);
 	if (likely(selem_linked_to_storage(selem)))
@@ -399,7 +363,7 @@ static void bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem,
 	bpf_selem_free_list(&selem_free_list, reuse_now);
 
 	if (free_local_storage)
-		bpf_local_storage_free(local_storage, storage_smap, bpf_ma, reuse_now);
+		bpf_local_storage_free(local_storage, storage_smap, reuse_now);
 }
 
 void bpf_selem_link_storage_nolock(struct bpf_local_storage *local_storage,
@@ -506,6 +470,7 @@ int bpf_local_storage_alloc(void *owner,
 	INIT_HLIST_HEAD(&storage->list);
 	raw_spin_lock_init(&storage->lock);
 	storage->owner = owner;
+	storage->bpf_ma = smap->bpf_ma;
 
 	bpf_selem_link_storage_nolock(storage, first_selem);
 	bpf_selem_link_map(smap, first_selem);
@@ -542,7 +507,7 @@ int bpf_local_storage_alloc(void *owner,
 	return 0;
 
 uncharge:
-	bpf_local_storage_free(storage, smap, smap->bpf_ma, true);
+	bpf_local_storage_free(storage, smap, true);
 	mem_uncharge(smap, owner, sizeof(*storage));
 	return err;
 }
@@ -731,13 +696,12 @@ void bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 {
 	struct bpf_local_storage_map *storage_smap;
 	struct bpf_local_storage_elem *selem;
-	bool bpf_ma, free_storage = false;
+	bool free_storage = false;
 	HLIST_HEAD(free_selem_list);
 	struct hlist_node *n;
 	unsigned long flags;
 
 	storage_smap = rcu_dereference_check(local_storage->smap, bpf_rcu_lock_held());
-	bpf_ma = check_storage_bpf_ma(local_storage, storage_smap, NULL);
 
 	/* Neither the bpf_prog nor the bpf_map's syscall
 	 * could be modifying the local_storage->list now.
@@ -768,7 +732,7 @@ void bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 	bpf_selem_free_list(&free_selem_list, true);
 
 	if (free_storage)
-		bpf_local_storage_free(local_storage, storage_smap, bpf_ma, true);
+		bpf_local_storage_free(local_storage, storage_smap, true);
 }
 
 u64 bpf_local_storage_map_mem_usage(const struct bpf_map *map)
