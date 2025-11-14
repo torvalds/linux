@@ -200,7 +200,7 @@
 	cs-gpios = <&gpio 3 5 0>;
 	status = "okay";
 
-	eeprom: at25@0 {
+	eeprom: eeprom@0 {
 		compatible = "atmel,at25";
 		reg = <0>;
 		spi-max-frequency = <5000000>;
