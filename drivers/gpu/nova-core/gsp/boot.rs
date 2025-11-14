@@ -236,6 +236,9 @@ impl super::Gsp {
         };
         GspSequencer::run(&mut self.cmdq, seq_params)?;
 
+        // Wait until GSP is fully initialized.
+        commands::wait_gsp_init_done(&mut self.cmdq)?;
+
         Ok(())
     }
 }

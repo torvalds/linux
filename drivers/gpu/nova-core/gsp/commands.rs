@@ -1,17 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use core::convert::Infallible;
+use core::{
+    array,
+    convert::Infallible, //
+};
 
 use kernel::{
     device,
     pci,
     prelude::*,
-    transmute::AsBytes, //
+    time::Delta,
+    transmute::{
+        AsBytes,
+        FromBytes, //
+    }, //
 };
 
 use crate::{
     gsp::{
-        cmdq::CommandToGsp,
+        cmdq::{
+            Cmdq,
+            CommandToGsp,
+            MessageFromGsp, //
+        },
         fw::{
             commands::*,
             MsgFunction, //
@@ -125,5 +136,36 @@ impl CommandToGsp for SetRegistry {
         }
 
         dst.write_all(string_data.as_slice())
+    }
+}
+
+/// Message type for GSP initialization done notification.
+struct GspInitDone {}
+
+// SAFETY: `GspInitDone` is a zero-sized type with no bytes, therefore it
+// trivially has no uninitialized bytes.
+unsafe impl FromBytes for GspInitDone {}
+
+impl MessageFromGsp for GspInitDone {
+    const FUNCTION: MsgFunction = MsgFunction::GspInitDone;
+    type InitError = Infallible;
+    type Message = GspInitDone;
+
+    fn read(
+        _msg: &Self::Message,
+        _sbuffer: &mut SBufferIter<array::IntoIter<&[u8], 2>>,
+    ) -> Result<Self, Self::InitError> {
+        Ok(GspInitDone {})
+    }
+}
+
+/// Waits for GSP initialization to complete.
+pub(crate) fn wait_gsp_init_done(cmdq: &mut Cmdq) -> Result {
+    loop {
+        match cmdq.receive_msg::<GspInitDone>(Delta::from_secs(10)) {
+            Ok(_) => break Ok(()),
+            Err(ERANGE) => continue,
+            Err(e) => break Err(e),
+        }
     }
 }
