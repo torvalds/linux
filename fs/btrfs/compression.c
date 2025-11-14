@@ -1084,7 +1084,8 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 /*
  * a less complex decompression routine.  Our compressed data fits in a
  * single page, and we want to read a single page out of it.
- * start_byte tells us the offset into the compressed data we're interested in
+ * dest_pgoff tells us the offset into the destination folio where we write the
+ * decompressed data.
  */
 int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
 		     unsigned long dest_pgoff, size_t srclen, size_t destlen)

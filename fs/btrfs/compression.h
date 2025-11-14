@@ -95,7 +95,7 @@ int btrfs_compress_folios(unsigned int type, int level, struct btrfs_inode *inod
 			  u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out);
 int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
-		     unsigned long start_byte, size_t srclen, size_t destlen);
+		     unsigned long dest_pgoff, size_t srclen, size_t destlen);
 int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 			      struct compressed_bio *cb, u32 decompressed);
 
