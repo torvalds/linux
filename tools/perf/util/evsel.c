@@ -3974,6 +3974,9 @@ static int store_evsel_ids(struct evsel *evsel, struct evlist *evlist)
 	if (evsel__is_retire_lat(evsel))
 		return 0;
 
+	if (perf_pmu__kind(evsel->pmu) != PERF_PMU_KIND_PE)
+		return 0;
+
 	for (cpu_map_idx = 0; cpu_map_idx < xyarray__max_x(evsel->core.fd); cpu_map_idx++) {
 		for (thread = 0; thread < xyarray__max_y(evsel->core.fd);
 		     thread++) {
