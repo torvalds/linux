@@ -2988,6 +2988,8 @@ static int ksz886x_cable_test_get_status(struct phy_device *phydev,
 #define LAN_EXT_PAGE_ACCESS_ADDRESS_DATA		0x17
 #define LAN_EXT_PAGE_ACCESS_CTRL_EP_FUNC		0x4000
 
+#define LAN8814_QSGMII_TX_CONFIG			0x35
+#define LAN8814_QSGMII_TX_CONFIG_QSGMII			BIT(3)
 #define LAN8814_QSGMII_SOFT_RESET			0x43
 #define LAN8814_QSGMII_SOFT_RESET_BIT			BIT(0)
 #define LAN8814_QSGMII_PCS1G_ANEG_CONFIG		0x13
@@ -4501,12 +4503,24 @@ static void lan8814_setup_led(struct phy_device *phydev, int val)
 static int lan8814_config_init(struct phy_device *phydev)
 {
 	struct kszphy_priv *lan8814 = phydev->priv;
+	int ret;
 
-	/* Disable ANEG with QSGMII PCS Host side */
-	lanphy_modify_page_reg(phydev, LAN8814_PAGE_PORT_REGS,
-			       LAN8814_QSGMII_PCS1G_ANEG_CONFIG,
-			       LAN8814_QSGMII_PCS1G_ANEG_CONFIG_ANEG_ENA,
-			       0);
+	/* Based on the interface type select how the advertise ability is
+	 * encoded, to set as SGMII or as USGMII.
+	 */
+	if (phydev->interface == PHY_INTERFACE_MODE_QSGMII)
+		ret = lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+					     LAN8814_QSGMII_TX_CONFIG,
+					     LAN8814_QSGMII_TX_CONFIG_QSGMII,
+					     LAN8814_QSGMII_TX_CONFIG_QSGMII);
+	else
+		ret = lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+					     LAN8814_QSGMII_TX_CONFIG,
+					     LAN8814_QSGMII_TX_CONFIG_QSGMII,
+					     0);
+
+	if (ret < 0)
+		return ret;
 
 	/* MDI-X setting for swap A,B transmit */
 	lanphy_modify_page_reg(phydev, LAN8814_PAGE_PCS_DIGITAL, LAN8814_ALIGN_SWAP,
@@ -6640,6 +6654,8 @@ static struct phy_driver ksphy_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= kszphy_resume,
 	.config_intr	= lan8814_config_intr,
+	.inband_caps	= lan8842_inband_caps,
+	.config_inband	= lan8842_config_inband,
 	.handle_interrupt = lan8814_handle_interrupt,
 	.cable_test_start	= lan8814_cable_test_start,
 	.cable_test_get_status	= ksz886x_cable_test_get_status,
