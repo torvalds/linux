@@ -1251,10 +1251,6 @@ static int __kho_finalize(void)
 	if (err)
 		goto abort;
 
-	err = kho_preserve_folio(virt_to_folio(kho_out.fdt));
-	if (err)
-		goto abort;
-
 	err = kho_mem_serialize(&kho_out);
 	if (err)
 		goto abort;
@@ -1384,19 +1380,17 @@ EXPORT_SYMBOL_GPL(kho_retrieve_subtree);
 
 static __init int kho_init(void)
 {
-	int err = 0;
 	const void *fdt = kho_get_fdt();
-	struct page *fdt_page;
+	int err = 0;
 
 	if (!kho_enable)
 		return 0;
 
-	fdt_page = alloc_page(GFP_KERNEL);
-	if (!fdt_page) {
-		err = -ENOMEM;
+	kho_out.fdt = kho_alloc_preserve(PAGE_SIZE);
+	if (IS_ERR(kho_out.fdt)) {
+		err = PTR_ERR(kho_out.fdt);
 		goto err_free_scratch;
 	}
-	kho_out.fdt = page_to_virt(fdt_page);
 
 	err = kho_debugfs_init();
 	if (err)
@@ -1424,9 +1418,9 @@ static __init int kho_init(void)
 	return 0;
 
 err_free_fdt:
-	put_page(fdt_page);
-	kho_out.fdt = NULL;
+	kho_unpreserve_free(kho_out.fdt);
 err_free_scratch:
+	kho_out.fdt = NULL;
 	for (int i = 0; i < kho_scratch_cnt; i++) {
 		void *start = __va(kho_scratch[i].addr);
 		void *end = start + kho_scratch[i].size;
