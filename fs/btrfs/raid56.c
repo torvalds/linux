@@ -1245,17 +1245,41 @@ static int get_rbio_vertical_errors(struct btrfs_raid_bio *rbio, int sector_nr,
 	return found_errors;
 }
 
+static int bio_add_paddrs(struct bio *bio, phys_addr_t *paddrs, unsigned int nr_steps,
+			  unsigned int step)
+{
+	int added = 0;
+	int ret;
+
+	for (int i = 0; i < nr_steps; i++) {
+		ret = bio_add_page(bio, phys_to_page(paddrs[i]), step,
+				   offset_in_page(paddrs[i]));
+		if (ret != step)
+			goto revert;
+		added += ret;
+	}
+	return added;
+revert:
+	/*
+	 * We don't need to revert the bvec, as the bio will be submitted immediately,
+	 * as long as the size is reduced the extra bvec will not be accessed.
+	 */
+	bio->bi_iter.bi_size -= added;
+	return 0;
+}
+
 /*
  * Add a single sector @sector into our list of bios for IO.
  *
  * Return 0 if everything went well.
- * Return <0 for error.
+ * Return <0 for error, and no byte will be added to @rbio.
  */
-static int rbio_add_io_paddr(struct btrfs_raid_bio *rbio, struct bio_list *bio_list,
-			     phys_addr_t paddr, unsigned int stripe_nr,
-			     unsigned int sector_nr, enum req_op op)
+static int rbio_add_io_paddrs(struct btrfs_raid_bio *rbio, struct bio_list *bio_list,
+			      phys_addr_t *paddrs, unsigned int stripe_nr,
+			      unsigned int sector_nr, enum req_op op)
 {
 	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	const u32 step = min(sectorsize, PAGE_SIZE);
 	struct bio *last = bio_list->tail;
 	int ret;
 	struct bio *bio;
@@ -1271,7 +1295,7 @@ static int rbio_add_io_paddr(struct btrfs_raid_bio *rbio, struct bio_list *bio_l
 			   rbio, stripe_nr);
 	ASSERT_RBIO_SECTOR(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors,
 			   rbio, sector_nr);
-	ASSERT(paddr != INVALID_PADDR);
+	ASSERT(paddrs != NULL);
 
 	stripe = &rbio->bioc->stripes[stripe_nr];
 	disk_start = stripe->physical + sector_nr * sectorsize;
@@ -1302,8 +1326,7 @@ static int rbio_add_io_paddr(struct btrfs_raid_bio *rbio, struct bio_list *bio_l
 		 */
 		if (last_end == disk_start && !last->bi_status &&
 		    last->bi_bdev == stripe->dev->bdev) {
-			ret = bio_add_page(last, phys_to_page(paddr), sectorsize,
-					   offset_in_page(paddr));
+			ret = bio_add_paddrs(last, paddrs, rbio->sector_nsteps, step);
 			if (ret == sectorsize)
 				return 0;
 		}
@@ -1316,7 +1339,8 @@ static int rbio_add_io_paddr(struct btrfs_raid_bio *rbio, struct bio_list *bio_l
 	bio->bi_iter.bi_sector = disk_start >> SECTOR_SHIFT;
 	bio->bi_private = rbio;
 
-	__bio_add_page(bio, phys_to_page(paddr), sectorsize, offset_in_page(paddr));
+	ret = bio_add_paddrs(bio, paddrs, rbio->sector_nsteps, step);
+	ASSERT(ret == sectorsize);
 	bio_list_add(bio_list, bio);
 	return 0;
 }
@@ -1497,7 +1521,7 @@ static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 	 */
 	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
 	     total_sector_nr++) {
-		phys_addr_t paddr;
+		phys_addr_t *paddrs;
 
 		stripe = total_sector_nr / rbio->stripe_nsectors;
 		sectornr = total_sector_nr % rbio->stripe_nsectors;
@@ -1507,15 +1531,15 @@ static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 			continue;
 
 		if (stripe < rbio->nr_data) {
-			paddr = sector_paddr_in_rbio(rbio, stripe, sectornr, 1);
-			if (paddr == INVALID_PADDR)
+			paddrs = sector_paddrs_in_rbio(rbio, stripe, sectornr, 1);
+			if (paddrs == NULL)
 				continue;
 		} else {
-			paddr = rbio_stripe_paddr(rbio, stripe, sectornr);
+			paddrs = rbio_stripe_paddrs(rbio, stripe, sectornr);
 		}
 
-		ret = rbio_add_io_paddr(rbio, bio_list, paddr, stripe,
-					sectornr, REQ_OP_WRITE);
+		ret = rbio_add_io_paddrs(rbio, bio_list, paddrs, stripe,
+					 sectornr, REQ_OP_WRITE);
 		if (ret)
 			goto error;
 	}
@@ -1532,7 +1556,7 @@ static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 
 	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
 	     total_sector_nr++) {
-		phys_addr_t paddr;
+		phys_addr_t *paddrs;
 
 		stripe = total_sector_nr / rbio->stripe_nsectors;
 		sectornr = total_sector_nr % rbio->stripe_nsectors;
@@ -1557,14 +1581,14 @@ static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 			continue;
 
 		if (stripe < rbio->nr_data) {
-			paddr = sector_paddr_in_rbio(rbio, stripe, sectornr, 1);
-			if (paddr == INVALID_PADDR)
+			paddrs = sector_paddrs_in_rbio(rbio, stripe, sectornr, 1);
+			if (paddrs == NULL)
 				continue;
 		} else {
-			paddr = rbio_stripe_paddr(rbio, stripe, sectornr);
+			paddrs = rbio_stripe_paddrs(rbio, stripe, sectornr);
 		}
 
-		ret = rbio_add_io_paddr(rbio, bio_list, paddr,
+		ret = rbio_add_io_paddrs(rbio, bio_list, paddrs,
 					 rbio->real_stripes,
 					 sectornr, REQ_OP_WRITE);
 		if (ret)
@@ -2184,7 +2208,7 @@ static void recover_rbio(struct btrfs_raid_bio *rbio)
 	     total_sector_nr++) {
 		int stripe = total_sector_nr / rbio->stripe_nsectors;
 		int sectornr = total_sector_nr % rbio->stripe_nsectors;
-		phys_addr_t paddr;
+		phys_addr_t *paddrs;
 
 		/*
 		 * Skip the range which has error.  It can be a range which is
@@ -2201,9 +2225,9 @@ static void recover_rbio(struct btrfs_raid_bio *rbio)
 			continue;
 		}
 
-		paddr = rbio_stripe_paddr(rbio, stripe, sectornr);
-		ret = rbio_add_io_paddr(rbio, &bio_list, paddr, stripe,
-					sectornr, REQ_OP_READ);
+		paddrs = rbio_stripe_paddrs(rbio, stripe, sectornr);
+		ret = rbio_add_io_paddrs(rbio, &bio_list, paddrs, stripe,
+					 sectornr, REQ_OP_READ);
 		if (ret < 0) {
 			bio_list_put(&bio_list);
 			goto out;
@@ -2393,11 +2417,11 @@ static int rmw_read_wait_recover(struct btrfs_raid_bio *rbio)
 	     total_sector_nr++) {
 		int stripe = total_sector_nr / rbio->stripe_nsectors;
 		int sectornr = total_sector_nr % rbio->stripe_nsectors;
-		phys_addr_t paddr;
+		phys_addr_t *paddrs;
 
-		paddr = rbio_stripe_paddr(rbio, stripe, sectornr);
-		ret = rbio_add_io_paddr(rbio, &bio_list, paddr, stripe,
-					sectornr, REQ_OP_READ);
+		paddrs = rbio_stripe_paddrs(rbio, stripe, sectornr);
+		ret = rbio_add_io_paddrs(rbio, &bio_list, paddrs, stripe,
+					 sectornr, REQ_OP_READ);
 		if (ret) {
 			bio_list_put(&bio_list);
 			return ret;
@@ -2751,11 +2775,11 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 	 * everything else.
 	 */
 	for_each_set_bit(sectornr, &rbio->dbitmap, rbio->stripe_nsectors) {
-		phys_addr_t paddr;
+		phys_addr_t *paddrs;
 
-		paddr = rbio_stripe_paddr(rbio, rbio->scrubp, sectornr);
-		ret = rbio_add_io_paddr(rbio, &bio_list, paddr, rbio->scrubp,
-					sectornr, REQ_OP_WRITE);
+		paddrs = rbio_stripe_paddrs(rbio, rbio->scrubp, sectornr);
+		ret = rbio_add_io_paddrs(rbio, &bio_list, paddrs, rbio->scrubp,
+					 sectornr, REQ_OP_WRITE);
 		if (ret)
 			goto cleanup;
 	}
@@ -2769,11 +2793,11 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 	 */
 	ASSERT_RBIO(rbio->bioc->replace_stripe_src >= 0, rbio);
 	for_each_set_bit(sectornr, pbitmap, rbio->stripe_nsectors) {
-		phys_addr_t paddr;
+		phys_addr_t *paddrs;
 
-		paddr = rbio_stripe_paddr(rbio, rbio->scrubp, sectornr);
-		ret = rbio_add_io_paddr(rbio, &bio_list, paddr, rbio->real_stripes,
-					sectornr, REQ_OP_WRITE);
+		paddrs = rbio_stripe_paddrs(rbio, rbio->scrubp, sectornr);
+		ret = rbio_add_io_paddrs(rbio, &bio_list, paddrs, rbio->real_stripes,
+					 sectornr, REQ_OP_WRITE);
 		if (ret)
 			goto cleanup;
 	}
@@ -2889,7 +2913,7 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio)
 	     total_sector_nr++) {
 		int sectornr = total_sector_nr % rbio->stripe_nsectors;
 		int stripe = total_sector_nr / rbio->stripe_nsectors;
-		phys_addr_t paddr;
+		phys_addr_t *paddrs;
 
 		/* No data in the vertical stripe, no need to read. */
 		if (!test_bit(sectornr, &rbio->dbitmap))
@@ -2900,11 +2924,11 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio)
 		 * read them from the disk. If sector_paddr_in_rbio() finds a sector
 		 * in the bio list we don't need to read it off the stripe.
 		 */
-		paddr = sector_paddr_in_rbio(rbio, stripe, sectornr, 1);
-		if (paddr == INVALID_PADDR)
+		paddrs = sector_paddrs_in_rbio(rbio, stripe, sectornr, 1);
+		if (paddrs == NULL)
 			continue;
 
-		paddr = rbio_stripe_paddr(rbio, stripe, sectornr);
+		paddrs = rbio_stripe_paddrs(rbio, stripe, sectornr);
 		/*
 		 * The bio cache may have handed us an uptodate sector.  If so,
 		 * use it.
@@ -2913,8 +2937,8 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio)
 			     rbio->stripe_uptodate_bitmap))
 			continue;
 
-		ret = rbio_add_io_paddr(rbio, &bio_list, paddr, stripe,
-					sectornr, REQ_OP_READ);
+		ret = rbio_add_io_paddrs(rbio, &bio_list, paddrs, stripe,
+					 sectornr, REQ_OP_READ);
 		if (ret) {
 			bio_list_put(&bio_list);
 			return ret;
