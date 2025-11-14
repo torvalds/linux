@@ -16,9 +16,8 @@
  * Private flags for iomap_dio, must not overlap with the public ones in
  * iomap.h:
  */
-#define IOMAP_DIO_NO_INVALIDATE	(1U << 25)
-#define IOMAP_DIO_CALLER_COMP	(1U << 26)
-#define IOMAP_DIO_INLINE_COMP	(1U << 27)
+#define IOMAP_DIO_NO_INVALIDATE	(1U << 26)
+#define IOMAP_DIO_COMP_WORK	(1U << 27)
 #define IOMAP_DIO_WRITE_THROUGH	(1U << 28)
 #define IOMAP_DIO_NEED_SYNC	(1U << 29)
 #define IOMAP_DIO_WRITE		(1U << 30)
@@ -140,11 +139,6 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 }
 EXPORT_SYMBOL_GPL(iomap_dio_complete);
 
-static ssize_t iomap_dio_deferred_complete(void *data)
-{
-	return iomap_dio_complete(data);
-}
-
 static void iomap_dio_complete_work(struct work_struct *work)
 {
 	struct iomap_dio *dio = container_of(work, struct iomap_dio, aio.work);
@@ -179,33 +173,33 @@ static void iomap_dio_done(struct iomap_dio *dio)
 
 		WRITE_ONCE(dio->submit.waiter, NULL);
 		blk_wake_io_task(waiter);
-	} else if (dio->flags & IOMAP_DIO_INLINE_COMP) {
-		WRITE_ONCE(iocb->private, NULL);
-		iomap_dio_complete_work(&dio->aio.work);
-	} else if (dio->flags & IOMAP_DIO_CALLER_COMP) {
-		/*
-		 * If this dio is flagged with IOMAP_DIO_CALLER_COMP, then
-		 * schedule our completion that way to avoid an async punt to a
-		 * workqueue.
-		 */
-		/* only polled IO cares about private cleared */
-		iocb->private = dio;
-		iocb->dio_complete = iomap_dio_deferred_complete;
+		return;
+	}
 
-		/*
-		 * Invoke ->ki_complete() directly. We've assigned our
-		 * dio_complete callback handler, and since the issuer set
-		 * IOCB_DIO_CALLER_COMP, we know their ki_complete handler will
-		 * notice ->dio_complete being set and will defer calling that
-		 * handler until it can be done from a safe task context.
-		 *
-		 * Note that the 'res' being passed in here is not important
-		 * for this case. The actual completion value of the request
-		 * will be gotten from dio_complete when that is run by the
-		 * issuer.
-		 */
-		iocb->ki_complete(iocb, 0);
-	} else {
+	/*
+	 * Always run error completions in user context.  These are not
+	 * performance critical and some code relies on taking sleeping locks
+	 * for error handling.
+	 */
+	if (dio->error)
+		dio->flags |= IOMAP_DIO_COMP_WORK;
+
+	/*
+	 * Never invalidate pages from this context to avoid deadlocks with
+	 * buffered I/O completions when called from the ioend workqueue,
+	 * or avoid sleeping when called directly from ->bi_end_io.
+	 * Tough luck if you hit the tiny race with someone dirtying the range
+	 * right between this check and the actual completion.
+	 */
+	if ((dio->flags & IOMAP_DIO_WRITE) &&
+	    !(dio->flags & IOMAP_DIO_COMP_WORK)) {
+		if (dio->iocb->ki_filp->f_mapping->nrpages)
+			dio->flags |= IOMAP_DIO_COMP_WORK;
+		else
+			dio->flags |= IOMAP_DIO_NO_INVALIDATE;
+	}
+
+	if (dio->flags & IOMAP_DIO_COMP_WORK) {
 		struct inode *inode = file_inode(iocb->ki_filp);
 
 		/*
@@ -216,7 +210,11 @@ static void iomap_dio_done(struct iomap_dio *dio)
 		 */
 		INIT_WORK(&dio->aio.work, iomap_dio_complete_work);
 		queue_work(inode->i_sb->s_dio_done_wq, &dio->aio.work);
+		return;
 	}
+
+	WRITE_ONCE(iocb->private, NULL);
+	iomap_dio_complete_work(&dio->aio.work);
 }
 
 void iomap_dio_bio_end_io(struct bio *bio)
@@ -252,16 +250,9 @@ u32 iomap_finish_ioend_direct(struct iomap_ioend *ioend)
 		/*
 		 * Try to avoid another context switch for the completion given
 		 * that we are already called from the ioend completion
-		 * workqueue, but never invalidate pages from this thread to
-		 * avoid deadlocks with buffered I/O completions.  Tough luck if
-		 * you hit the tiny race with someone dirtying the range now
-		 * between this check and the actual completion.
+		 * workqueue.
 		 */
-		if (!dio->iocb->ki_filp->f_mapping->nrpages) {
-			dio->flags |= IOMAP_DIO_INLINE_COMP;
-			dio->flags |= IOMAP_DIO_NO_INVALIDATE;
-		}
-		dio->flags &= ~IOMAP_DIO_CALLER_COMP;
+		dio->flags &= ~IOMAP_DIO_COMP_WORK;
 		iomap_dio_done(dio);
 	}
 
@@ -306,23 +297,6 @@ static int iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
 	return 0;
 }
 
-/*
- * Use a FUA write if we need datasync semantics and this is a pure data I/O
- * that doesn't require any metadata updates (including after I/O completion
- * such as unwritten extent conversion) and the underlying device either
- * doesn't have a volatile write cache or supports FUA.
- * This allows us to avoid cache flushes on I/O completion.
- */
-static inline bool iomap_dio_can_use_fua(const struct iomap *iomap,
-		struct iomap_dio *dio)
-{
-	if (iomap->flags & (IOMAP_F_SHARED | IOMAP_F_DIRTY))
-		return false;
-	if (!(dio->flags & IOMAP_DIO_WRITE_THROUGH))
-		return false;
-	return !bdev_write_cache(iomap->bdev) || bdev_fua(iomap->bdev);
-}
-
 static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 {
 	const struct iomap *iomap = &iter->iomap;
@@ -351,7 +325,24 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		return -EINVAL;
 
 	if (dio->flags & IOMAP_DIO_WRITE) {
-		bio_opf |= REQ_OP_WRITE;
+		bool need_completion_work = true;
+
+		switch (iomap->type) {
+		case IOMAP_MAPPED:
+			/*
+			 * Directly mapped I/O does not inherently need to do
+			 * work at I/O completion time.  But there are various
+			 * cases below where this will get set again.
+			 */
+			need_completion_work = false;
+			break;
+		case IOMAP_UNWRITTEN:
+			dio->flags |= IOMAP_DIO_UNWRITTEN;
+			need_zeroout = true;
+			break;
+		default:
+			break;
+		}
 
 		if (iomap->flags & IOMAP_F_ATOMIC_BIO) {
 			/*
@@ -364,35 +355,54 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 			bio_opf |= REQ_ATOMIC;
 		}
 
-		if (iomap->type == IOMAP_UNWRITTEN) {
-			dio->flags |= IOMAP_DIO_UNWRITTEN;
+		if (iomap->flags & IOMAP_F_SHARED) {
+			/*
+			 * Unsharing of needs to update metadata at I/O
+			 * completion time.
+			 */
+			need_completion_work = true;
+			dio->flags |= IOMAP_DIO_COW;
+		}
+
+		if (iomap->flags & IOMAP_F_NEW) {
+			/*
+			 * Newly allocated blocks might need recording in
+			 * metadata at I/O completion time.
+			 */
+			need_completion_work = true;
 			need_zeroout = true;
 		}
 
-		if (iomap->flags & IOMAP_F_SHARED)
-			dio->flags |= IOMAP_DIO_COW;
-
-		if (iomap->flags & IOMAP_F_NEW)
-			need_zeroout = true;
-		else if (iomap->type == IOMAP_MAPPED &&
-			 iomap_dio_can_use_fua(iomap, dio))
-			bio_opf |= REQ_FUA;
-
-		if (!(bio_opf & REQ_FUA))
-			dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
+		/*
+		 * Use a FUA write if we need datasync semantics and this is a
+		 * pure overwrite that doesn't require any metadata updates.
+		 *
+		 * This allows us to avoid cache flushes on I/O completion.
+		 */
+		if (dio->flags & IOMAP_DIO_WRITE_THROUGH) {
+			if (!need_completion_work &&
+			    !(iomap->flags & IOMAP_F_DIRTY) &&
+			    (!bdev_write_cache(iomap->bdev) ||
+			     bdev_fua(iomap->bdev)))
+				bio_opf |= REQ_FUA;
+			else
+				dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
+		}
 
 		/*
-		 * We can only do deferred completion for pure overwrites that
+		 * We can only do inline completion for pure overwrites that
 		 * don't require additional I/O at completion time.
 		 *
-		 * This rules out writes that need zeroing or extent conversion,
-		 * extend the file size, or issue metadata I/O or cache flushes
-		 * during completion processing.
+		 * This rules out writes that need zeroing or metdata updates to
+		 * convert unwritten or shared extents.
+		 *
+		 * Writes that extend i_size are also not supported, but this is
+		 * handled in __iomap_dio_rw().
 		 */
-		if (need_zeroout || (pos >= i_size_read(inode)) ||
-		    ((dio->flags & IOMAP_DIO_NEED_SYNC) &&
-		     !(bio_opf & REQ_FUA)))
-			dio->flags &= ~IOMAP_DIO_CALLER_COMP;
+		if (need_completion_work)
+			dio->flags |= IOMAP_DIO_COMP_WORK;
+
+		bio_opf |= REQ_OP_WRITE;
 	} else {
 		bio_opf |= REQ_OP_READ;
 	}
@@ -413,7 +423,7 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	 * ones we set for inline and deferred completions. If none of those
 	 * are available for this IO, clear the polled flag.
 	 */
-	if (!(dio->flags & (IOMAP_DIO_INLINE_COMP|IOMAP_DIO_CALLER_COMP)))
+	if (dio->flags & IOMAP_DIO_COMP_WORK)
 		dio->iocb->ki_flags &= ~IOCB_HIPRI;
 
 	if (need_zeroout) {
@@ -653,9 +663,6 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		dio->flags |= IOMAP_DIO_FSBLOCK_ALIGNED;
 
 	if (iov_iter_rw(iter) == READ) {
-		/* reads can always complete inline */
-		dio->flags |= IOMAP_DIO_INLINE_COMP;
-
 		if (iomi.pos >= dio->i_size)
 			goto out_free_dio;
 
@@ -668,15 +675,6 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	} else {
 		iomi.flags |= IOMAP_WRITE;
 		dio->flags |= IOMAP_DIO_WRITE;
-
-		/*
-		 * Flag as supporting deferred completions, if the issuer
-		 * groks it. This can avoid a workqueue punt for writes.
-		 * We may later clear this flag if we need to do other IO
-		 * as part of this IO completion.
-		 */
-		if (iocb->ki_flags & IOCB_DIO_CALLER_COMP)
-			dio->flags |= IOMAP_DIO_CALLER_COMP;
 
 		if (dio_flags & IOMAP_DIO_OVERWRITE_ONLY) {
 			ret = -EAGAIN;
@@ -705,6 +703,12 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			if (!(iocb->ki_flags & IOCB_SYNC))
 				dio->flags |= IOMAP_DIO_WRITE_THROUGH;
 		}
+
+		/*
+		 * i_size updates must to happen from process context.
+		 */
+		if (iomi.pos + iomi.len > dio->i_size)
+			dio->flags |= IOMAP_DIO_COMP_WORK;
 
 		/*
 		 * Try to invalidate cache pages for the range we are writing.
@@ -778,9 +782,14 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	 * If all the writes we issued were already written through to the
 	 * media, we don't need to flush the cache on IO completion. Clear the
 	 * sync flag for this case.
+	 *
+	 * Otherwise clear the inline completion flag if any sync work is
+	 * needed, as that needs to be performed from process context.
 	 */
 	if (dio->flags & IOMAP_DIO_WRITE_THROUGH)
 		dio->flags &= ~IOMAP_DIO_NEED_SYNC;
+	else if (dio->flags & IOMAP_DIO_NEED_SYNC)
+		dio->flags |= IOMAP_DIO_COMP_WORK;
 
 	/*
 	 * We are about to drop our additional submission reference, which

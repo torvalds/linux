@@ -490,10 +490,6 @@ These ``struct kiocb`` flags are significant for direct I/O with iomap:
    Only meaningful for asynchronous I/O, and only if the entire I/O can
    be issued as a single ``struct bio``.
 
- * ``IOCB_DIO_CALLER_COMP``: Try to run I/O completion from the caller's
-   process context.
-   See ``linux/fs.h`` for more details.
-
 Filesystems should call ``iomap_dio_rw`` from ``->read_iter`` and
 ``->write_iter``, and set ``FMODE_CAN_ODIRECT`` in the ``->open``
 function for the file.
