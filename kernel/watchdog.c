@@ -203,7 +203,7 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 		 * only once when sched_ext is enabled and will immediately
 		 * abort the BPF scheduler and print out a warning message.
 		 */
-		if (scx_hardlockup())
+		if (scx_hardlockup(cpu))
 			return;
 
 		/* Only print hardlockups once. */

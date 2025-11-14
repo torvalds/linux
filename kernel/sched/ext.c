@@ -3687,6 +3687,17 @@ bool scx_allow_ttwu_queue(const struct task_struct *p)
 	return false;
 }
 
+/**
+ * handle_lockup - sched_ext common lockup handler
+ * @fmt: format string
+ *
+ * Called on system stall or lockup condition and initiates abort of sched_ext
+ * if enabled, which may resolve the reported lockup.
+ *
+ * Returns %true if sched_ext is enabled and abort was initiated, which may
+ * resolve the lockup. %false if sched_ext is not enabled or abort was already
+ * initiated by someone else.
+ */
 static __printf(1, 2) bool handle_lockup(const char *fmt, ...)
 {
 	struct scx_sched *sch;
@@ -3718,6 +3729,10 @@ static __printf(1, 2) bool handle_lockup(const char *fmt, ...)
  * that may not be caused by the current BPF scheduler, try kicking out the
  * current scheduler in an attempt to recover the system to a good state before
  * issuing panics.
+ *
+ * Returns %true if sched_ext is enabled and abort was initiated, which may
+ * resolve the reported RCU stall. %false if sched_ext is not enabled or someone
+ * else already initiated abort.
  */
 bool scx_rcu_cpu_stall(void)
 {
@@ -3750,14 +3765,18 @@ void scx_softlockup(u32 dur_s)
  * numerous affinitized tasks in a single queue and directing all CPUs at it.
  * Try kicking out the current scheduler in an attempt to recover the system to
  * a good state before taking more drastic actions.
+ *
+ * Returns %true if sched_ext is enabled and abort was initiated, which may
+ * resolve the reported hardlockdup. %false if sched_ext is not enabled or
+ * someone else already initiated abort.
  */
-bool scx_hardlockup(void)
+bool scx_hardlockup(int cpu)
 {
-	if (!handle_lockup("hard lockup - CPU %d", smp_processor_id()))
+	if (!handle_lockup("hard lockup - CPU %d", cpu))
 		return false;
 
 	printk_deferred(KERN_ERR "sched_ext: Hard lockup - CPU %d, disabling BPF scheduler\n",
-			smp_processor_id());
+			cpu);
 	return true;
 }
 
