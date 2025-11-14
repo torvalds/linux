@@ -95,7 +95,7 @@ static void loongson_default_data(struct pci_dev *pdev,
 	plat->core_type = DWMAC_CORE_GMAC;
 	plat->force_sf_dma_mode = 1;
 
-	/* Set default value for multicast hash bins */
+	/* Increase the default value for multicast hash bins */
 	plat->multicast_filter_bins = 256;
 
 	/* Set default value for unicast filter entries */

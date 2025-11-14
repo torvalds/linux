@@ -28,9 +28,6 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 
 	plat->mdio_bus_data->needs_reset = true;
 
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
-
 	/* Set default value for unicast filter entries */
 	plat->unicast_filter_entries = 1;
 
@@ -77,9 +74,6 @@ static int snps_gmac5_default_data(struct pci_dev *pdev,
 	plat->force_sf_dma_mode = 1;
 	plat->flags |= STMMAC_FLAG_TSO_EN;
 	plat->pmt = 1;
-
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
 
 	/* Set default value for unicast filter entries */
 	plat->unicast_filter_entries = 1;

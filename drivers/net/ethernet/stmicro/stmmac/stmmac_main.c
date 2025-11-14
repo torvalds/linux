@@ -7567,10 +7567,12 @@ struct plat_stmmacenet_data *stmmac_plat_dat_alloc(struct device *dev)
 	 * - phy autodetection
 	 * - determine GMII_Address CR field from CSR clock
 	 * - allow MTU up to JUMBO_LEN
+	 * - hash table size
 	 */
 	plat_dat->phy_addr = -1;
 	plat_dat->clk_csr = -1;
 	plat_dat->maxmtu = JUMBO_LEN;
+	plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
 
 	return plat_dat;
 }
