@@ -81,9 +81,8 @@
  */
 
 /* Operand sizes: 8-bit operands or specified/overridden size. */
-#define ByteOp      (1<<0)	/* 8-bit operands. */
-/* Destination operand type. */
-#define DstShift    1
+#define ByteOp      (1<<0)      /* 8-bit operands. */
+#define DstShift    1           /* Destination operand type at bits 1-5 */
 #define ImplicitOps (OpImplicit << DstShift)
 #define DstReg      (OpReg << DstShift)
 #define DstMem      (OpMem << DstShift)
@@ -95,8 +94,7 @@
 #define DstDX       (OpDX << DstShift)
 #define DstAccLo    (OpAccLo << DstShift)
 #define DstMask     (OpMask << DstShift)
-/* Source operand type. */
-#define SrcShift    6
+#define SrcShift    6           /* Source operand type at bits 6-10 */
 #define SrcNone     (OpNone << SrcShift)
 #define SrcReg      (OpReg << SrcShift)
 #define SrcMem      (OpMem << SrcShift)
@@ -119,10 +117,10 @@
 #define SrcAccHi    (OpAccHi << SrcShift)
 #define SrcMask     (OpMask << SrcShift)
 #define BitOp       (1<<11)
-#define MemAbs      (1<<12)      /* Memory operand is absolute displacement */
+#define MemAbs      (1<<12)     /* Memory operand is absolute displacement */
 #define String      (1<<13)     /* String instruction (rep capable) */
 #define Stack       (1<<14)     /* Stack instruction (push/pop) */
-#define GroupMask   (7<<15)     /* Opcode uses one of the group mechanisms */
+#define GroupMask   (7<<15)     /* Group mechanisms, at bits 15-17 */
 #define Group       (1<<15)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (2<<15)     /* Alternate decoding of mod == 3 */
 #define Prefix      (3<<15)     /* Instruction varies with 66/f2/f3 prefix */
@@ -131,11 +129,8 @@
 #define InstrDual   (6<<15)     /* Alternate instruction decoding of mod == 3 */
 #define ModeDual    (7<<15)     /* Different instruction for 32/64 bit */
 #define Sse         (1<<18)     /* SSE Vector instruction */
-/* Generic ModRM decode. */
-#define ModRM       (1<<19)
-/* Destination is only written; never read. */
-#define Mov         (1<<20)
-/* Misc flags */
+#define ModRM       (1<<19)     /* Generic ModRM decode. */
+#define Mov         (1<<20)     /* Destination is only written; never read. */
 #define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
 #define EmulateOnUD (1<<22) /* Emulate if unsupported by the host */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
@@ -143,11 +138,10 @@
 #define Undefined   (1<<25) /* No Such Instruction */
 #define Lock        (1<<26) /* lock prefix is allowed for the instruction */
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
-#define No64	    (1<<28)
+#define No64        (1<<28)     /* Instruction generates #UD in 64-bit mode */
 #define PageTable   (1 << 29)   /* instruction used to write page table */
 #define NotImpl     (1 << 30)   /* instruction is not implemented */
-/* Source 2 operand type */
-#define Src2Shift   (32)       /* bits 32-36 */
+#define Src2Shift   (32)        /* Source 2 operand type at bits 32-36 */
 #define Src2None    (OpNone << Src2Shift)
 #define Src2Mem     (OpMem << Src2Shift)
 #define Src2CL      (OpCL << Src2Shift)
@@ -163,11 +157,12 @@
 #define Src2Mask    (OpMask << Src2Shift)
 /* free: 37-39 */
 #define Mmx         ((u64)1 << 40)  /* MMX Vector instruction */
-#define AlignMask   ((u64)7 << 41)
+#define AlignMask   ((u64)7 << 41)  /* Memory alignment requirement at bits 41-43 */
 #define Aligned     ((u64)1 << 41)  /* Explicitly aligned (e.g. MOVDQA) */
 #define Unaligned   ((u64)2 << 41)  /* Explicitly unaligned (e.g. MOVDQU) */
 #define Avx         ((u64)3 << 41)  /* Advanced Vector Extensions */
 #define Aligned16   ((u64)4 << 41)  /* Aligned to 16 byte boundary (e.g. FXSAVE) */
+/* free: 44 */
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
 #define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
 #define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
