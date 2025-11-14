@@ -4520,9 +4520,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 
 	/* delete the leaf if we've emptied it */
 	if (nritems == 0) {
-		if (leaf == root->node) {
-			btrfs_set_header_level(leaf, 0);
-		} else {
+		if (leaf != root->node) {
 			btrfs_clear_buffer_dirty(trans, leaf);
 			ret = btrfs_del_leaf(trans, root, path, leaf);
 			if (ret < 0)
