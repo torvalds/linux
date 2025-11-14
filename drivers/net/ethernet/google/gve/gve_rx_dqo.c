@@ -456,20 +456,38 @@ static void gve_rx_skb_hash(struct sk_buff *skb,
  * Note that this means if the time delta between packet reception and the last
  * clock read is greater than ~2 seconds, this will provide invalid results.
  */
+static ktime_t gve_rx_get_hwtstamp(struct gve_priv *gve, u32 hwts)
+{
+	u64 last_read = READ_ONCE(gve->last_sync_nic_counter);
+	u32 low = (u32)last_read;
+	s32 diff = hwts - low;
+
+	return ns_to_ktime(last_read + diff);
+}
+
 static void gve_rx_skb_hwtstamp(struct gve_rx_ring *rx,
 				const struct gve_rx_compl_desc_dqo *desc)
 {
-	u64 last_read = READ_ONCE(rx->gve->last_sync_nic_counter);
 	struct sk_buff *skb = rx->ctx.skb_head;
-	u32 ts, low;
-	s32 diff;
 
-	if (desc->ts_sub_nsecs_low & GVE_DQO_RX_HWTSTAMP_VALID) {
-		ts = le32_to_cpu(desc->ts);
-		low = (u32)last_read;
-		diff = ts - low;
-		skb_hwtstamps(skb)->hwtstamp = ns_to_ktime(last_read + diff);
-	}
+	if (desc->ts_sub_nsecs_low & GVE_DQO_RX_HWTSTAMP_VALID)
+		skb_hwtstamps(skb)->hwtstamp =
+			gve_rx_get_hwtstamp(rx->gve, le32_to_cpu(desc->ts));
+}
+
+int gve_xdp_rx_timestamp(const struct xdp_md *_ctx, u64 *timestamp)
+{
+	const struct gve_xdp_buff *ctx = (void *)_ctx;
+
+	if (!ctx->gve->nic_ts_report)
+		return -ENODATA;
+
+	if (!(ctx->compl_desc->ts_sub_nsecs_low & GVE_DQO_RX_HWTSTAMP_VALID))
+		return -ENODATA;
+
+	*timestamp = gve_rx_get_hwtstamp(ctx->gve,
+					 le32_to_cpu(ctx->compl_desc->ts));
+	return 0;
 }
 
 static void gve_rx_free_skb(struct napi_struct *napi, struct gve_rx_ring *rx)
@@ -851,6 +869,9 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 				 buf_state->page_info.page_offset,
 				 buf_state->page_info.pad,
 				 buf_len, false);
+		gve_xdp.gve = priv;
+		gve_xdp.compl_desc = compl_desc;
+
 		old_data = gve_xdp.xdp.data;
 		xdp_act = bpf_prog_run_xdp(xprog, &gve_xdp.xdp);
 		buf_state->page_info.pad += gve_xdp.xdp.data - old_data;
