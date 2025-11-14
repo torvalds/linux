@@ -114,9 +114,6 @@ static void loongson_default_data(struct pci_dev *pdev,
 	plat->clk_ref_rate = 125000000;
 	plat->clk_ptp_rate = 125000000;
 
-	/* Default to phy auto-detection */
-	plat->phy_addr = -1;
-
 	plat->dma_cfg->pbl = 32;
 	plat->dma_cfg->pblx8 = true;
 

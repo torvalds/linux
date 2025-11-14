@@ -112,7 +112,6 @@ static int snps_gmac5_default_data(struct pci_dev *pdev,
 	}
 
 	plat->bus_id = 1;
-	plat->phy_addr = -1;
 	plat->phy_interface = PHY_INTERFACE_MODE_GMII;
 
 	plat->dma_cfg->pbl = 32;

@@ -7563,6 +7563,11 @@ struct plat_stmmacenet_data *stmmac_plat_dat_alloc(struct device *dev)
 	if (!plat_dat)
 		return NULL;
 
+	/* Set the defaults:
+	 * - phy autodetection
+	 */
+	plat_dat->phy_addr = -1;
+
 	return plat_dat;
 }
 EXPORT_SYMBOL_GPL(stmmac_plat_dat_alloc);
