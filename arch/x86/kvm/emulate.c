@@ -141,6 +141,7 @@
 #define No64        (1<<28)     /* Instruction generates #UD in 64-bit mode */
 #define PageTable   (1 << 29)   /* instruction used to write page table */
 #define NotImpl     (1 << 30)   /* instruction is not implemented */
+#define Avx         ((u64)1 << 31)   /* Instruction uses VEX prefix */
 #define Src2Shift   (32)        /* Source 2 operand type at bits 32-36 */
 #define Src2None    (OpNone << Src2Shift)
 #define Src2Mem     (OpMem << Src2Shift)
@@ -157,12 +158,11 @@
 #define Src2Mask    (OpMask << Src2Shift)
 /* free: 37-39 */
 #define Mmx         ((u64)1 << 40)  /* MMX Vector instruction */
-#define AlignMask   ((u64)7 << 41)  /* Memory alignment requirement at bits 41-43 */
+#define AlignMask   ((u64)3 << 41)  /* Memory alignment requirement at bits 41-42 */
 #define Aligned     ((u64)1 << 41)  /* Explicitly aligned (e.g. MOVDQA) */
 #define Unaligned   ((u64)2 << 41)  /* Explicitly unaligned (e.g. MOVDQU) */
-#define Avx         ((u64)3 << 41)  /* Advanced Vector Extensions */
-#define Aligned16   ((u64)4 << 41)  /* Aligned to 16 byte boundary (e.g. FXSAVE) */
-/* free: 44 */
+#define Aligned16   ((u64)3 << 41)  /* Aligned to 16 byte boundary (e.g. FXSAVE) */
+/* free: 43-44 */
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
 #define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
 #define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
@@ -618,7 +618,6 @@ static unsigned insn_alignment(struct x86_emulate_ctxt *ctxt, unsigned size)
 
 	switch (alignment) {
 	case Unaligned:
-	case Avx:
 		return 1;
 	case Aligned16:
 		return 16;
@@ -1075,7 +1074,14 @@ static int em_fnstsw(struct x86_emulate_ctxt *ctxt)
 static void __decode_register_operand(struct x86_emulate_ctxt *ctxt,
 				      struct operand *op, int reg)
 {
-	if (ctxt->d & Sse) {
+	if ((ctxt->d & Avx) && ctxt->op_bytes == 32) {
+		op->type = OP_YMM;
+		op->bytes = 32;
+		op->addr.xmm = reg;
+		kvm_read_avx_reg(reg, &op->vec_val2);
+		return;
+	}
+	if (ctxt->d & (Avx|Sse)) {
 		op->type = OP_XMM;
 		op->bytes = 16;
 		op->addr.xmm = reg;
@@ -1767,7 +1773,15 @@ static int writeback(struct x86_emulate_ctxt *ctxt, struct operand *op)
 				       op->data,
 				       op->bytes * op->count);
 	case OP_XMM:
-		kvm_write_sse_reg(op->addr.xmm, &op->vec_val);
+		if (!(ctxt->d & Avx)) {
+			kvm_write_sse_reg(op->addr.xmm, &op->vec_val);
+			break;
+		}
+		/* full YMM write but with high bytes cleared */
+		memset(op->valptr + 16, 0, 16);
+		fallthrough;
+	case OP_YMM:
+		kvm_write_avx_reg(op->addr.xmm, &op->vec_val2);
 		break;
 	case OP_MM:
 		kvm_write_mmx_reg(op->addr.mm, &op->mm_val);
@@ -4861,9 +4875,8 @@ done_prefixes:
 		ctxt->op_bytes = 8;	/* REX.W */
 
 	/* Opcode byte(s). */
-	opcode = opcode_table[ctxt->b];
-	/* Two-byte opcode? */
 	if (ctxt->b == 0x0f) {
+		/* Two- or three-byte opcode */
 		ctxt->opcode_len = 2;
 		ctxt->b = insn_fetch(u8, ctxt);
 		opcode = twobyte_table[ctxt->b];
@@ -4874,6 +4887,9 @@ done_prefixes:
 			ctxt->b = insn_fetch(u8, ctxt);
 			opcode = opcode_map_0f_38[ctxt->b];
 		}
+	} else {
+		/* Opcode byte(s). */
+		opcode = opcode_table[ctxt->b];
 	}
 	ctxt->d = opcode.flags;
 
@@ -5022,7 +5038,7 @@ done_prefixes:
 			ctxt->op_bytes = 4;
 
 		if (ctxt->d & Sse)
-			ctxt->op_bytes = 16;
+			ctxt->op_bytes = 16, ctxt->d &= ~Avx;
 		else if (ctxt->d & Mmx)
 			ctxt->op_bytes = 8;
 	}
@@ -5154,20 +5170,34 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt, bool check_intercepts)
 	}
 
 	if (unlikely(ctxt->d &
-		     (No64|Undefined|Sse|Mmx|Intercept|CheckPerm|Priv|Prot|String))) {
+		     (No64|Undefined|Avx|Sse|Mmx|Intercept|CheckPerm|Priv|Prot|String))) {
 		if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
 				(ctxt->d & Undefined)) {
 			rc = emulate_ud(ctxt);
 			goto done;
 		}
 
-		if (((ctxt->d & (Sse|Mmx)) && ((ops->get_cr(ctxt, 0) & X86_CR0_EM)))
-		    || ((ctxt->d & Sse) && !(ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR))) {
+		if ((ctxt->d & (Avx|Sse|Mmx)) && ((ops->get_cr(ctxt, 0) & X86_CR0_EM))) {
 			rc = emulate_ud(ctxt);
 			goto done;
 		}
 
-		if ((ctxt->d & (Sse|Mmx)) && (ops->get_cr(ctxt, 0) & X86_CR0_TS)) {
+		if (ctxt->d & Avx) {
+			u64 xcr = 0;
+			if (!(ops->get_cr(ctxt, 4) & X86_CR4_OSXSAVE)
+			    || ops->get_xcr(ctxt, 0, &xcr)
+			    || !(xcr & XFEATURE_MASK_YMM)) {
+				rc = emulate_ud(ctxt);
+				goto done;
+			}
+		} else if (ctxt->d & Sse) {
+			if (!(ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR)) {
+				rc = emulate_ud(ctxt);
+				goto done;
+			}
+		}
+
+		if ((ctxt->d & (Avx|Sse|Mmx)) && (ops->get_cr(ctxt, 0) & X86_CR0_TS)) {
 			rc = emulate_nm(ctxt);
 			goto done;
 		}
