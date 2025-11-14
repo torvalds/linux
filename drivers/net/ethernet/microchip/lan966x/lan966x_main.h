@@ -295,8 +295,8 @@ struct lan966x {
 	const struct lan966x_stat_layout *stats_layout;
 	u32 num_stats;
 
-	/* workqueue for reading stats */
-	struct mutex stats_lock;
+	/* lock for reading stats */
+	spinlock_t stats_lock;
 	u64 *stats;
 	struct delayed_work stats_work;
 	struct workqueue_struct *stats_queue;

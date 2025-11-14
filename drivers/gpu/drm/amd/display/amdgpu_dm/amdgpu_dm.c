@@ -3563,6 +3563,7 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 	/* Do mst topology probing after resuming cached state*/
 	drm_connector_list_iter_begin(ddev, &iter);
 	drm_for_each_connector_iter(connector, &iter) {
+		bool init = false;
 
 		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
 			continue;
@@ -3572,7 +3573,14 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 		    aconnector->mst_root)
 			continue;
 
-		drm_dp_mst_topology_queue_probe(&aconnector->mst_mgr);
+		scoped_guard(mutex, &aconnector->mst_mgr.lock) {
+			init = !aconnector->mst_mgr.mst_primary;
+		}
+		if (init)
+			dm_helpers_dp_mst_start_top_mgr(aconnector->dc_link->ctx,
+				aconnector->dc_link, false);
+		else
+			drm_dp_mst_topology_queue_probe(&aconnector->mst_mgr);
 	}
 	drm_connector_list_iter_end(&iter);
 
@@ -8030,7 +8038,7 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 				       "mode %dx%d@%dHz is not native, enabling scaling\n",
 				       adjusted_mode->hdisplay, adjusted_mode->vdisplay,
 				       drm_mode_vrefresh(adjusted_mode));
-			dm_new_connector_state->scaling = RMX_FULL;
+			dm_new_connector_state->scaling = RMX_ASPECT;
 		}
 		return 0;
 	}

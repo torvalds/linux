@@ -917,6 +917,13 @@ config ARCH_USES_CFI_TRAPS
 	  An architecture should select this option if it requires the
 	  .kcfi_traps section for KCFI trap handling.
 
+config ARCH_USES_CFI_GENERIC_LLVM_PASS
+	bool
+	help
+	  An architecture should select this option if it uses the generic
+	  KCFIPass in LLVM to expand kCFI bundles instead of architecture-specific
+	  lowering.
+
 config CFI
 	bool "Use Kernel Control Flow Integrity (kCFI)"
 	default CFI_CLANG

@@ -2606,7 +2606,7 @@ void ksmbd_rdma_destroy(void)
 	}
 }
 
-bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
+static bool ksmbd_find_rdma_capable_netdev(struct net_device *netdev)
 {
 	struct smb_direct_device *smb_dev;
 	int i;
@@ -2646,6 +2646,28 @@ out:
 		    netdev->name, str_true_false(rdma_capable));
 
 	return rdma_capable;
+}
+
+bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	if (ksmbd_find_rdma_capable_netdev(netdev))
+		return true;
+
+	/* check if netdev is bridge or VLAN */
+	if (netif_is_bridge_master(netdev) ||
+	    netdev->priv_flags & IFF_802_1Q_VLAN)
+		netdev_for_each_lower_dev(netdev, lower_dev, iter)
+			if (ksmbd_find_rdma_capable_netdev(lower_dev))
+				return true;
+
+	/* check if netdev is IPoIB safely without layer violation */
+	if (netdev->type == ARPHRD_INFINIBAND)
+		return true;
+
+	return false;
 }
 
 static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
