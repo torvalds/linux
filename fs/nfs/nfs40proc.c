@@ -309,12 +309,12 @@ nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 	rpc_call_async(server->client, &msg, 0, &nfs4_release_lockowner_ops, data);
 }
 
-const struct rpc_call_ops nfs40_call_sync_ops = {
+static const struct rpc_call_ops nfs40_call_sync_ops = {
 	.rpc_call_prepare = nfs40_call_sync_prepare,
 	.rpc_call_done = nfs40_call_sync_done,
 };
 
-const struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
+static const struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
 	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
 	.recover_open	= nfs4_open_reclaim,
@@ -323,7 +323,7 @@ const struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
 	.detect_trunking = nfs40_discover_server_trunking,
 };
 
-const struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
+static const struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
 	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
 	.recover_open	= nfs40_open_expired,
@@ -331,13 +331,13 @@ const struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
 	.establish_clid = nfs4_init_clientid,
 };
 
-const struct nfs4_state_maintenance_ops nfs40_state_renewal_ops = {
+static const struct nfs4_state_maintenance_ops nfs40_state_renewal_ops = {
 	.sched_state_renewal = nfs4_proc_async_renew,
 	.get_state_renewal_cred = nfs4_get_renew_cred,
 	.renew_lease = nfs4_proc_renew,
 };
 
-const struct nfs4_mig_recovery_ops nfs40_mig_recovery_ops = {
+static const struct nfs4_mig_recovery_ops nfs40_mig_recovery_ops = {
 	.get_locations = _nfs40_proc_get_locations,
 	.fsid_present = _nfs40_proc_fsid_present,
 };
