@@ -240,6 +240,11 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 		rx->rx_headroom = 0;
 	}
 
+	/* struct gve_xdp_buff is overlaid on struct xdp_buff_xsk and utilizes
+	 * the 24 byte field cb to store gve specific data.
+	 */
+	XSK_CHECK_PRIV_TYPE(struct gve_xdp_buff);
+
 	rx->dqo.num_buf_states = cfg->raw_addressing ? buffer_queue_slots :
 		gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
 	rx->dqo.buf_states = kvcalloc_node(rx->dqo.num_buf_states,
@@ -701,15 +706,22 @@ err:
 }
 
 static int gve_rx_xsk_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
-			  struct gve_rx_buf_state_dqo *buf_state, int buf_len,
+			  const struct gve_rx_compl_desc_dqo *compl_desc,
+			  struct gve_rx_buf_state_dqo *buf_state,
 			  struct bpf_prog *xprog)
 {
 	struct xdp_buff *xdp = buf_state->xsk_buff;
+	int buf_len = compl_desc->packet_len;
 	struct gve_priv *priv = rx->gve;
+	struct gve_xdp_buff *gve_xdp;
 	int xdp_act;
 
 	xdp->data_end = xdp->data + buf_len;
 	xsk_buff_dma_sync_for_cpu(xdp);
+
+	gve_xdp = (void *)xdp;
+	gve_xdp->gve = priv;
+	gve_xdp->compl_desc = compl_desc;
 
 	if (xprog) {
 		xdp_act = bpf_prog_run_xdp(xprog, xdp);
@@ -800,7 +812,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 
 	xprog = READ_ONCE(priv->xdp_prog);
 	if (buf_state->xsk_buff)
-		return gve_rx_xsk_dqo(napi, rx, buf_state, buf_len, xprog);
+		return gve_rx_xsk_dqo(napi, rx, compl_desc, buf_state, xprog);
 
 	/* Page might have not been used for awhile and was likely last written
 	 * by a different thread.

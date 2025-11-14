@@ -2348,6 +2348,10 @@ static void gve_set_netdev_xdp_features(struct gve_priv *priv)
 	xdp_set_features_flag_locked(priv->dev, xdp_features);
 }
 
+static const struct xdp_metadata_ops gve_xdp_metadata_ops = {
+	.xmo_rx_timestamp	= gve_xdp_rx_timestamp,
+};
+
 static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 {
 	int num_ntfy;
@@ -2443,6 +2447,9 @@ setup_device:
 	}
 
 	gve_set_netdev_xdp_features(priv);
+	if (!gve_is_gqi(priv))
+		priv->dev->xdp_metadata_ops = &gve_xdp_metadata_ops;
+
 	err = gve_setup_device_resources(priv);
 	if (err)
 		goto err_free_xsk_bitmap;
