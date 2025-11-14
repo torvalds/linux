@@ -883,17 +883,17 @@ static int ovl_copy_up_tmpfile(struct ovl_copy_up_ctx *c)
 	struct inode *udir = d_inode(c->destdir);
 	struct dentry *temp, *upper;
 	struct file *tmpfile;
-	struct ovl_cu_creds cc;
 	int err;
 
-	err = ovl_prep_cu_creds(c->dentry, &cc);
-	if (err)
-		return err;
+	scoped_class(copy_up_creds, copy_up_creds, c->dentry) {
+		if (IS_ERR(copy_up_creds))
+			return PTR_ERR(copy_up_creds);
 
-	ovl_start_write(c->dentry);
-	tmpfile = ovl_do_tmpfile(ofs, c->workdir, c->stat.mode);
-	ovl_end_write(c->dentry);
-	ovl_revert_cu_creds(&cc);
+		ovl_start_write(c->dentry);
+		tmpfile = ovl_do_tmpfile(ofs, c->workdir, c->stat.mode);
+		ovl_end_write(c->dentry);
+	}
+
 	if (IS_ERR(tmpfile))
 		return PTR_ERR(tmpfile);
 
