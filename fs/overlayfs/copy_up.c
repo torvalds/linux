@@ -724,34 +724,6 @@ static int ovl_copy_up_metadata(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	return err;
 }
 
-struct ovl_cu_creds {
-	const struct cred *old;
-	struct cred *new;
-};
-
-static int __maybe_unused ovl_prep_cu_creds(struct dentry *dentry, struct ovl_cu_creds *cc)
-{
-	int err;
-
-	cc->old = cc->new = NULL;
-	err = security_inode_copy_up(dentry, &cc->new);
-	if (err < 0)
-		return err;
-
-	if (cc->new)
-		cc->old = override_creds(cc->new);
-
-	return 0;
-}
-
-static void __maybe_unused ovl_revert_cu_creds(struct ovl_cu_creds *cc)
-{
-	if (cc->new) {
-		revert_creds(cc->old);
-		put_cred(cc->new);
-	}
-}
-
 static const struct cred *ovl_prepare_copy_up_creds(struct dentry *dentry)
 {
 	struct cred *copy_up_cred = NULL;
