@@ -2020,7 +2020,7 @@ int rtw89_mac_cfg_ppdu_status_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enab
 	}
 
 	rtw89_write32_mask(rtwdev, R_BE_HW_PPDU_STATUS, B_BE_FWD_PPDU_STAT_MASK, 3);
-	rtw89_write32(rtwdev, reg, B_BE_PPDU_STAT_RPT_EN | B_BE_PPDU_MAC_INFO |
+	rtw89_write32(rtwdev, reg, B_BE_PPDU_STAT_RPT_EN |
 				   B_BE_APP_RX_CNT_RPT | B_BE_APP_PLCP_HDR_RPT |
 				   B_BE_PPDU_STAT_RPT_CRC32 | B_BE_PPDU_STAT_RPT_DMA);
 
