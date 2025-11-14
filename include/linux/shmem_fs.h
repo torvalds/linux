@@ -136,10 +136,15 @@ static inline bool shmem_hpage_pmd_enabled(void)
 
 #ifdef CONFIG_SHMEM
 extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
+extern void shmem_uncharge(struct inode *inode, long pages);
 #else
 static inline unsigned long shmem_swap_usage(struct vm_area_struct *vma)
 {
 	return 0;
+}
+
+static inline void shmem_uncharge(struct inode *inode, long pages)
+{
 }
 #endif
 extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
@@ -194,7 +199,6 @@ static inline pgoff_t shmem_fallocend(struct inode *inode, pgoff_t eof)
 }
 
 extern bool shmem_charge(struct inode *inode, long pages);
-extern void shmem_uncharge(struct inode *inode, long pages);
 
 #ifdef CONFIG_USERFAULTFD
 #ifdef CONFIG_SHMEM
