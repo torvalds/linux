@@ -214,6 +214,8 @@ static int stm32_add_pcie_ep(struct stm32_pcie *stm32_pcie,
 
 	ep->ops = &stm32_pcie_ep_ops;
 
+	ep->page_size = stm32_pcie_epc_features.align;
+
 	ret = dw_pcie_ep_init(ep);
 	if (ret) {
 		dev_err(dev, "Failed to initialize ep: %d\n", ret);
