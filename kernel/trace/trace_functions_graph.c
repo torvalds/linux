@@ -16,7 +16,7 @@
 #include "trace.h"
 #include "trace_output.h"
 
-/* When set, irq functions will be ignored */
+/* When set, irq functions might be ignored */
 static int ftrace_graph_skip_irqs;
 
 struct fgraph_cpu_data {
@@ -190,9 +190,12 @@ int __trace_graph_retaddr_entry(struct trace_array *tr,
 }
 #endif
 
-static inline int ftrace_graph_ignore_irqs(void)
+static inline int ftrace_graph_ignore_irqs(struct trace_array *tr)
 {
 	if (!ftrace_graph_skip_irqs || trace_recursion_test(TRACE_IRQ_BIT))
+		return 0;
+
+	if (tracer_flags_is_set(tr, TRACE_GRAPH_PRINT_IRQS))
 		return 0;
 
 	return in_hardirq();
@@ -238,7 +241,7 @@ static int graph_entry(struct ftrace_graph_ent *trace,
 	if (ftrace_graph_ignore_func(gops, trace))
 		return 0;
 
-	if (ftrace_graph_ignore_irqs())
+	if (ftrace_graph_ignore_irqs(tr))
 		return 0;
 
 	if (fgraph_sleep_time) {
@@ -451,6 +454,9 @@ static int graph_trace_init(struct trace_array *tr)
 	else
 		tr->gops->retfunc = trace_graph_return;
 
+	if (!tracer_flags_is_set(tr, TRACE_GRAPH_PRINT_IRQS))
+		ftrace_graph_skip_irqs++;
+
 	/* Make gops functions visible before we start tracing */
 	smp_mb();
 
@@ -467,10 +473,6 @@ static struct tracer graph_trace;
 static int ftrace_graph_trace_args(struct trace_array *tr, int set)
 {
 	trace_func_graph_ent_t entry;
-
-	/* Do nothing if the current tracer is not this tracer */
-	if (tr->current_trace != &graph_trace)
-		return 0;
 
 	if (set)
 		entry = trace_graph_entry_args;
@@ -492,6 +494,11 @@ static int ftrace_graph_trace_args(struct trace_array *tr, int set)
 
 static void graph_trace_reset(struct trace_array *tr)
 {
+	if (!tracer_flags_is_set(tr, TRACE_GRAPH_PRINT_IRQS))
+		ftrace_graph_skip_irqs--;
+	if (WARN_ON_ONCE(ftrace_graph_skip_irqs < 0))
+		ftrace_graph_skip_irqs = 0;
+
 	tracing_stop_cmdline_record();
 	unregister_ftrace_graph(tr->gops);
 }
@@ -1617,14 +1624,28 @@ void graph_trace_close(struct trace_iterator *iter)
 static int
 func_graph_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
-	if (bit == TRACE_GRAPH_PRINT_IRQS)
-		ftrace_graph_skip_irqs = !set;
-
 	if (bit == TRACE_GRAPH_SLEEP_TIME)
 		ftrace_graph_sleep_time_control(set);
 
 	if (bit == TRACE_GRAPH_GRAPH_TIME)
 		ftrace_graph_graph_time_control(set);
+
+	/* Do nothing if the current tracer is not this tracer */
+	if (tr->current_trace != &graph_trace)
+		return 0;
+
+	/* Do nothing if already set. */
+	if (!!set == !!(tr->current_trace_flags->val & bit))
+		return 0;
+
+	if (bit == TRACE_GRAPH_PRINT_IRQS) {
+		if (set)
+			ftrace_graph_skip_irqs--;
+		else
+			ftrace_graph_skip_irqs++;
+		if (WARN_ON_ONCE(ftrace_graph_skip_irqs < 0))
+			ftrace_graph_skip_irqs = 0;
+	}
 
 	if (bit == TRACE_GRAPH_ARGS)
 		return ftrace_graph_trace_args(tr, set);
