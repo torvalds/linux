@@ -57,6 +57,12 @@ enum s2mpa01_irq {
 #define S2MPA01_IRQ_B24_TSD_MASK	(1 << 4)
 #define S2MPA01_IRQ_B35_TSD_MASK	(1 << 5)
 
+enum s2mpg10_common_irq {
+	/* Top-level (common) block */
+	S2MPG10_COMMON_IRQ_PMIC,
+	S2MPG10_COMMON_IRQ_UNUSED,
+};
+
 enum s2mpg10_irq {
 	/* PMIC */
 	S2MPG10_IRQ_PWRONF,
