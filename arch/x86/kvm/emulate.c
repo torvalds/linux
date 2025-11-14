@@ -4121,7 +4121,7 @@ static const struct group_dual group15 = { {
 } };
 
 static const struct gprefix pfx_0f_6f_0f_7f = {
-	I(Mmx, em_mov), I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
+	I(Mmx, em_mov), I(Sse | Avx | Aligned, em_mov), N, I(Sse | Avx | Unaligned, em_mov),
 };
 
 static const struct instr_dual instr_dual_0f_2b = {
@@ -4141,7 +4141,7 @@ static const struct gprefix pfx_0f_28_0f_29 = {
 };
 
 static const struct gprefix pfx_0f_e7_0f_38_2a = {
-	N, I(Sse, em_mov), N, N,
+	N, I(Sse | Avx, em_mov), N, N,
 };
 
 static const struct escape escape_d9 = { {
@@ -4354,8 +4354,8 @@ static const struct opcode twobyte_table[256] = {
 	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM | SrcMem | NoAccess), N, N,
 	/* 0x10 - 0x1F */
-	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_10_0f_11),
-	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_10_0f_11),
+	GP(ModRM | DstReg | SrcMem | Mov | Sse | Avx, &pfx_0f_10_0f_11),
+	GP(ModRM | DstMem | SrcReg | Mov | Sse | Avx, &pfx_0f_10_0f_11),
 	N, N, N, N, N, N,
 	D(ImplicitOps | ModRM | SrcMem | NoAccess), /* 4 * prefetch + 4 * reserved NOP */
 	D(ImplicitOps | ModRM | SrcMem | NoAccess), N, N,
@@ -4371,9 +4371,9 @@ static const struct opcode twobyte_table[256] = {
 	IIP(ModRM | SrcMem | Priv | Op3264 | NoMod, em_dr_write, dr_write,
 						check_dr_write),
 	N, N, N, N,
-	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_28_0f_29),
-	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_28_0f_29),
-	N, GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_2b),
+	GP(ModRM | DstReg | SrcMem | Mov | Sse | Avx, &pfx_0f_28_0f_29),
+	GP(ModRM | DstMem | SrcReg | Mov | Sse | Avx, &pfx_0f_28_0f_29),
+	N, GP(ModRM | DstMem | SrcReg | Mov | Sse | Avx, &pfx_0f_2b),
 	N, N, N, N,
 	/* 0x30 - 0x3F */
 	II(ImplicitOps | Priv, em_wrmsr, wrmsr),
