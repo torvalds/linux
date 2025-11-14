@@ -2048,6 +2048,18 @@ static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 	intel_pstate_update_epp_defaults(cpudata);
 }
 
+static u64 get_perf_ctl_val(int pstate)
+{
+	u64 val;
+
+	val = (u64)pstate << 8;
+	if (READ_ONCE(global.no_turbo) && !READ_ONCE(global.turbo_disabled) &&
+	    cpu_feature_enabled(X86_FEATURE_IDA))
+		val |= (u64)1 << 32;
+
+	return val;
+}
+
 static int atom_get_min_pstate(int not_used)
 {
 	u64 value;
@@ -2074,14 +2086,9 @@ static int atom_get_turbo_pstate(int not_used)
 
 static u64 atom_get_val(struct cpudata *cpudata, int pstate)
 {
-	u64 val;
+	u64 val = get_perf_ctl_val(pstate);
 	int32_t vid_fp;
 	u32 vid;
-
-	val = (u64)pstate << 8;
-	if (READ_ONCE(global.no_turbo) && !READ_ONCE(global.turbo_disabled) &&
-	    cpu_feature_enabled(X86_FEATURE_IDA))
-		val |= (u64)1 << 32;
 
 	vid_fp = cpudata->vid.min + mul_fp(
 		int_tofp(pstate - cpudata->pstate.min_pstate),
@@ -2242,14 +2249,7 @@ static int core_get_turbo_pstate(int cpu)
 
 static u64 core_get_val(struct cpudata *cpudata, int pstate)
 {
-	u64 val;
-
-	val = (u64)pstate << 8;
-	if (READ_ONCE(global.no_turbo) && !READ_ONCE(global.turbo_disabled) &&
-	    cpu_feature_enabled(X86_FEATURE_IDA))
-		val |= (u64)1 << 32;
-
-	return val;
+	return get_perf_ctl_val(pstate);
 }
 
 static int knl_get_aperf_mperf_shift(void)
