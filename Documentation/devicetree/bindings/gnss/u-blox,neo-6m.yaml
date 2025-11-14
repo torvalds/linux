@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gnss/u-blox,neo-6m.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: U-blox GNSS Receiver
+title: u-blox GNSS receiver
 
 allOf:
   - $ref: gnss-common.yaml#
@@ -14,7 +14,7 @@ maintainers:
   - Johan Hovold <johan@kernel.org>
 
 description: >
-  The U-blox GNSS receivers can use UART, DDC (I2C), SPI and USB interfaces.
+  The u-blox GNSS receivers can use UART, DDC (I2C), SPI and USB interfaces.
 
 properties:
   compatible:
