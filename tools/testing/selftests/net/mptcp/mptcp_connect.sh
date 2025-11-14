@@ -389,21 +389,6 @@ do_transfer()
 		mptcp_lib_nstat_init "${connector_ns}"
 	fi
 
-	local stat_synrx_last_l
-	local stat_ackrx_last_l
-	local stat_cookietx_last
-	local stat_cookierx_last
-	local stat_csum_err_s
-	local stat_csum_err_c
-	local stat_tcpfb_last_l
-	stat_synrx_last_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
-	stat_ackrx_last_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
-	stat_cookietx_last=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesSent")
-	stat_cookierx_last=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesRecv")
-	stat_csum_err_s=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtDataCsumErr")
-	stat_csum_err_c=$(mptcp_lib_get_counter "${connector_ns}" "MPTcpExtDataCsumErr")
-	stat_tcpfb_last_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableFallbackACK")
-
 	timeout ${timeout_test} \
 		ip netns exec ${listener_ns} \
 			./mptcp_connect -t ${timeout_poll} -l -p $port -s ${srv_proto} \
@@ -458,38 +443,38 @@ do_transfer()
 	rets=$?
 
 	local extra=""
-	local stat_synrx_now_l
-	local stat_ackrx_now_l
-	local stat_cookietx_now
-	local stat_cookierx_now
-	local stat_ooo_now
-	local stat_tcpfb_now_l
-	stat_synrx_now_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
-	stat_ackrx_now_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
-	stat_cookietx_now=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesSent")
-	stat_cookierx_now=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesRecv")
-	stat_ooo_now=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtTCPOFOQueue")
-	stat_tcpfb_now_l=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableFallbackACK")
+	local stat_synrx
+	local stat_ackrx
+	local stat_cookietx
+	local stat_cookierx
+	local stat_ooo
+	local stat_tcpfb
+	stat_synrx=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
+	stat_ackrx=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
+	stat_cookietx=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesSent")
+	stat_cookierx=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtSyncookiesRecv")
+	stat_ooo=$(mptcp_lib_get_counter "${listener_ns}" "TcpExtTCPOFOQueue")
+	stat_tcpfb=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtMPCapableFallbackACK")
 
-	expect_synrx=$((stat_synrx_last_l))
-	expect_ackrx=$((stat_ackrx_last_l))
+	expect_synrx=0
+	expect_ackrx=0
 
 	cookies=$(ip netns exec ${listener_ns} sysctl net.ipv4.tcp_syncookies)
 	cookies=${cookies##*=}
 
 	if [ ${cl_proto} = "MPTCP" ] && [ ${srv_proto} = "MPTCP" ]; then
-		expect_synrx=$((stat_synrx_last_l+connect_per_transfer))
-		expect_ackrx=$((stat_ackrx_last_l+connect_per_transfer))
+		expect_synrx=${connect_per_transfer}
+		expect_ackrx=${connect_per_transfer}
 	fi
 
-	if [ ${stat_synrx_now_l} -lt ${expect_synrx} ]; then
-		mptcp_lib_pr_fail "lower MPC SYN rx (${stat_synrx_now_l})" \
+	if [ ${stat_synrx} -lt ${expect_synrx} ]; then
+		mptcp_lib_pr_fail "lower MPC SYN rx (${stat_synrx})" \
 				  "than expected (${expect_synrx})"
 		retc=1
 	fi
-	if [ ${stat_ackrx_now_l} -lt ${expect_ackrx} ]; then
-		if [ ${stat_ooo_now} -eq 0 ]; then
-			mptcp_lib_pr_fail "lower MPC ACK rx (${stat_ackrx_now_l})" \
+	if [ ${stat_ackrx} -lt ${expect_ackrx} ]; then
+		if [ ${stat_ooo} -eq 0 ]; then
+			mptcp_lib_pr_fail "lower MPC ACK rx (${stat_ackrx})" \
 					  "than expected (${expect_ackrx})"
 			rets=1
 		else
@@ -503,47 +488,45 @@ do_transfer()
 		csum_err_s=$(mptcp_lib_get_counter "${listener_ns}" "MPTcpExtDataCsumErr")
 		csum_err_c=$(mptcp_lib_get_counter "${connector_ns}" "MPTcpExtDataCsumErr")
 
-		local csum_err_s_nr=$((csum_err_s - stat_csum_err_s))
-		if [ $csum_err_s_nr -gt 0 ]; then
-			mptcp_lib_pr_fail "server got ${csum_err_s_nr} data checksum error[s]"
+		if [ $csum_err_s -gt 0 ]; then
+			mptcp_lib_pr_fail "server got ${csum_err_s} data checksum error[s]"
 			rets=1
 		fi
 
-		local csum_err_c_nr=$((csum_err_c - stat_csum_err_c))
-		if [ $csum_err_c_nr -gt 0 ]; then
-			mptcp_lib_pr_fail "client got ${csum_err_c_nr} data checksum error[s]"
+		if [ $csum_err_c -gt 0 ]; then
+			mptcp_lib_pr_fail "client got ${csum_err_c} data checksum error[s]"
 			retc=1
 		fi
 	fi
 
-	if [ ${stat_ooo_now} -eq 0 ] && [ ${stat_tcpfb_last_l} -ne ${stat_tcpfb_now_l} ]; then
+	if [ ${stat_ooo} -eq 0 ] && [ ${stat_tcpfb} -gt 0 ]; then
 		mptcp_lib_pr_fail "unexpected fallback to TCP"
 		rets=1
 	fi
 
 	if [ $cookies -eq 2 ];then
-		if [ $stat_cookietx_last -ge $stat_cookietx_now ] ;then
+		if [ $stat_cookietx -eq 0 ] ;then
 			extra+=" WARN: CookieSent: did not advance"
 		fi
-		if [ $stat_cookierx_last -ge $stat_cookierx_now ] ;then
+		if [ $stat_cookierx -eq 0 ] ;then
 			extra+=" WARN: CookieRecv: did not advance"
 		fi
 	else
-		if [ $stat_cookietx_last -ne $stat_cookietx_now ] ;then
+		if [ $stat_cookietx -gt 0 ] ;then
 			extra+=" WARN: CookieSent: changed"
 		fi
-		if [ $stat_cookierx_last -ne $stat_cookierx_now ] ;then
+		if [ $stat_cookierx -gt 0 ] ;then
 			extra+=" WARN: CookieRecv: changed"
 		fi
 	fi
 
-	if [ ${stat_synrx_now_l} -gt ${expect_synrx} ]; then
+	if [ ${stat_synrx} -gt ${expect_synrx} ]; then
 		extra+=" WARN: SYNRX: expect ${expect_synrx},"
-		extra+=" got ${stat_synrx_now_l} (probably retransmissions)"
+		extra+=" got ${stat_synrx} (probably retransmissions)"
 	fi
-	if [ ${stat_ackrx_now_l} -gt ${expect_ackrx} ]; then
+	if [ ${stat_ackrx} -gt ${expect_ackrx} ]; then
 		extra+=" WARN: ACKRX: expect ${expect_ackrx},"
-		extra+=" got ${stat_ackrx_now_l} (probably retransmissions)"
+		extra+=" got ${stat_ackrx} (probably retransmissions)"
 	fi
 
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ]; then
