@@ -35,6 +35,7 @@ config SND_SOC_SOF_IMX8
 config SND_SOC_SOF_IMX9
 	tristate "SOF support for i.MX9"
 	depends on IMX_DSP
+	depends on IMX_SCMI_LMM_DRV
 	select SND_SOC_SOF_IMX_COMMON
 	help
 	  This adds support for Sound Open Firmware for NXP i.MX9 platforms.
