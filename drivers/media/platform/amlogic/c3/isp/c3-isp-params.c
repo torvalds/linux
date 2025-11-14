@@ -536,7 +536,8 @@ static const c3_isp_block_handler c3_isp_params_handlers[] = {
 		.size = sizeof(struct c3_isp_params_ ## data), \
 	}
 
-static const struct v4l2_isp_params_block_info c3_isp_params_blocks_info[] = {
+static const struct v4l2_isp_params_block_type_info
+c3_isp_params_block_types_info[] = {
 	C3_ISP_PARAMS_BLOCK_INFO(AWB_GAINS, awb_gains),
 	C3_ISP_PARAMS_BLOCK_INFO(AWB_CONFIG, awb_config),
 	C3_ISP_PARAMS_BLOCK_INFO(AE_CONFIG, ae_config),
@@ -548,7 +549,7 @@ static const struct v4l2_isp_params_block_info c3_isp_params_blocks_info[] = {
 };
 
 static_assert(ARRAY_SIZE(c3_isp_params_handlers) ==
-	      ARRAY_SIZE(c3_isp_params_blocks_info));
+	      ARRAY_SIZE(c3_isp_params_block_types_info));
 
 static void c3_isp_params_cfg_blocks(struct c3_isp_params *params)
 {
@@ -781,8 +782,8 @@ static int c3_isp_params_vb2_buf_prepare(struct vb2_buffer *vb)
 
 	return v4l2_isp_params_validate_buffer(params->isp->dev, vb,
 					(struct v4l2_isp_params_buffer *)cfg,
-					c3_isp_params_blocks_info,
-					ARRAY_SIZE(c3_isp_params_blocks_info));
+					c3_isp_params_block_types_info,
+					ARRAY_SIZE(c3_isp_params_block_types_info));
 }
 
 static int c3_isp_params_vb2_buf_init(struct vb2_buffer *vb)

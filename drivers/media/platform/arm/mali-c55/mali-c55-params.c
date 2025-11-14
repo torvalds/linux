@@ -428,7 +428,8 @@ static const mali_c55_params_handler mali_c55_params_handlers[] = {
 	[MALI_C55_PARAM_MESH_SHADING_SELECTION] = &mali_c55_params_lsc_selection,
 };
 
-static const struct v4l2_isp_params_block_info mali_c55_params_blocks_info[] = {
+static const struct v4l2_isp_params_block_type_info
+mali_c55_params_block_types_info[] = {
 	[MALI_C55_PARAM_BLOCK_SENSOR_OFFS] = {
 		.size = sizeof(struct mali_c55_params_sensor_off_preshading),
 	},
@@ -599,8 +600,8 @@ static int mali_c55_params_buf_prepare(struct vb2_buffer *vb)
 	memcpy(buf->config, config, v4l2_isp_params_buffer_size(MALI_C55_PARAMS_MAX_SIZE));
 
 	return v4l2_isp_params_validate_buffer(mali_c55->dev, vb, buf->config,
-					       mali_c55_params_blocks_info,
-					       ARRAY_SIZE(mali_c55_params_blocks_info));
+					       mali_c55_params_block_types_info,
+					       ARRAY_SIZE(mali_c55_params_block_types_info));
 }
 
 static void mali_c55_params_buf_queue(struct vb2_buffer *vb)

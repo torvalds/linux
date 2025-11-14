@@ -49,18 +49,18 @@ int v4l2_isp_params_validate_buffer_size(struct device *dev,
 					 size_t max_size);
 
 /**
- * struct v4l2_isp_params_block_info - V4L2 ISP per-block info
- * @size: the block expected size
+ * struct v4l2_isp_params_block_type_info - V4L2 ISP per-block-type info
+ * @size: the block type expected size
  *
- * The v4l2_isp_params_block_info collects information of the ISP configuration
- * blocks for validation purposes. It currently only contains the expected
- * block size.
+ * The v4l2_isp_params_block_type_info collects information of the ISP
+ * configuration block types for validation purposes. It currently only contains
+ * the expected block type size.
  *
- * Drivers shall prepare a list of block info, indexed by block type, one for
- * each supported ISP block and correctly populate them with the expected block
- * size.
+ * Drivers shall prepare a list of block type info, indexed by block type, one
+ * for each supported ISP block type and correctly populate them with the
+ * expected block type size.
  */
-struct v4l2_isp_params_block_info {
+struct v4l2_isp_params_block_type_info {
 	size_t size;
 };
 
@@ -69,8 +69,8 @@ struct v4l2_isp_params_block_info {
  * @dev: the driver's device pointer
  * @vb: the videobuf2 buffer
  * @buffer: the V4L2 ISP parameters buffer
- * @info: the list of per-block validation info
- * @num_blocks: the number of blocks
+ * @type_info: the array of per-block-type validation info
+ * @num_block_types: the number of block types in the type_info array
  *
  * This function completes the validation of a V4L2 ISP parameters buffer,
  * verifying each configuration block correctness before the driver can use
@@ -85,7 +85,7 @@ struct v4l2_isp_params_block_info {
  */
 int v4l2_isp_params_validate_buffer(struct device *dev, struct vb2_buffer *vb,
 				    const struct v4l2_isp_params_buffer *buffer,
-				    const struct v4l2_isp_params_block_info *info,
-				    size_t num_blocks);
+				    const struct v4l2_isp_params_block_type_info *type_info,
+				    size_t num_block_types);
 
 #endif /* _V4L2_ISP_H_ */

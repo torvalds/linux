@@ -2198,7 +2198,8 @@ static const struct rkisp1_ext_params_handler {
 		.size = sizeof(struct rkisp1_ext_params_ ## data ## _config), \
 	}
 
-static const struct v4l2_isp_params_block_info rkisp1_ext_params_blocks_info[] = {
+static const struct v4l2_isp_params_block_type_info
+rkisp1_ext_params_block_types_info[] = {
 	RKISP1_PARAMS_BLOCK_INFO(BLS, bls),
 	RKISP1_PARAMS_BLOCK_INFO(DPCC, dpcc),
 	RKISP1_PARAMS_BLOCK_INFO(SDG, sdg),
@@ -2223,7 +2224,7 @@ static const struct v4l2_isp_params_block_info rkisp1_ext_params_blocks_info[] =
 };
 
 static_assert(ARRAY_SIZE(rkisp1_ext_params_handlers) ==
-	      ARRAY_SIZE(rkisp1_ext_params_blocks_info));
+	      ARRAY_SIZE(rkisp1_ext_params_block_types_info));
 
 static void rkisp1_ext_params_config(struct rkisp1_params *params,
 				     struct rkisp1_ext_params_cfg *cfg,
@@ -2677,8 +2678,8 @@ static int rkisp1_params_prepare_ext_params(struct rkisp1_params *params,
 
 	return v4l2_isp_params_validate_buffer(params->rkisp1->dev, vb,
 				(struct v4l2_isp_params_buffer *)cfg,
-				rkisp1_ext_params_blocks_info,
-				ARRAY_SIZE(rkisp1_ext_params_blocks_info));
+				rkisp1_ext_params_block_types_info,
+				ARRAY_SIZE(rkisp1_ext_params_block_types_info));
 }
 
 static int rkisp1_params_vb2_buf_prepare(struct vb2_buffer *vb)

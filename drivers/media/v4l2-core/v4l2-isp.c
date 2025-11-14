@@ -38,8 +38,8 @@ EXPORT_SYMBOL_GPL(v4l2_isp_params_validate_buffer_size);
 
 int v4l2_isp_params_validate_buffer(struct device *dev, struct vb2_buffer *vb,
 				    const struct v4l2_isp_params_buffer *buffer,
-				    const struct v4l2_isp_params_block_info *info,
-				    size_t num_blocks)
+				    const struct v4l2_isp_params_block_type_info *type_info,
+				    size_t num_block_types)
 {
 	size_t header_size = offsetof(struct v4l2_isp_params_buffer, data);
 	size_t payload_size = vb2_get_plane_payload(vb, 0);
@@ -71,13 +71,13 @@ int v4l2_isp_params_validate_buffer(struct device *dev, struct vb2_buffer *vb,
 	/* Walk the list of ISP configuration blocks and validate them. */
 	buffer_size = buffer->data_size;
 	while (buffer_size >= sizeof(struct v4l2_isp_params_block_header)) {
-		const struct v4l2_isp_params_block_info *block_info;
+		const struct v4l2_isp_params_block_type_info *info;
 		const struct v4l2_isp_params_block_header *block;
 
 		block = (const struct v4l2_isp_params_block_header *)
 			(buffer->data + block_offset);
 
-		if (block->type >= num_blocks) {
+		if (block->type >= num_block_types) {
 			dev_dbg(dev,
 				"Invalid block type %u at offset %zu\n",
 				block->type, block_offset);
@@ -100,17 +100,17 @@ int v4l2_isp_params_validate_buffer(struct device *dev, struct vb2_buffer *vb,
 		}
 
 		/*
-		 * Match the block reported size against the info provided
+		 * Match the block reported size against the type info provided
 		 * one, but allow the block to only contain the header in
 		 * case it is going to be disabled.
 		 */
-		block_info = &info[block->type];
-		if (block->size != block_info->size &&
+		info = &type_info[block->type];
+		if (block->size != info->size &&
 		    (!(block->flags & V4L2_ISP_PARAMS_FL_BLOCK_DISABLE) ||
 		    block->size != sizeof(*block))) {
 			dev_dbg(dev,
 				"Invalid block size %u (expected %zu) at offset %zu\n",
-				block->size, block_info->size, block_offset);
+				block->size, info->size, block_offset);
 			return -EINVAL;
 		}
 
