@@ -1026,6 +1026,7 @@ static void fetch_register_operand(struct operand *op)
 		op->val = *(u64 *)op->addr.reg;
 		break;
 	}
+	op->orig_val = op->val;
 }
 
 static int em_fninit(struct x86_emulate_ctxt *ctxt)
@@ -1071,16 +1072,9 @@ static int em_fnstsw(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
-				    struct operand *op)
+static void __decode_register_operand(struct x86_emulate_ctxt *ctxt,
+				      struct operand *op, int reg)
 {
-	unsigned int reg;
-
-	if (ctxt->d & ModRM)
-		reg = ctxt->modrm_reg;
-	else
-		reg = (ctxt->b & 7) | ((ctxt->rex_prefix & 1) << 3);
-
 	if (ctxt->d & Sse) {
 		op->type = OP_XMM;
 		op->bytes = 16;
@@ -1099,9 +1093,20 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 	op->type = OP_REG;
 	op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 	op->addr.reg = decode_register(ctxt, reg, ctxt->d & ByteOp);
-
 	fetch_register_operand(op);
-	op->orig_val = op->val;
+}
+
+static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
+				    struct operand *op)
+{
+	unsigned int reg;
+
+	if (ctxt->d & ModRM)
+		reg = ctxt->modrm_reg;
+	else
+		reg = (ctxt->b & 7) | ((ctxt->rex_prefix & 1) << 3);
+
+	__decode_register_operand(ctxt, op, reg);
 }
 
 static void adjust_modrm_seg(struct x86_emulate_ctxt *ctxt, int base_reg)
@@ -1128,24 +1133,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	ctxt->modrm_seg = VCPU_SREG_DS;
 
 	if (ctxt->modrm_mod == 3 || (ctxt->d & NoMod)) {
-		op->type = OP_REG;
-		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm,
-				ctxt->d & ByteOp);
-		if (ctxt->d & Sse) {
-			op->type = OP_XMM;
-			op->bytes = 16;
-			op->addr.xmm = ctxt->modrm_rm;
-			kvm_read_sse_reg(ctxt->modrm_rm, &op->vec_val);
-			return rc;
-		}
-		if (ctxt->d & Mmx) {
-			op->type = OP_MM;
-			op->bytes = 8;
-			op->addr.mm = ctxt->modrm_rm & 7;
-			return rc;
-		}
-		fetch_register_operand(op);
+		__decode_register_operand(ctxt, op, ctxt->modrm_rm);
 		return rc;
 	}
 
@@ -4619,14 +4607,12 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RAX);
 		fetch_register_operand(op);
-		op->orig_val = op->val;
 		break;
 	case OpAccLo:
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 2 : ctxt->op_bytes;
 		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RAX);
 		fetch_register_operand(op);
-		op->orig_val = op->val;
 		break;
 	case OpAccHi:
 		if (ctxt->d & ByteOp) {
@@ -4637,7 +4623,6 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->bytes = ctxt->op_bytes;
 		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RDX);
 		fetch_register_operand(op);
-		op->orig_val = op->val;
 		break;
 	case OpDI:
 		op->type = OP_MEM;
