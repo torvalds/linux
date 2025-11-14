@@ -17,6 +17,10 @@
 #include "clkc.h"
 #include "reset.h"
 
+/* Must be equal to the last clock/reset ID increased by one */
+#define CLKS_NR	(TMPV770X_CLK_BUSLCK + 1)
+#define RESETS_NR	(TMPV770X_RESET_SBUSCLK + 1)
+
 static DEFINE_SPINLOCK(tmpv770x_clk_lock);
 static DEFINE_SPINLOCK(tmpv770x_rst_lock);
 
@@ -234,12 +238,12 @@ static int visconti_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ctx = visconti_init_clk(dev, regmap, TMPV770X_NR_CLK);
+	ctx = visconti_init_clk(dev, regmap, CLKS_NR);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
 	ret = visconti_register_reset_controller(dev, regmap, clk_reset_data,
-						 TMPV770X_NR_RESET,
+						 RESETS_NR,
 						 &visconti_reset_ops,
 						 &tmpv770x_rst_lock);
 	if (ret) {
