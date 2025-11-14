@@ -3963,6 +3963,8 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 		I2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock, _e),	\
 		I2bv(((_f) & ~Lock) | DstAcc | SrcImm, _e)
 
+static const struct opcode ud = I(SrcNone, emulate_ud);
+
 static const struct opcode group7_rm0[] = {
 	N,
 	I(SrcNone | Priv | EmulateOnUD,	em_hypercall),
@@ -4762,11 +4764,87 @@ done:
 	return rc;
 }
 
+static int x86_decode_avx(struct x86_emulate_ctxt *ctxt,
+			  u8 vex_1st, u8 vex_2nd, struct opcode *opcode)
+{
+	u8 vex_3rd, map, pp, l, v;
+	int rc = X86EMUL_CONTINUE;
+
+	if (ctxt->rep_prefix || ctxt->op_prefix || ctxt->rex_prefix)
+		goto ud;
+
+	if (vex_1st == 0xc5) {
+		/* Expand RVVVVlpp to VEX3 format */
+		vex_3rd = vex_2nd & ~0x80;         /* VVVVlpp from VEX2, w=0 */
+		vex_2nd = (vex_2nd & 0x80) | 0x61; /* R from VEX2, X=1 B=1 mmmmm=00001 */
+	} else {
+		vex_3rd = insn_fetch(u8, ctxt);
+	}
+
+	/* vex_2nd = RXBmmmmm, vex_3rd = wVVVVlpp.  Fix polarity */
+	vex_2nd ^= 0xE0; /* binary 11100000 */
+	vex_3rd ^= 0x78; /* binary 01111000 */
+
+	ctxt->rex_prefix = REX_PREFIX;
+	ctxt->rex_bits = (vex_2nd & 0xE0) >> 5; /* RXB */
+	ctxt->rex_bits |= (vex_3rd & 0x80) >> 4; /* w */
+	if (ctxt->rex_bits && ctxt->mode != X86EMUL_MODE_PROT64)
+		goto ud;
+
+	map = vex_2nd & 0x1f;
+	v = (vex_3rd >> 3) & 0xf;
+	l = vex_3rd & 0x4;
+	pp = vex_3rd & 0x3;
+
+	ctxt->b = insn_fetch(u8, ctxt);
+	switch (map) {
+	case 1:
+		ctxt->opcode_len = 2;
+		*opcode = twobyte_table[ctxt->b];
+		break;
+	case 2:
+		ctxt->opcode_len = 3;
+		*opcode = opcode_map_0f_38[ctxt->b];
+		break;
+	case 3:
+		/* no 0f 3a instructions are supported yet */
+		return X86EMUL_UNHANDLEABLE;
+	default:
+		goto ud;
+	}
+
+	/*
+	 * No three operand instructions are supported yet; those that
+	 * *are* marked with the Avx flag reserve the VVVV flag.
+	 */
+	if (v)
+		goto ud;
+
+	if (l)
+		ctxt->op_bytes = 32;
+	else
+		ctxt->op_bytes = 16;
+
+	switch (pp) {
+	case 0: break;
+	case 1: ctxt->op_prefix = true; break;
+	case 2: ctxt->rep_prefix = 0xf3; break;
+	case 3: ctxt->rep_prefix = 0xf2; break;
+	}
+
+done:
+	return rc;
+ud:
+	*opcode = ud;
+	return rc;
+}
+
 int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int emulation_type)
 {
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
 	int def_op_bytes, def_ad_bytes, goffset, simd_prefix;
+	bool vex_prefix = false;
 	bool has_seg_override = false;
 	struct opcode opcode;
 	u16 dummy;
@@ -4883,7 +4961,21 @@ done_prefixes:
 		ctxt->op_bytes = 8;
 
 	/* Opcode byte(s). */
-	if (ctxt->b == 0x0f) {
+	if (ctxt->b == 0xc4 || ctxt->b == 0xc5) {
+		/* VEX or LDS/LES */
+		u8 vex_2nd = insn_fetch(u8, ctxt);
+		if (mode != X86EMUL_MODE_PROT64 && (vex_2nd & 0xc0) != 0xc0) {
+			opcode = opcode_table[ctxt->b];
+			ctxt->modrm = vex_2nd;
+			/* the Mod/RM byte has been fetched already!  */
+			goto done_modrm;
+		}
+
+		vex_prefix = true;
+		rc = x86_decode_avx(ctxt, ctxt->b, vex_2nd, &opcode);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+	} else if (ctxt->b == 0x0f) {
 		/* Two- or three-byte opcode */
 		ctxt->opcode_len = 2;
 		ctxt->b = insn_fetch(u8, ctxt);
@@ -4899,17 +4991,12 @@ done_prefixes:
 		/* Opcode byte(s). */
 		opcode = opcode_table[ctxt->b];
 	}
-	ctxt->d = opcode.flags;
 
-	if (ctxt->d & ModRM)
+	if (opcode.flags & ModRM)
 		ctxt->modrm = insn_fetch(u8, ctxt);
 
-	/* vex-prefix instructions are not implemented */
-	if (ctxt->opcode_len == 1 && (ctxt->b == 0xc5 || ctxt->b == 0xc4) &&
-	    (mode == X86EMUL_MODE_PROT64 || (ctxt->modrm & 0xc0) == 0xc0)) {
-		ctxt->d = NotImpl;
-	}
-
+done_modrm:
+	ctxt->d = opcode.flags;
 	while (ctxt->d & GroupMask) {
 		switch (ctxt->d & GroupMask) {
 		case Group:
@@ -4974,6 +5061,19 @@ done_prefixes:
 	/* Unrecognised? */
 	if (ctxt->d == 0)
 		return EMULATION_FAILED;
+
+	if (unlikely(vex_prefix)) {
+		/*
+		 * Only specifically marked instructions support VEX.  Since many
+		 * instructions support it but are not annotated, return not implemented
+		 * rather than #UD.
+		 */
+		if (!(ctxt->d & Avx))
+			return EMULATION_FAILED;
+
+		if (!(ctxt->d & AlignMask))
+			ctxt->d |= Unaligned;
+	}
 
 	ctxt->execute = opcode.u.execute;
 
@@ -5045,7 +5145,9 @@ done_prefixes:
 		if ((ctxt->d & No16) && ctxt->op_bytes == 2)
 			ctxt->op_bytes = 4;
 
-		if (ctxt->d & Sse)
+		if (vex_prefix)
+			;
+		else if (ctxt->d & Sse)
 			ctxt->op_bytes = 16, ctxt->d &= ~Avx;
 		else if (ctxt->d & Mmx)
 			ctxt->op_bytes = 8;
