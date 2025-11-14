@@ -4666,8 +4666,12 @@ new_objects:
 	if (kmem_cache_debug(s)) {
 		freelist = alloc_single_from_new_slab(s, slab, orig_size, gfpflags);
 
-		if (unlikely(!freelist))
+		if (unlikely(!freelist)) {
+			/* This could cause an endless loop. Fail instead. */
+			if (!allow_spin)
+				return NULL;
 			goto new_objects;
+		}
 
 		if (s->flags & SLAB_STORE_USER)
 			set_track(s, freelist, TRACK_ALLOC, addr,

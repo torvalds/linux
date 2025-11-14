@@ -367,6 +367,10 @@ int iommufd_ioas_unmap(struct iommufd_ucmd *ucmd)
 				     &unmapped);
 		if (rc)
 			goto out_put;
+		if (!unmapped) {
+			rc = -ENOENT;
+			goto out_put;
+		}
 	}
 
 	cmd->length = unmapped;

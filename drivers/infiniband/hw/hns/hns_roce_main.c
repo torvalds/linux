@@ -425,6 +425,8 @@ static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 	if (ret)
 		goto error_fail_copy_to_udata;
 
+	hns_roce_get_cq_bankid_for_uctx(context);
+
 	return 0;
 
 error_fail_copy_to_udata:
@@ -446,6 +448,8 @@ static void hns_roce_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibcontext->device);
+
+	hns_roce_put_cq_bankid_for_uctx(context);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
 	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
