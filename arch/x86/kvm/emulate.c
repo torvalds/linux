@@ -4133,7 +4133,7 @@ static const struct gprefix pfx_0f_28_0f_29 = {
 	I(Aligned, em_mov), I(Aligned, em_mov), N, N,
 };
 
-static const struct gprefix pfx_0f_e7 = {
+static const struct gprefix pfx_0f_e7_0f_38_2a = {
 	N, I(Sse, em_mov), N, N,
 };
 
@@ -4431,7 +4431,7 @@ static const struct opcode twobyte_table[256] = {
 	/* 0xD0 - 0xDF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xEF */
-	N, N, N, N, N, N, N, GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_e7),
+	N, N, N, N, N, N, N, GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_e7_0f_38_2a),
 	N, N, N, N, N, N, N, N,
 	/* 0xF0 - 0xFF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N
@@ -4458,8 +4458,13 @@ static const struct gprefix three_byte_0f_38_f1 = {
  * byte.
  */
 static const struct opcode opcode_map_0f_38[256] = {
-	/* 0x00 - 0x7f */
-	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
+	/* 0x00 - 0x1f */
+	X16(N), X16(N),
+	/* 0x20 - 0x2f */
+	X8(N),
+	X2(N), GP(SrcReg | DstMem | ModRM | Mov | Aligned, &pfx_0f_e7_0f_38_2a), N, N, N, N, N,
+	/* 0x30 - 0x7f */
+	X16(N), X16(N), X16(N), X16(N), X16(N),
 	/* 0x80 - 0xef */
 	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
 	/* 0xf0 - 0xf1 */
