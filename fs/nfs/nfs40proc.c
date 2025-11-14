@@ -126,6 +126,13 @@ static int nfs4_proc_renew(struct nfs_client *clp, const struct cred *cred)
 	return 0;
 }
 
+static int nfs40_test_and_free_expired_stateid(struct nfs_server *server,
+					       nfs4_stateid *stateid,
+					       const struct cred *cred)
+{
+	return -NFS4ERR_BAD_STATEID;
+}
+
 /*
  * This operation also signals the server that this client is
  * performing migration recovery.  The server can stop returning
@@ -222,6 +229,86 @@ static int _nfs40_proc_fsid_present(struct inode *inode, const struct cred *cred
 	return 0;
 }
 
+struct nfs_release_lockowner_data {
+	struct nfs4_lock_state *lsp;
+	struct nfs_server *server;
+	struct nfs_release_lockowner_args args;
+	struct nfs_release_lockowner_res res;
+	unsigned long timestamp;
+};
+
+static void nfs4_release_lockowner_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs_release_lockowner_data *data = calldata;
+	struct nfs_server *server = data->server;
+	nfs4_setup_sequence(server->nfs_client, &data->args.seq_args,
+			   &data->res.seq_res, task);
+	data->args.lock_owner.clientid = server->nfs_client->cl_clientid;
+	data->timestamp = jiffies;
+}
+
+static void nfs4_release_lockowner_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs_release_lockowner_data *data = calldata;
+	struct nfs_server *server = data->server;
+
+	nfs40_sequence_done(task, &data->res.seq_res);
+
+	switch (task->tk_status) {
+	case 0:
+		renew_lease(server, data->timestamp);
+		break;
+	case -NFS4ERR_STALE_CLIENTID:
+	case -NFS4ERR_EXPIRED:
+		nfs4_schedule_lease_recovery(server->nfs_client);
+		break;
+	case -NFS4ERR_LEASE_MOVED:
+	case -NFS4ERR_DELAY:
+		if (nfs4_async_handle_error(task, server,
+					    NULL, NULL) == -EAGAIN)
+			rpc_restart_call_prepare(task);
+	}
+}
+
+static void nfs4_release_lockowner_release(void *calldata)
+{
+	struct nfs_release_lockowner_data *data = calldata;
+	nfs4_free_lock_state(data->server, data->lsp);
+	kfree(calldata);
+}
+
+static const struct rpc_call_ops nfs4_release_lockowner_ops = {
+	.rpc_call_prepare = nfs4_release_lockowner_prepare,
+	.rpc_call_done = nfs4_release_lockowner_done,
+	.rpc_release = nfs4_release_lockowner_release,
+};
+
+static void
+nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
+{
+	struct nfs_release_lockowner_data *data;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RELEASE_LOCKOWNER],
+	};
+
+	if (server->nfs_client->cl_mvops->minor_version != 0)
+		return;
+
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return;
+	data->lsp = lsp;
+	data->server = server;
+	data->args.lock_owner.clientid = server->nfs_client->cl_clientid;
+	data->args.lock_owner.id = lsp->ls_seqid.owner_id;
+	data->args.lock_owner.s_dev = server->s_dev;
+
+	msg.rpc_argp = &data->args;
+	msg.rpc_resp = &data->res;
+	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0, 0);
+	rpc_call_async(server->client, &msg, 0, &nfs4_release_lockowner_ops, data);
+}
+
 const struct rpc_call_ops nfs40_call_sync_ops = {
 	.rpc_call_prepare = nfs40_call_sync_prepare,
 	.rpc_call_done = nfs40_call_sync_done,
@@ -253,4 +340,23 @@ const struct nfs4_state_maintenance_ops nfs40_state_renewal_ops = {
 const struct nfs4_mig_recovery_ops nfs40_mig_recovery_ops = {
 	.get_locations = _nfs40_proc_get_locations,
 	.fsid_present = _nfs40_proc_fsid_present,
+};
+
+const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
+	.minor_version = 0,
+	.init_caps = NFS_CAP_READDIRPLUS
+		| NFS_CAP_ATOMIC_OPEN
+		| NFS_CAP_POSIX_LOCK,
+	.init_client = nfs40_init_client,
+	.shutdown_client = nfs40_shutdown_client,
+	.match_stateid = nfs4_match_stateid,
+	.find_root_sec = nfs4_find_root_sec,
+	.free_lock_state = nfs4_release_lockowner,
+	.test_and_free_expired = nfs40_test_and_free_expired_stateid,
+	.alloc_seqid = nfs_alloc_seqid,
+	.call_sync_ops = &nfs40_call_sync_ops,
+	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
+	.nograce_recovery_ops = &nfs40_nograce_recovery_ops,
+	.state_renewal_ops = &nfs40_state_renewal_ops,
+	.mig_recovery_ops = &nfs40_mig_recovery_ops,
 };
