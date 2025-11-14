@@ -421,6 +421,7 @@ struct rtw89_rxinfo_user {
 #define RTW89_RXINFO_USER_MGMT BIT(3)
 #define RTW89_RXINFO_USER_BCN BIT(4)
 #define RTW89_RXINFO_USER_MACID GENMASK(15, 8)
+#define RTW89_RXINFO_USER_MACID_V1 GENMASK(31, 20)
 
 struct rtw89_rxinfo {
 	__le32 w0;

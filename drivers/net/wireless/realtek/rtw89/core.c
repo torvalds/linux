@@ -1834,9 +1834,13 @@ static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 		/* For WiFi 7 chips, RXWD.mac_id of PPDU status is not set
 		 * by hardware, so update mac_id by rxinfo_user[].mac_id.
 		 */
-		if (chip_gen == RTW89_CHIP_BE)
+		if (chip->chip_id == RTL8922A)
 			phy_ppdu->mac_id =
 				le32_get_bits(user->w0, RTW89_RXINFO_USER_MACID);
+		else if (chip->chip_id == RTL8922D)
+			phy_ppdu->mac_id =
+				le32_get_bits(user->w0, RTW89_RXINFO_USER_MACID_V1);
+
 		phy_ppdu->has_data =
 			le32_get_bits(user->w0, RTW89_RXINFO_USER_DATA);
 		phy_ppdu->has_bcn =
