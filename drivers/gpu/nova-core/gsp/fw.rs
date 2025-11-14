@@ -473,7 +473,6 @@ unsafe impl AsBytes for RegPollPayload {}
 #[derive(Copy, Clone)]
 pub(crate) struct DelayUsPayload(r570_144::GSP_SEQ_BUF_PAYLOAD_DELAY_US);
 
-#[expect(unused)]
 impl DelayUsPayload {
     /// Returns the delay value in microseconds.
     pub(crate) fn val(&self) -> u32 {
@@ -515,7 +514,6 @@ unsafe impl AsBytes for RegStorePayload {}
 #[repr(transparent)]
 pub(crate) struct SequencerBufferCmd(r570_144::GSP_SEQUENCER_BUFFER_CMD);
 
-#[expect(unused)]
 impl SequencerBufferCmd {
     /// Returns the opcode as a `SeqBufOpcode` enum, or error if invalid.
     pub(crate) fn opcode(&self) -> Result<SeqBufOpcode> {

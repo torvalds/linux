@@ -14,7 +14,10 @@ use kernel::{
     device,
     io::poll::read_poll_timeout,
     prelude::*,
-    time::Delta,
+    time::{
+        delay::fsleep,
+        Delta, //
+    },
     transmute::FromBytes,
     types::ARef, //
 };
@@ -71,6 +74,7 @@ pub(crate) enum GspSeqCmd {
     RegWrite(fw::RegWritePayload),
     RegModify(fw::RegModifyPayload),
     RegPoll(fw::RegPollPayload),
+    DelayUs(fw::DelayUsPayload),
     RegStore(fw::RegStorePayload),
 }
 
@@ -95,6 +99,11 @@ impl GspSeqCmd {
                 let payload = fw_cmd.reg_poll_payload()?;
                 let size = opcode_size + size_of_val(&payload);
                 (GspSeqCmd::RegPoll(payload), size)
+            }
+            fw::SeqBufOpcode::DelayUs => {
+                let payload = fw_cmd.delay_us_payload()?;
+                let size = opcode_size + size_of_val(&payload);
+                (GspSeqCmd::DelayUs(payload), size)
             }
             fw::SeqBufOpcode::RegStore => {
                 let payload = fw_cmd.reg_store_payload()?;
@@ -182,6 +191,13 @@ impl GspSeqCmdRunner for fw::RegPollPayload {
     }
 }
 
+impl GspSeqCmdRunner for fw::DelayUsPayload {
+    fn run(&self, _sequencer: &GspSequencer<'_>) -> Result {
+        fsleep(Delta::from_micros(i64::from(self.val())));
+        Ok(())
+    }
+}
+
 impl GspSeqCmdRunner for fw::RegStorePayload {
     fn run(&self, sequencer: &GspSequencer<'_>) -> Result {
         let addr = usize::from_safe_cast(self.addr());
@@ -196,6 +212,7 @@ impl GspSeqCmdRunner for GspSeqCmd {
             GspSeqCmd::RegWrite(cmd) => cmd.run(seq),
             GspSeqCmd::RegModify(cmd) => cmd.run(seq),
             GspSeqCmd::RegPoll(cmd) => cmd.run(seq),
+            GspSeqCmd::DelayUs(cmd) => cmd.run(seq),
             GspSeqCmd::RegStore(cmd) => cmd.run(seq),
         }
     }
