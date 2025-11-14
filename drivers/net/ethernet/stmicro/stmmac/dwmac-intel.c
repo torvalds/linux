@@ -570,9 +570,6 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 
 	plat->mdio_bus_data->needs_reset = true;
 
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
 	/* Set default number of RX and TX queues to use */
 	plat->tx_queues_to_use = 1;
 	plat->rx_queues_to_use = 1;
@@ -699,9 +696,6 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	}
 
 	plat->ptp_clk_freq_config = intel_mgbe_ptp_clk_freq_config;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
 
 	plat->flags |= STMMAC_FLAG_VLAN_FAIL_Q_EN;
 
