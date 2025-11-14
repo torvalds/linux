@@ -319,6 +319,14 @@ typedef void (*fastop_t)(struct fastop *);
 #define NR_EMULATOR_GPRS	8
 #endif
 
+/*
+ * Distinguish between no prefix, REX, or in the future REX2.
+ */
+enum rex_type {
+	REX_NONE,
+	REX_PREFIX,
+};
+
 struct x86_emulate_ctxt {
 	void *vcpu;
 	const struct x86_emulate_ops *ops;
@@ -360,7 +368,8 @@ struct x86_emulate_ctxt {
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 
 	bool rip_relative;
-	u8 rex_prefix;
+	enum rex_type rex_prefix;
+	u8 rex_bits;
 	u8 lock_prefix;
 	u8 rep_prefix;
 	/* bitmaps of registers in _regs[] that can be read */
