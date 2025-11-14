@@ -1146,12 +1146,20 @@ run_tests()
 	do_transfer ${listener_ns} ${connector_ns} MPTCP MPTCP ${connect_addr}
 }
 
+_dump_stats()
+{
+	local ns="${1}"
+	local side="${2}"
+
+	mptcp_lib_print_err "${side} ns stats (${ns2})"
+	mptcp_lib_pr_nstat "${ns}"
+	echo
+}
+
 dump_stats()
 {
-	echo Server ns stats
-	ip netns exec $ns1 nstat -as | grep Tcp
-	echo Client ns stats
-	ip netns exec $ns2 nstat -as | grep Tcp
+	_dump_stats "${ns1}" "Server"
+	_dump_stats "${ns2}" "Client"
 }
 
 chk_csum_nr()

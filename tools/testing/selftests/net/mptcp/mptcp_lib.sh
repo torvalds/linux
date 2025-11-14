@@ -110,7 +110,11 @@ mptcp_lib_pr_nstat() {
 	local ns="${1}"
 	local hist="/tmp/${ns}.out"
 
-	cat "${hist}"
+	if [ -f "${hist}" ]; then
+		awk '{ print "  "$0 }' "${hist}"
+	else
+		ip netns exec "${ns}" nstat -as | grep Tcp
+	fi
 }
 
 # $1-2: listener/connector ns ; $3 port
