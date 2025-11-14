@@ -621,7 +621,6 @@ unsafe impl AsBytes for SequencerBufferCmd {}
 #[repr(transparent)]
 pub(crate) struct RunCpuSequencer(r570_144::rpc_run_cpu_sequencer_v17_00);
 
-#[expect(unused)]
 impl RunCpuSequencer {
     /// Returns the command index.
     pub(crate) fn cmd_index(&self) -> u32 {

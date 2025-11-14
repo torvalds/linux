@@ -645,7 +645,6 @@ impl Cmdq {
     /// - `EIO` if there was some inconsistency (e.g. message shorter than advertised) on the
     ///   message queue.
     /// - `EINVAL` if the function of the message was unrecognized.
-    #[expect(unused)]
     pub(crate) fn receive_msg<M: MessageFromGsp>(&mut self, timeout: Delta) -> Result<M>
     where
         // This allows all error types, including `Infallible`, to be used for `M::InitError`.

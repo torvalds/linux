@@ -33,6 +33,10 @@ use crate::{
     gpu::Chipset,
     gsp::{
         commands,
+        sequencer::{
+            GspSequencer,
+            GspSequencerParams, //
+        },
         GspFwWprMeta, //
     },
     regs,
@@ -220,6 +224,17 @@ impl super::Gsp {
             "RISC-V active? {}\n",
             gsp_falcon.is_riscv_active(bar),
         );
+
+        // Create and run the GSP sequencer.
+        let seq_params = GspSequencerParams {
+            bootloader_app_version: gsp_fw.bootloader.app_version,
+            libos_dma_handle: libos_handle,
+            gsp_falcon,
+            sec2_falcon,
+            dev: pdev.as_ref().into(),
+            bar,
+        };
+        GspSequencer::run(&mut self.cmdq, seq_params)?;
 
         Ok(())
     }
