@@ -74,8 +74,21 @@ static int rkcif_notifier_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *sd,
 				struct v4l2_async_connection *asd)
 {
+	struct rkcif_device *rkcif =
+		container_of(notifier, struct rkcif_device, notifier);
 	struct rkcif_remote *remote =
 		container_of(asd, struct rkcif_remote, async_conn);
+	struct media_pad *sink_pad =
+		&remote->interface->pads[RKCIF_IF_PAD_SINK];
+	int ret;
+
+	ret = v4l2_create_fwnode_links_to_pad(sd, sink_pad,
+					      MEDIA_LNK_FL_ENABLED);
+	if (ret) {
+		dev_err(rkcif->dev, "failed to link source pad of %s\n",
+			sd->name);
+		return ret;
+	}
 
 	remote->sd = sd;
 

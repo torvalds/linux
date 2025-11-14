@@ -2,3 +2,4 @@
 obj-$(CONFIG_VIDEO_ROCKCHIP_CIF) += rockchip-cif.o
 
 rockchip-cif-objs += rkcif-dev.o
+rockchip-cif-objs += rkcif-interface.o
