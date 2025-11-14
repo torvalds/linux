@@ -465,6 +465,9 @@ mali_c55_params_block_types_info[] = {
 	},
 };
 
+static_assert(ARRAY_SIZE(mali_c55_params_handlers) ==
+	      ARRAY_SIZE(mali_c55_params_block_types_info));
+
 static int mali_c55_params_enum_fmt_meta_out(struct file *file, void *fh,
 					     struct v4l2_fmtdesc *f)
 {
