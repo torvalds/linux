@@ -55,7 +55,7 @@
 #define MAX_SDM_JOB_IDS				16
 /* Number of bits used for asynchronous transaction hashing. */
 #define ASYNC_TRX_HASH_BITS			3
-/**
+/*
  * Total number of transaction IDs, which is a combination of
  * client ID and job ID.
  */
@@ -297,7 +297,7 @@ struct stratix10_svc_chan {
 static LIST_HEAD(svc_ctrl);
 static LIST_HEAD(svc_data_mem);
 
-/**
+/*
  * svc_mem_lock protects access to the svc_data_mem list for
  * concurrent multi-client operations
  */
