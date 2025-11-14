@@ -1559,16 +1559,18 @@ int dpll_nl_pin_id_get_doit(struct sk_buff *skb, struct genl_info *info)
 		return -EMSGSIZE;
 	}
 	pin = dpll_pin_find_from_nlattr(info);
-	if (!IS_ERR(pin)) {
-		if (!dpll_pin_available(pin)) {
-			nlmsg_free(msg);
-			return -ENODEV;
-		}
-		ret = dpll_msg_add_pin_handle(msg, pin);
-		if (ret) {
-			nlmsg_free(msg);
-			return ret;
-		}
+	if (IS_ERR(pin)) {
+		nlmsg_free(msg);
+		return PTR_ERR(pin);
+	}
+	if (!dpll_pin_available(pin)) {
+		nlmsg_free(msg);
+		return -ENODEV;
+	}
+	ret = dpll_msg_add_pin_handle(msg, pin);
+	if (ret) {
+		nlmsg_free(msg);
+		return ret;
 	}
 	genlmsg_end(msg, hdr);
 
@@ -1735,12 +1737,14 @@ int dpll_nl_device_id_get_doit(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	dpll = dpll_device_find_from_nlattr(info);
-	if (!IS_ERR(dpll)) {
-		ret = dpll_msg_add_dev_handle(msg, dpll);
-		if (ret) {
-			nlmsg_free(msg);
-			return ret;
-		}
+	if (IS_ERR(dpll)) {
+		nlmsg_free(msg);
+		return PTR_ERR(dpll);
+	}
+	ret = dpll_msg_add_dev_handle(msg, dpll);
+	if (ret) {
+		nlmsg_free(msg);
+		return ret;
 	}
 	genlmsg_end(msg, hdr);
 

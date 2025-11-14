@@ -11,6 +11,7 @@ found on https://linux-ax25.in-berlin.de.
 
 There is a mailing list for discussing Linux amateur radio matters
 called linux-hams@vger.kernel.org. To subscribe to it, send a message to
-majordomo@vger.kernel.org with the words "subscribe linux-hams" in the body
-of the message, the subject field is ignored.  You don't need to be
-subscribed to post but of course that means you might miss an answer.
+linux-hams+subscribe@vger.kernel.org or use the web interface at
+https://vger.kernel.org. The subject and body of the message are
+ignored.  You don't need to be subscribed to post but of course that
+means you might miss an answer.

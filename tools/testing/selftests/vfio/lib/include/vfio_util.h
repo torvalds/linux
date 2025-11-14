@@ -206,10 +206,29 @@ struct vfio_pci_device *vfio_pci_device_init(const char *bdf, const char *iommu_
 void vfio_pci_device_cleanup(struct vfio_pci_device *device);
 void vfio_pci_device_reset(struct vfio_pci_device *device);
 
-void vfio_pci_dma_map(struct vfio_pci_device *device,
-		      struct vfio_dma_region *region);
-void vfio_pci_dma_unmap(struct vfio_pci_device *device,
-			struct vfio_dma_region *region);
+int __vfio_pci_dma_map(struct vfio_pci_device *device,
+		       struct vfio_dma_region *region);
+int __vfio_pci_dma_unmap(struct vfio_pci_device *device,
+			 struct vfio_dma_region *region,
+			 u64 *unmapped);
+int __vfio_pci_dma_unmap_all(struct vfio_pci_device *device, u64 *unmapped);
+
+static inline void vfio_pci_dma_map(struct vfio_pci_device *device,
+				    struct vfio_dma_region *region)
+{
+	VFIO_ASSERT_EQ(__vfio_pci_dma_map(device, region), 0);
+}
+
+static inline void vfio_pci_dma_unmap(struct vfio_pci_device *device,
+				      struct vfio_dma_region *region)
+{
+	VFIO_ASSERT_EQ(__vfio_pci_dma_unmap(device, region, NULL), 0);
+}
+
+static inline void vfio_pci_dma_unmap_all(struct vfio_pci_device *device)
+{
+	VFIO_ASSERT_EQ(__vfio_pci_dma_unmap_all(device, NULL), 0);
+}
 
 void vfio_pci_config_access(struct vfio_pci_device *device, bool write,
 			    size_t config, size_t size, void *data);
