@@ -14,6 +14,7 @@
 #include "rkcif-common.h"
 
 extern const struct rkcif_dvp_match_data rkcif_px30_vip_dvp_match_data;
+extern const struct rkcif_dvp_match_data rkcif_rk3568_vicap_dvp_match_data;
 
 int rkcif_dvp_register(struct rkcif_device *rkcif);
 

@@ -48,6 +48,7 @@ static const char *const rk3568_vicap_clks[] = {
 static const struct rkcif_match_data rk3568_vicap_match_data = {
 	.clks = rk3568_vicap_clks,
 	.clks_num = ARRAY_SIZE(rk3568_vicap_clks),
+	.dvp = &rkcif_rk3568_vicap_dvp_match_data,
 };
 
 static const struct of_device_id rkcif_plat_of_match[] = {
