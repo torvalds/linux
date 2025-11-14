@@ -12560,6 +12560,7 @@ F:	drivers/dma/ioat*
 INTEL IAA CRYPTO DRIVER
 M:	Kristen Accardi <kristen.c.accardi@intel.com>
 M:	Vinicius Costa Gomes <vinicius.gomes@intel.com>
+M:	Kanchana P Sridhar <kanchana.p.sridhar@intel.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	Documentation/driver-api/crypto/iaa/iaa-crypto.rst
