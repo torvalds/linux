@@ -7555,6 +7555,18 @@ static void stmmac_unregister_devlink(struct stmmac_priv *priv)
 	devlink_free(priv->devlink);
 }
 
+struct plat_stmmacenet_data *stmmac_plat_dat_alloc(struct device *dev)
+{
+	struct plat_stmmacenet_data *plat_dat;
+
+	plat_dat = devm_kzalloc(dev, sizeof(*plat_dat), GFP_KERNEL);
+	if (!plat_dat)
+		return NULL;
+
+	return plat_dat;
+}
+EXPORT_SYMBOL_GPL(stmmac_plat_dat_alloc);
+
 /**
  * stmmac_dvr_probe
  * @device: device pointer
