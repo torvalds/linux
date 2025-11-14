@@ -1451,6 +1451,8 @@ mt7915_mac_full_reset(struct mt7915_dev *dev)
 	if (ext_phy)
 		cancel_delayed_work_sync(&ext_phy->mac_work);
 
+	mt76_abort_scan(&dev->mt76);
+
 	mutex_lock(&dev->mt76.mutex);
 	for (i = 0; i < 10; i++) {
 		if (!mt7915_mac_restart(dev))
