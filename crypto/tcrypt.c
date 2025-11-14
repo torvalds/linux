@@ -2264,10 +2264,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		test_hash_speed("crc32c", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
-	case 321:
-		test_hash_speed("poly1305", sec, poly1305_speed_template);
-		if (mode > 300 && mode < 400) break;
-		fallthrough;
 	case 322:
 		test_hash_speed("sha3-224", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
