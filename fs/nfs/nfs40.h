@@ -5,6 +5,7 @@
 
 /* nfs40client.c */
 void nfs40_shutdown_client(struct nfs_client *);
+int nfs40_init_client(struct nfs_client *);
 
 /* nfs40proc.c */
 extern const struct nfs4_minor_version_ops nfs_v4_0_minor_ops;
