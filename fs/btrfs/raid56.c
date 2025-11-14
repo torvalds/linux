@@ -1620,9 +1620,9 @@ static int get_bio_sector_nr(struct btrfs_raid_bio *rbio, struct bio *bio)
 	int i;
 
 	for (i = 0; i < rbio->nr_sectors; i++) {
-		if (rbio->stripe_paddrs[i] == bvec_paddr)
+		if (rbio->stripe_paddrs[i * rbio->sector_nsteps] == bvec_paddr)
 			break;
-		if (rbio->bio_paddrs[i] == bvec_paddr)
+		if (rbio->bio_paddrs[i * rbio->sector_nsteps] == bvec_paddr)
 			break;
 	}
 	ASSERT(i < rbio->nr_sectors);
@@ -1655,7 +1655,11 @@ static void verify_bio_data_sectors(struct btrfs_raid_bio *rbio,
 				    struct bio *bio)
 {
 	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
+	const u32 step = min(fs_info->sectorsize, PAGE_SIZE);
+	const u32 nr_steps = rbio->sector_nsteps;
 	int total_sector_nr = get_bio_sector_nr(rbio, bio);
+	u32 offset = 0;
+	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
 	phys_addr_t paddr;
 
 	/* No data csum for the whole stripe, no need to verify. */
@@ -1666,18 +1670,24 @@ static void verify_bio_data_sectors(struct btrfs_raid_bio *rbio,
 	if (total_sector_nr >= rbio->nr_data * rbio->stripe_nsectors)
 		return;
 
-	btrfs_bio_for_each_block_all(paddr, bio, fs_info->sectorsize) {
+	btrfs_bio_for_each_block_all(paddr, bio, step) {
 		u8 csum_buf[BTRFS_CSUM_SIZE];
-		u8 *expected_csum = rbio->csum_buf + total_sector_nr * fs_info->csum_size;
-		int ret;
+		u8 *expected_csum;
+
+		paddrs[(offset / step) % nr_steps] = paddr;
+		offset += step;
+
+		/* Not yet covering the full fs block, continue to the next step. */
+		if (!IS_ALIGNED(offset, fs_info->sectorsize))
+			continue;
 
 		/* No csum for this sector, skip to the next sector. */
 		if (!test_bit(total_sector_nr, rbio->csum_bitmap))
 			continue;
 
-		ret = btrfs_check_block_csum(fs_info, paddr,
-					     csum_buf, expected_csum);
-		if (ret < 0)
+		expected_csum = rbio->csum_buf + total_sector_nr * fs_info->csum_size;
+		btrfs_calculate_block_csum_pages(fs_info, paddrs, csum_buf);
+		if (unlikely(memcmp(csum_buf, expected_csum, fs_info->csum_size) != 0))
 			set_bit(total_sector_nr, rbio->error_bitmap);
 		total_sector_nr++;
 	}
