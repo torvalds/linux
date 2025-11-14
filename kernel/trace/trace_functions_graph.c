@@ -19,6 +19,9 @@
 /* When set, irq functions might be ignored */
 static int ftrace_graph_skip_irqs;
 
+/* Do not record function time when task is sleeping */
+unsigned int fgraph_no_sleep_time;
+
 struct fgraph_cpu_data {
 	pid_t		last_pid;
 	int		depth;
@@ -239,13 +242,14 @@ static int graph_entry(struct ftrace_graph_ent *trace,
 	if (ftrace_graph_ignore_irqs(tr))
 		return 0;
 
-	if (fgraph_sleep_time) {
-		/* Only need to record the calltime */
-		ftimes = fgraph_reserve_data(gops->idx, sizeof(ftimes->calltime));
-	} else {
+	if (fgraph_no_sleep_time &&
+	    !tracer_flags_is_set(tr, TRACE_GRAPH_SLEEP_TIME)) {
 		ftimes = fgraph_reserve_data(gops->idx, sizeof(*ftimes));
 		if (ftimes)
 			ftimes->sleeptime = current->ftrace_sleeptime;
+	} else {
+		/* Only need to record the calltime */
+		ftimes = fgraph_reserve_data(gops->idx, sizeof(ftimes->calltime));
 	}
 	if (!ftimes)
 		return 0;
@@ -331,11 +335,15 @@ void __trace_graph_return(struct trace_array *tr,
 	trace_buffer_unlock_commit_nostack(buffer, event);
 }
 
-static void handle_nosleeptime(struct ftrace_graph_ret *trace,
+static void handle_nosleeptime(struct trace_array *tr,
+			       struct ftrace_graph_ret *trace,
 			       struct fgraph_times *ftimes,
 			       int size)
 {
-	if (fgraph_sleep_time || size < sizeof(*ftimes))
+	if (size < sizeof(*ftimes))
+		return;
+
+	if (!fgraph_no_sleep_time || tracer_flags_is_set(tr, TRACE_GRAPH_SLEEP_TIME))
 		return;
 
 	ftimes->calltime += current->ftrace_sleeptime - ftimes->sleeptime;
@@ -364,7 +372,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 	if (!ftimes)
 		return;
 
-	handle_nosleeptime(trace, ftimes, size);
+	handle_nosleeptime(tr, trace, ftimes, size);
 
 	calltime = ftimes->calltime;
 
@@ -377,6 +385,7 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 				      struct ftrace_regs *fregs)
 {
 	struct fgraph_times *ftimes;
+	struct trace_array *tr;
 	int size;
 
 	ftrace_graph_addr_finish(gops, trace);
@@ -390,7 +399,8 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 	if (!ftimes)
 		return;
 
-	handle_nosleeptime(trace, ftimes, size);
+	tr = gops->private;
+	handle_nosleeptime(tr, trace, ftimes, size);
 
 	if (tracing_thresh &&
 	    (trace_clock_local() - ftimes->calltime < tracing_thresh))
@@ -452,6 +462,9 @@ static int graph_trace_init(struct trace_array *tr)
 	if (!tracer_flags_is_set(tr, TRACE_GRAPH_PRINT_IRQS))
 		ftrace_graph_skip_irqs++;
 
+	if (!tracer_flags_is_set(tr, TRACE_GRAPH_SLEEP_TIME))
+		fgraph_no_sleep_time++;
+
 	/* Make gops functions visible before we start tracing */
 	smp_mb();
 
@@ -493,6 +506,11 @@ static void graph_trace_reset(struct trace_array *tr)
 		ftrace_graph_skip_irqs--;
 	if (WARN_ON_ONCE(ftrace_graph_skip_irqs < 0))
 		ftrace_graph_skip_irqs = 0;
+
+	if (!tracer_flags_is_set(tr, TRACE_GRAPH_SLEEP_TIME))
+		fgraph_no_sleep_time--;
+	if (WARN_ON_ONCE(fgraph_no_sleep_time < 0))
+		fgraph_no_sleep_time = 0;
 
 	tracing_stop_cmdline_record();
 	unregister_ftrace_graph(tr->gops);
@@ -1619,8 +1637,24 @@ void graph_trace_close(struct trace_iterator *iter)
 static int
 func_graph_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
-	if (bit == TRACE_GRAPH_SLEEP_TIME)
-		ftrace_graph_sleep_time_control(set);
+/*
+ * The function profiler gets updated even if function graph
+ * isn't the current tracer. Handle it separately.
+ */
+#ifdef CONFIG_FUNCTION_PROFILER
+	if (bit == TRACE_GRAPH_SLEEP_TIME && (tr->flags & TRACE_ARRAY_FL_GLOBAL) &&
+	    !!set == fprofile_no_sleep_time) {
+		if (set) {
+			fgraph_no_sleep_time--;
+			if (WARN_ON_ONCE(fgraph_no_sleep_time < 0))
+				fgraph_no_sleep_time = 0;
+			fprofile_no_sleep_time = false;
+		} else {
+			fgraph_no_sleep_time++;
+			fprofile_no_sleep_time = true;
+		}
+	}
+#endif
 
 	/* Do nothing if the current tracer is not this tracer */
 	if (tr->current_trace != &graph_trace)
@@ -1629,6 +1663,16 @@ func_graph_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	/* Do nothing if already set. */
 	if (!!set == !!(tr->current_trace_flags->val & bit))
 		return 0;
+
+	if (bit == TRACE_GRAPH_SLEEP_TIME) {
+		if (set) {
+			fgraph_no_sleep_time--;
+			if (WARN_ON_ONCE(fgraph_no_sleep_time < 0))
+				fgraph_no_sleep_time = 0;
+		} else {
+			fgraph_no_sleep_time++;
+		}
+	}
 
 	if (bit == TRACE_GRAPH_PRINT_IRQS) {
 		if (set)
