@@ -348,6 +348,7 @@ struct x86_emulate_ctxt {
 	u8 opcode_len;
 	u8 b;
 	u8 intercept;
+	bool op_prefix;
 	u8 op_bytes;
 	u8 ad_bytes;
 	union {

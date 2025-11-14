@@ -4761,7 +4761,6 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
 	int def_op_bytes, def_ad_bytes, goffset, simd_prefix;
-	bool op_prefix = false;
 	bool has_seg_override = false;
 	struct opcode opcode;
 	u16 dummy;
@@ -4813,7 +4812,7 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int
 	for (;;) {
 		switch (ctxt->b = insn_fetch(u8, ctxt)) {
 		case 0x66:	/* operand-size override */
-			op_prefix = true;
+			ctxt->op_prefix = true;
 			/* switch between 2/4 bytes */
 			ctxt->op_bytes = def_op_bytes ^ 6;
 			break;
@@ -4920,9 +4919,9 @@ done_prefixes:
 			opcode = opcode.u.group[goffset];
 			break;
 		case Prefix:
-			if (ctxt->rep_prefix && op_prefix)
+			if (ctxt->rep_prefix && ctxt->op_prefix)
 				return EMULATION_FAILED;
-			simd_prefix = op_prefix ? 0x66 : ctxt->rep_prefix;
+			simd_prefix = ctxt->op_prefix ? 0x66 : ctxt->rep_prefix;
 			switch (simd_prefix) {
 			case 0x00: opcode = opcode.u.gprefix->pfx_no; break;
 			case 0x66: opcode = opcode.u.gprefix->pfx_66; break;
@@ -5140,6 +5139,7 @@ void init_decode_cache(struct x86_emulate_ctxt *ctxt)
 	ctxt->rip_relative = false;
 	ctxt->rex_prefix = 0;
 	ctxt->lock_prefix = 0;
+	ctxt->op_prefix = false;
 	ctxt->rep_prefix = 0;
 	ctxt->regs_valid = 0;
 	ctxt->regs_dirty = 0;
