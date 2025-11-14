@@ -729,7 +729,7 @@ struct ovl_cu_creds {
 	struct cred *new;
 };
 
-static int ovl_prep_cu_creds(struct dentry *dentry, struct ovl_cu_creds *cc)
+static int __maybe_unused ovl_prep_cu_creds(struct dentry *dentry, struct ovl_cu_creds *cc)
 {
 	int err;
 
@@ -744,7 +744,7 @@ static int ovl_prep_cu_creds(struct dentry *dentry, struct ovl_cu_creds *cc)
 	return 0;
 }
 
-static void ovl_revert_cu_creds(struct ovl_cu_creds *cc)
+static void __maybe_unused ovl_revert_cu_creds(struct ovl_cu_creds *cc)
 {
 	if (cc->new) {
 		revert_creds(cc->old);
