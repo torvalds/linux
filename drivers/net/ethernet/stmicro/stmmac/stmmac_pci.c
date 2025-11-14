@@ -86,7 +86,6 @@ static int snps_gmac5_default_data(struct pci_dev *pdev,
 		plat->rx_queues_cfg[i].use_prio = false;
 		plat->rx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
 		plat->rx_queues_cfg[i].pkt_route = 0x0;
-		plat->rx_queues_cfg[i].chan = i;
 	}
 
 	plat->bus_id = 1;

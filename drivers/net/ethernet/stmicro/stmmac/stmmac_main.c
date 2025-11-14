@@ -7558,6 +7558,7 @@ static void stmmac_unregister_devlink(struct stmmac_priv *priv)
 struct plat_stmmacenet_data *stmmac_plat_dat_alloc(struct device *dev)
 {
 	struct plat_stmmacenet_data *plat_dat;
+	int i;
 
 	plat_dat = devm_kzalloc(dev, sizeof(*plat_dat), GFP_KERNEL);
 	if (!plat_dat)
@@ -7579,6 +7580,10 @@ struct plat_stmmacenet_data *stmmac_plat_dat_alloc(struct device *dev)
 	/* Set the mtl defaults */
 	plat_dat->tx_queues_to_use = 1;
 	plat_dat->rx_queues_to_use = 1;
+
+	/* Setup the default RX queue channel map */
+	for (i = 0; i < ARRAY_SIZE(plat_dat->rx_queues_cfg); i++)
+		plat_dat->rx_queues_cfg[i].chan = i;
 
 	return plat_dat;
 }

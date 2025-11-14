@@ -618,7 +618,6 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 
 	for (i = 0; i < plat->rx_queues_to_use; i++) {
 		plat->rx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
-		plat->rx_queues_cfg[i].chan = i;
 
 		/* Disable Priority config by default */
 		plat->rx_queues_cfg[i].use_prio = false;
