@@ -33,14 +33,6 @@ static inline bool queue_limits_stack_integrity_bdev(struct queue_limits *t,
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 int blk_rq_map_integrity_sg(struct request *, struct scatterlist *);
 
-static inline bool blk_rq_integrity_dma_unmap(struct request *req,
-		struct device *dma_dev, struct dma_iova_state *state,
-		size_t mapped_len)
-{
-	return blk_dma_unmap(req, dma_dev, state, mapped_len,
-			bio_integrity(req->bio)->bip_flags & BIP_P2P_DMA);
-}
-
 int blk_rq_count_integrity_sg(struct request_queue *, struct bio *);
 int blk_rq_integrity_map_user(struct request *rq, void __user *ubuf,
 			      ssize_t bytes);
@@ -128,12 +120,6 @@ static inline int blk_rq_map_integrity_sg(struct request *q,
 					  struct scatterlist *s)
 {
 	return 0;
-}
-static inline bool blk_rq_integrity_dma_unmap(struct request *req,
-		struct device *dma_dev, struct dma_iova_state *state,
-		size_t mapped_len)
-{
-	return false;
 }
 static inline int blk_rq_integrity_map_user(struct request *rq,
 					    void __user *ubuf,
