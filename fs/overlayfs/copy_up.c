@@ -752,6 +752,33 @@ static void ovl_revert_cu_creds(struct ovl_cu_creds *cc)
 	}
 }
 
+static const struct cred *ovl_prepare_copy_up_creds(struct dentry *dentry)
+{
+	struct cred *copy_up_cred = NULL;
+	int err;
+
+	err = security_inode_copy_up(dentry, &copy_up_cred);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	if (!copy_up_cred)
+		return NULL;
+
+	return override_creds(copy_up_cred);
+}
+
+static void ovl_revert_copy_up_creds(const struct cred *orig_cred)
+{
+	const struct cred *copy_up_cred;
+
+	copy_up_cred = revert_creds(orig_cred);
+	put_cred(copy_up_cred);
+}
+
+DEFINE_CLASS(copy_up_creds, const struct cred *,
+	     if (!IS_ERR_OR_NULL(_T)) ovl_revert_copy_up_creds(_T),
+	     ovl_prepare_copy_up_creds(dentry), struct dentry *dentry)
+
 /*
  * Copyup using workdir to prepare temp file.  Used when copying up directories,
  * special files or when upper fs doesn't support O_TMPFILE.
