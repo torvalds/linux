@@ -5617,7 +5617,15 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 {
 	int ret;
 
+	ret = rtw89_mac_preinit(rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "mac preinit fail, ret: %d\n", ret);
+		return ret;
+	}
+
 	rtw89_phy_init_bb_afe(rtwdev);
+
+	/* above do preinit before downloading firmware */
 
 	ret = rtw89_mac_init(rtwdev);
 	if (ret) {

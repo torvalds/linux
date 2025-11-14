@@ -1201,6 +1201,7 @@ rtw89_write32_port_set(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_l
 int rtw89_mac_pwr_on(struct rtw89_dev *rtwdev);
 void rtw89_mac_pwr_off(struct rtw89_dev *rtwdev);
 int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb);
+int rtw89_mac_preinit(struct rtw89_dev *rtwdev);
 int rtw89_mac_init(struct rtw89_dev *rtwdev);
 int rtw89_mac_dle_init(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode,
 		       enum rtw89_qta_mode ext_mode);

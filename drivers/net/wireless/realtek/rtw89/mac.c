@@ -4126,16 +4126,23 @@ int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb)
 	return 0;
 }
 
+int rtw89_mac_preinit(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	ret = rtw89_mac_pwr_on(rtwdev);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 int rtw89_mac_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	bool include_bb = !!chip->bbmcu_nr;
 	int ret;
-
-	ret = rtw89_mac_pwr_on(rtwdev);
-	if (ret)
-		return ret;
 
 	ret = rtw89_mac_partial_init(rtwdev, include_bb);
 	if (ret)
