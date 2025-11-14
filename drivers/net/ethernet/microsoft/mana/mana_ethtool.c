@@ -15,59 +15,6 @@ struct mana_stats_desc {
 static const struct mana_stats_desc mana_eth_stats[] = {
 	{"stop_queue", offsetof(struct mana_ethtool_stats, stop_queue)},
 	{"wake_queue", offsetof(struct mana_ethtool_stats, wake_queue)},
-	{"hc_rx_discards_no_wqe", offsetof(struct mana_ethtool_stats,
-					   hc_rx_discards_no_wqe)},
-	{"hc_rx_err_vport_disabled", offsetof(struct mana_ethtool_stats,
-					      hc_rx_err_vport_disabled)},
-	{"hc_rx_bytes", offsetof(struct mana_ethtool_stats, hc_rx_bytes)},
-	{"hc_rx_ucast_pkts", offsetof(struct mana_ethtool_stats,
-				      hc_rx_ucast_pkts)},
-	{"hc_rx_ucast_bytes", offsetof(struct mana_ethtool_stats,
-				       hc_rx_ucast_bytes)},
-	{"hc_rx_bcast_pkts", offsetof(struct mana_ethtool_stats,
-				      hc_rx_bcast_pkts)},
-	{"hc_rx_bcast_bytes", offsetof(struct mana_ethtool_stats,
-				       hc_rx_bcast_bytes)},
-	{"hc_rx_mcast_pkts", offsetof(struct mana_ethtool_stats,
-			hc_rx_mcast_pkts)},
-	{"hc_rx_mcast_bytes", offsetof(struct mana_ethtool_stats,
-				       hc_rx_mcast_bytes)},
-	{"hc_tx_err_gf_disabled", offsetof(struct mana_ethtool_stats,
-					   hc_tx_err_gf_disabled)},
-	{"hc_tx_err_vport_disabled", offsetof(struct mana_ethtool_stats,
-					      hc_tx_err_vport_disabled)},
-	{"hc_tx_err_inval_vportoffset_pkt",
-	 offsetof(struct mana_ethtool_stats,
-		  hc_tx_err_inval_vportoffset_pkt)},
-	{"hc_tx_err_vlan_enforcement", offsetof(struct mana_ethtool_stats,
-						hc_tx_err_vlan_enforcement)},
-	{"hc_tx_err_eth_type_enforcement",
-	 offsetof(struct mana_ethtool_stats, hc_tx_err_eth_type_enforcement)},
-	{"hc_tx_err_sa_enforcement", offsetof(struct mana_ethtool_stats,
-					      hc_tx_err_sa_enforcement)},
-	{"hc_tx_err_sqpdid_enforcement",
-	 offsetof(struct mana_ethtool_stats, hc_tx_err_sqpdid_enforcement)},
-	{"hc_tx_err_cqpdid_enforcement",
-	 offsetof(struct mana_ethtool_stats, hc_tx_err_cqpdid_enforcement)},
-	{"hc_tx_err_mtu_violation", offsetof(struct mana_ethtool_stats,
-					     hc_tx_err_mtu_violation)},
-	{"hc_tx_err_inval_oob", offsetof(struct mana_ethtool_stats,
-					 hc_tx_err_inval_oob)},
-	{"hc_tx_err_gdma", offsetof(struct mana_ethtool_stats,
-				    hc_tx_err_gdma)},
-	{"hc_tx_bytes", offsetof(struct mana_ethtool_stats, hc_tx_bytes)},
-	{"hc_tx_ucast_pkts", offsetof(struct mana_ethtool_stats,
-					hc_tx_ucast_pkts)},
-	{"hc_tx_ucast_bytes", offsetof(struct mana_ethtool_stats,
-					hc_tx_ucast_bytes)},
-	{"hc_tx_bcast_pkts", offsetof(struct mana_ethtool_stats,
-					hc_tx_bcast_pkts)},
-	{"hc_tx_bcast_bytes", offsetof(struct mana_ethtool_stats,
-					hc_tx_bcast_bytes)},
-	{"hc_tx_mcast_pkts", offsetof(struct mana_ethtool_stats,
-					hc_tx_mcast_pkts)},
-	{"hc_tx_mcast_bytes", offsetof(struct mana_ethtool_stats,
-					hc_tx_mcast_bytes)},
 	{"tx_cq_err", offsetof(struct mana_ethtool_stats, tx_cqe_err)},
 	{"tx_cqe_unknown_type", offsetof(struct mana_ethtool_stats,
 					tx_cqe_unknown_type)},
@@ -75,6 +22,62 @@ static const struct mana_stats_desc mana_eth_stats[] = {
 					rx_coalesced_err)},
 	{"rx_cqe_unknown_type", offsetof(struct mana_ethtool_stats,
 					rx_cqe_unknown_type)},
+};
+
+static const struct mana_stats_desc mana_hc_stats[] = {
+	{"hc_rx_discards_no_wqe", offsetof(struct mana_ethtool_hc_stats,
+					   hc_rx_discards_no_wqe)},
+	{"hc_rx_err_vport_disabled", offsetof(struct mana_ethtool_hc_stats,
+					      hc_rx_err_vport_disabled)},
+	{"hc_rx_bytes", offsetof(struct mana_ethtool_hc_stats, hc_rx_bytes)},
+	{"hc_rx_ucast_pkts", offsetof(struct mana_ethtool_hc_stats,
+				      hc_rx_ucast_pkts)},
+	{"hc_rx_ucast_bytes", offsetof(struct mana_ethtool_hc_stats,
+				       hc_rx_ucast_bytes)},
+	{"hc_rx_bcast_pkts", offsetof(struct mana_ethtool_hc_stats,
+				      hc_rx_bcast_pkts)},
+	{"hc_rx_bcast_bytes", offsetof(struct mana_ethtool_hc_stats,
+				       hc_rx_bcast_bytes)},
+	{"hc_rx_mcast_pkts", offsetof(struct mana_ethtool_hc_stats,
+				      hc_rx_mcast_pkts)},
+	{"hc_rx_mcast_bytes", offsetof(struct mana_ethtool_hc_stats,
+				       hc_rx_mcast_bytes)},
+	{"hc_tx_err_gf_disabled", offsetof(struct mana_ethtool_hc_stats,
+					   hc_tx_err_gf_disabled)},
+	{"hc_tx_err_vport_disabled", offsetof(struct mana_ethtool_hc_stats,
+					      hc_tx_err_vport_disabled)},
+	{"hc_tx_err_inval_vportoffset_pkt",
+	 offsetof(struct mana_ethtool_hc_stats,
+		  hc_tx_err_inval_vportoffset_pkt)},
+	{"hc_tx_err_vlan_enforcement", offsetof(struct mana_ethtool_hc_stats,
+						hc_tx_err_vlan_enforcement)},
+	{"hc_tx_err_eth_type_enforcement",
+	 offsetof(struct mana_ethtool_hc_stats, hc_tx_err_eth_type_enforcement)},
+	{"hc_tx_err_sa_enforcement", offsetof(struct mana_ethtool_hc_stats,
+					      hc_tx_err_sa_enforcement)},
+	{"hc_tx_err_sqpdid_enforcement",
+	 offsetof(struct mana_ethtool_hc_stats, hc_tx_err_sqpdid_enforcement)},
+	{"hc_tx_err_cqpdid_enforcement",
+	 offsetof(struct mana_ethtool_hc_stats, hc_tx_err_cqpdid_enforcement)},
+	{"hc_tx_err_mtu_violation", offsetof(struct mana_ethtool_hc_stats,
+					     hc_tx_err_mtu_violation)},
+	{"hc_tx_err_inval_oob", offsetof(struct mana_ethtool_hc_stats,
+					 hc_tx_err_inval_oob)},
+	{"hc_tx_err_gdma", offsetof(struct mana_ethtool_hc_stats,
+				    hc_tx_err_gdma)},
+	{"hc_tx_bytes", offsetof(struct mana_ethtool_hc_stats, hc_tx_bytes)},
+	{"hc_tx_ucast_pkts", offsetof(struct mana_ethtool_hc_stats,
+					hc_tx_ucast_pkts)},
+	{"hc_tx_ucast_bytes", offsetof(struct mana_ethtool_hc_stats,
+					hc_tx_ucast_bytes)},
+	{"hc_tx_bcast_pkts", offsetof(struct mana_ethtool_hc_stats,
+					hc_tx_bcast_pkts)},
+	{"hc_tx_bcast_bytes", offsetof(struct mana_ethtool_hc_stats,
+					hc_tx_bcast_bytes)},
+	{"hc_tx_mcast_pkts", offsetof(struct mana_ethtool_hc_stats,
+					hc_tx_mcast_pkts)},
+	{"hc_tx_mcast_bytes", offsetof(struct mana_ethtool_hc_stats,
+					hc_tx_mcast_bytes)},
 };
 
 static const struct mana_stats_desc mana_phy_stats[] = {
@@ -138,7 +141,7 @@ static int mana_get_sset_count(struct net_device *ndev, int stringset)
 	if (stringset != ETH_SS_STATS)
 		return -EINVAL;
 
-	return ARRAY_SIZE(mana_eth_stats) + ARRAY_SIZE(mana_phy_stats) +
+	return ARRAY_SIZE(mana_eth_stats) + ARRAY_SIZE(mana_phy_stats) + ARRAY_SIZE(mana_hc_stats) +
 			num_queues * (MANA_STATS_RX_COUNT + MANA_STATS_TX_COUNT);
 }
 
@@ -150,9 +153,11 @@ static void mana_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 
 	if (stringset != ETH_SS_STATS)
 		return;
-
 	for (i = 0; i < ARRAY_SIZE(mana_eth_stats); i++)
 		ethtool_puts(&data, mana_eth_stats[i].name);
+
+	for (i = 0; i < ARRAY_SIZE(mana_hc_stats); i++)
+		ethtool_puts(&data, mana_hc_stats[i].name);
 
 	for (i = 0; i < ARRAY_SIZE(mana_phy_stats); i++)
 		ethtool_puts(&data, mana_phy_stats[i].name);
@@ -186,6 +191,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 	struct mana_port_context *apc = netdev_priv(ndev);
 	unsigned int num_queues = apc->num_queues;
 	void *eth_stats = &apc->eth_stats;
+	void *hc_stats = &apc->ac->hc_stats;
 	void *phy_stats = &apc->phy_stats;
 	struct mana_stats_rx *rx_stats;
 	struct mana_stats_tx *tx_stats;
@@ -208,7 +214,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 	if (!apc->port_is_up)
 		return;
 	/* we call mana function to update stats from GDMA */
-	mana_query_gf_stats(apc);
+	mana_query_gf_stats(apc->ac);
 
 	/* We call this mana function to get the phy stats from GDMA and includes
 	 * aggregate tx/rx drop counters, Per-TC(Traffic Channel) tx/rx and pause
@@ -218,6 +224,9 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 
 	for (q = 0; q < ARRAY_SIZE(mana_eth_stats); q++)
 		data[i++] = *(u64 *)(eth_stats + mana_eth_stats[q].offset);
+
+	for (q = 0; q < ARRAY_SIZE(mana_hc_stats); q++)
+		data[i++] = *(u64 *)(hc_stats + mana_hc_stats[q].offset);
 
 	for (q = 0; q < ARRAY_SIZE(mana_phy_stats); q++)
 		data[i++] = *(u64 *)(phy_stats + mana_phy_stats[q].offset);
