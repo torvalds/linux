@@ -792,7 +792,7 @@ static void do_ffa_version(struct arm_smccc_1_2_regs *res,
 			.a0 = FFA_VERSION,
 			.a1 = ffa_req_version,
 		}, res);
-		if (res->a0 == FFA_RET_NOT_SUPPORTED)
+		if ((s32)res->a0 == FFA_RET_NOT_SUPPORTED)
 			goto unlock;
 
 		hyp_ffa_version = ffa_req_version;
@@ -943,7 +943,7 @@ int hyp_ffa_init(void *pages)
 		.a0 = FFA_VERSION,
 		.a1 = FFA_VERSION_1_2,
 	}, &res);
-	if (res.a0 == FFA_RET_NOT_SUPPORTED)
+	if ((s32)res.a0 == FFA_RET_NOT_SUPPORTED)
 		return 0;
 
 	/*
