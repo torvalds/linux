@@ -1125,11 +1125,12 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	/* update the path */
 	if (left) {
 		if (btrfs_header_nritems(left) > orig_slot) {
-			refcount_inc(&left->refs);
 			/* left was locked after cow */
 			path->nodes[level] = left;
 			path->slots[level + 1] -= 1;
 			path->slots[level] = orig_slot;
+			/* Left is now owned by path. */
+			left = NULL;
 			if (mid) {
 				btrfs_tree_unlock(mid);
 				free_extent_buffer(mid);
@@ -1149,8 +1150,7 @@ out:
 		free_extent_buffer(right);
 	}
 	if (left) {
-		if (path->nodes[level] != left)
-			btrfs_tree_unlock(left);
+		btrfs_tree_unlock(left);
 		free_extent_buffer(left);
 	}
 	return ret;
