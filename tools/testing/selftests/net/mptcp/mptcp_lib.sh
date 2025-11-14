@@ -350,6 +350,19 @@ mptcp_lib_evts_get_info() {
 		mptcp_lib_get_info_value "${1}" "^type:${3:-1},"
 }
 
+mptcp_lib_wait_timeout() {
+	local timeout_test="${1}"
+	local listener_ns="${2}"
+	local connector_ns="${3}"
+	local port="${4}"
+	shift 4 # rest are PIDs
+
+	sleep "${timeout_test}"
+	mptcp_lib_print_err "timeout"
+	mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}"
+	kill "${@}" 2>/dev/null
+}
+
 # $1: PID
 mptcp_lib_kill_wait() {
 	[ "${1}" -eq 0 ] && return 0

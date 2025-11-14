@@ -158,24 +158,32 @@ do_transfer()
 	mptcp_lib_nstat_init "${ns3}"
 	mptcp_lib_nstat_init "${ns1}"
 
-	timeout ${timeout_test} \
-		ip netns exec ${ns3} \
-			./mptcp_connect -jt ${timeout_poll} -l -p $port -T $max_time \
-				0.0.0.0 < "$sin" > "$sout" &
+	ip netns exec ${ns3} \
+		./mptcp_connect -jt ${timeout_poll} -l -p $port -T $max_time \
+			0.0.0.0 < "$sin" > "$sout" &
 	local spid=$!
 
 	mptcp_lib_wait_local_port_listen "${ns3}" "${port}"
 
-	timeout ${timeout_test} \
-		ip netns exec ${ns1} \
-			./mptcp_connect -jt ${timeout_poll} -p $port -T $max_time \
-				10.0.3.3 < "$cin" > "$cout" &
+	ip netns exec ${ns1} \
+		./mptcp_connect -jt ${timeout_poll} -p $port -T $max_time \
+			10.0.3.3 < "$cin" > "$cout" &
 	local cpid=$!
+
+	mptcp_lib_wait_timeout "${timeout_test}" "${ns3}" "${ns1}" "${port}" \
+		"${cpid}" "${spid}" &
+	local timeout_pid=$!
 
 	wait $cpid
 	local retc=$?
 	wait $spid
 	local rets=$?
+
+	if kill -0 $timeout_pid; then
+		# Finished before the timeout: kill the background job
+		mptcp_lib_kill_group_wait $timeout_pid
+		timeout_pid=0
+	fi
 
 	if $capture; then
 		sleep 1
@@ -191,8 +199,9 @@ do_transfer()
 	cmp $cin $sout > /dev/null 2>&1
 	local cmpc=$?
 
-	if [ $retc -eq 0 ] && [ $rets -eq 0 ] && \
-	   [ $cmpc -eq 0 ] && [ $cmps -eq 0 ]; then
+	if [ $retc -eq 0 ] && [ $rets -eq 0 ] &&
+	   [ $cmpc -eq 0 ] && [ $cmps -eq 0 ] &&
+	   [ $timeout_pid -eq 0 ]; then
 		printf "%-16s" " max $max_time "
 		mptcp_lib_pr_ok
 		cat "$capout"
