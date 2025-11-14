@@ -390,9 +390,9 @@ mptcp_lib_nstat_init() {
 mptcp_lib_nstat_get() {
 	local ns="${1}"
 
-	# filter out non-*TCP stats
+	# filter out non-*TCP stats, and the rate (last column)
 	NSTAT_HISTORY="/tmp/${ns}.nstat" ip netns exec "${ns}" nstat |
-		grep Tcp > "/tmp/${ns}.out"
+		grep -o ".*Tcp\S\+\s\+[0-9]\+" > "/tmp/${ns}.out"
 }
 
 # $1: ns, $2: MIB counter
