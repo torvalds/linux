@@ -131,8 +131,6 @@ static void loongson_default_data(struct pci_dev *pdev,
 		break;
 	default:
 		ld->multichan = 0;
-		plat->tx_queues_to_use = 1;
-		plat->rx_queues_to_use = 1;
 		break;
 	}
 }

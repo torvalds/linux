@@ -137,13 +137,6 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	u8 queue = 0;
 	int ret = 0;
 
-	/* For backwards-compatibility with device trees that don't have any
-	 * snps,mtl-rx-config or snps,mtl-tx-config properties, we fall back
-	 * to one RX and TX queues each.
-	 */
-	plat->rx_queues_to_use = 1;
-	plat->tx_queues_to_use = 1;
-
 	/* First Queue must always be in DCB mode. As MTL_QUEUE_DCB = 1 we need
 	 * to always set this, otherwise Queue will be classified as AVB
 	 * (because MTL_QUEUE_AVB = 0).
@@ -162,9 +155,8 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	}
 
 	/* Processing RX queues common config */
-	if (of_property_read_u32(rx_node, "snps,rx-queues-to-use",
-				 &plat->rx_queues_to_use))
-		plat->rx_queues_to_use = 1;
+	of_property_read_u32(rx_node, "snps,rx-queues-to-use",
+			     &plat->rx_queues_to_use);
 
 	if (of_property_read_bool(rx_node, "snps,rx-sched-sp"))
 		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
@@ -221,9 +213,8 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	}
 
 	/* Processing TX queues common config */
-	if (of_property_read_u32(tx_node, "snps,tx-queues-to-use",
-				 &plat->tx_queues_to_use))
-		plat->tx_queues_to_use = 1;
+	of_property_read_u32(tx_node, "snps,tx-queues-to-use",
+			     &plat->tx_queues_to_use);
 
 	if (of_property_read_bool(tx_node, "snps,tx-sched-wrr"))
 		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;

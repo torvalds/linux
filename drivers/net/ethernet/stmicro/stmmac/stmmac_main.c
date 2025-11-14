@@ -7576,6 +7576,10 @@ struct plat_stmmacenet_data *stmmac_plat_dat_alloc(struct device *dev)
 	plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
 	plat_dat->unicast_filter_entries = 1;
 
+	/* Set the mtl defaults */
+	plat_dat->tx_queues_to_use = 1;
+	plat_dat->rx_queues_to_use = 1;
+
 	return plat_dat;
 }
 EXPORT_SYMBOL_GPL(stmmac_plat_dat_alloc);
