@@ -82,8 +82,12 @@ config RUSTC_LLVM_VERSION
 	int
 	default $(rustc-llvm-version)
 
+config ARCH_HAS_CC_CAN_LINK
+	bool
+
 config CC_CAN_LINK
 	bool
+	default ARCH_CC_CAN_LINK if ARCH_HAS_CC_CAN_LINK
 	default $(cc_can_link_user,$(m64-flag)) if 64BIT
 	default $(cc_can_link_user,$(m32-flag))
 
