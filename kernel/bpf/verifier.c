@@ -3391,16 +3391,43 @@ static int kfunc_desc_cmp_by_imm_off(const void *a, const void *b)
 	return 0;
 }
 
-static void sort_kfunc_descs_by_imm_off(struct bpf_prog *prog)
+static int set_kfunc_desc_imm(struct bpf_verifier_env *env, struct bpf_kfunc_desc *desc)
+{
+	unsigned long call_imm;
+
+	if (bpf_jit_supports_far_kfunc_call()) {
+		call_imm = desc->func_id;
+	} else {
+		call_imm = BPF_CALL_IMM(desc->addr);
+		/* Check whether the relative offset overflows desc->imm */
+		if ((unsigned long)(s32)call_imm != call_imm) {
+			verbose(env, "address of kernel func_id %u is out of range\n",
+				desc->func_id);
+			return -EINVAL;
+		}
+	}
+	desc->imm = call_imm;
+	return 0;
+}
+
+static int sort_kfunc_descs_by_imm_off(struct bpf_verifier_env *env)
 {
 	struct bpf_kfunc_desc_tab *tab;
+	int i, err;
 
-	tab = prog->aux->kfunc_tab;
+	tab = env->prog->aux->kfunc_tab;
 	if (!tab)
-		return;
+		return 0;
+
+	for (i = 0; i < tab->nr_descs; i++) {
+		err = set_kfunc_desc_imm(env, &tab->descs[i]);
+		if (err)
+			return err;
+	}
 
 	sort(tab->descs, tab->nr_descs, sizeof(tab->descs[0]),
 	     kfunc_desc_cmp_by_imm_off, NULL);
+	return 0;
 }
 
 bool bpf_prog_has_kfunc_call(const struct bpf_prog *prog)
@@ -22323,10 +22350,10 @@ static int specialize_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_desc 
 	bool is_rdonly;
 	u32 func_id = desc->func_id;
 	u16 offset = desc->offset;
-	unsigned long addr = desc->addr, call_imm;
+	unsigned long addr = desc->addr;
 
 	if (offset) /* return if module BTF is used */
-		goto set_imm;
+		return 0;
 
 	if (bpf_dev_bound_kfunc_id(func_id)) {
 		xdp_kfunc = bpf_dev_bound_resolve_kfunc(prog, func_id);
@@ -22354,19 +22381,6 @@ static int specialize_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_desc 
 		if (!env->insn_aux_data[insn_idx].non_sleepable)
 			addr = (unsigned long)bpf_dynptr_from_file_sleepable;
 	}
-
-set_imm:
-	if (bpf_jit_supports_far_kfunc_call()) {
-		call_imm = func_id;
-	} else {
-		call_imm = BPF_CALL_IMM(addr);
-		/* Check whether the relative offset overflows desc->imm */
-		if ((unsigned long)(s32)call_imm != call_imm) {
-			verbose(env, "address of kernel func_id %u is out of range\n", func_id);
-			return -EINVAL;
-		}
-	}
-	desc->imm = call_imm;
 	desc->addr = addr;
 	return 0;
 }
@@ -23444,7 +23458,9 @@ next_insn:
 		}
 	}
 
-	sort_kfunc_descs_by_imm_off(env->prog);
+	ret = sort_kfunc_descs_by_imm_off(env);
+	if (ret)
+		return ret;
 
 	return 0;
 }
