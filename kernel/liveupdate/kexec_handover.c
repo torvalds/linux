@@ -185,10 +185,6 @@ static int __kho_preserve_order(struct kho_mem_track *track, unsigned long pfn,
 	const unsigned long pfn_high = pfn >> order;
 
 	might_sleep();
-
-	if (kho_out.finalized)
-		return -EBUSY;
-
 	physxa = xa_load(&track->orders, order);
 	if (!physxa) {
 		int err;
@@ -807,20 +803,14 @@ EXPORT_SYMBOL_GPL(kho_preserve_folio);
  * Instructs KHO to unpreserve a folio that was preserved by
  * kho_preserve_folio() before. The provided @folio (pfn and order)
  * must exactly match a previously preserved folio.
- *
- * Return: 0 on success, error code on failure
  */
-int kho_unpreserve_folio(struct folio *folio)
+void kho_unpreserve_folio(struct folio *folio)
 {
 	const unsigned long pfn = folio_pfn(folio);
 	const unsigned int order = folio_order(folio);
 	struct kho_mem_track *track = &kho_out.track;
 
-	if (kho_out.finalized)
-		return -EBUSY;
-
 	__kho_unpreserve_order(track, pfn, order);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(kho_unpreserve_folio);
 
@@ -877,21 +867,14 @@ EXPORT_SYMBOL_GPL(kho_preserve_pages);
  * This must be called with the same @page and @nr_pages as the corresponding
  * kho_preserve_pages() call. Unpreserving arbitrary sub-ranges of larger
  * preserved blocks is not supported.
- *
- * Return: 0 on success, error code on failure
  */
-int kho_unpreserve_pages(struct page *page, unsigned int nr_pages)
+void kho_unpreserve_pages(struct page *page, unsigned int nr_pages)
 {
 	struct kho_mem_track *track = &kho_out.track;
 	const unsigned long start_pfn = page_to_pfn(page);
 	const unsigned long end_pfn = start_pfn + nr_pages;
 
-	if (kho_out.finalized)
-		return -EBUSY;
-
 	__kho_unpreserve(track, start_pfn, end_pfn);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(kho_unpreserve_pages);
 
@@ -976,20 +959,6 @@ static void kho_vmalloc_unpreserve_chunk(struct kho_vmalloc_chunk *chunk,
 	}
 }
 
-static void kho_vmalloc_free_chunks(struct kho_vmalloc *kho_vmalloc)
-{
-	struct kho_vmalloc_chunk *chunk = KHOSER_LOAD_PTR(kho_vmalloc->first);
-
-	while (chunk) {
-		struct kho_vmalloc_chunk *tmp = chunk;
-
-		kho_vmalloc_unpreserve_chunk(chunk, kho_vmalloc->order);
-
-		chunk = KHOSER_LOAD_PTR(chunk->hdr.next);
-		free_page((unsigned long)tmp);
-	}
-}
-
 /**
  * kho_preserve_vmalloc - preserve memory allocated with vmalloc() across kexec
  * @ptr: pointer to the area in vmalloc address space
@@ -1051,7 +1020,7 @@ int kho_preserve_vmalloc(void *ptr, struct kho_vmalloc *preservation)
 	return 0;
 
 err_free:
-	kho_vmalloc_free_chunks(preservation);
+	kho_unpreserve_vmalloc(preservation);
 	return err;
 }
 EXPORT_SYMBOL_GPL(kho_preserve_vmalloc);
@@ -1062,17 +1031,19 @@ EXPORT_SYMBOL_GPL(kho_preserve_vmalloc);
  *
  * Instructs KHO to unpreserve the area in vmalloc address space that was
  * previously preserved with kho_preserve_vmalloc().
- *
- * Return: 0 on success, error code on failure
  */
-int kho_unpreserve_vmalloc(struct kho_vmalloc *preservation)
+void kho_unpreserve_vmalloc(struct kho_vmalloc *preservation)
 {
-	if (kho_out.finalized)
-		return -EBUSY;
+	struct kho_vmalloc_chunk *chunk = KHOSER_LOAD_PTR(preservation->first);
 
-	kho_vmalloc_free_chunks(preservation);
+	while (chunk) {
+		struct kho_vmalloc_chunk *tmp = chunk;
 
-	return 0;
+		kho_vmalloc_unpreserve_chunk(chunk, preservation->order);
+
+		chunk = KHOSER_LOAD_PTR(chunk->hdr.next);
+		free_page((unsigned long)tmp);
+	}
 }
 EXPORT_SYMBOL_GPL(kho_unpreserve_vmalloc);
 
@@ -1221,7 +1192,7 @@ void kho_unpreserve_free(void *mem)
 		return;
 
 	folio = virt_to_folio(mem);
-	WARN_ON_ONCE(kho_unpreserve_folio(folio));
+	kho_unpreserve_folio(folio);
 	folio_put(folio);
 }
 EXPORT_SYMBOL_GPL(kho_unpreserve_free);
