@@ -34,9 +34,6 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 	/* Set default value for unicast filter entries */
 	plat->unicast_filter_entries = 1;
 
-	/* Set the maxmtu to a default of JUMBO_LEN */
-	plat->maxmtu = JUMBO_LEN;
-
 	/* Set default number of RX and TX queues to use */
 	plat->tx_queues_to_use = 1;
 	plat->rx_queues_to_use = 1;
@@ -86,9 +83,6 @@ static int snps_gmac5_default_data(struct pci_dev *pdev,
 
 	/* Set default value for unicast filter entries */
 	plat->unicast_filter_entries = 1;
-
-	/* Set the maxmtu to a default of JUMBO_LEN */
-	plat->maxmtu = JUMBO_LEN;
 
 	/* Set default number of RX and TX queues to use */
 	plat->tx_queues_to_use = 4;

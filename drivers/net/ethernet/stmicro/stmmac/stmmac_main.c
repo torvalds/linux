@@ -7566,9 +7566,11 @@ struct plat_stmmacenet_data *stmmac_plat_dat_alloc(struct device *dev)
 	/* Set the defaults:
 	 * - phy autodetection
 	 * - determine GMII_Address CR field from CSR clock
+	 * - allow MTU up to JUMBO_LEN
 	 */
 	plat_dat->phy_addr = -1;
 	plat_dat->clk_csr = -1;
+	plat_dat->maxmtu = JUMBO_LEN;
 
 	return plat_dat;
 }
