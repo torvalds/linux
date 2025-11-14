@@ -5309,8 +5309,19 @@ rtw89_mac_c2h_bcn_cnt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 }
 
 static void
-rtw89_mac_c2h_bcn_upd_done(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+rtw89_mac_c2h_bcn_upd_done(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 len)
 {
+	const struct rtw89_c2h_bcn_upd_done *c2h =
+		(const struct rtw89_c2h_bcn_upd_done *)skb_c2h->data;
+	u8 band, port, mbssid;
+
+	port = le32_get_bits(c2h->w2, RTW89_C2H_BCN_UPD_DONE_W2_PORT);
+	mbssid = le32_get_bits(c2h->w2, RTW89_C2H_BCN_UPD_DONE_W2_MBSSID);
+	band = le32_get_bits(c2h->w2, RTW89_C2H_BCN_UPD_DONE_W2_BAND_IDX);
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW,
+		    "BCN update done on port:%d mbssid:%d band:%d\n",
+		    port, mbssid, band);
 }
 
 static void

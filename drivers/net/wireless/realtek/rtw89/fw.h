@@ -3648,6 +3648,15 @@ struct rtw89_fw_c2h_log_fmt {
 #define RTW89_C2H_FW_LOG_SIGNATURE 0xA5A5
 #define RTW89_C2H_FW_LOG_STR_BUF_SIZE 512
 
+struct rtw89_c2h_bcn_upd_done {
+	struct rtw89_c2h_hdr hdr;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_BCN_UPD_DONE_W2_PORT GENMASK(2, 0)
+#define RTW89_C2H_BCN_UPD_DONE_W2_MBSSID GENMASK(6, 3)
+#define RTW89_C2H_BCN_UPD_DONE_W2_BAND_IDX BIT(7)
+
 struct rtw89_c2h_mac_bcnfltr_rpt {
 	__le32 w0;
 	__le32 w1;
