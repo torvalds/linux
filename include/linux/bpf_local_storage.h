@@ -187,7 +187,6 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner, void *value,
 		bool swap_uptrs, gfp_t gfp_flags);
 
 void bpf_selem_free(struct bpf_local_storage_elem *selem,
-		    struct bpf_local_storage_map *smap,
 		    bool reuse_now);
 
 int

@@ -97,6 +97,8 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner,
 	}
 
 	if (selem) {
+		RCU_INIT_POINTER(SDATA(selem)->smap, smap);
+
 		if (value) {
 			/* No need to call check_and_init_map_value as memory is zero init */
 			copy_map_value(&smap->map, SDATA(selem)->data, value);
@@ -227,9 +229,12 @@ static void bpf_selem_free_trace_rcu(struct rcu_head *rcu)
 }
 
 void bpf_selem_free(struct bpf_local_storage_elem *selem,
-		    struct bpf_local_storage_map *smap,
 		    bool reuse_now)
 {
+	struct bpf_local_storage_map *smap;
+
+	smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
+
 	if (!smap->bpf_ma) {
 		/* Only task storage has uptrs and task storage
 		 * has moved to bpf_mem_alloc. Meaning smap->bpf_ma == true
@@ -263,7 +268,6 @@ void bpf_selem_free(struct bpf_local_storage_elem *selem,
 static void bpf_selem_free_list(struct hlist_head *list, bool reuse_now)
 {
 	struct bpf_local_storage_elem *selem;
-	struct bpf_local_storage_map *smap;
 	struct hlist_node *n;
 
 	/* The "_safe" iteration is needed.
@@ -271,10 +275,8 @@ static void bpf_selem_free_list(struct hlist_head *list, bool reuse_now)
 	 * but bpf_selem_free will use the selem->rcu_head
 	 * which is union-ized with the selem->free_node.
 	 */
-	hlist_for_each_entry_safe(selem, n, list, free_node) {
-		smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
-		bpf_selem_free(selem, smap, reuse_now);
-	}
+	hlist_for_each_entry_safe(selem, n, list, free_node)
+		bpf_selem_free(selem, reuse_now);
 }
 
 /* local_storage->lock must be held and selem->local_storage == local_storage.
@@ -432,7 +434,6 @@ void bpf_selem_link_map(struct bpf_local_storage_map *smap,
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&b->lock, flags);
-	RCU_INIT_POINTER(SDATA(selem)->smap, smap);
 	hlist_add_head_rcu(&selem->map_node, &b->list);
 	raw_spin_unlock_irqrestore(&b->lock, flags);
 }
@@ -586,7 +587,7 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 
 		err = bpf_local_storage_alloc(owner, smap, selem, gfp_flags);
 		if (err) {
-			bpf_selem_free(selem, smap, true);
+			bpf_selem_free(selem, true);
 			mem_uncharge(smap, owner, smap->elem_size);
 			return ERR_PTR(err);
 		}
@@ -662,7 +663,7 @@ unlock:
 	bpf_selem_free_list(&old_selem_free_list, false);
 	if (alloc_selem) {
 		mem_uncharge(smap, owner, smap->elem_size);
-		bpf_selem_free(alloc_selem, smap, true);
+		bpf_selem_free(alloc_selem, true);
 	}
 	return err ? ERR_PTR(err) : SDATA(selem);
 }
