@@ -205,6 +205,11 @@ struct gve_rx_buf_state_dqo {
 	s16 next;
 };
 
+/* Wrapper for XDP Rx metadata */
+struct gve_xdp_buff {
+	struct xdp_buff xdp;
+};
+
 /* `head` and `tail` are indices into an array, or -1 if empty. */
 struct gve_index_list {
 	s16 head;
