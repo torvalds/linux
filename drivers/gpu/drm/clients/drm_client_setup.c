@@ -13,8 +13,8 @@
 static char drm_client_default[16] = CONFIG_DRM_CLIENT_DEFAULT;
 module_param_string(active, drm_client_default, sizeof(drm_client_default), 0444);
 MODULE_PARM_DESC(active,
-		 "Choose which drm client to start, default is"
-		 CONFIG_DRM_CLIENT_DEFAULT "]");
+		 "Choose which drm client to start, default is "
+		 CONFIG_DRM_CLIENT_DEFAULT);
 
 /**
  * drm_client_setup() - Setup in-kernel DRM clients
