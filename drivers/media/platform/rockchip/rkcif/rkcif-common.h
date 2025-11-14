@@ -24,6 +24,8 @@
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "rkcif-regs.h"
+
 #define RKCIF_DRIVER_NAME "rockchip-cif"
 #define RKCIF_CLK_MAX	  4
 
@@ -84,17 +86,31 @@ struct rkcif_dummy_buffer {
 	u32 size;
 };
 
+enum rkcif_plane_index {
+	RKCIF_PLANE_Y,
+	RKCIF_PLANE_UV,
+	RKCIF_PLANE_MAX
+};
+
 struct rkcif_input_fmt {
 	u32 mbus_code;
 
 	enum rkcif_format_type fmt_type;
 	enum v4l2_field field;
+
+	union {
+		u32 dvp_fmt_val;
+	};
 };
 
 struct rkcif_output_fmt {
 	u32 fourcc;
 	u32 mbus_code;
 	u8 cplanes;
+
+	union {
+		u32 dvp_fmt_val;
+	};
 };
 
 struct rkcif_interface;
@@ -168,9 +184,21 @@ struct rkcif_interface {
 	void (*set_crop)(struct rkcif_stream *stream, u16 left, u16 top);
 };
 
+struct rkcif_dvp_match_data {
+	const struct rkcif_input_fmt *in_fmts;
+	unsigned int in_fmts_num;
+	const struct rkcif_output_fmt *out_fmts;
+	unsigned int out_fmts_num;
+	void (*setup)(struct rkcif_device *rkcif);
+	bool has_scaler;
+	bool has_ids;
+	unsigned int regs[RKCIF_DVP_REGISTER_MAX];
+};
+
 struct rkcif_match_data {
 	const char *const *clks;
 	unsigned int clks_num;
+	const struct rkcif_dvp_match_data *dvp;
 };
 
 struct rkcif_device {

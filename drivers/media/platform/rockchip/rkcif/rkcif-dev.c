@@ -23,6 +23,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
 
+#include "rkcif-capture-dvp.h"
 #include "rkcif-common.h"
 
 static const char *const px30_vip_clks[] = {
@@ -34,6 +35,7 @@ static const char *const px30_vip_clks[] = {
 static const struct rkcif_match_data px30_vip_match_data = {
 	.clks = px30_vip_clks,
 	.clks_num = ARRAY_SIZE(px30_vip_clks),
+	.dvp = &rkcif_px30_vip_dvp_match_data,
 };
 
 static const char *const rk3568_vicap_clks[] = {
@@ -63,11 +65,21 @@ MODULE_DEVICE_TABLE(of, rkcif_plat_of_match);
 
 static int rkcif_register(struct rkcif_device *rkcif)
 {
+	int ret;
+
+	ret = rkcif_dvp_register(rkcif);
+	if (ret && ret != -ENODEV)
+		goto err;
+
 	return 0;
+
+err:
+	return ret;
 }
 
 static void rkcif_unregister(struct rkcif_device *rkcif)
 {
+	rkcif_dvp_unregister(rkcif);
 }
 
 static int rkcif_notifier_bound(struct v4l2_async_notifier *notifier,
@@ -111,6 +123,9 @@ static const struct v4l2_async_notifier_operations rkcif_notifier_ops = {
 static irqreturn_t rkcif_isr(int irq, void *ctx)
 {
 	irqreturn_t ret = IRQ_NONE;
+
+	if (rkcif_dvp_isr(irq, ctx) == IRQ_HANDLED)
+		ret = IRQ_HANDLED;
 
 	return ret;
 }
