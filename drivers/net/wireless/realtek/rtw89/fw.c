@@ -161,6 +161,11 @@ static int rtw89_fw_hdr_parser_v0(struct rtw89_dev *rtwdev, const u8 *fw, u32 le
 	info->dynamic_hdr_en = le32_get_bits(fw_hdr->w7, FW_HDR_W7_DYN_HDR);
 	info->idmem_share_mode = le32_get_bits(fw_hdr->w7, FW_HDR_W7_IDMEM_SHARE_MODE);
 
+	if (chip->chip_gen == RTW89_CHIP_AX)
+		info->part_size = FWDL_SECTION_PER_PKT_LEN;
+	else
+		info->part_size = le32_get_bits(fw_hdr->w7, FW_HDR_W7_PART_SIZE);
+
 	if (info->dynamic_hdr_en) {
 		info->hdr_len = le32_get_bits(fw_hdr->w3, FW_HDR_W3_LEN);
 		info->dynamic_hdr_len = info->hdr_len - base_hdr_len;
@@ -439,6 +444,7 @@ static int rtw89_fw_hdr_parser_v1(struct rtw89_dev *rtwdev, const u8 *fw, u32 le
 				  struct rtw89_fw_bin_info *info)
 {
 	const struct rtw89_fw_hdr_v1 *fw_hdr = (const struct rtw89_fw_hdr_v1 *)fw;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_fw_hdr_section_info *section_info;
 	const struct rtw89_fw_dynhdr_hdr *fwdynhdr;
 	const struct rtw89_fw_hdr_section_v1 *section;
@@ -454,6 +460,11 @@ static int rtw89_fw_hdr_parser_v1(struct rtw89_dev *rtwdev, const u8 *fw, u32 le
 	base_hdr_len = struct_size(fw_hdr, sections, info->section_num);
 	info->dynamic_hdr_en = le32_get_bits(fw_hdr->w7, FW_HDR_V1_W7_DYN_HDR);
 	info->idmem_share_mode = le32_get_bits(fw_hdr->w7, FW_HDR_V1_W7_IDMEM_SHARE_MODE);
+
+	if (chip->chip_gen == RTW89_CHIP_AX)
+		info->part_size = FWDL_SECTION_PER_PKT_LEN;
+	else
+		info->part_size = le32_get_bits(fw_hdr->w7, FW_HDR_V1_W7_PART_SIZE);
 
 	if (info->dynamic_hdr_en) {
 		info->hdr_len = le32_get_bits(fw_hdr->w5, FW_HDR_V1_W5_HDR_SIZE);
@@ -1516,8 +1527,7 @@ static u32 __rtw89_fw_download_tweak_hdr_v0(struct rtw89_dev *rtwdev,
 	struct rtw89_fw_hdr_section *section;
 	int i;
 
-	le32p_replace_bits(&fw_hdr->w7, FWDL_SECTION_PER_PKT_LEN,
-			   FW_HDR_W7_PART_SIZE);
+	le32p_replace_bits(&fw_hdr->w7, info->part_size, FW_HDR_W7_PART_SIZE);
 
 	for (i = 0; i < info->section_num; i++) {
 		section_info = &info->section_info[i];
@@ -1542,8 +1552,7 @@ static u32 __rtw89_fw_download_tweak_hdr_v1(struct rtw89_dev *rtwdev,
 	u8 dst_sec_idx = 0;
 	u8 sec_idx;
 
-	le32p_replace_bits(&fw_hdr->w7, FWDL_SECTION_PER_PKT_LEN,
-			   FW_HDR_V1_W7_PART_SIZE);
+	le32p_replace_bits(&fw_hdr->w7, info->part_size, FW_HDR_V1_W7_PART_SIZE);
 
 	for (sec_idx = 0; sec_idx < info->section_num; sec_idx++) {
 		section_info = &info->section_info[sec_idx];
@@ -1645,7 +1654,8 @@ static int rtw89_fw_download_hdr(struct rtw89_dev *rtwdev,
 }
 
 static int __rtw89_fw_download_main(struct rtw89_dev *rtwdev,
-				    struct rtw89_fw_hdr_section_info *info)
+				    struct rtw89_fw_hdr_section_info *info,
+				    u32 part_size)
 {
 	struct sk_buff *skb;
 	const u8 *section = info->addr;
@@ -1666,20 +1676,17 @@ static int __rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 	}
 
 	if (info->key_addr && info->key_len) {
-		if (residue_len > FWDL_SECTION_PER_PKT_LEN || info->len < info->key_len)
+		if (residue_len > part_size || info->len < info->key_len)
 			rtw89_warn(rtwdev,
 				   "ignore to copy key data because of len %d, %d, %d, %d\n",
-				   info->len, FWDL_SECTION_PER_PKT_LEN,
+				   info->len, part_size,
 				   info->key_len, residue_len);
 		else
 			copy_key = true;
 	}
 
 	while (residue_len) {
-		if (residue_len >= FWDL_SECTION_PER_PKT_LEN)
-			pkt_len = FWDL_SECTION_PER_PKT_LEN;
-		else
-			pkt_len = residue_len;
+		pkt_len = min(residue_len, part_size);
 
 		skb = rtw89_fw_h2c_alloc_skb_no_hdr(rtwdev, pkt_len);
 		if (!skb) {
@@ -1734,7 +1741,7 @@ static int rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 	int ret;
 
 	while (section_num--) {
-		ret = __rtw89_fw_download_main(rtwdev, section_info);
+		ret = __rtw89_fw_download_main(rtwdev, section_info, info->part_size);
 		if (ret)
 			return ret;
 		section_info++;

@@ -297,6 +297,7 @@ struct rtw89_fw_hdr_section_info {
 
 struct rtw89_fw_bin_info {
 	u8 section_num;
+	u32 part_size;
 	u32 hdr_len;
 	bool dynamic_hdr_en;
 	u32 dynamic_hdr_len;
