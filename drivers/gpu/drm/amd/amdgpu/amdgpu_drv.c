@@ -623,7 +623,7 @@ module_param_named(timeout_period, amdgpu_watchdog_timer.period, uint, 0644);
  * SI (Southern Islands) are first generation GCN GPUs, supported by both
  * drivers: radeon (old) and amdgpu (new). This parameter controls whether
  * amdgpu should support SI.
- * By default, SI chips are supported by radeon (except when radeon is not built).
+ * By default, SI dedicated GPUs are supported by amdgpu.
  * Only relevant when CONFIG_DRM_AMDGPU_SI is enabled to build SI support in amdgpu.
  * See also radeon.si_support which should be disabled when amdgpu.si_support is
  * enabled, and vice versa.
@@ -2326,6 +2326,7 @@ static bool amdgpu_support_enabled(struct device *dev,
 		param = "si_support";
 		module_param = amdgpu_si_support;
 		amdgpu_support_built = IS_ENABLED(CONFIG_DRM_AMDGPU_SI);
+		support_by_default = true;
 		break;
 
 	case CHIP_BONAIRE:

@@ -273,6 +273,7 @@ static bool radeon_support_enabled(struct device *dev,
 		gen = "SI";
 		module_param = radeon_si_support;
 		amdgpu_support_built &= IS_ENABLED(CONFIG_DRM_AMDGPU_SI);
+		support_by_default = false;
 		break;
 
 	case CHIP_BONAIRE:
