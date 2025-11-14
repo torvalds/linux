@@ -79,6 +79,7 @@ pub(crate) enum GspSeqCmd {
     CoreReset,
     CoreStart,
     CoreWaitForHalt,
+    CoreResume,
 }
 
 impl GspSeqCmd {
@@ -116,7 +117,7 @@ impl GspSeqCmd {
             fw::SeqBufOpcode::CoreReset => (GspSeqCmd::CoreReset, opcode_size),
             fw::SeqBufOpcode::CoreStart => (GspSeqCmd::CoreStart, opcode_size),
             fw::SeqBufOpcode::CoreWaitForHalt => (GspSeqCmd::CoreWaitForHalt, opcode_size),
-            _ => return Err(EINVAL),
+            fw::SeqBufOpcode::CoreResume => (GspSeqCmd::CoreResume, opcode_size),
         };
 
         if data.len() < size {
@@ -129,7 +130,6 @@ impl GspSeqCmd {
 }
 
 /// GSP Sequencer for executing firmware commands during boot.
-#[expect(dead_code)]
 pub(crate) struct GspSequencer<'a> {
     /// Sequencer information with command data.
     seq_info: GspSequence,
@@ -231,6 +231,46 @@ impl GspSeqCmdRunner for GspSeqCmd {
             }
             GspSeqCmd::CoreWaitForHalt => {
                 seq.gsp_falcon.wait_till_halted(seq.bar)?;
+                Ok(())
+            }
+            GspSeqCmd::CoreResume => {
+                // At this point, 'SEC2-RTOS' has been loaded into SEC2 by the sequencer
+                // but neither SEC2-RTOS nor GSP-RM is running yet. This part of the
+                // sequencer will start both.
+
+                // Reset the GSP to prepare it for resuming.
+                seq.gsp_falcon.reset(seq.bar)?;
+
+                // Write the libOS DMA handle to GSP mailboxes.
+                seq.gsp_falcon.write_mailboxes(
+                    seq.bar,
+                    Some(seq.libos_dma_handle as u32),
+                    Some((seq.libos_dma_handle >> 32) as u32),
+                );
+
+                // Start the SEC2 falcon which will trigger GSP-RM to resume on the GSP.
+                seq.sec2_falcon.start(seq.bar)?;
+
+                // Poll until GSP-RM reload/resume has completed (up to 2 seconds).
+                seq.gsp_falcon
+                    .check_reload_completed(seq.bar, Delta::from_secs(2))?;
+
+                // Verify SEC2 completed successfully by checking its mailbox for errors.
+                let mbox0 = seq.sec2_falcon.read_mailbox0(seq.bar);
+                if mbox0 != 0 {
+                    dev_err!(seq.dev, "Sequencer: sec2 errors: {:?}\n", mbox0);
+                    return Err(EIO);
+                }
+
+                // Configure GSP with the bootloader version.
+                seq.gsp_falcon
+                    .write_os_version(seq.bar, seq.bootloader_app_version);
+
+                // Verify the GSP's RISC-V core is active indicating successful GSP boot.
+                if !seq.gsp_falcon.is_riscv_active(seq.bar) {
+                    dev_err!(seq.dev, "Sequencer: RISC-V core is not active\n");
+                    return Err(EIO);
+                }
                 Ok(())
             }
         }

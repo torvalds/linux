@@ -45,7 +45,6 @@ impl Falcon<Gsp> {
     }
 
     /// Checks if GSP reload/resume has completed during the boot process.
-    #[expect(dead_code)]
     pub(crate) fn check_reload_completed(&self, bar: &Bar0, timeout: Delta) -> Result<bool> {
         read_poll_timeout(
             || Ok(regs::NV_PGC6_BSI_SECURE_SCRATCH_14::read(bar)),
