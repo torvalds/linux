@@ -384,11 +384,9 @@ do_transfer()
 		sleep 1
 	fi
 
-	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
-		nstat -n
+	mptcp_lib_nstat_init "${listener_ns}"
 	if [ ${listener_ns} != ${connector_ns} ]; then
-		NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
-			nstat -n
+		mptcp_lib_nstat_init "${connector_ns}"
 	fi
 
 	local stat_synrx_last_l
@@ -436,11 +434,9 @@ do_transfer()
 		kill ${cappid_connector}
 	fi
 
-	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
-		nstat | grep Tcp > /tmp/${listener_ns}.out
+	mptcp_lib_nstat_get "${listener_ns}"
 	if [ ${listener_ns} != ${connector_ns} ]; then
-		NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
-			nstat | grep Tcp > /tmp/${connector_ns}.out
+		mptcp_lib_nstat_get "${connector_ns}"
 	fi
 
 	local duration
