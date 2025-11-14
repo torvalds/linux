@@ -2496,6 +2496,7 @@ struct dmub_fams2_drr_stream_static_state {
 struct dmub_fams2_cmd_legacy_stream_static_state {
 	uint16_t vactive_det_fill_delay_otg_vlines;
 	uint16_t programming_delay_otg_vlines;
+	uint32_t disallow_time_us;
 }; //v1
 
 struct dmub_fams2_cmd_subvp_stream_static_state {
@@ -2630,7 +2631,8 @@ union dmub_fams2_global_feature_config {
 		uint32_t enable_offload_flip: 1;
 		uint32_t enable_visual_confirm: 1;
 		uint32_t allow_delay_check_mode: 2;
-		uint32_t reserved: 24;
+		uint32_t legacy_method_no_fams2 : 1;
+		uint32_t reserved: 23;
 	} bits;
 	uint32_t all;
 };
