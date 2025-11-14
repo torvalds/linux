@@ -969,6 +969,7 @@ static int rtw89_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		}
 		break;
 	case DISABLE_KEY:
+		flush_work(&rtwdev->txq_work);
 		rtw89_hci_flush_queues(rtwdev, BIT(rtwdev->hw->queues) - 1,
 				       false);
 		rtw89_mac_flush_txq(rtwdev, BIT(rtwdev->hw->queues) - 1, false);
