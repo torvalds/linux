@@ -4835,7 +4835,7 @@ int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_l
 	if (ret)
 		return ret;
 
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, NULL);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, NULL, RTW89_ROLE_CREATE);
 	if (ret)
 		return ret;
 
@@ -4860,7 +4860,7 @@ int rtw89_mac_vif_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif
 
 	rtw89_cam_deinit(rtwdev, rtwvif_link);
 
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, NULL);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, NULL, RTW89_ROLE_REMOVE);
 	if (ret)
 		return ret;
 
