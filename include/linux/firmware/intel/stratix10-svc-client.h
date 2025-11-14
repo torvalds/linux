@@ -19,7 +19,7 @@
 #define SVC_CLIENT_FCS			"fcs"
 #define SVC_CLIENT_HWMON		"hwmon"
 
-/**
+/*
  * Status of the sent command, in bit number
  *
  * SVC_STATUS_OK:
@@ -148,6 +148,12 @@ struct stratix10_svc_chan;
  *
  * @COMMAND_FCS_RANDOM_NUMBER_GEN: generate a random number, return status
  * is SVC_STATUS_OK, SVC_STATUS_ERROR
+ *
+ * @COMMAND_HWMON_READTEMP: query the temperature from the hardware monitor,
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_HWMON_READVOLT: query the voltage from the hardware monitor,
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  */
 enum stratix10_svc_command_code {
 	/* for FPGA */
@@ -303,7 +309,7 @@ void stratix10_svc_done(struct stratix10_svc_chan *chan);
  * The callback function takes a single argument, which is a pointer to
  * user-defined data.
  *
- * @param cb_arg A pointer to user-defined data passed to the callback function.
+ * @cb_arg: Argument to be passed to the callback function.
  */
 typedef void (*async_callback_t)(void *cb_arg);
 
