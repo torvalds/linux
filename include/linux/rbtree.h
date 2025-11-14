@@ -58,7 +58,21 @@ static inline struct rb_node *rb_first(const struct rb_root *root)
 		n = n->rb_left;
 	return n;
 }
-extern struct rb_node *rb_last(const struct rb_root *);
+
+/*
+ * This function returns the last node (in sort order) of the tree.
+ */
+static inline struct rb_node *rb_last(const struct rb_root *root)
+{
+	struct rb_node	*n;
+
+	n = root->rb_node;
+	if (!n)
+		return NULL;
+	while (n->rb_right)
+		n = n->rb_right;
+	return n;
+}
 
 /* Postorder iteration - always visit the parent after its children */
 extern struct rb_node *rb_first_postorder(const struct rb_root *);

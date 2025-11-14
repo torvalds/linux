@@ -12,3 +12,8 @@ struct rb_node *rust_helper_rb_first(const struct rb_root *root)
 {
 	return rb_first(root);
 }
+
+struct rb_node *rust_helper_rb_last(const struct rb_root *root)
+{
+	return rb_last(root);
+}
