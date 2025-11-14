@@ -7039,12 +7039,17 @@ static inline void rtw89_chip_rfk_hw_init(struct rtw89_dev *rtwdev)
 }
 
 static inline
-void rtw89_chip_bb_preinit(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+void rtw89_chip_bb_preinit(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (chip->ops->bb_preinit)
-		chip->ops->bb_preinit(rtwdev, phy_idx);
+	if (!chip->ops->bb_preinit)
+		return;
+
+	chip->ops->bb_preinit(rtwdev, RTW89_PHY_0);
+
+	if (rtwdev->dbcc_en)
+		chip->ops->bb_preinit(rtwdev, RTW89_PHY_1);
 }
 
 static inline

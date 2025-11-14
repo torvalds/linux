@@ -5615,6 +5615,7 @@ EXPORT_SYMBOL(rtw89_check_quirks);
 
 int rtw89_core_start(struct rtw89_dev *rtwdev)
 {
+	bool no_bbmcu = !rtwdev->chip->bbmcu_nr;
 	int ret;
 
 	ret = rtw89_mac_preinit(rtwdev);
@@ -5622,6 +5623,9 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 		rtw89_err(rtwdev, "mac preinit fail, ret: %d\n", ret);
 		return ret;
 	}
+
+	if (no_bbmcu)
+		rtw89_chip_bb_preinit(rtwdev);
 
 	rtw89_phy_init_bb_afe(rtwdev);
 

@@ -4104,9 +4104,12 @@ int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb)
 	rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
 
 	if (include_bb) {
-		rtw89_chip_bb_preinit(rtwdev, RTW89_PHY_0);
-		if (rtwdev->dbcc_en)
-			rtw89_chip_bb_preinit(rtwdev, RTW89_PHY_1);
+		/* Only call BB preinit including configuration of BB MCU for
+		 * the chips which need to download BB MCU firmware. Otherwise,
+		 * calling preinit later to prevent touching registers affecting
+		 * download firmware.
+		 */
+		rtw89_chip_bb_preinit(rtwdev);
 	}
 
 	ret = rtw89_mac_dmac_pre_init(rtwdev);
