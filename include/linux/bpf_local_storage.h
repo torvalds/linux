@@ -53,9 +53,7 @@ struct bpf_local_storage_map {
 	u32 bucket_log;
 	u16 elem_size;
 	u16 cache_idx;
-	struct bpf_mem_alloc selem_ma;
-	struct bpf_mem_alloc storage_ma;
-	bool bpf_ma;
+	bool use_kmalloc_nolock;
 };
 
 struct bpf_local_storage_data {
@@ -97,7 +95,7 @@ struct bpf_local_storage {
 				 */
 	struct rcu_head rcu;
 	raw_spinlock_t lock;	/* Protect adding/removing from the "list" */
-	bool bpf_ma;
+	bool use_kmalloc_nolock;
 };
 
 /* U16_MAX is much more than enough for sk local storage
@@ -131,7 +129,7 @@ int bpf_local_storage_map_alloc_check(union bpf_attr *attr);
 struct bpf_map *
 bpf_local_storage_map_alloc(union bpf_attr *attr,
 			    struct bpf_local_storage_cache *cache,
-			    bool bpf_ma);
+			    bool use_kmalloc_nolock);
 
 void __bpf_local_storage_insert_cache(struct bpf_local_storage *local_storage,
 				      struct bpf_local_storage_map *smap,
