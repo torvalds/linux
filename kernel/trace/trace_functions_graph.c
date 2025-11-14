@@ -1664,7 +1664,8 @@ func_graph_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	if (!!set == !!(tr->current_trace_flags->val & bit))
 		return 0;
 
-	if (bit == TRACE_GRAPH_SLEEP_TIME) {
+	switch (bit) {
+	case TRACE_GRAPH_SLEEP_TIME:
 		if (set) {
 			fgraph_no_sleep_time--;
 			if (WARN_ON_ONCE(fgraph_no_sleep_time < 0))
@@ -1672,19 +1673,20 @@ func_graph_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 		} else {
 			fgraph_no_sleep_time++;
 		}
-	}
+		break;
 
-	if (bit == TRACE_GRAPH_PRINT_IRQS) {
+	case TRACE_GRAPH_PRINT_IRQS:
 		if (set)
 			ftrace_graph_skip_irqs--;
 		else
 			ftrace_graph_skip_irqs++;
 		if (WARN_ON_ONCE(ftrace_graph_skip_irqs < 0))
 			ftrace_graph_skip_irqs = 0;
-	}
+		break;
 
-	if (bit == TRACE_GRAPH_ARGS)
+	case TRACE_GRAPH_ARGS:
 		return ftrace_graph_trace_args(tr, set);
+	}
 
 	return 0;
 }
