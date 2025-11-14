@@ -31,8 +31,7 @@ properties:
     maxItems: 1
 
   timepulse-gpios:
-    description: When a timepulse is provided to the GNSS device using a
-      GPIO line, this is used.
+    description: Timepulse signal
     maxItems: 1
 
 additionalProperties: true
