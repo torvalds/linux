@@ -336,16 +336,14 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
  */
 unsigned int swsusp_header_flags;
 
-/**
- *	swsusp_swap_check - check if the resume device is a swap device
- *	and get its index (if so)
- *
- *	This is called before saving image
- */
 static int swsusp_swap_check(void)
 {
 	int res;
 
+	/*
+	 * Check if the resume device is a swap device and get its index (if so).
+	 * This is called before saving the image.
+	 */
 	if (swsusp_resume_device)
 		res = swap_type_of(swsusp_resume_device, swsusp_resume_block);
 	else
@@ -361,13 +359,6 @@ static int swsusp_swap_check(void)
 
 	return 0;
 }
-
-/**
- *	write_page - Write one page to given swap location.
- *	@buf:		Address we're writing.
- *	@offset:	Offset of the swap page we're writing to.
- *	@hb:		bio completion batch
- */
 
 static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
 {
@@ -526,10 +517,6 @@ static unsigned int hibernate_compression_threads = CMP_THREADS;
 /* Minimum/maximum number of pages for read buffering. */
 #define CMP_MIN_RD_PAGES	1024
 #define CMP_MAX_RD_PAGES	8192
-
-/**
- *	save_image - save the suspend image data
- */
 
 static int save_image(struct swap_map_handle *handle,
                       struct snapshot_handle *snapshot,
@@ -710,12 +697,6 @@ static int compress_threadfn(void *data)
 	return 0;
 }
 
-/**
- * save_compressed_image - Save the suspend image data after compression.
- * @handle: Swap map handle to use for saving the image.
- * @snapshot: Image to read data from.
- * @nr_to_write: Number of pages to save.
- */
 static int save_compressed_image(struct swap_map_handle *handle,
 				 struct snapshot_handle *snapshot,
 				 unsigned int nr_to_write)
@@ -943,13 +924,6 @@ out_clean:
 	return ret;
 }
 
-/**
- *	enough_swap - Make sure we have enough swap to save the image.
- *
- *	Returns TRUE or FALSE after checking the total amount of swap
- *	space available from the resume partition.
- */
-
 static int enough_swap(unsigned int nr_pages)
 {
 	unsigned int free_swap = count_swap_pages(root_swap, 1);
@@ -969,8 +943,9 @@ static int enough_swap(unsigned int nr_pages)
  *	them synced (in case something goes wrong) but we DO not want to mark
  *	filesystem clean: it is not. (And it does not matter, if we resume
  *	correctly, we'll mark system clean, anyway.)
+ *
+ *	Return: 0 on success, negative error code on failure.
  */
-
 int swsusp_write(unsigned int flags)
 {
 	struct swap_map_handle handle;
@@ -1116,12 +1091,6 @@ static int swap_reader_finish(struct swap_map_handle *handle)
 	return 0;
 }
 
-/**
- *	load_image - load the image using the swap map handle
- *	@handle and the snapshot handle @snapshot
- *	(assume there are @nr_pages pages to load)
- */
-
 static int load_image(struct swap_map_handle *handle,
                       struct snapshot_handle *snapshot,
                       unsigned int nr_to_read)
@@ -1229,12 +1198,6 @@ static int decompress_threadfn(void *data)
 	return 0;
 }
 
-/**
- * load_compressed_image - Load compressed image data and decompress it.
- * @handle: Swap map handle to use for loading data.
- * @snapshot: Image to copy uncompressed data into.
- * @nr_to_read: Number of pages to load.
- */
 static int load_compressed_image(struct swap_map_handle *handle,
 				 struct snapshot_handle *snapshot,
 				 unsigned int nr_to_read)
@@ -1564,8 +1527,9 @@ out_clean:
  *	swsusp_read - read the hibernation image.
  *	@flags_p: flags passed by the "frozen" kernel in the image header should
  *		  be written into this memory location
+ *
+ *	Return: 0 on success, negative error code on failure.
  */
-
 int swsusp_read(unsigned int *flags_p)
 {
 	int error;
@@ -1602,8 +1566,9 @@ static void *swsusp_holder;
 /**
  * swsusp_check - Open the resume device and check for the swsusp signature.
  * @exclusive: Open the resume device exclusively.
+ *
+ * Return: 0 if a valid image is found, negative error code otherwise.
  */
-
 int swsusp_check(bool exclusive)
 {
 	void *holder = exclusive ? &swsusp_holder : NULL;
@@ -1666,8 +1631,9 @@ void swsusp_close(void)
 
 /**
  *      swsusp_unmark - Unmark swsusp signature in the resume device
+ *
+ *      Return: 0 on success, negative error code on failure.
  */
-
 #ifdef CONFIG_SUSPEND
 int swsusp_unmark(void)
 {
