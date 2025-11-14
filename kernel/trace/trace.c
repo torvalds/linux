@@ -509,10 +509,10 @@ EXPORT_SYMBOL_GPL(unregister_ftrace_export);
 
 /* trace_flags holds trace_options default values */
 #define TRACE_DEFAULT_FLAGS						\
-	(FUNCTION_DEFAULT_FLAGS |					\
-	 TRACE_ITER(PRINT_PARENT) | TRACE_ITER(PRINTK) |			\
+	(FUNCTION_DEFAULT_FLAGS | FPROFILE_DEFAULT_FLAGS |		\
+	 TRACE_ITER(PRINT_PARENT) | TRACE_ITER(PRINTK) |		\
 	 TRACE_ITER(ANNOTATE) | TRACE_ITER(CONTEXT_INFO) |		\
-	 TRACE_ITER(RECORD_CMD) | TRACE_ITER(OVERWRITE) |			\
+	 TRACE_ITER(RECORD_CMD) | TRACE_ITER(OVERWRITE) |		\
 	 TRACE_ITER(IRQ_INFO) | TRACE_ITER(MARKERS) |			\
 	 TRACE_ITER(HASH_PTR) | TRACE_ITER(TRACE_PRINTK) |		\
 	 TRACE_ITER(COPY_MARKER))
@@ -520,7 +520,7 @@ EXPORT_SYMBOL_GPL(unregister_ftrace_export);
 /* trace_options that are only supported by global_trace */
 #define TOP_LEVEL_TRACE_FLAGS (TRACE_ITER(PRINTK) |			\
 	       TRACE_ITER(PRINTK_MSGONLY) | TRACE_ITER(RECORD_CMD) |	\
-	       TRACE_ITER(PROF_TEXT_OFFSET))
+	       TRACE_ITER(PROF_TEXT_OFFSET) | FPROFILE_DEFAULT_FLAGS)
 
 /* trace_flags that are default zero for instances */
 #define ZEROED_TRACE_FLAGS \
@@ -5331,6 +5331,12 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 		trace_printk_start_stop_comm(enabled);
 		trace_printk_control(enabled);
 		break;
+
+#if defined(CONFIG_FUNCTION_PROFILER) && defined(CONFIG_FUNCTION_GRAPH_TRACER)
+	case TRACE_GRAPH_GRAPH_TIME:
+		ftrace_graph_graph_time_control(enabled);
+		break;
+#endif
 	}
 
 	return 0;

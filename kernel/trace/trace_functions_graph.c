@@ -85,11 +85,6 @@ static struct tracer_opt trace_opts[] = {
 	/* Include sleep time (scheduled out) between entry and return */
 	{ TRACER_OPT(sleep-time, TRACE_GRAPH_SLEEP_TIME) },
 
-#ifdef CONFIG_FUNCTION_PROFILER
-	/* Include time within nested functions */
-	{ TRACER_OPT(graph-time, TRACE_GRAPH_GRAPH_TIME) },
-#endif
-
 	{ } /* Empty entry */
 };
 
@@ -97,7 +92,7 @@ static struct tracer_flags tracer_flags = {
 	/* Don't display overruns, proc, or tail by default */
 	.val = TRACE_GRAPH_PRINT_CPU | TRACE_GRAPH_PRINT_OVERHEAD |
 	       TRACE_GRAPH_PRINT_DURATION | TRACE_GRAPH_PRINT_IRQS |
-	       TRACE_GRAPH_SLEEP_TIME | TRACE_GRAPH_GRAPH_TIME,
+	       TRACE_GRAPH_SLEEP_TIME,
 	.opts = trace_opts
 };
 
@@ -1626,9 +1621,6 @@ func_graph_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	if (bit == TRACE_GRAPH_SLEEP_TIME)
 		ftrace_graph_sleep_time_control(set);
-
-	if (bit == TRACE_GRAPH_GRAPH_TIME)
-		ftrace_graph_graph_time_control(set);
 
 	/* Do nothing if the current tracer is not this tracer */
 	if (tr->current_trace != &graph_trace)

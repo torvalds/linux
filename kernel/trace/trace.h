@@ -1368,8 +1368,18 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 #ifdef CONFIG_FUNCTION_PROFILER
 # define PROFILER_FLAGS					\
 		C(PROF_TEXT_OFFSET,	"prof-text-offset"),
+# ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#  define FPROFILE_FLAGS				\
+		C(GRAPH_TIME,		"graph-time"),
+#  define FPROFILE_DEFAULT_FLAGS	TRACE_ITER(GRAPH_TIME)
+# else
+#  define FPROFILE_FLAGS
+#  define FPROFILE_DEFAULT_FLAGS	0UL
+# endif
 #else
 # define PROFILER_FLAGS
+# define FPROFILE_FLAGS
+# define FPROFILE_DEFAULT_FLAGS			0UL
 # define TRACE_ITER_PROF_TEXT_OFFSET_BIT	-1
 #endif
 
@@ -1412,7 +1422,8 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		FGRAPH_FLAGS					\
 		STACK_FLAGS					\
 		BRANCH_FLAGS					\
-		PROFILER_FLAGS
+		PROFILER_FLAGS					\
+		FPROFILE_FLAGS
 
 /*
  * By defining C, we can make TRACE_FLAGS a list of bit names
