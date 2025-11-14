@@ -1007,21 +1007,13 @@ static phys_addr_t sector_paddr_in_rbio(struct btrfs_raid_bio *rbio,
  * Similar to sector_paddr_in_rbio(), but with extra consideration for
  * bs > ps cases, where we can have multiple steps for a fs block.
  */
-static phys_addr_t step_paddr_in_rbio(struct btrfs_raid_bio *rbio,
-				      int stripe_nr, int sector_nr, int step_nr,
-				      bool bio_list_only)
+static phys_addr_t sector_step_paddr_in_rbio(struct btrfs_raid_bio *rbio,
+					     int stripe_nr, int sector_nr, int step_nr,
+					     bool bio_list_only)
 {
 	phys_addr_t ret = INVALID_PADDR;
-	int index;
+	const int index = rbio_paddr_index(rbio, stripe_nr, sector_nr, step_nr);
 
-	ASSERT_RBIO_STRIPE(stripe_nr >= 0 && stripe_nr < rbio->real_stripes,
-			   rbio, stripe_nr);
-	ASSERT_RBIO_SECTOR(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors,
-			   rbio, sector_nr);
-	ASSERT_RBIO_SECTOR(step_nr >= 0 && step_nr < rbio->sector_nsteps,
-			   rbio, sector_nr);
-
-	index = (stripe_nr * rbio->stripe_nsectors + sector_nr) * rbio->sector_nsteps + step_nr;
 	ASSERT(index >= 0 && index < rbio->nr_sectors * rbio->sector_nsteps);
 
 	scoped_guard(spinlock, &rbio->bio_list_lock) {
@@ -1147,8 +1139,8 @@ static int alloc_rbio_parity_pages(struct btrfs_raid_bio *rbio)
  * @faila and @failb will also be updated to the first and second stripe
  * number of the errors.
  */
-static int get_rbio_veritical_errors(struct btrfs_raid_bio *rbio, int sector_nr,
-				     int *faila, int *failb)
+static int get_rbio_vertical_errors(struct btrfs_raid_bio *rbio, int sector_nr,
+				    int *faila, int *failb)
 {
 	int stripe_nr;
 	int found_errors = 0;
@@ -1219,8 +1211,8 @@ static int rbio_add_io_paddr(struct btrfs_raid_bio *rbio, struct bio_list *bio_l
 			rbio->error_bitmap);
 
 		/* Check if we have reached tolerance early. */
-		found_errors = get_rbio_veritical_errors(rbio, sector_nr,
-							 NULL, NULL);
+		found_errors = get_rbio_vertical_errors(rbio, sector_nr,
+							NULL, NULL);
 		if (unlikely(found_errors > rbio->bioc->max_errors))
 			return -EIO;
 		return 0;
@@ -1367,7 +1359,7 @@ static void generate_pq_vertical_step(struct btrfs_raid_bio *rbio, unsigned int 
 	/* First collect one sector from each data stripe */
 	for (stripe = 0; stripe < rbio->nr_data; stripe++)
 		pointers[stripe] = kmap_local_paddr(
-				step_paddr_in_rbio(rbio, stripe, sector_nr, step_nr, 0));
+				sector_step_paddr_in_rbio(rbio, stripe, sector_nr, step_nr, 0));
 
 	/* Then add the parity stripe */
 	pointers[stripe++] = kmap_local_paddr(rbio_pstripe_step_paddr(rbio, sector_nr, step_nr));
@@ -1868,41 +1860,18 @@ static int verify_one_sector(struct btrfs_raid_bio *rbio,
 	return ret;
 }
 
-/*
- * Recover a vertical stripe specified by @sector_nr.
- * @*pointers are the pre-allocated pointers by the caller, so we don't
- * need to allocate/free the pointers again and again.
- */
-static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
-			    void **pointers, void **unmap_array)
+static void recover_vertical_step(struct btrfs_raid_bio *rbio,
+				  unsigned int sector_nr,
+				  unsigned int step_nr,
+				  int faila, int failb,
+				  void **pointers, void **unmap_array)
 {
 	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
-	const u32 sectorsize = fs_info->sectorsize;
-	int found_errors;
-	int faila;
-	int failb;
+	const u32 step = min(fs_info->sectorsize, PAGE_SIZE);
 	int stripe_nr;
-	int ret = 0;
 
-	/*
-	 * Now we just use bitmap to mark the horizontal stripes in
-	 * which we have data when doing parity scrub.
-	 */
-	if (rbio->operation == BTRFS_RBIO_PARITY_SCRUB &&
-	    !test_bit(sector_nr, &rbio->dbitmap))
-		return 0;
-
-	found_errors = get_rbio_veritical_errors(rbio, sector_nr, &faila,
-						 &failb);
-	/*
-	 * No errors in the vertical stripe, skip it.  Can happen for recovery
-	 * which only part of a stripe failed csum check.
-	 */
-	if (!found_errors)
-		return 0;
-
-	if (unlikely(found_errors > rbio->bioc->max_errors))
-		return -EIO;
+	ASSERT(step_nr < rbio->sector_nsteps);
+	ASSERT(sector_nr < rbio->stripe_nsectors);
 
 	/*
 	 * Setup our array of pointers with sectors from each stripe
@@ -1918,9 +1887,9 @@ static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
 		 * bio list if possible.
 		 */
 		if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
-			paddr = sector_paddr_in_rbio(rbio, stripe_nr, sector_nr, 0);
+			paddr = sector_step_paddr_in_rbio(rbio, stripe_nr, sector_nr, step_nr, 0);
 		} else {
-			paddr = rbio_stripe_paddr(rbio, stripe_nr, sector_nr);
+			paddr = rbio_stripe_step_paddr(rbio, stripe_nr, sector_nr, step_nr);
 		}
 		pointers[stripe_nr] = kmap_local_paddr(paddr);
 		unmap_array[stripe_nr] = pointers[stripe_nr];
@@ -1968,10 +1937,10 @@ static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
 		}
 
 		if (failb == rbio->real_stripes - 2) {
-			raid6_datap_recov(rbio->real_stripes, sectorsize,
+			raid6_datap_recov(rbio->real_stripes, step,
 					  faila, pointers);
 		} else {
-			raid6_2data_recov(rbio->real_stripes, sectorsize,
+			raid6_2data_recov(rbio->real_stripes, step,
 					  faila, failb, pointers);
 		}
 	} else {
@@ -1981,7 +1950,7 @@ static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
 		ASSERT(failb == -1);
 pstripe:
 		/* Copy parity block into failed block to start with */
-		memcpy(pointers[faila], pointers[rbio->nr_data], sectorsize);
+		memcpy(pointers[faila], pointers[rbio->nr_data], step);
 
 		/* Rearrange the pointer array */
 		p = pointers[faila];
@@ -1991,24 +1960,54 @@ pstripe:
 		pointers[rbio->nr_data - 1] = p;
 
 		/* Xor in the rest */
-		run_xor(pointers, rbio->nr_data - 1, sectorsize);
-
+		run_xor(pointers, rbio->nr_data - 1, step);
 	}
 
+cleanup:
+	for (stripe_nr = rbio->real_stripes - 1; stripe_nr >= 0; stripe_nr--)
+		kunmap_local(unmap_array[stripe_nr]);
+}
+
+/*
+ * Recover a vertical stripe specified by @sector_nr.
+ * @*pointers are the pre-allocated pointers by the caller, so we don't
+ * need to allocate/free the pointers again and again.
+ */
+static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
+			    void **pointers, void **unmap_array)
+{
+	int found_errors;
+	int faila;
+	int failb;
+	int ret = 0;
+
 	/*
-	 * No matter if this is a RMW or recovery, we should have all
-	 * failed sectors repaired in the vertical stripe, thus they are now
-	 * uptodate.
-	 * Especially if we determine to cache the rbio, we need to
-	 * have at least all data sectors uptodate.
-	 *
-	 * If possible, also check if the repaired sector matches its data
-	 * checksum.
+	 * Now we just use bitmap to mark the horizontal stripes in
+	 * which we have data when doing parity scrub.
 	 */
+	if (rbio->operation == BTRFS_RBIO_PARITY_SCRUB &&
+	    !test_bit(sector_nr, &rbio->dbitmap))
+		return 0;
+
+	found_errors = get_rbio_vertical_errors(rbio, sector_nr, &faila,
+						&failb);
+	/*
+	 * No errors in the vertical stripe, skip it.  Can happen for recovery
+	 * which only part of a stripe failed csum check.
+	 */
+	if (!found_errors)
+		return 0;
+
+	if (unlikely(found_errors > rbio->bioc->max_errors))
+		return -EIO;
+
+	for (int i = 0; i < rbio->sector_nsteps; i++)
+		recover_vertical_step(rbio, sector_nr, i, faila, failb,
+					    pointers, unmap_array);
 	if (faila >= 0) {
 		ret = verify_one_sector(rbio, faila, sector_nr);
 		if (ret < 0)
-			goto cleanup;
+			return ret;
 
 		set_bit(rbio_sector_index(rbio, faila, sector_nr),
 			rbio->stripe_uptodate_bitmap);
@@ -2016,15 +2015,11 @@ pstripe:
 	if (failb >= 0) {
 		ret = verify_one_sector(rbio, failb, sector_nr);
 		if (ret < 0)
-			goto cleanup;
+			return ret;
 
 		set_bit(rbio_sector_index(rbio, failb, sector_nr),
 			rbio->stripe_uptodate_bitmap);
 	}
-
-cleanup:
-	for (stripe_nr = rbio->real_stripes - 1; stripe_nr >= 0; stripe_nr--)
-		kunmap_local(unmap_array[stripe_nr]);
 	return ret;
 }
 
@@ -2162,7 +2157,7 @@ static void set_rbio_raid6_extra_error(struct btrfs_raid_bio *rbio, int mirror_n
 		int faila;
 		int failb;
 
-		found_errors = get_rbio_veritical_errors(rbio, sector_nr,
+		found_errors = get_rbio_vertical_errors(rbio, sector_nr,
 							 &faila, &failb);
 		/* This vertical stripe doesn't have errors. */
 		if (!found_errors)
@@ -2455,7 +2450,7 @@ static void rmw_rbio(struct btrfs_raid_bio *rbio)
 	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++) {
 		int found_errors;
 
-		found_errors = get_rbio_veritical_errors(rbio, sectornr, NULL, NULL);
+		found_errors = get_rbio_vertical_errors(rbio, sectornr, NULL, NULL);
 		if (unlikely(found_errors > rbio->bioc->max_errors)) {
 			ret = -EIO;
 			break;
@@ -2735,7 +2730,7 @@ static int recover_scrub_rbio(struct btrfs_raid_bio *rbio)
 		int failb;
 		int found_errors;
 
-		found_errors = get_rbio_veritical_errors(rbio, sector_nr,
+		found_errors = get_rbio_vertical_errors(rbio, sector_nr,
 							 &faila, &failb);
 		if (unlikely(found_errors > rbio->bioc->max_errors)) {
 			ret = -EIO;
@@ -2869,7 +2864,7 @@ static void scrub_rbio(struct btrfs_raid_bio *rbio)
 	for (sector_nr = 0; sector_nr < rbio->stripe_nsectors; sector_nr++) {
 		int found_errors;
 
-		found_errors = get_rbio_veritical_errors(rbio, sector_nr, NULL, NULL);
+		found_errors = get_rbio_vertical_errors(rbio, sector_nr, NULL, NULL);
 		if (unlikely(found_errors > rbio->bioc->max_errors)) {
 			ret = -EIO;
 			break;
