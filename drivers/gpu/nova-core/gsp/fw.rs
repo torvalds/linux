@@ -312,6 +312,329 @@ impl From<MsgFunction> for u32 {
     }
 }
 
+/// Sequencer buffer opcode for GSP sequencer commands.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u32)]
+pub(crate) enum SeqBufOpcode {
+    // Core operation opcodes
+    CoreReset = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_RESET,
+    CoreResume = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_RESUME,
+    CoreStart = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_START,
+    CoreWaitForHalt = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_WAIT_FOR_HALT,
+
+    // Delay opcode
+    DelayUs = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_DELAY_US,
+
+    // Register operation opcodes
+    RegModify = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_MODIFY,
+    RegPoll = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_POLL,
+    RegStore = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_STORE,
+    RegWrite = r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_WRITE,
+}
+
+impl fmt::Display for SeqBufOpcode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SeqBufOpcode::CoreReset => write!(f, "CORE_RESET"),
+            SeqBufOpcode::CoreResume => write!(f, "CORE_RESUME"),
+            SeqBufOpcode::CoreStart => write!(f, "CORE_START"),
+            SeqBufOpcode::CoreWaitForHalt => write!(f, "CORE_WAIT_FOR_HALT"),
+            SeqBufOpcode::DelayUs => write!(f, "DELAY_US"),
+            SeqBufOpcode::RegModify => write!(f, "REG_MODIFY"),
+            SeqBufOpcode::RegPoll => write!(f, "REG_POLL"),
+            SeqBufOpcode::RegStore => write!(f, "REG_STORE"),
+            SeqBufOpcode::RegWrite => write!(f, "REG_WRITE"),
+        }
+    }
+}
+
+impl TryFrom<u32> for SeqBufOpcode {
+    type Error = kernel::error::Error;
+
+    fn try_from(value: u32) -> Result<SeqBufOpcode> {
+        match value {
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_RESET => {
+                Ok(SeqBufOpcode::CoreReset)
+            }
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_RESUME => {
+                Ok(SeqBufOpcode::CoreResume)
+            }
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_START => {
+                Ok(SeqBufOpcode::CoreStart)
+            }
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_WAIT_FOR_HALT => {
+                Ok(SeqBufOpcode::CoreWaitForHalt)
+            }
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_DELAY_US => Ok(SeqBufOpcode::DelayUs),
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_MODIFY => {
+                Ok(SeqBufOpcode::RegModify)
+            }
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_POLL => Ok(SeqBufOpcode::RegPoll),
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_STORE => Ok(SeqBufOpcode::RegStore),
+            r570_144::GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_REG_WRITE => Ok(SeqBufOpcode::RegWrite),
+            _ => Err(EINVAL),
+        }
+    }
+}
+
+impl From<SeqBufOpcode> for u32 {
+    fn from(value: SeqBufOpcode) -> Self {
+        // CAST: `SeqBufOpcode` is `repr(u32)` and can thus be cast losslessly.
+        value as u32
+    }
+}
+
+/// Wrapper for GSP sequencer register write payload.
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub(crate) struct RegWritePayload(r570_144::GSP_SEQ_BUF_PAYLOAD_REG_WRITE);
+
+#[expect(unused)]
+impl RegWritePayload {
+    /// Returns the register address.
+    pub(crate) fn addr(&self) -> u32 {
+        self.0.addr
+    }
+
+    /// Returns the value to write.
+    pub(crate) fn val(&self) -> u32 {
+        self.0.val
+    }
+}
+
+// SAFETY: This struct only contains integer types for which all bit patterns are valid.
+unsafe impl FromBytes for RegWritePayload {}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for RegWritePayload {}
+
+/// Wrapper for GSP sequencer register modify payload.
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub(crate) struct RegModifyPayload(r570_144::GSP_SEQ_BUF_PAYLOAD_REG_MODIFY);
+
+#[expect(unused)]
+impl RegModifyPayload {
+    /// Returns the register address.
+    pub(crate) fn addr(&self) -> u32 {
+        self.0.addr
+    }
+
+    /// Returns the mask to apply.
+    pub(crate) fn mask(&self) -> u32 {
+        self.0.mask
+    }
+
+    /// Returns the value to write.
+    pub(crate) fn val(&self) -> u32 {
+        self.0.val
+    }
+}
+
+// SAFETY: This struct only contains integer types for which all bit patterns are valid.
+unsafe impl FromBytes for RegModifyPayload {}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for RegModifyPayload {}
+
+/// Wrapper for GSP sequencer register poll payload.
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub(crate) struct RegPollPayload(r570_144::GSP_SEQ_BUF_PAYLOAD_REG_POLL);
+
+#[expect(unused)]
+impl RegPollPayload {
+    /// Returns the register address.
+    pub(crate) fn addr(&self) -> u32 {
+        self.0.addr
+    }
+
+    /// Returns the mask to apply.
+    pub(crate) fn mask(&self) -> u32 {
+        self.0.mask
+    }
+
+    /// Returns the expected value.
+    pub(crate) fn val(&self) -> u32 {
+        self.0.val
+    }
+
+    /// Returns the timeout in microseconds.
+    pub(crate) fn timeout(&self) -> u32 {
+        self.0.timeout
+    }
+}
+
+// SAFETY: This struct only contains integer types for which all bit patterns are valid.
+unsafe impl FromBytes for RegPollPayload {}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for RegPollPayload {}
+
+/// Wrapper for GSP sequencer delay payload.
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub(crate) struct DelayUsPayload(r570_144::GSP_SEQ_BUF_PAYLOAD_DELAY_US);
+
+#[expect(unused)]
+impl DelayUsPayload {
+    /// Returns the delay value in microseconds.
+    pub(crate) fn val(&self) -> u32 {
+        self.0.val
+    }
+}
+
+// SAFETY: This struct only contains integer types for which all bit patterns are valid.
+unsafe impl FromBytes for DelayUsPayload {}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for DelayUsPayload {}
+
+/// Wrapper for GSP sequencer register store payload.
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub(crate) struct RegStorePayload(r570_144::GSP_SEQ_BUF_PAYLOAD_REG_STORE);
+
+#[expect(unused)]
+impl RegStorePayload {
+    /// Returns the register address.
+    pub(crate) fn addr(&self) -> u32 {
+        self.0.addr
+    }
+
+    /// Returns the storage index.
+    pub(crate) fn index(&self) -> u32 {
+        self.0.index
+    }
+}
+
+// SAFETY: This struct only contains integer types for which all bit patterns are valid.
+unsafe impl FromBytes for RegStorePayload {}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for RegStorePayload {}
+
+/// Wrapper for GSP sequencer buffer command.
+#[repr(transparent)]
+pub(crate) struct SequencerBufferCmd(r570_144::GSP_SEQUENCER_BUFFER_CMD);
+
+#[expect(unused)]
+impl SequencerBufferCmd {
+    /// Returns the opcode as a `SeqBufOpcode` enum, or error if invalid.
+    pub(crate) fn opcode(&self) -> Result<SeqBufOpcode> {
+        self.0.opCode.try_into()
+    }
+
+    /// Returns the register write payload by value.
+    ///
+    /// Returns an error if the opcode is not `SeqBufOpcode::RegWrite`.
+    pub(crate) fn reg_write_payload(&self) -> Result<RegWritePayload> {
+        if self.opcode()? != SeqBufOpcode::RegWrite {
+            return Err(EINVAL);
+        }
+        // SAFETY: Opcode is verified to be `RegWrite`, so union contains valid `RegWritePayload`.
+        let payload_bytes = unsafe {
+            core::slice::from_raw_parts(
+                core::ptr::addr_of!(self.0.payload.regWrite).cast::<u8>(),
+                core::mem::size_of::<RegWritePayload>(),
+            )
+        };
+        Ok(*RegWritePayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+    }
+
+    /// Returns the register modify payload by value.
+    ///
+    /// Returns an error if the opcode is not `SeqBufOpcode::RegModify`.
+    pub(crate) fn reg_modify_payload(&self) -> Result<RegModifyPayload> {
+        if self.opcode()? != SeqBufOpcode::RegModify {
+            return Err(EINVAL);
+        }
+        // SAFETY: Opcode is verified to be `RegModify`, so union contains valid `RegModifyPayload`.
+        let payload_bytes = unsafe {
+            core::slice::from_raw_parts(
+                core::ptr::addr_of!(self.0.payload.regModify).cast::<u8>(),
+                core::mem::size_of::<RegModifyPayload>(),
+            )
+        };
+        Ok(*RegModifyPayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+    }
+
+    /// Returns the register poll payload by value.
+    ///
+    /// Returns an error if the opcode is not `SeqBufOpcode::RegPoll`.
+    pub(crate) fn reg_poll_payload(&self) -> Result<RegPollPayload> {
+        if self.opcode()? != SeqBufOpcode::RegPoll {
+            return Err(EINVAL);
+        }
+        // SAFETY: Opcode is verified to be `RegPoll`, so union contains valid `RegPollPayload`.
+        let payload_bytes = unsafe {
+            core::slice::from_raw_parts(
+                core::ptr::addr_of!(self.0.payload.regPoll).cast::<u8>(),
+                core::mem::size_of::<RegPollPayload>(),
+            )
+        };
+        Ok(*RegPollPayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+    }
+
+    /// Returns the delay payload by value.
+    ///
+    /// Returns an error if the opcode is not `SeqBufOpcode::DelayUs`.
+    pub(crate) fn delay_us_payload(&self) -> Result<DelayUsPayload> {
+        if self.opcode()? != SeqBufOpcode::DelayUs {
+            return Err(EINVAL);
+        }
+        // SAFETY: Opcode is verified to be `DelayUs`, so union contains valid `DelayUsPayload`.
+        let payload_bytes = unsafe {
+            core::slice::from_raw_parts(
+                core::ptr::addr_of!(self.0.payload.delayUs).cast::<u8>(),
+                core::mem::size_of::<DelayUsPayload>(),
+            )
+        };
+        Ok(*DelayUsPayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+    }
+
+    /// Returns the register store payload by value.
+    ///
+    /// Returns an error if the opcode is not `SeqBufOpcode::RegStore`.
+    pub(crate) fn reg_store_payload(&self) -> Result<RegStorePayload> {
+        if self.opcode()? != SeqBufOpcode::RegStore {
+            return Err(EINVAL);
+        }
+        // SAFETY: Opcode is verified to be `RegStore`, so union contains valid `RegStorePayload`.
+        let payload_bytes = unsafe {
+            core::slice::from_raw_parts(
+                core::ptr::addr_of!(self.0.payload.regStore).cast::<u8>(),
+                core::mem::size_of::<RegStorePayload>(),
+            )
+        };
+        Ok(*RegStorePayload::from_bytes(payload_bytes).ok_or(EINVAL)?)
+    }
+}
+
+// SAFETY: This struct only contains integer types for which all bit patterns are valid.
+unsafe impl FromBytes for SequencerBufferCmd {}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for SequencerBufferCmd {}
+
+/// Wrapper for GSP run CPU sequencer RPC.
+#[repr(transparent)]
+pub(crate) struct RunCpuSequencer(r570_144::rpc_run_cpu_sequencer_v17_00);
+
+#[expect(unused)]
+impl RunCpuSequencer {
+    /// Returns the command index.
+    pub(crate) fn cmd_index(&self) -> u32 {
+        self.0.cmdIndex
+    }
+}
+
+// SAFETY: This struct only contains integer types for which all bit patterns are valid.
+unsafe impl FromBytes for RunCpuSequencer {}
+
+// SAFETY: Padding is explicit and will not contain uninitialized data.
+unsafe impl AsBytes for RunCpuSequencer {}
+
 /// Struct containing the arguments required to pass a memory buffer to the GSP
 /// for use during initialisation.
 ///
