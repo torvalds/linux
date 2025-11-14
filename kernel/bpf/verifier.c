@@ -10720,8 +10720,9 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			return err;
 		}
 
-		verbose(env, "Func#%d ('%s') is global and assumed valid.\n",
-			subprog, sub_name);
+		if (env->log.level & BPF_LOG_LEVEL)
+			verbose(env, "Func#%d ('%s') is global and assumed valid.\n",
+				subprog, sub_name);
 		if (env->subprog_info[subprog].changes_pkt_data)
 			clear_all_pkt_pointers(env);
 		/* mark global subprog for verifying after main prog */
@@ -19470,7 +19471,7 @@ static int propagate_precision(struct bpf_verifier_env *env,
 			bt_set_frame_slot(&env->bt, fr, i);
 			first = false;
 		}
-		if (!first)
+		if (!first && (env->log.level & BPF_LOG_LEVEL2))
 			verbose(env, "\n");
 	}
 
@@ -23698,7 +23699,8 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 		struct bpf_subprog_arg_info *arg;
 		struct bpf_reg_state *reg;
 
-		verbose(env, "Validating %s() func#%d...\n", sub_name, subprog);
+		if (env->log.level & BPF_LOG_LEVEL)
+			verbose(env, "Validating %s() func#%d...\n", sub_name, subprog);
 		ret = btf_prepare_func_args(env, subprog);
 		if (ret)
 			goto out;
