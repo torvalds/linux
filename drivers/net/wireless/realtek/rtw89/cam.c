@@ -819,12 +819,15 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 	struct rtw89_addr_cam_entry *addr_cam =
 		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 	struct ieee80211_sta *sta = rtwsta_link_to_sta_safe(rtwsta_link);
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct ieee80211_link_sta *link_sta;
 	const u8 *sma = scan_mac_addr ? scan_mac_addr : rtwvif_link->mac_addr;
 	u8 sma_hash, tma_hash, addr_msk_start;
+	u8 ver = chip->addrcam_ver;
 	u8 sma_start = 0;
 	u8 tma_start = 0;
 	const u8 *tma;
+	u8 mac_id;
 
 	rcu_read_lock();
 
@@ -845,9 +848,17 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 	sma_hash = rtw89_cam_addr_hash(sma_start, sma);
 	tma_hash = rtw89_cam_addr_hash(tma_start, tma);
 
-	h2c->w1 = le32_encode_bits(addr_cam->addr_cam_idx, ADDR_CAM_W1_IDX) |
-		  le32_encode_bits(addr_cam->offset, ADDR_CAM_W1_OFFSET) |
-		  le32_encode_bits(addr_cam->len, ADDR_CAM_W1_LEN);
+	mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
+
+	if (ver == 0)
+		h2c->w1 = le32_encode_bits(addr_cam->addr_cam_idx, ADDR_CAM_W1_IDX) |
+			  le32_encode_bits(addr_cam->offset, ADDR_CAM_W1_OFFSET) |
+			  le32_encode_bits(addr_cam->len, ADDR_CAM_W1_LEN);
+	else
+		h2c->w1 = le32_encode_bits(addr_cam->addr_cam_idx, ADDR_CAM_W1_V1_IDX) |
+			  le32_encode_bits(addr_cam->offset, ADDR_CAM_W1_V1_OFFSET) |
+			  le32_encode_bits(addr_cam->len, ADDR_CAM_W1_V1_LEN);
+
 	h2c->w2 = le32_encode_bits(addr_cam->valid, ADDR_CAM_W2_VALID) |
 		  le32_encode_bits(rtwvif_link->net_type, ADDR_CAM_W2_NET_TYPE) |
 		  le32_encode_bits(rtwvif_link->bcn_hit_cond, ADDR_CAM_W2_BCN_HIT_COND) |
@@ -870,14 +881,20 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 		  le32_encode_bits(tma[3], ADDR_CAM_W6_TMA3) |
 		  le32_encode_bits(tma[4], ADDR_CAM_W6_TMA4) |
 		  le32_encode_bits(tma[5], ADDR_CAM_W6_TMA5);
-	h2c->w8 = le32_encode_bits(rtwvif_link->port, ADDR_CAM_W8_PORT_INT) |
-		  le32_encode_bits(rtwvif_link->port, ADDR_CAM_W8_TSF_SYNC) |
-		  le32_encode_bits(rtwvif_link->trigger, ADDR_CAM_W8_TF_TRS) |
-		  le32_encode_bits(rtwvif_link->lsig_txop, ADDR_CAM_W8_LSIG_TXOP) |
-		  le32_encode_bits(rtwvif_link->tgt_ind, ADDR_CAM_W8_TGT_IND) |
-		  le32_encode_bits(rtwvif_link->frm_tgt_ind, ADDR_CAM_W8_FRM_TGT_IND) |
-		  le32_encode_bits(rtwsta_link ? rtwsta_link->mac_id :
-						 rtwvif_link->mac_id, ADDR_CAM_W8_MACID);
+	if (ver == 0)
+		h2c->w8 = le32_encode_bits(rtwvif_link->port, ADDR_CAM_W8_PORT_INT) |
+			  le32_encode_bits(rtwvif_link->port, ADDR_CAM_W8_TSF_SYNC) |
+			  le32_encode_bits(rtwvif_link->trigger, ADDR_CAM_W8_TF_TRS) |
+			  le32_encode_bits(rtwvif_link->lsig_txop, ADDR_CAM_W8_LSIG_TXOP) |
+			  le32_encode_bits(rtwvif_link->tgt_ind, ADDR_CAM_W8_TGT_IND) |
+			  le32_encode_bits(rtwvif_link->frm_tgt_ind, ADDR_CAM_W8_FRM_TGT_IND) |
+			  le32_encode_bits(mac_id, ADDR_CAM_W8_MACID);
+	else
+		h2c->w8 = le32_encode_bits(rtwvif_link->port, ADDR_CAM_W8_V1_PORT_INT) |
+			  le32_encode_bits(rtwvif_link->port, ADDR_CAM_W8_V1_TSF_SYNC) |
+			  le32_encode_bits(rtwvif_link->trigger, ADDR_CAM_W8_V1_TF_TRS) |
+			  le32_encode_bits(rtwvif_link->lsig_txop, ADDR_CAM_W8_V1_LSIG_TXOP) |
+			  le32_encode_bits(mac_id, ADDR_CAM_W8_V1_MACID);
 
 	if (rtwvif_link->net_type == RTW89_NET_TYPE_INFRA)
 		h2c->w9 = le32_encode_bits(vif->cfg.aid & 0xfff, ADDR_CAM_W9_AID12);

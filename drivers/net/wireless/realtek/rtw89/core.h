@@ -4458,6 +4458,7 @@ struct rtw89_chip_info {
 	u8 bacam_num;
 	u8 bacam_dynamic_num;
 	enum rtw89_bacam_ver bacam_ver;
+	u8 addrcam_ver;
 	u8 ppdu_max_usr;
 
 	u8 sec_ctrl_efuse_size;

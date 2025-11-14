@@ -3178,6 +3178,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.bacam_num		= 8,
 	.bacam_dynamic_num	= 8,
 	.bacam_ver		= RTW89_BACAM_V0_EXT,
+	.addrcam_ver		= 0,
 	.ppdu_max_usr		= 8,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
