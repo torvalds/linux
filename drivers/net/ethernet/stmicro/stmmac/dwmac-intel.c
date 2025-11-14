@@ -569,9 +569,6 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 	plat->force_sf_dma_mode = 1;
 
 	plat->mdio_bus_data->needs_reset = true;
-
-	/* Disable RX queues routing by default */
-	plat->rx_queues_cfg[0].pkt_route = 0x0;
 }
 
 static struct phylink_pcs *intel_mgbe_select_pcs(struct stmmac_priv *priv,
@@ -612,12 +609,8 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 
 	plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
 
-	for (i = 0; i < plat->rx_queues_to_use; i++) {
+	for (i = 0; i < plat->rx_queues_to_use; i++)
 		plat->rx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
-
-		/* Disable RX queues routing by default */
-		plat->rx_queues_cfg[i].pkt_route = 0x0;
-	}
 
 	for (i = 0; i < plat->tx_queues_to_use; i++) {
 		plat->tx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;

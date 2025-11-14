@@ -196,8 +196,6 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_UPQ;
 		else if (of_property_read_bool(q_node, "snps,route-multi-broad"))
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_MCBCQ;
-		else
-			plat->rx_queues_cfg[queue].pkt_route = 0x0;
 
 		queue++;
 	}
