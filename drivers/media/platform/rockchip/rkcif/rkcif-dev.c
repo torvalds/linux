@@ -24,6 +24,7 @@
 #include <media/v4l2-mc.h>
 
 #include "rkcif-capture-dvp.h"
+#include "rkcif-capture-mipi.h"
 #include "rkcif-common.h"
 
 static const char *const px30_vip_clks[] = {
@@ -49,6 +50,7 @@ static const struct rkcif_match_data rk3568_vicap_match_data = {
 	.clks = rk3568_vicap_clks,
 	.clks_num = ARRAY_SIZE(rk3568_vicap_clks),
 	.dvp = &rkcif_rk3568_vicap_dvp_match_data,
+	.mipi = &rkcif_rk3568_vicap_mipi_match_data,
 };
 
 static const struct of_device_id rkcif_plat_of_match[] = {
@@ -72,14 +74,21 @@ static int rkcif_register(struct rkcif_device *rkcif)
 	if (ret && ret != -ENODEV)
 		goto err;
 
+	ret = rkcif_mipi_register(rkcif);
+	if (ret && ret != -ENODEV)
+		goto err_dvp_unregister;
+
 	return 0;
 
+err_dvp_unregister:
+	rkcif_dvp_unregister(rkcif);
 err:
 	return ret;
 }
 
 static void rkcif_unregister(struct rkcif_device *rkcif)
 {
+	rkcif_mipi_unregister(rkcif);
 	rkcif_dvp_unregister(rkcif);
 }
 
@@ -126,6 +135,9 @@ static irqreturn_t rkcif_isr(int irq, void *ctx)
 	irqreturn_t ret = IRQ_NONE;
 
 	if (rkcif_dvp_isr(irq, ctx) == IRQ_HANDLED)
+		ret = IRQ_HANDLED;
+
+	if (rkcif_mipi_isr(irq, ctx) == IRQ_HANDLED)
 		ret = IRQ_HANDLED;
 
 	return ret;

@@ -73,6 +73,17 @@ enum rkcif_interface_type {
 	RKCIF_IF_MIPI,
 };
 
+enum rkcif_mipi_format_type {
+	RKCIF_MIPI_TYPE_INVALID,
+	RKCIF_MIPI_TYPE_RAW8,
+	RKCIF_MIPI_TYPE_RAW10,
+	RKCIF_MIPI_TYPE_RAW12,
+	RKCIF_MIPI_TYPE_RGB888,
+	RKCIF_MIPI_TYPE_YUV422SP,
+	RKCIF_MIPI_TYPE_YUV420SP,
+	RKCIF_MIPI_TYPE_YUV400,
+};
+
 struct rkcif_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
@@ -107,9 +118,15 @@ struct rkcif_output_fmt {
 	u32 fourcc;
 	u32 mbus_code;
 	u8 cplanes;
+	u8 depth;
 
 	union {
 		u32 dvp_fmt_val;
+		struct {
+			u8 dt;
+			bool compact;
+			enum rkcif_mipi_format_type type;
+		} mipi;
 	};
 };
 
@@ -184,6 +201,17 @@ struct rkcif_interface {
 	void (*set_crop)(struct rkcif_stream *stream, u16 left, u16 top);
 };
 
+struct rkcif_mipi_match_data {
+	unsigned int mipi_num;
+	unsigned int regs[RKCIF_MIPI_REGISTER_MAX];
+	unsigned int regs_id[RKCIF_ID_MAX][RKCIF_MIPI_ID_REGISTER_MAX];
+	u32 (*mipi_ctrl0)(struct rkcif_stream *stream,
+			  const struct rkcif_output_fmt *active_out_fmt);
+	struct {
+		unsigned int offset;
+	} blocks[RKCIF_MIPI_MAX - RKCIF_MIPI_BASE];
+};
+
 struct rkcif_dvp_match_data {
 	const struct rkcif_input_fmt *in_fmts;
 	unsigned int in_fmts_num;
@@ -199,6 +227,7 @@ struct rkcif_match_data {
 	const char *const *clks;
 	unsigned int clks_num;
 	const struct rkcif_dvp_match_data *dvp;
+	const struct rkcif_mipi_match_data *mipi;
 };
 
 struct rkcif_device {
