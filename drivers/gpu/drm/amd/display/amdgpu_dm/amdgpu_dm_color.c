@@ -890,6 +890,9 @@ amdgpu_colorop_tf_to_dc_tf(enum drm_colorop_curve_1d_type tf)
 	case DRM_COLOROP_1D_CURVE_BT2020_INV_OETF:
 	case DRM_COLOROP_1D_CURVE_BT2020_OETF:
 		return TRANSFER_FUNCTION_BT709;
+	case DRM_COLOROP_1D_CURVE_GAMMA22:
+	case DRM_COLOROP_1D_CURVE_GAMMA22_INV:
+		return TRANSFER_FUNCTION_GAMMA22;
 	default:
 		return TRANSFER_FUNCTION_LINEAR;
 	}
