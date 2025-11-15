@@ -49,6 +49,7 @@ struct vkms_config_plane {
 
 	enum drm_plane_type type;
 	struct xarray possible_crtcs;
+	bool default_pipeline;
 
 	/* Internal usage */
 	struct vkms_plane *plane;
@@ -203,7 +204,8 @@ struct vkms_config *vkms_config_create(const char *dev_name);
  */
 struct vkms_config *vkms_config_default_create(bool enable_cursor,
 					       bool enable_writeback,
-					       bool enable_overlay);
+					       bool enable_overlay,
+					       bool enable_plane_pipeline);
 
 /**
  * vkms_config_destroy() - Free a VKMS configuration
@@ -286,6 +288,30 @@ vkms_config_plane_set_type(struct vkms_config_plane *plane_cfg,
 			   enum drm_plane_type type)
 {
 	plane_cfg->type = type;
+}
+
+/**
+ * vkms_config_plane_get_default_pipeline() - Return if the plane will
+ * be created with the default pipeline
+ * @plane_cfg: Plane to get the information from
+ */
+static inline bool
+vkms_config_plane_get_default_pipeline(struct vkms_config_plane *plane_cfg)
+{
+	return plane_cfg->default_pipeline;
+}
+
+/**
+ * vkms_config_plane_set_default_pipeline() - Set if the plane will
+ * be created with the default pipeline
+ * @plane_cfg: Plane to configure the pipeline
+ * @default_pipeline: New default pipeline value
+ */
+static inline void
+vkms_config_plane_set_default_pipeline(struct vkms_config_plane *plane_cfg,
+				       bool default_pipeline)
+{
+	plane_cfg->default_pipeline = default_pipeline;
 }
 
 /**
