@@ -32,6 +32,7 @@ enum {
 	ZLOOP_OPT_NR_QUEUES		= (1 << 6),
 	ZLOOP_OPT_QUEUE_DEPTH		= (1 << 7),
 	ZLOOP_OPT_BUFFERED_IO		= (1 << 8),
+	ZLOOP_OPT_ZONE_APPEND		= (1 << 9),
 };
 
 static const match_table_t zloop_opt_tokens = {
@@ -44,6 +45,7 @@ static const match_table_t zloop_opt_tokens = {
 	{ ZLOOP_OPT_NR_QUEUES,		"nr_queues=%u"		},
 	{ ZLOOP_OPT_QUEUE_DEPTH,	"queue_depth=%u"	},
 	{ ZLOOP_OPT_BUFFERED_IO,	"buffered_io"		},
+	{ ZLOOP_OPT_ZONE_APPEND,	"zone_append=%u"	},
 	{ ZLOOP_OPT_ERR,		NULL			}
 };
 
@@ -56,6 +58,7 @@ static const match_table_t zloop_opt_tokens = {
 #define ZLOOP_DEF_NR_QUEUES		1
 #define ZLOOP_DEF_QUEUE_DEPTH		128
 #define ZLOOP_DEF_BUFFERED_IO		false
+#define ZLOOP_DEF_ZONE_APPEND		true
 
 /* Arbitrary limit on the zone size (16GB). */
 #define ZLOOP_MAX_ZONE_SIZE_MB		16384
@@ -71,6 +74,7 @@ struct zloop_options {
 	unsigned int		nr_queues;
 	unsigned int		queue_depth;
 	bool			buffered_io;
+	bool			zone_append;
 };
 
 /*
@@ -108,6 +112,7 @@ struct zloop_device {
 
 	struct workqueue_struct *workqueue;
 	bool			buffered_io;
+	bool			zone_append;
 
 	const char		*base_dir;
 	struct file		*data_dir;
@@ -377,6 +382,11 @@ static void zloop_rw(struct zloop_cmd *cmd)
 	cmd->sector = sector;
 	cmd->nr_sectors = nr_sectors;
 	cmd->ret = 0;
+
+	if (WARN_ON_ONCE(is_append && !zlo->zone_append)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	/* We should never get an I/O beyond the device capacity. */
 	if (WARN_ON_ONCE(zone_no >= zlo->nr_zones)) {
@@ -889,7 +899,6 @@ static int zloop_ctl_add(struct zloop_options *opts)
 {
 	struct queue_limits lim = {
 		.max_hw_sectors		= SZ_1M >> SECTOR_SHIFT,
-		.max_hw_zone_append_sectors = SZ_1M >> SECTOR_SHIFT,
 		.chunk_sectors		= opts->zone_size,
 		.features		= BLK_FEAT_ZONED,
 	};
@@ -941,6 +950,7 @@ static int zloop_ctl_add(struct zloop_options *opts)
 	zlo->nr_zones = nr_zones;
 	zlo->nr_conv_zones = opts->nr_conv_zones;
 	zlo->buffered_io = opts->buffered_io;
+	zlo->zone_append = opts->zone_append;
 
 	zlo->workqueue = alloc_workqueue("zloop%d", WQ_UNBOUND | WQ_FREEZABLE,
 				opts->nr_queues * opts->queue_depth, zlo->id);
@@ -981,6 +991,8 @@ static int zloop_ctl_add(struct zloop_options *opts)
 
 	lim.physical_block_size = zlo->block_size;
 	lim.logical_block_size = zlo->block_size;
+	if (zlo->zone_append)
+		lim.max_hw_zone_append_sectors = lim.max_hw_sectors;
 
 	zlo->tag_set.ops = &zloop_mq_ops;
 	zlo->tag_set.nr_hw_queues = opts->nr_queues;
@@ -1021,10 +1033,13 @@ static int zloop_ctl_add(struct zloop_options *opts)
 	zlo->state = Zlo_live;
 	mutex_unlock(&zloop_ctl_mutex);
 
-	pr_info("Added device %d: %u zones of %llu MB, %u B block size\n",
+	pr_info("zloop: device %d, %u zones of %llu MiB, %u B block size\n",
 		zlo->id, zlo->nr_zones,
 		((sector_t)zlo->zone_size << SECTOR_SHIFT) >> 20,
 		zlo->block_size);
+	pr_info("zloop%d: using %s zone append\n",
+		zlo->id,
+		zlo->zone_append ? "native" : "emulated");
 
 	return 0;
 
@@ -1111,6 +1126,7 @@ static int zloop_parse_options(struct zloop_options *opts, const char *buf)
 	opts->nr_queues = ZLOOP_DEF_NR_QUEUES;
 	opts->queue_depth = ZLOOP_DEF_QUEUE_DEPTH;
 	opts->buffered_io = ZLOOP_DEF_BUFFERED_IO;
+	opts->zone_append = ZLOOP_DEF_ZONE_APPEND;
 
 	if (!buf)
 		return 0;
@@ -1219,6 +1235,18 @@ static int zloop_parse_options(struct zloop_options *opts, const char *buf)
 			break;
 		case ZLOOP_OPT_BUFFERED_IO:
 			opts->buffered_io = true;
+			break;
+		case ZLOOP_OPT_ZONE_APPEND:
+			if (match_uint(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			if (token != 0 && token != 1) {
+				pr_err("Invalid zone_append value\n");
+				ret = -EINVAL;
+				goto out;
+			}
+			opts->zone_append = token;
 			break;
 		case ZLOOP_OPT_ERR:
 		default:
