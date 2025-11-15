@@ -227,6 +227,34 @@ static inline void scatterwalk_done_src(struct scatter_walk *walk,
 	scatterwalk_advance(walk, nbytes);
 }
 
+/*
+ * Flush the dcache of any pages that overlap the region
+ * [offset, offset + nbytes) relative to base_page.
+ *
+ * This should be called only when ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE, to ensure
+ * that all relevant code (including the call to sg_page() in the caller, if
+ * applicable) gets fully optimized out when !ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE.
+ */
+static inline void __scatterwalk_flush_dcache_pages(struct page *base_page,
+						    unsigned int offset,
+						    unsigned int nbytes)
+{
+	unsigned int num_pages;
+
+	base_page += offset / PAGE_SIZE;
+	offset %= PAGE_SIZE;
+
+	/*
+	 * This is an overflow-safe version of
+	 * num_pages = DIV_ROUND_UP(offset + nbytes, PAGE_SIZE).
+	 */
+	num_pages = nbytes / PAGE_SIZE;
+	num_pages += DIV_ROUND_UP(offset + (nbytes % PAGE_SIZE), PAGE_SIZE);
+
+	for (unsigned int i = 0; i < num_pages; i++)
+		flush_dcache_page(base_page + i);
+}
+
 /**
  * scatterwalk_done_dst() - Finish one step of a walk of destination scatterlist
  * @walk: the scatter_walk
@@ -240,27 +268,9 @@ static inline void scatterwalk_done_dst(struct scatter_walk *walk,
 					unsigned int nbytes)
 {
 	scatterwalk_unmap(walk);
-	/*
-	 * Explicitly check ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE instead of just
-	 * relying on flush_dcache_page() being a no-op when not implemented,
-	 * since otherwise the BUG_ON in sg_page() does not get optimized out.
-	 * This also avoids having to consider whether the loop would get
-	 * reliably optimized out or not.
-	 */
-	if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE) {
-		struct page *base_page;
-		unsigned int offset;
-		int start, end, i;
-
-		base_page = sg_page(walk->sg);
-		offset = walk->offset;
-		start = offset >> PAGE_SHIFT;
-		end = start + (nbytes >> PAGE_SHIFT);
-		end += (offset_in_page(offset) + offset_in_page(nbytes) +
-			PAGE_SIZE - 1) >> PAGE_SHIFT;
-		for (i = start; i < end; i++)
-			flush_dcache_page(base_page + i);
-	}
+	if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE)
+		__scatterwalk_flush_dcache_pages(sg_page(walk->sg),
+						 walk->offset, nbytes);
 	scatterwalk_advance(walk, nbytes);
 }
 
