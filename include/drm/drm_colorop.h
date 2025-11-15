@@ -31,6 +31,9 @@
 #include <drm/drm_mode.h>
 #include <drm/drm_property.h>
 
+/* DRM colorop flags */
+#define DRM_COLOROP_FLAG_ALLOW_BYPASS	(1<<0)	/* Allow bypass on the drm_colorop */
+
 /**
  * enum drm_colorop_curve_1d_type - type of 1D curve
  *
@@ -256,11 +259,12 @@ struct drm_colorop {
 	 * @bypass_property:
 	 *
 	 * Boolean property to control enablement of the color
-	 * operation. Setting bypass to "true" shall always be supported
-	 * in order to allow compositors to quickly fall back to
-	 * alternate methods of color processing. This is important
-	 * since setting color operations can fail due to unique
-	 * HW constraints.
+	 * operation. Only present if DRM_COLOROP_FLAG_ALLOW_BYPASS
+	 * flag is set. When present, setting bypass to "true" shall
+	 * always be supported to allow compositors to quickly fall
+	 * back to alternate methods of color processing. This is
+	 * important since setting color operations can fail due to
+	 * unique HW constraints.
 	 */
 	struct drm_property *bypass_property;
 
@@ -353,14 +357,15 @@ void drm_colorop_pipeline_destroy(struct drm_device *dev);
 void drm_colorop_cleanup(struct drm_colorop *colorop);
 
 int drm_plane_colorop_curve_1d_init(struct drm_device *dev, struct drm_colorop *colorop,
-				    struct drm_plane *plane, u64 supported_tfs);
+				    struct drm_plane *plane, u64 supported_tfs, uint32_t flags);
 int drm_plane_colorop_curve_1d_lut_init(struct drm_device *dev, struct drm_colorop *colorop,
 					struct drm_plane *plane, uint32_t lut_size,
-					enum drm_colorop_lut1d_interpolation_type interpolation);
+					enum drm_colorop_lut1d_interpolation_type interpolation,
+					uint32_t flags);
 int drm_plane_colorop_ctm_3x4_init(struct drm_device *dev, struct drm_colorop *colorop,
-				   struct drm_plane *plane);
+				   struct drm_plane *plane, uint32_t flags);
 int drm_plane_colorop_mult_init(struct drm_device *dev, struct drm_colorop *colorop,
-				struct drm_plane *plane);
+				struct drm_plane *plane, uint32_t flags);
 
 struct drm_colorop_state *
 drm_atomic_helper_colorop_duplicate_state(struct drm_colorop *colorop);
