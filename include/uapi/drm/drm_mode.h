@@ -945,6 +945,19 @@ enum drm_colorop_type {
 };
 
 /**
+ * enum drm_colorop_lut1d_interpolation_type - type of interpolation for 1D LUTs
+ */
+enum drm_colorop_lut1d_interpolation_type {
+	/**
+	 * @DRM_COLOROP_LUT1D_INTERPOLATION_LINEAR:
+	 *
+	 * Linear interpolation. Values between points of the LUT will be
+	 * linearly interpolated.
+	 */
+	DRM_COLOROP_LUT1D_INTERPOLATION_LINEAR,
+};
+
+/**
  * struct drm_plane_size_hint - Plane size hints
  * @width: The width of the plane in pixel
  * @height: The height of the plane in pixel
