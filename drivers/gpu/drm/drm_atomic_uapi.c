@@ -655,10 +655,17 @@ static int drm_atomic_colorop_set_property(struct drm_colorop *colorop,
 					   struct drm_property *property,
 					   uint64_t val)
 {
-	drm_dbg_atomic(colorop->dev,
-		       "[COLOROP:%d] unknown property [PROP:%d:%s]]\n",
-		       colorop->base.id, property->base.id, property->name);
-	return -EINVAL;
+	if (property == colorop->curve_1d_type_property) {
+		state->curve_1d_type = val;
+	} else {
+		drm_dbg_atomic(colorop->dev,
+			       "[COLOROP:%d:%d] unknown property [PROP:%d:%s]\n",
+			       colorop->base.id, colorop->type,
+			       property->base.id, property->name);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int
@@ -668,6 +675,8 @@ drm_atomic_colorop_get_property(struct drm_colorop *colorop,
 {
 	if (property == colorop->type_property)
 		*val = colorop->type;
+	else if (property == colorop->curve_1d_type_property)
+		*val = state->curve_1d_type;
 	else
 		return -EINVAL;
 
