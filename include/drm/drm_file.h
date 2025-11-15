@@ -207,6 +207,13 @@ struct drm_file {
 	bool writeback_connectors;
 
 	/**
+	 * @plane_color_pipeline:
+	 *
+	 * True if client understands plane color pipelines
+	 */
+	bool plane_color_pipeline;
+
+	/**
 	 * @was_master:
 	 *
 	 * This client has or had, master capability. Protected by struct
