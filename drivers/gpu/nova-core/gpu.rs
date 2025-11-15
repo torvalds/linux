@@ -182,7 +182,7 @@ pub(crate) struct Spec {
 }
 
 impl Spec {
-    fn new(bar: &Bar0) -> Result<Spec> {
+    fn new(dev: &device::Device, bar: &Bar0) -> Result<Spec> {
         // Some brief notes about boot0 and boot42, in chronological order:
         //
         // NV04 through NV50:
@@ -207,7 +207,10 @@ impl Spec {
             return Err(ENODEV);
         }
 
-        Spec::try_from(regs::NV_PMC_BOOT_42::read(bar))
+        let boot42 = regs::NV_PMC_BOOT_42::read(bar);
+        Spec::try_from(boot42).inspect_err(|_| {
+            dev_err!(dev, "Unsupported chipset: {}\n", boot42);
+        })
     }
 }
 
@@ -259,7 +262,7 @@ impl Gpu {
         bar: &'a Bar0,
     ) -> impl PinInit<Self, Error> + 'a {
         try_pin_init!(Self {
-            spec: Spec::new(bar).inspect(|spec| {
+            spec: Spec::new(pdev.as_ref(), bar).inspect(|spec| {
                 dev_info!(pdev.as_ref(),"NVIDIA ({})\n", spec);
             })?,
 
