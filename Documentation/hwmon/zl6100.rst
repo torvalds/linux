@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: https://www.renesas.com/us/en/document/dst/zl2004-datasheet.pdf
+    Datasheet: https://www.renesas.com/us/en/document/dst/zl2004-datasheet
 
   * Renesas / Intersil / Zilker Labs ZL2005
 
@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: https://www.renesas.com/us/en/document/dst/zl2005-datasheet.pdf
+    Datasheet: https://www.renesas.com/us/en/document/dst/zl2005-datasheet
 
   * Renesas / Intersil / Zilker Labs ZL2006
 
@@ -25,7 +25,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: https://www.renesas.com/us/en/document/dst/zl2006-datasheet.pdf
+    Datasheet: https://www.renesas.com/us/en/document/dst/zl2006-datasheet
 
   * Renesas / Intersil / Zilker Labs ZL2008
 
@@ -33,7 +33,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: https://www.renesas.com/us/en/document/dst/zl2008-datasheet.pdf
+    Datasheet: https://www.renesas.com/us/en/document/dst/zl2008-datasheet
 
   * Renesas / Intersil / Zilker Labs ZL2105
 
@@ -41,7 +41,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: https://www.renesas.com/us/en/document/dst/zl2105-datasheet.pdf
+    Datasheet: https://www.renesas.com/us/en/document/dst/zl2105-datasheet
 
   * Renesas / Intersil / Zilker Labs ZL2106
 
@@ -49,7 +49,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: https://www.renesas.com/us/en/document/dst/zl2106-datasheet.pdf
+    Datasheet: https://www.renesas.com/us/en/document/dst/zl2106-datasheet
 
   * Renesas / Intersil / Zilker Labs ZL6100
 
@@ -57,7 +57,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: https://www.renesas.com/us/en/document/dst/zl6100-datasheet.pdf
+    Datasheet: https://www.renesas.com/us/en/document/dst/zl6100-datasheet
 
   * Renesas / Intersil / Zilker Labs ZL6105
 
@@ -65,7 +65,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: https://www.renesas.com/us/en/document/dst/zl6105-datasheet.pdf
+    Datasheet: https://www.renesas.com/us/en/document/dst/zl6105-datasheet
 
   * Renesas / Intersil / Zilker Labs ZL8802
 
