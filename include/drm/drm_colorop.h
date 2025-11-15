@@ -109,6 +109,24 @@ enum drm_colorop_curve_1d_type {
 	DRM_COLOROP_1D_CURVE_BT2020_OETF,
 
 	/**
+	 * @DRM_COLOROP_1D_CURVE_GAMMA22:
+	 *
+	 * enum string "Gamma 2.2"
+	 *
+	 * A gamma 2.2 power function. This applies a power curve with
+	 * gamma value of 2.2 to the input values.
+	 */
+	DRM_COLOROP_1D_CURVE_GAMMA22,
+
+	/**
+	 * @DRM_COLOROP_1D_CURVE_GAMMA22_INV:
+	 *
+	 * enum string "Gamma 2.2 Inverse"
+	 *
+	 * The inverse of &DRM_COLOROP_1D_CURVE_GAMMA22
+	 */
+	DRM_COLOROP_1D_CURVE_GAMMA22_INV,
+	/**
 	 * @DRM_COLOROP_1D_CURVE_COUNT:
 	 *
 	 * enum value denoting the size of the enum
