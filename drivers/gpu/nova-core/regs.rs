@@ -40,13 +40,24 @@ register!(NV_PMC_BOOT_0 @ 0x00000000, "Basic revision information about the GPU"
 });
 
 impl NV_PMC_BOOT_0 {
-    /// Combines `architecture_0` and `architecture_1` to obtain the architecture of the chip.
-    pub(crate) fn architecture(self) -> Result<Architecture> {
-        Architecture::try_from(
-            self.architecture_0() | (self.architecture_1() << Self::ARCHITECTURE_0_RANGE.len()),
-        )
-    }
+    pub(crate) fn is_older_than_fermi(self) -> bool {
+        // From https://github.com/NVIDIA/open-gpu-doc/tree/master/manuals :
+        const NV_PMC_BOOT_0_ARCHITECTURE_GF100: u8 = 0xc;
 
+        // Older chips left arch1 zeroed out. That, combined with an arch0 value that is less than
+        // GF100, means "older than Fermi".
+        self.architecture_1() == 0 && self.architecture_0() < NV_PMC_BOOT_0_ARCHITECTURE_GF100
+    }
+}
+
+register!(NV_PMC_BOOT_42 @ 0x00000a00, "Extended architecture information" {
+    15:12   minor_revision as u8, "Minor revision of the chip";
+    19:16   major_revision as u8, "Major revision of the chip";
+    23:20   implementation as u8, "Implementation version of the architecture";
+    29:24   architecture as u8 ?=> Architecture, "Architecture value";
+});
+
+impl NV_PMC_BOOT_42 {
     /// Combines `architecture` and `implementation` to obtain a code unique to the chipset.
     pub(crate) fn chipset(self) -> Result<Chipset> {
         self.architecture()
