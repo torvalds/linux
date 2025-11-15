@@ -903,6 +903,20 @@ enum drm_colorop_type {
 	DRM_COLOROP_1D_CURVE,
 
 	/**
+	 * @DRM_COLOROP_1D_LUT:
+	 *
+	 * enum string "1D LUT"
+	 *
+	 * A simple 1D LUT of uniformly spaced &drm_color_lut32 entries,
+	 * packed into a blob via the DATA property. The driver's
+	 * expected LUT size is advertised via the SIZE property.
+	 *
+	 * The DATA blob is an array of struct drm_color_lut32 with size
+	 * of "size".
+	 */
+	DRM_COLOROP_1D_LUT,
+
+	/**
 	 * @DRM_COLOROP_CTM_3X4:
 	 *
 	 * enum string "3x4 Matrix"
