@@ -177,7 +177,7 @@ static int zloop_update_seq_zone(struct zloop_device *zlo, unsigned int zone_no)
 		zone->wp = zone->start;
 	} else if (file_sectors == zlo->zone_capacity) {
 		zone->cond = BLK_ZONE_COND_FULL;
-		zone->wp = zone->start + zlo->zone_size;
+		zone->wp = ULLONG_MAX;
 	} else {
 		zone->cond = BLK_ZONE_COND_CLOSED;
 		zone->wp = zone->start + file_sectors;
@@ -326,7 +326,7 @@ static int zloop_finish_zone(struct zloop_device *zlo, unsigned int zone_no)
 	}
 
 	zone->cond = BLK_ZONE_COND_FULL;
-	zone->wp = zone->start + zlo->zone_size;
+	zone->wp = ULLONG_MAX;
 	clear_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags);
 
  unlock:
@@ -433,8 +433,10 @@ static void zloop_rw(struct zloop_cmd *cmd)
 		 * copmpletes.
 		 */
 		zone->wp += nr_sectors;
-		if (zone->wp == zone_end)
+		if (zone->wp == zone_end) {
 			zone->cond = BLK_ZONE_COND_FULL;
+			zone->wp = ULLONG_MAX;
+		}
 	}
 
 	rq_for_each_bvec(tmp, rq, rq_iter)
