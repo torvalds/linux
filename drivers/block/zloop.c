@@ -406,6 +406,11 @@ static void zloop_rw(struct zloop_cmd *cmd)
 	if (!test_bit(ZLOOP_ZONE_CONV, &zone->flags) && is_write) {
 		mutex_lock(&zone->lock);
 
+		/*
+		 * Zone append operations always go at the current write
+		 * pointer, but regular write operations must already be
+		 * aligned to the write pointer when submitted.
+		 */
 		if (is_append) {
 			if (zone->cond == BLK_ZONE_COND_FULL) {
 				ret = -EIO;
@@ -413,13 +418,7 @@ static void zloop_rw(struct zloop_cmd *cmd)
 			}
 			sector = zone->wp;
 			cmd->sector = sector;
-		}
-
-		/*
-		 * Write operations must be aligned to the write pointer and
-		 * fully contained within the zone capacity.
-		 */
-		if (sector != zone->wp || zone->wp + nr_sectors > zone_end) {
+		} else if (sector != zone->wp) {
 			pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
 			       zone_no, sector, zone->wp);
 			ret = -EIO;
@@ -432,9 +431,9 @@ static void zloop_rw(struct zloop_cmd *cmd)
 			zone->cond = BLK_ZONE_COND_IMP_OPEN;
 
 		/*
-		 * Advance the write pointer of sequential zones. If the write
-		 * fails, the wp position will be corrected when the next I/O
-		 * copmpletes.
+		 * Advance the write pointer. If the write fails, the write
+		 * pointer position will be corrected when the next I/O starts
+		 * execution.
 		 */
 		zone->wp += nr_sectors;
 		if (zone->wp == zone_end) {
