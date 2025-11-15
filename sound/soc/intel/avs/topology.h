@@ -223,6 +223,7 @@ struct avs_tplg_module {
 	u32 ctl_id;
 	u32 num_config_ids;
 	u32 *config_ids;
+	struct avs_tplg_nhlt_config *nhlt_config;
 
 	struct avs_tplg_pipeline *owner;
 	/* Pipeline modules management. */

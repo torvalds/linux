@@ -125,6 +125,7 @@ enum avs_tplg_token {
 	AVS_TKN_MOD_KCONTROL_ID_U32			= 1707,
 	AVS_TKN_MOD_INIT_CONFIG_NUM_IDS_U32		= 1708,
 	AVS_TKN_MOD_INIT_CONFIG_ID_U32			= 1709,
+	AVS_TKN_MOD_NHLT_CONFIG_ID_U32			= 1710,
 
 	/* struct avs_tplg_path_template */
 	AVS_TKN_PATH_TMPL_ID_U32			= 1801,
