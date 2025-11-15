@@ -666,7 +666,12 @@ drm_atomic_colorop_get_property(struct drm_colorop *colorop,
 				const struct drm_colorop_state *state,
 				struct drm_property *property, uint64_t *val)
 {
-	return -EINVAL;
+	if (property == colorop->type_property)
+		*val = colorop->type;
+	else
+		return -EINVAL;
+
+	return 0;
 }
 
 static int drm_atomic_set_writeback_fb_for_connector(
