@@ -5,7 +5,7 @@ Including uAPI header files
 Sometimes, it is useful to include header files and C example codes in
 order to describe the userspace API and to generate cross-references
 between the code and the documentation. Adding cross-references for
-userspace API files has an additional vantage: Sphinx will generate warnings
+userspace API files has an additional advantage: Sphinx will generate warnings
 if a symbol is not found at the documentation. That helps to keep the
 uAPI documentation in sync with the Kernel changes.
 The :ref:`parse_headers.py <parse_headers>` provides a way to generate such
