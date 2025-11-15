@@ -385,10 +385,9 @@ static int __init __reserved_mem_alloc_in_range(phys_addr_t size,
  */
 static int __init __reserved_mem_alloc_size(unsigned long node, const char *uname)
 {
-	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
 	phys_addr_t start = 0, end = 0;
 	phys_addr_t base = 0, align = 0, size;
-	int len;
+	int i, len;
 	const __be32 *prop;
 	bool nomap;
 	int ret;
@@ -422,19 +421,15 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 	    && !nomap)
 		align = max_t(phys_addr_t, align, CMA_MIN_ALIGNMENT_BYTES);
 
-	prop = of_get_flat_dt_prop(node, "alloc-ranges", &len);
+	prop = of_flat_dt_get_addr_size_prop(node, "alloc-ranges", &len);
 	if (prop) {
+		for (i = 0; i < len; i++) {
+			u64 b, s;
 
-		if (len % t_len != 0) {
-			pr_err("invalid alloc-ranges property in '%s', skipping node.\n",
-			       uname);
-			return -EINVAL;
-		}
+			of_flat_dt_read_addr_size(prop, i, &b, &s);
 
-		while (len > 0) {
-			start = dt_mem_next_cell(dt_root_addr_cells, &prop);
-			end = start + dt_mem_next_cell(dt_root_size_cells,
-						       &prop);
+			start = b;
+			end = b + s;
 
 			base = 0;
 			ret = __reserved_mem_alloc_in_range(size, align,
@@ -445,9 +440,7 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 					(unsigned long)(size / SZ_1M));
 				break;
 			}
-			len -= t_len;
 		}
-
 	} else {
 		ret = early_init_dt_alloc_reserved_memory_arch(size, align,
 							0, 0, nomap, &base);
