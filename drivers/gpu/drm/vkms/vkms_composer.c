@@ -14,6 +14,7 @@
 #include <kunit/visibility.h>
 
 #include "vkms_composer.h"
+#include "vkms_luts.h"
 
 static u16 pre_mul_blend_channel(u16 src, u16 dst, u16 alpha)
 {
@@ -133,6 +134,54 @@ static void apply_lut(const struct vkms_crtc_state *crtc_state, struct line_buff
 		pixel->r = apply_lut_to_channel_value(&crtc_state->gamma_lut, pixel->r, LUT_RED);
 		pixel->g = apply_lut_to_channel_value(&crtc_state->gamma_lut, pixel->g, LUT_GREEN);
 		pixel->b = apply_lut_to_channel_value(&crtc_state->gamma_lut, pixel->b, LUT_BLUE);
+	}
+}
+
+static void apply_colorop(struct pixel_argb_u16 *pixel, struct drm_colorop *colorop)
+{
+	struct drm_colorop_state *colorop_state = colorop->state;
+	struct drm_device *dev = colorop->dev;
+
+	if (colorop->type == DRM_COLOROP_1D_CURVE) {
+		switch (colorop_state->curve_1d_type) {
+		case DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF:
+			pixel->r = apply_lut_to_channel_value(&srgb_inv_eotf, pixel->r, LUT_RED);
+			pixel->g = apply_lut_to_channel_value(&srgb_inv_eotf, pixel->g, LUT_GREEN);
+			pixel->b = apply_lut_to_channel_value(&srgb_inv_eotf, pixel->b, LUT_BLUE);
+			break;
+		case DRM_COLOROP_1D_CURVE_SRGB_EOTF:
+			pixel->r = apply_lut_to_channel_value(&srgb_eotf, pixel->r, LUT_RED);
+			pixel->g = apply_lut_to_channel_value(&srgb_eotf, pixel->g, LUT_GREEN);
+			pixel->b = apply_lut_to_channel_value(&srgb_eotf, pixel->b, LUT_BLUE);
+			break;
+		default:
+			drm_WARN_ONCE(dev, true,
+				      "unknown colorop 1D curve type %d\n",
+				      colorop_state->curve_1d_type);
+			break;
+		}
+	}
+}
+
+static void pre_blend_color_transform(const struct vkms_plane_state *plane_state,
+				      struct line_buffer *output_buffer)
+{
+	for (size_t x = 0; x < output_buffer->n_pixels; x++) {
+		struct drm_colorop *colorop = plane_state->base.base.color_pipeline;
+
+		while (colorop) {
+			struct drm_colorop_state *colorop_state;
+
+			colorop_state = colorop->state;
+
+			if (!colorop_state)
+				return;
+
+			if (!colorop_state->bypass)
+				apply_colorop(&output_buffer->pixels[x], colorop);
+
+			colorop = colorop->next;
+		}
 	}
 }
 
@@ -351,7 +400,7 @@ static void blend_line(struct vkms_plane_state *current_plane, int y,
 	 */
 	current_plane->pixel_read_line(current_plane, src_x_start, src_y_start, direction,
 				       pixel_count, &stage_buffer->pixels[dst_x_start]);
-
+	pre_blend_color_transform(current_plane, stage_buffer);
 	pre_mul_alpha_blend(stage_buffer, output_buffer,
 			    dst_x_start, pixel_count);
 }
