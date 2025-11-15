@@ -711,7 +711,7 @@ static u64 pf_profile_fair_ggtt(struct xe_gt *gt, unsigned int num_vfs)
 	if (num_vfs > 56)
 		return SZ_64M - SZ_8M;
 
-	return rounddown_pow_of_two(shareable / num_vfs);
+	return rounddown_pow_of_two(div_u64(shareable, num_vfs));
 }
 
 /**
