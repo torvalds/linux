@@ -145,6 +145,13 @@ struct drm_colorop_state {
 	enum drm_colorop_curve_1d_type curve_1d_type;
 
 	/**
+	 * @multiplier:
+	 *
+	 * Multiplier to 'gain' the plane. Format is S31.32 sign-magnitude.
+	 */
+	uint64_t multiplier;
+
+	/**
 	 * @data:
 	 *
 	 * Data blob for any TYPE that requires such a blob. The
@@ -272,6 +279,13 @@ struct drm_colorop {
 	struct drm_property *curve_1d_type_property;
 
 	/**
+	 * @multiplier_property:
+	 *
+	 * Multiplier property for plane gain
+	 */
+	struct drm_property *multiplier_property;
+
+	/**
 	 * @size_property:
 	 *
 	 * Size property for custom LUT from userspace.
@@ -329,6 +343,8 @@ int drm_plane_colorop_curve_1d_lut_init(struct drm_device *dev, struct drm_color
 					struct drm_plane *plane, uint32_t lut_size);
 int drm_plane_colorop_ctm_3x4_init(struct drm_device *dev, struct drm_colorop *colorop,
 				   struct drm_plane *plane);
+int drm_plane_colorop_mult_init(struct drm_device *dev, struct drm_colorop *colorop,
+				struct drm_plane *plane);
 
 struct drm_colorop_state *
 drm_atomic_helper_colorop_duplicate_state(struct drm_colorop *colorop);
