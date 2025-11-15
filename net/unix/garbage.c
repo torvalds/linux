@@ -404,9 +404,11 @@ static bool unix_scc_cyclic(struct list_head *scc)
 static LIST_HEAD(unix_visited_vertices);
 static unsigned long unix_vertex_grouped_index = UNIX_VERTEX_INDEX_MARK2;
 
-static void __unix_walk_scc(struct unix_vertex *vertex, unsigned long *last_index,
-			    struct sk_buff_head *hitlist)
+static unsigned long __unix_walk_scc(struct unix_vertex *vertex,
+				     unsigned long *last_index,
+				     struct sk_buff_head *hitlist)
 {
+	unsigned long cyclic_sccs = 0;
 	LIST_HEAD(vertex_stack);
 	struct unix_edge *edge;
 	LIST_HEAD(edge_stack);
@@ -497,8 +499,8 @@ prev_vertex:
 			if (unix_vertex_max_scc_index < vertex->scc_index)
 				unix_vertex_max_scc_index = vertex->scc_index;
 
-			if (!unix_graph_maybe_cyclic)
-				unix_graph_maybe_cyclic = unix_scc_cyclic(&scc);
+			if (unix_scc_cyclic(&scc))
+				cyclic_sccs++;
 		}
 
 		list_del(&scc);
@@ -507,13 +509,17 @@ prev_vertex:
 	/* Need backtracking ? */
 	if (!list_empty(&edge_stack))
 		goto prev_vertex;
+
+	return cyclic_sccs;
 }
+
+static unsigned long unix_graph_cyclic_sccs;
 
 static void unix_walk_scc(struct sk_buff_head *hitlist)
 {
 	unsigned long last_index = UNIX_VERTEX_INDEX_START;
+	unsigned long cyclic_sccs = 0;
 
-	unix_graph_maybe_cyclic = false;
 	unix_vertex_max_scc_index = UNIX_VERTEX_INDEX_START;
 
 	/* Visit every vertex exactly once.
@@ -523,18 +529,20 @@ static void unix_walk_scc(struct sk_buff_head *hitlist)
 		struct unix_vertex *vertex;
 
 		vertex = list_first_entry(&unix_unvisited_vertices, typeof(*vertex), entry);
-		__unix_walk_scc(vertex, &last_index, hitlist);
+		cyclic_sccs += __unix_walk_scc(vertex, &last_index, hitlist);
 	}
 
 	list_replace_init(&unix_visited_vertices, &unix_unvisited_vertices);
 	swap(unix_vertex_unvisited_index, unix_vertex_grouped_index);
 
+	unix_graph_cyclic_sccs = cyclic_sccs;
+	unix_graph_maybe_cyclic = !!unix_graph_cyclic_sccs;
 	unix_graph_grouped = true;
 }
 
 static void unix_walk_scc_fast(struct sk_buff_head *hitlist)
 {
-	unix_graph_maybe_cyclic = false;
+	unsigned long cyclic_sccs = unix_graph_cyclic_sccs;
 
 	while (!list_empty(&unix_unvisited_vertices)) {
 		struct unix_vertex *vertex;
@@ -551,15 +559,18 @@ static void unix_walk_scc_fast(struct sk_buff_head *hitlist)
 				scc_dead = unix_vertex_dead(vertex);
 		}
 
-		if (scc_dead)
+		if (scc_dead) {
+			cyclic_sccs--;
 			unix_collect_skb(&scc, hitlist);
-		else if (!unix_graph_maybe_cyclic)
-			unix_graph_maybe_cyclic = unix_scc_cyclic(&scc);
+		}
 
 		list_del(&scc);
 	}
 
 	list_replace_init(&unix_visited_vertices, &unix_unvisited_vertices);
+
+	unix_graph_cyclic_sccs = cyclic_sccs;
+	unix_graph_maybe_cyclic = !!unix_graph_cyclic_sccs;
 }
 
 static bool gc_in_progress;
