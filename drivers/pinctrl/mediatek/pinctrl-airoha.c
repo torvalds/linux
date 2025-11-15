@@ -35,7 +35,7 @@
 
 #define PINCTRL_FUNC_DESC(id, table)					\
 	{								\
-		.desc = PINCTRL_PINFUNCTION(#id, table##_groups,	\
+		.desc = PINCTRL_PINFUNCTION(id, table##_groups,	\
 					    ARRAY_SIZE(table##_groups)),\
 		.groups = table##_func_group,				\
 		.group_size = ARRAY_SIZE(table##_func_group),		\
