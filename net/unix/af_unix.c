@@ -733,8 +733,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 
 	/* ---- Socket is dead now and most probably destroyed ---- */
 
-	if (READ_ONCE(unix_tot_inflight))
-		unix_gc();		/* Garbage collect fds */
+	unix_schedule_gc();
 }
 
 struct unix_peercred {

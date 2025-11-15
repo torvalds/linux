@@ -137,7 +137,7 @@ static void unix_update_graph(struct unix_vertex *vertex)
 	if (!vertex)
 		return;
 
-	unix_graph_state = UNIX_GRAPH_MAYBE_CYCLIC;
+	WRITE_ONCE(unix_graph_state, UNIX_GRAPH_MAYBE_CYCLIC);
 }
 
 static LIST_HEAD(unix_unvisited_vertices);
@@ -200,7 +200,7 @@ static void unix_free_vertices(struct scm_fp_list *fpl)
 }
 
 static DEFINE_SPINLOCK(unix_gc_lock);
-unsigned int unix_tot_inflight;
+static unsigned int unix_tot_inflight;
 
 void unix_add_edges(struct scm_fp_list *fpl, struct unix_sock *receiver)
 {
@@ -540,7 +540,8 @@ static void unix_walk_scc(struct sk_buff_head *hitlist)
 	swap(unix_vertex_unvisited_index, unix_vertex_grouped_index);
 
 	unix_graph_cyclic_sccs = cyclic_sccs;
-	unix_graph_state = cyclic_sccs ? UNIX_GRAPH_CYCLIC : UNIX_GRAPH_NOT_CYCLIC;
+	WRITE_ONCE(unix_graph_state,
+		   cyclic_sccs ? UNIX_GRAPH_CYCLIC : UNIX_GRAPH_NOT_CYCLIC);
 }
 
 static void unix_walk_scc_fast(struct sk_buff_head *hitlist)
@@ -573,12 +574,13 @@ static void unix_walk_scc_fast(struct sk_buff_head *hitlist)
 	list_replace_init(&unix_visited_vertices, &unix_unvisited_vertices);
 
 	unix_graph_cyclic_sccs = cyclic_sccs;
-	unix_graph_state = cyclic_sccs ? UNIX_GRAPH_CYCLIC : UNIX_GRAPH_NOT_CYCLIC;
+	WRITE_ONCE(unix_graph_state,
+		   cyclic_sccs ? UNIX_GRAPH_CYCLIC : UNIX_GRAPH_NOT_CYCLIC);
 }
 
 static bool gc_in_progress;
 
-static void __unix_gc(struct work_struct *work)
+static void unix_gc(struct work_struct *work)
 {
 	struct sk_buff_head hitlist;
 	struct sk_buff *skb;
@@ -609,10 +611,16 @@ skip_gc:
 	WRITE_ONCE(gc_in_progress, false);
 }
 
-static DECLARE_WORK(unix_gc_work, __unix_gc);
+static DECLARE_WORK(unix_gc_work, unix_gc);
 
-void unix_gc(void)
+void unix_schedule_gc(void)
 {
+	if (READ_ONCE(unix_graph_state) == UNIX_GRAPH_NOT_CYCLIC)
+		return;
+
+	if (READ_ONCE(gc_in_progress))
+		return;
+
 	WRITE_ONCE(gc_in_progress, true);
 	queue_work(system_dfl_wq, &unix_gc_work);
 }
@@ -628,9 +636,8 @@ void wait_for_unix_gc(struct scm_fp_list *fpl)
 	 * Paired with the WRITE_ONCE() in unix_inflight(),
 	 * unix_notinflight(), and __unix_gc().
 	 */
-	if (READ_ONCE(unix_tot_inflight) > UNIX_INFLIGHT_TRIGGER_GC &&
-	    !READ_ONCE(gc_in_progress))
-		unix_gc();
+	if (READ_ONCE(unix_tot_inflight) > UNIX_INFLIGHT_TRIGGER_GC)
+		unix_schedule_gc();
 
 	/* Penalise users who want to send AF_UNIX sockets
 	 * but whose sockets have not been received yet.
