@@ -122,8 +122,14 @@ impl fmt::Display for Chipset {
 }
 
 /// Enum representation of the GPU generation.
-#[derive(fmt::Debug)]
+///
+/// TODO: remove the `Default` trait implementation, and the `#[default]`
+/// attribute, once the register!() macro (which creates Architecture items) no
+/// longer requires it for read-only fields.
+#[derive(fmt::Debug, Default, Copy, Clone)]
+#[repr(u8)]
 pub(crate) enum Architecture {
+    #[default]
     Turing = 0x16,
     Ampere = 0x17,
     Ada = 0x19,
@@ -139,6 +145,13 @@ impl TryFrom<u8> for Architecture {
             0x19 => Ok(Self::Ada),
             _ => Err(ENODEV),
         }
+    }
+}
+
+impl From<Architecture> for u8 {
+    fn from(value: Architecture) -> Self {
+        // CAST: `Architecture` is `repr(u8)`, so this cast is always lossless.
+        value as u8
     }
 }
 
