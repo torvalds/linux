@@ -1868,6 +1868,7 @@ amdgpu_dm_plane_set_colorop_properties(struct drm_plane_state *plane_state,
 {
 	struct drm_colorop *colorop = plane_state->color_pipeline;
 	struct drm_device *dev = plane_state->plane->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int ret;
 
 	/* 1D Curve - DEGAM TF */
@@ -1900,32 +1901,34 @@ amdgpu_dm_plane_set_colorop_properties(struct drm_plane_state *plane_state,
 	if (ret)
 		return ret;
 
-	/* 1D Curve & LUT - SHAPER TF & LUT */
-	colorop = colorop->next;
-	if (!colorop) {
-		drm_dbg(dev, "no Shaper TF colorop found\n");
-		return -EINVAL;
+	if (adev->dm.dc->caps.color.dpp.hw_3d_lut) {
+		/* 1D Curve & LUT - SHAPER TF & LUT */
+		colorop = colorop->next;
+		if (!colorop) {
+			drm_dbg(dev, "no Shaper TF colorop found\n");
+			return -EINVAL;
+		}
+
+		ret = __set_dm_plane_colorop_shaper(plane_state, dc_plane_state, colorop);
+		if (ret)
+			return ret;
+
+		/* Shaper LUT colorop is already handled, just skip here */
+		colorop = colorop->next;
+		if (!colorop)
+			return -EINVAL;
+
+		/* 3D LUT */
+		colorop = colorop->next;
+		if (!colorop) {
+			drm_dbg(dev, "no 3D LUT colorop found\n");
+			return -EINVAL;
+		}
+
+		ret = __set_dm_plane_colorop_3dlut(plane_state, dc_plane_state, colorop);
+		if (ret)
+			return ret;
 	}
-
-	ret = __set_dm_plane_colorop_shaper(plane_state, dc_plane_state, colorop);
-	if (ret)
-		return ret;
-
-	/* Shaper LUT colorop is already handled, just skip here */
-	colorop = colorop->next;
-	if (!colorop)
-		return -EINVAL;
-
-	/* 3D LUT */
-	colorop = colorop->next;
-	if (!colorop) {
-		drm_dbg(dev, "no 3D LUT colorop found\n");
-		return -EINVAL;
-	}
-
-	ret = __set_dm_plane_colorop_3dlut(plane_state, dc_plane_state, colorop);
-	if (ret)
-		return ret;
 
 	/* 1D Curve & LUT - BLND TF & LUT */
 	colorop = colorop->next;
