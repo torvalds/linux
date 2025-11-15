@@ -407,6 +407,10 @@ static void zloop_rw(struct zloop_cmd *cmd)
 		mutex_lock(&zone->lock);
 
 		if (is_append) {
+			if (zone->cond == BLK_ZONE_COND_FULL) {
+				ret = -EIO;
+				goto unlock;
+			}
 			sector = zone->wp;
 			cmd->sector = sector;
 		}
