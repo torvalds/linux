@@ -655,7 +655,9 @@ static int drm_atomic_colorop_set_property(struct drm_colorop *colorop,
 					   struct drm_property *property,
 					   uint64_t val)
 {
-	if (property == colorop->curve_1d_type_property) {
+	if (property == colorop->bypass_property) {
+		state->bypass = val;
+	} else if (property == colorop->curve_1d_type_property) {
 		state->curve_1d_type = val;
 	} else {
 		drm_dbg_atomic(colorop->dev,
@@ -675,6 +677,8 @@ drm_atomic_colorop_get_property(struct drm_colorop *colorop,
 {
 	if (property == colorop->type_property)
 		*val = colorop->type;
+	else if (property == colorop->bypass_property)
+		*val = state->bypass;
 	else if (property == colorop->curve_1d_type_property)
 		*val = state->curve_1d_type;
 	else
