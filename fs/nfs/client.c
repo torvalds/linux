@@ -338,6 +338,14 @@ again:
 		/* Match the xprt security policy */
 		if (clp->cl_xprtsec.policy != data->xprtsec.policy)
 			continue;
+		if (clp->cl_xprtsec.policy == RPC_XPRTSEC_TLS_X509) {
+			if (clp->cl_xprtsec.cert_serial !=
+			    data->xprtsec.cert_serial)
+				continue;
+			if (clp->cl_xprtsec.privkey_serial !=
+			    data->xprtsec.privkey_serial)
+				continue;
+		}
 
 		refcount_inc(&clp->cl_count);
 		return clp;

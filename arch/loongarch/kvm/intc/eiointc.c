@@ -439,7 +439,7 @@ static int kvm_eiointc_ctrl_access(struct kvm_device *dev,
 	spin_lock_irqsave(&s->lock, flags);
 	switch (type) {
 	case KVM_DEV_LOONGARCH_EXTIOI_CTRL_INIT_NUM_CPU:
-		if (val >= EIOINTC_ROUTE_MAX_VCPUS)
+		if (val > EIOINTC_ROUTE_MAX_VCPUS)
 			ret = -EINVAL;
 		else
 			s->num_cpu = val;
