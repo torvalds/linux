@@ -879,14 +879,18 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 	if (retval)
 		goto exit_put_port;
 
-	send_control(gb_tty, gb_tty->ctrlout);
+	retval = send_control(gb_tty, gb_tty->ctrlout);
+	if (retval)
+		goto exit_connection_disable;
 
 	/* initialize the uart to be 9600n81 */
 	gb_tty->line_coding.rate = cpu_to_le32(9600);
 	gb_tty->line_coding.format = GB_SERIAL_1_STOP_BITS;
 	gb_tty->line_coding.parity = GB_SERIAL_NO_PARITY;
 	gb_tty->line_coding.data_bits = 8;
-	send_line_coding(gb_tty);
+	retval = send_line_coding(gb_tty);
+	if (retval)
+		goto exit_connection_disable;
 
 	retval = gb_connection_enable(connection);
 	if (retval)
