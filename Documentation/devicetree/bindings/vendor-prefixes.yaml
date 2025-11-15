@@ -1325,6 +1325,8 @@ patternProperties:
     description: Raumfeld GmbH
   "^raydium,.*":
     description: Raydium Semiconductor Corp.
+  "^raystar,.*":
+    description: Raystar Optronics, Inc.
   "^rda,.*":
     description: Unisoc Communications, Inc.
   "^realtek,.*":
