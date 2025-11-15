@@ -31,7 +31,7 @@ Q = @
 
 $(YNLTOOL): ../libynl.a $(OBJS)
 	$(Q)echo -e "\tLINK $@"
-	$(Q)$(CC) $(CFLAGS) -o $@ $(OBJS) ../libynl.a -lmnl -lm
+	$(Q)$(CC) $(CFLAGS) -o $@ $(OBJS) ../libynl.a -lm
 
 %.o: %.c ../libynl.a
 	$(Q)echo -e "\tCC $@"
