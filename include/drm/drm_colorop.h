@@ -172,6 +172,14 @@ struct drm_colorop {
 	enum drm_colorop_type type;
 
 	/**
+	 * @next:
+	 *
+	 * Read-only
+	 * Pointer to next drm_colorop in pipeline
+	 */
+	struct drm_colorop *next;
+
+	/**
 	 * @type_property:
 	 *
 	 * Read-only "TYPE" property for specifying the type of
@@ -197,6 +205,13 @@ struct drm_colorop {
 	 * Sub-type for DRM_COLOROP_1D_CURVE type.
 	 */
 	struct drm_property *curve_1d_type_property;
+
+	/**
+	 * @next_property:
+	 *
+	 * Read-only property to next colorop in the pipeline
+	 */
+	struct drm_property *next_property;
 
 };
 
@@ -272,5 +287,7 @@ const char *drm_get_colorop_type_name(enum drm_colorop_type type);
  * const pointer and hence is threadsafe.
  */
 const char *drm_get_colorop_curve_1d_type_name(enum drm_colorop_curve_1d_type type);
+
+void drm_colorop_set_next_property(struct drm_colorop *colorop, struct drm_colorop *next);
 
 #endif /* __DRM_COLOROP_H__ */
