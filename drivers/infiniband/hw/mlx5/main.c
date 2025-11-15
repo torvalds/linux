@@ -842,7 +842,7 @@ static int mlx5_query_node_guid(struct mlx5_ib_dev *dev,
 		break;
 
 	case MLX5_VPORT_ACCESS_METHOD_NIC:
-		err = mlx5_query_nic_vport_node_guid(dev->mdev, &tmp);
+		err = mlx5_query_nic_vport_node_guid(dev->mdev, 0, false, &tmp);
 		break;
 
 	default:
