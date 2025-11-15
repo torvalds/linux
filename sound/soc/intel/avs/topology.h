@@ -37,6 +37,8 @@ struct avs_tplg {
 	u32 num_condpath_tmpls;
 	struct avs_tplg_init_config *init_configs;
 	u32 num_init_configs;
+	struct avs_tplg_nhlt_config *nhlt_configs;
+	u32 num_nhlt_configs;
 
 	struct list_head path_tmpl_list;
 };
@@ -173,6 +175,11 @@ struct avs_tplg_init_config {
 	u8 param;
 	size_t length;
 	void *data;
+};
+
+struct avs_tplg_nhlt_config {
+	u32 id;
+	struct acpi_nhlt_config *blob;
 };
 
 struct avs_tplg_path {
