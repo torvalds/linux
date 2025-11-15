@@ -24356,6 +24356,14 @@ S:	Maintained
 F:	Documentation/hwmon/stpddc60.rst
 F:	drivers/hwmon/pmbus/stpddc60.c
 
+ST TSC1641 DRIVER
+M:	Igor Reznichenko <igor@reznichenko.net>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/hwmon/st,tsc1641.yaml
+F:	Documentation/hwmon/tsc1641.rst
+F:	drivers/hwmon/tsc1641.c
+
 ST VD55G1 DRIVER
 M:	Benjamin Mugnier <benjamin.mugnier@foss.st.com>
 M:	Sylvain Petinot <sylvain.petinot@foss.st.com>
