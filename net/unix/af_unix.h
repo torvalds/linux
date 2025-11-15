@@ -30,7 +30,6 @@ void unix_update_edges(struct unix_sock *receiver);
 int unix_prepare_fpl(struct scm_fp_list *fpl);
 void unix_destroy_fpl(struct scm_fp_list *fpl);
 void unix_schedule_gc(void);
-void wait_for_unix_gc(struct scm_fp_list *fpl);
 
 /* SOCK_DIAG */
 long unix_inq_len(struct sock *sk);
