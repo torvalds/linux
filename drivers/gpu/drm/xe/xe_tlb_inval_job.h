@@ -11,14 +11,15 @@
 struct dma_fence;
 struct xe_dep_scheduler;
 struct xe_exec_queue;
+struct xe_migrate;
 struct xe_tlb_inval;
 struct xe_tlb_inval_job;
-struct xe_migrate;
+struct xe_vm;
 
 struct xe_tlb_inval_job *
 xe_tlb_inval_job_create(struct xe_exec_queue *q, struct xe_tlb_inval *tlb_inval,
 			struct xe_dep_scheduler *dep_scheduler,
-			u64 start, u64 end, u32 asid);
+			struct xe_vm *vm, u64 start, u64 end, int type);
 
 int xe_tlb_inval_job_alloc_dep(struct xe_tlb_inval_job *job);
 

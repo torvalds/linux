@@ -58,7 +58,6 @@ xe-y += xe_bb.o \
 	xe_gt_freq.o \
 	xe_gt_idle.o \
 	xe_gt_mcr.o \
-	xe_gt_pagefault.o \
 	xe_gt_sysfs.o \
 	xe_gt_throttle.o \
 	xe_gt_topology.o \
@@ -73,6 +72,7 @@ xe-y += xe_bb.o \
 	xe_guc_id_mgr.o \
 	xe_guc_klv_helpers.o \
 	xe_guc_log.o \
+	xe_guc_pagefault.o \
 	xe_guc_pc.o \
 	xe_guc_submit.o \
 	xe_guc_tlb_inval.o \
@@ -94,6 +94,7 @@ xe-y += xe_bb.o \
 	xe_nvm.o \
 	xe_oa.o \
 	xe_observation.o \
+	xe_pagefault.o \
 	xe_pat.o \
 	xe_pci.o \
 	xe_pcode.o \
@@ -178,6 +179,7 @@ xe-$(CONFIG_PCI_IOV) += \
 	xe_sriov_pf_debugfs.o \
 	xe_sriov_pf_provision.o \
 	xe_sriov_pf_service.o \
+	xe_sriov_pf_sysfs.o \
 	xe_tile_sriov_pf_debugfs.o
 
 # include helpers for tests even when XE is built-in

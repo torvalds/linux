@@ -6,9 +6,23 @@
 #ifndef _XE_SRIOV_PF_PROVISION_H_
 #define _XE_SRIOV_PF_PROVISION_H_
 
+#include <linux/types.h>
+
 #include "xe_sriov_pf_provision_types.h"
 
 struct xe_device;
+
+int xe_sriov_pf_provision_bulk_apply_eq(struct xe_device *xe, u32 eq);
+int xe_sriov_pf_provision_apply_vf_eq(struct xe_device *xe, unsigned int vfid, u32 eq);
+int xe_sriov_pf_provision_query_vf_eq(struct xe_device *xe, unsigned int vfid, u32 *eq);
+
+int xe_sriov_pf_provision_bulk_apply_pt(struct xe_device *xe, u32 pt);
+int xe_sriov_pf_provision_apply_vf_pt(struct xe_device *xe, unsigned int vfid, u32 pt);
+int xe_sriov_pf_provision_query_vf_pt(struct xe_device *xe, unsigned int vfid, u32 *pt);
+
+int xe_sriov_pf_provision_bulk_apply_priority(struct xe_device *xe, u32 prio);
+int xe_sriov_pf_provision_apply_vf_priority(struct xe_device *xe, unsigned int vfid, u32 prio);
+int xe_sriov_pf_provision_query_vf_priority(struct xe_device *xe, unsigned int vfid, u32 *prio);
 
 int xe_sriov_pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs);
 int xe_sriov_pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs);
