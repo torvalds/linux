@@ -1551,6 +1551,10 @@ static int pm4125_bind(struct device *dev)
 	struct device_link *devlink;
 	int ret;
 
+	/* Initialize device pointers to NULL for safe cleanup */
+	pm4125->rxdev = NULL;
+	pm4125->txdev = NULL;
+
 	/* Give the soundwire subdevices some more time to settle */
 	usleep_range(15000, 15010);
 
@@ -1574,7 +1578,7 @@ static int pm4125_bind(struct device *dev)
 	if (!pm4125->txdev) {
 		dev_err(dev, "could not find txslave with matching of node\n");
 		ret = -EINVAL;
-		goto error_unbind_all;
+		goto error_put_rx;
 	}
 
 	pm4125->sdw_priv[AIF1_CAP] = dev_get_drvdata(pm4125->txdev);
@@ -1584,7 +1588,7 @@ static int pm4125_bind(struct device *dev)
 	if (!pm4125->tx_sdw_dev) {
 		dev_err(dev, "could not get txslave with matching of dev\n");
 		ret = -EINVAL;
-		goto error_unbind_all;
+		goto error_put_tx;
 	}
 
 	/*
@@ -1596,7 +1600,7 @@ static int pm4125_bind(struct device *dev)
 	if (!devlink) {
 		dev_err(dev, "Could not devlink TX and RX\n");
 		ret = -EINVAL;
-		goto error_unbind_all;
+		goto error_put_tx;
 	}
 
 	devlink = device_link_add(dev, pm4125->txdev,
@@ -1650,6 +1654,10 @@ link_remove_dev_tx:
 	device_link_remove(dev, pm4125->txdev);
 link_remove_rx_tx:
 	device_link_remove(pm4125->rxdev, pm4125->txdev);
+error_put_tx:
+	put_device(pm4125->txdev);
+error_put_rx:
+	put_device(pm4125->rxdev);
 error_unbind_all:
 	component_unbind_all(dev, pm4125);
 	return ret;
@@ -1663,6 +1671,13 @@ static void pm4125_unbind(struct device *dev)
 	device_link_remove(dev, pm4125->txdev);
 	device_link_remove(dev, pm4125->rxdev);
 	device_link_remove(pm4125->rxdev, pm4125->txdev);
+
+	/* Release device references acquired in bind */
+	if (pm4125->txdev)
+		put_device(pm4125->txdev);
+	if (pm4125->rxdev)
+		put_device(pm4125->rxdev);
+
 	component_unbind_all(dev, pm4125);
 }
 
