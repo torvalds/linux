@@ -7,5 +7,5 @@ config AF_KCM
 	select STREAM_PARSER
 	help
 	  KCM (Kernel Connection Multiplexor) sockets provide a method
-	  for multiplexing messages of a message based application
-	  protocol over kernel connectons (e.g. TCP connections).
+	  for multiplexing messages of a message-based application
+	  protocol over kernel connections (e.g. TCP connections).
