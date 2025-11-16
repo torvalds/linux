@@ -381,7 +381,6 @@ void mlx5_sf_dev_table_destroy(struct mlx5_core_dev *dev)
 
 	mlx5_sf_dev_destroy_active_works(table);
 	mlx5_vhca_event_notifier_unregister(dev, &table->nb);
-	mlx5_vhca_event_work_queues_flush(dev);
 
 	/* Now that event handler is not running, it is safe to destroy
 	 * the sf device without race.

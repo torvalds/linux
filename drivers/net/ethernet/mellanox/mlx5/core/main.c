@@ -1438,12 +1438,12 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 {
 	mlx5_eswitch_disable(dev->priv.eswitch);
 	mlx5_devlink_traps_unregister(priv_to_devlink(dev));
+	mlx5_vhca_event_stop(dev);
 	mlx5_sf_dev_table_destroy(dev);
 	mlx5_sriov_detach(dev);
 	mlx5_lag_remove_mdev(dev);
 	mlx5_ec_cleanup(dev);
 	mlx5_sf_hw_table_destroy(dev);
-	mlx5_vhca_event_stop(dev);
 	mlx5_fs_core_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
 	mlx5_rsc_dump_cleanup(dev);
@@ -1835,6 +1835,7 @@ static int mlx5_notifiers_init(struct mlx5_core_dev *dev)
 	}
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&dev->priv.esw_n_head);
+	mlx5_vhca_state_notifier_init(dev);
 
 	return 0;
 }

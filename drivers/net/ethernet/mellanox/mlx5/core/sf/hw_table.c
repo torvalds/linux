@@ -389,6 +389,7 @@ void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
 		return;
 
 	mlx5_vhca_event_notifier_unregister(dev, &table->vhca_nb);
+
 	/* Dealloc SFs whose firmware event has been missed. */
 	mlx5_sf_hw_table_dealloc_all(table);
 }
