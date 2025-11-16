@@ -1586,7 +1586,8 @@ static int map_create(union bpf_attr *attr, bpfptr_t uattr)
 			goto free_map;
 		}
 	} else if (attr->excl_prog_hash_size) {
-		return -EINVAL;
+		err = -EINVAL;
+		goto free_map;
 	}
 
 	err = security_bpf_map_create(map, attr, token, uattr.is_kernel);
