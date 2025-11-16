@@ -616,6 +616,7 @@ struct mlx5_priv {
 #ifdef CONFIG_MLX5_SF
 	struct mlx5_nb vhca_state_nb;
 	struct blocking_notifier_head vhca_state_n_head;
+	struct notifier_block sf_dev_nb;
 	struct mlx5_sf_dev_table *sf_dev_table;
 	struct mlx5_core_dev *parent_mdev;
 #endif
