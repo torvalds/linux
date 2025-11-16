@@ -1834,6 +1834,8 @@ static int mlx5_notifiers_init(struct mlx5_core_dev *dev)
 		return err;
 	}
 
+	BLOCKING_INIT_NOTIFIER_HEAD(&dev->priv.esw_n_head);
+
 	return 0;
 }
 

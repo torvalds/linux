@@ -481,7 +481,7 @@ int mlx5_sf_table_init(struct mlx5_core_dev *dev)
 	xa_init(&table->function_ids);
 	dev->priv.sf_table = table;
 	table->esw_nb.notifier_call = mlx5_sf_esw_event;
-	err = mlx5_esw_event_notifier_register(dev->priv.eswitch, &table->esw_nb);
+	err = mlx5_esw_event_notifier_register(dev, &table->esw_nb);
 	if (err)
 		goto reg_err;
 
@@ -496,7 +496,7 @@ int mlx5_sf_table_init(struct mlx5_core_dev *dev)
 	return 0;
 
 vhca_err:
-	mlx5_esw_event_notifier_unregister(dev->priv.eswitch, &table->esw_nb);
+	mlx5_esw_event_notifier_unregister(dev, &table->esw_nb);
 reg_err:
 	mutex_destroy(&table->sf_state_lock);
 	kfree(table);
@@ -513,7 +513,7 @@ void mlx5_sf_table_cleanup(struct mlx5_core_dev *dev)
 
 	mlx5_blocking_notifier_unregister(dev, &table->mdev_nb);
 	mlx5_vhca_event_notifier_unregister(table->dev, &table->vhca_nb);
-	mlx5_esw_event_notifier_unregister(dev->priv.eswitch, &table->esw_nb);
+	mlx5_esw_event_notifier_unregister(dev, &table->esw_nb);
 	mutex_destroy(&table->sf_state_lock);
 	WARN_ON(!xa_empty(&table->function_ids));
 	kfree(table);

@@ -599,6 +599,7 @@ struct mlx5_priv {
 
 	struct mlx5_flow_steering *steering;
 	struct mlx5_mpfs        *mpfs;
+	struct blocking_notifier_head esw_n_head;
 	struct mlx5_eswitch     *eswitch;
 	struct mlx5_core_sriov	sriov;
 	struct mlx5_lag		*lag;
