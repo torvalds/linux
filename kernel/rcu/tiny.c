@@ -70,12 +70,10 @@ void rcu_qs(void)
  */
 void rcu_sched_clock_irq(int user)
 {
-	if (user) {
+	if (user)
 		rcu_qs();
-	} else if (rcu_ctrlblk.donetail != rcu_ctrlblk.curtail) {
-		set_tsk_need_resched(current);
-		set_preempt_need_resched();
-	}
+	else if (rcu_ctrlblk.donetail != rcu_ctrlblk.curtail)
+		set_need_resched_current();
 }
 
 /*
