@@ -622,6 +622,9 @@ struct mlx5_priv {
 #ifdef CONFIG_MLX5_SF_MANAGER
 	struct notifier_block sf_hw_table_vhca_nb;
 	struct mlx5_sf_hw_table *sf_hw_table;
+	struct notifier_block sf_table_esw_nb;
+	struct notifier_block sf_table_vhca_nb;
+	struct notifier_block sf_table_mdev_nb;
 	struct mlx5_sf_table *sf_table;
 #endif
 	struct blocking_notifier_head lag_nh;
