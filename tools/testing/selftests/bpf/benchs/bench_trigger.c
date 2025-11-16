@@ -180,10 +180,10 @@ static void trigger_kernel_count_setup(void)
 {
 	setup_ctx();
 	bpf_program__set_autoload(ctx.skel->progs.trigger_driver, false);
-	bpf_program__set_autoload(ctx.skel->progs.trigger_count, true);
+	bpf_program__set_autoload(ctx.skel->progs.trigger_kernel_count, true);
 	load_ctx();
 	/* override driver program */
-	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_count);
+	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_kernel_count);
 }
 
 static void trigger_kprobe_setup(void)
