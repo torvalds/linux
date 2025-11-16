@@ -12,11 +12,11 @@
 #define MEI_NFC_MAX_HCI_PAYLOAD 300
 
 /**
- * struct nfc_mei_phy
+ * struct nfc_mei_phy - NFC description of the MEI PHY and interface functions
  *
  * @cldev: mei client device
  * @hdev:   nfc hci device
-
+ *
  * @send_wq: send completion wait queue
  * @fw_ivn: NFC Interface Version Number
  * @vendor_id: NFC manufacturer ID
