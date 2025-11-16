@@ -6404,7 +6404,7 @@
 			that don't.
 
 			off          - no mitigation
-			auto         - automatically select a migitation
+			auto         - automatically select a mitigation
 			auto,nosmt   - automatically select a mitigation,
 				       disabling SMT if necessary for
 				       the full mitigation (only on Zen1
