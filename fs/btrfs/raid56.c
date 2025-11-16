@@ -735,25 +735,25 @@ static unsigned int rbio_paddr_index(const struct btrfs_raid_bio *rbio,
 	return ret;
 }
 
-static phys_addr_t rbio_stripe_step_paddr(const struct btrfs_raid_bio *rbio,
+static phys_addr_t rbio_stripe_paddr(const struct btrfs_raid_bio *rbio,
 					  unsigned int stripe_nr, unsigned int sector_nr,
 					  unsigned int step_nr)
 {
 	return rbio->stripe_paddrs[rbio_paddr_index(rbio, stripe_nr, sector_nr, step_nr)];
 }
 
-static phys_addr_t rbio_pstripe_step_paddr(const struct btrfs_raid_bio *rbio,
+static phys_addr_t rbio_pstripe_paddr(const struct btrfs_raid_bio *rbio,
 					   unsigned int sector_nr, unsigned int step_nr)
 {
-	return rbio_stripe_step_paddr(rbio, rbio->nr_data, sector_nr, step_nr);
+	return rbio_stripe_paddr(rbio, rbio->nr_data, sector_nr, step_nr);
 }
 
-static phys_addr_t rbio_qstripe_step_paddr(const struct btrfs_raid_bio *rbio,
+static phys_addr_t rbio_qstripe_paddr(const struct btrfs_raid_bio *rbio,
 					   unsigned int sector_nr, unsigned int step_nr)
 {
 	if (rbio->nr_data + 1 == rbio->real_stripes)
 		return INVALID_PADDR;
-	return rbio_stripe_step_paddr(rbio, rbio->nr_data + 1, sector_nr, step_nr);
+	return rbio_stripe_paddr(rbio, rbio->nr_data + 1, sector_nr, step_nr);
 }
 
 /* Return a paddr pointer into the rbio::stripe_paddrs[] for the specified sector. */
@@ -1033,9 +1033,9 @@ static phys_addr_t *sector_paddrs_in_rbio(struct btrfs_raid_bio *rbio,
  * Similar to sector_paddr_in_rbio(), but with extra consideration for
  * bs > ps cases, where we can have multiple steps for a fs block.
  */
-static phys_addr_t sector_step_paddr_in_rbio(struct btrfs_raid_bio *rbio,
-					     int stripe_nr, int sector_nr, int step_nr,
-					     bool bio_list_only)
+static phys_addr_t sector_paddr_in_rbio(struct btrfs_raid_bio *rbio,
+					int stripe_nr, int sector_nr, int step_nr,
+					bool bio_list_only)
 {
 	phys_addr_t ret = INVALID_PADDR;
 	const int index = rbio_paddr_index(rbio, stripe_nr, sector_nr, step_nr);
@@ -1413,10 +1413,10 @@ static void generate_pq_vertical_step(struct btrfs_raid_bio *rbio, unsigned int 
 	/* First collect one sector from each data stripe */
 	for (stripe = 0; stripe < rbio->nr_data; stripe++)
 		pointers[stripe] = kmap_local_paddr(
-				sector_step_paddr_in_rbio(rbio, stripe, sector_nr, step_nr, 0));
+				sector_paddr_in_rbio(rbio, stripe, sector_nr, step_nr, 0));
 
 	/* Then add the parity stripe */
-	pointers[stripe++] = kmap_local_paddr(rbio_pstripe_step_paddr(rbio, sector_nr, step_nr));
+	pointers[stripe++] = kmap_local_paddr(rbio_pstripe_paddr(rbio, sector_nr, step_nr));
 
 	if (has_qstripe) {
 		/*
@@ -1424,7 +1424,7 @@ static void generate_pq_vertical_step(struct btrfs_raid_bio *rbio, unsigned int 
 		 * to fill in our p/q
 		 */
 		pointers[stripe++] = kmap_local_paddr(
-				rbio_qstripe_step_paddr(rbio, sector_nr, step_nr));
+				rbio_qstripe_paddr(rbio, sector_nr, step_nr));
 
 		assert_rbio(rbio);
 		raid6_call.gen_syndrome(rbio->real_stripes, step, pointers);
@@ -1958,9 +1958,9 @@ static void recover_vertical_step(struct btrfs_raid_bio *rbio,
 		 * bio list if possible.
 		 */
 		if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
-			paddr = sector_step_paddr_in_rbio(rbio, stripe_nr, sector_nr, step_nr, 0);
+			paddr = sector_paddr_in_rbio(rbio, stripe_nr, sector_nr, step_nr, 0);
 		} else {
-			paddr = rbio_stripe_step_paddr(rbio, stripe_nr, sector_nr, step_nr);
+			paddr = rbio_stripe_paddr(rbio, stripe_nr, sector_nr, step_nr);
 		}
 		pointers[stripe_nr] = kmap_local_paddr(paddr);
 		unmap_array[stripe_nr] = pointers[stripe_nr];
@@ -2651,8 +2651,8 @@ static bool verify_one_parity_step(struct btrfs_raid_bio *rbio,
 	/* First collect one page from each data stripe. */
 	for (int stripe = 0; stripe < nr_data; stripe++)
 		pointers[stripe] = kmap_local_paddr(
-				sector_step_paddr_in_rbio(rbio, stripe, sector_nr,
-							  step_nr, 0));
+				sector_paddr_in_rbio(rbio, stripe, sector_nr,
+						     step_nr, 0));
 
 	if (has_qstripe) {
 		assert_rbio(rbio);
@@ -2665,7 +2665,7 @@ static bool verify_one_parity_step(struct btrfs_raid_bio *rbio,
 	}
 
 	/* Check scrubbing parity and repair it. */
-	parity = kmap_local_paddr(rbio_stripe_step_paddr(rbio, rbio->scrubp, sector_nr, step_nr));
+	parity = kmap_local_paddr(rbio_stripe_paddr(rbio, rbio->scrubp, sector_nr, step_nr));
 	if (memcmp(parity, pointers[rbio->scrubp], step) != 0)
 		memcpy(parity, pointers[rbio->scrubp], step);
 	else
