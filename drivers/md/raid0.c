@@ -68,7 +68,10 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	struct strip_zone *zone;
 	int cnt;
 	struct r0conf *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
-	unsigned int blksize = queue_logical_block_size(mddev->gendisk->queue);
+	unsigned int blksize = 512;
+
+	if (!mddev_is_dm(mddev))
+		blksize = queue_logical_block_size(mddev->gendisk->queue);
 
 	*private_conf = ERR_PTR(-ENOMEM);
 	if (!conf)
@@ -83,6 +86,10 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		sectors = rdev1->sectors;
 		sector_div(sectors, mddev->chunk_sectors);
 		rdev1->sectors = sectors * mddev->chunk_sectors;
+
+		if (mddev_is_dm(mddev))
+			blksize = max(blksize, queue_logical_block_size(
+				      rdev1->bdev->bd_disk->queue));
 
 		rdev_for_each(rdev2, mddev) {
 			pr_debug("md/raid0:%s:   comparing %pg(%llu)"
