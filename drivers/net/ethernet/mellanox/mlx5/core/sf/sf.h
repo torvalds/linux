@@ -12,7 +12,8 @@
 int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev);
 void mlx5_sf_hw_table_cleanup(struct mlx5_core_dev *dev);
 
-int mlx5_sf_hw_table_create(struct mlx5_core_dev *dev);
+int mlx5_sf_hw_notifier_init(struct mlx5_core_dev *dev);
+void mlx5_sf_hw_notifier_cleanup(struct mlx5_core_dev *dev);
 void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev);
 
 int mlx5_sf_table_init(struct mlx5_core_dev *dev);
@@ -44,9 +45,13 @@ static inline void mlx5_sf_hw_table_cleanup(struct mlx5_core_dev *dev)
 {
 }
 
-static inline int mlx5_sf_hw_table_create(struct mlx5_core_dev *dev)
+static inline int mlx5_sf_hw_notifier_init(struct mlx5_core_dev *dev)
 {
 	return 0;
+}
+
+static inline void mlx5_sf_hw_notifier_cleanup(struct mlx5_core_dev *dev)
+{
 }
 
 static inline void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)

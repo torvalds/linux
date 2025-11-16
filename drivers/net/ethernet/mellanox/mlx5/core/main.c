@@ -1377,12 +1377,6 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 
 	mlx5_vhca_event_start(dev);
 
-	err = mlx5_sf_hw_table_create(dev);
-	if (err) {
-		mlx5_core_err(dev, "sf table create failed %d\n", err);
-		goto err_vhca;
-	}
-
 	err = mlx5_ec_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init embedded CPU\n");
@@ -1411,8 +1405,6 @@ err_sriov:
 	mlx5_lag_remove_mdev(dev);
 	mlx5_ec_cleanup(dev);
 err_ec:
-	mlx5_sf_hw_table_destroy(dev);
-err_vhca:
 	mlx5_vhca_event_stop(dev);
 err_set_hca:
 	mlx5_fs_core_cleanup(dev);
@@ -1837,11 +1829,20 @@ static int mlx5_notifiers_init(struct mlx5_core_dev *dev)
 	BLOCKING_INIT_NOTIFIER_HEAD(&dev->priv.esw_n_head);
 	mlx5_vhca_state_notifier_init(dev);
 
+	err = mlx5_sf_hw_notifier_init(dev);
+	if (err)
+		goto err_sf_hw_notifier;
+
 	return 0;
+
+err_sf_hw_notifier:
+	mlx5_events_cleanup(dev);
+	return err;
 }
 
 static void mlx5_notifiers_cleanup(struct mlx5_core_dev *dev)
 {
+	mlx5_sf_hw_notifier_cleanup(dev);
 	mlx5_events_cleanup(dev);
 }
 
