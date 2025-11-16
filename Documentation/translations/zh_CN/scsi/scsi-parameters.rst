@@ -31,16 +31,16 @@ SCSI内核参数
 			请查阅 drivers/scsi/advansys.c 文件头部。
 
 	aha152x=	[HW,SCSI]
-			请查阅 Documentation/translations/zh_CN/scsi/aha152x.rst。
+			请查阅 Documentation/scsi/aha152x.rst。
 
 	aha1542=	[HW,SCSI]
 			格式：<portbase>[,<buson>,<busoff>[,<dmaspeed>]]
 
 	aic7xxx=	[HW,SCSI]
-			请查阅 Documentation/translations/zh_CN/scsi/aic7xxx.rst。
+			请查阅 Documentation/scsi/aic7xxx.rst。
 
 	aic79xx=	[HW,SCSI]
-			请查阅 Documentation/translations/zh_CN/scsi/aic79xx.rst。
+			请查阅 Documentation/scsi/aic79xx.rst。
 
 	atascsi=	[HW,SCSI]
 			请查阅 drivers/scsi/atari_scsi.c。
@@ -69,19 +69,19 @@ SCSI内核参数
 			请查阅 drivers/scsi/NCR_D700.c 文件头部。
 
 	ncr5380=	[HW,SCSI]
-			请查阅 Documentation/translations/zh_CN/scsi/g_NCR5380.rst。
+			请查阅 Documentation/scsi/g_NCR5380.rst。
 
 	ncr53c400=	[HW,SCSI]
-			请查阅 Documentation/translations/zh_CN/scsi/g_NCR5380.rst。
+			请查阅 Documentation/scsi/g_NCR5380.rst。
 
 	ncr53c400a=	[HW,SCSI]
-			请查阅 Documentation/translations/zh_CN/scsi/g_NCR5380.rst。
+			请查阅 Documentation/scsi/g_NCR5380.rst。
 
 	ncr53c8xx=	[HW,SCSI]
 
 	osst=		[HW,SCSI] SCSI磁带驱动
 			格式：<buffer_size>,<write_threshold>
-			另请查阅 Documentation/translations/zh_CN/scsi/st.rst。
+			另请查阅 Documentation/scsi/st.rst。
 
 	scsi_debug_*=	[SCSI]
 			请查阅 drivers/scsi/scsi_debug.c。
@@ -112,7 +112,7 @@ SCSI内核参数
 			请查阅 drivers/scsi/sim710.c 文件头部。
 
 	st=		[HW,SCSI] SCSI磁带参数（缓冲区大小等）
-			请查阅 Documentation/translations/zh_CN/scsi/st.rst。
+			请查阅 Documentation/scsi/st.rst。
 
 	wd33c93=	[HW,SCSI]
 			请查阅 drivers/scsi/wd33c93.c 文件头部。
