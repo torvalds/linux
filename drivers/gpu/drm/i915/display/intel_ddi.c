@@ -4270,6 +4270,77 @@ static void mtl_ddi_get_config(struct intel_encoder *encoder,
 	intel_ddi_get_config(encoder, crtc_state);
 }
 
+static bool icl_ddi_tc_pll_is_tbt(const struct intel_dpll *pll)
+{
+	return pll->info->id == DPLL_ID_ICL_TBTPLL;
+}
+
+static void mtl_ddi_cx0_get_config(struct intel_encoder *encoder,
+				   struct intel_crtc_state *crtc_state,
+				   enum icl_port_dpll_id port_dpll_id,
+				   enum intel_dpll_id pll_id)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	struct icl_port_dpll *port_dpll;
+	struct intel_dpll *pll;
+	bool pll_active;
+
+	port_dpll = &crtc_state->icl_port_dplls[port_dpll_id];
+	pll = intel_get_dpll_by_id(display, pll_id);
+
+	if (drm_WARN_ON(display->drm, !pll))
+		return;
+
+	port_dpll->pll = pll;
+	pll_active = intel_dpll_get_hw_state(display, pll, &port_dpll->hw_state);
+	drm_WARN_ON(display->drm, !pll_active);
+
+	icl_set_active_port_dpll(crtc_state, port_dpll_id);
+
+	if (icl_ddi_tc_pll_is_tbt(crtc_state->intel_dpll))
+		crtc_state->port_clock = intel_mtl_tbt_calc_port_clock(encoder);
+	else
+		crtc_state->port_clock = intel_dpll_get_freq(display, crtc_state->intel_dpll,
+							     &crtc_state->dpll_hw_state);
+
+	intel_ddi_get_config(encoder, crtc_state);
+}
+
+/*
+ * Get the configuration for either a port using a C10 PHY PLL, or in the case of
+ * the PTL port B eDP on TypeC PHY case the configuration of a port using a C20
+ * PHY PLL.
+ */
+static void mtl_ddi_non_tc_phy_get_config(struct intel_encoder *encoder,
+					     struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	/* TODO: Remove when the PLL manager is in place. */
+	mtl_ddi_get_config(encoder, crtc_state);
+	return;
+
+	mtl_ddi_cx0_get_config(encoder, crtc_state, ICL_PORT_DPLL_DEFAULT,
+			       mtl_port_to_pll_id(display, encoder->port));
+}
+
+static void mtl_ddi_tc_phy_get_config(struct intel_encoder *encoder,
+				      struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	/* TODO: Remove when the PLL manager is in place. */
+	mtl_ddi_get_config(encoder, crtc_state);
+	return;
+
+	if (intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder)))
+		mtl_ddi_cx0_get_config(encoder, crtc_state, ICL_PORT_DPLL_DEFAULT,
+				       DPLL_ID_ICL_TBTPLL);
+	else
+		mtl_ddi_cx0_get_config(encoder, crtc_state, ICL_PORT_DPLL_MG_PHY,
+				       mtl_port_to_pll_id(display, encoder->port));
+}
+
 static void dg2_ddi_get_config(struct intel_encoder *encoder,
 				struct intel_crtc_state *crtc_state)
 {
@@ -4305,11 +4376,6 @@ static void icl_ddi_combo_get_config(struct intel_encoder *encoder,
 {
 	intel_ddi_get_clock(encoder, crtc_state, icl_ddi_combo_get_pll(encoder));
 	intel_ddi_get_config(encoder, crtc_state);
-}
-
-static bool icl_ddi_tc_pll_is_tbt(const struct intel_dpll *pll)
-{
-	return pll->info->id == DPLL_ID_ICL_TBTPLL;
 }
 
 static enum icl_port_dpll_id
@@ -5257,7 +5323,10 @@ void intel_ddi_init(struct intel_display *display,
 		encoder->enable_clock = intel_mtl_pll_enable_clock;
 		encoder->disable_clock = intel_mtl_pll_disable_clock;
 		encoder->port_pll_type = intel_mtl_port_pll_type;
-		encoder->get_config = mtl_ddi_get_config;
+		if (intel_encoder_is_tc(encoder))
+			encoder->get_config = mtl_ddi_tc_phy_get_config;
+		else
+			encoder->get_config = mtl_ddi_non_tc_phy_get_config;
 	} else if (display->platform.dg2) {
 		encoder->enable_clock = intel_mpllb_enable;
 		encoder->disable_clock = intel_mpllb_disable;
