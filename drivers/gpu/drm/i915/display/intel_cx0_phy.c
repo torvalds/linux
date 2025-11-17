@@ -2062,6 +2062,12 @@ static void intel_cx0pll_update_ssc(struct intel_encoder *encoder,
 #define C10_PLL_SSC_REG_START_IDX	4
 #define C10_PLL_SSC_REG_COUNT		5
 
+static bool intel_c10pll_ssc_enabled(const struct intel_c10pll_state *pll_state)
+{
+	return memchr_inv(&pll_state->pll[C10_PLL_SSC_REG_START_IDX],
+			  0, sizeof(pll_state->pll[0]) * C10_PLL_SSC_REG_COUNT);
+}
+
 static void intel_c10pll_update_pll(struct intel_encoder *encoder,
 				    struct intel_cx0pll_state *pll_state)
 {
@@ -2193,10 +2199,20 @@ static int readout_enabled_lane_count(struct intel_encoder *encoder)
 	return enabled_tx_lane_count;
 }
 
+static bool readout_ssc_state(struct intel_encoder *encoder, bool is_mpll_b)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	return intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port)) &
+		(is_mpll_b ? XELPDP_SSC_ENABLE_PLLB : XELPDP_SSC_ENABLE_PLLA);
+}
+
 static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 					  struct intel_cx0pll_state *cx0pll_state)
 {
 	struct intel_c10pll_state *pll_state = &cx0pll_state->c10;
+	struct intel_display *display = to_intel_display(encoder);
+	enum phy phy = intel_encoder_to_phy(encoder);
 	u8 lane = INTEL_CX0_LANE0;
 	intel_wakeref_t wakeref;
 	int i;
@@ -2222,6 +2238,13 @@ static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 	intel_cx0_phy_transaction_end(encoder, wakeref);
 
 	pll_state->clock = intel_c10pll_calc_port_clock(encoder, pll_state);
+
+	cx0pll_state->ssc_enabled = readout_ssc_state(encoder, true);
+	drm_WARN(display->drm,
+		 cx0pll_state->ssc_enabled != intel_c10pll_ssc_enabled(pll_state),
+		 "PHY %c: SSC enabled state (%s), doesn't match PLL configuration (%s)\n",
+		 phy_name(phy), str_yes_no(cx0pll_state->ssc_enabled),
+		 intel_c10pll_ssc_enabled(pll_state) ? "SSC-enabled" : "SSC-disabled");
 }
 
 static void intel_c10_pll_program(struct intel_display *display,
@@ -2753,6 +2776,8 @@ static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
 	pll_state->clock = intel_c20pll_calc_port_clock(encoder, pll_state);
 
 	intel_cx0_phy_transaction_end(encoder, wakeref);
+
+	cx0pll_state->ssc_enabled = readout_ssc_state(encoder, intel_c20phy_use_mpllb(pll_state));
 }
 
 static void intel_c20pll_dump_hw_state(struct intel_display *display,
