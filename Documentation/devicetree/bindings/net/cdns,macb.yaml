@@ -38,7 +38,10 @@ properties:
               - cdns,sam9x60-macb     # Microchip sam9x60 SoC
               - microchip,mpfs-macb   # Microchip PolarFire SoC
           - const: cdns,macb          # Generic
-
+      - items:
+          - const: microchip,pic64gx-macb # Microchip PIC64GX SoC
+          - const: microchip,mpfs-macb    # Microchip PolarFire SoC
+          - const: cdns,macb              # Generic
       - items:
           - enum:
               - atmel,sama5d3-macb    # 10/100Mbit IP on Atmel sama5d3 SoCs
