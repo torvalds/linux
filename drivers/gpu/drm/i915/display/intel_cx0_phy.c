@@ -2085,6 +2085,24 @@ static void intel_c10pll_update_pll(struct intel_encoder *encoder,
 		pll_state->c10.pll[i] = 0;
 }
 
+static bool c10pll_state_is_dp(const struct intel_c10pll_state *pll_state)
+{
+	return !REG_FIELD_GET8(C10_PLL15_HDMIDIV_MASK, pll_state->pll[15]);
+}
+
+static bool c20pll_state_is_dp(const struct intel_c20pll_state *pll_state)
+{
+	return pll_state->vdr.serdes_rate & PHY_C20_IS_DP;
+}
+
+static bool cx0pll_state_is_dp(const struct intel_cx0pll_state *pll_state)
+{
+	if (pll_state->use_c10)
+		return c10pll_state_is_dp(&pll_state->c10);
+
+	return c20pll_state_is_dp(&pll_state->c20);
+}
+
 /*
  * TODO: Convert the following to align with intel_c20pll_find_table() and
  * intel_c20pll_calc_state_from_table().
@@ -2094,6 +2112,7 @@ static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 					      bool is_dp, int port_clock, int lane_count,
 					      struct intel_cx0pll_state *pll_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	int i;
 
 	for (i = 0; tables[i]; i++) {
@@ -2105,6 +2124,8 @@ static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 			pll_state->use_c10 = true;
 			pll_state->lane_count = lane_count;
 
+			drm_WARN_ON(display->drm, is_dp != c10pll_state_is_dp(&pll_state->c10));
+
 			return 0;
 		}
 	}
@@ -2115,6 +2136,8 @@ static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 				   struct intel_encoder *encoder)
 {
+	struct intel_display *display = to_intel_display(encoder);
+	bool is_dp = intel_crtc_has_dp_encoder(crtc_state);
 	const struct intel_c10pll_state * const *tables;
 	int err;
 
@@ -2122,8 +2145,7 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 	if (!tables)
 		return -EINVAL;
 
-	err = intel_c10pll_calc_state_from_table(encoder, tables,
-						 intel_crtc_has_dp_encoder(crtc_state),
+	err = intel_c10pll_calc_state_from_table(encoder, tables, is_dp,
 						 crtc_state->port_clock, crtc_state->lane_count,
 						 &crtc_state->dpll_hw_state.cx0pll);
 
@@ -2137,6 +2159,9 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 				&crtc_state->dpll_hw_state.cx0pll);
 	crtc_state->dpll_hw_state.cx0pll.use_c10 = true;
 	crtc_state->dpll_hw_state.cx0pll.lane_count = crtc_state->lane_count;
+
+	drm_WARN_ON(display->drm,
+		    is_dp != c10pll_state_is_dp(&crtc_state->dpll_hw_state.cx0pll.c10));
 
 	return 0;
 }
@@ -2624,6 +2649,7 @@ static int intel_c20pll_calc_state_from_table(struct intel_crtc_state *crtc_stat
 static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 				   struct intel_encoder *encoder)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	bool is_dp = intel_crtc_has_dp_encoder(crtc_state);
 	int err = -ENOENT;
 
@@ -2643,6 +2669,9 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 
 	intel_c20_calc_vdr_params(&crtc_state->dpll_hw_state.cx0pll.c20.vdr,
 				  is_dp, crtc_state->port_clock);
+
+	drm_WARN_ON(display->drm,
+		    is_dp != c20pll_state_is_dp(&crtc_state->dpll_hw_state.cx0pll.c20));
 
 	return 0;
 }
@@ -2912,10 +2941,11 @@ static void intel_c20_pll_program(struct intel_display *display,
 
 static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 					 const struct intel_cx0pll_state *pll_state,
-					 bool is_dp, int port_clock,
+					 int port_clock,
 					 bool lane_reversal)
 {
 	struct intel_display *display = to_intel_display(encoder);
+	bool is_dp = cx0pll_state_is_dp(pll_state);
 	u32 val = 0;
 
 	intel_de_rmw(display, XELPDP_PORT_BUF_CTL1(display, encoder->port),
@@ -3160,7 +3190,7 @@ static u32 intel_cx0_get_pclk_pll_ack(u8 lane_mask)
 
 static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 				  const struct intel_cx0pll_state *pll_state,
-				  bool is_dp, int port_clock)
+				  int port_clock)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
@@ -3174,7 +3204,7 @@ static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 	 * 1. Program PORT_CLOCK_CTL REGISTER to configure
 	 * clock muxes, gating and SSC
 	 */
-	intel_program_port_clock_ctl(encoder, pll_state, is_dp, port_clock, lane_reversal);
+	intel_program_port_clock_ctl(encoder, pll_state, port_clock, lane_reversal);
 
 	/* 2. Bring PHY out of reset. */
 	intel_cx0_phy_lane_reset(encoder, lane_reversal);
@@ -3244,7 +3274,6 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state)
 {
 	__intel_cx0pll_enable(encoder, &crtc_state->dpll_hw_state.cx0pll,
-			      intel_crtc_has_dp_encoder(crtc_state),
 			      crtc_state->port_clock);
 }
 
@@ -3795,7 +3824,7 @@ void intel_cx0_pll_power_save_wa(struct intel_display *display)
 			    "[ENCODER:%d:%s] Applying power saving workaround on disabled PLL\n",
 			    encoder->base.base.id, encoder->base.name);
 
-		__intel_cx0pll_enable(encoder, &pll_state, true, port_clock);
+		__intel_cx0pll_enable(encoder, &pll_state, port_clock);
 		intel_cx0pll_disable(encoder);
 	}
 }
