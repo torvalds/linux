@@ -227,13 +227,12 @@ impl TryFrom<regs::NV_PMC_BOOT_42> for Spec {
 
 impl fmt::Display for Spec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
+        f.write_fmt(fmt!(
             "Chipset: {}, Architecture: {:?}, Revision: {}",
             self.chipset,
             self.chipset.arch(),
             self.revision
-        )
+        ))
     }
 }
 

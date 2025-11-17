@@ -6,13 +6,11 @@ mod r570_144;
 // Alias to avoid repeating the version number with every use.
 use r570_144 as bindings;
 
-use core::{
-    fmt,
-    ops::Range, //
-};
+use core::ops::Range;
 
 use kernel::{
     dma::CoherentAllocation,
+    fmt,
     prelude::*,
     ptr::{
         Alignable,
