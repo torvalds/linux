@@ -32,6 +32,29 @@ void intel_parent_irq_synchronize(struct intel_display *display)
 	display->parent->irq->synchronize(display->drm);
 }
 
+bool intel_parent_rps_available(struct intel_display *display)
+{
+	return display->parent->rps;
+}
+
+void intel_parent_rps_boost_if_not_started(struct intel_display *display, struct dma_fence *fence)
+{
+	if (display->parent->rps)
+		display->parent->rps->boost_if_not_started(fence);
+}
+
+void intel_parent_rps_mark_interactive(struct intel_display *display, bool interactive)
+{
+	if (display->parent->rps)
+		display->parent->rps->mark_interactive(display->drm, interactive);
+}
+
+void intel_parent_rps_ilk_irq_handler(struct intel_display *display)
+{
+	if (display->parent->rps)
+		display->parent->rps->ilk_irq_handler(display->drm);
+}
+
 bool intel_parent_vgpu_active(struct intel_display *display)
 {
 	return display->parent->vgpu_active && display->parent->vgpu_active(display->drm);
