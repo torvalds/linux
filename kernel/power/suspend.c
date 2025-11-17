@@ -344,10 +344,14 @@ MODULE_PARM_DESC(pm_test_delay,
 static int suspend_test(int level)
 {
 #ifdef CONFIG_PM_DEBUG
+	int i;
+
 	if (pm_test_level == level) {
 		pr_info("suspend debug: Waiting for %d second(s).\n",
 				pm_test_delay);
-		mdelay(pm_test_delay * 1000);
+		for (i = 0; i < pm_test_delay && !pm_wakeup_pending(); i++)
+			msleep(1000);
+
 		return 1;
 	}
 #endif /* !CONFIG_PM_DEBUG */
