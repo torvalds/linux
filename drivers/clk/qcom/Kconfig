@@ -387,12 +387,12 @@ config MSM_GCC_8916
 	  SD/eMMC, display, graphics, camera etc.
 
 config MSM_GCC_8917
-	tristate "MSM89(17/37)/QM215 Global Clock Controller"
+	tristate "MSM89(17/37/40)/QM215 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
-	  Support for the global clock controller on msm8917, msm8937
-	  and qm215 devices.
+	  Support for the global clock controller on msm8917, msm8937,
+	  msm8940 and qm215 devices.
 	  Say Y if you want to use devices such as UART, SPI i2c, USB,
 	  SD/eMMC, display, graphics, camera etc.
 
