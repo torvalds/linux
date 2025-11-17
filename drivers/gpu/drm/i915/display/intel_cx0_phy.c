@@ -2125,11 +2125,14 @@ static int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
 					const struct intel_c10pll_state *pll_state);
 
 static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
-					  struct intel_c10pll_state *pll_state)
+					  struct intel_cx0pll_state *cx0pll_state)
 {
+	struct intel_c10pll_state *pll_state = &cx0pll_state->c10;
 	u8 lane = INTEL_CX0_LANE0;
 	intel_wakeref_t wakeref;
 	int i;
+
+	cx0pll_state->use_c10 = true;
 
 	wakeref = intel_cx0_phy_transaction_begin(encoder);
 
@@ -2356,6 +2359,8 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 	const struct intel_c20pll_state * const *tables;
 	int i;
 
+	crtc_state->dpll_hw_state.cx0pll.use_c10 = false;
+
 	/* try computed C20 HDMI tables before using consolidated tables */
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		if (intel_c20_compute_hdmi_tmds_pll(crtc_state) == 0)
@@ -2372,7 +2377,6 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 			intel_cx0pll_update_ssc(encoder,
 						&crtc_state->dpll_hw_state.cx0pll,
 						intel_crtc_has_dp_encoder(crtc_state));
-			crtc_state->dpll_hw_state.cx0pll.use_c10 = false;
 			return 0;
 		}
 	}
@@ -2439,12 +2443,15 @@ static int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
 }
 
 static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
-					  struct intel_c20pll_state *pll_state)
+					  struct intel_cx0pll_state *cx0pll_state)
 {
+	struct intel_c20pll_state *pll_state = &cx0pll_state->c20;
 	struct intel_display *display = to_intel_display(encoder);
 	bool cntx;
 	intel_wakeref_t wakeref;
 	int i;
+
+	cx0pll_state->use_c10 = false;
 
 	wakeref = intel_cx0_phy_transaction_begin(encoder);
 
@@ -3444,12 +3451,10 @@ void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
 	if (pll_state->tbt_mode)
 		return;
 
-	if (intel_encoder_is_c10phy(encoder)) {
-		intel_c10pll_readout_hw_state(encoder, &pll_state->c10);
-		pll_state->use_c10 = true;
-	} else {
-		intel_c20pll_readout_hw_state(encoder, &pll_state->c20);
-	}
+	if (intel_encoder_is_c10phy(encoder))
+		intel_c10pll_readout_hw_state(encoder, pll_state);
+	else
+		intel_c20pll_readout_hw_state(encoder, pll_state);
 }
 
 static bool mtl_compare_hw_state_c10(const struct intel_c10pll_state *a,
