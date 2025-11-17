@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/mtio.h>
-#include <linux/compat.h>
 
 #include <linux/uaccess.h>
 
@@ -37,9 +36,6 @@ static ssize_t tapechar_write(struct file *, const char __user *, size_t, loff_t
 static int tapechar_open(struct inode *,struct file *);
 static int tapechar_release(struct inode *,struct file *);
 static long tapechar_ioctl(struct file *, unsigned int, unsigned long);
-#ifdef CONFIG_COMPAT
-static long tapechar_compat_ioctl(struct file *, unsigned int, unsigned long);
-#endif
 
 static const struct file_operations tape_fops =
 {
@@ -47,9 +43,6 @@ static const struct file_operations tape_fops =
 	.read = tapechar_read,
 	.write = tapechar_write,
 	.unlocked_ioctl = tapechar_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = tapechar_compat_ioctl,
-#endif
 	.open = tapechar_open,
 	.release = tapechar_release,
 };
@@ -440,25 +433,6 @@ tapechar_ioctl(struct file *filp, unsigned int no, unsigned long data)
 	mutex_unlock(&device->mutex);
 	return rc;
 }
-
-#ifdef CONFIG_COMPAT
-static long
-tapechar_compat_ioctl(struct file *filp, unsigned int no, unsigned long data)
-{
-	struct tape_device *device = filp->private_data;
-	long rc;
-
-	if (no == MTIOCPOS32)
-		no = MTIOCPOS;
-	else if (no == MTIOCGET32)
-		no = MTIOCGET;
-
-	mutex_lock(&device->mutex);
-	rc = __tapechar_ioctl(device, no, compat_ptr(data));
-	mutex_unlock(&device->mutex);
-	return rc;
-}
-#endif /* CONFIG_COMPAT */
 
 /*
  * Initialize character device frontend.

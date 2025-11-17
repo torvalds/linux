@@ -56,9 +56,6 @@ obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_SCHED_TOPOLOGY)	+= topology.o hiperdispatch.o
 obj-$(CONFIG_NUMA)		+= numa.o
 obj-$(CONFIG_AUDIT)		+= audit.o
-compat-obj-$(CONFIG_AUDIT)	+= compat_audit.o
-obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o
-obj-$(CONFIG_COMPAT)		+= $(compat-obj-y)
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_KPROBES)		+= mcount.o
@@ -85,4 +82,3 @@ obj-$(CONFIG_TRACEPOINTS)	+= trace.o
 
 # vdso
 obj-y				+= vdso64/
-obj-$(CONFIG_COMPAT)		+= vdso32/

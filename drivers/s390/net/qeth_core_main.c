@@ -10,7 +10,6 @@
 #define KMSG_COMPONENT "qeth"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/compat.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -4805,8 +4804,7 @@ static int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
 
 	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_query_oat_cb, &priv);
 	if (!rc) {
-		tmp = is_compat_task() ? compat_ptr(oat_data.ptr) :
-					 u64_to_user_ptr(oat_data.ptr);
+		tmp = u64_to_user_ptr(oat_data.ptr);
 		oat_data.response_len = priv.response_len;
 
 		if (copy_to_user(tmp, priv.buffer, priv.response_len) ||
