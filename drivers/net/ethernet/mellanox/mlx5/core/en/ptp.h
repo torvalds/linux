@@ -147,7 +147,7 @@ enum {
 
 void mlx5e_skb_cb_hwtstamp_handler(struct sk_buff *skb, int hwtstamp_type,
 				   ktime_t hwtstamp,
-				   struct mlx5e_ptp_cq_stats *cq_stats);
+				   struct mlx5e_ptpsq *ptpsq);
 
 void mlx5e_skb_cb_hwtstamp_init(struct sk_buff *skb);
 #endif /* __MLX5_EN_PTP_H__ */
