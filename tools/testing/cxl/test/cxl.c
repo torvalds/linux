@@ -26,6 +26,9 @@ static int interleave_arithmetic;
 #define NR_CXL_PORT_DECODERS 8
 #define NR_BRIDGES (NR_CXL_HOST_BRIDGES + NR_CXL_SINGLE_HOST + NR_CXL_RCH)
 
+#define MOCK_AUTO_REGION_SIZE_DEFAULT SZ_512M
+static int mock_auto_region_size = MOCK_AUTO_REGION_SIZE_DEFAULT;
+
 static struct platform_device *cxl_acpi;
 static struct platform_device *cxl_host_bridge[NR_CXL_HOST_BRIDGES];
 #define NR_MULTI_ROOT (NR_CXL_HOST_BRIDGES * NR_CXL_ROOT_PORTS)
@@ -738,7 +741,6 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 	struct cxl_endpoint_decoder *cxled;
 	struct cxl_switch_decoder *cxlsd;
 	struct cxl_port *port, *iter;
-	const int size = SZ_512M;
 	struct cxl_memdev *cxlmd;
 	struct cxl_dport *dport;
 	struct device *dev;
@@ -783,7 +785,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 	base = window->base_hpa;
 	cxld->hpa_range = (struct range) {
 		.start = base,
-		.end = base + size - 1,
+		.end = base + mock_auto_region_size - 1,
 	};
 
 	cxld->interleave_ways = 2;
@@ -792,7 +794,8 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 	cxld->flags = CXL_DECODER_F_ENABLE;
 	cxled->state = CXL_DECODER_STATE_AUTO;
 	port->commit_end = cxld->id;
-	devm_cxl_dpa_reserve(cxled, 0, size / cxld->interleave_ways, 0);
+	devm_cxl_dpa_reserve(cxled, 0,
+			     mock_auto_region_size / cxld->interleave_ways, 0);
 	cxld->commit = mock_decoder_commit;
 	cxld->reset = mock_decoder_reset;
 
@@ -841,7 +844,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 		cxld->interleave_granularity = 4096;
 		cxld->hpa_range = (struct range) {
 			.start = base,
-			.end = base + size - 1,
+			.end = base + mock_auto_region_size - 1,
 		};
 		put_device(dev);
 	}
