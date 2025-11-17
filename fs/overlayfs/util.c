@@ -1211,11 +1211,8 @@ void ovl_nlink_end(struct dentry *dentry)
 	ovl_drop_write(dentry);
 
 	if (ovl_test_flag(OVL_INDEX, inode) && inode->i_nlink == 0) {
-		const struct cred *old_cred;
-
-		old_cred = ovl_override_creds(dentry->d_sb);
-		ovl_cleanup_index(dentry);
-		ovl_revert_creds(old_cred);
+		with_ovl_creds(dentry->d_sb)
+			ovl_cleanup_index(dentry);
 	}
 
 	ovl_inode_unlock(inode);
