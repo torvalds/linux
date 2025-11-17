@@ -79,6 +79,8 @@ static const char * const inproper_region_tests[] = {
 	"non_sleepable_rcu_mismatch",
 	"inproper_sleepable_helper",
 	"inproper_sleepable_kfunc",
+	"nested_rcu_region_unbalanced_1",
+	"nested_rcu_region_unbalanced_2",
 	"rcu_read_lock_global_subprog_lock",
 	"rcu_read_lock_global_subprog_unlock",
 	"rcu_read_lock_sleepable_helper_global_subprog",
