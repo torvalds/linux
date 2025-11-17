@@ -93,6 +93,16 @@ HOSTRUSTFLAGS
 -------------
 在构建主机程序时传递给 $(HOSTRUSTC) 的额外标志。
 
+PROCMACROLDFLAGS
+----------------
+用于链接 Rust 过程宏的标志。由于过程宏是由 rustc 在构建时加载的，
+因此必须以与当前使用的 rustc 工具链兼容的方式进行链接。
+
+例如，当 rustc 使用的 C 库与用户希望用于主机程序的 C 库不同时，
+此设置会非常有用。
+
+如果未设置，则默认使用链接主机程序时传递的标志。
+
 HOSTLDFLAGS
 -----------
 链接主机程序时传递的额外选项。
@@ -135,11 +145,17 @@ KBUILD_OUTPUT
 指定内核构建的输出目录。
 
 在单独的构建目录中为预构建内核构建外部模块时，这个变量也可以指向内核输出目录。请注意，
-这并不指定外部模块本身的输出目录。
+这并不指定外部模块本身的输出目录(使用 KBUILD_EXTMOD_OUTPUT 来达到这个目的)。
 
 输出目录也可以使用 "O=..." 指定。
 
 设置 "O=..." 优先于 KBUILD_OUTPUT。
+
+KBUILD_EXTMOD_OUTPUT
+--------------------
+指定外部模块的输出目录
+
+设置 "MO=..." 优先于 KBUILD_EXTMOD_OUTPUT.
 
 KBUILD_EXTRA_WARN
 -----------------
@@ -290,8 +306,13 @@ IGNORE_DIRS
 KBUILD_BUILD_TIMESTAMP
 ----------------------
 将该环境变量设置为日期字符串，可以覆盖在 UTS_VERSION 定义中使用的时间戳
-（运行内核时的 uname -v）。该值必须是一个可以传递给 date -d 的字符串。默认值是
-内核构建某个时刻的 date 命令输出。
+(运行内核时的 uname -v) 。该值必须是一个可以传递给 date -d 的字符串。例如::
+
+	$ KBUILD_BUILD_TIMESTAMP="Mon Oct 13 00:00:00 UTC 2025" make
+
+默认值是内核构建某个时刻的 date 命令输出。如果提供该时戳，它还用于任何 initramfs 归
+档文件中的 mtime 字段。 Initramfs mtimes 是 32 位的，因此早于 Unix 纪元 1970 年，或
+晚于协调世界时 (UTC) 2106 年 2 月 7 日 6 时 28 分 15 秒的日期是无效的。
 
 KBUILD_BUILD_USER, KBUILD_BUILD_HOST
 ------------------------------------
