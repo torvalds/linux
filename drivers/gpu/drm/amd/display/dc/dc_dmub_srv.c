@@ -2084,6 +2084,9 @@ bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv)
 	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
 	bool result;
 
+	if (!dc_dmub_srv->dmub->feature_caps.lsdma_support_in_dmu)
+		return false;
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;

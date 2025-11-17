@@ -2095,7 +2095,7 @@ int amdkfd_fence_wait_timeout(struct device_queue_manager *dqm,
 	while (*fence_addr != fence_value) {
 		/* Fatal err detected, this response won't come */
 		if (amdgpu_amdkfd_is_fed(dqm->dev->adev) ||
-				amdgpu_in_reset(dqm->dev->adev))
+		    amdgpu_in_reset(dqm->dev->adev))
 			return -EIO;
 
 		if (time_after(jiffies, end_jiffies)) {

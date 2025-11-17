@@ -160,7 +160,8 @@ union amd_sriov_msg_feature_flags {
 		uint32_t ras_caps		: 1;
 		uint32_t ras_telemetry		: 1;
 		uint32_t ras_cper		: 1;
-		uint32_t reserved		: 20;
+		uint32_t xgmi_ta_ext_peer_link	: 1;
+		uint32_t reserved		: 19;
 	} flags;
 	uint32_t all;
 };
@@ -198,8 +199,9 @@ union amd_sriov_ras_caps {
 		uint64_t block_jpeg			: 1;
 		uint64_t block_ih			: 1;
 		uint64_t block_mpio			: 1;
+		uint64_t block_mmsch			: 1;
 		uint64_t poison_propogation_mode	: 1;
-		uint64_t reserved			: 44;
+		uint64_t reserved			: 43;
 	} bits;
 	uint64_t all;
 };

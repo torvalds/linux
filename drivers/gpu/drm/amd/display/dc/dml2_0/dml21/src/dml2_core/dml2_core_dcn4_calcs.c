@@ -12944,7 +12944,7 @@ void dml2_core_calcs_get_plane_support_info(const struct dml2_display_cfg *displ
 	out->active_latency_hiding_us = (int)mode_lib->ms.VActiveLatencyHidingUs[plane_idx];
 
 	out->vactive_det_fill_delay_us[dml2_pstate_type_uclk] =
-			(unsigned int)math_ceil(mode_lib->ms.pstate_vactive_det_fill_delay_us[plane_idx][dml2_pstate_type_uclk]);
+			(unsigned int)math_ceil(mode_lib->ms.pstate_vactive_det_fill_delay_us[dml2_pstate_type_uclk][plane_idx]);
 }
 
 void dml2_core_calcs_get_stream_support_info(const struct dml2_display_cfg *display_cfg, const struct dml2_core_internal_display_mode_lib *mode_lib, struct core_stream_support_info *out, int plane_index)

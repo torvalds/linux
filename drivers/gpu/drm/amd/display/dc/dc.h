@@ -63,7 +63,7 @@ struct dcn_dsc_reg_state;
 struct dcn_optc_reg_state;
 struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.357"
+#define DC_VER "3.2.358"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -469,10 +469,9 @@ enum surface_update_type {
 
 enum dc_lock_descriptor {
 	LOCK_DESCRIPTOR_NONE = 0x0,
-	LOCK_DESCRIPTOR_STATE = 0x1,
+	LOCK_DESCRIPTOR_STREAM = 0x1,
 	LOCK_DESCRIPTOR_LINK = 0x2,
-	LOCK_DESCRIPTOR_STREAM = 0x4,
-	LOCK_DESCRIPTOR_PLANE = 0x8,
+	LOCK_DESCRIPTOR_GLOBAL = 0x4,
 };
 
 struct surface_update_descriptor {
@@ -1865,6 +1864,18 @@ struct dc_underflow_debug_data {
 	struct dcn_dccg_reg_state *dccg_reg_state[MAX_PIPES];
 };
 
+struct power_features {
+	bool ips;
+	bool rcg;
+	bool replay;
+	bool dds;
+	bool sprs;
+	bool psr;
+	bool fams;
+	bool mpo;
+	bool uclk_p_state;
+};
+
 /*
  * Create a new surface with default parameters;
  */
@@ -2707,6 +2718,13 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 				uint32_t link_index,
 				struct aux_payload *payload);
 
+/*
+ * smart power OLED Interfaces
+ */
+bool dc_smart_power_oled_enable(const struct dc_link *link, bool enable, uint16_t peak_nits,
+	uint8_t debug_control, uint16_t fixed_CLL, uint32_t triggerline);
+bool dc_smart_power_oled_get_max_cll(const struct dc_link *link, unsigned int *pCurrent_MaxCLL);
+
 /* Get dc link index from dpia port index */
 uint8_t get_link_index_from_dpia_port_index(const struct dc *dc,
 				uint8_t dpia_port_index);
@@ -2771,5 +2789,7 @@ bool dc_can_clear_cursor_limit(const struct dc *dc);
  * The results are stored in the provided out_data structure for further analysis or logging.
  */
 void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst, struct dc_underflow_debug_data *out_data);
+
+void dc_get_power_feature_status(struct dc *dc, int primary_otg_inst, struct power_features *out_data);
 
 #endif /* DC_INTERFACE_H_ */

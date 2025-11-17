@@ -286,7 +286,9 @@
 	__SMU_DUMMY_MAP(SetTimestamp), \
 	__SMU_DUMMY_MAP(GetTimestamp), \
 	__SMU_DUMMY_MAP(GetBadPageIpid), \
-	__SMU_DUMMY_MAP(EraseRasTable),
+	__SMU_DUMMY_MAP(EraseRasTable),  \
+	__SMU_DUMMY_MAP(SetFastPptLimit), \
+	__SMU_DUMMY_MAP(GetFastPptLimit),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

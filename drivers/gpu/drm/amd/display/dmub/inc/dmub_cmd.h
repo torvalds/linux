@@ -491,7 +491,13 @@ union replay_debug_flags {
 		 */
 		uint32_t debug_log_enabled : 1;
 
-		uint32_t reserved : 17;
+		/**
+		 * 0x8000 (bit 15)
+		 * @enable_sub_feature_visual_confirm: Enable Sub Feature Visual Confirm
+		 */
+		uint32_t enable_sub_feature_visual_confirm : 1;
+
+		uint32_t reserved : 16;
 	} bitfields;
 
 	uint32_t u32All;
@@ -721,6 +727,7 @@ struct dmub_feature_caps {
 	uint8_t replay_supported;
 	uint8_t replay_reserved[3];
 	uint8_t abm_aux_backlight_support;
+	uint8_t lsdma_support_in_dmu;
 };
 
 struct dmub_visual_confirm_color {
@@ -4362,6 +4369,7 @@ enum dmub_cmd_replay_general_subtype {
 	REPLAY_GENERAL_CMD_DISABLED_DESYNC_ERROR_DETECTION,
 	REPLAY_GENERAL_CMD_UPDATE_ERROR_STATUS,
 	REPLAY_GENERAL_CMD_SET_LOW_RR_ACTIVATE,
+	REPLAY_GENERAL_CMD_VIDEO_CONFERENCING,
 };
 
 struct dmub_alpm_auxless_data {

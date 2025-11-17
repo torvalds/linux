@@ -43,14 +43,16 @@ config DRM_AMDGPU_SI
 	bool "Enable amdgpu support for SI parts"
 	depends on DRM_AMDGPU
 	help
-	  Choose this option if you want to enable experimental support
+	  Choose this option if you want to enable support
 	  for SI (Southern Islands) asics.
 
-	  SI is already supported in radeon. Experimental support for SI
-	  in amdgpu will be disabled by default and is still provided by
-	  radeon. Use module options to override this:
+	  SI (Southern Islands) are first generation GCN GPUs,
+	  supported by both drivers: radeon (old) and amdgpu (new).
+	  By default, SI dedicated GPUs are supported by amdgpu.
 
-	  radeon.si_support=0 amdgpu.si_support=1
+	  Use module options to override this:
+	  To use radeon for SI,
+	  radeon.si_support=1 amdgpu.si_support=0
 
 config DRM_AMDGPU_CIK
 	bool "Enable amdgpu support for CIK parts"
@@ -59,11 +61,17 @@ config DRM_AMDGPU_CIK
 	  Choose this option if you want to enable support for CIK (Sea
 	  Islands) asics.
 
-	  CIK is already supported in radeon. Support for CIK in amdgpu
-	  will be disabled by default and is still provided by radeon.
-	  Use module options to override this:
+	  CIK (Sea Islands) are second generation GCN GPUs,
+	  supported by both drivers: radeon (old) and amdgpu (new).
+	  By default,
+	  CIK dedicated GPUs are supported by amdgpu
+	  CIK APUs are supported by radeon
 
+	  Use module options to override this:
+	  To use amdgpu for CIK,
 	  radeon.cik_support=0 amdgpu.cik_support=1
+	  To use radeon for CIK,
+	  radeon.cik_support=1 amdgpu.cik_support=0
 
 config DRM_AMDGPU_USERPTR
 	bool "Always enable userptr write support"
