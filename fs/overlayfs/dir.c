@@ -1317,7 +1317,7 @@ out_unlock:
 static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 			      struct inode *inode, umode_t mode)
 {
-	const struct cred *old_cred, *new_cred = NULL;
+	const struct cred *new_cred __free(put_cred) = NULL;
 	struct path realparentpath;
 	struct file *realfile;
 	struct ovl_file *of;
@@ -1326,41 +1326,35 @@ static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 	int flags = file->f_flags | OVL_OPEN_FLAGS;
 	int err;
 
-	old_cred = ovl_override_creds(dentry->d_sb);
-	new_cred = ovl_setup_cred_for_create(dentry, inode, mode, old_cred);
-	err = PTR_ERR(new_cred);
-	if (IS_ERR(new_cred)) {
-		new_cred = NULL;
-		goto out_revert_creds;
-	}
+	scoped_class(override_creds_ovl, old_cred, dentry->d_sb) {
+		new_cred = ovl_setup_cred_for_create(dentry, inode, mode, old_cred);
+		if (IS_ERR(new_cred))
+			return PTR_ERR(new_cred);
 
-	ovl_path_upper(dentry->d_parent, &realparentpath);
-	realfile = backing_tmpfile_open(&file->f_path, flags, &realparentpath,
-					mode, current_cred());
-	err = PTR_ERR_OR_ZERO(realfile);
-	pr_debug("tmpfile/open(%pd2, 0%o) = %i\n", realparentpath.dentry, mode, err);
-	if (err)
-		goto out_revert_creds;
+		ovl_path_upper(dentry->d_parent, &realparentpath);
+		realfile = backing_tmpfile_open(&file->f_path, flags, &realparentpath,
+						mode, current_cred());
+		err = PTR_ERR_OR_ZERO(realfile);
+		pr_debug("tmpfile/open(%pd2, 0%o) = %i\n", realparentpath.dentry, mode, err);
+		if (err)
+			return err;
 
-	of = ovl_file_alloc(realfile);
-	if (!of) {
-		fput(realfile);
-		err = -ENOMEM;
-		goto out_revert_creds;
-	}
+		of = ovl_file_alloc(realfile);
+		if (!of) {
+			fput(realfile);
+			return -ENOMEM;
+		}
 
-	/* ovl_instantiate() consumes the newdentry reference on success */
-	newdentry = dget(realfile->f_path.dentry);
-	err = ovl_instantiate(dentry, inode, newdentry, false, file);
-	if (!err) {
-		file->private_data = of;
-	} else {
-		dput(newdentry);
-		ovl_file_free(of);
+		/* ovl_instantiate() consumes the newdentry reference on success */
+		newdentry = dget(realfile->f_path.dentry);
+		err = ovl_instantiate(dentry, inode, newdentry, false, file);
+		if (!err) {
+			file->private_data = of;
+		} else {
+			dput(newdentry);
+			ovl_file_free(of);
+		}
 	}
-out_revert_creds:
-	ovl_revert_creds(old_cred);
-	put_cred(new_cred);
 	return err;
 }
 
