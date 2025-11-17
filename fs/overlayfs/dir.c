@@ -650,6 +650,16 @@ static const struct cred *ovl_setup_cred_for_create(struct dentry *dentry,
 	return override_cred;
 }
 
+static int ovl_create_handle_whiteouts(struct dentry *dentry,
+				       struct inode *inode,
+				       struct ovl_cattr *attr)
+{
+	if (!ovl_dentry_is_whiteout(dentry))
+		return ovl_create_upper(dentry, inode, attr);
+
+	return ovl_create_over_whiteout(dentry, inode, attr);
+}
+
 static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 			      struct ovl_cattr *attr, bool origin)
 {
@@ -668,29 +678,28 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 				return err;
 		}
 
-		if (!attr->hardlink) {
-			/*
-			 * In the creation cases(create, mkdir, mknod, symlink),
-			 * ovl should transfer current's fs{u,g}id to underlying
-			 * fs. Because underlying fs want to initialize its new
-			 * inode owner using current's fs{u,g}id. And in this
-			 * case, the @inode is a new inode that is initialized
-			 * in inode_init_owner() to current's fs{u,g}id. So use
-			 * the inode's i_{u,g}id to override the cred's fs{u,g}id.
-			 *
-			 * But in the other hardlink case, ovl_link() does not
-			 * create a new inode, so just use the ovl mounter's
-			 * fs{u,g}id.
-			 */
-			new_cred = ovl_setup_cred_for_create(dentry, inode, attr->mode, old_cred);
-			if (IS_ERR(new_cred))
-				return PTR_ERR(new_cred);
-		}
+		/*
+		 * In the creation cases(create, mkdir, mknod, symlink),
+		 * ovl should transfer current's fs{u,g}id to underlying
+		 * fs. Because underlying fs want to initialize its new
+		 * inode owner using current's fs{u,g}id. And in this
+		 * case, the @inode is a new inode that is initialized
+		 * in inode_init_owner() to current's fs{u,g}id. So use
+		 * the inode's i_{u,g}id to override the cred's fs{u,g}id.
+		 *
+		 * But in the other hardlink case, ovl_link() does not
+		 * create a new inode, so just use the ovl mounter's
+		 * fs{u,g}id.
+		 */
 
-		if (!ovl_dentry_is_whiteout(dentry))
-			return ovl_create_upper(dentry, inode, attr);
+		if (attr->hardlink)
+			return ovl_create_handle_whiteouts(dentry, inode, attr);
 
-		return ovl_create_over_whiteout(dentry, inode, attr);
+		new_cred = ovl_setup_cred_for_create(dentry, inode, attr->mode, old_cred);
+		if (IS_ERR(new_cred))
+			return PTR_ERR(new_cred);
+
+		return ovl_create_handle_whiteouts(dentry, inode, attr);
 	}
 	return err;
 }
