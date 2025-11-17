@@ -2072,6 +2072,10 @@ static void intel_c10pll_update_pll(struct intel_encoder *encoder,
 		pll_state->c10.pll[i] = 0;
 }
 
+/*
+ * TODO: Convert the following to align with intel_c20pll_find_table() and
+ * intel_c20pll_calc_state_from_table().
+ */
 static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 					      const struct intel_c10pll_state * const *tables,
 					      bool is_dp, int port_clock,
@@ -2325,7 +2329,7 @@ static int intel_c20_compute_hdmi_tmds_pll(struct intel_crtc_state *crtc_state)
 }
 
 static const struct intel_c20pll_state * const *
-intel_c20_pll_tables_get(struct intel_crtc_state *crtc_state,
+intel_c20_pll_tables_get(const struct intel_crtc_state *crtc_state,
 			 struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -2353,35 +2357,57 @@ intel_c20_pll_tables_get(struct intel_crtc_state *crtc_state,
 	return NULL;
 }
 
-static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
-				   struct intel_encoder *encoder)
+static const struct intel_c20pll_state *
+intel_c20_pll_find_table(const struct intel_crtc_state *crtc_state,
+			 struct intel_encoder *encoder)
 {
 	const struct intel_c20pll_state * const *tables;
 	int i;
 
+	tables = intel_c20_pll_tables_get(crtc_state, encoder);
+	if (!tables)
+		return NULL;
+
+	for (i = 0; tables[i]; i++)
+		if (crtc_state->port_clock == tables[i]->clock)
+			return tables[i];
+
+	return NULL;
+}
+
+static int intel_c20pll_calc_state_from_table(struct intel_crtc_state *crtc_state,
+					      struct intel_encoder *encoder)
+{
+	const struct intel_c20pll_state *table;
+
+	table = intel_c20_pll_find_table(crtc_state, encoder);
+	if (!table)
+		return -EINVAL;
+
+	crtc_state->dpll_hw_state.cx0pll.c20 = *table;
+
+	intel_cx0pll_update_ssc(encoder, &crtc_state->dpll_hw_state.cx0pll,
+				intel_crtc_has_dp_encoder(crtc_state));
+
+	return 0;
+}
+
+static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
+				   struct intel_encoder *encoder)
+{
+	int err = -ENOENT;
+
 	crtc_state->dpll_hw_state.cx0pll.use_c10 = false;
 
 	/* try computed C20 HDMI tables before using consolidated tables */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		if (intel_c20_compute_hdmi_tmds_pll(crtc_state) == 0)
-			return 0;
-	}
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		/* TODO: Update SSC state for HDMI as well */
+		err = intel_c20_compute_hdmi_tmds_pll(crtc_state);
 
-	tables = intel_c20_pll_tables_get(crtc_state, encoder);
-	if (!tables)
-		return -EINVAL;
+	if (err)
+		err = intel_c20pll_calc_state_from_table(crtc_state, encoder);
 
-	for (i = 0; tables[i]; i++) {
-		if (crtc_state->port_clock == tables[i]->clock) {
-			crtc_state->dpll_hw_state.cx0pll.c20 = *tables[i];
-			intel_cx0pll_update_ssc(encoder,
-						&crtc_state->dpll_hw_state.cx0pll,
-						intel_crtc_has_dp_encoder(crtc_state));
-			return 0;
-		}
-	}
-
-	return -EINVAL;
+	return err;
 }
 
 int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state,
