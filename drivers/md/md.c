@@ -2788,6 +2788,7 @@ void md_update_sb(struct mddev *mddev, int force_change)
 	if (!md_is_rdwr(mddev)) {
 		if (force_change)
 			set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
+		pr_err("%s: can't update sb for read-only array %s\n", __func__, mdname(mddev));
 		return;
 	}
 
