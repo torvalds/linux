@@ -9,7 +9,6 @@
 #include <drm/drm_vblank.h>
 
 #include "i915_reg.h"
-#include "i915_request.h"
 #include "intel_display_core.h"
 #include "intel_display_irq.h"
 #include "intel_display_rps.h"
@@ -52,9 +51,6 @@ void intel_display_rps_boost_after_vblank(struct drm_crtc *crtc,
 	struct wait_rps_boost *wait;
 
 	if (!intel_parent_rps_available(display))
-		return;
-
-	if (!dma_fence_is_i915(fence))
 		return;
 
 	if (DISPLAY_VER(display) < 6)

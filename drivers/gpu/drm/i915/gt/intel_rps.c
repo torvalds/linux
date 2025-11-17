@@ -2917,7 +2917,12 @@ EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
 
 static void boost_if_not_started(struct dma_fence *fence)
 {
-	struct i915_request *rq = to_request(fence);
+	struct i915_request *rq;
+
+	if (!dma_fence_is_i915(fence))
+		return;
+
+	rq = to_request(fence);
 
 	if (!i915_request_started(rq))
 		intel_rps_boost(rq);
