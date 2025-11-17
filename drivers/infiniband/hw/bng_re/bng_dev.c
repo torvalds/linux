@@ -8,6 +8,7 @@
 #include <rdma/ib_verbs.h>
 
 #include "bng_res.h"
+#include "bng_sp.h"
 #include "bng_fw.h"
 #include "bnge.h"
 #include "bnge_auxr.h"
@@ -55,6 +56,9 @@ static void bng_re_destroy_chip_ctx(struct bng_re_dev *rdev)
 	if (!rdev->chip_ctx)
 		return;
 
+	kfree(rdev->dev_attr);
+	rdev->dev_attr = NULL;
+
 	chip_ctx = rdev->chip_ctx;
 	rdev->chip_ctx = NULL;
 	rdev->rcfw.res = NULL;
@@ -67,6 +71,7 @@ static int bng_re_setup_chip_ctx(struct bng_re_dev *rdev)
 {
 	struct bng_re_chip_ctx *chip_ctx;
 	struct bnge_auxr_dev *aux_dev;
+	int rc = -ENOMEM;
 
 	aux_dev = rdev->aux_dev;
 	rdev->bng_res.pdev = aux_dev->pdev;
@@ -79,8 +84,16 @@ static int bng_re_setup_chip_ctx(struct bng_re_dev *rdev)
 
 	rdev->chip_ctx = chip_ctx;
 	rdev->bng_res.cctx = rdev->chip_ctx;
+	rdev->dev_attr = kzalloc(sizeof(*rdev->dev_attr), GFP_KERNEL);
+	if (!rdev->dev_attr)
+		goto free_chip_ctx;
+	rdev->bng_res.dattr = rdev->dev_attr;
 
 	return 0;
+free_chip_ctx:
+	kfree(rdev->chip_ctx);
+	rdev->chip_ctx = NULL;
+	return rc;
 }
 
 static void bng_re_init_hwrm_hdr(struct input *hdr, u16 opcd)
@@ -298,7 +311,12 @@ static int bng_re_dev_init(struct bng_re_dev *rdev)
 		goto free_ring;
 	}
 
+	rc = bng_re_get_dev_attr(&rdev->rcfw);
+	if (rc)
+		goto disable_rcfw;
 	return 0;
+disable_rcfw:
+	bng_re_disable_rcfw_channel(&rdev->rcfw);
 free_ring:
 	bng_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id, type);
 free_rcfw:

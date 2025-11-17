@@ -136,6 +136,13 @@ struct bng_re_cmdqmsg {
 	u8			block;
 };
 
+static inline void bng_re_rcfw_cmd_prep(struct cmdq_base *req,
+					u8 opcode, u8 cmd_size)
+{
+	req->opcode = opcode;
+	req->cmd_size = cmd_size;
+}
+
 static inline void bng_re_fill_cmdqmsg(struct bng_re_cmdqmsg *msg,
 				       void *req, void *resp, void *sb,
 				       u32 req_sz, u32 res_sz, u8 block)
@@ -195,4 +202,6 @@ void bng_re_disable_rcfw_channel(struct bng_re_rcfw *rcfw);
 int bng_re_rcfw_start_irq(struct bng_re_rcfw *rcfw, int msix_vector,
 			  bool need_init);
 void bng_re_rcfw_stop_irq(struct bng_re_rcfw *rcfw, bool kill);
+int bng_re_rcfw_send_message(struct bng_re_rcfw *rcfw,
+			     struct bng_re_cmdqmsg *msg);
 #endif

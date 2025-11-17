@@ -73,6 +73,8 @@ struct bng_re_dev {
 	struct bng_re_res		bng_res;
 	struct bng_re_rcfw		rcfw;
 	struct bng_re_nq_record		*nqr;
+	/* Device Resources */
+	struct bng_re_dev_attr		*dev_attr;
 };
 
 #endif

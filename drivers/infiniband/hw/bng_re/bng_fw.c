@@ -6,6 +6,49 @@
 #include "bng_res.h"
 #include "bng_fw.h"
 
+/**
+ * bng_re_map_rc  -  map return type based on opcode
+ * @opcode:  roce slow path opcode
+ *
+ * case #1
+ * Firmware initiated error recovery is a safe state machine and
+ * driver can consider all the underlying rdma resources are free.
+ * In this state, it is safe to return success for opcodes related to
+ * destroying rdma resources (like destroy qp, destroy cq etc.).
+ *
+ * case #2
+ * If driver detect potential firmware stall, it is not safe state machine
+ * and the driver can not consider all the underlying rdma resources are
+ * freed.
+ * In this state, it is not safe to return success for opcodes related to
+ * destroying rdma resources (like destroy qp, destroy cq etc.).
+ *
+ * Scope of this helper function is only for case #1.
+ *
+ * Returns:
+ * 0 to communicate success to caller.
+ * Non zero error code to communicate failure to caller.
+ */
+static int bng_re_map_rc(u8 opcode)
+{
+	switch (opcode) {
+	case CMDQ_BASE_OPCODE_DESTROY_QP:
+	case CMDQ_BASE_OPCODE_DESTROY_SRQ:
+	case CMDQ_BASE_OPCODE_DESTROY_CQ:
+	case CMDQ_BASE_OPCODE_DEALLOCATE_KEY:
+	case CMDQ_BASE_OPCODE_DEREGISTER_MR:
+	case CMDQ_BASE_OPCODE_DELETE_GID:
+	case CMDQ_BASE_OPCODE_DESTROY_QP1:
+	case CMDQ_BASE_OPCODE_DESTROY_AH:
+	case CMDQ_BASE_OPCODE_DEINITIALIZE_FW:
+	case CMDQ_BASE_OPCODE_MODIFY_ROCE_CC:
+	case CMDQ_BASE_OPCODE_SET_LINK_AGGR_MODE:
+		return 0;
+	default:
+		return -ETIMEDOUT;
+	}
+}
+
 void bng_re_free_rcfw_channel(struct bng_re_rcfw *rcfw)
 {
 	kfree(rcfw->crsqe_tbl);
@@ -168,8 +211,6 @@ static int bng_re_process_func_event(struct bng_re_rcfw *rcfw,
 	return 0;
 }
 
-
-
 /* CREQ Completion handlers */
 static void bng_re_service_creq(struct tasklet_struct *t)
 {
@@ -229,6 +270,214 @@ static void bng_re_service_creq(struct tasklet_struct *t)
 		wake_up_nr(&rcfw->cmdq.waitq, num_wakeup);
 }
 
+static int __send_message_basic_sanity(struct bng_re_rcfw *rcfw,
+				       struct bng_re_cmdqmsg *msg,
+				       u8 opcode)
+{
+	struct bng_re_cmdq_ctx *cmdq;
+
+	cmdq = &rcfw->cmdq;
+
+	if (test_bit(FIRMWARE_STALL_DETECTED, &cmdq->flags))
+		return -ETIMEDOUT;
+
+	if (test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
+	    opcode == CMDQ_BASE_OPCODE_INITIALIZE_FW) {
+		dev_err(&rcfw->pdev->dev, "RCFW already initialized!");
+		return -EINVAL;
+	}
+
+	if (!test_bit(FIRMWARE_INITIALIZED_FLAG, &cmdq->flags) &&
+	    (opcode != CMDQ_BASE_OPCODE_QUERY_FUNC &&
+	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW &&
+	     opcode != CMDQ_BASE_OPCODE_QUERY_VERSION)) {
+		dev_err(&rcfw->pdev->dev,
+			"RCFW not initialized, reject opcode 0x%x",
+			opcode);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int __send_message(struct bng_re_rcfw *rcfw,
+			  struct bng_re_cmdqmsg *msg, u8 opcode)
+{
+	u32 bsize, free_slots, required_slots;
+	struct bng_re_cmdq_ctx *cmdq;
+	struct bng_re_crsqe *crsqe;
+	struct bng_fw_cmdqe *cmdqe;
+	struct bng_re_hwq *hwq;
+	u32 sw_prod, cmdq_prod;
+	struct pci_dev *pdev;
+	u16 cookie;
+	u8 *preq;
+
+	cmdq = &rcfw->cmdq;
+	hwq = &cmdq->hwq;
+	pdev = rcfw->pdev;
+
+	/* Cmdq are in 16-byte units, each request can consume 1 or more
+	 * cmdqe
+	 */
+	spin_lock_bh(&hwq->lock);
+	required_slots = bng_re_get_cmd_slots(msg->req);
+	free_slots = HWQ_FREE_SLOTS(hwq);
+	cookie = cmdq->seq_num & BNG_FW_MAX_COOKIE_VALUE;
+	crsqe = &rcfw->crsqe_tbl[cookie];
+
+	if (required_slots >= free_slots) {
+		dev_info_ratelimited(&pdev->dev,
+				     "CMDQ is full req/free %d/%d!",
+				     required_slots, free_slots);
+		spin_unlock_bh(&hwq->lock);
+		return -EAGAIN;
+	}
+	__set_cmdq_base_cookie(msg->req, msg->req_sz, cpu_to_le16(cookie));
+
+	bsize = bng_re_set_cmd_slots(msg->req);
+	crsqe->free_slots = free_slots;
+	crsqe->resp = (struct creq_qp_event *)msg->resp;
+	crsqe->is_waiter_alive = true;
+	crsqe->is_in_used = true;
+	crsqe->opcode = opcode;
+
+	crsqe->req_size = __get_cmdq_base_cmd_size(msg->req, msg->req_sz);
+	if (__get_cmdq_base_resp_size(msg->req, msg->req_sz) && msg->sb) {
+		struct bng_re_rcfw_sbuf *sbuf = msg->sb;
+
+		__set_cmdq_base_resp_addr(msg->req, msg->req_sz,
+					  cpu_to_le64(sbuf->dma_addr));
+		__set_cmdq_base_resp_size(msg->req, msg->req_sz,
+					  ALIGN(sbuf->size,
+						BNG_FW_CMDQE_UNITS) /
+						BNG_FW_CMDQE_UNITS);
+	}
+
+	preq = (u8 *)msg->req;
+	do {
+		/* Locate the next cmdq slot */
+		sw_prod = HWQ_CMP(hwq->prod, hwq);
+		cmdqe = bng_re_get_qe(hwq, sw_prod, NULL);
+		/* Copy a segment of the req cmd to the cmdq */
+		memset(cmdqe, 0, sizeof(*cmdqe));
+		memcpy(cmdqe, preq, min_t(u32, bsize, sizeof(*cmdqe)));
+		preq += min_t(u32, bsize, sizeof(*cmdqe));
+		bsize -= min_t(u32, bsize, sizeof(*cmdqe));
+		hwq->prod++;
+	} while (bsize > 0);
+	cmdq->seq_num++;
+
+	cmdq_prod = hwq->prod & 0xFFFF;
+	if (test_bit(FIRMWARE_FIRST_FLAG, &cmdq->flags)) {
+		/* The very first doorbell write
+		 * is required to set this flag
+		 * which prompts the FW to reset
+		 * its internal pointers
+		 */
+		cmdq_prod |= BIT(FIRMWARE_FIRST_FLAG);
+		clear_bit(FIRMWARE_FIRST_FLAG, &cmdq->flags);
+	}
+	/* ring CMDQ DB */
+	wmb();
+	writel(cmdq_prod, cmdq->cmdq_mbox.prod);
+	writel(BNG_FW_CMDQ_TRIG_VAL, cmdq->cmdq_mbox.db);
+	spin_unlock_bh(&hwq->lock);
+	/* Return the CREQ response pointer */
+	return 0;
+}
+
+/**
+ * __wait_for_resp   -	Don't hold the cpu context and wait for response
+ * @rcfw:    rcfw channel instance of rdev
+ * @cookie:  cookie to track the command
+ *
+ * Wait for command completion in sleepable context.
+ *
+ * Returns:
+ * 0 if command is completed by firmware.
+ * Non zero error code for rest of the case.
+ */
+static int __wait_for_resp(struct bng_re_rcfw *rcfw, u16 cookie)
+{
+	struct bng_re_cmdq_ctx *cmdq;
+	struct bng_re_crsqe *crsqe;
+
+	cmdq = &rcfw->cmdq;
+	crsqe = &rcfw->crsqe_tbl[cookie];
+
+	do {
+		wait_event_timeout(cmdq->waitq,
+				   !crsqe->is_in_used,
+				   secs_to_jiffies(rcfw->max_timeout));
+
+		if (!crsqe->is_in_used)
+			return 0;
+
+		bng_re_service_creq(&rcfw->creq.creq_tasklet);
+
+		if (!crsqe->is_in_used)
+			return 0;
+	} while (true);
+};
+
+/**
+ * bng_re_rcfw_send_message   -	interface to send
+ * and complete rcfw command.
+ * @rcfw:   rcfw channel instance of rdev
+ * @msg:    message to send
+ *
+ * This function does not account shadow queue depth. It will send
+ * all the command unconditionally as long as send queue is not full.
+ *
+ * Returns:
+ * 0 if command completed by firmware.
+ * Non zero if the command is not completed by firmware.
+ */
+int bng_re_rcfw_send_message(struct bng_re_rcfw *rcfw,
+			     struct bng_re_cmdqmsg *msg)
+{
+	struct creq_qp_event *evnt = (struct creq_qp_event *)msg->resp;
+	struct bng_re_crsqe *crsqe;
+	u16 cookie;
+	int rc;
+	u8 opcode;
+
+	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
+
+	rc = __send_message_basic_sanity(rcfw, msg, opcode);
+	if (rc)
+		return rc == -ENXIO ? bng_re_map_rc(opcode) : rc;
+
+	rc = __send_message(rcfw, msg, opcode);
+	if (rc)
+		return rc;
+
+	cookie = le16_to_cpu(__get_cmdq_base_cookie(msg->req, msg->req_sz))
+				& BNG_FW_MAX_COOKIE_VALUE;
+
+	rc = __wait_for_resp(rcfw, cookie);
+
+	if (rc) {
+		spin_lock_bh(&rcfw->cmdq.hwq.lock);
+		crsqe = &rcfw->crsqe_tbl[cookie];
+		crsqe->is_waiter_alive = false;
+		if (rc == -ENODEV)
+			set_bit(FIRMWARE_STALL_DETECTED, &rcfw->cmdq.flags);
+		spin_unlock_bh(&rcfw->cmdq.hwq.lock);
+		return -ETIMEDOUT;
+	}
+
+	if (evnt->status) {
+		/* failed with status */
+		dev_err(&rcfw->pdev->dev, "cmdq[%#x]=%#x status %#x\n",
+			cookie, opcode, evnt->status);
+		rc = -EIO;
+	}
+
+	return rc;
+}
+
 static int bng_re_map_cmdq_mbox(struct bng_re_rcfw *rcfw)
 {
 	struct bng_re_cmdq_mbox *mbox;
@@ -278,7 +527,6 @@ static irqreturn_t bng_re_creq_irq(int irq, void *dev_instance)
 	prefetch(bng_re_get_qe(hwq, sw_cons, NULL));
 
 	tasklet_schedule(&creq->creq_tasklet);
-
 	return IRQ_HANDLED;
 }
 
@@ -395,6 +643,30 @@ void bng_re_disable_rcfw_channel(struct bng_re_rcfw *rcfw)
 	creq->msix_vec = 0;
 }
 
+static void bng_re_start_rcfw(struct bng_re_rcfw *rcfw)
+{
+	struct bng_re_cmdq_ctx *cmdq;
+	struct bng_re_creq_ctx *creq;
+	struct bng_re_cmdq_mbox *mbox;
+	struct cmdq_init init = {0};
+
+	cmdq = &rcfw->cmdq;
+	creq = &rcfw->creq;
+	mbox = &cmdq->cmdq_mbox;
+
+	init.cmdq_pbl = cpu_to_le64(cmdq->hwq.pbl[BNG_PBL_LVL_0].pg_map_arr[0]);
+	init.cmdq_size_cmdq_lvl =
+			cpu_to_le16(((rcfw->cmdq_depth <<
+				      CMDQ_INIT_CMDQ_SIZE_SFT) &
+				    CMDQ_INIT_CMDQ_SIZE_MASK) |
+				    ((cmdq->hwq.level <<
+				      CMDQ_INIT_CMDQ_LVL_SFT) &
+				    CMDQ_INIT_CMDQ_LVL_MASK));
+	init.creq_ring_id = cpu_to_le16(creq->ring_id);
+	/* Write to the mailbox register */
+	__iowrite32_copy(mbox->reg.bar_reg, &init, sizeof(init) / 4);
+}
+
 int bng_re_enable_fw_channel(struct bng_re_rcfw *rcfw,
 			     int msix_vector,
 			     int cp_bar_reg_off)
@@ -425,5 +697,6 @@ int bng_re_enable_fw_channel(struct bng_re_rcfw *rcfw,
 		return rc;
 	}
 
+	bng_re_start_rcfw(rcfw);
 	return 0;
 }

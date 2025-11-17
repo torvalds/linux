@@ -30,6 +30,7 @@
 #define BNG_RE_DBR_EPOCH_SHIFT	24
 #define BNG_RE_DBR_TOGGLE_SHIFT	25
 
+#define BNG_MAX_TQM_ALLOC_REQ	48
 
 struct bng_re_reg_desc {
 	u8		bar_id;
@@ -127,6 +128,7 @@ struct bng_re_hwq {
 struct bng_re_res {
 	struct pci_dev			*pdev;
 	struct bng_re_chip_ctx		*cctx;
+	struct bng_re_dev_attr		*dattr;
 };
 
 static inline void *bng_re_get_qe(struct bng_re_hwq *hwq,
@@ -184,6 +186,11 @@ static inline void bng_re_hwq_incr_cons(u32 max_elements, u32 *cons, u32 cnt,
 		*cons %= max_elements;
 		*dbinfo_flags ^= 1UL << BNG_RE_FLAG_EPOCH_CONS_SHIFT;
 	}
+}
+
+static inline bool _is_max_srq_ext_supported(u16 dev_cap_ext_flags_2)
+{
+	return !!(dev_cap_ext_flags_2 & CREQ_QUERY_FUNC_RESP_SB_MAX_SRQ_EXTENDED);
 }
 
 void bng_re_free_hwq(struct bng_re_res *res,
