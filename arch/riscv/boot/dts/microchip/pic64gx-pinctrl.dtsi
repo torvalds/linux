@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+&iomux0 {
+	spi0_fio: mux-spi0-fabric {
+		function = "spi0";
+		groups = "spi0_fabric";
+	};
+
+	spi1_mssio: mux-spi1-mssio {
+		function = "spi1";
+		groups = "spi1_mssio";
+	};
+
+	i2c0_mssio: mux-i2c0-mssio {
+		function = "i2c0";
+		groups = "i2c0_mssio";
+	};
+
+	i2c1_mssio: mux-i2c1-mssio {
+		function = "i2c1";
+		groups = "i2c1_mssio";
+	};
+
+	can0_fio: mux-can0-fabric {
+		function = "can0";
+		groups = "can0_fabric";
+	};
+
+	can1_fio: mux-can1-fabric {
+		function = "can1";
+		groups = "can1_fabric";
+	};
+
+	qspi_fio: mux-qspi-fabric {
+		function = "qspi";
+		groups = "qspi_fabric";
+	};
+
+	uart0_mssio: mux-uart0-mssio {
+		function = "uart0";
+		groups = "uart0_mssio";
+	};
+
+	uart1_fio: mux-uart1-fabric {
+		function = "uart1";
+		groups = "uart1_fabric";
+	};
+
+	uart2_fio: mux-uart2-fabric {
+		function = "uart2";
+		groups = "uart2_fabric";
+	};
+
+	uart3_fio: mux-uart3-fabric {
+		function = "uart3";
+		groups = "uart3_fabric";
+	};
+
+	uart4_fio: mux-uart4-fabric {
+		function = "uart4";
+		groups = "uart4_fabric";
+	};
+
+	mdio0_fio: mux-mdio0-fabric {
+		function = "mdio0";
+		groups = "mdio0_fabric";
+	};
+
+	mdio1_fio: mux-mdio1-fabric {
+		function = "mdio1";
+		groups = "mdio1_fabric";
+	};
+};
+
+&gpio2_pinctrl {
+	//TODO rethink the labels, since a bunch of these are not defaults or
+	//just outright remove the non-default groups
+	mdio0_default: mux-mac0 {
+		function = "mdio0";
+		groups = "mdio0";
+	};
+
+	mdio0_gpio: mux-mac0-gpio2 {
+		function = "gpio";
+		groups = "gpio_mdio0";
+	};
+
+	mdio1_default: mux-mac1 {
+		function = "mdio1";
+		groups = "mdio1";
+	};
+
+	mdio1_gpio: mux-mac1-gpio2 {
+		function = "gpio";
+		groups = "gpio_mdio1";
+	};
+
+	spi0_default: mux-spi0 {
+		function = "spi0";
+		groups = "spi0";
+	};
+
+	spi0_gpio: mux-spi0-gpio2 {
+		function = "gpio";
+		groups = "gpio_spi0";
+	};
+
+	can0_default: mux-can0 {
+		function = "can0";
+		groups = "can0";
+	};
+
+	can0_gpio: mux-can0-gpio2 {
+		function = "gpio";
+		groups = "gpio_can0";
+	};
+
+	pcie_default: mux-pcie {
+		function = "pcie";
+		groups = "pcie";
+	};
+
+	pcie_gpio: mux-pcie-gpio2 {
+		function = "gpio";
+		groups = "gpio_pcie";
+	};
+
+	qspi_default: mux-qspi {
+		function = "qspi";
+		groups = "qspi";
+	};
+
+	qspi_gpio: mux-qspi-gpio2 {
+		function = "gpio";
+		groups = "gpio_qspi";
+	};
+
+	uart3_default: mux-uart3 {
+		function = "uart3";
+		groups = "uart3";
+	};
+
+	uart3_gpio: mux-uart3-gpio2 {
+		function = "gpio";
+		groups = "gpio_uart3";
+	};
+
+	uart4_default: mux-uart4 {
+		function = "uart4";
+		groups = "uart4";
+	};
+
+	uart4_gpio: mux-uart4-gpio2 {
+		function = "gpio";
+		groups = "gpio_uart4";
+	};
+
+	can1_default: mux-can1 {
+		function = "can1";
+		groups = "can1";
+	};
+
+	can1_gpio: mux-can1-gpio2 {
+		function = "gpio";
+		groups = "gpio_can1";
+	};
+
+	uart2_default: mux-uart2 {
+		function = "uart2";
+		groups = "uart2";
+	};
+
+	uart2_gpio: mux-uart2-gpio2 {
+		function = "gpio";
+		groups = "gpio_uart2";
+	};
+};

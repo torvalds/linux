@@ -1,0 +1,165 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree Source for the PIC64GX Curiosity Kit
+ *
+ * Copyright (C) 2024 Microchip Technology Inc. and its subsidiaries
+ *
+ * Author: Pierre-Henry Moussay <pierre-henry.moussay@microchip.com>
+ *
+ * The Curiosity-GX10000 (PIC64GX SoC Curiosity Kit) is a compact SoC
+ * prototyping board featuring a Microchip PIC64GX SoC
+ * PIC64GX-1000. Features include:
+ *  - 1 GB DDR4 SDRAM
+ *  - Gigabit Ethernet
+ *  - microSD-card slot
+ *
+ * https://www.microchip.com/en-us/development-tool/curiosity-pic64gx1000-kit-es
+ */
+
+/dts-v1/;
+
+#include "pic64gx.dtsi"
+#include "pic64gx-pinctrl.dtsi"
+
+/* Clock frequency (in Hz) of the rtcclk */
+#define RTCCLK_FREQ	1000000
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "Microchip PIC64GX Curiosity Kit";
+	compatible = "microchip,pic64gx-curiosity-kit", "microchip,pic64gx";
+
+	aliases {
+		ethernet0 = &mac0;
+		serial1 = &mmuart1;
+		serial2 = &mmuart2;
+	};
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+
+	cpus {
+		timebase-frequency = <RTCCLK_FREQ>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x40000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		hss: hss-buffer@bfc00000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xbfc00000 0x0 0x400000>;
+			no-map;
+		};
+	};
+};
+
+&gpio0 {
+	interrupts = <13>, <14>, <15>, <16>,
+		     <17>, <18>, <19>, <20>,
+		     <21>, <22>, <23>, <24>,
+		     <25>, <26>;
+	status ="okay";
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "MIPI_CAM_RESET", "MIPI_CAM_STANDBY";
+};
+
+&gpio1 {
+	interrupts = <27>, <28>, <29>, <30>,
+		     <31>, <32>, <33>, <34>,
+		     <35>, <36>, <37>, <38>,
+		     <39>, <40>, <41>, <42>,
+		     <43>, <44>, <45>, <46>,
+		     <47>, <48>, <49>, <50>;
+	status ="okay";
+	gpio-line-names =
+		"", "", "LED1", "LED2", "LED3", "LED4", "LED5", "LED6",
+		"LED7", "LED8", "", "", "", "", "", "",
+		"", "", "", "", "HDMI_HPD", "", "", "GPIO_1_23";
+};
+
+&gpio2 {
+	interrupts = <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>,
+		     <53>, <53>, <53>, <53>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio1_gpio>, <&spi0_gpio>, <&can0_gpio>, <&pcie_gpio>,
+		    <&qspi_gpio>, <&uart3_gpio>, <&uart4_gpio>, <&can1_gpio>;
+	status ="okay";
+	gpio-line-names =
+		"", "", "", "", "", "", "SWITCH2", "USR_IO12",
+		"DIP1", "DIP2", "", "DIP3", "USR_IO1", "USR_IO2", "USR_IO7", "USR_IO8",
+		"USR_IO3", "USR_IO4", "USR_IO5", "USR_IO6", "", "", "USR_IO9", "USR_IO10",
+		"DIP4", "USR_IO11", "", "", "SWITCH1", "", "", "";
+};
+
+&mac0 {
+	status = "okay";
+	phy-mode = "sgmii";
+	phy-handle = <&phy0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_default>;
+
+	phy0: ethernet-phy@b {
+		reg = <0xb>;
+	};
+};
+
+&mbox {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&mmc {
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-mmc-highspeed;
+	sdhci-caps-mask = <0x00000007 0x00000000>;
+	status = "okay";
+};
+
+&mmuart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_fio>;
+	status = "okay";
+};
+
+&mmuart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_default>;
+	status = "okay";
+};
+
+&refclk {
+	clock-frequency = <125000000>;
+};
+
+&rtc {
+	status = "okay";
+};
+
+&syscontroller {
+	status = "okay";
+};
