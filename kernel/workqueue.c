@@ -5370,11 +5370,6 @@ static void apply_wqattrs_commit(struct apply_wqattrs_ctx *ctx)
 	/* update node_nr_active->max */
 	wq_update_node_max_active(ctx->wq, -1);
 
-	/* rescuer needs to respect wq cpumask changes */
-	if (ctx->wq->rescuer)
-		set_cpus_allowed_ptr(ctx->wq->rescuer->task,
-				     unbound_effective_cpumask(ctx->wq));
-
 	mutex_unlock(&ctx->wq->mutex);
 }
 
@@ -6933,6 +6928,11 @@ static int workqueue_apply_unbound_cpumask(const cpumask_var_t unbound_cpumask)
 	if (!ret) {
 		mutex_lock(&wq_pool_attach_mutex);
 		cpumask_copy(wq_unbound_cpumask, unbound_cpumask);
+		/* rescuer needs to respect cpumask changes when it is not attached */
+		list_for_each_entry(wq, &workqueues, list) {
+			if (wq->rescuer && !wq->rescuer->pool)
+				unbind_worker(wq->rescuer);
+		}
 		mutex_unlock(&wq_pool_attach_mutex);
 	}
 	return ret;
