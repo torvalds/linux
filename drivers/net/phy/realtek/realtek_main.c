@@ -201,7 +201,7 @@ MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
 
 struct rtl821x_priv {
-	u16 phycr1;
+	bool enable_aldps;
 	bool disable_clk_out;
 	struct clk *clk;
 	/* rtl8211f */
@@ -252,7 +252,6 @@ static int rtl821x_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
 	struct rtl821x_priv *priv;
-	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -263,14 +262,8 @@ static int rtl821x_probe(struct phy_device *phydev)
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "failed to get phy clock\n");
 
-	ret = phy_read_paged(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR1);
-	if (ret < 0)
-		return ret;
-
-	priv->phycr1 = ret & (RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF);
-	if (of_property_read_bool(dev->of_node, "realtek,aldps-enable"))
-		priv->phycr1 |= RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF;
-
+	priv->enable_aldps = of_property_read_bool(dev->of_node,
+						   "realtek,aldps-enable");
 	priv->disable_clk_out = of_property_read_bool(dev->of_node,
 						      "realtek,clkout-disable");
 
@@ -674,17 +667,36 @@ static int rtl8211f_config_clk_out(struct phy_device *phydev)
 	return genphy_soft_reset(phydev);
 }
 
-static int rtl8211f_config_init(struct phy_device *phydev)
+/* Advance Link Down Power Saving (ALDPS) mode changes crystal/clock behaviour,
+ * which causes the RXC clock signal to stop for tens to hundreds of
+ * milliseconds.
+ *
+ * Some MACs need the RXC clock to support their internal RX logic, so ALDPS is
+ * only enabled based on an opt-in device tree property.
+ */
+static int rtl8211f_config_aldps(struct phy_device *phydev)
 {
 	struct rtl821x_priv *priv = phydev->priv;
+	u16 mask = RTL8211F_ALDPS_PLL_OFF |
+		   RTL8211F_ALDPS_ENABLE |
+		   RTL8211F_ALDPS_XTAL_OFF;
+
+	/* The value is preserved if the device tree property is absent */
+	if (!priv->enable_aldps)
+		return 0;
+
+	return phy_modify_paged(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR1,
+				mask, mask);
+}
+
+static int rtl8211f_config_init(struct phy_device *phydev)
+{
 	struct device *dev = &phydev->mdio.dev;
 	int ret;
 
-	ret = phy_modify_paged_changed(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR1,
-				       RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF,
-				       priv->phycr1);
-	if (ret < 0) {
-		dev_err(dev, "aldps mode  configuration failed: %pe\n",
+	ret = rtl8211f_config_aldps(phydev);
+	if (ret) {
+		dev_err(dev, "aldps mode configuration failed: %pe\n",
 			ERR_PTR(ret));
 		return ret;
 	}
