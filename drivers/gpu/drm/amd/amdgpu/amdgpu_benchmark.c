@@ -37,7 +37,8 @@ static int amdgpu_benchmark_do_move(struct amdgpu_device *adev, unsigned size,
 
 	stime = ktime_get();
 	for (i = 0; i < n; i++) {
-		r = amdgpu_copy_buffer(adev, saddr, daddr, size, NULL, &fence,
+		r = amdgpu_copy_buffer(adev, &adev->mman.default_entity,
+				       saddr, daddr, size, NULL, &fence,
 				       false, 0);
 		if (r)
 			goto exit_do_move;
