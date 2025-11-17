@@ -49,6 +49,16 @@ struct find_free_extent_ctl {
 	/* Allocation is called for data relocation */
 	bool for_data_reloc;
 
+	/*
+	 * Set to true if we're retrying the allocation on this block group
+	 * after waiting for caching progress, this is so that we retry only
+	 * once before moving on to another block group.
+	 */
+	bool retry_uncached;
+
+	/* Whether or not the allocator is currently following a hint. */
+	bool hinted;
+
 	/* RAID index, converted from flags */
 	int index;
 
@@ -56,13 +66,6 @@ struct find_free_extent_ctl {
 	 * Current loop number, check find_free_extent_update_loop() for details
 	 */
 	int loop;
-
-	/*
-	 * Set to true if we're retrying the allocation on this block group
-	 * after waiting for caching progress, this is so that we retry only
-	 * once before moving on to another block group.
-	 */
-	bool retry_uncached;
 
 	/* If current block group is cached */
 	int cached;
@@ -81,9 +84,6 @@ struct find_free_extent_ctl {
 
 	/* Allocation policy */
 	enum btrfs_extent_allocation_policy policy;
-
-	/* Whether or not the allocator is currently following a hint */
-	bool hinted;
 
 	/* Size class of block groups to prefer in early loops */
 	enum btrfs_block_group_size_class size_class;
