@@ -105,15 +105,20 @@ static const struct i2c_device_id tasdevice_id[] = {
 	{ "tas2120", TAS2120 },
 	{ "tas2320", TAS2320 },
 	{ "tas2563", TAS2563 },
+	{ "tas2568", TAS2568 },
 	{ "tas2570", TAS2570 },
 	{ "tas2572", TAS2572 },
+	{ "tas2574", TAS2574 },
 	{ "tas2781", TAS2781 },
 	{ "tas5802", TAS5802 },
+	{ "tas5806m", TAS5806M },
+	{ "tas5806md", TAS5806MD },
 	{ "tas5815", TAS5815 },
 	{ "tas5822", TAS5822 },
 	{ "tas5825", TAS5825 },
 	{ "tas5827", TAS5827 },
 	{ "tas5828", TAS5828 },
+	{ "tas5830", TAS5830 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, tasdevice_id);
@@ -125,15 +130,20 @@ static const struct of_device_id tasdevice_of_match[] = {
 	{ .compatible = "ti,tas2120" },
 	{ .compatible = "ti,tas2320" },
 	{ .compatible = "ti,tas2563" },
+	{ .compatible = "ti,tas2568" },
 	{ .compatible = "ti,tas2570" },
 	{ .compatible = "ti,tas2572" },
+	{ .compatible = "ti,tas2574" },
 	{ .compatible = "ti,tas2781" },
 	{ .compatible = "ti,tas5802" },
+	{ .compatible = "ti,tas5806m" },
+	{ .compatible = "ti,tas5806md" },
 	{ .compatible = "ti,tas5815" },
 	{ .compatible = "ti,tas5822" },
 	{ .compatible = "ti,tas5825" },
 	{ .compatible = "ti,tas5827" },
 	{ .compatible = "ti,tas5828" },
+	{ .compatible = "ti,tas5830" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tasdevice_of_match);
@@ -1643,8 +1653,10 @@ static void tasdevice_fw_ready(const struct firmware *fmw,
 	case TAS2118:
 	case TAS2120:
 	case TAS2320:
+	case TAS2568:
 	case TAS2570:
 	case TAS2572:
+	case TAS2574:
 		goto out;
 	}
 	if (tas_priv->name_prefix)
@@ -1670,9 +1682,7 @@ static void tasdevice_fw_ready(const struct firmware *fmw,
 	}
 	tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
 
-	/* There is no calibration required for
-	 * TAS5802/TAS5815/TAS5822/TAS5825/TAS5827/TAS5828.
-	 */
+	/* There is no calibration required for TAS58XX. */
 	if (tas_priv->chip_id < TAS5802) {
 		ret = tasdevice_create_cali_ctrls(tas_priv);
 		if (ret) {
@@ -1728,11 +1738,14 @@ out:
 		case TAS2563:
 		case TAS2781:
 		case TAS5802:
+		case TAS5806M:
+		case TAS5806MD:
 		case TAS5815:
 		case TAS5822:
 		case TAS5825:
 		case TAS5827:
 		case TAS5828:
+		case TAS5830:
 			/* If DSP FW fail, DSP kcontrol won't be created. */
 			tasdevice_dsp_remove(tas_priv);
 		}
@@ -1883,8 +1896,10 @@ static int tasdevice_codec_probe(struct snd_soc_component *codec)
 	case TAS2118:
 	case TAS2120:
 	case TAS2320:
+	case TAS2568:
 	case TAS2570:
 	case TAS2572:
+	case TAS2574:
 		p = (struct snd_kcontrol_new *)tas2x20_snd_controls;
 		size = ARRAY_SIZE(tas2x20_snd_controls);
 		tas_priv->dvc_tlv_table = tas2x20_dvc_table;
@@ -1894,11 +1909,14 @@ static int tasdevice_codec_probe(struct snd_soc_component *codec)
 		size = ARRAY_SIZE(tas2781_snd_controls);
 		break;
 	case TAS5802:
+	case TAS5806M:
+	case TAS5806MD:
 	case TAS5815:
 	case TAS5822:
 	case TAS5825:
 	case TAS5827:
 	case TAS5828:
+	case TAS5830:
 		p = (struct snd_kcontrol_new *)tas5825_snd_controls;
 		size = ARRAY_SIZE(tas5825_snd_controls);
 		break;
@@ -2072,15 +2090,20 @@ static const struct acpi_device_id tasdevice_acpi_match[] = {
 	{ "TXNW2120", TAS2120 },
 	{ "TXNW2320", TAS2320 },
 	{ "TXNW2563", TAS2563 },
+	{ "TXNW2568", TAS2568 },
 	{ "TXNW2570", TAS2570 },
 	{ "TXNW2572", TAS2572 },
+	{ "TXNW2574", TAS2574 },
 	{ "TXNW2781", TAS2781 },
 	{ "TXNW5802", TAS5802 },
+	{ "TXNW806M", TAS5806M },
+	{ "TXNW806D", TAS5806MD },
 	{ "TXNW5815", TAS5815 },
 	{ "TXNW5822", TAS5822 },
 	{ "TXNW5825", TAS5825 },
 	{ "TXNW5827", TAS5827 },
 	{ "TXNW5828", TAS5828 },
+	{ "TXNW5830", TAS5830 },
 	{},
 };
 
