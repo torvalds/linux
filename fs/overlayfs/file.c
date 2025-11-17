@@ -618,7 +618,6 @@ static loff_t ovl_remap_file_range(struct file *file_in, loff_t pos_in,
 static int ovl_flush(struct file *file, fl_owner_t id)
 {
 	struct file *realfile;
-	const struct cred *old_cred;
 	int err = 0;
 
 	realfile = ovl_real_file(file);
@@ -626,9 +625,8 @@ static int ovl_flush(struct file *file, fl_owner_t id)
 		return PTR_ERR(realfile);
 
 	if (realfile->f_op->flush) {
-		old_cred = ovl_override_creds(file_inode(file)->i_sb);
-		err = realfile->f_op->flush(realfile, id);
-		ovl_revert_creds(old_cred);
+		with_ovl_creds(file_inode(file)->i_sb)
+			err = realfile->f_op->flush(realfile, id);
 	}
 
 	return err;
