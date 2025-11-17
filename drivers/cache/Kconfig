@@ -32,3 +32,25 @@ config STARFIVE_STARLINK_CACHE
 	  Support for the StarLink cache controller IP from StarFive.
 
 endif #CACHEMAINT_FOR_DMA
+
+menuconfig CACHEMAINT_FOR_HOTPLUG
+	bool "Cache management for memory hot plug like operations"
+	depends on GENERIC_CPU_CACHE_MAINTENANCE
+	help
+	  These drivers implement cache management for flows where it is necessary
+	  to flush data from all host caches.
+
+if CACHEMAINT_FOR_HOTPLUG
+
+config HISI_SOC_HHA
+	tristate "HiSilicon Hydra Home Agent (HHA) device driver"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	help
+	  The Hydra Home Agent (HHA) is responsible for cache coherency
+	  on the SoC. This drivers enables the cache maintenance functions of
+	  the HHA.
+
+	  This driver can be built as a module. If so, the module will be
+	  called hisi_soc_hha.
+
+endif #CACHEMAINT_FOR_HOTPLUG
