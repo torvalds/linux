@@ -454,7 +454,7 @@ static void bnxt_re_init_cq_coal_debugfs(struct bnxt_re_dev *rdev)
 	struct bnxt_re_dbg_cq_coal_params *dbg_cq_coal_params;
 	int i;
 
-	if (_is_cq_coalescing_supported(rdev->dev_attr->dev_cap_flags2))
+	if (!_is_cq_coalescing_supported(rdev->dev_attr->dev_cap_flags2))
 		return;
 
 	dbg_cq_coal_params = kzalloc(sizeof(*dbg_cq_coal_params), GFP_KERNEL);
