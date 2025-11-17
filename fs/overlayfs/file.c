@@ -529,7 +529,6 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 {
 	struct inode *inode_out = file_inode(file_out);
 	struct file *realfile_in, *realfile_out;
-	const struct cred *old_cred;
 	loff_t ret;
 
 	inode_lock(inode_out);
@@ -551,25 +550,25 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 	if (IS_ERR(realfile_in))
 		goto out_unlock;
 
-	old_cred = ovl_override_creds(file_inode(file_out)->i_sb);
-	switch (op) {
-	case OVL_COPY:
-		ret = vfs_copy_file_range(realfile_in, pos_in,
-					  realfile_out, pos_out, len, flags);
-		break;
+	with_ovl_creds(file_inode(file_out)->i_sb) {
+		switch (op) {
+		case OVL_COPY:
+			ret = vfs_copy_file_range(realfile_in, pos_in,
+						  realfile_out, pos_out, len, flags);
+			break;
 
-	case OVL_CLONE:
-		ret = vfs_clone_file_range(realfile_in, pos_in,
-					   realfile_out, pos_out, len, flags);
-		break;
+		case OVL_CLONE:
+			ret = vfs_clone_file_range(realfile_in, pos_in,
+						   realfile_out, pos_out, len, flags);
+			break;
 
-	case OVL_DEDUPE:
-		ret = vfs_dedupe_file_range_one(realfile_in, pos_in,
-						realfile_out, pos_out, len,
-						flags);
-		break;
+		case OVL_DEDUPE:
+			ret = vfs_dedupe_file_range_one(realfile_in, pos_in,
+							realfile_out, pos_out, len,
+							flags);
+			break;
+		}
 	}
-	ovl_revert_creds(old_cred);
 
 	/* Update size */
 	ovl_file_modified(file_out);
