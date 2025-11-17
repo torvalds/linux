@@ -3280,7 +3280,6 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	 * Frequency Change. We handle this step in bxt_set_cdclk().
 	 */
 
-	/* TODO: enable TBT-ALT mode */
 	intel_cx0_phy_transaction_end(encoder, wakeref);
 }
 
@@ -3346,8 +3345,7 @@ static int intel_mtl_tbt_clock_select(struct intel_display *display,
 	}
 }
 
-void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state)
+void intel_mtl_tbt_pll_enable_clock(struct intel_encoder *encoder, int port_clock)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
@@ -3361,7 +3359,7 @@ void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 
 	mask = XELPDP_DDI_CLOCK_SELECT_MASK(display);
 	val |= XELPDP_DDI_CLOCK_SELECT_PREP(display,
-					    intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
+					    intel_mtl_tbt_clock_select(display, port_clock));
 
 	mask |= XELPDP_FORWARD_CLOCK_UNGATE;
 	val |= XELPDP_FORWARD_CLOCK_UNGATE;
@@ -3399,18 +3397,26 @@ void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 	 * clock frequency.
 	 */
 	intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
-		       crtc_state->port_clock);
+		       port_clock);
 }
 
 void intel_mtl_pll_enable(struct intel_encoder *encoder,
-			  const struct intel_crtc_state *crtc_state)
+			  struct intel_dpll *pll,
+			  const struct intel_dpll_hw_state *dpll_hw_state)
+{
+	intel_cx0pll_enable(encoder, &dpll_hw_state->cx0pll);
+}
+
+void intel_mtl_pll_enable_clock(struct intel_encoder *encoder,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_enable(encoder, crtc_state);
+		intel_mtl_tbt_pll_enable_clock(encoder, crtc_state->port_clock);
 	else
-		intel_cx0pll_enable(encoder, &crtc_state->dpll_hw_state.cx0pll);
+		/* TODO: remove when PLL mgr is in place. */
+		intel_mtl_pll_enable(encoder, NULL, &crtc_state->dpll_hw_state);
 }
 
 /*
@@ -3525,7 +3531,7 @@ static bool intel_cx0_pll_is_enabled(struct intel_encoder *encoder)
 			     intel_cx0_get_pclk_pll_request(lane);
 }
 
-void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
+void intel_mtl_tbt_pll_disable_clock(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
@@ -3565,12 +3571,18 @@ void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
 
 void intel_mtl_pll_disable(struct intel_encoder *encoder)
 {
+	intel_cx0pll_disable(encoder);
+}
+
+void intel_mtl_pll_disable_clock(struct intel_encoder *encoder)
+{
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_disable(encoder);
+		intel_mtl_tbt_pll_disable_clock(encoder);
 	else
-		intel_cx0pll_disable(encoder);
+		/* TODO: remove when PLL mgr is in place. */
+		intel_mtl_pll_disable(encoder);
 }
 
 enum icl_port_dpll_id

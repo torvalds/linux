@@ -4391,7 +4391,32 @@ static int mtl_pll_get_freq(struct intel_display *display,
 	return intel_cx0pll_calc_port_clock(encoder, &dpll_hw_state->cx0pll);
 }
 
+static void mtl_pll_enable(struct intel_display *display,
+			   struct intel_dpll *pll,
+			   const struct intel_dpll_hw_state *dpll_hw_state)
+{
+	struct intel_encoder *encoder = get_intel_encoder(display, pll);
+
+	if (drm_WARN_ON(display->drm, !encoder))
+		return;
+
+	intel_mtl_pll_enable(encoder, pll, dpll_hw_state);
+}
+
+static void mtl_pll_disable(struct intel_display *display,
+			    struct intel_dpll *pll)
+{
+	struct intel_encoder *encoder = get_intel_encoder(display, pll);
+
+	if (drm_WARN_ON(display->drm, !encoder))
+		return;
+
+	intel_mtl_pll_disable(encoder);
+}
+
 static const struct intel_dpll_funcs mtl_pll_funcs = {
+	.enable = mtl_pll_enable,
+	.disable = mtl_pll_disable,
 	.get_hw_state = mtl_pll_get_hw_state,
 	.get_freq = mtl_pll_get_freq,
 };

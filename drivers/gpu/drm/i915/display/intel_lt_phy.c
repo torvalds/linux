@@ -2310,7 +2310,7 @@ void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_enable(encoder, crtc_state);
+		intel_mtl_tbt_pll_enable_clock(encoder, crtc_state->port_clock);
 	else
 		intel_lt_phy_pll_enable(encoder, crtc_state);
 }
@@ -2320,7 +2320,7 @@ void intel_xe3plpd_pll_disable(struct intel_encoder *encoder)
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_disable(encoder);
+		intel_mtl_tbt_pll_disable_clock(encoder);
 	else
 		intel_lt_phy_pll_disable(encoder);
 
