@@ -118,7 +118,7 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 		spin_unlock_irqrestore(&dmamux->lock, flags);
 		dev_err(&pdev->dev, "Run out of free DMA requests\n");
 		ret = -ENOMEM;
-		goto error_chan_id;
+		goto err_free_mux;
 	}
 	set_bit(mux->chan_id, dmamux->dma_inuse);
 	spin_unlock_irqrestore(&dmamux->lock, flags);
@@ -135,7 +135,7 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", i - 1);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "can't get dma master\n");
-		goto error;
+		goto err_clear_inuse;
 	}
 
 	/* Set dma request */
@@ -167,10 +167,9 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 
 err_put_dma_spec_np:
 	of_node_put(dma_spec->np);
-error:
+err_clear_inuse:
 	clear_bit(mux->chan_id, dmamux->dma_inuse);
-
-error_chan_id:
+err_free_mux:
 	kfree(mux);
 err_put_pdev:
 	put_device(&pdev->dev);
