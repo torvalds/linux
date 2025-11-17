@@ -162,9 +162,13 @@ SYM_FUNC_START(__switch_to_asm)
 	stg	%r3,__LC_CURRENT(%r13)		# store task struct of next
 	stg	%r15,__LC_KERNEL_STACK(%r13)	# store end of kernel stack
 	lg	%r15,__THREAD_ksp(%r1,%r3)	# load kernel stack of next
-	aghi	%r3,__TASK_pid
-	mvc	__LC_CURRENT_PID(4,%r13),0(%r3)	# store pid of next
+	aghik	%r4,%r3,__TASK_pid
+	mvc	__LC_CURRENT_PID(4,%r13),0(%r4) # store pid of next
 	ALTERNATIVE "nop", "lpp _LPP_OFFSET(%r13)", ALT_FACILITY(40)
+#ifdef CONFIG_STACKPROTECTOR
+	lg	%r3,__TASK_stack_canary(%r3)
+	stg	%r3,__LC_STACK_CANARY(%r13)
+#endif
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	BR_EX	%r14
 SYM_FUNC_END(__switch_to_asm)

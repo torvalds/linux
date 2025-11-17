@@ -22,12 +22,14 @@
 #include <linux/bug.h>
 #include <linux/memory.h>
 #include <linux/execmem.h>
+#include <asm/arch-stackprotector.h>
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
 #include <asm/facility.h>
 #include <asm/ftrace.lds.h>
 #include <asm/set_memory.h>
 #include <asm/setup.h>
+#include <asm/asm-offsets.h>
 
 #if 0
 #define DEBUGP printk
@@ -524,6 +526,13 @@ int module_finalize(const Elf_Ehdr *hdr,
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
 		    (str_has_prefix(secname, ".s390_return")))
 			nospec_revert(aseg, aseg + s->sh_size);
+
+		if (IS_ENABLED(CONFIG_STACKPROTECTOR) &&
+		    (str_has_prefix(secname, "__stack_protector_loc"))) {
+			rc = stack_protector_apply(aseg, aseg + s->sh_size);
+			if (rc)
+				break;
+		}
 
 #ifdef CONFIG_FUNCTION_TRACER
 		if (!strcmp(FTRACE_CALLSITE_SECTION, secname)) {

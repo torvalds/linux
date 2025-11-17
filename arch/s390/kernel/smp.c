@@ -280,6 +280,9 @@ static void pcpu_attach_task(int cpu, struct task_struct *tsk)
 	lc->hardirq_timer = tsk->thread.hardirq_timer;
 	lc->softirq_timer = tsk->thread.softirq_timer;
 	lc->steal_timer = 0;
+#ifdef CONFIG_STACKPROTECTOR
+	lc->stack_canary = tsk->stack_canary;
+#endif
 }
 
 static void pcpu_start_fn(int cpu, void (*func)(void *), void *data)

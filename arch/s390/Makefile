@@ -89,6 +89,10 @@ ifdef CONFIG_EXPOLINE
   aflags-y += -DCC_USING_EXPOLINE
 endif
 
+ifeq ($(CONFIG_STACKPROTECTOR),y)
+  KBUILD_CFLAGS += -mstack-protector-guard=global -mstack-protector-guard-record
+endif
+
 ifdef CONFIG_FUNCTION_TRACER
   ifeq ($(call cc-option,-mfentry -mnop-mcount),)
     # make use of hotpatch feature if the compiler supports it
