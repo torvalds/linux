@@ -712,15 +712,13 @@ int ovl_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct path realpath;
-	const struct cred *old_cred;
 	int err;
 
 	ovl_path_real(dentry, &realpath);
 
-	old_cred = ovl_override_creds(inode->i_sb);
-	err = ovl_real_fileattr_get(&realpath, fa);
+	with_ovl_creds(inode->i_sb)
+		err = ovl_real_fileattr_get(&realpath, fa);
 	ovl_fileattr_prot_flags(inode, fa);
-	ovl_revert_creds(old_cred);
 
 	return err;
 }
