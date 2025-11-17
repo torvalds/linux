@@ -626,6 +626,10 @@ static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	int ret;
 
+	/* TODO: Enable Panel Replay on MST once it's properly implemented. */
+	if (intel_dp->mst_detect == DRM_DP_MST)
+		return;
+
 	ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_PANEL_REPLAY_CAP_SUPPORT,
 				    &intel_dp->pr_dpcd, sizeof(intel_dp->pr_dpcd));
 	if (ret < 0)
@@ -932,7 +936,8 @@ static bool is_dc5_dc6_blocked(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	u32 current_dc_state = intel_display_power_get_current_dc_state(display);
-	struct drm_vblank_crtc *vblank = &display->drm->vblank[intel_dp->psr.pipe];
+	struct intel_crtc *crtc = intel_crtc_for_pipe(display, intel_dp->psr.pipe);
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(&crtc->base);
 
 	return (current_dc_state != DC_STATE_EN_UPTO_DC5 &&
 		current_dc_state != DC_STATE_EN_UPTO_DC6) ||
@@ -2272,8 +2277,8 @@ static void intel_psr_wait_exit_locked(struct intel_dp *intel_dp)
 	}
 
 	/* Wait till PSR is idle */
-	if (intel_de_wait_for_clear(display, psr_status,
-				    psr_status_mask, 2000))
+	if (intel_de_wait_for_clear_ms(display, psr_status,
+				       psr_status_mask, 2000))
 		drm_err(display->drm, "Timed out waiting PSR idle state\n");
 }
 
@@ -3161,7 +3166,7 @@ _psr2_ready_for_pipe_update_locked(const struct intel_crtc_state *new_crtc_state
 		return true;
 	}
 
-	return intel_de_wait_for_clear(display,
+	return intel_de_wait_for_clear_ms(display,
 				       EDP_PSR2_STATUS(display, cpu_transcoder),
 				       EDP_PSR2_STATUS_STATE_DEEP_SLEEP,
 				       PSR_IDLE_TIMEOUT_MS);
@@ -3181,7 +3186,7 @@ _psr1_ready_for_pipe_update_locked(const struct intel_crtc_state *new_crtc_state
 		return true;
 	}
 
-	return intel_de_wait_for_clear(display,
+	return intel_de_wait_for_clear_ms(display,
 				       psr_status_reg(display, cpu_transcoder),
 				       EDP_PSR_STATUS_STATE_MASK,
 				       PSR_IDLE_TIMEOUT_MS);
@@ -3259,7 +3264,7 @@ static bool __psr_wait_for_idle_locked(struct intel_dp *intel_dp)
 
 	mutex_unlock(&intel_dp->psr.lock);
 
-	err = intel_de_wait_for_clear(display, reg, mask, 50);
+	err = intel_de_wait_for_clear_ms(display, reg, mask, 50);
 	if (err)
 		drm_err(display->drm,
 			"Timed out waiting for PSR Idle for re-enable\n");

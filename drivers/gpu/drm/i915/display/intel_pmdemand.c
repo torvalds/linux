@@ -390,12 +390,12 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 
 static bool intel_pmdemand_check_prev_transaction(struct intel_display *display)
 {
-	return !(intel_de_wait_for_clear(display,
-					 XELPDP_INITIATE_PMDEMAND_REQUEST(1),
-					 XELPDP_PMDEMAND_REQ_ENABLE, 10) ||
-		 intel_de_wait_for_clear(display,
-					 GEN12_DCPR_STATUS_1,
-					 XELPDP_PMDEMAND_INFLIGHT_STATUS, 10));
+	return !(intel_de_wait_for_clear_ms(display,
+					    XELPDP_INITIATE_PMDEMAND_REQUEST(1),
+					    XELPDP_PMDEMAND_REQ_ENABLE, 10) ||
+		 intel_de_wait_for_clear_ms(display,
+					    GEN12_DCPR_STATUS_1,
+					    XELPDP_PMDEMAND_INFLIGHT_STATUS, 10));
 }
 
 void
@@ -462,9 +462,9 @@ static void intel_pmdemand_poll(struct intel_display *display)
 	u32 status;
 	int ret;
 
-	ret = intel_de_wait_custom(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1),
-				   XELPDP_PMDEMAND_REQ_ENABLE, 0,
-				   50, timeout_ms, &status);
+	ret = intel_de_wait_ms(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1),
+			       XELPDP_PMDEMAND_REQ_ENABLE, 0,
+			       timeout_ms, &status);
 
 	if (ret == -ETIMEDOUT)
 		drm_err(display->drm,

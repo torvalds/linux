@@ -49,7 +49,8 @@ void intel_display_wa_apply(struct intel_display *display)
  */
 static bool intel_display_needs_wa_16025573575(struct intel_display *display)
 {
-	return DISPLAY_VERx100(display) == 3000 || DISPLAY_VERx100(display) == 3002;
+	return DISPLAY_VERx100(display) == 3000 || DISPLAY_VERx100(display) == 3002 ||
+		DISPLAY_VERx100(display) == 3500;
 }
 
 /*

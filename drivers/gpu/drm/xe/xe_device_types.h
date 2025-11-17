@@ -656,9 +656,6 @@ struct xe_device {
 	 */
 	u32 edram_size_mb;
 
-	/* To shut up runtime pm macros.. */
-	struct xe_runtime_pm {} runtime_pm;
-
 	struct intel_uncore {
 		spinlock_t lock;
 	} uncore;

@@ -716,9 +716,9 @@ static void intel_vrr_tg_disable(const struct intel_crtc_state *old_crtc_state)
 	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
 		       trans_vrr_ctl(old_crtc_state));
 
-	if (intel_de_wait_for_clear(display,
-				    TRANS_VRR_STATUS(display, cpu_transcoder),
-				    VRR_STATUS_VRR_EN_LIVE, 1000))
+	if (intel_de_wait_for_clear_ms(display,
+				       TRANS_VRR_STATUS(display, cpu_transcoder),
+				       VRR_STATUS_VRR_EN_LIVE, 1000))
 		drm_err(display->drm, "Timed out waiting for VRR live status to clear\n");
 
 	intel_de_write(display, TRANS_PUSH(display, cpu_transcoder), 0);

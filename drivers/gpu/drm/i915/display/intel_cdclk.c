@@ -902,9 +902,8 @@ static void bdw_set_cdclk(struct intel_display *display,
 	 * According to the spec, it should be enough to poll for this 1 us.
 	 * However, extensive testing shows that this can take longer.
 	 */
-	ret = intel_de_wait_custom(display, LCPLL_CTL,
-				   LCPLL_CD_SOURCE_FCLK_DONE, LCPLL_CD_SOURCE_FCLK_DONE,
-				   100, 0, NULL);
+	ret = intel_de_wait_for_set_us(display, LCPLL_CTL,
+				       LCPLL_CD_SOURCE_FCLK_DONE, 100);
 	if (ret)
 		drm_err(display->drm, "Switching to FCLK failed\n");
 
@@ -914,9 +913,8 @@ static void bdw_set_cdclk(struct intel_display *display,
 	intel_de_rmw(display, LCPLL_CTL,
 		     LCPLL_CD_SOURCE_FCLK, 0);
 
-	ret = intel_de_wait_custom(display, LCPLL_CTL,
-				   LCPLL_CD_SOURCE_FCLK_DONE, 0,
-				   1, 0, NULL);
+	ret = intel_de_wait_for_clear_us(display, LCPLL_CTL,
+					 LCPLL_CD_SOURCE_FCLK_DONE, 1);
 	if (ret)
 		drm_err(display->drm, "Switching back to LCPLL failed\n");
 
@@ -1114,7 +1112,7 @@ static void skl_dpll0_enable(struct intel_display *display, int vco)
 	intel_de_rmw(display, LCPLL1_CTL,
 		     0, LCPLL_PLL_ENABLE);
 
-	if (intel_de_wait_for_set(display, LCPLL1_CTL, LCPLL_PLL_LOCK, 5))
+	if (intel_de_wait_for_set_ms(display, LCPLL1_CTL, LCPLL_PLL_LOCK, 5))
 		drm_err(display->drm, "DPLL0 not locked\n");
 
 	display->cdclk.hw.vco = vco;
@@ -1128,7 +1126,7 @@ static void skl_dpll0_disable(struct intel_display *display)
 	intel_de_rmw(display, LCPLL1_CTL,
 		     LCPLL_PLL_ENABLE, 0);
 
-	if (intel_de_wait_for_clear(display, LCPLL1_CTL, LCPLL_PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display, LCPLL1_CTL, LCPLL_PLL_LOCK, 1))
 		drm_err(display->drm, "Couldn't disable DPLL0\n");
 
 	display->cdclk.hw.vco = 0;
@@ -1535,6 +1533,41 @@ static const struct intel_cdclk_vals xe3lpd_cdclk_table[] = {
 	{}
 };
 
+static const struct intel_cdclk_vals xe3p_lpd_cdclk_table[] = {
+	{ .refclk = 38400, .cdclk = 151200, .ratio = 21, .waveform = 0xa4a4 },
+	{ .refclk = 38400, .cdclk = 176400, .ratio = 21, .waveform = 0xaa54 },
+	{ .refclk = 38400, .cdclk = 201600, .ratio = 21, .waveform = 0xaaaa },
+	{ .refclk = 38400, .cdclk = 226800, .ratio = 21, .waveform = 0xad5a },
+	{ .refclk = 38400, .cdclk = 252000, .ratio = 21, .waveform = 0xb6b6 },
+	{ .refclk = 38400, .cdclk = 277200, .ratio = 21, .waveform = 0xdbb6 },
+	{ .refclk = 38400, .cdclk = 302400, .ratio = 21, .waveform = 0xeeee },
+	{ .refclk = 38400, .cdclk = 327600, .ratio = 21, .waveform = 0xf7de },
+	{ .refclk = 38400, .cdclk = 352800, .ratio = 21, .waveform = 0xfefe },
+	{ .refclk = 38400, .cdclk = 378000, .ratio = 21, .waveform = 0xfffe },
+	{ .refclk = 38400, .cdclk = 403200, .ratio = 21, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 422400, .ratio = 22, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 441600, .ratio = 23, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 460800, .ratio = 24, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 480000, .ratio = 25, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 499200, .ratio = 26, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 518400, .ratio = 27, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 537600, .ratio = 28, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 556800, .ratio = 29, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 576000, .ratio = 30, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 595200, .ratio = 31, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 614400, .ratio = 32, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 633600, .ratio = 33, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 652800, .ratio = 34, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 672000, .ratio = 35, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 691200, .ratio = 36, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 710400, .ratio = 37, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 729600, .ratio = 38, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 748800, .ratio = 39, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 768000, .ratio = 40, .waveform = 0xffff },
+	{ .refclk = 38400, .cdclk = 787200, .ratio = 41, .waveform = 0xffff },
+	{}
+};
+
 static const int cdclk_squash_len = 16;
 
 static int cdclk_squash_divider(u16 waveform)
@@ -1800,8 +1833,8 @@ static void bxt_de_pll_disable(struct intel_display *display)
 	intel_de_write(display, BXT_DE_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_clear(display,
-				    BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display,
+				       BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
 		drm_err(display->drm, "timeout waiting for DE PLL unlock\n");
 
 	display->cdclk.hw.vco = 0;
@@ -1817,8 +1850,8 @@ static void bxt_de_pll_enable(struct intel_display *display, int vco)
 	intel_de_write(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_set(display,
-				  BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+	if (intel_de_wait_for_set_ms(display,
+				     BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
 		drm_err(display->drm, "timeout waiting for DE PLL lock\n");
 
 	display->cdclk.hw.vco = vco;
@@ -1830,7 +1863,7 @@ static void icl_cdclk_pll_disable(struct intel_display *display)
 		     BXT_DE_PLL_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_clear(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
 		drm_err(display->drm, "timeout waiting for CDCLK PLL unlock\n");
 
 	display->cdclk.hw.vco = 0;
@@ -1848,7 +1881,7 @@ static void icl_cdclk_pll_enable(struct intel_display *display, int vco)
 	intel_de_write(display, BXT_DE_PLL_ENABLE, val);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_set(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+	if (intel_de_wait_for_set_ms(display, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
 		drm_err(display->drm, "timeout waiting for CDCLK PLL lock\n");
 
 	display->cdclk.hw.vco = vco;
@@ -1868,8 +1901,8 @@ static void adlp_cdclk_pll_crawl(struct intel_display *display, int vco)
 	intel_de_write(display, BXT_DE_PLL_ENABLE, val);
 
 	/* Timeout 200us */
-	if (intel_de_wait_for_set(display, BXT_DE_PLL_ENABLE,
-				  BXT_DE_PLL_LOCK | BXT_DE_PLL_FREQ_REQ_ACK, 1))
+	if (intel_de_wait_for_set_ms(display, BXT_DE_PLL_ENABLE,
+				     BXT_DE_PLL_LOCK | BXT_DE_PLL_FREQ_REQ_ACK, 1))
 		drm_err(display->drm, "timeout waiting for FREQ change request ack\n");
 
 	val &= ~BXT_DE_PLL_FREQ_REQ;
@@ -3561,7 +3594,9 @@ static int intel_compute_max_dotclk(struct intel_display *display)
  */
 void intel_update_max_cdclk(struct intel_display *display)
 {
-	if (DISPLAY_VERx100(display) >= 3002) {
+	if (DISPLAY_VER(display) >= 35) {
+		display->cdclk.max_cdclk_freq = 787200;
+	} else if (DISPLAY_VERx100(display) >= 3002) {
 		display->cdclk.max_cdclk_freq = 480000;
 	} else if (DISPLAY_VER(display) >= 30) {
 		display->cdclk.max_cdclk_freq = 691200;
@@ -3912,7 +3947,10 @@ static const struct intel_cdclk_funcs i830_cdclk_funcs = {
  */
 void intel_init_cdclk_hooks(struct intel_display *display)
 {
-	if (DISPLAY_VER(display) >= 30) {
+	if (DISPLAY_VER(display) >= 35) {
+		display->funcs.cdclk = &xe3lpd_cdclk_funcs;
+		display->cdclk.table = xe3p_lpd_cdclk_table;
+	} else if (DISPLAY_VER(display) >= 30) {
 		display->funcs.cdclk = &xe3lpd_cdclk_funcs;
 		display->cdclk.table = xe3lpd_cdclk_table;
 	} else if (DISPLAY_VER(display) >= 20) {

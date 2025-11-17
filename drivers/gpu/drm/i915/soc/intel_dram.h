@@ -30,6 +30,7 @@ struct dram_info {
 	u8 num_channels;
 	u8 num_qgv_points;
 	u8 num_psf_gv_points;
+	bool ecc_impacting_de_bw; /* Only valid from Xe3p_LPD onward. */
 	bool symmetric_memory;
 	bool has_16gb_dimms;
 };

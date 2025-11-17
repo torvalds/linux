@@ -726,7 +726,6 @@ struct intel_initial_plane_config {
 	struct intel_memory_region *mem;
 	resource_size_t phys_base;
 	struct i915_vma *vma;
-	unsigned int tiling;
 	int size;
 	u32 base;
 	u8 rotation;
@@ -1564,8 +1563,8 @@ struct intel_plane {
 				      const struct drm_framebuffer *fb,
 				      int color_plane);
 	unsigned int (*max_stride)(struct intel_plane *plane,
-				   u32 pixel_format, u64 modifier,
-				   unsigned int rotation);
+				   const struct drm_format_info *info,
+				   u64 modifier, unsigned int rotation);
 	bool (*can_async_flip)(u64 modifier);
 	/* Write all non-self arming plane registers */
 	void (*update_noarm)(struct intel_dsb *dsb,

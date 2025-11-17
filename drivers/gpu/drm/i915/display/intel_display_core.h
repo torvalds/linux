@@ -142,14 +142,13 @@ struct intel_dpll_global {
 };
 
 struct intel_frontbuffer_tracking {
+	/* protects busy_bits */
 	spinlock_t lock;
 
 	/*
-	 * Tracking bits for delayed frontbuffer flushing du to gpu activity or
-	 * scheduled flips.
+	 * Tracking bits for delayed frontbuffer flushing due to gpu activity.
 	 */
 	unsigned busy_bits;
-	unsigned flip_bits;
 };
 
 struct intel_hotplug {

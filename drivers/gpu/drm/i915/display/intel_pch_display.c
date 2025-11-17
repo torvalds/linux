@@ -305,7 +305,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	}
 
 	intel_de_write(display, reg, val | TRANS_ENABLE);
-	if (intel_de_wait_for_set(display, reg, TRANS_STATE_ENABLE, 100))
+	if (intel_de_wait_for_set_ms(display, reg, TRANS_STATE_ENABLE, 100))
 		drm_err(display->drm, "failed to enable transcoder %c\n",
 			pipe_name(pipe));
 }
@@ -326,7 +326,7 @@ static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 	reg = PCH_TRANSCONF(pipe);
 	intel_de_rmw(display, reg, TRANS_ENABLE, 0);
 	/* wait for PCH transcoder off, transcoder state */
-	if (intel_de_wait_for_clear(display, reg, TRANS_STATE_ENABLE, 50))
+	if (intel_de_wait_for_clear_ms(display, reg, TRANS_STATE_ENABLE, 50))
 		drm_err(display->drm, "failed to disable transcoder %c\n",
 			pipe_name(pipe));
 
@@ -572,8 +572,8 @@ static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 		val |= TRANS_INTERLACE_PROGRESSIVE;
 
 	intel_de_write(display, LPT_TRANSCONF, val);
-	if (intel_de_wait_for_set(display, LPT_TRANSCONF,
-				  TRANS_STATE_ENABLE, 100))
+	if (intel_de_wait_for_set_ms(display, LPT_TRANSCONF,
+				     TRANS_STATE_ENABLE, 100))
 		drm_err(display->drm, "Failed to enable PCH transcoder\n");
 }
 
@@ -581,8 +581,8 @@ static void lpt_disable_pch_transcoder(struct intel_display *display)
 {
 	intel_de_rmw(display, LPT_TRANSCONF, TRANS_ENABLE, 0);
 	/* wait for PCH transcoder off, transcoder state */
-	if (intel_de_wait_for_clear(display, LPT_TRANSCONF,
-				    TRANS_STATE_ENABLE, 50))
+	if (intel_de_wait_for_clear_ms(display, LPT_TRANSCONF,
+				       TRANS_STATE_ENABLE, 50))
 		drm_err(display->drm, "Failed to disable PCH transcoder\n");
 
 	/* Workaround: clear timing override bit. */

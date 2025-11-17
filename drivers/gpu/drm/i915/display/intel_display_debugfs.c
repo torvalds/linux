@@ -78,9 +78,6 @@ static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
 	seq_printf(m, "FB tracking busy bits: 0x%08x\n",
 		   display->fb_tracking.busy_bits);
 
-	seq_printf(m, "FB tracking flip bits: 0x%08x\n",
-		   display->fb_tracking.flip_bits);
-
 	spin_unlock(&display->fb_tracking.lock);
 
 	return 0;

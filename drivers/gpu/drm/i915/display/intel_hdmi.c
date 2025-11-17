@@ -1598,8 +1598,8 @@ bool intel_hdmi_hdcp_check_link_once(struct intel_digital_port *dig_port,
 	intel_de_write(display, HDCP_RPRIME(display, cpu_transcoder, port), ri.reg);
 
 	/* Wait for Ri prime match */
-	ret = intel_de_wait_for_set(display, HDCP_STATUS(display, cpu_transcoder, port),
-				    HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC, 1);
+	ret = intel_de_wait_for_set_ms(display, HDCP_STATUS(display, cpu_transcoder, port),
+				       HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC, 1);
 	if (ret) {
 		drm_dbg_kms(display->drm, "Ri' mismatch detected (%x)\n",
 			    intel_de_read(display, HDCP_STATUS(display, cpu_transcoder,

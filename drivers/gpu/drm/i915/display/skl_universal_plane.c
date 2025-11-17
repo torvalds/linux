@@ -465,12 +465,11 @@ static int icl_plane_max_height(const struct drm_framebuffer *fb,
 
 static unsigned int
 plane_max_stride(struct intel_plane *plane,
-		 u32 pixel_format, u64 modifier,
-		 unsigned int rotation,
+		 const struct drm_format_info *info,
+		 u64 modifier, unsigned int rotation,
 		 unsigned int max_pixels,
 		 unsigned int max_bytes)
 {
-	const struct drm_format_info *info = drm_format_info(pixel_format);
 	int cpp = info->cpp[0];
 
 	if (drm_rotation_90_or_270(rotation))
@@ -481,26 +480,26 @@ plane_max_stride(struct intel_plane *plane,
 
 static unsigned int
 adl_plane_max_stride(struct intel_plane *plane,
-		     u32 pixel_format, u64 modifier,
-		     unsigned int rotation)
+		     const struct drm_format_info *info,
+		     u64 modifier, unsigned int rotation)
 {
 	unsigned int max_pixels = 65536; /* PLANE_OFFSET limit */
 	unsigned int max_bytes = 128 * 1024;
 
-	return plane_max_stride(plane, pixel_format,
+	return plane_max_stride(plane, info,
 				modifier, rotation,
 				max_pixels, max_bytes);
 }
 
 static unsigned int
 skl_plane_max_stride(struct intel_plane *plane,
-		     u32 pixel_format, u64 modifier,
-		     unsigned int rotation)
+		     const struct drm_format_info *info,
+		     u64 modifier, unsigned int rotation)
 {
 	unsigned int max_pixels = 8192; /* PLANE_OFFSET limit */
 	unsigned int max_bytes = 32 * 1024;
 
-	return plane_max_stride(plane, pixel_format,
+	return plane_max_stride(plane, info,
 				modifier, rotation,
 				max_pixels, max_bytes);
 }
@@ -1748,7 +1747,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	}
 
 	if (rotation & DRM_MODE_REFLECT_X &&
-	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
+	    fb->modifier == DRM_FORMAT_MOD_LINEAR &&
+	    DISPLAY_VER(display) < 35) {
 		drm_dbg_kms(display->drm,
 			    "[PLANE:%d:%s] horizontal flip is not supported with linear surface formats\n",
 			    plane->base.base.id, plane->base.name);
@@ -3083,7 +3083,6 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 	fourcc = skl_format_to_fourcc(pixel_format,
 				      val & PLANE_CTL_ORDER_RGBX, alpha);
-	fb->format = drm_format_info(fourcc);
 
 	tiling = val & PLANE_CTL_TILED_MASK;
 	switch (tiling) {
@@ -3091,11 +3090,9 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 		fb->modifier = DRM_FORMAT_MOD_LINEAR;
 		break;
 	case PLANE_CTL_TILED_X:
-		plane_config->tiling = I915_TILING_X;
 		fb->modifier = I915_FORMAT_MOD_X_TILED;
 		break;
 	case PLANE_CTL_TILED_Y:
-		plane_config->tiling = I915_TILING_Y;
 		if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
 			if (DISPLAY_VER(display) >= 14)
 				fb->modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS;
@@ -3135,6 +3132,8 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 		MISSING_CASE(tiling);
 		goto error;
 	}
+
+	fb->format = drm_get_format_info(display->drm, fourcc, fb->modifier);
 
 	if (!display->params.enable_dpt &&
 	    intel_fb_modifier_uses_dpt(display, fb->modifier)) {
