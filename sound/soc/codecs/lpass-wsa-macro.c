@@ -1168,12 +1168,6 @@ static int wsa_macro_set_prim_interpolator_rate(struct snd_soc_dai *dai,
 
 	for_each_set_bit(port, &wsa->active_ch_mask[dai->id], WSA_MACRO_RX_MAX) {
 		int_1_mix1_inp = port;
-		if ((int_1_mix1_inp < WSA_MACRO_RX0) || (int_1_mix1_inp > WSA_MACRO_RX_MIX1)) {
-			dev_err(component->dev,	"%s: Invalid RX port, Dai ID is %d\n",
-				__func__, dai->id);
-			return -EINVAL;
-		}
-
 		int_mux_cfg0 = CDC_WSA_RX_INP_MUX_RX_INT0_CFG0;
 
 		/*
@@ -1220,11 +1214,6 @@ static int wsa_macro_set_mix_interpolator_rate(struct snd_soc_dai *dai,
 
 	for_each_set_bit(port, &wsa->active_ch_mask[dai->id], WSA_MACRO_RX_MAX) {
 		int_2_inp = port;
-		if ((int_2_inp < WSA_MACRO_RX0) || (int_2_inp > WSA_MACRO_RX_MIX1)) {
-			dev_err(component->dev,	"%s: Invalid RX port, Dai ID is %d\n",
-				__func__, dai->id);
-			return -EINVAL;
-		}
 
 		int_mux_cfg1 = CDC_WSA_RX_INP_MUX_RX_INT0_CFG1;
 		for (j = 0; j < NUM_INTERPOLATORS; j++) {
