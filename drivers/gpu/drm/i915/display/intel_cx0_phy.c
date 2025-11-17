@@ -2029,7 +2029,7 @@ static const struct intel_c20pll_state * const mtl_c20_hdmi_tables[] = {
 };
 
 static const struct intel_c10pll_state * const *
-intel_c10pll_tables_get(struct intel_crtc_state *crtc_state,
+intel_c10pll_tables_get(const struct intel_crtc_state *crtc_state,
 			struct intel_encoder *encoder)
 {
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
@@ -2133,8 +2133,9 @@ static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 	return -EINVAL;
 }
 
-static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
-				   struct intel_encoder *encoder)
+static int intel_c10pll_calc_state(const struct intel_crtc_state *crtc_state,
+				   struct intel_encoder *encoder,
+				   struct intel_dpll_hw_state *hw_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	bool is_dp = intel_crtc_has_dp_encoder(crtc_state);
@@ -2147,21 +2148,20 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 
 	err = intel_c10pll_calc_state_from_table(encoder, tables, is_dp,
 						 crtc_state->port_clock, crtc_state->lane_count,
-						 &crtc_state->dpll_hw_state.cx0pll);
+						 &hw_state->cx0pll);
 
 	if (err == 0 || !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return err;
 
 	/* For HDMI PLLs try SNPS PHY algorithm, if there are no precomputed tables */
-	intel_snps_hdmi_pll_compute_c10pll(&crtc_state->dpll_hw_state.cx0pll.c10,
+	intel_snps_hdmi_pll_compute_c10pll(&hw_state->cx0pll.c10,
 					   crtc_state->port_clock);
-	intel_c10pll_update_pll(encoder,
-				&crtc_state->dpll_hw_state.cx0pll);
-	crtc_state->dpll_hw_state.cx0pll.use_c10 = true;
-	crtc_state->dpll_hw_state.cx0pll.lane_count = crtc_state->lane_count;
+	intel_c10pll_update_pll(encoder, &hw_state->cx0pll);
 
-	drm_WARN_ON(display->drm,
-		    is_dp != c10pll_state_is_dp(&crtc_state->dpll_hw_state.cx0pll.c10));
+	hw_state->cx0pll.use_c10 = true;
+	hw_state->cx0pll.lane_count = crtc_state->lane_count;
+
+	drm_WARN_ON(display->drm, is_dp != c10pll_state_is_dp(&hw_state->cx0pll.c10));
 
 	return 0;
 }
@@ -2350,7 +2350,7 @@ static bool is_arrowlake_s_by_host_bridge(void)
 	return pdev && IS_ARROWLAKE_S_BY_HOST_BRIDGE_ID(host_bridge_pci_dev_id);
 }
 
-static u16 intel_c20_hdmi_tmds_tx_cgf_1(struct intel_crtc_state *crtc_state)
+static u16 intel_c20_hdmi_tmds_tx_cgf_1(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	u16 tx_misc;
@@ -2374,9 +2374,9 @@ static u16 intel_c20_hdmi_tmds_tx_cgf_1(struct intel_crtc_state *crtc_state)
 		C20_PHY_TX_DCC_BYPASS | C20_PHY_TX_TERM_CTL(tx_term_ctrl));
 }
 
-static int intel_c20_compute_hdmi_tmds_pll(struct intel_crtc_state *crtc_state)
+static int intel_c20_compute_hdmi_tmds_pll(const struct intel_crtc_state *crtc_state,
+					   struct intel_c20pll_state *pll_state)
 {
-	struct intel_c20pll_state *pll_state = &crtc_state->dpll_hw_state.cx0pll.c20;
 	u64 datarate;
 	u64 mpll_tx_clk_div;
 	u64 vco_freq_shift;
@@ -2629,8 +2629,9 @@ intel_c20_pll_find_table(const struct intel_crtc_state *crtc_state,
 	return NULL;
 }
 
-static int intel_c20pll_calc_state_from_table(struct intel_crtc_state *crtc_state,
-					      struct intel_encoder *encoder)
+static int intel_c20pll_calc_state_from_table(const struct intel_crtc_state *crtc_state,
+					      struct intel_encoder *encoder,
+					      struct intel_cx0pll_state *pll_state)
 {
 	const struct intel_c20pll_state *table;
 
@@ -2638,52 +2639,53 @@ static int intel_c20pll_calc_state_from_table(struct intel_crtc_state *crtc_stat
 	if (!table)
 		return -EINVAL;
 
-	crtc_state->dpll_hw_state.cx0pll.c20 = *table;
+	pll_state->c20 = *table;
 
-	intel_cx0pll_update_ssc(encoder, &crtc_state->dpll_hw_state.cx0pll,
-				intel_crtc_has_dp_encoder(crtc_state));
+	intel_cx0pll_update_ssc(encoder, pll_state, intel_crtc_has_dp_encoder(crtc_state));
 
 	return 0;
 }
 
-static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
-				   struct intel_encoder *encoder)
+static int intel_c20pll_calc_state(const struct intel_crtc_state *crtc_state,
+				   struct intel_encoder *encoder,
+				   struct intel_dpll_hw_state *hw_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	bool is_dp = intel_crtc_has_dp_encoder(crtc_state);
 	int err = -ENOENT;
 
-	crtc_state->dpll_hw_state.cx0pll.use_c10 = false;
-	crtc_state->dpll_hw_state.cx0pll.lane_count = crtc_state->lane_count;
+	hw_state->cx0pll.use_c10 = false;
+	hw_state->cx0pll.lane_count = crtc_state->lane_count;
 
 	/* try computed C20 HDMI tables before using consolidated tables */
 	if (!is_dp)
 		/* TODO: Update SSC state for HDMI as well */
-		err = intel_c20_compute_hdmi_tmds_pll(crtc_state);
+		err = intel_c20_compute_hdmi_tmds_pll(crtc_state, &hw_state->cx0pll.c20);
 
 	if (err)
-		err = intel_c20pll_calc_state_from_table(crtc_state, encoder);
+		err = intel_c20pll_calc_state_from_table(crtc_state, encoder,
+							 &hw_state->cx0pll);
 
 	if (err)
 		return err;
 
-	intel_c20_calc_vdr_params(&crtc_state->dpll_hw_state.cx0pll.c20.vdr,
+	intel_c20_calc_vdr_params(&hw_state->cx0pll.c20.vdr,
 				  is_dp, crtc_state->port_clock);
 
-	drm_WARN_ON(display->drm,
-		    is_dp != c20pll_state_is_dp(&crtc_state->dpll_hw_state.cx0pll.c20));
+	drm_WARN_ON(display->drm, is_dp != c20pll_state_is_dp(&hw_state->cx0pll.c20));
 
 	return 0;
 }
 
-int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state,
-			    struct intel_encoder *encoder)
+int intel_cx0pll_calc_state(const struct intel_crtc_state *crtc_state,
+			    struct intel_encoder *encoder,
+			    struct intel_dpll_hw_state *hw_state)
 {
-	memset(&crtc_state->dpll_hw_state, 0, sizeof(crtc_state->dpll_hw_state));
+	memset(hw_state, 0, sizeof(*hw_state));
 
 	if (intel_encoder_is_c10phy(encoder))
-		return intel_c10pll_calc_state(crtc_state, encoder);
-	return intel_c20pll_calc_state(crtc_state, encoder);
+		return intel_c10pll_calc_state(crtc_state, encoder, hw_state);
+	return intel_c20pll_calc_state(crtc_state, encoder, hw_state);
 }
 
 static bool intel_c20phy_use_mpllb(const struct intel_c20pll_state *state)

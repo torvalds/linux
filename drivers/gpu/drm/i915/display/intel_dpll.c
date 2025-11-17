@@ -1221,7 +1221,7 @@ static int mtl_crtc_compute_clock(struct intel_atomic_state *state,
 		intel_get_crtc_new_encoder(state, crtc_state);
 	int ret;
 
-	ret = intel_cx0pll_calc_state(crtc_state, encoder);
+	ret = intel_cx0pll_calc_state(crtc_state, encoder, &crtc_state->dpll_hw_state);
 	if (ret)
 		return ret;
 
