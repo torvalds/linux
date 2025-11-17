@@ -361,7 +361,7 @@ int phy_power_off(struct phy *phy)
 
 	mutex_lock(&phy->mutex);
 	if (phy->power_count == 1 && phy->ops->power_off) {
-		ret =  phy->ops->power_off(phy);
+		ret = phy->ops->power_off(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy poweroff failed --> %d\n", ret);
 			mutex_unlock(&phy->mutex);
