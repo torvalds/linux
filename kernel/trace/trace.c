@@ -5167,7 +5167,6 @@ static int tracing_trace_options_show(struct seq_file *m, void *v)
 	struct tracer_opt *trace_opts;
 	struct trace_array *tr = m->private;
 	struct tracer_flags *flags;
-	struct tracer *trace;
 	u32 tracer_flags;
 	int i;
 
@@ -5183,8 +5182,6 @@ static int tracing_trace_options_show(struct seq_file *m, void *v)
 	flags = tr->current_trace_flags;
 	if (!flags || !flags->opts)
 		return 0;
-
-	trace = tr->current_trace;
 
 	tracer_flags = flags->val;
 	trace_opts = flags->opts;
