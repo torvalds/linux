@@ -576,9 +576,7 @@ int ovl_update_time(struct inode *inode, int flags)
 static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		      u64 start, u64 len)
 {
-	int err;
 	struct inode *realinode = ovl_inode_realdata(inode);
-	const struct cred *old_cred;
 
 	if (!realinode)
 		return -EIO;
@@ -586,11 +584,8 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (!realinode->i_op->fiemap)
 		return -EOPNOTSUPP;
 
-	old_cred = ovl_override_creds(inode->i_sb);
-	err = realinode->i_op->fiemap(realinode, fieinfo, start, len);
-	ovl_revert_creds(old_cred);
-
-	return err;
+	with_ovl_creds(inode->i_sb)
+		return realinode->i_op->fiemap(realinode, fieinfo, start, len);
 }
 
 /*
