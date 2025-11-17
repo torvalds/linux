@@ -418,6 +418,7 @@ struct dml2_display_cfg_programming {
 
 	/* indicates this configuration requires FW to support */
 	bool fams2_required;
+	bool legacy_pstate_info_for_dmu;
 	struct dmub_cmd_fams2_global_config fams2_global_config;
 
 	struct {
