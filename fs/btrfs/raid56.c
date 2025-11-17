@@ -300,18 +300,47 @@ static int rbio_bucket(struct btrfs_raid_bio *rbio)
 	return hash_64(num >> 16, BTRFS_STRIPE_HASH_TABLE_BITS);
 }
 
-static __maybe_unused bool full_page_sectors_uptodate(struct btrfs_raid_bio *rbio,
-						      unsigned int page_nr)
+/* Get the sector number of the first sector covered by @page_nr. */
+static u32 page_nr_to_sector_nr(struct btrfs_raid_bio *rbio, unsigned int page_nr)
 {
-	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
-	const u32 sectors_per_page = PAGE_SIZE / sectorsize;
-	int i;
+	u32 sector_nr;
 
 	ASSERT(page_nr < rbio->nr_pages);
 
-	for (i = sectors_per_page * page_nr;
-	     i < sectors_per_page * page_nr + sectors_per_page;
-	     i++) {
+	sector_nr = (page_nr << PAGE_SHIFT) >> rbio->bioc->fs_info->sectorsize_bits;
+	ASSERT(sector_nr < rbio->nr_sectors);
+	return sector_nr;
+}
+
+/*
+ * Get the number of sectors covered by @page_nr.
+ *
+ * For bs > ps cases, the result will always be 1.
+ * For bs <= ps cases, the result will be ps / bs.
+ */
+static u32 page_nr_to_num_sectors(struct btrfs_raid_bio *rbio, unsigned int page_nr)
+{
+	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
+	u32 nr_sectors;
+
+	ASSERT(page_nr < rbio->nr_pages);
+
+	nr_sectors = round_up(PAGE_SIZE, fs_info->sectorsize) >> fs_info->sectorsize_bits;
+	ASSERT(nr_sectors > 0);
+	return nr_sectors;
+}
+
+static __maybe_unused bool full_page_sectors_uptodate(struct btrfs_raid_bio *rbio,
+						      unsigned int page_nr)
+{
+	const u32 sector_nr = page_nr_to_sector_nr(rbio, page_nr);
+	const u32 nr_bits = page_nr_to_num_sectors(rbio, page_nr);
+	int i;
+
+	ASSERT(page_nr < rbio->nr_pages);
+	ASSERT(sector_nr + nr_bits < rbio->nr_sectors);
+
+	for (i = sector_nr; i < sector_nr + nr_bits; i++) {
 		if (!test_bit(i, rbio->stripe_uptodate_bitmap))
 			return false;
 	}
@@ -345,8 +374,11 @@ static void index_stripe_sectors(struct btrfs_raid_bio *rbio)
 static void steal_rbio_page(struct btrfs_raid_bio *src,
 			    struct btrfs_raid_bio *dest, int page_nr)
 {
-	const u32 sectorsize = src->bioc->fs_info->sectorsize;
-	const u32 sectors_per_page = PAGE_SIZE / sectorsize;
+	const u32 sector_nr = page_nr_to_sector_nr(src, page_nr);
+	const u32 nr_bits = page_nr_to_num_sectors(src, page_nr);
+
+	ASSERT(page_nr < src->nr_pages);
+	ASSERT(sector_nr + nr_bits < src->nr_sectors);
 
 	if (dest->stripe_pages[page_nr])
 		__free_page(dest->stripe_pages[page_nr]);
@@ -354,13 +386,12 @@ static void steal_rbio_page(struct btrfs_raid_bio *src,
 	src->stripe_pages[page_nr] = NULL;
 
 	/* Also update the stripe_uptodate_bitmap bits. */
-	bitmap_set(dest->stripe_uptodate_bitmap, sectors_per_page * page_nr, sectors_per_page);
+	bitmap_set(dest->stripe_uptodate_bitmap, sector_nr, nr_bits);
 }
 
 static bool is_data_stripe_page(struct btrfs_raid_bio *rbio, int page_nr)
 {
-	const int sector_nr = (page_nr << PAGE_SHIFT) >>
-			      rbio->bioc->fs_info->sectorsize_bits;
+	const int sector_nr = page_nr_to_sector_nr(rbio, page_nr);
 
 	/*
 	 * We have ensured PAGE_SIZE is aligned with sectorsize, thus
