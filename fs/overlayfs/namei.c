@@ -996,7 +996,6 @@ static int ovl_maybe_lookup_lowerdata(struct dentry *dentry)
 	struct inode *inode = d_inode(dentry);
 	const char *redirect = ovl_lowerdata_redirect(inode);
 	struct ovl_path datapath = {};
-	const struct cred *old_cred;
 	int err;
 
 	if (!redirect || ovl_dentry_lowerdata(dentry))
@@ -1014,9 +1013,8 @@ static int ovl_maybe_lookup_lowerdata(struct dentry *dentry)
 	if (ovl_dentry_lowerdata(dentry))
 		goto out;
 
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = ovl_lookup_data_layers(dentry, redirect, &datapath);
-	ovl_revert_creds(old_cred);
+	with_ovl_creds(dentry->d_sb)
+		err = ovl_lookup_data_layers(dentry, redirect, &datapath);
 	if (err)
 		goto out_err;
 
