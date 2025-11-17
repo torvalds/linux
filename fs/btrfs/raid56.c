@@ -1588,7 +1588,7 @@ static void set_rbio_range_error(struct btrfs_raid_bio *rbio, struct bio *bio)
 static int find_stripe_sector_nr(struct btrfs_raid_bio *rbio, phys_addr_t paddr)
 {
 	for (int i = 0; i < rbio->nr_sectors; i++) {
-		if (rbio->stripe_paddrs[i] == paddr)
+		if (rbio->stripe_paddrs[i * rbio->sector_nsteps] == paddr)
 			return i;
 	}
 	return -1;
@@ -1600,17 +1600,23 @@ static int find_stripe_sector_nr(struct btrfs_raid_bio *rbio, phys_addr_t paddr)
  */
 static void set_bio_pages_uptodate(struct btrfs_raid_bio *rbio, struct bio *bio)
 {
-	const u32 blocksize = rbio->bioc->fs_info->sectorsize;
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	const u32 step = min(sectorsize, PAGE_SIZE);
+	u32 offset = 0;
 	phys_addr_t paddr;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 
-	btrfs_bio_for_each_block_all(paddr, bio, blocksize) {
-		int sector_nr = find_stripe_sector_nr(rbio, paddr);
+	btrfs_bio_for_each_block_all(paddr, bio, step) {
+		/* Hitting the first step of a sector. */
+		if (IS_ALIGNED(offset, sectorsize)) {
+			int sector_nr = find_stripe_sector_nr(rbio, paddr);
 
-		ASSERT(sector_nr >= 0);
-		if (sector_nr >= 0)
-			set_bit(sector_nr, rbio->stripe_uptodate_bitmap);
+			ASSERT(sector_nr >= 0);
+			if (sector_nr >= 0)
+				set_bit(sector_nr, rbio->stripe_uptodate_bitmap);
+		}
+		offset += step;
 	}
 }
 
