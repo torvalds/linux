@@ -15,6 +15,7 @@
 #include "mock.h"
 
 static int interleave_arithmetic;
+static bool extended_linear_cache;
 
 #define FAKE_QTG_ID	42
 
@@ -429,6 +430,22 @@ static struct cxl_mock_res *alloc_mock_res(resource_size_t size, int align)
 	return res;
 }
 
+/* Only update CFMWS0 as this is used by the auto region. */
+static void cfmws_elc_update(struct acpi_cedt_cfmws *window, int index)
+{
+	if (!extended_linear_cache)
+		return;
+
+	if (index != 0)
+		return;
+
+	/*
+	 * The window size should be 2x of the CXL region size where half is
+	 * DRAM and half is CXL
+	 */
+	window->window_size = mock_auto_region_size * 2;
+}
+
 static int populate_cedt(void)
 {
 	struct cxl_mock_res *res;
@@ -453,6 +470,7 @@ static int populate_cedt(void)
 	for (i = cfmws_start; i <= cfmws_end; i++) {
 		struct acpi_cedt_cfmws *window = mock_cfmws[i];
 
+		cfmws_elc_update(window, i);
 		res = alloc_mock_res(window->window_size, SZ_256M);
 		if (!res)
 			return -ENOMEM;
@@ -783,6 +801,8 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 	}
 
 	base = window->base_hpa;
+	if (extended_linear_cache)
+		base += mock_auto_region_size;
 	cxld->hpa_range = (struct range) {
 		.start = base,
 		.end = base + mock_auto_region_size - 1,
@@ -1609,6 +1629,8 @@ static __exit void cxl_test_exit(void)
 
 module_param(interleave_arithmetic, int, 0444);
 MODULE_PARM_DESC(interleave_arithmetic, "Modulo:0, XOR:1");
+module_param(extended_linear_cache, bool, 0444);
+MODULE_PARM_DESC(extended_linear_cache, "Enable extended linear cache support");
 module_init(cxl_test_init);
 module_exit(cxl_test_exit);
 MODULE_LICENSE("GPL v2");
