@@ -48,6 +48,9 @@ struct intel_display_parent_interface {
 
 	/** @irq: IRQ interface */
 	const struct intel_display_irq_interface *irq;
+
+	/** @vgpu_active: Is vGPU active? Optional. */
+	bool (*vgpu_active)(struct drm_device *drm);
 };
 
 #endif

@@ -31,3 +31,8 @@ void intel_parent_irq_synchronize(struct intel_display *display)
 {
 	display->parent->irq->synchronize(display->drm);
 }
+
+bool intel_parent_vgpu_active(struct intel_display *display)
+{
+	return display->parent->vgpu_active && display->parent->vgpu_active(display->drm);
+}

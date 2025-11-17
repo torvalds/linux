@@ -13,8 +13,6 @@
 #include <drm/drm_vblank.h>
 #include <drm/drm_vblank_work.h>
 
-#include "i915_drv.h"
-#include "i915_vgpu.h"
 #include "i9xx_plane.h"
 #include "icl_dsi.h"
 #include "intel_atomic.h"
@@ -28,6 +26,7 @@
 #include "intel_drrs.h"
 #include "intel_dsi.h"
 #include "intel_fifo_underrun.h"
+#include "intel_parent.h"
 #include "intel_pipe_crc.h"
 #include "intel_plane.h"
 #include "intel_psr.h"
@@ -671,7 +670,6 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
 	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
 	ktime_t end_vbl_time = ktime_get();
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	drm_WARN_ON(display->drm, new_crtc_state->use_dsb);
 
@@ -737,7 +735,7 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
 
 	local_irq_enable();
 
-	if (intel_vgpu_active(dev_priv))
+	if (intel_parent_vgpu_active(display))
 		goto out;
 
 	if (crtc->debug.start_vbl_count &&
