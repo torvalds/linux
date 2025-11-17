@@ -42,7 +42,6 @@ struct dm_verity_fec {
 	unsigned char rsn;	/* N of RS(M, N) */
 	mempool_t rs_pool;	/* mempool for fio->rs */
 	mempool_t prealloc_pool;	/* mempool for preallocated buffers */
-	mempool_t extra_pool;	/* mempool for extra buffers */
 	mempool_t output_pool;	/* mempool for output */
 	struct kmem_cache *cache;	/* cache for buffers */
 	atomic64_t corrected; /* corrected errors */
