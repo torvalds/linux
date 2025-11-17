@@ -2357,6 +2357,75 @@ intel_c20_pll_tables_get(const struct intel_crtc_state *crtc_state,
 	return NULL;
 }
 
+static u8 intel_c20_get_dp_rate(u32 clock);
+static u8 intel_c20_get_hdmi_rate(u32 clock);
+static int intel_get_c20_custom_width(u32 clock, bool dp);
+
+static void intel_c20_calc_vdr_params(struct intel_c20pll_vdr_state *vdr, bool is_dp,
+				      int port_clock)
+{
+	vdr->custom_width = intel_get_c20_custom_width(port_clock, is_dp);
+
+	vdr->serdes_rate = 0;
+	vdr->hdmi_rate = 0;
+
+	if (is_dp) {
+		vdr->serdes_rate = PHY_C20_IS_DP |
+				   PHY_C20_DP_RATE(intel_c20_get_dp_rate(port_clock));
+	} else {
+		if (intel_hdmi_is_frl(port_clock))
+			vdr->serdes_rate = PHY_C20_IS_HDMI_FRL;
+
+		vdr->hdmi_rate = intel_c20_get_hdmi_rate(port_clock);
+	}
+}
+
+#define PHY_C20_SERDES_RATE_MASK	(PHY_C20_IS_DP | PHY_C20_DP_RATE_MASK | PHY_C20_IS_HDMI_FRL)
+
+static void intel_c20_readout_vdr_params(struct intel_encoder *encoder,
+					 struct intel_c20pll_vdr_state *vdr, bool *cntx)
+{
+	u8 serdes;
+
+	serdes = intel_cx0_read(encoder, INTEL_CX0_LANE0, PHY_C20_VDR_CUSTOM_SERDES_RATE);
+	*cntx = serdes & PHY_C20_CONTEXT_TOGGLE;
+
+	vdr->custom_width = intel_cx0_read(encoder, INTEL_CX0_LANE0, PHY_C20_VDR_CUSTOM_WIDTH) &
+			    PHY_C20_CUSTOM_WIDTH_MASK;
+
+	vdr->serdes_rate = serdes & PHY_C20_SERDES_RATE_MASK;
+	if (!(vdr->serdes_rate & PHY_C20_IS_DP))
+		vdr->hdmi_rate = intel_cx0_read(encoder, INTEL_CX0_LANE0, PHY_C20_VDR_HDMI_RATE) &
+				 PHY_C20_HDMI_RATE_MASK;
+	else
+		vdr->hdmi_rate = 0;
+}
+
+static void intel_c20_program_vdr_params(struct intel_encoder *encoder,
+					 const struct intel_c20pll_vdr_state *vdr,
+					 u8 owned_lane_mask)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	drm_WARN_ON(display->drm, vdr->custom_width & ~PHY_C20_CUSTOM_WIDTH_MASK);
+	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_WIDTH,
+		      PHY_C20_CUSTOM_WIDTH_MASK, vdr->custom_width,
+		      MB_WRITE_COMMITTED);
+
+	drm_WARN_ON(display->drm, vdr->serdes_rate & ~PHY_C20_SERDES_RATE_MASK);
+	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_SERDES_RATE,
+		      PHY_C20_SERDES_RATE_MASK, vdr->serdes_rate,
+		      MB_WRITE_COMMITTED);
+
+	if (vdr->serdes_rate & PHY_C20_IS_DP)
+		return;
+
+	drm_WARN_ON(display->drm, vdr->hdmi_rate & ~PHY_C20_HDMI_RATE_MASK);
+	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C20_VDR_HDMI_RATE,
+		      PHY_C20_HDMI_RATE_MASK, vdr->hdmi_rate,
+		      MB_WRITE_COMMITTED);
+}
+
 static const struct intel_c20pll_state *
 intel_c20_pll_find_table(const struct intel_crtc_state *crtc_state,
 			 struct intel_encoder *encoder)
@@ -2395,19 +2464,26 @@ static int intel_c20pll_calc_state_from_table(struct intel_crtc_state *crtc_stat
 static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 				   struct intel_encoder *encoder)
 {
+	bool is_dp = intel_crtc_has_dp_encoder(crtc_state);
 	int err = -ENOENT;
 
 	crtc_state->dpll_hw_state.cx0pll.use_c10 = false;
 
 	/* try computed C20 HDMI tables before using consolidated tables */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+	if (!is_dp)
 		/* TODO: Update SSC state for HDMI as well */
 		err = intel_c20_compute_hdmi_tmds_pll(crtc_state);
 
 	if (err)
 		err = intel_c20pll_calc_state_from_table(crtc_state, encoder);
 
-	return err;
+	if (err)
+		return err;
+
+	intel_c20_calc_vdr_params(&crtc_state->dpll_hw_state.cx0pll.c20.vdr,
+				  is_dp, crtc_state->port_clock);
+
+	return 0;
 }
 
 int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state,
@@ -2481,8 +2557,8 @@ static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
 
 	wakeref = intel_cx0_phy_transaction_begin(encoder);
 
-	/* 1. Read current context selection */
-	cntx = intel_cx0_read(encoder, INTEL_CX0_LANE0, PHY_C20_VDR_CUSTOM_SERDES_RATE) & PHY_C20_CONTEXT_TOGGLE;
+	/* 1. Read VDR params and current context selection */
+	intel_c20_readout_vdr_params(encoder, &pll_state->vdr, &cntx);
 
 	/* Read Tx configuration */
 	for (i = 0; i < ARRAY_SIZE(pll_state->tx); i++) {
@@ -2657,11 +2733,9 @@ static int intel_get_c20_custom_width(u32 clock, bool dp)
 
 static void intel_c20_pll_program(struct intel_display *display,
 				  struct intel_encoder *encoder,
-				  const struct intel_c20pll_state *pll_state,
-				  bool is_dp, int port_clock)
+				  const struct intel_c20pll_state *pll_state)
 {
 	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(encoder);
-	u8 serdes;
 	bool cntx;
 	int i;
 
@@ -2730,30 +2804,11 @@ static void intel_c20_pll_program(struct intel_display *display,
 		}
 	}
 
-	/* 4. Program custom width to match the link protocol */
-	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_WIDTH,
-		      PHY_C20_CUSTOM_WIDTH_MASK,
-		      PHY_C20_CUSTOM_WIDTH(intel_get_c20_custom_width(port_clock, is_dp)),
-		      MB_WRITE_COMMITTED);
-
-	/* 5. For DP or 6. For HDMI */
-	serdes = 0;
-	if (is_dp)
-		serdes = PHY_C20_IS_DP |
-			 PHY_C20_DP_RATE(intel_c20_get_dp_rate(port_clock));
-	else if (intel_hdmi_is_frl(port_clock))
-		serdes = PHY_C20_IS_HDMI_FRL;
-
-	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_SERDES_RATE,
-		      PHY_C20_IS_DP | PHY_C20_DP_RATE_MASK | PHY_C20_IS_HDMI_FRL,
-		      serdes,
-		      MB_WRITE_COMMITTED);
-
-	if (!is_dp)
-		intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C20_VDR_HDMI_RATE,
-			      PHY_C20_HDMI_RATE_MASK,
-			      intel_c20_get_hdmi_rate(port_clock),
-			      MB_WRITE_COMMITTED);
+	/*
+	 * 4. Program custom width to match the link protocol.
+	 * 5. For DP or 6. For HDMI
+	 */
+	intel_c20_program_vdr_params(encoder, &pll_state->vdr, owned_lane_mask);
 
 	/*
 	 * 7. Write Vendor specific registers to toggle context setting to load
@@ -3077,7 +3132,7 @@ static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 	if (intel_encoder_is_c10phy(encoder))
 		intel_c10_pll_program(display, encoder, &pll_state->c10);
 	else
-		intel_c20_pll_program(display, encoder, &pll_state->c20, is_dp, port_clock);
+		intel_c20_pll_program(display, encoder, &pll_state->c20);
 
 	/*
 	 * 6. Program the enabled and disabled owned PHY lane
