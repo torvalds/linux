@@ -617,39 +617,6 @@ DEFINE_CLASS(ovl_override_creator_creds,
 	     ovl_override_creator_creds(dentry, inode, mode),
 	     struct dentry *dentry, struct inode *inode, umode_t mode)
 
-static const __maybe_unused struct cred *ovl_setup_cred_for_create(struct dentry *dentry,
-						    struct inode *inode,
-						    umode_t mode,
-						    const struct cred *old_cred)
-{
-	int err;
-	struct cred *override_cred;
-
-	override_cred = prepare_creds();
-	if (!override_cred)
-		return ERR_PTR(-ENOMEM);
-
-	override_cred->fsuid = inode->i_uid;
-	override_cred->fsgid = inode->i_gid;
-	err = security_dentry_create_files_as(dentry, mode, &dentry->d_name,
-					      old_cred, override_cred);
-	if (err) {
-		put_cred(override_cred);
-		return ERR_PTR(err);
-	}
-
-	/*
-	 * Caller is going to match this with revert_creds() and drop
-	 * referenec on the returned creds.
-	 * We must be called with creator creds already, otherwise we risk
-	 * leaking creds.
-	 */
-	old_cred = override_creds(override_cred);
-	WARN_ON_ONCE(old_cred != ovl_creds(dentry->d_sb));
-
-	return override_cred;
-}
-
 static int ovl_create_handle_whiteouts(struct dentry *dentry,
 				       struct inode *inode,
 				       struct ovl_cattr *attr)
