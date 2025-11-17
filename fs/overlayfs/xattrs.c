@@ -81,15 +81,11 @@ out:
 static int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 			 void *value, size_t size)
 {
-	ssize_t res;
-	const struct cred *old_cred;
 	struct path realpath;
 
 	ovl_i_path_real(inode, &realpath);
-	old_cred = ovl_override_creds(dentry->d_sb);
-	res = vfs_getxattr(mnt_idmap(realpath.mnt), realpath.dentry, name, value, size);
-	ovl_revert_creds(old_cred);
-	return res;
+	with_ovl_creds(dentry->d_sb)
+		return vfs_getxattr(mnt_idmap(realpath.mnt), realpath.dentry, name, value, size);
 }
 
 static bool ovl_can_list(struct super_block *sb, const char *s)
