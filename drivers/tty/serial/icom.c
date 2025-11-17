@@ -1723,6 +1723,7 @@ static int icom_probe(struct pci_dev *dev,
 	retval = pci_read_config_dword(dev, PCI_COMMAND, &command_reg);
 	if (retval) {
 		dev_err(&dev->dev, "PCI Config read FAILED\n");
+		retval = pcibios_err_to_errno(retval);
 		goto probe_exit0;
 	}
 
