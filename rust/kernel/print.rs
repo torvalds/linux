@@ -506,3 +506,73 @@ macro_rules! do_once_lite {
         ONCE.call_once(|| { $($e)* });
     }};
 }
+
+/// Prints an emergency-level message (level 0) only once.
+///
+/// Equivalent to the kernel's `pr_emerg_once` macro.
+#[macro_export]
+macro_rules! pr_emerg_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_emerg!($($arg)*) }
+    )
+);
+
+/// Prints an alert-level message (level 1) only once.
+///
+/// Equivalent to the kernel's `pr_alert_once` macro.
+#[macro_export]
+macro_rules! pr_alert_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_alert!($($arg)*) }
+    )
+);
+
+/// Prints a critical-level message (level 2) only once.
+///
+/// Equivalent to the kernel's `pr_crit_once` macro.
+#[macro_export]
+macro_rules! pr_crit_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_crit!($($arg)*) }
+    )
+);
+
+/// Prints an error-level message (level 3) only once.
+///
+/// Equivalent to the kernel's `pr_err_once` macro.
+#[macro_export]
+macro_rules! pr_err_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_err!($($arg)*) }
+    )
+);
+
+/// Prints a warning-level message (level 4) only once.
+///
+/// Equivalent to the kernel's `pr_warn_once` macro.
+#[macro_export]
+macro_rules! pr_warn_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_warn!($($arg)*) }
+    )
+);
+
+/// Prints a notice-level message (level 5) only once.
+///
+/// Equivalent to the kernel's `pr_notice_once` macro.
+#[macro_export]
+macro_rules! pr_notice_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_notice!($($arg)*) }
+    )
+);
+
+/// Prints an info-level message (level 6) only once.
+///
+/// Equivalent to the kernel's `pr_info_once` macro.
+#[macro_export]
+macro_rules! pr_info_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_info!($($arg)*) }
+    )
+);
