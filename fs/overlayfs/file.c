@@ -243,7 +243,6 @@ static loff_t ovl_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file_inode(file);
 	struct file *realfile;
-	const struct cred *old_cred;
 	loff_t ret;
 
 	/*
@@ -272,9 +271,8 @@ static loff_t ovl_llseek(struct file *file, loff_t offset, int whence)
 	ovl_inode_lock(inode);
 	realfile->f_pos = file->f_pos;
 
-	old_cred = ovl_override_creds(inode->i_sb);
-	ret = vfs_llseek(realfile, offset, whence);
-	ovl_revert_creds(old_cred);
+	with_ovl_creds(inode->i_sb)
+		ret = vfs_llseek(realfile, offset, whence);
 
 	file->f_pos = realfile->f_pos;
 	ovl_inode_unlock(inode);
