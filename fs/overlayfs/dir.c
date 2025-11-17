@@ -618,52 +618,44 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 			      struct ovl_cattr *attr, bool origin)
 {
 	int err;
-	const struct cred *old_cred, *new_cred = NULL;
+	const struct cred *new_cred __free(put_cred) = NULL;
 	struct dentry *parent = dentry->d_parent;
 
-	old_cred = ovl_override_creds(dentry->d_sb);
-
-	/*
-	 * When linking a file with copy up origin into a new parent, mark the
-	 * new parent dir "impure".
-	 */
-	if (origin) {
-		err = ovl_set_impure(parent, ovl_dentry_upper(parent));
-		if (err)
-			goto out_revert_creds;
-	}
-
-	if (!attr->hardlink) {
+	scoped_class(override_creds_ovl, old_cred, dentry->d_sb) {
 		/*
-		 * In the creation cases(create, mkdir, mknod, symlink),
-		 * ovl should transfer current's fs{u,g}id to underlying
-		 * fs. Because underlying fs want to initialize its new
-		 * inode owner using current's fs{u,g}id. And in this
-		 * case, the @inode is a new inode that is initialized
-		 * in inode_init_owner() to current's fs{u,g}id. So use
-		 * the inode's i_{u,g}id to override the cred's fs{u,g}id.
-		 *
-		 * But in the other hardlink case, ovl_link() does not
-		 * create a new inode, so just use the ovl mounter's
-		 * fs{u,g}id.
+		 * When linking a file with copy up origin into a new parent, mark the
+		 * new parent dir "impure".
 		 */
-		new_cred = ovl_setup_cred_for_create(dentry, inode, attr->mode,
-						     old_cred);
-		err = PTR_ERR(new_cred);
-		if (IS_ERR(new_cred)) {
-			new_cred = NULL;
-			goto out_revert_creds;
+		if (origin) {
+			err = ovl_set_impure(parent, ovl_dentry_upper(parent));
+			if (err)
+				return err;
 		}
+
+		if (!attr->hardlink) {
+			/*
+			 * In the creation cases(create, mkdir, mknod, symlink),
+			 * ovl should transfer current's fs{u,g}id to underlying
+			 * fs. Because underlying fs want to initialize its new
+			 * inode owner using current's fs{u,g}id. And in this
+			 * case, the @inode is a new inode that is initialized
+			 * in inode_init_owner() to current's fs{u,g}id. So use
+			 * the inode's i_{u,g}id to override the cred's fs{u,g}id.
+			 *
+			 * But in the other hardlink case, ovl_link() does not
+			 * create a new inode, so just use the ovl mounter's
+			 * fs{u,g}id.
+			 */
+			new_cred = ovl_setup_cred_for_create(dentry, inode, attr->mode, old_cred);
+			if (IS_ERR(new_cred))
+				return PTR_ERR(new_cred);
+		}
+
+		if (!ovl_dentry_is_whiteout(dentry))
+			return ovl_create_upper(dentry, inode, attr);
+
+		return ovl_create_over_whiteout(dentry, inode, attr);
 	}
-
-	if (!ovl_dentry_is_whiteout(dentry))
-		err = ovl_create_upper(dentry, inode, attr);
-	else
-		err = ovl_create_over_whiteout(dentry, inode, attr);
-
-out_revert_creds:
-	ovl_revert_creds(old_cred);
-	put_cred(new_cred);
 	return err;
 }
 
