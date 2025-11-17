@@ -1452,6 +1452,10 @@ emit_bswap_uxt:
 		emit(A64_ASR(is64, dst, dst, imm), ctx);
 		break;
 
+	/* JUMP reg */
+	case BPF_JMP | BPF_JA | BPF_X:
+		emit(A64_BR(dst), ctx);
+		break;
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
 	case BPF_JMP32 | BPF_JA:
