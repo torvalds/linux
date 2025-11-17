@@ -4984,15 +4984,14 @@ pipe_config_cx0pll_mismatch(struct drm_printer *p, bool fastset,
 			    const struct intel_cx0pll_state *a,
 			    const struct intel_cx0pll_state *b)
 {
-	struct intel_display *display = to_intel_display(crtc);
 	char *chipname = a->use_c10 ? "C10" : "C20";
 
 	pipe_config_mismatch(p, fastset, crtc, name, chipname);
 
 	drm_printf(p, "expected:\n");
-	intel_cx0pll_dump_hw_state(display, a);
+	intel_cx0pll_dump_hw_state(p, a);
 	drm_printf(p, "found:\n");
-	intel_cx0pll_dump_hw_state(display, b);
+	intel_cx0pll_dump_hw_state(p, b);
 }
 
 static bool allow_vblank_delay_fastset(const struct intel_crtc_state *old_crtc_state)

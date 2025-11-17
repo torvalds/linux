@@ -4443,6 +4443,12 @@ static int mtl_get_dplls(struct intel_atomic_state *state,
 		return mtl_get_non_tc_phy_dpll(state, crtc, encoder);
 }
 
+static void mtl_dump_hw_state(struct drm_printer *p,
+			      const struct intel_dpll_hw_state *dpll_hw_state)
+{
+	intel_cx0pll_dump_hw_state(p, &dpll_hw_state->cx0pll);
+}
+
 __maybe_unused
 static const struct intel_dpll_mgr mtl_pll_mgr = {
 	.dpll_info = mtl_plls,
@@ -4451,6 +4457,7 @@ static const struct intel_dpll_mgr mtl_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_active_dpll = icl_update_active_dpll,
 	.update_ref_clks = icl_update_dpll_ref_clks,
+	.dump_hw_state = mtl_dump_hw_state,
 };
 
 /**
