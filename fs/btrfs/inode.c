@@ -1136,7 +1136,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 	ret = btrfs_reserve_extent(root, async_extent->ram_size,
 				   async_extent->compressed_size,
 				   async_extent->compressed_size,
-				   0, *alloc_hint, &ins, 1, 1);
+				   0, *alloc_hint, &ins, true, true);
 	if (ret) {
 		/*
 		 * We can't reserve contiguous space for the compressed size.
@@ -1359,7 +1359,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 
 		ret = btrfs_reserve_extent(root, num_bytes, num_bytes,
 					   min_alloc_size, 0, alloc_hint,
-					   &ins, 1, 1);
+					   &ins, true, true);
 		if (ret == -EAGAIN) {
 			/*
 			 * btrfs_reserve_extent only returns -EAGAIN for zoned
@@ -9106,7 +9106,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		 */
 		cur_bytes = min(cur_bytes, last_alloc);
 		ret = btrfs_reserve_extent(root, cur_bytes, cur_bytes,
-				min_size, 0, *alloc_hint, &ins, 1, 0);
+				min_size, 0, *alloc_hint, &ins, true, false);
 		if (ret)
 			break;
 
@@ -9914,7 +9914,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	}
 
 	ret = btrfs_reserve_extent(root, disk_num_bytes, disk_num_bytes,
-				   disk_num_bytes, 0, 0, &ins, 1, 1);
+				   disk_num_bytes, 0, 0, &ins, true, true);
 	if (ret)
 		goto out_delalloc_release;
 	extent_reserved = true;

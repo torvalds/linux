@@ -30,7 +30,6 @@ struct find_free_extent_ctl {
 	u64 min_alloc_size;
 	u64 empty_size;
 	u64 flags;
-	int delalloc;
 
 	/* Where to start the search inside the bg */
 	u64 search_start;
@@ -40,6 +39,7 @@ struct find_free_extent_ctl {
 	struct btrfs_free_cluster *last_ptr;
 	bool use_cluster;
 
+	bool delalloc;
 	bool have_caching_bg;
 	bool orig_have_caching_bg;
 
@@ -137,7 +137,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 				   struct btrfs_key *ins);
 int btrfs_reserve_extent(struct btrfs_root *root, u64 ram_bytes, u64 num_bytes,
 			 u64 min_alloc_size, u64 empty_size, u64 hint_byte,
-			 struct btrfs_key *ins, int is_data, int delalloc);
+			 struct btrfs_key *ins, bool is_data, bool delalloc);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct extent_buffer *buf, bool full_backref);
 int btrfs_dec_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,

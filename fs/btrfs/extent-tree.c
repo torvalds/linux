@@ -3587,15 +3587,14 @@ enum btrfs_loop_type {
 };
 
 static inline void
-btrfs_lock_block_group(struct btrfs_block_group *cache,
-		       int delalloc)
+btrfs_lock_block_group(struct btrfs_block_group *cache, bool delalloc)
 {
 	if (delalloc)
 		down_read(&cache->data_rwsem);
 }
 
 static inline void btrfs_grab_block_group(struct btrfs_block_group *cache,
-		       int delalloc)
+					  bool delalloc)
 {
 	btrfs_get_block_group(cache);
 	if (delalloc)
@@ -3605,7 +3604,7 @@ static inline void btrfs_grab_block_group(struct btrfs_block_group *cache,
 static struct btrfs_block_group *btrfs_lock_cluster(
 		   struct btrfs_block_group *block_group,
 		   struct btrfs_free_cluster *cluster,
-		   int delalloc)
+		   bool delalloc)
 	__acquires(&cluster->refill_lock)
 {
 	struct btrfs_block_group *used_bg = NULL;
@@ -3642,8 +3641,7 @@ static struct btrfs_block_group *btrfs_lock_cluster(
 }
 
 static inline void
-btrfs_release_block_group(struct btrfs_block_group *cache,
-			 int delalloc)
+btrfs_release_block_group(struct btrfs_block_group *cache, bool delalloc)
 {
 	if (delalloc)
 		up_read(&cache->data_rwsem);
@@ -4033,7 +4031,7 @@ static int do_allocation(struct btrfs_block_group *block_group,
 
 static void release_block_group(struct btrfs_block_group *block_group,
 				struct find_free_extent_ctl *ffe_ctl,
-				int delalloc)
+				bool delalloc)
 {
 	switch (ffe_ctl->policy) {
 	case BTRFS_EXTENT_ALLOC_CLUSTERED:
@@ -4689,7 +4687,7 @@ loop:
 int btrfs_reserve_extent(struct btrfs_root *root, u64 ram_bytes,
 			 u64 num_bytes, u64 min_alloc_size,
 			 u64 empty_size, u64 hint_byte,
-			 struct btrfs_key *ins, int is_data, int delalloc)
+			 struct btrfs_key *ins, bool is_data, bool delalloc)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct find_free_extent_ctl ffe_ctl = {};
@@ -5166,7 +5164,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		return ERR_CAST(block_rsv);
 
 	ret = btrfs_reserve_extent(root, blocksize, blocksize, blocksize,
-				   empty_size, hint, &ins, 0, 0);
+				   empty_size, hint, &ins, false, false);
 	if (ret)
 		goto out_unuse;
 

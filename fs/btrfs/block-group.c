@@ -3802,7 +3802,7 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
  * reservation and return -EAGAIN, otherwise this function always succeeds.
  */
 int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
-			     u64 ram_bytes, u64 num_bytes, int delalloc,
+			     u64 ram_bytes, u64 num_bytes, bool delalloc,
 			     bool force_wrong_size_class)
 {
 	struct btrfs_space_info *space_info = cache->space_info;
