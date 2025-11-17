@@ -81,8 +81,8 @@ static u32 nfsd41_ex_attrmask[] = {
 };
 
 static __be32
-check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
-		   u32 *bmval, u32 *writable)
+check_attr_support(struct nfsd4_compound_state *cstate, u32 *bmval,
+		   u32 *writable)
 {
 	struct dentry *dentry = cstate->current_fh.fh_dentry;
 	struct svc_export *exp = cstate->current_fh.fh_export;
@@ -103,21 +103,25 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 }
 
 static __be32
-nfsd4_check_open_attributes(struct svc_rqst *rqstp,
-	struct nfsd4_compound_state *cstate, struct nfsd4_open *open)
+nfsd4_check_open_attributes(struct nfsd4_compound_state *cstate,
+			    struct nfsd4_open *open)
 {
 	__be32 status = nfs_ok;
 
-	if (open->op_create == NFS4_OPEN_CREATE) {
-		if (open->op_createmode == NFS4_CREATE_UNCHECKED
-		    || open->op_createmode == NFS4_CREATE_GUARDED)
-			status = check_attr_support(rqstp, cstate,
-					open->op_bmval, nfsd_attrmask);
-		else if (open->op_createmode == NFS4_CREATE_EXCLUSIVE4_1)
-			status = check_attr_support(rqstp, cstate,
-					open->op_bmval, nfsd41_ex_attrmask);
-	}
+	if (open->op_create != NFS4_OPEN_CREATE)
+		return status;
 
+	switch (open->op_createmode) {
+	case NFS4_CREATE_UNCHECKED:
+	case NFS4_CREATE_GUARDED:
+		status = check_attr_support(cstate, open->op_bmval,
+					    nfsd_attrmask);
+		break;
+	case NFS4_CREATE_EXCLUSIVE4_1:
+		status = check_attr_support(cstate, open->op_bmval,
+					    nfsd41_ex_attrmask);
+		break;
+	}
 	return status;
 }
 
@@ -579,7 +583,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 	}
 
-	status = nfsd4_check_open_attributes(rqstp, cstate, open);
+	status = nfsd4_check_open_attributes(cstate, open);
 	if (status)
 		goto out;
 
@@ -791,8 +795,7 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		return status;
 
-	status = check_attr_support(rqstp, cstate, create->cr_bmval,
-				    nfsd_attrmask);
+	status = check_attr_support(cstate, create->cr_bmval, nfsd_attrmask);
 	if (status)
 		return status;
 
@@ -1212,8 +1215,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserrno(err);
 	status = nfs_ok;
 
-	status = check_attr_support(rqstp, cstate, setattr->sa_bmval,
-				    nfsd_attrmask);
+	status = check_attr_support(cstate, setattr->sa_bmval, nfsd_attrmask);
 	if (status)
 		goto out;
 
@@ -2266,7 +2268,7 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		return status;
 
-	status = check_attr_support(rqstp, cstate, verify->ve_bmval, NULL);
+	status = check_attr_support(cstate, verify->ve_bmval, NULL);
 	if (status)
 		return status;
 
