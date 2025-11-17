@@ -581,47 +581,59 @@ out_cleanup_unlocked:
 	goto out_dput;
 }
 
-static const struct cred *ovl_setup_cred_for_create(struct dentry *dentry,
-						    struct inode *inode,
-						    umode_t mode,
-						    const struct cred *old_cred)
+static const struct cred *ovl_override_creator_creds(struct dentry *dentry, struct inode *inode, umode_t mode)
 {
 	int err;
-	struct cred *override_cred;
 
-	override_cred = prepare_creds();
+	if (WARN_ON_ONCE(current->cred != ovl_creds(dentry->d_sb)))
+		return ERR_PTR(-EINVAL);
+
+	CLASS(prepare_creds, override_cred)();
 	if (!override_cred)
 		return ERR_PTR(-ENOMEM);
 
 	override_cred->fsuid = inode->i_uid;
 	override_cred->fsgid = inode->i_gid;
+
 	err = security_dentry_create_files_as(dentry, mode, &dentry->d_name,
-					      old_cred, override_cred);
-	if (err) {
-		put_cred(override_cred);
+					      current->cred, override_cred);
+	if (err)
 		return ERR_PTR(err);
-	}
 
-	/*
-	 * Caller is going to match this with revert_creds() and drop
-	 * referenec on the returned creds.
-	 * We must be called with creator creds already, otherwise we risk
-	 * leaking creds.
-	 */
-	old_cred = override_creds(override_cred);
-	WARN_ON_ONCE(old_cred != ovl_creds(dentry->d_sb));
+	return override_creds(no_free_ptr(override_cred));
+}
 
-	return override_cred;
+static void ovl_revert_creator_creds(const struct cred *old_cred)
+{
+	const struct cred *override_cred;
+
+	override_cred = revert_creds(old_cred);
+	put_cred(override_cred);
+}
+
+DEFINE_CLASS(ovl_override_creator_creds,
+	     const struct cred *,
+	     if (!IS_ERR_OR_NULL(_T)) ovl_revert_creator_creds(_T),
+	     ovl_override_creator_creds(dentry, inode, mode),
+	     struct dentry *dentry, struct inode *inode, umode_t mode)
+
+static int ovl_create_handle_whiteouts(struct dentry *dentry,
+				       struct inode *inode,
+				       struct ovl_cattr *attr)
+{
+	if (!ovl_dentry_is_whiteout(dentry))
+		return ovl_create_upper(dentry, inode, attr);
+
+	return ovl_create_over_whiteout(dentry, inode, attr);
 }
 
 static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 			      struct ovl_cattr *attr, bool origin)
 {
 	int err;
-	const struct cred *new_cred __free(put_cred) = NULL;
 	struct dentry *parent = dentry->d_parent;
 
-	scoped_class(override_creds_ovl, old_cred, dentry->d_sb) {
+	with_ovl_creds(dentry->d_sb) {
 		/*
 		 * When linking a file with copy up origin into a new parent, mark the
 		 * new parent dir "impure".
@@ -632,29 +644,28 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 				return err;
 		}
 
-		if (!attr->hardlink) {
-			/*
-			 * In the creation cases(create, mkdir, mknod, symlink),
-			 * ovl should transfer current's fs{u,g}id to underlying
-			 * fs. Because underlying fs want to initialize its new
-			 * inode owner using current's fs{u,g}id. And in this
-			 * case, the @inode is a new inode that is initialized
-			 * in inode_init_owner() to current's fs{u,g}id. So use
-			 * the inode's i_{u,g}id to override the cred's fs{u,g}id.
-			 *
-			 * But in the other hardlink case, ovl_link() does not
-			 * create a new inode, so just use the ovl mounter's
-			 * fs{u,g}id.
-			 */
-			new_cred = ovl_setup_cred_for_create(dentry, inode, attr->mode, old_cred);
-			if (IS_ERR(new_cred))
-				return PTR_ERR(new_cred);
+		/*
+		 * In the creation cases(create, mkdir, mknod, symlink),
+		 * ovl should transfer current's fs{u,g}id to underlying
+		 * fs. Because underlying fs want to initialize its new
+		 * inode owner using current's fs{u,g}id. And in this
+		 * case, the @inode is a new inode that is initialized
+		 * in inode_init_owner() to current's fs{u,g}id. So use
+		 * the inode's i_{u,g}id to override the cred's fs{u,g}id.
+		 *
+		 * But in the other hardlink case, ovl_link() does not
+		 * create a new inode, so just use the ovl mounter's
+		 * fs{u,g}id.
+		 */
+
+		if (attr->hardlink)
+			return ovl_create_handle_whiteouts(dentry, inode, attr);
+
+		scoped_class(ovl_override_creator_creds, cred, dentry, inode, attr->mode) {
+			if (IS_ERR(cred))
+				return PTR_ERR(cred);
+			return ovl_create_handle_whiteouts(dentry, inode, attr);
 		}
-
-		if (!ovl_dentry_is_whiteout(dentry))
-			return ovl_create_upper(dentry, inode, attr);
-
-		return ovl_create_over_whiteout(dentry, inode, attr);
 	}
 	return err;
 }
@@ -1345,7 +1356,6 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 			      struct inode *inode, umode_t mode)
 {
-	const struct cred *new_cred __free(put_cred) = NULL;
 	struct path realparentpath;
 	struct file *realfile;
 	struct ovl_file *of;
@@ -1354,33 +1364,34 @@ static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 	int flags = file->f_flags | OVL_OPEN_FLAGS;
 	int err;
 
-	scoped_class(override_creds_ovl, old_cred, dentry->d_sb) {
-		new_cred = ovl_setup_cred_for_create(dentry, inode, mode, old_cred);
-		if (IS_ERR(new_cred))
-			return PTR_ERR(new_cred);
+	with_ovl_creds(dentry->d_sb) {
+		scoped_class(ovl_override_creator_creds, cred, dentry, inode, mode) {
+			if (IS_ERR(cred))
+				return PTR_ERR(cred);
 
-		ovl_path_upper(dentry->d_parent, &realparentpath);
-		realfile = backing_tmpfile_open(&file->f_path, flags, &realparentpath,
-						mode, current_cred());
-		err = PTR_ERR_OR_ZERO(realfile);
-		pr_debug("tmpfile/open(%pd2, 0%o) = %i\n", realparentpath.dentry, mode, err);
-		if (err)
-			return err;
+			ovl_path_upper(dentry->d_parent, &realparentpath);
+			realfile = backing_tmpfile_open(&file->f_path, flags, &realparentpath,
+							mode, current_cred());
+			err = PTR_ERR_OR_ZERO(realfile);
+			pr_debug("tmpfile/open(%pd2, 0%o) = %i\n", realparentpath.dentry, mode, err);
+			if (err)
+				return err;
 
-		of = ovl_file_alloc(realfile);
-		if (!of) {
-			fput(realfile);
-			return -ENOMEM;
-		}
+			of = ovl_file_alloc(realfile);
+			if (!of) {
+				fput(realfile);
+				return -ENOMEM;
+			}
 
-		/* ovl_instantiate() consumes the newdentry reference on success */
-		newdentry = dget(realfile->f_path.dentry);
-		err = ovl_instantiate(dentry, inode, newdentry, false, file);
-		if (!err) {
-			file->private_data = of;
-		} else {
-			dput(newdentry);
-			ovl_file_free(of);
+			/* ovl_instantiate() consumes the newdentry reference on success */
+			newdentry = dget(realfile->f_path.dentry);
+			err = ovl_instantiate(dentry, inode, newdentry, false, file);
+			if (!err) {
+				file->private_data = of;
+			} else {
+				dput(newdentry);
+				ovl_file_free(of);
+			}
 		}
 	}
 	return err;
