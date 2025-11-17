@@ -22,6 +22,7 @@
 			linux,default-trigger = "default-on";
 			gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
 			default-state = "on";
+			panic-indicator;
 		};
 		led_wlan: led-wlan {
 			label = "onrisc:blue:wlan";
