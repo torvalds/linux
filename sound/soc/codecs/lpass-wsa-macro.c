@@ -1726,59 +1726,6 @@ static int wsa_macro_config_softclip(struct snd_soc_component *component,
 	return 0;
 }
 
-static bool wsa_macro_adie_lb(struct snd_soc_component *component,
-			      int interp_idx)
-{
-	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
-	u16 int_mux_cfg0,  int_mux_cfg1;
-	u8 int_n_inp0, int_n_inp1, int_n_inp2;
-
-	int_mux_cfg0 = CDC_WSA_RX_INP_MUX_RX_INT0_CFG0 + interp_idx * 8;
-	int_mux_cfg1 = int_mux_cfg0 + 4;
-
-	int_n_inp0 = snd_soc_component_read_field(component, int_mux_cfg0,
-						  wsa->reg_layout->rx_intx_1_mix_inp0_sel_mask);
-	if (int_n_inp0 == INTn_1_INP_SEL_DEC0 ||
-		int_n_inp0 == INTn_1_INP_SEL_DEC1)
-		return true;
-
-	int_n_inp1 = snd_soc_component_read_field(component, int_mux_cfg0,
-						  wsa->reg_layout->rx_intx_1_mix_inp1_sel_mask);
-	if (int_n_inp1 == INTn_1_INP_SEL_DEC0 ||
-		int_n_inp1 == INTn_1_INP_SEL_DEC1)
-		return true;
-
-	int_n_inp2 = snd_soc_component_read_field(component, int_mux_cfg1,
-						  wsa->reg_layout->rx_intx_1_mix_inp2_sel_mask);
-	if (int_n_inp2 == INTn_1_INP_SEL_DEC0 ||
-		int_n_inp2 == INTn_1_INP_SEL_DEC1)
-		return true;
-
-	return false;
-}
-
-static int wsa_macro_enable_main_path(struct snd_soc_dapm_widget *w,
-				      struct snd_kcontrol *kcontrol,
-				      int event)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	u16 reg;
-
-	reg = CDC_WSA_RX0_RX_PATH_CTL + WSA_MACRO_RX_PATH_OFFSET * w->shift;
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		if (wsa_macro_adie_lb(component, w->shift)) {
-			snd_soc_component_update_bits(component, reg,
-					     CDC_WSA_RX_PATH_CLK_EN_MASK,
-					     CDC_WSA_RX_PATH_CLK_ENABLE);
-		}
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
 static int wsa_macro_interp_get_primary_reg(u16 reg, u16 *ind)
 {
 	u16 prim_int_reg = 0;
@@ -2393,10 +2340,8 @@ static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("WSA RX_MIX0", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("WSA RX_MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT0 MIX", SND_SOC_NOPM, 0, 0, NULL, 0,
-			     wsa_macro_enable_main_path, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT1 MIX", SND_SOC_NOPM, 1, 0, NULL, 0,
-			     wsa_macro_enable_main_path, SND_SOC_DAPM_PRE_PMU),
+	SND_SOC_DAPM_MIXER("WSA_RX INT0 MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("WSA_RX INT1 MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MIXER("WSA_RX INT0 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("WSA_RX INT1 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
