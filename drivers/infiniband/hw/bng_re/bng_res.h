@@ -125,6 +125,13 @@ struct bng_re_hwq {
 	u16				qe_ppg;
 };
 
+struct bng_re_stats {
+	dma_addr_t			dma_map;
+	void				*dma;
+	u32				size;
+	u32				fw_id;
+};
+
 struct bng_re_res {
 	struct pci_dev			*pdev;
 	struct bng_re_chip_ctx		*cctx;
@@ -198,4 +205,11 @@ void bng_re_free_hwq(struct bng_re_res *res,
 
 int bng_re_alloc_init_hwq(struct bng_re_hwq *hwq,
 			  struct bng_re_hwq_attr *hwq_attr);
+
+void bng_re_free_stats_ctx_mem(struct pci_dev *pdev,
+			       struct bng_re_stats *stats);
+
+int bng_re_alloc_stats_ctx_mem(struct pci_dev *pdev,
+			       struct bng_re_chip_ctx *cctx,
+			       struct bng_re_stats *stats);
 #endif

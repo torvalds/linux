@@ -5,6 +5,7 @@
 #include "roce_hsi.h"
 #include "bng_res.h"
 #include "bng_fw.h"
+#include "bng_sp.h"
 
 /**
  * bng_re_map_rc  -  map return type based on opcode
@@ -698,5 +699,69 @@ int bng_re_enable_fw_channel(struct bng_re_rcfw *rcfw,
 	}
 
 	bng_re_start_rcfw(rcfw);
+	return 0;
+}
+
+int bng_re_deinit_rcfw(struct bng_re_rcfw *rcfw)
+{
+	struct creq_deinitialize_fw_resp resp = {};
+	struct cmdq_deinitialize_fw req = {};
+	struct bng_re_cmdqmsg msg = {};
+	int rc;
+
+	bng_re_rcfw_cmd_prep((struct cmdq_base *)&req,
+			     CMDQ_BASE_OPCODE_DEINITIALIZE_FW,
+			     sizeof(req));
+	bng_re_fill_cmdqmsg(&msg, &req, &resp, NULL,
+			    sizeof(req), sizeof(resp), 0);
+	rc = bng_re_rcfw_send_message(rcfw, &msg);
+	if (rc)
+		return rc;
+
+	clear_bit(FIRMWARE_INITIALIZED_FLAG, &rcfw->cmdq.flags);
+	return 0;
+}
+static inline bool _is_hw_retx_supported(u16 dev_cap_flags)
+{
+	return dev_cap_flags &
+		(CREQ_QUERY_FUNC_RESP_SB_HW_REQUESTER_RETX_ENABLED |
+		 CREQ_QUERY_FUNC_RESP_SB_HW_RESPONDER_RETX_ENABLED);
+}
+
+#define BNG_RE_HW_RETX(a) _is_hw_retx_supported((a))
+static inline bool _is_optimize_modify_qp_supported(u16 dev_cap_ext_flags2)
+{
+	return dev_cap_ext_flags2 &
+	       CREQ_QUERY_FUNC_RESP_SB_OPTIMIZE_MODIFY_QP_SUPPORTED;
+}
+
+int bng_re_init_rcfw(struct bng_re_rcfw *rcfw,
+		     struct bng_re_stats *stats_ctx)
+{
+	struct creq_initialize_fw_resp resp = {};
+	struct cmdq_initialize_fw req = {};
+	struct bng_re_cmdqmsg msg = {};
+	int rc;
+	u16 flags = 0;
+
+	bng_re_rcfw_cmd_prep((struct cmdq_base *)&req,
+			     CMDQ_BASE_OPCODE_INITIALIZE_FW,
+			     sizeof(req));
+	/* Supply (log-base-2-of-host-page-size - base-page-shift)
+	 * to bono to adjust the doorbell page sizes.
+	 */
+	req.log2_dbr_pg_size = cpu_to_le16(PAGE_SHIFT -
+					   BNG_FW_DBR_BASE_PAGE_SHIFT);
+	if (BNG_RE_HW_RETX(rcfw->res->dattr->dev_cap_flags))
+		flags |= CMDQ_INITIALIZE_FW_FLAGS_HW_REQUESTER_RETX_SUPPORTED;
+	if (_is_optimize_modify_qp_supported(rcfw->res->dattr->dev_cap_flags2))
+		flags |= CMDQ_INITIALIZE_FW_FLAGS_OPTIMIZE_MODIFY_QP_SUPPORTED;
+	req.flags |= cpu_to_le16(flags);
+	req.stat_ctx_id = cpu_to_le32(stats_ctx->fw_id);
+	bng_re_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req), sizeof(resp), 0);
+	rc = bng_re_rcfw_send_message(rcfw, &msg);
+	if (rc)
+		return rc;
+	set_bit(FIRMWARE_INITIALIZED_FLAG, &rcfw->cmdq.flags);
 	return 0;
 }

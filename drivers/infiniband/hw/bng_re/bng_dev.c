@@ -178,6 +178,56 @@ static int bng_re_net_ring_alloc(struct bng_re_dev *rdev,
 	return rc;
 }
 
+static int bng_re_stats_ctx_free(struct bng_re_dev *rdev)
+{
+	struct bnge_auxr_dev *aux_dev = rdev->aux_dev;
+	struct hwrm_stat_ctx_free_input req = {};
+	struct hwrm_stat_ctx_free_output resp = {};
+	struct bnge_fw_msg fw_msg = {};
+	int rc = -EINVAL;
+
+	if (!aux_dev)
+		return rc;
+
+	bng_re_init_hwrm_hdr((void *)&req, HWRM_STAT_CTX_FREE);
+	req.stat_ctx_id = cpu_to_le32(rdev->stats_ctx.fw_id);
+	bng_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
+			   sizeof(resp), BNGE_DFLT_HWRM_CMD_TIMEOUT);
+	rc = bnge_send_msg(aux_dev, &fw_msg);
+	if (rc)
+		ibdev_err(&rdev->ibdev, "Failed to free HW stats context %#x",
+			  rc);
+
+	return rc;
+}
+
+static int bng_re_stats_ctx_alloc(struct bng_re_dev *rdev)
+{
+	struct bnge_auxr_dev *aux_dev = rdev->aux_dev;
+	struct bng_re_stats *stats = &rdev->stats_ctx;
+	struct hwrm_stat_ctx_alloc_output resp = {};
+	struct hwrm_stat_ctx_alloc_input req = {};
+	struct bnge_fw_msg fw_msg = {};
+	int rc = -EINVAL;
+
+	stats->fw_id = BNGE_INVALID_STATS_CTX_ID;
+
+	if (!aux_dev)
+		return rc;
+
+	bng_re_init_hwrm_hdr((void *)&req, HWRM_STAT_CTX_ALLOC);
+	req.update_period_ms = cpu_to_le32(1000);
+	req.stats_dma_addr = cpu_to_le64(stats->dma_map);
+	req.stats_dma_length = cpu_to_le16(rdev->chip_ctx->hw_stats_size);
+	req.stat_ctx_flags = STAT_CTX_ALLOC_REQ_STAT_CTX_FLAGS_ROCE;
+	bng_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
+			   sizeof(resp), BNGE_DFLT_HWRM_CMD_TIMEOUT);
+	rc = bnge_send_msg(aux_dev, &fw_msg);
+	if (!rc)
+		stats->fw_id = le32_to_cpu(resp.stat_ctx_id);
+	return rc;
+}
+
 static void bng_re_query_hwrm_version(struct bng_re_dev *rdev)
 {
 	struct bnge_auxr_dev *aux_dev = rdev->aux_dev;
@@ -216,11 +266,21 @@ static void bng_re_query_hwrm_version(struct bng_re_dev *rdev)
 
 static void bng_re_dev_uninit(struct bng_re_dev *rdev)
 {
+	int rc;
 	bng_re_debugfs_rem_pdev(rdev);
-	bng_re_disable_rcfw_channel(&rdev->rcfw);
-	bng_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id,
+
+	if (test_and_clear_bit(BNG_RE_FLAG_RCFW_CHANNEL_EN, &rdev->flags)) {
+		rc = bng_re_deinit_rcfw(&rdev->rcfw);
+		if (rc)
+			ibdev_warn(&rdev->ibdev,
+				   "Failed to deinitialize RCFW: %#x", rc);
+		bng_re_stats_ctx_free(rdev);
+		bng_re_free_stats_ctx_mem(rdev->bng_res.pdev, &rdev->stats_ctx);
+		bng_re_disable_rcfw_channel(&rdev->rcfw);
+		bng_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id,
 			     RING_ALLOC_REQ_RING_TYPE_NQ);
-	bng_re_free_rcfw_channel(&rdev->rcfw);
+		bng_re_free_rcfw_channel(&rdev->rcfw);
+	}
 
 	kfree(rdev->nqr);
 	rdev->nqr = NULL;
@@ -318,8 +378,34 @@ static int bng_re_dev_init(struct bng_re_dev *rdev)
 		goto disable_rcfw;
 
 	bng_re_debugfs_add_pdev(rdev);
+	rc = bng_re_alloc_stats_ctx_mem(rdev->bng_res.pdev, rdev->chip_ctx,
+					&rdev->stats_ctx);
+	if (rc) {
+		ibdev_err(&rdev->ibdev,
+			  "Failed to allocate stats context: %#x\n", rc);
+		goto disable_rcfw;
+	}
+
+	rc = bng_re_stats_ctx_alloc(rdev);
+	if (rc) {
+		ibdev_err(&rdev->ibdev,
+			  "Failed to allocate QPLIB context: %#x\n", rc);
+		goto free_stats_ctx;
+	}
+
+	rc = bng_re_init_rcfw(&rdev->rcfw, &rdev->stats_ctx);
+	if (rc) {
+		ibdev_err(&rdev->ibdev,
+			  "Failed to initialize RCFW: %#x\n", rc);
+		goto free_sctx;
+	}
+	set_bit(BNG_RE_FLAG_RCFW_CHANNEL_EN, &rdev->flags);
 
 	return 0;
+free_sctx:
+	bng_re_stats_ctx_free(rdev);
+free_stats_ctx:
+	bng_re_free_stats_ctx_mem(rdev->bng_res.pdev, &rdev->stats_ctx);
 disable_rcfw:
 	bng_re_disable_rcfw_channel(&rdev->rcfw);
 free_ring:

@@ -10,6 +10,7 @@
 #define BNG_FW_CMDQ_TRIG_VAL		1
 #define BNG_FW_COMM_PCI_BAR_REGION	0
 #define BNG_FW_COMM_CONS_PCI_BAR_REGION	2
+#define BNG_FW_DBR_BASE_PAGE_SHIFT	12
 #define BNG_FW_COMM_SIZE		0x104
 #define BNG_FW_COMM_BASE_OFFSET		0x600
 #define BNG_FW_COMM_TRIG_OFFSET		0x100
@@ -204,4 +205,7 @@ int bng_re_rcfw_start_irq(struct bng_re_rcfw *rcfw, int msix_vector,
 void bng_re_rcfw_stop_irq(struct bng_re_rcfw *rcfw, bool kill);
 int bng_re_rcfw_send_message(struct bng_re_rcfw *rcfw,
 			     struct bng_re_cmdqmsg *msg);
+int bng_re_init_rcfw(struct bng_re_rcfw *rcfw,
+		     struct bng_re_stats *stats_ctx);
+int bng_re_deinit_rcfw(struct bng_re_rcfw *rcfw);
 #endif

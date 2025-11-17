@@ -9,6 +9,33 @@
 #include "bng_res.h"
 #include "roce_hsi.h"
 
+/* Stats */
+void bng_re_free_stats_ctx_mem(struct pci_dev *pdev,
+			       struct bng_re_stats *stats)
+{
+	if (stats->dma) {
+		dma_free_coherent(&pdev->dev, stats->size,
+				  stats->dma, stats->dma_map);
+	}
+	memset(stats, 0, sizeof(*stats));
+	stats->fw_id = -1;
+}
+
+int bng_re_alloc_stats_ctx_mem(struct pci_dev *pdev,
+			       struct bng_re_chip_ctx *cctx,
+			       struct bng_re_stats *stats)
+{
+	memset(stats, 0, sizeof(*stats));
+	stats->fw_id = -1;
+	stats->size = cctx->hw_stats_size;
+	stats->dma = dma_alloc_coherent(&pdev->dev, stats->size,
+					&stats->dma_map, GFP_KERNEL);
+	if (!stats->dma)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static void bng_free_pbl(struct bng_re_res  *res, struct bng_re_pbl *pbl)
 {
 	struct pci_dev *pdev = res->pdev;

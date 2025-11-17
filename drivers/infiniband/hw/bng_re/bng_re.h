@@ -16,6 +16,8 @@
 #define BNG_RE_MAX_MSIX		BNGE_MAX_ROCE_MSIX
 
 #define BNG_RE_CREQ_NQ_IDX	0
+
+#define BNGE_INVALID_STATS_CTX_ID	-1
 /* NQ specific structures  */
 struct bng_re_nq_db {
 	struct bng_re_reg_desc	reg;
@@ -65,6 +67,7 @@ struct bng_re_dev {
 	struct ib_device		ibdev;
 	unsigned long			flags;
 #define BNG_RE_FLAG_NETDEV_REGISTERED		0
+#define BNG_RE_FLAG_RCFW_CHANNEL_EN		1
 	struct net_device		*netdev;
 	struct auxiliary_device         *adev;
 	struct bnge_auxr_dev		*aux_dev;
@@ -76,6 +79,7 @@ struct bng_re_dev {
 	/* Device Resources */
 	struct bng_re_dev_attr		*dev_attr;
 	struct dentry			*dbg_root;
+	struct bng_re_stats		stats_ctx;
 };
 
 #endif
