@@ -5981,8 +5981,8 @@ replay_again:
 		max_len = sizeof(FILE_SYSTEM_DEVICE_INFO);
 		min_len = sizeof(FILE_SYSTEM_DEVICE_INFO);
 	} else if (level == FS_ATTRIBUTE_INFORMATION) {
-		max_len = sizeof(FILE_SYSTEM_ATTRIBUTE_INFO);
-		min_len = MIN_FS_ATTR_INFO_SIZE;
+		max_len = sizeof(FILE_SYSTEM_ATTRIBUTE_INFO) + MAX_FS_NAME_LEN;
+		min_len = sizeof(FILE_SYSTEM_ATTRIBUTE_INFO);
 	} else if (level == FS_SECTOR_SIZE_INFORMATION) {
 		max_len = sizeof(struct smb3_fs_ss_info);
 		min_len = sizeof(struct smb3_fs_ss_info);
@@ -6028,7 +6028,7 @@ replay_again:
 	if (level == FS_ATTRIBUTE_INFORMATION)
 		memcpy(&tcon->fsAttrInfo, offset
 			+ (char *)rsp, min_t(unsigned int,
-			rsp_len, max_len));
+			rsp_len, min_len));
 	else if (level == FS_DEVICE_INFORMATION)
 		memcpy(&tcon->fsDevInfo, offset
 			+ (char *)rsp, sizeof(FILE_SYSTEM_DEVICE_INFO));
