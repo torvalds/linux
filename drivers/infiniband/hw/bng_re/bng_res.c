@@ -5,6 +5,7 @@
 #include <linux/vmalloc.h>
 #include <rdma/ib_umem.h>
 
+#include <linux/bnxt/hsi.h>
 #include "bng_res.h"
 #include "roce_hsi.h"
 
@@ -235,6 +236,7 @@ done:
 	hwq->depth = hwq_attr->depth;
 	hwq->max_elements = hwq->depth;
 	hwq->element_size = stride;
+	hwq->qe_ppg = pg_size / stride;
 	/* For direct access to the elements */
 	lvl = hwq->level;
 	if (hwq_attr->sginfo->nopte && hwq->level)

@@ -4,6 +4,8 @@
 #ifndef __BNG_RES_H__
 #define __BNG_RES_H__
 
+#include "roce_hsi.h"
+
 #define BNG_ROCE_FW_MAX_TIMEOUT	60
 
 #define PTR_CNT_PER_PG		(PAGE_SIZE / sizeof(void *))
@@ -11,12 +13,53 @@
 #define PTR_PG(x)		(((x) & ~PTR_MAX_IDX_PER_PG) / PTR_CNT_PER_PG)
 #define PTR_IDX(x)		((x) & PTR_MAX_IDX_PER_PG)
 
+#define HWQ_CMP(idx, hwq)	((idx) & ((hwq)->max_elements - 1))
+#define HWQ_FREE_SLOTS(hwq)	(hwq->max_elements - \
+				((HWQ_CMP(hwq->prod, hwq)\
+				- HWQ_CMP(hwq->cons, hwq))\
+				& (hwq->max_elements - 1)))
+
 #define MAX_PBL_LVL_0_PGS		1
 #define MAX_PBL_LVL_1_PGS		512
 #define MAX_PBL_LVL_1_PGS_SHIFT		9
 #define MAX_PBL_LVL_1_PGS_FOR_LVL_2	256
 #define MAX_PBL_LVL_2_PGS		(256 * 512)
 #define MAX_PDL_LVL_SHIFT               9
+
+#define BNG_RE_DBR_VALID		(0x1UL << 26)
+#define BNG_RE_DBR_EPOCH_SHIFT	24
+#define BNG_RE_DBR_TOGGLE_SHIFT	25
+
+
+struct bng_re_reg_desc {
+	u8		bar_id;
+	resource_size_t	bar_base;
+	unsigned long	offset;
+	void __iomem	*bar_reg;
+	size_t		len;
+};
+
+struct bng_re_db_info {
+	void __iomem		*db;
+	void __iomem		*priv_db;
+	struct bng_re_hwq	*hwq;
+	u32			xid;
+	u32			max_slot;
+	u32                     flags;
+	u8			toggle;
+};
+
+enum bng_re_db_info_flags_mask {
+	BNG_RE_FLAG_EPOCH_CONS_SHIFT        = 0x0UL,
+	BNG_RE_FLAG_EPOCH_PROD_SHIFT        = 0x1UL,
+	BNG_RE_FLAG_EPOCH_CONS_MASK         = 0x1UL,
+	BNG_RE_FLAG_EPOCH_PROD_MASK         = 0x2UL,
+};
+
+enum bng_re_db_epoch_flag_shift {
+	BNG_RE_DB_EPOCH_CONS_SHIFT  = BNG_RE_DBR_EPOCH_SHIFT,
+	BNG_RE_DB_EPOCH_PROD_SHIFT  = (BNG_RE_DBR_EPOCH_SHIFT - 1),
+};
 
 struct bng_re_chip_ctx {
 	u16	chip_num;
@@ -77,12 +120,71 @@ struct bng_re_hwq {
 	u16				element_size;
 	u32				prod;
 	u32				cons;
+	/* queue entry per page */
+	u16				qe_ppg;
 };
 
 struct bng_re_res {
 	struct pci_dev			*pdev;
 	struct bng_re_chip_ctx		*cctx;
 };
+
+static inline void *bng_re_get_qe(struct bng_re_hwq *hwq,
+				  u32 indx, u64 *pg)
+{
+	u32 pg_num, pg_idx;
+
+	pg_num = (indx / hwq->qe_ppg);
+	pg_idx = (indx % hwq->qe_ppg);
+	if (pg)
+		*pg = (u64)&hwq->pbl_ptr[pg_num];
+	return (void *)(hwq->pbl_ptr[pg_num] + hwq->element_size * pg_idx);
+}
+
+#define BNG_RE_INIT_DBHDR(xid, type, indx, toggle) \
+	(((u64)(((xid) & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE |  \
+		(type) | BNG_RE_DBR_VALID) << 32) | (indx) |  \
+	 (((u32)(toggle)) << (BNG_RE_DBR_TOGGLE_SHIFT)))
+
+static inline void bng_re_ring_db(struct bng_re_db_info *info,
+				  u32 type)
+{
+	u64 key = 0;
+	u32 indx;
+	u8 toggle = 0;
+
+	if (type == DBC_DBC_TYPE_CQ_ARMALL ||
+	    type == DBC_DBC_TYPE_CQ_ARMSE)
+		toggle = info->toggle;
+
+	indx = (info->hwq->cons & DBC_DBC_INDEX_MASK) |
+	       ((info->flags & BNG_RE_FLAG_EPOCH_CONS_MASK) <<
+		 BNG_RE_DB_EPOCH_CONS_SHIFT);
+
+	key =  BNG_RE_INIT_DBHDR(info->xid, type, indx, toggle);
+	writeq(key, info->db);
+}
+
+static inline void bng_re_ring_nq_db(struct bng_re_db_info *info,
+				     struct bng_re_chip_ctx *cctx,
+				     bool arm)
+{
+	u32 type;
+
+	type = arm ? DBC_DBC_TYPE_NQ_ARM : DBC_DBC_TYPE_NQ;
+	bng_re_ring_db(info, type);
+}
+
+static inline void bng_re_hwq_incr_cons(u32 max_elements, u32 *cons, u32 cnt,
+					u32 *dbinfo_flags)
+{
+	/* move cons and update toggle/epoch if wrap around */
+	*cons += cnt;
+	if (*cons >= max_elements) {
+		*cons %= max_elements;
+		*dbinfo_flags ^= 1UL << BNG_RE_FLAG_EPOCH_CONS_SHIFT;
+	}
+}
 
 void bng_re_free_hwq(struct bng_re_res *res,
 		     struct bng_re_hwq *hwq);

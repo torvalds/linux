@@ -9,10 +9,10 @@
 
 #include "bng_res.h"
 #include "bng_fw.h"
-#include "bng_re.h"
 #include "bnge.h"
-#include "bnge_hwrm.h"
 #include "bnge_auxr.h"
+#include "bng_re.h"
+#include "bnge_hwrm.h"
 
 MODULE_AUTHOR("Siva Reddy Kallam <siva.kallam@broadcom.com>");
 MODULE_DESCRIPTION(BNG_RE_DESC);
@@ -101,6 +101,69 @@ static void bng_re_fill_fw_msg(struct bnge_fw_msg *fw_msg, void *msg,
 	fw_msg->timeout = timeout;
 }
 
+static int bng_re_net_ring_free(struct bng_re_dev *rdev,
+				u16 fw_ring_id, int type)
+{
+	struct bnge_auxr_dev *aux_dev = rdev->aux_dev;
+	struct hwrm_ring_free_input req = {};
+	struct hwrm_ring_free_output resp;
+	struct bnge_fw_msg fw_msg = {};
+	int rc = -EINVAL;
+
+	if (!rdev)
+		return rc;
+
+	if (!aux_dev)
+		return rc;
+
+	bng_re_init_hwrm_hdr((void *)&req, HWRM_RING_FREE);
+	req.ring_type = type;
+	req.ring_id = cpu_to_le16(fw_ring_id);
+	bng_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
+			    sizeof(resp), BNGE_DFLT_HWRM_CMD_TIMEOUT);
+	rc = bnge_send_msg(aux_dev, &fw_msg);
+	if (rc)
+		ibdev_err(&rdev->ibdev, "Failed to free HW ring:%d :%#x",
+			  req.ring_id, rc);
+	return rc;
+}
+
+static int bng_re_net_ring_alloc(struct bng_re_dev *rdev,
+				 struct bng_re_ring_attr *ring_attr,
+				 u16 *fw_ring_id)
+{
+	struct bnge_auxr_dev *aux_dev = rdev->aux_dev;
+	struct hwrm_ring_alloc_input req = {};
+	struct hwrm_ring_alloc_output resp;
+	struct bnge_fw_msg fw_msg = {};
+	int rc = -EINVAL;
+
+	if (!aux_dev)
+		return rc;
+
+	bng_re_init_hwrm_hdr((void *)&req, HWRM_RING_ALLOC);
+	req.enables = 0;
+	req.page_tbl_addr =  cpu_to_le64(ring_attr->dma_arr[0]);
+	if (ring_attr->pages > 1) {
+		/* Page size is in log2 units */
+		req.page_size = BNGE_PAGE_SHIFT;
+		req.page_tbl_depth = 1;
+	}
+	req.fbo = 0;
+	/* Association of ring index with doorbell index and MSIX number */
+	req.logical_id = cpu_to_le16(ring_attr->lrid);
+	req.length = cpu_to_le32(ring_attr->depth + 1);
+	req.ring_type = ring_attr->type;
+	req.int_mode = ring_attr->mode;
+	bng_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
+			   sizeof(resp), BNGE_DFLT_HWRM_CMD_TIMEOUT);
+	rc = bnge_send_msg(aux_dev, &fw_msg);
+	if (!rc)
+		*fw_ring_id = le16_to_cpu(resp.ring_id);
+
+	return rc;
+}
+
 static void bng_re_query_hwrm_version(struct bng_re_dev *rdev)
 {
 	struct bnge_auxr_dev *aux_dev = rdev->aux_dev;
@@ -139,7 +202,13 @@ static void bng_re_query_hwrm_version(struct bng_re_dev *rdev)
 
 static void bng_re_dev_uninit(struct bng_re_dev *rdev)
 {
+	bng_re_disable_rcfw_channel(&rdev->rcfw);
+	bng_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id,
+			     RING_ALLOC_REQ_RING_TYPE_NQ);
 	bng_re_free_rcfw_channel(&rdev->rcfw);
+
+	kfree(rdev->nqr);
+	rdev->nqr = NULL;
 	bng_re_destroy_chip_ctx(rdev);
 	if (test_and_clear_bit(BNG_RE_FLAG_NETDEV_REGISTERED, &rdev->flags))
 		bnge_unregister_dev(rdev->aux_dev);
@@ -147,6 +216,11 @@ static void bng_re_dev_uninit(struct bng_re_dev *rdev)
 
 static int bng_re_dev_init(struct bng_re_dev *rdev)
 {
+	struct bng_re_ring_attr rattr = {};
+	struct bng_re_creq_ctx *creq;
+	u32 db_offt;
+	int vid;
+	u8 type;
 	int rc;
 
 	/* Registered a new RoCE device instance to netdev */
@@ -187,8 +261,48 @@ static int bng_re_dev_init(struct bng_re_dev *rdev)
 		goto fail;
 	}
 
-	return 0;
+	/* Allocate nq record memory */
+	rdev->nqr = kzalloc(sizeof(*rdev->nqr), GFP_KERNEL);
+	if (!rdev->nqr) {
+		bng_re_destroy_chip_ctx(rdev);
+		bnge_unregister_dev(rdev->aux_dev);
+		clear_bit(BNG_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
+		return -ENOMEM;
+	}
 
+	rdev->nqr->num_msix = rdev->aux_dev->auxr_info->msix_requested;
+	memcpy(rdev->nqr->msix_entries, rdev->aux_dev->msix_info,
+	       sizeof(struct bnge_msix_info) * rdev->nqr->num_msix);
+
+	type = RING_ALLOC_REQ_RING_TYPE_NQ;
+	creq = &rdev->rcfw.creq;
+	rattr.dma_arr = creq->hwq.pbl[BNG_PBL_LVL_0].pg_map_arr;
+	rattr.pages = creq->hwq.pbl[creq->hwq.level].pg_count;
+	rattr.type = type;
+	rattr.mode = RING_ALLOC_REQ_INT_MODE_MSIX;
+	rattr.depth = BNG_FW_CREQE_MAX_CNT - 1;
+	rattr.lrid = rdev->nqr->msix_entries[BNG_RE_CREQ_NQ_IDX].ring_idx;
+	rc = bng_re_net_ring_alloc(rdev, &rattr, &creq->ring_id);
+	if (rc) {
+		ibdev_err(&rdev->ibdev, "Failed to allocate CREQ: %#x\n", rc);
+		goto free_rcfw;
+	}
+	db_offt = rdev->nqr->msix_entries[BNG_RE_CREQ_NQ_IDX].db_offset;
+	vid = rdev->nqr->msix_entries[BNG_RE_CREQ_NQ_IDX].vector;
+
+	rc = bng_re_enable_fw_channel(&rdev->rcfw,
+					vid, db_offt);
+	if (rc) {
+		ibdev_err(&rdev->ibdev, "Failed to enable RCFW channel: %#x\n",
+			  rc);
+		goto free_ring;
+	}
+
+	return 0;
+free_ring:
+	bng_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id, type);
+free_rcfw:
+	bng_re_free_rcfw_channel(&rdev->rcfw);
 fail:
 	bng_re_dev_uninit(rdev);
 	return rc;
