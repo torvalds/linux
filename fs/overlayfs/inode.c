@@ -459,11 +459,8 @@ struct posix_acl *do_ovl_get_acl(struct mnt_idmap *idmap,
 
 		acl = get_cached_acl_rcu(realinode, type);
 	} else {
-		const struct cred *old_cred;
-
-		old_cred = ovl_override_creds(inode->i_sb);
-		acl = ovl_get_acl_path(&realpath, posix_acl_xattr_name(type), noperm);
-		ovl_revert_creds(old_cred);
+		with_ovl_creds(inode->i_sb)
+			acl = ovl_get_acl_path(&realpath, posix_acl_xattr_name(type), noperm);
 	}
 
 	return acl;
