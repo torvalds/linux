@@ -2448,7 +2448,7 @@ static void intel_ddi_enable_fec(struct intel_encoder *encoder,
 			return;
 	}
 
-	drm_err(display->drm, "Failed to enable FEC after retries\n");
+	drm_dbg_kms(display->drm, "Failed to enable FEC after retries\n");
 }
 
 static void intel_ddi_disable_fec(struct intel_encoder *encoder,
