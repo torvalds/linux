@@ -636,7 +636,6 @@ int ovl_fileattr_set(struct mnt_idmap *idmap,
 {
 	struct inode *inode = d_inode(dentry);
 	struct path upperpath;
-	const struct cred *old_cred;
 	unsigned int flags;
 	int err;
 
@@ -648,18 +647,18 @@ int ovl_fileattr_set(struct mnt_idmap *idmap,
 		if (err)
 			goto out;
 
-		old_cred = ovl_override_creds(inode->i_sb);
-		/*
-		 * Store immutable/append-only flags in xattr and clear them
-		 * in upper fileattr (in case they were set by older kernel)
-		 * so children of "ovl-immutable" directories lower aliases of
-		 * "ovl-immutable" hardlinks could be copied up.
-		 * Clear xattr when flags are cleared.
-		 */
-		err = ovl_set_protattr(inode, upperpath.dentry, fa);
-		if (!err)
-			err = ovl_real_fileattr_set(&upperpath, fa);
-		ovl_revert_creds(old_cred);
+		with_ovl_creds(inode->i_sb) {
+			/*
+			 * Store immutable/append-only flags in xattr and clear them
+			 * in upper fileattr (in case they were set by older kernel)
+			 * so children of "ovl-immutable" directories lower aliases of
+			 * "ovl-immutable" hardlinks could be copied up.
+			 * Clear xattr when flags are cleared.
+			 */
+			err = ovl_set_protattr(inode, upperpath.dentry, fa);
+			if (!err)
+				err = ovl_real_fileattr_set(&upperpath, fa);
+		}
 		ovl_drop_write(dentry);
 
 		/*
