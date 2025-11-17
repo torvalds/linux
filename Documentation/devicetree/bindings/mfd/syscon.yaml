@@ -240,6 +240,12 @@ properties:
               - ti,keystone-pllctrl
           - const: syscon
       - items:
+          - enum:
+              - microchip,sama7g5-sfrbu
+              - microchip,sama7d65-sfrbu
+          - const: atmel,sama5d2-sfrbu
+          - const: syscon
+      - items:
           - const: microchip,pic64gx-control-scb
           - const: microchip,mpfs-control-scb
           - const: syscon
