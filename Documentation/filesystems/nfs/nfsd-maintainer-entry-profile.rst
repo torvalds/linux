@@ -182,15 +182,15 @@ with the following exceptions:
   + static inline functions
   + static functions that are callbacks/virtual functions
 
-- All new function names start with "nfsd_" for non-NFS-version-
+- All new function names start with ``nfsd_`` for non-NFS-version-
   specific functions.
 
 - New function names that are specific to NFSv2 or NFSv3, or are
-  used by all minor versions of NFSv4, use "nfsdN_" where N is
+  used by all minor versions of NFSv4, use ``nfsdN_`` where N is
   the version.
 
 - New function names specific to an NFSv4 minor version can be
-  named with "nfsd4M_" where M is the minor version.
+  named with ``nfsd4M_`` where M is the minor version.
 
 Patch preparation
 ~~~~~~~~~~~~~~~~~
