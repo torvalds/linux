@@ -233,9 +233,7 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 	seq_f = file->private_data;
 	mon = seq_f->private;
 
-	mutex_lock(&rv_interface_lock);
-
-	retval = -EINVAL;
+	guard(mutex)(&rv_interface_lock);
 
 	list_for_each_entry(reactor, &rv_reactors_list, list) {
 		if (strcmp(ptr, reactor->name) != 0)
@@ -243,13 +241,10 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 
 		monitor_swap_reactors(mon, reactor);
 
-		retval = count;
-		break;
+		return count;
 	}
 
-	mutex_unlock(&rv_interface_lock);
-
-	return retval;
+	return -EINVAL;
 }
 
 /*
@@ -310,18 +305,14 @@ static int __rv_register_reactor(struct rv_reactor *reactor)
  */
 int rv_register_reactor(struct rv_reactor *reactor)
 {
-	int retval = 0;
-
 	if (strlen(reactor->name) >= MAX_RV_REACTOR_NAME_SIZE) {
 		pr_info("Reactor %s has a name longer than %d\n",
 			reactor->name, MAX_RV_MONITOR_NAME_SIZE);
 		return -EINVAL;
 	}
 
-	mutex_lock(&rv_interface_lock);
-	retval = __rv_register_reactor(reactor);
-	mutex_unlock(&rv_interface_lock);
-	return retval;
+	guard(mutex)(&rv_interface_lock);
+	return __rv_register_reactor(reactor);
 }
 
 /**
@@ -332,9 +323,8 @@ int rv_register_reactor(struct rv_reactor *reactor)
  */
 int rv_unregister_reactor(struct rv_reactor *reactor)
 {
-	mutex_lock(&rv_interface_lock);
+	guard(mutex)(&rv_interface_lock);
 	list_del(&reactor->list);
-	mutex_unlock(&rv_interface_lock);
 	return 0;
 }
 
@@ -390,7 +380,7 @@ static ssize_t reacting_on_write_data(struct file *filp, const char __user *user
 	if (retval)
 		return retval;
 
-	mutex_lock(&rv_interface_lock);
+	guard(mutex)(&rv_interface_lock);
 
 	if (val)
 		turn_reacting_on();
@@ -402,8 +392,6 @@ static ssize_t reacting_on_write_data(struct file *filp, const char __user *user
 	 * before returning to user-space.
 	 */
 	tracepoint_synchronize_unregister();
-
-	mutex_unlock(&rv_interface_lock);
 
 	return count;
 }
