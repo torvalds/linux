@@ -1418,7 +1418,6 @@ bool ovl_lower_positive(struct dentry *dentry)
 {
 	struct ovl_entry *poe = OVL_E(dentry->d_parent);
 	const struct qstr *name = &dentry->d_name;
-	const struct cred *old_cred;
 	unsigned int i;
 	bool positive = false;
 	bool done = false;
@@ -1434,46 +1433,45 @@ bool ovl_lower_positive(struct dentry *dentry)
 	if (!ovl_dentry_upper(dentry))
 		return true;
 
-	old_cred = ovl_override_creds(dentry->d_sb);
-	/* Positive upper -> have to look up lower to see whether it exists */
-	for (i = 0; !done && !positive && i < ovl_numlower(poe); i++) {
-		struct dentry *this;
-		struct ovl_path *parentpath = &ovl_lowerstack(poe)[i];
+	with_ovl_creds(dentry->d_sb) {
+		/* Positive upper -> have to look up lower to see whether it exists */
+		for (i = 0; !done && !positive && i < ovl_numlower(poe); i++) {
+			struct dentry *this;
+			struct ovl_path *parentpath = &ovl_lowerstack(poe)[i];
 
-		/*
-		 * We need to make a non-const copy of dentry->d_name,
-		 * because lookup_one_positive_unlocked() will hash name
-		 * with parentpath base, which is on another (lower fs).
-		 */
-		this = lookup_one_positive_unlocked(
-				mnt_idmap(parentpath->layer->mnt),
-				&QSTR_LEN(name->name, name->len),
-				parentpath->dentry);
-		if (IS_ERR(this)) {
-			switch (PTR_ERR(this)) {
-			case -ENOENT:
-			case -ENAMETOOLONG:
-				break;
+			/*
+			 * We need to make a non-const copy of dentry->d_name,
+			 * because lookup_one_positive_unlocked() will hash name
+			 * with parentpath base, which is on another (lower fs).
+			 */
+			this = lookup_one_positive_unlocked(mnt_idmap(parentpath->layer->mnt),
+							    &QSTR_LEN(name->name, name->len),
+							    parentpath->dentry);
+			if (IS_ERR(this)) {
+				switch (PTR_ERR(this)) {
+				case -ENOENT:
+				case -ENAMETOOLONG:
+					break;
 
-			default:
-				/*
-				 * Assume something is there, we just couldn't
-				 * access it.
-				 */
-				positive = true;
-				break;
+				default:
+					/*
+					 * Assume something is there, we just couldn't
+					 * access it.
+					 */
+					positive = true;
+					break;
+				}
+			} else {
+				struct path path = {
+					.dentry = this,
+					.mnt	= parentpath->layer->mnt,
+				};
+				positive = !ovl_path_is_whiteout(OVL_FS(dentry->d_sb), &path);
+				done = true;
+				dput(this);
 			}
-		} else {
-			struct path path = {
-				.dentry = this,
-				.mnt = parentpath->layer->mnt,
-			};
-			positive = !ovl_path_is_whiteout(OVL_FS(dentry->d_sb), &path);
-			done = true;
-			dput(this);
 		}
 	}
-	ovl_revert_creds(old_cred);
 
 	return positive;
 }
