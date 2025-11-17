@@ -2126,7 +2126,31 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 }
 
 static int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
-					const struct intel_c10pll_state *pll_state);
+					const struct intel_c10pll_state *pll_state)
+{
+	unsigned int frac_quot = 0, frac_rem = 0, frac_den = 1;
+	unsigned int multiplier, tx_clk_div, hdmi_div, refclk = 38400;
+	int tmpclk = 0;
+
+	if (pll_state->pll[0] & C10_PLL0_FRACEN) {
+		frac_quot = pll_state->pll[12] << 8 | pll_state->pll[11];
+		frac_rem =  pll_state->pll[14] << 8 | pll_state->pll[13];
+		frac_den =  pll_state->pll[10] << 8 | pll_state->pll[9];
+	}
+
+	multiplier = (REG_FIELD_GET8(C10_PLL3_MULTIPLIERH_MASK, pll_state->pll[3]) << 8 |
+		      pll_state->pll[2]) / 2 + 16;
+
+	tx_clk_div = REG_FIELD_GET8(C10_PLL15_TXCLKDIV_MASK, pll_state->pll[15]);
+	hdmi_div = REG_FIELD_GET8(C10_PLL15_HDMIDIV_MASK, pll_state->pll[15]);
+
+	tmpclk = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, (multiplier << 16) + frac_quot) +
+				     DIV_ROUND_CLOSEST(refclk * frac_rem, frac_den),
+				     10 << (tx_clk_div + 16));
+	tmpclk *= (hdmi_div ? 2 : 1);
+
+	return tmpclk;
+}
 
 static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 					  struct intel_cx0pll_state *cx0pll_state)
@@ -2357,9 +2381,79 @@ intel_c20_pll_tables_get(const struct intel_crtc_state *crtc_state,
 	return NULL;
 }
 
-static u8 intel_c20_get_dp_rate(u32 clock);
-static u8 intel_c20_get_hdmi_rate(u32 clock);
-static int intel_get_c20_custom_width(u32 clock, bool dp);
+static u8 intel_c20_get_dp_rate(u32 clock)
+{
+	switch (clock) {
+	case 162000: /* 1.62 Gbps DP1.4 */
+		return 0;
+	case 270000: /* 2.7 Gbps DP1.4 */
+		return 1;
+	case 540000: /* 5.4 Gbps DP 1.4 */
+		return 2;
+	case 810000: /* 8.1 Gbps DP1.4 */
+		return 3;
+	case 216000: /* 2.16 Gbps eDP */
+		return 4;
+	case 243000: /* 2.43 Gbps eDP */
+		return 5;
+	case 324000: /* 3.24 Gbps eDP */
+		return 6;
+	case 432000: /* 4.32 Gbps eDP */
+		return 7;
+	case 1000000: /* 10 Gbps DP2.0 */
+		return 8;
+	case 1350000: /* 13.5 Gbps DP2.0 */
+		return 9;
+	case 2000000: /* 20 Gbps DP2.0 */
+		return 10;
+	case 648000: /* 6.48 Gbps eDP*/
+		return 11;
+	case 675000: /* 6.75 Gbps eDP*/
+		return 12;
+	default:
+		MISSING_CASE(clock);
+		return 0;
+	}
+}
+
+static u8 intel_c20_get_hdmi_rate(u32 clock)
+{
+	if (clock >= 25175 && clock <= 600000)
+		return 0;
+
+	switch (clock) {
+	case 300000: /* 3 Gbps */
+	case 600000: /* 6 Gbps */
+	case 1200000: /* 12 Gbps */
+		return 1;
+	case 800000: /* 8 Gbps */
+		return 2;
+	case 1000000: /* 10 Gbps */
+		return 3;
+	default:
+		MISSING_CASE(clock);
+		return 0;
+	}
+}
+
+static bool is_dp2(u32 clock)
+{
+	/* DP2.0 clock rates */
+	if (clock == 1000000 || clock == 1350000 || clock  == 2000000)
+		return true;
+
+	return false;
+}
+
+static int intel_get_c20_custom_width(u32 clock, bool dp)
+{
+	if (dp && is_dp2(clock))
+		return 2;
+	else if (intel_hdmi_is_frl(clock))
+		return 1;
+	else
+		return 0;
+}
 
 static void intel_c20_calc_vdr_params(struct intel_c20pll_vdr_state *vdr, bool is_dp,
 				      int port_clock)
@@ -2648,70 +2742,6 @@ void intel_cx0pll_dump_hw_state(struct intel_display *display,
 		intel_c20pll_dump_hw_state(display, &hw_state->c20);
 }
 
-static u8 intel_c20_get_dp_rate(u32 clock)
-{
-	switch (clock) {
-	case 162000: /* 1.62 Gbps DP1.4 */
-		return 0;
-	case 270000: /* 2.7 Gbps DP1.4 */
-		return 1;
-	case 540000: /* 5.4 Gbps DP 1.4 */
-		return 2;
-	case 810000: /* 8.1 Gbps DP1.4 */
-		return 3;
-	case 216000: /* 2.16 Gbps eDP */
-		return 4;
-	case 243000: /* 2.43 Gbps eDP */
-		return 5;
-	case 324000: /* 3.24 Gbps eDP */
-		return 6;
-	case 432000: /* 4.32 Gbps eDP */
-		return 7;
-	case 1000000: /* 10 Gbps DP2.0 */
-		return 8;
-	case 1350000: /* 13.5 Gbps DP2.0 */
-		return 9;
-	case 2000000: /* 20 Gbps DP2.0 */
-		return 10;
-	case 648000: /* 6.48 Gbps eDP*/
-		return 11;
-	case 675000: /* 6.75 Gbps eDP*/
-		return 12;
-	default:
-		MISSING_CASE(clock);
-		return 0;
-	}
-}
-
-static u8 intel_c20_get_hdmi_rate(u32 clock)
-{
-	if (clock >= 25175 && clock <= 600000)
-		return 0;
-
-	switch (clock) {
-	case 300000: /* 3 Gbps */
-	case 600000: /* 6 Gbps */
-	case 1200000: /* 12 Gbps */
-		return 1;
-	case 800000: /* 8 Gbps */
-		return 2;
-	case 1000000: /* 10 Gbps */
-		return 3;
-	default:
-		MISSING_CASE(clock);
-		return 0;
-	}
-}
-
-static bool is_dp2(u32 clock)
-{
-	/* DP2.0 clock rates */
-	if (clock == 1000000 || clock == 1350000 || clock  == 2000000)
-		return true;
-
-	return false;
-}
-
 static bool intel_c20_protocol_switch_valid(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
@@ -2719,16 +2749,6 @@ static bool intel_c20_protocol_switch_valid(struct intel_encoder *encoder)
 	/* banks should not be cleared for DPALT/USB4/TBT modes */
 	/* TODO: optimize re-calibration in legacy mode */
 	return intel_tc_port_in_legacy_mode(intel_dig_port);
-}
-
-static int intel_get_c20_custom_width(u32 clock, bool dp)
-{
-	if (dp && is_dp2(clock))
-		return 2;
-	else if (intel_hdmi_is_frl(clock))
-		return 1;
-	else
-		return 0;
 }
 
 static void intel_c20_pll_program(struct intel_display *display,
@@ -2817,33 +2837,6 @@ static void intel_c20_pll_program(struct intel_display *display,
 	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_SERDES_RATE,
 		      PHY_C20_CONTEXT_TOGGLE, cntx ? 0 : PHY_C20_CONTEXT_TOGGLE,
 		      MB_WRITE_COMMITTED);
-}
-
-static int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
-					const struct intel_c10pll_state *pll_state)
-{
-	unsigned int frac_quot = 0, frac_rem = 0, frac_den = 1;
-	unsigned int multiplier, tx_clk_div, hdmi_div, refclk = 38400;
-	int tmpclk = 0;
-
-	if (pll_state->pll[0] & C10_PLL0_FRACEN) {
-		frac_quot = pll_state->pll[12] << 8 | pll_state->pll[11];
-		frac_rem =  pll_state->pll[14] << 8 | pll_state->pll[13];
-		frac_den =  pll_state->pll[10] << 8 | pll_state->pll[9];
-	}
-
-	multiplier = (REG_FIELD_GET8(C10_PLL3_MULTIPLIERH_MASK, pll_state->pll[3]) << 8 |
-		      pll_state->pll[2]) / 2 + 16;
-
-	tx_clk_div = REG_FIELD_GET8(C10_PLL15_TXCLKDIV_MASK, pll_state->pll[15]);
-	hdmi_div = REG_FIELD_GET8(C10_PLL15_HDMIDIV_MASK, pll_state->pll[15]);
-
-	tmpclk = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, (multiplier << 16) + frac_quot) +
-				     DIV_ROUND_CLOSEST(refclk * frac_rem, frac_den),
-				     10 << (tx_clk_div + 16));
-	tmpclk *= (hdmi_div ? 2 : 1);
-
-	return tmpclk;
 }
 
 static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
