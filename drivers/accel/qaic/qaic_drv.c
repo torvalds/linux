@@ -30,6 +30,7 @@
 #include "qaic.h"
 #include "qaic_debugfs.h"
 #include "qaic_ras.h"
+#include "qaic_ssr.h"
 #include "qaic_timesync.h"
 #include "sahara.h"
 
@@ -270,6 +271,13 @@ static int qaic_create_drm_device(struct qaic_device *qdev, s32 partition_id)
 		return ret;
 	}
 
+	ret = qaic_sysfs_init(qddev);
+	if (ret) {
+		drm_dev_unregister(drm);
+		pci_dbg(qdev->pdev, "qaic_sysfs_init failed %d\n", ret);
+		return ret;
+	}
+
 	qaic_debugfs_init(qddev);
 
 	return ret;
@@ -281,6 +289,7 @@ static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id)
 	struct drm_device *drm = to_drm(qddev);
 	struct qaic_user *usr;
 
+	qaic_sysfs_remove(qddev);
 	drm_dev_unregister(drm);
 	qddev->partition_id = 0;
 	/*
@@ -382,6 +391,7 @@ void qaic_dev_reset_clean_local_state(struct qaic_device *qdev)
 	qaic_notify_reset(qdev);
 
 	/* start tearing things down */
+	qaic_clean_up_ssr(qdev);
 	for (i = 0; i < qdev->num_dbc; ++i)
 		release_dbc(qdev, i);
 }
@@ -431,10 +441,17 @@ static struct qaic_device *create_qdev(struct pci_dev *pdev,
 	qdev->qts_wq = qaicm_wq_init(drm, "qaic_ts");
 	if (IS_ERR(qdev->qts_wq))
 		return NULL;
+	qdev->ssr_wq = qaicm_wq_init(drm, "qaic_ssr");
+	if (IS_ERR(qdev->ssr_wq))
+		return NULL;
 
 	ret = qaicm_srcu_init(drm, &qdev->dev_lock);
 	if (ret)
 		return NULL;
+
+	ret = qaic_ssr_init(qdev, drm);
+	if (ret)
+		pci_info(pdev, "QAIC SSR crashdump collection not supported.\n");
 
 	qdev->qddev = qddev;
 	qdev->pdev = pdev;
@@ -545,7 +562,7 @@ static int init_msi(struct qaic_device *qdev, struct pci_dev *pdev)
 			qdev->dbc[i].irq = pci_irq_vector(pdev, qdev->single_msi ? 0 : i + 1);
 			if (!qdev->single_msi)
 				disable_irq_nosync(qdev->dbc[i].irq);
-			INIT_WORK(&qdev->dbc[i].poll_work, irq_polling_work);
+			INIT_WORK(&qdev->dbc[i].poll_work, qaic_irq_polling_work);
 		}
 	}
 
@@ -660,6 +677,92 @@ static const struct pci_error_handlers qaic_pci_err_handler = {
 	.reset_done = qaic_pci_reset_done,
 };
 
+static bool qaic_is_under_reset(struct qaic_device *qdev)
+{
+	int rcu_id;
+	bool ret;
+
+	rcu_id = srcu_read_lock(&qdev->dev_lock);
+	ret = qdev->dev_state != QAIC_ONLINE;
+	srcu_read_unlock(&qdev->dev_lock, rcu_id);
+	return ret;
+}
+
+static bool qaic_data_path_busy(struct qaic_device *qdev)
+{
+	bool ret = false;
+	int dev_rcu_id;
+	int i;
+
+	dev_rcu_id = srcu_read_lock(&qdev->dev_lock);
+	if (qdev->dev_state != QAIC_ONLINE) {
+		srcu_read_unlock(&qdev->dev_lock, dev_rcu_id);
+		return false;
+	}
+	for (i = 0; i < qdev->num_dbc; i++) {
+		struct dma_bridge_chan *dbc = &qdev->dbc[i];
+		unsigned long flags;
+		int ch_rcu_id;
+
+		ch_rcu_id = srcu_read_lock(&dbc->ch_lock);
+		if (!dbc->usr || !dbc->in_use) {
+			srcu_read_unlock(&dbc->ch_lock, ch_rcu_id);
+			continue;
+		}
+		spin_lock_irqsave(&dbc->xfer_lock, flags);
+		ret = !list_empty(&dbc->xfer_list);
+		spin_unlock_irqrestore(&dbc->xfer_lock, flags);
+		srcu_read_unlock(&dbc->ch_lock, ch_rcu_id);
+		if (ret)
+			break;
+	}
+	srcu_read_unlock(&qdev->dev_lock, dev_rcu_id);
+	return ret;
+}
+
+static int qaic_pm_suspend(struct device *dev)
+{
+	struct qaic_device *qdev = pci_get_drvdata(to_pci_dev(dev));
+
+	dev_dbg(dev, "Suspending..\n");
+	if (qaic_data_path_busy(qdev)) {
+		dev_dbg(dev, "Device's datapath is busy. Aborting suspend..\n");
+		return -EBUSY;
+	}
+	if (qaic_is_under_reset(qdev)) {
+		dev_dbg(dev, "Device is under reset. Aborting suspend..\n");
+		return -EBUSY;
+	}
+	qaic_mqts_ch_stop_timer(qdev->mqts_ch);
+	qaic_pci_reset_prepare(qdev->pdev);
+	pci_save_state(qdev->pdev);
+	pci_disable_device(qdev->pdev);
+	pci_set_power_state(qdev->pdev, PCI_D3hot);
+	return 0;
+}
+
+static int qaic_pm_resume(struct device *dev)
+{
+	struct qaic_device *qdev = pci_get_drvdata(to_pci_dev(dev));
+	int ret;
+
+	dev_dbg(dev, "Resuming..\n");
+	pci_set_power_state(qdev->pdev, PCI_D0);
+	pci_restore_state(qdev->pdev);
+	ret = pci_enable_device(qdev->pdev);
+	if (ret) {
+		dev_err(dev, "pci_enable_device failed on resume %d\n", ret);
+		return ret;
+	}
+	pci_set_master(qdev->pdev);
+	qaic_pci_reset_done(qdev->pdev);
+	return 0;
+}
+
+static const struct dev_pm_ops qaic_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(qaic_pm_suspend, qaic_pm_resume)
+};
+
 static struct pci_driver qaic_pci_driver = {
 	.name = QAIC_NAME,
 	.id_table = qaic_ids,
@@ -667,6 +770,9 @@ static struct pci_driver qaic_pci_driver = {
 	.remove = qaic_pci_remove,
 	.shutdown = qaic_pci_shutdown,
 	.err_handler = &qaic_pci_err_handler,
+	.driver = {
+		.pm = pm_sleep_ptr(&qaic_pm_ops),
+	},
 };
 
 static int __init qaic_init(void)
@@ -702,9 +808,16 @@ static int __init qaic_init(void)
 	ret = qaic_ras_register();
 	if (ret)
 		pr_debug("qaic: qaic_ras_register failed %d\n", ret);
+	ret = qaic_ssr_register();
+	if (ret) {
+		pr_debug("qaic: qaic_ssr_register failed %d\n", ret);
+		goto free_bootlog;
+	}
 
 	return 0;
 
+free_bootlog:
+	qaic_bootlog_unregister();
 free_mhi:
 	mhi_driver_unregister(&qaic_mhi_driver);
 free_pci:
@@ -730,6 +843,7 @@ static void __exit qaic_exit(void)
 	 * reinitializing the link_up state after the cleanup is done.
 	 */
 	link_up = true;
+	qaic_ssr_unregister();
 	qaic_ras_unregister();
 	qaic_bootlog_unregister();
 	qaic_timesync_deinit();

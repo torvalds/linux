@@ -82,6 +82,11 @@ static inline bool ivpu_bo_is_read_only(struct ivpu_bo *bo)
 	return bo->flags & DRM_IVPU_BO_READ_ONLY;
 }
 
+static inline bool ivpu_bo_is_resident(struct ivpu_bo *bo)
+{
+	return !!bo->base.pages;
+}
+
 static inline void *ivpu_to_cpu_addr(struct ivpu_bo *bo, u32 vpu_addr)
 {
 	if (vpu_addr < bo->vpu_addr)

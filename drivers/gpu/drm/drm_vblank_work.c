@@ -244,7 +244,7 @@ EXPORT_SYMBOL(drm_vblank_work_flush);
 void drm_vblank_work_flush_all(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_vblank_crtc *vblank = &dev->vblank[drm_crtc_index(crtc)];
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 
 	spin_lock_irq(&dev->event_lock);
 	wait_event_lock_irq(vblank->work_wait_queue,

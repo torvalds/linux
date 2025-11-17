@@ -63,7 +63,8 @@ npu_memory_utilization_show(struct device *dev, struct device_attribute *attr, c
 
 	mutex_lock(&vdev->bo_list_lock);
 	list_for_each_entry(bo, &vdev->bo_list, bo_list_node)
-		total_npu_memory += bo->base.base.size;
+		if (ivpu_bo_is_resident(bo))
+			total_npu_memory += ivpu_bo_size(bo);
 	mutex_unlock(&vdev->bo_list_lock);
 
 	return sysfs_emit(buf, "%lld\n", total_npu_memory);

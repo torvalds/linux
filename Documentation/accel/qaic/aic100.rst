@@ -487,14 +487,35 @@ one user crashes, the fallout of that should be limited to that workload and not
 impact other workloads. SSR accomplishes this.
 
 If a particular workload crashes, QSM notifies the host via the QAIC_SSR MHI
-channel. This notification identifies the workload by it's assigned DBC. A
-multi-stage recovery process is then used to cleanup both sides, and get the
+channel. This notification identifies the workload by its assigned DBC. A
+multi-stage recovery process is then used to cleanup both sides, and gets the
 DBC/NSPs into a working state.
 
 When SSR occurs, any state in the workload is lost. Any inputs that were in
 process, or queued by not yet serviced, are lost. The loaded artifacts will
 remain in on-card DDR, but the host will need to re-activate the workload if
 it desires to recover the workload.
+
+When SSR occurs for a specific NSP, the assigned DBC goes through the
+following state transactions in order:
+
+DBC_STATE_BEFORE_SHUTDOWN
+	Indicates that the affected NSP was found in an unrecoverable error
+	condition.
+DBC_STATE_AFTER_SHUTDOWN
+	Indicates that the NSP is under reset.
+DBC_STATE_BEFORE_POWER_UP
+	Indicates that the NSP's debug information has been collected, and is
+	ready to be collected by the host (if desired). At that stage the NSP
+	is restarted by QSM.
+DBC_STATE_AFTER_POWER_UP
+	Indicates that the NSP has been restarted, fully operational and is
+	in idle state.
+
+SSR also has an optional crashdump collection feature. If enabled, the host can
+collect the memory dump for the crashed NSP and dump it to the user space via
+the dev_coredump subsystem. The host can also decline the crashdump collection
+request from the device.
 
 Reliability, Accessibility, Serviceability (RAS)
 ================================================

@@ -16,6 +16,8 @@ enum ert_cmd_opcode {
 	ERT_START_CU = 0,
 	ERT_CMD_CHAIN = 19,
 	ERT_START_NPU = 20,
+	ERT_START_NPU_PREEMPT = 21,
+	ERT_START_NPU_PREEMPT_ELF = 22,
 	ERT_INVALID_CMD	= ~0U,
 };
 
@@ -53,6 +55,21 @@ struct amdxdna_cmd_chain {
 	u32 error_index;
 	u32 reserved[3];
 	u64 data[] __counted_by(command_count);
+};
+
+/*
+ * Interpretation of the beginning of data payload for ERT_START_NPU_PREEMPT in
+ * amdxdna_cmd. The rest of the payload in amdxdna_cmd is regular kernel args.
+ */
+struct amdxdna_cmd_preempt_data {
+	u64 inst_buf;	    /* instruction buffer address */
+	u64 save_buf;	    /* save buffer address */
+	u64 restore_buf;    /* restore buffer address */
+	u32 inst_size;	    /* size of instruction buffer in bytes */
+	u32 save_size;	    /* size of save buffer in bytes */
+	u32 restore_size;   /* size of restore buffer in bytes */
+	u32 inst_prop_cnt;  /* properties count */
+	u32 prop_args[];    /* properties and regular kernel arguments */
 };
 
 /* Exec buffer command header format */

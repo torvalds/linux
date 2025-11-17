@@ -248,8 +248,7 @@ static void tidss_crtc_atomic_enable(struct drm_crtc *crtc,
 	dispc_vp_enable(tidss->dispc, tcrtc->hw_videoport);
 
 	if (crtc->state->event) {
-		unsigned int pipe = drm_crtc_index(crtc);
-		struct drm_vblank_crtc *vblank = &ddev->vblank[pipe];
+		struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 
 		vblank->time = ktime_get();
 

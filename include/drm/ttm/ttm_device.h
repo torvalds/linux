@@ -221,7 +221,7 @@ struct ttm_device {
 	struct list_head device_list;
 
 	/**
-	 * @alloc_flags: TTM_ALLOCATION_ flags.
+	 * @alloc_flags: TTM_ALLOCATION_* flags.
 	 */
 	unsigned int alloc_flags;
 

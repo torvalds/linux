@@ -1315,7 +1315,7 @@ void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe)
 
 	ret = wait_event_timeout(vblank->queue,
 				 last != drm_vblank_count(dev, pipe),
-				 msecs_to_jiffies(100));
+				 msecs_to_jiffies(1000));
 
 	drm_WARN(dev, ret == 0, "vblank wait timed out on crtc %i\n", pipe);
 
@@ -2258,7 +2258,7 @@ int drm_crtc_vblank_start_timer(struct drm_crtc *crtc)
 EXPORT_SYMBOL(drm_crtc_vblank_start_timer);
 
 /**
- * drm_crtc_vblank_start_timer - Cancels the given CRTC's vblank timer
+ * drm_crtc_vblank_cancel_timer - Cancels the given CRTC's vblank timer
  * @crtc: the CRTC
  *
  * Drivers should call this function from their CRTC's disable_vblank

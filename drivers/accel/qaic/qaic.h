@@ -21,6 +21,7 @@
 
 #define QAIC_DBC_BASE		SZ_128K
 #define QAIC_DBC_SIZE		SZ_4K
+#define QAIC_SSR_DBC_SENTINEL	U32_MAX /* No ongoing SSR sentinel */
 
 #define QAIC_NO_PARTITION	-1
 
@@ -45,6 +46,22 @@ enum __packed dev_states {
 	QAIC_BOOT,
 	/* Device is fully operational */
 	QAIC_ONLINE,
+};
+
+enum dbc_states {
+	/* DBC is free and can be activated */
+	DBC_STATE_IDLE,
+	/* DBC is activated and a workload is running on device */
+	DBC_STATE_ASSIGNED,
+	/* Sub-system associated with this workload has crashed and it will shutdown soon */
+	DBC_STATE_BEFORE_SHUTDOWN,
+	/* Sub-system associated with this workload has crashed and it has shutdown */
+	DBC_STATE_AFTER_SHUTDOWN,
+	/* Sub-system associated with this workload is shutdown and it will be powered up soon */
+	DBC_STATE_BEFORE_POWER_UP,
+	/* Sub-system associated with this workload is now powered up */
+	DBC_STATE_AFTER_POWER_UP,
+	DBC_STATE_MAX,
 };
 
 extern bool datapath_polling;
@@ -114,6 +131,8 @@ struct dma_bridge_chan {
 	unsigned int		irq;
 	/* Polling work item to simulate interrupts */
 	struct work_struct	poll_work;
+	/* Represents various states of this DBC from enum dbc_states */
+	unsigned int		state;
 };
 
 struct qaic_device {
@@ -161,6 +180,8 @@ struct qaic_device {
 	struct mhi_device	*qts_ch;
 	/* Work queue for tasks related to MHI "QAIC_TIMESYNC" channel */
 	struct workqueue_struct	*qts_wq;
+	/* MHI "QAIC_TIMESYNC_PERIODIC" channel device */
+	struct mhi_device	*mqts_ch;
 	/* Head of list of page allocated by MHI bootlog device */
 	struct list_head        bootlog;
 	/* MHI bootlog channel device */
@@ -177,6 +198,14 @@ struct qaic_device {
 	unsigned int		ue_count;
 	/* Un-correctable non-fatal error count */
 	unsigned int		ue_nf_count;
+	/* MHI SSR channel device */
+	struct mhi_device	*ssr_ch;
+	/* Work queue for tasks related to MHI SSR device */
+	struct workqueue_struct	*ssr_wq;
+	/* Buffer to collect SSR crashdump via SSR MHI channel */
+	void			*ssr_mhi_buf;
+	/* DBC which is under SSR. Sentinel U32_MAX would mean that no SSR in progress */
+	u32			ssr_dbc;
 };
 
 struct qaic_drm_device {
@@ -195,6 +224,8 @@ struct qaic_drm_device {
 	struct list_head	users;
 	/* Synchronizes access to users list */
 	struct mutex		users_mutex;
+	/* Pointer to array of DBC sysfs attributes */
+	void			*sysfs_attrs;
 };
 
 struct qaic_bo {
@@ -317,6 +348,13 @@ int qaic_partial_execute_bo_ioctl(struct drm_device *dev, void *data, struct drm
 int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 int qaic_detach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
-void irq_polling_work(struct work_struct *work);
+void qaic_irq_polling_work(struct work_struct *work);
+void qaic_dbc_enter_ssr(struct qaic_device *qdev, u32 dbc_id);
+void qaic_dbc_exit_ssr(struct qaic_device *qdev);
+
+/* qaic_sysfs.c */
+int qaic_sysfs_init(struct qaic_drm_device *qddev);
+void qaic_sysfs_remove(struct qaic_drm_device *qddev);
+void set_dbc_state(struct qaic_device *qdev, u32 dbc_id, unsigned int state);
 
 #endif /* _QAIC_H_ */

@@ -54,32 +54,46 @@ extern "C" {
  * This asks the kernel to have the GPU execute a render command list.
  */
 struct drm_panfrost_submit {
-
-	/** Address to GPU mapping of job descriptor */
+	/**
+	 * @jc: Address to GPU mapping of job descriptor
+	 */
 	__u64 jc;
-
-	/** An optional array of sync objects to wait on before starting this job. */
+	/**
+	 * @in_syncs: An optional array of sync objects to wait on
+	 * before starting this job.
+	 */
 	__u64 in_syncs;
-
-	/** Number of sync objects to wait on before starting this job. */
+	/**
+	 * @in_sync_count: Number of sync objects to wait on before
+	 * starting this job.
+	 */
 	__u32 in_sync_count;
-
-	/** An optional sync object to place the completion fence in. */
+	/**
+	 * @out_sync: An optional sync object to place the completion fence in.
+	 */
 	__u32 out_sync;
-
-	/** Pointer to a u32 array of the BOs that are referenced by the job. */
+	/**
+	 * @bo_handles: Pointer to a u32 array of the BOs that are
+	 * referenced by the job.
+	 */
 	__u64 bo_handles;
-
-	/** Number of BO handles passed in (size is that times 4). */
+	/**
+	 * @bo_handle_count: Number of BO handles passed in (size is
+	 * that times 4).
+	 */
 	__u32 bo_handle_count;
-
-	/** A combination of PANFROST_JD_REQ_* */
+	/**
+	 * @requirements: A combination of PANFROST_JD_REQ_*
+	 */
 	__u32 requirements;
-
-	/** JM context handle. Zero if you want to use the default context. */
+	/**
+	 * @jm_ctx_handle: JM context handle. Zero if you want to use the
+	 * default context.
+	 */
 	__u32 jm_ctx_handle;
-
-	/** Padding field. MBZ. */
+	/**
+	 * @pad: Padding field. Must be zero.
+	 */
 	__u32 pad;
 };
 
@@ -92,9 +106,18 @@ struct drm_panfrost_submit {
  * completed.
  */
 struct drm_panfrost_wait_bo {
+	/**
+	 * @handle: Handle for the object to wait for.
+	 */
 	__u32 handle;
+	/**
+	 * @pad: Padding, must be zero-filled.
+	 */
 	__u32 pad;
-	__s64 timeout_ns;	/* absolute */
+	/**
+	 * @timeout_ns: absolute number of nanoseconds to wait.
+	 */
+	__s64 timeout_ns;
 };
 
 /* Valid flags to pass to drm_panfrost_create_bo */
@@ -107,16 +130,26 @@ struct drm_panfrost_wait_bo {
  * The flags argument is a bit mask of PANFROST_BO_* flags.
  */
 struct drm_panfrost_create_bo {
+	/**
+	 * @size: size of shmem/BO area to create (bytes)
+	 */
 	__u32 size;
+	/**
+	 * @flags: see PANFROST_BO_* flags
+	 */
 	__u32 flags;
-	/** Returned GEM handle for the BO. */
+	/**
+	 * @handle: Returned GEM handle for the BO.
+	 */
 	__u32 handle;
-	/* Pad, must be zero-filled. */
+	/**
+	 * @pad: Padding, must be zero-filled.
+	 */
 	__u32 pad;
 	/**
-	 * Returned offset for the BO in the GPU address space.  This offset
-	 * is private to the DRM fd and is valid for the lifetime of the GEM
-	 * handle.
+	 * @offset: Returned offset for the BO in the GPU address space.
+	 * This offset is private to the DRM fd and is valid for the
+	 * lifetime of the GEM handle.
 	 *
 	 * This offset value will always be nonzero, since various HW
 	 * units treat 0 specially.
@@ -136,10 +169,17 @@ struct drm_panfrost_create_bo {
  * used in a future extension.
  */
 struct drm_panfrost_mmap_bo {
-	/** Handle for the object being mapped. */
+	/**
+	 * @handle: Handle for the object being mapped.
+	 */
 	__u32 handle;
+	/**
+	 * @flags: currently not used (should be zero)
+	 */
 	__u32 flags;
-	/** offset into the drm node to use for subsequent mmap call. */
+	/**
+	 * @offset: offset into the drm node to use for subsequent mmap call.
+	 */
 	__u64 offset;
 };
 
@@ -196,7 +236,7 @@ struct drm_panfrost_get_param {
 	__u64 value;
 };
 
-/**
+/*
  * Returns the offset for the BO in the GPU address space for this DRM fd.
  * This is the same value returned by drm_panfrost_create_bo, if that was called
  * from this DRM fd.
@@ -244,12 +284,14 @@ struct drm_panfrost_madvise {
  * struct drm_panfrost_set_label_bo - ioctl argument for labelling Panfrost BOs.
  */
 struct drm_panfrost_set_label_bo {
-	/** @handle: Handle of the buffer object to label. */
+	/**
+	 * @handle: Handle of the buffer object to label.
+	 */
 	__u32 handle;
-
-	/**  @pad: MBZ. */
+	/**
+	 * @pad: Must be zero.
+	 */
 	__u32 pad;
-
 	/**
 	 * @label: User pointer to a NUL-terminated string
 	 *
@@ -330,10 +372,13 @@ enum drm_panfrost_jm_ctx_priority {
 };
 
 struct drm_panfrost_jm_ctx_create {
-	/** @handle: Handle of the created JM context */
+	/**
+	 * @handle: Handle of the created JM context
+	 */
 	__u32 handle;
-
-	/** @priority: Context priority (see enum drm_panfrost_jm_ctx_priority). */
+	/**
+	 * @priority: Context priority (see enum drm_panfrost_jm_ctx_priority).
+	 */
 	__u32 priority;
 };
 
@@ -344,8 +389,9 @@ struct drm_panfrost_jm_ctx_destroy {
 	 * Must be a valid context handle returned by DRM_IOCTL_PANTHOR_JM_CTX_CREATE.
 	 */
 	__u32 handle;
-
-	/** @pad: Padding field, MBZ. */
+	/**
+	 * @pad: Padding field, must be zero.
+	 */
 	__u32 pad;
 };
 
