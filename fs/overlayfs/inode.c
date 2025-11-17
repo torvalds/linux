@@ -325,16 +325,11 @@ static const char *ovl_get_link(struct dentry *dentry,
 				struct inode *inode,
 				struct delayed_call *done)
 {
-	const struct cred *old_cred;
-	const char *p;
-
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
 
-	old_cred = ovl_override_creds(dentry->d_sb);
-	p = vfs_get_link(ovl_dentry_real(dentry), done);
-	ovl_revert_creds(old_cred);
-	return p;
+	with_ovl_creds(dentry->d_sb)
+		return vfs_get_link(ovl_dentry_real(dentry), done);
 }
 
 #ifdef CONFIG_FS_POSIX_ACL
