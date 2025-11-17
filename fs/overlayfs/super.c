@@ -1540,8 +1540,6 @@ out_free_oe:
 int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
-	const struct cred *old_cred = NULL;
-	struct cred *cred;
 	int err;
 
 	err = -EIO;
@@ -1550,19 +1548,15 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	ovl_set_d_op(sb);
 
-	err = -ENOMEM;
-	if (!ofs->creator_cred)
-		ofs->creator_cred = cred = prepare_creds();
-	else
-		cred = (struct cred *)ofs->creator_cred;
-	if (!cred)
-		goto out_err;
+	if (!ofs->creator_cred) {
+		err = -ENOMEM;
+		ofs->creator_cred = prepare_creds();
+		if (!ofs->creator_cred)
+			goto out_err;
+	}
 
-	old_cred = ovl_override_creds(sb);
-
-	err = ovl_fill_super_creds(fc, sb);
-
-	ovl_revert_creds(old_cred);
+	with_ovl_creds(sb)
+		err = ovl_fill_super_creds(fc, sb);
 
 out_err:
 	if (err) {
