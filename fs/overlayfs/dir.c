@@ -1381,7 +1381,6 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 			      struct inode *inode, umode_t mode)
 {
-	const struct cred *new_cred __free(put_cred) = NULL;
 	struct path realparentpath;
 	struct file *realfile;
 	struct ovl_file *of;
@@ -1390,33 +1389,34 @@ static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 	int flags = file->f_flags | OVL_OPEN_FLAGS;
 	int err;
 
-	scoped_class(override_creds_ovl, old_cred, dentry->d_sb) {
-		new_cred = ovl_setup_cred_for_create(dentry, inode, mode, old_cred);
-		if (IS_ERR(new_cred))
-			return PTR_ERR(new_cred);
+	with_ovl_creds(dentry->d_sb) {
+		scoped_class(ovl_override_creator_creds, cred, dentry, inode, mode) {
+			if (IS_ERR(cred))
+				return PTR_ERR(cred);
 
-		ovl_path_upper(dentry->d_parent, &realparentpath);
-		realfile = backing_tmpfile_open(&file->f_path, flags, &realparentpath,
-						mode, current_cred());
-		err = PTR_ERR_OR_ZERO(realfile);
-		pr_debug("tmpfile/open(%pd2, 0%o) = %i\n", realparentpath.dentry, mode, err);
-		if (err)
-			return err;
+			ovl_path_upper(dentry->d_parent, &realparentpath);
+			realfile = backing_tmpfile_open(&file->f_path, flags, &realparentpath,
+							mode, current_cred());
+			err = PTR_ERR_OR_ZERO(realfile);
+			pr_debug("tmpfile/open(%pd2, 0%o) = %i\n", realparentpath.dentry, mode, err);
+			if (err)
+				return err;
 
-		of = ovl_file_alloc(realfile);
-		if (!of) {
-			fput(realfile);
-			return -ENOMEM;
-		}
+			of = ovl_file_alloc(realfile);
+			if (!of) {
+				fput(realfile);
+				return -ENOMEM;
+			}
 
-		/* ovl_instantiate() consumes the newdentry reference on success */
-		newdentry = dget(realfile->f_path.dentry);
-		err = ovl_instantiate(dentry, inode, newdentry, false, file);
-		if (!err) {
-			file->private_data = of;
-		} else {
-			dput(newdentry);
-			ovl_file_free(of);
+			/* ovl_instantiate() consumes the newdentry reference on success */
+			newdentry = dget(realfile->f_path.dentry);
+			err = ovl_instantiate(dentry, inode, newdentry, false, file);
+			if (!err) {
+				file->private_data = of;
+			} else {
+				dput(newdentry);
+				ovl_file_free(of);
+			}
 		}
 	}
 	return err;
