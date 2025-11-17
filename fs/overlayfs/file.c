@@ -444,7 +444,6 @@ static int ovl_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	enum ovl_path_type type;
 	struct path upperpath;
 	struct file *upperfile;
-	const struct cred *old_cred;
 	int ret;
 
 	ret = ovl_sync_status(OVL_FS(file_inode(file)->i_sb));
@@ -461,11 +460,8 @@ static int ovl_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (IS_ERR(upperfile))
 		return PTR_ERR(upperfile);
 
-	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	ret = vfs_fsync_range(upperfile, start, end, datasync);
-	ovl_revert_creds(old_cred);
-
-	return ret;
+	with_ovl_creds(file_inode(file)->i_sb)
+		return vfs_fsync_range(upperfile, start, end, datasync);
 }
 
 static int ovl_mmap(struct file *file, struct vm_area_struct *vma)
