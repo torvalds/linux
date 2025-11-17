@@ -1905,52 +1905,48 @@ static int rx_macro_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rx_macro *rx = snd_soc_component_get_drvdata(component);
-	uint16_t j, reg, mix_reg, dsm_reg;
-	u16 int_mux_cfg0, int_mux_cfg1;
+	u32 port, j, reg, mix_reg, int_mux_cfg0, int_mux_cfg1;
+	u32 mask, val;
 	u8 int_mux_cfg0_val, int_mux_cfg1_val;
 
-	switch (dai->id) {
-	case RX_MACRO_AIF1_PB:
-	case RX_MACRO_AIF2_PB:
-	case RX_MACRO_AIF3_PB:
-	case RX_MACRO_AIF4_PB:
-		for (j = 0; j < INTERP_MAX; j++) {
-			reg = CDC_RX_RXn_RX_PATH_CTL(rx, j);
-			mix_reg = CDC_RX_RXn_RX_PATH_MIX_CTL(rx, j);
-			dsm_reg = CDC_RX_RXn_RX_PATH_DSM_CTL(rx, j);
+	if (stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
 
-			if (mute) {
-				snd_soc_component_update_bits(component, reg,
-							      CDC_RX_PATH_PGA_MUTE_MASK,
-							      CDC_RX_PATH_PGA_MUTE_ENABLE);
-				snd_soc_component_update_bits(component, mix_reg,
-							      CDC_RX_PATH_PGA_MUTE_MASK,
-							      CDC_RX_PATH_PGA_MUTE_ENABLE);
-			} else {
-				snd_soc_component_update_bits(component, reg,
-							      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
-				snd_soc_component_update_bits(component, mix_reg,
-							      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
+	for (j = 0; j < INTERP_MAX; j++) {
+		reg = CDC_RX_RXn_RX_PATH_CTL(rx, j);
+		mix_reg = CDC_RX_RXn_RX_PATH_MIX_CTL(rx, j);
+
+		mask = CDC_RX_PATH_PGA_MUTE_MASK;
+		val = 0;
+		if (mute)
+			val |= CDC_RX_PATH_PGA_MUTE_ENABLE;
+		if (rx->main_clk_users[j] > 0) {
+			mask |= CDC_RX_PATH_CLK_EN_MASK;
+			val |= CDC_RX_PATH_CLK_ENABLE;
+		}
+
+		int_mux_cfg0 = CDC_RX_INP_MUX_RX_INT0_CFG0 + j * 8;
+		int_mux_cfg1 = int_mux_cfg0 + 4;
+		int_mux_cfg0_val = snd_soc_component_read(component, int_mux_cfg0);
+		int_mux_cfg1_val = snd_soc_component_read(component, int_mux_cfg1);
+
+		for_each_set_bit(port, &rx->active_ch_mask[dai->id], RX_MACRO_PORTS_MAX) {
+			if (((int_mux_cfg0_val & 0x0f) == port + INTn_1_INP_SEL_RX0) ||
+			    ((int_mux_cfg0_val >> 4) == port + INTn_1_INP_SEL_RX0) ||
+			    ((int_mux_cfg1_val >> 4) == port + INTn_1_INP_SEL_RX0)) {
+				snd_soc_component_update_bits(component, reg, mask, val);
 			}
 
-			int_mux_cfg0 = CDC_RX_INP_MUX_RX_INT0_CFG0 + j * 8;
-			int_mux_cfg1 = int_mux_cfg0 + 4;
-			int_mux_cfg0_val = snd_soc_component_read(component, int_mux_cfg0);
-			int_mux_cfg1_val = snd_soc_component_read(component, int_mux_cfg1);
-
-			if (snd_soc_component_read(component, dsm_reg) & 0x01) {
-				if (int_mux_cfg0_val || (int_mux_cfg1_val & 0xF0))
-					snd_soc_component_update_bits(component, reg, 0x20, 0x20);
-				if (int_mux_cfg1_val & 0x0F) {
-					snd_soc_component_update_bits(component, reg, 0x20, 0x20);
-					snd_soc_component_update_bits(component, mix_reg, 0x20,
-								      0x20);
+			if ((int_mux_cfg1_val & 0x0f) == port + INTn_2_INP_SEL_RX0) {
+				snd_soc_component_update_bits(component, mix_reg, mask, val);
+				/* main clock needs to be enabled for mix to be useful: */
+				if (rx->main_clk_users[j] > 0) {
+					snd_soc_component_update_bits(component, reg,
+								      CDC_RX_PATH_CLK_EN_MASK,
+								      CDC_RX_PATH_CLK_ENABLE);
 				}
 			}
 		}
-		break;
-	default:
-		break;
 	}
 	return 0;
 }
