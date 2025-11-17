@@ -581,6 +581,42 @@ out_cleanup_unlocked:
 	goto out_dput;
 }
 
+static const struct cred *ovl_override_creator_creds(struct dentry *dentry, struct inode *inode, umode_t mode)
+{
+	int err;
+
+	if (WARN_ON_ONCE(current->cred != ovl_creds(dentry->d_sb)))
+		return ERR_PTR(-EINVAL);
+
+	CLASS(prepare_creds, override_cred)();
+	if (!override_cred)
+		return ERR_PTR(-ENOMEM);
+
+	override_cred->fsuid = inode->i_uid;
+	override_cred->fsgid = inode->i_gid;
+
+	err = security_dentry_create_files_as(dentry, mode, &dentry->d_name,
+					      current->cred, override_cred);
+	if (err)
+		return ERR_PTR(err);
+
+	return override_creds(no_free_ptr(override_cred));
+}
+
+static void ovl_revert_creator_creds(const struct cred *old_cred)
+{
+	const struct cred *override_cred;
+
+	override_cred = revert_creds(old_cred);
+	put_cred(override_cred);
+}
+
+DEFINE_CLASS(ovl_override_creator_creds,
+	     const struct cred *,
+	     if (!IS_ERR_OR_NULL(_T)) ovl_revert_creator_creds(_T),
+	     ovl_override_creator_creds(dentry, inode, mode),
+	     struct dentry *dentry, struct inode *inode, umode_t mode)
+
 static const struct cred *ovl_setup_cred_for_create(struct dentry *dentry,
 						    struct inode *inode,
 						    umode_t mode,
