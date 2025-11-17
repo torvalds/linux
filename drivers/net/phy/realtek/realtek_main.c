@@ -689,6 +689,17 @@ static int rtl8211f_config_aldps(struct phy_device *phydev)
 				mask, mask);
 }
 
+static int rtl8211f_config_phy_eee(struct phy_device *phydev)
+{
+	/* RTL8211FVD has no PHYCR2 register */
+	if (phydev->drv->phy_id == RTL_8211FVD_PHYID)
+		return 0;
+
+	/* Disable PHY-mode EEE so LPI is passed to the MAC */
+	return phy_modify_paged(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR2,
+				RTL8211F_PHYCR2_PHY_EEE_ENABLE, 0);
+}
+
 static int rtl8211f_config_init(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
@@ -712,17 +723,7 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 		return ret;
 	}
 
-	/* RTL8211FVD has no PHYCR2 register */
-	if (phydev->drv->phy_id == RTL_8211FVD_PHYID)
-		return 0;
-
-	/* Disable PHY-mode EEE so LPI is passed to the MAC */
-	ret = phy_modify_paged(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR2,
-			       RTL8211F_PHYCR2_PHY_EEE_ENABLE, 0);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rtl8211f_config_phy_eee(phydev);
 }
 
 static int rtl821x_suspend(struct phy_device *phydev)
