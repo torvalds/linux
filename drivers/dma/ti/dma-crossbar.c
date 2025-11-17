@@ -288,6 +288,8 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 
 	ti_dra7_xbar_write(xbar->iomem, map->xbar_out, map->xbar_in);
 
+	put_device(&pdev->dev);
+
 	return map;
 }
 
