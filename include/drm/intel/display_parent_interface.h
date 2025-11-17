@@ -64,6 +64,9 @@ struct intel_display_parent_interface {
 
 	/** @has_fenced_regions: Support legacy fencing? Optional. */
 	bool (*has_fenced_regions)(struct drm_device *drm);
+
+	/** @fence_priority_display: Set display priority. Optional. */
+	void (*fence_priority_display)(struct dma_fence *fence);
 };
 
 #endif

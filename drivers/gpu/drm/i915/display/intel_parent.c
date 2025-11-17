@@ -64,3 +64,9 @@ bool intel_parent_has_fenced_regions(struct intel_display *display)
 {
 	return display->parent->has_fenced_regions && display->parent->has_fenced_regions(display->drm);
 }
+
+void intel_parent_fence_priority_display(struct intel_display *display, struct dma_fence *fence)
+{
+	if (display->parent->fence_priority_display)
+		display->parent->fence_priority_display(fence);
+}
