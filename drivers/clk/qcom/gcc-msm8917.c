@@ -978,6 +978,27 @@ static const struct freq_tbl ftbl_gfx3d_clk_src_msm8940[] = {
 	{ }
 };
 
+static const struct freq_tbl ftbl_gfx3d_clk_src_sdm439[] = {
+	F(19200000, P_XO, 1, 0, 0),
+	F(50000000, P_GPLL0, 16, 0, 0),
+	F(80000000, P_GPLL0, 10, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
+	F(160000000, P_GPLL0, 5, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	F(216000000, P_GPLL6, 5, 0, 0),
+	F(228570000, P_GPLL0, 3.5, 0, 0),
+	F(240000000, P_GPLL6, 4.5, 0, 0),
+	F(266670000, P_GPLL0, 3, 0, 0),
+	F(320000000, P_GPLL0, 2.5, 0, 0),
+	F(355200000, P_GPLL3, 1, 0, 0),
+	F(400000000, P_GPLL0, 2, 0, 0),
+	F(450000000, P_GPLL3, 1, 0, 0),
+	F(510000000, P_GPLL3, 1, 0, 0),
+	F(560000000, P_GPLL3, 1, 0, 0),
+	F(650000000, P_GPLL3, 1, 0, 0),
+	{ }
+};
+
 static struct clk_rcg2 gfx3d_clk_src = {
 	.cmd_rcgr = 0x59000,
 	.hid_width = 5,
@@ -4061,6 +4082,16 @@ static const struct qcom_cc_desc gcc_msm8940_desc = {
 	.num_gdscs = ARRAY_SIZE(gcc_msm8937_gdscs),
 };
 
+static const struct qcom_cc_desc gcc_sdm439_desc = {
+	.config = &gcc_msm8917_regmap_config,
+	.clks = gcc_msm8937_clocks,
+	.num_clks = ARRAY_SIZE(gcc_msm8937_clocks),
+	.resets = gcc_msm8917_resets,
+	.num_resets = ARRAY_SIZE(gcc_msm8917_resets),
+	.gdscs = gcc_msm8937_gdscs,
+	.num_gdscs = ARRAY_SIZE(gcc_msm8937_gdscs),
+};
+
 static void msm8937_clock_override(void)
 {
 	/* GPLL3 750MHz configuration */
@@ -4086,6 +4117,21 @@ static void msm8937_clock_override(void)
 	usb_hs_system_clk_src.freq_tbl = ftbl_usb_hs_system_clk_src_msm8937;
 }
 
+static void sdm439_clock_override(void)
+{
+	vcodec0_clk_src.parent_map = gcc_cpp_map;
+	vcodec0_clk_src.clkr.hw.init = &vcodec0_clk_src_init_msm8937;
+
+	vfe0_clk_src.freq_tbl = ftbl_vfe_clk_src_msm8937;
+	vfe1_clk_src.freq_tbl = ftbl_vfe_clk_src_msm8937;
+	cpp_clk_src.freq_tbl = ftbl_cpp_clk_src_msm8937;
+	vcodec0_clk_src.freq_tbl = ftbl_vcodec0_clk_src_msm8937;
+	gfx3d_clk_src.freq_tbl = ftbl_gfx3d_clk_src_sdm439;
+	csi0phytimer_clk_src.freq_tbl = ftbl_csi_phytimer_clk_src_msm8937;
+	csi1phytimer_clk_src.freq_tbl = ftbl_csi_phytimer_clk_src_msm8937;
+	usb_hs_system_clk_src.freq_tbl = ftbl_usb_hs_system_clk_src_msm8937;
+}
+
 static int gcc_msm8917_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
@@ -4101,6 +4147,8 @@ static int gcc_msm8917_probe(struct platform_device *pdev)
 	} else if (gcc_desc == &gcc_msm8940_desc) {
 		msm8937_clock_override();
 		gfx3d_clk_src.freq_tbl = ftbl_gfx3d_clk_src_msm8940;
+	} else if (gcc_desc == &gcc_sdm439_desc) {
+		sdm439_clock_override();
 	}
 
 	regmap = qcom_cc_map(pdev, gcc_desc);
@@ -4117,6 +4165,7 @@ static const struct of_device_id gcc_msm8917_match_table[] = {
 	{ .compatible = "qcom,gcc-qm215", .data = &gcc_qm215_desc },
 	{ .compatible = "qcom,gcc-msm8937", .data = &gcc_msm8937_desc },
 	{ .compatible = "qcom,gcc-msm8940", .data = &gcc_msm8940_desc },
+	{ .compatible = "qcom,gcc-sdm439", .data = &gcc_sdm439_desc },
 	{},
 };
 MODULE_DEVICE_TABLE(of, gcc_msm8917_match_table);
