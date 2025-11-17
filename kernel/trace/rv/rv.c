@@ -420,35 +420,27 @@ static const struct file_operations interface_desc_fops = {
 static int create_monitor_dir(struct rv_monitor *mon, struct rv_monitor *parent)
 {
 	struct dentry *root = parent ? parent->root_d : get_monitors_root();
-	const char *name = mon->name;
+	struct dentry *dir __free(rv_remove) = rv_create_dir(mon->name, root);
 	struct dentry *tmp;
 	int retval;
 
-	mon->root_d = rv_create_dir(name, root);
-	if (!mon->root_d)
+	if (!dir)
 		return -ENOMEM;
 
-	tmp = rv_create_file("enable", RV_MODE_WRITE, mon->root_d, mon, &interface_enable_fops);
-	if (!tmp) {
-		retval = -ENOMEM;
-		goto out_remove_root;
-	}
+	tmp = rv_create_file("enable", RV_MODE_WRITE, dir, mon, &interface_enable_fops);
+	if (!tmp)
+		return -ENOMEM;
 
-	tmp = rv_create_file("desc", RV_MODE_READ, mon->root_d, mon, &interface_desc_fops);
-	if (!tmp) {
-		retval = -ENOMEM;
-		goto out_remove_root;
-	}
+	tmp = rv_create_file("desc", RV_MODE_READ, dir, mon, &interface_desc_fops);
+	if (!tmp)
+		return -ENOMEM;
 
-	retval = reactor_populate_monitor(mon);
+	retval = reactor_populate_monitor(mon, dir);
 	if (retval)
-		goto out_remove_root;
+		return retval;
 
+	mon->root_d = no_free_ptr(dir);
 	return 0;
-
-out_remove_root:
-	rv_remove(mon->root_d);
-	return retval;
 }
 
 /*
@@ -827,39 +819,36 @@ int __init rv_init_interface(void)
 {
 	struct dentry *tmp;
 	int retval;
+	struct dentry *root_dir __free(rv_remove) = rv_create_dir("rv", NULL);
 
-	rv_root.root_dir = rv_create_dir("rv", NULL);
-	if (!rv_root.root_dir)
-		goto out_err;
+	if (!root_dir)
+		return 1;
 
-	rv_root.monitors_dir = rv_create_dir("monitors", rv_root.root_dir);
+	rv_root.monitors_dir = rv_create_dir("monitors", root_dir);
 	if (!rv_root.monitors_dir)
-		goto out_err;
+		return 1;
 
-	tmp = rv_create_file("available_monitors", RV_MODE_READ, rv_root.root_dir, NULL,
+	tmp = rv_create_file("available_monitors", RV_MODE_READ, root_dir, NULL,
 			     &available_monitors_ops);
 	if (!tmp)
-		goto out_err;
+		return 1;
 
-	tmp = rv_create_file("enabled_monitors", RV_MODE_WRITE, rv_root.root_dir, NULL,
+	tmp = rv_create_file("enabled_monitors", RV_MODE_WRITE, root_dir, NULL,
 			     &enabled_monitors_ops);
 	if (!tmp)
-		goto out_err;
+		return 1;
 
-	tmp = rv_create_file("monitoring_on", RV_MODE_WRITE, rv_root.root_dir, NULL,
+	tmp = rv_create_file("monitoring_on", RV_MODE_WRITE, root_dir, NULL,
 			     &monitoring_on_fops);
 	if (!tmp)
-		goto out_err;
-	retval = init_rv_reactors(rv_root.root_dir);
+		return 1;
+	retval = init_rv_reactors(root_dir);
 	if (retval)
-		goto out_err;
+		return 1;
 
 	turn_monitoring_on();
 
-	return 0;
+	rv_root.root_dir = no_free_ptr(root_dir);
 
-out_err:
-	rv_remove(rv_root.root_dir);
-	printk(KERN_ERR "RV: Error while creating the RV interface\n");
-	return 1;
+	return 0;
 }

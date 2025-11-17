@@ -405,14 +405,15 @@ static const struct file_operations reacting_on_fops = {
 /**
  * reactor_populate_monitor - creates per monitor reactors file
  * @mon:	The monitor.
+ * @root:	The directory of the monitor.
  *
  * Returns 0 if successful, error otherwise.
  */
-int reactor_populate_monitor(struct rv_monitor *mon)
+int reactor_populate_monitor(struct rv_monitor *mon, struct dentry *root)
 {
 	struct dentry *tmp;
 
-	tmp = rv_create_file("reactors", RV_MODE_WRITE, mon->root_d, mon, &monitor_reactors_ops);
+	tmp = rv_create_file("reactors", RV_MODE_WRITE, root, mon, &monitor_reactors_ops);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -439,32 +440,27 @@ static struct rv_reactor rv_nop = {
 
 int init_rv_reactors(struct dentry *root_dir)
 {
-	struct dentry *available, *reacting;
 	int retval;
 
-	available = rv_create_file("available_reactors", RV_MODE_READ, root_dir, NULL,
-				   &available_reactors_ops);
-	if (!available)
-		goto out_err;
+	struct dentry *available __free(rv_remove) =
+		rv_create_file("available_reactors", RV_MODE_READ, root_dir,
+				NULL, &available_reactors_ops);
 
-	reacting = rv_create_file("reacting_on", RV_MODE_WRITE, root_dir, NULL, &reacting_on_fops);
-	if (!reacting)
-		goto rm_available;
+	struct dentry *reacting __free(rv_remove) =
+		rv_create_file("reacting_on", RV_MODE_WRITE, root_dir, NULL, &reacting_on_fops);
+
+	if (!reacting || !available)
+		return -ENOMEM;
 
 	retval = __rv_register_reactor(&rv_nop);
 	if (retval)
-		goto rm_reacting;
+		return retval;
 
 	turn_reacting_on();
 
+	retain_and_null_ptr(available);
+	retain_and_null_ptr(reacting);
 	return 0;
-
-rm_reacting:
-	rv_remove(reacting);
-rm_available:
-	rv_remove(available);
-out_err:
-	return -ENOMEM;
 }
 
 void rv_react(struct rv_monitor *monitor, const char *msg, ...)
