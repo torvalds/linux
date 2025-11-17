@@ -54,9 +54,9 @@ static int rb070d30_panel_prepare(struct drm_panel *panel)
 	}
 
 	msleep(20);
-	gpiod_set_value(ctx->gpios.power, 1);
+	gpiod_set_value_cansleep(ctx->gpios.power, 1);
 	msleep(20);
-	gpiod_set_value(ctx->gpios.reset, 1);
+	gpiod_set_value_cansleep(ctx->gpios.reset, 1);
 	msleep(20);
 	return 0;
 }
@@ -65,8 +65,8 @@ static int rb070d30_panel_unprepare(struct drm_panel *panel)
 {
 	struct rb070d30_panel *ctx = panel_to_rb070d30_panel(panel);
 
-	gpiod_set_value(ctx->gpios.reset, 0);
-	gpiod_set_value(ctx->gpios.power, 0);
+	gpiod_set_value_cansleep(ctx->gpios.reset, 0);
+	gpiod_set_value_cansleep(ctx->gpios.power, 0);
 	regulator_disable(ctx->supply);
 
 	return 0;
