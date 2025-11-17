@@ -479,7 +479,6 @@ static long ovl_fallocate(struct file *file, int mode, loff_t offset, loff_t len
 {
 	struct inode *inode = file_inode(file);
 	struct file *realfile;
-	const struct cred *old_cred;
 	int ret;
 
 	inode_lock(inode);
@@ -494,9 +493,8 @@ static long ovl_fallocate(struct file *file, int mode, loff_t offset, loff_t len
 	if (IS_ERR(realfile))
 		goto out_unlock;
 
-	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	ret = vfs_fallocate(realfile, mode, offset, len);
-	ovl_revert_creds(old_cred);
+	with_ovl_creds(inode->i_sb)
+		ret = vfs_fallocate(realfile, mode, offset, len);
 
 	/* Update size */
 	ovl_file_modified(file);
