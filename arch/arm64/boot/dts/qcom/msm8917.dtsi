@@ -996,7 +996,7 @@
 			clock-names = "iface",
 				      "bus",
 				      "vsync";
-
+			resets = <&gcc GCC_MDSS_BCR>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 
 			interrupt-controller;
