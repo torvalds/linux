@@ -245,28 +245,26 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 {
 	struct platform_device *pdev = of_find_device_by_node(ofdma->of_node);
 	struct ti_dra7_xbar_data *xbar = platform_get_drvdata(pdev);
-	struct ti_dra7_xbar_map *map;
+	struct ti_dra7_xbar_map *map = ERR_PTR(-EINVAL);
 
 	if (dma_spec->args[0] >= xbar->xbar_requests) {
 		dev_err(&pdev->dev, "Invalid XBAR request number: %d\n",
 			dma_spec->args[0]);
-		put_device(&pdev->dev);
-		return ERR_PTR(-EINVAL);
+		goto out_put_pdev;
 	}
 
 	/* The of_node_put() will be done in the core for the node */
 	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", 0);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "Can't get DMA master\n");
-		put_device(&pdev->dev);
-		return ERR_PTR(-EINVAL);
+		goto out_put_pdev;
 	}
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map) {
 		of_node_put(dma_spec->np);
-		put_device(&pdev->dev);
-		return ERR_PTR(-ENOMEM);
+		map = ERR_PTR(-ENOMEM);
+		goto out_put_pdev;
 	}
 
 	mutex_lock(&xbar->mutex);
@@ -277,8 +275,8 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 		dev_err(&pdev->dev, "Run out of free DMA requests\n");
 		kfree(map);
 		of_node_put(dma_spec->np);
-		put_device(&pdev->dev);
-		return ERR_PTR(-ENOMEM);
+		map = ERR_PTR(-ENOMEM);
+		goto out_put_pdev;
 	}
 	set_bit(map->xbar_out, xbar->dma_inuse);
 	mutex_unlock(&xbar->mutex);
@@ -292,6 +290,7 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 
 	ti_dra7_xbar_write(xbar->iomem, map->xbar_out, map->xbar_in);
 
+out_put_pdev:
 	put_device(&pdev->dev);
 
 	return map;
