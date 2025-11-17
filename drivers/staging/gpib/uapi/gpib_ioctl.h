@@ -40,7 +40,7 @@ struct gpib_serial_poll_ioctl {
 	__u32 pad;
 	__s32 sad;
 	__u8 status_byte;
-	__u8 padding[3];   // align to 32 bit boundary
+	__u8 padding[3];   /* align to 32 bit boundary */
 };
 
 struct gpib_eos_ioctl {
@@ -80,7 +80,7 @@ struct gpib_board_info_ioctl {
 	__u32 t1_delay;
 	unsigned ist : 1;
 	unsigned no_7_bit_eos : 1;
-	unsigned padding :30; // align to 32 bit boundary
+	unsigned padding :30; /* align to 32 bit boundary */
 };
 
 struct gpib_select_pci_ioctl {
@@ -92,7 +92,7 @@ struct gpib_ppoll_config_ioctl {
 	__u8 config;
 	unsigned set_ist : 1;
 	unsigned clear_ist : 1;
-	unsigned padding :22; // align to 32 bit boundary
+	unsigned padding :22; /* align to 32 bit boundary */
 };
 
 struct gpib_pad_ioctl {
@@ -105,15 +105,15 @@ struct gpib_sad_ioctl {
 	__s32 sad;
 };
 
-// select a piece of hardware to attach by its sysfs device path
+/* select a piece of hardware to attach by its sysfs device path */
 struct gpib_select_device_path_ioctl {
 	char device_path[0x1000];
 };
 
-// update status byte and request service
+/* update status byte and request service */
 struct gpib_request_service2 {
 	__u8 status_byte;
-	__u8 padding[3]; // align to 32 bit boundary
+	__u8 padding[3]; /* align to 32 bit boundary */
 	__s32 new_reason_for_service;
 };
 
@@ -160,7 +160,7 @@ enum gpib_ioctl {
 	IBPP2_SET = _IOW(GPIB_CODE, 40, __s16),
 	IBPP2_GET = _IOR(GPIB_CODE, 41, __s16),
 	IBSELECT_DEVICE_PATH = _IOW(GPIB_CODE, 43, struct gpib_select_device_path_ioctl),
-	// 44 was IBSELECT_SERIAL_NUMBER
+	/* 44 was IBSELECT_SERIAL_NUMBER */
 	IBRSV2 = _IOW(GPIB_CODE, 45, struct gpib_request_service2)
 };
 
