@@ -979,15 +979,10 @@ static int ovl_maybe_validate_verity(struct dentry *dentry)
 		return err;
 
 	if (!ovl_test_flag(OVL_VERIFIED_DIGEST, inode)) {
-		const struct cred *old_cred;
-
-		old_cred = ovl_override_creds(dentry->d_sb);
-
-		err = ovl_validate_verity(ofs, &metapath, &datapath);
+		with_ovl_creds(dentry->d_sb)
+			err = ovl_validate_verity(ofs, &metapath, &datapath);
 		if (err == 0)
 			ovl_set_flag(OVL_VERIFIED_DIGEST, inode);
-
-		ovl_revert_creds(old_cred);
 	}
 
 	ovl_inode_unlock(inode);
