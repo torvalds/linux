@@ -495,9 +495,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	const Elf_Shdr *s;
 	char *secstrings, *secname;
 	void *aseg;
-#ifdef CONFIG_FUNCTION_TRACER
-	int ret;
-#endif
+	int rc = 0;
 
 	if (IS_ENABLED(CONFIG_EXPOLINE) &&
 	    !nospec_disable && me->arch.plt_size) {
@@ -529,12 +527,12 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 #ifdef CONFIG_FUNCTION_TRACER
 		if (!strcmp(FTRACE_CALLSITE_SECTION, secname)) {
-			ret = module_alloc_ftrace_hotpatch_trampolines(me, s);
-			if (ret < 0)
-				return ret;
+			rc = module_alloc_ftrace_hotpatch_trampolines(me, s);
+			if (rc)
+				break;
 		}
 #endif /* CONFIG_FUNCTION_TRACER */
 	}
 
-	return 0;
+	return rc;
 }
