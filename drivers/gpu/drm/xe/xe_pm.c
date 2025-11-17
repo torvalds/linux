@@ -112,7 +112,7 @@ void xe_pm_might_block_on_suspend(void)
 }
 
 /**
- * xe_pm_might_block_on_suspend() - Block pending suspend.
+ * xe_pm_block_on_suspend() - Block pending suspend.
  * @xe: The xe device about to be suspended.
  *
  * Block if the pm notifier has start evicting bos, to avoid

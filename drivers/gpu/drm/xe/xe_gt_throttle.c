@@ -22,9 +22,15 @@
  * Their availability depend on the platform and some may not be visible if that
  * reason is not available.
  *
+ * The ``reasons`` attribute can be used by sysadmin to monitor all possible
+ * reasons for throttling and report them. It's preferred over monitoring
+ * ``status`` and then reading the reason from individual attributes since that
+ * is racy. If there's no throttling happening, "none" is returned.
+ *
  * The following attributes are available on Crescent Island platform:
  *
- * - ``status``: Overall throttle status
+ * - ``status``: Overall throttle status (0: no throttling, 1: throttling)
+ * - ``reasons``: Array of reasons causing throttling separated by space
  * - ``reason_pl1``: package PL1
  * - ``reason_pl2``: package PL2
  * - ``reason_pl4``: package PL4
@@ -43,7 +49,8 @@
  *
  * Other platforms support the following reasons:
  *
- * - ``status``: Overall status
+ * - ``status``: Overall throttle status (0: no throttling, 1: throttling)
+ * - ``reasons``: Array of reasons causing throttling separated by space
  * - ``reason_pl1``: package PL1
  * - ``reason_pl2``: package PL2
  * - ``reason_pl4``: package PL4, Iccmax etc.
@@ -111,12 +118,57 @@ static ssize_t reason_show(struct kobject *kobj,
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, ta->mask));
 }
 
+static const struct attribute_group *get_platform_throttle_group(struct xe_device *xe);
+
+static ssize_t reasons_show(struct kobject *kobj,
+			    struct kobj_attribute *attr, char *buff)
+{
+	struct xe_gt *gt = throttle_to_gt(kobj);
+	struct xe_device *xe = gt_to_xe(gt);
+	const struct attribute_group *group;
+	struct attribute **pother;
+	ssize_t ret = 0;
+	u32 reasons;
+
+	reasons = xe_gt_throttle_get_limit_reasons(gt);
+	if (!reasons)
+		goto ret_none;
+
+	group = get_platform_throttle_group(xe);
+	for (pother = group->attrs; *pother; pother++) {
+		struct kobj_attribute *kattr = container_of(*pother, struct kobj_attribute, attr);
+		struct throttle_attribute *other_ta = kobj_attribute_to_throttle(kattr);
+
+		if (other_ta->mask != U32_MAX && reasons & other_ta->mask)
+			ret += sysfs_emit_at(buff, ret, "%s ", (*pother)->name);
+	}
+
+	if (drm_WARN_ONCE(&xe->drm, !ret, "Unknown reason: %#x\n", reasons))
+		goto ret_none;
+
+	/* Drop extra space from last iteration above */
+	ret--;
+	ret += sysfs_emit_at(buff, ret, "\n");
+
+	return ret;
+
+ret_none:
+	return sysfs_emit(buff, "none\n");
+}
+
 #define THROTTLE_ATTR_RO(name, _mask)				\
 	struct throttle_attribute attr_##name =	{		\
 		.attr = __ATTR(name, 0444, reason_show, NULL),	\
 		.mask = _mask,					\
 	}
 
+#define THROTTLE_ATTR_RO_FUNC(name, _mask, _show)		\
+	struct throttle_attribute attr_##name =	{		\
+		.attr = __ATTR(name, 0444, _show, NULL),	\
+		.mask = _mask,					\
+	}
+
+static THROTTLE_ATTR_RO_FUNC(reasons, 0, reasons_show);
 static THROTTLE_ATTR_RO(status, U32_MAX);
 static THROTTLE_ATTR_RO(reason_pl1, POWER_LIMIT_1_MASK);
 static THROTTLE_ATTR_RO(reason_pl2, POWER_LIMIT_2_MASK);
@@ -128,6 +180,7 @@ static THROTTLE_ATTR_RO(reason_vr_thermalert, VR_THERMALERT_MASK);
 static THROTTLE_ATTR_RO(reason_vr_tdc, VR_TDC_MASK);
 
 static struct attribute *throttle_attrs[] = {
+	&attr_reasons.attr.attr,
 	&attr_status.attr.attr,
 	&attr_reason_pl1.attr.attr,
 	&attr_reason_pl2.attr.attr,
@@ -153,6 +206,7 @@ static THROTTLE_ATTR_RO(reason_psys_crit, PSYS_CRIT_MASK);
 
 static struct attribute *cri_throttle_attrs[] = {
 	/* Common */
+	&attr_reasons.attr.attr,
 	&attr_status.attr.attr,
 	&attr_reason_pl1.attr.attr,
 	&attr_reason_pl2.attr.attr,

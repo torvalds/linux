@@ -9,6 +9,8 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+#include "xe_guard.h"
+#include "xe_sriov_pf_migration_types.h"
 #include "xe_sriov_pf_provision_types.h"
 #include "xe_sriov_pf_service_types.h"
 
@@ -23,6 +25,8 @@ struct xe_sriov_metadata {
 
 	/** @version: negotiated VF/PF ABI version */
 	struct xe_sriov_pf_service_version version;
+	/** @migration: migration state */
+	struct xe_sriov_migration_state migration;
 };
 
 /**
@@ -38,11 +42,17 @@ struct xe_device_pf {
 	/** @driver_max_vfs: Maximum number of VFs supported by the driver. */
 	u16 driver_max_vfs;
 
+	/** @guard_vfs_enabling: guards VFs enabling */
+	struct xe_guard guard_vfs_enabling;
+
 	/** @master_lock: protects all VFs configurations across GTs */
 	struct mutex master_lock;
 
 	/** @provision: device level provisioning data. */
 	struct xe_sriov_pf_provision provision;
+
+	/** @migration: device level migration data. */
+	struct xe_sriov_pf_migration migration;
 
 	/** @service: device level service data. */
 	struct xe_sriov_pf_service service;
