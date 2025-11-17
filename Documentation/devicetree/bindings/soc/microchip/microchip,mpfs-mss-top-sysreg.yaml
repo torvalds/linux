@@ -15,10 +15,16 @@ description:
 
 properties:
   compatible:
-    items:
-      - const: microchip,mpfs-mss-top-sysreg
-      - const: syscon
-      - const: simple-mfd
+    oneOf:
+      - items:
+          - const: microchip,mpfs-mss-top-sysreg
+          - const: syscon
+          - const: simple-mfd
+      - items:
+          - const: microchip,pic64gx-mss-top-sysreg
+          - const: microchip,mpfs-mss-top-sysreg
+          - const: syscon
+          - const: simple-mfd
 
   reg:
     maxItems: 1
