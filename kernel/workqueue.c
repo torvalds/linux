@@ -6926,12 +6926,25 @@ static int workqueue_apply_unbound_cpumask(const cpumask_var_t unbound_cpumask)
 	}
 
 	if (!ret) {
+		int cpu;
+		struct worker_pool *pool;
+		struct worker *worker;
+
 		mutex_lock(&wq_pool_attach_mutex);
 		cpumask_copy(wq_unbound_cpumask, unbound_cpumask);
 		/* rescuer needs to respect cpumask changes when it is not attached */
 		list_for_each_entry(wq, &workqueues, list) {
 			if (wq->rescuer && !wq->rescuer->pool)
 				unbind_worker(wq->rescuer);
+		}
+		/* DISASSOCIATED worker needs to respect wq_unbound_cpumask */
+		for_each_possible_cpu(cpu) {
+			for_each_cpu_worker_pool(pool, cpu) {
+				if (!(pool->flags & POOL_DISASSOCIATED))
+					continue;
+				for_each_pool_worker(worker, pool)
+					unbind_worker(worker);
+			}
 		}
 		mutex_unlock(&wq_pool_attach_mutex);
 	}
