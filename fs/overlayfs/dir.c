@@ -731,14 +731,8 @@ static int ovl_symlink(struct mnt_idmap *idmap, struct inode *dir,
 
 static int ovl_set_link_redirect(struct dentry *dentry)
 {
-	const struct cred *old_cred;
-	int err;
-
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = ovl_set_redirect(dentry, false);
-	ovl_revert_creds(old_cred);
-
-	return err;
+	with_ovl_creds(dentry->d_sb)
+		return ovl_set_redirect(dentry, false);
 }
 
 static int ovl_link(struct dentry *old, struct inode *newdir,
