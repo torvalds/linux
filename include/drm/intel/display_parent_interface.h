@@ -25,6 +25,11 @@ struct intel_display_rpm_interface {
 	void (*assert_unblock)(const struct drm_device *drm);
 };
 
+struct intel_display_irq_interface {
+	bool (*enabled)(struct drm_device *drm);
+	void (*synchronize)(struct drm_device *drm);
+};
+
 /**
  * struct intel_display_parent_interface - services parent driver provides to display
  *
@@ -40,6 +45,9 @@ struct intel_display_rpm_interface {
 struct intel_display_parent_interface {
 	/** @rpm: Runtime PM functions */
 	const struct intel_display_rpm_interface *rpm;
+
+	/** @irq: IRQ interface */
+	const struct intel_display_irq_interface *irq;
 };
 
 #endif

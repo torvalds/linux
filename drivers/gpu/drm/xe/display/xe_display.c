@@ -516,8 +516,26 @@ static void display_device_remove(struct drm_device *dev, void *arg)
 	intel_display_device_remove(display);
 }
 
+static bool irq_enabled(struct drm_device *drm)
+{
+	struct xe_device *xe = to_xe_device(drm);
+
+	return atomic_read(&xe->irq.enabled);
+}
+
+static void irq_synchronize(struct drm_device *drm)
+{
+	synchronize_irq(to_pci_dev(drm->dev)->irq);
+}
+
+static const struct intel_display_irq_interface xe_display_irq_interface = {
+	.enabled = irq_enabled,
+	.synchronize = irq_synchronize,
+};
+
 static const struct intel_display_parent_interface parent = {
 	.rpm = &xe_display_rpm_interface,
+	.irq = &xe_display_irq_interface,
 };
 
 /**
