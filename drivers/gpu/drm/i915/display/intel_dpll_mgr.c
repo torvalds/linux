@@ -4882,11 +4882,18 @@ verify_single_dpll_state(struct intel_display *display,
 				 "%s: pll enabled crtcs mismatch (expected 0x%x in 0x%x)\n",
 				 pll->info->name, pipe_mask, pll->state.pipe_mask);
 
-	INTEL_DISPLAY_STATE_WARN(display,
-				 pll->on && memcmp(&pll->state.hw_state, &dpll_hw_state,
-						   sizeof(dpll_hw_state)),
-				 "%s: pll hw state mismatch\n",
-				 pll->info->name);
+	if (INTEL_DISPLAY_STATE_WARN(display,
+				     pll->on && memcmp(&pll->state.hw_state, &dpll_hw_state,
+						       sizeof(dpll_hw_state)),
+				     "%s: pll hw state mismatch\n",
+				     pll->info->name)) {
+		struct drm_printer p = drm_dbg_printer(display->drm, DRM_UT_KMS, NULL);
+
+		drm_printf(&p, "PLL %s HW state:\n", pll->info->name);
+		intel_dpll_dump_hw_state(display, &p, &dpll_hw_state);
+		drm_printf(&p, "PLL %s SW state:\n", pll->info->name);
+		intel_dpll_dump_hw_state(display, &p, &pll->state.hw_state);
+	}
 }
 
 static bool has_alt_port_dpll(const struct intel_dpll *old_pll,
