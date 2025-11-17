@@ -4319,9 +4319,78 @@ static const struct dpll_info mtl_plls[] = {
 	{}
 };
 
+/*
+ * Compute the state for either a C10 PHY PLL, or in the case of the PTL port B,
+ * eDP on TypeC PHY case for a C20 PHY PLL.
+ */
+static int mtl_compute_non_tc_phy_dpll(struct intel_atomic_state *state,
+				       struct intel_crtc *crtc,
+				       struct intel_encoder *encoder)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct icl_port_dpll *port_dpll =
+		&crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
+	int ret;
+
+	ret = intel_cx0pll_calc_state(crtc_state, encoder, &port_dpll->hw_state);
+	if (ret)
+		return ret;
+
+	/* this is mainly for the fastset check */
+	icl_set_active_port_dpll(crtc_state, ICL_PORT_DPLL_DEFAULT);
+
+	crtc_state->port_clock = intel_cx0pll_calc_port_clock(encoder,
+							      &port_dpll->hw_state.cx0pll);
+
+	return 0;
+}
+
+static int mtl_compute_tc_phy_dplls(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc,
+				    struct intel_encoder *encoder)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct icl_port_dpll *port_dpll;
+	int ret;
+
+	/* TODO: Add state calculation for TBT PLL */
+
+	port_dpll = &crtc_state->icl_port_dplls[ICL_PORT_DPLL_MG_PHY];
+	ret = intel_cx0pll_calc_state(crtc_state, encoder, &port_dpll->hw_state);
+	if (ret)
+		return ret;
+
+	/* this is mainly for the fastset check */
+	if (old_crtc_state->intel_dpll &&
+	    old_crtc_state->intel_dpll->info->id == DPLL_ID_ICL_TBTPLL)
+		icl_set_active_port_dpll(crtc_state, ICL_PORT_DPLL_DEFAULT);
+	else
+		icl_set_active_port_dpll(crtc_state, ICL_PORT_DPLL_MG_PHY);
+
+	crtc_state->port_clock = intel_cx0pll_calc_port_clock(encoder,
+							      &port_dpll->hw_state.cx0pll);
+
+	return 0;
+}
+
+static int mtl_compute_dplls(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc,
+			     struct intel_encoder *encoder)
+{
+	if (intel_encoder_is_tc(encoder))
+		return mtl_compute_tc_phy_dplls(state, crtc, encoder);
+	else
+		return mtl_compute_non_tc_phy_dpll(state, crtc, encoder);
+}
+
 __maybe_unused
 static const struct intel_dpll_mgr mtl_pll_mgr = {
 	.dpll_info = mtl_plls,
+	.compute_dplls = mtl_compute_dplls,
 };
 
 /**
