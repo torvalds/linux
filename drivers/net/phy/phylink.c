@@ -637,6 +637,9 @@ static int phylink_validate(struct phylink *pl, unsigned long *supported,
 
 static void phylink_fill_fixedlink_supported(unsigned long *supported)
 {
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, supported);
