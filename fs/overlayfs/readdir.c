@@ -348,11 +348,7 @@ static bool ovl_fill_merge(struct dir_context *ctx, const char *name,
 
 static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data *rdd)
 {
-	int err = 0;
 	struct dentry *dentry, *dir = path->dentry;
-	const struct cred *old_cred;
-
-	old_cred = ovl_override_creds(rdd->dentry->d_sb);
 
 	while (rdd->first_maybe_whiteout) {
 		struct ovl_cache_entry *p =
@@ -365,13 +361,11 @@ static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data 
 			p->is_whiteout = ovl_is_whiteout(dentry);
 			dput(dentry);
 		} else if (PTR_ERR(dentry) == -EINTR) {
-			err = -EINTR;
-			break;
+			return -EINTR;
 		}
 	}
-	ovl_revert_creds(old_cred);
 
-	return err;
+	return 0;
 }
 
 static inline int ovl_dir_read(const struct path *realpath,
