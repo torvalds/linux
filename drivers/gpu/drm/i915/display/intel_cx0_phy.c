@@ -11,6 +11,7 @@
 #include "intel_alpm.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"
+#include "intel_display_regs.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
@@ -2078,7 +2079,7 @@ static void intel_c10pll_update_pll(struct intel_encoder *encoder,
  */
 static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 					      const struct intel_c10pll_state * const *tables,
-					      bool is_dp, int port_clock,
+					      bool is_dp, int port_clock, int lane_count,
 					      struct intel_cx0pll_state *pll_state)
 {
 	int i;
@@ -2088,7 +2089,9 @@ static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 			pll_state->c10 = *tables[i];
 			intel_cx0pll_update_ssc(encoder, pll_state, is_dp);
 			intel_c10pll_update_pll(encoder, pll_state);
+
 			pll_state->use_c10 = true;
+			pll_state->lane_count = lane_count;
 
 			return 0;
 		}
@@ -2109,7 +2112,7 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 
 	err = intel_c10pll_calc_state_from_table(encoder, tables,
 						 intel_crtc_has_dp_encoder(crtc_state),
-						 crtc_state->port_clock,
+						 crtc_state->port_clock, crtc_state->lane_count,
 						 &crtc_state->dpll_hw_state.cx0pll);
 
 	if (err == 0 || !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
@@ -2121,6 +2124,7 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 	intel_c10pll_update_pll(encoder,
 				&crtc_state->dpll_hw_state.cx0pll);
 	crtc_state->dpll_hw_state.cx0pll.use_c10 = true;
+	crtc_state->dpll_hw_state.cx0pll.lane_count = crtc_state->lane_count;
 
 	return 0;
 }
@@ -2152,6 +2156,37 @@ static int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
 	return tmpclk;
 }
 
+static int readout_enabled_lane_count(struct intel_encoder *encoder)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	u8 enabled_tx_lane_count = 0;
+	int max_tx_lane_count;
+	int tx_lane;
+
+	/*
+	 * TODO: also check inactive TX lanes in all PHY lanes owned by the
+	 * display. For now checking only those PHY lane(s) which are owned
+	 * based on the active TX lane count (i.e.
+	 *   1,2 active TX lanes -> PHY lane#0
+	 *   3,4 active TX lanes -> PHY lane#0 and PHY lane#1).
+	 */
+	max_tx_lane_count = DDI_PORT_WIDTH_GET(intel_de_read(display, DDI_BUF_CTL(encoder->port)));
+	if (!drm_WARN_ON(display->drm, max_tx_lane_count == 0))
+		max_tx_lane_count = roundup_pow_of_two(max_tx_lane_count);
+
+	for (tx_lane = 0; tx_lane < max_tx_lane_count; tx_lane++) {
+		u8 phy_lane_mask = tx_lane < 2 ? INTEL_CX0_LANE0 : INTEL_CX0_LANE1;
+		int tx = tx_lane % 2 + 1;
+		u8 val;
+
+		val = intel_cx0_read(encoder, phy_lane_mask, PHY_CX0_TX_CONTROL(tx, 2));
+		if (!(val & CONTROL2_DISABLE_SINGLE_TX))
+			enabled_tx_lane_count++;
+	}
+
+	return enabled_tx_lane_count;
+}
+
 static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 					  struct intel_cx0pll_state *cx0pll_state)
 {
@@ -2169,6 +2204,8 @@ static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 	 * to do this to read PHY internal registers from MsgBus.
 	 */
 	intel_c10_msgbus_access_begin(encoder, lane);
+
+	cx0pll_state->lane_count = readout_enabled_lane_count(encoder);
 
 	for (i = 0; i < ARRAY_SIZE(pll_state->pll); i++)
 		pll_state->pll[i] = intel_cx0_read(encoder, lane, PHY_C10_VDR_PLL(i));
@@ -2562,6 +2599,7 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 	int err = -ENOENT;
 
 	crtc_state->dpll_hw_state.cx0pll.use_c10 = false;
+	crtc_state->dpll_hw_state.cx0pll.lane_count = crtc_state->lane_count;
 
 	/* try computed C20 HDMI tables before using consolidated tables */
 	if (!is_dp)
@@ -2650,6 +2688,8 @@ static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
 	cx0pll_state->use_c10 = false;
 
 	wakeref = intel_cx0_phy_transaction_begin(encoder);
+
+	cx0pll_state->lane_count = readout_enabled_lane_count(encoder);
 
 	/* 1. Read VDR params and current context selection */
 	intel_c20_readout_vdr_params(encoder, &pll_state->vdr, &cntx);
@@ -3089,7 +3129,7 @@ static u32 intel_cx0_get_pclk_pll_ack(u8 lane_mask)
 
 static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 				  const struct intel_cx0pll_state *pll_state,
-				  bool is_dp, int port_clock, int lane_count)
+				  bool is_dp, int port_clock)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
@@ -3131,7 +3171,7 @@ static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 	 * 6. Program the enabled and disabled owned PHY lane
 	 * transmitters over message bus
 	 */
-	intel_cx0_program_phy_lane(encoder, lane_count, lane_reversal);
+	intel_cx0_program_phy_lane(encoder, pll_state->lane_count, lane_reversal);
 
 	/*
 	 * 7. Follow the Display Voltage Frequency Switching - Sequence
@@ -3174,7 +3214,7 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 {
 	__intel_cx0pll_enable(encoder, &crtc_state->dpll_hw_state.cx0pll,
 			      intel_crtc_has_dp_encoder(crtc_state),
-			      crtc_state->port_clock, crtc_state->lane_count);
+			      crtc_state->port_clock);
 }
 
 int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder)
@@ -3700,6 +3740,7 @@ void intel_cx0_pll_power_save_wa(struct intel_display *display)
 	for_each_intel_encoder(display->drm, encoder) {
 		struct intel_cx0pll_state pll_state = {};
 		int port_clock = 162000;
+		int lane_count = 4;
 
 		if (!intel_encoder_is_dig_port(encoder))
 			continue;
@@ -3712,7 +3753,7 @@ void intel_cx0_pll_power_save_wa(struct intel_display *display)
 
 		if (intel_c10pll_calc_state_from_table(encoder,
 						       mtl_c10_edp_tables,
-						       true, port_clock,
+						       true, port_clock, lane_count,
 						       &pll_state) < 0) {
 			drm_WARN_ON(display->drm,
 				    "Unable to calc C10 state from the tables\n");
@@ -3723,7 +3764,7 @@ void intel_cx0_pll_power_save_wa(struct intel_display *display)
 			    "[ENCODER:%d:%s] Applying power saving workaround on disabled PLL\n",
 			    encoder->base.base.id, encoder->base.name);
 
-		__intel_cx0pll_enable(encoder, &pll_state, true, port_clock, 4);
+		__intel_cx0pll_enable(encoder, &pll_state, true, port_clock);
 		intel_cx0pll_disable(encoder);
 	}
 }

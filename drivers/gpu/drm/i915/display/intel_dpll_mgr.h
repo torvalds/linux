@@ -267,6 +267,7 @@ struct intel_cx0pll_state {
 		struct intel_c10pll_state c10;
 		struct intel_c20pll_state c20;
 	};
+	int lane_count;
 	bool ssc_enabled;
 	bool use_c10;
 	bool tbt_mode;
