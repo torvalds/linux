@@ -458,25 +458,26 @@ static void iomap_read_end(struct folio *folio, size_t bytes_submitted)
 		spin_lock_irq(&ifs->state_lock);
 		if (!ifs->read_bytes_pending) {
 			WARN_ON_ONCE(bytes_submitted);
-			end_read = true;
-		} else {
-			/*
-			 * Subtract any bytes that were initially accounted to
-			 * read_bytes_pending but skipped for IO. The +1
-			 * accounts for the bias we added in iomap_read_init().
-			 */
-			size_t bytes_not_submitted = folio_size(folio) + 1 -
-					bytes_submitted;
-			ifs->read_bytes_pending -= bytes_not_submitted;
-			/*
-			 * If !ifs->read_bytes_pending, this means all pending
-			 * reads by the IO helper have already completed, which
-			 * means we need to end the folio read here. If
-			 * ifs->read_bytes_pending != 0, the IO helper will end
-			 * the folio read.
-			 */
-			end_read = !ifs->read_bytes_pending;
+			spin_unlock_irq(&ifs->state_lock);
+			folio_unlock(folio);
+			return;
 		}
+
+		/*
+		 * Subtract any bytes that were initially accounted to
+		 * read_bytes_pending but skipped for IO. The +1 accounts for
+		 * the bias we added in iomap_read_init().
+		 */
+		ifs->read_bytes_pending -=
+			(folio_size(folio) + 1 - bytes_submitted);
+
+		/*
+		 * If !ifs->read_bytes_pending, this means all pending reads by
+		 * the IO helper have already completed, which means we need to
+		 * end the folio read here. If ifs->read_bytes_pending != 0,
+		 * the IO helper will end the folio read.
+		 */
+		end_read = !ifs->read_bytes_pending;
 		if (end_read)
 			uptodate = ifs_is_fully_uptodate(folio, ifs);
 		spin_unlock_irq(&ifs->state_lock);
