@@ -1182,16 +1182,16 @@ xfs_zone_gc_mount(
 		goto out_put_gc_zone;
 	}
 
-	mp->m_zone_info->zi_gc_thread = kthread_create(xfs_zoned_gcd, data,
+	zi->zi_gc_thread = kthread_create(xfs_zoned_gcd, data,
 			"xfs-zone-gc/%s", mp->m_super->s_id);
-	if (IS_ERR(mp->m_zone_info->zi_gc_thread)) {
+	if (IS_ERR(zi->zi_gc_thread)) {
 		xfs_warn(mp, "unable to create zone gc thread");
-		error = PTR_ERR(mp->m_zone_info->zi_gc_thread);
+		error = PTR_ERR(zi->zi_gc_thread);
 		goto out_free_gc_data;
 	}
 
 	/* xfs_zone_gc_start will unpark for rw mounts */
-	kthread_park(mp->m_zone_info->zi_gc_thread);
+	kthread_park(zi->zi_gc_thread);
 	return 0;
 
 out_free_gc_data:
