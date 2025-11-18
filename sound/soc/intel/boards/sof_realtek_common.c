@@ -186,13 +186,14 @@ static const struct snd_soc_ops rt1011_ops = {
 static int rt1011_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	unsigned int num_codecs = get_num_codecs(RT1011_ACPI_HID);
 	int ret;
 
 	switch (num_codecs) {
 	case 2:
 		if (!soc_intel_is_cml()) {
-			ret = snd_soc_dapm_new_controls(&card->dapm, realtek_2spk_widgets,
+			ret = snd_soc_dapm_new_controls(dapm, realtek_2spk_widgets,
 							ARRAY_SIZE(realtek_2spk_widgets));
 			if (ret) {
 				dev_err(rtd->dev, "fail to add rt1011 widgets, ret %d\n",
@@ -208,7 +209,7 @@ static int rt1011_init(struct snd_soc_pcm_runtime *rtd)
 				return ret;
 			}
 
-			ret = snd_soc_dapm_add_routes(&card->dapm, speaker_map_lr,
+			ret = snd_soc_dapm_add_routes(dapm, speaker_map_lr,
 						      ARRAY_SIZE(speaker_map_lr));
 			if (ret) {
 				dev_err(rtd->dev, "fail to add rt1011 routes, ret %d\n",
@@ -225,24 +226,21 @@ static int rt1011_init(struct snd_soc_pcm_runtime *rtd)
 		 */
 		fallthrough;
 	case 4:
-		ret = snd_soc_dapm_new_controls(&card->dapm, realtek_4spk_widgets,
-						num_codecs);
+		ret = snd_soc_dapm_new_controls(dapm, realtek_4spk_widgets, num_codecs);
 		if (ret) {
 			dev_err(rtd->dev, "fail to add rt1011 widgets, ret %d\n",
 				ret);
 			return ret;
 		}
 
-		ret = snd_soc_add_card_controls(card, realtek_4spk_kcontrols,
-						num_codecs);
+		ret = snd_soc_add_card_controls(card, realtek_4spk_kcontrols, num_codecs);
 		if (ret) {
 			dev_err(rtd->dev, "fail to add rt1011 controls, ret %d\n",
 				ret);
 			return ret;
 		}
 
-		ret = snd_soc_dapm_add_routes(&card->dapm, rt1011_4spk_routes,
-					      num_codecs);
+		ret = snd_soc_dapm_add_routes(dapm, rt1011_4spk_routes, num_codecs);
 		if (ret) {
 			dev_err(rtd->dev, "fail to add rt1011 routes, ret %d\n",
 				ret);
@@ -344,9 +342,10 @@ static const struct snd_soc_ops rt1015p_ops = {
 static int rt1015p_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, realtek_2spk_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, realtek_2spk_widgets,
 					ARRAY_SIZE(realtek_2spk_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "fail to add rt1015p widgets, ret %d\n", ret);
@@ -360,7 +359,7 @@ static int rt1015p_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt1015p_dapm_routes,
+	ret = snd_soc_dapm_add_routes(dapm, rt1015p_dapm_routes,
 				      ARRAY_SIZE(rt1015p_dapm_routes));
 	if (ret)
 		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);
@@ -481,12 +480,13 @@ static struct snd_soc_dai_link_component rt1015_components[] = {
 static int speaker_codec_init_lr(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	unsigned int num_codecs = get_num_codecs(RT1015_ACPI_HID);
 	int ret;
 
 	switch (num_codecs) {
 	case 2:
-		ret = snd_soc_dapm_new_controls(&card->dapm, realtek_2spk_widgets,
+		ret = snd_soc_dapm_new_controls(dapm, realtek_2spk_widgets,
 						ARRAY_SIZE(realtek_2spk_widgets));
 		if (ret) {
 			dev_err(rtd->dev, "fail to add rt1015 widgets, ret %d\n",
@@ -502,7 +502,7 @@ static int speaker_codec_init_lr(struct snd_soc_pcm_runtime *rtd)
 			return ret;
 		}
 
-		ret = snd_soc_dapm_add_routes(&rtd->card->dapm, speaker_map_lr,
+		ret = snd_soc_dapm_add_routes(dapm, speaker_map_lr,
 					      ARRAY_SIZE(speaker_map_lr));
 		if (ret) {
 			dev_err(rtd->dev, "fail to add rt1015 routes, ret %d\n",
@@ -561,9 +561,10 @@ static struct snd_soc_dai_link_component rt1308_components[] = {
 static int rt1308_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt1308_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, rt1308_dapm_widgets,
 					ARRAY_SIZE(rt1308_dapm_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "fail to add dapm controls, ret %d\n", ret);
@@ -577,7 +578,7 @@ static int rt1308_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt1308_dapm_routes,
+	ret = snd_soc_dapm_add_routes(dapm, rt1308_dapm_routes,
 				      ARRAY_SIZE(rt1308_dapm_routes));
 
 	if (ret)
@@ -650,9 +651,10 @@ static struct snd_soc_dai_link_component rt1019p_components[] = {
 static int rt1019p_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, realtek_2spk_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, realtek_2spk_widgets,
 					ARRAY_SIZE(realtek_2spk_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "fail to add rt1019p widgets, ret %d\n", ret);
@@ -666,7 +668,7 @@ static int rt1019p_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt1019p_dapm_routes,
+	ret = snd_soc_dapm_add_routes(dapm, rt1019p_dapm_routes,
 				      ARRAY_SIZE(rt1019p_dapm_routes));
 	if (ret) {
 		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);

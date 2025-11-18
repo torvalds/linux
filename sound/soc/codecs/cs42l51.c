@@ -567,7 +567,7 @@ static int cs42l51_component_probe(struct snd_soc_component *component)
 	struct cs42l51_private *cs42l51;
 
 	cs42l51 = snd_soc_component_get_drvdata(component);
-	dapm = snd_soc_component_get_dapm(component);
+	dapm = snd_soc_component_to_dapm(component);
 
 	if (cs42l51->mclk_handle)
 		snd_soc_dapm_new_controls(dapm, cs42l51_dapm_mclk_widgets, 1);

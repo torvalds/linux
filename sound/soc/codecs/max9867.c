@@ -556,14 +556,18 @@ static struct snd_soc_dai_driver max9867_dai[] = {
 #ifdef CONFIG_PM
 static int max9867_suspend(struct snd_soc_component *component)
 {
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
 static int max9867_resume(struct snd_soc_component *component)
 {
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
@@ -577,6 +581,7 @@ static int max9867_set_bias_level(struct snd_soc_component *component,
 {
 	int err;
 	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -585,7 +590,7 @@ static int max9867_set_bias_level(struct snd_soc_component *component,
 			return err;
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			err = regcache_sync(max9867->regmap);
 			if (err)
 				return err;

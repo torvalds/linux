@@ -71,9 +71,11 @@ static int omap3pandora_dac_event(struct snd_soc_dapm_widget *w,
 	 * VCC power on/off and /PD pin high/low
 	 */
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		struct device *dev = snd_soc_dapm_to_dev(w->dapm);
+
 		ret = regulator_enable(omap3pandora_dac_reg);
 		if (ret) {
-			dev_err(w->dapm->dev, "Failed to power DAC: %d\n", ret);
+			dev_err(dev, "Failed to power DAC: %d\n", ret);
 			return ret;
 		}
 		mdelay(1);
@@ -139,32 +141,32 @@ static const struct snd_soc_dapm_route omap3pandora_map[] = {
 
 static int omap3pandora_out_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(rtd->card);
 
 	/* All TWL4030 output pins are floating */
-	snd_soc_dapm_nc_pin(dapm, "EARPIECE");
-	snd_soc_dapm_nc_pin(dapm, "PREDRIVEL");
-	snd_soc_dapm_nc_pin(dapm, "PREDRIVER");
-	snd_soc_dapm_nc_pin(dapm, "HSOL");
-	snd_soc_dapm_nc_pin(dapm, "HSOR");
-	snd_soc_dapm_nc_pin(dapm, "CARKITL");
-	snd_soc_dapm_nc_pin(dapm, "CARKITR");
-	snd_soc_dapm_nc_pin(dapm, "HFL");
-	snd_soc_dapm_nc_pin(dapm, "HFR");
-	snd_soc_dapm_nc_pin(dapm, "VIBRA");
+	snd_soc_dapm_disable_pin(dapm, "EARPIECE");
+	snd_soc_dapm_disable_pin(dapm, "PREDRIVEL");
+	snd_soc_dapm_disable_pin(dapm, "PREDRIVER");
+	snd_soc_dapm_disable_pin(dapm, "HSOL");
+	snd_soc_dapm_disable_pin(dapm, "HSOR");
+	snd_soc_dapm_disable_pin(dapm, "CARKITL");
+	snd_soc_dapm_disable_pin(dapm, "CARKITR");
+	snd_soc_dapm_disable_pin(dapm, "HFL");
+	snd_soc_dapm_disable_pin(dapm, "HFR");
+	snd_soc_dapm_disable_pin(dapm, "VIBRA");
 
 	return 0;
 }
 
 static int omap3pandora_in_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(rtd->card);
 
 	/* Not comnnected */
-	snd_soc_dapm_nc_pin(dapm, "HSMIC");
-	snd_soc_dapm_nc_pin(dapm, "CARKITMIC");
-	snd_soc_dapm_nc_pin(dapm, "DIGIMIC0");
-	snd_soc_dapm_nc_pin(dapm, "DIGIMIC1");
+	snd_soc_dapm_disable_pin(dapm, "HSMIC");
+	snd_soc_dapm_disable_pin(dapm, "CARKITMIC");
+	snd_soc_dapm_disable_pin(dapm, "DIGIMIC0");
+	snd_soc_dapm_disable_pin(dapm, "DIGIMIC1");
 
 	return 0;
 }

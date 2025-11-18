@@ -928,7 +928,7 @@ static void rt5682_enable_push_button_irq(struct snd_soc_component *component,
 static int rt5682_headset_detect(struct snd_soc_component *component, int jack_insert)
 {
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = &component->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	unsigned int val, count;
 
 	if (jack_insert) {
@@ -1115,7 +1115,7 @@ void rt5682_jack_detect_handler(struct work_struct *work)
 		}
 	}
 
-	dapm = snd_soc_component_get_dapm(rt5682->component);
+	dapm = snd_soc_component_to_dapm(rt5682->component);
 
 	snd_soc_dapm_mutex_lock(dapm);
 	mutex_lock(&rt5682->calibrate_mutex);
@@ -2595,7 +2595,7 @@ static int rt5682_wclk_prepare(struct clk_hw *hw)
 		return -EINVAL;
 
 	component = rt5682->component;
-	dapm = snd_soc_component_get_dapm(component);
+	dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_dapm_mutex_lock(dapm);
 
@@ -2633,7 +2633,7 @@ static void rt5682_wclk_unprepare(struct clk_hw *hw)
 		return;
 
 	component = rt5682->component;
-	dapm = snd_soc_component_get_dapm(component);
+	dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_dapm_mutex_lock(dapm);
 
@@ -2928,9 +2928,9 @@ EXPORT_SYMBOL_GPL(rt5682_register_dai_clks);
 static int rt5682_probe(struct snd_soc_component *component)
 {
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct sdw_slave *slave;
 	unsigned long time;
-	struct snd_soc_dapm_context *dapm = &component->dapm;
 
 	rt5682->component = component;
 

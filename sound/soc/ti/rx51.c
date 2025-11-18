@@ -42,7 +42,7 @@ static int rx51_jack_func;
 
 static void rx51_ext_control(struct snd_soc_dapm_context *dapm)
 {
-	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(dapm);
 	struct rx51_audio_pdata *pdata = snd_soc_card_get_drvdata(card);
 	int hp = 0, hs = 0, tvout = 0;
 
@@ -89,10 +89,10 @@ static int rx51_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(rtd->card);
 
 	snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_CHANNELS, 2);
-	rx51_ext_control(&card->dapm);
+	rx51_ext_control(dapm);
 
 	return 0;
 }
@@ -125,12 +125,13 @@ static int rx51_set_spk(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 
 	if (rx51_spk_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
 	rx51_spk_func = ucontrol->value.enumerated.item[0];
-	rx51_ext_control(&card->dapm);
+	rx51_ext_control(dapm);
 
 	return 1;
 }
@@ -139,7 +140,7 @@ static int rx51_spk_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *k, int event)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(dapm);
 	struct rx51_audio_pdata *pdata = snd_soc_card_get_drvdata(card);
 
 	gpiod_set_raw_value_cansleep(pdata->speaker_amp_gpio,
@@ -160,12 +161,13 @@ static int rx51_set_input(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 
 	if (rx51_dmic_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
 	rx51_dmic_func = ucontrol->value.enumerated.item[0];
-	rx51_ext_control(&card->dapm);
+	rx51_ext_control(dapm);
 
 	return 1;
 }
@@ -182,12 +184,13 @@ static int rx51_set_jack(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 
 	if (rx51_jack_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
 	rx51_jack_func = ucontrol->value.enumerated.item[0];
-	rx51_ext_control(&card->dapm);
+	rx51_ext_control(dapm);
 
 	return 1;
 }

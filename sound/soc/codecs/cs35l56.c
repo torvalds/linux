@@ -896,10 +896,10 @@ err:
 
 static struct snd_soc_dapm_context *cs35l56_power_up_for_cal(struct cs35l56_private *cs35l56)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cs35l56->component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cs35l56->component);
 	int ret;
 
-	ret = snd_soc_component_enable_pin(cs35l56->component, "Calibrate");
+	ret = snd_soc_dapm_enable_pin(dapm, "Calibrate");
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -910,9 +910,9 @@ static struct snd_soc_dapm_context *cs35l56_power_up_for_cal(struct cs35l56_priv
 
 static void cs35l56_power_down_after_cal(struct cs35l56_private *cs35l56)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cs35l56->component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cs35l56->component);
 
-	snd_soc_component_disable_pin(cs35l56->component, "Calibrate");
+	snd_soc_dapm_disable_pin(dapm, "Calibrate");
 	snd_soc_dapm_sync(dapm);
 }
 
@@ -1131,6 +1131,7 @@ static int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
 
 static int cs35l56_component_probe(struct snd_soc_component *component)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
 	struct dentry *debugfs_root = component->debugfs_root;
 	unsigned short vendor, device;
@@ -1204,7 +1205,7 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return dev_err_probe(cs35l56->base.dev, ret, "unable to add controls\n");
 
-	ret = snd_soc_component_disable_pin(component, "Calibrate");
+	ret = snd_soc_dapm_disable_pin(dapm, "Calibrate");
 	if (ret)
 		return ret;
 
@@ -1242,6 +1243,7 @@ static int cs35l56_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
@@ -1249,7 +1251,7 @@ static int cs35l56_set_bias_level(struct snd_soc_component *component,
 		 * Wait for patching to complete when transitioning from
 		 * BIAS_OFF to BIAS_STANDBY
 		 */
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF)
 			cs35l56_wait_dsp_ready(cs35l56);
 
 		break;

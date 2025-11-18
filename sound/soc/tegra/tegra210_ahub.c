@@ -17,7 +17,7 @@
 static int tegra_ahub_get_value_enum(struct snd_kcontrol *kctl,
 				     struct snd_ctl_elem_value *uctl)
 {
-	struct snd_soc_component *cmpnt = snd_soc_dapm_kcontrol_component(kctl);
+	struct snd_soc_component *cmpnt = snd_soc_dapm_kcontrol_to_component(kctl);
 	struct tegra_ahub *ahub = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *e = (struct soc_enum *)kctl->private_value;
 	unsigned int reg, i, bit_pos = 0;
@@ -54,9 +54,9 @@ static int tegra_ahub_get_value_enum(struct snd_kcontrol *kctl,
 static int tegra_ahub_put_value_enum(struct snd_kcontrol *kctl,
 				     struct snd_ctl_elem_value *uctl)
 {
-	struct snd_soc_component *cmpnt = snd_soc_dapm_kcontrol_component(kctl);
+	struct snd_soc_component *cmpnt = snd_soc_dapm_kcontrol_to_component(kctl);
 	struct tegra_ahub *ahub = snd_soc_component_get_drvdata(cmpnt);
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kctl);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kctl);
 	struct soc_enum *e = (struct soc_enum *)kctl->private_value;
 	struct snd_soc_dapm_update update[TEGRA_XBAR_UPDATE_MAX_REG] = { };
 	unsigned int *item = uctl->value.enumerated.item;

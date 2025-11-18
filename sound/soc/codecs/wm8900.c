@@ -1023,6 +1023,7 @@ static struct snd_soc_dai_driver wm8900_dai = {
 static int wm8900_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	u16 reg;
 
 	switch (level) {
@@ -1041,7 +1042,7 @@ static int wm8900_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Charge capacitors if initial power up */
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			/* STARTUP_BIAS_ENA on */
 			snd_soc_component_write(component, WM8900_REG_POWER1,
 				     WM8900_REG_POWER1_STARTUP_BIAS_ENA);
@@ -1115,6 +1116,7 @@ static int wm8900_set_bias_level(struct snd_soc_component *component,
 static int wm8900_suspend(struct snd_soc_component *component)
 {
 	struct wm8900_priv *wm8900 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
 	int ret;
@@ -1129,7 +1131,7 @@ static int wm8900_suspend(struct snd_soc_component *component)
 	wm8900->fll_out = fll_out;
 	wm8900->fll_in = fll_in;
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1137,6 +1139,7 @@ static int wm8900_suspend(struct snd_soc_component *component)
 static int wm8900_resume(struct snd_soc_component *component)
 {
 	struct wm8900_priv *wm8900 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	wm8900_reset(component);
@@ -1147,7 +1150,7 @@ static int wm8900_resume(struct snd_soc_component *component)
 		return ret;
 	}
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	/* Restart the FLL? */
 	if (wm8900->fll_out) {
@@ -1169,6 +1172,7 @@ static int wm8900_resume(struct snd_soc_component *component)
 
 static int wm8900_probe(struct snd_soc_component *component)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int reg;
 
 	reg = snd_soc_component_read(component, WM8900_REG_ID);
@@ -1180,7 +1184,7 @@ static int wm8900_probe(struct snd_soc_component *component)
 	wm8900_reset(component);
 
 	/* Turn the chip on */
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the volume update bits */
 	snd_soc_component_update_bits(component, WM8900_REG_LINVOL, 0x100, 0x100);

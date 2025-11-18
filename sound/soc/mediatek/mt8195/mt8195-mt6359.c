@@ -451,6 +451,7 @@ static int mt8195_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt_afe);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
 	priv->i2so1_mclk = afe_priv->clk[MT8195_CLK_TOP_APLL12_DIV2];
@@ -477,7 +478,7 @@ static int mt8195_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, mt8195_rt5682_routes,
+	ret = snd_soc_dapm_add_routes(dapm, mt8195_rt5682_routes,
 				      ARRAY_SIZE(mt8195_rt5682_routes));
 	if (ret)
 		dev_err(rtd->dev, "unable to add dapm routes, ret %d\n", ret);
@@ -547,9 +548,10 @@ static const struct snd_soc_ops mt8195_sof_be_ops = {
 static int mt8195_rt1011_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, mt8195_dual_speaker_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, mt8195_dual_speaker_widgets,
 					ARRAY_SIZE(mt8195_dual_speaker_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add dapm controls, ret %d\n", ret);
@@ -564,7 +566,7 @@ static int mt8195_rt1011_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, mt8195_rt1011_routes,
+	ret = snd_soc_dapm_add_routes(dapm, mt8195_rt1011_routes,
 				      ARRAY_SIZE(mt8195_rt1011_routes));
 	if (ret)
 		dev_err(rtd->dev, "unable to add dapm routes, ret %d\n", ret);
@@ -575,9 +577,10 @@ static int mt8195_rt1011_init(struct snd_soc_pcm_runtime *rtd)
 static int mt8195_dumb_amp_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, mt8195_speaker_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, mt8195_speaker_widgets,
 					ARRAY_SIZE(mt8195_speaker_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add dapm controls, ret %d\n", ret);
@@ -598,13 +601,14 @@ static int mt8195_dumb_amp_init(struct snd_soc_pcm_runtime *rtd)
 static int mt8195_rt1019_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
 	ret = mt8195_dumb_amp_init(rtd);
 	if (ret)
 		return ret;
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, mt8195_rt1019_routes,
+	ret = snd_soc_dapm_add_routes(dapm, mt8195_rt1019_routes,
 				      ARRAY_SIZE(mt8195_rt1019_routes));
 	if (ret)
 		dev_err(rtd->dev, "unable to add dapm routes, ret %d\n", ret);
@@ -615,9 +619,10 @@ static int mt8195_rt1019_init(struct snd_soc_pcm_runtime *rtd)
 static int mt8195_max98390_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, mt8195_dual_speaker_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, mt8195_dual_speaker_widgets,
 					ARRAY_SIZE(mt8195_dual_speaker_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add dapm controls, ret %d\n", ret);
@@ -632,7 +637,7 @@ static int mt8195_max98390_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, mt8195_max98390_routes,
+	ret = snd_soc_dapm_add_routes(dapm, mt8195_max98390_routes,
 				      ARRAY_SIZE(mt8195_max98390_routes));
 	if (ret)
 		dev_err(rtd->dev, "unable to add dapm routes, ret %d\n", ret);
@@ -655,7 +660,7 @@ static int mt8195_etdm_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 static int mt8195_set_bias_level_post(struct snd_soc_card *card,
 	struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level)
 {
-	struct snd_soc_component *component = dapm->component;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct mtk_soc_card_data *soc_card_data = snd_soc_card_get_drvdata(card);
 	struct mt8195_mt6359_priv *priv = soc_card_data->mach_priv;
 	int ret;

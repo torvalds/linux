@@ -1535,6 +1535,7 @@ static int rt5631_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
 	struct rt5631_priv *rt5631 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -1545,7 +1546,7 @@ static int rt5631_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			snd_soc_component_update_bits(component, RT5631_PWR_MANAG_ADD3,
 				RT5631_PWR_VREF | RT5631_PWR_MAIN_BIAS,
 				RT5631_PWR_VREF | RT5631_PWR_MAIN_BIAS);
@@ -1575,6 +1576,7 @@ static int rt5631_set_bias_level(struct snd_soc_component *component,
 static int rt5631_probe(struct snd_soc_component *component)
 {
 	struct rt5631_priv *rt5631 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	unsigned int val;
 
 	val = rt5631_read_index(component, RT5631_ADDA_MIXER_INTL_REG3);
@@ -1613,7 +1615,7 @@ static int rt5631_probe(struct snd_soc_component *component)
 			RT5631_DMIC_R_CH_LATCH_RISING);
 	}
 
-	snd_soc_component_init_bias_level(component, SND_SOC_BIAS_STANDBY);
+	snd_soc_dapm_init_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }

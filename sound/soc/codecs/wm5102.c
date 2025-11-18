@@ -1949,7 +1949,7 @@ static irqreturn_t wm5102_adsp2_irq(int irq, void *data)
 
 static int wm5102_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm5102_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->core.arizona;
 	int ret;
@@ -1971,7 +1971,7 @@ static int wm5102_component_probe(struct snd_soc_component *component)
 
 	arizona_init_gpio(component);
 
-	snd_soc_component_disable_pin(component, "HAPTICS");
+	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
 
 	priv->core.arizona->dapm = dapm;
 

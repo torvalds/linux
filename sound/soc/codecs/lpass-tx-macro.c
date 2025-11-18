@@ -800,7 +800,7 @@ static void tx_macro_update_smic_sel_v9_2(struct snd_soc_component *component,
 static int tx_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct tx_macro *tx = snd_soc_component_get_drvdata(component);
@@ -859,7 +859,7 @@ static int tx_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 static int tx_macro_tx_mixer_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
 	u32 dai_id = widget->shift;
@@ -877,7 +877,7 @@ static int tx_macro_tx_mixer_get(struct snd_kcontrol *kcontrol,
 static int tx_macro_tx_mixer_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
 	struct snd_soc_dapm_update *update = NULL;
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
@@ -2081,7 +2081,7 @@ static const struct snd_kcontrol_new tx_macro_snd_controls[] = {
 
 static int tx_macro_component_extend(struct snd_soc_component *comp)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(comp);
 	struct tx_macro *tx = snd_soc_component_get_drvdata(comp);
 	int ret;
 

@@ -390,7 +390,7 @@ static const struct snd_soc_dapm_route sun8i_codec_headphone_routes[] = {
 
 static int sun8i_codec_add_headphone(struct snd_soc_component *cmpnt)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cmpnt);
 	struct device *dev = cmpnt->dev;
 	int ret;
 
@@ -428,7 +428,7 @@ static const struct snd_soc_dapm_widget sun8i_codec_mbias_widgets[] = {
 
 static int sun8i_codec_add_mbias(struct snd_soc_component *cmpnt)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cmpnt);
 	struct device *dev = cmpnt->dev;
 	int ret;
 
@@ -449,7 +449,7 @@ static const struct snd_soc_dapm_widget sun8i_codec_hmic_widgets[] = {
 
 static int sun8i_codec_add_hmic(struct snd_soc_component *cmpnt)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cmpnt);
 	struct device *dev = cmpnt->dev;
 	int ret;
 
@@ -486,7 +486,7 @@ static const struct snd_soc_dapm_route sun8i_codec_linein_routes[] = {
 
 static int sun8i_codec_add_linein(struct snd_soc_component *cmpnt)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cmpnt);
 	struct device *dev = cmpnt->dev;
 	int ret;
 
@@ -567,7 +567,7 @@ static const struct snd_soc_dapm_route sun8i_codec_lineout_routes[] = {
 
 static int sun8i_codec_add_lineout(struct snd_soc_component *cmpnt)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cmpnt);
 	struct device *dev = cmpnt->dev;
 	int ret;
 
@@ -632,7 +632,7 @@ static const struct snd_soc_dapm_route sun8i_codec_mic2_routes[] = {
 
 static int sun8i_codec_add_mic2(struct snd_soc_component *cmpnt)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cmpnt);
 	struct device *dev = cmpnt->dev;
 	int ret;
 
@@ -688,7 +688,7 @@ static const struct sun8i_codec_analog_quirks sun8i_h3_quirks = {
 static int sun8i_codec_analog_add_mixer(struct snd_soc_component *cmpnt,
 					const struct sun8i_codec_analog_quirks *quirks)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(cmpnt);
 	struct device *dev = cmpnt->dev;
 	int ret;
 
