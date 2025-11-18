@@ -61,4 +61,44 @@ xe_force_wake_ref_has_domain(unsigned int fw_ref, enum xe_force_wake_domains dom
 	return fw_ref & domain;
 }
 
+struct xe_force_wake_ref {
+	struct xe_force_wake *fw;
+	unsigned int domains;
+};
+
+static struct xe_force_wake_ref
+xe_force_wake_constructor(struct xe_force_wake *fw, unsigned int domains)
+{
+	struct xe_force_wake_ref fw_ref = { .fw = fw };
+
+	fw_ref.domains = xe_force_wake_get(fw, domains);
+
+	return fw_ref;
+}
+
+DEFINE_CLASS(xe_force_wake, struct xe_force_wake_ref,
+	     xe_force_wake_put(_T.fw, _T.domains),
+	     xe_force_wake_constructor(fw, domains),
+	     struct xe_force_wake *fw, unsigned int domains);
+
+/*
+ * Scoped helper for the forcewake class, using the same trick as scoped_guard()
+ * to bind the lifetime to the next statement/block.
+ */
+#define __xe_with_force_wake(ref, fw, domains, done) \
+	for (CLASS(xe_force_wake, ref)(fw, domains), *(done) = NULL; \
+	     !(done); (done) = (void *)1)
+
+#define xe_with_force_wake(ref, fw, domains) \
+	__xe_with_force_wake(ref, fw, domains, __UNIQUE_ID(done))
+
+/*
+ * Used when xe_force_wake_constructor() has already been called by another
+ * function and the current function is responsible for releasing the forcewake
+ * reference in all possible cases and error paths.
+ */
+DEFINE_CLASS(xe_force_wake_release_only, struct xe_force_wake_ref,
+	     if (_T.fw) xe_force_wake_put(_T.fw, _T.domains), fw_ref,
+	     struct xe_force_wake_ref fw_ref);
+
 #endif

@@ -166,6 +166,13 @@ static int domain_sleep_wait(struct xe_gt *gt,
  * xe_force_wake_ref_has_domain() function. Caller must call
  * xe_force_wake_put() function to decrease incremented refcounts.
  *
+ * When possible, scope-based forcewake (through CLASS(xe_force_wake, ...) or
+ * xe_with_force_wake()) should be used instead of direct calls to this
+ * function.  Direct usage of get/put should only be used when the function
+ * has goto-based flows that can interfere with scope-based cleanup, or when
+ * the lifetime of the forcewake reference does not match a specific scope
+ * (e.g., forcewake obtained in one function and released in a different one).
+ *
  * Return: opaque reference to woken domains or zero if none of requested
  * domains were awake.
  */
