@@ -5497,6 +5497,13 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 			info->Attributes |= cpu_to_le32(FILE_NAMED_STREAMS);
 
 		info->MaxPathNameComponentLength = cpu_to_le32(stfs.f_namelen);
+		/*
+		 * some application(potableapp) can not run on ksmbd share
+		 * because only NTFS handle security setting on windows.
+		 * So Although local fs(EXT4 or F2fs, etc) is not NTFS,
+		 * ksmbd should show share as NTFS. Later, If needed, we can add
+		 * fs type(s) parameter to change fs type user wanted.
+		 */
 		len = smbConvertToUTF16((__le16 *)info->FileSystemName,
 					"NTFS", PATH_MAX, conn->local_nls, 0);
 		len = len * 2;
