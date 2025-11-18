@@ -65,7 +65,6 @@ patternProperties:
             enum: [ 2, 3, 5, 6, 8, 9, 11, 12, 13, 14, 17, 18, 20, 21, 23,
                     24 ]
 
-
         required:
           - pinmux
 
