@@ -661,7 +661,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long address, pte_t *ptep)
 {
 #ifdef CONFIG_SMP
-	pte_t pte = __pte(atomic_long_xchg((atomic_long_t *)ptep, 0));
+	pte_t pte = __pte(xchg(&ptep->pte, 0));
 #else
 	pte_t pte = *ptep;
 
@@ -1004,7 +1004,7 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 					unsigned long address, pmd_t *pmdp)
 {
 #ifdef CONFIG_SMP
-	pmd_t pmd = __pmd(atomic_long_xchg((atomic_long_t *)pmdp, 0));
+	pmd_t pmd = __pmd(xchg(&pmdp->pmd, 0));
 #else
 	pmd_t pmd = *pmdp;
 
