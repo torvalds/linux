@@ -377,6 +377,7 @@ struct mana_ethtool_stats {
 	u64 wake_queue;
 	u64 tx_cqe_err;
 	u64 tx_cqe_unknown_type;
+	u64 tx_linear_pkt_cnt;
 	u64 rx_coalesced_err;
 	u64 rx_cqe_unknown_type;
 };
