@@ -68,6 +68,7 @@ struct loop_device {
 	struct rb_root          worker_tree;
 	struct timer_list       timer;
 	bool			sysfs_inited;
+	unsigned 		lo_nr_blocking_writes;
 
 	struct request_queue	*lo_queue;
 	struct blk_mq_tag_set	tag_set;
@@ -89,6 +90,8 @@ struct loop_cmd {
 
 #define LOOP_IDLE_WORKER_TIMEOUT (60 * HZ)
 #define LOOP_DEFAULT_HW_Q_DEPTH 128
+
+static void loop_queue_work(struct loop_device *lo, struct loop_cmd *cmd);
 
 static DEFINE_IDR(loop_index_idr);
 static DEFINE_MUTEX(loop_ctl_mutex);
@@ -321,6 +324,15 @@ static void lo_rw_aio_do_completion(struct loop_cmd *cmd)
 
 	if (!atomic_dec_and_test(&cmd->ref))
 		return;
+
+	/* -EAGAIN could be returned from bdev's ->ki_complete */
+	if (cmd->ret == -EAGAIN) {
+		struct loop_device *lo = rq->q->queuedata;
+
+		loop_queue_work(lo, cmd);
+		return;
+	}
+
 	kfree(cmd->bvec);
 	cmd->bvec = NULL;
 	if (req_op(rq) == REQ_OP_WRITE)
@@ -337,24 +349,28 @@ static void lo_rw_aio_complete(struct kiocb *iocb, long ret)
 	lo_rw_aio_do_completion(cmd);
 }
 
-static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
-		     loff_t pos, int rw)
+static inline unsigned lo_cmd_nr_bvec(struct loop_cmd *cmd)
 {
-	struct iov_iter iter;
-	struct req_iterator rq_iter;
-	struct bio_vec *bvec;
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
-	struct bio *bio = rq->bio;
-	struct file *file = lo->lo_backing_file;
+	struct req_iterator rq_iter;
 	struct bio_vec tmp;
-	unsigned int offset;
 	int nr_bvec = 0;
-	int ret;
 
 	rq_for_each_bvec(tmp, rq, rq_iter)
 		nr_bvec++;
 
+	return nr_bvec;
+}
+
+static int lo_rw_aio_prep(struct loop_device *lo, struct loop_cmd *cmd,
+			  unsigned nr_bvec, loff_t pos)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+
 	if (rq->bio != rq->biotail) {
+		struct req_iterator rq_iter;
+		struct bio_vec *bvec;
+		struct bio_vec tmp;
 
 		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
 				     GFP_NOIO);
@@ -372,24 +388,12 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 			*bvec = tmp;
 			bvec++;
 		}
-		bvec = cmd->bvec;
-		offset = 0;
 	} else {
-		/*
-		 * Same here, this bio may be started from the middle of the
-		 * 'bvec' because of bio splitting, so offset from the bvec
-		 * must be passed to iov iterator
-		 */
-		offset = bio->bi_iter.bi_bvec_done;
-		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+		cmd->bvec = NULL;
 	}
-	atomic_set(&cmd->ref, 2);
-
-	iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
-	iter.iov_offset = offset;
 
 	cmd->iocb.ki_pos = pos;
-	cmd->iocb.ki_filp = file;
+	cmd->iocb.ki_filp = lo->lo_backing_file;
 	cmd->iocb.ki_ioprio = req_get_ioprio(rq);
 	if (cmd->use_aio) {
 		cmd->iocb.ki_complete = lo_rw_aio_complete;
@@ -398,6 +402,35 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 		cmd->iocb.ki_complete = NULL;
 		cmd->iocb.ki_flags = 0;
 	}
+	return 0;
+}
+
+static int lo_submit_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+			    int nr_bvec, int rw)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	struct file *file = lo->lo_backing_file;
+	struct iov_iter iter;
+	int ret;
+
+	if (cmd->bvec) {
+		iov_iter_bvec(&iter, rw, cmd->bvec, nr_bvec, blk_rq_bytes(rq));
+		iter.iov_offset = 0;
+	} else {
+		struct bio *bio = rq->bio;
+		struct bio_vec *bvec = __bvec_iter_bvec(bio->bi_io_vec,
+				bio->bi_iter);
+
+		/*
+		 * Same here, this bio may be started from the middle of the
+		 * 'bvec' because of bio splitting, so offset from the bvec
+		 * must be passed to iov iterator
+		 */
+		iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
+		iter.iov_offset = bio->bi_iter.bi_bvec_done;
+	}
+	atomic_set(&cmd->ref, 2);
+
 
 	if (rw == ITER_SOURCE) {
 		kiocb_start_write(&cmd->iocb);
@@ -406,10 +439,82 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 		ret = file->f_op->read_iter(&cmd->iocb, &iter);
 
 	lo_rw_aio_do_completion(cmd);
+	return ret;
+}
 
+static bool lo_backfile_support_nowait(const struct loop_device *lo)
+{
+	return lo->lo_backing_file->f_mode & FMODE_NOWAIT;
+}
+
+static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+		     loff_t pos, int rw)
+{
+	int nr_bvec = lo_cmd_nr_bvec(cmd);
+	int ret;
+
+	/* prepared already if we have tried nowait */
+	if (!cmd->use_aio || !lo_backfile_support_nowait(lo)) {
+		ret = lo_rw_aio_prep(lo, cmd, nr_bvec, pos);
+		if (unlikely(ret))
+			goto fail;
+	}
+
+	cmd->iocb.ki_flags &= ~IOCB_NOWAIT;
+	ret = lo_submit_rw_aio(lo, cmd, nr_bvec, rw);
+fail:
 	if (ret != -EIOCBQUEUED)
 		lo_rw_aio_complete(&cmd->iocb, ret);
 	return -EIOCBQUEUED;
+}
+
+static inline bool lo_aio_try_nowait(struct loop_device *lo,
+		struct loop_cmd *cmd)
+{
+	struct file *file = lo->lo_backing_file;
+	struct inode *inode = file->f_mapping->host;
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+
+	/* NOWAIT works fine for backing block device */
+	if (S_ISBLK(inode->i_mode))
+		return true;
+
+	/*
+	 * NOWAIT is supposed to be fine for READ without contending with
+	 * blocking WRITE
+	 */
+	if (req_op(rq) == REQ_OP_READ)
+		return true;
+
+	/*
+	 * If there is any queued non-NOWAIT async WRITE , don't try new
+	 * NOWAIT WRITE for avoiding contention
+	 *
+	 * Here we focus on handling stable FS block mapping via NOWAIT
+	 */
+	return READ_ONCE(lo->lo_nr_blocking_writes) == 0;
+}
+
+static int lo_rw_aio_nowait(struct loop_device *lo, struct loop_cmd *cmd,
+			    int rw)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	loff_t pos = ((loff_t) blk_rq_pos(rq) << 9) + lo->lo_offset;
+	int nr_bvec = lo_cmd_nr_bvec(cmd);
+	int ret = lo_rw_aio_prep(lo, cmd, nr_bvec, pos);
+
+	if (unlikely(ret))
+		goto fail;
+
+	if (!lo_aio_try_nowait(lo, cmd))
+		return -EAGAIN;
+
+	cmd->iocb.ki_flags |= IOCB_NOWAIT;
+	ret = lo_submit_rw_aio(lo, cmd, nr_bvec, rw);
+fail:
+	if (ret != -EIOCBQUEUED && ret != -EAGAIN)
+		lo_rw_aio_complete(&cmd->iocb, ret);
+	return ret;
 }
 
 static int do_req_filebacked(struct loop_device *lo, struct request *rq)
@@ -706,12 +811,19 @@ static ssize_t loop_attr_dio_show(struct loop_device *lo, char *buf)
 	return sysfs_emit(buf, "%s\n", dio ? "1" : "0");
 }
 
+static ssize_t loop_attr_nr_blocking_writes_show(struct loop_device *lo,
+						 char *buf)
+{
+	return sysfs_emit(buf, "%u\n", lo->lo_nr_blocking_writes);
+}
+
 LOOP_ATTR_RO(backing_file);
 LOOP_ATTR_RO(offset);
 LOOP_ATTR_RO(sizelimit);
 LOOP_ATTR_RO(autoclear);
 LOOP_ATTR_RO(partscan);
 LOOP_ATTR_RO(dio);
+LOOP_ATTR_RO(nr_blocking_writes);
 
 static struct attribute *loop_attrs[] = {
 	&loop_attr_backing_file.attr,
@@ -720,6 +832,7 @@ static struct attribute *loop_attrs[] = {
 	&loop_attr_autoclear.attr,
 	&loop_attr_partscan.attr,
 	&loop_attr_dio.attr,
+	&loop_attr_nr_blocking_writes.attr,
 	NULL,
 };
 
@@ -795,12 +908,47 @@ static inline int queue_on_root_worker(struct cgroup_subsys_state *css)
 }
 #endif
 
+static inline void loop_inc_blocking_writes(struct loop_device *lo,
+		struct loop_cmd *cmd)
+{
+	lockdep_assert_held(&lo->lo_work_lock);
+
+	if (req_op(blk_mq_rq_from_pdu(cmd)) == REQ_OP_WRITE)
+		lo->lo_nr_blocking_writes += 1;
+}
+
+static inline void loop_dec_blocking_writes(struct loop_device *lo,
+		struct loop_cmd *cmd)
+{
+	lockdep_assert_held(&lo->lo_work_lock);
+
+	if (req_op(blk_mq_rq_from_pdu(cmd)) == REQ_OP_WRITE)
+		lo->lo_nr_blocking_writes -= 1;
+}
+
 static void loop_queue_work(struct loop_device *lo, struct loop_cmd *cmd)
 {
+	struct request __maybe_unused *rq = blk_mq_rq_from_pdu(cmd);
 	struct rb_node **node, *parent = NULL;
 	struct loop_worker *cur_worker, *worker = NULL;
 	struct work_struct *work;
 	struct list_head *cmd_list;
+
+	/* always use the first bio's css */
+	cmd->blkcg_css = NULL;
+	cmd->memcg_css = NULL;
+#ifdef CONFIG_BLK_CGROUP
+	if (rq->bio) {
+		cmd->blkcg_css = bio_blkcg_css(rq->bio);
+#ifdef CONFIG_MEMCG
+		if (cmd->blkcg_css) {
+			cmd->memcg_css =
+				cgroup_get_e_css(cmd->blkcg_css->cgroup,
+						&memory_cgrp_subsys);
+		}
+#endif
+	}
+#endif
 
 	spin_lock_irq(&lo->lo_work_lock);
 
@@ -860,6 +1008,8 @@ queue_work:
 		work = &lo->rootcg_work;
 		cmd_list = &lo->rootcg_cmd_list;
 	}
+	if (cmd->use_aio)
+		loop_inc_blocking_writes(lo, cmd);
 	list_add_tail(&cmd->list_entry, cmd_list);
 	queue_work(lo->workqueue, work);
 	spin_unlock_irq(&lo->lo_work_lock);
@@ -1856,6 +2006,7 @@ static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request *rq = bd->rq;
 	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
 	struct loop_device *lo = rq->q->queuedata;
+	int rw = 0;
 
 	blk_mq_start_request(rq);
 
@@ -1868,26 +2019,27 @@ static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	case REQ_OP_WRITE_ZEROES:
 		cmd->use_aio = false;
 		break;
-	default:
+	case REQ_OP_READ:
+		rw = ITER_DEST;
 		cmd->use_aio = lo->lo_flags & LO_FLAGS_DIRECT_IO;
 		break;
+	case REQ_OP_WRITE:
+		rw = ITER_SOURCE;
+		cmd->use_aio = lo->lo_flags & LO_FLAGS_DIRECT_IO;
+		break;
+	default:
+		return BLK_STS_IOERR;
 	}
 
-	/* always use the first bio's css */
-	cmd->blkcg_css = NULL;
-	cmd->memcg_css = NULL;
-#ifdef CONFIG_BLK_CGROUP
-	if (rq->bio) {
-		cmd->blkcg_css = bio_blkcg_css(rq->bio);
-#ifdef CONFIG_MEMCG
-		if (cmd->blkcg_css) {
-			cmd->memcg_css =
-				cgroup_get_e_css(cmd->blkcg_css->cgroup,
-						&memory_cgrp_subsys);
-		}
-#endif
+	/* try NOWAIT if the backing file supports the mode */
+	if (cmd->use_aio && lo_backfile_support_nowait(lo)) {
+		int res = lo_rw_aio_nowait(lo, cmd, rw);
+
+		if (res != -EAGAIN && res != -EOPNOTSUPP)
+			return BLK_STS_OK;
+		/* fallback to workqueue for handling aio */
 	}
-#endif
+
 	loop_queue_work(lo, cmd);
 
 	return BLK_STS_OK;
@@ -1959,6 +2111,8 @@ static void loop_process_work(struct loop_worker *worker,
 		cond_resched();
 
 		spin_lock_irq(&lo->lo_work_lock);
+		if (cmd->use_aio)
+			loop_dec_blocking_writes(lo, cmd);
 	}
 
 	/*
@@ -2037,7 +2191,8 @@ static int loop_add(int i)
 	lo->tag_set.queue_depth = hw_queue_depth;
 	lo->tag_set.numa_node = NUMA_NO_NODE;
 	lo->tag_set.cmd_size = sizeof(struct loop_cmd);
-	lo->tag_set.flags = BLK_MQ_F_STACKING | BLK_MQ_F_NO_SCHED_BY_DEFAULT;
+	lo->tag_set.flags = BLK_MQ_F_STACKING | BLK_MQ_F_NO_SCHED_BY_DEFAULT |
+		BLK_MQ_F_BLOCKING;
 	lo->tag_set.driver_data = lo;
 
 	err = blk_mq_alloc_tag_set(&lo->tag_set);
