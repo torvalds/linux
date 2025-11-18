@@ -205,7 +205,10 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 
 static int gpio_shared_of_scan(void)
 {
-	return gpio_shared_of_traverse(of_root);
+	if (of_root)
+		return gpio_shared_of_traverse(of_root);
+
+	return 0;
 }
 #else
 static int gpio_shared_of_scan(void)
