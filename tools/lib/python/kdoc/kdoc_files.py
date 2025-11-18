@@ -13,8 +13,8 @@ import logging
 import os
 import re
 
-from kdoc_parser import KernelDoc
-from kdoc_output import OutputFormat
+from kdoc.kdoc_parser import KernelDoc
+from kdoc.kdoc_output import OutputFormat
 
 
 class GlobSourceFiles:

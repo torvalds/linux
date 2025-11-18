@@ -9,13 +9,17 @@
 """
 Detect problematic Noto CJK variable fonts.
 
-or more details, see lib/latex_fonts.py.
+or more details, see .../tools/lib/python/kdoc/latex_fonts.py.
 """
 
 import argparse
 import sys
+import os.path
 
-from lib.latex_fonts import LatexFontChecker
+src_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(src_dir, '../lib/python'))
+
+from kdoc.latex_fonts import LatexFontChecker
 
 checker = LatexFontChecker()
 

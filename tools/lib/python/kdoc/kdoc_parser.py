@@ -16,8 +16,8 @@ import sys
 import re
 from pprint import pformat
 
-from kdoc_re import NestedMatch, KernRe
-from kdoc_item import KdocItem
+from kdoc.kdoc_re import NestedMatch, KernRe
+from kdoc.kdoc_item import KdocItem
 
 #
 # Regular expressions used to parse kernel-doc markups at KernelDoc class.

@@ -15,7 +15,7 @@ from concurrent import futures
 from datetime import datetime
 from random import shuffle
 
-from helpers import AbiDebug
+from abi.helpers import AbiDebug
 
 class SystemSymbols:
     """Stores arguments for the class and initialize class vars"""
