@@ -6,6 +6,6 @@
  */
 
 int mdio_device_register_reset(struct mdio_device *mdiodev);
-int mdio_device_register_gpiod(struct mdio_device *mdiodev);
+void mdio_device_unregister_reset(struct mdio_device *mdiodev);
 
 #endif /* __MDIO_PRIVATE_H */
