@@ -1511,24 +1511,6 @@ static int chv_gpio_irq_init_hw(struct gpio_chip *chip)
 	return 0;
 }
 
-static int chv_gpio_add_pin_ranges(struct gpio_chip *chip)
-{
-	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
-	struct device *dev = pctrl->dev;
-	const struct intel_community *community = &pctrl->communities[0];
-	const struct intel_padgroup *gpp;
-	int ret, i;
-
-	for (i = 0; i < community->ngpps; i++) {
-		gpp = &community->gpps[i];
-		ret = gpiochip_add_pin_range(chip, dev_name(dev), gpp->base, gpp->base, gpp->size);
-		if (ret)
-			return dev_err_probe(dev, ret, "failed to add GPIO pin range\n");
-	}
-
-	return 0;
-}
-
 static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 {
 	const struct intel_community *community = &pctrl->communities[0];
@@ -1542,7 +1524,7 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 
 	chip->ngpio = pctrl->soc->pins[pctrl->soc->npins - 1].number + 1;
 	chip->label = dev_name(dev);
-	chip->add_pin_ranges = chv_gpio_add_pin_ranges;
+	chip->add_pin_ranges = intel_gpio_add_pin_ranges;
 	chip->parent = dev;
 	chip->base = -1;
 
