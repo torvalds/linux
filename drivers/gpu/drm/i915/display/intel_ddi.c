@@ -3667,8 +3667,8 @@ void intel_ddi_update_active_dpll(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_crtc *pipe_crtc;
 
-	/* FIXME: Add MTL pll_mgr */
-	if (DISPLAY_VER(display) >= 14 || !intel_encoder_is_tc(encoder))
+	/* FIXME: Add NVL+ and DG2 pll_mgr */
+	if (!intel_encoder_is_tc(encoder) || !display->dpll.mgr)
 		return;
 
 	for_each_intel_crtc_in_pipe_mask(display->drm, pipe_crtc,
