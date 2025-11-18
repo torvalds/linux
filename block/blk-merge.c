@@ -712,10 +712,10 @@ static void blk_account_io_merge_request(struct request *req)
 static enum elv_merge blk_try_req_merge(struct request *req,
 					struct request *next)
 {
-	if (blk_rq_pos(req) + blk_rq_sectors(req) == blk_rq_pos(next))
-		return ELEVATOR_BACK_MERGE;
-	else if (blk_discard_mergable(req))
+	if (blk_discard_mergable(req))
 		return ELEVATOR_DISCARD_MERGE;
+	else if (blk_rq_pos(req) + blk_rq_sectors(req) == blk_rq_pos(next))
+		return ELEVATOR_BACK_MERGE;
 
 	return ELEVATOR_NO_MERGE;
 }
@@ -903,12 +903,12 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 
 enum elv_merge blk_try_merge(struct request *rq, struct bio *bio)
 {
-	if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
+	if (blk_discard_mergable(rq))
+		return ELEVATOR_DISCARD_MERGE;
+	else if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
 		return ELEVATOR_BACK_MERGE;
 	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_iter.bi_sector)
 		return ELEVATOR_FRONT_MERGE;
-	else if (blk_discard_mergable(rq))
-		return ELEVATOR_DISCARD_MERGE;
 	return ELEVATOR_NO_MERGE;
 }
 
