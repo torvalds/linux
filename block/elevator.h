@@ -171,7 +171,6 @@ extern bool elv_attempt_insert_merge(struct request_queue *, struct request *,
 				     struct list_head *);
 extern struct request *elv_former_request(struct request_queue *, struct request *);
 extern struct request *elv_latter_request(struct request_queue *, struct request *);
-void elevator_init_mq(struct request_queue *q);
 
 /*
  * io scheduler registration
