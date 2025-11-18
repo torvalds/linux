@@ -660,7 +660,13 @@ extern int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long a
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long address, pte_t *ptep)
 {
+#ifdef CONFIG_SMP
 	pte_t pte = __pte(atomic_long_xchg((atomic_long_t *)ptep, 0));
+#else
+	pte_t pte = *ptep;
+
+	set_pte(ptep, __pte(0));
+#endif
 
 	page_table_check_pte_clear(mm, pte);
 
