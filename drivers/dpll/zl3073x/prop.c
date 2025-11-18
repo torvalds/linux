@@ -46,10 +46,10 @@ zl3073x_pin_check_freq(struct zl3073x_dev *zldev, enum dpll_pin_direction dir,
 
 		/* Get output pin synthesizer */
 		out = zl3073x_output_pin_out_get(id);
-		synth = zl3073x_out_synth_get(zldev, out);
+		synth = zl3073x_dev_out_synth_get(zldev, out);
 
 		/* Get synth frequency */
-		synth_freq = zl3073x_synth_freq_get(zldev, synth);
+		synth_freq = zl3073x_dev_synth_freq_get(zldev, synth);
 
 		/* Check the frequency divides synth frequency */
 		if (synth_freq % (u32)freq)
@@ -93,13 +93,13 @@ zl3073x_prop_pin_package_label_set(struct zl3073x_dev *zldev,
 
 		prefix = "REF";
 		ref = zl3073x_input_pin_ref_get(id);
-		is_diff = zl3073x_ref_is_diff(zldev, ref);
+		is_diff = zl3073x_dev_ref_is_diff(zldev, ref);
 	} else {
 		u8 out;
 
 		prefix = "OUT";
 		out = zl3073x_output_pin_out_get(id);
-		is_diff = zl3073x_out_is_diff(zldev, out);
+		is_diff = zl3073x_dev_out_is_diff(zldev, out);
 	}
 
 	if (!is_diff)
@@ -217,8 +217,8 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 		 * the synth frequency count.
 		 */
 		out = zl3073x_output_pin_out_get(index);
-		synth = zl3073x_out_synth_get(zldev, out);
-		f = 2 * zl3073x_synth_freq_get(zldev, synth);
+		synth = zl3073x_dev_out_synth_get(zldev, out);
+		f = 2 * zl3073x_dev_synth_freq_get(zldev, synth);
 		props->dpll_props.phase_gran = f ? div_u64(PSEC_PER_SEC, f) : 1;
 	}
 
