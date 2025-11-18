@@ -126,7 +126,6 @@ static inline void rseq_force_update(void)
  */
 static inline void rseq_virt_userspace_exit(void)
 {
-	if (current->rseq.event.sched_switch)
 	/*
 	 * The generic optimization for deferring RSEQ updates until the next
 	 * exit relies on having a dedicated TIF_RSEQ.
