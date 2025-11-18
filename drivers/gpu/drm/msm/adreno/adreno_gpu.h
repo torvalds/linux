@@ -88,6 +88,13 @@ struct adreno_reglist {
 	u32 value;
 };
 
+/* Reglist with pipe information */
+struct adreno_reglist_pipe {
+	u32 offset;
+	u32 value;
+	u32 pipe;
+};
+
 struct adreno_speedbin {
 	uint16_t fuse;
 	uint16_t speedbin;

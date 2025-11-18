@@ -157,7 +157,7 @@ static void update_shadow_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	}
 }
 
-static void a6xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
+void a6xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
@@ -245,14 +245,21 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 	}
 
 	if (!sysprof) {
-		if (!adreno_is_a7xx(adreno_gpu)) {
+		if (!(adreno_is_a7xx(adreno_gpu) || adreno_is_a8xx(adreno_gpu))) {
 			/* Turn off protected mode to write to special registers */
 			OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
 			OUT_RING(ring, 0);
 		}
 
-		OUT_PKT4(ring, REG_A6XX_RBBM_PERFCTR_SRAM_INIT_CMD, 1);
-		OUT_RING(ring, 1);
+		if (adreno_is_a8xx(adreno_gpu)) {
+			OUT_PKT4(ring, REG_A8XX_RBBM_PERFCTR_SRAM_INIT_CMD, 1);
+			OUT_RING(ring, 1);
+			OUT_PKT4(ring, REG_A8XX_RBBM_SLICE_PERFCTR_SRAM_INIT_CMD, 1);
+			OUT_RING(ring, 1);
+		} else {
+			OUT_PKT4(ring, REG_A6XX_RBBM_PERFCTR_SRAM_INIT_CMD, 1);
+			OUT_RING(ring, 1);
+		}
 	}
 
 	/* Execute the table update */
@@ -281,7 +288,7 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 	 * to make sure BV doesn't race ahead while BR is still switching
 	 * pagetables.
 	 */
-	if (adreno_is_a7xx(&a6xx_gpu->base)) {
+	if (adreno_is_a7xx(&a6xx_gpu->base) || adreno_is_a8xx(&a6xx_gpu->base)) {
 		OUT_PKT7(ring, CP_THREAD_CONTROL, 1);
 		OUT_RING(ring, CP_THREAD_CONTROL_0_SYNC_THREADS | CP_SET_THREAD_BR);
 	}
@@ -295,20 +302,22 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 	OUT_RING(ring, CACHE_INVALIDATE);
 
 	if (!sysprof) {
+		u32 reg_status = adreno_is_a8xx(adreno_gpu) ?
+			REG_A8XX_RBBM_PERFCTR_SRAM_INIT_STATUS :
+			REG_A6XX_RBBM_PERFCTR_SRAM_INIT_STATUS;
 		/*
 		 * Wait for SRAM clear after the pgtable update, so the
 		 * two can happen in parallel:
 		 */
 		OUT_PKT7(ring, CP_WAIT_REG_MEM, 6);
 		OUT_RING(ring, CP_WAIT_REG_MEM_0_FUNCTION(WRITE_EQ));
-		OUT_RING(ring, CP_WAIT_REG_MEM_POLL_ADDR_LO(
-				REG_A6XX_RBBM_PERFCTR_SRAM_INIT_STATUS));
+		OUT_RING(ring, CP_WAIT_REG_MEM_POLL_ADDR_LO(reg_status));
 		OUT_RING(ring, CP_WAIT_REG_MEM_POLL_ADDR_HI(0));
 		OUT_RING(ring, CP_WAIT_REG_MEM_3_REF(0x1));
 		OUT_RING(ring, CP_WAIT_REG_MEM_4_MASK(0x1));
 		OUT_RING(ring, CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES(0));
 
-		if (!adreno_is_a7xx(adreno_gpu)) {
+		if (!(adreno_is_a7xx(adreno_gpu) || adreno_is_a8xx(adreno_gpu))) {
 			/* Re-enable protected mode: */
 			OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
 			OUT_RING(ring, 1);
@@ -446,6 +455,7 @@ static void a7xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 	struct msm_ringbuffer *ring = submit->ring;
+	u32 rbbm_perfctr_cp0, cp_always_on_counter;
 	unsigned int i, ibs = 0;
 
 	adreno_check_and_reenable_stall(adreno_gpu);
@@ -466,10 +476,16 @@ static void a7xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	if (gpu->nr_rings > 1)
 		a6xx_emit_set_pseudo_reg(ring, a6xx_gpu, submit->queue);
 
-	get_stats_counter(ring, REG_A7XX_RBBM_PERFCTR_CP(0),
-		rbmemptr_stats(ring, index, cpcycles_start));
-	get_stats_counter(ring, REG_A6XX_CP_ALWAYS_ON_COUNTER,
-		rbmemptr_stats(ring, index, alwayson_start));
+	if (adreno_is_a8xx(adreno_gpu)) {
+		rbbm_perfctr_cp0 = REG_A8XX_RBBM_PERFCTR_CP(0);
+		cp_always_on_counter = REG_A8XX_CP_ALWAYS_ON_COUNTER;
+	} else {
+		rbbm_perfctr_cp0 = REG_A7XX_RBBM_PERFCTR_CP(0);
+		cp_always_on_counter = REG_A6XX_CP_ALWAYS_ON_COUNTER;
+	}
+
+	get_stats_counter(ring, rbbm_perfctr_cp0, rbmemptr_stats(ring, index, cpcycles_start));
+	get_stats_counter(ring, cp_always_on_counter, rbmemptr_stats(ring, index, alwayson_start));
 
 	OUT_PKT7(ring, CP_THREAD_CONTROL, 1);
 	OUT_RING(ring, CP_SET_THREAD_BOTH);
@@ -516,14 +532,17 @@ static void a7xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		OUT_RING(ring, 0x00e); /* IB1LIST end */
 	}
 
-	get_stats_counter(ring, REG_A7XX_RBBM_PERFCTR_CP(0),
-		rbmemptr_stats(ring, index, cpcycles_end));
-	get_stats_counter(ring, REG_A6XX_CP_ALWAYS_ON_COUNTER,
-		rbmemptr_stats(ring, index, alwayson_end));
+	get_stats_counter(ring, rbbm_perfctr_cp0, rbmemptr_stats(ring, index, cpcycles_end));
+	get_stats_counter(ring, cp_always_on_counter, rbmemptr_stats(ring, index, alwayson_end));
 
 	/* Write the fence to the scratch register */
-	OUT_PKT4(ring, REG_A6XX_CP_SCRATCH(2), 1);
-	OUT_RING(ring, submit->seqno);
+	if (adreno_is_a8xx(adreno_gpu)) {
+		OUT_PKT4(ring, REG_A8XX_CP_SCRATCH_GLOBAL(2), 1);
+		OUT_RING(ring, submit->seqno);
+	} else {
+		OUT_PKT4(ring, REG_A6XX_CP_SCRATCH(2), 1);
+		OUT_RING(ring, submit->seqno);
+	}
 
 	OUT_PKT7(ring, CP_THREAD_CONTROL, 1);
 	OUT_RING(ring, CP_SET_THREAD_BR);
@@ -723,8 +742,11 @@ static int a6xx_calc_ubwc_config(struct adreno_gpu *gpu)
 	/* Copy the data into the internal struct to drop the const qualifier (temporarily) */
 	*cfg = *common_cfg;
 
-	cfg->ubwc_swizzle = 0x6;
-	cfg->highest_bank_bit = 15;
+	/* Use common config as is for A8x */
+	if (!adreno_is_a8xx(gpu)) {
+		cfg->ubwc_swizzle = 0x6;
+		cfg->highest_bank_bit = 15;
+	}
 
 	if (adreno_is_a610(gpu)) {
 		cfg->highest_bank_bit = 13;
@@ -1013,7 +1035,7 @@ static bool a6xx_ucode_check_version(struct a6xx_gpu *a6xx_gpu,
 		return false;
 
 	/* A7xx is safe! */
-	if (adreno_is_a7xx(adreno_gpu) || adreno_is_a702(adreno_gpu))
+	if (adreno_is_a7xx(adreno_gpu) || adreno_is_a702(adreno_gpu) || adreno_is_a8xx(adreno_gpu))
 		return true;
 
 	/*
@@ -1127,7 +1149,7 @@ static int a6xx_ucode_load(struct msm_gpu *gpu)
 	return 0;
 }
 
-static int a6xx_zap_shader_init(struct msm_gpu *gpu)
+int a6xx_zap_shader_init(struct msm_gpu *gpu)
 {
 	static bool loaded;
 	int ret;
@@ -2089,7 +2111,7 @@ static int a7xx_cx_mem_init(struct a6xx_gpu *a6xx_gpu)
 	u32 fuse_val;
 	int ret;
 
-	if (adreno_is_a750(adreno_gpu)) {
+	if (adreno_is_a750(adreno_gpu) || adreno_is_a8xx(adreno_gpu)) {
 		/*
 		 * Assume that if qcom scm isn't available, that whatever
 		 * replacement allows writing the fuse register ourselves.
@@ -2115,9 +2137,9 @@ static int a7xx_cx_mem_init(struct a6xx_gpu *a6xx_gpu)
 			return ret;
 
 		/*
-		 * On a750 raytracing may be disabled by the firmware, find out
-		 * whether that's the case. The scm call above sets the fuse
-		 * register.
+		 * On A7XX_GEN3 and newer, raytracing may be disabled by the
+		 * firmware, find out whether that's the case. The scm call
+		 * above sets the fuse register.
 		 */
 		fuse_val = a6xx_llc_read(a6xx_gpu,
 					 REG_A7XX_CX_MISC_SW_FUSE_VALUE);
@@ -2178,7 +2200,7 @@ void a6xx_bus_clear_pending_transactions(struct adreno_gpu *adreno_gpu, bool gx_
 void a6xx_gpu_sw_reset(struct msm_gpu *gpu, bool assert)
 {
 	/* 11nm chips (e.g. ones with A610) have hw issues with the reset line! */
-	if (adreno_is_a610(to_adreno_gpu(gpu)))
+	if (adreno_is_a610(to_adreno_gpu(gpu)) || adreno_is_a8xx(to_adreno_gpu(gpu)))
 		return;
 
 	gpu_write(gpu, REG_A6XX_RBBM_SW_RESET_CMD, assert);
@@ -2209,7 +2231,12 @@ static int a6xx_gmu_pm_resume(struct msm_gpu *gpu)
 
 	msm_devfreq_resume(gpu);
 
-	adreno_is_a7xx(adreno_gpu) ? a7xx_llc_activate(a6xx_gpu) : a6xx_llc_activate(a6xx_gpu);
+	if (adreno_is_a8xx(adreno_gpu))
+		a8xx_llc_activate(a6xx_gpu);
+	else if (adreno_is_a7xx(adreno_gpu))
+		a7xx_llc_activate(a6xx_gpu);
+	else
+		a6xx_llc_activate(a6xx_gpu);
 
 	return ret;
 }
@@ -2589,10 +2616,8 @@ static struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	adreno_gpu->base.hw_apriv =
 		!!(config->info->quirks & ADRENO_QUIRK_HAS_HW_APRIV);
 
-	/* gpu->info only gets assigned in adreno_gpu_init() */
-	is_a7xx = config->info->family == ADRENO_7XX_GEN1 ||
-		  config->info->family == ADRENO_7XX_GEN2 ||
-		  config->info->family == ADRENO_7XX_GEN3;
+	/* gpu->info only gets assigned in adreno_gpu_init(). A8x is included intentionally */
+	is_a7xx = config->info->family >= ADRENO_7XX_GEN1;
 
 	a6xx_llc_slices_init(pdev, a6xx_gpu, is_a7xx);
 
@@ -2630,7 +2655,7 @@ static struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 		return ERR_PTR(ret);
 	}
 
-	if (adreno_is_a7xx(adreno_gpu)) {
+	if (adreno_is_a7xx(adreno_gpu) || adreno_is_a8xx(adreno_gpu)) {
 		ret = a7xx_cx_mem_init(a6xx_gpu);
 		if (ret) {
 			a6xx_destroy(&(a6xx_gpu->base.base));
@@ -2753,4 +2778,31 @@ const struct adreno_gpu_funcs a7xx_gpu_funcs = {
 	.get_timestamp = a6xx_gmu_get_timestamp,
 	.bus_halt = a6xx_bus_clear_pending_transactions,
 	.mmu_fault_handler = a6xx_fault_handler,
+};
+
+const struct adreno_gpu_funcs a8xx_gpu_funcs = {
+	.base = {
+		.get_param = adreno_get_param,
+		.set_param = adreno_set_param,
+		.hw_init = a8xx_hw_init,
+		.ucode_load = a6xx_ucode_load,
+		.pm_suspend = a6xx_gmu_pm_suspend,
+		.pm_resume = a6xx_gmu_pm_resume,
+		.recover = a8xx_recover,
+		.submit = a7xx_submit,
+		.active_ring = a6xx_active_ring,
+		.irq = a8xx_irq,
+		.destroy = a6xx_destroy,
+		.gpu_busy = a8xx_gpu_busy,
+		.gpu_get_freq = a6xx_gmu_get_freq,
+		.gpu_set_freq = a6xx_gpu_set_freq,
+		.create_vm = a6xx_create_vm,
+		.create_private_vm = a6xx_create_private_vm,
+		.get_rptr = a6xx_get_rptr,
+		.progress = a8xx_progress,
+	},
+	.init = a6xx_gpu_init,
+	.get_timestamp = a8xx_gmu_get_timestamp,
+	.bus_halt = a8xx_bus_clear_pending_transactions,
+	.mmu_fault_handler = a8xx_fault_handler,
 };

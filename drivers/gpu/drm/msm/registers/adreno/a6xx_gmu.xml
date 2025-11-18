@@ -60,6 +60,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="0x1f400" name="GMU_ICACHE_CONFIG"/>
 	<reg32 offset="0x1f401" name="GMU_DCACHE_CONFIG"/>
 	<reg32 offset="0x1f40f" name="GMU_SYS_BUS_CONFIG"/>
+	<reg32 offset="0x1f50b" name="GMU_MRC_GBIF_QOS_CTRL"/>
 	<reg32 offset="0x1f800" name="GMU_CM3_SYSRESET"/>
 	<reg32 offset="0x1f801" name="GMU_CM3_BOOT_CONFIG"/>
 	<reg32 offset="0x1f81a" name="GMU_CM3_FW_BUSY"/>

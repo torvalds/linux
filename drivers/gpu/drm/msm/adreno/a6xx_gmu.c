@@ -1174,6 +1174,9 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 		return ret;
 	}
 
+	/* Read the slice info on A8x GPUs */
+	a8xx_gpu_get_slice_info(gpu);
+
 	/* Set the bus quota to a reasonable value for boot */
 	a6xx_gmu_set_initial_bw(gpu, gmu);
 
