@@ -50,6 +50,8 @@ enum adreno_family {
 	ADRENO_7XX_GEN1,  /* a730 family */
 	ADRENO_7XX_GEN2,  /* a740 family */
 	ADRENO_7XX_GEN3,  /* a750 family */
+	ADRENO_8XX_GEN1,  /* a830 family */
+	ADRENO_8XX_GEN2,  /* a840 family */
 };
 
 #define ADRENO_QUIRK_TWO_PASS_USE_WFI		BIT(0)
@@ -563,6 +565,11 @@ static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
 	/* Update with non-fake (i.e. non-A702) Gen 7 GPUs */
 	return gpu->info->family == ADRENO_7XX_GEN1 ||
 	       adreno_is_a740_family(gpu);
+}
+
+static inline int adreno_is_a8xx(struct adreno_gpu *gpu)
+{
+	return gpu->info->family >= ADRENO_8XX_GEN1;
 }
 
 /* Put vm_start above 32b to catch issues with not setting xyz_BASE_HI */
