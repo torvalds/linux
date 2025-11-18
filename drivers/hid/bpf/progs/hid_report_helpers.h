@@ -143,8 +143,11 @@
  * report with Report ID 0xac of the given size in bytes.
  * The size is inclusive of the 1 byte Report ID prefix.
  *
- * HID-BPF requires that at least one report has
- * the same size as the original report from the device.
+ * The kernel discards any HID reports that are larger
+ * than the largest report in a HID report descriptor.
+ * Thus at least one report must have (at least)
+ * the same size as the largest original report from
+ * the device.
  * The easy way to ensure that is to add this
  * macro as the last element of your CollectionApplication
  * other reports can be of any size less than this.
@@ -295,6 +298,7 @@
 #define Usage_GD_SystemSpeakerMute                     Usage_i8(0xa7)
 #define Usage_GD_SystemHibernate                       Usage_i8(0xa8)
 #define Usage_GD_SystemMicrophoneMute                  Usage_i8(0xa9)
+#define Usage_GD_SystemAccessibilityBinding            Usage_i8(0xaa)
 #define Usage_GD_SystemDisplayInvert                   Usage_i8(0xb0)
 #define Usage_GD_SystemDisplayInternal                 Usage_i8(0xb1)
 #define Usage_GD_SystemDisplayExternal                 Usage_i8(0xb2)
@@ -2669,7 +2673,7 @@
 #define Usage_BS_iDeviceName                           Usage_i8(0x88)
 #define Usage_BS_iDeviceChemistry                      Usage_i8(0x89)
 #define Usage_BS_ManufacturerData                      Usage_i8(0x8a)
-#define Usage_BS_Rechargable                           Usage_i8(0x8b)
+#define Usage_BS_Rechargeable                          Usage_i8(0x8b)
 #define Usage_BS_WarningCapacityLimit                  Usage_i8(0x8c)
 #define Usage_BS_CapacityGranularity1                  Usage_i8(0x8d)
 #define Usage_BS_CapacityGranularity2                  Usage_i8(0x8e)
