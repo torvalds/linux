@@ -1722,6 +1722,17 @@ config TI_ADS131E08
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-ads131e08.
 
+config TI_ADS131M02
+	tristate "Texas Instruments ADS131M02"
+	depends on SPI && REGULATOR
+	select CRC_ITU_T
+	help
+	  Say yes here to get support for Texas Instruments ADS131M02, ADS131M03,
+	  ADS131M04, ADS131M06 and ADS131M08 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads131m02.
+
 config TI_ADS7138
 	tristate "Texas Instruments ADS7128 and ADS7138 ADC driver"
 	depends on I2C
