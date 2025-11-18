@@ -983,10 +983,8 @@ do_transfer()
 
 	cond_start_capture ${listener_ns}
 
-	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
-		nstat -n
-	NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
-		nstat -n
+	mptcp_lib_nstat_init "${listener_ns}"
+	mptcp_lib_nstat_init "${connector_ns}"
 
 	local extra_args
 	if [ $speed = "fast" ]; then
@@ -1026,37 +1024,37 @@ do_transfer()
 	if [ "$test_linkfail" -gt 1 ];then
 		listener_in="${sinfail}"
 	fi
-	timeout ${timeout_test} \
-		ip netns exec ${listener_ns} \
-			./mptcp_connect -t ${timeout_poll} -l -p ${port} -s ${srv_proto} \
-				${extra_srv_args} "${bind_addr}" < "${listener_in}" > "${sout}" &
+	ip netns exec ${listener_ns} \
+		./mptcp_connect -t ${timeout_poll} -l -p ${port} -s ${srv_proto} \
+			${extra_srv_args} "${bind_addr}" < "${listener_in}" > "${sout}" &
 	local spid=$!
 
 	mptcp_lib_wait_local_port_listen "${listener_ns}" "${port}"
 
 	extra_cl_args="$extra_args $extra_cl_args"
 	if [ "$test_linkfail" -eq 0 ];then
-		timeout ${timeout_test} \
-			ip netns exec ${connector_ns} \
-				./mptcp_connect -t ${timeout_poll} -p $port -s ${cl_proto} \
-					$extra_cl_args $connect_addr < "$cin" > "$cout" &
+		ip netns exec ${connector_ns} \
+			./mptcp_connect -t ${timeout_poll} -p $port -s ${cl_proto} \
+				$extra_cl_args $connect_addr < "$cin" > "$cout" &
 	elif [ "$test_linkfail" -eq 1 ] || [ "$test_linkfail" -eq 2 ];then
 		connector_in="${cinsent}"
 		( cat "$cinfail" ; sleep 2; link_failure $listener_ns ; cat "$cinfail" ) | \
 			tee "$cinsent" | \
-			timeout ${timeout_test} \
 				ip netns exec ${connector_ns} \
 					./mptcp_connect -t ${timeout_poll} -p $port -s ${cl_proto} \
 						$extra_cl_args $connect_addr > "$cout" &
 	else
 		connector_in="${cinsent}"
 		tee "$cinsent" < "$cinfail" | \
-			timeout ${timeout_test} \
-				ip netns exec ${connector_ns} \
-					./mptcp_connect -t ${timeout_poll} -p $port -s ${cl_proto} \
-						$extra_cl_args $connect_addr > "$cout" &
+			ip netns exec ${connector_ns} \
+				./mptcp_connect -t ${timeout_poll} -p $port -s ${cl_proto} \
+					$extra_cl_args $connect_addr > "$cout" &
 	fi
 	local cpid=$!
+
+	mptcp_lib_wait_timeout "${timeout_test}" "${listener_ns}" \
+		"${connector_ns}" "${port}" "${cpid}" "${spid}" &
+	local timeout_pid=$!
 
 	pm_nl_set_endpoint $listener_ns $connector_ns $connect_addr
 	check_cestab $listener_ns $connector_ns
@@ -1066,17 +1064,20 @@ do_transfer()
 	wait $spid
 	local rets=$?
 
+	if kill -0 $timeout_pid; then
+		# Finished before the timeout: kill the background job
+		mptcp_lib_kill_group_wait $timeout_pid
+		timeout_pid=0
+	fi
+
 	cond_stop_capture
 
-	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
-		nstat | grep Tcp > /tmp/${listener_ns}.out
-	NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
-		nstat | grep Tcp > /tmp/${connector_ns}.out
+	mptcp_lib_nstat_get "${listener_ns}"
+	mptcp_lib_nstat_get "${connector_ns}"
 
-	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
+	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ] || [ ${timeout_pid} -ne 0 ]; then
 		fail_test "client exit code $retc, server $rets"
-		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}" \
-			"/tmp/${listener_ns}.out" "/tmp/${connector_ns}.out"
+		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}"
 		return 1
 	fi
 
@@ -1151,12 +1152,20 @@ run_tests()
 	do_transfer ${listener_ns} ${connector_ns} MPTCP MPTCP ${connect_addr}
 }
 
+_dump_stats()
+{
+	local ns="${1}"
+	local side="${2}"
+
+	mptcp_lib_print_err "${side} ns stats (${ns2})"
+	mptcp_lib_pr_nstat "${ns}"
+	echo
+}
+
 dump_stats()
 {
-	echo Server ns stats
-	ip netns exec $ns1 nstat -as | grep Tcp
-	echo Client ns stats
-	ip netns exec $ns2 nstat -as | grep Tcp
+	_dump_stats "${ns1}" "Server"
+	_dump_stats "${ns2}" "Client"
 }
 
 chk_csum_nr()
