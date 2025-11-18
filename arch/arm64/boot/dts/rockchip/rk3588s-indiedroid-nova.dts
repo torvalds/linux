@@ -483,8 +483,10 @@
 };
 
 &pcie2x1l2 {
-	pinctrl-0 = <&rtl8111_perstb>;
+	pinctrl-0 = <&pcie20x1m0_perstn>, <&pcie20x1m0_clkreqn>,
+		    <&pcie20x1m0_waken>;
 	pinctrl-names = "default";
+	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_s3>;
 	status = "okay";
 };
@@ -512,12 +514,6 @@
 		bt_wake_host: bt-wake-host {
 			rockchip,pins =
 				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
-
-	ethernet-pins {
-		rtl8111_perstb: rtl8111-perstb {
-			rockchip,pins = <3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
