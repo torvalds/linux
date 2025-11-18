@@ -341,9 +341,9 @@ void txgbe_do_reset(struct net_device *netdev);
 
 #define FW_PHY_GET_LINK_CMD             0xC0
 #define FW_PHY_SET_LINK_CMD             0xC1
-#define FW_READ_SFP_INFO_CMD            0xC5
+#define FW_GET_MODULE_INFO_CMD          0xC5
 
-struct txgbe_sfp_id {
+struct txgbe_sff_id {
 	u8 identifier;		/* A0H 0x00 */
 	u8 com_1g_code;		/* A0H 0x06 */
 	u8 com_10g_code;	/* A0H 0x03 */
@@ -358,9 +358,9 @@ struct txgbe_sfp_id {
 	u8 reserved[5];
 };
 
-struct txgbe_hic_i2c_read {
+struct txgbe_hic_get_module_info {
 	struct wx_hic_hdr hdr;
-	struct txgbe_sfp_id id;
+	struct txgbe_sff_id id;
 };
 
 struct txgbe_hic_ephy_setlink {
@@ -451,8 +451,8 @@ struct txgbe {
 	int fdir_filter_count;
 	spinlock_t fdir_perfect_lock; /* spinlock for FDIR */
 
-	DECLARE_PHY_INTERFACE_MASK(sfp_interfaces);
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_support);
+	DECLARE_PHY_INTERFACE_MASK(link_interfaces);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(link_support);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 	u8 link_port;
 };

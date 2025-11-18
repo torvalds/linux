@@ -32,7 +32,7 @@ int txgbe_get_link_ksettings(struct net_device *netdev,
 	cmd->base.port = txgbe->link_port;
 	cmd->base.autoneg = phylink_test(txgbe->advertising, Autoneg) ?
 			    AUTONEG_ENABLE : AUTONEG_DISABLE;
-	linkmode_copy(cmd->link_modes.supported, txgbe->sfp_support);
+	linkmode_copy(cmd->link_modes.supported, txgbe->link_support);
 	linkmode_copy(cmd->link_modes.advertising, txgbe->advertising);
 
 	return 0;

@@ -38,7 +38,7 @@ irqreturn_t txgbe_gpio_irq_handler_aml(int irq, void *data)
 	wr32(wx, WX_GPIO_INTMASK, 0xFF);
 	status = rd32(wx, WX_GPIO_INTSTATUS);
 	if (status & TXGBE_GPIOBIT_2) {
-		set_bit(WX_FLAG_NEED_SFP_RESET, wx->flags);
+		set_bit(WX_FLAG_NEED_MODULE_RESET, wx->flags);
 		wr32(wx, WX_GPIO_EOI, TXGBE_GPIOBIT_2);
 		wx_service_event_schedule(wx);
 	}
@@ -63,15 +63,16 @@ int txgbe_test_hostif(struct wx *wx)
 					WX_HI_COMMAND_TIMEOUT, true);
 }
 
-static int txgbe_identify_sfp_hostif(struct wx *wx, struct txgbe_hic_i2c_read *buffer)
+static int txgbe_identify_module_hostif(struct wx *wx,
+					struct txgbe_hic_get_module_info *buffer)
 {
-	buffer->hdr.cmd = FW_READ_SFP_INFO_CMD;
-	buffer->hdr.buf_len = sizeof(struct txgbe_hic_i2c_read) -
+	buffer->hdr.cmd = FW_GET_MODULE_INFO_CMD;
+	buffer->hdr.buf_len = sizeof(struct txgbe_hic_get_module_info) -
 			      sizeof(struct wx_hic_hdr);
 	buffer->hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
 
 	return wx_host_interface_command(wx, (u32 *)buffer,
-					 sizeof(struct txgbe_hic_i2c_read),
+					 sizeof(struct txgbe_hic_get_module_info),
 					 WX_HI_COMMAND_TIMEOUT, true);
 }
 
@@ -109,9 +110,9 @@ static void txgbe_get_link_capabilities(struct wx *wx, int *speed,
 {
 	struct txgbe *txgbe = wx->priv;
 
-	if (test_bit(PHY_INTERFACE_MODE_25GBASER, txgbe->sfp_interfaces))
+	if (test_bit(PHY_INTERFACE_MODE_25GBASER, txgbe->link_interfaces))
 		*speed = SPEED_25000;
-	else if (test_bit(PHY_INTERFACE_MODE_10GBASER, txgbe->sfp_interfaces))
+	else if (test_bit(PHY_INTERFACE_MODE_10GBASER, txgbe->link_interfaces))
 		*speed = SPEED_10000;
 	else
 		*speed = SPEED_UNKNOWN;
@@ -150,7 +151,7 @@ int txgbe_set_phy_link(struct wx *wx)
 	return 0;
 }
 
-static int txgbe_sfp_to_linkmodes(struct wx *wx, struct txgbe_sfp_id *id)
+static int txgbe_sfp_to_linkmodes(struct wx *wx, struct txgbe_sff_id *id)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes) = { 0, };
 	DECLARE_PHY_INTERFACE_MASK(interfaces);
@@ -204,9 +205,9 @@ static int txgbe_sfp_to_linkmodes(struct wx *wx, struct txgbe_sfp_id *id)
 	phylink_set(modes, Asym_Pause);
 	phylink_set(modes, FIBRE);
 
-	if (!linkmode_equal(txgbe->sfp_support, modes)) {
-		linkmode_copy(txgbe->sfp_support, modes);
-		phy_interface_and(txgbe->sfp_interfaces,
+	if (!linkmode_equal(txgbe->link_support, modes)) {
+		linkmode_copy(txgbe->link_support, modes);
+		phy_interface_and(txgbe->link_interfaces,
 				  wx->phylink_config.supported_interfaces,
 				  interfaces);
 		linkmode_copy(txgbe->advertising, modes);
@@ -217,10 +218,10 @@ static int txgbe_sfp_to_linkmodes(struct wx *wx, struct txgbe_sfp_id *id)
 	return 0;
 }
 
-int txgbe_identify_sfp(struct wx *wx)
+int txgbe_identify_module(struct wx *wx)
 {
-	struct txgbe_hic_i2c_read buffer;
-	struct txgbe_sfp_id *id;
+	struct txgbe_hic_get_module_info buffer;
+	struct txgbe_sff_id *id;
 	int err = 0;
 	u32 gpio;
 
@@ -228,9 +229,9 @@ int txgbe_identify_sfp(struct wx *wx)
 	if (gpio & TXGBE_GPIOBIT_2)
 		return -ENODEV;
 
-	err = txgbe_identify_sfp_hostif(wx, &buffer);
+	err = txgbe_identify_module_hostif(wx, &buffer);
 	if (err) {
-		wx_err(wx, "Failed to identify SFP module\n");
+		wx_err(wx, "Failed to identify module\n");
 		return err;
 	}
 
@@ -247,10 +248,10 @@ void txgbe_setup_link(struct wx *wx)
 {
 	struct txgbe *txgbe = wx->priv;
 
-	phy_interface_zero(txgbe->sfp_interfaces);
-	linkmode_zero(txgbe->sfp_support);
+	phy_interface_zero(txgbe->link_interfaces);
+	linkmode_zero(txgbe->link_support);
 
-	txgbe_identify_sfp(wx);
+	txgbe_identify_module(wx);
 }
 
 static void txgbe_get_link_state(struct phylink_config *config,
