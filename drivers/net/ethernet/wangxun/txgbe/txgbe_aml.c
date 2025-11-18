@@ -345,7 +345,8 @@ void txgbe_setup_link(struct wx *wx)
 	phy_interface_zero(txgbe->link_interfaces);
 	linkmode_zero(txgbe->link_support);
 
-	txgbe_identify_module(wx);
+	set_bit(WX_FLAG_NEED_MODULE_RESET, wx->flags);
+	wx_service_event_schedule(wx);
 }
 
 static void txgbe_get_link_state(struct phylink_config *config,
