@@ -98,6 +98,7 @@
 /* Port cfg registers */
 #define TXGBE_CFG_PORT_ST                       0x14404
 #define TXGBE_CFG_PORT_ST_LINK_UP               BIT(0)
+#define TXGBE_CFG_PORT_ST_LINK_AML_40G          BIT(2)
 #define TXGBE_CFG_PORT_ST_LINK_AML_25G          BIT(3)
 #define TXGBE_CFG_PORT_ST_LINK_AML_10G          BIT(4)
 #define TXGBE_CFG_VXLAN                         0x14410
@@ -317,8 +318,12 @@ void txgbe_do_reset(struct net_device *netdev);
 #define TXGBE_LINK_SPEED_UNKNOWN        0
 #define TXGBE_LINK_SPEED_10GB_FULL      4
 #define TXGBE_LINK_SPEED_25GB_FULL      0x10
+#define TXGBE_LINK_SPEED_40GB_FULL      0x20
 
 #define TXGBE_SFF_IDENTIFIER_SFP        0x3
+#define TXGBE_SFF_IDENTIFIER_QSFP       0xC
+#define TXGBE_SFF_IDENTIFIER_QSFP_PLUS  0xD
+#define TXGBE_SFF_IDENTIFIER_QSFP28     0x11
 #define TXGBE_SFF_DA_PASSIVE_CABLE      0x4
 #define TXGBE_SFF_DA_ACTIVE_CABLE       0x8
 #define TXGBE_SFF_DA_SPEC_ACTIVE_LIMIT  0x4
@@ -331,6 +336,12 @@ void txgbe_do_reset(struct net_device *netdev);
 #define TXGBE_SFF_25GBASECR_91FEC       0xB
 #define TXGBE_SFF_25GBASECR_74FEC       0xC
 #define TXGBE_SFF_25GBASECR_NOFEC       0xD
+#define TXGBE_SFF_ETHERNET_RSRVD        BIT(7)
+#define TXGBE_SFF_ETHERNET_40G_CR4      BIT(3)
+#define TXGBE_SFF_ETHERNET_40G_SR4      BIT(2)
+#define TXGBE_SFF_ETHERNET_40G_LR4      BIT(1)
+#define TXGBE_SFF_ETHERNET_40G_ACTIVE   BIT(0)
+#define TXGBE_SFF_ETHERNET_100G_CR4     0xB
 
 #define TXGBE_PHY_FEC_RS                BIT(0)
 #define TXGBE_PHY_FEC_BASER             BIT(1)

@@ -17,10 +17,15 @@
 
 void txgbe_gpio_init_aml(struct wx *wx)
 {
-	u32 status;
+	u32 status, mod_rst;
 
-	wr32(wx, WX_GPIO_INTTYPE_LEVEL, TXGBE_GPIOBIT_2);
-	wr32(wx, WX_GPIO_INTEN, TXGBE_GPIOBIT_2);
+	if (wx->mac.type == wx_mac_aml40)
+		mod_rst = TXGBE_GPIOBIT_4;
+	else
+		mod_rst = TXGBE_GPIOBIT_2;
+
+	wr32(wx, WX_GPIO_INTTYPE_LEVEL, mod_rst);
+	wr32(wx, WX_GPIO_INTEN, mod_rst);
 
 	status = rd32(wx, WX_GPIO_INTSTATUS);
 	for (int i = 0; i < 6; i++) {
@@ -33,13 +38,18 @@ irqreturn_t txgbe_gpio_irq_handler_aml(int irq, void *data)
 {
 	struct txgbe *txgbe = data;
 	struct wx *wx = txgbe->wx;
-	u32 status;
+	u32 status, mod_rst;
+
+	if (wx->mac.type == wx_mac_aml40)
+		mod_rst = TXGBE_GPIOBIT_4;
+	else
+		mod_rst = TXGBE_GPIOBIT_2;
 
 	wr32(wx, WX_GPIO_INTMASK, 0xFF);
 	status = rd32(wx, WX_GPIO_INTSTATUS);
-	if (status & TXGBE_GPIOBIT_2) {
+	if (status & mod_rst) {
 		set_bit(WX_FLAG_NEED_MODULE_RESET, wx->flags);
-		wr32(wx, WX_GPIO_EOI, TXGBE_GPIOBIT_2);
+		wr32(wx, WX_GPIO_EOI, mod_rst);
 		wx_service_event_schedule(wx);
 	}
 
@@ -51,7 +61,7 @@ int txgbe_test_hostif(struct wx *wx)
 {
 	struct txgbe_hic_ephy_getlink buffer;
 
-	if (wx->mac.type != wx_mac_aml)
+	if (wx->mac.type == wx_mac_sp)
 		return 0;
 
 	buffer.hdr.cmd = FW_PHY_GET_LINK_CMD;
@@ -86,6 +96,9 @@ static int txgbe_set_phy_link_hostif(struct wx *wx, int speed, int autoneg, int 
 	buffer.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
 
 	switch (speed) {
+	case SPEED_40000:
+		buffer.speed = TXGBE_LINK_SPEED_40GB_FULL;
+		break;
 	case SPEED_25000:
 		buffer.speed = TXGBE_LINK_SPEED_25GB_FULL;
 		break;
@@ -110,7 +123,9 @@ static void txgbe_get_link_capabilities(struct wx *wx, int *speed,
 {
 	struct txgbe *txgbe = wx->priv;
 
-	if (test_bit(PHY_INTERFACE_MODE_25GBASER, txgbe->link_interfaces))
+	if (test_bit(PHY_INTERFACE_MODE_XLGMII, txgbe->link_interfaces))
+		*speed = SPEED_40000;
+	else if (test_bit(PHY_INTERFACE_MODE_25GBASER, txgbe->link_interfaces))
 		*speed = SPEED_25000;
 	else if (test_bit(PHY_INTERFACE_MODE_10GBASER, txgbe->link_interfaces))
 		*speed = SPEED_10000;
@@ -128,6 +143,8 @@ static void txgbe_get_mac_link(struct wx *wx, int *speed)
 	status = rd32(wx, TXGBE_CFG_PORT_ST);
 	if (!(status & TXGBE_CFG_PORT_ST_LINK_UP))
 		*speed = SPEED_UNKNOWN;
+	else if (status & TXGBE_CFG_PORT_ST_LINK_AML_40G)
+		*speed = SPEED_40000;
 	else if (status & TXGBE_CFG_PORT_ST_LINK_AML_25G)
 		*speed = SPEED_25000;
 	else if (status & TXGBE_CFG_PORT_ST_LINK_AML_10G)
@@ -218,15 +235,86 @@ static int txgbe_sfp_to_linkmodes(struct wx *wx, struct txgbe_sff_id *id)
 	return 0;
 }
 
+static int txgbe_qsfp_to_linkmodes(struct wx *wx, struct txgbe_sff_id *id)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes) = { 0, };
+	DECLARE_PHY_INTERFACE_MASK(interfaces);
+	struct txgbe *txgbe = wx->priv;
+
+	if (id->transceiver_type & TXGBE_SFF_ETHERNET_40G_CR4) {
+		txgbe->link_port = PORT_DA;
+		phylink_set(modes, Autoneg);
+		phylink_set(modes, 40000baseCR4_Full);
+		phylink_set(modes, 10000baseCR_Full);
+		__set_bit(PHY_INTERFACE_MODE_XLGMII, interfaces);
+		__set_bit(PHY_INTERFACE_MODE_10GBASER, interfaces);
+	}
+	if (id->transceiver_type & TXGBE_SFF_ETHERNET_40G_SR4) {
+		txgbe->link_port = PORT_FIBRE;
+		phylink_set(modes, 40000baseSR4_Full);
+		__set_bit(PHY_INTERFACE_MODE_XLGMII, interfaces);
+	}
+	if (id->transceiver_type & TXGBE_SFF_ETHERNET_40G_LR4) {
+		txgbe->link_port = PORT_FIBRE;
+		phylink_set(modes, 40000baseLR4_Full);
+		__set_bit(PHY_INTERFACE_MODE_XLGMII, interfaces);
+	}
+	if (id->transceiver_type & TXGBE_SFF_ETHERNET_40G_ACTIVE) {
+		txgbe->link_port = PORT_DA;
+		phylink_set(modes, Autoneg);
+		phylink_set(modes, 40000baseCR4_Full);
+		__set_bit(PHY_INTERFACE_MODE_XLGMII, interfaces);
+	}
+	if (id->transceiver_type & TXGBE_SFF_ETHERNET_RSRVD) {
+		if (id->sff_opt1 & TXGBE_SFF_ETHERNET_100G_CR4) {
+			txgbe->link_port = PORT_DA;
+			phylink_set(modes, Autoneg);
+			phylink_set(modes, 40000baseCR4_Full);
+			phylink_set(modes, 25000baseCR_Full);
+			phylink_set(modes, 10000baseCR_Full);
+			__set_bit(PHY_INTERFACE_MODE_XLGMII, interfaces);
+			__set_bit(PHY_INTERFACE_MODE_25GBASER, interfaces);
+			__set_bit(PHY_INTERFACE_MODE_10GBASER, interfaces);
+		}
+	}
+
+	if (phy_interface_empty(interfaces)) {
+		wx_err(wx, "unsupported QSFP module\n");
+		return -EINVAL;
+	}
+
+	phylink_set(modes, Pause);
+	phylink_set(modes, Asym_Pause);
+	phylink_set(modes, FIBRE);
+
+	if (!linkmode_equal(txgbe->link_support, modes)) {
+		linkmode_copy(txgbe->link_support, modes);
+		phy_interface_and(txgbe->link_interfaces,
+				  wx->phylink_config.supported_interfaces,
+				  interfaces);
+		linkmode_copy(txgbe->advertising, modes);
+
+		set_bit(WX_FLAG_NEED_LINK_CONFIG, wx->flags);
+	}
+
+	return 0;
+}
+
 int txgbe_identify_module(struct wx *wx)
 {
 	struct txgbe_hic_get_module_info buffer;
 	struct txgbe_sff_id *id;
 	int err = 0;
+	u32 mod_abs;
 	u32 gpio;
 
+	if (wx->mac.type == wx_mac_aml40)
+		mod_abs = TXGBE_GPIOBIT_4;
+	else
+		mod_abs = TXGBE_GPIOBIT_2;
+
 	gpio = rd32(wx, WX_GPIO_EXT);
-	if (gpio & TXGBE_GPIOBIT_2)
+	if (gpio & mod_abs)
 		return -ENODEV;
 
 	err = txgbe_identify_module_hostif(wx, &buffer);
@@ -236,12 +324,18 @@ int txgbe_identify_module(struct wx *wx)
 	}
 
 	id = &buffer.id;
-	if (id->identifier != TXGBE_SFF_IDENTIFIER_SFP) {
-		wx_err(wx, "Invalid SFP module\n");
+	if (id->identifier != TXGBE_SFF_IDENTIFIER_SFP &&
+	    id->identifier != TXGBE_SFF_IDENTIFIER_QSFP &&
+	    id->identifier != TXGBE_SFF_IDENTIFIER_QSFP_PLUS &&
+	    id->identifier != TXGBE_SFF_IDENTIFIER_QSFP28) {
+		wx_err(wx, "Invalid module\n");
 		return -ENODEV;
 	}
 
-	return txgbe_sfp_to_linkmodes(wx, id);
+	if (id->transceiver_type == 0xFF)
+		return txgbe_sfp_to_linkmodes(wx, id);
+
+	return txgbe_qsfp_to_linkmodes(wx, id);
 }
 
 void txgbe_setup_link(struct wx *wx)
@@ -304,6 +398,9 @@ static void txgbe_mac_link_up_aml(struct phylink_config *config,
 	txcfg &= ~TXGBE_AML_MAC_TX_CFG_SPEED_MASK;
 
 	switch (speed) {
+	case SPEED_40000:
+		txcfg |= TXGBE_AML_MAC_TX_CFG_SPEED_40G;
+		break;
 	case SPEED_25000:
 		txcfg |= TXGBE_AML_MAC_TX_CFG_SPEED_25G;
 		break;
@@ -368,7 +465,18 @@ int txgbe_phylink_init_aml(struct txgbe *txgbe)
 				   MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
 	config->get_fixed_state = txgbe_get_link_state;
 
-	phy_mode = PHY_INTERFACE_MODE_25GBASER;
+	if (wx->mac.type == wx_mac_aml40) {
+		config->mac_capabilities |= MAC_40000FD;
+		phy_mode = PHY_INTERFACE_MODE_XLGMII;
+		__set_bit(PHY_INTERFACE_MODE_XLGMII, config->supported_interfaces);
+		state.speed = SPEED_40000;
+		state.duplex = DUPLEX_FULL;
+	} else {
+		phy_mode = PHY_INTERFACE_MODE_25GBASER;
+		state.speed = SPEED_25000;
+		state.duplex = DUPLEX_FULL;
+	}
+
 	__set_bit(PHY_INTERFACE_MODE_25GBASER, config->supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_10GBASER, config->supported_interfaces);
 
@@ -376,8 +484,6 @@ int txgbe_phylink_init_aml(struct txgbe *txgbe)
 	if (IS_ERR(phylink))
 		return PTR_ERR(phylink);
 
-	state.speed = SPEED_25000;
-	state.duplex = DUPLEX_FULL;
 	err = phylink_set_fixed_link(phylink, &state);
 	if (err) {
 		wx_err(wx, "Failed to set fixed link\n");

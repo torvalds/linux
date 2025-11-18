@@ -19,9 +19,6 @@ int txgbe_get_link_ksettings(struct net_device *netdev,
 	struct txgbe *txgbe = wx->priv;
 	int err;
 
-	if (wx->mac.type == wx_mac_aml40)
-		return -EOPNOTSUPP;
-
 	err = wx_get_link_ksettings(netdev, cmd);
 	if (err)
 		return err;

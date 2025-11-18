@@ -23,7 +23,7 @@ void txgbe_irq_enable(struct wx *wx, bool queues)
 {
 	u32 misc_ien = TXGBE_PX_MISC_IEN_MASK;
 
-	if (wx->mac.type == wx_mac_aml) {
+	if (wx->mac.type != wx_mac_sp) {
 		misc_ien |= TXGBE_PX_MISC_GPIO;
 		txgbe_gpio_init_aml(wx);
 	}
@@ -201,10 +201,7 @@ static void txgbe_del_irq_domain(struct txgbe *txgbe)
 
 void txgbe_free_misc_irq(struct txgbe *txgbe)
 {
-	if (txgbe->wx->mac.type == wx_mac_aml40)
-		return;
-
-	if (txgbe->wx->mac.type == wx_mac_aml)
+	if (txgbe->wx->mac.type != wx_mac_sp)
 		free_irq(txgbe->gpio_irq, txgbe);
 
 	free_irq(txgbe->link_irq, txgbe);
@@ -218,9 +215,6 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 	unsigned long flags = IRQF_ONESHOT;
 	struct wx *wx = txgbe->wx;
 	int hwirq, err;
-
-	if (wx->mac.type == wx_mac_aml40)
-		goto skip_sp_irq;
 
 	txgbe->misc.nirqs = TXGBE_IRQ_MAX;
 	txgbe->misc.domain = irq_domain_create_simple(NULL, txgbe->misc.nirqs, 0,
