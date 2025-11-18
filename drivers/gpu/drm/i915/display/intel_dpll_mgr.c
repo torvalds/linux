@@ -4558,7 +4558,6 @@ static bool mtl_compare_hw_state(const struct intel_dpll_hw_state *_a,
 	return intel_cx0pll_compare_hw_state(a, b);
 }
 
-__maybe_unused
 static const struct intel_dpll_mgr mtl_pll_mgr = {
 	.dpll_info = mtl_plls,
 	.compute_dplls = mtl_compute_dplls,
@@ -4584,9 +4583,11 @@ void intel_dpll_init(struct intel_display *display)
 
 	mutex_init(&display->dpll.lock);
 
-	if (DISPLAY_VER(display) >= 14 || display->platform.dg2)
-		/* No shared DPLLs on DG2; port PLLs are part of the PHY */
+	if (DISPLAY_VER(display) >= 35 || display->platform.dg2)
+		/* No shared DPLLs on NVL or DG2; port PLLs are part of the PHY */
 		dpll_mgr = NULL;
+	else if (DISPLAY_VER(display) >= 14)
+		dpll_mgr = &mtl_pll_mgr;
 	else if (display->platform.alderlake_p)
 		dpll_mgr = &adlp_pll_mgr;
 	else if (display->platform.alderlake_s)
