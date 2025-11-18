@@ -87,6 +87,8 @@ struct smca_bank {
 	const struct smca_hwid *hwid;
 	u32 id;			/* Value of MCA_IPID[InstanceId]. */
 	u8 sysfs_id;		/* Value used for sysfs name. */
+	u64 paddrv	:1,	/* Physical Address Valid bit in MCA_CONFIG */
+	    __reserved	:63;
 };
 
 static DEFINE_PER_CPU_READ_MOSTLY(struct smca_bank[MAX_NR_BANKS], smca_banks);
@@ -326,6 +328,9 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 		}
 
 		this_cpu_ptr(mce_banks_array)[bank].lsb_in_status = !!(low & BIT(8));
+
+		if (low & MCI_CONFIG_PADDRV)
+			this_cpu_ptr(smca_banks)[bank].paddrv = 1;
 
 		wrmsr(smca_config, low, high);
 	}
@@ -790,9 +795,9 @@ bool amd_mce_is_memory_error(struct mce *m)
 }
 
 /*
- * AMD systems do not have an explicit indicator that the value in MCA_ADDR is
- * a system physical address. Therefore, individual cases need to be detected.
- * Future cases and checks will be added as needed.
+ * Some AMD systems have an explicit indicator that the value in MCA_ADDR is a
+ * system physical address. Individual cases though, need to be detected for
+ * other systems. Future cases will be added as needed.
  *
  * 1) General case
  *	a) Assume address is not usable.
@@ -806,6 +811,8 @@ bool amd_mce_is_memory_error(struct mce *m)
  *	a) Reported in legacy bank 4 with extended error code (XEC) 8.
  *	b) MCA_STATUS[43] is *not* defined as poison in legacy bank 4. Therefore,
  *	   this bit should not be checked.
+ * 4) MCI_STATUS_PADDRVAL is set
+ *	a) Will provide a valid system physical address.
  *
  * NOTE: SMCA UMC memory errors fall into case #1.
  */
@@ -818,6 +825,9 @@ bool amd_mce_usable_address(struct mce *m)
 		else if (m->bank == 4)
 			return false;
 	}
+
+	if (this_cpu_ptr(smca_banks)[m->bank].paddrv)
+		return m->status & MCI_STATUS_PADDRV;
 
 	/* Check poison bit for all other bank types. */
 	if (m->status & MCI_STATUS_POISON)
