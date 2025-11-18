@@ -437,7 +437,9 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_REFCYC_PER_META_TRIP_A;\
 		type DCHUBBUB_ARB_REFCYC_PER_META_TRIP_B;\
 		type DCHUBBUB_ARB_FRAC_URG_BW_MALL_A;\
-		type DCHUBBUB_ARB_FRAC_URG_BW_MALL_B
+		type DCHUBBUB_ARB_FRAC_URG_BW_MALL_B;\
+		type DCHUBBUB_ARB_ALLOW_DCFCLK_DEEP_SLEEP_FORCE_VALUE;\
+		type DCHUBBUB_ARB_ALLOW_DCFCLK_DEEP_SLEEP_FORCE_ENABLE
 
 struct dcn_hubbub_shift {
 	DCN_HUBBUB_REG_FIELD_LIST(uint8_t);
@@ -447,6 +449,7 @@ struct dcn_hubbub_shift {
 	HUBBUB_REG_FIELD_LIST_DCN32(uint8_t);
 	HUBBUB_REG_FIELD_LIST_DCN35(uint8_t);
 	HUBBUB_REG_FIELD_LIST_DCN4_01(uint8_t);
+
 };
 
 struct dcn_hubbub_mask {
@@ -457,6 +460,7 @@ struct dcn_hubbub_mask {
 	HUBBUB_REG_FIELD_LIST_DCN32(uint32_t);
 	HUBBUB_REG_FIELD_LIST_DCN35(uint32_t);
 	HUBBUB_REG_FIELD_LIST_DCN4_01(uint32_t);
+
 };
 
 struct dc;
