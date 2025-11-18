@@ -575,7 +575,7 @@ struct gen7_sptp_cluster_registers {
 	/* statetype: SP block state type for the cluster */
 	enum a7xx_statetype_id statetype;
 	/* pipe_id: Pipe identifier */
-	enum a7xx_pipe pipe_id;
+	enum adreno_pipe pipe_id;
 	/* context_id: Context identifier */
 	int context_id;
 	/* location_id: Location identifier */
@@ -801,10 +801,10 @@ static const char *a7xx_statetype_names[] = {
 };
 
 static const char *a7xx_pipe_names[] = {
-	A7XX_NAME(A7XX_PIPE_NONE),
-	A7XX_NAME(A7XX_PIPE_BR),
-	A7XX_NAME(A7XX_PIPE_BV),
-	A7XX_NAME(A7XX_PIPE_LPAC),
+	A7XX_NAME(PIPE_NONE),
+	A7XX_NAME(PIPE_BR),
+	A7XX_NAME(PIPE_BV),
+	A7XX_NAME(PIPE_LPAC),
 };
 
 static const char *a7xx_cluster_names[] = {

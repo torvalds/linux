@@ -249,7 +249,7 @@ by a particular renderpass/blit.
 	</reg32>
 
 	<bitset name="a7xx_aperture_cntl" inline="yes">
-		<bitfield name="PIPE" low="12" high="13" type="a7xx_pipe"/>
+		<bitfield name="PIPE" low="12" high="13" type="adreno_pipe"/>
 		<bitfield name="CLUSTER" low="8" high="10" type="a7xx_cluster"/>
 		<bitfield name="CONTEXT" low="4" high="5"/>
 	</bitset>
@@ -3267,7 +3267,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0xae6c" name="SP_HLSQ_DBG_ECO_CNTL" variants="A7XX-" usage="cmd"/>
 	<reg32 offset="0xae6d" name="SP_READ_SEL" variants="A7XX-">
 		<bitfield name="LOCATION" low="18" high="20" type="a7xx_state_location"/>
-		<bitfield name="PIPE" low="16" high="17" type="a7xx_pipe"/>
+		<bitfield name="PIPE" low="16" high="17" type="adreno_pipe"/>
 		<bitfield name="STATETYPE" low="8" high="15" type="a7xx_statetype_id"/>
 		<bitfield name="USPTP" low="4" high="7"/>
 		<bitfield name="SPTP" low="0" high="3"/>

@@ -397,4 +397,15 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value value="0x7" name="TEX_PREFETCH_UNK7"/>
 </enum>
 
+<enum name="adreno_pipe">
+	<value value="0" name="PIPE_NONE"/>
+	<value value="1" name="PIPE_BR"/>
+	<value value="2" name="PIPE_BV"/>
+	<value value="3" name="PIPE_LPAC"/>
+	<value value="4" name="PIPE_AQE0"/>
+	<value value="5" name="PIPE_AQE1"/>
+	<value value="6" name="PIPE_DDE_BR"/>
+	<value value="7" name="PIPE_DDE_BV"/>
+</enum>
+
 </database>
