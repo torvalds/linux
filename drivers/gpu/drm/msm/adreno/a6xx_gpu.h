@@ -228,6 +228,7 @@ struct a7xx_cp_smmu_info {
 extern const struct adreno_gpu_funcs a6xx_gpu_funcs;
 extern const struct adreno_gpu_funcs a6xx_gmuwrapper_funcs;
 extern const struct adreno_gpu_funcs a7xx_gpu_funcs;
+extern const struct adreno_gpu_funcs a8xx_gpu_funcs;
 
 static inline bool a6xx_has_gbif(struct adreno_gpu *gpu)
 {
