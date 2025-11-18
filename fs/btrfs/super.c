@@ -807,17 +807,15 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 	struct btrfs_root_ref *root_ref;
 	struct btrfs_inode_ref *inode_ref;
 	struct btrfs_key key;
-	struct btrfs_path *path = NULL;
+	BTRFS_PATH_AUTO_FREE(path);
 	char *name = NULL, *ptr;
 	u64 dirid;
 	int len;
 	int ret;
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!path)
+		return ERR_PTR(-ENOMEM);
 
 	name = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!name) {
@@ -905,7 +903,6 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 		fs_root = NULL;
 	}
 
-	btrfs_free_path(path);
 	if (ptr == name + PATH_MAX - 1) {
 		name[0] = '/';
 		name[1] = '\0';
@@ -916,7 +913,6 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 
 err:
 	btrfs_put_root(fs_root);
-	btrfs_free_path(path);
 	kfree(name);
 	return ERR_PTR(ret);
 }

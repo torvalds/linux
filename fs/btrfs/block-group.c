@@ -1065,7 +1065,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     struct btrfs_chunk_map *map)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_block_group *block_group;
 	struct btrfs_free_cluster *cluster;
 	struct inode *inode;
@@ -1305,7 +1305,6 @@ out:
 	btrfs_put_block_group(block_group);
 	if (remove_rsv)
 		btrfs_dec_delayed_refs_rsv_bg_updates(fs_info);
-	btrfs_free_path(path);
 	return ret;
 }
 

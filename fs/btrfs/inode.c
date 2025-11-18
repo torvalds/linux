@@ -4462,7 +4462,7 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *root = dir->root;
 	struct btrfs_inode *inode = BTRFS_I(d_inode(dentry));
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	struct btrfs_dir_item *di;
 	struct btrfs_key key;
@@ -4555,7 +4555,6 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
 out:
-	btrfs_free_path(path);
 	fscrypt_free_filename(&fname);
 	return ret;
 }

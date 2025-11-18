@@ -3085,7 +3085,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_key key;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_root *extent_root;
 	struct extent_buffer *leaf;
 	struct btrfs_extent_item *ei;
@@ -3120,7 +3120,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			   node->bytenr, refs_to_drop);
 		ret = -EINVAL;
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	if (is_data)
@@ -3165,15 +3165,14 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				abort_and_dump(trans, path,
 "invalid iref slot %u, no EXTENT/METADATA_ITEM found but has inline extent ref",
 					   path->slots[0]);
-				ret = -EUCLEAN;
-				goto out;
+				return -EUCLEAN;
 			}
 			/* Must be SHARED_* item, remove the backref first */
 			ret = remove_extent_backref(trans, extent_root, path,
 						    NULL, refs_to_drop, is_data);
 			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
-				goto out;
+				return ret;
 			}
 			btrfs_release_path(path);
 
@@ -3222,7 +3221,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			}
 			if (unlikely(ret < 0)) {
 				btrfs_abort_transaction(trans, ret);
-				goto out;
+				return ret;
 			}
 			extent_slot = path->slots[0];
 		}
@@ -3231,10 +3230,10 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 "unable to find ref byte nr %llu parent %llu root %llu owner %llu offset %llu slot %d",
 			       bytenr, node->parent, node->ref_root, owner_objectid,
 			       owner_offset, path->slots[0]);
-		goto out;
+		return ret;
 	} else {
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	leaf = path->nodes[0];
@@ -3245,7 +3244,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			  "unexpected extent item size, has %u expect >= %zu",
 			  item_size, sizeof(*ei));
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 	ei = btrfs_item_ptr(leaf, extent_slot,
 			    struct btrfs_extent_item);
@@ -3259,8 +3258,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				       key.objectid, key.type, key.offset,
 				       path->slots[0], owner_objectid, item_size,
 				       sizeof(*ei) + sizeof(*bi));
-			ret = -EUCLEAN;
-			goto out;
+			return -EUCLEAN;
 		}
 		bi = (struct btrfs_tree_block_info *)(ei + 1);
 		WARN_ON(owner_objectid != btrfs_tree_block_level(leaf, bi));
@@ -3271,8 +3269,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		abort_and_dump(trans, path,
 		"trying to drop %d refs but we only have %llu for bytenr %llu slot %u",
 			       refs_to_drop, refs, bytenr, path->slots[0]);
-		ret = -EUCLEAN;
-		goto out;
+		return -EUCLEAN;
 	}
 	refs -= refs_to_drop;
 
@@ -3288,8 +3285,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				abort_and_dump(trans, path,
 "invalid iref, got inlined extent ref but no EXTENT/METADATA_ITEM found, slot %u",
 					       path->slots[0]);
-				ret = -EUCLEAN;
-				goto out;
+				return -EUCLEAN;
 			}
 		} else {
 			btrfs_set_extent_refs(leaf, ei, refs);
@@ -3299,7 +3295,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 						    iref, refs_to_drop, is_data);
 			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
-				goto out;
+				return ret;
 			}
 		}
 	} else {
@@ -3319,8 +3315,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		"invalid refs_to_drop, current refs %u refs_to_drop %u slot %u",
 					       extent_data_ref_count(path, iref),
 					       refs_to_drop, path->slots[0]);
-				ret = -EUCLEAN;
-				goto out;
+				return -EUCLEAN;
 			}
 			if (iref) {
 				if (unlikely(path->slots[0] != extent_slot)) {
@@ -3328,8 +3323,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 "invalid iref, extent item key " BTRFS_KEY_FMT " slot %u doesn't have wanted iref",
 						       BTRFS_KEY_FMT_VALUE(&key),
 						       path->slots[0]);
-					ret = -EUCLEAN;
-					goto out;
+					return -EUCLEAN;
 				}
 			} else {
 				/*
@@ -3342,8 +3336,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 					abort_and_dump(trans, path,
 	"invalid SHARED_* item slot %u, previous item is not EXTENT/METADATA_ITEM",
 						       path->slots[0]);
-					ret = -EUCLEAN;
-					goto out;
+					return -EUCLEAN;
 				}
 				path->slots[0] = extent_slot;
 				num_to_del = 2;
@@ -3364,7 +3357,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				      num_to_del);
 		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
-			goto out;
+			return ret;
 		}
 		btrfs_release_path(path);
 
@@ -3372,8 +3365,6 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	}
 	btrfs_release_path(path);
 
-out:
-	btrfs_free_path(path);
 	return ret;
 }
 

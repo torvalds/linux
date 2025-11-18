@@ -2648,7 +2648,7 @@ static noinline int replay_dir_deletes(struct walk_control *wc,
 	int ret = 0;
 	struct btrfs_key dir_key;
 	struct btrfs_key found_key;
-	struct btrfs_path *log_path;
+	BTRFS_PATH_AUTO_FREE(log_path);
 	struct btrfs_inode *dir;
 
 	dir_key.objectid = dirid;
@@ -2665,7 +2665,6 @@ static noinline int replay_dir_deletes(struct walk_control *wc,
 	 * we replay the deletes before we copy in the inode item from the log.
 	 */
 	if (IS_ERR(dir)) {
-		btrfs_free_path(log_path);
 		ret = PTR_ERR(dir);
 		if (ret == -ENOENT)
 			ret = 0;
@@ -2745,7 +2744,6 @@ static noinline int replay_dir_deletes(struct walk_control *wc,
 	ret = 0;
 out:
 	btrfs_release_path(wc->subvol_path);
-	btrfs_free_path(log_path);
 	iput(&dir->vfs_inode);
 	return ret;
 }

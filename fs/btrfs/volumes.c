@@ -4054,7 +4054,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	struct btrfs_root *chunk_root = fs_info->chunk_root;
 	u64 chunk_type;
 	struct btrfs_chunk *chunk;
-	struct btrfs_path *path = NULL;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf;
@@ -4225,7 +4225,6 @@ loop:
 		goto again;
 	}
 error:
-	btrfs_free_path(path);
 	if (enospc_errors) {
 		btrfs_info(fs_info, "%d enospc errors during balance",
 			   enospc_errors);
