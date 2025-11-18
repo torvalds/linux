@@ -133,6 +133,7 @@ $(MAKE_DIRS):
 	$(call msg,MKDIR,,$@)
 	$(Q)mkdir -p $@
 
+ifneq ($(CROSS_COMPILE),)
 $(BPFOBJ): $(wildcard $(BPFDIR)/*.[ch] $(BPFDIR)/Makefile)			\
 	   $(APIDIR)/linux/bpf.h						\
 	   | $(OBJ_DIR)/libbpf
@@ -141,6 +142,7 @@ $(BPFOBJ): $(wildcard $(BPFDIR)/*.[ch] $(BPFDIR)/Makefile)			\
 		    EXTRA_CFLAGS='-g -O0 -fPIC'					\
 		    LDFLAGS="$(LDFLAGS)"					\
 		    DESTDIR=$(OUTPUT_DIR) prefix= all install_headers
+endif
 
 $(HOST_BPFOBJ): $(wildcard $(BPFDIR)/*.[ch] $(BPFDIR)/Makefile)		\
 	   $(APIDIR)/linux/bpf.h						\
