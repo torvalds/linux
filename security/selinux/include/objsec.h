@@ -217,9 +217,9 @@ selinux_ipc(const struct kern_ipc_perm *ipc)
  */
 static inline u32 current_sid(void)
 {
-	const struct cred_security_struct *tsec = selinux_cred(current_cred());
+	const struct cred_security_struct *crsec = selinux_cred(current_cred());
 
-	return tsec->sid;
+	return crsec->sid;
 }
 
 static inline struct superblock_security_struct *
