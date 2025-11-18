@@ -570,7 +570,8 @@ static inline bool strstarts(const char *str, const char *prefix)
  * Returns:
  * True if @str ends with @suffix. False in all other cases.
  */
-static inline bool strends(const char *str, const char *suffix)
+static inline bool __attribute__((nonnull(1, 2)))
+strends(const char *str, const char *suffix)
 {
 	unsigned int str_len = strlen(str), suffix_len = strlen(suffix);
 
