@@ -1345,7 +1345,16 @@ static int intel_gpio_irq_init_hw(struct gpio_chip *gc)
 	return 0;
 }
 
-static int intel_gpio_add_pin_ranges(struct gpio_chip *gc)
+/**
+ * intel_gpio_add_pin_ranges - add GPIO pin ranges for all groups in all communities
+ * @gc: GPIO chip structure
+ *
+ * This function iterates over all communities and all groups and adds the respective
+ * GPIO pin ranges, so the GPIO library will correctly map a GPIO offset to a pin number.
+ *
+ * Return: 0, or negative error code if range can't be added.
+ */
+int intel_gpio_add_pin_ranges(struct gpio_chip *gc)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	const struct intel_community *community;
@@ -1362,6 +1371,7 @@ static int intel_gpio_add_pin_ranges(struct gpio_chip *gc)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(intel_gpio_add_pin_ranges, "PINCTRL_INTEL");
 
 static unsigned int intel_gpio_ngpio(const struct intel_pinctrl *pctrl)
 {

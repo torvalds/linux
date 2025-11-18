@@ -276,6 +276,8 @@ extern const struct dev_pm_ops intel_pinctrl_pm_ops;
 const struct intel_community *intel_get_community(const struct intel_pinctrl *pctrl,
 						  unsigned int pin);
 
+int intel_gpio_add_pin_ranges(struct gpio_chip *gc);
+
 int intel_get_groups_count(struct pinctrl_dev *pctldev);
 const char *intel_get_group_name(struct pinctrl_dev *pctldev, unsigned int group);
 int intel_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
