@@ -997,7 +997,13 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 					unsigned long address, pmd_t *pmdp)
 {
+#ifdef CONFIG_SMP
 	pmd_t pmd = __pmd(atomic_long_xchg((atomic_long_t *)pmdp, 0));
+#else
+	pmd_t pmd = *pmdp;
+
+	pmd_clear(pmdp);
+#endif
 
 	page_table_check_pmd_clear(mm, pmd);
 
