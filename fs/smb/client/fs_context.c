@@ -711,6 +711,47 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 	return 0;
 }
 
+static int smb3_handle_conflicting_options(struct fs_context *fc)
+{
+	struct smb3_fs_context *ctx = smb3_fc2context(fc);
+
+	if (ctx->multichannel_specified) {
+		if (ctx->multichannel) {
+			if (!ctx->max_channels_specified) {
+				ctx->max_channels = 2;
+			} else if (ctx->max_channels == 1) {
+				cifs_errorf(fc,
+					    "max_channels must be greater than 1 when multichannel is enabled\n");
+				return -EINVAL;
+			}
+		} else {
+			if (!ctx->max_channels_specified) {
+				ctx->max_channels = 1;
+			} else if (ctx->max_channels > 1) {
+				cifs_errorf(fc,
+					    "max_channels must be equal to 1 when multichannel is disabled\n");
+				return -EINVAL;
+			}
+		}
+	} else {
+		if (ctx->max_channels_specified) {
+			if (ctx->max_channels > 1)
+				ctx->multichannel = true;
+			else
+				ctx->multichannel = false;
+		} else {
+			ctx->multichannel = false;
+			ctx->max_channels = 1;
+		}
+	}
+
+	//resetting default values as remount doesn't initialize fs_context again
+	ctx->multichannel_specified = false;
+	ctx->max_channels_specified = false;
+
+	return 0;
+}
+
 static void smb3_fs_context_free(struct fs_context *fc);
 static int smb3_fs_context_parse_param(struct fs_context *fc,
 				       struct fs_parameter *param);
@@ -784,6 +825,7 @@ static int smb3_fs_context_parse_monolithic(struct fs_context *fc,
 		if (ret < 0)
 			break;
 	}
+	ret = smb3_handle_conflicting_options(fc);
 
 	return ret;
 }
@@ -1250,15 +1292,11 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->nodelete = 1;
 		break;
 	case Opt_multichannel:
-		if (result.negated) {
+		ctx->multichannel_specified = true;
+		if (result.negated)
 			ctx->multichannel = false;
-			ctx->max_channels = 1;
-		} else {
+		else
 			ctx->multichannel = true;
-			/* if number of channels not specified, default to 2 */
-			if (ctx->max_channels < 2)
-				ctx->max_channels = 2;
-		}
 		break;
 	case Opt_uid:
 		ctx->linux_uid = result.uid;
@@ -1394,15 +1432,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->max_credits = result.uint_32;
 		break;
 	case Opt_max_channels:
+		ctx->max_channels_specified = true;
 		if (result.uint_32 < 1 || result.uint_32 > CIFS_MAX_CHANNELS) {
 			cifs_errorf(fc, "%s: Invalid max_channels value, needs to be 1-%d\n",
 				 __func__, CIFS_MAX_CHANNELS);
 			goto cifs_parse_mount_err;
 		}
 		ctx->max_channels = result.uint_32;
-		/* If more than one channel requested ... they want multichan */
-		if (result.uint_32 > 1)
-			ctx->multichannel = true;
 		break;
 	case Opt_max_cached_dirs:
 		if (result.uint_32 < 1) {
@@ -1820,13 +1856,6 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		goto cifs_parse_mount_err;
 	}
 
-	/*
-	 * Multichannel is not meaningful if max_channels is 1.
-	 * Force multichannel to false to ensure consistent configuration.
-	 */
-	if (ctx->multichannel && ctx->max_channels == 1)
-		ctx->multichannel = false;
-
 	return 0;
 
  cifs_parse_mount_err:
@@ -1913,6 +1942,8 @@ int smb3_init_fs_context(struct fs_context *fc)
 
 	/* default to no multichannel (single server connection) */
 	ctx->multichannel = false;
+	ctx->multichannel_specified = false;
+	ctx->max_channels_specified = false;
 	ctx->max_channels = 1;
 
 	ctx->backupuid_specified = false; /* no backup intent for a user */

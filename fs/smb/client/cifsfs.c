@@ -1016,7 +1016,6 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	} else {
 		cifs_info("Attempting to mount %s\n", old_ctx->source);
 	}
-
 	cifs_sb = kzalloc(sizeof(*cifs_sb), GFP_KERNEL);
 	if (!cifs_sb)
 		return ERR_PTR(-ENOMEM);
