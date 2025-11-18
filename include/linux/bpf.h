@@ -3710,12 +3710,14 @@ static inline u32 bpf_xdp_sock_convert_ctx_access(enum bpf_access_type type,
 #endif /* CONFIG_INET */
 
 enum bpf_text_poke_type {
+	BPF_MOD_NOP,
 	BPF_MOD_CALL,
 	BPF_MOD_JUMP,
 };
 
-int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
-		       void *addr1, void *addr2);
+int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
+		       enum bpf_text_poke_type new_t, void *old_addr,
+		       void *new_addr);
 
 void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,
 			       struct bpf_prog *new, struct bpf_prog *old);

@@ -183,7 +183,8 @@ static int unregister_fentry(struct bpf_trampoline *tr, void *old_addr)
 	if (tr->func.ftrace_managed)
 		ret = unregister_ftrace_direct(tr->fops, (long)old_addr, false);
 	else
-		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, NULL);
+		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, BPF_MOD_NOP,
+					 old_addr, NULL);
 
 	return ret;
 }
@@ -200,7 +201,10 @@ static int modify_fentry(struct bpf_trampoline *tr, void *old_addr, void *new_ad
 		else
 			ret = modify_ftrace_direct_nolock(tr->fops, (long)new_addr);
 	} else {
-		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, new_addr);
+		ret = bpf_arch_text_poke(ip,
+					 old_addr ? BPF_MOD_CALL : BPF_MOD_NOP,
+					 new_addr ? BPF_MOD_CALL : BPF_MOD_NOP,
+					 old_addr, new_addr);
 	}
 	return ret;
 }
@@ -225,7 +229,8 @@ static int register_fentry(struct bpf_trampoline *tr, void *new_addr)
 			return ret;
 		ret = register_ftrace_direct(tr->fops, (long)new_addr);
 	} else {
-		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, NULL, new_addr);
+		ret = bpf_arch_text_poke(ip, BPF_MOD_NOP, BPF_MOD_CALL,
+					 NULL, new_addr);
 	}
 
 	return ret;
@@ -336,8 +341,9 @@ static void bpf_tramp_image_put(struct bpf_tramp_image *im)
 	 * call_rcu_tasks() is not necessary.
 	 */
 	if (im->ip_after_call) {
-		int err = bpf_arch_text_poke(im->ip_after_call, BPF_MOD_JUMP,
-					     NULL, im->ip_epilogue);
+		int err = bpf_arch_text_poke(im->ip_after_call, BPF_MOD_NOP,
+					     BPF_MOD_JUMP, NULL,
+					     im->ip_epilogue);
 		WARN_ON(err);
 		if (IS_ENABLED(CONFIG_TASKS_RCU))
 			call_rcu_tasks(&im->rcu, __bpf_tramp_image_put_rcu_tasks);
@@ -570,7 +576,8 @@ static int __bpf_trampoline_link_prog(struct bpf_tramp_link *link,
 		if (err)
 			return err;
 		tr->extension_prog = link->link.prog;
-		return bpf_arch_text_poke(tr->func.addr, BPF_MOD_JUMP, NULL,
+		return bpf_arch_text_poke(tr->func.addr, BPF_MOD_NOP,
+					  BPF_MOD_JUMP, NULL,
 					  link->link.prog->bpf_func);
 	}
 	if (cnt >= BPF_MAX_TRAMP_LINKS)
@@ -618,6 +625,7 @@ static int __bpf_trampoline_unlink_prog(struct bpf_tramp_link *link,
 	if (kind == BPF_TRAMP_REPLACE) {
 		WARN_ON_ONCE(!tr->extension_prog);
 		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_JUMP,
+					 BPF_MOD_NOP,
 					 tr->extension_prog->bpf_func, NULL);
 		tr->extension_prog = NULL;
 		guard(mutex)(&tgt_prog->aux->ext_mutex);
