@@ -578,6 +578,9 @@ static int btrfs_begin_enable_verity(struct file *filp)
 
 	btrfs_assert_inode_locked(inode);
 
+	if (IS_ENCRYPTED(&inode->vfs_inode))
+		return -EOPNOTSUPP;
+
 	if (test_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags))
 		return -EBUSY;
 
