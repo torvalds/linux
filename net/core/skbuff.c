@@ -223,7 +223,7 @@ static void skb_under_panic(struct sk_buff *skb, unsigned int sz, void *addr)
 	skb_panic(skb, sz, addr, __func__);
 }
 
-#define NAPI_SKB_CACHE_SIZE	64
+#define NAPI_SKB_CACHE_SIZE	128
 #define NAPI_SKB_CACHE_BULK	16
 #define NAPI_SKB_CACHE_HALF	(NAPI_SKB_CACHE_SIZE / 2)
 
