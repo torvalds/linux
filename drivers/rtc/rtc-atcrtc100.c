@@ -296,10 +296,12 @@ static int atcrtc_probe(struct platform_device *pdev)
 				     "Failed to initialize RTC: unsupported hardware ID 0x%x\n",
 				     rtc_id);
 
-	atcrtc_dev->alarm_irq = platform_get_irq(pdev, 1);
-	if (atcrtc_dev->alarm_irq < 0)
-		return dev_err_probe(&pdev->dev, atcrtc_dev->alarm_irq,
+	ret = platform_get_irq(pdev, 1);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to get IRQ for alarm\n");
+	atcrtc_dev->alarm_irq = ret;
+
 	ret = devm_request_irq(&pdev->dev,
 			       atcrtc_dev->alarm_irq,
 			       atcrtc_alarm_isr,
