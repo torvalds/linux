@@ -34,7 +34,6 @@
 import codecs
 import os
 import re
-import subprocess
 import sys
 
 from docutils import nodes, statemachine
@@ -43,9 +42,9 @@ from docutils.parsers.rst import directives, Directive
 from sphinx.util.docutils import switch_source_input
 
 srctree = os.path.abspath(os.environ["srctree"])
-sys.path.insert(0, os.path.join(srctree, "tools/docs/lib"))
+sys.path.insert(0, os.path.join(srctree, "tools/lib/python"))
 
-from parse_features import ParseFeature                # pylint: disable=C0413
+from feat.parse_features import ParseFeature                # pylint: disable=C0413
 
 def ErrorString(exc):  # Shamelessly stolen from docutils
     return f'{exc.__class__.__name}: {exc}'
@@ -89,18 +88,16 @@ class KernelFeat(Directive):
 
         srctree = os.path.abspath(os.environ["srctree"])
 
-        args = [
-            os.path.join(srctree, 'tools/docs/get_feat.pl'),
-            'rest',
-            '--enable-fname',
-            '--dir',
-            os.path.join(srctree, 'Documentation', self.arguments[0]),
-        ]
+        feature_dir = os.path.join(srctree, 'Documentation', self.arguments[0])
+
+        feat = ParseFeature(feature_dir, False, True)
+        feat.parse()
 
         if len(self.arguments) > 1:
-            args.extend(['--arch', self.arguments[1]])
-
-        lines = subprocess.check_output(args, cwd=os.path.dirname(doc.current_source)).decode('utf-8')
+            arch = self.arguments[1]
+            lines = feat.output_arch_table(arch)
+        else:
+            lines = feat.output_matrix()
 
         line_regex = re.compile(r"^\.\. FILE (\S+)$")
 
