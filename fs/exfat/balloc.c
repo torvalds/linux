@@ -106,7 +106,7 @@ static int exfat_allocate_bitmap(struct super_block *sb,
 		(PAGE_SHIFT - sb->s_blocksize_bits);
 	for (i = 0; i < sbi->map_sectors; i++) {
 		/* Trigger the next readahead in advance. */
-		if (0 == (i % max_ra_count)) {
+		if (max_ra_count && 0 == (i % max_ra_count)) {
 			blk_start_plug(&plug);
 			for (j = i; j < min(max_ra_count, sbi->map_sectors - i) + i; j++)
 				sb_breadahead(sb, sector + j);
