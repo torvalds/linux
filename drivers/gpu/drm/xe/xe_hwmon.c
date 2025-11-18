@@ -502,7 +502,7 @@ xe_hwmon_power_max_interval_show(struct device *dev, struct device_attribute *at
 
 	int ret = 0;
 
-	xe_pm_runtime_get(hwmon->xe);
+	guard(xe_pm_runtime)(hwmon->xe);
 
 	mutex_lock(&hwmon->hwmon_lock);
 
@@ -520,8 +520,6 @@ xe_hwmon_power_max_interval_show(struct device *dev, struct device_attribute *at
 	}
 
 	mutex_unlock(&hwmon->hwmon_lock);
-
-	xe_pm_runtime_put(hwmon->xe);
 
 	x = REG_FIELD_GET(PWR_LIM_TIME_X, reg_val);
 	y = REG_FIELD_GET(PWR_LIM_TIME_Y, reg_val);
@@ -604,7 +602,7 @@ xe_hwmon_power_max_interval_store(struct device *dev, struct device_attribute *a
 	rxy = REG_FIELD_PREP(PWR_LIM_TIME_X, x) |
 			       REG_FIELD_PREP(PWR_LIM_TIME_Y, y);
 
-	xe_pm_runtime_get(hwmon->xe);
+	guard(xe_pm_runtime)(hwmon->xe);
 
 	mutex_lock(&hwmon->hwmon_lock);
 
@@ -615,8 +613,6 @@ xe_hwmon_power_max_interval_store(struct device *dev, struct device_attribute *a
 				  PWR_LIM_TIME, rxy);
 
 	mutex_unlock(&hwmon->hwmon_lock);
-
-	xe_pm_runtime_put(hwmon->xe);
 
 	return count;
 }
@@ -1124,37 +1120,25 @@ xe_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	      int channel, long *val)
 {
 	struct xe_hwmon *hwmon = dev_get_drvdata(dev);
-	int ret;
 
-	xe_pm_runtime_get(hwmon->xe);
+	guard(xe_pm_runtime)(hwmon->xe);
 
 	switch (type) {
 	case hwmon_temp:
-		ret = xe_hwmon_temp_read(hwmon, attr, channel, val);
-		break;
+		return xe_hwmon_temp_read(hwmon, attr, channel, val);
 	case hwmon_power:
-		ret = xe_hwmon_power_read(hwmon, attr, channel, val);
-		break;
+		return xe_hwmon_power_read(hwmon, attr, channel, val);
 	case hwmon_curr:
-		ret = xe_hwmon_curr_read(hwmon, attr, channel, val);
-		break;
+		return xe_hwmon_curr_read(hwmon, attr, channel, val);
 	case hwmon_in:
-		ret = xe_hwmon_in_read(hwmon, attr, channel, val);
-		break;
+		return xe_hwmon_in_read(hwmon, attr, channel, val);
 	case hwmon_energy:
-		ret = xe_hwmon_energy_read(hwmon, attr, channel, val);
-		break;
+		return xe_hwmon_energy_read(hwmon, attr, channel, val);
 	case hwmon_fan:
-		ret = xe_hwmon_fan_read(hwmon, attr, channel, val);
-		break;
+		return xe_hwmon_fan_read(hwmon, attr, channel, val);
 	default:
-		ret = -EOPNOTSUPP;
-		break;
+		return -EOPNOTSUPP;
 	}
-
-	xe_pm_runtime_put(hwmon->xe);
-
-	return ret;
 }
 
 static int
@@ -1162,25 +1146,17 @@ xe_hwmon_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	       int channel, long val)
 {
 	struct xe_hwmon *hwmon = dev_get_drvdata(dev);
-	int ret;
 
-	xe_pm_runtime_get(hwmon->xe);
+	guard(xe_pm_runtime)(hwmon->xe);
 
 	switch (type) {
 	case hwmon_power:
-		ret = xe_hwmon_power_write(hwmon, attr, channel, val);
-		break;
+		return xe_hwmon_power_write(hwmon, attr, channel, val);
 	case hwmon_curr:
-		ret = xe_hwmon_curr_write(hwmon, attr, channel, val);
-		break;
+		return xe_hwmon_curr_write(hwmon, attr, channel, val);
 	default:
-		ret = -EOPNOTSUPP;
-		break;
+		return -EOPNOTSUPP;
 	}
-
-	xe_pm_runtime_put(hwmon->xe);
-
-	return ret;
 }
 
 static int xe_hwmon_read_label(struct device *dev,
