@@ -20,4 +20,6 @@ struct a4xx_gpu {
 };
 #define to_a4xx_gpu(x) container_of(x, struct a4xx_gpu, base)
 
+extern const struct adreno_gpu_funcs a4xx_gpu_funcs;
+
 #endif /* __A4XX_GPU_H__ */
