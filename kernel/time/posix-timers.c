@@ -475,12 +475,6 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	if (!kc->timer_create)
 		return -EOPNOTSUPP;
 
-	new_timer = alloc_posix_timer();
-	if (unlikely(!new_timer))
-		return -EAGAIN;
-
-	spin_lock_init(&new_timer->it_lock);
-
 	/* Special case for CRIU to restore timers with a given timer ID. */
 	if (unlikely(current->signal->timer_create_restore_ids)) {
 		if (copy_from_user(&req_id, created_timer_id, sizeof(req_id)))
@@ -489,6 +483,12 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 		if ((unsigned int)req_id > INT_MAX)
 			return -EINVAL;
 	}
+
+	new_timer = alloc_posix_timer();
+	if (unlikely(!new_timer))
+		return -EAGAIN;
+
+	spin_lock_init(&new_timer->it_lock);
 
 	/*
 	 * Add the timer to the hash table. The timer is not yet valid

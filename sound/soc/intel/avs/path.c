@@ -210,9 +210,11 @@ int avs_path_set_constraint(struct avs_dev *adev, struct avs_tplg_path_template 
 					continue;
 				}
 
-				blob = avs_nhlt_config_or_default(adev, module_template);
-				if (IS_ERR(blob))
-					continue;
+				if (!module_template->nhlt_config) {
+					blob = avs_nhlt_config_or_default(adev, module_template);
+					if (IS_ERR(blob))
+						continue;
+				}
 
 				rlist[i] = path_template->fe_fmt->sampling_freq;
 				clist[i] = path_template->fe_fmt->num_channels;
@@ -382,7 +384,10 @@ static int avs_fill_gtw_config(struct avs_dev *adev, struct avs_copier_gtw_cfg *
 	struct acpi_nhlt_config *blob;
 	size_t gtw_size;
 
-	blob = avs_nhlt_config_or_default(adev, t);
+	if (t->nhlt_config)
+		blob = t->nhlt_config->blob;
+	else
+		blob = avs_nhlt_config_or_default(adev, t);
 	if (IS_ERR(blob))
 		return PTR_ERR(blob);
 

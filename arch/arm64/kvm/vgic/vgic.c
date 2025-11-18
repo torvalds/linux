@@ -28,7 +28,7 @@ struct vgic_global kvm_vgic_global_state __ro_after_init = {
  *     kvm->arch.config_lock (mutex)
  *       its->cmd_lock (mutex)
  *         its->its_lock (mutex)
- *           vgic_dist->lpi_xa.xa_lock
+ *           vgic_dist->lpi_xa.xa_lock		must be taken with IRQs disabled
  *             vgic_cpu->ap_list_lock		must be taken with IRQs disabled
  *               vgic_irq->irq_lock		must be taken with IRQs disabled
  *
@@ -141,32 +141,39 @@ static __must_check bool vgic_put_irq_norelease(struct kvm *kvm, struct vgic_irq
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	unsigned long flags;
 
-	if (irq->intid >= VGIC_MIN_LPI)
-		might_lock(&dist->lpi_xa.xa_lock);
+	/*
+	 * Normally the lock is only taken when the refcount drops to 0.
+	 * Acquire/release it early on lockdep kernels to make locking issues
+	 * in rare release paths a bit more obvious.
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP) && irq->intid >= VGIC_MIN_LPI) {
+		guard(spinlock_irqsave)(&dist->lpi_xa.xa_lock);
+	}
 
 	if (!__vgic_put_irq(kvm, irq))
 		return;
 
-	xa_lock(&dist->lpi_xa);
+	xa_lock_irqsave(&dist->lpi_xa, flags);
 	vgic_release_lpi_locked(dist, irq);
-	xa_unlock(&dist->lpi_xa);
+	xa_unlock_irqrestore(&dist->lpi_xa, flags);
 }
 
 static void vgic_release_deleted_lpis(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
-	unsigned long intid;
+	unsigned long flags, intid;
 	struct vgic_irq *irq;
 
-	xa_lock(&dist->lpi_xa);
+	xa_lock_irqsave(&dist->lpi_xa, flags);
 
 	xa_for_each(&dist->lpi_xa, intid, irq) {
 		if (irq->pending_release)
 			vgic_release_lpi_locked(dist, irq);
 	}
 
-	xa_unlock(&dist->lpi_xa);
+	xa_unlock_irqrestore(&dist->lpi_xa, flags);
 }
 
 void vgic_flush_pending_lpis(struct kvm_vcpu *vcpu)

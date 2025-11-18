@@ -276,9 +276,31 @@ static int am65_cpsw_iet_set_verify_timeout_count(struct am65_cpsw_port *port)
 	/* The number of wireside clocks contained in the verify
 	 * timeout counter. The default is 0x1312d0
 	 * (10ms at 125Mhz in 1G mode).
+	 * The frequency of the clock depends on the link speed
+	 * and the PHY interface.
 	 */
-	val = 125 * HZ_PER_MHZ;	/* assuming 125MHz wireside clock */
+	switch (port->slave.phy_if) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		if (port->qos.link_speed == SPEED_1000)
+			val = 125 * HZ_PER_MHZ;	/* 125 MHz at 1000Mbps*/
+		else if (port->qos.link_speed == SPEED_100)
+			val = 25 * HZ_PER_MHZ;	/* 25 MHz at 100Mbps*/
+		else
+			val = (25 * HZ_PER_MHZ) / 10;	/* 2.5 MHz at 10Mbps*/
+		break;
 
+	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_SGMII:
+		val = 125 * HZ_PER_MHZ;	/* 125 MHz */
+		break;
+
+	default:
+		netdev_err(port->ndev, "selected mode does not supported IET\n");
+		return -EOPNOTSUPP;
+	}
 	val /= MILLIHZ_PER_HZ;		/* count per ms timeout */
 	val *= verify_time_ms;		/* count for timeout ms */
 
@@ -295,20 +317,21 @@ static int am65_cpsw_iet_verify_wait(struct am65_cpsw_port *port)
 	u32 ctrl, status;
 	int try;
 
-	try = 20;
+	try = 3;
+
+	/* Reset the verify state machine by writing 1
+	 * to LINKFAIL
+	 */
+	ctrl = readl(port->port_base + AM65_CPSW_PN_REG_IET_CTRL);
+	ctrl |= AM65_CPSW_PN_IET_MAC_LINKFAIL;
+	writel(ctrl, port->port_base + AM65_CPSW_PN_REG_IET_CTRL);
+
+	/* Clear MAC_LINKFAIL bit to start Verify. */
+	ctrl = readl(port->port_base + AM65_CPSW_PN_REG_IET_CTRL);
+	ctrl &= ~AM65_CPSW_PN_IET_MAC_LINKFAIL;
+	writel(ctrl, port->port_base + AM65_CPSW_PN_REG_IET_CTRL);
+
 	do {
-		/* Reset the verify state machine by writing 1
-		 * to LINKFAIL
-		 */
-		ctrl = readl(port->port_base + AM65_CPSW_PN_REG_IET_CTRL);
-		ctrl |= AM65_CPSW_PN_IET_MAC_LINKFAIL;
-		writel(ctrl, port->port_base + AM65_CPSW_PN_REG_IET_CTRL);
-
-		/* Clear MAC_LINKFAIL bit to start Verify. */
-		ctrl = readl(port->port_base + AM65_CPSW_PN_REG_IET_CTRL);
-		ctrl &= ~AM65_CPSW_PN_IET_MAC_LINKFAIL;
-		writel(ctrl, port->port_base + AM65_CPSW_PN_REG_IET_CTRL);
-
 		msleep(port->qos.iet.verify_time_ms);
 
 		status = readl(port->port_base + AM65_CPSW_PN_REG_IET_STATUS);
@@ -330,7 +353,7 @@ static int am65_cpsw_iet_verify_wait(struct am65_cpsw_port *port)
 			netdev_dbg(port->ndev, "MAC Merge verify error\n");
 			return -ENODEV;
 		}
-	} while (try-- > 0);
+	} while (--try > 0);
 
 	netdev_dbg(port->ndev, "MAC Merge verify timeout\n");
 	return -ETIMEDOUT;
