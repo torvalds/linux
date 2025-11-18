@@ -321,7 +321,6 @@ static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
 	struct xe_hw_engine *hwe;
 	struct xe_exec_queue *q;
 	u64 gpu_timestamp;
-	struct xe_force_wake_ref fw_ref;
 
 	/*
 	 * RING_TIMESTAMP registers are inaccessible in VF mode.
@@ -338,30 +337,26 @@ static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
 	wait_var_event(&xef->exec_queue.pending_removal,
 		       !atomic_read(&xef->exec_queue.pending_removal));
 
-	xe_pm_runtime_get(xe);
-	fw_ref = force_wake_get_any_engine(xe, &hwe);
-	if (!hwe) {
-		xe_pm_runtime_put(xe);
-		return;
-	}
+	scoped_guard(xe_pm_runtime, xe) {
+		CLASS(xe_force_wake_release_only, fw_ref)(force_wake_get_any_engine(xe, &hwe));
+		if (!hwe)
+			return;
 
-	/* Accumulate all the exec queues from this client */
-	mutex_lock(&xef->exec_queue.lock);
-	xa_for_each(&xef->exec_queue.xa, i, q) {
-		xe_exec_queue_get(q);
+		/* Accumulate all the exec queues from this client */
+		mutex_lock(&xef->exec_queue.lock);
+		xa_for_each(&xef->exec_queue.xa, i, q) {
+			xe_exec_queue_get(q);
+			mutex_unlock(&xef->exec_queue.lock);
+
+			xe_exec_queue_update_run_ticks(q);
+
+			mutex_lock(&xef->exec_queue.lock);
+			xe_exec_queue_put(q);
+		}
 		mutex_unlock(&xef->exec_queue.lock);
 
-		xe_exec_queue_update_run_ticks(q);
-
-		mutex_lock(&xef->exec_queue.lock);
-		xe_exec_queue_put(q);
+		gpu_timestamp = xe_hw_engine_read_timestamp(hwe);
 	}
-	mutex_unlock(&xef->exec_queue.lock);
-
-	gpu_timestamp = xe_hw_engine_read_timestamp(hwe);
-
-	xe_force_wake_put(gt_to_fw(hwe->gt), fw_ref.domains);
-	xe_pm_runtime_put(xe);
 
 	for (class = 0; class < XE_ENGINE_CLASS_MAX; class++) {
 		const char *class_name;
