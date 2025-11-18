@@ -48,7 +48,13 @@ def print_attr_list(ynl, attr_names, attr_set, indent=2):
             attr = attr_set.attrs[attr_name]
             attr_info = f'{prefix}- {attr_name}: {attr.type}'
             if 'enum' in attr.yaml:
-                attr_info += f" (enum: {attr.yaml['enum']})"
+                enum_name = attr.yaml['enum']
+                attr_info += f" (enum: {enum_name})"
+                # Print enum values if available
+                if enum_name in ynl.consts:
+                    const = ynl.consts[enum_name]
+                    enum_values = list(const.entries.keys())
+                    attr_info += f"\n{prefix}  {const.type.capitalize()}: {', '.join(enum_values)}"
 
             # Show nested attributes reference and recursively display them
             nested_set_name = None
