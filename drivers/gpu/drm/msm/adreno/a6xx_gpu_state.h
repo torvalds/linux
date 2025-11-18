@@ -71,8 +71,8 @@ static const struct a6xx_cluster {
 	u32 sel_val;
 } a6xx_clusters[] = {
 	CLUSTER(CLUSTER_GRAS, a6xx_gras_cluster, 0, 0),
-	CLUSTER(CLUSTER_PS, a6xx_ps_cluster_rac, REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD, 0x0),
-	CLUSTER(CLUSTER_PS, a6xx_ps_cluster_rbp, REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD, 0x9),
+	CLUSTER(CLUSTER_PS, a6xx_ps_cluster_rac, REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD, 0x0),
+	CLUSTER(CLUSTER_PS, a6xx_ps_cluster_rbp, REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD, 0x9),
 	CLUSTER(CLUSTER_PS, a6xx_ps_cluster, 0, 0),
 	CLUSTER(CLUSTER_FE, a6xx_fe_cluster, 0, 0),
 	CLUSTER(CLUSTER_PC_VS, a6xx_pc_vs_cluster, 0, 0),
@@ -303,8 +303,8 @@ static const u32 a660_registers[] = {
 static const struct a6xx_registers a6xx_reglist[] = {
 	REGS(a6xx_registers, 0, 0),
 	REGS(a660_registers, 0, 0),
-	REGS(a6xx_rb_rac_registers, REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD, 0),
-	REGS(a6xx_rb_rbp_registers, REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD, 9),
+	REGS(a6xx_rb_rac_registers, REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD, 0),
+	REGS(a6xx_rb_rbp_registers, REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD, 9),
 };
 
 static const u32 a6xx_ahb_registers[] = {

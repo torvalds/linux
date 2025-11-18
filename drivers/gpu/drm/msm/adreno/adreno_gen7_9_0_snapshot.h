@@ -1105,14 +1105,14 @@ static const u32 gen7_9_0_tpl1_pipe_lpac_cluster_sp_ps_usptp_registers[] = {
 static_assert(IS_ALIGNED(sizeof(gen7_9_0_tpl1_pipe_lpac_cluster_sp_ps_usptp_registers), 8));
 
 static const struct gen7_sel_reg gen7_9_0_rb_rac_sel = {
-	.host_reg = REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_HOST,
-	.cd_reg = REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD,
+	.host_reg = REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_HOST,
+	.cd_reg = REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD,
 	.val = 0,
 };
 
 static const struct gen7_sel_reg gen7_9_0_rb_rbp_sel = {
-	.host_reg = REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_HOST,
-	.cd_reg = REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD,
+	.host_reg = REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_HOST,
+	.cd_reg = REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD,
 	.val = 0x9,
 };
 

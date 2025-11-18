@@ -478,14 +478,14 @@ static const u32 gen7_2_0_sp_noncontext_pipe_lpac_hlsq_state_registers[] = {
 static_assert(IS_ALIGNED(sizeof(gen7_2_0_sp_noncontext_pipe_lpac_hlsq_state_registers), 8));
 
 static const struct gen7_sel_reg  gen7_2_0_rb_rac_sel = {
-	.host_reg = REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_HOST,
-	.cd_reg = REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD,
+	.host_reg = REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_HOST,
+	.cd_reg = REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD,
 	.val = 0x0,
 };
 
 static const struct gen7_sel_reg gen7_2_0_rb_rbp_sel = {
-	.host_reg = REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_HOST,
-	.cd_reg = REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD,
+	.host_reg = REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_HOST,
+	.cd_reg = REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD,
 	.val = 0x9,
 };
 

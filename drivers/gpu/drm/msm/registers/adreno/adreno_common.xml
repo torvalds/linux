@@ -11,6 +11,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="A5XX" value="5"/>
 	<value name="A6XX" value="6"/>
 	<value name="A7XX" value="7"/>
+	<value name="A8XX" value="8"/>
 </enum>
 
 <enum name="adreno_pa_su_sc_draw">

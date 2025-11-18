@@ -238,7 +238,7 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 		OUT_RING(ring, CP_THREAD_CONTROL_0_SYNC_THREADS | CP_SET_THREAD_BOTH);
 
 		OUT_PKT7(ring, CP_EVENT_WRITE, 1);
-		OUT_RING(ring, LRZ_FLUSH);
+		OUT_RING(ring, LRZ_FLUSH_INVALIDATE);
 
 		OUT_PKT7(ring, CP_THREAD_CONTROL, 1);
 		OUT_RING(ring, CP_THREAD_CONTROL_0_SYNC_THREADS | CP_SET_THREAD_BR);
@@ -381,7 +381,7 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		rbmemptr_stats(ring, index, alwayson_end));
 
 	/* Write the fence to the scratch register */
-	OUT_PKT4(ring, REG_A6XX_CP_SCRATCH_REG(2), 1);
+	OUT_PKT4(ring, REG_A6XX_CP_SCRATCH(2), 1);
 	OUT_RING(ring, submit->seqno);
 
 	/*
@@ -522,7 +522,7 @@ static void a7xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		rbmemptr_stats(ring, index, alwayson_end));
 
 	/* Write the fence to the scratch register */
-	OUT_PKT4(ring, REG_A6XX_CP_SCRATCH_REG(2), 1);
+	OUT_PKT4(ring, REG_A6XX_CP_SCRATCH(2), 1);
 	OUT_RING(ring, submit->seqno);
 
 	OUT_PKT7(ring, CP_THREAD_CONTROL, 1);
@@ -1305,7 +1305,7 @@ static int hw_init(struct msm_gpu *gpu)
 	}
 
 	if (adreno_is_a660_family(adreno_gpu))
-		gpu_write(gpu, REG_A6XX_CP_LPAC_PROG_FIFO_SIZE, 0x00000020);
+		gpu_write(gpu, REG_A7XX_CP_LPAC_PROG_FIFO_SIZE, 0x00000020);
 
 	/* Setting the mem pool size */
 	if (adreno_is_a610(adreno_gpu) || adreno_is_a612(adreno_gpu)) {
@@ -1754,10 +1754,10 @@ static int a6xx_fault_handler(void *arg, unsigned long iova, int flags, void *da
 	const char *block = "unknown";
 
 	u32 scratch[] = {
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(4)),
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(5)),
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(6)),
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(7)),
+			gpu_read(gpu, REG_A6XX_CP_SCRATCH(4)),
+			gpu_read(gpu, REG_A6XX_CP_SCRATCH(5)),
+			gpu_read(gpu, REG_A6XX_CP_SCRATCH(6)),
+			gpu_read(gpu, REG_A6XX_CP_SCRATCH(7)),
 	};
 
 	if (info)
