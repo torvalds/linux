@@ -40,35 +40,52 @@ class YnlEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def print_attr_list(attr_names, attr_set):
+def print_attr_list(ynl, attr_names, attr_set, indent=2):
     """Print a list of attributes with their types and documentation."""
+    prefix = ' ' * indent
     for attr_name in attr_names:
         if attr_name in attr_set.attrs:
             attr = attr_set.attrs[attr_name]
-            attr_info = f'  - {attr_name}: {attr.type}'
+            attr_info = f'{prefix}- {attr_name}: {attr.type}'
             if 'enum' in attr.yaml:
                 attr_info += f" (enum: {attr.yaml['enum']})"
+
+            # Show nested attributes reference and recursively display them
+            nested_set_name = None
+            if attr.type == 'nest' and 'nested-attributes' in attr.yaml:
+                nested_set_name = attr.yaml['nested-attributes']
+                attr_info += f" -> {nested_set_name}"
+
             if attr.yaml.get('doc'):
-                doc_text = textwrap.indent(attr.yaml['doc'], '    ')
+                doc_text = textwrap.indent(attr.yaml['doc'], prefix + '  ')
                 attr_info += f"\n{doc_text}"
             print(attr_info)
 
+            # Recursively show nested attributes
+            if nested_set_name in ynl.attr_sets:
+                nested_set = ynl.attr_sets[nested_set_name]
+                # Filter out 'unspec' and other unused attrs
+                nested_names = [n for n in nested_set.attrs.keys()
+                                if nested_set.attrs[n].type != 'unused']
+                if nested_names:
+                    print_attr_list(ynl, nested_names, nested_set, indent + 4)
 
-def print_mode_attrs(mode, mode_spec, attr_set, print_request=True):
+
+def print_mode_attrs(ynl, mode, mode_spec, attr_set, print_request=True):
     """Print a given mode (do/dump/event/notify)."""
     mode_title = mode.capitalize()
 
     if print_request and 'request' in mode_spec and 'attributes' in mode_spec['request']:
         print(f'\n{mode_title} request attributes:')
-        print_attr_list(mode_spec['request']['attributes'], attr_set)
+        print_attr_list(ynl, mode_spec['request']['attributes'], attr_set)
 
     if 'reply' in mode_spec and 'attributes' in mode_spec['reply']:
         print(f'\n{mode_title} reply attributes:')
-        print_attr_list(mode_spec['reply']['attributes'], attr_set)
+        print_attr_list(ynl, mode_spec['reply']['attributes'], attr_set)
 
     if 'attributes' in mode_spec:
         print(f'\n{mode_title} attributes:')
-        print_attr_list(mode_spec['attributes'], attr_set)
+        print_attr_list(ynl, mode_spec['attributes'], attr_set)
 
 
 def main():
@@ -180,13 +197,13 @@ def main():
 
         for mode in ['do', 'dump', 'event']:
             if mode in op.yaml:
-                print_mode_attrs(mode, op.yaml[mode], op.attr_set, True)
+                print_mode_attrs(ynl, mode, op.yaml[mode], op.attr_set, True)
 
         if 'notify' in op.yaml:
             mode_spec = op.yaml['notify']
             ref_spec = ynl.msgs.get(mode_spec).yaml.get('do')
             if ref_spec:
-                print_mode_attrs('notify', ref_spec, op.attr_set, False)
+                print_mode_attrs(ynl, 'notify', ref_spec, op.attr_set, False)
 
         if 'mcgrp' in op.yaml:
             print(f"\nMulticast group: {op.yaml['mcgrp']}")
