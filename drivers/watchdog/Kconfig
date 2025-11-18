@@ -1429,14 +1429,6 @@ config ITCO_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called iTCO_wdt.
 
-config ITCO_VENDOR_SUPPORT
-	bool "Intel TCO Timer/Watchdog Specific Vendor Support"
-	depends on ITCO_WDT
-	help
-	  Add vendor specific support to the intel TCO timer based watchdog
-	  devices. At this moment we only have additional support for some
-	  SuperMicro Inc. motherboards.
-
 config IT8712F_WDT
 	tristate "IT8712F (Smart Guardian) Watchdog Timer"
 	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
