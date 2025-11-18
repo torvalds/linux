@@ -145,7 +145,6 @@ struct xe_guc_log_snapshot *xe_guc_log_snapshot_capture(struct xe_guc_log *log, 
 	struct xe_device *xe = log_to_xe(log);
 	struct xe_guc *guc = log_to_guc(log);
 	struct xe_gt *gt = log_to_gt(log);
-	unsigned int fw_ref;
 	size_t remain;
 	int i;
 
@@ -165,13 +164,12 @@ struct xe_guc_log_snapshot *xe_guc_log_snapshot_capture(struct xe_guc_log *log, 
 		remain -= size;
 	}
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref) {
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		snapshot->stamp = ~0ULL;
-	} else {
+	else
 		snapshot->stamp = xe_mmio_read64_2x32(&gt->mmio, GUC_PMTIMESTAMP_LO);
-		xe_force_wake_put(gt_to_fw(gt), fw_ref);
-	}
+
 	snapshot->ktime = ktime_get_boottime_ns();
 	snapshot->level = log->level;
 	snapshot->ver_found = guc->fw.versions.found[XE_UC_FW_VER_RELEASE];
