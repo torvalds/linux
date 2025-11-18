@@ -243,6 +243,9 @@ int xe_guc_ct_init_noalloc(struct xe_guc_ct *ct)
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 	spin_lock_init(&ct->dead.lock);
 	INIT_WORK(&ct->dead.worker, ct_dead_worker_func);
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+	stack_depot_init();
+#endif
 #endif
 	init_waitqueue_head(&ct->wq);
 	init_waitqueue_head(&ct->g2h_fence_wq);
