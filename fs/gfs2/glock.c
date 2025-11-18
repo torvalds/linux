@@ -185,8 +185,8 @@ static void gfs2_free_dead_glocks(struct gfs2_sbd *sdp)
 
 struct gfs2_glock *gfs2_glock_hold(struct gfs2_glock *gl)
 {
-	GLOCK_BUG_ON(gl, __lockref_is_dead(&gl->gl_lockref));
-	lockref_get(&gl->gl_lockref);
+	if (!lockref_get_not_dead(&gl->gl_lockref))
+		GLOCK_BUG_ON(gl, 1);
 	return gl;
 }
 
