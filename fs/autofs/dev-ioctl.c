@@ -381,6 +381,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		swap(sbi->oz_pgrp, new_pid);
 		sbi->pipefd = pipefd;
 		sbi->pipe = pipe;
+		sbi->mnt_ns_id = to_ns_common(current->nsproxy->mnt_ns)->ns_id;
 		sbi->flags &= ~AUTOFS_SBI_CATATONIC;
 	}
 out:
