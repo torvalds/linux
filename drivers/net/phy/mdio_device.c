@@ -22,6 +22,7 @@
 #include <linux/string.h>
 #include <linux/unistd.h>
 #include <linux/property.h>
+#include "mdio-private.h"
 
 void mdio_device_free(struct mdio_device *mdiodev)
 {
@@ -117,6 +118,33 @@ void mdio_device_remove(struct mdio_device *mdiodev)
 	mdiobus_unregister_device(mdiodev);
 }
 EXPORT_SYMBOL(mdio_device_remove);
+
+int mdio_device_register_gpiod(struct mdio_device *mdiodev)
+{
+	/* Deassert the optional reset signal */
+	mdiodev->reset_gpio = gpiod_get_optional(&mdiodev->dev,
+						 "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(mdiodev->reset_gpio))
+		return PTR_ERR(mdiodev->reset_gpio);
+
+	if (mdiodev->reset_gpio)
+		gpiod_set_consumer_name(mdiodev->reset_gpio, "PHY reset");
+
+	return 0;
+}
+
+int mdio_device_register_reset(struct mdio_device *mdiodev)
+{
+	struct reset_control *reset;
+
+	reset = reset_control_get_optional_exclusive(&mdiodev->dev, "phy");
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
+	mdiodev->reset_ctrl = reset;
+
+	return 0;
+}
 
 void mdio_device_reset(struct mdio_device *mdiodev, int value)
 {
