@@ -95,27 +95,11 @@ static void loongson_default_data(struct pci_dev *pdev,
 	plat->core_type = DWMAC_CORE_GMAC;
 	plat->force_sf_dma_mode = 1;
 
-	/* Set default value for multicast hash bins */
+	/* Increase the default value for multicast hash bins */
 	plat->multicast_filter_bins = 256;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
-	/* Set the maxmtu to a default of JUMBO_LEN */
-	plat->maxmtu = JUMBO_LEN;
-
-	/* Disable Priority config by default */
-	plat->tx_queues_cfg[0].use_prio = false;
-	plat->rx_queues_cfg[0].use_prio = false;
-
-	/* Disable RX queues routing by default */
-	plat->rx_queues_cfg[0].pkt_route = 0x0;
 
 	plat->clk_ref_rate = 125000000;
 	plat->clk_ptp_rate = 125000000;
-
-	/* Default to phy auto-detection */
-	plat->phy_addr = -1;
 
 	plat->dma_cfg->pbl = 32;
 	plat->dma_cfg->pblx8 = true;
@@ -140,8 +124,6 @@ static void loongson_default_data(struct pci_dev *pdev,
 		break;
 	default:
 		ld->multichan = 0;
-		plat->tx_queues_to_use = 1;
-		plat->rx_queues_to_use = 1;
 		break;
 	}
 }
@@ -559,7 +541,7 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 	struct loongson_data *ld;
 	int ret;
 
-	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
+	plat = stmmac_plat_dat_alloc(&pdev->dev);
 	if (!plat)
 		return -ENOMEM;
 
