@@ -477,8 +477,7 @@ void xe_sriov_vf_ccs_print(struct xe_device *xe, struct drm_printer *p)
 	if (!IS_VF_CCS_READY(xe))
 		return;
 
-	xe_pm_runtime_get(xe);
-
+	guard(xe_pm_runtime)(xe);
 	for_each_ccs_rw_ctx(ctx_id) {
 		bb_pool = xe->sriov.vf.ccs.contexts[ctx_id].mem.ccs_bb_pool;
 		if (!bb_pool)
@@ -489,6 +488,4 @@ void xe_sriov_vf_ccs_print(struct xe_device *xe, struct drm_printer *p)
 		drm_suballoc_dump_debug_info(&bb_pool->base, p, xe_sa_manager_gpu_addr(bb_pool));
 		drm_puts(p, "\n");
 	}
-
-	xe_pm_runtime_put(xe);
 }

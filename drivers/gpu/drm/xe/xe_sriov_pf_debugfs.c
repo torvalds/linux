@@ -70,9 +70,8 @@ static ssize_t from_file_write_to_xe_call(struct file *file, const char __user *
 	if (ret < 0)
 		return ret;
 	if (yes) {
-		xe_pm_runtime_get(xe);
+		guard(xe_pm_runtime)(xe);
 		ret = call(xe);
-		xe_pm_runtime_put(xe);
 	}
 	if (ret < 0)
 		return ret;
@@ -209,9 +208,8 @@ static ssize_t from_file_write_to_vf_call(struct file *file, const char __user *
 	if (ret < 0)
 		return ret;
 	if (yes) {
-		xe_pm_runtime_get(xe);
+		guard(xe_pm_runtime)(xe);
 		ret = call(xe, vfid);
-		xe_pm_runtime_put(xe);
 	}
 	if (ret < 0)
 		return ret;
