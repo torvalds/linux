@@ -5951,7 +5951,8 @@ static void remove_direct_functions_hash(struct ftrace_hash *hash, unsigned long
 	for (i = 0; i < size; i++) {
 		hlist_for_each_entry(entry, &hash->buckets[i], hlist) {
 			del = __ftrace_lookup_ip(direct_functions, entry->ip);
-			if (del && del->direct == addr) {
+			if (del && ftrace_jmp_get(del->direct) ==
+				   ftrace_jmp_get(addr)) {
 				remove_hash_entry(direct_functions, del);
 				kfree(del);
 			}
@@ -6016,7 +6017,14 @@ int register_ftrace_direct(struct ftrace_ops *ops, unsigned long addr)
 	if (ftrace_hash_empty(hash))
 		return -EINVAL;
 
+	/* This is a "raw" address, and this should never happen. */
+	if (WARN_ON_ONCE(ftrace_is_jmp(addr)))
+		return -EINVAL;
+
 	mutex_lock(&direct_mutex);
+
+	if (ops->flags & FTRACE_OPS_FL_JMP)
+		addr = ftrace_jmp_set(addr);
 
 	/* Make sure requested entries are not already registered.. */
 	size = 1 << hash->size_bits;
@@ -6137,6 +6145,13 @@ __modify_ftrace_direct(struct ftrace_ops *ops, unsigned long addr)
 	int err;
 
 	lockdep_assert_held_once(&direct_mutex);
+
+	/* This is a "raw" address, and this should never happen. */
+	if (WARN_ON_ONCE(ftrace_is_jmp(addr)))
+		return -EINVAL;
+
+	if (ops->flags & FTRACE_OPS_FL_JMP)
+		addr = ftrace_jmp_set(addr);
 
 	/* Enable the tmp_ops to have the same functions as the direct ops */
 	ftrace_ops_init(&tmp_ops);
