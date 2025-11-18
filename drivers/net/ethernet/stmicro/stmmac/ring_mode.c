@@ -91,7 +91,7 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 	return entry;
 }
 
-static unsigned int is_jumbo_frm(int len, int enh_desc)
+static unsigned int is_jumbo_frm(unsigned int len, int enh_desc)
 {
 	unsigned int ret = 0;
 
