@@ -153,13 +153,13 @@
 			#size-cells = <0>;
 			led-control = <0x0 0x0 0x3f83f8 0x0>;
 
-			sysled3: led3@3 {
+			sysled3: led@3 {
 				reg = <3>;
 				label = "system:red:power";
 				linux,default-trigger = "default-on";
 			};
 
-			sysled4: led4@4 {
+			sysled4: led@4 {
 				reg = <4>;
 				label = "system:green:act";
 				linux,default-trigger = "heartbeat";
