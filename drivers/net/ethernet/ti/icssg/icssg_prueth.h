@@ -129,6 +129,7 @@ struct prueth_tx_chn {
 	struct hrtimer tx_hrtimer;
 	unsigned long tx_pace_timeout_ns;
 	struct xsk_buff_pool *xsk_pool;
+	bool irq_disabled;
 };
 
 struct prueth_rx_chn {
@@ -150,6 +151,7 @@ enum prueth_swdata_type {
 	PRUETH_SWDATA_PAGE,
 	PRUETH_SWDATA_CMD,
 	PRUETH_SWDATA_XDPF,
+	PRUETH_SWDATA_XSK,
 };
 
 struct prueth_swdata {
