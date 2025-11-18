@@ -162,9 +162,12 @@ static int alloc_bb_pool(struct xe_tile *tile, struct xe_sriov_vf_ccs_ctx *ctx)
 	offset = 0;
 	xe_map_memset(xe, &sa_manager->bo->vmap, offset, MI_NOOP,
 		      bb_pool_size);
+	xe_map_memset(xe, &sa_manager->shadow->vmap, offset, MI_NOOP,
+		      bb_pool_size);
 
 	offset = bb_pool_size - sizeof(u32);
 	xe_map_wr(xe, &sa_manager->bo->vmap, offset, u32, MI_BATCH_BUFFER_END);
+	xe_map_wr(xe, &sa_manager->shadow->vmap, offset, u32, MI_BATCH_BUFFER_END);
 
 	ctx->mem.ccs_bb_pool = sa_manager;
 
