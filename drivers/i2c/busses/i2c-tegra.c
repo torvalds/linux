@@ -85,6 +85,7 @@
 #define PACKET_HEADER0_PROTOCOL			GENMASK(7, 4)
 #define PACKET_HEADER0_PROTOCOL_I2C		1
 
+#define I2C_HEADER_HS_MODE			BIT(22)
 #define I2C_HEADER_CONT_ON_NAK			BIT(21)
 #define I2C_HEADER_READ				BIT(19)
 #define I2C_HEADER_10BIT_ADDR			BIT(18)
@@ -200,6 +201,8 @@ enum msg_end_type {
  * @thigh_fast_mode: High period of the clock in fast mode.
  * @tlow_fastplus_mode: Low period of the clock in fast-plus mode.
  * @thigh_fastplus_mode: High period of the clock in fast-plus mode.
+ * @tlow_hs_mode: Low period of the clock in HS mode.
+ * @thigh_hs_mode: High period of the clock in HS mode.
  * @setup_hold_time_std_mode: Setup and hold time for start and stop conditions
  *		in standard mode.
  * @setup_hold_time_fast_mode: Setup and hold time for start and stop
@@ -210,6 +213,7 @@ enum msg_end_type {
  *		in HS mode.
  * @has_interface_timing_reg: Has interface timing register to program the tuned
  *		timing settings.
+ * @enable_hs_mode_support: Enable support for high speed (HS) mode transfers.
  */
 struct tegra_i2c_hw_feature {
 	bool has_continue_xfer_support;
@@ -232,11 +236,14 @@ struct tegra_i2c_hw_feature {
 	u32 thigh_fast_mode;
 	u32 tlow_fastplus_mode;
 	u32 thigh_fastplus_mode;
+	u32 tlow_hs_mode;
+	u32 thigh_hs_mode;
 	u32 setup_hold_time_std_mode;
 	u32 setup_hold_time_fast_mode;
 	u32 setup_hold_time_fastplus_mode;
 	u32 setup_hold_time_hs_mode;
 	bool has_interface_timing_reg;
+	bool enable_hs_mode_support;
 };
 
 /**
@@ -646,6 +653,7 @@ static int tegra_i2c_master_reset(struct tegra_i2c_dev *i2c_dev)
 static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 {
 	u32 val, clk_divisor, clk_multiplier, tsu_thd, tlow, thigh, non_hs_mode;
+	u32 max_bus_freq_hz;
 	struct i2c_timings *t = &i2c_dev->timings;
 	int err;
 
@@ -684,6 +692,14 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	if (IS_VI(i2c_dev))
 		tegra_i2c_vi_init(i2c_dev);
 
+	if (i2c_dev->hw->enable_hs_mode_support)
+		max_bus_freq_hz = I2C_MAX_HIGH_SPEED_MODE_FREQ;
+	else
+		max_bus_freq_hz = I2C_MAX_FAST_MODE_PLUS_FREQ;
+
+	if (WARN_ON(t->bus_freq_hz > max_bus_freq_hz))
+		t->bus_freq_hz = max_bus_freq_hz;
+
 	if (t->bus_freq_hz <= I2C_MAX_STANDARD_MODE_FREQ) {
 		tlow = i2c_dev->hw->tlow_std_mode;
 		thigh = i2c_dev->hw->thigh_std_mode;
@@ -694,11 +710,22 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 		thigh = i2c_dev->hw->thigh_fast_mode;
 		tsu_thd = i2c_dev->hw->setup_hold_time_fast_mode;
 		non_hs_mode = i2c_dev->hw->clk_divisor_fast_mode;
-	} else {
+	} else if (t->bus_freq_hz <= I2C_MAX_FAST_MODE_PLUS_FREQ) {
 		tlow = i2c_dev->hw->tlow_fastplus_mode;
 		thigh = i2c_dev->hw->thigh_fastplus_mode;
 		tsu_thd = i2c_dev->hw->setup_hold_time_fastplus_mode;
 		non_hs_mode = i2c_dev->hw->clk_divisor_fast_plus_mode;
+	} else {
+		/*
+		 * When using HS mode, i.e. when the bus frequency is greater than fast plus mode,
+		 * the non-hs timing registers will be used for sending the master code byte for
+		 * transition to HS mode. Configure the non-hs timing registers for Fast Mode to
+		 * send the master code byte at 400kHz.
+		 */
+		tlow = i2c_dev->hw->tlow_fast_mode;
+		thigh = i2c_dev->hw->thigh_fast_mode;
+		tsu_thd = i2c_dev->hw->setup_hold_time_fast_mode;
+		non_hs_mode = i2c_dev->hw->clk_divisor_fast_mode;
 	}
 
 	/* make sure clock divisor programmed correctly */
@@ -719,6 +746,18 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	 */
 	if (i2c_dev->hw->has_interface_timing_reg && tsu_thd)
 		i2c_writel(i2c_dev, tsu_thd, I2C_INTERFACE_TIMING_1);
+
+	/* Write HS mode registers. These will get used only for HS mode*/
+	if (i2c_dev->hw->enable_hs_mode_support) {
+		tlow = i2c_dev->hw->tlow_hs_mode;
+		thigh = i2c_dev->hw->thigh_hs_mode;
+		tsu_thd = i2c_dev->hw->setup_hold_time_hs_mode;
+
+		val = FIELD_PREP(I2C_HS_INTERFACE_TIMING_THIGH, thigh) |
+			FIELD_PREP(I2C_HS_INTERFACE_TIMING_TLOW, tlow);
+		i2c_writel(i2c_dev, val, I2C_HS_INTERFACE_TIMING_0);
+		i2c_writel(i2c_dev, tsu_thd, I2C_HS_INTERFACE_TIMING_1);
+	}
 
 	clk_multiplier = (tlow + thigh + 2) * (non_hs_mode + 1);
 
@@ -1217,6 +1256,9 @@ static void tegra_i2c_push_packet_header(struct tegra_i2c_dev *i2c_dev,
 	if (msg->flags & I2C_M_RD)
 		packet_header |= I2C_HEADER_READ;
 
+	if (i2c_dev->timings.bus_freq_hz > I2C_MAX_FAST_MODE_PLUS_FREQ)
+		packet_header |= I2C_HEADER_HS_MODE;
+
 	if (i2c_dev->dma_mode && !i2c_dev->msg_read)
 		*dma_buf++ = packet_header;
 	else
@@ -1508,6 +1550,7 @@ static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
 	.setup_hold_time_fastplus_mode = 0x0,
 	.setup_hold_time_hs_mode = 0x0,
 	.has_interface_timing_reg = false,
+	.enable_hs_mode_support = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
@@ -1536,6 +1579,7 @@ static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
 	.setup_hold_time_fastplus_mode = 0x0,
 	.setup_hold_time_hs_mode = 0x0,
 	.has_interface_timing_reg = false,
+	.enable_hs_mode_support = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra114_i2c_hw = {
@@ -1564,6 +1608,7 @@ static const struct tegra_i2c_hw_feature tegra114_i2c_hw = {
 	.setup_hold_time_fastplus_mode = 0x0,
 	.setup_hold_time_hs_mode = 0x0,
 	.has_interface_timing_reg = false,
+	.enable_hs_mode_support = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra124_i2c_hw = {
@@ -1592,6 +1637,7 @@ static const struct tegra_i2c_hw_feature tegra124_i2c_hw = {
 	.setup_hold_time_fastplus_mode = 0x0,
 	.setup_hold_time_hs_mode = 0x0,
 	.has_interface_timing_reg = true,
+	.enable_hs_mode_support = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra210_i2c_hw = {
@@ -1620,6 +1666,7 @@ static const struct tegra_i2c_hw_feature tegra210_i2c_hw = {
 	.setup_hold_time_fastplus_mode = 0,
 	.setup_hold_time_hs_mode = 0,
 	.has_interface_timing_reg = true,
+	.enable_hs_mode_support = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra186_i2c_hw = {
@@ -1648,6 +1695,7 @@ static const struct tegra_i2c_hw_feature tegra186_i2c_hw = {
 	.setup_hold_time_fastplus_mode = 0,
 	.setup_hold_time_hs_mode = 0,
 	.has_interface_timing_reg = true,
+	.enable_hs_mode_support = false,
 };
 
 static const struct tegra_i2c_hw_feature tegra194_i2c_hw = {
@@ -1671,17 +1719,20 @@ static const struct tegra_i2c_hw_feature tegra194_i2c_hw = {
 	.thigh_fast_mode = 0x2,
 	.tlow_fastplus_mode = 0x2,
 	.thigh_fastplus_mode = 0x2,
+	.tlow_hs_mode = 0x8,
+	.thigh_hs_mode = 0x3,
 	.setup_hold_time_std_mode = 0x08080808,
 	.setup_hold_time_fast_mode = 0x02020202,
 	.setup_hold_time_fastplus_mode = 0x02020202,
 	.setup_hold_time_hs_mode = 0x090909,
 	.has_interface_timing_reg = true,
+	.enable_hs_mode_support = true,
 };
 
 static const struct tegra_i2c_hw_feature tegra256_i2c_hw = {
 	.has_continue_xfer_support = true,
 	.has_per_pkt_xfer_complete_irq = true,
-	.clk_divisor_hs_mode = 7,
+	.clk_divisor_hs_mode = 9,
 	.clk_divisor_std_mode = 0x7a,
 	.clk_divisor_fast_mode = 0x40,
 	.clk_divisor_fast_plus_mode = 0x14,
@@ -1699,10 +1750,14 @@ static const struct tegra_i2c_hw_feature tegra256_i2c_hw = {
 	.thigh_fast_mode = 0x2,
 	.tlow_fastplus_mode = 0x4,
 	.thigh_fastplus_mode = 0x4,
+	.tlow_hs_mode = 0x3,
+	.thigh_hs_mode = 0x2,
 	.setup_hold_time_std_mode = 0x08080808,
 	.setup_hold_time_fast_mode = 0x04010101,
 	.setup_hold_time_fastplus_mode = 0x04020202,
+	.setup_hold_time_hs_mode = 0x030303,
 	.has_interface_timing_reg = true,
+	.enable_hs_mode_support = true,
 };
 
 static const struct of_device_id tegra_i2c_of_match[] = {
