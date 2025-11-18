@@ -104,7 +104,8 @@ static int txgbe_set_phy_link_hostif(struct wx *wx, int speed, int autoneg, int 
 					 WX_HI_COMMAND_TIMEOUT, true);
 }
 
-static void txgbe_get_link_capabilities(struct wx *wx, int *speed, int *duplex)
+static void txgbe_get_link_capabilities(struct wx *wx, int *speed,
+					int *autoneg, int *duplex)
 {
 	struct txgbe *txgbe = wx->priv;
 
@@ -115,6 +116,7 @@ static void txgbe_get_link_capabilities(struct wx *wx, int *speed, int *duplex)
 	else
 		*speed = SPEED_UNKNOWN;
 
+	*autoneg = phylink_test(txgbe->advertising, Autoneg);
 	*duplex = *speed == SPEED_UNKNOWN ? DUPLEX_HALF : DUPLEX_FULL;
 }
 
@@ -135,11 +137,11 @@ static void txgbe_get_mac_link(struct wx *wx, int *speed)
 
 int txgbe_set_phy_link(struct wx *wx)
 {
-	int speed, duplex, err;
+	int speed, autoneg, duplex, err;
 
-	txgbe_get_link_capabilities(wx, &speed, &duplex);
+	txgbe_get_link_capabilities(wx, &speed, &autoneg, &duplex);
 
-	err = txgbe_set_phy_link_hostif(wx, speed, 0, duplex);
+	err = txgbe_set_phy_link_hostif(wx, speed, autoneg, duplex);
 	if (err) {
 		wx_err(wx, "Failed to setup link\n");
 		return err;
@@ -154,19 +156,43 @@ static int txgbe_sfp_to_linkmodes(struct wx *wx, struct txgbe_sfp_id *id)
 	DECLARE_PHY_INTERFACE_MASK(interfaces);
 	struct txgbe *txgbe = wx->priv;
 
-	if (id->com_25g_code & (TXGBE_SFF_25GBASESR_CAPABLE |
-				TXGBE_SFF_25GBASEER_CAPABLE |
-				TXGBE_SFF_25GBASELR_CAPABLE)) {
-		phylink_set(modes, 25000baseSR_Full);
+	if (id->cable_tech & TXGBE_SFF_DA_PASSIVE_CABLE) {
+		txgbe->link_port = PORT_DA;
+		phylink_set(modes, Autoneg);
+		if (id->com_25g_code == TXGBE_SFF_25GBASECR_91FEC ||
+		    id->com_25g_code == TXGBE_SFF_25GBASECR_74FEC ||
+		    id->com_25g_code == TXGBE_SFF_25GBASECR_NOFEC) {
+			phylink_set(modes, 25000baseCR_Full);
+			phylink_set(modes, 10000baseCR_Full);
+			__set_bit(PHY_INTERFACE_MODE_25GBASER, interfaces);
+			__set_bit(PHY_INTERFACE_MODE_10GBASER, interfaces);
+		} else {
+			phylink_set(modes, 10000baseCR_Full);
+			__set_bit(PHY_INTERFACE_MODE_10GBASER, interfaces);
+		}
+	} else if (id->cable_tech & TXGBE_SFF_DA_ACTIVE_CABLE) {
+		txgbe->link_port = PORT_DA;
+		phylink_set(modes, Autoneg);
+		phylink_set(modes, 25000baseCR_Full);
 		__set_bit(PHY_INTERFACE_MODE_25GBASER, interfaces);
-	}
-	if (id->com_10g_code & TXGBE_SFF_10GBASESR_CAPABLE) {
-		phylink_set(modes, 10000baseSR_Full);
-		__set_bit(PHY_INTERFACE_MODE_10GBASER, interfaces);
-	}
-	if (id->com_10g_code & TXGBE_SFF_10GBASELR_CAPABLE) {
-		phylink_set(modes, 10000baseLR_Full);
-		__set_bit(PHY_INTERFACE_MODE_10GBASER, interfaces);
+	} else {
+		if (id->com_25g_code == TXGBE_SFF_25GBASESR_CAPABLE ||
+		    id->com_25g_code == TXGBE_SFF_25GBASEER_CAPABLE ||
+		    id->com_25g_code == TXGBE_SFF_25GBASELR_CAPABLE) {
+			txgbe->link_port = PORT_FIBRE;
+			phylink_set(modes, 25000baseSR_Full);
+			__set_bit(PHY_INTERFACE_MODE_25GBASER, interfaces);
+		}
+		if (id->com_10g_code & TXGBE_SFF_10GBASESR_CAPABLE) {
+			txgbe->link_port = PORT_FIBRE;
+			phylink_set(modes, 10000baseSR_Full);
+			__set_bit(PHY_INTERFACE_MODE_10GBASER, interfaces);
+		}
+		if (id->com_10g_code & TXGBE_SFF_10GBASELR_CAPABLE) {
+			txgbe->link_port = PORT_FIBRE;
+			phylink_set(modes, 10000baseLR_Full);
+			__set_bit(PHY_INTERFACE_MODE_10GBASER, interfaces);
+		}
 	}
 
 	if (phy_interface_empty(interfaces)) {
@@ -177,7 +203,6 @@ static int txgbe_sfp_to_linkmodes(struct wx *wx, struct txgbe_sfp_id *id)
 	phylink_set(modes, Pause);
 	phylink_set(modes, Asym_Pause);
 	phylink_set(modes, FIBRE);
-	txgbe->link_port = PORT_FIBRE;
 
 	if (!linkmode_equal(txgbe->sfp_support, modes)) {
 		linkmode_copy(txgbe->sfp_support, modes);
