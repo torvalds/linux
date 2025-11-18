@@ -58,6 +58,7 @@ static LIST_HEAD(gpio_shared_list);
 static DEFINE_MUTEX(gpio_shared_lock);
 static DEFINE_IDA(gpio_shared_ida);
 
+#if IS_ENABLED(CONFIG_OF)
 static struct gpio_shared_entry *
 gpio_shared_find_entry(struct fwnode_handle *controller_node,
 		       unsigned int offset)
@@ -72,7 +73,6 @@ gpio_shared_find_entry(struct fwnode_handle *controller_node,
 	return NULL;
 }
 
-#if IS_ENABLED(CONFIG_OF)
 static int gpio_shared_of_traverse(struct device_node *curr)
 {
 	struct gpio_shared_entry *entry;
