@@ -73,6 +73,39 @@ int txgbe_test_hostif(struct wx *wx)
 					WX_HI_COMMAND_TIMEOUT, true);
 }
 
+int txgbe_read_eeprom_hostif(struct wx *wx,
+			     struct txgbe_hic_i2c_read *buffer,
+			     u32 length, u8 *data)
+{
+	u32 dword_len, offset, value, i;
+	int err;
+
+	buffer->hdr.cmd = FW_READ_EEPROM_CMD;
+	buffer->hdr.buf_len = sizeof(struct txgbe_hic_i2c_read) -
+			      sizeof(struct wx_hic_hdr);
+	buffer->hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
+
+	err = wx_host_interface_command(wx, (u32 *)buffer,
+					sizeof(struct txgbe_hic_i2c_read),
+					WX_HI_COMMAND_TIMEOUT, false);
+	if (err != 0)
+		return err;
+
+	/* buffer length offset to read return data */
+	offset = sizeof(struct txgbe_hic_i2c_read) >> 2;
+	dword_len = round_up(length, 4) >> 2;
+
+	for (i = 0; i < dword_len; i++) {
+		value = rd32a(wx, WX_FW2SW_MBOX, i + offset);
+		le32_to_cpus(&value);
+
+		memcpy(data, &value, 4);
+		data += 4;
+	}
+
+	return 0;
+}
+
 static int txgbe_identify_module_hostif(struct wx *wx,
 					struct txgbe_hic_get_module_info *buffer)
 {

@@ -353,6 +353,7 @@ void txgbe_do_reset(struct net_device *netdev);
 #define FW_PHY_GET_LINK_CMD             0xC0
 #define FW_PHY_SET_LINK_CMD             0xC1
 #define FW_GET_MODULE_INFO_CMD          0xC5
+#define FW_READ_EEPROM_CMD              0xC6
 
 struct txgbe_sff_id {
 	u8 identifier;		/* A0H 0x00 */
@@ -392,6 +393,16 @@ struct txgbe_hic_ephy_getlink {
 	u8 power;
 	u8 fec_mode;
 	u8 resv[6];
+};
+
+struct txgbe_hic_i2c_read {
+	struct wx_hic_hdr hdr;
+	__be32 offset;
+	__be32 length;
+	u8 page;
+	u8 bank;
+	u8 i2c_address;
+	u8 resv;
 };
 
 #define NODE_PROP(_NAME, _PROP)			\
