@@ -564,8 +564,8 @@ static inline bool strstarts(const char *str, const char *prefix)
 
 /**
  * strends - Check if a string ends with another string.
- * @str - NULL-terminated string to check against @suffix
- * @suffix - NULL-terminated string defining the suffix to look for in @str
+ * @str: NULL-terminated string to check against @suffix
+ * @suffix: NULL-terminated string defining the suffix to look for in @str
  *
  * Returns:
  * True if @str ends with @suffix. False in all other cases.
