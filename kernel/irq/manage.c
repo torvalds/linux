@@ -547,7 +547,7 @@ int irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *noti
 		INIT_WORK(&notify->work, irq_affinity_notify);
 	}
 
-	scoped_guard(raw_spinlock_irqsave, &desc->lock) {
+	scoped_guard(raw_spinlock_irq, &desc->lock) {
 		old_notify = desc->affinity_notify;
 		desc->affinity_notify = notify;
 	}
