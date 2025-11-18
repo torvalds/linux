@@ -70,13 +70,9 @@ static int guc_debugfs_show(struct seq_file *m, void *data)
 	struct xe_gt *gt = grandparent->d_inode->i_private;
 	struct xe_device *xe = gt_to_xe(gt);
 	int (*print)(struct xe_guc *, struct drm_printer *) = node->info_ent->data;
-	int ret;
 
-	xe_pm_runtime_get(xe);
-	ret = print(&gt->uc.guc, &p);
-	xe_pm_runtime_put(xe);
-
-	return ret;
+	guard(xe_pm_runtime)(xe);
+	return print(&gt->uc.guc, &p);
 }
 
 static int guc_log(struct xe_guc *guc, struct drm_printer *p)

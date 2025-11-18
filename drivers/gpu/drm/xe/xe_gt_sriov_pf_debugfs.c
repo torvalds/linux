@@ -123,11 +123,10 @@ static int POLICY##_set(void *data, u64 val)					\
 	if (val > (TYPE)~0ull)							\
 		return -EOVERFLOW;						\
 										\
-	xe_pm_runtime_get(xe);							\
+	guard(xe_pm_runtime)(xe);							\
 	err = xe_gt_sriov_pf_policy_set_##POLICY(gt, val);			\
 	if (!err)								\
 		xe_sriov_pf_provision_set_custom_mode(xe);			\
-	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
 }										\
@@ -189,12 +188,11 @@ static int CONFIG##_set(void *data, u64 val)					\
 	if (val > (TYPE)~0ull)							\
 		return -EOVERFLOW;						\
 										\
-	xe_pm_runtime_get(xe);							\
+	guard(xe_pm_runtime)(xe);							\
 	err = xe_sriov_pf_wait_ready(xe) ?:					\
 	      xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
 	if (!err)								\
 		xe_sriov_pf_provision_set_custom_mode(xe);			\
-	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
 }										\
@@ -249,11 +247,10 @@ static int set_threshold(void *data, u64 val, enum xe_guc_klv_threshold_index in
 	if (val > (u32)~0ull)
 		return -EOVERFLOW;
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 	err = xe_gt_sriov_pf_config_set_threshold(gt, vfid, index, val);
 	if (!err)
 		xe_sriov_pf_provision_set_custom_mode(xe);
-	xe_pm_runtime_put(xe);
 
 	return err;
 }
@@ -358,9 +355,8 @@ static ssize_t control_write(struct file *file, const char __user *buf, size_t c
 		xe_gt_assert(gt, sizeof(cmd) > strlen(control_cmds[n].cmd));
 
 		if (sysfs_streq(cmd, control_cmds[n].cmd)) {
-			xe_pm_runtime_get(xe);
+			guard(xe_pm_runtime)(xe);
 			ret = control_cmds[n].fn ? (*control_cmds[n].fn)(gt, vfid) : 0;
-			xe_pm_runtime_put(xe);
 			break;
 		}
 	}

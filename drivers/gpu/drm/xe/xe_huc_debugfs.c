@@ -37,9 +37,8 @@ static int huc_info(struct seq_file *m, void *data)
 	struct xe_device *xe = huc_to_xe(huc);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 	xe_huc_print_info(huc, &p);
-	xe_pm_runtime_put(xe);
 
 	return 0;
 }
