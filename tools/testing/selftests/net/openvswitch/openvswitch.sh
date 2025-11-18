@@ -25,6 +25,7 @@ tests="
 	nat_related_v4				ip4-nat-related: ICMP related matches work with SNAT
 	netlink_checks				ovsnl: validate netlink attrs and settings
 	upcall_interfaces			ovs: test the upcall interfaces
+	tunnel_metadata				ovs: test extraction of tunnel metadata
 	drop_reason				drop: test drop reasons are emitted
 	psample					psample: Sampling packets with psample"
 
@@ -113,13 +114,13 @@ ovs_add_dp () {
 }
 
 ovs_add_if () {
-	info "Adding IF to DP: br:$2 if:$3"
-	if [ "$4" != "-u" ]; then
-		ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-if "$2" "$3" \
-		    || return 1
+	info "Adding IF to DP: br:$3 if:$4 ($2)"
+	if [ "$5" != "-u" ]; then
+		ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-if \
+		    -t "$2" "$3" "$4" || return 1
 	else
 		python3 $ovs_base/ovs-dpctl.py add-if \
-		    -u "$2" "$3" >$ovs_dir/$3.out 2>$ovs_dir/$3.err &
+		    -u -t "$2" "$3" "$4" >$ovs_dir/$4.out 2>$ovs_dir/$4.err &
 		pid=$!
 		on_exit "ovs_sbx $1 kill -TERM $pid 2>/dev/null"
 	fi
@@ -166,9 +167,9 @@ ovs_add_netns_and_veths () {
 	fi
 
 	if [ "$7" != "-u" ]; then
-		ovs_add_if "$1" "$2" "$4" || return 1
+		ovs_add_if "$1" "netdev" "$2" "$4" || return 1
 	else
-		ovs_add_if "$1" "$2" "$4" -u || return 1
+		ovs_add_if "$1" "netdev" "$2" "$4" -u || return 1
 	fi
 
 	if [ $TRACING -eq 1 ]; then
@@ -753,6 +754,79 @@ test_upcall_interfaces() {
 	    >$ovs_dir/arping.stdout 2>$ovs_dir/arping.stderr
 
 	grep -E "MISS upcall\[0/yes\]: .*arp\(sip=172.31.110.1,tip=172.31.110.20,op=1,sha=" $ovs_dir/left0.out >/dev/null 2>&1 || return 1
+	return 0
+}
+
+ovs_add_kernel_tunnel() {
+	local sbxname=$1; shift
+	local ns=$1; shift
+	local tnl_type=$1; shift
+	local name=$1; shift
+	local addr=$1; shift
+
+	info "setting up kernel ${tnl_type} tunnel ${name}"
+	ovs_sbx "${sbxname}" ip -netns ${ns} link add dev ${name} type ${tnl_type} $* || return 1
+	on_exit "ovs_sbx ${sbxname} ip -netns ${ns} link del ${name} >/dev/null 2>&1"
+	ovs_sbx "${sbxname}" ip -netns ${ns} addr add dev ${name} ${addr} || return 1
+	ovs_sbx "${sbxname}" ip -netns ${ns} link set dev ${name} mtu 1450 up || return 1
+}
+
+test_tunnel_metadata() {
+	which arping >/dev/null 2>&1 || return $ksft_skip
+
+	sbxname="test_tunnel_metadata"
+	sbx_add "${sbxname}" || return 1
+
+	info "setting up new DP"
+	ovs_add_dp "${sbxname}" tdp0 -V 2:1 || return 1
+
+	ovs_add_netns_and_veths "${sbxname}" tdp0 tns left0 l0 \
+		172.31.110.1/24 || return 1
+
+	info "removing veth interface from openvswitch and setting IP"
+	ovs_del_if "${sbxname}" tdp0 left0 || return 1
+	ovs_sbx "${sbxname}" ip addr add 172.31.110.2/24 dev left0 || return 1
+	ovs_sbx "${sbxname}" ip link set left0 up || return 1
+
+	info "setting up tunnel port in openvswitch"
+	ovs_add_if "${sbxname}" "vxlan" tdp0 ovs-vxlan0 -u || return 1
+	on_exit "ovs_sbx ${sbxname} ip link del ovs-vxlan0"
+	ovs_wait ip link show ovs-vxlan0 &>/dev/null || return 1
+	ovs_sbx "${sbxname}" ip link set ovs-vxlan0 up || return 1
+
+	configs=$(echo '
+	    1 172.31.221.1/24 1155332 32   set   udpcsum flags\(df\|csum\)
+	    2 172.31.222.1/24 1234567 45   set noudpcsum flags\(df\)
+	    3 172.31.223.1/24 1020304 23 unset   udpcsum flags\(csum\)
+	    4 172.31.224.1/24 1357986 15 unset noudpcsum' | sed '/^$/d')
+
+	while read -r i addr id ttl df csum flags; do
+		ovs_add_kernel_tunnel "${sbxname}" tns vxlan vxlan${i} ${addr} \
+			remote 172.31.110.2 id ${id} dstport 4789 \
+			ttl ${ttl} df ${df} ${csum} || return 1
+	done <<< "${configs}"
+
+	ovs_wait grep -q 'listening on upcall packet handler' \
+		${ovs_dir}/ovs-vxlan0.out || return 1
+
+	info "sending arping"
+	for i in 1 2 3 4; do
+		ovs_sbx "${sbxname}" ip netns exec tns \
+			arping -I vxlan${i} 172.31.22${i}.2 -c 1 \
+			>${ovs_dir}/arping.stdout 2>${ovs_dir}/arping.stderr
+	done
+
+	info "checking that received decapsulated packets carry correct metadata"
+	while read -r i addr id ttl df csum flags; do
+		arp_hdr="arp\\(sip=172.31.22${i}.1,tip=172.31.22${i}.2,op=1,sha="
+		addrs="src=172.31.110.1,dst=172.31.110.2"
+		ports="tp_src=[0-9]*,tp_dst=4789"
+		tnl_md="tunnel\\(tun_id=${id},${addrs},ttl=${ttl},${ports},${flags}\\)"
+
+		ovs_sbx "${sbxname}" grep -qE "MISS upcall.*${tnl_md}.*${arp_hdr}" \
+			${ovs_dir}/ovs-vxlan0.out || return 1
+	done <<< "${configs}"
+
 	return 0
 }
 

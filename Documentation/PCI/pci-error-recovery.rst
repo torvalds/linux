@@ -13,7 +13,7 @@ PCI Error Recovery
 Many PCI bus controllers are able to detect a variety of hardware
 PCI errors on the bus, such as parity errors on the data and address
 buses, as well as SERR and PERR errors.  Some of the more advanced
-chipsets are able to deal with these errors; these include PCI-E chipsets,
+chipsets are able to deal with these errors; these include PCIe chipsets,
 and the PCI-host bridges found on IBM Power4, Power5 and Power6-based
 pSeries boxes. A typical action taken is to disconnect the affected device,
 halting all I/O to it.  The goal of a disconnection is to avoid system
@@ -108,8 +108,8 @@ A driver does not have to implement all of these callbacks; however,
 if it implements any, it must implement error_detected(). If a callback
 is not implemented, the corresponding feature is considered unsupported.
 For example, if mmio_enabled() and resume() aren't there, then it
-is assumed that the driver is not doing any direct recovery and requires
-a slot reset.  Typically a driver will want to know about
+is assumed that the driver does not need these callbacks
+for recovery.  Typically a driver will want to know about
 a slot_reset().
 
 The actual steps taken by a platform to recover from a PCI error
@@ -122,6 +122,10 @@ A PCI bus error is detected by the PCI hardware.  On powerpc, the slot
 is isolated, in that all I/O is blocked: all reads return 0xffffffff,
 all writes are ignored.
 
+Similarly, on platforms supporting Downstream Port Containment
+(PCIe r7.0 sec 6.2.11), the link to the sub-hierarchy with the
+faulting device is disabled. Any device in the sub-hierarchy
+becomes inaccessible.
 
 STEP 1: Notification
 --------------------
@@ -141,6 +145,9 @@ shouldn't do any new IOs. Called in task context. This is sort of a
 All drivers participating in this system must implement this call.
 The driver must return one of the following result codes:
 
+  - PCI_ERS_RESULT_RECOVERED
+      Driver returns this if it thinks the device is usable despite
+      the error and does not need further intervention.
   - PCI_ERS_RESULT_CAN_RECOVER
       Driver returns this if it thinks it might be able to recover
       the HW by just banging IOs or if it wants to be given
@@ -199,7 +206,25 @@ reset or some such, but not restart operations. This callback is made if
 all drivers on a segment agree that they can try to recover and if no automatic
 link reset was performed by the HW. If the platform can't just re-enable IOs
 without a slot reset or a link reset, it will not call this callback, and
-instead will have gone directly to STEP 3 (Link Reset) or STEP 4 (Slot Reset)
+instead will have gone directly to STEP 3 (Link Reset) or STEP 4 (Slot Reset).
+
+.. note::
+
+   On platforms supporting Advanced Error Reporting (PCIe r7.0 sec 6.2),
+   the faulting device may already be accessible in STEP 1 (Notification).
+   Drivers should nevertheless defer accesses to STEP 2 (MMIO Enabled)
+   to be compatible with EEH on powerpc and with s390 (where devices are
+   inaccessible until STEP 2).
+
+   On platforms supporting Downstream Port Containment, the link to the
+   sub-hierarchy with the faulting device is re-enabled in STEP 3 (Link
+   Reset). Hence devices in the sub-hierarchy are inaccessible until
+   STEP 4 (Slot Reset).
+
+   For errors such as Surprise Down (PCIe r7.0 sec 6.2.7), the device
+   may not even be accessible in STEP 4 (Slot Reset). Drivers can detect
+   accessibility by checking whether reads from the device return all 1's
+   (PCI_POSSIBLE_ERROR()).
 
 .. note::
 
@@ -234,14 +259,14 @@ The driver should return one of the following result codes:
 
 The next step taken depends on the results returned by the drivers.
 If all drivers returned PCI_ERS_RESULT_RECOVERED, then the platform
-proceeds to either STEP3 (Link Reset) or to STEP 5 (Resume Operations).
+proceeds to either STEP 3 (Link Reset) or to STEP 5 (Resume Operations).
 
 If any driver returned PCI_ERS_RESULT_NEED_RESET, then the platform
 proceeds to STEP 4 (Slot Reset)
 
 STEP 3: Link Reset
 ------------------
-The platform resets the link.  This is a PCI-Express specific step
+The platform resets the link.  This is a PCIe specific step
 and is done whenever a fatal error has been detected that can be
 "solved" by resetting the link.
 
@@ -263,13 +288,13 @@ that is equivalent to what it would be after a fresh system
 power-on followed by power-on BIOS/system firmware initialization.
 Soft reset is also known as hot-reset.
 
-Powerpc fundamental reset is supported by PCI Express cards only
+Powerpc fundamental reset is supported by PCIe cards only
 and results in device's state machines, hardware logic, port states and
 configuration registers to initialize to their default conditions.
 
 For most PCI devices, a soft reset will be sufficient for recovery.
 Optional fundamental reset is provided to support a limited number
-of PCI Express devices for which a soft reset is not sufficient
+of PCIe devices for which a soft reset is not sufficient
 for recovery.
 
 If the platform supports PCI hotplug, then the reset might be
@@ -313,7 +338,7 @@ Result codes:
 	- PCI_ERS_RESULT_DISCONNECT
 	  Same as above.
 
-Drivers for PCI Express cards that require a fundamental reset must
+Drivers for PCIe cards that require a fundamental reset must
 set the needs_freset bit in the pci_dev structure in their probe function.
 For example, the QLogic qla2xxx driver sets the needs_freset bit for certain
 PCI card types::

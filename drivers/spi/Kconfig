@@ -99,6 +99,16 @@ config SPI_AMLOGIC_SPIFC_A1
 	  This enables master mode support for the SPIFC (SPI flash
 	  controller) available in Amlogic A1 (A113L SoC).
 
+config SPI_AMLOGIC_SPIFC_A4
+	tristate "Amlogic A4 SPI Flash controller"
+	depends on ARCH_MESON || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This enables SPI mode on the NAND Flash Controller of Amlogic
+	  ARM SoCs. It supports SPI Nor Flash and SPI NAND Flash (Could
+	  enable Host ECC HW engine). The controller implements the
+	  SPI-MEM interface, it doesn't support generic SPI.
+
 config SPI_AMLOGIC_SPISG
 	tristate "Amlogic SPISG controller"
 	depends on COMMON_CLK
@@ -154,7 +164,7 @@ config SPI_ASPEED_SMC
 
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
-	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ARCH_MICROCHIP || COMPILE_TEST
 	depends on OF
 	help
 	  This selects a driver for the Atmel SPI Controller, present on
@@ -916,7 +926,8 @@ config SPI_ROCKCHIP_SFC
 
 config SPI_RB4XX
 	tristate "Mikrotik RB4XX SPI master"
-	depends on SPI_MASTER && ATH79
+	depends on SPI_MASTER && (ATH79 || COMPILE_TEST)
+	depends on OF
 	help
 	  SPI controller driver for the Mikrotik RB4xx series boards.
 
@@ -1223,6 +1234,17 @@ config SPI_UNIPHIER
 	  This driver supports SCSSI only.
 
 	  If your SoC supports SCSSI, say Y here.
+
+config SPI_VIRTIO
+	tristate "Virtio SPI Controller"
+	depends on SPI_MASTER && VIRTIO
+	help
+	  If you say yes to this option, support will be included for the virtio
+	  SPI controller driver. The hardware can be emulated by any device model
+	  software according to the virtio protocol.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called spi-virtio.
 
 config SPI_XCOMM
 	tristate "Analog Devices AD-FMCOMMS1-EBZ SPI-I2C-bridge driver"

@@ -1,0 +1,29 @@
+config NET_VENDOR_SPACEMIT
+	bool "SpacemiT devices"
+	default y
+	depends on ARCH_SPACEMIT || COMPILE_TEST
+	help
+	  If you have a network (Ethernet) device belonging to this class,
+	  say Y.
+
+	  Note that the answer to this question does not directly affect
+	  the kernel: saying N will just cause the configurator to skip all
+	  the questions regarding SpacemiT devices. If you say Y, you will
+	  be asked for your specific chipset/driver in the following questions.
+
+if NET_VENDOR_SPACEMIT
+
+config SPACEMIT_K1_EMAC
+	tristate "SpacemiT K1 Ethernet MAC driver"
+	depends on ARCH_SPACEMIT || COMPILE_TEST
+	depends on MFD_SYSCON
+	depends on OF
+	default m if ARCH_SPACEMIT
+	select PHYLIB
+	help
+	  This driver supports the Ethernet MAC in the SpacemiT K1 SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called k1_emac.
+
+endif # NET_VENDOR_SPACEMIT

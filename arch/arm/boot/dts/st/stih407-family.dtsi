@@ -669,7 +669,7 @@
 			interrupt-names = "hostc";
 
 			phys = <&phy_port0 PHY_TYPE_SATA>;
-			phy-names = "ahci_phy";
+			phy-names = "sata-phy";
 
 			resets = <&powerdown STIH407_SATA0_POWERDOWN>,
 				 <&softreset STIH407_SATA0_SOFTRESET>,
@@ -692,7 +692,7 @@
 			interrupt-names = "hostc";
 
 			phys = <&phy_port1 PHY_TYPE_SATA>;
-			phy-names = "ahci_phy";
+			phy-names = "sata-phy";
 
 			resets = <&powerdown STIH407_SATA1_POWERDOWN>,
 				 <&softreset STIH407_SATA1_SOFTRESET>,

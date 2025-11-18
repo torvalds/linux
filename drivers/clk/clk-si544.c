@@ -307,16 +307,16 @@ static unsigned long si544_recalc_rate(struct clk_hw *hw,
 	return si544_calc_rate(&settings);
 }
 
-static long si544_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *parent_rate)
+static int si544_determine_rate(struct clk_hw *hw,
+				struct clk_rate_request *req)
 {
 	struct clk_si544 *data = to_clk_si544(hw);
 
-	if (!is_valid_frequency(data, rate))
+	if (!is_valid_frequency(data, req->rate))
 		return -EINVAL;
 
 	/* The accuracy is less than 1 Hz, so any rate is possible */
-	return rate;
+	return 0;
 }
 
 /* Calculates the maximum "small" change, 950 * rate / 1000000 */
@@ -408,7 +408,7 @@ static const struct clk_ops si544_clk_ops = {
 	.unprepare = si544_unprepare,
 	.is_prepared = si544_is_prepared,
 	.recalc_rate = si544_recalc_rate,
-	.round_rate = si544_round_rate,
+	.determine_rate = si544_determine_rate,
 	.set_rate = si544_set_rate,
 };
 

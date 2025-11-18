@@ -114,7 +114,7 @@ static void sh4_flush_dcache_folio(void *arg)
 	struct address_space *mapping = folio_flush_mapping(folio);
 
 	if (mapping && !mapping_mapped(mapping))
-		clear_bit(PG_dcache_clean, &folio->flags);
+		clear_bit(PG_dcache_clean, &folio->flags.f);
 	else
 #endif
 	{

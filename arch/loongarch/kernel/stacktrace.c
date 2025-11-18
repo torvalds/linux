@@ -51,12 +51,13 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 	if (task == current) {
 		regs->regs[3] = (unsigned long)__builtin_frame_address(0);
 		regs->csr_era = (unsigned long)__builtin_return_address(0);
+		regs->regs[22] = 0;
 	} else {
 		regs->regs[3] = thread_saved_fp(task);
 		regs->csr_era = thread_saved_ra(task);
+		regs->regs[22] = task->thread.reg22;
 	}
 	regs->regs[1] = 0;
-	regs->regs[22] = 0;
 
 	for (unwind_start(&state, task, regs);
 	     !unwind_done(&state) && !unwind_error(&state); unwind_next_frame(&state)) {

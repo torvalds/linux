@@ -47,11 +47,11 @@
 #include "intel_display_driver.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
-#include "intel_fdi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
+#include "intel_link_bw.h"
 #include "intel_panel.h"
 #include "intel_sdvo.h"
 #include "intel_sdvo_regs.h"
@@ -1367,7 +1367,7 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 
 	if (HAS_PCH_SPLIT(display)) {
 		pipe_config->has_pch_encoder = true;
-		if (!intel_fdi_compute_pipe_bpp(pipe_config))
+		if (!intel_link_bw_compute_pipe_bpp(pipe_config))
 			return -EINVAL;
 	}
 
@@ -2052,8 +2052,10 @@ static void intel_sdvo_enable_hotplug(struct intel_encoder *encoder)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 
-	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG,
-			     &intel_sdvo->hotplug_active, 2);
+	if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG,
+				  &intel_sdvo->hotplug_active, 2))
+		drm_warn(intel_sdvo->base.base.dev,
+			 "Failed to enable hotplug on SDVO encoder\n");
 }
 
 static enum intel_hotplug_state

@@ -1141,7 +1141,8 @@ unsigned int dcn32_get_max_hw_cursor_size(const struct dc *dc,
       SRI_ARR(DCN_SURF1_TTU_CNTL1, HUBPREQ, id),                               \
       SRI_ARR(DCN_CUR0_TTU_CNTL0, HUBPREQ, id),                                \
       SRI_ARR(DCN_CUR0_TTU_CNTL1, HUBPREQ, id),                                \
-      SRI_ARR(HUBP_CLK_CNTL, HUBP, id)
+      SRI_ARR(HUBP_CLK_CNTL, HUBP, id),                                        \
+      SRI_ARR(HUBPRET_READ_LINE_VALUE, HUBPRET, id)
 #define HUBP_REG_LIST_DCN2_COMMON_RI(id)                                       \
   HUBP_REG_LIST_DCN_RI(id), HUBP_REG_LIST_DCN_VM_RI(id),                       \
       SRI_ARR(PREFETCH_SETTINGS, HUBPREQ, id),                                 \
@@ -1229,7 +1230,8 @@ unsigned int dcn32_get_max_hw_cursor_size(const struct dc *dc,
       SR(DCHUBBUB_ARB_MALL_CNTL),                                              \
       SR(DCN_VM_FAULT_ADDR_MSB), SR(DCN_VM_FAULT_ADDR_LSB),                    \
       SR(DCN_VM_FAULT_CNTL), SR(DCN_VM_FAULT_STATUS),                          \
-      SR(SDPIF_REQUEST_RATE_LIMIT)
+      SR(SDPIF_REQUEST_RATE_LIMIT),                                            \
+      SR(DCHUBBUB_SDPIF_CFG0)
 
 /* DCCG */
 

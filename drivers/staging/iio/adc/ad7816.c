@@ -359,8 +359,6 @@ static int ad7816_probe(struct spi_device *spi_dev)
 	if (!indio_dev)
 		return -ENOMEM;
 	chip = iio_priv(indio_dev);
-	/* this is only used for device removal purposes */
-	dev_set_drvdata(&spi_dev->dev, indio_dev);
 
 	chip->spi_dev = spi_dev;
 	for (i = 0; i <= AD7816_CS_MAX; i++)

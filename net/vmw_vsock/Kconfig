@@ -72,7 +72,7 @@ config VIRTIO_VSOCKETS_COMMON
 
 config HYPERV_VSOCKETS
 	tristate "Hyper-V transport for Virtual Sockets"
-	depends on VSOCKETS && HYPERV
+	depends on VSOCKETS && HYPERV_VMBUS
 	help
 	  This module implements a Hyper-V transport for Virtual Sockets.
 

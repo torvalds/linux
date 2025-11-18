@@ -1048,7 +1048,7 @@ static int ceu_init_mbus_fmt(struct ceu_device *ceudev)
 /*
  * ceu_runtime_resume() - soft-reset the interface and turn sensor power on.
  */
-static int __maybe_unused ceu_runtime_resume(struct device *dev)
+static int ceu_runtime_resume(struct device *dev)
 {
 	struct ceu_device *ceudev = dev_get_drvdata(dev);
 	struct v4l2_subdev *v4l2_sd = ceudev->sd->v4l2_sd;
@@ -1064,7 +1064,7 @@ static int __maybe_unused ceu_runtime_resume(struct device *dev)
  * ceu_runtime_suspend() - disable capture and interrupts and soft-reset.
  *			   Turn sensor power off.
  */
-static int __maybe_unused ceu_runtime_suspend(struct device *dev)
+static int ceu_runtime_suspend(struct device *dev)
 {
 	struct ceu_device *ceudev = dev_get_drvdata(dev);
 	struct v4l2_subdev *v4l2_sd = ceudev->sd->v4l2_sd;
@@ -1709,15 +1709,13 @@ static void ceu_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops ceu_pm_ops = {
-	SET_RUNTIME_PM_OPS(ceu_runtime_suspend,
-			   ceu_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(ceu_runtime_suspend, ceu_runtime_resume, NULL)
 };
 
 static struct platform_driver ceu_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.pm	= &ceu_pm_ops,
+		.pm	= pm_ptr(&ceu_pm_ops),
 		.of_match_table = of_match_ptr(ceu_of_match),
 	},
 	.probe		= ceu_probe,

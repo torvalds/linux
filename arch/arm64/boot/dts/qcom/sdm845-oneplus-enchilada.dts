@@ -5,13 +5,12 @@
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
 
+#include <dt-bindings/leds/common.h>
 #include "sdm845-oneplus-common.dtsi"
 
 / {
 	model = "OnePlus 6";
 	compatible = "oneplus,enchilada", "qcom,sdm845";
-	chassis-type = "handset";
-	qcom,msm-id = <0x141 0x20001>;
 	qcom,board-id = <8 0 17819 22>;
 
 	battery: battery {
@@ -20,6 +19,14 @@
 		charge-full-design-microamp-hours = <3300000>;
 		voltage-min-design-microvolt = <3400000>;
 		voltage-max-design-microvolt = <4400000>;
+
+		/*
+		 * Typical designs have multiple charger ICs which can handle more
+		 * current but the OnePlus 6/T do not, hence the lower limit. This
+		 * does not apply when using the Dash Charger, however this is not
+		 * yet supported.
+		 */
+		constant-charge-current-max-microamp = <1800000>;
 	};
 };
 
@@ -53,6 +60,33 @@
 
 &pmi8998_charger {
 	monitored-battery = <&battery>;
+};
+
+&pmi8998_lpg {
+	status = "okay";
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_BLUE>;
+		};
+
+		led@4 {
+			reg = <4>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@5 {
+			reg = <5>;
+			color = <LED_COLOR_ID_RED>;
+		};
+	};
 };
 
 &sound {

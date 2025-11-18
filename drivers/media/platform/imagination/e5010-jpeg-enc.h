@@ -120,6 +120,11 @@ struct e5010_context {
 	u8				chroma_qp[QP_TABLE_SIZE];
 };
 
+static inline struct e5010_context *to_e5010_context(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct e5010_context, fh);
+}
+
 /*
  * Buffer structure
  * Contains info for all buffers

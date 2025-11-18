@@ -13,9 +13,6 @@ properties:
   compatible:
     oneOf:
       - enum:
-          - samsung,s3c2410-rtc
-          - samsung,s3c2416-rtc
-          - samsung,s3c2443-rtc
           - samsung,s3c6410-rtc
       - items:
           - enum:
@@ -29,19 +26,12 @@ properties:
     maxItems: 1
 
   clocks:
-    description:
-      Must contain a list of phandle and clock specifier for the rtc
-      clock and in the case of a s3c6410 compatible controller, also
-      a source clock.
-    minItems: 1
     maxItems: 2
 
   clock-names:
-    description:
-      Must contain "rtc" and for a s3c6410 compatible controller
-      also "rtc_src".
-    minItems: 1
-    maxItems: 2
+    items:
+      - const: rtc
+      - const: rtc_src
 
   interrupts:
     description:
@@ -54,30 +44,6 @@ properties:
 
 allOf:
   - $ref: rtc.yaml#
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - samsung,s3c6410-rtc
-              - samsung,exynos3250-rtc
-    then:
-      properties:
-        clocks:
-          minItems: 2
-          maxItems: 2
-        clock-names:
-          items:
-            - const: rtc
-            - const: rtc_src
-    else:
-      properties:
-        clocks:
-          minItems: 1
-          maxItems: 1
-        clock-names:
-          items:
-            - const: rtc
 
 unevaluatedProperties: false
 

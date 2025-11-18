@@ -80,7 +80,7 @@
 #define KN02_IRQ_ALL		0xff
 
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 

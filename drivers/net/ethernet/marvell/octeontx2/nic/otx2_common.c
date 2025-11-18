@@ -124,7 +124,9 @@ void otx2_get_dev_stats(struct otx2_nic *pfvf)
 			       dev_stats->rx_ucast_frames;
 
 	dev_stats->tx_bytes = OTX2_GET_TX_STATS(TX_OCTS);
-	dev_stats->tx_drops = OTX2_GET_TX_STATS(TX_DROP);
+	dev_stats->tx_drops = OTX2_GET_TX_STATS(TX_DROP) +
+			       (unsigned long)atomic_long_read(&dev_stats->tx_discards);
+
 	dev_stats->tx_bcast_frames = OTX2_GET_TX_STATS(TX_BCAST);
 	dev_stats->tx_mcast_frames = OTX2_GET_TX_STATS(TX_MCAST);
 	dev_stats->tx_ucast_frames = OTX2_GET_TX_STATS(TX_UCAST);
@@ -1514,10 +1516,8 @@ int otx2_pool_init(struct otx2_nic *pfvf, u16 pool_id,
 		pool->xdp_cnt = numptrs;
 		pool->xdp = devm_kcalloc(pfvf->dev,
 					 numptrs, sizeof(struct xdp_buff *), GFP_KERNEL);
-		if (IS_ERR(pool->xdp)) {
-			netdev_err(pfvf->netdev, "Creation of xsk pool failed\n");
-			return PTR_ERR(pool->xdp);
-		}
+		if (!pool->xdp)
+			return -ENOMEM;
 	}
 
 	return 0;

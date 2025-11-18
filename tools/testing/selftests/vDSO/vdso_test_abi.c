@@ -26,24 +26,31 @@
 static const char *version;
 static const char **name;
 
+/* The same as struct __kernel_timespec */
+struct vdso_timespec64 {
+	uint64_t tv_sec;
+	uint64_t tv_nsec;
+};
+
 typedef long (*vdso_gettimeofday_t)(struct timeval *tv, struct timezone *tz);
 typedef long (*vdso_clock_gettime_t)(clockid_t clk_id, struct timespec *ts);
+typedef long (*vdso_clock_gettime64_t)(clockid_t clk_id, struct vdso_timespec64 *ts);
 typedef long (*vdso_clock_getres_t)(clockid_t clk_id, struct timespec *ts);
 typedef time_t (*vdso_time_t)(time_t *t);
 
-const char *vdso_clock_name[12] = {
-	"CLOCK_REALTIME",
-	"CLOCK_MONOTONIC",
-	"CLOCK_PROCESS_CPUTIME_ID",
-	"CLOCK_THREAD_CPUTIME_ID",
-	"CLOCK_MONOTONIC_RAW",
-	"CLOCK_REALTIME_COARSE",
-	"CLOCK_MONOTONIC_COARSE",
-	"CLOCK_BOOTTIME",
-	"CLOCK_REALTIME_ALARM",
-	"CLOCK_BOOTTIME_ALARM",
-	"CLOCK_SGI_CYCLE",
-	"CLOCK_TAI",
+static const char * const vdso_clock_name[] = {
+	[CLOCK_REALTIME]		= "CLOCK_REALTIME",
+	[CLOCK_MONOTONIC]		= "CLOCK_MONOTONIC",
+	[CLOCK_PROCESS_CPUTIME_ID]	= "CLOCK_PROCESS_CPUTIME_ID",
+	[CLOCK_THREAD_CPUTIME_ID]	= "CLOCK_THREAD_CPUTIME_ID",
+	[CLOCK_MONOTONIC_RAW]		= "CLOCK_MONOTONIC_RAW",
+	[CLOCK_REALTIME_COARSE]		= "CLOCK_REALTIME_COARSE",
+	[CLOCK_MONOTONIC_COARSE]	= "CLOCK_MONOTONIC_COARSE",
+	[CLOCK_BOOTTIME]		= "CLOCK_BOOTTIME",
+	[CLOCK_REALTIME_ALARM]		= "CLOCK_REALTIME_ALARM",
+	[CLOCK_BOOTTIME_ALARM]		= "CLOCK_BOOTTIME_ALARM",
+	[10 /* CLOCK_SGI_CYCLE */]	= "CLOCK_SGI_CYCLE",
+	[CLOCK_TAI]			= "CLOCK_TAI",
 };
 
 static void vdso_test_gettimeofday(void)
@@ -67,6 +74,33 @@ static void vdso_test_gettimeofday(void)
 		ksft_test_result_pass("%s\n", name[0]);
 	} else {
 		ksft_test_result_fail("%s\n", name[0]);
+	}
+}
+
+static void vdso_test_clock_gettime64(clockid_t clk_id)
+{
+	/* Find clock_gettime64. */
+	vdso_clock_gettime64_t vdso_clock_gettime64 =
+		(vdso_clock_gettime64_t)vdso_sym(version, name[5]);
+
+	if (!vdso_clock_gettime64) {
+		ksft_print_msg("Couldn't find %s\n", name[5]);
+		ksft_test_result_skip("%s %s\n", name[5],
+				      vdso_clock_name[clk_id]);
+		return;
+	}
+
+	struct vdso_timespec64 ts;
+	long ret = VDSO_CALL(vdso_clock_gettime64, 2, clk_id, &ts);
+
+	if (ret == 0) {
+		ksft_print_msg("The time is %lld.%06lld\n",
+			       (long long)ts.tv_sec, (long long)ts.tv_nsec);
+		ksft_test_result_pass("%s %s\n", name[5],
+				      vdso_clock_name[clk_id]);
+	} else {
+		ksft_test_result_fail("%s %s\n", name[5],
+				      vdso_clock_name[clk_id]);
 	}
 }
 
@@ -171,23 +205,23 @@ static inline void vdso_test_clock(clockid_t clock_id)
 	ksft_print_msg("clock_id: %s\n", vdso_clock_name[clock_id]);
 
 	vdso_test_clock_gettime(clock_id);
+	vdso_test_clock_gettime64(clock_id);
 
 	vdso_test_clock_getres(clock_id);
 }
 
-#define VDSO_TEST_PLAN	16
+#define VDSO_TEST_PLAN	29
 
 int main(int argc, char **argv)
 {
 	unsigned long sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
 
 	ksft_print_header();
-	ksft_set_plan(VDSO_TEST_PLAN);
 
-	if (!sysinfo_ehdr) {
-		ksft_print_msg("AT_SYSINFO_EHDR is not present!\n");
-		return KSFT_SKIP;
-	}
+	if (!sysinfo_ehdr)
+		ksft_exit_skip("AT_SYSINFO_EHDR is not present!\n");
+
+	ksft_set_plan(VDSO_TEST_PLAN);
 
 	version = versions[VDSO_VERSION];
 	name = (const char **)&names[VDSO_NAMES];
@@ -198,40 +232,17 @@ int main(int argc, char **argv)
 
 	vdso_test_gettimeofday();
 
-#if _POSIX_TIMERS > 0
-
-#ifdef CLOCK_REALTIME
 	vdso_test_clock(CLOCK_REALTIME);
-#endif
-
-#ifdef CLOCK_BOOTTIME
 	vdso_test_clock(CLOCK_BOOTTIME);
-#endif
-
-#ifdef CLOCK_TAI
 	vdso_test_clock(CLOCK_TAI);
-#endif
-
-#ifdef CLOCK_REALTIME_COARSE
 	vdso_test_clock(CLOCK_REALTIME_COARSE);
-#endif
-
-#ifdef CLOCK_MONOTONIC
 	vdso_test_clock(CLOCK_MONOTONIC);
-#endif
-
-#ifdef CLOCK_MONOTONIC_RAW
 	vdso_test_clock(CLOCK_MONOTONIC_RAW);
-#endif
-
-#ifdef CLOCK_MONOTONIC_COARSE
 	vdso_test_clock(CLOCK_MONOTONIC_COARSE);
-#endif
-
-#endif
+	vdso_test_clock(CLOCK_PROCESS_CPUTIME_ID);
+	vdso_test_clock(CLOCK_THREAD_CPUTIME_ID);
 
 	vdso_test_time();
 
-	ksft_print_cnts();
-	return ksft_get_fail_cnt() == 0 ? KSFT_PASS : KSFT_FAIL;
+	ksft_finished();
 }

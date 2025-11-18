@@ -1390,6 +1390,7 @@ struct check_mount {
 	unsigned int mounted;
 };
 
+/* locks: mount_locked_reader && dentry->d_lock */
 static enum d_walk_ret path_check_mount(void *data, struct dentry *dentry)
 {
 	struct check_mount *info = data;
@@ -1416,9 +1417,8 @@ int path_has_submounts(const struct path *parent)
 {
 	struct check_mount data = { .mnt = parent->mnt, .mounted = 0 };
 
-	read_seqlock_excl(&mount_lock);
+	guard(mount_locked_reader)();
 	d_walk(parent->dentry, &data, path_check_mount);
-	read_sequnlock_excl(&mount_lock);
 
 	return data.mounted;
 }
@@ -1717,13 +1717,13 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 		dname = dentry->d_shortname.string;
 	}	
 
-	dentry->d_name.len = name->len;
-	dentry->d_name.hash = name->hash;
+	dentry->__d_name.len = name->len;
+	dentry->__d_name.hash = name->hash;
 	memcpy(dname, name->name, name->len);
 	dname[name->len] = 0;
 
 	/* Make sure we always see the terminating NUL character */
-	smp_store_release(&dentry->d_name.name, dname); /* ^^^ */
+	smp_store_release(&dentry->__d_name.name, dname); /* ^^^ */
 
 	dentry->d_flags = 0;
 	lockref_init(&dentry->d_lockref);
@@ -2509,8 +2509,8 @@ static inline unsigned start_dir_add(struct inode *dir)
 {
 	preempt_disable_nested();
 	for (;;) {
-		unsigned n = dir->i_dir_seq;
-		if (!(n & 1) && cmpxchg(&dir->i_dir_seq, n, n + 1) == n)
+		unsigned n = READ_ONCE(dir->i_dir_seq);
+		if (!(n & 1) && try_cmpxchg(&dir->i_dir_seq, &n, n + 1))
 			return n;
 		cpu_relax();
 	}
@@ -2557,6 +2557,8 @@ struct dentry *d_alloc_parallel(struct dentry *parent,
 	spin_lock(&parent->d_lock);
 	new->d_parent = dget_dlock(parent);
 	hlist_add_head(&new->d_sib, &parent->d_children);
+	if (parent->d_flags & DCACHE_DISCONNECTED)
+		new->d_flags |= DCACHE_DISCONNECTED;
 	spin_unlock(&parent->d_lock);
 
 retry:
@@ -2743,15 +2745,15 @@ static void swap_names(struct dentry *dentry, struct dentry *target)
 			/*
 			 * Both external: swap the pointers
 			 */
-			swap(target->d_name.name, dentry->d_name.name);
+			swap(target->__d_name.name, dentry->__d_name.name);
 		} else {
 			/*
 			 * dentry:internal, target:external.  Steal target's
 			 * storage and make target internal.
 			 */
-			dentry->d_name.name = target->d_name.name;
+			dentry->__d_name.name = target->__d_name.name;
 			target->d_shortname = dentry->d_shortname;
-			target->d_name.name = target->d_shortname.string;
+			target->__d_name.name = target->d_shortname.string;
 		}
 	} else {
 		if (unlikely(dname_external(dentry))) {
@@ -2759,9 +2761,9 @@ static void swap_names(struct dentry *dentry, struct dentry *target)
 			 * dentry:external, target:internal.  Give dentry's
 			 * storage to target and make dentry internal
 			 */
-			target->d_name.name = dentry->d_name.name;
+			target->__d_name.name = dentry->__d_name.name;
 			dentry->d_shortname = target->d_shortname;
-			dentry->d_name.name = dentry->d_shortname.string;
+			dentry->__d_name.name = dentry->d_shortname.string;
 		} else {
 			/*
 			 * Both are internal.
@@ -2771,7 +2773,7 @@ static void swap_names(struct dentry *dentry, struct dentry *target)
 				     target->d_shortname.words[i]);
 		}
 	}
-	swap(dentry->d_name.hash_len, target->d_name.hash_len);
+	swap(dentry->__d_name.hash_len, target->__d_name.hash_len);
 }
 
 static void copy_name(struct dentry *dentry, struct dentry *target)
@@ -2781,11 +2783,11 @@ static void copy_name(struct dentry *dentry, struct dentry *target)
 		old_name = external_name(dentry);
 	if (unlikely(dname_external(target))) {
 		atomic_inc(&external_name(target)->count);
-		dentry->d_name = target->d_name;
+		dentry->__d_name = target->__d_name;
 	} else {
 		dentry->d_shortname = target->d_shortname;
-		dentry->d_name.name = dentry->d_shortname.string;
-		dentry->d_name.hash_len = target->d_name.hash_len;
+		dentry->__d_name.name = dentry->d_shortname.string;
+		dentry->__d_name.hash_len = target->__d_name.hash_len;
 	}
 	if (old_name && likely(atomic_dec_and_test(&old_name->count)))
 		kfree_rcu(old_name, head);
@@ -2922,6 +2924,7 @@ void d_exchange(struct dentry *dentry1, struct dentry *dentry2)
 
 	write_sequnlock(&rename_lock);
 }
+EXPORT_SYMBOL(d_exchange);
 
 /**
  * d_ancestor - search for an ancestor
@@ -3133,7 +3136,7 @@ void d_mark_tmpfile(struct file *file, struct inode *inode)
 		!d_unlinked(dentry));
 	spin_lock(&dentry->d_parent->d_lock);
 	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-	dentry->d_name.len = sprintf(dentry->d_shortname.string, "#%llu",
+	dentry->__d_name.len = sprintf(dentry->d_shortname.string, "#%llu",
 				(unsigned long long)inode->i_ino);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dentry->d_parent->d_lock);

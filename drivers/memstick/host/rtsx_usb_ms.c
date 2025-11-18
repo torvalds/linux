@@ -216,7 +216,10 @@ static int ms_power_off(struct rtsx_usb_ms *host)
 
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CARD_CLK_EN, MS_CLK_EN, 0);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CARD_OE, MS_OUTPUT_EN, 0);
-
+	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CARD_PWR_CTL,
+			POWER_MASK, POWER_OFF);
+	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CARD_PWR_CTL,
+			POWER_MASK | LDO3318_PWR_MASK, POWER_OFF | LDO_SUSPEND);
 	err = rtsx_usb_send_cmd(ucr, MODE_C, 100);
 	if (err < 0)
 		return err;
@@ -812,6 +815,7 @@ static void rtsx_usb_ms_drv_remove(struct platform_device *pdev)
 	int err;
 
 	host->eject = true;
+	msh->removing = true;
 	cancel_work_sync(&host->handle_req);
 	cancel_delayed_work_sync(&host->poll_card);
 

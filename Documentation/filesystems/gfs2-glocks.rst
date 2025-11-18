@@ -105,7 +105,7 @@ go_unlocked           Yes                       No
    Operations must not drop either the bit lock or the spinlock
    if its held on entry. go_dump and do_demote_ok must never block.
    Note that go_dump will only be called if the glock's state
-   indicates that it is caching uptodate data.
+   indicates that it is caching up-to-date data.
 
 Glock locking order within GFS2:
 

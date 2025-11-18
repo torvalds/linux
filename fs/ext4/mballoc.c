@@ -3655,16 +3655,26 @@ static void ext4_discard_work(struct work_struct *work)
 
 static inline void ext4_mb_avg_fragment_size_destroy(struct ext4_sb_info *sbi)
 {
+	if (!sbi->s_mb_avg_fragment_size)
+		return;
+
 	for (int i = 0; i < MB_NUM_ORDERS(sbi->s_sb); i++)
 		xa_destroy(&sbi->s_mb_avg_fragment_size[i]);
+
 	kfree(sbi->s_mb_avg_fragment_size);
+	sbi->s_mb_avg_fragment_size = NULL;
 }
 
 static inline void ext4_mb_largest_free_orders_destroy(struct ext4_sb_info *sbi)
 {
+	if (!sbi->s_mb_largest_free_orders)
+		return;
+
 	for (int i = 0; i < MB_NUM_ORDERS(sbi->s_sb); i++)
 		xa_destroy(&sbi->s_mb_largest_free_orders[i]);
+
 	kfree(sbi->s_mb_largest_free_orders);
+	sbi->s_mb_largest_free_orders = NULL;
 }
 
 int ext4_mb_init(struct super_block *sb)
@@ -3995,7 +4005,7 @@ void ext4_process_freed_data(struct super_block *sb, tid_t commit_tid)
 		list_splice_tail(&freed_data_list, &sbi->s_discard_list);
 		spin_unlock(&sbi->s_md_lock);
 		if (wake)
-			queue_work(system_unbound_wq, &sbi->s_discard_work);
+			queue_work(system_dfl_wq, &sbi->s_discard_work);
 	} else {
 		list_for_each_entry_safe(entry, tmp, &freed_data_list, efd_list)
 			kmem_cache_free(ext4_free_data_cachep, entry);

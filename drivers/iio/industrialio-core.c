@@ -97,6 +97,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_COLORTEMP] = "colortemp",
 	[IIO_CHROMATICITY] = "chromaticity",
 	[IIO_ATTENTION] = "attention",
+	[IIO_ALTCURRENT] = "altcurrent",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -152,6 +153,10 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_PITCH] = "pitch",
 	[IIO_MOD_YAW] = "yaw",
 	[IIO_MOD_ROLL] = "roll",
+	[IIO_MOD_RMS] = "rms",
+	[IIO_MOD_ACTIVE] = "active",
+	[IIO_MOD_REACTIVE] = "reactive",
+	[IIO_MOD_APPARENT] = "apparent",
 };
 
 /* relies on pairs of these shared then separate */
@@ -189,6 +194,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_ZEROPOINT] = "zeropoint",
 	[IIO_CHAN_INFO_TROUGH] = "trough_raw",
 	[IIO_CHAN_INFO_CONVDELAY] = "convdelay",
+	[IIO_CHAN_INFO_POWERFACTOR] = "powerfactor",
 };
 /**
  * iio_device_id() - query the unique ID for the device
@@ -790,6 +796,7 @@ static ssize_t iio_format_list(char *buf, const int *vals, int type, int length,
 
 	switch (type) {
 	case IIO_VAL_INT:
+	case IIO_VAL_CHAR:
 		stride = 1;
 		break;
 	default:
@@ -1243,7 +1250,7 @@ static int iio_device_add_channel_label(struct iio_dev *indio_dev,
 static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 					 struct iio_chan_spec const *chan,
 					 enum iio_shared_by shared_by,
-					 const long *infomask)
+					 const unsigned long *infomask)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int i, ret, attrcount = 0;
@@ -1273,7 +1280,7 @@ static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 static int iio_device_add_info_mask_type_avail(struct iio_dev *indio_dev,
 					       struct iio_chan_spec const *chan,
 					       enum iio_shared_by shared_by,
-					       const long *infomask)
+					       const unsigned long *infomask)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int i, ret, attrcount = 0;

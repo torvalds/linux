@@ -92,7 +92,7 @@ Port's netdev devices have to be in UP before joining to the bridge to avoid
 overwriting of bridge configuration as CPSW switch driver copletly reloads its
 configuration when first Port changes its state to UP.
 
-When the both interfaces joined the bridge - CPSW switch driver will enable
+When both interfaces have joined the bridge - CPSW switch driver will enable
 marking packets with offload_fwd_mark flag unless "ale_bypass=0"
 
 All configuration is implemented via switchdev API.

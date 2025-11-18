@@ -86,7 +86,7 @@ xdr_partial_copy_from_skb(struct xdr_buf *xdr, struct xdr_skb_reader *desc)
 		/* ACL likes to be lazy in allocating pages - ACLs
 		 * are small by default but can get huge. */
 		if ((xdr->flags & XDRBUF_SPARSE_PAGES) && *ppage == NULL) {
-			*ppage = alloc_page(GFP_NOWAIT | __GFP_NOWARN);
+			*ppage = alloc_page(GFP_NOWAIT);
 			if (unlikely(*ppage == NULL)) {
 				if (copied == 0)
 					return -ENOMEM;

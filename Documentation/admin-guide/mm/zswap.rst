@@ -53,26 +53,17 @@ Zswap receives pages for compression from the swap subsystem and is able to
 evict pages from its own compressed pool on an LRU basis and write them back to
 the backing swap device in the case that the compressed pool is full.
 
-Zswap makes use of zpool for the managing the compressed memory pool.  Each
-allocation in zpool is not directly accessible by address.  Rather, a handle is
+Zswap makes use of zsmalloc for the managing the compressed memory pool.  Each
+allocation in zsmalloc is not directly accessible by address.  Rather, a handle is
 returned by the allocation routine and that handle must be mapped before being
 accessed.  The compressed memory pool grows on demand and shrinks as compressed
-pages are freed.  The pool is not preallocated.  By default, a zpool
-of type selected in ``CONFIG_ZSWAP_ZPOOL_DEFAULT`` Kconfig option is created,
-but it can be overridden at boot time by setting the ``zpool`` attribute,
-e.g. ``zswap.zpool=zsmalloc``. It can also be changed at runtime using the sysfs
-``zpool`` attribute, e.g.::
-
-	echo zsmalloc > /sys/module/zswap/parameters/zpool
-
-The zsmalloc type zpool has a complex compressed page storage method, and it
-can achieve great storage densities.
+pages are freed.  The pool is not preallocated.
 
 When a swap page is passed from swapout to zswap, zswap maintains a mapping
-of the swap entry, a combination of the swap type and swap offset, to the zpool
-handle that references that compressed swap page.  This mapping is achieved
-with a red-black tree per swap type.  The swap offset is the search key for the
-tree nodes.
+of the swap entry, a combination of the swap type and swap offset, to the
+zsmalloc handle that references that compressed swap page.  This mapping is
+achieved with a red-black tree per swap type.  The swap offset is the search
+key for the tree nodes.
 
 During a page fault on a PTE that is a swap entry, the swapin code calls the
 zswap load function to decompress the page into the page allocated by the page
@@ -96,11 +87,11 @@ attribute, e.g.::
 
 	echo lzo > /sys/module/zswap/parameters/compressor
 
-When the zpool and/or compressor parameter is changed at runtime, any existing
-compressed pages are not modified; they are left in their own zpool.  When a
-request is made for a page in an old zpool, it is uncompressed using its
-original compressor.  Once all pages are removed from an old zpool, the zpool
-and its compressor are freed.
+When the compressor parameter is changed at runtime, any existing compressed
+pages are not modified; they are left in their own pool.  When a request is
+made for a page in an old pool, it is uncompressed using its original
+compressor.  Once all pages are removed from an old pool, the pool and its
+compressor are freed.
 
 Some of the pages in zswap are same-value filled pages (i.e. contents of the
 page have same value or repetitive pattern). These pages include zero-filled

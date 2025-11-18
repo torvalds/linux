@@ -3,6 +3,7 @@
 #include <linux/mm.h>
 #include <linux/security.h>
 #include <linux/sysctl.h>
+#include <linux/minmax.h>
 
 /* amount of vm to protect from userspace access by both DAC and the LSM*/
 unsigned long mmap_min_addr;
@@ -16,10 +17,7 @@ unsigned long dac_mmap_min_addr = CONFIG_DEFAULT_MMAP_MIN_ADDR;
 static void update_mmap_min_addr(void)
 {
 #ifdef CONFIG_LSM_MMAP_MIN_ADDR
-	if (dac_mmap_min_addr > CONFIG_LSM_MMAP_MIN_ADDR)
-		mmap_min_addr = dac_mmap_min_addr;
-	else
-		mmap_min_addr = CONFIG_LSM_MMAP_MIN_ADDR;
+	mmap_min_addr = umax(dac_mmap_min_addr, CONFIG_LSM_MMAP_MIN_ADDR);
 #else
 	mmap_min_addr = dac_mmap_min_addr;
 #endif

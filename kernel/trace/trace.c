@@ -834,7 +834,10 @@ int trace_pid_write(struct trace_pid_list *filtered_pids,
 		/* copy the current bits to the new max */
 		ret = trace_pid_list_first(filtered_pids, &pid);
 		while (!ret) {
-			trace_pid_list_set(pid_list, pid);
+			ret = trace_pid_list_set(pid_list, pid);
+			if (ret < 0)
+				goto out;
+
 			ret = trace_pid_list_next(filtered_pids, pid + 1, &pid);
 			nr_pids++;
 		}
@@ -871,6 +874,7 @@ int trace_pid_write(struct trace_pid_list *filtered_pids,
 		trace_parser_clear(&parser);
 		ret = 0;
 	}
+ out:
 	trace_parser_put(&parser);
 
 	if (ret < 0) {
@@ -1816,7 +1820,7 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 
 	ret = get_user(ch, ubuf++);
 	if (ret)
-		return ret;
+		goto fail;
 
 	read++;
 	cnt--;
@@ -1830,7 +1834,7 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		while (cnt && isspace(ch)) {
 			ret = get_user(ch, ubuf++);
 			if (ret)
-				return ret;
+				goto fail;
 			read++;
 			cnt--;
 		}
@@ -1848,12 +1852,14 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 	while (cnt && !isspace(ch) && ch) {
 		if (parser->idx < parser->size - 1)
 			parser->buffer[parser->idx++] = ch;
-		else
-			return -EINVAL;
+		else {
+			ret = -EINVAL;
+			goto fail;
+		}
 
 		ret = get_user(ch, ubuf++);
 		if (ret)
-			return ret;
+			goto fail;
 		read++;
 		cnt--;
 	}
@@ -1868,11 +1874,15 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		/* Make sure the parsed string always terminates with '\0'. */
 		parser->buffer[parser->idx] = 0;
 	} else {
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	*ppos += read;
 	return read;
+fail:
+	trace_parser_fail(parser);
+	return ret;
 }
 
 /* TODO add a seq_buf_to_buffer() */
@@ -4781,12 +4791,6 @@ int tracing_single_release_file_tr(struct inode *inode, struct file *filp)
 	return single_release(inode, filp);
 }
 
-static int tracing_mark_open(struct inode *inode, struct file *filp)
-{
-	stream_open(inode, filp);
-	return tracing_open_generic_tr(inode, filp);
-}
-
 static int tracing_release(struct inode *inode, struct file *file)
 {
 	struct trace_array *tr = inode->i_private;
@@ -7153,7 +7157,7 @@ tracing_free_buffer_release(struct inode *inode, struct file *filp)
 
 #define TRACE_MARKER_MAX_SIZE		4096
 
-static ssize_t write_marker_to_buffer(struct trace_array *tr, const char __user *ubuf,
+static ssize_t write_marker_to_buffer(struct trace_array *tr, const char *buf,
 				      size_t cnt, unsigned long ip)
 {
 	struct ring_buffer_event *event;
@@ -7163,19 +7167,10 @@ static ssize_t write_marker_to_buffer(struct trace_array *tr, const char __user 
 	int meta_size;
 	ssize_t written;
 	size_t size;
-	int len;
-
-/* Used in tracing_mark_raw_write() as well */
-#define FAULTED_STR "<faulted>"
-#define FAULTED_SIZE (sizeof(FAULTED_STR) - 1) /* '\0' is already accounted for */
 
 	meta_size = sizeof(*entry) + 2;  /* add '\0' and possible '\n' */
  again:
 	size = cnt + meta_size;
-
-	/* If less than "<faulted>", then make sure we can still add that */
-	if (cnt < FAULTED_SIZE)
-		size += FAULTED_SIZE - cnt;
 
 	buffer = tr->array_buffer.buffer;
 	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
@@ -7186,9 +7181,6 @@ static ssize_t write_marker_to_buffer(struct trace_array *tr, const char __user 
 		 * make it smaller and try again.
 		 */
 		if (size > ring_buffer_max_event_size(buffer)) {
-			/* cnt < FAULTED size should never be bigger than max */
-			if (WARN_ON_ONCE(cnt < FAULTED_SIZE))
-				return -EBADF;
 			cnt = ring_buffer_max_event_size(buffer) - meta_size;
 			/* The above should only happen once */
 			if (WARN_ON_ONCE(cnt + meta_size == size))
@@ -7202,14 +7194,8 @@ static ssize_t write_marker_to_buffer(struct trace_array *tr, const char __user 
 
 	entry = ring_buffer_event_data(event);
 	entry->ip = ip;
-
-	len = __copy_from_user_inatomic(&entry->buf, ubuf, cnt);
-	if (len) {
-		memcpy(&entry->buf, FAULTED_STR, FAULTED_SIZE);
-		cnt = FAULTED_SIZE;
-		written = -EFAULT;
-	} else
-		written = cnt;
+	memcpy(&entry->buf, buf, cnt);
+	written = cnt;
 
 	if (tr->trace_marker_file && !list_empty(&tr->trace_marker_file->triggers)) {
 		/* do not add \n before testing triggers, but add \0 */
@@ -7233,6 +7219,169 @@ static ssize_t write_marker_to_buffer(struct trace_array *tr, const char __user 
 	return written;
 }
 
+struct trace_user_buf {
+	char		*buf;
+};
+
+struct trace_user_buf_info {
+	struct trace_user_buf __percpu	*tbuf;
+	int				ref;
+};
+
+
+static DEFINE_MUTEX(trace_user_buffer_mutex);
+static struct trace_user_buf_info *trace_user_buffer;
+
+static void trace_user_fault_buffer_free(struct trace_user_buf_info *tinfo)
+{
+	char *buf;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		buf = per_cpu_ptr(tinfo->tbuf, cpu)->buf;
+		kfree(buf);
+	}
+	free_percpu(tinfo->tbuf);
+	kfree(tinfo);
+}
+
+static int trace_user_fault_buffer_enable(void)
+{
+	struct trace_user_buf_info *tinfo;
+	char *buf;
+	int cpu;
+
+	guard(mutex)(&trace_user_buffer_mutex);
+
+	if (trace_user_buffer) {
+		trace_user_buffer->ref++;
+		return 0;
+	}
+
+	tinfo = kmalloc(sizeof(*tinfo), GFP_KERNEL);
+	if (!tinfo)
+		return -ENOMEM;
+
+	tinfo->tbuf = alloc_percpu(struct trace_user_buf);
+	if (!tinfo->tbuf) {
+		kfree(tinfo);
+		return -ENOMEM;
+	}
+
+	tinfo->ref = 1;
+
+	/* Clear each buffer in case of error */
+	for_each_possible_cpu(cpu) {
+		per_cpu_ptr(tinfo->tbuf, cpu)->buf = NULL;
+	}
+
+	for_each_possible_cpu(cpu) {
+		buf = kmalloc_node(TRACE_MARKER_MAX_SIZE, GFP_KERNEL,
+				   cpu_to_node(cpu));
+		if (!buf) {
+			trace_user_fault_buffer_free(tinfo);
+			return -ENOMEM;
+		}
+		per_cpu_ptr(tinfo->tbuf, cpu)->buf = buf;
+	}
+
+	trace_user_buffer = tinfo;
+
+	return 0;
+}
+
+static void trace_user_fault_buffer_disable(void)
+{
+	struct trace_user_buf_info *tinfo;
+
+	guard(mutex)(&trace_user_buffer_mutex);
+
+	tinfo = trace_user_buffer;
+
+	if (WARN_ON_ONCE(!tinfo))
+		return;
+
+	if (--tinfo->ref)
+		return;
+
+	trace_user_fault_buffer_free(tinfo);
+	trace_user_buffer = NULL;
+}
+
+/* Must be called with preemption disabled */
+static char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
+				   const char __user *ptr, size_t size,
+				   size_t *read_size)
+{
+	int cpu = smp_processor_id();
+	char *buffer = per_cpu_ptr(tinfo->tbuf, cpu)->buf;
+	unsigned int cnt;
+	int trys = 0;
+	int ret;
+
+	if (size > TRACE_MARKER_MAX_SIZE)
+		size = TRACE_MARKER_MAX_SIZE;
+	*read_size = 0;
+
+	/*
+	 * This acts similar to a seqcount. The per CPU context switches are
+	 * recorded, migration is disabled and preemption is enabled. The
+	 * read of the user space memory is copied into the per CPU buffer.
+	 * Preemption is disabled again, and if the per CPU context switches count
+	 * is still the same, it means the buffer has not been corrupted.
+	 * If the count is different, it is assumed the buffer is corrupted
+	 * and reading must be tried again.
+	 */
+
+	do {
+		/*
+		 * If for some reason, copy_from_user() always causes a context
+		 * switch, this would then cause an infinite loop.
+		 * If this task is preempted by another user space task, it
+		 * will cause this task to try again. But just in case something
+		 * changes where the copying from user space causes another task
+		 * to run, prevent this from going into an infinite loop.
+		 * 100 tries should be plenty.
+		 */
+		if (WARN_ONCE(trys++ > 100, "Error: Too many tries to read user space"))
+			return NULL;
+
+		/* Read the current CPU context switch counter */
+		cnt = nr_context_switches_cpu(cpu);
+
+		/*
+		 * Preemption is going to be enabled, but this task must
+		 * remain on this CPU.
+		 */
+		migrate_disable();
+
+		/*
+		 * Now preemption is being enabed and another task can come in
+		 * and use the same buffer and corrupt our data.
+		 */
+		preempt_enable_notrace();
+
+		ret = __copy_from_user(buffer, ptr, size);
+
+		preempt_disable_notrace();
+		migrate_enable();
+
+		/* if it faulted, no need to test if the buffer was corrupted */
+		if (ret)
+			return NULL;
+
+		/*
+		 * Preemption is disabled again, now check the per CPU context
+		 * switch counter. If it doesn't match, then another user space
+		 * process may have schedule in and corrupted our buffer. In that
+		 * case the copying must be retried.
+		 */
+	} while (nr_context_switches_cpu(cpu) != cnt);
+
+	*read_size = size;
+	return buffer;
+}
+
 static ssize_t
 tracing_mark_write(struct file *filp, const char __user *ubuf,
 					size_t cnt, loff_t *fpos)
@@ -7240,6 +7389,8 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	struct trace_array *tr = filp->private_data;
 	ssize_t written = -ENODEV;
 	unsigned long ip;
+	size_t size;
+	char *buf;
 
 	if (tracing_disabled)
 		return -EINVAL;
@@ -7253,6 +7404,16 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	if (cnt > TRACE_MARKER_MAX_SIZE)
 		cnt = TRACE_MARKER_MAX_SIZE;
 
+	/* Must have preemption disabled while having access to the buffer */
+	guard(preempt_notrace)();
+
+	buf = trace_user_fault_read(trace_user_buffer, ubuf, cnt, &size);
+	if (!buf)
+		return -EFAULT;
+
+	if (cnt > size)
+		cnt = size;
+
 	/* The selftests expect this function to be the IP address */
 	ip = _THIS_IP_;
 
@@ -7260,32 +7421,28 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	if (tr == &global_trace) {
 		guard(rcu)();
 		list_for_each_entry_rcu(tr, &marker_copies, marker_list) {
-			written = write_marker_to_buffer(tr, ubuf, cnt, ip);
+			written = write_marker_to_buffer(tr, buf, cnt, ip);
 			if (written < 0)
 				break;
 		}
 	} else {
-		written = write_marker_to_buffer(tr, ubuf, cnt, ip);
+		written = write_marker_to_buffer(tr, buf, cnt, ip);
 	}
 
 	return written;
 }
 
 static ssize_t write_raw_marker_to_buffer(struct trace_array *tr,
-					  const char __user *ubuf, size_t cnt)
+					  const char *buf, size_t cnt)
 {
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer;
 	struct raw_data_entry *entry;
 	ssize_t written;
-	int size;
-	int len;
+	size_t size;
 
-#define FAULT_SIZE_ID (FAULTED_SIZE + sizeof(int))
-
-	size = sizeof(*entry) + cnt;
-	if (cnt < FAULT_SIZE_ID)
-		size += FAULT_SIZE_ID - cnt;
+	/* cnt includes both the entry->id and the data behind it. */
+	size = struct_size(entry, buf, cnt - sizeof(entry->id));
 
 	buffer = tr->array_buffer.buffer;
 
@@ -7299,14 +7456,11 @@ static ssize_t write_raw_marker_to_buffer(struct trace_array *tr,
 		return -EBADF;
 
 	entry = ring_buffer_event_data(event);
-
-	len = __copy_from_user_inatomic(&entry->id, ubuf, cnt);
-	if (len) {
-		entry->id = -1;
-		memcpy(&entry->buf, FAULTED_STR, FAULTED_SIZE);
-		written = -EFAULT;
-	} else
-		written = cnt;
+	unsafe_memcpy(&entry->id, buf, cnt,
+		      "id and content already reserved on ring buffer"
+		      "'buf' includes the 'id' and the data."
+		      "'entry' was allocated with cnt from 'id'.");
+	written = cnt;
 
 	__buffer_unlock_commit(buffer, event);
 
@@ -7319,8 +7473,8 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 {
 	struct trace_array *tr = filp->private_data;
 	ssize_t written = -ENODEV;
-
-#define FAULT_SIZE_ID (FAULTED_SIZE + sizeof(int))
+	size_t size;
+	char *buf;
 
 	if (tracing_disabled)
 		return -EINVAL;
@@ -7332,19 +7486,51 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 	if (cnt < sizeof(unsigned int))
 		return -EINVAL;
 
+	/* Must have preemption disabled while having access to the buffer */
+	guard(preempt_notrace)();
+
+	buf = trace_user_fault_read(trace_user_buffer, ubuf, cnt, &size);
+	if (!buf)
+		return -EFAULT;
+
+	/* raw write is all or nothing */
+	if (cnt > size)
+		return -EINVAL;
+
 	/* The global trace_marker_raw can go to multiple instances */
 	if (tr == &global_trace) {
 		guard(rcu)();
 		list_for_each_entry_rcu(tr, &marker_copies, marker_list) {
-			written = write_raw_marker_to_buffer(tr, ubuf, cnt);
+			written = write_raw_marker_to_buffer(tr, buf, cnt);
 			if (written < 0)
 				break;
 		}
 	} else {
-		written = write_raw_marker_to_buffer(tr, ubuf, cnt);
+		written = write_raw_marker_to_buffer(tr, buf, cnt);
 	}
 
 	return written;
+}
+
+static int tracing_mark_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	ret = trace_user_fault_buffer_enable();
+	if (ret < 0)
+		return ret;
+
+	stream_open(inode, filp);
+	ret = tracing_open_generic_tr(inode, filp);
+	if (ret < 0)
+		trace_user_fault_buffer_disable();
+	return ret;
+}
+
+static int tracing_mark_release(struct inode *inode, struct file *file)
+{
+	trace_user_fault_buffer_disable();
+	return tracing_release_generic_tr(inode, file);
 }
 
 static int tracing_clock_show(struct seq_file *m, void *v)
@@ -7754,13 +7940,13 @@ static const struct file_operations tracing_free_buffer_fops = {
 static const struct file_operations tracing_mark_fops = {
 	.open		= tracing_mark_open,
 	.write		= tracing_mark_write,
-	.release	= tracing_release_generic_tr,
+	.release	= tracing_mark_release,
 };
 
 static const struct file_operations tracing_mark_raw_fops = {
 	.open		= tracing_mark_open,
 	.write		= tracing_mark_raw_write,
-	.release	= tracing_release_generic_tr,
+	.release	= tracing_mark_release,
 };
 
 static const struct file_operations trace_clock_fops = {
@@ -10201,8 +10387,7 @@ static struct vfsmount *trace_automount(struct dentry *mntpt, void *ingore)
 
 	pr_warn("NOTICE: Automounting of tracing to debugfs is deprecated and will be removed in 2030\n");
 
-	ret = vfs_parse_fs_string(fc, "source",
-				  "tracefs", strlen("tracefs"));
+	ret = vfs_parse_fs_string(fc, "source", "tracefs");
 	if (!ret)
 		mnt = fc_mount(fc);
 	else
@@ -10632,10 +10817,10 @@ static void ftrace_dump_one(struct trace_array *tr, enum ftrace_dump_mode dump_m
 			ret = print_trace_line(&iter);
 			if (ret != TRACE_TYPE_NO_CONSUME)
 				trace_consume(&iter);
+
+			trace_printk_seq(&iter.seq);
 		}
 		touch_nmi_watchdog();
-
-		trace_printk_seq(&iter.seq);
 	}
 
 	if (!cnt)

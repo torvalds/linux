@@ -3,6 +3,11 @@
 # PHY Layer Configuration
 #
 
+config MDIO_BUS
+	tristate "MDIO bus consumer layer"
+	help
+	  MDIO bus consumer layer
+
 config PHYLINK
 	tristate
 	select PHYLIB
@@ -298,7 +303,7 @@ config MICREL_PHY
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHY_PACKAGE
 	help
-	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
+	  Supports the KSZ8xxx, KSZ9xxx, and LAN88xx families of Micrel/Microchip PHYs.
 
 config MICROCHIP_T1S_PHY
 	tristate "Microchip 10BASE-T1S Ethernet PHYs"
@@ -361,7 +366,7 @@ config NXP_TJA11XX_PHY
 	tristate "NXP TJA11xx PHYs support"
 	depends on HWMON
 	help
-	  Currently supports the NXP TJA1100 and TJA1101 PHY.
+	  Currently supports the NXP TJA1100, TJA1101 and TJA1102 PHYs.
 
 config NCN26000_PHY
 	tristate "Onsemi 10BASE-T1S Ethernet PHY"
@@ -465,7 +470,3 @@ config XILINX_GMII2RGMII
 	  Ethernet physical media devices and the Gigabit Ethernet controller.
 
 endif # PHYLIB
-
-config MICREL_KS8995MA
-	tristate "Micrel KS8995MA 5-ports 10/100 managed Ethernet switch"
-	depends on SPI

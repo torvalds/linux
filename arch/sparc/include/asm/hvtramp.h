@@ -2,7 +2,7 @@
 #ifndef _SPARC64_HVTRAP_H
 #define _SPARC64_HVTRAP_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 

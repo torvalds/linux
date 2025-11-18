@@ -44,12 +44,29 @@ allOf:
           items:
             - const: default
             - const: state_cmd_gpio
-        pinctrl-0:
-          description:
-            Should contain default pinctrl.
+          minItems: 1
+
         pinctrl-1:
           description:
             Should switch CMD pin to GPIO mode as a high output.
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mrvl,pxav3-mmc
+    then:
+      properties:
+        pinctrl-names:
+          description:
+            Optional for increasing stability of the controller at fast bus clocks.
+          items:
+            - const: default
+            - const: state_uhs
+          minItems: 1
+
+        pinctrl-1:
+          description:
+            Should switch the drive strength of the data pins to high.
 
 properties:
   compatible:
@@ -81,6 +98,14 @@ properties:
     items:
       - const: io
       - const: core
+
+  pinctrl-names: true
+
+  pinctrl-0:
+    description:
+      Should contain default pinctrl.
+
+  pinctrl-1: true
 
   mrvl,clk-delay-cycles:
     description: Specify a number of cycles to delay for tuning.

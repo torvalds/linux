@@ -76,7 +76,7 @@ query_free_page:
 	/*  check if hardware tx fifo page is enough */
 	if (!rtw_hal_sdio_query_tx_freepage(pri_padapter, PageIdx, pxmitbuf->pg_num)) {
 		if (!bUpdatePageNum) {
-			/*  Total number of page is NOT available, so update current FIFO status */
+			/* Total page count is not available, so update current FIFO status */
 			HalQueryTxBufferStatus8723BSdio(padapter);
 			bUpdatePageNum = true;
 			goto query_free_page;

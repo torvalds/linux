@@ -267,7 +267,7 @@ void vgic_v2_put(struct kvm_vcpu *vcpu);
 void vgic_v2_save_state(struct kvm_vcpu *vcpu);
 void vgic_v2_restore_state(struct kvm_vcpu *vcpu);
 
-static inline bool vgic_try_get_irq_kref(struct vgic_irq *irq)
+static inline bool vgic_try_get_irq_ref(struct vgic_irq *irq)
 {
 	if (!irq)
 		return false;
@@ -275,12 +275,12 @@ static inline bool vgic_try_get_irq_kref(struct vgic_irq *irq)
 	if (irq->intid < VGIC_MIN_LPI)
 		return true;
 
-	return kref_get_unless_zero(&irq->refcount);
+	return refcount_inc_not_zero(&irq->refcount);
 }
 
-static inline void vgic_get_irq_kref(struct vgic_irq *irq)
+static inline void vgic_get_irq_ref(struct vgic_irq *irq)
 {
-	WARN_ON_ONCE(!vgic_try_get_irq_kref(irq));
+	WARN_ON_ONCE(!vgic_try_get_irq_ref(irq));
 }
 
 void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu);
@@ -396,15 +396,7 @@ bool vgic_supports_direct_sgis(struct kvm *kvm);
 
 static inline bool vgic_supports_direct_irqs(struct kvm *kvm)
 {
-	/*
-	 * Deliberately conflate vLPI and vSGI support on GICv4.1 hardware,
-	 * indirectly allowing userspace to control whether or not vPEs are
-	 * allocated for the VM.
-	 */
-	if (system_supports_direct_sgis())
-		return vgic_supports_direct_sgis(kvm);
-
-	return vgic_supports_direct_msis(kvm);
+	return vgic_supports_direct_msis(kvm) || vgic_supports_direct_sgis(kvm);
 }
 
 int vgic_v4_init(struct kvm *kvm);

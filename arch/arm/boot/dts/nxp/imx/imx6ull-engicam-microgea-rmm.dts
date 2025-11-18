@@ -129,7 +129,7 @@
 	status = "okay";
 
 	touchscreen: touchscreen@38 {
-		compatible ="edt,edt-ft5306";
+		compatible = "edt,edt-ft5306";
 		reg = <0x38>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_touchscreen>;

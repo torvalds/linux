@@ -30,7 +30,6 @@
 #endif
 #include <linux/auxiliary_bus.h>
 #include <linux/net/intel/iidc_rdma.h>
-#include <linux/net/intel/iidc_rdma_ice.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
@@ -54,6 +53,8 @@
 #include "puda.h"
 
 extern struct auxiliary_driver i40iw_auxiliary_drv;
+extern struct iidc_rdma_core_auxiliary_drv icrdma_core_auxiliary_drv;
+extern struct iidc_rdma_core_auxiliary_drv ig3rdma_core_auxiliary_drv;
 
 #define IRDMA_FW_VER_DEFAULT	2
 #define IRDMA_HW_VER	        2
@@ -65,7 +66,8 @@ extern struct auxiliary_driver i40iw_auxiliary_drv;
 #define IRDMA_MACIP_ADD		1
 #define IRDMA_MACIP_DELETE	2
 
-#define IW_CCQ_SIZE	(IRDMA_CQP_SW_SQSIZE_2048 + 1)
+#define IW_GEN_3_CCQ_SIZE  (2 * IRDMA_CQP_SW_SQSIZE_2048 + 2)
+#define IW_CCQ_SIZE	(IRDMA_CQP_SW_SQSIZE_2048 + 2)
 #define IW_CEQ_SIZE	2048
 #define IW_AEQ_SIZE	2048
 
@@ -127,12 +129,12 @@ enum init_completion_state {
 	HMC_OBJS_CREATED,
 	HW_RSRC_INITIALIZED,
 	CCQ_CREATED,
-	CEQ0_CREATED, /* Last state of probe */
-	ILQ_CREATED,
-	IEQ_CREATED,
+	CEQ0_CREATED,
 	CEQS_CREATED,
 	PBLE_CHUNK_MEM,
 	AEQ_CREATED,
+	ILQ_CREATED,
+	IEQ_CREATED, /* Last state of probe */
 	IP_ADDR_REGISTERED,  /* Last state of open */
 };
 
@@ -167,6 +169,7 @@ struct irdma_cqp_request {
 	bool request_done; /* READ/WRITE_ONCE macros operate on it */
 	bool waiting:1;
 	bool dynamic:1;
+	bool pending:1;
 };
 
 struct irdma_cqp {
@@ -179,6 +182,7 @@ struct irdma_cqp {
 	struct irdma_dma_mem host_ctx;
 	u64 *scratch_array;
 	struct irdma_cqp_request *cqp_requests;
+	struct irdma_ooo_cqp_op *oop_op_array;
 	struct list_head cqp_avail_reqs;
 	struct list_head cqp_pending_reqs;
 };
@@ -257,6 +261,7 @@ struct irdma_pci_f {
 	bool reset:1;
 	bool rsrc_created:1;
 	bool msix_shared:1;
+	bool hwqp1_rsvd:1;
 	u8 rsrc_profile;
 	u8 *hmc_info_mem;
 	u8 *mem_rsrc;
@@ -269,6 +274,8 @@ struct irdma_pci_f {
 	u32 max_mr;
 	u32 max_qp;
 	u32 max_cq;
+	u32 max_srq;
+	u32 next_srq;
 	u32 max_ah;
 	u32 next_ah;
 	u32 max_mcg;
@@ -282,6 +289,7 @@ struct irdma_pci_f {
 	u32 mr_stagmask;
 	u32 used_pds;
 	u32 used_cqs;
+	u32 used_srqs;
 	u32 used_mrs;
 	u32 used_qps;
 	u32 arp_table_size;
@@ -293,6 +301,7 @@ struct irdma_pci_f {
 	unsigned long *allocated_ws_nodes;
 	unsigned long *allocated_qps;
 	unsigned long *allocated_cqs;
+	unsigned long *allocated_srqs;
 	unsigned long *allocated_mrs;
 	unsigned long *allocated_pds;
 	unsigned long *allocated_mcgs;
@@ -327,10 +336,13 @@ struct irdma_pci_f {
 	wait_queue_head_t vchnl_waitq;
 	struct workqueue_struct *cqp_cmpl_wq;
 	struct work_struct cqp_cmpl_work;
+	struct workqueue_struct *vchnl_wq;
 	struct irdma_sc_vsi default_vsi;
 	void *back_fcn;
 	struct irdma_gen_ops gen_ops;
 	struct irdma_device *iwdev;
+	DECLARE_HASHTABLE(ah_hash_tbl, 8);
+	struct mutex ah_tbl_lock; /* protect AH hash table access */
 };
 
 struct irdma_device {
@@ -340,8 +352,6 @@ struct irdma_device {
 	struct workqueue_struct *cleanup_wq;
 	struct irdma_sc_vsi vsi;
 	struct irdma_cm_core cm_core;
-	DECLARE_HASHTABLE(ah_hash_tbl, 8);
-	struct mutex ah_tbl_lock; /* protect AH hash table access */
 	u32 roce_cwnd;
 	u32 roce_ackcreds;
 	u32 vendor_id;
@@ -350,12 +360,14 @@ struct irdma_device {
 	u32 rcv_wnd;
 	u16 mac_ip_table_idx;
 	u16 vsi_num;
+	u16 vport_id;
 	u8 rcv_wscale;
 	u8 iw_status;
 	bool roce_mode:1;
 	bool roce_dcqcn_en:1;
 	bool dcb_vlan_mode:1;
 	bool iw_ooo:1;
+	bool is_vport:1;
 	enum init_completion_state init_state;
 
 	wait_queue_head_t suspend_wq;
@@ -411,6 +423,11 @@ static inline struct irdma_qp *to_iwqp(struct ib_qp *ibqp)
 static inline struct irdma_pci_f *dev_to_rf(struct irdma_sc_dev *dev)
 {
 	return container_of(dev, struct irdma_pci_f, sc_dev);
+}
+
+static inline struct irdma_srq *to_iwsrq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct irdma_srq, ibsrq);
 }
 
 /**
@@ -508,7 +525,8 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 void irdma_cq_add_ref(struct ib_cq *ibcq);
 void irdma_cq_rem_ref(struct ib_cq *ibcq);
 void irdma_cq_wq_destroy(struct irdma_pci_f *rf, struct irdma_sc_cq *cq);
-
+void irdma_srq_event(struct irdma_sc_srq *srq);
+void irdma_srq_wq_destroy(struct irdma_pci_f *rf, struct irdma_sc_srq *srq);
 void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf);
 int irdma_hw_modify_qp(struct irdma_device *iwdev, struct irdma_qp *iwqp,
 		       struct irdma_modify_qp_info *info, bool wait);
@@ -557,4 +575,5 @@ int irdma_netdevice_event(struct notifier_block *notifier, unsigned long event,
 			  void *ptr);
 void irdma_add_ip(struct irdma_device *iwdev);
 void cqp_compl_worker(struct work_struct *work);
+void irdma_log_invalid_mtu(u16 mtu, struct irdma_sc_dev *dev);
 #endif /* IRDMA_MAIN_H */

@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/megachips,stdp2690-ge-b850v3-fw.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GE B850v3 video bridge
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description: |
+   STDP4028-ge-b850v3-fw bridges (LVDS-DP)
+   STDP2690-ge-b850v3-fw bridges (DP-DP++)
+
+   The video processing pipeline on the second output on the GE B850v3:
+
+   Host -> LVDS|--(STDP4028)--|DP -> DP|--(STDP2690)--|DP++ -> Video output
+
+   Each bridge has a dedicated flash containing firmware for supporting the custom
+   design. The result is that, in this design, neither the STDP4028 nor the
+   STDP2690 behave as the stock bridges would. The compatible strings include the
+   suffix "-ge-b850v3-fw" to make it clear that the driver is for the bridges with
+   the firmware specific for the GE B850v3.
+
+   The hardware do not provide control over the video processing pipeline, as the
+   two bridges behaves as a single one. The only interfaces exposed by the
+   hardware are EDID, HPD, and interrupts.
+
+properties:
+  compatible:
+    enum:
+      - megachips,stdp4028-ge-b850v3-fw
+      - megachips,stdp2690-ge-b850v3-fw
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port@0:
+        description: sink port
+        $ref: /schemas/graph.yaml#/properties/port
+
+      port@1:
+        description: source port
+        $ref: /schemas/graph.yaml#/properties/port
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - ports
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: megachips,stdp4028-ge-b850v3-fw
+    then:
+      required:
+        - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        bridge@73 {
+            compatible = "megachips,stdp4028-ge-b850v3-fw";
+            reg = <0x73>;
+            interrupt-parent = <&gpio2>;
+            interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+
+                    endpoint {
+                        remote-endpoint = <&lvds0_out>;
+                    };
+
+                };
+
+                port@1 {
+                    reg = <1>;
+
+                    endpoint {
+                        remote-endpoint = <&stdp2690_in>;
+                    };
+               };
+            };
+        };
+    };
+

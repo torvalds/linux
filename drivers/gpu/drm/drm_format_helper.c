@@ -1243,6 +1243,9 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 		} else if (dst_format == DRM_FORMAT_BGRX8888) {
 			drm_fb_swab(dst, dst_pitch, src, fb, clip, false, state);
 			return 0;
+		} else if (dst_format == DRM_FORMAT_RGB332) {
+			drm_fb_xrgb8888_to_rgb332(dst, dst_pitch, src, fb, clip, state);
+			return 0;
 		}
 	}
 
@@ -1252,6 +1255,25 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_fb_blit);
+
+static void drm_fb_gray8_to_gray2_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	u8 *dbuf8 = dbuf;
+	const u8 *sbuf8 = sbuf;
+	u8 px;
+
+	while (pixels) {
+		unsigned int i, bits = min(pixels, 4U);
+		u8 byte = 0;
+
+		for (i = 0; i < bits; i++, pixels--) {
+			byte >>= 2;
+			px = (*sbuf8++ * 3 + 127) / 255;
+			byte |= (px &= 0x03) << 6;
+		}
+		*dbuf8++ = byte;
+	}
+}
 
 static void drm_fb_gray8_to_mono_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
@@ -1359,3 +1381,92 @@ void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitc
 	}
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_mono);
+
+/**
+ * drm_fb_xrgb8888_to_gray2 - Convert XRGB8888 to gray2
+ * @dst: Array of gray2 destination buffer
+ * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
+ *             within @dst; can be NULL if scanlines are stored next to each other.
+ * @src: Array of XRGB8888 source buffers
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ * @state: Transform and conversion state
+ *
+ * This function copies parts of a framebuffer to display memory and converts the
+ * color format during the process. Destination and framebuffer formats must match. The
+ * parameters @dst, @dst_pitch and @src refer to arrays. Each array must have at
+ * least as many entries as there are planes in @fb's format. Each entry stores the
+ * value for the format's respective color plane at the same index.
+ *
+ * This function does not apply clipping on @dst (i.e. the destination is at the
+ * top-left corner). The first pixel (upper left corner of the clip rectangle) will
+ * be converted and copied to the two first bits (LSB) in the first byte of the gray2
+ * destination buffer. If the caller requires that the first pixel in a byte must
+ * be located at an x-coordinate that is a multiple of 8, then the caller must take
+ * care itself of supplying a suitable clip rectangle.
+ *
+ * DRM doesn't have native gray2 support. Drivers can use this function for
+ * gray2 devices that don't support XRGB8888 natively. Such drivers can
+ * announce the commonly supported XR24 format to userspace and use this function
+ * to convert to the native format.
+ *
+ */
+void drm_fb_xrgb8888_to_gray2(struct iosys_map *dst, const unsigned int *dst_pitch,
+			      const struct iosys_map *src, const struct drm_framebuffer *fb,
+			      const struct drm_rect *clip, struct drm_format_conv_state *state)
+{
+	static const unsigned int default_dst_pitch[DRM_FORMAT_MAX_PLANES] = {
+		0, 0, 0, 0
+	};
+	unsigned int linepixels = drm_rect_width(clip);
+	unsigned int lines = drm_rect_height(clip);
+	unsigned int cpp = fb->format->cpp[0];
+	unsigned int len_src32 = linepixels * cpp;
+	struct drm_device *dev = fb->dev;
+	void *vaddr = src[0].vaddr;
+	unsigned int dst_pitch_0;
+	unsigned int y;
+	u8 *gray2 = dst[0].vaddr, *gray8;
+	u32 *src32;
+
+	if (drm_WARN_ON(dev, fb->format->format != DRM_FORMAT_XRGB8888))
+		return;
+
+	if (!dst_pitch)
+		dst_pitch = default_dst_pitch;
+	dst_pitch_0 = dst_pitch[0];
+
+	/*
+	 * The gray2 destination buffer contains 2 bit per pixel
+	 */
+	if (!dst_pitch_0)
+		dst_pitch_0 = DIV_ROUND_UP(linepixels, 4);
+
+	/*
+	 * The dma memory is write-combined so reads are uncached.
+	 * Speed up by fetching one line at a time.
+	 *
+	 * Also, format conversion from XR24 to gray2 are done
+	 * line-by-line but are converted to 8-bit grayscale as an
+	 * intermediate step.
+	 *
+	 * Allocate a buffer to be used for both copying from the cma
+	 * memory and to store the intermediate grayscale line pixels.
+	 */
+	src32 = drm_format_conv_state_reserve(state, len_src32 + linepixels, GFP_KERNEL);
+	if (!src32)
+		return;
+
+	gray8 = (u8 *)src32 + len_src32;
+
+	vaddr += clip_offset(clip, fb->pitches[0], cpp);
+	for (y = 0; y < lines; y++) {
+		src32 = memcpy(src32, vaddr, len_src32);
+		drm_fb_xrgb8888_to_gray8_line(gray8, src32, linepixels);
+		drm_fb_gray8_to_gray2_line(gray2, gray8, linepixels);
+		vaddr += fb->pitches[0];
+		gray2 += dst_pitch_0;
+	}
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_gray2);
+

@@ -131,8 +131,6 @@ crate so it can be used by other components as well.
 
 Features desired before this happens:
 
-* Relative register with build-time base address validation,
-* Arrays of registers with build-time index validation,
 * Make I/O optional I/O (for field values that are not registers),
 * Support other sizes than `u32`,
 * Allow visibility control for registers and individual fields,
@@ -147,7 +145,6 @@ Numerical operations [NUMM]
 Nova uses integer operations that are not part of the standard library (or not
 implemented in an optimized way for the kernel). These include:
 
-- Aligning up and down to a power of two,
 - The "Find Last Set Bit" (`fls` function of the C part of the kernel)
   operation.
 
@@ -231,23 +228,6 @@ Rust abstraction for debugfs APIs.
 
 GPU (general)
 =============
-
-Parse firmware headers
-----------------------
-
-Parse ELF headers from the firmware files loaded from the filesystem.
-
-| Reference: ELF utils
-| Complexity: Beginner
-| Contact: Abdiel Janulgue
-
-Build radix3 page table
------------------------
-
-Build the radix3 page table to map the firmware.
-
-| Complexity: Intermediate
-| Contact: Abdiel Janulgue
 
 Initial Devinit support
 -----------------------

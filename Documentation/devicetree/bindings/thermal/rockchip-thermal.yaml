@@ -120,6 +120,21 @@ required:
 
 allOf:
   - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - rockchip,px30-tsadc
+              - rockchip,rk3366-tsadc
+              - rockchip,rk3399-tsadc
+              - rockchip,rk3568-tsadc
+    then:
+      required:
+        - rockchip,grf
+    else:
+      properties:
+        rockchip,grf: false
+  - if:
       not:
         properties:
           compatible:

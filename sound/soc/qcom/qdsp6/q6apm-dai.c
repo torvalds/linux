@@ -11,6 +11,7 @@
 #include <sound/soc-dapm.h>
 #include <linux/spinlock.h>
 #include <sound/pcm.h>
+#include <asm/div64.h>
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
 #include <sound/pcm_params.h>
@@ -65,9 +66,9 @@ struct q6apm_dai_rtd {
 	unsigned int pcm_size;
 	unsigned int pcm_count;
 	unsigned int periods;
-	unsigned int bytes_sent;
-	unsigned int bytes_received;
-	unsigned int copied_total;
+	uint64_t bytes_sent;
+	uint64_t bytes_received;
+	uint64_t copied_total;
 	uint16_t bits_per_sample;
 	snd_pcm_uframes_t queue_ptr;
 	bool next_track;
@@ -550,10 +551,11 @@ static int q6apm_dai_compr_get_caps(struct snd_soc_component *component,
 	caps->max_fragment_size = COMPR_PLAYBACK_MAX_FRAGMENT_SIZE;
 	caps->min_fragments = COMPR_PLAYBACK_MIN_NUM_FRAGMENTS;
 	caps->max_fragments = COMPR_PLAYBACK_MAX_NUM_FRAGMENTS;
-	caps->num_codecs = 3;
+	caps->num_codecs = 4;
 	caps->codecs[0] = SND_AUDIOCODEC_MP3;
 	caps->codecs[1] = SND_AUDIOCODEC_AAC;
 	caps->codecs[2] = SND_AUDIOCODEC_FLAC;
+	caps->codecs[3] = SND_AUDIOCODEC_OPUS_RAW;
 
 	return 0;
 }
@@ -575,15 +577,17 @@ static int q6apm_dai_compr_get_codec_caps(struct snd_soc_component *component,
 
 static int q6apm_dai_compr_pointer(struct snd_soc_component *component,
 				   struct snd_compr_stream *stream,
-				   struct snd_compr_tstamp *tstamp)
+				   struct snd_compr_tstamp64 *tstamp)
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6apm_dai_rtd *prtd = runtime->private_data;
 	unsigned long flags;
+	uint64_t temp_copied_total;
 
 	spin_lock_irqsave(&prtd->lock, flags);
 	tstamp->copied_total = prtd->copied_total;
-	tstamp->byte_offset = prtd->copied_total % prtd->pcm_size;
+	temp_copied_total = tstamp->copied_total;
+	tstamp->byte_offset = do_div(temp_copied_total, prtd->pcm_size);
 	spin_unlock_irqrestore(&prtd->lock, flags);
 
 	return 0;
@@ -760,21 +764,24 @@ static int q6apm_compr_copy(struct snd_soc_component *component,
 	size_t copy;
 	u32 wflags = 0;
 	u32 app_pointer;
-	u32 bytes_received;
+	uint64_t bytes_received;
+	uint64_t temp_bytes_received;
 	uint32_t bytes_to_write;
-	int avail, bytes_in_flight = 0;
+	uint64_t avail, bytes_in_flight = 0;
 
 	bytes_received = prtd->bytes_received;
+	temp_bytes_received = bytes_received;
 
 	/**
 	 * Make sure that next track data pointer is aligned at 32 bit boundary
 	 * This is a Mandatory requirement from DSP data buffers alignment
 	 */
-	if (prtd->next_track)
+	if (prtd->next_track) {
 		bytes_received = ALIGN(prtd->bytes_received, prtd->pcm_count);
+		temp_bytes_received = bytes_received;
+	}
 
-	app_pointer = bytes_received/prtd->pcm_size;
-	app_pointer = bytes_received -  (app_pointer * prtd->pcm_size);
+	app_pointer = do_div(temp_bytes_received, prtd->pcm_size);
 	dstn = prtd->dma_buffer.area + app_pointer;
 
 	if (count < prtd->pcm_size - app_pointer) {

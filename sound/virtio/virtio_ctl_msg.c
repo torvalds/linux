@@ -131,7 +131,6 @@ int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
 	unsigned int nins = 0;
 	struct scatterlist *psgs[4];
 	bool notify = false;
-	unsigned long flags;
 	int rc;
 
 	virtsnd_ctl_msg_ref(msg);
@@ -147,15 +146,15 @@ int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
 	if (in_sgs)
 		psgs[nouts + nins++] = in_sgs;
 
-	spin_lock_irqsave(&queue->lock, flags);
-	rc = virtqueue_add_sgs(queue->vqueue, psgs, nouts, nins, msg,
-			       GFP_ATOMIC);
-	if (!rc) {
-		notify = virtqueue_kick_prepare(queue->vqueue);
+	scoped_guard(spinlock_irqsave, &queue->lock) {
+		rc = virtqueue_add_sgs(queue->vqueue, psgs, nouts, nins, msg,
+				       GFP_ATOMIC);
+		if (!rc) {
+			notify = virtqueue_kick_prepare(queue->vqueue);
 
-		list_add_tail(&msg->list, &snd->ctl_msgs);
+			list_add_tail(&msg->list, &snd->ctl_msgs);
+		}
 	}
-	spin_unlock_irqrestore(&queue->lock, flags);
 
 	if (rc) {
 		dev_err(&vdev->dev, "failed to send control message (0x%08x)\n",
@@ -233,9 +232,8 @@ void virtsnd_ctl_msg_complete(struct virtio_snd_msg *msg)
 void virtsnd_ctl_msg_cancel_all(struct virtio_snd *snd)
 {
 	struct virtio_snd_queue *queue = virtsnd_control_queue(snd);
-	unsigned long flags;
 
-	spin_lock_irqsave(&queue->lock, flags);
+	guard(spinlock_irqsave)(&queue->lock);
 	while (!list_empty(&snd->ctl_msgs)) {
 		struct virtio_snd_msg *msg =
 			list_first_entry(&snd->ctl_msgs, struct virtio_snd_msg,
@@ -243,7 +241,6 @@ void virtsnd_ctl_msg_cancel_all(struct virtio_snd *snd)
 
 		virtsnd_ctl_msg_complete(msg);
 	}
-	spin_unlock_irqrestore(&queue->lock, flags);
 }
 
 /**
@@ -296,13 +293,11 @@ void virtsnd_ctl_notify_cb(struct virtqueue *vqueue)
 	struct virtio_snd_queue *queue = virtsnd_control_queue(snd);
 	struct virtio_snd_msg *msg;
 	u32 length;
-	unsigned long flags;
 
-	spin_lock_irqsave(&queue->lock, flags);
+	guard(spinlock_irqsave)(&queue->lock);
 	do {
 		virtqueue_disable_cb(vqueue);
 		while ((msg = virtqueue_get_buf(vqueue, &length)))
 			virtsnd_ctl_msg_complete(msg);
 	} while (!virtqueue_enable_cb(vqueue));
-	spin_unlock_irqrestore(&queue->lock, flags);
 }

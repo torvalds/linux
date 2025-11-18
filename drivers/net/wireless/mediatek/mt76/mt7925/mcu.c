@@ -759,7 +759,6 @@ static int mt7925_load_clc(struct mt792x_dev *dev, const char *fw_name)
 		}
 	}
 
-	ret = mt7925_mcu_set_clc(dev, "00", ENVIRON_INDOOR);
 out:
 	release_firmware(fw);
 
@@ -1834,12 +1833,12 @@ mt7925_mcu_sta_eht_mld_tlv(struct sk_buff *skb,
 	struct tlv *tlv;
 	u16 eml_cap;
 
+	if (!ieee80211_vif_is_mld(vif))
+		return;
+
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_EHT_MLD, sizeof(*eht_mld));
 	eht_mld = (struct sta_rec_eht_mld *)tlv;
 	eht_mld->mld_type = 0xff;
-
-	if (!ieee80211_vif_is_mld(vif))
-		return;
 
 	ext_capa = cfg80211_get_iftype_ext_capa(wiphy,
 						ieee80211_vif_type_p2p(vif));
@@ -1912,6 +1911,7 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 	struct mt76_dev *dev = phy->dev;
 	struct mt792x_bss_conf *mconf;
 	struct sk_buff *skb;
+	int conn_state;
 
 	mconf = mt792x_vif_to_link(mvif, info->wcid->link_id);
 
@@ -1920,10 +1920,13 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
+	conn_state = info->enable ? CONN_STATE_PORT_SECURE :
+				    CONN_STATE_DISCONNECT;
+
 	if (info->enable && info->link_sta) {
 		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->link_conf,
 					      info->link_sta,
-					      info->enable, info->newly);
+					      conn_state, info->newly);
 		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->link_sta);
 		mt7925_mcu_sta_ht_tlv(skb, info->link_sta);
 		mt7925_mcu_sta_vht_tlv(skb, info->link_sta);
@@ -2618,6 +2621,25 @@ mt7925_mcu_bss_qos_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *link_conf
 }
 
 static void
+mt7925_mcu_bss_mbssid_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *link_conf,
+			  bool enable)
+{
+	struct bss_info_uni_mbssid *mbssid;
+	struct tlv *tlv;
+
+	if (!enable && !link_conf->bssid_indicator)
+		return;
+
+	tlv = mt76_connac_mcu_add_tlv(skb, UNI_BSS_INFO_11V_MBSSID,
+				      sizeof(*mbssid));
+
+	mbssid = (struct bss_info_uni_mbssid *)tlv;
+	mbssid->max_indicator = link_conf->bssid_indicator;
+	mbssid->mbss_idx = link_conf->bssid_index;
+	mbssid->tx_bss_omac_idx = 0;
+}
+
+static void
 mt7925_mcu_bss_he_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *link_conf,
 		      struct mt792x_phy *phy)
 {
@@ -2783,8 +2805,10 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 		mt7925_mcu_bss_color_tlv(skb, link_conf, enable);
 	}
 
-	if (enable)
+	if (enable) {
 		mt7925_mcu_bss_rlm_tlv(skb, phy->mt76, link_conf, ctx);
+		mt7925_mcu_bss_mbssid_tlv(skb, link_conf, enable);
+	}
 
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_UNI_CMD(BSS_INFO_UPDATE), true);
@@ -3699,6 +3723,8 @@ out:
 
 int mt7925_mcu_set_rate_txpower(struct mt76_phy *phy)
 {
+	struct mt76_dev *mdev = phy->dev;
+	struct mt792x_dev *dev = mt792x_hw_dev(mdev->hw);
 	int err;
 
 	if (phy->cap.has_2ghz) {
@@ -3715,7 +3741,7 @@ int mt7925_mcu_set_rate_txpower(struct mt76_phy *phy)
 			return err;
 	}
 
-	if (phy->cap.has_6ghz) {
+	if (phy->cap.has_6ghz && dev->phy.clc_chan_conf) {
 		err = mt7925_mcu_rate_txpower_band(phy,
 						   NL80211_BAND_6GHZ);
 		if (err < 0)

@@ -51,10 +51,10 @@ $num_pr_flags = $pr_flag_pos_config_test_fail + 1;
     "compatible is white listed",
     "matching driver and/or kernel config is hard coded",
     "kernel config hard coded in Makefile",
-    "one or more kernel config file options is not set",
-    "one or more kernel config file options is set to 'm'",
-    "one or more kernel config file options is set to 'y'",
-    "one of more kernel config file options fails to have correct value"
+    "one or more kernel config file options are not set",
+    "one or more kernel config file options are set to 'm'",
+    "one or more kernel config file options are set to 'y'",
+    "one or more kernel config file options fail to have correct value"
 );
 
 

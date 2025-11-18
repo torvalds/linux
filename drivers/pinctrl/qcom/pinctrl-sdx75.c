@@ -852,7 +852,7 @@ static const struct pinfunction sdx75_functions[] = {
 	MSM_PIN_FUNCTION(gcc_gp2_clk),
 	MSM_PIN_FUNCTION(gcc_gp3_clk),
 	MSM_PIN_FUNCTION(gcc_plltest),
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(i2s_mclk),
 	MSM_PIN_FUNCTION(jitter_bist),
 	MSM_PIN_FUNCTION(ldo_en),

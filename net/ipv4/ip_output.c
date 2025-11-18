@@ -63,6 +63,7 @@
 #include <linux/stat.h>
 #include <linux/init.h>
 
+#include <net/flow.h>
 #include <net/snmp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -83,6 +84,7 @@
 #include <linux/netfilter_bridge.h>
 #include <linux/netlink.h>
 #include <linux/tcp.h>
+#include <net/psp.h>
 
 static int
 ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
@@ -485,7 +487,7 @@ int __ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 		inet_sk_init_flowi4(inet, fl4);
 
 		/* sctp_v4_xmit() uses its own DSCP value */
-		fl4->flowi4_tos = tos & INET_DSCP_MASK;
+		fl4->flowi4_dscp = inet_dsfield_to_dscp(tos);
 
 		/* If this fails, retransmit mechanism of transport layer will
 		 * keep trying until route appears or the connection times
@@ -1664,8 +1666,10 @@ void ip_send_unicast_reply(struct sock *sk, const struct sock *orig_sk,
 			  arg->csumoffset) = csum_fold(csum_add(nskb->csum,
 								arg->csum));
 		nskb->ip_summed = CHECKSUM_NONE;
-		if (orig_sk)
+		if (orig_sk) {
 			skb_set_owner_edemux(nskb, (struct sock *)orig_sk);
+			psp_reply_set_decrypted(orig_sk, nskb);
+		}
 		if (transmit_time)
 			nskb->tstamp_type = SKB_CLOCK_MONOTONIC;
 		if (txhash)

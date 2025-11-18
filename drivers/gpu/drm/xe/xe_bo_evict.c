@@ -158,8 +158,8 @@ int xe_bo_evict_all(struct xe_device *xe)
 	if (ret)
 		return ret;
 
-	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
-				    &xe->pinned.late.evicted, xe_bo_evict_pinned);
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.external,
+				    &xe->pinned.late.external, xe_bo_evict_pinned);
 
 	if (!ret)
 		ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
@@ -182,7 +182,6 @@ int xe_bo_evict_all(struct xe_device *xe)
 
 static int xe_bo_restore_and_map_ggtt(struct xe_bo *bo)
 {
-	struct xe_device *xe = xe_bo_device(bo);
 	int ret;
 
 	ret = xe_bo_restore_pinned(bo);
@@ -200,13 +199,6 @@ static int xe_bo_restore_and_map_ggtt(struct xe_bo *bo)
 			xe_ggtt_map_bo_unlocked(tile->mem.ggtt, bo);
 		}
 	}
-
-	/*
-	 * We expect validate to trigger a move VRAM and our move code
-	 * should setup the iosys map.
-	 */
-	xe_assert(xe, !(bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE) ||
-		  !iosys_map_is_null(&bo->vmap));
 
 	return 0;
 }

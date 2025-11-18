@@ -19,7 +19,7 @@
 #define PTE_SHIFT	(PAGE_SHIFT - PTE_T_LOG2)	/* full page */
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * The basic type of a PTE - 64 bits for those CPUs with > 32 bit
  * physical addressing.
@@ -53,6 +53,6 @@ extern void copy_page(void *to, void *from);
 #define PGD_T_LOG2	(__builtin_ffs(sizeof(pgd_t)) - 1)
 #define PTE_T_LOG2	(__builtin_ffs(sizeof(pte_t)) - 1)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_POWERPC_PAGE_32_H */

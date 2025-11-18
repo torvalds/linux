@@ -61,47 +61,16 @@ static void snd_sf_init(struct snd_sf_list *sflist);
 static void snd_sf_clear(struct snd_sf_list *sflist);
 
 /*
- * lock access to sflist
- */
-static void
-lock_preset(struct snd_sf_list *sflist)
-{
-	unsigned long flags;
-	mutex_lock(&sflist->presets_mutex);
-	spin_lock_irqsave(&sflist->lock, flags);
-	sflist->presets_locked = 1;
-	spin_unlock_irqrestore(&sflist->lock, flags);
-}
-
-
-/*
- * remove lock
- */
-static void
-unlock_preset(struct snd_sf_list *sflist)
-{
-	unsigned long flags;
-	spin_lock_irqsave(&sflist->lock, flags);
-	sflist->presets_locked = 0;
-	spin_unlock_irqrestore(&sflist->lock, flags);
-	mutex_unlock(&sflist->presets_mutex);
-}
-
-
-/*
  * close the patch if the patch was opened by this client.
  */
 int
 snd_soundfont_close_check(struct snd_sf_list *sflist, int client)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&sflist->lock, flags);
-	if (sflist->open_client == client)  {
-		spin_unlock_irqrestore(&sflist->lock, flags);
-		return close_patch(sflist);
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		if (sflist->open_client != client)
+			return 0;
 	}
-	spin_unlock_irqrestore(&sflist->lock, flags);
-	return 0;
+	return close_patch(sflist);
 }
 
 
@@ -119,7 +88,6 @@ snd_soundfont_load(struct snd_card *card,
 		   long count, int client)
 {
 	struct soundfont_patch_info patch;
-	unsigned long flags;
 	int  rc;
 
 	if (count < (long)sizeof(patch)) {
@@ -148,21 +116,17 @@ snd_soundfont_load(struct snd_card *card,
 
 	if (patch.type == SNDRV_SFNT_OPEN_PATCH) {
 		/* grab sflist to open */
-		lock_preset(sflist);
-		rc = open_patch(sflist, data, count, client);
-		unlock_preset(sflist);
-		return rc;
+		guard(snd_soundfont_lock_preset)(sflist);
+		return open_patch(sflist, data, count, client);
 	}
 
 	/* check if other client already opened patch */
-	spin_lock_irqsave(&sflist->lock, flags);
-	if (sflist->open_client != client) {
-		spin_unlock_irqrestore(&sflist->lock, flags);
-		return -EBUSY;
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		if (sflist->open_client != client)
+			return -EBUSY;
 	}
-	spin_unlock_irqrestore(&sflist->lock, flags);
 
-	lock_preset(sflist);
+	guard(snd_soundfont_lock_preset)(sflist);
 	rc = -EINVAL;
 	switch (patch.type) {
 	case SNDRV_SFNT_LOAD_INFO:
@@ -200,7 +164,6 @@ snd_soundfont_load(struct snd_card *card,
 		}
 		break;
 	}
-	unlock_preset(sflist);
 
 	return rc;
 }
@@ -223,14 +186,11 @@ open_patch(struct snd_sf_list *sflist, const char __user *data,
 {
 	struct soundfont_open_parm parm;
 	struct snd_soundfont *sf;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sflist->lock, flags);
-	if (sflist->open_client >= 0 || sflist->currsf) {
-		spin_unlock_irqrestore(&sflist->lock, flags);
-		return -EBUSY;
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		if (sflist->open_client >= 0 || sflist->currsf)
+			return -EBUSY;
 	}
-	spin_unlock_irqrestore(&sflist->lock, flags);
 
 	if (copy_from_user(&parm, data, sizeof(parm)))
 		return -EFAULT;
@@ -244,10 +204,10 @@ open_patch(struct snd_sf_list *sflist, const char __user *data,
 		return -ENOMEM;
 	}
 
-	spin_lock_irqsave(&sflist->lock, flags);
-	sflist->open_client = client;
-	sflist->currsf = sf;
-	spin_unlock_irqrestore(&sflist->lock, flags);
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		sflist->open_client = client;
+		sflist->currsf = sf;
+	}
 
 	return 0;
 }
@@ -305,12 +265,10 @@ is_identical_font(struct snd_soundfont *sf, int type, unsigned char *name)
 static int
 close_patch(struct snd_sf_list *sflist)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&sflist->lock, flags);
-	sflist->currsf = NULL;
-	sflist->open_client = -1;
-	spin_unlock_irqrestore(&sflist->lock, flags);
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		sflist->currsf = NULL;
+		sflist->open_client = -1;
+	}
 
 	rebuild_presets(sflist);
 
@@ -1168,11 +1126,8 @@ snd_soundfont_load_guspatch(struct snd_card *card,
 			    struct snd_sf_list *sflist, const char __user *data,
 			    long count)
 {
-	int rc;
-	lock_preset(sflist);
-	rc = load_guspatch(card, sflist, data, count);
-	unlock_preset(sflist);
-	return rc;
+	guard(snd_soundfont_lock_preset)(sflist);
+	return load_guspatch(card, sflist, data, count);
 }
 
 
@@ -1278,17 +1233,14 @@ snd_soundfont_search_zone(struct snd_sf_list *sflist, int *notep, int vel,
 			  struct snd_sf_zone **table, int max_layers)
 {
 	int nvoices;
-	unsigned long flags;
 
 	/* this function is supposed to be called atomically,
 	 * so we check the lock.  if it's busy, just returns 0 to
 	 * tell the caller the busy state
 	 */
-	spin_lock_irqsave(&sflist->lock, flags);
-	if (sflist->presets_locked) {
-		spin_unlock_irqrestore(&sflist->lock, flags);
+	guard(spinlock_irqsave)(&sflist->lock);
+	if (sflist->presets_locked)
 		return 0;
-	}
 	nvoices = search_zones(sflist, notep, vel, preset, bank,
 			       table, max_layers, 0);
 	if (! nvoices) {
@@ -1297,7 +1249,6 @@ snd_soundfont_search_zone(struct snd_sf_list *sflist, int *notep, int vel,
 					       def_preset, def_bank,
 					       table, max_layers, 0);
 	}
-	spin_unlock_irqrestore(&sflist->lock, flags);
 	return nvoices;
 }
 
@@ -1465,11 +1416,11 @@ snd_sf_free(struct snd_sf_list *sflist)
 	if (sflist == NULL)
 		return;
 	
-	lock_preset(sflist);
-	if (sflist->callback.sample_reset)
-		sflist->callback.sample_reset(sflist->callback.private_data);
-	snd_sf_clear(sflist);
-	unlock_preset(sflist);
+	scoped_guard(snd_soundfont_lock_preset, sflist) {
+		if (sflist->callback.sample_reset)
+			sflist->callback.sample_reset(sflist->callback.private_data);
+		snd_sf_clear(sflist);
+	}
 
 	kfree(sflist);
 }
@@ -1481,11 +1432,10 @@ snd_sf_free(struct snd_sf_list *sflist)
 int
 snd_soundfont_remove_samples(struct snd_sf_list *sflist)
 {
-	lock_preset(sflist);
+	guard(snd_soundfont_lock_preset)(sflist);
 	if (sflist->callback.sample_reset)
 		sflist->callback.sample_reset(sflist->callback.private_data);
 	snd_sf_clear(sflist);
-	unlock_preset(sflist);
 
 	return 0;
 }
@@ -1501,7 +1451,7 @@ snd_soundfont_remove_unlocked(struct snd_sf_list *sflist)
 	struct snd_sf_zone *zp, *nextzp;
 	struct snd_sf_sample *sp, *nextsp;
 
-	lock_preset(sflist);
+	guard(snd_soundfont_lock_preset)(sflist);
 
 	if (sflist->callback.sample_reset)
 		sflist->callback.sample_reset(sflist->callback.private_data);
@@ -1535,6 +1485,5 @@ snd_soundfont_remove_unlocked(struct snd_sf_list *sflist)
 
 	rebuild_presets(sflist);
 
-	unlock_preset(sflist);
 	return 0;
 }

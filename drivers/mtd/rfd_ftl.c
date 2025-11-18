@@ -190,8 +190,8 @@ static int scan_header(struct partition *part)
 	if (!part->blocks)
 		goto err;
 
-	part->sector_map = vmalloc(array_size(sizeof(u_long),
-					      part->sector_count));
+	part->sector_map = vmalloc_array(part->sector_count,
+					 sizeof(u_long));
 	if (!part->sector_map)
 		goto err;
 

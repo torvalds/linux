@@ -15,13 +15,6 @@ struct timewait_sock_ops {
 	struct kmem_cache	*twsk_slab;
 	char		*twsk_slab_name;
 	unsigned int	twsk_obj_size;
-	void		(*twsk_destructor)(struct sock *sk);
 };
-
-static inline void twsk_destructor(struct sock *sk)
-{
-	if (sk->sk_prot->twsk_prot->twsk_destructor != NULL)
-		sk->sk_prot->twsk_prot->twsk_destructor(sk);
-}
 
 #endif /* _TIMEWAIT_SOCK_H */

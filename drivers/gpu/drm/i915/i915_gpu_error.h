@@ -177,6 +177,7 @@ struct intel_gt_coredump {
 			struct intel_ctb_coredump ctb[2];
 			struct i915_vma_coredump *vma_ctb;
 			struct i915_vma_coredump *vma_log;
+			u32 *hw_state;
 			u32 timestamp;
 			u16 last_fence;
 			bool is_guc_capture;

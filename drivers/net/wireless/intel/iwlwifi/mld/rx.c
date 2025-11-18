@@ -1611,20 +1611,21 @@ iwl_mld_rx_with_sta(struct iwl_mld *mld, struct ieee80211_hdr *hdr,
 	return sta;
 }
 
-#define KEY_IDX_LEN 2
-
 static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 				struct ieee80211_hdr *hdr,
 				struct ieee80211_rx_status *rx_status,
 				u32 mpdu_status,
 				u32 mpdu_len)
 {
+	struct iwl_mld_link *link;
 	struct wireless_dev *wdev;
 	struct iwl_mld_sta *mld_sta;
 	struct iwl_mld_vif *mld_vif;
 	u8 keyidx;
 	struct ieee80211_key_conf *key;
 	const u8 *frame = (void *)hdr;
+	const u8 *mmie;
+	u8 link_id;
 
 	if ((mpdu_status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
 	     IWL_RX_MPDU_STATUS_SEC_NONE)
@@ -1657,21 +1658,30 @@ static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 		return 0;
 	}
 
+	link_id = rx_status->link_valid ? rx_status->link_id : 0;
+	link = rcu_dereference(mld_vif->link[link_id]);
+	if (WARN_ON_ONCE(!link))
+		return -1;
+
 	/* both keys will have the same cipher and MIC length, use
 	 * whichever one is available
 	 */
-	key = rcu_dereference(mld_vif->bigtks[0]);
+	key = rcu_dereference(link->bigtks[0]);
 	if (!key) {
-		key = rcu_dereference(mld_vif->bigtks[1]);
+		key = rcu_dereference(link->bigtks[1]);
 		if (!key)
 			goto report;
 	}
 
-	if (mpdu_len < key->icv_len + IEEE80211_GMAC_PN_LEN + KEY_IDX_LEN)
+	/* get the real key ID */
+	if (mpdu_len < key->icv_len)
 		goto report;
 
-	/* get the real key ID */
-	keyidx = frame[mpdu_len - key->icv_len - IEEE80211_GMAC_PN_LEN - KEY_IDX_LEN];
+	mmie = frame + (mpdu_len - key->icv_len);
+
+	/* the position of the key_id in ieee80211_mmie_16 is the same */
+	keyidx = le16_to_cpu(((const struct ieee80211_mmie *) mmie)->key_id);
+
 	/* and if that's the other key, look it up */
 	if (keyidx != key->keyidx) {
 		/* shouldn't happen since firmware checked, but be safe
@@ -1680,7 +1690,7 @@ static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 		if (keyidx != 6 && keyidx != 7)
 			return -1;
 
-		key = rcu_dereference(mld_vif->bigtks[keyidx - 6]);
+		key = rcu_dereference(link->bigtks[keyidx - 6]);
 		if (!key)
 			goto report;
 	}

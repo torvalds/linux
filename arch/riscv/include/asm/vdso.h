@@ -16,7 +16,7 @@
 
 #define __VDSO_PAGES    4
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <generated/vdso-offsets.h>
 
 #define VDSO_SYMBOL(base, name)							\
@@ -34,7 +34,7 @@ extern char compat_vdso_start[], compat_vdso_end[];
 
 extern char vdso_start[], vdso_end[];
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* CONFIG_MMU */
 

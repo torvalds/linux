@@ -7,7 +7,7 @@
 #include <uapi/asm/cputable.h>
 #include <asm/asm-const.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* This structure can grow, it's real size is used by head.S code
  * via the mkdefs mechanism.
@@ -103,7 +103,7 @@ extern void cpu_feature_keys_init(void);
 static inline void cpu_feature_keys_init(void) { }
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /* CPU kernel features */
 
@@ -195,7 +195,7 @@ static inline void cpu_feature_keys_init(void) { }
 #define CPU_FTR_DEXCR_NPHIE		LONG_ASM_CONST(0x0010000000000000)
 #define CPU_FTR_P11_PVR			LONG_ASM_CONST(0x0020000000000000)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_NOEXECUTE)
 
@@ -602,6 +602,6 @@ enum {
  */
 #define HBP_NUM_MAX	2
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_POWERPC_CPUTABLE_H */

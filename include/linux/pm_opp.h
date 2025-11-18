@@ -98,6 +98,25 @@ struct dev_pm_opp_data {
 	unsigned long u_volt;
 };
 
+/**
+ * struct dev_pm_opp_key - Key used to identify OPP entries
+ * @freq:       Frequency in Hz. Use 0 if frequency is not to be matched.
+ * @level:      Performance level associated with the OPP entry.
+ *              Use OPP_LEVEL_UNSET if level is not to be matched.
+ * @bw:         Bandwidth associated with the OPP entry.
+ *              Use 0 if bandwidth is not to be matched.
+ *
+ * This structure is used to uniquely identify an OPP entry based on
+ * frequency, performance level, and bandwidth. Each field can be
+ * selectively ignored during matching by setting it to its respective
+ * NOP value.
+ */
+struct dev_pm_opp_key {
+	unsigned long freq;
+	unsigned int level;
+	u32 bw;
+};
+
 #if defined(CONFIG_PM_OPP)
 
 struct opp_table *dev_pm_opp_get_opp_table(struct device *dev);
@@ -130,6 +149,10 @@ unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev);
 struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 					      unsigned long freq,
 					      bool available);
+
+struct dev_pm_opp *dev_pm_opp_find_key_exact(struct device *dev,
+					     struct dev_pm_opp_key *key,
+					     bool available);
 
 struct dev_pm_opp *
 dev_pm_opp_find_freq_exact_indexed(struct device *dev, unsigned long freq,
@@ -285,6 +308,13 @@ static inline unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev)
 
 static inline struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 					unsigned long freq, bool available)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline struct dev_pm_opp *dev_pm_opp_find_key_exact(struct device *dev,
+							   struct dev_pm_opp_key *key,
+							   bool available)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }

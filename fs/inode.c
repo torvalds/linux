@@ -534,7 +534,7 @@ static void __inode_add_lru(struct inode *inode, bool rotate)
 {
 	if (inode->i_state & (I_DIRTY_ALL | I_SYNC | I_FREEING | I_WILL_FREE))
 		return;
-	if (atomic_read(&inode->i_count))
+	if (icount_read(inode))
 		return;
 	if (!(inode->i_sb->s_flags & SB_ACTIVE))
 		return;
@@ -550,11 +550,11 @@ static void __inode_add_lru(struct inode *inode, bool rotate)
 struct wait_queue_head *inode_bit_waitqueue(struct wait_bit_queue_entry *wqe,
 					    struct inode *inode, u32 bit)
 {
-        void *bit_address;
+	void *bit_address;
 
-        bit_address = inode_state_wait_address(inode, bit);
-        init_wait_var_entry(wqe, bit_address, 0);
-        return __var_waitqueue(bit_address);
+	bit_address = inode_state_wait_address(inode, bit);
+	init_wait_var_entry(wqe, bit_address, 0);
+	return __var_waitqueue(bit_address);
 }
 EXPORT_SYMBOL(inode_bit_waitqueue);
 
@@ -871,11 +871,11 @@ void evict_inodes(struct super_block *sb)
 again:
 	spin_lock(&sb->s_inode_list_lock);
 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-		if (atomic_read(&inode->i_count))
+		if (icount_read(inode))
 			continue;
 
 		spin_lock(&inode->i_lock);
-		if (atomic_read(&inode->i_count)) {
+		if (icount_read(inode)) {
 			spin_unlock(&inode->i_lock);
 			continue;
 		}
@@ -937,7 +937,7 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 	 * unreclaimable for a while. Remove them lazily here; iput,
 	 * sync, or the last page cache deletion will requeue them.
 	 */
-	if (atomic_read(&inode->i_count) ||
+	if (icount_read(inode) ||
 	    (inode->i_state & ~I_REFERENCED) ||
 	    !mapping_shrinkable(&inode->i_data)) {
 		list_lru_isolate(lru, &inode->i_lru);
@@ -1279,6 +1279,8 @@ struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
 	struct hlist_head *head = inode_hashtable + hash(inode->i_sb, hashval);
 	struct inode *old;
 
+	might_sleep();
+
 again:
 	spin_lock(&inode_hash_lock);
 	old = find_inode(inode->i_sb, head, test, data, true);
@@ -1382,6 +1384,8 @@ struct inode *iget5_locked_rcu(struct super_block *sb, unsigned long hashval,
 	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
 	struct inode *inode, *new;
 
+	might_sleep();
+
 again:
 	inode = find_inode(sb, head, test, data, false);
 	if (inode) {
@@ -1422,6 +1426,9 @@ struct inode *iget_locked(struct super_block *sb, unsigned long ino)
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
 	struct inode *inode;
+
+	might_sleep();
+
 again:
 	inode = find_inode_fast(sb, head, ino, false);
 	if (inode) {
@@ -1605,6 +1612,9 @@ struct inode *ilookup5(struct super_block *sb, unsigned long hashval,
 		int (*test)(struct inode *, void *), void *data)
 {
 	struct inode *inode;
+
+	might_sleep();
+
 again:
 	inode = ilookup5_nowait(sb, hashval, test, data);
 	if (inode) {
@@ -1630,6 +1640,9 @@ struct inode *ilookup(struct super_block *sb, unsigned long ino)
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
 	struct inode *inode;
+
+	might_sleep();
+
 again:
 	inode = find_inode_fast(sb, head, ino, false);
 
@@ -1780,6 +1793,8 @@ int insert_inode_locked(struct inode *inode)
 	ino_t ino = inode->i_ino;
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
 
+	might_sleep();
+
 	while (1) {
 		struct inode *old = NULL;
 		spin_lock(&inode_hash_lock);
@@ -1826,6 +1841,8 @@ int insert_inode_locked4(struct inode *inode, unsigned long hashval,
 {
 	struct inode *old;
 
+	might_sleep();
+
 	inode->i_state |= I_CREATING;
 	old = inode_insert5(inode, hashval, test, NULL, data);
 
@@ -1838,11 +1855,11 @@ int insert_inode_locked4(struct inode *inode, unsigned long hashval,
 EXPORT_SYMBOL(insert_inode_locked4);
 
 
-int generic_delete_inode(struct inode *inode)
+int inode_just_drop(struct inode *inode)
 {
 	return 1;
 }
-EXPORT_SYMBOL(generic_delete_inode);
+EXPORT_SYMBOL(inode_just_drop);
 
 /*
  * Called when we're dropping the last reference
@@ -1866,7 +1883,7 @@ static void iput_final(struct inode *inode)
 	if (op->drop_inode)
 		drop = op->drop_inode(inode);
 	else
-		drop = generic_drop_inode(inode);
+		drop = inode_generic_drop(inode);
 
 	if (!drop &&
 	    !(inode->i_state & I_DONTCACHE) &&
@@ -1908,20 +1925,45 @@ static void iput_final(struct inode *inode)
  */
 void iput(struct inode *inode)
 {
-	if (!inode)
+	might_sleep();
+	if (unlikely(!inode))
 		return;
-	BUG_ON(inode->i_state & I_CLEAR);
+
 retry:
-	if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock)) {
-		if (inode->i_nlink && (inode->i_state & I_DIRTY_TIME)) {
-			atomic_inc(&inode->i_count);
-			spin_unlock(&inode->i_lock);
-			trace_writeback_lazytime_iput(inode);
-			mark_inode_dirty_sync(inode);
-			goto retry;
-		}
-		iput_final(inode);
+	lockdep_assert_not_held(&inode->i_lock);
+	VFS_BUG_ON_INODE(inode->i_state & I_CLEAR, inode);
+	/*
+	 * Note this assert is technically racy as if the count is bogusly
+	 * equal to one, then two CPUs racing to further drop it can both
+	 * conclude it's fine.
+	 */
+	VFS_BUG_ON_INODE(atomic_read(&inode->i_count) < 1, inode);
+
+	if (atomic_add_unless(&inode->i_count, -1, 1))
+		return;
+
+	if ((inode->i_state & I_DIRTY_TIME) && inode->i_nlink) {
+		trace_writeback_lazytime_iput(inode);
+		mark_inode_dirty_sync(inode);
+		goto retry;
 	}
+
+	spin_lock(&inode->i_lock);
+	if (unlikely((inode->i_state & I_DIRTY_TIME) && inode->i_nlink)) {
+		spin_unlock(&inode->i_lock);
+		goto retry;
+	}
+
+	if (!atomic_dec_and_test(&inode->i_count)) {
+		spin_unlock(&inode->i_lock);
+		return;
+	}
+
+	/*
+	 * iput_final() drops ->i_lock, we can't assert on it as the inode may
+	 * be deallocated by the time the call returns.
+	 */
+	iput_final(inode);
 }
 EXPORT_SYMBOL(iput);
 
@@ -2189,7 +2231,7 @@ static int __remove_privs(struct mnt_idmap *idmap,
 	return notify_change(idmap, dentry, &newattrs, NULL);
 }
 
-int file_remove_privs_flags(struct file *file, unsigned int flags)
+static int file_remove_privs_flags(struct file *file, unsigned int flags)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = file_inode(file);
@@ -2214,7 +2256,6 @@ int file_remove_privs_flags(struct file *file, unsigned int flags)
 		inode_has_no_xattr(inode);
 	return error;
 }
-EXPORT_SYMBOL_GPL(file_remove_privs_flags);
 
 /**
  * file_remove_privs - remove special file privileges (suid, capabilities)
@@ -2519,21 +2560,28 @@ void __init inode_init(void)
 void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
 {
 	inode->i_mode = mode;
-	if (S_ISCHR(mode)) {
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFCHR:
 		inode->i_fop = &def_chr_fops;
 		inode->i_rdev = rdev;
-	} else if (S_ISBLK(mode)) {
+		break;
+	case S_IFBLK:
 		if (IS_ENABLED(CONFIG_BLOCK))
 			inode->i_fop = &def_blk_fops;
 		inode->i_rdev = rdev;
-	} else if (S_ISFIFO(mode))
+		break;
+	case S_IFIFO:
 		inode->i_fop = &pipefifo_fops;
-	else if (S_ISSOCK(mode))
-		;	/* leave it no_open_fops */
-	else
+		break;
+	case S_IFSOCK:
+		/* leave it no_open_fops */
+		break;
+	default:
 		printk(KERN_DEBUG "init_special_inode: bogus i_mode (%o) for"
 				  " inode %s:%lu\n", mode, inode->i_sb->s_id,
 				  inode->i_ino);
+		break;
+	}
 }
 EXPORT_SYMBOL(init_special_inode);
 
@@ -2911,10 +2959,18 @@ EXPORT_SYMBOL(mode_strip_sgid);
  *
  * TODO: add a proper inode dumping routine, this is a stub to get debug off the
  * ground.
+ *
+ * TODO: handle getting to fs type with get_kernel_nofault()?
+ * See dump_mapping() above.
  */
 void dump_inode(struct inode *inode, const char *reason)
 {
-       pr_warn("%s encountered for inode %px", reason, inode);
+	struct super_block *sb = inode->i_sb;
+
+	pr_warn("%s encountered for inode %px\n"
+		"fs %s mode %ho opflags 0x%hx flags 0x%x state 0x%x count %d\n",
+		reason, inode, sb->s_type->name, inode->i_mode, inode->i_opflags,
+		inode->i_flags, inode->i_state, atomic_read(&inode->i_count));
 }
 
 EXPORT_SYMBOL(dump_inode);

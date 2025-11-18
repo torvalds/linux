@@ -229,4 +229,16 @@ config TI_ICSS_IEP
 	  To compile this driver as a module, choose M here. The module
 	  will be called icss_iep.
 
+config TI_PRUETH
+	tristate "TI PRU Ethernet EMAC driver"
+	depends on PRU_REMOTEPROC
+	depends on NET_SWITCHDEV
+	select TI_ICSS_IEP
+	imply PTP_1588_CLOCK
+	help
+	  Some TI SoCs has Programmable Realtime Unit (PRU) cores which can
+	  support Single or Dual Ethernet ports with the help of firmware code
+	  running on PRU cores. This driver supports remoteproc based
+	  communication to PRU firmware to expose Ethernet interface to Linux.
+
 endif # NET_VENDOR_TI

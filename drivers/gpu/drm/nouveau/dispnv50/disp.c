@@ -2867,7 +2867,9 @@ nv50_display_create(struct drm_device *dev)
 	}
 
 	/* Assign the correct format modifiers */
-	if (disp->disp->object.oclass >= TU102_DISP)
+	if (disp->disp->object.oclass >= GB202_DISP)
+		nouveau_display(dev)->format_modifiers = wndwca7e_modifiers;
+	else if (disp->disp->object.oclass >= TU102_DISP)
 		nouveau_display(dev)->format_modifiers = wndwc57e_modifiers;
 	else
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)

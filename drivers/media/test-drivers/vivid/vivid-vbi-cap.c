@@ -282,7 +282,7 @@ void vivid_fill_service_lines(struct v4l2_sliced_vbi_format *vbi, u32 service_se
 	}
 }
 
-int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv, struct v4l2_format *fmt)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct v4l2_sliced_vbi_format *vbi = &fmt->fmt.sliced;
@@ -294,7 +294,7 @@ int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format 
 	return 0;
 }
 
-int vidioc_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+int vidioc_try_fmt_sliced_vbi_cap(struct file *file, void *priv, struct v4l2_format *fmt)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct v4l2_sliced_vbi_format *vbi = &fmt->fmt.sliced;
@@ -310,11 +310,11 @@ int vidioc_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_forma
 	return 0;
 }
 
-int vidioc_s_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format *fmt)
+int vidioc_s_fmt_sliced_vbi_cap(struct file *file, void *priv, struct v4l2_format *fmt)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct v4l2_sliced_vbi_format *vbi = &fmt->fmt.sliced;
-	int ret = vidioc_try_fmt_sliced_vbi_cap(file, fh, fmt);
+	int ret = vidioc_try_fmt_sliced_vbi_cap(file, priv, fmt);
 
 	if (ret)
 		return ret;
@@ -324,7 +324,7 @@ int vidioc_s_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format 
 	return 0;
 }
 
-int vidioc_g_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_sliced_vbi_cap *cap)
+int vidioc_g_sliced_vbi_cap(struct file *file, void *priv, struct v4l2_sliced_vbi_cap *cap)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);

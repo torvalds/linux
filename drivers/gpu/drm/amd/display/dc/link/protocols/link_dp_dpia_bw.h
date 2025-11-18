@@ -26,7 +26,7 @@
 #ifndef DC_INC_LINK_DP_DPIA_BW_H_
 #define DC_INC_LINK_DP_DPIA_BW_H_
 
-#include "link.h"
+#include "link_service.h"
 
 
 /*

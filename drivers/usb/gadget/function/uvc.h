@@ -196,6 +196,11 @@ struct uvc_file_handle {
 #define to_uvc_file_handle(handle) \
 	container_of(handle, struct uvc_file_handle, vfh)
 
+static inline struct uvc_file_handle *file_to_uvc_file_handle(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct uvc_file_handle, vfh);
+}
+
 /* ------------------------------------------------------------------------
  * Functions
  */

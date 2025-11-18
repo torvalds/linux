@@ -765,14 +765,16 @@ __hist_entry__get_data_type(struct hist_entry *he, struct arch *arch,
 			    struct debuginfo *dbg, struct disasm_line *dl,
 			    int *type_offset);
 
-struct annotation_print_data {
-	struct hist_entry *he;
-	struct evsel *evsel;
-	struct arch *arch;
-	struct debuginfo *dbg;
-	u64 start;
-	int addr_fmt_width;
-};
+static bool needs_type_info(struct annotated_data_type *data_type)
+{
+	if (data_type == NULL || data_type == NO_TYPE)
+		return false;
+
+	if (verbose)
+		return true;
+
+	return (data_type != &stackop_type) && (data_type != &canary_type);
+}
 
 static int
 annotation_line__print(struct annotation_line *al, struct annotation_print_data *apd,
@@ -845,7 +847,7 @@ annotation_line__print(struct annotation_line *al, struct annotation_print_data 
 
 		printf(" : ");
 
-		disasm_line__print(dl, apd->start, apd->addr_fmt_width);
+		disasm_line__print(dl, notes->src->start, apd->addr_fmt_width);
 
 		if (opts->code_with_type && apd->dbg) {
 			struct annotated_data_type *data_type;
@@ -853,7 +855,7 @@ annotation_line__print(struct annotation_line *al, struct annotation_print_data 
 
 			data_type = __hist_entry__get_data_type(apd->he, apd->arch,
 								apd->dbg, dl, &offset);
-			if (data_type && data_type != NO_TYPE) {
+			if (needs_type_info(data_type)) {
 				char buf[4096];
 
 				printf("\t\t# data-type: %s",
@@ -1013,7 +1015,6 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
 	struct annotate_args args = {
-		.evsel		= evsel,
 		.options	= &annotate_opts,
 	};
 	struct arch *arch = NULL;
@@ -1230,7 +1231,6 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 	struct annotation_print_data apd = {
 		.he = he,
 		.evsel = evsel,
-		.start = map__rip_2objdump(map, sym->start),
 	};
 	int printed = 2, queue_len = 0;
 	int more = 0;
@@ -1267,9 +1267,9 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 		symbol__annotate_hits(sym, evsel);
 
 	apd.addr_fmt_width = annotated_source__addr_fmt_width(&notes->src->source,
-							      apd.start);
+							      notes->src->start);
 	evsel__get_arch(evsel, &apd.arch);
-	apd.dbg = debuginfo__new(filename);
+	apd.dbg = dso__debuginfo(dso);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		int err;
@@ -1357,7 +1357,8 @@ static void FILE__write_graph(void *fp, int graph)
 	fputs(s, fp);
 }
 
-static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
+static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp,
+				     struct annotation_print_data *apd)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct annotation_write_ops wops = {
@@ -1371,24 +1372,37 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
 	};
 	struct annotation_line *al;
 
+	if (annotate_opts.code_with_type) {
+		evsel__get_arch(apd->evsel, &apd->arch);
+		apd->dbg = dso__debuginfo(map__dso(apd->he->ms.map));
+	}
+
 	list_for_each_entry(al, &notes->src->source, node) {
 		if (annotation_line__filter(al))
 			continue;
-		annotation_line__write(al, notes, &wops);
+		annotation_line__write(al, notes, &wops, apd);
 		fputc('\n', fp);
 		wops.first_line = false;
 	}
 
+	if (annotate_opts.code_with_type)
+		debuginfo__delete(apd->dbg);
+
 	return 0;
 }
 
-int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel)
+int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
+				struct hist_entry *he)
 {
 	const char *ev_name = evsel__name(evsel);
 	char buf[1024];
 	char *filename;
 	int err = -1;
 	FILE *fp;
+	struct annotation_print_data apd = {
+		.he = he,
+		.evsel = evsel,
+	};
 
 	if (asprintf(&filename, "%s.annotation", ms->sym->name) < 0)
 		return -1;
@@ -1404,7 +1418,7 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel)
 
 	fprintf(fp, "%s() %s\nEvent: %s\n\n",
 		ms->sym->name, dso__long_name(map__dso(ms->map)), ev_name);
-	symbol__annotate_fprintf2(ms->sym, fp);
+	symbol__annotate_fprintf2(ms->sym, fp, &apd);
 
 	fclose(fp);
 	err = 0;
@@ -1656,6 +1670,10 @@ int hist_entry__tty_annotate2(struct hist_entry *he, struct evsel *evsel)
 	struct symbol *sym = ms->sym;
 	struct rb_root source_line = RB_ROOT;
 	struct hists *hists = evsel__hists(evsel);
+	struct annotation_print_data apd = {
+		.he = he,
+		.evsel = evsel,
+	};
 	char buf[1024];
 	int err;
 
@@ -1678,7 +1696,7 @@ int hist_entry__tty_annotate2(struct hist_entry *he, struct evsel *evsel)
 	hists__scnprintf_title(hists, buf, sizeof(buf));
 	fprintf(stdout, "%s, [percent: %s]\n%s() %s\n",
 		buf, percent_type_str(annotate_opts.percent_type), sym->name, dso__long_name(dso));
-	symbol__annotate_fprintf2(sym, stdout);
+	symbol__annotate_fprintf2(sym, stdout, &apd);
 
 	annotated_source__purge(symbol__annotation(sym)->src);
 
@@ -1743,7 +1761,7 @@ static double annotation_line__max_percent(struct annotation_line *al,
 	return percent_max;
 }
 
-static void disasm_line__write(struct disasm_line *dl, struct annotation *notes,
+static int disasm_line__write(struct disasm_line *dl, struct annotation *notes,
 			       void *obj, char *bf, size_t size,
 			       void (*obj__printf)(void *obj, const char *fmt, ...),
 			       void (*obj__write_graph)(void *obj, int graph))
@@ -1771,8 +1789,8 @@ call_like:
 		obj__printf(obj, "  ");
 	}
 
-	disasm_line__scnprintf(dl, bf, size, !annotate_opts.use_offset,
-			       notes->src->widths.max_ins_name);
+	return disasm_line__scnprintf(dl, bf, size, !annotate_opts.use_offset,
+				      notes->src->widths.max_ins_name) + 2;
 }
 
 static void ipc_coverage_string(char *bf, int size, struct annotation *notes)
@@ -1935,24 +1953,82 @@ err:
 	return -ENOMEM;
 }
 
-static void __annotation_line__write(struct annotation_line *al, struct annotation *notes,
-				     bool first_line, bool current_entry, bool change_color, int width,
-				     void *obj, unsigned int percent_type,
-				     int  (*obj__set_color)(void *obj, int color),
-				     void (*obj__set_percent_color)(void *obj, double percent, bool current),
-				     int  (*obj__set_jumps_percent_color)(void *obj, int nr, bool current),
-				     void (*obj__printf)(void *obj, const char *fmt, ...),
-				     void (*obj__write_graph)(void *obj, int graph))
+struct type_hash_entry {
+	struct annotated_data_type *type;
+	int offset;
+};
 
+static int disasm_line__snprint_type_info(struct disasm_line *dl,
+					  char *buf, int len,
+					  struct annotation_print_data *apd)
 {
-	double percent_max = annotation_line__max_percent(al, percent_type);
-	int pcnt_width = annotation__pcnt_width(notes),
-	    cycles_width = annotation__cycles_width(notes);
+	struct annotated_data_type *data_type = NULL;
+	struct type_hash_entry *entry = NULL;
+	char member[256];
+	int offset = 0;
+	int printed;
+
+	scnprintf(buf, len, " ");
+
+	if (!annotate_opts.code_with_type || apd->dbg == NULL)
+		return 1;
+
+	if (apd->type_hash) {
+		hashmap__find(apd->type_hash, dl->al.offset, &entry);
+		if (entry != NULL) {
+			data_type = entry->type;
+			offset = entry->offset;
+		}
+	}
+
+	if (data_type == NULL)
+		data_type = __hist_entry__get_data_type(apd->he, apd->arch, apd->dbg, dl, &offset);
+
+	if (apd->type_hash && entry == NULL) {
+		entry = malloc(sizeof(*entry));
+		if (entry != NULL) {
+			entry->type = data_type;
+			entry->offset = offset;
+			hashmap__add(apd->type_hash, dl->al.offset, entry);
+		}
+	}
+
+	if (!needs_type_info(data_type))
+		return 1;
+
+	printed = scnprintf(buf, len, "\t\t# data-type: %s", data_type->self.type_name);
+
+	if (data_type != &stackop_type && data_type != &canary_type && len > printed)
+		printed += scnprintf(buf + printed, len - printed, " +%#x", offset);
+
+	if (annotated_data_type__get_member_name(data_type, member, sizeof(member), offset) &&
+	    len > printed) {
+		printed += scnprintf(buf + printed, len - printed, " (%s)", member);
+	}
+	return printed;
+}
+
+void annotation_line__write(struct annotation_line *al, struct annotation *notes,
+			    const struct annotation_write_ops *wops,
+			    struct annotation_print_data *apd)
+{
+	bool current_entry = wops->current_entry;
+	bool change_color = wops->change_color;
+	double percent_max = annotation_line__max_percent(al, annotate_opts.percent_type);
+	int width = wops->width;
+	int pcnt_width = annotation__pcnt_width(notes);
+	int cycles_width = annotation__cycles_width(notes);
 	bool show_title = false;
 	char bf[256];
 	int printed;
+	void *obj = wops->obj;
+	int  (*obj__set_color)(void *obj, int color) = wops->set_color;
+	void (*obj__set_percent_color)(void *obj, double percent, bool current) = wops->set_percent_color;
+	int  (*obj__set_jumps_percent_color)(void *obj, int nr, bool current) = wops->set_jumps_percent_color;
+	void (*obj__printf)(void *obj, const char *fmt, ...) = wops->printf;
+	void (*obj__write_graph)(void *obj, int graph) = wops->write_graph;
 
-	if (first_line && (al->offset == -1 || percent_max == 0.0)) {
+	if (wops->first_line && (al->offset == -1 || percent_max == 0.0)) {
 		if (notes->branch && al->cycles) {
 			if (al->cycles->ipc == 0.0 && al->cycles->avg == 0)
 				show_title = true;
@@ -1966,7 +2042,8 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		for (i = 0; i < al->data_nr; i++) {
 			double percent;
 
-			percent = annotation_data__percent(&al->data[i], percent_type);
+			percent = annotation_data__percent(&al->data[i],
+							   annotate_opts.percent_type);
 
 			obj__set_percent_color(obj, percent, current_entry);
 			if (symbol_conf.show_total_period) {
@@ -1989,6 +2066,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 					   symbol_conf.show_nr_samples ? "Samples" : "Percent");
 		}
 	}
+	width -= pcnt_width;
 
 	if (notes->branch) {
 		if (al->cycles && al->cycles->ipc)
@@ -2052,11 +2130,13 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 			obj__printf(obj, "%*s", ANNOTATION__AVG_IPC_WIDTH, bf);
 		}
 	}
+	width -= cycles_width;
 
 	obj__printf(obj, " ");
+	width -= 1;
 
 	if (!*al->line)
-		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width, " ");
+		obj__printf(obj, "%-*s", width, " ");
 	else if (al->offset == -1) {
 		if (al->line_nr && annotate_opts.show_linenr)
 			printed = scnprintf(bf, sizeof(bf), "%-*d ",
@@ -2065,7 +2145,8 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 			printed = scnprintf(bf, sizeof(bf), "%-*s  ",
 					    notes->src->widths.addr, " ");
 		obj__printf(obj, bf);
-		obj__printf(obj, "%-*s", width - printed - pcnt_width - cycles_width + 1, al->line);
+		width -= printed;
+		obj__printf(obj, "%-*s", width, al->line);
 	} else {
 		u64 addr = al->offset;
 		int color = -1;
@@ -2108,22 +2189,18 @@ print_addr:
 		if (change_color)
 			obj__set_color(obj, color);
 
-		disasm_line__write(disasm_line(al), notes, obj, bf, sizeof(bf), obj__printf, obj__write_graph);
+		width -= printed;
 
-		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width - 3 - printed, bf);
+		printed = disasm_line__write(disasm_line(al), notes, obj, bf, sizeof(bf),
+					     obj__printf, obj__write_graph);
+
+		obj__printf(obj, "%s", bf);
+		width -= printed;
+
+		disasm_line__snprint_type_info(disasm_line(al), bf, sizeof(bf), apd);
+		obj__printf(obj, "%-*s", width, bf);
 	}
 
-}
-
-void annotation_line__write(struct annotation_line *al, struct annotation *notes,
-			    struct annotation_write_ops *wops)
-{
-	__annotation_line__write(al, notes, wops->first_line, wops->current_entry,
-				 wops->change_color, wops->width, wops->obj,
-				 annotate_opts.percent_type,
-				 wops->set_color, wops->set_percent_color,
-				 wops->set_jumps_percent_color, wops->printf,
-				 wops->write_graph);
 }
 
 int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
@@ -2829,7 +2906,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 		di_cache.dso = dso__get(map__dso(ms->map));
 
 		debuginfo__delete(di_cache.dbg);
-		di_cache.dbg = debuginfo__new(dso__long_name(di_cache.dso));
+		di_cache.dbg = dso__debuginfo(di_cache.dso);
 	}
 
 	if (di_cache.dbg == NULL) {

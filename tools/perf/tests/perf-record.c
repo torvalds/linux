@@ -13,15 +13,19 @@
 #include "tests.h"
 #include "util/mmap.h"
 #include "util/sample.h"
+#include "util/cpumap.h"
 
 static int sched__get_first_possible_cpu(pid_t pid, cpu_set_t *maskp)
 {
-	int i, cpu = -1, nrcpus = 1024;
-realloc:
-	CPU_ZERO(maskp);
+	int i, cpu = -1;
+	int nrcpus = cpu__max_cpu().cpu;
+	size_t size = CPU_ALLOC_SIZE(nrcpus);
 
-	if (sched_getaffinity(pid, sizeof(*maskp), maskp) == -1) {
-		if (errno == EINVAL && nrcpus < (1024 << 8)) {
+realloc:
+	CPU_ZERO_S(size, maskp);
+
+	if (sched_getaffinity(pid, size, maskp) == -1) {
+		if (errno == EINVAL && nrcpus < (cpu__max_cpu().cpu << 8)) {
 			nrcpus = nrcpus << 2;
 			goto realloc;
 		}
@@ -30,11 +34,11 @@ realloc:
 	}
 
 	for (i = 0; i < nrcpus; i++) {
-		if (CPU_ISSET(i, maskp)) {
+		if (CPU_ISSET_S(i, size, maskp)) {
 			if (cpu == -1)
 				cpu = i;
 			else
-				CPU_CLR(i, maskp);
+				CPU_CLR_S(i, size, maskp);
 		}
 	}
 
@@ -50,8 +54,9 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 		.no_buffering = true,
 		.mmap_pages   = 256,
 	};
-	cpu_set_t cpu_mask;
-	size_t cpu_mask_size = sizeof(cpu_mask);
+	int nrcpus = cpu__max_cpu().cpu;
+	cpu_set_t *cpu_mask;
+	size_t cpu_mask_size;
 	struct evlist *evlist = evlist__new_dummy();
 	struct evsel *evsel;
 	struct perf_sample sample;
@@ -69,12 +74,22 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	int total_events = 0, nr_events[PERF_RECORD_MAX] = { 0, };
 	char sbuf[STRERR_BUFSIZE];
 
+	cpu_mask = CPU_ALLOC(nrcpus);
+	if (!cpu_mask) {
+		pr_debug("failed to create cpumask\n");
+		goto out;
+	}
+
+	cpu_mask_size = CPU_ALLOC_SIZE(nrcpus);
+	CPU_ZERO_S(cpu_mask_size, cpu_mask);
+
 	perf_sample__init(&sample, /*all=*/false);
 	if (evlist == NULL) /* Fallback for kernels lacking PERF_COUNT_SW_DUMMY */
 		evlist = evlist__new_default();
 
 	if (evlist == NULL) {
 		pr_debug("Not enough memory to create evlist\n");
+		CPU_FREE(cpu_mask);
 		goto out;
 	}
 
@@ -111,10 +126,11 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	evsel__set_sample_bit(evsel, TIME);
 	evlist__config(evlist, &opts, NULL);
 
-	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
+	err = sched__get_first_possible_cpu(evlist->workload.pid, cpu_mask);
 	if (err < 0) {
 		pr_debug("sched__get_first_possible_cpu: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		evlist__cancel_workload(evlist);
 		goto out_delete_evlist;
 	}
 
@@ -123,9 +139,10 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	/*
 	 * So that we can check perf_sample.cpu on all the samples.
 	 */
-	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, &cpu_mask) < 0) {
+	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, cpu_mask) < 0) {
 		pr_debug("sched_setaffinity: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		evlist__cancel_workload(evlist);
 		goto out_delete_evlist;
 	}
 
@@ -137,6 +154,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		evlist__cancel_workload(evlist);
 		goto out_delete_evlist;
 	}
 
@@ -149,6 +167,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	if (err < 0) {
 		pr_debug("evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		evlist__cancel_workload(evlist);
 		goto out_delete_evlist;
 	}
 
@@ -328,6 +347,7 @@ found_exit:
 		++errs;
 	}
 out_delete_evlist:
+	CPU_FREE(cpu_mask);
 	evlist__delete(evlist);
 out:
 	perf_sample__exit(&sample);

@@ -214,8 +214,10 @@ static void remove_event(struct __kvm_pmu_event_filter *f, uint64_t event)
 do {											\
 	uint64_t br = pmc_results.branches_retired;					\
 	uint64_t ir = pmc_results.instructions_retired;					\
+	bool br_matched = this_pmu_has_errata(BRANCHES_RETIRED_OVERCOUNT) ?		\
+			  br >= NUM_BRANCHES : br == NUM_BRANCHES;			\
 											\
-	if (br && br != NUM_BRANCHES)							\
+	if (br && !br_matched)								\
 		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",	\
 			__func__, br, NUM_BRANCHES);					\
 	TEST_ASSERT(br, "%s: Branch instructions retired = %lu (expected > 0)",		\

@@ -248,7 +248,7 @@ struct btrfs_inode {
 		u64 new_delalloc_bytes;
 		/*
 		 * The offset of the last dir index key that was logged.
-		 * This is used only for directories.
+		 * This is used only for directories. Protected by 'log_mutex'.
 		 */
 		u64 last_dir_index_offset;
 	};
@@ -338,6 +338,11 @@ struct btrfs_inode {
 	struct list_head delayed_iput;
 
 	struct rw_semaphore i_mmap_lock;
+
+#ifdef CONFIG_FS_VERITY
+	struct fsverity_info *i_verity_info;
+#endif
+
 	struct inode vfs_inode;
 };
 
@@ -532,9 +537,9 @@ static inline void btrfs_set_inode_mapping_order(struct btrfs_inode *inode)
 
 	/* We only allow BITS_PER_LONGS blocks for each bitmap. */
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
-	mapping_set_folio_order_range(inode->vfs_inode.i_mapping, 0,
-			ilog2(((BITS_PER_LONG << inode->root->fs_info->sectorsize_bits)
-				>> PAGE_SHIFT)));
+	mapping_set_folio_order_range(inode->vfs_inode.i_mapping,
+				      inode->root->fs_info->block_min_order,
+				      inode->root->fs_info->block_max_order);
 #endif
 }
 
@@ -542,10 +547,12 @@ static inline void btrfs_set_inode_mapping_order(struct btrfs_inode *inode)
 #define CSUM_FMT				"0x%*phN"
 #define CSUM_FMT_VALUE(size, bytes)		size, bytes
 
-int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, void *kaddr, u8 *csum,
-			    const u8 * const csum_expected);
+void btrfs_calculate_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr,
+				u8 *dest);
+int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 *csum,
+			   const u8 * const csum_expected);
 bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
-			u32 bio_offset, struct bio_vec *bv);
+			u32 bio_offset, phys_addr_t paddr);
 noinline int can_nocow_extent(struct btrfs_inode *inode, u64 offset, u64 *len,
 			      struct btrfs_file_extent *file_extent,
 			      bool nowait);
@@ -558,7 +565,7 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		       const struct fscrypt_str *name);
 int btrfs_add_link(struct btrfs_trans_handle *trans,
 		   struct btrfs_inode *parent_inode, struct btrfs_inode *inode,
-		   const struct fscrypt_str *name, int add_backref, u64 index);
+		   const struct fscrypt_str *name, bool add_backref, u64 index);
 int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry);
 int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 end);
 

@@ -36,9 +36,7 @@ static __always_inline void __monitor(const void *eax, u32 ecx, u32 edx)
 
 static __always_inline void __monitorx(const void *eax, u32 ecx, u32 edx)
 {
-	/* "monitorx %eax, %ecx, %edx" */
-	asm volatile(".byte 0x0f, 0x01, 0xfa"
-		     :: "a" (eax), "c" (ecx), "d"(edx));
+	asm volatile("monitorx" :: "a" (eax), "c" (ecx), "d"(edx));
 }
 
 static __always_inline void __mwait(u32 eax, u32 ecx)
@@ -80,9 +78,7 @@ static __always_inline void __mwaitx(u32 eax, u32 ebx, u32 ecx)
 {
 	/* No need for TSA buffer clearing on AMD */
 
-	/* "mwaitx %eax, %ebx, %ecx" */
-	asm volatile(".byte 0x0f, 0x01, 0xfb"
-		     :: "a" (eax), "b" (ebx), "c" (ecx));
+	asm volatile("mwaitx" :: "a" (eax), "b" (ebx), "c" (ecx));
 }
 
 /*

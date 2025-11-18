@@ -1636,14 +1636,6 @@ exit:
 	return ret;
 }
 
-#define STRDUP_FAIL_EXIT(s)		\
-	({	char *_p;		\
-	_p = strdup(s);		\
-		if (!_p)		\
-			return -ENOMEM;	\
-		_p;			\
-	})
-
 int __weak setup_kvm_events_tp(struct perf_kvm_stat *kvm __maybe_unused)
 {
 	return 0;
@@ -1688,7 +1680,7 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 		rec_argv[i] = STRDUP_FAIL_EXIT(record_args[i]);
 
 	for (j = 0; j < events_tp_size; j++) {
-		rec_argv[i++] = "-e";
+		rec_argv[i++] = STRDUP_FAIL_EXIT("-e");
 		rec_argv[i++] = STRDUP_FAIL_EXIT(kvm_events_tp[j]);
 	}
 
@@ -1696,7 +1688,7 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	rec_argv[i++] = STRDUP_FAIL_EXIT(kvm->file_name);
 
 	for (j = 1; j < (unsigned int)argc; j++, i++)
-		rec_argv[i] = argv[j];
+		rec_argv[i] = STRDUP_FAIL_EXIT(argv[j]);
 
 	set_option_flag(record_options, 'e', "event", PARSE_OPT_HIDDEN);
 	set_option_flag(record_options, 0, "filter", PARSE_OPT_HIDDEN);
@@ -1719,7 +1711,13 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	set_option_flag(record_options, 0, "transaction", PARSE_OPT_DISABLED);
 
 	record_usage = kvm_stat_record_usage;
-	return cmd_record(i, rec_argv);
+	ret = cmd_record(i, rec_argv);
+
+EXIT:
+	for (i = 0; i < rec_argc; i++)
+		free((void *)rec_argv[i]);
+	free(rec_argv);
+	return ret;
 }
 
 static int
@@ -2000,58 +1998,122 @@ static int __cmd_record(const char *file_name, int argc, const char **argv)
 	int rec_argc, i = 0, j, ret;
 	const char **rec_argv;
 
-	ret = kvm_add_default_arch_event(&argc, argv);
-	if (ret)
-		return -EINVAL;
-
-	rec_argc = argc + 2;
+	/*
+	 * Besides the 2 more options "-o" and "filename",
+	 * kvm_add_default_arch_event() may add 2 extra options,
+	 * so allocate 4 more items.
+	 */
+	rec_argc = argc + 2 + 2;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
-	rec_argv[i++] = strdup("record");
-	rec_argv[i++] = strdup("-o");
-	rec_argv[i++] = strdup(file_name);
+	if (!rec_argv)
+		return -ENOMEM;
+
+	rec_argv[i++] = STRDUP_FAIL_EXIT("record");
+	rec_argv[i++] = STRDUP_FAIL_EXIT("-o");
+	rec_argv[i++] = STRDUP_FAIL_EXIT(file_name);
 	for (j = 1; j < argc; j++, i++)
-		rec_argv[i] = argv[j];
+		rec_argv[i] = STRDUP_FAIL_EXIT(argv[j]);
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_record(i, rec_argv);
+	ret = kvm_add_default_arch_event(&i, rec_argv);
+	if (ret)
+		goto EXIT;
+
+	ret = cmd_record(i, rec_argv);
+
+EXIT:
+	for (i = 0; i < rec_argc; i++)
+		free((void *)rec_argv[i]);
+	free(rec_argv);
+	return ret;
 }
 
 static int __cmd_report(const char *file_name, int argc, const char **argv)
 {
-	int rec_argc, i = 0, j;
+	int rec_argc, i = 0, j, ret;
 	const char **rec_argv;
 
 	rec_argc = argc + 2;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
-	rec_argv[i++] = strdup("report");
-	rec_argv[i++] = strdup("-i");
-	rec_argv[i++] = strdup(file_name);
+	if (!rec_argv)
+		return -ENOMEM;
+
+	rec_argv[i++] = STRDUP_FAIL_EXIT("report");
+	rec_argv[i++] = STRDUP_FAIL_EXIT("-i");
+	rec_argv[i++] = STRDUP_FAIL_EXIT(file_name);
 	for (j = 1; j < argc; j++, i++)
-		rec_argv[i] = argv[j];
+		rec_argv[i] = STRDUP_FAIL_EXIT(argv[j]);
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_report(i, rec_argv);
+	ret = cmd_report(i, rec_argv);
+
+EXIT:
+	for (i = 0; i < rec_argc; i++)
+		free((void *)rec_argv[i]);
+	free(rec_argv);
+	return ret;
 }
 
 static int
 __cmd_buildid_list(const char *file_name, int argc, const char **argv)
 {
-	int rec_argc, i = 0, j;
+	int rec_argc, i = 0, j, ret;
 	const char **rec_argv;
 
 	rec_argc = argc + 2;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
-	rec_argv[i++] = strdup("buildid-list");
-	rec_argv[i++] = strdup("-i");
-	rec_argv[i++] = strdup(file_name);
+	if (!rec_argv)
+		return -ENOMEM;
+
+	rec_argv[i++] = STRDUP_FAIL_EXIT("buildid-list");
+	rec_argv[i++] = STRDUP_FAIL_EXIT("-i");
+	rec_argv[i++] = STRDUP_FAIL_EXIT(file_name);
 	for (j = 1; j < argc; j++, i++)
-		rec_argv[i] = argv[j];
+		rec_argv[i] = STRDUP_FAIL_EXIT(argv[j]);
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_buildid_list(i, rec_argv);
+	ret = cmd_buildid_list(i, rec_argv);
+
+EXIT:
+	for (i = 0; i < rec_argc; i++)
+		free((void *)rec_argv[i]);
+	free(rec_argv);
+	return ret;
+}
+
+static int __cmd_top(int argc, const char **argv)
+{
+	int rec_argc, i = 0, ret;
+	const char **rec_argv;
+
+	/*
+	 * kvm_add_default_arch_event() may add 2 extra options, so
+	 * allocate 2 more pointers in adavance.
+	 */
+	rec_argc = argc + 2;
+	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+	if (!rec_argv)
+		return -ENOMEM;
+
+	for (i = 0; i < argc; i++)
+		rec_argv[i] = STRDUP_FAIL_EXIT(argv[i]);
+
+	BUG_ON(i != argc);
+
+	ret = kvm_add_default_arch_event(&i, rec_argv);
+	if (ret)
+		goto EXIT;
+
+	ret = cmd_top(i, rec_argv);
+
+EXIT:
+	for (i = 0; i < rec_argc; i++)
+		free((void *)rec_argv[i]);
+	free(rec_argv);
+	return ret;
 }
 
 int cmd_kvm(int argc, const char **argv)
@@ -2114,7 +2176,7 @@ int cmd_kvm(int argc, const char **argv)
 	else if (strlen(argv[0]) > 2 && strstarts("diff", argv[0]))
 		return cmd_diff(argc, argv);
 	else if (!strcmp(argv[0], "top"))
-		return cmd_top(argc, argv);
+		return __cmd_top(argc, argv);
 	else if (strlen(argv[0]) > 2 && strstarts("buildid-list", argv[0]))
 		return __cmd_buildid_list(file_name, argc, argv);
 #if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)

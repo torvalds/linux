@@ -40,7 +40,7 @@
 #include "dcn31/dcn31_hpo_dp_stream_encoder.h"
 #include "dcn31/dcn31_hpo_dp_link_encoder.h"
 #include "dcn32/dcn32_hpo_dp_link_encoder.h"
-#include "link.h"
+#include "link_service.h"
 #include "dcn31/dcn31_apg.h"
 #include "dcn32/dcn32_dio_link_encoder.h"
 #include "dcn31/dcn31_vpg.h"
@@ -1734,6 +1734,20 @@ static enum dc_status dcn35_validate_bandwidth(struct dc *dc,
 }
 
 
+static int populate_dml_pipes_from_context_fpu(struct dc *dc,
+					       struct dc_state *context,
+					       display_e2e_pipe_params_st *pipes,
+					       enum dc_validate_mode validate_mode)
+{
+	int ret;
+
+	DC_FP_START();
+	ret = dcn35_populate_dml_pipes_from_context_fpu(dc, context, pipes, validate_mode);
+	DC_FP_END();
+
+	return ret;
+}
+
 static struct resource_funcs dcn36_res_pool_funcs = {
 	.destroy = dcn36_destroy_resource_pool,
 	.link_enc_create = dcn35_link_encoder_create,
@@ -1744,7 +1758,7 @@ static struct resource_funcs dcn36_res_pool_funcs = {
 	.validate_bandwidth = dcn35_validate_bandwidth,
 	.calculate_wm_and_dlg = NULL,
 	.update_soc_for_wm_a = dcn31_update_soc_for_wm_a,
-	.populate_dml_pipes = dcn35_populate_dml_pipes_from_context_fpu,
+	.populate_dml_pipes = populate_dml_pipes_from_context_fpu,
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
 	.release_pipe = dcn20_release_pipe,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
@@ -1869,9 +1883,6 @@ static bool dcn36_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
 	dc->caps.color.mpc.preblend = true;
-
-	dc->caps.num_of_host_routers = 2;
-	dc->caps.num_of_dpias_per_host_router = 2;
 
 	dc->caps.num_of_host_routers = 2;
 	dc->caps.num_of_dpias_per_host_router = 2;

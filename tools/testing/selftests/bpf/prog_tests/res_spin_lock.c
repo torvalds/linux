@@ -99,3 +99,19 @@ end:
 	res_spin_lock__destroy(skel);
 	return;
 }
+
+void serial_test_res_spin_lock_stress(void)
+{
+	if (libbpf_num_possible_cpus() < 3) {
+		test__skip();
+		return;
+	}
+
+	ASSERT_OK(load_module("bpf_test_rqspinlock.ko", false), "load module AA");
+	sleep(5);
+	unload_module("bpf_test_rqspinlock", false);
+
+	ASSERT_OK(load_module_params("bpf_test_rqspinlock.ko", "test_ab=1", false), "load module ABBA");
+	sleep(5);
+	unload_module("bpf_test_rqspinlock", false);
+}

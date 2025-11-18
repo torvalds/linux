@@ -20,12 +20,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "../kselftest.h"
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-#endif
-
-#ifndef __maybe_unused
-#define __maybe_unused __attribute__((__unused__))
 #endif
 
 #define REGEX_LANDLOCK_PREFIX "^audit([0-9.:]\\+): domain=\\([0-9a-f]\\+\\)"

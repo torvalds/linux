@@ -1876,7 +1876,8 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 	dlm_debug_init(dlm);
 
 	snprintf(wq_name, O2NM_MAX_NAME_LEN, "dlm_wq-%s", dlm->name);
-	dlm->dlm_worker = alloc_workqueue(wq_name, WQ_MEM_RECLAIM, 0);
+	dlm->dlm_worker = alloc_workqueue(wq_name, WQ_MEM_RECLAIM | WQ_PERCPU,
+					  0);
 	if (!dlm->dlm_worker) {
 		status = -ENOMEM;
 		mlog_errno(status);

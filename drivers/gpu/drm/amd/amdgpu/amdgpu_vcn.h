@@ -237,6 +237,8 @@
 
 #define AMDGPU_DRM_KEY_INJECT_WORKAROUND_VCNFW_ASD_HANDSHAKING 2
 
+struct amdgpu_hwip_reg_entry;
+
 enum amdgpu_vcn_caps {
 	AMDGPU_VCN_RRMT_ENABLED,
 };
@@ -362,6 +364,8 @@ struct amdgpu_vcn {
 
 	bool			workload_profile_active;
 	struct mutex            workload_profile_mutex;
+	u32 reg_count;
+	const struct amdgpu_hwip_reg_entry *reg_list;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {
@@ -497,7 +501,7 @@ struct amdgpu_vcn5_fw_shared {
 	struct amdgpu_fw_shared_rb_setup rb_setup;
 	struct amdgpu_fw_shared_smu_interface_info smu_dpm_interface;
 	struct amdgpu_fw_shared_drm_key_wa drm_key_wa;
-	uint8_t pad3[9];
+	uint8_t pad3[404];
 };
 
 #define VCN_BLOCK_ENCODE_DISABLE_MASK 0x80
@@ -512,7 +516,7 @@ enum vcn_ring_type {
 
 int amdgpu_vcn_early_init(struct amdgpu_device *adev, int i);
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev, int i);
-int amdgpu_vcn_sw_fini(struct amdgpu_device *adev, int i);
+void amdgpu_vcn_sw_fini(struct amdgpu_device *adev, int i);
 int amdgpu_vcn_suspend(struct amdgpu_device *adev, int i);
 int amdgpu_vcn_resume(struct amdgpu_device *adev, int i);
 void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring);
@@ -557,4 +561,11 @@ int vcn_set_powergating_state(struct amdgpu_ip_block *ip_block,
 int amdgpu_vcn_ring_reset(struct amdgpu_ring *ring,
 			  unsigned int vmid,
 			  struct amdgpu_fence *guilty_fence);
+int amdgpu_vcn_reg_dump_init(struct amdgpu_device *adev,
+			     const struct amdgpu_hwip_reg_entry *reg, u32 count);
+void amdgpu_vcn_dump_ip_state(struct amdgpu_ip_block *ip_block);
+void amdgpu_vcn_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p);
+void amdgpu_vcn_get_profile(struct amdgpu_device *adev);
+void amdgpu_vcn_put_profile(struct amdgpu_device *adev);
+
 #endif

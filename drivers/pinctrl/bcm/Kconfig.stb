@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if PINCTRL_BRCMSTB
+
+config PINCTRL_BCM2712
+	tristate "BCM2712 SoC pin controller driver"
+	help
+	  Driver for BCM2712 integrated pin controller,
+	  commonly found on Raspberry Pi 5.
+
+endif

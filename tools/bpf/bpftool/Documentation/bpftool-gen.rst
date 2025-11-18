@@ -16,7 +16,7 @@ SYNOPSIS
 
 **bpftool** [*OPTIONS*] **gen** *COMMAND*
 
-*OPTIONS* := { |COMMON_OPTIONS| | { **-L** | **--use-loader** } }
+*OPTIONS* := { |COMMON_OPTIONS| | { **-L** | **--use-loader** } | [ { **-S** | **--sign** } {**-k** <private_key.pem>} **-i** <certificate.x509> ] }
 
 *COMMAND* := { **object** | **skeleton** | **help** }
 
@@ -185,6 +185,17 @@ OPTIONS
     For skeletons, generate a "light" skeleton (also known as "loader"
     skeleton). A light skeleton contains a loader eBPF program. It does not use
     the majority of the libbpf infrastructure, and does not need libelf.
+
+-S, --sign
+    For skeletons, generate a signed skeleton. This option must be used with
+    **-k** and **-i**. Using this flag implicitly enables **--use-loader**.
+
+-k <private_key.pem>
+    Path to the private key file in PEM format, required for signing.
+
+-i <certificate.x509>
+    Path to the X.509 certificate file in PEM or DER format, required for
+    signing.
 
 EXAMPLES
 ========

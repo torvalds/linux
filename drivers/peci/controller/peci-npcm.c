@@ -221,7 +221,6 @@ static const struct regmap_config npcm_peci_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = NPCM_PECI_MAX_REG,
-	.fast_io = true,
 };
 
 static const struct peci_controller_ops npcm_ops = {

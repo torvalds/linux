@@ -113,7 +113,7 @@ static void
 nfsd_file_schedule_laundrette(void)
 {
 	if (test_bit(NFSD_FILE_CACHE_UP, &nfsd_file_flags))
-		queue_delayed_work(system_unbound_wq, &nfsd_filecache_laundrette,
+		queue_delayed_work(system_dfl_wq, &nfsd_filecache_laundrette,
 				   NFSD_LAUNDRETTE_DELAY);
 }
 
@@ -231,6 +231,9 @@ nfsd_file_alloc(struct net *net, struct inode *inode, unsigned char need,
 	refcount_set(&nf->nf_ref, 1);
 	nf->nf_may = need;
 	nf->nf_mark = NULL;
+	nf->nf_dio_mem_align = 0;
+	nf->nf_dio_offset_align = 0;
+	nf->nf_dio_read_offset_align = 0;
 	return nf;
 }
 
@@ -389,27 +392,6 @@ nfsd_file_put_local(struct nfsd_file __rcu **pnf)
 		nfsd_file_put(nf);
 	}
 	return net;
-}
-
-/**
- * nfsd_file_get_local - get nfsd_file reference and reference to net
- * @nf: nfsd_file of which to put the reference
- *
- * Get reference to both the nfsd_file and nf->nf_net.
- */
-struct nfsd_file *
-nfsd_file_get_local(struct nfsd_file *nf)
-{
-	struct net *net = nf->nf_net;
-
-	if (nfsd_net_try_get(net)) {
-		nf = nfsd_file_get(nf);
-		if (!nf)
-			nfsd_net_put(net);
-	} else {
-		nf = NULL;
-	}
-	return nf;
 }
 
 /**
@@ -1070,6 +1052,35 @@ nfsd_file_is_cached(struct inode *inode)
 }
 
 static __be32
+nfsd_file_get_dio_attrs(const struct svc_fh *fhp, struct nfsd_file *nf)
+{
+	struct inode *inode = file_inode(nf->nf_file);
+	struct kstat stat;
+	__be32 status;
+
+	/* Currently only need to get DIO alignment info for regular files */
+	if (!S_ISREG(inode->i_mode))
+		return nfs_ok;
+
+	status = fh_getattr(fhp, &stat);
+	if (status != nfs_ok)
+		return status;
+
+	trace_nfsd_file_get_dio_attrs(inode, &stat);
+
+	if (stat.result_mask & STATX_DIOALIGN) {
+		nf->nf_dio_mem_align = stat.dio_mem_align;
+		nf->nf_dio_offset_align = stat.dio_offset_align;
+	}
+	if (stat.result_mask & STATX_DIO_READ_ALIGN)
+		nf->nf_dio_read_offset_align = stat.dio_read_offset_align;
+	else
+		nf->nf_dio_read_offset_align = nf->nf_dio_offset_align;
+
+	return nfs_ok;
+}
+
+static __be32
 nfsd_file_do_acquire(struct svc_rqst *rqstp, struct net *net,
 		     struct svc_cred *cred,
 		     struct auth_domain *client,
@@ -1187,6 +1198,8 @@ open_file:
 			}
 			status = nfserrno(ret);
 			trace_nfsd_file_open(nf, status);
+			if (status == nfs_ok)
+				status = nfsd_file_get_dio_attrs(fhp, nf);
 		}
 	} else
 		status = nfserr_jukebox;

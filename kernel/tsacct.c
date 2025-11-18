@@ -57,12 +57,11 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 	stats->ac_sched	 = tsk->policy;
 	stats->ac_pid	 = task_pid_nr_ns(tsk, pid_ns);
 	stats->ac_tgid   = task_tgid_nr_ns(tsk, pid_ns);
+	stats->ac_ppid	 = task_ppid_nr_ns(tsk, pid_ns);
 	rcu_read_lock();
 	tcred = __task_cred(tsk);
 	stats->ac_uid	 = from_kuid_munged(user_ns, tcred->uid);
 	stats->ac_gid	 = from_kgid_munged(user_ns, tcred->gid);
-	stats->ac_ppid	 = pid_alive(tsk) ?
-		task_tgid_nr_ns(rcu_dereference(tsk->real_parent), pid_ns) : 0;
 	rcu_read_unlock();
 
 	task_cputime(tsk, &utime, &stime);

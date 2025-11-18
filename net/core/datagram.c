@@ -345,7 +345,7 @@ int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
 		spin_unlock_bh(&sk_queue->lock);
 	}
 
-	atomic_inc(&sk->sk_drops);
+	sk_drops_inc(sk);
 	return err;
 }
 EXPORT_SYMBOL(__sk_queue_drop_skb);
@@ -617,6 +617,20 @@ fault:
 	return -EFAULT;
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
+
+int skb_copy_datagram_from_iter_full(struct sk_buff *skb, int offset,
+				     struct iov_iter *from, int len)
+{
+	struct iov_iter_state state;
+	int ret;
+
+	iov_iter_save_state(from, &state);
+	ret = skb_copy_datagram_from_iter(skb, offset, from, len);
+	if (ret)
+		iov_iter_restore(from, &state);
+	return ret;
+}
+EXPORT_SYMBOL(skb_copy_datagram_from_iter_full);
 
 int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
 				struct iov_iter *from, size_t length)
@@ -906,21 +920,22 @@ fault:
 EXPORT_SYMBOL(skb_copy_and_csum_datagram_msg);
 
 /**
- * 	datagram_poll - generic datagram poll
+ *	datagram_poll_queue - same as datagram_poll, but on a specific receive
+ *		queue
  *	@file: file struct
  *	@sock: socket
  *	@wait: poll table
+ *	@rcv_queue: receive queue to poll
  *
- *	Datagram poll: Again totally generic. This also handles
- *	sequenced packet sockets providing the socket receive queue
- *	is only ever holding data ready to receive.
+ *	Performs polling on the given receive queue, handling shutdown, error,
+ *	and connection state. This is useful for protocols that deliver
+ *	userspace-bound packets through a custom queue instead of
+ *	sk->sk_receive_queue.
  *
- *	Note: when you *don't* use this routine for this protocol,
- *	and you use a different write policy from sock_writeable()
- *	then please supply your own write_space callback.
+ *	Return: poll bitmask indicating the socket's current state
  */
-__poll_t datagram_poll(struct file *file, struct socket *sock,
-			   poll_table *wait)
+__poll_t datagram_poll_queue(struct file *file, struct socket *sock,
+			     poll_table *wait, struct sk_buff_head *rcv_queue)
 {
 	struct sock *sk = sock->sk;
 	__poll_t mask;
@@ -942,7 +957,7 @@ __poll_t datagram_poll(struct file *file, struct socket *sock,
 		mask |= EPOLLHUP;
 
 	/* readable? */
-	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
+	if (!skb_queue_empty_lockless(rcv_queue))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* Connection-based need to check for termination and startup */
@@ -963,5 +978,28 @@ __poll_t datagram_poll(struct file *file, struct socket *sock,
 		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 	return mask;
+}
+EXPORT_SYMBOL(datagram_poll_queue);
+
+/**
+ *	datagram_poll - generic datagram poll
+ *	@file: file struct
+ *	@sock: socket
+ *	@wait: poll table
+ *
+ *	Datagram poll: Again totally generic. This also handles
+ *	sequenced packet sockets providing the socket receive queue
+ *	is only ever holding data ready to receive.
+ *
+ *	Note: when you *don't* use this routine for this protocol,
+ *	and you use a different write policy from sock_writeable()
+ *	then please supply your own write_space callback.
+ *
+ *	Return: poll bitmask indicating the socket's current state
+ */
+__poll_t datagram_poll(struct file *file, struct socket *sock, poll_table *wait)
+{
+	return datagram_poll_queue(file, sock, wait,
+				   &sock->sk->sk_receive_queue);
 }
 EXPORT_SYMBOL(datagram_poll);

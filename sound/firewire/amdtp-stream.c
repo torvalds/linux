@@ -1688,20 +1688,16 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	struct pkt_desc *descs;
 	int i, type, tag, err;
 
-	mutex_lock(&s->mutex);
+	guard(mutex)(&s->mutex);
 
 	if (WARN_ON(amdtp_stream_running(s) ||
-		    (s->data_block_quadlets < 1))) {
-		err = -EBADFD;
-		goto err_unlock;
-	}
+		    (s->data_block_quadlets < 1)))
+		return -EBADFD;
 
 	if (s->direction == AMDTP_IN_STREAM) {
 		// NOTE: IT context should be used for constant IRQ.
-		if (is_irq_target) {
-			err = -EINVAL;
-			goto err_unlock;
-		}
+		if (is_irq_target)
+			return -EINVAL;
 
 		s->data_block_counter = UINT_MAX;
 	} else {
@@ -1725,7 +1721,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 
 	err = iso_packets_buffer_init(&s->buffer, s->unit, queue_size, max_ctx_payload_size, dir);
 	if (err < 0)
-		goto err_unlock;
+		return err;
 	s->queue_size = queue_size;
 
 	s->context = fw_iso_context_create(fw_parent_device(s->unit)->card,
@@ -1846,8 +1842,6 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	if (err < 0)
 		goto err_pkt_descs;
 
-	mutex_unlock(&s->mutex);
-
 	return 0;
 err_pkt_descs:
 	kfree(s->packet_descs);
@@ -1863,8 +1857,6 @@ err_context:
 	s->context = ERR_PTR(-1);
 err_buffer:
 	iso_packets_buffer_destroy(&s->buffer, s->unit);
-err_unlock:
-	mutex_unlock(&s->mutex);
 
 	return err;
 }
@@ -1934,12 +1926,10 @@ EXPORT_SYMBOL(amdtp_stream_update);
  */
 static void amdtp_stream_stop(struct amdtp_stream *s)
 {
-	mutex_lock(&s->mutex);
+	guard(mutex)(&s->mutex);
 
-	if (!amdtp_stream_running(s)) {
-		mutex_unlock(&s->mutex);
+	if (!amdtp_stream_running(s))
 		return;
-	}
 
 	cancel_work_sync(&s->period_work);
 	fw_iso_context_stop(s->context);
@@ -1955,8 +1945,6 @@ static void amdtp_stream_stop(struct amdtp_stream *s)
 		if (s->domain->replay.enable)
 			kfree(s->ctx_data.tx.cache.descs);
 	}
-
-	mutex_unlock(&s->mutex);
 }
 
 /**

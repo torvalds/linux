@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <sound/hdaudio_ext.h>
 #include "avs.h"
+#include "debug.h"
 #include "messages.h"
 #include "path.h"
 #include "registers.h"

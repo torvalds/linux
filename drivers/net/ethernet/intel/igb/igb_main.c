@@ -1531,8 +1531,7 @@ static void igb_update_mng_vlan(struct igb_adapter *adapter)
 		adapter->mng_vlan_id = IGB_MNG_VLAN_NONE;
 	}
 
-	if ((old_vid != (u16)IGB_MNG_VLAN_NONE) &&
-	    (vid != old_vid) &&
+	if (old_vid != IGB_MNG_VLAN_NONE && vid != old_vid &&
 	    !test_bit(old_vid, adapter->active_vlans)) {
 		/* remove VID from filter table */
 		igb_vfta_set(hw, vid, pf_id, false, true);
@@ -4453,8 +4452,7 @@ int igb_setup_rx_resources(struct igb_ring *rx_ring)
 	if (xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
 		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 	res = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev,
-			       rx_ring->queue_index,
-			       rx_ring->q_vector->napi.napi_id);
+			       rx_ring->queue_index, 0);
 	if (res < 0) {
 		dev_err(dev, "Failed to register xdp_rxq index %u\n",
 			rx_ring->queue_index);

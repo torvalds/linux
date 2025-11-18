@@ -108,7 +108,7 @@ void __init config_BSP(char *commandp, int size)
  * an ethernet switch. In this case we need to use the fixed phy type,
  * and we need to declare it early in boot.
  */
-static struct fixed_phy_status nettel_fixed_phy_status __initdata = {
+static const struct fixed_phy_status nettel_fixed_phy_status __initconst = {
 	.link	= 1,
 	.speed	= 100,
 	.duplex	= 0,
@@ -119,7 +119,7 @@ static struct fixed_phy_status nettel_fixed_phy_status __initdata = {
 static int __init init_BSP(void)
 {
 	m5272_uarts_init();
-	fixed_phy_add(0, &nettel_fixed_phy_status);
+	fixed_phy_add(&nettel_fixed_phy_status);
 	clkdev_add_table(m5272_clk_lookup, ARRAY_SIZE(m5272_clk_lookup));
 	return 0;
 }

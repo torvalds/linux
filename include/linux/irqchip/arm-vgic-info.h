@@ -36,8 +36,6 @@ struct gic_kvm_info {
 	bool		has_v4_1;
 	/* Deactivation impared, subpar stuff */
 	bool		no_hw_deactivation;
-	/* v3 compat support (GICv5 hosts, only) */
-	bool		has_gcie_v3_compat;
 };
 
 #ifdef CONFIG_KVM

@@ -226,6 +226,8 @@ static const char * const ov02e10_supply_names[] = {
 };
 
 struct ov02e10 {
+	struct device *dev;
+
 	struct regmap *regmap;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -288,7 +290,6 @@ static int ov02e10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov02e10 *ov02e10 = container_of(ctrl->handler,
 					       struct ov02e10, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02e10->sd);
 	s64 exposure_max;
 	int ret;
 
@@ -307,7 +308,7 @@ static int ov02e10_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov02e10->dev))
 		return 0;
 
 	ret = cci_write(ov02e10->regmap, OV02E10_REG_COMMAND_UPDATE,
@@ -363,7 +364,7 @@ static int ov02e10_set_ctrl(struct v4l2_ctrl *ctrl)
 	cci_write(ov02e10->regmap, OV02E10_REG_COMMAND_UPDATE,
 		  OV02E10_COMMAND_UPDATE, &ret);
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov02e10->dev);
 
 	return ret;
 }
@@ -374,7 +375,6 @@ static const struct v4l2_ctrl_ops ov02e10_ctrl_ops = {
 
 static int ov02e10_init_controls(struct ov02e10 *ov02e10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02e10->sd);
 	struct v4l2_ctrl_handler *ctrl_hdlr = &ov02e10->ctrl_handler;
 	const struct ov02e10_mode *mode = ov02e10->cur_mode;
 	u32 vblank_min, vblank_max, vblank_def;
@@ -442,7 +442,7 @@ static int ov02e10_init_controls(struct ov02e10 *ov02e10)
 				     ARRAY_SIZE(ov02e10_test_pattern_menu) - 1,
 				     0, 0, ov02e10_test_pattern_menu);
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(ov02e10->dev, &props);
 	if (ret)
 		return ret;
 
@@ -481,12 +481,11 @@ static int ov02e10_enable_streams(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  u32 pad, u64 streams_mask)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov02e10 *ov02e10 = to_ov02e10(sd);
 	const struct reg_sequence_list *reg_list;
 	int ret;
 
-	ret = pm_runtime_resume_and_get(&client->dev);
+	ret = pm_runtime_resume_and_get(ov02e10->dev);
 	if (ret)
 		return ret;
 
@@ -494,7 +493,7 @@ static int ov02e10_enable_streams(struct v4l2_subdev *sd,
 	ret = regmap_multi_reg_write(ov02e10->regmap, reg_list->regs,
 				     reg_list->num_regs);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode\n");
+		dev_err(ov02e10->dev, "failed to set mode\n");
 		goto out;
 	}
 
@@ -506,7 +505,7 @@ static int ov02e10_enable_streams(struct v4l2_subdev *sd,
 
 out:
 	if (ret)
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov02e10->dev);
 
 	return ret;
 }
@@ -515,11 +514,10 @@ static int ov02e10_disable_streams(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *state,
 				   u32 pad, u64 streams_mask)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov02e10 *ov02e10 = to_ov02e10(sd);
 
 	ov02e10_set_stream_mode(ov02e10, 0);
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov02e10->dev);
 
 	return 0;
 }
@@ -724,7 +722,6 @@ static const struct v4l2_subdev_internal_ops ov02e10_internal_ops = {
 
 static int ov02e10_identify_module(struct ov02e10 *ov02e10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02e10->sd);
 	int ret;
 	u64 val;
 
@@ -735,7 +732,7 @@ static int ov02e10_identify_module(struct ov02e10 *ov02e10)
 		return ret;
 
 	if (val != OV02E10_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
+		dev_err(ov02e10->dev, "chip id mismatch: %x!=%x\n",
 			OV02E10_CHIP_ID, (u32)val);
 		return -ENXIO;
 	}
@@ -743,15 +740,15 @@ static int ov02e10_identify_module(struct ov02e10 *ov02e10)
 	return 0;
 }
 
-static int ov02e10_check_hwcfg(struct device *dev, struct ov02e10 *ov02e10)
+static int ov02e10_check_hwcfg(struct ov02e10 *ov02e10)
 {
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
+	struct device *dev = ov02e10->dev;
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	unsigned long link_freq_bitmap;
-	u32 ext_clk;
 	int ret;
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
@@ -763,31 +760,6 @@ static int ov02e10_check_hwcfg(struct device *dev, struct ov02e10 *ov02e10)
 	fwnode_handle_put(ep);
 	if (ret)
 		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
-
-	ov02e10->img_clk = devm_clk_get_optional(dev, NULL);
-	if (IS_ERR(ov02e10->img_clk)) {
-		ret = dev_err_probe(dev, PTR_ERR(ov02e10->img_clk),
-				    "failed to get imaging clock\n");
-		goto out_err;
-	}
-
-	if (ov02e10->img_clk) {
-		ext_clk = clk_get_rate(ov02e10->img_clk);
-	} else {
-		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-					       &ext_clk);
-		if (ret) {
-			dev_err(dev, "can't get clock frequency\n");
-			goto out_err;
-		}
-	}
-
-	if (ext_clk != OV02E10_MCLK) {
-		dev_err(dev, "external clock %d is not supported\n",
-			ext_clk);
-		ret = -EINVAL;
-		goto out_err;
-	}
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV02E10_DATA_LANES) {
 		dev_err(dev, "number of CSI2 data lanes %d is not supported\n",
@@ -823,32 +795,47 @@ out_err:
 static void ov02e10_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov02e10 *ov02e10 = to_ov02e10(sd);
 
 	v4l2_async_unregister_subdev(sd);
 	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	pm_runtime_disable(&client->dev);
+	pm_runtime_disable(ov02e10->dev);
 
-	if (!pm_runtime_status_suspended(&client->dev)) {
-		ov02e10_power_off(&client->dev);
-		pm_runtime_set_suspended(&client->dev);
+	if (!pm_runtime_status_suspended(ov02e10->dev)) {
+		ov02e10_power_off(ov02e10->dev);
+		pm_runtime_set_suspended(ov02e10->dev);
 	}
 }
 
 static int ov02e10_probe(struct i2c_client *client)
 {
 	struct ov02e10 *ov02e10;
+	unsigned long freq;
 	int ret;
 
 	ov02e10 = devm_kzalloc(&client->dev, sizeof(*ov02e10), GFP_KERNEL);
 	if (!ov02e10)
 		return -ENOMEM;
 
+	ov02e10->dev = &client->dev;
+
+	ov02e10->img_clk = devm_v4l2_sensor_clk_get(ov02e10->dev, NULL);
+	if (IS_ERR(ov02e10->img_clk))
+		return dev_err_probe(ov02e10->dev, PTR_ERR(ov02e10->img_clk),
+				     "failed to get imaging clock\n");
+
+	freq = clk_get_rate(ov02e10->img_clk);
+	if (freq != OV02E10_MCLK)
+		return dev_err_probe(ov02e10->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
+
 	v4l2_i2c_subdev_init(&ov02e10->sd, client, &ov02e10_subdev_ops);
 
 	/* Check HW config */
-	ret = ov02e10_check_hwcfg(&client->dev, ov02e10);
+	ret = ov02e10_check_hwcfg(ov02e10);
 	if (ret)
 		return ret;
 
@@ -857,27 +844,27 @@ static int ov02e10_probe(struct i2c_client *client)
 	if (IS_ERR(ov02e10->regmap))
 		return PTR_ERR(ov02e10->regmap);
 
-	ret = ov02e10_get_pm_resources(&client->dev);
+	ret = ov02e10_get_pm_resources(ov02e10->dev);
 	if (ret)
 		return ret;
 
-	ret = ov02e10_power_on(&client->dev);
+	ret = ov02e10_power_on(ov02e10->dev);
 	if (ret) {
-		dev_err_probe(&client->dev, ret, "failed to power on\n");
+		dev_err_probe(ov02e10->dev, ret, "failed to power on\n");
 		return ret;
 	}
 
 	/* Check module identity */
 	ret = ov02e10_identify_module(ov02e10);
 	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d\n", ret);
+		dev_err(ov02e10->dev, "failed to find sensor: %d\n", ret);
 		goto probe_error_power_off;
 	}
 
 	ov02e10->cur_mode = &supported_modes[0];
 	ret = ov02e10_init_controls(ov02e10);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d\n", ret);
+		dev_err(ov02e10->dev, "failed to init controls: %d\n", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -891,33 +878,33 @@ static int ov02e10_probe(struct i2c_client *client)
 	ov02e10->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov02e10->sd.entity, 1, &ov02e10->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err(ov02e10->dev, "failed to init entity pads: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
 	ov02e10->sd.state_lock = ov02e10->ctrl_handler.lock;
 	ret = v4l2_subdev_init_finalize(&ov02e10->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to init subdev: %d", ret);
+		dev_err(ov02e10->dev, "failed to init subdev: %d", ret);
 		goto probe_error_media_entity_cleanup;
 	}
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
+	pm_runtime_set_active(ov02e10->dev);
+	pm_runtime_enable(ov02e10->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&ov02e10->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
+		dev_err(ov02e10->dev, "failed to register V4L2 subdev: %d",
 			ret);
 		goto probe_error_v4l2_subdev_cleanup;
 	}
 
-	pm_runtime_idle(&client->dev);
+	pm_runtime_idle(ov02e10->dev);
 	return 0;
 
 probe_error_v4l2_subdev_cleanup:
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(ov02e10->dev);
+	pm_runtime_set_suspended(ov02e10->dev);
 	v4l2_subdev_cleanup(&ov02e10->sd);
 
 probe_error_media_entity_cleanup:
@@ -927,7 +914,7 @@ probe_error_v4l2_ctrl_handler_free:
 	v4l2_ctrl_handler_free(ov02e10->sd.ctrl_handler);
 
 probe_error_power_off:
-	ov02e10_power_off(&client->dev);
+	ov02e10_power_off(ov02e10->dev);
 
 	return ret;
 }
@@ -961,7 +948,7 @@ static struct i2c_driver ov02e10_i2c_driver = {
 
 module_i2c_driver(ov02e10_i2c_driver);
 
-MODULE_AUTHOR("Jingjing Xiong <jingjing.xiong@intel.com>");
+MODULE_AUTHOR("Jingjing Xiong");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_AUTHOR("Alan Stern <stern@rowland.harvard.edu>");
 MODULE_AUTHOR("Bryan O'Donoghue <bryan.odonoghue@linaro.org>");

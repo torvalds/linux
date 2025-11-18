@@ -310,7 +310,6 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 #ifdef CONFIG_SND_SB16_CSP
 	struct snd_hwdep *xcsp = NULL;
 #endif
-	unsigned long flags;
 	int err;
 
 	xirq = irq[dev];
@@ -421,11 +420,11 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 #endif
 
 	/* setup Mic AGC */
-	spin_lock_irqsave(&chip->mixer_lock, flags);
-	snd_sbmixer_write(chip, SB_DSP4_MIC_AGC,
-		(snd_sbmixer_read(chip, SB_DSP4_MIC_AGC) & 0x01) |
-		(mic_agc[dev] ? 0x00 : 0x01));
-	spin_unlock_irqrestore(&chip->mixer_lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->mixer_lock) {
+		snd_sbmixer_write(chip, SB_DSP4_MIC_AGC,
+			(snd_sbmixer_read(chip, SB_DSP4_MIC_AGC) & 0x01) |
+			(mic_agc[dev] ? 0x00 : 0x01));
+	}
 
 	err = snd_card_register(card);
 	if (err < 0)

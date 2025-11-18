@@ -65,50 +65,42 @@ register unsigned long current_stack_pointer __asm__("$sp");
  *   access
  * - pending work-to-be-done flags are in LSW
  * - other flags in MSW
+ *
+ * Tell the generic TIF infrastructure which special bits loongarch supports
  */
-#define TIF_NEED_RESCHED	0	/* rescheduling necessary */
-#define TIF_NEED_RESCHED_LAZY	1	/* lazy rescheduling necessary */
-#define TIF_SIGPENDING		2	/* signal pending */
-#define TIF_NOTIFY_RESUME	3	/* callback before returning to user */
-#define TIF_NOTIFY_SIGNAL	4	/* signal notifications exist */
-#define TIF_RESTORE_SIGMASK	5	/* restore signal mask in do_signal() */
-#define TIF_NOHZ		6	/* in adaptive nohz mode */
-#define TIF_UPROBE		7	/* breakpointed or singlestepping */
-#define TIF_USEDFPU		8	/* FPU was used by this task this quantum (SMP) */
-#define TIF_USEDSIMD		9	/* SIMD has been used this quantum */
-#define TIF_MEMDIE		10	/* is terminating due to OOM killer */
-#define TIF_FIXADE		11	/* Fix address errors in software */
-#define TIF_LOGADE		12	/* Log address errors to syslog */
-#define TIF_32BIT_REGS		13	/* 32-bit general purpose registers */
-#define TIF_32BIT_ADDR		14	/* 32-bit address space */
-#define TIF_LOAD_WATCH		15	/* If set, load watch registers */
-#define TIF_SINGLESTEP		16	/* Single Step */
-#define TIF_LSX_CTX_LIVE	17	/* LSX context must be preserved */
-#define TIF_LASX_CTX_LIVE	18	/* LASX context must be preserved */
-#define TIF_USEDLBT		19	/* LBT was used by this task this quantum (SMP) */
-#define TIF_LBT_CTX_LIVE	20	/* LBT context must be preserved */
-#define TIF_PATCH_PENDING	21	/* pending live patching update */
+#define HAVE_TIF_NEED_RESCHED_LAZY
+#define HAVE_TIF_RESTORE_SIGMASK
 
-#define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
-#define _TIF_NEED_RESCHED_LAZY	(1<<TIF_NEED_RESCHED_LAZY)
-#define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
-#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
-#define _TIF_NOHZ		(1<<TIF_NOHZ)
-#define _TIF_UPROBE		(1<<TIF_UPROBE)
-#define _TIF_USEDFPU		(1<<TIF_USEDFPU)
-#define _TIF_USEDSIMD		(1<<TIF_USEDSIMD)
-#define _TIF_FIXADE		(1<<TIF_FIXADE)
-#define _TIF_LOGADE		(1<<TIF_LOGADE)
-#define _TIF_32BIT_REGS		(1<<TIF_32BIT_REGS)
-#define _TIF_32BIT_ADDR		(1<<TIF_32BIT_ADDR)
-#define _TIF_LOAD_WATCH		(1<<TIF_LOAD_WATCH)
-#define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
-#define _TIF_LSX_CTX_LIVE	(1<<TIF_LSX_CTX_LIVE)
-#define _TIF_LASX_CTX_LIVE	(1<<TIF_LASX_CTX_LIVE)
-#define _TIF_USEDLBT		(1<<TIF_USEDLBT)
-#define _TIF_LBT_CTX_LIVE	(1<<TIF_LBT_CTX_LIVE)
-#define _TIF_PATCH_PENDING	(1<<TIF_PATCH_PENDING)
+#include <asm-generic/thread_info_tif.h>
+
+/* Architecture specific bits */
+#define TIF_NOHZ		16	/* in adaptive nohz mode */
+#define TIF_USEDFPU		17	/* FPU was used by this task this quantum (SMP) */
+#define TIF_USEDSIMD		18	/* SIMD has been used this quantum */
+#define TIF_FIXADE		19	/* Fix address errors in software */
+#define TIF_LOGADE		20	/* Log address errors to syslog */
+#define TIF_32BIT_REGS		21	/* 32-bit general purpose registers */
+#define TIF_32BIT_ADDR		22	/* 32-bit address space */
+#define TIF_LOAD_WATCH		23	/* If set, load watch registers */
+#define TIF_SINGLESTEP		24	/* Single Step */
+#define TIF_LSX_CTX_LIVE	25	/* LSX context must be preserved */
+#define TIF_LASX_CTX_LIVE	26	/* LASX context must be preserved */
+#define TIF_USEDLBT		27	/* LBT was used by this task this quantum (SMP) */
+#define TIF_LBT_CTX_LIVE	28	/* LBT context must be preserved */
+
+#define _TIF_NOHZ		BIT(TIF_NOHZ)
+#define _TIF_USEDFPU		BIT(TIF_USEDFPU)
+#define _TIF_USEDSIMD		BIT(TIF_USEDSIMD)
+#define _TIF_FIXADE		BIT(TIF_FIXADE)
+#define _TIF_LOGADE		BIT(TIF_LOGADE)
+#define _TIF_32BIT_REGS		BIT(TIF_32BIT_REGS)
+#define _TIF_32BIT_ADDR		BIT(TIF_32BIT_ADDR)
+#define _TIF_LOAD_WATCH		BIT(TIF_LOAD_WATCH)
+#define _TIF_SINGLESTEP		BIT(TIF_SINGLESTEP)
+#define _TIF_LSX_CTX_LIVE	BIT(TIF_LSX_CTX_LIVE)
+#define _TIF_LASX_CTX_LIVE	BIT(TIF_LASX_CTX_LIVE)
+#define _TIF_USEDLBT		BIT(TIF_USEDLBT)
+#define _TIF_LBT_CTX_LIVE	BIT(TIF_LBT_CTX_LIVE)
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_THREAD_INFO_H */

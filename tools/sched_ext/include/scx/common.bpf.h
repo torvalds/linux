@@ -24,13 +24,25 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <asm-generic/errno.h>
-#include "user_exit_info.h"
+#include "user_exit_info.bpf.h"
 #include "enum_defs.autogen.h"
 
+#define PF_IDLE				0x00000002	/* I am an IDLE thread */
+#define PF_IO_WORKER			0x00000010	/* Task is an IO worker */
 #define PF_WQ_WORKER			0x00000020	/* I'm a workqueue worker */
+#define PF_KCOMPACTD			0x00010000      /* I am kcompactd */
+#define PF_KSWAPD			0x00020000      /* I am kswapd */
 #define PF_KTHREAD			0x00200000	/* I am a kernel thread */
 #define PF_EXITING			0x00000004
 #define CLOCK_MONOTONIC			1
+
+#ifndef NR_CPUS
+#define NR_CPUS 1024
+#endif
+
+#ifndef NUMA_NO_NODE
+#define	NUMA_NO_NODE	(-1)
+#endif
 
 extern int LINUX_KERNEL_VERSION __kconfig;
 extern const char CONFIG_CC_VERSION_TEXT[64] __kconfig __weak;
@@ -91,6 +103,8 @@ s32 scx_bpf_pick_any_cpu(const cpumask_t *cpus_allowed, u64 flags) __ksym;
 bool scx_bpf_task_running(const struct task_struct *p) __ksym;
 s32 scx_bpf_task_cpu(const struct task_struct *p) __ksym;
 struct rq *scx_bpf_cpu_rq(s32 cpu) __ksym;
+struct rq *scx_bpf_locked_rq(void) __ksym;
+struct task_struct *scx_bpf_cpu_curr(s32 cpu) __ksym __weak;
 struct cgroup *scx_bpf_task_cgroup(struct task_struct *p) __ksym __weak;
 u64 scx_bpf_now(void) __ksym __weak;
 void scx_bpf_events(struct scx_event_stats *events, size_t events__sz) __ksym __weak;
@@ -106,6 +120,9 @@ void scx_bpf_events(struct scx_event_stats *events, size_t events__sz) __ksym __
 
 static inline __attribute__((format(printf, 1, 2)))
 void ___scx_bpf_bstr_format_checker(const char *fmt, ...) {}
+
+#define SCX_STRINGIFY(x) #x
+#define SCX_TOSTRING(x) SCX_STRINGIFY(x)
 
 /*
  * Helper macro for initializing the fmt and variadic argument inputs to both
@@ -141,13 +158,15 @@ void ___scx_bpf_bstr_format_checker(const char *fmt, ...) {}
  * scx_bpf_error() wraps the scx_bpf_error_bstr() kfunc with variadic arguments
  * instead of an array of u64. Invoking this macro will cause the scheduler to
  * exit in an erroneous state, with diagnostic information being passed to the
- * user.
+ * user. It appends the file and line number to aid debugging.
  */
 #define scx_bpf_error(fmt, args...)						\
 ({										\
-	scx_bpf_bstr_preamble(fmt, args)					\
+	scx_bpf_bstr_preamble(							\
+		__FILE__ ":" SCX_TOSTRING(__LINE__) ": " fmt, ##args)		\
 	scx_bpf_error_bstr(___fmt, ___param, sizeof(___param));			\
-	___scx_bpf_bstr_format_checker(fmt, ##args);				\
+	___scx_bpf_bstr_format_checker(						\
+		__FILE__ ":" SCX_TOSTRING(__LINE__) ": " fmt, ##args);		\
 })
 
 /*
@@ -229,6 +248,7 @@ BPF_PROG(name, ##args)
  * be a pointer to the area. Use `MEMBER_VPTR(*ptr, .member)` instead of
  * `MEMBER_VPTR(ptr, ->member)`.
  */
+#ifndef MEMBER_VPTR
 #define MEMBER_VPTR(base, member) (typeof((base) member) *)			\
 ({										\
 	u64 __base = (u64)&(base);						\
@@ -245,6 +265,7 @@ BPF_PROG(name, ##args)
 		  [max]"i"(sizeof(base) - sizeof((base) member)));		\
 	__addr;									\
 })
+#endif /* MEMBER_VPTR */
 
 /**
  * ARRAY_ELEM_PTR - Obtain the verified pointer to an array element
@@ -260,6 +281,7 @@ BPF_PROG(name, ##args)
  * size of the array to compute the max, which will result in rejection by
  * the verifier.
  */
+#ifndef ARRAY_ELEM_PTR
 #define ARRAY_ELEM_PTR(arr, i, n) (typeof(arr[i]) *)				\
 ({										\
 	u64 __base = (u64)arr;							\
@@ -274,7 +296,7 @@ BPF_PROG(name, ##args)
 		  [max]"r"(sizeof(arr[0]) * ((n) - 1)));			\
 	__addr;									\
 })
-
+#endif /* ARRAY_ELEM_PTR */
 
 /*
  * BPF declarations and helpers
@@ -438,8 +460,27 @@ static __always_inline const struct cpumask *cast_mask(struct bpf_cpumask *mask)
  */
 static inline bool is_migration_disabled(const struct task_struct *p)
 {
-	if (bpf_core_field_exists(p->migration_disabled))
-		return p->migration_disabled;
+	/*
+	 * Testing p->migration_disabled in a BPF code is tricky because the
+	 * migration is _always_ disabled while running the BPF code.
+	 * The prolog (__bpf_prog_enter) and epilog (__bpf_prog_exit) for BPF
+	 * code execution disable and re-enable the migration of the current
+	 * task, respectively. So, the _current_ task of the sched_ext ops is
+	 * always migration-disabled. Moreover, p->migration_disabled could be
+	 * two or greater when a sched_ext ops BPF code (e.g., ops.tick) is
+	 * executed in the middle of the other BPF code execution.
+	 *
+	 * Therefore, we should decide that the _current_ task is
+	 * migration-disabled only when its migration_disabled count is greater
+	 * than one. In other words, when  p->migration_disabled == 1, there is
+	 * an ambiguity, so we should check if @p is the current task or not.
+	 */
+	if (bpf_core_field_exists(p->migration_disabled)) {
+		if (p->migration_disabled == 1)
+			return bpf_get_current_task_btf() != p;
+		else
+			return p->migration_disabled;
+	}
 	return false;
 }
 
@@ -476,7 +517,7 @@ static inline s64 time_delta(u64 after, u64 before)
  */
 static inline bool time_after(u64 a, u64 b)
 {
-	 return (s64)(b - a) < 0;
+	return (s64)(b - a) < 0;
 }
 
 /**
@@ -500,7 +541,7 @@ static inline bool time_before(u64 a, u64 b)
  */
 static inline bool time_after_eq(u64 a, u64 b)
 {
-	 return (s64)(a - b) >= 0;
+	return (s64)(a - b) >= 0;
 }
 
 /**
@@ -547,9 +588,15 @@ static inline bool time_in_range_open(u64 a, u64 b, u64 c)
  */
 
 /* useful compiler attributes */
+#ifndef likely
 #define likely(x) __builtin_expect(!!(x), 1)
+#endif
+#ifndef unlikely
 #define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
+#ifndef __maybe_unused
 #define __maybe_unused __attribute__((__unused__))
+#endif
 
 /*
  * READ/WRITE_ONCE() are from kernel (include/asm-generic/rwonce.h). They
@@ -633,6 +680,26 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 })
 
 /*
+ * __calc_avg - Calculate exponential weighted moving average (EWMA) with
+ * @old and @new values. @decay represents how large the @old value remains.
+ * With a larger @decay value, the moving average changes slowly, exhibiting
+ * fewer fluctuations.
+ */
+#define __calc_avg(old, new, decay) ({						\
+	typeof(decay) thr = 1 << (decay);					\
+	typeof(old) ret;							\
+	if (((old) < thr) || ((new) < thr)) {					\
+		if (((old) == 1) && ((new) == 0))				\
+			ret = 0;						\
+		else								\
+			ret = ((old) - ((old) >> 1)) + ((new) >> 1);		\
+	} else {								\
+		ret = ((old) - ((old) >> (decay))) + ((new) >> (decay));	\
+	}									\
+	ret;									\
+})
+
+/*
  * log2_u32 - Compute the base 2 logarithm of a 32-bit exponential value.
  * @v: The value for which we're computing the base 2 logarithm.
  */
@@ -660,6 +727,25 @@ static inline u32 log2_u64(u64 v)
                 return log2_u32(hi) + 32 + 1;
         else
                 return log2_u32(v) + 1;
+}
+
+/*
+ * sqrt_u64 - Calculate the square root of value @x using Newton's method.
+ */
+static inline u64 __sqrt_u64(u64 x)
+{
+	if (x == 0 || x == 1)
+		return x;
+
+	u64 r = ((1ULL << 32) > x) ? x : (1ULL << 32);
+
+	for (int i = 0; i < 8; ++i) {
+		u64 q = x / r;
+		if (r <= q)
+			break;
+		r = (r + q) >> 1;
+	}
+	return r;
 }
 
 /*

@@ -298,7 +298,7 @@
 		cpu-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <2000>;
-			thermal-sensors = <&tmu 0>;
+			thermal-sensors = <&tmu 1>;
 			trips {
 				cpu_alert0: trip0 {
 					temperature = <85000>;
@@ -331,7 +331,7 @@
 		soc-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <2000>;
-			thermal-sensors = <&tmu 1>;
+			thermal-sensors = <&tmu 0>;
 			trips {
 				soc_alert0: trip0 {
 					temperature = <85000>;
@@ -1701,9 +1701,12 @@
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_MEDIA_ISP_ROOT>,
 					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
-				clock-names = "isp", "aclk", "hclk";
-				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_ISP>;
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_CAM1_PIX_ROOT>;
+				clock-names = "isp", "aclk", "hclk", "pclk";
+				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_ISP>,
+						<&media_blk_ctrl IMX8MP_MEDIABLK_PD_MIPI_CSI2_1>;
+				power-domain-names = "isp", "csi2";
 				fsl,blk-ctrl = <&media_blk_ctrl 0>;
 				status = "disabled";
 
@@ -1723,9 +1726,12 @@
 				interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_MEDIA_ISP_ROOT>,
 					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
-				clock-names = "isp", "aclk", "hclk";
-				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_ISP>;
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_CAM1_PIX_ROOT>;
+				clock-names = "isp", "aclk", "hclk", "pclk";
+				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_ISP>,
+						<&media_blk_ctrl IMX8MP_MEDIABLK_PD_MIPI_CSI2_2>;
+				power-domain-names = "isp", "csi2";
 				fsl,blk-ctrl = <&media_blk_ctrl 1>;
 				status = "disabled";
 
@@ -2045,6 +2051,10 @@
 						     "pai", "pvi", "trng",
 						     "hdmi-tx", "hdmi-tx-phy",
 						     "hdcp", "hrv";
+				interconnects = <&noc IMX8MP_ICM_HRV &noc IMX8MP_ICN_HDMI>,
+						<&noc IMX8MP_ICM_LCDIF_HDMI &noc IMX8MP_ICN_HDMI>,
+						<&noc IMX8MP_ICM_HDCP &noc IMX8MP_ICN_HDMI>;
+				interconnect-names = "hrv", "lcdif-hdmi", "hdcp";
 				#power-domain-cells = <1>;
 			};
 
@@ -2317,6 +2327,7 @@
 			compatible = "arm,gic-v3";
 			reg = <0x38800000 0x10000>,
 			      <0x38880000 0xc0000>;
+			#address-cells = <0>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;

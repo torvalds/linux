@@ -1378,7 +1378,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	if (ret)
 		goto out_clk;
 
-	priv->wq = alloc_workqueue("mcp251x_wq", WQ_FREEZABLE | WQ_MEM_RECLAIM,
+	priv->wq = alloc_workqueue("mcp251x_wq",
+				   WQ_FREEZABLE | WQ_MEM_RECLAIM | WQ_PERCPU,
 				   0);
 	if (!priv->wq) {
 		ret = -ENOMEM;

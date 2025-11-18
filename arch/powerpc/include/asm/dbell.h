@@ -40,12 +40,6 @@ static inline void _ppc_msgsnd(u32 msg)
 				: : "i" (CPU_FTR_HVMODE), "r" (msg));
 }
 
-/* sync before sending message */
-static inline void ppc_msgsnd_sync(void)
-{
-	__asm__ __volatile__ ("sync" : : : "memory");
-}
-
 /* sync after taking message interrupt */
 static inline void ppc_msgsync(void)
 {
@@ -76,12 +70,6 @@ static inline void _ppc_msgsnd(u32 msg)
 	__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
 }
 
-/* sync before sending message */
-static inline void ppc_msgsnd_sync(void)
-{
-	__asm__ __volatile__ ("sync" : : : "memory");
-}
-
 /* sync after taking message interrupt */
 static inline void ppc_msgsync(void)
 {
@@ -90,6 +78,12 @@ static inline void ppc_msgsync(void)
 #endif /* CONFIG_PPC_BOOK3S */
 
 extern void doorbell_exception(struct pt_regs *regs);
+
+/* sync before sending message */
+static inline void ppc_msgsnd_sync(void)
+{
+	__asm__ __volatile__ ("sync" : : : "memory");
+}
 
 static inline void ppc_msgsnd(enum ppc_dbell type, u32 flags, u32 tag)
 {

@@ -1372,7 +1372,7 @@ run:
 	} else
 		fprintf(stderr, "unknown test\n");
 out:
-	/* Detatch and zero all the maps */
+	/* Detach and zero all the maps */
 	bpf_prog_detach2(bpf_program__fd(progs[3]), cg_fd, BPF_CGROUP_SOCK_OPS);
 
 	for (i = 0; i < ARRAY_SIZE(links); i++) {

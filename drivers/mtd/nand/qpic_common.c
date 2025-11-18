@@ -89,10 +89,8 @@ void qcom_clear_bam_transaction(struct qcom_nand_controller *nandc)
 	memset(&bam_txn->bam_positions, 0, sizeof(bam_txn->bam_positions));
 	bam_txn->last_data_desc = NULL;
 
-	sg_init_table(bam_txn->cmd_sgl, nandc->max_cwperpage *
-		      QPIC_PER_CW_CMD_SGL);
-	sg_init_table(bam_txn->data_sgl, nandc->max_cwperpage *
-		      QPIC_PER_CW_DATA_SGL);
+	sg_init_table(bam_txn->cmd_sgl, bam_txn->cmd_sgl_nitems);
+	sg_init_table(bam_txn->data_sgl, bam_txn->data_sgl_nitems);
 
 	reinit_completion(&bam_txn->txn_done);
 }

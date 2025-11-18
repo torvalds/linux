@@ -700,7 +700,7 @@ static int img_hash_cra_init(struct crypto_tfm *tfm, const char *alg_name)
 
 static int img_hash_cra_md5_init(struct crypto_tfm *tfm)
 {
-	return img_hash_cra_init(tfm, "md5-generic");
+	return img_hash_cra_init(tfm, "md5-lib");
 }
 
 static int img_hash_cra_sha1_init(struct crypto_tfm *tfm)

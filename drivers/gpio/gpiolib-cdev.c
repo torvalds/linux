@@ -144,17 +144,17 @@ static void linehandle_flags_to_desc_flags(u32 lflags, unsigned long *flagsp)
 {
 	unsigned long flags = READ_ONCE(*flagsp);
 
-	assign_bit(FLAG_ACTIVE_LOW, &flags,
+	assign_bit(GPIOD_FLAG_ACTIVE_LOW, &flags,
 		   lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW);
-	assign_bit(FLAG_OPEN_DRAIN, &flags,
+	assign_bit(GPIOD_FLAG_OPEN_DRAIN, &flags,
 		   lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN);
-	assign_bit(FLAG_OPEN_SOURCE, &flags,
+	assign_bit(GPIOD_FLAG_OPEN_SOURCE, &flags,
 		   lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE);
-	assign_bit(FLAG_PULL_UP, &flags,
+	assign_bit(GPIOD_FLAG_PULL_UP, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP);
-	assign_bit(FLAG_PULL_DOWN, &flags,
+	assign_bit(GPIOD_FLAG_PULL_DOWN, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN);
-	assign_bit(FLAG_BIAS_DISABLE, &flags,
+	assign_bit(GPIOD_FLAG_BIAS_DISABLE, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE);
 
 	WRITE_ONCE(*flagsp, flags);
@@ -238,7 +238,7 @@ static long linehandle_ioctl(struct file *file, unsigned int cmd,
 		 * All line descriptors were created at once with the same
 		 * flags so just check if the first one is really output.
 		 */
-		if (!test_bit(FLAG_IS_OUT, &lh->descs[0]->flags))
+		if (!test_bit(GPIOD_FLAG_IS_OUT, &lh->descs[0]->flags))
 			return -EPERM;
 
 		if (copy_from_user(&ghd, ip, sizeof(ghd)))
@@ -599,10 +599,10 @@ static void linereq_put_event(struct linereq *lr,
 
 static u64 line_event_timestamp(struct line *line)
 {
-	if (test_bit(FLAG_EVENT_CLOCK_REALTIME, &line->desc->flags))
+	if (test_bit(GPIOD_FLAG_EVENT_CLOCK_REALTIME, &line->desc->flags))
 		return ktime_get_real_ns();
 	else if (IS_ENABLED(CONFIG_HTE) &&
-		 test_bit(FLAG_EVENT_CLOCK_HTE, &line->desc->flags))
+		 test_bit(GPIOD_FLAG_EVENT_CLOCK_HTE, &line->desc->flags))
 		return line->timestamp_ns;
 
 	return ktime_get_ns();
@@ -725,11 +725,11 @@ static int hte_edge_setup(struct line *line, u64 eflags)
 	struct hte_ts_desc *hdesc = &line->hdesc;
 
 	if (eflags & GPIO_V2_LINE_FLAG_EDGE_RISING)
-		flags |= test_bit(FLAG_ACTIVE_LOW, &line->desc->flags) ?
+		flags |= test_bit(GPIOD_FLAG_ACTIVE_LOW, &line->desc->flags) ?
 				 HTE_FALLING_EDGE_TS :
 				 HTE_RISING_EDGE_TS;
 	if (eflags & GPIO_V2_LINE_FLAG_EDGE_FALLING)
-		flags |= test_bit(FLAG_ACTIVE_LOW, &line->desc->flags) ?
+		flags |= test_bit(GPIOD_FLAG_ACTIVE_LOW, &line->desc->flags) ?
 				 HTE_RISING_EDGE_TS :
 				 HTE_FALLING_EDGE_TS;
 
@@ -831,7 +831,7 @@ static bool debounced_value(struct line *line)
 	 */
 	value = READ_ONCE(line->level);
 
-	if (test_bit(FLAG_ACTIVE_LOW, &line->desc->flags))
+	if (test_bit(GPIOD_FLAG_ACTIVE_LOW, &line->desc->flags))
 		value = !value;
 
 	return value;
@@ -939,7 +939,7 @@ static int debounce_setup(struct line *line, unsigned int debounce_period_us)
 			return level;
 
 		if (!(IS_ENABLED(CONFIG_HTE) &&
-		      test_bit(FLAG_EVENT_CLOCK_HTE, &line->desc->flags))) {
+		      test_bit(GPIOD_FLAG_EVENT_CLOCK_HTE, &line->desc->flags))) {
 			irq = gpiod_to_irq(line->desc);
 			if (irq < 0)
 				return -ENXIO;
@@ -1061,10 +1061,10 @@ static int edge_detector_setup(struct line *line,
 		return -ENXIO;
 
 	if (eflags & GPIO_V2_LINE_FLAG_EDGE_RISING)
-		irqflags |= test_bit(FLAG_ACTIVE_LOW, &line->desc->flags) ?
+		irqflags |= test_bit(GPIOD_FLAG_ACTIVE_LOW, &line->desc->flags) ?
 			IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
 	if (eflags & GPIO_V2_LINE_FLAG_EDGE_FALLING)
-		irqflags |= test_bit(FLAG_ACTIVE_LOW, &line->desc->flags) ?
+		irqflags |= test_bit(GPIOD_FLAG_ACTIVE_LOW, &line->desc->flags) ?
 			IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
 	irqflags |= IRQF_ONESHOT;
 
@@ -1237,34 +1237,34 @@ static void gpio_v2_line_config_flags_to_desc_flags(u64 lflags,
 {
 	unsigned long flags = READ_ONCE(*flagsp);
 
-	assign_bit(FLAG_ACTIVE_LOW, &flags,
+	assign_bit(GPIOD_FLAG_ACTIVE_LOW, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_ACTIVE_LOW);
 
 	if (lflags & GPIO_V2_LINE_FLAG_OUTPUT)
-		set_bit(FLAG_IS_OUT, &flags);
+		set_bit(GPIOD_FLAG_IS_OUT, &flags);
 	else if (lflags & GPIO_V2_LINE_FLAG_INPUT)
-		clear_bit(FLAG_IS_OUT, &flags);
+		clear_bit(GPIOD_FLAG_IS_OUT, &flags);
 
-	assign_bit(FLAG_EDGE_RISING, &flags,
+	assign_bit(GPIOD_FLAG_EDGE_RISING, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_EDGE_RISING);
-	assign_bit(FLAG_EDGE_FALLING, &flags,
+	assign_bit(GPIOD_FLAG_EDGE_FALLING, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_EDGE_FALLING);
 
-	assign_bit(FLAG_OPEN_DRAIN, &flags,
+	assign_bit(GPIOD_FLAG_OPEN_DRAIN, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_OPEN_DRAIN);
-	assign_bit(FLAG_OPEN_SOURCE, &flags,
+	assign_bit(GPIOD_FLAG_OPEN_SOURCE, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_OPEN_SOURCE);
 
-	assign_bit(FLAG_PULL_UP, &flags,
+	assign_bit(GPIOD_FLAG_PULL_UP, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_BIAS_PULL_UP);
-	assign_bit(FLAG_PULL_DOWN, &flags,
+	assign_bit(GPIOD_FLAG_PULL_DOWN, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_BIAS_PULL_DOWN);
-	assign_bit(FLAG_BIAS_DISABLE, &flags,
+	assign_bit(GPIOD_FLAG_BIAS_DISABLE, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_BIAS_DISABLED);
 
-	assign_bit(FLAG_EVENT_CLOCK_REALTIME, &flags,
+	assign_bit(GPIOD_FLAG_EVENT_CLOCK_REALTIME, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME);
-	assign_bit(FLAG_EVENT_CLOCK_HTE, &flags,
+	assign_bit(GPIOD_FLAG_EVENT_CLOCK_HTE, &flags,
 		   lflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE);
 
 	WRITE_ONCE(*flagsp, flags);
@@ -2115,10 +2115,10 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	}
 
 	if (eflags & GPIOEVENT_REQUEST_RISING_EDGE)
-		irqflags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
+		irqflags |= test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags) ?
 			IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
 	if (eflags & GPIOEVENT_REQUEST_FALLING_EDGE)
-		irqflags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
+		irqflags |= test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags) ?
 			IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
 	irqflags |= IRQF_ONESHOT;
 
@@ -2253,7 +2253,7 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 
 	scoped_guard(srcu, &desc->gdev->desc_srcu) {
 		label = gpiod_get_label(desc);
-		if (label && test_bit(FLAG_REQUESTED, &dflags))
+		if (label && test_bit(GPIOD_FLAG_REQUESTED, &dflags))
 			strscpy(info->consumer, label,
 				sizeof(info->consumer));
 	}
@@ -2270,10 +2270,10 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 	 * The definitive test that a line is available to userspace is to
 	 * request it.
 	 */
-	if (test_bit(FLAG_REQUESTED, &dflags) ||
-	    test_bit(FLAG_IS_HOGGED, &dflags) ||
-	    test_bit(FLAG_EXPORT, &dflags) ||
-	    test_bit(FLAG_SYSFS, &dflags) ||
+	if (test_bit(GPIOD_FLAG_REQUESTED, &dflags) ||
+	    test_bit(GPIOD_FLAG_IS_HOGGED, &dflags) ||
+	    test_bit(GPIOD_FLAG_EXPORT, &dflags) ||
+	    test_bit(GPIOD_FLAG_SYSFS, &dflags) ||
 	    !gpiochip_line_is_valid(guard.gc, info->offset)) {
 		info->flags |= GPIO_V2_LINE_FLAG_USED;
 	} else if (!atomic) {
@@ -2281,34 +2281,34 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 			info->flags |= GPIO_V2_LINE_FLAG_USED;
 	}
 
-	if (test_bit(FLAG_IS_OUT, &dflags))
+	if (test_bit(GPIOD_FLAG_IS_OUT, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_OUTPUT;
 	else
 		info->flags |= GPIO_V2_LINE_FLAG_INPUT;
 
-	if (test_bit(FLAG_ACTIVE_LOW, &dflags))
+	if (test_bit(GPIOD_FLAG_ACTIVE_LOW, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_ACTIVE_LOW;
 
-	if (test_bit(FLAG_OPEN_DRAIN, &dflags))
+	if (test_bit(GPIOD_FLAG_OPEN_DRAIN, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_OPEN_DRAIN;
-	if (test_bit(FLAG_OPEN_SOURCE, &dflags))
+	if (test_bit(GPIOD_FLAG_OPEN_SOURCE, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_OPEN_SOURCE;
 
-	if (test_bit(FLAG_BIAS_DISABLE, &dflags))
+	if (test_bit(GPIOD_FLAG_BIAS_DISABLE, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_BIAS_DISABLED;
-	if (test_bit(FLAG_PULL_DOWN, &dflags))
+	if (test_bit(GPIOD_FLAG_PULL_DOWN, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_BIAS_PULL_DOWN;
-	if (test_bit(FLAG_PULL_UP, &dflags))
+	if (test_bit(GPIOD_FLAG_PULL_UP, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_BIAS_PULL_UP;
 
-	if (test_bit(FLAG_EDGE_RISING, &dflags))
+	if (test_bit(GPIOD_FLAG_EDGE_RISING, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_EDGE_RISING;
-	if (test_bit(FLAG_EDGE_FALLING, &dflags))
+	if (test_bit(GPIOD_FLAG_EDGE_FALLING, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_EDGE_FALLING;
 
-	if (test_bit(FLAG_EVENT_CLOCK_REALTIME, &dflags))
+	if (test_bit(GPIOD_FLAG_EVENT_CLOCK_REALTIME, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME;
-	else if (test_bit(FLAG_EVENT_CLOCK_HTE, &dflags))
+	else if (test_bit(GPIOD_FLAG_EVENT_CLOCK_HTE, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE;
 
 	debounce_period_us = READ_ONCE(desc->debounce_period_us);

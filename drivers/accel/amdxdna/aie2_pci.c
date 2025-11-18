@@ -10,6 +10,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/cleanup.h>
 #include <linux/errno.h>
 #include <linux/firmware.h>
 #include <linux/iommu.h>
@@ -440,6 +441,40 @@ disable_dev:
 	return ret;
 }
 
+static int aie2_hw_suspend(struct amdxdna_dev *xdna)
+{
+	struct amdxdna_client *client;
+
+	guard(mutex)(&xdna->dev_lock);
+	list_for_each_entry(client, &xdna->client_list, node)
+		aie2_hwctx_suspend(client);
+
+	aie2_hw_stop(xdna);
+
+	return 0;
+}
+
+static int aie2_hw_resume(struct amdxdna_dev *xdna)
+{
+	struct amdxdna_client *client;
+	int ret;
+
+	guard(mutex)(&xdna->dev_lock);
+	ret = aie2_hw_start(xdna);
+	if (ret) {
+		XDNA_ERR(xdna, "Start hardware failed, %d", ret);
+		return ret;
+	}
+
+	list_for_each_entry(client, &xdna->client_list, node) {
+		ret = aie2_hwctx_resume(client);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 static int aie2_init(struct amdxdna_dev *xdna)
 {
 	struct pci_dev *pdev = to_pci_dev(xdna->ddev.dev);
@@ -520,14 +555,14 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	if (!ndev->psp_hdl) {
 		XDNA_ERR(xdna, "failed to create psp");
 		ret = -ENOMEM;
-		goto free_irq;
+		goto release_fw;
 	}
 	xdna->dev_handle = ndev;
 
 	ret = aie2_hw_start(xdna);
 	if (ret) {
 		XDNA_ERR(xdna, "start npu failed, ret %d", ret);
-		goto free_irq;
+		goto release_fw;
 	}
 
 	ret = aie2_mgmt_fw_query(ndev);
@@ -578,8 +613,6 @@ async_event_free:
 	aie2_error_async_events_free(ndev);
 stop_hw:
 	aie2_hw_stop(xdna);
-free_irq:
-	pci_free_irq_vectors(pdev);
 release_fw:
 	release_firmware(fw);
 
@@ -588,12 +621,10 @@ release_fw:
 
 static void aie2_fini(struct amdxdna_dev *xdna)
 {
-	struct pci_dev *pdev = to_pci_dev(xdna->ddev.dev);
 	struct amdxdna_dev_hdl *ndev = xdna->dev_handle;
 
 	aie2_hw_stop(xdna);
 	aie2_error_async_events_free(ndev);
-	pci_free_irq_vectors(pdev);
 }
 
 static int aie2_get_aie_status(struct amdxdna_client *client,
@@ -752,65 +783,68 @@ static int aie2_get_clock_metadata(struct amdxdna_client *client,
 	return ret;
 }
 
-static int aie2_get_hwctx_status(struct amdxdna_client *client,
-				 struct amdxdna_drm_get_info *args)
+static int aie2_hwctx_status_cb(struct amdxdna_hwctx *hwctx, void *arg)
 {
-	struct amdxdna_drm_query_hwctx __user *buf;
-	struct amdxdna_dev *xdna = client->xdna;
-	struct amdxdna_drm_query_hwctx *tmp;
-	struct amdxdna_client *tmp_client;
-	struct amdxdna_hwctx *hwctx;
-	unsigned long hwctx_id;
-	bool overflow = false;
-	u32 req_bytes = 0;
-	u32 hw_i = 0;
-	int ret = 0;
-	int idx;
+	struct amdxdna_drm_hwctx_entry *tmp __free(kfree) = NULL;
+	struct amdxdna_drm_get_array *array_args = arg;
+	struct amdxdna_drm_hwctx_entry __user *buf;
+	u32 size;
 
-	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
+	if (!array_args->num_element)
+		return -EINVAL;
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
-	buf = u64_to_user_ptr(args->buffer);
+	tmp->pid = hwctx->client->pid;
+	tmp->context_id = hwctx->id;
+	tmp->start_col = hwctx->start_col;
+	tmp->num_col = hwctx->num_col;
+	tmp->command_submissions = hwctx->priv->seq;
+	tmp->command_completions = hwctx->priv->completed;
+	tmp->pasid = hwctx->client->pasid;
+	tmp->priority = hwctx->qos.priority;
+	tmp->gops = hwctx->qos.gops;
+	tmp->fps = hwctx->qos.fps;
+	tmp->dma_bandwidth = hwctx->qos.dma_bandwidth;
+	tmp->latency = hwctx->qos.latency;
+	tmp->frame_exec_time = hwctx->qos.frame_exec_time;
+	tmp->state = AMDXDNA_HWCTX_STATE_ACTIVE;
+
+	buf = u64_to_user_ptr(array_args->buffer);
+	size = min(sizeof(*tmp), array_args->element_size);
+
+	if (copy_to_user(buf, tmp, size))
+		return -EFAULT;
+
+	array_args->buffer += size;
+	array_args->num_element--;
+
+	return 0;
+}
+
+static int aie2_get_hwctx_status(struct amdxdna_client *client,
+				 struct amdxdna_drm_get_info *args)
+{
+	struct amdxdna_drm_get_array array_args;
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_client *tmp_client;
+	int ret;
+
+	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
+
+	array_args.element_size = sizeof(struct amdxdna_drm_query_hwctx);
+	array_args.buffer = args->buffer;
+	array_args.num_element = args->buffer_size / array_args.element_size;
 	list_for_each_entry(tmp_client, &xdna->client_list, node) {
-		idx = srcu_read_lock(&tmp_client->hwctx_srcu);
-		amdxdna_for_each_hwctx(tmp_client, hwctx_id, hwctx) {
-			req_bytes += sizeof(*tmp);
-			if (args->buffer_size < req_bytes) {
-				/* Continue iterating to get the required size */
-				overflow = true;
-				continue;
-			}
-
-			memset(tmp, 0, sizeof(*tmp));
-			tmp->pid = tmp_client->pid;
-			tmp->context_id = hwctx->id;
-			tmp->start_col = hwctx->start_col;
-			tmp->num_col = hwctx->num_col;
-			tmp->command_submissions = hwctx->priv->seq;
-			tmp->command_completions = hwctx->priv->completed;
-
-			if (copy_to_user(&buf[hw_i], tmp, sizeof(*tmp))) {
-				ret = -EFAULT;
-				srcu_read_unlock(&tmp_client->hwctx_srcu, idx);
-				goto out;
-			}
-			hw_i++;
-		}
-		srcu_read_unlock(&tmp_client->hwctx_srcu, idx);
+		ret = amdxdna_hwctx_walk(tmp_client, &array_args,
+					 aie2_hwctx_status_cb);
+		if (ret)
+			break;
 	}
 
-	if (overflow) {
-		XDNA_ERR(xdna, "Invalid buffer size. Given: %u Need: %u.",
-			 args->buffer_size, req_bytes);
-		ret = -EINVAL;
-	}
-
-out:
-	kfree(tmp);
-	args->buffer_size = req_bytes;
+	args->buffer_size -= (u32)(array_args.buffer - args->buffer);
 	return ret;
 }
 
@@ -843,6 +877,58 @@ static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_i
 		break;
 	case DRM_AMDXDNA_GET_POWER_MODE:
 		ret = aie2_get_power_mode(client, args);
+		break;
+	default:
+		XDNA_ERR(xdna, "Not supported request parameter %u", args->param);
+		ret = -EOPNOTSUPP;
+	}
+	XDNA_DBG(xdna, "Got param %d", args->param);
+
+	drm_dev_exit(idx);
+	return ret;
+}
+
+static int aie2_query_ctx_status_array(struct amdxdna_client *client,
+				       struct amdxdna_drm_get_array *args)
+{
+	struct amdxdna_drm_get_array array_args;
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_client *tmp_client;
+	int ret;
+
+	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
+
+	array_args.element_size = min(args->element_size,
+				      sizeof(struct amdxdna_drm_hwctx_entry));
+	array_args.buffer = args->buffer;
+	array_args.num_element = args->num_element * args->element_size /
+				array_args.element_size;
+	list_for_each_entry(tmp_client, &xdna->client_list, node) {
+		ret = amdxdna_hwctx_walk(tmp_client, &array_args,
+					 aie2_hwctx_status_cb);
+		if (ret)
+			break;
+	}
+
+	args->element_size = array_args.element_size;
+	args->num_element = (u32)((array_args.buffer - args->buffer) /
+				  args->element_size);
+
+	return ret;
+}
+
+static int aie2_get_array(struct amdxdna_client *client,
+			  struct amdxdna_drm_get_array *args)
+{
+	struct amdxdna_dev *xdna = client->xdna;
+	int ret, idx;
+
+	if (!drm_dev_enter(&xdna->ddev, &idx))
+		return -ENODEV;
+
+	switch (args->param) {
+	case DRM_AMDXDNA_HW_CONTEXT_ALL:
+		ret = aie2_query_ctx_status_array(client, args);
 		break;
 	default:
 		XDNA_ERR(xdna, "Not supported request parameter %u", args->param);
@@ -903,17 +989,16 @@ static int aie2_set_state(struct amdxdna_client *client,
 }
 
 const struct amdxdna_dev_ops aie2_ops = {
-	.init           = aie2_init,
-	.fini           = aie2_fini,
-	.resume         = aie2_hw_start,
-	.suspend        = aie2_hw_stop,
-	.get_aie_info   = aie2_get_info,
-	.set_aie_state	= aie2_set_state,
-	.hwctx_init     = aie2_hwctx_init,
-	.hwctx_fini     = aie2_hwctx_fini,
-	.hwctx_config   = aie2_hwctx_config,
-	.cmd_submit     = aie2_cmd_submit,
+	.init = aie2_init,
+	.fini = aie2_fini,
+	.resume = aie2_hw_resume,
+	.suspend = aie2_hw_suspend,
+	.get_aie_info = aie2_get_info,
+	.set_aie_state = aie2_set_state,
+	.hwctx_init = aie2_hwctx_init,
+	.hwctx_fini = aie2_hwctx_fini,
+	.hwctx_config = aie2_hwctx_config,
+	.cmd_submit = aie2_cmd_submit,
 	.hmm_invalidate = aie2_hmm_invalidate,
-	.hwctx_suspend  = aie2_hwctx_suspend,
-	.hwctx_resume   = aie2_hwctx_resume,
+	.get_array = aie2_get_array,
 };

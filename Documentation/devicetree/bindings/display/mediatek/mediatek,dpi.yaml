@@ -102,6 +102,13 @@ properties:
       - port@0
       - port@1
 
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: dpi
+
 required:
   - compatible
   - reg

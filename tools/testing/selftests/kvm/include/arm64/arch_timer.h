@@ -155,4 +155,28 @@ static inline void timer_set_next_tval_ms(enum arch_timer timer, uint32_t msec)
 	timer_set_tval(timer, msec_to_cycles(msec));
 }
 
+static inline u32 vcpu_get_vtimer_irq(struct kvm_vcpu *vcpu)
+{
+	u32 intid;
+	u64 attr;
+
+	attr = vcpu_has_el2(vcpu) ? KVM_ARM_VCPU_TIMER_IRQ_HVTIMER :
+				    KVM_ARM_VCPU_TIMER_IRQ_VTIMER;
+	vcpu_device_attr_get(vcpu, KVM_ARM_VCPU_TIMER_CTRL, attr, &intid);
+
+	return intid;
+}
+
+static inline u32 vcpu_get_ptimer_irq(struct kvm_vcpu *vcpu)
+{
+	u32 intid;
+	u64 attr;
+
+	attr = vcpu_has_el2(vcpu) ? KVM_ARM_VCPU_TIMER_IRQ_HPTIMER :
+				    KVM_ARM_VCPU_TIMER_IRQ_PTIMER;
+	vcpu_device_attr_get(vcpu, KVM_ARM_VCPU_TIMER_CTRL, attr, &intid);
+
+	return intid;
+}
+
 #endif /* SELFTEST_KVM_ARCH_TIMER_H */

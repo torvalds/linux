@@ -692,7 +692,7 @@ static const struct pinfunction ipq5332_functions[] = {
 	MSM_PIN_FUNCTION(dbg_out),
 	MSM_PIN_FUNCTION(gcc_plltest),
 	MSM_PIN_FUNCTION(gcc_tlmm),
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(lock_det),
 	MSM_PIN_FUNCTION(mac0),
 	MSM_PIN_FUNCTION(mac1),

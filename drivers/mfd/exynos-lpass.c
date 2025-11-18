@@ -101,7 +101,6 @@ static const struct regmap_config exynos_lpass_reg_conf = {
 	.reg_stride	= 4,
 	.val_bits	= 32,
 	.max_register	= 0xfc,
-	.fast_io	= true,
 };
 
 static void exynos_lpass_disable_lpass(void *data)

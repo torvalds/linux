@@ -122,6 +122,10 @@ $1 == "SysregFields" && block_current() == "Root" {
 	res1 = "UL(0)"
 	unkn = "UL(0)"
 
+	if (reg in defined_fields)
+		fatal("Duplicate SysregFields definition for " reg)
+	defined_fields[reg] = 1
+
 	next_bit = 63
 
 	next
@@ -161,6 +165,10 @@ $1 == "Sysreg" && block_current() == "Root" {
 	res0 = "UL(0)"
 	res1 = "UL(0)"
 	unkn = "UL(0)"
+
+	if (reg in defined_regs)
+		fatal("Duplicate Sysreg definition for " reg)
+	defined_regs[reg] = 1
 
 	define("REG_" reg, "S" op0 "_" op1 "_C" crn "_C" crm "_" op2)
 	define("SYS_" reg, "sys_reg(" op0 ", " op1 ", " crn ", " crm ", " op2 ")")
@@ -284,6 +292,8 @@ $1 == "SignedEnum" && (block_current() == "Sysreg" || block_current() == "Sysreg
 	define_field(reg, field, msb, lsb)
 	define_field_sign(reg, field, "true")
 
+	delete seen_enum_vals
+
 	next
 }
 
@@ -297,6 +307,8 @@ $1 == "UnsignedEnum" && (block_current() == "Sysreg" || block_current() == "Sysr
 	define_field(reg, field, msb, lsb)
 	define_field_sign(reg, field, "false")
 
+	delete seen_enum_vals
+
 	next
 }
 
@@ -309,6 +321,8 @@ $1 == "Enum" && (block_current() == "Sysreg" || block_current() == "SysregFields
 
 	define_field(reg, field, msb, lsb)
 
+	delete seen_enum_vals
+
 	next
 }
 
@@ -320,6 +334,8 @@ $1 == "EndEnum" && block_current() == "Enum" {
 	lsb = null
 	print ""
 
+	delete seen_enum_vals
+
 	block_pop()
 	next
 }
@@ -328,6 +344,10 @@ $1 == "EndEnum" && block_current() == "Enum" {
 	expect_fields(2)
 	val = $1
 	name = $2
+
+	if (val in seen_enum_vals)
+		fatal("Duplicate Enum value " val " for " name)
+	seen_enum_vals[val] = 1
 
 	define(reg "_" field "_" name, "UL(" val ")")
 	next

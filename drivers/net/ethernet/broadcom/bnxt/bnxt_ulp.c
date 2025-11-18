@@ -100,6 +100,12 @@ void bnxt_set_dflt_ulp_stat_ctxs(struct bnxt *bp)
 		if (BNXT_PF(bp) && !bp->pf.port_id &&
 		    bp->port_count > 1)
 			bp->edev->ulp_num_ctxs++;
+
+		/* Reserve one additional stat_ctx when the device is capable
+		 * of supporting port mirroring on RDMA device.
+		 */
+		if (BNXT_MIRROR_ON_ROCE_CAP(bp))
+			bp->edev->ulp_num_ctxs++;
 	}
 }
 

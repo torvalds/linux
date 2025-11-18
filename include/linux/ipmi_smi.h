@@ -109,8 +109,9 @@ struct ipmi_smi_msg {
 
 	enum ipmi_smi_msg_type type;
 
-	long    msgid;
-	void    *user_data;
+	long msgid;
+	/* Response to this message, will be NULL if not from a user request. */
+	struct ipmi_recv_msg *recv_msg;
 
 	int           data_size;
 	unsigned char data[IPMI_MAX_MSG_LENGTH];
@@ -168,9 +169,11 @@ struct ipmi_smi_handlers {
 	 * are held when this is run.  Message are delivered one at
 	 * a time by the message handler, a new message will not be
 	 * delivered until the previous message is returned.
+	 *
+	 * This can return an error if the SMI is not in a state where it
+	 * can send a message.
 	 */
-	void (*sender)(void                *send_info,
-		       struct ipmi_smi_msg *msg);
+	int (*sender)(void *send_info, struct ipmi_smi_msg *msg);
 
 	/*
 	 * Called by the upper layer to request that we try to get

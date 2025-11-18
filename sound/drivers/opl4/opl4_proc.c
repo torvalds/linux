@@ -14,13 +14,10 @@ static int snd_opl4_mem_proc_open(struct snd_info_entry *entry,
 {
 	struct snd_opl4 *opl4 = entry->private_data;
 
-	mutex_lock(&opl4->access_mutex);
-	if (opl4->memory_access) {
-		mutex_unlock(&opl4->access_mutex);
+	guard(mutex)(&opl4->access_mutex);
+	if (opl4->memory_access)
 		return -EBUSY;
-	}
 	opl4->memory_access++;
-	mutex_unlock(&opl4->access_mutex);
 	return 0;
 }
 
@@ -29,9 +26,8 @@ static int snd_opl4_mem_proc_release(struct snd_info_entry *entry,
 {
 	struct snd_opl4 *opl4 = entry->private_data;
 
-	mutex_lock(&opl4->access_mutex);
+	guard(mutex)(&opl4->access_mutex);
 	opl4->memory_access--;
-	mutex_unlock(&opl4->access_mutex);
 	return 0;
 }
 

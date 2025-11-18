@@ -32,6 +32,7 @@
 #ifndef __sctp_structs_h__
 #define __sctp_structs_h__
 
+#include <crypto/sha2.h>
 #include <linux/ktime.h>
 #include <linux/generic-radix-tree.h>
 #include <linux/rhashtable-types.h>
@@ -68,7 +69,6 @@ struct sctp_outq;
 struct sctp_bind_addr;
 struct sctp_ulpq;
 struct sctp_ep_common;
-struct crypto_shash;
 struct sctp_stream;
 
 
@@ -155,10 +155,6 @@ struct sctp_sock {
 	/* PF_ family specific functions.  */
 	struct sctp_pf *pf;
 
-	/* Access to HMAC transform. */
-	struct crypto_shash *hmac;
-	char *sctp_hmac_alg;
-
 	/* What is our base endpointer? */
 	struct sctp_endpoint *ep;
 
@@ -227,7 +223,8 @@ struct sctp_sock {
 		frag_interleave:1,
 		recvrcvinfo:1,
 		recvnxtinfo:1,
-		data_ready_signalled:1;
+		data_ready_signalled:1,
+		cookie_auth_enable:1;
 
 	atomic_t pd_mode;
 
@@ -335,7 +332,7 @@ struct sctp_cookie {
 
 /* The format of our cookie that we send to our peer. */
 struct sctp_signed_cookie {
-	__u8 signature[SCTP_SECRET_SIZE];
+	__u8 mac[SCTP_COOKIE_MAC_SIZE];
 	__u32 __pad;		/* force sctp_cookie alignment to 64 bits */
 	struct sctp_cookie c;
 } __packed;
@@ -1307,32 +1304,14 @@ struct sctp_endpoint {
 	/* This is really a list of struct sctp_association entries. */
 	struct list_head asocs;
 
-	/* Secret Key: A secret key used by this endpoint to compute
-	 *	      the MAC.	This SHOULD be a cryptographic quality
-	 *	      random number with a sufficient length.
-	 *	      Discussion in [RFC1750] can be helpful in
-	 *	      selection of the key.
-	 */
-	__u8 secret_key[SCTP_SECRET_SIZE];
+	/* Cookie authentication key used by this endpoint */
+	struct hmac_sha256_key cookie_auth_key;
 
- 	/* digest:  This is a digest of the sctp cookie.  This field is
- 	 * 	    only used on the receive path when we try to validate
- 	 * 	    that the cookie has not been tampered with.  We put
- 	 * 	    this here so we pre-allocate this once and can re-use
- 	 * 	    on every receive.
- 	 */
- 	__u8 *digest;
- 
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
 
 	/* rcvbuf acct. policy.	*/
 	__u32 rcvbuf_policy;
-
-	/* SCTP AUTH: array of the HMACs that will be allocated
-	 * we need this per association so that we don't serialize
-	 */
-	struct crypto_shash **auth_hmacs;
 
 	/* SCTP-AUTH: hmacs for the endpoint encoded into parameter */
 	 struct sctp_hmac_algo_param *auth_hmacs_list;

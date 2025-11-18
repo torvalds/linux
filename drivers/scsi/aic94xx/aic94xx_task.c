@@ -488,7 +488,6 @@ static int asd_build_ssp_ascb(struct asd_ascb *ascb, struct sas_task *task,
 	scb->ssp_task.conn_handle = cpu_to_le16(
 		(u16)(unsigned long)dev->lldd_dev);
 	scb->ssp_task.data_dir = data_dir_flags[task->data_dir];
-	scb->ssp_task.retry_count = scb->ssp_task.retry_count;
 
 	ascb->tasklet_complete = asd_task_tasklet_complete;
 

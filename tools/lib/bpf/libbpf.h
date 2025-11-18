@@ -24,8 +24,25 @@
 extern "C" {
 #endif
 
+/**
+ * @brief **libbpf_major_version()** provides the major version of libbpf.
+ * @return An integer, the major version number
+ */
 LIBBPF_API __u32 libbpf_major_version(void);
+
+/**
+ * @brief **libbpf_minor_version()** provides the minor version of libbpf.
+ * @return An integer, the minor version number
+ */
 LIBBPF_API __u32 libbpf_minor_version(void);
+
+/**
+ * @brief **libbpf_version_string()** provides the version of libbpf in a
+ * human-readable form, e.g., "v1.7".
+ * @return Pointer to a static string containing the version
+ *
+ * The format is *not* a part of a stable API and may change in the future.
+ */
 LIBBPF_API const char *libbpf_version_string(void);
 
 enum libbpf_errno {
@@ -49,6 +66,14 @@ enum libbpf_errno {
 	__LIBBPF_ERRNO__END,
 };
 
+/**
+ * @brief **libbpf_strerror()** converts the provided error code into a
+ * human-readable string.
+ * @param err The error code to convert
+ * @param buf Pointer to a buffer where the error message will be stored
+ * @param size The number of bytes in the buffer
+ * @return 0, on success; negative error code, otherwise
+ */
 LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
 
 /**
@@ -252,7 +277,7 @@ bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
  * @return 0, on success; negative error code, otherwise, error code is
  * stored in errno
  */
-int bpf_object__prepare(struct bpf_object *obj);
+LIBBPF_API int bpf_object__prepare(struct bpf_object *obj);
 
 /**
  * @brief **bpf_object__load()** loads BPF object into kernel.
@@ -1266,6 +1291,28 @@ LIBBPF_API int bpf_map__lookup_and_delete_elem(const struct bpf_map *map,
  */
 LIBBPF_API int bpf_map__get_next_key(const struct bpf_map *map,
 				     const void *cur_key, void *next_key, size_t key_sz);
+/**
+ * @brief **bpf_map__set_exclusive_program()** sets a map to be exclusive to the
+ * specified program. This must be called *before* the map is created.
+ *
+ * @param map BPF map to make exclusive.
+ * @param prog BPF program to be the exclusive user of the map. Must belong
+ * to the same bpf_object as the map.
+ * @return 0 on success; a negative error code otherwise.
+ *
+ * This function must be called after the BPF object is opened but before
+ * it is loaded. Once the object is loaded, only the specified program
+ * will be able to access the map's contents.
+ */
+LIBBPF_API int bpf_map__set_exclusive_program(struct bpf_map *map, struct bpf_program *prog);
+
+/**
+ * @brief **bpf_map__exclusive_program()** returns the exclusive program
+ * that is registered with the map (if any).
+ * @param map BPF map to which the exclusive program is registered.
+ * @return the registered exclusive program.
+ */
+LIBBPF_API struct bpf_program *bpf_map__exclusive_program(struct bpf_map *map);
 
 struct bpf_xdp_set_link_opts {
 	size_t sz;
@@ -1810,9 +1857,10 @@ struct gen_loader_opts {
 	const char *insns;
 	__u32 data_sz;
 	__u32 insns_sz;
+	bool gen_hash;
 };
 
-#define gen_loader_opts__last_field insns_sz
+#define gen_loader_opts__last_field gen_hash
 LIBBPF_API int bpf_object__gen_loader(struct bpf_object *obj,
 				      struct gen_loader_opts *opts);
 

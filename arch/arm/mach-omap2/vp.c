@@ -199,7 +199,7 @@ void omap_vp_enable(struct voltagedomain *voltdm)
 	struct omap_vp_instance *vp;
 	u32 vpconfig, volt;
 
-	if (!voltdm || IS_ERR(voltdm)) {
+	if (IS_ERR_OR_NULL(voltdm)) {
 		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}
@@ -244,7 +244,7 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 	u32 vpconfig;
 	int timeout;
 
-	if (!voltdm || IS_ERR(voltdm)) {
+	if (IS_ERR_OR_NULL(voltdm)) {
 		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}

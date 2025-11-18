@@ -135,7 +135,7 @@ static BLOCKING_NOTIFIER_HEAD(overlay_notify_chain);
  * @nb:		Notifier block to register
  *
  * Register for notification on overlay operations on device tree nodes. The
- * reported actions definied by @of_reconfig_change. The notifier callback
+ * reported actions defined by @of_reconfig_change. The notifier callback
  * furthermore receives a pointer to the affected device tree node.
  *
  * Note that a notifier callback is not supposed to store pointers to a device

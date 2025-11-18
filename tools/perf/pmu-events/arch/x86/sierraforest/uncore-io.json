@@ -1321,7 +1321,6 @@
         "FCMask": "0x01",
         "PerPkg": "1",
         "PortMask": "0x0FF",
-        "PublicDescription": "-",
         "UMask": "0x4",
         "Unit": "IIO"
     },

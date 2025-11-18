@@ -160,7 +160,7 @@ static int __tb_xdomain_response(struct tb_ctl *ctl, const void *response,
  * This can be used to send a XDomain response message to the other
  * domain. No response for the message is expected.
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_xdomain_response(struct tb_xdomain *xd, const void *response,
 			size_t size, enum tb_cfg_pkg_type type)
@@ -212,7 +212,7 @@ static int __tb_xdomain_request(struct tb_ctl *ctl, const void *request,
  * the other domain. The function waits until the response is received
  * or when timeout triggers. Whichever comes first.
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_xdomain_request(struct tb_xdomain *xd, const void *request,
 	size_t request_size, enum tb_cfg_pkg_type request_type,
@@ -613,6 +613,8 @@ static int tb_xdp_link_state_change_response(struct tb_ctl *ctl, u64 route,
  * messages. After this function is called the service driver needs to
  * be able to handle calls to callback whenever a package with the
  * registered protocol is received.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_register_protocol_handler(struct tb_protocol_handler *handler)
 {
@@ -877,6 +879,8 @@ tb_xdp_schedule_request(struct tb *tb, const struct tb_xdp_header *hdr,
  * @drv: Driver to register
  *
  * Registers new service driver from @drv to the bus.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_register_service_driver(struct tb_service_driver *drv)
 {
@@ -1955,6 +1959,8 @@ static void tb_xdomain_link_exit(struct tb_xdomain *xd)
  *
  * Allocates new XDomain structure and returns pointer to that. The
  * object must be released by calling tb_xdomain_put().
+ *
+ * Return: Pointer to &struct tb_xdomain, %NULL in case of failure.
  */
 struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 				    u64 route, const uuid_t *local_uuid,
@@ -2091,7 +2097,7 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
  * to enable bonding by first enabling the port and waiting for the CL0
  * state.
  *
- * Return: %0 in case of success and negative errno in case of error.
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd)
 {
@@ -2171,10 +2177,14 @@ EXPORT_SYMBOL_GPL(tb_xdomain_lane_bonding_disable);
  * @xd: XDomain connection
  * @hopid: Preferred HopID or %-1 for next available
  *
- * Returns allocated HopID or negative errno. Specifically returns
- * %-ENOSPC if there are no more available HopIDs. Returned HopID is
- * guaranteed to be within range supported by the input lane adapter.
+ * Returned HopID is guaranteed to be within range supported by the input
+ * lane adapter.
  * Call tb_xdomain_release_in_hopid() to release the allocated HopID.
+ *
+ * Return:
+ * * Allocated HopID - On success.
+ * * %-ENOSPC - If there are no more available HopIDs.
+ * * Negative errno - Another error occurred.
  */
 int tb_xdomain_alloc_in_hopid(struct tb_xdomain *xd, int hopid)
 {
@@ -2193,10 +2203,14 @@ EXPORT_SYMBOL_GPL(tb_xdomain_alloc_in_hopid);
  * @xd: XDomain connection
  * @hopid: Preferred HopID or %-1 for next available
  *
- * Returns allocated HopID or negative errno. Specifically returns
- * %-ENOSPC if there are no more available HopIDs. Returned HopID is
- * guaranteed to be within range supported by the output lane adapter.
- * Call tb_xdomain_release_in_hopid() to release the allocated HopID.
+ * Returned HopID is guaranteed to be within range supported by the
+ * output lane adapter.
+ * Call tb_xdomain_release_out_hopid() to release the allocated HopID.
+ *
+ * Return:
+ * * Allocated HopID - On success.
+ * * %-ENOSPC - If there are no more available HopIDs.
+ * * Negative errno - Another error occurred.
  */
 int tb_xdomain_alloc_out_hopid(struct tb_xdomain *xd, int hopid)
 {
@@ -2245,7 +2259,7 @@ EXPORT_SYMBOL_GPL(tb_xdomain_release_out_hopid);
  * path. If a transmit or receive path is not needed, pass %-1 for those
  * parameters.
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_xdomain_enable_paths(struct tb_xdomain *xd, int transmit_path,
 			    int transmit_ring, int receive_path,
@@ -2270,7 +2284,7 @@ EXPORT_SYMBOL_GPL(tb_xdomain_enable_paths);
  * as path/ring parameter means don't care. Normally the callers should
  * pass the same values here as they do when paths are enabled.
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_xdomain_disable_paths(struct tb_xdomain *xd, int transmit_path,
 			     int transmit_ring, int receive_path,
@@ -2335,6 +2349,8 @@ static struct tb_xdomain *switch_find_xdomain(struct tb_switch *sw,
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
+ *
+ * Return: Pointer to &struct tb_xdomain or %NULL if not found.
  */
 struct tb_xdomain *tb_xdomain_find_by_uuid(struct tb *tb, const uuid_t *uuid)
 {
@@ -2364,6 +2380,8 @@ EXPORT_SYMBOL_GPL(tb_xdomain_find_by_uuid);
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
+ *
+ * Return: Pointer to &struct tb_xdomain or %NULL if not found.
  */
 struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
 						 u8 depth)
@@ -2393,6 +2411,8 @@ struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
+ *
+ * Return: Pointer to &struct tb_xdomain or %NULL if not found.
  */
 struct tb_xdomain *tb_xdomain_find_by_route(struct tb *tb, u64 route)
 {
@@ -2491,7 +2511,7 @@ static bool remove_directory(const char *key, const struct tb_property_dir *dir)
  * notified so they can re-read properties of this host if they are
  * interested.
  *
- * Return: %0 on success and negative errno on failure
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_register_property_dir(const char *key, struct tb_property_dir *dir)
 {
@@ -2562,10 +2582,9 @@ int tb_xdomain_init(void)
 	 * Rest of the properties are filled dynamically based on these
 	 * when the P2P connection is made.
 	 */
-	tb_property_add_immediate(xdomain_property_dir, "vendorid",
-				  PCI_VENDOR_ID_INTEL);
-	tb_property_add_text(xdomain_property_dir, "vendorid", "Intel Corp.");
-	tb_property_add_immediate(xdomain_property_dir, "deviceid", 0x1);
+	tb_property_add_immediate(xdomain_property_dir, "vendorid", 0x1d6b);
+	tb_property_add_text(xdomain_property_dir, "vendorid", "Linux");
+	tb_property_add_immediate(xdomain_property_dir, "deviceid", 0x0004);
 	tb_property_add_immediate(xdomain_property_dir, "devicerv", 0x80000100);
 
 	xdomain_property_block_gen = get_random_u32();

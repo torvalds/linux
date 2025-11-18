@@ -1921,9 +1921,8 @@ int au0828_analog_register(struct au0828_dev *dev,
 	iface_desc = interface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint = &iface_desc->endpoint[i].desc;
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-		     == USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+		if (usb_endpoint_dir_in(endpoint) &&
+		    (usb_endpoint_type(endpoint)
 		     == USB_ENDPOINT_XFER_ISOC)) {
 
 			/* we find our isoc in endpoint */

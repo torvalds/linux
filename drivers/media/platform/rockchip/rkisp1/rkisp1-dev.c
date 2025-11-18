@@ -8,6 +8,7 @@
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  */
 
+#include <linux/build_bug.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
@@ -16,6 +17,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
@@ -491,13 +493,6 @@ static irqreturn_t rkisp1_isr(int irq, void *ctx)
 	return ret;
 }
 
-static const char * const px30_isp_clks[] = {
-	"isp",
-	"aclk",
-	"hclk",
-	"pclk",
-};
-
 static const struct rkisp1_isr_data px30_isp_isrs[] = {
 	{ "isp", rkisp1_isp_isr, BIT(RKISP1_IRQ_ISP) },
 	{ "mi", rkisp1_capture_isr, BIT(RKISP1_IRQ_MI) },
@@ -505,8 +500,7 @@ static const struct rkisp1_isr_data px30_isp_isrs[] = {
 };
 
 static const struct rkisp1_info px30_isp_info = {
-	.clks = px30_isp_clks,
-	.clk_size = ARRAY_SIZE(px30_isp_clks),
+	.num_clocks = 4,
 	.isrs = px30_isp_isrs,
 	.isr_size = ARRAY_SIZE(px30_isp_isrs),
 	.isp_ver = RKISP1_V12,
@@ -518,19 +512,12 @@ static const struct rkisp1_info px30_isp_info = {
 	.max_height = 2448,
 };
 
-static const char * const rk3399_isp_clks[] = {
-	"isp",
-	"aclk",
-	"hclk",
-};
-
 static const struct rkisp1_isr_data rk3399_isp_isrs[] = {
 	{ NULL, rkisp1_isr, BIT(RKISP1_IRQ_ISP) | BIT(RKISP1_IRQ_MI) | BIT(RKISP1_IRQ_MIPI) },
 };
 
 static const struct rkisp1_info rk3399_isp_info = {
-	.clks = rk3399_isp_clks,
-	.clk_size = ARRAY_SIZE(rk3399_isp_clks),
+	.num_clocks = 3,
 	.isrs = rk3399_isp_isrs,
 	.isr_size = ARRAY_SIZE(rk3399_isp_isrs),
 	.isp_ver = RKISP1_V10,
@@ -542,19 +529,17 @@ static const struct rkisp1_info rk3399_isp_info = {
 	.max_height = 3312,
 };
 
-static const char * const imx8mp_isp_clks[] = {
-	"isp",
-	"hclk",
-	"aclk",
-};
-
 static const struct rkisp1_isr_data imx8mp_isp_isrs[] = {
 	{ NULL, rkisp1_isr, BIT(RKISP1_IRQ_ISP) | BIT(RKISP1_IRQ_MI) },
 };
 
+static const char * const imx8mp_isp_pm_domains[] = {
+	"isp",
+	"csi2",
+};
+
 static const struct rkisp1_info imx8mp_isp_info = {
-	.clks = imx8mp_isp_clks,
-	.clk_size = ARRAY_SIZE(imx8mp_isp_clks),
+	.num_clocks = 3,
 	.isrs = imx8mp_isp_isrs,
 	.isr_size = ARRAY_SIZE(imx8mp_isp_isrs),
 	.isp_ver = RKISP1_V_IMX8MP,
@@ -563,6 +548,10 @@ static const struct rkisp1_info imx8mp_isp_info = {
 		  | RKISP1_FEATURE_COMPAND,
 	.max_width = 4096,
 	.max_height = 3072,
+	.pm_domains = {
+		.names = imx8mp_isp_pm_domains,
+		.count = ARRAY_SIZE(imx8mp_isp_pm_domains),
+	},
 };
 
 static const struct of_device_id rkisp1_of_match[] = {
@@ -581,6 +570,81 @@ static const struct of_device_id rkisp1_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, rkisp1_of_match);
+
+static const char * const rkisp1_clk_names[] = {
+	"isp",
+	"aclk",
+	"hclk",
+	"pclk",
+};
+
+static int rkisp1_init_clocks(struct rkisp1_device *rkisp1)
+{
+	const struct rkisp1_info *info = rkisp1->info;
+	unsigned int i;
+	int ret;
+
+	static_assert(ARRAY_SIZE(rkisp1_clk_names) == ARRAY_SIZE(rkisp1->clks));
+
+	for (i = 0; i < info->num_clocks; i++)
+		rkisp1->clks[i].id = rkisp1_clk_names[i];
+
+	ret = devm_clk_bulk_get(rkisp1->dev, info->num_clocks, rkisp1->clks);
+	if (ret)
+		return ret;
+
+	rkisp1->clk_size = info->num_clocks;
+
+	/*
+	 * On i.MX8MP the pclk clock is needed to access the HDR stitching
+	 * registers, but wasn't required by DT bindings. Try to acquire it as
+	 * an optional clock to avoid breaking backward compatibility.
+	 */
+	if (info->isp_ver == RKISP1_V_IMX8MP) {
+		struct clk *clk;
+
+		clk = devm_clk_get_optional(rkisp1->dev, "pclk");
+		if (IS_ERR(clk))
+			return dev_err_probe(rkisp1->dev, PTR_ERR(clk),
+					     "Failed to acquire pclk clock\n");
+
+		if (clk)
+			rkisp1->clks[rkisp1->clk_size++].clk = clk;
+	}
+
+	return 0;
+}
+
+static int rkisp1_init_pm_domains(struct rkisp1_device *rkisp1)
+{
+	const struct rkisp1_info *info = rkisp1->info;
+	struct dev_pm_domain_attach_data pm_domain_data = {
+		.pd_names = info->pm_domains.names,
+		.num_pd_names = info->pm_domains.count,
+	};
+	int ret;
+
+	/*
+	 * Most platforms have a single power domain, which the PM domain core
+	 * automatically attaches at probe time. When that's the case there's
+	 * nothing to do here.
+	 */
+	if (rkisp1->dev->pm_domain)
+		return 0;
+
+	if (!pm_domain_data.num_pd_names)
+		return 0;
+
+	ret = devm_pm_domain_attach_list(rkisp1->dev, &pm_domain_data,
+					 &rkisp1->pm_domains);
+	if (ret < 0) {
+		dev_err_probe(rkisp1->dev, ret,
+			      "Failed to attach power domains\n");
+		return ret;
+	}
+
+	return 0;
+}
 
 static int rkisp1_probe(struct platform_device *pdev)
 {
@@ -639,12 +703,13 @@ static int rkisp1_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (i = 0; i < info->clk_size; i++)
-		rkisp1->clks[i].id = info->clks[i];
-	ret = devm_clk_bulk_get(dev, info->clk_size, rkisp1->clks);
+	ret = rkisp1_init_clocks(rkisp1);
 	if (ret)
 		return ret;
-	rkisp1->clk_size = info->clk_size;
+
+	ret = rkisp1_init_pm_domains(rkisp1);
+	if (ret)
+		return ret;
 
 	if (info->isp_ver == RKISP1_V_IMX8MP) {
 		unsigned int id;

@@ -50,7 +50,7 @@
  *
  *	Author: Bill Dirks <bill@thedirks.org>
  *		Justin Schoeman
- *              Hans Verkuil <hverkuil@xs4all.nl>
+ *              Hans Verkuil <hverkuil@kernel.org>
  *		et al.
  */
 #ifndef __LINUX_VIDEODEV2_H

@@ -172,12 +172,10 @@ snd_trident_alloc_sg_pages(struct snd_trident *trident,
 
 	
 
-	mutex_lock(&hdr->block_mutex);
+	guard(mutex)(&hdr->block_mutex);
 	blk = search_empty(hdr, runtime->dma_bytes);
-	if (blk == NULL) {
-		mutex_unlock(&hdr->block_mutex);
+	if (blk == NULL)
 		return NULL;
-	}
 			   
 	/* set TLB entries */
 	idx = 0;
@@ -186,12 +184,10 @@ snd_trident_alloc_sg_pages(struct snd_trident *trident,
 		dma_addr_t addr = snd_pcm_sgbuf_get_addr(substream, ofs);
 		if (!is_valid_page(trident, addr)) {
 			__snd_util_mem_free(hdr, blk);
-			mutex_unlock(&hdr->block_mutex);
 			return NULL;
 		}
 		set_tlb_bus(trident, page, addr);
 	}
-	mutex_unlock(&hdr->block_mutex);
 	return blk;
 }
 
@@ -216,12 +212,10 @@ snd_trident_alloc_cont_pages(struct snd_trident *trident,
 	if (snd_BUG_ON(!hdr))
 		return NULL;
 
-	mutex_lock(&hdr->block_mutex);
+	guard(mutex)(&hdr->block_mutex);
 	blk = search_empty(hdr, runtime->dma_bytes);
-	if (blk == NULL) {
-		mutex_unlock(&hdr->block_mutex);
+	if (blk == NULL)
 		return NULL;
-	}
 			   
 	/* set TLB entries */
 	addr = runtime->dma_addr;
@@ -229,12 +223,10 @@ snd_trident_alloc_cont_pages(struct snd_trident *trident,
 	     addr += SNDRV_TRIDENT_PAGE_SIZE) {
 		if (!is_valid_page(trident, addr)) {
 			__snd_util_mem_free(hdr, blk);
-			mutex_unlock(&hdr->block_mutex);
 			return NULL;
 		}
 		set_tlb_bus(trident, page, addr);
 	}
-	mutex_unlock(&hdr->block_mutex);
 	return blk;
 }
 
@@ -267,12 +259,11 @@ int snd_trident_free_pages(struct snd_trident *trident,
 		return -EINVAL;
 
 	hdr = trident->tlb.memhdr;
-	mutex_lock(&hdr->block_mutex);
+	guard(mutex)(&hdr->block_mutex);
 	/* reset TLB entries */
 	for (page = firstpg(blk); page <= lastpg(blk); page++)
 		set_silent_tlb(trident, page);
 	/* free memory block */
 	__snd_util_mem_free(hdr, blk);
-	mutex_unlock(&hdr->block_mutex);
 	return 0;
 }

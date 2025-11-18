@@ -17,7 +17,7 @@
 
 #define ARCH_HAS_RELATIVE_EXTABLE
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct exception_table_entry {
 	int insn;

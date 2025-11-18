@@ -228,6 +228,8 @@ static int thermal_platform_profile_get(struct device *dev,
 
 static int thermal_platform_profile_probe(void *drvdata, unsigned long *choices)
 {
+	int current_mode;
+
 	if (supported_modes & DELL_QUIET)
 		__set_bit(PLATFORM_PROFILE_QUIET, choices);
 	if (supported_modes & DELL_COOL_BOTTOM)
@@ -236,6 +238,13 @@ static int thermal_platform_profile_probe(void *drvdata, unsigned long *choices)
 		__set_bit(PLATFORM_PROFILE_BALANCED, choices);
 	if (supported_modes & DELL_PERFORMANCE)
 		__set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+
+	/* Make sure that ACPI is in sync with the profile set by USTT */
+	current_mode = thermal_get_mode();
+	if (current_mode < 0)
+		return current_mode;
+
+	thermal_set_mode(current_mode);
 
 	return 0;
 }

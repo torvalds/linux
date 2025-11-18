@@ -118,7 +118,7 @@ static struct netfs_io_request *netfs_pgpriv2_begin_copy_to_cache(
 	return creq;
 
 cancel_put:
-	netfs_put_request(creq, netfs_rreq_trace_put_return);
+	netfs_put_failed_request(creq);
 cancel:
 	rreq->copy_to_cache = ERR_PTR(-ENOBUFS);
 	clear_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &rreq->flags);

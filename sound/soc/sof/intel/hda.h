@@ -757,7 +757,7 @@ void hda_dsp_ctrl_ppcap_int_enable(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_link_reset(struct snd_sof_dev *sdev, bool reset);
 void hda_dsp_ctrl_misc_clock_gating(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable);
-int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev);
+int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool detect_codec);
 void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev);
 /*
  * HDA bus operations.

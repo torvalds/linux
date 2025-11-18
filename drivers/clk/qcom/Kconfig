@@ -19,6 +19,33 @@ menuconfig COMMON_CLK_QCOM
 
 if COMMON_CLK_QCOM
 
+config CLK_GLYMUR_DISPCC
+	tristate "GLYMUR Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_GLYMUR_GCC
+	help
+	  Support for the display clock controllers on Qualcomm
+	  Technologies, Inc. GLYMUR devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
+config CLK_GLYMUR_GCC
+	tristate "GLYMUR Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on GLYMUR devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, UFS, SDCC, etc.
+
+config CLK_GLYMUR_TCSRCC
+	tristate "GLYMUR TCSR Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	help
+	  Support for the TCSR clock controller on GLYMUR devices.
+	  Say Y if you want to use peripheral devices such as USB/PCIe/EDP.
+
 config CLK_X1E80100_CAMCC
 	tristate "X1E80100 Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -187,6 +214,15 @@ config IPQ_APSS_PLL
 	  Say Y if you want to support CPU frequency scaling on ipq based
 	  devices.
 
+config IPQ_APSS_5424
+	tristate "IPQ APSS Clock Controller"
+	select IPQ_APSS_PLL
+	default y if IPQ_GCC_5424
+	help
+	  Support for APSS Clock controller on Qualcom IPQ5424 platform.
+	  Say Y if you want to support CPU frequency scaling on ipq based
+	  devices.
+
 config IPQ_APSS_6018
 	tristate "IPQ APSS Clock Controller"
 	select IPQ_APSS_PLL
@@ -323,12 +359,12 @@ config MSM_GCC_8916
 	  SD/eMMC, display, graphics, camera etc.
 
 config MSM_GCC_8917
-	tristate "MSM8917/QM215 Global Clock Controller"
+	tristate "MSM89(17/37)/QM215 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
-	  Support for the global clock controller on msm8917 and qm215
-	  devices.
+	  Support for the global clock controller on msm8917, msm8937
+	  and qm215 devices.
 	  Say Y if you want to use devices such as UART, SPI i2c, USB,
 	  SD/eMMC, display, graphics, camera etc.
 
@@ -495,7 +531,7 @@ config QCM_DISPCC_2290
 
 config QCS_DISPCC_615
 	tristate "QCS615 Display Clock Controller"
-	select QCM_GCC_615
+	select QCS_GCC_615
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
 	  QCS615 devices.

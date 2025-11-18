@@ -424,17 +424,6 @@ intel_dp_link_down(struct intel_encoder *encoder,
 
 	drm_dbg_kms(display->drm, "\n");
 
-	if ((display->platform.ivybridge && port == PORT_A) ||
-	    (HAS_PCH_CPT(display) && port != PORT_A)) {
-		intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
-		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
-	} else {
-		intel_dp->DP &= ~DP_LINK_TRAIN_MASK;
-		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE;
-	}
-	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
-	intel_de_posting_read(display, intel_dp->output_reg);
-
 	intel_dp->DP &= ~DP_PORT_EN;
 	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(display, intel_dp->output_reg);
@@ -612,6 +601,19 @@ cpt_set_link_train(struct intel_dp *intel_dp,
 }
 
 static void
+cpt_set_idle_link_train(struct intel_dp *intel_dp,
+			const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
+	intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
+
+	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(display, intel_dp->output_reg);
+}
+
+static void
 g4x_set_link_train(struct intel_dp *intel_dp,
 		   const struct intel_crtc_state *crtc_state,
 		   u8 dp_train_pat)
@@ -634,6 +636,19 @@ g4x_set_link_train(struct intel_dp *intel_dp,
 		MISSING_CASE(intel_dp_training_pattern_symbol(dp_train_pat));
 		return;
 	}
+
+	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(display, intel_dp->output_reg);
+}
+
+static void
+g4x_set_idle_link_train(struct intel_dp *intel_dp,
+			const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	intel_dp->DP &= ~DP_LINK_TRAIN_MASK;
+	intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE;
 
 	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(display, intel_dp->output_reg);
@@ -1285,11 +1300,9 @@ bool g4x_dp_init(struct intel_display *display,
 		drm_dbg_kms(display->drm, "No VBT child device for DP-%c\n",
 			    port_name(port));
 
-	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
+	dig_port = intel_dig_port_alloc();
 	if (!dig_port)
 		return false;
-
-	dig_port->aux_ch = AUX_CH_NONE;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -1299,8 +1312,6 @@ bool g4x_dp_init(struct intel_display *display,
 	encoder = &intel_encoder->base;
 
 	intel_encoder->devdata = devdata;
-
-	mutex_init(&dig_port->hdcp.mutex);
 
 	if (drm_encoder_init(display->drm, &intel_encoder->base,
 			     &intel_dp_enc_funcs, DRM_MODE_ENCODER_TMDS,
@@ -1342,10 +1353,13 @@ bool g4x_dp_init(struct intel_display *display,
 	intel_encoder->audio_disable = g4x_dp_audio_disable;
 
 	if ((display->platform.ivybridge && port == PORT_A) ||
-	    (HAS_PCH_CPT(display) && port != PORT_A))
+	    (HAS_PCH_CPT(display) && port != PORT_A)) {
 		dig_port->dp.set_link_train = cpt_set_link_train;
-	else
+		dig_port->dp.set_idle_link_train = cpt_set_idle_link_train;
+	} else {
 		dig_port->dp.set_link_train = g4x_set_link_train;
+		dig_port->dp.set_idle_link_train = g4x_set_idle_link_train;
+	}
 
 	if (display->platform.cherryview)
 		intel_encoder->set_signal_levels = chv_set_signal_levels;
@@ -1368,7 +1382,6 @@ bool g4x_dp_init(struct intel_display *display,
 	}
 
 	dig_port->dp.output_reg = output_reg;
-	dig_port->max_lanes = 4;
 
 	intel_encoder->type = INTEL_OUTPUT_DP;
 	intel_encoder->power_domain = intel_display_power_ddi_lanes_domain(display, port);

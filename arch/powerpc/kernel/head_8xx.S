@@ -162,7 +162,7 @@ instruction_counter:
  * For the MPC8xx, this is a software tablewalk to load the instruction
  * TLB.  The task switch loads the M_TWB register with the pointer to the first
  * level table.
- * If we discover there is no second level table (value is zero) or if there
+ * If there is no second level table (value is zero) or if there
  * is an invalid pte, we load that into the TLB, which causes another fault
  * into the TLB Error interrupt where we can handle such problems.
  * We have to use the MD_xxx registers for the tablewalk because the
@@ -183,14 +183,11 @@ instruction_counter:
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mtspr	SPRN_M_TW, r11
 
-	/* If we are faulting a kernel address, we have to use the
-	 * kernel page tables.
-	 */
 	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
 	INVALIDATE_ADJACENT_PAGES_CPU15(r10, r11)
 	mtspr	SPRN_MD_EPN, r10
 	mfspr	r10, SPRN_M_TWB	/* Get level 1 table */
-	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r10)	/* Get level 1 entry */
+	lwz	r11, 0(r10)	/* Get level 1 entry */
 	mtspr	SPRN_MD_TWC, r11
 	mfspr	r10, SPRN_MD_TWC
 	lwz	r10, 0(r10)	/* Get the pte */
@@ -228,12 +225,8 @@ instruction_counter:
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mtspr	SPRN_M_TW, r11
 
-	/* If we are faulting a kernel address, we have to use the
-	 * kernel page tables.
-	 */
-	mfspr	r10, SPRN_MD_EPN
 	mfspr	r10, SPRN_M_TWB	/* Get level 1 table */
-	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r10)	/* Get level 1 entry */
+	lwz	r11, 0(r10)	/* Get level 1 entry */
 
 	mtspr	SPRN_MD_TWC, r11
 	mfspr	r10, SPRN_MD_TWC
@@ -375,7 +368,7 @@ FixupPGD:
 	mfspr	r10, SPRN_DAR
 	mtspr	SPRN_MD_EPN, r10
 	mfspr	r11, SPRN_M_TWB	/* Get level 1 table */
-	lwz	r10, (swapper_pg_dir - PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
+	lwz	r10, 0(r11)	/* Get the level 1 entry */
 	cmpwi	cr1, r10, 0
 	bne	cr1, 1f
 
@@ -384,7 +377,7 @@ FixupPGD:
 	lwz	r10, (swapper_pg_dir - PAGE_OFFSET)@l(r10)	/* Get the level 1 entry */
 	cmpwi	cr1, r10, 0
 	beq	cr1, 1f
-	stw	r10, (swapper_pg_dir - PAGE_OFFSET)@l(r11)	/* Set the level 1 entry */
+	stw	r10, 0(r11)	/* Set the level 1 entry */
 	mfspr	r10, SPRN_M_TW
 	mtcr	r10
 	mfspr	r10, SPRN_SPRG_SCRATCH0
@@ -412,9 +405,10 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	tophys(r11, r10)
 	mfspr	r11, SPRN_M_TWB	/* Get level 1 table */
 	rlwinm	r11, r11, 0, 20, 31
-	oris	r11, r11, (swapper_pg_dir - PAGE_OFFSET)@ha
+	oris	r11, r11, (swapper_pg_dir - PAGE_OFFSET)@h
+	ori	r11, r11, (swapper_pg_dir - PAGE_OFFSET)@l
 3:
-	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
+	lwz	r11, 0(r11)	/* Get the level 1 entry */
 	rlwinm	r11, r11, 0, ~_PMD_PAGE_8M
 	mtspr	SPRN_MD_TWC, r11
 	mfspr	r11, SPRN_MD_TWC
@@ -535,7 +529,8 @@ start_here:
 	li	r0,0
 	stwu	r0,THREAD_SIZE-STACK_FRAME_MIN_SIZE(r1)
 
-	lis	r6, swapper_pg_dir@ha
+	lis	r6, swapper_pg_dir@h
+	ori	r6, r6, swapper_pg_dir@l
 	tophys(r6,r6)
 	mtspr	SPRN_M_TWB, r6
 

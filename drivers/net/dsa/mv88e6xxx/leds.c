@@ -779,7 +779,8 @@ int mv88e6xxx_port_setup_leds(struct mv88e6xxx_chip *chip, int port)
 			continue;
 		if (led_num > 1) {
 			dev_err(dev, "invalid LED specified port %d\n", port);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_put_led;
 		}
 
 		if (led_num == 0)
@@ -823,17 +824,25 @@ int mv88e6xxx_port_setup_leds(struct mv88e6xxx_chip *chip, int port)
 		init_data.devname_mandatory = true;
 		init_data.devicename = kasprintf(GFP_KERNEL, "%s:0%d:0%d", chip->info->name,
 						 port, led_num);
-		if (!init_data.devicename)
-			return -ENOMEM;
+		if (!init_data.devicename) {
+			ret = -ENOMEM;
+			goto err_put_led;
+		}
 
 		ret = devm_led_classdev_register_ext(dev, l, &init_data);
 		kfree(init_data.devicename);
 
 		if (ret) {
 			dev_err(dev, "Failed to init LED %d for port %d", led_num, port);
-			return ret;
+			goto err_put_led;
 		}
 	}
 
+	fwnode_handle_put(leds);
 	return 0;
+
+err_put_led:
+	fwnode_handle_put(led);
+	fwnode_handle_put(leds);
+	return ret;
 }

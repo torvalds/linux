@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2017 Intel Corporation.
 
-#include <linux/unaligned.h>
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -12,6 +11,8 @@
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/unaligned.h>
+
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -1854,6 +1855,8 @@ static const struct ov5670_mode supported_modes[] = {
 };
 
 struct ov5670 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_fwnode_endpoint endpoint;
@@ -1959,7 +1962,6 @@ static int ov5670_write_reg(struct ov5670 *ov5670, u16 reg, unsigned int len,
 static int ov5670_write_regs(struct ov5670 *ov5670,
 			     const struct ov5670_reg *regs, unsigned int len)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	unsigned int i;
 	int ret;
 
@@ -1967,7 +1969,7 @@ static int ov5670_write_regs(struct ov5670 *ov5670,
 		ret = ov5670_write_reg(ov5670, regs[i].address, 1, regs[i].val);
 		if (ret) {
 			dev_err_ratelimited(
-				&client->dev,
+				ov5670->dev,
 				"Failed to write reg 0x%4.4x. error = %d\n",
 				regs[i].address, ret);
 
@@ -2032,7 +2034,6 @@ static int ov5670_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov5670 *ov5670 = container_of(ctrl->handler,
 					     struct ov5670, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	s64 max;
 	int ret;
 
@@ -2048,7 +2049,7 @@ static int ov5670_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov5670->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -2080,12 +2081,12 @@ static int ov5670_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		ret = -EINVAL;
-		dev_info(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
+		dev_info(ov5670->dev, "%s Unhandled id:0x%x, val:0x%x\n",
 			 __func__, ctrl->id, ctrl->val);
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov5670->dev);
 
 	return ret;
 }
@@ -2099,7 +2100,6 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 {
 	struct v4l2_mbus_config_mipi_csi2 *bus_mipi_csi2 =
 		&ov5670->endpoint.bus.mipi_csi2;
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	unsigned int lanes_count;
@@ -2177,7 +2177,7 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(ov5670->dev, &props);
 	if (ret)
 		goto error;
 
@@ -2350,7 +2350,6 @@ static int ov5670_get_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 /* Verify chip ID */
 static int ov5670_identify_module(struct ov5670 *ov5670)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	int ret;
 	u32 val;
 
@@ -2363,7 +2362,7 @@ static int ov5670_identify_module(struct ov5670 *ov5670)
 		return ret;
 
 	if (val != OV5670_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
+		dev_err(ov5670->dev, "chip id mismatch: %x!=%x\n",
 			OV5670_CHIP_ID, val);
 		return -ENXIO;
 	}
@@ -2389,7 +2388,6 @@ static int ov5670_mipi_configure(struct ov5670 *ov5670)
 /* Prepare streaming by writing default values and customized values */
 static int ov5670_start_streaming(struct ov5670 *ov5670)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	const struct ov5670_reg_list *reg_list;
 	int link_freq_index;
 	int ret;
@@ -2402,7 +2400,7 @@ static int ov5670_start_streaming(struct ov5670 *ov5670)
 	ret = ov5670_write_reg(ov5670, OV5670_REG_SOFTWARE_RST,
 			       OV5670_REG_VALUE_08BIT, OV5670_SOFTWARE_RST);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set powerup registers\n",
+		dev_err(ov5670->dev, "%s failed to set powerup registers\n",
 			__func__);
 		return ret;
 	}
@@ -2412,7 +2410,7 @@ static int ov5670_start_streaming(struct ov5670 *ov5670)
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
 	ret = ov5670_write_reg_list(ov5670, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set plls\n", __func__);
+		dev_err(ov5670->dev, "%s failed to set plls\n", __func__);
 		return ret;
 	}
 
@@ -2420,13 +2418,13 @@ static int ov5670_start_streaming(struct ov5670 *ov5670)
 	reg_list = &ov5670->cur_mode->reg_list;
 	ret = ov5670_write_reg_list(ov5670, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set mode\n", __func__);
+		dev_err(ov5670->dev, "%s failed to set mode\n", __func__);
 		return ret;
 	}
 
 	ret = ov5670_mipi_configure(ov5670);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to configure MIPI\n", __func__);
+		dev_err(ov5670->dev, "%s failed to configure MIPI\n", __func__);
 		return ret;
 	}
 
@@ -2438,7 +2436,7 @@ static int ov5670_start_streaming(struct ov5670 *ov5670)
 	ret = ov5670_write_reg(ov5670, OV5670_REG_MODE_SELECT,
 			       OV5670_REG_VALUE_08BIT, OV5670_MODE_STREAMING);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set stream\n", __func__);
+		dev_err(ov5670->dev, "%s failed to set stream\n", __func__);
 		return ret;
 	}
 
@@ -2447,13 +2445,12 @@ static int ov5670_start_streaming(struct ov5670 *ov5670)
 
 static int ov5670_stop_streaming(struct ov5670 *ov5670)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	int ret;
 
 	ret = ov5670_write_reg(ov5670, OV5670_REG_MODE_SELECT,
 			       OV5670_REG_VALUE_08BIT, OV5670_MODE_STANDBY);
 	if (ret)
-		dev_err(&client->dev, "%s failed to set stream\n", __func__);
+		dev_err(ov5670->dev, "%s failed to set stream\n", __func__);
 
 	/* Return success even if it was an error, as there is nothing the
 	 * caller can do about it.
@@ -2464,13 +2461,12 @@ static int ov5670_stop_streaming(struct ov5670 *ov5670)
 static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov5670 *ov5670 = to_ov5670(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&ov5670->mutex);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov5670->dev);
 		if (ret < 0)
 			goto unlock_and_return;
 
@@ -2479,12 +2475,12 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 			goto error;
 	} else {
 		ret = ov5670_stop_streaming(ov5670);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov5670->dev);
 	}
 	goto unlock_and_return;
 
 error:
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov5670->dev);
 
 unlock_and_return:
 	mutex_unlock(&ov5670->mutex);
@@ -2621,26 +2617,23 @@ static const struct media_entity_operations ov5670_subdev_entity_ops = {
 
 static int ov5670_regulators_probe(struct ov5670 *ov5670)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	unsigned int i;
 
 	for (i = 0; i < OV5670_NUM_SUPPLIES; i++)
 		ov5670->supplies[i].supply = ov5670_supply_names[i];
 
-	return devm_regulator_bulk_get(&client->dev, OV5670_NUM_SUPPLIES,
+	return devm_regulator_bulk_get(ov5670->dev, OV5670_NUM_SUPPLIES,
 				       ov5670->supplies);
 }
 
 static int ov5670_gpio_probe(struct ov5670 *ov5670)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
-
-	ov5670->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "powerdown",
+	ov5670->pwdn_gpio = devm_gpiod_get_optional(ov5670->dev, "powerdown",
 						    GPIOD_OUT_LOW);
 	if (IS_ERR(ov5670->pwdn_gpio))
 		return PTR_ERR(ov5670->pwdn_gpio);
 
-	ov5670->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+	ov5670->reset_gpio = devm_gpiod_get_optional(ov5670->dev, "reset",
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(ov5670->reset_gpio))
 		return PTR_ERR(ov5670->reset_gpio);
@@ -2660,18 +2653,16 @@ static int ov5670_probe(struct i2c_client *client)
 	if (!ov5670)
 		return -ENOMEM;
 
-	ov5670->xvclk = devm_clk_get_optional(&client->dev, NULL);
-	if (!IS_ERR_OR_NULL(ov5670->xvclk))
-		input_clk = clk_get_rate(ov5670->xvclk);
-	else if (!ov5670->xvclk || PTR_ERR(ov5670->xvclk) == -ENOENT)
-		device_property_read_u32(&client->dev, "clock-frequency",
-					 &input_clk);
-	else
-		return dev_err_probe(&client->dev, PTR_ERR(ov5670->xvclk),
+	ov5670->dev = &client->dev;
+
+	ov5670->xvclk = devm_v4l2_sensor_clk_get(ov5670->dev, NULL);
+	if (IS_ERR(ov5670->xvclk))
+		return dev_err_probe(ov5670->dev, PTR_ERR(ov5670->xvclk),
 				     "error getting clock\n");
 
+	input_clk = clk_get_rate(ov5670->xvclk);
 	if (input_clk != OV5670_XVCLK_FREQ) {
-		dev_err(&client->dev,
+		dev_err(ov5670->dev,
 			"Unsupported clock frequency %u\n", input_clk);
 		return -EINVAL;
 	}
@@ -2682,20 +2673,20 @@ static int ov5670_probe(struct i2c_client *client)
 
 	ret = ov5670_regulators_probe(ov5670);
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "Regulators probe failed\n");
+		return dev_err_probe(ov5670->dev, ret, "Regulators probe failed\n");
 
 	ret = ov5670_gpio_probe(ov5670);
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "GPIO probe failed\n");
+		return dev_err_probe(ov5670->dev, ret, "GPIO probe failed\n");
 
 	/*
 	 * Graph Endpoint. If it's missing we defer rather than fail, as this
 	 * sensor is known to co-exist on systems with the IPU3 and so it might
 	 * be created by the ipu-bridge.
 	 */
-	handle = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	handle = fwnode_graph_get_next_endpoint(dev_fwnode(ov5670->dev), NULL);
 	if (!handle)
-		return dev_err_probe(&client->dev, -EPROBE_DEFER,
+		return dev_err_probe(ov5670->dev, -EPROBE_DEFER,
 				     "Endpoint for node get failed\n");
 
 	ov5670->endpoint.bus_type = V4L2_MBUS_CSI2_DPHY;
@@ -2704,20 +2695,20 @@ static int ov5670_probe(struct i2c_client *client)
 	ret = v4l2_fwnode_endpoint_alloc_parse(handle, &ov5670->endpoint);
 	fwnode_handle_put(handle);
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "Endpoint parse failed\n");
+		return dev_err_probe(ov5670->dev, ret, "Endpoint parse failed\n");
 
-	full_power = acpi_dev_state_d0(&client->dev);
+	full_power = acpi_dev_state_d0(ov5670->dev);
 	if (full_power) {
-		ret = ov5670_runtime_resume(&client->dev);
+		ret = ov5670_runtime_resume(ov5670->dev);
 		if (ret) {
-			dev_err_probe(&client->dev, ret, "Power up failed\n");
+			dev_err_probe(ov5670->dev, ret, "Power up failed\n");
 			goto error_endpoint;
 		}
 
 		/* Check module identity */
 		ret = ov5670_identify_module(ov5670);
 		if (ret) {
-			dev_err_probe(&client->dev, ret, "ov5670_identify_module() error\n");
+			dev_err_probe(ov5670->dev, ret, "ov5670_identify_module() error\n");
 			goto error_power_off;
 		}
 	}
@@ -2729,7 +2720,7 @@ static int ov5670_probe(struct i2c_client *client)
 
 	ret = ov5670_init_controls(ov5670);
 	if (ret) {
-		dev_err_probe(&client->dev, ret, "ov5670_init_controls() error\n");
+		dev_err_probe(ov5670->dev, ret, "ov5670_init_controls() error\n");
 		goto error_mutex_destroy;
 	}
 
@@ -2742,28 +2733,28 @@ static int ov5670_probe(struct i2c_client *client)
 	ov5670->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov5670->sd.entity, 1, &ov5670->pad);
 	if (ret) {
-		dev_err_probe(&client->dev, ret, "media_entity_pads_init() error\n");
+		dev_err_probe(ov5670->dev, ret, "media_entity_pads_init() error\n");
 		goto error_handler_free;
 	}
 
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
-		pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
+		pm_runtime_set_active(ov5670->dev);
+	pm_runtime_enable(ov5670->dev);
 
 	/* Async register for subdev */
 	ret = v4l2_async_register_subdev_sensor(&ov5670->sd);
 	if (ret < 0) {
-		dev_err_probe(&client->dev, ret, "v4l2_async_register_subdev() error\n");
+		dev_err_probe(ov5670->dev, ret, "v4l2_async_register_subdev() error\n");
 		goto error_pm_disable;
 	}
 
-	pm_runtime_idle(&client->dev);
+	pm_runtime_idle(ov5670->dev);
 
 	return 0;
 
 error_pm_disable:
-	pm_runtime_disable(&client->dev);
+	pm_runtime_disable(ov5670->dev);
 
 	media_entity_cleanup(&ov5670->sd.entity);
 
@@ -2775,7 +2766,7 @@ error_mutex_destroy:
 
 error_power_off:
 	if (full_power)
-		ov5670_runtime_suspend(&client->dev);
+		ov5670_runtime_suspend(ov5670->dev);
 
 error_endpoint:
 	v4l2_fwnode_endpoint_free(&ov5670->endpoint);
@@ -2793,8 +2784,8 @@ static void ov5670_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	mutex_destroy(&ov5670->mutex);
 
-	pm_runtime_disable(&client->dev);
-	ov5670_runtime_suspend(&client->dev);
+	pm_runtime_disable(ov5670->dev);
+	ov5670_runtime_suspend(ov5670->dev);
 
 	v4l2_fwnode_endpoint_free(&ov5670->endpoint);
 }

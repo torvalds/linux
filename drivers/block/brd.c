@@ -44,45 +44,74 @@ struct brd_device {
 };
 
 /*
- * Look up and return a brd's page for a given sector.
+ * Look up and return a brd's page with reference grabbed for a given sector.
  */
 static struct page *brd_lookup_page(struct brd_device *brd, sector_t sector)
 {
-	return xa_load(&brd->brd_pages, sector >> PAGE_SECTORS_SHIFT);
+	struct page *page;
+	XA_STATE(xas, &brd->brd_pages, sector >> PAGE_SECTORS_SHIFT);
+
+	rcu_read_lock();
+repeat:
+	page = xas_load(&xas);
+	if (xas_retry(&xas, page)) {
+		xas_reset(&xas);
+		goto repeat;
+	}
+
+	if (!page)
+		goto out;
+
+	if (!get_page_unless_zero(page)) {
+		xas_reset(&xas);
+		goto repeat;
+	}
+
+	if (unlikely(page != xas_reload(&xas))) {
+		put_page(page);
+		xas_reset(&xas);
+		goto repeat;
+	}
+out:
+	rcu_read_unlock();
+
+	return page;
 }
 
 /*
  * Insert a new page for a given sector, if one does not already exist.
+ * The returned page will grab reference.
  */
 static struct page *brd_insert_page(struct brd_device *brd, sector_t sector,
 		blk_opf_t opf)
-	__releases(rcu)
-	__acquires(rcu)
 {
 	gfp_t gfp = (opf & REQ_NOWAIT) ? GFP_NOWAIT : GFP_NOIO;
 	struct page *page, *ret;
 
-	rcu_read_unlock();
 	page = alloc_page(gfp | __GFP_ZERO | __GFP_HIGHMEM);
-	if (!page) {
-		rcu_read_lock();
+	if (!page)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	xa_lock(&brd->brd_pages);
 	ret = __xa_cmpxchg(&brd->brd_pages, sector >> PAGE_SECTORS_SHIFT, NULL,
 			page, gfp);
-	rcu_read_lock();
-	if (ret) {
+	if (!ret) {
+		brd->brd_nr_pages++;
+		get_page(page);
 		xa_unlock(&brd->brd_pages);
-		__free_page(page);
-		if (xa_is_err(ret))
-			return ERR_PTR(xa_err(ret));
+		return page;
+	}
+
+	if (!xa_is_err(ret)) {
+		get_page(ret);
+		xa_unlock(&brd->brd_pages);
+		put_page(page);
 		return ret;
 	}
-	brd->brd_nr_pages++;
+
 	xa_unlock(&brd->brd_pages);
-	return page;
+	put_page(page);
+	return ERR_PTR(xa_err(ret));
 }
 
 /*
@@ -95,7 +124,7 @@ static void brd_free_pages(struct brd_device *brd)
 	pgoff_t idx;
 
 	xa_for_each(&brd->brd_pages, idx, page) {
-		__free_page(page);
+		put_page(page);
 		cond_resched();
 	}
 
@@ -117,7 +146,6 @@ static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 
 	bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
 
-	rcu_read_lock();
 	page = brd_lookup_page(brd, sector);
 	if (!page && op_is_write(opf)) {
 		page = brd_insert_page(brd, sector, opf);
@@ -135,25 +163,18 @@ static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 			memset(kaddr, 0, bv.bv_len);
 	}
 	kunmap_local(kaddr);
-	rcu_read_unlock();
 
 	bio_advance_iter_single(bio, &bio->bi_iter, bv.bv_len);
+	if (page)
+		put_page(page);
 	return true;
 
 out_error:
-	rcu_read_unlock();
 	if (PTR_ERR(page) == -ENOMEM && (opf & REQ_NOWAIT))
 		bio_wouldblock_error(bio);
 	else
 		bio_io_error(bio);
 	return false;
-}
-
-static void brd_free_one_page(struct rcu_head *head)
-{
-	struct page *page = container_of(head, struct page, rcu_head);
-
-	__free_page(page);
 }
 
 static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
@@ -170,7 +191,7 @@ static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
 	while (aligned_sector < aligned_end && aligned_sector < rd_size * 2) {
 		page = __xa_erase(&brd->brd_pages, aligned_sector >> PAGE_SECTORS_SHIFT);
 		if (page) {
-			call_rcu(&page->rcu_head, brd_free_one_page);
+			put_page(page);
 			brd->brd_nr_pages--;
 		}
 		aligned_sector += PAGE_SECTORS;

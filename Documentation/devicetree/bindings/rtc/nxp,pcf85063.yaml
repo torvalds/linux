@@ -65,16 +65,6 @@ allOf:
   - if:
       properties:
         compatible:
-          contains:
-            enum:
-              - nxp,pcf85063
-    then:
-      properties:
-        quartz-load-femtofarads:
-          const: 7000
-  - if:
-      properties:
-        compatible:
           not:
             contains:
               enum:

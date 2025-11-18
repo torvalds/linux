@@ -7,7 +7,7 @@
 
 #include <asm/asm-const.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/ppc-opcode.h>
 #endif
 

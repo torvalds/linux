@@ -1214,7 +1214,8 @@ static int qed_slowpath_wq_start(struct qed_dev *cdev)
 		hwfn = &cdev->hwfns[i];
 
 		hwfn->slowpath_wq = alloc_workqueue("slowpath-%02x:%02x.%02x",
-					 0, 0, cdev->pdev->bus->number,
+					 WQ_PERCPU, 0,
+					 cdev->pdev->bus->number,
 					 PCI_SLOT(cdev->pdev->devfn),
 					 hwfn->abs_pf_id);
 

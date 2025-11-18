@@ -2,13 +2,13 @@
 
 //! DRM driver core.
 //!
-//! C header: [`include/linux/drm/drm_drv.h`](srctree/include/linux/drm/drm_drv.h)
+//! C header: [`include/drm/drm_drv.h`](srctree/include/drm/drm_drv.h)
 
 use crate::{
     bindings, device, devres, drm,
     error::{to_result, Result},
     prelude::*,
-    types::ARef,
+    sync::aref::ARef,
 };
 use macros::vtable;
 
@@ -86,6 +86,9 @@ pub struct AllocOps {
 
 /// Trait for memory manager implementations. Implemented internally.
 pub trait AllocImpl: super::private::Sealed + drm::gem::IntoGEMObject {
+    /// The [`Driver`] implementation for this [`AllocImpl`].
+    type Driver: drm::Driver;
+
     /// The C callback operations for this memory manager.
     const ALLOC_OPS: AllocOps;
 }

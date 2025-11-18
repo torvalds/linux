@@ -5,7 +5,7 @@
 #include <asm/utrap.h>
 #include <asm/pil.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #include <asm/thread_info.h>
 #endif
 

@@ -69,7 +69,7 @@ struct amdgpu_bo_va_mapping {
 	uint64_t			last;
 	uint64_t			__subtree_last;
 	uint64_t			offset;
-	uint64_t			flags;
+	uint32_t			flags;
 };
 
 /* User space allocated BO in a VM */
@@ -167,6 +167,8 @@ static inline unsigned amdgpu_mem_type_to_domain(u32 mem_type)
 		return AMDGPU_GEM_DOMAIN_OA;
 	case AMDGPU_PL_DOORBELL:
 		return AMDGPU_GEM_DOMAIN_DOORBELL;
+	case AMDGPU_PL_MMIO_REMAP:
+		return AMDGPU_GEM_DOMAIN_MMIO_REMAP;
 	default:
 		break;
 	}

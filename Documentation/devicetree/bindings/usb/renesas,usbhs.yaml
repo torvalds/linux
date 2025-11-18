@@ -59,6 +59,12 @@ properties:
               - renesas,usbhs-r8a77995 # R-Car D3
           - const: renesas,rcar-gen3-usbhs
 
+      - const: renesas,usbhs-r9a09g077 # RZ/T2H
+
+      - items:
+          - const: renesas,usbhs-r9a09g087 # RZ/N2H
+          - const: renesas,usbhs-r9a09g077 # RZ/T2H
+
   reg:
     maxItems: 1
 
@@ -141,9 +147,25 @@ allOf:
       required:
         - resets
     else:
-      properties:
-        interrupts:
-          maxItems: 1
+      if:
+        properties:
+          compatible:
+            contains:
+              const: renesas,usbhs-r9a09g077
+      then:
+        properties:
+          resets: false
+          clocks:
+            maxItems: 1
+          interrupts:
+            items:
+              - description: USB function interrupt USB_FI
+              - description: USB function DMA0 transmit completion interrupt USB_FDMA0
+              - description: USB function DMA1 transmit completion interrupt USB_FDMA1
+      else:
+        properties:
+          interrupts:
+            maxItems: 1
 
 additionalProperties: false
 

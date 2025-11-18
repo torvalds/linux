@@ -62,9 +62,8 @@ static int output_select_get(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 	struct dg *data = chip->model_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	value->value.enumerated.item[0] = data->output_sel;
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -77,14 +76,13 @@ static int output_select_put(struct snd_kcontrol *ctl,
 	int changed = 0;
 	int ret;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	if (data->output_sel != new) {
 		data->output_sel = new;
 		ret = output_select_apply(chip);
 		changed = ret >= 0 ? 1 : ret;
 		oxygen_update_dac_routing(chip);
 	}
-	mutex_unlock(&chip->mutex);
 
 	return changed;
 }
@@ -108,12 +106,11 @@ static int hp_stereo_volume_get(struct snd_kcontrol *ctl,
 	struct dg *data = chip->model_data;
 	unsigned int tmp;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	tmp = (~data->cs4245_shadow[CS4245_DAC_A_CTRL]) & 255;
 	val->value.integer.value[0] = tmp;
 	tmp = (~data->cs4245_shadow[CS4245_DAC_B_CTRL]) & 255;
 	val->value.integer.value[1] = tmp;
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -130,7 +127,7 @@ static int hp_stereo_volume_put(struct snd_kcontrol *ctl,
 	if ((new1 > 255) || (new1 < 0) || (new2 > 255) || (new2 < 0))
 		return -EINVAL;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	if ((data->cs4245_shadow[CS4245_DAC_A_CTRL] != ~new1) ||
 	    (data->cs4245_shadow[CS4245_DAC_B_CTRL] != ~new2)) {
 		data->cs4245_shadow[CS4245_DAC_A_CTRL] = ~new1;
@@ -140,7 +137,6 @@ static int hp_stereo_volume_put(struct snd_kcontrol *ctl,
 			ret = cs4245_write_spi(chip, CS4245_DAC_B_CTRL);
 		changed = ret >= 0 ? 1 : ret;
 	}
-	mutex_unlock(&chip->mutex);
 
 	return changed;
 }
@@ -153,10 +149,9 @@ static int hp_mute_get(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 	struct dg *data = chip->model_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	val->value.integer.value[0] =
 		!(data->cs4245_shadow[CS4245_DAC_CTRL_1] & CS4245_MUTE_DAC);
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -170,13 +165,12 @@ static int hp_mute_put(struct snd_kcontrol *ctl,
 
 	if (val->value.integer.value[0] > 1)
 		return -EINVAL;
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	data->cs4245_shadow[CS4245_DAC_CTRL_1] &= ~CS4245_MUTE_DAC;
 	data->cs4245_shadow[CS4245_DAC_CTRL_1] |=
 		(~val->value.integer.value[0] << 2) & CS4245_MUTE_DAC;
 	ret = cs4245_write_spi(chip, CS4245_DAC_CTRL_1);
 	changed = ret >= 0 ? 1 : ret;
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -212,10 +206,9 @@ static int input_vol_get(struct snd_kcontrol *ctl,
 	struct dg *data = chip->model_data;
 	unsigned int idx = ctl->private_value;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	value->value.integer.value[0] = data->input_vol[idx][0];
 	value->value.integer.value[1] = data->input_vol[idx][1];
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -233,7 +226,7 @@ static int input_vol_put(struct snd_kcontrol *ctl,
 	    value->value.integer.value[1] < 2 * -12 ||
 	    value->value.integer.value[1] > 2 * 12)
 		return -EINVAL;
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	changed = data->input_vol[idx][0] != value->value.integer.value[0] ||
 		  data->input_vol[idx][1] != value->value.integer.value[1];
 	if (changed) {
@@ -246,7 +239,6 @@ static int input_vol_put(struct snd_kcontrol *ctl,
 		}
 		changed = ret >= 0 ? 1 : ret;
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -282,9 +274,8 @@ static int input_sel_get(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 	struct dg *data = chip->model_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	value->value.enumerated.item[0] = data->input_sel;
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -299,7 +290,7 @@ static int input_sel_put(struct snd_kcontrol *ctl,
 	if (value->value.enumerated.item[0] > 3)
 		return -EINVAL;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	changed = value->value.enumerated.item[0] != data->input_sel;
 	if (changed) {
 		data->input_sel = value->value.enumerated.item[0];
@@ -311,7 +302,6 @@ static int input_sel_put(struct snd_kcontrol *ctl,
 				data->input_vol[data->input_sel][1]);
 		changed = ret >= 0 ? 1 : ret;
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -341,7 +331,7 @@ static int hpf_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 	u8 reg;
 	int changed;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = data->cs4245_shadow[CS4245_ADC_CTRL] & ~CS4245_HPF_FREEZE;
 	if (value->value.enumerated.item[0])
 		reg |= CS4245_HPF_FREEZE;
@@ -350,7 +340,6 @@ static int hpf_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 		data->cs4245_shadow[CS4245_ADC_CTRL] = reg;
 		cs4245_write_spi(chip, CS4245_ADC_CTRL);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 

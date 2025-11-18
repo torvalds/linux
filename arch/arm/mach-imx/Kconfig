@@ -242,7 +242,7 @@ choice
 
 	config VF_USE_PIT_TIMER
 		bool "Use PIT timer"
-		select VF_PIT_TIMER
+		select NXP_PIT_TIMER
 		help
 		  Use SoC Periodic Interrupt Timer (PIT) as clocksource
 

@@ -120,6 +120,25 @@ static void __amdgpu_xcp_add_block(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 	xcp->valid = true;
 }
 
+static void __amdgpu_xcp_set_unique_id(struct amdgpu_xcp_mgr *xcp_mgr,
+				       int xcp_id)
+{
+	struct amdgpu_xcp *xcp = &xcp_mgr->xcp[xcp_id];
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	uint32_t inst_mask;
+	uint64_t uid;
+	int i;
+
+	if (!amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &inst_mask) &&
+	    inst_mask) {
+		i = GET_INST(GC, (ffs(inst_mask) - 1));
+		uid = amdgpu_device_get_uid(xcp_mgr->adev->uid_info,
+					    AMDGPU_UID_TYPE_XCD, i);
+		if (uid)
+			xcp->unique_id = uid;
+	}
+}
+
 int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 {
 	struct amdgpu_device *adev = xcp_mgr->adev;
@@ -158,6 +177,7 @@ int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 			else
 				xcp_mgr->xcp[i].mem_id = mem_id;
 		}
+		__amdgpu_xcp_set_unique_id(xcp_mgr, i);
 	}
 
 	xcp_mgr->num_xcps = num_xcps;
@@ -406,6 +426,7 @@ void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev)
 		p_ddev->primary->dev = adev->xcp_mgr->xcp[i].pdev;
 		p_ddev->driver =  adev->xcp_mgr->xcp[i].driver;
 		p_ddev->vma_offset_manager = adev->xcp_mgr->xcp[i].vma_offset_manager;
+		amdgpu_xcp_drm_dev_free(p_ddev);
 	}
 }
 

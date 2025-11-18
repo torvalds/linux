@@ -81,7 +81,8 @@ mlx5_esw_bridge_table_create(int max_fte, u32 level, struct mlx5_eswitch *esw)
 	ft_attr.prio = FDB_BR_OFFLOAD;
 	fdb = mlx5_create_flow_table(ns, &ft_attr);
 	if (IS_ERR(fdb))
-		esw_warn(dev, "Failed to create bridge FDB Table (err=%ld)\n", PTR_ERR(fdb));
+		esw_warn(dev, "Failed to create bridge FDB Table (err=%pe)\n",
+			 fdb);
 
 	return fdb;
 }
@@ -121,8 +122,8 @@ mlx5_esw_bridge_ingress_vlan_proto_fg_create(unsigned int from, unsigned int to,
 	kvfree(in);
 	if (IS_ERR(fg))
 		esw_warn(esw->dev,
-			 "Failed to create VLAN(proto=%x) flow group for bridge ingress table (err=%ld)\n",
-			 vlan_proto, PTR_ERR(fg));
+			 "Failed to create VLAN(proto=%x) flow group for bridge ingress table (err=%pe)\n",
+			 vlan_proto, fg);
 
 	return fg;
 }
@@ -180,8 +181,8 @@ mlx5_esw_bridge_ingress_vlan_proto_filter_fg_create(unsigned int from, unsigned 
 	fg = mlx5_create_flow_group(ingress_ft, in);
 	if (IS_ERR(fg))
 		esw_warn(esw->dev,
-			 "Failed to create bridge ingress table VLAN filter flow group (err=%ld)\n",
-			 PTR_ERR(fg));
+			 "Failed to create bridge ingress table VLAN filter flow group (err=%pe)\n",
+			 fg);
 	kvfree(in);
 	return fg;
 }
@@ -237,8 +238,8 @@ mlx5_esw_bridge_ingress_mac_fg_create(struct mlx5_eswitch *esw, struct mlx5_flow
 	fg = mlx5_create_flow_group(ingress_ft, in);
 	if (IS_ERR(fg))
 		esw_warn(esw->dev,
-			 "Failed to create MAC flow group for bridge ingress table (err=%ld)\n",
-			 PTR_ERR(fg));
+			 "Failed to create MAC flow group for bridge ingress table (err=%pe)\n",
+			 fg);
 
 	kvfree(in);
 	return fg;
@@ -274,8 +275,8 @@ mlx5_esw_bridge_egress_vlan_proto_fg_create(unsigned int from, unsigned int to, 
 	fg = mlx5_create_flow_group(egress_ft, in);
 	if (IS_ERR(fg))
 		esw_warn(esw->dev,
-			 "Failed to create VLAN flow group for bridge egress table (err=%ld)\n",
-			 PTR_ERR(fg));
+			 "Failed to create VLAN flow group for bridge egress table (err=%pe)\n",
+			 fg);
 	kvfree(in);
 	return fg;
 }
@@ -324,8 +325,8 @@ mlx5_esw_bridge_egress_mac_fg_create(struct mlx5_eswitch *esw, struct mlx5_flow_
 	fg = mlx5_create_flow_group(egress_ft, in);
 	if (IS_ERR(fg))
 		esw_warn(esw->dev,
-			 "Failed to create bridge egress table MAC flow group (err=%ld)\n",
-			 PTR_ERR(fg));
+			 "Failed to create bridge egress table MAC flow group (err=%pe)\n",
+			 fg);
 	kvfree(in);
 	return fg;
 }
@@ -354,8 +355,8 @@ mlx5_esw_bridge_egress_miss_fg_create(struct mlx5_eswitch *esw, struct mlx5_flow
 	fg = mlx5_create_flow_group(egress_ft, in);
 	if (IS_ERR(fg))
 		esw_warn(esw->dev,
-			 "Failed to create bridge egress table miss flow group (err=%ld)\n",
-			 PTR_ERR(fg));
+			 "Failed to create bridge egress table miss flow group (err=%pe)\n",
+			 fg);
 	kvfree(in);
 	return fg;
 }
@@ -501,8 +502,8 @@ mlx5_esw_bridge_egress_table_init(struct mlx5_esw_bridge_offloads *br_offloads,
 	if (mlx5_esw_bridge_pkt_reformat_vlan_pop_supported(esw)) {
 		miss_fg = mlx5_esw_bridge_egress_miss_fg_create(esw, egress_ft);
 		if (IS_ERR(miss_fg)) {
-			esw_warn(esw->dev, "Failed to create miss flow group (err=%ld)\n",
-				 PTR_ERR(miss_fg));
+			esw_warn(esw->dev, "Failed to create miss flow group (err=%pe)\n",
+				 miss_fg);
 			miss_fg = NULL;
 			goto skip_miss_flow;
 		}
@@ -510,8 +511,8 @@ mlx5_esw_bridge_egress_table_init(struct mlx5_esw_bridge_offloads *br_offloads,
 		miss_pkt_reformat = mlx5_esw_bridge_pkt_reformat_vlan_pop_create(esw);
 		if (IS_ERR(miss_pkt_reformat)) {
 			esw_warn(esw->dev,
-				 "Failed to alloc packet reformat REMOVE_HEADER (err=%ld)\n",
-				 PTR_ERR(miss_pkt_reformat));
+				 "Failed to alloc packet reformat REMOVE_HEADER (err=%pe)\n",
+				 miss_pkt_reformat);
 			miss_pkt_reformat = NULL;
 			mlx5_destroy_flow_group(miss_fg);
 			miss_fg = NULL;
@@ -522,8 +523,8 @@ mlx5_esw_bridge_egress_table_init(struct mlx5_esw_bridge_offloads *br_offloads,
 								      br_offloads->skip_ft,
 								      miss_pkt_reformat);
 		if (IS_ERR(miss_handle)) {
-			esw_warn(esw->dev, "Failed to create miss flow (err=%ld)\n",
-				 PTR_ERR(miss_handle));
+			esw_warn(esw->dev, "Failed to create miss flow (err=%pe)\n",
+				 miss_handle);
 			miss_handle = NULL;
 			mlx5_packet_reformat_dealloc(esw->dev, miss_pkt_reformat);
 			miss_pkt_reformat = NULL;
@@ -1048,8 +1049,8 @@ mlx5_esw_bridge_vlan_push_create(u16 vlan_proto, struct mlx5_esw_bridge_vlan *vl
 						  &reformat_params,
 						  MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(pkt_reformat)) {
-		esw_warn(esw->dev, "Failed to alloc packet reformat INSERT_HEADER (err=%ld)\n",
-			 PTR_ERR(pkt_reformat));
+		esw_warn(esw->dev, "Failed to alloc packet reformat INSERT_HEADER (err=%pe)\n",
+			 pkt_reformat);
 		return PTR_ERR(pkt_reformat);
 	}
 
@@ -1076,8 +1077,8 @@ mlx5_esw_bridge_vlan_pop_create(struct mlx5_esw_bridge_vlan *vlan, struct mlx5_e
 
 	pkt_reformat = mlx5_esw_bridge_pkt_reformat_vlan_pop_create(esw);
 	if (IS_ERR(pkt_reformat)) {
-		esw_warn(esw->dev, "Failed to alloc packet reformat REMOVE_HEADER (err=%ld)\n",
-			 PTR_ERR(pkt_reformat));
+		esw_warn(esw->dev, "Failed to alloc packet reformat REMOVE_HEADER (err=%pe)\n",
+			 pkt_reformat);
 		return PTR_ERR(pkt_reformat);
 	}
 

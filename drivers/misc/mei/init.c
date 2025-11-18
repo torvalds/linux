@@ -89,22 +89,6 @@ void mei_cancel_work(struct mei_device *dev)
 }
 EXPORT_SYMBOL_GPL(mei_cancel_work);
 
-static void mei_save_fw_status(struct mei_device *dev)
-{
-	struct mei_fw_status fw_status;
-	int ret;
-
-	ret = mei_fw_status(dev, &fw_status);
-	if (ret) {
-		dev_err(dev->dev, "failed to read firmware status: %d\n", ret);
-		return;
-	}
-
-	dev->saved_dev_state = dev->dev_state;
-	dev->saved_fw_status_flag = true;
-	memcpy(&dev->saved_fw_status, &fw_status, sizeof(fw_status));
-}
-
 /**
  * mei_reset - resets host and fw.
  *
@@ -126,11 +110,10 @@ int mei_reset(struct mei_device *dev)
 
 		mei_fw_status_str(dev, fw_sts_str, MEI_FW_STATUS_STR_SZ);
 		if (kind_is_gsc(dev) || kind_is_gscfi(dev)) {
-			dev_dbg(dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
+			dev_dbg(&dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
 				mei_dev_state_str(state), fw_sts_str);
-			mei_save_fw_status(dev);
 		} else {
-			dev_warn(dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
+			dev_warn(&dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
 				 mei_dev_state_str(state), fw_sts_str);
 		}
 	}
@@ -150,7 +133,7 @@ int mei_reset(struct mei_device *dev)
 
 	dev->reset_count++;
 	if (dev->reset_count > MEI_MAX_CONSEC_RESET) {
-		dev_err(dev->dev, "reset: reached maximal consecutive resets: disabling the device\n");
+		dev_err(&dev->dev, "reset: reached maximal consecutive resets: disabling the device\n");
 		mei_set_devstate(dev, MEI_DEV_DISABLED);
 		return -ENODEV;
 	}
@@ -170,12 +153,12 @@ int mei_reset(struct mei_device *dev)
 	memset(dev->rd_msg_hdr, 0, sizeof(dev->rd_msg_hdr));
 
 	if (ret) {
-		dev_err(dev->dev, "hw_reset failed ret = %d\n", ret);
+		dev_err(&dev->dev, "hw_reset failed ret = %d\n", ret);
 		return ret;
 	}
 
 	if (state == MEI_DEV_POWER_DOWN) {
-		dev_dbg(dev->dev, "powering down: end of reset\n");
+		dev_dbg(&dev->dev, "powering down: end of reset\n");
 		mei_set_devstate(dev, MEI_DEV_DISABLED);
 		return 0;
 	}
@@ -185,21 +168,21 @@ int mei_reset(struct mei_device *dev)
 		char fw_sts_str[MEI_FW_STATUS_STR_SZ];
 
 		mei_fw_status_str(dev, fw_sts_str, MEI_FW_STATUS_STR_SZ);
-		dev_err(dev->dev, "hw_start failed ret = %d fw status = %s\n", ret, fw_sts_str);
+		dev_err(&dev->dev, "hw_start failed ret = %d fw status = %s\n", ret, fw_sts_str);
 		return ret;
 	}
 
 	if (dev->dev_state != MEI_DEV_RESETTING) {
-		dev_dbg(dev->dev, "wrong state = %d on link start\n", dev->dev_state);
+		dev_dbg(&dev->dev, "wrong state = %d on link start\n", dev->dev_state);
 		return 0;
 	}
 
-	dev_dbg(dev->dev, "link is established start sending messages.\n");
+	dev_dbg(&dev->dev, "link is established start sending messages.\n");
 
 	mei_set_devstate(dev, MEI_DEV_INIT_CLIENTS);
 	ret = mei_hbm_start_req(dev);
 	if (ret) {
-		dev_err(dev->dev, "hbm_start failed ret = %d\n", ret);
+		dev_err(&dev->dev, "hbm_start failed ret = %d\n", ret);
 		mei_set_devstate(dev, MEI_DEV_RESETTING);
 		return ret;
 	}
@@ -228,7 +211,7 @@ int mei_start(struct mei_device *dev)
 	if (ret)
 		goto err;
 
-	dev_dbg(dev->dev, "reset in start the mei device.\n");
+	dev_dbg(&dev->dev, "reset in start the mei device.\n");
 
 	dev->reset_count = 0;
 	do {
@@ -236,27 +219,27 @@ int mei_start(struct mei_device *dev)
 		ret = mei_reset(dev);
 
 		if (ret == -ENODEV || dev->dev_state == MEI_DEV_DISABLED) {
-			dev_err(dev->dev, "reset failed ret = %d", ret);
+			dev_err(&dev->dev, "reset failed ret = %d", ret);
 			goto err;
 		}
 	} while (ret);
 
 	if (mei_hbm_start_wait(dev)) {
-		dev_err(dev->dev, "HBM haven't started");
+		dev_err(&dev->dev, "HBM haven't started");
 		goto err;
 	}
 
 	if (!mei_hbm_version_is_supported(dev)) {
-		dev_dbg(dev->dev, "MEI start failed.\n");
+		dev_dbg(&dev->dev, "MEI start failed.\n");
 		goto err;
 	}
 
-	dev_dbg(dev->dev, "link layer has been established.\n");
+	dev_dbg(&dev->dev, "link layer has been established.\n");
 
 	mutex_unlock(&dev->device_lock);
 	return 0;
 err:
-	dev_err(dev->dev, "link layer initialization failed.\n");
+	dev_err(&dev->dev, "link layer initialization failed.\n");
 	mei_set_devstate(dev, MEI_DEV_DISABLED);
 	mutex_unlock(&dev->device_lock);
 	return -ENODEV;
@@ -284,7 +267,7 @@ int mei_restart(struct mei_device *dev)
 	mutex_unlock(&dev->device_lock);
 
 	if (err == -ENODEV || dev->dev_state == MEI_DEV_DISABLED) {
-		dev_err(dev->dev, "device disabled = %d\n", err);
+		dev_err(&dev->dev, "device disabled = %d\n", err);
 		return -ENODEV;
 	}
 
@@ -313,7 +296,7 @@ static void mei_reset_work(struct work_struct *work)
 	mutex_unlock(&dev->device_lock);
 
 	if (dev->dev_state == MEI_DEV_DISABLED) {
-		dev_err(dev->dev, "device disabled = %d\n", ret);
+		dev_err(&dev->dev, "device disabled = %d\n", ret);
 		return;
 	}
 
@@ -324,7 +307,7 @@ static void mei_reset_work(struct work_struct *work)
 
 void mei_stop(struct mei_device *dev)
 {
-	dev_dbg(dev->dev, "stopping the device.\n");
+	dev_dbg(&dev->dev, "stopping the device.\n");
 
 	mutex_lock(&dev->device_lock);
 	mei_set_devstate(dev, MEI_DEV_POWERING_DOWN);
@@ -365,7 +348,7 @@ bool mei_write_is_idle(struct mei_device *dev)
 		list_empty(&dev->write_list)   &&
 		list_empty(&dev->write_waiting_list));
 
-	dev_dbg(dev->dev, "write pg: is idle[%d] state=%s ctrl=%01d write=%01d wwait=%01d\n",
+	dev_dbg(&dev->dev, "write pg: is idle[%d] state=%s ctrl=%01d write=%01d wwait=%01d\n",
 		idle,
 		mei_dev_state_str(dev->dev_state),
 		list_empty(&dev->ctrl_wr_list),
@@ -380,12 +363,12 @@ EXPORT_SYMBOL_GPL(mei_write_is_idle);
  * mei_device_init - initialize mei_device structure
  *
  * @dev: the mei device
- * @device: the device structure
+ * @parent: the parent device
  * @slow_fw: configure longer timeouts as FW is slow
  * @hw_ops: hw operations
  */
 void mei_device_init(struct mei_device *dev,
-		     struct device *device,
+		     struct device *parent,
 		     bool slow_fw,
 		     const struct mei_hw_ops *hw_ops)
 {
@@ -399,7 +382,8 @@ void mei_device_init(struct mei_device *dev,
 	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_pg);
 	init_waitqueue_head(&dev->wait_hbm_start);
-	dev->dev_state = MEI_DEV_INITIALIZING;
+	dev->dev_state = MEI_DEV_UNINITIALIZED;
+	init_waitqueue_head(&dev->wait_dev_state);
 	dev->reset_count = 0;
 
 	INIT_LIST_HEAD(&dev->write_list);
@@ -426,7 +410,7 @@ void mei_device_init(struct mei_device *dev,
 
 	dev->pg_event = MEI_PG_EVENT_IDLE;
 	dev->ops      = hw_ops;
-	dev->dev      = device;
+	dev->parent   = parent;
 
 	dev->timeouts.hw_ready = mei_secs_to_jiffies(MEI_HW_READY_TIMEOUT);
 	dev->timeouts.connect = MEI_CONNECT_TIMEOUT;
@@ -442,6 +426,6 @@ void mei_device_init(struct mei_device *dev,
 		dev->timeouts.hbm = mei_secs_to_jiffies(MEI_HBM_TIMEOUT);
 		dev->timeouts.mkhi_recv = msecs_to_jiffies(MKHI_RCV_TIMEOUT);
 	}
+	dev->timeouts.link_reset_wait = msecs_to_jiffies(MEI_LINK_RESET_WAIT_TIMEOUT_MSEC);
 }
 EXPORT_SYMBOL_GPL(mei_device_init);
-

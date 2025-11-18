@@ -10,8 +10,6 @@
 
 #include <asm/set_memory.h>
 
-static inline bool arch_kfence_init_pool(void) { return true; }
-
 static inline bool kfence_protect_page(unsigned long addr, bool protect)
 {
 	set_memory_valid(addr, 1, !protect);
@@ -25,6 +23,7 @@ static inline bool arm64_kfence_can_set_direct_map(void)
 {
 	return !kfence_early_init;
 }
+bool arch_kfence_init_pool(void);
 #else /* CONFIG_KFENCE */
 static inline bool arm64_kfence_can_set_direct_map(void) { return false; }
 #endif /* CONFIG_KFENCE */

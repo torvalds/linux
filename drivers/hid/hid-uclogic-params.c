@@ -20,6 +20,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/unaligned.h>
+#include <linux/string_choices.h>
 
 /**
  * uclogic_params_pen_inrange_to_str() - Convert a pen in-range reporting type
@@ -59,7 +60,7 @@ static void uclogic_params_pen_hid_dbg(const struct hid_device *hdev,
 	size_t i;
 
 	hid_dbg(hdev, "\t.usage_invalid = %s\n",
-		(pen->usage_invalid ? "true" : "false"));
+		str_true_false(pen->usage_invalid));
 	hid_dbg(hdev, "\t.desc_ptr = %p\n", pen->desc_ptr);
 	hid_dbg(hdev, "\t.desc_size = %u\n", pen->desc_size);
 	hid_dbg(hdev, "\t.id = %u\n", pen->id);
@@ -74,9 +75,9 @@ static void uclogic_params_pen_hid_dbg(const struct hid_device *hdev,
 	hid_dbg(hdev, "\t.inrange = %s\n",
 		uclogic_params_pen_inrange_to_str(pen->inrange));
 	hid_dbg(hdev, "\t.fragmented_hires = %s\n",
-		(pen->fragmented_hires ? "true" : "false"));
+		str_true_false(pen->fragmented_hires));
 	hid_dbg(hdev, "\t.tilt_y_flipped = %s\n",
-		(pen->tilt_y_flipped ? "true" : "false"));
+		str_true_false(pen->tilt_y_flipped));
 }
 
 /**
@@ -119,8 +120,7 @@ void uclogic_params_hid_dbg(const struct hid_device *hdev,
 {
 	size_t i;
 
-	hid_dbg(hdev, ".invalid = %s\n",
-		params->invalid ? "true" : "false");
+	hid_dbg(hdev, ".invalid = %s\n", str_true_false(params->invalid));
 	hid_dbg(hdev, ".desc_ptr = %p\n", params->desc_ptr);
 	hid_dbg(hdev, ".desc_size = %u\n", params->desc_size);
 	hid_dbg(hdev, ".pen = {\n");

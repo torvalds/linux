@@ -705,6 +705,15 @@ config COMEDI_ADL_PCI6208
 	  To compile this driver as a module, choose M here: the module will be
 	  called adl_pci6208.
 
+config COMEDI_ADL_PCI7250
+	tristate "ADLink PCI-7250 support"
+	help
+	  Enable support for ADLink PCI-7250/LPCI-7250/LPCIe-7250 relay output
+	  and isolated digital input boards.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adl_pci7250.
+
 config COMEDI_ADL_PCI7X3X
 	tristate "ADLink PCI-723X/743X isolated digital i/o board support"
 	depends on HAS_IOPORT

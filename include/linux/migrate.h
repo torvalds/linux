@@ -12,14 +12,6 @@ typedef void free_folio_t(struct folio *folio, unsigned long private);
 
 struct migration_target_control;
 
-/*
- * Return values from addresss_space_operations.migratepage():
- * - negative errno on page migration failure;
- * - zero on page migration success;
- */
-#define MIGRATEPAGE_SUCCESS		0
-#define MIGRATEPAGE_UNMAP		1
-
 /**
  * struct movable_operations - Driver page migration
  * @isolate_page:
@@ -35,8 +27,7 @@ struct migration_target_control;
  * @src page.  The driver should copy the contents of the
  * @src page to the @dst page and set up the fields of @dst page.
  * Both pages are locked.
- * If page migration is successful, the driver should
- * return MIGRATEPAGE_SUCCESS.
+ * If page migration is successful, the driver should return 0.
  * If the driver cannot migrate the page at the moment, it can return
  * -EAGAIN.  The VM interprets this as a temporary migration failure and
  * will retry it later.  Any other error value is a permanent migration
@@ -79,6 +70,7 @@ void migration_entry_wait_on_locked(swp_entry_t entry, spinlock_t *ptl)
 void folio_migrate_flags(struct folio *newfolio, struct folio *folio);
 int folio_migrate_mapping(struct address_space *mapping,
 		struct folio *newfolio, struct folio *folio, int extra_count);
+int set_movable_ops(const struct movable_operations *ops, enum pagetype type);
 
 #else
 
@@ -97,6 +89,10 @@ static inline bool isolate_folio_to_list(struct folio *folio, struct list_head *
 
 static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct folio *dst, struct folio *src)
+{
+	return -ENOSYS;
+}
+static inline int set_movable_ops(const struct movable_operations *ops, enum pagetype type)
 {
 	return -ENOSYS;
 }

@@ -5,7 +5,7 @@ Linux Hotplugging
 =================
 
 
-In hotpluggable busses like USB (and Cardbus PCI), end-users plug devices
+In hotpluggable buses like USB (and Cardbus PCI), end-users plug devices
 into the bus with power on.  In most cases, users expect the devices to become
 immediately usable.  That means the system must do many things, including:
 

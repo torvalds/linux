@@ -41,6 +41,7 @@
 	rgmii_phy1: ethernet-phy@1 {
 		reg = <1>;
 		qca,smarteee-tw-us-1g = <24>;
+		interrupts-extended = <&gpio2 4 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
@@ -156,6 +157,7 @@
 	rtc@51 {
 		compatible = "nxp,pcf2129";
 		reg = <0x51>;
+		interrupts-extended = <&gpio2 8 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 

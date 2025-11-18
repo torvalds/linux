@@ -880,3 +880,15 @@ unsigned int arch_reloc_size(struct reloc *reloc)
 		return 8;
 	}
 }
+
+bool arch_absolute_reloc(struct elf *elf, struct reloc *reloc)
+{
+	switch (reloc_type(reloc)) {
+	case R_X86_64_32:
+	case R_X86_64_32S:
+	case R_X86_64_64:
+		return true;
+	default:
+		return false;
+	}
+}

@@ -1163,7 +1163,7 @@ OldOpenRetry:
 				cpu_to_le64(le32_to_cpu(pSMBr->EndOfFile));
 			pfile_info->EndOfFile = pfile_info->AllocationSize;
 			pfile_info->NumberOfLinks = cpu_to_le32(1);
-			pfile_info->DeletePending = 0;
+			pfile_info->DeletePending = 0; /* successful open = not delete pending */
 		}
 	}
 
@@ -1288,7 +1288,7 @@ openRetry:
 		buf->AllocationSize = rsp->AllocationSize;
 		buf->EndOfFile = rsp->EndOfFile;
 		buf->NumberOfLinks = cpu_to_le32(1);
-		buf->DeletePending = 0;
+		buf->DeletePending = 0; /* successful open = not delete pending */
 	}
 
 	cifs_buf_release(req);
@@ -1311,6 +1311,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		.rreq_debug_id = rdata->rreq->debug_id,
 		.rreq_debug_index = rdata->subreq.debug_index,
 	};
+	unsigned int rreq_debug_id = rdata->rreq->debug_id;
+	unsigned int subreq_debug_index = rdata->subreq.debug_index;
 
 	cifs_dbg(FYI, "%s: mid=%llu state=%d result=%d bytes=%zu\n",
 		 __func__, mid->mid, mid->mid_state, rdata->result,
@@ -1374,6 +1376,9 @@ do_retry:
 			__set_bit(NETFS_SREQ_MADE_PROGRESS, &rdata->subreq.flags);
 	}
 
+	trace_smb3_rw_credits(rreq_debug_id, subreq_debug_index, rdata->credits.value,
+			      server->credits, server->in_flight,
+			      0, cifs_trace_rw_credits_read_response_clear);
 	rdata->credits.value = 0;
 	rdata->subreq.error = rdata->result;
 	rdata->subreq.transferred += rdata->got_bytes;
@@ -1381,6 +1386,9 @@ do_retry:
 	netfs_read_subreq_terminated(&rdata->subreq);
 	release_mid(mid);
 	add_credits(server, &credits, 0);
+	trace_smb3_rw_credits(rreq_debug_id, subreq_debug_index, 0,
+			      server->credits, server->in_flight,
+			      credits.value, cifs_trace_rw_credits_read_response_add);
 }
 
 /* cifs_async_readv - send an async write, and set up mid to handle result */

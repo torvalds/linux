@@ -480,12 +480,9 @@ static int ti_sci_scan_clocks_from_fw(struct sci_clk_provider *provider)
 		num_clks++;
 	}
 
-	provider->clocks = devm_kmalloc_array(dev, num_clks, sizeof(sci_clk),
-					      GFP_KERNEL);
+	provider->clocks = devm_kmemdup_array(dev, clks, num_clks, sizeof(sci_clk), GFP_KERNEL);
 	if (!provider->clocks)
 		return -ENOMEM;
-
-	memcpy(provider->clocks, clks, num_clks * sizeof(sci_clk));
 
 	provider->num_clocks = num_clks;
 

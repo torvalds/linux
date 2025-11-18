@@ -131,6 +131,7 @@ extern const char *f2fs_fault_name[FAULT_MAX];
  * string rather than using the MS_LAZYTIME flag, so this must remain.
  */
 #define F2FS_MOUNT_LAZYTIME		0x40000000
+#define F2FS_MOUNT_RESERVE_NODE		0x80000000
 
 #define F2FS_OPTION(sbi)	((sbi)->mount_opt)
 #define clear_opt(sbi, option)	(F2FS_OPTION(sbi).opt &= ~F2FS_MOUNT_##option)
@@ -155,6 +156,18 @@ enum blkzone_allocation_policy {
 	BLKZONE_ALLOC_PRIOR_CONV,	/* Prioritize writing to conventional zones */
 };
 
+enum bggc_io_aware_policy {
+	AWARE_ALL_IO,		/* skip background GC if there is any kind of pending IO */
+	AWARE_READ_IO,		/* skip background GC if there is pending read IO */
+	AWARE_NONE,			/* don't aware IO for background GC */
+};
+
+enum device_allocation_policy {
+	ALLOCATE_FORWARD_NOHINT,
+	ALLOCATE_FORWARD_WITHIN_HINT,
+	ALLOCATE_FORWARD_FROM_HINT,
+};
+
 /*
  * An implementation of an rwsem that is explicitly unfair to readers. This
  * prevents priority inversion when a low-priority reader acquires the read lock
@@ -172,6 +185,7 @@ struct f2fs_rwsem {
 struct f2fs_mount_info {
 	unsigned int opt;
 	block_t root_reserved_blocks;	/* root reserved blocks */
+	block_t root_reserved_nodes;	/* root reserved nodes */
 	kuid_t s_resuid;		/* reserved blocks for uid */
 	kgid_t s_resgid;		/* reserved blocks for gid */
 	int active_logs;		/* # of active logs */
@@ -212,6 +226,7 @@ struct f2fs_mount_info {
 	int compress_mode;			/* compression mode */
 	unsigned char extensions[COMPRESS_EXT_NUM][F2FS_EXTENSION_LEN];	/* extensions */
 	unsigned char noextensions[COMPRESS_EXT_NUM][F2FS_EXTENSION_LEN]; /* extensions */
+	unsigned int lookup_mode;
 };
 
 #define F2FS_FEATURE_ENCRYPT			0x00000001
@@ -266,14 +281,36 @@ enum {
 #define DEF_CP_INTERVAL			60	/* 60 secs */
 #define DEF_IDLE_INTERVAL		5	/* 5 secs */
 #define DEF_DISABLE_INTERVAL		5	/* 5 secs */
+#define DEF_ENABLE_INTERVAL		16	/* 16 secs */
 #define DEF_DISABLE_QUICK_INTERVAL	1	/* 1 secs */
 #define DEF_UMOUNT_DISCARD_TIMEOUT	5	/* 5 secs */
+
+enum cp_time {
+	CP_TIME_START,		/* begin */
+	CP_TIME_LOCK,		/* after cp_global_sem */
+	CP_TIME_OP_LOCK,	/* after block_operation */
+	CP_TIME_FLUSH_META,	/* after flush sit/nat */
+	CP_TIME_SYNC_META,	/* after sync_meta_pages */
+	CP_TIME_SYNC_CP_META,	/* after sync cp meta pages */
+	CP_TIME_WAIT_DIRTY_META,/* after wait on dirty meta */
+	CP_TIME_WAIT_CP_DATA,	/* after wait on cp data */
+	CP_TIME_FLUSH_DEVICE,	/* after flush device cache */
+	CP_TIME_WAIT_LAST_CP,	/* after wait on last cp pack */
+	CP_TIME_END,		/* after unblock_operation */
+	CP_TIME_MAX,
+};
+
+/* time cost stats of checkpoint */
+struct cp_stats {
+	ktime_t times[CP_TIME_MAX];
+};
 
 struct cp_control {
 	int reason;
 	__u64 trim_start;
 	__u64 trim_end;
 	__u64 trim_minlen;
+	struct cp_stats stats;
 };
 
 /*
@@ -334,7 +371,10 @@ struct ckpt_req {
 	struct completion wait;		/* completion for checkpoint done */
 	struct llist_node llnode;	/* llist_node to be linked in wait queue */
 	int ret;			/* return code of checkpoint */
-	ktime_t queue_time;		/* request queued time */
+	union {
+		ktime_t queue_time;	/* request queued time */
+		ktime_t delta_time;	/* time in queue */
+	};
 };
 
 struct ckpt_req_control {
@@ -349,6 +389,9 @@ struct ckpt_req_control {
 	unsigned int cur_time;		/* cur wait time in msec for currently issued checkpoint */
 	unsigned int peak_time;		/* peak wait time in msec until now */
 };
+
+/* a time threshold that checkpoint was blocked for, unit: ms */
+#define CP_LONG_LATENCY_THRESHOLD	5000
 
 /* for the bitmap indicate blocks to be discarded */
 struct discard_entry {
@@ -907,6 +950,12 @@ struct f2fs_inode_info {
 
 	unsigned int atomic_write_cnt;
 	loff_t original_i_size;		/* original i_size before atomic write */
+#ifdef CONFIG_FS_ENCRYPTION
+	struct fscrypt_inode_info *i_crypt_info; /* filesystem encryption info */
+#endif
+#ifdef CONFIG_FS_VERITY
+	struct fsverity_info *i_verity_info; /* filesystem verity info */
+#endif
 };
 
 static inline void get_read_extent_info(struct extent_info *ext,
@@ -1369,6 +1418,7 @@ enum {
 	DISCARD_TIME,
 	GC_TIME,
 	DISABLE_TIME,
+	ENABLE_TIME,
 	UMOUNT_DISCARD_TIMEOUT,
 	MAX_TIME,
 };
@@ -1446,6 +1496,12 @@ enum {
 	FOREGROUND,
 	MAX_CALL_TYPE,
 	TOTAL_CALL = FOREGROUND,
+};
+
+enum f2fs_lookup_mode {
+	LOOKUP_PERF,
+	LOOKUP_COMPAT,
+	LOOKUP_AUTO,
 };
 
 static inline int f2fs_test_bit(unsigned int nr, char *addr);
@@ -1637,6 +1693,7 @@ struct f2fs_sb_info {
 	unsigned long last_time[MAX_TIME];	/* to store time in jiffies */
 	long interval_time[MAX_TIME];		/* to store thresholds */
 	struct ckpt_req_control cprc_info;	/* for checkpoint request control */
+	struct cp_stats cp_stats;		/* for time stat of checkpoint */
 
 	struct inode_management im[MAX_INO_ENTRY];	/* manage inode cache */
 
@@ -1804,6 +1861,9 @@ struct f2fs_sb_info {
 	spinlock_t dev_lock;			/* protect dirty_device */
 	bool aligned_blksize;			/* all devices has the same logical blksize */
 	unsigned int first_seq_zone_segno;	/* first segno in sequential zone */
+	unsigned int bggc_io_aware;		/* For adjust the BG_GC priority when pending IO */
+	unsigned int allocate_section_hint;	/* the boundary position between devices */
+	unsigned int allocate_section_policy;	/* determine the section writing priority */
 
 	/* For write statistics */
 	u64 sectors_written_start;
@@ -2356,13 +2416,11 @@ static inline bool f2fs_has_xattr_block(unsigned int ofs)
 	return ofs == XATTR_NODE_OFFSET;
 }
 
-static inline bool __allow_reserved_blocks(struct f2fs_sb_info *sbi,
+static inline bool __allow_reserved_root(struct f2fs_sb_info *sbi,
 					struct inode *inode, bool cap)
 {
 	if (!inode)
 		return true;
-	if (!test_opt(sbi, RESERVE_ROOT))
-		return false;
 	if (IS_NOQUOTA(inode))
 		return true;
 	if (uid_eq(F2FS_OPTION(sbi).s_resuid, current_fsuid()))
@@ -2383,7 +2441,7 @@ static inline unsigned int get_available_block_count(struct f2fs_sb_info *sbi,
 	avail_user_block_count = sbi->user_block_count -
 					sbi->current_reserved_blocks;
 
-	if (!__allow_reserved_blocks(sbi, inode, cap))
+	if (test_opt(sbi, RESERVE_ROOT) && !__allow_reserved_root(sbi, inode, cap))
 		avail_user_block_count -= F2FS_OPTION(sbi).root_reserved_blocks;
 
 	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
@@ -2741,7 +2799,7 @@ static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 					struct inode *inode, bool is_inode)
 {
 	block_t	valid_block_count;
-	unsigned int valid_node_count;
+	unsigned int valid_node_count, avail_user_node_count;
 	unsigned int avail_user_block_count;
 	int err;
 
@@ -2763,15 +2821,20 @@ static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 	spin_lock(&sbi->stat_lock);
 
 	valid_block_count = sbi->total_valid_block_count + 1;
-	avail_user_block_count = get_available_block_count(sbi, inode, false);
+	avail_user_block_count = get_available_block_count(sbi, inode,
+			test_opt(sbi, RESERVE_NODE));
 
 	if (unlikely(valid_block_count > avail_user_block_count)) {
 		spin_unlock(&sbi->stat_lock);
 		goto enospc;
 	}
 
+	avail_user_node_count = sbi->total_node_count - F2FS_RESERVED_NODE_NUM;
+	if (test_opt(sbi, RESERVE_NODE) &&
+			!__allow_reserved_root(sbi, inode, true))
+		avail_user_node_count -= F2FS_OPTION(sbi).root_reserved_nodes;
 	valid_node_count = sbi->total_valid_node_count + 1;
-	if (unlikely(valid_node_count > sbi->total_node_count)) {
+	if (unlikely(valid_node_count > avail_user_node_count)) {
 		spin_unlock(&sbi->stat_lock);
 		goto enospc;
 	}
@@ -2998,13 +3061,10 @@ static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
 	if (sbi->gc_mode == GC_URGENT_HIGH)
 		return true;
 
-	if (zoned_gc) {
-		if (is_inflight_read_io(sbi))
-			return false;
-	} else {
-		if (is_inflight_io(sbi, type))
-			return false;
-	}
+	if (sbi->bggc_io_aware == AWARE_READ_IO && is_inflight_read_io(sbi))
+		return false;
+	if (sbi->bggc_io_aware == AWARE_ALL_IO && is_inflight_io(sbi, type))
+		return false;
 
 	if (sbi->gc_mode == GC_URGENT_MID)
 		return true;
@@ -3764,6 +3824,7 @@ void f2fs_hash_filename(const struct inode *dir, struct f2fs_filename *fname);
  * node.c
  */
 struct node_info;
+enum node_type;
 
 int f2fs_check_nid_range(struct f2fs_sb_info *sbi, nid_t nid);
 bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type);
@@ -3786,7 +3847,8 @@ int f2fs_remove_inode_page(struct inode *inode);
 struct folio *f2fs_new_inode_folio(struct inode *inode);
 struct folio *f2fs_new_node_folio(struct dnode_of_data *dn, unsigned int ofs);
 void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid);
-struct folio *f2fs_get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid);
+struct folio *f2fs_get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid,
+						enum node_type node_type);
 struct folio *f2fs_get_inode_folio(struct f2fs_sb_info *sbi, pgoff_t ino);
 struct folio *f2fs_get_xnode_folio(struct f2fs_sb_info *sbi, pgoff_t xnid);
 int f2fs_move_node_folio(struct folio *node_folio, int gc_type);

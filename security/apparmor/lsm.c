@@ -112,7 +112,7 @@ static void apparmor_task_free(struct task_struct *task)
 }
 
 static int apparmor_task_alloc(struct task_struct *task,
-			       unsigned long clone_flags)
+			       u64 clone_flags)
 {
 	struct aa_task_ctx *new = task_ctx(task);
 
@@ -2529,6 +2529,9 @@ static int __init apparmor_init(void)
 	}
 	security_add_hooks(apparmor_hooks, ARRAY_SIZE(apparmor_hooks),
 				&apparmor_lsmid);
+
+	/* Inform the audit system that secctx is used */
+	audit_cfg_lsm(&apparmor_lsmid, AUDIT_CFG_LSM_SECCTX_SUBJECT);
 
 	/* Report that AppArmor successfully initialized */
 	apparmor_initialized = 1;

@@ -46,6 +46,17 @@ static void aie2_job_put(struct amdxdna_sched_job *job)
 	kref_put(&job->refcnt, aie2_job_release);
 }
 
+static void aie2_hwctx_status_shift_stop(struct amdxdna_hwctx *hwctx)
+{
+	 hwctx->old_status = hwctx->status;
+	 hwctx->status = HWCTX_STAT_STOP;
+}
+
+static void aie2_hwctx_status_restore(struct amdxdna_hwctx *hwctx)
+{
+	hwctx->status = hwctx->old_status;
+}
+
 /* The bad_job is used in aie2_sched_job_timedout, otherwise, set it to NULL */
 static void aie2_hwctx_stop(struct amdxdna_dev *xdna, struct amdxdna_hwctx *hwctx,
 			    struct drm_sched_job *bad_job)
@@ -89,25 +100,6 @@ out:
 	return ret;
 }
 
-void aie2_restart_ctx(struct amdxdna_client *client)
-{
-	struct amdxdna_dev *xdna = client->xdna;
-	struct amdxdna_hwctx *hwctx;
-	unsigned long hwctx_id;
-
-	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
-	mutex_lock(&client->hwctx_lock);
-	amdxdna_for_each_hwctx(client, hwctx_id, hwctx) {
-		if (hwctx->status != HWCTX_STAT_STOP)
-			continue;
-
-		hwctx->status = hwctx->old_status;
-		XDNA_DBG(xdna, "Resetting %s", hwctx->name);
-		aie2_hwctx_restart(xdna, hwctx);
-	}
-	mutex_unlock(&client->hwctx_lock);
-}
-
 static struct dma_fence *aie2_cmd_get_out_fence(struct amdxdna_hwctx *hwctx, u64 seq)
 {
 	struct dma_fence *fence, *out_fence = NULL;
@@ -141,9 +133,20 @@ static void aie2_hwctx_wait_for_idle(struct amdxdna_hwctx *hwctx)
 	dma_fence_put(fence);
 }
 
-void aie2_hwctx_suspend(struct amdxdna_hwctx *hwctx)
+static int aie2_hwctx_suspend_cb(struct amdxdna_hwctx *hwctx, void *arg)
 {
 	struct amdxdna_dev *xdna = hwctx->client->xdna;
+
+	aie2_hwctx_wait_for_idle(hwctx);
+	aie2_hwctx_stop(xdna, hwctx, NULL);
+	aie2_hwctx_status_shift_stop(hwctx);
+
+	return 0;
+}
+
+void aie2_hwctx_suspend(struct amdxdna_client *client)
+{
+	struct amdxdna_dev *xdna = client->xdna;
 
 	/*
 	 * Command timeout is unlikely. But if it happens, it doesn't
@@ -151,15 +154,20 @@ void aie2_hwctx_suspend(struct amdxdna_hwctx *hwctx)
 	 * and abort all commands.
 	 */
 	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
-	aie2_hwctx_wait_for_idle(hwctx);
-	aie2_hwctx_stop(xdna, hwctx, NULL);
-	hwctx->old_status = hwctx->status;
-	hwctx->status = HWCTX_STAT_STOP;
+	amdxdna_hwctx_walk(client, NULL, aie2_hwctx_suspend_cb);
 }
 
-void aie2_hwctx_resume(struct amdxdna_hwctx *hwctx)
+static int aie2_hwctx_resume_cb(struct amdxdna_hwctx *hwctx, void *arg)
 {
 	struct amdxdna_dev *xdna = hwctx->client->xdna;
+
+	aie2_hwctx_status_restore(hwctx);
+	return aie2_hwctx_restart(xdna, hwctx);
+}
+
+int aie2_hwctx_resume(struct amdxdna_client *client)
+{
+	struct amdxdna_dev *xdna = client->xdna;
 
 	/*
 	 * The resume path cannot guarantee that mailbox channel can be
@@ -167,8 +175,7 @@ void aie2_hwctx_resume(struct amdxdna_hwctx *hwctx)
 	 * mailbox channel, error will return.
 	 */
 	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
-	hwctx->status = hwctx->old_status;
-	aie2_hwctx_restart(xdna, hwctx);
+	return amdxdna_hwctx_walk(client, NULL, aie2_hwctx_resume_cb);
 }
 
 static void
@@ -192,7 +199,7 @@ aie2_sched_resp_handler(void *handle, void __iomem *data, size_t size)
 {
 	struct amdxdna_sched_job *job = handle;
 	struct amdxdna_gem_obj *cmd_abo;
-	u32 ret = 0;
+	int ret = 0;
 	u32 status;
 
 	cmd_abo = job->cmd_bo;
@@ -222,7 +229,7 @@ static int
 aie2_sched_nocmd_resp_handler(void *handle, void __iomem *data, size_t size)
 {
 	struct amdxdna_sched_job *job = handle;
-	u32 ret = 0;
+	int ret = 0;
 	u32 status;
 
 	if (unlikely(!data))
@@ -250,7 +257,7 @@ aie2_sched_cmdlist_resp_handler(void *handle, void __iomem *data, size_t size)
 	u32 fail_cmd_status;
 	u32 fail_cmd_idx;
 	u32 cmd_status;
-	u32 ret = 0;
+	int ret = 0;
 
 	cmd_abo = job->cmd_bo;
 	if (unlikely(!data) || unlikely(size != sizeof(u32) * 3)) {

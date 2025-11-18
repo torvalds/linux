@@ -7,7 +7,7 @@
  * Author: Chaithrika U S <chaithrika@ti.com>
  *
  * Contributors:
- *     Hans Verkuil <hansverk@cisco.com>
+ *     Hans Verkuil <hverkuil@kernel.org>
  *     Lad, Prabhakar <prabhakar.lad@ti.com>
  *     Martin Bugge <marbugge@cisco.com>
  *

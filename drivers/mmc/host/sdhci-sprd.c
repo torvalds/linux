@@ -903,7 +903,6 @@ static const struct of_device_id sdhci_sprd_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sdhci_sprd_of_match);
 
-#ifdef CONFIG_PM
 static int sdhci_sprd_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -950,13 +949,10 @@ clk_2x_disable:
 
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops sdhci_sprd_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(sdhci_sprd_runtime_suspend,
-			   sdhci_sprd_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(sdhci_sprd_runtime_suspend, sdhci_sprd_runtime_resume, NULL)
 };
 
 static struct platform_driver sdhci_sprd_driver = {
@@ -966,7 +962,7 @@ static struct platform_driver sdhci_sprd_driver = {
 		.name = "sdhci_sprd_r11",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_sprd_of_match,
-		.pm = &sdhci_sprd_pm_ops,
+		.pm = pm_ptr(&sdhci_sprd_pm_ops),
 	},
 };
 module_platform_driver(sdhci_sprd_driver);

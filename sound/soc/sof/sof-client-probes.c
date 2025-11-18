@@ -17,8 +17,14 @@
 
 #include <sound/soc.h>
 #include <sound/sof/header.h>
+#include <sound/sof/ipc4/header.h>
 #include "sof-client.h"
 #include "sof-client-probes.h"
+#include "sof-audio.h"
+
+#ifdef CONFIG_SND_SOC_SOF_IPC4
+#include "ipc4-priv.h"
+#endif
 
 #define SOF_PROBES_SUSPEND_DELAY_MS 3000
 /* only extraction supported for now */
@@ -69,7 +75,8 @@ static int sof_probes_compr_shutdown(struct snd_compr_stream *cstream,
 	int i, ret;
 
 	/* disconnect all probe points */
-	ret = ipc->points_info(cdev, &desc, &num_desc);
+	ret = ipc->points_info(cdev, &desc, &num_desc,
+			       PROBES_INFO_ACTIVE_PROBES);
 	if (ret < 0) {
 		dev_err(dai->dev, "Failed to get probe points: %d\n", ret);
 		goto exit;
@@ -137,7 +144,7 @@ static int sof_probes_compr_trigger(struct snd_compr_stream *cstream, int cmd,
 }
 
 static int sof_probes_compr_pointer(struct snd_compr_stream *cstream,
-				    struct snd_compr_tstamp *tstamp,
+				    struct snd_compr_tstamp64 *tstamp,
 				    struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = snd_soc_component_get_drvdata(dai->component);
@@ -189,7 +196,8 @@ static const struct snd_compress_ops sof_probes_compressed_ops = {
 };
 
 static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
-					  size_t count, loff_t *ppos)
+					  size_t count, loff_t *ppos,
+					  enum sof_probe_info_type type)
 {
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_probes_priv *priv = cdev->data;
@@ -216,16 +224,20 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 		goto exit;
 	}
 
-	ret = ipc->points_info(cdev, &desc, &num_desc);
+	ret = ipc->points_info(cdev, &desc, &num_desc, type);
 	if (ret < 0)
 		goto pm_error;
 
 	for (i = 0; i < num_desc; i++) {
 		offset = strlen(buf);
 		remaining = PAGE_SIZE - offset;
-		ret = snprintf(buf + offset, remaining,
-			       "Id: %#010x  Purpose: %u  Node id: %#x\n",
-				desc[i].buffer_id, desc[i].purpose, desc[i].stream_tag);
+		if (ipc->point_print)
+			ret = ipc->point_print(cdev, buf + offset, remaining, &desc[i]);
+		else
+			ret = snprintf(buf + offset, remaining,
+				       "Id: %#010x  Purpose: %u  Node id: %#x\n",
+				       desc[i].buffer_id, desc[i].purpose, desc[i].stream_tag);
+
 		if (ret < 0 || ret >= remaining) {
 			/* truncate the output buffer at the last full line */
 			buf[offset] = '\0';
@@ -245,6 +257,22 @@ pm_error:
 exit:
 	kfree(buf);
 	return ret;
+}
+
+static ssize_t sof_probes_dfs_active_points_read(struct file *file,
+						 char __user *to,
+						 size_t count, loff_t *ppos)
+{
+	return sof_probes_dfs_points_read(file, to, count, ppos,
+					  PROBES_INFO_ACTIVE_PROBES);
+}
+
+static ssize_t sof_probes_dfs_available_points_read(struct file *file,
+						    char __user *to,
+						    size_t count, loff_t *ppos)
+{
+	return sof_probes_dfs_points_read(file, to, count, ppos,
+					  PROBES_INFO_AVAILABE_PROBES);
 }
 
 static ssize_t
@@ -296,10 +324,18 @@ exit:
 	return ret;
 }
 
-static const struct file_operations sof_probes_points_fops = {
+static const struct file_operations sof_probes_active_points_fops = {
 	.open = simple_open,
-	.read = sof_probes_dfs_points_read,
+	.read = sof_probes_dfs_active_points_read,
 	.write = sof_probes_dfs_points_write,
+	.llseek = default_llseek,
+
+	.owner = THIS_MODULE,
+};
+
+static const struct file_operations sof_probes_available_points_fops = {
+	.open = simple_open,
+	.read = sof_probes_dfs_available_points_read,
 	.llseek = default_llseek,
 
 	.owner = THIS_MODULE,
@@ -449,12 +485,16 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 
 	/* create read-write probes_points debugfs entry */
 	priv->dfs_points = debugfs_create_file("probe_points", 0644, dfsroot,
-					       cdev, &sof_probes_points_fops);
+					       cdev, &sof_probes_active_points_fops);
 
 	/* create read-write probe_points_remove debugfs entry */
 	priv->dfs_points_remove = debugfs_create_file("probe_points_remove", 0644,
 						      dfsroot, cdev,
 						      &sof_probes_points_remove_fops);
+
+	/* create read-write probes_points debugfs entry */
+	priv->dfs_points = debugfs_create_file("probe_points_available", 0644, dfsroot,
+					       cdev, &sof_probes_available_points_fops);
 
 	links = devm_kcalloc(dev, SOF_PROBES_NUM_DAI_LINKS, sizeof(*links), GFP_KERNEL);
 	cpus = devm_kcalloc(dev, SOF_PROBES_NUM_DAI_LINKS, sizeof(*cpus), GFP_KERNEL);
@@ -485,7 +525,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	card->dai_link = links;
 
 	/* set idle_bias_off to prevent the core from resuming the card->dev */
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	snd_soc_card_set_drvdata(card, cdev);
 

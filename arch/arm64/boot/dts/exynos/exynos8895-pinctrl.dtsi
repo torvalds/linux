@@ -202,7 +202,7 @@
 	};
 
 	bt_en: bt-en-pins {
-		samsung,pins ="gpj1-7";
+		samsung,pins = "gpj1-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;

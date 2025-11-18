@@ -572,6 +572,7 @@ struct rtw89_phy_sts_ie00 {
 } __packed;
 
 #define RTW89_PHY_STS_IE00_W0_RPL GENMASK(15, 7)
+#define RTW89_PHY_STS_IE00_W3_RX_PATH_EN GENMASK(31, 28)
 
 struct rtw89_phy_sts_ie00_v2 {
 	__le32 w0;
@@ -730,43 +731,6 @@ rtw89_core_get_qsel_mgmt(struct rtw89_dev *rtwdev, struct rtw89_core_tx_request 
 		return RTW89_TX_QSEL_B1_MGMT;
 	else
 		return RTW89_TX_QSEL_B0_MGMT;
-}
-
-static inline u8 rtw89_core_get_ch_dma(struct rtw89_dev *rtwdev, u8 qsel)
-{
-	switch (qsel) {
-	default:
-		rtw89_warn(rtwdev, "Cannot map qsel to dma: %d\n", qsel);
-		fallthrough;
-	case RTW89_TX_QSEL_BE_0:
-	case RTW89_TX_QSEL_BE_1:
-	case RTW89_TX_QSEL_BE_2:
-	case RTW89_TX_QSEL_BE_3:
-		return RTW89_TXCH_ACH0;
-	case RTW89_TX_QSEL_BK_0:
-	case RTW89_TX_QSEL_BK_1:
-	case RTW89_TX_QSEL_BK_2:
-	case RTW89_TX_QSEL_BK_3:
-		return RTW89_TXCH_ACH1;
-	case RTW89_TX_QSEL_VI_0:
-	case RTW89_TX_QSEL_VI_1:
-	case RTW89_TX_QSEL_VI_2:
-	case RTW89_TX_QSEL_VI_3:
-		return RTW89_TXCH_ACH2;
-	case RTW89_TX_QSEL_VO_0:
-	case RTW89_TX_QSEL_VO_1:
-	case RTW89_TX_QSEL_VO_2:
-	case RTW89_TX_QSEL_VO_3:
-		return RTW89_TXCH_ACH3;
-	case RTW89_TX_QSEL_B0_MGMT:
-		return RTW89_TXCH_CH8;
-	case RTW89_TX_QSEL_B0_HI:
-		return RTW89_TXCH_CH9;
-	case RTW89_TX_QSEL_B1_MGMT:
-		return RTW89_TXCH_CH10;
-	case RTW89_TX_QSEL_B1_HI:
-		return RTW89_TXCH_CH11;
-	}
 }
 
 static inline u8 rtw89_core_get_tid_indicate(struct rtw89_dev *rtwdev, u8 tid)

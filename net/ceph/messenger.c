@@ -252,7 +252,8 @@ int __init ceph_msgr_init(void)
 	 * The number of active work items is limited by the number of
 	 * connections, so leave @max_active at default.
 	 */
-	ceph_msgr_wq = alloc_workqueue("ceph-msgr", WQ_MEM_RECLAIM, 0);
+	ceph_msgr_wq = alloc_workqueue("ceph-msgr",
+				       WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (ceph_msgr_wq)
 		return 0;
 
@@ -1524,7 +1525,7 @@ static void con_fault_finish(struct ceph_connection *con)
 	 * in case we faulted due to authentication, invalidate our
 	 * current tickets so that we can get new ones.
 	 */
-	if (con->v1.auth_retry) {
+	if (!ceph_msgr2(from_msgr(con->msgr)) && con->v1.auth_retry) {
 		dout("auth_retry %d, invalidating\n", con->v1.auth_retry);
 		if (con->ops->invalidate_authorizer)
 			con->ops->invalidate_authorizer(con);
@@ -1714,9 +1715,10 @@ static void clear_standby(struct ceph_connection *con)
 {
 	/* come back from STANDBY? */
 	if (con->state == CEPH_CON_S_STANDBY) {
-		dout("clear_standby %p and ++connect_seq\n", con);
+		dout("clear_standby %p\n", con);
 		con->state = CEPH_CON_S_PREOPEN;
-		con->v1.connect_seq++;
+		if (!ceph_msgr2(from_msgr(con->msgr)))
+			con->v1.connect_seq++;
 		WARN_ON(ceph_con_flag_test(con, CEPH_CON_F_WRITE_PENDING));
 		WARN_ON(ceph_con_flag_test(con, CEPH_CON_F_KEEPALIVE_PENDING));
 	}
@@ -1792,9 +1794,9 @@ void ceph_msg_revoke(struct ceph_msg *msg)
 		WARN_ON(con->state != CEPH_CON_S_OPEN);
 		dout("%s con %p msg %p was sending\n", __func__, con, msg);
 		if (ceph_msgr2(from_msgr(con->msgr)))
-			ceph_con_v2_revoke(con);
+			ceph_con_v2_revoke(con, msg);
 		else
-			ceph_con_v1_revoke(con);
+			ceph_con_v1_revoke(con, msg);
 		ceph_msg_put(con->out_msg);
 		con->out_msg = NULL;
 	} else {
@@ -2109,11 +2111,13 @@ int ceph_con_in_msg_alloc(struct ceph_connection *con,
 	return ret;
 }
 
-void ceph_con_get_out_msg(struct ceph_connection *con)
+struct ceph_msg *ceph_con_get_out_msg(struct ceph_connection *con)
 {
 	struct ceph_msg *msg;
 
-	BUG_ON(list_empty(&con->out_queue));
+	if (list_empty(&con->out_queue))
+		return NULL;
+
 	msg = list_first_entry(&con->out_queue, struct ceph_msg, list_head);
 	WARN_ON(msg->con != con);
 
@@ -2140,7 +2144,7 @@ void ceph_con_get_out_msg(struct ceph_connection *con)
 	 * message or in case of a fault.
 	 */
 	WARN_ON(con->out_msg);
-	con->out_msg = ceph_msg_get(msg);
+	return con->out_msg = ceph_msg_get(msg);
 }
 
 /*

@@ -1454,8 +1454,8 @@ rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 
 	if (RDS_HS_PROBE(be16_to_cpu(sport), be16_to_cpu(dport)) &&
 	    cp->cp_conn->c_trans->t_mp_capable) {
-		u16 npaths = cpu_to_be16(RDS_MPATH_WORKERS);
-		u32 my_gen_num = cpu_to_be32(cp->cp_conn->c_my_gen_num);
+		__be16 npaths = cpu_to_be16(RDS_MPATH_WORKERS);
+		__be32 my_gen_num = cpu_to_be32(cp->cp_conn->c_my_gen_num);
 
 		rds_message_add_extension(&rm->m_inc.i_hdr,
 					  RDS_EXTHDR_NPATHS, &npaths,

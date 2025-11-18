@@ -651,25 +651,29 @@ void mlx5e_reporter_icosq_resume_recovery(struct mlx5e_channel *c)
 	mutex_unlock(&c->icosq_recovery_lock);
 }
 
+#define MLX5E_REPORTER_RX_GRACEFUL_PERIOD 500
+#define MLX5E_REPORTER_RX_BURST_PERIOD 500
+
 static const struct devlink_health_reporter_ops mlx5_rx_reporter_ops = {
 	.name = "rx",
 	.recover = mlx5e_rx_reporter_recover,
 	.diagnose = mlx5e_rx_reporter_diagnose,
 	.dump = mlx5e_rx_reporter_dump,
+	.default_graceful_period = MLX5E_REPORTER_RX_GRACEFUL_PERIOD,
+	.default_burst_period = MLX5E_REPORTER_RX_BURST_PERIOD,
 };
-
-#define MLX5E_REPORTER_RX_GRACEFUL_PERIOD 500
 
 void mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
 {
+	struct devlink_port *port = priv->netdev->devlink_port;
 	struct devlink_health_reporter *reporter;
 
-	reporter = devlink_port_health_reporter_create(priv->netdev->devlink_port,
+	reporter = devlink_port_health_reporter_create(port,
 						       &mlx5_rx_reporter_ops,
-						       MLX5E_REPORTER_RX_GRACEFUL_PERIOD, priv);
+						       priv);
 	if (IS_ERR(reporter)) {
-		netdev_warn(priv->netdev, "Failed to create rx reporter, err = %ld\n",
-			    PTR_ERR(reporter));
+		netdev_warn(priv->netdev, "Failed to create rx reporter, err = %pe\n",
+			    reporter);
 		return;
 	}
 	priv->rx_reporter = reporter;

@@ -1246,7 +1246,7 @@ int aha152x_host_reset_host(struct Scsi_Host *shpnt)
  * Return the "logical geometry"
  *
  */
-static int aha152x_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+static int aha152x_biosparam(struct scsi_device *sdev, struct gendisk *disk,
 		sector_t capacity, int *info_array)
 {
 	struct Scsi_Host *shpnt = sdev->host;
@@ -1261,7 +1261,7 @@ static int aha152x_biosparam(struct scsi_device *sdev, struct block_device *bdev
 		int info[3];
 
 		/* try to figure out the geometry from the partition table */
-		if (scsicam_bios_param(bdev, capacity, info) < 0 ||
+		if (scsicam_bios_param(disk, capacity, info) < 0 ||
 		    !((info[0] == 64 && info[1] == 32) || (info[0] == 255 && info[1] == 63))) {
 			if (EXT_TRANS) {
 				printk(KERN_NOTICE

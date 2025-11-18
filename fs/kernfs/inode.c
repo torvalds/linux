@@ -142,9 +142,9 @@ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 	struct kernfs_node *kn = kernfs_dentry_node(dentry);
 	struct kernfs_iattrs *attrs;
 
-	attrs = kernfs_iattrs_noalloc(kn);
+	attrs = kernfs_iattrs(kn);
 	if (!attrs)
-		return -ENODATA;
+		return -ENOMEM;
 
 	return simple_xattr_list(d_inode(dentry), &attrs->xattrs, buf, size);
 }

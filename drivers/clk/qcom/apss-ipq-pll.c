@@ -169,7 +169,6 @@ static const struct regmap_config ipq_pll_regmap_config = {
 	.reg_stride		= 4,
 	.val_bits		= 32,
 	.max_register		= 0x40,
-	.fast_io		= true,
 };
 
 static int apss_ipq_pll_probe(struct platform_device *pdev)

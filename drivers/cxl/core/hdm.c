@@ -21,12 +21,11 @@ struct cxl_rwsem cxl_rwsem = {
 	.dpa = __RWSEM_INITIALIZER(cxl_rwsem.dpa),
 };
 
-static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
-			   int *target_map)
+static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld)
 {
 	int rc;
 
-	rc = cxl_decoder_add_locked(cxld, target_map);
+	rc = cxl_decoder_add_locked(cxld);
 	if (rc) {
 		put_device(&cxld->dev);
 		dev_err(&port->dev, "Failed to add decoder\n");
@@ -50,12 +49,9 @@ static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
  * are claimed and passed to the single dport. Disable the range until the first
  * CXL region is enumerated / activated.
  */
-int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
+static int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 {
 	struct cxl_switch_decoder *cxlsd;
-	struct cxl_dport *dport = NULL;
-	int single_port_map[1];
-	unsigned long index;
 	struct cxl_hdm *cxlhdm = dev_get_drvdata(&port->dev);
 
 	/*
@@ -71,13 +67,8 @@ int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 
 	device_lock_assert(&port->dev);
 
-	xa_for_each(&port->dports, index, dport)
-		break;
-	single_port_map[0] = dport->port_id;
-
-	return add_hdm_decoder(port, &cxlsd->cxld, single_port_map);
+	return add_hdm_decoder(port, &cxlsd->cxld);
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_add_passthrough_decoder, "CXL");
 
 static void parse_hdm_decoder_caps(struct cxl_hdm *cxlhdm)
 {
@@ -147,8 +138,8 @@ static bool should_emulate_decoders(struct cxl_endpoint_dvsec_info *info)
  * @port: cxl_port to map
  * @info: cached DVSEC range register info
  */
-struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
-				   struct cxl_endpoint_dvsec_info *info)
+static struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
+					  struct cxl_endpoint_dvsec_info *info)
 {
 	struct cxl_register_map *reg_map = &port->reg_map;
 	struct device *dev = &port->dev;
@@ -197,13 +188,12 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 	 */
 	if (should_emulate_decoders(info)) {
 		dev_dbg(dev, "Fallback map %d range register%s\n", info->ranges,
-			info->ranges > 1 ? "s" : "");
+			str_plural(info->ranges));
 		cxlhdm->decoder_count = info->ranges;
 	}
 
 	return cxlhdm;
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_hdm, "CXL");
 
 static void __cxl_dpa_debug(struct seq_file *file, struct resource *r, int depth)
 {
@@ -984,7 +974,7 @@ static int cxl_setup_hdm_decoder_from_dvsec(
 }
 
 static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
-			    int *target_map, void __iomem *hdm, int which,
+			    void __iomem *hdm, int which,
 			    u64 *dpa_base, struct cxl_endpoint_dvsec_info *info)
 {
 	struct cxl_endpoint_decoder *cxled = NULL;
@@ -1103,7 +1093,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		hi = readl(hdm + CXL_HDM_DECODER0_TL_HIGH(which));
 		target_list.value = (hi << 32) + lo;
 		for (i = 0; i < cxld->interleave_ways; i++)
-			target_map[i] = target_list.target_id[i];
+			cxld->target_map[i] = target_list.target_id[i];
 
 		return 0;
 	}
@@ -1168,8 +1158,8 @@ static void cxl_settle_decoders(struct cxl_hdm *cxlhdm)
  * @cxlhdm: Structure to populate with HDM capabilities
  * @info: cached DVSEC range register info
  */
-int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
-				struct cxl_endpoint_dvsec_info *info)
+static int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
+				       struct cxl_endpoint_dvsec_info *info)
 {
 	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
 	struct cxl_port *port = cxlhdm->port;
@@ -1179,7 +1169,6 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 	cxl_settle_decoders(cxlhdm);
 
 	for (i = 0; i < cxlhdm->decoder_count; i++) {
-		int target_map[CXL_DECODER_MAX_INTERLEAVE] = { 0 };
 		int rc, target_count = cxlhdm->target_count;
 		struct cxl_decoder *cxld;
 
@@ -1207,8 +1196,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 			cxld = &cxlsd->cxld;
 		}
 
-		rc = init_hdm_decoder(port, cxld, target_map, hdm, i,
-				      &dpa_base, info);
+		rc = init_hdm_decoder(port, cxld, hdm, i, &dpa_base, info);
 		if (rc) {
 			dev_warn(&port->dev,
 				 "Failed to initialize decoder%d.%d\n",
@@ -1216,7 +1204,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 			put_device(&cxld->dev);
 			return rc;
 		}
-		rc = add_hdm_decoder(port, cxld, target_map);
+		rc = add_hdm_decoder(port, cxld);
 		if (rc) {
 			dev_warn(&port->dev,
 				 "Failed to add decoder%d.%d\n", port->id, i);
@@ -1226,4 +1214,71 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_enumerate_decoders, "CXL");
+
+/**
+ * __devm_cxl_switch_port_decoders_setup - allocate and setup switch decoders
+ * @port: CXL port context
+ *
+ * Return 0 or -errno on error
+ */
+int __devm_cxl_switch_port_decoders_setup(struct cxl_port *port)
+{
+	struct cxl_hdm *cxlhdm;
+
+	if (is_cxl_root(port) || is_cxl_endpoint(port))
+		return -EOPNOTSUPP;
+
+	cxlhdm = devm_cxl_setup_hdm(port, NULL);
+	if (!IS_ERR(cxlhdm))
+		return devm_cxl_enumerate_decoders(cxlhdm, NULL);
+
+	if (PTR_ERR(cxlhdm) != -ENODEV) {
+		dev_err(&port->dev, "Failed to map HDM decoder capability\n");
+		return PTR_ERR(cxlhdm);
+	}
+
+	if (cxl_port_get_possible_dports(port) == 1) {
+		dev_dbg(&port->dev, "Fallback to passthrough decoder\n");
+		return devm_cxl_add_passthrough_decoder(port);
+	}
+
+	dev_err(&port->dev, "HDM decoder capability not found\n");
+	return -ENXIO;
+}
+EXPORT_SYMBOL_NS_GPL(__devm_cxl_switch_port_decoders_setup, "CXL");
+
+/**
+ * devm_cxl_endpoint_decoders_setup - allocate and setup endpoint decoders
+ * @port: CXL port context
+ *
+ * Return 0 or -errno on error
+ */
+int devm_cxl_endpoint_decoders_setup(struct cxl_port *port)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
+	struct cxl_endpoint_dvsec_info info = { .port = port };
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_hdm *cxlhdm;
+	int rc;
+
+	if (!is_cxl_endpoint(port))
+		return -EOPNOTSUPP;
+
+	rc = cxl_dvsec_rr_decode(cxlds, &info);
+	if (rc < 0)
+		return rc;
+
+	cxlhdm = devm_cxl_setup_hdm(port, &info);
+	if (IS_ERR(cxlhdm)) {
+		if (PTR_ERR(cxlhdm) == -ENODEV)
+			dev_err(&port->dev, "HDM decoder registers not found\n");
+		return PTR_ERR(cxlhdm);
+	}
+
+	rc = cxl_hdm_decode_init(cxlds, cxlhdm, &info);
+	if (rc)
+		return rc;
+
+	return devm_cxl_enumerate_decoders(cxlhdm, &info);
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_endpoint_decoders_setup, "CXL");

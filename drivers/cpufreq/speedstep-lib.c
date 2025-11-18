@@ -378,16 +378,16 @@ EXPORT_SYMBOL_GPL(speedstep_detect_processor);
  *                     DETECT SPEEDSTEP SPEEDS                       *
  *********************************************************************/
 
-unsigned int speedstep_get_freqs(enum speedstep_processor processor,
-				  unsigned int *low_speed,
-				  unsigned int *high_speed,
-				  unsigned int *transition_latency,
-				  void (*set_state) (unsigned int state))
+int speedstep_get_freqs(enum speedstep_processor processor,
+			unsigned int *low_speed,
+			unsigned int *high_speed,
+			unsigned int *transition_latency,
+			void (*set_state)(unsigned int state))
 {
 	unsigned int prev_speed;
-	unsigned int ret = 0;
 	unsigned long flags;
 	ktime_t tv1, tv2;
+	int ret = 0;
 
 	if ((!processor) || (!low_speed) || (!high_speed) || (!set_state))
 		return -EINVAL;

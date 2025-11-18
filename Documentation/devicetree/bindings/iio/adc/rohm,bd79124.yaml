@@ -81,7 +81,7 @@ examples:
             reg = <0x10>;
 
             interrupt-parent = <&gpio1>;
-            interrupts = <29 8>;
+            interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 
             vdd-supply = <&dummyreg>;
             iovdd-supply = <&dummyreg>;

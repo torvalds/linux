@@ -37,7 +37,6 @@
 #include "log.h"
 #include "multicast.h"
 #include "netlink.h"
-#include "network-coding.h"
 #include "routing.h"
 #include "translation-table.h"
 
@@ -764,9 +763,14 @@ int batadv_hardif_neigh_dump(struct sk_buff *msg, struct netlink_callback *cb)
 	bat_priv = netdev_priv(mesh_iface);
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if || primary_if->if_status != BATADV_IF_ACTIVE) {
+	if (!primary_if) {
 		ret = -ENOENT;
 		goto out_put_mesh_iface;
+	}
+
+	if (primary_if->if_status != BATADV_IF_ACTIVE) {
+		ret = -ENOENT;
+		goto out_put_primary_if;
 	}
 
 	hard_iface = batadv_netlink_get_hardif(bat_priv, cb);
@@ -883,9 +887,6 @@ void batadv_orig_node_release(struct kref *ref)
 	}
 	spin_unlock_bh(&orig_node->vlan_list_lock);
 
-	/* Free nc_nodes */
-	batadv_nc_purge_orig(orig_node->bat_priv, orig_node, NULL);
-
 	call_rcu(&orig_node->rcu, batadv_orig_node_free_rcu);
 }
 
@@ -958,8 +959,6 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	spin_lock_init(&orig_node->tt_buff_lock);
 	spin_lock_init(&orig_node->tt_lock);
 	spin_lock_init(&orig_node->vlan_list_lock);
-
-	batadv_nc_init_orig(orig_node);
 
 	/* extra reference for return */
 	kref_init(&orig_node->refcount);
@@ -1333,9 +1332,14 @@ int batadv_orig_dump(struct sk_buff *msg, struct netlink_callback *cb)
 	bat_priv = netdev_priv(mesh_iface);
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if || primary_if->if_status != BATADV_IF_ACTIVE) {
+	if (!primary_if) {
 		ret = -ENOENT;
 		goto out_put_mesh_iface;
+	}
+
+	if (primary_if->if_status != BATADV_IF_ACTIVE) {
+		ret = -ENOENT;
+		goto out_put_primary_if;
 	}
 
 	hard_iface = batadv_netlink_get_hardif(bat_priv, cb);

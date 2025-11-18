@@ -8,7 +8,7 @@ title: Qualcomm iris video encode and decode accelerators
 
 maintainers:
   - Vikash Garodia <quic_vgarodia@quicinc.com>
-  - Dikshita Agarwal <quic_dikshita@quicinc.com>
+  - Dikshita Agarwal <dikshita.agarwal@oss.qualcomm.com>
 
 description:
   The iris video processing unit is a video encode and decode accelerator
@@ -20,11 +20,15 @@ properties:
       - items:
           - enum:
               - qcom,sa8775p-iris
+              - qcom,x1e80100-iris
           - const: qcom,sm8550-iris
       - enum:
           - qcom,qcs8300-iris
           - qcom,sm8550-iris
           - qcom,sm8650-iris
+
+  reg:
+    maxItems: 1
 
   power-domains:
     maxItems: 4
@@ -44,6 +48,12 @@ properties:
       - const: iface
       - const: core
       - const: vcodec0_core
+
+  firmware-name:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
 
   interconnects:
     maxItems: 2
@@ -69,6 +79,9 @@ properties:
 
   dma-coherent: true
 
+  memory-region:
+    maxItems: 1
+
   operating-points-v2: true
 
   opp-table:
@@ -85,7 +98,6 @@ required:
   - dma-coherent
 
 allOf:
-  - $ref: qcom,venus-common.yaml#
   - if:
       properties:
         compatible:

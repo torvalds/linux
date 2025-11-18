@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2007-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -43,6 +43,9 @@
 
 /* hbqinfo output buffer size */
 #define LPFC_HBQINFO_SIZE 8192
+
+/* hdwqinfo output buffer size */
+#define LPFC_HDWQINFO_SIZE 8192
 
 /* nvmestat output buffer size */
 #define LPFC_NVMESTAT_SIZE 8192

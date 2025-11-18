@@ -124,6 +124,7 @@ void mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 			  struct kernel_ethtool_ts_info *info);
 
+long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp);
 int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_hwtstamp_free(struct mv88e6xxx_chip *chip);
 int mv88e6352_hwtstamp_port_enable(struct mv88e6xxx_chip *chip, int port);

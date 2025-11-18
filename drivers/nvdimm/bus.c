@@ -5,7 +5,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/libnvdimm.h>
 #include <linux/sched/mm.h>
-#include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
@@ -13,7 +13,6 @@
 #include <linux/async.h>
 #include <linux/ndctl.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -64,17 +63,15 @@ static struct module *to_bus_provider(struct device *dev)
 
 static void nvdimm_bus_probe_start(struct nvdimm_bus *nvdimm_bus)
 {
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	guard(nvdimm_bus)(&nvdimm_bus->dev);
 	nvdimm_bus->probe_active++;
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
 }
 
 static void nvdimm_bus_probe_end(struct nvdimm_bus *nvdimm_bus)
 {
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	guard(nvdimm_bus)(&nvdimm_bus->dev);
 	if (--nvdimm_bus->probe_active == 0)
 		wake_up(&nvdimm_bus->wait);
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
 }
 
 static int nvdimm_bus_probe(struct device *dev)
@@ -1031,14 +1028,12 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	unsigned int cmd = _IOC_NR(ioctl_cmd);
 	struct device *dev = &nvdimm_bus->dev;
 	void __user *p = (void __user *) arg;
-	char *out_env = NULL, *in_env = NULL;
 	const char *cmd_name, *dimm_name;
 	u32 in_len = 0, out_len = 0;
 	unsigned int func = cmd;
 	unsigned long cmd_mask;
 	struct nd_cmd_pkg pkg;
 	int rc, i, cmd_rc;
-	void *buf = NULL;
 	u64 buf_len = 0;
 
 	if (nvdimm) {
@@ -1097,7 +1092,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 		}
 
 	/* process an input envelope */
-	in_env = kzalloc(ND_CMD_MAX_ENVELOPE, GFP_KERNEL);
+	char *in_env __free(kfree) = kzalloc(ND_CMD_MAX_ENVELOPE, GFP_KERNEL);
 	if (!in_env)
 		return -ENOMEM;
 	for (i = 0; i < desc->in_num; i++) {
@@ -1107,17 +1102,14 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 		if (in_size == UINT_MAX) {
 			dev_err(dev, "%s:%s unknown input size cmd: %s field: %d\n",
 					__func__, dimm_name, cmd_name, i);
-			rc = -ENXIO;
-			goto out;
+			return -ENXIO;
 		}
 		if (in_len < ND_CMD_MAX_ENVELOPE)
 			copy = min_t(u32, ND_CMD_MAX_ENVELOPE - in_len, in_size);
 		else
 			copy = 0;
-		if (copy && copy_from_user(&in_env[in_len], p + in_len, copy)) {
-			rc = -EFAULT;
-			goto out;
-		}
+		if (copy && copy_from_user(&in_env[in_len], p + in_len, copy))
+			return -EFAULT;
 		in_len += in_size;
 	}
 
@@ -1129,11 +1121,9 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	}
 
 	/* process an output envelope */
-	out_env = kzalloc(ND_CMD_MAX_ENVELOPE, GFP_KERNEL);
-	if (!out_env) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	char *out_env __free(kfree) = kzalloc(ND_CMD_MAX_ENVELOPE, GFP_KERNEL);
+	if (!out_env)
+		return -ENOMEM;
 
 	for (i = 0; i < desc->out_num; i++) {
 		u32 out_size = nd_cmd_out_size(nvdimm, cmd, desc, i,
@@ -1143,8 +1133,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 		if (out_size == UINT_MAX) {
 			dev_dbg(dev, "%s unknown output size cmd: %s field: %d\n",
 					dimm_name, cmd_name, i);
-			rc = -EFAULT;
-			goto out;
+			return -EFAULT;
 		}
 		if (out_len < ND_CMD_MAX_ENVELOPE)
 			copy = min_t(u32, ND_CMD_MAX_ENVELOPE - out_len, out_size);
@@ -1152,8 +1141,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 			copy = 0;
 		if (copy && copy_from_user(&out_env[out_len],
 					p + in_len + out_len, copy)) {
-			rc = -EFAULT;
-			goto out;
+			return -EFAULT;
 		}
 		out_len += out_size;
 	}
@@ -1162,30 +1150,25 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	if (buf_len > ND_IOCTL_MAX_BUFLEN) {
 		dev_dbg(dev, "%s cmd: %s buf_len: %llu > %d\n", dimm_name,
 				cmd_name, buf_len, ND_IOCTL_MAX_BUFLEN);
-		rc = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	buf = vmalloc(buf_len);
-	if (!buf) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	void *buf __free(kvfree) = kvzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
-	if (copy_from_user(buf, p, buf_len)) {
-		rc = -EFAULT;
-		goto out;
-	}
+	if (copy_from_user(buf, p, buf_len))
+		return -EFAULT;
 
-	device_lock(dev);
-	nvdimm_bus_lock(dev);
+	guard(device)(dev);
+	guard(nvdimm_bus)(dev);
 	rc = nd_cmd_clear_to_send(nvdimm_bus, nvdimm, func, buf);
 	if (rc)
-		goto out_unlock;
+		return rc;
 
 	rc = nd_desc->ndctl(nd_desc, nvdimm, cmd, buf, buf_len, &cmd_rc);
 	if (rc < 0)
-		goto out_unlock;
+		return rc;
 
 	if (!nvdimm && cmd == ND_CMD_CLEAR_ERROR && cmd_rc >= 0) {
 		struct nd_cmd_clear_error *clear_err = buf;
@@ -1195,16 +1178,9 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	}
 
 	if (copy_to_user(p, buf, buf_len))
-		rc = -EFAULT;
+		return -EFAULT;
 
-out_unlock:
-	nvdimm_bus_unlock(dev);
-	device_unlock(dev);
-out:
-	kfree(in_env);
-	kfree(out_env);
-	vfree(buf);
-	return rc;
+	return 0;
 }
 
 enum nd_ioctl_mode {

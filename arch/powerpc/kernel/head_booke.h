@@ -7,7 +7,7 @@
 #include <asm/kvm_booke_hv_asm.h>
 #include <asm/thread_info.h>	/* for THREAD_SHIFT */
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /*
  * Macros used for common Book-e exception handling
@@ -522,5 +522,5 @@ label:
 	bl	kernel_fp_unavailable_exception;			      \
 	b	interrupt_return
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __HEAD_BOOKE_H__ */

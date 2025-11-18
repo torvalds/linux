@@ -315,46 +315,39 @@ static int vboxsf_dir_atomic_open(struct inode *parent, struct dentry *dentry,
 {
 	struct vboxsf_sbi *sbi = VBOXSF_SBI(parent->i_sb);
 	struct vboxsf_handle *sf_handle;
-	struct dentry *res = NULL;
 	u64 handle;
 	int err;
 
 	if (d_in_lookup(dentry)) {
-		res = vboxsf_dir_lookup(parent, dentry, 0);
-		if (IS_ERR(res))
-			return PTR_ERR(res);
-
-		if (res)
-			dentry = res;
+		struct dentry *res = vboxsf_dir_lookup(parent, dentry, 0);
+		if (res || d_really_is_positive(dentry))
+			return finish_no_open(file, res);
 	}
 
 	/* Only creates */
-	if (!(flags & O_CREAT) || d_really_is_positive(dentry))
-		return finish_no_open(file, res);
+	if (!(flags & O_CREAT))
+		return finish_no_open(file, NULL);
 
 	err = vboxsf_dir_create(parent, dentry, mode, false, flags & O_EXCL, &handle);
 	if (err)
-		goto out;
+		return err;
 
 	sf_handle = vboxsf_create_sf_handle(d_inode(dentry), handle, SHFL_CF_ACCESS_READWRITE);
 	if (IS_ERR(sf_handle)) {
 		vboxsf_close(sbi->root, handle);
-		err = PTR_ERR(sf_handle);
-		goto out;
+		return PTR_ERR(sf_handle);
 	}
 
 	err = finish_open(file, dentry, generic_file_open);
 	if (err) {
 		/* This also closes the handle passed to vboxsf_create_sf_handle() */
 		vboxsf_release_sf_handle(d_inode(dentry), sf_handle);
-		goto out;
+		return err;
 	}
 
 	file->private_data = sf_handle;
 	file->f_mode |= FMODE_CREATED;
-out:
-	dput(res);
-	return err;
+	return 0;
 }
 
 static int vboxsf_dir_unlink(struct inode *parent, struct dentry *dentry)

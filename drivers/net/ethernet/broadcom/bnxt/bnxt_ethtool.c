@@ -1584,6 +1584,8 @@ static u64 get_ethtool_ipv6_rss(struct bnxt *bp)
 {
 	if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6)
 		return RXH_IP_SRC | RXH_IP_DST;
+	if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6_FLOW_LABEL)
+		return RXH_IP_SRC | RXH_IP_DST | RXH_IP6_FL;
 	return 0;
 }
 
@@ -1662,11 +1664,16 @@ static int bnxt_set_rxfh_fields(struct net_device *dev,
 
 	if (cmd->data == RXH_4TUPLE)
 		tuple = 4;
-	else if (cmd->data == RXH_2TUPLE)
+	else if (cmd->data == RXH_2TUPLE ||
+		 cmd->data == (RXH_2TUPLE | RXH_IP6_FL))
 		tuple = 2;
 	else if (!cmd->data)
 		tuple = 0;
 	else
+		return -EINVAL;
+
+	if (cmd->data & RXH_IP6_FL &&
+	    !(bp->rss_cap & BNXT_RSS_CAP_IPV6_FLOW_LABEL_RSS_CAP))
 		return -EINVAL;
 
 	if (cmd->flow_type == TCP_V4_FLOW) {
@@ -1732,10 +1739,15 @@ static int bnxt_set_rxfh_fields(struct net_device *dev,
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
 	case IPV6_FLOW:
-		if (tuple == 2)
+		rss_hash_cfg &= ~(VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6_FLOW_LABEL);
+		if (!tuple)
+			break;
+		if (cmd->data & RXH_IP6_FL)
+			rss_hash_cfg |=
+				VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6_FLOW_LABEL;
+		else if (tuple == 2)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6;
-		else if (!tuple)
-			rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6;
 		break;
 	}
 
@@ -2049,38 +2061,52 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 static int bnxt_get_regs_len(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	int reg_len;
 
 	if (!BNXT_PF(bp))
 		return -EOPNOTSUPP;
 
-	reg_len = BNXT_PXP_REG_LEN;
+	return BNXT_PXP_REG_LEN + bp->pcie_stat_len;
+}
 
-	if (bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED)
-		reg_len += sizeof(struct pcie_ctx_hw_stats);
+static void *
+__bnxt_hwrm_pcie_qstats(struct bnxt *bp, struct hwrm_pcie_qstats_input *req)
+{
+	struct pcie_ctx_hw_stats_v2 *hw_pcie_stats;
+	dma_addr_t hw_pcie_stats_addr;
+	int rc;
 
-	return reg_len;
+	hw_pcie_stats = hwrm_req_dma_slice(bp, req, sizeof(*hw_pcie_stats),
+					   &hw_pcie_stats_addr);
+	if (!hw_pcie_stats)
+		return NULL;
+
+	req->pcie_stat_size = cpu_to_le16(sizeof(*hw_pcie_stats));
+	req->pcie_stat_host_addr = cpu_to_le64(hw_pcie_stats_addr);
+	rc = hwrm_req_send(bp, req);
+
+	return rc ? NULL : hw_pcie_stats;
 }
 
 #define BNXT_PCIE_32B_ENTRY(start, end)			\
-	 { offsetof(struct pcie_ctx_hw_stats, start),	\
-	   offsetof(struct pcie_ctx_hw_stats, end) }
+	 { offsetof(struct pcie_ctx_hw_stats_v2, start),\
+	   offsetof(struct pcie_ctx_hw_stats_v2, end) }
 
 static const struct {
 	u16 start;
 	u16 end;
 } bnxt_pcie_32b_entries[] = {
 	BNXT_PCIE_32B_ENTRY(pcie_ltssm_histogram[0], pcie_ltssm_histogram[3]),
+	BNXT_PCIE_32B_ENTRY(pcie_tl_credit_nph_histogram[0], unused_1),
+	BNXT_PCIE_32B_ENTRY(pcie_rd_latency_histogram[0], unused_2),
 };
 
 static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			  void *_p)
 {
-	struct pcie_ctx_hw_stats *hw_pcie_stats;
+	struct hwrm_pcie_qstats_output *resp;
 	struct hwrm_pcie_qstats_input *req;
 	struct bnxt *bp = netdev_priv(dev);
-	dma_addr_t hw_pcie_stats_addr;
-	int rc;
+	u8 *src;
 
 	regs->version = 0;
 	if (!(bp->fw_dbg_cap & DBG_QCAPS_RESP_FLAGS_REG_ACCESS_RESTRICTED))
@@ -2092,24 +2118,21 @@ static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	if (hwrm_req_init(bp, req, HWRM_PCIE_QSTATS))
 		return;
 
-	hw_pcie_stats = hwrm_req_dma_slice(bp, req, sizeof(*hw_pcie_stats),
-					   &hw_pcie_stats_addr);
-	if (!hw_pcie_stats) {
-		hwrm_req_drop(bp, req);
-		return;
-	}
-
-	regs->version = 1;
-	hwrm_req_hold(bp, req); /* hold on to slice */
-	req->pcie_stat_size = cpu_to_le16(sizeof(*hw_pcie_stats));
-	req->pcie_stat_host_addr = cpu_to_le64(hw_pcie_stats_addr);
-	rc = hwrm_req_send(bp, req);
-	if (!rc) {
+	resp = hwrm_req_hold(bp, req);
+	src = __bnxt_hwrm_pcie_qstats(bp, req);
+	if (src) {
 		u8 *dst = (u8 *)(_p + BNXT_PXP_REG_LEN);
-		u8 *src = (u8 *)hw_pcie_stats;
-		int i, j;
+		int i, j, len;
 
-		for (i = 0, j = 0; i < sizeof(*hw_pcie_stats); ) {
+		len = min(bp->pcie_stat_len, le16_to_cpu(resp->pcie_stat_size));
+		if (len <= sizeof(struct pcie_ctx_hw_stats))
+			regs->version = 1;
+		else if (len < sizeof(struct pcie_ctx_hw_stats_v2))
+			regs->version = 2;
+		else
+			regs->version = 3;
+
+		for (i = 0, j = 0; i < len; ) {
 			if (i >= bnxt_pcie_32b_entries[j].start &&
 			    i <= bnxt_pcie_32b_entries[j].end) {
 				u32 *dst32 = (u32 *)(dst + i);
@@ -3185,7 +3208,8 @@ static int bnxt_get_fecparam(struct net_device *dev,
 }
 
 static void bnxt_get_fec_stats(struct net_device *dev,
-			       struct ethtool_fec_stats *fec_stats)
+			       struct ethtool_fec_stats *fec_stats,
+			       struct ethtool_fec_hist *hist)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	u64 *rx;
@@ -4376,12 +4400,42 @@ static int bnxt_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 	return 0;
 }
 
+static int bnxt_hwrm_pfcwd_qcfg(struct bnxt *bp, u16 *val)
+{
+	struct hwrm_queue_pfcwd_timeout_qcfg_output *resp;
+	struct hwrm_queue_pfcwd_timeout_qcfg_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_QUEUE_PFCWD_TIMEOUT_QCFG);
+	if (rc)
+		return rc;
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (!rc)
+		*val = le16_to_cpu(resp->pfcwd_timeout_value);
+	hwrm_req_drop(bp, req);
+	return rc;
+}
+
+static int bnxt_hwrm_pfcwd_cfg(struct bnxt *bp, u16 val)
+{
+	struct hwrm_queue_pfcwd_timeout_cfg_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_QUEUE_PFCWD_TIMEOUT_CFG);
+	if (rc)
+		return rc;
+	req->pfcwd_timeout_value = cpu_to_le16(val);
+	rc = hwrm_req_send(bp, req);
+	return rc;
+}
+
 static int bnxt_set_tunable(struct net_device *dev,
 			    const struct ethtool_tunable *tuna,
 			    const void *data)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	u32 rx_copybreak;
+	u32 rx_copybreak, val;
 
 	switch (tuna->id) {
 	case ETHTOOL_RX_COPYBREAK:
@@ -4394,6 +4448,15 @@ static int bnxt_set_tunable(struct net_device *dev,
 			bp->rx_copybreak = rx_copybreak;
 		}
 		return 0;
+	case ETHTOOL_PFC_PREVENTION_TOUT:
+		if (BNXT_VF(bp) || !bp->max_pfcwd_tmo_ms)
+			return -EOPNOTSUPP;
+
+		val = *(u16 *)data;
+		if (val > bp->max_pfcwd_tmo_ms &&
+		    val != PFC_STORM_PREVENTION_AUTO)
+			return -EINVAL;
+		return bnxt_hwrm_pfcwd_cfg(bp, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -4408,6 +4471,10 @@ static int bnxt_get_tunable(struct net_device *dev,
 	case ETHTOOL_RX_COPYBREAK:
 		*(u32 *)data = bp->rx_copybreak;
 		break;
+	case ETHTOOL_PFC_PREVENTION_TOUT:
+		if (!bp->max_pfcwd_tmo_ms)
+			return -EOPNOTSUPP;
+		return bnxt_hwrm_pfcwd_qcfg(bp, data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -5254,6 +5321,26 @@ static int bnxt_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static void bnxt_hwrm_pcie_qstats(struct bnxt *bp)
+{
+	struct hwrm_pcie_qstats_output *resp;
+	struct hwrm_pcie_qstats_input *req;
+
+	bp->pcie_stat_len = 0;
+	if (!(bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED))
+		return;
+
+	if (hwrm_req_init(bp, req, HWRM_PCIE_QSTATS))
+		return;
+
+	resp = hwrm_req_hold(bp, req);
+	if (__bnxt_hwrm_pcie_qstats(bp, req))
+		bp->pcie_stat_len = min_t(u16,
+					  le16_to_cpu(resp->pcie_stat_size),
+					  sizeof(struct pcie_ctx_hw_stats_v2));
+	hwrm_req_drop(bp, req);
+}
+
 void bnxt_ethtool_init(struct bnxt *bp)
 {
 	struct hwrm_selftest_qlist_output *resp;
@@ -5262,6 +5349,7 @@ void bnxt_ethtool_init(struct bnxt *bp)
 	struct net_device *dev = bp->dev;
 	int i, rc;
 
+	bnxt_hwrm_pcie_qstats(bp);
 	if (!(bp->fw_cap & BNXT_FW_CAP_PKG_VER))
 		bnxt_get_pkgver(dev);
 

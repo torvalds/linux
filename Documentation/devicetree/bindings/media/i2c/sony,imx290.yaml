@@ -51,6 +51,7 @@ properties:
 
   clock-frequency:
     description: Frequency of the xclk clock in Hz
+    deprecated: true
 
   vdda-supply:
     description: Analog power supply (2.9V)
@@ -100,7 +101,6 @@ required:
   - reg
   - clocks
   - clock-names
-  - clock-frequency
   - vdda-supply
   - vddd-supply
   - vdddo-supply
@@ -125,7 +125,8 @@ examples:
 
             clocks = <&gcc 90>;
             clock-names = "xclk";
-            clock-frequency = <37125000>;
+            assigned-clocks = <&clks 1>;
+            assigned-clock-rates = <37125000>;
 
             vdddo-supply = <&camera_vdddo_1v8>;
             vdda-supply = <&camera_vdda_2v8>;

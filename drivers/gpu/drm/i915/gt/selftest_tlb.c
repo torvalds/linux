@@ -3,17 +3,17 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include "i915_selftest.h"
-
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 
 #include "gen8_engine_cs.h"
 #include "i915_gem_ww.h"
+#include "i915_selftest.h"
+#include "i915_wait_util.h"
+#include "intel_context.h"
 #include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
-#include "intel_context.h"
 #include "intel_gt.h"
 #include "intel_ring.h"
 

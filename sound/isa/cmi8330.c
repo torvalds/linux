@@ -269,18 +269,17 @@ static const unsigned char cmi8330_sb_init_values[][2] = {
 static int cmi8330_add_sb_mixers(struct snd_sb *chip)
 {
 	int idx, err;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->mixer_lock, flags);
-	snd_sbmixer_write(chip, 0x00, 0x00);		/* mixer reset */
-	spin_unlock_irqrestore(&chip->mixer_lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->mixer_lock) {
+		snd_sbmixer_write(chip, 0x00, 0x00);	/* mixer reset */
+	}
 
 	/* mute and zero volume channels */
 	for (idx = 0; idx < ARRAY_SIZE(cmi8330_sb_init_values); idx++) {
-		spin_lock_irqsave(&chip->mixer_lock, flags);
-		snd_sbmixer_write(chip, cmi8330_sb_init_values[idx][0],
-				  cmi8330_sb_init_values[idx][1]);
-		spin_unlock_irqrestore(&chip->mixer_lock, flags);
+		scoped_guard(spinlock_irqsave, &chip->mixer_lock) {
+			snd_sbmixer_write(chip, cmi8330_sb_init_values[idx][0],
+					  cmi8330_sb_init_values[idx][1]);
+		}
 	}
 
 	for (idx = 0; idx < ARRAY_SIZE(cmi8330_sb_mixers); idx++) {

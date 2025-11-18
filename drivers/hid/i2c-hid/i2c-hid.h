@@ -27,11 +27,13 @@ static inline u32 i2c_hid_get_dmi_quirks(const u16 vendor, const u16 product)
  * @power_up: do sequencing to power up the device.
  * @power_down: do sequencing to power down the device.
  * @shutdown_tail: called at the end of shutdown.
+ * @restore_sequence: hibernation restore sequence.
  */
 struct i2chid_ops {
 	int (*power_up)(struct i2chid_ops *ops);
 	void (*power_down)(struct i2chid_ops *ops);
 	void (*shutdown_tail)(struct i2chid_ops *ops);
+	void (*restore_sequence)(struct i2chid_ops *ops);
 };
 
 int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,

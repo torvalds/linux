@@ -30,6 +30,9 @@ struct ath12k_wmi_svc_ready_parse {
 struct wmi_tlv_fw_stats_parse {
 	const struct wmi_stats_event *ev;
 	struct ath12k_fw_stats *stats;
+	const struct wmi_per_chain_rssi_stat_params *rssi;
+	int rssi_num;
+	bool chain_rssi_done;
 };
 
 struct ath12k_wmi_dma_ring_caps_parse {
@@ -185,6 +188,8 @@ static const struct ath12k_wmi_tlv_policy ath12k_wmi_tlv_policies[] = {
 		.min_len = sizeof(struct wmi_p2p_noa_event) },
 	[WMI_TAG_11D_NEW_COUNTRY_EVENT] = {
 		.min_len = sizeof(struct wmi_11d_new_cc_event) },
+	[WMI_TAG_PER_CHAIN_RSSI_STATS] = {
+		.min_len = sizeof(struct wmi_per_chain_rssi_stat_params) },
 };
 
 __le32 ath12k_wmi_tlv_hdr(u32 cmd, u32 len)
@@ -843,7 +848,7 @@ int ath12k_wmi_mgmt_send(struct ath12k_link_vif *arvif, u32 buf_id,
 	cmd->tx_params_valid = 0;
 
 	frame_tlv = (struct wmi_tlv *)(skb->data + sizeof(*cmd));
-	frame_tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_BYTE, buf_len);
+	frame_tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_BYTE, buf_len_aligned);
 
 	memcpy(frame_tlv->value, frame->data, buf_len);
 
@@ -2423,6 +2428,7 @@ int ath12k_wmi_send_peer_assoc_cmd(struct ath12k *ar,
 
 	eml_cap = arg->ml.eml_cap;
 	if (u16_get_bits(eml_cap, IEEE80211_EML_CAP_EMLSR_SUPP)) {
+		ml_params->flags |= cpu_to_le32(ATH12K_WMI_FLAG_MLO_EMLSR_SUPPORT);
 		/* Padding delay */
 		eml_pad_delay = ieee80211_emlsr_pad_delay_in_us(eml_cap);
 		ml_params->emlsr_padding_delay_us = cpu_to_le32(eml_pad_delay);
@@ -6461,6 +6467,8 @@ static int ath12k_pull_peer_sta_kickout_ev(struct ath12k_base *ab, struct sk_buf
 	}
 
 	arg->mac_addr = ev->peer_macaddr.addr;
+	arg->reason = le32_to_cpu(ev->reason);
+	arg->rssi = le32_to_cpu(ev->rssi);
 
 	kfree(tb);
 	return 0;
@@ -7297,8 +7305,10 @@ static void ath12k_scan_event(struct ath12k_base *ab, struct sk_buff *skb)
 static void ath12k_peer_sta_kickout_event(struct ath12k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_peer_sta_kickout_arg arg = {};
+	struct ath12k_link_vif *arvif;
 	struct ieee80211_sta *sta;
 	struct ath12k_peer *peer;
+	unsigned int link_id;
 	struct ath12k *ar;
 
 	if (ath12k_pull_peer_sta_kickout_ev(ab, skb, &arg) != 0) {
@@ -7318,25 +7328,49 @@ static void ath12k_peer_sta_kickout_event(struct ath12k_base *ab, struct sk_buff
 		goto exit;
 	}
 
-	ar = ath12k_mac_get_ar_by_vdev_id(ab, peer->vdev_id);
-	if (!ar) {
+	arvif = ath12k_mac_get_arvif_by_vdev_id(ab, peer->vdev_id);
+	if (!arvif) {
 		ath12k_warn(ab, "invalid vdev id in peer sta kickout ev %d",
 			    peer->vdev_id);
 		goto exit;
 	}
 
-	sta = ieee80211_find_sta_by_ifaddr(ath12k_ar_to_hw(ar),
-					   arg.mac_addr, NULL);
+	ar = arvif->ar;
+
+	if (peer->mlo) {
+		sta = ieee80211_find_sta_by_link_addrs(ath12k_ar_to_hw(ar),
+						       arg.mac_addr,
+						       NULL, &link_id);
+		if (peer->link_id != link_id) {
+			ath12k_warn(ab,
+				    "Spurious quick kickout for MLO STA %pM with invalid link_id, peer: %d, sta: %d\n",
+				    arg.mac_addr, peer->link_id, link_id);
+			goto exit;
+		}
+	} else {
+		sta = ieee80211_find_sta_by_ifaddr(ath12k_ar_to_hw(ar),
+						   arg.mac_addr, NULL);
+	}
 	if (!sta) {
-		ath12k_warn(ab, "Spurious quick kickout for STA %pM\n",
-			    arg.mac_addr);
+		ath12k_warn(ab, "Spurious quick kickout for %sSTA %pM\n",
+			    peer->mlo ? "MLO " : "", arg.mac_addr);
 		goto exit;
 	}
 
-	ath12k_dbg(ab, ATH12K_DBG_WMI, "peer sta kickout event %pM",
-		   arg.mac_addr);
+	ath12k_dbg(ab, ATH12K_DBG_WMI,
+		   "peer sta kickout event %pM reason: %d rssi: %d\n",
+		   arg.mac_addr, arg.reason, arg.rssi);
 
-	ieee80211_report_low_ack(sta, 10);
+	switch (arg.reason) {
+	case WMI_PEER_STA_KICKOUT_REASON_INACTIVITY:
+		if (arvif->ahvif->vif->type == NL80211_IFTYPE_STATION) {
+			ath12k_mac_handle_beacon_miss(ar, arvif);
+			break;
+		}
+		fallthrough;
+	default:
+		ieee80211_report_low_ack(sta, 10);
+	}
 
 exit:
 	spin_unlock_bh(&ab->base_lock);
@@ -7345,6 +7379,7 @@ exit:
 
 static void ath12k_roam_event(struct ath12k_base *ab, struct sk_buff *skb)
 {
+	struct ath12k_link_vif *arvif;
 	struct wmi_roam_event roam_ev = {};
 	struct ath12k *ar;
 	u32 vdev_id;
@@ -7363,13 +7398,14 @@ static void ath12k_roam_event(struct ath12k_base *ab, struct sk_buff *skb)
 		   "wmi roam event vdev %u reason %d rssi %d\n",
 		   vdev_id, roam_reason, roam_ev.rssi);
 
-	rcu_read_lock();
-	ar = ath12k_mac_get_ar_by_vdev_id(ab, vdev_id);
-	if (!ar) {
+	guard(rcu)();
+	arvif = ath12k_mac_get_arvif_by_vdev_id(ab, vdev_id);
+	if (!arvif) {
 		ath12k_warn(ab, "invalid vdev id in roam ev %d", vdev_id);
-		rcu_read_unlock();
 		return;
 	}
+
+	ar = arvif->ar;
 
 	if (roam_reason >= WMI_ROAM_REASON_MAX)
 		ath12k_warn(ab, "ignoring unknown roam event reason %d on vdev %i\n",
@@ -7377,7 +7413,7 @@ static void ath12k_roam_event(struct ath12k_base *ab, struct sk_buff *skb)
 
 	switch (roam_reason) {
 	case WMI_ROAM_REASON_BEACON_MISS:
-		ath12k_mac_handle_beacon_miss(ar, vdev_id);
+		ath12k_mac_handle_beacon_miss(ar, arvif);
 		break;
 	case WMI_ROAM_REASON_BETTER_AP:
 	case WMI_ROAM_REASON_LOW_RSSI:
@@ -7387,8 +7423,6 @@ static void ath12k_roam_event(struct ath12k_base *ab, struct sk_buff *skb)
 			    roam_reason, vdev_id);
 		break;
 	}
-
-	rcu_read_unlock();
 }
 
 static void ath12k_chan_info_event(struct ath12k_base *ab, struct sk_buff *skb)
@@ -8218,6 +8252,77 @@ exit:
 	return ret;
 }
 
+static int ath12k_wmi_tlv_rssi_chain_parse(struct ath12k_base *ab,
+					   u16 tag, u16 len,
+					   const void *ptr, void *data)
+{
+	const struct wmi_rssi_stat_params *stats_rssi = ptr;
+	struct wmi_tlv_fw_stats_parse *parse = data;
+	const struct wmi_stats_event *ev = parse->ev;
+	struct ath12k_fw_stats *stats = parse->stats;
+	struct ath12k_link_vif *arvif;
+	struct ath12k_link_sta *arsta;
+	struct ieee80211_sta *sta;
+	struct ath12k_sta *ahsta;
+	struct ath12k *ar;
+	int vdev_id;
+	int j;
+
+	if (!ev) {
+		ath12k_warn(ab, "failed to fetch update stats ev");
+		return -EPROTO;
+	}
+
+	if (tag != WMI_TAG_RSSI_STATS)
+		return -EPROTO;
+
+	if (!stats)
+		return -EINVAL;
+
+	stats->pdev_id = le32_to_cpu(ev->pdev_id);
+	vdev_id = le32_to_cpu(stats_rssi->vdev_id);
+	guard(rcu)();
+	ar = ath12k_mac_get_ar_by_pdev_id(ab, stats->pdev_id);
+	if (!ar) {
+		ath12k_warn(ab, "invalid pdev id %d in rssi chain parse\n",
+			    stats->pdev_id);
+		return -EPROTO;
+	}
+
+	arvif = ath12k_mac_get_arvif(ar, vdev_id);
+	if (!arvif) {
+		ath12k_warn(ab, "not found vif for vdev id %d\n", vdev_id);
+		return -EPROTO;
+	}
+
+	ath12k_dbg(ab, ATH12K_DBG_WMI,
+		   "stats bssid %pM vif %p\n",
+		   arvif->bssid, arvif->ahvif->vif);
+
+	sta = ieee80211_find_sta_by_ifaddr(ath12k_ar_to_hw(ar),
+					   arvif->bssid,
+					   NULL);
+	if (!sta) {
+		ath12k_dbg(ab, ATH12K_DBG_WMI,
+			   "not found station of bssid %pM for rssi chain\n",
+			   arvif->bssid);
+		return -EPROTO;
+	}
+
+	ahsta = ath12k_sta_to_ahsta(sta);
+	arsta = &ahsta->deflink;
+
+	BUILD_BUG_ON(ARRAY_SIZE(arsta->chain_signal) >
+		     ARRAY_SIZE(stats_rssi->rssi_avg_beacon));
+
+	for (j = 0; j < ARRAY_SIZE(arsta->chain_signal); j++)
+		arsta->chain_signal[j] = le32_to_cpu(stats_rssi->rssi_avg_beacon[j]);
+
+	stats->stats_id = WMI_REQUEST_RSSI_PER_CHAIN_STAT;
+
+	return 0;
+}
+
 static int ath12k_wmi_tlv_fw_stats_parse(struct ath12k_base *ab,
 					 u16 tag, u16 len,
 					 const void *ptr, void *data)
@@ -8231,6 +8336,22 @@ static int ath12k_wmi_tlv_fw_stats_parse(struct ath12k_base *ab,
 		break;
 	case WMI_TAG_ARRAY_BYTE:
 		ret = ath12k_wmi_tlv_fw_stats_data_parse(ab, parse, ptr, len);
+		break;
+	case WMI_TAG_PER_CHAIN_RSSI_STATS:
+		parse->rssi = ptr;
+		if (le32_to_cpu(parse->ev->stats_id) & WMI_REQUEST_RSSI_PER_CHAIN_STAT)
+			parse->rssi_num = le32_to_cpu(parse->rssi->num_per_chain_rssi);
+		break;
+	case WMI_TAG_ARRAY_STRUCT:
+		if (parse->rssi_num && !parse->chain_rssi_done) {
+			ret = ath12k_wmi_tlv_iter(ab, ptr, len,
+						  ath12k_wmi_tlv_rssi_chain_parse,
+						  parse);
+			if (ret)
+				return ret;
+
+			parse->chain_rssi_done = true;
+		}
 		break;
 	default:
 		break;
@@ -8341,6 +8462,12 @@ static void ath12k_update_stats_event(struct ath12k_base *ab, struct sk_buff *sk
 	/* Handle WMI_REQUEST_PDEV_STAT status update */
 	if (stats.stats_id == WMI_REQUEST_PDEV_STAT) {
 		list_splice_tail_init(&stats.pdevs, &ar->fw_stats.pdevs);
+		complete(&ar->fw_stats_done);
+		goto complete;
+	}
+
+	/* Handle WMI_REQUEST_RSSI_PER_CHAIN_STAT status update */
+	if (stats.stats_id == WMI_REQUEST_RSSI_PER_CHAIN_STAT) {
 		complete(&ar->fw_stats_done);
 		goto complete;
 	}

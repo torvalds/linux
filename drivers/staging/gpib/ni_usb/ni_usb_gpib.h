@@ -72,10 +72,10 @@ struct ni_usb_priv {
 	struct urb *bulk_urb;
 	struct urb *interrupt_urb;
 	u8 interrupt_buffer[0x11];
-	struct mutex addressed_transfer_lock; // protect transfer lock
-	struct mutex bulk_transfer_lock;  // protect bulk message sends
-	struct mutex control_transfer_lock; // protect control messages
-	struct mutex interrupt_transfer_lock; //  protect interrupt messages
+	struct mutex addressed_transfer_lock;	// protect transfer lock
+	struct mutex bulk_transfer_lock;	// protect bulk message sends
+	struct mutex control_transfer_lock;	// protect control messages
+	struct mutex interrupt_transfer_lock;	//  protect interrupt messages
 	struct timer_list bulk_timer;
 	struct ni_usb_urb_ctx context;
 	int product_id;
@@ -145,7 +145,7 @@ enum ni_usb_error_codes {
 	 * CIC with no listener
 	 */
 	NIUSB_NO_LISTENER_ERROR = 8,
-	// get NIUSB_TIMEOUT_ERROR on board read/write timeout
+	/* get NIUSB_TIMEOUT_ERROR on board read/write timeout */
 	NIUSB_TIMEOUT_ERROR = 10,
 };
 

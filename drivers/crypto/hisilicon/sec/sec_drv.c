@@ -922,7 +922,8 @@ static int sec_hw_init(struct sec_dev_info *info)
 	struct iommu_domain *domain;
 	u32 sec_ipv4_mask = 0;
 	u32 sec_ipv6_mask[10] = {};
-	u32 i, ret;
+	int ret;
+	u32 i;
 
 	domain = iommu_get_domain_for_dev(info->dev);
 

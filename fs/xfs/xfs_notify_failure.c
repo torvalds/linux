@@ -165,7 +165,7 @@ xfs_dax_translate_range(
 	uint64_t		*bblen)
 {
 	u64			dev_start = btp->bt_dax_part_off;
-	u64			dev_len = bdev_nr_bytes(btp->bt_bdev);
+	u64			dev_len = BBTOB(btp->bt_nr_sectors);
 	u64			dev_end = dev_start + dev_len - 1;
 
 	/* Notify failure on the whole device. */

@@ -23,8 +23,8 @@
 #include <linux/nfsacl.h>
 #include <linux/nfs_common.h>
 
-#include "nfstrace.h"
 #include "internal.h"
+#include "nfstrace.h"
 
 #define NFSDBG_FACILITY		NFSDBG_XDR
 

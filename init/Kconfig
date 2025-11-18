@@ -99,7 +99,10 @@ config GCC_ASM_GOTO_OUTPUT_BROKEN
 config CC_HAS_ASM_GOTO_OUTPUT
 	def_bool y
 	depends on !GCC_ASM_GOTO_OUTPUT_BROKEN
+	# Detect basic support
 	depends on $(success,echo 'int foo(int x) { asm goto ("": "=r"(x) ::: bar); return x; bar: return 0; }' | $(CC) -x c - -c -o /dev/null)
+	# Detect clang (< v17) scoped label issues
+	depends on $(success,echo 'void b(void **);void* c(void);int f(void){{asm goto(""::::l0);return 0;l0:return 1;}void *x __attribute__((cleanup(b)))=c();{asm goto(""::::l1);return 2;l1:return 3;}}' | $(CC) -x c - -c -o /dev/null)
 
 config CC_HAS_ASM_GOTO_TIED_OUTPUT
 	depends on CC_HAS_ASM_GOTO_OUTPUT
@@ -112,15 +115,26 @@ config TOOLS_SUPPORT_RELR
 config CC_HAS_ASM_INLINE
 	def_bool $(success,echo 'void foo(void) { asm inline (""); }' | $(CC) -x c - -c -o /dev/null)
 
+config CC_HAS_ASSUME
+	bool
+	# clang needs to be at least 19.1.0 since the meaning of the assume
+	# attribute changed:
+	# https://github.com/llvm/llvm-project/commit/c44fa3e8a9a44c2e9a575768a3c185354b9f6c17
+	default y if CC_IS_CLANG && CLANG_VERSION >= 190100
+	# supported since gcc 13.1.0
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106654
+	default y if CC_IS_GCC && GCC_VERSION >= 130100
+
 config CC_HAS_NO_PROFILE_FN_ATTR
 	def_bool $(success,echo '__attribute__((no_profile_instrument_function)) int x();' | $(CC) -x c - -c -o /dev/null -Werror)
 
 config CC_HAS_COUNTED_BY
 	bool
-	# clang needs to be at least 19.1.3 to avoid __bdos miscalculations
-	# https://github.com/llvm/llvm-project/pull/110497
-	# https://github.com/llvm/llvm-project/pull/112636
-	default y if CC_IS_CLANG && CLANG_VERSION >= 190103
+	# clang needs to be at least 20.1.0 to avoid potential crashes
+	# when building structures that contain __counted_by
+	# https://github.com/ClangBuiltLinux/linux/issues/2114
+	# https://github.com/llvm/llvm-project/commit/160fb1121cdf703c3ef5e61fb26c5659eb581489
+	default y if CC_IS_CLANG && CLANG_VERSION >= 200100
 	# supported since gcc 15.1.0
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108896
 	default y if CC_IS_GCC && GCC_VERSION >= 150100
@@ -144,6 +158,9 @@ config RUSTC_HAS_UNNECESSARY_TRANSMUTES
 
 config RUSTC_HAS_FILE_WITH_NUL
 	def_bool RUSTC_VERSION >= 108900
+
+config RUSTC_HAS_FILE_AS_C_STR
+	def_bool RUSTC_VERSION >= 109100
 
 config PAHOLE_VERSION
 	int
@@ -1346,7 +1363,7 @@ config UTS_NS
 
 config TIME_NS
 	bool "TIME namespace"
-	depends on GENERIC_VDSO_TIME_NS
+	depends on GENERIC_GETTIMEOFDAY
 	default y
 	help
 	  In this namespace boottime and monotonic clocks can be set.
@@ -1497,6 +1514,7 @@ config BOOT_CONFIG_EMBED_FILE
 
 config INITRAMFS_PRESERVE_MTIME
 	bool "Preserve cpio archive mtimes in initramfs"
+	depends on BLK_DEV_INITRD
 	default y
 	help
 	  Each entry in an initramfs cpio archive carries an mtime value. When
@@ -1691,6 +1709,18 @@ config PRINTK
 	  and makes the kernel more or less silent. As this makes it
 	  very difficult to diagnose system problems, saying N here is
 	  strongly discouraged.
+
+config PRINTK_RINGBUFFER_KUNIT_TEST
+	tristate "KUnit Test for the printk ringbuffer" if !KUNIT_ALL_TESTS
+	depends on PRINTK && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the printk ringbuffer KUnit test suite.
+
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation.
+
+	  If unsure, say N.
 
 config BUG
 	bool "BUG() support" if EXPERT
@@ -2063,8 +2093,8 @@ config RUST
 	depends on !GCC_PLUGIN_RANDSTRUCT
 	depends on !RANDSTRUCT
 	depends on !DEBUG_INFO_BTF || (PAHOLE_HAS_LANG_EXCLUDE && !LTO)
-	depends on !CFI_CLANG || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
-	select CFI_ICALL_NORMALIZE_INTEGERS if CFI_CLANG
+	depends on !CFI || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
+	select CFI_ICALL_NORMALIZE_INTEGERS if CFI
 	depends on !CALL_PADDING || RUSTC_VERSION >= 108100
 	depends on !KASAN_SW_TAGS
 	depends on !(MITIGATION_RETHUNK && KASAN) || RUSTC_VERSION >= 108300

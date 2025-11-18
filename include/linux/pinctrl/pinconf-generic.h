@@ -88,9 +88,13 @@ struct pinctrl_map;
  *	passed in the argument on a custom form, else just use argument 1
  *	to indicate low power mode, argument 0 turns low power mode off.
  * @PIN_CONFIG_MODE_PWM: this will configure the pin for PWM
- * @PIN_CONFIG_OUTPUT: this will configure the pin as an output and drive a
- * 	value on the line. Use argument 1 to indicate high level, argument 0 to
- *	indicate low level. (Please see Documentation/driver-api/pin-control.rst,
+ * @PIN_CONFIG_LEVEL: setting this will configure the pin as an output and
+ *	drive a value on the line. Use argument 1 to indicate high level,
+ *	argument 0 to indicate low level. Conversely the value of the line
+ *	can be read using this parameter, if and only if that value can be
+ *	represented as a binary 0 or 1 where 0 indicate a low voltage level
+ *	and 1 indicate a high voltage level.
+ *	(Please see Documentation/driver-api/pin-control.rst,
  *	section "GPIO mode pitfalls" for a discussion around this parameter.)
  * @PIN_CONFIG_OUTPUT_ENABLE: this will enable the pin's output mode
  * 	without driving a value there. For most platforms this reduces to
@@ -137,7 +141,7 @@ enum pin_config_param {
 	PIN_CONFIG_INPUT_SCHMITT_UV,
 	PIN_CONFIG_MODE_LOW_POWER,
 	PIN_CONFIG_MODE_PWM,
-	PIN_CONFIG_OUTPUT,
+	PIN_CONFIG_LEVEL,
 	PIN_CONFIG_OUTPUT_ENABLE,
 	PIN_CONFIG_OUTPUT_IMPEDANCE_OHMS,
 	PIN_CONFIG_PERSIST_STATE,

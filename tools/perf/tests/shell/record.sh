@@ -388,6 +388,45 @@ test_callgraph() {
   echo "Callgraph test [Success]"
 }
 
+test_ratio_to_prev() {
+  echo "ratio-to-prev test"
+  if ! perf record -o /dev/null -e "{instructions, cycles/period=100000,ratio-to-prev=0.5/}" \
+     true 2> /dev/null
+  then
+    echo "ratio-to-prev [Skipped not supported]"
+    return
+  fi
+  if ! perf record -o /dev/null -e "instructions, cycles/period=100000,ratio-to-prev=0.5/" \
+     true |& grep -q 'Invalid use of ratio-to-prev term without preceding element in group'
+  then
+    echo "ratio-to-prev test [Failed elements must be in same group]"
+    err=1
+    return
+  fi
+  if ! perf record -o /dev/null -e "{instructions,dummy,cycles/period=100000,ratio-to-prev=0.5/}" \
+     true |& grep -q 'must have same PMU'
+  then
+    echo "ratio-to-prev test [Failed elements must have same PMU]"
+    err=1
+    return
+  fi
+  if ! perf record -o /dev/null -e "{instructions,cycles/ratio-to-prev=0.5/}" \
+     true |& grep -q 'Event period term or count (-c) must be set when using ratio-to-prev term.'
+  then
+    echo "ratio-to-prev test [Failed period must be set]"
+    err=1
+    return
+  fi
+  if ! perf record -o /dev/null -e "{cycles/ratio-to-prev=0.5/}" \
+     true |& grep -q 'Invalid use of ratio-to-prev term without preceding element in group'
+  then
+    echo "ratio-to-prev test [Failed need 2+ events]"
+    err=1
+    return
+  fi
+  echo "Basic ratio-to-prev record test [Success]"
+}
+
 # raise the limit of file descriptors to minimum
 if [[ $default_fd_limit -lt $min_fd_limit ]]; then
        ulimit -Sn $min_fd_limit
@@ -404,6 +443,7 @@ test_leader_sampling
 test_topdown_leader_sampling
 test_precise_max
 test_callgraph
+test_ratio_to_prev
 
 # restore the default value
 ulimit -Sn $default_fd_limit

@@ -95,14 +95,14 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 	 */
 	if (ret > 0 && query != UVC_GET_INFO) {
 		memset(data + ret, 0, size - ret);
-		dev_warn_once(&dev->udev->dev,
+		dev_warn_once(&dev->intf->dev,
 			      "UVC non compliance: %s control %u on unit %u returned %d bytes when we expected %u.\n",
 			      uvc_query_name(query), cs, unit, ret, size);
 		return 0;
 	}
 
 	if (ret != -EPIPE) {
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->intf->dev,
 			"Failed to query (%s) UVC control %u on unit %u: %d (exp. %u).\n",
 			uvc_query_name(query), cs, unit, ret, size);
 		return ret < 0 ? ret : -EPIPE;
@@ -119,7 +119,7 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 	*(u8 *)data = tmp;
 
 	if (ret != 1) {
-		dev_err_ratelimited(&dev->udev->dev,
+		dev_err_ratelimited(&dev->intf->dev,
 				    "Failed to query (%s) UVC error code control %u on unit %u: %d (exp. 1).\n",
 				    uvc_query_name(query), cs, unit, ret);
 		return ret < 0 ? ret : -EPIPE;
@@ -266,7 +266,7 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 	if (stream->intf->num_altsetting > 1 &&
 	    ctrl->dwMaxPayloadTransferSize > stream->maxpsize) {
 		dev_warn_ratelimited(&stream->intf->dev,
-				     "UVC non compliance: the max payload transmission size (%u) exceeds the size of the ep max packet (%u). Using the max size.\n",
+				     "UVC non compliance: Reducing max payload transfer size (%u) to fit endpoint limit (%u).\n",
 				     ctrl->dwMaxPayloadTransferSize,
 				     stream->maxpsize);
 		ctrl->dwMaxPayloadTransferSize = stream->maxpsize;
@@ -1691,7 +1691,7 @@ static void uvc_video_complete(struct urb *urb)
 	struct uvc_streaming *stream = uvc_urb->stream;
 	struct uvc_video_queue *queue = &stream->queue;
 	struct uvc_video_queue *qmeta = &stream->meta.queue;
-	struct vb2_queue *vb2_qmeta = stream->meta.vdev.queue;
+	struct vb2_queue *vb2_qmeta = stream->meta.queue.vdev.queue;
 	struct uvc_buffer *buf = NULL;
 	struct uvc_buffer *buf_meta = NULL;
 	unsigned long flags;
@@ -1870,24 +1870,6 @@ static void uvc_video_stop_transfer(struct uvc_streaming *stream,
 }
 
 /*
- * Compute the maximum number of bytes per interval for an endpoint.
- */
-u16 uvc_endpoint_max_bpi(struct usb_device *dev, struct usb_host_endpoint *ep)
-{
-	u16 psize;
-
-	switch (dev->speed) {
-	case USB_SPEED_SUPER:
-	case USB_SPEED_SUPER_PLUS:
-		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
-	default:
-		psize = usb_endpoint_maxp(&ep->desc);
-		psize *= usb_endpoint_maxp_mult(&ep->desc);
-		return psize;
-	}
-}
-
-/*
  * Initialize isochronous URBs and allocate transfer buffers. The packet size
  * is given by the endpoint.
  */
@@ -1897,10 +1879,10 @@ static int uvc_init_video_isoc(struct uvc_streaming *stream,
 	struct urb *urb;
 	struct uvc_urb *uvc_urb;
 	unsigned int npackets, i;
-	u16 psize;
+	u32 psize;
 	u32 size;
 
-	psize = uvc_endpoint_max_bpi(stream->dev->udev, ep);
+	psize = usb_endpoint_max_periodic_payload(stream->dev->udev, ep);
 	size = stream->ctrl.dwMaxVideoFrameSize;
 
 	npackets = uvc_alloc_urb_buffers(stream, size, psize, gfp_flags);
@@ -2043,7 +2025,7 @@ static int uvc_video_start_transfer(struct uvc_streaming *stream,
 				continue;
 
 			/* Check if the bandwidth is high enough. */
-			psize = uvc_endpoint_max_bpi(stream->dev->udev, ep);
+			psize = usb_endpoint_max_periodic_payload(stream->dev->udev, ep);
 			if (psize >= bandwidth && psize < best_psize) {
 				altsetting = alts->desc.bAlternateSetting;
 				best_psize = psize;

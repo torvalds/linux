@@ -2,7 +2,7 @@
 .\"  Distributed under the GPL, Copyleft 1994.
 .TH X86_ENERGY_PERF_POLICY 8
 .SH NAME
-x86_energy_perf_policy \- Manage Energy vs. Performance Policy via x86 Model Specific Registers
+x86_energy_perf_policy \- Manage Energy vs. Performance Policy
 .SH SYNOPSIS
 .B x86_energy_perf_policy
 .RB "[ options ] [ scope ] [field \ value]"
@@ -19,9 +19,14 @@ x86_energy_perf_policy \- Manage Energy vs. Performance Policy via x86 Model Spe
 .SH DESCRIPTION
 \fBx86_energy_perf_policy\fP
 displays and updates energy-performance policy settings specific to
-Intel Architecture Processors.  Settings are accessed via Model Specific Register (MSR)
-updates, no matter if the Linux cpufreq sub-system is enabled or not.
+Intel Architecture Processors.  It summarizes settings available
+in standard Linux interfaces (eg. cpufreq),
+and also decodes underlying Model Specific Register (MSRs).
+While \fBx86_energy_perf_policy\fP can manage energy-performance policy
+using only MSR access, it prefers standard
+Linux kernel interfaces, when they are available.
 
+.SH BACKGROUND
 Policy in MSR_IA32_ENERGY_PERF_BIAS (EPB)
 may affect a wide range of hardware decisions,
 such as how aggressively the hardware enters and exits CPU idle states (C-states)
@@ -200,7 +205,9 @@ runs only as root.
 .SH FILES
 .ta
 .nf
-/dev/cpu/*/msr
+EPB: /sys/devices/system/cpu/cpu*/power/energy_perf_bias
+EPP: /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
+MSR: /dev/cpu/*/msr
 .fi
 .SH "SEE ALSO"
 .nf

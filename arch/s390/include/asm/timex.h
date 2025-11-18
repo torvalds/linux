@@ -81,7 +81,7 @@ static inline void set_tod_programmable_field(u16 val)
 {
 	asm volatile(
 		"	lgr	0,%[val]\n"
-		"	sckpf\n"
+		"	sckpf"
 		:
 		: [val] "d" ((unsigned long)val)
 		: "0");

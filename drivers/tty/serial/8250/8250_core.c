@@ -72,7 +72,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	struct list_head *l, *end = NULL;
 	int pass_counter = 0, handled = 0;
 
-	spin_lock(&i->lock);
+	guard(spinlock)(&i->lock);
 
 	l = i->head;
 	do {
@@ -90,8 +90,6 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 		if (l == i->head && pass_counter++ > PASS_LIMIT)
 			break;
 	} while (l != end);
-
-	spin_unlock(&i->lock);
 
 	return IRQ_RETVAL(handled);
 }
@@ -132,22 +130,19 @@ static struct irq_info *serial_get_or_create_irq_info(const struct uart_8250_por
 {
 	struct irq_info *i;
 
-	mutex_lock(&hash_mutex);
+	guard(mutex)(&hash_mutex);
 
 	hash_for_each_possible(irq_lists, i, node, up->port.irq)
 		if (i->irq == up->port.irq)
-			goto unlock;
+			return i;
 
 	i = kzalloc(sizeof(*i), GFP_KERNEL);
-	if (i == NULL) {
-		i = ERR_PTR(-ENOMEM);
-		goto unlock;
-	}
+	if (i == NULL)
+		return ERR_PTR(-ENOMEM);
+
 	spin_lock_init(&i->lock);
 	i->irq = up->port.irq;
 	hash_add(irq_lists, &i->node, i->irq);
-unlock:
-	mutex_unlock(&hash_mutex);
 
 	return i;
 }
@@ -161,22 +156,20 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 	if (IS_ERR(i))
 		return PTR_ERR(i);
 
-	spin_lock_irq(&i->lock);
+	scoped_guard(spinlock_irq, &i->lock) {
+		if (i->head) {
+			list_add(&up->list, i->head);
 
-	if (i->head) {
-		list_add(&up->list, i->head);
-		spin_unlock_irq(&i->lock);
+			return 0;
+		}
 
-		ret = 0;
-	} else {
 		INIT_LIST_HEAD(&up->list);
 		i->head = &up->list;
-		spin_unlock_irq(&i->lock);
-		ret = request_irq(up->port.irq, serial8250_interrupt,
-				  up->port.irqflags, up->port.name, i);
-		if (ret < 0)
-			serial_do_unlink(i, up);
 	}
+
+	ret = request_irq(up->port.irq, serial8250_interrupt, up->port.irqflags, up->port.name, i);
+	if (ret < 0)
+		serial_do_unlink(i, up);
 
 	return ret;
 }
@@ -185,20 +178,22 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
 	struct irq_info *i;
 
-	mutex_lock(&hash_mutex);
+	guard(mutex)(&hash_mutex);
 
 	hash_for_each_possible(irq_lists, i, node, up->port.irq)
-		if (i->irq == up->port.irq)
-			break;
+		if (i->irq == up->port.irq) {
+			if (WARN_ON(i->head == NULL))
+				return;
 
-	BUG_ON(i == NULL);
-	BUG_ON(i->head == NULL);
+			if (list_empty(i->head))
+				free_irq(up->port.irq, i);
 
-	if (list_empty(i->head))
-		free_irq(up->port.irq, i);
+			serial_do_unlink(i, up);
 
-	serial_do_unlink(i, up);
-	mutex_unlock(&hash_mutex);
+			return;
+		}
+
+	WARN_ON(1);
 }
 
 /*
@@ -307,7 +302,7 @@ static void univ8250_release_irq(struct uart_8250_port *up)
 		serial_unlink_irq_chain(up);
 }
 
-const struct uart_ops *univ8250_port_base_ops = NULL;
+const struct uart_ops *univ8250_port_base_ops;
 struct uart_ops univ8250_port_ops;
 
 static const struct uart_8250_ops univ8250_driver_ops = {
@@ -670,16 +665,12 @@ static struct uart_8250_port *serial8250_find_match_or_unused(const struct uart_
 
 static void serial_8250_overrun_backoff_work(struct work_struct *work)
 {
-	struct uart_8250_port *up =
-	    container_of(to_delayed_work(work), struct uart_8250_port,
-			 overrun_backoff);
-	struct uart_port *port = &up->port;
-	unsigned long flags;
+	struct uart_8250_port *up = container_of(to_delayed_work(work), struct uart_8250_port,
+						 overrun_backoff);
 
-	uart_port_lock_irqsave(port, &flags);
+	guard(uart_port_lock_irqsave)(&up->port);
 	up->ier |= UART_IER_RLSI | UART_IER_RDI;
 	serial_out(up, UART_IER, up->ier);
-	uart_port_unlock_irqrestore(port, flags);
 }
 
 /**
@@ -698,12 +689,12 @@ static void serial_8250_overrun_backoff_work(struct work_struct *work)
 int serial8250_register_8250_port(const struct uart_8250_port *up)
 {
 	struct uart_8250_port *uart;
-	int ret = -ENOSPC;
+	int ret;
 
 	if (up->port.uartclk == 0)
 		return -EINVAL;
 
-	mutex_lock(&serial_mutex);
+	guard(mutex)(&serial_mutex);
 
 	uart = serial8250_find_match_or_unused(&up->port);
 	if (!uart) {
@@ -713,15 +704,13 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 		 */
 		uart = serial8250_setup_port(nr_uarts);
 		if (!uart)
-			goto unlock;
+			return -ENOSPC;
 		nr_uarts++;
 	}
 
 	/* Check if it is CIR already. We check this below again, see there why. */
-	if (uart->port.type == PORT_8250_CIR) {
-		ret = -ENODEV;
-		goto unlock;
-	}
+	if (uart->port.type == PORT_8250_CIR)
+		return -ENODEV;
 
 	if (uart->port.dev)
 		uart_remove_one_port(&serial8250_reg, &uart->port);
@@ -855,14 +844,10 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 		uart->overrun_backoff_time_ms = 0;
 	}
 
-unlock:
-	mutex_unlock(&serial_mutex);
-
 	return ret;
 
 err:
 	uart->port.dev = NULL;
-	mutex_unlock(&serial_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(serial8250_register_8250_port);
@@ -878,14 +863,11 @@ void serial8250_unregister_port(int line)
 {
 	struct uart_8250_port *uart = &serial8250_ports[line];
 
-	mutex_lock(&serial_mutex);
+	guard(mutex)(&serial_mutex);
 
 	if (uart->em485) {
-		unsigned long flags;
-
-		uart_port_lock_irqsave(&uart->port, &flags);
+		guard(uart_port_lock_irqsave)(&uart->port);
 		serial8250_em485_destroy(uart);
-		uart_port_unlock_irqrestore(&uart->port, flags);
 	}
 
 	uart_remove_one_port(&serial8250_reg, &uart->port);
@@ -901,7 +883,6 @@ void serial8250_unregister_port(int line)
 	} else {
 		uart->port.dev = NULL;
 	}
-	mutex_unlock(&serial_mutex);
 }
 EXPORT_SYMBOL(serial8250_unregister_port);
 

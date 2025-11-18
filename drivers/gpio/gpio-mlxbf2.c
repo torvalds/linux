@@ -6,8 +6,10 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -65,7 +67,7 @@ struct mlxbf2_gpio_context_save_regs {
 
 /* BlueField-2 gpio block context structure. */
 struct mlxbf2_gpio_context {
-	struct gpio_chip gc;
+	struct gpio_generic_chip chip;
 
 	/* YU GPIO blocks address */
 	void __iomem *gpio_io;
@@ -132,7 +134,7 @@ static int mlxbf2_gpio_lock_acquire(struct mlxbf2_gpio_context *gs)
 	u32 arm_gpio_lock_val;
 
 	mutex_lock(yu_arm_gpio_lock_param.lock);
-	raw_spin_lock(&gs->gc.bgpio_lock);
+	gpio_generic_chip_lock(&gs->chip);
 
 	arm_gpio_lock_val = readl(yu_arm_gpio_lock_param.io);
 
@@ -140,7 +142,7 @@ static int mlxbf2_gpio_lock_acquire(struct mlxbf2_gpio_context *gs)
 	 * When lock active bit[31] is set, ModeX is write enabled
 	 */
 	if (YU_LOCK_ACTIVE_BIT(arm_gpio_lock_val)) {
-		raw_spin_unlock(&gs->gc.bgpio_lock);
+		gpio_generic_chip_unlock(&gs->chip);
 		mutex_unlock(yu_arm_gpio_lock_param.lock);
 		return -EINVAL;
 	}
@@ -154,11 +156,11 @@ static int mlxbf2_gpio_lock_acquire(struct mlxbf2_gpio_context *gs)
  * Release the YU arm_gpio_lock after changing the direction mode.
  */
 static void mlxbf2_gpio_lock_release(struct mlxbf2_gpio_context *gs)
-	__releases(&gs->gc.bgpio_lock)
+	__releases(&gs->chip.lock)
 	__releases(yu_arm_gpio_lock_param.lock)
 {
 	writel(YU_ARM_GPIO_LOCK_RELEASE, yu_arm_gpio_lock_param.io);
-	raw_spin_unlock(&gs->gc.bgpio_lock);
+	gpio_generic_chip_unlock(&gs->chip);
 	mutex_unlock(yu_arm_gpio_lock_param.lock);
 }
 
@@ -235,11 +237,10 @@ static void mlxbf2_gpio_irq_enable(struct irq_data *irqd)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct mlxbf2_gpio_context *gs = gpiochip_get_data(gc);
 	int offset = irqd_to_hwirq(irqd);
-	unsigned long flags;
 	u32 val;
 
 	gpiochip_enable_irq(gc, irqd_to_hwirq(irqd));
-	raw_spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
+	guard(gpio_generic_lock_irqsave)(&gs->chip);
 	val = readl(gs->gpio_io + YU_GPIO_CAUSE_OR_CLRCAUSE);
 	val |= BIT(offset);
 	writel(val, gs->gpio_io + YU_GPIO_CAUSE_OR_CLRCAUSE);
@@ -247,7 +248,6 @@ static void mlxbf2_gpio_irq_enable(struct irq_data *irqd)
 	val = readl(gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
 	val |= BIT(offset);
 	writel(val, gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
-	raw_spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
 }
 
 static void mlxbf2_gpio_irq_disable(struct irq_data *irqd)
@@ -255,21 +255,21 @@ static void mlxbf2_gpio_irq_disable(struct irq_data *irqd)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct mlxbf2_gpio_context *gs = gpiochip_get_data(gc);
 	int offset = irqd_to_hwirq(irqd);
-	unsigned long flags;
 	u32 val;
 
-	raw_spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
-	val = readl(gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
-	val &= ~BIT(offset);
-	writel(val, gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
-	raw_spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
+	scoped_guard(gpio_generic_lock_irqsave, &gs->chip) {
+		val = readl(gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
+		val &= ~BIT(offset);
+		writel(val, gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
+	}
+
 	gpiochip_disable_irq(gc, irqd_to_hwirq(irqd));
 }
 
 static irqreturn_t mlxbf2_gpio_irq_handler(int irq, void *ptr)
 {
 	struct mlxbf2_gpio_context *gs = ptr;
-	struct gpio_chip *gc = &gs->gc;
+	struct gpio_chip *gc = &gs->chip.gc;
 	unsigned long pending;
 	u32 level;
 
@@ -288,7 +288,6 @@ mlxbf2_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct mlxbf2_gpio_context *gs = gpiochip_get_data(gc);
 	int offset = irqd_to_hwirq(irqd);
-	unsigned long flags;
 	bool fall = false;
 	bool rise = false;
 	u32 val;
@@ -308,7 +307,8 @@ mlxbf2_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 		return -EINVAL;
 	}
 
-	raw_spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
+	guard(gpio_generic_lock_irqsave)(&gs->chip);
+
 	if (fall) {
 		val = readl(gs->gpio_io + YU_GPIO_CAUSE_FALL_EN);
 		val |= BIT(offset);
@@ -320,7 +320,6 @@ mlxbf2_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 		val |= BIT(offset);
 		writel(val, gs->gpio_io + YU_GPIO_CAUSE_RISE_EN);
 	}
-	raw_spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
 
 	return 0;
 }
@@ -347,6 +346,7 @@ static const struct irq_chip mlxbf2_gpio_irq_chip = {
 static int
 mlxbf2_gpio_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
 	struct mlxbf2_gpio_context *gs;
 	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *girq;
@@ -369,28 +369,25 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gs->gpio_io);
 
 	ret = mlxbf2_gpio_get_lock_res(pdev);
-	if (ret) {
-		dev_err(dev, "Failed to get yu_arm_gpio_lock resource\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get yu_arm_gpio_lock resource\n");
 
 	if (device_property_read_u32(dev, "npins", &npins))
 		npins = MLXBF2_GPIO_MAX_PINS_PER_BLOCK;
 
-	gc = &gs->gc;
+	gc = &gs->chip.gc;
 
-	ret = bgpio_init(gc, dev, 4,
-			gs->gpio_io + YU_GPIO_DATAIN,
-			gs->gpio_io + YU_GPIO_DATASET,
-			gs->gpio_io + YU_GPIO_DATACLEAR,
-			NULL,
-			NULL,
-			0);
+	config = (struct gpio_generic_chip_config) {
+		.dev = dev,
+		.sz = 4,
+		.dat = gs->gpio_io + YU_GPIO_DATAIN,
+		.set = gs->gpio_io + YU_GPIO_DATASET,
+		.clr = gs->gpio_io + YU_GPIO_DATACLEAR,
+	};
 
-	if (ret) {
-		dev_err(dev, "bgpio_init failed\n");
-		return ret;
-	}
+	ret = gpio_generic_chip_init(&gs->chip, &config);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to initialize the generic GPIO chip\n");
 
 	gc->direction_input = mlxbf2_gpio_direction_input;
 	gc->direction_output = mlxbf2_gpio_direction_output;
@@ -399,7 +396,7 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq >= 0) {
-		girq = &gs->gc.irq;
+		girq = &gs->chip.gc.irq;
 		gpio_irq_chip_set_chip(girq, &mlxbf2_gpio_irq_chip);
 		girq->handler = handle_simple_irq;
 		girq->default_type = IRQ_TYPE_NONE;
@@ -414,19 +411,15 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 		 */
 		ret = devm_request_irq(dev, irq, mlxbf2_gpio_irq_handler,
 				       IRQF_SHARED, name, gs);
-		if (ret) {
-			dev_err(dev, "failed to request IRQ");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to request IRQ");
 	}
 
 	platform_set_drvdata(pdev, gs);
 
-	ret = devm_gpiochip_add_data(dev, &gs->gc, gs);
-	if (ret) {
-		dev_err(dev, "Failed adding memory mapped gpiochip\n");
-		return ret;
-	}
+	ret = devm_gpiochip_add_data(dev, &gs->chip.gc, gs);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed adding memory mapped gpiochip\n");
 
 	return 0;
 }

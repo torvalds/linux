@@ -33,6 +33,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/minmax.h>
 
 /*
  * This macro is used to define some register default values.
@@ -760,10 +761,9 @@ static void setup_dma_scatter(struct pl022 *pl022,
 			 * we just feed in this, else we stuff in as much
 			 * as we can.
 			 */
-			if (bytesleft < (PAGE_SIZE - offset_in_page(bufp)))
-				mapbytes = bytesleft;
-			else
-				mapbytes = PAGE_SIZE - offset_in_page(bufp);
+			mapbytes = min_t(int, bytesleft,
+					 PAGE_SIZE - offset_in_page(bufp));
+
 			sg_set_page(sg, virt_to_page(bufp),
 				    mapbytes, offset_in_page(bufp));
 			bufp += mapbytes;
@@ -775,10 +775,7 @@ static void setup_dma_scatter(struct pl022 *pl022,
 	} else {
 		/* Map the dummy buffer on every page */
 		for_each_sg(sgtab->sgl, sg, sgtab->nents, i) {
-			if (bytesleft < PAGE_SIZE)
-				mapbytes = bytesleft;
-			else
-				mapbytes = PAGE_SIZE;
+			mapbytes = min_t(int, bytesleft, PAGE_SIZE);
 			sg_set_page(sg, virt_to_page(pl022->dummypage),
 				    mapbytes, 0);
 			bytesleft -= mapbytes;

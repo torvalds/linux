@@ -10,11 +10,11 @@
 
 #include <asm-generic/sections.h>
 
-# ifndef __ASSEMBLY__
+# ifndef __ASSEMBLER__
 extern char _ssbss[], _esbss[];
 extern unsigned long __ivt_start[], __ivt_end[];
 
 extern u32 _fdt_start[], _fdt_end[];
 
-# endif /* !__ASSEMBLY__ */
+# endif /* !__ASSEMBLER__ */
 #endif /* _ASM_MICROBLAZE_SECTIONS_H */

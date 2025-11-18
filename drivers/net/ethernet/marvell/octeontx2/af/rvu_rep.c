@@ -376,7 +376,7 @@ int rvu_rep_install_mcam_rules(struct rvu *rvu)
 	spin_lock_init(&rvu->rep_evtq_lock);
 	INIT_LIST_HEAD(&rvu->rep_evtq_head);
 	INIT_WORK(&rvu->rep_evt_work, rvu_rep_wq_handler);
-	rvu->rep_evt_wq = alloc_workqueue("rep_evt_wq", 0, 0);
+	rvu->rep_evt_wq = alloc_workqueue("rep_evt_wq", WQ_PERCPU, 0);
 	if (!rvu->rep_evt_wq) {
 		dev_err(rvu->dev, "REP workqueue allocation failed\n");
 		return -ENOMEM;

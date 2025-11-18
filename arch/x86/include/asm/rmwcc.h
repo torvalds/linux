@@ -6,36 +6,14 @@
 
 #define __CLOBBERS_MEM(clb...)	"memory", ## clb
 
-#ifndef __GCC_ASM_FLAG_OUTPUTS__
-
-/* Use asm goto */
-
-#define __GEN_RMWcc(fullop, _var, cc, clobbers, ...)			\
-({									\
-	bool c = false;							\
-	asm goto (fullop "; j" #cc " %l[cc_label]"		\
-			: : [var] "m" (_var), ## __VA_ARGS__		\
-			: clobbers : cc_label);				\
-	if (0) {							\
-cc_label:	c = true;						\
-	}								\
-	c;								\
-})
-
-#else /* defined(__GCC_ASM_FLAG_OUTPUTS__) */
-
-/* Use flags output or a set instruction */
-
 #define __GEN_RMWcc(fullop, _var, cc, clobbers, ...)			\
 ({									\
 	bool c;								\
-	asm_inline volatile (fullop CC_SET(cc)				\
-			: [var] "+m" (_var), CC_OUT(cc) (c)		\
+	asm_inline volatile (fullop					\
+			: [var] "+m" (_var), "=@cc" #cc (c)		\
 			: __VA_ARGS__ : clobbers);			\
 	c;								\
 })
-
-#endif /* defined(__GCC_ASM_FLAG_OUTPUTS__) */
 
 #define GEN_UNARY_RMWcc_4(op, var, cc, arg0)				\
 	__GEN_RMWcc(op " " arg0, var, cc, __CLOBBERS_MEM())

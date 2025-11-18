@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/ftrace.h>
+#include <linux/sort.h>
 
 Elf_Addr module_emit_got_entry(struct module *mod, Elf_Shdr *sechdrs, Elf_Addr val)
 {
@@ -61,39 +62,38 @@ Elf_Addr module_emit_plt_entry(struct module *mod, Elf_Shdr *sechdrs, Elf_Addr v
 	return (Elf_Addr)&plt[nr];
 }
 
-static int is_rela_equal(const Elf_Rela *x, const Elf_Rela *y)
+#define cmp_3way(a, b)  ((a) < (b) ? -1 : (a) > (b))
+
+static int compare_rela(const void *x, const void *y)
 {
-	return x->r_info == y->r_info && x->r_addend == y->r_addend;
-}
+	int ret;
+	const Elf_Rela *rela_x = x, *rela_y = y;
 
-static bool duplicate_rela(const Elf_Rela *rela, int idx)
-{
-	int i;
+	ret = cmp_3way(rela_x->r_info, rela_y->r_info);
+	if (ret == 0)
+		ret = cmp_3way(rela_x->r_addend, rela_y->r_addend);
 
-	for (i = 0; i < idx; i++) {
-		if (is_rela_equal(&rela[i], &rela[idx]))
-			return true;
-	}
-
-	return false;
+	return ret;
 }
 
 static void count_max_entries(Elf_Rela *relas, int num,
 			      unsigned int *plts, unsigned int *gots)
 {
-	unsigned int i, type;
+	unsigned int i;
+
+	sort(relas, num, sizeof(Elf_Rela), compare_rela, NULL);
 
 	for (i = 0; i < num; i++) {
-		type = ELF_R_TYPE(relas[i].r_info);
-		switch (type) {
+		if (i && !compare_rela(&relas[i-1], &relas[i]))
+			continue;
+
+		switch (ELF_R_TYPE(relas[i].r_info)) {
 		case R_LARCH_SOP_PUSH_PLT_PCREL:
 		case R_LARCH_B26:
-			if (!duplicate_rela(relas, i))
-				(*plts)++;
+			(*plts)++;
 			break;
 		case R_LARCH_GOT_PC_HI20:
-			if (!duplicate_rela(relas, i))
-				(*gots)++;
+			(*gots)++;
 			break;
 		default:
 			break; /* Do nothing. */

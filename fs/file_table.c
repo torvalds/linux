@@ -54,7 +54,7 @@ struct backing_file {
 
 #define backing_file(f) container_of(f, struct backing_file, file)
 
-struct path *backing_file_user_path(const struct file *f)
+const struct path *backing_file_user_path(const struct file *f)
 {
 	return &backing_file(f)->user_path;
 }
@@ -171,7 +171,7 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 	 * the respective member when opening the file.
 	 */
 	mutex_init(&f->f_pos_lock);
-	memset(&f->f_path, 0, sizeof(f->f_path));
+	memset(&f->__f_path, 0, sizeof(f->f_path));
 	memset(&f->f_ra, 0, sizeof(f->f_ra));
 
 	f->f_flags	= flags;
@@ -192,7 +192,7 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 	f->f_sb_err	= 0;
 
 	/*
-	 * We're SLAB_TYPESAFE_BY_RCU so initialize f_count last. While
+	 * We're SLAB_TYPESAFE_BY_RCU so initialize f_ref last. While
 	 * fget-rcu pattern users need to be able to handle spurious
 	 * refcount bumps we should reinitialize the reused file first.
 	 */
@@ -319,7 +319,7 @@ struct file *alloc_empty_backing_file(int flags, const struct cred *cred)
 static void file_init_path(struct file *file, const struct path *path,
 			   const struct file_operations *fop)
 {
-	file->f_path = *path;
+	file->__f_path = *path;
 	file->f_inode = path->dentry->d_inode;
 	file->f_mapping = path->dentry->d_inode->i_mapping;
 	file->f_wb_err = filemap_sample_wb_err(file->f_mapping);

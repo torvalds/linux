@@ -339,6 +339,48 @@ static int tl_calc_and_print_sl_counters(struct adf_accel_dev *accel_dev,
 	return 0;
 }
 
+static int tl_print_cmdq_counter(struct adf_telemetry *telemetry,
+				 const struct adf_tl_dbg_counter *ctr,
+				 struct seq_file *s, u8 cnt_id, u8 counter)
+{
+	size_t cmdq_regs_sz = GET_TL_DATA(telemetry->accel_dev).cmdq_reg_sz;
+	size_t offset_inc = cnt_id * cmdq_regs_sz;
+	struct adf_tl_dbg_counter slice_ctr;
+	char cnt_name[MAX_COUNT_NAME_SIZE];
+
+	slice_ctr = *(ctr + counter);
+	slice_ctr.offset1 += offset_inc;
+	snprintf(cnt_name, MAX_COUNT_NAME_SIZE, "%s%d", slice_ctr.name, cnt_id);
+
+	return tl_calc_and_print_counter(telemetry, s, &slice_ctr, cnt_name);
+}
+
+static int tl_calc_and_print_cmdq_counters(struct adf_accel_dev *accel_dev,
+					   struct seq_file *s, u8 cnt_type,
+					   u8 cnt_id)
+{
+	struct adf_tl_hw_data *tl_data = &GET_TL_DATA(accel_dev);
+	struct adf_telemetry *telemetry = accel_dev->telemetry;
+	const struct adf_tl_dbg_counter **cmdq_tl_counters;
+	const struct adf_tl_dbg_counter *ctr;
+	u8 counter;
+	int ret;
+
+	cmdq_tl_counters = tl_data->cmdq_counters;
+	ctr = cmdq_tl_counters[cnt_type];
+
+	for (counter = 0; counter < tl_data->num_cmdq_counters; counter++) {
+		ret = tl_print_cmdq_counter(telemetry, ctr, s, cnt_id, counter);
+		if (ret) {
+			dev_notice(&GET_DEV(accel_dev),
+				   "invalid slice utilization counter type\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void tl_print_msg_cnt(struct seq_file *s, u32 msg_cnt)
 {
 	seq_printf(s, "%-*s", TL_KEY_MIN_PADDING, SNAPSHOT_CNT_MSG);
@@ -352,6 +394,7 @@ static int tl_print_dev_data(struct adf_accel_dev *accel_dev,
 	struct adf_telemetry *telemetry = accel_dev->telemetry;
 	const struct adf_tl_dbg_counter *dev_tl_counters;
 	u8 num_dev_counters = tl_data->num_dev_counters;
+	u8 *cmdq_cnt = (u8 *)&telemetry->cmdq_cnt;
 	u8 *sl_cnt = (u8 *)&telemetry->slice_cnt;
 	const struct adf_tl_dbg_counter *ctr;
 	unsigned int i;
@@ -382,6 +425,15 @@ static int tl_print_dev_data(struct adf_accel_dev *accel_dev,
 	for (i = 0; i < ADF_TL_SL_CNT_COUNT; i++) {
 		for (j = 0; j < sl_cnt[i]; j++) {
 			ret = tl_calc_and_print_sl_counters(accel_dev, s, i, j);
+			if (ret)
+				return ret;
+		}
+	}
+
+	/* Print per command queue telemetry. */
+	for (i = 0; i < ADF_TL_SL_CNT_COUNT; i++) {
+		for (j = 0; j < cmdq_cnt[i]; j++) {
+			ret = tl_calc_and_print_cmdq_counters(accel_dev, s, i, j);
 			if (ret)
 				return ret;
 		}

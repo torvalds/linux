@@ -234,8 +234,9 @@ static int acp5x_i2s_trigger(struct snd_pcm_substream *substream,
 {
 	struct i2s_stream_instance *rtd;
 	struct i2s_dev_data *adata;
-	u32 ret, val, period_bytes, reg_val, ier_val, water_val;
+	u32 val, period_bytes, reg_val, ier_val, water_val;
 	u32 buf_size, buf_reg;
+	int ret;
 
 	adata = snd_soc_dai_get_drvdata(dai);
 	rtd = substream->runtime->private_data;

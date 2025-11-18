@@ -59,14 +59,6 @@ static int ecryptfs_d_revalidate(struct inode *dir, const struct qstr *name,
 	return rc;
 }
 
-struct kmem_cache *ecryptfs_dentry_info_cache;
-
-static void ecryptfs_dentry_free_rcu(struct rcu_head *head)
-{
-	kmem_cache_free(ecryptfs_dentry_info_cache,
-		container_of(head, struct ecryptfs_dentry_info, rcu));
-}
-
 /**
  * ecryptfs_d_release
  * @dentry: The ecryptfs dentry
@@ -75,11 +67,7 @@ static void ecryptfs_dentry_free_rcu(struct rcu_head *head)
  */
 static void ecryptfs_d_release(struct dentry *dentry)
 {
-	struct ecryptfs_dentry_info *p = dentry->d_fsdata;
-	if (p) {
-		path_put(&p->lower_path);
-		call_rcu(&p->rcu, ecryptfs_dentry_free_rcu);
-	}
+	dput(dentry->d_fsdata);
 }
 
 const struct dentry_operations ecryptfs_dops = {

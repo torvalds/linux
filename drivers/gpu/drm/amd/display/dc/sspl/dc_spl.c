@@ -641,16 +641,16 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 		/* this gives the direction of the cositing (negative will move
 		 * left, right otherwise)
 		 */
-		int sign = 1;
+		int h_sign = flip_horz_scan_dir ? -1 : 1;
+		int v_sign = flip_vert_scan_dir ? -1 : 1;
 
 		switch (spl_in->basic_in.cositing) {
-
 		case CHROMA_COSITING_TOPLEFT:
-			init_adj_h = spl_fixpt_from_fraction(sign, 4);
-			init_adj_v = spl_fixpt_from_fraction(sign, 4);
+			init_adj_h = spl_fixpt_from_fraction(h_sign, 4);
+			init_adj_v = spl_fixpt_from_fraction(v_sign, 4);
 			break;
 		case CHROMA_COSITING_LEFT:
-			init_adj_h = spl_fixpt_from_fraction(sign, 4);
+			init_adj_h = spl_fixpt_from_fraction(h_sign, 4);
 			init_adj_v = spl_fixpt_zero;
 			break;
 		case CHROMA_COSITING_NONE:

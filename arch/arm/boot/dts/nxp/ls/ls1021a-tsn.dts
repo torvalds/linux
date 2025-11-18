@@ -40,8 +40,6 @@
 	/* ADG704BRMZ 1:4 SPI mux/demux */
 	sja1105: ethernet-switch@1 {
 		reg = <0x1>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nxp,sja1105t";
 		/* 12 MHz */
 		spi-max-frequency = <12000000>;

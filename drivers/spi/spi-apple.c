@@ -511,6 +511,7 @@ static int apple_spi_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id apple_spi_of_match[] = {
+	{ .compatible = "apple,t8103-spi", },
 	{ .compatible = "apple,spi", },
 	{}
 };

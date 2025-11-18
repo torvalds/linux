@@ -1412,11 +1412,9 @@ static int pn533_autopoll_complete(struct pn533 *dev, void *arg,
 			if (dev->poll_mod_count != 0)
 				return rc;
 			goto stop_poll;
-		} else if (rc < 0) {
-			nfc_err(dev->dev,
-				"Error %d when running autopoll\n", rc);
-			goto stop_poll;
 		}
+		nfc_err(dev->dev, "Error %d when running autopoll\n", rc);
+		goto stop_poll;
 	}
 
 	nbtg = resp->data[0];
@@ -1505,11 +1503,9 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 			if (dev->poll_mod_count != 0)
 				return rc;
 			goto stop_poll;
-		} else if (rc < 0) {
-			nfc_err(dev->dev,
-				"Error %d when running poll\n", rc);
-			goto stop_poll;
 		}
+		nfc_err(dev->dev, "Error %d when running poll\n", rc);
+		goto stop_poll;
 	}
 
 	cur_mod = dev->poll_mod_active[dev->poll_mod_curr];

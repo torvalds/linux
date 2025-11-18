@@ -307,7 +307,8 @@ static int fill_meta_index(struct inode *inode, int index,
 all_done:
 	*index_block = cur_index_block;
 	*index_offset = cur_offset;
-	*data_block = cur_data_block;
+	if (data_block)
+		*data_block = cur_data_block;
 
 	/*
 	 * Scale cache index (cache slot entry) to index
@@ -324,17 +325,15 @@ failed:
  * Get the on-disk location and compressed size of the datablock
  * specified by index.  Fill_meta_index() does most of the work.
  */
-static int read_blocklist(struct inode *inode, int index, u64 *block)
+static int read_blocklist_ptrs(struct inode *inode, int index, u64 *start,
+	int *offset, u64 *block)
 {
-	u64 start;
 	long long blks;
-	int offset;
 	__le32 size;
-	int res = fill_meta_index(inode, index, &start, &offset, block);
+	int res = fill_meta_index(inode, index, start, offset, block);
 
-	TRACE("read_blocklist: res %d, index %d, start 0x%llx, offset"
-		       " 0x%x, block 0x%llx\n", res, index, start, offset,
-			*block);
+	TRACE("read_blocklist: res %d, index %d, start 0x%llx, offset 0x%x, block 0x%llx\n",
+				res, index, *start, *offset, block ? *block : 0);
 
 	if (res < 0)
 		return res;
@@ -346,20 +345,29 @@ static int read_blocklist(struct inode *inode, int index, u64 *block)
 	 * extra block indexes needed.
 	 */
 	if (res < index) {
-		blks = read_indexes(inode->i_sb, index - res, &start, &offset);
+		blks = read_indexes(inode->i_sb, index - res, start, offset);
 		if (blks < 0)
 			return (int) blks;
-		*block += blks;
+		if (block)
+			*block += blks;
 	}
 
 	/*
 	 * Read length of block specified by index.
 	 */
-	res = squashfs_read_metadata(inode->i_sb, &size, &start, &offset,
+	res = squashfs_read_metadata(inode->i_sb, &size, start, offset,
 			sizeof(size));
 	if (res < 0)
 		return res;
 	return squashfs_block_size(size);
+}
+
+static inline int read_blocklist(struct inode *inode, int index, u64 *block)
+{
+	u64 start;
+	int offset;
+
+	return read_blocklist_ptrs(inode, index, &start, &offset, block);
 }
 
 static bool squashfs_fill_page(struct folio *folio,
@@ -658,7 +666,114 @@ skip_pages:
 	kfree(pages);
 }
 
+static loff_t seek_hole_data(struct file *file, loff_t offset, int whence)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct super_block *sb = inode->i_sb;
+	struct squashfs_sb_info *msblk = sb->s_fs_info;
+	u64 start, index = offset >> msblk->block_log;
+	u64 file_end = (i_size_read(inode) + msblk->block_size - 1) >> msblk->block_log;
+	int s_offset, length;
+	__le32 *blist = NULL;
+
+	/* reject offset if negative or beyond file end */
+	if ((unsigned long long)offset >= i_size_read(inode))
+		return -ENXIO;
+
+	/* is offset within tailend and is tailend packed into a fragment? */
+	if (index + 1 == file_end &&
+			squashfs_i(inode)->fragment_block != SQUASHFS_INVALID_BLK) {
+		if (whence == SEEK_DATA)
+			return offset;
+
+		/* there is an implicit hole at the end of any file */
+		return i_size_read(inode);
+	}
+
+	length = read_blocklist_ptrs(inode, index, &start, &s_offset, NULL);
+	if (length < 0)
+		return length;
+
+	/* nothing more to do if offset matches desired whence value */
+	if ((length == 0 && whence == SEEK_HOLE) ||
+					(length && whence == SEEK_DATA))
+		return offset;
+
+	/* skip scanning forwards if we're at file end */
+	if (++ index == file_end)
+		goto not_found;
+
+	blist = kmalloc(SQUASHFS_SCAN_INDEXES << 2, GFP_KERNEL);
+	if (blist == NULL) {
+		ERROR("%s: Failed to allocate block_list\n", __func__);
+		return -ENOMEM;
+	}
+
+	while (index < file_end) {
+		int i, indexes = min(file_end - index, SQUASHFS_SCAN_INDEXES);
+
+		offset = squashfs_read_metadata(sb, blist, &start, &s_offset, indexes << 2);
+		if (offset < 0)
+			goto finished;
+
+		for (i = 0; i < indexes; i++) {
+			length = squashfs_block_size(blist[i]);
+			if (length < 0) {
+				offset = length;
+				goto finished;
+			}
+
+			/* does this block match desired whence value? */
+			if ((length == 0 && whence == SEEK_HOLE) ||
+					(length && whence == SEEK_DATA)) {
+				offset = (index + i) << msblk->block_log;
+				goto finished;
+			}
+		}
+
+		index += indexes;
+	}
+
+not_found:
+	/* whence value determines what happens */
+	if (whence == SEEK_DATA)
+		offset = -ENXIO;
+	else
+		/* there is an implicit hole at the end of any file */
+		offset = i_size_read(inode);
+
+finished:
+	kfree(blist);
+	return offset;
+}
+
+static loff_t squashfs_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct inode *inode = file->f_mapping->host;
+
+	switch (whence) {
+	default:
+		return generic_file_llseek(file, offset, whence);
+	case SEEK_DATA:
+	case SEEK_HOLE:
+		offset = seek_hole_data(file, offset, whence);
+		break;
+	}
+
+	if (offset < 0)
+		return offset;
+
+	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+}
+
 const struct address_space_operations squashfs_aops = {
 	.read_folio = squashfs_read_folio,
 	.readahead = squashfs_readahead
+};
+
+const struct file_operations squashfs_file_operations = {
+	.llseek		= squashfs_llseek,
+	.read_iter	= generic_file_read_iter,
+	.mmap_prepare	= generic_file_readonly_mmap_prepare,
+	.splice_read	= filemap_splice_read
 };

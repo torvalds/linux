@@ -611,7 +611,7 @@ better place.
 
 How to read the MAINTAINERS file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-To illustrate how to use the :ref:`MAINTAINERS <maintainers>` file, lets assume
+To illustrate how to use the :ref:`MAINTAINERS <maintainers>` file, let's assume
 the WiFi in your Laptop suddenly misbehaves after updating the kernel. In that
 case it's likely an issue in the WiFi driver. Obviously it could also be some
 code it builds upon, but unless you suspect something like that stick to the
@@ -1543,7 +1543,7 @@ as well, because that will speed things up.
 
 And note, it helps developers a great deal if you can specify the exact version
 that introduced the problem. Hence if possible within a reasonable time frame,
-try to find that version using vanilla kernels. Lets assume something broke when
+try to find that version using vanilla kernels. Let's assume something broke when
 your distributor released a update from Linux kernel 5.10.5 to 5.10.8. Then as
 instructed above go and check the latest kernel from that version line, say
 5.10.9. If it shows the problem, try a vanilla 5.10.5 to ensure that no patches

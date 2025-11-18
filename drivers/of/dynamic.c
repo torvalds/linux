@@ -935,10 +935,15 @@ static int of_changeset_add_prop_helper(struct of_changeset *ocs,
 		return -ENOMEM;
 
 	ret = of_changeset_add_property(ocs, np, new_pp);
-	if (ret)
+	if (ret) {
 		__of_prop_free(new_pp);
+		return ret;
+	}
 
-	return ret;
+	new_pp->next = np->deadprops;
+	np->deadprops = new_pp;
+
+	return 0;
 }
 
 /**

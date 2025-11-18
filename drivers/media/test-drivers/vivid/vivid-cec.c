@@ -327,7 +327,7 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 		char osd[14];
 
 		if (!cec_is_sink(adap))
-			return -ENOMSG;
+			break;
 		cec_ops_set_osd_string(msg, &disp_ctl, osd);
 		switch (disp_ctl) {
 		case CEC_OP_DISP_CTL_DEFAULT:
@@ -348,7 +348,7 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 			cec_transmit_msg(adap, &reply, false);
 			break;
 		}
-		break;
+		return 0;
 	}
 	case CEC_MSG_VENDOR_COMMAND_WITH_ID: {
 		u32 vendor_id;
@@ -379,7 +379,7 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 		if (size == 1) {
 			// Ignore even op values
 			if (!(vendor_cmd[0] & 1))
-				break;
+				return 0;
 			reply.len = msg->len;
 			memcpy(reply.msg + 1, msg->msg + 1, msg->len - 1);
 			reply.msg[msg->len - 1]++;
@@ -388,12 +388,10 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 					      CEC_OP_ABORT_INVALID_OP);
 		}
 		cec_transmit_msg(adap, &reply, false);
-		break;
+		return 0;
 	}
-	default:
-		return -ENOMSG;
 	}
-	return 0;
+	return -ENOMSG;
 }
 
 static const struct cec_adap_ops vivid_cec_adap_ops = {

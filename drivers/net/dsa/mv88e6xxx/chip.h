@@ -424,8 +424,6 @@ struct mv88e6xxx_chip {
 	struct ptp_clock_info	ptp_clock_info;
 	struct delayed_work	tai_event_work;
 	struct ptp_pin_desc	pin_config[MV88E6XXX_MAX_GPIO];
-	u16 trig_config;
-	u16 evcap_config;
 	u16 enable_count;
 
 	/* Current ingress and egress monitor ports */

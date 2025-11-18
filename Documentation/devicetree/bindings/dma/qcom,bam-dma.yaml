@@ -92,8 +92,12 @@ required:
 anyOf:
   - required:
       - qcom,powered-remotely
+      - num-channels
+      - qcom,num-ees
   - required:
       - qcom,controlled-remotely
+      - num-channels
+      - qcom,num-ees
   - required:
       - clocks
       - clock-names

@@ -112,6 +112,20 @@ bool msi_lib_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 	 */
 	if (!chip->irq_set_affinity && !(info->flags & MSI_FLAG_NO_AFFINITY))
 		chip->irq_set_affinity = msi_domain_set_affinity;
+
+	/*
+	 * If the parent domain insists on being in charge of masking, obey
+	 * blindly. The interrupt is un-masked at the PCI level on startup
+	 * and masked on shutdown to prevent rogue interrupts after the
+	 * driver freed the interrupt. Not masking it at the PCI level
+	 * speeds up operation for disable/enable_irq() as it avoids
+	 * getting all the way out to the PCI device.
+	 */
+	if (info->flags & MSI_FLAG_PCI_MSI_MASK_PARENT) {
+		chip->irq_mask		= irq_chip_mask_parent;
+		chip->irq_unmask	= irq_chip_unmask_parent;
+	}
+
 	return true;
 }
 EXPORT_SYMBOL_GPL(msi_lib_init_dev_msi_info);

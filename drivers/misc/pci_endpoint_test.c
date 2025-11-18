@@ -436,7 +436,11 @@ static int pci_endpoint_test_msi_irq(struct pci_endpoint_test *test,
 {
 	struct pci_dev *pdev = test->pdev;
 	u32 val;
-	int ret;
+	int irq;
+
+	irq = pci_irq_vector(pdev, msi_num - 1);
+	if (irq < 0)
+		return irq;
 
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
 				 msix ? PCITEST_IRQ_TYPE_MSIX :
@@ -450,11 +454,7 @@ static int pci_endpoint_test_msi_irq(struct pci_endpoint_test *test,
 	if (!val)
 		return -ETIMEDOUT;
 
-	ret = pci_irq_vector(pdev, msi_num - 1);
-	if (ret < 0)
-		return ret;
-
-	if (ret != test->last_irq)
+	if (irq != test->last_irq)
 		return -EIO;
 
 	return 0;
@@ -937,7 +937,7 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case PCITEST_BAR:
 		bar = arg;
-		if (bar > BAR_5)
+		if (bar <= NO_BAR || bar > BAR_5)
 			goto ret;
 		if (is_am654_pci_dev(pdev) && bar == BAR_0)
 			goto ret;
@@ -1020,8 +1020,6 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	if (!test)
 		return -ENOMEM;
 
-	test->test_reg_bar = 0;
-	test->alignment = 0;
 	test->pdev = pdev;
 	test->irq_type = PCITEST_IRQ_TYPE_UNDEFINED;
 

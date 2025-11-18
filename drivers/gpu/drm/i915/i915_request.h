@@ -31,18 +31,19 @@
 #include <linux/llist.h>
 #include <linux/lockdep.h>
 
+#include <uapi/drm/i915_drm.h>
+
 #include "gem/i915_gem_context_types.h"
 #include "gt/intel_context_types.h"
 #include "gt/intel_engine_types.h"
 #include "gt/intel_timeline_types.h"
 
 #include "i915_gem.h"
+#include "i915_ptr_util.h"
 #include "i915_scheduler.h"
 #include "i915_selftest.h"
 #include "i915_sw_fence.h"
 #include "i915_vma_resource.h"
-
-#include <uapi/drm/i915_drm.h>
 
 struct drm_file;
 struct drm_i915_gem_object;

@@ -116,17 +116,23 @@ static int smbus_byte_mii_read_default_c22(struct mii_bus *bus, int phy_id,
 	if (!i2c_mii_valid_phy_id(phy_id))
 		return 0;
 
-	ret = i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
-			     I2C_SMBUS_READ, reg,
-			     I2C_SMBUS_BYTE_DATA, &smbus_data);
+	i2c_lock_bus(i2c, I2C_LOCK_SEGMENT);
+
+	ret = __i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
+			       I2C_SMBUS_READ, reg,
+			       I2C_SMBUS_BYTE_DATA, &smbus_data);
 	if (ret < 0)
-		return ret;
+		goto unlock;
 
 	val = (smbus_data.byte & 0xff) << 8;
 
-	ret = i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
-			     I2C_SMBUS_READ, reg,
-			     I2C_SMBUS_BYTE_DATA, &smbus_data);
+	ret = __i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
+			       I2C_SMBUS_READ, reg,
+			       I2C_SMBUS_BYTE_DATA, &smbus_data);
+
+unlock:
+	i2c_unlock_bus(i2c, I2C_LOCK_SEGMENT);
+
 	if (ret < 0)
 		return ret;
 
@@ -147,17 +153,22 @@ static int smbus_byte_mii_write_default_c22(struct mii_bus *bus, int phy_id,
 
 	smbus_data.byte = (val & 0xff00) >> 8;
 
-	ret = i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
-			     I2C_SMBUS_WRITE, reg,
-			     I2C_SMBUS_BYTE_DATA, &smbus_data);
+	i2c_lock_bus(i2c, I2C_LOCK_SEGMENT);
+
+	ret = __i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
+			       I2C_SMBUS_WRITE, reg,
+			       I2C_SMBUS_BYTE_DATA, &smbus_data);
 	if (ret < 0)
-		return ret;
+		goto unlock;
 
 	smbus_data.byte = val & 0xff;
 
-	ret = i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
-			     I2C_SMBUS_WRITE, reg,
-			     I2C_SMBUS_BYTE_DATA, &smbus_data);
+	ret = __i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
+			       I2C_SMBUS_WRITE, reg,
+			       I2C_SMBUS_BYTE_DATA, &smbus_data);
+
+unlock:
+	i2c_unlock_bus(i2c, I2C_LOCK_SEGMENT);
 
 	return ret < 0 ? ret : 0;
 }

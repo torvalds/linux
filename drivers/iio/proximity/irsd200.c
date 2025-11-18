@@ -862,8 +862,7 @@ static int irsd200_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(&client->dev, -ENOMEM,
-				     "Could not allocate iio device\n");
+		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
 	data->dev = &client->dev;
@@ -916,8 +915,7 @@ static int irsd200_probe(struct i2c_client *client)
 	trigger = devm_iio_trigger_alloc(data->dev, "%s-dev%d", indio_dev->name,
 					 iio_device_id(indio_dev));
 	if (!trigger)
-		return dev_err_probe(data->dev, -ENOMEM,
-				     "Could not allocate iio trigger\n");
+		return -ENOMEM;
 
 	trigger->ops = &irsd200_trigger_ops;
 	iio_trigger_set_drvdata(trigger, data);

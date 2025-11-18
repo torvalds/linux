@@ -191,9 +191,7 @@ static void get_alignment(u32 fourcc,
 struct vim2m_dev {
 	struct v4l2_device	v4l2_dev;
 	struct video_device	vfd;
-#ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device	mdev;
-#endif
 
 	atomic_t		num_inst;
 	struct mutex		dev_mutex;
@@ -236,7 +234,7 @@ struct vim2m_ctx {
 
 static inline struct vim2m_ctx *file2ctx(struct file *file)
 {
-	return container_of(file->private_data, struct vim2m_ctx, fh);
+	return container_of(file_to_v4l2_fh(file), struct vim2m_ctx, fh);
 }
 
 static struct vim2m_q_data *get_q_data(struct vim2m_ctx *ctx,
@@ -267,9 +265,6 @@ static const char *type_name(enum v4l2_buf_type type)
 		return "Invalid";
 	}
 }
-
-#define CLIP(__color) \
-	(u8)(((__color) > 0xff) ? 0xff : (((__color) < 0) ? 0 : (__color)))
 
 static void copy_line(struct vim2m_q_data *q_data_out,
 		      u8 *src, u8 *dst, bool reverse)
@@ -1389,7 +1384,6 @@ static int vim2m_open(struct file *file)
 	}
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
 	ctx->dev = dev;
 	hdl = &ctx->hdl;
 	v4l2_ctrl_handler_init(hdl, 4);
@@ -1433,7 +1427,7 @@ static int vim2m_open(struct file *file)
 		goto open_unlock;
 	}
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 	atomic_inc(&dev->num_inst);
 
 	dprintk(dev, 1, "Created instance: %p, m2m_ctx: %p\n",
@@ -1451,7 +1445,7 @@ static int vim2m_release(struct file *file)
 
 	dprintk(dev, 1, "Releasing instance %p\n", ctx);
 
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	v4l2_ctrl_handler_free(&ctx->hdl);
 	mutex_lock(&dev->dev_mutex);
@@ -1470,9 +1464,7 @@ static void vim2m_device_release(struct video_device *vdev)
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 	v4l2_m2m_release(dev->m2m_dev);
-#ifdef CONFIG_MEDIA_CONTROLLER
 	media_device_cleanup(&dev->mdev);
-#endif
 	kfree(dev);
 }
 
@@ -1543,7 +1535,6 @@ static int vim2m_probe(struct platform_device *pdev)
 		goto error_dev;
 	}
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	dev->mdev.dev = &pdev->dev;
 	strscpy(dev->mdev.model, "vim2m", sizeof(dev->mdev.model));
 	strscpy(dev->mdev.bus_info, "platform:vim2m",
@@ -1551,7 +1542,6 @@ static int vim2m_probe(struct platform_device *pdev)
 	media_device_init(&dev->mdev);
 	dev->mdev.ops = &m2m_media_ops;
 	dev->v4l2_dev.mdev = &dev->mdev;
-#endif
 
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (ret) {
@@ -1562,7 +1552,6 @@ static int vim2m_probe(struct platform_device *pdev)
 	v4l2_info(&dev->v4l2_dev,
 		  "Device registered as /dev/video%d\n", vfd->num);
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	ret = v4l2_m2m_register_media_controller(dev->m2m_dev, vfd,
 						 MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret) {
@@ -1575,13 +1564,11 @@ static int vim2m_probe(struct platform_device *pdev)
 		v4l2_err(&dev->v4l2_dev, "Failed to register mem2mem media device\n");
 		goto error_m2m_mc;
 	}
-#endif
+
 	return 0;
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 error_m2m_mc:
 	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
-#endif
 error_v4l2:
 	video_unregister_device(&dev->vfd);
 	/* vim2m_device_release called by video_unregister_device to release various objects */
@@ -1602,10 +1589,8 @@ static void vim2m_remove(struct platform_device *pdev)
 
 	v4l2_info(&dev->v4l2_dev, "Removing " MEM2MEM_NAME);
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	media_device_unregister(&dev->mdev);
 	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
-#endif
 	video_unregister_device(&dev->vfd);
 }
 

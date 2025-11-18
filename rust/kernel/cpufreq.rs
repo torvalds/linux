@@ -27,7 +27,6 @@ use crate::clk::Clk;
 use core::{
     cell::UnsafeCell,
     marker::PhantomData,
-    mem::MaybeUninit,
     ops::{Deref, DerefMut},
     pin::Pin,
     ptr,
@@ -39,7 +38,7 @@ use macros::vtable;
 const CPUFREQ_NAME_LEN: usize = bindings::CPUFREQ_NAME_LEN as usize;
 
 /// Default transition latency value in nanoseconds.
-pub const ETERNAL_LATENCY_NS: u32 = bindings::CPUFREQ_ETERNAL as u32;
+pub const DEFAULT_TRANSITION_LATENCY_NS: u32 = bindings::CPUFREQ_DEFAULT_TRANSITION_LATENCY_NS;
 
 /// CPU frequency driver flags.
 pub mod flags {
@@ -400,13 +399,13 @@ impl TableBuilder {
 /// The following example demonstrates how to create a CPU frequency table.
 ///
 /// ```
-/// use kernel::cpufreq::{ETERNAL_LATENCY_NS, Policy};
+/// use kernel::cpufreq::{DEFAULT_TRANSITION_LATENCY_NS, Policy};
 ///
 /// fn update_policy(policy: &mut Policy) {
 ///     policy
 ///         .set_dvfs_possible_from_any_cpu(true)
 ///         .set_fast_switch_possible(true)
-///         .set_transition_latency_ns(ETERNAL_LATENCY_NS);
+///         .set_transition_latency_ns(DEFAULT_TRANSITION_LATENCY_NS);
 ///
 ///     pr_info!("The policy details are: {:?}\n", (policy.cpu(), policy.cur()));
 /// }
@@ -543,7 +542,7 @@ impl Policy {
     pub fn cpus(&mut self) -> &mut cpumask::Cpumask {
         // SAFETY: The pointer to `cpus` is valid for writing and remains valid for the lifetime of
         // the returned reference.
-        unsafe { cpumask::CpumaskVar::as_mut_ref(&mut self.as_mut_ref().cpus) }
+        unsafe { cpumask::CpumaskVar::from_raw_mut(&mut self.as_mut_ref().cpus) }
     }
 
     /// Sets clock for the [`Policy`].
@@ -1013,12 +1012,11 @@ impl<T: Driver> Registration<T> {
         } else {
             None
         },
-        // SAFETY: All zeros is a valid value for `bindings::cpufreq_driver`.
-        ..unsafe { MaybeUninit::zeroed().assume_init() }
+        ..pin_init::zeroed()
     };
 
     const fn copy_name(name: &'static CStr) -> [c_char; CPUFREQ_NAME_LEN] {
-        let src = name.as_bytes_with_nul();
+        let src = name.to_bytes_with_nul();
         let mut dst = [0; CPUFREQ_NAME_LEN];
 
         build_assert!(src.len() <= CPUFREQ_NAME_LEN);

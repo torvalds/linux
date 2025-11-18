@@ -86,6 +86,11 @@ c_mtime is ignored unless CONFIG_INITRAMFS_PRESERVE_MTIME=y is set.
 The c_filesize should be zero for any file which is not a regular file
 or symlink.
 
+c_namesize may account for more than one trailing '\0', as long as the
+value doesn't exceed PATH_MAX.  This can be useful for ensuring that a
+subsequent file data segment is aligned, e.g. to a filesystem block
+boundary.
+
 The c_chksum field contains a simple 32-bit unsigned sum of all the
 bytes in the data field.  cpio(1) refers to this as "crc", which is
 clearly incorrect (a cyclic redundancy check is a different and

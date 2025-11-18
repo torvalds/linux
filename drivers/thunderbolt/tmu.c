@@ -405,6 +405,8 @@ static int tmu_mode_init(struct tb_switch *sw)
  * This function must be called before other TMU related functions to
  * makes the internal structures are filled in correctly. Does not
  * change any hardware configuration.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_switch_tmu_init(struct tb_switch *sw)
 {
@@ -439,6 +441,8 @@ int tb_switch_tmu_init(struct tb_switch *sw)
  * @sw: Switch whose time to update
  *
  * Updates switch local time using time posting procedure.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_switch_tmu_post_time(struct tb_switch *sw)
 {
@@ -555,6 +559,8 @@ static int disable_enhanced(struct tb_port *up, struct tb_port *down)
  * @sw: Switch whose TMU to disable
  *
  * Turns off TMU of @sw if it is enabled. If not enabled does nothing.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_switch_tmu_disable(struct tb_switch *sw)
 {
@@ -938,6 +944,8 @@ out:
  * Enables TMU of a router to be in uni-directional Normal/HiFi or
  * bi-directional HiFi mode. Calling tb_switch_tmu_configure() is
  * required before calling this function.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_switch_tmu_enable(struct tb_switch *sw)
 {
@@ -1017,9 +1025,11 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
  * Selects the TMU mode that is enabled when tb_switch_tmu_enable() is
  * next called.
  *
- * Returns %0 in success and negative errno otherwise. Specifically
- * returns %-EOPNOTSUPP if the requested mode is not possible (not
- * supported by the router and/or topology).
+ * Return:
+ * * %0 - On success.
+ * * %-EOPNOTSUPP - If the requested mode is not possible (not supported by
+ *   the router and/or topology).
+ * * Negative errno - Another error occurred.
  */
 int tb_switch_tmu_configure(struct tb_switch *sw, enum tb_switch_tmu_mode mode)
 {

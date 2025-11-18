@@ -862,7 +862,7 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 				conf |= ATMEL_PIO_IFSCEN_MASK;
 			}
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			conf |= ATMEL_PIO_DIR_MASK;
 			bank = ATMEL_PIO_BANK(pin_id);
 			pin = ATMEL_PIO_LINE(pin_id);

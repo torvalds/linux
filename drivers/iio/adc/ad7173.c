@@ -8,6 +8,7 @@
  *  AD7175-8/AD7176-2/AD7177-2
  *
  * Copyright (C) 2015, 2024 Analog Devices, Inc.
+ * Copyright (C) 2025 BayLibre, SAS
  */
 
 #include <linux/array_size.h>
@@ -149,7 +150,12 @@
 					       (pin2) < st->info->num_voltage_in && \
 					       (pin2) >= st->info->num_voltage_in_div)
 
-#define AD7173_FILTER_ODR0_MASK		GENMASK(5, 0)
+#define AD7173_FILTER_SINC3_MAP		BIT(15)
+#define AD7173_FILTER_SINC3_MAP_DIV	GENMASK(14, 0)
+#define AD7173_FILTER_ENHFILTEN		BIT(11)
+#define AD7173_FILTER_ENHFILT_MASK	GENMASK(10, 8)
+#define AD7173_FILTER_ORDER		BIT(6)
+#define AD7173_FILTER_ODR_MASK		GENMASK(5, 0)
 #define AD7173_MAX_CONFIGS		8
 #define AD4111_OW_DET_THRSH_MV		300
 
@@ -190,6 +196,15 @@ struct ad7173_device_info {
 	u8 num_gpios;
 };
 
+enum ad7173_filter_type {
+	AD7173_FILTER_SINC3,
+	AD7173_FILTER_SINC5_SINC1,
+	AD7173_FILTER_SINC5_SINC1_PF1,
+	AD7173_FILTER_SINC5_SINC1_PF2,
+	AD7173_FILTER_SINC5_SINC1_PF3,
+	AD7173_FILTER_SINC5_SINC1_PF4,
+};
+
 struct ad7173_channel_config {
 	/* Openwire detection threshold */
 	unsigned int openwire_thrsh_raw;
@@ -200,13 +215,15 @@ struct ad7173_channel_config {
 	/*
 	 * Following fields are used to compare equality. If you
 	 * make adaptations in it, you most likely also have to adapt
-	 * ad7173_find_live_config(), too.
+	 * ad7173_is_setup_equal(), too.
 	 */
 	struct_group(config_props,
 		bool bipolar;
 		bool input_buf;
-		u8 odr;
+		u16 sinc3_odr_div;
+		u8 sinc5_odr_index;
 		u8 ref_sel;
+		enum ad7173_filter_type filter_type;
 	);
 };
 
@@ -265,6 +282,24 @@ static const unsigned int ad7175_sinc5_data_rates[] = {
 	49960,    20000,    16666,    10000,	/* 16-19 */
 	5000,					/* 20    */
 };
+
+/**
+ * ad7173_sinc3_odr_div_from_odr() - Convert ODR to divider value
+ * @odr_millihz: ODR (sampling_frequency) in milliHz
+ * Returns: Divider value for SINC3 filter to pass.
+ */
+static u16 ad7173_sinc3_odr_div_from_odr(u32 odr_millihz)
+{
+	/*
+	 * Divider is f_MOD (1 MHz) / 32 / ODR. ODR freq is in milliHz, so
+	 * we need to convert f_MOD to the same units. When SING_CYC=1 or
+	 * multiple channels are enabled (currently always the case), there
+	 * is an additional factor of 3.
+	 */
+	u32 div = DIV_ROUND_CLOSEST(MEGA * MILLI, odr_millihz * 32 * 3);
+	/* Avoid divide by 0 and limit to register field size. */
+	return clamp(div, 1U, AD7173_FILTER_SINC3_MAP_DIV);
+}
 
 static unsigned int ad4111_current_channel_config[] = {
 	/* Ain sel: pos        neg    */
@@ -369,7 +404,48 @@ static const struct iio_enum ad7173_syscalib_mode_enum = {
 	.get = ad7173_get_syscalib_mode
 };
 
-static const struct iio_chan_spec_ext_info ad7173_calibsys_ext_info[] = {
+static const char * const ad7173_filter_types_str[] = {
+	[AD7173_FILTER_SINC3] = "sinc3",
+	[AD7173_FILTER_SINC5_SINC1] = "sinc5+sinc1",
+	[AD7173_FILTER_SINC5_SINC1_PF1] = "sinc5+sinc1+pf1",
+	[AD7173_FILTER_SINC5_SINC1_PF2] = "sinc5+sinc1+pf2",
+	[AD7173_FILTER_SINC5_SINC1_PF3] = "sinc5+sinc1+pf3",
+	[AD7173_FILTER_SINC5_SINC1_PF4] = "sinc5+sinc1+pf4",
+};
+
+static int ad7173_set_filter_type(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan,
+				  unsigned int val)
+{
+	struct ad7173_state *st = iio_priv(indio_dev);
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	st->channels[chan->address].cfg.filter_type = val;
+	st->channels[chan->address].cfg.live = false;
+
+	iio_device_release_direct(indio_dev);
+
+	return 0;
+}
+
+static int ad7173_get_filter_type(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan)
+{
+	struct ad7173_state *st = iio_priv(indio_dev);
+
+	return st->channels[chan->address].cfg.filter_type;
+}
+
+static const struct iio_enum ad7173_filter_type_enum = {
+	.items = ad7173_filter_types_str,
+	.num_items = ARRAY_SIZE(ad7173_filter_types_str),
+	.set = ad7173_set_filter_type,
+	.get = ad7173_get_filter_type,
+};
+
+static const struct iio_chan_spec_ext_info ad7173_chan_spec_ext_info[] = {
 	{
 		.name = "sys_calibration",
 		.write = ad7173_write_syscalib,
@@ -379,6 +455,16 @@ static const struct iio_chan_spec_ext_info ad7173_calibsys_ext_info[] = {
 		 &ad7173_syscalib_mode_enum),
 	IIO_ENUM_AVAILABLE("sys_calibration_mode", IIO_SHARED_BY_TYPE,
 			   &ad7173_syscalib_mode_enum),
+	IIO_ENUM("filter_type", IIO_SEPARATE, &ad7173_filter_type_enum),
+	IIO_ENUM_AVAILABLE("filter_type", IIO_SHARED_BY_TYPE,
+			   &ad7173_filter_type_enum),
+	{ }
+};
+
+static const struct iio_chan_spec_ext_info ad7173_temp_chan_spec_ext_info[] = {
+	IIO_ENUM("filter_type", IIO_SEPARATE, &ad7173_filter_type_enum),
+	IIO_ENUM_AVAILABLE("filter_type", IIO_SHARED_BY_TYPE,
+			   &ad7173_filter_type_enum),
 	{ }
 };
 
@@ -561,12 +647,19 @@ static void ad7173_reset_usage_cnts(struct ad7173_state *st)
 	st->config_usage_counter = 0;
 }
 
-static struct ad7173_channel_config *
-ad7173_find_live_config(struct ad7173_state *st, struct ad7173_channel_config *cfg)
+/**
+ * ad7173_is_setup_equal - Compare two channel setups
+ * @cfg1: First channel configuration
+ * @cfg2: Second channel configuration
+ *
+ * Compares all configuration options that affect the registers connected to
+ * SETUP_SEL, namely CONFIGx, FILTERx, GAINx and OFFSETx.
+ *
+ * Returns: true if the setups are identical, false otherwise
+ */
+static bool ad7173_is_setup_equal(const struct ad7173_channel_config *cfg1,
+				  const struct ad7173_channel_config *cfg2)
 {
-	struct ad7173_channel_config *cfg_aux;
-	int i;
-
 	/*
 	 * This is just to make sure that the comparison is adapted after
 	 * struct ad7173_channel_config was changed.
@@ -575,18 +668,30 @@ ad7173_find_live_config(struct ad7173_state *st, struct ad7173_channel_config *c
 		      sizeof(struct {
 				     bool bipolar;
 				     bool input_buf;
-				     u8 odr;
+				     u16 sinc3_odr_div;
+				     u8 sinc5_odr_index;
 				     u8 ref_sel;
+				     enum ad7173_filter_type filter_type;
 			     }));
+
+	return cfg1->bipolar == cfg2->bipolar &&
+	       cfg1->input_buf == cfg2->input_buf &&
+	       cfg1->sinc3_odr_div == cfg2->sinc3_odr_div &&
+	       cfg1->sinc5_odr_index == cfg2->sinc5_odr_index &&
+	       cfg1->ref_sel == cfg2->ref_sel &&
+	       cfg1->filter_type == cfg2->filter_type;
+}
+
+static struct ad7173_channel_config *
+ad7173_find_live_config(struct ad7173_state *st, struct ad7173_channel_config *cfg)
+{
+	struct ad7173_channel_config *cfg_aux;
+	int i;
 
 	for (i = 0; i < st->num_channels; i++) {
 		cfg_aux = &st->channels[i].cfg;
 
-		if (cfg_aux->live &&
-		    cfg->bipolar == cfg_aux->bipolar &&
-		    cfg->input_buf == cfg_aux->input_buf &&
-		    cfg->odr == cfg_aux->odr &&
-		    cfg->ref_sel == cfg_aux->ref_sel)
+		if (cfg_aux->live && ad7173_is_setup_equal(cfg, cfg_aux))
 			return cfg_aux;
 	}
 	return NULL;
@@ -615,6 +720,7 @@ static int ad7173_load_config(struct ad7173_state *st,
 {
 	unsigned int config;
 	int free_cfg_slot, ret;
+	u8 post_filter_enable, post_filter_select;
 
 	free_cfg_slot = ida_alloc_range(&st->cfg_slots_status, 0,
 					st->info->num_configs - 1, GFP_KERNEL);
@@ -634,8 +740,49 @@ static int ad7173_load_config(struct ad7173_state *st,
 	if (ret)
 		return ret;
 
+	/*
+	 * When SINC3_MAP flag is enabled, the rest of the register has a
+	 * different meaning. We are using this option to allow the most
+	 * possible sampling frequencies with SINC3 filter.
+	 */
+	if (cfg->filter_type == AD7173_FILTER_SINC3)
+		return ad_sd_write_reg(&st->sd, AD7173_REG_FILTER(free_cfg_slot), 2,
+				       FIELD_PREP(AD7173_FILTER_SINC3_MAP, 1) |
+				       FIELD_PREP(AD7173_FILTER_SINC3_MAP_DIV,
+						  cfg->sinc3_odr_div));
+
+	switch (cfg->filter_type) {
+	case AD7173_FILTER_SINC5_SINC1_PF1:
+		post_filter_enable = 1;
+		post_filter_select = 2;
+		break;
+	case AD7173_FILTER_SINC5_SINC1_PF2:
+		post_filter_enable = 1;
+		post_filter_select = 3;
+		break;
+	case AD7173_FILTER_SINC5_SINC1_PF3:
+		post_filter_enable = 1;
+		post_filter_select = 5;
+		break;
+	case AD7173_FILTER_SINC5_SINC1_PF4:
+		post_filter_enable = 1;
+		post_filter_select = 6;
+		break;
+	default:
+		post_filter_enable = 0;
+		post_filter_select = 0;
+		break;
+	}
+
 	return ad_sd_write_reg(&st->sd, AD7173_REG_FILTER(free_cfg_slot), 2,
-			       AD7173_FILTER_ODR0_MASK & cfg->odr);
+			       FIELD_PREP(AD7173_FILTER_SINC3_MAP, 0) |
+			       FIELD_PREP(AD7173_FILTER_ENHFILT_MASK,
+					  post_filter_enable) |
+			       FIELD_PREP(AD7173_FILTER_ENHFILTEN,
+					  post_filter_select) |
+			       FIELD_PREP(AD7173_FILTER_ORDER, 0) |
+			       FIELD_PREP(AD7173_FILTER_ODR_MASK,
+					  cfg->sinc5_odr_index));
 }
 
 static int ad7173_config_channel(struct ad7173_state *st, int addr)
@@ -746,6 +893,7 @@ static const struct ad_sigma_delta_info ad7173_sigma_delta_info_4_slots = {
 	.set_mode = ad7173_set_mode,
 	.has_registers = true,
 	.has_named_irqs = true,
+	.supports_spi_offload = true,
 	.addr_shift = 0,
 	.read_mask = BIT(6),
 	.status_ch_mask = GENMASK(3, 0),
@@ -762,6 +910,7 @@ static const struct ad_sigma_delta_info ad7173_sigma_delta_info_8_slots = {
 	.set_mode = ad7173_set_mode,
 	.has_registers = true,
 	.has_named_irqs = true,
+	.supports_spi_offload = true,
 	.addr_shift = 0,
 	.read_mask = BIT(6),
 	.status_ch_mask = GENMASK(3, 0),
@@ -778,6 +927,7 @@ static const struct ad_sigma_delta_info ad7173_sigma_delta_info_16_slots = {
 	.set_mode = ad7173_set_mode,
 	.has_registers = true,
 	.has_named_irqs = true,
+	.supports_spi_offload = true,
 	.addr_shift = 0,
 	.read_mask = BIT(6),
 	.status_ch_mask = GENMASK(3, 0),
@@ -1165,7 +1315,14 @@ static int ad7173_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		reg = st->channels[chan->address].cfg.odr;
+		if (st->channels[chan->address].cfg.filter_type == AD7173_FILTER_SINC3) {
+			/* Inverse operation of ad7173_sinc3_odr_div_from_odr() */
+			*val = MEGA;
+			*val2 = 3 * 32 * st->channels[chan->address].cfg.sinc3_odr_div;
+			return IIO_VAL_FRACTIONAL;
+		}
+
+		reg = st->channels[chan->address].cfg.sinc5_odr_index;
 
 		*val = st->info->sinc5_data_rates[reg] / MILLI;
 		*val2 = (st->info->sinc5_data_rates[reg] % MILLI) * (MICRO / MILLI);
@@ -1203,6 +1360,10 @@ static int ad7173_write_raw(struct iio_dev *indio_dev,
 	 *
 	 * This will cause the reading of CH1 to be actually done once every
 	 * 200.16ms, an effective rate of 4.99sps.
+	 *
+	 * Both the sinc5 and sinc3 rates are set here so that if the filter
+	 * type is changed, the requested rate will still be set (aside from
+	 * rounding differences).
 	 */
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		freq = val * MILLI + val2 / MILLI;
@@ -1211,7 +1372,8 @@ static int ad7173_write_raw(struct iio_dev *indio_dev,
 				break;
 
 		cfg = &st->channels[chan->address].cfg;
-		cfg->odr = i;
+		cfg->sinc5_odr_index = i;
+		cfg->sinc3_odr_div = ad7173_sinc3_odr_div_from_odr(freq);
 		cfg->live = false;
 		break;
 
@@ -1228,15 +1390,86 @@ static int ad7173_update_scan_mode(struct iio_dev *indio_dev,
 				   const unsigned long *scan_mask)
 {
 	struct ad7173_state *st = iio_priv(indio_dev);
-	int i, ret;
+	u16 sinc3_count = 0;
+	u16 sinc3_div = 0;
+	int i, j, k, ret;
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
-		if (test_bit(i, scan_mask))
+		const struct ad7173_channel_config *cfg = &st->channels[i].cfg;
+
+		if (test_bit(i, scan_mask)) {
+			if (cfg->filter_type == AD7173_FILTER_SINC3) {
+				sinc3_count++;
+
+				if (sinc3_div == 0) {
+					sinc3_div = cfg->sinc3_odr_div;
+				} else if (sinc3_div != cfg->sinc3_odr_div) {
+					dev_err(&st->sd.spi->dev,
+						"All enabled channels must have the same sampling_frequency for sinc3 filter_type\n");
+					return -EINVAL;
+				}
+			}
+
 			ret = ad7173_set_channel(&st->sd, i);
-		else
+		} else {
 			ret = ad_sd_write_reg(&st->sd, AD7173_REG_CH(i), 2, 0);
+		}
 		if (ret < 0)
 			return ret;
+	}
+
+	if (sinc3_count && sinc3_count < bitmap_weight(scan_mask, indio_dev->num_channels)) {
+		dev_err(&st->sd.spi->dev,
+			"All enabled channels must have sinc3 filter_type\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * On some chips, there are more channels that setups, so if there were
+	 * more unique setups requested than the number of available slots,
+	 * ad7173_set_channel() will have written over some of the slots. We
+	 * can detect this by making sure each assigned cfg_slot matches the
+	 * requested configuration. If it doesn't, we know that the slot was
+	 * overwritten by a different channel.
+	 */
+	for_each_set_bit(i, scan_mask, indio_dev->num_channels) {
+		const struct ad7173_channel_config *cfg1, *cfg2;
+
+		cfg1 = &st->channels[i].cfg;
+
+		for_each_set_bit(j, scan_mask, indio_dev->num_channels) {
+			cfg2 = &st->channels[j].cfg;
+
+			/*
+			 * Only compare configs that are assigned to the same
+			 * SETUP_SEL slot and don't compare channel to itself.
+			 */
+			if (i == j || cfg1->cfg_slot != cfg2->cfg_slot)
+				continue;
+
+			/*
+			 * If we find two different configs trying to use the
+			 * same SETUP_SEL slot, then we know that the that we
+			 * have too many unique configurations requested for
+			 * the available slots and at least one was overwritten.
+			 */
+			if (!ad7173_is_setup_equal(cfg1, cfg2)) {
+				/*
+				 * At this point, there isn't a way to tell
+				 * which setups are actually programmed in the
+				 * ADC anymore, so we could read them back to
+				 * see, but it is simpler to just turn off all
+				 * of the live flags so that everything gets
+				 * reprogramed on the next attempt read a sample.
+				 */
+				for (k = 0; k < st->num_channels; k++)
+					st->channels[k].cfg.live = false;
+
+				dev_err(&st->sd.spi->dev,
+					"Too many unique channel configurations requested for scan\n");
+				return -EINVAL;
+			}
+		}
 	}
 
 	return 0;
@@ -1333,7 +1566,7 @@ static const struct iio_chan_spec ad7173_channel_template = {
 		.storagebits = 32,
 		.endianness = IIO_BE,
 	},
-	.ext_info = ad7173_calibsys_ext_info,
+	.ext_info = ad7173_chan_spec_ext_info,
 };
 
 static const struct iio_chan_spec ad7173_temp_iio_channel_template = {
@@ -1349,6 +1582,7 @@ static const struct iio_chan_spec ad7173_temp_iio_channel_template = {
 		.storagebits = 32,
 		.endianness = IIO_BE,
 	},
+	.ext_info = ad7173_temp_chan_spec_ext_info,
 };
 
 static void ad7173_disable_regulators(void *data)
@@ -1589,11 +1823,20 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 		chan_st_priv->cfg.bipolar = false;
 		chan_st_priv->cfg.input_buf = st->info->has_input_buf;
 		chan_st_priv->cfg.ref_sel = AD7173_SETUP_REF_SEL_INT_REF;
-		chan_st_priv->cfg.odr = st->info->odr_start_value;
+		chan_st_priv->cfg.sinc3_odr_div = ad7173_sinc3_odr_div_from_odr(
+			st->info->sinc5_data_rates[st->info->odr_start_value]
+		);
+		chan_st_priv->cfg.sinc5_odr_index = st->info->odr_start_value;
+		chan_st_priv->cfg.filter_type = AD7173_FILTER_SINC5_SINC1;
 		chan_st_priv->cfg.openwire_comp_chan = -1;
 		st->adc_mode |= AD7173_ADC_MODE_REF_EN;
 		if (st->info->data_reg_only_16bit)
 			chan_arr[chan_index].scan_type = ad4113_scan_type;
+
+		if (ad_sigma_delta_has_spi_offload(&st->sd)) {
+			chan_arr[chan_index].scan_type.storagebits = 32;
+			chan_arr[chan_index].scan_type.endianness = IIO_CPU;
+		}
 
 		chan_index++;
 	}
@@ -1656,7 +1899,11 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 		chan->scan_index = chan_index;
 		chan->channel = ain[0];
 		chan_st_priv->cfg.input_buf = st->info->has_input_buf;
-		chan_st_priv->cfg.odr = st->info->odr_start_value;
+		chan_st_priv->cfg.sinc3_odr_div = ad7173_sinc3_odr_div_from_odr(
+			st->info->sinc5_data_rates[st->info->odr_start_value]
+		);
+		chan_st_priv->cfg.sinc5_odr_index = st->info->odr_start_value;
+		chan_st_priv->cfg.filter_type = AD7173_FILTER_SINC5_SINC1;
 		chan_st_priv->cfg.openwire_comp_chan = -1;
 
 		chan_st_priv->cfg.bipolar = fwnode_property_read_bool(child, "bipolar");
@@ -1684,6 +1931,12 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 
 		if (st->info->data_reg_only_16bit)
 			chan_arr[chan_index].scan_type = ad4113_scan_type;
+
+		/* Assuming SPI offload is ad411x_ad717x HDL project. */
+		if (ad_sigma_delta_has_spi_offload(&st->sd)) {
+			chan_arr[chan_index].scan_type.storagebits = 32;
+			chan_arr[chan_index].scan_type.endianness = IIO_CPU;
+		}
 
 		chan_index++;
 	}
@@ -1717,8 +1970,7 @@ static int ad7173_fw_parse_device_config(struct iio_dev *indio_dev)
 
 	ret = devm_add_action_or_reset(dev, ad7173_disable_regulators, st);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add regulators disable action\n");
+		return ret;
 
 	ret = device_property_match_property_string(dev, "clock-names",
 						    ad7173_clk_sel,

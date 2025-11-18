@@ -388,13 +388,12 @@ static void c3_mipi_csi_cfg_host(struct c3_csi_device *csi)
 	c3_mipi_csi_write(csi, CSI2_HOST_N_LANES, csi->bus.num_data_lanes - 1);
 }
 
-static int c3_mipi_csi_start_stream(struct c3_csi_device *csi,
-				    struct v4l2_subdev *src_sd)
+static int c3_mipi_csi_start_stream(struct c3_csi_device *csi)
 {
 	s64 link_freq;
 	s64 lane_rate;
 
-	link_freq = v4l2_get_link_freq(src_sd->ctrl_handler, 0, 0);
+	link_freq = v4l2_get_link_freq(csi->src_pad, 0, 0);
 	if (link_freq < 0) {
 		dev_err(csi->dev,
 			"Unable to obtain link frequency: %lld\n", link_freq);
@@ -434,7 +433,7 @@ static int c3_mipi_csi_enable_streams(struct v4l2_subdev *sd,
 
 	pm_runtime_resume_and_get(csi->dev);
 
-	c3_mipi_csi_start_stream(csi, src_sd);
+	c3_mipi_csi_start_stream(csi);
 
 	ret = v4l2_subdev_enable_streams(src_sd, csi->src_pad->index, BIT(0));
 	if (ret) {

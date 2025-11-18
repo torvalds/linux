@@ -31,7 +31,7 @@ struct arch_vdso_time_data {};
 
 #if defined(CONFIG_ARCH_HAS_VDSO_ARCH_DATA)
 #include <asm/vdso/arch_data.h>
-#elif defined(CONFIG_GENERIC_VDSO_DATA_STORE)
+#else
 struct vdso_arch_data {
 	/* Needed for the generic code, never actually used at runtime */
 	char __unused;
@@ -164,7 +164,6 @@ struct vdso_rng_data {
  * With the hidden visibility, the compiler simply generates a PC-relative
  * relocation, and this is what we need.
  */
-#ifdef CONFIG_GENERIC_VDSO_DATA_STORE
 extern struct vdso_time_data vdso_u_time_data __attribute__((visibility("hidden")));
 extern struct vdso_rng_data vdso_u_rng_data __attribute__((visibility("hidden")));
 extern struct vdso_arch_data vdso_u_arch_data __attribute__((visibility("hidden")));
@@ -185,8 +184,6 @@ enum vdso_pages {
 	VDSO_NR_PAGES
 };
 
-#endif /* CONFIG_GENERIC_VDSO_DATA_STORE */
-
 /*
  * The generic vDSO implementation requires that gettimeofday.h
  * provides:
@@ -196,11 +193,7 @@ enum vdso_pages {
  * - clock_gettime_fallback(): fallback for clock_gettime.
  * - clock_getres_fallback(): fallback for clock_getres.
  */
-#ifdef ENABLE_COMPAT_VDSO
-#include <asm/vdso/compat_gettimeofday.h>
-#else
 #include <asm/vdso/gettimeofday.h>
-#endif /* ENABLE_COMPAT_VDSO */
 
 #else /* !__ASSEMBLY__ */
 

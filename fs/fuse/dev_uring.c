@@ -7,6 +7,7 @@
 #include "fuse_i.h"
 #include "dev_uring_i.h"
 #include "fuse_dev_i.h"
+#include "fuse_trace.h"
 
 #include <linux/fs.h>
 #include <linux/io_uring/cmd.h>
@@ -351,7 +352,7 @@ static void fuse_uring_entry_teardown(struct fuse_ring_ent *ent)
 	spin_unlock(&queue->lock);
 
 	if (cmd)
-		io_uring_cmd_done(cmd, -ENOTCONN, 0, IO_URING_F_UNLOCKED);
+		io_uring_cmd_done(cmd, -ENOTCONN, IO_URING_F_UNLOCKED);
 
 	if (req)
 		fuse_uring_stop_fuse_req_end(req);
@@ -518,7 +519,7 @@ static void fuse_uring_cancel(struct io_uring_cmd *cmd,
 
 	if (need_cmd_done) {
 		/* no queue lock to avoid lock order issues */
-		io_uring_cmd_done(cmd, -ENOTCONN, 0, issue_flags);
+		io_uring_cmd_done(cmd, -ENOTCONN, issue_flags);
 	}
 }
 
@@ -733,7 +734,7 @@ static int fuse_uring_send_next_to_ring(struct fuse_ring_ent *ent,
 	list_move_tail(&ent->list, &queue->ent_in_userspace);
 	spin_unlock(&queue->lock);
 
-	io_uring_cmd_done(cmd, 0, 0, issue_flags);
+	io_uring_cmd_done(cmd, 0, issue_flags);
 	return 0;
 }
 
@@ -1139,9 +1140,9 @@ int fuse_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 		return -EINVAL;
 
 	fud = fuse_get_dev(cmd->file);
-	if (!fud) {
+	if (IS_ERR(fud)) {
 		pr_info_ratelimited("No fuse device found\n");
-		return -ENOTCONN;
+		return PTR_ERR(fud);
 	}
 	fc = fud->fc;
 
@@ -1200,7 +1201,7 @@ static void fuse_uring_send(struct fuse_ring_ent *ent, struct io_uring_cmd *cmd,
 	ent->cmd = NULL;
 	spin_unlock(&queue->lock);
 
-	io_uring_cmd_done(cmd, ret, 0, issue_flags);
+	io_uring_cmd_done(cmd, ret, issue_flags);
 }
 
 /*
@@ -1268,8 +1269,7 @@ void fuse_uring_queue_fuse_req(struct fuse_iqueue *fiq, struct fuse_req *req)
 	if (!queue)
 		goto err;
 
-	if (req->in.h.opcode != FUSE_NOTIFY_REPLY)
-		req->in.h.unique = fuse_get_unique(fiq);
+	fuse_request_assign_unique(fiq, req);
 
 	spin_lock(&queue->lock);
 	err = -ENOTCONN;

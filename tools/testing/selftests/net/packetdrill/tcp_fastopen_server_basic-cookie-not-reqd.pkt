@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Basic TFO server test
+//
+// Test TFO_SERVER_COOKIE_NOT_REQD flag on receiving
+// SYN with data but without Fast Open cookie option.
+
+`./defaults.sh
+ ./set_sysctls.py /proc/sys/net/ipv4/tcp_fastopen=0x202`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+// Since TFO_SERVER_COOKIE_NOT_REQD, a TFO socket will be created with
+// the data accepted.
+   +0 < S 0:1000(1000) win 32792 <mss 1460,sackOK,nop,nop>
+   +0 > S. 0:0(0) ack 1001 <mss 1460,nop,nop,sackOK>
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) != 0, tcpi_options }%
+   +0 read(4, ..., 1024) = 1000
+
+// Data After SYN will be accepted too.
+   +0 < . 1001:2001(1000) ack 1 win 5840
+   +0 > . 1:1(0) ack 2001
+
+// Should change the implementation later to set the SYN flag as well.
+   +0 read(4, ..., 1024) = 1000
+   +0 write(4, ..., 1000) = 1000
+   +0 > P. 1:1001(1000) ack 2001

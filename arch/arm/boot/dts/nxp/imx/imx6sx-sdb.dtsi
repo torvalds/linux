@@ -33,14 +33,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio1 18 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 			wakeup-source;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;

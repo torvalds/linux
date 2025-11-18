@@ -10,7 +10,6 @@ kernel_dir=$(realpath "$test_dir/../../../..")
 
 tmp_dir=$(mktemp -d /tmp/kho-test.XXXXXXXX)
 headers_dir="$tmp_dir/usr"
-initrd_dir="$tmp_dir/initrd"
 initrd="$tmp_dir/initrd.cpio"
 
 source "$test_dir/../kselftest/ktap_helpers.sh"
@@ -81,19 +80,22 @@ EOF
 function mkinitrd() {
 	local kernel=$1
 
-	mkdir -p "$initrd_dir"/{dev,debugfs,proc}
-	sudo mknod "$initrd_dir/dev/console" c 5 1
+	"$CROSS_COMPILE"gcc -s -static -Os -nostdinc -nostdlib \
+			-fno-asynchronous-unwind-tables -fno-ident \
+			-I "$headers_dir/include" \
+			-I "$kernel_dir/tools/include/nolibc" \
+			-o "$tmp_dir/init" "$test_dir/init.c"
 
-	"$CROSS_COMPILE"gcc -s -static -Os -nostdinc -I"$headers_dir/include" \
-			-fno-asynchronous-unwind-tables -fno-ident -nostdlib \
-			-include "$test_dir/../../../include/nolibc/nolibc.h" \
-			-o "$initrd_dir/init" "$test_dir/init.c" \
+	cat > "$tmp_dir/cpio_list" <<EOF
+dir /dev 0755 0 0
+dir /proc 0755 0 0
+dir /debugfs 0755 0 0
+nod /dev/console 0600 0 0 c 5 1
+file /init $tmp_dir/init 0755 0 0
+file /kernel $kernel 0644 0 0
+EOF
 
-	cp "$kernel" "$initrd_dir/kernel"
-
-	pushd "$initrd_dir" &>/dev/null
-	find . | cpio -H newc --create > "$initrd" 2>/dev/null
-	popd &>/dev/null
+	"$build_dir/usr/gen_init_cpio" "$tmp_dir/cpio_list" > "$initrd"
 }
 
 function run_qemu() {

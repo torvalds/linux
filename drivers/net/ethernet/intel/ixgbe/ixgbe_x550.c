@@ -1060,9 +1060,9 @@ static int ixgbe_calc_checksum_X550(struct ixgbe_hw *hw, u16 *buffer,
 			return status;
 	}
 
-	checksum = (u16)IXGBE_EEPROM_SUM - checksum;
+	checksum = IXGBE_EEPROM_SUM - checksum;
 
-	return (int)checksum;
+	return checksum;
 }
 
 /** ixgbe_calc_eeprom_checksum_X550 - Calculates and returns the checksum
@@ -1163,7 +1163,7 @@ static int ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw,
 	return status;
 }
 
-/** ixgbe_write_ee_hostif_X550 - Write EEPROM word using hostif
+/** ixgbe_write_ee_hostif_data_X550 - Write EEPROM word using hostif
  *  @hw: pointer to hardware structure
  *  @offset: offset of  word in the EEPROM to write
  *  @data: word write to the EEPROM
@@ -2318,7 +2318,7 @@ static int ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 }
 
 /**
- * ixgbe_get_lasi_ext_t_x550em - Determime external Base T PHY interrupt cause
+ * ixgbe_get_lasi_ext_t_x550em - Determine external Base T PHY interrupt cause
  * @hw: pointer to hardware structure
  * @lsc: pointer to boolean flag which indicates whether external Base T
  *	 PHY interrupt is lsc
@@ -2628,7 +2628,7 @@ static int ixgbe_ext_phy_t_x550em_get_link(struct ixgbe_hw *hw, bool *link_up)
 }
 
 /** ixgbe_setup_internal_phy_t_x550em - Configure KR PHY to X557 link
- *  @hw: point to hardware structure
+ *  @hw: pointer to hardware structure
  *
  *  Configures the link between the integrated KR PHY and the external X557 PHY
  *  The driver will call this function when it gets a link status change
@@ -2745,7 +2745,7 @@ static int ixgbe_led_off_t_x550em(struct ixgbe_hw *hw, u32 led_idx)
 	if (led_idx >= IXGBE_X557_MAX_LED_INDEX)
 		return -EINVAL;
 
-	/* To turn on the LED, set mode to ON. */
+	/* To turn off the LED, set mode to OFF. */
 	hw->phy.ops.read_reg(hw, IXGBE_X557_LED_PROVISIONING + led_idx,
 			     MDIO_MMD_VEND1, &phy_data);
 	phy_data &= ~IXGBE_X557_LED_MANUAL_SET_MASK;
@@ -2812,7 +2812,7 @@ int ixgbe_set_fw_drv_ver_x550(struct ixgbe_hw *hw, u8 maj, u8 min,
 	return ret_val;
 }
 
-/** ixgbe_get_lcd_x550em - Determine lowest common denominator
+/** ixgbe_get_lcd_t_x550em - Determine lowest common denominator
  *  @hw: pointer to hardware structure
  *  @lcd_speed: pointer to lowest common link speed
  *

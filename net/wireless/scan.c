@@ -1816,6 +1816,9 @@ static void cfg80211_update_hidden_bsses(struct cfg80211_internal_bss *known,
 		WARN_ON(ies != old_ies);
 
 		rcu_assign_pointer(bss->pub.beacon_ies, new_ies);
+
+		bss->ts = known->ts;
+		bss->pub.ts_boottime = known->pub.ts_boottime;
 	}
 }
 
@@ -1882,6 +1885,10 @@ cfg80211_update_known_bss(struct cfg80211_registered_device *rdev,
 {
 	lockdep_assert_held(&rdev->bss_lock);
 
+	/* Update time stamps */
+	known->ts = new->ts;
+	known->pub.ts_boottime = new->pub.ts_boottime;
+
 	/* Update IEs */
 	if (rcu_access_pointer(new->pub.proberesp_ies)) {
 		const struct cfg80211_bss_ies *old;
@@ -1916,7 +1923,8 @@ cfg80211_update_known_bss(struct cfg80211_registered_device *rdev,
 			 */
 
 			f = rcu_access_pointer(new->pub.beacon_ies);
-			kfree_rcu((struct cfg80211_bss_ies *)f, rcu_head);
+			if (!new->pub.hidden_beacon_bss)
+				kfree_rcu((struct cfg80211_bss_ies *)f, rcu_head);
 			return false;
 		}
 
@@ -1944,8 +1952,6 @@ cfg80211_update_known_bss(struct cfg80211_registered_device *rdev,
 	if (signal_valid)
 		known->pub.signal = new->pub.signal;
 	known->pub.capability = new->pub.capability;
-	known->ts = new->ts;
-	known->pub.ts_boottime = new->pub.ts_boottime;
 	known->parent_tsf = new->parent_tsf;
 	known->pub.chains = new->pub.chains;
 	memcpy(known->pub.chain_signal, new->pub.chain_signal,

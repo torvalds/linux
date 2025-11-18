@@ -227,3 +227,10 @@ fd=28
 type=4
 config=270
 optional=1
+
+# PERF_TYPE_RAW / INT_MISC.UOP_DROPPING
+[event29:base-stat]
+fd=29
+type=4
+config=4269
+optional=1

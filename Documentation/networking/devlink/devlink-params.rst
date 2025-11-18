@@ -143,3 +143,11 @@ own name.
    * - ``clock_id``
      - u64
      - Clock ID used by the device for registering DPLL devices and pins.
+   * - ``total_vfs``
+     - u32
+     - The max number of Virtual Functions (VFs) exposed by the PF.
+       after reboot/pci reset, 'sriov_totalvfs' entry under the device's sysfs
+       directory will report this value.
+   * - ``num_doorbells``
+     - u32
+     - Controls the number of doorbells used by the device.

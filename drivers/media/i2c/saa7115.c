@@ -18,7 +18,7 @@
 // Added saa7115 support by Kevin Thayer <nufan_wfk at yahoo.com>
 // (2/17/2003)
 //
-// VBI support (2004) and cleanups (2005) by Hans Verkuil <hverkuil@xs4all.nl>
+// VBI support (2004) and cleanups (2005) by Hans Verkuil <hverkuil@kernel.org>
 //
 // Copyright (c) 2005-2006 Mauro Carvalho Chehab <mchehab@kernel.org>
 //	SAA7111, SAA7113 and SAA7118 support

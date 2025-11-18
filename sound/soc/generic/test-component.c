@@ -547,8 +547,8 @@ static int test_driver_probe(struct platform_device *pdev)
 
 	priv	= devm_kzalloc(dev, sizeof(*priv),		GFP_KERNEL);
 	cdriv	= devm_kzalloc(dev, sizeof(*cdriv),		GFP_KERNEL);
-	ddriv	= devm_kzalloc(dev, sizeof(*ddriv) * num,	GFP_KERNEL);
-	dname	= devm_kzalloc(dev, sizeof(*dname) * num,	GFP_KERNEL);
+	ddriv	= devm_kcalloc(dev, num, sizeof(*ddriv), 	GFP_KERNEL);
+	dname	= devm_kcalloc(dev, num, sizeof(*dname), 	GFP_KERNEL);
 	if (!priv || !cdriv || !ddriv || !dname || !adata)
 		return -EINVAL;
 

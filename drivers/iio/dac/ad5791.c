@@ -80,8 +80,6 @@ struct ad5791_chip_info {
 /**
  * struct ad5791_state - driver instance specific data
  * @spi:			spi_device
- * @reg_vdd:		positive supply regulator
- * @reg_vss:		negative supply regulator
  * @gpio_reset:		reset gpio
  * @gpio_clear:		clear gpio
  * @gpio_ldac:		load dac gpio
@@ -100,8 +98,6 @@ struct ad5791_chip_info {
  */
 struct ad5791_state {
 	struct spi_device		*spi;
-	struct regulator		*reg_vdd;
-	struct regulator		*reg_vss;
 	struct gpio_desc		*gpio_reset;
 	struct gpio_desc		*gpio_clear;
 	struct gpio_desc		*gpio_ldac;

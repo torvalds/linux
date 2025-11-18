@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright (c) 2018-2025 TQ-Systems GmbH <linux@ew.tq-group.com>,
+ * D-82229 Seefeld, Germany.
+ * Author: Matthias Schiffer
+ * Author: Max Merchel
+ */
+
+#include "fsl-ls1012a-tqmls1012al-mbls1012al.dts"
+
+&esdhc0 {
+	vqmmc-supply = <&reg_1v8>;
+	/delete-property/ no-mmc;
+	/delete-property/ sd-uhs-sdr12;
+	/delete-property/ sd-uhs-sdr25;
+	/delete-property/ sd-uhs-sdr50;
+	/delete-property/ sd-uhs-sdr104;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	no-sd;
+	voltage-ranges = <1800 1800>;
+	non-removable;
+};

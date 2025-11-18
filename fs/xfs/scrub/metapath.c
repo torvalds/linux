@@ -79,7 +79,7 @@ xchk_metapath_cleanup(
 
 	if (mpath->dp_ilock_flags)
 		xfs_iunlock(mpath->dp, mpath->dp_ilock_flags);
-	kfree(mpath->path);
+	kfree_const(mpath->path);
 }
 
 /* Set up a metadir path scan.  @path must be dynamically allocated. */
@@ -98,13 +98,13 @@ xchk_setup_metapath_scan(
 
 	error = xchk_install_live_inode(sc, ip);
 	if (error) {
-		kfree(path);
+		kfree_const(path);
 		return error;
 	}
 
 	mpath = kzalloc(sizeof(struct xchk_metapath), XCHK_GFP_FLAGS);
 	if (!mpath) {
-		kfree(path);
+		kfree_const(path);
 		return -ENOMEM;
 	}
 
@@ -132,7 +132,7 @@ xchk_setup_metapath_rtdir(
 		return -ENOENT;
 
 	return xchk_setup_metapath_scan(sc, sc->mp->m_metadirip,
-			kasprintf(GFP_KERNEL, "rtgroups"), sc->mp->m_rtdirip);
+			kstrdup_const("rtgroups", GFP_KERNEL), sc->mp->m_rtdirip);
 }
 
 /* Scan a rtgroup inode under the /rtgroups directory. */
@@ -179,7 +179,7 @@ xchk_setup_metapath_quotadir(
 		return -ENOENT;
 
 	return xchk_setup_metapath_scan(sc, sc->mp->m_metadirip,
-			kstrdup("quota", GFP_KERNEL), qi->qi_dirip);
+			kstrdup_const("quota", GFP_KERNEL), qi->qi_dirip);
 }
 
 /* Scan a quota inode under the /quota directory. */
@@ -212,7 +212,7 @@ xchk_setup_metapath_dqinode(
 		return -ENOENT;
 
 	return xchk_setup_metapath_scan(sc, qi->qi_dirip,
-			kstrdup(xfs_dqinode_path(type), GFP_KERNEL), ip);
+			kstrdup_const(xfs_dqinode_path(type), GFP_KERNEL), ip);
 }
 #else
 # define xchk_setup_metapath_quotadir(...)	(-ENOENT)

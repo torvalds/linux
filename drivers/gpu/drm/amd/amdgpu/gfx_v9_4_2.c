@@ -748,6 +748,18 @@ void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
 	}
 }
 
+void gfx_v9_4_2_init_sq(struct amdgpu_device *adev)
+{
+	uint32_t data;
+
+	if (adev->gfx.mec_fw_version >= 98) {
+		adev->gmc.xnack_flags |= AMDGPU_GMC_XNACK_FLAG_CHAIN;
+		data = RREG32_SOC15(GC, 0, regSQ_CONFIG1);
+		data = REG_SET_FIELD(data, SQ_CONFIG1, DISABLE_XNACK_CHECK_IN_RETRY_DISABLE, 1);
+		WREG32_SOC15(GC, 0, regSQ_CONFIG1, data);
+	}
+}
+
 void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
 				uint32_t first_vmid,
 				uint32_t last_vmid)

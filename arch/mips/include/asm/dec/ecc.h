@@ -37,7 +37,7 @@
 #define KN0X_ESR_SYNLO		(0x7f<<0)	/* syndrome from ECC logic */
 
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/interrupt.h>
 

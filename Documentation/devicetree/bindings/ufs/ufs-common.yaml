@@ -89,6 +89,22 @@ properties:
 
   msi-parent: true
 
+  limit-hs-gear:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 6
+    default: 6
+    description:
+      Restricts the maximum HS gear used in both TX and RX directions.
+
+  limit-gear-rate:
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [rate-a, rate-b]
+    default: rate-b
+    description:
+      Restricts the UFS controller to rate-a or rate-b for both TX and
+      RX directions.
+
 dependencies:
   freq-table-hz: [ clocks ]
   operating-points-v2: [ clocks, clock-names ]

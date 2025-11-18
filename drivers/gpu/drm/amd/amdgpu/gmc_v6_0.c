@@ -382,7 +382,9 @@ static void gmc_v6_0_get_vm_pde(struct amdgpu_device *adev, int level,
 }
 
 static void gmc_v6_0_get_vm_pte(struct amdgpu_device *adev,
-				struct amdgpu_bo_va_mapping *mapping,
+				struct amdgpu_vm *vm,
+				struct amdgpu_bo *bo,
+				uint32_t vm_flags,
 				uint64_t *flags)
 {
 	*flags &= ~AMDGPU_PTE_EXECUTABLE;

@@ -476,7 +476,9 @@ static int selinux_is_genfs_special_handling(struct super_block *sb)
 		!strcmp(sb->s_type->name, "rootfs") ||
 		(selinux_policycap_cgroupseclabel() &&
 		 (!strcmp(sb->s_type->name, "cgroup") ||
-		  !strcmp(sb->s_type->name, "cgroup2")));
+		  !strcmp(sb->s_type->name, "cgroup2"))) ||
+		(selinux_policycap_functionfs_seclabel() &&
+		 !strcmp(sb->s_type->name, "functionfs"));
 }
 
 static int selinux_is_sblabel_mnt(struct super_block *sb)
@@ -741,7 +743,9 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	    !strcmp(sb->s_type->name, "binder") ||
 	    !strcmp(sb->s_type->name, "bpf") ||
 	    !strcmp(sb->s_type->name, "pstore") ||
-	    !strcmp(sb->s_type->name, "securityfs"))
+	    !strcmp(sb->s_type->name, "securityfs") ||
+	    (selinux_policycap_functionfs_seclabel() &&
+	     !strcmp(sb->s_type->name, "functionfs")))
 		sbsec->flags |= SE_SBGENFS;
 
 	if (!strcmp(sb->s_type->name, "sysfs") ||
@@ -2901,7 +2905,7 @@ static int selinux_dentry_init_security(struct dentry *dentry, int mode,
 }
 
 static int selinux_dentry_create_files_as(struct dentry *dentry, int mode,
-					  struct qstr *name,
+					  const struct qstr *name,
 					  const struct cred *old,
 					  struct cred *new)
 {
@@ -4144,7 +4148,7 @@ static int selinux_file_open(struct file *file)
 /* task security operations */
 
 static int selinux_task_alloc(struct task_struct *task,
-			      unsigned long clone_flags)
+			      u64 clone_flags)
 {
 	u32 sid = current_sid();
 
@@ -5885,7 +5889,7 @@ static unsigned int selinux_ip_output(void *priv, struct sk_buff *skb,
 	/* we do this in the LOCAL_OUT path and not the POST_ROUTING path
 	 * because we want to make sure we apply the necessary labeling
 	 * before IPsec is applied so we can leverage AH protection */
-	sk = sk_to_full_sk(skb->sk);
+	sk = skb_to_full_sk(skb);
 	if (sk) {
 		struct sk_security_struct *sksec;
 
@@ -7062,14 +7066,14 @@ static int bpf_fd_pass(const struct file *file, u32 sid)
 
 	if (file->f_op == &bpf_map_fops) {
 		map = file->private_data;
-		bpfsec = map->security;
+		bpfsec = selinux_bpf_map_security(map);
 		ret = avc_has_perm(sid, bpfsec->sid, SECCLASS_BPF,
 				   bpf_map_fmode_to_av(file->f_mode), NULL);
 		if (ret)
 			return ret;
 	} else if (file->f_op == &bpf_prog_fops) {
 		prog = file->private_data;
-		bpfsec = prog->aux->security;
+		bpfsec = selinux_bpf_prog_security(prog);
 		ret = avc_has_perm(sid, bpfsec->sid, SECCLASS_BPF,
 				   BPF__PROG_RUN, NULL);
 		if (ret)
@@ -7083,7 +7087,7 @@ static int selinux_bpf_map(struct bpf_map *map, fmode_t fmode)
 	u32 sid = current_sid();
 	struct bpf_security_struct *bpfsec;
 
-	bpfsec = map->security;
+	bpfsec = selinux_bpf_map_security(map);
 	return avc_has_perm(sid, bpfsec->sid, SECCLASS_BPF,
 			    bpf_map_fmode_to_av(fmode), NULL);
 }
@@ -7093,7 +7097,7 @@ static int selinux_bpf_prog(struct bpf_prog *prog)
 	u32 sid = current_sid();
 	struct bpf_security_struct *bpfsec;
 
-	bpfsec = prog->aux->security;
+	bpfsec = selinux_bpf_prog_security(prog);
 	return avc_has_perm(sid, bpfsec->sid, SECCLASS_BPF,
 			    BPF__PROG_RUN, NULL);
 }
@@ -7103,22 +7107,10 @@ static int selinux_bpf_map_create(struct bpf_map *map, union bpf_attr *attr,
 {
 	struct bpf_security_struct *bpfsec;
 
-	bpfsec = kzalloc(sizeof(*bpfsec), GFP_KERNEL);
-	if (!bpfsec)
-		return -ENOMEM;
-
+	bpfsec = selinux_bpf_map_security(map);
 	bpfsec->sid = current_sid();
-	map->security = bpfsec;
 
 	return 0;
-}
-
-static void selinux_bpf_map_free(struct bpf_map *map)
-{
-	struct bpf_security_struct *bpfsec = map->security;
-
-	map->security = NULL;
-	kfree(bpfsec);
 }
 
 static int selinux_bpf_prog_load(struct bpf_prog *prog, union bpf_attr *attr,
@@ -7126,22 +7118,10 @@ static int selinux_bpf_prog_load(struct bpf_prog *prog, union bpf_attr *attr,
 {
 	struct bpf_security_struct *bpfsec;
 
-	bpfsec = kzalloc(sizeof(*bpfsec), GFP_KERNEL);
-	if (!bpfsec)
-		return -ENOMEM;
-
+	bpfsec = selinux_bpf_prog_security(prog);
 	bpfsec->sid = current_sid();
-	prog->aux->security = bpfsec;
 
 	return 0;
-}
-
-static void selinux_bpf_prog_free(struct bpf_prog *prog)
-{
-	struct bpf_security_struct *bpfsec = prog->aux->security;
-
-	prog->aux->security = NULL;
-	kfree(bpfsec);
 }
 
 static int selinux_bpf_token_create(struct bpf_token *token, union bpf_attr *attr,
@@ -7149,22 +7129,10 @@ static int selinux_bpf_token_create(struct bpf_token *token, union bpf_attr *att
 {
 	struct bpf_security_struct *bpfsec;
 
-	bpfsec = kzalloc(sizeof(*bpfsec), GFP_KERNEL);
-	if (!bpfsec)
-		return -ENOMEM;
-
+	bpfsec = selinux_bpf_token_security(token);
 	bpfsec->sid = current_sid();
-	token->security = bpfsec;
 
 	return 0;
-}
-
-static void selinux_bpf_token_free(struct bpf_token *token)
-{
-	struct bpf_security_struct *bpfsec = token->security;
-
-	token->security = NULL;
-	kfree(bpfsec);
 }
 #endif
 
@@ -7183,6 +7151,9 @@ struct lsm_blob_sizes selinux_blob_sizes __ro_after_init = {
 	.lbs_xattr_count = SELINUX_INODE_INIT_XATTRS,
 	.lbs_tun_dev = sizeof(struct tun_security_struct),
 	.lbs_ib = sizeof(struct ib_security_struct),
+	.lbs_bpf_map = sizeof(struct bpf_security_struct),
+	.lbs_bpf_prog = sizeof(struct bpf_security_struct),
+	.lbs_bpf_token = sizeof(struct bpf_security_struct),
 };
 
 #ifdef CONFIG_PERF_EVENTS
@@ -7536,9 +7507,6 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(bpf, selinux_bpf),
 	LSM_HOOK_INIT(bpf_map, selinux_bpf_map),
 	LSM_HOOK_INIT(bpf_prog, selinux_bpf_prog),
-	LSM_HOOK_INIT(bpf_map_free, selinux_bpf_map_free),
-	LSM_HOOK_INIT(bpf_prog_free, selinux_bpf_prog_free),
-	LSM_HOOK_INIT(bpf_token_free, selinux_bpf_token_free),
 #endif
 
 #ifdef CONFIG_PERF_EVENTS
@@ -7617,6 +7585,11 @@ static __init int selinux_init(void)
 
 	/* Set the security state for the initial task. */
 	cred_init_security();
+
+	/* Inform the audit system that secctx is used */
+	audit_cfg_lsm(&selinux_lsmid,
+		      AUDIT_CFG_LSM_SECCTX_SUBJECT |
+		      AUDIT_CFG_LSM_SECCTX_OBJECT);
 
 	default_noexec = !(VM_DATA_DEFAULT_FLAGS & VM_EXEC);
 	if (!default_noexec)

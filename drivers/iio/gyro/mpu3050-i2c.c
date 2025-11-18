@@ -27,7 +27,6 @@ static int mpu3050_i2c_bypass_deselect(struct i2c_mux_core *mux, u32 chan_id)
 {
 	struct mpu3050 *mpu3050 = i2c_mux_priv(mux);
 
-	pm_runtime_mark_last_busy(mpu3050->dev);
 	pm_runtime_put_autosuspend(mpu3050->dev);
 	return 0;
 }

@@ -704,7 +704,7 @@ static inline void arc_slc_enable(void)
 
 void flush_dcache_folio(struct folio *folio)
 {
-	clear_bit(PG_dc_clean, &folio->flags);
+	clear_bit(PG_dc_clean, &folio->flags.f);
 	return;
 }
 EXPORT_SYMBOL(flush_dcache_folio);
@@ -889,8 +889,8 @@ void copy_user_highpage(struct page *to, struct page *from,
 
 	copy_page(kto, kfrom);
 
-	clear_bit(PG_dc_clean, &dst->flags);
-	clear_bit(PG_dc_clean, &src->flags);
+	clear_bit(PG_dc_clean, &dst->flags.f);
+	clear_bit(PG_dc_clean, &src->flags.f);
 
 	kunmap_atomic(kto);
 	kunmap_atomic(kfrom);
@@ -900,7 +900,7 @@ void clear_user_page(void *to, unsigned long u_vaddr, struct page *page)
 {
 	struct folio *folio = page_folio(page);
 	clear_page(to);
-	clear_bit(PG_dc_clean, &folio->flags);
+	clear_bit(PG_dc_clean, &folio->flags.f);
 }
 EXPORT_SYMBOL(clear_user_page);
 

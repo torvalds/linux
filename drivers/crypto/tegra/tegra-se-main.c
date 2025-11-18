@@ -310,7 +310,7 @@ static int tegra_se_probe(struct platform_device *pdev)
 
 	se->engine = crypto_engine_alloc_init(dev, 0);
 	if (!se->engine)
-		return dev_err_probe(dev, -ENOMEM, "failed to init crypto engine\n");
+		return -ENOMEM;
 
 	ret = crypto_engine_start(se->engine);
 	if (ret) {

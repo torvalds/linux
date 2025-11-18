@@ -8,7 +8,8 @@
 #include <linux/utsname.h>
 
 struct uts_namespace init_uts_ns = {
-	.ns.count = REFCOUNT_INIT(2),
+	.ns.ns_type = ns_common_type(&init_uts_ns),
+	.ns.__ns_ref = REFCOUNT_INIT(2),
 	.name = {
 		.sysname	= UTS_SYSNAME,
 		.nodename	= UTS_NODENAME,
@@ -18,7 +19,7 @@ struct uts_namespace init_uts_ns = {
 		.domainname	= UTS_DOMAINNAME,
 	},
 	.user_ns = &init_user_ns,
-	.ns.inum = PROC_UTS_INIT_INO,
+	.ns.inum = ns_init_inum(&init_uts_ns),
 #ifdef CONFIG_UTS_NS
 	.ns.ops = &utsns_operations,
 #endif

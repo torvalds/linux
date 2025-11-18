@@ -15,11 +15,7 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: st,stih407-b2120
-          - const: st,stih407
-      - items:
           - enum:
-              - st,stih410-b2120
               - st,stih410-b2260
           - const: st,stih410
       - items:

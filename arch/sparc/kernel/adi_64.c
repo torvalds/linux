@@ -202,7 +202,7 @@ static tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
 
 	} else {
 		size = sizeof(tag_storage_desc_t)*max_desc;
-		mm->context.tag_store = kzalloc(size, GFP_NOWAIT|__GFP_NOWARN);
+		mm->context.tag_store = kzalloc(size, GFP_NOWAIT);
 		if (mm->context.tag_store == NULL) {
 			tag_desc = NULL;
 			goto out;
@@ -281,7 +281,7 @@ static tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
 		size = (size + (PAGE_SIZE-adi_blksize()))/PAGE_SIZE;
 		size = size * PAGE_SIZE;
 	}
-	tags = kzalloc(size, GFP_NOWAIT|__GFP_NOWARN);
+	tags = kzalloc(size, GFP_NOWAIT);
 	if (tags == NULL) {
 		tag_desc->tag_users = 0;
 		tag_desc = NULL;

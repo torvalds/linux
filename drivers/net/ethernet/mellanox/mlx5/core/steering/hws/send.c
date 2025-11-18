@@ -690,7 +690,7 @@ static int hws_send_ring_alloc_sq(struct mlx5_core_dev *mdev,
 	size_t buf_sz;
 	int err;
 
-	sq->uar_map = mdev->mlx5e_res.hw_objs.bfreg.map;
+	sq->uar_map = mdev->priv.bfreg.map;
 	sq->mdev = mdev;
 
 	param.db_numa_node = numa_node;
@@ -764,7 +764,7 @@ static int hws_send_ring_create_sq(struct mlx5_core_dev *mdev, u32 pdn,
 	MLX5_SET(sqc, sqc, ts_format, ts_format);
 
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_CYCLIC);
-	MLX5_SET(wq, wq, uar_page, mdev->mlx5e_res.hw_objs.bfreg.index);
+	MLX5_SET(wq, wq, uar_page, mdev->priv.bfreg.index);
 	MLX5_SET(wq, wq, log_wq_pg_sz, sq->wq_ctrl.buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(wq, wq, dbr_addr, sq->wq_ctrl.db.dma);
 
@@ -873,12 +873,6 @@ err_free_sqc:
 	return err;
 }
 
-static void hws_cq_complete(struct mlx5_core_cq *mcq,
-			    struct mlx5_eqe *eqe)
-{
-	pr_err("CQ completion CQ: #%u\n", mcq->cqn);
-}
-
 static int hws_send_ring_alloc_cq(struct mlx5_core_dev *mdev,
 				  int numa_node,
 				  struct mlx5hws_send_engine *queue,
@@ -901,7 +895,6 @@ static int hws_send_ring_alloc_cq(struct mlx5_core_dev *mdev,
 	mcq->cqe_sz = 64;
 	mcq->set_ci_db = cq->wq_ctrl.db.db;
 	mcq->arm_db = cq->wq_ctrl.db.db + 1;
-	mcq->comp = hws_cq_complete;
 
 	for (i = 0; i < mlx5_cqwq_get_size(&cq->wq); i++) {
 		cqe = mlx5_cqwq_get_wqe(&cq->wq, i);
@@ -940,7 +933,7 @@ static int hws_send_ring_create_cq(struct mlx5_core_dev *mdev,
 				  (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas));
 
 	MLX5_SET(cqc, cqc, c_eqn_or_apu_element, eqn);
-	MLX5_SET(cqc, cqc, uar_page, mdev->priv.uar->index);
+	MLX5_SET(cqc, cqc, uar_page, mdev->priv.bfreg.up->index);
 	MLX5_SET(cqc, cqc, log_page_size, cq->wq_ctrl.buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr, cq->wq_ctrl.db.dma);
 
@@ -963,8 +956,7 @@ static int hws_send_ring_open_cq(struct mlx5_core_dev *mdev,
 	if (!cqc_data)
 		return -ENOMEM;
 
-	MLX5_SET(cqc, cqc_data, uar_page, mdev->priv.uar->index);
-	MLX5_SET(cqc, cqc_data, cqe_sz, queue->num_entries);
+	MLX5_SET(cqc, cqc_data, uar_page, mdev->priv.bfreg.up->index);
 	MLX5_SET(cqc, cqc_data, log_cq_size, ilog2(queue->num_entries));
 
 	err = hws_send_ring_alloc_cq(mdev, numa_node, queue, cqc_data, cq);

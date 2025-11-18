@@ -58,7 +58,7 @@ void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind)
 	case TSR_KIND_CONST:
 		pr_info(" constant\n");
 		return;
-	case TSR_KIND_POINTER:
+	case TSR_KIND_PERCPU_POINTER:
 		pr_info(" pointer");
 		/* it also prints the type info */
 		break;
@@ -591,7 +591,7 @@ void set_stack_state(struct type_state_stack *stack, int offset, u8 kind,
 	switch (tag) {
 	case DW_TAG_structure_type:
 	case DW_TAG_union_type:
-		stack->compound = (kind != TSR_KIND_POINTER);
+		stack->compound = (kind != TSR_KIND_PERCPU_POINTER);
 		break;
 	default:
 		stack->compound = false;
@@ -868,6 +868,11 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			int offset = var->offset;
 			struct type_state_stack *stack;
 
+			/* If the reg location holds the pointer value, dereference the type */
+			if (!var->is_reg_var_addr && is_pointer_type(&mem_die) &&
+				__die_get_real_type(&mem_die, &mem_die) == NULL)
+				continue;
+
 			if (var->reg != DWARF_REG_FB)
 				offset -= fb_offset;
 
@@ -892,6 +897,10 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			Dwarf_Die orig_type;
 
 			reg = &state->regs[var->reg];
+
+			/* For gp registers, skip the address registers for now */
+			if (var->is_reg_var_addr)
+				continue;
 
 			if (reg->ok && reg->kind == TSR_KIND_TYPE &&
 			    !is_better_type(&reg->type, &mem_die))
@@ -1107,7 +1116,7 @@ again:
 		return PERF_TMR_OK;
 	}
 
-	if (state->regs[reg].kind == TSR_KIND_POINTER) {
+	if (state->regs[reg].kind == TSR_KIND_PERCPU_POINTER) {
 		pr_debug_dtp("percpu ptr");
 
 		/*

@@ -21,7 +21,7 @@
 #define PGDIR_MASK      	(~(PGDIR_SIZE-1))
 #define PGDIR_ALIGN(__addr) 	(((__addr) + ~PGDIR_MASK) & PGDIR_MASK)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm-generic/pgtable-nopud.h>
 
 #include <linux/spinlock.h>
@@ -423,7 +423,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 	__changed;							  \
 })
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #define VMALLOC_START           _AC(0xfe600000,UL)
 #define VMALLOC_END             _AC(0xffc00000,UL)

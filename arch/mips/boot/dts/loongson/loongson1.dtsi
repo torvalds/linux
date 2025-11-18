@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2023-2025 Keguang Zhang <keguang.zhang@gmail.com>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/clock/loongson,ls1x-clk.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	xtal: clock {
+		compatible = "fixed-clock";
+		clock-output-names = "xtal";
+		#clock-cells = <0>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			reg = <0>;
+			device_type = "cpu";
+			clocks = <&clkc LS1X_CLKID_CPU>;
+			#clock-cells = <1>;
+		};
+	};
+
+	cpu_intc: interrupt-controller {
+		compatible = "mti,cpu-interrupt-controller";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		#address-cells = <0>;
+	};
+
+	soc: bus@1fd00000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x1fd00000 0x130000>;
+
+		intc0: interrupt-controller@1040 {
+			compatible = "loongson,ls1x-intc";
+			reg = <0x1040 0x18>;
+			interrupt-controller;
+			interrupt-parent = <&cpu_intc>;
+			interrupts = <2>;
+			#interrupt-cells = <2>;
+		};
+
+		intc1: interrupt-controller@1058 {
+			compatible = "loongson,ls1x-intc";
+			reg = <0x1058 0x18>;
+			interrupt-controller;
+			interrupt-parent = <&cpu_intc>;
+			interrupts = <3>;
+			#interrupt-cells = <2>;
+		};
+
+		intc2: interrupt-controller@1070 {
+			compatible = "loongson,ls1x-intc";
+			reg = <0x1070 0x18>;
+			interrupt-controller;
+			interrupt-parent = <&cpu_intc>;
+			interrupts = <4>;
+			#interrupt-cells = <2>;
+		};
+
+		intc3: interrupt-controller@1088 {
+			compatible = "loongson,ls1x-intc";
+			reg = <0x1088 0x18>;
+			interrupt-controller;
+			interrupt-parent = <&cpu_intc>;
+			interrupts = <5>;
+			#interrupt-cells = <2>;
+		};
+
+		gpio0: gpio@10c0 {
+			compatible = "loongson,ls1x-gpio";
+			reg = <0x10c0 0x4>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpio1: gpio@10c4 {
+			compatible = "loongson,ls1x-gpio";
+			reg = <0x10c4 0x4>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};
+
+	apb: bus@1fe40000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x1fe40000 0xc0000>;
+
+		uart0: serial@0 {
+			compatible = "ns16550a";
+			reg = <0x0 0x8>;
+			clocks = <&clkc LS1X_CLKID_APB>;
+			interrupt-parent = <&intc0>;
+			interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		uart1: serial@4000 {
+			compatible = "ns16550a";
+			reg = <0x4000 0x8>;
+			clocks = <&clkc LS1X_CLKID_APB>;
+			interrupt-parent = <&intc0>;
+			status = "disabled";
+		};
+
+		uart2: serial@8000 {
+			compatible = "ns16550a";
+			reg = <0x8000 0x8>;
+			clocks = <&clkc LS1X_CLKID_APB>;
+			interrupt-parent = <&intc0>;
+			status = "disabled";
+		};
+
+		uart3: serial@c000 {
+			compatible = "ns16550a";
+			reg = <0xc000 0x8>;
+			clocks = <&clkc LS1X_CLKID_APB>;
+			interrupt-parent = <&intc0>;
+			status = "disabled";
+		};
+	};
+};

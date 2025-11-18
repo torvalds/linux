@@ -1326,7 +1326,7 @@ int audit_compare_dname_path(const struct qstr *dname, const char *path, int par
 
 	/* handle trailing slashes */
 	pathlen -= parentlen;
-	while (p[pathlen - 1] == '/')
+	while (pathlen > 0 && p[pathlen - 1] == '/')
 		pathlen--;
 
 	if (pathlen != dlen)
@@ -1440,7 +1440,7 @@ static int update_lsm_rule(struct audit_krule *r)
 }
 
 /* This function will re-initialize the lsm_rule field of all applicable rules.
- * It will traverse the filter lists serarching for rules that contain LSM
+ * It will traverse the filter lists searching for rules that contain LSM
  * specific filter fields.  When such a rule is found, it is copied, the
  * LSM field is re-initialized, and the old rule is replaced with the
  * updated rule. */

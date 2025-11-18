@@ -173,12 +173,10 @@ void fill_window(WINDOW *win, const char *text)
 	/* do not go over end of line */
 	total_lines = min(total_lines, y);
 	for (i = 0; i < total_lines; i++) {
-		char tmp[x+10];
 		const char *line = get_line(text, i);
-		int len = get_line_length(line);
-		strncpy(tmp, line, min(len, x));
-		tmp[len] = '\0';
-		mvwprintw(win, i, 0, "%s", tmp);
+		int len = min(get_line_length(line), x);
+
+		mvwprintw(win, i, 0, "%.*s", len, line);
 	}
 }
 

@@ -131,7 +131,7 @@ static ssize_t direction_show(struct device *dev,
 
 	scoped_guard(mutex, &data->mutex) {
 		gpiod_get_direction(desc);
-		value = !!test_bit(FLAG_IS_OUT, &desc->flags);
+		value = !!test_bit(GPIOD_FLAG_IS_OUT, &desc->flags);
 	}
 
 	return sysfs_emit(buf, "%s\n", value ? "out" : "in");
@@ -226,14 +226,14 @@ static int gpio_sysfs_request_irq(struct gpiod_data *data, unsigned char flags)
 
 	irq_flags = IRQF_SHARED;
 	if (flags & GPIO_IRQF_TRIGGER_FALLING) {
-		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
+		irq_flags |= test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags) ?
 				IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
-		set_bit(FLAG_EDGE_FALLING, &desc->flags);
+		set_bit(GPIOD_FLAG_EDGE_FALLING, &desc->flags);
 	}
 	if (flags & GPIO_IRQF_TRIGGER_RISING) {
-		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
+		irq_flags |= test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags) ?
 				IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
-		set_bit(FLAG_EDGE_RISING, &desc->flags);
+		set_bit(GPIOD_FLAG_EDGE_RISING, &desc->flags);
 	}
 
 	/*
@@ -260,8 +260,8 @@ static int gpio_sysfs_request_irq(struct gpiod_data *data, unsigned char flags)
 err_unlock:
 	gpiochip_unlock_as_irq(guard.gc, gpio_chip_hwgpio(desc));
 err_clr_bits:
-	clear_bit(FLAG_EDGE_RISING, &desc->flags);
-	clear_bit(FLAG_EDGE_FALLING, &desc->flags);
+	clear_bit(GPIOD_FLAG_EDGE_RISING, &desc->flags);
+	clear_bit(GPIOD_FLAG_EDGE_FALLING, &desc->flags);
 
 	return ret;
 }
@@ -281,8 +281,8 @@ static void gpio_sysfs_free_irq(struct gpiod_data *data)
 	data->irq_flags = 0;
 	free_irq(data->irq, data);
 	gpiochip_unlock_as_irq(guard.gc, gpio_chip_hwgpio(desc));
-	clear_bit(FLAG_EDGE_RISING, &desc->flags);
-	clear_bit(FLAG_EDGE_FALLING, &desc->flags);
+	clear_bit(GPIOD_FLAG_EDGE_RISING, &desc->flags);
+	clear_bit(GPIOD_FLAG_EDGE_FALLING, &desc->flags);
 }
 
 static const char *const trigger_names[] = {
@@ -347,10 +347,10 @@ static int gpio_sysfs_set_active_low(struct gpiod_data *data, int value)
 	struct gpio_desc *desc = data->desc;
 	int status = 0;
 
-	if (!!test_bit(FLAG_ACTIVE_LOW, &desc->flags) == !!value)
+	if (!!test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags) == !!value)
 		return 0;
 
-	assign_bit(FLAG_ACTIVE_LOW, &desc->flags, value);
+	assign_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags, value);
 
 	/* reconfigure poll(2) support if enabled on one edge only */
 	if (flags == GPIO_IRQF_TRIGGER_FALLING ||
@@ -373,7 +373,7 @@ static ssize_t active_low_show(struct device *dev,
 	int value;
 
 	scoped_guard(mutex, &data->mutex)
-		value = !!test_bit(FLAG_ACTIVE_LOW, &desc->flags);
+		value = !!test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags);
 
 	return sysfs_emit(buf, "%d\n", value);
 }
@@ -418,7 +418,7 @@ static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 			mode = 0;
 
 		if (!data->direction_can_change &&
-		    test_bit(FLAG_IS_OUT, &data->desc->flags))
+		    test_bit(GPIOD_FLAG_IS_OUT, &data->desc->flags))
 			mode = 0;
 #endif /* CONFIG_GPIO_SYSFS_LEGACY */
 	}
@@ -486,7 +486,7 @@ static int export_gpio_desc(struct gpio_desc *desc)
 	}
 
 	/*
-	 * No extra locking here; FLAG_SYSFS just signifies that the
+	 * No extra locking here; GPIOD_FLAG_SYSFS just signifies that the
 	 * request and export were done by on behalf of userspace, so
 	 * they may be undone on its behalf too.
 	 */
@@ -505,7 +505,7 @@ static int export_gpio_desc(struct gpio_desc *desc)
 	if (ret < 0) {
 		gpiod_free(desc);
 	} else {
-		set_bit(FLAG_SYSFS, &desc->flags);
+		set_bit(GPIOD_FLAG_SYSFS, &desc->flags);
 		gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_REQUESTED);
 	}
 
@@ -515,11 +515,11 @@ static int export_gpio_desc(struct gpio_desc *desc)
 static int unexport_gpio_desc(struct gpio_desc *desc)
 {
 	/*
-	 * No extra locking here; FLAG_SYSFS just signifies that the
+	 * No extra locking here; GPIOD_FLAG_SYSFS just signifies that the
 	 * request and export were done by on behalf of userspace, so
 	 * they may be undone on its behalf too.
 	 */
-	if (!test_and_clear_bit(FLAG_SYSFS, &desc->flags))
+	if (!test_and_clear_bit(GPIOD_FLAG_SYSFS, &desc->flags))
 		return -EINVAL;
 
 	gpiod_unexport(desc);
@@ -748,14 +748,14 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	if (!guard.gc)
 		return -ENODEV;
 
-	if (test_and_set_bit(FLAG_EXPORT, &desc->flags))
+	if (test_and_set_bit(GPIOD_FLAG_EXPORT, &desc->flags))
 		return -EPERM;
 
 	gdev = desc->gdev;
 
 	guard(mutex)(&sysfs_lock);
 
-	if (!test_bit(FLAG_REQUESTED, &desc->flags)) {
+	if (!test_bit(GPIOD_FLAG_REQUESTED, &desc->flags)) {
 		gpiod_dbg(desc, "%s: unavailable (not requested)\n", __func__);
 		status = -EPERM;
 		goto err_clear_bit;
@@ -866,7 +866,7 @@ err_free_data:
 #endif /* CONFIG_GPIO_SYSFS_LEGACY */
 	kfree(desc_data);
 err_clear_bit:
-	clear_bit(FLAG_EXPORT, &desc->flags);
+	clear_bit(GPIOD_FLAG_EXPORT, &desc->flags);
 	gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 	return status;
 }
@@ -937,7 +937,7 @@ void gpiod_unexport(struct gpio_desc *desc)
 	}
 
 	scoped_guard(mutex, &sysfs_lock) {
-		if (!test_bit(FLAG_EXPORT, &desc->flags))
+		if (!test_bit(GPIOD_FLAG_EXPORT, &desc->flags))
 			return;
 
 		gdev = gpiod_to_gpio_device(desc);
@@ -956,7 +956,7 @@ void gpiod_unexport(struct gpio_desc *desc)
 			return;
 
 		list_del(&desc_data->list);
-		clear_bit(FLAG_EXPORT, &desc->flags);
+		clear_bit(GPIOD_FLAG_EXPORT, &desc->flags);
 #if IS_ENABLED(CONFIG_GPIO_SYSFS_LEGACY)
 		sysfs_put(desc_data->value_kn);
 		device_unregister(desc_data->dev);
@@ -1073,7 +1073,7 @@ void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 		return;
 
 	/* unregister gpiod class devices owned by sysfs */
-	for_each_gpio_desc_with_flag(chip, desc, FLAG_SYSFS) {
+	for_each_gpio_desc_with_flag(chip, desc, GPIOD_FLAG_SYSFS) {
 		gpiod_unexport(desc);
 		gpiod_free(desc);
 	}

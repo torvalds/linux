@@ -155,6 +155,7 @@ struct faux_device *faux_device_create_with_groups(const char *name,
 		dev->parent = &faux_bus_root;
 	dev->bus = &faux_bus_type;
 	dev_set_name(dev, "%s", name);
+	device_set_pm_not_required(dev);
 
 	ret = device_add(dev);
 	if (ret) {

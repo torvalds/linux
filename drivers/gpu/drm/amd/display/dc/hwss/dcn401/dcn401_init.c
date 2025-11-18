@@ -104,6 +104,7 @@ static const struct hw_sequencer_funcs dcn401_funcs = {
 	.enable_plane = dcn20_enable_plane,
 	.update_dchubp_dpp = dcn20_update_dchubp_dpp,
 	.post_unlock_reset_opp = dcn20_post_unlock_reset_opp,
+	.get_underflow_debug_data = dcn30_get_underflow_debug_data,
 };
 
 static const struct hwseq_private_funcs dcn401_private_funcs = {

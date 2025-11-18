@@ -13,7 +13,9 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
+#include <media/cadence/cdns-csi2rx.h>
 #include <media/mipi-csi2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -28,6 +30,7 @@
 #define SHIM_DMACNTX			0x20
 #define SHIM_DMACNTX_EN			BIT(31)
 #define SHIM_DMACNTX_YUV422		GENMASK(27, 26)
+#define SHIM_DMACNTX_DUAL_PCK_CFG	BIT(24)
 #define SHIM_DMACNTX_SIZE		GENMASK(21, 20)
 #define SHIM_DMACNTX_FMT		GENMASK(5, 0)
 #define SHIM_DMACNTX_YUV422_MODE_11	3
@@ -39,6 +42,7 @@
 #define SHIM_PSI_CFG0_SRC_TAG		GENMASK(15, 0)
 #define SHIM_PSI_CFG0_DST_TAG		GENMASK(31, 16)
 
+#define TI_CSI2RX_MAX_PIX_PER_CLK	4
 #define PSIL_WORD_SIZE_BYTES		16
 /*
  * There are no hard limits on the width or height. The DMA engine can handle
@@ -51,6 +55,8 @@
 
 #define DRAIN_TIMEOUT_MS		50
 #define DRAIN_BUFFER_SIZE		SZ_32K
+
+#define CSI2RX_BRIDGE_SOURCE_PAD	1
 
 struct ti_csi2rx_fmt {
 	u32				fourcc;	/* Four character code. */
@@ -107,6 +113,7 @@ struct ti_csi2rx_dev {
 	struct v4l2_format		v_fmt;
 	struct ti_csi2rx_dma		dma;
 	u32				sequence;
+	u8				pix_per_clk;
 };
 
 static const struct ti_csi2rx_fmt ti_csi2rx_formats[] = {
@@ -299,7 +306,7 @@ static int ti_csi2rx_enum_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int ti_csi2rx_g_fmt_vid_cap(struct file *file, void *prov,
+static int ti_csi2rx_g_fmt_vid_cap(struct file *file, void *priv,
 				   struct v4l2_format *f)
 {
 	struct ti_csi2rx_dev *csi = video_drvdata(file);
@@ -426,8 +433,9 @@ static int csi_async_notifier_complete(struct v4l2_async_notifier *notifier)
 	if (ret)
 		return ret;
 
-	ret = v4l2_create_fwnode_links_to_pad(csi->source, &csi->pad,
-					      MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
+	ret = media_create_pad_link(&csi->source->entity, CSI2RX_BRIDGE_SOURCE_PAD,
+				    &vdev->entity, csi->pad.index,
+				    MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 
 	if (ret) {
 		video_unregister_device(vdev);
@@ -450,25 +458,23 @@ static int ti_csi2rx_notifier_register(struct ti_csi2rx_dev *csi)
 {
 	struct fwnode_handle *fwnode;
 	struct v4l2_async_connection *asc;
-	struct device_node *node;
 	int ret;
 
-	node = of_get_child_by_name(csi->dev->of_node, "csi-bridge");
-	if (!node)
+	fwnode = fwnode_get_named_child_node(csi->dev->fwnode, "csi-bridge");
+	if (!fwnode)
 		return -EINVAL;
-
-	fwnode = of_fwnode_handle(node);
-	if (!fwnode) {
-		of_node_put(node);
-		return -EINVAL;
-	}
 
 	v4l2_async_nf_init(&csi->notifier, &csi->v4l2_dev);
 	csi->notifier.ops = &csi_async_notifier_ops;
 
 	asc = v4l2_async_nf_add_fwnode(&csi->notifier, fwnode,
 				       struct v4l2_async_connection);
-	of_node_put(node);
+	/*
+	 * Calling v4l2_async_nf_add_fwnode grabs a refcount,
+	 * so drop the one we got in fwnode_get_named_child_node
+	 */
+	fwnode_handle_put(fwnode);
+
 	if (IS_ERR(asc)) {
 		v4l2_async_nf_cleanup(&csi->notifier);
 		return PTR_ERR(asc);
@@ -483,6 +489,26 @@ static int ti_csi2rx_notifier_register(struct ti_csi2rx_dev *csi)
 	return 0;
 }
 
+/* Request maximum possible pixels per clock from the bridge */
+static void ti_csi2rx_request_max_ppc(struct ti_csi2rx_dev *csi)
+{
+	u8 ppc = TI_CSI2RX_MAX_PIX_PER_CLK;
+	struct media_pad *pad;
+	int ret;
+
+	pad = media_entity_remote_source_pad_unique(&csi->vdev.entity);
+	if (IS_ERR(pad))
+		return;
+
+	ret = cdns_csi2rx_negotiate_ppc(csi->source, pad->index, &ppc);
+	if (ret) {
+		dev_warn(csi->dev, "NUM_PIXELS negotiation failed: %d\n", ret);
+		csi->pix_per_clk = 1;
+	} else {
+		csi->pix_per_clk = ppc;
+	}
+}
+
 static void ti_csi2rx_setup_shim(struct ti_csi2rx_dev *csi)
 {
 	const struct ti_csi2rx_fmt *fmt;
@@ -493,6 +519,9 @@ static void ti_csi2rx_setup_shim(struct ti_csi2rx_dev *csi)
 	/* De-assert the pixel interface reset. */
 	reg = SHIM_CNTL_PIX_RST;
 	writel(reg, csi->shim + SHIM_CNTL);
+
+	/* Negotiate pixel count from the source */
+	ti_csi2rx_request_max_ppc(csi);
 
 	reg = SHIM_DMACNTX_EN;
 	reg |= FIELD_PREP(SHIM_DMACNTX_FMT, fmt->csi_dt);
@@ -522,13 +551,17 @@ static void ti_csi2rx_setup_shim(struct ti_csi2rx_dev *csi)
 	case V4L2_PIX_FMT_YVYU:
 		reg |= FIELD_PREP(SHIM_DMACNTX_YUV422,
 				  SHIM_DMACNTX_YUV422_MODE_11);
+		/* Multiple pixels are handled differently for packed YUV */
+		if (csi->pix_per_clk == 2)
+			reg |= SHIM_DMACNTX_DUAL_PCK_CFG;
+		reg |= FIELD_PREP(SHIM_DMACNTX_SIZE, fmt->size);
 		break;
 	default:
-		/* Ignore if not YUV 4:2:2 */
+		/* By default we change the shift size for multiple pixels */
+		reg |= FIELD_PREP(SHIM_DMACNTX_SIZE,
+				  fmt->size + (csi->pix_per_clk >> 1));
 		break;
 	}
-
-	reg |= FIELD_PREP(SHIM_DMACNTX_SIZE, fmt->size);
 
 	writel(reg, csi->shim + SHIM_DMACNTX);
 
@@ -1120,7 +1153,7 @@ static int ti_csi2rx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_vb2q;
 
-	ret = of_platform_populate(csi->dev->of_node, NULL, NULL, csi->dev);
+	ret = devm_of_platform_populate(csi->dev);
 	if (ret) {
 		dev_err(csi->dev, "Failed to create children: %d\n", ret);
 		goto err_subdev;

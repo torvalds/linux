@@ -148,7 +148,7 @@ static inline u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 #define crc32_be_arch crc32_be_base /* not implemented on this arch */
 
 #define crc32_mod_init_arch crc32_mod_init_arch
-static inline void crc32_mod_init_arch(void)
+static void crc32_mod_init_arch(void)
 {
 	if (cpu_have_feature(cpu_feature(MIPS_CRC32)))
 		static_branch_enable(&have_crc32);

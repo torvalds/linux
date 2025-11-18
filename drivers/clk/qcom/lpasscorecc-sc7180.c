@@ -42,7 +42,7 @@ static const struct alpha_pll_config lpass_lpaaudio_dig_pll_config = {
 };
 
 static const u8 clk_alpha_pll_regs_offset[][PLL_OFF_MAX_REGS] = {
-	[CLK_ALPHA_PLL_TYPE_FABIA] =  {
+	[CLK_ALPHA_PLL_TYPE_FABIA] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_CAL_L_VAL] = 0x8,
 		[PLL_OFF_USER_CTL] = 0x0c,

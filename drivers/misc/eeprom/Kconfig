@@ -120,4 +120,22 @@ config EEPROM_EE1004
 	  This driver can also be built as a module.  If so, the module
 	  will be called ee1004.
 
+config EEPROM_M24LR
+	tristate "STMicroelectronics M24LR RFID/NFC EEPROM support"
+	depends on I2C && SYSFS
+	select REGMAP_I2C
+	select NVMEM
+	select NVMEM_SYSFS
+	help
+	  This enables support for STMicroelectronics M24LR RFID/NFC EEPROM
+	  chips. These dual-interface devices expose two I2C addresses:
+	  one for EEPROM memory access and another for control and system
+	  configuration (e.g. UID, password handling).
+
+	  This driver provides a sysfs interface for control functions and
+	  integrates with the nvmem subsystem for EEPROM access.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called m24lr.
+
 endmenu

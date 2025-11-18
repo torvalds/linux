@@ -348,6 +348,16 @@ to special needs.
 
 struct perf_bpil, which contains detailed information about
 a BPF program, including type, id, tag, jited/xlated instructions, etc.
+The format of data in HEADER_BPF_PROG_INFO is as follows:
+	u32 count
+
+	struct perf_bpil {
+		u32 info_len;	/* size of struct bpf_prog_info, when the tool is compiled */
+		u32 data_len;	/* total bytes allocated for data, round up to 8 bytes */
+		u64 arrays;	/* which arrays are included in data */
+		struct bpf_prog_info info;
+		u8  data[];
+	}[count];
 
         HEADER_BPF_BTF = 26,
 

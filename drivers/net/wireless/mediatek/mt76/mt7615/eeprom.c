@@ -351,8 +351,6 @@ int mt7615_eeprom_init(struct mt7615_dev *dev, u32 addr)
 	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
 	       ETH_ALEN);
 
-	mt76_eeprom_override(&dev->mphy);
-
-	return 0;
+	return mt76_eeprom_override(&dev->mphy);
 }
 EXPORT_SYMBOL_GPL(mt7615_eeprom_init);

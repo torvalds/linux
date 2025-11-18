@@ -240,6 +240,7 @@ int mt7925_init_mlo_caps(struct mt792x_phy *phy)
 {
 	struct wiphy *wiphy = phy->mt76->hw->wiphy;
 	static const u8 ext_capa_sta[] = {
+		[2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
 		[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
 	};
 	static struct wiphy_iftype_ext_capab ext_capab[] = {
@@ -310,7 +311,6 @@ void mt7925_set_stream_he_eht_caps(struct mt792x_phy *phy)
 int __mt7925_start(struct mt792x_phy *phy)
 {
 	struct mt76_phy *mphy = phy->mt76;
-	struct mt792x_dev *dev = phy->dev;
 	int err;
 
 	err = mt7925_mcu_set_channel_domain(mphy);
@@ -320,13 +320,6 @@ int __mt7925_start(struct mt792x_phy *phy)
 	err = mt7925_mcu_set_rts_thresh(phy, 0x92b);
 	if (err)
 		return err;
-
-	if (!dev->sar_inited) {
-		err = mt7925_set_tx_sar_pwr(mphy->hw, NULL);
-		if (err)
-			return err;
-		dev->sar_inited = true;
-	}
 
 	mt792x_mac_reset_counters(phy);
 	set_bit(MT76_STATE_RUNNING, &mphy->state);
@@ -987,56 +980,6 @@ int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt7925_mac_sta_add);
 
-static u16
-mt7925_mac_select_links(struct mt76_dev *mdev, struct ieee80211_vif *vif)
-{
-	unsigned long usable_links = ieee80211_vif_usable_links(vif);
-	struct  {
-		u8 link_id;
-		enum nl80211_band band;
-	} data[IEEE80211_MLD_MAX_NUM_LINKS];
-	u8 link_id, i, j, n_data = 0;
-	u16 sel_links = 0;
-
-	if (!ieee80211_vif_is_mld(vif))
-		return 0;
-
-	if (vif->active_links == usable_links)
-		return vif->active_links;
-
-	rcu_read_lock();
-	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
-		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference(vif->link_conf[link_id]);
-
-		if (WARN_ON_ONCE(!link_conf))
-			continue;
-
-		data[n_data].link_id = link_id;
-		data[n_data].band = link_conf->chanreq.oper.chan->band;
-		n_data++;
-	}
-	rcu_read_unlock();
-
-	for (i = 0; i < n_data; i++) {
-		if (!(BIT(data[i].link_id) & vif->active_links))
-			continue;
-
-		sel_links = BIT(data[i].link_id);
-
-		for (j = 0; j < n_data; j++) {
-			if (data[i].band != data[j].band) {
-				sel_links |= BIT(data[j].link_id);
-				break;
-			}
-		}
-
-		break;
-	}
-
-	return sel_links;
-}
-
 static void
 mt7925_mac_set_links(struct mt76_dev *mdev, struct ieee80211_vif *vif)
 {
@@ -1047,7 +990,7 @@ mt7925_mac_set_links(struct mt76_dev *mdev, struct ieee80211_vif *vif)
 	struct cfg80211_chan_def *chandef = &link_conf->chanreq.oper;
 	enum nl80211_band band = chandef->chan->band, secondary_band;
 
-	u16 sel_links = mt7925_mac_select_links(mdev, vif);
+	u16 sel_links = mt76_select_links(vif, 2);
 	u8 secondary_link_id = __ffs(~BIT(mvif->deflink_id) & sel_links);
 
 	if (!ieee80211_vif_is_mld(vif) || hweight16(sel_links) < 2)
@@ -1190,6 +1133,9 @@ mt7925_mac_sta_remove_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 		struct ieee80211_bss_conf *link_conf;
 		struct mt792x_bss_conf *mconf;
 		struct mt792x_link_sta *mlink;
+
+		if (vif->type == NL80211_IFTYPE_AP)
+			break;
 
 		link_sta = mt792x_sta_to_link_sta(vif, sta, link_id);
 		if (!link_sta)
@@ -1728,13 +1674,7 @@ static int mt7925_set_sar_specs(struct ieee80211_hw *hw,
 	int err;
 
 	mt792x_mutex_acquire(dev);
-	err = mt7925_mcu_set_clc(dev, dev->mt76.alpha2,
-				 dev->country_ie_env);
-	if (err < 0)
-		goto out;
-
 	err = mt7925_set_tx_sar_pwr(hw, sar);
-out:
 	mt792x_mutex_release(dev);
 
 	return err;
@@ -2069,8 +2009,10 @@ mt7925_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 					     GFP_KERNEL);
 			mlink = devm_kzalloc(dev->mt76.dev, sizeof(*mlink),
 					     GFP_KERNEL);
-			if (!mconf || !mlink)
+			if (!mconf || !mlink) {
+				mt792x_mutex_release(dev);
 				return -ENOMEM;
+			}
 		}
 
 		mconfs[link_id] = mconf;

@@ -2417,4 +2417,3 @@ module_platform_driver(exynos5_usb3drd_phy);
 MODULE_DESCRIPTION("Samsung Exynos5 SoCs USB 3.0 DRD controller PHY driver");
 MODULE_AUTHOR("Vivek Gautam <gautam.vivek@samsung.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:exynos5_usb3drd_phy");

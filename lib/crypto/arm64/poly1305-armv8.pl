@@ -50,6 +50,9 @@ $code.=<<___;
 #ifndef __KERNEL__
 # include "arm_arch.h"
 .extern	OPENSSL_armcap_P
+#else
+# define poly1305_init   poly1305_block_init
+# define poly1305_blocks poly1305_blocks_arm64
 #endif
 
 .text

@@ -26,7 +26,7 @@
 #ifndef __DC_LINK_DP_PHY_H__
 #define __DC_LINK_DP_PHY_H__
 
-#include "link.h"
+#include "link_service.h"
 void dp_enable_link_phy(
 	struct dc_link *link,
 	const struct link_resource *link_res,

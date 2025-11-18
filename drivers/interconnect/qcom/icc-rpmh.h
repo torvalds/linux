@@ -53,7 +53,7 @@ struct bcm_db {
 	u8 reserved;
 };
 
-#define MAX_PORTS		2
+#define MAX_PORTS		4
 
 /**
  * struct qcom_icc_qosbox - Qualcomm specific QoS config

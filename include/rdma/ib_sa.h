@@ -189,6 +189,20 @@ struct sa_path_rec {
 	u32 flags;
 };
 
+struct sa_service_rec {
+	__be64 id;
+	__u8 gid[16];
+	__be16 pkey;
+	__u8 reserved[2];
+	__be32 lease;
+	__u8 key[16];
+	__u8 name[64];
+	__u8 data_8[16];
+	__be16 data_16[8];
+	__be32 data_32[4];
+	__be64 data_64[2];
+};
+
 static inline enum ib_gid_type
 		sa_conv_pathrec_to_gid_type(struct sa_path_rec *rec)
 {
@@ -417,6 +431,17 @@ int ib_sa_path_rec_get(struct ib_sa_client *client, struct ib_device *device,
 					unsigned int num_prs, void *context),
 		       void *context, struct ib_sa_query **query);
 
+int ib_sa_service_rec_get(struct ib_sa_client *client,
+			  struct ib_device *device, u32 port_num,
+			  struct sa_service_rec *rec,
+			  ib_sa_comp_mask comp_mask,
+			  unsigned long timeout_ms, gfp_t gfp_mask,
+			  void (*callback)(int status,
+					   struct sa_service_rec *resp,
+					   unsigned int num_services,
+					   void *context),
+			  void *context, struct ib_sa_query **sa_query);
+
 struct ib_sa_multicast {
 	struct ib_sa_mcmember_rec rec;
 	ib_sa_comp_mask		comp_mask;
@@ -507,6 +532,18 @@ int ib_init_ah_attr_from_path(struct ib_device *device, u32 port_num,
  * to IB MAD wire format.
  */
 void ib_sa_pack_path(struct sa_path_rec *rec, void *attribute);
+
+/**
+ * ib_sa_pack_service - Convert a service record from struct ib_sa_service_rec
+ * to IB MAD wire format.
+ */
+void ib_sa_pack_service(struct sa_service_rec *rec, void *attribute);
+
+/**
+ * ib_sa_unpack_service - Convert a service record from MAD format to struct
+ * ib_sa_service_rec.
+ */
+void ib_sa_unpack_service(void *attribute, struct sa_service_rec *rec);
 
 /**
  * ib_sa_unpack_path - Convert a path record from MAD format to struct

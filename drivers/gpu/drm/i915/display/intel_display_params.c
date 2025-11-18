@@ -120,6 +120,9 @@ intel_display_param_named_unsafe(enable_psr, int, 0400,
 	"(0=disabled, 1=enable up to PSR1, 2=enable up to PSR2) "
 	"Default: -1 (use per-chip default)");
 
+intel_display_param_named_unsafe(enable_panel_replay, int, 0400,
+	"Enable Panel Replay (0=disabled, 1=enabled). Default: -1 (use per-chip default)");
+
 intel_display_param_named(psr_safest_params, bool, 0400,
 	"Replace PSR VBT parameters by the safest and not optimal ones. This "
 	"is helpful to detect if PSR issues are related to bad values set in "

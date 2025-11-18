@@ -302,7 +302,6 @@ static int sprd_i2c_xfer(struct i2c_adapter *i2c_adap,
 	ret = sprd_i2c_handle_msg(i2c_adap, &msgs[im++], 1);
 
 err_msg:
-	pm_runtime_mark_last_busy(i2c_dev->dev);
 	pm_runtime_put_autosuspend(i2c_dev->dev);
 
 	return ret < 0 ? ret : im;
@@ -425,7 +424,7 @@ static irqreturn_t sprd_i2c_isr(int irq, void *dev_id)
 	 * If we did not get one ACK from target when writing data, then we
 	 * should finish this transmission since we got some errors.
 	 *
-	 * When writing data, if i2c_tran == 0 which means we have writen
+	 * When writing data, if i2c_tran == 0 which means we have written
 	 * done all data, then we can finish this transmission.
 	 *
 	 * When reading data, if conut < rx fifo full threshold, which
@@ -559,7 +558,6 @@ static int sprd_i2c_probe(struct platform_device *pdev)
 		goto err_rpm_put;
 	}
 
-	pm_runtime_mark_last_busy(i2c_dev->dev);
 	pm_runtime_put_autosuspend(i2c_dev->dev);
 	return 0;
 

@@ -852,8 +852,6 @@ int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_mld_free_sta_link(mvm, mvm_sta, mvm_link_sta, link_id);
 	}
-	kfree(mvm_sta->mpdu_counters);
-	mvm_sta->mpdu_counters = NULL;
 
 	return ret;
 }

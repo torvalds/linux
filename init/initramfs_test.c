@@ -45,8 +45,11 @@ static size_t fill_cpio(struct initramfs_test_cpio *cs, size_t csz, char *out)
 			c->mtime, c->filesize, c->devmajor, c->devminor,
 			c->rdevmajor, c->rdevminor, c->namesize, c->csum,
 			c->fname) + 1;
+
 		pr_debug("packing (%zu): %.*s\n", thislen, (int)thislen, pos);
-		off += thislen;
+		if (thislen != CPIO_HDRLEN + c->namesize)
+			pr_debug("padded to: %u\n", CPIO_HDRLEN + c->namesize);
+		off += CPIO_HDRLEN + c->namesize;
 		while (off & 3)
 			out[off++] = '\0';
 
@@ -384,6 +387,67 @@ static void __init initramfs_test_many(struct kunit *test)
 }
 
 /*
+ * An initramfs filename is namesize in length, including the zero-terminator.
+ * A filename can be zero-terminated prior to namesize, with the remainder used
+ * as padding. This can be useful for e.g. alignment of file data segments with
+ * a 4KB filesystem block, allowing for extent sharing (reflinks) between cpio
+ * source and destination. This hack works with both GNU cpio and initramfs, as
+ * long as PATH_MAX isn't exceeded.
+ */
+static void __init initramfs_test_fname_pad(struct kunit *test)
+{
+	char *err;
+	size_t len;
+	struct file *file;
+	char fdata[] = "this file data is aligned at 4K in the archive";
+	struct test_fname_pad {
+		char padded_fname[4096 - CPIO_HDRLEN];
+		char cpio_srcbuf[CPIO_HDRLEN + PATH_MAX + 3 + sizeof(fdata)];
+	} *tbufs = kzalloc(sizeof(struct test_fname_pad), GFP_KERNEL);
+	struct initramfs_test_cpio c[] = { {
+		.magic = "070701",
+		.ino = 1,
+		.mode = S_IFREG | 0777,
+		.uid = 0,
+		.gid = 0,
+		.nlink = 1,
+		.mtime = 1,
+		.filesize = sizeof(fdata),
+		.devmajor = 0,
+		.devminor = 1,
+		.rdevmajor = 0,
+		.rdevminor = 0,
+		/* align file data at 4K archive offset via padded fname */
+		.namesize = 4096 - CPIO_HDRLEN,
+		.csum = 0,
+		.fname = tbufs->padded_fname,
+		.data = fdata,
+	} };
+
+	memcpy(tbufs->padded_fname, "padded_fname", sizeof("padded_fname"));
+	len = fill_cpio(c, ARRAY_SIZE(c), tbufs->cpio_srcbuf);
+
+	err = unpack_to_rootfs(tbufs->cpio_srcbuf, len);
+	KUNIT_EXPECT_NULL(test, err);
+
+	file = filp_open(c[0].fname, O_RDONLY, 0);
+	if (IS_ERR(file)) {
+		KUNIT_FAIL(test, "open failed");
+		goto out;
+	}
+
+	/* read back file contents into @cpio_srcbuf and confirm match */
+	len = kernel_read(file, tbufs->cpio_srcbuf, c[0].filesize, NULL);
+	KUNIT_EXPECT_EQ(test, len, c[0].filesize);
+	KUNIT_EXPECT_MEMEQ(test, tbufs->cpio_srcbuf, c[0].data, len);
+
+	fput(file);
+	KUNIT_EXPECT_EQ(test, init_unlink(c[0].fname), 0);
+out:
+	kfree(tbufs);
+}
+
+/*
  * The kunit_case/_suite struct cannot be marked as __initdata as this will be
  * used in debugfs to retrieve results after test has run.
  */
@@ -394,6 +458,7 @@ static struct kunit_case __refdata initramfs_test_cases[] = {
 	KUNIT_CASE(initramfs_test_csum),
 	KUNIT_CASE(initramfs_test_hardlink),
 	KUNIT_CASE(initramfs_test_many),
+	KUNIT_CASE(initramfs_test_fname_pad),
 	{},
 };
 

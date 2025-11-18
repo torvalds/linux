@@ -519,7 +519,7 @@ void rtl_swlps_beacon(struct ieee80211_hw *hw, void *data, unsigned int len)
 
 	/* 1. What about buffered unicast traffic for our AID? */
 	u_buffed = ieee80211_check_tim(tim_ie, tim_len,
-				       rtlpriv->mac80211.assoc_id);
+				       rtlpriv->mac80211.assoc_id, false);
 
 	/* 2. Maybe the AP wants to send multicast/broadcast data? */
 	m_buffed = tim_ie->bitmap_ctrl & 0x01;

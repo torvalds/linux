@@ -849,7 +849,7 @@ static int rvin_isp_init(struct rvin_dev *vin)
  * Suspend / Resume
  */
 
-static int __maybe_unused rvin_suspend(struct device *dev)
+static int rvin_suspend(struct device *dev)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
 
@@ -861,7 +861,7 @@ static int __maybe_unused rvin_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rvin_resume(struct device *dev)
+static int rvin_resume(struct device *dev)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
 
@@ -1276,13 +1276,13 @@ static void rcar_vin_remove(struct platform_device *pdev)
 	rvin_dma_unregister(vin);
 }
 
-static SIMPLE_DEV_PM_OPS(rvin_pm_ops, rvin_suspend, rvin_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(rvin_pm_ops, rvin_suspend, rvin_resume);
 
 static struct platform_driver rcar_vin_driver = {
 	.driver = {
 		.name = "rcar-vin",
 		.suppress_bind_attrs = true,
-		.pm = &rvin_pm_ops,
+		.pm = pm_sleep_ptr(&rvin_pm_ops),
 		.of_match_table = rvin_of_id_table,
 	},
 	.probe = rcar_vin_probe,

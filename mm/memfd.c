@@ -385,11 +385,11 @@ static int sanitize_flags(unsigned int *flags_ptr)
 	unsigned int flags = *flags_ptr;
 
 	if (!(flags & MFD_HUGETLB)) {
-		if (flags & ~(unsigned int)MFD_ALL_FLAGS)
+		if (flags & ~MFD_ALL_FLAGS)
 			return -EINVAL;
 	} else {
 		/* Allow huge page size encoding in flags. */
-		if (flags & ~(unsigned int)(MFD_ALL_FLAGS |
+		if (flags & ~(MFD_ALL_FLAGS |
 				(MFD_HUGE_MASK << MFD_HUGE_SHIFT)))
 			return -EINVAL;
 	}

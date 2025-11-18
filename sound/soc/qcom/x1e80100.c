@@ -210,14 +210,15 @@ static int x1e80100_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	card->driver_name = "x1e80100";
+	card->driver_name = of_device_get_match_data(dev);
 	x1e80100_add_be_ops(card);
 
 	return devm_snd_soc_register_card(dev, card);
 }
 
 static const struct of_device_id snd_x1e80100_dt_match[] = {
-	{ .compatible = "qcom,x1e80100-sndcard", },
+	{ .compatible = "qcom,x1e80100-sndcard", .data = "x1e80100" },
+	{ .compatible = "qcom,glymur-sndcard", .data = "glymur" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, snd_x1e80100_dt_match);

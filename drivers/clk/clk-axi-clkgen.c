@@ -540,7 +540,7 @@ static int axi_clkgen_setup_limits(struct axi_clkgen *axi_clkgen,
 	default:
 		return dev_err_probe(dev, -ENODEV, "Unknown speed grade %d\n",
 				     speed_grade);
-	};
+	}
 
 	/* Overwrite vco limits for ultrascale+ */
 	if (tech == ADI_AXI_FPGA_TECH_ULTRASCALE_PLUS) {

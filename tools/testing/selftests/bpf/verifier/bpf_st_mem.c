@@ -93,7 +93,7 @@
 	.expected_attach_type = BPF_SK_LOOKUP,
 	.result = VERBOSE_ACCEPT,
 	.runs = -1,
-	.errstr = "0: (7a) *(u64 *)(r10 -8) = -44        ; R10=fp0 fp-8_w=-44\
+	.errstr = "0: (7a) *(u64 *)(r10 -8) = -44        ; R10=fp0 fp-8=-44\
 	2: (c5) if r0 s< 0x0 goto pc+2\
-	R0_w=-44",
+	R0=-44",
 },

@@ -191,7 +191,7 @@ void reset_thread_features(void)
 	current->thread.features_locked = 0;
 }
 
-unsigned long shstk_alloc_thread_stack(struct task_struct *tsk, unsigned long clone_flags,
+unsigned long shstk_alloc_thread_stack(struct task_struct *tsk, u64 clone_flags,
 				       unsigned long stack_size)
 {
 	struct thread_shstk *shstk = &tsk->thread.shstk;
@@ -244,6 +244,46 @@ static unsigned long get_user_shstk_addr(void)
 	fpregs_unlock();
 
 	return ssp;
+}
+
+int shstk_pop(u64 *val)
+{
+	int ret = 0;
+	u64 ssp;
+
+	if (!features_enabled(ARCH_SHSTK_SHSTK))
+		return -ENOTSUPP;
+
+	fpregs_lock_and_load();
+
+	rdmsrq(MSR_IA32_PL3_SSP, ssp);
+	if (val && get_user(*val, (__user u64 *)ssp))
+		ret = -EFAULT;
+	else
+		wrmsrq(MSR_IA32_PL3_SSP, ssp + SS_FRAME_SIZE);
+	fpregs_unlock();
+
+	return ret;
+}
+
+int shstk_push(u64 val)
+{
+	u64 ssp;
+	int ret;
+
+	if (!features_enabled(ARCH_SHSTK_SHSTK))
+		return -ENOTSUPP;
+
+	fpregs_lock_and_load();
+
+	rdmsrq(MSR_IA32_PL3_SSP, ssp);
+	ssp -= SS_FRAME_SIZE;
+	ret = write_user_shstk_64((__user void *)ssp, val);
+	if (!ret)
+		wrmsrq(MSR_IA32_PL3_SSP, ssp);
+	fpregs_unlock();
+
+	return ret;
 }
 
 #define SHSTK_DATA_BIT BIT(63)

@@ -1303,8 +1303,8 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 	struct omap_iommu_device *iommu;
 	struct omap_iommu *oiommu;
 	struct iotlb_entry e;
+	int ret = -EINVAL;
 	int omap_pgsz;
-	u32 ret = -EINVAL;
 	int i;
 
 	omap_pgsz = bytes_to_iopgsz(bytes);

@@ -790,6 +790,21 @@ enum {
 #define FBNIC_CSR_END_PCS		0x10668 /* CSR section delimiter */
 
 #define FBNIC_CSR_START_RSFEC		0x10800 /* CSR section delimiter */
+
+/* We have 4 RSFEC engines present in our part, however we are only using 1.
+ * As such only CCW(0) and NCCW(0) will never be non-zero and the other
+ * registers can be ignored.
+ */
+#define FBNIC_RSFEC_CCW_LO(n)	(0x10802 + 8 * (n))	/* 0x42008 + 32*n */
+#define FBNIC_RSFEC_CCW_HI(n)	(0x10803 + 8 * (n))	/* 0x4200c + 32*n */
+#define FBNIC_RSFEC_NCCW_LO(n)	(0x10804 + 8 * (n))	/* 0x42010 + 32*n */
+#define FBNIC_RSFEC_NCCW_HI(n)	(0x10805 + 8 * (n))	/* 0x42014 + 32*n */
+
+#define FBNIC_PCS_MAX_LANES			4
+#define FBNIC_PCS_SYMBLERR_LO(n) \
+				(0x10880 + 2 * (n))	/* 0x42200 + 8*n */
+#define FBNIC_PCS_SYMBLERR_HI(n) \
+				(0x10881 + 2 * (n))	/* 0x42204 + 8*n */
 #define FBNIC_CSR_END_RSFEC		0x108c8 /* CSR section delimiter */
 
 /* MAC MAC registers (ASIC only) */
@@ -829,6 +844,10 @@ enum {
 #define FBNIC_CSR_END_SIG		0x1184e /* CSR section delimiter */
 
 #define FBNIC_CSR_START_MAC_STAT	0x11a00
+#define FBNIC_MAC_STAT_RX_XOFF_STB_L	0x11a00		/* 0x46800 */
+#define FBNIC_MAC_STAT_RX_XOFF_STB_H	0x11a01		/* 0x46804 */
+#define FBNIC_MAC_STAT_TX_XOFF_STB_L	0x11a04		/* 0x46810 */
+#define FBNIC_MAC_STAT_TX_XOFF_STB_H	0x11a05		/* 0x46814 */
 #define FBNIC_MAC_STAT_RX_BYTE_COUNT_L	0x11a08		/* 0x46820 */
 #define FBNIC_MAC_STAT_RX_BYTE_COUNT_H	0x11a09		/* 0x46824 */
 #define FBNIC_MAC_STAT_RX_ALIGN_ERROR_L	0x11a0a		/* 0x46828 */
@@ -1158,5 +1177,23 @@ enum {
 #define FBNIC_IPC_MBX_DESC_ADDR_MASK	DESC_GENMASK(45, 3)
 #define FBNIC_IPC_MBX_DESC_FW_CMPL	DESC_BIT(1)
 #define FBNIC_IPC_MBX_DESC_HOST_CMPL	DESC_BIT(0)
+
+/* OTP Registers
+ * These registers are accessible via bar4 offset and are written by CMRT
+ * on boot. For the write status, the register is broken up in half with OTP
+ * Write Data Status occupying the top 16 bits and the ECC status occupying the
+ * bottom 16 bits.
+ */
+#define FBNIC_NS_OTP_STATUS		0x0021d
+#define FBNIC_NS_OTP_WRITE_STATUS	0x0021e
+
+#define FBNIC_NS_OTP_WRITE_DATA_STATUS_MASK	CSR_GENMASK(31, 16)
+#define FBNIC_NS_OTP_WRITE_ECC_STATUS_MASK	CSR_GENMASK(15, 0)
+
+#define FBNIC_REGS_VERSION			CSR_GENMASK(31, 16)
+#define FBNIC_REGS_HW_TYPE			CSR_GENMASK(15, 8)
+enum{
+	FBNIC_CSR_VERSION_V1_0_ASIC = 1,
+};
 
 #endif /* _FBNIC_CSR_H_ */

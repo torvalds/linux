@@ -372,7 +372,6 @@ static int rzv2m_i2c_xfer(struct i2c_adapter *adap,
 	ret = num;
 
 out:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;

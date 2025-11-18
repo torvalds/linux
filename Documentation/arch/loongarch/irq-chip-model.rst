@@ -139,13 +139,13 @@ Feature EXTIOI_HAS_INT_ENCODE is part of standard EIOINTC. If it is 1, it
 indicates that CPU Interrupt Pin selection can be normal method rather than
 bitmap method, so interrupt can be routed to IP0 - IP15.
 
-Feature EXTIOI_HAS_CPU_ENCODE is entension of V-EIOINTC. If it is 1, it
+Feature EXTIOI_HAS_CPU_ENCODE is extension of V-EIOINTC. If it is 1, it
 indicates that CPU selection can be normal method rather than bitmap method,
 so interrupt can be routed to CPU0 - CPU255.
 
 EXTIOI_VIRT_CONFIG
 ------------------
-This register is read-write register, for compatibility intterupt routed uses
+This register is read-write register, for compatibility interrupt routed uses
 the default method which is the same with standard EIOINTC. If the bit is set
 with 1, it indicated HW to use normal method rather than bitmap method.
 

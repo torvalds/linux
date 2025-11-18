@@ -309,6 +309,7 @@ next_pte:
 				}
 				pte_unmap(pvmw->pte);
 				pvmw->pte = NULL;
+				pvmw->flags |= PVMW_PGTABLE_CROSSED;
 				goto restart;
 			}
 			pvmw->pte++;

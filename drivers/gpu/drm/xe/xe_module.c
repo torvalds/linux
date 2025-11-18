@@ -135,24 +135,17 @@ static const struct init_funcs init_funcs[] = {
 	},
 };
 
-static int __init xe_call_init_func(unsigned int i)
+static int __init xe_call_init_func(const struct init_funcs *func)
 {
-	if (WARN_ON(i >= ARRAY_SIZE(init_funcs)))
-		return 0;
-	if (!init_funcs[i].init)
-		return 0;
-
-	return init_funcs[i].init();
+	if (func->init)
+		return func->init();
+	return 0;
 }
 
-static void xe_call_exit_func(unsigned int i)
+static void xe_call_exit_func(const struct init_funcs *func)
 {
-	if (WARN_ON(i >= ARRAY_SIZE(init_funcs)))
-		return;
-	if (!init_funcs[i].exit)
-		return;
-
-	init_funcs[i].exit();
+	if (func->exit)
+		func->exit();
 }
 
 static int __init xe_init(void)
@@ -160,10 +153,12 @@ static int __init xe_init(void)
 	int err, i;
 
 	for (i = 0; i < ARRAY_SIZE(init_funcs); i++) {
-		err = xe_call_init_func(i);
+		err = xe_call_init_func(init_funcs + i);
 		if (err) {
+			pr_info("%s: module_init aborted at %ps %pe\n",
+				DRIVER_NAME, init_funcs[i].init, ERR_PTR(err));
 			while (i--)
-				xe_call_exit_func(i);
+				xe_call_exit_func(init_funcs + i);
 			return err;
 		}
 	}
@@ -176,7 +171,7 @@ static void __exit xe_exit(void)
 	int i;
 
 	for (i = ARRAY_SIZE(init_funcs) - 1; i >= 0; i--)
-		xe_call_exit_func(i);
+		xe_call_exit_func(init_funcs + i);
 }
 
 module_init(xe_init);

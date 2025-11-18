@@ -29,7 +29,7 @@ struct thread_args {
 	int sockfd;
 };
 
-static int wait = 1;
+static volatile int wait = 1;
 
 static void *thread_main(void *varg)
 {

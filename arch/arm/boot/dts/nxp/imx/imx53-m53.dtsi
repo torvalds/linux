@@ -47,7 +47,7 @@
 		interrupt-parent = <&gpio7>;
 		irq-trigger = <0x1>;
 
-		stmpe_touchscreen {
+		touchscreen {
 			compatible = "st,stmpe-ts";
 			st,sample-time = <4>;
 			st,mod-12b = <1>;

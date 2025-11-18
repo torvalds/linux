@@ -17,6 +17,12 @@
 
 #include <linux/types.h>
 
+static inline const char *str_assert_deassert(bool v)
+{
+	return v ? "assert" : "deassert";
+}
+#define str_deassert_assert(v)		str_assert_deassert(!(v))
+
 static inline const char *str_enable_disable(bool v)
 {
 	return v ? "enable" : "disable";
@@ -40,6 +46,12 @@ static inline const char *str_high_low(bool v)
 	return v ? "high" : "low";
 }
 #define str_low_high(v)		str_high_low(!(v))
+
+static inline const char *str_input_output(bool v)
+{
+	return v ? "input" : "output";
+}
+#define str_output_input(v)	str_input_output(!(v))
 
 static inline const char *str_on_off(bool v)
 {

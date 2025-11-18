@@ -9,7 +9,7 @@
 /*
  * asm-generic/bitops/ffs.h
  */
-static inline int ffs(int x)
+static inline __attribute_const__ int ffs(int x)
 {
 	if (!x)
 		return 0;
@@ -26,7 +26,7 @@ static inline int ffs(int x)
 /*
  * asm-generic/bitops/__ffs.h
  */
-static __always_inline unsigned long __ffs(unsigned long x)
+static __always_inline __attribute_const__ unsigned long __ffs(unsigned long x)
 {
 	asm volatile (
 		"brev %0\n"
@@ -39,7 +39,7 @@ static __always_inline unsigned long __ffs(unsigned long x)
 /*
  * asm-generic/bitops/fls.h
  */
-static __always_inline int fls(unsigned int x)
+static __always_inline __attribute_const__ int fls(unsigned int x)
 {
 	asm volatile(
 		"ff1 %0\n"
@@ -52,7 +52,7 @@ static __always_inline int fls(unsigned int x)
 /*
  * asm-generic/bitops/__fls.h
  */
-static __always_inline unsigned long __fls(unsigned long x)
+static __always_inline __attribute_const__ unsigned long __fls(unsigned long x)
 {
 	return fls(x) - 1;
 }

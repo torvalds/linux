@@ -34,7 +34,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		ramoops@88d00000{
+		ramoops@88d00000 {
 			compatible = "ramoops";
 			reg = <0x88d00000 0x100000>;
 			record-size = <0x20000>;
@@ -326,8 +326,8 @@
 		 */
 		pm8921_s4: s4 {
 			regulator-always-on;
-			regulator-min-microvolt	= <1800000>;
-			regulator-max-microvolt	= <1800000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 			qcom,switch-mode-frequency = <1600000>;
 			bias-pull-down;
 			qcom,force-mode = <QCOM_RPM_FORCE_MODE_AUTO>;

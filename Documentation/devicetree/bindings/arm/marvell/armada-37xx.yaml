@@ -23,6 +23,7 @@ properties:
               - marvell,armada-3720-db
               - methode,edpu
               - methode,udpu
+              - ripe,atlas-v5
           - const: marvell,armada3720
           - const: marvell,armada3710
 

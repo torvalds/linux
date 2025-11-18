@@ -301,6 +301,7 @@ struct hv_input_map_device_interrupt {
 /* HV_OUTPUT_MAP_DEVICE_INTERRUPT */
 struct hv_output_map_device_interrupt {
 	struct hv_interrupt_entry interrupt_entry;
+	u64 ext_status_deprecated[5];
 } __packed;
 
 /* HV_INPUT_UNMAP_DEVICE_INTERRUPT */

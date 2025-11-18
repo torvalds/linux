@@ -301,7 +301,7 @@ static void update_insn_state_x86(struct type_state *state,
 			 * as a pointer.
 			 */
 			tsr->type = type_die;
-			tsr->kind = TSR_KIND_POINTER;
+			tsr->kind = TSR_KIND_PERCPU_POINTER;
 			tsr->ok = true;
 
 			pr_debug_dtp("add [%x] percpu %#"PRIx64" -> reg%d",
@@ -521,7 +521,7 @@ retry:
 		}
 		/* And then dereference the calculated pointer if it has one */
 		else if (has_reg_type(state, sreg) && state->regs[sreg].ok &&
-			 state->regs[sreg].kind == TSR_KIND_POINTER &&
+			 state->regs[sreg].kind == TSR_KIND_PERCPU_POINTER &&
 			 die_get_member_type(&state->regs[sreg].type,
 					     src->offset, &type_die)) {
 			tsr->type = type_die;

@@ -203,7 +203,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 
 	folio = page_folio(pfn_to_page(pfn));
 	mapping = folio_flush_mapping(folio);
-	if (!test_and_set_bit(PG_dcache_clean, &folio->flags))
+	if (!test_and_set_bit(PG_dcache_clean, &folio->flags.f))
 		__flush_dcache_folio(mapping, folio);
 	if (mapping) {
 		if (cache_is_vivt())

@@ -167,7 +167,8 @@ static inline int nct6775_asuswmi_write(u8 bank, u8 reg, u8 val)
 
 static inline int nct6775_asuswmi_read(u8 bank, u8 reg, u8 *val)
 {
-	u32 ret, tmp = 0;
+	u32 tmp = 0;
+	int ret;
 
 	ret = nct6775_asuswmi_evaluate_method(ASUSWMI_METHODID_RHWM, bank,
 					      reg, 0, &tmp);

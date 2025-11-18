@@ -14,8 +14,6 @@
  */
 xfs_param_t xfs_params = {
 			  /*	MIN		DFLT		MAX	*/
-	.sgid_inherit	= {	0,		0,		1	},
-	.symlink_mode	= {	0,		0,		1	},
 	.panic_mask	= {	0,		0,		XFS_PTAG_MASK},
 	.error_level	= {	0,		3,		11	},
 	.syncd_timer	= {	1*100,		30*100,		7200*100},

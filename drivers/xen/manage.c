@@ -11,6 +11,7 @@
 #include <linux/reboot.h>
 #include <linux/sysrq.h>
 #include <linux/stop_machine.h>
+#include <linux/suspend.h>
 #include <linux/freezer.h>
 #include <linux/syscore_ops.h>
 #include <linux/export.h>
@@ -95,10 +96,16 @@ static void do_suspend(void)
 
 	shutting_down = SHUTDOWN_SUSPEND;
 
+	if (!mutex_trylock(&system_transition_mutex))
+	{
+		pr_err("%s: failed to take system_transition_mutex\n", __func__);
+		goto out;
+	}
+
 	err = freeze_processes();
 	if (err) {
 		pr_err("%s: freeze processes failed %d\n", __func__, err);
-		goto out;
+		goto out_unlock;
 	}
 
 	err = freeze_kernel_threads();
@@ -110,7 +117,7 @@ static void do_suspend(void)
 	err = dpm_suspend_start(PMSG_FREEZE);
 	if (err) {
 		pr_err("%s: dpm_suspend_start %d\n", __func__, err);
-		goto out_thaw;
+		goto out_resume_end;
 	}
 
 	printk(KERN_DEBUG "suspending xenstore...\n");
@@ -150,10 +157,13 @@ out_resume:
 	else
 		xs_suspend_cancel();
 
+out_resume_end:
 	dpm_resume_end(si.cancelled ? PMSG_THAW : PMSG_RESTORE);
 
 out_thaw:
 	thaw_processes();
+out_unlock:
+	mutex_unlock(&system_transition_mutex);
 out:
 	shutting_down = SHUTDOWN_INVALID;
 }

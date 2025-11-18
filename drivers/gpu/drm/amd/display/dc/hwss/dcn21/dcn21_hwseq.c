@@ -35,7 +35,7 @@
 #include "hw/clk_mgr.h"
 #include "dc_dmub_srv.h"
 #include "abm.h"
-#include "link.h"
+#include "link_service.h"
 
 #define DC_LOGGER_INIT(logger)
 

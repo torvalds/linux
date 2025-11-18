@@ -491,7 +491,7 @@ xfs_attr_finish_item(
 	/* Reset trans after EAGAIN cycle since the transaction is new */
 	args->trans = tp;
 
-	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP)) {
+	if (XFS_TEST_ERROR(args->dp->i_mount, XFS_ERRTAG_LARP)) {
 		error = -EIO;
 		goto out;
 	}

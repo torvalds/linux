@@ -137,10 +137,6 @@ static int mc13xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	if (!priv->valid) {
-		ret = mc13xxx_irq_ack(priv->mc13xxx, MC13XXX_IRQ_RTCRST);
-		if (unlikely(ret))
-			goto out;
-
 		ret = mc13xxx_irq_unmask(priv->mc13xxx, MC13XXX_IRQ_RTCRST);
 	}
 
@@ -208,10 +204,6 @@ static int mc13xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (unlikely(ret))
 		goto out;
 
-	ret = mc13xxx_irq_ack(priv->mc13xxx, MC13XXX_IRQ_TODA);
-	if (unlikely(ret))
-		goto out;
-
 	s1970 = rtc_tm_to_time64(&alarm->time);
 
 	dev_dbg(dev, "%s: %s %lld\n", __func__, alarm->enabled ? "on" : "off",
@@ -239,11 +231,8 @@ out:
 static irqreturn_t mc13xxx_rtc_alarm_handler(int irq, void *dev)
 {
 	struct mc13xxx_rtc *priv = dev;
-	struct mc13xxx *mc13xxx = priv->mc13xxx;
 
 	rtc_update_irq(priv->rtc, 1, RTC_IRQF | RTC_AF);
-
-	mc13xxx_irq_ack(mc13xxx, irq);
 
 	return IRQ_HANDLED;
 }
@@ -292,8 +281,6 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 	priv->rtc->range_max = (timeu64_t)(1 << 15) * SEC_PER_DAY - 1;
 
 	mc13xxx_lock(mc13xxx);
-
-	mc13xxx_irq_ack(mc13xxx, MC13XXX_IRQ_RTCRST);
 
 	ret = mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_RTCRST,
 			mc13xxx_rtc_reset_handler, DRIVER_NAME, priv);

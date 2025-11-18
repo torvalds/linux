@@ -1766,8 +1766,9 @@ static int gic_irq_domain_select(struct irq_domain *d,
 				 struct irq_fwspec *fwspec,
 				 enum irq_domain_bus_token bus_token)
 {
-	unsigned int type, ret, ppi_idx;
+	unsigned int type, ppi_idx;
 	irq_hw_number_t hwirq;
+	int ret;
 
 	/* Not for us */
 	if (fwspec->fwnode != d->fwnode)

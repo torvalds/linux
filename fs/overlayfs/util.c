@@ -210,11 +210,11 @@ bool ovl_dentry_weird(struct dentry *dentry)
 		return true;
 
 	/*
-	 * Allow filesystems that are case-folding capable but deny composing
-	 * ovl stack from case-folded directories.
+	 * Exceptionally for layers with casefold, we accept that they have
+	 * their own hash and compare operations
 	 */
 	if (sb_has_encoding(dentry->d_sb))
-		return IS_CASEFOLDED(d_inode(dentry));
+		return false;
 
 	return dentry->d_flags & (DCACHE_OP_HASH | DCACHE_OP_COMPARE);
 }
@@ -1381,7 +1381,7 @@ err_free:
 }
 
 /* Call with mounter creds as it may open the file */
-int ovl_ensure_verity_loaded(struct path *datapath)
+int ovl_ensure_verity_loaded(const struct path *datapath)
 {
 	struct inode *inode = d_inode(datapath->dentry);
 	struct file *filp;
@@ -1401,8 +1401,8 @@ int ovl_ensure_verity_loaded(struct path *datapath)
 }
 
 int ovl_validate_verity(struct ovl_fs *ofs,
-			struct path *metapath,
-			struct path *datapath)
+			const struct path *metapath,
+			const struct path *datapath)
 {
 	struct ovl_metacopy metacopy_data;
 	u8 actual_digest[FS_VERITY_MAX_DIGEST_SIZE];
@@ -1455,7 +1455,7 @@ int ovl_validate_verity(struct ovl_fs *ofs,
 	return 0;
 }
 
-int ovl_get_verity_digest(struct ovl_fs *ofs, struct path *src,
+int ovl_get_verity_digest(struct ovl_fs *ofs, const struct path *src,
 			  struct ovl_metacopy *metacopy)
 {
 	int err, digest_size;
@@ -1552,7 +1552,8 @@ void ovl_copyattr(struct inode *inode)
 int ovl_parent_lock(struct dentry *parent, struct dentry *child)
 {
 	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
-	if (!child || child->d_parent == parent)
+	if (!child ||
+	    (!d_unhashed(child) && child->d_parent == parent))
 		return 0;
 
 	inode_unlock(parent->d_inode);

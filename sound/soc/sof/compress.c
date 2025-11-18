@@ -361,7 +361,7 @@ static int sof_compr_copy(struct snd_soc_component *component,
 
 static int sof_compr_pointer(struct snd_soc_component *component,
 			     struct snd_compr_stream *cstream,
-			     struct snd_compr_tstamp *tstamp)
+			     struct snd_compr_tstamp64 *tstamp)
 {
 	struct snd_sof_pcm *spcm;
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;

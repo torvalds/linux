@@ -142,10 +142,11 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel);
  * tb_tunnel_is_active() - Is tunnel fully activated
  * @tunnel: Tunnel to check
  *
- * Returns %true if @tunnel is fully activated. For other than DP
- * tunnels this is pretty much once tb_tunnel_activate() returns
- * successfully. However, for DP tunnels this returns %true only once the
- * DPRX capabilities read has been issued successfully.
+ * Return: %true if @tunnel is fully activated.
+ *
+ * Note for DP tunnels this returns %true only once the DPRX capabilities
+ * read has been issued successfully. For other tunnels, this function
+ * returns %true pretty much once tb_tunnel_activate() returns successfully.
  */
 static inline bool tb_tunnel_is_active(const struct tb_tunnel *tunnel)
 {

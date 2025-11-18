@@ -465,6 +465,25 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 	return 0;
 }
 
+static int ptp_qoriq_perout_loopback(struct ptp_clock_info *ptp,
+				     unsigned int index, int on)
+{
+	struct ptp_qoriq *ptp_qoriq = container_of(ptp, struct ptp_qoriq, caps);
+	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
+	u32 loopback_bit = index ? PP2L : PP1L;
+	u32 tmr_ctrl;
+
+	tmr_ctrl = ptp_qoriq->read(&regs->ctrl_regs->tmr_ctrl);
+	if (on)
+		tmr_ctrl |= loopback_bit;
+	else
+		tmr_ctrl &= ~loopback_bit;
+
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl, tmr_ctrl);
+
+	return 0;
+}
+
 int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 		   const struct ptp_clock_info *caps)
 {
@@ -479,6 +498,8 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 
 	ptp_qoriq->base = base;
 	ptp_qoriq->caps = *caps;
+	ptp_qoriq->caps.n_per_lp = 2;
+	ptp_qoriq->caps.perout_loopback = ptp_qoriq_perout_loopback;
 
 	if (of_property_read_u32(node, "fsl,cksel", &ptp_qoriq->cksel))
 		ptp_qoriq->cksel = DEFAULT_CKSEL;
@@ -568,7 +589,7 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 		return PTR_ERR(ptp_qoriq->clock);
 
 	ptp_qoriq->phc_index = ptp_clock_index(ptp_qoriq->clock);
-	ptp_qoriq_create_debugfs(ptp_qoriq);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ptp_qoriq_init);
@@ -580,7 +601,6 @@ void ptp_qoriq_free(struct ptp_qoriq *ptp_qoriq)
 	ptp_qoriq->write(&regs->ctrl_regs->tmr_temask, 0);
 	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl,   0);
 
-	ptp_qoriq_remove_debugfs(ptp_qoriq);
 	ptp_clock_unregister(ptp_qoriq->clock);
 	iounmap(ptp_qoriq->base);
 	free_irq(ptp_qoriq->irq, ptp_qoriq);

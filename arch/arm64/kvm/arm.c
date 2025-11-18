@@ -6,7 +6,6 @@
 
 #include <linux/bug.h>
 #include <linux/cpu_pm.h>
-#include <linux/entry-kvm.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
@@ -170,10 +169,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (ret)
 		return ret;
 
-	ret = pkvm_init_host_vm(kvm);
-	if (ret)
-		goto err_unshare_kvm;
-
 	if (!zalloc_cpumask_var(&kvm->arch.supported_cpus, GFP_KERNEL_ACCOUNT)) {
 		ret = -ENOMEM;
 		goto err_unshare_kvm;
@@ -183,6 +178,16 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	ret = kvm_init_stage2_mmu(kvm, &kvm->arch.mmu, type);
 	if (ret)
 		goto err_free_cpumask;
+
+	if (is_protected_kvm_enabled()) {
+		/*
+		 * If any failures occur after this is successful, make sure to
+		 * call __pkvm_unreserve_vm to unreserve the VM in hyp.
+		 */
+		ret = pkvm_init_host_vm(kvm);
+		if (ret)
+			goto err_free_cpumask;
+	}
 
 	kvm_vgic_early_init(kvm);
 
@@ -637,6 +642,7 @@ nommu:
 		vcpu->arch.hcr_el2 |= HCR_TWI;
 
 	vcpu_set_pauth_traps(vcpu);
+	kvm_vcpu_load_fgt(vcpu);
 
 	if (is_protected_kvm_enabled()) {
 		kvm_call_hyp_nvhe(__pkvm_vcpu_load,
@@ -1177,7 +1183,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		/*
 		 * Check conditions before entering the guest
 		 */
-		ret = xfer_to_guest_mode_handle_work(vcpu);
+		ret = kvm_xfer_to_guest_mode_handle_work(vcpu);
 		if (!ret)
 			ret = 1;
 
@@ -1789,6 +1795,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_GET_VCPU_EVENTS: {
 		struct kvm_vcpu_events events;
 
+		if (!kvm_vcpu_initialized(vcpu))
+			return -ENOEXEC;
+
 		if (kvm_arm_vcpu_get_events(vcpu, &events))
 			return -EINVAL;
 
@@ -1799,6 +1808,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 	case KVM_SET_VCPU_EVENTS: {
 		struct kvm_vcpu_events events;
+
+		if (!kvm_vcpu_initialized(vcpu))
+			return -ENOEXEC;
 
 		if (copy_from_user(&events, argp, sizeof(events)))
 			return -EFAULT;
@@ -2113,8 +2125,10 @@ static void cpu_hyp_init_features(void)
 {
 	cpu_set_hyp_vector();
 
-	if (is_kernel_in_hyp_mode())
+	if (is_kernel_in_hyp_mode()) {
 		kvm_timer_init_vhe();
+		kvm_debug_init_vhe();
+	}
 
 	if (vgic_present)
 		kvm_vgic_init_cpu_hardware();
@@ -2315,8 +2329,9 @@ static int __init init_subsystems(void)
 	}
 
 	if (kvm_mode == KVM_MODE_NV &&
-	   !(vgic_present && kvm_vgic_global_state.type == VGIC_V3)) {
-		kvm_err("NV support requires GICv3, giving up\n");
+		!(vgic_present && (kvm_vgic_global_state.type == VGIC_V3 ||
+				   kvm_vgic_global_state.has_gcie_v3_compat))) {
+		kvm_err("NV support requires GICv3 or GICv5 with legacy support, giving up\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -2408,12 +2423,12 @@ static u64 get_hyp_id_aa64pfr0_el1(void)
 	 */
 	u64 val = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
 
-	val &= ~(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV2) |
-		 ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV3));
+	val &= ~(ID_AA64PFR0_EL1_CSV2 |
+		 ID_AA64PFR0_EL1_CSV3);
 
-	val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV2),
+	val |= FIELD_PREP(ID_AA64PFR0_EL1_CSV2,
 			  arm64_get_spectre_v2_state() == SPECTRE_UNAFFECTED);
-	val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV3),
+	val |= FIELD_PREP(ID_AA64PFR0_EL1_CSV3,
 			  arm64_get_meltdown_state() == SPECTRE_UNAFFECTED);
 
 	return val;

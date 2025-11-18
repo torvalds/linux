@@ -7,7 +7,7 @@
 #ifndef __SPARC_SPINLOCK_H
 #define __SPARC_SPINLOCK_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/psr.h>
 #include <asm/barrier.h>
@@ -183,6 +183,6 @@ static inline int __arch_read_trylock(arch_rwlock_t *rw)
 	res; \
 })
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #endif /* __SPARC_SPINLOCK_H */

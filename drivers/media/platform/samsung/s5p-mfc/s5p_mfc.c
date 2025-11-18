@@ -801,8 +801,7 @@ static int s5p_mfc_open(struct file *file)
 	}
 	init_waitqueue_head(&ctx->queue);
 	v4l2_fh_init(&ctx->fh, vdev);
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 	ctx->dev = dev;
 	INIT_LIST_HEAD(&ctx->src_queue);
 	INIT_LIST_HEAD(&ctx->dst_queue);
@@ -877,7 +876,7 @@ static int s5p_mfc_open(struct file *file)
 	/* Init videobuf2 queue for CAPTURE */
 	q = &ctx->vq_dst;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	q->drv_priv = &ctx->fh;
+	q->drv_priv = ctx;
 	q->lock = &dev->mfc_mutex;
 	if (vdev == dev->vfd_dec) {
 		q->io_modes = VB2_MMAP;
@@ -904,7 +903,7 @@ static int s5p_mfc_open(struct file *file)
 	/* Init videobuf2 queue for OUTPUT */
 	q = &ctx->vq_src;
 	q->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-	q->drv_priv = &ctx->fh;
+	q->drv_priv = ctx;
 	q->lock = &dev->mfc_mutex;
 	if (vdev == dev->vfd_dec) {
 		q->io_modes = VB2_MMAP;
@@ -956,7 +955,7 @@ err_ctrls_setup:
 err_bad_node:
 	dev->ctx[ctx->num] = NULL;
 err_no_ctx:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 err_alloc:
@@ -970,7 +969,7 @@ err_enter:
 /* Release MFC context */
 static int s5p_mfc_release(struct file *file)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
+	struct s5p_mfc_ctx *ctx = file_to_ctx(file);
 	struct s5p_mfc_dev *dev = ctx->dev;
 
 	/* if dev is null, do cleanup that doesn't need dev */
@@ -1011,7 +1010,7 @@ static int s5p_mfc_release(struct file *file)
 	if (dev)
 		dev->ctx[ctx->num] = NULL;
 	s5p_mfc_dec_ctrls_delete(ctx);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	/* vdev is gone if dev is null */
 	if (dev)
 		v4l2_fh_exit(&ctx->fh);
@@ -1027,7 +1026,7 @@ static int s5p_mfc_release(struct file *file)
 static __poll_t s5p_mfc_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
+	struct s5p_mfc_ctx *ctx = file_to_ctx(file);
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct vb2_queue *src_q, *dst_q;
 	struct vb2_buffer *src_vb = NULL, *dst_vb = NULL;
@@ -1078,7 +1077,7 @@ end:
 /* Mmap */
 static int s5p_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
+	struct s5p_mfc_ctx *ctx = file_to_ctx(file);
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	int ret;
 

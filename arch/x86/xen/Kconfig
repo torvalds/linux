@@ -8,6 +8,7 @@ config XEN
 	depends on PARAVIRT
 	select PARAVIRT_CLOCK
 	select X86_HV_CALLBACK_VECTOR
+	select HIBERNATE_CALLBACKS
 	depends on X86_64 || (X86_32 && X86_PAE)
 	depends on X86_64 || (X86_GENERIC || MPENTIUM4 || MATOM)
 	depends on X86_LOCAL_APIC && X86_TSC
@@ -63,12 +64,6 @@ config XEN_PVHVM_GUEST
 	depends on XEN_PVHVM && PCI
 	help
 	  Support running as a Xen PVHVM guest.
-
-config XEN_SAVE_RESTORE
-	bool
-	depends on XEN
-	select HIBERNATE_CALLBACKS
-	default y
 
 config XEN_DEBUG_FS
 	bool "Enable Xen debug and tuning parameters in debugfs"

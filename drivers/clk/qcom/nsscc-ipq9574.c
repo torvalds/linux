@@ -3016,7 +3016,7 @@ static const struct qcom_reset_map nss_cc_ipq9574_resets[] = {
 	[NSSPORT4_RESET] = { .reg = 0x28a24, .bitmask = GENMASK(5, 4) },
 	[NSSPORT5_RESET] = { .reg = 0x28a24, .bitmask = GENMASK(3, 2) },
 	[NSSPORT6_RESET] = { .reg = 0x28a24, .bitmask = GENMASK(1, 0) },
-	[EDMA_HW_RESET] =  { .reg = 0x28a08, .bitmask = GENMASK(16, 15) },
+	[EDMA_HW_RESET] = { .reg = 0x28a08, .bitmask = GENMASK(16, 15) },
 };
 
 static const struct regmap_config nss_cc_ipq9574_regmap_config = {

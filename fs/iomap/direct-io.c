@@ -337,8 +337,7 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	u64 copied = 0;
 	size_t orig_count;
 
-	if ((pos | length) & (bdev_logical_block_size(iomap->bdev) - 1) ||
-	    !bdev_iter_is_aligned(iomap->bdev, dio->submit.iter))
+	if ((pos | length) & (bdev_logical_block_size(iomap->bdev) - 1))
 		return -EINVAL;
 
 	if (dio->flags & IOMAP_DIO_WRITE) {
@@ -363,14 +362,14 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		if (iomap->flags & IOMAP_F_SHARED)
 			dio->flags |= IOMAP_DIO_COW;
 
-		if (iomap->flags & IOMAP_F_NEW) {
+		if (iomap->flags & IOMAP_F_NEW)
 			need_zeroout = true;
-		} else if (iomap->type == IOMAP_MAPPED) {
-			if (iomap_dio_can_use_fua(iomap, dio))
-				bio_opf |= REQ_FUA;
-			else
-				dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
-		}
+		else if (iomap->type == IOMAP_MAPPED &&
+			 iomap_dio_can_use_fua(iomap, dio))
+			bio_opf |= REQ_FUA;
+
+		if (!(bio_opf & REQ_FUA))
+			dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
 
 		/*
 		 * We can only do deferred completion for pure overwrites that
@@ -434,7 +433,8 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		bio->bi_private = dio;
 		bio->bi_end_io = iomap_dio_bio_end_io;
 
-		ret = bio_iov_iter_get_pages(bio, dio->submit.iter);
+		ret = bio_iov_iter_get_pages(bio, dio->submit.iter,
+				bdev_logical_block_size(iomap->bdev) - 1);
 		if (unlikely(ret)) {
 			/*
 			 * We have to stop part way through an IO. We must fall
@@ -518,6 +518,9 @@ static int iomap_dio_inline_iter(struct iomap_iter *iomi, struct iomap_dio *dio)
 	loff_t length = iomap_length(iomi);
 	loff_t pos = iomi->pos;
 	u64 copied;
+
+	if (WARN_ON_ONCE(!inline_data))
+		return -EIO;
 
 	if (WARN_ON_ONCE(!iomap_inline_data_valid(iomap)))
 		return -EIO;

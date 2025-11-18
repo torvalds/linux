@@ -4,7 +4,7 @@
 
 #include <asm/page.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/mm.h>
 
@@ -78,6 +78,6 @@ void flush_ptrace_access(struct vm_area_struct *, struct page *,
 #define flush_cache_vmap_early(start, end)	do { } while (0)
 #define flush_cache_vunmap(start, end)		do { } while (0)
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _SPARC64_CACHEFLUSH_H */

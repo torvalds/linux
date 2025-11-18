@@ -57,7 +57,7 @@ static int kernfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 const struct super_operations kernfs_sops = {
 	.statfs		= kernfs_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.evict_inode	= kernfs_evict_inode,
 
 	.show_options	= kernfs_sop_show_options,

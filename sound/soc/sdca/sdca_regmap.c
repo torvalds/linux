@@ -196,7 +196,7 @@ int sdca_regmap_mbq_size(struct sdca_function_data *function, unsigned int reg)
 
 	control = function_find_control(function, reg);
 	if (!control)
-		return false;
+		return -EINVAL;
 
 	return clamp_val(control->nbits / BITS_PER_BYTE, sizeof(u8), sizeof(u32));
 }

@@ -128,8 +128,9 @@ struct tls_rec {
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
 	u8 iv_data[TLS_MAX_IV_SIZE];
+
+	/* Must be last --ends in a flexible-array member. */
 	struct aead_request aead_req;
-	u8 aead_req_ctx[];
 };
 
 int __net_init tls_proc_init(struct net *net);
@@ -141,6 +142,7 @@ void update_sk_prot(struct sock *sk, struct tls_context *ctx);
 
 int wait_on_pending_writer(struct sock *sk, long *timeo);
 void tls_err_abort(struct sock *sk, int err);
+void tls_strp_abort_strp(struct tls_strparser *strp, int err);
 
 int init_prot_info(struct tls_prot_info *prot,
 		   const struct tls_crypto_info *crypto_info,

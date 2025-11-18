@@ -142,11 +142,12 @@ static const struct irq_domain_ops rza1_irqc_domain_ops = {
 static int rza1_irqc_parse_map(struct rza1_irqc_priv *priv,
 			       struct device_node *gic_node)
 {
-	unsigned int imaplen, i, j, ret;
 	struct device *dev = priv->dev;
+	unsigned int imaplen, i, j;
 	struct device_node *ipar;
 	const __be32 *imap;
 	u32 intsize;
+	int ret;
 
 	imap = of_get_property(dev->of_node, "interrupt-map", &imaplen);
 	if (!imap)

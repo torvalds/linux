@@ -16,6 +16,8 @@ properties:
     oneOf:
       - items:
           - enum:
+              - actiontec,mi424wr-ac
+              - actiontec,mi424wr-d
               - adieng,coyote
               - arcom,vulcan
               - dlink,dsm-g600-a

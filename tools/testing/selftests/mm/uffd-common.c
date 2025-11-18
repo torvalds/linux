@@ -7,18 +7,29 @@
 
 #include "uffd-common.h"
 
-#define BASE_PMD_ADDR ((void *)(1UL << 30))
-
-volatile bool test_uffdio_copy_eexist = true;
-unsigned long nr_parallel, nr_pages, nr_pages_per_cpu, page_size;
-char *area_src, *area_src_alias, *area_dst, *area_dst_alias, *area_remap;
-int uffd = -1, uffd_flags, finished, *pipefd, test_type;
-bool map_shared;
-bool test_uffdio_wp = true;
-unsigned long long *count_verify;
 uffd_test_ops_t *uffd_test_ops;
 uffd_test_case_ops_t *uffd_test_case_ops;
-atomic_bool ready_for_fork;
+
+#define BASE_PMD_ADDR ((void *)(1UL << 30))
+
+/* pthread_mutex_t starts at page offset 0 */
+pthread_mutex_t *area_mutex(char *area, unsigned long nr, uffd_global_test_opts_t *gopts)
+{
+	return (pthread_mutex_t *) (area + nr * gopts->page_size);
+}
+
+/*
+ * count is placed in the page after pthread_mutex_t naturally aligned
+ * to avoid non alignment faults on non-x86 archs.
+ */
+volatile unsigned long long *area_count(char *area, unsigned long nr,
+					uffd_global_test_opts_t *gopts)
+{
+	return (volatile unsigned long long *)
+	       ((unsigned long)(area + nr * gopts->page_size +
+	       sizeof(pthread_mutex_t) + sizeof(unsigned long long) - 1) &
+	       ~(unsigned long)(sizeof(unsigned long long) - 1));
+}
 
 static int uffd_mem_fd_create(off_t mem_size, bool hugetlb)
 {
@@ -40,15 +51,15 @@ static int uffd_mem_fd_create(off_t mem_size, bool hugetlb)
 	return mem_fd;
 }
 
-static void anon_release_pages(char *rel_area)
+static void anon_release_pages(uffd_global_test_opts_t *gopts, char *rel_area)
 {
-	if (madvise(rel_area, nr_pages * page_size, MADV_DONTNEED))
+	if (madvise(rel_area, gopts->nr_pages * gopts->page_size, MADV_DONTNEED))
 		err("madvise(MADV_DONTNEED) failed");
 }
 
-static int anon_allocate_area(void **alloc_area, bool is_src)
+static int anon_allocate_area(uffd_global_test_opts_t *gopts, void **alloc_area, bool is_src)
 {
-	*alloc_area = mmap(NULL, nr_pages * page_size, PROT_READ | PROT_WRITE,
+	*alloc_area = mmap(NULL, gopts->nr_pages * gopts->page_size, PROT_READ | PROT_WRITE,
 			   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (*alloc_area == MAP_FAILED) {
 		*alloc_area = NULL;
@@ -57,31 +68,32 @@ static int anon_allocate_area(void **alloc_area, bool is_src)
 	return 0;
 }
 
-static void noop_alias_mapping(__u64 *start, size_t len, unsigned long offset)
+static void noop_alias_mapping(uffd_global_test_opts_t *gopts, __u64 *start,
+			       size_t len, unsigned long offset)
 {
 }
 
-static void hugetlb_release_pages(char *rel_area)
+static void hugetlb_release_pages(uffd_global_test_opts_t *gopts, char *rel_area)
 {
-	if (!map_shared) {
-		if (madvise(rel_area, nr_pages * page_size, MADV_DONTNEED))
+	if (!gopts->map_shared) {
+		if (madvise(rel_area, gopts->nr_pages * gopts->page_size, MADV_DONTNEED))
 			err("madvise(MADV_DONTNEED) failed");
 	} else {
-		if (madvise(rel_area, nr_pages * page_size, MADV_REMOVE))
+		if (madvise(rel_area, gopts->nr_pages * gopts->page_size, MADV_REMOVE))
 			err("madvise(MADV_REMOVE) failed");
 	}
 }
 
-static int hugetlb_allocate_area(void **alloc_area, bool is_src)
+static int hugetlb_allocate_area(uffd_global_test_opts_t *gopts, void **alloc_area, bool is_src)
 {
-	off_t size = nr_pages * page_size;
+	off_t size = gopts->nr_pages * gopts->page_size;
 	off_t offset = is_src ? 0 : size;
 	void *area_alias = NULL;
 	char **alloc_area_alias;
 	int mem_fd = uffd_mem_fd_create(size * 2, true);
 
 	*alloc_area = mmap(NULL, size, PROT_READ | PROT_WRITE,
-			   (map_shared ? MAP_SHARED : MAP_PRIVATE) |
+			   (gopts->map_shared ? MAP_SHARED : MAP_PRIVATE) |
 			   (is_src ? 0 : MAP_NORESERVE),
 			   mem_fd, offset);
 	if (*alloc_area == MAP_FAILED) {
@@ -89,7 +101,7 @@ static int hugetlb_allocate_area(void **alloc_area, bool is_src)
 		return -errno;
 	}
 
-	if (map_shared) {
+	if (gopts->map_shared) {
 		area_alias = mmap(NULL, size, PROT_READ | PROT_WRITE,
 				  MAP_SHARED, mem_fd, offset);
 		if (area_alias == MAP_FAILED)
@@ -97,9 +109,9 @@ static int hugetlb_allocate_area(void **alloc_area, bool is_src)
 	}
 
 	if (is_src) {
-		alloc_area_alias = &area_src_alias;
+		alloc_area_alias = &gopts->area_src_alias;
 	} else {
-		alloc_area_alias = &area_dst_alias;
+		alloc_area_alias = &gopts->area_dst_alias;
 	}
 	if (area_alias)
 		*alloc_area_alias = area_alias;
@@ -108,24 +120,25 @@ static int hugetlb_allocate_area(void **alloc_area, bool is_src)
 	return 0;
 }
 
-static void hugetlb_alias_mapping(__u64 *start, size_t len, unsigned long offset)
+static void hugetlb_alias_mapping(uffd_global_test_opts_t *gopts, __u64 *start,
+				  size_t len, unsigned long offset)
 {
-	if (!map_shared)
+	if (!gopts->map_shared)
 		return;
 
-	*start = (unsigned long) area_dst_alias + offset;
+	*start = (unsigned long) gopts->area_dst_alias + offset;
 }
 
-static void shmem_release_pages(char *rel_area)
+static void shmem_release_pages(uffd_global_test_opts_t *gopts, char *rel_area)
 {
-	if (madvise(rel_area, nr_pages * page_size, MADV_REMOVE))
+	if (madvise(rel_area, gopts->nr_pages * gopts->page_size, MADV_REMOVE))
 		err("madvise(MADV_REMOVE) failed");
 }
 
-static int shmem_allocate_area(void **alloc_area, bool is_src)
+static int shmem_allocate_area(uffd_global_test_opts_t *gopts, void **alloc_area, bool is_src)
 {
 	void *area_alias = NULL;
-	size_t bytes = nr_pages * page_size, hpage_size = read_pmd_pagesize();
+	size_t bytes = gopts->nr_pages * gopts->page_size, hpage_size = read_pmd_pagesize();
 	unsigned long offset = is_src ? 0 : bytes;
 	char *p = NULL, *p_alias = NULL;
 	int mem_fd = uffd_mem_fd_create(bytes * 2, false);
@@ -159,22 +172,23 @@ static int shmem_allocate_area(void **alloc_area, bool is_src)
 		err("mmap of anonymous memory failed at %p", p_alias);
 
 	if (is_src)
-		area_src_alias = area_alias;
+		gopts->area_src_alias = area_alias;
 	else
-		area_dst_alias = area_alias;
+		gopts->area_dst_alias = area_alias;
 
 	close(mem_fd);
 	return 0;
 }
 
-static void shmem_alias_mapping(__u64 *start, size_t len, unsigned long offset)
+static void shmem_alias_mapping(uffd_global_test_opts_t *gopts, __u64 *start,
+				size_t len, unsigned long offset)
 {
-	*start = (unsigned long)area_dst_alias + offset;
+	*start = (unsigned long)gopts->area_dst_alias + offset;
 }
 
-static void shmem_check_pmd_mapping(void *p, int expect_nr_hpages)
+static void shmem_check_pmd_mapping(uffd_global_test_opts_t *gopts, void *p, int expect_nr_hpages)
 {
-	if (!check_huge_shmem(area_dst_alias, expect_nr_hpages,
+	if (!check_huge_shmem(gopts->area_dst_alias, expect_nr_hpages,
 			      read_pmd_pagesize()))
 		err("Did not find expected %d number of hugepages",
 		    expect_nr_hpages);
@@ -234,18 +248,18 @@ void uffd_stats_report(struct uffd_args *args, int n_cpus)
 	printf("\n");
 }
 
-int userfaultfd_open(uint64_t *features)
+int userfaultfd_open(uffd_global_test_opts_t *gopts, uint64_t *features)
 {
 	struct uffdio_api uffdio_api;
 
-	uffd = uffd_open(UFFD_FLAGS);
-	if (uffd < 0)
+	gopts->uffd = uffd_open(UFFD_FLAGS);
+	if (gopts->uffd < 0)
 		return -1;
-	uffd_flags = fcntl(uffd, F_GETFD, NULL);
+	gopts->uffd_flags = fcntl(gopts->uffd, F_GETFD, NULL);
 
 	uffdio_api.api = UFFD_API;
 	uffdio_api.features = *features;
-	if (ioctl(uffd, UFFDIO_API, &uffdio_api))
+	if (ioctl(gopts->uffd, UFFDIO_API, &uffdio_api))
 		/* Probably lack of CAP_PTRACE? */
 		return -1;
 	if (uffdio_api.api != UFFD_API)
@@ -255,59 +269,63 @@ int userfaultfd_open(uint64_t *features)
 	return 0;
 }
 
-static inline void munmap_area(void **area)
+static inline void munmap_area(uffd_global_test_opts_t *gopts, void **area)
 {
 	if (*area)
-		if (munmap(*area, nr_pages * page_size))
+		if (munmap(*area, gopts->nr_pages * gopts->page_size))
 			err("munmap");
 
 	*area = NULL;
 }
 
-void uffd_test_ctx_clear(void)
+void uffd_test_ctx_clear(uffd_global_test_opts_t *gopts)
 {
 	size_t i;
 
-	if (pipefd) {
-		for (i = 0; i < nr_parallel * 2; ++i) {
-			if (close(pipefd[i]))
+	if (gopts->pipefd) {
+		for (i = 0; i < gopts->nr_parallel * 2; ++i) {
+			if (close(gopts->pipefd[i]))
 				err("close pipefd");
 		}
-		free(pipefd);
-		pipefd = NULL;
+		free(gopts->pipefd);
+		gopts->pipefd = NULL;
 	}
 
-	if (count_verify) {
-		free(count_verify);
-		count_verify = NULL;
+	if (gopts->count_verify) {
+		free(gopts->count_verify);
+		gopts->count_verify = NULL;
 	}
 
-	if (uffd != -1) {
-		if (close(uffd))
+	if (gopts->uffd != -1) {
+		if (close(gopts->uffd))
 			err("close uffd");
-		uffd = -1;
+		gopts->uffd = -1;
 	}
 
-	munmap_area((void **)&area_src);
-	munmap_area((void **)&area_src_alias);
-	munmap_area((void **)&area_dst);
-	munmap_area((void **)&area_dst_alias);
-	munmap_area((void **)&area_remap);
+	munmap_area(gopts, (void **)&gopts->area_src);
+	munmap_area(gopts, (void **)&gopts->area_src_alias);
+	munmap_area(gopts, (void **)&gopts->area_dst);
+	munmap_area(gopts, (void **)&gopts->area_dst_alias);
+	munmap_area(gopts, (void **)&gopts->area_remap);
 }
 
-int uffd_test_ctx_init(uint64_t features, const char **errmsg)
+int uffd_test_ctx_init(uffd_global_test_opts_t *gopts, uint64_t features, const char **errmsg)
 {
 	unsigned long nr, cpu;
 	int ret;
 
+	gopts->area_src_alias = NULL;
+	gopts->area_dst_alias = NULL;
+	gopts->area_remap = NULL;
+
 	if (uffd_test_case_ops && uffd_test_case_ops->pre_alloc) {
-		ret = uffd_test_case_ops->pre_alloc(errmsg);
+		ret = uffd_test_case_ops->pre_alloc(gopts, errmsg);
 		if (ret)
 			return ret;
 	}
 
-	ret = uffd_test_ops->allocate_area((void **)&area_src, true);
-	ret |= uffd_test_ops->allocate_area((void **)&area_dst, false);
+	ret = uffd_test_ops->allocate_area(gopts, (void **) &gopts->area_src, true);
+	ret |= uffd_test_ops->allocate_area(gopts, (void **) &gopts->area_dst, false);
 	if (ret) {
 		if (errmsg)
 			*errmsg = "memory allocation failed";
@@ -315,26 +333,26 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 	}
 
 	if (uffd_test_case_ops && uffd_test_case_ops->post_alloc) {
-		ret = uffd_test_case_ops->post_alloc(errmsg);
+		ret = uffd_test_case_ops->post_alloc(gopts, errmsg);
 		if (ret)
 			return ret;
 	}
 
-	ret = userfaultfd_open(&features);
+	ret = userfaultfd_open(gopts, &features);
 	if (ret) {
 		if (errmsg)
 			*errmsg = "possible lack of privilege";
 		return ret;
 	}
 
-	count_verify = malloc(nr_pages * sizeof(unsigned long long));
-	if (!count_verify)
+	gopts->count_verify = malloc(gopts->nr_pages * sizeof(unsigned long long));
+	if (!gopts->count_verify)
 		err("count_verify");
 
-	for (nr = 0; nr < nr_pages; nr++) {
-		*area_mutex(area_src, nr) =
+	for (nr = 0; nr < gopts->nr_pages; nr++) {
+		*area_mutex(gopts->area_src, nr, gopts) =
 			(pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-		count_verify[nr] = *area_count(area_src, nr) = 1;
+		gopts->count_verify[nr] = *area_count(gopts->area_src, nr, gopts) = 1;
 		/*
 		 * In the transition between 255 to 256, powerpc will
 		 * read out of order in my_bcmp and see both bytes as
@@ -342,7 +360,7 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 		 * after the count, to avoid my_bcmp to trigger false
 		 * positives.
 		 */
-		*(area_count(area_src, nr) + 1) = 1;
+		*(area_count(gopts->area_src, nr, gopts) + 1) = 1;
 	}
 
 	/*
@@ -363,13 +381,13 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 	 * proactively split the thp and drop any accidentally initialized
 	 * pages within area_dst.
 	 */
-	uffd_test_ops->release_pages(area_dst);
+	uffd_test_ops->release_pages(gopts, gopts->area_dst);
 
-	pipefd = malloc(sizeof(int) * nr_parallel * 2);
-	if (!pipefd)
+	gopts->pipefd = malloc(sizeof(int) * gopts->nr_parallel * 2);
+	if (!gopts->pipefd)
 		err("pipefd");
-	for (cpu = 0; cpu < nr_parallel; cpu++)
-		if (pipe2(&pipefd[cpu * 2], O_CLOEXEC | O_NONBLOCK))
+	for (cpu = 0; cpu < gopts->nr_parallel; cpu++)
+		if (pipe2(&gopts->pipefd[cpu * 2], O_CLOEXEC | O_NONBLOCK))
 			err("pipe");
 
 	return 0;
@@ -416,9 +434,9 @@ static void continue_range(int ufd, __u64 start, __u64 len, bool wp)
 		    ret, (int64_t) req.mapped);
 }
 
-int uffd_read_msg(int ufd, struct uffd_msg *msg)
+int uffd_read_msg(uffd_global_test_opts_t *gopts, struct uffd_msg *msg)
 {
-	int ret = read(uffd, msg, sizeof(*msg));
+	int ret = read(gopts->uffd, msg, sizeof(*msg));
 
 	if (ret != sizeof(*msg)) {
 		if (ret < 0) {
@@ -433,7 +451,8 @@ int uffd_read_msg(int ufd, struct uffd_msg *msg)
 	return 0;
 }
 
-void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
+void uffd_handle_page_fault(uffd_global_test_opts_t *gopts, struct uffd_msg *msg,
+			    struct uffd_args *args)
 {
 	unsigned long offset;
 
@@ -442,7 +461,7 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 
 	if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WP) {
 		/* Write protect page faults */
-		wp_range(uffd, msg->arg.pagefault.address, page_size, false);
+		wp_range(gopts->uffd, msg->arg.pagefault.address, gopts->page_size, false);
 		args->wp_faults++;
 	} else if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_MINOR) {
 		uint8_t *area;
@@ -460,12 +479,12 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 		 * (UFFD-registered).
 		 */
 
-		area = (uint8_t *)(area_dst +
-				   ((char *)msg->arg.pagefault.address -
-				    area_dst_alias));
-		for (b = 0; b < page_size; ++b)
+		area = (uint8_t *)(gopts->area_dst +
+		       ((char *)msg->arg.pagefault.address -
+		       gopts->area_dst_alias));
+		for (b = 0; b < gopts->page_size; ++b)
 			area[b] = ~area[b];
-		continue_range(uffd, msg->arg.pagefault.address, page_size,
+		continue_range(gopts->uffd, msg->arg.pagefault.address, gopts->page_size,
 			       args->apply_wp);
 		args->minor_faults++;
 	} else {
@@ -493,10 +512,10 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 		if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
 			err("unexpected write fault");
 
-		offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
-		offset &= ~(page_size-1);
+		offset = (char *)(unsigned long)msg->arg.pagefault.address - gopts->area_dst;
+		offset &= ~(gopts->page_size-1);
 
-		if (copy_page(uffd, offset, args->apply_wp))
+		if (copy_page(gopts, offset, args->apply_wp))
 			args->missing_faults++;
 	}
 }
@@ -504,6 +523,7 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 void *uffd_poll_thread(void *arg)
 {
 	struct uffd_args *args = (struct uffd_args *)arg;
+	uffd_global_test_opts_t *gopts = args->gopts;
 	unsigned long cpu = args->cpu;
 	struct pollfd pollfd[2];
 	struct uffd_msg msg;
@@ -514,12 +534,12 @@ void *uffd_poll_thread(void *arg)
 	if (!args->handle_fault)
 		args->handle_fault = uffd_handle_page_fault;
 
-	pollfd[0].fd = uffd;
+	pollfd[0].fd = gopts->uffd;
 	pollfd[0].events = POLLIN;
-	pollfd[1].fd = pipefd[cpu*2];
+	pollfd[1].fd = gopts->pipefd[cpu*2];
 	pollfd[1].events = POLLIN;
 
-	ready_for_fork = true;
+	gopts->ready_for_fork = true;
 
 	for (;;) {
 		ret = poll(pollfd, 2, -1);
@@ -537,30 +557,30 @@ void *uffd_poll_thread(void *arg)
 		}
 		if (!(pollfd[0].revents & POLLIN))
 			err("pollfd[0].revents %d", pollfd[0].revents);
-		if (uffd_read_msg(uffd, &msg))
+		if (uffd_read_msg(gopts, &msg))
 			continue;
 		switch (msg.event) {
 		default:
 			err("unexpected msg event %u\n", msg.event);
 			break;
 		case UFFD_EVENT_PAGEFAULT:
-			args->handle_fault(&msg, args);
+			args->handle_fault(gopts, &msg, args);
 			break;
 		case UFFD_EVENT_FORK:
-			close(uffd);
-			uffd = msg.arg.fork.ufd;
-			pollfd[0].fd = uffd;
+			close(gopts->uffd);
+			gopts->uffd = msg.arg.fork.ufd;
+			pollfd[0].fd = gopts->uffd;
 			break;
 		case UFFD_EVENT_REMOVE:
 			uffd_reg.range.start = msg.arg.remove.start;
 			uffd_reg.range.len = msg.arg.remove.end -
 				msg.arg.remove.start;
-			if (ioctl(uffd, UFFDIO_UNREGISTER, &uffd_reg.range))
+			if (ioctl(gopts->uffd, UFFDIO_UNREGISTER, &uffd_reg.range))
 				err("remove failure");
 			break;
 		case UFFD_EVENT_REMAP:
-			area_remap = area_dst;  /* save for later unmap */
-			area_dst = (char *)(unsigned long)msg.arg.remap.to;
+			gopts->area_remap = gopts->area_dst;  /* save for later unmap */
+			gopts->area_dst = (char *)(unsigned long)msg.arg.remap.to;
 			break;
 		}
 	}
@@ -568,17 +588,18 @@ void *uffd_poll_thread(void *arg)
 	return NULL;
 }
 
-static void retry_copy_page(int ufd, struct uffdio_copy *uffdio_copy,
+static void retry_copy_page(uffd_global_test_opts_t *gopts, struct uffdio_copy *uffdio_copy,
 			    unsigned long offset)
 {
-	uffd_test_ops->alias_mapping(&uffdio_copy->dst,
+	uffd_test_ops->alias_mapping(gopts,
+				     &uffdio_copy->dst,
 				     uffdio_copy->len,
 				     offset);
-	if (ioctl(ufd, UFFDIO_COPY, uffdio_copy)) {
+	if (ioctl(gopts->uffd, UFFDIO_COPY, uffdio_copy)) {
 		/* real retval in ufdio_copy.copy */
 		if (uffdio_copy->copy != -EEXIST)
 			err("UFFDIO_COPY retry error: %"PRId64,
-			    (int64_t)uffdio_copy->copy);
+			(int64_t)uffdio_copy->copy);
 	} else {
 		err("UFFDIO_COPY retry unexpected: %"PRId64,
 		    (int64_t)uffdio_copy->copy);
@@ -597,60 +618,60 @@ static void wake_range(int ufd, unsigned long addr, unsigned long len)
 			addr), exit(1);
 }
 
-int __copy_page(int ufd, unsigned long offset, bool retry, bool wp)
+int __copy_page(uffd_global_test_opts_t *gopts, unsigned long offset, bool retry, bool wp)
 {
 	struct uffdio_copy uffdio_copy;
 
-	if (offset >= nr_pages * page_size)
+	if (offset >= gopts->nr_pages * gopts->page_size)
 		err("unexpected offset %lu\n", offset);
-	uffdio_copy.dst = (unsigned long) area_dst + offset;
-	uffdio_copy.src = (unsigned long) area_src + offset;
-	uffdio_copy.len = page_size;
+	uffdio_copy.dst = (unsigned long) gopts->area_dst + offset;
+	uffdio_copy.src = (unsigned long) gopts->area_src + offset;
+	uffdio_copy.len = gopts->page_size;
 	if (wp)
 		uffdio_copy.mode = UFFDIO_COPY_MODE_WP;
 	else
 		uffdio_copy.mode = 0;
 	uffdio_copy.copy = 0;
-	if (ioctl(ufd, UFFDIO_COPY, &uffdio_copy)) {
+	if (ioctl(gopts->uffd, UFFDIO_COPY, &uffdio_copy)) {
 		/* real retval in ufdio_copy.copy */
 		if (uffdio_copy.copy != -EEXIST)
 			err("UFFDIO_COPY error: %"PRId64,
 			    (int64_t)uffdio_copy.copy);
-		wake_range(ufd, uffdio_copy.dst, page_size);
-	} else if (uffdio_copy.copy != page_size) {
+		wake_range(gopts->uffd, uffdio_copy.dst, gopts->page_size);
+	} else if (uffdio_copy.copy != gopts->page_size) {
 		err("UFFDIO_COPY error: %"PRId64, (int64_t)uffdio_copy.copy);
 	} else {
-		if (test_uffdio_copy_eexist && retry) {
-			test_uffdio_copy_eexist = false;
-			retry_copy_page(ufd, &uffdio_copy, offset);
+		if (gopts->test_uffdio_copy_eexist && retry) {
+			gopts->test_uffdio_copy_eexist = false;
+			retry_copy_page(gopts, &uffdio_copy, offset);
 		}
 		return 1;
 	}
 	return 0;
 }
 
-int copy_page(int ufd, unsigned long offset, bool wp)
+int copy_page(uffd_global_test_opts_t *gopts, unsigned long offset, bool wp)
 {
-	return __copy_page(ufd, offset, false, wp);
+	return __copy_page(gopts, offset, false, wp);
 }
 
-int move_page(int ufd, unsigned long offset, unsigned long len)
+int move_page(uffd_global_test_opts_t *gopts, unsigned long offset, unsigned long len)
 {
 	struct uffdio_move uffdio_move;
 
-	if (offset + len > nr_pages * page_size)
+	if (offset + len > gopts->nr_pages * gopts->page_size)
 		err("unexpected offset %lu and length %lu\n", offset, len);
-	uffdio_move.dst = (unsigned long) area_dst + offset;
-	uffdio_move.src = (unsigned long) area_src + offset;
+	uffdio_move.dst = (unsigned long) gopts->area_dst + offset;
+	uffdio_move.src = (unsigned long) gopts->area_src + offset;
 	uffdio_move.len = len;
 	uffdio_move.mode = UFFDIO_MOVE_MODE_ALLOW_SRC_HOLES;
 	uffdio_move.move = 0;
-	if (ioctl(ufd, UFFDIO_MOVE, &uffdio_move)) {
+	if (ioctl(gopts->uffd, UFFDIO_MOVE, &uffdio_move)) {
 		/* real retval in uffdio_move.move */
 		if (uffdio_move.move != -EEXIST)
 			err("UFFDIO_MOVE error: %"PRId64,
 			    (int64_t)uffdio_move.move);
-		wake_range(ufd, uffdio_move.dst, len);
+		wake_range(gopts->uffd, uffdio_move.dst, len);
 	} else if (uffdio_move.move != len) {
 		err("UFFDIO_MOVE error: %"PRId64, (int64_t)uffdio_move.move);
 	} else

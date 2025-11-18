@@ -315,7 +315,7 @@ static void __iomem *einj_get_parameter_address(void)
 			memcpy_fromio(&v5param, p, v5param_size);
 			acpi5 = 1;
 			check_vendor_extension(pa_v5, &v5param);
-			if (available_error_type & ACPI65_EINJV2_SUPP) {
+			if (is_v2 && available_error_type & ACPI65_EINJV2_SUPP) {
 				len = v5param.einjv2_struct.length;
 				offset = offsetof(struct einjv2_extension_struct, component_arr);
 				max_nr_components = (len - offset) /
@@ -540,6 +540,9 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 		struct set_error_type_with_address *v5param;
 
 		v5param = kmalloc(v5param_size, GFP_KERNEL);
+		if (!v5param)
+			return -ENOMEM;
+
 		memcpy_fromio(v5param, einj_param, v5param_size);
 		v5param->type = type;
 		if (type & ACPI5_VENDOR_BIT) {
@@ -653,6 +656,43 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	return rc;
 }
 
+/* Allow almost all types of address except MMIO. */
+static bool is_allowed_range(u64 base_addr, u64 size)
+{
+	int i;
+	/*
+	 * MMIO region is usually claimed with IORESOURCE_MEM + IORES_DESC_NONE.
+	 * However, IORES_DESC_NONE is treated like a wildcard when we check if
+	 * region intersects with known resource. So do an allow list check for
+	 * IORES_DESCs that definitely or most likely not MMIO.
+	 */
+	int non_mmio_desc[] = {
+		IORES_DESC_CRASH_KERNEL,
+		IORES_DESC_ACPI_TABLES,
+		IORES_DESC_ACPI_NV_STORAGE,
+		IORES_DESC_PERSISTENT_MEMORY,
+		IORES_DESC_PERSISTENT_MEMORY_LEGACY,
+		/* Treat IORES_DESC_DEVICE_PRIVATE_MEMORY as MMIO. */
+		IORES_DESC_RESERVED,
+		IORES_DESC_SOFT_RESERVED,
+	};
+
+	if (region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
+			      == REGION_INTERSECTS)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(non_mmio_desc); ++i) {
+		if (region_intersects(base_addr, size, IORESOURCE_MEM, non_mmio_desc[i])
+				      == REGION_INTERSECTS)
+			return true;
+	}
+
+	if (arch_is_platform_page(base_addr))
+		return true;
+
+	return false;
+}
+
 /* Inject the specified hardware error */
 int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2, u64 param3,
 		      u64 param4)
@@ -699,19 +739,15 @@ int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2, u64 param3,
 	 * Disallow crazy address masks that give BIOS leeway to pick
 	 * injection address almost anywhere. Insist on page or
 	 * better granularity and that target address is normal RAM or
-	 * NVDIMM.
+	 * as long as is not MMIO.
 	 */
 	base_addr = param1 & param2;
 	size = ~param2 + 1;
 
-	if (((param2 & PAGE_MASK) != PAGE_MASK) ||
-	    ((region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
-				!= REGION_INTERSECTS) &&
-	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_PERSISTENT_MEMORY)
-				!= REGION_INTERSECTS) &&
-	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_SOFT_RESERVED)
-				!= REGION_INTERSECTS) &&
-	     !arch_is_platform_page(base_addr)))
+	if ((param2 & PAGE_MASK) != PAGE_MASK)
+		return -EINVAL;
+
+	if (!is_allowed_range(base_addr, size))
 		return -EINVAL;
 
 	if (is_zero_pfn(base_addr >> PAGE_SHIFT))
@@ -1091,7 +1127,7 @@ err_put_table:
 	return rc;
 }
 
-static void __exit einj_remove(struct faux_device *fdev)
+static void einj_remove(struct faux_device *fdev)
 {
 	struct apei_exec_context ctx;
 
@@ -1114,15 +1150,9 @@ static void __exit einj_remove(struct faux_device *fdev)
 }
 
 static struct faux_device *einj_dev;
-/*
- * einj_remove() lives in .exit.text. For drivers registered via
- * platform_driver_probe() this is ok because they cannot get unbound at
- * runtime. So mark the driver struct with __refdata to prevent modpost
- * triggering a section mismatch warning.
- */
-static struct faux_device_ops einj_device_ops __refdata = {
+static struct faux_device_ops einj_device_ops = {
 	.probe = einj_probe,
-	.remove = __exit_p(einj_remove),
+	.remove = einj_remove,
 };
 
 static int __init einj_init(void)

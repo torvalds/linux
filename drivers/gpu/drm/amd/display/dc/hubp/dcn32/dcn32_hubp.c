@@ -206,6 +206,9 @@ static struct hubp_funcs dcn32_hubp_funcs = {
 	.hubp_update_mall_sel = hubp32_update_mall_sel,
 	.hubp_prepare_subvp_buffering = hubp32_prepare_subvp_buffering,
 	.hubp_clear_tiling = hubp3_clear_tiling,
+	.hubp_get_underflow_status = hubp3_get_underflow_status,
+	.hubp_get_current_read_line = hubp3_get_current_read_line,
+	.hubp_get_det_config_error = hubp31_get_det_config_error,
 };
 
 bool hubp32_construct(

@@ -595,6 +595,14 @@ properties:
           - const: netcube,kumquat
           - const: allwinner,sun8i-v3s
 
+      - description: NetCube Systems Nagami SoM based boards
+        items:
+          - enum:
+              - netcube,nagami-basic-carrier
+              - netcube,nagami-keypad-carrier
+          - const: netcube,nagami
+          - const: allwinner,sun8i-t113s
+
       - description: NextThing Co. CHIP
         items:
           - const: nextthing,chip
@@ -961,6 +969,11 @@ properties:
       - description: X96 Mate TV box
         items:
           - const: hechuang,x96-mate
+          - const: allwinner,sun50i-h616
+
+      - description: X96Q
+        items:
+          - const: amediatech,x96q
           - const: allwinner,sun50i-h616
 
       - description: X96Q Pro+

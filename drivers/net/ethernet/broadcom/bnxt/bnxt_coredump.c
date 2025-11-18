@@ -36,6 +36,8 @@ static const u16 bnxt_bstore_to_seg_id[] = {
 	[BNXT_CTX_CA1]			= BNXT_CTX_MEM_SEG_CA1,
 	[BNXT_CTX_CA2]			= BNXT_CTX_MEM_SEG_CA2,
 	[BNXT_CTX_RIGP1]		= BNXT_CTX_MEM_SEG_RIGP1,
+	[BNXT_CTX_KONG]			= BNXT_CTX_MEM_SEG_KONG,
+	[BNXT_CTX_QPC]			= BNXT_CTX_MEM_SEG_QPC,
 };
 
 static int bnxt_dbg_hwrm_log_buffer_flush(struct bnxt *bp, u16 type, u32 flags,
@@ -331,13 +333,14 @@ static void bnxt_fill_drv_seg_record(struct bnxt *bp,
 	u32 offset = 0;
 	int rc = 0;
 
+	record->max_entries = cpu_to_le32(ctxm->max_entries);
+	record->entry_size = cpu_to_le32(ctxm->entry_size);
+
 	rc = bnxt_dbg_hwrm_log_buffer_flush(bp, type, 0, &offset);
 	if (rc)
 		return;
 
 	bnxt_bs_trace_check_wrap(bs_trace, offset);
-	record->max_entries = cpu_to_le32(ctxm->max_entries);
-	record->entry_size = cpu_to_le32(ctxm->entry_size);
 	record->offset = cpu_to_le32(bs_trace->last_offset);
 	record->wrapped = bs_trace->wrapped;
 }
@@ -359,7 +362,7 @@ static u32 bnxt_get_ctx_coredump(struct bnxt *bp, void *buf, u32 offset,
 
 	if (buf)
 		buf += offset;
-	for (type = 0 ; type <= BNXT_CTX_RIGP1; type++) {
+	for (type = 0; type < BNXT_CTX_V2_MAX; type++) {
 		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
 		bool trace = bnxt_bs_trace_avail(bp, type);
 		u32 seg_id = bnxt_bstore_to_seg_id[type];

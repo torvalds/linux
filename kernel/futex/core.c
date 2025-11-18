@@ -1680,10 +1680,10 @@ static bool futex_ref_get(struct futex_private_hash *fph)
 {
 	struct mm_struct *mm = fph->mm;
 
-	guard(rcu)();
+	guard(preempt)();
 
-	if (smp_load_acquire(&fph->state) == FR_PERCPU) {
-		this_cpu_inc(*mm->futex_ref);
+	if (READ_ONCE(fph->state) == FR_PERCPU) {
+		__this_cpu_inc(*mm->futex_ref);
 		return true;
 	}
 
@@ -1694,10 +1694,10 @@ static bool futex_ref_put(struct futex_private_hash *fph)
 {
 	struct mm_struct *mm = fph->mm;
 
-	guard(rcu)();
+	guard(preempt)();
 
-	if (smp_load_acquire(&fph->state) == FR_PERCPU) {
-		this_cpu_dec(*mm->futex_ref);
+	if (READ_ONCE(fph->state) == FR_PERCPU) {
+		__this_cpu_dec(*mm->futex_ref);
 		return false;
 	}
 
@@ -1722,12 +1722,9 @@ int futex_mm_init(struct mm_struct *mm)
 	RCU_INIT_POINTER(mm->futex_phash, NULL);
 	mm->futex_phash_new = NULL;
 	/* futex-ref */
+	mm->futex_ref = NULL;
 	atomic_long_set(&mm->futex_atomic, 0);
 	mm->futex_batches = get_state_synchronize_rcu();
-	mm->futex_ref = alloc_percpu(unsigned int);
-	if (!mm->futex_ref)
-		return -ENOMEM;
-	this_cpu_inc(*mm->futex_ref); /* 0 -> 1 */
 	return 0;
 }
 
@@ -1799,6 +1796,17 @@ static int futex_hash_allocate(unsigned int hash_slots, unsigned int flags)
 				return -EBUSY;
 			return 0;
 		}
+	}
+
+	if (!mm->futex_ref) {
+		/*
+		 * This will always be allocated by the first thread and
+		 * therefore requires no locking.
+		 */
+		mm->futex_ref = alloc_percpu(unsigned int);
+		if (!mm->futex_ref)
+			return -ENOMEM;
+		this_cpu_inc(*mm->futex_ref); /* 0 -> 1 */
 	}
 
 	fph = kvzalloc(struct_size(fph, queues, hash_slots),

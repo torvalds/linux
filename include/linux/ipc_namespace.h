@@ -129,20 +129,25 @@ static inline int mq_init_ns(struct ipc_namespace *ns) { return 0; }
 #endif
 
 #if defined(CONFIG_IPC_NS)
-extern struct ipc_namespace *copy_ipcs(unsigned long flags,
+static inline struct ipc_namespace *to_ipc_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct ipc_namespace, ns);
+}
+
+extern struct ipc_namespace *copy_ipcs(u64 flags,
 	struct user_namespace *user_ns, struct ipc_namespace *ns);
 
 static inline struct ipc_namespace *get_ipc_ns(struct ipc_namespace *ns)
 {
 	if (ns)
-		refcount_inc(&ns->ns.count);
+		ns_ref_inc(ns);
 	return ns;
 }
 
 static inline struct ipc_namespace *get_ipc_ns_not_zero(struct ipc_namespace *ns)
 {
 	if (ns) {
-		if (refcount_inc_not_zero(&ns->ns.count))
+		if (ns_ref_get(ns))
 			return ns;
 	}
 
@@ -151,7 +156,7 @@ static inline struct ipc_namespace *get_ipc_ns_not_zero(struct ipc_namespace *ns
 
 extern void put_ipc_ns(struct ipc_namespace *ns);
 #else
-static inline struct ipc_namespace *copy_ipcs(unsigned long flags,
+static inline struct ipc_namespace *copy_ipcs(u64 flags,
 	struct user_namespace *user_ns, struct ipc_namespace *ns)
 {
 	if (flags & CLONE_NEWIPC)

@@ -145,7 +145,7 @@
 	pinctrl-0 = <&main_spi0_pins>;
 
 	#address-cells = <1>;
-	#size-cells= <0>;
+	#size-cells = <0>;
 };
 
 &mcu_spi0 {

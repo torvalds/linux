@@ -77,7 +77,7 @@ struct wm8996_priv {
 	int rx_rate[WM8996_AIFS];
 	int bclk_rate[WM8996_AIFS];
 
-	/* Platform dependant ReTune mobile configuration */
+	/* Platform dependent ReTune mobile configuration */
 	int num_retune_mobile_texts;
 	const char **retune_mobile_texts;
 	int retune_mobile_cfg[2];

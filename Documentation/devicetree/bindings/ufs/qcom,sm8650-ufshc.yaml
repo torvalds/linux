@@ -1,0 +1,180 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ufs/qcom,sm8650-ufshc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm SM8650 and Other SoCs UFS Controllers
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+# Select only our matches, not all jedec,ufs-2.0
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - qcom,kaanapali-ufshc
+          - qcom,sm8650-ufshc
+          - qcom,sm8750-ufshc
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,kaanapali-ufshc
+          - qcom,sm8650-ufshc
+          - qcom,sm8750-ufshc
+      - const: qcom,ufshc
+      - const: jedec,ufs-2.0
+
+  reg:
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: std
+      - const: mcq
+
+  clocks:
+    minItems: 8
+    maxItems: 8
+
+  clock-names:
+    items:
+      - const: core_clk
+      - const: bus_aggr_clk
+      - const: iface_clk
+      - const: core_clk_unipro
+      - const: ref_clk
+      - const: tx_lane0_sync_clk
+      - const: rx_lane0_sync_clk
+      - const: rx_lane1_sync_clk
+
+  qcom,ice:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to the Inline Crypto Engine node
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: qcom,ufs-common.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,sm8650-gcc.h>
+    #include <dt-bindings/clock/qcom,sm8650-tcsr.h>
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interconnect/qcom,icc.h>
+    #include <dt-bindings/interconnect/qcom,sm8650-rpmh.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        ufshc@1d84000 {
+            compatible = "qcom,sm8650-ufshc", "qcom,ufshc", "jedec,ufs-2.0";
+            reg = <0x0 0x01d84000 0x0 0x3000>;
+
+            interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH 0>;
+
+            clocks = <&gcc GCC_UFS_PHY_AXI_CLK>,
+                     <&gcc GCC_AGGRE_UFS_PHY_AXI_CLK>,
+                     <&gcc GCC_UFS_PHY_AHB_CLK>,
+                     <&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
+                     <&tcsr TCSR_UFS_PAD_CLKREF_EN>,
+                     <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>,
+                     <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
+                     <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>;
+            clock-names = "core_clk",
+                          "bus_aggr_clk",
+                          "iface_clk",
+                          "core_clk_unipro",
+                          "ref_clk",
+                          "tx_lane0_sync_clk",
+                          "rx_lane0_sync_clk",
+                          "rx_lane1_sync_clk";
+
+            resets = <&gcc GCC_UFS_PHY_BCR>;
+            reset-names = "rst";
+            reset-gpios = <&tlmm 210 GPIO_ACTIVE_LOW>;
+
+            interconnects = <&aggre1_noc MASTER_UFS_MEM QCOM_ICC_TAG_ALWAYS
+                             &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+                            <&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+                             &config_noc SLAVE_UFS_MEM_CFG QCOM_ICC_TAG_ACTIVE_ONLY>;
+            interconnect-names = "ufs-ddr",
+                         "cpu-ufs";
+
+            power-domains = <&gcc UFS_PHY_GDSC>;
+            required-opps = <&rpmhpd_opp_nom>;
+
+            operating-points-v2 = <&ufs_opp_table>;
+
+            iommus = <&apps_smmu 0x60 0>;
+
+            lanes-per-direction = <2>;
+            qcom,ice = <&ice>;
+
+            phys = <&ufs_mem_phy>;
+            phy-names = "ufsphy";
+
+            #reset-cells = <1>;
+
+            vcc-supply = <&vreg_l7b_2p5>;
+            vcc-max-microamp = <1100000>;
+            vccq-supply = <&vreg_l9b_1p2>;
+            vccq-max-microamp = <1200000>;
+
+            ufs_opp_table: opp-table {
+                compatible = "operating-points-v2";
+
+                opp-100000000 {
+                    opp-hz = /bits/ 64 <100000000>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <100000000>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>;
+                    required-opps = <&rpmhpd_opp_low_svs>;
+                };
+
+                opp-201500000 {
+                    opp-hz = /bits/ 64 <201500000>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <201500000>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>;
+                    required-opps = <&rpmhpd_opp_svs>;
+                };
+
+                opp-403000000 {
+                    opp-hz = /bits/ 64 <403000000>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <403000000>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>,
+                             /bits/ 64 <0>;
+                    required-opps = <&rpmhpd_opp_nom>;
+                };
+            };
+        };
+    };

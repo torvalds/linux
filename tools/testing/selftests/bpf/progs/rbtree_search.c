@@ -183,7 +183,7 @@ long test_##op##_spinlock_##dolock(void *ctx)		\
 }
 
 /*
- * Use a spearate MSG macro instead of passing to TEST_XXX(..., MSG)
+ * Use a separate MSG macro instead of passing to TEST_XXX(..., MSG)
  * to ensure the message itself is not in the bpf prog lineinfo
  * which the verifier includes in its log.
  * Otherwise, the test_loader will incorrectly match the prog lineinfo

@@ -253,11 +253,10 @@ static inline int __xsch(struct subchannel_id schid)
 	asm volatile(
 		"	lgr	1,%[r1]\n"
 		"	xsch\n"
-		"	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
-		: [cc] "=&d" (ccode)
+		CC_IPM(cc)
+		: CC_OUT(cc, ccode)
 		: [r1] "d" (r1)
-		: "cc", "1");
+		: CC_CLOBBER_LIST("1"));
 	return CC_TRANSFORM(ccode);
 }
 

@@ -49,7 +49,7 @@ actions_destroy(struct actions *self)
 static struct action *
 actions_new(struct actions *self)
 {
-	if (self->size >= self->len) {
+	if (self->len >= self->size) {
 		self->size *= 2;
 		self->list = realloc(self->list, self->size * sizeof(struct action));
 	}
@@ -127,17 +127,17 @@ actions_add_continue(struct actions *self)
  * actions_parse - add an action based on text specification
  */
 int
-actions_parse(struct actions *self, const char *trigger)
+actions_parse(struct actions *self, const char *trigger, const char *tracefn)
 {
 	enum action_type type = ACTION_NONE;
-	char *token;
-	char trigger_c[strlen(trigger)];
+	const char *token;
+	char trigger_c[strlen(trigger) + 1];
 
 	/* For ACTION_SIGNAL */
 	int signal = 0, pid = 0;
 
 	/* For ACTION_TRACE_OUTPUT */
-	char *trace_output;
+	const char *trace_output;
 
 	strcpy(trigger_c, trigger);
 	token = strtok(trigger_c, ",");
@@ -160,7 +160,7 @@ actions_parse(struct actions *self, const char *trigger)
 	case ACTION_TRACE_OUTPUT:
 		/* Takes no argument */
 		if (token == NULL)
-			trace_output = "timerlat_trace.txt";
+			trace_output = tracefn;
 		else {
 			if (strlen(token) > 5 && strncmp(token, "file=", 5) == 0) {
 				trace_output = token + 5;

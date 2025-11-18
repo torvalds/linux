@@ -2,7 +2,7 @@
 /*
  *  cx18 driver version information
  *
- *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2007  Hans Verkuil <hverkuil@kernel.org>
  */
 
 #ifndef CX18_VERSION_H

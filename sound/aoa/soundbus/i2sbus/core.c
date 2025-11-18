@@ -93,13 +93,11 @@ static irqreturn_t i2sbus_bus_intr(int irq, void *devid)
 	struct i2sbus_dev *dev = devid;
 	u32 intreg;
 
-	spin_lock(&dev->low_lock);
+	guard(spinlock)(&dev->low_lock);
 	intreg = in_le32(&dev->intfregs->intr_ctl);
 
 	/* acknowledge interrupt reasons */
 	out_le32(&dev->intfregs->intr_ctl, intreg);
-
-	spin_unlock(&dev->low_lock);
 
 	return IRQ_HANDLED;
 }

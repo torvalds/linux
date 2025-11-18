@@ -679,7 +679,7 @@ static int renesas_i3c_daa(struct i3c_master_controller *m)
 			i3c_master_add_i3c_dev_locked(m, i3c->addrs[pos]);
 	}
 
-	return ret < 0 ? ret : 0;
+	return 0;
 }
 
 static bool renesas_i3c_supports_ccc_cmd(struct i3c_master_controller *m,

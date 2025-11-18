@@ -857,7 +857,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 	/* Allocate storage for host and driver private data */
 	host = devm_spi_alloc_host(dev, sizeof(struct amd_spi));
 	if (!host)
-		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI host\n");
+		return -ENOMEM;
 
 	amd_spi = spi_controller_get_devdata(host);
 	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);

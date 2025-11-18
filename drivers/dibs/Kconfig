@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0
+config DIBS
+	tristate "DIBS support"
+	default n
+	help
+	  Direct Internal Buffer Sharing (DIBS)
+	  A communication method that uses common physical (internal) memory
+	  for synchronous direct access into a remote buffer.
+
+	  Select this option to provide the abstraction layer between
+	  dibs devices and dibs clients like the SMC protocol.
+	  The module name is dibs.
+
+config DIBS_LO
+	bool "intra-OS shortcut with dibs loopback"
+	depends on DIBS
+	default n
+	help
+	  DIBS_LO enables the creation of an software-emulated dibs device
+	  named lo which can be used for transferring data when communication
+	  occurs within the same OS. This helps in convenient testing of
+	  dibs clients, since dibs loopback is independent of architecture or
+	  hardware.

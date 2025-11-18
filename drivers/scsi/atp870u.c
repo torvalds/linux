@@ -1692,7 +1692,7 @@ static int atp870u_show_info(struct seq_file *m, struct Scsi_Host *HBAptr)
 }
 
 
-static int atp870u_biosparam(struct scsi_device *disk, struct block_device *dev,
+static int atp870u_biosparam(struct scsi_device *disk, struct gendisk *unused,
 			sector_t capacity, int *ip)
 {
 	int heads, sectors, cylinders;

@@ -33,7 +33,20 @@
  *                   e.g. "foo{{[0-9]+}}"  matches strings like "foo007".
  *                   Extended POSIX regular expression syntax is allowed
  *                   inside the brackets.
+ * __not_msg         Message not expected to be found in verifier log.
+ *                   If __msg_not is situated between __msg tags
+ *                   framework matches __msg tags first, and then
+ *                   checks that __msg_not is not present in a portion of
+ *                   a log between bracketing __msg tags.
+ *                   Same regex syntax as for __msg is supported.
  * __msg_unpriv      Same as __msg but for unprivileged mode.
+ * __not_msg_unpriv  Same as __not_msg but for unprivileged mode.
+ *
+ * __stderr          Message expected to be found in bpf stderr stream. The
+ *                   same regex rules apply like __msg.
+ * __stderr_unpriv   Same as __stderr but for unpriveleged mode.
+ * __stdout          Same as __stderr but for stdout stream.
+ * __stdout_unpriv   Same as __stdout but for unpriveleged mode.
  *
  * __xlated          Expect a line in a disassembly log after verifier applies rewrites.
  *                   Multiple __xlated attributes could be specified.
@@ -115,12 +128,14 @@
  * __caps_unpriv     Specify the capabilities that should be set when running the test.
  */
 #define __msg(msg)		__attribute__((btf_decl_tag("comment:test_expect_msg=" XSTR(__COUNTER__) "=" msg)))
+#define __not_msg(msg)		__attribute__((btf_decl_tag("comment:test_expect_not_msg=" XSTR(__COUNTER__) "=" msg)))
 #define __xlated(msg)		__attribute__((btf_decl_tag("comment:test_expect_xlated=" XSTR(__COUNTER__) "=" msg)))
 #define __jited(msg)		__attribute__((btf_decl_tag("comment:test_jited=" XSTR(__COUNTER__) "=" msg)))
 #define __failure		__attribute__((btf_decl_tag("comment:test_expect_failure")))
 #define __success		__attribute__((btf_decl_tag("comment:test_expect_success")))
 #define __description(desc)	__attribute__((btf_decl_tag("comment:test_description=" desc)))
 #define __msg_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_expect_msg_unpriv=" XSTR(__COUNTER__) "=" msg)))
+#define __not_msg_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_expect_not_msg_unpriv=" XSTR(__COUNTER__) "=" msg)))
 #define __xlated_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_expect_xlated_unpriv=" XSTR(__COUNTER__) "=" msg)))
 #define __jited_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_jited=" XSTR(__COUNTER__) "=" msg)))
 #define __failure_unpriv	__attribute__((btf_decl_tag("comment:test_expect_failure_unpriv")))
@@ -136,9 +151,14 @@
 #define __arch_x86_64		__arch("X86_64")
 #define __arch_arm64		__arch("ARM64")
 #define __arch_riscv64		__arch("RISCV64")
+#define __arch_s390x		__arch("s390x")
 #define __caps_unpriv(caps)	__attribute__((btf_decl_tag("comment:test_caps_unpriv=" EXPAND_QUOTE(caps))))
 #define __load_if_JITed()	__attribute__((btf_decl_tag("comment:load_mode=jited")))
 #define __load_if_no_JITed()	__attribute__((btf_decl_tag("comment:load_mode=no_jited")))
+#define __stderr(msg)		__attribute__((btf_decl_tag("comment:test_expect_stderr=" XSTR(__COUNTER__) "=" msg)))
+#define __stderr_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_expect_stderr_unpriv=" XSTR(__COUNTER__) "=" msg)))
+#define __stdout(msg)		__attribute__((btf_decl_tag("comment:test_expect_stdout=" XSTR(__COUNTER__) "=" msg)))
+#define __stdout_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_expect_stdout_unpriv=" XSTR(__COUNTER__) "=" msg)))
 
 /* Define common capabilities tested using __caps_unpriv */
 #define CAP_NET_ADMIN		12
@@ -155,6 +175,10 @@
 #define __imm_addr(name) [name]"i"(&name)
 #define __imm_ptr(name) [name]"r"(&name)
 #define __imm_insn(name, expr) [name]"i"(*(long *)&(expr))
+
+#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
+#define offsetofend(TYPE, MEMBER) \
+	(offsetof(TYPE, MEMBER) + sizeof_field(TYPE, MEMBER))
 
 /* Magic constants used with __retval() */
 #define POINTER_VALUE	0xbadcafe

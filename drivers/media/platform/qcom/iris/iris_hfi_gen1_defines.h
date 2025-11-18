@@ -10,6 +10,7 @@
 
 #define HFI_VIDEO_ARCH_OX				0x1
 
+#define HFI_SESSION_TYPE_ENC				1
 #define HFI_SESSION_TYPE_DEC				2
 
 #define HFI_VIDEO_CODEC_H264				0x00000002
@@ -73,18 +74,22 @@
 #define HFI_BUFFER_INPUT				0x1
 #define HFI_BUFFER_OUTPUT				0x2
 #define HFI_BUFFER_OUTPUT2				0x3
+#define HFI_BUFFER_INTERNAL_PERSIST			0x4
 #define HFI_BUFFER_INTERNAL_PERSIST_1			0x5
 #define HFI_BUFFER_INTERNAL_SCRATCH			0x6
 #define HFI_BUFFER_INTERNAL_SCRATCH_1			0x7
+#define HFI_BUFFER_INTERNAL_SCRATCH_2			0x8
 
 #define HFI_PROPERTY_SYS_CODEC_POWER_PLANE_CTRL		0x5
 #define HFI_PROPERTY_SYS_IMAGE_VERSION			0x6
 
 #define HFI_PROPERTY_PARAM_FRAME_SIZE			0x1001
+#define HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_INFO	0x1002
 #define HFI_PROPERTY_PARAM_UNCOMPRESSED_FORMAT_SELECT	0x1003
 #define HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT	0x1005
 #define HFI_PROPERTY_PARAM_WORK_MODE			0x1015
 #define HFI_PROPERTY_PARAM_WORK_ROUTE			0x1017
+#define HFI_PROPERTY_CONFIG_FRAME_RATE			0x2001
 #define HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE		0x2002
 
 #define HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM		0x1003001
@@ -111,15 +116,32 @@
 #define HFI_MSG_SESSION_RELEASE_RESOURCES		0x22100a
 #define HFI_MSG_SESSION_RELEASE_BUFFERS			0x22100c
 
-#define HFI_PICTURE_I					0x00000001
-#define HFI_PICTURE_P					0x00000002
-#define HFI_PICTURE_B					0x00000004
-#define HFI_PICTURE_IDR					0x00000008
+#define HFI_GEN1_PICTURE_I					0x00000001
+#define HFI_GEN1_PICTURE_P					0x00000002
+#define HFI_GEN1_PICTURE_B					0x00000004
+#define HFI_GEN1_PICTURE_IDR			0x00000008
 #define HFI_FRAME_NOTCODED				0x7f002000
 #define HFI_FRAME_YUV					0x7f004000
 #define HFI_UNUSED_PICT					0x10000000
-#define HFI_BUFFERFLAG_DATACORRUPT			0x00000008
-#define HFI_BUFFERFLAG_DROP_FRAME			0x20000000
+#define HFI_BUFFERFLAG_DATACORRUPT                     0x00000008
+#define HFI_BUFFERFLAG_DROP_FRAME                      0x20000000
+#define HFI_RATE_CONTROL_OFF			0x1000001
+#define HFI_RATE_CONTROL_VBR_VFR		0x1000002
+#define HFI_RATE_CONTROL_VBR_CFR		0x1000003
+#define HFI_RATE_CONTROL_CBR_VFR		0x1000004
+#define HFI_RATE_CONTROL_CBR_CFR		0x1000005
+#define HFI_RATE_CONTROL_CQ				0x1000008
+
+#define HFI_H264_ENTROPY_CAVLC			0x1
+#define HFI_H264_ENTROPY_CABAC			0x2
+
+#define HFI_PROPERTY_PARAM_VENC_H264_ENTROPY_CONTROL		0x2005002
+#define HFI_PROPERTY_PARAM_VENC_H264_DEBLOCK_CONTROL		0x2005003
+#define HFI_PROPERTY_PARAM_VENC_RATE_CONTROL			0x2005004
+#define HFI_PROPERTY_PARAM_VENC_SESSION_QP_RANGE_V2		0x2005009
+#define HFI_PROPERTY_PARAM_VENC_MAX_NUM_B_FRAMES		0x2005020
+#define HFI_PROPERTY_CONFIG_VENC_TARGET_BITRATE			0x2006001
+#define HFI_PROPERTY_CONFIG_VENC_SYNC_FRAME_SEQUENCE_HEADER	0x2006008
 
 struct hfi_pkt_hdr {
 	u32 size;
@@ -188,6 +210,23 @@ struct hfi_session_empty_buffer_compressed_pkt {
 	u32 offset;
 	u32 alloc_len;
 	u32 filled_len;
+	u32 input_tag;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 data;
+};
+
+struct hfi_session_empty_buffer_uncompressed_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 view_id;
+	u32 time_stamp_hi;
+	u32 time_stamp_lo;
+	u32 flags;
+	u32 mark_target;
+	u32 mark_data;
+	u32 alloc_len;
+	u32 filled_len;
+	u32 offset;
 	u32 input_tag;
 	u32 packet_buffer;
 	u32 extradata_buffer;
@@ -340,6 +379,17 @@ struct hfi_uncompressed_plane_actual_constraints_info {
 	struct hfi_uncompressed_plane_constraints plane_format[2];
 };
 
+struct hfi_uncompressed_plane_actual {
+	int actual_stride;
+	u32 actual_plane_buffer_height;
+};
+
+struct hfi_uncompressed_plane_actual_info {
+	u32 buffer_type;
+	u32 num_planes;
+	struct hfi_uncompressed_plane_actual plane_format[2];
+};
+
 struct hfi_buffer_count_actual {
 	u32 type;
 	u32 count_actual;
@@ -365,6 +415,36 @@ struct hfi_buffer_requirements {
 	u32 count_actual;
 	u32 contiguous;
 	u32 alignment;
+};
+
+struct hfi_bitrate {
+	u32 bitrate;
+	u32 layer_id;
+};
+
+#define HFI_H264_CABAC_MODEL_0			0x1
+
+struct hfi_h264_entropy_control {
+	u32 entropy_mode;
+	u32 cabac_model;
+};
+
+struct hfi_quantization_v2 {
+	u32 qp_packed;
+	u32 layer_id;
+	u32 enable;
+	u32 reserved[3];
+};
+
+struct hfi_quantization_range_v2 {
+	struct hfi_quantization_v2 min_qp;
+	struct hfi_quantization_v2 max_qp;
+	u32 reserved[4];
+};
+
+struct hfi_framerate {
+	u32 buffer_type;
+	u32 framerate;
 };
 
 struct hfi_event_data {
@@ -393,6 +473,26 @@ struct hfi_msg_session_empty_buffer_done_pkt {
 	u32 offset;
 	u32 filled_len;
 	u32 input_tag;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 data[];
+};
+
+struct hfi_msg_session_fbd_compressed_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 time_stamp_hi;
+	u32 time_stamp_lo;
+	u32 error_type;
+	u32 flags;
+	u32 mark_target;
+	u32 mark_data;
+	u32 stats;
+	u32 offset;
+	u32 alloc_len;
+	u32 filled_len;
+	u32 input_tag;
+	u32 output_tag;
+	u32 picture_type;
 	u32 packet_buffer;
 	u32 extradata_buffer;
 	u32 data[];

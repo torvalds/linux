@@ -425,7 +425,7 @@ static int device_create_lockspace(struct dlm_lspace_params *params)
 	dlm_put_lockspace(ls);
 
 	if (error)
-		dlm_release_lockspace(lockspace, 0);
+		dlm_release_lockspace(lockspace, DLM_RELEASE_NO_LOCKS);
 	else
 		error = ls->ls_device.minor;
 
@@ -436,7 +436,7 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 {
 	dlm_lockspace_t *lockspace;
 	struct dlm_ls *ls;
-	int error, force = 0;
+	int error, force = DLM_RELEASE_NO_LOCKS;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -446,7 +446,7 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 		return -ENOENT;
 
 	if (params->flags & DLM_USER_LSFLG_FORCEFREE)
-		force = 2;
+		force = DLM_RELEASE_NORMAL;
 
 	lockspace = ls;
 	dlm_put_lockspace(ls);

@@ -1506,9 +1506,13 @@ u32 gen11_gu_misc_irq_ack(struct intel_display *display, const u32 master_ctl)
 	if (!(master_ctl & GEN11_GU_MISC_IRQ))
 		return 0;
 
+	intel_display_rpm_assert_block(display);
+
 	iir = intel_de_read(display, GEN11_GU_MISC_IIR);
 	if (likely(iir))
 		intel_de_write(display, GEN11_GU_MISC_IIR, iir);
+
+	intel_display_rpm_assert_unblock(display);
 
 	return iir;
 }
@@ -1986,20 +1990,17 @@ void vlv_display_irq_postinstall(struct intel_display *display)
 
 void ibx_display_irq_reset(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	if (HAS_PCH_NOP(i915))
+	if (HAS_PCH_NOP(display))
 		return;
 
 	gen2_irq_reset(to_intel_uncore(display->drm), SDE_IRQ_REGS);
 
-	if (HAS_PCH_CPT(i915) || HAS_PCH_LPT(i915))
+	if (HAS_PCH_CPT(display) || HAS_PCH_LPT(display))
 		intel_de_write(display, SERR_INT, 0xffffffff);
 }
 
 void gen8_display_irq_reset(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	enum pipe pipe;
 
 	if (!HAS_DISPLAY(display))
@@ -2016,7 +2017,7 @@ void gen8_display_irq_reset(struct intel_display *display)
 	intel_display_irq_regs_reset(display, GEN8_DE_PORT_IRQ_REGS);
 	intel_display_irq_regs_reset(display, GEN8_DE_MISC_IRQ_REGS);
 
-	if (HAS_PCH_SPLIT(i915))
+	if (HAS_PCH_SPLIT(display))
 		ibx_display_irq_reset(display);
 }
 

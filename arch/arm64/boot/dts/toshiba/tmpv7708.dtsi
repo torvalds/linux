@@ -152,6 +152,7 @@
 		gic: interrupt-controller@24001000 {
 			compatible = "arm,gic-400";
 			interrupt-controller;
+			#address-cells = <0>;
 			#interrupt-cells = <3>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 			reg = <0 0x24001000 0 0x1000>,

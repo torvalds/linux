@@ -361,6 +361,9 @@ examples:
                   compatible = "sony,imx274";
                   reg = <0x1a>;
 
+                  clocks = <&serializer>;
+                  clock-names = "inck";
+
                   reset-gpios = <&serializer1 0 GPIO_ACTIVE_LOW>;
 
                   port {

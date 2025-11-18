@@ -1302,7 +1302,7 @@ static int saa7134_g_pixelaspect(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_g_selection(struct file *file, void *f, struct v4l2_selection *sel)
+static int saa7134_g_selection(struct file *file, void *priv, struct v4l2_selection *sel)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
 
@@ -1325,7 +1325,7 @@ static int saa7134_g_selection(struct file *file, void *f, struct v4l2_selection
 	return 0;
 }
 
-static int saa7134_s_selection(struct file *file, void *f, struct v4l2_selection *sel)
+static int saa7134_s_selection(struct file *file, void *priv, struct v4l2_selection *sel)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
 	struct v4l2_rect *b = &dev->crop_bounds;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2021 Advanced Micro Devices, Inc.
  *
@@ -26,7 +27,6 @@
 #include "amdgpu_dm_psr.h"
 #include "dc_dmub_srv.h"
 #include "dc.h"
-#include "dm_helpers.h"
 #include "amdgpu_dm.h"
 #include "modules/power/power_helpers.h"
 

@@ -214,6 +214,11 @@ static void sym_calc_visibility(struct symbol *sym)
 	struct property *prop;
 	tristate tri;
 
+	if (sym->flags & SYMBOL_TRANS) {
+		sym->visible = yes;
+		return;
+	}
+
 	/* any prompt visible? */
 	tri = no;
 	for_all_prompts(sym, prop) {
@@ -406,7 +411,7 @@ bool sym_dep_errors(void)
 void sym_calc_value(struct symbol *sym)
 {
 	struct symbol_value newval, oldval;
-	struct property *prop;
+	struct property *prop = NULL;
 	struct menu *choice_menu;
 
 	if (!sym)
@@ -515,6 +520,19 @@ void sym_calc_value(struct symbol *sym)
 		;
 	}
 
+	/*
+	 * If the symbol lacks a user value but its value comes from a
+	 * single transitional symbol with an existing user value, mark
+	 * this symbol as having a user value to avoid prompting.
+	 */
+	if (prop && !sym_has_value(sym)) {
+		struct symbol *ds = prop_get_symbol(prop);
+		if (ds && (ds->flags & SYMBOL_TRANS) && sym_has_value(ds)) {
+			sym->def[S_DEF_USER] = newval;
+			sym->flags |= SYMBOL_DEF_USER;
+		}
+	}
+
 	sym->curr = newval;
 	sym_validate_range(sym);
 
@@ -526,7 +544,7 @@ void sym_calc_value(struct symbol *sym)
 		}
 	}
 
-	if (sym_is_choice(sym))
+	if (sym_is_choice(sym) || sym->flags & SYMBOL_TRANS)
 		sym->flags &= ~SYMBOL_WRITE;
 }
 

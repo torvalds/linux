@@ -408,8 +408,10 @@ enum dc_status link_validate_dp_tunnel_bandwidth(const struct dc *dc, const stru
 		link = stream->link;
 
 		if (!(link && (stream->signal == SIGNAL_TYPE_DISPLAY_PORT
-				|| stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
-				&& link->hpd_status))
+				|| stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)))
+			continue;
+
+		if ((link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) && (link->hpd_status == false))
 			continue;
 
 		dp_tunnel_settings = get_dp_tunnel_settings(new_ctx, stream);

@@ -66,8 +66,8 @@ void mlx5_cq_tasklet_cb(struct tasklet_struct *t)
 		tasklet_schedule(&ctx->task);
 }
 
-static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
-				   struct mlx5_eqe *eqe)
+void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
+			    struct mlx5_eqe *eqe)
 {
 	unsigned long flags;
 	struct mlx5_eq_tasklet *tasklet_ctx = cq->tasklet_ctx.priv;
@@ -95,7 +95,15 @@ static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
 	if (schedule_tasklet)
 		tasklet_schedule(&tasklet_ctx->task);
 }
+EXPORT_SYMBOL(mlx5_add_cq_to_tasklet);
 
+static void mlx5_core_cq_dummy_cb(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe)
+{
+	mlx5_core_err(cq->eq->core.dev,
+		      "CQ default completion callback, CQ #%u\n", cq->cqn);
+}
+
+#define MLX5_CQ_INIT_CMD_SN cpu_to_be32(2 << 28)
 /* Callers must verify outbox status in case of err */
 int mlx5_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		   u32 *in, int inlen, u32 *out, int outlen)
@@ -121,10 +129,19 @@ int mlx5_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	cq->arm_sn     = 0;
 	cq->eq         = eq;
 	cq->uid = MLX5_GET(create_cq_in, in, uid);
+
+	/* Kernel CQs must set the arm_db address prior to calling
+	 * this function, allowing for the proper value to be
+	 * initialized. User CQs are responsible for their own
+	 * initialization since they do not use the arm_db field.
+	 */
+	if (cq->arm_db)
+		*cq->arm_db = MLX5_CQ_INIT_CMD_SN;
+
 	refcount_set(&cq->refcount, 1);
 	init_completion(&cq->free);
 	if (!cq->comp)
-		cq->comp = mlx5_add_cq_to_tasklet;
+		cq->comp = mlx5_core_cq_dummy_cb;
 	/* assuming CQ will be deleted before the EQ */
 	cq->tasklet_ctx.priv = &eq->tasklet_ctx;
 	INIT_LIST_HEAD(&cq->tasklet_ctx.list);
@@ -145,7 +162,6 @@ int mlx5_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		mlx5_core_dbg(dev, "failed adding CP 0x%x to debug file system\n",
 			      cq->cqn);
 
-	cq->uar = dev->priv.uar;
 	cq->irqn = eq->core.irqn;
 
 	return 0;

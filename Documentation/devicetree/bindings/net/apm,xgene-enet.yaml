@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/apm,xgene-enet.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: APM X-Gene SoC Ethernet
+
+maintainers:
+  - Iyappan Subramanian <iyappan@os.amperecomputing.com>
+  - Keyur Chudgar <keyur@os.amperecomputing.com>
+  - Quan Nguyen <quan@os.amperecomputing.com>
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - apm,xgene-enet
+      - apm,xgene1-sgenet
+      - apm,xgene1-xgenet
+      - apm,xgene2-sgenet
+      - apm,xgene2-xgenet
+
+  reg:
+    maxItems: 3
+
+  reg-names:
+    items:
+      - const: enet_csr
+      - const: ring_csr
+      - const: ring_cmd
+
+  clocks:
+    maxItems: 1
+
+  dma-coherent: true
+
+  interrupts:
+    description: An rx and tx completion interrupt pair per queue
+    minItems: 1
+    maxItems: 16
+
+  channel:
+    description: Ethernet to CPU start channel number
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  port-id:
+    description: Port number
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 1
+
+  tx-delay:
+    description: Delay value for RGMII bridge TX clock
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 7
+    default: 4
+
+  rx-delay:
+    description: Delay value for RGMII bridge RX clock
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 7
+    default: 2
+
+  rxlos-gpios:
+    description: Input GPIO from SFP+ module indicating incoming signal
+    maxItems: 1
+
+  mdio:
+    description: MDIO bus subnode
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      compatible:
+        const: apm,xgene-mdio
+
+    required:
+      - compatible
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ethernet@17020000 {
+        compatible = "apm,xgene-enet";
+        reg = <0x17020000 0xd100>,
+              <0x17030000 0x400>,
+              <0x10000000 0x200>;
+        reg-names = "enet_csr", "ring_csr", "ring_cmd";
+        interrupts = <0x0 0x3c 0x4>;
+        channel = <0>;
+        port-id = <0>;
+        clocks = <&menetclk 0>;
+        local-mac-address = [00 01 73 00 00 01];
+        phy-connection-type = "rgmii";
+        phy-handle = <&menetphy>;
+
+        mdio {
+            compatible = "apm,xgene-mdio";
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            menetphy: ethernet-phy@3 {
+                compatible = "ethernet-phy-id001c.c915";
+                reg = <3>;
+            };
+        };
+    };

@@ -845,7 +845,7 @@ static DEF_SCSI_QCMD(ppa_queuecommand)
  * be done in sd.c.  Even if it gets fixed there, this will still
  * work.
  */
-static int ppa_biosparam(struct scsi_device *sdev, struct block_device *dev,
+static int ppa_biosparam(struct scsi_device *sdev, struct gendisk *unused,
 	      sector_t capacity, int ip[])
 {
 	ip[0] = 0x40;

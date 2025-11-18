@@ -108,15 +108,11 @@ bool vdso_get_timestamp(const struct vdso_time_data *vd, const struct vdso_clock
 	return true;
 }
 
-#ifdef CONFIG_TIME_NS
-
-#ifdef CONFIG_GENERIC_VDSO_DATA_STORE
 static __always_inline
 const struct vdso_time_data *__arch_get_vdso_u_timens_data(const struct vdso_time_data *vd)
 {
 	return (void *)vd + PAGE_SIZE;
 }
-#endif /* CONFIG_GENERIC_VDSO_DATA_STORE */
 
 static __always_inline
 bool do_hres_timens(const struct vdso_time_data *vdns, const struct vdso_clock *vcns,
@@ -149,20 +145,6 @@ bool do_hres_timens(const struct vdso_time_data *vdns, const struct vdso_clock *
 
 	return true;
 }
-#else
-static __always_inline
-const struct vdso_time_data *__arch_get_vdso_u_timens_data(const struct vdso_time_data *vd)
-{
-	return NULL;
-}
-
-static __always_inline
-bool do_hres_timens(const struct vdso_time_data *vdns, const struct vdso_clock *vcns,
-		    clockid_t clk, struct __kernel_timespec *ts)
-{
-	return false;
-}
-#endif
 
 static __always_inline
 bool do_hres(const struct vdso_time_data *vd, const struct vdso_clock *vc,
@@ -204,7 +186,6 @@ bool do_hres(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 	return true;
 }
 
-#ifdef CONFIG_TIME_NS
 static __always_inline
 bool do_coarse_timens(const struct vdso_time_data *vdns, const struct vdso_clock *vcns,
 		      clockid_t clk, struct __kernel_timespec *ts)
@@ -233,14 +214,6 @@ bool do_coarse_timens(const struct vdso_time_data *vdns, const struct vdso_clock
 
 	return true;
 }
-#else
-static __always_inline
-bool do_coarse_timens(const struct vdso_time_data *vdns, const struct vdso_clock *vcns,
-		      clockid_t clk, struct __kernel_timespec *ts)
-{
-	return false;
-}
-#endif
 
 static __always_inline
 bool do_coarse(const struct vdso_time_data *vd, const struct vdso_clock *vc,

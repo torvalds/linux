@@ -1737,9 +1737,10 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 	sma1307->set.checksum = data[sma1307->set.header_size - 2];
 	sma1307->set.num_mode = data[sma1307->set.header_size - 1];
 	num_mode = sma1307->set.num_mode;
-	sma1307->set.header = devm_kzalloc(sma1307->dev,
-					   sma1307->set.header_size,
-					   GFP_KERNEL);
+	sma1307->set.header = devm_kmalloc_array(sma1307->dev,
+						 sma1307->set.header_size,
+						 sizeof(int),
+						 GFP_KERNEL);
 	if (!sma1307->set.header) {
 		sma1307->set.status = false;
 		return;

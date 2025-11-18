@@ -171,6 +171,9 @@ int em_dev_update_perf_domain(struct device *dev,
 int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 				const struct em_data_callback *cb,
 				const cpumask_t *cpus, bool microwatts);
+int em_dev_register_pd_no_update(struct device *dev, unsigned int nr_states,
+				 const struct em_data_callback *cb,
+				 const cpumask_t *cpus, bool microwatts);
 void em_dev_unregister_perf_domain(struct device *dev);
 struct em_perf_table *em_table_alloc(struct em_perf_domain *pd);
 void em_table_free(struct em_perf_table *table);
@@ -347,6 +350,13 @@ static inline
 int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 				const struct em_data_callback *cb,
 				const cpumask_t *cpus, bool microwatts)
+{
+	return -EINVAL;
+}
+static inline
+int em_dev_register_pd_no_update(struct device *dev, unsigned int nr_states,
+				 const struct em_data_callback *cb,
+				 const cpumask_t *cpus, bool microwatts)
 {
 	return -EINVAL;
 }

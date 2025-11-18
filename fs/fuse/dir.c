@@ -739,22 +739,18 @@ static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 	int err;
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct dentry *res = NULL;
 
 	if (fuse_is_bad(dir))
 		return -EIO;
 
 	if (d_in_lookup(entry)) {
-		res = fuse_lookup(dir, entry, 0);
-		if (IS_ERR(res))
-			return PTR_ERR(res);
-
-		if (res)
-			entry = res;
+		struct dentry *res = fuse_lookup(dir, entry, 0);
+		if (res || d_really_is_positive(entry))
+			return finish_no_open(file, res);
 	}
 
-	if (!(flags & O_CREAT) || d_really_is_positive(entry))
-		goto no_open;
+	if (!(flags & O_CREAT))
+		return finish_no_open(file, NULL);
 
 	/* Only creates */
 	file->f_mode |= FMODE_CREATED;
@@ -768,16 +764,13 @@ static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 		goto mknod;
 	} else if (err == -EEXIST)
 		fuse_invalidate_entry(entry);
-out_dput:
-	dput(res);
 	return err;
 
 mknod:
 	err = fuse_mknod(idmap, dir, entry, mode, 0);
 	if (err)
-		goto out_dput;
-no_open:
-	return finish_no_open(file, res);
+		return err;
+	return finish_no_open(file, NULL);
 }
 
 /*
@@ -1199,7 +1192,7 @@ static void fuse_fillattr(struct mnt_idmap *idmap, struct inode *inode,
 	if (attr->blksize != 0)
 		blkbits = ilog2(attr->blksize);
 	else
-		blkbits = inode->i_sb->s_blocksize_bits;
+		blkbits = fc->blkbits;
 
 	stat->blksize = 1 << blkbits;
 }
@@ -1377,6 +1370,7 @@ retry:
 		generic_fillattr(idmap, request_mask, inode, stat);
 		stat->mode = fi->orig_i_mode;
 		stat->ino = fi->orig_ino;
+		stat->blksize = 1 << fi->cached_i_blkbits;
 		if (test_bit(FUSE_I_BTIME, &fi->state)) {
 			stat->btime = fi->i_btime;
 			stat->result_mask |= STATX_BTIME;

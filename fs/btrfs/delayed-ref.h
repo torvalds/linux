@@ -276,10 +276,6 @@ struct btrfs_ref {
 	 */
 	bool skip_qgroup;
 
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
-	/* Through which root is this modification. */
-	u64 real_root;
-#endif
 	u64 bytenr;
 	u64 num_bytes;
 	u64 owning_root;
@@ -296,6 +292,11 @@ struct btrfs_ref {
 		struct btrfs_data_ref data_ref;
 		struct btrfs_tree_ref tree_ref;
 	};
+
+#ifdef CONFIG_BTRFS_DEBUG
+	/* Through which root is this modification. */
+	u64 real_root;
+#endif
 };
 
 extern struct kmem_cache *btrfs_delayed_ref_head_cachep;

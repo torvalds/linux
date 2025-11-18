@@ -404,8 +404,7 @@ static void ipmi_ipmb_shutdown(void *send_info)
 	ipmi_ipmb_stop_thread(iidev);
 }
 
-static void ipmi_ipmb_sender(void *send_info,
-			     struct ipmi_smi_msg *msg)
+static int ipmi_ipmb_sender(void *send_info, struct ipmi_smi_msg *msg)
 {
 	struct ipmi_ipmb_dev *iidev = send_info;
 	unsigned long flags;
@@ -417,6 +416,7 @@ static void ipmi_ipmb_sender(void *send_info,
 	spin_unlock_irqrestore(&iidev->lock, flags);
 
 	up(&iidev->wake_thread);
+	return IPMI_CC_NO_ERROR;
 }
 
 static void ipmi_ipmb_request_events(void *send_info)

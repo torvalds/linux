@@ -512,6 +512,8 @@ static ssize_t pm_qos_enable_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
+	guard(mutex)(&hba->pm_qos_mutex);
+
 	return sysfs_emit(buf, "%d\n", hba->pm_qos_enabled);
 }
 

@@ -9,6 +9,16 @@
 
 struct device;
 
+#define GPIO_GENERIC_BIG_ENDIAN			BIT(0)
+#define GPIO_GENERIC_UNREADABLE_REG_SET		BIT(1) /* reg_set is unreadable */
+#define GPIO_GENERIC_UNREADABLE_REG_DIR		BIT(2) /* reg_dir is unreadable */
+#define GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER	BIT(3)
+#define GPIO_GENERIC_READ_OUTPUT_REG_SET	BIT(4) /* reg_set stores output value */
+#define GPIO_GENERIC_NO_OUTPUT			BIT(5) /* only input */
+#define GPIO_GENERIC_NO_SET_ON_INPUT		BIT(6)
+#define GPIO_GENERIC_PINCTRL_BACKEND		BIT(7) /* Call pinctrl direction setters */
+#define GPIO_GENERIC_NO_INPUT			BIT(8) /* only output */
+
 /**
  * struct gpio_generic_chip_config - Generic GPIO chip configuration data
  * @dev: Parent device of the new GPIO chip (compulsory).
@@ -50,25 +60,54 @@ struct gpio_generic_chip_config {
  * struct gpio_generic_chip - Generic GPIO chip implementation.
  * @gc: The underlying struct gpio_chip object, implementing low-level GPIO
  *      chip routines.
+ * @read_reg: reader function for generic GPIO
+ * @write_reg: writer function for generic GPIO
+ * @be_bits: if the generic GPIO has big endian bit order (bit 31 is
+ *           representing line 0, bit 30 is line 1 ... bit 0 is line 31) this
+ *           is set to true by the generic GPIO core. It is for internal
+ *           housekeeping only.
+ * @reg_dat: data (in) register for generic GPIO
+ * @reg_set: output set register (out=high) for generic GPIO
+ * @reg_clr: output clear register (out=low) for generic GPIO
+ * @reg_dir_out: direction out setting register for generic GPIO
+ * @reg_dir_in: direction in setting register for generic GPIO
+ * @dir_unreadable: indicates that the direction register(s) cannot be read and
+ *                  we need to rely on out internal state tracking.
+ * @pinctrl: the generic GPIO uses a pin control backend.
+ * @bits: number of register bits used for a generic GPIO
+ *        i.e. <register width> * 8
+ * @lock: used to lock chip->sdata. Also, this is needed to keep
+ *        shadowed and real data registers writes together.
+ * @sdata: shadowed data register for generic GPIO to clear/set bits safely.
+ * @sdir: shadowed direction register for generic GPIO to clear/set direction
+ *        safely. A "1" in this word means the line is set as output.
  */
 struct gpio_generic_chip {
 	struct gpio_chip gc;
+	unsigned long (*read_reg)(void __iomem *reg);
+	void (*write_reg)(void __iomem *reg, unsigned long data);
+	bool be_bits;
+	void __iomem *reg_dat;
+	void __iomem *reg_set;
+	void __iomem *reg_clr;
+	void __iomem *reg_dir_out;
+	void __iomem *reg_dir_in;
+	bool dir_unreadable;
+	bool pinctrl;
+	int bits;
+	raw_spinlock_t lock;
+	unsigned long sdata;
+	unsigned long sdir;
 };
 
-/**
- * gpio_generic_chip_init() - Initialize a generic GPIO chip.
- * @chip: Generic GPIO chip to set up.
- * @cfg: Generic GPIO chip configuration.
- *
- * Returns 0 on success, negative error number on failure.
- */
-static inline int
-gpio_generic_chip_init(struct gpio_generic_chip *chip,
-		       const struct gpio_generic_chip_config *cfg)
+static inline struct gpio_generic_chip *
+to_gpio_generic_chip(struct gpio_chip *gc)
 {
-	return bgpio_init(&chip->gc, cfg->dev, cfg->sz, cfg->dat, cfg->set,
-			  cfg->clr, cfg->dirout, cfg->dirin, cfg->flags);
+	return container_of(gc, struct gpio_generic_chip, gc);
 }
+
+int gpio_generic_chip_init(struct gpio_generic_chip *chip,
+			   const struct gpio_generic_chip_config *cfg);
 
 /**
  * gpio_generic_chip_set() - Set the GPIO line value of the generic GPIO chip.
@@ -94,17 +133,48 @@ gpio_generic_chip_set(struct gpio_generic_chip *chip, unsigned int offset,
 	return chip->gc.set(&chip->gc, offset, value);
 }
 
+/**
+ * gpio_generic_read_reg() - Read a register using the underlying callback.
+ * @chip: Generic GPIO chip to use.
+ * @reg: Register to read.
+ *
+ * Returns: value read from register.
+ */
+static inline unsigned long
+gpio_generic_read_reg(struct gpio_generic_chip *chip, void __iomem *reg)
+{
+	if (WARN_ON(!chip->read_reg))
+		return 0;
+
+	return chip->read_reg(reg);
+}
+
+/**
+ * gpio_generic_write_reg() - Write a register using the underlying callback.
+ * @chip: Generic GPIO chip to use.
+ * @reg: Register to write to.
+ * @val: New value to write.
+ */
+static inline void gpio_generic_write_reg(struct gpio_generic_chip *chip,
+					  void __iomem *reg, unsigned long val)
+{
+	if (WARN_ON(!chip->write_reg))
+		return;
+
+	chip->write_reg(reg, val);
+}
+
 #define gpio_generic_chip_lock(gen_gc) \
-	raw_spin_lock(&(gen_gc)->gc.bgpio_lock)
+	raw_spin_lock(&(gen_gc)->lock)
 
 #define gpio_generic_chip_unlock(gen_gc) \
-	raw_spin_unlock(&(gen_gc)->gc.bgpio_lock)
+	raw_spin_unlock(&(gen_gc)->lock)
 
 #define gpio_generic_chip_lock_irqsave(gen_gc, flags) \
-	raw_spin_lock_irqsave(&(gen_gc)->gc.bgpio_lock, flags)
+	raw_spin_lock_irqsave(&(gen_gc)->lock, flags)
 
 #define gpio_generic_chip_unlock_irqrestore(gen_gc, flags) \
-	raw_spin_unlock_irqrestore(&(gen_gc)->gc.bgpio_lock, flags)
+	raw_spin_unlock_irqrestore(&(gen_gc)->lock, flags)
 
 DEFINE_LOCK_GUARD_1(gpio_generic_lock,
 		    struct gpio_generic_chip,

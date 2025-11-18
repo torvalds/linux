@@ -179,7 +179,6 @@ struct qcom_pcie_ep_cfg {
  * struct qcom_pcie_ep - Qualcomm PCIe Endpoint Controller
  * @pci: Designware PCIe controller struct
  * @parf: Qualcomm PCIe specific PARF register base
- * @elbi: Designware PCIe specific ELBI register base
  * @mmio: MMIO register base
  * @perst_map: PERST regmap
  * @mmio_res: MMIO region resource
@@ -202,7 +201,6 @@ struct qcom_pcie_ep {
 	struct dw_pcie pci;
 
 	void __iomem *parf;
-	void __iomem *elbi;
 	void __iomem *mmio;
 	struct regmap *perst_map;
 	struct resource *mmio_res;
@@ -267,10 +265,9 @@ static void qcom_pcie_ep_configure_tcsr(struct qcom_pcie_ep *pcie_ep)
 
 static bool qcom_pcie_dw_link_up(struct dw_pcie *pci)
 {
-	struct qcom_pcie_ep *pcie_ep = to_pcie_ep(pci);
 	u32 reg;
 
-	reg = readl_relaxed(pcie_ep->elbi + ELBI_SYS_STTS);
+	reg = readl_relaxed(pci->elbi_base + ELBI_SYS_STTS);
 
 	return reg & XMLH_LINK_UP;
 }
@@ -294,16 +291,15 @@ static void qcom_pcie_dw_stop_link(struct dw_pcie *pci)
 static void qcom_pcie_dw_write_dbi2(struct dw_pcie *pci, void __iomem *base,
 				    u32 reg, size_t size, u32 val)
 {
-	struct qcom_pcie_ep *pcie_ep = to_pcie_ep(pci);
 	int ret;
 
-	writel(1, pcie_ep->elbi + ELBI_CS2_ENABLE);
+	writel(1, pci->elbi_base + ELBI_CS2_ENABLE);
 
 	ret = dw_pcie_write(pci->dbi_base2 + reg, size, val);
 	if (ret)
 		dev_err(pci->dev, "Failed to write DBI2 register (0x%x): %d\n", reg, ret);
 
-	writel(0, pcie_ep->elbi + ELBI_CS2_ENABLE);
+	writel(0, pci->elbi_base + ELBI_CS2_ENABLE);
 }
 
 static void qcom_pcie_ep_icc_update(struct qcom_pcie_ep *pcie_ep)
@@ -511,10 +507,10 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
 		goto err_disable_resources;
 	}
 
-	if (pcie_link_speed[pci->max_link_speed] == PCIE_SPEED_16_0GT) {
-		qcom_pcie_common_set_16gt_equalization(pci);
+	qcom_pcie_common_set_equalization(pci);
+
+	if (pcie_link_speed[pci->max_link_speed] == PCIE_SPEED_16_0GT)
 		qcom_pcie_common_set_16gt_lane_margining(pci);
-	}
 
 	/*
 	 * The physical address of the MMIO region which is exposed as the BAR
@@ -582,11 +578,6 @@ static int qcom_pcie_ep_get_io_resources(struct platform_device *pdev,
 	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
 	pci->dbi_base2 = pci->dbi_base;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "elbi");
-	pcie_ep->elbi = devm_pci_remap_cfg_resource(dev, res);
-	if (IS_ERR(pcie_ep->elbi))
-		return PTR_ERR(pcie_ep->elbi);
 
 	pcie_ep->mmio_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 							 "mmio");
@@ -831,7 +822,6 @@ static void qcom_pcie_ep_init_debugfs(struct qcom_pcie_ep *pcie_ep)
 static const struct pci_epc_features qcom_pcie_epc_features = {
 	.linkup_notifier = true,
 	.msi_capable = true,
-	.msix_capable = false,
 	.align = SZ_4K,
 	.bar[BAR_0] = { .only_64bit = true, },
 	.bar[BAR_1] = { .type = BAR_RESERVED, },
@@ -874,7 +864,6 @@ static int qcom_pcie_ep_probe(struct platform_device *pdev)
 	pcie_ep->pci.dev = dev;
 	pcie_ep->pci.ops = &pci_ops;
 	pcie_ep->pci.ep.ops = &pci_ep_ops;
-	pcie_ep->pci.edma.nr_irqs = 1;
 
 	pcie_ep->cfg = of_device_get_match_data(dev);
 	if (pcie_ep->cfg && pcie_ep->cfg->hdma_support) {

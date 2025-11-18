@@ -95,7 +95,7 @@
 #define DEC_CPU_IRQ_ALL		(0xff << CAUSEB_IP)
 
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * Interrupt table structures to hide differences between systems.
@@ -121,6 +121,6 @@ extern void cpu_all_int(void);
 extern void dec_intr_unimplemented(void);
 extern void asic_intr_unimplemented(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif

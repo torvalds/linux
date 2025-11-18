@@ -259,7 +259,7 @@ static int cros_ec_uart_probe(struct serdev_device *serdev)
 	if (!ec_uart)
 		return -ENOMEM;
 
-	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
+	ec_dev = cros_ec_device_alloc(dev);
 	if (!ec_dev)
 		return -ENOMEM;
 
@@ -276,14 +276,10 @@ static int cros_ec_uart_probe(struct serdev_device *serdev)
 
 	/* Initialize ec_dev for cros_ec  */
 	ec_dev->phys_name = dev_name(dev);
-	ec_dev->dev = dev;
 	ec_dev->priv = ec_uart;
 	ec_dev->irq = ec_uart->irq;
 	ec_dev->cmd_xfer = NULL;
 	ec_dev->pkt_xfer = cros_ec_uart_pkt_xfer;
-	ec_dev->din_size = sizeof(struct ec_host_response) +
-			   sizeof(struct ec_response_get_protocol_info);
-	ec_dev->dout_size = sizeof(struct ec_host_request) + sizeof(struct ec_params_rwsig_action);
 
 	serdev_device_set_client_ops(serdev, &cros_ec_uart_client_ops);
 

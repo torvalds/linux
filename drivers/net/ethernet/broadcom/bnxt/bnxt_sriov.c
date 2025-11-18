@@ -541,6 +541,13 @@ static void bnxt_hwrm_roce_sriov_cfg(struct bnxt *bp, int num_vfs)
 	if (rc)
 		goto err;
 
+	/* In case of VF Dynamic resource allocation, driver will provision
+	 * maximum resources to all the VFs. FW will dynamically allocate
+	 * resources to VFs on the fly, so always divide the resources by 1.
+	 */
+	if (BNXT_ROCE_VF_DYN_ALLOC_CAP(bp))
+		num_vfs = 1;
+
 	cfg_req->fid = cpu_to_le16(0xffff);
 	cfg_req->enables2 =
 		cpu_to_le32(FUNC_CFG_REQ_ENABLES2_ROCE_MAX_AV_PER_VF |
@@ -734,7 +741,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 				   FUNC_CFG_REQ_ENABLES_NUM_VNICS |
 				   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS);
 
-	mtu = bp->dev->mtu + ETH_HLEN + VLAN_HLEN;
+	mtu = bp->dev->mtu + VLAN_ETH_HLEN;
 	req->mru = cpu_to_le16(mtu);
 	req->admin_mtu = cpu_to_le16(mtu);
 
@@ -919,7 +926,7 @@ err_out1:
 	return rc;
 }
 
-void bnxt_sriov_disable(struct bnxt *bp)
+void __bnxt_sriov_disable(struct bnxt *bp)
 {
 	u16 num_vfs = pci_num_vf(bp->pdev);
 
@@ -943,6 +950,14 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	devl_unlock(bp->dl);
 
 	bnxt_free_vf_resources(bp);
+}
+
+static void bnxt_sriov_disable(struct bnxt *bp)
+{
+	if (!pci_num_vf(bp->pdev))
+		return;
+
+	__bnxt_sriov_disable(bp);
 
 	/* Reclaim all resources for the PF. */
 	rtnl_lock();
@@ -1321,7 +1336,7 @@ int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset)
 	return 0;
 }
 
-void bnxt_sriov_disable(struct bnxt *bp)
+void __bnxt_sriov_disable(struct bnxt *bp)
 {
 }
 

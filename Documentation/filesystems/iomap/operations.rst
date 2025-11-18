@@ -321,7 +321,7 @@ The fields are as follows:
   - ``writeback_submit``: Submit the previous built writeback context.
     Block based file systems should use the iomap_ioend_writeback_submit
     helper, other file system can implement their own.
-    File systems can optionall to hook into writeback bio submission.
+    File systems can optionally hook into writeback bio submission.
     This might include pre-write space accounting updates, or installing
     a custom ``->bi_end_io`` function for internal purposes, such as
     deferring the ioend completion to a workqueue to run metadata update

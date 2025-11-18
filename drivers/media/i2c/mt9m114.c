@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/types.h>
@@ -42,6 +43,9 @@
 #define MT9M114_RESET_AND_MISC_CONTROL			CCI_REG16(0x001a)
 #define MT9M114_RESET_SOC					BIT(0)
 #define MT9M114_PAD_SLEW				CCI_REG16(0x001e)
+#define MT9M114_PAD_SLEW_MIN					0
+#define MT9M114_PAD_SLEW_MAX					7
+#define MT9M114_PAD_SLEW_DEFAULT				7
 #define MT9M114_PAD_CONTROL				CCI_REG16(0x0032)
 
 /* XDMA registers */
@@ -388,6 +392,7 @@ struct mt9m114 {
 
 	unsigned int pixrate;
 	bool streaming;
+	u32 pad_slew_rate;
 
 	/* Pixel Array */
 	struct {
@@ -645,9 +650,6 @@ static const struct cci_reg_sequence mt9m114_init[] = {
 	{ MT9M114_CAM_SENSOR_CFG_FINE_INTEG_TIME_MAX,	1459 },
 	{ MT9M114_CAM_SENSOR_CFG_FINE_CORRECTION,	96 },
 	{ MT9M114_CAM_SENSOR_CFG_REG_0_DATA,		32 },
-
-	/* Miscellaneous settings */
-	{ MT9M114_PAD_SLEW,				0x0777 },
 };
 
 /* -----------------------------------------------------------------------------
@@ -776,6 +778,13 @@ static int mt9m114_initialize(struct mt9m114 *sensor)
 		      | 0x8000;
 	}
 	cci_write(sensor->regmap, MT9M114_CAM_PORT_OUTPUT_CONTROL, value, &ret);
+	if (ret < 0)
+		return ret;
+
+	value = sensor->pad_slew_rate
+	      | sensor->pad_slew_rate << 4
+	      |	sensor->pad_slew_rate << 8;
+	cci_write(sensor->regmap, MT9M114_PAD_SLEW, value, &ret);
 	if (ret < 0)
 		return ret;
 
@@ -974,7 +983,6 @@ static int mt9m114_start_streaming(struct mt9m114 *sensor,
 	return 0;
 
 error:
-	pm_runtime_mark_last_busy(&sensor->client->dev);
 	pm_runtime_put_autosuspend(&sensor->client->dev);
 
 	return ret;
@@ -988,7 +996,6 @@ static int mt9m114_stop_streaming(struct mt9m114 *sensor)
 
 	ret = mt9m114_set_state(sensor, MT9M114_SYS_STATE_ENTER_SUSPEND);
 
-	pm_runtime_mark_last_busy(&sensor->client->dev);
 	pm_runtime_put_autosuspend(&sensor->client->dev);
 
 	return ret;
@@ -1046,7 +1053,6 @@ static int mt9m114_pa_g_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_mark_last_busy(&sensor->client->dev);
 	pm_runtime_put_autosuspend(&sensor->client->dev);
 
 	return ret;
@@ -1113,7 +1119,6 @@ static int mt9m114_pa_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_mark_last_busy(&sensor->client->dev);
 	pm_runtime_put_autosuspend(&sensor->client->dev);
 
 	return ret;
@@ -1287,6 +1292,7 @@ static int mt9m114_pa_set_selection(struct v4l2_subdev *sd,
 	struct mt9m114 *sensor = pa_to_mt9m114(sd);
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
+	int ret = 0;
 
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
@@ -1302,25 +1308,41 @@ static int mt9m114_pa_set_selection(struct v4l2_subdev *sd,
 	 * binning, but binning is configured after setting the selection, so
 	 * we can't know tell here if it will be used.
 	 */
-	crop->left = ALIGN(sel->r.left, 4);
-	crop->top = ALIGN(sel->r.top, 2);
-	crop->width = clamp_t(unsigned int, ALIGN(sel->r.width, 4),
-			      MT9M114_PIXEL_ARRAY_MIN_OUTPUT_WIDTH,
-			      MT9M114_PIXEL_ARRAY_WIDTH - crop->left);
-	crop->height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
-			       MT9M114_PIXEL_ARRAY_MIN_OUTPUT_HEIGHT,
-			       MT9M114_PIXEL_ARRAY_HEIGHT - crop->top);
+	sel->r.left = ALIGN(sel->r.left, 4);
+	sel->r.top = ALIGN(sel->r.top, 2);
+	sel->r.width = clamp_t(unsigned int, ALIGN(sel->r.width, 4),
+			       MT9M114_PIXEL_ARRAY_MIN_OUTPUT_WIDTH,
+			       MT9M114_PIXEL_ARRAY_WIDTH - sel->r.left);
+	sel->r.height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
+				MT9M114_PIXEL_ARRAY_MIN_OUTPUT_HEIGHT,
+				MT9M114_PIXEL_ARRAY_HEIGHT - sel->r.top);
 
-	sel->r = *crop;
+	/* Changing the selection size is not allowed in streaming state. */
+	if (sensor->streaming &&
+	    (sel->r.height != crop->height || sel->r.width != crop->width))
+		return -EBUSY;
+
+	*crop = sel->r;
 
 	/* Reset the format. */
 	format->width = crop->width;
 	format->height = crop->height;
 
-	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		mt9m114_pa_ctrl_update_blanking(sensor, format);
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return ret;
 
-	return 0;
+	mt9m114_pa_ctrl_update_blanking(sensor, format);
+
+	/* Apply values immediately if streaming. */
+	if (sensor->streaming) {
+		ret = mt9m114_configure_pa(sensor, state);
+		if (ret)
+			return ret;
+		/* Changing the cropping config requires a CONFIG_CHANGE. */
+		ret = mt9m114_set_state(sensor,
+					MT9M114_SYS_STATE_ENTER_CONFIG_CHANGE);
+	}
+	return ret;
 }
 
 static const struct v4l2_subdev_pad_ops mt9m114_pa_pad_ops = {
@@ -1565,7 +1587,6 @@ static int mt9m114_ifp_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_mark_last_busy(&sensor->client->dev);
 	pm_runtime_put_autosuspend(&sensor->client->dev);
 
 	return ret;
@@ -2365,6 +2386,17 @@ static int mt9m114_parse_dt(struct mt9m114 *sensor)
 		goto error;
 	}
 
+	sensor->pad_slew_rate = MT9M114_PAD_SLEW_DEFAULT;
+	device_property_read_u32(&sensor->client->dev, "slew-rate",
+				 &sensor->pad_slew_rate);
+
+	if (sensor->pad_slew_rate < MT9M114_PAD_SLEW_MIN ||
+	    sensor->pad_slew_rate > MT9M114_PAD_SLEW_MAX) {
+		dev_err(&sensor->client->dev, "Invalid slew-rate %u\n",
+			sensor->pad_slew_rate);
+		return -EINVAL;
+	}
+
 	return 0;
 
 error:
@@ -2395,10 +2427,10 @@ static int mt9m114_probe(struct i2c_client *client)
 		return ret;
 
 	/* Acquire clocks, GPIOs and regulators. */
-	sensor->clk = devm_clk_get(dev, NULL);
+	sensor->clk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(sensor->clk)) {
-		ret = PTR_ERR(sensor->clk);
-		dev_err_probe(dev, ret, "Failed to get clock\n");
+		ret = dev_err_probe(dev, PTR_ERR(sensor->clk),
+				    "Failed to get clock\n");
 		goto error_ep_free;
 	}
 
@@ -2472,7 +2504,6 @@ static int mt9m114_probe(struct i2c_client *client)
 	 * Decrease the PM usage count. The device will get suspended after the
 	 * autosuspend delay, turning the power off.
 	 */
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;

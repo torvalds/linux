@@ -10,7 +10,7 @@
 #ifndef _ASM_NIOS2_ENTRY_H
 #define _ASM_NIOS2_ENTRY_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #include <asm/processor.h>
 #include <asm/registers.h>
@@ -117,5 +117,5 @@
 	addi	sp, sp, SWITCH_STACK_SIZE
 .endm
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_NIOS2_ENTRY_H */

@@ -1,0 +1,171 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpu/nvidia,gk20a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Graphics Processing Units
+
+maintainers:
+  - Alexandre Courbot <acourbot@nvidia.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <treding@nvidia.com>
+
+properties:
+  compatible:
+    enum:
+      - nvidia,gk20a
+      - nvidia,gm20b
+      - nvidia,gp10b
+      - nvidia,gv11b
+
+  reg:
+    items:
+      - description: Bar0 register window
+      - description: Bar1 register window
+
+  interrupts:
+    items:
+      - description: Stall interrupt
+      - description: Nonstall interrupt
+
+  interrupt-names:
+    items:
+      - const: stall
+      - const: nonstall
+
+  vdd-supply:
+    description:
+      Regulator for GPU supply voltage
+
+  clocks:
+    minItems: 2
+    items:
+      - description: GPU clock
+      - description: Power clock
+      - description: Reference or fuse clock
+
+  clock-names:
+    minItems: 2
+    items:
+      - const: gpu
+      - const: pwr
+      - enum: [ ref, fuse ]
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: gpu
+
+  power-domains:
+    maxItems: 1
+
+  interconnects:
+    minItems: 4
+    maxItems: 12
+
+  interconnect-names:
+    minItems: 4
+    maxItems: 12
+
+  iommus:
+    maxItems: 1
+
+  dma-coherent: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,gp10b
+              - nvidia,gv11b
+    then:
+      required:
+        - power-domains
+    else:
+      properties:
+        interconnects: false
+        interconnect-names: false
+
+      required:
+        - vdd-supply
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,gp10b
+    then:
+      properties:
+        interconnects:
+          maxItems: 4
+
+        interconnect-names:
+          items:
+            - const: dma-mem
+            - const: write-0
+            - const: read-1
+            - const: write-1
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,gv11b
+    then:
+      properties:
+        interconnects:
+          minItems: 12
+
+        interconnect-names:
+          items:
+            - const: dma-mem
+            - const: read-0-hp
+            - const: write-0
+            - const: read-1
+            - const: read-1-hp
+            - const: write-1
+            - const: read-2
+            - const: read-2-hp
+            - const: write-2
+            - const: read-3
+            - const: read-3-hp
+            - const: write-3
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/tegra124-car-common.h>
+    #include <dt-bindings/memory/tegra124-mc.h>
+
+    gpu@57000000 {
+        compatible = "nvidia,gk20a";
+        reg = <0x57000000 0x01000000>,
+              <0x58000000 0x01000000>;
+        interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "stall", "nonstall";
+        vdd-supply = <&vdd_gpu>;
+        clocks = <&tegra_car TEGRA124_CLK_GPU>,
+                 <&tegra_car TEGRA124_CLK_PLL_P_OUT5>;
+        clock-names = "gpu", "pwr";
+        resets = <&tegra_car 184>;
+        reset-names = "gpu";
+        iommus = <&mc TEGRA_SWGROUP_GPU>;
+    };

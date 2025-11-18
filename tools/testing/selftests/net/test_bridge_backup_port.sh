@@ -315,6 +315,29 @@ backup_port()
 	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "No forwarding out of vx0"
 
+	# Check that packets are forwarded out of vx0 when swp1 is
+	# administratively down and out of swp1 when it is administratively up
+	# again.
+	run_cmd "ip -n $sw1 link set dev swp1 down"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
+	log_test $? 0 "swp1 administratively down"
+
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 3
+	log_test $? 0 "No forwarding out of swp1"
+	tc_check_packets $sw1 "dev vx0 egress" 101 2
+	log_test $? 0 "Forwarding out of vx0"
+
+	run_cmd "ip -n $sw1 link set dev swp1 up"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 forwarding
+	log_test $? 0 "swp1 administratively up"
+
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 4
+	log_test $? 0 "Forwarding out of swp1"
+	tc_check_packets $sw1 "dev vx0 egress" 101 2
+	log_test $? 0 "No forwarding out of vx0"
+
 	# Remove vx0 as the backup port of swp1 and check that packets are no
 	# longer forwarded out of vx0 when swp1 does not have a carrier.
 	run_cmd "bridge -n $sw1 link set dev swp1 nobackup_port"
@@ -322,9 +345,9 @@ backup_port()
 	log_test $? 1 "vx0 not configured as backup port of swp1"
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets $sw1 "dev swp1 egress" 101 4
+	tc_check_packets $sw1 "dev swp1 egress" 101 5
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets $sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 2
 	log_test $? 0 "No forwarding out of vx0"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
@@ -332,9 +355,9 @@ backup_port()
 	log_test $? 0 "swp1 carrier off"
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets $sw1 "dev swp1 egress" 101 4
+	tc_check_packets $sw1 "dev swp1 egress" 101 5
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets $sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 2
 	log_test $? 0 "No forwarding out of vx0"
 }
 

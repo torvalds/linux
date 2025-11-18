@@ -1209,7 +1209,7 @@ static int swiotlb_find_slots(struct device *dev, phys_addr_t orig_addr,
 	nslabs = nr_slots(alloc_size);
 	phys_limit = min_not_zero(*dev->dma_mask, dev->bus_dma_limit);
 	pool = swiotlb_alloc_pool(dev, nslabs, nslabs, 1, phys_limit,
-				  GFP_NOWAIT | __GFP_NOWARN);
+				  GFP_NOWAIT);
 	if (!pool)
 		return -1;
 

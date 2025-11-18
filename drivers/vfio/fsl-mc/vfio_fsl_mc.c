@@ -537,6 +537,8 @@ static int vfio_fsl_mc_probe(struct fsl_mc_device *mc_dev)
 	struct device *dev = &mc_dev->dev;
 	int ret;
 
+	dev_err_once(dev, "DEPRECATION: vfio-fsl-mc is deprecated and will be removed in a future kernel release\n");
+
 	vdev = vfio_alloc_device(vfio_fsl_mc_device, vdev, dev,
 				 &vfio_fsl_mc_ops);
 	if (IS_ERR(vdev))

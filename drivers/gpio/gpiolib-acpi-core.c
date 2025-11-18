@@ -291,6 +291,19 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio, int polarity)
 	return GPIOD_ASIS;
 }
 
+static void acpi_gpio_set_debounce_timeout(struct gpio_desc *desc,
+					   unsigned int acpi_debounce)
+{
+	int ret;
+
+	/* ACPI uses hundredths of milliseconds units */
+	acpi_debounce *= 10;
+	ret = gpio_set_debounce_timeout(desc, acpi_debounce);
+	if (ret)
+		gpiod_warn(desc, "Failed to set debounce-timeout %u: %d\n",
+			   acpi_debounce, ret);
+}
+
 static struct gpio_desc *acpi_request_own_gpiod(struct gpio_chip *chip,
 						struct acpi_resource_gpio *agpio,
 						unsigned int index,
@@ -300,18 +313,12 @@ static struct gpio_desc *acpi_request_own_gpiod(struct gpio_chip *chip,
 	enum gpiod_flags flags = acpi_gpio_to_gpiod_flags(agpio, polarity);
 	unsigned int pin = agpio->pin_table[index];
 	struct gpio_desc *desc;
-	int ret;
 
 	desc = gpiochip_request_own_desc(chip, pin, label, polarity, flags);
 	if (IS_ERR(desc))
 		return desc;
 
-	/* ACPI uses hundredths of milliseconds units */
-	ret = gpio_set_debounce_timeout(desc, agpio->debounce_timeout * 10);
-	if (ret)
-		dev_warn(chip->parent,
-			 "Failed to set debounce-timeout for pin 0x%04X, err %d\n",
-			 pin, ret);
+	acpi_gpio_set_debounce_timeout(desc, agpio->debounce_timeout);
 
 	return desc;
 }
@@ -375,8 +382,8 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 	desc = acpi_request_own_gpiod(chip, agpio, 0, "ACPI:Event");
 	if (IS_ERR(desc)) {
 		dev_err(chip->parent,
-			"Failed to request GPIO for pin 0x%04X, err %ld\n",
-			pin, PTR_ERR(desc));
+			"Failed to request GPIO for pin 0x%04X, err %pe\n",
+			pin, desc);
 		return AE_OK;
 	}
 
@@ -942,7 +949,7 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 {
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
 	bool can_fallback = acpi_can_fallback_to_crs(adev, con_id);
-	struct acpi_gpio_info info;
+	struct acpi_gpio_info info = {};
 	struct gpio_desc *desc;
 
 	desc = __acpi_find_gpio(fwnode, con_id, idx, can_fallback, &info);
@@ -957,6 +964,9 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 
 	acpi_gpio_update_gpiod_flags(dflags, &info);
 	acpi_gpio_update_gpiod_lookup_flags(lookupflags, &info);
+
+	acpi_gpio_set_debounce_timeout(desc, info.debounce);
+
 	return desc;
 }
 
@@ -992,7 +1002,7 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *con_id, 
 	int ret;
 
 	for (i = 0, idx = 0; idx <= index; i++) {
-		struct acpi_gpio_info info;
+		struct acpi_gpio_info info = {};
 		struct gpio_desc *desc;
 
 		/* Ignore -EPROBE_DEFER, it only matters if idx matches */

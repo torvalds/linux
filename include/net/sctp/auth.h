@@ -22,16 +22,11 @@ struct sctp_endpoint;
 struct sctp_association;
 struct sctp_authkey;
 struct sctp_hmacalgo;
-struct crypto_shash;
 
-/*
- * Define a generic struct that will hold all the info
- * necessary for an HMAC transform
- */
+/* Defines an HMAC algorithm supported by SCTP chunk authentication */
 struct sctp_hmac {
-	__u16 hmac_id;		/* one of the above ids */
-	char *hmac_name;	/* name for loading */
-	__u16 hmac_len;		/* length of the signature */
+	__u16 hmac_id;		/* one of SCTP_AUTH_HMAC_ID_* */
+	__u16 hmac_len;		/* length of the HMAC value in bytes */
 };
 
 /* This is generic structure that containst authentication bytes used
@@ -78,9 +73,9 @@ int sctp_auth_asoc_copy_shkeys(const struct sctp_endpoint *ep,
 				struct sctp_association *asoc,
 				gfp_t gfp);
 int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp);
-void sctp_auth_destroy_hmacs(struct crypto_shash *auth_hmacs[]);
-struct sctp_hmac *sctp_auth_get_hmac(__u16 hmac_id);
-struct sctp_hmac *sctp_auth_asoc_get_hmac(const struct sctp_association *asoc);
+const struct sctp_hmac *sctp_auth_get_hmac(__u16 hmac_id);
+const struct sctp_hmac *
+sctp_auth_asoc_get_hmac(const struct sctp_association *asoc);
 void sctp_auth_asoc_set_default_hmac(struct sctp_association *asoc,
 				     struct sctp_hmac_algo_param *hmacs);
 int sctp_auth_asoc_verify_hmac_id(const struct sctp_association *asoc,

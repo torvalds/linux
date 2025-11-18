@@ -142,6 +142,7 @@ static const struct {
 	[NETXTREME_E_P5_VF] = { "Broadcom BCM5750X NetXtreme-E Ethernet Virtual Function" },
 	[NETXTREME_E_P5_VF_HV] = { "Broadcom BCM5750X NetXtreme-E Virtual Function for Hyper-V" },
 	[NETXTREME_E_P7_VF] = { "Broadcom BCM5760X Virtual Function" },
+	[NETXTREME_E_P7_VF_HV] = { "Broadcom BCM5760X Virtual Function for Hyper-V" },
 };
 
 static const struct pci_device_id bnxt_pci_tbl[] = {
@@ -217,6 +218,7 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x1808), .driver_data = NETXTREME_E_P5_VF_HV },
 	{ PCI_VDEVICE(BROADCOM, 0x1809), .driver_data = NETXTREME_E_P5_VF_HV },
 	{ PCI_VDEVICE(BROADCOM, 0x1819), .driver_data = NETXTREME_E_P7_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x181b), .driver_data = NETXTREME_E_P7_VF_HV },
 	{ PCI_VDEVICE(BROADCOM, 0xd800), .driver_data = NETXTREME_S_VF },
 #endif
 	{ 0 }
@@ -263,6 +265,8 @@ const u16 bnxt_bstore_to_trace[] = {
 	[BNXT_CTX_CA1]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_CA1_TRACE,
 	[BNXT_CTX_CA2]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_CA2_TRACE,
 	[BNXT_CTX_RIGP1]	= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_RIGP1_TRACE,
+	[BNXT_CTX_KONG]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_AFM_KONG_HWRM_TRACE,
+	[BNXT_CTX_QPC]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_ERR_QPC_TRACE,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -315,7 +319,8 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 	return (idx == NETXTREME_C_VF || idx == NETXTREME_E_VF ||
 		idx == NETXTREME_S_VF || idx == NETXTREME_C_VF_HV ||
 		idx == NETXTREME_E_VF_HV || idx == NETXTREME_E_P5_VF ||
-		idx == NETXTREME_E_P5_VF_HV || idx == NETXTREME_E_P7_VF);
+		idx == NETXTREME_E_P5_VF_HV || idx == NETXTREME_E_P7_VF ||
+		idx == NETXTREME_E_P7_VF_HV);
 }
 
 #define DB_CP_REARM_FLAGS	(DB_KEY_CP | DB_IDX_VALID)
@@ -3797,8 +3802,7 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 			xdp_rxq_info_unreg(&rxr->xdp_rxq);
 
 		page_pool_destroy(rxr->page_pool);
-		if (bnxt_separate_head_pool(rxr))
-			page_pool_destroy(rxr->head_pool);
+		page_pool_destroy(rxr->head_pool);
 		rxr->page_pool = rxr->head_pool = NULL;
 
 		kfree(rxr->rx_agg_bmap);
@@ -3845,6 +3849,8 @@ static int bnxt_alloc_rx_page_pool(struct bnxt *bp,
 		pool = page_pool_create(&pp);
 		if (IS_ERR(pool))
 			goto err_destroy_pp;
+	} else {
+		page_pool_get(pool);
 	}
 	rxr->head_pool = pool;
 
@@ -4397,7 +4403,7 @@ static void bnxt_alloc_one_rx_ring_netmem(struct bnxt *bp,
 	for (i = 0; i < bp->rx_agg_ring_size; i++) {
 		if (bnxt_alloc_rx_netmem(bp, rxr, prod, GFP_KERNEL)) {
 			netdev_warn(bp->dev, "init'ed rx ring %d with %d/%d pages only\n",
-				    ring_nr, i, bp->rx_ring_size);
+				    ring_nr, i, bp->rx_agg_ring_size);
 			break;
 		}
 		prod = NEXT_RX_AGG(prod);
@@ -5332,7 +5338,7 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool all)
 {
 	int i;
 
-	netdev_assert_locked(bp->dev);
+	netdev_assert_locked_or_invisible(bp->dev);
 
 	/* Under netdev instance lock and all our NAPIs have been disabled.
 	 * It's safe to delete the hash table.
@@ -6832,7 +6838,7 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 	req->dflt_ring_grp = cpu_to_le16(bp->grp_info[grp_idx].fw_grp_id);
 	req->lb_rule = cpu_to_le16(0xffff);
 vnic_mru:
-	vnic->mru = bp->dev->mtu + ETH_HLEN + VLAN_HLEN;
+	vnic->mru = bp->dev->mtu + VLAN_ETH_HLEN;
 	req->mru = cpu_to_le16(vnic->mru);
 
 	req->vnic_id = cpu_to_le16(vnic->fw_vnic_id);
@@ -6969,6 +6975,8 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 			bp->rss_cap |= BNXT_RSS_CAP_ESP_V4_RSS_CAP;
 		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_ESP_SPI_IPV6_CAP)
 			bp->rss_cap |= BNXT_RSS_CAP_ESP_V6_RSS_CAP;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPV6_FLOW_LABEL_CAP)
+			bp->rss_cap |= BNXT_RSS_CAP_IPV6_FLOW_LABEL_RSS_CAP;
 		if (flags & VNIC_QCAPS_RESP_FLAGS_RE_FLUSH_CAP)
 			bp->fw_cap |= BNXT_FW_CAP_VNIC_RE_FLUSH;
 	}
@@ -8016,7 +8024,8 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	}
 	rx_rings = min_t(int, rx_rings, hwr.grp);
 	hwr.cp = min_t(int, hwr.cp, bp->cp_nr_rings);
-	if (hwr.stat > bnxt_get_ulp_stat_ctxs(bp))
+	if (bnxt_ulp_registered(bp->edev) &&
+	    hwr.stat > bnxt_get_ulp_stat_ctxs(bp))
 		hwr.stat -= bnxt_get_ulp_stat_ctxs(bp);
 	hwr.cp = min_t(int, hwr.cp, hwr.stat);
 	rc = bnxt_trim_rings(bp, &rx_rings, &hwr.tx, hwr.cp, sh);
@@ -8024,6 +8033,11 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 		hwr.rx = rx_rings << 1;
 	tx_cp = bnxt_num_tx_to_cp(bp, hwr.tx);
 	hwr.cp = sh ? max_t(int, tx_cp, rx_rings) : tx_cp + rx_rings;
+	if (hwr.tx != bp->tx_nr_rings) {
+		netdev_warn(bp->dev,
+			    "Able to reserve only %d out of %d requested TX rings\n",
+			    hwr.tx, bp->tx_nr_rings);
+	}
 	bp->tx_nr_rings = hwr.tx;
 
 	/* If we cannot reserve all the RX rings, reset the RSS map only
@@ -9138,7 +9152,7 @@ static int bnxt_hwrm_func_backing_store_cfg_v2(struct bnxt *bp,
 	return rc;
 }
 
-static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
+static int bnxt_backing_store_cfg_v2(struct bnxt *bp)
 {
 	struct bnxt_ctx_mem_info *ctx = bp->ctx;
 	struct bnxt_ctx_mem_type *ctxm;
@@ -9146,7 +9160,7 @@ static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
 	int rc = 0;
 	u16 type;
 
-	for (type = BNXT_CTX_SRT; type <= BNXT_CTX_RIGP1; type++) {
+	for (type = BNXT_CTX_SRT; type <= BNXT_CTX_QPC; type++) {
 		ctxm = &ctx->ctx_arr[type];
 		if (!bnxt_bs_trace_avail(bp, type))
 			continue;
@@ -9164,12 +9178,13 @@ static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
 	}
 
 	if (last_type == BNXT_CTX_INV) {
-		if (!ena)
+		for (type = 0; type < BNXT_CTX_MAX; type++) {
+			ctxm = &ctx->ctx_arr[type];
+			if (ctxm->mem_valid)
+				last_type = type;
+		}
+		if (last_type == BNXT_CTX_INV)
 			return 0;
-		else if (ena & FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM)
-			last_type = BNXT_CTX_MAX - 1;
-		else
-			last_type = BNXT_CTX_L2_MAX - 1;
 	}
 	ctx->ctx_arr[last_type].last = 1;
 
@@ -9296,6 +9311,10 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
 		return 0;
 
+	ena = 0;
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS))
+		goto skip_legacy;
+
 	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
 	l2_qps = ctxm->qp_l2_entries;
 	qp1_qps = ctxm->qp_qp1_entries;
@@ -9304,7 +9323,6 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ctxm = &ctx->ctx_arr[BNXT_CTX_SRQ];
 	srqs = ctxm->srq_l2_entries;
 	max_srqs = ctxm->max_entries;
-	ena = 0;
 	if ((bp->flags & BNXT_FLAG_ROCE_CAP) && !is_kdump_kernel()) {
 		pg_lvl = 2;
 		if (BNXT_SW_RES_LMT(bp)) {
@@ -9398,8 +9416,9 @@ skip_rdma:
 		ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TQM_SP << i;
 	ena |= FUNC_BACKING_STORE_CFG_REQ_DFLT_ENABLES;
 
+skip_legacy:
 	if (bp->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
-		rc = bnxt_backing_store_cfg_v2(bp, ena);
+		rc = bnxt_backing_store_cfg_v2(bp);
 	else
 		rc = bnxt_hwrm_func_backing_store_cfg(bp, ena);
 	if (rc) {
@@ -9613,10 +9632,10 @@ no_ptp:
 
 static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 {
+	u32 flags, flags_ext, flags_ext2, flags_ext3;
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	struct hwrm_func_qcaps_output *resp;
 	struct hwrm_func_qcaps_input *req;
-	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
-	u32 flags, flags_ext, flags_ext2;
 	int rc;
 
 	rc = hwrm_req_init(bp, req, HWRM_FUNC_QCAPS);
@@ -9682,6 +9701,12 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	if (BNXT_PF(bp) &&
 	    (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_ROCE_VF_RESOURCE_MGMT_SUPPORTED))
 		bp->fw_cap |= BNXT_FW_CAP_ROCE_VF_RESC_MGMT_SUPPORTED;
+
+	flags_ext3 = le32_to_cpu(resp->flags_ext3);
+	if (flags_ext3 & FUNC_QCAPS_RESP_FLAGS_EXT3_ROCE_VF_DYN_ALLOC_SUPPORT)
+		bp->fw_cap |= BNXT_FW_CAP_ROCE_VF_DYN_ALLOC_SUPPORT;
+	if (flags_ext3 & FUNC_QCAPS_RESP_FLAGS_EXT3_MIRROR_ON_ROCE_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_MIRROR_ON_ROCE;
 
 	bp->tx_push_thresh = 0;
 	if ((flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED) &&
@@ -12414,7 +12439,7 @@ static int bnxt_try_recover_fw(struct bnxt *bp)
 	return -ENODEV;
 }
 
-static void bnxt_clear_reservations(struct bnxt *bp, bool fw_reset)
+void bnxt_clear_reservations(struct bnxt *bp, bool fw_reset)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 
@@ -12851,6 +12876,17 @@ static int bnxt_set_xps_mapping(struct bnxt *bp)
 	return rc;
 }
 
+static int bnxt_tx_nr_rings(struct bnxt *bp)
+{
+	return bp->num_tc ? bp->tx_nr_rings_per_tc * bp->num_tc :
+			    bp->tx_nr_rings_per_tc;
+}
+
+static int bnxt_tx_nr_rings_per_tc(struct bnxt *bp)
+{
+	return bp->num_tc ? bp->tx_nr_rings / bp->num_tc : bp->tx_nr_rings;
+}
+
 static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -12868,6 +12904,13 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	if (rc)
 		return rc;
 
+	/* Make adjustments if reserved TX rings are less than requested */
+	bp->tx_nr_rings -= bp->tx_nr_rings_xdp;
+	bp->tx_nr_rings_per_tc = bnxt_tx_nr_rings_per_tc(bp);
+	if (bp->tx_nr_rings_xdp) {
+		bp->tx_nr_rings_xdp = bp->tx_nr_rings_per_tc;
+		bp->tx_nr_rings += bp->tx_nr_rings_xdp;
+	}
 	rc = bnxt_alloc_mem(bp, irq_re_init);
 	if (rc) {
 		netdev_err(bp->dev, "bnxt_alloc_mem err: %x\n", rc);
@@ -13236,12 +13279,6 @@ static int bnxt_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 		return bnxt_hwrm_port_phy_write(bp, mdio->phy_id, mdio->reg_num,
 						mdio->val_in);
-
-	case SIOCSHWTSTAMP:
-		return bnxt_hwtstamp_set(dev, ifr);
-
-	case SIOCGHWTSTAMP:
-		return bnxt_hwtstamp_get(dev, ifr);
 
 	default:
 		/* do nothing */
@@ -14707,6 +14744,23 @@ static bool bnxt_fw_pre_resv_vnics(struct bnxt *bp)
 	return false;
 }
 
+static void bnxt_hwrm_pfcwd_qcaps(struct bnxt *bp)
+{
+	struct hwrm_queue_pfcwd_timeout_qcaps_output *resp;
+	struct hwrm_queue_pfcwd_timeout_qcaps_input *req;
+	int rc;
+
+	bp->max_pfcwd_tmo_ms = 0;
+	rc = hwrm_req_init(bp, req, HWRM_QUEUE_PFCWD_TIMEOUT_QCAPS);
+	if (rc)
+		return;
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send_silent(bp, req);
+	if (!rc)
+		bp->max_pfcwd_tmo_ms = le16_to_cpu(resp->max_pfcwd_timeout);
+	hwrm_req_drop(bp, req);
+}
+
 static int bnxt_fw_init_one_p1(struct bnxt *bp)
 {
 	int rc;
@@ -14784,6 +14838,7 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 	if (bnxt_fw_pre_resv_vnics(bp))
 		bp->fw_cap |= BNXT_FW_CAP_PRE_RESV_VNICS;
 
+	bnxt_hwrm_pfcwd_qcaps(bp);
 	bnxt_hwrm_func_qcfg(bp);
 	bnxt_hwrm_vnic_qcaps(bp);
 	bnxt_hwrm_port_led_qcaps(bp);
@@ -15747,6 +15802,8 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_xdp_xmit		= bnxt_xdp_xmit,
 	.ndo_bridge_getlink	= bnxt_bridge_getlink,
 	.ndo_bridge_setlink	= bnxt_bridge_setlink,
+	.ndo_hwtstamp_get	= bnxt_hwtstamp_get,
+	.ndo_hwtstamp_set	= bnxt_hwtstamp_set,
 };
 
 static void bnxt_get_queue_stats_rx(struct net_device *dev, int i,
@@ -15898,8 +15955,7 @@ err_rxq_info_unreg:
 	xdp_rxq_info_unreg(&clone->xdp_rxq);
 err_page_pool_destroy:
 	page_pool_destroy(clone->page_pool);
-	if (bnxt_separate_head_pool(clone))
-		page_pool_destroy(clone->head_pool);
+	page_pool_destroy(clone->head_pool);
 	clone->page_pool = NULL;
 	clone->head_pool = NULL;
 	return rc;
@@ -15917,8 +15973,7 @@ static void bnxt_queue_mem_free(struct net_device *dev, void *qmem)
 	xdp_rxq_info_unreg(&rxr->xdp_rxq);
 
 	page_pool_destroy(rxr->page_pool);
-	if (bnxt_separate_head_pool(rxr))
-		page_pool_destroy(rxr->head_pool);
+	page_pool_destroy(rxr->head_pool);
 	rxr->page_pool = NULL;
 	rxr->head_pool = NULL;
 
@@ -16047,7 +16102,7 @@ static int bnxt_queue_start(struct net_device *dev, void *qmem, int idx)
 	napi_enable_locked(&bnapi->napi);
 	bnxt_db_nq_arm(bp, &cpr->cp_db, cpr->cp_raw_cons);
 
-	mru = bp->dev->mtu + ETH_HLEN + VLAN_HLEN;
+	mru = bp->dev->mtu + VLAN_ETH_HLEN;
 	for (i = 0; i < bp->nr_vnics; i++) {
 		vnic = &bp->vnic_info[i];
 
@@ -16128,7 +16183,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	struct bnxt *bp = netdev_priv(dev);
 
 	if (BNXT_PF(bp))
-		bnxt_sriov_disable(bp);
+		__bnxt_sriov_disable(bp);
 
 	bnxt_rdma_aux_device_del(bp);
 
@@ -16325,7 +16380,7 @@ static void bnxt_trim_dflt_sh_rings(struct bnxt *bp)
 	bp->cp_nr_rings = min_t(int, bp->tx_nr_rings_per_tc, bp->rx_nr_rings);
 	bp->rx_nr_rings = bp->cp_nr_rings;
 	bp->tx_nr_rings_per_tc = bp->cp_nr_rings;
-	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
+	bp->tx_nr_rings = bnxt_tx_nr_rings(bp);
 }
 
 static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
@@ -16357,7 +16412,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 		bnxt_trim_dflt_sh_rings(bp);
 	else
 		bp->cp_nr_rings = bp->tx_nr_rings_per_tc + bp->rx_nr_rings;
-	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
+	bp->tx_nr_rings = bnxt_tx_nr_rings(bp);
 
 	avail_msix = bnxt_get_max_func_irqs(bp) - bp->cp_nr_rings;
 	if (avail_msix >= BNXT_MIN_ROCE_CP_RINGS) {
@@ -16370,7 +16425,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	rc = __bnxt_reserve_rings(bp);
 	if (rc && rc != -ENODEV)
 		netdev_warn(bp->dev, "Unable to reserve tx rings\n");
-	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
+	bp->tx_nr_rings_per_tc = bnxt_tx_nr_rings_per_tc(bp);
 	if (sh)
 		bnxt_trim_dflt_sh_rings(bp);
 
@@ -16379,7 +16434,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 		rc = __bnxt_reserve_rings(bp);
 		if (rc && rc != -ENODEV)
 			netdev_warn(bp->dev, "2nd rings reservation failed.\n");
-		bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
+		bp->tx_nr_rings_per_tc = bnxt_tx_nr_rings_per_tc(bp);
 	}
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp)) {
 		bp->rx_nr_rings++;
@@ -16413,7 +16468,7 @@ static int bnxt_init_dflt_ring_mode(struct bnxt *bp)
 	if (rc)
 		goto init_dflt_ring_err;
 
-	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
+	bp->tx_nr_rings_per_tc = bnxt_tx_nr_rings_per_tc(bp);
 
 	bnxt_set_dflt_rfs(bp);
 
@@ -16837,6 +16892,10 @@ static void bnxt_shutdown(struct pci_dev *pdev)
 	if (netif_running(dev))
 		netif_close(dev);
 
+	if (bnxt_hwrm_func_drv_unrgtr(bp)) {
+		pcie_flr(pdev);
+		goto shutdown_exit;
+	}
 	bnxt_ptp_clear(bp);
 	bnxt_clear_int_mode(bp);
 	pci_disable_device(pdev);

@@ -86,9 +86,10 @@ u8 ap_is_valid_checksum(struct acpi_table_header *table)
 	if (ACPI_FAILURE(status)) {
 		fprintf(stderr, "%4.4s: Warning: wrong checksum in table\n",
 			table->signature);
+		return (FALSE);
 	}
 
-	return (AE_OK);
+	return (TRUE);
 }
 
 /******************************************************************************

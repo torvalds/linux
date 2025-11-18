@@ -304,7 +304,8 @@ static int setup_link_status_change_wq(struct net_device *netdev)
 	struct octeon_device *oct = lio->oct_dev;
 
 	lio->link_status_wq.wq = alloc_workqueue("link-status",
-						 WQ_MEM_RECLAIM, 0);
+						 WQ_MEM_RECLAIM | WQ_PERCPU,
+						 0);
 	if (!lio->link_status_wq.wq) {
 		dev_err(&oct->pci_dev->dev, "unable to create cavium link status wq\n");
 		return -1;

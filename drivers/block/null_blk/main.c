@@ -223,7 +223,7 @@ MODULE_PARM_DESC(discard, "Support discard operations (requires memory-backed nu
 
 static unsigned long g_cache_size;
 module_param_named(cache_size, g_cache_size, ulong, 0444);
-MODULE_PARM_DESC(mbps, "Cache size in MiB for memory-backed device. Default: 0 (none)");
+MODULE_PARM_DESC(cache_size, "Cache size in MiB for memory-backed device. Default: 0 (none)");
 
 static bool g_fua = true;
 module_param_named(fua, g_fua, bool, 0444);
@@ -1949,6 +1949,7 @@ static int null_add_dev(struct nullb_device *dev)
 		.logical_block_size	= dev->blocksize,
 		.physical_block_size	= dev->blocksize,
 		.max_hw_sectors		= dev->max_sectors,
+		.dma_alignment		= dev->blocksize - 1,
 	};
 
 	struct nullb *nullb;

@@ -4,8 +4,10 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/sun6i-rtc.h>
 #include <dt-bindings/clock/sun55i-a523-ccu.h>
+#include <dt-bindings/clock/sun55i-a523-mcu-ccu.h>
 #include <dt-bindings/clock/sun55i-a523-r-ccu.h>
 #include <dt-bindings/reset/sun55i-a523-ccu.h>
+#include <dt-bindings/reset/sun55i-a523-mcu-ccu.h>
 #include <dt-bindings/reset/sun55i-a523-r-ccu.h>
 #include <dt-bindings/power/allwinner,sun55i-a523-ppu.h>
 #include <dt-bindings/power/allwinner,sun55i-a523-pck-600.h>
@@ -624,6 +626,8 @@
 				      "pll-audio";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			assigned-clocks = <&r_ccu CLK_R_AHB>, <&r_ccu CLK_R_APB0>;
+			assigned-clock-rates = <200000000>, <100000000>;
 		};
 
 		nmi_intc: interrupt-controller@7010320 {
@@ -689,6 +693,43 @@
 				 <&r_ccu CLK_R_AHB>;
 			clock-names = "bus", "hosc", "ahb";
 			#clock-cells = <1>;
+		};
+
+		mcu_ccu: clock-controller@7102000 {
+			compatible = "allwinner,sun55i-a523-mcu-ccu";
+			reg = <0x7102000 0x200>;
+			clocks = <&osc24M>,
+				 <&rtc CLK_OSC32K>,
+				 <&rtc CLK_IOSC>,
+				 <&ccu CLK_PLL_AUDIO0_4X>,
+				 <&ccu CLK_PLL_PERIPH0_300M>,
+				 <&ccu CLK_DSP>,
+				 <&ccu CLK_MBUS>,
+				 <&r_ccu CLK_R_AHB>,
+				 <&r_ccu CLK_R_APB0>;
+			clock-names = "hosc",
+				      "losc",
+				      "iosc",
+				      "pll-audio0-4x",
+				      "pll-periph0-300m",
+				      "dsp",
+				      "mbus",
+				      "r-ahb",
+				      "r-apb0";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
+		npu: npu@7122000 {
+			compatible = "vivante,gc";
+			reg = <0x07122000 0x1000>;
+			interrupts = <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mcu_ccu CLK_BUS_MCU_NPU_ACLK>,
+				 <&ccu CLK_NPU>,
+				 <&mcu_ccu CLK_BUS_MCU_NPU_HCLK>;
+			clock-names = "bus", "core", "reg";
+			resets = <&mcu_ccu RST_BUS_MCU_NPU>;
+			power-domains = <&ppu PD_NPU>;
 		};
 	};
 };

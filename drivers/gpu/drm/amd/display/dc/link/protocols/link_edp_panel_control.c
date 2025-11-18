@@ -703,6 +703,20 @@ bool edp_setup_psr(struct dc_link *link,
 	if (!link)
 		return false;
 
+	/* This is a workaround: some vendors require the source to
+	 * read the PSR cap; otherwise, the vendor's PSR feature will
+	 * fall back to its default behavior, causing a misconfiguration
+	 * of this feature.
+	 */
+	if (link->panel_config.psr.read_psrcap_again) {
+		dm_helpers_dp_read_dpcd(
+			link->ctx,
+			link,
+			DP_PSR_SUPPORT,
+			&link->dpcd_caps.psr_info.psr_version,
+			sizeof(link->dpcd_caps.psr_info.psr_version));
+	}
+
 	//Clear PSR cfg
 	memset(&psr_configuration, 0, sizeof(psr_configuration));
 	dm_helpers_dp_write_dpcd(
@@ -870,6 +884,8 @@ bool edp_setup_psr(struct dc_link *link,
 
 	psr_context->dsc_slice_height = psr_config->dsc_slice_height;
 
+	psr_context->os_request_force_ffu = psr_config->os_request_force_ffu;
+
 	if (psr) {
 		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr,
 			link, psr_context, panel_inst);
@@ -944,7 +960,7 @@ bool edp_set_replay_allow_active(struct dc_link *link, const bool *allow_active,
 		// TODO: Handle mux change case if force_static is set
 		// If force_static is set, just change the replay_allow_active state directly
 		if (replay != NULL && link->replay_settings.replay_feature_enabled)
-			replay->funcs->replay_enable(replay, *allow_active, wait, panel_inst, link);
+			replay->funcs->replay_enable(replay, *allow_active, wait, panel_inst);
 		link->replay_settings.replay_allow_active = *allow_active;
 	}
 
@@ -1029,6 +1045,8 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 
 	replay_context.line_time_in_ns = lineTimeInNs;
 
+	replay_context.os_request_force_ffu = link->replay_settings.config.os_request_force_ffu;
+
 	link->replay_settings.replay_feature_enabled =
 			replay->funcs->replay_copy_settings(replay, link, &replay_context, panel_inst);
 	if (link->replay_settings.replay_feature_enabled) {
@@ -1042,7 +1060,13 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 			(uint8_t *)&(replay_config.raw), sizeof(uint8_t));
 
 		memset(&alpm_config, 0, sizeof(alpm_config));
-		alpm_config.bits.ENABLE = 1;
+		alpm_config.bits.ENABLE = link->replay_settings.config.alpm_mode != DC_ALPM_UNSUPPORTED ? 1 : 0;
+
+		if (link->replay_settings.config.alpm_mode == DC_ALPM_AUXLESS) {
+			alpm_config.bits.ALPM_MODE_SEL = 1;
+			alpm_config.bits.ACDS_PERIOD_DURATION = 0;
+		}
+
 		dm_helpers_dp_write_dpcd(
 			link->ctx,
 			link,

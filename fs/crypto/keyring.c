@@ -42,7 +42,6 @@ struct fscrypt_keyring {
 
 static void wipe_master_key_secret(struct fscrypt_master_key_secret *secret)
 {
-	fscrypt_destroy_hkdf(&secret->hkdf);
 	memzero_explicit(secret, sizeof(*secret));
 }
 
@@ -587,21 +586,17 @@ static int add_master_key(struct super_block *sb,
 			keyid_kdf_ctx =
 				HKDF_CONTEXT_KEY_IDENTIFIER_FOR_HW_WRAPPED_KEY;
 		}
-		err = fscrypt_init_hkdf(&secret->hkdf, kdf_key, kdf_key_size);
+		fscrypt_init_hkdf(&secret->hkdf, kdf_key, kdf_key_size);
 		/*
 		 * Now that the KDF context is initialized, the raw KDF key is
 		 * no longer needed.
 		 */
 		memzero_explicit(kdf_key, kdf_key_size);
-		if (err)
-			return err;
 
 		/* Calculate the key identifier */
-		err = fscrypt_hkdf_expand(&secret->hkdf, keyid_kdf_ctx, NULL, 0,
-					  key_spec->u.identifier,
-					  FSCRYPT_KEY_IDENTIFIER_SIZE);
-		if (err)
-			return err;
+		fscrypt_hkdf_expand(&secret->hkdf, keyid_kdf_ctx, NULL, 0,
+				    key_spec->u.identifier,
+				    FSCRYPT_KEY_IDENTIFIER_SIZE);
 	}
 	return do_add_master_key(sb, secret, key_spec);
 }
@@ -835,24 +830,17 @@ fscrypt_get_test_dummy_secret(struct fscrypt_master_key_secret *secret)
 	memcpy(secret->bytes, test_key, sizeof(test_key));
 }
 
-int fscrypt_get_test_dummy_key_identifier(
+void fscrypt_get_test_dummy_key_identifier(
 				u8 key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE])
 {
 	struct fscrypt_master_key_secret secret;
-	int err;
 
 	fscrypt_get_test_dummy_secret(&secret);
-
-	err = fscrypt_init_hkdf(&secret.hkdf, secret.bytes, secret.size);
-	if (err)
-		goto out;
-	err = fscrypt_hkdf_expand(&secret.hkdf,
-				  HKDF_CONTEXT_KEY_IDENTIFIER_FOR_RAW_KEY,
-				  NULL, 0, key_identifier,
-				  FSCRYPT_KEY_IDENTIFIER_SIZE);
-out:
+	fscrypt_init_hkdf(&secret.hkdf, secret.bytes, secret.size);
+	fscrypt_hkdf_expand(&secret.hkdf,
+			    HKDF_CONTEXT_KEY_IDENTIFIER_FOR_RAW_KEY, NULL, 0,
+			    key_identifier, FSCRYPT_KEY_IDENTIFIER_SIZE);
 	wipe_master_key_secret(&secret);
-	return err;
 }
 
 /**

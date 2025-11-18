@@ -131,7 +131,7 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 	struct hda_spdif_out *spdif;
 	struct hdmi_spec_per_cvt *per_cvt;
 
-	mutex_lock(&codec->spdif_mutex);
+	guard(mutex)(&codec->spdif_mutex);
 	per_cvt = get_cvt(spec, 0);
 	spdif = snd_hda_spdif_out_of_nid(codec, per_cvt->cvt_nid);
 
@@ -215,7 +215,6 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	nvhdmi_8ch_7x_set_info_frame_parameters(codec, chs);
 
-	mutex_unlock(&codec->spdif_mutex);
 	return 0;
 }
 
@@ -351,8 +350,8 @@ static int nvhdmi_mcp_probe(struct hda_codec *codec,
 static const struct hda_codec_ops nvhdmi_mcp_codec_ops = {
 	.probe = nvhdmi_mcp_probe,
 	.remove = snd_hda_hdmi_simple_remove,
-	.build_controls = nvhdmi_mcp_build_pcms,
-	.build_pcms = nvhdmi_mcp_build_controls,
+	.build_pcms = nvhdmi_mcp_build_pcms,
+	.build_controls = nvhdmi_mcp_build_controls,
 	.init = nvhdmi_mcp_init,
 	.unsol_event = snd_hda_hdmi_simple_unsol_event,
 };

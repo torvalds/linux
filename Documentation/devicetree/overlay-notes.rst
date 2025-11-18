@@ -14,11 +14,11 @@ How overlays work
 A Devicetree's overlay purpose is to modify the kernel's live tree, and
 have the modification affecting the state of the kernel in a way that
 is reflecting the changes.
-Since the kernel mainly deals with devices, any new device node that result
+Since the kernel mainly deals with devices, any new device node that results
 in an active device should have it created while if the device node is either
 disabled or removed all together, the affected device should be deregistered.
 
-Lets take an example where we have a foo board with the following base tree::
+Let's take an example where we have a foo board with the following base tree::
 
     ---- foo.dts ---------------------------------------------------------------
 	/* FOO platform */
@@ -111,7 +111,7 @@ The API is quite easy to use.
 1) Call of_overlay_fdt_apply() to create and apply an overlay changeset. The
    return value is an error or a cookie identifying this overlay.
 
-2) Call of_overlay_remove() to remove and cleanup the overlay changeset
+2) Call of_overlay_remove() to remove and clean up the overlay changeset
    previously created via the call to of_overlay_fdt_apply(). Removal of an
    overlay changeset that is stacked by another will not be permitted.
 

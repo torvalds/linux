@@ -44,13 +44,6 @@ u64 __bootdata_preserved(clock_comparator_max) = -1UL;
 u64 __bootdata_preserved(stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
-void error(char *x)
-{
-	boot_emerg("%s\n", x);
-	boot_emerg(" -- System halted\n");
-	disabled_wait();
-}
-
 static char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 
 static void detect_machine_type(void)
@@ -220,10 +213,10 @@ static void rescue_initrd(unsigned long min, unsigned long max)
 static void copy_bootdata(void)
 {
 	if (__boot_data_end - __boot_data_start != vmlinux.bootdata_size)
-		error(".boot.data section size mismatch");
+		boot_panic(".boot.data section size mismatch\n");
 	memcpy((void *)vmlinux.bootdata_off, __boot_data_start, vmlinux.bootdata_size);
 	if (__boot_data_preserved_end - __boot_data_preserved_start != vmlinux.bootdata_preserved_size)
-		error(".boot.preserved.data section size mismatch");
+		boot_panic(".boot.preserved.data section size mismatch\n");
 	memcpy((void *)vmlinux.bootdata_preserved_off, __boot_data_preserved_start, vmlinux.bootdata_preserved_size);
 }
 
@@ -237,7 +230,7 @@ static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
 	for (reloc = (int *)__vmlinux_relocs_64_start; reloc < (int *)__vmlinux_relocs_64_end; reloc++) {
 		loc = (long)*reloc + phys_offset;
 		if (loc < min_addr || loc > max_addr)
-			error("64-bit relocation outside of kernel!\n");
+			boot_panic("64-bit relocation outside of kernel!\n");
 		*(u64 *)loc += offset;
 	}
 }

@@ -2416,10 +2416,9 @@ mvneta_swbm_build_skb(struct mvneta_port *pp, struct page_pool *pool,
 	skb->ip_summed = mvneta_rx_csum(pp, desc_status);
 
 	if (unlikely(xdp_buff_has_frags(xdp)))
-		xdp_update_skb_shared_info(skb, num_frags,
-					   sinfo->xdp_frags_size,
-					   num_frags * xdp->frame_sz,
-					   xdp_buff_is_frag_pfmemalloc(xdp));
+		xdp_update_skb_frags_info(skb, num_frags, sinfo->xdp_frags_size,
+					  num_frags * xdp->frame_sz,
+					  xdp_buff_get_skb_flags(xdp));
 
 	return skb;
 }
@@ -2984,6 +2983,13 @@ out:
 		txq->count += frags;
 		if (txq->count >= txq->tx_stop_threshold)
 			netif_tx_stop_queue(nq);
+
+		/* This is not really the true transmit point, since we batch
+		 * up several before hitting the hardware, but is the best we
+		 * can do without more complexity to walk the packets in the
+		 * pending section of the transmit queue.
+		 */
+		skb_tx_timestamp(skb);
 
 		if (!netdev_xmit_more() || netif_xmit_stopped(nq) ||
 		    txq->pending + frags > MVNETA_TXQ_DEC_SENT_MASK)
@@ -5357,6 +5363,7 @@ static const struct ethtool_ops mvneta_eth_tool_ops = {
 	.set_link_ksettings = mvneta_ethtool_set_link_ksettings,
 	.get_wol        = mvneta_ethtool_get_wol,
 	.set_wol        = mvneta_ethtool_set_wol,
+	.get_ts_info	= ethtool_op_get_ts_info,
 	.get_eee	= mvneta_ethtool_get_eee,
 	.set_eee	= mvneta_ethtool_set_eee,
 };

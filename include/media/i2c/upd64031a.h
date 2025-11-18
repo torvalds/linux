@@ -2,7 +2,7 @@
 /*
  * upd64031a - NEC Electronics Ghost Reduction input defines
  *
- * 2006 by Hans Verkuil (hverkuil@xs4all.nl)
+ * 2006 by Hans Verkuil (hverkuil@kernel.org)
  */
 
 #ifndef _UPD64031A_H_

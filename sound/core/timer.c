@@ -2139,13 +2139,13 @@ static int snd_utimer_create(struct snd_timer_uinfo *utimer_info,
 		goto err_take_id;
 	}
 
+	utimer->id = utimer_id;
+
 	utimer->name = kasprintf(GFP_KERNEL, "snd-utimer%d", utimer_id);
 	if (!utimer->name) {
 		err = -ENOMEM;
 		goto err_get_name;
 	}
-
-	utimer->id = utimer_id;
 
 	tid.dev_sclass = SNDRV_TIMER_SCLASS_APPLICATION;
 	tid.dev_class = SNDRV_TIMER_CLASS_GLOBAL;

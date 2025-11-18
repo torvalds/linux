@@ -13,6 +13,7 @@
 #include <linux/uaccess.h>
 #include <linux/sysctl.h>
 #include <linux/unaligned.h>
+#include <linux/perf_event.h>
 #include <asm/hardirq.h>
 #include <asm/traps.h>
 #include "unaligned.h"
@@ -378,6 +379,7 @@ void handle_unaligned(struct pt_regs *regs)
 	int ret = ERR_NOTHANDLED;
 
 	__inc_irq_stat(irq_unaligned_count);
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, regs->ior);
 
 	/* log a message with pacing */
 	if (user_mode(regs)) {

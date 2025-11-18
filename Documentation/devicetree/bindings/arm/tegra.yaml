@@ -36,8 +36,12 @@ properties:
               - toradex,colibri_t20-iris
           - const: toradex,colibri_t20
           - const: nvidia,tegra20
-      - items:
-          - const: asus,tf101
+      - description: ASUS Transformers T20 Device family
+        items:
+          - enum:
+              - asus,sl101
+              - asus,tf101
+              - asus,tf101g
           - const: nvidia,tegra20
       - items:
           - const: acer,picasso
@@ -173,6 +177,10 @@ properties:
           - const: google,nyan-big-rev0
           - const: google,nyan-big
           - const: google,nyan
+          - const: nvidia,tegra124
+      - description: Xiaomi Mi Pad (A0101)
+        items:
+          - const: xiaomi,mocha
           - const: nvidia,tegra124
       - items:
           - enum:

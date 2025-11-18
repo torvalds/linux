@@ -226,10 +226,10 @@ void nvdimm_drvdata_release(struct kref *kref)
 	struct resource *res, *_r;
 
 	dev_dbg(dev, "trace\n");
-	nvdimm_bus_lock(dev);
-	for_each_dpa_resource_safe(ndd, res, _r)
-		nvdimm_free_dpa(ndd, res);
-	nvdimm_bus_unlock(dev);
+	scoped_guard(nvdimm_bus, dev) {
+		for_each_dpa_resource_safe(ndd, res, _r)
+			nvdimm_free_dpa(ndd, res);
+	}
 
 	kvfree(ndd->data);
 	kfree(ndd);
@@ -319,23 +319,20 @@ static DEVICE_ATTR_RO(state);
 static ssize_t __available_slots_show(struct nvdimm_drvdata *ndd, char *buf)
 {
 	struct device *dev;
-	ssize_t rc;
 	u32 nfree;
 
 	if (!ndd)
 		return -ENXIO;
 
 	dev = ndd->dev;
-	nvdimm_bus_lock(dev);
+	guard(nvdimm_bus)(dev);
 	nfree = nd_label_nfree(ndd);
 	if (nfree - 1 > nfree) {
 		dev_WARN_ONCE(dev, 1, "we ate our last label?\n");
 		nfree = 0;
 	} else
 		nfree--;
-	rc = sprintf(buf, "%d\n", nfree);
-	nvdimm_bus_unlock(dev);
-	return rc;
+	return sprintf(buf, "%d\n", nfree);
 }
 
 static ssize_t available_slots_show(struct device *dev,
@@ -388,21 +385,15 @@ static ssize_t security_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 
 {
-	ssize_t rc;
-
 	/*
 	 * Require all userspace triggered security management to be
 	 * done while probing is idle and the DIMM is not in active use
 	 * in any region.
 	 */
-	device_lock(dev);
-	nvdimm_bus_lock(dev);
+	guard(device)(dev);
+	guard(nvdimm_bus)(dev);
 	wait_nvdimm_bus_probe_idle(dev);
-	rc = nvdimm_security_store(dev, buf, len);
-	nvdimm_bus_unlock(dev);
-	device_unlock(dev);
-
-	return rc;
+	return nvdimm_security_store(dev, buf, len);
 }
 static DEVICE_ATTR_RW(security);
 
@@ -454,9 +445,8 @@ static ssize_t result_show(struct device *dev, struct device_attribute *attr, ch
 	if (!nvdimm->fw_ops)
 		return -EOPNOTSUPP;
 
-	nvdimm_bus_lock(dev);
+	guard(nvdimm_bus)(dev);
 	result = nvdimm->fw_ops->activate_result(nvdimm);
-	nvdimm_bus_unlock(dev);
 
 	switch (result) {
 	case NVDIMM_FWA_RESULT_NONE:
@@ -483,9 +473,8 @@ static ssize_t activate_show(struct device *dev, struct device_attribute *attr, 
 	if (!nvdimm->fw_ops)
 		return -EOPNOTSUPP;
 
-	nvdimm_bus_lock(dev);
+	guard(nvdimm_bus)(dev);
 	state = nvdimm->fw_ops->activate_state(nvdimm);
-	nvdimm_bus_unlock(dev);
 
 	switch (state) {
 	case NVDIMM_FWA_IDLE:
@@ -516,9 +505,8 @@ static ssize_t activate_store(struct device *dev, struct device_attribute *attr,
 	else
 		return -EINVAL;
 
-	nvdimm_bus_lock(dev);
+	guard(nvdimm_bus)(dev);
 	rc = nvdimm->fw_ops->arm(nvdimm, arg);
-	nvdimm_bus_unlock(dev);
 
 	if (rc < 0)
 		return rc;
@@ -545,9 +533,8 @@ static umode_t nvdimm_firmware_visible(struct kobject *kobj, struct attribute *a
 	if (!nvdimm->fw_ops)
 		return 0;
 
-	nvdimm_bus_lock(dev);
+	guard(nvdimm_bus)(dev);
 	cap = nd_desc->fw_ops->capability(nd_desc);
-	nvdimm_bus_unlock(dev);
 
 	if (cap < NVDIMM_FWA_CAP_QUIESCE)
 		return 0;
@@ -641,11 +628,10 @@ void nvdimm_delete(struct nvdimm *nvdimm)
 	bool dev_put = false;
 
 	/* We are shutting down. Make state frozen artificially. */
-	nvdimm_bus_lock(dev);
-	set_bit(NVDIMM_SECURITY_FROZEN, &nvdimm->sec.flags);
-	if (test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags))
-		dev_put = true;
-	nvdimm_bus_unlock(dev);
+	scoped_guard(nvdimm_bus, dev) {
+		set_bit(NVDIMM_SECURITY_FROZEN, &nvdimm->sec.flags);
+		dev_put = test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags);
+	}
 	cancel_delayed_work_sync(&nvdimm->dwork);
 	if (dev_put)
 		put_device(dev);

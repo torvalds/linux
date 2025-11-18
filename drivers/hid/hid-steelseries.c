@@ -249,11 +249,11 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 {
 	int ret, i;
 	struct led_classdev *led;
+	struct steelseries_srws1_data *drv_data;
 	size_t name_sz;
 	char *name;
 
-	struct steelseries_srws1_data *drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
-
+	drv_data = devm_kzalloc(&hdev->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (drv_data == NULL) {
 		hid_err(hdev, "can't alloc SRW-S1 memory\n");
 		return -ENOMEM;
@@ -264,18 +264,18 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "parse failed\n");
-		goto err_free;
+		goto err;
 	}
 
 	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, 0, 0, 16)) {
 		ret = -ENODEV;
-		goto err_free;
+		goto err;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
-		goto err_free;
+		goto err;
 	}
 
 	/* register led subsystem */
@@ -288,10 +288,10 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 	name_sz = strlen(hdev->uniq) + 16;
 
 	/* 'ALL', for setting all LEDs simultaneously */
-	led = kzalloc(sizeof(struct led_classdev)+name_sz, GFP_KERNEL);
+	led = devm_kzalloc(&hdev->dev, sizeof(struct led_classdev)+name_sz, GFP_KERNEL);
 	if (!led) {
 		hid_err(hdev, "can't allocate memory for LED ALL\n");
-		goto err_led;
+		goto out;
 	}
 
 	name = (void *)(&led[1]);
@@ -303,16 +303,18 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 	led->brightness_set = steelseries_srws1_led_all_set_brightness;
 
 	drv_data->led[SRWS1_NUMBER_LEDS] = led;
-	ret = led_classdev_register(&hdev->dev, led);
-	if (ret)
-		goto err_led;
+	ret = devm_led_classdev_register(&hdev->dev, led);
+	if (ret) {
+		hid_err(hdev, "failed to register LED %d. Aborting.\n", SRWS1_NUMBER_LEDS);
+		goto out; /* let the driver continue without LEDs */
+	}
 
 	/* Each individual LED */
 	for (i = 0; i < SRWS1_NUMBER_LEDS; i++) {
-		led = kzalloc(sizeof(struct led_classdev)+name_sz, GFP_KERNEL);
+		led = devm_kzalloc(&hdev->dev, sizeof(struct led_classdev)+name_sz, GFP_KERNEL);
 		if (!led) {
 			hid_err(hdev, "can't allocate memory for LED %d\n", i);
-			goto err_led;
+			break;
 		}
 
 		name = (void *)(&led[1]);
@@ -324,52 +326,17 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 		led->brightness_set = steelseries_srws1_led_set_brightness;
 
 		drv_data->led[i] = led;
-		ret = led_classdev_register(&hdev->dev, led);
+		ret = devm_led_classdev_register(&hdev->dev, led);
 
 		if (ret) {
 			hid_err(hdev, "failed to register LED %d. Aborting.\n", i);
-err_led:
-			/* Deregister all LEDs (if any) */
-			for (i = 0; i < SRWS1_NUMBER_LEDS + 1; i++) {
-				led = drv_data->led[i];
-				drv_data->led[i] = NULL;
-				if (!led)
-					continue;
-				led_classdev_unregister(led);
-				kfree(led);
-			}
-			goto out;	/* but let the driver continue without LEDs */
+			break;	/* but let the driver continue without LEDs */
 		}
 	}
 out:
 	return 0;
-err_free:
-	kfree(drv_data);
+err:
 	return ret;
-}
-
-static void steelseries_srws1_remove(struct hid_device *hdev)
-{
-	int i;
-	struct led_classdev *led;
-
-	struct steelseries_srws1_data *drv_data = hid_get_drvdata(hdev);
-
-	if (drv_data) {
-		/* Deregister LEDs (if any) */
-		for (i = 0; i < SRWS1_NUMBER_LEDS + 1; i++) {
-			led = drv_data->led[i];
-			drv_data->led[i] = NULL;
-			if (!led)
-				continue;
-			led_classdev_unregister(led);
-			kfree(led);
-		}
-
-	}
-
-	hid_hw_stop(hdev);
-	kfree(drv_data);
 }
 #endif
 
@@ -405,13 +372,12 @@ static int steelseries_headset_request_battery(struct hid_device *hdev,
 
 static void steelseries_headset_fetch_battery(struct hid_device *hdev)
 {
-	struct steelseries_device *sd = hid_get_drvdata(hdev);
 	int ret = 0;
 
-	if (sd->quirks & STEELSERIES_ARCTIS_1)
+	if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_1)
 		ret = steelseries_headset_request_battery(hdev,
 			arctis_1_battery_request, sizeof(arctis_1_battery_request));
-	else if (sd->quirks & STEELSERIES_ARCTIS_9)
+	else if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_9)
 		ret = steelseries_headset_request_battery(hdev,
 			arctis_9_battery_request, sizeof(arctis_9_battery_request));
 
@@ -567,14 +533,7 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
 	struct steelseries_device *sd;
 	int ret;
 
-	sd = devm_kzalloc(&hdev->dev, sizeof(*sd), GFP_KERNEL);
-	if (!sd)
-		return -ENOMEM;
-	hid_set_drvdata(hdev, sd);
-	sd->hdev = hdev;
-	sd->quirks = id->driver_data;
-
-	if (sd->quirks & STEELSERIES_SRWS1) {
+	if (hdev->product == USB_DEVICE_ID_STEELSERIES_SRWS1) {
 #if IS_BUILTIN(CONFIG_LEDS_CLASS) || \
     (IS_MODULE(CONFIG_LEDS_CLASS) && IS_MODULE(CONFIG_HID_STEELSERIES))
 		return steelseries_srws1_probe(hdev, id);
@@ -582,6 +541,13 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
 		return -ENODEV;
 #endif
 	}
+
+	sd = devm_kzalloc(&hdev->dev, sizeof(*sd), GFP_KERNEL);
+	if (!sd)
+		return -ENOMEM;
+	hid_set_drvdata(hdev, sd);
+	sd->hdev = hdev;
+	sd->quirks = id->driver_data;
 
 	ret = hid_parse(hdev);
 	if (ret)
@@ -610,16 +576,18 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
 
 static void steelseries_remove(struct hid_device *hdev)
 {
-	struct steelseries_device *sd = hid_get_drvdata(hdev);
+	struct steelseries_device *sd;
 	unsigned long flags;
 
-	if (sd->quirks & STEELSERIES_SRWS1) {
+	if (hdev->product == USB_DEVICE_ID_STEELSERIES_SRWS1) {
 #if IS_BUILTIN(CONFIG_LEDS_CLASS) || \
     (IS_MODULE(CONFIG_LEDS_CLASS) && IS_MODULE(CONFIG_HID_STEELSERIES))
-		steelseries_srws1_remove(hdev);
+		hid_hw_stop(hdev);
 #endif
 		return;
 	}
+
+	sd = hid_get_drvdata(hdev);
 
 	spin_lock_irqsave(&sd->lock, flags);
 	sd->removed = true;
@@ -667,10 +635,10 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 	unsigned long flags;
 
 	/* Not a headset */
-	if (sd->quirks & STEELSERIES_SRWS1)
+	if (hdev->product == USB_DEVICE_ID_STEELSERIES_SRWS1)
 		return 0;
 
-	if (sd->quirks & STEELSERIES_ARCTIS_1) {
+	if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_1) {
 		hid_dbg(sd->hdev,
 			"Parsing raw event for Arctis 1 headset (%*ph)\n", size, read_buf);
 		if (size < ARCTIS_1_BATTERY_RESPONSE_LEN ||
@@ -688,7 +656,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 		}
 	}
 
-	if (sd->quirks & STEELSERIES_ARCTIS_9) {
+	if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_9) {
 		hid_dbg(sd->hdev,
 			"Parsing raw event for Arctis 9 headset (%*ph)\n", size, read_buf);
 		if (size < ARCTIS_9_BATTERY_RESPONSE_LEN) {
@@ -757,11 +725,11 @@ static const struct hid_device_id steelseries_devices[] = {
 	  .driver_data = STEELSERIES_SRWS1 },
 
 	{ /* SteelSeries Arctis 1 Wireless for XBox */
-	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, 0x12b6),
-	.driver_data = STEELSERIES_ARCTIS_1 },
+	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, USB_DEVICE_ID_STEELSERIES_ARCTIS_1),
+	  .driver_data = STEELSERIES_ARCTIS_1 },
 
 	{ /* SteelSeries Arctis 9 Wireless for XBox */
-	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, 0x12c2),
+	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, USB_DEVICE_ID_STEELSERIES_ARCTIS_9),
 	  .driver_data = STEELSERIES_ARCTIS_9 },
 
 	{ }

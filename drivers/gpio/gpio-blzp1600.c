@@ -6,6 +6,7 @@
 
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -36,7 +37,7 @@
 
 struct blzp1600_gpio {
 	void __iomem *base;
-	struct gpio_chip gc;
+	struct gpio_generic_chip gen_gc;
 	int irq;
 };
 
@@ -76,7 +77,7 @@ static void blzp1600_gpio_irq_mask(struct irq_data *d)
 {
 	struct blzp1600_gpio *chip = get_blzp1600_gpio_from_irq_data(d);
 
-	guard(raw_spinlock_irqsave)(&chip->gc.bgpio_lock);
+	guard(gpio_generic_lock_irqsave)(&chip->gen_gc);
 	blzp1600_gpio_rmw(chip->base + GPIO_IM_REG, BIT(d->hwirq), 1);
 }
 
@@ -84,7 +85,7 @@ static void blzp1600_gpio_irq_unmask(struct irq_data *d)
 {
 	struct blzp1600_gpio *chip = get_blzp1600_gpio_from_irq_data(d);
 
-	guard(raw_spinlock_irqsave)(&chip->gc.bgpio_lock);
+	guard(gpio_generic_lock_irqsave)(&chip->gen_gc);
 	blzp1600_gpio_rmw(chip->base + GPIO_IM_REG, BIT(d->hwirq), 0);
 }
 
@@ -99,9 +100,9 @@ static void blzp1600_gpio_irq_enable(struct irq_data *d)
 {
 	struct blzp1600_gpio *chip = get_blzp1600_gpio_from_irq_data(d);
 
-	gpiochip_enable_irq(&chip->gc, irqd_to_hwirq(d));
+	gpiochip_enable_irq(&chip->gen_gc.gc, irqd_to_hwirq(d));
 
-	guard(raw_spinlock_irqsave)(&chip->gc.bgpio_lock);
+	guard(gpio_generic_lock_irqsave)(&chip->gen_gc);
 	blzp1600_gpio_rmw(chip->base + GPIO_DIR_REG, BIT(d->hwirq), 0);
 	blzp1600_gpio_rmw(chip->base + GPIO_IEN_REG, BIT(d->hwirq), 1);
 }
@@ -110,9 +111,9 @@ static void blzp1600_gpio_irq_disable(struct irq_data *d)
 {
 	struct blzp1600_gpio *chip = get_blzp1600_gpio_from_irq_data(d);
 
-	guard(raw_spinlock_irqsave)(&chip->gc.bgpio_lock);
+	guard(gpio_generic_lock_irqsave)(&chip->gen_gc);
 	blzp1600_gpio_rmw(chip->base + GPIO_IEN_REG, BIT(d->hwirq), 0);
-	gpiochip_disable_irq(&chip->gc, irqd_to_hwirq(d));
+	gpiochip_disable_irq(&chip->gen_gc.gc, irqd_to_hwirq(d));
 }
 
 static int blzp1600_gpio_irq_set_type(struct irq_data *d, u32 type)
@@ -121,7 +122,7 @@ static int blzp1600_gpio_irq_set_type(struct irq_data *d, u32 type)
 	u32 edge_level, single_both, fall_rise;
 	int mask = BIT(d->hwirq);
 
-	guard(raw_spinlock_irqsave)(&chip->gc.bgpio_lock);
+	guard(gpio_generic_lock_irqsave)(&chip->gen_gc);
 	edge_level = blzp1600_gpio_read(chip, GPIO_IS_REG);
 	single_both = blzp1600_gpio_read(chip, GPIO_IBE_REG);
 	fall_rise = blzp1600_gpio_read(chip, GPIO_IEV_REG);
@@ -186,8 +187,8 @@ static void blzp1600_gpio_irqhandler(struct irq_desc *desc)
 
 	chained_irq_enter(irqchip, desc);
 	irq_status = blzp1600_gpio_read(gpio, GPIO_RIS_REG);
-	for_each_set_bit(hwirq, &irq_status, gpio->gc.ngpio)
-		generic_handle_domain_irq(gpio->gc.irq.domain, hwirq);
+	for_each_set_bit(hwirq, &irq_status, gpio->gen_gc.gc.ngpio)
+		generic_handle_domain_irq(gpio->gen_gc.gc.irq.domain, hwirq);
 
 	chained_irq_exit(irqchip, desc);
 }
@@ -197,7 +198,7 @@ static int blzp1600_gpio_set_debounce(struct gpio_chip *gc, unsigned int offset,
 {
 	struct blzp1600_gpio *chip = gpiochip_get_data(gc);
 
-	guard(raw_spinlock_irqsave)(&chip->gc.bgpio_lock);
+	guard(gpio_generic_lock_irqsave)(&chip->gen_gc);
 	blzp1600_gpio_rmw(chip->base + GPIO_DB_REG, BIT(offset), debounce);
 
 	return 0;
@@ -216,6 +217,7 @@ static int blzp1600_gpio_set_config(struct gpio_chip *gc, unsigned int offset, u
 
 static int blzp1600_gpio_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
 	struct blzp1600_gpio *chip;
 	struct gpio_chip *gc;
 	int ret;
@@ -228,14 +230,21 @@ static int blzp1600_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->base))
 		return PTR_ERR(chip->base);
 
-	ret = bgpio_init(&chip->gc, &pdev->dev, 4, chip->base + GPIO_IDATA_REG,
-			 chip->base + GPIO_SET_REG, chip->base + GPIO_CLR_REG,
-			 chip->base + GPIO_DIR_REG, NULL, 0);
+	config = (struct gpio_generic_chip_config) {
+		.dev = &pdev->dev,
+		.sz = 4,
+		.dat = chip->base + GPIO_IDATA_REG,
+		.set = chip->base + GPIO_SET_REG,
+		.clr = chip->base + GPIO_CLR_REG,
+		.dirout = chip->base + GPIO_DIR_REG,
+	};
+
+	ret = gpio_generic_chip_init(&chip->gen_gc, &config);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Failed to register generic gpio\n");
 
 	/* configure the gpio chip */
-	gc = &chip->gc;
+	gc = &chip->gen_gc.gc;
 	gc->set_config = blzp1600_gpio_set_config;
 
 	if (device_property_present(&pdev->dev, "interrupt-controller")) {

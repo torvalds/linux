@@ -260,15 +260,13 @@ static int ews88_spdif_default_put(struct snd_ice1712 *ice, struct snd_ctl_elem_
 	int change;
 
 	val = snd_cs8404_encode_spdif_bits(&ucontrol->value.iec958);
-	spin_lock_irq(&ice->reg_lock);
-	change = ice->spdif.cs8403_bits != val;
-	ice->spdif.cs8403_bits = val;
-	if (change && ice->playback_pro_substream == NULL) {
-		spin_unlock_irq(&ice->reg_lock);
-		snd_ice1712_ews_cs8404_spdif_write(ice, val);
-	} else {
-		spin_unlock_irq(&ice->reg_lock);
+	scoped_guard(spinlock_irq, &ice->reg_lock) {
+		change = ice->spdif.cs8403_bits != val;
+		ice->spdif.cs8403_bits = val;
+		if (!change || ice->playback_pro_substream)
+			return change;
 	}
+	snd_ice1712_ews_cs8404_spdif_write(ice, val);
 	return change;
 }
 
@@ -283,15 +281,13 @@ static int ews88_spdif_stream_put(struct snd_ice1712 *ice, struct snd_ctl_elem_v
 	int change;
 
 	val = snd_cs8404_encode_spdif_bits(&ucontrol->value.iec958);
-	spin_lock_irq(&ice->reg_lock);
-	change = ice->spdif.cs8403_stream_bits != val;
-	ice->spdif.cs8403_stream_bits = val;
-	if (change && ice->playback_pro_substream != NULL) {
-		spin_unlock_irq(&ice->reg_lock);
-		snd_ice1712_ews_cs8404_spdif_write(ice, val);
-	} else {
-		spin_unlock_irq(&ice->reg_lock);
+	scoped_guard(spinlock_irq, &ice->reg_lock) {
+		change = ice->spdif.cs8403_stream_bits != val;
+		ice->spdif.cs8403_stream_bits = val;
+		if (!change || ice->playback_pro_substream)
+			return change;
 	}
+	snd_ice1712_ews_cs8404_spdif_write(ice, val);
 	return change;
 }
 
@@ -305,23 +301,22 @@ static void ews88_open_spdif(struct snd_ice1712 *ice, struct snd_pcm_substream *
 /* set up SPDIF for EWS88MT / EWS88D */
 static void ews88_setup_spdif(struct snd_ice1712 *ice, int rate)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	int change;
 
-	spin_lock_irqsave(&ice->reg_lock, flags);
-	tmp = ice->spdif.cs8403_stream_bits;
-	if (tmp & 0x10)		/* consumer */
-		tmp &= (tmp & 0x01) ? ~0x06 : ~0x60;
-	switch (rate) {
-	case 32000: tmp |= (tmp & 0x01) ? 0x02 : 0x00; break;
-	case 44100: tmp |= (tmp & 0x01) ? 0x06 : 0x40; break;
-	case 48000: tmp |= (tmp & 0x01) ? 0x04 : 0x20; break;
-	default: tmp |= (tmp & 0x01) ? 0x06 : 0x40; break;
+	scoped_guard(spinlock_irqsave, &ice->reg_lock) {
+		tmp = ice->spdif.cs8403_stream_bits;
+		if (tmp & 0x10)		/* consumer */
+			tmp &= (tmp & 0x01) ? ~0x06 : ~0x60;
+		switch (rate) {
+		case 32000: tmp |= (tmp & 0x01) ? 0x02 : 0x00; break;
+		case 44100: tmp |= (tmp & 0x01) ? 0x06 : 0x40; break;
+		case 48000: tmp |= (tmp & 0x01) ? 0x04 : 0x20; break;
+		default: tmp |= (tmp & 0x01) ? 0x06 : 0x40; break;
+		}
+		change = ice->spdif.cs8403_stream_bits != tmp;
+		ice->spdif.cs8403_stream_bits = tmp;
 	}
-	change = ice->spdif.cs8403_stream_bits != tmp;
-	ice->spdif.cs8403_stream_bits = tmp;
-	spin_unlock_irqrestore(&ice->reg_lock, flags);
 	if (change)
 		snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &ice->spdif.stream_ctl->id);
 	snd_ice1712_ews_cs8404_spdif_write(ice, tmp);

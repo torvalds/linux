@@ -844,7 +844,7 @@ swnode_register(const struct software_node *node, struct swnode *parent,
  * of this function or by ordering the array such that parent comes before
  * child.
  */
-int software_node_register_node_group(const struct software_node **node_group)
+int software_node_register_node_group(const struct software_node * const *node_group)
 {
 	unsigned int i;
 	int ret;
@@ -877,8 +877,7 @@ EXPORT_SYMBOL_GPL(software_node_register_node_group);
  * remove the nodes individually, in the correct order (child before
  * parent).
  */
-void software_node_unregister_node_group(
-		const struct software_node **node_group)
+void software_node_unregister_node_group(const struct software_node * const *node_group)
 {
 	unsigned int i = 0;
 

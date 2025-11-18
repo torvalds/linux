@@ -15,6 +15,9 @@ properties:
       - asahi-kasei,ak4458
       - asahi-kasei,ak4497
 
+  "#sound-dai-cells":
+    const: 0
+
   reg:
     maxItems: 1
 
@@ -46,6 +49,7 @@ required:
   - reg
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:

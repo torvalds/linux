@@ -113,7 +113,7 @@ int mptcp_pm_parse_entry(struct nlattr *attr, struct genl_info *info,
 		return err;
 
 	if (tb[MPTCP_PM_ADDR_ATTR_IF_IDX]) {
-		u32 val = nla_get_s32(tb[MPTCP_PM_ADDR_ATTR_IF_IDX]);
+		s32 val = nla_get_s32(tb[MPTCP_PM_ADDR_ATTR_IF_IDX]);
 
 		entry->ifindex = val;
 	}
@@ -408,11 +408,23 @@ static int mptcp_event_created(struct sk_buff *skb,
 			       const struct sock *ssk)
 {
 	int err = nla_put_u32(skb, MPTCP_ATTR_TOKEN, READ_ONCE(msk->token));
+	u16 flags = 0;
 
 	if (err)
 		return err;
 
-	if (nla_put_u8(skb, MPTCP_ATTR_SERVER_SIDE, READ_ONCE(msk->pm.server_side)))
+	if (READ_ONCE(msk->pm.server_side)) {
+		flags |= MPTCP_PM_EV_FLAG_SERVER_SIDE;
+
+		/* Deprecated, and only set when it is the server side */
+		if (nla_put_u8(skb, MPTCP_ATTR_SERVER_SIDE, 1))
+			return -EMSGSIZE;
+	}
+
+	if (READ_ONCE(msk->pm.remote_deny_join_id0))
+		flags |= MPTCP_PM_EV_FLAG_DENY_JOIN_ID0;
+
+	if (flags && nla_put_u16(skb, MPTCP_ATTR_FLAGS, flags))
 		return -EMSGSIZE;
 
 	return mptcp_event_add_subflow(skb, ssk);

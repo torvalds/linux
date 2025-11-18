@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Mac Studio (M2 Max, 2023)
+ *
+ * target-type: J475c
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t6021.dtsi"
+#include "t602x-j474-j475.dtsi"
+
+/ {
+	compatible = "apple,j475c", "apple,t6021", "apple,arm-platform";
+	model = "Apple Mac Studio (M2 Max, 2023)";
+};
+
+&wifi0 {
+	compatible = "pci14e4,4434";
+	brcm,board-type = "apple,canary";
+};
+
+&bluetooth0 {
+	compatible = "pci14e4,5f72";
+	brcm,board-type = "apple,canary";
+};
+
+/* enable PCIe port01 with SDHCI */
+&port01 {
+	status = "okay";
+};
+
+&pcie0_dart_1 {
+	status = "okay";
+};

@@ -8,6 +8,7 @@
 #include <linux/atomic.h>
 #include <linux/bug.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
@@ -1728,6 +1729,79 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 EXPORT_SYMBOL_GPL(i3c_master_do_daa);
 
 /**
+ * i3c_master_dma_map_single() - Map buffer for single DMA transfer
+ * @dev: device object of a device doing DMA
+ * @buf: destination/source buffer for DMA
+ * @len: length of transfer
+ * @force_bounce: true, force to use a bounce buffer,
+ *                false, function will auto check is a bounce buffer required
+ * @dir: DMA direction
+ *
+ * Map buffer for a DMA transfer and allocate a bounce buffer if required.
+ *
+ * Return: I3C DMA transfer descriptor or NULL in case of error.
+ */
+struct i3c_dma *i3c_master_dma_map_single(struct device *dev, void *buf,
+	size_t len, bool force_bounce, enum dma_data_direction dir)
+{
+	struct i3c_dma *dma_xfer __free(kfree) = NULL;
+	void *bounce __free(kfree) = NULL;
+	void *dma_buf = buf;
+
+	dma_xfer = kzalloc(sizeof(*dma_xfer), GFP_KERNEL);
+	if (!dma_xfer)
+		return NULL;
+
+	dma_xfer->dev = dev;
+	dma_xfer->buf = buf;
+	dma_xfer->dir = dir;
+	dma_xfer->len = len;
+	dma_xfer->map_len = len;
+
+	if (is_vmalloc_addr(buf))
+		force_bounce = true;
+
+	if (force_bounce) {
+		dma_xfer->map_len = ALIGN(len, cache_line_size());
+		if (dir == DMA_FROM_DEVICE)
+			bounce = kzalloc(dma_xfer->map_len, GFP_KERNEL);
+		else
+			bounce = kmemdup(buf, dma_xfer->map_len, GFP_KERNEL);
+		if (!bounce)
+			return NULL;
+		dma_buf = bounce;
+	}
+
+	dma_xfer->addr = dma_map_single(dev, dma_buf, dma_xfer->map_len, dir);
+	if (dma_mapping_error(dev, dma_xfer->addr))
+		return NULL;
+
+	dma_xfer->bounce_buf = no_free_ptr(bounce);
+	return no_free_ptr(dma_xfer);
+}
+EXPORT_SYMBOL_GPL(i3c_master_dma_map_single);
+
+/**
+ * i3c_master_dma_unmap_single() - Unmap buffer after DMA
+ * @dma_xfer: DMA transfer and mapping descriptor
+ *
+ * Unmap buffer and cleanup DMA transfer descriptor.
+ */
+void i3c_master_dma_unmap_single(struct i3c_dma *dma_xfer)
+{
+	dma_unmap_single(dma_xfer->dev, dma_xfer->addr,
+			 dma_xfer->map_len, dma_xfer->dir);
+	if (dma_xfer->bounce_buf) {
+		if (dma_xfer->dir == DMA_FROM_DEVICE)
+			memcpy(dma_xfer->buf, dma_xfer->bounce_buf,
+			       dma_xfer->len);
+		kfree(dma_xfer->bounce_buf);
+	}
+	kfree(dma_xfer);
+}
+EXPORT_SYMBOL_GPL(i3c_master_dma_unmap_single);
+
+/**
  * i3c_master_set_info() - set master device information
  * @master: master used to send frames on the bus
  * @info: I3C device information
@@ -2490,9 +2564,7 @@ static int i3c_master_i2c_adapter_init(struct i3c_master_controller *master)
 	adap->owner = master->dev.parent->driver->owner;
 	adap->algo = &i3c_master_i2c_algo;
 	strscpy(adap->name, dev_name(master->dev.parent), sizeof(adap->name));
-
-	/* FIXME: Should we allow i3c masters to override these values? */
-	adap->timeout = 1000;
+	adap->timeout = HZ;
 	adap->retries = 3;
 
 	id = of_alias_get_id(master->dev.of_node, "i2c");

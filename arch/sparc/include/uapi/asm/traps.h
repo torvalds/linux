@@ -10,8 +10,8 @@
 
 #define NUM_SPARC_TRAPS  255
 
-#ifndef __ASSEMBLY__
-#endif /* !(__ASSEMBLY__) */
+#ifndef __ASSEMBLER__
+#endif /* !(__ASSEMBLER__) */
 
 /* For patching the trap table at boot time, we need to know how to
  * form various common Sparc instructions.  Thus these macros...

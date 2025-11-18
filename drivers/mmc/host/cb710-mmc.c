@@ -664,25 +664,25 @@ static const struct mmc_host_ops cb710_mmc_host = {
 	.get_cd = cb710_mmc_get_cd,
 };
 
-#ifdef CONFIG_PM
-
-static int cb710_mmc_suspend(struct platform_device *pdev, pm_message_t state)
+static int cb710_mmc_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct cb710_slot *slot = cb710_pdev_to_slot(pdev);
 
 	cb710_mmc_enable_irq(slot, 0, ~0);
 	return 0;
 }
 
-static int cb710_mmc_resume(struct platform_device *pdev)
+static int cb710_mmc_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct cb710_slot *slot = cb710_pdev_to_slot(pdev);
 
 	cb710_mmc_enable_irq(slot, 0, ~0);
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+static DEFINE_SIMPLE_DEV_PM_OPS(cb710_mmc_pmops, cb710_mmc_suspend, cb710_mmc_resume);
 
 static int cb710_mmc_init(struct platform_device *pdev)
 {
@@ -767,13 +767,12 @@ static void cb710_mmc_exit(struct platform_device *pdev)
 }
 
 static struct platform_driver cb710_mmc_driver = {
-	.driver.name = "cb710-mmc",
+	.driver = {
+		.name = "cb710-mmc",
+		.pm = pm_sleep_ptr(&cb710_mmc_pmops),
+	},
 	.probe = cb710_mmc_init,
 	.remove = cb710_mmc_exit,
-#ifdef CONFIG_PM
-	.suspend = cb710_mmc_suspend,
-	.resume = cb710_mmc_resume,
-#endif
 };
 
 module_platform_driver(cb710_mmc_driver);

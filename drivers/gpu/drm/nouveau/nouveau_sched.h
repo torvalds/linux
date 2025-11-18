@@ -103,9 +103,12 @@ struct nouveau_sched {
 	struct mutex mutex;
 
 	struct {
-		struct list_head head;
-		spinlock_t lock;
-	} job_list;
+		struct {
+			struct list_head head;
+			spinlock_t lock;
+		} list;
+		struct wait_queue_head wq;
+	} job;
 };
 
 int nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,

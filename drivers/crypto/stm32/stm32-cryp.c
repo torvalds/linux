@@ -2781,5 +2781,5 @@ static struct platform_driver stm32_cryp_driver = {
 module_platform_driver(stm32_cryp_driver);
 
 MODULE_AUTHOR("Fabien Dessenne <fabien.dessenne@st.com>");
-MODULE_DESCRIPTION("STMicrolectronics STM32 CRYP hardware driver");
+MODULE_DESCRIPTION("STMicroelectronics STM32 CRYP hardware driver");
 MODULE_LICENSE("GPL");

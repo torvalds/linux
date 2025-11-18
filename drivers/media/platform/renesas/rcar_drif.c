@@ -1446,18 +1446,18 @@ static void rcar_drif_remove(struct platform_device *pdev)
 }
 
 /* FIXME: Implement suspend/resume support */
-static int __maybe_unused rcar_drif_suspend(struct device *dev)
+static int rcar_drif_suspend(struct device *dev)
 {
 	return 0;
 }
 
-static int __maybe_unused rcar_drif_resume(struct device *dev)
+static int rcar_drif_resume(struct device *dev)
 {
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rcar_drif_pm_ops, rcar_drif_suspend,
-			 rcar_drif_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(rcar_drif_pm_ops, rcar_drif_suspend,
+				rcar_drif_resume);
 
 static const struct of_device_id rcar_drif_of_table[] = {
 	{ .compatible = "renesas,rcar-gen3-drif" },
@@ -1470,8 +1470,8 @@ static struct platform_driver rcar_drif_driver = {
 	.driver = {
 		.name = RCAR_DRIF_DRV_NAME,
 		.of_match_table = rcar_drif_of_table,
-		.pm = &rcar_drif_pm_ops,
-		},
+		.pm = pm_sleep_ptr(&rcar_drif_pm_ops),
+	},
 	.probe = rcar_drif_probe,
 	.remove = rcar_drif_remove,
 };

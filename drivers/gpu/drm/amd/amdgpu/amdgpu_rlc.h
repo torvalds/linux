@@ -251,7 +251,7 @@ struct amdgpu_rlc_funcs {
 	 * and it also provides a pointer to it which is used by the firmware
 	 * to load the clear state in some cases.
 	 */
-	void (*get_csb_buffer)(struct amdgpu_device *adev, volatile u32 *buffer);
+	void (*get_csb_buffer)(struct amdgpu_device *adev, u32 *buffer);
 	int  (*get_cp_table_num)(struct amdgpu_device *adev);
 	int  (*resume)(struct amdgpu_device *adev);
 	void (*stop)(struct amdgpu_device *adev);
@@ -275,19 +275,19 @@ struct amdgpu_rlc {
 	/* for power gating */
 	struct amdgpu_bo        *save_restore_obj;
 	uint64_t                save_restore_gpu_addr;
-	volatile uint32_t       *sr_ptr;
+	uint32_t		*sr_ptr;
 	const u32               *reg_list;
 	u32                     reg_list_size;
 	/* for clear state */
 	struct amdgpu_bo        *clear_state_obj;
 	uint64_t                clear_state_gpu_addr;
-	volatile uint32_t       *cs_ptr;
+	uint32_t		*cs_ptr;
 	const struct cs_section_def   *cs_data;
 	u32                     clear_state_size;
 	/* for cp tables */
 	struct amdgpu_bo        *cp_table_obj;
 	uint64_t                cp_table_gpu_addr;
-	volatile uint32_t       *cp_table_ptr;
+	uint32_t		*cp_table_ptr;
 	u32                     cp_table_size;
 
 	/* safe mode for updating CG/PG state */

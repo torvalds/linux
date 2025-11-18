@@ -1,4 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config DRM_DW_DP
+	tristate
+	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_KMS_HELPER
+	select REGMAP_MMIO
+
 config DRM_DW_HDMI
 	tristate
 	select DRM_DISPLAY_HDMI_HELPER

@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/hisilicon,mbigen-v2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon mbigen v2
+
+maintainers:
+  - Wei Xu <xuwei5@hisilicon.com>
+
+description: >
+  Mbigen means: message based interrupt generator.
+
+  MBI is kind of msi interrupt only used on Non-PCI devices.
+
+  To reduce the wired interrupt number connected to GIC, Hisilicon designed
+  mbigen to collect and generate interrupt.
+
+  Non-pci devices can connect to mbigen and generate the interrupt by writing
+  ITS register.
+
+properties:
+  compatible:
+    const: hisilicon,mbigen-v2
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties:
+  type: object
+  additionalProperties: false
+
+  properties:
+    interrupt-controller: true
+
+    '#interrupt-cells':
+      const: 2
+
+    msi-parent:
+      maxItems: 1
+
+    num-pins:
+      description: The total number of pins implemented in this Mbigen instance.
+      $ref: /schemas/types.yaml#/definitions/uint32
+
+  required:
+    - interrupt-controller
+    - "#interrupt-cells"
+    - msi-parent
+    - num-pins
+
+examples:
+  - |
+    mbigen@c0080000 {
+        compatible = "hisilicon,mbigen-v2";
+        reg = <0xc0080000 0x10000>;
+
+        mbigen_gmac: intc_gmac {
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            msi-parent = <&its_dsa 0x40b1c>;
+            num-pins = <9>;
+        };
+
+        mbigen_i2c: intc_i2c {
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            msi-parent = <&its_dsa 0x40b0e>;
+            num-pins = <2>;
+        };
+    };

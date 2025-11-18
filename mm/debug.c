@@ -182,7 +182,7 @@ void dump_mm(const struct mm_struct *mm)
 		"start_code %lx end_code %lx start_data %lx end_data %lx\n"
 		"start_brk %lx brk %lx start_stack %lx\n"
 		"arg_start %lx arg_end %lx env_start %lx env_end %lx\n"
-		"binfmt %px flags %lx\n"
+		"binfmt %px flags %*pb\n"
 #ifdef CONFIG_AIO
 		"ioctx_table %px\n"
 #endif
@@ -211,7 +211,7 @@ void dump_mm(const struct mm_struct *mm)
 		mm->start_code, mm->end_code, mm->start_data, mm->end_data,
 		mm->start_brk, mm->brk, mm->start_stack,
 		mm->arg_start, mm->arg_end, mm->env_start, mm->env_end,
-		mm->binfmt, mm->flags,
+		mm->binfmt, NUM_MM_FLAG_BITS, __mm_flags_get_bitmap(mm),
 #ifdef CONFIG_AIO
 		mm->ioctx_table,
 #endif

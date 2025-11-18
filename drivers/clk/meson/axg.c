@@ -18,7 +18,7 @@
 #include "clk-regmap.h"
 #include "clk-pll.h"
 #include "clk-mpll.h"
-#include "meson-eeclk.h"
+#include "meson-clkc-utils.h"
 
 #include <dt-bindings/clock/axg-clkc.h>
 
@@ -333,7 +333,7 @@ static struct clk_regmap axg_gp0_pll = {
 	},
 };
 
-static const struct reg_sequence axg_hifi_init_regs[] = {
+static const struct reg_sequence axg_hifi_pll_init_regs[] = {
 	{ .reg = HHI_HIFI_PLL_CNTL1,	.def = 0xc084b000 },
 	{ .reg = HHI_HIFI_PLL_CNTL2,	.def = 0xb75020be },
 	{ .reg = HHI_HIFI_PLL_CNTL3,	.def = 0x0a6a3a88 },
@@ -374,8 +374,8 @@ static struct clk_regmap axg_hifi_pll_dco = {
 			.width   = 1,
 		},
 		.table = axg_gp0_pll_params_table,
-		.init_regs = axg_hifi_init_regs,
-		.init_count = ARRAY_SIZE(axg_hifi_init_regs),
+		.init_regs = axg_hifi_pll_init_regs,
+		.init_count = ARRAY_SIZE(axg_hifi_pll_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -780,7 +780,7 @@ static const struct pll_params_table axg_pcie_pll_params_table[] = {
 	{ /* sentinel */ },
 };
 
-static const struct reg_sequence axg_pcie_init_regs[] = {
+static const struct reg_sequence axg_pcie_pll_init_regs[] = {
 	{ .reg = HHI_PCIE_PLL_CNTL1,	.def = 0x0084a2aa },
 	{ .reg = HHI_PCIE_PLL_CNTL2,	.def = 0xb75020be },
 	{ .reg = HHI_PCIE_PLL_CNTL3,	.def = 0x0a47488e },
@@ -823,8 +823,8 @@ static struct clk_regmap axg_pcie_pll_dco = {
 			.width   = 1,
 		},
 		.table = axg_pcie_pll_params_table,
-		.init_regs = axg_pcie_init_regs,
-		.init_count = ARRAY_SIZE(axg_pcie_init_regs),
+		.init_regs = axg_pcie_pll_init_regs,
+		.init_count = ARRAY_SIZE(axg_pcie_pll_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pcie_pll_dco",
@@ -935,8 +935,9 @@ static struct clk_regmap axg_pcie_cml_en1 = {
 	},
 };
 
-static u32 mux_table_clk81[]	= { 0, 2, 3, 4, 5, 6, 7 };
-static const struct clk_parent_data clk81_parent_data[] = {
+/* clk81 is often referred as "mpeg_clk" */
+static u32 clk81_parents_val_table[] = { 0, 2, 3, 4, 5, 6, 7 };
+static const struct clk_parent_data clk81_parents[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &axg_fclk_div7.hw },
 	{ .hw = &axg_mpll1.hw },
@@ -946,32 +947,32 @@ static const struct clk_parent_data clk81_parent_data[] = {
 	{ .hw = &axg_fclk_div5.hw },
 };
 
-static struct clk_regmap axg_mpeg_clk_sel = {
+static struct clk_regmap axg_clk81_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_MPEG_CLK_CNTL,
 		.mask = 0x7,
 		.shift = 12,
-		.table = mux_table_clk81,
+		.table = clk81_parents_val_table,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "mpeg_clk_sel",
+		.name = "clk81_sel",
 		.ops = &clk_regmap_mux_ro_ops,
-		.parent_data = clk81_parent_data,
-		.num_parents = ARRAY_SIZE(clk81_parent_data),
+		.parent_data = clk81_parents,
+		.num_parents = ARRAY_SIZE(clk81_parents),
 	},
 };
 
-static struct clk_regmap axg_mpeg_clk_div = {
+static struct clk_regmap axg_clk81_div = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_MPEG_CLK_CNTL,
 		.shift = 0,
 		.width = 7,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "mpeg_clk_div",
+		.name = "clk81_div",
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&axg_mpeg_clk_sel.hw
+			&axg_clk81_sel.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -987,14 +988,14 @@ static struct clk_regmap axg_clk81 = {
 		.name = "clk81",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&axg_mpeg_clk_div.hw
+			&axg_clk81_div.hw
 		},
 		.num_parents = 1,
 		.flags = (CLK_SET_RATE_PARENT | CLK_IS_CRITICAL),
 	},
 };
 
-static const struct clk_parent_data axg_sd_emmc_clk0_parent_data[] = {
+static const struct clk_parent_data axg_sd_emmc_clk0_parents[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &axg_fclk_div2.hw },
 	{ .hw = &axg_fclk_div3.hw },
@@ -1018,8 +1019,8 @@ static struct clk_regmap axg_sd_emmc_b_clk0_sel = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_b_clk0_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = axg_sd_emmc_clk0_parent_data,
-		.num_parents = ARRAY_SIZE(axg_sd_emmc_clk0_parent_data),
+		.parent_data = axg_sd_emmc_clk0_parents,
+		.num_parents = ARRAY_SIZE(axg_sd_emmc_clk0_parents),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -1068,8 +1069,8 @@ static struct clk_regmap axg_sd_emmc_c_clk0_sel = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_c_clk0_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = axg_sd_emmc_clk0_parent_data,
-		.num_parents = ARRAY_SIZE(axg_sd_emmc_clk0_parent_data),
+		.parent_data = axg_sd_emmc_clk0_parents,
+		.num_parents = ARRAY_SIZE(axg_sd_emmc_clk0_parents),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -1110,7 +1111,7 @@ static struct clk_regmap axg_sd_emmc_c_clk0 = {
 
 /* VPU Clock */
 
-static const struct clk_hw *axg_vpu_parent_hws[] = {
+static const struct clk_hw *axg_vpu_parents[] = {
 	&axg_fclk_div4.hw,
 	&axg_fclk_div3.hw,
 	&axg_fclk_div5.hw,
@@ -1126,8 +1127,8 @@ static struct clk_regmap axg_vpu_0_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_0_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_hws = axg_vpu_parent_hws,
-		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.parent_hws = axg_vpu_parents,
+		.num_parents = ARRAY_SIZE(axg_vpu_parents),
 		/* We need a specific parent for VPU clock source, let it be set in DT */
 		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
@@ -1175,8 +1176,8 @@ static struct clk_regmap axg_vpu_1_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_1_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_hws = axg_vpu_parent_hws,
-		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.parent_hws = axg_vpu_parents,
+		.num_parents = ARRAY_SIZE(axg_vpu_parents),
 		/* We need a specific parent for VPU clock source, let it be set in DT */
 		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
@@ -1244,8 +1245,8 @@ static struct clk_regmap axg_vapb_0_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vapb_0_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_hws = axg_vpu_parent_hws,
-		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.parent_hws = axg_vpu_parents,
+		.num_parents = ARRAY_SIZE(axg_vpu_parents),
 		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
@@ -1292,8 +1293,8 @@ static struct clk_regmap axg_vapb_1_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vapb_1_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_hws = axg_vpu_parent_hws,
-		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.parent_hws = axg_vpu_parents,
+		.num_parents = ARRAY_SIZE(axg_vpu_parents),
 		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
@@ -1365,7 +1366,7 @@ static struct clk_regmap axg_vapb = {
 
 /* Video Clocks */
 
-static const struct clk_hw *axg_vclk_parent_hws[] = {
+static const struct clk_hw *axg_vclk_parents[] = {
 	&axg_gp0_pll.hw,
 	&axg_fclk_div4.hw,
 	&axg_fclk_div3.hw,
@@ -1384,8 +1385,8 @@ static struct clk_regmap axg_vclk_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vclk_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_hws = axg_vclk_parent_hws,
-		.num_parents = ARRAY_SIZE(axg_vclk_parent_hws),
+		.parent_hws = axg_vclk_parents,
+		.num_parents = ARRAY_SIZE(axg_vclk_parents),
 		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
@@ -1399,8 +1400,8 @@ static struct clk_regmap axg_vclk2_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vclk2_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_hws = axg_vclk_parent_hws,
-		.num_parents = ARRAY_SIZE(axg_vclk_parent_hws),
+		.parent_hws = axg_vclk_parents,
+		.num_parents = ARRAY_SIZE(axg_vclk_parents),
 		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
@@ -1739,8 +1740,8 @@ static struct clk_fixed_factor axg_vclk2_div12 = {
 	},
 };
 
-static u32 mux_table_cts_sel[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-static const struct clk_hw *axg_cts_parent_hws[] = {
+static u32 axg_cts_encl_parents_val_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
+static const struct clk_hw *axg_cts_encl_parents[] = {
 	&axg_vclk_div1.hw,
 	&axg_vclk_div2.hw,
 	&axg_vclk_div4.hw,
@@ -1758,13 +1759,13 @@ static struct clk_regmap axg_cts_encl_sel = {
 		.offset = HHI_VIID_CLK_DIV,
 		.mask = 0xf,
 		.shift = 12,
-		.table = mux_table_cts_sel,
+		.table = axg_cts_encl_parents_val_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "cts_encl_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_hws = axg_cts_parent_hws,
-		.num_parents = ARRAY_SIZE(axg_cts_parent_hws),
+		.parent_hws = axg_cts_encl_parents,
+		.num_parents = ARRAY_SIZE(axg_cts_encl_parents),
 		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
@@ -1787,8 +1788,8 @@ static struct clk_regmap axg_cts_encl = {
 
 /* MIPI DSI Host Clock */
 
-static u32 mux_table_axg_vdin_meas[]    = { 0, 1, 2, 3, 6, 7 };
-static const struct clk_parent_data axg_vdin_meas_parent_data[] = {
+static u32 axg_vdin_meas_parents_val_table[] = { 0, 1, 2, 3, 6, 7 };
+static const struct clk_parent_data axg_vdin_meas_parents[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &axg_fclk_div4.hw },
 	{ .hw = &axg_fclk_div3.hw },
@@ -1803,13 +1804,13 @@ static struct clk_regmap axg_vdin_meas_sel = {
 		.mask = 0x7,
 		.shift = 21,
 		.flags = CLK_MUX_ROUND_CLOSEST,
-		.table = mux_table_axg_vdin_meas,
+		.table = axg_vdin_meas_parents_val_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vdin_meas_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = axg_vdin_meas_parent_data,
-		.num_parents = ARRAY_SIZE(axg_vdin_meas_parent_data),
+		.parent_data = axg_vdin_meas_parents,
+		.num_parents = ARRAY_SIZE(axg_vdin_meas_parents),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -1845,9 +1846,8 @@ static struct clk_regmap axg_vdin_meas = {
 	},
 };
 
-static u32 mux_table_gen_clk[]	= { 0, 4, 5, 6, 7, 8,
-				    9, 10, 11, 13, 14, };
-static const struct clk_parent_data gen_clk_parent_data[] = {
+static u32 gen_clk_parents_val_table[] = { 0, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, };
+static const struct clk_parent_data gen_clk_parents[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &axg_hifi_pll.hw },
 	{ .hw = &axg_mpll0.hw },
@@ -1866,7 +1866,7 @@ static struct clk_regmap axg_gen_clk_sel = {
 		.offset = HHI_GEN_CLK_CNTL,
 		.mask = 0xf,
 		.shift = 12,
-		.table = mux_table_gen_clk,
+		.table = gen_clk_parents_val_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gen_clk_sel",
@@ -1877,8 +1877,8 @@ static struct clk_regmap axg_gen_clk_sel = {
 		 * hifi_pll, mpll0, mpll1, mpll2, mpll3, fdiv4,
 		 * fdiv3, fdiv5, [cts_msr_clk], fdiv7, gp0_pll
 		 */
-		.parent_data = gen_clk_parent_data,
-		.num_parents = ARRAY_SIZE(gen_clk_parent_data),
+		.parent_data = gen_clk_parents,
+		.num_parents = ARRAY_SIZE(gen_clk_parents),
 	},
 };
 
@@ -1915,59 +1915,71 @@ static struct clk_regmap axg_gen_clk = {
 	},
 };
 
-#define MESON_GATE(_name, _reg, _bit) \
-	MESON_PCLK(_name, _reg, _bit, &axg_clk81.hw)
+static const struct clk_parent_data axg_pclk_parents = { .hw = &axg_clk81.hw };
 
-/* Everything Else (EE) domain gates */
-static MESON_GATE(axg_ddr, HHI_GCLK_MPEG0, 0);
-static MESON_GATE(axg_audio_locker, HHI_GCLK_MPEG0, 2);
-static MESON_GATE(axg_mipi_dsi_host, HHI_GCLK_MPEG0, 3);
-static MESON_GATE(axg_isa, HHI_GCLK_MPEG0, 5);
-static MESON_GATE(axg_pl301, HHI_GCLK_MPEG0, 6);
-static MESON_GATE(axg_periphs, HHI_GCLK_MPEG0, 7);
-static MESON_GATE(axg_spicc_0, HHI_GCLK_MPEG0, 8);
-static MESON_GATE(axg_i2c, HHI_GCLK_MPEG0, 9);
-static MESON_GATE(axg_rng0, HHI_GCLK_MPEG0, 12);
-static MESON_GATE(axg_uart0, HHI_GCLK_MPEG0, 13);
-static MESON_GATE(axg_mipi_dsi_phy, HHI_GCLK_MPEG0, 14);
-static MESON_GATE(axg_spicc_1, HHI_GCLK_MPEG0, 15);
-static MESON_GATE(axg_pcie_a, HHI_GCLK_MPEG0, 16);
-static MESON_GATE(axg_pcie_b, HHI_GCLK_MPEG0, 17);
-static MESON_GATE(axg_hiu_reg, HHI_GCLK_MPEG0, 19);
-static MESON_GATE(axg_assist_misc, HHI_GCLK_MPEG0, 23);
-static MESON_GATE(axg_emmc_b, HHI_GCLK_MPEG0, 25);
-static MESON_GATE(axg_emmc_c, HHI_GCLK_MPEG0, 26);
-static MESON_GATE(axg_dma, HHI_GCLK_MPEG0, 27);
-static MESON_GATE(axg_spi, HHI_GCLK_MPEG0, 30);
+#define AXG_PCLK(_name, _reg, _bit, _flags) \
+	MESON_PCLK(axg_##_name, _reg, _bit, &axg_pclk_parents, _flags)
 
-static MESON_GATE(axg_audio, HHI_GCLK_MPEG1, 0);
-static MESON_GATE(axg_eth_core, HHI_GCLK_MPEG1, 3);
-static MESON_GATE(axg_uart1, HHI_GCLK_MPEG1, 16);
-static MESON_GATE(axg_g2d, HHI_GCLK_MPEG1, 20);
-static MESON_GATE(axg_usb0, HHI_GCLK_MPEG1, 21);
-static MESON_GATE(axg_usb1, HHI_GCLK_MPEG1, 22);
-static MESON_GATE(axg_reset, HHI_GCLK_MPEG1, 23);
-static MESON_GATE(axg_usb_general, HHI_GCLK_MPEG1, 26);
-static MESON_GATE(axg_ahb_arb0, HHI_GCLK_MPEG1, 29);
-static MESON_GATE(axg_efuse, HHI_GCLK_MPEG1, 30);
-static MESON_GATE(axg_boot_rom, HHI_GCLK_MPEG1, 31);
+/*
+ * Everything Else (EE) domain gates
+ *
+ * NOTE: The gates below are marked with CLK_IGNORE_UNUSED for historic reasons
+ * Users are encouraged to test without it and submit changes to:
+ *  - remove the flag if not necessary
+ *  - replace the flag with something more adequate, such as CLK_IS_CRITICAL,
+ *    if appropriate.
+ *  - add a comment explaining why the use of CLK_IGNORE_UNUSED is desirable
+ *    for a particular clock.
+ */
+static AXG_PCLK(ddr,			HHI_GCLK_MPEG0,  0, CLK_IGNORE_UNUSED);
+static AXG_PCLK(audio_locker,		HHI_GCLK_MPEG0,  2, CLK_IGNORE_UNUSED);
+static AXG_PCLK(mipi_dsi_host,		HHI_GCLK_MPEG0,  3, CLK_IGNORE_UNUSED);
+static AXG_PCLK(isa,			HHI_GCLK_MPEG0,  5, CLK_IGNORE_UNUSED);
+static AXG_PCLK(pl301,			HHI_GCLK_MPEG0,  6, CLK_IGNORE_UNUSED);
+static AXG_PCLK(periphs,		HHI_GCLK_MPEG0,  7, CLK_IGNORE_UNUSED);
+static AXG_PCLK(spicc_0,		HHI_GCLK_MPEG0,  8, CLK_IGNORE_UNUSED);
+static AXG_PCLK(i2c,			HHI_GCLK_MPEG0,  9, CLK_IGNORE_UNUSED);
+static AXG_PCLK(rng0,			HHI_GCLK_MPEG0, 12, CLK_IGNORE_UNUSED);
+static AXG_PCLK(uart0,			HHI_GCLK_MPEG0, 13, CLK_IGNORE_UNUSED);
+static AXG_PCLK(mipi_dsi_phy,		HHI_GCLK_MPEG0, 14, CLK_IGNORE_UNUSED);
+static AXG_PCLK(spicc_1,		HHI_GCLK_MPEG0, 15, CLK_IGNORE_UNUSED);
+static AXG_PCLK(pcie_a,			HHI_GCLK_MPEG0, 16, CLK_IGNORE_UNUSED);
+static AXG_PCLK(pcie_b,			HHI_GCLK_MPEG0, 17, CLK_IGNORE_UNUSED);
+static AXG_PCLK(hiu_reg,		HHI_GCLK_MPEG0, 19, CLK_IGNORE_UNUSED);
+static AXG_PCLK(assist_misc,		HHI_GCLK_MPEG0, 23, CLK_IGNORE_UNUSED);
+static AXG_PCLK(emmc_b,			HHI_GCLK_MPEG0, 25, CLK_IGNORE_UNUSED);
+static AXG_PCLK(emmc_c,			HHI_GCLK_MPEG0, 26, CLK_IGNORE_UNUSED);
+static AXG_PCLK(dma,			HHI_GCLK_MPEG0, 27, CLK_IGNORE_UNUSED);
+static AXG_PCLK(spi,			HHI_GCLK_MPEG0, 30, CLK_IGNORE_UNUSED);
 
-static MESON_GATE(axg_ahb_data_bus, HHI_GCLK_MPEG2, 1);
-static MESON_GATE(axg_ahb_ctrl_bus, HHI_GCLK_MPEG2, 2);
-static MESON_GATE(axg_usb1_to_ddr, HHI_GCLK_MPEG2, 8);
-static MESON_GATE(axg_usb0_to_ddr, HHI_GCLK_MPEG2, 9);
-static MESON_GATE(axg_mmc_pclk, HHI_GCLK_MPEG2, 11);
-static MESON_GATE(axg_vpu_intr, HHI_GCLK_MPEG2, 25);
-static MESON_GATE(axg_sec_ahb_ahb3_bridge, HHI_GCLK_MPEG2, 26);
-static MESON_GATE(axg_gic, HHI_GCLK_MPEG2, 30);
+static AXG_PCLK(audio,			HHI_GCLK_MPEG1,  0, CLK_IGNORE_UNUSED);
+static AXG_PCLK(eth_core,		HHI_GCLK_MPEG1,  3, CLK_IGNORE_UNUSED);
+static AXG_PCLK(uart1,			HHI_GCLK_MPEG1, 16, CLK_IGNORE_UNUSED);
+static AXG_PCLK(g2d,			HHI_GCLK_MPEG1, 20, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb0,			HHI_GCLK_MPEG1, 21, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb1,			HHI_GCLK_MPEG1, 22, CLK_IGNORE_UNUSED);
+static AXG_PCLK(reset,			HHI_GCLK_MPEG1, 23, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb_general,		HHI_GCLK_MPEG1, 26, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ahb_arb0,		HHI_GCLK_MPEG1, 29, CLK_IGNORE_UNUSED);
+static AXG_PCLK(efuse,			HHI_GCLK_MPEG1, 30, CLK_IGNORE_UNUSED);
+static AXG_PCLK(boot_rom,		HHI_GCLK_MPEG1, 31, CLK_IGNORE_UNUSED);
+
+static AXG_PCLK(ahb_data_bus,		HHI_GCLK_MPEG2,  1, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ahb_ctrl_bus,		HHI_GCLK_MPEG2,  2, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb1_to_ddr,		HHI_GCLK_MPEG2,  8, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb0_to_ddr,		HHI_GCLK_MPEG2,  9, CLK_IGNORE_UNUSED);
+static AXG_PCLK(mmc_pclk,		HHI_GCLK_MPEG2, 11, CLK_IGNORE_UNUSED);
+static AXG_PCLK(vpu_intr,		HHI_GCLK_MPEG2, 25, CLK_IGNORE_UNUSED);
+static AXG_PCLK(sec_ahb_ahb3_bridge,	HHI_GCLK_MPEG2, 26, CLK_IGNORE_UNUSED);
+static AXG_PCLK(gic,			HHI_GCLK_MPEG2, 30, CLK_IGNORE_UNUSED);
 
 /* Always On (AO) domain gates */
 
-static MESON_GATE(axg_ao_media_cpu, HHI_GCLK_AO, 0);
-static MESON_GATE(axg_ao_ahb_sram, HHI_GCLK_AO, 1);
-static MESON_GATE(axg_ao_ahb_bus, HHI_GCLK_AO, 2);
-static MESON_GATE(axg_ao_iface, HHI_GCLK_AO, 3);
-static MESON_GATE(axg_ao_i2c, HHI_GCLK_AO, 4);
+static AXG_PCLK(ao_media_cpu,		HHI_GCLK_AO, 0, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ao_ahb_sram,		HHI_GCLK_AO, 1, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ao_ahb_bus,		HHI_GCLK_AO, 2, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ao_iface,		HHI_GCLK_AO, 3, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ao_i2c,			HHI_GCLK_AO, 4, CLK_IGNORE_UNUSED);
 
 /* Array of all clocks provided by this provider */
 
@@ -1980,8 +1992,8 @@ static struct clk_hw *axg_hw_clks[] = {
 	[CLKID_FCLK_DIV5]		= &axg_fclk_div5.hw,
 	[CLKID_FCLK_DIV7]		= &axg_fclk_div7.hw,
 	[CLKID_GP0_PLL]			= &axg_gp0_pll.hw,
-	[CLKID_MPEG_SEL]		= &axg_mpeg_clk_sel.hw,
-	[CLKID_MPEG_DIV]		= &axg_mpeg_clk_div.hw,
+	[CLKID_MPEG_SEL]		= &axg_clk81_sel.hw,
+	[CLKID_MPEG_DIV]		= &axg_clk81_div.hw,
 	[CLKID_CLK81]			= &axg_clk81.hw,
 	[CLKID_MPLL0]			= &axg_mpll0.hw,
 	[CLKID_MPLL1]			= &axg_mpll1.hw,
@@ -2110,28 +2122,27 @@ static struct clk_hw *axg_hw_clks[] = {
 	[CLKID_VDIN_MEAS]		= &axg_vdin_meas.hw,
 };
 
-static const struct meson_eeclkc_data axg_clkc_data = {
+static const struct meson_clkc_data axg_clkc_data = {
 	.hw_clks = {
 		.hws = axg_hw_clks,
 		.num = ARRAY_SIZE(axg_hw_clks),
 	},
 };
 
-
-static const struct of_device_id clkc_match_table[] = {
+static const struct of_device_id axg_clkc_match_table[] = {
 	{ .compatible = "amlogic,axg-clkc", .data = &axg_clkc_data },
 	{}
 };
-MODULE_DEVICE_TABLE(of, clkc_match_table);
+MODULE_DEVICE_TABLE(of, axg_clkc_match_table);
 
-static struct platform_driver axg_driver = {
-	.probe		= meson_eeclkc_probe,
+static struct platform_driver axg_clkc_driver = {
+	.probe		= meson_clkc_syscon_probe,
 	.driver		= {
 		.name	= "axg-clkc",
-		.of_match_table = clkc_match_table,
+		.of_match_table = axg_clkc_match_table,
 	},
 };
-module_platform_driver(axg_driver);
+module_platform_driver(axg_clkc_driver);
 
 MODULE_DESCRIPTION("Amlogic AXG Main Clock Controller driver");
 MODULE_LICENSE("GPL");

@@ -24,7 +24,7 @@
 #define ARCH_SLAB_MINALIGN	16
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern int dma_cache_alignment;
 #ifdef CONFIG_RISCV_DMA_NONCOHERENT
@@ -35,6 +35,6 @@ static inline int dma_get_cache_alignment(void)
 }
 #endif
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 #endif /* _ASM_RISCV_CACHE_H */

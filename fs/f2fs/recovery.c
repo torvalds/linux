@@ -548,7 +548,7 @@ got_it:
 	}
 
 	/* Get the node page */
-	node_folio = f2fs_get_node_folio(sbi, nid);
+	node_folio = f2fs_get_node_folio(sbi, nid, NODE_TYPE_REGULAR);
 	if (IS_ERR(node_folio))
 		return PTR_ERR(node_folio);
 

@@ -3716,6 +3716,29 @@ static const struct panel_desc olimex_lcd_olinuxino_43ts = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
+static const struct drm_display_mode olimex_lcd_olinuxino_5cts_mode = {
+	.clock = 33300,
+	.hdisplay = 800,
+	.hsync_start = 800 + 210,
+	.hsync_end = 800 + 210 + 20,
+	.htotal = 800 + 210 + 20 + 26,
+	.vdisplay = 480,
+	.vsync_start = 480 + 22,
+	.vsync_end = 480 + 22 + 10,
+	.vtotal = 480 + 22 + 10 + 13,
+};
+
+static const struct panel_desc olimex_lcd_olinuxino_5cts = {
+	.modes = &olimex_lcd_olinuxino_5cts_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 154,
+		.height = 86,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
+
 static const struct display_timing ontat_kd50g21_40nt_a1_timing = {
 	.pixelclock = { 30000000, 30000000, 50000000 },
 	.hactive = { 800, 800, 800 },
@@ -5278,6 +5301,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "olimex,lcd-olinuxino-43-ts",
 		.data = &olimex_lcd_olinuxino_43ts,
+	}, {
+		.compatible = "olimex,lcd-olinuxino-5-cts",
+		.data = &olimex_lcd_olinuxino_5cts,
 	}, {
 		.compatible = "ontat,kd50g21-40nt-a1",
 		.data = &ontat_kd50g21_40nt_a1,

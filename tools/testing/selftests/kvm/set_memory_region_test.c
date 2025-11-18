@@ -433,10 +433,10 @@ static void test_add_max_memory_regions(void)
 	pr_info("Adding slots 0..%i, each memory region with %dK size\n",
 		(max_mem_slots - 1), MEM_REGION_SIZE >> 10);
 
-	mem = mmap(NULL, (size_t)max_mem_slots * MEM_REGION_SIZE + alignment,
-		   PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-	TEST_ASSERT(mem != MAP_FAILED, "Failed to mmap() host");
+
+	mem = kvm_mmap((size_t)max_mem_slots * MEM_REGION_SIZE + alignment,
+		       PROT_READ | PROT_WRITE,
+		       MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1);
 	mem_aligned = (void *)(((size_t) mem + alignment - 1) & ~(alignment - 1));
 
 	for (slot = 0; slot < max_mem_slots; slot++)
@@ -446,9 +446,8 @@ static void test_add_max_memory_regions(void)
 					  mem_aligned + (uint64_t)slot * MEM_REGION_SIZE);
 
 	/* Check it cannot be added memory slots beyond the limit */
-	mem_extra = mmap(NULL, MEM_REGION_SIZE, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	TEST_ASSERT(mem_extra != MAP_FAILED, "Failed to mmap() host");
+	mem_extra = kvm_mmap(MEM_REGION_SIZE, PROT_READ | PROT_WRITE,
+			     MAP_PRIVATE | MAP_ANONYMOUS, -1);
 
 	ret = __vm_set_user_memory_region(vm, max_mem_slots, 0,
 					  (uint64_t)max_mem_slots * MEM_REGION_SIZE,
@@ -456,8 +455,8 @@ static void test_add_max_memory_regions(void)
 	TEST_ASSERT(ret == -1 && errno == EINVAL,
 		    "Adding one more memory slot should fail with EINVAL");
 
-	munmap(mem, (size_t)max_mem_slots * MEM_REGION_SIZE + alignment);
-	munmap(mem_extra, MEM_REGION_SIZE);
+	kvm_munmap(mem, (size_t)max_mem_slots * MEM_REGION_SIZE + alignment);
+	kvm_munmap(mem_extra, MEM_REGION_SIZE);
 	kvm_vm_free(vm);
 }
 

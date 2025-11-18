@@ -20,7 +20,6 @@
 #define HBG_MDIO_OP_INTERVAL_US		(5 * 1000)
 
 #define HBG_NP_LINK_FAIL_RETRY_TIMES	5
-#define HBG_NO_PHY			0xFF
 
 static void hbg_mdio_set_command(struct hbg_mac *mac, u32 cmd)
 {
@@ -278,8 +277,7 @@ int hbg_mdio_init(struct hbg_priv *priv)
 
 	mdio_bus = devm_mdiobus_alloc(dev);
 	if (!mdio_bus)
-		return dev_err_probe(dev, -ENOMEM,
-				     "failed to alloc MDIO bus\n");
+		return -ENOMEM;
 
 	mdio_bus->parent = dev;
 	mdio_bus->priv = priv;

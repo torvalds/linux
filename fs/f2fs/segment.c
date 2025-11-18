@@ -2774,6 +2774,8 @@ static int get_new_segment(struct f2fs_sb_info *sbi,
 	unsigned int total_zones = MAIN_SECS(sbi) / sbi->secs_per_zone;
 	unsigned int hint = GET_SEC_FROM_SEG(sbi, *newseg);
 	unsigned int old_zoneno = GET_ZONE_FROM_SEG(sbi, *newseg);
+	unsigned int alloc_policy = sbi->allocate_section_policy;
+	unsigned int alloc_hint = sbi->allocate_section_hint;
 	bool init = true;
 	int i;
 	int ret = 0;
@@ -2806,6 +2808,21 @@ static int get_new_segment(struct f2fs_sb_info *sbi,
 		hint = GET_SEC_FROM_SEG(sbi, segno);
 	}
 #endif
+
+	/*
+	 * Prevent allocate_section_hint from exceeding MAIN_SECS()
+	 * due to desynchronization.
+	 */
+	if (alloc_policy != ALLOCATE_FORWARD_NOHINT &&
+		alloc_hint > MAIN_SECS(sbi))
+		alloc_hint = MAIN_SECS(sbi);
+
+	if (alloc_policy == ALLOCATE_FORWARD_FROM_HINT &&
+		hint < alloc_hint)
+		hint = alloc_hint;
+	else if (alloc_policy == ALLOCATE_FORWARD_WITHIN_HINT &&
+			hint >= alloc_hint)
+		hint = 0;
 
 find_other_zone:
 	secno = find_next_zero_bit(free_i->free_secmap, MAIN_SECS(sbi), hint);
@@ -3672,7 +3689,8 @@ static int __get_segment_type_6(struct f2fs_io_info *fio)
 
 		if (file_is_hot(inode) ||
 				is_inode_flag_set(inode, FI_HOT_DATA) ||
-				f2fs_is_cow_file(inode))
+				f2fs_is_cow_file(inode) ||
+				is_inode_flag_set(inode, FI_NEED_IPU))
 			return CURSEG_HOT_DATA;
 		return f2fs_rw_hint_to_seg_type(F2FS_I_SB(inode),
 						inode->i_write_hint);
@@ -3936,12 +3954,18 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 	int seg_type = log_type_to_seg_type(type);
 	bool keep_order = (f2fs_lfs_mode(fio->sbi) &&
 				seg_type == CURSEG_COLD_DATA);
+	int err;
 
 	if (keep_order)
 		f2fs_down_read(&fio->sbi->io_order_lock);
 
-	if (f2fs_allocate_data_block(fio->sbi, folio, fio->old_blkaddr,
-			&fio->new_blkaddr, sum, type, fio)) {
+	err = f2fs_allocate_data_block(fio->sbi, folio, fio->old_blkaddr,
+			&fio->new_blkaddr, sum, type, fio);
+	if (unlikely(err)) {
+		f2fs_err_ratelimited(fio->sbi,
+			"%s Failed to allocate data block, ino:%u, index:%lu, type:%d, old_blkaddr:0x%x, new_blkaddr:0x%x, err:%d",
+			__func__, fio->ino, folio->index, type,
+			fio->old_blkaddr, fio->new_blkaddr, err);
 		if (fscrypt_inode_uses_fs_layer_crypto(folio->mapping->host))
 			fscrypt_finalize_bounce_page(&fio->encrypted_page);
 		folio_end_writeback(folio);

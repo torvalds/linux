@@ -71,13 +71,13 @@ static int pid_max_max = PID_MAX_LIMIT;
  * the scheme scales to up to 4 million PIDs, runtime.
  */
 struct pid_namespace init_pid_ns = {
-	.ns.count = REFCOUNT_INIT(2),
+	.ns.__ns_ref = REFCOUNT_INIT(2),
 	.idr = IDR_INIT(init_pid_ns.idr),
 	.pid_allocated = PIDNS_ADDING,
 	.level = 0,
 	.child_reaper = &init_task,
 	.user_ns = &init_user_ns,
-	.ns.inum = PROC_PID_INIT_INO,
+	.ns.inum = ns_init_inum(&init_pid_ns),
 #ifdef CONFIG_PID_NS
 	.ns.ops = &pidns_operations,
 #endif
@@ -85,6 +85,7 @@ struct pid_namespace init_pid_ns = {
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
 	.memfd_noexec_scope = MEMFD_NOEXEC_SCOPE_EXEC,
 #endif
+	.ns.ns_type = ns_common_type(&init_pid_ns),
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 
@@ -491,7 +492,7 @@ pid_t pid_nr_ns(struct pid *pid, struct pid_namespace *ns)
 	struct upid *upid;
 	pid_t nr = 0;
 
-	if (pid && ns->level <= pid->level) {
+	if (pid && ns && ns->level <= pid->level) {
 		upid = &pid->numbers[ns->level];
 		if (upid->ns == ns)
 			nr = upid->nr;
@@ -514,7 +515,8 @@ pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
 	rcu_read_lock();
 	if (!ns)
 		ns = task_active_pid_ns(current);
-	nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
+	if (ns)
+		nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
 	rcu_read_unlock();
 
 	return nr;
@@ -680,7 +682,7 @@ static int pid_table_root_permissions(struct ctl_table_header *head,
 		container_of(head->set, struct pid_namespace, set);
 	int mode = table->mode;
 
-	if (ns_capable(pidns->user_ns, CAP_SYS_ADMIN) ||
+	if (ns_capable_noaudit(pidns->user_ns, CAP_SYS_ADMIN) ||
 	    uid_eq(current_euid(), make_kuid(pidns->user_ns, 0)))
 		mode = (mode & S_IRWXU) >> 6;
 	else if (in_egroup_p(make_kgid(pidns->user_ns, 0)))

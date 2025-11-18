@@ -32,10 +32,11 @@ properties:
       - const: mhi # MHI registers
 
   clocks:
-    minItems: 7
+    minItems: 6
     maxItems: 7
 
   clock-names:
+    minItems: 6
     items:
       - const: aux # Auxiliary clock
       - const: cfg # Configuration clock

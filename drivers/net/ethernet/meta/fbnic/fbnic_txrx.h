@@ -35,6 +35,7 @@ struct fbnic_net;
 
 #define FBNIC_MAX_TXQS			128u
 #define FBNIC_MAX_RXQS			128u
+#define FBNIC_MAX_XDPQS			128u
 
 /* These apply to TWQs, TCQ, RCQ */
 #define FBNIC_QUEUE_SIZE_MIN		16u
@@ -50,10 +51,10 @@ struct fbnic_net;
 
 #define FBNIC_RX_TROOM \
 	SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
+#define FBNIC_RX_HROOM_PAD		128
 #define FBNIC_RX_HROOM \
-	(ALIGN(FBNIC_RX_TROOM + NET_SKB_PAD, 128) - FBNIC_RX_TROOM)
+	(ALIGN(FBNIC_RX_TROOM + FBNIC_RX_HROOM_PAD, 128) - FBNIC_RX_TROOM)
 #define FBNIC_RX_PAD			0
-#define FBNIC_RX_MAX_HDR		(1536 - FBNIC_RX_PAD)
 #define FBNIC_RX_PAYLD_OFFSET		0
 #define FBNIC_RX_PAYLD_PG_CL		0
 
@@ -61,12 +62,16 @@ struct fbnic_net;
 #define FBNIC_RING_F_CTX		BIT(1)
 #define FBNIC_RING_F_STATS		BIT(2)	/* Ring's stats may be used */
 
+#define FBNIC_HDS_THRESH_MAX \
+	(4096 - FBNIC_RX_HROOM - FBNIC_RX_TROOM - FBNIC_RX_PAD)
+#define FBNIC_HDS_THRESH_DEFAULT \
+	(1536 - FBNIC_RX_PAD)
+#define FBNIC_HDR_BYTES_MIN		128
+
 struct fbnic_pkt_buff {
 	struct xdp_buff buff;
 	ktime_t hwtstamp;
-	u32 data_truesize;
-	u16 data_len;
-	u16 nr_frags;
+	bool add_frag_failed;
 };
 
 struct fbnic_queue_stats {
@@ -85,7 +90,11 @@ struct fbnic_queue_stats {
 			u64 alloc_failed;
 			u64 csum_complete;
 			u64 csum_none;
+			u64 length_errors;
 		} rx;
+		struct {
+			u64 alloc_failed;
+		} bdq;
 	};
 	u64 dropped;
 	struct u64_stats_sync syncp;
@@ -94,7 +103,7 @@ struct fbnic_queue_stats {
 #define FBNIC_PAGECNT_BIAS_MAX	PAGE_SIZE
 
 struct fbnic_rx_buf {
-	struct page *page;
+	netmem_ref netmem;
 	long pagecnt_bias;
 };
 
@@ -115,6 +124,17 @@ struct fbnic_ring {
 
 	u32 head, tail;			/* Head/Tail of ring */
 
+	union {
+		/* Rx BDQs only */
+		struct page_pool *page_pool;
+
+		/* Deferred_head is used to cache the head for TWQ1 if
+		 * an attempt is made to clean TWQ1 with zero napi_budget.
+		 * We do not use it for any other ring.
+		 */
+		s32 deferred_head;
+	};
+
 	struct fbnic_queue_stats stats;
 
 	/* Slow path fields follow */
@@ -124,12 +144,12 @@ struct fbnic_ring {
 
 struct fbnic_q_triad {
 	struct fbnic_ring sub0, sub1, cmpl;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct fbnic_napi_vector {
 	struct napi_struct napi;
 	struct device *dev;		/* Device for DMA unmapping */
-	struct page_pool *page_pool;
 	struct fbnic_dev *fbd;
 
 	u16 v_idx;
@@ -139,6 +159,8 @@ struct fbnic_napi_vector {
 	struct fbnic_q_triad qt[];
 };
 
+extern const struct netdev_queue_mgmt_ops fbnic_queue_mgmt_ops;
+
 netdev_tx_t fbnic_xmit_frame(struct sk_buff *skb, struct net_device *dev);
 netdev_features_t
 fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
@@ -146,8 +168,12 @@ fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
 
 void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 				      struct fbnic_ring *rxr);
+void fbnic_aggregate_ring_bdq_counters(struct fbnic_net *fbn,
+				       struct fbnic_ring *rxr);
 void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 				      struct fbnic_ring *txr);
+void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
+				       struct fbnic_ring *xdpr);
 
 int fbnic_alloc_napi_vectors(struct fbnic_net *fbn);
 void fbnic_free_napi_vectors(struct fbnic_net *fbn);

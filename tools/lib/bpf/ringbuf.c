@@ -21,7 +21,6 @@
 #include "libbpf.h"
 #include "libbpf_internal.h"
 #include "bpf.h"
-#include "str_error.h"
 
 struct ring {
 	ring_buffer_sample_fn sample_cb;

@@ -38,6 +38,15 @@ config PWM_DEBUG
 	  It is expected to introduce some runtime overhead and diagnostic
 	  output to the kernel log, so only enable while working on a driver.
 
+config PWM_PROVIDE_GPIO
+	bool "Provide a GPIO chip for each PWM chip"
+	depends on GPIOLIB
+	help
+	  Most PWMs can emit both a constant active high and a constant active
+	  low signal and so they can be used as GPIO. Say Y here to let each
+	  PWM chip provide a GPIO chip and so be easily plugged into consumers
+	  that know how to handle GPIOs but not PWMs.
+
 config PWM_AB8500
 	tristate "AB8500 PWM support"
 	depends on AB8500_CORE && ARCH_U8500

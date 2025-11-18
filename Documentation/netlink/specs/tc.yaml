@@ -5,7 +5,7 @@ protocol: netlink-raw
 uapi-header: linux/pkt_cls.h
 protonum: 0
 
-doc:
+doc: >-
   Netlink raw family for tc qdisc, chain, class and filter configuration
   over rtnetlink.
 

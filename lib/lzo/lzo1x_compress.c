@@ -26,7 +26,7 @@
 #define HAVE_OP(x) 1
 #endif
 
-#define NEED_OP(x) if (!HAVE_OP(x)) goto output_overrun
+#define NEED_OP(x) if (unlikely(!HAVE_OP(x))) goto output_overrun
 
 static noinline int
 LZO_SAFE(lzo1x_1_do_compress)(const unsigned char *in, size_t in_len,

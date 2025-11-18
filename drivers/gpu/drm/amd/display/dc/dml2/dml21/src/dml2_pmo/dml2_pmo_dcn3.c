@@ -48,18 +48,19 @@ static void set_reserved_time_on_all_planes_with_stream_index(struct display_con
 
 static void remove_duplicates(double *list_a, int *list_a_size)
 {
-	int cur_element = 0;
-	// For all elements b[i] in list_b[]
-	while (cur_element < *list_a_size - 1) {
-		if (list_a[cur_element] == list_a[cur_element + 1]) {
-			for (int j = cur_element + 1; j < *list_a_size - 1; j++) {
-				list_a[j] = list_a[j + 1];
-			}
-			*list_a_size = *list_a_size - 1;
-		} else {
-			cur_element++;
+	int j = 0;
+
+	if (*list_a_size == 0)
+		return;
+
+	for (int i = 1; i < *list_a_size; i++) {
+		if (list_a[j] != list_a[i]) {
+			j++;
+			list_a[j] = list_a[i];
 		}
 	}
+
+	*list_a_size = j + 1;
 }
 
 static bool increase_mpc_combine_factor(unsigned int *mpc_combine_factor, unsigned int limit)

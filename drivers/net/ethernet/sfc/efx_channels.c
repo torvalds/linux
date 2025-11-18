@@ -216,8 +216,8 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 
 	if (efx_separate_tx_channels) {
 		efx->n_tx_channels =
-			min(max(n_channels / 2, 1U),
-			    efx->max_tx_channels);
+			clamp(n_channels / 2, 1U,
+			      efx->max_tx_channels);
 		efx->tx_channel_offset =
 			n_channels - efx->n_tx_channels;
 		efx->n_rx_channels =
@@ -1281,7 +1281,7 @@ static int efx_poll(struct napi_struct *napi, int budget)
 		time = jiffies - channel->rfs_last_expiry;
 		/* Would our quota be >= 20? */
 		if (channel->rfs_filter_count * time >= 600 * HZ)
-			mod_delayed_work(system_wq, &channel->filter_work, 0);
+			mod_delayed_work(system_percpu_wq, &channel->filter_work, 0);
 #endif
 
 		/* There is no race here; although napi_disable() will

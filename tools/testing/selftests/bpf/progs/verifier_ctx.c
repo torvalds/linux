@@ -5,8 +5,6 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
-
 SEC("tc")
 __description("context stores via BPF_ATOMIC")
 __failure __msg("BPF_ATOMIC stores into R1 ctx is not allowed")
@@ -263,5 +261,35 @@ narrow_load("sockops", bpf_sock_ops, skb_hwtstamp);
 
 unaligned_access("flow_dissector", __sk_buff, data);
 unaligned_access("netfilter", bpf_nf_ctx, skb);
+
+#define padding_access(type, ctx, prev_field, sz)			\
+	SEC(type)							\
+	__description("access on " #ctx " padding after " #prev_field)	\
+	__naked void padding_ctx_access_##ctx(void)			\
+	{								\
+		asm volatile ("						\
+		r1 = *(u%[size] *)(r1 + %[off]);			\
+		r0 = 0;							\
+		exit;"							\
+		:							\
+		: __imm_const(size, sz * 8),				\
+		  __imm_const(off, offsetofend(struct ctx, prev_field))	\
+		: __clobber_all);					\
+	}
+
+__failure __msg("invalid bpf_context access")
+padding_access("cgroup/bind4", bpf_sock_addr, msg_src_ip6[3], 4);
+
+__success
+padding_access("sk_lookup", bpf_sk_lookup, remote_port, 2);
+
+__failure __msg("invalid bpf_context access")
+padding_access("tc", __sk_buff, tstamp_type, 2);
+
+__failure __msg("invalid bpf_context access")
+padding_access("cgroup/post_bind4", bpf_sock, dst_port, 2);
+
+__failure __msg("invalid bpf_context access")
+padding_access("sk_reuseport", sk_reuseport_md, hash, 4);
 
 char _license[] SEC("license") = "GPL";

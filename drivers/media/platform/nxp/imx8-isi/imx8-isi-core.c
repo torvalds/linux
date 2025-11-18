@@ -374,6 +374,8 @@ static int mxc_isi_pm_suspend(struct device *dev)
 		mxc_isi_video_suspend(pipe);
 	}
 
+	mxc_isi_m2m_suspend(&isi->m2m);
+
 	return pm_runtime_force_suspend(dev);
 }
 
@@ -401,6 +403,12 @@ static int mxc_isi_pm_resume(struct device *dev)
 			 */
 			err = ret;
 		}
+	}
+
+	ret = mxc_isi_m2m_resume(&isi->m2m);
+	if (ret) {
+		dev_err(dev, "Failed to resume ISI (%d) for m2m\n", ret);
+		err = ret;
 	}
 
 	return err;

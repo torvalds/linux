@@ -52,7 +52,7 @@ MODULE_PARM_DESC(suspend_pcr,
 unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 {
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		return tpm2_calc_ordinal_duration(chip, ordinal);
+		return tpm2_calc_ordinal_duration(ordinal);
 	else
 		return tpm1_calc_ordinal_duration(chip, ordinal);
 }

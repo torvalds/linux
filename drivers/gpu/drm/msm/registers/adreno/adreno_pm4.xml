@@ -120,12 +120,12 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="LRZ_FLUSH" value="38" variants="A5XX-"/>
 	<value name="BLIT_OP_FILL_2D" value="39" variants="A5XX-"/>
 	<value name="BLIT_OP_COPY_2D" value="40" variants="A5XX-A6XX"/>
-	<value name="UNK_40" value="40" variants="A7XX"/>
+	<value name="LRZ_CACHE_INVALIDATE" value="40" variants="A7XX"/>
 	<value name="LRZ_Q_CACHE_INVALIDATE" value="41" variants="A7XX"/>
 	<value name="BLIT_OP_SCALE_2D" value="42" variants="A5XX-"/>
 	<value name="CONTEXT_DONE_2D" value="43" variants="A5XX-"/>
-	<value name="UNK_2C" value="44" variants="A5XX-"/>
-	<value name="UNK_2D" value="45" variants="A5XX-"/>
+	<value name="VSC_BINNING_START" value="44" variants="A5XX-"/>
+	<value name="VSC_BINNING_END" value="45" variants="A5XX-"/>
 
 	<!-- a6xx events -->
 	<doc>
@@ -523,7 +523,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<!--
 	Seems to set the mode flags which control which CP_SET_DRAW_STATE
 	packets are executed, based on their ENABLE_MASK values
-	
+
 	CP_SET_MODE w/ payload of 0x1 seems to cause CP_SET_DRAW_STATE
 	packets w/ ENABLE_MASK & 0x6 to execute immediately
 	 -->
@@ -640,8 +640,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="CP_BV_BR_COUNT_OPS" value="0x1b" variants="A7XX-"/>
 	<doc> Clears, adds to local, or adds to global timestamp </doc>
 	<value name="CP_MODIFY_TIMESTAMP" value="0x1c" variants="A7XX-"/>
-	<!-- similar to CP_CONTEXT_REG_BUNCH, but discards first two dwords?? -->
-	<value name="CP_CONTEXT_REG_BUNCH2" value="0x5d" variants="A7XX-"/>
+	<value name="CP_NON_CONTEXT_REG_BUNCH" value="0x5d" variants="A7XX-"/>
 	<doc>
 		Write to a scratch memory that is read by CP_REG_TEST with
 		SOURCE_SCRATCH_MEM set. It's not the same scratch as scratch registers.
@@ -918,12 +917,6 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	</reg32>
 
 	<stripe varset="chip" variants="A5XX-">
-		<reg32 offset="4" name="4">
-			<bitfield name="INDX_BASE_LO" low="0" high="31"/>
-		</reg32>
-		<reg32 offset="5" name="5">
-			<bitfield name="INDX_BASE_HI" low="0" high="31"/>
-		</reg32>
 		<reg64 offset="4" name="INDX_BASE" type="address"/>
 		<reg32 offset="6" name="6">
 			<!-- max # of elements in index buffer -->
@@ -1099,8 +1092,10 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 			<bitfield name="BINNING" pos="20" varset="chip" variants="A6XX-" type="boolean"/>
 			<bitfield name="GMEM" pos="21" varset="chip" variants="A6XX-" type="boolean"/>
 			<bitfield name="SYSMEM" pos="22" varset="chip" variants="A6XX-" type="boolean"/>
-			<bitfield name="GROUP_ID" low="24" high="28" type="uint"/>
+			<!-- high bit is 28 until a750: -->
+			<bitfield name="GROUP_ID" low="24" high="29" type="uint"/>
 		</reg32>
+		<reg64 offset="1" name="ADDR" type="address"/>
 		<reg32 offset="1" name="1">
 			<bitfield name="ADDR_LO" low="0" high="31" type="hex"/>
 		</reg32>
@@ -1166,26 +1161,11 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	</reg32>
 	<stripe varset="a7xx_abs_mask_mode" variants="NO_ABS_MASK">
 		<!-- BIN_DATA_ADDR -> VSC_PIPE[p].DATA_ADDRESS -->
-		<reg32 offset="1" name="1">
-			<bitfield name="BIN_DATA_ADDR_LO" low="0" high="31" type="hex"/>
-		</reg32>
-		<reg32 offset="2" name="2">
-			<bitfield name="BIN_DATA_ADDR_HI" low="0" high="31" type="hex"/>
-		</reg32>
+		<reg64 offset="1" name="BIN_DATA_ADDR" type="address"/>
 		<!-- BIN_SIZE_ADDRESS -> VSC_SIZE_ADDRESS + (p * 4)-->
-		<reg32 offset="3" name="3">
-			<bitfield name="BIN_SIZE_ADDRESS_LO" low="0" high="31"/>
-		</reg32>
-		<reg32 offset="4" name="4">
-			<bitfield name="BIN_SIZE_ADDRESS_HI" low="0" high="31"/>
-		</reg32>
+		<reg64 offset="3" name="BIN_SIZE_ADDR" type="address"/>
 		<!-- new on a6xx, where BIN_DATA_ADDR is the DRAW_STRM: -->
-		<reg32 offset="5" name="5">
-			<bitfield name="BIN_PRIM_STRM_LO" low="0" high="31"/>
-		</reg32>
-		<reg32 offset="6" name="6">
-			<bitfield name="BIN_PRIM_STRM_HI" low="0" high="31"/>
-		</reg32>
+		<reg64 offset="5" name="BIN_PRIM_STRM" type="address"/>
 		<!--
 			a7xx adds a few more addresses to the end of the pkt
 		 -->
@@ -1195,26 +1175,11 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	<stripe varset="a7xx_abs_mask_mode" variants="ABS_MASK">
 		<reg32 offset="1" name="ABS_MASK"/>
 		<!-- BIN_DATA_ADDR -> VSC_PIPE[p].DATA_ADDRESS -->
-		<reg32 offset="2" name="2">
-			<bitfield name="BIN_DATA_ADDR_LO" low="0" high="31" type="hex"/>
-		</reg32>
-		<reg32 offset="3" name="3">
-			<bitfield name="BIN_DATA_ADDR_HI" low="0" high="31" type="hex"/>
-		</reg32>
+		<reg64 offset="2" name="BIN_DATA_ADDR" type="address"/>
 		<!-- BIN_SIZE_ADDRESS -> VSC_SIZE_ADDRESS + (p * 4)-->
-		<reg32 offset="4" name="4">
-			<bitfield name="BIN_SIZE_ADDRESS_LO" low="0" high="31"/>
-		</reg32>
-		<reg32 offset="5" name="5">
-			<bitfield name="BIN_SIZE_ADDRESS_HI" low="0" high="31"/>
-		</reg32>
+		<reg64 offset="4" name="BIN_SIZE_ADDR" type="address"/>
 		<!-- new on a6xx, where BIN_DATA_ADDR is the DRAW_STRM: -->
-		<reg32 offset="6" name="6">
-			<bitfield name="BIN_PRIM_STRM_LO" low="0" high="31"/>
-		</reg32>
-		<reg32 offset="7" name="7">
-			<bitfield name="BIN_PRIM_STRM_HI" low="0" high="31"/>
-		</reg32>
+		<reg64 offset="6" name="BIN_PRIM_STRM" type="address"/>
 		<!--
 			a7xx adds a few more addresses to the end of the pkt
 		 -->
@@ -1300,7 +1265,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	</reg32>
 </domain>
 
-<domain name="CP_REG_TO_MEM" width="32">
+<domain name="CP_REG_TO_MEM" width="32" prefix="chip">
 	<reg32 offset="0" name="0">
 		<bitfield name="REG" low="0" high="17" type="hex"/>
 		<!-- number of registers/dwords copied is max(CNT, 1). -->
@@ -1308,12 +1273,12 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="64B" pos="30" type="boolean"/>
 		<bitfield name="ACCUMULATE" pos="31" type="boolean"/>
 	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="DEST" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="2" name="2" varset="chip" variants="A5XX-">
-		<bitfield name="DEST_HI" low="0" high="31"/>
-	</reg32>
+	<stripe varset="chip" variants="A2XX-A4XX">
+		<reg32 offset="1" name="DEST" type="address"/>
+	</stripe>
+	<stripe varset="chip" variants="A5XX-">
+		<reg64 offset="1" name="DEST" type="address"/>
+	</stripe>
 </domain>
 
 <domain name="CP_REG_TO_MEM_OFFSET_REG" width="32">
@@ -1329,12 +1294,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="64B" pos="30" type="boolean"/>
 		<bitfield name="ACCUMULATE" pos="31" type="boolean"/>
 	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="DEST" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="2" name="2" varset="chip" variants="A5XX-">
-		<bitfield name="DEST_HI" low="0" high="31"/>
-	</reg32>
+	<reg64 offset="1" name="DEST" type="waddress"/>
 	<reg32 offset="3" name="3">
 		<bitfield name="OFFSET0" low="0" high="17" type="hex"/>
 		<bitfield name="OFFSET0_SCRATCH" pos="19" type="boolean"/>
@@ -1354,18 +1314,8 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="64B" pos="30" type="boolean"/>
 		<bitfield name="ACCUMULATE" pos="31" type="boolean"/>
 	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="DEST" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="2" name="2" varset="chip" variants="A5XX-">
-		<bitfield name="DEST_HI" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="3" name="3">
-		<bitfield name="OFFSET_LO" low="0" high="31" type="hex"/>
-	</reg32>
-	<reg32 offset="4" name="4">
-		<bitfield name="OFFSET_HI" low="0" high="31" type="hex"/>
-	</reg32>
+	<reg64 offset="1" name="DEST" type="waddress"/>
+	<reg64 offset="3" name="OFFSET" type="waddress"/>
 </domain>
 
 <domain name="CP_MEM_TO_REG" width="32">
@@ -1378,12 +1328,12 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<!-- does the same thing as CP_MEM_TO_MEM::UNK31 -->
 		<bitfield name="UNK31" pos="31" type="boolean"/>
 	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="SRC" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="2" name="2" varset="chip" variants="A5XX-">
-		<bitfield name="SRC_HI" low="0" high="31"/>
-	</reg32>
+	<stripe varset="chip" variants="A2XX-A4XX">
+		<reg32 offset="1" name="SRC" type="address"/>
+	</stripe>
+	<stripe varset="chip" variants="A5XX-">
+		<reg64 offset="1" name="SRC" type="address"/>
+	</stripe>
 </domain>
 
 <domain name="CP_MEM_TO_MEM" width="32">
@@ -1403,6 +1353,10 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<!-- some other kind of wait -->
 		<bitfield name="UNK31" pos="31" type="boolean"/>
 	</reg32>
+	<reg64 offset="1" name="DST" type="waddress"/>
+	<reg64 offset="3" name="SRC_A" type="address"/>
+	<reg64 offset="5" name="SRC_B" type="address"/>
+	<reg64 offset="7" name="SRC_C" type="address"/>
 	<!--
 	followed by sequence of addresses.. the first is the
 	destination and the rest are N src addresses which are
@@ -1461,12 +1415,12 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 </domain>
 
 <domain name="CP_MEM_WRITE" width="32">
-	<reg32 offset="0" name="0">
-		<bitfield name="ADDR_LO" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="ADDR_HI" low="0" high="31"/>
-	</reg32>
+	<stripe varset="chip" variants="A2XX-A4XX">
+		<reg32 offset="0" name="ADDR" type="address"/>
+	</stripe>
+	<stripe varset="chip" variants="A5XX-">
+		<reg64 offset="0" name="ADDR" type="address"/>
+	</stripe>
 	<!-- followed by the DWORDs to write -->
 </domain>
 
@@ -1518,24 +1472,14 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="POLL" low="4" high="5" type="poll_memory_type"/>
 		<bitfield name="WRITE_MEMORY" pos="8" type="boolean"/>
 	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="POLL_ADDR_LO" low="0" high="31" type="hex"/>
-	</reg32>
-	<reg32 offset="2" name="2">
-		<bitfield name="POLL_ADDR_HI" low="0" high="31" type="hex"/>
-	</reg32>
+	<reg64 offset="1" name="POLL_ADDR" type="address"/>
 	<reg32 offset="3" name="3">
 		<bitfield name="REF" low="0" high="31"/>
 	</reg32>
 	<reg32 offset="4" name="4">
 		<bitfield name="MASK" low="0" high="31"/>
 	</reg32>
-	<reg32 offset="5" name="5">
-		<bitfield name="WRITE_ADDR_LO" low="0" high="31" type="hex"/>
-	</reg32>
-	<reg32 offset="6" name="6">
-		<bitfield name="WRITE_ADDR_HI" low="0" high="31" type="hex"/>
-	</reg32>
+	<reg64 offset="5" name="WRITE_ADDR" type="waddress"/>
 	<reg32 offset="7" name="7">
 		<bitfield name="WRITE_DATA" low="0" high="31"/>
 	</reg32>
@@ -1550,12 +1494,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<!-- Reserved for flags, presumably? Unused in FW -->
 		<bitfield name="RESERVED" low="0" high="31" type="hex"/>
 	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="POLL_ADDR_LO" low="0" high="31" type="hex"/>
-	</reg32>
-	<reg32 offset="2" name="2">
-		<bitfield name="POLL_ADDR_HI" low="0" high="31" type="hex"/>
-	</reg32>
+	<reg64 offset="1" name="POLL_ADDR" type="address"/>
 	<reg32 offset="3" name="3">
 		<bitfield name="REF" low="0" high="31"/>
 	</reg32>
@@ -1573,12 +1512,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="POLL" low="4" high="5" type="poll_memory_type"/>
 		<bitfield name="WRITE_MEMORY" pos="8" type="boolean"/>
 	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="POLL_ADDR_LO" low="0" high="31" type="hex"/>
-	</reg32>
-	<reg32 offset="2" name="2">
-		<bitfield name="POLL_ADDR_HI" low="0" high="31" type="hex"/>
-	</reg32>
+	<reg64 offset="1" name="POLL_ADDR" type="address"/>
 	<reg32 offset="3" name="3">
 		<bitfield name="REF" low="0" high="31"/>
 	</reg32>
@@ -1712,12 +1646,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	TODO what is gpuaddr for, seems to be all 0's.. maybe needed for
 	context switch?
 	 -->
-	<reg32 offset="1" name="1">
-		<bitfield name="ADDR_0_LO" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="2" name="2">
-		<bitfield name="ADDR_0_HI" low="0" high="31"/>
-	</reg32>
+	<reg64 offset="1" name="ADDR" type="waddress"/>
 	<reg32 offset="3" name="3">
 		<!-- ??? -->
 	</reg32>
@@ -1832,9 +1761,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	<reg32 offset="0" name="0">
 	</reg32>
 	<stripe varset="chip" variants="A4XX">
-		<reg32 offset="1" name="1">
-			<bitfield name="ADDR" low="0" high="31"/>
-		</reg32>
+		<reg32 offset="1" name="ADDR" type="address"/>
 		<reg32 offset="2" name="2">
 			<!-- localsize is value minus one: -->
 			<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
@@ -1843,12 +1770,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		</reg32>
 	</stripe>
 	<stripe varset="chip" variants="A5XX-">
-		<reg32 offset="1" name="1">
-			<bitfield name="ADDR_LO" low="0" high="31"/>
-		</reg32>
-		<reg32 offset="2" name="2">
-			<bitfield name="ADDR_HI" low="0" high="31"/>
-		</reg32>
+		<reg64 offset="1" name="ADDR" type="address"/>
 		<reg32 offset="3" name="3">
 			<!-- localsize is value minus one: -->
 			<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
@@ -2161,12 +2083,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 			</doc>
 		</value>
 	</enum>
-	<reg32 offset="0" name="0">
-		<bitfield name="ADDR_LO" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="ADDR_HI" low="0" high="31"/>
-	</reg32>
+	<reg64 offset="0" name="ADDR" type="address"/>
 	<reg32 offset="2" name="2">
 		<bitfield name="DWORDS" low="0" high="19" type="uint"/>
 		<bitfield name="TYPE" low="20" high="21" type="amble_type"/>

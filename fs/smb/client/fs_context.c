@@ -773,16 +773,14 @@ static int smb3_fs_context_parse_monolithic(struct fs_context *fc,
 		}
 
 
-		len = 0;
 		value = strchr(key, '=');
 		if (value) {
 			if (value == key)
 				continue;
 			*value++ = 0;
-			len = strlen(value);
 		}
 
-		ret = vfs_parse_fs_string(fc, key, value, len);
+		ret = vfs_parse_fs_string(fc, key, value);
 		if (ret < 0)
 			break;
 	}
@@ -1437,12 +1435,14 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			cifs_errorf(fc, "Unknown error parsing devname\n");
 			goto cifs_parse_mount_err;
 		}
+		kfree(ctx->source);
 		ctx->source = smb3_fs_context_fullpath(ctx, '/');
 		if (IS_ERR(ctx->source)) {
 			ctx->source = NULL;
 			cifs_errorf(fc, "OOM when copying UNC string\n");
 			goto cifs_parse_mount_err;
 		}
+		kfree(fc->source);
 		fc->source = kstrdup(ctx->source, GFP_KERNEL);
 		if (fc->source == NULL) {
 			cifs_errorf(fc, "OOM when copying UNC string\n");
@@ -1470,7 +1470,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			break;
 		}
 
-		if (strnlen(param->string, CIFS_MAX_USERNAME_LEN) >
+		if (strnlen(param->string, CIFS_MAX_USERNAME_LEN) ==
 		    CIFS_MAX_USERNAME_LEN) {
 			pr_warn("username too long\n");
 			goto cifs_parse_mount_err;
@@ -1819,6 +1819,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		cifs_errorf(fc, "multiuser mount option not supported with upcalltarget set as 'mount'\n");
 		goto cifs_parse_mount_err;
 	}
+
+	/*
+	 * Multichannel is not meaningful if max_channels is 1.
+	 * Force multichannel to false to ensure consistent configuration.
+	 */
+	if (ctx->multichannel && ctx->max_channels == 1)
+		ctx->multichannel = false;
 
 	return 0;
 

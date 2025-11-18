@@ -10,12 +10,14 @@
  * MXC GPIO support. (c) 2008 Daniel Mack <daniel@caiaq.de>
  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
  */
-#include <linux/gpio/driver.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
+
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/platform_device.h>
 
 /* GPIO registers definition */
 #define GPIO_DATA_OUT		0x00
@@ -40,13 +42,13 @@
 /**
  * struct ftgpio_gpio - Gemini GPIO state container
  * @dev: containing device for this instance
- * @gc: gpiochip for this instance
+ * @chip: generic GPIO chip for this instance
  * @base: remapped I/O-memory base
  * @clk: silicon clock
  */
 struct ftgpio_gpio {
 	struct device *dev;
-	struct gpio_chip gc;
+	struct gpio_generic_chip chip;
 	void __iomem *base;
 	struct clk *clk;
 };
@@ -233,6 +235,7 @@ static const struct irq_chip ftgpio_irq_chip = {
 
 static int ftgpio_gpio_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
 	struct device *dev = &pdev->dev;
 	struct ftgpio_gpio *g;
 	struct gpio_irq_chip *girq;
@@ -261,27 +264,30 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 		 */
 		return PTR_ERR(g->clk);
 
-	ret = bgpio_init(&g->gc, dev, 4,
-			 g->base + GPIO_DATA_IN,
-			 g->base + GPIO_DATA_SET,
-			 g->base + GPIO_DATA_CLR,
-			 g->base + GPIO_DIR,
-			 NULL,
-			 0);
+	config = (struct gpio_generic_chip_config) {
+		.dev = dev,
+		.sz = 4,
+		.dat = g->base + GPIO_DATA_IN,
+		.set = g->base + GPIO_DATA_SET,
+		.clr = g->base + GPIO_DATA_CLR,
+		.dirout = g->base + GPIO_DIR,
+	};
+
+	ret = gpio_generic_chip_init(&g->chip, &config);
 	if (ret)
 		return dev_err_probe(dev, ret, "unable to init generic GPIO\n");
 
-	g->gc.label = dev_name(dev);
-	g->gc.base = -1;
-	g->gc.parent = dev;
-	g->gc.owner = THIS_MODULE;
-	/* ngpio is set by bgpio_init() */
+	g->chip.gc.label = dev_name(dev);
+	g->chip.gc.base = -1;
+	g->chip.gc.parent = dev;
+	g->chip.gc.owner = THIS_MODULE;
+	/* ngpio is set by gpio_generic_chip_init() */
 
 	/* We need a silicon clock to do debounce */
 	if (!IS_ERR(g->clk))
-		g->gc.set_config = ftgpio_gpio_set_config;
+		g->chip.gc.set_config = ftgpio_gpio_set_config;
 
-	girq = &g->gc.irq;
+	girq = &g->chip.gc.irq;
 	gpio_irq_chip_set_chip(girq, &ftgpio_irq_chip);
 	girq->parent_handler = ftgpio_gpio_irq_handler;
 	girq->num_parents = 1;
@@ -302,7 +308,7 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 	/* Clear any use of debounce */
 	writel(0x0, g->base + GPIO_DEBOUNCE_EN);
 
-	return devm_gpiochip_add_data(dev, &g->gc, g);
+	return devm_gpiochip_add_data(dev, &g->chip.gc, g);
 }
 
 static const struct of_device_id ftgpio_gpio_of_match[] = {

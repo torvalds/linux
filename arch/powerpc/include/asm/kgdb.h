@@ -21,7 +21,7 @@
 #ifndef __POWERPC_KGDB_H__
 #define __POWERPC_KGDB_H__
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define BREAK_INSTR_SIZE	4
 #define BUFMAX			((NUMREGBYTES * 2) + 512)
@@ -62,6 +62,6 @@ static inline void arch_kgdb_breakpoint(void)
 /* CR/LR, R1, R2, R13-R31 inclusive. */
 #define NUMCRITREGBYTES		(23 * sizeof(int))
 #endif /* 32/64 */
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 #endif /* !__POWERPC_KGDB_H__ */
 #endif /* __KERNEL__ */

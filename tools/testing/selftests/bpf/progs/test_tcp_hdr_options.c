@@ -14,10 +14,7 @@
 #include <bpf/bpf_endian.h>
 #define BPF_PROG_TEST_TCP_HDR_OPTIONS
 #include "test_tcp_hdr_options.h"
-
-#ifndef sizeof_field
-#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
-#endif
+#include "bpf_misc.h"
 
 __u8 test_kind = TCPOPT_EXP;
 __u16 test_magic = 0xeB9F;

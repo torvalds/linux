@@ -14,12 +14,16 @@ maintainers:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - apple,t8103-spi
-          - apple,t8112-spi
-          - apple,t6000-spi
-      - const: apple,spi
+    oneOf:
+      - items:
+          - const: apple,t6020-spi
+          - const: apple,t8103-spi
+      - items:
+          - enum:
+              - apple,t8103-spi
+              - apple,t8112-spi
+              - apple,t6000-spi
+          - const: apple,spi
 
   reg:
     maxItems: 1

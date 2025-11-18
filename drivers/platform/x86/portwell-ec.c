@@ -5,15 +5,13 @@
  * Tested on:
  *  - Portwell NANO-6064
  *
- * This driver provides support for GPIO and Watchdog Timer
- * functionalities of the Portwell boards with ITE embedded controller (EC).
+ * This driver supports Portwell boards with an ITE embedded controller (EC).
  * The EC is accessed through I/O ports and provides:
+ *  - Temperature and voltage readings (hwmon)
  *  - 8 GPIO pins for control and monitoring
  *  - Hardware watchdog with 1-15300 second timeout range
  *
- * It integrates with the Linux GPIO and Watchdog subsystems, allowing
- * userspace interaction with EC GPIO pins and watchdog control,
- * ensuring system stability and configurability.
+ * It integrates with the Linux hwmon, GPIO and Watchdog subsystems.
  *
  * (C) Copyright 2025 Portwell, Inc.
  * Author: Yen-Chi Huang (jesse.huang@portwell.com.tw)
@@ -22,16 +20,20 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/dmi.h>
 #include <linux/gpio/driver.h>
+#include <linux/hwmon.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/sizes.h>
 #include <linux/string.h>
+#include <linux/units.h>
 #include <linux/watchdog.h>
 
 #define PORTWELL_EC_IOSPACE              0xe300
@@ -40,6 +42,9 @@
 #define PORTWELL_GPIO_PINS               8
 #define PORTWELL_GPIO_DIR_REG            0x2b
 #define PORTWELL_GPIO_VAL_REG            0x2c
+
+#define PORTWELL_HWMON_TEMP_NUM          3
+#define PORTWELL_HWMON_VOLT_NUM          5
 
 #define PORTWELL_WDT_EC_CONFIG_ADDR      0x06
 #define PORTWELL_WDT_CONFIG_ENABLE       0x1
@@ -52,9 +57,52 @@
 #define PORTWELL_EC_FW_VENDOR_LENGTH     3
 #define PORTWELL_EC_FW_VENDOR_NAME       "PWG"
 
+#define PORTWELL_EC_ADC_MAX              1023
+
 static bool force;
 module_param(force, bool, 0444);
 MODULE_PARM_DESC(force, "Force loading EC driver without checking DMI boardname");
+
+/* A sensor's metadata (label, scale, and register) */
+struct pwec_sensor_prop {
+	const char *label;
+	u8 reg;
+	u32 scale;
+};
+
+/* Master configuration with properties for all possible sensors */
+static const struct {
+	const struct pwec_sensor_prop temp_props[PORTWELL_HWMON_TEMP_NUM];
+	const struct pwec_sensor_prop in_props[PORTWELL_HWMON_VOLT_NUM];
+} pwec_master_data = {
+	.temp_props = {
+		{ "CPU Temperature",    0x00, 0 },
+		{ "System Temperature", 0x02, 0 },
+		{ "Aux Temperature",    0x04, 0 },
+	},
+	.in_props = {
+		{ "Vcore", 0x20, 3000 },
+		{ "3.3V",  0x22, 6000 },
+		{ "5V",    0x24, 9600 },
+		{ "12V",   0x30, 19800 },
+		{ "VDIMM", 0x32, 3000 },
+	},
+};
+
+struct pwec_board_info {
+	u32 temp_mask;	/* bit N = temperature channel N */
+	u32 in_mask;	/* bit N = voltage channel N */
+};
+
+static const struct pwec_board_info pwec_board_info_default = {
+	.temp_mask = GENMASK(PORTWELL_HWMON_TEMP_NUM - 1, 0),
+	.in_mask   = GENMASK(PORTWELL_HWMON_VOLT_NUM - 1, 0),
+};
+
+static const struct pwec_board_info pwec_board_info_nano = {
+	.temp_mask = BIT(0) | BIT(1),
+	.in_mask = GENMASK(4, 0),
+};
 
 static const struct dmi_system_id pwec_dmi_table[] = {
 	{
@@ -62,6 +110,7 @@ static const struct dmi_system_id pwec_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "NANO-6064"),
 		},
+		.driver_data = (void *)&pwec_board_info_nano,
 	},
 	{ }
 };
@@ -77,6 +126,20 @@ static void pwec_write(u8 index, u8 data)
 static u8 pwec_read(u8 address)
 {
 	return inb(PORTWELL_EC_IOSPACE + address);
+}
+
+/* Ensure consistent 16-bit read across potential MSB rollover. */
+static u16 pwec_read16_stable(u8 lsb_reg)
+{
+	u8 lsb, msb, old_msb;
+
+	do {
+		old_msb = pwec_read(lsb_reg + 1);
+		lsb = pwec_read(lsb_reg);
+		msb = pwec_read(lsb_reg + 1);
+	} while (msb != old_msb);
+
+	return (msb << 8) | lsb;
 }
 
 /* GPIO functions */
@@ -204,6 +267,81 @@ static struct watchdog_device ec_wdt_dev = {
 	.max_timeout = PORTWELL_WDT_EC_MAX_COUNT_SECOND,
 };
 
+/* HWMON functions */
+
+static umode_t pwec_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_types type,
+				   u32 attr, int channel)
+{
+	const struct pwec_board_info *info = drvdata;
+
+	switch (type) {
+	case hwmon_temp:
+		return (info->temp_mask & BIT(channel)) ? 0444 : 0;
+	case hwmon_in:
+		return (info->in_mask & BIT(channel)) ? 0444 : 0;
+	default:
+		return 0;
+	}
+}
+
+static int pwec_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
+			   u32 attr, int channel, long *val)
+{
+	u16 tmp16;
+
+	switch (type) {
+	case hwmon_temp:
+		*val = pwec_read(pwec_master_data.temp_props[channel].reg) * MILLIDEGREE_PER_DEGREE;
+		return 0;
+	case hwmon_in:
+		tmp16 = pwec_read16_stable(pwec_master_data.in_props[channel].reg);
+		*val = (tmp16 * pwec_master_data.in_props[channel].scale) / PORTWELL_EC_ADC_MAX;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int pwec_hwmon_read_string(struct device *dev, enum hwmon_sensor_types type,
+				  u32 attr, int channel, const char **str)
+{
+	switch (type) {
+	case hwmon_temp:
+		*str = pwec_master_data.temp_props[channel].label;
+		return 0;
+	case hwmon_in:
+		*str = pwec_master_data.in_props[channel].label;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static const struct hwmon_channel_info *pwec_hwmon_info[] = {
+	HWMON_CHANNEL_INFO(temp,
+		HWMON_T_INPUT | HWMON_T_LABEL,
+		HWMON_T_INPUT | HWMON_T_LABEL,
+		HWMON_T_INPUT | HWMON_T_LABEL),
+	HWMON_CHANNEL_INFO(in,
+		HWMON_I_INPUT | HWMON_I_LABEL,
+		HWMON_I_INPUT | HWMON_I_LABEL,
+		HWMON_I_INPUT | HWMON_I_LABEL,
+		HWMON_I_INPUT | HWMON_I_LABEL,
+		HWMON_I_INPUT | HWMON_I_LABEL),
+	NULL
+};
+
+static const struct hwmon_ops pwec_hwmon_ops = {
+	.is_visible = pwec_hwmon_is_visible,
+	.read = pwec_hwmon_read,
+	.read_string = pwec_hwmon_read_string,
+};
+
+static const struct hwmon_chip_info pwec_chip_info = {
+	.ops = &pwec_hwmon_ops,
+	.info = pwec_hwmon_info,
+};
+
 static int pwec_firmware_vendor_check(void)
 {
 	u8 buf[PORTWELL_EC_FW_VENDOR_LENGTH + 1];
@@ -218,6 +356,8 @@ static int pwec_firmware_vendor_check(void)
 
 static int pwec_probe(struct platform_device *pdev)
 {
+	struct device *hwmon_dev;
+	void *drvdata = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	if (!devm_request_region(&pdev->dev, PORTWELL_EC_IOSPACE,
@@ -236,19 +376,40 @@ static int pwec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ec_wdt_dev.parent = &pdev->dev;
-	ret = devm_watchdog_register_device(&pdev->dev, &ec_wdt_dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register Portwell EC Watchdog\n");
-		return ret;
+	if (IS_REACHABLE(CONFIG_HWMON)) {
+		hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev,
+				"portwell_ec", drvdata, &pwec_chip_info, NULL);
+		ret = PTR_ERR_OR_ZERO(hwmon_dev);
+		if (ret)
+			return ret;
 	}
+
+	ec_wdt_dev.parent = &pdev->dev;
+	return devm_watchdog_register_device(&pdev->dev, &ec_wdt_dev);
+}
+
+static int pwec_suspend(struct device *dev)
+{
+	if (watchdog_active(&ec_wdt_dev))
+		return pwec_wdt_stop(&ec_wdt_dev);
 
 	return 0;
 }
 
+static int pwec_resume(struct device *dev)
+{
+	if (watchdog_active(&ec_wdt_dev))
+		return pwec_wdt_start(&ec_wdt_dev);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(pwec_dev_pm_ops, pwec_suspend, pwec_resume);
+
 static struct platform_driver pwec_driver = {
 	.driver = {
 		.name = "portwell-ec",
+		.pm = pm_sleep_ptr(&pwec_dev_pm_ops),
 	},
 	.probe = pwec_probe,
 };
@@ -257,19 +418,26 @@ static struct platform_device *pwec_dev;
 
 static int __init pwec_init(void)
 {
+	const struct dmi_system_id *match;
+	const struct pwec_board_info *hwmon_data;
 	int ret;
 
-	if (!dmi_check_system(pwec_dmi_table)) {
+	match = dmi_first_match(pwec_dmi_table);
+	if (!match) {
 		if (!force)
 			return -ENODEV;
-		pr_warn("force load portwell-ec without DMI check\n");
+		hwmon_data = &pwec_board_info_default;
+		pr_warn("force load portwell-ec without DMI check, using full display config\n");
+	} else {
+		hwmon_data = match->driver_data;
 	}
 
 	ret = platform_driver_register(&pwec_driver);
 	if (ret)
 		return ret;
 
-	pwec_dev = platform_device_register_simple("portwell-ec", -1, NULL, 0);
+	pwec_dev = platform_device_register_data(NULL, "portwell-ec", PLATFORM_DEVID_NONE,
+						hwmon_data, sizeof(*hwmon_data));
 	if (IS_ERR(pwec_dev)) {
 		platform_driver_unregister(&pwec_driver);
 		return PTR_ERR(pwec_dev);

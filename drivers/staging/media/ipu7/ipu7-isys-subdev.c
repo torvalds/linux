@@ -194,12 +194,21 @@ static int subdev_set_routing(struct v4l2_subdev *sd,
 		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.field = V4L2_FIELD_NONE,
 	};
+	struct v4l2_subdev_route *route;
 	int ret;
 
 	ret = v4l2_subdev_routing_validate(sd, routing,
-					   V4L2_SUBDEV_ROUTING_ONLY_1_TO_1);
+					   V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
+					   V4L2_SUBDEV_ROUTING_NO_SOURCE_MULTIPLEXING);
 	if (ret)
 		return ret;
+
+	/*
+	 * The device doesn't support source multiplexing, set all source
+	 * streams to 0 to simplify stream handling through the driver.
+	 */
+	for_each_active_route(routing, route)
+		route->source_stream = 0;
 
 	return v4l2_subdev_set_routing_with_fmt(sd, state, routing, &fmt);
 }
@@ -220,30 +229,6 @@ int ipu7_isys_get_stream_pad_fmt(struct v4l2_subdev *sd, u32 pad, u32 stream,
 	v4l2_subdev_unlock_state(state);
 
 	return fmt ? 0 : -EINVAL;
-}
-
-u32 ipu7_isys_get_src_stream_by_src_pad(struct v4l2_subdev *sd, u32 pad)
-{
-	struct v4l2_subdev_state *state;
-	struct v4l2_subdev_route *routes;
-	u32 source_stream = 0;
-	unsigned int i;
-
-	state = v4l2_subdev_lock_and_get_active_state(sd);
-	if (!state)
-		return 0;
-
-	routes = state->routing.routes;
-	for (i = 0; i < state->routing.num_routes; i++) {
-		if (routes[i].source_pad == pad) {
-			source_stream = routes[i].source_stream;
-			break;
-		}
-	}
-
-	v4l2_subdev_unlock_state(state);
-
-	return source_stream;
 }
 
 static int ipu7_isys_subdev_init_state(struct v4l2_subdev *sd,

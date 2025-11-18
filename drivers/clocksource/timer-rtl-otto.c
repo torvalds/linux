@@ -38,14 +38,13 @@
 #define RTTM_BIT_COUNT		28
 #define RTTM_MIN_DELTA		8
 #define RTTM_MAX_DELTA		CLOCKSOURCE_MASK(28)
+#define RTTM_MAX_DIVISOR	GENMASK(15, 0)
 
 /*
- * Timers are derived from the LXB clock frequency. Usually this is a fixed
- * multiple of the 25 MHz oscillator. The 930X SOC is an exception from that.
- * Its LXB clock has only dividers and uses the switch PLL of 2.45 GHz as its
- * base. The only meaningful frequencies we can achieve from that are 175.000
- * MHz and 153.125 MHz. The greatest common divisor of all explained possible
- * speeds is 3125000. Pin the timers to this 3.125 MHz reference frequency.
+ * Timers are derived from the lexra bus (LXB) clock frequency. This is 175 MHz
+ * on RTL930x and 200 MHz on the other platforms. With 3.125 MHz choose a common
+ * divisor to have enough range and detail. This provides comparability between
+ * the different platforms.
  */
 #define RTTM_TICKS_PER_SEC	3125000
 
@@ -55,11 +54,6 @@ struct rttm_cs {
 };
 
 /* Simple internal register functions */
-static inline void rttm_set_counter(void __iomem *base, unsigned int counter)
-{
-	iowrite32(counter, base + RTTM_CNT);
-}
-
 static inline unsigned int rttm_get_counter(void __iomem *base)
 {
 	return ioread32(base + RTTM_CNT);
@@ -112,6 +106,22 @@ static irqreturn_t rttm_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void rttm_bounce_timer(void __iomem *base, u32 mode)
+{
+	/*
+	 * When a running timer has less than ~5us left, a stop/start sequence
+	 * might fail. While the details are unknown the most evident effect is
+	 * that the subsequent interrupt will not be fired.
+	 *
+	 * As a workaround issue an intermediate restart with a very slow
+	 * frequency of ~3kHz keeping the target counter (>=8). So the follow
+	 * up restart will always be issued outside the critical window.
+	 */
+
+	rttm_disable_timer(base);
+	rttm_enable_timer(base, mode, RTTM_MAX_DIVISOR);
+}
+
 static void rttm_stop_timer(void __iomem *base)
 {
 	rttm_disable_timer(base);
@@ -120,7 +130,6 @@ static void rttm_stop_timer(void __iomem *base)
 
 static void rttm_start_timer(struct timer_of *to, u32 mode)
 {
-	rttm_set_counter(to->of_base.base, 0);
 	rttm_enable_timer(to->of_base.base, mode, to->of_clk.rate / RTTM_TICKS_PER_SEC);
 }
 
@@ -129,7 +138,8 @@ static int rttm_next_event(unsigned long delta, struct clock_event_device *clkev
 	struct timer_of *to = to_timer_of(clkevt);
 
 	RTTM_DEBUG(to->of_base.base);
-	rttm_stop_timer(to->of_base.base);
+	rttm_bounce_timer(to->of_base.base, RTTM_CTRL_COUNTER);
+	rttm_disable_timer(to->of_base.base);
 	rttm_set_period(to->of_base.base, delta);
 	rttm_start_timer(to, RTTM_CTRL_COUNTER);
 
@@ -141,7 +151,8 @@ static int rttm_state_oneshot(struct clock_event_device *clkevt)
 	struct timer_of *to = to_timer_of(clkevt);
 
 	RTTM_DEBUG(to->of_base.base);
-	rttm_stop_timer(to->of_base.base);
+	rttm_bounce_timer(to->of_base.base, RTTM_CTRL_COUNTER);
+	rttm_disable_timer(to->of_base.base);
 	rttm_set_period(to->of_base.base, RTTM_TICKS_PER_SEC / HZ);
 	rttm_start_timer(to, RTTM_CTRL_COUNTER);
 
@@ -153,7 +164,8 @@ static int rttm_state_periodic(struct clock_event_device *clkevt)
 	struct timer_of *to = to_timer_of(clkevt);
 
 	RTTM_DEBUG(to->of_base.base);
-	rttm_stop_timer(to->of_base.base);
+	rttm_bounce_timer(to->of_base.base, RTTM_CTRL_TIMER);
+	rttm_disable_timer(to->of_base.base);
 	rttm_set_period(to->of_base.base, RTTM_TICKS_PER_SEC / HZ);
 	rttm_start_timer(to, RTTM_CTRL_TIMER);
 

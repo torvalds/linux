@@ -752,7 +752,6 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 	vcpu_args_set(vcpu, 1, args_gva);
 
 	gic_fd = vgic_v3_setup(vm, 1, nr_irqs);
-	__TEST_REQUIRE(gic_fd >= 0, "Failed to create vgic-v3, skipping");
 
 	vm_install_exception_handler(vm, VECTOR_IRQ_CURRENT,
 		guest_irq_handlers[args.eoi_split][args.level_sensitive]);
@@ -801,6 +800,9 @@ int main(int argc, char **argv)
 	bool level_sensitive = false;
 	int opt;
 	bool eoi_split = false;
+
+	TEST_REQUIRE(kvm_supports_vgic_v3());
+	test_disable_default_vgic();
 
 	while ((opt = getopt(argc, argv, "hn:e:l:")) != -1) {
 		switch (opt) {

@@ -44,19 +44,14 @@
  * a struct file opened for write. Fixed. 2/6/2000, AV.
  */
 
-#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/acct.h>
 #include <linux/capability.h>
-#include <linux/file.h>
 #include <linux/tty.h>
-#include <linux/security.h>
-#include <linux/vfs.h>
+#include <linux/statfs.h>
 #include <linux/jiffies.h>
-#include <linux/times.h>
 #include <linux/syscalls.h>
-#include <linux/mount.h>
-#include <linux/uaccess.h>
+#include <linux/namei.h>
 #include <linux/sched/cputime.h>
 
 #include <asm/div64.h>
@@ -217,84 +212,70 @@ static void close_work(struct work_struct *work)
 	complete(&acct->done);
 }
 
-static int acct_on(struct filename *pathname)
+DEFINE_FREE(fput_sync, struct file *, if (!IS_ERR_OR_NULL(_T)) __fput_sync(_T))
+static int acct_on(const char __user *name)
 {
-	struct file *file;
-	struct vfsmount *mnt, *internal;
+	/* Difference from BSD - they don't do O_APPEND */
+	const int open_flags = O_WRONLY|O_APPEND|O_LARGEFILE;
 	struct pid_namespace *ns = task_active_pid_ns(current);
+	struct filename *pathname __free(putname) = getname(name);
+	struct file *original_file __free(fput) = NULL;	// in that order
+	struct path internal __free(path_put) = {};	// in that order
+	struct file *file __free(fput_sync) = NULL;	// in that order
 	struct bsd_acct_struct *acct;
+	struct vfsmount *mnt;
 	struct fs_pin *old;
-	int err;
+
+	if (IS_ERR(pathname))
+		return PTR_ERR(pathname);
+	original_file = file_open_name(pathname, open_flags, 0);
+	if (IS_ERR(original_file))
+		return PTR_ERR(original_file);
+
+	mnt = mnt_clone_internal(&original_file->f_path);
+	if (IS_ERR(mnt))
+		return PTR_ERR(mnt);
+
+	internal.mnt = mnt;
+	internal.dentry = dget(mnt->mnt_root);
+
+	file = dentry_open(&internal, open_flags, current_cred());
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	if (!S_ISREG(file_inode(file)->i_mode))
+		return -EACCES;
+
+	/* Exclude kernel kernel internal filesystems. */
+	if (file_inode(file)->i_sb->s_flags & (SB_NOUSER | SB_KERNMOUNT))
+		return -EINVAL;
+
+	/* Exclude procfs and sysfs. */
+	if (file_inode(file)->i_sb->s_iflags & SB_I_USERNS_VISIBLE)
+		return -EINVAL;
+
+	if (!(file->f_mode & FMODE_CAN_WRITE))
+		return -EIO;
 
 	acct = kzalloc(sizeof(struct bsd_acct_struct), GFP_KERNEL);
 	if (!acct)
 		return -ENOMEM;
 
-	/* Difference from BSD - they don't do O_APPEND */
-	file = file_open_name(pathname, O_WRONLY|O_APPEND|O_LARGEFILE, 0);
-	if (IS_ERR(file)) {
-		kfree(acct);
-		return PTR_ERR(file);
-	}
-
-	if (!S_ISREG(file_inode(file)->i_mode)) {
-		kfree(acct);
-		filp_close(file, NULL);
-		return -EACCES;
-	}
-
-	/* Exclude kernel kernel internal filesystems. */
-	if (file_inode(file)->i_sb->s_flags & (SB_NOUSER | SB_KERNMOUNT)) {
-		kfree(acct);
-		filp_close(file, NULL);
-		return -EINVAL;
-	}
-
-	/* Exclude procfs and sysfs. */
-	if (file_inode(file)->i_sb->s_iflags & SB_I_USERNS_VISIBLE) {
-		kfree(acct);
-		filp_close(file, NULL);
-		return -EINVAL;
-	}
-
-	if (!(file->f_mode & FMODE_CAN_WRITE)) {
-		kfree(acct);
-		filp_close(file, NULL);
-		return -EIO;
-	}
-	internal = mnt_clone_internal(&file->f_path);
-	if (IS_ERR(internal)) {
-		kfree(acct);
-		filp_close(file, NULL);
-		return PTR_ERR(internal);
-	}
-	err = mnt_get_write_access(internal);
-	if (err) {
-		mntput(internal);
-		kfree(acct);
-		filp_close(file, NULL);
-		return err;
-	}
-	mnt = file->f_path.mnt;
-	file->f_path.mnt = internal;
-
 	atomic_long_set(&acct->count, 1);
 	init_fs_pin(&acct->pin, acct_pin_kill);
-	acct->file = file;
+	acct->file = no_free_ptr(file);
 	acct->needcheck = jiffies;
 	acct->ns = ns;
 	mutex_init(&acct->lock);
 	INIT_WORK(&acct->work, close_work);
 	init_completion(&acct->done);
 	mutex_lock_nested(&acct->lock, 1);	/* nobody has seen it yet */
-	pin_insert(&acct->pin, mnt);
+	pin_insert(&acct->pin, original_file->f_path.mnt);
 
 	rcu_read_lock();
 	old = xchg(&ns->bacct, &acct->pin);
 	mutex_unlock(&acct->lock);
 	pin_kill(old);
-	mnt_put_write_access(mnt);
-	mntput(mnt);
 	return 0;
 }
 
@@ -319,14 +300,9 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 		return -EPERM;
 
 	if (name) {
-		struct filename *tmp = getname(name);
-
-		if (IS_ERR(tmp))
-			return PTR_ERR(tmp);
 		mutex_lock(&acct_on_mutex);
-		error = acct_on(tmp);
+		error = acct_on(name);
 		mutex_unlock(&acct_on_mutex);
-		putname(tmp);
 	} else {
 		rcu_read_lock();
 		pin_kill(task_active_pid_ns(current)->bacct);

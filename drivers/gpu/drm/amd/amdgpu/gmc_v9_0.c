@@ -1073,27 +1073,6 @@ static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned int v
  * 0 valid
  */
 
-static uint64_t gmc_v9_0_map_mtype(struct amdgpu_device *adev, uint32_t flags)
-
-{
-	switch (flags) {
-	case AMDGPU_VM_MTYPE_DEFAULT:
-		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_NC);
-	case AMDGPU_VM_MTYPE_NC:
-		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_NC);
-	case AMDGPU_VM_MTYPE_WC:
-		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_WC);
-	case AMDGPU_VM_MTYPE_RW:
-		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_RW);
-	case AMDGPU_VM_MTYPE_CC:
-		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_CC);
-	case AMDGPU_VM_MTYPE_UC:
-		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_UC);
-	default:
-		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_NC);
-	}
-}
-
 static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				uint64_t *addr, uint64_t *flags)
 {
@@ -1123,6 +1102,7 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 					 struct amdgpu_vm *vm,
 					 struct amdgpu_bo *bo,
+					 uint32_t vm_flags,
 					 uint64_t *flags)
 {
 	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
@@ -1236,25 +1216,43 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 }
 
 static void gmc_v9_0_get_vm_pte(struct amdgpu_device *adev,
-				struct amdgpu_bo_va_mapping *mapping,
+				struct amdgpu_vm *vm,
+				struct amdgpu_bo *bo,
+				uint32_t vm_flags,
 				uint64_t *flags)
 {
-	struct amdgpu_bo *bo = mapping->bo_va->base.bo;
+	if (vm_flags & AMDGPU_VM_PAGE_EXECUTABLE)
+		*flags |= AMDGPU_PTE_EXECUTABLE;
+	else
+		*flags &= ~AMDGPU_PTE_EXECUTABLE;
 
-	*flags &= ~AMDGPU_PTE_EXECUTABLE;
-	*flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
+	switch (vm_flags & AMDGPU_VM_MTYPE_MASK) {
+	case AMDGPU_VM_MTYPE_DEFAULT:
+	case AMDGPU_VM_MTYPE_NC:
+	default:
+		*flags = AMDGPU_PTE_MTYPE_VG10(*flags, MTYPE_NC);
+		break;
+	case AMDGPU_VM_MTYPE_WC:
+		*flags |= AMDGPU_PTE_MTYPE_VG10(*flags, MTYPE_WC);
+		break;
+	case AMDGPU_VM_MTYPE_RW:
+		*flags |= AMDGPU_PTE_MTYPE_VG10(*flags, MTYPE_RW);
+		break;
+	case AMDGPU_VM_MTYPE_CC:
+		*flags |= AMDGPU_PTE_MTYPE_VG10(*flags, MTYPE_CC);
+		break;
+	case AMDGPU_VM_MTYPE_UC:
+		*flags |= AMDGPU_PTE_MTYPE_VG10(*flags, MTYPE_UC);
+		break;
+	}
 
-	*flags &= ~AMDGPU_PTE_MTYPE_VG10_MASK;
-	*flags |= mapping->flags & AMDGPU_PTE_MTYPE_VG10_MASK;
-
-	if (mapping->flags & AMDGPU_PTE_PRT) {
+	if (vm_flags & AMDGPU_VM_PAGE_PRT) {
 		*flags |= AMDGPU_PTE_PRT;
 		*flags &= ~AMDGPU_PTE_VALID;
 	}
 
 	if ((*flags & AMDGPU_PTE_VALID) && bo)
-		gmc_v9_0_get_coherence_flags(adev, mapping->bo_va->base.vm, bo,
-					     flags);
+		gmc_v9_0_get_coherence_flags(adev, vm, bo, vm_flags, flags);
 }
 
 static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
@@ -1391,7 +1389,6 @@ static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 	.flush_gpu_tlb_pasid = gmc_v9_0_flush_gpu_tlb_pasid,
 	.emit_flush_gpu_tlb = gmc_v9_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v9_0_emit_pasid_mapping,
-	.map_mtype = gmc_v9_0_map_mtype,
 	.get_vm_pde = gmc_v9_0_get_vm_pde,
 	.get_vm_pte = gmc_v9_0_get_vm_pte,
 	.override_vm_pte_flags = gmc_v9_0_override_vm_pte_flags,
@@ -1837,11 +1834,19 @@ static void gmc_v9_0_save_registers(struct amdgpu_device *adev)
 
 static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
 {
+	static const u32 regBIF_BIOS_SCRATCH_4 = 0x50;
+	u32 vram_info;
+
 	adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
 	adev->gmc.vram_width = 128 * 64;
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0))
 		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
+
+	if (!(adev->flags & AMD_IS_APU) && !amdgpu_sriov_vf(adev)) {
+		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
+		adev->gmc.vram_vendor = vram_info & 0xF;
+	}
 }
 
 static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)

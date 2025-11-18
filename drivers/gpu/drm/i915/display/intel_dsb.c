@@ -4,10 +4,11 @@
  *
  */
 
+#include <linux/iopoll.h>
+
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
-#include "i915_utils.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
@@ -871,8 +872,13 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 	struct intel_crtc *crtc = dsb->crtc;
 	struct intel_display *display = to_intel_display(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
+	bool is_busy;
+	int ret;
 
-	if (wait_for(!is_dsb_busy(display, pipe, dsb->id), 1)) {
+	ret = poll_timeout_us(is_busy = is_dsb_busy(display, pipe, dsb->id),
+			      !is_busy,
+			      100, 1000, false);
+	if (ret) {
 		u32 offset = intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf);
 
 		intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id),

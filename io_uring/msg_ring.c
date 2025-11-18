@@ -11,7 +11,6 @@
 #include "io_uring.h"
 #include "rsrc.h"
 #include "filetable.h"
-#include "alloc_cache.h"
 #include "msg_ring.h"
 
 /* All valid masks for MSG_RING */
@@ -76,13 +75,7 @@ static void io_msg_tw_complete(struct io_kiocb *req, io_tw_token_t tw)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	io_add_aux_cqe(ctx, req->cqe.user_data, req->cqe.res, req->cqe.flags);
-	if (spin_trylock(&ctx->msg_lock)) {
-		if (io_alloc_cache_put(&ctx->msg_cache, req))
-			req = NULL;
-		spin_unlock(&ctx->msg_lock);
-	}
-	if (req)
-		kfree_rcu(req, rcu_head);
+	kfree_rcu(req, rcu_head);
 	percpu_ref_put(&ctx->refs);
 }
 
@@ -104,26 +97,13 @@ static int io_msg_remote_post(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	return 0;
 }
 
-static struct io_kiocb *io_msg_get_kiocb(struct io_ring_ctx *ctx)
-{
-	struct io_kiocb *req = NULL;
-
-	if (spin_trylock(&ctx->msg_lock)) {
-		req = io_alloc_cache_get(&ctx->msg_cache);
-		spin_unlock(&ctx->msg_lock);
-		if (req)
-			return req;
-	}
-	return kmem_cache_alloc(req_cachep, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
-}
-
 static int io_msg_data_remote(struct io_ring_ctx *target_ctx,
 			      struct io_msg *msg)
 {
 	struct io_kiocb *target;
 	u32 flags = 0;
 
-	target = io_msg_get_kiocb(target_ctx);
+	target = kmem_cache_alloc(req_cachep, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO)  ;
 	if (unlikely(!target))
 		return -ENOMEM;
 
