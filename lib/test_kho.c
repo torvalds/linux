@@ -306,7 +306,6 @@ static int kho_test_restore(phys_addr_t fdt_phys)
 	if (err)
 		return err;
 
-	pr_info("KHO restore succeeded\n");
 	return 0;
 }
 
@@ -319,8 +318,15 @@ static int __init kho_test_init(void)
 		return 0;
 
 	err = kho_retrieve_subtree(KHO_TEST_FDT, &fdt_phys);
-	if (!err)
-		return kho_test_restore(fdt_phys);
+	if (!err) {
+		err = kho_test_restore(fdt_phys);
+		if (err)
+			pr_err("KHO restore failed\n");
+		else
+			pr_info("KHO restore succeeded\n");
+
+		return err;
+	}
 
 	if (err != -ENOENT) {
 		pr_warn("failed to retrieve %s FDT: %d\n", KHO_TEST_FDT, err);
