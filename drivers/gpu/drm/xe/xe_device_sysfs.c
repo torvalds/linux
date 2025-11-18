@@ -57,9 +57,8 @@ vram_d3cold_threshold_store(struct device *dev, struct device_attribute *attr,
 
 	drm_dbg(&xe->drm, "vram_d3cold_threshold: %u\n", vram_d3cold_threshold);
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 	ret = xe_pm_set_vram_threshold(xe, vram_d3cold_threshold);
-	xe_pm_runtime_put(xe);
 
 	return ret ?: count;
 }
@@ -84,33 +83,31 @@ lb_fan_control_version_show(struct device *dev, struct device_attribute *attr, c
 	u16 major = 0, minor = 0, hotfix = 0, build = 0;
 	int ret;
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 
 	ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_CAPABILITY_STATUS, 0),
 			    &cap, NULL);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (REG_FIELD_GET(V1_FAN_PROVISIONED, cap)) {
 		ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_VERSION_LOW, 0),
 				    &ver_low, NULL);
 		if (ret)
-			goto out;
+			return ret;
 
 		ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_VERSION_HIGH, 0),
 				    &ver_high, NULL);
 		if (ret)
-			goto out;
+			return ret;
 
 		major = REG_FIELD_GET(MAJOR_VERSION_MASK, ver_low);
 		minor = REG_FIELD_GET(MINOR_VERSION_MASK, ver_low);
 		hotfix = REG_FIELD_GET(HOTFIX_VERSION_MASK, ver_high);
 		build = REG_FIELD_GET(BUILD_VERSION_MASK, ver_high);
 	}
-out:
-	xe_pm_runtime_put(xe);
 
-	return ret ?: sysfs_emit(buf, "%u.%u.%u.%u\n", major, minor, hotfix, build);
+	return sysfs_emit(buf, "%u.%u.%u.%u\n", major, minor, hotfix, build);
 }
 static DEVICE_ATTR_ADMIN_RO(lb_fan_control_version);
 
@@ -123,33 +120,31 @@ lb_voltage_regulator_version_show(struct device *dev, struct device_attribute *a
 	u16 major = 0, minor = 0, hotfix = 0, build = 0;
 	int ret;
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 
 	ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_CAPABILITY_STATUS, 0),
 			    &cap, NULL);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (REG_FIELD_GET(VR_PARAMS_PROVISIONED, cap)) {
 		ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_VERSION_LOW, 0),
 				    &ver_low, NULL);
 		if (ret)
-			goto out;
+			return ret;
 
 		ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_VERSION_HIGH, 0),
 				    &ver_high, NULL);
 		if (ret)
-			goto out;
+			return ret;
 
 		major = REG_FIELD_GET(MAJOR_VERSION_MASK, ver_low);
 		minor = REG_FIELD_GET(MINOR_VERSION_MASK, ver_low);
 		hotfix = REG_FIELD_GET(HOTFIX_VERSION_MASK, ver_high);
 		build = REG_FIELD_GET(BUILD_VERSION_MASK, ver_high);
 	}
-out:
-	xe_pm_runtime_put(xe);
 
-	return ret ?: sysfs_emit(buf, "%u.%u.%u.%u\n", major, minor, hotfix, build);
+	return sysfs_emit(buf, "%u.%u.%u.%u\n", major, minor, hotfix, build);
 }
 static DEVICE_ATTR_ADMIN_RO(lb_voltage_regulator_version);
 
@@ -233,9 +228,8 @@ auto_link_downgrade_capable_show(struct device *dev, struct device_attribute *at
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	u32 cap, val;
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 	val = xe_mmio_read32(xe_root_tile_mmio(xe), BMG_PCIE_CAP);
-	xe_pm_runtime_put(xe);
 
 	cap = REG_FIELD_GET(LINK_DOWNGRADE, val);
 	return sysfs_emit(buf, "%u\n", cap == DOWNGRADE_CAPABLE);
@@ -251,11 +245,10 @@ auto_link_downgrade_status_show(struct device *dev, struct device_attribute *att
 	u32 val = 0;
 	int ret;
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 	ret = xe_pcode_read(xe_device_get_root_tile(xe),
 			    PCODE_MBOX(DGFX_PCODE_STATUS, DGFX_GET_INIT_STATUS, 0),
 			    &val, NULL);
-	xe_pm_runtime_put(xe);
 
 	return ret ?: sysfs_emit(buf, "%u\n", REG_FIELD_GET(DGFX_LINK_DOWNGRADE_STATUS, val));
 }
