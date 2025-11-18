@@ -121,7 +121,7 @@ static int gmc_v12_1_process_interrupt(struct amdgpu_device *adev,
 
 	if (entry->src_id == UTCL2_1_0__SRCID__RETRY) {
 		retry_fault = true;
-		write_fault = !!(entry->src_data[1] & 0x200000);
+		write_fault = !!(entry->src_data[1] & AMDGPU_GMC121_FAULT_SOURCE_DATA_WRITE);
 	}
 
 	if (entry->client_id == SOC_V1_0_IH_CLIENTID_VMC) {
