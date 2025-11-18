@@ -3383,11 +3383,12 @@ static u32 cbm_ensure_valid(u32 _val, struct rdt_resource *r)
 {
 	unsigned int cbm_len = r->cache.cbm_len;
 	unsigned long first_bit, zero_bit;
-	unsigned long val = _val;
+	unsigned long val;
 
-	if (!val)
-		return 0;
+	if (!_val || r->cache.arch_has_sparse_bitmasks)
+		return _val;
 
+	val = _val;
 	first_bit = find_first_bit(&val, cbm_len);
 	zero_bit = find_next_zero_bit(&val, cbm_len, first_bit);
 
