@@ -19,15 +19,15 @@ properties:
       - nvidia,tegra264-pmc
 
   reg:
-    minItems: 4
+    minItems: 3
     maxItems: 5
 
   reg-names:
-    minItems: 4
+    minItems: 3
     items:
       - const: pmc
       - const: wake
-      - const: aotag
+      - enum: [ aotag, scratch, misc ]
       - enum: [ scratch, misc ]
       - const: misc
 
@@ -51,6 +51,7 @@ allOf:
     then:
       properties:
         reg:
+          minItems: 4
           maxItems: 4
         reg-names:
           maxItems: 4
@@ -73,7 +74,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: nvidia,tegra234-pmc
+            enum:
+              - nvidia,tegra234-pmc
+              - nvidia,tegra264-pmc
     then:
       properties:
         reg-names:
