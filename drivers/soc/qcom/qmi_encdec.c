@@ -23,18 +23,60 @@
 	*p_length |= ((u8)*p_src) << 8; \
 } while (0)
 
-#define QMI_ENCDEC_ENCODE_N_BYTES(p_dst, p_src, size) \
+#define QMI_ENCDEC_ENCODE_U8(p_dst, p_src) \
 do { \
-	memcpy(p_dst, p_src, size); \
-	p_dst = (u8 *)p_dst + size; \
-	p_src = (u8 *)p_src + size; \
+	memcpy(p_dst, p_src, sizeof(u8)); \
+	p_dst = (u8 *)p_dst + sizeof(u8); \
+	p_src = (u8 *)p_src + sizeof(u8); \
 } while (0)
 
-#define QMI_ENCDEC_DECODE_N_BYTES(p_dst, p_src, size) \
+#define QMI_ENCDEC_ENCODE_U16(p_dst, p_src) \
 do { \
-	memcpy(p_dst, p_src, size); \
-	p_dst = (u8 *)p_dst + size; \
-	p_src = (u8 *)p_src + size; \
+	*(__le16 *)p_dst = __cpu_to_le16(*(u16 *)p_src); \
+	p_dst = (u8 *)p_dst + sizeof(u16); \
+	p_src = (u8 *)p_src + sizeof(u16); \
+} while (0)
+
+#define QMI_ENCDEC_ENCODE_U32(p_dst, p_src) \
+do { \
+	*(__le32 *)p_dst = __cpu_to_le32(*(u32 *)p_src); \
+	p_dst = (u8 *)p_dst + sizeof(u32); \
+	p_src = (u8 *)p_src + sizeof(u32); \
+} while (0)
+
+#define QMI_ENCDEC_ENCODE_U64(p_dst, p_src) \
+do { \
+	*(__le64 *)p_dst = __cpu_to_le64(*(u64 *)p_src); \
+	p_dst = (u8 *)p_dst + sizeof(u64); \
+	p_src = (u8 *)p_src + sizeof(u64); \
+} while (0)
+
+#define QMI_ENCDEC_DECODE_U8(p_dst, p_src) \
+do { \
+	memcpy(p_dst, p_src, sizeof(u8)); \
+	p_dst = (u8 *)p_dst + sizeof(u8); \
+	p_src = (u8 *)p_src + sizeof(u8); \
+} while (0)
+
+#define QMI_ENCDEC_DECODE_U16(p_dst, p_src) \
+do { \
+	*(u16 *)p_dst = __le16_to_cpu(*(__le16 *)p_src); \
+	p_dst = (u8 *)p_dst + sizeof(u16); \
+	p_src = (u8 *)p_src + sizeof(u16); \
+} while (0)
+
+#define QMI_ENCDEC_DECODE_U32(p_dst, p_src) \
+do { \
+	*(u32 *)p_dst = __le32_to_cpu(*(__le32 *)p_src); \
+	p_dst = (u8 *)p_dst + sizeof(u32); \
+	p_src = (u8 *)p_src + sizeof(u32); \
+} while (0)
+
+#define QMI_ENCDEC_DECODE_U64(p_dst, p_src) \
+do { \
+	*(u64 *)p_dst = __le64_to_cpu(*(__le64 *)p_src); \
+	p_dst = (u8 *)p_dst + sizeof(u64); \
+	p_src = (u8 *)p_src + sizeof(u64); \
 } while (0)
 
 #define UPDATE_ENCODE_VARIABLES(temp_si, buf_dst, \
@@ -161,7 +203,8 @@ static int qmi_calc_min_msg_len(const struct qmi_elem_info *ei_array,
  * of primary data type which include u8 - u64 or similar. This
  * function returns the number of bytes of encoded information.
  *
- * Return: The number of bytes of encoded information.
+ * Return: The number of bytes of encoded information on success or negative
+ * errno on error.
  */
 static int qmi_encode_basic_elem(void *buf_dst, const void *buf_src,
 				 u32 elem_len, u32 elem_size)
@@ -169,7 +212,24 @@ static int qmi_encode_basic_elem(void *buf_dst, const void *buf_src,
 	u32 i, rc = 0;
 
 	for (i = 0; i < elem_len; i++) {
-		QMI_ENCDEC_ENCODE_N_BYTES(buf_dst, buf_src, elem_size);
+		switch (elem_size) {
+		case sizeof(u8):
+			QMI_ENCDEC_ENCODE_U8(buf_dst, buf_src);
+			break;
+		case sizeof(u16):
+			QMI_ENCDEC_ENCODE_U16(buf_dst, buf_src);
+			break;
+		case sizeof(u32):
+			QMI_ENCDEC_ENCODE_U32(buf_dst, buf_src);
+			break;
+		case sizeof(u64):
+			QMI_ENCDEC_ENCODE_U64(buf_dst, buf_src);
+			break;
+		default:
+			pr_err("%s: Unrecognized element size\n", __func__);
+			return -EINVAL;
+		}
+
 		rc += elem_size;
 	}
 
@@ -456,7 +516,8 @@ static int qmi_encode(const struct qmi_elem_info *ei_array, void *out_buf,
  * of primary data type which include u8 - u64 or similar. This
  * function returns the number of bytes of decoded information.
  *
- * Return: The total size of the decoded data elements, in bytes.
+ * Return: The total size of the decoded data elements, in bytes, on success or
+ * negative errno on error.
  */
 static int qmi_decode_basic_elem(void *buf_dst, const void *buf_src,
 				 u32 elem_len, u32 elem_size)
@@ -464,7 +525,24 @@ static int qmi_decode_basic_elem(void *buf_dst, const void *buf_src,
 	u32 i, rc = 0;
 
 	for (i = 0; i < elem_len; i++) {
-		QMI_ENCDEC_DECODE_N_BYTES(buf_dst, buf_src, elem_size);
+		switch (elem_size) {
+		case sizeof(u8):
+			QMI_ENCDEC_DECODE_U8(buf_dst, buf_src);
+			break;
+		case sizeof(u16):
+			QMI_ENCDEC_DECODE_U16(buf_dst, buf_src);
+			break;
+		case sizeof(u32):
+			QMI_ENCDEC_DECODE_U32(buf_dst, buf_src);
+			break;
+		case sizeof(u64):
+			QMI_ENCDEC_DECODE_U64(buf_dst, buf_src);
+			break;
+		default:
+			pr_err("%s: Unrecognized element size\n", __func__);
+			return -EINVAL;
+		}
+
 		rc += elem_size;
 	}
 
