@@ -82,6 +82,23 @@ dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg,
 	return seg->dma + (segment_offset * sizeof(*trb));
 }
 
+static union xhci_trb *xhci_dma_to_trb(struct xhci_segment *start_seg,
+				       dma_addr_t dma,
+				       struct xhci_segment **match_seg)
+{
+	struct xhci_segment *seg;
+
+	xhci_for_each_ring_seg(start_seg, seg) {
+		if (in_range(dma, seg->dma, TRB_SEGMENT_SIZE)) {
+			if (match_seg)
+				*match_seg = seg;
+			return &seg->trbs[(dma - seg->dma) / sizeof(union xhci_trb)];
+		}
+	}
+
+	return NULL;
+}
+
 static bool trb_is_noop(union xhci_trb *trb)
 {
 	return TRB_TYPE_NOOP_LE32(trb->generic.field[3]);
@@ -2658,7 +2675,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	int ep_index;
 	struct xhci_td *td = NULL;
 	dma_addr_t ep_trb_dma;
-	struct xhci_segment *ep_seg;
 	union xhci_trb *ep_trb;
 	int status = -EINPROGRESS;
 	struct xhci_ep_ctx *ep_ctx;
@@ -2688,6 +2704,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 	if (!ep_ring)
 		return handle_transferless_tx_event(xhci, ep, trb_comp_code);
+
+	/* find the transfer trb this events points to */
+	ep_trb = xhci_dma_to_trb(ep_ring->deq_seg, ep_trb_dma, NULL);
 
 	/* Look for common error cases */
 	switch (trb_comp_code) {
@@ -2862,10 +2881,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		td = list_first_entry(&ep_ring->td_list, struct xhci_td,
 				      td_list);
 
-		/* Is this a TRB in the currently executing TD? */
-		ep_seg = trb_in_td(td, ep_trb_dma);
-
-		if (!ep_seg) {
+		/* Is this TRB not part of the currently executing TD? */
+		if (!trb_in_td(td, ep_trb_dma)) {
 
 			if (ep->skip && usb_endpoint_xfer_isoc(&td->urb->ep->desc)) {
 				/* this event is unlikely to match any TD, don't skip them all */
@@ -2948,7 +2965,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	if (ring_xrun_event)
 		return 0;
 
-	ep_trb = &ep_seg->trbs[(ep_trb_dma - ep_seg->dma) / sizeof(*ep_trb)];
 	trace_xhci_handle_transfer(ep_ring, (struct xhci_generic_trb *) ep_trb, ep_trb_dma);
 
 	/*
