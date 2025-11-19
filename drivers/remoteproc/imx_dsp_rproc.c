@@ -376,20 +376,19 @@ static int imx_dsp_rproc_start(struct rproc *rproc)
 	struct device *dev = rproc->dev.parent;
 	int ret;
 
-	if (dcfg->ops && dcfg->ops->start) {
-		ret = dcfg->ops->start(rproc);
-		goto start_ret;
+	if (!dcfg->ops || !dcfg->ops->start)
+		return -EOPNOTSUPP;
+
+	ret = dcfg->ops->start(rproc);
+	if (ret) {
+		dev_err(dev, "Failed to enable remote core!\n");
+		return ret;
 	}
 
-	return -EOPNOTSUPP;
-
-start_ret:
-	if (ret)
-		dev_err(dev, "Failed to enable remote core!\n");
-	else if (priv->flags & WAIT_FW_READY)
+	if (priv->flags & WAIT_FW_READY)
 		return imx_dsp_rproc_ready(rproc);
 
-	return ret;
+	return 0;
 }
 
 static int imx_dsp_rproc_mmio_stop(struct rproc *rproc)
@@ -431,20 +430,18 @@ static int imx_dsp_rproc_stop(struct rproc *rproc)
 		return 0;
 	}
 
-	if (dcfg->ops && dcfg->ops->stop) {
-		ret = dcfg->ops->stop(rproc);
-		goto stop_ret;
+	if (!dcfg->ops || !dcfg->ops->stop)
+		return -EOPNOTSUPP;
+
+	ret = dcfg->ops->stop(rproc);
+	if (ret) {
+		dev_err(dev, "Failed to stop remote core\n");
+		return ret;
 	}
 
-	return -EOPNOTSUPP;
+	priv->flags &= ~REMOTE_IS_READY;
 
-stop_ret:
-	if (ret)
-		dev_err(dev, "Failed to stop remote core\n");
-	else
-		priv->flags &= ~REMOTE_IS_READY;
-
-	return ret;
+	return 0;
 }
 
 /**
