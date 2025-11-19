@@ -261,6 +261,105 @@ static inline u32 rzv2h_rspi_calc_bitrate(unsigned long tclk_rate, u8 spr,
 	return DIV_ROUND_UP(tclk_rate, (2 * (spr + 1) * (1 << brdv)));
 }
 
+static void rzv2h_rspi_find_rate_variable(struct clk *clk, u32 hz,
+					  u8 spr_min, u8 spr_max,
+					  struct rzv2h_rspi_best_clock *best)
+{
+	long clk_rate, clk_min_rate, clk_max_rate;
+	int min_rate_spr, max_rate_spr;
+	unsigned long error;
+	u32 actual_hz;
+	u8 brdv;
+	int spr;
+
+	/*
+	 * On T2H / N2H, the source for the SPI clock is PCLKSPIn, which is a
+	 * 1/32, 1/30, 1/25 or 1/24 divider of PLL4, which is 2400MHz,
+	 * resulting in either 75MHz, 80MHz, 96MHz or 100MHz.
+	 */
+	clk_min_rate = clk_round_rate(clk, 0);
+	if (clk_min_rate < 0)
+		return;
+
+	clk_max_rate = clk_round_rate(clk, ULONG_MAX);
+	if (clk_max_rate < 0)
+		return;
+
+	/*
+	 * From the manual:
+	 * Bit rate = f(PCLKSPIn) / (2 * (n + 1) * 2^N)
+	 *
+	 * If we adapt it to the current context, we get the following:
+	 * hz = rate / ((spr + 1) * (1 << (brdv + 1)))
+	 *
+	 * This can be written in multiple forms depending on what we want to
+	 * determine.
+	 *
+	 * To find the rate, having hz, spr and brdv:
+	 * rate = hz * (spr + 1) * (1 << (brdv + 1)
+	 *
+	 * To find the spr, having rate, hz, and spr:
+	 * spr = rate / (hz * (1 << (brdv + 1)) - 1
+	 */
+
+	for (brdv = RSPI_SPCMD_BRDV_MIN; brdv <= RSPI_SPCMD_BRDV_MAX; brdv++) {
+		/* Calculate the divisor needed to find the SPR from a rate. */
+		u32 rate_div = hz * (1 << (brdv + 1));
+
+		/*
+		 * If the SPR for the minimum rate is greater than the maximum
+		 * allowed value skip this BRDV. The divisor increases with each
+		 * BRDV iteration, so the following BRDV might result in a
+		 * minimum SPR that is in the valid range.
+		 */
+		min_rate_spr = DIV_ROUND_CLOSEST(clk_min_rate, rate_div) - 1;
+		if (min_rate_spr > spr_max)
+			continue;
+
+		/*
+		 * If the SPR for the maximum rate is less than the minimum
+		 * allowed value, exit. The divisor only increases with each
+		 * BRDV iteration, so the following BRDV cannot result in a
+		 * maximum SPR that is in the valid range.
+		 */
+		max_rate_spr = DIV_ROUND_CLOSEST(clk_max_rate, rate_div) - 1;
+		if (max_rate_spr < spr_min)
+			break;
+
+		if (min_rate_spr < spr_min)
+			min_rate_spr = spr_min;
+
+		if (max_rate_spr > spr_max)
+			max_rate_spr = spr_max;
+
+		for (spr = min_rate_spr; spr <= max_rate_spr; spr++) {
+			clk_rate = (spr + 1) * rate_div;
+
+			clk_rate = clk_round_rate(clk, clk_rate);
+			if (clk_rate <= 0)
+				continue;
+
+			actual_hz = rzv2h_rspi_calc_bitrate(clk_rate, spr, brdv);
+			error = abs((long)hz - (long)actual_hz);
+
+			if (error >= best->error)
+				continue;
+
+			*best = (struct rzv2h_rspi_best_clock) {
+				.clk = clk,
+				.clk_rate = clk_rate,
+				.error = error,
+				.actual_hz = actual_hz,
+				.brdv = brdv,
+				.spr = spr,
+			};
+
+			if (!error)
+				return;
+		}
+	}
+}
+
 static void rzv2h_rspi_find_rate_fixed(struct clk *clk, u32 hz,
 				       u8 spr_min, u8 spr_max,
 				       struct rzv2h_rspi_best_clock *best)
@@ -558,8 +657,17 @@ static const struct rzv2h_rspi_info rzv2h_info = {
 	.num_clks = 3,
 };
 
+static const struct rzv2h_rspi_info rzt2h_info = {
+	.find_tclk_rate = rzv2h_rspi_find_rate_variable,
+	.find_pclk_rate = rzv2h_rspi_find_rate_fixed,
+	.tclk_name = "pclkspi",
+	.fifo_size = 4,
+	.num_clks = 2,
+};
+
 static const struct of_device_id rzv2h_rspi_match[] = {
 	{ .compatible = "renesas,r9a09g057-rspi", &rzv2h_info },
+	{ .compatible = "renesas,r9a09g077-rspi", &rzt2h_info },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzv2h_rspi_match);
