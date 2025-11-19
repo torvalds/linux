@@ -115,7 +115,7 @@ static void dsp3780I_WriteGenCfg(unsigned short usDspBaseIO, unsigned uIndex,
 	OutByteDsp(DSP_IsaSlaveControl, MKBYTE(rSlaveControl_Save));
 }
 
-int dsp3780I_EnableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings,
+int dsp3780I_EnableDSP(struct dsp_3780i_config_settings *pSettings,
                        unsigned short *pIrqMap,
                        unsigned short *pDmaMap)
 {
@@ -260,7 +260,7 @@ int dsp3780I_EnableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings,
 	return 0;
 }
 
-int dsp3780I_DisableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings)
+int dsp3780I_DisableDSP(struct dsp_3780i_config_settings *pSettings)
 {
 	unsigned long flags;
 	unsigned short usDspBaseIO = pSettings->usDspBaseIO;
@@ -284,7 +284,7 @@ int dsp3780I_DisableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings)
 	return 0;
 }
 
-int dsp3780I_Reset(DSP_3780I_CONFIG_SETTINGS * pSettings)
+int dsp3780I_Reset(struct dsp_3780i_config_settings *pSettings)
 {
 	unsigned long flags;
 	unsigned short usDspBaseIO = pSettings->usDspBaseIO;
@@ -317,7 +317,7 @@ int dsp3780I_Reset(DSP_3780I_CONFIG_SETTINGS * pSettings)
 }
 
 
-int dsp3780I_Run(DSP_3780I_CONFIG_SETTINGS * pSettings)
+int dsp3780I_Run(struct dsp_3780i_config_settings *pSettings)
 {
 	unsigned long flags;
 	unsigned short usDspBaseIO = pSettings->usDspBaseIO;

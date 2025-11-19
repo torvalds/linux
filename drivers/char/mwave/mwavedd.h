@@ -61,30 +61,30 @@ extern int mwave_3780i_io;
 extern int mwave_uart_irq;
 extern int mwave_uart_io;
 
-typedef struct _MWAVE_IPC {
+struct mwave_ipc {
 	unsigned short usIntCount;	/* 0=none, 1=first, 2=greater than 1st */
 	bool bIsEnabled;
 	bool bIsHere;
 	/* entry spin lock */
 	wait_queue_head_t ipc_wait_queue;
-} MWAVE_IPC;
+};
 
-typedef struct _MWAVE_DEVICE_DATA {
-	THINKPAD_BD_DATA rBDData;	/* board driver's data area */
+struct mwave_device_data {
+	struct thinkpad_bd_data rBDData;	/* board driver's data area */
 	unsigned long ulIPCSource_ISR;	/* IPC source bits for recently processed intr, set during ISR processing */
 	unsigned long ulIPCSource_DPC;	/* IPC source bits for recently processed intr, set during DPC processing */
 	bool bBDInitialized;
 	bool bResourcesClaimed;
 	bool bDSPEnabled;
 	bool bDSPReset;
-	MWAVE_IPC IPCs[16];
+	struct mwave_ipc IPCs[16];
 	bool bMwaveDevRegistered;
 	short sLine;
 	int nr_registered_attrs;
 	int device_registered;
 
-} MWAVE_DEVICE_DATA, *pMWAVE_DEVICE_DATA;
+};
 
-extern MWAVE_DEVICE_DATA mwave_s_mdd;
+extern struct mwave_device_data mwave_s_mdd;
 
 #endif

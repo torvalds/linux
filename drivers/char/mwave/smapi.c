@@ -116,7 +116,7 @@ static int smapi_request(unsigned short inBX, unsigned short inCX,
 }
 
 
-int smapi_query_DSP_cfg(SMAPI_DSP_SETTINGS * pSettings)
+int smapi_query_DSP_cfg(struct smapi_dsp_settings *pSettings)
 {
 	int bRC;
 	unsigned short usAX, usBX, usCX, usDX, usDI, usSI;

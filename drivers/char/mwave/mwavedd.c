@@ -86,13 +86,13 @@ module_param_hw(mwave_3780i_io, int, ioport, 0);
 module_param_hw(mwave_uart_irq, int, irq, 0);
 module_param_hw(mwave_uart_io, int, ioport, 0);
 
-MWAVE_DEVICE_DATA mwave_s_mdd;
+struct mwave_device_data mwave_s_mdd;
 
 static long mwave_ioctl(struct file *file, unsigned int iocmd,
 							unsigned long ioarg)
 {
 	unsigned int retval = 0;
-	pMWAVE_DEVICE_DATA pDrvData = &mwave_s_mdd;
+	struct mwave_device_data *pDrvData = &mwave_s_mdd;
 	void __user *arg = (void __user *)ioarg;
 
 	switch (iocmd) {
@@ -110,15 +110,14 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 			break;
 	
 		case IOCTL_MW_DSP_ABILITIES: {
-			MW_ABILITIES rAbilities;
+			struct mw_abilities rAbilities;
 	
 			mutex_lock(&mwave_mutex);
 			retval = tp3780I_QueryAbilities(&pDrvData->rBDData,
 					&rAbilities);
 			mutex_unlock(&mwave_mutex);
 			if (retval == 0) {
-				if( copy_to_user(arg, &rAbilities,
-							sizeof(MW_ABILITIES)) )
+				if (copy_to_user(arg, &rAbilities, sizeof(rAbilities)))
 					return -EFAULT;
 			}
 		}
@@ -126,11 +125,11 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 	
 		case IOCTL_MW_READ_DATA:
 		case IOCTL_MW_READCLEAR_DATA: {
-			MW_READWRITE rReadData;
+			struct mw_readwrite rReadData;
 			unsigned short __user *pusBuffer = NULL;
 	
 			if( copy_from_user(&rReadData, arg,
-						sizeof(MW_READWRITE)) )
+						sizeof(struct mw_readwrite)) )
 				return -EFAULT;
 			pusBuffer = (unsigned short __user *) (rReadData.pBuf);
 	
@@ -145,11 +144,10 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 			break;
 	
 		case IOCTL_MW_READ_INST: {
-			MW_READWRITE rReadData;
+			struct mw_readwrite rReadData;
 			unsigned short __user *pusBuffer = NULL;
 	
-			if( copy_from_user(&rReadData, arg,
-						sizeof(MW_READWRITE)) )
+			if (copy_from_user(&rReadData, arg, sizeof(rReadData)))
 				return -EFAULT;
 			pusBuffer = (unsigned short __user *) (rReadData.pBuf);
 	
@@ -163,11 +161,10 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 			break;
 	
 		case IOCTL_MW_WRITE_DATA: {
-			MW_READWRITE rWriteData;
+			struct mw_readwrite rWriteData;
 			unsigned short __user *pusBuffer = NULL;
 	
-			if( copy_from_user(&rWriteData, arg,
-						sizeof(MW_READWRITE)) )
+			if (copy_from_user(&rWriteData, arg, sizeof(rWriteData)))
 				return -EFAULT;
 			pusBuffer = (unsigned short __user *) (rWriteData.pBuf);
 	
@@ -181,11 +178,10 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 			break;
 	
 		case IOCTL_MW_WRITE_INST: {
-			MW_READWRITE rWriteData;
+			struct mw_readwrite rWriteData;
 			unsigned short __user *pusBuffer = NULL;
 	
-			if( copy_from_user(&rWriteData, arg,
-						sizeof(MW_READWRITE)) )
+			if (copy_from_user(&rWriteData, arg, sizeof(rWriteData)))
 				return -EFAULT;
 			pusBuffer = (unsigned short __user *)(rWriteData.pBuf);
 	
@@ -336,7 +332,7 @@ static struct miscdevice mwave_misc_dev = { MWAVE_MINOR, "mwave", &mwave_fops };
 */
 static void mwave_exit(void)
 {
-	pMWAVE_DEVICE_DATA pDrvData = &mwave_s_mdd;
+	struct mwave_device_data *pDrvData = &mwave_s_mdd;
 
 	if ( pDrvData->sLine >= 0 ) {
 		serial8250_unregister_port(pDrvData->sLine);
@@ -361,9 +357,9 @@ static int __init mwave_init(void)
 {
 	int i;
 	int retval = 0;
-	pMWAVE_DEVICE_DATA pDrvData = &mwave_s_mdd;
+	struct mwave_device_data *pDrvData = &mwave_s_mdd;
 
-	memset(&mwave_s_mdd, 0, sizeof(MWAVE_DEVICE_DATA));
+	memset(&mwave_s_mdd, 0, sizeof(mwave_s_mdd));
 
 	pDrvData->bBDInitialized = false;
 	pDrvData->bResourcesClaimed = false;

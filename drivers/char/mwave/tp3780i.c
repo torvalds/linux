@@ -67,9 +67,9 @@ static unsigned short s_ausThinkpadDmaToField[8] =
 static unsigned short s_numIrqs = 16, s_numDmas = 8;
 
 
-static void EnableSRAM(THINKPAD_BD_DATA * pBDData)
+static void EnableSRAM(struct thinkpad_bd_data *pBDData)
 {
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 	unsigned short usDspBaseIO = pSettings->usDspBaseIO;
 	DSP_GPIO_OUTPUT_DATA_15_8 rGpioOutputData;
 	DSP_GPIO_DRIVER_ENABLE_15_8 rGpioDriverEnable;
@@ -98,8 +98,8 @@ static irqreturn_t UartInterrupt(int irq, void *dev_id)
 
 static irqreturn_t DspInterrupt(int irq, void *dev_id)
 {
-	pMWAVE_DEVICE_DATA pDrvData = &mwave_s_mdd;
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pDrvData->rBDData.rDspSettings;
+	struct mwave_device_data *pDrvData = &mwave_s_mdd;
+	struct dsp_3780i_config_settings *pSettings = &pDrvData->rBDData.rDspSettings;
 	unsigned short usDspBaseIO = pSettings->usDspBaseIO;
 	unsigned short usIPCSource = 0, usIsolationMask, usPCNum;
 
@@ -125,10 +125,10 @@ static irqreturn_t DspInterrupt(int irq, void *dev_id)
 }
 
 
-int tp3780I_InitializeBoardData(THINKPAD_BD_DATA * pBDData)
+int tp3780I_InitializeBoardData(struct thinkpad_bd_data *pBDData)
 {
 	int retval = 0;
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 
 	pBDData->bDSPEnabled = false;
 	pSettings->bInterruptClaimed = false;
@@ -145,14 +145,14 @@ int tp3780I_InitializeBoardData(THINKPAD_BD_DATA * pBDData)
 	return retval;
 }
 
-void tp3780I_Cleanup(THINKPAD_BD_DATA *pBDData)
+void tp3780I_Cleanup(struct thinkpad_bd_data *pBDData)
 {
 }
 
-int tp3780I_CalcResources(THINKPAD_BD_DATA * pBDData)
+int tp3780I_CalcResources(struct thinkpad_bd_data *pBDData)
 {
-	SMAPI_DSP_SETTINGS rSmapiInfo;
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct smapi_dsp_settings rSmapiInfo;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 
 	if (smapi_query_DSP_cfg(&rSmapiInfo)) {
 		pr_err("%s: Error: Could not query DSP config. Aborting.\n", __func__);
@@ -192,10 +192,10 @@ int tp3780I_CalcResources(THINKPAD_BD_DATA * pBDData)
 }
 
 
-int tp3780I_ClaimResources(THINKPAD_BD_DATA * pBDData)
+int tp3780I_ClaimResources(struct thinkpad_bd_data *pBDData)
 {
 	int retval = 0;
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 	struct resource *pres;
 
 	pres = request_region(pSettings->usDspBaseIO, 16, "mwave_3780i");
@@ -210,9 +210,9 @@ int tp3780I_ClaimResources(THINKPAD_BD_DATA * pBDData)
 	return retval;
 }
 
-int tp3780I_ReleaseResources(THINKPAD_BD_DATA * pBDData)
+int tp3780I_ReleaseResources(struct thinkpad_bd_data *pBDData)
 {
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 
 	release_region(pSettings->usDspBaseIO & (~3), 16);
 
@@ -226,9 +226,9 @@ int tp3780I_ReleaseResources(THINKPAD_BD_DATA * pBDData)
 
 
 
-int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
+int tp3780I_EnableDSP(struct thinkpad_bd_data *pBDData)
 {
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 	bool bDSPPoweredUp = false, bInterruptAllocated = false;
 
 	if (pBDData->bDSPEnabled) {
@@ -351,9 +351,9 @@ exit_cleanup:
 }
 
 
-int tp3780I_DisableDSP(THINKPAD_BD_DATA * pBDData)
+int tp3780I_DisableDSP(struct thinkpad_bd_data *pBDData)
 {
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 
 	if (pBDData->bDSPEnabled) {
 		dsp3780I_DisableDSP(&pBDData->rDspSettings);
@@ -369,9 +369,9 @@ int tp3780I_DisableDSP(THINKPAD_BD_DATA * pBDData)
 }
 
 
-int tp3780I_ResetDSP(THINKPAD_BD_DATA * pBDData)
+int tp3780I_ResetDSP(struct thinkpad_bd_data *pBDData)
 {
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 
 	if (dsp3780I_Reset(pSettings) == 0) {
 		EnableSRAM(pBDData);
@@ -381,9 +381,9 @@ int tp3780I_ResetDSP(THINKPAD_BD_DATA * pBDData)
 }
 
 
-int tp3780I_StartDSP(THINKPAD_BD_DATA * pBDData)
+int tp3780I_StartDSP(struct thinkpad_bd_data *pBDData)
 {
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 
 	if (dsp3780I_Run(pSettings) == 0) {
 		// @BUG @TBD EnableSRAM(pBDData);
@@ -395,7 +395,7 @@ int tp3780I_StartDSP(THINKPAD_BD_DATA * pBDData)
 }
 
 
-int tp3780I_QueryAbilities(THINKPAD_BD_DATA * pBDData, MW_ABILITIES * pAbilities)
+int tp3780I_QueryAbilities(struct thinkpad_bd_data *pBDData, struct mw_abilities *pAbilities)
 {
 	memset(pAbilities, 0, sizeof(*pAbilities));
 	/* fill out standard constant fields */
@@ -424,11 +424,11 @@ int tp3780I_QueryAbilities(THINKPAD_BD_DATA * pBDData, MW_ABILITIES * pAbilities
 	return 0;
 }
 
-int tp3780I_ReadWriteDspDStore(THINKPAD_BD_DATA * pBDData, unsigned int uOpcode,
+int tp3780I_ReadWriteDspDStore(struct thinkpad_bd_data *pBDData, unsigned int uOpcode,
                                void __user *pvBuffer, unsigned int uCount,
                                unsigned long ulDSPAddr)
 {
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 	unsigned short usDspBaseIO = pSettings->usDspBaseIO;
 	bool bRC = 0;
 
@@ -452,11 +452,11 @@ int tp3780I_ReadWriteDspDStore(THINKPAD_BD_DATA * pBDData, unsigned int uOpcode,
 }
 
 
-int tp3780I_ReadWriteDspIStore(THINKPAD_BD_DATA * pBDData, unsigned int uOpcode,
+int tp3780I_ReadWriteDspIStore(struct thinkpad_bd_data *pBDData, unsigned int uOpcode,
                                void __user *pvBuffer, unsigned int uCount,
                                unsigned long ulDSPAddr)
 {
-	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
+	struct dsp_3780i_config_settings *pSettings = &pBDData->rDspSettings;
 	unsigned short usDspBaseIO = pSettings->usDspBaseIO;
 	bool bRC = 0;
 
