@@ -612,6 +612,22 @@ void smbdirect_socket_destroy_sync(struct smbdirect_socket *sc)
 }
 
 __SMBDIRECT_PUBLIC__
+int smbdirect_socket_bind(struct smbdirect_socket *sc, struct sockaddr *addr)
+{
+	int ret;
+
+	if (sc->status != SMBDIRECT_SOCKET_CREATED)
+		return -EINVAL;
+
+	ret = rdma_bind_addr(sc->rdma.cm_id, addr);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_bind);
+
+__SMBDIRECT_PUBLIC__
 void smbdirect_socket_shutdown(struct smbdirect_socket *sc)
 {
 	smbdirect_socket_schedule_cleanup_lvl(sc, SMBDIRECT_LOG_INFO, -ESHUTDOWN);

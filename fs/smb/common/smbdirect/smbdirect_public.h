@@ -86,6 +86,9 @@ __SMBDIRECT_PUBLIC__
 int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc);
 
 __SMBDIRECT_PUBLIC__
+int smbdirect_socket_bind(struct smbdirect_socket *sc, struct sockaddr *addr);
+
+__SMBDIRECT_PUBLIC__
 void smbdirect_socket_shutdown(struct smbdirect_socket *sc);
 
 __SMBDIRECT_PUBLIC__
