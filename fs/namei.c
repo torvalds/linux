@@ -174,36 +174,35 @@ getname_flags(const char __user *filename, int flags)
 	 */
 	if (unlikely(len == EMBEDDED_NAME_MAX)) {
 		const size_t size = offsetof(struct filename, iname[1]);
-		kname = (char *)result;
+		struct filename *p;
 
 		/*
 		 * size is chosen that way we to guarantee that
 		 * result->iname[0] is within the same object and that
 		 * kname can't be equal to result->iname, no matter what.
 		 */
-		result = kzalloc(size, GFP_KERNEL);
-		if (unlikely(!result)) {
-			__putname(kname);
+		p = kzalloc(size, GFP_KERNEL);
+		if (unlikely(!p)) {
+			__putname(result);
 			return ERR_PTR(-ENOMEM);
 		}
-		result->name = kname;
-		len = strncpy_from_user(kname, filename, PATH_MAX);
+		memmove(result, &result->iname, EMBEDDED_NAME_MAX);
+		kname = (char *)result;
+		p->name = kname;
+		len = strncpy_from_user(kname + EMBEDDED_NAME_MAX,
+					filename + EMBEDDED_NAME_MAX,
+					PATH_MAX - EMBEDDED_NAME_MAX);
 		if (unlikely(len < 0)) {
-			__putname(kname);
-			kfree(result);
+			kfree(p);
+			__putname(result);
 			return ERR_PTR(len);
 		}
-		/* The empty path is special. */
-		if (unlikely(!len) && !(flags & LOOKUP_EMPTY)) {
-			__putname(kname);
-			kfree(result);
-			return ERR_PTR(-ENOENT);
-		}
-		if (unlikely(len == PATH_MAX)) {
-			__putname(kname);
-			kfree(result);
+		if (unlikely(len == PATH_MAX - EMBEDDED_NAME_MAX)) {
+			kfree(p);
+			__putname(result);
 			return ERR_PTR(-ENAMETOOLONG);
 		}
+		result = p;
 	}
 	initname(result);
 	audit_getname(result);
