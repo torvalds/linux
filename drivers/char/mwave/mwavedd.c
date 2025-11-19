@@ -86,39 +86,7 @@ module_param_hw(mwave_3780i_io, int, ioport, 0);
 module_param_hw(mwave_uart_irq, int, irq, 0);
 module_param_hw(mwave_uart_io, int, ioport, 0);
 
-static int mwave_open(struct inode *inode, struct file *file);
-static int mwave_close(struct inode *inode, struct file *file);
-static long mwave_ioctl(struct file *filp, unsigned int iocmd,
-							unsigned long ioarg);
-
 MWAVE_DEVICE_DATA mwave_s_mdd;
-
-static int mwave_open(struct inode *inode, struct file *file)
-{
-	unsigned int retval = 0;
-
-	PRINTK_3(TRACE_MWAVE,
-		"mwavedd::mwave_open, entry inode %p file %p\n",
-		 inode, file);
-	PRINTK_2(TRACE_MWAVE,
-		"mwavedd::mwave_open, exit return retval %x\n", retval);
-
-	return retval;
-}
-
-static int mwave_close(struct inode *inode, struct file *file)
-{
-	unsigned int retval = 0;
-
-	PRINTK_3(TRACE_MWAVE,
-		"mwavedd::mwave_close, entry inode %p file %p\n",
-		 inode,  file);
-
-	PRINTK_2(TRACE_MWAVE, "mwavedd::mwave_close, exit retval %x\n",
-		retval);
-
-	return retval;
-}
 
 static long mwave_ioctl(struct file *file, unsigned int iocmd,
 							unsigned long ioarg)
@@ -410,30 +378,6 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 	return retval;
 }
 
-
-static ssize_t mwave_read(struct file *file, char __user *buf, size_t count,
-                          loff_t * ppos)
-{
-	PRINTK_5(TRACE_MWAVE,
-		"mwavedd::mwave_read entry file %p, buf %p, count %zx ppos %p\n",
-		file, buf, count, ppos);
-
-	return -EINVAL;
-}
-
-
-static ssize_t mwave_write(struct file *file, const char __user *buf,
-                           size_t count, loff_t * ppos)
-{
-	PRINTK_5(TRACE_MWAVE,
-		"mwavedd::mwave_write entry file %p, buf %p,"
-		" count %zx ppos %p\n",
-		file, buf, count, ppos);
-
-	return -EINVAL;
-}
-
-
 static int register_serial_portandirq(unsigned int port, int irq)
 {
 	struct uart_8250_port uart;
@@ -478,17 +422,11 @@ static int register_serial_portandirq(unsigned int port, int irq)
 	return serial8250_register_8250_port(&uart);
 }
 
-
 static const struct file_operations mwave_fops = {
 	.owner		= THIS_MODULE,
-	.read		= mwave_read,
-	.write		= mwave_write,
 	.unlocked_ioctl	= mwave_ioctl,
-	.open		= mwave_open,
-	.release	= mwave_close,
 	.llseek		= default_llseek,
 };
-
 
 static struct miscdevice mwave_misc_dev = { MWAVE_MINOR, "mwave", &mwave_fops };
 
