@@ -106,8 +106,7 @@ static void dwxgmac2_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	 * set). Note that the UNDEF bit is readonly, and is the inverse of
 	 * Bus Mode bit 16.
 	 */
-	stmmac_axi_blen_to_mask(&value, axi->axi_blen,
-				ARRAY_SIZE(axi->axi_blen));
+	value = (value & ~DMA_AXI_BLEN_MASK) | axi->axi_blen_regval;
 
 	writel(value, ioaddr + XGMAC_DMA_SYSBUS_MODE);
 	writel(XGMAC_TDPS, ioaddr + XGMAC_TX_EDMA_CTRL);

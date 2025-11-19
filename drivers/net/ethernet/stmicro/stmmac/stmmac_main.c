@@ -223,7 +223,7 @@ void stmmac_axi_blen_to_mask(u32 *regval, const u32 *blen, size_t len)
 		val |= burst >> 2;
 	}
 
-	u32p_replace_bits(regval, val, DMA_AXI_BLEN_MASK);
+	*regval = FIELD_PREP(DMA_AXI_BLEN_MASK, val);
 }
 
 /**
@@ -3212,8 +3212,12 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	/* DMA Configuration */
 	stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg);
 
-	if (priv->plat->axi)
+	if (priv->plat->axi) {
+		/* Encode the AXI burst length to a register value */
+		stmmac_axi_blen_to_mask(&priv->plat->axi->axi_blen_regval,
+					priv->plat->axi->axi_blen, AXI_BLEN);
 		stmmac_axi(priv, priv->ioaddr, priv->plat->axi);
+	}
 
 	/* DMA CSR Channel configuration */
 	for (chan = 0; chan < dma_csr_ch; chan++) {
