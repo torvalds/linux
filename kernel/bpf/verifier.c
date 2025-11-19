@@ -17929,7 +17929,13 @@ static int copy_insn_array(struct bpf_map *map, u32 start, u32 end, u32 *items)
 
 	for (i = start; i <= end; i++) {
 		value = map->ops->map_lookup_elem(map, &i);
-		if (!value)
+		/*
+		 * map_lookup_elem of an array map will never return an error,
+		 * but not checking it makes some static analysers to worry
+		 */
+		if (IS_ERR(value))
+			return PTR_ERR(value);
+		else if (!value)
 			return -EINVAL;
 		items[i - start] = value->xlated_off;
 	}
