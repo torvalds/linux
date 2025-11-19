@@ -18,10 +18,11 @@
 int intel_gmch_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
 {
 	struct intel_display *display = i915->display;
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 	unsigned int reg = DISPLAY_VER(display) >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
 	u16 gmch_ctrl;
 
-	if (pci_read_config_word(i915->gmch.pdev, reg, &gmch_ctrl)) {
+	if (pci_bus_read_config_word(pdev->bus, PCI_DEVFN(0, 0), reg, &gmch_ctrl)) {
 		drm_err(&i915->drm, "failed to read control word\n");
 		return -EIO;
 	}
@@ -34,7 +35,7 @@ int intel_gmch_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
 	else
 		gmch_ctrl |= INTEL_GMCH_VGA_DISABLE;
 
-	if (pci_write_config_word(i915->gmch.pdev, reg, gmch_ctrl)) {
+	if (pci_bus_write_config_word(pdev->bus, PCI_DEVFN(0, 0), reg, gmch_ctrl)) {
 		drm_err(&i915->drm, "failed to write control word\n");
 		return -EIO;
 	}
