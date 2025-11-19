@@ -183,7 +183,8 @@ static int change_memory_common(unsigned long addr, int numpages,
 	 */
 	if (rodata_full && (pgprot_val(set_mask) == PTE_RDONLY ||
 			    pgprot_val(clear_mask) == PTE_RDONLY)) {
-		unsigned long idx = (start - (unsigned long)area->addr) >> PAGE_SHIFT;
+		unsigned long idx = (start - (unsigned long)kasan_reset_tag(area->addr))
+				    >> PAGE_SHIFT;
 		for (; numpages; idx++, numpages--) {
 			__change_memory_common((u64)page_address(area->pages[idx]),
 					       PAGE_SIZE, set_mask, clear_mask);
