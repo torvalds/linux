@@ -66,7 +66,7 @@ config INTEL_IOMMU_DEFAULT_ON
 
 config INTEL_IOMMU_FLOPPY_WA
 	def_bool y
-	depends on X86
+	depends on X86 && BLK_DEV_FD
 	help
 	  Floppy disk drivers are known to bypass DMA API calls
 	  thereby failing to work when IOMMU is enabled. This
