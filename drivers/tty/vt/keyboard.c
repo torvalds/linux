@@ -1566,10 +1566,9 @@ static bool kbd_match(struct input_handler *handler, struct input_dev *dev)
 static int kbd_connect(struct input_handler *handler, struct input_dev *dev,
 			const struct input_device_id *id)
 {
-	struct input_handle *handle;
 	int error;
 
-	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	struct input_handle __free(kfree) *handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
 		return -ENOMEM;
 
@@ -1579,18 +1578,18 @@ static int kbd_connect(struct input_handler *handler, struct input_dev *dev,
 
 	error = input_register_handle(handle);
 	if (error)
-		goto err_free_handle;
+		return error;
 
 	error = input_open_device(handle);
 	if (error)
 		goto err_unregister_handle;
 
+	retain_and_null_ptr(handle);
+
 	return 0;
 
  err_unregister_handle:
 	input_unregister_handle(handle);
- err_free_handle:
-	kfree(handle);
 	return error;
 }
 
@@ -1683,17 +1682,15 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 {
 	unsigned long flags;
 	int asize;
-	int ret = 0;
 
 	switch (cmd) {
 	case KDGKBDIACR:
 	{
 		struct kbdiacrs __user *a = udp;
-		struct kbdiacr *dia;
 		int i;
 
-		dia = kmalloc_array(MAX_DIACR, sizeof(struct kbdiacr),
-								GFP_KERNEL);
+		struct kbdiacr __free(kfree) *dia = kmalloc_array(MAX_DIACR, sizeof(struct kbdiacr),
+								  GFP_KERNEL);
 		if (!dia)
 			return -ENOMEM;
 
@@ -1713,20 +1710,17 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 		spin_unlock_irqrestore(&kbd_event_lock, flags);
 
 		if (put_user(asize, &a->kb_cnt))
-			ret = -EFAULT;
-		else  if (copy_to_user(a->kbdiacr, dia,
-				asize * sizeof(struct kbdiacr)))
-			ret = -EFAULT;
-		kfree(dia);
-		return ret;
+			return -EFAULT;
+		if (copy_to_user(a->kbdiacr, dia, asize * sizeof(struct kbdiacr)))
+			return -EFAULT;
+		return 0;
 	}
 	case KDGKBDIACRUC:
 	{
 		struct kbdiacrsuc __user *a = udp;
-		void *buf;
 
-		buf = kmalloc_array(MAX_DIACR, sizeof(struct kbdiacruc),
-								GFP_KERNEL);
+		void __free(kfree) *buf = kmalloc_array(MAX_DIACR, sizeof(struct kbdiacruc),
+							GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
 
@@ -1740,18 +1734,17 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 		spin_unlock_irqrestore(&kbd_event_lock, flags);
 
 		if (put_user(asize, &a->kb_cnt))
-			ret = -EFAULT;
-		else if (copy_to_user(a->kbdiacruc, buf,
-				asize*sizeof(struct kbdiacruc)))
-			ret = -EFAULT;
-		kfree(buf);
-		return ret;
+			return -EFAULT;
+		if (copy_to_user(a->kbdiacruc, buf, asize * sizeof(struct kbdiacruc)))
+			return -EFAULT;
+
+		return 0;
 	}
 
 	case KDSKBDIACR:
 	{
 		struct kbdiacrs __user *a = udp;
-		struct kbdiacr *dia = NULL;
+		struct kbdiacr __free(kfree) *dia = NULL;
 		unsigned int ct;
 		int i;
 
@@ -1780,7 +1773,7 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 					conv_8bit_to_uni(dia[i].result);
 		}
 		spin_unlock_irqrestore(&kbd_event_lock, flags);
-		kfree(dia);
+
 		return 0;
 	}
 
@@ -1788,7 +1781,7 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 	{
 		struct kbdiacrsuc __user *a = udp;
 		unsigned int ct;
-		void *buf = NULL;
+		void __free(kfree) *buf = NULL;
 
 		if (!perm)
 			return -EPERM;
@@ -1811,11 +1804,10 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 					ct * sizeof(struct kbdiacruc));
 		accent_table_size = ct;
 		spin_unlock_irqrestore(&kbd_event_lock, flags);
-		kfree(buf);
 		return 0;
 	}
 	}
-	return ret;
+	return 0;
 }
 
 /**
@@ -1934,7 +1926,7 @@ static int vt_kdskbent(unsigned char kbdmode, unsigned char idx,
 		unsigned char map, unsigned short val)
 {
 	unsigned long flags;
-	unsigned short *key_map, *new_map, oldval;
+	unsigned short *key_map, oldval;
 
 	if (!idx && val == K_NOSUCHMAP) {
 		spin_lock_irqsave(&kbd_event_lock, flags);
@@ -1965,7 +1957,7 @@ static int vt_kdskbent(unsigned char kbdmode, unsigned char idx,
 		return 0;
 #endif
 
-	new_map = kmalloc(sizeof(plain_map), GFP_KERNEL);
+	unsigned short __free(kfree) *new_map = kmalloc(sizeof(plain_map), GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
 
@@ -1977,17 +1969,14 @@ static int vt_kdskbent(unsigned char kbdmode, unsigned char idx,
 		if (keymap_count >= MAX_NR_OF_USER_KEYMAPS &&
 		    !capable(CAP_SYS_RESOURCE)) {
 			spin_unlock_irqrestore(&kbd_event_lock, flags);
-			kfree(new_map);
 			return -EPERM;
 		}
-		key_maps[map] = new_map;
-		key_map = new_map;
+		key_map = key_maps[map] = no_free_ptr(new_map);
 		key_map[0] = U(K_ALLOCATED);
 		for (j = 1; j < NR_KEYS; j++)
 			key_map[j] = U(K_HOLE);
 		keymap_count++;
-	} else
-		kfree(new_map);
+	}
 
 	oldval = U(key_map[idx]);
 	if (val == oldval)
@@ -2050,8 +2039,6 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 {
 	unsigned char kb_func;
 	unsigned long flags;
-	char *kbs;
-	int ret;
 
 	if (get_user(kb_func, &user_kdgkb->kb_func))
 		return -EFAULT;
@@ -2063,7 +2050,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		/* size should have been a struct member */
 		ssize_t len = sizeof(user_kdgkb->kb_string);
 
-		kbs = kmalloc(len, GFP_KERNEL);
+		char __free(kfree) *kbs = kmalloc(len, GFP_KERNEL);
 		if (!kbs)
 			return -ENOMEM;
 
@@ -2071,20 +2058,20 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		len = strscpy(kbs, func_table[kb_func] ? : "", len);
 		spin_unlock_irqrestore(&func_buf_lock, flags);
 
-		if (len < 0) {
-			ret = -ENOSPC;
-			break;
-		}
-		ret = copy_to_user(user_kdgkb->kb_string, kbs, len + 1) ?
-			-EFAULT : 0;
-		break;
+		if (len < 0)
+			return -ENOSPC;
+
+		if (copy_to_user(user_kdgkb->kb_string, kbs, len + 1))
+			return -EFAULT;
+
+		return 0;
 	}
 	case KDSKBSENT:
 		if (!perm || !capable(CAP_SYS_TTY_CONFIG))
 			return -EPERM;
 
-		kbs = strndup_user(user_kdgkb->kb_string,
-				sizeof(user_kdgkb->kb_string));
+		char __free(kfree) *kbs = strndup_user(user_kdgkb->kb_string,
+						       sizeof(user_kdgkb->kb_string));
 		if (IS_ERR(kbs))
 			return PTR_ERR(kbs);
 
@@ -2092,13 +2079,10 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		kbs = vt_kdskbsent(kbs, kb_func);
 		spin_unlock_irqrestore(&func_buf_lock, flags);
 
-		ret = 0;
-		break;
+		return 0;
 	}
 
-	kfree(kbs);
-
-	return ret;
+	return 0;
 }
 
 int vt_do_kdskled(unsigned int console, int cmd, unsigned long arg, int perm)
