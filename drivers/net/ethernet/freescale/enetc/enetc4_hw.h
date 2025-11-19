@@ -170,6 +170,9 @@
 /* Port MAC 0/1 Maximum Frame Length Register */
 #define ENETC4_PM_MAXFRM(mac)		(0x5014 + (mac) * 0x400)
 
+/* Port internal MDIO base address, use to access PCS */
+#define ENETC4_PM_IMDIO_BASE		0x5030
+
 /* Port MAC 0/1 Pause Quanta Register */
 #define ENETC4_PM_PAUSE_QUANTA(mac)	(0x5054 + (mac) * 0x400)
 
@@ -197,6 +200,9 @@
 #define   SSP_10M			1
 #define   SSP_1G			2
 #define  PM_IF_MODE_ENA			BIT(15)
+
+/* Port external MDIO Base address, use to access off-chip PHY */
+#define ENETC4_EMDIO_BASE		0x5c00
 
 /**********************ENETC Pseudo MAC port registers************************/
 /* Port pseudo MAC receive octets counter (64-bit) */
