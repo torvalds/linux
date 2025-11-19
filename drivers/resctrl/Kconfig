@@ -12,4 +12,13 @@ config ARM64_MPAM_DRIVER_DEBUG
 	help
 	  Say yes here to enable debug messages from the MPAM driver.
 
+config MPAM_KUNIT_TEST
+	bool "KUnit tests for MPAM driver " if !KUNIT_ALL_TESTS
+	depends on KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to run tests in the MPAM driver.
+
+	  If unsure, say N.
+
 endif
