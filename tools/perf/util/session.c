@@ -2349,9 +2349,10 @@ reader__read_event(struct reader *rd, struct perf_session *session,
 
 	if (size < sizeof(struct perf_event_header) ||
 	    (skip = rd->process(session, event, rd->file_pos, rd->path)) < 0) {
-		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d [%s]\n",
+		errno = -skip;
+		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d [%m]\n",
 		       rd->file_offset + rd->head, event->header.size,
-		       event->header.type, strerror(-skip));
+		       event->header.type);
 		err = skip;
 		goto out;
 	}

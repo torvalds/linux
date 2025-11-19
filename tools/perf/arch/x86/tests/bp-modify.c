@@ -80,26 +80,24 @@ static int bp_modify1(void)
 	 */
 	if (ptrace(PTRACE_POKEUSER, child,
 		   offsetof(struct user, u_debugreg[0]), bp_2)) {
-		pr_debug("failed to set breakpoint, 1st time: %s\n",
-			 strerror(errno));
+		pr_debug("failed to set breakpoint, 1st time: %m\n");
 		goto out;
 	}
 
 	if (ptrace(PTRACE_POKEUSER, child,
 		   offsetof(struct user, u_debugreg[0]), bp_1)) {
-		pr_debug("failed to set breakpoint, 2nd time: %s\n",
-			 strerror(errno));
+		pr_debug("failed to set breakpoint, 2nd time: %m\n");
 		goto out;
 	}
 
 	if (ptrace(PTRACE_POKEUSER, child,
 		   offsetof(struct user, u_debugreg[7]), dr7)) {
-		pr_debug("failed to set dr7: %s\n", strerror(errno));
+		pr_debug("failed to set dr7: %m\n");
 		goto out;
 	}
 
 	if (ptrace(PTRACE_CONT, child, NULL, NULL)) {
-		pr_debug("failed to PTRACE_CONT: %s\n", strerror(errno));
+		pr_debug("failed to PTRACE_CONT: %m\n");
 		goto out;
 	}
 
@@ -112,19 +110,17 @@ static int bp_modify1(void)
 	rip = ptrace(PTRACE_PEEKUSER, child,
 		     offsetof(struct user_regs_struct, rip), NULL);
 	if (rip == (unsigned long) -1) {
-		pr_debug("failed to PTRACE_PEEKUSER: %s\n",
-			 strerror(errno));
+		pr_debug("failed to PTRACE_PEEKUSER: %m\n");
 		goto out;
 	}
 
 	pr_debug("rip %lx, bp_1 %p\n", rip, bp_1);
-
 out:
 	if (ptrace(PTRACE_DETACH, child, NULL, NULL)) {
-		pr_debug("failed to PTRACE_DETACH: %s", strerror(errno));
+		pr_debug("failed to PTRACE_DETACH: %m\n");
 		return TEST_FAIL;
-	}
 
+	}
 	return rip == (unsigned long) bp_1 ? TEST_OK : TEST_FAIL;
 }
 
@@ -157,14 +153,13 @@ static int bp_modify2(void)
 	 */
 	if (ptrace(PTRACE_POKEUSER, child,
 		   offsetof(struct user, u_debugreg[0]), bp_1)) {
-		pr_debug("failed to set breakpoint: %s\n",
-			 strerror(errno));
+		pr_debug("failed to set breakpoint: %m\n");
 		goto out;
 	}
 
 	if (ptrace(PTRACE_POKEUSER, child,
 		   offsetof(struct user, u_debugreg[7]), dr7)) {
-		pr_debug("failed to set dr7: %s\n", strerror(errno));
+		pr_debug("failed to set dr7: %m\n");
 		goto out;
 	}
 
@@ -175,7 +170,7 @@ static int bp_modify2(void)
 	}
 
 	if (ptrace(PTRACE_CONT, child, NULL, NULL)) {
-		pr_debug("failed to PTRACE_CONT: %s\n", strerror(errno));
+		pr_debug("failed to PTRACE_CONT: %m\n");
 		goto out;
 	}
 
@@ -188,8 +183,7 @@ static int bp_modify2(void)
 	rip = ptrace(PTRACE_PEEKUSER, child,
 		     offsetof(struct user_regs_struct, rip), NULL);
 	if (rip == (unsigned long) -1) {
-		pr_debug("failed to PTRACE_PEEKUSER: %s\n",
-			 strerror(errno));
+		pr_debug("failed to PTRACE_PEEKUSER: %m\n");
 		goto out;
 	}
 
@@ -197,7 +191,7 @@ static int bp_modify2(void)
 
 out:
 	if (ptrace(PTRACE_DETACH, child, NULL, NULL)) {
-		pr_debug("failed to PTRACE_DETACH: %s", strerror(errno));
+		pr_debug("failed to PTRACE_DETACH: %m\n");
 		return TEST_FAIL;
 	}
 

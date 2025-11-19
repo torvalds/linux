@@ -648,8 +648,9 @@ struct tep_event *evsel__tp_format(struct evsel *evsel)
 	if (IS_ERR(tp_format)) {
 		int err = -PTR_ERR(evsel->tp_format);
 
-		pr_err("Error getting tracepoint format '%s' '%s'(%d)\n",
-			evsel__name(evsel), strerror(err), err);
+		errno = err;
+		pr_err("Error getting tracepoint format '%s': %m\n",
+			evsel__name(evsel));
 		return NULL;
 	}
 	evsel->tp_format = tp_format;
@@ -2772,8 +2773,8 @@ retry_open:
 					    PERF_EVENT_IOC_SET_BPF,
 					    bpf_fd);
 				if (err && errno != EEXIST) {
-					pr_err("failed to attach bpf fd %d: %s\n",
-					       bpf_fd, strerror(errno));
+					pr_err("failed to attach bpf fd %d: %m\n",
+					       bpf_fd);
 					err = -EINVAL;
 					goto out_close;
 				}
@@ -3864,7 +3865,6 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			 int err, char *msg, size_t size)
 {
 	struct perf_pmu *pmu;
-	char sbuf[STRERR_BUFSIZE];
 	int printed = 0, enforced = 0;
 	int ret;
 
@@ -3997,10 +3997,11 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 	if (ret)
 		return ret;
 
+	errno = err;
 	return scnprintf(msg, size,
-	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).\n"
-	"\"dmesg | grep -i perf\" may provide additional information.\n",
-			 err, str_error_r(err, sbuf, sizeof(sbuf)), evsel__name(evsel));
+			 "The sys_perf_event_open() syscall failed for event (%s): %m\n"
+			 "\"dmesg | grep -i perf\" may provide additional information.\n",
+			 evsel__name(evsel));
 }
 
 struct perf_session *evsel__session(struct evsel *evsel)

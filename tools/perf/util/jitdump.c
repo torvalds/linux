@@ -90,7 +90,8 @@ jit_emit_elf(struct jit_buf_desc *jd,
 	saved_errno = errno;
 	nsinfo__mountns_exit(&nsc);
 	if (fd == -1) {
-		pr_warning("cannot create jit ELF %s: %s\n", filename, strerror(saved_errno));
+		errno = saved_errno;
+		pr_warning("cannot create jit ELF %s: %m\n", filename);
 		return -1;
 	}
 

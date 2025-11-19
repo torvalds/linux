@@ -540,16 +540,13 @@ static void close_first_dso(void);
 
 static int do_open(char *name) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
-	int fd;
-	char sbuf[STRERR_BUFSIZE];
-
 	do {
-		fd = open(name, O_RDONLY|O_CLOEXEC);
+		int fd = open(name, O_RDONLY|O_CLOEXEC);
+
 		if (fd >= 0)
 			return fd;
 
-		pr_debug("dso open failed: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_debug("dso open failed: %m\n");
 		if (!dso__data_open_cnt || errno != EMFILE)
 			break;
 
@@ -1098,7 +1095,6 @@ static int file_size(struct dso *dso, struct machine *machine)
 {
 	int ret = 0;
 	struct stat st;
-	char sbuf[STRERR_BUFSIZE];
 
 	mutex_lock(dso__data_open_lock());
 
@@ -1116,8 +1112,7 @@ static int file_size(struct dso *dso, struct machine *machine)
 
 	if (fstat(dso__data(dso)->fd, &st) < 0) {
 		ret = -errno;
-		pr_err("dso cache fstat failed: %s\n",
-		       str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_err("dso cache fstat failed: %m\n");
 		dso__data(dso)->status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
@@ -1773,10 +1768,8 @@ int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 	BUG_ON(buflen == 0);
 
 	if (errnum >= 0) {
-		const char *err = str_error_r(errnum, buf, buflen);
-
-		if (err != buf)
-			scnprintf(buf, buflen, "%s", err);
+		errno = errnum;
+		scnprintf(buf, buflen, "%m");
 
 		return 0;
 	}

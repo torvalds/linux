@@ -42,7 +42,7 @@ static void check_slab_cache_iter(struct lock_contention *con)
 
 	con->btf = btf__load_vmlinux_btf();
 	if (con->btf == NULL) {
-		pr_debug("BTF loading failed: %s\n", strerror(errno));
+		pr_debug("BTF loading failed: %m\n");
 		return;
 	}
 

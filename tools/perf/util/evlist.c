@@ -1614,14 +1614,14 @@ int evlist__parse_sample_timestamp(struct evlist *evlist, union perf_event *even
 int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size)
 {
 	int printed, value;
-	char sbuf[STRERR_BUFSIZE], *emsg = str_error_r(err, sbuf, sizeof(sbuf));
 
 	switch (err) {
 	case EACCES:
 	case EPERM:
+		errno = err;
 		printed = scnprintf(buf, size,
-				    "Error:\t%s.\n"
-				    "Hint:\tCheck /proc/sys/kernel/perf_event_paranoid setting.", emsg);
+				    "Error:\t%m.\n"
+				    "Hint:\tCheck /proc/sys/kernel/perf_event_paranoid setting.");
 
 		value = perf_event_paranoid();
 
@@ -1648,16 +1648,18 @@ int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size
 		if (first->core.attr.sample_freq < (u64)max_freq)
 			goto out_default;
 
+		errno = err;
 		printed = scnprintf(buf, size,
-				    "Error:\t%s.\n"
+				    "Error:\t%m.\n"
 				    "Hint:\tCheck /proc/sys/kernel/perf_event_max_sample_rate.\n"
 				    "Hint:\tThe current value is %d and %" PRIu64 " is being requested.",
-				    emsg, max_freq, first->core.attr.sample_freq);
+				    max_freq, first->core.attr.sample_freq);
 		break;
 	}
 	default:
 out_default:
-		scnprintf(buf, size, "%s", emsg);
+		errno = err;
+		scnprintf(buf, size, "%m");
 		break;
 	}
 
@@ -1666,17 +1668,17 @@ out_default:
 
 int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size)
 {
-	char sbuf[STRERR_BUFSIZE], *emsg = str_error_r(err, sbuf, sizeof(sbuf));
 	int pages_attempted = evlist->core.mmap_len / 1024, pages_max_per_user, printed = 0;
 
 	switch (err) {
 	case EPERM:
 		sysctl__read_int("kernel/perf_event_mlock_kb", &pages_max_per_user);
+		errno = err;
 		printed += scnprintf(buf + printed, size - printed,
-				     "Error:\t%s.\n"
+				     "Error:\t%m.\n"
 				     "Hint:\tCheck /proc/sys/kernel/perf_event_mlock_kb (%d kB) setting.\n"
 				     "Hint:\tTried using %zd kB.\n",
-				     emsg, pages_max_per_user, pages_attempted);
+				     pages_max_per_user, pages_attempted);
 
 		if (pages_attempted >= pages_max_per_user) {
 			printed += scnprintf(buf + printed, size - printed,
@@ -1688,7 +1690,8 @@ int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size
 				     "Hint:\tTry using a smaller -m/--mmap-pages value.");
 		break;
 	default:
-		scnprintf(buf, size, "%s", emsg);
+		errno = err;
+		scnprintf(buf, size, "%m");
 		break;
 	}
 
@@ -1920,8 +1923,8 @@ static int evlist__parse_control_fifo(const char *str, int *ctl_fd, int *ctl_fd_
 	 */
 	fd = open(s, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 	if (fd < 0) {
-		pr_err("Failed to open '%s'\n", s);
 		ret = -errno;
+		pr_err("Failed to open '%s': %m\n", s);
 		goto out_free;
 	}
 	*ctl_fd = fd;
@@ -1931,7 +1934,7 @@ static int evlist__parse_control_fifo(const char *str, int *ctl_fd, int *ctl_fd_
 		/* O_RDWR | O_NONBLOCK means the other end need not be open */
 		fd = open(p, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 		if (fd < 0) {
-			pr_err("Failed to open '%s'\n", p);
+			pr_err("Failed to open '%s': %m\n", p);
 			ret = -errno;
 			goto out_free;
 		}
@@ -2364,7 +2367,7 @@ int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *o
 	eet->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
 	if (eet->timerfd == -1) {
 		err = -errno;
-		pr_err("timerfd_create failed: %s\n", strerror(errno));
+		pr_err("timerfd_create failed: %m\n");
 		goto free_eet_times;
 	}
 
@@ -2399,7 +2402,7 @@ static int event_enable_timer__set_timer(struct event_enable_timer *eet, int ms)
 
 	if (timerfd_settime(eet->timerfd, 0, &its, NULL) < 0) {
 		err = -errno;
-		pr_err("timerfd_settime failed: %s\n", strerror(errno));
+		pr_err("timerfd_settime failed: %m\n");
 	}
 	return err;
 }

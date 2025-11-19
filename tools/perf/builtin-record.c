@@ -1286,7 +1286,6 @@ static int record__mmap_evlist(struct record *rec,
 	struct record_opts *opts = &rec->opts;
 	bool auxtrace_overwrite = opts->auxtrace_snapshot_mode ||
 				  opts->auxtrace_sample_mode;
-	char msg[512];
 
 	if (opts->affinity != PERF_AFFINITY_SYS)
 		cpu__setup_cpunode_map();
@@ -1305,8 +1304,7 @@ static int record__mmap_evlist(struct record *rec,
 			       opts->mmap_pages, opts->auxtrace_mmap_pages);
 			return -errno;
 		} else {
-			pr_err("failed to mmap with %d (%s)\n", errno,
-				str_error_r(errno, msg, sizeof(msg)));
+			pr_err("failed to mmap: %m\n");
 			if (errno)
 				return -errno;
 			else
@@ -1324,7 +1322,8 @@ static int record__mmap_evlist(struct record *rec,
 	if (record__threads_enabled(rec)) {
 		ret = perf_data__create_dir(&rec->data, evlist->core.nr_mmaps);
 		if (ret) {
-			pr_err("Failed to create data directory: %s\n", strerror(-ret));
+			errno = -ret;
+			pr_err("Failed to create data directory: %m\n");
 			return ret;
 		}
 		for (i = 0; i < evlist->core.nr_mmaps; i++) {
@@ -1461,9 +1460,8 @@ try_again:
 	}
 
 	if (evlist__apply_filters(evlist, &pos, &opts->target)) {
-		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
-			pos->filter ?: "BPF", evsel__name(pos), errno,
-			str_error_r(errno, msg, sizeof(msg)));
+		pr_err("failed to set filter \"%s\" on event %s: %m\n",
+			pos->filter ?: "BPF", evsel__name(pos));
 		rc = -1;
 		goto out;
 	}
@@ -1748,8 +1746,7 @@ static void *record__thread(void *arg)
 
 	err = write(thread->pipes.ack[1], &msg, sizeof(msg));
 	if (err == -1)
-		pr_warning("threads[%d]: failed to notify on start: %s\n",
-			   thread->tid, strerror(errno));
+		pr_warning("threads[%d]: failed to notify on start: %m\n", thread->tid);
 
 	pr_debug("threads[%d]: started on cpu%d\n", thread->tid, sched_getcpu());
 
@@ -1792,8 +1789,7 @@ static void *record__thread(void *arg)
 
 	err = write(thread->pipes.ack[1], &msg, sizeof(msg));
 	if (err == -1)
-		pr_warning("threads[%d]: failed to notify on termination: %s\n",
-			   thread->tid, strerror(errno));
+		pr_warning("threads[%d]: failed to notify on termination: %m\n", thread->tid);
 
 	return NULL;
 }
@@ -2338,7 +2334,7 @@ static int record__start_threads(struct record *rec)
 
 	sigfillset(&full);
 	if (sigprocmask(SIG_SETMASK, &full, &mask)) {
-		pr_err("Failed to block signals on threads start: %s\n", strerror(errno));
+		pr_err("Failed to block signals on threads start: %m\n");
 		return -1;
 	}
 
@@ -2356,7 +2352,7 @@ static int record__start_threads(struct record *rec)
 		if (pthread_create(&handle, &attrs, record__thread, &thread_data[t])) {
 			for (tt = 1; tt < t; tt++)
 				record__terminate_thread(&thread_data[t]);
-			pr_err("Failed to start threads: %s\n", strerror(errno));
+			pr_err("Failed to start threads: %m\n");
 			ret = -1;
 			goto out_err;
 		}
@@ -2379,7 +2375,7 @@ out_err:
 	pthread_attr_destroy(&attrs);
 
 	if (sigprocmask(SIG_SETMASK, &mask, NULL)) {
-		pr_err("Failed to unblock signals on threads start: %s\n", strerror(errno));
+		pr_err("Failed to unblock signals on threads start: %m\n");
 		ret = -1;
 	}
 

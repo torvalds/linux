@@ -937,9 +937,8 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	}
 
 	if (evlist__apply_filters(evsel_list, &counter, &target)) {
-		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
-			counter->filter, evsel__name(counter), errno,
-			str_error_r(errno, msg, sizeof(msg)));
+		pr_err("failed to set filter \"%s\" on event %s: %m\n",
+			counter->filter, evsel__name(counter));
 		return -1;
 	}
 
@@ -1001,8 +1000,8 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 		}
 
 		if (workload_exec_errno) {
-			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
-			pr_err("Workload failed: %s\n", emsg);
+			errno = workload_exec_errno;
+			pr_err("Workload failed: %m\n");
 			err = -1;
 			goto err_out;
 		}
