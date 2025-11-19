@@ -4191,6 +4191,7 @@ AYANEO PLATFORM EC DRIVER
 M:	Antheas Kapenekakis <lkml@antheas.dev>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/sysfs-platform-ayaneo
 F:	drivers/platform/x86/ayaneo-ec.c
 
 AZ6007 DVB DRIVER

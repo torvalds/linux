@@ -8,6 +8,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
@@ -16,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/sysfs.h>
 #include <acpi/battery.h>
 
 #define AYANEO_PWM_ENABLE_REG	 0x4A
@@ -32,9 +34,18 @@
 #define AYANEO_CHARGE_VAL_AUTO		0xaa
 #define AYANEO_CHARGE_VAL_INHIBIT	0x55
 
+#define AYANEO_POWER_REG	0x2d
+#define AYANEO_POWER_OFF	0xfe
+#define AYANEO_POWER_ON		0xff
+#define AYANEO_MODULE_REG	0x2f
+#define AYANEO_MODULE_LEFT	BIT(0)
+#define AYANEO_MODULE_RIGHT	BIT(1)
+#define AYANEO_MODULE_MASK	(AYANEO_MODULE_LEFT | AYANEO_MODULE_RIGHT)
+
 struct ayaneo_ec_quirk {
 	bool has_fan_control;
 	bool has_charge_control;
+	bool has_magic_modules;
 };
 
 struct ayaneo_ec_platform_data {
@@ -46,6 +57,7 @@ struct ayaneo_ec_platform_data {
 static const struct ayaneo_ec_quirk quirk_ayaneo3 = {
 	.has_fan_control = true,
 	.has_charge_control = true,
+	.has_magic_modules = true,
 };
 
 static const struct dmi_system_id dmi_table[] = {
@@ -266,6 +278,100 @@ static int ayaneo_remove_battery(struct power_supply *battery,
 	return 0;
 }
 
+static ssize_t controller_power_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf,
+				      size_t count)
+{
+	bool value;
+	int ret;
+
+	ret = kstrtobool(buf, &value);
+	if (ret)
+		return ret;
+
+	ret = ec_write(AYANEO_POWER_REG, value ? AYANEO_POWER_ON : AYANEO_POWER_OFF);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static ssize_t controller_power_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int ret;
+	u8 val;
+
+	ret = ec_read(AYANEO_POWER_REG, &val);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%d\n", val == AYANEO_POWER_ON);
+}
+
+static DEVICE_ATTR_RW(controller_power);
+
+static ssize_t controller_modules_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	u8 unconnected_modules;
+	char *out;
+	int ret;
+
+	ret = ec_read(AYANEO_MODULE_REG, &unconnected_modules);
+	if (ret)
+		return ret;
+
+	switch (~unconnected_modules & AYANEO_MODULE_MASK) {
+	case AYANEO_MODULE_LEFT | AYANEO_MODULE_RIGHT:
+		out = "both";
+		break;
+	case AYANEO_MODULE_LEFT:
+		out = "left";
+		break;
+	case AYANEO_MODULE_RIGHT:
+		out = "right";
+		break;
+	default:
+		out = "none";
+		break;
+	}
+
+	return sysfs_emit(buf, "%s\n", out);
+}
+
+static DEVICE_ATTR_RO(controller_modules);
+
+static struct attribute *aya_mm_attrs[] = {
+	&dev_attr_controller_power.attr,
+	&dev_attr_controller_modules.attr,
+	NULL
+};
+
+static umode_t aya_mm_is_visible(struct kobject *kobj,
+				 struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ayaneo_ec_platform_data *data = platform_get_drvdata(pdev);
+
+	if (data->quirks->has_magic_modules)
+		return attr->mode;
+	return 0;
+}
+
+static const struct attribute_group aya_mm_attribute_group = {
+	.is_visible = aya_mm_is_visible,
+	.attrs = aya_mm_attrs,
+};
+
+static const struct attribute_group *ayaneo_ec_groups[] = {
+	&aya_mm_attribute_group,
+	NULL
+};
+
 static int ayaneo_ec_probe(struct platform_device *pdev)
 {
 	const struct dmi_system_id *dmi_entry;
@@ -307,6 +413,7 @@ static int ayaneo_ec_probe(struct platform_device *pdev)
 static struct platform_driver ayaneo_platform_driver = {
 	.driver = {
 		.name = "ayaneo-ec",
+		.dev_groups = ayaneo_ec_groups,
 	},
 	.probe = ayaneo_ec_probe,
 };

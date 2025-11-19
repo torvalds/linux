@@ -1,0 +1,19 @@
+What:		/sys/devices/platform/ayaneo-ec/controller_power
+Date:		Nov 2025
+KernelVersion:	6.19
+Contact:	"Antheas Kapenekakis" <lkml@antheas.dev>
+Description:
+		Current controller power state. Allows turning on and off
+		the controller power (e.g. for power savings). Write 1 to
+		turn on, 0 to turn off. File is readable and writable.
+
+What:		/sys/devices/platform/ayaneo-ec/controller_modules
+Date:		Nov 2025
+KernelVersion:	6.19
+Contact:	"Antheas Kapenekakis"  <lkml@antheas.dev>
+Description:
+		Shows which controller modules are currently connected to
+		the device. Possible values are "left", "right" and "both".
+		File is read-only. The Windows software for this device
+		will only set controller power to 1 if both module sides
+		are connected (i.e. this file returns "both").
