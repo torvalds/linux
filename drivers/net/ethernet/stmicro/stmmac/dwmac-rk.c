@@ -1735,8 +1735,7 @@ static int rk_set_clk_tx_rate(void *bsp_priv_, struct clk *clk_tx_i,
 	struct rk_priv_data *bsp_priv = bsp_priv_;
 
 	if (bsp_priv->ops->set_speed)
-		return bsp_priv->ops->set_speed(bsp_priv, bsp_priv->phy_iface,
-						speed);
+		return bsp_priv->ops->set_speed(bsp_priv, interface, speed);
 
 	return -EINVAL;
 }
