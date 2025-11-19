@@ -595,6 +595,8 @@ void __init of_irq_init(const struct of_device_id *matches)
 		desc->interrupt_parent = of_parse_phandle(np, "interrupts-extended", 0);
 		if (!desc->interrupt_parent && of_property_present(np, "interrupts"))
 			desc->interrupt_parent = of_irq_find_parent(np);
+		else if (!desc->interrupt_parent)
+			desc->interrupt_parent = of_parse_phandle(np, "interrupt-parent", 0);
 		if (desc->interrupt_parent == np) {
 			of_node_put(desc->interrupt_parent);
 			desc->interrupt_parent = NULL;
