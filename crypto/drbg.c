@@ -1443,7 +1443,6 @@ static void drbg_kcapi_set_entropy(struct crypto_rng *tfm,
 #if defined(CONFIG_CRYPTO_DRBG_HASH) || defined(CONFIG_CRYPTO_DRBG_HMAC)
 struct sdesc {
 	struct shash_desc shash;
-	char ctx[];
 };
 
 static int drbg_init_hash_kernel(struct drbg_state *drbg)
