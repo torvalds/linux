@@ -58,14 +58,14 @@ static int eic7700_clks_config(void *priv, bool enabled)
 	return ret;
 }
 
-static int eic7700_dwmac_init(struct platform_device *pdev, void *priv)
+static int eic7700_dwmac_init(struct device *dev, void *priv)
 {
 	struct eic7700_qos_priv *dwc = priv;
 
 	return eic7700_clks_config(dwc, true);
 }
 
-static void eic7700_dwmac_exit(struct platform_device *pdev, void *priv)
+static void eic7700_dwmac_exit(struct device *dev, void *priv)
 {
 	struct eic7700_qos_priv *dwc = priv;
 
