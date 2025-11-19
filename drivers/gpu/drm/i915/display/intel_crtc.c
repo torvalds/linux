@@ -552,7 +552,7 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 
 		for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
 						     new_plane_state, i) {
-			if (old_plane_state->uapi.crtc == &crtc->base)
+			if (old_plane_state->hw.crtc == &crtc->base)
 				intel_plane_init_cursor_vblank_work(old_plane_state,
 								    new_plane_state);
 		}
@@ -704,7 +704,7 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
 		int i;
 
 		for_each_old_intel_plane_in_state(state, plane, old_plane_state, i) {
-			if (old_plane_state->uapi.crtc == &crtc->base &&
+			if (old_plane_state->hw.crtc == &crtc->base &&
 			    old_plane_state->unpin_work.vblank) {
 				drm_vblank_work_schedule(&old_plane_state->unpin_work,
 							 drm_crtc_accurate_vblank_count(&crtc->base) + 1,

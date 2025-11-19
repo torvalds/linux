@@ -1408,7 +1408,7 @@ void intel_plane_init_cursor_vblank_work(struct intel_plane_state *old_plane_sta
 	    old_plane_state->ggtt_vma == new_plane_state->ggtt_vma)
 		return;
 
-	drm_vblank_work_init(&old_plane_state->unpin_work, old_plane_state->uapi.crtc,
+	drm_vblank_work_init(&old_plane_state->unpin_work, old_plane_state->hw.crtc,
 			     intel_cursor_unpin_work);
 }
 
