@@ -13,6 +13,11 @@ description: >
   The Qualcomm Light Pulse Generator consists of three different hardware blocks;
   a ramp generator with lookup table (LUT), the light pulse generator and a three
   channel current sink. These blocks are found in a wide range of Qualcomm PMICs.
+  The light pulse generator (LPG) can also be used independently to output PWM
+  signal for standard PWM applications. In this scenario, the LPG output should
+  be routed to a specific PMIC GPIO by setting the GPIO pin mux to the special
+  functions indicated in the datasheet, the TRILED driver for the channel will
+  not be enabled in this configuration.
 
 properties:
   compatible:
