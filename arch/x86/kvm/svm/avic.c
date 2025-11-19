@@ -216,7 +216,7 @@ static void avic_deactivate_vmcb(struct vcpu_svm *svm)
  * This function is called from IOMMU driver to notify
  * SVM to schedule in a particular vCPU of a particular VM.
  */
-int avic_ga_log_notifier(u32 ga_tag)
+static int avic_ga_log_notifier(u32 ga_tag)
 {
 	unsigned long flags;
 	struct kvm_svm *kvm_svm;
@@ -788,7 +788,7 @@ int avic_init_vcpu(struct vcpu_svm *svm)
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 
 	INIT_LIST_HEAD(&svm->ir_list);
-	spin_lock_init(&svm->ir_list_lock);
+	raw_spin_lock_init(&svm->ir_list_lock);
 
 	if (!enable_apicv || !irqchip_in_kernel(vcpu->kvm))
 		return 0;
@@ -816,9 +816,9 @@ static void svm_ir_list_del(struct kvm_kernel_irqfd *irqfd)
 	if (!vcpu)
 		return;
 
-	spin_lock_irqsave(&to_svm(vcpu)->ir_list_lock, flags);
+	raw_spin_lock_irqsave(&to_svm(vcpu)->ir_list_lock, flags);
 	list_del(&irqfd->vcpu_list);
-	spin_unlock_irqrestore(&to_svm(vcpu)->ir_list_lock, flags);
+	raw_spin_unlock_irqrestore(&to_svm(vcpu)->ir_list_lock, flags);
 }
 
 int avic_pi_update_irte(struct kvm_kernel_irqfd *irqfd, struct kvm *kvm,
@@ -855,7 +855,7 @@ int avic_pi_update_irte(struct kvm_kernel_irqfd *irqfd, struct kvm *kvm,
 		 * list of IRQs being posted to the vCPU, to ensure the IRTE
 		 * isn't programmed with stale pCPU/IsRunning information.
 		 */
-		guard(spinlock_irqsave)(&svm->ir_list_lock);
+		guard(raw_spinlock_irqsave)(&svm->ir_list_lock);
 
 		/*
 		 * Update the target pCPU for IOMMU doorbells if the vCPU is
@@ -972,7 +972,7 @@ static void __avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu,
 	 * up-to-date entry information, or that this task will wait until
 	 * svm_ir_list_add() completes to set the new target pCPU.
 	 */
-	spin_lock_irqsave(&svm->ir_list_lock, flags);
+	raw_spin_lock_irqsave(&svm->ir_list_lock, flags);
 
 	entry = svm->avic_physical_id_entry;
 	WARN_ON_ONCE(entry & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK);
@@ -997,7 +997,7 @@ static void __avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu,
 
 	avic_update_iommu_vcpu_affinity(vcpu, h_physical_id, action);
 
-	spin_unlock_irqrestore(&svm->ir_list_lock, flags);
+	raw_spin_unlock_irqrestore(&svm->ir_list_lock, flags);
 }
 
 void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -1035,7 +1035,7 @@ static void __avic_vcpu_put(struct kvm_vcpu *vcpu, enum avic_vcpu_action action)
 	 * or that this task will wait until svm_ir_list_add() completes to
 	 * mark the vCPU as not running.
 	 */
-	spin_lock_irqsave(&svm->ir_list_lock, flags);
+	raw_spin_lock_irqsave(&svm->ir_list_lock, flags);
 
 	avic_update_iommu_vcpu_affinity(vcpu, -1, action);
 
@@ -1059,7 +1059,7 @@ static void __avic_vcpu_put(struct kvm_vcpu *vcpu, enum avic_vcpu_action action)
 
 	svm->avic_physical_id_entry = entry;
 
-	spin_unlock_irqrestore(&svm->ir_list_lock, flags);
+	raw_spin_unlock_irqrestore(&svm->ir_list_lock, flags);
 }
 
 void avic_vcpu_put(struct kvm_vcpu *vcpu)
@@ -1242,4 +1242,10 @@ bool __init avic_hardware_setup(void)
 	amd_iommu_register_ga_log_notifier(&avic_ga_log_notifier);
 
 	return true;
+}
+
+void avic_hardware_unsetup(void)
+{
+	if (avic)
+		amd_iommu_register_ga_log_notifier(NULL);
 }

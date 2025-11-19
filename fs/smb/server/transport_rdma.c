@@ -334,6 +334,9 @@ smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 		break;
 
 	case SMBDIRECT_SOCKET_CREATED:
+		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
+		break;
+
 	case SMBDIRECT_SOCKET_CONNECTED:
 		sc->status = SMBDIRECT_SOCKET_ERROR;
 		break;
@@ -418,9 +421,6 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	sc->ib.dev = sc->rdma.cm_id->device;
 
-	INIT_WORK(&sc->recv_io.posted.refill_work,
-		  smb_direct_post_recv_credits);
-	INIT_WORK(&sc->idle.immediate_work, smb_direct_send_immediate_work);
 	INIT_DELAYED_WORK(&sc->idle.timer_work, smb_direct_idle_connection_timer);
 
 	conn = ksmbd_conn_alloc();
@@ -469,6 +469,9 @@ static void free_transport(struct smb_direct_transport *t)
 	disable_delayed_work_sync(&sc->idle.timer_work);
 	disable_work_sync(&sc->idle.immediate_work);
 
+	if (sc->rdma.cm_id)
+		rdma_lock_handler(sc->rdma.cm_id);
+
 	if (sc->ib.qp) {
 		ib_drain_qp(sc->ib.qp);
 		sc->ib.qp = NULL;
@@ -497,8 +500,10 @@ static void free_transport(struct smb_direct_transport *t)
 		ib_free_cq(sc->ib.recv_cq);
 	if (sc->ib.pd)
 		ib_dealloc_pd(sc->ib.pd);
-	if (sc->rdma.cm_id)
+	if (sc->rdma.cm_id) {
+		rdma_unlock_handler(sc->rdma.cm_id);
 		rdma_destroy_id(sc->rdma.cm_id);
+	}
 
 	smb_direct_destroy_pools(sc);
 	ksmbd_conn_free(KSMBD_TRANS(t)->conn);
@@ -1727,10 +1732,10 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 	}
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 	case RDMA_CM_EVENT_DISCONNECTED: {
-		ib_drain_qp(sc->ib.qp);
-
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
 		smb_direct_disconnect_rdma_work(&sc->disconnect_work);
+		if (sc->ib.qp)
+			ib_drain_qp(sc->ib.qp);
 		break;
 	}
 	case RDMA_CM_EVENT_CONNECT_ERROR: {
@@ -1881,6 +1886,7 @@ static int smb_direct_accept_client(struct smbdirect_socket *sc)
 static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 {
 	struct smbdirect_recv_io *recvmsg;
+	bool recv_posted = false;
 	int ret;
 
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_CREATED);
@@ -1897,6 +1903,7 @@ static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 		pr_err("Can't post recv: %d\n", ret);
 		goto out_err;
 	}
+	recv_posted = true;
 
 	ret = smb_direct_accept_client(sc);
 	if (ret) {
@@ -1904,10 +1911,16 @@ static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 		goto out_err;
 	}
 
-	smb_direct_post_recv_credits(&sc->recv_io.posted.refill_work);
 	return 0;
 out_err:
-	put_recvmsg(sc, recvmsg);
+	/*
+	 * If the recv was never posted, return it to the free list.
+	 * If it was posted, leave it alone so disconnect teardown can
+	 * drain the QP and complete it (flush) and the completion path
+	 * will unmap it exactly once.
+	 */
+	if (!recv_posted)
+		put_recvmsg(sc, recvmsg);
 	return ret;
 }
 
@@ -2249,8 +2262,8 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 		return -ECONNABORTED;
 
 	ret = smb_direct_check_recvmsg(recvmsg);
-	if (ret == -ECONNABORTED)
-		goto out;
+	if (ret)
+		goto put;
 
 	req = (struct smbdirect_negotiate_req *)recvmsg->packet;
 	sp->max_recv_size = min_t(int, sp->max_recv_size,
@@ -2265,13 +2278,37 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 	sc->recv_io.credits.target = min_t(u16, sc->recv_io.credits.target, sp->recv_credit_max);
 	sc->recv_io.credits.target = max_t(u16, sc->recv_io.credits.target, 1);
 
-	ret = smb_direct_send_negotiate_response(sc, ret);
-out:
+put:
 	spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 	sc->recv_io.reassembly.queue_length--;
 	list_del(&recvmsg->list);
 	spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 	put_recvmsg(sc, recvmsg);
+
+	if (ret == -ECONNABORTED)
+		return ret;
+
+	if (ret)
+		goto respond;
+
+	/*
+	 * We negotiated with success, so we need to refill the recv queue.
+	 * We do that with sc->idle.immediate_work still being disabled
+	 * via smbdirect_socket_init(), so that queue_work(sc->workqueue,
+	 * &sc->idle.immediate_work) in smb_direct_post_recv_credits()
+	 * is a no-op.
+	 *
+	 * The message that grants the credits to the client is
+	 * the negotiate response.
+	 */
+	INIT_WORK(&sc->recv_io.posted.refill_work, smb_direct_post_recv_credits);
+	smb_direct_post_recv_credits(&sc->recv_io.posted.refill_work);
+	if (unlikely(sc->first_error))
+		return sc->first_error;
+	INIT_WORK(&sc->idle.immediate_work, smb_direct_send_immediate_work);
+
+respond:
+	ret = smb_direct_send_negotiate_response(sc, ret);
 
 	return ret;
 }
@@ -2581,7 +2618,7 @@ void ksmbd_rdma_destroy(void)
 	}
 }
 
-bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
+static bool ksmbd_find_rdma_capable_netdev(struct net_device *netdev)
 {
 	struct smb_direct_device *smb_dev;
 	int i;
@@ -2621,6 +2658,28 @@ out:
 		    netdev->name, str_true_false(rdma_capable));
 
 	return rdma_capable;
+}
+
+bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	if (ksmbd_find_rdma_capable_netdev(netdev))
+		return true;
+
+	/* check if netdev is bridge or VLAN */
+	if (netif_is_bridge_master(netdev) ||
+	    netdev->priv_flags & IFF_802_1Q_VLAN)
+		netdev_for_each_lower_dev(netdev, lower_dev, iter)
+			if (ksmbd_find_rdma_capable_netdev(lower_dev))
+				return true;
+
+	/* check if netdev is IPoIB safely without layer violation */
+	if (netdev->type == ARPHRD_INFINIBAND)
+		return true;
+
+	return false;
 }
 
 static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {

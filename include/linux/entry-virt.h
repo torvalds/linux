@@ -32,7 +32,7 @@
  */
 static inline int arch_xfer_to_guest_mode_handle_work(unsigned long ti_work);
 
-#ifndef arch_xfer_to_guest_mode_work
+#ifndef arch_xfer_to_guest_mode_handle_work
 static inline int arch_xfer_to_guest_mode_handle_work(unsigned long ti_work)
 {
 	return 0;
