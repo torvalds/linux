@@ -817,7 +817,6 @@ static int xelpdp_get_dram_info(struct intel_display *display, struct dram_info 
 
 int intel_dram_detect(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct dram_info *dram_info;
 	int ret;
 
@@ -828,7 +827,7 @@ int intel_dram_detect(struct intel_display *display)
 	if (!dram_info)
 		return -ENOMEM;
 
-	i915->dram_info = dram_info;
+	display->dram.info = dram_info;
 
 	if (DISPLAY_VER(display) >= 14)
 		ret = xelpdp_get_dram_info(display, dram_info);
@@ -865,7 +864,5 @@ int intel_dram_detect(struct intel_display *display)
  */
 const struct dram_info *intel_dram_info(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	return i915->dram_info;
+	return display->dram.info;
 }

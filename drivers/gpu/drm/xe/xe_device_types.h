@@ -34,7 +34,6 @@
 #define TEST_VM_OPS_ERROR
 #endif
 
-struct dram_info;
 struct intel_display;
 struct intel_dg_nvm_dev;
 struct xe_ggtt;
@@ -637,7 +636,6 @@ struct xe_device {
 	 * drm_i915_private during build. After cleanup these should go away,
 	 * migrating to the right sub-structs
 	 */
-	const struct dram_info *dram_info;
 
 	struct intel_uncore {
 		spinlock_t lock;

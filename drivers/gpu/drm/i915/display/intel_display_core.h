@@ -395,6 +395,10 @@ struct intel_display {
 	} dsi;
 
 	struct {
+		const struct dram_info *info;
+	} dram;
+
+	struct {
 		/* list of fbdev register on this device */
 		struct intel_fbdev *fbdev;
 	} fbdev;
