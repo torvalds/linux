@@ -21,3 +21,6 @@ config ACPI_AGDI
 
 config ACPI_APMT
 	bool
+
+config ACPI_MPAM
+	bool
