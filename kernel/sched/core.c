@@ -10539,8 +10539,17 @@ static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpu
 
 	/* Adjust the threshold to the wider set */
 	mc->pcpu_thrs = mm_cid_calc_pcpu_thrs(mc);
+	/* Switch back to per task mode? */
+	if (mc->users >= mc->pcpu_thrs)
+		return;
 
-	/* Scheduling of deferred mode switch goes here */
+	/* Don't queue twice */
+	if (mc->update_deferred)
+		return;
+
+	/* Queue the irq work, which schedules the real work */
+	mc->update_deferred = true;
+	irq_work_queue(&mc->irq_work);
 }
 
 static inline void mm_cid_transit_to_task(struct task_struct *t, struct mm_cid_pcpu *pcp)
@@ -10553,7 +10562,7 @@ static inline void mm_cid_transit_to_task(struct task_struct *t, struct mm_cid_p
 	}
 }
 
-static void __maybe_unused mm_cid_fixup_cpus_to_tasks(struct mm_struct *mm)
+static void mm_cid_fixup_cpus_to_tasks(struct mm_struct *mm)
 {
 	unsigned int cpu;
 
@@ -10714,14 +10723,47 @@ void sched_mm_cid_after_execve(struct task_struct *t)
 	mm_cid_select(t);
 }
 
+static void mm_cid_work_fn(struct work_struct *work)
+{
+	struct mm_struct *mm = container_of(work, struct mm_struct, mm_cid.work);
+
+	/* Make it compile, but not functional yet */
+	if (!IS_ENABLED(CONFIG_NEW_MM_CID))
+		return;
+
+	guard(mutex)(&mm->mm_cid.mutex);
+	/* Did the last user task exit already? */
+	if (!mm->mm_cid.users)
+		return;
+
+	scoped_guard(raw_spinlock_irq, &mm->mm_cid.lock) {
+		/* Have fork() or exit() handled it already? */
+		if (!mm->mm_cid.update_deferred)
+			return;
+		/* This clears mm_cid::update_deferred */
+		if (!mm_update_max_cids(mm))
+			return;
+		/* Affinity changes can only switch back to task mode */
+		if (WARN_ON_ONCE(mm->mm_cid.percpu))
+			return;
+	}
+	mm_cid_fixup_cpus_to_tasks(mm);
+}
+
+static void mm_cid_irq_work(struct irq_work *work)
+{
+	struct mm_struct *mm = container_of(work, struct mm_struct, mm_cid.irq_work);
+
+	/*
+	 * Needs to be unconditional because mm_cid::lock cannot be held
+	 * when scheduling work as mm_update_cpus_allowed() nests inside
+	 * rq::lock and schedule_work() might end up in wakeup...
+	 */
+	schedule_work(&mm->mm_cid.work);
+}
+
 void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
 {
-	struct mm_cid_pcpu __percpu *pcpu = mm->mm_cid.pcpu;
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu_ptr(pcpu, cpu)->cid = MM_CID_UNSET;
-
 	mm->mm_cid.max_cids = 0;
 	mm->mm_cid.percpu = 0;
 	mm->mm_cid.transit = 0;
@@ -10731,6 +10773,8 @@ void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
 	mm->mm_cid.update_deferred = 0;
 	raw_spin_lock_init(&mm->mm_cid.lock);
 	mutex_init(&mm->mm_cid.mutex);
+	mm->mm_cid.irq_work = IRQ_WORK_INIT_HARD(mm_cid_irq_work);
+	INIT_WORK(&mm->mm_cid.work, mm_cid_work_fn);
 	cpumask_copy(mm_cpus_allowed(mm), &p->cpus_mask);
 	bitmap_zero(mm_cidmask(mm), num_possible_cpus());
 }

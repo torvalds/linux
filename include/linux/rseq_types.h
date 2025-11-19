@@ -2,7 +2,9 @@
 #ifndef _LINUX_RSEQ_TYPES_H
 #define _LINUX_RSEQ_TYPES_H
 
+#include <linux/irq_work_types.h>
 #include <linux/types.h>
+#include <linux/workqueue_types.h>
 
 #ifdef CONFIG_RSEQ
 struct rseq;
@@ -122,6 +124,8 @@ struct mm_cid_pcpu {
  * @percpu:		Set, when CIDs are in per CPU mode
  * @transit:		Set to MM_CID_TRANSIT during a mode change transition phase
  * @max_cids:		The exclusive maximum CID value for allocation and convergence
+ * @irq_work:		irq_work to handle the affinity mode change case
+ * @work:		Regular work to handle the affinity mode change case
  * @lock:		Spinlock to protect against affinity setting which can't take @mutex
  * @mutex:		Mutex to serialize forks and exits related to this mm
  * @nr_cpus_allowed:	The number of CPUs in the per MM allowed CPUs map. The map
@@ -138,6 +142,10 @@ struct mm_mm_cid {
 	unsigned int		percpu;
 	unsigned int		transit;
 	unsigned int		max_cids;
+
+	/* Rarely used. Moves @lock and @mutex into the second cacheline */
+	struct irq_work		irq_work;
+	struct work_struct	work;
 
 	raw_spinlock_t		lock;
 	struct mutex		mutex;
