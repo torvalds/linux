@@ -2180,24 +2180,31 @@ static void xhci_clear_hub_tt_buffer(struct xhci_hcd *xhci, struct xhci_td *td,
  * External device side is also halted in functional stall cases. Class driver
  * will clear the device halt with a CLEAR_FEATURE(ENDPOINT_HALT) request later.
  */
-static bool xhci_halted_host_endpoint(struct xhci_ep_ctx *ep_ctx, unsigned int comp_code)
+static bool xhci_halted_host_endpoint(struct xhci_hcd *xhci, struct xhci_ep_ctx *ep_ctx,
+				      unsigned int comp_code)
 {
-	/* Stall halts both internal and device side endpoint */
-	if (comp_code == COMP_STALL_ERROR)
-		return true;
+	int ep_type = CTX_TO_EP_TYPE(le32_to_cpu(ep_ctx->ep_info2));
 
-	/* TRB completion codes that may require internal halt cleanup */
-	if (comp_code == COMP_USB_TRANSACTION_ERROR ||
-	    comp_code == COMP_BABBLE_DETECTED_ERROR ||
-	    comp_code == COMP_SPLIT_TRANSACTION_ERROR)
+	switch (comp_code) {
+	case COMP_STALL_ERROR:
+		/* on xHCI this always halts, including protocol stall */
+		return true;
+	case COMP_BABBLE_DETECTED_ERROR:
 		/*
 		 * The 0.95 spec says a babbling control endpoint is not halted.
 		 * The 0.96 spec says it is. Some HW claims to be 0.95
 		 * compliant, but it halts the control endpoint anyway.
 		 * Check endpoint context if endpoint is halted.
 		 */
-		if (GET_EP_CTX_STATE(ep_ctx) == EP_STATE_HALTED)
-			return true;
+		if (xhci->hci_version <= 0x95 && ep_type == CTRL_EP)
+			return GET_EP_CTX_STATE(ep_ctx) == EP_STATE_HALTED;
+
+		fallthrough;
+	case COMP_USB_TRANSACTION_ERROR:
+	case COMP_SPLIT_TRANSACTION_ERROR:
+		/* these errors halt all non-isochronous endpoints */
+		return ep_type != ISOC_IN_EP && ep_type != ISOC_OUT_EP;
+	}
 
 	return false;
 }
@@ -2234,41 +2241,9 @@ static void finish_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 		 * the ring dequeue pointer or take this TD off any lists yet.
 		 */
 		return;
-	case COMP_USB_TRANSACTION_ERROR:
-	case COMP_BABBLE_DETECTED_ERROR:
-	case COMP_SPLIT_TRANSACTION_ERROR:
-		/*
-		 * If endpoint context state is not halted we might be
-		 * racing with a reset endpoint command issued by a unsuccessful
-		 * stop endpoint completion (context error). In that case the
-		 * td should be on the cancelled list, and EP_HALTED flag set.
-		 *
-		 * Or then it's not halted due to the 0.95 spec stating that a
-		 * babbling control endpoint should not halt. The 0.96 spec
-		 * again says it should.  Some HW claims to be 0.95 compliant,
-		 * but it halts the control endpoint anyway.
-		 */
-		if (GET_EP_CTX_STATE(ep_ctx) != EP_STATE_HALTED) {
-			/*
-			 * If EP_HALTED is set and TD is on the cancelled list
-			 * the TD and dequeue pointer will be handled by reset
-			 * ep command completion
-			 */
-			if ((ep->ep_state & EP_HALTED) &&
-			    !list_empty(&td->cancelled_td_list)) {
-				xhci_dbg(xhci, "Already resolving halted ep for 0x%llx\n",
-					 (unsigned long long)xhci_trb_virt_to_dma(
-						 td->start_seg, td->start_trb));
-				return;
-			}
-			/* endpoint not halted, don't reset it */
-			break;
-		}
-		/* Almost same procedure as for STALL_ERROR below */
-		xhci_clear_hub_tt_buffer(xhci, td, ep);
-		xhci_handle_halted_endpoint(xhci, ep, td, EP_HARD_RESET);
-		return;
-	case COMP_STALL_ERROR:
+	}
+
+	if (xhci_halted_host_endpoint(xhci, ep_ctx, trb_comp_code)) {
 		/*
 		 * xhci internal endpoint state will go to a "halt" state for
 		 * any stall, including default control pipe protocol stall.
@@ -2279,14 +2254,12 @@ static void finish_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 		 * stall later. Hub TT buffer should only be cleared for FS/LS
 		 * devices behind HS hubs for functional stalls.
 		 */
-		if (ep->ep_index != 0)
+		if (!(ep->ep_index == 0 && trb_comp_code == COMP_STALL_ERROR))
 			xhci_clear_hub_tt_buffer(xhci, td, ep);
 
 		xhci_handle_halted_endpoint(xhci, ep, td, EP_HARD_RESET);
 
 		return; /* xhci_handle_halted_endpoint marked td cancelled */
-	default:
-		break;
 	}
 
 	xhci_dequeue_td(xhci, td, ep_ring, td->status);
@@ -2363,7 +2336,7 @@ static void process_ctrl_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 	case COMP_STOPPED_LENGTH_INVALID:
 		goto finish_td;
 	default:
-		if (!xhci_halted_host_endpoint(ep_ctx, trb_comp_code))
+		if (!xhci_halted_host_endpoint(xhci, ep_ctx, trb_comp_code))
 			break;
 		xhci_dbg(xhci, "TRB error %u, halted endpoint index = %u\n",
 			 trb_comp_code, ep->ep_index);
@@ -2973,7 +2946,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	return 0;
 
 check_endpoint_halted:
-	if (xhci_halted_host_endpoint(ep_ctx, trb_comp_code))
+	if (xhci_halted_host_endpoint(xhci, ep_ctx, trb_comp_code))
 		xhci_handle_halted_endpoint(xhci, ep, td, EP_HARD_RESET);
 
 	return 0;
