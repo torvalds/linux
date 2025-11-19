@@ -34,14 +34,13 @@
 #include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 
-#include "soc/intel_rom.h"
-
 #include "intel_display.h"
 #include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
 #include "intel_gmbus.h"
+#include "intel_rom.h"
 
 #define _INTEL_BIOS_PRIVATE
 #include "intel_vbt_defs.h"
