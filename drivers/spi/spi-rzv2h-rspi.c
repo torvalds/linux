@@ -67,7 +67,18 @@
 
 #define RSPI_RESET_NUM		2
 
+struct rzv2h_rspi_best_clock {
+	struct clk *clk;
+	unsigned long clk_rate;
+	unsigned long error;
+	u32 actual_hz;
+	u8 brdv;
+	u8 spr;
+};
+
 struct rzv2h_rspi_info {
+	void (*find_tclk_rate)(struct clk *clk, u32 hz, u8 spr_min, u8 spr_max,
+			       struct rzv2h_rspi_best_clock *best_clk);
 	const char *tclk_name;
 	unsigned int fifo_size;
 	unsigned int num_clks;
@@ -240,9 +251,13 @@ static inline u32 rzv2h_rspi_calc_bitrate(unsigned long tclk_rate, u8 spr,
 	return DIV_ROUND_UP(tclk_rate, (2 * (spr + 1) * (1 << brdv)));
 }
 
-static u32 rzv2h_rspi_setup_clock(struct rzv2h_rspi_priv *rspi, u32 hz)
+static void rzv2h_rspi_find_rate_fixed(struct clk *clk, u32 hz,
+				       u8 spr_min, u8 spr_max,
+				       struct rzv2h_rspi_best_clock *best)
 {
-	unsigned long tclk_rate;
+	unsigned long clk_rate;
+	unsigned long error;
+	u32 actual_hz;
 	int spr;
 	u8 brdv;
 
@@ -255,21 +270,49 @@ static u32 rzv2h_rspi_setup_clock(struct rzv2h_rspi_priv *rspi, u32 hz)
 	 * * n = SPR - is RSPI_SPBR.SPR (from 0 to 255)
 	 * * N = BRDV - is RSPI_SPCMD.BRDV (from 0 to 3)
 	 */
-	tclk_rate = clk_get_rate(rspi->tclk);
+	clk_rate = clk_get_rate(clk);
 	for (brdv = RSPI_SPCMD_BRDV_MIN; brdv <= RSPI_SPCMD_BRDV_MAX; brdv++) {
-		spr = DIV_ROUND_UP(tclk_rate, hz * (1 << (brdv + 1)));
+		spr = DIV_ROUND_UP(clk_rate, hz * (1 << (brdv + 1)));
 		spr--;
-		if (spr >= RSPI_SPBR_SPR_MIN && spr <= RSPI_SPBR_SPR_MAX)
+		if (spr >= spr_min && spr <= spr_max)
 			goto clock_found;
 	}
 
-	return 0;
+	return;
 
 clock_found:
-	rspi->spr = spr;
-	rspi->brdv = brdv;
+	actual_hz = rzv2h_rspi_calc_bitrate(clk_rate, spr, brdv);
+	error = abs((long)hz - (long)actual_hz);
 
-	return rzv2h_rspi_calc_bitrate(tclk_rate, spr, brdv);
+	if (error >= best->error)
+		return;
+
+	*best = (struct rzv2h_rspi_best_clock) {
+		.clk = clk,
+		.clk_rate = clk_rate,
+		.error = error,
+		.actual_hz = actual_hz,
+		.brdv = brdv,
+		.spr = spr,
+	};
+}
+
+static u32 rzv2h_rspi_setup_clock(struct rzv2h_rspi_priv *rspi, u32 hz)
+{
+	struct rzv2h_rspi_best_clock best_clock = {
+		.error = ULONG_MAX,
+	};
+
+	rspi->info->find_tclk_rate(rspi->tclk, hz, RSPI_SPBR_SPR_MIN,
+				   RSPI_SPBR_SPR_MAX, &best_clock);
+
+	if (!best_clock.clk_rate)
+		return -EINVAL;
+
+	rspi->spr = best_clock.spr;
+	rspi->brdv = best_clock.brdv;
+
+	return best_clock.actual_hz;
 }
 
 static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
@@ -463,6 +506,7 @@ static void rzv2h_rspi_remove(struct platform_device *pdev)
 }
 
 static const struct rzv2h_rspi_info rzv2h_info = {
+	.find_tclk_rate = rzv2h_rspi_find_rate_fixed,
 	.tclk_name = "tclk",
 	.fifo_size = 16,
 	.num_clks = 3,
