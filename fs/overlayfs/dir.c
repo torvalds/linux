@@ -1094,6 +1094,14 @@ static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 	return err;
 }
 
+struct ovl_renamedata {
+	struct renamedata;
+	struct dentry *opaquedir;
+	bool cleanup_whiteout;
+	bool update_nlink;
+	bool overwrite;
+};
+
 static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 		      struct dentry *old, struct inode *newdir,
 		      struct dentry *new, unsigned int flags)
@@ -1104,49 +1112,53 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	struct renamedata rd = {};
 	bool old_opaque;
 	bool new_opaque;
-	bool cleanup_whiteout = false;
-	bool update_nlink = false;
-	bool overwrite = !(flags & RENAME_EXCHANGE);
 	bool is_dir = d_is_dir(old);
 	bool new_is_dir = d_is_dir(new);
-	bool samedir = olddir == newdir;
-	struct dentry *opaquedir = NULL;
+	bool samedir = old->d_parent == new->d_parent;
 	struct dentry *whiteout = NULL;
 	const struct cred *old_cred = NULL;
 	struct ovl_fs *ofs = OVL_FS(old->d_sb);
+	struct ovl_renamedata _ovlrd = {
+		.old_dentry		= old,
+		.new_dentry		= new,
+		.flags			= flags,
+		.cleanup_whiteout	= false,
+		.overwrite		= !(flags & RENAME_EXCHANGE),
+	};
+	struct ovl_renamedata *ovlrd = &_ovlrd;
 	LIST_HEAD(list);
 
 	err = -EINVAL;
-	if (flags & ~(RENAME_EXCHANGE | RENAME_NOREPLACE))
+	if (ovlrd->flags & ~(RENAME_EXCHANGE | RENAME_NOREPLACE))
 		goto out;
 
-	flags &= ~RENAME_NOREPLACE;
+	ovlrd->flags &= ~RENAME_NOREPLACE;
 
 	/* Don't copy up directory trees */
 	err = -EXDEV;
 	if (!ovl_can_move(old))
 		goto out;
-	if (!overwrite && !ovl_can_move(new))
+	if (!ovlrd->overwrite && !ovl_can_move(new))
 		goto out;
 
-	if (overwrite && new_is_dir && !ovl_pure_upper(new)) {
+	if (ovlrd->overwrite && new_is_dir && !ovl_pure_upper(new)) {
 		err = ovl_check_empty_dir(new, &list);
 		if (err)
 			goto out;
 	}
 
-	if (overwrite) {
+	if (ovlrd->overwrite) {
 		if (ovl_lower_positive(old)) {
 			if (!ovl_dentry_is_whiteout(new)) {
 				/* Whiteout source */
-				flags |= RENAME_WHITEOUT;
+				ovlrd->flags |= RENAME_WHITEOUT;
 			} else {
 				/* Switch whiteouts */
-				flags |= RENAME_EXCHANGE;
+				ovlrd->flags |= RENAME_EXCHANGE;
 			}
 		} else if (is_dir && ovl_dentry_is_whiteout(new)) {
-			flags |= RENAME_EXCHANGE;
-			cleanup_whiteout = true;
+			ovlrd->flags |= RENAME_EXCHANGE;
+			ovlrd->cleanup_whiteout = true;
 		}
 	}
 
@@ -1157,7 +1169,7 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	err = ovl_copy_up(new->d_parent);
 	if (err)
 		goto out;
-	if (!overwrite) {
+	if (!ovlrd->overwrite) {
 		err = ovl_copy_up(new);
 		if (err)
 			goto out;
@@ -1166,10 +1178,10 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 		if (err)
 			goto out;
 
-		update_nlink = true;
+		ovlrd->update_nlink = true;
 	}
 
-	if (!update_nlink) {
+	if (!ovlrd->update_nlink) {
 		/* ovl_nlink_start() took ovl_want_write() */
 		err = ovl_want_write(old);
 		if (err)
@@ -1179,10 +1191,10 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	old_cred = ovl_override_creds(old->d_sb);
 
 	if (!list_empty(&list)) {
-		opaquedir = ovl_clear_empty(new, &list);
-		err = PTR_ERR(opaquedir);
-		if (IS_ERR(opaquedir)) {
-			opaquedir = NULL;
+		ovlrd->opaquedir = ovl_clear_empty(new, &list);
+		err = PTR_ERR(ovlrd->opaquedir);
+		if (IS_ERR(ovlrd->opaquedir)) {
+			ovlrd->opaquedir = NULL;
 			goto out_revert_creds;
 		}
 	}
@@ -1202,7 +1214,7 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 			if (err)
 				goto out_revert_creds;
 		}
-		if (!overwrite && ovl_type_origin(new)) {
+		if (!ovlrd->overwrite && ovl_type_origin(new)) {
 			err = ovl_set_impure(old->d_parent, old_upperdir);
 			if (err)
 				goto out_revert_creds;
@@ -1212,7 +1224,7 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	rd.mnt_idmap = ovl_upper_mnt_idmap(ofs);
 	rd.old_parent = old_upperdir;
 	rd.new_parent = new_upperdir;
-	rd.flags = flags;
+	rd.flags = ovlrd->flags;
 
 	err = start_renaming(&rd, 0,
 			     &QSTR_LEN(old->d_name.name, old->d_name.len),
@@ -1230,8 +1242,8 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 
 	err = -ESTALE;
 	if (d_inode(new) && ovl_dentry_upper(new)) {
-		if (opaquedir) {
-			if (rd.new_dentry != opaquedir)
+		if (ovlrd->opaquedir) {
+			if (rd.new_dentry != ovlrd->opaquedir)
 				goto out_unlock;
 		} else {
 			if (!ovl_matches_upper(new, rd.new_dentry))
@@ -1242,7 +1254,7 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 			if (!new_opaque || !ovl_upper_is_whiteout(ofs, rd.new_dentry))
 				goto out_unlock;
 		} else {
-			if (flags & RENAME_EXCHANGE)
+			if (ovlrd->flags & RENAME_EXCHANGE)
 				goto out_unlock;
 		}
 	}
@@ -1258,9 +1270,9 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	if (err)
 		goto out_unlock;
 
-	if (!overwrite && ovl_type_merge_or_lower(new))
+	if (!ovlrd->overwrite && ovl_type_merge_or_lower(new))
 		err = ovl_set_redirect(new, samedir);
-	else if (!overwrite && new_is_dir && !new_opaque &&
+	else if (!ovlrd->overwrite && new_is_dir && !new_opaque &&
 		 ovl_type_merge(old->d_parent))
 		err = ovl_set_opaque_xerr(new, rd.new_dentry, -EXDEV);
 	if (err)
@@ -1268,7 +1280,7 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 
 	err = ovl_do_rename_rd(&rd);
 
-	if (!err && cleanup_whiteout)
+	if (!err && ovlrd->cleanup_whiteout)
 		whiteout = dget(rd.new_dentry);
 
 	end_renaming(&rd);
@@ -1281,7 +1293,7 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 		dput(whiteout);
 	}
 
-	if (overwrite && d_inode(new)) {
+	if (ovlrd->overwrite && d_inode(new)) {
 		if (new_is_dir)
 			clear_nlink(d_inode(new));
 		else
@@ -1289,7 +1301,7 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	}
 
 	ovl_dir_modified(old->d_parent, ovl_type_origin(old) ||
-			 (!overwrite && ovl_type_origin(new)));
+			 (!ovlrd->overwrite && ovl_type_origin(new)));
 	ovl_dir_modified(new->d_parent, ovl_type_origin(old) ||
 			 (d_inode(new) && ovl_type_origin(new)));
 
@@ -1300,12 +1312,12 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 
 out_revert_creds:
 	ovl_revert_creds(old_cred);
-	if (update_nlink)
+	if (ovlrd->update_nlink)
 		ovl_nlink_end(new);
 	else
 		ovl_drop_write(old);
 out:
-	dput(opaquedir);
+	dput(ovlrd->opaquedir);
 	ovl_cache_free(&list);
 	return err;
 
