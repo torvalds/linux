@@ -86,8 +86,12 @@ DEFINE_SPINLOCK(ap_queues_lock);
 /* Default permissions (ioctl, card and domain masking) */
 struct ap_perms ap_perms;
 EXPORT_SYMBOL(ap_perms);
-DEFINE_MUTEX(ap_perms_mutex);
-EXPORT_SYMBOL(ap_perms_mutex);
+/*
+ * Mutex for consistent read and write of the ap_perms struct
+ * and the ap bus sysfs attributes apmask and aqmask.
+ */
+DEFINE_MUTEX(ap_attr_mutex);
+EXPORT_SYMBOL(ap_attr_mutex);
 
 /* # of bindings complete since init */
 static atomic64_t ap_bindings_complete_count = ATOMIC64_INIT(0);
@@ -871,10 +875,10 @@ static int __ap_revise_reserved(struct device *dev, void *dummy)
 				}
 			}
 		} else {
-			mutex_lock(&ap_perms_mutex);
+			mutex_lock(&ap_attr_mutex);
 			devres = test_bit_inv(card, ap_perms.apm) &&
 				test_bit_inv(queue, ap_perms.aqm);
-			mutex_unlock(&ap_perms_mutex);
+			mutex_unlock(&ap_attr_mutex);
 			drvres = to_ap_drv(dev->driver)->flags
 				& AP_DRIVER_FLAG_DEFAULT;
 			if (!!devres != !!drvres) {
@@ -902,7 +906,7 @@ static void ap_bus_revise_bindings(void)
  * @card: the APID of the adapter card to check
  * @queue: the APQI of the queue to check
  *
- * Note: the ap_perms_mutex must be locked by the caller of this function.
+ * Note: the ap_attr_mutex must be locked by the caller of this function.
  *
  * Return: an int specifying whether the AP adapter is reserved for the host (1)
  *	   or not (0).
@@ -944,7 +948,7 @@ EXPORT_SYMBOL(ap_owned_by_def_drv);
  * @apm: a bitmap specifying a set of APIDs comprising the APQNs to check
  * @aqm: a bitmap specifying a set of APQIs comprising the APQNs to check
  *
- * Note: the ap_perms_mutex must be locked by the caller of this function.
+ * Note: the ap_attr_mutex must be locked by the caller of this function.
  *
  * Return: an int specifying whether each APQN is reserved for the host (1) or
  *	   not (0)
@@ -987,10 +991,10 @@ static int ap_device_probe(struct device *dev)
 				   ap_drv->driver.name))
 				goto out;
 		} else {
-			mutex_lock(&ap_perms_mutex);
+			mutex_lock(&ap_attr_mutex);
 			devres = test_bit_inv(card, ap_perms.apm) &&
 				test_bit_inv(queue, ap_perms.aqm);
-			mutex_unlock(&ap_perms_mutex);
+			mutex_unlock(&ap_attr_mutex);
 			drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
 			if (!!devres != !!drvres)
 				goto out;
@@ -1483,12 +1487,12 @@ static ssize_t apmask_show(const struct bus_type *bus, char *buf)
 {
 	int rc;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 	rc = sysfs_emit(buf, "0x%016lx%016lx%016lx%016lx\n",
 			ap_perms.apm[0], ap_perms.apm[1],
 			ap_perms.apm[2], ap_perms.apm[3]);
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return rc;
 }
@@ -1547,7 +1551,7 @@ static ssize_t apmask_store(const struct bus_type *bus, const char *buf,
 	int rc, changes = 0;
 	DECLARE_BITMAP(newapm, AP_DEVICES);
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	rc = ap_parse_bitmap_str(buf, ap_perms.apm, AP_DEVICES, newapm);
@@ -1559,7 +1563,7 @@ static ssize_t apmask_store(const struct bus_type *bus, const char *buf,
 		rc = apmask_commit(newapm);
 
 done:
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -1577,12 +1581,12 @@ static ssize_t aqmask_show(const struct bus_type *bus, char *buf)
 {
 	int rc;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 	rc = sysfs_emit(buf, "0x%016lx%016lx%016lx%016lx\n",
 			ap_perms.aqm[0], ap_perms.aqm[1],
 			ap_perms.aqm[2], ap_perms.aqm[3]);
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return rc;
 }
@@ -1641,7 +1645,7 @@ static ssize_t aqmask_store(const struct bus_type *bus, const char *buf,
 	int rc, changes = 0;
 	DECLARE_BITMAP(newaqm, AP_DOMAINS);
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	rc = ap_parse_bitmap_str(buf, ap_perms.aqm, AP_DOMAINS, newaqm);
@@ -1653,7 +1657,7 @@ static ssize_t aqmask_store(const struct bus_type *bus, const char *buf,
 		rc = aqmask_commit(newaqm);
 
 done:
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -2524,14 +2528,14 @@ static void __init ap_perms_init(void)
 	if (apm_str) {
 		memset(&ap_perms.apm, 0, sizeof(ap_perms.apm));
 		ap_parse_mask_str(apm_str, ap_perms.apm, AP_DEVICES,
-				  &ap_perms_mutex);
+				  &ap_attr_mutex);
 	}
 
 	/* aqm kernel parameter string */
 	if (aqm_str) {
 		memset(&ap_perms.aqm, 0, sizeof(ap_perms.aqm));
 		ap_parse_mask_str(aqm_str, ap_perms.aqm, AP_DOMAINS,
-				  &ap_perms_mutex);
+				  &ap_attr_mutex);
 	}
 }
 

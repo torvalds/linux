@@ -162,7 +162,7 @@ static ssize_t ioctlmask_show(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 	int i, n;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	n = sysfs_emit(buf, "0x");
@@ -170,7 +170,7 @@ static ssize_t ioctlmask_show(struct device *dev,
 		n += sysfs_emit_at(buf, n, "%016lx", zcdndev->perms.ioctlm[i]);
 	n += sysfs_emit_at(buf, n, "\n");
 
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return n;
 }
@@ -183,7 +183,7 @@ static ssize_t ioctlmask_store(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
 	rc = ap_parse_mask_str(buf, zcdndev->perms.ioctlm,
-			       AP_IOCTLS, &ap_perms_mutex);
+			       AP_IOCTLS, &ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -199,7 +199,7 @@ static ssize_t apmask_show(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 	int i, n;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	n = sysfs_emit(buf, "0x");
@@ -207,7 +207,7 @@ static ssize_t apmask_show(struct device *dev,
 		n += sysfs_emit_at(buf, n, "%016lx", zcdndev->perms.apm[i]);
 	n += sysfs_emit_at(buf, n, "\n");
 
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return n;
 }
@@ -220,7 +220,7 @@ static ssize_t apmask_store(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
 	rc = ap_parse_mask_str(buf, zcdndev->perms.apm,
-			       AP_DEVICES, &ap_perms_mutex);
+			       AP_DEVICES, &ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -236,7 +236,7 @@ static ssize_t aqmask_show(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 	int i, n;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	n = sysfs_emit(buf, "0x");
@@ -244,7 +244,7 @@ static ssize_t aqmask_show(struct device *dev,
 		n += sysfs_emit_at(buf, n, "%016lx", zcdndev->perms.aqm[i]);
 	n += sysfs_emit_at(buf, n, "\n");
 
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return n;
 }
@@ -257,7 +257,7 @@ static ssize_t aqmask_store(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
 	rc = ap_parse_mask_str(buf, zcdndev->perms.aqm,
-			       AP_DOMAINS, &ap_perms_mutex);
+			       AP_DOMAINS, &ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -273,7 +273,7 @@ static ssize_t admask_show(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 	int i, n;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	n = sysfs_emit(buf, "0x");
@@ -281,7 +281,7 @@ static ssize_t admask_show(struct device *dev,
 		n += sysfs_emit_at(buf, n, "%016lx", zcdndev->perms.adm[i]);
 	n += sysfs_emit_at(buf, n, "\n");
 
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return n;
 }
@@ -294,7 +294,7 @@ static ssize_t admask_store(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
 	rc = ap_parse_mask_str(buf, zcdndev->perms.adm,
-			       AP_DOMAINS, &ap_perms_mutex);
+			       AP_DOMAINS, &ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -370,7 +370,7 @@ static int zcdn_create(const char *name)
 	int i, rc = 0;
 	struct zcdn_device *zcdndev;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	/* check if device node with this name already exists */
@@ -425,7 +425,7 @@ static int zcdn_create(const char *name)
 			__func__, MAJOR(devt), MINOR(devt));
 
 unlockout:
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	return rc;
 }
 
@@ -434,7 +434,7 @@ static int zcdn_destroy(const char *name)
 	int rc = 0;
 	struct zcdn_device *zcdndev;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	/* try to find this zcdn device */
@@ -452,7 +452,7 @@ static int zcdn_destroy(const char *name)
 	device_unregister(&zcdndev->device);
 
 unlockout:
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	return rc;
 }
 
@@ -462,7 +462,7 @@ static void zcdn_destroy_all(void)
 	dev_t devt;
 	struct zcdn_device *zcdndev;
 
-	mutex_lock(&ap_perms_mutex);
+	mutex_lock(&ap_attr_mutex);
 	for (i = 0; i < ZCRYPT_MAX_MINOR_NODES; i++) {
 		devt = MKDEV(MAJOR(zcrypt_devt), MINOR(zcrypt_devt) + i);
 		zcdndev = find_zcdndev_by_devt(devt);
@@ -471,7 +471,7 @@ static void zcdn_destroy_all(void)
 			device_unregister(&zcdndev->device);
 		}
 	}
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 }
 
 /*
@@ -508,11 +508,11 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
-		if (mutex_lock_interruptible(&ap_perms_mutex))
+		if (mutex_lock_interruptible(&ap_attr_mutex))
 			return -ERESTARTSYS;
 		zcdndev = find_zcdndev_by_devt(filp->f_inode->i_rdev);
 		/* find returns a reference, no get_device() needed */
-		mutex_unlock(&ap_perms_mutex);
+		mutex_unlock(&ap_attr_mutex);
 		if (zcdndev)
 			perms = &zcdndev->perms;
 	}
@@ -532,9 +532,9 @@ static int zcrypt_release(struct inode *inode, struct file *filp)
 	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
-		mutex_lock(&ap_perms_mutex);
+		mutex_lock(&ap_attr_mutex);
 		zcdndev = find_zcdndev_by_devt(filp->f_inode->i_rdev);
-		mutex_unlock(&ap_perms_mutex);
+		mutex_unlock(&ap_attr_mutex);
 		if (zcdndev) {
 			/* 2 puts here: one for find, one for open */
 			put_device(&zcdndev->device);
