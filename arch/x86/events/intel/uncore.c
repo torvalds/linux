@@ -1325,8 +1325,6 @@ static void uncore_pci_sub_driver_init(void)
 				continue;
 
 			pmu = &type->pmus[UNCORE_PCI_DEV_IDX(ids->driver_data)];
-			if (!pmu)
-				continue;
 
 			if (uncore_pci_get_dev_die_info(pci_sub_dev, &die))
 				continue;
