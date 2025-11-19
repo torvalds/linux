@@ -1669,9 +1669,12 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		if (adev->in_suspend && smu_is_dpm_running(smu)) {
 			dev_info(adev->dev, "dpm has been enabled\n");
 			ret = smu_system_features_control(smu, true);
-			if (ret)
+			if (ret) {
 				dev_err(adev->dev, "Failed system features control!\n");
-			return ret;
+				return ret;
+			}
+
+			return smu_enable_thermal_alert(smu);
 		}
 		break;
 	default:
