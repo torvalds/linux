@@ -403,7 +403,7 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	struct io_ring_ctx_rings o = { }, n = { }, *to_free = NULL;
 	unsigned i, tail, old_head;
 	struct io_uring_params *p = &config.p;
-	struct io_rings_layout __rl, *rl = &__rl;
+	struct io_rings_layout *rl = &config.layout;
 	int ret;
 
 	memset(&config, 0, sizeof(config));
