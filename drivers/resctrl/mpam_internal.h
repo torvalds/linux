@@ -9,6 +9,7 @@
 #include <linux/bitmap.h>
 #include <linux/cpumask.h>
 #include <linux/io.h>
+#include <linux/jump_label.h>
 #include <linux/llist.h>
 #include <linux/mutex.h>
 #include <linux/srcu.h>
@@ -19,6 +20,13 @@
 #define MPAM_MSC_MAX_NUM_RIS	16
 
 struct platform_device;
+
+DECLARE_STATIC_KEY_FALSE(mpam_enabled);
+
+static inline bool mpam_is_enabled(void)
+{
+	return static_branch_likely(&mpam_enabled);
+}
 
 /*
  * Structures protected by SRCU may not be freed for a surprising amount of
