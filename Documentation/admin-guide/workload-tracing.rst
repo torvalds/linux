@@ -196,11 +196,11 @@ Let’s checkout the latest Linux repository and build cscope database::
   cscope -R -p10  # builds cscope.out database before starting browse session
   cscope -d -p10  # starts browse session on cscope.out database
 
-Note: Run "cscope -R -p10" to build the database and c"scope -d -p10" to
-enter into the browsing session. cscope by default cscope.out database.
-To get out of this mode press ctrl+d. -p option is used to specify the
-number of file path components to display. -p10 is optimal for browsing
-kernel sources.
+Note: Run "cscope -R -p10" to build the database and "cscope -d -p10" to
+enter into the browsing session. cscope by default uses the cscope.out
+database. To get out of this mode press ctrl+d. -p option is used to
+specify the number of file path components to display. -p10 is optimal
+for browsing kernel sources.
 
 What is perf and how do we use it?
 ==================================
