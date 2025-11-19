@@ -1204,7 +1204,7 @@ void gnttab_foreach_grant_in_range(struct page *page,
 	unsigned int glen;
 	unsigned long xen_pfn;
 
-	len = min_t(unsigned int, PAGE_SIZE - offset, len);
+	len = min(PAGE_SIZE - offset, len);
 	goffset = xen_offset_in_page(offset);
 
 	xen_pfn = page_to_xen_pfn(page) + XEN_PFN_DOWN(offset);
