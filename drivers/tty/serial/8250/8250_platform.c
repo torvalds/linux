@@ -30,7 +30,7 @@
  * share_irqs:     Whether we pass IRQF_SHARED to request_irq().
  *                 This option is unsafe when used on edge-triggered interrupts.
  */
-unsigned int share_irqs = SERIAL8250_SHARE_IRQS;
+static bool share_irqs = IS_ENABLED(CONFIG_SERIAL_8250_SHARE_IRQ);
 
 unsigned int nr_uarts = CONFIG_SERIAL_8250_RUNTIME_UARTS;
 
@@ -378,7 +378,7 @@ module_exit(serial8250_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic 8250/16x50 serial platform driver");
 
-module_param_hw(share_irqs, uint, other, 0644);
+module_param_hw(share_irqs, bool, other, 0644);
 MODULE_PARM_DESC(share_irqs, "Share IRQs with other non-8250/16x50 devices (unsafe)");
 
 module_param(nr_uarts, uint, 0644);
