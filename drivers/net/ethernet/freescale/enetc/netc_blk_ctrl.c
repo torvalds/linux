@@ -67,6 +67,9 @@
 #define IERB_EMDIOFAUXR			0x344
 #define IERB_T0FAUXR			0x444
 #define IERB_ETBCR(a)			(0x300c + 0x100 * (a))
+#define IERB_LBCR(a)			(0x1010 + 0x40 * (a))
+#define  LBCR_MDIO_PHYAD_PRTAD(addr)	(((addr) & 0x1f) << 8)
+
 #define IERB_EFAUXR(a)			(0x3044 + 0x100 * (a))
 #define IERB_VFAUXR(a)			(0x4004 + 0x40 * (a))
 #define FAUXR_LDID			GENMASK(3, 0)
@@ -322,6 +325,142 @@ static int netc_unlock_ierb_with_warm_reset(struct netc_blk_ctrl *priv)
 				 1000, 100000, true, priv->prb, PRB_NETCRR);
 }
 
+static int netc_get_phy_addr(struct device_node *np)
+{
+	struct device_node *mdio_node, *phy_node;
+	u32 addr = 0;
+	int err = 0;
+
+	mdio_node = of_get_child_by_name(np, "mdio");
+	if (!mdio_node)
+		return 0;
+
+	phy_node = of_get_next_child(mdio_node, NULL);
+	if (!phy_node)
+		goto of_put_mdio_node;
+
+	err = of_property_read_u32(phy_node, "reg", &addr);
+	if (err)
+		goto of_put_phy_node;
+
+	if (addr >= PHY_MAX_ADDR)
+		err = -EINVAL;
+
+of_put_phy_node:
+	of_node_put(phy_node);
+
+of_put_mdio_node:
+	of_node_put(mdio_node);
+
+	return err ? err : addr;
+}
+
+static int netc_parse_emdio_phy_mask(struct device_node *np, u32 *phy_mask)
+{
+	u32 mask = 0;
+
+	for_each_child_of_node_scoped(np, child) {
+		u32 addr;
+		int err;
+
+		err = of_property_read_u32(child, "reg", &addr);
+		if (err)
+			return err;
+
+		if (addr >= PHY_MAX_ADDR)
+			return -EINVAL;
+
+		mask |= BIT(addr);
+	}
+
+	*phy_mask = mask;
+
+	return 0;
+}
+
+static int netc_get_emdio_phy_mask(struct device_node *np, u32 *phy_mask)
+{
+	for_each_child_of_node_scoped(np, child) {
+		for_each_child_of_node_scoped(child, gchild) {
+			if (!of_device_is_compatible(gchild, "pci1131,ee00"))
+				continue;
+
+			return netc_parse_emdio_phy_mask(gchild, phy_mask);
+		}
+	}
+
+	return 0;
+}
+
+static int imx95_enetc_mdio_phyaddr_config(struct platform_device *pdev)
+{
+	struct netc_blk_ctrl *priv = platform_get_drvdata(pdev);
+	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	int bus_devfn, addr, err;
+	u32 phy_mask = 0;
+
+	err = netc_get_emdio_phy_mask(np, &phy_mask);
+	if (err) {
+		dev_err(dev, "Failed to get PHY address mask\n");
+		return err;
+	}
+
+	/* Update the port EMDIO PHY address through parsing phy properties.
+	 * This is needed when using the port EMDIO but it's harmless when
+	 * using the central EMDIO. So apply it on all cases.
+	 */
+	for_each_child_of_node_scoped(np, child) {
+		for_each_child_of_node_scoped(child, gchild) {
+			if (!of_device_is_compatible(gchild, "pci1131,e101"))
+				continue;
+
+			bus_devfn = netc_of_pci_get_bus_devfn(gchild);
+			if (bus_devfn < 0) {
+				dev_err(dev, "Failed to get BDF number\n");
+				return bus_devfn;
+			}
+
+			addr = netc_get_phy_addr(gchild);
+			if (addr < 0) {
+				dev_err(dev, "Failed to get PHY address\n");
+				return addr;
+			}
+
+			if (phy_mask & BIT(addr)) {
+				dev_err(dev,
+					"Find same PHY address in EMDIO and ENETC node\n");
+				return -EINVAL;
+			}
+
+			/* The default value of LaBCR[MDIO_PHYAD_PRTAD ] is
+			 * 0, so no need to set the register.
+			 */
+			if (!addr)
+				continue;
+
+			switch (bus_devfn) {
+			case IMX95_ENETC0_BUS_DEVFN:
+				netc_reg_write(priv->ierb, IERB_LBCR(0),
+					       LBCR_MDIO_PHYAD_PRTAD(addr));
+				break;
+			case IMX95_ENETC1_BUS_DEVFN:
+				netc_reg_write(priv->ierb, IERB_LBCR(1),
+					       LBCR_MDIO_PHYAD_PRTAD(addr));
+				break;
+			case IMX95_ENETC2_BUS_DEVFN:
+				netc_reg_write(priv->ierb, IERB_LBCR(2),
+					       LBCR_MDIO_PHYAD_PRTAD(addr));
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int imx95_ierb_init(struct platform_device *pdev)
 {
 	struct netc_blk_ctrl *priv = platform_get_drvdata(pdev);
@@ -349,7 +488,7 @@ static int imx95_ierb_init(struct platform_device *pdev)
 	/* NETC TIMER */
 	netc_reg_write(priv->ierb, IERB_T0FAUXR, 7);
 
-	return 0;
+	return imx95_enetc_mdio_phyaddr_config(pdev);
 }
 
 static int imx94_get_enetc_id(struct device_node *np)
