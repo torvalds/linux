@@ -16,22 +16,22 @@
 ///
 /// This trait can be removed once the MSRV passes 1.80.
 ///
-/// [`as_flattened`]: slice::as_flattened
-/// [`as_flattened_mut`]: slice::as_flattened_mut
+/// [`as_flattened`]: https://doc.rust-lang.org/std/primitive.slice.html#method.as_flattened
+/// [`as_flattened_mut`]: https://doc.rust-lang.org/std/primitive.slice.html#method.as_flattened_mut
 #[cfg(not(CONFIG_RUSTC_HAS_SLICE_AS_FLATTENED))]
 pub trait AsFlattened<T> {
     /// Takes a `&[[T; N]]` and flattens it to a `&[T]`.
     ///
     /// This is an portable layer on top of [`as_flattened`]; see its documentation for details.
     ///
-    /// [`as_flattened`]: slice::as_flattened
+    /// [`as_flattened`]: https://doc.rust-lang.org/std/primitive.slice.html#method.as_flattened
     fn as_flattened(&self) -> &[T];
 
     /// Takes a `&mut [[T; N]]` and flattens it to a `&mut [T]`.
     ///
     /// This is an portable layer on top of [`as_flattened_mut`]; see its documentation for details.
     ///
-    /// [`as_flattened_mut`]: slice::as_flattened_mut
+    /// [`as_flattened_mut`]: https://doc.rust-lang.org/std/primitive.slice.html#method.as_flattened_mut
     fn as_flattened_mut(&mut self) -> &mut [T];
 }
 
