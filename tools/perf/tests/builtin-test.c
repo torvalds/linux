@@ -126,7 +126,7 @@ static struct test_suite *generic_tests[] = {
 	&suite__jit_write_elf,
 	&suite__pfm,
 	&suite__api_io,
-	&suite__maps__merge_in,
+	&suite__maps,
 	&suite__demangle_java,
 	&suite__demangle_ocaml,
 	&suite__demangle_rust,
