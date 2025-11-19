@@ -28,8 +28,10 @@ endif
 KBUILD_CFLAGS-$(CONFIG_CC_NO_ARRAY_BOUNDS) += -Wno-array-bounds
 
 ifdef CONFIG_CC_IS_CLANG
-# The kernel builds with '-std=gnu11' so use of GNU extensions is acceptable.
+# The kernel builds with '-std=gnu11' and '-fms-extensions' so use of GNU and
+# Microsoft extensions is acceptable.
 KBUILD_CFLAGS += -Wno-gnu
+KBUILD_CFLAGS += -Wno-microsoft-anon-tag
 
 # Clang checks for overflow/truncation with '%p', while GCC does not:
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111219
