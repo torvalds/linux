@@ -68,19 +68,12 @@ static inline u32 dma_chan_base_addr(u32 base, u32 chan)
 #define DMA_AXI_OSR_MAX		0xf
 #define DMA_AXI_MAX_OSR_LIMIT ((DMA_AXI_OSR_MAX << DMA_AXI_WR_OSR_LMT_SHIFT) | \
 			       (DMA_AXI_OSR_MAX << DMA_AXI_RD_OSR_LMT_SHIFT))
-#define	DMA_AXI_1KBBE		BIT(13)
-#define DMA_AXI_AAL		BIT(12)
-#define DMA_AXI_BLEN256		BIT(7)
-#define DMA_AXI_BLEN128		BIT(6)
-#define DMA_AXI_BLEN64		BIT(5)
-#define DMA_AXI_BLEN32		BIT(4)
-#define DMA_AXI_BLEN16		BIT(3)
-#define DMA_AXI_BLEN8		BIT(2)
-#define DMA_AXI_BLEN4		BIT(1)
 #define DMA_BURST_LEN_DEFAULT	(DMA_AXI_BLEN256 | DMA_AXI_BLEN128 | \
 				 DMA_AXI_BLEN64 | DMA_AXI_BLEN32 | \
 				 DMA_AXI_BLEN16 | DMA_AXI_BLEN8 | \
 				 DMA_AXI_BLEN4)
+
+#define	DMA_AXI_1KBBE		BIT(13)
 
 #define DMA_AXI_UNDEF		BIT(0)
 
