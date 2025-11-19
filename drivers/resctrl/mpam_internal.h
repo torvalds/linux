@@ -91,6 +91,9 @@ struct mpam_msc {
 	 */
 	struct mutex		part_sel_lock;
 
+	/* cfg_lock protects the msc configuration. */
+	struct mutex		cfg_lock;
+
 	/*
 	 * mon_sel_lock protects access to the MSC hardware registers that are
 	 * affected by MPAMCFG_MON_SEL, and the mbwu_state.
@@ -182,6 +185,21 @@ struct mpam_class {
 	struct mpam_garbage	garbage;
 };
 
+struct mpam_config {
+	/* Which configuration values are valid. */
+	DECLARE_BITMAP(features, MPAM_FEATURE_LAST);
+
+	u32	cpbm;
+	u32	mbw_pbm;
+	u16	mbw_max;
+
+	bool	reset_cpbm;
+	bool	reset_mbw_pbm;
+	bool	reset_mbw_max;
+
+	struct mpam_garbage	garbage;
+};
+
 struct mpam_component {
 	u32			comp_id;
 
@@ -189,6 +207,12 @@ struct mpam_component {
 	struct list_head	vmsc;
 
 	cpumask_t		affinity;
+
+	/*
+	 * Array of configuration values, indexed by partid.
+	 * Read from cpuhp callbacks, hold the cpuhp lock when writing.
+	 */
+	struct mpam_config	*cfg;
 
 	/* member of mpam_class:components */
 	struct list_head	class_list;
@@ -248,6 +272,9 @@ extern u8 mpam_pmg_max;
 /* Scheduled work callback to enable mpam once all MSC have been probed */
 void mpam_enable(struct work_struct *work);
 void mpam_disable(struct work_struct *work);
+
+int mpam_apply_config(struct mpam_component *comp, u16 partid,
+		      struct mpam_config *cfg);
 
 int mpam_get_cpumask_from_cache_id(unsigned long cache_id, u32 cache_level,
 				   cpumask_t *affinity);
