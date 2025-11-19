@@ -4379,8 +4379,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	ctrl_ctx->add_flags = cpu_to_le32(SLOT_FLAG | EP0_FLAG);
 	ctrl_ctx->drop_flags = 0;
 
-	trace_xhci_address_ctx(xhci, virt_dev->in_ctx,
-				le32_to_cpu(slot_ctx->dev_info) >> 27);
+	trace_xhci_address_ctx(xhci, virt_dev->in_ctx);
 
 	trace_xhci_address_ctrl_ctx(ctrl_ctx);
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -4440,7 +4439,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		xhci_err(xhci,
 			 "ERROR: unexpected setup %s command completion code 0x%x.\n",
 			 act, command->status);
-		trace_xhci_address_ctx(xhci, virt_dev->out_ctx, 1);
+		trace_xhci_address_ctx(xhci, virt_dev->out_ctx);
 		ret = -EINVAL;
 		break;
 	}
@@ -4458,14 +4457,12 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 			"Output Context DMA address = %#08llx",
 			(unsigned long long)virt_dev->out_ctx->dma);
-	trace_xhci_address_ctx(xhci, virt_dev->in_ctx,
-				le32_to_cpu(slot_ctx->dev_info) >> 27);
+	trace_xhci_address_ctx(xhci, virt_dev->in_ctx);
 	/*
 	 * USB core uses address 1 for the roothubs, so we add one to the
 	 * address given back to us by the HC.
 	 */
-	trace_xhci_address_ctx(xhci, virt_dev->out_ctx,
-				le32_to_cpu(slot_ctx->dev_info) >> 27);
+	trace_xhci_address_ctx(xhci, virt_dev->out_ctx);
 	/* Zero the input context control for later use */
 	ctrl_ctx->add_flags = 0;
 	ctrl_ctx->drop_flags = 0;

@@ -71,18 +71,13 @@ DEFINE_EVENT(xhci_log_msg, xhci_dbg_ring_expansion,
 );
 
 DECLARE_EVENT_CLASS(xhci_log_ctx,
-	TP_PROTO(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx,
-		 unsigned int ep_num),
-	TP_ARGS(xhci, ctx, ep_num),
+	TP_PROTO(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx),
+	TP_ARGS(xhci, ctx),
 	TP_STRUCT__entry(
 		__field(int, ctx_64)
 		__field(unsigned, ctx_type)
 		__field(dma_addr_t, ctx_dma)
 		__field(u8 *, ctx_va)
-		__field(unsigned, ctx_ep_num)
-		__dynamic_array(u32, ctx_data,
-			((HCC_64BYTE_CONTEXT(xhci->hcc_params) + 1) * 8) *
-			((ctx->type == XHCI_CTX_TYPE_INPUT) + ep_num + 1))
 	),
 	TP_fast_assign(
 
@@ -90,10 +85,6 @@ DECLARE_EVENT_CLASS(xhci_log_ctx,
 		__entry->ctx_type = ctx->type;
 		__entry->ctx_dma = ctx->dma;
 		__entry->ctx_va = ctx->bytes;
-		__entry->ctx_ep_num = ep_num;
-		memcpy(__get_dynamic_array(ctx_data), ctx->bytes,
-			((HCC_64BYTE_CONTEXT(xhci->hcc_params) + 1) * 32) *
-			((ctx->type == XHCI_CTX_TYPE_INPUT) + ep_num + 1));
 	),
 	TP_printk("ctx_64=%d, ctx_type=%u, ctx_dma=@%llx, ctx_va=@%p",
 			__entry->ctx_64, __entry->ctx_type,
@@ -102,9 +93,8 @@ DECLARE_EVENT_CLASS(xhci_log_ctx,
 );
 
 DEFINE_EVENT(xhci_log_ctx, xhci_address_ctx,
-	TP_PROTO(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx,
-		 unsigned int ep_num),
-	TP_ARGS(xhci, ctx, ep_num)
+	TP_PROTO(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx),
+	TP_ARGS(xhci, ctx)
 );
 
 DECLARE_EVENT_CLASS(xhci_log_trb,
