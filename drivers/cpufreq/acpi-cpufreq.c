@@ -395,7 +395,7 @@ static unsigned int check_freqs(struct cpufreq_policy *policy,
 		cur_freq = extract_freq(policy, get_cur_val(mask, data));
 		if (cur_freq == freq)
 			return 1;
-		udelay(10);
+		usleep_range(10, 15);
 	}
 	return 0;
 }
