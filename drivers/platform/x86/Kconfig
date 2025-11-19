@@ -311,6 +311,16 @@ config ASUS_TF103C_DOCK
 	  If you have an Asus TF103C tablet say Y or M here, for a generic x86
 	  distro config say M here.
 
+config AYANEO_EC
+	tristate "Ayaneo EC platform control"
+	depends on DMI
+	help
+	  Enables support for the platform EC of Ayaneo devices. This
+	  includes fan control, fan speed, charge limit, magic
+	  module detection, and controller power control.
+
+	  If you have an Ayaneo device, say Y or M here.
+
 config MERAKI_MX100
 	tristate "Cisco Meraki MX100 Platform Driver"
 	depends on GPIOLIB
