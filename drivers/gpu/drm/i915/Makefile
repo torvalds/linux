@@ -30,6 +30,7 @@ i915-y += \
 	i915_edram.o \
 	i915_freq.o \
 	i915_getparam.o \
+	i915_gmch.o \
 	i915_ioctl.o \
 	i915_irq.o \
 	i915_mitigations.o \

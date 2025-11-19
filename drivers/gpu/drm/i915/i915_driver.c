@@ -88,8 +88,6 @@
 #include "pxp/intel_pxp_debugfs.h"
 #include "pxp/intel_pxp_pm.h"
 
-#include "soc/intel_gmch.h"
-
 #include "i915_debugfs.h"
 #include "i915_driver.h"
 #include "i915_drm_client.h"
@@ -97,6 +95,7 @@
 #include "i915_edram.h"
 #include "i915_file_private.h"
 #include "i915_getparam.h"
+#include "i915_gmch.h"
 #include "i915_hwmon.h"
 #include "i915_ioc32.h"
 #include "i915_ioctl.h"
@@ -323,7 +322,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	ret = intel_gmch_bridge_setup(dev_priv);
+	ret = i915_gmch_bridge_setup(dev_priv);
 	if (ret < 0)
 		return ret;
 
@@ -340,7 +339,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	}
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
-	intel_gmch_bar_setup(dev_priv);
+	i915_gmch_bar_setup(dev_priv);
 	intel_device_info_runtime_init(dev_priv);
 	intel_display_device_info_runtime_init(display);
 
@@ -356,7 +355,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	return 0;
 
 err_uncore:
-	intel_gmch_bar_teardown(dev_priv);
+	i915_gmch_bar_teardown(dev_priv);
 
 	return ret;
 }
@@ -367,7 +366,7 @@ err_uncore:
  */
 static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 {
-	intel_gmch_bar_teardown(dev_priv);
+	i915_gmch_bar_teardown(dev_priv);
 }
 
 /**
