@@ -448,7 +448,8 @@ static void zloop_rw(struct zloop_cmd *cmd)
 			 * and set the target sector in zloop_queue_rq().
 			 */
 			if (!zlo->ordered_zone_append) {
-				if (zone->cond == BLK_ZONE_COND_FULL) {
+				if (zone->cond == BLK_ZONE_COND_FULL ||
+				    zone->wp + nr_sectors > zone_end) {
 					spin_unlock_irqrestore(&zone->wp_lock,
 							       flags);
 					ret = -EIO;
