@@ -27,19 +27,20 @@ for m in $(perf list --raw-dump metrics); do
   fi
   if [[ "$result" =~ "Cannot resolve IDs for" || "$result" =~ "No supported events found" ]]
   then
-    if [[ "$m" == @(l1_prefetch_miss_rate|stalled_cycles_per_instruction) ]]
+    if [[ $(perf list --raw-dump $m) == "Default"* ]]
     then
-      # Default metrics that may use unsupported events.
+      echo "[Ignored $m] failed but as a Default metric this can be expected"
+      echo $result
       continue
     fi
-    echo "Metric contains missing events"
+    echo "[Failed $m] Metric contains missing events"
     echo $result
     err=1 # Fail
     continue
   elif [[ "$result" =~ \
         "Access to performance monitoring and observability operations is limited" ]]
   then
-    echo "Permission failure"
+    echo "[Skipped $m] Permission failure"
     echo $result
     if [[ $err -eq 0 ]]
     then
@@ -48,7 +49,7 @@ for m in $(perf list --raw-dump metrics); do
     continue
   elif [[ "$result" =~ "in per-thread mode, enable system wide" ]]
   then
-    echo "Permissions - need system wide mode"
+    echo "[Skipped $m] Permissions - need system wide mode"
     echo $result
     if [[ $err -eq 0 ]]
     then
@@ -57,7 +58,13 @@ for m in $(perf list --raw-dump metrics); do
     continue
   elif [[ "$result" =~ "<not supported>" ]]
   then
-    echo "Not supported events"
+    if [[ $(perf list --raw-dump $m) == "Default"* ]]
+    then
+      echo "[Ignored $m] failed but as a Default metric this can be expected"
+      echo $result
+      continue
+    fi
+    echo "[Skipped $m] Not supported events"
     echo $result
     if [[ $err -eq 0 ]]
     then
@@ -66,7 +73,7 @@ for m in $(perf list --raw-dump metrics); do
     continue
   elif [[ "$result" =~ "<not counted>" ]]
   then
-    echo "Not counted events"
+    echo "[Skipped $m] Not counted events"
     echo $result
     if [[ $err -eq 0 ]]
     then
@@ -75,7 +82,7 @@ for m in $(perf list --raw-dump metrics); do
     continue
   elif [[ "$result" =~ "FP_ARITH" || "$result" =~ "AMX" ]]
   then
-    echo "FP issues"
+    echo "[Skipped $m] FP issues"
     echo $result
     if [[ $err -eq 0 ]]
     then
@@ -84,7 +91,7 @@ for m in $(perf list --raw-dump metrics); do
     continue
   elif [[ "$result" =~ "PMM" ]]
   then
-    echo "Optane memory issues"
+    echo "[Skipped $m] Optane memory issues"
     echo $result
     if [[ $err -eq 0 ]]
     then
@@ -101,7 +108,7 @@ for m in $(perf list --raw-dump metrics); do
     # No error result and metric shown.
     continue
   fi
-  echo "Metric '$m' has non-zero error '$result_err' or not printed in:"
+  echo "[Failed $m] has non-zero error '$result_err' or not printed in:"
   echo "$result"
   err=1
 done
