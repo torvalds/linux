@@ -84,24 +84,6 @@ static __always_inline void rseq_sched_set_ids_changed(struct task_struct *t)
 	t->rseq.event.ids_changed = true;
 }
 
-/*
- * Invoked from switch_mm_cid() in context switch when the task gets a MM
- * CID assigned.
- *
- * This does not raise TIF_NOTIFY_RESUME as that happens in
- * rseq_sched_switch_event().
- */
-static __always_inline void rseq_sched_set_task_mm_cid(struct task_struct *t, unsigned int cid)
-{
-	/*
-	 * Requires a comparison as the switch_mm_cid() code does not
-	 * provide a conditional for it readily. So avoid excessive updates
-	 * when nothing changes.
-	 */
-	if (t->rseq.ids.mm_cid != cid)
-		t->rseq.event.ids_changed = true;
-}
-
 /* Enforce a full update after RSEQ registration and when execve() failed */
 static inline void rseq_force_update(void)
 {
@@ -169,7 +151,6 @@ static inline void rseq_handle_slowpath(struct pt_regs *regs) { }
 static inline void rseq_signal_deliver(struct ksignal *ksig, struct pt_regs *regs) { }
 static inline void rseq_sched_switch_event(struct task_struct *t) { }
 static inline void rseq_sched_set_ids_changed(struct task_struct *t) { }
-static inline void rseq_sched_set_task_mm_cid(struct task_struct *t, unsigned int cid) { }
 static inline void rseq_force_update(void) { }
 static inline void rseq_virt_userspace_exit(void) { }
 static inline void rseq_fork(struct task_struct *t, u64 clone_flags) { }

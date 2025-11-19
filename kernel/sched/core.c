@@ -5307,7 +5307,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 		}
 	}
 
-	switch_mm_cid(prev, next);
+	mm_cid_switch_to(prev, next);
 
 	/*
 	 * Tell rseq that the task was scheduled in. Must be after
@@ -10624,7 +10624,7 @@ static bool mm_cid_fixup_task_to_cpu(struct task_struct *t, struct mm_struct *mm
 	return true;
 }
 
-static void __maybe_unused mm_cid_fixup_tasks_to_cpus(void)
+static void mm_cid_fixup_tasks_to_cpus(void)
 {
 	struct mm_struct *mm = current->mm;
 	struct task_struct *p, *t;
@@ -10674,23 +10674,79 @@ static bool sched_mm_cid_add_user(struct task_struct *t, struct mm_struct *mm)
 void sched_mm_cid_fork(struct task_struct *t)
 {
 	struct mm_struct *mm = t->mm;
+	bool percpu;
 
 	WARN_ON_ONCE(!mm || t->mm_cid.cid != MM_CID_UNSET);
 
 	guard(mutex)(&mm->mm_cid.mutex);
-	scoped_guard(raw_spinlock, &mm->mm_cid.lock) {
-		sched_mm_cid_add_user(t, mm);
-		/* Preset last_cid for mm_cid_select() */
-		t->mm_cid.last_cid = mm->mm_cid.max_cids - 1;
+	scoped_guard(raw_spinlock_irq, &mm->mm_cid.lock) {
+		struct mm_cid_pcpu *pcp = this_cpu_ptr(mm->mm_cid.pcpu);
+
+		/* First user ? */
+		if (!mm->mm_cid.users) {
+			sched_mm_cid_add_user(t, mm);
+			t->mm_cid.cid = mm_get_cid(mm);
+			/* Required for execve() */
+			pcp->cid = t->mm_cid.cid;
+			return;
+		}
+
+		if (!sched_mm_cid_add_user(t, mm)) {
+			if (!mm->mm_cid.percpu)
+				t->mm_cid.cid = mm_get_cid(mm);
+			return;
+		}
+
+		/* Handle the mode change and transfer current's CID */
+		percpu = !!mm->mm_cid.percpu;
+		if (!percpu)
+			mm_cid_transit_to_task(current, pcp);
+		else
+			mm_cid_transfer_to_cpu(current, pcp);
+	}
+
+	if (percpu) {
+		mm_cid_fixup_tasks_to_cpus();
+	} else {
+		mm_cid_fixup_cpus_to_tasks(mm);
+		t->mm_cid.cid = mm_get_cid(mm);
 	}
 }
 
 static bool sched_mm_cid_remove_user(struct task_struct *t)
 {
 	t->mm_cid.active = 0;
-	mm_unset_cid_on_task(t);
+	scoped_guard(preempt) {
+		/* Clear the transition bit */
+		t->mm_cid.cid = cid_from_transit_cid(t->mm_cid.cid);
+		mm_unset_cid_on_task(t);
+	}
 	t->mm->mm_cid.users--;
 	return mm_update_max_cids(t->mm);
+}
+
+static bool __sched_mm_cid_exit(struct task_struct *t)
+{
+	struct mm_struct *mm = t->mm;
+
+	if (!sched_mm_cid_remove_user(t))
+		return false;
+	/*
+	 * Contrary to fork() this only deals with a switch back to per
+	 * task mode either because the above decreased users or an
+	 * affinity change increased the number of allowed CPUs and the
+	 * deferred fixup did not run yet.
+	 */
+	if (WARN_ON_ONCE(mm->mm_cid.percpu))
+		return false;
+	/*
+	 * A failed fork(2) cleanup never gets here, so @current must have
+	 * the same MM as @t. That's true for exit() and the failed
+	 * pthread_create() cleanup case.
+	 */
+	if (WARN_ON_ONCE(current->mm != mm))
+		return false;
+	return true;
 }
 
 /*
@@ -10703,10 +10759,43 @@ void sched_mm_cid_exit(struct task_struct *t)
 
 	if (!mm || !t->mm_cid.active)
 		return;
+	/*
+	 * Ensure that only one instance is doing MM CID operations within
+	 * a MM. The common case is uncontended. The rare fixup case adds
+	 * some overhead.
+	 */
+	scoped_guard(mutex, &mm->mm_cid.mutex) {
+		/* mm_cid::mutex is sufficient to protect mm_cid::users */
+		if (likely(mm->mm_cid.users > 1)) {
+			scoped_guard(raw_spinlock_irq, &mm->mm_cid.lock) {
+				if (!__sched_mm_cid_exit(t))
+					return;
+				/* Mode change required. Transfer currents CID */
+				mm_cid_transit_to_task(current, this_cpu_ptr(mm->mm_cid.pcpu));
+			}
+			mm_cid_fixup_cpus_to_tasks(mm);
+			return;
+		}
+		/* Last user */
+		scoped_guard(raw_spinlock_irq, &mm->mm_cid.lock) {
+			/* Required across execve() */
+			if (t == current)
+				mm_cid_transit_to_task(t, this_cpu_ptr(mm->mm_cid.pcpu));
+			/* Ignore mode change. There is nothing to do. */
+			sched_mm_cid_remove_user(t);
+		}
+	}
 
-	guard(mutex)(&mm->mm_cid.mutex);
-	scoped_guard(raw_spinlock, &mm->mm_cid.lock)
-		sched_mm_cid_remove_user(t);
+	/*
+	 * As this is the last user (execve(), process exit or failed
+	 * fork(2)) there is no concurrency anymore.
+	 *
+	 * Synchronize eventually pending work to ensure that there are no
+	 * dangling references left. @t->mm_cid.users is zero so nothing
+	 * can queue this work anymore.
+	 */
+	irq_work_sync(&mm->mm_cid.irq_work);
+	cancel_work_sync(&mm->mm_cid.work);
 }
 
 /* Deactivate MM CID allocation across execve() */
@@ -10719,17 +10808,11 @@ void sched_mm_cid_before_execve(struct task_struct *t)
 void sched_mm_cid_after_execve(struct task_struct *t)
 {
 	sched_mm_cid_fork(t);
-	guard(preempt)();
-	mm_cid_select(t);
 }
 
 static void mm_cid_work_fn(struct work_struct *work)
 {
 	struct mm_struct *mm = container_of(work, struct mm_struct, mm_cid.work);
-
-	/* Make it compile, but not functional yet */
-	if (!IS_ENABLED(CONFIG_NEW_MM_CID))
-		return;
 
 	guard(mutex)(&mm->mm_cid.mutex);
 	/* Did the last user task exit already? */

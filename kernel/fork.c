@@ -956,7 +956,6 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 
 #ifdef CONFIG_SCHED_MM_CID
 	tsk->mm_cid.cid = MM_CID_UNSET;
-	tsk->mm_cid.last_cid = MM_CID_UNSET;
 	tsk->mm_cid.active = 0;
 #endif
 	return tsk;
