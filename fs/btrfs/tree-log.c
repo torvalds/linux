@@ -3900,10 +3900,10 @@ static int del_logged_dentry(struct btrfs_trans_handle *trans,
  * or the entire directory.
  */
 void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
-				  struct btrfs_root *root,
 				  const struct fscrypt_str *name,
 				  struct btrfs_inode *dir, u64 index)
 {
+	struct btrfs_root *root = dir->root;
 	BTRFS_PATH_AUTO_FREE(path);
 	int ret;
 

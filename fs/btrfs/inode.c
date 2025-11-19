@@ -4363,7 +4363,7 @@ skip_backref:
 	 */
 	if (!rename_ctx) {
 		btrfs_del_inode_ref_in_log(trans, root, name, inode, dir_ino);
-		btrfs_del_dir_entries_in_log(trans, root, name, dir, index);
+		btrfs_del_dir_entries_in_log(trans, name, dir, index);
 	}
 
 	/*
