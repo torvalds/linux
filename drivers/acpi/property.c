@@ -1280,7 +1280,7 @@ static int acpi_data_prop_read(const struct acpi_device_data *data,
 		ret = acpi_copy_property_array_uint(items, (u64 *)val, nval);
 		break;
 	case DEV_PROP_STRING:
-		nval = min_t(u32, nval, obj->package.count);
+		nval = min(nval, obj->package.count);
 		if (nval == 0)
 			return -ENODATA;
 
