@@ -467,7 +467,8 @@ int __init security_init(void)
 						    blob_sizes.lbs_inode, 0,
 						    SLAB_PANIC, NULL);
 
-	if (lsm_cred_alloc((struct cred __rcu *)current->cred, GFP_KERNEL))
+	if (lsm_cred_alloc((struct cred *)unrcu_pointer(current->cred),
+			   GFP_KERNEL))
 		panic("early LSM cred alloc failed\n");
 	if (lsm_task_alloc(current))
 		panic("early LSM task alloc failed\n");
