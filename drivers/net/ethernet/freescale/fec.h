@@ -528,12 +528,6 @@ struct bufdesc_prop {
 	unsigned char dsize_log2;
 };
 
-struct fec_enet_priv_txrx_info {
-	int	offset;
-	struct	page *page;
-	struct  sk_buff *skb;
-};
-
 enum {
 	RX_XDP_REDIRECT = 0,
 	RX_XDP_PASS,
@@ -573,7 +567,7 @@ struct fec_enet_priv_tx_q {
 
 struct fec_enet_priv_rx_q {
 	struct bufdesc_prop bd;
-	struct  fec_enet_priv_txrx_info rx_skb_info[RX_RING_SIZE];
+	struct page *rx_buf[RX_RING_SIZE];
 
 	/* page_pool */
 	struct page_pool *page_pool;

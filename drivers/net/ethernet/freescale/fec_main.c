@@ -1655,8 +1655,7 @@ static int fec_enet_update_cbd(struct fec_enet_priv_rx_q *rxq,
 	if (unlikely(!new_page))
 		return -ENOMEM;
 
-	rxq->rx_skb_info[index].page = new_page;
-	rxq->rx_skb_info[index].offset = FEC_ENET_XDP_HEADROOM;
+	rxq->rx_buf[index] = new_page;
 	phys_addr = page_pool_get_dma_addr(new_page) + FEC_ENET_XDP_HEADROOM;
 	bdp->cbd_bufaddr = cpu_to_fec32(phys_addr);
 
@@ -1836,7 +1835,7 @@ fec_enet_rx_queue(struct net_device *ndev, u16 queue_id, int budget)
 			ndev->stats.rx_bytes -= 2;
 
 		index = fec_enet_get_bd_index(bdp, &rxq->bd);
-		page = rxq->rx_skb_info[index].page;
+		page = rxq->rx_buf[index];
 		cbd_bufaddr = bdp->cbd_bufaddr;
 		if (fec_enet_update_cbd(rxq, bdp, index)) {
 			ndev->stats.rx_dropped++;
@@ -3312,7 +3311,8 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 	for (q = 0; q < fep->num_rx_queues; q++) {
 		rxq = fep->rx_queue[q];
 		for (i = 0; i < rxq->bd.ring_size; i++)
-			page_pool_put_full_page(rxq->page_pool, rxq->rx_skb_info[i].page, false);
+			page_pool_put_full_page(rxq->page_pool, rxq->rx_buf[i],
+						false);
 
 		for (i = 0; i < XDP_STATS_TOTAL; i++)
 			rxq->stats[i] = 0;
@@ -3446,8 +3446,7 @@ fec_enet_alloc_rxq_buffers(struct net_device *ndev, unsigned int queue)
 		phys_addr = page_pool_get_dma_addr(page) + FEC_ENET_XDP_HEADROOM;
 		bdp->cbd_bufaddr = cpu_to_fec32(phys_addr);
 
-		rxq->rx_skb_info[i].page = page;
-		rxq->rx_skb_info[i].offset = FEC_ENET_XDP_HEADROOM;
+		rxq->rx_buf[i] = page;
 		bdp->cbd_sc = cpu_to_fec16(BD_ENET_RX_EMPTY);
 
 		if (fep->bufdesc_ex) {
