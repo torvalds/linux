@@ -10228,11 +10228,14 @@ static __init int __update_tracer_options(struct trace_array *tr)
 	return ret;
 }
 
-static __init void update_tracer_options(struct trace_array *tr)
+static __init void update_tracer_options(void)
 {
+	struct trace_array *tr;
+
 	guard(mutex)(&trace_types_lock);
 	tracer_options_updated = true;
-	__update_tracer_options(tr);
+	list_for_each_entry(tr, &ftrace_trace_arrays, list)
+		__update_tracer_options(tr);
 }
 
 /* Must have trace_types_lock held */
@@ -10934,7 +10937,7 @@ static __init void tracer_init_tracefs_work_func(struct work_struct *work)
 
 	create_trace_instances(NULL);
 
-	update_tracer_options(&global_trace);
+	update_tracer_options();
 }
 
 static __init int tracer_init_tracefs(void)
