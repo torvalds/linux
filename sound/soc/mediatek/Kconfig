@@ -246,6 +246,37 @@ config SND_SOC_MT8188_MT6359
 	  Select Y if you have such device.
 	  If unsure select "N".
 
+config SND_SOC_MT8189
+	tristate "ASoC support for Mediatek MT8189 chip"
+	depends on ARCH_MEDIATEK
+	select SND_SOC_MEDIATEK
+	help
+	  This adds ASoC driver for Mediatek MT8189 boards
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8189_NAU8825
+	tristate "ASoc Audio driver for MT8189 with NAU8825 and I2S codec"
+	depends on SND_SOC_MT8189
+	depends on I2C
+	select SND_SOC_DMIC
+	select SND_SOC_HDMI_CODEC
+	select SND_SOC_NAU8825
+	select SND_SOC_RT5645
+	select SND_SOC_RT9123P
+	select SND_SOC_RT1015P
+	select SND_SOC_RT5682S
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_CS35L41_I2C
+	select SND_SOC_AW88081
+	select SND_SOC_ES8326
+	help
+	  This adds support for ASoC machine driver for MediaTek MT8189
+	  boards with the NAU8828 and other I2S audio codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
 config SND_SOC_MT8192
 	tristate "ASoC support for Mediatek MT8192 chip"
 	depends on ARCH_MEDIATEK
