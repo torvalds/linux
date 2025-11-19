@@ -46,15 +46,17 @@ EXPORT_SYMBOL(__mmap_lock_do_trace_released);
 #ifdef CONFIG_MMU
 #ifdef CONFIG_PER_VMA_LOCK
 /*
- * Return value: 0 if vma detached,
- * 1 if vma attached with no readers,
- * -EINTR if signal received,
+ * __vma_enter_locked() returns 0 immediately if the vma is not
+ * attached, otherwise it waits for any current readers to finish and
+ * returns 1.  Returns -EINTR if a signal is received while waiting.
  */
 static inline int __vma_enter_locked(struct vm_area_struct *vma,
 		bool detaching, int state)
 {
 	int err;
 	unsigned int tgt_refcnt = VMA_LOCK_OFFSET;
+
+	mmap_assert_write_locked(vma->vm_mm);
 
 	/* Additional refcnt if the vma is attached. */
 	if (!detaching)
@@ -91,11 +93,6 @@ int __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq,
 {
 	int locked;
 
-	/*
-	 * __vma_enter_locked() returns false immediately if the vma is not
-	 * attached, otherwise it waits until refcnt is indicating that vma
-	 * is attached with no readers.
-	 */
 	locked = __vma_enter_locked(vma, false, state);
 	if (locked < 0)
 		return locked;
