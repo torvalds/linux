@@ -61,9 +61,6 @@ extern int mwave_3780i_io;
 extern int mwave_uart_irq;
 extern int mwave_uart_io;
 
-#define PRINTK_ERROR printk
-#define KERN_ERR_MWAVE KERN_ERR "mwave: "
-
 typedef struct _MWAVE_IPC {
 	unsigned short usIntCount;	/* 0=none, 1=first, 2=greater than 1st */
 	bool bIsEnabled;

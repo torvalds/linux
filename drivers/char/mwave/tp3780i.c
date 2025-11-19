@@ -46,6 +46,8 @@
 *	First release to the public
 */
 
+#define pr_fmt(fmt) "tp3780i: " fmt
+
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -133,7 +135,7 @@ int tp3780I_InitializeBoardData(THINKPAD_BD_DATA * pBDData)
 
 	retval = smapi_init();
 	if (retval) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_InitializeBoardData: Error: SMAPI is not available on this machine\n");
+		pr_err("%s: Error: SMAPI is not available on this machine\n", __func__);
 	} else {
 		if (mwave_3780i_irq || mwave_3780i_io || mwave_uart_irq || mwave_uart_io) {
 			retval = smapi_set_DSP_cfg();
@@ -153,7 +155,7 @@ int tp3780I_CalcResources(THINKPAD_BD_DATA * pBDData)
 	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
 
 	if (smapi_query_DSP_cfg(&rSmapiInfo)) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_CalcResources: Error: Could not query DSP config. Aborting.\n");
+		pr_err("%s: Error: Could not query DSP config. Aborting.\n", __func__);
 		return -EIO;
 	}
 
@@ -164,7 +166,7 @@ int tp3780I_CalcResources(THINKPAD_BD_DATA * pBDData)
 		|| ( rSmapiInfo.usUartIRQ ==  0 )
 		|| ( rSmapiInfo.usUartBaseIO ==  0 )
 	) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_CalcResources: Error: Illegal resource setting. Aborting.\n");
+		pr_err("%s: Error: Illegal resource setting. Aborting.\n", __func__);
 		return -EIO;
 	}
 
@@ -200,7 +202,8 @@ int tp3780I_ClaimResources(THINKPAD_BD_DATA * pBDData)
 	if ( pres == NULL ) retval = -EIO;
 
 	if (retval) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_ClaimResources: Error: Could not claim I/O region starting at %x\n", pSettings->usDspBaseIO);
+		pr_err("%s: Error: Could not claim I/O region starting at %x\n", __func__,
+		       pSettings->usDspBaseIO);
 		return -EIO;
 	}
 
@@ -229,12 +232,12 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 	bool bDSPPoweredUp = false, bInterruptAllocated = false;
 
 	if (pBDData->bDSPEnabled) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_EnableDSP: Error: DSP already enabled!\n");
+		pr_err("%s: Error: DSP already enabled!\n", __func__);
 		goto exit_cleanup;
 	}
 
 	if (!pSettings->bDSPEnabled) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780::tp3780I_EnableDSP: Error: pSettings->bDSPEnabled not set\n");
+		pr_err("%s: Error: pSettings->bDSPEnabled not set\n", __func__);
 		goto exit_cleanup;
 	}
 
@@ -244,7 +247,7 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 		|| (s_ausThinkpadIrqToField[pSettings->usDspIrq] == 0xFFFF)
 		|| (s_ausThinkpadDmaToField[pSettings->usDspDma] == 0xFFFF)
 	) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_EnableDSP: Error: invalid irq %x\n", pSettings->usDspIrq);
+		pr_err("%s: Error: invalid irq %x\n", __func__, pSettings->usDspIrq);
 		goto exit_cleanup;
 	}
 
@@ -252,7 +255,8 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 		((pSettings->usDspBaseIO & 0xF00F) != 0)
 		|| (pSettings->usDspBaseIO & 0x0FF0) == 0
 	) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_EnableDSP: Error: Invalid DSP base I/O address %x\n", pSettings->usDspBaseIO);
+		pr_err("%s: Error: Invalid DSP base I/O address %x\n", __func__,
+		       pSettings->usDspBaseIO);
 		goto exit_cleanup;
 	}
 
@@ -261,7 +265,7 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 			pSettings->usUartIrq >= s_numIrqs
 			|| s_ausThinkpadIrqToField[pSettings->usUartIrq] == 0xFFFF
 		) {
-			PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_EnableDSP: Error: Invalid UART IRQ %x\n", pSettings->usUartIrq);
+			pr_err("%s: Error: Invalid UART IRQ %x\n", __func__, pSettings->usUartIrq);
 			goto exit_cleanup;
 		}
 		switch (pSettings->usUartBaseIO) {
@@ -272,7 +276,8 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 				break;
 
 			default:
-				PRINTK_ERROR("tp3780i::tp3780I_EnableDSP: Error: Invalid UART base I/O address %x\n", pSettings->usUartBaseIO);
+				pr_err("%s: Error: Invalid UART base I/O address %x\n", __func__,
+				       pSettings->usUartBaseIO);
 				goto exit_cleanup;
 		}
 	}
@@ -301,14 +306,14 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 	pSettings->usChipletEnable = TP_CFG_ChipletEnable;
 
 	if (request_irq(pSettings->usUartIrq, &UartInterrupt, 0, "mwave_uart", NULL)) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_EnableDSP: Error: Could not get UART IRQ %x\n", pSettings->usUartIrq);
+		pr_err("%s: Error: Could not get UART IRQ %x\n", __func__, pSettings->usUartIrq);
 		goto exit_cleanup;
 	} else {		/* no conflict just release */
 		free_irq(pSettings->usUartIrq, NULL);
 	}
 
 	if (request_irq(pSettings->usDspIrq, &DspInterrupt, 0, "mwave_3780i", NULL)) {
-		PRINTK_ERROR("tp3780i::tp3780I_EnableDSP: Error: Could not get 3780i IRQ %x\n", pSettings->usDspIrq);
+		pr_err("%s: Error: Could not get 3780i IRQ %x\n", __func__, pSettings->usDspIrq);
 		goto exit_cleanup;
 	} else {
 		bInterruptAllocated = true;
@@ -317,14 +322,14 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 
 	smapi_set_DSP_power_state(false);
 	if (smapi_set_DSP_power_state(true)) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_EnableDSP: Error: smapi_set_DSP_power_state(true) failed\n");
+		pr_err("%s: Error: smapi_set_DSP_power_state(true) failed\n", __func__);
 		goto exit_cleanup;
 	} else {
 		bDSPPoweredUp = true;
 	}
 
 	if (dsp3780I_EnableDSP(pSettings, s_ausThinkpadIrqToField, s_ausThinkpadDmaToField)) {
-		PRINTK_ERROR("tp3780i::tp3780I_EnableDSP: Error: dsp7880I_EnableDSP() failed\n");
+		pr_err("%s: Error: dsp7880I_EnableDSP() failed\n", __func__);
 		goto exit_cleanup;
 	}
 
@@ -335,7 +340,7 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 	return 0;
 
 exit_cleanup:
-	PRINTK_ERROR("tp3780i::tp3780I_EnableDSP: Cleaning up\n");
+	pr_err("%s: Cleaning up\n", __func__);
 	if (bDSPPoweredUp)
 		smapi_set_DSP_power_state(false);
 	if (bInterruptAllocated) {

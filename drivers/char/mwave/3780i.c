@@ -46,6 +46,8 @@
 *	First release to the public
 */
 
+#define pr_fmt(fmt) "3780i: " fmt
+
 #include <linux/kernel.h>
 #include <linux/unistd.h>
 #include <linux/delay.h>
@@ -138,7 +140,7 @@ int dsp3780I_EnableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings,
 	unsigned short tval;
 
 	if (!pSettings->bDSPEnabled) {
-		PRINTK_ERROR( KERN_ERR "3780i::dsp3780I_EnableDSP: Error: DSP not enabled. Aborting.\n" );
+		pr_err("%s: Error: DSP not enabled. Aborting.\n", __func__);
 		return -EIO;
 	}
 

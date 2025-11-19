@@ -46,6 +46,8 @@
 *	First release to the public
 */
 
+#define pr_fmt(fmt) "mwavedd: " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -200,11 +202,8 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 			unsigned int ipcnum = (unsigned int) ioarg;
 	
 			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
-				PRINTK_ERROR(KERN_ERR_MWAVE
-						"mwavedd::mwave_ioctl:"
-						" IOCTL_MW_REGISTER_IPC:"
-						" Error: Invalid ipcnum %x\n",
-						ipcnum);
+				pr_err("%s: IOCTL_MW_REGISTER_IPC: Error: Invalid ipcnum %x\n",
+				       __func__, ipcnum);
 				return -EINVAL;
 			}
 			ipcnum = array_index_nospec(ipcnum,
@@ -221,10 +220,8 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 			unsigned int ipcnum = (unsigned int) ioarg;
 	
 			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
-				PRINTK_ERROR(KERN_ERR_MWAVE
-						"mwavedd::mwave_ioctl:"
-						" IOCTL_MW_GET_IPC: Error:"
-						" Invalid ipcnum %x\n", ipcnum);
+				pr_err("%s: IOCTL_MW_GET_IPC: Error: Invalid ipcnum %x\n", __func__,
+				       ipcnum);
 				return -EINVAL;
 			}
 			ipcnum = array_index_nospec(ipcnum,
@@ -259,11 +256,8 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 			unsigned int ipcnum = (unsigned int) ioarg;
 	
 			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
-				PRINTK_ERROR(KERN_ERR_MWAVE
-						"mwavedd::mwave_ioctl:"
-						" IOCTL_MW_UNREGISTER_IPC:"
-						" Error: Invalid ipcnum %x\n",
-						ipcnum);
+				pr_err("%s: IOCTL_MW_UNREGISTER_IPC: Error: Invalid ipcnum %x\n",
+				       __func__, ipcnum);
 				return -EINVAL;
 			}
 			ipcnum = array_index_nospec(ipcnum,
@@ -298,9 +292,7 @@ static int register_serial_portandirq(unsigned int port, int irq)
 			/* OK */
 			break;
 		default:
-			PRINTK_ERROR(KERN_ERR_MWAVE
-					"mwavedd::register_serial_portandirq:"
-					" Error: Illegal port %x\n", port );
+			pr_err("%s: Error: Illegal port %x\n", __func__, port);
 			return -1;
 	} /* switch */
 	/* port is okay */
@@ -313,9 +305,7 @@ static int register_serial_portandirq(unsigned int port, int irq)
 			/* OK */
 			break;
 		default:
-			PRINTK_ERROR(KERN_ERR_MWAVE
-					"mwavedd::register_serial_portandirq:"
-					" Error: Illegal irq %x\n", irq );
+			pr_err("%s: Error: Illegal irq %x\n", __func__, irq);
 			return -1;
 	} /* switch */
 	/* irq is okay */
@@ -391,43 +381,33 @@ static int __init mwave_init(void)
 
 	retval = tp3780I_InitializeBoardData(&pDrvData->rBDData);
 	if (retval) {
-		PRINTK_ERROR(KERN_ERR_MWAVE
-				"mwavedd::mwave_init: Error:"
-				" Failed to initialize board data\n");
+		pr_err("%s: Error: Failed to initialize board data\n", __func__);
 		goto cleanup_error;
 	}
 	pDrvData->bBDInitialized = true;
 
 	retval = tp3780I_CalcResources(&pDrvData->rBDData);
 	if (retval) {
-		PRINTK_ERROR(KERN_ERR_MWAVE
-				"mwavedd:mwave_init: Error:"
-				" Failed to calculate resources\n");
+		pr_err("%s: Error: Failed to calculate resources\n", __func__);
 		goto cleanup_error;
 	}
 
 	retval = tp3780I_ClaimResources(&pDrvData->rBDData);
 	if (retval) {
-		PRINTK_ERROR(KERN_ERR_MWAVE
-				"mwavedd:mwave_init: Error:"
-				" Failed to claim resources\n");
+		pr_err("%s: Error: Failed to claim resources\n", __func__);
 		goto cleanup_error;
 	}
 	pDrvData->bResourcesClaimed = true;
 
 	retval = tp3780I_EnableDSP(&pDrvData->rBDData);
 	if (retval) {
-		PRINTK_ERROR(KERN_ERR_MWAVE
-				"mwavedd:mwave_init: Error:"
-				" Failed to enable DSP\n");
+		pr_err("%s: Error: Failed to enable DSP\n", __func__);
 		goto cleanup_error;
 	}
 	pDrvData->bDSPEnabled = true;
 
 	if (misc_register(&mwave_misc_dev) < 0) {
-		PRINTK_ERROR(KERN_ERR_MWAVE
-				"mwavedd:mwave_init: Error:"
-				" Failed to register misc device\n");
+		pr_err("%s: Error: Failed to register misc device\n", __func__);
 		goto cleanup_error;
 	}
 	pDrvData->bMwaveDevRegistered = true;
@@ -437,9 +417,7 @@ static int __init mwave_init(void)
 		pDrvData->rBDData.rDspSettings.usUartIrq
 	);
 	if (pDrvData->sLine < 0) {
-		PRINTK_ERROR(KERN_ERR_MWAVE
-				"mwavedd:mwave_init: Error:"
-				" Failed to register serial driver\n");
+		pr_err("%s: Error: Failed to register serial driver\n", __func__);
 		goto cleanup_error;
 	}
 	/* uart is registered */
@@ -448,9 +426,7 @@ static int __init mwave_init(void)
 	return 0;
 
 cleanup_error:
-	PRINTK_ERROR(KERN_ERR_MWAVE
-			"mwavedd::mwave_init: Error:"
-			" Failed to initialize\n");
+	pr_err("%s: Error: Failed to initialize\n", __func__);
 	mwave_exit(); /* clean up */
 
 	return -EIO;
