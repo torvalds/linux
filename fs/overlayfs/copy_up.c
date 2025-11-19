@@ -790,7 +790,6 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	struct path path = { .mnt = ovl_upper_mnt(ofs) };
 	struct renamedata rd = {};
 	struct dentry *temp;
-	struct ovl_cu_creds cc;
 	int err;
 	struct ovl_cattr cattr = {
 		/* Can't properly set mode on creation because of the umask */
@@ -799,14 +798,14 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 		.link = c->link
 	};
 
-	err = ovl_prep_cu_creds(c->dentry, &cc);
-	if (err)
-		return err;
+	scoped_class(copy_up_creds, copy_up_creds, c->dentry) {
+		if (IS_ERR(copy_up_creds))
+			return PTR_ERR(copy_up_creds);
 
-	ovl_start_write(c->dentry);
-	temp = ovl_create_temp(ofs, c->workdir, &cattr);
-	ovl_end_write(c->dentry);
-	ovl_revert_cu_creds(&cc);
+		ovl_start_write(c->dentry);
+		temp = ovl_create_temp(ofs, c->workdir, &cattr);
+		ovl_end_write(c->dentry);
+	}
 
 	if (IS_ERR(temp))
 		return PTR_ERR(temp);
