@@ -253,9 +253,7 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
  * size bits. Other FEC hardware does not, so we need to take that into
  * account when setting it.
  */
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
-    defined(CONFIG_ARM64)
+#ifndef CONFIG_M5272
 #define	OPT_ARCH_HAS_MAX_FL	1
 #else
 #define	OPT_ARCH_HAS_MAX_FL	0
@@ -2706,9 +2704,7 @@ static int fec_enet_get_regs_len(struct net_device *ndev)
 }
 
 /* List of registers that can be safety be read to dump them with ethtool */
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-	defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
-	defined(CONFIG_ARM64) || defined(CONFIG_COMPILE_TEST)
+#if !defined(CONFIG_M5272) || defined(CONFIG_COMPILE_TEST)
 static __u32 fec_enet_register_version = 2;
 static u32 fec_enet_register_offset[] = {
 	FEC_IEVENT, FEC_IMASK, FEC_R_DES_ACTIVE_0, FEC_X_DES_ACTIVE_0,
@@ -2782,30 +2778,22 @@ static u32 fec_enet_register_offset[] = {
 static void fec_enet_get_regs(struct net_device *ndev,
 			      struct ethtool_regs *regs, void *regbuf)
 {
+	u32 reg_cnt = ARRAY_SIZE(fec_enet_register_offset);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	u32 __iomem *theregs = (u32 __iomem *)fep->hwp;
+	u32 *reg_list = fec_enet_register_offset;
 	struct device *dev = &fep->pdev->dev;
 	u32 *buf = (u32 *)regbuf;
 	u32 i, off;
 	int ret;
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-	defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
-	defined(CONFIG_ARM64) || defined(CONFIG_COMPILE_TEST)
-	u32 *reg_list;
-	u32 reg_cnt;
 
-	if (!of_machine_is_compatible("fsl,imx6ul")) {
-		reg_list = fec_enet_register_offset;
-		reg_cnt = ARRAY_SIZE(fec_enet_register_offset);
-	} else {
+#if !defined(CONFIG_M5272) || defined(CONFIG_COMPILE_TEST)
+	if (of_machine_is_compatible("fsl,imx6ul")) {
 		reg_list = fec_enet_register_offset_6ul;
 		reg_cnt = ARRAY_SIZE(fec_enet_register_offset_6ul);
 	}
-#else
-	/* coldfire */
-	static u32 *reg_list = fec_enet_register_offset;
-	static const u32 reg_cnt = ARRAY_SIZE(fec_enet_register_offset);
 #endif
+
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
 		return;
