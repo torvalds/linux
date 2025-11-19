@@ -482,11 +482,12 @@ bpf_insn_successors(struct bpf_verifier_env *env, u32 idx)
 	struct bpf_prog *prog = env->prog;
 	struct bpf_insn *insn = &prog->insnsi[idx];
 	const struct opcode_info *opcode_info;
-	struct bpf_iarray *succ;
+	struct bpf_iarray *succ, *jt;
 	int insn_sz;
 
-	if (unlikely(insn_is_gotox(insn)))
-		return env->insn_aux_data[idx].jt;
+	jt = env->insn_aux_data[idx].jt;
+	if (unlikely(jt))
+		return jt;
 
 	/* pre-allocated array of size up to 2; reset cnt, as it may have been used already */
 	succ = env->succ;
