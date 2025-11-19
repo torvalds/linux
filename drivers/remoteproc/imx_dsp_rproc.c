@@ -1194,7 +1194,7 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 
 	init_completion(&priv->pm_comp);
 	rproc->auto_boot = false;
-	ret = rproc_add(rproc);
+	ret = devm_rproc_add(dev, rproc);
 	if (ret)
 		return dev_err_probe(dev, ret, "rproc_add failed\n");
 
@@ -1207,10 +1207,7 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 
 static void imx_dsp_rproc_remove(struct platform_device *pdev)
 {
-	struct rproc *rproc = platform_get_drvdata(pdev);
-
 	pm_runtime_disable(&pdev->dev);
-	rproc_del(rproc);
 }
 
 /* pm runtime functions */
