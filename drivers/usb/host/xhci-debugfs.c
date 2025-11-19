@@ -383,6 +383,39 @@ static const struct file_operations port_fops = {
 	.release		= single_release,
 };
 
+static int xhci_portli_show(struct seq_file *s, void *unused)
+{
+	struct xhci_port	*port = s->private;
+	struct xhci_hcd		*xhci = hcd_to_xhci(port->rhub->hcd);
+	u32			portli;
+
+	portli = readl(&port->port_reg->portli);
+
+	/* PORTLI fields are valid if port is a USB3 or eUSB2V2 port */
+	if (port->rhub == &xhci->usb3_rhub)
+		seq_printf(s, "0x%08x LEC=%u RLC=%u TLC=%u\n", portli,
+			   PORT_LEC(portli), PORT_RX_LANES(portli), PORT_TX_LANES(portli));
+	else if (xhci->hcc_params2 & HCC2_E2V2C)
+		seq_printf(s, "0x%08x RDR=%u TDR=%u\n", portli,
+			   PORTLI_RDR(portli), PORTLI_TDR(portli));
+	else
+		seq_printf(s, "0x%08x RsvdP\n", portli);
+
+	return 0;
+}
+
+static int xhci_portli_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, xhci_portli_show, inode->i_private);
+}
+
+static const struct file_operations portli_fops = {
+	.open			= xhci_portli_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
 static void xhci_debugfs_create_files(struct xhci_hcd *xhci,
 				      struct xhci_file_map *files,
 				      size_t nentries, void *data,
@@ -624,6 +657,7 @@ static void xhci_debugfs_create_ports(struct xhci_hcd *xhci,
 		dir = debugfs_create_dir(port_name, parent);
 		port = &xhci->hw_ports[i];
 		debugfs_create_file("portsc", 0644, dir, port, &port_fops);
+		debugfs_create_file("portli", 0444, dir, port, &portli_fops);
 	}
 }
 

@@ -115,4 +115,6 @@
 /* bit 10 - Rsvd */
 /* bit 11 - HC support Double BW on a eUSB2 HS ISOC EP */
 #define HCC2_EUSB2_DIC		BIT(11)
-/* bits 31:12 - Rsvd */
+/* bit 12 - HC support eUSB2V2 capability */
+#define HCC2_E2V2C		BIT(12)
+/* bits 31:13 - Rsvd */
