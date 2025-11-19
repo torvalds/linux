@@ -22,8 +22,8 @@
 
 struct vpu_src_buffer {
 	struct v4l2_m2m_buffer	v4l2_m2m_buf;
-	struct list_head	list;
 	bool			consumed;
+	struct list_head	list;
 };
 
 struct vpu_dst_buffer {
