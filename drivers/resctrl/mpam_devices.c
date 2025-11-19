@@ -4,8 +4,10 @@
 #define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
 
 #include <linux/acpi.h>
+#include <linux/atomic.h>
 #include <linux/arm_mpam.h>
 #include <linux/cacheinfo.h>
+#include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -17,6 +19,7 @@
 #include <linux/printk.h>
 #include <linux/srcu.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include "mpam_internal.h"
 
@@ -35,6 +38,25 @@ struct srcu_struct mpam_srcu;
  * can be enabled.
  */
 static atomic_t mpam_num_msc;
+
+static int mpam_cpuhp_state;
+static DEFINE_MUTEX(mpam_cpuhp_state_lock);
+
+/*
+ * mpam is enabled once all devices have been probed from CPU online callbacks,
+ * scheduled via this work_struct. If access to an MSC depends on a CPU that
+ * was not brought online at boot, this can happen surprisingly late.
+ */
+static DECLARE_WORK(mpam_enable_work, &mpam_enable);
+
+/*
+ * All mpam error interrupts indicate a software bug. On receipt, disable the
+ * driver.
+ */
+static DECLARE_WORK(mpam_broken_work, &mpam_disable);
+
+/* When mpam is disabled, the printed reason to aid debugging */
+static char *mpam_disable_reason;
 
 /*
  * An MSC is a physical container for controls and monitors, each identified by
@@ -105,6 +127,21 @@ static void mpam_free_garbage(void)
 			kfree(iter->to_free);
 	}
 }
+
+static u32 __mpam_read_reg(struct mpam_msc *msc, u16 reg)
+{
+	WARN_ON_ONCE(!cpumask_test_cpu(smp_processor_id(), &msc->accessibility));
+
+	return readl_relaxed(msc->mapped_hwpage + reg);
+}
+
+static inline u32 _mpam_read_partsel_reg(struct mpam_msc *msc, u16 reg)
+{
+	lockdep_assert_held_once(&msc->part_sel_lock);
+	return __mpam_read_reg(msc, reg);
+}
+
+#define mpam_read_partsel_reg(msc, reg) _mpam_read_partsel_reg(msc, MPAMF_##reg)
 
 static struct mpam_class *
 mpam_class_alloc(u8 level_idx, enum mpam_class_types type)
@@ -413,6 +450,86 @@ int mpam_ris_create(struct mpam_msc *msc, u8 ris_idx,
 	return err;
 }
 
+static int mpam_msc_hw_probe(struct mpam_msc *msc)
+{
+	u64 idr;
+	struct device *dev = &msc->pdev->dev;
+
+	lockdep_assert_held(&msc->probe_lock);
+
+	idr = __mpam_read_reg(msc, MPAMF_AIDR);
+	if ((idr & MPAMF_AIDR_ARCH_MAJOR_REV) != MPAM_ARCHITECTURE_V1) {
+		dev_err_once(dev, "MSC does not match MPAM architecture v1.x\n");
+		return -EIO;
+	}
+
+	msc->probed = true;
+
+	return 0;
+}
+
+static int mpam_cpu_online(unsigned int cpu)
+{
+	return 0;
+}
+
+/* Before mpam is enabled, try to probe new MSC */
+static int mpam_discovery_cpu_online(unsigned int cpu)
+{
+	int err = 0;
+	struct mpam_msc *msc;
+	bool new_device_probed = false;
+
+	guard(srcu)(&mpam_srcu);
+	list_for_each_entry_srcu(msc, &mpam_all_msc, all_msc_list,
+				 srcu_read_lock_held(&mpam_srcu)) {
+		if (!cpumask_test_cpu(cpu, &msc->accessibility))
+			continue;
+
+		mutex_lock(&msc->probe_lock);
+		if (!msc->probed)
+			err = mpam_msc_hw_probe(msc);
+		mutex_unlock(&msc->probe_lock);
+
+		if (err)
+			break;
+		new_device_probed = true;
+	}
+
+	if (new_device_probed && !err)
+		schedule_work(&mpam_enable_work);
+	if (err) {
+		mpam_disable_reason = "error during probing";
+		schedule_work(&mpam_broken_work);
+	}
+
+	return err;
+}
+
+static int mpam_cpu_offline(unsigned int cpu)
+{
+	return 0;
+}
+
+static void mpam_register_cpuhp_callbacks(int (*online)(unsigned int online),
+					  int (*offline)(unsigned int offline),
+					  char *name)
+{
+	mutex_lock(&mpam_cpuhp_state_lock);
+	if (mpam_cpuhp_state) {
+		cpuhp_remove_state(mpam_cpuhp_state);
+		mpam_cpuhp_state = 0;
+	}
+
+	mpam_cpuhp_state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, name, online,
+					     offline);
+	if (mpam_cpuhp_state <= 0) {
+		pr_err("Failed to register cpuhp callbacks");
+		mpam_cpuhp_state = 0;
+	}
+	mutex_unlock(&mpam_cpuhp_state_lock);
+}
+
 /*
  * An MSC can control traffic from a set of CPUs, but may only be accessible
  * from a (hopefully wider) set of CPUs. The common reason for this is power
@@ -549,7 +666,8 @@ static int mpam_msc_drv_probe(struct platform_device *pdev)
 	}
 
 	if (atomic_add_return(1, &mpam_num_msc) == fw_num_msc)
-		pr_info("Discovered all MSCs\n");
+		mpam_register_cpuhp_callbacks(mpam_discovery_cpu_online, NULL,
+					      "mpam:drv_probe");
 
 	return 0;
 }
@@ -561,6 +679,62 @@ static struct platform_driver mpam_msc_driver = {
 	.probe = mpam_msc_drv_probe,
 	.remove = mpam_msc_drv_remove,
 };
+
+static void mpam_enable_once(void)
+{
+	mpam_register_cpuhp_callbacks(mpam_cpu_online, mpam_cpu_offline,
+				      "mpam:online");
+
+	pr_info("MPAM enabled\n");
+}
+
+void mpam_disable(struct work_struct *ignored)
+{
+	struct mpam_msc *msc, *tmp;
+
+	mutex_lock(&mpam_cpuhp_state_lock);
+	if (mpam_cpuhp_state) {
+		cpuhp_remove_state(mpam_cpuhp_state);
+		mpam_cpuhp_state = 0;
+	}
+	mutex_unlock(&mpam_cpuhp_state_lock);
+
+	mutex_lock(&mpam_list_lock);
+	list_for_each_entry_safe(msc, tmp, &mpam_all_msc, all_msc_list)
+		mpam_msc_destroy(msc);
+	mutex_unlock(&mpam_list_lock);
+	mpam_free_garbage();
+
+	pr_err_once("MPAM disabled due to %s\n", mpam_disable_reason);
+}
+
+/*
+ * Enable mpam once all devices have been probed.
+ * Scheduled by mpam_discovery_cpu_online() once all devices have been created.
+ * Also scheduled when new devices are probed when new CPUs come online.
+ */
+void mpam_enable(struct work_struct *work)
+{
+	static atomic_t once;
+	struct mpam_msc *msc;
+	bool all_devices_probed = true;
+
+	/* Have we probed all the hw devices? */
+	guard(srcu)(&mpam_srcu);
+	list_for_each_entry_srcu(msc, &mpam_all_msc, all_msc_list,
+				 srcu_read_lock_held(&mpam_srcu)) {
+		mutex_lock(&msc->probe_lock);
+		if (!msc->probed)
+			all_devices_probed = false;
+		mutex_unlock(&msc->probe_lock);
+
+		if (!all_devices_probed)
+			break;
+	}
+
+	if (all_devices_probed && !atomic_fetch_inc(&once))
+		mpam_enable_once();
+}
 
 static int __init mpam_msc_driver_init(void)
 {

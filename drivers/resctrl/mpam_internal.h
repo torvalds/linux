@@ -48,6 +48,7 @@ struct mpam_msc {
 	 * properties become read-only and the lists are protected by SRCU.
 	 */
 	struct mutex		probe_lock;
+	bool			probed;
 	unsigned long		ris_idxs;
 	u32			ris_max;
 
@@ -136,6 +137,10 @@ struct mpam_msc_ris {
 /* List of all classes - protected by srcu*/
 extern struct srcu_struct mpam_srcu;
 extern struct list_head mpam_classes;
+
+/* Scheduled work callback to enable mpam once all MSC have been probed */
+void mpam_enable(struct work_struct *work);
+void mpam_disable(struct work_struct *work);
 
 int mpam_get_cpumask_from_cache_id(unsigned long cache_id, u32 cache_level,
 				   cpumask_t *affinity);
