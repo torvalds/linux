@@ -555,7 +555,7 @@ int copy_string_kernel(const char *arg, struct linux_binprm *bprm)
 		return -E2BIG;
 
 	while (len > 0) {
-		unsigned int bytes_to_copy = min_t(unsigned int, len,
+		unsigned int bytes_to_copy = min(len,
 				min_not_zero(offset_in_page(pos), PAGE_SIZE));
 		struct page *page;
 

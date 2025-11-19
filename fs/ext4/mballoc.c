@@ -4276,8 +4276,7 @@ void ext4_mb_mark_bb(struct super_block *sb, ext4_fsblk_t block,
 		 * get the corresponding group metadata to work with.
 		 * For this we have goto again loop.
 		 */
-		thisgrp_len = min_t(unsigned int, (unsigned int)len,
-			EXT4_BLOCKS_PER_GROUP(sb) - EXT4_C2B(sbi, blkoff));
+		thisgrp_len = min(len, EXT4_BLOCKS_PER_GROUP(sb) - EXT4_C2B(sbi, blkoff));
 		clen = EXT4_NUM_B2C(sbi, thisgrp_len);
 
 		if (!ext4_sb_block_valid(sb, NULL, block, thisgrp_len)) {
