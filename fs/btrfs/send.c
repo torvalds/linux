@@ -1134,12 +1134,12 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 		btrfs_dir_item_key_to_cpu(eb, di, &di_key);
 
 		if (btrfs_dir_ftype(eb, di) == BTRFS_FT_XATTR) {
-			if (name_len > XATTR_NAME_MAX) {
+			if (unlikely(name_len > XATTR_NAME_MAX)) {
 				ret = -ENAMETOOLONG;
 				goto out;
 			}
-			if (name_len + data_len >
-					BTRFS_MAX_XATTR_SIZE(root->fs_info)) {
+			if (unlikely(name_len + data_len >
+				     BTRFS_MAX_XATTR_SIZE(root->fs_info))) {
 				ret = -E2BIG;
 				goto out;
 			}
@@ -1147,7 +1147,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 			/*
 			 * Path too long
 			 */
-			if (name_len + data_len > PATH_MAX) {
+			if (unlikely(name_len + data_len > PATH_MAX)) {
 				ret = -ENAMETOOLONG;
 				goto out;
 			}
@@ -5129,7 +5129,7 @@ static int process_verity(struct send_ctx *sctx)
 	if (ret < 0)
 		goto iput;
 
-	if (ret > FS_VERITY_MAX_DESCRIPTOR_SIZE) {
+	if (unlikely(ret > FS_VERITY_MAX_DESCRIPTOR_SIZE)) {
 		ret = -EMSGSIZE;
 		goto iput;
 	}
@@ -5173,14 +5173,14 @@ static int put_data_header(struct send_ctx *sctx, u32 len)
 		 * Since v2, the data attribute header doesn't include a length,
 		 * it is implicitly to the end of the command.
 		 */
-		if (sctx->send_max_size - sctx->send_size < sizeof(__le16) + len)
+		if (unlikely(sctx->send_max_size - sctx->send_size < sizeof(__le16) + len))
 			return -EOVERFLOW;
 		put_unaligned_le16(BTRFS_SEND_A_DATA, sctx->send_buf + sctx->send_size);
 		sctx->send_size += sizeof(__le16);
 	} else {
 		struct btrfs_tlv_header *hdr;
 
-		if (sctx->send_max_size - sctx->send_size < sizeof(*hdr) + len)
+		if (unlikely(sctx->send_max_size - sctx->send_size < sizeof(*hdr) + len))
 			return -EOVERFLOW;
 		hdr = (struct btrfs_tlv_header *)(sctx->send_buf + sctx->send_size);
 		put_unaligned_le16(BTRFS_SEND_A_DATA, &hdr->tlv_type);
@@ -5580,8 +5580,8 @@ static int send_encoded_extent(struct send_ctx *sctx, struct btrfs_path *path,
 	 * between the beginning of the command and the file data.
 	 */
 	data_offset = PAGE_ALIGN(sctx->send_size);
-	if (data_offset > sctx->send_max_size ||
-	    sctx->send_max_size - data_offset < disk_num_bytes) {
+	if (unlikely(data_offset > sctx->send_max_size ||
+		     sctx->send_max_size - data_offset < disk_num_bytes)) {
 		ret = -EOVERFLOW;
 		goto out;
 	}
