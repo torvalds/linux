@@ -613,20 +613,16 @@ void xhci_debugfs_remove_slot(struct xhci_hcd *xhci, int slot_id)
 static void xhci_debugfs_create_ports(struct xhci_hcd *xhci,
 				      struct dentry *parent)
 {
-	unsigned int		num_ports;
 	char			port_name[8];
 	struct xhci_port	*port;
 	struct dentry		*dir;
 
-	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-
 	parent = debugfs_create_dir("ports", parent);
 
-	while (num_ports--) {
-		scnprintf(port_name, sizeof(port_name), "port%02d",
-			  num_ports + 1);
+	for (int i = 0; i < xhci->max_ports; i++) {
+		scnprintf(port_name, sizeof(port_name), "port%02d", i + 1);
 		dir = debugfs_create_dir(port_name, parent);
-		port = &xhci->hw_ports[num_ports];
+		port = &xhci->hw_ports[i];
 		debugfs_create_file("portsc", 0644, dir, port, &port_fops);
 	}
 }
@@ -634,7 +630,6 @@ static void xhci_debugfs_create_ports(struct xhci_hcd *xhci,
 static int xhci_port_bw_show(struct xhci_hcd *xhci, u8 dev_speed,
 				struct seq_file *s)
 {
-	unsigned int			num_ports;
 	unsigned int			i;
 	int				ret;
 	struct xhci_container_ctx	*ctx;
@@ -644,8 +639,6 @@ static int xhci_port_bw_show(struct xhci_hcd *xhci, u8 dev_speed,
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		return ret;
-
-	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
 	ctx = xhci_alloc_port_bw_ctx(xhci, 0);
 	if (!ctx) {
@@ -661,7 +654,7 @@ static int xhci_port_bw_show(struct xhci_hcd *xhci, u8 dev_speed,
 	/* print all roothub ports available bandwidth
 	 * refer to xhci rev1_2 protocol 6.2.6 , byte 0 is reserved
 	 */
-	for (i = 1; i < num_ports+1; i++)
+	for (i = 1; i <= xhci->max_ports; i++)
 		seq_printf(s, "port[%d] available bw: %d%%.\n", i,
 				ctx->bytes[i]);
 err_out:
