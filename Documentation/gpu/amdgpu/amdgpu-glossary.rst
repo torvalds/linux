@@ -240,8 +240,17 @@ we have a dedicated glossary for Display Core at
       stages had different cache designs; it refers to the L1 cache in older
       architectures.
 
+    TMR
+      Trusted Memory Region
+
+    TMZ
+      Trusted Memory Zone
+
     TOC
       Table of Contents
+
+    UMC
+      Unified Memory Controller
 
     UMSCH
       User Mode Scheduler
