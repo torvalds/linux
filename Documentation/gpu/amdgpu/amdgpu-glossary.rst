@@ -143,14 +143,23 @@ we have a dedicated glossary for Display Core at
     PA
       Primitive Assembler / Physical Address
 
+    PDE
+      Page Directory Entry
+
     PFP
       Pre-Fetch Parser (Graphics)
 
     PPLib
       PowerPlay Library - PowerPlay is the power management component.
 
+    PRT
+      Partially Resident Texture (also known as sparse residency)
+
     PSP
         Platform Security Processor
+
+    PTE
+      Page Table Entry
 
     RB
       Render Backends. Some people called it ROPs.
