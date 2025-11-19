@@ -21,6 +21,25 @@
 #include <linux/cacheinfo.h>
 #include <acpi/processor.h>
 
+/*
+ * The acpi_pptt_cache_v1 in actbl2.h, which is imported from acpica,
+ * only contains the cache_id field rather than all the fields of the
+ * Cache Type Structure. Use this alternative structure until it is
+ * resolved in acpica.
+ */
+struct acpi_pptt_cache_v1_full {
+	struct acpi_subtable_header header;
+	u16 reserved;
+	u32 flags;
+	u32 next_level_of_cache;
+	u32 size;
+	u32 number_of_sets;
+	u8 associativity;
+	u8 attributes;
+	u16 line_size;
+	u32 cache_id;
+} __packed;
+
 static struct acpi_subtable_header *fetch_pptt_subtable(struct acpi_table_header *table_hdr,
 							u32 pptt_ref)
 {
@@ -54,6 +73,18 @@ static struct acpi_pptt_cache *fetch_pptt_cache(struct acpi_table_header *table_
 						u32 pptt_ref)
 {
 	return (struct acpi_pptt_cache *)fetch_pptt_subtable(table_hdr, pptt_ref);
+}
+
+static struct acpi_pptt_cache_v1_full *upgrade_pptt_cache(struct acpi_pptt_cache *cache)
+{
+	if (cache->header.length < sizeof(struct acpi_pptt_cache_v1_full))
+		return NULL;
+
+	/* No use for v1 if the only additional field is invalid */
+	if (!(cache->flags & ACPI_PPTT_CACHE_ID_VALID))
+		return NULL;
+
+	return (struct acpi_pptt_cache_v1_full *)cache;
 }
 
 static struct acpi_subtable_header *acpi_get_pptt_resource(struct acpi_table_header *table_hdr,
@@ -355,7 +386,6 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
  * @this_leaf: Kernel cache info structure being updated
  * @found_cache: The PPTT node describing this cache instance
  * @cpu_node: A unique reference to describe this cache instance
- * @revision: The revision of the PPTT table
  *
  * The ACPI spec implies that the fields in the cache structures are used to
  * extend and correct the information probed from the hardware. Lets only
@@ -365,10 +395,9 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
  */
 static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
-				    struct acpi_pptt_processor *cpu_node,
-				    u8 revision)
+				    struct acpi_pptt_processor *cpu_node)
 {
-	struct acpi_pptt_cache_v1* found_cache_v1;
+	struct acpi_pptt_cache_v1_full *found_cache_v1;
 
 	this_leaf->fw_token = cpu_node;
 	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
@@ -418,9 +447,8 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 	    found_cache->flags & ACPI_PPTT_CACHE_TYPE_VALID)
 		this_leaf->type = CACHE_TYPE_UNIFIED;
 
-	if (revision >= 3 && (found_cache->flags & ACPI_PPTT_CACHE_ID_VALID)) {
-		found_cache_v1 = ACPI_ADD_PTR(struct acpi_pptt_cache_v1,
-	                                      found_cache, sizeof(struct acpi_pptt_cache));
+	found_cache_v1 = upgrade_pptt_cache(found_cache);
+	if (found_cache_v1) {
 		this_leaf->id = found_cache_v1->cache_id;
 		this_leaf->attributes |= CACHE_ID;
 	}
@@ -445,8 +473,7 @@ static void cache_setup_acpi_cpu(struct acpi_table_header *table,
 		pr_debug("found = %p %p\n", found_cache, cpu_node);
 		if (found_cache)
 			update_cache_properties(this_leaf, found_cache,
-						ACPI_TO_POINTER(ACPI_PTR_DIFF(cpu_node, table)),
-						table->revision);
+						ACPI_TO_POINTER(ACPI_PTR_DIFF(cpu_node, table)));
 
 		index++;
 	}
