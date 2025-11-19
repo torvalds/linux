@@ -10386,6 +10386,16 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
  *
  * The mm::mm_cid:pcpu per CPU storage is protected by the CPUs runqueue
  * lock.
+ *
+ * CID ownership:
+ *
+ * A CID is either owned by a task (stored in task_struct::mm_cid.cid) or
+ * by a CPU (stored in mm::mm_cid.pcpu::cid). CIDs owned by CPUs have the
+ * MM_CID_ONCPU bit set. During transition from CPU to task ownership mode,
+ * MM_CID_TRANSIT is set on the per task CIDs. When this bit is set the
+ * task needs to drop the CID into the pool when scheduling out.  Both bits
+ * (ONCPU and TRANSIT) are filtered out by task_cid() when the CID is
+ * actually handed over to user space in the RSEQ memory.
  */
 
 /*

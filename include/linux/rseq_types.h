@@ -92,7 +92,9 @@ struct rseq_data { };
 
 #ifdef CONFIG_SCHED_MM_CID
 
-#define MM_CID_UNSET	(~0U)
+#define MM_CID_UNSET	BIT(31)
+#define MM_CID_ONCPU	BIT(30)
+#define MM_CID_TRANSIT	BIT(29)
 
 /**
  * struct sched_mm_cid - Storage for per task MM CID data
