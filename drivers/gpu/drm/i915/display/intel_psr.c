@@ -2992,9 +2992,9 @@ skip_sel_fetch_set_loop:
 	return 0;
 }
 
-void intel_psr2_panic_force_full_update(struct intel_display *display,
-					struct intel_crtc_state *crtc_state)
+void intel_psr2_panic_force_full_update(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 val = man_trk_ctl_enable_bit_get(display);

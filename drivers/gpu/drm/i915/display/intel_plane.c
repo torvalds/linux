@@ -1274,34 +1274,33 @@ static unsigned int intel_4tile_get_offset(unsigned int width, unsigned int x, u
 	return offset;
 }
 
-static void intel_panic_flush(struct drm_plane *plane)
+static void intel_panic_flush(struct drm_plane *_plane)
 {
-	struct intel_plane_state *plane_state = to_intel_plane_state(plane->state);
+	struct intel_plane *plane = to_intel_plane(_plane);
+	struct intel_display *display = to_intel_display(plane);
+	const struct intel_plane_state *plane_state = to_intel_plane_state(plane->base.state);
 	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
-	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
-	struct intel_plane *iplane = to_intel_plane(plane);
-	struct intel_display *display = to_intel_display(iplane);
-	struct drm_framebuffer *fb = plane_state->hw.fb;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	const struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
+	const struct intel_framebuffer *fb = to_intel_framebuffer(plane_state->hw.fb);
 
-	intel_panic_finish(intel_fb->panic);
+	intel_panic_finish(fb->panic);
 
 	if (crtc_state->enable_psr2_sel_fetch) {
 		/* Force a full update for psr2 */
-		intel_psr2_panic_force_full_update(display, crtc_state);
+		intel_psr2_panic_force_full_update(crtc_state);
 	}
 
 	/* Flush the cache and don't disable tiling if it's the fbdev framebuffer.*/
-	if (intel_fb == intel_fbdev_framebuffer(display->fbdev.fbdev)) {
+	if (fb == intel_fbdev_framebuffer(display->fbdev.fbdev)) {
 		struct iosys_map map;
 
 		intel_fbdev_get_map(display->fbdev.fbdev, &map);
-		drm_clflush_virt_range(map.vaddr, fb->pitches[0] * fb->height);
+		drm_clflush_virt_range(map.vaddr, fb->base.pitches[0] * fb->base.height);
 		return;
 	}
 
-	if (fb->modifier && iplane->disable_tiling)
-		iplane->disable_tiling(iplane);
+	if (fb->base.modifier != DRM_FORMAT_MOD_LINEAR && plane->disable_tiling)
+		plane->disable_tiling(plane);
 }
 
 static unsigned int (*intel_get_tiling_func(u64 fb_modifier))(unsigned int width,
@@ -1339,45 +1338,43 @@ static int intel_get_scanout_buffer(struct drm_plane *plane,
 {
 	struct intel_plane_state *plane_state;
 	struct drm_gem_object *obj;
-	struct drm_framebuffer *fb;
-	struct intel_framebuffer *intel_fb;
+	struct intel_framebuffer *fb;
 	struct intel_display *display = to_intel_display(plane->dev);
 
 	if (!plane->state || !plane->state->fb || !plane->state->visible)
 		return -ENODEV;
 
 	plane_state = to_intel_plane_state(plane->state);
-	fb = plane_state->hw.fb;
-	intel_fb = to_intel_framebuffer(fb);
+	fb = to_intel_framebuffer(plane_state->hw.fb);
 
-	obj = intel_fb_bo(fb);
+	obj = intel_fb_bo(&fb->base);
 	if (!obj)
 		return -ENODEV;
 
-	if (intel_fb == intel_fbdev_framebuffer(display->fbdev.fbdev)) {
+	if (fb == intel_fbdev_framebuffer(display->fbdev.fbdev)) {
 		intel_fbdev_get_map(display->fbdev.fbdev, &sb->map[0]);
 	} else {
 		int ret;
 		/* Can't disable tiling if DPT is in use */
-		if (intel_fb_uses_dpt(fb)) {
-			if (fb->format->cpp[0] != 4)
+		if (intel_fb_uses_dpt(&fb->base)) {
+			if (fb->base.format->cpp[0] != 4)
 				return -EOPNOTSUPP;
-			intel_fb->panic_tiling = intel_get_tiling_func(fb->modifier);
-			if (!intel_fb->panic_tiling)
+			fb->panic_tiling = intel_get_tiling_func(fb->base.modifier);
+			if (!fb->panic_tiling)
 				return -EOPNOTSUPP;
 		}
-		sb->private = intel_fb;
-		ret = intel_panic_setup(intel_fb->panic, sb);
+		sb->private = fb;
+		ret = intel_panic_setup(fb->panic, sb);
 		if (ret)
 			return ret;
 	}
-	sb->width = fb->width;
-	sb->height = fb->height;
+	sb->width = fb->base.width;
+	sb->height = fb->base.height;
 	/* Use the generic linear format, because tiling, RC, CCS, CC
 	 * will be disabled in disable_tiling()
 	 */
-	sb->format = drm_format_info(fb->format->format);
-	sb->pitch[0] = fb->pitches[0];
+	sb->format = drm_format_info(fb->base.format->format);
+	sb->pitch[0] = fb->base.pitches[0];
 
 	return 0;
 }
