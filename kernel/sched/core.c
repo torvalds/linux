@@ -10396,43 +10396,270 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
  * task needs to drop the CID into the pool when scheduling out.  Both bits
  * (ONCPU and TRANSIT) are filtered out by task_cid() when the CID is
  * actually handed over to user space in the RSEQ memory.
+ *
+ * Mode switching:
+ *
+ * Switching to per CPU mode happens when the user count becomes greater
+ * than the maximum number of CIDs, which is calculated by:
+ *
+ *	opt_cids = min(mm_cid::nr_cpus_allowed, mm_cid::users);
+ *	max_cids = min(1.25 * opt_cids, num_possible_cpus());
+ *
+ * The +25% allowance is useful for tight CPU masks in scenarios where only
+ * a few threads are created and destroyed to avoid frequent mode
+ * switches. Though this allowance shrinks, the closer opt_cids becomes to
+ * num_possible_cpus(), which is the (unfortunate) hard ABI limit.
+ *
+ * At the point of switching to per CPU mode the new user is not yet
+ * visible in the system, so the task which initiated the fork() runs the
+ * fixup function: mm_cid_fixup_tasks_to_cpu() walks the thread list and
+ * either transfers each tasks owned CID to the CPU the task runs on or
+ * drops it into the CID pool if a task is not on a CPU at that point in
+ * time. Tasks which schedule in before the task walk reaches them do the
+ * handover in mm_cid_schedin(). When mm_cid_fixup_tasks_to_cpus() completes
+ * it's guaranteed that no task related to that MM owns a CID anymore.
+ *
+ * Switching back to task mode happens when the user count goes below the
+ * threshold which was recorded on the per CPU mode switch:
+ *
+ *	pcpu_thrs = min(opt_cids - (opt_cids / 4), num_possible_cpus() / 2);
+ *
+ * This threshold is updated when a affinity change increases the number of
+ * allowed CPUs for the MM, which might cause a switch back to per task
+ * mode.
+ *
+ * If the switch back was initiated by a exiting task, then that task runs
+ * the fixup function. If it was initiated by a affinity change, then it's
+ * run either in the deferred update function in context of a workqueue or
+ * by a task which forks a new one or by a task which exits. Whatever
+ * happens first. mm_cid_fixup_cpus_to_task() walks through the possible
+ * CPUs and either transfers the CPU owned CIDs to a related task which
+ * runs on the CPU or drops it into the pool. Tasks which schedule in on a
+ * CPU which the walk did not cover yet do the handover themself.
+ *
+ * This transition from CPU to per task ownership happens in two phases:
+ *
+ *  1) mm:mm_cid.transit contains MM_CID_TRANSIT This is OR'ed on the task
+ *     CID and denotes that the CID is only temporarily owned by the
+ *     task. When it schedules out the task drops the CID back into the
+ *     pool if this bit is set.
+ *
+ *  2) The initiating context walks the per CPU space and after completion
+ *     clears mm:mm_cid.transit. So after that point the CIDs are strictly
+ *     task owned again.
+ *
+ * This two phase transition is required to prevent CID space exhaustion
+ * during the transition as a direct transfer of ownership would fail if
+ * two tasks are scheduled in on the same CPU before the fixup freed per
+ * CPU CIDs.
+ *
+ * When mm_cid_fixup_cpus_to_tasks() completes it's guaranteed that no CID
+ * related to that MM is owned by a CPU anymore.
  */
 
 /*
  * Update the CID range properties when the constraints change. Invoked via
  * fork(), exit() and affinity changes
  */
-static void mm_update_max_cids(struct mm_struct *mm)
+static void __mm_update_max_cids(struct mm_mm_cid *mc)
+{
+	unsigned int opt_cids, max_cids;
+
+	/* Calculate the new optimal constraint */
+	opt_cids = min(mc->nr_cpus_allowed, mc->users);
+
+	/* Adjust the maximum CIDs to +25% limited by the number of possible CPUs */
+	max_cids = min(opt_cids + (opt_cids / 4), num_possible_cpus());
+	WRITE_ONCE(mc->max_cids, max_cids);
+}
+
+static inline unsigned int mm_cid_calc_pcpu_thrs(struct mm_mm_cid *mc)
+{
+	unsigned int opt_cids;
+
+	opt_cids = min(mc->nr_cpus_allowed, mc->users);
+	/* Has to be at least 1 because 0 indicates PCPU mode off */
+	return max(min(opt_cids - opt_cids / 4, num_possible_cpus() / 2), 1);
+}
+
+static bool mm_update_max_cids(struct mm_struct *mm)
 {
 	struct mm_mm_cid *mc = &mm->mm_cid;
-	unsigned int max_cids;
 
 	lockdep_assert_held(&mm->mm_cid.lock);
 
-	/* Calculate the new maximum constraint */
-	max_cids = min(mc->nr_cpus_allowed, mc->users);
-	WRITE_ONCE(mc->max_cids, max_cids);
+	/* Clear deferred mode switch flag. A change is handled by the caller */
+	mc->update_deferred = false;
+	__mm_update_max_cids(mc);
+
+	/* Check whether owner mode must be changed */
+	if (!mc->percpu) {
+		/* Enable per CPU mode when the number of users is above max_cids */
+		if (mc->users > mc->max_cids)
+			mc->pcpu_thrs = mm_cid_calc_pcpu_thrs(mc);
+	} else {
+		/* Switch back to per task if user count under threshold */
+		if (mc->users < mc->pcpu_thrs)
+			mc->pcpu_thrs = 0;
+	}
+
+	/* Mode change required? */
+	if (!!mc->percpu == !!mc->pcpu_thrs)
+		return false;
+	/* When switching back to per TASK mode, set the transition flag */
+	if (!mc->pcpu_thrs)
+		WRITE_ONCE(mc->transit, MM_CID_TRANSIT);
+	WRITE_ONCE(mc->percpu, !!mc->pcpu_thrs);
+	return true;
 }
 
 static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpumask *affmsk)
 {
 	struct cpumask *mm_allowed;
+	struct mm_mm_cid *mc;
 	unsigned int weight;
 
 	if (!mm || !READ_ONCE(mm->mm_cid.users))
 		return;
-
 	/*
 	 * mm::mm_cid::mm_cpus_allowed is the superset of each threads
 	 * allowed CPUs mask which means it can only grow.
 	 */
-	guard(raw_spinlock)(&mm->mm_cid.lock);
+	mc = &mm->mm_cid;
+	guard(raw_spinlock)(&mc->lock);
 	mm_allowed = mm_cpus_allowed(mm);
 	weight = cpumask_weighted_or(mm_allowed, mm_allowed, affmsk);
-	if (weight == mm->mm_cid.nr_cpus_allowed)
+	if (weight == mc->nr_cpus_allowed)
 		return;
-	WRITE_ONCE(mm->mm_cid.nr_cpus_allowed, weight);
-	mm_update_max_cids(mm);
+
+	WRITE_ONCE(mc->nr_cpus_allowed, weight);
+	__mm_update_max_cids(mc);
+	if (!mc->percpu)
+		return;
+
+	/* Adjust the threshold to the wider set */
+	mc->pcpu_thrs = mm_cid_calc_pcpu_thrs(mc);
+
+	/* Scheduling of deferred mode switch goes here */
+}
+
+static inline void mm_cid_transit_to_task(struct task_struct *t, struct mm_cid_pcpu *pcp)
+{
+	if (cid_on_cpu(t->mm_cid.cid)) {
+		unsigned int cid = cpu_cid_to_cid(t->mm_cid.cid);
+
+		t->mm_cid.cid = cid_to_transit_cid(cid);
+		pcp->cid = t->mm_cid.cid;
+	}
+}
+
+static void __maybe_unused mm_cid_fixup_cpus_to_tasks(struct mm_struct *mm)
+{
+	unsigned int cpu;
+
+	/* Walk the CPUs and fixup all stale CIDs */
+	for_each_possible_cpu(cpu) {
+		struct mm_cid_pcpu *pcp = per_cpu_ptr(mm->mm_cid.pcpu, cpu);
+		struct rq *rq = cpu_rq(cpu);
+
+		/* Remote access to mm::mm_cid::pcpu requires rq_lock */
+		guard(rq_lock_irq)(rq);
+		/* Is the CID still owned by the CPU? */
+		if (cid_on_cpu(pcp->cid)) {
+			/*
+			 * If rq->curr has @mm, transfer it with the
+			 * transition bit set. Otherwise drop it.
+			 */
+			if (rq->curr->mm == mm && rq->curr->mm_cid.active)
+				mm_cid_transit_to_task(rq->curr, pcp);
+			else
+				mm_drop_cid_on_cpu(mm, pcp);
+
+		} else if (rq->curr->mm == mm && rq->curr->mm_cid.active) {
+			unsigned int cid = rq->curr->mm_cid.cid;
+
+			/* Ensure it has the transition bit set */
+			if (!cid_in_transit(cid)) {
+				cid = cid_to_transit_cid(cid);
+				rq->curr->mm_cid.cid = cid;
+				pcp->cid = cid;
+			}
+		}
+	}
+	/* Clear the transition bit */
+	WRITE_ONCE(mm->mm_cid.transit, 0);
+}
+
+static inline void mm_cid_transfer_to_cpu(struct task_struct *t, struct mm_cid_pcpu *pcp)
+{
+	if (cid_on_task(t->mm_cid.cid)) {
+		t->mm_cid.cid = cid_to_cpu_cid(t->mm_cid.cid);
+		pcp->cid = t->mm_cid.cid;
+	}
+}
+
+static bool mm_cid_fixup_task_to_cpu(struct task_struct *t, struct mm_struct *mm)
+{
+	/* Remote access to mm::mm_cid::pcpu requires rq_lock */
+	guard(task_rq_lock)(t);
+	/* If the task is not active it is not in the users count */
+	if (!t->mm_cid.active)
+		return false;
+	if (cid_on_task(t->mm_cid.cid)) {
+		/* If running on the CPU, transfer the CID, otherwise drop it */
+		if (task_rq(t)->curr == t)
+			mm_cid_transfer_to_cpu(t, per_cpu_ptr(mm->mm_cid.pcpu, task_cpu(t)));
+		else
+			mm_unset_cid_on_task(t);
+	}
+	return true;
+}
+
+static void __maybe_unused mm_cid_fixup_tasks_to_cpus(void)
+{
+	struct mm_struct *mm = current->mm;
+	struct task_struct *p, *t;
+	unsigned int users;
+
+	/*
+	 * This can obviously race with a concurrent affinity change, which
+	 * increases the number of allowed CPUs for this mm, but that does
+	 * not affect the mode and only changes the CID constraints. A
+	 * possible switch back to per task mode happens either in the
+	 * deferred handler function or in the next fork()/exit().
+	 *
+	 * The caller has already transferred. The newly incoming task is
+	 * already accounted for, but not yet visible.
+	 */
+	users = mm->mm_cid.users - 2;
+	if (!users)
+		return;
+
+	guard(rcu)();
+	for_other_threads(current, t) {
+		if (mm_cid_fixup_task_to_cpu(t, mm))
+			users--;
+	}
+
+	if (!users)
+		return;
+
+	/* Happens only for VM_CLONE processes. */
+	for_each_process_thread(p, t) {
+		if (t == current || t->mm != mm)
+			continue;
+		if (mm_cid_fixup_task_to_cpu(t, mm)) {
+			if (--users == 0)
+				return;
+		}
+	}
+}
+
+static bool sched_mm_cid_add_user(struct task_struct *t, struct mm_struct *mm)
+{
+	t->mm_cid.active = 1;
+	mm->mm_cid.users++;
+	return mm_update_max_cids(mm);
 }
 
 void sched_mm_cid_fork(struct task_struct *t)
@@ -10442,12 +10669,19 @@ void sched_mm_cid_fork(struct task_struct *t)
 	WARN_ON_ONCE(!mm || t->mm_cid.cid != MM_CID_UNSET);
 
 	guard(mutex)(&mm->mm_cid.mutex);
-	guard(raw_spinlock)(&mm->mm_cid.lock);
-	t->mm_cid.active = 1;
-	mm->mm_cid.users++;
-	/* Preset last_cid for mm_cid_select() */
-	t->mm_cid.last_cid = READ_ONCE(mm->mm_cid.max_cids) - 1;
-	mm_update_max_cids(mm);
+	scoped_guard(raw_spinlock, &mm->mm_cid.lock) {
+		sched_mm_cid_add_user(t, mm);
+		/* Preset last_cid for mm_cid_select() */
+		t->mm_cid.last_cid = mm->mm_cid.max_cids - 1;
+	}
+}
+
+static bool sched_mm_cid_remove_user(struct task_struct *t)
+{
+	t->mm_cid.active = 0;
+	mm_unset_cid_on_task(t);
+	t->mm->mm_cid.users--;
+	return mm_update_max_cids(t->mm);
 }
 
 /*
@@ -10462,14 +10696,8 @@ void sched_mm_cid_exit(struct task_struct *t)
 		return;
 
 	guard(mutex)(&mm->mm_cid.mutex);
-	guard(raw_spinlock)(&mm->mm_cid.lock);
-	t->mm_cid.active = 0;
-	mm->mm_cid.users--;
-	if (t->mm_cid.cid != MM_CID_UNSET) {
-		clear_bit(t->mm_cid.cid, mm_cidmask(mm));
-		t->mm_cid.cid = MM_CID_UNSET;
-	}
-	mm_update_max_cids(mm);
+	scoped_guard(raw_spinlock, &mm->mm_cid.lock)
+		sched_mm_cid_remove_user(t);
 }
 
 /* Deactivate MM CID allocation across execve() */
@@ -10499,6 +10727,8 @@ void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
 	mm->mm_cid.transit = 0;
 	mm->mm_cid.nr_cpus_allowed = p->nr_cpus_allowed;
 	mm->mm_cid.users = 0;
+	mm->mm_cid.pcpu_thrs = 0;
+	mm->mm_cid.update_deferred = 0;
 	raw_spin_lock_init(&mm->mm_cid.lock);
 	mutex_init(&mm->mm_cid.mutex);
 	cpumask_copy(mm_cpus_allowed(mm), &p->cpus_mask);

@@ -122,14 +122,15 @@ struct mm_cid_pcpu {
  * @percpu:		Set, when CIDs are in per CPU mode
  * @transit:		Set to MM_CID_TRANSIT during a mode change transition phase
  * @max_cids:		The exclusive maximum CID value for allocation and convergence
- * @lock:		Spinlock to protect all fields except @pcpu. It also protects
- *			the MM cid cpumask and the MM cidmask bitmap.
+ * @lock:		Spinlock to protect against affinity setting which can't take @mutex
  * @mutex:		Mutex to serialize forks and exits related to this mm
  * @nr_cpus_allowed:	The number of CPUs in the per MM allowed CPUs map. The map
  *			is growth only.
  * @users:		The number of tasks sharing this MM. Separate from mm::mm_users
  *			as that is modified by mmget()/mm_put() by other entities which
  *			do not actually share the MM.
+ * @pcpu_thrs:		Threshold for switching back from per CPU mode
+ * @update_deferred:	A deferred switch back to per task mode is pending.
  */
 struct mm_mm_cid {
 	/* Hotpath read mostly members */
@@ -144,6 +145,8 @@ struct mm_mm_cid {
 	/* Low frequency modified */
 	unsigned int		nr_cpus_allowed;
 	unsigned int		users;
+	unsigned int		pcpu_thrs;
+	unsigned int		update_deferred;
 }____cacheline_aligned_in_smp;
 #else /* CONFIG_SCHED_MM_CID */
 struct mm_mm_cid { };
