@@ -124,6 +124,7 @@ static int __fixed_phy_add(int phy_addr,
 
 	fp->addr = phy_addr;
 	fp->status = *status;
+	fp->status.link = true;
 
 	list_add_tail(&fp->node, &fmb_phys);
 
