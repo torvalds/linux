@@ -804,25 +804,12 @@ int stmmac_pltfr_probe(struct platform_device *pdev,
 		       struct plat_stmmacenet_data *plat,
 		       struct stmmac_resources *res)
 {
-	struct device *dev = &pdev->dev;
-	int ret;
-
 	if (!plat->suspend && plat->exit)
 		plat->suspend = stmmac_plat_suspend;
 	if (!plat->resume && plat->init)
 		plat->resume = stmmac_plat_resume;
 
-	ret = stmmac_pltfr_init(dev, plat);
-	if (ret)
-		return ret;
-
-	ret = stmmac_dvr_probe(dev, plat, res);
-	if (ret) {
-		stmmac_pltfr_exit(dev, plat);
-		return ret;
-	}
-
-	return ret;
+	return stmmac_dvr_probe(&pdev->dev, plat, res);
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_probe);
 
@@ -864,13 +851,7 @@ EXPORT_SYMBOL_GPL(devm_stmmac_pltfr_probe);
  */
 void stmmac_pltfr_remove(struct platform_device *pdev)
 {
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct plat_stmmacenet_data *plat = priv->plat;
-	struct device *dev = &pdev->dev;
-
-	stmmac_dvr_remove(dev);
-	stmmac_pltfr_exit(dev, plat);
+	stmmac_dvr_remove(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_remove);
 
