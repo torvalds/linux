@@ -296,6 +296,7 @@ int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list);
 struct list_head *skx_get_edac_list(void);
 
 int skx_get_hi_lo(unsigned int did, int off[], u64 *tolm, u64 *tohm);
+void skx_set_hi_lo(u64 tolm, u64 tohm);
 
 int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 		      struct skx_imc *imc, int chan, int dimmno,

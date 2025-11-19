@@ -430,6 +430,13 @@ fail:
 }
 EXPORT_SYMBOL_GPL(skx_get_hi_lo);
 
+void skx_set_hi_lo(u64 tolm, u64 tohm)
+{
+	skx_tolm = tolm;
+	skx_tohm = tohm;
+}
+EXPORT_SYMBOL_GPL(skx_set_hi_lo);
+
 static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
 			     int minval, int maxval, const char *name)
 {
