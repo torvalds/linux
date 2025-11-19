@@ -308,6 +308,7 @@ static u32 rzv2h_rspi_setup_clock(struct rzv2h_rspi_priv *rspi, u32 hz)
 	struct rzv2h_rspi_best_clock best_clock = {
 		.error = ULONG_MAX,
 	};
+	int ret;
 
 	rspi->info->find_tclk_rate(rspi->tclk, hz, RSPI_SPBR_SPR_MIN,
 				   RSPI_SPBR_SPR_MAX, &best_clock);
@@ -322,6 +323,10 @@ static u32 rzv2h_rspi_setup_clock(struct rzv2h_rspi_priv *rspi, u32 hz)
 
 	if (!best_clock.clk_rate)
 		return -EINVAL;
+
+	ret = clk_set_rate(best_clock.clk, best_clock.clk_rate);
+	if (ret)
+		return 0;
 
 	rspi->use_pclk = best_clock.clk == rspi->pclk;
 	rspi->spr = best_clock.spr;
@@ -426,8 +431,8 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rzv2h_rspi_priv *rspi;
 	struct clk_bulk_data *clks;
-	unsigned long tclk_rate;
 	int irq_rx, ret, i;
+	long tclk_rate;
 
 	controller = devm_spi_alloc_host(dev, sizeof(*rspi));
 	if (!controller)
@@ -460,8 +465,6 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	if (!rspi->tclk)
 		return dev_err_probe(dev, -EINVAL, "Failed to get tclk\n");
 
-	tclk_rate = clk_get_rate(rspi->tclk);
-
 	rspi->resets[0].id = "presetn";
 	rspi->resets[1].id = "tresetn";
 	ret = devm_reset_control_bulk_get_optional_exclusive(dev, RSPI_RESET_NUM,
@@ -493,9 +496,23 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	controller->unprepare_message = rzv2h_rspi_unprepare_message;
 	controller->num_chipselect = 4;
 	controller->transfer_one = rzv2h_rspi_transfer_one;
+
+	tclk_rate = clk_round_rate(rspi->tclk, 0);
+	if (tclk_rate < 0) {
+		ret = tclk_rate;
+		goto quit_resets;
+	}
+
 	controller->min_speed_hz = rzv2h_rspi_calc_bitrate(tclk_rate,
 							   RSPI_SPBR_SPR_MAX,
 							   RSPI_SPCMD_BRDV_MAX);
+
+	tclk_rate = clk_round_rate(rspi->tclk, ULONG_MAX);
+	if (tclk_rate < 0) {
+		ret = tclk_rate;
+		goto quit_resets;
+	}
+
 	controller->max_speed_hz = rzv2h_rspi_calc_bitrate(tclk_rate,
 							   RSPI_SPBR_SPR_MIN,
 							   RSPI_SPCMD_BRDV_MIN);
