@@ -477,6 +477,8 @@ int hfs_part_find(struct super_block *sb, sector_t *part_start,
 /* super.c */
 struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino);
 void hfsplus_mark_mdb_dirty(struct super_block *sb);
+void hfsplus_prepare_volume_header_for_commit(struct hfsplus_vh *vhdr);
+int hfsplus_commit_superblock(struct super_block *sb);
 
 /* tables.c */
 extern u16 hfsplus_case_fold_table[];

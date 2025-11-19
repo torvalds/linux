@@ -325,6 +325,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 	struct inode *inode = file->f_mapping->host;
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
+	struct hfsplus_vh *vhdr = sbi->s_vhdr;
 	int error = 0, error2;
 
 	error = file_write_and_wait_range(file, start, end);
@@ -367,6 +368,14 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 		if (!error)
 			error = error2;
 	}
+
+	mutex_lock(&sbi->vh_mutex);
+	hfsplus_prepare_volume_header_for_commit(vhdr);
+	mutex_unlock(&sbi->vh_mutex);
+
+	error2 = hfsplus_commit_superblock(inode->i_sb);
+	if (!error)
+		error = error2;
 
 	if (!test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
 		blkdev_issue_flush(inode->i_sb->s_bdev);
