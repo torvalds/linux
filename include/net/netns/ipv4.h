@@ -85,6 +85,7 @@ struct netns_ipv4 {
 	/* 3 bytes hole, try to pack */
 	int sysctl_tcp_reordering;
 	int sysctl_tcp_rmem[3];
+	int sysctl_tcp_rcvbuf_low_rtt;
 	__cacheline_group_end(netns_ipv4_read_rx);
 
 	struct inet_timewait_death_row tcp_death_row;
