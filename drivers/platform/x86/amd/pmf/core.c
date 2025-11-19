@@ -465,9 +465,17 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	if (!dev->regbase)
 		return -ENOMEM;
 
-	mutex_init(&dev->lock);
-	mutex_init(&dev->update_mutex);
-	mutex_init(&dev->cb_mutex);
+	err = devm_mutex_init(dev->dev, &dev->lock);
+	if (err)
+		return err;
+
+	err = devm_mutex_init(dev->dev, &dev->update_mutex);
+	if (err)
+		return err;
+
+	err = devm_mutex_init(dev->dev, &dev->cb_mutex);
+	if (err)
+		return err;
 
 	apmf_acpi_init(dev);
 	platform_set_drvdata(pdev, dev);
@@ -491,9 +499,6 @@ static void amd_pmf_remove(struct platform_device *pdev)
 		amd_pmf_notify_sbios_heartbeat_event_v2(dev, ON_UNLOAD);
 	apmf_acpi_deinit(dev);
 	amd_pmf_dbgfs_unregister(dev);
-	mutex_destroy(&dev->lock);
-	mutex_destroy(&dev->update_mutex);
-	mutex_destroy(&dev->cb_mutex);
 }
 
 static const struct attribute_group *amd_pmf_driver_groups[] = {
