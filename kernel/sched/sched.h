@@ -3559,7 +3559,7 @@ static inline bool __mm_cid_get(struct task_struct *t, unsigned int cid, unsigne
 
 	if (cid >= max_cids)
 		return false;
-	if (cpumask_test_and_set_cpu(cid, mm_cidmask(mm)))
+	if (test_and_set_bit(cid, mm_cidmask(mm)))
 		return false;
 	t->mm_cid.cid = t->mm_cid.last_cid = cid;
 	__this_cpu_write(mm->mm_cid.pcpu->cid, cid);
@@ -3582,7 +3582,7 @@ static inline bool mm_cid_get(struct task_struct *t)
 		return true;
 
 	/* Try the first zero bit in the cidmask. */
-	return __mm_cid_get(t, cpumask_first_zero(mm_cidmask(mm)), max_cids);
+	return __mm_cid_get(t, find_first_zero_bit(mm_cidmask(mm), num_possible_cpus()), max_cids);
 }
 
 static inline void mm_cid_select(struct task_struct *t)
@@ -3603,7 +3603,7 @@ static inline void switch_mm_cid(struct task_struct *prev, struct task_struct *n
 {
 	if (prev->mm_cid.active) {
 		if (prev->mm_cid.cid != MM_CID_UNSET)
-			cpumask_clear_cpu(prev->mm_cid.cid, mm_cidmask(prev->mm));
+			clear_bit(prev->mm_cid.cid, mm_cidmask(prev->mm));
 		prev->mm_cid.cid = MM_CID_UNSET;
 	}
 

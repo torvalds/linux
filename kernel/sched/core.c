@@ -10402,7 +10402,7 @@ void sched_mm_cid_exit_signals(struct task_struct *t)
 	guard(preempt)();
 	t->mm_cid.active = 0;
 	if (t->mm_cid.cid != MM_CID_UNSET) {
-		cpumask_clear_cpu(t->mm_cid.cid, mm_cidmask(mm));
+		clear_bit(t->mm_cid.cid, mm_cidmask(mm));
 		t->mm_cid.cid = MM_CID_UNSET;
 	}
 }
