@@ -455,6 +455,16 @@
 		};
 	};
 
+	usb30_pins: usb30 {
+		pinmux = <RZV2H_PORT_PINMUX(B, 0, 14)>, /* USB30_VBUSEN */
+			 <RZV2H_PORT_PINMUX(B, 1, 14)>; /* USB30_OVRCURN */
+	};
+
+	usb31_pins: usb31 {
+		pinmux = <RZV2H_PORT_PINMUX(6, 2, 14)>, /* USB31_VBUSEN */
+			 <RZV2H_PORT_PINMUX(6, 3, 14)>; /* USB31_OVRCURN */
+	};
+
 	xspi_pins: xspi0 {
 		ctrl {
 			pins = "XSPI0_RESET0N", "XSPI0_CS0N", "XSPI0_CKP";
@@ -521,7 +531,27 @@
 	status = "okay";
 };
 
+&usb3_phy0 {
+	status = "okay";
+};
+
+&usb3_phy1 {
+	status = "okay";
+};
+
 &wdt1 {
+	status = "okay";
+};
+
+&xhci0 {
+	pinctrl-0 = <&usb30_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&xhci1 {
+	pinctrl-0 = <&usb31_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
