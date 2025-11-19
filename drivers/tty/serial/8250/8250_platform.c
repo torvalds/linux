@@ -58,7 +58,7 @@ EXPORT_SYMBOL(serial8250_set_isa_configurator);
 
 static void __init __serial8250_isa_init_ports(void)
 {
-	int i, irqflag = 0;
+	int i;
 
 	if (nr_uarts > UART_NR)
 		nr_uarts = UART_NR;
@@ -75,9 +75,6 @@ static void __init __serial8250_isa_init_ports(void)
 	univ8250_port_ops = *univ8250_port_base_ops;
 	univ8250_rsa_support(&univ8250_port_ops);
 
-	if (share_irqs)
-		irqflag = IRQF_SHARED;
-
 	for (i = 0; i < ARRAY_SIZE(old_serial_port) && i < nr_uarts; i++) {
 		struct uart_8250_port *up = serial8250_get_port(i);
 		struct uart_port *port = &up->port;
@@ -92,7 +89,9 @@ static void __init __serial8250_isa_init_ports(void)
 		port->iotype   = old_serial_port[i].io_type;
 		port->regshift = old_serial_port[i].iomem_reg_shift;
 
-		port->irqflags |= irqflag;
+		if (share_irqs)
+			port->irqflags |= IRQF_SHARED;
+
 		if (serial8250_isa_config != NULL)
 			serial8250_isa_config(i, &up->port, &up->capabilities);
 	}
@@ -155,14 +154,11 @@ static int serial8250_probe_acpi(struct platform_device *pdev)
 
 static int serial8250_probe_platform(struct platform_device *dev, struct plat_serial8250_port *p)
 {
-	int ret, i, irqflag = 0;
+	int ret, i;
 
 	struct uart_8250_port *uart __free(kfree) = kzalloc(sizeof(*uart), GFP_KERNEL);
 	if (!uart)
 		return -ENOMEM;
-
-	if (share_irqs)
-		irqflag = IRQF_SHARED;
 
 	for (i = 0; p && p->flags != 0; p++, i++) {
 		uart->port.iobase	= p->iobase;
@@ -191,7 +187,10 @@ static int serial8250_probe_platform(struct platform_device *dev, struct plat_se
 		uart->port.get_mctrl	= p->get_mctrl;
 		uart->port.pm		= p->pm;
 		uart->port.dev		= &dev->dev;
-		uart->port.irqflags	|= irqflag;
+
+		if (share_irqs)
+			uart->port.irqflags |= IRQF_SHARED;
+
 		ret = serial8250_register_8250_port(uart);
 		if (ret < 0) {
 			dev_err(&dev->dev, "unable to register port at index %d "
