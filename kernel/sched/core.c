@@ -10495,6 +10495,8 @@ void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
 		per_cpu_ptr(pcpu, cpu)->cid = MM_CID_UNSET;
 
 	mm->mm_cid.max_cids = 0;
+	mm->mm_cid.percpu = 0;
+	mm->mm_cid.transit = 0;
 	mm->mm_cid.nr_cpus_allowed = p->nr_cpus_allowed;
 	mm->mm_cid.users = 0;
 	raw_spin_lock_init(&mm->mm_cid.lock);
