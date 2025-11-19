@@ -194,14 +194,16 @@ void ath12k_dp_tx_free_txbuf(struct ath12k_dp *dp,
 
 	skb_cb = ATH12K_SKB_CB(msdu);
 
-	dp_pdev = ath12k_dp_to_pdev_dp(dp, pdev_idx);
-
 	dma_unmap_single(dp->dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 	if (skb_cb->paddr_ext_desc) {
 		dma_unmap_single(dp->dev, skb_cb->paddr_ext_desc,
 				 desc_params->skb_ext_desc->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(desc_params->skb_ext_desc);
 	}
+
+	guard(rcu)();
+
+	dp_pdev = ath12k_dp_to_pdev_dp(dp, pdev_idx);
 
 	ieee80211_free_txskb(ath12k_pdev_dp_to_hw(dp_pdev), msdu);
 
