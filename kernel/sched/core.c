@@ -10392,7 +10392,7 @@ static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpu
 	WRITE_ONCE(mm->mm_cid.nr_cpus_allowed, weight);
 }
 
-void sched_mm_cid_exit_signals(struct task_struct *t)
+void sched_mm_cid_exit(struct task_struct *t)
 {
 	struct mm_struct *mm = t->mm;
 
@@ -10410,7 +10410,7 @@ void sched_mm_cid_exit_signals(struct task_struct *t)
 /* Deactivate MM CID allocation across execve() */
 void sched_mm_cid_before_execve(struct task_struct *t)
 {
-	sched_mm_cid_exit_signals(t);
+	sched_mm_cid_exit(t);
 }
 
 /* Reactivate MM CID after successful execve() */
