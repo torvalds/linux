@@ -1773,7 +1773,6 @@ fec_enet_rx_queue(struct net_device *ndev, u16 queue_id, int budget)
 	__fec32 cbd_bufaddr;
 	u32 sub_len = 4;
 
-#if !defined(CONFIG_M5272)
 	/*If it has the FEC_QUIRK_HAS_RACC quirk property, the bit of
 	 * FEC_RACC_SHIFT16 is set by default in the probe function.
 	 */
@@ -1781,7 +1780,6 @@ fec_enet_rx_queue(struct net_device *ndev, u16 queue_id, int budget)
 		data_start += 2;
 		sub_len += 2;
 	}
-#endif
 
 #if defined(CONFIG_COLDFIRE) && !defined(CONFIG_COLDFIRE_COHERENT_DMA)
 	/*
@@ -2517,9 +2515,7 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 		phy_set_max_speed(phy_dev, 1000);
 		phy_remove_link_mode(phy_dev,
 				     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
-#if !defined(CONFIG_M5272)
 		phy_support_sym_pause(phy_dev);
-#endif
 	}
 	else
 		phy_set_max_speed(phy_dev, 100);
@@ -4402,11 +4398,9 @@ fec_probe(struct platform_device *pdev)
 	fep->num_rx_queues = num_rx_qs;
 	fep->num_tx_queues = num_tx_qs;
 
-#if !defined(CONFIG_M5272)
 	/* default enable pause frame auto negotiation */
 	if (fep->quirks & FEC_QUIRK_HAS_GBIT)
 		fep->pause_flag |= FEC_PAUSE_FLAG_AUTONEG;
-#endif
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(&pdev->dev);
