@@ -131,6 +131,32 @@ static inline void initname(struct filename *name)
 	atomic_set(&name->refcnt, 1);
 }
 
+static struct filename *getname_long(struct filename *old,
+				     const char __user *filename)
+{
+	int len;
+	/*
+	 * size is chosen that way we to guarantee that
+	 * p->iname[0] is within the same object and that
+	 * p->name can't be equal to p->iname, no matter what.
+	 */
+	const size_t size = offsetof(struct filename, iname[1]);
+	struct filename *p __free(kfree) = kzalloc(size, GFP_KERNEL);
+	if (unlikely(!p))
+		return ERR_PTR(-ENOMEM);
+
+	memmove(old, &old->iname, EMBEDDED_NAME_MAX);
+	p->name = (char *)old;
+	len = strncpy_from_user((char *)old + EMBEDDED_NAME_MAX,
+				filename + EMBEDDED_NAME_MAX,
+				PATH_MAX - EMBEDDED_NAME_MAX);
+	if (unlikely(len < 0))
+		return ERR_PTR(len);
+	if (unlikely(len == PATH_MAX - EMBEDDED_NAME_MAX))
+		return ERR_PTR(-ENAMETOOLONG);
+	return no_free_ptr(p);
+}
+
 struct filename *
 getname_flags(const char __user *filename, int flags)
 {
@@ -173,34 +199,10 @@ getname_flags(const char __user *filename, int flags)
 	 * userland.
 	 */
 	if (unlikely(len == EMBEDDED_NAME_MAX)) {
-		const size_t size = offsetof(struct filename, iname[1]);
-		struct filename *p;
-
-		/*
-		 * size is chosen that way we to guarantee that
-		 * result->iname[0] is within the same object and that
-		 * kname can't be equal to result->iname, no matter what.
-		 */
-		p = kzalloc(size, GFP_KERNEL);
-		if (unlikely(!p)) {
+		struct filename *p = getname_long(result, filename);
+		if (IS_ERR(p)) {
 			__putname(result);
-			return ERR_PTR(-ENOMEM);
-		}
-		memmove(result, &result->iname, EMBEDDED_NAME_MAX);
-		kname = (char *)result;
-		p->name = kname;
-		len = strncpy_from_user(kname + EMBEDDED_NAME_MAX,
-					filename + EMBEDDED_NAME_MAX,
-					PATH_MAX - EMBEDDED_NAME_MAX);
-		if (unlikely(len < 0)) {
-			kfree(p);
-			__putname(result);
-			return ERR_PTR(len);
-		}
-		if (unlikely(len == PATH_MAX - EMBEDDED_NAME_MAX)) {
-			kfree(p);
-			__putname(result);
-			return ERR_PTR(-ENAMETOOLONG);
+			return p;
 		}
 		result = p;
 	}
