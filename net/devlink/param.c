@@ -192,9 +192,32 @@ static int devlink_param_set(struct devlink *devlink,
 	return param->set(devlink, param->id, ctx, extack);
 }
 
+static int devlink_param_get_default(struct devlink *devlink,
+				     const struct devlink_param *param,
+				     struct devlink_param_gset_ctx *ctx,
+				     struct netlink_ext_ack *extack)
+{
+	if (!param->get_default)
+		return -EOPNOTSUPP;
+
+	return param->get_default(devlink, param->id, ctx, extack);
+}
+
+static int devlink_param_reset_default(struct devlink *devlink,
+				       const struct devlink_param *param,
+				       enum devlink_param_cmode cmode,
+				       struct netlink_ext_ack *extack)
+{
+	if (!param->reset_default)
+		return -EOPNOTSUPP;
+
+	return param->reset_default(devlink, param->id, cmode, extack);
+}
+
 static int
 devlink_nl_param_value_put(struct sk_buff *msg, enum devlink_param_type type,
-			   int nla_type, union devlink_param_value val)
+			   int nla_type, union devlink_param_value val,
+			   bool flag_as_u8)
 {
 	switch (type) {
 	case DEVLINK_PARAM_TYPE_U8:
@@ -218,8 +241,16 @@ devlink_nl_param_value_put(struct sk_buff *msg, enum devlink_param_type type,
 			return -EMSGSIZE;
 		break;
 	case DEVLINK_PARAM_TYPE_BOOL:
-		if (val.vbool && nla_put_flag(msg, nla_type))
-			return -EMSGSIZE;
+		/* default values of type bool are encoded with u8, so that
+		 * false can be distinguished from not present
+		 */
+		if (flag_as_u8) {
+			if (nla_put_u8(msg, nla_type, val.vbool))
+				return -EMSGSIZE;
+		} else {
+			if (val.vbool && nla_put_flag(msg, nla_type))
+				return -EMSGSIZE;
+		}
 		break;
 	}
 	return 0;
@@ -229,7 +260,9 @@ static int
 devlink_nl_param_value_fill_one(struct sk_buff *msg,
 				enum devlink_param_type type,
 				enum devlink_param_cmode cmode,
-				union devlink_param_value val)
+				union devlink_param_value val,
+				union devlink_param_value default_val,
+				bool has_default)
 {
 	struct nlattr *param_value_attr;
 	int err = -EMSGSIZE;
@@ -243,9 +276,18 @@ devlink_nl_param_value_fill_one(struct sk_buff *msg,
 		goto value_nest_cancel;
 
 	err = devlink_nl_param_value_put(msg, type,
-					 DEVLINK_ATTR_PARAM_VALUE_DATA, val);
+					 DEVLINK_ATTR_PARAM_VALUE_DATA,
+					 val, false);
 	if (err)
 		goto value_nest_cancel;
+
+	if (has_default) {
+		err = devlink_nl_param_value_put(msg, type,
+						 DEVLINK_ATTR_PARAM_VALUE_DEFAULT,
+						 default_val, true);
+		if (err)
+			goto value_nest_cancel;
+	}
 
 	nla_nest_end(msg, param_value_attr);
 	return 0;
@@ -262,7 +304,9 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 				 u32 portid, u32 seq, int flags,
 				 struct netlink_ext_ack *extack)
 {
+	union devlink_param_value default_value[DEVLINK_PARAM_CMODE_MAX + 1];
 	union devlink_param_value param_value[DEVLINK_PARAM_CMODE_MAX + 1];
+	bool default_value_set[DEVLINK_PARAM_CMODE_MAX + 1] = {};
 	bool param_value_set[DEVLINK_PARAM_CMODE_MAX + 1] = {};
 	const struct devlink_param *param = param_item->param;
 	struct devlink_param_gset_ctx ctx;
@@ -283,12 +327,26 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 				param_value[i] = param_item->driverinit_value;
 			else
 				return -EOPNOTSUPP;
+
+			if (param_item->driverinit_value_valid) {
+				default_value[i] = param_item->driverinit_default;
+				default_value_set[i] = true;
+			}
 		} else {
 			ctx.cmode = i;
 			err = devlink_param_get(devlink, param, &ctx, extack);
 			if (err)
 				return err;
 			param_value[i] = ctx.val;
+
+			err = devlink_param_get_default(devlink, param, &ctx,
+							extack);
+			if (!err) {
+				default_value[i] = ctx.val;
+				default_value_set[i] = true;
+			} else if (err != -EOPNOTSUPP) {
+				return err;
+			}
 		}
 		param_value_set[i] = true;
 	}
@@ -325,7 +383,9 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 		if (!param_value_set[i])
 			continue;
 		err = devlink_nl_param_value_fill_one(msg, param->type,
-						      i, param_value[i]);
+						      i, param_value[i],
+						      default_value[i],
+						      default_value_set[i]);
 		if (err)
 			goto values_list_nest_cancel;
 	}
@@ -542,6 +602,7 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 	struct devlink_param_item *param_item;
 	const struct devlink_param *param;
 	union devlink_param_value value;
+	bool reset_default;
 	int err = 0;
 
 	param_item = devlink_param_get_from_info(params, info);
@@ -553,13 +614,18 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 		return err;
 	if (param_type != param->type)
 		return -EINVAL;
-	err = devlink_param_value_get_from_info(param, info, &value);
-	if (err)
-		return err;
-	if (param->validate) {
-		err = param->validate(devlink, param->id, value, info->extack);
+
+	reset_default = info->attrs[DEVLINK_ATTR_PARAM_RESET_DEFAULT];
+	if (!reset_default) {
+		err = devlink_param_value_get_from_info(param, info, &value);
 		if (err)
 			return err;
+		if (param->validate) {
+			err = param->validate(devlink, param->id, value,
+					      info->extack);
+			if (err)
+				return err;
+		}
 	}
 
 	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PARAM_VALUE_CMODE))
@@ -569,6 +635,15 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 		return -EOPNOTSUPP;
 
 	if (cmode == DEVLINK_PARAM_CMODE_DRIVERINIT) {
+		if (reset_default) {
+			if (!param_item->driverinit_value_valid) {
+				NL_SET_ERR_MSG(info->extack,
+					       "Default value not available");
+				return -EOPNOTSUPP;
+			}
+			value = param_item->driverinit_default;
+		}
+
 		param_item->driverinit_value_new = value;
 		param_item->driverinit_value_new_valid = true;
 	} else {
@@ -576,7 +651,12 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 			return -EOPNOTSUPP;
 		ctx.val = value;
 		ctx.cmode = cmode;
-		err = devlink_param_set(devlink, param, &ctx, info->extack);
+		if (reset_default)
+			err = devlink_param_reset_default(devlink, param, cmode,
+							  info->extack);
+		else
+			err = devlink_param_set(devlink, param, &ctx,
+						info->extack);
 		if (err)
 			return err;
 	}
@@ -824,6 +904,7 @@ void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 
 	param_item->driverinit_value = init_val;
 	param_item->driverinit_value_valid = true;
+	param_item->driverinit_default = init_val;
 
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 }

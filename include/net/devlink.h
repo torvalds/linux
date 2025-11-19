@@ -479,6 +479,10 @@ struct devlink_flash_notify {
  * @set: set parameter value, used for runtime and permanent
  *       configuration modes
  * @validate: validate input value is applicable (within value range, etc.)
+ * @get_default: get parameter default value, used for runtime and permanent
+ *               configuration modes
+ * @reset_default: reset parameter to default value, used for runtime and permanent
+ *                 configuration modes
  *
  * This struct should be used by the driver to fill the data for
  * a parameter it registers.
@@ -498,6 +502,12 @@ struct devlink_param {
 	int (*validate)(struct devlink *devlink, u32 id,
 			union devlink_param_value val,
 			struct netlink_ext_ack *extack);
+	int (*get_default)(struct devlink *devlink, u32 id,
+			   struct devlink_param_gset_ctx *ctx,
+			   struct netlink_ext_ack *extack);
+	int (*reset_default)(struct devlink *devlink, u32 id,
+			     enum devlink_param_cmode cmode,
+			     struct netlink_ext_ack *extack);
 };
 
 struct devlink_param_item {
@@ -509,6 +519,7 @@ struct devlink_param_item {
 							 * until reload.
 							 */
 	bool driverinit_value_new_valid;
+	union devlink_param_value driverinit_default;
 };
 
 enum devlink_param_generic_id {
@@ -628,6 +639,37 @@ enum devlink_param_generic_id {
 	.get = _get,							\
 	.set = _set,							\
 	.validate = _validate,						\
+}
+
+#define DEVLINK_PARAM_GENERIC_WITH_DEFAULTS(_id, _cmodes, _get, _set,	      \
+					    _validate, _get_default,	      \
+					    _reset_default)		      \
+{									      \
+	.id = DEVLINK_PARAM_GENERIC_ID_##_id,				      \
+	.name = DEVLINK_PARAM_GENERIC_##_id##_NAME,			      \
+	.type = DEVLINK_PARAM_GENERIC_##_id##_TYPE,			      \
+	.generic = true,						      \
+	.supported_cmodes = _cmodes,					      \
+	.get = _get,							      \
+	.set = _set,							      \
+	.validate = _validate,						      \
+	.get_default = _get_default,					      \
+	.reset_default = _reset_default,				      \
+}
+
+#define DEVLINK_PARAM_DRIVER_WITH_DEFAULTS(_id, _name, _type, _cmodes,	      \
+					   _get, _set, _validate,	      \
+					   _get_default, _reset_default)      \
+{									      \
+	.id = _id,							      \
+	.name = _name,							      \
+	.type = _type,							      \
+	.supported_cmodes = _cmodes,					      \
+	.get = _get,							      \
+	.set = _set,							      \
+	.validate = _validate,						      \
+	.get_default = _get_default,					      \
+	.reset_default = _reset_default,				      \
 }
 
 /* Identifier of board design */
