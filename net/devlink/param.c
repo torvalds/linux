@@ -193,58 +193,66 @@ static int devlink_param_set(struct devlink *devlink,
 }
 
 static int
+devlink_nl_param_value_put(struct sk_buff *msg, enum devlink_param_type type,
+			   int nla_type, union devlink_param_value val)
+{
+	switch (type) {
+	case DEVLINK_PARAM_TYPE_U8:
+		if (nla_put_u8(msg, nla_type, val.vu8))
+			return -EMSGSIZE;
+		break;
+	case DEVLINK_PARAM_TYPE_U16:
+		if (nla_put_u16(msg, nla_type, val.vu16))
+			return -EMSGSIZE;
+		break;
+	case DEVLINK_PARAM_TYPE_U32:
+		if (nla_put_u32(msg, nla_type, val.vu32))
+			return -EMSGSIZE;
+		break;
+	case DEVLINK_PARAM_TYPE_U64:
+		if (devlink_nl_put_u64(msg, nla_type, val.vu64))
+			return -EMSGSIZE;
+		break;
+	case DEVLINK_PARAM_TYPE_STRING:
+		if (nla_put_string(msg, nla_type, val.vstr))
+			return -EMSGSIZE;
+		break;
+	case DEVLINK_PARAM_TYPE_BOOL:
+		if (val.vbool && nla_put_flag(msg, nla_type))
+			return -EMSGSIZE;
+		break;
+	}
+	return 0;
+}
+
+static int
 devlink_nl_param_value_fill_one(struct sk_buff *msg,
 				enum devlink_param_type type,
 				enum devlink_param_cmode cmode,
 				union devlink_param_value val)
 {
 	struct nlattr *param_value_attr;
+	int err = -EMSGSIZE;
 
 	param_value_attr = nla_nest_start_noflag(msg,
 						 DEVLINK_ATTR_PARAM_VALUE);
 	if (!param_value_attr)
-		goto nla_put_failure;
+		return -EMSGSIZE;
 
 	if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_VALUE_CMODE, cmode))
 		goto value_nest_cancel;
 
-	switch (type) {
-	case DEVLINK_PARAM_TYPE_U8:
-		if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu8))
-			goto value_nest_cancel;
-		break;
-	case DEVLINK_PARAM_TYPE_U16:
-		if (nla_put_u16(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu16))
-			goto value_nest_cancel;
-		break;
-	case DEVLINK_PARAM_TYPE_U32:
-		if (nla_put_u32(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu32))
-			goto value_nest_cancel;
-		break;
-	case DEVLINK_PARAM_TYPE_U64:
-		if (devlink_nl_put_u64(msg, DEVLINK_ATTR_PARAM_VALUE_DATA,
-				       val.vu64))
-			goto value_nest_cancel;
-		break;
-	case DEVLINK_PARAM_TYPE_STRING:
-		if (nla_put_string(msg, DEVLINK_ATTR_PARAM_VALUE_DATA,
-				   val.vstr))
-			goto value_nest_cancel;
-		break;
-	case DEVLINK_PARAM_TYPE_BOOL:
-		if (val.vbool &&
-		    nla_put_flag(msg, DEVLINK_ATTR_PARAM_VALUE_DATA))
-			goto value_nest_cancel;
-		break;
-	}
+	err = devlink_nl_param_value_put(msg, type,
+					 DEVLINK_ATTR_PARAM_VALUE_DATA, val);
+	if (err)
+		goto value_nest_cancel;
 
 	nla_nest_end(msg, param_value_attr);
 	return 0;
 
 value_nest_cancel:
 	nla_nest_cancel(msg, param_value_attr);
-nla_put_failure:
-	return -EMSGSIZE;
+	return err;
 }
 
 static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
