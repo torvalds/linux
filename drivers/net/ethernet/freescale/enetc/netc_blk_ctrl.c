@@ -563,11 +563,63 @@ end:
 	return 0;
 }
 
+static int imx94_enetc_mdio_phyaddr_config(struct netc_blk_ctrl *priv,
+					   struct device_node *np,
+					   u32 phy_mask)
+{
+	struct device *dev = &priv->pdev->dev;
+	int bus_devfn, addr;
+
+	bus_devfn = netc_of_pci_get_bus_devfn(np);
+	if (bus_devfn < 0) {
+		dev_err(dev, "Failed to get BDF number\n");
+		return bus_devfn;
+	}
+
+	addr = netc_get_phy_addr(np);
+	if (addr <= 0) {
+		dev_err(dev, "Failed to get PHY address\n");
+		return addr;
+	}
+
+	if (phy_mask & BIT(addr)) {
+		dev_err(dev,
+			"Find same PHY address in EMDIO and ENETC node\n");
+		return -EINVAL;
+	}
+
+	switch (bus_devfn) {
+	case IMX94_ENETC0_BUS_DEVFN:
+		netc_reg_write(priv->ierb, IERB_LBCR(IMX94_ENETC0_LINK),
+			       LBCR_MDIO_PHYAD_PRTAD(addr));
+		break;
+	case IMX94_ENETC1_BUS_DEVFN:
+		netc_reg_write(priv->ierb, IERB_LBCR(IMX94_ENETC1_LINK),
+			       LBCR_MDIO_PHYAD_PRTAD(addr));
+		break;
+	case IMX94_ENETC2_BUS_DEVFN:
+		netc_reg_write(priv->ierb, IERB_LBCR(IMX94_ENETC2_LINK),
+			       LBCR_MDIO_PHYAD_PRTAD(addr));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int imx94_ierb_init(struct platform_device *pdev)
 {
 	struct netc_blk_ctrl *priv = platform_get_drvdata(pdev);
 	struct device_node *np = pdev->dev.of_node;
+	u32 phy_mask = 0;
 	int err;
+
+	err = netc_get_emdio_phy_mask(np, &phy_mask);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get PHY address mask\n");
+		return err;
+	}
 
 	for_each_child_of_node_scoped(np, child) {
 		for_each_child_of_node_scoped(child, gchild) {
@@ -575,6 +627,11 @@ static int imx94_ierb_init(struct platform_device *pdev)
 				continue;
 
 			err = imx94_enetc_update_tid(priv, gchild);
+			if (err)
+				return err;
+
+			err = imx94_enetc_mdio_phyaddr_config(priv, gchild,
+							      phy_mask);
 			if (err)
 				return err;
 		}
