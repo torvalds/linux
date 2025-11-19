@@ -1879,27 +1879,27 @@ int vt_do_kdskbmeta(unsigned int console, unsigned int arg)
 	return ret;
 }
 
-int vt_do_kbkeycode_ioctl(int cmd, struct kbkeycode __user *user_kbkc,
-								int perm)
+int vt_do_kbkeycode_ioctl(int cmd, struct kbkeycode __user *user_kbkc, int perm)
 {
 	struct kbkeycode tmp;
-	int kc = 0;
+	int kc;
 
 	if (copy_from_user(&tmp, user_kbkc, sizeof(struct kbkeycode)))
 		return -EFAULT;
+
 	switch (cmd) {
 	case KDGETKEYCODE:
 		kc = getkeycode(tmp.scancode);
-		if (kc >= 0)
-			kc = put_user(kc, &user_kbkc->keycode);
-		break;
+		if (kc < 0)
+			return kc;
+		return put_user(kc, &user_kbkc->keycode);
 	case KDSETKEYCODE:
 		if (!perm)
 			return -EPERM;
-		kc = setkeycode(tmp.scancode, tmp.keycode);
-		break;
+		return setkeycode(tmp.scancode, tmp.keycode);
 	}
-	return kc;
+
+	return 0;
 }
 
 static unsigned short vt_kdgkbent(unsigned char kbdmode, unsigned char idx,
