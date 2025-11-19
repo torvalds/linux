@@ -57,10 +57,6 @@ i915-y += \
 	vlv_iosf_sb.o \
 	vlv_suspend.o
 
-# core peripheral code
-i915-y += \
-	soc/intel_gmch.o
-
 # core library code
 i915-y += \
 	i915_memcpy.o \
