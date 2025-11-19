@@ -220,7 +220,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 
 # SOC code shared with i915
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
-	i915-soc/intel_dram.o \
 	i915-soc/intel_rom.o
 
 # Display code shared with i915
@@ -272,6 +271,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_dpll.o \
 	i915-display/intel_dpll_mgr.o \
 	i915-display/intel_dpt_common.o \
+	i915-display/intel_dram.o \
 	i915-display/intel_drrs.o \
 	i915-display/intel_dsb.o \
 	i915-display/intel_dsi.o \

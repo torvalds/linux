@@ -7,8 +7,6 @@
 
 #include <drm/drm_print.h>
 
-#include "soc/intel_dram.h"
-
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i9xx_wm.h"
@@ -19,6 +17,7 @@
 #include "intel_display.h"
 #include "intel_display_regs.h"
 #include "intel_display_trace.h"
+#include "intel_dram.h"
 #include "intel_fb.h"
 #include "intel_mchbar_regs.h"
 #include "intel_wm.h"

@@ -28,8 +28,6 @@
 #include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 
-#include "soc/intel_dram.h"
-
 #include "hsw_ips.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -42,6 +40,7 @@
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
+#include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pci_config.h"
 #include "intel_pcode.h"

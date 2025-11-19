@@ -58,7 +58,6 @@ i915-y += \
 
 # core peripheral code
 i915-y += \
-	soc/intel_dram.o \
 	soc/intel_gmch.o \
 	soc/intel_rom.o
 
@@ -268,6 +267,7 @@ i915-y += \
 	display/intel_dpll_mgr.o \
 	display/intel_dpt.o \
 	display/intel_dpt_common.o \
+	display/intel_dram.o \
 	display/intel_drrs.o \
 	display/intel_dsb.o \
 	display/intel_dsb_buffer.o \
