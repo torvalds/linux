@@ -1277,7 +1277,8 @@ static unsigned int intel_4tile_get_offset(unsigned int width, unsigned int x, u
 static void intel_panic_flush(struct drm_plane *plane)
 {
 	struct intel_plane_state *plane_state = to_intel_plane_state(plane->state);
-	struct intel_crtc_state *crtc_state = to_intel_crtc_state(plane->state->crtc->state);
+	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
+	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
 	struct intel_plane *iplane = to_intel_plane(plane);
 	struct intel_display *display = to_intel_display(iplane);
 	struct drm_framebuffer *fb = plane_state->hw.fb;
