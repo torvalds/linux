@@ -124,7 +124,7 @@ void skx_adxl_put(void)
 }
 EXPORT_SYMBOL_GPL(skx_adxl_put);
 
-static void skx_init_mc_mapping(struct skx_dev *d)
+void skx_init_mc_mapping(struct skx_dev *d)
 {
 	/*
 	 * By default, the BIOS presents all memory controllers within each
@@ -135,6 +135,7 @@ static void skx_init_mc_mapping(struct skx_dev *d)
 	for (int i = 0; i < d->num_imc; i++)
 		d->imc[i].mc_mapping = i;
 }
+EXPORT_SYMBOL_GPL(skx_init_mc_mapping);
 
 void skx_set_mc_mapping(struct skx_dev *d, u8 pmc, u8 lmc)
 {
@@ -823,6 +824,9 @@ void skx_remove(void)
 			if (d->imc[i].mbase)
 				iounmap(d->imc[i].mbase);
 
+			if (d->imc[i].dev)
+				put_device(d->imc[i].dev);
+
 			for (j = 0; j < d->imc[i].num_channels; j++) {
 				if (d->imc[i].chan[j].cdev)
 					pci_dev_put(d->imc[i].chan[j].cdev);
@@ -846,7 +850,7 @@ EXPORT_SYMBOL_GPL(skx_remove);
 /*
  * Debug feature.
  * Exercise the address decode logic by writing an address to
- * /sys/kernel/debug/edac/{skx,i10nm}_test/addr.
+ * /sys/kernel/debug/edac/{skx,i10nm,imh}_test/addr.
  */
 static struct dentry *skx_test;
 

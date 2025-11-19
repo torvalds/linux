@@ -121,20 +121,33 @@ struct reg_rrl {
  * memory controllers on the die.
  */
 struct skx_dev {
-	struct list_head list;
+	/* {skx,i10nm}_edac */
 	u8 bus[4];
 	int seg;
 	struct pci_dev *sad_all;
 	struct pci_dev *util_all;
-	struct pci_dev *uracu; /* for i10nm CPU */
-	struct pci_dev *pcu_cr3; /* for HBM memory detection */
+	struct pci_dev *uracu;
+	struct pci_dev *pcu_cr3;
 	u32 mcroute;
+
+	/* imh_edac */
+	/* System-view MMIO base physical addresses. */
+	u64 mmio_base_h_north;
+	u64 mmio_base_h_south;
+	int pkg;
+
 	int num_imc;
+	struct list_head list;
 	struct skx_imc {
+		/* i10nm_edac */
+		struct pci_dev *mdev;
+
+		/* imh_edac */
+		struct device *dev;
+
 		struct mem_ctl_info *mci;
-		struct pci_dev *mdev; /* for i10nm CPU */
-		void __iomem *mbase;  /* for i10nm CPU */
-		int chan_mmio_sz;     /* for i10nm CPU */
+		void __iomem *mbase;
+		int chan_mmio_sz;
 		int num_channels; /* channels per memory controller */
 		int num_dimms; /* dimms per channel */
 		bool hbm_mc;
@@ -178,7 +191,8 @@ enum type {
 	SKX,
 	I10NM,
 	SPR,
-	GNR
+	GNR,
+	DMR,
 };
 
 enum {
@@ -237,10 +251,6 @@ struct pci_bdf {
 
 struct res_config {
 	enum type type;
-	/* Configuration agent device ID */
-	unsigned int decs_did;
-	/* Default bus number configuration register offset */
-	int busno_cfg_offset;
 	/* DDR memory controllers per socket */
 	int ddr_imc_num;
 	/* DDR channels per DDR memory controller */
@@ -258,23 +268,53 @@ struct res_config {
 	/* Per HBM channel memory-mapped I/O size */
 	int hbm_chan_mmio_sz;
 	bool support_ddr5;
-	/* SAD device BDF */
-	struct pci_bdf sad_all_bdf;
-	/* PCU device BDF */
-	struct pci_bdf pcu_cr3_bdf;
-	/* UTIL device BDF */
-	struct pci_bdf util_all_bdf;
-	/* URACU device BDF */
-	struct pci_bdf uracu_bdf;
-	/* DDR mdev device BDF */
-	struct pci_bdf ddr_mdev_bdf;
-	/* HBM mdev device BDF */
-	struct pci_bdf hbm_mdev_bdf;
-	int sad_all_offset;
 	/* RRL register sets per DDR channel */
 	struct reg_rrl *reg_rrl_ddr;
 	/* RRL register sets per HBM channel */
 	struct reg_rrl *reg_rrl_hbm[2];
+	union {
+		/* {skx,i10nm}_edac */
+		struct {
+			/* Configuration agent device ID */
+			unsigned int decs_did;
+			/* Default bus number configuration register offset */
+			int busno_cfg_offset;
+			struct pci_bdf sad_all_bdf;
+			struct pci_bdf pcu_cr3_bdf;
+			struct pci_bdf util_all_bdf;
+			struct pci_bdf uracu_bdf;
+			struct pci_bdf ddr_mdev_bdf;
+			struct pci_bdf hbm_mdev_bdf;
+			int sad_all_offset;
+		};
+		/* imh_edac */
+		struct {
+			/* MMIO base physical address in local package view */
+			u64 mmio_base_l_north;
+			u64 mmio_base_l_south;
+			u64 ddr_imc_base;
+			u64 ddr_reg_mcmtr_offset;
+			u8  ddr_reg_mcmtr_width;
+			u64 ddr_reg_dimmmtr_offset;
+			u8  ddr_reg_dimmmtr_width;
+			u64 ubox_base;
+			u32 ubox_size;
+			u32 ubox_reg_mmio_base_offset;
+			u8  ubox_reg_mmio_base_width;
+			u32 ubox_reg_socket_id_offset;
+			u8  ubox_reg_socket_id_width;
+			u64 pcu_base;
+			u32 pcu_size;
+			u32 pcu_reg_capid3_offset;
+			u8  pcu_reg_capid3_width;
+			u64 sca_base;
+			u32 sca_size;
+			u32 sca_reg_tolm_offset;
+			u8  sca_reg_tolm_width;
+			u32 sca_reg_tohm_offset;
+			u8  sca_reg_tohm_width;
+		};
+	};
 };
 
 typedef int (*get_dimm_config_f)(struct mem_ctl_info *mci,
@@ -287,6 +327,7 @@ void skx_adxl_put(void);
 void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log);
 void skx_set_mem_cfg(bool mem_cfg_2lm);
 void skx_set_res_cfg(struct res_config *cfg);
+void skx_init_mc_mapping(struct skx_dev *d);
 void skx_set_mc_mapping(struct skx_dev *d, u8 pmc, u8 lmc);
 
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id);
