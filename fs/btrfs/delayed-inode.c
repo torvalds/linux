@@ -2008,13 +2008,10 @@ int btrfs_delayed_delete_inode_ref(struct btrfs_inode *inode)
 	 *   It is very rare.
 	 */
 	mutex_lock(&delayed_node->mutex);
-	if (test_bit(BTRFS_DELAYED_NODE_DEL_IREF, &delayed_node->flags))
-		goto release_node;
-
-	set_bit(BTRFS_DELAYED_NODE_DEL_IREF, &delayed_node->flags);
-	delayed_node->count++;
-	atomic_inc(&fs_info->delayed_root->items);
-release_node:
+	if (!test_and_set_bit(BTRFS_DELAYED_NODE_DEL_IREF, &delayed_node->flags)) {
+		delayed_node->count++;
+		atomic_inc(&fs_info->delayed_root->items);
+	}
 	mutex_unlock(&delayed_node->mutex);
 	btrfs_release_delayed_node(delayed_node, &delayed_node_tracker);
 	return 0;
