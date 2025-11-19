@@ -34,6 +34,7 @@
 #define RSPI_SPFCR		0x6c
 
 /* Register SPCR */
+#define RSPI_SPCR_BPEN		BIT(31)
 #define RSPI_SPCR_MSTR		BIT(30)
 #define RSPI_SPCR_SPRIE		BIT(17)
 #define RSPI_SPCR_SCKASE	BIT(12)
@@ -41,6 +42,7 @@
 
 /* Register SPBR */
 #define RSPI_SPBR_SPR_MIN	0
+#define RSPI_SPBR_SPR_PCLK_MIN	1
 #define RSPI_SPBR_SPR_MAX	255
 
 /* Register SPCMD */
@@ -79,6 +81,8 @@ struct rzv2h_rspi_best_clock {
 struct rzv2h_rspi_info {
 	void (*find_tclk_rate)(struct clk *clk, u32 hz, u8 spr_min, u8 spr_max,
 			       struct rzv2h_rspi_best_clock *best_clk);
+	void (*find_pclk_rate)(struct clk *clk, u32 hz, u8 spr_low, u8 spr_high,
+			       struct rzv2h_rspi_best_clock *best_clk);
 	const char *tclk_name;
 	unsigned int fifo_size;
 	unsigned int num_clks;
@@ -90,6 +94,7 @@ struct rzv2h_rspi_priv {
 	const struct rzv2h_rspi_info *info;
 	void __iomem *base;
 	struct clk *tclk;
+	struct clk *pclk;
 	wait_queue_head_t wait;
 	unsigned int bytes_per_word;
 	u32 last_speed_hz;
@@ -97,6 +102,7 @@ struct rzv2h_rspi_priv {
 	u16 status;
 	u8 spr;
 	u8 brdv;
+	bool use_pclk;
 };
 
 #define RZV2H_RSPI_TX(func, type)					\
@@ -306,9 +312,18 @@ static u32 rzv2h_rspi_setup_clock(struct rzv2h_rspi_priv *rspi, u32 hz)
 	rspi->info->find_tclk_rate(rspi->tclk, hz, RSPI_SPBR_SPR_MIN,
 				   RSPI_SPBR_SPR_MAX, &best_clock);
 
+	/*
+	 * T2H and N2H can also use PCLK as a source, which is 125MHz, but not
+	 * when both SPR and BRDV are 0.
+	 */
+	if (best_clock.error && rspi->info->find_pclk_rate)
+		rspi->info->find_pclk_rate(rspi->pclk, hz, RSPI_SPBR_SPR_PCLK_MIN,
+					   RSPI_SPBR_SPR_MAX, &best_clock);
+
 	if (!best_clock.clk_rate)
 		return -EINVAL;
 
+	rspi->use_pclk = best_clock.clk == rspi->pclk;
 	rspi->spr = best_clock.spr;
 	rspi->brdv = best_clock.brdv;
 
@@ -360,6 +375,9 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 
 	/* SPI receive buffer full interrupt enable */
 	conf32 |= RSPI_SPCR_SPRIE;
+
+	/* Bypass synchronization circuit */
+	conf32 |= FIELD_PREP(RSPI_SPCR_BPEN, rspi->use_pclk);
 
 	writel(conf32, rspi->base + RSPI_SPCR);
 
@@ -433,7 +451,9 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	for (i = 0; i < rspi->info->num_clks; i++) {
 		if (!strcmp(clks[i].id, rspi->info->tclk_name)) {
 			rspi->tclk = clks[i].clk;
-			break;
+		} else if (rspi->info->find_pclk_rate &&
+			   !strcmp(clks[i].id, "pclk")) {
+			rspi->pclk = clks[i].clk;
 		}
 	}
 
