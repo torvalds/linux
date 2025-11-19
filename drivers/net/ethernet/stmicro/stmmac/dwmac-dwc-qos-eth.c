@@ -88,6 +88,9 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 		if (burst_map & (1 << bit_index))
 			plat_dat->axi->axi_blen[a_index++] = 4 << bit_index;
 
+	stmmac_axi_blen_to_mask(&plat_dat->axi->axi_blen_regval,
+				plat_dat->axi->axi_blen, a_index);
+
 	/* dwc-qos needs GMAC4, AAL, TSO and PMT */
 	plat_dat->core_type = DWMAC_CORE_GMAC4;
 	plat_dat->dma_cfg->aal = 1;
