@@ -652,9 +652,6 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->axi->axi_rd_osr_lmt = 1;
 	plat->axi->axi_blen_regval = DMA_AXI_BLEN4 | DMA_AXI_BLEN8 |
 				     DMA_AXI_BLEN16;
-	plat->axi->axi_blen[0] = 4;
-	plat->axi->axi_blen[1] = 8;
-	plat->axi->axi_blen[2] = 16;
 
 	plat->ptp_max_adj = plat->clk_ptp_rate;
 
