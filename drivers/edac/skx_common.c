@@ -384,6 +384,12 @@ int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list)
 }
 EXPORT_SYMBOL_GPL(skx_get_all_bus_mappings);
 
+struct list_head *skx_get_edac_list(void)
+{
+	return &dev_edac_list;
+}
+EXPORT_SYMBOL_GPL(skx_get_edac_list);
+
 int skx_get_hi_lo(unsigned int did, int off[], u64 *tolm, u64 *tohm)
 {
 	struct pci_dev *pdev;
