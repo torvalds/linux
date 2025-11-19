@@ -46,6 +46,11 @@ struct mpam_msc {
 	enum mpam_msc_iface	iface;
 	u32			nrdy_usec;
 	cpumask_t		accessibility;
+	bool			has_extd_esr;
+
+	int				reenable_error_ppi;
+	struct mpam_msc * __percpu	*error_dev_id;
+
 	atomic_t		online_refs;
 
 	/*
@@ -58,6 +63,14 @@ struct mpam_msc {
 	u8			pmg_max;
 	unsigned long		ris_idxs;
 	u32			ris_max;
+
+	/*
+	 * error_irq_lock is taken when registering/unregistering the error
+	 * interrupt and maniupulating the below flags.
+	 */
+	struct mutex		error_irq_lock;
+	bool			error_irq_req;
+	bool			error_irq_hw_enabled;
 
 	/* mpam_msc_ris of this component */
 	struct list_head	ris;
