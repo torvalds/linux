@@ -94,6 +94,7 @@
 #include "i915_driver.h"
 #include "i915_drm_client.h"
 #include "i915_drv.h"
+#include "i915_edram.h"
 #include "i915_file_private.h"
 #include "i915_getparam.h"
 #include "i915_hwmon.h"
@@ -493,7 +494,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	}
 
 	/* needs to be done before ggtt probe */
-	intel_dram_edram_detect(dev_priv);
+	i915_edram_detect(dev_priv);
 
 	ret = i915_set_dma_info(dev_priv);
 	if (ret)
