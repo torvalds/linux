@@ -451,7 +451,7 @@ static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
 }
 
 #define numrank(reg)	skx_get_dimm_attr(reg, 12, 13, 0, 0, 2, "ranks")
-#define numrow(reg)	skx_get_dimm_attr(reg, 2, 4, 12, 1, 6, "rows")
+#define numrow(reg)	skx_get_dimm_attr(reg, 2, 4, 12, 1, 7, "rows")
 #define numcol(reg)	skx_get_dimm_attr(reg, 0, 1, 10, 0, 2, "cols")
 
 int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
