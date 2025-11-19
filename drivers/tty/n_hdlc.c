@@ -584,7 +584,6 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			    unsigned long arg)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
-	int error = 0;
 	int count;
 	unsigned long flags;
 	struct n_hdlc_buf *buf = NULL;
@@ -603,8 +602,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		else
 			count = 0;
 		spin_unlock_irqrestore(&n_hdlc->rx_buf_list.spinlock, flags);
-		error = put_user(count, (int __user *)arg);
-		break;
+		return put_user(count, (int __user *)arg);
 
 	case TIOCOUTQ:
 		/* get the pending tx byte count in the driver */
@@ -616,8 +614,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		if (buf)
 			count += buf->count;
 		spin_unlock_irqrestore(&n_hdlc->tx_buf_list.spinlock, flags);
-		error = put_user(count, (int __user *)arg);
-		break;
+		return put_user(count, (int __user *)arg);
 
 	case TCFLSH:
 		switch (arg) {
@@ -628,11 +625,8 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		fallthrough;	/* to default */
 
 	default:
-		error = n_tty_ioctl_helper(tty, cmd, arg);
-		break;
+		return n_tty_ioctl_helper(tty, cmd, arg);
 	}
-	return error;
-
 }	/* end of n_hdlc_tty_ioctl() */
 
 /**
