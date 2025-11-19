@@ -77,8 +77,6 @@ static inline u32 dma_chan_base_addr(u32 base, u32 chan)
 
 #define DMA_AXI_UNDEF		BIT(0)
 
-#define DMA_AXI_BURST_LEN_MASK	0x000000FE
-
 #define DMA_CUR_TX_BUF_ADDR	0x00001050	/* Current Host Tx Buffer */
 #define DMA_CUR_RX_BUF_ADDR	0x00001054	/* Current Host Rx Buffer */
 #define DMA_HW_FEATURE		0x00001058	/* HW Feature Register */

@@ -557,6 +557,9 @@ struct dma_features {
 #define DMA_AXI_BLEN16		BIT(3)
 #define DMA_AXI_BLEN8		BIT(2)
 #define DMA_AXI_BLEN4		BIT(1)
+#define DMA_AXI_BLEN_MASK	GENMASK(7, 1)
+
+void stmmac_axi_blen_to_mask(u32 *regval, const u32 *blen, size_t len);
 
 #define STMMAC_CHAIN_MODE	0x1
 #define STMMAC_RING_MODE	0x2

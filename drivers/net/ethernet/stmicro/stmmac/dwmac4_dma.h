@@ -78,8 +78,6 @@
 					DMA_AXI_BLEN16 | DMA_AXI_BLEN8 | \
 					DMA_AXI_BLEN4)
 
-#define DMA_AXI_BURST_LEN_MASK		0x000000FE
-
 /* DMA TBS Control */
 #define DMA_TBS_FTOS			GENMASK(31, 8)
 #define DMA_TBS_FTOV			BIT(0)

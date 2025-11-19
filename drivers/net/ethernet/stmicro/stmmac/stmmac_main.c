@@ -190,6 +190,43 @@ int stmmac_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 EXPORT_SYMBOL_GPL(stmmac_set_clk_tx_rate);
 
 /**
+ * stmmac_axi_blen_to_mask() - convert a burst length array to reg value
+ * @regval: pointer to a u32 for the resulting register value
+ * @blen: pointer to an array of u32 containing the burst length values in bytes
+ * @len: the number of entries in the @blen array
+ */
+void stmmac_axi_blen_to_mask(u32 *regval, const u32 *blen, size_t len)
+{
+	size_t i;
+	u32 val;
+
+	for (val = i = 0; i < len; i++) {
+		u32 burst = blen[i];
+
+		/* Burst values of zero must be skipped. */
+		if (!burst)
+			continue;
+
+		/* The valid range for the burst length is 4 to 256 inclusive,
+		 * and it must be a power of two.
+		 */
+		if (burst < 4 || burst > 256 || !is_power_of_2(burst)) {
+			pr_err("stmmac: invalid burst length %u at index %zu\n",
+			       burst, i);
+			continue;
+		}
+
+		/* Since burst is a power of two, and the register field starts
+		 * with burst = 4, shift right by two bits so bit 0 of the field
+		 * corresponds with the minimum value.
+		 */
+		val |= burst >> 2;
+	}
+
+	u32p_replace_bits(regval, val, DMA_AXI_BLEN_MASK);
+}
+
+/**
  * stmmac_verify_args - verify the driver parameters.
  * Description: it checks the driver parameters and set a default in case of
  * errors.
