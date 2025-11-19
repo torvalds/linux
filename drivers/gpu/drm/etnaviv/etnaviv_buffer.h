@@ -7,9 +7,16 @@
 #define __ETNAVIV_BUFFER_H__
 
 #include "etnaviv_cmdbuf.h"
+#include "etnaviv_gpu.h"
+#include "etnaviv_gem.h"
+#include "etnaviv_mmu.h"
 
 #include "common.xml.h"
+#include "linux/printk.h"
 #include "state.xml.h"
+#include "state_blt.xml.h"
+#include "state_hi.xml.h"
+#include "state_3d.xml.h"
 #include "cmdstream.xml.h"
 
 static inline void OUT(struct etnaviv_cmdbuf *buffer, u32 data)
