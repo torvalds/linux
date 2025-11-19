@@ -4362,7 +4362,7 @@ skip_backref:
 	 * operations on the log tree, increasing latency for applications.
 	 */
 	if (!rename_ctx) {
-		btrfs_del_inode_ref_in_log(trans, root, name, inode, dir_ino);
+		btrfs_del_inode_ref_in_log(trans, name, inode, dir);
 		btrfs_del_dir_entries_in_log(trans, name, dir, index);
 	}
 

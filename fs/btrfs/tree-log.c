@@ -3938,11 +3938,11 @@ void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 
 /* see comments for btrfs_del_dir_entries_in_log */
 void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
 				const struct fscrypt_str *name,
-				struct btrfs_inode *inode, u64 dirid)
+				struct btrfs_inode *inode,
+				struct btrfs_inode *dir)
 {
-	struct btrfs_root *log;
+	struct btrfs_root *root = dir->root;
 	int ret;
 
 	ret = inode_logged(trans, inode, NULL);
@@ -3957,10 +3957,10 @@ void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 	ASSERT(ret == 0, "join_running_log_trans() ret=%d", ret);
 	if (WARN_ON(ret))
 		return;
-	log = root->log_root;
 	mutex_lock(&inode->log_mutex);
 
-	ret = btrfs_del_inode_ref(trans, log, name, btrfs_ino(inode), dirid, NULL);
+	ret = btrfs_del_inode_ref(trans, root->log_root, name, btrfs_ino(inode),
+				  btrfs_ino(dir), NULL);
 	mutex_unlock(&inode->log_mutex);
 	if (ret < 0 && ret != -ENOENT)
 		btrfs_set_log_full_commit(trans);
