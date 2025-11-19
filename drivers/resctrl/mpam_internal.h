@@ -91,7 +91,10 @@ struct mpam_msc {
 	 */
 	struct mutex		part_sel_lock;
 
-	/* cfg_lock protects the msc configuration. */
+	/*
+	 * cfg_lock protects the msc configuration and guards against mbwu_state
+	 * save and restore racing.
+	 */
 	struct mutex		cfg_lock;
 
 	/*
@@ -202,6 +205,19 @@ struct mon_cfg {
 	enum mon_filter_options opts;
 };
 
+/* Changes to msmon_mbwu_state are protected by the msc's mon_sel_lock. */
+struct msmon_mbwu_state {
+	bool		enabled;
+	struct mon_cfg	cfg;
+
+	/*
+	 * The value to add to the new reading to account for power management.
+	 */
+	u64		correction;
+
+	struct mpam_garbage	garbage;
+};
+
 struct mpam_class {
 	/* mpam_components in this class */
 	struct list_head	components;
@@ -294,6 +310,9 @@ struct mpam_msc_ris {
 
 	/* parent: */
 	struct mpam_vmsc	*vmsc;
+
+	/* msmon mbwu configuration is preserved over reset */
+	struct msmon_mbwu_state	*mbwu_state;
 
 	struct mpam_garbage	garbage;
 };
