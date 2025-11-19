@@ -853,20 +853,38 @@ static int __ap_revise_reserved(struct device *dev, void *dummy)
 	int rc, card, queue, devres, drvres;
 
 	if (is_queue_dev(dev)) {
-		card = AP_QID_CARD(to_ap_queue(dev)->qid);
-		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
-		mutex_lock(&ap_perms_mutex);
-		devres = test_bit_inv(card, ap_perms.apm) &&
-			test_bit_inv(queue, ap_perms.aqm);
-		mutex_unlock(&ap_perms_mutex);
-		drvres = to_ap_drv(dev->driver)->flags
-			& AP_DRIVER_FLAG_DEFAULT;
-		if (!!devres != !!drvres) {
-			pr_debug("reprobing queue=%02x.%04x\n", card, queue);
-			rc = device_reprobe(dev);
-			if (rc)
-				AP_DBF_WARN("%s reprobing queue=%02x.%04x failed\n",
-					    __func__, card, queue);
+		struct ap_driver *ap_drv = to_ap_drv(dev->driver);
+		struct ap_queue *aq = to_ap_queue(dev);
+		struct ap_device *ap_dev = &aq->ap_dev;
+
+		card = AP_QID_CARD(aq->qid);
+		queue = AP_QID_QUEUE(aq->qid);
+
+		if (ap_dev->driver_override) {
+			if (strcmp(ap_dev->driver_override,
+				   ap_drv->driver.name)) {
+				pr_debug("reprobing queue=%02x.%04x\n", card, queue);
+				rc = device_reprobe(dev);
+				if (rc) {
+					AP_DBF_WARN("%s reprobing queue=%02x.%04x failed\n",
+						    __func__, card, queue);
+				}
+			}
+		} else {
+			mutex_lock(&ap_perms_mutex);
+			devres = test_bit_inv(card, ap_perms.apm) &&
+				test_bit_inv(queue, ap_perms.aqm);
+			mutex_unlock(&ap_perms_mutex);
+			drvres = to_ap_drv(dev->driver)->flags
+				& AP_DRIVER_FLAG_DEFAULT;
+			if (!!devres != !!drvres) {
+				pr_debug("reprobing queue=%02x.%04x\n", card, queue);
+				rc = device_reprobe(dev);
+				if (rc) {
+					AP_DBF_WARN("%s reprobing queue=%02x.%04x failed\n",
+						    __func__, card, queue);
+				}
+			}
 		}
 	}
 
@@ -891,15 +909,30 @@ static void ap_bus_revise_bindings(void)
  */
 int ap_owned_by_def_drv(int card, int queue)
 {
+	struct ap_queue *aq;
 	int rc = 0;
 
 	if (card < 0 || card >= AP_DEVICES || queue < 0 || queue >= AP_DOMAINS)
 		return -EINVAL;
 
+	aq = ap_get_qdev(AP_MKQID(card, queue));
+	if (aq) {
+		const struct device_driver *drv = aq->ap_dev.device.driver;
+		const struct ap_driver *ap_drv = to_ap_drv(drv);
+		bool override = !!aq->ap_dev.driver_override;
+
+		if (override && drv && ap_drv->flags & AP_DRIVER_FLAG_DEFAULT)
+			rc = 1;
+		put_device(&aq->ap_dev.device);
+		if (override)
+			goto out;
+	}
+
 	if (test_bit_inv(card, ap_perms.apm) &&
 	    test_bit_inv(queue, ap_perms.aqm))
 		rc = 1;
 
+out:
 	return rc;
 }
 EXPORT_SYMBOL(ap_owned_by_def_drv);
@@ -922,12 +955,10 @@ int ap_apqn_in_matrix_owned_by_def_drv(unsigned long *apm,
 	int card, queue, rc = 0;
 
 	for (card = 0; !rc && card < AP_DEVICES; card++)
-		if (test_bit_inv(card, apm) &&
-		    test_bit_inv(card, ap_perms.apm))
+		if (test_bit_inv(card, apm))
 			for (queue = 0; !rc && queue < AP_DOMAINS; queue++)
-				if (test_bit_inv(queue, aqm) &&
-				    test_bit_inv(queue, ap_perms.aqm))
-					rc = 1;
+				if (test_bit_inv(queue, aqm))
+					rc = ap_owned_by_def_drv(card, queue);
 
 	return rc;
 }
@@ -951,13 +982,19 @@ static int ap_device_probe(struct device *dev)
 		 */
 		card = AP_QID_CARD(to_ap_queue(dev)->qid);
 		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
-		mutex_lock(&ap_perms_mutex);
-		devres = test_bit_inv(card, ap_perms.apm) &&
-			test_bit_inv(queue, ap_perms.aqm);
-		mutex_unlock(&ap_perms_mutex);
-		drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
-		if (!!devres != !!drvres)
-			goto out;
+		if (ap_dev->driver_override) {
+			if (strcmp(ap_dev->driver_override,
+				   ap_drv->driver.name))
+				goto out;
+		} else {
+			mutex_lock(&ap_perms_mutex);
+			devres = test_bit_inv(card, ap_perms.apm) &&
+				test_bit_inv(queue, ap_perms.aqm);
+			mutex_unlock(&ap_perms_mutex);
+			drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
+			if (!!devres != !!drvres)
+				goto out;
+		}
 	}
 
 	/*
@@ -983,8 +1020,17 @@ static int ap_device_probe(struct device *dev)
 	}
 
 out:
-	if (rc)
+	if (rc) {
 		put_device(dev);
+	} else {
+		if (is_queue_dev(dev)) {
+			pr_debug("queue=%02x.%04x new driver=%s\n",
+				 card, queue, ap_drv->driver.name);
+		} else {
+			pr_debug("card=%02x new driver=%s\n",
+				 to_ap_card(dev)->id, ap_drv->driver.name);
+		}
+	}
 	return rc;
 }
 

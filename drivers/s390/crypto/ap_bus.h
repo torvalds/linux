@@ -166,6 +166,7 @@ void ap_driver_unregister(struct ap_driver *);
 struct ap_device {
 	struct device device;
 	int device_type;		/* AP device type. */
+	const char *driver_override;
 };
 
 #define to_ap_dev(x) container_of((x), struct ap_device, device)

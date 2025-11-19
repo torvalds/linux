@@ -731,6 +731,41 @@ static ssize_t ap_functions_show(struct device *dev,
 
 static DEVICE_ATTR_RO(ap_functions);
 
+static ssize_t driver_override_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_device *ap_dev = &aq->ap_dev;
+	int rc;
+
+	device_lock(dev);
+	if (ap_dev->driver_override)
+		rc = sysfs_emit(buf, "%s\n", ap_dev->driver_override);
+	else
+		rc = sysfs_emit(buf, "\n");
+	device_unlock(dev);
+
+	return rc;
+}
+
+static ssize_t driver_override_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_device *ap_dev = &aq->ap_dev;
+	int rc;
+
+	rc = driver_set_override(dev, &ap_dev->driver_override, buf, count);
+	if (rc)
+		return rc;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(driver_override);
+
 #ifdef CONFIG_AP_DEBUG
 static ssize_t states_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
@@ -843,6 +878,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_config.attr,
 	&dev_attr_chkstop.attr,
 	&dev_attr_ap_functions.attr,
+	&dev_attr_driver_override.attr,
 #ifdef CONFIG_AP_DEBUG
 	&dev_attr_states.attr,
 	&dev_attr_last_err_rc.attr,
