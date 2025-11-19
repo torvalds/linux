@@ -20,8 +20,6 @@ enum imx_rproc_method {
 	IMX_RPROC_NONE,
 	/* Through ARM SMCCC */
 	IMX_RPROC_SMC,
-	/* Through Reset Controller API */
-	IMX_RPROC_RESET_CONTROLLER,
 };
 
 /* dcfg flags */
