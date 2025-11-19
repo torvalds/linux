@@ -302,7 +302,7 @@ int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 int skx_get_nvdimm_info(struct dimm_info *dimm, struct skx_imc *imc,
 			int chan, int dimmno, const char *mod_str);
 
-int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
+int skx_register_mci(struct skx_imc *imc, struct device *dev, const char *dev_name,
 		     const char *ctl_name, const char *mod_str,
 		     get_dimm_config_f get_dimm_config,
 		     struct res_config *cfg);

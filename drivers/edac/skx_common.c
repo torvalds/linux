@@ -545,9 +545,9 @@ unknown_size:
 }
 EXPORT_SYMBOL_GPL(skx_get_nvdimm_info);
 
-int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
-		     const char *ctl_name, const char *mod_str,
-		     get_dimm_config_f get_dimm_config,
+int skx_register_mci(struct skx_imc *imc, struct device *dev,
+		     const char *dev_name, const char *ctl_name,
+		     const char *mod_str, get_dimm_config_f get_dimm_config,
 		     struct res_config *cfg)
 {
 	struct mem_ctl_info *mci;
@@ -588,7 +588,7 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = mod_str;
-	mci->dev_name = pci_name(pdev);
+	mci->dev_name = dev_name;
 	mci->ctl_page_to_phys = NULL;
 
 	rc = get_dimm_config(mci, cfg);
@@ -596,7 +596,7 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 		goto fail;
 
 	/* Record ptr to the generic device */
-	mci->pdev = &pdev->dev;
+	mci->pdev = dev;
 
 	/* Add this new MC control structure to EDAC's list of MCs */
 	if (unlikely(edac_mc_add_mc(mci))) {
