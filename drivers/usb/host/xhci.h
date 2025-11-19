@@ -2399,25 +2399,48 @@ static inline const char *xhci_decode_portsc(char *str, u32 portsc)
 	if (portsc == ~(u32)0)
 		return str;
 
-	ret += sprintf(str + ret, "%s %s %s Link:%s PortSpeed:%d ",
-		      portsc & PORT_POWER	? "Powered" : "Powered-off",
-		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
-		      portsc & PORT_PE		? "Enabled" : "Disabled",
-		      xhci_portsc_link_state_string(portsc),
-		      DEV_PORT_SPEED(portsc));
+	ret += sprintf(str + ret, "Speed=%d ", DEV_PORT_SPEED(portsc));
+	ret += sprintf(str + ret, "Link=%s ", xhci_portsc_link_state_string(portsc));
 
+	/* RO/ROS: Read-only */
+	if (portsc & PORT_CONNECT)
+		ret += sprintf(str + ret, "CCS ");
 	if (portsc & PORT_OC)
-		ret += sprintf(str + ret, "OverCurrent ");
-	if (portsc & PORT_RESET)
-		ret += sprintf(str + ret, "In-Reset ");
+		ret += sprintf(str + ret, "OCA "); /* No set for USB2 ports */
+	if (portsc & PORT_CAS)
+		ret += sprintf(str + ret, "CAS ");
+	if (portsc & PORT_DEV_REMOVE)
+		ret += sprintf(str + ret, "DR ");
 
-	ret += sprintf(str + ret, "Change: ");
+	/* RWS; writing 1 sets the bit, writing 0 clears the bit. */
+	if (portsc & PORT_POWER)
+		ret += sprintf(str + ret, "PP ");
+	if (portsc & PORT_WKCONN_E)
+		ret += sprintf(str + ret, "WCE ");
+	if (portsc & PORT_WKDISC_E)
+		ret += sprintf(str + ret, "WDE ");
+	if (portsc & PORT_WKOC_E)
+		ret += sprintf(str + ret, "WOE ");
+
+	/* RW; writing 1 sets the bit, writing 0 clears the bit */
+	if (portsc & PORT_LINK_STROBE)
+		ret += sprintf(str + ret, "LWS "); /* LWS 0 write is ignored */
+
+	/* RW1S; writing 1 sets the bit, writing 0 has no effect */
+	if (portsc & PORT_RESET)
+		ret += sprintf(str + ret, "PR ");
+	if (portsc & PORT_WR)
+		ret += sprintf(str + ret, "WPR "); /* RsvdZ for USB2 ports */
+
+	/* RW1CS; writing 1 clears the bit, writing 0 has no effect. */
+	if (portsc & PORT_PE)
+		ret += sprintf(str + ret, "PED ");
 	if (portsc & PORT_CSC)
 		ret += sprintf(str + ret, "CSC ");
 	if (portsc & PORT_PEC)
-		ret += sprintf(str + ret, "PEC ");
+		ret += sprintf(str + ret, "PEC "); /* No set for USB3 ports */
 	if (portsc & PORT_WRC)
-		ret += sprintf(str + ret, "WRC ");
+		ret += sprintf(str + ret, "WRC "); /* RsvdZ for USB2 ports */
 	if (portsc & PORT_OCC)
 		ret += sprintf(str + ret, "OCC ");
 	if (portsc & PORT_RC)
@@ -2425,17 +2448,7 @@ static inline const char *xhci_decode_portsc(char *str, u32 portsc)
 	if (portsc & PORT_PLC)
 		ret += sprintf(str + ret, "PLC ");
 	if (portsc & PORT_CEC)
-		ret += sprintf(str + ret, "CEC ");
-	if (portsc & PORT_CAS)
-		ret += sprintf(str + ret, "CAS ");
-
-	ret += sprintf(str + ret, "Wake: ");
-	if (portsc & PORT_WKCONN_E)
-		ret += sprintf(str + ret, "WCE ");
-	if (portsc & PORT_WKDISC_E)
-		ret += sprintf(str + ret, "WDE ");
-	if (portsc & PORT_WKOC_E)
-		ret += sprintf(str + ret, "WOE ");
+		ret += sprintf(str + ret, "CEC "); /* RsvdZ for USB2 ports */
 
 	return str;
 }
