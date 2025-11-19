@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/power_supply.h>
 #include <linux/sysfs.h>
 #include <acpi/battery.h>
@@ -52,6 +53,11 @@ struct ayaneo_ec_platform_data {
 	struct platform_device *pdev;
 	struct ayaneo_ec_quirk *quirks;
 	struct acpi_battery_hook battery_hook;
+
+	// Protects access to restore_pwm
+	struct mutex hwmon_lock;
+	bool restore_charge_limit;
+	bool restore_pwm;
 };
 
 static const struct ayaneo_ec_quirk quirk_fan = {
@@ -208,10 +214,16 @@ static int ayaneo_ec_read(struct device *dev, enum hwmon_sensor_types type,
 static int ayaneo_ec_write(struct device *dev, enum hwmon_sensor_types type,
 			   u32 attr, int channel, long val)
 {
+	struct ayaneo_ec_platform_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	guard(mutex)(&data->hwmon_lock);
+
 	switch (type) {
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_enable:
+			data->restore_pwm = false;
 			switch (val) {
 			case 1:
 				return ec_write(AYANEO_PWM_ENABLE_REG,
@@ -225,6 +237,17 @@ static int ayaneo_ec_write(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_pwm_input:
 			if (val < 0 || val > 255)
 				return -EINVAL;
+			if (data->restore_pwm) {
+				/*
+				 * Defer restoring PWM control to after
+				 * userspace resumes successfully
+				 */
+				ret = ec_write(AYANEO_PWM_ENABLE_REG,
+					       AYANEO_PWM_MODE_MANUAL);
+				if (ret)
+					return ret;
+				data->restore_pwm = false;
+			}
 			return ec_write(AYANEO_PWM_REG, (val * 100) / 255);
 		default:
 			break;
@@ -454,11 +477,14 @@ static int ayaneo_ec_probe(struct platform_device *pdev)
 
 	data->pdev = pdev;
 	data->quirks = dmi_entry->driver_data;
+	ret = devm_mutex_init(&pdev->dev, &data->hwmon_lock);
+	if (ret)
+		return ret;
 	platform_set_drvdata(pdev, data);
 
 	if (data->quirks->has_fan_control) {
 		hwdev = devm_hwmon_device_register_with_info(&pdev->dev,
-			"ayaneo_ec", NULL, &ayaneo_ec_chip_info, NULL);
+			"ayaneo_ec", data, &ayaneo_ec_chip_info, NULL);
 		if (IS_ERR(hwdev))
 			return PTR_ERR(hwdev);
 	}
@@ -475,10 +501,67 @@ static int ayaneo_ec_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int ayaneo_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ayaneo_ec_platform_data *data = platform_get_drvdata(pdev);
+	int ret;
+	u8 tmp;
+
+	if (data->quirks->has_charge_control) {
+		ret = ec_read(AYANEO_CHARGE_REG, &tmp);
+		if (ret)
+			return ret;
+
+		data->restore_charge_limit = tmp == AYANEO_CHARGE_VAL_INHIBIT;
+	}
+
+	if (data->quirks->has_fan_control) {
+		ret = ec_read(AYANEO_PWM_ENABLE_REG, &tmp);
+		if (ret)
+			return ret;
+
+		data->restore_pwm = tmp == AYANEO_PWM_MODE_MANUAL;
+
+		/*
+		 * Release the fan when entering hibernation to avoid
+		 * overheating if hibernation fails and hangs.
+		 */
+		if (data->restore_pwm) {
+			ret = ec_write(AYANEO_PWM_ENABLE_REG, AYANEO_PWM_MODE_AUTO);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int ayaneo_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ayaneo_ec_platform_data *data = platform_get_drvdata(pdev);
+	int ret;
+
+	if (data->quirks->has_charge_control && data->restore_charge_limit) {
+		ret = ec_write(AYANEO_CHARGE_REG, AYANEO_CHARGE_VAL_INHIBIT);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops ayaneo_pm_ops = {
+	.freeze = ayaneo_freeze,
+	.restore = ayaneo_restore,
+};
+
 static struct platform_driver ayaneo_platform_driver = {
 	.driver = {
 		.name = "ayaneo-ec",
 		.dev_groups = ayaneo_ec_groups,
+		.pm = pm_sleep_ptr(&ayaneo_pm_ops),
 	},
 	.probe = ayaneo_ec_probe,
 };
