@@ -81,7 +81,7 @@ DECLARE_EVENT_CLASS(xhci_log_ctx,
 	),
 	TP_fast_assign(
 
-		__entry->ctx_64 = HCC_64BYTE_CONTEXT(xhci->hcc_params);
+		__entry->ctx_64 = xhci->hcc_params & HCC_64BYTE_CONTEXT;
 		__entry->ctx_type = ctx->type;
 		__entry->ctx_dma = ctx->dma;
 		__entry->ctx_va = ctx->bytes;

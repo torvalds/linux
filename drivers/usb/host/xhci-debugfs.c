@@ -355,7 +355,7 @@ static ssize_t xhci_port_write(struct file *file,  const char __user *ubuf,
 
 	if (!strncmp(buf, "compliance", 10)) {
 		/* If CTC is clear, compliance is enabled by default */
-		if (!HCC2_CTC(xhci->hcc_params2))
+		if (!(xhci->hcc_params2 & HCC2_CTC))
 			return count;
 		spin_lock_irqsave(&xhci->lock, flags);
 		/* compliance mode can only be enabled on ports in RxDetect */

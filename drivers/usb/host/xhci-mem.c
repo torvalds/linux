@@ -463,7 +463,7 @@ struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 		return NULL;
 
 	ctx->type = type;
-	ctx->size = HCC_64BYTE_CONTEXT(xhci->hcc_params) ? 2048 : 1024;
+	ctx->size = xhci->hcc_params & HCC_64BYTE_CONTEXT ? 2048 : 1024;
 	if (type == XHCI_CTX_TYPE_INPUT)
 		ctx->size += CTX_SIZE(xhci->hcc_params);
 
@@ -1344,7 +1344,7 @@ static u32 xhci_get_endpoint_mult(struct xhci_hcd *xhci,
 	bool lec;
 
 	/* xHCI 1.1 with LEC set does not use mult field, except intel eUSB2 */
-	lec = xhci->hci_version > 0x100 && HCC2_LEC(xhci->hcc_params2);
+	lec = xhci->hci_version > 0x100 && (xhci->hcc_params2 & HCC2_LEC);
 
 	/* eUSB2 double isoc bw devices are the only USB2 devices using mult */
 	if (usb_endpoint_is_hs_isoc_double(udev, ep) &&
@@ -1433,8 +1433,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	ring_type = usb_endpoint_type(&ep->desc);
 
 	/* Ensure host supports double isoc bandwidth for eUSB2 devices */
-	if (usb_endpoint_is_hs_isoc_double(udev, ep) &&
-	    !HCC2_EUSB2_DIC(xhci->hcc_params2))	{
+	if (usb_endpoint_is_hs_isoc_double(udev, ep) && !(xhci->hcc_params2 & HCC2_EUSB2_DIC))	{
 		dev_dbg(&udev->dev, "Double Isoc Bandwidth not supported by xhci\n");
 		return -EINVAL;
 	}

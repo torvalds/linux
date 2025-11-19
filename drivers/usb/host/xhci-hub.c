@@ -110,7 +110,7 @@ static int xhci_create_usb3x_bos_desc(struct xhci_hcd *xhci, char *buf,
 	ss_cap->bU2DevExitLat = 0; /* set later */
 
 	reg = readl(&xhci->cap_regs->hcc_params);
-	if (HCC_LTC(reg))
+	if (reg & HCC_LTC)
 		ss_cap->bmAttributes |= USB_LTM_SUPPORT;
 
 	if ((xhci->quirks & XHCI_LPM_SUPPORT)) {
@@ -263,7 +263,7 @@ static void xhci_common_hub_descriptor(struct xhci_hcd *xhci,
 	desc->bNbrPorts = ports;
 	temp = 0;
 	/* Bits 1:0 - support per-port power switching, or power always on */
-	if (HCC_PPC(xhci->hcc_params))
+	if (xhci->hcc_params & HCC_PPC)
 		temp |= HUB_CHAR_INDV_PORT_LPSM;
 	else
 		temp |= HUB_CHAR_NO_LPSM;
@@ -1400,7 +1400,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			 * automatically entered as on 1.0 and prior.
 			 */
 			if (link_state == USB_SS_PORT_LS_COMP_MOD) {
-				if (!HCC2_CTC(xhci->hcc_params2)) {
+				if (!(xhci->hcc_params2 & HCC2_CTC)) {
 					xhci_dbg(xhci, "CTC flag is 0, port already supports entering compliance mode\n");
 					break;
 				}
