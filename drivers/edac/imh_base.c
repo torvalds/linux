@@ -35,6 +35,9 @@
 #define TOLM(reg)			(((u64)GET_BITFIELD(reg, 16, 31)) << 16)
 #define TOHM(reg)			(((u64)GET_BITFIELD(reg, 16, 51)) << 16)
 
+/* Home Agent (HA) */
+#define NMCACHING(reg)			GET_BITFIELD(reg, 8, 8)
+
 /**
  * struct local_reg - A register as described in the local package view.
  *
@@ -346,6 +349,35 @@ static int imh_get_munits(struct res_config *cfg, struct list_head *edac_list)
 	return 0;
 }
 
+static bool check_2lm_enabled(struct res_config *cfg, struct skx_dev *d, int ha_idx)
+{
+	DEFINE_LOCAL_REG(reg, cfg, d->pkg, true, ha, ha_idx, mode);
+
+	if (!read_local_reg(&reg))
+		return false;
+
+	if (!NMCACHING(reg.val))
+		return false;
+
+	edac_dbg(2, "2-level memory configuration (reg 0x%llx, ha idx %d)\n", reg.val, ha_idx);
+	return true;
+}
+
+/* Check whether the system has a 2-level memory configuration. */
+static bool imh_2lm_enabled(struct res_config *cfg, struct list_head *head)
+{
+	struct skx_dev *d;
+	int i;
+
+	list_for_each_entry(d, head, list) {
+		for (i = 0; i < cfg->ddr_imc_num; i++)
+			if (check_2lm_enabled(cfg, d, i))
+				return true;
+	}
+
+	return false;
+}
+
 /* Helpers to read memory controller registers */
 static u64 read_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width)
 {
@@ -467,6 +499,10 @@ static struct res_config dmr_cfg = {
 	.sca_reg_tolm_width		= 8,
 	.sca_reg_tohm_offset		= 0x2108,
 	.sca_reg_tohm_width		= 8,
+	.ha_base			= 0x3eb000,
+	.ha_size			= 0x1000,
+	.ha_reg_mode_offset		= 0x4a0,
+	.ha_reg_mode_width		= 4,
 };
 
 static const struct x86_cpu_id imh_cpuids[] = {
@@ -525,6 +561,8 @@ static int __init imh_init(void)
 	rc = imh_get_munits(cfg, edac_list);
 	if (rc)
 		goto fail;
+
+	skx_set_mem_cfg(imh_2lm_enabled(cfg, edac_list));
 
 	rc = imh_register_mci(cfg, edac_list);
 	if (rc)

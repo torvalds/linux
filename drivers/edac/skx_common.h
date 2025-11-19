@@ -313,6 +313,10 @@ struct res_config {
 			u8  sca_reg_tolm_width;
 			u32 sca_reg_tohm_offset;
 			u8  sca_reg_tohm_width;
+			u64 ha_base;
+			u32 ha_size;
+			u32 ha_reg_mode_offset;
+			u8  ha_reg_mode_width;
 		};
 	};
 };
