@@ -696,10 +696,10 @@ static int setup_patt_bufs(void)
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(patt_bufs); i++) {
-		patt_bufs[i].buf = kzalloc(MAX_PATTERN_LEN, GFP_KERNEL);
+		patt_bufs[i].buf = kmalloc(MAX_PATTERN_LEN, GFP_KERNEL);
 		if (!patt_bufs[i].buf)
 			break;
-		strcpy(patt_bufs[i].buf, DEFAULT_PATTERN);
+		strscpy_pad(patt_bufs[i].buf, DEFAULT_PATTERN, MAX_PATTERN_LEN);
 		patt_bufs[i].len = DEFAULT_PATTERN_LEN;
 	}
 
