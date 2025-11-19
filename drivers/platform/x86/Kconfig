@@ -315,6 +315,7 @@ config AYANEO_EC
 	tristate "Ayaneo EC platform control"
 	depends on DMI
 	depends on ACPI_EC
+	depends on ACPI_BATTERY
 	depends on HWMON
 	help
 	  Enables support for the platform EC of Ayaneo devices. This
