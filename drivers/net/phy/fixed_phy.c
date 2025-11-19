@@ -173,13 +173,6 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* propagate the fixed link values to struct phy_device */
-	phy->link = 1;
-	phy->speed = status->speed;
-	phy->duplex = status->duplex;
-	phy->pause = status->pause;
-	phy->asym_pause = status->asym_pause;
-
 	of_node_get(np);
 	phy->mdio.dev.of_node = np;
 	phy->is_pseudo_fixed_link = true;
