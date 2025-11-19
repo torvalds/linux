@@ -513,28 +513,6 @@ int smapi_set_DSP_power_state(bool bOn)
 	return bRC;
 }
 
-#if 0
-static int SmapiQuerySystemID(void)
-{
-	int bRC = -EIO;
-	unsigned short usAX = 0xffff, usBX = 0xffff, usCX = 0xffff,
-		usDX = 0xffff, usDI = 0xffff, usSI = 0xffff;
-
-	printk("smapi::SmapiQUerySystemID entry\n");
-	bRC = smapi_request(0x0000, 0, 0, 0,
-		&usAX, &usBX, &usCX, &usDX, &usDI, &usSI);
-
-	if (bRC == 0) {
-		printk("AX=%x, BX=%x, CX=%x, DX=%x, DI=%x, SI=%x\n",
-			usAX, usBX, usCX, usDX, usDI, usSI);
-	} else {
-		printk("smapi::SmapiQuerySystemID smapi_request error\n");
-	}
-
-	return bRC;
-}
-#endif  /*  0  */
-
 int smapi_init(void)
 {
 	int retval = -EIO;

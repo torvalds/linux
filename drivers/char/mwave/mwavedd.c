@@ -492,42 +492,6 @@ static const struct file_operations mwave_fops = {
 
 static struct miscdevice mwave_misc_dev = { MWAVE_MINOR, "mwave", &mwave_fops };
 
-#if 0 /* totally b0rked */
-/*
- * sysfs support <paulsch@us.ibm.com>
- */
-
-struct device mwave_device;
-
-/* Prevent code redundancy, create a macro for mwave_show_* functions. */
-#define mwave_show_function(attr_name, format_string, field)		\
-static ssize_t mwave_show_##attr_name(struct device *dev, struct device_attribute *attr, char *buf)	\
-{									\
-	DSP_3780I_CONFIG_SETTINGS *pSettings =				\
-		&mwave_s_mdd.rBDData.rDspSettings;			\
-        return sprintf(buf, format_string, pSettings->field);		\
-}
-
-/* All of our attributes are read attributes. */
-#define mwave_dev_rd_attr(attr_name, format_string, field)		\
-	mwave_show_function(attr_name, format_string, field)		\
-static DEVICE_ATTR(attr_name, S_IRUGO, mwave_show_##attr_name, NULL)
-
-mwave_dev_rd_attr (3780i_dma, "%i\n", usDspDma);
-mwave_dev_rd_attr (3780i_irq, "%i\n", usDspIrq);
-mwave_dev_rd_attr (3780i_io, "%#.4x\n", usDspBaseIO);
-mwave_dev_rd_attr (uart_irq, "%i\n", usUartIrq);
-mwave_dev_rd_attr (uart_io, "%#.4x\n", usUartBaseIO);
-
-static struct device_attribute * const mwave_dev_attrs[] = {
-	&dev_attr_3780i_dma,
-	&dev_attr_3780i_irq,
-	&dev_attr_3780i_io,
-	&dev_attr_uart_irq,
-	&dev_attr_uart_io,
-};
-#endif
-
 /*
 * mwave_init is called on module load
 *
@@ -539,17 +503,6 @@ static void mwave_exit(void)
 	pMWAVE_DEVICE_DATA pDrvData = &mwave_s_mdd;
 
 	PRINTK_1(TRACE_MWAVE, "mwavedd::mwave_exit entry\n");
-
-#if 0
-	for (i = 0; i < pDrvData->nr_registered_attrs; i++)
-		device_remove_file(&mwave_device, mwave_dev_attrs[i]);
-	pDrvData->nr_registered_attrs = 0;
-
-	if (pDrvData->device_registered) {
-		device_unregister(&mwave_device);
-		pDrvData->device_registered = false;
-	}
-#endif
 
 	if ( pDrvData->sLine >= 0 ) {
 		serial8250_unregister_port(pDrvData->sLine);
@@ -666,26 +619,6 @@ static int __init mwave_init(void)
 		goto cleanup_error;
 	}
 	/* uart is registered */
-
-#if 0
-	/* sysfs */
-	memset(&mwave_device, 0, sizeof (struct device));
-	dev_set_name(&mwave_device, "mwave");
-
-	if (device_register(&mwave_device))
-		goto cleanup_error;
-	pDrvData->device_registered = true;
-	for (i = 0; i < ARRAY_SIZE(mwave_dev_attrs); i++) {
-		if(device_create_file(&mwave_device, mwave_dev_attrs[i])) {
-			PRINTK_ERROR(KERN_ERR_MWAVE
-					"mwavedd:mwave_init: Error:"
-					" Failed to create sysfs file %s\n",
-					mwave_dev_attrs[i]->attr.name);
-			goto cleanup_error;
-		}
-		pDrvData->nr_registered_attrs++;
-	}
-#endif
 
 	/* SUCCESS! */
 	return 0;

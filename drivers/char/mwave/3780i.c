@@ -140,35 +140,6 @@ static void dsp3780I_WriteGenCfg(unsigned short usDspBaseIO, unsigned uIndex,
 
 }
 
-#if 0
-unsigned char dsp3780I_ReadGenCfg(unsigned short usDspBaseIO,
-                                  unsigned uIndex)
-{
-	DSP_ISA_SLAVE_CONTROL rSlaveControl;
-	DSP_ISA_SLAVE_CONTROL rSlaveControl_Save;
-	unsigned char ucValue;
-
-
-	PRINTK_3(TRACE_3780I,
-		"3780i::dsp3780i_ReadGenCfg entry usDspBaseIO %x uIndex %x\n",
-		usDspBaseIO, uIndex);
-
-	MKBYTE(rSlaveControl) = InByteDsp(DSP_IsaSlaveControl);
-	rSlaveControl_Save = rSlaveControl;
-	rSlaveControl.ConfigMode = true;
-	OutByteDsp(DSP_IsaSlaveControl, MKBYTE(rSlaveControl));
-	OutByteDsp(DSP_ConfigAddress, (unsigned char) uIndex);
-	ucValue = InByteDsp(DSP_ConfigData);
-	OutByteDsp(DSP_IsaSlaveControl, MKBYTE(rSlaveControl_Save));
-
-	PRINTK_2(TRACE_3780I,
-		"3780i::dsp3780i_ReadGenCfg exit ucValue %x\n", ucValue);
-
-
-	return ucValue;
-}
-#endif  /*  0  */
-
 int dsp3780I_EnableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings,
                        unsigned short *pIrqMap,
                        unsigned short *pDmaMap)
