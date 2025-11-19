@@ -28292,6 +28292,13 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	arch/x86/kernel/cpu/zhaoxin.c
 
+ZONED BLOCK DEVICE (BLOCK LAYER)
+M:	Damien Le Moal <dlemoal@kernel.org>
+L:	linux-block@vger.kernel.org
+S:	Maintained
+F:	block/blk-zoned.c
+F:	include/uapi/linux/blkzoned.h
+
 ZONED LOOP DEVICE
 M:	Damien Le Moal <dlemoal@kernel.org>
 R:	Christoph Hellwig <hch@lst.de>
