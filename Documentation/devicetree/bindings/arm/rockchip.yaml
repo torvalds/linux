@@ -89,12 +89,9 @@ properties:
 
       - description: Asus Tinker board
         items:
-          - const: asus,rk3288-tinker
-          - const: rockchip,rk3288
-
-      - description: Asus Tinker board S
-        items:
-          - const: asus,rk3288-tinker-s
+          - enum:
+              - asus,rk3288-tinker
+              - asus,rk3288-tinker-s
           - const: rockchip,rk3288
 
       - description: Beelink A1
