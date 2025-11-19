@@ -15,6 +15,9 @@
 
 #include "etnaviv_flop_reset.h"
 
+static int etnaviv_force_flop_reset;
+module_param_named(force_flop_reset, etnaviv_force_flop_reset, int, 0);
+
 #define PPU_IMAGE_STRIDE 64
 #define PPU_IMAGE_XSIZE 64
 #define PPU_IMAGE_YSIZE 6
@@ -148,6 +151,19 @@ bool etnaviv_flop_reset_ppu_require(const struct etnaviv_chip_identity *chip_id)
 		if (chip_id->model == e->chip_model &&
 		    chip_id->revision == e->revision)
 			return true;
+	}
+
+	if (etnaviv_force_flop_reset) {
+		if (!(chip_id->features & chipFeatures_PIPE_3D)) {
+			pr_warn("Etnaviv: model: 0x%04x, revision: 0x%04x does not support PIPE_3D\n",
+				chip_id->model, chip_id->revision);
+			pr_warn("Request to force PPU flop reset ignored.\n");
+			return false;
+		}
+
+		pr_info("Force PPU flop reset for model: 0x%04x, revision: 0x%04x\n",
+			chip_id->model, chip_id->revision);
+		return true;
 	}
 
 	return false;
