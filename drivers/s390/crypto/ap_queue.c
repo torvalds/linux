@@ -755,13 +755,30 @@ static ssize_t driver_override_store(struct device *dev,
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	struct ap_device *ap_dev = &aq->ap_dev;
-	int rc;
+	int rc = -EINVAL;
+	bool old_value;
 
+	if (mutex_lock_interruptible(&ap_attr_mutex))
+		return -ERESTARTSYS;
+
+	/* Do not allow driver override if apmask/aqmask is in use */
+	if (ap_apmask_aqmask_in_use)
+		goto out;
+
+	old_value = ap_dev->driver_override ? true : false;
 	rc = driver_set_override(dev, &ap_dev->driver_override, buf, count);
 	if (rc)
-		return rc;
+		goto out;
+	if (old_value && !ap_dev->driver_override)
+		--ap_driver_override_ctr;
+	else if (!old_value && ap_dev->driver_override)
+		++ap_driver_override_ctr;
 
-	return count;
+	rc = count;
+
+out:
+	mutex_unlock(&ap_attr_mutex);
+	return rc;
 }
 
 static DEVICE_ATTR_RW(driver_override);

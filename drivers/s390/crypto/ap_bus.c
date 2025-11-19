@@ -86,8 +86,13 @@ DEFINE_SPINLOCK(ap_queues_lock);
 /* Default permissions (ioctl, card and domain masking) */
 struct ap_perms ap_perms;
 EXPORT_SYMBOL(ap_perms);
+/* true if apmask and/or aqmask are NOT default */
+bool ap_apmask_aqmask_in_use;
+/* counter for how many driver_overrides are currently active */
+int ap_driver_override_ctr;
 /*
- * Mutex for consistent read and write of the ap_perms struct
+ * Mutex for consistent read and write of the ap_perms struct,
+ * ap_apmask_aqmask_in_use, ap_driver_override_ctr
  * and the ap bus sysfs attributes apmask and aqmask.
  */
 DEFINE_MUTEX(ap_attr_mutex);
@@ -1542,17 +1547,30 @@ static int apmask_commit(unsigned long *newapm)
 
 	memcpy(ap_perms.apm, newapm, APMASKSIZE);
 
+	/*
+	 * Update ap_apmask_aqmask_in_use. Note that the
+	 * ap_attr_mutex has to be obtained here.
+	 */
+	ap_apmask_aqmask_in_use =
+		bitmap_full(ap_perms.apm, AP_DEVICES) &&
+		bitmap_full(ap_perms.aqm, AP_DOMAINS) ?
+		false : true;
+
 	return 0;
 }
 
 static ssize_t apmask_store(const struct bus_type *bus, const char *buf,
 			    size_t count)
 {
-	int rc, changes = 0;
 	DECLARE_BITMAP(newapm, AP_DEVICES);
+	int rc = -EINVAL, changes = 0;
 
 	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
+
+	/* Do not allow apmask/aqmask if driver override is active */
+	if (ap_driver_override_ctr)
+		goto done;
 
 	rc = ap_parse_bitmap_str(buf, ap_perms.apm, AP_DEVICES, newapm);
 	if (rc)
@@ -1636,17 +1654,30 @@ static int aqmask_commit(unsigned long *newaqm)
 
 	memcpy(ap_perms.aqm, newaqm, AQMASKSIZE);
 
+	/*
+	 * Update ap_apmask_aqmask_in_use. Note that the
+	 * ap_attr_mutex has to be obtained here.
+	 */
+	ap_apmask_aqmask_in_use =
+		bitmap_full(ap_perms.apm, AP_DEVICES) &&
+		bitmap_full(ap_perms.aqm, AP_DOMAINS) ?
+		false : true;
+
 	return 0;
 }
 
 static ssize_t aqmask_store(const struct bus_type *bus, const char *buf,
 			    size_t count)
 {
-	int rc, changes = 0;
 	DECLARE_BITMAP(newaqm, AP_DOMAINS);
+	int rc = -EINVAL, changes = 0;
 
 	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
+
+	/* Do not allow apmask/aqmask if driver override is active */
+	if (ap_driver_override_ctr)
+		goto done;
 
 	rc = ap_parse_bitmap_str(buf, ap_perms.aqm, AP_DOMAINS, newaqm);
 	if (rc)

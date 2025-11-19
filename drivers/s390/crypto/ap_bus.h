@@ -281,6 +281,8 @@ struct ap_perms {
 };
 
 extern struct ap_perms ap_perms;
+extern bool ap_apmask_aqmask_in_use;
+extern int ap_driver_override_ctr;
 extern struct mutex ap_attr_mutex;
 
 /*
