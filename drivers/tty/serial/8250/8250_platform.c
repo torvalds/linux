@@ -29,10 +29,8 @@
  * Configuration:
  * share_irqs:     Whether we pass IRQF_SHARED to request_irq().
  *                 This option is unsafe when used on edge-triggered interrupts.
- * skip_txen_test: Force skip of txen test at init time.
  */
 unsigned int share_irqs = SERIAL8250_SHARE_IRQS;
-unsigned int skip_txen_test;
 
 unsigned int nr_uarts = CONFIG_SERIAL_8250_RUNTIME_UARTS;
 
@@ -385,8 +383,5 @@ MODULE_PARM_DESC(share_irqs, "Share IRQs with other non-8250/16x50 devices (unsa
 
 module_param(nr_uarts, uint, 0644);
 MODULE_PARM_DESC(nr_uarts, "Maximum number of UARTs supported. (1-" __MODULE_STRING(CONFIG_SERIAL_8250_NR_UARTS) ")");
-
-module_param(skip_txen_test, uint, 0644);
-MODULE_PARM_DESC(skip_txen_test, "Skip checking for the TXEN bug at init time");
 
 MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
