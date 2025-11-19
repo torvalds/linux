@@ -3438,6 +3438,19 @@ fec_enet_alloc_rxq_buffers(struct net_device *ndev, unsigned int queue)
 		return err;
 	}
 
+	/* Some platforms require the RX buffer must be 64 bytes alignment.
+	 * Some platforms require 16 bytes alignment. And some platforms
+	 * require 4 bytes alignment. But since the page pool have been
+	 * introduced into the driver, the address of RX buffer is always
+	 * the page address plus FEC_ENET_XDP_HEADROOM, and
+	 * FEC_ENET_XDP_HEADROOM is 256 bytes. Therefore, this address can
+	 * satisfy all platforms. To prevent future modifications to
+	 * FEC_ENET_XDP_HEADROOM from ignoring this hardware limitation, a
+	 * BUILD_BUG_ON() test has been added, which ensures that
+	 * FEC_ENET_XDP_HEADROOM provides the required alignment.
+	 */
+	BUILD_BUG_ON(FEC_ENET_XDP_HEADROOM & 0x3f);
+
 	for (i = 0; i < rxq->bd.ring_size; i++) {
 		page = page_pool_dev_alloc_pages(rxq->page_pool);
 		if (!page)
@@ -4072,10 +4085,8 @@ static int fec_enet_init(struct net_device *ndev)
 
 	WARN_ON(dsize != (1 << dsize_log2));
 #if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
-	fep->rx_align = 0xf;
 	fep->tx_align = 0xf;
 #else
-	fep->rx_align = 0x3;
 	fep->tx_align = 0x3;
 #endif
 	fep->rx_pkts_itr = FEC_ITR_ICFT_DEFAULT;
@@ -4164,10 +4175,8 @@ static int fec_enet_init(struct net_device *ndev)
 		fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
 	}
 
-	if (fep->quirks & FEC_QUIRK_HAS_MULTI_QUEUES) {
+	if (fep->quirks & FEC_QUIRK_HAS_MULTI_QUEUES)
 		fep->tx_align = 0;
-		fep->rx_align = 0x3f;
-	}
 
 	ndev->hw_features = ndev->features;
 

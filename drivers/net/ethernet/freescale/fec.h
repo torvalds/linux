@@ -660,7 +660,6 @@ struct fec_enet_private {
 	struct pm_qos_request pm_qos_req;
 
 	unsigned int tx_align;
-	unsigned int rx_align;
 
 	/* hw interrupt coalesce */
 	unsigned int rx_pkts_itr;
