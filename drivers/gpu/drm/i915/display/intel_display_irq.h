@@ -16,6 +16,8 @@ struct drm_printer;
 struct intel_display;
 struct intel_display_irq_snapshot;
 
+u32 xelpdp_pica_aux_mask(struct intel_display *display);
+
 void valleyview_enable_display_irqs(struct intel_display *display);
 void valleyview_disable_display_irqs(struct intel_display *display);
 

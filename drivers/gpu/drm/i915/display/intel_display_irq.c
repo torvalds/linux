@@ -2410,10 +2410,20 @@ void gen8_de_irq_postinstall(struct intel_display *display)
 	}
 }
 
+u32 xelpdp_pica_aux_mask(struct intel_display *display)
+{
+	u32 mask = XELPDP_AUX_TC_MASK;
+
+	if (DISPLAY_VER(display) >= 20)
+		mask |= XE2LPD_AUX_DDI_MASK;
+
+	return mask;
+}
+
 static void mtp_irq_postinstall(struct intel_display *display)
 {
 	u32 sde_mask = SDE_GMBUS_ICP | SDE_PICAINTERRUPT;
-	u32 de_hpd_mask = XELPDP_AUX_TC_MASK;
+	u32 de_hpd_mask = xelpdp_pica_aux_mask(display);
 	u32 de_hpd_enables = de_hpd_mask | XELPDP_DP_ALT_HOTPLUG_MASK |
 			     XELPDP_TBT_HOTPLUG_MASK;
 
