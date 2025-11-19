@@ -95,7 +95,6 @@ void intel_vga_reset_io_mem(struct intel_display *display)
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 }
 
-#ifdef I915
 static int intel_gmch_vga_set_state(struct intel_display *display, bool enable_decode)
 {
 	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
@@ -135,13 +134,6 @@ static unsigned int intel_gmch_vga_set_decode(struct pci_dev *pdev, bool enable_
 	else
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
-#else
-static unsigned int intel_gmch_vga_set_decode(struct pci_dev *pdev, bool enable_decode)
-{
-	/* ToDo: Implement the actual handling of vga decode */
-	return 0;
-}
-#endif
 
 int intel_vga_register(struct intel_display *display)
 {
