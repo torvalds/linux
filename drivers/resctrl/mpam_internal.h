@@ -140,6 +140,7 @@ struct mpam_props {
 
 #define mpam_has_feature(_feat, x)	test_bit(_feat, (x)->features)
 #define mpam_set_feature(_feat, x)	set_bit(_feat, (x)->features)
+#define mpam_clear_feature(_feat, x)	clear_bit(_feat, (x)->features)
 
 struct mpam_class {
 	/* mpam_components in this class */
@@ -147,6 +148,8 @@ struct mpam_class {
 
 	cpumask_t		affinity;
 
+	struct mpam_props	props;
+	u32			nrdy_usec;
 	u8			level;
 	enum mpam_class_types	type;
 
