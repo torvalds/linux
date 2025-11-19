@@ -1,0 +1,15 @@
+menuconfig ARM64_MPAM_DRIVER
+	bool "MPAM driver"
+	depends on ARM64 && ARM64_MPAM && EXPERT
+	help
+	  Memory System Resource Partitioning and Monitoring (MPAM) driver for
+	  System IP, e.g. caches and memory controllers.
+
+if ARM64_MPAM_DRIVER
+
+config ARM64_MPAM_DRIVER_DEBUG
+	bool "Enable debug messages from the MPAM driver"
+	help
+	  Say yes here to enable debug messages from the MPAM driver.
+
+endif
