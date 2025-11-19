@@ -606,6 +606,8 @@ static int t14s_ec_suspend(struct device *dev)
 {
 	struct t14s_ec *ec = dev_get_drvdata(dev);
 
+	led_classdev_suspend(&ec->kbd_backlight);
+
 	t14s_ec_write_sequence(ec, T14S_EC_REG_MODERN_STANDBY,
 			       T14S_EC_MODERN_STANDBY_ENTRY, 3);
 
@@ -618,6 +620,8 @@ static int t14s_ec_resume(struct device *dev)
 
 	t14s_ec_write_sequence(ec, T14S_EC_REG_MODERN_STANDBY,
 			       T14S_EC_MODERN_STANDBY_EXIT, 3);
+
+	led_classdev_resume(&ec->kbd_backlight);
 
 	return 0;
 }
