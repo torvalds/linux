@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2017-2022 Linaro Ltd
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #include <linux/bits.h>
 #include <linux/bitfield.h>
@@ -1246,8 +1246,6 @@ static int lpg_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	chan->enabled = state->enabled;
 
 	lpg_apply(chan);
-
-	triled_set(lpg, chan->triled_mask, chan->enabled ? chan->triled_mask : 0);
 
 out_unlock:
 	mutex_unlock(&lpg->lock);
