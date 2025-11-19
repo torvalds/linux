@@ -10,9 +10,9 @@
 
 #include "display/intel_display_rps.h"
 #include "display/vlv_clock.h"
-#include "soc/intel_dram.h"
 
 #include "i915_drv.h"
+#include "i915_freq.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "i915_wait_util.h"
@@ -285,8 +285,8 @@ static void gen5_rps_init(struct intel_rps *rps)
 	u32 rgvmodectl;
 	int c_m, i;
 
-	fsb_freq = intel_fsb_freq(i915);
-	mem_freq = intel_mem_freq(i915);
+	fsb_freq = ilk_fsb_freq(i915);
+	mem_freq = ilk_mem_freq(i915);
 
 	if (fsb_freq <= 3200000)
 		c_m = 0;

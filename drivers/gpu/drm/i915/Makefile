@@ -28,6 +28,7 @@ i915-y += \
 	i915_driver.o \
 	i915_drm_client.o \
 	i915_edram.o \
+	i915_freq.o \
 	i915_getparam.o \
 	i915_ioctl.o \
 	i915_irq.o \
