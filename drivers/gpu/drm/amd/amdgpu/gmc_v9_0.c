@@ -600,7 +600,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			if (ret)
 				return 1;
 		} else {
-			/* Process it onyl if it's the first fault for this address */
+			/* Process it only if it's the first fault for this address */
 			if (entry->ih != &adev->irq.ih_soft &&
 			    amdgpu_gmc_filter_faults(adev, entry->ih, addr, entry->pasid,
 					     entry->timestamp))
