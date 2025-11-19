@@ -24,8 +24,15 @@
 /*
  * bits 3:0 - Isochronous Scheduling Threshold, frames or uframes that SW
  * needs to queue transactions ahead of the HW to meet periodic deadlines.
+ * - Bits 2:0: Threshold value
+ * - Bit 3: Unit indicator
+ *   - '1': Threshold in Frames
+ *   - '0': Threshold in Microframes (uframes)
+ * Note: 1 Frame = 8 Microframes
+ * xHCI specification section 5.3.4.
  */
-#define HCS_IST(p)		(((p) >> 0) & 0xf)
+#define HCS_IST_VALUE(p)	((p) & 0x7)
+#define HCS_IST_UNIT(p)		((p) & (1 << 3))
 /* bits 7:4 - Event Ring Segment Table Max, 2^(n) */
 #define HCS_ERST_MAX(p)		(((p) >> 4) & 0xf)
 /* bits 20:8 - Rsvd */
