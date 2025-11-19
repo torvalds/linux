@@ -298,11 +298,16 @@ static void gicv3_cpu_init(unsigned int cpu)
 	volatile void *sgi_base;
 	unsigned int i;
 	volatile void *redist_base_cpu;
+	u64 typer;
 
 	GUEST_ASSERT(cpu < gicv3_data.nr_cpus);
 
 	redist_base_cpu = gicr_base_cpu(cpu);
 	sgi_base = sgi_base_from_redist(redist_base_cpu);
+
+	/* Verify assumption that GICR_TYPER.Processor_number == cpu */
+	typer = readq_relaxed(redist_base_cpu + GICR_TYPER);
+	GUEST_ASSERT_EQ(GICR_TYPER_CPU_NUMBER(typer), cpu);
 
 	gicv3_enable_redist(redist_base_cpu);
 
