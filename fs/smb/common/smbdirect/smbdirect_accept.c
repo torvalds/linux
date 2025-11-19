@@ -6,6 +6,7 @@
  */
 
 #include "smbdirect_internal.h"
+#include <net/sock.h>
 #include "../../common/smb2status.h"
 
 static int smbdirect_accept_rdma_event_handler(struct rdma_cm_id *id,
@@ -454,6 +455,28 @@ static void smbdirect_accept_negotiate_recv_work(struct work_struct *work)
 	 */
 	sp->max_fragmented_send_size = max_fragmented_size;
 
+	if (sc->accept.listener) {
+		struct smbdirect_socket *lsc = sc->accept.listener;
+		unsigned long flags;
+
+		spin_lock_irqsave(&lsc->listen.lock, flags);
+		list_del(&sc->accept.list);
+		list_add_tail(&sc->accept.list, &lsc->listen.ready);
+		wake_up(&lsc->listen.wait_queue);
+		spin_unlock_irqrestore(&lsc->listen.lock, flags);
+
+		/*
+		 * smbdirect_socket_accept() will call
+		 * smbdirect_accept_negotiate_finish(nsc, 0);
+		 *
+		 * So that we don't send the negotiation
+		 * response that grants credits to the peer
+		 * before the socket is accepted by the
+		 * application.
+		 */
+		return;
+	}
+
 	ntstatus = le32_to_cpu(STATUS_SUCCESS);
 
 not_supported:
@@ -748,3 +771,90 @@ static int smbdirect_accept_rdma_event_handler(struct rdma_cm_id *id,
 	smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 	return 0;
 }
+
+static long smbdirect_socket_wait_for_accept(struct smbdirect_socket *lsc, long timeo)
+{
+	long ret;
+
+	ret = wait_event_interruptible_timeout(lsc->listen.wait_queue,
+					       !list_empty_careful(&lsc->listen.ready) ||
+					       lsc->status != SMBDIRECT_SOCKET_LISTENING ||
+					       lsc->first_error,
+					       timeo);
+	if (lsc->status != SMBDIRECT_SOCKET_LISTENING)
+		return -EINVAL;
+	if (lsc->first_error)
+		return lsc->first_error;
+	if (!ret)
+		ret = -ETIMEDOUT;
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+__SMBDIRECT_PUBLIC__
+struct smbdirect_socket *smbdirect_socket_accept(struct smbdirect_socket *lsc,
+						 long timeo,
+						 struct proto_accept_arg *arg)
+{
+	struct smbdirect_socket *nsc;
+	unsigned long flags;
+
+	if (lsc->status != SMBDIRECT_SOCKET_LISTENING) {
+		arg->err = -EINVAL;
+		return NULL;
+	}
+
+	if (lsc->first_error) {
+		arg->err = lsc->first_error;
+		return NULL;
+	}
+
+	if (list_empty_careful(&lsc->listen.ready)) {
+		int ret;
+
+		if (timeo == 0) {
+			arg->err = -EAGAIN;
+			return NULL;
+		}
+
+		ret = smbdirect_socket_wait_for_accept(lsc, timeo);
+		if (ret) {
+			arg->err = ret;
+			return NULL;
+		}
+	}
+
+	spin_lock_irqsave(&lsc->listen.lock, flags);
+	nsc = list_first_entry_or_null(&lsc->listen.ready,
+				       struct smbdirect_socket,
+				       accept.list);
+	if (nsc) {
+		nsc->accept.listener = NULL;
+		list_del_init_careful(&nsc->accept.list);
+		arg->is_empty = list_empty_careful(&lsc->listen.ready);
+	}
+	spin_unlock_irqrestore(&lsc->listen.lock, flags);
+	if (!nsc) {
+		arg->err = -EAGAIN;
+		return NULL;
+	}
+
+	/*
+	 * We did not send the negotiation response
+	 * yet, so we did not grant any credits to the client,
+	 * so it didn't grant any credits to us.
+	 *
+	 * The caller expects a connected socket
+	 * now as there are no credits anyway.
+	 *
+	 * Then we send the negotiation response in
+	 * order to grant credits to the peer.
+	 */
+	nsc->status = SMBDIRECT_SOCKET_CONNECTED;
+	smbdirect_accept_negotiate_finish(nsc, 0);
+
+	return nsc;
+}
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_accept);

@@ -22,3 +22,4 @@
 #include "smbdirect_debug.c"
 #include "smbdirect_connect.c"
 #include "smbdirect_accept.c"
+#include "smbdirect_listen.c"

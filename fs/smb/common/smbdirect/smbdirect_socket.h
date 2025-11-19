@@ -17,6 +17,7 @@
 
 enum smbdirect_socket_status {
 	SMBDIRECT_SOCKET_CREATED,
+	SMBDIRECT_SOCKET_LISTENING,
 	SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED,
 	SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING,
 	SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED,
@@ -42,6 +43,8 @@ const char *smbdirect_socket_status_string(enum smbdirect_socket_status status)
 	switch (status) {
 	case SMBDIRECT_SOCKET_CREATED:
 		return "CREATED";
+	case SMBDIRECT_SOCKET_LISTENING:
+		return "LISTENING";
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
 		return "RESOLVE_ADDR_NEEDED";
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
@@ -192,6 +195,35 @@ struct smbdirect_socket {
 		struct work_struct immediate_work;
 		struct delayed_work timer_work;
 	} idle;
+
+	/*
+	 * The state for listen sockets
+	 */
+	struct {
+		spinlock_t lock;
+		struct list_head pending;
+		struct list_head ready;
+		wait_queue_head_t wait_queue;
+		/*
+		 * This starts as -1 and a value != -1
+		 * means this socket was in LISTENING state
+		 * before. Note the valid backlog can
+		 * only be > 0.
+		 */
+		int backlog;
+	} listen;
+
+	/*
+	 * The state for sockets waiting
+	 * for accept, either still waiting
+	 * for the negotiation to finish
+	 * or already ready with a usable
+	 * connection.
+	 */
+	struct {
+		struct smbdirect_socket *listener;
+		struct list_head list;
+	} accept;
 
 	/*
 	 * The state for posted send buffers
@@ -551,6 +583,14 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	disable_work_sync(&sc->idle.immediate_work);
 	INIT_DELAYED_WORK(&sc->idle.timer_work, __smbdirect_socket_disabled_work);
 	disable_delayed_work_sync(&sc->idle.timer_work);
+
+	spin_lock_init(&sc->listen.lock);
+	INIT_LIST_HEAD(&sc->listen.pending);
+	INIT_LIST_HEAD(&sc->listen.ready);
+	sc->listen.backlog = -1; /* not a listener */
+	init_waitqueue_head(&sc->listen.wait_queue);
+
+	INIT_LIST_HEAD(&sc->accept.list);
 
 	sc->send_io.mem.gfp_mask = GFP_KERNEL;
 

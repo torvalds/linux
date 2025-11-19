@@ -284,6 +284,7 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 		break;
 
 	case SMBDIRECT_SOCKET_CREATED:
+	case SMBDIRECT_SOCKET_LISTENING:
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
@@ -364,6 +365,7 @@ smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 		break;
 
 	case SMBDIRECT_SOCKET_CREATED:
+	case SMBDIRECT_SOCKET_LISTENING:
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
 		break;
 

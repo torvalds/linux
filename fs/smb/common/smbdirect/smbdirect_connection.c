@@ -163,6 +163,14 @@ void smbdirect_connection_negotiation_done(struct smbdirect_socket *sc)
 	if (unlikely(sc->first_error))
 		return;
 
+	if (sc->status == SMBDIRECT_SOCKET_CONNECTED)
+		/*
+		 * This is the accept case where
+		 * smbdirect_socket_accept() already sets
+		 * SMBDIRECT_SOCKET_CONNECTED
+		 */
+		goto done;
+
 	if (sc->status != SMBDIRECT_SOCKET_NEGOTIATE_RUNNING) {
 		/*
 		 * Something went wrong...
@@ -189,6 +197,7 @@ void smbdirect_connection_negotiation_done(struct smbdirect_socket *sc)
 	 * We need to setup the refill and send immediate work
 	 * in order to get a working connection.
 	 */
+done:
 	INIT_WORK(&sc->recv_io.posted.refill_work, smbdirect_connection_recv_io_refill_work);
 	INIT_WORK(&sc->idle.immediate_work, smbdirect_connection_send_immediate_work);
 

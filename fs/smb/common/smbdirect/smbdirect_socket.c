@@ -299,6 +299,7 @@ static void smbdirect_socket_wake_up_all(struct smbdirect_socket *sc)
 	 * in order to notice the broken connection.
 	 */
 	wake_up_all(&sc->status_wait);
+	wake_up_all(&sc->listen.wait_queue);
 	wake_up_all(&sc->send_io.bcredits.wait_queue);
 	wake_up_all(&sc->send_io.lcredits.wait_queue);
 	wake_up_all(&sc->send_io.credits.wait_queue);
@@ -319,6 +320,8 @@ void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
 					 int error,
 					 enum smbdirect_socket_status *force_status)
 {
+	struct smbdirect_socket *psc, *tsc;
+	unsigned long flags;
 	bool was_first = false;
 
 	if (!sc->first_error) {
@@ -350,6 +353,18 @@ void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
 	disable_work(&sc->idle.immediate_work);
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_NONE;
 	disable_delayed_work(&sc->idle.timer_work);
+
+	/*
+	 * In case we were a listener we need to
+	 * disconnect all pending and ready sockets
+	 *
+	 * First we move ready sockets to pending again.
+	 */
+	spin_lock_irqsave(&sc->listen.lock, flags);
+	list_splice_init(&sc->listen.ready, &sc->listen.pending);
+	list_for_each_entry_safe(psc, tsc, &sc->listen.pending, accept.list)
+		smbdirect_socket_schedule_cleanup(psc, sc->first_error);
+	spin_unlock_irqrestore(&sc->listen.lock, flags);
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
@@ -386,6 +401,7 @@ void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
 		break;
 
 	case SMBDIRECT_SOCKET_CREATED:
+	case SMBDIRECT_SOCKET_LISTENING:
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
 		break;
 
@@ -410,6 +426,8 @@ static void smbdirect_socket_cleanup_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, disconnect_work);
+	struct smbdirect_socket *psc, *tsc;
+	unsigned long flags;
 
 	/*
 	 * This should not never be called in an interrupt!
@@ -437,6 +455,18 @@ static void smbdirect_socket_cleanup_work(struct work_struct *work)
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_NONE;
 	disable_delayed_work(&sc->idle.timer_work);
 
+	/*
+	 * In case we were a listener we need to
+	 * disconnect all pending and ready sockets
+	 *
+	 * First we move ready sockets to pending again.
+	 */
+	spin_lock_irqsave(&sc->listen.lock, flags);
+	list_splice_init(&sc->listen.ready, &sc->listen.pending);
+	list_for_each_entry_safe(psc, tsc, &sc->listen.pending, accept.list)
+		smbdirect_socket_schedule_cleanup(psc, sc->first_error);
+	spin_unlock_irqrestore(&sc->listen.lock, flags);
+
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
 	case SMBDIRECT_SOCKET_NEGOTIATE_RUNNING:
@@ -448,6 +478,7 @@ static void smbdirect_socket_cleanup_work(struct work_struct *work)
 		break;
 
 	case SMBDIRECT_SOCKET_CREATED:
+	case SMBDIRECT_SOCKET_LISTENING:
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
@@ -479,6 +510,8 @@ static void smbdirect_socket_cleanup_work(struct work_struct *work)
 
 static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 {
+	struct smbdirect_socket *psc, *tsc;
+	size_t psockets;
 	struct smbdirect_recv_io *recv_io;
 	struct smbdirect_recv_io *recv_tmp;
 	LIST_HEAD(all_list);
@@ -498,6 +531,14 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 		return;
 
 	WARN_ONCE(sc->status != SMBDIRECT_SOCKET_DISCONNECTED,
+		  "status=%s first_error=%1pe",
+		  smbdirect_socket_status_string(sc->status),
+		  SMBDIRECT_DEBUG_ERR_PTR(sc->first_error));
+
+	/*
+	 * The listener should clear this before we reach this
+	 */
+	WARN_ONCE(sc->accept.listener,
 		  "status=%s first_error=%1pe",
 		  smbdirect_socket_status_string(sc->status),
 		  SMBDIRECT_DEBUG_ERR_PTR(sc->first_error));
@@ -527,9 +568,34 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 		ib_drain_qp(sc->ib.qp);
 	}
 
+	/*
+	 * In case we were a listener we need to
+	 * disconnect all pending and ready sockets
+	 *
+	 * We move ready sockets to pending again.
+	 */
+	spin_lock_irqsave(&sc->listen.lock, flags);
+	list_splice_tail_init(&sc->listen.ready, &all_list);
+	list_splice_tail_init(&sc->listen.pending, &all_list);
+	spin_unlock_irqrestore(&sc->listen.lock, flags);
+	psockets = list_count_nodes(&all_list);
+	if (sc->listen.backlog != -1) /* was a listener */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+			"release %zu pending sockets\n", psockets);
+	list_for_each_entry_safe(psc, tsc, &all_list, accept.list) {
+		list_del_init(&psc->accept.list);
+		psc->accept.listener = NULL;
+		smbdirect_socket_release(psc);
+	}
+	if (sc->listen.backlog != -1) /* was a listener */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+			"released %zu pending sockets\n", psockets);
+	INIT_LIST_HEAD(&all_list);
+
 	/* It's not possible for upper layer to get to reassembly */
-	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
-		"drain the reassembly queue\n");
+	if (sc->listen.backlog == -1) /* was not a listener */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+			"drain the reassembly queue\n");
 	spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 	list_splice_tail_init(&sc->recv_io.reassembly.list, &all_list);
 	spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
@@ -537,12 +603,14 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 		smbdirect_connection_put_recv_io(recv_io);
 	sc->recv_io.reassembly.data_length = 0;
 
-	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
-		"freeing mr list\n");
+	if (sc->listen.backlog == -1) /* was not a listener */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+			"freeing mr list\n");
 	smbdirect_connection_destroy_mr_list(sc);
 
-	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
-		"destroying qp\n");
+	if (sc->listen.backlog == -1) /* was not a listener */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+			"destroying qp\n");
 	smbdirect_connection_destroy_qp(sc);
 	if (sc->rdma.cm_id) {
 		rdma_unlock_handler(sc->rdma.cm_id);
@@ -552,8 +620,9 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 		sc->rdma.cm_id = NULL;
 	}
 
-	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
-		"destroying mem pools\n");
+	if (sc->listen.backlog == -1) /* was not a listener */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+			"destroying mem pools\n");
 	smbdirect_connection_destroy_mem_pools(sc);
 
 	sc->status = SMBDIRECT_SOCKET_DESTROYED;

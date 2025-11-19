@@ -148,8 +148,16 @@ int smbdirect_connect_sync(struct smbdirect_socket *sc,
 			   const struct sockaddr *dst);
 
 __SMBDIRECT_PUBLIC__
+int smbdirect_socket_listen(struct smbdirect_socket *sc, int backlog);
+
+__SMBDIRECT_PUBLIC__
 int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 				     const struct rdma_conn_param *param);
+
+__SMBDIRECT_PUBLIC__
+struct smbdirect_socket *smbdirect_socket_accept(struct smbdirect_socket *lsc,
+						 long timeo,
+						 struct proto_accept_arg *arg);
 
 __SMBDIRECT_PUBLIC__
 int smbdirect_connection_rdma_xmit(struct smbdirect_socket *sc,
