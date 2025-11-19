@@ -1833,9 +1833,10 @@ static void dc_dmub_srv_rb_based_fams2_update_config(struct dc *dc,
 
 	/* apply feature configuration based on current driver state */
 	global_cmd->config.global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
-	global_cmd->config.global.features.bits.enable = enable;
+	global_cmd->config.global.features.bits.enable = enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
+	global_cmd->config.global.features.bits.enable_ppt_check = dc->debug.fams2_config.bits.enable_ppt_check;
 
-	if (enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) {
+	if (enable) {
 		/* set multi pending for global, and unset for last stream cmd */
 		global_cmd->header.multi_cmd_pending = 1;
 		cmd[2 * context->bw_ctx.bw.dcn.fams2_global_config.num_streams].fams2_config.header.multi_cmd_pending = 0;
@@ -1862,15 +1863,15 @@ static void dc_dmub_srv_ib_based_fams2_update_config(struct dc *dc,
 	cmd.ib_fams2_config.ib_data.src.quad_part = dc->ctx->dmub_srv->dmub->ib_mem_gart.gpu_addr;
 	cmd.ib_fams2_config.ib_data.size = sizeof(*config);
 
-	if (enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) {
+	if (enable) {
+		/* send global configuration parameters */
+		memcpy(&config->global, &context->bw_ctx.bw.dcn.fams2_global_config,
+			sizeof(struct dmub_cmd_fams2_global_config));
+
 		/* copy static feature configuration overrides */
 		config->global.features.bits.enable_stall_recovery = dc->debug.fams2_config.bits.enable_stall_recovery;
 		config->global.features.bits.enable_offload_flip = dc->debug.fams2_config.bits.enable_offload_flip;
 		config->global.features.bits.enable_debug = dc->debug.fams2_config.bits.enable_debug;
-
-		/* send global configuration parameters */
-		memcpy(&config->global, &context->bw_ctx.bw.dcn.fams2_global_config,
-			sizeof(struct dmub_cmd_fams2_global_config));
 
 		/* construct per-stream configs */
 		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_global_config.num_streams; i++) {
@@ -1887,7 +1888,8 @@ static void dc_dmub_srv_ib_based_fams2_update_config(struct dc *dc,
 	}
 
 	config->global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
-	config->global.features.bits.enable = enable;
+	config->global.features.bits.enable = enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
+	config->global.features.bits.enable_ppt_check = dc->debug.fams2_config.bits.enable_ppt_check;
 
 	dm_execute_dmub_cmd_list(dc->ctx, 1, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }

@@ -1511,14 +1511,15 @@ void dcn401_dmub_hw_control_lock_fast(union block_sequence_params *params)
 
 void dcn401_fams2_update_config(struct dc *dc, struct dc_state *context, bool enable)
 {
-	bool fams2_required;
+	bool fams2_info_required;
 
 	if (!dc->ctx || !dc->ctx->dmub_srv || !dc->debug.fams2_config.bits.enable)
 		return;
 
-	fams2_required = context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
+	fams2_info_required = context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
+	fams2_info_required |= context->bw_ctx.bw.dcn.fams2_global_config.features.bits.legacy_method_no_fams2;
 
-	dc_dmub_srv_fams2_update_config(dc, context, enable && fams2_required);
+	dc_dmub_srv_fams2_update_config(dc, context, enable && fams2_info_required);
 }
 
 static void update_dsc_for_odm_change(struct dc *dc, struct dc_state *context,
