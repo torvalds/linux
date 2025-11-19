@@ -15,13 +15,6 @@ struct imx_rproc_att {
 	int flags;
 };
 
-/* Remote core start/stop method */
-enum imx_rproc_method {
-	IMX_RPROC_NONE,
-	/* Through ARM SMCCC */
-	IMX_RPROC_SMC,
-};
-
 /* dcfg flags */
 #define IMX_RPROC_NEED_SYSTEM_OFF	BIT(0)
 #define IMX_RPROC_NEED_CLKS		BIT(1)
@@ -42,7 +35,6 @@ struct imx_rproc_dcfg {
 	u32				gpr_wait;
 	const struct imx_rproc_att	*att;
 	size_t				att_size;
-	enum imx_rproc_method		method;
 	u32				flags;
 	const struct imx_rproc_plat_ops	*ops;
 };
