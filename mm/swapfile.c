@@ -1374,7 +1374,7 @@ start_over:
 		 * still in the swap_avail_head list then try it, otherwise
 		 * start over if we have not gotten any slots.
 		 */
-		if (plist_node_empty(&si->avail_list))
+		if (plist_node_empty(&next->avail_list))
 			goto start_over;
 	}
 	spin_unlock(&swap_avail_lock);
