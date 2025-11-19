@@ -10377,6 +10377,7 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
 static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpumask *affmsk)
 {
 	struct cpumask *mm_allowed;
+	unsigned int weight;
 
 	if (!mm)
 		return;
@@ -10387,8 +10388,8 @@ static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpu
 	 */
 	guard(raw_spinlock)(&mm->mm_cid.lock);
 	mm_allowed = mm_cpus_allowed(mm);
-	cpumask_or(mm_allowed, mm_allowed, affmsk);
-	WRITE_ONCE(mm->mm_cid.nr_cpus_allowed, cpumask_weight(mm_allowed));
+	weight = cpumask_weighted_or(mm_allowed, mm_allowed, affmsk);
+	WRITE_ONCE(mm->mm_cid.nr_cpus_allowed, weight);
 }
 
 void sched_mm_cid_exit_signals(struct task_struct *t)
