@@ -355,6 +355,12 @@ unsigned int __bitmap_weight_andnot(const unsigned long *bitmap1,
 }
 EXPORT_SYMBOL(__bitmap_weight_andnot);
 
+unsigned int __bitmap_weighted_or(unsigned long *dst, const unsigned long *bitmap1,
+				  const unsigned long *bitmap2, unsigned int bits)
+{
+	return BITMAP_WEIGHT(({dst[idx] = bitmap1[idx] | bitmap2[idx]; dst[idx]; }), bits);
+}
+
 void __bitmap_set(unsigned long *map, unsigned int start, int len)
 {
 	unsigned long *p = map + BIT_WORD(start);
