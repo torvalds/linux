@@ -240,23 +240,6 @@ struct bufdesc_ex {
 	__fec16 res0[4];
 };
 
-/*
- *	The following definitions courtesy of commproc.h, which where
- *	Copyright (c) 1997 Dan Malek (dmalek@jlc.net).
- */
-#define BD_SC_EMPTY	((ushort)0x8000)	/* Receive is empty */
-#define BD_SC_READY	((ushort)0x8000)	/* Transmit is ready */
-#define BD_SC_WRAP	((ushort)0x2000)	/* Last buffer descriptor */
-#define BD_SC_INTRPT	((ushort)0x1000)	/* Interrupt on change */
-#define BD_SC_CM	((ushort)0x0200)	/* Continuous mode */
-#define BD_SC_ID	((ushort)0x0100)	/* Rec'd too many idles */
-#define BD_SC_P		((ushort)0x0100)	/* xmt preamble */
-#define BD_SC_BR	((ushort)0x0020)	/* Break received */
-#define BD_SC_FR	((ushort)0x0010)	/* Framing error */
-#define BD_SC_PR	((ushort)0x0008)	/* Parity error */
-#define BD_SC_OV	((ushort)0x0002)	/* Overrun */
-#define BD_SC_CD	((ushort)0x0001)	/* ?? */
-
 /* Buffer descriptor control/status used by Ethernet receive.
  */
 #define BD_ENET_RX_EMPTY	((ushort)0x8000)
