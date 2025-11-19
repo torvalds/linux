@@ -574,6 +574,7 @@ static int __init imh_init(void)
 
 	opstate_init();
 	mce_register_decode_chain(&imh_mce_dec);
+	skx_setup_debug("imh_test");
 
 	imh_printk(KERN_INFO, "%s\n", IMH_REVISION);
 
@@ -587,6 +588,7 @@ static void __exit imh_exit(void)
 {
 	edac_dbg(2, "\n");
 
+	skx_teardown_debug();
 	mce_unregister_decode_chain(&imh_mce_dec);
 	skx_adxl_put();
 	skx_remove();
