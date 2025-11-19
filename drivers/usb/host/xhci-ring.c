@@ -160,6 +160,11 @@ static void trb_to_noop(union xhci_trb *trb, u32 noop_type)
 	}
 }
 
+static unsigned int trb_to_pos(struct xhci_segment *seg, union xhci_trb *trb)
+{
+	return seg->num * TRBS_PER_SEGMENT + (trb - seg->trbs);
+}
+
 /* Updates trb to point to the next TRB in the ring, and updates seg if the next
  * TRB is in a new segment.  This does not skip over link TRBs, and it does not
  * effect the ring dequeue or enqueue pointers.
@@ -299,55 +304,34 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		inc_enq_past_link(xhci, ring, chain);
 }
 
-/*
- * If the suspect DMA address is a TRB in this TD, this function returns that
- * TRB's segment. Otherwise it returns 0.
- */
-static struct xhci_segment *trb_in_td(struct xhci_td *td, dma_addr_t suspect_dma)
+static bool dma_in_range(dma_addr_t dma,
+			 struct xhci_segment *start_seg, union xhci_trb *start_trb,
+			 struct xhci_segment *end_seg, union xhci_trb *end_trb)
 {
-	dma_addr_t start_dma;
-	dma_addr_t end_seg_dma;
-	dma_addr_t end_trb_dma;
-	struct xhci_segment *cur_seg;
+	unsigned int pos, start, end;
+	struct xhci_segment *pos_seg;
+	union xhci_trb *pos_trb = xhci_dma_to_trb(start_seg, dma, &pos_seg);
 
-	start_dma = xhci_trb_virt_to_dma(td->start_seg, td->start_trb);
-	cur_seg = td->start_seg;
+	/* Is the trb dma address even part of the whole ring? */
+	if (!pos_trb)
+		return false;
 
-	do {
-		if (start_dma == 0)
-			return NULL;
-		/* We may get an event for a Link TRB in the middle of a TD */
-		end_seg_dma = xhci_trb_virt_to_dma(cur_seg,
-				&cur_seg->trbs[TRBS_PER_SEGMENT - 1]);
-		/* If the end TRB isn't in this segment, this is set to 0 */
-		end_trb_dma = xhci_trb_virt_to_dma(cur_seg, td->end_trb);
+	pos = trb_to_pos(pos_seg, pos_trb);
+	start = trb_to_pos(start_seg, start_trb);
+	end = trb_to_pos(end_seg, end_trb);
 
-		if (end_trb_dma > 0) {
-			/* The end TRB is in this segment, so suspect should be here */
-			if (start_dma <= end_trb_dma) {
-				if (suspect_dma >= start_dma && suspect_dma <= end_trb_dma)
-					return cur_seg;
-			} else {
-				/* Case for one segment with
-				 * a TD wrapped around to the top
-				 */
-				if ((suspect_dma >= start_dma &&
-							suspect_dma <= end_seg_dma) ||
-						(suspect_dma >= cur_seg->dma &&
-						 suspect_dma <= end_trb_dma))
-					return cur_seg;
-			}
-			return NULL;
-		}
-		/* Might still be somewhere in this segment */
-		if (suspect_dma >= start_dma && suspect_dma <= end_seg_dma)
-			return cur_seg;
+	/* end position is smaller than start, search range wraps around */
+	if (end < start)
+		return !(pos > end && pos < start);
 
-		cur_seg = cur_seg->next;
-		start_dma = xhci_trb_virt_to_dma(cur_seg, &cur_seg->trbs[0]);
-	} while (cur_seg != td->start_seg);
+	return (pos >= start && pos <= end);
+}
 
-	return NULL;
+/* If the suspect DMA address is a TRB in this TD, this function returns true */
+static bool trb_in_td(struct xhci_td *td, dma_addr_t suspect_dma)
+{
+	return dma_in_range(suspect_dma, td->start_seg, td->start_trb,
+			    td->end_seg, td->end_trb);
 }
 
 /*
