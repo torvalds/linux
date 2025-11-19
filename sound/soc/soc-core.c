@@ -545,6 +545,11 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	dev_set_drvdata(dev, rtd);
 	INIT_DELAYED_WORK(&rtd->delayed_work, close_delayed_work);
 
+	if ((dai_link->num_cpus + dai_link->num_codecs) == 0) {
+		dev_err(dev, "ASoC: it has no CPU or codec DAIs\n");
+		goto free_rtd;
+	}
+
 	/*
 	 * for rtd->dais
 	 */
