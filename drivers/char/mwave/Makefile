@@ -8,6 +8,3 @@
 obj-$(CONFIG_MWAVE) += mwave.o
 
 mwave-y := mwavedd.o smapi.o tp3780i.o 3780i.o
-
-# To compile in lots (~20 KiB) of run-time enablable printk()s for debugging:
-ccflags-y += -DMW_TRACE

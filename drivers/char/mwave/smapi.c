@@ -69,10 +69,6 @@ static int smapi_request(unsigned short inBX, unsigned short inCX,
 	unsigned short usSmapiOK = -EIO, *pusSmapiOK = &usSmapiOK;
 	unsigned int inBXCX = (inBX << 16) | inCX;
 	unsigned int inDISI = (inDI << 16) | inSI;
-	int retval = 0;
-
-	PRINTK_5(TRACE_SMAPI, "inBX %x inCX %x inDI %x inSI %x\n",
-		inBX, inCX, inDI, inSI);
 
 	__asm__ __volatile__("movw  $0x5380,%%ax\n\t"
 			    "movl  %7,%%ebx\n\t"
@@ -107,10 +103,6 @@ static int smapi_request(unsigned short inBX, unsigned short inCX,
 			    :"%eax", "%ebx", "%ecx", "%edx", "%edi",
 			    "%esi");
 
-	PRINTK_8(TRACE_SMAPI,
-		"myoutAX %x myoutBX %x myoutCX %x myoutDX %x myoutDI %x myoutSI %x usSmapiOK %x\n",
-		myoutAX, myoutBX, myoutCX, myoutDX, myoutDI, myoutSI,
-		usSmapiOK);
 	*outAX = myoutAX;
 	*outBX = myoutBX;
 	*outCX = myoutCX;
@@ -118,9 +110,7 @@ static int smapi_request(unsigned short inBX, unsigned short inCX,
 	*outDI = myoutDI;
 	*outSI = myoutSI;
 
-	retval = (usSmapiOK == 1) ? 0 : -EIO;
-	PRINTK_2(TRACE_SMAPI, "smapi::smapi_request exit retval %x\n", retval);
-	return retval;
+	return usSmapiOK == 1 ? 0 : -EIO;
 }
 
 
@@ -134,16 +124,12 @@ int smapi_query_DSP_cfg(SMAPI_DSP_SETTINGS * pSettings)
 	static const unsigned short ausUartBases[] = {
 		0x03F8, 0x02F8, 0x03E8, 0x02E8 };
 
-	PRINTK_1(TRACE_SMAPI, "smapi::smapi_query_DSP_cfg entry\n");
-
 	bRC = smapi_request(0x1802, 0x0000, 0, 0,
 		&usAX, &usBX, &usCX, &usDX, &usDI, &usSI);
 	if (bRC) {
 		PRINTK_ERROR(KERN_ERR_MWAVE "smapi::smapi_query_DSP_cfg: Error: Could not get DSP Settings. Aborting.\n");
 		return bRC;
 	}
-
-	PRINTK_1(TRACE_SMAPI, "smapi::smapi_query_DSP_cfg, smapi_request OK\n");
 
 	pSettings->bDSPPresent = ((usBX & 0x0100) != 0);
 	pSettings->bDSPEnabled = ((usCX & 0x0001) != 0);
@@ -154,11 +140,6 @@ int smapi_query_DSP_cfg(SMAPI_DSP_SETTINGS * pSettings)
 	} else {
 		pSettings->usDspBaseIO = 0;
 	}
-	PRINTK_6(TRACE_SMAPI,
-		"smapi::smapi_query_DSP_cfg get DSP Settings bDSPPresent %x bDSPEnabled %x usDspIRQ %x usDspDMA %x usDspBaseIO %x\n",
-		pSettings->bDSPPresent, pSettings->bDSPEnabled,
-		pSettings->usDspIRQ, pSettings->usDspDMA,
-		pSettings->usDspBaseIO);
 
 	/* check for illegal values */
 	if ( pSettings->usDspBaseIO == 0 ) 
@@ -173,8 +154,6 @@ int smapi_query_DSP_cfg(SMAPI_DSP_SETTINGS * pSettings)
 		return bRC;
 	} 
 
-	PRINTK_1(TRACE_SMAPI, "smapi::smapi_query_DSP_cfg, smapi_request OK\n");
-
 	pSettings->bModemEnabled = ((usCX & 0x0001) != 0);
 	pSettings->usUartIRQ = usSI & 0x000F;
 	if (((usSI & 0xFF00) >> 8) < ARRAY_SIZE(ausUartBases)) {
@@ -183,19 +162,11 @@ int smapi_query_DSP_cfg(SMAPI_DSP_SETTINGS * pSettings)
 		pSettings->usUartBaseIO = 0;
 	}
 
-	PRINTK_4(TRACE_SMAPI,
-		"smapi::smapi_query_DSP_cfg get DSP modem settings bModemEnabled %x usUartIRQ %x usUartBaseIO %x\n",
-		pSettings->bModemEnabled,
-		pSettings->usUartIRQ,
-		pSettings->usUartBaseIO);
-
 	/* check for illegal values */
 	if ( pSettings->usUartBaseIO == 0 ) 
 		PRINTK_ERROR(KERN_ERR_MWAVE "smapi::smapi_query_DSP_cfg: Worry: UART base I/O address is 0\n");
 	if ( pSettings->usUartIRQ == 0 )
 		PRINTK_ERROR(KERN_ERR_MWAVE "smapi::smapi_query_DSP_cfg: Worry: UART IRQ line is 0\n");
-
-	PRINTK_2(TRACE_SMAPI, "smapi::smapi_query_DSP_cfg exit bRC %x\n", bRC);
 
 	return bRC;
 }
@@ -217,10 +188,6 @@ int smapi_set_DSP_cfg(void)
 		3, 4 };
 
 	unsigned short dspio_index = 0, uartio_index = 0;
-
-	PRINTK_5(TRACE_SMAPI,
-		"smapi::smapi_set_DSP_cfg entry mwave_3780i_irq %x mwave_3780i_io %x mwave_uart_irq %x mwave_uart_io %x\n",
-		mwave_3780i_irq, mwave_3780i_io, mwave_uart_irq, mwave_uart_io);
 
 	if (mwave_3780i_io) {
 		for (i = 0; i < ARRAY_SIZE(ausDspBases); i++) {
@@ -374,7 +341,6 @@ int smapi_set_DSP_cfg(void)
 	if (bRC) goto exit_smapi_request_error;
 
 /* normal exit: */
-	PRINTK_1(TRACE_SMAPI, "smapi::smapi_set_DSP_cfg exit\n");
 	return 0;
 
 exit_conflict:
@@ -389,20 +355,13 @@ exit_smapi_request_error:
 
 int smapi_set_DSP_power_state(bool bOn)
 {
-	int bRC;
 	unsigned short usAX, usBX, usCX, usDX, usDI, usSI;
 	unsigned short usPowerFunction;
 
-	PRINTK_2(TRACE_SMAPI, "smapi::smapi_set_DSP_power_state entry bOn %x\n", bOn);
-
 	usPowerFunction = (bOn) ? 1 : 0;
 
-	bRC = smapi_request(0x4901, 0x0000, 0, usPowerFunction,
-		&usAX, &usBX, &usCX, &usDX, &usDI, &usSI);
-
-	PRINTK_2(TRACE_SMAPI, "smapi::smapi_set_DSP_power_state exit bRC %x\n", bRC);
-
-	return bRC;
+	return smapi_request(0x4901, 0x0000, 0, usPowerFunction, &usAX, &usBX, &usCX, &usDX, &usDI,
+			     &usSI);
 }
 
 int smapi_init(void)
@@ -411,13 +370,10 @@ int smapi_init(void)
 	unsigned short usSmapiID = 0;
 	unsigned long flags;
 
-	PRINTK_1(TRACE_SMAPI, "smapi::smapi_init entry\n");
-
 	spin_lock_irqsave(&rtc_lock, flags);
 	usSmapiID = CMOS_READ(0x7C);
 	usSmapiID |= (CMOS_READ(0x7D) << 8);
 	spin_unlock_irqrestore(&rtc_lock, flags);
-	PRINTK_2(TRACE_SMAPI, "smapi::smapi_init usSmapiID %x\n", usSmapiID);
 
 	if (usSmapiID == 0x5349) {
 		spin_lock_irqsave(&rtc_lock, flags);
@@ -427,9 +383,6 @@ int smapi_init(void)
 		if (g_usSmapiPort == 0) {
 			PRINTK_ERROR("smapi::smapi_init, ERROR unable to read from SMAPI port\n");
 		} else {
-			PRINTK_2(TRACE_SMAPI,
-				"smapi::smapi_init, exit true g_usSmapiPort %x\n",
-				g_usSmapiPort);
 			retval = 0;
 			//SmapiQuerySystemID();
 		}
