@@ -530,7 +530,9 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		sysfs_show_32bit_prop(buffer, offs, "sdma_fw_version",
 				      dev->gpu->kfd->sdma_fw_version);
 		sysfs_show_64bit_prop(buffer, offs, "unique_id",
-				      dev->gpu->xcp ?
+				      dev->gpu->xcp &&
+				      (dev->gpu->xcp->xcp_mgr->mode !=
+				       AMDGPU_SPX_PARTITION_MODE) ?
 				      dev->gpu->xcp->unique_id :
 				      dev->gpu->adev->unique_id);
 		sysfs_show_32bit_prop(buffer, offs, "num_xcc",
