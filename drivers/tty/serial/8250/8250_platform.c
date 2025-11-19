@@ -390,30 +390,3 @@ module_param(skip_txen_test, uint, 0644);
 MODULE_PARM_DESC(skip_txen_test, "Skip checking for the TXEN bug at init time");
 
 MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
-
-#ifdef CONFIG_SERIAL_8250_DEPRECATED_OPTIONS
-#ifndef MODULE
-/*
- * This module was renamed to 8250_core in 3.7. Keep the old "8250" name
- * working as well for the module options so we don't break people. We
- * need to keep the names identical and the convenient macros will happily
- * refuse to let us do that by failing the build with redefinition errors
- * of global variables. So we stick them inside a dummy function to avoid
- * those conflicts. The options still get parsed, and the redefined
- * MODULE_PARAM_PREFIX lets us keep the "8250." syntax alive.
- *
- * This is hacky.  I'm sorry.
- */
-static void __used s8250_options(void)
-{
-#undef MODULE_PARAM_PREFIX
-#define MODULE_PARAM_PREFIX "8250_core."
-
-	module_param_cb(share_irqs, &param_ops_uint, &share_irqs, 0644);
-	module_param_cb(nr_uarts, &param_ops_uint, &nr_uarts, 0644);
-	module_param_cb(skip_txen_test, &param_ops_uint, &skip_txen_test, 0644);
-}
-#else
-MODULE_ALIAS("8250_core");
-#endif
-#endif
