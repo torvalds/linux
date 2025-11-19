@@ -17,7 +17,7 @@
  */
 const char *phy_speed_to_str(int speed)
 {
-	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 121,
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 125,
 		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
 		"If a speed or mode has been added please update phy_speed_to_str "
 		"and the PHY settings array.\n");
@@ -55,6 +55,8 @@ const char *phy_speed_to_str(int speed)
 		return "400Gbps";
 	case SPEED_800000:
 		return "800Gbps";
+	case SPEED_1600000:
+		return "1600Gbps";
 	case SPEED_UNKNOWN:
 		return "Unknown";
 	default:
