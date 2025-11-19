@@ -10376,14 +10376,14 @@ void sched_mm_cid_exit_signals(struct task_struct *t)
 {
 	struct mm_struct *mm = t->mm;
 
-	if (!mm || !t->mm_cid_active)
+	if (!mm || !t->mm_cid.active)
 		return;
 
 	guard(preempt)();
-	t->mm_cid_active = 0;
-	if (t->mm_cid != MM_CID_UNSET) {
-		cpumask_clear_cpu(t->mm_cid, mm_cidmask(mm));
-		t->mm_cid = MM_CID_UNSET;
+	t->mm_cid.active = 0;
+	if (t->mm_cid.cid != MM_CID_UNSET) {
+		cpumask_clear_cpu(t->mm_cid.cid, mm_cidmask(mm));
+		t->mm_cid.cid = MM_CID_UNSET;
 	}
 }
 
@@ -10402,14 +10402,14 @@ void sched_mm_cid_after_execve(struct task_struct *t)
 		return;
 
 	guard(preempt)();
-	t->mm_cid_active = 1;
+	t->mm_cid.active = 1;
 	mm_cid_select(t);
 }
 
 void sched_mm_cid_fork(struct task_struct *t)
 {
-	WARN_ON_ONCE(!t->mm || t->mm_cid != MM_CID_UNSET);
-	t->mm_cid_active = 1;
+	WARN_ON_ONCE(!t->mm || t->mm_cid.cid != MM_CID_UNSET);
+	t->mm_cid.active = 1;
 }
 #endif /* CONFIG_SCHED_MM_CID */
 

@@ -90,4 +90,46 @@ struct rseq_data {
 struct rseq_data { };
 #endif /* !CONFIG_RSEQ */
 
+#ifdef CONFIG_SCHED_MM_CID
+
+#define MM_CID_UNSET	(~0U)
+
+/**
+ * struct sched_mm_cid - Storage for per task MM CID data
+ * @active:	MM CID is active for the task
+ * @cid:	The CID associated to the task
+ * @last_cid:	The last CID associated to the task
+ */
+struct sched_mm_cid {
+	unsigned int		active;
+	unsigned int		cid;
+	unsigned int		last_cid;
+};
+
+/**
+ * struct mm_cid_pcpu - Storage for per CPU MM_CID data
+ * @cid:	The CID associated to the CPU
+ */
+struct mm_cid_pcpu {
+	unsigned int	cid;
+};
+
+/**
+ * struct mm_mm_cid - Storage for per MM CID data
+ * @pcpu:		Per CPU storage for CIDs associated to a CPU
+ * @nr_cpus_allowed:	The number of CPUs in the per MM allowed CPUs map. The map
+ *			is growth only.
+ * @lock:		Spinlock to protect all fields except @pcpu. It also protects
+ *			the MM cid cpumask and the MM cidmask bitmap.
+ */
+struct mm_mm_cid {
+	struct mm_cid_pcpu	__percpu *pcpu;
+	unsigned int		nr_cpus_allowed;
+	raw_spinlock_t		lock;
+};
+#else /* CONFIG_SCHED_MM_CID */
+struct mm_mm_cid { };
+struct sched_mm_cid { };
+#endif /* !CONFIG_SCHED_MM_CID */
+
 #endif

@@ -3549,8 +3549,8 @@ static inline void init_sched_mm_cid(struct task_struct *t)
 		return;
 
 	/* Preset last_mm_cid */
-	max_cid = min_t(int, READ_ONCE(mm->nr_cpus_allowed), atomic_read(&mm->mm_users));
-	t->last_mm_cid = max_cid - 1;
+	max_cid = min_t(int, READ_ONCE(mm->mm_cid.nr_cpus_allowed), atomic_read(&mm->mm_users));
+	t->mm_cid.last_cid = max_cid - 1;
 }
 
 static inline bool __mm_cid_get(struct task_struct *t, unsigned int cid, unsigned int max_cids)
@@ -3561,8 +3561,8 @@ static inline bool __mm_cid_get(struct task_struct *t, unsigned int cid, unsigne
 		return false;
 	if (cpumask_test_and_set_cpu(cid, mm_cidmask(mm)))
 		return false;
-	t->mm_cid = t->last_mm_cid = cid;
-	__this_cpu_write(mm->pcpu_cid->cid, cid);
+	t->mm_cid.cid = t->mm_cid.last_cid = cid;
+	__this_cpu_write(mm->mm_cid.pcpu->cid, cid);
 	return true;
 }
 
@@ -3571,14 +3571,14 @@ static inline bool mm_cid_get(struct task_struct *t)
 	struct mm_struct *mm = t->mm;
 	unsigned int max_cids;
 
-	max_cids = min_t(int, READ_ONCE(mm->nr_cpus_allowed), atomic_read(&mm->mm_users));
+	max_cids = min_t(int, READ_ONCE(mm->mm_cid.nr_cpus_allowed), atomic_read(&mm->mm_users));
 
 	/* Try to reuse the last CID of this task */
-	if (__mm_cid_get(t, t->last_mm_cid, max_cids))
+	if (__mm_cid_get(t, t->mm_cid.last_cid, max_cids))
 		return true;
 
 	/* Try to reuse the last CID of this mm on this CPU */
-	if (__mm_cid_get(t, __this_cpu_read(mm->pcpu_cid->cid), max_cids))
+	if (__mm_cid_get(t, __this_cpu_read(mm->mm_cid.pcpu->cid), max_cids))
 		return true;
 
 	/* Try the first zero bit in the cidmask. */
@@ -3601,15 +3601,15 @@ static inline void mm_cid_select(struct task_struct *t)
 
 static inline void switch_mm_cid(struct task_struct *prev, struct task_struct *next)
 {
-	if (prev->mm_cid_active) {
-		if (prev->mm_cid != MM_CID_UNSET)
-			cpumask_clear_cpu(prev->mm_cid, mm_cidmask(prev->mm));
-		prev->mm_cid = MM_CID_UNSET;
+	if (prev->mm_cid.active) {
+		if (prev->mm_cid.cid != MM_CID_UNSET)
+			cpumask_clear_cpu(prev->mm_cid.cid, mm_cidmask(prev->mm));
+		prev->mm_cid.cid = MM_CID_UNSET;
 	}
 
-	if (next->mm_cid_active) {
+	if (next->mm_cid.active) {
 		mm_cid_select(next);
-		rseq_sched_set_task_mm_cid(next, next->mm_cid);
+		rseq_sched_set_task_mm_cid(next, next->mm_cid.cid);
 	}
 }
 
