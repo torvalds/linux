@@ -548,6 +548,10 @@ static void zloop_handle_cmd(struct zloop_cmd *cmd)
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
 	struct zloop_device *zlo = rq->q->queuedata;
 
+	/* We can block in this context, so ignore REQ_NOWAIT. */
+	if (rq->cmd_flags & REQ_NOWAIT)
+		rq->cmd_flags &= ~REQ_NOWAIT;
+
 	switch (req_op(rq)) {
 	case REQ_OP_READ:
 	case REQ_OP_WRITE:
