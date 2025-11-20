@@ -51,6 +51,10 @@ int sdca_reset_function(struct device *dev, struct sdca_function_data *function,
 		return -EINVAL;
 	}
 
+	/*
+	 * Poll up to 16 times but no more than once per ms, these are just
+	 * arbitrarily selected values, so may be fine tuned in future.
+	 */
 	poll_us = umin(function->reset_max_delay >> 4, 1000);
 
 	ret = regmap_read_poll_timeout(regmap, reg, val, !val, poll_us,
