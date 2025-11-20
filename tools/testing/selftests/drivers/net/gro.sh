@@ -90,9 +90,9 @@ while getopts "i:t:p:" opt; do
 done
 
 if [ -n "$dev" ]; then
-	source setup_loopback.sh
+	source $(dirname $0)/../../net/lib/setup_loopback.sh
 else
-	source setup_veth.sh
+	source $(dirname $0)/../../net/lib/setup_veth.sh
 fi
 
 setup

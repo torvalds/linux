@@ -8,6 +8,8 @@ CFLAGS += -I../../
 TEST_FILES := \
 	../../../../net/ynl \
 	../../../../../Documentation/netlink/specs \
+	setup_loopback.sh \
+	setup_veth.sh \
 # end of TEST_FILES
 
 TEST_GEN_FILES := \

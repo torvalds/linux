@@ -11,7 +11,7 @@
 # invoke as ./toeplitz.sh (-i <iface>) -u|-t -4|-6 \
 # [(-rss -irq_prefix <irq-pattern-prefix>)|(-rps <rps_map>)]
 
-source setup_loopback.sh
+source $(dirname $0)/../../../net/lib/setup_loopback.sh
 readonly SERVER_IP4="192.168.1.200/24"
 readonly SERVER_IP6="fda8::1/64"
 readonly SERVER_MAC="aa:00:00:00:00:02"
