@@ -473,11 +473,11 @@ static void guest_code(struct test_args *args)
 
 	gic_init(GIC_V3, 1);
 
-	for (i = 0; i < nr_irqs; i++)
-		gic_irq_enable(i);
-
 	for (i = MIN_SPI; i < nr_irqs; i++)
 		gic_irq_set_config(i, !level_sensitive);
+
+	for (i = 0; i < nr_irqs; i++)
+		gic_irq_enable(i);
 
 	gic_set_eoi_split(args->eoi_split);
 
