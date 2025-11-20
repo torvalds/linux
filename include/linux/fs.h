@@ -2409,13 +2409,19 @@ extern struct kobject *fs_kobj;
 
 /* fs/open.c */
 struct audit_names;
-struct filename {
+
+struct __filename_head {
 	const char		*name;	/* pointer to actual string */
 	atomic_t		refcnt;
 	struct audit_names	*aname;
-	const char		iname[];
+};
+#define EMBEDDED_NAME_MAX	(192 - sizeof(struct __filename_head))
+struct filename {
+	struct __filename_head;
+	const char		iname[EMBEDDED_NAME_MAX];
 };
 static_assert(offsetof(struct filename, iname) % sizeof(long) == 0);
+static_assert(sizeof(struct filename) % 64 == 0);
 
 static inline struct mnt_idmap *file_mnt_idmap(const struct file *file)
 {

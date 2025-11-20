@@ -123,15 +123,14 @@
  * PATH_MAX includes the nul terminator --RR.
  */
 
-#define EMBEDDED_NAME_MAX	(PATH_MAX - offsetof(struct filename, iname))
-
 /* SLAB cache for struct filename instances */
 static struct kmem_cache *names_cachep __ro_after_init;
 
 void __init filename_init(void)
 {
-	names_cachep = kmem_cache_create_usercopy("names_cache", PATH_MAX, 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL);
+	names_cachep = kmem_cache_create_usercopy("names_cache", sizeof(struct filename), 0,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC, offsetof(struct filename, iname),
+						EMBEDDED_NAME_MAX, NULL);
 }
 
 static inline struct filename *alloc_filename(void)
@@ -150,30 +149,23 @@ static inline void initname(struct filename *name)
 	atomic_set(&name->refcnt, 1);
 }
 
-static struct filename *getname_long(struct filename *old,
-				     const char __user *filename)
+static int getname_long(struct filename *name, const char __user *filename)
 {
 	int len;
-	/*
-	 * size is chosen that way we to guarantee that
-	 * p->iname[0] is within the same object and that
-	 * p->name can't be equal to p->iname, no matter what.
-	 */
-	const size_t size = offsetof(struct filename, iname[1]);
-	struct filename *p __free(kfree) = kzalloc(size, GFP_KERNEL);
+	char *p __free(kfree) = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (unlikely(!p))
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	memmove(old, &old->iname, EMBEDDED_NAME_MAX);
-	p->name = (char *)old;
-	len = strncpy_from_user((char *)old + EMBEDDED_NAME_MAX,
+	memcpy(p, &name->iname, EMBEDDED_NAME_MAX);
+	len = strncpy_from_user(p + EMBEDDED_NAME_MAX,
 				filename + EMBEDDED_NAME_MAX,
 				PATH_MAX - EMBEDDED_NAME_MAX);
 	if (unlikely(len < 0))
-		return ERR_PTR(len);
+		return len;
 	if (unlikely(len == PATH_MAX - EMBEDDED_NAME_MAX))
-		return ERR_PTR(-ENAMETOOLONG);
-	return no_free_ptr(p);
+		return -ENAMETOOLONG;
+	name->name = no_free_ptr(p);
+	return 0;
 }
 
 struct filename *
@@ -199,16 +191,9 @@ getname_flags(const char __user *filename, int flags)
 	 * Handle both empty path and copy failure in one go.
 	 */
 	if (unlikely(len <= 0)) {
-		if (unlikely(len < 0)) {
-			free_filename(result);
-			return ERR_PTR(len);
-		}
-
 		/* The empty path is special. */
-		if (!(flags & LOOKUP_EMPTY)) {
-			free_filename(result);
-			return ERR_PTR(-ENOENT);
-		}
+		if (!len && !(flags & LOOKUP_EMPTY))
+			len = -ENOENT;
 	}
 
 	/*
@@ -217,14 +202,13 @@ getname_flags(const char __user *filename, int flags)
 	 * names_cache allocation for the pathname, and re-do the copy from
 	 * userland.
 	 */
-	if (unlikely(len == EMBEDDED_NAME_MAX)) {
-		struct filename *p = getname_long(result, filename);
-		if (IS_ERR(p)) {
-			free_filename(result);
-			return p;
-		}
-		result = p;
+	if (unlikely(len == EMBEDDED_NAME_MAX))
+		len = getname_long(result, filename);
+	if (unlikely(len < 0)) {
+		free_filename(result);
+		return ERR_PTR(len);
 	}
+
 	initname(result);
 	audit_getname(result);
 	return result;
@@ -260,29 +244,26 @@ struct filename *getname_kernel(const char * filename)
 {
 	struct filename *result;
 	int len = strlen(filename) + 1;
+	char *p;
+
+	if (unlikely(len > PATH_MAX))
+		return ERR_PTR(-ENAMETOOLONG);
 
 	result = alloc_filename();
 	if (unlikely(!result))
 		return ERR_PTR(-ENOMEM);
 
 	if (len <= EMBEDDED_NAME_MAX) {
-		result->name = (char *)result->iname;
-	} else if (len <= PATH_MAX) {
-		const size_t size = offsetof(struct filename, iname[1]);
-		struct filename *tmp;
-
-		tmp = kmalloc(size, GFP_KERNEL);
-		if (unlikely(!tmp)) {
+		p = (char *)result->iname;
+		memcpy(p, filename, len);
+	} else {
+		p = kmemdup(filename, len, GFP_KERNEL);
+		if (unlikely(!p)) {
 			free_filename(result);
 			return ERR_PTR(-ENOMEM);
 		}
-		tmp->name = (char *)result;
-		result = tmp;
-	} else {
-		free_filename(result);
-		return ERR_PTR(-ENAMETOOLONG);
 	}
-	memcpy((char *)result->name, filename, len);
+	result->name = p;
 	initname(result);
 	audit_getname(result);
 	return result;
@@ -305,11 +286,9 @@ void putname(struct filename *name)
 			return;
 	}
 
-	if (unlikely(name->name != name->iname)) {
-		free_filename((struct filename *)name->name);
-		kfree(name);
-	} else
-		free_filename(name);
+	if (unlikely(name->name != name->iname))
+		kfree(name->name);
+	free_filename(name);
 }
 EXPORT_SYMBOL(putname);
 
