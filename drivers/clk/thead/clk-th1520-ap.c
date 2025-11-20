@@ -7,9 +7,11 @@
 
 #include <dt-bindings/clock/thead,th1520-clk-ap.h>
 #include <linux/bitfield.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -33,6 +35,9 @@
  */
 #define TH1520_PLL_LOCK_TIMEOUT_US	44
 #define TH1520_PLL_STABLE_DELAY_US	30
+
+/* c910_bus_clk must be kept below 750MHz for stability */
+#define TH1520_C910_BUS_MAX_RATE	(750 * 1000 * 1000)
 
 struct ccu_internal {
 	u8	shift;
@@ -472,6 +477,72 @@ static const struct clk_ops clk_pll_ops = {
 	.set_rate	= ccu_pll_set_rate,
 };
 
+/*
+ * c910_clk could be reparented glitchlessly for DVFS. There are two parents,
+ *  - c910_i0_clk, derived from cpu_pll0_clk or osc_24m.
+ *  - cpu_pll1_clk, which provides the exact same set of rates as cpu_pll0_clk.
+ *
+ * During rate setting, always forward the request to the unused parent, and
+ * then switch c910_clk to it to avoid glitch.
+ */
+static u8 c910_clk_get_parent(struct clk_hw *hw)
+{
+	return clk_mux_ops.get_parent(hw);
+}
+
+static int c910_clk_set_parent(struct clk_hw *hw, u8 index)
+{
+	return clk_mux_ops.set_parent(hw, index);
+}
+
+static unsigned long c910_clk_recalc_rate(struct clk_hw *hw,
+					  unsigned long parent_rate)
+{
+	return parent_rate;
+}
+
+static int c910_clk_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *req)
+{
+	u8 alt_parent_index = !c910_clk_get_parent(hw);
+	struct clk_hw *alt_parent;
+
+	alt_parent = clk_hw_get_parent_by_index(hw, alt_parent_index);
+
+	req->rate		= clk_hw_round_rate(alt_parent, req->rate);
+	req->best_parent_hw	= alt_parent;
+	req->best_parent_rate	= req->rate;
+
+	return 0;
+}
+
+static int c910_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+			     unsigned long parent_rate)
+{
+	return -EOPNOTSUPP;
+}
+
+static int c910_clk_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate, u8 index)
+{
+	struct clk_hw *parent = clk_hw_get_parent_by_index(hw, index);
+
+	clk_set_rate(parent->clk, parent_rate);
+
+	c910_clk_set_parent(hw, index);
+
+	return 0;
+}
+
+static const struct clk_ops c910_clk_ops = {
+	.get_parent		= c910_clk_get_parent,
+	.set_parent		= c910_clk_set_parent,
+	.recalc_rate		= c910_clk_recalc_rate,
+	.determine_rate		= c910_clk_determine_rate,
+	.set_rate		= c910_clk_set_rate,
+	.set_rate_and_parent	= c910_clk_set_rate_and_parent,
+};
+
 static const struct clk_parent_data osc_24m_clk[] = {
 	{ .index = 0 }
 };
@@ -672,7 +743,8 @@ static const struct clk_parent_data c910_i0_parents[] = {
 static struct ccu_mux c910_i0_clk = {
 	.clkid	= CLK_C910_I0,
 	.reg	= 0x100,
-	.mux	= TH_CCU_MUX("c910-i0", c910_i0_parents, 1, 1),
+	.mux	= TH_CCU_MUX_FLAGS("c910-i0", c910_i0_parents, 1, 1,
+				   CLK_SET_RATE_PARENT, CLK_MUX_ROUND_CLOSEST),
 };
 
 static const struct clk_parent_data c910_parents[] = {
@@ -683,7 +755,14 @@ static const struct clk_parent_data c910_parents[] = {
 static struct ccu_mux c910_clk = {
 	.clkid	= CLK_C910,
 	.reg	= 0x100,
-	.mux	= TH_CCU_MUX("c910", c910_parents, 0, 1),
+	.mux	= {
+		.mask		= BIT(0),
+		.shift		= 0,
+		.hw.init	= CLK_HW_INIT_PARENTS_DATA("c910",
+							   c910_parents,
+							   &c910_clk_ops,
+							   CLK_SET_RATE_PARENT),
+	},
 };
 
 static struct ccu_div c910_bus_clk = {
@@ -1372,11 +1451,69 @@ static const struct th1520_plat_data th1520_vo_platdata = {
 	.nr_gate_clks = ARRAY_SIZE(th1520_vo_gate_clks),
 };
 
+/*
+ * Maintain clock rate of c910_bus_clk below TH1520_C910_BUS_MAX_RATE (750MHz)
+ * when its parent, c910_clk, changes the rate.
+ *
+ * Additionally, TRM is unclear about c910_bus_clk behavior when the divisor is
+ * set below 2, thus we should ensure the new divisor stays in (2, MAXDIVISOR).
+ */
+static unsigned long c910_bus_clk_divisor(struct ccu_div *cd,
+					  unsigned long parent_rate)
+{
+	return clamp(DIV_ROUND_UP(parent_rate, TH1520_C910_BUS_MAX_RATE),
+		     2U, 1U << cd->div.width);
+}
+
+static int c910_clk_notifier_cb(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct clk_notifier_data *cnd = data;
+	unsigned long new_divisor, ref_rate;
+
+	if (action != PRE_RATE_CHANGE && action != POST_RATE_CHANGE)
+		return NOTIFY_DONE;
+
+	new_divisor	= c910_bus_clk_divisor(&c910_bus_clk, cnd->new_rate);
+
+	if (cnd->new_rate > cnd->old_rate) {
+		/*
+		 * Scaling up. Adjust c910_bus_clk divisor
+		 * - before c910_clk rate change to ensure the constraints
+		 *   aren't broken after scaling to higher rates,
+		 * - after c910_clk rate change to keep c910_bus_clk as high as
+		 *   possible
+		 */
+		ref_rate = action == PRE_RATE_CHANGE ?
+				cnd->old_rate : cnd->new_rate;
+		clk_set_rate(c910_bus_clk.common.hw.clk,
+			     ref_rate / new_divisor);
+	} else if (cnd->new_rate < cnd->old_rate &&
+		    action == POST_RATE_CHANGE) {
+		/*
+		 * Scaling down. Adjust c910_bus_clk divisor only after
+		 * c910_clk rate change to keep c910_bus_clk as high as
+		 * possible, Scaling down never breaks the constraints.
+		 */
+		clk_set_rate(c910_bus_clk.common.hw.clk,
+			     cnd->new_rate / new_divisor);
+	} else {
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block c910_clk_notifier = {
+	.notifier_call	= c910_clk_notifier_cb,
+};
+
 static int th1520_clk_probe(struct platform_device *pdev)
 {
 	const struct th1520_plat_data *plat_data;
 	struct device *dev = &pdev->dev;
 	struct clk_hw_onecell_data *priv;
+	struct clk *notifier_clk;
 
 	struct regmap *map;
 	void __iomem *base;
@@ -1461,6 +1598,13 @@ static int th1520_clk_probe(struct platform_device *pdev)
 		priv->hws[CLK_PLL_GMAC_100M] = &gmac_pll_clk_100m.hw;
 
 		ret = devm_clk_hw_register(dev, &emmc_sdio_ref_clk.hw);
+		if (ret)
+			return ret;
+
+		notifier_clk = devm_clk_hw_get_clk(dev, &c910_clk.mux.hw,
+						   "dvfs");
+		ret = devm_clk_notifier_register(dev, notifier_clk,
+						 &c910_clk_notifier);
 		if (ret)
 			return ret;
 	}
