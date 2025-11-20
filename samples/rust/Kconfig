@@ -114,7 +114,7 @@ config SAMPLE_RUST_DRIVER_PCI
 	  This option builds the Rust PCI driver sample.
 
 	  To compile this as a module, choose M here:
-	  the module will be called driver_pci.
+	  the module will be called rust_driver_pci.
 
 	  If unsure, say N.
 
