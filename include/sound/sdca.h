@@ -15,18 +15,21 @@
 struct acpi_table_swft;
 struct fwnode_handle;
 struct sdw_slave;
+struct sdca_dev;
 
 #define SDCA_MAX_FUNCTION_COUNT 8
 
 /**
  * struct sdca_function_desc - short descriptor for an SDCA Function
  * @node: firmware node for the Function.
+ * @func_dev: pointer to SDCA function device.
  * @name: Human-readable string.
  * @type: Function topology type.
  * @adr: ACPI address (used for SDCA register access).
  */
 struct sdca_function_desc {
 	struct fwnode_handle *node;
+	struct sdca_dev *func_dev;
 	const char *name;
 	u32 type;
 	u8 adr;
@@ -59,6 +62,8 @@ void sdca_lookup_functions(struct sdw_slave *slave);
 void sdca_lookup_swft(struct sdw_slave *slave);
 void sdca_lookup_interface_revision(struct sdw_slave *slave);
 bool sdca_device_quirk_match(struct sdw_slave *slave, enum sdca_quirk quirk);
+int sdca_dev_register_functions(struct sdw_slave *slave);
+void sdca_dev_unregister_functions(struct sdw_slave *slave);
 
 #else
 
@@ -69,6 +74,14 @@ static inline bool sdca_device_quirk_match(struct sdw_slave *slave, enum sdca_qu
 {
 	return false;
 }
+
+static inline int sdca_dev_register_functions(struct sdw_slave *slave)
+{
+	return 0;
+}
+
+static inline void sdca_dev_unregister_functions(struct sdw_slave *slave) {}
+
 #endif
 
 #endif
