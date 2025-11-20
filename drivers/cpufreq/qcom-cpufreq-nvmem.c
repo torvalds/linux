@@ -256,7 +256,7 @@ len_error:
 	return ret;
 }
 
-static const struct of_device_id qcom_cpufreq_ipq806x_match_list[] = {
+static const struct of_device_id qcom_cpufreq_ipq806x_match_list[] __maybe_unused = {
 	{ .compatible = "qcom,ipq8062", .data = (const void *)QCOM_ID_IPQ8062 },
 	{ .compatible = "qcom,ipq8064", .data = (const void *)QCOM_ID_IPQ8064 },
 	{ .compatible = "qcom,ipq8065", .data = (const void *)QCOM_ID_IPQ8065 },
