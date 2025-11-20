@@ -1295,6 +1295,10 @@ struct deferred_event {
 	union perf_event *event;
 };
 
+/*
+ * This is called when a deferred callchain record comes up.  Find all matching
+ * samples, merge the callchains and process them.
+ */
 static int evlist__deliver_deferred_callchain(struct evlist *evlist,
 					      const struct perf_tool *tool,
 					      union  perf_event *event,
@@ -1334,6 +1338,42 @@ static int evlist__deliver_deferred_callchain(struct evlist *evlist,
 
 		if (orig_sample.deferred_callchain)
 			free(orig_sample.callchain);
+
+		list_del(&de->list);
+		free(de->event);
+		free(de);
+
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
+/*
+ * This is called at the end of the data processing for the session.  Flush the
+ * remaining samples as there's no hope for matching deferred callchains.
+ */
+static int session__flush_deferred_samples(struct perf_session *session,
+					   const struct perf_tool *tool)
+{
+	struct evlist *evlist = session->evlist;
+	struct machine *machine = &session->machines.host;
+	struct deferred_event *de, *tmp;
+	struct evsel *evsel;
+	int ret = 0;
+
+	list_for_each_entry_safe(de, tmp, &evlist->deferred_samples, list) {
+		struct perf_sample sample;
+
+		ret = evlist__parse_sample(evlist, de->event, &sample);
+		if (ret < 0) {
+			pr_err("failed to parse original sample\n");
+			break;
+		}
+
+		evsel = evlist__id2evsel(evlist, sample.id);
+		ret = evlist__deliver_sample(evlist, tool, de->event,
+					     &sample, evsel, machine);
 
 		list_del(&de->list);
 		free(de->event);
@@ -2040,6 +2080,9 @@ done:
 	err = ordered_events__flush(oe, OE_FLUSH__FINAL);
 	if (err)
 		goto out_err;
+	err = session__flush_deferred_samples(session, tool);
+	if (err)
+		goto out_err;
 	err = auxtrace__flush_events(session, tool);
 	if (err)
 		goto out_err;
@@ -2386,6 +2429,9 @@ static int __perf_session__process_events(struct perf_session *session)
 	err = auxtrace__flush_events(session, tool);
 	if (err)
 		goto out_err;
+	err = session__flush_deferred_samples(session, tool);
+	if (err)
+		goto out_err;
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	ui_progress__finish();
@@ -2503,6 +2549,10 @@ static int __perf_session__process_dir_events(struct perf_session *session)
 	}
 
 	ret = ordered_events__flush(&session->ordered_events, OE_FLUSH__FINAL);
+	if (ret)
+		goto out_err;
+
+	ret = session__flush_deferred_samples(session, tool);
 	if (ret)
 		goto out_err;
 
