@@ -1373,9 +1373,11 @@ void rtl8xxxu_gen2_config_channel(struct ieee80211_hw *hw)
 		    hw->conf.chandef.chan->center_freq) {
 			sec_ch_above = 1;
 			channel += 2;
+			subchannel = 2;
 		} else {
 			sec_ch_above = 0;
 			channel -= 2;
+			subchannel = 1;
 		}
 
 		val32 = rtl8xxxu_read32(priv, REG_FPGA0_RF_MODE);
