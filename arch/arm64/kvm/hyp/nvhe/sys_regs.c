@@ -444,6 +444,8 @@ static const struct sys_reg_desc pvm_sys_reg_descs[] = {
 
 	/* Scalable Vector Registers are restricted. */
 
+	HOST_HANDLED(SYS_ICC_PMR_EL1),
+
 	RAZ_WI(SYS_ERRIDR_EL1),
 	RAZ_WI(SYS_ERRSELR_EL1),
 	RAZ_WI(SYS_ERXFR_EL1),
@@ -457,9 +459,12 @@ static const struct sys_reg_desc pvm_sys_reg_descs[] = {
 
 	/* Limited Ordering Regions Registers are restricted. */
 
+	HOST_HANDLED(SYS_ICC_DIR_EL1),
+	HOST_HANDLED(SYS_ICC_RPR_EL1),
 	HOST_HANDLED(SYS_ICC_SGI1R_EL1),
 	HOST_HANDLED(SYS_ICC_ASGI1R_EL1),
 	HOST_HANDLED(SYS_ICC_SGI0R_EL1),
+	HOST_HANDLED(SYS_ICC_CTLR_EL1),
 	{ SYS_DESC(SYS_ICC_SRE_EL1), .access = pvm_gic_read_sre, },
 
 	HOST_HANDLED(SYS_CCSIDR_EL1),
