@@ -1859,15 +1859,30 @@ enum phy intel_port_to_phy(struct intel_display *display, enum port port)
 }
 
 /* Prefer intel_encoder_to_tc() */
+/*
+ * Return TC_PORT_1..I915_MAX_TC_PORTS for any TypeC DDI port. The function
+ * can be also called for TypeC DDI ports not connected to a TypeC PHY such as
+ * the PORT_TC1..4 ports on RKL/ADLS/BMG.
+ */
 enum tc_port intel_port_to_tc(struct intel_display *display, enum port port)
 {
-	if (!intel_phy_is_tc(display, intel_port_to_phy(display, port)))
-		return TC_PORT_NONE;
-
 	if (DISPLAY_VER(display) >= 12)
 		return TC_PORT_1 + port - PORT_TC1;
 	else
 		return TC_PORT_1 + port - PORT_C;
+}
+
+/*
+ * Return TC_PORT_1..I915_MAX_TC_PORTS for TypeC DDI ports connected to a TypeC PHY.
+ * Note that on RKL, ADLS, BMG the PORT_TC1..4 ports are connected to a non-TypeC
+ * PHY, so on those platforms the function returns TC_PORT_NONE.
+ */
+enum tc_port intel_tc_phy_port_to_tc(struct intel_display *display, enum port port)
+{
+	if (!intel_phy_is_tc(display, intel_port_to_phy(display, port)))
+		return TC_PORT_NONE;
+
+	return intel_port_to_tc(display, port);
 }
 
 enum phy intel_encoder_to_phy(struct intel_encoder *encoder)
@@ -1902,7 +1917,7 @@ enum tc_port intel_encoder_to_tc(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 
-	return intel_port_to_tc(display, encoder->port);
+	return intel_tc_phy_port_to_tc(display, encoder->port);
 }
 
 enum intel_display_power_domain

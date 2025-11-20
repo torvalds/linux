@@ -5148,7 +5148,7 @@ static const char *intel_ddi_encoder_name(struct intel_display *display,
 			       port_name(port - PORT_D_XELPD + PORT_D),
 			       phy_name(phy));
 	} else if (DISPLAY_VER(display) >= 12) {
-		enum tc_port tc_port = intel_port_to_tc(display, port);
+		enum tc_port tc_port = intel_tc_phy_port_to_tc(display, port);
 
 		seq_buf_printf(s, "DDI %s%c/PHY %s%c",
 			       port >= PORT_TC1 ? "TC" : "",
@@ -5156,7 +5156,7 @@ static const char *intel_ddi_encoder_name(struct intel_display *display,
 			       tc_port != TC_PORT_NONE ? "TC" : "",
 			       tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
 	} else if (DISPLAY_VER(display) >= 11) {
-		enum tc_port tc_port = intel_port_to_tc(display, port);
+		enum tc_port tc_port = intel_tc_phy_port_to_tc(display, port);
 
 		seq_buf_printf(s, "DDI %c%s/PHY %s%c",
 			       port_name(port),
