@@ -2197,8 +2197,12 @@ static int readout_enabled_lane_count(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	u8 enabled_tx_lane_count = 0;
-	int max_tx_lane_count;
+	int max_tx_lane_count = 4;
+	bool lane_reversal;
 	int tx_lane;
+
+	lane_reversal = intel_de_read(display, XELPDP_PORT_BUF_CTL1(display, encoder->port)) &
+			XELPDP_PORT_REVERSAL;
 
 	/*
 	 * TODO: also check inactive TX lanes in all PHY lanes owned by the
@@ -2206,8 +2210,17 @@ static int readout_enabled_lane_count(struct intel_encoder *encoder)
 	 * based on the active TX lane count (i.e.
 	 *   1,2 active TX lanes -> PHY lane#0
 	 *   3,4 active TX lanes -> PHY lane#0 and PHY lane#1).
+	 *
+	 * In case of lane reversal for 1, 2 active TX lanes, only PHY
+	 * lane#1 is used. This is only possible in TypeC legacy mode or if
+	 * the port is connected to a non-TC PHY. In both of these cases both
+	 * PHY lane#0 and #1 are owned by display, so check all 4 TX lanes in
+	 * both PHY lanes in those cases.
 	 */
-	max_tx_lane_count = DDI_PORT_WIDTH_GET(intel_de_read(display, DDI_BUF_CTL(encoder->port)));
+	if (!lane_reversal)
+		max_tx_lane_count = DDI_PORT_WIDTH_GET(intel_de_read(display,
+								     DDI_BUF_CTL(encoder->port)));
+
 	if (!drm_WARN_ON(display->drm, max_tx_lane_count == 0))
 		max_tx_lane_count = round_up(max_tx_lane_count, 2);
 
@@ -3213,6 +3226,13 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	u8 maxpclk_lane = lane_reversal ? INTEL_CX0_LANE1 :
 					  INTEL_CX0_LANE0;
 	intel_wakeref_t wakeref = intel_cx0_phy_transaction_begin(encoder);
+
+	/*
+	 * Lane reversal is never used in DP-alt mode, in that case the
+	 * corresponding lane swapping (based on the TypeC cable flip state
+	 * for instance) is handled automatically by the HW via a TCSS mux.
+	 */
+	drm_WARN_ON(display->drm, lane_reversal && intel_tc_port_in_dp_alt_mode(dig_port));
 
 	/*
 	 * 1. Program PORT_CLOCK_CTL REGISTER to configure
