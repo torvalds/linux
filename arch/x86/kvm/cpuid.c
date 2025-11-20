@@ -1666,7 +1666,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		 * is guaranteed to be >=1 if AVX10 is supported.  Note #2, the
 		 * version needs to be captured before overriding EBX features!
 		 */
-		avx10_version = min_t(u8, entry->ebx & 0xff, 1);
+		avx10_version = min_t(u8, entry->ebx & 0xff, 2);
 		cpuid_entry_override(entry, CPUID_24_0_EBX);
 		entry->ebx |= avx10_version;
 
