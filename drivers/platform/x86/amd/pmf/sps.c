@@ -192,15 +192,15 @@ static void amd_pmf_load_defaults_sps(struct amd_pmf_dev *dev)
 
 static void amd_pmf_update_slider_v2(struct amd_pmf_dev *dev, int idx)
 {
-	amd_pmf_send_cmd(dev, SET_PMF_PPT, false, apts_config_store.val[idx].pmf_ppt, NULL);
-	amd_pmf_send_cmd(dev, SET_PMF_PPT_APU_ONLY, false,
+	amd_pmf_send_cmd(dev, SET_PMF_PPT, SET_CMD, apts_config_store.val[idx].pmf_ppt, NULL);
+	amd_pmf_send_cmd(dev, SET_PMF_PPT_APU_ONLY, SET_CMD,
 			 apts_config_store.val[idx].ppt_pmf_apu_only, NULL);
-	amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, false,
+	amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, SET_CMD,
 			 apts_config_store.val[idx].stt_min_limit, NULL);
-	amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, false,
+	amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, SET_CMD,
 			 fixp_q88_fromint(apts_config_store.val[idx].stt_skin_temp_limit_apu),
 			 NULL);
-	amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, false,
+	amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, SET_CMD,
 			 fixp_q88_fromint(apts_config_store.val[idx].stt_skin_temp_limit_hs2),
 			 NULL);
 }
@@ -211,30 +211,30 @@ void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,
 	int src = amd_pmf_get_power_source();
 
 	if (op == SLIDER_OP_SET) {
-		amd_pmf_send_cmd(dev, SET_SPL, false, config_store.prop[src][idx].spl, NULL);
-		amd_pmf_send_cmd(dev, SET_FPPT, false, config_store.prop[src][idx].fppt, NULL);
-		amd_pmf_send_cmd(dev, SET_SPPT, false, config_store.prop[src][idx].sppt, NULL);
-		amd_pmf_send_cmd(dev, SET_SPPT_APU_ONLY, false,
+		amd_pmf_send_cmd(dev, SET_SPL, SET_CMD, config_store.prop[src][idx].spl, NULL);
+		amd_pmf_send_cmd(dev, SET_FPPT, SET_CMD, config_store.prop[src][idx].fppt, NULL);
+		amd_pmf_send_cmd(dev, SET_SPPT, SET_CMD, config_store.prop[src][idx].sppt, NULL);
+		amd_pmf_send_cmd(dev, SET_SPPT_APU_ONLY, SET_CMD,
 				 config_store.prop[src][idx].sppt_apu_only, NULL);
-		amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, false,
+		amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, SET_CMD,
 				 config_store.prop[src][idx].stt_min, NULL);
-		amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, false,
+		amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, SET_CMD,
 				 fixp_q88_fromint(config_store.prop[src][idx].stt_skin_temp[STT_TEMP_APU]),
 				 NULL);
-		amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, false,
+		amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, SET_CMD,
 				 fixp_q88_fromint(config_store.prop[src][idx].stt_skin_temp[STT_TEMP_HS2]),
 				 NULL);
 	} else if (op == SLIDER_OP_GET) {
-		amd_pmf_send_cmd(dev, GET_SPL, true, ARG_NONE, &table->prop[src][idx].spl);
-		amd_pmf_send_cmd(dev, GET_FPPT, true, ARG_NONE, &table->prop[src][idx].fppt);
-		amd_pmf_send_cmd(dev, GET_SPPT, true, ARG_NONE, &table->prop[src][idx].sppt);
-		amd_pmf_send_cmd(dev, GET_SPPT_APU_ONLY, true, ARG_NONE,
+		amd_pmf_send_cmd(dev, GET_SPL, GET_CMD, ARG_NONE, &table->prop[src][idx].spl);
+		amd_pmf_send_cmd(dev, GET_FPPT, GET_CMD, ARG_NONE, &table->prop[src][idx].fppt);
+		amd_pmf_send_cmd(dev, GET_SPPT, GET_CMD, ARG_NONE, &table->prop[src][idx].sppt);
+		amd_pmf_send_cmd(dev, GET_SPPT_APU_ONLY, GET_CMD, ARG_NONE,
 				 &table->prop[src][idx].sppt_apu_only);
-		amd_pmf_send_cmd(dev, GET_STT_MIN_LIMIT, true, ARG_NONE,
+		amd_pmf_send_cmd(dev, GET_STT_MIN_LIMIT, GET_CMD, ARG_NONE,
 				 &table->prop[src][idx].stt_min);
-		amd_pmf_send_cmd(dev, GET_STT_LIMIT_APU, true, ARG_NONE,
+		amd_pmf_send_cmd(dev, GET_STT_LIMIT_APU, GET_CMD, ARG_NONE,
 				 (u32 *)&table->prop[src][idx].stt_skin_temp[STT_TEMP_APU]);
-		amd_pmf_send_cmd(dev, GET_STT_LIMIT_HS2, true, ARG_NONE,
+		amd_pmf_send_cmd(dev, GET_STT_LIMIT_HS2, GET_CMD, ARG_NONE,
 				 (u32 *)&table->prop[src][idx].stt_skin_temp[STT_TEMP_HS2]);
 	}
 }

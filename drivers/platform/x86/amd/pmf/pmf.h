@@ -120,6 +120,10 @@ struct cookie_header {
 #define APTS_MAX_STATES		16
 #define CUSTOM_BIOS_INPUT_BITS	GENMASK(16, 7)
 
+/* amd_pmf_send_cmd() set/get */
+#define SET_CMD		false
+#define GET_CMD		true
+
 typedef void (*apmf_event_handler_t)(acpi_handle handle, u32 event, void *data);
 
 /* APTS PMF BIOS Interface */
