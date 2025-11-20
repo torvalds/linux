@@ -756,8 +756,8 @@ static void _iqk_rxk_setting(struct rtw89_dev *rtwdev, u8 path)
 	rtw89_phy_write32_mask(rtwdev, R_ANAPAR, B_ANAPAR_FLTRST, 0x1);
 	rtw89_phy_write32_mask(rtwdev, R_ANAPAR_PW15, B_ANAPAR_PW15_H2, 0x0);
 	udelay(1);
-	rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RST, 0x0303);
-	rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RST, 0x0000);
+	rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RXK, 0x0303);
+	rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RXK, 0x0000);
 
 	switch (iqk_info->iqk_band[path]) {
 	case RTW89_BAND_2G:
@@ -1239,8 +1239,8 @@ static void _iqk_txk_setting(struct rtw89_dev *rtwdev, u8 path)
 	udelay(1);
 	rtw89_phy_write32_mask(rtwdev, R_ANAPAR, B_ANAPAR_15, 0x0041);
 	udelay(1);
-	rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RST, 0x0303);
-	rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RST, 0x0000);
+	rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RXK, 0x0303);
+	rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RXK, 0x0000);
 	switch (iqk_info->iqk_band[path]) {
 	case RTW89_BAND_2G:
 		rtw89_write_rf(rtwdev, path, RR_XALNA2, RR_XALNA2_SW, 0x00);
