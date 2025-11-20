@@ -18794,7 +18794,7 @@ OCXL (Open Coherent Accelerator Processor Interface OpenCAPI) DRIVER
 M:	Frederic Barrat <fbarrat@linux.ibm.com>
 M:	Andrew Donnellan <ajd@linux.ibm.com>
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Supported
+S:	Odd Fixes
 F:	Documentation/userspace-api/accelerators/ocxl.rst
 F:	arch/powerpc/include/asm/pnv-ocxl.h
 F:	arch/powerpc/platforms/powernv/ocxl.c
