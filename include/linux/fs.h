@@ -3102,7 +3102,7 @@ static inline bool inode_wrong_type(const struct inode *inode, umode_t mode)
  * file_start_write - get write access to a superblock for regular file io
  * @file: the file we want to write to
  *
- * This is a variant of sb_start_write() which is a noop on non-regualr file.
+ * This is a variant of sb_start_write() which is a noop on non-regular file.
  * Should be matched with a call to file_end_write().
  */
 static inline void file_start_write(struct file *file)
