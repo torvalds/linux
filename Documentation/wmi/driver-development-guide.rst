@@ -54,6 +54,7 @@ to matching WMI devices using a struct wmi_device_id table:
 ::
 
   static const struct wmi_device_id foo_id_table[] = {
+         /* Only use uppercase letters! */
          { "936DA01F-9ABD-4D9D-80C7-02AF85C822A8", NULL },
          { }
   };
