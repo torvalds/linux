@@ -2197,7 +2197,7 @@ static int add_jump_table_alts(struct objtool_file *file)
 		return 0;
 
 	for_each_sym(file->elf, func) {
-		if (!is_func_sym(func))
+		if (!is_func_sym(func) || func->alias != func)
 			continue;
 
 		mark_func_jump_tables(file, func);
