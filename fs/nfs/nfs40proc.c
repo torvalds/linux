@@ -6,6 +6,7 @@
 #include "internal.h"
 #include "nfs4_fs.h"
 #include "nfs40.h"
+#include "nfs4session.h"
 #include "nfs4trace.h"
 
 static void nfs40_call_sync_prepare(struct rpc_task *task, void *calldata)
@@ -19,6 +20,28 @@ static void nfs40_call_sync_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_call_sync_data *data = calldata;
 	nfs4_sequence_done(task, data->seq_res);
+}
+
+static void nfs40_sequence_free_slot(struct nfs4_sequence_res *res)
+{
+	struct nfs4_slot *slot = res->sr_slot;
+	struct nfs4_slot_table *tbl;
+
+	tbl = slot->table;
+	spin_lock(&tbl->slot_tbl_lock);
+	if (!nfs41_wake_and_assign_slot(tbl, slot))
+		nfs4_free_slot(tbl, slot);
+	spin_unlock(&tbl->slot_tbl_lock);
+
+	res->sr_slot = NULL;
+}
+
+static int nfs40_sequence_done(struct rpc_task *task,
+			       struct nfs4_sequence_res *res)
+{
+	if (res->sr_slot != NULL)
+		nfs40_sequence_free_slot(res);
+	return 1;
 }
 
 static void nfs40_clear_delegation_stateid(struct nfs4_state *state)
@@ -317,6 +340,12 @@ static const struct rpc_call_ops nfs40_call_sync_ops = {
 	.rpc_call_done = nfs40_call_sync_done,
 };
 
+static const struct nfs4_sequence_slot_ops nfs40_sequence_slot_ops = {
+	.process = nfs40_sequence_done,
+	.done = nfs40_sequence_done,
+	.free_slot = nfs40_sequence_free_slot,
+};
+
 static const struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
 	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
@@ -358,6 +387,7 @@ const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 	.test_and_free_expired = nfs40_test_and_free_expired_stateid,
 	.alloc_seqid = nfs_alloc_seqid,
 	.call_sync_ops = &nfs40_call_sync_ops,
+	.sequence_slot_ops = &nfs40_sequence_slot_ops,
 	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs40_nograce_recovery_ops,
 	.state_renewal_ops = &nfs40_state_renewal_ops,

@@ -209,6 +209,7 @@ struct nfs4_sequence_args {
 };
 
 struct nfs4_sequence_res {
+	const struct nfs4_sequence_slot_ops *sr_slot_ops;
 	struct nfs4_slot	*sr_slot;	/* slot used to send request */
 	unsigned long		sr_timestamp;
 	int			sr_status;	/* sequence operation status */

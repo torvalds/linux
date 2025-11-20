@@ -780,28 +780,7 @@ void nfs4_init_sequence(struct nfs_client *clp,
 	args->sa_privileged = privileged;
 
 	res->sr_slot = NULL;
-}
-
-static void nfs40_sequence_free_slot(struct nfs4_sequence_res *res)
-{
-	struct nfs4_slot *slot = res->sr_slot;
-	struct nfs4_slot_table *tbl;
-
-	tbl = slot->table;
-	spin_lock(&tbl->slot_tbl_lock);
-	if (!nfs41_wake_and_assign_slot(tbl, slot))
-		nfs4_free_slot(tbl, slot);
-	spin_unlock(&tbl->slot_tbl_lock);
-
-	res->sr_slot = NULL;
-}
-
-int nfs40_sequence_done(struct rpc_task *task,
-			struct nfs4_sequence_res *res)
-{
-	if (res->sr_slot != NULL)
-		nfs40_sequence_free_slot(res);
-	return 1;
+	res->sr_slot_ops = clp->cl_mvops->sequence_slot_ops;
 }
 
 #if defined(CONFIG_NFS_V4_1)
@@ -1020,35 +999,6 @@ int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
 }
 EXPORT_SYMBOL_GPL(nfs41_sequence_done);
 
-static int nfs4_sequence_process(struct rpc_task *task, struct nfs4_sequence_res *res)
-{
-	if (res->sr_slot == NULL)
-		return 1;
-	if (res->sr_slot->table->session != NULL)
-		return nfs41_sequence_process(task, res);
-	return nfs40_sequence_done(task, res);
-}
-
-static void nfs4_sequence_free_slot(struct nfs4_sequence_res *res)
-{
-	if (res->sr_slot != NULL) {
-		if (res->sr_slot->table->session != NULL)
-			nfs41_sequence_free_slot(res);
-		else
-			nfs40_sequence_free_slot(res);
-	}
-}
-
-int nfs4_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
-{
-	if (res->sr_slot == NULL)
-		return 1;
-	if (!res->sr_slot->table->session)
-		return nfs40_sequence_done(task, res);
-	return nfs41_sequence_done(task, res);
-}
-EXPORT_SYMBOL_GPL(nfs4_sequence_done);
-
 static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_call_sync_data *data = calldata;
@@ -1071,25 +1021,6 @@ static const struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
-#else	/* !CONFIG_NFS_V4_1 */
-
-static int nfs4_sequence_process(struct rpc_task *task, struct nfs4_sequence_res *res)
-{
-	return nfs40_sequence_done(task, res);
-}
-
-static void nfs4_sequence_free_slot(struct nfs4_sequence_res *res)
-{
-	if (res->sr_slot != NULL)
-		nfs40_sequence_free_slot(res);
-}
-
-int nfs4_sequence_done(struct rpc_task *task,
-		       struct nfs4_sequence_res *res)
-{
-	return nfs40_sequence_done(task, res);
-}
-EXPORT_SYMBOL_GPL(nfs4_sequence_done);
 
 #endif	/* !CONFIG_NFS_V4_1 */
 
@@ -1112,6 +1043,28 @@ void nfs4_sequence_attach_slot(struct nfs4_sequence_args *args,
 
 	res->sr_slot = slot;
 }
+
+static void nfs4_sequence_free_slot(struct nfs4_sequence_res *res)
+{
+	if (res->sr_slot != NULL)
+		res->sr_slot_ops->free_slot(res);
+}
+
+static int nfs4_sequence_process(struct rpc_task *task, struct nfs4_sequence_res *res)
+{
+	if (res->sr_slot == NULL)
+		return 1;
+	return res->sr_slot_ops->process(task, res);
+}
+
+int nfs4_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
+{
+	if (res->sr_slot == NULL)
+		return 1;
+	return res->sr_slot_ops->done(task, res);
+}
+EXPORT_SYMBOL_GPL(nfs4_sequence_done);
+
 
 int nfs4_setup_sequence(struct nfs_client *client,
 			struct nfs4_sequence_args *args,
@@ -2447,7 +2400,7 @@ static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_opendata *data = calldata;
 
-	nfs40_sequence_done(task, &data->c_res.seq_res);
+	data->c_res.seq_res.sr_slot_ops->done(task, &data->c_res.seq_res);
 
 	data->rpc_status = task->tk_status;
 	if (data->rpc_status == 0) {
@@ -10529,6 +10482,12 @@ bool nfs4_match_stateid(const nfs4_stateid *s1,
 
 
 #if defined(CONFIG_NFS_V4_1)
+static const struct nfs4_sequence_slot_ops nfs41_sequence_slot_ops = {
+	.process = nfs41_sequence_process,
+	.done = nfs41_sequence_done,
+	.free_slot = nfs41_sequence_free_slot,
+};
+
 static const struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
 	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
@@ -10583,6 +10542,7 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.alloc_seqid = nfs_alloc_no_seqid,
 	.session_trunk = nfs4_test_session_trunk,
 	.call_sync_ops = &nfs41_call_sync_ops,
+	.sequence_slot_ops = &nfs41_sequence_slot_ops,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
 	.state_renewal_ops = &nfs41_state_renewal_ops,
@@ -10619,6 +10579,7 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
 	.call_sync_ops = &nfs41_call_sync_ops,
+	.sequence_slot_ops = &nfs41_sequence_slot_ops,
 	.test_and_free_expired = nfs41_test_and_free_expired_stateid,
 	.alloc_seqid = nfs_alloc_no_seqid,
 	.session_trunk = nfs4_test_session_trunk,

@@ -73,6 +73,7 @@ struct nfs4_minor_version_ops {
 	void	(*session_trunk)(struct rpc_clnt *clnt,
 			struct rpc_xprt *xprt, void *data);
 	const struct rpc_call_ops *call_sync_ops;
+	const struct nfs4_sequence_slot_ops *sequence_slot_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
 	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
 	const struct nfs4_state_maintenance_ops *state_renewal_ops;
@@ -256,6 +257,12 @@ struct nfs4_add_xprt_data {
 	const struct cred	*cred;
 };
 
+struct nfs4_sequence_slot_ops {
+	int (*process)(struct rpc_task *, struct nfs4_sequence_res *);
+	int (*done)(struct rpc_task *, struct nfs4_sequence_res *);
+	void (*free_slot)(struct nfs4_sequence_res *);
+};
+
 struct nfs4_state_maintenance_ops {
 	int (*sched_state_renewal)(struct nfs_client *, const struct cred *, unsigned);
 	const struct cred * (*get_state_renewal_cred)(struct nfs_client *);
@@ -311,7 +318,6 @@ extern int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
 				   struct nfs4_sequence_res *res);
 extern void nfs4_init_sequence(struct nfs_client *clp, struct nfs4_sequence_args *,
 			       struct nfs4_sequence_res *, int, int);
-extern int nfs40_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res);
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, const struct cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, const struct cred *);
 extern void renew_lease(const struct nfs_server *server, unsigned long timestamp);
