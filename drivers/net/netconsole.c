@@ -50,7 +50,7 @@ MODULE_LICENSE("GPL");
 /* The number 3 comes from userdata entry format characters (' ', '=', '\n') */
 #define MAX_EXTRADATA_NAME_LEN		(MAX_EXTRADATA_ENTRY_LEN - \
 					MAX_EXTRADATA_VALUE_LEN - 3)
-#define MAX_EXTRADATA_ITEMS		16
+#define MAX_USERDATA_ITEMS		16
 #define MAX_PRINT_CHUNK			1000
 
 static char config[MAX_PARAM_LENGTH];
@@ -115,6 +115,8 @@ enum sysdata_feature {
 	SYSDATA_RELEASE = BIT(2),
 	/* Include a per-target message ID as part of sysdata */
 	SYSDATA_MSGID = BIT(3),
+	/* Sentinel: highest bit position */
+	MAX_SYSDATA_ITEMS = 4,
 };
 
 /**
@@ -122,8 +124,9 @@ enum sysdata_feature {
  * @list:	Links this target into the target_list.
  * @group:	Links us into the configfs subsystem hierarchy.
  * @userdata_group:	Links to the userdata configfs hierarchy
- * @extradata_complete:	Cached, formatted string of append
- * @userdata_length:	String length of usedata in extradata_complete.
+ * @userdata:		Cached, formatted string of append
+ * @userdata_length:	String length of userdata.
+ * @sysdata:		Cached, formatted string of append
  * @sysdata_fields:	Sysdata features enabled.
  * @msgcounter:	Message sent counter.
  * @stats:	Packet send stats for the target. Used for debugging.
@@ -152,8 +155,10 @@ struct netconsole_target {
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
 	struct config_group	group;
 	struct config_group	userdata_group;
-	char extradata_complete[MAX_EXTRADATA_ENTRY_LEN * MAX_EXTRADATA_ITEMS];
+	char			userdata[MAX_EXTRADATA_ENTRY_LEN * MAX_USERDATA_ITEMS];
 	size_t			userdata_length;
+	char			sysdata[MAX_EXTRADATA_ENTRY_LEN * MAX_SYSDATA_ITEMS];
+
 	/* bit-wise with sysdata_feature bits */
 	u32			sysdata_fields;
 	/* protected by target_list_lock */
@@ -802,28 +807,14 @@ out_unlock:
 	return ret;
 }
 
-/* Count number of entries we have in extradata.
- * This is important because the extradata_complete only supports
- * MAX_EXTRADATA_ITEMS entries. Before enabling any new {user,sys}data
- * feature, number of entries needs to checked for available space.
+/* Count number of entries we have in userdata.
+ * This is important because userdata only supports MAX_USERDATA_ITEMS
+ * entries. Before enabling any new userdata feature, number of entries needs
+ * to checked for available space.
  */
-static size_t count_extradata_entries(struct netconsole_target *nt)
+static size_t count_userdata_entries(struct netconsole_target *nt)
 {
-	size_t entries;
-
-	/* Userdata entries */
-	entries = list_count_nodes(&nt->userdata_group.cg_children);
-	/* Plus sysdata entries */
-	if (nt->sysdata_fields & SYSDATA_CPU_NR)
-		entries += 1;
-	if (nt->sysdata_fields & SYSDATA_TASKNAME)
-		entries += 1;
-	if (nt->sysdata_fields & SYSDATA_RELEASE)
-		entries += 1;
-	if (nt->sysdata_fields & SYSDATA_MSGID)
-		entries += 1;
-
-	return entries;
+	return list_count_nodes(&nt->userdata_group.cg_children);
 }
 
 static ssize_t remote_mac_store(struct config_item *item, const char *buf,
@@ -894,13 +885,13 @@ static void update_userdata(struct netconsole_target *nt)
 
 	/* Clear the current string in case the last userdatum was deleted */
 	nt->userdata_length = 0;
-	nt->extradata_complete[0] = 0;
+	nt->userdata[0] = 0;
 
 	list_for_each(entry, &nt->userdata_group.cg_children) {
 		struct userdatum *udm_item;
 		struct config_item *item;
 
-		if (child_count >= MAX_EXTRADATA_ITEMS) {
+		if (child_count >= MAX_USERDATA_ITEMS) {
 			spin_unlock_irqrestore(&target_list_lock, flags);
 			WARN_ON_ONCE(1);
 			return;
@@ -914,11 +905,11 @@ static void update_userdata(struct netconsole_target *nt)
 		if (strnlen(udm_item->value, MAX_EXTRADATA_VALUE_LEN) == 0)
 			continue;
 
-		/* This doesn't overflow extradata_complete since it will write
-		 * one entry length (1/MAX_EXTRADATA_ITEMS long), entry count is
+		/* This doesn't overflow userdata since it will write
+		 * one entry length (1/MAX_USERDATA_ITEMS long), entry count is
 		 * checked to not exceed MAX items with child_count above
 		 */
-		nt->userdata_length += scnprintf(&nt->extradata_complete[nt->userdata_length],
+		nt->userdata_length += scnprintf(&nt->userdata[nt->userdata_length],
 						 MAX_EXTRADATA_ENTRY_LEN, " %s=%s\n",
 						 item->ci_name, udm_item->value);
 	}
@@ -962,7 +953,7 @@ static void disable_sysdata_feature(struct netconsole_target *nt,
 				    enum sysdata_feature feature)
 {
 	nt->sysdata_fields &= ~feature;
-	nt->extradata_complete[nt->userdata_length] = 0;
+	nt->sysdata[0] = 0;
 }
 
 static ssize_t sysdata_msgid_enabled_store(struct config_item *item,
@@ -982,12 +973,6 @@ static ssize_t sysdata_msgid_enabled_store(struct config_item *item,
 	if (msgid_enabled == curr)
 		goto unlock_ok;
 
-	if (msgid_enabled &&
-	    count_extradata_entries(nt) >= MAX_EXTRADATA_ITEMS) {
-		ret = -ENOSPC;
-		goto unlock;
-	}
-
 	if (msgid_enabled)
 		nt->sysdata_fields |= SYSDATA_MSGID;
 	else
@@ -995,7 +980,6 @@ static ssize_t sysdata_msgid_enabled_store(struct config_item *item,
 
 unlock_ok:
 	ret = strnlen(buf, count);
-unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
@@ -1018,12 +1002,6 @@ static ssize_t sysdata_release_enabled_store(struct config_item *item,
 	if (release_enabled == curr)
 		goto unlock_ok;
 
-	if (release_enabled &&
-	    count_extradata_entries(nt) >= MAX_EXTRADATA_ITEMS) {
-		ret = -ENOSPC;
-		goto unlock;
-	}
-
 	if (release_enabled)
 		nt->sysdata_fields |= SYSDATA_RELEASE;
 	else
@@ -1031,7 +1009,6 @@ static ssize_t sysdata_release_enabled_store(struct config_item *item,
 
 unlock_ok:
 	ret = strnlen(buf, count);
-unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
@@ -1054,12 +1031,6 @@ static ssize_t sysdata_taskname_enabled_store(struct config_item *item,
 	if (taskname_enabled == curr)
 		goto unlock_ok;
 
-	if (taskname_enabled &&
-	    count_extradata_entries(nt) >= MAX_EXTRADATA_ITEMS) {
-		ret = -ENOSPC;
-		goto unlock;
-	}
-
 	if (taskname_enabled)
 		nt->sysdata_fields |= SYSDATA_TASKNAME;
 	else
@@ -1067,7 +1038,6 @@ static ssize_t sysdata_taskname_enabled_store(struct config_item *item,
 
 unlock_ok:
 	ret = strnlen(buf, count);
-unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
@@ -1092,27 +1062,16 @@ static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 		/* no change requested */
 		goto unlock_ok;
 
-	if (cpu_nr_enabled &&
-	    count_extradata_entries(nt) >= MAX_EXTRADATA_ITEMS) {
-		/* user wants the new feature, but there is no space in the
-		 * buffer.
-		 */
-		ret = -ENOSPC;
-		goto unlock;
-	}
-
 	if (cpu_nr_enabled)
 		nt->sysdata_fields |= SYSDATA_CPU_NR;
 	else
-		/* This is special because extradata_complete might have
-		 * remaining data from previous sysdata, and it needs to be
-		 * cleaned.
+		/* This is special because sysdata might have remaining data
+		 * from previous sysdata, and it needs to be cleaned.
 		 */
 		disable_sysdata_feature(nt, SYSDATA_CPU_NR);
 
 unlock_ok:
 	ret = strnlen(buf, count);
-unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
@@ -1156,7 +1115,7 @@ static struct config_item *userdatum_make_item(struct config_group *group,
 
 	ud = to_userdata(&group->cg_item);
 	nt = userdata_to_target(ud);
-	if (count_extradata_entries(nt) >= MAX_EXTRADATA_ITEMS)
+	if (count_userdata_entries(nt) >= MAX_USERDATA_ITEMS)
 		return ERR_PTR(-ENOSPC);
 
 	udm = kzalloc(sizeof(*udm), GFP_KERNEL);
@@ -1363,22 +1322,21 @@ static void populate_configfs_item(struct netconsole_target *nt,
 
 static int sysdata_append_cpu_nr(struct netconsole_target *nt, int offset)
 {
-	/* Append cpu=%d at extradata_complete after userdata str */
-	return scnprintf(&nt->extradata_complete[offset],
+	return scnprintf(&nt->sysdata[offset],
 			 MAX_EXTRADATA_ENTRY_LEN, " cpu=%u\n",
 			 raw_smp_processor_id());
 }
 
 static int sysdata_append_taskname(struct netconsole_target *nt, int offset)
 {
-	return scnprintf(&nt->extradata_complete[offset],
+	return scnprintf(&nt->sysdata[offset],
 			 MAX_EXTRADATA_ENTRY_LEN, " taskname=%s\n",
 			 current->comm);
 }
 
 static int sysdata_append_release(struct netconsole_target *nt, int offset)
 {
-	return scnprintf(&nt->extradata_complete[offset],
+	return scnprintf(&nt->sysdata[offset],
 			 MAX_EXTRADATA_ENTRY_LEN, " release=%s\n",
 			 init_utsname()->release);
 }
@@ -1386,46 +1344,36 @@ static int sysdata_append_release(struct netconsole_target *nt, int offset)
 static int sysdata_append_msgid(struct netconsole_target *nt, int offset)
 {
 	wrapping_assign_add(nt->msgcounter, 1);
-	return scnprintf(&nt->extradata_complete[offset],
+	return scnprintf(&nt->sysdata[offset],
 			 MAX_EXTRADATA_ENTRY_LEN, " msgid=%u\n",
 			 nt->msgcounter);
 }
 
 /*
- * prepare_extradata - append sysdata at extradata_complete in runtime
+ * prepare_sysdata - append sysdata in runtime
  * @nt: target to send message to
  */
-static int prepare_extradata(struct netconsole_target *nt)
+static int prepare_sysdata(struct netconsole_target *nt)
 {
-	int extradata_len;
-
-	/* userdata was appended when configfs write helper was called
-	 * by update_userdata().
-	 */
-	extradata_len = nt->userdata_length;
+	int sysdata_len = 0;
 
 	if (!nt->sysdata_fields)
 		goto out;
 
 	if (nt->sysdata_fields & SYSDATA_CPU_NR)
-		extradata_len += sysdata_append_cpu_nr(nt, extradata_len);
+		sysdata_len += sysdata_append_cpu_nr(nt, sysdata_len);
 	if (nt->sysdata_fields & SYSDATA_TASKNAME)
-		extradata_len += sysdata_append_taskname(nt, extradata_len);
+		sysdata_len += sysdata_append_taskname(nt, sysdata_len);
 	if (nt->sysdata_fields & SYSDATA_RELEASE)
-		extradata_len += sysdata_append_release(nt, extradata_len);
+		sysdata_len += sysdata_append_release(nt, sysdata_len);
 	if (nt->sysdata_fields & SYSDATA_MSGID)
-		extradata_len += sysdata_append_msgid(nt, extradata_len);
+		sysdata_len += sysdata_append_msgid(nt, sysdata_len);
 
-	WARN_ON_ONCE(extradata_len >
-		     MAX_EXTRADATA_ENTRY_LEN * MAX_EXTRADATA_ITEMS);
+	WARN_ON_ONCE(sysdata_len >
+		     MAX_EXTRADATA_ENTRY_LEN * MAX_SYSDATA_ITEMS);
 
 out:
-	return extradata_len;
-}
-#else /* CONFIG_NETCONSOLE_DYNAMIC not set */
-static int prepare_extradata(struct netconsole_target *nt)
-{
-	return 0;
+	return sysdata_len;
 }
 #endif	/* CONFIG_NETCONSOLE_DYNAMIC */
 
@@ -1527,11 +1475,13 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 				      int msg_len,
 				      int release_len)
 {
-	const char *extradata = NULL;
+	const char *userdata = NULL;
+	const char *sysdata = NULL;
 	const char *release;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	extradata = nt->extradata_complete;
+	userdata = nt->userdata;
+	sysdata = nt->sysdata;
 #endif
 
 	if (release_len) {
@@ -1543,10 +1493,15 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 		memcpy(nt->buf, msg, msg_len);
 	}
 
-	if (extradata)
+	if (userdata)
 		msg_len += scnprintf(&nt->buf[msg_len],
-				     MAX_PRINT_CHUNK - msg_len,
-				     "%s", extradata);
+				     MAX_PRINT_CHUNK - msg_len, "%s",
+				     userdata);
+
+	if (sysdata)
+		msg_len += scnprintf(&nt->buf[msg_len],
+				     MAX_PRINT_CHUNK - msg_len, "%s",
+				     sysdata);
 
 	send_udp(nt, nt->buf, msg_len);
 }
@@ -1561,33 +1516,45 @@ static void append_release(char *buf)
 
 static void send_fragmented_body(struct netconsole_target *nt,
 				 const char *msgbody_ptr, int header_len,
-				 int msgbody_len, int extradata_len)
+				 int msgbody_len, int sysdata_len)
 {
-	const char *extradata_ptr = NULL;
+	const char *userdata_ptr = NULL;
+	const char *sysdata_ptr = NULL;
 	int data_len, data_sent = 0;
-	int extradata_offset = 0;
+	int userdata_offset = 0;
+	int sysdata_offset = 0;
 	int msgbody_offset = 0;
+	int userdata_len = 0;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	extradata_ptr = nt->extradata_complete;
+	userdata_ptr = nt->userdata;
+	sysdata_ptr = nt->sysdata;
+	userdata_len = nt->userdata_length;
 #endif
-	if (WARN_ON_ONCE(!extradata_ptr && extradata_len != 0))
+	if (WARN_ON_ONCE(!userdata_ptr && userdata_len != 0))
+		return;
+
+	if (WARN_ON_ONCE(!sysdata_ptr && sysdata_len != 0))
 		return;
 
 	/* data_len represents the number of bytes that will be sent. This is
 	 * bigger than MAX_PRINT_CHUNK, thus, it will be split in multiple
 	 * packets
 	 */
-	data_len = msgbody_len + extradata_len;
+	data_len = msgbody_len + userdata_len + sysdata_len;
 
 	/* In each iteration of the while loop below, we send a packet
 	 * containing the header and a portion of the data. The data is
-	 * composed of two parts: msgbody and extradata. We keep track of how
-	 * many bytes have been sent so far using the data_sent variable, which
-	 * ranges from 0 to the total bytes to be sent.
+	 * composed of three parts: msgbody, userdata, and sysdata.
+	 * We keep track of how many bytes have been sent from each part using
+	 * the *_offset variables.
+	 * We keep track of how many bytes have been sent overall using the
+	 * data_sent variable, which ranges from 0 to the total bytes to be
+	 * sent.
 	 */
 	while (data_sent < data_len) {
-		int extradata_left = extradata_len - extradata_offset;
+		int userdata_left = userdata_len - userdata_offset;
+		int sysdata_left = sysdata_len - sysdata_offset;
 		int msgbody_left = msgbody_len - msgbody_offset;
 		int buf_offset = 0;
 		int this_chunk = 0;
@@ -1608,13 +1575,24 @@ static void send_fragmented_body(struct netconsole_target *nt,
 		buf_offset += this_chunk;
 		data_sent += this_chunk;
 
-		/* after msgbody, append extradata */
-		if (extradata_ptr && extradata_left) {
-			this_chunk = min(extradata_left,
+		/* after msgbody, append userdata */
+		if (userdata_ptr && userdata_left) {
+			this_chunk = min(userdata_left,
 					 MAX_PRINT_CHUNK - buf_offset);
 			memcpy(nt->buf + buf_offset,
-			       extradata_ptr + extradata_offset, this_chunk);
-			extradata_offset += this_chunk;
+			       userdata_ptr + userdata_offset, this_chunk);
+			userdata_offset += this_chunk;
+			buf_offset += this_chunk;
+			data_sent += this_chunk;
+		}
+
+		/* after userdata, append sysdata */
+		if (sysdata_ptr && sysdata_left) {
+			this_chunk = min(sysdata_left,
+					 MAX_PRINT_CHUNK - buf_offset);
+			memcpy(nt->buf + buf_offset,
+			       sysdata_ptr + sysdata_offset, this_chunk);
+			sysdata_offset += this_chunk;
 			buf_offset += this_chunk;
 			data_sent += this_chunk;
 		}
@@ -1631,7 +1609,7 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 				const char *msg,
 				int msg_len,
 				int release_len,
-				int extradata_len)
+				int sysdata_len)
 {
 	int header_len, msgbody_len;
 	const char *msgbody;
@@ -1660,7 +1638,7 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 	 * will be replaced
 	 */
 	send_fragmented_body(nt, msgbody, header_len, msgbody_len,
-			     extradata_len);
+			     sysdata_len);
 }
 
 /**
@@ -1676,19 +1654,22 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 			     int msg_len)
 {
+	int userdata_len = 0;
 	int release_len = 0;
-	int extradata_len;
+	int sysdata_len = 0;
 
-	extradata_len = prepare_extradata(nt);
-
+#ifdef CONFIG_NETCONSOLE_DYNAMIC
+	sysdata_len = prepare_sysdata(nt);
+	userdata_len = nt->userdata_length;
+#endif
 	if (nt->release)
 		release_len = strlen(init_utsname()->release) + 1;
 
-	if (msg_len + release_len + extradata_len <= MAX_PRINT_CHUNK)
+	if (msg_len + release_len + sysdata_len + userdata_len <= MAX_PRINT_CHUNK)
 		return send_msg_no_fragmentation(nt, msg, msg_len, release_len);
 
 	return send_msg_fragmented(nt, msg, msg_len, release_len,
-				   extradata_len);
+				   sysdata_len);
 }
 
 static void write_ext_msg(struct console *con, const char *msg,
