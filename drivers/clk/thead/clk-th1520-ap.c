@@ -101,16 +101,21 @@ struct ccu_pll {
 		.flags	= _flags,					\
 	}
 
-#define TH_CCU_MUX(_name, _parents, _shift, _width)			\
+#define TH_CCU_MUX_FLAGS(_name, _parents, _shift, _width, _flags,	\
+			 _mux_flags)					\
 	{								\
 		.mask		= GENMASK(_width - 1, 0),		\
 		.shift		= _shift,				\
+		.flags		= _mux_flags,				\
 		.hw.init	= CLK_HW_INIT_PARENTS_DATA(		\
 					_name,				\
 					_parents,			\
 					&clk_mux_ops,			\
-					0),				\
+					_flags),			\
 	}
+
+#define TH_CCU_MUX(_name, _parents, _shift, _width)			\
+	TH_CCU_MUX_FLAGS(_name, _parents, _shift, _width, 0, 0)
 
 #define CCU_GATE(_clkid, _struct, _name, _parent, _reg, _bit, _flags)	\
 	struct ccu_gate _struct = {					\
