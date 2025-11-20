@@ -1560,89 +1560,70 @@ static void append_release(char *buf)
 }
 
 static void send_fragmented_body(struct netconsole_target *nt,
-				 const char *msgbody, int header_len,
+				 const char *msgbody_ptr, int header_len,
 				 int msgbody_len, int extradata_len)
 {
-	int sent_extradata, preceding_bytes;
-	const char *extradata = NULL;
-	int body_len, offset = 0;
+	const char *extradata_ptr = NULL;
+	int data_len, data_sent = 0;
+	int extradata_offset = 0;
+	int msgbody_offset = 0;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	extradata = nt->extradata_complete;
+	extradata_ptr = nt->extradata_complete;
 #endif
+	if (WARN_ON_ONCE(!extradata_ptr && extradata_len != 0))
+		return;
 
-	/* body_len represents the number of bytes that will be sent. This is
+	/* data_len represents the number of bytes that will be sent. This is
 	 * bigger than MAX_PRINT_CHUNK, thus, it will be split in multiple
 	 * packets
 	 */
-	body_len = msgbody_len + extradata_len;
+	data_len = msgbody_len + extradata_len;
 
 	/* In each iteration of the while loop below, we send a packet
-	 * containing the header and a portion of the body. The body is
+	 * containing the header and a portion of the data. The data is
 	 * composed of two parts: msgbody and extradata. We keep track of how
-	 * many bytes have been sent so far using the offset variable, which
-	 * ranges from 0 to the total length of the body.
+	 * many bytes have been sent so far using the data_sent variable, which
+	 * ranges from 0 to the total bytes to be sent.
 	 */
-	while (offset < body_len) {
-		int this_header = header_len;
-		bool msgbody_written = false;
-		int this_offset = 0;
+	while (data_sent < data_len) {
+		int extradata_left = extradata_len - extradata_offset;
+		int msgbody_left = msgbody_len - msgbody_offset;
+		int buf_offset = 0;
 		int this_chunk = 0;
 
-		this_header += scnprintf(nt->buf + this_header,
-					 MAX_PRINT_CHUNK - this_header,
-					 ",ncfrag=%d/%d;", offset,
-					 body_len);
+		/* header is already populated in nt->buf, just append to it */
+		buf_offset = header_len;
 
-		/* Not all msgbody data has been written yet */
-		if (offset < msgbody_len) {
-			this_chunk = min(msgbody_len - offset,
-					 MAX_PRINT_CHUNK - this_header);
-			if (WARN_ON_ONCE(this_chunk <= 0))
-				return;
-			memcpy(nt->buf + this_header, msgbody + offset,
-			       this_chunk);
-			this_offset += this_chunk;
+		buf_offset += scnprintf(nt->buf + buf_offset,
+					 MAX_PRINT_CHUNK - buf_offset,
+					 ",ncfrag=%d/%d;", data_sent,
+					 data_len);
+
+		/* append msgbody first */
+		this_chunk = min(msgbody_left, MAX_PRINT_CHUNK - buf_offset);
+		memcpy(nt->buf + buf_offset, msgbody_ptr + msgbody_offset,
+		       this_chunk);
+		msgbody_offset += this_chunk;
+		buf_offset += this_chunk;
+		data_sent += this_chunk;
+
+		/* after msgbody, append extradata */
+		if (extradata_ptr && extradata_left) {
+			this_chunk = min(extradata_left,
+					 MAX_PRINT_CHUNK - buf_offset);
+			memcpy(nt->buf + buf_offset,
+			       extradata_ptr + extradata_offset, this_chunk);
+			extradata_offset += this_chunk;
+			buf_offset += this_chunk;
+			data_sent += this_chunk;
 		}
 
-		/* msgbody was finally written, either in the previous
-		 * messages and/or in the current buf. Time to write
-		 * the extradata.
-		 */
-		msgbody_written |= offset + this_offset >= msgbody_len;
+		/* if all is good, send the packet out */
+		if (WARN_ON_ONCE(data_sent > data_len))
+			return;
 
-		/* Msg body is fully written and there is pending extradata to
-		 * write, append extradata in this chunk
-		 */
-		if (msgbody_written && offset + this_offset < body_len) {
-			/* Track how much user data was already sent. First
-			 * time here, sent_userdata is zero
-			 */
-			sent_extradata = (offset + this_offset) - msgbody_len;
-			/* offset of bytes used in current buf */
-			preceding_bytes = this_chunk + this_header;
-
-			if (WARN_ON_ONCE(sent_extradata < 0))
-				return;
-
-			this_chunk = min(extradata_len - sent_extradata,
-					 MAX_PRINT_CHUNK - preceding_bytes);
-			if (WARN_ON_ONCE(this_chunk < 0))
-				/* this_chunk could be zero if all the previous
-				 * message used all the buffer. This is not a
-				 * problem, extradata will be sent in the next
-				 * iteration
-				 */
-				return;
-
-			memcpy(nt->buf + this_header + this_offset,
-			       extradata + sent_extradata,
-			       this_chunk);
-			this_offset += this_chunk;
-		}
-
-		send_udp(nt, nt->buf, this_header + this_offset);
-		offset += this_offset;
+		send_udp(nt, nt->buf, buf_offset);
 	}
 }
 
