@@ -206,7 +206,7 @@ enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port)
 enum intel_dpll_id mtl_port_to_pll_id(struct intel_display *display, enum port port)
 {
 	if (port >= PORT_TC1)
-		return icl_tc_port_to_pll_id(intel_port_to_tc(display, port));
+		return icl_tc_port_to_pll_id(port - PORT_TC1 + TC_PORT_1);
 
 	switch (port) {
 	case PORT_A:
@@ -3507,9 +3507,10 @@ err_unreference_tbt_pll:
 }
 
 /*
- * Get the PLL for either a port using a C10 PHY PLL, or in the
- * PTL port B eDP over TypeC PHY case, the PLL for a port using
- * a C20 PHY PLL.
+ * Get the PLL for either a port using a C10 PHY PLL, or for a port using a
+ * C20 PHY PLL in the cases of:
+ * - BMG port A/B
+ * - PTL port B eDP over TypeC PHY
  */
 static int mtl_get_non_tc_phy_dpll(struct intel_atomic_state *state,
 				      struct intel_crtc *crtc,

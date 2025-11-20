@@ -4294,9 +4294,10 @@ static void mtl_ddi_cx0_get_config(struct intel_encoder *encoder,
 }
 
 /*
- * Get the configuration for either a port using a C10 PHY PLL, or in the case of
- * the PTL port B eDP on TypeC PHY case the configuration of a port using a C20
- * PHY PLL.
+ * Get the configuration for either a port using a C10 PHY PLL, or a port using a
+ * C20 PHY PLL in the cases of:
+ * - BMG port A/B
+ * - PTL port B eDP over TypeC PHY
  */
 static void mtl_ddi_non_tc_phy_get_config(struct intel_encoder *encoder,
 					     struct intel_crtc_state *crtc_state)
