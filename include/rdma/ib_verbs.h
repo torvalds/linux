@@ -859,6 +859,7 @@ enum ib_rate {
 	IB_RATE_400_GBPS = 21,
 	IB_RATE_600_GBPS = 22,
 	IB_RATE_800_GBPS = 23,
+	IB_RATE_1600_GBPS = 25,
 };
 
 /**
