@@ -131,7 +131,7 @@ static void amd_pmf_get_metrics(struct work_struct *work)
 
 	/* Transfer table contents */
 	memset(dev->buf, 0, sizeof(dev->m_table));
-	amd_pmf_send_cmd(dev, SET_TRANSFER_TABLE, SET_CMD, 7, NULL);
+	amd_pmf_send_cmd(dev, SET_TRANSFER_TABLE, SET_CMD, METRICS_TABLE_ID, NULL);
 	memcpy(&dev->m_table, dev->buf, sizeof(dev->m_table));
 
 	time_elapsed_ms = ktime_to_ms(ktime_get()) - dev->start_time;

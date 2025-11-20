@@ -124,6 +124,8 @@ struct cookie_header {
 #define SET_CMD		false
 #define GET_CMD		true
 
+#define METRICS_TABLE_ID	7
+
 typedef void (*apmf_event_handler_t)(acpi_handle handle, u32 event, void *data);
 
 /* APTS PMF BIOS Interface */
