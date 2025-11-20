@@ -379,7 +379,7 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 		mas->last_mode = spi_slv->mode;
 	}
 
-	return geni_spi_set_clock_and_bw(mas, spi_slv->max_speed_hz);
+	return 0;
 }
 
 static void
