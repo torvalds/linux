@@ -275,6 +275,40 @@ int sdca_regmap_populate_constants(struct device *dev,
 }
 EXPORT_SYMBOL_NS(sdca_regmap_populate_constants, "SND_SOC_SDCA");
 
+static int populate_control_defaults(struct device *dev, struct regmap *regmap,
+				     struct sdca_function_data *function,
+				     struct sdca_entity *entity,
+				     struct sdca_control *control)
+{
+	int i, ret;
+	int cn;
+
+	if (control->mode == SDCA_ACCESS_MODE_DC)
+		return 0;
+
+	if (!control->has_default && !control->has_fixed)
+		return 0;
+
+	i = 0;
+	for_each_set_bit(cn, (unsigned long *)&control->cn_list,
+			 BITS_PER_TYPE(control->cn_list)) {
+		unsigned int reg;
+
+		reg = SDW_SDCA_CTL(function->desc->adr, entity->id, control->sel, cn);
+
+		ret = regmap_write(regmap, reg, control->values[i]);
+		if (ret) {
+			dev_err(dev, "Failed to write default %#x: %d\n",
+				reg, ret);
+			return ret;
+		}
+
+		i++;
+	}
+
+	return 0;
+}
+
 /**
  * sdca_regmap_write_defaults - write out DisCo defaults to device
  * @dev: Pointer to the device.
@@ -290,7 +324,7 @@ EXPORT_SYMBOL_NS(sdca_regmap_populate_constants, "SND_SOC_SDCA");
 int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
 			       struct sdca_function_data *function)
 {
-	int i, j, k;
+	int i, j;
 	int ret;
 
 	for (i = 0; i < function->num_entities; i++) {
@@ -298,28 +332,11 @@ int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
 
 		for (j = 0; j < entity->num_controls; j++) {
 			struct sdca_control *control = &entity->controls[j];
-			int cn;
 
-			if (control->mode == SDCA_ACCESS_MODE_DC)
-				continue;
-
-			if (!control->has_default && !control->has_fixed)
-				continue;
-
-			k = 0;
-			for_each_set_bit(cn, (unsigned long *)&control->cn_list,
-					 BITS_PER_TYPE(control->cn_list)) {
-				unsigned int reg;
-
-				reg = SDW_SDCA_CTL(function->desc->adr, entity->id,
-						   control->sel, cn);
-
-				ret = regmap_write(regmap, reg, control->values[k]);
-				if (ret)
-					return ret;
-
-				k++;
-			}
+			ret = populate_control_defaults(dev, regmap, function,
+							entity, control);
+			if (ret)
+				return ret;
 		}
 	}
 
