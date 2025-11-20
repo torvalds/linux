@@ -546,6 +546,36 @@ static bool is_event_handler(struct intel_display *display,
 		REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == event_id;
 }
 
+static bool fixup_dmc_evt(struct intel_display *display,
+			  enum intel_dmc_id dmc_id,
+			  i915_reg_t reg_ctl, u32 *data_ctl,
+			  i915_reg_t reg_htp, u32 *data_htp)
+{
+	if (!is_dmc_evt_ctl_reg(display, dmc_id, reg_ctl))
+		return false;
+
+	if (!is_dmc_evt_htp_reg(display, dmc_id, reg_htp))
+		return false;
+
+	/* make sure reg_ctl and reg_htp are for the same event */
+	if (i915_mmio_reg_offset(reg_ctl) - i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, 0)) !=
+	    i915_mmio_reg_offset(reg_htp) - i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, 0)))
+		return false;
+
+	/*
+	 * On ADL-S the HRR event handler is not restored after DC6.
+	 * Clear it to zero from the beginning to avoid mismatches later.
+	 */
+	if (display->platform.alderlake_s && dmc_id == DMC_FW_MAIN &&
+	    is_event_handler(display, dmc_id, MAINDMC_EVENT_VBLANK_A, reg_ctl, *data_ctl)) {
+		*data_ctl = 0;
+		*data_htp = 0;
+		return true;
+	}
+
+	return false;
+}
+
 static bool disable_dmc_evt(struct intel_display *display,
 			    enum intel_dmc_id dmc_id,
 			    i915_reg_t reg, u32 data)
@@ -1064,9 +1094,32 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 	for (i = 0; i < mmio_count; i++) {
 		dmc_info->mmioaddr[i] = _MMIO(mmioaddr[i]);
 		dmc_info->mmiodata[i] = mmiodata[i];
+	}
 
+	for (i = 0; i < mmio_count - 1; i++) {
+		u32 orig_mmiodata[2] = {
+			dmc_info->mmiodata[i],
+			dmc_info->mmiodata[i+1],
+		};
+
+		if (!fixup_dmc_evt(display, dmc_id,
+				   dmc_info->mmioaddr[i], &dmc_info->mmiodata[i],
+				   dmc_info->mmioaddr[i+1], &dmc_info->mmiodata[i+1]))
+			continue;
+
+		drm_dbg_kms(display->drm,
+			    " mmio[%d]: 0x%x = 0x%x->0x%x (EVT_CTL)\n",
+			    i, i915_mmio_reg_offset(dmc_info->mmioaddr[i]),
+			    orig_mmiodata[0], dmc_info->mmiodata[i]);
+		drm_dbg_kms(display->drm,
+			    " mmio[%d]: 0x%x = 0x%x->0x%x (EVT_HTP)\n",
+			    i+1, i915_mmio_reg_offset(dmc_info->mmioaddr[i+1]),
+			    orig_mmiodata[1], dmc_info->mmiodata[i+1]);
+	}
+
+	for (i = 0; i < mmio_count; i++) {
 		drm_dbg_kms(display->drm, " mmio[%d]: 0x%x = 0x%x%s%s\n",
-			    i, mmioaddr[i], mmiodata[i],
+			    i, i915_mmio_reg_offset(dmc_info->mmioaddr[i]), dmc_info->mmiodata[i],
 			    is_dmc_evt_ctl_reg(display, dmc_id, dmc_info->mmioaddr[i]) ? " (EVT_CTL)" :
 			    is_dmc_evt_htp_reg(display, dmc_id, dmc_info->mmioaddr[i]) ? " (EVT_HTP)" : "",
 			    disable_dmc_evt(display, dmc_id, dmc_info->mmioaddr[i],

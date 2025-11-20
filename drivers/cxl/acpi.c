@@ -348,7 +348,7 @@ static int cxl_acpi_set_cache_size(struct cxl_root_decoder *cxlrd)
 	struct resource res;
 	int nid, rc;
 
-	res = DEFINE_RES(start, size, 0);
+	res = DEFINE_RES_MEM(start, size);
 	nid = phys_to_target_node(start);
 
 	rc = hmat_get_extended_linear_cache_size(&res, nid, &cache_size);

@@ -38,6 +38,81 @@ Like ``clang-format`` for the rest of the kernel, ``rustfmt`` works on
 individual files, and does not require a kernel configuration. Sometimes it may
 even work with broken code.
 
+Imports
+~~~~~~~
+
+``rustfmt``, by default, formats imports in a way that is prone to conflicts
+while merging and rebasing, since in some cases it condenses several items into
+the same line. For instance:
+
+.. code-block:: rust
+
+	// Do not use this style.
+	use crate::{
+	    example1,
+	    example2::{example3, example4, example5},
+	    example6, example7,
+	    example8::example9,
+	};
+
+Instead, the kernel uses a vertical layout that looks like this:
+
+.. code-block:: rust
+
+	use crate::{
+	    example1,
+	    example2::{
+	        example3,
+	        example4,
+	        example5, //
+	    },
+	    example6,
+	    example7,
+	    example8::example9, //
+	};
+
+That is, each item goes into its own line, and braces are used as soon as there
+is more than one item in a list.
+
+The trailing empty comment allows to preserve this formatting. Not only that,
+``rustfmt`` will actually reformat imports vertically when the empty comment is
+added. That is, it is possible to easily reformat the original example into the
+expected style by running ``rustfmt`` on an input like:
+
+.. code-block:: rust
+
+	// Do not use this style.
+	use crate::{
+	    example1,
+	    example2::{example3, example4, example5, //
+	    },
+	    example6, example7,
+	    example8::example9, //
+	};
+
+The trailing empty comment works for nested imports, as shown above, as well as
+for single item imports -- this can be useful to minimize diffs within patch
+series:
+
+.. code-block:: rust
+
+	use crate::{
+	    example1, //
+	};
+
+The trailing empty comment works in any of the lines within the braces, but it
+is preferred to keep it in the last item, since it is reminiscent of the
+trailing comma in other formatters. Sometimes it may be simpler to avoid moving
+the comment several times within a patch series due to changes in the list.
+
+There may be cases where exceptions may need to be made, i.e. none of this is
+a hard rule. There is also code that is not migrated to this style yet, but
+please do not introduce code in other styles.
+
+Eventually, the goal is to get ``rustfmt`` to support this formatting style (or
+a similar one) automatically in a stable release without requiring the trailing
+empty comment. Thus, at some point, the goal is to remove those comments.
+
 
 Comments
 --------

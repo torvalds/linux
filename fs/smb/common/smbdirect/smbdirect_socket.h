@@ -142,7 +142,15 @@ struct smbdirect_socket {
 		} mem;
 
 		/*
-		 * The credit state for the send side
+		 * The local credit state for ib_post_send()
+		 */
+		struct {
+			atomic_t count;
+			wait_queue_head_t wait_queue;
+		} lcredits;
+
+		/*
+		 * The remote credit state for the send side
 		 */
 		struct {
 			atomic_t count;
@@ -337,6 +345,9 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	INIT_DELAYED_WORK(&sc->idle.timer_work, __smbdirect_socket_disabled_work);
 	disable_delayed_work_sync(&sc->idle.timer_work);
 
+	atomic_set(&sc->send_io.lcredits.count, 0);
+	init_waitqueue_head(&sc->send_io.lcredits.wait_queue);
+
 	atomic_set(&sc->send_io.credits.count, 0);
 	init_waitqueue_head(&sc->send_io.credits.wait_queue);
 
@@ -437,12 +448,21 @@ enum smbdirect_mr_state {
 	SMBDIRECT_MR_READY,
 	SMBDIRECT_MR_REGISTERED,
 	SMBDIRECT_MR_INVALIDATED,
-	SMBDIRECT_MR_ERROR
+	SMBDIRECT_MR_ERROR,
+	SMBDIRECT_MR_DISABLED
 };
 
 struct smbdirect_mr_io {
 	struct smbdirect_socket *socket;
 	struct ib_cqe cqe;
+
+	/*
+	 * We can have up to two references:
+	 * 1. by the connection
+	 * 2. by the registration
+	 */
+	struct kref kref;
+	struct mutex mutex;
 
 	struct list_head list;
 

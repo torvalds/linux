@@ -66,6 +66,7 @@ KUNIT_ARRAY_PARAM(platform, cases, xe_pci_fake_data_desc);
 
 /**
  * xe_pci_fake_data_gen_params - Generate struct xe_pci_fake_data parameters
+ * @test: test context object
  * @prev: the pointer to the previous parameter to iterate from or NULL
  * @desc: output buffer with minimum size of KUNIT_PARAM_DESC_SIZE
  *
@@ -242,6 +243,7 @@ KUNIT_ARRAY_PARAM(pci_id, pciidlist, xe_pci_id_kunit_desc);
 
 /**
  * xe_pci_graphics_ip_gen_param - Generate graphics struct xe_ip parameters
+ * @test: test context object
  * @prev: the pointer to the previous parameter to iterate from or NULL
  * @desc: output buffer with minimum size of KUNIT_PARAM_DESC_SIZE
  *
@@ -266,6 +268,7 @@ EXPORT_SYMBOL_IF_KUNIT(xe_pci_graphics_ip_gen_param);
 
 /**
  * xe_pci_media_ip_gen_param - Generate media struct xe_ip parameters
+ * @test: test context object
  * @prev: the pointer to the previous parameter to iterate from or NULL
  * @desc: output buffer with minimum size of KUNIT_PARAM_DESC_SIZE
  *
@@ -290,6 +293,7 @@ EXPORT_SYMBOL_IF_KUNIT(xe_pci_media_ip_gen_param);
 
 /**
  * xe_pci_id_gen_param - Generate struct pci_device_id parameters
+ * @test: test context object
  * @prev: the pointer to the previous parameter to iterate from or NULL
  * @desc: output buffer with minimum size of KUNIT_PARAM_DESC_SIZE
  *
@@ -376,6 +380,7 @@ EXPORT_SYMBOL_IF_KUNIT(xe_pci_fake_device_init);
 
 /**
  * xe_pci_live_device_gen_param - Helper to iterate Xe devices as KUnit parameters
+ * @test: test context object
  * @prev: the previously returned value, or NULL for the first iteration
  * @desc: the buffer for a parameter name
  *

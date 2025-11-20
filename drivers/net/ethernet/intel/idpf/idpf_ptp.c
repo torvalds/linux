@@ -863,6 +863,9 @@ static void idpf_ptp_release_vport_tstamp(struct idpf_vport *vport)
 		u64_stats_inc(&vport->tstamp_stats.flushed);
 
 		list_del(&ptp_tx_tstamp->list_member);
+		if (ptp_tx_tstamp->skb)
+			consume_skb(ptp_tx_tstamp->skb);
+
 		kfree(ptp_tx_tstamp);
 	}
 	u64_stats_update_end(&vport->tstamp_stats.stats_sync);

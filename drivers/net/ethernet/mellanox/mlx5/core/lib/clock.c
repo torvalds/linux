@@ -1444,7 +1444,7 @@ static void mlx5_shared_clock_register(struct mlx5_core_dev *mdev, u64 key)
 	compd = mlx5_devcom_register_component(mdev->priv.devc,
 					       MLX5_DEVCOM_SHARED_CLOCK,
 					       &attr, NULL, mdev);
-	if (IS_ERR(compd))
+	if (!compd)
 		return;
 
 	mdev->clock_state->compdev = compd;

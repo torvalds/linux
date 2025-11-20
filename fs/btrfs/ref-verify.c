@@ -982,7 +982,7 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 
 	extent_root = btrfs_extent_root(fs_info, 0);
 	/* If the extent tree is damaged we cannot ignore it (IGNOREBADROOTS). */
-	if (IS_ERR(extent_root)) {
+	if (!extent_root) {
 		btrfs_warn(fs_info, "ref-verify: extent tree not available, disabling");
 		btrfs_clear_opt(fs_info->mount_opt, REF_VERIFY);
 		return 0;

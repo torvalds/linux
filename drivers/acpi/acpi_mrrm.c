@@ -63,6 +63,9 @@ static __init int acpi_parse_mrrm(struct acpi_table_header *table)
 	if (!mrrm)
 		return -ENODEV;
 
+	if (mrrm->header.revision != 1)
+		return -EINVAL;
+
 	if (mrrm->flags & ACPI_MRRM_FLAGS_REGION_ASSIGNMENT_OS)
 		return -EOPNOTSUPP;
 

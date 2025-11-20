@@ -57,7 +57,7 @@ void io_free_file_tables(struct io_ring_ctx *ctx, struct io_file_table *table)
 
 static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 				 u32 slot_index)
-	__must_hold(&req->ctx->uring_lock)
+	__must_hold(&ctx->uring_lock)
 {
 	struct io_rsrc_node *node;
 

@@ -22,6 +22,7 @@ extern struct kmem_cache *xfs_buf_cache;
  */
 struct xfs_buf;
 
+#define XFS_BUF_DADDR_MAX	((xfs_daddr_t) S64_MAX)
 #define XFS_BUF_DADDR_NULL	((xfs_daddr_t) (-1LL))
 
 #define XBF_READ	 (1u << 0) /* buffer intended for reading from device */

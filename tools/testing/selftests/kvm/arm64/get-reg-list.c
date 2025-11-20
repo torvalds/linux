@@ -65,6 +65,9 @@ static struct feature_id_reg feat_id_regs[] = {
 	REG_FEAT(SCTLR2_EL1,	ID_AA64MMFR3_EL1, SCTLRX, IMP),
 	REG_FEAT(VDISR_EL2,	ID_AA64PFR0_EL1, RAS, IMP),
 	REG_FEAT(VSESR_EL2,	ID_AA64PFR0_EL1, RAS, IMP),
+	REG_FEAT(VNCR_EL2,	ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY),
+	REG_FEAT(CNTHV_CTL_EL2, ID_AA64MMFR1_EL1, VH, IMP),
+	REG_FEAT(CNTHV_CVAL_EL2,ID_AA64MMFR1_EL1, VH, IMP),
 };
 
 bool filter_reg(__u64 reg)
@@ -345,9 +348,20 @@ static __u64 base_regs[] = {
 	KVM_REG_ARM_FW_FEAT_BMAP_REG(1),	/* KVM_REG_ARM_STD_HYP_BMAP */
 	KVM_REG_ARM_FW_FEAT_BMAP_REG(2),	/* KVM_REG_ARM_VENDOR_HYP_BMAP */
 	KVM_REG_ARM_FW_FEAT_BMAP_REG(3),	/* KVM_REG_ARM_VENDOR_HYP_BMAP_2 */
-	ARM64_SYS_REG(3, 3, 14, 3, 1),	/* CNTV_CTL_EL0 */
-	ARM64_SYS_REG(3, 3, 14, 3, 2),	/* CNTV_CVAL_EL0 */
-	ARM64_SYS_REG(3, 3, 14, 0, 2),
+
+	/*
+	 * EL0 Virtual Timer Registers
+	 *
+	 * WARNING:
+	 * KVM_REG_ARM_TIMER_CVAL and KVM_REG_ARM_TIMER_CNT are not defined
+	 * with the appropriate register encodings.  Their values have been
+	 * accidentally swapped.  As this is set API, the definitions here
+	 * must be used, rather than ones derived from the encodings.
+	 */
+	KVM_ARM64_SYS_REG(SYS_CNTV_CTL_EL0),
+	KVM_REG_ARM_TIMER_CVAL,
+	KVM_REG_ARM_TIMER_CNT,
+
 	ARM64_SYS_REG(3, 0, 0, 0, 0),	/* MIDR_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 0, 6),	/* REVIDR_EL1 */
 	ARM64_SYS_REG(3, 1, 0, 0, 1),	/* CLIDR_EL1 */
@@ -755,6 +769,10 @@ static __u64 el2_regs[] = {
 	SYS_REG(VSESR_EL2),
 };
 
+static __u64 el2_e2h0_regs[] = {
+	/* Empty */
+};
+
 #define BASE_SUBLIST \
 	{ "base", .regs = base_regs, .regs_n = ARRAY_SIZE(base_regs), }
 #define VREGS_SUBLIST \
@@ -788,6 +806,15 @@ static __u64 el2_regs[] = {
 		.feature	= KVM_ARM_VCPU_HAS_EL2,		\
 		.regs		= el2_regs,			\
 		.regs_n		= ARRAY_SIZE(el2_regs),		\
+	}
+#define EL2_E2H0_SUBLIST					\
+	EL2_SUBLIST,						\
+	{							\
+		.name 		= "EL2 E2H0",			\
+		.capability	= KVM_CAP_ARM_EL2_E2H0,		\
+		.feature	= KVM_ARM_VCPU_HAS_EL2_E2H0,	\
+		.regs		= el2_e2h0_regs,		\
+		.regs_n		= ARRAY_SIZE(el2_e2h0_regs),	\
 	}
 
 static struct vcpu_reg_list vregs_config = {
@@ -897,6 +924,65 @@ static struct vcpu_reg_list el2_pauth_pmu_config = {
 	},
 };
 
+static struct vcpu_reg_list el2_e2h0_vregs_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	VREGS_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_vregs_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	VREGS_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_sve_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	SVE_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_sve_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	SVE_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_pauth_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	VREGS_SUBLIST,
+	PAUTH_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_pauth_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	VREGS_SUBLIST,
+	PAUTH_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
 struct vcpu_reg_list *vcpu_configs[] = {
 	&vregs_config,
 	&vregs_pmu_config,
@@ -911,5 +997,12 @@ struct vcpu_reg_list *vcpu_configs[] = {
 	&el2_sve_pmu_config,
 	&el2_pauth_config,
 	&el2_pauth_pmu_config,
+
+	&el2_e2h0_vregs_config,
+	&el2_e2h0_vregs_pmu_config,
+	&el2_e2h0_sve_config,
+	&el2_e2h0_sve_pmu_config,
+	&el2_e2h0_pauth_config,
+	&el2_e2h0_pauth_pmu_config,
 };
 int vcpu_configs_n = ARRAY_SIZE(vcpu_configs);

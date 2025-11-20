@@ -624,8 +624,8 @@ static int nokia_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
-	btdev->rx_skb = h4_recv_buf(hu->hdev, btdev->rx_skb, data, count,
-				  nokia_recv_pkts, ARRAY_SIZE(nokia_recv_pkts));
+	btdev->rx_skb = h4_recv_buf(hu, btdev->rx_skb, data, count,
+				    nokia_recv_pkts, ARRAY_SIZE(nokia_recv_pkts));
 	if (IS_ERR(btdev->rx_skb)) {
 		err = PTR_ERR(btdev->rx_skb);
 		dev_err(dev, "Frame reassembly failed (%d)", err);
