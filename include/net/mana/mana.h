@@ -377,6 +377,7 @@ struct mana_ethtool_stats {
 	u64 wake_queue;
 	u64 tx_cqe_err;
 	u64 tx_cqe_unknown_type;
+	u64 tx_linear_pkt_cnt;
 	u64 rx_coalesced_err;
 	u64 rx_cqe_unknown_type;
 };
@@ -592,6 +593,7 @@ int mana_set_bw_clamp(struct mana_port_context *apc, u32 speed,
 void mana_query_phy_stats(struct mana_port_context *apc);
 int mana_pre_alloc_rxbufs(struct mana_port_context *apc, int mtu, int num_queues);
 void mana_pre_dealloc_rxbufs(struct mana_port_context *apc);
+void mana_unmap_skb(struct sk_buff *skb, struct mana_port_context *apc);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 extern struct dentry *mana_debugfs_root;
