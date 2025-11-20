@@ -142,9 +142,15 @@ struct vt1211_data {
  * in5 (ix = 5) is special. It's the internal 3.3V so it's scaled in the
  * driver according to the VT1211 BIOS porting guide
  */
-#define IN_FROM_REG(ix, reg)	((reg) < 3 ? 0 : (ix) == 5 ? \
-				 (((reg) - 3) * 15882 + 479) / 958 : \
-				 (((reg) - 3) * 10000 + 479) / 958)
+static int in_from_reg(int ix, int reg)
+{
+	if (reg < 3)
+		return 0;
+	if (ix == 5)
+		return ((reg - 3) * 15882 + 479) / 958;
+	return ((reg - 3) * 10000 + 479) / 958;
+}
+
 #define IN_TO_REG(ix, val)	(clamp_val((ix) == 5 ? \
 				 ((val) * 958 + 7941) / 15882 + 3 : \
 				 ((val) * 958 + 5000) / 10000 + 3, 0, 255))
@@ -156,10 +162,15 @@ struct vt1211_data {
  * temp3-7 are thermistor based so the driver returns the voltage measured at
  * the pin (range 0V - 2.2V).
  */
-#define TEMP_FROM_REG(ix, reg)	((ix) == 0 ? (reg) * 1000 : \
-				 (ix) == 1 ? (reg) < 51 ? 0 : \
-				 ((reg) - 51) * 1000 : \
-				 ((253 - (reg)) * 2200 + 105) / 210)
+static int temp_from_reg(int ix, int reg)
+{
+	if (ix == 0)
+		return reg * 1000;
+	if (ix == 1)
+		return reg < 51 ? 0 : (reg - 51) * 1000;
+	return ((253 - reg) * 2200 + 105) / 210;
+}
+
 #define TEMP_TO_REG(ix, val)	clamp_val( \
 				 ((ix) == 0 ? ((val) + 500) / 1000 : \
 				  (ix) == 1 ? ((val) + 500) / 1000 + 51 : \
@@ -167,8 +178,14 @@ struct vt1211_data {
 
 #define DIV_FROM_REG(reg)	(1 << (reg))
 
-#define RPM_FROM_REG(reg, div)	(((reg) == 0) || ((reg) == 255) ? 0 : \
-				 1310720 / (reg) / DIV_FROM_REG(div))
+static int rpm_from_reg(int reg, int div)
+{
+	if (reg == 0 || reg == 255)
+		return 0;
+
+	return 1310720 / reg / DIV_FROM_REG(div);
+}
+
 #define RPM_TO_REG(val, div)	((val) == 0 ? 255 : \
 				 clamp_val((1310720 / (val) / \
 				 DIV_FROM_REG(div)), 1, 254))
@@ -343,13 +360,13 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 
 	switch (fn) {
 	case SHOW_IN_INPUT:
-		res = IN_FROM_REG(ix, data->in[ix]);
+		res = in_from_reg(ix, data->in[ix]);
 		break;
 	case SHOW_SET_IN_MIN:
-		res = IN_FROM_REG(ix, data->in_min[ix]);
+		res = in_from_reg(ix, data->in_min[ix]);
 		break;
 	case SHOW_SET_IN_MAX:
-		res = IN_FROM_REG(ix, data->in_max[ix]);
+		res = in_from_reg(ix, data->in_max[ix]);
 		break;
 	case SHOW_IN_ALARM:
 		res = (data->alarms >> bitalarmin[ix]) & 1;
@@ -417,13 +434,13 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 
 	switch (fn) {
 	case SHOW_TEMP_INPUT:
-		res = TEMP_FROM_REG(ix, data->temp[ix]);
+		res = temp_from_reg(ix, data->temp[ix]);
 		break;
 	case SHOW_SET_TEMP_MAX:
-		res = TEMP_FROM_REG(ix, data->temp_max[ix]);
+		res = temp_from_reg(ix, data->temp_max[ix]);
 		break;
 	case SHOW_SET_TEMP_MAX_HYST:
-		res = TEMP_FROM_REG(ix, data->temp_hyst[ix]);
+		res = temp_from_reg(ix, data->temp_hyst[ix]);
 		break;
 	case SHOW_TEMP_ALARM:
 		res = (data->alarms >> bitalarmtemp[ix]) & 1;
@@ -493,10 +510,10 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 
 	switch (fn) {
 	case SHOW_FAN_INPUT:
-		res = RPM_FROM_REG(data->fan[ix], data->fan_div[ix]);
+		res = rpm_from_reg(data->fan[ix], data->fan_div[ix]);
 		break;
 	case SHOW_SET_FAN_MIN:
-		res = RPM_FROM_REG(data->fan_min[ix], data->fan_div[ix]);
+		res = rpm_from_reg(data->fan_min[ix], data->fan_div[ix]);
 		break;
 	case SHOW_SET_FAN_DIV:
 		res = DIV_FROM_REG(data->fan_div[ix]);
@@ -751,7 +768,7 @@ static ssize_t show_pwm_auto_point_temp(struct device *dev,
 	int ix = sensor_attr_2->index;
 	int ap = sensor_attr_2->nr;
 
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->pwm_ctl[ix] & 7,
+	return sprintf(buf, "%d\n", temp_from_reg(data->pwm_ctl[ix] & 7,
 		       data->pwm_auto_temp[ap]));
 }
 
