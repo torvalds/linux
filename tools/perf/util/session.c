@@ -1285,6 +1285,66 @@ static int evlist__deliver_sample(struct evlist *evlist, const struct perf_tool 
 					    per_thread);
 }
 
+/*
+ * Samples with deferred callchains should wait for the next matching
+ * PERF_RECORD_CALLCHAIN_RECORD entries.  Keep the events in a list and
+ * deliver them once it finds the callchains.
+ */
+struct deferred_event {
+	struct list_head list;
+	union perf_event *event;
+};
+
+static int evlist__deliver_deferred_callchain(struct evlist *evlist,
+					      const struct perf_tool *tool,
+					      union  perf_event *event,
+					      struct perf_sample *sample,
+					      struct machine *machine)
+{
+	struct deferred_event *de, *tmp;
+	struct evsel *evsel;
+	int ret = 0;
+
+	if (!tool->merge_deferred_callchains) {
+		evsel = evlist__id2evsel(evlist, sample->id);
+		return tool->callchain_deferred(tool, event, sample,
+						evsel, machine);
+	}
+
+	list_for_each_entry_safe(de, tmp, &evlist->deferred_samples, list) {
+		struct perf_sample orig_sample;
+
+		ret = evlist__parse_sample(evlist, de->event, &orig_sample);
+		if (ret < 0) {
+			pr_err("failed to parse original sample\n");
+			break;
+		}
+
+		if (sample->tid != orig_sample.tid)
+			continue;
+
+		if (event->callchain_deferred.cookie == orig_sample.deferred_cookie)
+			sample__merge_deferred_callchain(&orig_sample, sample);
+		else
+			orig_sample.deferred_callchain = false;
+
+		evsel = evlist__id2evsel(evlist, orig_sample.id);
+		ret = evlist__deliver_sample(evlist, tool, de->event,
+					     &orig_sample, evsel, machine);
+
+		if (orig_sample.deferred_callchain)
+			free(orig_sample.callchain);
+
+		list_del(&de->list);
+		free(de->event);
+		free(de);
+
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
 static int machines__deliver_event(struct machines *machines,
 				   struct evlist *evlist,
 				   union perf_event *event,
@@ -1313,6 +1373,22 @@ static int machines__deliver_event(struct machines *machines,
 			return 0;
 		}
 		dump_sample(evsel, event, sample, perf_env__arch(machine->env));
+		if (sample->deferred_callchain && tool->merge_deferred_callchains) {
+			struct deferred_event *de = malloc(sizeof(*de));
+			size_t sz = event->header.size;
+
+			if (de == NULL)
+				return -ENOMEM;
+
+			de->event = malloc(sz);
+			if (de->event == NULL) {
+				free(de);
+				return -ENOMEM;
+			}
+			memcpy(de->event, event, sz);
+			list_add_tail(&de->list, &evlist->deferred_samples);
+			return 0;
+		}
 		return evlist__deliver_sample(evlist, tool, event, sample, evsel, machine);
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
@@ -1372,7 +1448,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->aux_output_hw_id(tool, event, sample, machine);
 	case PERF_RECORD_CALLCHAIN_DEFERRED:
 		dump_deferred_callchain(evsel, event, sample);
-		return tool->callchain_deferred(tool, event, sample, evsel, machine);
+		return evlist__deliver_deferred_callchain(evlist, tool, event,
+							  sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;
