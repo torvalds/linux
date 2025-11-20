@@ -17,12 +17,12 @@ Block
    :maxdepth: 1
 
    blk-mq
+   data-integrity
 
 TODOList:
 * bfq-iosched
 * biovecs
 * cmdline-partition
-* data-integrity
 * deadline-iosched
 * inline-encryption
 * ioprio
