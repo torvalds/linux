@@ -115,10 +115,7 @@ struct dtsplit {
 do {									\
 	BT_GETPAGE(IP, BN, MP, dtpage_t, SIZE, P, RC, i_dtroot);	\
 	if (!(RC)) {							\
-		if (((P)->header.nextindex >				\
-		     (((BN) == 0) ? DTROOTMAXSLOT : (P)->header.maxslot)) || \
-		    ((BN) && (((P)->header.maxslot > DTPAGEMAXSLOT) ||	\
-		    ((P)->header.stblindex >= DTPAGEMAXSLOT)))) {	\
+		if ((BN) && !check_dtpage(P)) {				\
 			BT_PUTPAGE(MP);					\
 			jfs_error((IP)->i_sb,				\
 				  "DT_GETPAGE: dtree page corrupt\n");	\
@@ -4377,6 +4374,110 @@ bool check_dtroot(dtroot_t *p)
 		/* Check for duplicate valid indices (skip check for idx=0) */
 		if (unlikely(idx && __test_and_set_bit(idx, bitmap))) {
 			jfs_err("Duplicate index:%d in stbl in dtroot\n", idx);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool check_dtpage(dtpage_t *p)
+{
+	DECLARE_BITMAP(bitmap, DTPAGEMAXSLOT) = {0};
+	const int stblsize = ((PSIZE >> L2DTSLOTSIZE) + 31) >> L2DTSLOTSIZE;
+	int i;
+
+	/* Validate maxslot (maximum number of slots in the page)
+	 * dtpage_t slot array is defined to hold up to DTPAGEMAXSLOT (128) slots
+	 */
+	if (unlikely(p->header.maxslot != DTPAGEMAXSLOT)) {
+		jfs_err("Bad maxslot:%d in dtpage (expected %d)\n",
+				p->header.maxslot, DTPAGEMAXSLOT);
+		return false;
+	}
+
+	/* freecnt cannot be negative or exceed DTPAGEMAXSLOT-1
+	 * (since slot[0] is occupied by the header).
+	 */
+	if (unlikely(p->header.freecnt < 0 ||
+				p->header.freecnt > DTPAGEMAXSLOT - 1)) {
+		jfs_err("Bad freecnt:%d in dtpage\n", p->header.freecnt);
+		return false;
+	} else if (p->header.freecnt == 0) {
+		/* No free slots: freelist must be -1 */
+		if (unlikely(p->header.freelist != -1)) {
+			jfs_err("freecnt=0 but freelist=%d in dtpage\n",
+					p->header.freelist);
+			return false;
+		}
+	} else {
+		int fsi;
+		/* When there are free slots, freelist must be a valid slot index in
+		 * 1~DTROOTMAXSLOT-1(since slot[0] is occupied by the header).
+		 */
+		if (unlikely(p->header.freelist < 1 ||
+					p->header.freelist >= DTPAGEMAXSLOT)) {
+			jfs_err("Bad freelist:%d in dtpage\n", p->header.freelist);
+			return false;
+		}
+
+		/* Traverse the free list to check validity of all node indices */
+		fsi = p->header.freelist;
+		for (i = 0; i < p->header.freecnt - 1; i++) {
+			/* Check for duplicate indices in the free list */
+			if (unlikely(__test_and_set_bit(fsi, bitmap))) {
+				jfs_err("duplicate index%d in slot in dtpage\n", fsi);
+				return false;
+			}
+			fsi = p->slot[fsi].next;
+
+			/* Ensure the next slot index in the free list is valid */
+			if (unlikely(fsi < 1 || fsi >= DTPAGEMAXSLOT)) {
+				jfs_err("Bad index:%d in slot in dtpage\n", fsi);
+				return false;
+			}
+		}
+
+		/* The last node in the free list must terminate with next = -1 */
+		if (unlikely(p->slot[fsi].next != -1)) {
+			jfs_err("Bad next:%d of the last slot in dtpage\n",
+					p->slot[fsi].next);
+			return false;
+		}
+	}
+
+	/* stbl must be little then DTPAGEMAXSLOT */
+	if (unlikely(p->header.stblindex >= DTPAGEMAXSLOT - stblsize)) {
+		jfs_err("Bad stblindex:%d in dtpage (stbl size %d)\n",
+				p->header.stblindex, stblsize);
+		return false;
+	}
+
+	/* nextindex must be little then stblsize*32 */
+	if (unlikely(p->header.nextindex > (stblsize << L2DTSLOTSIZE))) {
+		jfs_err("Bad nextindex:%d in dtpage (stbl size %d)\n",
+				p->header.nextindex, stblsize);
+		return false;
+	}
+
+	/* Validate stbl entries
+	 * Each entry is a slot index, valid range: -1 (invalid) or
+	 * [0, nextindex-1] (valid data slots)
+	 * (stblindex and higher slots are reserved for stbl itself)
+	 */
+	for (i = 0; i < p->header.nextindex; i++) {
+		int idx = DT_GETSTBL(p)[i];
+
+		/* Check if index is out of valid data slot range */
+		if (unlikely(idx < 1 || idx >= DTPAGEMAXSLOT)) {
+			jfs_err("Bad stbl[%d] index:%d (stblindex %d) in dtpage\n",
+					i, idx, p->header.stblindex);
+			return false;
+		}
+
+		/* Check for duplicate valid indices (skip -1) */
+		if (unlikely(__test_and_set_bit(idx, bitmap))) {
+			jfs_err("Duplicate index:%d in stbl of dtpage\n", idx);
 			return false;
 		}
 	}
