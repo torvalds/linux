@@ -64,6 +64,8 @@ struct fdl_state {
 					 SDCA_CTL_XU_FDLD_ACK_TRANSFER | \
 					 SDCA_CTL_XU_FDLD_NEEDS_SET)
 
+#if IS_ENABLED(CONFIG_SND_SOC_SDCA_FDL)
+
 int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt);
 int sdca_fdl_process(struct sdca_interrupt *interrupt);
 int sdca_fdl_sync(struct device *dev, struct sdca_function_data *function,
@@ -71,5 +73,33 @@ int sdca_fdl_sync(struct device *dev, struct sdca_function_data *function,
 
 int sdca_reset_function(struct device *dev, struct sdca_function_data *function,
 			struct regmap *regmap);
+
+#else
+
+static inline int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
+{
+	return 0;
+}
+
+static inline int sdca_fdl_process(struct sdca_interrupt *interrupt)
+{
+	return 0;
+}
+
+static inline int sdca_fdl_sync(struct device *dev,
+				struct sdca_function_data *function,
+				struct sdca_interrupt_info *info)
+{
+	return 0;
+}
+
+static inline int sdca_reset_function(struct device *dev,
+				      struct sdca_function_data *function,
+				      struct regmap *regmap)
+{
+	return 0;
+}
+
+#endif // CONFIG_SND_SOC_SDCA_FDL
 
 #endif // __SDCA_FDL_H__
