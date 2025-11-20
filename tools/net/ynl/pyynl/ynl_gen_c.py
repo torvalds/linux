@@ -3442,6 +3442,7 @@ def main():
         if args.fn_prefix:
             line += f' --function-prefix {args.fn_prefix}'
         cw.p(f'/* YNL-ARG{line} */')
+    cw.p('/* To regenerate run: tools/net/ynl/ynl-regen.sh */')
     cw.nl()
 
     if args.mode == 'uapi':
