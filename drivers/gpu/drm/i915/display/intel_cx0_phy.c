@@ -2209,7 +2209,7 @@ static int readout_enabled_lane_count(struct intel_encoder *encoder)
 	 */
 	max_tx_lane_count = DDI_PORT_WIDTH_GET(intel_de_read(display, DDI_BUF_CTL(encoder->port)));
 	if (!drm_WARN_ON(display->drm, max_tx_lane_count == 0))
-		max_tx_lane_count = roundup_pow_of_two(max_tx_lane_count);
+		max_tx_lane_count = round_up(max_tx_lane_count, 2);
 
 	for (tx_lane = 0; tx_lane < max_tx_lane_count; tx_lane++) {
 		u8 phy_lane_mask = tx_lane < 2 ? INTEL_CX0_LANE0 : INTEL_CX0_LANE1;
