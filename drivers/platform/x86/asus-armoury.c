@@ -373,7 +373,8 @@ static ssize_t mini_led_mode_current_value_show(struct kobject *kobj,
 	mode = FIELD_GET(ASUS_MINI_LED_MODE_MASK, 0);
 
 	for (i = 0; i < mini_led_mode_map_size; i++)
-		return sysfs_emit(buf, "%u\n", mini_led_mode_map[i]);
+		if (mode == mini_led_mode_map[i])
+			return sysfs_emit(buf, "%u\n", i);
 
 	pr_warn("Unrecognized mini-LED mode: %u", mode);
 	return -EINVAL;
