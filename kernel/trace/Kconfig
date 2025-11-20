@@ -330,6 +330,20 @@ config DYNAMIC_FTRACE_WITH_ARGS
 	depends on DYNAMIC_FTRACE
 	depends on HAVE_DYNAMIC_FTRACE_WITH_ARGS
 
+config FUNCTION_SELF_TRACING
+	bool "Function trace tracing code"
+	depends on FUNCTION_TRACER
+	help
+	  Normally all the tracing code is set to notrace, where the function
+	  tracer will ignore all the tracing functions. Sometimes it is useful
+	  for debugging to trace some of the tracing infratructure itself.
+	  Enable this to allow some of the tracing infrastructure to be traced
+	  by the function tracer. Note, this will likely add noise to function
+	  tracing if events and other tracing features are enabled along with
+	  function tracing.
+
+	  If unsure, say N.
+
 config FPROBE
 	bool "Kernel Function Probe (fprobe)"
 	depends on HAVE_FUNCTION_GRAPH_FREGS && HAVE_FTRACE_GRAPH_FUNC
