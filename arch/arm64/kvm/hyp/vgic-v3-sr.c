@@ -792,7 +792,7 @@ static void __vgic_v3_bump_eoicount(void)
 	write_gicreg(hcr, ICH_HCR_EL2);
 }
 
-static void __vgic_v3_write_dir(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
+static int ___vgic_v3_write_dir(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 {
 	u32 vid = vcpu_get_reg(vcpu, rt);
 	u64 lr_val;
@@ -800,19 +800,25 @@ static void __vgic_v3_write_dir(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 
 	/* EOImode == 0, nothing to be done here */
 	if (!(vmcr & ICH_VMCR_EOIM_MASK))
-		return;
+		return 1;
 
 	/* No deactivate to be performed on an LPI */
 	if (vid >= VGIC_MIN_LPI)
-		return;
+		return 1;
 
 	lr = __vgic_v3_find_active_lr(vcpu, vid, &lr_val);
-	if (lr == -1) {
-		__vgic_v3_bump_eoicount();
-		return;
+	if (lr != -1) {
+		__vgic_v3_clear_active_lr(lr, lr_val);
+		return 1;
 	}
 
-	__vgic_v3_clear_active_lr(lr, lr_val);
+	return 0;
+}
+
+static void __vgic_v3_write_dir(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
+{
+	if (!___vgic_v3_write_dir(vcpu, vmcr, rt))
+		__vgic_v3_bump_eoicount();
 }
 
 static void __vgic_v3_write_eoir(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
@@ -1247,9 +1253,21 @@ int __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	case SYS_ICC_DIR_EL1:
 		if (unlikely(is_read))
 			return 0;
-		/* Full exit if required to handle overflow deactivation... */
-		if (vcpu->arch.vgic_cpu.vgic_v3.vgic_hcr & ICH_HCR_EL2_TDIR)
-			return 0;
+		/*
+		 * Full exit if required to handle overflow deactivation,
+		 * unless we can emulate it in the LRs (likely the majority
+		 * of the cases).
+		 */
+		if (vcpu->arch.vgic_cpu.vgic_v3.vgic_hcr & ICH_HCR_EL2_TDIR) {
+			int ret;
+
+			ret = ___vgic_v3_write_dir(vcpu, __vgic_v3_read_vmcr(),
+						   kvm_vcpu_sys_get_rt(vcpu));
+			if (ret)
+				__kvm_skip_instr(vcpu);
+
+			return ret;
+		}
 		fn = __vgic_v3_write_dir;
 		break;
 	case SYS_ICC_RPR_EL1:
