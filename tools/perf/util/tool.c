@@ -287,6 +287,7 @@ void perf_tool__init(struct perf_tool *tool, bool ordered_events)
 	tool->read = process_event_sample_stub;
 	tool->throttle = process_event_stub;
 	tool->unthrottle = process_event_stub;
+	tool->callchain_deferred = process_event_sample_stub;
 	tool->attr = process_event_synth_attr_stub;
 	tool->event_update = process_event_synth_event_update_stub;
 	tool->tracing_data = process_event_synth_tracing_data_stub;
@@ -335,6 +336,7 @@ bool perf_tool__compressed_is_stub(const struct perf_tool *tool)
 	}
 CREATE_DELEGATE_SAMPLE(read);
 CREATE_DELEGATE_SAMPLE(sample);
+CREATE_DELEGATE_SAMPLE(callchain_deferred);
 
 #define CREATE_DELEGATE_ATTR(name)					\
 	static int delegate_ ## name(const struct perf_tool *tool,	\
@@ -468,6 +470,7 @@ void delegate_tool__init(struct delegate_tool *tool, struct perf_tool *delegate)
 	tool->tool.ksymbol = delegate_ksymbol;
 	tool->tool.bpf = delegate_bpf;
 	tool->tool.text_poke = delegate_text_poke;
+	tool->tool.callchain_deferred = delegate_callchain_deferred;
 
 	tool->tool.attr = delegate_attr;
 	tool->tool.event_update = delegate_event_update;
