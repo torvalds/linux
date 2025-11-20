@@ -492,8 +492,8 @@ static int elf_add_symbol(struct elf *elf, struct symbol *sym)
 	sym->len = sym->sym.st_size;
 
 	__sym_for_each(iter, &sym->sec->symbol_tree, sym->offset, sym->offset) {
-		if (iter->offset == sym->offset && iter->type == sym->type &&
-		    iter->len == sym->len)
+		if (!is_undef_sym(iter) && iter->offset == sym->offset &&
+		    iter->type == sym->type && iter->len == sym->len)
 			iter->alias = sym;
 	}
 
