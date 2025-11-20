@@ -3125,7 +3125,7 @@ static bool skl_watermark_ipc_can_enable(struct intel_display *display)
 	if (display->platform.kabylake ||
 	    display->platform.coffeelake ||
 	    display->platform.cometlake) {
-		const struct dram_info *dram_info = intel_dram_info(display->drm);
+		const struct dram_info *dram_info = intel_dram_info(display);
 
 		return dram_info->symmetric_memory;
 	}
@@ -3169,7 +3169,7 @@ static void increase_wm_latency(struct intel_display *display, int inc)
 
 static bool need_16gb_dimm_wa(struct intel_display *display)
 {
-	const struct dram_info *dram_info = intel_dram_info(display->drm);
+	const struct dram_info *dram_info = intel_dram_info(display);
 
 	return (display->platform.skylake || display->platform.kabylake ||
 		display->platform.coffeelake || display->platform.cometlake ||

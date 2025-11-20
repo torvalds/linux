@@ -90,7 +90,7 @@ static const struct cxsr_latency cxsr_latency_table[] = {
 
 static const struct cxsr_latency *pnv_get_cxsr_latency(struct intel_display *display)
 {
-	const struct dram_info *dram_info = intel_dram_info(display->drm);
+	const struct dram_info *dram_info = intel_dram_info(display);
 	bool is_ddr3 = dram_info->type == INTEL_DRAM_DDR3;
 	int i;
 

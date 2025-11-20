@@ -1616,7 +1616,7 @@ static const struct buddy_page_mask wa_1409767108_buddy_page_masks[] = {
 
 static void tgl_bw_buddy_init(struct intel_display *display)
 {
-	const struct dram_info *dram_info = intel_dram_info(display->drm);
+	const struct dram_info *dram_info = intel_dram_info(display);
 	const struct buddy_page_mask *table;
 	unsigned long abox_mask = DISPLAY_INFO(display)->abox_mask;
 	int config, i;

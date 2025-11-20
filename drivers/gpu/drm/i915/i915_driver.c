@@ -574,7 +574,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	 * Fill the dram structure to get the system dram info. This will be
 	 * used for memory latency calculation.
 	 */
-	ret = intel_dram_detect(dev_priv);
+	ret = intel_dram_detect(display);
 	if (ret)
 		goto err_opregion;
 
