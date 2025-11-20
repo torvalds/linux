@@ -127,7 +127,7 @@ static int io_uring_cmd_timestamp(struct socket *sock,
 
 	if (!unlikely(skb_queue_empty(&list))) {
 		scoped_guard(spinlock_irqsave, &q->lock)
-			skb_queue_splice(q, &list);
+			skb_queue_splice(&list, q);
 	}
 	return -EAGAIN;
 }
