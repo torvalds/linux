@@ -669,6 +669,7 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 		 */
 		device_name = "TXNW5825";
 		hda_priv->hda_chip_id = HDA_TAS5825;
+		tas_hda->priv->chip_id = TAS5825;
 	} else {
 		return -ENODEV;
 	}

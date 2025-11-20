@@ -208,10 +208,10 @@ static int mes_userq_detect_and_reset(struct amdgpu_device *adev,
 	struct amdgpu_userq_mgr *uqm, *tmp;
 	unsigned int hung_db_num = 0;
 	int queue_id, r, i;
-	u32 db_array[4];
+	u32 db_array[8];
 
-	if (db_array_size > 4) {
-		dev_err(adev->dev, "DB array size (%d vs 4) too small\n",
+	if (db_array_size > 8) {
+		dev_err(adev->dev, "DB array size (%d vs 8) too small\n",
 			db_array_size);
 		return -EINVAL;
 	}

@@ -2765,15 +2765,15 @@ static void handle_swbp(struct pt_regs *regs)
 
 	handler_chain(uprobe, regs);
 
+	/* Try to optimize after first hit. */
+	arch_uprobe_optimize(&uprobe->arch, bp_vaddr);
+
 	/*
 	 * If user decided to take execution elsewhere, it makes little sense
 	 * to execute the original instruction, so let's skip it.
 	 */
 	if (instruction_pointer(regs) != bp_vaddr)
 		goto out;
-
-	/* Try to optimize after first hit. */
-	arch_uprobe_optimize(&uprobe->arch, bp_vaddr);
 
 	if (arch_uprobe_skip_sstep(&uprobe->arch, regs))
 		goto out;

@@ -3770,16 +3770,14 @@ static inline char ufshcd_remove_non_printable(u8 ch)
  * @desc_index: descriptor index
  * @buf: pointer to buffer where descriptor would be read,
  *       the caller should free the memory.
- * @ascii: if true convert from unicode to ascii characters
- *         null terminated string.
+ * @fmt: if %SD_ASCII_STD, convert from UTF-16 to ASCII
  *
  * Return:
  * *      string size on success.
  * *      -ENOMEM: on allocation failure
  * *      -EINVAL: on a wrong parameter
  */
-int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index,
-			    u8 **buf, bool ascii)
+int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index, u8 **buf, enum ufs_descr_fmt fmt)
 {
 	struct uc_string_id *uc_str;
 	u8 *str;
@@ -3808,7 +3806,7 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index,
 		goto out;
 	}
 
-	if (ascii) {
+	if (fmt == SD_ASCII_STD) {
 		ssize_t ascii_len;
 		int i;
 		/* remove header and divide by 2 to move from UTF16 to UTF8 */
@@ -3834,7 +3832,7 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index,
 		str[ret++] = '\0';
 
 	} else {
-		str = kmemdup(uc_str, uc_str->len, GFP_KERNEL);
+		str = kmemdup(uc_str->uc, uc_str->len, GFP_KERNEL);
 		if (!str) {
 			ret = -ENOMEM;
 			goto out;
@@ -5240,10 +5238,15 @@ static void ufshcd_lu_init(struct ufs_hba *hba, struct scsi_device *sdev)
 	    desc_buf[UNIT_DESC_PARAM_LU_WR_PROTECT] == UFS_LU_POWER_ON_WP)
 		hba->dev_info.is_lu_power_on_wp = true;
 
-	/* In case of RPMB LU, check if advanced RPMB mode is enabled */
-	if (desc_buf[UNIT_DESC_PARAM_UNIT_INDEX] == UFS_UPIU_RPMB_WLUN &&
-	    desc_buf[RPMB_UNIT_DESC_PARAM_REGION_EN] & BIT(4))
-		hba->dev_info.b_advanced_rpmb_en = true;
+	/* In case of RPMB LU, check if advanced RPMB mode is enabled, and get region size */
+	if (desc_buf[UNIT_DESC_PARAM_UNIT_INDEX] == UFS_UPIU_RPMB_WLUN) {
+		if (desc_buf[RPMB_UNIT_DESC_PARAM_REGION_EN] & BIT(4))
+			hba->dev_info.b_advanced_rpmb_en = true;
+		hba->dev_info.rpmb_region_size[0] = desc_buf[RPMB_UNIT_DESC_PARAM_REGION0_SIZE];
+		hba->dev_info.rpmb_region_size[1] = desc_buf[RPMB_UNIT_DESC_PARAM_REGION1_SIZE];
+		hba->dev_info.rpmb_region_size[2] = desc_buf[RPMB_UNIT_DESC_PARAM_REGION2_SIZE];
+		hba->dev_info.rpmb_region_size[3] = desc_buf[RPMB_UNIT_DESC_PARAM_REGION3_SIZE];
+	}
 
 
 	kfree(desc_buf);
@@ -8220,8 +8223,11 @@ static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 		ufshcd_upiu_wlun_to_scsi_wlun(UFS_UPIU_RPMB_WLUN), NULL);
 	if (IS_ERR(sdev_rpmb)) {
 		ret = PTR_ERR(sdev_rpmb);
+		hba->ufs_rpmb_wlun = NULL;
+		dev_err(hba->dev, "%s: RPMB WLUN not found\n", __func__);
 		goto remove_ufs_device_wlun;
 	}
+	hba->ufs_rpmb_wlun = sdev_rpmb;
 	ufshcd_blk_pm_runtime_init(sdev_rpmb);
 	scsi_device_put(sdev_rpmb);
 
@@ -8489,6 +8495,67 @@ static void ufs_init_rtc(struct ufs_hba *hba, u8 *desc_buf)
 	dev_info->rtc_update_period = 0;
 }
 
+/**
+ * ufshcd_create_device_id - Generate unique device identifier string
+ * @hba: per-adapter instance
+ * @desc_buf: device descriptor buffer
+ *
+ * Creates a unique device ID string combining manufacturer ID, spec version,
+ * model name, serial number (as hex), device version, and manufacture date.
+ *
+ * Returns: Allocated device ID string on success, NULL on failure
+ */
+static char *ufshcd_create_device_id(struct ufs_hba *hba, u8 *desc_buf)
+{
+	struct ufs_dev_info *dev_info = &hba->dev_info;
+	u16 manufacture_date;
+	u16 device_version;
+	u8 *serial_number;
+	char *serial_hex;
+	char *device_id;
+	u8 serial_index;
+	int serial_len;
+	int ret;
+
+	serial_index = desc_buf[DEVICE_DESC_PARAM_SN];
+
+	ret = ufshcd_read_string_desc(hba, serial_index, &serial_number, SD_RAW);
+	if (ret < 0) {
+		dev_err(hba->dev, "Failed reading Serial Number. err = %d\n", ret);
+		return NULL;
+	}
+
+	device_version = get_unaligned_be16(&desc_buf[DEVICE_DESC_PARAM_DEV_VER]);
+	manufacture_date = get_unaligned_be16(&desc_buf[DEVICE_DESC_PARAM_MANF_DATE]);
+
+	serial_len = ret;
+	/* Allocate buffer for hex string: 2 chars per byte + null terminator */
+	serial_hex = kzalloc(serial_len * 2 + 1, GFP_KERNEL);
+	if (!serial_hex) {
+		kfree(serial_number);
+		return NULL;
+	}
+
+	bin2hex(serial_hex, serial_number, serial_len);
+
+	/*
+	 * Device ID format is ABI with secure world - do not change without firmware
+	 * coordination.
+	 */
+	device_id = kasprintf(GFP_KERNEL, "%04X-%04X-%s-%s-%04X-%04X",
+			      dev_info->wmanufacturerid, dev_info->wspecversion,
+			      dev_info->model, serial_hex, device_version,
+			      manufacture_date);
+
+	kfree(serial_hex);
+	kfree(serial_number);
+
+	if (!device_id)
+		dev_warn(hba->dev, "Failed to allocate unique device ID\n");
+
+	return device_id;
+}
+
 static int ufs_get_device_desc(struct ufs_hba *hba)
 {
 	struct ufs_dev_info *dev_info = &hba->dev_info;
@@ -8551,6 +8618,9 @@ static int ufs_get_device_desc(struct ufs_hba *hba)
 		goto out;
 	}
 
+	/* Generate unique device ID */
+	dev_info->device_id = ufshcd_create_device_id(hba, desc_buf);
+
 	hba->luns_avail = desc_buf[DEVICE_DESC_PARAM_NUM_LU] +
 		desc_buf[DEVICE_DESC_PARAM_NUM_WLU];
 
@@ -8586,6 +8656,8 @@ static void ufs_put_device_desc(struct ufs_hba *hba)
 
 	kfree(dev_info->model);
 	dev_info->model = NULL;
+	kfree(dev_info->device_id);
+	dev_info->device_id = NULL;
 }
 
 /**
@@ -8728,6 +8800,8 @@ static int ufshcd_device_geo_params_init(struct ufs_hba *hba)
 		hba->dev_info.max_lu_supported = 32;
 	else if (desc_buf[GEOMETRY_DESC_PARAM_MAX_NUM_LUN] == 0)
 		hba->dev_info.max_lu_supported = 8;
+
+	hba->dev_info.rpmb_io_size = desc_buf[GEOMETRY_DESC_PARAM_RPMB_RW_SIZE];
 
 out:
 	kfree(desc_buf);
@@ -8915,6 +8989,7 @@ static int ufshcd_add_lus(struct ufs_hba *hba)
 
 	ufs_bsg_probe(hba);
 	scsi_scan_host(hba->host);
+	ufs_rpmb_probe(hba);
 
 out:
 	return ret;
@@ -10470,6 +10545,7 @@ void ufshcd_remove(struct ufs_hba *hba)
 		ufshcd_rpm_get_sync(hba);
 	ufs_hwmon_remove(hba);
 	ufs_bsg_remove(hba);
+	ufs_rpmb_remove(hba);
 	ufs_sysfs_remove_nodes(hba->dev);
 	cancel_delayed_work_sync(&hba->ufs_rtc_update_work);
 	blk_mq_destroy_queue(hba->tmf_queue);

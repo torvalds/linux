@@ -651,6 +651,11 @@ struct ufs_dev_info {
 	u8 rtt_cap; /* bDeviceRTTCap */
 
 	bool hid_sup;
+
+	/* Unique device ID string (manufacturer+model+serial+version+date) */
+	char *device_id;
+	u8 rpmb_io_size;
+	u8 rpmb_region_size[4];
 };
 
 #endif /* End of Header */

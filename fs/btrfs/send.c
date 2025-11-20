@@ -178,7 +178,6 @@ struct send_ctx {
 	u64 cur_inode_rdev;
 	u64 cur_inode_last_extent;
 	u64 cur_inode_next_write_offset;
-	struct fs_path cur_inode_path;
 	bool cur_inode_new;
 	bool cur_inode_new_gen;
 	bool cur_inode_deleted;
@@ -305,6 +304,9 @@ struct send_ctx {
 
 	struct btrfs_lru_cache dir_created_cache;
 	struct btrfs_lru_cache dir_utimes_cache;
+
+	/* Must be last as it ends in a flexible-array member. */
+	struct fs_path cur_inode_path;
 };
 
 struct pending_dir_move {
