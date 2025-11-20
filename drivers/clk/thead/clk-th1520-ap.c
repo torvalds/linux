@@ -539,6 +539,20 @@ static struct ccu_mux c910_clk = {
 	.mux	= TH_CCU_MUX("c910", c910_parents, 0, 1),
 };
 
+static struct ccu_div c910_bus_clk = {
+	.enable		= BIT(7),
+	.div_en		= BIT(11),
+	.div		= TH_CCU_DIV_FLAGS(8, 3, 0),
+	.common		= {
+		.clkid		= CLK_C910_BUS,
+		.cfg0		= 0x100,
+		.hw.init	= CLK_HW_INIT_HW("c910-bus",
+						 &c910_clk.mux.hw,
+						 &ccu_div_ops,
+						 CLK_IS_CRITICAL),
+	},
+};
+
 static const struct clk_parent_data ahb2_cpusys_parents[] = {
 	{ .hw = &gmac_pll_clk.common.hw },
 	{ .index = 0 }
@@ -1051,6 +1065,7 @@ static struct ccu_common *th1520_pll_clks[] = {
 };
 
 static struct ccu_common *th1520_div_clks[] = {
+	&c910_bus_clk.common,
 	&ahb2_cpusys_hclk.common,
 	&apb3_cpusys_pclk.common,
 	&axi4_cpusys2_aclk.common,
@@ -1194,7 +1209,7 @@ static const struct th1520_plat_data th1520_ap_platdata = {
 	.th1520_mux_clks = th1520_mux_clks,
 	.th1520_gate_clks = th1520_gate_clks,
 
-	.nr_clks = CLK_UART_SCLK + 1,
+	.nr_clks = CLK_C910_BUS + 1,
 
 	.nr_pll_clks = ARRAY_SIZE(th1520_pll_clks),
 	.nr_div_clks = ARRAY_SIZE(th1520_div_clks),
