@@ -370,12 +370,15 @@ static bool vgic_validate_injection(struct vgic_irq *irq, bool level, void *owne
 static bool vgic_model_needs_bcst_kick(struct kvm *kvm)
 {
 	/*
-	 * A GICv3 (or GICv3-like) system exposing a GICv3 to the
-	 * guest needs a broadcast kick to set TDIR globally, even if
-	 * the bit doesn't really exist (we still need to check for
-	 * the shadow bit in the DIR emulation fast-path).
+	 * A GICv3 (or GICv3-like) system exposing a GICv3 to the guest
+	 * needs a broadcast kick to set TDIR globally.
+	 *
+	 * For systems that do not have TDIR (ARM's own v8.0 CPUs), the
+	 * shadow TDIR bit is always set, and so is the register's TC bit,
+	 * so no need to kick the CPUs.
 	 */
-	return (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3);
+	return (cpus_have_final_cap(ARM64_HAS_ICH_HCR_EL2_TDIR) &&
+		kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3);
 }
 
 /*
