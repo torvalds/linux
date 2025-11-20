@@ -13,6 +13,7 @@
 #include <linux/kconfig.h>
 
 struct acpi_table_swft;
+struct fwnode_handle;
 struct sdw_slave;
 
 #define SDCA_MAX_FUNCTION_COUNT 8
