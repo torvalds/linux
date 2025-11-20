@@ -280,7 +280,6 @@ void vgic_v3_sync_nested(struct kvm_vcpu *vcpu)
 
 	for_each_set_bit(i, &shadow_if->lr_map, kvm_vgic_global_state.nr_lr) {
 		u64 val, host_lr, lr;
-		struct vgic_irq *irq;
 
 		host_lr = __gic_v3_get_lr(lr_map_idx_to_shadow_idx(shadow_if, i));
 
@@ -290,7 +289,14 @@ void vgic_v3_sync_nested(struct kvm_vcpu *vcpu)
 		val |= host_lr & ICH_LR_STATE;
 		__vcpu_assign_sys_reg(vcpu, ICH_LRN(i), val);
 
-		if (!(lr & ICH_LR_HW) || !(lr & ICH_LR_STATE))
+		/*
+		 * Deactivation of a HW interrupt: the LR must have the HW
+		 * bit set, have been in a non-invalid state before the run,
+		 * and now be in an invalid state. If any of that doesn't
+		 * hold, we're done with this LR.
+		 */
+		if (!((lr & ICH_LR_HW) && (lr & ICH_LR_STATE) &&
+		      !(host_lr & ICH_LR_STATE)))
 			continue;
 
 		/*
@@ -298,14 +304,7 @@ void vgic_v3_sync_nested(struct kvm_vcpu *vcpu)
 		 * need to emulate the HW effect between the guest hypervisor
 		 * and the nested guest.
 		 */
-		irq = vgic_get_vcpu_irq(vcpu, FIELD_GET(ICH_LR_PHYS_ID_MASK, lr));
-		if (WARN_ON(!irq)) /* Shouldn't happen as we check on load */
-			continue;
-
-		if (!(host_lr & ICH_LR_STATE))
-			irq->active = false;
-
-		vgic_put_irq(vcpu->kvm, irq);
+		vgic_v3_deactivate(vcpu, FIELD_GET(ICH_LR_PHYS_ID_MASK, lr));
 	}
 
 	/* We need these to be synchronised to generate the MI */
