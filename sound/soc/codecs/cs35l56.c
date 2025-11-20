@@ -95,8 +95,9 @@ static const struct snd_kcontrol_new cs35l56_controls[] = {
 	SOC_SINGLE_EXT("Posture Number", CS35L56_MAIN_POSTURE_NUMBER,
 		       0, 255, 0,
 		       cs35l56_dspwait_get_volsw, cs35l56_dspwait_put_volsw),
-	SOC_ENUM_EXT("CAL_SET_STATUS", cs35l56_cal_set_status_enum,
-		     cs35l56_cal_set_status_ctl_get, NULL),
+	SOC_ENUM_EXT_ACC("CAL_SET_STATUS", cs35l56_cal_set_status_enum,
+			 cs35l56_cal_set_status_ctl_get, NULL,
+			 SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE),
 };
 
 static const struct snd_kcontrol_new cs35l63_controls[] = {
@@ -116,8 +117,9 @@ static const struct snd_kcontrol_new cs35l63_controls[] = {
 	SOC_SINGLE_EXT("Posture Number", CS35L63_MAIN_POSTURE_NUMBER,
 		       0, 255, 0,
 		       cs35l56_dspwait_get_volsw, cs35l56_dspwait_put_volsw),
-	SOC_ENUM_EXT("CAL_SET_STATUS", cs35l56_cal_set_status_enum,
-		     cs35l56_cal_set_status_ctl_get, NULL),
+	SOC_ENUM_EXT_ACC("CAL_SET_STATUS", cs35l56_cal_set_status_enum,
+			 cs35l56_cal_set_status_ctl_get, NULL,
+			 SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE),
 };
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx1_enum,
