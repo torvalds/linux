@@ -5701,7 +5701,7 @@ static void jaguar2_rx_parse_phystats_type1(struct rtl8xxxu_priv *priv,
 			 !rtl8xxxu_is_sta_sta(priv) &&
 			 (rtl8xxxu_is_packet_match_bssid(priv, hdr, 0) ||
 			  rtl8xxxu_is_packet_match_bssid(priv, hdr, 1));
-	u8 pwdb_max = 0;
+	u8 pwdb_max = 0, rxsc;
 	int rx_path;
 
 	if (parse_cfo) {
@@ -5716,6 +5716,16 @@ static void jaguar2_rx_parse_phystats_type1(struct rtl8xxxu_priv *priv,
 		pwdb_max = max(pwdb_max, phy_stats1->pwdb[rx_path]);
 
 	rx_status->signal = pwdb_max - 110;
+
+	if (rxmcs >= DESC_RATE_6M && rxmcs <= DESC_RATE_54M)
+		rxsc = phy_stats1->l_rxsc;
+	else
+		rxsc = phy_stats1->ht_rxsc;
+
+	if (phy_stats1->rf_mode == 0 || rxsc == 1 || rxsc == 2)
+		rx_status->bw = RATE_INFO_BW_20;
+	else
+		rx_status->bw = RATE_INFO_BW_40;
 }
 
 static void jaguar2_rx_parse_phystats_type2(struct rtl8xxxu_priv *priv,
