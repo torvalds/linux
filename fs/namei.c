@@ -1672,13 +1672,15 @@ static inline int handle_mounts(struct nameidata *nd, struct dentry *dentry,
 	path->dentry = dentry;
 	if (nd->flags & LOOKUP_RCU) {
 		unsigned int seq = nd->next_seq;
+		if (likely(!d_managed(dentry)))
+			return 0;
 		if (likely(__follow_mount_rcu(nd, path)))
 			return 0;
 		// *path and nd->next_seq might've been clobbered
 		path->mnt = nd->path.mnt;
 		path->dentry = dentry;
 		nd->next_seq = seq;
-		if (!try_to_unlazy_next(nd, dentry))
+		if (unlikely(!try_to_unlazy_next(nd, dentry)))
 			return -ECHILD;
 	}
 	ret = traverse_mounts(path, &jumped, &nd->total_link_count, nd->flags);
@@ -1941,13 +1943,23 @@ static int reserve_stack(struct nameidata *nd, struct path *link)
 
 enum {WALK_TRAILING = 1, WALK_MORE = 2, WALK_NOFOLLOW = 4};
 
-static const char *pick_link(struct nameidata *nd, struct path *link,
+static noinline const char *pick_link(struct nameidata *nd, struct path *link,
 		     struct inode *inode, int flags)
 {
 	struct saved *last;
 	const char *res;
-	int error = reserve_stack(nd, link);
+	int error;
 
+	if (nd->flags & LOOKUP_RCU) {
+		/* make sure that d_is_symlink from step_into() matches the inode */
+		if (read_seqcount_retry(&link->dentry->d_seq, nd->next_seq))
+			return ERR_PTR(-ECHILD);
+	} else {
+		if (link->mnt == nd->path.mnt)
+			mntget(link->mnt);
+	}
+
+	error = reserve_stack(nd, link);
 	if (unlikely(error)) {
 		if (!(nd->flags & LOOKUP_RCU))
 			path_put(link);
@@ -2026,9 +2038,10 @@ static const char *step_into(struct nameidata *nd, int flags,
 {
 	struct path path;
 	struct inode *inode;
-	int err = handle_mounts(nd, dentry, &path);
+	int err;
 
-	if (err < 0)
+	err = handle_mounts(nd, dentry, &path);
+	if (unlikely(err < 0))
 		return ERR_PTR(err);
 	inode = path.dentry->d_inode;
 	if (likely(!d_is_symlink(path.dentry)) ||
@@ -2049,14 +2062,6 @@ static const char *step_into(struct nameidata *nd, int flags,
 		nd->inode = inode;
 		nd->seq = nd->next_seq;
 		return NULL;
-	}
-	if (nd->flags & LOOKUP_RCU) {
-		/* make sure that d_is_symlink above matches inode */
-		if (read_seqcount_retry(&path.dentry->d_seq, nd->next_seq))
-			return ERR_PTR(-ECHILD);
-	} else {
-		if (path.mnt == nd->path.mnt)
-			mntget(path.mnt);
 	}
 	return pick_link(nd, &path, inode, flags);
 }
