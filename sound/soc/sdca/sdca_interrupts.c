@@ -456,11 +456,8 @@ int sdca_irq_populate_early(struct device *dev, struct regmap *regmap,
 			else if (!interrupt)
 				continue;
 
-			switch (entity->type) {
-			case SDCA_ENTITY_TYPE_XU:
-				if (control->sel != SDCA_CTL_XU_FDL_CURRENTOWNER)
-					break;
-
+			switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
+			case SDCA_CTL_TYPE_S(XU, FDL_CURRENTOWNER):
 				ret = sdca_irq_data_populate(dev, regmap, NULL,
 							     function, entity,
 							     control, interrupt);
@@ -534,27 +531,22 @@ int sdca_irq_populate(struct sdca_function_data *function,
 
 			handler = base_handler;
 
-			switch (entity->type) {
-			case SDCA_ENTITY_TYPE_ENTITY_0:
-				if (control->sel == SDCA_CTL_ENTITY_0_FUNCTION_STATUS)
-					handler = function_status_handler;
+			switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
+			case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_STATUS):
+				handler = function_status_handler;
 				break;
-			case SDCA_ENTITY_TYPE_GE:
-				if (control->sel == SDCA_CTL_GE_DETECTED_MODE)
-					handler = detected_mode_handler;
+			case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
+				handler = detected_mode_handler;
 				break;
-			case SDCA_ENTITY_TYPE_XU:
-				if (control->sel == SDCA_CTL_XU_FDL_CURRENTOWNER) {
-					ret = sdca_fdl_alloc_state(interrupt);
-					if (ret)
-						return ret;
+			case SDCA_CTL_TYPE_S(XU, FDL_CURRENTOWNER):
+				ret = sdca_fdl_alloc_state(interrupt);
+				if (ret)
+					return ret;
 
-					handler = fdl_owner_handler;
-				}
+				handler = fdl_owner_handler;
 				break;
-			case SDCA_ENTITY_TYPE_HIDE:
-				if (control->sel == SDCA_CTL_HIDE_HIDTX_CURRENTOWNER)
-					handler = hid_handler;
+			case SDCA_CTL_TYPE_S(HIDE, HIDTX_CURRENTOWNER):
+				handler = hid_handler;
 				break;
 			default:
 				break;
