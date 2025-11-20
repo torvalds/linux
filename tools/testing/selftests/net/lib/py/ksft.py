@@ -6,6 +6,7 @@ import signal
 import sys
 import time
 import traceback
+from collections import namedtuple
 from .consts import KSFT_MAIN_NAME
 from .utils import global_defer_queue
 
@@ -170,6 +171,10 @@ def ksft_flush_defer():
             KSFT_RESULT = False
 
 
+KsftCaseFunction = namedtuple("KsftCaseFunction",
+                              ['name', 'original_func', 'variants'])
+
+
 def ksft_disruptive(func):
     """
     Decorator that marks the test as disruptive (e.g. the test
@@ -183,6 +188,42 @@ def ksft_disruptive(func):
             raise KsftSkipEx("marked as disruptive")
         return func(*args, **kwargs)
     return wrapper
+
+
+class KsftNamedVariant:
+    """ Named string name + argument list tuple for @ksft_variants """
+
+    def __init__(self, name, *params):
+        self.params = params
+        self.name = name or "_".join([str(x) for x in self.params])
+
+
+def ksft_variants(params):
+    """
+    Decorator defining the sets of inputs for a test.
+    The parameters will be included in the name of the resulting sub-case.
+    Parameters can be either single object, tuple or a KsftNamedVariant.
+    The argument can be a list or a generator.
+
+    Example:
+
+    @ksft_variants([
+        (1, "a"),
+        (2, "b"),
+        KsftNamedVariant("three", 3, "c"),
+    ])
+    def my_case(cfg, a, b):
+        pass # ...
+
+    ksft_run(cases=[my_case], args=(cfg, ))
+
+    Will generate cases:
+        my_case.1_a
+        my_case.2_b
+        my_case.three
+    """
+
+    return lambda func: KsftCaseFunction(func.__name__, func, params)
 
 
 def ksft_setup(env):
@@ -236,7 +277,19 @@ def _ksft_generate_test_cases(cases, globs, case_pfx, args):
                     break
 
     for func in cases:
-        test_cases.append((func, args, func.__name__))
+        if isinstance(func, KsftCaseFunction):
+            # Parametrized test - create case for each param
+            for param in func.variants:
+                if not isinstance(param, KsftNamedVariant):
+                    if not isinstance(param, tuple):
+                        param = (param, )
+                    param = KsftNamedVariant(None, *param)
+
+                test_cases.append((func.original_func,
+                                   (*args, *param.params),
+                                   func.name + "." + param.name))
+        else:
+            test_cases.append((func, args, func.__name__))
 
     return test_cases
 
