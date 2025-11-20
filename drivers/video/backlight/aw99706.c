@@ -440,7 +440,7 @@ static int aw99706_resume(struct device *dev)
 	return aw99706_hw_init(aw);
 }
 
-static SIMPLE_DEV_PM_OPS(aw99706_pm_ops, aw99706_suspend, aw99706_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(aw99706_pm_ops, aw99706_suspend, aw99706_resume);
 
 static const struct i2c_device_id aw99706_ids[] = {
 	{ "aw99706" },
@@ -461,7 +461,7 @@ static struct i2c_driver aw99706_i2c_driver = {
 	.driver = {
 		.name = "aw99706",
 		.of_match_table = aw99706_match_table,
-		.pm = &aw99706_pm_ops,
+		.pm = pm_ptr(&aw99706_pm_ops),
 	},
 };
 
