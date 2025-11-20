@@ -743,6 +743,5 @@ module_platform_driver(mmp_tdma_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MMP Two-Channel DMA Driver");
-MODULE_ALIAS("platform:mmp-tdma");
 MODULE_AUTHOR("Leo Yan <leoy@marvell.com>");
 MODULE_AUTHOR("Zhangfei Gao <zhangfei.gao@marvell.com>");
