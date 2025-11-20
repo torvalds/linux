@@ -658,8 +658,9 @@ static int read_symbols(struct elf *elf)
 				return -1;
 			}
 
-			sym->pfunc = pfunc;
+			sym->pfunc = pfunc->alias;
 			pfunc->cfunc = sym;
+			pfunc->alias->cfunc = sym;
 
 			/*
 			 * Unfortunately, -fnoreorder-functions puts the child

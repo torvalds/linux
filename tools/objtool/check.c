@@ -1623,33 +1623,12 @@ static int add_jump_destinations(struct objtool_file *file)
 			continue;
 		}
 
-		if (!insn->sym || insn->sym == dest_insn->sym)
+		if (!insn->sym || insn->sym->pfunc == dest_sym->pfunc)
 			goto set_jump_dest;
 
 		/*
 		 * Internal cross-function jump.
 		 */
-
-		/*
-		 * For GCC 8+, create parent/child links for any cold
-		 * subfunctions.  This is _mostly_ redundant with a
-		 * similar initialization in read_symbols().
-		 *
-		 * If a function has aliases, we want the *first* such
-		 * function in the symbol table to be the subfunction's
-		 * parent.  In that case we overwrite the
-		 * initialization done in read_symbols().
-		 *
-		 * However this code can't completely replace the
-		 * read_symbols() code because this doesn't detect the
-		 * case where the parent function's only reference to a
-		 * subfunction is through a jump table.
-		 */
-		if (func && dest_sym->cold) {
-			func->cfunc = dest_sym;
-			dest_sym->pfunc = func;
-			goto set_jump_dest;
-		}
 
 		if (is_first_func_insn(file, dest_insn)) {
 			/* Internal sibling call */
