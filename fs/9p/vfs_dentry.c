@@ -66,7 +66,6 @@ static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 	struct p9_fid *fid;
 	struct inode *inode;
 	struct v9fs_inode *v9inode;
-	unsigned int cached;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -76,11 +75,7 @@ static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_valid;
 
 	v9inode = V9FS_I(inode);
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-
-	cached = v9ses->cache & (CACHE_META | CACHE_LOOSE);
-
-	if (!cached || v9inode->cache_validity & V9FS_INO_INVALID_ATTR) {
+	if (v9inode->cache_validity & V9FS_INO_INVALID_ATTR) {
 		int retval;
 		struct v9fs_session_info *v9ses;
 
@@ -114,6 +109,7 @@ static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 			p9_debug(P9_DEBUG_VFS,
 				"refresh inode: dentry = %pd (%p), got error %pe\n",
 				dentry, dentry, ERR_PTR(retval));
+		if (retval < 0)
 			return retval;
 		}
 	}
@@ -150,8 +146,6 @@ const struct dentry_operations v9fs_cached_dentry_operations = {
 };
 
 const struct dentry_operations v9fs_dentry_operations = {
-	.d_revalidate = v9fs_lookup_revalidate,
-	.d_weak_revalidate = __v9fs_lookup_revalidate,
 	.d_release = v9fs_dentry_release,
 	.d_unalias_trylock = v9fs_dentry_unalias_trylock,
 	.d_unalias_unlock = v9fs_dentry_unalias_unlock,

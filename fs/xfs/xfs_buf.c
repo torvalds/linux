@@ -1751,7 +1751,7 @@ xfs_init_buftarg(
 	const char			*descr)
 {
 	/* The maximum size of the buftarg is only known once the sb is read. */
-	btp->bt_nr_sectors = (xfs_daddr_t)-1;
+	btp->bt_nr_sectors = XFS_BUF_DADDR_MAX;
 
 	/* Set up device logical sector size mask */
 	btp->bt_logical_sectorsize = logical_sectorsize;

@@ -105,10 +105,10 @@ In this example the SSID is 10280c63.
 
 The format of the firmware file names is:
 
-SoundWire (except CS35L56 Rev B0):
+SoundWire:
     cs35lxx-b0-dsp1-misc-SSID[-spkidX]-l?u?
 
-SoundWire CS35L56 Rev B0:
+SoundWire CS35L56 Rev B0 firmware released before kernel version 6.16:
     cs35lxx-b0-dsp1-misc-SSID[-spkidX]-ampN
 
 Non-SoundWire (HDA and I2S):
@@ -127,9 +127,8 @@ Where:
   * spkidX is an optional part, used for laptops that have firmware
     configurations for different makes and models of internal speakers.
 
-The CS35L56 Rev B0 continues to use the old filename scheme because a
-large number of firmware files have already been published with these
-names.
+Early firmware for CS35L56 Rev B0 used the ALSA prefix (ampN) as the
+filename qualifier. Support for the l?u? qualifier was added in kernel 6.16.
 
 Sound Open Firmware and ALSA topology files
 -------------------------------------------

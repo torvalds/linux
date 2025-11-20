@@ -138,7 +138,8 @@ int main(int argc, char **argv)
 		error("no input files?");
 	}
 
-	symbol_read_exports(stdin);
+	if (!symbol_read_exports(stdin))
+		return 0;
 
 	if (symtypes_file) {
 		symfile = fopen(symtypes_file, "w");

@@ -501,6 +501,7 @@ void iwl_mld_remove_link(struct iwl_mld *mld,
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(bss_conf->vif);
 	struct iwl_mld_link *link = iwl_mld_link_from_mac80211(bss_conf);
 	bool is_deflink = link == &mld_vif->deflink;
+	u8 fw_id = link->fw_id;
 
 	if (WARN_ON(!link || link->active))
 		return;
@@ -513,10 +514,10 @@ void iwl_mld_remove_link(struct iwl_mld *mld,
 
 	RCU_INIT_POINTER(mld_vif->link[bss_conf->link_id], NULL);
 
-	if (WARN_ON(link->fw_id >= mld->fw->ucode_capa.num_links))
+	if (WARN_ON(fw_id >= mld->fw->ucode_capa.num_links))
 		return;
 
-	RCU_INIT_POINTER(mld->fw_id_to_bss_conf[link->fw_id], NULL);
+	RCU_INIT_POINTER(mld->fw_id_to_bss_conf[fw_id], NULL);
 }
 
 void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
@@ -707,18 +708,13 @@ static int
 iwl_mld_get_chan_load_from_element(struct iwl_mld *mld,
 				   struct ieee80211_bss_conf *link_conf)
 {
-	struct ieee80211_vif *vif = link_conf->vif;
 	const struct cfg80211_bss_ies *ies;
 	const struct element *bss_load_elem = NULL;
 	const struct ieee80211_bss_load_elem *bss_load;
 
 	guard(rcu)();
 
-	if (ieee80211_vif_link_active(vif, link_conf->link_id))
-		ies = rcu_dereference(link_conf->bss->beacon_ies);
-	else
-		ies = rcu_dereference(link_conf->bss->ies);
-
+	ies = rcu_dereference(link_conf->bss->beacon_ies);
 	if (ies)
 		bss_load_elem = cfg80211_find_elem(WLAN_EID_QBSS_LOAD,
 						   ies->data, ies->len);
