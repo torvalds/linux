@@ -287,9 +287,6 @@ static int debugfs_get_tree(struct fs_context *fc)
 {
 	int err;
 
-	if (!(debugfs_allow & DEBUGFS_ALLOW_API))
-		return -EPERM;
-
 	err = get_tree_single(fc, debugfs_fill_super);
 	if (err)
 		return err;
@@ -433,11 +430,6 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 
 	if (IS_ERR(dentry))
 		return dentry;
-
-	if (!(debugfs_allow & DEBUGFS_ALLOW_API)) {
-		failed_creating(dentry);
-		return ERR_PTR(-EPERM);
-	}
 
 	inode = debugfs_get_inode(dentry->d_sb);
 	if (unlikely(!inode)) {
@@ -584,11 +576,6 @@ struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 	if (IS_ERR(dentry))
 		return dentry;
 
-	if (!(debugfs_allow & DEBUGFS_ALLOW_API)) {
-		failed_creating(dentry);
-		return ERR_PTR(-EPERM);
-	}
-
 	inode = debugfs_get_inode(dentry->d_sb);
 	if (unlikely(!inode)) {
 		pr_err("out of free dentries, can not create directory '%s'\n",
@@ -630,11 +617,6 @@ struct dentry *debugfs_create_automount(const char *name,
 
 	if (IS_ERR(dentry))
 		return dentry;
-
-	if (!(debugfs_allow & DEBUGFS_ALLOW_API)) {
-		failed_creating(dentry);
-		return ERR_PTR(-EPERM);
-	}
 
 	inode = debugfs_get_inode(dentry->d_sb);
 	if (unlikely(!inode)) {
