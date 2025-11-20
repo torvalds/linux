@@ -72,6 +72,8 @@ struct dentry *start_dirop(struct dentry *parent, struct qstr *name,
 			   unsigned int lookup_flags);
 int lookup_noperm_common(struct qstr *qname, struct dentry *base);
 
+void __init filename_init(void);
+
 /*
  * namespace.c
  */
