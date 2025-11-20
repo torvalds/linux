@@ -135,7 +135,7 @@ def ksft_busy_wait(cond, sleep=0.005, deadline=1, comment=""):
         time.sleep(sleep)
 
 
-def ktap_result(ok, cnt=1, case="", comment=""):
+def ktap_result(ok, cnt=1, case_name="", comment=""):
     global KSFT_RESULT_ALL
     KSFT_RESULT_ALL = KSFT_RESULT_ALL and ok
 
@@ -145,8 +145,8 @@ def ktap_result(ok, cnt=1, case="", comment=""):
     res += "ok "
     res += str(cnt) + " "
     res += KSFT_MAIN_NAME
-    if case:
-        res += "." + str(case.__name__)
+    if case_name:
+        res += "." + case_name
     if comment:
         res += " # " + comment
     print(res, flush=True)
@@ -219,9 +219,13 @@ def _ksft_intr(signum, frame):
         ksft_pr(f"Ignoring SIGTERM (cnt: {term_cnt}), already exiting...")
 
 
-def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
-    cases = cases or []
+def _ksft_generate_test_cases(cases, globs, case_pfx, args):
+    """Generate a flat list of (func, args, name) tuples"""
 
+    cases = cases or []
+    test_cases = []
+
+    # If using the globs method find all relevant functions
     if globs and case_pfx:
         for key, value in globs.items():
             if not callable(value):
@@ -231,6 +235,15 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
                     cases.append(value)
                     break
 
+    for func in cases:
+        test_cases.append((func, args, func.__name__))
+
+    return test_cases
+
+
+def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
+    test_cases = _ksft_generate_test_cases(cases, globs, case_pfx, args)
+
     global term_cnt
     term_cnt = 0
     prev_sigterm = signal.signal(signal.SIGTERM, _ksft_intr)
@@ -238,19 +251,19 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
     totals = {"pass": 0, "fail": 0, "skip": 0, "xfail": 0}
 
     print("TAP version 13", flush=True)
-    print("1.." + str(len(cases)), flush=True)
+    print("1.." + str(len(test_cases)), flush=True)
 
     global KSFT_RESULT
     cnt = 0
     stop = False
-    for case in cases:
+    for func, args, name in test_cases:
         KSFT_RESULT = True
         cnt += 1
         comment = ""
         cnt_key = ""
 
         try:
-            case(*args)
+            func(*args)
         except KsftSkipEx as e:
             comment = "SKIP " + str(e)
             cnt_key = 'skip'
@@ -272,7 +285,7 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
         if not cnt_key:
             cnt_key = 'pass' if KSFT_RESULT else 'fail'
 
-        ktap_result(KSFT_RESULT, cnt, case, comment=comment)
+        ktap_result(KSFT_RESULT, cnt, name, comment=comment)
         totals[cnt_key] += 1
 
         if stop:
