@@ -1631,6 +1631,7 @@ void dcn35_begin_cursor_offload_update(struct dc *dc, const struct pipe_ctx *pip
 	payload_idx = write_idx % ARRAY_SIZE(cs->offload_streams[stream_idx].payloads);
 
 	cs->offload_streams[stream_idx].payloads[payload_idx].write_idx_start = write_idx;
+	cs->offload_streams[stream_idx].payloads[payload_idx].pipe_mask = 0;
 
 	if (pipe->plane_res.hubp)
 		pipe->plane_res.hubp->cursor_offload = true;
