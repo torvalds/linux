@@ -58,6 +58,7 @@
 #include <unistd.h>
 
 #include "../../kselftest.h"
+#include "../../net/lib/ksft.h"
 
 #define DPORT 8000
 #define SPORT 1500
@@ -1126,6 +1127,8 @@ static void gro_receiver(void)
 	setup_sock_filter(rxfd);
 	set_timeout(rxfd);
 	bind_packetsocket(rxfd);
+
+	ksft_ready();
 
 	memset(correct_payload, 0, sizeof(correct_payload));
 
