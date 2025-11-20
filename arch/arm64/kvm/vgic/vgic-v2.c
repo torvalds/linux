@@ -9,6 +9,7 @@
 #include <kvm/arm_vgic.h>
 #include <asm/kvm_mmu.h>
 
+#include "vgic-mmio.h"
 #include "vgic.h"
 
 static inline void vgic_v2_write_lr(int lr, u32 val)
@@ -145,6 +146,79 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 	}
 
 	cpuif->used_lrs = 0;
+}
+
+void vgic_v2_deactivate(struct kvm_vcpu *vcpu, u32 val)
+{
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	struct vgic_v2_cpu_if *cpuif = &vgic_cpu->vgic_v2;
+	struct kvm_vcpu *target_vcpu = NULL;
+	bool mmio = false;
+	struct vgic_irq *irq;
+	unsigned long flags;
+	u64 lr = 0;
+	u8 cpuid;
+
+	/* Snapshot CPUID, and remove it from the INTID */
+	cpuid = FIELD_GET(GENMASK_ULL(12, 10), val);
+	val &= ~GENMASK_ULL(12, 10);
+
+	/* We only deal with DIR when EOIMode==1 */
+	if (!(cpuif->vgic_vmcr & GICH_VMCR_EOI_MODE_MASK))
+		return;
+
+	/* Make sure we're in the same context as LR handling */
+	local_irq_save(flags);
+
+	irq = vgic_get_vcpu_irq(vcpu, val);
+	if (WARN_ON_ONCE(!irq))
+		goto out;
+
+	/* See the corresponding v3 code for the rationale */
+	scoped_guard(raw_spinlock, &irq->irq_lock) {
+		target_vcpu = irq->vcpu;
+
+		/* Not on any ap_list? */
+		if (!target_vcpu)
+			goto put;
+
+		/*
+		 * Urgh. We're deactivating something that we cannot
+		 * observe yet... Big hammer time.
+		 */
+		if (irq->on_lr) {
+			mmio = true;
+			goto put;
+		}
+
+		/* SGI: check that the cpuid matches */
+		if (val < VGIC_NR_SGIS && irq->active_source != cpuid) {
+			target_vcpu = NULL;
+			goto put;
+		}
+
+		/* (with a Dalek voice) DEACTIVATE!!!! */
+		lr = vgic_v2_compute_lr(vcpu, irq) & ~GICH_LR_ACTIVE_BIT;
+	}
+
+	if (lr & GICH_LR_HW)
+		writel_relaxed(FIELD_GET(GICH_LR_PHYSID_CPUID, lr),
+			       kvm_vgic_global_state.gicc_base + GIC_CPU_DEACTIVATE);
+
+	vgic_v2_fold_lr(vcpu, lr);
+
+put:
+	vgic_put_irq(vcpu->kvm, irq);
+
+out:
+	local_irq_restore(flags);
+
+	if (mmio)
+		vgic_mmio_write_cactive(vcpu, (val / 32) * 4, 4, BIT(val % 32));
+
+	/* Force the ap_list to be pruned */
+	if (target_vcpu)
+		kvm_make_request(KVM_REQ_VGIC_PROCESS_UPDATE, target_vcpu);
 }
 
 static u32 vgic_v2_compute_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq)
@@ -346,6 +420,7 @@ static bool vgic_v2_check_base(gpa_t dist_base, gpa_t cpu_base)
 int vgic_v2_map_resources(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	unsigned int len;
 	int ret = 0;
 
 	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
@@ -368,6 +443,16 @@ int vgic_v2_map_resources(struct kvm *kvm)
 		kvm_err("Unable to initialize VGIC dynamic data structures\n");
 		return ret;
 	}
+
+	len = vgic_v2_init_cpuif_iodev(&dist->cpuif_iodev);
+	dist->cpuif_iodev.base_addr = dist->vgic_cpu_base;
+	dist->cpuif_iodev.iodev_type = IODEV_CPUIF;
+	dist->cpuif_iodev.redist_vcpu = NULL;
+
+	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, dist->vgic_cpu_base,
+				      len, &dist->cpuif_iodev.dev);
+	if (ret)
+		return ret;
 
 	if (!static_branch_unlikely(&vgic_v2_cpuif_trap)) {
 		ret = kvm_phys_addr_ioremap(kvm, dist->vgic_cpu_base,
