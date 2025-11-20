@@ -147,11 +147,12 @@ static int _nfs40_proc_get_locations(struct nfs_server *server,
 				     struct page *page, const struct cred *cred)
 {
 	struct rpc_clnt *clnt = server->client;
+	struct nfs_client *clp = server->nfs_client;
 	u32 bitmask[2] = {
 		[0] = FATTR4_WORD0_FSID | FATTR4_WORD0_FS_LOCATIONS,
 	};
 	struct nfs4_fs_locations_arg args = {
-		.clientid	= server->nfs_client->cl_clientid,
+		.clientid	= clp->cl_clientid,
 		.fh		= fhandle,
 		.page		= page,
 		.bitmask	= bitmask,
@@ -176,7 +177,7 @@ static int _nfs40_proc_get_locations(struct nfs_server *server,
 	locations->server = server;
 	locations->nlocations = 0;
 
-	nfs4_init_sequence(&args.seq_args, &res.seq_res, 0, 1);
+	nfs4_init_sequence(clp, &args.seq_args, &res.seq_res, 0, 1);
 	status = nfs4_call_sync_sequence(clnt, server, &msg,
 					&args.seq_args, &res.seq_res);
 	if (status)
@@ -219,7 +220,7 @@ static int _nfs40_proc_fsid_present(struct inode *inode, const struct cred *cred
 	if (res.fh == NULL)
 		return -ENOMEM;
 
-	nfs4_init_sequence(&args.seq_args, &res.seq_res, 0, 1);
+	nfs4_init_sequence(clp, &args.seq_args, &res.seq_res, 0, 1);
 	status = nfs4_call_sync_sequence(clnt, server, &msg,
 						&args.seq_args, &res.seq_res);
 	nfs_free_fhandle(res.fh);
@@ -288,11 +289,12 @@ static void
 nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 {
 	struct nfs_release_lockowner_data *data;
+	struct nfs_client *clp = server->nfs_client;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RELEASE_LOCKOWNER],
 	};
 
-	if (server->nfs_client->cl_mvops->minor_version != 0)
+	if (clp->cl_mvops->minor_version != 0)
 		return;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
@@ -300,13 +302,13 @@ nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 		return;
 	data->lsp = lsp;
 	data->server = server;
-	data->args.lock_owner.clientid = server->nfs_client->cl_clientid;
+	data->args.lock_owner.clientid = clp->cl_clientid;
 	data->args.lock_owner.id = lsp->ls_seqid.owner_id;
 	data->args.lock_owner.s_dev = server->s_dev;
 
 	msg.rpc_argp = &data->args;
 	msg.rpc_resp = &data->res;
-	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0, 0);
+	nfs4_init_sequence(clp, &data->args.seq_args, &data->res.seq_res, 0, 0);
 	rpc_call_async(server->client, &msg, 0, &nfs4_release_lockowner_ops, data);
 }
 
