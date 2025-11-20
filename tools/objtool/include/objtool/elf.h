@@ -69,7 +69,7 @@ struct symbol {
 	unsigned int idx, len;
 	unsigned long offset;
 	unsigned long __subtree_last;
-	struct symbol *pfunc, *cfunc, *alias;
+	struct symbol *pfunc, *cfunc, *alias, *file;
 	unsigned char bind, type;
 	u8 uaccess_safe      : 1;
 	u8 static_call_tramp : 1;

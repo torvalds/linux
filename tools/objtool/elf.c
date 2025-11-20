@@ -288,6 +288,23 @@ struct symbol *find_symbol_by_name(const struct elf *elf, const char *name)
 	return NULL;
 }
 
+/* Find local symbol with matching STT_FILE */
+static struct symbol *find_local_symbol_by_file_and_name(const struct elf *elf,
+							 struct symbol *file,
+							 const char *name)
+{
+	struct symbol *sym;
+
+	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash(name)) {
+		if (sym->bind == STB_LOCAL && sym->file == file &&
+		    !strcmp(sym->name, name)) {
+			return sym;
+		}
+	}
+
+	return NULL;
+}
+
 struct symbol *find_global_symbol_by_name(const struct elf *elf, const char *name)
 {
 	struct symbol *sym;
@@ -524,7 +541,7 @@ static int elf_add_symbol(struct elf *elf, struct symbol *sym)
 static int read_symbols(struct elf *elf)
 {
 	struct section *symtab, *symtab_shndx, *sec;
-	struct symbol *sym, *pfunc;
+	struct symbol *sym, *pfunc, *file = NULL;
 	int symbols_nr, i;
 	char *coldstr;
 	Elf_Data *shndx_data = NULL;
@@ -597,6 +614,11 @@ static int read_symbols(struct elf *elf)
 
 		if (elf_add_symbol(elf, sym))
 			return -1;
+
+		if (sym->type == STT_FILE)
+			file = sym;
+		else if (sym->bind == STB_LOCAL)
+			sym->file = file;
 	}
 
 	if (opts.stats) {
@@ -626,7 +648,9 @@ static int read_symbols(struct elf *elf)
 				return -1;
 			}
 
-			pfunc = find_symbol_by_name(elf, pname);
+			pfunc = find_local_symbol_by_file_and_name(elf, sym->file, pname);
+			if (!pfunc)
+				pfunc = find_global_symbol_by_name(elf, pname);
 			free(pname);
 
 			if (!pfunc) {
