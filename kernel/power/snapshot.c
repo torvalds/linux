@@ -2110,22 +2110,20 @@ asmlinkage __visible int swsusp_save(void)
 {
 	unsigned int nr_pages, nr_highmem;
 
-	pr_info("Creating image:\n");
+	pm_deferred_pr_dbg("Creating image\n");
 
 	drain_local_pages(NULL);
 	nr_pages = count_data_pages();
 	nr_highmem = count_highmem_pages();
-	pr_info("Need to copy %u pages\n", nr_pages + nr_highmem);
+	pm_deferred_pr_dbg("Need to copy %u pages\n", nr_pages + nr_highmem);
 
 	if (!enough_free_mem(nr_pages, nr_highmem)) {
-		pr_err("Not enough free memory\n");
+		pm_deferred_pr_dbg("Not enough free memory for image creation\n");
 		return -ENOMEM;
 	}
 
-	if (swsusp_alloc(&copy_bm, nr_pages, nr_highmem)) {
-		pr_err("Memory allocation failed\n");
+	if (swsusp_alloc(&copy_bm, nr_pages, nr_highmem))
 		return -ENOMEM;
-	}
 
 	/*
 	 * During allocating of suspend pagedir, new cold pages may appear.
@@ -2144,7 +2142,8 @@ asmlinkage __visible int swsusp_save(void)
 	nr_zero_pages = nr_pages - nr_copy_pages;
 	nr_meta_pages = DIV_ROUND_UP(nr_pages * sizeof(long), PAGE_SIZE);
 
-	pr_info("Image created (%d pages copied, %d zero pages)\n", nr_copy_pages, nr_zero_pages);
+	pm_deferred_pr_dbg("Image created (%d pages copied, %d zero pages)\n",
+			   nr_copy_pages, nr_zero_pages);
 
 	return 0;
 }

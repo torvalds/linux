@@ -189,17 +189,16 @@ static void wakeup_source_remove(struct wakeup_source *ws)
 	if (WARN_ON(!ws))
 		return;
 
+	/*
+	 * After shutting down the timer, wakeup_source_activate() will warn if
+	 * the given wakeup source is passed to it.
+	 */
+	timer_shutdown_sync(&ws->timer);
+
 	raw_spin_lock_irqsave(&events_lock, flags);
 	list_del_rcu(&ws->entry);
 	raw_spin_unlock_irqrestore(&events_lock, flags);
 	synchronize_srcu(&wakeup_srcu);
-
-	timer_delete_sync(&ws->timer);
-	/*
-	 * Clear timer.function to make wakeup_source_not_registered() treat
-	 * this wakeup source as not registered.
-	 */
-	ws->timer.function = NULL;
 }
 
 /**
@@ -506,14 +505,14 @@ int device_set_wakeup_enable(struct device *dev, bool enable)
 EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
 
 /**
- * wakeup_source_not_registered - validate the given wakeup source.
+ * wakeup_source_not_usable - validate the given wakeup source.
  * @ws: Wakeup source to be validated.
  */
-static bool wakeup_source_not_registered(struct wakeup_source *ws)
+static bool wakeup_source_not_usable(struct wakeup_source *ws)
 {
 	/*
-	 * Use timer struct to check if the given source is initialized
-	 * by wakeup_source_add.
+	 * Use the timer struct to check if the given wakeup source has been
+	 * initialized by wakeup_source_add() and it is not going away.
 	 */
 	return ws->timer.function != pm_wakeup_timer_fn;
 }
@@ -558,8 +557,7 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
 
-	if (WARN_ONCE(wakeup_source_not_registered(ws),
-			"unregistered wakeup source\n"))
+	if (WARN_ONCE(wakeup_source_not_usable(ws), "unusable wakeup source\n"))
 		return;
 
 	ws->active = true;
