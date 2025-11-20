@@ -578,13 +578,7 @@ static int gpy_update_interface(struct phy_device *phydev)
 		break;
 	}
 
-	if (phydev->speed == SPEED_2500 || phydev->speed == SPEED_1000) {
-		ret = genphy_read_master_slave(phydev);
-		if (ret < 0)
-			return ret;
-	}
-
-	return gpy_update_mdix(phydev);
+	return 0;
 }
 
 static int gpy_read_status(struct phy_device *phydev)
@@ -637,6 +631,16 @@ static int gpy_read_status(struct phy_device *phydev)
 
 	if (phydev->link) {
 		ret = gpy_update_interface(phydev);
+		if (ret < 0)
+			return ret;
+
+		if (phydev->speed == SPEED_2500 || phydev->speed == SPEED_1000) {
+			ret = genphy_read_master_slave(phydev);
+			if (ret < 0)
+				return ret;
+		}
+
+		ret = gpy_update_mdix(phydev);
 		if (ret < 0)
 			return ret;
 	}
