@@ -26,11 +26,19 @@ void vgic_v2_init_lrs(void)
 		vgic_v2_write_lr(i, 0);
 }
 
-void vgic_v2_set_underflow(struct kvm_vcpu *vcpu)
+void vgic_v2_configure_hcr(struct kvm_vcpu *vcpu,
+			   struct ap_list_summary *als)
 {
 	struct vgic_v2_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v2;
 
-	cpuif->vgic_hcr |= GICH_HCR_UIE;
+	cpuif->vgic_hcr = GICH_HCR_EN;
+
+	if (irqs_pending_outside_lrs(als))
+		cpuif->vgic_hcr |= GICH_HCR_NPIE;
+	if (irqs_active_outside_lrs(als))
+		cpuif->vgic_hcr |= GICH_HCR_LRENPIE;
+	if (irqs_outside_lrs(als))
+		cpuif->vgic_hcr |= GICH_HCR_UIE;
 }
 
 static bool lr_signals_eoi_mi(u32 lr_val)

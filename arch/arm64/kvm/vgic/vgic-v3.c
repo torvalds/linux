@@ -20,11 +20,25 @@ static bool common_trap;
 static bool dir_trap;
 static bool gicv4_enable;
 
-void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
+void vgic_v3_configure_hcr(struct kvm_vcpu *vcpu,
+			   struct ap_list_summary *als)
 {
 	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
 
-	cpuif->vgic_hcr |= ICH_HCR_EL2_UIE;
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return;
+
+	cpuif->vgic_hcr = ICH_HCR_EL2_En;
+
+	if (irqs_pending_outside_lrs(als))
+		cpuif->vgic_hcr |= ICH_HCR_EL2_NPIE;
+	if (irqs_active_outside_lrs(als))
+		cpuif->vgic_hcr |= ICH_HCR_EL2_LRENPIE;
+	if (irqs_outside_lrs(als))
+		cpuif->vgic_hcr |= ICH_HCR_EL2_UIE;
+
+	if (!als->nr_sgi)
+		cpuif->vgic_hcr |= ICH_HCR_EL2_vSGIEOICount;
 }
 
 static bool lr_signals_eoi_mi(u64 lr_val)

@@ -236,6 +236,21 @@ struct its_ite {
 	u32 event_id;
 };
 
+struct ap_list_summary {
+	unsigned int	nr_pend;	/* purely pending, not active */
+	unsigned int	nr_act;		/* active, or active+pending */
+	unsigned int	nr_sgi;		/* any SGI */
+};
+
+#define irqs_outside_lrs(s)						\
+	 (((s)->nr_pend + (s)->nr_act) > kvm_vgic_global_state.nr_lr)
+
+#define irqs_pending_outside_lrs(s)			\
+	((s)->nr_pend > kvm_vgic_global_state.nr_lr)
+
+#define irqs_active_outside_lrs(s)		\
+	((s)->nr_act &&	irqs_outside_lrs(s))
+
 int vgic_v3_parse_attr(struct kvm_device *dev, struct kvm_device_attr *attr,
 		       struct vgic_reg_attr *reg_attr);
 int vgic_v2_parse_attr(struct kvm_device *dev, struct kvm_device_attr *attr,
@@ -262,7 +277,7 @@ int vgic_check_iorange(struct kvm *kvm, phys_addr_t ioaddr,
 void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu);
 void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
 void vgic_v2_clear_lr(struct kvm_vcpu *vcpu, int lr);
-void vgic_v2_set_underflow(struct kvm_vcpu *vcpu);
+void vgic_v2_configure_hcr(struct kvm_vcpu *vcpu, struct ap_list_summary *als);
 int vgic_v2_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr);
 int vgic_v2_dist_uaccess(struct kvm_vcpu *vcpu, bool is_write,
 			 int offset, u32 *val);
@@ -302,7 +317,7 @@ static inline void vgic_get_irq_ref(struct vgic_irq *irq)
 void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu);
 void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
 void vgic_v3_clear_lr(struct kvm_vcpu *vcpu, int lr);
-void vgic_v3_set_underflow(struct kvm_vcpu *vcpu);
+void vgic_v3_configure_hcr(struct kvm_vcpu *vcpu, struct ap_list_summary *als);
 void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 void vgic_v3_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 void vgic_v3_enable(struct kvm_vcpu *vcpu);
