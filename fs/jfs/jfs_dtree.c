@@ -4297,3 +4297,89 @@ int dtModify(tid_t tid, struct inode *ip,
 
 	return 0;
 }
+
+bool check_dtroot(dtroot_t *p)
+{
+	DECLARE_BITMAP(bitmap, DTROOTMAXSLOT) = {0};
+	int i;
+
+	/* freecnt cannot be negative or exceed DTROOTMAXSLOT-1
+	 * (since slot[0] is occupied by the header).
+	 */
+	if (unlikely(p->header.freecnt < 0 ||
+				p->header.freecnt > DTROOTMAXSLOT - 1)) {
+		jfs_err("Bad freecnt:%d in dtroot\n", p->header.freecnt);
+		return false;
+	} else if (p->header.freecnt == 0) {
+		/* No free slots: freelist must be -1 */
+		if (unlikely(p->header.freelist != -1)) {
+			jfs_err("freecnt=0, but freelist=%d in dtroot\n",
+					p->header.freelist);
+			return false;
+		}
+	} else {
+		int fsi, i;
+		/* When there are free slots, freelist must be a valid slot index in
+		 * 1~DTROOTMAXSLOT-1(since slot[0] is occupied by the header).
+		 */
+		if (unlikely(p->header.freelist < 1 ||
+					p->header.freelist >= DTROOTMAXSLOT)) {
+			jfs_err("Bad freelist:%d in dtroot\n", p->header.freelist);
+			return false;
+		}
+
+		/* Traverse the free list to check validity of all node indices */
+		fsi = p->header.freelist;
+		for (i = 0; i < p->header.freecnt - 1; i++) {
+			/* Check for duplicate indices in the free list */
+			if (unlikely(__test_and_set_bit(fsi, bitmap))) {
+				jfs_err("duplicate index%d in slot in dtroot\n", fsi);
+				return false;
+			}
+			fsi = p->slot[fsi].next;
+
+			/* Ensure the next slot index in the free list is valid */
+			if (unlikely(fsi < 1 || fsi >= DTROOTMAXSLOT)) {
+				jfs_err("Bad index:%d in slot in dtroot\n", fsi);
+				return false;
+			}
+		}
+
+		/* The last node in the free list must terminate with next = -1 */
+		if (unlikely(p->slot[fsi].next != -1)) {
+			jfs_err("Bad next:%d of the last slot in dtroot\n",
+					p->slot[fsi].next);
+			return false;
+		}
+	}
+
+	/* Validate nextindex (next free entry index in stbl)
+	 * stbl array has size 8 (indices 0~7).
+	 * It may get set to 8 when the last free slot has been filled.
+	 */
+	if (unlikely(p->header.nextindex > ARRAY_SIZE(p->header.stbl))) {
+		jfs_err("Bad nextindex:%d in dtroot\n", p->header.nextindex);
+		return false;
+	}
+
+	/* Validate index validity of stbl array (8 elements)
+	 * Each entry in stbl is a slot index, with valid range: -1 (invalid)
+	 * or 0~8 (slot[0]~slot[8])
+	 */
+	for (i = 0; i < p->header.nextindex; i++) {
+		int idx = p->header.stbl[i];
+
+		if (unlikely(idx < 0 || idx >= 9)) {
+			jfs_err("Bad index:%d of stbl[%d] in dtroot\n", idx, i);
+			return false; /* stbl entry points out of slot array range */
+		}
+
+		/* Check for duplicate valid indices (skip check for idx=0) */
+		if (unlikely(idx && __test_and_set_bit(idx, bitmap))) {
+			jfs_err("Duplicate index:%d in stbl in dtroot\n", idx);
+			return false;
+		}
+	}
+
+	return true;
+}

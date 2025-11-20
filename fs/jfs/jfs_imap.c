@@ -3102,6 +3102,10 @@ static int copy_from_dinode(struct dinode * dip, struct inode *ip)
 
 	if (S_ISDIR(ip->i_mode)) {
 		memcpy(&jfs_ip->u.dir, &dip->u._dir, 384);
+		if (!check_dtroot(&jfs_ip->i_dtroot)) {
+			jfs_error(ip->i_sb, "Corrupt dtroot\n");
+			return -EIO;
+		}
 	} else if (S_ISREG(ip->i_mode) || S_ISLNK(ip->i_mode)) {
 		memcpy(&jfs_ip->i_xtroot, &dip->di_xtroot, 288);
 	} else
