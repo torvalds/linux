@@ -223,9 +223,9 @@ static void skb_under_panic(struct sk_buff *skb, unsigned int sz, void *addr)
 	skb_panic(skb, sz, addr, __func__);
 }
 
-#define NAPI_SKB_CACHE_SIZE	64
-#define NAPI_SKB_CACHE_BULK	16
-#define NAPI_SKB_CACHE_HALF	(NAPI_SKB_CACHE_SIZE / 2)
+#define NAPI_SKB_CACHE_SIZE	128
+#define NAPI_SKB_CACHE_BULK	32
+#define NAPI_SKB_CACHE_FREE	32
 
 struct napi_alloc_cache {
 	local_lock_t bh_lock;
@@ -299,6 +299,8 @@ static struct sk_buff *napi_skb_cache_get(bool alloc)
 	}
 
 	skb = nc->skb_cache[--nc->skb_count];
+	if (nc->skb_count)
+		prefetch(nc->skb_cache[nc->skb_count - 1]);
 	local_unlock_nested_bh(&napi_alloc_cache.bh_lock);
 	kasan_mempool_unpoison_object(skb, skbuff_cache_size);
 
@@ -1445,7 +1447,6 @@ void __consume_stateless_skb(struct sk_buff *skb)
 static void napi_skb_cache_put(struct sk_buff *skb)
 {
 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
-	u32 i;
 
 	if (!kasan_mempool_poison_object(skb))
 		return;
@@ -1454,13 +1455,16 @@ static void napi_skb_cache_put(struct sk_buff *skb)
 	nc->skb_cache[nc->skb_count++] = skb;
 
 	if (unlikely(nc->skb_count == NAPI_SKB_CACHE_SIZE)) {
-		for (i = NAPI_SKB_CACHE_HALF; i < NAPI_SKB_CACHE_SIZE; i++)
+		u32 i, remaining = NAPI_SKB_CACHE_SIZE - NAPI_SKB_CACHE_FREE;
+
+		for (i = remaining; i < NAPI_SKB_CACHE_SIZE; i++)
 			kasan_mempool_unpoison_object(nc->skb_cache[i],
 						skbuff_cache_size);
 
-		kmem_cache_free_bulk(net_hotdata.skbuff_cache, NAPI_SKB_CACHE_HALF,
-				     nc->skb_cache + NAPI_SKB_CACHE_HALF);
-		nc->skb_count = NAPI_SKB_CACHE_HALF;
+		kmem_cache_free_bulk(net_hotdata.skbuff_cache,
+				     NAPI_SKB_CACHE_FREE,
+				     nc->skb_cache + remaining);
+		nc->skb_count = remaining;
 	}
 	local_unlock_nested_bh(&napi_alloc_cache.bh_lock);
 }
