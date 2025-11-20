@@ -2877,10 +2877,11 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 
 		case FORMAT_STATE_NUM: {
 			unsigned long long num;
-			if (fmt.size <= sizeof(int))
-				num = convert_num_spec(va_arg(args, int), fmt.size, spec);
-			else
+
+			if (fmt.size > sizeof(int))
 				num = va_arg(args, long long);
+			else
+				num = convert_num_spec(va_arg(args, int), fmt.size, spec);
 			str = number(str, end, num, spec);
 			continue;
 		}
@@ -3388,11 +3389,10 @@ int bstr_printf(char *buf, size_t size, const char *fmt_str, const u32 *bin_buf)
 			goto out;
 
 		case FORMAT_STATE_NUM:
-			if (fmt.size > sizeof(int)) {
+			if (fmt.size > sizeof(int))
 				num = get_arg(long long);
-			} else {
+			else
 				num = convert_num_spec(get_arg(int), fmt.size, spec);
-			}
 			str = number(str, end, num, spec);
 			continue;
 		}
