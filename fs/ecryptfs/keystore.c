@@ -908,7 +908,6 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	(*packet_size) += s->packet_size_len;
 	ecryptfs_to_hex(s->fnek_sig_hex, &data[(*packet_size)],
 			ECRYPTFS_SIG_SIZE);
-	s->fnek_sig_hex[ECRYPTFS_SIG_SIZE_HEX] = '\0';
 	(*packet_size) += ECRYPTFS_SIG_SIZE;
 	s->cipher_code = data[(*packet_size)++];
 	rc = ecryptfs_cipher_code_to_string(s->cipher_string,
@@ -1781,8 +1780,6 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			}
 			ecryptfs_to_hex(new_auth_tok->token.password.signature,
 					sig_tmp_space, tag_11_contents_size);
-			new_auth_tok->token.password.signature[
-				ECRYPTFS_PASSWORD_SIG_SIZE] = '\0';
 			crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
 			break;
 		case ECRYPTFS_TAG_1_PACKET_TYPE:
