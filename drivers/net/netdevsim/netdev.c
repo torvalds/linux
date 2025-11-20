@@ -433,13 +433,8 @@ static int nsim_rcv(struct nsim_rq *rq, int budget)
 		}
 
 		/* skb might be discard at netif_receive_skb, save the len */
-		skblen = skb->len;
-		skb_mark_napi_id(skb, &rq->napi);
-		ret = netif_receive_skb(skb);
-		if (ret == NET_RX_SUCCESS)
-			dev_dstats_rx_add(dev, skblen);
-		else
-			dev_dstats_rx_dropped(dev);
+		dev_dstats_rx_add(dev, skb->len);
+		napi_gro_receive(&rq->napi, skb);
 	}
 
 	nsim_start_peer_tx_queue(dev, rq);
