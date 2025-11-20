@@ -16,10 +16,11 @@ Block
 .. toctree::
    :maxdepth: 1
 
+   blk-mq
+
 TODOList:
 * bfq-iosched
 * biovecs
-* blk-mq
 * cmdline-partition
 * data-integrity
 * deadline-iosched
