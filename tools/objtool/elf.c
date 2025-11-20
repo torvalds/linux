@@ -502,8 +502,16 @@ static int elf_add_symbol(struct elf *elf, struct symbol *sym)
 	if (strstarts(sym->name, ".klp.sym"))
 		sym->klp = 1;
 
-	if (!sym->klp && is_func_sym(sym) && strstr(sym->name, ".cold"))
+	if (!sym->klp && !is_sec_sym(sym) && strstr(sym->name, ".cold")) {
 		sym->cold = 1;
+
+		/*
+		 * Clang doesn't mark cold subfunctions as STT_FUNC, which
+		 * breaks several objtool assumptions.  Fake it.
+		 */
+		sym->type = STT_FUNC;
+	}
+
 	sym->pfunc = sym->cfunc = sym;
 
 	sym->demangled_name = demangle_name(sym);
