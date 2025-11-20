@@ -7,6 +7,7 @@
 
 #include <kunit/resource.h>
 #include <kunit/test.h>
+#include <kunit/test-bug.h>
 #include <kunit/static_stub.h>
 #include <linux/device/faux.h>
 #include <linux/firmware/cirrus/cs_dsp.h>

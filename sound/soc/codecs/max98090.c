@@ -1239,6 +1239,8 @@ static const struct snd_soc_dapm_widget max98091_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("DMIC4_ENA", M98090_REG_DIGITAL_MIC_ENABLE,
 		 M98090_DIGMIC4_SHIFT, 0, max98090_shdn_event,
 			 SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_SUPPLY("DMIC34_HPF", M98090_REG_FILTER_CONFIG,
+		M98090_FLT_DMIC34HPF_SHIFT, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
@@ -1427,8 +1429,8 @@ static const struct snd_soc_dapm_route max98091_dapm_routes[] = {
 	/* DMIC inputs */
 	{"DMIC3", NULL, "DMIC3_ENA"},
 	{"DMIC4", NULL, "DMIC4_ENA"},
-	{"DMIC3", NULL, "AHPF"},
-	{"DMIC4", NULL, "AHPF"},
+	{"DMIC3", NULL, "DMIC34_HPF"},
+	{"DMIC4", NULL, "DMIC34_HPF"},
 };
 
 static int max98090_add_widgets(struct snd_soc_component *component)

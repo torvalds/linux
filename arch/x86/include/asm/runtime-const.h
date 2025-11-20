@@ -2,6 +2,10 @@
 #ifndef _ASM_RUNTIME_CONST_H
 #define _ASM_RUNTIME_CONST_H
 
+#ifdef MODULE
+  #error "Cannot use runtime-const infrastructure from modules"
+#endif
+
 #ifdef __ASSEMBLY__
 
 .macro RUNTIME_CONST_PTR sym reg

@@ -103,7 +103,7 @@ struct Inner<T: Send> {
 ///
 /// # Invariants
 ///
-/// [`Self::inner`] is guaranteed to be initialized and is always accessed read-only.
+/// `Self::inner` is guaranteed to be initialized and is always accessed read-only.
 #[pin_data(PinnedDrop)]
 pub struct Devres<T: Send> {
     dev: ARef<Device>,

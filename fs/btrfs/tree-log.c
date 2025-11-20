@@ -7910,6 +7910,9 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	bool log_pinned = false;
 	int ret;
 
+	/* The inode has a new name (ref/extref), so make sure we log it. */
+	set_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags);
+
 	btrfs_init_log_ctx(&ctx, inode);
 	ctx.logging_new_name = true;
 

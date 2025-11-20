@@ -1403,8 +1403,11 @@ static int io_estimate_bvec_size(struct iovec *iov, unsigned nr_iovs,
 	size_t max_segs = 0;
 	unsigned i;
 
-	for (i = 0; i < nr_iovs; i++)
+	for (i = 0; i < nr_iovs; i++) {
 		max_segs += (iov[i].iov_len >> shift) + 2;
+		if (max_segs > INT_MAX)
+			return -EOVERFLOW;
+	}
 	return max_segs;
 }
 
@@ -1510,7 +1513,11 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 		if (unlikely(ret))
 			return ret;
 	} else {
-		nr_segs = io_estimate_bvec_size(iov, nr_iovs, imu);
+		int ret = io_estimate_bvec_size(iov, nr_iovs, imu);
+
+		if (ret < 0)
+			return ret;
+		nr_segs = ret;
 	}
 
 	if (sizeof(struct bio_vec) > sizeof(struct iovec)) {

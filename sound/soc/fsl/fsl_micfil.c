@@ -131,7 +131,7 @@ static struct fsl_micfil_soc_data fsl_micfil_imx943 = {
 	.fifos = 8,
 	.fifo_depth = 32,
 	.dataline =  0xf,
-	.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_DSD_U32_BE,
+	.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_DSD_U32_LE,
 	.use_edma = true,
 	.use_verid = true,
 	.volume_sx = false,
@@ -823,7 +823,7 @@ static int fsl_micfil_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	if (format == SNDRV_PCM_FORMAT_DSD_U32_BE) {
+	if (format == SNDRV_PCM_FORMAT_DSD_U32_LE) {
 		micfil->dec_bypass = true;
 		/*
 		 * According to equation 29 in RM:
