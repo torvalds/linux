@@ -456,13 +456,6 @@ the objtool maintainers.
     these special names and does not use module_init() / module_exit()
     macros to create them.
 
-13. file.o: warning: func() function name creates ambiguity with -ffunctions-sections
-
-    Functions named startup(), exit(), split(), unlikely(), hot(), and
-    unknown() are not allowed due to the ambiguity of their section
-    names when compiled with -ffunction-sections.  For more information,
-    see the comment above TEXT_MAIN in include/asm-generic/vmlinux.lds.h.
-
 
 If the error doesn't seem to make sense, it could be a bug in objtool.
 Feel free to ask objtool maintainers for help.
