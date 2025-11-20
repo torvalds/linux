@@ -371,9 +371,11 @@ static const struct key_entry uniwill_keymap[] = {
 
 	/* Reported in manual mode when toggling the airplane mode status */
 	{ KE_KEY,       UNIWILL_OSD_RFKILL,                     { KEY_RFKILL }},
+	{ KE_IGNORE,    UNIWILL_OSD_RADIOON,                    { KEY_UNKNOWN }},
+	{ KE_IGNORE,    UNIWILL_OSD_RADIOOFF,                   { KEY_UNKNOWN }},
 
 	/* Reported when user wants to cycle the platform profile */
-	{ KE_IGNORE,    UNIWILL_OSD_PERFORMANCE_MODE_TOGGLE,    { KEY_UNKNOWN }},
+	{ KE_KEY,       UNIWILL_OSD_PERFORMANCE_MODE_TOGGLE,    { KEY_F14 }},
 
 	/* Reported when the user wants to adjust the brightness of the keyboard */
 	{ KE_KEY,       UNIWILL_OSD_KBDILLUMDOWN,               { KEY_KBDILLUMDOWN }},
@@ -382,11 +384,19 @@ static const struct key_entry uniwill_keymap[] = {
 	/* Reported when the user wants to toggle the microphone mute status */
 	{ KE_KEY,       UNIWILL_OSD_MIC_MUTE,                   { KEY_MICMUTE }},
 
+	/* Reported when the user wants to toggle the mute status */
+	{ KE_IGNORE,    UNIWILL_OSD_MUTE,                       { KEY_MUTE }},
+
 	/* Reported when the user locks/unlocks the Fn key */
 	{ KE_IGNORE,    UNIWILL_OSD_FN_LOCK,                    { KEY_FN_ESC }},
 
 	/* Reported when the user wants to toggle the brightness of the keyboard */
 	{ KE_KEY,       UNIWILL_OSD_KBDILLUMTOGGLE,             { KEY_KBDILLUMTOGGLE }},
+	{ KE_KEY,       UNIWILL_OSD_KB_LED_LEVEL0,              { KEY_KBDILLUMTOGGLE }},
+	{ KE_KEY,       UNIWILL_OSD_KB_LED_LEVEL1,              { KEY_KBDILLUMTOGGLE }},
+	{ KE_KEY,       UNIWILL_OSD_KB_LED_LEVEL2,              { KEY_KBDILLUMTOGGLE }},
+	{ KE_KEY,       UNIWILL_OSD_KB_LED_LEVEL3,              { KEY_KBDILLUMTOGGLE }},
+	{ KE_KEY,       UNIWILL_OSD_KB_LED_LEVEL4,              { KEY_KBDILLUMTOGGLE }},
 
 	/* FIXME: find out the exact meaning of those events */
 	{ KE_IGNORE,    UNIWILL_OSD_BAT_CHARGE_FULL_24_H,       { KEY_UNKNOWN }},
@@ -394,6 +404,9 @@ static const struct key_entry uniwill_keymap[] = {
 
 	/* Reported when the user wants to toggle the benchmark mode status */
 	{ KE_IGNORE,    UNIWILL_OSD_BENCHMARK_MODE_TOGGLE,      { KEY_UNKNOWN }},
+
+	/* Reported when the user wants to toggle the webcam */
+	{ KE_IGNORE,    UNIWILL_OSD_WEBCAM_TOGGLE,              { KEY_UNKNOWN }},
 
 	{ KE_END }
 };
@@ -1246,6 +1259,12 @@ static int uniwill_notifier_call(struct notifier_block *nb, unsigned long action
 			power_supply_changed(entry->battery);
 		}
 		mutex_unlock(&data->battery_lock);
+
+		return NOTIFY_OK;
+	case UNIWILL_OSD_DC_ADAPTER_CHANGED:
+		/* noop for the time being, will change once charging priority
+		 * gets implemented.
+		 */
 
 		return NOTIFY_OK;
 	default:
