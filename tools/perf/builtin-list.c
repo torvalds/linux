@@ -130,7 +130,7 @@ static void default_print_event(void *ps, const char *topic,
 	if (deprecated && !print_state->deprecated)
 		return;
 
-	if (print_state->pmu_glob && pmu_name && !strglobmatch(pmu_name, print_state->pmu_glob))
+	if (print_state->pmu_glob && (!pmu_name || !strglobmatch(pmu_name, print_state->pmu_glob)))
 		return;
 
 	if (print_state->exclude_abi && pmu_type < PERF_TYPE_MAX && pmu_type != PERF_TYPE_RAW)
@@ -612,8 +612,10 @@ int cmd_list(int argc, const char **argv)
 	print_cb.print_start(ps);
 
 	if (argc == 0) {
-		default_ps.metrics = true;
-		default_ps.metricgroups = true;
+		if (!unit_name) {
+			default_ps.metrics = true;
+			default_ps.metricgroups = true;
+		}
 		print_events(&print_cb, ps);
 		goto out;
 	}
