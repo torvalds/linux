@@ -2002,14 +2002,11 @@ out:
 static void update_dev_time(const char *device_path)
 {
 	struct path path;
-	int ret;
 
-	ret = kern_path(device_path, LOOKUP_FOLLOW, &path);
-	if (ret)
-		return;
-
-	inode_update_time(d_inode(path.dentry), S_MTIME | S_CTIME | S_VERSION);
-	path_put(&path);
+	if (!kern_path(device_path, LOOKUP_FOLLOW, &path)) {
+		vfs_utimes(&path, NULL);
+		path_put(&path);
+	}
 }
 
 static int btrfs_rm_dev_item(struct btrfs_trans_handle *trans,
