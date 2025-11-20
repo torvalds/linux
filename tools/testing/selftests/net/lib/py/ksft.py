@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-import builtins
 import functools
 import inspect
 import signal
@@ -163,7 +162,7 @@ def ksft_flush_defer():
         entry = global_defer_queue.pop()
         try:
             entry.exec_only()
-        except:
+        except BaseException:
             ksft_pr(f"Exception while handling defer / cleanup (callback {i} of {qlen_start})!")
             tb = traceback.format_exc()
             for line in tb.strip().split('\n'):
@@ -181,7 +180,7 @@ def ksft_disruptive(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if not KSFT_DISRUPTIVE:
-            raise KsftSkipEx(f"marked as disruptive")
+            raise KsftSkipEx("marked as disruptive")
         return func(*args, **kwargs)
     return wrapper
 
@@ -199,7 +198,7 @@ def ksft_setup(env):
             return False
         try:
             return bool(int(value))
-        except:
+        except Exception:
             raise Exception(f"failed to parse {name}")
 
     if "DISRUPTIVE" in env:
