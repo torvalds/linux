@@ -398,6 +398,8 @@ static int ice_vsi_alloc_ring_stats(struct ice_vsi *vsi)
 			if (!ring_stats)
 				goto err_out;
 
+			u64_stats_init(&ring_stats->syncp);
+
 			WRITE_ONCE(tx_ring_stats[i], ring_stats);
 		}
 
@@ -416,6 +418,8 @@ static int ice_vsi_alloc_ring_stats(struct ice_vsi *vsi)
 			ring_stats = kzalloc(sizeof(*ring_stats), GFP_KERNEL);
 			if (!ring_stats)
 				goto err_out;
+
+			u64_stats_init(&ring_stats->syncp);
 
 			WRITE_ONCE(rx_ring_stats[i], ring_stats);
 		}
