@@ -311,7 +311,6 @@ static const struct ethqos_emac_driver_data emac_v4_0_0_data = {
 static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
 {
 	struct device *dev = &ethqos->pdev->dev;
-	int retry = 1000;
 	u32 val;
 
 	/* Set CDR_EN */
@@ -337,15 +336,10 @@ static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
 	}
 
 	/* Wait for CK_OUT_EN clear */
-	do {
-		val = rgmii_readl(ethqos, SDCC_HC_REG_DLL_CONFIG);
-		val &= SDCC_DLL_CONFIG_CK_OUT_EN;
-		if (!val)
-			break;
-		mdelay(1);
-		retry--;
-	} while (retry > 0);
-	if (!retry)
+	if (read_poll_timeout_atomic(rgmii_readl, val,
+				     !(val & SDCC_DLL_CONFIG_CK_OUT_EN),
+				     1000, 1000000, false,
+				     ethqos, SDCC_HC_REG_DLL_CONFIG))
 		dev_err(dev, "Clear CK_OUT_EN timedout\n");
 
 	/* Set CK_OUT_EN */
@@ -353,16 +347,10 @@ static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
 		      SDCC_HC_REG_DLL_CONFIG);
 
 	/* Wait for CK_OUT_EN set */
-	retry = 1000;
-	do {
-		val = rgmii_readl(ethqos, SDCC_HC_REG_DLL_CONFIG);
-		val &= SDCC_DLL_CONFIG_CK_OUT_EN;
-		if (val)
-			break;
-		mdelay(1);
-		retry--;
-	} while (retry > 0);
-	if (!retry)
+	if (read_poll_timeout_atomic(rgmii_readl, val,
+				     val & SDCC_DLL_CONFIG_CK_OUT_EN,
+				     1000, 1000000, false,
+				     ethqos, SDCC_HC_REG_DLL_CONFIG))
 		dev_err(dev, "Set CK_OUT_EN timedout\n");
 
 	/* Set DDR_CAL_EN */
@@ -531,8 +519,8 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos, int speed)
 static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos, int speed)
 {
 	struct device *dev = &ethqos->pdev->dev;
-	volatile u32 dll_lock;
-	unsigned int i, retry = 1000;
+	unsigned int i;
+	u32 val;
 
 	/* Reset to POR values and enable clk */
 	for (i = 0; i < ethqos->num_por; i++)
@@ -582,14 +570,10 @@ static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos, int speed)
 				      SDCC_USR_CTL);
 
 		/* wait for DLL LOCK */
-		do {
-			mdelay(1);
-			dll_lock = rgmii_readl(ethqos, SDC4_STATUS);
-			if (dll_lock & SDC4_STATUS_DLL_LOCK)
-				break;
-			retry--;
-		} while (retry > 0);
-		if (!retry)
+		if (read_poll_timeout_atomic(rgmii_readl, val,
+					     val & SDC4_STATUS_DLL_LOCK,
+					     1000, 1000000, true,
+					     ethqos, SDC4_STATUS))
 			dev_err(dev, "Timeout while waiting for DLL lock\n");
 	}
 
