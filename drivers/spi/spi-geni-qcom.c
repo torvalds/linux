@@ -82,6 +82,7 @@ struct spi_geni_master {
 	u32 fifo_width_bits;
 	u32 tx_wm;
 	u32 last_mode;
+	u8 last_cs;
 	unsigned long cur_speed_hz;
 	unsigned long cur_sclk_hz;
 	unsigned int cur_bits_per_word;
@@ -350,34 +351,25 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 {
 	struct spi_geni_master *mas = spi_controller_get_devdata(spi);
 	struct geni_se *se = &mas->se;
-	u32 loopback_cfg = 0, cpol = 0, cpha = 0, demux_output_inv = 0;
-	u32 demux_sel;
+	u8 chipselect = spi_get_chipselect(spi_slv, 0);
+	bool cs_changed = (mas->last_cs != chipselect);
+	u32 mode_changed = mas->last_mode ^ spi_slv->mode;
 
-	if (mas->last_mode != spi_slv->mode) {
-		if (spi_slv->mode & SPI_LOOP)
-			loopback_cfg = LOOPBACK_ENABLE;
+	mas->last_cs = chipselect;
+	mas->last_mode = spi_slv->mode;
 
-		if (spi_slv->mode & SPI_CPOL)
-			cpol = CPOL;
-
-		if (spi_slv->mode & SPI_CPHA)
-			cpha = CPHA;
-
-		if (spi_slv->mode & SPI_CS_HIGH)
-			demux_output_inv = BIT(spi_get_chipselect(spi_slv, 0));
-
-		demux_sel = spi_get_chipselect(spi_slv, 0);
-		mas->cur_bits_per_word = spi_slv->bits_per_word;
-
-		spi_setup_word_len(mas, spi_slv->mode, spi_slv->bits_per_word);
-		writel(loopback_cfg, se->base + SE_SPI_LOOPBACK);
-		writel(demux_sel, se->base + SE_SPI_DEMUX_SEL);
-		writel(cpha, se->base + SE_SPI_CPHA);
-		writel(cpol, se->base + SE_SPI_CPOL);
-		writel(demux_output_inv, se->base + SE_SPI_DEMUX_OUTPUT_INV);
-
-		mas->last_mode = spi_slv->mode;
-	}
+	if (mode_changed & SPI_LSB_FIRST)
+		mas->cur_bits_per_word = 0; /* force next setup_se_xfer to call spi_setup_word_len */
+	if (mode_changed & SPI_LOOP)
+		writel((spi_slv->mode & SPI_LOOP) ? LOOPBACK_ENABLE : 0, se->base + SE_SPI_LOOPBACK);
+	if (cs_changed)
+		writel(chipselect, se->base + SE_SPI_DEMUX_SEL);
+	if (mode_changed & SE_SPI_CPHA)
+		writel((spi_slv->mode & SPI_CPHA) ? CPHA : 0, se->base + SE_SPI_CPHA);
+	if (mode_changed & SE_SPI_CPOL)
+		writel((spi_slv->mode & SPI_CPOL) ? CPOL : 0, se->base + SE_SPI_CPOL);
+	if ((mode_changed & SPI_CS_HIGH) || (cs_changed && (spi_slv->mode & SPI_CS_HIGH)))
+		writel((spi_slv->mode & SPI_CS_HIGH) ? BIT(chipselect) : 0, se->base + SE_SPI_DEMUX_OUTPUT_INV);
 
 	return 0;
 }
