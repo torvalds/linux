@@ -402,8 +402,6 @@ int sdca_fdl_process(struct sdca_interrupt *interrupt)
 	unsigned int reg, status;
 	int response, ret;
 
-	guard(mutex)(&fdl_state->lock);
-
 	ret = sdca_ump_get_owner_host(dev, interrupt->function_regmap,
 				      interrupt->function, interrupt->entity,
 				      interrupt->control);
@@ -412,56 +410,59 @@ int sdca_fdl_process(struct sdca_interrupt *interrupt)
 
 	sdca_ump_cancel_timeout(&fdl_state->timeout);
 
-	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
-			   SDCA_CTL_XU_FDL_STATUS, 0);
-	ret = regmap_read(interrupt->function_regmap, reg, &status);
-	if (ret < 0) {
-		dev_err(dev, "failed to read FDL status: %d\n", ret);
-		return ret;
-	}
-
-	dev_dbg(dev, "FDL status: %#x\n", status);
-
-	ret = fdl_status_process(interrupt, status);
-	if (ret < 0)
-		goto reset_function;
-
-	response = ret;
-
-	dev_dbg(dev, "FDL response: %#x\n", response);
-
-	ret = regmap_write(interrupt->function_regmap, reg,
-			   response | (status & ~SDCA_CTL_XU_FDLH_MASK));
-	if (ret < 0) {
-		dev_err(dev, "failed to set FDL status signal: %d\n", ret);
-		return ret;
-	}
-
-	ret = sdca_ump_set_owner_device(dev, interrupt->function_regmap,
-					interrupt->function, interrupt->entity,
-					interrupt->control);
-	if (ret)
-		return ret;
-
-	switch (response) {
-	case SDCA_CTL_XU_FDLH_RESET_ACK:
-		dev_dbg(dev, "FDL request reset\n");
-
-		switch (xu->reset_mechanism) {
-		default:
-			dev_warn(dev, "Requested reset mechanism not implemented\n");
-			fallthrough;
-		case SDCA_XU_RESET_FUNCTION:
-			goto reset_function;
+	scoped_guard(mutex, &fdl_state->lock) {
+		reg = SDW_SDCA_CTL(interrupt->function->desc->adr,
+				   interrupt->entity->id, SDCA_CTL_XU_FDL_STATUS, 0);
+		ret = regmap_read(interrupt->function_regmap, reg, &status);
+		if (ret < 0) {
+			dev_err(dev, "failed to read FDL status: %d\n", ret);
+			return ret;
 		}
-	case SDCA_CTL_XU_FDLH_COMPLETE:
-		if (status & SDCA_CTL_XU_FDLD_REQ_ABORT ||
-		    status == SDCA_CTL_XU_FDLD_COMPLETE)
+
+		dev_dbg(dev, "FDL status: %#x\n", status);
+
+		ret = fdl_status_process(interrupt, status);
+		if (ret < 0)
+			goto reset_function;
+
+		response = ret;
+
+		dev_dbg(dev, "FDL response: %#x\n", response);
+
+		ret = regmap_write(interrupt->function_regmap, reg,
+				   response | (status & ~SDCA_CTL_XU_FDLH_MASK));
+		if (ret < 0) {
+			dev_err(dev, "failed to set FDL status signal: %d\n", ret);
+			return ret;
+		}
+
+		ret = sdca_ump_set_owner_device(dev, interrupt->function_regmap,
+						interrupt->function,
+						interrupt->entity,
+						interrupt->control);
+		if (ret)
+			return ret;
+
+		switch (response) {
+		case SDCA_CTL_XU_FDLH_RESET_ACK:
+			dev_dbg(dev, "FDL request reset\n");
+
+			switch (xu->reset_mechanism) {
+			default:
+				dev_warn(dev, "Requested reset mechanism not implemented\n");
+				fallthrough;
+			case SDCA_XU_RESET_FUNCTION:
+				goto reset_function;
+			}
+		case SDCA_CTL_XU_FDLH_COMPLETE:
+			if (status & SDCA_CTL_XU_FDLD_REQ_ABORT ||
+			    status == SDCA_CTL_XU_FDLD_COMPLETE)
+				return 0;
+			fallthrough;
+		default:
+			sdca_ump_schedule_timeout(&fdl_state->timeout, xu->max_delay);
 			return 0;
-		fallthrough;
-	default:
-		sdca_ump_schedule_timeout(&fdl_state->timeout, xu->max_delay);
-		return 0;
+		}
 	}
 
 reset_function:
