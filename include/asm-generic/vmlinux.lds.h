@@ -110,7 +110,7 @@
  * .text.startup could be __attribute__((constructor)) code in a *non*
  * ffunction-sections object, which should be placed in .init.text; or it could
  * be an actual function named startup() in an ffunction-sections object, which
- * should be placed in .text.  Objtool will detect and complain about any such
+ * should be placed in .text.  The build will detect and complain about any such
  * ambiguously named functions.
  */
 #define TEXT_MAIN							\

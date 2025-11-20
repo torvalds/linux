@@ -63,10 +63,14 @@ quiet_cmd_ld_vmlinux.o = LD      $@
 	--start-group $(KBUILD_VMLINUX_LIBS) --end-group \
 	$(cmd_objtool)
 
+cmd_check_function_names = $(srctree)/scripts/check-function-names.sh $@
+
 define rule_ld_vmlinux.o
 	$(call cmd_and_savecmd,ld_vmlinux.o)
 	$(call cmd,gen_objtooldep)
+	$(call cmd,check_function_names)
 endef
+
 
 vmlinux.o: $(initcalls-lds) vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
 	$(call if_changed_rule,ld_vmlinux.o)
