@@ -683,8 +683,11 @@ static int increase_top(struct pt_iommu *iommu_table, struct pt_range *range,
 		top_range.va = range->va;
 		top_range.last_va = range->last_va;
 
-		if (!pt_check_range(&top_range) && map->leaf_level <= pts.level)
+		if (!pt_check_range(&top_range) &&
+		    map->leaf_level <= pts.level) {
+			new_level = pts.level;
 			break;
+		}
 
 		pts.level++;
 		if (pts.level > PT_MAX_TOP_LEVEL ||
@@ -693,17 +696,18 @@ static int increase_top(struct pt_iommu *iommu_table, struct pt_range *range,
 			goto err_free;
 		}
 
-		new_level = pts.level;
 		table_mem =
 			table_alloc_top(common, _pt_top_set(NULL, pts.level),
 					map->attrs.gfp, ALLOC_DEFER_COHERENT_FLUSH);
-		if (IS_ERR(table_mem))
-			return PTR_ERR(table_mem);
+		if (IS_ERR(table_mem)) {
+			ret = PTR_ERR(table_mem);
+			goto err_free;
+		}
 		iommu_pages_list_add(&free_list, table_mem);
 
 		/* The new table links to the lower table always at index 0 */
 		top_range.va = 0;
-		top_range.top_level = new_level;
+		top_range.top_level = pts.level;
 		pts.table_lower = pts.table;
 		pts.table = table_mem;
 		pt_load_single_entry(&pts);
@@ -735,7 +739,8 @@ static int increase_top(struct pt_iommu *iommu_table, struct pt_range *range,
 	 */
 	domain_lock = iommu_table->driver_ops->get_top_lock(iommu_table);
 	spin_lock_irqsave(domain_lock, flags);
-	if (common->top_of_table != top_of_table) {
+	if (common->top_of_table != top_of_table ||
+	    top_of_table == new_top_of_table) {
 		spin_unlock_irqrestore(domain_lock, flags);
 		ret = -EAGAIN;
 		goto err_free;
