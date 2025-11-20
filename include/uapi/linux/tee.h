@@ -249,8 +249,9 @@ struct tee_ioctl_param {
  * @cancel_id:	[in] Cancellation id, a unique value to identify this request
  * @session:	[out] Session id
  * @ret:	[out] return value
- * @ret_origin	[out] origin of the return value
- * @num_params	[in] number of parameters following this struct
+ * @ret_origin:	[out] origin of the return value
+ * @num_params:	[in] number of &struct tee_ioctl_param entries in @params
+ * @params:	array of ioctl parameters
  */
 struct tee_ioctl_open_session_arg {
 	__u8 uuid[TEE_IOCTL_UUID_LEN];
@@ -276,14 +277,14 @@ struct tee_ioctl_open_session_arg {
 				     struct tee_ioctl_buf_data)
 
 /**
- * struct tee_ioctl_invoke_func_arg - Invokes a function in a Trusted
- * Application
+ * struct tee_ioctl_invoke_arg - Invokes a function in a Trusted Application
  * @func:	[in] Trusted Application function, specific to the TA
  * @session:	[in] Session id
  * @cancel_id:	[in] Cancellation id, a unique value to identify this request
  * @ret:	[out] return value
- * @ret_origin	[out] origin of the return value
- * @num_params	[in] number of parameters following this struct
+ * @ret_origin:	[out] origin of the return value
+ * @num_params:	[in] number of parameters following this struct
+ * @params:	array of ioctl parameters
  */
 struct tee_ioctl_invoke_arg {
 	__u32 func;
@@ -338,7 +339,8 @@ struct tee_ioctl_close_session_arg {
 /**
  * struct tee_iocl_supp_recv_arg - Receive a request for a supplicant function
  * @func:	[in] supplicant function
- * @num_params	[in/out] number of parameters following this struct
+ * @num_params:	[in/out] number of &struct tee_ioctl_param entries in @params
+ * @params:	array of ioctl parameters
  *
  * @num_params is the number of params that tee-supplicant has room to
  * receive when input, @num_params is the number of actual params
@@ -363,7 +365,8 @@ struct tee_iocl_supp_recv_arg {
 /**
  * struct tee_iocl_supp_send_arg - Send a response to a received request
  * @ret:	[out] return value
- * @num_params	[in] number of parameters following this struct
+ * @num_params:	[in] number of &struct tee_ioctl_param entries in @params
+ * @params:	array of ioctl parameters
  */
 struct tee_iocl_supp_send_arg {
 	__u32 ret;
@@ -454,11 +457,13 @@ struct tee_ioctl_shm_register_fd_data {
  */
 
 /**
- * struct tee_ioctl_invoke_func_arg - Invokes an object in a Trusted Application
+ * struct tee_ioctl_object_invoke_arg - Invokes an object in a
+ *   Trusted Application
  * @id:		[in] Object id
  * @op:		[in] Object operation, specific to the object
  * @ret:	[out] return value
  * @num_params:	[in] number of parameters following this struct
+ * @params:	array of ioctl parameters
  */
 struct tee_ioctl_object_invoke_arg {
 	__u64 id;

@@ -6336,8 +6336,6 @@ next_remote_batch:
 
 		if (unlikely(!slab_free_hook(s, p[i], init, false))) {
 			p[i] = p[--size];
-			if (!size)
-				goto flush_remote;
 			continue;
 		}
 
@@ -6351,6 +6349,9 @@ next_remote_batch:
 
 		i++;
 	}
+
+	if (!size)
+		goto flush_remote;
 
 next_batch:
 	if (!local_trylock(&s->cpu_sheaves->lock))
@@ -6405,6 +6406,9 @@ do_free:
 		size -= batch;
 		goto next_batch;
 	}
+
+	if (remote_nr)
+		goto flush_remote;
 
 	return;
 

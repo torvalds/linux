@@ -1246,9 +1246,9 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 	else
 		l2tp_build_l2tpv3_header(session, __skb_push(skb, session->hdr_len));
 
-	/* Reset skb netfilter state */
-	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED | IPSKB_REROUTED);
+	/* Reset control buffer */
+	memset(skb->cb, 0, sizeof(skb->cb));
+
 	nf_reset_ct(skb);
 
 	/* L2TP uses its own lockdep subclass to avoid lockdep splats caused by

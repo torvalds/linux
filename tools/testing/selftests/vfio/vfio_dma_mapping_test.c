@@ -3,6 +3,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <uapi/linux/types.h>
+#include <linux/iommufd.h>
 #include <linux/limits.h>
 #include <linux/mman.h>
 #include <linux/sizes.h>
@@ -93,6 +95,7 @@ static int iommu_mapping_get(const char *bdf, u64 iova,
 
 FIXTURE(vfio_dma_mapping_test) {
 	struct vfio_pci_device *device;
+	struct iova_allocator *iova_allocator;
 };
 
 FIXTURE_VARIANT(vfio_dma_mapping_test) {
@@ -117,10 +120,12 @@ FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES(anonymous_hugetlb_1gb, SZ_1G, MAP_HUGETLB | 
 FIXTURE_SETUP(vfio_dma_mapping_test)
 {
 	self->device = vfio_pci_device_init(device_bdf, variant->iommu_mode);
+	self->iova_allocator = iova_allocator_init(self->device);
 }
 
 FIXTURE_TEARDOWN(vfio_dma_mapping_test)
 {
+	iova_allocator_cleanup(self->iova_allocator);
 	vfio_pci_device_cleanup(self->device);
 }
 
@@ -142,7 +147,7 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	else
 		ASSERT_NE(region.vaddr, MAP_FAILED);
 
-	region.iova = (u64)region.vaddr;
+	region.iova = iova_allocator_alloc(self->iova_allocator, size);
 	region.size = size;
 
 	vfio_pci_dma_map(self->device, &region);
@@ -219,7 +224,10 @@ FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES();
 FIXTURE_SETUP(vfio_dma_map_limit_test)
 {
 	struct vfio_dma_region *region = &self->region;
+	struct iommu_iova_range *ranges;
 	u64 region_size = getpagesize();
+	iova_t last_iova;
+	u32 nranges;
 
 	/*
 	 * Over-allocate mmap by double the size to provide enough backing vaddr
@@ -232,8 +240,13 @@ FIXTURE_SETUP(vfio_dma_map_limit_test)
 			     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	ASSERT_NE(region->vaddr, MAP_FAILED);
 
-	/* One page prior to the end of address space */
-	region->iova = ~(iova_t)0 & ~(region_size - 1);
+	ranges = vfio_pci_iova_ranges(self->device, &nranges);
+	VFIO_ASSERT_NOT_NULL(ranges);
+	last_iova = ranges[nranges - 1].last;
+	free(ranges);
+
+	/* One page prior to the last iova */
+	region->iova = last_iova & ~(region_size - 1);
 	region->size = region_size;
 }
 
@@ -276,6 +289,7 @@ TEST_F(vfio_dma_map_limit_test, overflow)
 	struct vfio_dma_region *region = &self->region;
 	int rc;
 
+	region->iova = ~(iova_t)0 & ~(region->size - 1);
 	region->size = self->mmap_size;
 
 	rc = __vfio_pci_dma_map(self->device, region);
