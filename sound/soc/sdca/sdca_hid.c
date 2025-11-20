@@ -166,6 +166,3 @@ int sdca_hid_process_report(struct sdca_interrupt *interrupt)
 	return 0;
 }
 EXPORT_SYMBOL_NS(sdca_hid_process_report, "SND_SOC_SDCA");
-
-MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("SDCA HID library");
