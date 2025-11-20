@@ -327,8 +327,8 @@ struct io_ring_ctx {
 
 		/*
 		 * Modifications are protected by ->uring_lock and ->mmap_lock.
-		 * The flags, buf_pages and buf_nr_pages fields should be stable
-		 * once published.
+		 * The buffer list's io mapped region should be stable once
+		 * published.
 		 */
 		struct xarray		io_bl_xa;
 
