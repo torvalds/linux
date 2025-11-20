@@ -53,6 +53,7 @@
 #include <unistd.h>
 
 #include "../../../kselftest.h"
+#include "../../../net/lib/ksft.h"
 
 #define TOEPLITZ_KEY_MIN_LEN	40
 #define TOEPLITZ_KEY_MAX_LEN	60
@@ -576,6 +577,10 @@ int main(int argc, char **argv)
 		fd_sink = setup_sink();
 
 	setup_rings();
+
+	/* Signal to test framework that we're ready to receive */
+	ksft_ready();
+
 	process_rings();
 	cleanup_rings();
 

@@ -24,14 +24,13 @@ TEST_PROGS = \
 	rss_ctx.py \
 	rss_flow_label.py \
 	rss_input_xfrm.py \
-	toeplitz.sh \
+	toeplitz.py \
 	tso.py \
 	xsk_reconfig.py \
 	#
 
 TEST_FILES := \
 	ethtool_lib.sh \
-	toeplitz_client.sh \
 	#
 
 TEST_INCLUDES := \
