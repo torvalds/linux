@@ -286,24 +286,33 @@ static int populate_control_defaults(struct device *dev, struct regmap *regmap,
 	if (control->mode == SDCA_ACCESS_MODE_DC)
 		return 0;
 
-	if (!control->has_default && !control->has_fixed)
+	if (control->layers & SDCA_ACCESS_LAYER_DEVICE)
 		return 0;
 
 	i = 0;
 	for_each_set_bit(cn, (unsigned long *)&control->cn_list,
 			 BITS_PER_TYPE(control->cn_list)) {
-		unsigned int reg;
+		unsigned int reg, val;
 
 		reg = SDW_SDCA_CTL(function->desc->adr, entity->id, control->sel, cn);
 
-		ret = regmap_write(regmap, reg, control->values[i]);
-		if (ret) {
-			dev_err(dev, "Failed to write default %#x: %d\n",
-				reg, ret);
-			return ret;
-		}
+		if (control->has_default || control->has_fixed) {
+			ret = regmap_write(regmap, reg, control->values[i]);
+			if (ret) {
+				dev_err(dev, "Failed to write default %#x: %d\n",
+					reg, ret);
+				return ret;
+			}
 
-		i++;
+			i++;
+		} else if (!control->is_volatile) {
+			ret = regmap_read(regmap, reg, &val);
+			if (ret) {
+				dev_err(dev, "Failed to read initial %#x: %d\n",
+					reg, ret);
+				return ret;
+			}
+		}
 	}
 
 	return 0;
@@ -317,7 +326,10 @@ static int populate_control_defaults(struct device *dev, struct regmap *regmap,
  *
  * This function will write out to the hardware all the DisCo default and
  * fixed value controls. This will cause them to be populated into the cache,
- * and subsequent handling can be done through a cache sync.
+ * and subsequent handling can be done through a cache sync. It will also
+ * read any non-volatile registers that don't have defaults/fixed values to
+ * populate those into the cache, this ensures they are available for reads
+ * even when the device is runtime suspended.
  *
  * Return: Returns zero on success, and a negative error code on failure.
  */
