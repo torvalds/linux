@@ -2,9 +2,15 @@
 
 use kernel::prelude::*;
 
-use crate::driver::Bar0;
-use crate::falcon::{Falcon, FalconBromParams, FalconEngine};
-use crate::gpu::Chipset;
+use crate::{
+    driver::Bar0,
+    falcon::{
+        Falcon,
+        FalconBromParams,
+        FalconEngine, //
+    },
+    gpu::Chipset,
+};
 
 mod ga102;
 
@@ -44,7 +50,7 @@ pub(super) fn falcon_hal<E: FalconEngine + 'static>(
     use Chipset::*;
 
     let hal = match chipset {
-        GA102 | GA103 | GA104 | GA106 | GA107 => {
+        GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 => {
             KBox::new(ga102::Ga102::<E>::new(), GFP_KERNEL)? as KBox<dyn FalconHal<E>>
         }
         _ => return Err(ENOTSUPP),

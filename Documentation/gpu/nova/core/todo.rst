@@ -44,25 +44,6 @@ automatically generates the corresponding mappings between a value and a number.
 | Complexity: Beginner
 | Link: https://docs.rs/num/latest/num/trait.FromPrimitive.html
 
-Conversion from byte slices for types implementing FromBytes [TRSM]
--------------------------------------------------------------------
-
-We retrieve several structures from byte streams coming from the BIOS or loaded
-firmware. At the moment converting the bytes slice into the proper type require
-an inelegant `unsafe` operation; this will go away once `FromBytes` implements
-a proper `from_bytes` method.
-
-| Complexity: Beginner
-
-CoherentAllocation improvements [COHA]
---------------------------------------
-
-`CoherentAllocation` needs a safe way to write into the allocation, and to
-obtain slices within the allocation.
-
-| Complexity: Beginner
-| Contact: Abdiel Janulgue
-
 Generic register abstraction [REGA]
 -----------------------------------
 
@@ -152,17 +133,6 @@ A `num` core kernel module is being designed to provide these operations.
 
 | Complexity: Intermediate
 | Contact: Alexandre Courbot
-
-Delay / Sleep abstractions [DLAY]
----------------------------------
-
-Rust abstractions for the kernel's delay() and sleep() functions.
-
-FUJITA Tomonori plans to work on abstractions for read_poll_timeout_atomic()
-(and friends) [1].
-
-| Complexity: Beginner
-| Link: https://lore.kernel.org/netdev/20250228.080550.354359820929821928.fujita.tomonori@gmail.com/ [1]
 
 IRQ abstractions
 ----------------

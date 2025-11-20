@@ -2,6 +2,9 @@
 
 //! Nova Core GPU Driver
 
+#[macro_use]
+mod bitfield;
+
 mod dma;
 mod driver;
 mod falcon;
@@ -10,7 +13,9 @@ mod firmware;
 mod gfw;
 mod gpu;
 mod gsp;
+mod num;
 mod regs;
+mod sbuffer;
 mod util;
 mod vbios;
 

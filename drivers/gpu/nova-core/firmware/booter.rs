@@ -4,20 +4,41 @@
 //! running on [`Sec2`], that is used on Turing/Ampere to load the GSP firmware into the GSP falcon
 //! (and optionally unload it through a separate firmware image).
 
-use core::marker::PhantomData;
-use core::mem::size_of;
-use core::ops::Deref;
+use core::{
+    marker::PhantomData,
+    ops::Deref, //
+};
 
-use kernel::device;
-use kernel::prelude::*;
-use kernel::transmute::FromBytes;
+use kernel::{
+    device,
+    prelude::*,
+    transmute::FromBytes, //
+};
 
-use crate::dma::DmaObject;
-use crate::driver::Bar0;
-use crate::falcon::sec2::Sec2;
-use crate::falcon::{Falcon, FalconBromParams, FalconFirmware, FalconLoadParams, FalconLoadTarget};
-use crate::firmware::{BinFirmware, FirmwareDmaObject, FirmwareSignature, Signed, Unsigned};
-use crate::gpu::Chipset;
+use crate::{
+    dma::DmaObject,
+    driver::Bar0,
+    falcon::{
+        sec2::Sec2,
+        Falcon,
+        FalconBromParams,
+        FalconFirmware,
+        FalconLoadParams,
+        FalconLoadTarget, //
+    },
+    firmware::{
+        BinFirmware,
+        FirmwareDmaObject,
+        FirmwareSignature,
+        Signed,
+        Unsigned, //
+    },
+    gpu::Chipset,
+    num::{
+        FromSafeCast,
+        IntoSafeCast, //
+    },
+};
 
 /// Local convenience function to return a copy of `S` by reinterpreting the bytes starting at
 /// `offset` in `slice`.
@@ -74,7 +95,7 @@ impl<'a> HsFirmwareV2<'a> {
     ///
     /// Fails if the header pointed at by `bin_fw` is not within the bounds of the firmware image.
     fn new(bin_fw: &BinFirmware<'a>) -> Result<Self> {
-        frombytes_at::<HsHeaderV2>(bin_fw.fw, bin_fw.hdr.header_offset as usize)
+        frombytes_at::<HsHeaderV2>(bin_fw.fw, bin_fw.hdr.header_offset.into_safe_cast())
             .map(|hdr| Self { hdr, fw: bin_fw.fw })
     }
 
@@ -83,7 +104,7 @@ impl<'a> HsFirmwareV2<'a> {
     /// Fails if the offset of the patch location is outside the bounds of the firmware
     /// image.
     fn patch_location(&self) -> Result<u32> {
-        frombytes_at::<u32>(self.fw, self.hdr.patch_loc_offset as usize)
+        frombytes_at::<u32>(self.fw, self.hdr.patch_loc_offset.into_safe_cast())
     }
 
     /// Returns an iterator to the signatures of the firmware. The iterator can be empty if the
@@ -91,19 +112,23 @@ impl<'a> HsFirmwareV2<'a> {
     ///
     /// Fails if the pointed signatures are outside the bounds of the firmware image.
     fn signatures_iter(&'a self) -> Result<impl Iterator<Item = BooterSignature<'a>>> {
-        let num_sig = frombytes_at::<u32>(self.fw, self.hdr.num_sig_offset as usize)?;
+        let num_sig = frombytes_at::<u32>(self.fw, self.hdr.num_sig_offset.into_safe_cast())?;
         let iter = match self.hdr.sig_prod_size.checked_div(num_sig) {
             // If there are no signatures, return an iterator that will yield zero elements.
             None => (&[] as &[u8]).chunks_exact(1),
             Some(sig_size) => {
-                let patch_sig = frombytes_at::<u32>(self.fw, self.hdr.patch_sig_offset as usize)?;
-                let signatures_start = (self.hdr.sig_prod_offset + patch_sig) as usize;
+                let patch_sig =
+                    frombytes_at::<u32>(self.fw, self.hdr.patch_sig_offset.into_safe_cast())?;
+                let signatures_start = usize::from_safe_cast(self.hdr.sig_prod_offset + patch_sig);
 
                 self.fw
                     // Get signatures range.
-                    .get(signatures_start..signatures_start + self.hdr.sig_prod_size as usize)
+                    .get(
+                        signatures_start
+                            ..signatures_start + usize::from_safe_cast(self.hdr.sig_prod_size),
+                    )
                     .ok_or(EINVAL)?
-                    .chunks_exact(sig_size as usize)
+                    .chunks_exact(sig_size.into_safe_cast())
             }
         };
 
@@ -132,9 +157,9 @@ impl HsSignatureParams {
     /// Fails if the meta data parameter of `hs_fw` is outside the bounds of the firmware image, or
     /// if its size doesn't match that of [`HsSignatureParams`].
     fn new(hs_fw: &HsFirmwareV2<'_>) -> Result<Self> {
-        let start = hs_fw.hdr.meta_data_offset as usize;
+        let start = usize::from_safe_cast(hs_fw.hdr.meta_data_offset);
         let end = start
-            .checked_add(hs_fw.hdr.meta_data_size as usize)
+            .checked_add(hs_fw.hdr.meta_data_size.into_safe_cast())
             .ok_or(EINVAL)?;
 
         hs_fw
@@ -169,7 +194,7 @@ impl HsLoadHeaderV2 {
     ///
     /// Fails if the header pointed at by `hs_fw` is not within the bounds of the firmware image.
     fn new(hs_fw: &HsFirmwareV2<'_>) -> Result<Self> {
-        frombytes_at::<Self>(hs_fw.fw, hs_fw.hdr.header_offset as usize)
+        frombytes_at::<Self>(hs_fw.fw, hs_fw.hdr.header_offset.into_safe_cast())
     }
 }
 
@@ -198,12 +223,13 @@ impl HsLoadHeaderV2App {
         } else {
             frombytes_at::<Self>(
                 hs_fw.fw,
-                (hs_fw.hdr.header_offset as usize)
+                usize::from_safe_cast(hs_fw.hdr.header_offset)
                     // Skip the load header...
                     .checked_add(size_of::<HsLoadHeaderV2>())
                     // ... and jump to app header `idx`.
                     .and_then(|offset| {
-                        offset.checked_add((idx as usize).checked_mul(size_of::<Self>())?)
+                        offset
+                            .checked_add(usize::from_safe_cast(idx).checked_mul(size_of::<Self>())?)
                     })
                     .ok_or(EINVAL)?,
             )
@@ -318,12 +344,12 @@ impl BooterFirmware {
                             dev_err!(dev, "invalid fuse version for Booter firmware\n");
                             return Err(EINVAL);
                         };
-                        signatures.nth(idx as usize)
+                        signatures.nth(idx.into_safe_cast())
                     }
                 }
                 .ok_or(EINVAL)?;
 
-                ucode.patch_signature(&signature, patch_loc as usize)?
+                ucode.patch_signature(&signature, patch_loc.into_safe_cast())?
             }
         };
 

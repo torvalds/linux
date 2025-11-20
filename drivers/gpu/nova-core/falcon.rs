@@ -3,30 +3,43 @@
 //! Falcon microprocessor base support
 
 use core::ops::Deref;
-use hal::FalconHal;
-use kernel::device;
-use kernel::dma::DmaAddress;
-use kernel::prelude::*;
-use kernel::sync::aref::ARef;
-use kernel::time::Delta;
 
-use crate::dma::DmaObject;
-use crate::driver::Bar0;
-use crate::gpu::Chipset;
-use crate::regs;
-use crate::regs::macros::RegisterBase;
-use crate::util;
+use hal::FalconHal;
+
+use kernel::{
+    device,
+    dma::DmaAddress,
+    io::poll::read_poll_timeout,
+    prelude::*,
+    sync::aref::ARef,
+    time::{
+        delay::fsleep,
+        Delta, //
+    },
+};
+
+use crate::{
+    dma::DmaObject,
+    driver::Bar0,
+    gpu::Chipset,
+    num::{
+        FromSafeCast,
+        IntoSafeCast, //
+    },
+    regs,
+    regs::macros::RegisterBase, //
+};
 
 pub(crate) mod gsp;
 mod hal;
 pub(crate) mod sec2;
 
 // TODO[FPRI]: Replace with `ToPrimitive`.
-macro_rules! impl_from_enum_to_u32 {
+macro_rules! impl_from_enum_to_u8 {
     ($enum_type:ty) => {
-        impl From<$enum_type> for u32 {
+        impl From<$enum_type> for u8 {
             fn from(value: $enum_type) -> Self {
-                value as u32
+                value as u8
             }
         }
     };
@@ -46,7 +59,7 @@ pub(crate) enum FalconCoreRev {
     Rev6 = 6,
     Rev7 = 7,
 }
-impl_from_enum_to_u32!(FalconCoreRev);
+impl_from_enum_to_u8!(FalconCoreRev);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconCoreRev {
@@ -81,7 +94,7 @@ pub(crate) enum FalconCoreRevSubversion {
     Subversion2 = 2,
     Subversion3 = 3,
 }
-impl_from_enum_to_u32!(FalconCoreRevSubversion);
+impl_from_enum_to_u8!(FalconCoreRevSubversion);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconCoreRevSubversion {
@@ -125,7 +138,7 @@ pub(crate) enum FalconSecurityModel {
     /// Also known as High-Secure, Privilege Level 3 or PL3.
     Heavy = 3,
 }
-impl_from_enum_to_u32!(FalconSecurityModel);
+impl_from_enum_to_u8!(FalconSecurityModel);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconSecurityModel {
@@ -157,7 +170,7 @@ pub(crate) enum FalconModSelAlgo {
     #[default]
     Rsa3k = 1,
 }
-impl_from_enum_to_u32!(FalconModSelAlgo);
+impl_from_enum_to_u8!(FalconModSelAlgo);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconModSelAlgo {
@@ -179,7 +192,7 @@ pub(crate) enum DmaTrfCmdSize {
     #[default]
     Size256B = 0x6,
 }
-impl_from_enum_to_u32!(DmaTrfCmdSize);
+impl_from_enum_to_u8!(DmaTrfCmdSize);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for DmaTrfCmdSize {
@@ -202,13 +215,21 @@ pub(crate) enum PeregrineCoreSelect {
     /// RISC-V core is active.
     Riscv = 1,
 }
-impl_from_enum_to_u32!(PeregrineCoreSelect);
 
 impl From<bool> for PeregrineCoreSelect {
     fn from(value: bool) -> Self {
         match value {
             false => PeregrineCoreSelect::Falcon,
             true => PeregrineCoreSelect::Riscv,
+        }
+    }
+}
+
+impl From<PeregrineCoreSelect> for bool {
+    fn from(value: PeregrineCoreSelect) -> Self {
+        match value {
+            PeregrineCoreSelect::Falcon => false,
+            PeregrineCoreSelect::Riscv => true,
         }
     }
 }
@@ -236,7 +257,7 @@ pub(crate) enum FalconFbifTarget {
     /// Non-coherent system memory (System DRAM).
     NoncoherentSysmem = 2,
 }
-impl_from_enum_to_u32!(FalconFbifTarget);
+impl_from_enum_to_u8!(FalconFbifTarget);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconFbifTarget {
@@ -263,7 +284,6 @@ pub(crate) enum FalconFbifMemType {
     /// Physical memory addresses.
     Physical = 1,
 }
-impl_from_enum_to_u32!(FalconFbifMemType);
 
 /// Conversion from a single-bit register field.
 impl From<bool> for FalconFbifMemType {
@@ -271,6 +291,15 @@ impl From<bool> for FalconFbifMemType {
         match value {
             false => Self::Virtual,
             true => Self::Physical,
+        }
+    }
+}
+
+impl From<FalconFbifMemType> for bool {
+    fn from(value: FalconFbifMemType) -> Self {
+        match value {
+            FalconFbifMemType::Virtual => false,
+            FalconFbifMemType::Physical => true,
         }
     }
 }
@@ -346,47 +375,29 @@ pub(crate) struct Falcon<E: FalconEngine> {
 
 impl<E: FalconEngine + 'static> Falcon<E> {
     /// Create a new falcon instance.
-    ///
-    /// `need_riscv` is set to `true` if the caller expects the falcon to be a dual falcon/riscv
-    /// controller.
-    pub(crate) fn new(
-        dev: &device::Device,
-        chipset: Chipset,
-        bar: &Bar0,
-        need_riscv: bool,
-    ) -> Result<Self> {
-        let hwcfg1 = regs::NV_PFALCON_FALCON_HWCFG1::read(bar, &E::ID);
-        // Check that the revision and security model contain valid values.
-        let _ = hwcfg1.core_rev()?;
-        let _ = hwcfg1.security_model()?;
-
-        if need_riscv {
-            let hwcfg2 = regs::NV_PFALCON_FALCON_HWCFG2::read(bar, &E::ID);
-            if !hwcfg2.riscv() {
-                dev_err!(
-                    dev,
-                    "riscv support requested on a controller that does not support it\n"
-                );
-                return Err(EINVAL);
-            }
-        }
-
+    pub(crate) fn new(dev: &device::Device, chipset: Chipset) -> Result<Self> {
         Ok(Self {
             hal: hal::falcon_hal(chipset)?,
             dev: dev.into(),
         })
     }
 
+    /// Resets DMA-related registers.
+    pub(crate) fn dma_reset(&self, bar: &Bar0) {
+        regs::NV_PFALCON_FBIF_CTL::update(bar, &E::ID, |v| v.set_allow_phys_no_ctx(true));
+        regs::NV_PFALCON_FALCON_DMACTL::default().write(bar, &E::ID);
+    }
+
     /// Wait for memory scrubbing to complete.
     fn reset_wait_mem_scrubbing(&self, bar: &Bar0) -> Result {
         // TIMEOUT: memory scrubbing should complete in less than 20ms.
-        util::wait_on(Delta::from_millis(20), || {
-            if regs::NV_PFALCON_FALCON_HWCFG2::read(bar, &E::ID).mem_scrubbing_done() {
-                Some(())
-            } else {
-                None
-            }
-        })
+        read_poll_timeout(
+            || Ok(regs::NV_PFALCON_FALCON_HWCFG2::read(bar, &E::ID)),
+            |r| r.mem_scrubbing_done(),
+            Delta::ZERO,
+            Delta::from_millis(20),
+        )
+        .map(|_| ())
     }
 
     /// Reset the falcon engine.
@@ -395,22 +406,19 @@ impl<E: FalconEngine + 'static> Falcon<E> {
 
         // According to OpenRM's `kflcnPreResetWait_GA102` documentation, HW sometimes does not set
         // RESET_READY so a non-failing timeout is used.
-        let _ = util::wait_on(Delta::from_micros(150), || {
-            let r = regs::NV_PFALCON_FALCON_HWCFG2::read(bar, &E::ID);
-            if r.reset_ready() {
-                Some(())
-            } else {
-                None
-            }
-        });
+        let _ = read_poll_timeout(
+            || Ok(regs::NV_PFALCON_FALCON_HWCFG2::read(bar, &E::ID)),
+            |r| r.reset_ready(),
+            Delta::ZERO,
+            Delta::from_micros(150),
+        );
 
-        regs::NV_PFALCON_FALCON_ENGINE::alter(bar, &E::ID, |v| v.set_reset(true));
+        regs::NV_PFALCON_FALCON_ENGINE::update(bar, &E::ID, |v| v.set_reset(true));
 
-        // TODO[DLAY]: replace with udelay() or equivalent once available.
         // TIMEOUT: falcon engine should not take more than 10us to reset.
-        let _: Result = util::wait_on(Delta::from_micros(10), || None);
+        fsleep(Delta::from_micros(10));
 
-        regs::NV_PFALCON_FALCON_ENGINE::alter(bar, &E::ID, |v| v.set_reset(false));
+        regs::NV_PFALCON_FALCON_ENGINE::update(bar, &E::ID, |v| v.set_reset(false));
 
         self.reset_wait_mem_scrubbing(bar)?;
 
@@ -452,7 +460,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
             FalconMem::Imem => (load_offsets.src_start, fw.dma_handle()),
             FalconMem::Dmem => (
                 0,
-                fw.dma_handle_with_offset(load_offsets.src_start as usize)?,
+                fw.dma_handle_with_offset(load_offsets.src_start.into_safe_cast())?,
             ),
         };
         if dma_start % DmaAddress::from(DMA_LEN) > 0 {
@@ -478,7 +486,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
                 dev_err!(self.dev, "DMA transfer length overflow");
                 return Err(EOVERFLOW);
             }
-            Some(upper_bound) if upper_bound as usize > fw.size() => {
+            Some(upper_bound) if usize::from_safe_cast(upper_bound) > fw.size() => {
                 dev_err!(self.dev, "DMA transfer goes beyond range of DMA object");
                 return Err(EINVAL);
             }
@@ -488,9 +496,13 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         // Set up the base source DMA address.
 
         regs::NV_PFALCON_FALCON_DMATRFBASE::default()
+            // CAST: `as u32` is used on purpose since we do want to strip the upper bits, which
+            // will be written to `NV_PFALCON_FALCON_DMATRFBASE1`.
             .set_base((dma_start >> 8) as u32)
             .write(bar, &E::ID);
         regs::NV_PFALCON_FALCON_DMATRFBASE1::default()
+            // CAST: `as u16` is used on purpose since the remaining bits are guaranteed to fit
+            // within a `u16`.
             .set_base((dma_start >> 40) as u16)
             .write(bar, &E::ID);
 
@@ -512,14 +524,12 @@ impl<E: FalconEngine + 'static> Falcon<E> {
             // Wait for the transfer to complete.
             // TIMEOUT: arbitrarily large value, no DMA transfer to the falcon's small memories
             // should ever take that long.
-            util::wait_on(Delta::from_secs(2), || {
-                let r = regs::NV_PFALCON_FALCON_DMATRFCMD::read(bar, &E::ID);
-                if r.idle() {
-                    Some(())
-                } else {
-                    None
-                }
-            })?;
+            read_poll_timeout(
+                || Ok(regs::NV_PFALCON_FALCON_DMATRFCMD::read(bar, &E::ID)),
+                |r| r.idle(),
+                Delta::ZERO,
+                Delta::from_secs(2),
+            )?;
         }
 
         Ok(())
@@ -527,9 +537,8 @@ impl<E: FalconEngine + 'static> Falcon<E> {
 
     /// Perform a DMA load into `IMEM` and `DMEM` of `fw`, and prepare the falcon to run it.
     pub(crate) fn dma_load<F: FalconFirmware<Target = E>>(&self, bar: &Bar0, fw: &F) -> Result {
-        regs::NV_PFALCON_FBIF_CTL::alter(bar, &E::ID, |v| v.set_allow_phys_no_ctx(true));
-        regs::NV_PFALCON_FALCON_DMACTL::default().write(bar, &E::ID);
-        regs::NV_PFALCON_FBIF_TRANSCFG::alter(bar, &E::ID, 0, |v| {
+        self.dma_reset(bar);
+        regs::NV_PFALCON_FBIF_TRANSCFG::update(bar, &E::ID, 0, |v| {
             v.set_target(FalconFbifTarget::CoherentSysmem)
                 .set_mem_type(FalconFbifMemType::Physical)
         });
@@ -547,7 +556,67 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         Ok(())
     }
 
-    /// Runs the loaded firmware and waits for its completion.
+    /// Wait until the falcon CPU is halted.
+    pub(crate) fn wait_till_halted(&self, bar: &Bar0) -> Result<()> {
+        // TIMEOUT: arbitrarily large value, firmwares should complete in less than 2 seconds.
+        read_poll_timeout(
+            || Ok(regs::NV_PFALCON_FALCON_CPUCTL::read(bar, &E::ID)),
+            |r| r.halted(),
+            Delta::ZERO,
+            Delta::from_secs(2),
+        )?;
+
+        Ok(())
+    }
+
+    /// Start the falcon CPU.
+    pub(crate) fn start(&self, bar: &Bar0) -> Result<()> {
+        match regs::NV_PFALCON_FALCON_CPUCTL::read(bar, &E::ID).alias_en() {
+            true => regs::NV_PFALCON_FALCON_CPUCTL_ALIAS::default()
+                .set_startcpu(true)
+                .write(bar, &E::ID),
+            false => regs::NV_PFALCON_FALCON_CPUCTL::default()
+                .set_startcpu(true)
+                .write(bar, &E::ID),
+        }
+
+        Ok(())
+    }
+
+    /// Writes values to the mailbox registers if provided.
+    pub(crate) fn write_mailboxes(&self, bar: &Bar0, mbox0: Option<u32>, mbox1: Option<u32>) {
+        if let Some(mbox0) = mbox0 {
+            regs::NV_PFALCON_FALCON_MAILBOX0::default()
+                .set_value(mbox0)
+                .write(bar, &E::ID);
+        }
+
+        if let Some(mbox1) = mbox1 {
+            regs::NV_PFALCON_FALCON_MAILBOX1::default()
+                .set_value(mbox1)
+                .write(bar, &E::ID);
+        }
+    }
+
+    /// Reads the value from `mbox0` register.
+    pub(crate) fn read_mailbox0(&self, bar: &Bar0) -> u32 {
+        regs::NV_PFALCON_FALCON_MAILBOX0::read(bar, &E::ID).value()
+    }
+
+    /// Reads the value from `mbox1` register.
+    pub(crate) fn read_mailbox1(&self, bar: &Bar0) -> u32 {
+        regs::NV_PFALCON_FALCON_MAILBOX1::read(bar, &E::ID).value()
+    }
+
+    /// Reads values from both mailbox registers.
+    pub(crate) fn read_mailboxes(&self, bar: &Bar0) -> (u32, u32) {
+        let mbox0 = self.read_mailbox0(bar);
+        let mbox1 = self.read_mailbox1(bar);
+
+        (mbox0, mbox1)
+    }
+
+    /// Start running the loaded firmware.
     ///
     /// `mbox0` and `mbox1` are optional parameters to write into the `MBOX0` and `MBOX1` registers
     /// prior to running.
@@ -560,43 +629,10 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         mbox0: Option<u32>,
         mbox1: Option<u32>,
     ) -> Result<(u32, u32)> {
-        if let Some(mbox0) = mbox0 {
-            regs::NV_PFALCON_FALCON_MAILBOX0::default()
-                .set_value(mbox0)
-                .write(bar, &E::ID);
-        }
-
-        if let Some(mbox1) = mbox1 {
-            regs::NV_PFALCON_FALCON_MAILBOX1::default()
-                .set_value(mbox1)
-                .write(bar, &E::ID);
-        }
-
-        match regs::NV_PFALCON_FALCON_CPUCTL::read(bar, &E::ID).alias_en() {
-            true => regs::NV_PFALCON_FALCON_CPUCTL_ALIAS::default()
-                .set_startcpu(true)
-                .write(bar, &E::ID),
-            false => regs::NV_PFALCON_FALCON_CPUCTL::default()
-                .set_startcpu(true)
-                .write(bar, &E::ID),
-        }
-
-        // TIMEOUT: arbitrarily large value, firmwares should complete in less than 2 seconds.
-        util::wait_on(Delta::from_secs(2), || {
-            let r = regs::NV_PFALCON_FALCON_CPUCTL::read(bar, &E::ID);
-            if r.halted() {
-                Some(())
-            } else {
-                None
-            }
-        })?;
-
-        let (mbox0, mbox1) = (
-            regs::NV_PFALCON_FALCON_MAILBOX0::read(bar, &E::ID).value(),
-            regs::NV_PFALCON_FALCON_MAILBOX1::read(bar, &E::ID).value(),
-        );
-
-        Ok((mbox0, mbox1))
+        self.write_mailboxes(bar, mbox0, mbox1);
+        self.start(bar)?;
+        self.wait_till_halted(bar)?;
+        Ok(self.read_mailboxes(bar))
     }
 
     /// Returns the fused version of the signature to use in order to run a HS firmware on this
@@ -609,5 +645,20 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     ) -> Result<u32> {
         self.hal
             .signature_reg_fuse_version(self, bar, engine_id_mask, ucode_id)
+    }
+
+    /// Check if the RISC-V core is active.
+    ///
+    /// Returns `true` if the RISC-V core is active, `false` otherwise.
+    pub(crate) fn is_riscv_active(&self, bar: &Bar0) -> bool {
+        let cpuctl = regs::NV_PRISCV_RISCV_CPUCTL::read(bar, &E::ID);
+        cpuctl.active_stat()
+    }
+
+    /// Write the application version to the OS register.
+    pub(crate) fn write_os_version(&self, bar: &Bar0, app_version: u32) {
+        regs::NV_PFALCON_FALCON_OS::default()
+            .set_value(app_version)
+            .write(bar, &E::ID);
     }
 }
