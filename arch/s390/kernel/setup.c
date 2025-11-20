@@ -13,8 +13,7 @@
  * This file handles the architecture-dependent parts of initialization
  */
 
-#define KMSG_COMPONENT "setup"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "setup: " fmt
 
 #include <linux/errno.h>
 #include <linux/export.h>

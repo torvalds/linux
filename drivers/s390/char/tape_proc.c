@@ -11,8 +11,7 @@
  * PROCFS Functions
  */
 
-#define KMSG_COMPONENT "tape"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "tape: " fmt
 
 #include <linux/module.h>
 #include <linux/vmalloc.h>

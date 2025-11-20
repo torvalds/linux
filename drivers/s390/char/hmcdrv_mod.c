@@ -6,8 +6,7 @@
  *    Author(s): Ralf Hoppe (rhoppe@de.ibm.com)
  */
 
-#define KMSG_COMPONENT "hmcdrv"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "hmcdrv: " fmt
 
 #include <linux/kernel.h>
 #include <linux/module.h>

@@ -5,8 +5,7 @@
  * s390 specific HMAC support for protected keys.
  */
 
-#define KMSG_COMPONENT	"phmac_s390"
-#define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "phmac_s390: " fmt
 
 #include <asm/cpacf.h>
 #include <asm/pkey.h>

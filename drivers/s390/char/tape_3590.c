@@ -8,8 +8,7 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "tape_3590"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "tape_3590: " fmt
 
 #include <linux/export.h>
 #include <linux/module.h>

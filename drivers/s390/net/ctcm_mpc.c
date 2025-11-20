@@ -18,8 +18,7 @@
 #undef DEBUGDATA
 #undef DEBUGCCW
 
-#define KMSG_COMPONENT "ctcm"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "ctcm: " fmt
 
 #include <linux/export.h>
 #include <linux/module.h>

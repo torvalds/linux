@@ -6,8 +6,7 @@
  * Adjunct processor bus, queue related code.
  */
 
-#define KMSG_COMPONENT "ap"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "ap: " fmt
 
 #include <linux/export.h>
 #include <linux/init.h>

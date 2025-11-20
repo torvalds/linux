@@ -10,8 +10,7 @@
  *		Harald Freudenberger <freude@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "paes_s390"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "paes_s390: " fmt
 
 #include <linux/atomic.h>
 #include <linux/cpufeature.h>

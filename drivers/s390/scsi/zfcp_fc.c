@@ -7,8 +7,7 @@
  * Copyright IBM Corp. 2008, 2017
  */
 
-#define KMSG_COMPONENT "zfcp"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "zfcp: " fmt
 
 #include <linux/types.h>
 #include <linux/slab.h>

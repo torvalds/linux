@@ -7,8 +7,7 @@
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "kvm-s390"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "kvm-s390: " fmt
 
 #include <linux/cpufeature.h>
 #include <linux/interrupt.h>

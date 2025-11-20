@@ -5,8 +5,7 @@
  * Copyright IBM Corp. 2025
  */
 
-#define KMSG_COMPONENT "sclp_mem"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "sclp_mem: " fmt
 
 #include <linux/cpufeature.h>
 #include <linux/container_of.h>

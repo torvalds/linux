@@ -10,8 +10,7 @@
  *               Jason J. Herne <jjherne@us.ibm.com>
  */
 
-#define KMSG_COMPONENT "kvm-s390"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "kvm-s390: " fmt
 
 #include <linux/compiler.h>
 #include <linux/export.h>

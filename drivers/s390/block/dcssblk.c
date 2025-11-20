@@ -5,8 +5,7 @@
  * Authors: Carsten Otte, Stefan Weinhuber, Gerald Schaefer
  */
 
-#define KMSG_COMPONENT "dcssblk"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "dcssblk: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>

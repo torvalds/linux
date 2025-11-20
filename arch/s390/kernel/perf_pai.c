@@ -5,8 +5,7 @@
  *  Copyright IBM Corp. 2026
  *  Author(s): Thomas Richter <tmricht@linux.ibm.com>
  */
-#define KMSG_COMPONENT	"pai"
-#define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "pai: " fmt
 
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
@@ -1212,9 +1211,9 @@ static int __init paipmu_setup(void)
 static int __init pai_init(void)
 {
 	/* Setup s390dbf facility */
-	paidbg = debug_register(KMSG_COMPONENT, 32, 256, 128);
+	paidbg = debug_register("pai", 32, 256, 128);
 	if (!paidbg) {
-		pr_err("Registration of s390dbf " KMSG_COMPONENT " failed\n");
+		pr_err("Registration of s390dbf pai failed\n");
 		return -ENOMEM;
 	}
 	debug_register_view(paidbg, &debug_sprintf_view);

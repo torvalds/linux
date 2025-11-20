@@ -6,8 +6,7 @@
  * Author(s): Michael Holzheu <holzheu@linux.vnet.ibm.com>
  */
 
-#define KMSG_COMPONENT "os_info"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "os_info: " fmt
 
 #include <linux/crash_dump.h>
 #include <linux/kernel.h>

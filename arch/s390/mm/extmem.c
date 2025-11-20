@@ -7,8 +7,7 @@
  * Copyright IBM Corp. 2002, 2004
  */
 
-#define KMSG_COMPONENT "extmem"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "extmem: " fmt
 
 #include <linux/kernel.h>
 #include <linux/string.h>

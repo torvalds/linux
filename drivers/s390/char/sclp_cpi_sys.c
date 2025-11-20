@@ -7,8 +7,7 @@
  *		 Michael Ernst <mernst@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "sclp_cpi"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "sclp_cpi: " fmt
 
 #include <linux/kernel.h>
 #include <linux/init.h>

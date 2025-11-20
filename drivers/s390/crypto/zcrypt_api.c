@@ -12,8 +12,7 @@
  *  Multiple device nodes: Harald Freudenberger <freude@linux.ibm.com>
  */
 
-#define KMSG_COMPONENT "zcrypt"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "zcrypt: " fmt
 
 #include <linux/export.h>
 #include <linux/module.h>

@@ -11,8 +11,7 @@
  * Adjunct processor bus.
  */
 
-#define KMSG_COMPONENT "ap"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "ap: " fmt
 
 #include <linux/kernel_stat.h>
 #include <linux/moduleparam.h>

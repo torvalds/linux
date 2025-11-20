@@ -3,8 +3,7 @@
  * Copyright IBM Corp. 2024
  */
 
-#define KMSG_COMPONENT "hd"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "hd: " fmt
 
 /*
  * Hiperdispatch:

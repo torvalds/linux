@@ -10,8 +10,7 @@
  *    Bugreports to: <Linux390@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "s390dbf"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "s390dbf: " fmt
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>

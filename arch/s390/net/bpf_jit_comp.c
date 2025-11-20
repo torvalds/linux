@@ -15,8 +15,7 @@
  *	      Michael Holzheu <holzheu@linux.vnet.ibm.com>
  */
 
-#define KMSG_COMPONENT "bpf_jit"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "bpf_jit: " fmt
 
 #include <linux/netdevice.h>
 #include <linux/filter.h>
