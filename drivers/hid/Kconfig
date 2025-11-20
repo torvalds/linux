@@ -383,6 +383,7 @@ config HID_EVISION
 	help
 	Support for some EVision keyboards. Note that this is needed only when
 	applying customization using userspace programs.
+	Support for some EVision devices requiring report descriptor fixups.
 
 config HID_EZKEY
 	tristate "Ezkey BTC 8193 keyboard"
