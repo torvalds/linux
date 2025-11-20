@@ -19871,6 +19871,7 @@ F:	include/linux/pci-p2pdma.h
 
 PCI POWER CONTROL
 M:	Bartosz Golaszewski <brgl@bgdev.pl>
+M:	Manivannan Sadhasivam <mani@kernel.org>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pci/pci.git
