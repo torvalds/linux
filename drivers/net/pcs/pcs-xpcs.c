@@ -597,7 +597,26 @@ static int xpcs_c45_read_pcs_speed(struct dw_xpcs *xpcs,
 static int xpcs_resolve_pma(struct dw_xpcs *xpcs,
 			    struct phylink_link_state *state)
 {
-	int err = 0;
+	int pmd_rxdet, err = 0;
+
+	/* The Meta Platforms FBNIC PMD will go into a training state for
+	 * about 4 seconds when the link first comes up. During this time the
+	 * PCS link will bounce. To avoid reporting link up too soon we include
+	 * the PMD state provided by the driver.
+	 */
+	if (xpcs->info.pma == MP_FBNIC_XPCS_PMA_100G_ID) {
+		pmd_rxdet = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_PMA_RXDET);
+		if (pmd_rxdet < 0) {
+			state->link = false;
+			return pmd_rxdet;
+		}
+
+		/* Verify Rx lanes are trained before reporting link up */
+		if (!(pmd_rxdet & MDIO_PMD_RXDET_GLOBAL)) {
+			state->link = false;
+			return 0;
+		}
+	}
 
 	state->pause = MLO_PAUSE_TX | MLO_PAUSE_RX;
 	state->duplex = DUPLEX_FULL;
@@ -1591,7 +1610,8 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev)
 
 	xpcs_get_interfaces(xpcs, xpcs->pcs.supported_interfaces);
 
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID ||
+	    xpcs->info.pma == MP_FBNIC_XPCS_PMA_100G_ID)
 		xpcs->pcs.poll = false;
 	else
 		xpcs->need_reset = true;
