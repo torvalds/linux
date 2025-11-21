@@ -482,6 +482,7 @@ static bool construct_phy(struct dc_link *link,
 	struct bp_disp_connector_caps_info disp_connect_caps_info = { 0 };
 	struct graphics_object_id link_encoder = { 0 };
 	enum transmitter transmitter_from_encoder;
+	enum engine_id link_analog_engine;
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
@@ -511,10 +512,10 @@ static bool construct_phy(struct dc_link *link,
 	 */
 	bp_funcs->get_src_obj(bios, link->link_id, 0, &link_encoder);
 	transmitter_from_encoder = translate_encoder_to_transmitter(link_encoder);
-	enc_init_data.analog_engine = find_analog_engine(link);
+	link_analog_engine = find_analog_engine(link);
 
 	if (transmitter_from_encoder == TRANSMITTER_UNKNOWN &&
-	    !analog_engine_supported(enc_init_data.analog_engine)) {
+	    !analog_engine_supported(link_analog_engine)) {
 		DC_LOG_WARNING("link_id %d has unsupported encoder\n", link->link_id.id);
 		goto create_fail;
 	}
@@ -652,6 +653,7 @@ static bool construct_phy(struct dc_link *link,
 	enc_init_data.hpd_source = get_hpd_line(link);
 	enc_init_data.transmitter = transmitter_from_encoder;
 	enc_init_data.encoder = link_encoder;
+	enc_init_data.analog_engine = link_analog_engine;
 
 	link->hpd_src = enc_init_data.hpd_source;
 
