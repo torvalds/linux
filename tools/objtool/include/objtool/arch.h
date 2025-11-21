@@ -103,6 +103,8 @@ bool arch_absolute_reloc(struct elf *elf, struct reloc *reloc);
 unsigned int arch_reloc_size(struct reloc *reloc);
 unsigned long arch_jump_table_sym_offset(struct reloc *reloc, struct reloc *table);
 
+extern const char *arch_reg_name[CFI_NUM_REGS];
+
 #ifdef DISAS
 
 #include <bfd.h>

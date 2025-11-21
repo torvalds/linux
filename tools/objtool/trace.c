@@ -34,6 +34,7 @@ int trace_depth;
 static const char *cfi_reg_name(unsigned int reg)
 {
 	static char rname_buffer[CFI_REG_NAME_MAXLEN];
+	const char *rname;
 
 	switch (reg) {
 	case CFI_UNDEFINED:
@@ -44,6 +45,12 @@ static const char *cfi_reg_name(unsigned int reg)
 		return "(sp)";
 	case CFI_BP_INDIRECT:
 		return "(bp)";
+	}
+
+	if (reg < CFI_NUM_REGS) {
+		rname = arch_reg_name[reg];
+		if (rname)
+			return rname;
 	}
 
 	if (snprintf(rname_buffer, CFI_REG_NAME_MAXLEN, "r%d", reg) == -1)
