@@ -6,6 +6,7 @@
 #ifndef _DISAS_H
 #define _DISAS_H
 
+struct alternative;
 struct disas_context;
 struct disassemble_info;
 
@@ -24,6 +25,8 @@ void disas_print_info(FILE *stream, struct instruction *insn, int depth,
 void disas_print_insn(FILE *stream, struct disas_context *dctx,
 		      struct instruction *insn, int depth,
 		      const char *format, ...);
+char *disas_alt_name(struct alternative *alt);
+const char *disas_alt_type_name(struct instruction *insn);
 
 #else /* DISAS */
 
@@ -61,6 +64,15 @@ static inline void disas_print_info(FILE *stream, struct instruction *insn,
 static inline void disas_print_insn(FILE *stream, struct disas_context *dctx,
 				    struct instruction *insn, int depth,
 				    const char *format, ...) {}
+static inline char *disas_alt_name(struct alternative *alt)
+{
+	return NULL;
+}
+
+static inline const char *disas_alt_type_name(struct instruction *insn)
+{
+	return NULL;
+}
 
 #endif /* DISAS */
 

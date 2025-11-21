@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2017 Josh Poimboeuf <jpoimboe@redhat.com>
  */
 
+#define _GNU_SOURCE
+
 #include <objtool/arch.h>
 #include <objtool/check.h>
 #include <objtool/disas.h>
@@ -448,6 +450,76 @@ size_t disas_insn(struct disas_context *dctx, struct instruction *insn)
 	dinfo->buffer_length = insn->sec->sh.sh_size;
 
 	return disasm(insn->offset, &dctx->info);
+}
+
+/*
+ * Provide a name for the type of alternatives present at the
+ * specified instruction.
+ *
+ * An instruction can have alternatives with different types, for
+ * example alternative instructions and an exception table. In that
+ * case the name for the alternative instructions type is used.
+ *
+ * Return NULL if the instruction as no alternative.
+ */
+const char *disas_alt_type_name(struct instruction *insn)
+{
+	struct alternative *alt;
+	const char *name;
+
+	name = NULL;
+	for (alt = insn->alts; alt; alt = alt->next) {
+		if (alt->type == ALT_TYPE_INSTRUCTIONS) {
+			name = "alternative";
+			break;
+		}
+
+		switch (alt->type) {
+		case ALT_TYPE_EX_TABLE:
+			name = "ex_table";
+			break;
+		case ALT_TYPE_JUMP_TABLE:
+			name = "jump_table";
+			break;
+		default:
+			name = "unknown";
+			break;
+		}
+	}
+
+	return name;
+}
+
+/*
+ * Provide a name for an alternative.
+ */
+char *disas_alt_name(struct alternative *alt)
+{
+	char *str = NULL;
+
+	switch (alt->type) {
+
+	case ALT_TYPE_EX_TABLE:
+		str = strdup("EXCEPTION");
+		break;
+
+	case ALT_TYPE_JUMP_TABLE:
+		str = strdup("JUMP");
+		break;
+
+	case ALT_TYPE_INSTRUCTIONS:
+		/*
+		 * This is a non-default group alternative. Create a unique
+		 * name using the offset of the first original and alternative
+		 * instructions.
+		 */
+		asprintf(&str, "ALTERNATIVE %lx.%lx",
+			 alt->insn->alt_group->orig_group->first_insn->offset,
+			 alt->insn->alt_group->first_insn->offset);
+		break;
+	}
+
+	return str;
 }
 
 /*
