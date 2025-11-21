@@ -28,6 +28,7 @@ struct opts {
 	bool static_call;
 	bool uaccess;
 	int prefix;
+	const char *disas;
 
 	/* options: */
 	bool backtrace;

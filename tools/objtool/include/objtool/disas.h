@@ -15,6 +15,7 @@ struct disassemble_info;
 struct disas_context *disas_context_create(struct objtool_file *file);
 void disas_context_destroy(struct disas_context *dctx);
 void disas_warned_funcs(struct disas_context *dctx);
+void disas_funcs(struct disas_context *dctx);
 int disas_info_init(struct disassemble_info *dinfo,
 		    int arch, int mach32, int mach64,
 		    const char *options);
@@ -40,6 +41,7 @@ static inline struct disas_context *disas_context_create(struct objtool_file *fi
 
 static inline void disas_context_destroy(struct disas_context *dctx) {}
 static inline void disas_warned_funcs(struct disas_context *dctx) {}
+static inline void disas_funcs(struct disas_context *dctx) {}
 
 static inline int disas_info_init(struct disassemble_info *dinfo,
 				  int arch, int mach32, int mach64,
