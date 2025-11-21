@@ -97,6 +97,7 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 		_len = (_len < 50) ? 50 - _len : 0;		\
 		WARN("  %s: " format "  %*s%s", _str, ##__VA_ARGS__, _len, "", _istr); \
 		free(_str);						\
+		__insn->trace = 1;				\
 	}							\
 })
 

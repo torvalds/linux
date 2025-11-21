@@ -19,6 +19,11 @@ int disas_info_init(struct disassemble_info *dinfo,
 		    const char *options);
 size_t disas_insn(struct disas_context *dctx, struct instruction *insn);
 char *disas_result(struct disas_context *dctx);
+void disas_print_info(FILE *stream, struct instruction *insn, int depth,
+		      const char *format, ...);
+void disas_print_insn(FILE *stream, struct disas_context *dctx,
+		      struct instruction *insn, int depth,
+		      const char *format, ...);
 
 #else /* DISAS */
 
@@ -50,6 +55,12 @@ static inline char *disas_result(struct disas_context *dctx)
 {
 	return NULL;
 }
+
+static inline void disas_print_info(FILE *stream, struct instruction *insn,
+				    int depth, const char *format, ...) {}
+static inline void disas_print_insn(FILE *stream, struct disas_context *dctx,
+				    struct instruction *insn, int depth,
+				    const char *format, ...) {}
 
 #endif /* DISAS */
 
