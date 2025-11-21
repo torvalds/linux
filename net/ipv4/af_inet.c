@@ -756,23 +756,8 @@ EXPORT_SYMBOL(inet_stream_connect);
 void __inet_accept(struct socket *sock, struct socket *newsock, struct sock *newsk)
 {
 	if (mem_cgroup_sockets_enabled) {
-		gfp_t gfp = GFP_KERNEL | __GFP_NOFAIL;
-
 		mem_cgroup_sk_alloc(newsk);
-
-		if (mem_cgroup_from_sk(newsk)) {
-			int amt;
-
-			/* The socket has not been accepted yet, no need
-			 * to look at newsk->sk_wmem_queued.
-			 */
-			amt = sk_mem_pages(newsk->sk_forward_alloc +
-					   atomic_read(&newsk->sk_rmem_alloc));
-			if (amt)
-				mem_cgroup_sk_charge(newsk, amt, gfp);
-		}
-
-		kmem_cache_charge(newsk, gfp);
+		__sk_charge(newsk, GFP_KERNEL);
 	}
 
 	sock_rps_record_flow(newsk);
