@@ -3564,7 +3564,7 @@ static bool skip_alt_group(struct instruction *insn)
 
 	/* ANNOTATE_IGNORE_ALTERNATIVE */
 	if (insn->alt_group->ignore) {
-		TRACE_INSN(insn, "alt group ignored");
+		TRACE_ALT(insn, "alt group ignored");
 		return true;
 	}
 
@@ -3680,8 +3680,9 @@ static int validate_insn(struct objtool_file *file, struct symbol *func,
 			 struct instruction *prev_insn, struct instruction *next_insn,
 			 bool *dead_end)
 {
-	/* prev_state is not used if there is no disassembly support */
+	/* prev_state and alt_name are not used if there is no disassembly support */
 	struct insn_state prev_state __maybe_unused;
+	char *alt_name __maybe_unused = NULL;
 	struct alternative *alt;
 	u8 visited;
 	int ret;
@@ -3768,23 +3769,16 @@ static int validate_insn(struct objtool_file *file, struct symbol *func,
 		return 1;
 
 	if (insn->alts) {
-		int i, num_alts;
-
-		num_alts = 0;
-		for (alt = insn->alts; alt; alt = alt->next)
-			num_alts++;
-
-		i = 1;
 		for (alt = insn->alts; alt; alt = alt->next) {
-			TRACE_INSN(insn, "alternative %d/%d", i, num_alts);
+			TRACE_ALT_BEGIN(insn, alt, alt_name);
 			ret = validate_branch(file, func, alt->insn, *statep);
+			TRACE_ALT_END(insn, alt, alt_name);
 			if (ret) {
 				BT_INSN(insn, "(alt)");
 				return ret;
 			}
-			i++;
 		}
-		TRACE_INSN(insn, "alternative DEFAULT");
+		TRACE_ALT_INFO_NOADDR(insn, "/ ", "DEFAULT");
 	}
 
 	if (skip_alt_group(insn))

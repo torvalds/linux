@@ -146,3 +146,58 @@ void trace_insn_state(struct instruction *insn, struct insn_state *sprev,
 
 	insn->trace = 1;
 }
+
+void trace_alt_begin(struct instruction *orig_insn, struct alternative *alt,
+		     char *alt_name)
+{
+	struct instruction *alt_insn;
+	char suffix[2];
+
+	alt_insn = alt->insn;
+
+	if (alt->type == ALT_TYPE_EX_TABLE) {
+		/*
+		 * When there is an exception table then the instruction
+		 * at the original location is executed but it can cause
+		 * an exception. In that case, the execution will be
+		 * redirected to the alternative instruction.
+		 *
+		 * The instruction at the original location can have
+		 * instruction alternatives, so we just print the location
+		 * of the instruction that can cause the exception and
+		 * not the instruction itself.
+		 */
+		TRACE_ALT_INFO_NOADDR(orig_insn, "/ ", "%s for instruction at 0x%lx <%s+0x%lx>",
+				      alt_name,
+				      orig_insn->offset, orig_insn->sym->name,
+				      orig_insn->offset - orig_insn->sym->offset);
+	} else {
+		TRACE_ALT_INFO_NOADDR(orig_insn, "/ ", "%s", alt_name);
+	}
+
+	if (alt->type == ALT_TYPE_JUMP_TABLE) {
+		/*
+		 * For a jump alternative, if the default instruction is
+		 * a NOP then it is replaced with the jmp instruction,
+		 * otherwise it is replaced with a NOP instruction.
+		 */
+		trace_depth++;
+		if (orig_insn->type == INSN_NOP) {
+			suffix[0] = (orig_insn->len == 5) ? 'q' : '\0';
+			TRACE_ADDR(orig_insn, "jmp%-3s %lx <%s+0x%lx>", suffix,
+				   alt_insn->offset, alt_insn->sym->name,
+				   alt_insn->offset - alt_insn->sym->offset);
+		} else {
+			TRACE_ADDR(orig_insn, "nop%d", orig_insn->len);
+			trace_depth--;
+		}
+	}
+}
+
+void trace_alt_end(struct instruction *orig_insn, struct alternative *alt,
+		   char *alt_name)
+{
+	if (alt->type == ALT_TYPE_JUMP_TABLE && orig_insn->type == INSN_NOP)
+		trace_depth--;
+	TRACE_ALT_INFO_NOADDR(orig_insn, "\\ ", "%s", alt_name);
+}
