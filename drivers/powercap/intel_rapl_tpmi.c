@@ -60,7 +60,7 @@ static DEFINE_MUTEX(tpmi_rapl_lock);
 
 static struct powercap_control_type *tpmi_control_type;
 
-static int tpmi_rapl_read_raw(int id, struct reg_action *ra)
+static int tpmi_rapl_read_raw(int id, struct reg_action *ra, bool atomic)
 {
 	if (!ra->reg.mmio)
 		return -EINVAL;

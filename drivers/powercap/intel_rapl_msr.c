@@ -102,12 +102,26 @@ static int rapl_cpu_down_prep(unsigned int cpu)
 	return 0;
 }
 
-static int rapl_msr_read_raw(int cpu, struct reg_action *ra)
+static int rapl_msr_read_raw(int cpu, struct reg_action *ra, bool atomic)
 {
+	/*
+	 * When called from atomic-context (eg PMU event handler)
+	 * perform MSR read directly using rdmsrq().
+	 */
+	if (atomic) {
+		if (unlikely(smp_processor_id() != cpu))
+			return -EIO;
+
+		rdmsrq(ra->reg.msr, ra->value);
+		goto out;
+	}
+
 	if (rdmsrq_safe_on_cpu(cpu, ra->reg.msr, &ra->value)) {
 		pr_debug("failed to read msr 0x%x on cpu %d\n", ra->reg.msr, cpu);
 		return -EIO;
 	}
+
+out:
 	ra->value &= ra->mask;
 	return 0;
 }
