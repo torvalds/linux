@@ -92,7 +92,6 @@
 			IMX7ULP_PAD_PTC3__LPUART4_RX	0x3
 			IMX7ULP_PAD_PTC2__LPUART4_TX	0x3
 		>;
-		bias-pull-up;
 	};
 
 	pinctrl_pwm0: pwm0grp {

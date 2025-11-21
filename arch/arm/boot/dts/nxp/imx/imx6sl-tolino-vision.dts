@@ -227,7 +227,6 @@
 };
 
 &usbotg1 {
-	pinctrl-names = "default";
 	disable-over-current;
 	srp-disable;
 	hnp-disable;

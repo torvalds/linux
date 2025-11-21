@@ -360,7 +360,6 @@
 				regulator-ramp-delay = <7000>;
 				regulator-boot-on;
 				regulator-always-on;
-				linux,phandle = <&reg_vdd_arm>;
 			};
 
 			/* VDD_SOC (1+R1/R2 = 1.635) */
@@ -372,7 +371,6 @@
 				regulator-ramp-delay = <7000>;
 				regulator-boot-on;
 				regulator-always-on;
-				linux,phandle = <&reg_vdd_soc>;
 			};
 
 			/* VDD_1P0 (1+R1/R2 = 1.38): */

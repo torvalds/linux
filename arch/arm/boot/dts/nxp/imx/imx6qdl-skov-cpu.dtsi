@@ -69,7 +69,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_switch>;
 			interrupt-parent = <&gpio3>;
-			interrupt = <30 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <30 IRQ_TYPE_LEVEL_HIGH>;
 			reset-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 			reg = <0>;
 

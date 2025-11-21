@@ -9,9 +9,6 @@
  * Copyright 2022 Bootlin
  */
 
-/dts-v1/;
-
-#include "imx6q.dtsi"
 #include <dt-bindings/clock/imx6qdl-clock.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/sound/fsl-imx-audmux.h>
