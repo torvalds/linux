@@ -1415,8 +1415,6 @@ static void hsw_enable_pc8(struct intel_display *display)
 
 static void hsw_disable_pc8(struct intel_display *display)
 {
-	struct drm_i915_private __maybe_unused *dev_priv = to_i915(display->drm);
-
 	drm_dbg_kms(display->drm, "Disabling package C8+\n");
 
 	hsw_restore_lcpll(display);
@@ -1424,7 +1422,7 @@ static void hsw_disable_pc8(struct intel_display *display)
 
 	/* Many display registers don't survive PC8+ */
 #ifdef I915 /* FIXME */
-	intel_clock_gating_init(dev_priv);
+	intel_clock_gating_init(display->drm);
 #endif
 }
 

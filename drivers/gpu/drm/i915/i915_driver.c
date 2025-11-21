@@ -263,7 +263,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	intel_irq_init(dev_priv);
 	intel_display_driver_early_probe(display);
-	intel_clock_gating_hooks_init(dev_priv);
+	intel_clock_gating_hooks_init(&dev_priv->drm);
 
 	intel_detect_preproduction_hw(dev_priv);
 
@@ -1276,7 +1276,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_display_driver_init_hw(display);
 
-	intel_clock_gating_init(dev_priv);
+	intel_clock_gating_init(&dev_priv->drm);
 
 	if (intel_display_device_present(display))
 		intel_display_driver_resume_access(display);
