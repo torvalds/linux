@@ -6378,6 +6378,18 @@ static void vmx_flush_pml_buffer(struct kvm_vcpu *vcpu)
 	vmcs_write16(GUEST_PML_INDEX, PML_HEAD_INDEX);
 }
 
+static void nested_vmx_mark_all_vmcs12_pages_dirty(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	/*
+	 * Don't need to mark the APIC access page dirty; it is never
+	 * written to by the CPU during APIC virtualization.
+	 */
+	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.virtual_apic_map);
+	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.pi_desc_map);
+}
+
 static void vmx_dump_sel(char *name, uint32_t sel)
 {
 	pr_err("%s sel=0x%04x, attr=0x%05x, limit=0x%08x, base=0x%016lx\n",
@@ -6655,7 +6667,7 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		 * Mark them dirty on every exit from L2 to prevent them from
 		 * getting out of sync with dirty tracking.
 		 */
-		nested_mark_vmcs12_pages_dirty(vcpu);
+		nested_vmx_mark_all_vmcs12_pages_dirty(vcpu);
 
 		/*
 		 * Synthesize a triple fault if L2 state is invalid.  In normal

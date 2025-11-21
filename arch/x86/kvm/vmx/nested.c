@@ -3981,19 +3981,6 @@ static void vmcs12_save_pending_event(struct kvm_vcpu *vcpu,
 	}
 }
 
-
-void nested_mark_vmcs12_pages_dirty(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	/*
-	 * Don't need to mark the APIC access page dirty; it is never
-	 * written to by the CPU during APIC virtualization.
-	 */
-	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.virtual_apic_map);
-	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.pi_desc_map);
-}
-
 static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
