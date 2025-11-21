@@ -76,7 +76,7 @@
  *      likely woken up by a non-timer wakeup source).
  *
  * 2. If the second sum computed in step 1 is greater than a half of the sum of
- *    both metrics for the candidate state bin and all subsequent bins(if any),
+ *    both metrics for the candidate state bin and all subsequent bins (if any),
  *    a shallower idle state is likely to be more suitable, so look for it.
  *
  *    - Traverse the enabled idle states shallower than the candidate one in the
