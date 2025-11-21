@@ -563,7 +563,6 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 
 #define __SMBDIRECT_CHECK_STATUS_WARN(__sc, __expected_status, __unexpected_cmd) \
 	__SMBDIRECT_CHECK_STATUS_FAILED(__sc, __expected_status, \
-	, \
 	{ \
 		const struct sockaddr_storage *__src = NULL; \
 		const struct sockaddr_storage *__dst = NULL; \
@@ -571,6 +570,26 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 			__src = &(__sc)->rdma.cm_id->route.addr.src_addr; \
 			__dst = &(__sc)->rdma.cm_id->route.addr.dst_addr; \
 		} \
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO, \
+			"expected[%s] != %s first_error=%1pe local=%pISpsfc remote=%pISpsfc\n", \
+			smbdirect_socket_status_string(__expected_status), \
+			smbdirect_socket_status_string((__sc)->status), \
+			SMBDIRECT_DEBUG_ERR_PTR((__sc)->first_error), \
+			__src, __dst); \
+	}, \
+	{ \
+		const struct sockaddr_storage *__src = NULL; \
+		const struct sockaddr_storage *__dst = NULL; \
+		if ((__sc)->rdma.cm_id) { \
+			__src = &(__sc)->rdma.cm_id->route.addr.src_addr; \
+			__dst = &(__sc)->rdma.cm_id->route.addr.dst_addr; \
+		} \
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR, \
+			"expected[%s] != %s first_error=%1pe local=%pISpsfc remote=%pISpsfc\n", \
+			smbdirect_socket_status_string(__expected_status), \
+			smbdirect_socket_status_string((__sc)->status), \
+			SMBDIRECT_DEBUG_ERR_PTR((__sc)->first_error), \
+			__src, __dst); \
 		WARN_ONCE(1, \
 			"expected[%s] != %s first_error=%1pe local=%pISpsfc remote=%pISpsfc\n", \
 			smbdirect_socket_status_string(__expected_status), \
