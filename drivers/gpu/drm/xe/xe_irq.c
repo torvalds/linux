@@ -847,22 +847,6 @@ static int xe_irq_msix_init(struct xe_device *xe)
 	return 0;
 }
 
-static irqreturn_t guc2host_irq_handler(int irq, void *arg)
-{
-	struct xe_device *xe = arg;
-	struct xe_tile *tile;
-	u8 id;
-
-	if (!atomic_read(&xe->irq.enabled))
-		return IRQ_NONE;
-
-	for_each_tile(tile, xe, id)
-		xe_guc_irq_handler(&tile->primary_gt->uc.guc,
-				   GUC_INTR_GUC2HOST);
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t xe_irq_msix_default_hwe_handler(int irq, void *arg)
 {
 	unsigned int tile_id, gt_id;
@@ -979,7 +963,7 @@ int xe_irq_msix_request_irqs(struct xe_device *xe)
 	u16 msix;
 
 	msix = GUC2HOST_MSIX;
-	err = xe_irq_msix_request_irq(xe, guc2host_irq_handler, xe,
+	err = xe_irq_msix_request_irq(xe, xe_irq_handler(xe), xe,
 				      DRIVER_NAME "-guc2host", false, &msix);
 	if (err)
 		return err;
