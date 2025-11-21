@@ -1821,12 +1821,12 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	/*
 	 * If in guest mode, vcpu->arch.efer actually refers to the L2 guest's
 	 * EFER.SVME, but EFER.SVME still has to be 1 for VMRUN to succeed.
+	 * If SVME is disabled, the only valid states are "none" and GIF=1
+	 * (clearing SVME does NOT set GIF, i.e. GIF=0 is allowed).
 	 */
-	if (!(vcpu->arch.efer & EFER_SVME)) {
-		/* GIF=1 and no guest mode are required if SVME=0.  */
-		if (kvm_state->flags != KVM_STATE_NESTED_GIF_SET)
-			return -EINVAL;
-	}
+	if (!(vcpu->arch.efer & EFER_SVME) && kvm_state->flags &&
+	    kvm_state->flags != KVM_STATE_NESTED_GIF_SET)
+		return -EINVAL;
 
 	/* SMM temporarily disables SVM, so we cannot be in guest mode.  */
 	if (is_smm(vcpu) && (kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
