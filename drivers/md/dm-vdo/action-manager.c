@@ -43,7 +43,7 @@ struct action {
  * @actions: The two action slots.
  * @current_action: The current action slot.
  * @zones: The number of zones in which an action is to be applied.
- * @Scheduler: A function to schedule a default next action.
+ * @scheduler: A function to schedule a default next action.
  * @get_zone_thread_id: A function to get the id of the thread on which to apply an action to a
  *                      zone.
  * @initiator_thread_id: The ID of the thread on which actions may be initiated.
