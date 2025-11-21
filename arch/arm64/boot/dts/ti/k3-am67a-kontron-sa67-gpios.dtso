@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * SMARC GPIOs.
+ *
+ * Copyright (c) 2025 Kontron Europe GmbH
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "k3-pinctrl.h"
+
+&main_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_gpio0_pins_default>;
+};
+
+&main_gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_gpio1_pins_default>;
+};
+
+&main_pmx0 {
+	main_gpio0_pins_default: main-gpio0-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x0d0, PIN_INPUT, 7)	/* (Y26) VOUT0_DATA6.GPIO0_51 */
+			J722S_IOPAD(0x0d4, PIN_INPUT, 7)	/* (Y27) VOUT0_DATA7.GPIO0_52 */
+			J722S_IOPAD(0x118, PIN_INPUT, 7)	/* (H26) MMC2_CLK.GPIO0_69 */
+			J722S_IOPAD(0x120, PIN_INPUT, 7)	/* (F27) MMC2_CMD.GPIO0_70 */
+		>;
+	};
+
+	main_gpio1_pins_default: main-gpio1-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x194, PIN_INPUT, 7)	/* (A25) MCASP0_AXR3.GPIO1_7 */
+			J722S_IOPAD(0x198, PIN_INPUT, 7)	/* (A26) MCASP0_AXR2.GPIO1_8 */
+			J722S_IOPAD(0x1ac, PIN_INPUT, 7)	/* (C27) MCASP0_AFSR.GPIO1_13 */
+			J722S_IOPAD(0x1b0, PIN_INPUT, 7)	/* (F24) MCASP0_ACLKR.GPIO1_14 */
+			J722S_IOPAD(0x1d8, PIN_INPUT, 7)	/* (D22) MCAN0_TX.GPIO1_24 */
+			J722S_IOPAD(0x1dc, PIN_INPUT, 7)	/* (C22) MCAN0_RX.GPIO1_25 */
+			J722S_IOPAD(0x1e8, PIN_INPUT, 7)	/* (C24) I2C1_SCL.GPIO1_28 */
+			J722S_IOPAD(0x1ec, PIN_INPUT, 7)	/* (A22) I2C1_SDA.GPIO1_29 */
+		>;
+	};
+};
+
+&mcu_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcu_gpio0_pins_default>;
+};
+
+&mcu_pmx0 {
+	mcu_gpio0_pins_default: mcu-gpio0-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x02c, PIN_INPUT, 7)	/* (C4) WKUP_UART0_CTSn.MCU_GPIO0_11 */
+			J722S_IOPAD(0x084, PIN_INPUT, 7)	/* (F12) WKUP_CLKOUT0.MCU_GPIO0_23 */
+		>;
+	};
+
+};

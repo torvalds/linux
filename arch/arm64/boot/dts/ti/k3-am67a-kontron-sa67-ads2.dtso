@@ -1,0 +1,146 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Kontron SMARC-sa67 board on the Kontron Eval Carrier 2.2.
+ *
+ * Copyright (c) 2025 Kontron Europe GmbH
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "k3-pinctrl.h"
+
+&{/} {
+	pwm-fan {
+		compatible = "pwm-fan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm_fan_pins_default>;
+		interrupts-extended = <&main_gpio1 7 IRQ_TYPE_EDGE_FALLING>;
+		#cooling-cells = <2>;
+		pwms = <&epwm2 1 4000000 0>;
+		cooling-levels = <1 128 192 255>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Line", "Line Out Jack",
+			"Microphone", "Microphone Jack",
+			"Line", "Line In Jack";
+		simple-audio-card,routing =
+			"Line Out Jack", "LINEOUTR",
+			"Line Out Jack", "LINEOUTL",
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"IN1L", "Line In Jack",
+			"IN1R", "Line In Jack",
+			"Microphone Jack", "MICBIAS",
+			"IN2L", "Microphone Jack",
+			"IN2R", "Microphone Jack";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&dailink0_master>;
+		simple-audio-card,frame-master = <&dailink0_master>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp0>;
+		};
+
+		dailink0_master: simple-audio-card,codec {
+			sound-dai = <&wm8904>;
+			clocks = <&audio_refclk0>;
+		};
+	};
+
+	cvcc_1p8v_i2s: regulator-carrier-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_1V8_S0_I2S";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	cvcc_1p8v_s0: regulator-carrier-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_1V8_S0";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	cvcc_3p3v_s0: regulator-carrier-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_3V3_S0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+};
+
+&audio_refclk0 {
+	status = "okay";
+};
+
+&epwm2 {
+	status = "okay";
+};
+
+&main_pmx0 {
+	pwm_fan_pins_default: pwm-fan-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x1ec, PIN_OUTPUT, 8)	/* (A22) I2C1_SDA.EHRPWM2_B */
+			J722S_IOPAD(0x194, PIN_INPUT, 0)	/* (A25) MCASP0_AXR3.GPIO1_7 */
+		>;
+	};
+};
+
+&mcasp0 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&mcu_i2c0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wm8904: audio-codec@1a {
+		#sound-dai-cells = <0>;
+		compatible = "wlf,wm8904";
+		reg = <0x1a>;
+		clocks = <&audio_refclk0>;
+		clock-names = "mclk";
+		AVDD-supply = <&cvcc_1p8v_i2s>;
+		CPVDD-supply = <&cvcc_1p8v_i2s>;
+		DBVDD-supply = <&cvcc_1p8v_i2s>;
+		DCVDD-supply = <&cvcc_1p8v_i2s>;
+		MICVDD-supply = <&cvcc_1p8v_i2s>;
+	};
+};
+
+&mcu_spi0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <104000000>;
+		m25p,fast-read;
+		vcc-supply = <&cvcc_1p8v_s0>;
+	};
+};
+
+&wkup_i2c0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* SMARC Carrier EEPROM */
+	eeprom@57 {
+		compatible = "atmel,24c32";
+		reg = <0x57>;
+		pagesize = <32>;
+		vcc-supply = <&cvcc_3p3v_s0>;
+	};
+};

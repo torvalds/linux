@@ -175,7 +175,7 @@
 
 &main_cpsw_port1 {
 	phy-handle = <&phy1>;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	status = "okay";
 };
 
@@ -258,7 +258,7 @@
 		bootph-pre-ram;
 	};
 
-	pmic@48 {
+	pmic: pmic@48 {
 		compatible = "ti,tps6594-q1";
 		reg = <0x48>;
 		system-power-controller;
