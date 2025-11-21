@@ -83,6 +83,10 @@ struct fbnic_dev {
 	/* Last @time_high refresh time in jiffies (to catch stalls) */
 	unsigned long last_read;
 
+	/* PMD specific data */
+	unsigned long end_of_pmd_training;
+	u8 pmd_state;
+
 	/* Local copy of hardware statistics */
 	struct fbnic_hw_stats hw_stats;
 

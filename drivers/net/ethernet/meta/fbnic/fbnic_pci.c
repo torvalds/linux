@@ -207,6 +207,10 @@ static void fbnic_service_task(struct work_struct *work)
 {
 	struct fbnic_dev *fbd = container_of(to_delayed_work(work),
 					     struct fbnic_dev, service_task);
+	struct net_device *netdev = fbd->netdev;
+
+	if (netif_running(netdev))
+		fbnic_phylink_pmd_training_complete_notify(netdev);
 
 	rtnl_lock();
 
@@ -224,7 +228,7 @@ static void fbnic_service_task(struct work_struct *work)
 		netdev_unlock(fbd->netdev);
 	}
 
-	if (netif_running(fbd->netdev))
+	if (netif_running(netdev))
 		schedule_delayed_work(&fbd->service_task, HZ);
 
 	rtnl_unlock();
