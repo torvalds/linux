@@ -175,6 +175,7 @@
 
 	gic: interrupt-controller@50041000 {
 		compatible = "arm,cortex-a15-gic";
+		#address-cells = <0>;
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x0 0x50041000 0x0 0x1000>,
@@ -271,7 +272,7 @@
 		interrupt-controller;
 	};
 
-	apbdma: dma@60020000 {
+	apbdma: dma-controller@60020000 {
 		compatible = "nvidia,tegra124-apbdma", "nvidia,tegra148-apbdma";
 		reg = <0x0 0x60020000 0x0 0x1400>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,

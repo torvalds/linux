@@ -22,6 +22,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x1 0x0>;
@@ -64,10 +70,10 @@
 		vi@54080000 {
 			status = "okay";
 
-			avdd-dsi-csi-supply = <&vdd_sys_1v2>;
-
 			csi@838 {
 				status = "okay";
+
+				avdd-dsi-csi-supply = <&vdd_sys_1v2>;
 			};
 		};
 
@@ -520,7 +526,7 @@
 		ports {
 			usb2-0 {
 				status = "okay";
-				mode = "peripheral";
+				mode = "otg";
 				usb-role-switch;
 
 				vbus-supply = <&vdd_5v0_usb>;

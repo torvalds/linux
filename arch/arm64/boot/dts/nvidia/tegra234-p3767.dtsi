@@ -7,6 +7,7 @@
 
 	aliases {
 		mmc0 = "/bus@0/mmc@3400000";
+		rtc0 = "/bpmp/i2c/pmic@3c";
 	};
 
 	bus@0 {
@@ -118,6 +119,20 @@
 
 		pmc@c360000 {
 			nvidia,invert-interrupt;
+		};
+	};
+
+	bpmp {
+		i2c {
+			pmic@3c {
+				compatible = "nvidia,vrs-10";
+				reg = <0x3c>;
+				interrupt-parent = <&pmc>;
+				/* VRS Wake ID is 24 */
+				interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
 		};
 	};
 
