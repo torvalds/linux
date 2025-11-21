@@ -863,6 +863,7 @@ static void disas_alt_print_compact(char *alt_name, struct disas_alt *dalts,
 				    int alt_count, int insn_count)
 {
 	struct instruction *orig_insn;
+	int width;
 	int i, j;
 	int len;
 
@@ -870,6 +871,27 @@ static void disas_alt_print_compact(char *alt_name, struct disas_alt *dalts,
 
 	len = disas_print(stdout, orig_insn->sec, orig_insn->offset, 0, NULL);
 	printf("%s\n", alt_name);
+
+	/*
+	 * If all alternatives have a single instruction then print each
+	 * alternative on a single line. Otherwise, print alternatives
+	 * one above the other with a clear separation.
+	 */
+
+	if (insn_count == 1) {
+		width = 0;
+		for (i = 0; i < alt_count; i++) {
+			if (dalts[i].width > width)
+				width = dalts[i].width;
+		}
+
+		for (i = 0; i < alt_count; i++) {
+			printf("%*s= %-*s    (if %s)\n", len, "", width,
+			       dalts[i].insn[0].str, dalts[i].name);
+		}
+
+		return;
+	}
 
 	for (i = 0; i < alt_count; i++) {
 		printf("%*s= %s\n", len, "", dalts[i].name);
