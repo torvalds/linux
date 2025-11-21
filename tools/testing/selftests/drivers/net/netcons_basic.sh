@@ -28,8 +28,6 @@ OUTPUT_FILE="/tmp/${TARGET}"
 
 # Check for basic system dependency and exit if not found
 check_for_dependencies
-# Set current loglevel to KERN_INFO(6), and default to KERN_NOTICE(5)
-echo "6 5" > /proc/sys/kernel/printk
 # Remove the namespace, interfaces and netconsole target on exit
 trap cleanup EXIT
 
@@ -39,6 +37,9 @@ do
 	for IP_VERSION in "ipv6" "ipv4"
 	do
 		echo "Running with target mode: ${FORMAT} (${IP_VERSION})"
+		# Set current loglevel to KERN_INFO(6), and default to
+		# KERN_NOTICE(5)
+		echo "6 5" > /proc/sys/kernel/printk
 		# Create one namespace and two interfaces
 		set_network "${IP_VERSION}"
 		# Create a dynamic target for netconsole
