@@ -1108,7 +1108,7 @@ static int amdgpu_acpi_enumerate_xcc(void)
 		 * one is not found, no need to check the rest.
 		 */
 		if (!acpi_dev) {
-			DRM_DEBUG_DRIVER("No matching acpi device found for %s",
+			DRM_DEBUG_DRIVER("No matching acpi device found for %s\n",
 					 hid);
 			break;
 		}
