@@ -548,6 +548,19 @@ struct dma_features {
 #define LPI_CTRL_STATUS_TLPIEX	BIT(1)	/* Transmit LPI Exit */
 #define LPI_CTRL_STATUS_TLPIEN	BIT(0)	/* Transmit LPI Entry */
 
+/* Common definitions for AXI Master Bus Mode */
+#define DMA_AXI_AAL		BIT(12)
+#define DMA_AXI_BLEN256		BIT(7)
+#define DMA_AXI_BLEN128		BIT(6)
+#define DMA_AXI_BLEN64		BIT(5)
+#define DMA_AXI_BLEN32		BIT(4)
+#define DMA_AXI_BLEN16		BIT(3)
+#define DMA_AXI_BLEN8		BIT(2)
+#define DMA_AXI_BLEN4		BIT(1)
+#define DMA_AXI_BLEN_MASK	GENMASK(7, 1)
+
+void stmmac_axi_blen_to_mask(u32 *regval, const u32 *blen, size_t len);
+
 #define STMMAC_CHAIN_MODE	0x1
 #define STMMAC_RING_MODE	0x2
 

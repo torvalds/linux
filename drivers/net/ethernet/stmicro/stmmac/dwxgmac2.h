@@ -338,16 +338,9 @@
 #define XGMAC_RD_OSR_LMT_SHIFT		16
 #define XGMAC_EN_LPI			BIT(15)
 #define XGMAC_LPI_XIT_PKT		BIT(14)
-#define XGMAC_AAL			BIT(12)
+#define XGMAC_AAL			DMA_AXI_AAL
 #define XGMAC_EAME			BIT(11)
-#define XGMAC_BLEN			GENMASK(7, 1)
-#define XGMAC_BLEN256			BIT(7)
-#define XGMAC_BLEN128			BIT(6)
-#define XGMAC_BLEN64			BIT(5)
-#define XGMAC_BLEN32			BIT(4)
-#define XGMAC_BLEN16			BIT(3)
-#define XGMAC_BLEN8			BIT(2)
-#define XGMAC_BLEN4			BIT(1)
+/* XGMAC_BLEN* are now defined as DMA_AXI_BLEN* in common.h */
 #define XGMAC_UNDEF			BIT(0)
 #define XGMAC_TX_EDMA_CTRL		0x00003040
 #define XGMAC_TDPS			GENMASK(29, 0)

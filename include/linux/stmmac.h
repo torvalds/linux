@@ -113,7 +113,7 @@ struct stmmac_axi {
 	u32 axi_wr_osr_lmt;
 	u32 axi_rd_osr_lmt;
 	bool axi_kbbe;
-	u32 axi_blen[AXI_BLEN];
+	u32 axi_blen_regval;
 	bool axi_fb;
 	bool axi_mb;
 	bool axi_rb;
