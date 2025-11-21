@@ -1712,21 +1712,25 @@ err_out:
 	return err;
 }
 
-static void mptcp_attach_cgroup(struct sock *parent, struct sock *child)
+void __mptcp_inherit_cgrp_data(struct sock *sk, struct sock *ssk)
 {
 #ifdef CONFIG_SOCK_CGROUP_DATA
-	struct sock_cgroup_data *parent_skcd = &parent->sk_cgrp_data,
-				*child_skcd = &child->sk_cgrp_data;
+	struct sock_cgroup_data *sk_cd = &sk->sk_cgrp_data,
+				*ssk_cd = &ssk->sk_cgrp_data;
 
 	/* only the additional subflows created by kworkers have to be modified */
-	if (cgroup_id(sock_cgroup_ptr(parent_skcd)) !=
-	    cgroup_id(sock_cgroup_ptr(child_skcd))) {
-		cgroup_sk_free(child_skcd);
-		*child_skcd = *parent_skcd;
-		cgroup_sk_clone(child_skcd);
+	if (cgroup_id(sock_cgroup_ptr(sk_cd)) !=
+	    cgroup_id(sock_cgroup_ptr(ssk_cd))) {
+		cgroup_sk_free(ssk_cd);
+		*ssk_cd = *sk_cd;
+		cgroup_sk_clone(sk_cd);
 	}
 #endif /* CONFIG_SOCK_CGROUP_DATA */
+}
 
+static void mptcp_attach_cgroup(struct sock *parent, struct sock *child)
+{
+	__mptcp_inherit_cgrp_data(parent, child);
 	if (mem_cgroup_sockets_enabled)
 		mem_cgroup_sk_inherit(parent, child);
 }
