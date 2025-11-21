@@ -278,6 +278,10 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		soc-uuid@140 {
+			reg = <0x140 0x8>;
+		};
+
 		thermal_calibration: calib@198 {
 			reg = <0x198 0xc>;
 		};
