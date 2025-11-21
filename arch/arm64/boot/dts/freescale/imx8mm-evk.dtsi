@@ -542,6 +542,7 @@
 	assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_50M>,
 				 <&clk IMX8MM_SYS_PLL2_250M>;
 	vpcie-supply = <&reg_pcie0>;
+	supports-clkreq;
 	status = "okay";
 };
 

@@ -1,7 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
  * Copyright (C) 2022 PHYTEC Messtechnik GmbH
- * Author: Teresa Remmet <t.remmet@phytec.de>
  */
 
 #include "imx8mm.dtsi"
@@ -288,6 +287,23 @@
 		reg = <0x2d>;
 		vcc-supply = <&reg_vdd_1v8>;
 		status = "disabled";
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				bridge_in: endpoint {
+					remote-endpoint = <&mipi_dsi_out>;
+					data-lanes = <1 2 3 4>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				bridge_out: endpoint {};
+			};
+		};
 	};
 
 	/* EEPROM */
@@ -303,6 +319,14 @@
 		compatible = "microcrystal,rv3028";
 		reg = <0x52>;
 	};
+};
+
+&mipi_dsi {
+	samsung,esc-clock-frequency = <10000000>;
+};
+
+&mipi_dsi_out {
+	remote-endpoint = <&bridge_in>;
 };
 
 /* eMMC */
