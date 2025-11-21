@@ -98,7 +98,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 
-		cbass_wakeup:  bus@43000000 {
+		cbass_wakeup: bus@a80000 {
 			compatible = "simple-bus";
 			ranges = <0x00 0x00a80000 0x00 0x00a80000 0x00 0x00034000>, /* GTC */
 				 <0x00 0x00b00000 0x00 0x00b00000 0x00 0x00001400>, /* VTM */
