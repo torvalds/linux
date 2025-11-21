@@ -1408,16 +1408,23 @@ setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 	 * references an already freed task_struct.
 	 */
 	new->thread = get_task_struct(t);
+
 	/*
-	 * Tell the thread to set its affinity. This is
-	 * important for shared interrupt handlers as we do
-	 * not invoke setup_affinity() for the secondary
-	 * handlers as everything is already set up. Even for
-	 * interrupts marked with IRQF_NO_BALANCE this is
-	 * correct as we want the thread to move to the cpu(s)
-	 * on which the requesting code placed the interrupt.
+	 * The affinity can not be established yet, but it will be once the
+	 * interrupt is enabled. Delay and defer the actual setting to the
+	 * thread itself once it is ready to run. In the meantime, prevent
+	 * it from ever being re-affined directly by cpuset or
+	 * housekeeping. The proper way to do it is to re-affine the whole
+	 * vector.
 	 */
-	set_bit(IRQTF_AFFINITY, &new->thread_flags);
+	kthread_bind_mask(t, cpu_possible_mask);
+
+	/*
+	 * Ensure the thread adjusts the affinity once it reaches the
+	 * thread function.
+	 */
+	new->thread_flags = BIT(IRQTF_AFFINITY);
+
 	return 0;
 }
 
