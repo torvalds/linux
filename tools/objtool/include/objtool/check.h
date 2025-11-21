@@ -141,4 +141,6 @@ struct instruction *next_insn_same_sec(struct objtool_file *file, struct instruc
 	     insn && insn->offset < sym->offset + sym->len;		\
 	     insn = next_insn_same_sec(file, insn))
 
+const char *objtool_disas_insn(struct instruction *insn);
+
 #endif /* _CHECK_H */

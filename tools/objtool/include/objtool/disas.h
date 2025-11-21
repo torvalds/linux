@@ -17,6 +17,8 @@ void disas_warned_funcs(struct disas_context *dctx);
 int disas_info_init(struct disassemble_info *dinfo,
 		    int arch, int mach32, int mach64,
 		    const char *options);
+size_t disas_insn(struct disas_context *dctx, struct instruction *insn);
+char *disas_result(struct disas_context *dctx);
 
 #else /* DISAS */
 
@@ -36,6 +38,17 @@ static inline int disas_info_init(struct disassemble_info *dinfo,
 				  const char *options)
 {
 	return -1;
+}
+
+static inline size_t disas_insn(struct disas_context *dctx,
+				struct instruction *insn)
+{
+	return -1;
+}
+
+static inline char *disas_result(struct disas_context *dctx)
+{
+	return NULL;
 }
 
 #endif /* DISAS */

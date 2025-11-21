@@ -4792,10 +4792,33 @@ static void free_insns(struct objtool_file *file)
 		free(chunk->addr);
 }
 
+static struct disas_context *objtool_disas_ctx;
+
+const char *objtool_disas_insn(struct instruction *insn)
+{
+	struct disas_context *dctx = objtool_disas_ctx;
+
+	if (!dctx)
+		return "";
+
+	disas_insn(dctx, insn);
+	return disas_result(dctx);
+}
+
 int check(struct objtool_file *file)
 {
-	struct disas_context *disas_ctx;
+	struct disas_context *disas_ctx = NULL;
 	int ret = 0, warnings = 0;
+
+	/*
+	 * If the verbose or backtrace option is used then we need a
+	 * disassembly context to disassemble instruction or function
+	 * on warning or backtrace.
+	 */
+	if (opts.verbose || opts.backtrace) {
+		disas_ctx = disas_context_create(file);
+		objtool_disas_ctx = disas_ctx;
+	}
 
 	arch_initial_func_cfi_state(&initial_func_cfi);
 	init_cfi_state(&init_cfi);
@@ -4936,11 +4959,12 @@ out:
 	if (opts.verbose) {
 		if (opts.werror && warnings)
 			WARN("%d warning(s) upgraded to errors", warnings);
-		disas_ctx = disas_context_create(file);
-		if (disas_ctx) {
-			disas_warned_funcs(disas_ctx);
-			disas_context_destroy(disas_ctx);
-		}
+		disas_warned_funcs(disas_ctx);
+	}
+
+	if (disas_ctx) {
+		disas_context_destroy(disas_ctx);
+		objtool_disas_ctx = NULL;
 	}
 
 	free_insns(file);
