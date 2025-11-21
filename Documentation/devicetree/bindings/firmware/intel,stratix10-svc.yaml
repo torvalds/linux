@@ -34,6 +34,7 @@ properties:
     enum:
       - intel,stratix10-svc
       - intel,agilex-svc
+      - intel,agilex5-svc
 
   method:
     description: |
@@ -54,6 +55,9 @@ properties:
       reserved memory region for the service layer driver to
       communicate with the secure device manager.
 
+  iommus:
+    maxItems: 1
+
   fpga-mgr:
     $ref: /schemas/fpga/intel,stratix10-soc-fpga-mgr.yaml
     description: Optional child node for fpga manager to perform fabric configuration.
@@ -62,6 +66,17 @@ required:
   - compatible
   - method
   - memory-region
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - intel,agilex5-svc
+    then:
+      required:
+        - iommus
 
 additionalProperties: false
 

@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023, Intel Corporation
+ * Copyright (C) 2025, Altera Corporation
  */
 #include "socfpga_agilex5.dtsi"
 
 / {
-	model = "SoCFPGA Agilex5 SoCDK";
-	compatible = "intel,socfpga-agilex5-socdk", "intel,socfpga-agilex5";
+	model = "SoCFPGA Agilex5 013B SoCDK";
+	compatible = "intel,socfpga-agilex5-socdk-013b", "intel,socfpga-agilex5";
 
 	aliases {
 		serial0 = &uart0;
-		ethernet0 = &gmac0;
-		ethernet1 = &gmac1;
 		ethernet2 = &gmac2;
 	};
 
@@ -22,9 +20,14 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led-0 {
+		led0 {
 			label = "hps_led0";
-			gpios = <&porta 11 GPIO_ACTIVE_HIGH>;
+			gpios = <&porta 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led1 {
+			label = "hps_led1";
+			gpios = <&porta 12 GPIO_ACTIVE_HIGH>;
 		};
 
 	};
@@ -34,10 +37,6 @@
 		/* We expect the bootloader to fill in the reg */
 		reg = <0x0 0x80000000 0x0 0x0>;
 	};
-};
-
-&gpio0 {
-	status = "okay";
 };
 
 &gmac2 {
@@ -53,8 +52,24 @@
 
 		emac2_phy0: ethernet-phy@0 {
 			reg = <0>;
+			rxc-skew-ps = <0>;
+			rxdv-skew-ps = <0>;
+			rxd0-skew-ps = <0>;
+			rxd1-skew-ps = <0>;
+			rxd2-skew-ps = <0>;
+			rxd3-skew-ps = <0>;
+			txc-skew-ps = <0>;
+			txen-skew-ps = <60>;
+			txd0-skew-ps = <60>;
+			txd1-skew-ps = <60>;
+			txd2-skew-ps = <60>;
+			txd3-skew-ps = <60>;
 		};
 	};
+};
+
+&gpio0 {
+	status = "okay";
 };
 
 &gpio1 {
@@ -68,7 +83,7 @@
 &qspi {
 	status = "okay";
 	flash@0 {
-		compatible = "micron,mt25qu02g", "jedec,spi-nor";
+		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <100000000>;
 		m25p,fast-read;
@@ -87,24 +102,23 @@
 
 			qspi_boot: partition@0 {
 				label = "u-boot";
-				reg = <0x0 0x04200000>;
+				reg = <0x0 0x00c00000>;
 			};
 
-			root: partition@4200000 {
+			root: partition@c00000  {
 				label = "root";
-				reg = <0x04200000 0x0be00000>;
+				reg = <0x00c00000 0x03400000>;
 			};
 		};
 	};
 };
 
-&uart0 {
+&smmu {
 	status = "okay";
 };
 
-&usb0 {
+&uart0 {
 	status = "okay";
-	disable-over-current;
 };
 
 &watchdog0 {
