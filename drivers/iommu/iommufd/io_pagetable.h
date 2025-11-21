@@ -5,6 +5,7 @@
 #ifndef __IO_PAGETABLE_H
 #define __IO_PAGETABLE_H
 
+#include <linux/dma-buf.h>
 #include <linux/interval_tree.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
@@ -179,7 +180,15 @@ enum {
 
 enum iopt_address_type {
 	IOPT_ADDRESS_USER = 0,
-	IOPT_ADDRESS_FILE = 1,
+	IOPT_ADDRESS_FILE,
+	IOPT_ADDRESS_DMABUF,
+};
+
+struct iopt_pages_dmabuf {
+	struct dma_buf_attachment *attach;
+	struct dma_buf_phys_vec phys;
+	/* Always PAGE_SIZE aligned */
+	unsigned long start;
 };
 
 /*
@@ -209,6 +218,8 @@ struct iopt_pages {
 			struct file *file;
 			unsigned long start;
 		};
+		/* IOPT_ADDRESS_DMABUF */
+		struct iopt_pages_dmabuf dmabuf;
 	};
 	bool writable:1;
 	u8 account_mode;
@@ -220,10 +231,22 @@ struct iopt_pages {
 	struct rb_root_cached domains_itree;
 };
 
+static inline bool iopt_is_dmabuf(struct iopt_pages *pages)
+{
+	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
+		return false;
+	return pages->type == IOPT_ADDRESS_DMABUF;
+}
+
 struct iopt_pages *iopt_alloc_user_pages(void __user *uptr,
 					 unsigned long length, bool writable);
 struct iopt_pages *iopt_alloc_file_pages(struct file *file, unsigned long start,
 					 unsigned long length, bool writable);
+struct iopt_pages *iopt_alloc_dmabuf_pages(struct iommufd_ctx *ictx,
+					   struct dma_buf *dmabuf,
+					   unsigned long start_byte,
+					   unsigned long start,
+					   unsigned long length, bool writable);
 void iopt_release_pages(struct kref *kref);
 static inline void iopt_put_pages(struct iopt_pages *pages)
 {

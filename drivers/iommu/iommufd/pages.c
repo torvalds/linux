@@ -45,6 +45,8 @@
  * last_iova + 1 can overflow. An iopt_pages index will always be much less than
  * ULONG_MAX so last_index + 1 cannot overflow.
  */
+#include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 #include <linux/file.h>
 #include <linux/highmem.h>
 #include <linux/iommu.h>
@@ -53,6 +55,7 @@
 #include <linux/overflow.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
+#include <linux/vfio_pci_core.h>
 
 #include "double_span.h"
 #include "io_pagetable.h"
@@ -272,6 +275,7 @@ struct pfn_batch {
 	unsigned int end;
 	unsigned int total_pfns;
 };
+enum { MAX_NPFNS = type_max(typeof(((struct pfn_batch *)0)->npfns[0])) };
 
 static void batch_clear(struct pfn_batch *batch)
 {
@@ -350,7 +354,6 @@ static void batch_destroy(struct pfn_batch *batch, void *backup)
 static bool batch_add_pfn_num(struct pfn_batch *batch, unsigned long pfn,
 			      u32 nr)
 {
-	const unsigned int MAX_NPFNS = type_max(typeof(*batch->npfns));
 	unsigned int end = batch->end;
 
 	if (end && pfn == batch->pfns[end - 1] + batch->npfns[end - 1] &&
@@ -1360,6 +1363,121 @@ struct iopt_pages *iopt_alloc_file_pages(struct file *file, unsigned long start,
 	return pages;
 }
 
+static void iopt_revoke_notify(struct dma_buf_attachment *attach)
+{
+	struct iopt_pages *pages = attach->importer_priv;
+
+	guard(mutex)(&pages->mutex);
+	pages->dmabuf.phys.len = 0;
+}
+
+static struct dma_buf_attach_ops iopt_dmabuf_attach_revoke_ops = {
+	.allow_peer2peer = true,
+	.move_notify = iopt_revoke_notify,
+};
+
+/*
+ * iommufd and vfio have a circular dependency. Future work for a phys
+ * based private interconnect will remove this.
+ */
+static int
+sym_vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
+				 struct dma_buf_phys_vec *phys)
+{
+	typeof(&vfio_pci_dma_buf_iommufd_map) fn;
+	int rc;
+
+	if (!IS_ENABLED(CONFIG_VFIO_PCI_DMABUF))
+		return -EOPNOTSUPP;
+
+	fn = symbol_get(vfio_pci_dma_buf_iommufd_map);
+	if (!fn)
+		return -EOPNOTSUPP;
+	rc = fn(attachment, phys);
+	symbol_put(vfio_pci_dma_buf_iommufd_map);
+	return rc;
+}
+
+static int iopt_map_dmabuf(struct iommufd_ctx *ictx, struct iopt_pages *pages,
+			   struct dma_buf *dmabuf)
+{
+	struct dma_buf_attachment *attach;
+	int rc;
+
+	attach = dma_buf_dynamic_attach(dmabuf, iommufd_global_device(),
+					&iopt_dmabuf_attach_revoke_ops, pages);
+	if (IS_ERR(attach))
+		return PTR_ERR(attach);
+
+	dma_resv_lock(dmabuf->resv, NULL);
+	/*
+	 * Lock ordering requires the mutex to be taken inside the reservation,
+	 * make sure lockdep sees this.
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		mutex_lock(&pages->mutex);
+		mutex_unlock(&pages->mutex);
+	}
+
+	rc = sym_vfio_pci_dma_buf_iommufd_map(attach, &pages->dmabuf.phys);
+	if (rc)
+		goto err_detach;
+
+	dma_resv_unlock(dmabuf->resv);
+
+	/* On success iopt_release_pages() will detach and put the dmabuf. */
+	pages->dmabuf.attach = attach;
+	return 0;
+
+err_detach:
+	dma_resv_unlock(dmabuf->resv);
+	dma_buf_detach(dmabuf, attach);
+	return rc;
+}
+
+struct iopt_pages *iopt_alloc_dmabuf_pages(struct iommufd_ctx *ictx,
+					   struct dma_buf *dmabuf,
+					   unsigned long start_byte,
+					   unsigned long start,
+					   unsigned long length, bool writable)
+{
+	static struct lock_class_key pages_dmabuf_mutex_key;
+	struct iopt_pages *pages;
+	int rc;
+
+	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (dmabuf->size <= (start + length - 1) ||
+	    length / PAGE_SIZE >= MAX_NPFNS)
+		return ERR_PTR(-EINVAL);
+
+	pages = iopt_alloc_pages(start_byte, length, writable);
+	if (IS_ERR(pages))
+		return pages;
+
+	/*
+	 * The mmap_lock can be held when obtaining the dmabuf reservation lock
+	 * which creates a locking cycle with the pages mutex which is held
+	 * while obtaining the mmap_lock. This locking path is not present for
+	 * IOPT_ADDRESS_DMABUF so split the lock class.
+	 */
+	lockdep_set_class(&pages->mutex, &pages_dmabuf_mutex_key);
+
+	/* dmabuf does not use pinned page accounting. */
+	pages->account_mode = IOPT_PAGES_ACCOUNT_NONE;
+	pages->type = IOPT_ADDRESS_DMABUF;
+	pages->dmabuf.start = start - start_byte;
+
+	rc = iopt_map_dmabuf(ictx, pages, dmabuf);
+	if (rc) {
+		iopt_put_pages(pages);
+		return ERR_PTR(rc);
+	}
+
+	return pages;
+}
+
 void iopt_release_pages(struct kref *kref)
 {
 	struct iopt_pages *pages = container_of(kref, struct iopt_pages, kref);
@@ -1372,8 +1490,14 @@ void iopt_release_pages(struct kref *kref)
 	mutex_destroy(&pages->mutex);
 	put_task_struct(pages->source_task);
 	free_uid(pages->source_user);
-	if (pages->type == IOPT_ADDRESS_FILE)
+	if (iopt_is_dmabuf(pages) && pages->dmabuf.attach) {
+		struct dma_buf *dmabuf = pages->dmabuf.attach->dmabuf;
+
+		dma_buf_detach(dmabuf, pages->dmabuf.attach);
+		dma_buf_put(dmabuf);
+	} else if (pages->type == IOPT_ADDRESS_FILE) {
 		fput(pages->file);
+	}
 	kfree(pages);
 }
 
@@ -2031,14 +2155,13 @@ int iopt_pages_rw_access(struct iopt_pages *pages, unsigned long start_byte,
 	if ((flags & IOMMUFD_ACCESS_RW_WRITE) && !pages->writable)
 		return -EPERM;
 
-	if (pages->type == IOPT_ADDRESS_FILE)
+	if (iopt_is_dmabuf(pages))
+		return -EINVAL;
+
+	if (pages->type != IOPT_ADDRESS_USER)
 		return iopt_pages_rw_slow(pages, start_index, last_index,
 					  start_byte % PAGE_SIZE, data, length,
 					  flags);
-
-	if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
-	    WARN_ON(pages->type != IOPT_ADDRESS_USER))
-		return -EINVAL;
 
 	if (!(flags & IOMMUFD_ACCESS_RW_KTHREAD) && change_mm) {
 		if (start_index == last_index)
