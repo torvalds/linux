@@ -1399,6 +1399,8 @@ void svm_leave_nested(struct kvm_vcpu *vcpu)
 		nested_svm_uninit_mmu_context(vcpu);
 		vmcb_mark_all_dirty(svm->vmcb);
 
+		svm_set_gif(svm, true);
+
 		if (kvm_apicv_activated(vcpu->kvm))
 			kvm_make_request(KVM_REQ_APICV_UPDATE, vcpu);
 	}
