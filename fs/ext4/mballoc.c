@@ -98,14 +98,14 @@
  * block bitmap and buddy information. The information are stored in the
  * inode as:
  *
- *  {                        page                        }
+ *  {                        folio                        }
  *  [ group 0 bitmap][ group 0 buddy] [group 1][ group 1]...
  *
  *
  * one block each for bitmap and buddy information.  So for each group we
- * take up 2 blocks. A page can contain blocks_per_page (PAGE_SIZE /
- * blocksize) blocks.  So it can have information regarding groups_per_page
- * which is blocks_per_page/2
+ * take up 2 blocks. A folio can contain blocks_per_folio (folio_size /
+ * blocksize) blocks.  So it can have information regarding groups_per_folio
+ * which is blocks_per_folio/2
  *
  * The buddy cache inode is not stored on disk. The inode is thrown
  * away when the filesystem is unmounted.
@@ -1573,7 +1573,7 @@ static int ext4_mb_get_buddy_folio_lock(struct super_block *sb,
 	return 0;
 }
 
-static void ext4_mb_put_buddy_page_lock(struct ext4_buddy *e4b)
+static void ext4_mb_put_buddy_folio_lock(struct ext4_buddy *e4b)
 {
 	if (e4b->bd_bitmap_folio) {
 		folio_unlock(e4b->bd_bitmap_folio);
@@ -1587,7 +1587,7 @@ static void ext4_mb_put_buddy_page_lock(struct ext4_buddy *e4b)
 
 /*
  * Locking note:  This routine calls ext4_mb_init_cache(), which takes the
- * block group lock of all groups for this page; do not hold the BG lock when
+ * block group lock of all groups for this folio; do not hold the BG lock when
  * calling this routine!
  */
 static noinline_for_stack
@@ -1635,7 +1635,7 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group, gfp_t gfp)
 	if (e4b.bd_buddy_folio == NULL) {
 		/*
 		 * If both the bitmap and buddy are in
-		 * the same page we don't need to force
+		 * the same folio we don't need to force
 		 * init the buddy
 		 */
 		ret = 0;
@@ -1651,7 +1651,7 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group, gfp_t gfp)
 		goto err;
 	}
 err:
-	ext4_mb_put_buddy_page_lock(&e4b);
+	ext4_mb_put_buddy_folio_lock(&e4b);
 	return ret;
 }
 
@@ -2244,7 +2244,7 @@ static void ext4_mb_use_best_found(struct ext4_allocation_context *ac,
 	ac->ac_buddy = ret >> 16;
 
 	/*
-	 * take the page reference. We want the page to be pinned
+	 * take the folio reference. We want the folio to be pinned
 	 * so that we don't get a ext4_mb_init_cache_call for this
 	 * group until we update the bitmap. That would mean we
 	 * double allocate blocks. The reference is dropped
@@ -2950,7 +2950,7 @@ static int ext4_mb_scan_group(struct ext4_allocation_context *ac,
 	if (cr < CR_ANY_FREE && spin_is_locked(ext4_group_lock_ptr(sb, group)))
 		return 0;
 
-	/* This now checks without needing the buddy page */
+	/* This now checks without needing the buddy folio */
 	ret = ext4_mb_good_group_nolock(ac, group, cr);
 	if (ret <= 0) {
 		if (!ac->ac_first_err)
@@ -4742,7 +4742,7 @@ static void ext4_discard_allocated_blocks(struct ext4_allocation_context *ac)
 				   "ext4: mb_load_buddy failed (%d)", err))
 			/*
 			 * This should never happen since we pin the
-			 * pages in the ext4_allocation_context so
+			 * folios in the ext4_allocation_context so
 			 * ext4_mb_load_buddy() should never fail.
 			 */
 			return;
