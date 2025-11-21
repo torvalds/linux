@@ -878,7 +878,7 @@ static void of_gpiochip_remove_hog(struct gpio_chip *chip,
 {
 	struct gpio_desc *desc;
 
-	for_each_gpio_desc_with_flag(chip, desc, FLAG_IS_HOGGED)
+	for_each_gpio_desc_with_flag(chip, desc, GPIOD_FLAG_IS_HOGGED)
 		if (READ_ONCE(desc->hog) == hog)
 			gpiochip_free_own_desc(desc);
 }

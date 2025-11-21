@@ -670,6 +670,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	set_dev_node(&dev->dev, dev_to_node(bus->sysdev));
 	dev->state = USB_STATE_ATTACHED;
 	dev->lpm_disable_count = 1;
+	dev->offload_usage = 0;
 	atomic_set(&dev->urbnum, 0);
 
 	INIT_LIST_HEAD(&dev->ep0.urb_list);
@@ -1109,6 +1110,56 @@ void usb_free_noncoherent(struct usb_device *dev, size_t size,
 	dma_free_noncontiguous(dmadev, size, table, dir);
 }
 EXPORT_SYMBOL_GPL(usb_free_noncoherent);
+
+/**
+ * usb_endpoint_max_periodic_payload - Get maximum payload bytes per service
+ *				       interval
+ * @udev: The USB device
+ * @ep: The endpoint
+ *
+ * Returns: the maximum number of bytes isochronous or interrupt endpoint @ep
+ * can transfer during a service interval, or 0 for other endpoints.
+ */
+u32 usb_endpoint_max_periodic_payload(struct usb_device *udev,
+				      const struct usb_host_endpoint *ep)
+{
+	if (!usb_endpoint_xfer_isoc(&ep->desc) &&
+	    !usb_endpoint_xfer_int(&ep->desc))
+		return 0;
+
+	switch (udev->speed) {
+	case USB_SPEED_SUPER_PLUS:
+		if (USB_SS_SSP_ISOC_COMP(ep->ss_ep_comp.bmAttributes))
+			return le32_to_cpu(ep->ssp_isoc_ep_comp.dwBytesPerInterval);
+		fallthrough;
+	case USB_SPEED_SUPER:
+		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
+	default:
+		if (usb_endpoint_is_hs_isoc_double(udev, ep))
+			return le32_to_cpu(ep->eusb2_isoc_ep_comp.dwBytesPerInterval);
+		return usb_endpoint_maxp(&ep->desc) * usb_endpoint_maxp_mult(&ep->desc);
+	}
+}
+EXPORT_SYMBOL_GPL(usb_endpoint_max_periodic_payload);
+
+/**
+ * usb_endpoint_is_hs_isoc_double - Tell whether an endpoint uses USB 2
+ *                                  Isochronous Double IN Bandwidth
+ * @udev: The USB device
+ * @ep: The endpoint
+ *
+ * Returns: true if an endpoint @ep conforms to USB 2 Isochronous Double IN
+ * Bandwidth ECN, false otherwise.
+ */
+bool usb_endpoint_is_hs_isoc_double(struct usb_device *udev,
+				    const struct usb_host_endpoint *ep)
+{
+	return ep->eusb2_isoc_ep_comp.bDescriptorType &&
+		le16_to_cpu(udev->descriptor.bcdUSB) == 0x220 &&
+		usb_endpoint_is_isoc_in(&ep->desc) &&
+		!le16_to_cpu(ep->desc.wMaxPacketSize);
+}
+EXPORT_SYMBOL_GPL(usb_endpoint_is_hs_isoc_double);
 
 /*
  * Notifications of device and interface registration

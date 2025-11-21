@@ -43,7 +43,7 @@ static void invoke_syscall(struct pt_regs *regs, unsigned int scno,
 
 	add_random_kstack_offset();
 
-	if (scno < sc_nr) {
+	if (likely(scno < sc_nr)) {
 		syscall_fn_t syscall_fn;
 		syscall_fn = syscall_table[array_index_nospec(scno, sc_nr)];
 		ret = __invoke_syscall(regs, syscall_fn);

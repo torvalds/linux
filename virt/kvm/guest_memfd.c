@@ -102,8 +102,17 @@ static struct folio *kvm_gmem_get_folio(struct inode *inode, pgoff_t index)
 	return filemap_grab_folio(inode->i_mapping, index);
 }
 
-static void kvm_gmem_invalidate_begin(struct kvm_gmem *gmem, pgoff_t start,
-				      pgoff_t end)
+static enum kvm_gfn_range_filter kvm_gmem_get_invalidate_filter(struct inode *inode)
+{
+	if ((u64)inode->i_private & GUEST_MEMFD_FLAG_INIT_SHARED)
+		return KVM_FILTER_SHARED;
+
+	return KVM_FILTER_PRIVATE;
+}
+
+static void __kvm_gmem_invalidate_begin(struct kvm_gmem *gmem, pgoff_t start,
+					pgoff_t end,
+					enum kvm_gfn_range_filter attr_filter)
 {
 	bool flush = false, found_memslot = false;
 	struct kvm_memory_slot *slot;
@@ -118,8 +127,7 @@ static void kvm_gmem_invalidate_begin(struct kvm_gmem *gmem, pgoff_t start,
 			.end = slot->base_gfn + min(pgoff + slot->npages, end) - pgoff,
 			.slot = slot,
 			.may_block = true,
-			/* guest memfd is relevant to only private mappings. */
-			.attr_filter = KVM_FILTER_PRIVATE,
+			.attr_filter = attr_filter,
 		};
 
 		if (!found_memslot) {
@@ -139,8 +147,21 @@ static void kvm_gmem_invalidate_begin(struct kvm_gmem *gmem, pgoff_t start,
 		KVM_MMU_UNLOCK(kvm);
 }
 
-static void kvm_gmem_invalidate_end(struct kvm_gmem *gmem, pgoff_t start,
-				    pgoff_t end)
+static void kvm_gmem_invalidate_begin(struct inode *inode, pgoff_t start,
+				      pgoff_t end)
+{
+	struct list_head *gmem_list = &inode->i_mapping->i_private_list;
+	enum kvm_gfn_range_filter attr_filter;
+	struct kvm_gmem *gmem;
+
+	attr_filter = kvm_gmem_get_invalidate_filter(inode);
+
+	list_for_each_entry(gmem, gmem_list, entry)
+		__kvm_gmem_invalidate_begin(gmem, start, end, attr_filter);
+}
+
+static void __kvm_gmem_invalidate_end(struct kvm_gmem *gmem, pgoff_t start,
+				      pgoff_t end)
 {
 	struct kvm *kvm = gmem->kvm;
 
@@ -151,12 +172,20 @@ static void kvm_gmem_invalidate_end(struct kvm_gmem *gmem, pgoff_t start,
 	}
 }
 
-static long kvm_gmem_punch_hole(struct inode *inode, loff_t offset, loff_t len)
+static void kvm_gmem_invalidate_end(struct inode *inode, pgoff_t start,
+				    pgoff_t end)
 {
 	struct list_head *gmem_list = &inode->i_mapping->i_private_list;
+	struct kvm_gmem *gmem;
+
+	list_for_each_entry(gmem, gmem_list, entry)
+		__kvm_gmem_invalidate_end(gmem, start, end);
+}
+
+static long kvm_gmem_punch_hole(struct inode *inode, loff_t offset, loff_t len)
+{
 	pgoff_t start = offset >> PAGE_SHIFT;
 	pgoff_t end = (offset + len) >> PAGE_SHIFT;
-	struct kvm_gmem *gmem;
 
 	/*
 	 * Bindings must be stable across invalidation to ensure the start+end
@@ -164,13 +193,11 @@ static long kvm_gmem_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	 */
 	filemap_invalidate_lock(inode->i_mapping);
 
-	list_for_each_entry(gmem, gmem_list, entry)
-		kvm_gmem_invalidate_begin(gmem, start, end);
+	kvm_gmem_invalidate_begin(inode, start, end);
 
 	truncate_inode_pages_range(inode->i_mapping, offset, offset + len - 1);
 
-	list_for_each_entry(gmem, gmem_list, entry)
-		kvm_gmem_invalidate_end(gmem, start, end);
+	kvm_gmem_invalidate_end(inode, start, end);
 
 	filemap_invalidate_unlock(inode->i_mapping);
 
@@ -280,8 +307,9 @@ static int kvm_gmem_release(struct inode *inode, struct file *file)
 	 * Zap all SPTEs pointed at by this file.  Do not free the backing
 	 * memory, as its lifetime is associated with the inode, not the file.
 	 */
-	kvm_gmem_invalidate_begin(gmem, 0, -1ul);
-	kvm_gmem_invalidate_end(gmem, 0, -1ul);
+	__kvm_gmem_invalidate_begin(gmem, 0, -1ul,
+				    kvm_gmem_get_invalidate_filter(inode));
+	__kvm_gmem_invalidate_end(gmem, 0, -1ul);
 
 	list_del(&gmem->entry);
 
@@ -312,7 +340,77 @@ static pgoff_t kvm_gmem_get_index(struct kvm_memory_slot *slot, gfn_t gfn)
 	return gfn - slot->base_gfn + slot->gmem.pgoff;
 }
 
+static bool kvm_gmem_supports_mmap(struct inode *inode)
+{
+	const u64 flags = (u64)inode->i_private;
+
+	return flags & GUEST_MEMFD_FLAG_MMAP;
+}
+
+static vm_fault_t kvm_gmem_fault_user_mapping(struct vm_fault *vmf)
+{
+	struct inode *inode = file_inode(vmf->vma->vm_file);
+	struct folio *folio;
+	vm_fault_t ret = VM_FAULT_LOCKED;
+
+	if (((loff_t)vmf->pgoff << PAGE_SHIFT) >= i_size_read(inode))
+		return VM_FAULT_SIGBUS;
+
+	if (!((u64)inode->i_private & GUEST_MEMFD_FLAG_INIT_SHARED))
+		return VM_FAULT_SIGBUS;
+
+	folio = kvm_gmem_get_folio(inode, vmf->pgoff);
+	if (IS_ERR(folio)) {
+		int err = PTR_ERR(folio);
+
+		if (err == -EAGAIN)
+			return VM_FAULT_RETRY;
+
+		return vmf_error(err);
+	}
+
+	if (WARN_ON_ONCE(folio_test_large(folio))) {
+		ret = VM_FAULT_SIGBUS;
+		goto out_folio;
+	}
+
+	if (!folio_test_uptodate(folio)) {
+		clear_highpage(folio_page(folio, 0));
+		kvm_gmem_mark_prepared(folio);
+	}
+
+	vmf->page = folio_file_page(folio, vmf->pgoff);
+
+out_folio:
+	if (ret != VM_FAULT_LOCKED) {
+		folio_unlock(folio);
+		folio_put(folio);
+	}
+
+	return ret;
+}
+
+static const struct vm_operations_struct kvm_gmem_vm_ops = {
+	.fault = kvm_gmem_fault_user_mapping,
+};
+
+static int kvm_gmem_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!kvm_gmem_supports_mmap(file_inode(file)))
+		return -ENODEV;
+
+	if ((vma->vm_flags & (VM_SHARED | VM_MAYSHARE)) !=
+	    (VM_SHARED | VM_MAYSHARE)) {
+		return -EINVAL;
+	}
+
+	vma->vm_ops = &kvm_gmem_vm_ops;
+
+	return 0;
+}
+
 static struct file_operations kvm_gmem_fops = {
+	.mmap		= kvm_gmem_mmap,
 	.open		= generic_file_open,
 	.release	= kvm_gmem_release,
 	.fallocate	= kvm_gmem_fallocate,
@@ -333,8 +431,6 @@ static int kvm_gmem_migrate_folio(struct address_space *mapping,
 
 static int kvm_gmem_error_folio(struct address_space *mapping, struct folio *folio)
 {
-	struct list_head *gmem_list = &mapping->i_private_list;
-	struct kvm_gmem *gmem;
 	pgoff_t start, end;
 
 	filemap_invalidate_lock_shared(mapping);
@@ -342,8 +438,7 @@ static int kvm_gmem_error_folio(struct address_space *mapping, struct folio *fol
 	start = folio->index;
 	end = start + folio_nr_pages(folio);
 
-	list_for_each_entry(gmem, gmem_list, entry)
-		kvm_gmem_invalidate_begin(gmem, start, end);
+	kvm_gmem_invalidate_begin(mapping->host, start, end);
 
 	/*
 	 * Do not truncate the range, what action is taken in response to the
@@ -354,8 +449,7 @@ static int kvm_gmem_error_folio(struct address_space *mapping, struct folio *fol
 	 * error to userspace.
 	 */
 
-	list_for_each_entry(gmem, gmem_list, entry)
-		kvm_gmem_invalidate_end(gmem, start, end);
+	kvm_gmem_invalidate_end(mapping->host, start, end);
 
 	filemap_invalidate_unlock_shared(mapping);
 
@@ -390,6 +484,11 @@ static int kvm_gmem_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 static const struct inode_operations kvm_gmem_iops = {
 	.setattr	= kvm_gmem_setattr,
 };
+
+bool __weak kvm_arch_supports_gmem_init_shared(struct kvm *kvm)
+{
+	return true;
+}
 
 static int __kvm_gmem_create(struct kvm *kvm, loff_t size, u64 flags)
 {
@@ -450,9 +549,8 @@ int kvm_gmem_create(struct kvm *kvm, struct kvm_create_guest_memfd *args)
 {
 	loff_t size = args->size;
 	u64 flags = args->flags;
-	u64 valid_flags = 0;
 
-	if (flags & ~valid_flags)
+	if (flags & ~kvm_gmem_get_supported_flags(kvm))
 		return -EINVAL;
 
 	if (size <= 0 || !PAGE_ALIGNED(size))
@@ -508,6 +606,8 @@ int kvm_gmem_bind(struct kvm *kvm, struct kvm_memory_slot *slot,
 	 */
 	WRITE_ONCE(slot->gmem.file, file);
 	slot->gmem.pgoff = start;
+	if (kvm_gmem_supports_mmap(inode))
+		slot->flags |= KVM_MEMSLOT_GMEM_ONLY;
 
 	xa_store_range(&gmem->bindings, start, end - 1, slot, GFP_KERNEL);
 	filemap_invalidate_unlock(inode->i_mapping);
@@ -625,9 +725,9 @@ out:
 	fput(file);
 	return r;
 }
-EXPORT_SYMBOL_GPL(kvm_gmem_get_pfn);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_gmem_get_pfn);
 
-#ifdef CONFIG_KVM_GENERIC_PRIVATE_MEM
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_POPULATE
 long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long npages,
 		       kvm_gmem_populate_cb post_populate, void *opaque)
 {
@@ -639,11 +739,12 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long 
 	long i;
 
 	lockdep_assert_held(&kvm->slots_lock);
-	if (npages < 0)
+
+	if (WARN_ON_ONCE(npages <= 0))
 		return -EINVAL;
 
 	slot = gfn_to_memslot(kvm, start_gfn);
-	if (!kvm_slot_can_be_private(slot))
+	if (!kvm_slot_has_gmem(slot))
 		return -EINVAL;
 
 	file = kvm_gmem_get_file(slot);
@@ -707,5 +808,5 @@ put_folio_and_exit:
 	fput(file);
 	return ret && !i ? ret : i;
 }
-EXPORT_SYMBOL_GPL(kvm_gmem_populate);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_gmem_populate);
 #endif

@@ -273,7 +273,8 @@ struct gpib_board {
 	struct mutex big_gpib_mutex;
 	/* pid of last process to lock the board mutex */
 	pid_t locking_pid;
-	spinlock_t locking_pid_spinlock; // lock for setting locking pid
+	/* lock for setting locking pid */
+	spinlock_t locking_pid_spinlock;
 	/* Spin lock for dealing with races with the interrupt handler */
 	spinlock_t spinlock;
 	/* Watchdog timer to enable timeouts */

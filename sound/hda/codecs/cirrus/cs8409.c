@@ -92,13 +92,12 @@ static void cs8409_disable_i2c_clock(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec = codec->spec;
 
-	mutex_lock(&spec->i2c_mux);
+	guard(mutex)(&spec->i2c_mux);
 	if (spec->i2c_clck_enabled) {
 		cs8409_vendor_coef_set(spec->codec, 0x0,
 			       cs8409_vendor_coef_get(spec->codec, 0x0) & 0xfffffff7);
 		spec->i2c_clck_enabled = 0;
 	}
-	mutex_unlock(&spec->i2c_mux);
 }
 
 /*
@@ -204,7 +203,7 @@ static int cs8409_i2c_read(struct sub_codec *scodec, unsigned int addr)
 	if (scodec->suspended)
 		return -EPERM;
 
-	mutex_lock(&spec->i2c_mux);
+	guard(mutex)(&spec->i2c_mux);
 	cs8409_enable_i2c_clock(codec);
 	cs8409_set_i2c_dev_addr(codec, scodec->addr);
 
@@ -219,12 +218,9 @@ static int cs8409_i2c_read(struct sub_codec *scodec, unsigned int addr)
 	/* Register in bits 15-8 and the data in 7-0 */
 	read_data = cs8409_vendor_coef_get(codec, CS8409_I2C_QREAD);
 
-	mutex_unlock(&spec->i2c_mux);
-
 	return read_data & 0x0ff;
 
 error:
-	mutex_unlock(&spec->i2c_mux);
 	codec_err(codec, "%s() Failed 0x%02x : 0x%04x\n", __func__, scodec->addr, addr);
 	return -EIO;
 }
@@ -247,7 +243,7 @@ static int cs8409_i2c_bulk_read(struct sub_codec *scodec, struct cs8409_i2c_para
 	if (scodec->suspended)
 		return -EPERM;
 
-	mutex_lock(&spec->i2c_mux);
+	guard(mutex)(&spec->i2c_mux);
 	cs8409_set_i2c_dev_addr(codec, scodec->addr);
 
 	for (i = 0; i < count; i++) {
@@ -264,12 +260,9 @@ static int cs8409_i2c_bulk_read(struct sub_codec *scodec, struct cs8409_i2c_para
 		seq[i].value = cs8409_vendor_coef_get(codec, CS8409_I2C_QREAD) & 0xff;
 	}
 
-	mutex_unlock(&spec->i2c_mux);
-
 	return 0;
 
 error:
-	mutex_unlock(&spec->i2c_mux);
 	codec_err(codec, "I2C Bulk Write Failed 0x%02x\n", scodec->addr);
 	return -EIO;
 }
@@ -291,7 +284,7 @@ static int cs8409_i2c_write(struct sub_codec *scodec, unsigned int addr, unsigne
 	if (scodec->suspended)
 		return -EPERM;
 
-	mutex_lock(&spec->i2c_mux);
+	guard(mutex)(&spec->i2c_mux);
 
 	cs8409_enable_i2c_clock(codec);
 	cs8409_set_i2c_dev_addr(codec, scodec->addr);
@@ -305,11 +298,9 @@ static int cs8409_i2c_write(struct sub_codec *scodec, unsigned int addr, unsigne
 	if (cs8409_i2c_wait_complete(codec) < 0)
 		goto error;
 
-	mutex_unlock(&spec->i2c_mux);
 	return 0;
 
 error:
-	mutex_unlock(&spec->i2c_mux);
 	codec_err(codec, "%s() Failed 0x%02x : 0x%04x\n", __func__, scodec->addr, addr);
 	return -EIO;
 }
@@ -333,7 +324,7 @@ static int cs8409_i2c_bulk_write(struct sub_codec *scodec, const struct cs8409_i
 	if (scodec->suspended)
 		return -EPERM;
 
-	mutex_lock(&spec->i2c_mux);
+	guard(mutex)(&spec->i2c_mux);
 	cs8409_set_i2c_dev_addr(codec, scodec->addr);
 
 	for (i = 0; i < count; i++) {
@@ -353,12 +344,9 @@ static int cs8409_i2c_bulk_write(struct sub_codec *scodec, const struct cs8409_i
 			fsleep(seq[i].delay);
 	}
 
-	mutex_unlock(&spec->i2c_mux);
-
 	return 0;
 
 error:
-	mutex_unlock(&spec->i2c_mux);
 	codec_err(codec, "I2C Bulk Write Failed 0x%02x\n", scodec->addr);
 	return -EIO;
 }

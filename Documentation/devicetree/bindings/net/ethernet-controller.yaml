@@ -108,6 +108,11 @@ properties:
     $ref: "#/properties/phy-handle"
     deprecated: true
 
+  ptp-timer:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Specifies a reference to a node representing an IEEE 1588 PTP device.
+
   rx-fifo-depth:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -222,7 +227,7 @@ properties:
           reg:
             maxItems: 1
             description:
-              This define the LED index in the PHY or the MAC. It's really
+              This defines the LED index in the PHY or the MAC. It's really
               driver dependent and required for ports that define multiple
               LED for the same port.
 
@@ -274,7 +279,7 @@ additionalProperties: true
 # specified.
 #
 # One option is to make the clock traces on the PCB longer than the
-# data traces. A sufficiently difference in length can provide the 2ns
+# data traces. A sufficient difference in length can provide the 2ns
 # delay. If both the RX and TX delays are implemented in this manner,
 # 'rgmii' should be used, so indicating the PCB adds the delays.
 #

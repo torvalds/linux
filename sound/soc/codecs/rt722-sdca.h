@@ -39,6 +39,7 @@ struct  rt722_sdca_priv {
 	/* For DMIC */
 	bool fu1e_dapm_mute;
 	bool fu1e_mixer_mute[4];
+	int hw_vid;
 };
 
 struct rt722_sdca_dmic_kctrl_priv {
@@ -231,6 +232,11 @@ enum {
 enum rt722_sdca_jd_src {
 	RT722_JD_NULL,
 	RT722_JD1,
+};
+
+enum rt722_sdca_version {
+	RT722_VA,
+	RT722_VB,
 };
 
 int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave);

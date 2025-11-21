@@ -7,6 +7,7 @@
 #include <uapi/linux/cramfs_fs.h>
 #include <linux/initrd.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/slab.h>
 
 #include "do_mounts.h"
@@ -186,14 +187,12 @@ static unsigned long nr_blocks(struct file *file)
 int __init rd_load_image(char *from)
 {
 	int res = 0;
-	unsigned long rd_blocks, devblocks;
+	unsigned long rd_blocks, devblocks, nr_disks;
 	int nblocks, i;
 	char *buf = NULL;
 	unsigned short rotate = 0;
 	decompress_fn decompressor = NULL;
-#if !defined(CONFIG_S390)
 	char rotator[4] = { '|' , '/' , '-' , '\\' };
-#endif
 
 	out_file = filp_open("/dev/ram", O_RDWR, 0);
 	if (IS_ERR(out_file))
@@ -244,8 +243,9 @@ int __init rd_load_image(char *from)
 		goto done;
 	}
 
-	printk(KERN_NOTICE "RAMDISK: Loading %dKiB [%ld disk%s] into ram disk... ",
-		nblocks, ((nblocks-1)/devblocks)+1, nblocks>devblocks ? "s" : "");
+	nr_disks = (nblocks - 1) / devblocks + 1;
+	pr_notice("RAMDISK: Loading %dKiB [%ld disk%s] into ram disk... ",
+		  nblocks, nr_disks, str_plural(nr_disks));
 	for (i = 0; i < nblocks; i++) {
 		if (i && (i % devblocks == 0)) {
 			pr_cont("done disk #1.\n");
@@ -255,12 +255,10 @@ int __init rd_load_image(char *from)
 		}
 		kernel_read(in_file, buf, BLOCK_SIZE, &in_pos);
 		kernel_write(out_file, buf, BLOCK_SIZE, &out_pos);
-#if !defined(CONFIG_S390)
-		if (!(i % 16)) {
+		if (!IS_ENABLED(CONFIG_S390) && !(i % 16)) {
 			pr_cont("%c\b", rotator[rotate & 0x3]);
 			rotate++;
 		}
-#endif
 	}
 	pr_cont("done.\n");
 

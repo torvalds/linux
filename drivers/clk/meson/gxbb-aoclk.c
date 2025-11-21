@@ -23,31 +23,20 @@
 #define AO_RTC_ALT_CLK_CNTL0	0x94
 #define AO_RTC_ALT_CLK_CNTL1	0x98
 
-#define GXBB_AO_GATE(_name, _bit)					\
-static struct clk_regmap _name##_ao = {					\
-	.data = &(struct clk_regmap_gate_data) {			\
-		.offset = AO_RTI_GEN_CNTL_REG0,				\
-		.bit_idx = (_bit),					\
-	},								\
-	.hw.init = &(struct clk_init_data) {				\
-		.name = #_name "_ao",					\
-		.ops = &clk_regmap_gate_ops,				\
-		.parent_data = &(const struct clk_parent_data) {	\
-			.fw_name = "mpeg-clk",				\
-		},							\
-		.num_parents = 1,					\
-		.flags = CLK_IGNORE_UNUSED,				\
-	},								\
-}
+static const struct clk_parent_data gxbb_ao_pclk_parents = { .fw_name = "mpeg-clk" };
 
-GXBB_AO_GATE(remote, 0);
-GXBB_AO_GATE(i2c_master, 1);
-GXBB_AO_GATE(i2c_slave, 2);
-GXBB_AO_GATE(uart1, 3);
-GXBB_AO_GATE(uart2, 5);
-GXBB_AO_GATE(ir_blaster, 6);
+#define GXBB_AO_PCLK(_name, _bit, _flags)			\
+	MESON_PCLK(gxbb_ao_##_name, AO_RTI_GEN_CNTL_REG0, _bit, \
+		   &gxbb_ao_pclk_parents, _flags)
 
-static struct clk_regmap ao_cts_oscin = {
+static GXBB_AO_PCLK(remote,	0, CLK_IGNORE_UNUSED);
+static GXBB_AO_PCLK(i2c_master,	1, CLK_IGNORE_UNUSED);
+static GXBB_AO_PCLK(i2c_slave,	2, CLK_IGNORE_UNUSED);
+static GXBB_AO_PCLK(uart1,	3, CLK_IGNORE_UNUSED);
+static GXBB_AO_PCLK(uart2,	5, CLK_IGNORE_UNUSED);
+static GXBB_AO_PCLK(ir_blaster,	6, CLK_IGNORE_UNUSED);
+
+static struct clk_regmap gxbb_ao_cts_oscin = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = AO_RTI_PWR_CNTL_REG0,
 		.bit_idx = 6,
@@ -62,7 +51,7 @@ static struct clk_regmap ao_cts_oscin = {
 	},
 };
 
-static struct clk_regmap ao_32k_pre = {
+static struct clk_regmap gxbb_ao_32k_pre = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = AO_RTC_ALT_CLK_CNTL0,
 		.bit_idx = 31,
@@ -70,7 +59,7 @@ static struct clk_regmap ao_32k_pre = {
 	.hw.init = &(struct clk_init_data){
 		.name = "ao_32k_pre",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &ao_cts_oscin.hw },
+		.parent_hws = (const struct clk_hw *[]) { &gxbb_ao_cts_oscin.hw },
 		.num_parents = 1,
 	},
 };
@@ -85,7 +74,7 @@ static const struct meson_clk_dualdiv_param gxbb_32k_div_table[] = {
 	}, {}
 };
 
-static struct clk_regmap ao_32k_div = {
+static struct clk_regmap gxbb_ao_32k_div = {
 	.data = &(struct meson_clk_dualdiv_data){
 		.n1 = {
 			.reg_off = AO_RTC_ALT_CLK_CNTL0,
@@ -117,12 +106,12 @@ static struct clk_regmap ao_32k_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "ao_32k_div",
 		.ops = &meson_clk_dualdiv_ops,
-		.parent_hws = (const struct clk_hw *[]) { &ao_32k_pre.hw },
+		.parent_hws = (const struct clk_hw *[]) { &gxbb_ao_32k_pre.hw },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap ao_32k_sel = {
+static struct clk_regmap gxbb_ao_32k_sel = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = AO_RTC_ALT_CLK_CNTL1,
 		.mask = 0x1,
@@ -133,15 +122,15 @@ static struct clk_regmap ao_32k_sel = {
 		.name = "ao_32k_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&ao_32k_div.hw,
-			&ao_32k_pre.hw
+			&gxbb_ao_32k_div.hw,
+			&gxbb_ao_32k_pre.hw
 		},
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_regmap ao_32k = {
+static struct clk_regmap gxbb_ao_32k = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = AO_RTC_ALT_CLK_CNTL0,
 		.bit_idx = 30,
@@ -149,13 +138,13 @@ static struct clk_regmap ao_32k = {
 	.hw.init = &(struct clk_init_data){
 		.name = "ao_32k",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &ao_32k_sel.hw },
+		.parent_hws = (const struct clk_hw *[]) { &gxbb_ao_32k_sel.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_regmap ao_cts_rtc_oscin = {
+static struct clk_regmap gxbb_ao_cts_rtc_oscin = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = AO_RTI_PWR_CNTL_REG0,
 		.mask = 0x7,
@@ -170,14 +159,14 @@ static struct clk_regmap ao_cts_rtc_oscin = {
 			{ .fw_name = "ext-32k-0", },
 			{ .fw_name = "ext-32k-1", },
 			{ .fw_name = "ext-32k-2", },
-			{ .hw = &ao_32k.hw },
+			{ .hw = &gxbb_ao_32k.hw },
 		},
 		.num_parents = 4,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_regmap ao_clk81 = {
+static struct clk_regmap gxbb_ao_clk81 = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = AO_RTI_PWR_CNTL_REG0,
 		.mask = 0x1,
@@ -189,14 +178,14 @@ static struct clk_regmap ao_clk81 = {
 		.ops = &clk_regmap_mux_ro_ops,
 		.parent_data = (const struct clk_parent_data []) {
 			{ .fw_name = "mpeg-clk", },
-			{ .hw = &ao_cts_rtc_oscin.hw },
+			{ .hw = &gxbb_ao_cts_rtc_oscin.hw },
 		},
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_regmap ao_cts_cec = {
+static struct clk_regmap gxbb_ao_cts_cec = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = AO_CRT_CLK_CNTL1,
 		.mask = 0x1,
@@ -221,14 +210,14 @@ static struct clk_regmap ao_cts_cec = {
 		 */
 		.parent_data = (const struct clk_parent_data []) {
 			{ .name = "fixme", .index = -1, },
-			{ .hw = &ao_cts_rtc_oscin.hw },
+			{ .hw = &gxbb_ao_cts_rtc_oscin.hw },
 		},
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static const unsigned int gxbb_aoclk_reset[] = {
+static const unsigned int gxbb_ao_reset[] = {
 	[RESET_AO_REMOTE] = 16,
 	[RESET_AO_I2C_MASTER] = 18,
 	[RESET_AO_I2C_SLAVE] = 19,
@@ -237,50 +226,52 @@ static const unsigned int gxbb_aoclk_reset[] = {
 	[RESET_AO_IR_BLASTER] = 23,
 };
 
-static struct clk_hw *gxbb_aoclk_hw_clks[] = {
-		[CLKID_AO_REMOTE] = &remote_ao.hw,
-		[CLKID_AO_I2C_MASTER] = &i2c_master_ao.hw,
-		[CLKID_AO_I2C_SLAVE] = &i2c_slave_ao.hw,
-		[CLKID_AO_UART1] = &uart1_ao.hw,
-		[CLKID_AO_UART2] = &uart2_ao.hw,
-		[CLKID_AO_IR_BLASTER] = &ir_blaster_ao.hw,
-		[CLKID_AO_CEC_32K] = &ao_cts_cec.hw,
-		[CLKID_AO_CTS_OSCIN] = &ao_cts_oscin.hw,
-		[CLKID_AO_32K_PRE] = &ao_32k_pre.hw,
-		[CLKID_AO_32K_DIV] = &ao_32k_div.hw,
-		[CLKID_AO_32K_SEL] = &ao_32k_sel.hw,
-		[CLKID_AO_32K] = &ao_32k.hw,
-		[CLKID_AO_CTS_RTC_OSCIN] = &ao_cts_rtc_oscin.hw,
-		[CLKID_AO_CLK81] = &ao_clk81.hw,
+static struct clk_hw *gxbb_ao_hw_clks[] = {
+		[CLKID_AO_REMOTE]	= &gxbb_ao_remote.hw,
+		[CLKID_AO_I2C_MASTER]	= &gxbb_ao_i2c_master.hw,
+		[CLKID_AO_I2C_SLAVE]	= &gxbb_ao_i2c_slave.hw,
+		[CLKID_AO_UART1]	= &gxbb_ao_uart1.hw,
+		[CLKID_AO_UART2]	= &gxbb_ao_uart2.hw,
+		[CLKID_AO_IR_BLASTER]	= &gxbb_ao_ir_blaster.hw,
+		[CLKID_AO_CEC_32K]	= &gxbb_ao_cts_cec.hw,
+		[CLKID_AO_CTS_OSCIN]	= &gxbb_ao_cts_oscin.hw,
+		[CLKID_AO_32K_PRE]	= &gxbb_ao_32k_pre.hw,
+		[CLKID_AO_32K_DIV]	= &gxbb_ao_32k_div.hw,
+		[CLKID_AO_32K_SEL]	= &gxbb_ao_32k_sel.hw,
+		[CLKID_AO_32K]		= &gxbb_ao_32k.hw,
+		[CLKID_AO_CTS_RTC_OSCIN] = &gxbb_ao_cts_rtc_oscin.hw,
+		[CLKID_AO_CLK81]	= &gxbb_ao_clk81.hw,
 };
 
-static const struct meson_aoclk_data gxbb_aoclkc_data = {
+static const struct meson_aoclk_data gxbb_ao_clkc_data = {
 	.reset_reg	= AO_RTI_GEN_CNTL_REG0,
-	.num_reset	= ARRAY_SIZE(gxbb_aoclk_reset),
-	.reset		= gxbb_aoclk_reset,
-	.hw_clks	= {
-		.hws	= gxbb_aoclk_hw_clks,
-		.num	= ARRAY_SIZE(gxbb_aoclk_hw_clks),
+	.num_reset	= ARRAY_SIZE(gxbb_ao_reset),
+	.reset		= gxbb_ao_reset,
+	.clkc_data	= {
+		.hw_clks = {
+			.hws	= gxbb_ao_hw_clks,
+			.num	= ARRAY_SIZE(gxbb_ao_hw_clks),
+		},
 	},
 };
 
-static const struct of_device_id gxbb_aoclkc_match_table[] = {
+static const struct of_device_id gxbb_ao_clkc_match_table[] = {
 	{
 		.compatible	= "amlogic,meson-gx-aoclkc",
-		.data		= &gxbb_aoclkc_data,
+		.data		= &gxbb_ao_clkc_data.clkc_data,
 	},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, gxbb_aoclkc_match_table);
+MODULE_DEVICE_TABLE(of, gxbb_ao_clkc_match_table);
 
-static struct platform_driver gxbb_aoclkc_driver = {
+static struct platform_driver gxbb_ao_clkc_driver = {
 	.probe		= meson_aoclkc_probe,
 	.driver		= {
 		.name	= "gxbb-aoclkc",
-		.of_match_table = gxbb_aoclkc_match_table,
+		.of_match_table = gxbb_ao_clkc_match_table,
 	},
 };
-module_platform_driver(gxbb_aoclkc_driver);
+module_platform_driver(gxbb_ao_clkc_driver);
 
 MODULE_DESCRIPTION("Amlogic GXBB Always-ON Clock Controller driver");
 MODULE_LICENSE("GPL");

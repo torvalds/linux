@@ -1364,14 +1364,15 @@ static int fjes_probe(struct platform_device *plat_dev)
 	adapter->force_reset = false;
 	adapter->open_guard = false;
 
-	adapter->txrx_wq = alloc_workqueue(DRV_NAME "/txrx", WQ_MEM_RECLAIM, 0);
+	adapter->txrx_wq = alloc_workqueue(DRV_NAME "/txrx",
+					   WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (unlikely(!adapter->txrx_wq)) {
 		err = -ENOMEM;
 		goto err_free_netdev;
 	}
 
 	adapter->control_wq = alloc_workqueue(DRV_NAME "/control",
-					      WQ_MEM_RECLAIM, 0);
+					      WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (unlikely(!adapter->control_wq)) {
 		err = -ENOMEM;
 		goto err_free_txrx_wq;

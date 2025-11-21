@@ -236,6 +236,7 @@ struct bnxt_qplib_rcfw {
 	atomic_t timeout_send;
 	/* cached from chip cctx for quick reference in slow path */
 	u16 max_timeout;
+	bool roce_mirror;
 };
 
 struct bnxt_qplib_cmdqmsg {

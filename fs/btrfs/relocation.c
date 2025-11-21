@@ -602,6 +602,25 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 	if (btrfs_root_id(root) == objectid) {
 		u64 commit_root_gen;
 
+		/*
+		 * Relocation will wait for cleaner thread, and any half-dropped
+		 * subvolume will be fully cleaned up at mount time.
+		 * So here we shouldn't hit a subvolume with non-zero drop_progress.
+		 *
+		 * If this isn't the case, error out since it can make us attempt to
+		 * drop references for extents that were already dropped before.
+		 */
+		if (unlikely(btrfs_disk_key_objectid(&root->root_item.drop_progress))) {
+			struct btrfs_key cpu_key;
+
+			btrfs_disk_key_to_cpu(&cpu_key, &root->root_item.drop_progress);
+			btrfs_err(fs_info,
+	"cannot relocate partially dropped subvolume %llu, drop progress key (%llu %u %llu)",
+				  objectid, cpu_key.objectid, cpu_key.type, cpu_key.offset);
+			ret = -EUCLEAN;
+			goto fail;
+		}
+
 		/* called by btrfs_init_reloc_root */
 		ret = btrfs_copy_root(trans, root, root->commit_root, &eb,
 				      BTRFS_TREE_RELOC_OBJECTID);
@@ -802,7 +821,7 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 			    u64 bytenr, u64 num_bytes)
 {
 	struct btrfs_root *root = BTRFS_I(reloc_inode)->root;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_file_extent_item *fi;
 	struct extent_buffer *leaf;
 	int ret;
@@ -815,11 +834,9 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 	ret = btrfs_lookup_file_extent(NULL, root, path,
 			btrfs_ino(BTRFS_I(reloc_inode)), bytenr, 0);
 	if (ret < 0)
-		goto out;
-	if (ret > 0) {
-		ret = -ENOENT;
-		goto out;
-	}
+		return ret;
+	if (ret > 0)
+		return -ENOENT;
 
 	leaf = path->nodes[0];
 	fi = btrfs_item_ptr(leaf, path->slots[0],
@@ -830,16 +847,11 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 	       btrfs_file_extent_encryption(leaf, fi) ||
 	       btrfs_file_extent_other_encoding(leaf, fi));
 
-	if (num_bytes != btrfs_file_extent_disk_num_bytes(leaf, fi)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (num_bytes != btrfs_file_extent_disk_num_bytes(leaf, fi))
+		return -EINVAL;
 
 	*new_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
-	ret = 0;
-out:
-	btrfs_free_path(path);
-	return ret;
+	return 0;
 }
 
 /*
@@ -955,7 +967,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		btrfs_init_data_ref(&ref, key.objectid, key.offset,
 				    btrfs_root_id(root), false);
 		ret = btrfs_inc_extent_ref(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -969,7 +981,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		btrfs_init_data_ref(&ref, key.objectid, key.offset,
 				    btrfs_root_id(root), false);
 		ret = btrfs_free_extent(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1180,7 +1192,7 @@ again:
 		ref.ref_root = btrfs_root_id(src);
 		btrfs_init_tree_ref(&ref, level - 1, 0, true);
 		ret = btrfs_inc_extent_ref(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1193,7 +1205,7 @@ again:
 		ref.ref_root = btrfs_root_id(dest);
 		btrfs_init_tree_ref(&ref, level - 1, 0, true);
 		ret = btrfs_inc_extent_ref(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1207,7 +1219,7 @@ again:
 		ref.ref_root = btrfs_root_id(src);
 		btrfs_init_tree_ref(&ref, level - 1, 0, true);
 		ret = btrfs_free_extent(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1221,7 +1233,7 @@ again:
 		ref.ref_root = btrfs_root_id(dest);
 		btrfs_init_tree_ref(&ref, level - 1, 0, true);
 		ret = btrfs_free_extent(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1471,7 +1483,7 @@ static int clean_dirty_subvols(struct reloc_control *rc)
 				 * ->reloc_root.  If it fails however we must
 				 * drop the ref ourselves.
 				 */
-				ret2 = btrfs_drop_snapshot(reloc_root, 0, 1);
+				ret2 = btrfs_drop_snapshot(reloc_root, false, true);
 				if (ret2 < 0) {
 					btrfs_put_root(reloc_root);
 					if (!ret)
@@ -1481,7 +1493,7 @@ static int clean_dirty_subvols(struct reloc_control *rc)
 			btrfs_put_root(root);
 		} else {
 			/* Orphan reloc tree, just clean it up */
-			ret2 = btrfs_drop_snapshot(root, 0, 1);
+			ret2 = btrfs_drop_snapshot(root, false, true);
 			if (ret2 < 0) {
 				btrfs_put_root(root);
 				if (!ret)
@@ -1772,7 +1784,7 @@ again:
 		list_add(&reloc_root->root_list, &reloc_roots);
 		btrfs_put_root(root);
 
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			if (!err)
 				err = ret;
@@ -1941,7 +1953,7 @@ static int record_reloc_root_in_trans(struct btrfs_trans_handle *trans,
 		DEBUG_WARN("error %ld reading root for reloc root", PTR_ERR(root));
 		return PTR_ERR(root);
 	}
-	if (root->reloc_root != reloc_root) {
+	if (unlikely(root->reloc_root != reloc_root)) {
 		DEBUG_WARN("unexpected reloc root found");
 		btrfs_err(fs_info,
 			  "root %llu has two reloc roots associated with it",
@@ -2012,7 +2024,7 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 	if (!root)
 		return ERR_PTR(-ENOENT);
 
-	if (next->new_bytenr) {
+	if (unlikely(next->new_bytenr)) {
 		/*
 		 * We just created the reloc root, so we shouldn't have
 		 * ->new_bytenr set yet. If it is then we have multiple roots
@@ -2071,7 +2083,7 @@ struct btrfs_root *select_one_root(struct btrfs_backref_node *node)
 		 * This can occur if we have incomplete extent refs leading all
 		 * the way up a particular path, in this case return -EUCLEAN.
 		 */
-		if (!root)
+		if (unlikely(!root))
 			return ERR_PTR(-EUCLEAN);
 
 		/* No other choice for non-shareable tree */
@@ -2258,7 +2270,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 
 		bytenr = btrfs_node_blockptr(upper->eb, slot);
 		if (lowest) {
-			if (bytenr != node->bytenr) {
+			if (unlikely(bytenr != node->bytenr)) {
 				btrfs_err(root->fs_info,
 		"lowest leaf/node mismatch: bytenr %llu node->bytenr %llu slot %d upper %llu",
 					  bytenr, node->bytenr, slot,
@@ -2313,7 +2325,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 			if (!ret)
 				ret = btrfs_drop_subtree(trans, root, eb,
 							 upper->eb);
-			if (ret)
+			if (unlikely(ret))
 				btrfs_abort_transaction(trans, ret);
 		}
 next:
@@ -2435,7 +2447,7 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 	eb = read_tree_block(fs_info, block->bytenr, &check);
 	if (IS_ERR(eb))
 		return PTR_ERR(eb);
-	if (!extent_buffer_uptodate(eb)) {
+	if (unlikely(!extent_buffer_uptodate(eb))) {
 		free_extent_buffer(eb);
 		return -EIO;
 	}
@@ -2500,7 +2512,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			 * normal user in the case of corruption.
 			 */
 			ASSERT(node->new_bytenr == 0);
-			if (node->new_bytenr) {
+			if (unlikely(node->new_bytenr)) {
 				btrfs_err(root->fs_info,
 				  "bytenr %llu has improper references to it",
 					  node->bytenr);
@@ -2820,7 +2832,7 @@ again:
 	if (!folio_test_uptodate(folio)) {
 		btrfs_read_folio(NULL, folio);
 		folio_lock(folio);
-		if (!folio_test_uptodate(folio)) {
+		if (unlikely(!folio_test_uptodate(folio))) {
 			ret = -EIO;
 			goto release_folio;
 		}
@@ -3139,7 +3151,7 @@ static int __add_tree_block(struct reloc_control *rc,
 			    struct rb_root *blocks)
 {
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	int ret;
 	bool skinny = btrfs_fs_incompat(fs_info, SKINNY_METADATA);
@@ -3167,7 +3179,7 @@ again:
 	path->skip_locking = 1;
 	ret = btrfs_search_slot(NULL, rc->extent_root, &key, path, 0, 0);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (ret > 0 && skinny) {
 		if (path->slots[0]) {
@@ -3194,14 +3206,10 @@ again:
 	     "tree block extent item (%llu) is not found in extent tree",
 		     bytenr);
 		WARN_ON(1);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	ret = add_tree_block(rc, &key, path, blocks);
-out:
-	btrfs_free_path(path);
-	return ret;
+	return add_tree_block(rc, &key, path, blocks);
 }
 
 static int delete_block_group_cache(struct btrfs_block_group *block_group,
@@ -3491,7 +3499,7 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 	struct rb_root blocks = RB_ROOT;
 	struct btrfs_key key;
 	struct btrfs_trans_handle *trans = NULL;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_extent_item *ei;
 	u64 flags;
 	int ret;
@@ -3660,14 +3668,13 @@ out_free:
 	if (ret < 0 && !err)
 		err = ret;
 	btrfs_free_block_rsv(fs_info, rc->block_rsv);
-	btrfs_free_path(path);
 	return err;
 }
 
 static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root, u64 objectid)
 {
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_inode_item *item;
 	struct extent_buffer *leaf;
 	int ret;
@@ -3678,7 +3685,7 @@ static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_inode(trans, root, path, objectid);
 	if (ret)
-		goto out;
+		return ret;
 
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_inode_item);
@@ -3688,15 +3695,13 @@ static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_mode(leaf, item, S_IFREG | 0600);
 	btrfs_set_inode_flags(leaf, item, BTRFS_INODE_NOCOMPRESS |
 					  BTRFS_INODE_PREALLOC);
-out:
-	btrfs_free_path(path);
-	return ret;
+	return 0;
 }
 
 static void delete_orphan_inode(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root, u64 objectid)
 {
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	int ret = 0;
 
@@ -3719,7 +3724,6 @@ static void delete_orphan_inode(struct btrfs_trans_handle *trans,
 out:
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
-	btrfs_free_path(path);
 }
 
 /*
@@ -3776,6 +3780,7 @@ out:
 /*
  * Mark start of chunk relocation that is cancellable. Check if the cancellation
  * has been requested meanwhile and don't start in that case.
+ * NOTE: if this returns an error, reloc_chunk_end() must not be called.
  *
  * Return:
  *   0             success
@@ -3792,10 +3797,8 @@ static int reloc_chunk_start(struct btrfs_fs_info *fs_info)
 
 	if (atomic_read(&fs_info->reloc_cancel_req) > 0) {
 		btrfs_info(fs_info, "chunk relocation canceled on start");
-		/*
-		 * On cancel, clear all requests but let the caller mark
-		 * the end after cleanup operations.
-		 */
+		/* On cancel, clear all requests. */
+		clear_and_wake_up_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags);
 		atomic_set(&fs_info->reloc_cancel_req, 0);
 		return -ECANCELED;
 	}
@@ -3804,9 +3807,11 @@ static int reloc_chunk_start(struct btrfs_fs_info *fs_info)
 
 /*
  * Mark end of chunk relocation that is cancellable and wake any waiters.
+ * NOTE: call only if a previous call to reloc_chunk_start() succeeded.
  */
 static void reloc_chunk_end(struct btrfs_fs_info *fs_info)
 {
+	ASSERT(test_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags));
 	/* Requested after start, clear bit first so any waiters can continue */
 	if (atomic_read(&fs_info->reloc_cancel_req) > 0)
 		btrfs_info(fs_info, "chunk relocation canceled during operation");
@@ -4019,9 +4024,9 @@ out:
 	if (err && rw)
 		btrfs_dec_block_group_ro(rc->block_group);
 	iput(rc->data_inode);
+	reloc_chunk_end(fs_info);
 out_put_bg:
 	btrfs_put_block_group(bg);
-	reloc_chunk_end(fs_info);
 	free_reloc_control(rc);
 	return err;
 }
@@ -4204,8 +4209,8 @@ out_clean:
 		ret = ret2;
 out_unset:
 	unset_reloc_control(rc);
-out_end:
 	reloc_chunk_end(fs_info);
+out_end:
 	free_reloc_control(rc);
 out:
 	free_reloc_roots(&reloc_roots);

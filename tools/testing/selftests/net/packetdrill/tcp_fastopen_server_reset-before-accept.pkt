@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Send a RST to a TFO socket before it is accepted.
+//
+// The socket won't go away and after it's accepted the data
+// in the SYN pkt can still be read. But that's about all that
+// the acceptor can do with the socket.
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 0:10(10) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,FO TFO_COOKIE,nop,nop>
+   +0 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+
+// 1st read will return the data from SYN.
+   +0 < R. 11:11(0) win 257
+
+// This one w/o ACK bit will cause the same effect.
+// +0 < R 11:11(0) win 257
+
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) != 0, tcpi_options }%
+   +0 %{ assert tcpi_state == TCP_CLOSE, tcpi_state }%
+
+   +0 read(4, ..., 512) = 10
+   +0 read(4, ..., 512) = -1 ECONNRESET (Connection reset by peer)
+   +0 close(4) = 0

@@ -594,7 +594,7 @@ static void check_conf(struct menu *menu)
 		default:
 			if (!conf_cnt++)
 				printf("*\n* Restart config...\n*\n");
-			rootEntry = menu_get_parent_menu(menu);
+			rootEntry = menu_get_menu_or_parent_menu(menu);
 			conf(rootEntry);
 			break;
 		}

@@ -533,8 +533,6 @@ static const struct regmap_config cs48l32_regmap = {
 int cs48l32_create_regmap(struct spi_device *spi, struct cs48l32 *cs48l32)
 {
 	cs48l32->regmap = devm_regmap_init_spi(spi, &cs48l32_regmap);
-	if (IS_ERR(cs48l32->regmap))
-		return PTR_ERR(cs48l32->regmap);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(cs48l32->regmap);
 }

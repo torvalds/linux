@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -325,6 +326,34 @@ static bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnect
 	aconnector->mst_downstream_port_present = ds_port_present;
 	DRM_INFO("Downstream port present %d, type %d\n",
 			ds_port_present.fields.PORT_PRESENT, ds_port_present.fields.PORT_TYPE);
+
+	return true;
+}
+
+static bool retrieve_branch_specific_data(struct amdgpu_dm_connector *aconnector)
+{
+	struct drm_connector *connector = &aconnector->base;
+	struct drm_dp_mst_port *port = aconnector->mst_output_port;
+	struct drm_dp_mst_port *port_parent;
+	struct drm_dp_aux *immediate_upstream_aux;
+	struct drm_dp_desc branch_desc;
+
+	if (!port->parent)
+		return false;
+
+	port_parent = port->parent->port_parent;
+
+	immediate_upstream_aux = port_parent ? &port_parent->aux : port->mgr->aux;
+
+	if (drm_dp_read_desc(immediate_upstream_aux, &branch_desc, true))
+		return false;
+
+	aconnector->branch_ieee_oui = (branch_desc.ident.oui[0] << 16) +
+				      (branch_desc.ident.oui[1] << 8) +
+				      (branch_desc.ident.oui[2]);
+
+	drm_dbg_dp(port->aux.drm_dev, "MST branch oui 0x%x detected at %s\n",
+		   aconnector->branch_ieee_oui, connector->name);
 
 	return true;
 }
@@ -668,6 +697,9 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	drm_connector_set_path_property(connector, pathprop);
 
+	if (!retrieve_branch_specific_data(aconnector))
+		aconnector->branch_ieee_oui = 0;
+
 	/*
 	 * Initialize connector state before adding the connectror to drm and
 	 * framebuffer lists
@@ -809,6 +841,7 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 	drm_dp_aux_init(&aconnector->dm_dp_aux.aux);
 	drm_dp_cec_register_connector(&aconnector->dm_dp_aux.aux,
 				      &aconnector->base);
+	drm_dp_dpcd_set_probe(&aconnector->dm_dp_aux.aux, false);
 
 	if (aconnector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
 		return;
@@ -821,13 +854,20 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 	drm_connector_attach_dp_subconnector_property(&aconnector->base);
 }
 
-int dm_mst_get_pbn_divider(struct dc_link *link)
+uint32_t dm_mst_get_pbn_divider(struct dc_link *link)
 {
+	uint32_t pbn_div_x100;
+	uint64_t dividend, divisor;
+
 	if (!link)
 		return 0;
 
-	return dc_link_bandwidth_kbps(link,
-			dc_link_get_link_cap(link)) / (8 * 1000 * 54);
+	dividend = (uint64_t)dc_link_bandwidth_kbps(link, dc_link_get_link_cap(link)) * 100;
+	divisor = 8 * 1000 * 54;
+
+	pbn_div_x100 = div64_u64(dividend, divisor);
+
+	return dfixed_const(pbn_div_x100) / 100;
 }
 
 struct dsc_mst_fairness_params {
@@ -1762,13 +1802,19 @@ static bool dp_get_link_current_set_bw(struct drm_dp_aux *aux, uint32_t *cur_lin
 	union lane_count_set lane_count;
 	u8 dp_link_encoding;
 	u8 link_bw_set = 0;
+	u8 data[16] = {0};
 
 	*cur_link_bw = 0;
 
-	if (drm_dp_dpcd_read(aux, DP_MAIN_LINK_CHANNEL_CODING_SET, &dp_link_encoding, 1) != 1 ||
-		drm_dp_dpcd_read(aux, DP_LANE_COUNT_SET, &lane_count.raw, 1) != 1 ||
-		drm_dp_dpcd_read(aux, DP_LINK_BW_SET, &link_bw_set, 1) != 1)
+	if (drm_dp_dpcd_read(aux, DP_LINK_BW_SET, data, 16) != 16)
 		return false;
+
+	dp_link_encoding = data[DP_MAIN_LINK_CHANNEL_CODING_SET - DP_LINK_BW_SET];
+	link_bw_set = data[DP_LINK_BW_SET - DP_LINK_BW_SET];
+	lane_count.raw = data[DP_LANE_COUNT_SET - DP_LINK_BW_SET];
+
+	drm_dbg_dp(aux->drm_dev, "MST_DSC downlink setting: %d, 0x%x x %d\n",
+		   dp_link_encoding, link_bw_set, lane_count.bits.LANE_COUNT_SET);
 
 	switch (dp_link_encoding) {
 	case DP_8b_10b_ENCODING:
@@ -1866,8 +1912,10 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 					end_link_bw = aconnector->mst_local_bw;
 				}
 
-				if (end_link_bw > 0 && stream_kbps > end_link_bw) {
-					DRM_DEBUG_DRIVER("MST_DSC dsc decode at last link."
+				if (end_link_bw > 0 &&
+				    stream_kbps > end_link_bw &&
+				    aconnector->branch_ieee_oui != DP_BRANCH_DEVICE_ID_90CC24) {
+					DRM_DEBUG_DRIVER("MST_DSC dsc decode at last link. "
 							 "Mode required bw can't fit into last link\n");
 					return DC_FAIL_BANDWIDTH_VALIDATE;
 				}

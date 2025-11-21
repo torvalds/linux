@@ -268,20 +268,18 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
 /* DPLL rate rounding code */
 
 /**
- * omap2_dpll_round_rate - round a target rate for an OMAP DPLL
+ * omap2_dpll_determine_rate - round a target rate for an OMAP DPLL
  * @hw: struct clk_hw containing the struct clk * for a DPLL
- * @target_rate: desired DPLL clock rate
- * @parent_rate: parent's DPLL clock rate
+ * @req: rate request
  *
  * Given a DPLL and a desired target rate, round the target rate to a
  * possible, programmable rate for this DPLL.  Attempts to select the
  * minimum possible n.  Stores the computed (m, n) in the DPLL's
  * dpll_data structure so set_rate() will not need to call this
- * (expensive) function again.  Returns ~0 if the target rate cannot
- * be rounded, or the rounded rate upon success.
+ * (expensive) function again.  Returns -EINVAL if the target rate
+ * cannot be rounded, or the rounded rate upon success.
  */
-long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
-			   unsigned long *parent_rate)
+int omap2_dpll_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 {
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	int m, n, r, scaled_max_m;
@@ -295,19 +293,19 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 	const char *clk_name;
 
 	if (!clk || !clk->dpll_data)
-		return ~0;
+		return -EINVAL;
 
 	dd = clk->dpll_data;
 
-	if (dd->max_rate && target_rate > dd->max_rate)
-		target_rate = dd->max_rate;
+	if (dd->max_rate && req->rate > dd->max_rate)
+		req->rate = dd->max_rate;
 
 	ref_rate = clk_hw_get_rate(dd->clk_ref);
 	clk_name = clk_hw_get_name(hw);
 	pr_debug("clock: %s: starting DPLL round_rate, target rate %lu\n",
-		 clk_name, target_rate);
+		 clk_name, req->rate);
 
-	scaled_rt_rp = target_rate / (ref_rate / DPLL_SCALE_FACTOR);
+	scaled_rt_rp = req->rate / (ref_rate / DPLL_SCALE_FACTOR);
 	scaled_max_m = dd->max_multiplier * DPLL_SCALE_FACTOR;
 
 	dd->last_rounded_rate = 0;
@@ -332,7 +330,7 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 		if (m > scaled_max_m)
 			break;
 
-		r = _dpll_test_mult(&m, n, &new_rate, target_rate,
+		r = _dpll_test_mult(&m, n, &new_rate, req->rate,
 				    ref_rate);
 
 		/* m can't be set low enough for this n - try with a larger n */
@@ -340,7 +338,7 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 			continue;
 
 		/* skip rates above our target rate */
-		delta = target_rate - new_rate;
+		delta = req->rate - new_rate;
 		if (delta < 0)
 			continue;
 
@@ -359,13 +357,15 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 
 	if (prev_min_delta == LONG_MAX) {
 		pr_debug("clock: %s: cannot round to rate %lu\n",
-			 clk_name, target_rate);
-		return ~0;
+			 clk_name, req->rate);
+		return -EINVAL;
 	}
 
 	dd->last_rounded_m = min_delta_m;
 	dd->last_rounded_n = min_delta_n;
-	dd->last_rounded_rate = target_rate - prev_min_delta;
+	dd->last_rounded_rate = req->rate - prev_min_delta;
 
-	return dd->last_rounded_rate;
+	req->rate = dd->last_rounded_rate;
+
+	return 0;
 }

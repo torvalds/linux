@@ -1068,15 +1068,24 @@ static void usbmisc_imx7d_pullup(struct imx_usbmisc_data *data, bool on)
 	unsigned long flags;
 	u32 val;
 
+	if (on)
+		return;
+
 	spin_lock_irqsave(&usbmisc->lock, flags);
 	val = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
-	if (!on) {
-		val &= ~MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_MASK;
-		val |= MX7D_USBNC_USB_CTRL2_OPMODE(1);
-		val |= MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_EN;
-	} else {
-		val &= ~MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_EN;
-	}
+	val &= ~MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_MASK;
+	val |= MX7D_USBNC_USB_CTRL2_OPMODE(1);
+	val |= MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_EN;
+	writel(val, usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+
+	/* Last for at least 1 micro-frame to let host see disconnect signal */
+	usleep_range(125, 150);
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	val &= ~MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_MASK;
+	val |= MX7D_USBNC_USB_CTRL2_OPMODE(0);
+	val &= ~MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_EN;
 	writel(val, usbmisc->base + MX7D_USBNC_USB_CTRL2);
 	spin_unlock_irqrestore(&usbmisc->lock, flags);
 }

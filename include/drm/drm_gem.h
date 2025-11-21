@@ -398,19 +398,34 @@ struct drm_gem_object {
 	struct dma_resv _resv;
 
 	/**
-	 * @gpuva:
+	 * @gpuva: Fields used by GPUVM to manage mappings pointing to this GEM object.
 	 *
-	 * Provides the list of GPU VAs attached to this GEM object.
+	 * When DRM_GPUVM_IMMEDIATE_MODE is set, this list is protected by the
+	 * mutex. Otherwise, the list is protected by the GEMs &dma_resv lock.
 	 *
-	 * Drivers should lock list accesses with the GEMs &dma_resv lock
-	 * (&drm_gem_object.resv) or a custom lock if one is provided.
+	 * Note that all entries in this list must agree on whether
+	 * DRM_GPUVM_IMMEDIATE_MODE is set.
 	 */
 	struct {
+		/**
+		 * @gpuva.list: list of GPUVM mappings attached to this GEM object.
+		 *
+		 * Drivers should lock list accesses with either the GEMs
+		 * &dma_resv lock (&drm_gem_object.resv) or the
+		 * &drm_gem_object.gpuva.lock mutex.
+		 */
 		struct list_head list;
 
-#ifdef CONFIG_LOCKDEP
-		struct lockdep_map *lock_dep_map;
-#endif
+		/**
+		 * @gpuva.lock: lock protecting access to &drm_gem_object.gpuva.list
+		 * when DRM_GPUVM_IMMEDIATE_MODE is used.
+		 *
+		 * Only used when DRM_GPUVM_IMMEDIATE_MODE is set. It should be
+		 * safe to take this mutex during the fence signalling path, so
+		 * do not allocate memory while holding this lock. Otherwise,
+		 * the &dma_resv lock should be used.
+		 */
+		struct mutex lock;
 	} gpuva;
 
 	/**
@@ -595,26 +610,12 @@ static inline bool drm_gem_is_imported(const struct drm_gem_object *obj)
 }
 
 #ifdef CONFIG_LOCKDEP
-/**
- * drm_gem_gpuva_set_lock() - Set the lock protecting accesses to the gpuva list.
- * @obj: the &drm_gem_object
- * @lock: the lock used to protect the gpuva list. The locking primitive
- * must contain a dep_map field.
- *
- * Call this if you're not proctecting access to the gpuva list with the
- * dma-resv lock, but with a custom lock.
- */
-#define drm_gem_gpuva_set_lock(obj, lock) \
-	if (!WARN((obj)->gpuva.lock_dep_map, \
-		  "GEM GPUVA lock should be set only once.")) \
-		(obj)->gpuva.lock_dep_map = &(lock)->dep_map
-#define drm_gem_gpuva_assert_lock_held(obj) \
-	lockdep_assert((obj)->gpuva.lock_dep_map ? \
-		       lock_is_held((obj)->gpuva.lock_dep_map) : \
+#define drm_gem_gpuva_assert_lock_held(gpuvm, obj) \
+	lockdep_assert(drm_gpuvm_immediate_mode(gpuvm) ? \
+		       lockdep_is_held(&(obj)->gpuva.lock) : \
 		       dma_resv_held((obj)->resv))
 #else
-#define drm_gem_gpuva_set_lock(obj, lock) do {} while (0)
-#define drm_gem_gpuva_assert_lock_held(obj) do {} while (0)
+#define drm_gem_gpuva_assert_lock_held(gpuvm, obj) do {} while (0)
 #endif
 
 /**

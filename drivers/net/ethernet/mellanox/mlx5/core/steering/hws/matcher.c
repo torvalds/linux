@@ -85,6 +85,7 @@ static int hws_matcher_create_end_ft_isolated(struct mlx5hws_matcher *matcher)
 
 	ret = mlx5hws_table_create_default_ft(tbl->ctx->mdev,
 					      tbl,
+					      0,
 					      &matcher->end_ft_id);
 	if (ret) {
 		mlx5hws_err(tbl->ctx, "Isolated matcher: failed to create end flow table\n");
@@ -112,7 +113,9 @@ static int hws_matcher_create_end_ft(struct mlx5hws_matcher *matcher)
 	if (mlx5hws_matcher_is_isolated(matcher))
 		ret = hws_matcher_create_end_ft_isolated(matcher);
 	else
-		ret = mlx5hws_table_create_default_ft(tbl->ctx->mdev, tbl,
+		ret = mlx5hws_table_create_default_ft(tbl->ctx->mdev,
+						      tbl,
+						      0,
 						      &matcher->end_ft_id);
 
 	if (ret) {

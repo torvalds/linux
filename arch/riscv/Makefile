@@ -46,17 +46,10 @@ else
 	KBUILD_LDFLAGS += -melf32lriscv
 endif
 
-ifndef CONFIG_RISCV_USE_LINKER_RELAXATION
-	KBUILD_CFLAGS += -mno-relax
-	KBUILD_AFLAGS += -mno-relax
-ifndef CONFIG_AS_IS_LLVM
-	KBUILD_CFLAGS += -Wa,-mno-relax
-	KBUILD_AFLAGS += -Wa,-mno-relax
-endif
 # LLVM has an issue with target-features and LTO: https://github.com/llvm/llvm-project/issues/59350
 # Ensure it is aware of linker relaxation with LTO, otherwise relocations may
 # be incorrect: https://github.com/llvm/llvm-project/issues/65090
-else ifeq ($(CONFIG_LTO_CLANG),y)
+ifeq ($(CONFIG_LTO_CLANG),y)
 	KBUILD_LDFLAGS += -mllvm -mattr=+c -mllvm -mattr=+relax
 endif
 

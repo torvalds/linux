@@ -38,7 +38,7 @@ extern int quiet;		/* Level of quietness */
 extern unsigned int reservenum;	/* Number of memory reservation slots */
 extern int minsize;		/* Minimum blob size */
 extern int padsize;		/* Additional padding to blob */
-extern int alignsize;		/* Additional padding to blob accroding to the alignsize */
+extern int alignsize;		/* Additional padding to blob according to the alignsize */
 extern int phandle_format;	/* Use linux,phandle or phandle properties */
 extern int generate_symbols;	/* generate symbols for nodes with labels */
 extern int generate_fixups;	/* generate fixups */
@@ -182,7 +182,10 @@ struct data data_append_addr(struct data d, uint64_t addr);
 struct data data_append_byte(struct data d, uint8_t byte);
 struct data data_append_zeroes(struct data d, int len);
 struct data data_append_align(struct data d, int align);
+struct data data_insert_data(struct data d, struct marker *m, struct data old);
 
+struct marker *alloc_marker(unsigned int offset, enum markertype type,
+			    char *ref);
 struct data data_add_marker(struct data d, enum markertype type, char *ref);
 
 bool data_is_one_string(struct data d);

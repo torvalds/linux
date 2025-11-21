@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/iopoll.h>
+
 #include <drm/display/drm_dp_dual_mode_helper.h>
 #include <drm/display/drm_hdmi_helper.h>
 #include <drm/drm_atomic_helper.h>
@@ -181,6 +183,8 @@ static enum drm_lspcon_mode lspcon_wait_mode(struct intel_lspcon *lspcon,
 	struct intel_dp *intel_dp = lspcon_to_intel_dp(lspcon);
 	struct intel_display *display = to_intel_display(intel_dp);
 	enum drm_lspcon_mode current_mode;
+	int timeout_us;
+	int ret;
 
 	current_mode = lspcon_get_current_mode(lspcon);
 	if (current_mode == mode)
@@ -189,9 +193,12 @@ static enum drm_lspcon_mode lspcon_wait_mode(struct intel_lspcon *lspcon,
 	drm_dbg_kms(display->drm, "Waiting for LSPCON mode %s to settle\n",
 		    lspcon_mode_name(mode));
 
-	wait_for((current_mode = lspcon_get_current_mode(lspcon)) == mode,
-		 lspcon_get_mode_settle_timeout(lspcon));
-	if (current_mode != mode)
+	timeout_us = lspcon_get_mode_settle_timeout(lspcon) * 1000;
+
+	ret = poll_timeout_us(current_mode = lspcon_get_current_mode(lspcon),
+			      current_mode == mode,
+			      5000, timeout_us, false);
+	if (ret)
 		drm_err(display->drm, "LSPCON mode hasn't settled\n");
 
 out:

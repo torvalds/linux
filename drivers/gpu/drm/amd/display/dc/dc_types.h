@@ -563,12 +563,24 @@ struct dc_info_packet_128 {
 	uint8_t sb[128];
 };
 
+struct dc_edid_read_policy {
+	uint32_t max_retry_count;
+	uint32_t delay_time_ms;
+	uint32_t ignore_checksum;
+};
+
 #define DC_PLANE_UPDATE_TIMES_MAX 10
 
 struct dc_plane_flip_time {
 	unsigned int time_elapsed_in_us[DC_PLANE_UPDATE_TIMES_MAX];
 	unsigned int index;
 	unsigned int prev_update_time_in_us;
+};
+
+enum dc_alpm_mode {
+	DC_ALPM_AUXWAKE = 0,
+	DC_ALPM_AUXLESS = 1,
+	DC_ALPM_UNSUPPORTED = 0xF,
 };
 
 enum dc_psr_state {
@@ -616,6 +628,7 @@ struct psr_config {
 	unsigned int line_time_in_us;
 	uint8_t rate_control_caps;
 	uint16_t dsc_slice_height;
+	bool os_request_force_ffu;
 };
 
 union dmcu_psr_level {
@@ -728,6 +741,7 @@ struct psr_context {
 	unsigned int line_time_in_us;
 	uint8_t rate_control_caps;
 	uint16_t dsc_slice_height;
+	bool os_request_force_ffu;
 };
 
 struct colorspace_transform {
@@ -1137,6 +1151,10 @@ struct replay_config {
 	bool low_rr_supported;
 	/* Replay Video Conferencing Optimization Enabled */
 	bool replay_video_conferencing_optimization_enabled;
+	/* Replay alpm mode */
+	enum dc_alpm_mode alpm_mode;
+	/* Replay full screen only */
+	bool os_request_force_ffu;
 };
 
 /* Replay feature flags*/
@@ -1199,6 +1217,7 @@ struct dc_panel_config {
 		bool rc_disable;
 		bool rc_allow_static_screen;
 		bool rc_allow_fullscreen_VPB;
+		bool read_psrcap_again;
 		unsigned int replay_enable_option;
 	} psr;
 	/* ABM */

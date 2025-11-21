@@ -17,8 +17,8 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/export.h>
-#include <linux/fwnode.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/soundwire/sdw_amd.h>
 #include <linux/string.h>
 

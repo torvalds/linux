@@ -21,6 +21,7 @@
 #include <linux/fs_struct.h>
 #include <linux/bsearch.h>
 #include <linux/sort.h>
+#include <linux/nstree.h>
 
 static struct kmem_cache *user_ns_cachep __ro_after_init;
 static DEFINE_MUTEX(userns_state_mutex);
@@ -124,12 +125,11 @@ int create_user_ns(struct cred *new)
 		goto fail_dec;
 
 	ns->parent_could_setfcap = cap_raised(new->cap_effective, CAP_SETFCAP);
-	ret = ns_alloc_inum(&ns->ns);
+
+	ret = ns_common_init(ns);
 	if (ret)
 		goto fail_free;
-	ns->ns.ops = &userns_operations;
 
-	refcount_set(&ns->ns.count, 1);
 	/* Leave the new->user_ns reference with the new user namespace. */
 	ns->parent = parent_ns;
 	ns->level = parent_ns->level + 1;
@@ -159,12 +159,13 @@ int create_user_ns(struct cred *new)
 		goto fail_keyring;
 
 	set_cred_user_ns(new, ns);
+	ns_tree_add(ns);
 	return 0;
 fail_keyring:
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 	key_put(ns->persistent_keyring_register);
 #endif
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 fail_free:
 	kmem_cache_free(user_ns_cachep, ns);
 fail_dec:
@@ -201,6 +202,7 @@ static void free_user_ns(struct work_struct *work)
 	do {
 		struct ucounts *ucounts = ns->ucounts;
 		parent = ns->parent;
+		ns_tree_remove(ns);
 		if (ns->gid_map.nr_extents > UID_GID_MAP_MAX_BASE_EXTENTS) {
 			kfree(ns->gid_map.forward);
 			kfree(ns->gid_map.reverse);
@@ -218,11 +220,12 @@ static void free_user_ns(struct work_struct *work)
 #endif
 		retire_userns_sysctls(ns);
 		key_free_user_ns(ns);
-		ns_free_inum(&ns->ns);
-		kmem_cache_free(user_ns_cachep, ns);
+		ns_common_free(ns);
+		/* Concurrent nstree traversal depends on a grace period. */
+		kfree_rcu(ns, ns.ns_rcu);
 		dec_user_namespaces(ucounts);
 		ns = parent;
-	} while (refcount_dec_and_test(&parent->ns.count));
+	} while (ns_ref_put(parent));
 }
 
 void __put_user_ns(struct user_namespace *ns)
@@ -1322,11 +1325,6 @@ bool current_in_userns(const struct user_namespace *target_ns)
 }
 EXPORT_SYMBOL(current_in_userns);
 
-static inline struct user_namespace *to_user_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct user_namespace, ns);
-}
-
 static struct ns_common *userns_get(struct task_struct *task)
 {
 	struct user_namespace *user_ns;
@@ -1402,7 +1400,6 @@ static struct user_namespace *userns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations userns_operations = {
 	.name		= "user",
-	.type		= CLONE_NEWUSER,
 	.get		= userns_get,
 	.put		= userns_put,
 	.install	= userns_install,
@@ -1413,6 +1410,7 @@ const struct proc_ns_operations userns_operations = {
 static __init int user_namespaces_init(void)
 {
 	user_ns_cachep = KMEM_CACHE(user_namespace, SLAB_PANIC | SLAB_ACCOUNT);
+	ns_tree_add(&init_user_ns);
 	return 0;
 }
 subsys_initcall(user_namespaces_init);

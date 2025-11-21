@@ -267,7 +267,7 @@ static int stmfx_pinconf_get(struct pinctrl_dev *pctldev,
 		if ((!dir && !type) || (dir && type))
 			arg = 1;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		if (dir)
 			return -EINVAL;
 
@@ -334,7 +334,7 @@ static int stmfx_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (ret)
 				return ret;
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			ret = stmfx_gpio_direction_output(&pctl->gpio_chip,
 							  pin, arg);
 			if (ret)
@@ -697,7 +697,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	pctl->gpio_chip.direction_input = stmfx_gpio_direction_input;
 	pctl->gpio_chip.direction_output = stmfx_gpio_direction_output;
 	pctl->gpio_chip.get = stmfx_gpio_get;
-	pctl->gpio_chip.set_rv = stmfx_gpio_set;
+	pctl->gpio_chip.set = stmfx_gpio_set;
 	pctl->gpio_chip.set_config = gpiochip_generic_config;
 	pctl->gpio_chip.base = -1;
 	pctl->gpio_chip.ngpio = pctl->pctl_desc.npins;

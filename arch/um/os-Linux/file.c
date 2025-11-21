@@ -535,7 +535,7 @@ ssize_t os_rcv_fd_msg(int fd, int *fds, unsigned int n_fds,
 	    cmsg->cmsg_type != SCM_RIGHTS)
 		return n;
 
-	memcpy(fds, CMSG_DATA(cmsg), cmsg->cmsg_len);
+	memcpy(fds, CMSG_DATA(cmsg), cmsg->cmsg_len - CMSG_LEN(0));
 	return n;
 }
 

@@ -17,7 +17,7 @@
 };
 
 &pio {
-	ts3a227e_pins: ts3a227e_pins {
+	ts3a227e_pins: ts3a227e-pins {
 		pins1 {
 			pinmux = <PINMUX_GPIO157__FUNC_GPIO157>;
 			input-enable;

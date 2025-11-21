@@ -90,7 +90,11 @@ function commachecker()
 		}
 	done < "${stat_output}"
 
-	[ $metric_only -eq 1 ] && exit 1
+	if [ $metric_only -ne 1 ]
+	then
+		echo "Missing metric only output in:"
+		cat "${stat_output}"
+	fi
 	return 0
 }
 

@@ -2,7 +2,7 @@
 /*
  *  cx18 header containing common defines.
  *
- *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2007  Hans Verkuil <hverkuil@kernel.org>
  */
 
 #ifndef CX23418_H

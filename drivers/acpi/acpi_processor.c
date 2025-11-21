@@ -815,7 +815,7 @@ bool acpi_processor_claim_cst_control(void)
 	cst_control_claimed = true;
 	return true;
 }
-EXPORT_SYMBOL_GPL(acpi_processor_claim_cst_control);
+EXPORT_SYMBOL_NS_GPL(acpi_processor_claim_cst_control, "ACPI_PROCESSOR_IDLE");
 
 /**
  * acpi_processor_evaluate_cst - Evaluate the processor _CST control method.
@@ -994,5 +994,5 @@ end:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(acpi_processor_evaluate_cst);
+EXPORT_SYMBOL_NS_GPL(acpi_processor_evaluate_cst, "ACPI_PROCESSOR_IDLE");
 #endif /* CONFIG_ACPI_PROCESSOR_CSTATE */

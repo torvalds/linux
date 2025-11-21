@@ -3,7 +3,7 @@ menu "PXA"
 
 config SND_PXA2XX_SOC
 	tristate "SoC Audio for the Intel PXA2xx chip"
-	depends on ARCH_PXA || COMPILE_TEST
+	depends on ARCH_PXA || (COMPILE_TEST && GPIOLIB_LEGACY)
 	select SND_PXA2XX_LIB
 	help
 	  Say Y or M if you want to add support for codecs attached to
@@ -26,7 +26,7 @@ config SND_PXA2XX_SOC_I2S
 
 config SND_PXA_SOC_SSP
 	tristate "Soc Audio via PXA2xx/PXA3xx SSP ports"
-	depends on PLAT_PXA
+	depends on ARCH_PXA
 	select PXA_SSP
 	select SND_PXA2XX_LIB
 

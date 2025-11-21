@@ -46,6 +46,7 @@
 #define EIOINTC_ALL_ENABLE_VEC_MASK(vector)	(EIOINTC_ALL_ENABLE & ~BIT(vector & 0x1f))
 #define EIOINTC_REG_ENABLE_VEC(vector)		(EIOINTC_REG_ENABLE + ((vector >> 5) << 2))
 #define EIOINTC_USE_CPU_ENCODE			BIT(0)
+#define EIOINTC_ROUTE_MULT_IP			BIT(1)
 
 #define MAX_EIO_NODES		(NR_CPUS / CORES_PER_EIO_NODE)
 
@@ -59,6 +60,14 @@
 #define EIOINTC_REG_ROUTE_VEC_MASK(vector)	(0xff << EIOINTC_REG_ROUTE_VEC_SHIFT(vector))
 
 static int nr_pics;
+struct eiointc_priv;
+
+struct eiointc_ip_route {
+	struct eiointc_priv	*priv;
+	/* Offset Routed destination IP */
+	int			start;
+	int			end;
+};
 
 struct eiointc_priv {
 	u32			node;
@@ -68,6 +77,8 @@ struct eiointc_priv {
 	struct fwnode_handle	*domain_handle;
 	struct irq_domain	*eiointc_domain;
 	int			flags;
+	irq_hw_number_t		parent_hwirq;
+	struct eiointc_ip_route	route_info[VEC_REG_COUNT];
 };
 
 static struct eiointc_priv *eiointc_priv[MAX_IO_PICS];
@@ -188,6 +199,7 @@ static int eiointc_router_init(unsigned int cpu)
 {
 	int i, bit, cores, index, node;
 	unsigned int data;
+	int hwirq, mask;
 
 	node = cpu_to_eio_node(cpu);
 	index = eiointc_index(node);
@@ -196,6 +208,13 @@ static int eiointc_router_init(unsigned int cpu)
 		pr_err("Error: invalid nodemap!\n");
 		return -EINVAL;
 	}
+
+	/* Enable cpu interrupt pin from eiointc */
+	hwirq = eiointc_priv[index]->parent_hwirq;
+	mask = BIT(hwirq);
+	if (eiointc_priv[index]->flags & EIOINTC_ROUTE_MULT_IP)
+		mask |= BIT(hwirq + 1) | BIT(hwirq + 2) | BIT(hwirq + 3);
+	set_csr_ecfg(mask);
 
 	if (!(eiointc_priv[index]->flags & EIOINTC_USE_CPU_ENCODE))
 		cores = CORES_PER_EIO_NODE;
@@ -211,8 +230,31 @@ static int eiointc_router_init(unsigned int cpu)
 		}
 
 		for (i = 0; i < eiointc_priv[0]->vec_count / 32 / 4; i++) {
-			bit = BIT(1 + index); /* Route to IP[1 + index] */
-			data = bit | (bit << 8) | (bit << 16) | (bit << 24);
+			/*
+			 * Route to interrupt pin, relative offset used here
+			 * Offset 0 means routing to IP0 and so on
+			 *
+			 * If flags is set with EIOINTC_ROUTE_MULT_IP,
+			 * every 64 vector routes to different consecutive
+			 * IPs, otherwise all vector routes to the same IP
+			 */
+			if (eiointc_priv[index]->flags & EIOINTC_ROUTE_MULT_IP) {
+				/* The first 64 vectors route to hwirq */
+				bit = BIT(hwirq++ - INT_HWI0);
+				data = bit | (bit << 8);
+
+				/* The second 64 vectors route to hwirq + 1 */
+				bit = BIT(hwirq++ - INT_HWI0);
+				data |= (bit << 16) | (bit << 24);
+
+				/*
+				 * Route to hwirq + 2/hwirq + 3 separately
+				 * in next loop
+				 */
+			} else  {
+				bit = BIT(hwirq - INT_HWI0);
+				data = bit | (bit << 8) | (bit << 16) | (bit << 24);
+			}
 			iocsr_write32(data, EIOINTC_REG_IPMAP + i * 4);
 		}
 
@@ -241,15 +283,22 @@ static int eiointc_router_init(unsigned int cpu)
 
 static void eiointc_irq_dispatch(struct irq_desc *desc)
 {
-	int i;
-	u64 pending;
-	bool handled = false;
+	struct eiointc_ip_route *info = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct eiointc_priv *priv = irq_desc_get_handler_data(desc);
+	bool handled = false;
+	u64 pending;
+	int i;
 
 	chained_irq_enter(chip, desc);
 
-	for (i = 0; i < eiointc_priv[0]->vec_count / VEC_COUNT_PER_REG; i++) {
+	/*
+	 * If EIOINTC_ROUTE_MULT_IP is set, every 64 interrupt vectors in
+	 * eiointc interrupt controller routes to different cpu interrupt pins
+	 *
+	 * Every cpu interrupt pin has its own irq handler, it is ok to
+	 * read ISR for these 64 interrupt vectors rather than all vectors
+	 */
+	for (i = info->start; i < info->end; i++) {
 		pending = iocsr_read64(EIOINTC_REG_ISR + (i << 3));
 
 		/* Skip handling if pending bitmap is zero */
@@ -262,7 +311,7 @@ static void eiointc_irq_dispatch(struct irq_desc *desc)
 			int bit = __ffs(pending);
 			int irq = bit + VEC_COUNT_PER_REG * i;
 
-			generic_handle_domain_irq(priv->eiointc_domain, irq);
+			generic_handle_domain_irq(info->priv->eiointc_domain, irq);
 			pending &= ~BIT(bit);
 			handled = true;
 		}
@@ -462,8 +511,33 @@ static int __init eiointc_init(struct eiointc_priv *priv, int parent_irq,
 	}
 
 	eiointc_priv[nr_pics++] = priv;
+	/*
+	 * Only the first eiointc device on VM supports routing to
+	 * different CPU interrupt pins. The later eiointc devices use
+	 * generic method if there are multiple eiointc devices in future
+	 */
+	if (cpu_has_hypervisor && (nr_pics == 1)) {
+		priv->flags |= EIOINTC_ROUTE_MULT_IP;
+		priv->parent_hwirq = INT_HWI0;
+	}
+
+	if (priv->flags & EIOINTC_ROUTE_MULT_IP) {
+		for (i = 0; i < priv->vec_count / VEC_COUNT_PER_REG; i++) {
+			priv->route_info[i].start  = priv->parent_hwirq - INT_HWI0 + i;
+			priv->route_info[i].end    = priv->route_info[i].start + 1;
+			priv->route_info[i].priv   = priv;
+			parent_irq = get_percpu_irq(priv->parent_hwirq + i);
+			irq_set_chained_handler_and_data(parent_irq, eiointc_irq_dispatch,
+							 &priv->route_info[i]);
+		}
+	} else {
+		priv->route_info[0].start  = 0;
+		priv->route_info[0].end    = priv->vec_count / VEC_COUNT_PER_REG;
+		priv->route_info[0].priv   = priv;
+		irq_set_chained_handler_and_data(parent_irq, eiointc_irq_dispatch,
+						 &priv->route_info[0]);
+	}
 	eiointc_router_init(0);
-	irq_set_chained_handler_and_data(parent_irq, eiointc_irq_dispatch, priv);
 
 	if (nr_pics == 1) {
 		register_syscore_ops(&eiointc_syscore_ops);
@@ -495,7 +569,7 @@ int __init eiointc_acpi_init(struct irq_domain *parent,
 
 	priv->vec_count = VEC_COUNT;
 	priv->node = acpi_eiointc->node;
-
+	priv->parent_hwirq = acpi_eiointc->cascade;
 	parent_irq = irq_create_mapping(parent, acpi_eiointc->cascade);
 
 	ret = eiointc_init(priv, parent_irq, acpi_eiointc->node_map);
@@ -527,8 +601,9 @@ out_free_priv:
 static int __init eiointc_of_init(struct device_node *of_node,
 				  struct device_node *parent)
 {
-	int parent_irq, ret;
 	struct eiointc_priv *priv;
+	struct irq_data *irq_data;
+	int parent_irq, ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -544,6 +619,12 @@ static int __init eiointc_of_init(struct device_node *of_node,
 	if (ret < 0)
 		goto out_free_priv;
 
+	irq_data = irq_get_irq_data(parent_irq);
+	if (!irq_data) {
+		ret = -ENODEV;
+		goto out_free_priv;
+	}
+
 	/*
 	 * In particular, the number of devices supported by the LS2K0500
 	 * extended I/O interrupt vector is 128.
@@ -552,7 +633,7 @@ static int __init eiointc_of_init(struct device_node *of_node,
 		priv->vec_count = 128;
 	else
 		priv->vec_count = VEC_COUNT;
-
+	priv->parent_hwirq = irqd_to_hwirq(irq_data);
 	priv->node = 0;
 	priv->domain_handle = of_fwnode_handle(of_node);
 

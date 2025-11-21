@@ -727,6 +727,8 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 	struct uefi_cnv_var_general_cfg *data;
 	int ret = -EINVAL;
 
+	BUILD_BUG_ON(ARRAY_SIZE(data->functions) < DSM_FUNC_NUM_FUNCS);
+
 	/* Not supported function index */
 	if (func >= DSM_FUNC_NUM_FUNCS || func == 5)
 		return -EOPNOTSUPP;
@@ -742,8 +744,9 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 		goto out;
 	}
 
-	if (ARRAY_SIZE(data->functions) != UEFI_MAX_DSM_FUNCS) {
-		IWL_DEBUG_RADIO(fwrt, "Invalid size of DSM functions array\n");
+	if (!(data->functions[DSM_FUNC_QUERY] & BIT(func))) {
+		IWL_DEBUG_RADIO(fwrt, "DSM func %d not in 0x%x\n",
+				func, data->functions[DSM_FUNC_QUERY]);
 		goto out;
 	}
 

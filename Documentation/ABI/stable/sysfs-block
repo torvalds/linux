@@ -603,16 +603,10 @@ Date:		July 2003
 Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] This controls how many requests may be allocated in the
-		block layer for read or write requests. Note that the total
-		allocated number may be twice this amount, since it applies only
-		to reads or writes (not the accumulated sum).
-
-		To avoid priority inversion through request starvation, a
-		request queue maintains a separate request pool per each cgroup
-		when CONFIG_BLK_CGROUP is enabled, and this parameter applies to
-		each such per-block-cgroup request pool.  IOW, if there are N
-		block cgroups, each request queue may have up to N request
-		pools, each independently regulated by nr_requests.
+		block layer. Noted this value only represents the quantity for a
+		single blk_mq_tags instance. The actual number for the entire
+		device depends on the hardware queue count, whether elevator is
+		enabled, and whether tags are shared.
 
 
 What:		/sys/block/<disk>/queue/nr_zones
@@ -731,7 +725,7 @@ Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] If the device is registered for writeback throttling, then
 		this file shows the target minimum read latency. If this latency
-		is exceeded in a given window of time (see wb_window_usec), then
+		is exceeded in a given window of time (see curr_win_nsec), then
 		the writeback throttling will start scaling back writes. Writing
 		a value of '0' to this file disables the feature. Writing a
 		value of '-1' to this file resets the value to the default

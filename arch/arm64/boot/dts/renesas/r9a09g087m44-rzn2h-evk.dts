@@ -1,0 +1,229 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/N2H EVK board
+ *
+ * Copyright (C) 2025 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+
+#include "r9a09g087m44.dtsi"
+
+/*
+ * SD0 can be connected to either eMMC (U33) or SD card slot CN21
+ * Lets by default enable the eMMC, note we need the below SW settings
+ * for eMMC.
+ * DSW5[1] = ON; DSW5[2] = ON
+ * DSW17[5] = OFF; DSW17[6] = ON
+ *
+ * To enable SD card and disable eMMC on SDHI0 disable the below macro
+ * and set the below switch setting:
+ * DSW5[1] = OFF; DSW5[2] = ON
+ * P22_6 = SD0_WP; DSW15[1] = OFF; DSW15[2] = ON
+ * P22_5 = SD0_CD; DSW15[3] = OFF; DSW15[4] = ON
+ * P02_6 = SD0_IOVS; DSW17[5] = OFF; DSW17[6] = ON
+ * P02_5 = SD0_PWEN; DSW17[7] = OFF; DSW17[8] = ON
+ */
+#define SD0_EMMC       1
+#define SD0_SD		(!SD0_EMMC)
+
+/*
+ * P17_4 = SD1_CD; DSW5[3] = ON; DSW19[1] = OFF; DSW19[2] = ON
+ * P08_6 = SD1_IOVS; DSW5[3] = ON
+ */
+#define SD1_MICRO_SD	1
+
+/*
+ * USB Pin Configuration:
+ *
+ * This board is equipped with three USB connectors: Type-A (CN7), Mini-B
+ * (CN8), and Micro-AB (CN9). The RZ/N2H SoC has a single USB channel, so
+ * either the USB host interface or the USB function interface can be used,
+ * but not both simultaneously when using the CN7 and CN8 connectors.
+ *
+ * By default, the Type-A (CN7) and Mini-B (CN8) connectors are enabled.
+ * Configure the switches as follows:
+ *   - P02_2 - P02_3 (control signals for USB power supply): DSW2[6] = OFF;
+ *     - P02_2 (used for VBUSEN): DSW14[5] = OFF; DSW14[6] = ON
+ *     - P02_3 (used for USB_OVRCUR): DSW14[1] = OFF; DSW14[2] = ON
+ *   - USB_VBUSIN (used for VBUS of CN8): DSW16[1] = OFF; DSW16[2] = ON
+ *   - USB_VBUSEN (used for USB_HF_VBUSEN): DSW16[3] = OFF; DSW16[4] = ON
+ *
+ * To enable the Micro-AB (CN9) USB OTG connector, set the following macro
+ * to 1 and configure the switches as follows:
+ *   - P02_2 - P02_3 (control signals for USB power supply): DSW2[6] = OFF;
+ *     - P02_2 (used for VBUSEN): DSW14[5] = OFF; DSW14[6] = ON
+ *     - P02_3 (used for USB_OVRCUR): DSW14[1] = OFF; DSW14[2] = ON
+ *   - USB_VBUSIN (used for VBUS for OTG): DSW16[1] = ON; DSW16[2] = OFF
+ *   - USB_VBUSEN (used for USB_OTG_VBUSEN): DSW16[3] = ON; DSW16[4] = OFF
+ *   - USB_EXICEN (used for USB OTG EXICEN): DSW14[3] = OFF; DSW14[4] = ON
+ */
+#define USB_OTG		0
+
+#include "rzt2h-n2h-evk-common.dtsi"
+
+/*
+ * I2C0 and LED8/9 share the same pins use the below
+ * macro to choose (and set approopriate DIP switches).
+ */
+#define I2C0	1
+#define LED8	(!I2C0)
+#define LED9	(!I2C0)
+
+/ {
+	model = "Renesas RZ/N2H EVK Board based on r9a09g087m44";
+	compatible = "renesas,rzn2h-evk", "renesas,r9a09g087m44", "renesas,r9a09g087";
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-3 {
+			/* DSW18-7: ON, DSW18-8: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(31, 6) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <4>;
+		};
+
+		led-4 {
+			/* DSW18-9: ON, DSW18-10: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(18, 1) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <5>;
+		};
+
+		led-5 {
+			/* DSW18-1: ON, DSW18-2: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(22, 7) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <6>;
+		};
+
+		led-6 {
+			/* DSW18-3: ON, DSW18-4: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(23, 0) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <7>;
+		};
+
+		led-7 {
+			/*
+			 * DSW18-5: ON, DSW18-6: OFF
+			 * DSW19-3: OFF, DSW19-4: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(14, 3) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <8>;
+		};
+
+#if LED8
+		led-8 {
+			/*
+			 * USER_LED0
+			 * DSW15-8: OFF, DSW15-9: OFF, DSW15-10: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(14, 6) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <0>;
+		};
+#endif
+
+#if LED9
+		led-9 {
+			/*
+			 * USER_LED1
+			 * DSW15-5: OFF, DSW15-6: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(14, 7) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <1>;
+		};
+#endif
+
+		led-10 {
+			/*
+			 * USER_LED2
+			 * DSW17-3: OFF, DSW17-4: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(2, 7) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <2>;
+		};
+
+		led-11 {
+			/*
+			 * USER_LED3
+			 * DSW17-1: OFF, DSW17-2: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(3, 0) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <3>;
+		};
+	};
+};
+
+#if I2C0
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+#endif
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&pinctrl {
+	/*
+	 * I2C0 Pin Configuration:
+	 * ------------------------
+	 * Signal | Pin     | DSW15
+	 * -------|---------|--------------
+	 * SCL    | P14_6   | 8: OFF, 9: ON, 10: OFF
+	 * SDA    | P14_7   | 5: ON, 6: OFF
+	 */
+	i2c0_pins: i2c0-pins {
+		pinmux = <RZT2H_PORT_PINMUX(14, 6, 0x17)>,
+			 <RZT2H_PORT_PINMUX(14, 7, 0x17)>;
+	};
+
+	/*
+	 * I2C1 Pin Configuration:
+	 * ------------------------
+	 * Signal | Pin     | DSW7
+	 * -------|---------|--------------
+	 * SCL    | P03_3   | 1: ON, 2: OFF
+	 * SDA    | P03_4   | 3: ON, 4: OFF
+	 */
+	i2c1_pins: i2c1-pins {
+		pinmux = <RZT2H_PORT_PINMUX(3, 3, 0x17)>,
+			 <RZT2H_PORT_PINMUX(3, 4, 0x17)>;
+	};
+
+#if USB_OTG
+	usb-exicen-hog {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(2, 4) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "usb_exicen_a";
+	};
+#endif
+
+	usb_pins: usb-pins {
+		pinmux = <RZT2H_PORT_PINMUX(2, 2, 0x13)>, /* VBUSEN */
+			 <RZT2H_PORT_PINMUX(2, 3, 0x13)>; /* OVRCUR */
+	};
+};

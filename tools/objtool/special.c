@@ -15,7 +15,6 @@
 #include <objtool/builtin.h>
 #include <objtool/special.h>
 #include <objtool/warn.h>
-#include <objtool/endianness.h>
 
 struct special_entry {
 	const char *sec;
@@ -133,7 +132,7 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 	struct section *sec;
 	unsigned int nr_entries;
 	struct special_alt *alt;
-	int idx, ret;
+	int idx;
 
 	INIT_LIST_HEAD(alts);
 
@@ -142,12 +141,12 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 		if (!sec)
 			continue;
 
-		if (sec->sh.sh_size % entry->size != 0) {
+		if (sec_size(sec) % entry->size != 0) {
 			ERROR("%s size not a multiple of %d", sec->name, entry->size);
 			return -1;
 		}
 
-		nr_entries = sec->sh.sh_size / entry->size;
+		nr_entries = sec_size(sec) / entry->size;
 
 		for (idx = 0; idx < nr_entries; idx++) {
 			alt = malloc(sizeof(*alt));
@@ -157,11 +156,8 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 			}
 			memset(alt, 0, sizeof(*alt));
 
-			ret = get_alt_entry(elf, entry, sec, idx, alt);
-			if (ret > 0)
-				continue;
-			if (ret < 0)
-				return ret;
+			if (get_alt_entry(elf, entry, sec, idx, alt))
+				return -1;
 
 			list_add_tail(&alt->list, alts);
 		}

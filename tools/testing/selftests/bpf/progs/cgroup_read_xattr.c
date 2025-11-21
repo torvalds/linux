@@ -73,7 +73,7 @@ int BPF_PROG(use_css_iter_non_sleepable)
 }
 
 SEC("lsm.s/socket_connect")
-__failure __msg("expected an RCU CS")
+__failure __msg("kernel func bpf_iter_css_new requires RCU critical section protection")
 int BPF_PROG(use_css_iter_sleepable_missing_rcu_lock)
 {
 	u64 cgrp_id = bpf_get_current_cgroup_id();

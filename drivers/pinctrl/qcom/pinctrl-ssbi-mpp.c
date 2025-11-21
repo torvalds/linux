@@ -337,7 +337,7 @@ static int pm8xxx_pin_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_INPUT_ENABLE:
 		arg = pin->input;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		arg = pin->output_value;
 		break;
 	case PIN_CONFIG_POWER_SOURCE:
@@ -392,7 +392,7 @@ static int pm8xxx_pin_config_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_INPUT_ENABLE:
 			pin->input = true;
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			pin->output = true;
 			pin->output_value = !!arg;
 			break;
@@ -634,7 +634,7 @@ static const struct gpio_chip pm8xxx_mpp_template = {
 	.direction_input = pm8xxx_mpp_direction_input,
 	.direction_output = pm8xxx_mpp_direction_output,
 	.get = pm8xxx_mpp_get,
-	.set_rv = pm8xxx_mpp_set,
+	.set = pm8xxx_mpp_set,
 	.of_xlate = pm8xxx_mpp_of_xlate,
 	.dbg_show = pm8xxx_mpp_dbg_show,
 	.owner = THIS_MODULE,

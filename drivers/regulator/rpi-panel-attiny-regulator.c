@@ -351,7 +351,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 	state->gc.base = -1;
 	state->gc.ngpio = NUM_GPIO;
 
-	state->gc.set_rv = attiny_gpio_set;
+	state->gc.set = attiny_gpio_set;
 	state->gc.get_direction = attiny_gpio_get_direction;
 	state->gc.can_sleep = true;
 

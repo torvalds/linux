@@ -597,7 +597,7 @@ SYM53C500_host_reset(struct scsi_cmnd *SCpnt)
 
 static int 
 SYM53C500_biosparm(struct scsi_device *disk,
-    struct block_device *dev,
+    struct gendisk *unused,
     sector_t capacity, int *info_array)
 {
 	int size;

@@ -99,10 +99,12 @@ buf_write(struct buffer *buf, const char *s, int len);
  * struct module_alias - auto-generated MODULE_ALIAS()
  *
  * @node: linked to module::aliases
+ * @modname: name of the builtin module (only for vmlinux)
  * @str: a string for MODULE_ALIAS()
  */
 struct module_alias {
 	struct list_head node;
+	char *builtin_modname;
 	char str[];
 };
 

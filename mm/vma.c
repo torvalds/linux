@@ -1351,7 +1351,7 @@ static int vms_gather_munmap_vmas(struct vma_munmap_struct *vms,
 		}
 
 		/* Don't bother splitting the VMA if we can't unmap it anyway */
-		if (!can_modify_vma(vms->vma)) {
+		if (vma_is_sealed(vms->vma)) {
 			error = -EPERM;
 			goto start_split_failed;
 		}
@@ -1371,7 +1371,7 @@ static int vms_gather_munmap_vmas(struct vma_munmap_struct *vms,
 	for_each_vma_range(*(vms->vmi), next, vms->end) {
 		long nrpages;
 
-		if (!can_modify_vma(next)) {
+		if (vma_is_sealed(next)) {
 			error = -EPERM;
 			goto modify_vma_failed;
 		}
@@ -2572,11 +2572,12 @@ static int call_mmap_prepare(struct mmap_state *map)
 	int err;
 	struct vm_area_desc desc = {
 		.mm = map->mm,
+		.file = map->file,
 		.start = map->addr,
 		.end = map->end,
 
 		.pgoff = map->pgoff,
-		.file = map->file,
+		.vm_file = map->file,
 		.vm_flags = map->vm_flags,
 		.page_prot = map->page_prot,
 	};
@@ -2588,7 +2589,7 @@ static int call_mmap_prepare(struct mmap_state *map)
 
 	/* Update fields permitted to be changed. */
 	map->pgoff = desc.pgoff;
-	map->file = desc.file;
+	map->file = desc.vm_file;
 	map->vm_flags = desc.vm_flags;
 	map->page_prot = desc.page_prot;
 	/* User-defined fields. */

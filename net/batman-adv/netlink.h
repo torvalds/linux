@@ -11,7 +11,6 @@
 
 #include <linux/netlink.h>
 #include <linux/types.h>
-#include <net/genetlink.h>
 
 void batadv_netlink_register(void);
 void batadv_netlink_unregister(void);

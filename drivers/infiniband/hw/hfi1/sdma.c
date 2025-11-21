@@ -990,7 +990,7 @@ ssize_t sdma_set_cpu_to_sde_map(struct sdma_engine *sde, const char *buf,
 	}
 
 	/* Clean up old mappings */
-	for_each_cpu(cpu, cpu_online_mask) {
+	for_each_online_cpu(cpu) {
 		struct sdma_rht_node *rht_node;
 
 		/* Don't cleanup sdes that are set in the new mask */

@@ -55,7 +55,7 @@
 	};
 
 	fsi: gpio-fsi {
-		compatible = "aspeed,ast2400-cf-fsi-master", "fsi-master";
+		compatible = "aspeed,ast2400-cf-fsi-master";
 		#address-cells = <2>;
 		#size-cells = <0>;
 
@@ -151,7 +151,7 @@
 	};
 
 	rtc@68 {
-		compatible = "dallas,ds3231";
+		compatible = "maxim,ds3231";
 		reg = <0x68>;
 	};
 };

@@ -136,7 +136,7 @@ static void kasan_unpoison_element(mempool_t *pool, void *element)
 
 static __always_inline void add_element(mempool_t *pool, void *element)
 {
-	BUG_ON(pool->curr_nr >= pool->min_nr);
+	BUG_ON(pool->min_nr != 0 && pool->curr_nr >= pool->min_nr);
 	poison_element(pool, element);
 	if (kasan_poison_element(pool, element))
 		pool->elements[pool->curr_nr++] = element;
@@ -202,16 +202,20 @@ int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 	pool->alloc	= alloc_fn;
 	pool->free	= free_fn;
 	init_waitqueue_head(&pool->wait);
-
-	pool->elements = kmalloc_array_node(min_nr, sizeof(void *),
+	/*
+	 * max() used here to ensure storage for at least 1 element to support
+	 * zero minimum pool
+	 */
+	pool->elements = kmalloc_array_node(max(1, min_nr), sizeof(void *),
 					    gfp_mask, node_id);
 	if (!pool->elements)
 		return -ENOMEM;
 
 	/*
-	 * First pre-allocate the guaranteed number of buffers.
+	 * First pre-allocate the guaranteed number of buffers,
+	 * also pre-allocate 1 element for zero minimum pool.
 	 */
-	while (pool->curr_nr < pool->min_nr) {
+	while (pool->curr_nr < max(1, pool->min_nr)) {
 		void *element;
 
 		element = pool->alloc(gfp_mask, pool->pool_data);
@@ -555,20 +559,12 @@ void mempool_free(void *element, mempool_t *pool)
 	 * wake-up path of previous test. This explicit check ensures the
 	 * allocation of element when both min_nr and curr_nr are 0, and
 	 * any active waiters are properly awakened.
-	 *
-	 * Inline the same logic as previous test, add_element() cannot be
-	 * directly used here since it has BUG_ON to deny if min_nr equals
-	 * curr_nr, so here picked rest of add_element() to use without
-	 * BUG_ON check.
 	 */
 	if (unlikely(pool->min_nr == 0 &&
 		     READ_ONCE(pool->curr_nr) == 0)) {
 		spin_lock_irqsave(&pool->lock, flags);
 		if (likely(pool->curr_nr == 0)) {
-			/* Inline the logic of add_element() */
-			poison_element(pool, element);
-			if (kasan_poison_element(pool, element))
-				pool->elements[pool->curr_nr++] = element;
+			add_element(pool, element);
 			spin_unlock_irqrestore(&pool->lock, flags);
 			if (wq_has_sleeper(&pool->wait))
 				wake_up(&pool->wait);

@@ -55,7 +55,7 @@ properties:
   touchscreen-min-pressure: true
   touchscreen-x-plate-ohms: true
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible

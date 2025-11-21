@@ -10,7 +10,7 @@
  * Copyright 2006 Hewlett-Packard Development Company, L.P.
  *
  * Copyright (C) 2009 Eric Paris <Red Hat Inc>
- * inotify was largely rewriten to make use of the fsnotify infrastructure
+ * inotify was largely rewritten to make use of the fsnotify infrastructure
  */
 
 #include <linux/dcache.h> /* d_unlinked */

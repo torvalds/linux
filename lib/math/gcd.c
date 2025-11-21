@@ -11,21 +11,15 @@
  * has decent hardware division.
  */
 
+DEFINE_STATIC_KEY_TRUE(efficient_ffs_key);
+
 #if !defined(CONFIG_CPU_NO_EFFICIENT_FFS)
 
 /* If __ffs is available, the even/odd algorithm benchmarks slower. */
 
-/**
- * gcd - calculate and return the greatest common divisor of 2 unsigned longs
- * @a: first value
- * @b: second value
- */
-unsigned long gcd(unsigned long a, unsigned long b)
+static unsigned long binary_gcd(unsigned long a, unsigned long b)
 {
 	unsigned long r = a | b;
-
-	if (!a || !b)
-		return r;
 
 	b >>= __ffs(b);
 	if (b == 1)
@@ -44,15 +38,26 @@ unsigned long gcd(unsigned long a, unsigned long b)
 	}
 }
 
-#else
+#endif
 
 /* If normalization is done by loops, the even/odd algorithm is a win. */
+
+/**
+ * gcd - calculate and return the greatest common divisor of 2 unsigned longs
+ * @a: first value
+ * @b: second value
+ */
 unsigned long gcd(unsigned long a, unsigned long b)
 {
 	unsigned long r = a | b;
 
 	if (!a || !b)
 		return r;
+
+#if !defined(CONFIG_CPU_NO_EFFICIENT_FFS)
+	if (static_branch_likely(&efficient_ffs_key))
+		return binary_gcd(a, b);
+#endif
 
 	/* Isolate lsbit of r */
 	r &= -r;
@@ -79,7 +84,5 @@ unsigned long gcd(unsigned long a, unsigned long b)
 		a >>= 1;
 	}
 }
-
-#endif
 
 EXPORT_SYMBOL_GPL(gcd);

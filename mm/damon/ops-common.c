@@ -303,7 +303,7 @@ static unsigned int __damon_migrate_folio_list(
 		 * instead of migrated.
 		 */
 		.gfp_mask = (GFP_HIGHUSER_MOVABLE & ~__GFP_RECLAIM) |
-			__GFP_NOWARN | __GFP_NOMEMALLOC | GFP_NOWAIT,
+			__GFP_NOMEMALLOC | GFP_NOWAIT,
 		.nid = target_nid,
 	};
 
@@ -411,4 +411,13 @@ unsigned long damon_migrate_pages(struct list_head *folio_list, int target_nid)
 	memalloc_noreclaim_restore(noreclaim_flag);
 
 	return nr_migrated;
+}
+
+bool damos_ops_has_filter(struct damos *s)
+{
+	struct damos_filter *f;
+
+	damos_for_each_ops_filter(f, s)
+		return true;
+	return false;
 }

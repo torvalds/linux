@@ -409,13 +409,17 @@ static ssize_t supported_sectorsizes_show(struct kobject *kobj,
 					  char *buf)
 {
 	ssize_t ret = 0;
+	bool has_output = false;
 
-	if (BTRFS_MIN_BLOCKSIZE != SZ_4K && BTRFS_MIN_BLOCKSIZE != PAGE_SIZE)
-		ret += sysfs_emit_at(buf, ret, "%u ", BTRFS_MIN_BLOCKSIZE);
-	if (PAGE_SIZE > SZ_4K)
-		ret += sysfs_emit_at(buf, ret, "%u ", SZ_4K);
-	ret += sysfs_emit_at(buf, ret, "%lu\n", PAGE_SIZE);
-
+	for (u32 cur = BTRFS_MIN_BLOCKSIZE; cur <= BTRFS_MAX_BLOCKSIZE; cur *= 2) {
+		if (!btrfs_supported_blocksize(cur))
+			continue;
+		if (has_output)
+			ret += sysfs_emit_at(buf, ret, " ");
+		ret += sysfs_emit_at(buf, ret, "%u", cur);
+		has_output = true;
+	}
+	ret += sysfs_emit_at(buf, ret, "\n");
 	return ret;
 }
 BTRFS_ATTR(static_feature, supported_sectorsizes,

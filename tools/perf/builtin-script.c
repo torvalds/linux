@@ -43,6 +43,7 @@
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
+#include <linux/unaligned.h>
 #include <sys/utsname.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
@@ -223,7 +224,7 @@ enum {
 	OUTPUT_TYPE_MAX
 };
 
-// We need to refactor the evsel->priv use in in 'perf script' to allow for
+// We need to refactor the evsel->priv use in 'perf script' to allow for
 // using that area, that is being used only in some cases.
 #define OUTPUT_TYPE_UNSET -1
 
@@ -1224,7 +1225,6 @@ static int any_dump_insn(struct evsel *evsel __maybe_unused,
 			 u8 *inbuf, int inlen, int *lenp,
 			 FILE *fp)
 {
-#ifdef HAVE_LIBCAPSTONE_SUPPORT
 	if (PRINT_FIELD(BRSTACKDISASM)) {
 		int printed = fprintf_insn_asm(x->machine, x->thread, x->cpumode, x->is64bit,
 					       (uint8_t *)inbuf, inlen, ip, lenp,
@@ -1233,7 +1233,6 @@ static int any_dump_insn(struct evsel *evsel __maybe_unused,
 		if (printed > 0)
 			return printed;
 	}
-#endif
 	return fprintf(fp, "%s", dump_insn(x, ip, inbuf, inlen, lenp));
 }
 
@@ -2003,6 +2002,33 @@ static int perf_sample__fprintf_synth_iflag_chg(struct perf_sample *sample, FILE
 	return len + perf_sample__fprintf_pt_spacing(len, fp);
 }
 
+#ifdef HAVE_AUXTRACE_SUPPORT
+static int perf_sample__fprintf_synth_vpadtl(struct perf_sample *data, FILE *fp)
+{
+	struct powerpc_vpadtl_entry *dtl = (struct powerpc_vpadtl_entry *)data->raw_data;
+	int len;
+
+	len = fprintf(fp, "timebase: %" PRIu64 " dispatch_reason:%s, preempt_reason:%s,\n"
+			"enqueue_to_dispatch_time:%d, ready_to_enqueue_time:%d,"
+			"waiting_to_ready_time:%d, processor_id: %d",
+			get_unaligned_be64(&dtl->timebase),
+			dispatch_reasons[dtl->dispatch_reason],
+			preempt_reasons[dtl->preempt_reason],
+			be32_to_cpu(dtl->enqueue_to_dispatch_time),
+			be32_to_cpu(dtl->ready_to_enqueue_time),
+			be32_to_cpu(dtl->waiting_to_ready_time),
+			be16_to_cpu(dtl->processor_id));
+
+	return len;
+}
+#else
+static int perf_sample__fprintf_synth_vpadtl(struct perf_sample *data __maybe_unused,
+		FILE *fp __maybe_unused)
+{
+	return 0;
+}
+#endif
+
 static int perf_sample__fprintf_synth(struct perf_sample *sample,
 				      struct evsel *evsel, FILE *fp)
 {
@@ -2025,6 +2051,8 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 		return perf_sample__fprintf_synth_evt(sample, fp);
 	case PERF_SYNTH_INTEL_IFLAG_CHG:
 		return perf_sample__fprintf_synth_iflag_chg(sample, fp);
+	case PERF_SYNTH_POWERPC_VPA_DTL:
+		return perf_sample__fprintf_synth_vpadtl(sample, fp);
 	default:
 		break;
 	}

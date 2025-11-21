@@ -10,6 +10,7 @@
 
 #include <linux/printk.h>
 #include <asm/physmem_info.h>
+#include <asm/stacktrace.h>
 
 struct vmlinux_info {
 	unsigned long entry;
@@ -88,6 +89,13 @@ void __noreturn jump_to_kernel(psw_t *psw);
 #define boot_notice(fmt, ...)	boot_printk(KERN_NOTICE boot_fmt(fmt), ##__VA_ARGS__)
 #define boot_info(fmt, ...)	boot_printk(KERN_INFO boot_fmt(fmt), ##__VA_ARGS__)
 #define boot_debug(fmt, ...)	boot_printk(KERN_DEBUG boot_fmt(fmt), ##__VA_ARGS__)
+
+#define boot_panic(...) do {				\
+	boot_emerg(__VA_ARGS__);			\
+	print_stacktrace(current_frame_address());	\
+	boot_emerg(" -- System halted\n");		\
+	disabled_wait();				\
+} while (0)
 
 extern struct machine_info machine;
 extern int boot_console_loglevel;

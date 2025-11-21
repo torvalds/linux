@@ -44,6 +44,12 @@ uint64_t features;
 #define BOUNCE_VERIFY		(1<<2)
 #define BOUNCE_POLL		(1<<3)
 static int bounces;
+/* defined globally for this particular test as the sigalrm handler
+ * depends on test_uffdio_*_eexist.
+ * XXX: define gopts in main() when we figure out a way to deal with
+ * test_uffdio_*_eexist.
+ */
+static uffd_global_test_opts_t *gopts;
 
 /* exercise the test_uffdio_*_eexist every ALARM_INTERVAL_SECS */
 #define ALARM_INTERVAL_SECS 10
@@ -51,7 +57,7 @@ static char *zeropage;
 pthread_attr_t attr;
 
 #define swap(a, b) \
-	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
+	do { __auto_type __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
 
 const char *examples =
 	"# Run anonymous memory test on 100MiB region with 99999 bounces:\n"
@@ -76,54 +82,58 @@ static void usage(void)
 	exit(1);
 }
 
-static void uffd_stats_reset(struct uffd_args *args, unsigned long n_cpus)
+static void uffd_stats_reset(uffd_global_test_opts_t *gopts, struct uffd_args *args,
+			     unsigned long n_cpus)
 {
 	int i;
 
 	for (i = 0; i < n_cpus; i++) {
 		args[i].cpu = i;
-		args[i].apply_wp = test_uffdio_wp;
+		args[i].apply_wp = gopts->test_uffdio_wp;
 		args[i].missing_faults = 0;
 		args[i].wp_faults = 0;
 		args[i].minor_faults = 0;
+		args[i].gopts = gopts;
 	}
 }
 
 static void *locking_thread(void *arg)
 {
-	unsigned long cpu = (unsigned long) arg;
+	struct uffd_args *args = (struct uffd_args *) arg;
+	uffd_global_test_opts_t *gopts = args->gopts;
+	unsigned long cpu = (unsigned long) args->cpu;
 	unsigned long page_nr;
 	unsigned long long count;
 
 	if (!(bounces & BOUNCE_RANDOM)) {
 		page_nr = -bounces;
 		if (!(bounces & BOUNCE_RACINGFAULTS))
-			page_nr += cpu * nr_pages_per_cpu;
+			page_nr += cpu * gopts->nr_pages_per_cpu;
 	}
 
-	while (!finished) {
+	while (!gopts->finished) {
 		if (bounces & BOUNCE_RANDOM) {
 			if (getrandom(&page_nr, sizeof(page_nr), 0) != sizeof(page_nr))
 				err("getrandom failed");
 		} else
 			page_nr += 1;
-		page_nr %= nr_pages;
-		pthread_mutex_lock(area_mutex(area_dst, page_nr));
-		count = *area_count(area_dst, page_nr);
-		if (count != count_verify[page_nr])
+		page_nr %= gopts->nr_pages;
+		pthread_mutex_lock(area_mutex(gopts->area_dst, page_nr, gopts));
+		count = *area_count(gopts->area_dst, page_nr, gopts);
+		if (count != gopts->count_verify[page_nr])
 			err("page_nr %lu memory corruption %llu %llu",
-			    page_nr, count, count_verify[page_nr]);
+			    page_nr, count, gopts->count_verify[page_nr]);
 		count++;
-		*area_count(area_dst, page_nr) = count_verify[page_nr] = count;
-		pthread_mutex_unlock(area_mutex(area_dst, page_nr));
+		*area_count(gopts->area_dst, page_nr, gopts) = gopts->count_verify[page_nr] = count;
+		pthread_mutex_unlock(area_mutex(gopts->area_dst, page_nr, gopts));
 	}
 
 	return NULL;
 }
 
-static int copy_page_retry(int ufd, unsigned long offset)
+static int copy_page_retry(uffd_global_test_opts_t *gopts, unsigned long offset)
 {
-	return __copy_page(ufd, offset, true, test_uffdio_wp);
+	return __copy_page(gopts, offset, true, gopts->test_uffdio_wp);
 }
 
 pthread_mutex_t uffd_read_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -131,15 +141,16 @@ pthread_mutex_t uffd_read_mutex = PTHREAD_MUTEX_INITIALIZER;
 static void *uffd_read_thread(void *arg)
 {
 	struct uffd_args *args = (struct uffd_args *)arg;
+	uffd_global_test_opts_t *gopts = args->gopts;
 	struct uffd_msg msg;
 
 	pthread_mutex_unlock(&uffd_read_mutex);
 	/* from here cancellation is ok */
 
 	for (;;) {
-		if (uffd_read_msg(uffd, &msg))
+		if (uffd_read_msg(gopts, &msg))
 			continue;
-		uffd_handle_page_fault(&msg, args);
+		uffd_handle_page_fault(gopts, &msg, args);
 	}
 
 	return NULL;
@@ -147,32 +158,34 @@ static void *uffd_read_thread(void *arg)
 
 static void *background_thread(void *arg)
 {
-	unsigned long cpu = (unsigned long) arg;
+	struct uffd_args *args = (struct uffd_args *) arg;
+	uffd_global_test_opts_t *gopts = args->gopts;
+	unsigned long cpu = (unsigned long) args->cpu;
 	unsigned long page_nr, start_nr, mid_nr, end_nr;
 
-	start_nr = cpu * nr_pages_per_cpu;
-	end_nr = (cpu+1) * nr_pages_per_cpu;
+	start_nr = cpu * gopts->nr_pages_per_cpu;
+	end_nr = (cpu+1) * gopts->nr_pages_per_cpu;
 	mid_nr = (start_nr + end_nr) / 2;
 
 	/* Copy the first half of the pages */
 	for (page_nr = start_nr; page_nr < mid_nr; page_nr++)
-		copy_page_retry(uffd, page_nr * page_size);
+		copy_page_retry(gopts, page_nr * gopts->page_size);
 
 	/*
 	 * If we need to test uffd-wp, set it up now.  Then we'll have
 	 * at least the first half of the pages mapped already which
 	 * can be write-protected for testing
 	 */
-	if (test_uffdio_wp)
-		wp_range(uffd, (unsigned long)area_dst + start_nr * page_size,
-			nr_pages_per_cpu * page_size, true);
+	if (gopts->test_uffdio_wp)
+		wp_range(gopts->uffd, (unsigned long)gopts->area_dst + start_nr * gopts->page_size,
+			gopts->nr_pages_per_cpu * gopts->page_size, true);
 
 	/*
 	 * Continue the 2nd half of the page copying, handling write
 	 * protection faults if any
 	 */
 	for (page_nr = mid_nr; page_nr < end_nr; page_nr++)
-		copy_page_retry(uffd, page_nr * page_size);
+		copy_page_retry(gopts, page_nr * gopts->page_size);
 
 	return NULL;
 }
@@ -180,17 +193,21 @@ static void *background_thread(void *arg)
 static int stress(struct uffd_args *args)
 {
 	unsigned long cpu;
-	pthread_t locking_threads[nr_parallel];
-	pthread_t uffd_threads[nr_parallel];
-	pthread_t background_threads[nr_parallel];
+	uffd_global_test_opts_t *gopts = args->gopts;
+	pthread_t locking_threads[gopts->nr_parallel];
+	pthread_t uffd_threads[gopts->nr_parallel];
+	pthread_t background_threads[gopts->nr_parallel];
 
-	finished = 0;
-	for (cpu = 0; cpu < nr_parallel; cpu++) {
+	gopts->finished = 0;
+	for (cpu = 0; cpu < gopts->nr_parallel; cpu++) {
 		if (pthread_create(&locking_threads[cpu], &attr,
-				   locking_thread, (void *)cpu))
+				   locking_thread, (void *)&args[cpu]))
 			return 1;
 		if (bounces & BOUNCE_POLL) {
-			if (pthread_create(&uffd_threads[cpu], &attr, uffd_poll_thread, &args[cpu]))
+			if (pthread_create(&uffd_threads[cpu],
+					   &attr,
+					   uffd_poll_thread,
+					   (void *) &args[cpu]))
 				err("uffd_poll_thread create");
 		} else {
 			if (pthread_create(&uffd_threads[cpu], &attr,
@@ -200,10 +217,10 @@ static int stress(struct uffd_args *args)
 			pthread_mutex_lock(&uffd_read_mutex);
 		}
 		if (pthread_create(&background_threads[cpu], &attr,
-				   background_thread, (void *)cpu))
+				   background_thread, (void *)&args[cpu]))
 			return 1;
 	}
-	for (cpu = 0; cpu < nr_parallel; cpu++)
+	for (cpu = 0; cpu < gopts->nr_parallel; cpu++)
 		if (pthread_join(background_threads[cpu], NULL))
 			return 1;
 
@@ -216,17 +233,17 @@ static int stress(struct uffd_args *args)
 	 * UFFDIO_COPY without writing zero pages into area_dst
 	 * because the background threads already completed).
 	 */
-	uffd_test_ops->release_pages(area_src);
+	uffd_test_ops->release_pages(gopts, gopts->area_src);
 
-	finished = 1;
-	for (cpu = 0; cpu < nr_parallel; cpu++)
+	gopts->finished = 1;
+	for (cpu = 0; cpu < gopts->nr_parallel; cpu++)
 		if (pthread_join(locking_threads[cpu], NULL))
 			return 1;
 
-	for (cpu = 0; cpu < nr_parallel; cpu++) {
+	for (cpu = 0; cpu < gopts->nr_parallel; cpu++) {
 		char c;
 		if (bounces & BOUNCE_POLL) {
-			if (write(pipefd[cpu*2+1], &c, 1) != 1)
+			if (write(gopts->pipefd[cpu*2+1], &c, 1) != 1)
 				err("pipefd write error");
 			if (pthread_join(uffd_threads[cpu],
 					 (void *)&args[cpu]))
@@ -242,26 +259,26 @@ static int stress(struct uffd_args *args)
 	return 0;
 }
 
-static int userfaultfd_stress(void)
+static int userfaultfd_stress(uffd_global_test_opts_t *gopts)
 {
 	void *area;
 	unsigned long nr;
-	struct uffd_args args[nr_parallel];
-	uint64_t mem_size = nr_pages * page_size;
+	struct uffd_args args[gopts->nr_parallel];
+	uint64_t mem_size = gopts->nr_pages * gopts->page_size;
 	int flags = 0;
 
-	memset(args, 0, sizeof(struct uffd_args) * nr_parallel);
+	memset(args, 0, sizeof(struct uffd_args) * gopts->nr_parallel);
 
-	if (features & UFFD_FEATURE_WP_UNPOPULATED && test_type == TEST_ANON)
+	if (features & UFFD_FEATURE_WP_UNPOPULATED && gopts->test_type == TEST_ANON)
 		flags = UFFD_FEATURE_WP_UNPOPULATED;
 
-	if (uffd_test_ctx_init(flags, NULL))
+	if (uffd_test_ctx_init(gopts, flags, NULL))
 		err("context init failed");
 
-	if (posix_memalign(&area, page_size, page_size))
+	if (posix_memalign(&area, gopts->page_size, gopts->page_size))
 		err("out of memory");
 	zeropage = area;
-	bzero(zeropage, page_size);
+	bzero(zeropage, gopts->page_size);
 
 	pthread_mutex_lock(&uffd_read_mutex);
 
@@ -284,18 +301,18 @@ static int userfaultfd_stress(void)
 		fflush(stdout);
 
 		if (bounces & BOUNCE_POLL)
-			fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
+			fcntl(gopts->uffd, F_SETFL, gopts->uffd_flags | O_NONBLOCK);
 		else
-			fcntl(uffd, F_SETFL, uffd_flags & ~O_NONBLOCK);
+			fcntl(gopts->uffd, F_SETFL, gopts->uffd_flags & ~O_NONBLOCK);
 
 		/* register */
-		if (uffd_register(uffd, area_dst, mem_size,
-				  true, test_uffdio_wp, false))
+		if (uffd_register(gopts->uffd, gopts->area_dst, mem_size,
+				  true, gopts->test_uffdio_wp, false))
 			err("register failure");
 
-		if (area_dst_alias) {
-			if (uffd_register(uffd, area_dst_alias, mem_size,
-					  true, test_uffdio_wp, false))
+		if (gopts->area_dst_alias) {
+			if (uffd_register(gopts->uffd, gopts->area_dst_alias, mem_size,
+					  true, gopts->test_uffdio_wp, false))
 				err("register failure alias");
 		}
 
@@ -323,87 +340,88 @@ static int userfaultfd_stress(void)
 		 * MADV_DONTNEED only after the UFFDIO_REGISTER, so it's
 		 * required to MADV_DONTNEED here.
 		 */
-		uffd_test_ops->release_pages(area_dst);
+		uffd_test_ops->release_pages(gopts, gopts->area_dst);
 
-		uffd_stats_reset(args, nr_parallel);
+		uffd_stats_reset(gopts, args, gopts->nr_parallel);
 
 		/* bounce pass */
 		if (stress(args)) {
-			uffd_test_ctx_clear();
+			uffd_test_ctx_clear(gopts);
 			return 1;
 		}
 
 		/* Clear all the write protections if there is any */
-		if (test_uffdio_wp)
-			wp_range(uffd, (unsigned long)area_dst,
-				 nr_pages * page_size, false);
+		if (gopts->test_uffdio_wp)
+			wp_range(gopts->uffd, (unsigned long)gopts->area_dst,
+				 gopts->nr_pages * gopts->page_size, false);
 
 		/* unregister */
-		if (uffd_unregister(uffd, area_dst, mem_size))
+		if (uffd_unregister(gopts->uffd, gopts->area_dst, mem_size))
 			err("unregister failure");
-		if (area_dst_alias) {
-			if (uffd_unregister(uffd, area_dst_alias, mem_size))
+		if (gopts->area_dst_alias) {
+			if (uffd_unregister(gopts->uffd, gopts->area_dst_alias, mem_size))
 				err("unregister failure alias");
 		}
 
 		/* verification */
 		if (bounces & BOUNCE_VERIFY)
-			for (nr = 0; nr < nr_pages; nr++)
-				if (*area_count(area_dst, nr) != count_verify[nr])
+			for (nr = 0; nr < gopts->nr_pages; nr++)
+				if (*area_count(gopts->area_dst, nr, gopts) !=
+						gopts->count_verify[nr])
 					err("error area_count %llu %llu %lu\n",
-					    *area_count(area_src, nr),
-					    count_verify[nr], nr);
+					    *area_count(gopts->area_src, nr, gopts),
+					    gopts->count_verify[nr], nr);
 
 		/* prepare next bounce */
-		swap(area_src, area_dst);
+		swap(gopts->area_src, gopts->area_dst);
 
-		swap(area_src_alias, area_dst_alias);
+		swap(gopts->area_src_alias, gopts->area_dst_alias);
 
-		uffd_stats_report(args, nr_parallel);
+		uffd_stats_report(args, gopts->nr_parallel);
 	}
-	uffd_test_ctx_clear();
+	uffd_test_ctx_clear(gopts);
 
 	return 0;
 }
 
-static void set_test_type(const char *type)
+static void set_test_type(uffd_global_test_opts_t *gopts, const char *type)
 {
 	if (!strcmp(type, "anon")) {
-		test_type = TEST_ANON;
+		gopts->test_type = TEST_ANON;
 		uffd_test_ops = &anon_uffd_test_ops;
 	} else if (!strcmp(type, "hugetlb")) {
-		test_type = TEST_HUGETLB;
+		gopts->test_type = TEST_HUGETLB;
 		uffd_test_ops = &hugetlb_uffd_test_ops;
-		map_shared = true;
+		gopts->map_shared = true;
 	} else if (!strcmp(type, "hugetlb-private")) {
-		test_type = TEST_HUGETLB;
+		gopts->test_type = TEST_HUGETLB;
 		uffd_test_ops = &hugetlb_uffd_test_ops;
 	} else if (!strcmp(type, "shmem")) {
-		map_shared = true;
-		test_type = TEST_SHMEM;
+		gopts->map_shared = true;
+		gopts->test_type = TEST_SHMEM;
 		uffd_test_ops = &shmem_uffd_test_ops;
 	} else if (!strcmp(type, "shmem-private")) {
-		test_type = TEST_SHMEM;
+		gopts->test_type = TEST_SHMEM;
 		uffd_test_ops = &shmem_uffd_test_ops;
 	}
 }
 
-static void parse_test_type_arg(const char *raw_type)
+static void parse_test_type_arg(uffd_global_test_opts_t *gopts, const char *raw_type)
 {
-	set_test_type(raw_type);
+	set_test_type(gopts, raw_type);
 
-	if (!test_type)
+	if (!gopts->test_type)
 		err("failed to parse test type argument: '%s'", raw_type);
 
-	if (test_type == TEST_HUGETLB)
-		page_size = default_huge_page_size();
+	if (gopts->test_type == TEST_HUGETLB)
+		gopts->page_size = default_huge_page_size();
 	else
-		page_size = sysconf(_SC_PAGE_SIZE);
+		gopts->page_size = sysconf(_SC_PAGE_SIZE);
 
-	if (!page_size)
+	if (!gopts->page_size)
 		err("Unable to determine page size");
-	if ((unsigned long) area_count(NULL, 0) + sizeof(unsigned long long) * 2
-	    > page_size)
+	if ((unsigned long) area_count(NULL, 0, gopts) + sizeof(unsigned long long) * 2
+	    > gopts->page_size)
 		err("Impossible to run this test");
 
 	/*
@@ -415,21 +433,21 @@ static void parse_test_type_arg(const char *raw_type)
 	if (uffd_get_features(&features) && errno == ENOENT)
 		ksft_exit_skip("failed to get available features (%d)\n", errno);
 
-	test_uffdio_wp = test_uffdio_wp &&
+	gopts->test_uffdio_wp = gopts->test_uffdio_wp &&
 		(features & UFFD_FEATURE_PAGEFAULT_FLAG_WP);
 
-	if (test_type != TEST_ANON && !(features & UFFD_FEATURE_WP_HUGETLBFS_SHMEM))
-		test_uffdio_wp = false;
+	if (gopts->test_type != TEST_ANON && !(features & UFFD_FEATURE_WP_HUGETLBFS_SHMEM))
+		gopts->test_uffdio_wp = false;
 
-	close(uffd);
-	uffd = -1;
+	close(gopts->uffd);
+	gopts->uffd = -1;
 }
 
 static void sigalrm(int sig)
 {
 	if (sig != SIGALRM)
 		abort();
-	test_uffdio_copy_eexist = true;
+	gopts->test_uffdio_copy_eexist = true;
 	alarm(ALARM_INTERVAL_SECS);
 }
 
@@ -438,6 +456,8 @@ int main(int argc, char **argv)
 	unsigned long nr_cpus;
 	size_t bytes;
 
+	gopts = (uffd_global_test_opts_t *) malloc(sizeof(uffd_global_test_opts_t));
+
 	if (argc < 4)
 		usage();
 
@@ -445,29 +465,34 @@ int main(int argc, char **argv)
 		err("failed to arm SIGALRM");
 	alarm(ALARM_INTERVAL_SECS);
 
-	parse_test_type_arg(argv[1]);
+	parse_test_type_arg(gopts, argv[1]);
 	bytes = atol(argv[2]) * 1024 * 1024;
-
-	if (test_type == TEST_HUGETLB &&
-	   get_free_hugepages() < bytes / page_size) {
-		printf("skip: Skipping userfaultfd... not enough hugepages\n");
-		return KSFT_SKIP;
-	}
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	if (nr_cpus > 32) {
 		/* Don't let calculation below go to zero. */
 		ksft_print_msg("_SC_NPROCESSORS_ONLN (%lu) too large, capping nr_threads to 32\n",
 			       nr_cpus);
-		nr_parallel = 32;
+		gopts->nr_parallel = 32;
 	} else {
-		nr_parallel = nr_cpus;
+		gopts->nr_parallel = nr_cpus;
 	}
 
-	nr_pages_per_cpu = bytes / page_size / nr_parallel;
-	if (!nr_pages_per_cpu) {
+	/*
+	 * src and dst each require bytes / page_size number of hugepages.
+	 * Ensure nr_parallel - 1 hugepages on top of that to account
+	 * for racy extra reservation of hugepages.
+	 */
+	if (gopts->test_type == TEST_HUGETLB &&
+	   get_free_hugepages() < 2 * (bytes / gopts->page_size) + gopts->nr_parallel - 1) {
+		printf("skip: Skipping userfaultfd... not enough hugepages\n");
+		return KSFT_SKIP;
+	}
+
+	gopts->nr_pages_per_cpu = bytes / gopts->page_size / gopts->nr_parallel;
+	if (!gopts->nr_pages_per_cpu) {
 		_err("pages_per_cpu = 0, cannot test (%lu / %lu / %lu)",
-			bytes, page_size, nr_parallel);
+			bytes, gopts->page_size, gopts->nr_parallel);
 		usage();
 	}
 
@@ -476,11 +501,11 @@ int main(int argc, char **argv)
 		_err("invalid bounces");
 		usage();
 	}
-	nr_pages = nr_pages_per_cpu * nr_parallel;
+	gopts->nr_pages = gopts->nr_pages_per_cpu * gopts->nr_parallel;
 
 	printf("nr_pages: %lu, nr_pages_per_cpu: %lu\n",
-	       nr_pages, nr_pages_per_cpu);
-	return userfaultfd_stress();
+	       gopts->nr_pages, gopts->nr_pages_per_cpu);
+	return userfaultfd_stress(gopts);
 }
 
 #else /* __NR_userfaultfd */

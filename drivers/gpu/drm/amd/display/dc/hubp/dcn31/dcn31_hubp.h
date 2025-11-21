@@ -228,7 +228,9 @@
 	HUBP_SF(HUBPREQ0_FLIP_PARAMETERS_6, REFCYC_PER_META_CHUNK_FLIP_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_VBLANK_PARAMETERS_5, REFCYC_PER_VM_GROUP_VBLANK, mask_sh),\
 	HUBP_SF(HUBPREQ0_VBLANK_PARAMETERS_6, REFCYC_PER_VM_REQ_VBLANK, mask_sh),\
-	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, VM_GROUP_SIZE, mask_sh)
+	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, VM_GROUP_SIZE, mask_sh),\
+	HUBP_SF(HUBPRET0_HUBPRET_READ_LINE_VALUE, PIPE_READ_LINE, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_SEG_ALLOC_ERR_STATUS, mask_sh)
 
 
 bool hubp31_construct(
@@ -245,5 +247,7 @@ void hubp31_set_unbounded_requesting(struct hubp *hubp, bool enable);
 
 void hubp31_program_extended_blank_value(
 	struct hubp *hubp, unsigned int min_dst_y_next_start_optimized);
+
+uint32_t hubp31_get_det_config_error(struct hubp *hubp);
 
 #endif /* __DC_HUBP_DCN31_H__ */

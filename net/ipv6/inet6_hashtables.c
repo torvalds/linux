@@ -47,24 +47,23 @@ EXPORT_SYMBOL_GPL(inet6_ehashfn);
  * The sockhash lock must be held as a reader here.
  */
 struct sock *__inet6_lookup_established(const struct net *net,
-					struct inet_hashinfo *hashinfo,
-					   const struct in6_addr *saddr,
-					   const __be16 sport,
-					   const struct in6_addr *daddr,
-					   const u16 hnum,
-					   const int dif, const int sdif)
+					const struct in6_addr *saddr,
+					const __be16 sport,
+					const struct in6_addr *daddr,
+					const u16 hnum,
+					const int dif, const int sdif)
 {
-	struct sock *sk;
-	const struct hlist_nulls_node *node;
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
-	/* Optimize here for direct hit, only listening connections can
-	 * have wildcards anyways.
-	 */
-	unsigned int hash = inet6_ehashfn(net, daddr, hnum, saddr, sport);
-	unsigned int slot = hash & hashinfo->ehash_mask;
-	struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
+	const struct hlist_nulls_node *node;
+	struct inet_ehash_bucket *head;
+	struct inet_hashinfo *hashinfo;
+	unsigned int hash, slot;
+	struct sock *sk;
 
-
+	hashinfo = net->ipv4.tcp_death_row.hashinfo;
+	hash = inet6_ehashfn(net, daddr, hnum, saddr, sport);
+	slot = hash & hashinfo->ehash_mask;
+	head = &hashinfo->ehash[slot];
 begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (sk->sk_hash != hash)
@@ -200,19 +199,20 @@ struct sock *inet6_lookup_run_sk_lookup(const struct net *net,
 EXPORT_SYMBOL_GPL(inet6_lookup_run_sk_lookup);
 
 struct sock *inet6_lookup_listener(const struct net *net,
-		struct inet_hashinfo *hashinfo,
-		struct sk_buff *skb, int doff,
-		const struct in6_addr *saddr,
-		const __be16 sport, const struct in6_addr *daddr,
-		const unsigned short hnum, const int dif, const int sdif)
+				   struct sk_buff *skb, int doff,
+				   const struct in6_addr *saddr,
+				   const __be16 sport,
+				   const struct in6_addr *daddr,
+				   const unsigned short hnum,
+				   const int dif, const int sdif)
 {
 	struct inet_listen_hashbucket *ilb2;
+	struct inet_hashinfo *hashinfo;
 	struct sock *result = NULL;
 	unsigned int hash2;
 
 	/* Lookup redirect from BPF */
-	if (static_branch_unlikely(&bpf_sk_lookup_enabled) &&
-	    hashinfo == net->ipv4.tcp_death_row.hashinfo) {
+	if (static_branch_unlikely(&bpf_sk_lookup_enabled)) {
 		result = inet6_lookup_run_sk_lookup(net, IPPROTO_TCP, skb, doff,
 						    saddr, sport, daddr, hnum, dif,
 						    inet6_ehashfn);
@@ -220,6 +220,7 @@ struct sock *inet6_lookup_listener(const struct net *net,
 			goto done;
 	}
 
+	hashinfo = net->ipv4.tcp_death_row.hashinfo;
 	hash2 = ipv6_portaddr_hash(net, daddr, hnum);
 	ilb2 = inet_lhash2_bucket(hashinfo, hash2);
 
@@ -244,7 +245,6 @@ done:
 EXPORT_SYMBOL_GPL(inet6_lookup_listener);
 
 struct sock *inet6_lookup(const struct net *net,
-			  struct inet_hashinfo *hashinfo,
 			  struct sk_buff *skb, int doff,
 			  const struct in6_addr *saddr, const __be16 sport,
 			  const struct in6_addr *daddr, const __be16 dport,
@@ -253,7 +253,7 @@ struct sock *inet6_lookup(const struct net *net,
 	struct sock *sk;
 	bool refcounted;
 
-	sk = __inet6_lookup(net, hashinfo, skb, doff, saddr, sport, daddr,
+	sk = __inet6_lookup(net, skb, doff, saddr, sport, daddr,
 			    ntohs(dport), dif, 0, &refcounted);
 	if (sk && !refcounted && !refcount_inc_not_zero(&sk->sk_refcnt))
 		sk = NULL;
@@ -305,8 +305,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 				       dif, sdif))) {
 			if (sk2->sk_state == TCP_TIME_WAIT) {
 				tw = inet_twsk(sk2);
-				if (sk->sk_protocol == IPPROTO_TCP &&
-				    tcp_twsk_unique(sk, sk2, twp))
+				if (tcp_twsk_unique(sk, sk2, twp))
 					break;
 			}
 			goto not_unique;
@@ -369,14 +368,3 @@ int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 				   __inet6_check_established);
 }
 EXPORT_SYMBOL_GPL(inet6_hash_connect);
-
-int inet6_hash(struct sock *sk)
-{
-	int err = 0;
-
-	if (sk->sk_state != TCP_CLOSE)
-		err = __inet_hash(sk, NULL);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(inet6_hash);

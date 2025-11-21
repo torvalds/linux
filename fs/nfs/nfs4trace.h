@@ -14,6 +14,8 @@
 #include <trace/misc/fs.h>
 #include <trace/misc/nfs.h>
 
+#include "delegation.h"
+
 #define show_nfs_fattr_flags(valid) \
 	__print_flags((unsigned long)valid, "|", \
 		{ NFS_ATTR_FATTR_TYPE, "TYPE" }, \
@@ -30,7 +32,8 @@
 		{ NFS_ATTR_FATTR_CTIME, "CTIME" }, \
 		{ NFS_ATTR_FATTR_CHANGE, "CHANGE" }, \
 		{ NFS_ATTR_FATTR_OWNER_NAME, "OWNER_NAME" }, \
-		{ NFS_ATTR_FATTR_GROUP_NAME, "GROUP_NAME" })
+		{ NFS_ATTR_FATTR_GROUP_NAME, "GROUP_NAME" }, \
+		{ NFS_ATTR_FATTR_BTIME, "BTIME" })
 
 DECLARE_EVENT_CLASS(nfs4_clientid_event,
 		TP_PROTO(
@@ -273,6 +276,32 @@ TRACE_EVENT(nfs4_cb_offload,
 			show_nfs_stable_how(__entry->cb_how)
 		)
 );
+
+TRACE_EVENT(pnfs_ds_connect,
+		TP_PROTO(
+			char *ds_remotestr,
+			int status
+		),
+
+		TP_ARGS(ds_remotestr, status),
+
+		TP_STRUCT__entry(
+			__string(ds_ips, ds_remotestr)
+			__field(int, status)
+		),
+
+		TP_fast_assign(
+			__assign_str(ds_ips);
+			__entry->status = status;
+		),
+
+		TP_printk(
+			"ds_ips=%s, status=%d",
+			__get_str(ds_ips),
+			__entry->status
+                )
+);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 TRACE_EVENT(nfs4_setup_sequence,
@@ -956,6 +985,52 @@ DECLARE_EVENT_CLASS(nfs4_set_delegation_event,
 			TP_ARGS(inode, fmode))
 DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_set_delegation);
 DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_reclaim_delegation);
+DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_detach_delegation);
+
+#define show_delegation_flags(flags) \
+	__print_flags(flags, "|", \
+		{ BIT(NFS_DELEGATION_NEED_RECLAIM), "NEED_RECLAIM" }, \
+		{ BIT(NFS_DELEGATION_RETURN), "RETURN" }, \
+		{ BIT(NFS_DELEGATION_RETURN_IF_CLOSED), "RETURN_IF_CLOSED" }, \
+		{ BIT(NFS_DELEGATION_REFERENCED), "REFERENCED" }, \
+		{ BIT(NFS_DELEGATION_RETURNING), "RETURNING" }, \
+		{ BIT(NFS_DELEGATION_REVOKED), "REVOKED" }, \
+		{ BIT(NFS_DELEGATION_TEST_EXPIRED), "TEST_EXPIRED" }, \
+		{ BIT(NFS_DELEGATION_INODE_FREEING), "INODE_FREEING" }, \
+		{ BIT(NFS_DELEGATION_RETURN_DELAYED), "RETURN_DELAYED" })
+
+DECLARE_EVENT_CLASS(nfs4_delegation_event,
+		TP_PROTO(
+			const struct nfs_delegation *delegation
+		),
+
+		TP_ARGS(delegation),
+
+		TP_STRUCT__entry(
+			__field(u32, fhandle)
+			__field(unsigned int, fmode)
+			__field(unsigned long, flags)
+		),
+
+		TP_fast_assign(
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(delegation->inode));
+			__entry->fmode = delegation->type;
+			__entry->flags = delegation->flags;
+		),
+
+		TP_printk(
+			"fhandle=0x%08x fmode=%s flags=%s",
+			__entry->fhandle, show_fs_fmode_flags(__entry->fmode),
+			show_delegation_flags(__entry->flags)
+		)
+);
+#define DEFINE_NFS4_DELEGATION_EVENT(name) \
+	DEFINE_EVENT(nfs4_delegation_event, name, \
+			TP_PROTO( \
+				const struct nfs_delegation *delegation \
+			), \
+			TP_ARGS(delegation))
+DEFINE_NFS4_DELEGATION_EVENT(nfs_delegation_need_return);
 
 TRACE_EVENT(nfs4_delegreturn_exit,
 		TP_PROTO(
@@ -1448,6 +1523,63 @@ DECLARE_EVENT_CLASS(nfs4_inode_stateid_callback_event,
 			TP_ARGS(clp, fhandle, inode, stateid, error))
 DEFINE_NFS4_INODE_STATEID_CALLBACK_EVENT(nfs4_cb_recall);
 DEFINE_NFS4_INODE_STATEID_CALLBACK_EVENT(nfs4_cb_layoutrecall_file);
+
+#define show_stateid_type(type) \
+	__print_symbolic(type, \
+		{ NFS4_INVALID_STATEID_TYPE,	"INVALID" }, \
+		{ NFS4_SPECIAL_STATEID_TYPE,	"SPECIAL" }, \
+		{ NFS4_OPEN_STATEID_TYPE,	"OPEN" }, \
+		{ NFS4_LOCK_STATEID_TYPE,	"LOCK" }, \
+		{ NFS4_DELEGATION_STATEID_TYPE,	"DELEGATION" }, \
+		{ NFS4_LAYOUT_STATEID_TYPE,	"LAYOUT" },	\
+		{ NFS4_PNFS_DS_STATEID_TYPE,	"PNFS_DS" }, \
+		{ NFS4_REVOKED_STATEID_TYPE,	"REVOKED" }, \
+		{ NFS4_FREED_STATEID_TYPE,	"FREED" })
+
+DECLARE_EVENT_CLASS(nfs4_match_stateid_event,
+		TP_PROTO(
+			const nfs4_stateid *s1,
+			const nfs4_stateid *s2
+		),
+
+		TP_ARGS(s1, s2),
+
+		TP_STRUCT__entry(
+			__field(int, s1_seq)
+			__field(int, s2_seq)
+			__field(u32, s1_hash)
+			__field(u32, s2_hash)
+			__field(int, s1_type)
+			__field(int, s2_type)
+		),
+
+		TP_fast_assign(
+			__entry->s1_seq = s1->seqid;
+			__entry->s1_hash = nfs_stateid_hash(s1);
+			__entry->s1_type = s1->type;
+			__entry->s2_seq = s2->seqid;
+			__entry->s2_hash = nfs_stateid_hash(s2);
+			__entry->s2_type = s2->type;
+		),
+
+		TP_printk(
+			"s1=%s:%x:%u s2=%s:%x:%u",
+			show_stateid_type(__entry->s1_type),
+			__entry->s1_hash, __entry->s1_seq,
+			show_stateid_type(__entry->s2_type),
+			__entry->s2_hash, __entry->s2_seq
+		)
+);
+
+#define DEFINE_NFS4_MATCH_STATEID_EVENT(name) \
+	DEFINE_EVENT(nfs4_match_stateid_event, name, \
+			TP_PROTO( \
+				const nfs4_stateid *s1, \
+				const nfs4_stateid *s2 \
+			), \
+			TP_ARGS(s1, s2))
+DEFINE_NFS4_MATCH_STATEID_EVENT(nfs41_match_stateid);
+DEFINE_NFS4_MATCH_STATEID_EVENT(nfs4_match_stateid);
 
 DECLARE_EVENT_CLASS(nfs4_idmap_event,
 		TP_PROTO(
@@ -2160,6 +2292,40 @@ TRACE_EVENT(ff_layout_commit_error,
 			__entry->offset, __entry->count,
 			__get_str(dstaddr), __entry->nfs_error,
 			show_nfs4_status(__entry->nfs_error)
+		)
+);
+
+TRACE_EVENT(bl_ext_tree_prepare_commit,
+		TP_PROTO(
+			int ret,
+			size_t count,
+			u64 lwb,
+			bool not_all_ranges
+		),
+
+		TP_ARGS(ret, count, lwb, not_all_ranges),
+
+		TP_STRUCT__entry(
+			__field(int, ret)
+			__field(size_t, count)
+			__field(u64, lwb)
+			__field(bool, not_all_ranges)
+		),
+
+		TP_fast_assign(
+			__entry->ret = ret;
+			__entry->count = count;
+			__entry->lwb = lwb;
+			__entry->not_all_ranges = not_all_ranges;
+		),
+
+		TP_printk(
+			"ret=%d, found %zu ranges, lwb=%llu%s",
+			__entry->ret,
+			__entry->count,
+			__entry->lwb,
+			__entry->not_all_ranges ? ", not all ranges encoded" :
+						  ""
 		)
 );
 

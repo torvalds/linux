@@ -22,6 +22,7 @@
 #include "processor.h"
 #include "test_util.h"
 #include "guest_modes.h"
+#include "ucall_common.h"
 
 #define DUMMY_MEMSLOT_INDEX 7
 

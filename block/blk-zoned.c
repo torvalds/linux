@@ -1286,14 +1286,14 @@ static void blk_zone_wplug_bio_work(struct work_struct *work)
 	struct block_device *bdev;
 	unsigned long flags;
 	struct bio *bio;
+	bool prepared;
 
 	/*
 	 * Submit the next plugged BIO. If we do not have any, clear
 	 * the plugged flag.
 	 */
-	spin_lock_irqsave(&zwplug->lock, flags);
-
 again:
+	spin_lock_irqsave(&zwplug->lock, flags);
 	bio = bio_list_pop(&zwplug->bio_list);
 	if (!bio) {
 		zwplug->flags &= ~BLK_ZONE_WPLUG_PLUGGED;
@@ -1304,12 +1304,13 @@ again:
 	trace_blk_zone_wplug_bio(zwplug->disk->queue, zwplug->zone_no,
 				 bio->bi_iter.bi_sector, bio_sectors(bio));
 
-	if (!blk_zone_wplug_prepare_bio(zwplug, bio)) {
+	prepared = blk_zone_wplug_prepare_bio(zwplug, bio);
+	spin_unlock_irqrestore(&zwplug->lock, flags);
+
+	if (!prepared) {
 		blk_zone_wplug_bio_io_error(zwplug, bio);
 		goto again;
 	}
-
-	spin_unlock_irqrestore(&zwplug->lock, flags);
 
 	bdev = bio->bi_bdev;
 

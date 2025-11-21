@@ -136,9 +136,9 @@ static void radeon_legacy_lvds_update(struct drm_encoder *encoder, int mode)
 	}
 
 	if (rdev->is_atom_bios)
-		radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_atombios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 	else
-		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_combios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 
 }
 
@@ -545,9 +545,9 @@ static void radeon_legacy_primary_dac_dpms(struct drm_encoder *encoder, int mode
 	WREG32(RADEON_DAC_MACRO_CNTL, dac_macro_cntl);
 
 	if (rdev->is_atom_bios)
-		radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_atombios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 	else
-		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_combios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 
 }
 
@@ -742,9 +742,9 @@ static void radeon_legacy_tmds_int_dpms(struct drm_encoder *encoder, int mode)
 	WREG32(RADEON_FP_GEN_CNTL, fp_gen_cntl);
 
 	if (rdev->is_atom_bios)
-		radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_atombios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 	else
-		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_combios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 
 }
 
@@ -908,9 +908,9 @@ static void radeon_legacy_tmds_ext_dpms(struct drm_encoder *encoder, int mode)
 	WREG32(RADEON_FP2_GEN_CNTL, fp2_gen_cntl);
 
 	if (rdev->is_atom_bios)
-		radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_atombios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 	else
-		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_combios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 
 }
 
@@ -1113,9 +1113,9 @@ static void radeon_legacy_tv_dac_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	if (rdev->is_atom_bios)
-		radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_atombios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 	else
-		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
+		radeon_combios_encoder_dpms_scratch_regs(encoder, mode == DRM_MODE_DPMS_ON);
 
 }
 

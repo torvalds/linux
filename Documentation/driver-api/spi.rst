@@ -13,7 +13,7 @@ additional chipselect line is usually active-low (nCS); four signals are
 normally used for each peripheral, plus sometimes an interrupt.
 
 The SPI bus facilities listed here provide a generalized interface to
-declare SPI busses and devices, manage them according to the standard
+declare SPI buses and devices, manage them according to the standard
 Linux driver model, and perform input/output operations. At this time,
 only "master" side interfaces are supported, where Linux talks to SPI
 peripherals and does not implement such a peripheral itself. (Interfaces

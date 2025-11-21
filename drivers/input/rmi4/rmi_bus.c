@@ -4,6 +4,7 @@
  * Copyright (c) 2011 Unixphere
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/irq.h>
@@ -359,6 +360,12 @@ static struct rmi_function_handler *fn_handlers[] = {
 #endif
 #ifdef CONFIG_RMI4_F12
 	&rmi_f12_handler,
+#endif
+#ifdef CONFIG_RMI4_F1A
+	&rmi_f1a_handler,
+#endif
+#ifdef CONFIG_RMI4_F21
+	&rmi_f21_handler,
 #endif
 #ifdef CONFIG_RMI4_F30
 	&rmi_f30_handler,

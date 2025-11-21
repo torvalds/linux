@@ -446,7 +446,7 @@ int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	u8 eth_addr[ETH_ALEN + 2] = { 0 };
-	struct vxlan_rdst *rdst;
+	struct vxlan_rdst *rdst = NULL;
 	struct vxlan_fdb *f;
 	int rc = 0;
 
@@ -459,12 +459,13 @@ int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 	rcu_read_lock();
 
 	f = vxlan_find_mac_rcu(vxlan, eth_addr, vni);
-	if (!f) {
+	if (f)
+		rdst = first_remote_rcu(f);
+	if (!rdst) {
 		rc = -ENOENT;
 		goto out;
 	}
 
-	rdst = first_remote_rcu(f);
 	vxlan_fdb_switchdev_notifier_info(vxlan, f, rdst, NULL, fdb_info);
 
 out:
@@ -1445,16 +1446,16 @@ static enum skb_drop_reason vxlan_snoop(struct net_device *dev,
 		if (READ_ONCE(f->updated) != now)
 			WRITE_ONCE(f->updated, now);
 
+		/* Don't override an fdb with nexthop with a learnt entry */
+		if (rcu_access_pointer(f->nh))
+			return SKB_DROP_REASON_VXLAN_ENTRY_EXISTS;
+
 		if (likely(vxlan_addr_equal(&rdst->remote_ip, src_ip) &&
 			   rdst->remote_ifindex == ifindex))
 			return SKB_NOT_DROPPED_YET;
 
 		/* Don't migrate static entries, drop packets */
 		if (f->state & (NUD_PERMANENT | NUD_NOARP))
-			return SKB_DROP_REASON_VXLAN_ENTRY_EXISTS;
-
-		/* Don't override an fdb with nexthop with a learnt entry */
-		if (rcu_access_pointer(f->nh))
 			return SKB_DROP_REASON_VXLAN_ENTRY_EXISTS;
 
 		if (net_ratelimit())
@@ -1877,6 +1878,7 @@ static int arp_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 	n = neigh_lookup(&arp_tbl, &tip, dev);
 
 	if (n) {
+		struct vxlan_rdst *rdst = NULL;
 		struct vxlan_fdb *f;
 		struct sk_buff	*reply;
 
@@ -1887,7 +1889,9 @@ static int arp_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 
 		rcu_read_lock();
 		f = vxlan_find_mac_tx(vxlan, n->ha, vni);
-		if (f && vxlan_addr_any(&(first_remote_rcu(f)->remote_ip))) {
+		if (f)
+			rdst = first_remote_rcu(f);
+		if (rdst && vxlan_addr_any(&rdst->remote_ip)) {
 			/* bridge-local neighbor */
 			neigh_release(n);
 			rcu_read_unlock();
@@ -2044,6 +2048,7 @@ static int neigh_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 	n = neigh_lookup(ipv6_stub->nd_tbl, &msg->target, dev);
 
 	if (n) {
+		struct vxlan_rdst *rdst = NULL;
 		struct vxlan_fdb *f;
 		struct sk_buff *reply;
 
@@ -2053,7 +2058,9 @@ static int neigh_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 		}
 
 		f = vxlan_find_mac_tx(vxlan, n->ha, vni);
-		if (f && vxlan_addr_any(&(first_remote_rcu(f)->remote_ip))) {
+		if (f)
+			rdst = first_remote_rcu(f);
+		if (rdst && vxlan_addr_any(&rdst->remote_ip)) {
 			/* bridge-local neighbor */
 			neigh_release(n);
 			goto out;

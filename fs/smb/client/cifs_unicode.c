@@ -629,6 +629,9 @@ cifs_strndup_to_utf16(const char *src, const int maxlen, int *utf16_len,
 	int len;
 	__le16 *dst;
 
+	if (!src)
+		return NULL;
+
 	len = cifs_local_to_utf16_bytes(src, maxlen, cp);
 	len += 2; /* NULL */
 	dst = kmalloc(len, GFP_KERNEL);

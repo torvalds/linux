@@ -479,14 +479,14 @@ static int x86_cluster_flags(void)
 static bool x86_has_numa_in_package;
 
 static struct sched_domain_topology_level x86_topology[] = {
-	SDTL_INIT(cpu_smt_mask, cpu_smt_flags, SMT),
+	SDTL_INIT(tl_smt_mask, cpu_smt_flags, SMT),
 #ifdef CONFIG_SCHED_CLUSTER
-	SDTL_INIT(cpu_clustergroup_mask, x86_cluster_flags, CLS),
+	SDTL_INIT(tl_cls_mask, x86_cluster_flags, CLS),
 #endif
 #ifdef CONFIG_SCHED_MC
-	SDTL_INIT(cpu_coregroup_mask, x86_core_flags, MC),
+	SDTL_INIT(tl_mc_mask, x86_core_flags, MC),
 #endif
-	SDTL_INIT(cpu_cpu_mask, x86_sched_itmt_flags, PKG),
+	SDTL_INIT(tl_pkg_mask, x86_sched_itmt_flags, PKG),
 	{ NULL },
 };
 
@@ -1328,11 +1328,7 @@ void __noreturn hlt_play_dead(void)
 		native_halt();
 }
 
-/*
- * native_play_dead() is essentially a __noreturn function, but it can't
- * be marked as such as the compiler may complain about it.
- */
-void native_play_dead(void)
+void __noreturn native_play_dead(void)
 {
 	if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS))
 		__update_spec_ctrl(0);
@@ -1351,7 +1347,7 @@ int native_cpu_disable(void)
 	return -ENOSYS;
 }
 
-void native_play_dead(void)
+void __noreturn native_play_dead(void)
 {
 	BUG();
 }

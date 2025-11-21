@@ -162,7 +162,7 @@ static int rzv2m_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 				 unsigned int group_selector)
 {
 	struct rzv2m_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct function_desc *func;
+	const struct function_desc *func;
 	unsigned int i, *psel_val;
 	struct group_desc *group;
 	const unsigned int *pins;
@@ -957,7 +957,7 @@ static int rzv2m_gpio_register(struct rzv2m_pinctrl *pctrl)
 	chip->direction_input = rzv2m_gpio_direction_input;
 	chip->direction_output = rzv2m_gpio_direction_output;
 	chip->get = rzv2m_gpio_get;
-	chip->set_rv = rzv2m_gpio_set;
+	chip->set = rzv2m_gpio_set;
 	chip->label = name;
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;

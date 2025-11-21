@@ -11,6 +11,8 @@ obj-$(CONFIG_ARM_MHU_V2)	+= arm_mhuv2.o
 
 obj-$(CONFIG_ARM_MHU_V3)	+= arm_mhuv3.o
 
+obj-$(CONFIG_AST2700_MBOX)	+= ast2700-mailbox.o
+
 obj-$(CONFIG_CV1800_MBOX)	+= cv1800-mailbox.o
 
 obj-$(CONFIG_EXYNOS_MBOX)	+= exynos-mailbox.o
@@ -61,6 +63,8 @@ obj-$(CONFIG_MTK_ADSP_MBOX)	+= mtk-adsp-mailbox.o
 
 obj-$(CONFIG_MTK_CMDQ_MBOX)	+= mtk-cmdq-mailbox.o
 
+obj-$(CONFIG_MTK_GPUEB_MBOX)	+= mtk-gpueb-mailbox.o
+
 obj-$(CONFIG_ZYNQMP_IPI_MBOX)	+= zynqmp-ipi-mailbox.o
 
 obj-$(CONFIG_SUN6I_MSGBOX)	+= sun6i-msgbox.o
@@ -74,3 +78,7 @@ obj-$(CONFIG_QCOM_IPCC)		+= qcom-ipcc.o
 obj-$(CONFIG_THEAD_TH1520_MBOX)	+= mailbox-th1520.o
 
 obj-$(CONFIG_CIX_MBOX)	+= cix-mailbox.o
+
+obj-$(CONFIG_BCM74110_MAILBOX)	+= bcm74110-mailbox.o
+
+obj-$(CONFIG_RISCV_SBI_MPXY_MBOX)	+= riscv-sbi-mpxy-mbox.o

@@ -99,7 +99,7 @@ For 32-bit we have the following conventions - kernel is built with
 	.endif
 .endm
 
-.macro CLEAR_REGS clear_bp=1
+.macro CLEAR_REGS clear_callee=1
 	/*
 	 * Sanitize registers of values that a speculation attack might
 	 * otherwise want to exploit. The lower registers are likely clobbered
@@ -113,20 +113,19 @@ For 32-bit we have the following conventions - kernel is built with
 	xorl	%r9d,  %r9d	/* nospec r9  */
 	xorl	%r10d, %r10d	/* nospec r10 */
 	xorl	%r11d, %r11d	/* nospec r11 */
+	.if \clear_callee
 	xorl	%ebx,  %ebx	/* nospec rbx */
-	.if \clear_bp
 	xorl	%ebp,  %ebp	/* nospec rbp */
-	.endif
 	xorl	%r12d, %r12d	/* nospec r12 */
 	xorl	%r13d, %r13d	/* nospec r13 */
 	xorl	%r14d, %r14d	/* nospec r14 */
 	xorl	%r15d, %r15d	/* nospec r15 */
-
+	.endif
 .endm
 
-.macro PUSH_AND_CLEAR_REGS rdx=%rdx rcx=%rcx rax=%rax save_ret=0 clear_bp=1 unwind_hint=1
+.macro PUSH_AND_CLEAR_REGS rdx=%rdx rcx=%rcx rax=%rax save_ret=0 clear_callee=1 unwind_hint=1
 	PUSH_REGS rdx=\rdx, rcx=\rcx, rax=\rax, save_ret=\save_ret unwind_hint=\unwind_hint
-	CLEAR_REGS clear_bp=\clear_bp
+	CLEAR_REGS clear_callee=\clear_callee
 .endm
 
 .macro POP_REGS pop_rdi=1

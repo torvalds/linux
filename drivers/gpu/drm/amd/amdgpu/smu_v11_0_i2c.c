@@ -743,7 +743,7 @@ int smu_v11_0_i2c_control_init(struct amdgpu_device *adev)
 	adev->pm.ras_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
 	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
 
-	res = i2c_add_adapter(control);
+	res = devm_i2c_add_adapter(adev->dev, control);
 	if (res)
 		DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
 
@@ -752,9 +752,6 @@ int smu_v11_0_i2c_control_init(struct amdgpu_device *adev)
 
 void smu_v11_0_i2c_control_fini(struct amdgpu_device *adev)
 {
-	struct i2c_adapter *control = adev->pm.ras_eeprom_i2c_bus;
-
-	i2c_del_adapter(control);
 	adev->pm.ras_eeprom_i2c_bus = NULL;
 	adev->pm.fru_eeprom_i2c_bus = NULL;
 }

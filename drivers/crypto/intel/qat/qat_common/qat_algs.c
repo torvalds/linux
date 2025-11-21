@@ -5,12 +5,10 @@
 #include <linux/crypto.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/cipher.h>
-#include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/aes.h>
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
-#include <crypto/hmac.h>
 #include <crypto/algapi.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
@@ -68,16 +66,10 @@ struct qat_alg_aead_ctx {
 	dma_addr_t dec_cd_paddr;
 	struct icp_qat_fw_la_bulk_req enc_fw_req;
 	struct icp_qat_fw_la_bulk_req dec_fw_req;
-	struct crypto_shash *hash_tfm;
 	enum icp_qat_hw_auth_algo qat_hash_alg;
+	unsigned int hash_digestsize;
+	unsigned int hash_blocksize;
 	struct qat_crypto_instance *inst;
-	union {
-		struct sha1_state sha1;
-		struct sha256_state sha256;
-		struct sha512_state sha512;
-	};
-	char ipad[SHA512_BLOCK_SIZE]; /* sufficient for SHA-1/SHA-256 as well */
-	char opad[SHA512_BLOCK_SIZE];
 };
 
 struct qat_alg_skcipher_ctx {
@@ -94,125 +86,57 @@ struct qat_alg_skcipher_ctx {
 	int mode;
 };
 
-static int qat_get_inter_state_size(enum icp_qat_hw_auth_algo qat_hash_alg)
-{
-	switch (qat_hash_alg) {
-	case ICP_QAT_HW_AUTH_ALGO_SHA1:
-		return ICP_QAT_HW_SHA1_STATE1_SZ;
-	case ICP_QAT_HW_AUTH_ALGO_SHA256:
-		return ICP_QAT_HW_SHA256_STATE1_SZ;
-	case ICP_QAT_HW_AUTH_ALGO_SHA512:
-		return ICP_QAT_HW_SHA512_STATE1_SZ;
-	default:
-		return -EFAULT;
-	}
-}
-
 static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 				  struct qat_alg_aead_ctx *ctx,
 				  const u8 *auth_key,
 				  unsigned int auth_keylen)
 {
-	SHASH_DESC_ON_STACK(shash, ctx->hash_tfm);
-	int block_size = crypto_shash_blocksize(ctx->hash_tfm);
-	int digest_size = crypto_shash_digestsize(ctx->hash_tfm);
-	__be32 *hash_state_out;
-	__be64 *hash512_state_out;
-	int i, offset;
-
-	memset(ctx->ipad, 0, block_size);
-	memset(ctx->opad, 0, block_size);
-	shash->tfm = ctx->hash_tfm;
-
-	if (auth_keylen > block_size) {
-		int ret = crypto_shash_digest(shash, auth_key,
-					      auth_keylen, ctx->ipad);
-		if (ret)
-			return ret;
-
-		memcpy(ctx->opad, ctx->ipad, digest_size);
-	} else {
-		memcpy(ctx->ipad, auth_key, auth_keylen);
-		memcpy(ctx->opad, auth_key, auth_keylen);
-	}
-
-	for (i = 0; i < block_size; i++) {
-		char *ipad_ptr = ctx->ipad + i;
-		char *opad_ptr = ctx->opad + i;
-		*ipad_ptr ^= HMAC_IPAD_VALUE;
-		*opad_ptr ^= HMAC_OPAD_VALUE;
-	}
-
-	if (crypto_shash_init(shash))
-		return -EFAULT;
-
-	if (crypto_shash_update(shash, ctx->ipad, block_size))
-		return -EFAULT;
-
-	hash_state_out = (__be32 *)hash->sha.state1;
-	hash512_state_out = (__be64 *)hash_state_out;
-
 	switch (ctx->qat_hash_alg) {
-	case ICP_QAT_HW_AUTH_ALGO_SHA1:
-		if (crypto_shash_export_core(shash, &ctx->sha1))
-			return -EFAULT;
-		for (i = 0; i < digest_size >> 2; i++, hash_state_out++)
-			*hash_state_out = cpu_to_be32(ctx->sha1.state[i]);
-		break;
-	case ICP_QAT_HW_AUTH_ALGO_SHA256:
-		if (crypto_shash_export_core(shash, &ctx->sha256))
-			return -EFAULT;
-		for (i = 0; i < digest_size >> 2; i++, hash_state_out++)
-			*hash_state_out = cpu_to_be32(ctx->sha256.state[i]);
-		break;
-	case ICP_QAT_HW_AUTH_ALGO_SHA512:
-		if (crypto_shash_export_core(shash, &ctx->sha512))
-			return -EFAULT;
-		for (i = 0; i < digest_size >> 3; i++, hash512_state_out++)
-			*hash512_state_out = cpu_to_be64(ctx->sha512.state[i]);
-		break;
+	case ICP_QAT_HW_AUTH_ALGO_SHA1: {
+		struct hmac_sha1_key key;
+		__be32 *istate = (__be32 *)hash->sha.state1;
+		__be32 *ostate = (__be32 *)(hash->sha.state1 +
+					    round_up(sizeof(key.istate.h), 8));
+
+		hmac_sha1_preparekey(&key, auth_key, auth_keylen);
+		for (int i = 0; i < ARRAY_SIZE(key.istate.h); i++) {
+			istate[i] = cpu_to_be32(key.istate.h[i]);
+			ostate[i] = cpu_to_be32(key.ostate.h[i]);
+		}
+		memzero_explicit(&key, sizeof(key));
+		return 0;
+	}
+	case ICP_QAT_HW_AUTH_ALGO_SHA256: {
+		struct hmac_sha256_key key;
+		__be32 *istate = (__be32 *)hash->sha.state1;
+		__be32 *ostate = (__be32 *)(hash->sha.state1 +
+					    sizeof(key.key.istate.h));
+
+		hmac_sha256_preparekey(&key, auth_key, auth_keylen);
+		for (int i = 0; i < ARRAY_SIZE(key.key.istate.h); i++) {
+			istate[i] = cpu_to_be32(key.key.istate.h[i]);
+			ostate[i] = cpu_to_be32(key.key.ostate.h[i]);
+		}
+		memzero_explicit(&key, sizeof(key));
+		return 0;
+	}
+	case ICP_QAT_HW_AUTH_ALGO_SHA512: {
+		struct hmac_sha512_key key;
+		__be64 *istate = (__be64 *)hash->sha.state1;
+		__be64 *ostate = (__be64 *)(hash->sha.state1 +
+					    sizeof(key.key.istate.h));
+
+		hmac_sha512_preparekey(&key, auth_key, auth_keylen);
+		for (int i = 0; i < ARRAY_SIZE(key.key.istate.h); i++) {
+			istate[i] = cpu_to_be64(key.key.istate.h[i]);
+			ostate[i] = cpu_to_be64(key.key.ostate.h[i]);
+		}
+		memzero_explicit(&key, sizeof(key));
+		return 0;
+	}
 	default:
 		return -EFAULT;
 	}
-
-	if (crypto_shash_init(shash))
-		return -EFAULT;
-
-	if (crypto_shash_update(shash, ctx->opad, block_size))
-		return -EFAULT;
-
-	offset = round_up(qat_get_inter_state_size(ctx->qat_hash_alg), 8);
-	if (offset < 0)
-		return -EFAULT;
-
-	hash_state_out = (__be32 *)(hash->sha.state1 + offset);
-	hash512_state_out = (__be64 *)hash_state_out;
-
-	switch (ctx->qat_hash_alg) {
-	case ICP_QAT_HW_AUTH_ALGO_SHA1:
-		if (crypto_shash_export_core(shash, &ctx->sha1))
-			return -EFAULT;
-		for (i = 0; i < digest_size >> 2; i++, hash_state_out++)
-			*hash_state_out = cpu_to_be32(ctx->sha1.state[i]);
-		break;
-	case ICP_QAT_HW_AUTH_ALGO_SHA256:
-		if (crypto_shash_export_core(shash, &ctx->sha256))
-			return -EFAULT;
-		for (i = 0; i < digest_size >> 2; i++, hash_state_out++)
-			*hash_state_out = cpu_to_be32(ctx->sha256.state[i]);
-		break;
-	case ICP_QAT_HW_AUTH_ALGO_SHA512:
-		if (crypto_shash_export_core(shash, &ctx->sha512))
-			return -EFAULT;
-		for (i = 0; i < digest_size >> 3; i++, hash512_state_out++)
-			*hash512_state_out = cpu_to_be64(ctx->sha512.state[i]);
-		break;
-	default:
-		return -EFAULT;
-	}
-	memzero_explicit(ctx->ipad, block_size);
-	memzero_explicit(ctx->opad, block_size);
-	return 0;
 }
 
 static void qat_alg_init_common_hdr(struct icp_qat_fw_comn_req_hdr *header)
@@ -259,7 +183,7 @@ static int qat_alg_aead_init_enc_session(struct crypto_aead *aead_tfm,
 		ICP_QAT_HW_AUTH_CONFIG_BUILD(ICP_QAT_HW_AUTH_MODE1,
 					     ctx->qat_hash_alg, digestsize);
 	hash->sha.inner_setup.auth_counter.counter =
-		cpu_to_be32(crypto_shash_blocksize(ctx->hash_tfm));
+		cpu_to_be32(ctx->hash_blocksize);
 
 	if (qat_alg_do_precomputes(hash, ctx, keys->authkey, keys->authkeylen))
 		return -EFAULT;
@@ -326,7 +250,7 @@ static int qat_alg_aead_init_dec_session(struct crypto_aead *aead_tfm,
 	struct icp_qat_hw_cipher_algo_blk *cipher =
 		(struct icp_qat_hw_cipher_algo_blk *)((char *)dec_ctx +
 		sizeof(struct icp_qat_hw_auth_setup) +
-		roundup(crypto_shash_digestsize(ctx->hash_tfm), 8) * 2);
+		roundup(ctx->hash_digestsize, 8) * 2);
 	struct icp_qat_fw_la_bulk_req *req_tmpl = &ctx->dec_fw_req;
 	struct icp_qat_fw_comn_req_hdr_cd_pars *cd_pars = &req_tmpl->cd_pars;
 	struct icp_qat_fw_comn_req_hdr *header = &req_tmpl->comn_hdr;
@@ -346,7 +270,7 @@ static int qat_alg_aead_init_dec_session(struct crypto_aead *aead_tfm,
 					     ctx->qat_hash_alg,
 					     digestsize);
 	hash->sha.inner_setup.auth_counter.counter =
-		cpu_to_be32(crypto_shash_blocksize(ctx->hash_tfm));
+		cpu_to_be32(ctx->hash_blocksize);
 
 	if (qat_alg_do_precomputes(hash, ctx, keys->authkey, keys->authkeylen))
 		return -EFAULT;
@@ -368,7 +292,7 @@ static int qat_alg_aead_init_dec_session(struct crypto_aead *aead_tfm,
 	cipher_cd_ctrl->cipher_state_sz = AES_BLOCK_SIZE >> 3;
 	cipher_cd_ctrl->cipher_cfg_offset =
 		(sizeof(struct icp_qat_hw_auth_setup) +
-		 roundup(crypto_shash_digestsize(ctx->hash_tfm), 8) * 2) >> 3;
+		 roundup(ctx->hash_digestsize, 8) * 2) >> 3;
 	ICP_QAT_FW_COMN_CURR_ID_SET(cipher_cd_ctrl, ICP_QAT_FW_SLICE_CIPHER);
 	ICP_QAT_FW_COMN_NEXT_ID_SET(cipher_cd_ctrl, ICP_QAT_FW_SLICE_DRAM_WR);
 
@@ -1150,32 +1074,35 @@ static int qat_alg_skcipher_xts_decrypt(struct skcipher_request *req)
 }
 
 static int qat_alg_aead_init(struct crypto_aead *tfm,
-			     enum icp_qat_hw_auth_algo hash,
-			     const char *hash_name)
+			     enum icp_qat_hw_auth_algo hash_alg,
+			     unsigned int hash_digestsize,
+			     unsigned int hash_blocksize)
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
 
-	ctx->hash_tfm = crypto_alloc_shash(hash_name, 0, 0);
-	if (IS_ERR(ctx->hash_tfm))
-		return PTR_ERR(ctx->hash_tfm);
-	ctx->qat_hash_alg = hash;
+	ctx->qat_hash_alg = hash_alg;
+	ctx->hash_digestsize = hash_digestsize;
+	ctx->hash_blocksize = hash_blocksize;
 	crypto_aead_set_reqsize(tfm, sizeof(struct qat_crypto_request));
 	return 0;
 }
 
 static int qat_alg_aead_sha1_init(struct crypto_aead *tfm)
 {
-	return qat_alg_aead_init(tfm, ICP_QAT_HW_AUTH_ALGO_SHA1, "sha1");
+	return qat_alg_aead_init(tfm, ICP_QAT_HW_AUTH_ALGO_SHA1,
+				 SHA1_DIGEST_SIZE, SHA1_BLOCK_SIZE);
 }
 
 static int qat_alg_aead_sha256_init(struct crypto_aead *tfm)
 {
-	return qat_alg_aead_init(tfm, ICP_QAT_HW_AUTH_ALGO_SHA256, "sha256");
+	return qat_alg_aead_init(tfm, ICP_QAT_HW_AUTH_ALGO_SHA256,
+				 SHA256_DIGEST_SIZE, SHA256_BLOCK_SIZE);
 }
 
 static int qat_alg_aead_sha512_init(struct crypto_aead *tfm)
 {
-	return qat_alg_aead_init(tfm, ICP_QAT_HW_AUTH_ALGO_SHA512, "sha512");
+	return qat_alg_aead_init(tfm, ICP_QAT_HW_AUTH_ALGO_SHA512,
+				 SHA512_DIGEST_SIZE, SHA512_BLOCK_SIZE);
 }
 
 static void qat_alg_aead_exit(struct crypto_aead *tfm)
@@ -1183,8 +1110,6 @@ static void qat_alg_aead_exit(struct crypto_aead *tfm)
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct device *dev;
-
-	crypto_free_shash(ctx->hash_tfm);
 
 	if (!inst)
 		return;

@@ -3,9 +3,9 @@
 
 #ifndef _ICE_SRIOV_H_
 #define _ICE_SRIOV_H_
-#include "ice_virtchnl_fdir.h"
+#include "virt/fdir.h"
 #include "ice_vf_lib.h"
-#include "ice_virtchnl.h"
+#include "virt/virtchnl.h"
 
 /* Static VF transaction/status register def */
 #define VF_DEVICE_STATUS		0xAA

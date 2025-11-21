@@ -12,10 +12,11 @@
 #
 #
 
-# include working environment
-. ../common/init.sh
-
+DIR_PATH="$(dirname $0)"
 TEST_RESULT=0
+
+# include working environment
+. "$DIR_PATH/../common/init.sh"
 
 
 ### help message
@@ -25,19 +26,37 @@ if [ "$PARAM_GENERAL_HELP_TEXT_CHECK" = "y" ]; then
 	$CMD_PERF report --help > $LOGS_DIR/basic_helpmsg.log 2> $LOGS_DIR/basic_helpmsg.err
 	PERF_EXIT_CODE=$?
 
-	../common/check_all_patterns_found.pl "PERF-REPORT" "NAME" "SYNOPSIS" "DESCRIPTION" "OPTIONS" "OVERHEAD\s+CALCULATION" "SEE ALSO" < $LOGS_DIR/basic_helpmsg.log
+	"$DIR_PATH/../common/check_all_patterns_found.pl" \
+		"PERF-REPORT" "NAME" "SYNOPSIS" "DESCRIPTION" "OPTIONS" \
+		"OVERHEAD\s+CALCULATION" "SEE ALSO" < $LOGS_DIR/basic_helpmsg.log
 	CHECK_EXIT_CODE=$?
-	../common/check_all_patterns_found.pl "input" "verbose" "show-nr-samples" "show-cpu-utilization" "threads" "comms" "pid" "tid" "dsos" "symbols" "symbol-filter" < $LOGS_DIR/basic_helpmsg.log
+	"$DIR_PATH/../common/check_all_patterns_found.pl" \
+		"input" "verbose" "show-nr-samples" "show-cpu-utilization" \
+		"threads" "comms" "pid" "tid" "dsos" "symbols" "symbol-filter" \
+		< $LOGS_DIR/basic_helpmsg.log
 	(( CHECK_EXIT_CODE += $? ))
-	../common/check_all_patterns_found.pl "hide-unresolved" "sort" "fields" "parent" "exclude-other" "column-widths" "field-separator" "dump-raw-trace" "children" < $LOGS_DIR/basic_helpmsg.log
+	"$DIR_PATH/../common/check_all_patterns_found.pl" \
+		"hide-unresolved" "sort" "fields" "parent" "exclude-other" \
+		"column-widths" "field-separator" "dump-raw-trace" "children" \
+		< $LOGS_DIR/basic_helpmsg.log
 	(( CHECK_EXIT_CODE += $? ))
-	../common/check_all_patterns_found.pl "call-graph" "max-stack" "inverted" "ignore-callees" "pretty" "stdio" "tui" "gtk" "vmlinux" "kallsyms" "modules" < $LOGS_DIR/basic_helpmsg.log
+	"$DIR_PATH/../common/check_all_patterns_found.pl" \
+		"call-graph" "max-stack" "inverted" "ignore-callees" "pretty" \
+		"stdio" "tui" "gtk" "vmlinux" "kallsyms" "modules" \
+		< $LOGS_DIR/basic_helpmsg.log
 	(( CHECK_EXIT_CODE += $? ))
-	../common/check_all_patterns_found.pl "force" "symfs" "cpu" "disassembler-style" "source" "asm-raw" "show-total-period" "show-info" "branch-stack" "group" < $LOGS_DIR/basic_helpmsg.log
+	"$DIR_PATH/../common/check_all_patterns_found.pl" \
+		"force" "symfs" "cpu" "disassembler-style" "source" "asm-raw" \
+		"show-total-period" "show-info" "branch-stack" "group" \
+		< $LOGS_DIR/basic_helpmsg.log
 	(( CHECK_EXIT_CODE += $? ))
-	../common/check_all_patterns_found.pl "branch-history" "objdump" "demangle" "percent-limit" "percentage" "header" "itrace" "full-source-path" "show-ref-call-graph" < $LOGS_DIR/basic_helpmsg.log
+	"$DIR_PATH/../common/check_all_patterns_found.pl" \
+		"branch-history" "objdump" "demangle" "percent-limit" "percentage" \
+		"header" "itrace" "full-source-path" "show-ref-call-graph" \
+		< $LOGS_DIR/basic_helpmsg.log
 	(( CHECK_EXIT_CODE += $? ))
-	../common/check_no_patterns_found.pl "No manual entry for" < $LOGS_DIR/basic_helpmsg.err
+	"$DIR_PATH/../common/check_no_patterns_found.pl" \
+		"No manual entry for" < $LOGS_DIR/basic_helpmsg.err
 	(( CHECK_EXIT_CODE += $? ))
 
 	print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "help message"
@@ -57,9 +76,12 @@ REGEX_LOST_SAMPLES_INFO="#\s*Total Lost Samples:\s+$RE_NUMBER"
 REGEX_SAMPLES_INFO="#\s*Samples:\s+(?:$RE_NUMBER)\w?\s+of\s+event\s+'$RE_EVENT_ANY'"
 REGEX_LINES_HEADER="#\s*Children\s+Self\s+Command\s+Shared Object\s+Symbol"
 REGEX_LINES="\s*$RE_NUMBER%\s+$RE_NUMBER%\s+\S+\s+\[kernel\.(?:vmlinux)|(?:kallsyms)\]\s+\[[k\.]\]\s+\w+"
-../common/check_all_patterns_found.pl "$REGEX_LOST_SAMPLES_INFO" "$REGEX_SAMPLES_INFO" "$REGEX_LINES_HEADER" "$REGEX_LINES" < $LOGS_DIR/basic_basic.log
+"$DIR_PATH/../common/check_all_patterns_found.pl" \
+	"$REGEX_LOST_SAMPLES_INFO" "$REGEX_SAMPLES_INFO" \
+	"$REGEX_LINES_HEADER" "$REGEX_LINES" < $LOGS_DIR/basic_basic.log
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/basic_basic.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"$DIR_PATH/stderr-whitelist.txt" < $LOGS_DIR/basic_basic.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "basic execution"
@@ -74,9 +96,11 @@ PERF_EXIT_CODE=$?
 
 REGEX_LINES_HEADER="#\s*Children\s+Self\s+Samples\s+Command\s+Shared Object\s+Symbol"
 REGEX_LINES="\s*$RE_NUMBER%\s+$RE_NUMBER%\s+$RE_NUMBER\s+\S+\s+\[kernel\.(?:vmlinux)|(?:kallsyms)\]\s+\[[k\.]\]\s+\w+"
-../common/check_all_patterns_found.pl "$REGEX_LINES_HEADER" "$REGEX_LINES" < $LOGS_DIR/basic_nrsamples.log
+"$DIR_PATH/../common/check_all_patterns_found.pl" \
+	"$REGEX_LINES_HEADER" "$REGEX_LINES" < $LOGS_DIR/basic_nrsamples.log
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/basic_nrsamples.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"$DIR_PATH/stderr-whitelist.txt" < $LOGS_DIR/basic_nrsamples.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "number of samples"
@@ -98,7 +122,10 @@ REGEX_LINE_CPUS_ONLINE="#\s+nrcpus online\s*:\s*$MY_CPUS_ONLINE"
 REGEX_LINE_CPUS_AVAIL="#\s+nrcpus avail\s*:\s*$MY_CPUS_AVAILABLE"
 # disable precise check for "nrcpus avail" in BASIC runmode
 test $PERFTOOL_TESTSUITE_RUNMODE -lt $RUNMODE_STANDARD && REGEX_LINE_CPUS_AVAIL="#\s+nrcpus avail\s*:\s*$RE_NUMBER"
-../common/check_all_patterns_found.pl "$REGEX_LINE_TIMESTAMP" "$REGEX_LINE_HOSTNAME" "$REGEX_LINE_KERNEL" "$REGEX_LINE_PERF" "$REGEX_LINE_ARCH" "$REGEX_LINE_CPUS_ONLINE" "$REGEX_LINE_CPUS_AVAIL" < $LOGS_DIR/basic_header.log
+"$DIR_PATH/../common/check_all_patterns_found.pl" \
+	"$REGEX_LINE_TIMESTAMP" "$REGEX_LINE_HOSTNAME" "$REGEX_LINE_KERNEL" \
+	"$REGEX_LINE_PERF" "$REGEX_LINE_ARCH" "$REGEX_LINE_CPUS_ONLINE" \
+	"$REGEX_LINE_CPUS_AVAIL" < $LOGS_DIR/basic_header.log
 CHECK_EXIT_CODE=$?
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "header"
@@ -129,9 +156,11 @@ PERF_EXIT_CODE=$?
 
 REGEX_LINES_HEADER="#\s*Children\s+Self\s+sys\s+usr\s+Command\s+Shared Object\s+Symbol"
 REGEX_LINES="\s*$RE_NUMBER%\s+$RE_NUMBER%\s+$RE_NUMBER%\s+$RE_NUMBER%\s+\S+\s+\[kernel\.(?:vmlinux)|(?:kallsyms)\]\s+\[[k\.]\]\s+\w+"
-../common/check_all_patterns_found.pl "$REGEX_LINES_HEADER" "$REGEX_LINES" < $LOGS_DIR/basic_cpuut.log
+"$DIR_PATH/../common/check_all_patterns_found.pl" \
+	"$REGEX_LINES_HEADER" "$REGEX_LINES" < $LOGS_DIR/basic_cpuut.log
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/basic_cpuut.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"$DIR_PATH/stderr-whitelist.txt" < $LOGS_DIR/basic_cpuut.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "show CPU utilization"
@@ -144,9 +173,11 @@ print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "show CPU utilization"
 $CMD_PERF report --stdio -i $CURRENT_TEST_DIR/perf.data --pid=1 > $LOGS_DIR/basic_pid.log 2> $LOGS_DIR/basic_pid.err
 PERF_EXIT_CODE=$?
 
-grep -P -v '^#' $LOGS_DIR/basic_pid.log | grep -P '\s+[\d\.]+%' | ../common/check_all_lines_matched.pl "systemd|init"
+grep -P -v '^#' $LOGS_DIR/basic_pid.log | grep -P '\s+[\d\.]+%' | \
+	"$DIR_PATH/../common/check_all_lines_matched.pl" "systemd|init"
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/basic_pid.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"$DIR_PATH/stderr-whitelist.txt" < $LOGS_DIR/basic_pid.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "pid"
@@ -159,9 +190,11 @@ print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "pid"
 $CMD_PERF report --stdio -i $CURRENT_TEST_DIR/perf.data --symbols=dummynonexistingsymbol > $LOGS_DIR/basic_symbols.log 2> $LOGS_DIR/basic_symbols.err
 PERF_EXIT_CODE=$?
 
-../common/check_all_lines_matched.pl "$RE_LINE_EMPTY" "$RE_LINE_COMMENT" < $LOGS_DIR/basic_symbols.log
+"$DIR_PATH/../common/check_all_lines_matched.pl" \
+	"$RE_LINE_EMPTY" "$RE_LINE_COMMENT" < $LOGS_DIR/basic_symbols.log
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/basic_symbols.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"$DIR_PATH/stderr-whitelist.txt" < $LOGS_DIR/basic_symbols.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "non-existing symbol"
@@ -174,9 +207,11 @@ print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "non-existing symbol"
 $CMD_PERF report --stdio -i $CURRENT_TEST_DIR/perf.data --symbol-filter=map > $LOGS_DIR/basic_symbolfilter.log 2> $LOGS_DIR/basic_symbolfilter.err
 PERF_EXIT_CODE=$?
 
-grep -P -v '^#' $LOGS_DIR/basic_symbolfilter.log | grep -P '\s+[\d\.]+%' | ../common/check_all_lines_matched.pl "\[[k\.]\]\s+.*map"
+grep -P -v '^#' $LOGS_DIR/basic_symbolfilter.log | grep -P '\s+[\d\.]+%' | \
+	"$DIR_PATH/../common/check_all_lines_matched.pl" "\[[k\.]\]\s+.*map"
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/basic_symbolfilter.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"$DIR_PATH/stderr-whitelist.txt" < $LOGS_DIR/basic_symbolfilter.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "symbol filter"
@@ -189,7 +224,8 @@ print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "symbol filter"
 $CMD_PERF report -i $CURRENT_TEST_DIR/perf.data.1 --stdio --header-only > $LOGS_DIR/latency_header.log
 PERF_EXIT_CODE=$?
 
-../common/check_all_patterns_found.pl ", context_switch = 1, " < $LOGS_DIR/latency_header.log
+"$DIR_PATH/../common/check_all_patterns_found.pl" \
+	", context_switch = 1, " < $LOGS_DIR/latency_header.log
 CHECK_EXIT_CODE=$?
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "latency header"
@@ -200,9 +236,11 @@ print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "latency header"
 $CMD_PERF report --stdio -i $CURRENT_TEST_DIR/perf.data.1 > $LOGS_DIR/latency_default.log 2> $LOGS_DIR/latency_default.err
 PERF_EXIT_CODE=$?
 
-../common/check_all_patterns_found.pl "# Overhead   Latency  Command" < $LOGS_DIR/latency_default.log
+"$DIR_PATH/../common/check_all_patterns_found.pl" \
+	"# Overhead   Latency  Command" < $LOGS_DIR/latency_default.log
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/latency_default.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"stderr-whitelist.txt" < $LOGS_DIR/latency_default.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "default report for latency profile"
@@ -213,9 +251,11 @@ print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "default report for latency profi
 $CMD_PERF report --latency --stdio -i $CURRENT_TEST_DIR/perf.data.1 > $LOGS_DIR/latency_latency.log 2> $LOGS_DIR/latency_latency.err
 PERF_EXIT_CODE=$?
 
-../common/check_all_patterns_found.pl "#  Latency  Overhead  Command" < $LOGS_DIR/latency_latency.log
+"$DIR_PATH/../common/check_all_patterns_found.pl" \
+	"#  Latency  Overhead  Command" < $LOGS_DIR/latency_latency.log
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/latency_latency.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"stderr-whitelist.txt" < $LOGS_DIR/latency_latency.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "latency report for latency profile"
@@ -226,9 +266,12 @@ print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "latency report for latency profi
 $CMD_PERF report --hierarchy --sort latency,parallelism,comm,symbol --parallelism=1,2 --stdio -i $CURRENT_TEST_DIR/perf.data.1 > $LOGS_DIR/parallelism_hierarchy.log 2> $LOGS_DIR/parallelism_hierarchy.err
 PERF_EXIT_CODE=$?
 
-../common/check_all_patterns_found.pl "#           Latency  Parallelism / Command / Symbol" < $LOGS_DIR/parallelism_hierarchy.log
+"$DIR_PATH/../common/check_all_patterns_found.pl" \
+	"#           Latency  Parallelism / Command / Symbol" \
+	< $LOGS_DIR/parallelism_hierarchy.log
 CHECK_EXIT_CODE=$?
-../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/parallelism_hierarchy.err
+"$DIR_PATH/../common/check_errors_whitelisted.pl" \
+	"stderr-whitelist.txt" < $LOGS_DIR/parallelism_hierarchy.err
 (( CHECK_EXIT_CODE += $? ))
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "parallelism histogram"

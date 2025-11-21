@@ -12,13 +12,13 @@
 
 #include <linux/dmi.h>
 #include <linux/err.h>
+#include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
+#include <linux/input-event-codes.h>
 #include <linux/kernel.h>
-#include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/gpio_keys.h>
-#include <linux/gpio/machine.h>
-#include <linux/input.h>
+#include <linux/property.h>
 #include <linux/platform_data/gpio/gpio-amd-fch.h>
 
 /*
@@ -72,60 +72,91 @@ static const struct amd_fch_gpio_pdata board_apu2 = {
 	.gpio_names	= apu2_gpio_names,
 };
 
+static const struct software_node apu2_gpiochip_node = {
+	.name = AMD_FCH_GPIO_DRIVER_NAME,
+};
+
 /* GPIO LEDs device */
-
-static const struct gpio_led apu2_leds[] = {
-	{ .name = "apu:green:1" },
-	{ .name = "apu:green:2" },
-	{ .name = "apu:green:3" },
+static const struct software_node apu2_leds_node = {
+	.name = "apu2-leds",
 };
 
-static const struct gpio_led_platform_data apu2_leds_pdata = {
-	.num_leds	= ARRAY_SIZE(apu2_leds),
-	.leds		= apu2_leds,
+static const struct property_entry apu2_led1_props[] = {
+	PROPERTY_ENTRY_STRING("label", "apu:green:1"),
+	PROPERTY_ENTRY_GPIO("gpios", &apu2_gpiochip_node,
+			    APU2_GPIO_LINE_LED1, GPIO_ACTIVE_LOW),
+	{ }
 };
 
-static struct gpiod_lookup_table gpios_led_table = {
-	.dev_id = "leds-gpio",
-	.table = {
-		GPIO_LOOKUP_IDX(AMD_FCH_GPIO_DRIVER_NAME, APU2_GPIO_LINE_LED1,
-				NULL, 0, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX(AMD_FCH_GPIO_DRIVER_NAME, APU2_GPIO_LINE_LED2,
-				NULL, 1, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX(AMD_FCH_GPIO_DRIVER_NAME, APU2_GPIO_LINE_LED3,
-				NULL, 2, GPIO_ACTIVE_LOW),
-		{} /* Terminating entry */
-	}
+static const struct software_node apu2_led1_swnode = {
+	.name = "led-1",
+	.parent = &apu2_leds_node,
+	.properties = apu2_led1_props,
+};
+
+static const struct property_entry apu2_led2_props[] = {
+	PROPERTY_ENTRY_STRING("label", "apu:green:2"),
+	PROPERTY_ENTRY_GPIO("gpios", &apu2_gpiochip_node,
+			    APU2_GPIO_LINE_LED2, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node apu2_led2_swnode = {
+	.name = "led-2",
+	.parent = &apu2_leds_node,
+	.properties = apu2_led2_props,
+};
+
+static const struct property_entry apu2_led3_props[] = {
+	PROPERTY_ENTRY_STRING("label", "apu:green:3"),
+	PROPERTY_ENTRY_GPIO("gpios", &apu2_gpiochip_node,
+			    APU2_GPIO_LINE_LED3, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node apu2_led3_swnode = {
+	.name = "led-3",
+	.parent = &apu2_leds_node,
+	.properties = apu2_led3_props,
 };
 
 /* GPIO keyboard device */
-
-static struct gpio_keys_button apu2_keys_buttons[] = {
-	{
-		.code			= KEY_RESTART,
-		.active_low		= 1,
-		.desc			= "front button",
-		.type			= EV_KEY,
-		.debounce_interval	= 10,
-		.value			= 1,
-	},
+static const struct property_entry apu2_keys_props[] = {
+	PROPERTY_ENTRY_U32("poll-interval", 100),
+	{ }
 };
 
-static const struct gpio_keys_platform_data apu2_keys_pdata = {
-	.buttons	= apu2_keys_buttons,
-	.nbuttons	= ARRAY_SIZE(apu2_keys_buttons),
-	.poll_interval	= 100,
-	.rep		= 0,
-	.name		= "apu2-keys",
+static const struct software_node apu2_keys_node = {
+	.name = "apu2-keys",
+	.properties = apu2_keys_props,
 };
 
-static struct gpiod_lookup_table gpios_key_table = {
-	.dev_id = "gpio-keys-polled",
-	.table = {
-		GPIO_LOOKUP_IDX(AMD_FCH_GPIO_DRIVER_NAME, APU2_GPIO_LINE_MODESW,
-				NULL, 0, GPIO_ACTIVE_LOW),
-		{} /* Terminating entry */
-	}
+static const struct property_entry apu2_front_button_props[] = {
+	PROPERTY_ENTRY_STRING("label", "front button"),
+	PROPERTY_ENTRY_U32("linux,code", KEY_RESTART),
+	PROPERTY_ENTRY_GPIO("gpios", &apu2_gpiochip_node,
+			    APU2_GPIO_LINE_MODESW, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 10),
+	{ }
+};
+
+static const struct software_node apu2_front_button_swnode = {
+	.name = "front-button",
+	.parent = &apu2_keys_node,
+	.properties = apu2_front_button_props,
+};
+
+static const struct software_node *apu2_swnodes[] = {
+	&apu2_gpiochip_node,
+	/* LEDs nodes */
+	&apu2_leds_node,
+	&apu2_led1_swnode,
+	&apu2_led2_swnode,
+	&apu2_led3_swnode,
+	/* Keys nodes */
+	&apu2_keys_node,
+	&apu2_front_button_swnode,
+	NULL
 };
 
 /* Board setup */
@@ -222,23 +253,25 @@ static struct platform_device *apu_gpio_pdev;
 static struct platform_device *apu_leds_pdev;
 static struct platform_device *apu_keys_pdev;
 
-static struct platform_device * __init apu_create_pdev(
-	const char *name,
-	const void *pdata,
-	size_t sz)
+static struct platform_device * __init apu_create_pdev(const char *name,
+						       const void *data, size_t size,
+						       const struct software_node *swnode)
 {
+	struct platform_device_info pdev_info = {
+		.name = name,
+		.id = PLATFORM_DEVID_NONE,
+		.data = data,
+		.size_data = size,
+		.fwnode = software_node_fwnode(swnode),
+	};
 	struct platform_device *pdev;
+	int err;
 
-	pdev = platform_device_register_resndata(NULL,
-		name,
-		PLATFORM_DEVID_NONE,
-		NULL,
-		0,
-		pdata,
-		sz);
+	pdev = platform_device_register_full(&pdev_info);
 
-	if (IS_ERR(pdev))
-		pr_err("failed registering %s: %ld\n", name, PTR_ERR(pdev));
+	err = PTR_ERR_OR_ZERO(pdev);
+	if (err)
+		pr_err("failed registering %s: %d\n", name, err);
 
 	return pdev;
 }
@@ -246,6 +279,7 @@ static struct platform_device * __init apu_create_pdev(
 static int __init apu_board_init(void)
 {
 	const struct dmi_system_id *id;
+	int err;
 
 	id = dmi_first_match(apu_gpio_dmi_table);
 	if (!id) {
@@ -253,35 +287,45 @@ static int __init apu_board_init(void)
 		return -ENODEV;
 	}
 
-	gpiod_add_lookup_table(&gpios_led_table);
-	gpiod_add_lookup_table(&gpios_key_table);
+	err = software_node_register_node_group(apu2_swnodes);
+	if (err) {
+		pr_err("failed to register software nodes: %d\n", err);
+		return err;
+	}
 
-	apu_gpio_pdev = apu_create_pdev(
-		AMD_FCH_GPIO_DRIVER_NAME,
-		id->driver_data,
-		sizeof(struct amd_fch_gpio_pdata));
+	apu_gpio_pdev = apu_create_pdev(AMD_FCH_GPIO_DRIVER_NAME,
+					id->driver_data, sizeof(struct amd_fch_gpio_pdata), NULL);
+	err = PTR_ERR_OR_ZERO(apu_gpio_pdev);
+	if (err)
+		goto err_unregister_swnodes;
 
-	apu_leds_pdev = apu_create_pdev(
-		"leds-gpio",
-		&apu2_leds_pdata,
-		sizeof(apu2_leds_pdata));
+	apu_leds_pdev = apu_create_pdev("leds-gpio", NULL, 0, &apu2_leds_node);
+	err = PTR_ERR_OR_ZERO(apu_leds_pdev);
+	if (err)
+		goto err_unregister_gpio;
 
-	apu_keys_pdev = apu_create_pdev(
-		"gpio-keys-polled",
-		&apu2_keys_pdata,
-		sizeof(apu2_keys_pdata));
+	apu_keys_pdev = apu_create_pdev("gpio-keys-polled", NULL, 0, &apu2_keys_node);
+	err = PTR_ERR_OR_ZERO(apu_keys_pdev);
+	if (err)
+		goto err_unregister_leds;
 
 	return 0;
+
+err_unregister_leds:
+	platform_device_unregister(apu_leds_pdev);
+err_unregister_gpio:
+	platform_device_unregister(apu_gpio_pdev);
+err_unregister_swnodes:
+	software_node_unregister_node_group(apu2_swnodes);
+	return err;
 }
 
 static void __exit apu_board_exit(void)
 {
-	gpiod_remove_lookup_table(&gpios_led_table);
-	gpiod_remove_lookup_table(&gpios_key_table);
-
 	platform_device_unregister(apu_keys_pdev);
 	platform_device_unregister(apu_leds_pdev);
 	platform_device_unregister(apu_gpio_pdev);
+	software_node_unregister_node_group(apu2_swnodes);
 }
 
 module_init(apu_board_init);

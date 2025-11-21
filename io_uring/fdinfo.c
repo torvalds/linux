@@ -9,7 +9,7 @@
 
 #include <uapi/linux/io_uring.h>
 
-#include "io_uring.h"
+#include "filetable.h"
 #include "sqpoll.h"
 #include "fdinfo.h"
 #include "cancel.h"
@@ -59,21 +59,17 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 {
 	struct io_overflow_cqe *ocqe;
 	struct io_rings *r = ctx->rings;
-	struct rusage sq_usage;
 	unsigned int sq_mask = ctx->sq_entries - 1, cq_mask = ctx->cq_entries - 1;
 	unsigned int sq_head = READ_ONCE(r->sq.head);
 	unsigned int sq_tail = READ_ONCE(r->sq.tail);
 	unsigned int cq_head = READ_ONCE(r->cq.head);
 	unsigned int cq_tail = READ_ONCE(r->cq.tail);
-	unsigned int cq_shift = 0;
 	unsigned int sq_shift = 0;
-	unsigned int sq_entries, cq_entries;
+	unsigned int sq_entries;
 	int sq_pid = -1, sq_cpu = -1;
 	u64 sq_total_time = 0, sq_work_time = 0;
 	unsigned int i;
 
-	if (ctx->flags & IORING_SETUP_CQE32)
-		cq_shift = 1;
 	if (ctx->flags & IORING_SETUP_SQE128)
 		sq_shift = 1;
 
@@ -125,18 +121,23 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 		seq_printf(m, "\n");
 	}
 	seq_printf(m, "CQEs:\t%u\n", cq_tail - cq_head);
-	cq_entries = min(cq_tail - cq_head, ctx->cq_entries);
-	for (i = 0; i < cq_entries; i++) {
-		unsigned int entry = i + cq_head;
-		struct io_uring_cqe *cqe = &r->cqes[(entry & cq_mask) << cq_shift];
+	while (cq_head < cq_tail) {
+		struct io_uring_cqe *cqe;
+		bool cqe32 = false;
 
+		cqe = &r->cqes[(cq_head & cq_mask)];
+		if (cqe->flags & IORING_CQE_F_32 || ctx->flags & IORING_SETUP_CQE32)
+			cqe32 = true;
 		seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x",
-			   entry & cq_mask, cqe->user_data, cqe->res,
+			   cq_head & cq_mask, cqe->user_data, cqe->res,
 			   cqe->flags);
-		if (cq_shift)
+		if (cqe32)
 			seq_printf(m, ", extra1:%llu, extra2:%llu\n",
 					cqe->big_cqe[0], cqe->big_cqe[1]);
 		seq_printf(m, "\n");
+		cq_head++;
+		if (cqe32)
+			cq_head++;
 	}
 
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
@@ -150,14 +151,15 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 		 * thread termination.
 		 */
 		if (tsk) {
+			u64 usec;
+
 			get_task_struct(tsk);
 			rcu_read_unlock();
-			getrusage(tsk, RUSAGE_SELF, &sq_usage);
+			usec = io_sq_cpu_usec(tsk);
 			put_task_struct(tsk);
 			sq_pid = sq->task_pid;
 			sq_cpu = sq->sq_cpu;
-			sq_total_time = (sq_usage.ru_stime.tv_sec * 1000000
-					 + sq_usage.ru_stime.tv_usec);
+			sq_total_time = usec;
 			sq_work_time = sq->work_time;
 		} else {
 			rcu_read_unlock();

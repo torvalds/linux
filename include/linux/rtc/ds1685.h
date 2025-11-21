@@ -8,7 +8,7 @@
  * include larger, battery-backed NV-SRAM, burst-mode access, and an RTC
  * write counter.
  *
- * Copyright (C) 2011-2014 Joshua Kinard <kumba@gentoo.org>.
+ * Copyright (C) 2011-2014 Joshua Kinard <linux@kumba.dev>.
  * Copyright (C) 2009 Matthias Fuchs <matthias.fuchs@esd-electronics.com>.
  *
  * References:

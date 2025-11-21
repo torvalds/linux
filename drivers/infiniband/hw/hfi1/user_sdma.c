@@ -498,8 +498,8 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 					ntids, sizeof(*req->tids));
 		if (IS_ERR(tmp)) {
 			ret = PTR_ERR(tmp);
-			SDMA_DBG(req, "Failed to copy %d TIDs (%d)",
-				 ntids, ret);
+			SDMA_DBG(req, "Failed to copy %d TIDs (%pe)", ntids,
+				 tmp);
 			goto free_req;
 		}
 		req->tids = tmp;

@@ -358,14 +358,13 @@ static int aureon_ac97_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short vol;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 
 	vol = aureon_ac97_read(ice, kcontrol->private_value & 0x7F);
 	ucontrol->value.integer.value[0] = 0x1F - (vol & 0x1F);
 	if (kcontrol->private_value & AUREON_AC97_STEREO)
 		ucontrol->value.integer.value[1] = 0x1F - ((vol >> 8) & 0x1F);
 
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 
@@ -401,12 +400,11 @@ static int aureon_ac97_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 
 	ucontrol->value.integer.value[0] = aureon_ac97_read(ice,
 			kcontrol->private_value & 0x7F) & 0x8000 ? 0 : 1;
 
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 
@@ -439,11 +437,10 @@ static int aureon_ac97_micboost_get(struct snd_kcontrol *kcontrol, struct snd_ct
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 
 	ucontrol->value.integer.value[0] = aureon_ac97_read(ice, AC97_MIC) & 0x0020 ? 0 : 1;
 
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 
@@ -642,11 +639,10 @@ static int aureon_ac97_mmute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 
 	ucontrol->value.integer.value[0] = (wm_get(ice, WM_OUT_MUX1) >> 1) & 0x01;
 
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 
@@ -704,9 +700,8 @@ static int wm_pcm_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_va
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	ucontrol->value.integer.value[0] = (wm_get(ice, WM_MUTE) & 0x10) ? 0 : 1;
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 
@@ -944,11 +939,10 @@ static int wm_pcm_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	val = wm_get(ice, WM_DAC_DIG_MASTER_ATTEN) & 0xff;
 	val = val > PCM_MIN ? (val - PCM_MIN) : 0;
 	ucontrol->value.integer.value[0] = val;
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 
@@ -984,12 +978,11 @@ static int wm_adc_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_va
 	unsigned short val;
 	int i;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	for (i = 0; i < 2; i++) {
 		val = wm_get(ice, WM_ADC_GAIN + i);
 		ucontrol->value.integer.value[i] = ~val>>5 & 0x1;
 	}
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 
@@ -1031,13 +1024,12 @@ static int wm_adc_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 	int i, idx;
 	unsigned short vol;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	for (i = 0; i < 2; i++) {
 		idx = WM_ADC_GAIN + i;
 		vol = wm_get(ice, idx) & 0x1f;
 		ucontrol->value.integer.value[i] = vol;
 	}
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 
@@ -1097,11 +1089,10 @@ static int wm_adc_mux_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	val = wm_get(ice, WM_ADC_MUX);
 	ucontrol->value.enumerated.item[0] = val & 7;
 	ucontrol->value.enumerated.item[1] = (val >> 4) & 7;
-	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
 

@@ -346,8 +346,7 @@ netdev_tx_t cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * The skbuff will be reused without ever being freed. We must
 	 * cleanup a bunch of core things.
 	 */
-	dst_release(skb_dst(skb));
-	skb_dst_set(skb, NULL);
+	skb_dst_drop(skb);
 	skb_ext_reset(skb);
 	nf_reset_ct(skb);
 	skb_reset_redirect(skb);
@@ -574,42 +573,14 @@ netdev_tx_t cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		work->word2.s.ip_offset = 14;
-#if 0
-		work->word2.s.vlan_valid = 0;	/* FIXME */
-		work->word2.s.vlan_cfi = 0;	/* FIXME */
-		work->word2.s.vlan_id = 0;	/* FIXME */
-		work->word2.s.dec_ipcomp = 0;	/* FIXME */
-#endif
 		work->word2.s.tcp_or_udp =
 		    (ip_hdr(skb)->protocol == IPPROTO_TCP) ||
 		    (ip_hdr(skb)->protocol == IPPROTO_UDP);
-#if 0
-		/* FIXME */
-		work->word2.s.dec_ipsec = 0;
-		/* We only support IPv4 right now */
-		work->word2.s.is_v6 = 0;
-		/* Hardware would set to zero */
-		work->word2.s.software = 0;
-		/* No error, packet is internal */
-		work->word2.s.L4_error = 0;
-#endif
 		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0) ||
 					  (ip_hdr(skb)->frag_off ==
 					      cpu_to_be16(1 << 14)));
-#if 0
-		/* Assume Linux is sending a good packet */
-		work->word2.s.IP_exc = 0;
-#endif
 		work->word2.s.is_bcast = (skb->pkt_type == PACKET_BROADCAST);
 		work->word2.s.is_mcast = (skb->pkt_type == PACKET_MULTICAST);
-#if 0
-		/* This is an IP packet */
-		work->word2.s.not_IP = 0;
-		/* No error, packet is internal */
-		work->word2.s.rcv_error = 0;
-		/* No error, packet is internal */
-		work->word2.s.err_code = 0;
-#endif
 
 		/*
 		 * When copying the data, include 4 bytes of the
@@ -619,12 +590,6 @@ netdev_tx_t cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		memcpy(work->packet_data, skb->data + 10,
 		       sizeof(work->packet_data));
 	} else {
-#if 0
-		work->word2.snoip.vlan_valid = 0;	/* FIXME */
-		work->word2.snoip.vlan_cfi = 0;	/* FIXME */
-		work->word2.snoip.vlan_id = 0;	/* FIXME */
-		work->word2.snoip.software = 0;	/* Hardware would set to zero */
-#endif
 		work->word2.snoip.is_rarp = skb->protocol == htons(ETH_P_RARP);
 		work->word2.snoip.is_arp = skb->protocol == htons(ETH_P_ARP);
 		work->word2.snoip.is_bcast =
@@ -632,12 +597,6 @@ netdev_tx_t cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		work->word2.snoip.is_mcast =
 		    (skb->pkt_type == PACKET_MULTICAST);
 		work->word2.snoip.not_IP = 1;	/* IP was done up above */
-#if 0
-		/* No error, packet is internal */
-		work->word2.snoip.rcv_error = 0;
-		/* No error, packet is internal */
-		work->word2.snoip.err_code = 0;
-#endif
 		memcpy(work->packet_data, skb->data, sizeof(work->packet_data));
 	}
 

@@ -24,7 +24,7 @@
 #define UPA_PORTID_ID           0x000000000000ffff /* Module Identification bits  */
 
 /* UPA I/O space accessors */
-#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+#if defined(__KERNEL__) && !defined(__ASSEMBLER__)
 static inline unsigned char _upa_readb(unsigned long addr)
 {
 	unsigned char ret;
@@ -105,6 +105,6 @@ static inline void _upa_writeq(unsigned long q, unsigned long addr)
 #define upa_writew(__w, __addr)		(_upa_writew((__w), (unsigned long)(__addr)))
 #define upa_writel(__l, __addr)		(_upa_writel((__l), (unsigned long)(__addr)))
 #define upa_writeq(__q, __addr)		(_upa_writeq((__q), (unsigned long)(__addr)))
-#endif /* __KERNEL__ && !__ASSEMBLY__ */
+#endif /* __KERNEL__ && !__ASSEMBLER__ */
 
 #endif /* !(_SPARC64_UPA_H) */

@@ -250,10 +250,9 @@ struct ftrace_likely_data {
 /*
  * GCC does not warn about unused static inline functions for -Wunused-function.
  * Suppress the warning in clang as well by using __maybe_unused, but enable it
- * for W=1 build. This will allow clang to find unused functions. Remove the
- * __inline_maybe_unused entirely after fixing most of -Wunused-function warnings.
+ * for W=2 build. This will allow clang to find unused functions.
  */
-#ifdef KBUILD_EXTRA_WARN1
+#ifdef KBUILD_EXTRA_WARN2
 #define __inline_maybe_unused
 #else
 #define __inline_maybe_unused __maybe_unused
@@ -327,6 +326,29 @@ struct ftrace_likely_data {
 
 #ifndef __no_sanitize_or_inline
 #define __no_sanitize_or_inline __always_inline
+#endif
+
+/*
+ * The assume attribute is used to indicate that a certain condition is
+ * assumed to be true. If this condition is violated at runtime, the behavior
+ * is undefined. Compilers may or may not use this indication to generate
+ * optimized code.
+ *
+ * Note that the clang documentation states that optimizers may react
+ * differently to this attribute, and this may even have a negative
+ * performance impact. Therefore this attribute should be used with care.
+ *
+ * Optional: only supported since gcc >= 13
+ * Optional: only supported since clang >= 19
+ *
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Statement-Attributes.html#index-assume-statement-attribute
+ * clang: https://clang.llvm.org/docs/AttributeReference.html#id13
+ *
+ */
+#ifdef CONFIG_CC_HAS_ASSUME
+# define __assume(expr)			__attribute__((__assume__(expr)))
+#else
+# define __assume(expr)
 #endif
 
 /*
@@ -432,8 +454,16 @@ struct ftrace_likely_data {
 # define __noscs
 #endif
 
-#ifndef __nocfi
+#if defined(CONFIG_CFI)
+# define __nocfi		__attribute__((__no_sanitize__("kcfi")))
+#else
 # define __nocfi
+#endif
+
+#if defined(CONFIG_ARCH_USES_CFI_GENERIC_LLVM_PASS)
+# define __nocfi_generic	__nocfi
+#else
+# define __nocfi_generic
 #endif
 
 /*

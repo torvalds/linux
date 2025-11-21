@@ -6,6 +6,7 @@ config DRM_CDNS_DSI
 	select DRM_PANEL_BRIDGE
 	select GENERIC_PHY
 	select GENERIC_PHY_MIPI_DPHY
+	select VIDEOMODE_HELPERS
 	depends on OF
 	help
 	  Support Cadence DPI to DSI bridge. This is an internal

@@ -438,7 +438,7 @@ static int pci1xxxx_gpio_setup(struct pci1xxxx_gpio *priv, int irq)
 	gchip->direction_output = pci1xxxx_gpio_direction_output;
 	gchip->get_direction = pci1xxxx_gpio_get_direction;
 	gchip->get = pci1xxxx_gpio_get;
-	gchip->set_rv = pci1xxxx_gpio_set;
+	gchip->set = pci1xxxx_gpio_set;
 	gchip->set_config = pci1xxxx_gpio_set_config;
 	gchip->dbg_show = NULL;
 	gchip->base = -1;

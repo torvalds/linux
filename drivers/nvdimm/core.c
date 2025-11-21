@@ -141,9 +141,8 @@ static void nvdimm_map_put(void *data)
 	struct nvdimm_map *nvdimm_map = data;
 	struct nvdimm_bus *nvdimm_bus = nvdimm_map->nvdimm_bus;
 
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	guard(nvdimm_bus)(&nvdimm_bus->dev);
 	kref_put(&nvdimm_map->kref, nvdimm_map_release);
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
 }
 
 /**
@@ -158,13 +157,13 @@ void *devm_nvdimm_memremap(struct device *dev, resource_size_t offset,
 {
 	struct nvdimm_map *nvdimm_map;
 
-	nvdimm_bus_lock(dev);
-	nvdimm_map = find_nvdimm_map(dev, offset);
-	if (!nvdimm_map)
-		nvdimm_map = alloc_nvdimm_map(dev, offset, size, flags);
-	else
-		kref_get(&nvdimm_map->kref);
-	nvdimm_bus_unlock(dev);
+	scoped_guard(nvdimm_bus, dev) {
+		nvdimm_map = find_nvdimm_map(dev, offset);
+		if (!nvdimm_map)
+			nvdimm_map = alloc_nvdimm_map(dev, offset, size, flags);
+		else
+			kref_get(&nvdimm_map->kref);
+	}
 
 	if (!nvdimm_map)
 		return NULL;

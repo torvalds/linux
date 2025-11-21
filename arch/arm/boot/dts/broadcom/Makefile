@@ -51,6 +51,7 @@ dtb-$(CONFIG_ARCH_BCMBCA) += \
 dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4708-asus-rt-ac56u.dtb \
 	bcm4708-asus-rt-ac68u.dtb \
+	bcm4708-buffalo-wxr-1750dhp.dtb \
 	bcm4708-buffalo-wzr-1750dhp.dtb \
 	bcm4708-buffalo-wzr-1166dhp.dtb \
 	bcm4708-buffalo-wzr-1166dhp2.dtb \

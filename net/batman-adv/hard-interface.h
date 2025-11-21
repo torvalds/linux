@@ -12,7 +12,6 @@
 #include <linux/compiler.h>
 #include <linux/kref.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/stddef.h>
 #include <linux/types.h>

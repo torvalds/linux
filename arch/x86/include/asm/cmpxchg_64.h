@@ -66,8 +66,7 @@ static __always_inline u128 arch_cmpxchg128_local(volatile u128 *ptr, u128 old, 
 	bool ret;							\
 									\
 	asm_inline volatile(_lock "cmpxchg16b %[ptr]"			\
-		     CC_SET(e)						\
-		     : CC_OUT(e) (ret),					\
+		     : "=@ccz" (ret),					\
 		       [ptr] "+m" (*(_ptr)),				\
 		       "+a" (o.low), "+d" (o.high)			\
 		     : "b" (n.low), "c" (n.high)			\

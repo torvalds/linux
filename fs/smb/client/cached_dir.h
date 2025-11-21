@@ -27,6 +27,9 @@ struct cached_dirents {
 	struct mutex de_mutex;
 	loff_t pos;		 /* Expected ctx->pos */
 	struct list_head entries;
+	/* accounting for cached entries in this directory */
+	unsigned long entries_count;
+	unsigned long bytes_used;
 };
 
 struct cached_fid {
@@ -41,7 +44,6 @@ struct cached_fid {
 	unsigned long last_access_time; /* jiffies of when last accessed */
 	struct kref refcount;
 	struct cifs_fid fid;
-	spinlock_t fid_lock;
 	struct cifs_tcon *tcon;
 	struct dentry *dentry;
 	struct work_struct put_work;
@@ -60,9 +62,20 @@ struct cached_fids {
 	int num_entries;
 	struct list_head entries;
 	struct list_head dying;
-	struct work_struct invalidation_work;
 	struct delayed_work laundromat_work;
+	/* aggregate accounting for all cached dirents under this tcon */
+	atomic_long_t total_dirents_entries;
+	atomic64_t total_dirents_bytes;
 };
+
+/* Module-wide directory cache accounting (defined in cifsfs.c) */
+extern atomic64_t cifs_dircache_bytes_used; /* bytes across all mounts */
+
+static inline bool
+is_valid_cached_dir(struct cached_fid *cfid)
+{
+	return cfid->time && cfid->has_lease;
+}
 
 extern struct cached_fids *init_cached_dirs(void);
 extern void free_cached_dirs(struct cached_fids *cfids);

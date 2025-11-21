@@ -140,11 +140,10 @@ int snd_media_start_pipeline(struct snd_usb_substream *subs)
 	if (!mctl)
 		return 0;
 
-	mutex_lock(&mctl->media_dev->graph_mutex);
+	guard(mutex)(&mctl->media_dev->graph_mutex);
 	if (mctl->media_dev->enable_source)
 		ret = mctl->media_dev->enable_source(&mctl->media_entity,
 						     &mctl->media_pipe);
-	mutex_unlock(&mctl->media_dev->graph_mutex);
 	return ret;
 }
 
@@ -155,10 +154,9 @@ void snd_media_stop_pipeline(struct snd_usb_substream *subs)
 	if (!mctl)
 		return;
 
-	mutex_lock(&mctl->media_dev->graph_mutex);
+	guard(mutex)(&mctl->media_dev->graph_mutex);
 	if (mctl->media_dev->disable_source)
 		mctl->media_dev->disable_source(&mctl->media_entity);
-	mutex_unlock(&mctl->media_dev->graph_mutex);
 }
 
 static int snd_media_mixer_init(struct snd_usb_audio *chip)

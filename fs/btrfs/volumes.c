@@ -1377,8 +1377,8 @@ struct btrfs_super_block *btrfs_read_disk_super(struct block_device *bdev,
 	}
 
 	/*
-	 * Make sure the last byte of label is properly NUL termiated.  We use
-	 * '%s' to print the label, if not properly NUL termiated we can access
+	 * Make sure the last byte of label is properly NUL terminated.  We use
+	 * '%s' to print the label, if not properly NUL terminated we can access
 	 * beyond the label.
 	 */
 	if (super->label[0] && super->label[BTRFS_LABEL_SIZE - 1])
@@ -1911,7 +1911,7 @@ static noinline int find_next_devid(struct btrfs_fs_info *fs_info,
 	if (ret < 0)
 		goto error;
 
-	if (ret == 0) {
+	if (unlikely(ret == 0)) {
 		/* Corruption */
 		btrfs_err(fs_info, "corrupted chunk tree devid -1 matched");
 		ret = -EUCLEAN;
@@ -2243,7 +2243,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	}
 
 	ret = btrfs_rm_dev_item(trans, device);
-	if (ret) {
+	if (unlikely(ret)) {
 		/* Any error in dev item removal is critical */
 		btrfs_crit(fs_info,
 			   "failed to remove device item for devid %llu: %d",
@@ -2722,6 +2722,11 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		goto error;
 	}
 
+	if (bdev_nr_bytes(file_bdev(bdev_file)) <= BTRFS_DEVICE_RANGE_RESERVED) {
+		ret = -EINVAL;
+		goto error;
+	}
+
 	if (fs_devices->seeding) {
 		seeding_dev = true;
 		down_write(&sb->s_umount);
@@ -2838,21 +2843,21 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		mutex_lock(&fs_info->chunk_mutex);
 		ret = init_first_rw_device(trans);
 		mutex_unlock(&fs_info->chunk_mutex);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto error_sysfs;
 		}
 	}
 
 	ret = btrfs_add_dev_item(trans, device);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto error_sysfs;
 	}
 
 	if (seeding_dev) {
 		ret = btrfs_finish_sprout(trans);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto error_sysfs;
 		}
@@ -3044,7 +3049,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0)
 		goto out;
-	else if (ret > 0) { /* Logic error or corruption */
+	else if (unlikely(ret > 0)) { /* Logic error or corruption */
 		btrfs_err(fs_info, "failed to lookup chunk %llu when freeing",
 			  chunk_offset);
 		btrfs_abort_transaction(trans, -ENOENT);
@@ -3053,7 +3058,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 	}
 
 	ret = btrfs_del_item(trans, root, path);
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		btrfs_err(fs_info, "failed to delete chunk %llu item", chunk_offset);
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -3278,7 +3283,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 		ret = btrfs_free_dev_extent(trans, device,
 					    map->stripes[i].physical,
 					    &dev_extent_len);
-		if (ret) {
+		if (unlikely(ret)) {
 			mutex_unlock(&fs_devices->device_list_mutex);
 			btrfs_abort_transaction(trans, ret);
 			goto out;
@@ -3348,7 +3353,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 		struct btrfs_space_info *space_info;
 
 		space_info = btrfs_find_space_info(fs_info, sys_flags);
-		if (!space_info) {
+		if (unlikely(!space_info)) {
 			ret = -EINVAL;
 			btrfs_abort_transaction(trans, ret);
 			goto out;
@@ -3362,17 +3367,17 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 		}
 
 		ret = btrfs_chunk_alloc_add_chunk_item(trans, sys_bg);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
 		ret = remove_chunk_item(trans, map, chunk_offset);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
-	} else if (ret) {
+	} else if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -3381,7 +3386,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 
 	if (map->type & BTRFS_BLOCK_GROUP_SYSTEM) {
 		ret = btrfs_del_sys_chunk(fs_info, chunk_offset);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
@@ -3397,7 +3402,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 	btrfs_trans_release_chunk_metadata(trans);
 
 	ret = btrfs_remove_block_group(trans, map);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -3522,7 +3527,7 @@ again:
 			mutex_unlock(&fs_info->reclaim_bgs_lock);
 			goto error;
 		}
-		if (ret == 0) {
+		if (unlikely(ret == 0)) {
 			/*
 			 * On the first search we would find chunk tree with
 			 * offset -1, which is not possible. On subsequent
@@ -4264,7 +4269,7 @@ error:
  * @flags:     profile to validate
  * @extended:  if true @flags is treated as an extended profile
  */
-static int alloc_profile_is_valid(u64 flags, int extended)
+static int alloc_profile_is_valid(u64 flags, bool extended)
 {
 	u64 mask = (extended ? BTRFS_EXTENDED_PROFILE_MASK :
 			       BTRFS_BLOCK_GROUP_PROFILE_MASK);
@@ -4458,7 +4463,7 @@ out_overflow:
 }
 
 /*
- * Should be called with balance mutexe held
+ * Should be called with balance mutex held
  */
 int btrfs_balance(struct btrfs_fs_info *fs_info,
 		  struct btrfs_balance_control *bctl,
@@ -5036,7 +5041,7 @@ again:
 	/* Now btrfs_update_device() will change the on-disk size. */
 	ret = btrfs_update_device(trans, device);
 	btrfs_trans_release_chunk_metadata(trans);
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
 	} else {
@@ -5696,7 +5701,7 @@ int btrfs_chunk_alloc_add_chunk_item(struct btrfs_trans_handle *trans,
 	item_size = btrfs_chunk_item_size(map->num_stripes);
 
 	chunk = kzalloc(item_size, GFP_NOFS);
-	if (!chunk) {
+	if (unlikely(!chunk)) {
 		ret = -ENOMEM;
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -7481,7 +7486,7 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 	/*
 	 * Lockdep complains about possible circular locking dependency between
 	 * a disk's open_mutex (struct gendisk.open_mutex), the rw semaphores
-	 * used for freeze procection of a fs (struct super_block.s_writers),
+	 * used for freeze protection of a fs (struct super_block.s_writers),
 	 * which we take when starting a transaction, and extent buffers of the
 	 * chunk tree if we call read_one_dev() while holding a lock on an
 	 * extent buffer of the chunk tree. Since we are mounting the filesystem
@@ -7914,8 +7919,6 @@ int btrfs_bg_type_to_factor(u64 flags)
 	return btrfs_raid_array[index].ncopies;
 }
 
-
-
 static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 				 u64 chunk_offset, u64 devid,
 				 u64 physical_offset, u64 physical_len)
@@ -7929,7 +7932,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 	int i;
 
 	map = btrfs_find_chunk_map(fs_info, chunk_offset, 1);
-	if (!map) {
+	if (unlikely(!map)) {
 		btrfs_err(fs_info,
 "dev extent physical offset %llu on devid %llu doesn't have corresponding chunk",
 			  physical_offset, devid);
@@ -7938,7 +7941,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 	}
 
 	stripe_len = btrfs_calc_stripe_length(map);
-	if (physical_len != stripe_len) {
+	if (unlikely(physical_len != stripe_len)) {
 		btrfs_err(fs_info,
 "dev extent physical offset %llu on devid %llu length doesn't match chunk %llu, have %llu expect %llu",
 			  physical_offset, devid, map->start, physical_len,
@@ -7958,8 +7961,8 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 			   devid, physical_offset, physical_len);
 
 	for (i = 0; i < map->num_stripes; i++) {
-		if (map->stripes[i].dev->devid == devid &&
-		    map->stripes[i].physical == physical_offset) {
+		if (unlikely(map->stripes[i].dev->devid == devid &&
+			     map->stripes[i].physical == physical_offset)) {
 			found = true;
 			if (map->verified_stripes >= map->num_stripes) {
 				btrfs_err(fs_info,
@@ -7972,7 +7975,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 			break;
 		}
 	}
-	if (!found) {
+	if (unlikely(!found)) {
 		btrfs_err(fs_info,
 	"dev extent physical offset %llu devid %llu has no corresponding chunk",
 			physical_offset, devid);
@@ -7981,13 +7984,13 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 
 	/* Make sure no dev extent is beyond device boundary */
 	dev = btrfs_find_device(fs_info->fs_devices, &args);
-	if (!dev) {
+	if (unlikely(!dev)) {
 		btrfs_err(fs_info, "failed to find devid %llu", devid);
 		ret = -EUCLEAN;
 		goto out;
 	}
 
-	if (physical_offset + physical_len > dev->disk_total_bytes) {
+	if (unlikely(physical_offset + physical_len > dev->disk_total_bytes)) {
 		btrfs_err(fs_info,
 "dev extent devid %llu physical offset %llu len %llu is beyond device boundary %llu",
 			  devid, physical_offset, physical_len,
@@ -7999,8 +8002,8 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 	if (dev->zone_info) {
 		u64 zone_size = dev->zone_info->zone_size;
 
-		if (!IS_ALIGNED(physical_offset, zone_size) ||
-		    !IS_ALIGNED(physical_len, zone_size)) {
+		if (unlikely(!IS_ALIGNED(physical_offset, zone_size) ||
+			     !IS_ALIGNED(physical_len, zone_size))) {
 			btrfs_err(fs_info,
 "zoned: dev extent devid %llu physical offset %llu len %llu is not aligned to device zone",
 				  devid, physical_offset, physical_len);
@@ -8024,7 +8027,7 @@ static int verify_chunk_dev_extent_mapping(struct btrfs_fs_info *fs_info)
 		struct btrfs_chunk_map *map;
 
 		map = rb_entry(node, struct btrfs_chunk_map, rb_node);
-		if (map->num_stripes != map->verified_stripes) {
+		if (unlikely(map->num_stripes != map->verified_stripes)) {
 			btrfs_err(fs_info,
 			"chunk %llu has missing dev extent, have %d expect %d",
 				  map->start, map->verified_stripes, map->num_stripes);
@@ -8084,7 +8087,7 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info)
 		if (ret < 0)
 			goto out;
 		/* No dev extents at all? Not good */
-		if (ret > 0) {
+		if (unlikely(ret > 0)) {
 			ret = -EUCLEAN;
 			goto out;
 		}
@@ -8109,7 +8112,7 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info)
 		physical_len = btrfs_dev_extent_length(leaf, dext);
 
 		/* Check if this dev extent overlaps with the previous one */
-		if (devid == prev_devid && physical_offset < prev_dev_ext_end) {
+		if (unlikely(devid == prev_devid && physical_offset < prev_dev_ext_end)) {
 			btrfs_err(fs_info,
 "dev extent devid %llu physical offset %llu overlap with previous dev extent end %llu",
 				  devid, physical_offset, prev_dev_ext_end);

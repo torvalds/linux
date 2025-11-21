@@ -1133,8 +1133,7 @@ static int sysrq_sysctl_handler(const struct ctl_table *table, int write,
 	 * Behaves like do_proc_dointvec as t does not have min nor max.
 	 */
 	ret = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
-
-	if (ret || !write)
+	if (ret)
 		return ret;
 
 	if (write)

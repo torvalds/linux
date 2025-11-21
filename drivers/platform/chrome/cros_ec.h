@@ -11,6 +11,9 @@
 #include <linux/interrupt.h>
 
 struct cros_ec_device;
+struct device;
+
+struct cros_ec_device *cros_ec_device_alloc(struct device *dev);
 
 int cros_ec_register(struct cros_ec_device *ec_dev);
 void cros_ec_unregister(struct cros_ec_device *ec_dev);

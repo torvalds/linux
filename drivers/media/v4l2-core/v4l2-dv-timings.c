@@ -1226,6 +1226,7 @@ DEBUGFS_FOPS(avi, V4L2_DEBUGFS_IF_AVI);
 DEBUGFS_FOPS(audio, V4L2_DEBUGFS_IF_AUDIO);
 DEBUGFS_FOPS(spd, V4L2_DEBUGFS_IF_SPD);
 DEBUGFS_FOPS(hdmi, V4L2_DEBUGFS_IF_HDMI);
+DEBUGFS_FOPS(drm, V4L2_DEBUGFS_IF_DRM);
 
 struct v4l2_debugfs_if *v4l2_debugfs_if_alloc(struct dentry *root, u32 if_types,
 					      void *priv,
@@ -1255,6 +1256,9 @@ struct v4l2_debugfs_if *v4l2_debugfs_if_alloc(struct dentry *root, u32 if_types,
 	if (if_types & V4L2_DEBUGFS_IF_HDMI)
 		debugfs_create_file("hdmi", 0400, infoframes->if_dir,
 				    infoframes, &infoframe_hdmi_fops);
+	if (if_types & V4L2_DEBUGFS_IF_DRM)
+		debugfs_create_file("hdr_drm", 0400, infoframes->if_dir,
+				    infoframes, &infoframe_drm_fops);
 	return infoframes;
 }
 EXPORT_SYMBOL_GPL(v4l2_debugfs_if_alloc);

@@ -137,12 +137,7 @@ snd_seq_oss_dispatch(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, int a
 static inline int
 snd_seq_oss_control(struct seq_oss_devinfo *dp, unsigned int type, void *arg)
 {
-	int err;
-
-	snd_seq_client_ioctl_lock(dp->cseq);
-	err = snd_seq_kernel_client_ctl(dp->cseq, type, arg);
-	snd_seq_client_ioctl_unlock(dp->cseq);
-	return err;
+	return snd_seq_kernel_client_ioctl(dp->cseq, type, arg);
 }
 
 /* fill the addresses in header */

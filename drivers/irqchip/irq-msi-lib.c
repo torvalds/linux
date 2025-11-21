@@ -112,6 +112,20 @@ bool msi_lib_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 	 */
 	if (!chip->irq_set_affinity && !(info->flags & MSI_FLAG_NO_AFFINITY))
 		chip->irq_set_affinity = msi_domain_set_affinity;
+
+	/*
+	 * If the parent domain insists on being in charge of masking, obey
+	 * blindly. The interrupt is un-masked at the PCI level on startup
+	 * and masked on shutdown to prevent rogue interrupts after the
+	 * driver freed the interrupt. Not masking it at the PCI level
+	 * speeds up operation for disable/enable_irq() as it avoids
+	 * getting all the way out to the PCI device.
+	 */
+	if (info->flags & MSI_FLAG_PCI_MSI_MASK_PARENT) {
+		chip->irq_mask		= irq_chip_mask_parent;
+		chip->irq_unmask	= irq_chip_unmask_parent;
+	}
+
 	return true;
 }
 EXPORT_SYMBOL_GPL(msi_lib_init_dev_msi_info);
@@ -133,13 +147,13 @@ int msi_lib_irq_domain_select(struct irq_domain *d, struct irq_fwspec *fwspec,
 {
 	const struct msi_parent_ops *ops = d->msi_parent_ops;
 	u32 busmask = BIT(bus_token);
-	struct fwnode_handle *fwh;
 
 	if (!ops)
 		return 0;
 
-	fwh = d->flags & IRQ_DOMAIN_FLAG_FWNODE_PARENT ? fwnode_get_parent(fwspec->fwnode)
-						       : fwspec->fwnode;
+	struct fwnode_handle *fwh __free(fwnode_handle) =
+		d->flags & IRQ_DOMAIN_FLAG_FWNODE_PARENT ? fwnode_get_parent(fwspec->fwnode)
+							 : fwnode_handle_get(fwspec->fwnode);
 	if (fwh != d->fwnode || fwspec->param_count != 0)
 		return 0;
 

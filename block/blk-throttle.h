@@ -156,7 +156,13 @@ void blk_throtl_cancel_bios(struct gendisk *disk);
 
 static inline bool blk_throtl_activated(struct request_queue *q)
 {
-	return q->td != NULL;
+	/*
+	 * q->td guarantees that the blk-throttle module is already loaded,
+	 * and the plid of blk-throttle is assigned.
+	 * blkcg_policy_enabled() guarantees that the policy is activated
+	 * in the request_queue.
+	 */
+	return q->td != NULL && blkcg_policy_enabled(q, &blkcg_policy_throtl);
 }
 
 static inline bool blk_should_throtl(struct bio *bio)
@@ -164,11 +170,6 @@ static inline bool blk_should_throtl(struct bio *bio)
 	struct throtl_grp *tg;
 	int rw = bio_data_dir(bio);
 
-	/*
-	 * This is called under bio_queue_enter(), and it's synchronized with
-	 * the activation of blk-throtl, which is protected by
-	 * blk_mq_freeze_queue().
-	 */
 	if (!blk_throtl_activated(bio->bi_bdev->bd_queue))
 		return false;
 
@@ -194,7 +195,10 @@ static inline bool blk_should_throtl(struct bio *bio)
 
 static inline bool blk_throtl_bio(struct bio *bio)
 {
-
+	/*
+	 * block throttling takes effect if the policy is activated
+	 * in the bio's request_queue.
+	 */
 	if (!blk_should_throtl(bio))
 		return false;
 

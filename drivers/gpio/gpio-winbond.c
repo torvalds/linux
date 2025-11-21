@@ -494,7 +494,7 @@ static struct gpio_chip winbond_gpio_chip = {
 	.can_sleep		= true,
 	.get			= winbond_gpio_get,
 	.direction_input	= winbond_gpio_direction_in,
-	.set_rv			= winbond_gpio_set,
+	.set			= winbond_gpio_set,
 	.direction_output	= winbond_gpio_direction_out,
 };
 

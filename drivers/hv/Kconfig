@@ -3,13 +3,14 @@
 menu "Microsoft Hyper-V guest support"
 
 config HYPERV
-	tristate "Microsoft Hyper-V client drivers"
+	bool "Microsoft Hyper-V core hypervisor support"
 	depends on (X86 && X86_LOCAL_APIC && HYPERVISOR_GUEST) \
 		|| (ARM64 && !CPU_BIG_ENDIAN)
 	select PARAVIRT
 	select X86_HV_CALLBACK_VECTOR if X86
 	select OF_EARLY_FLATTREE if OF
 	select SYSFB if EFI && !HYPERV_VTL_MODE
+	select IRQ_MSI_LIB if X86
 	help
 	  Select this option to run Linux as a Hyper-V client operating
 	  system.
@@ -44,17 +45,24 @@ config HYPERV_TIMER
 
 config HYPERV_UTILS
 	tristate "Microsoft Hyper-V Utilities driver"
-	depends on HYPERV && CONNECTOR && NLS
+	depends on HYPERV_VMBUS && CONNECTOR && NLS
 	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  Select this option to enable the Hyper-V Utilities.
 
 config HYPERV_BALLOON
 	tristate "Microsoft Hyper-V Balloon driver"
-	depends on HYPERV
+	depends on HYPERV_VMBUS
 	select PAGE_REPORTING
 	help
 	  Select this option to enable Hyper-V Balloon driver.
+
+config HYPERV_VMBUS
+	tristate "Microsoft Hyper-V VMBus driver"
+	depends on HYPERV
+	default HYPERV
+	help
+	  Select this option to enable Hyper-V Vmbus driver.
 
 config MSHV_ROOT
 	tristate "Microsoft Hyper-V root partition support"
@@ -66,6 +74,7 @@ config MSHV_ROOT
 	# no particular order, making it impossible to reassemble larger pages
 	depends on PAGE_SIZE_4KB
 	select EVENTFD
+	select VIRT_XFER_TO_GUEST_WORK
 	default n
 	help
 	  Select this option to enable support for booting and running as root

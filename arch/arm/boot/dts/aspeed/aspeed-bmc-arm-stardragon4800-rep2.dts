@@ -171,7 +171,7 @@
 				reg = <0x50>;
 			};
 			dps650ab@58 {
-				compatible = "dps650ab";
+				compatible = "delta,dps650ab";
 				reg = <0x58>;
 			};
 		};

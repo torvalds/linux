@@ -3031,8 +3031,8 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	}
 
 	pool->cell_sort_array =
-		vmalloc(array_size(CELL_SORT_ARRAY_SIZE,
-				   sizeof(*pool->cell_sort_array)));
+		vmalloc_array(CELL_SORT_ARRAY_SIZE,
+			      sizeof(*pool->cell_sort_array));
 	if (!pool->cell_sort_array) {
 		*error = "Error allocating cell sort array";
 		err_p = ERR_PTR(-ENOMEM);
@@ -4111,8 +4111,8 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
-		    DM_TARGET_IMMUTABLE,
-	.version = {1, 23, 0},
+		    DM_TARGET_IMMUTABLE | DM_TARGET_PASSES_CRYPTO,
+	.version = {1, 24, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -4497,7 +4497,8 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 23, 0},
+	.features = DM_TARGET_PASSES_CRYPTO,
+	.version = {1, 24, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,

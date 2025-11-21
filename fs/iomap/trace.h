@@ -84,6 +84,7 @@ DEFINE_RANGE_EVENT(iomap_release_folio);
 DEFINE_RANGE_EVENT(iomap_invalidate_folio);
 DEFINE_RANGE_EVENT(iomap_dio_invalidate_fail);
 DEFINE_RANGE_EVENT(iomap_dio_rw_queued);
+DEFINE_RANGE_EVENT(iomap_zero_iter);
 
 #define IOMAP_TYPE_STRINGS \
 	{ IOMAP_HOLE,		"HOLE" }, \

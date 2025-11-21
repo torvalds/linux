@@ -37,11 +37,8 @@ impl DeviceId {
     /// Create a new device id from an ACPI 'id' string.
     #[inline(always)]
     pub const fn new(id: &'static CStr) -> Self {
-        build_assert!(
-            id.len_with_nul() <= Self::ACPI_ID_LEN,
-            "ID exceeds 16 bytes"
-        );
-        let src = id.as_bytes_with_nul();
+        let src = id.to_bytes_with_nul();
+        build_assert!(src.len() <= Self::ACPI_ID_LEN, "ID exceeds 16 bytes");
         // Replace with `bindings::acpi_device_id::default()` once stabilized for `const`.
         // SAFETY: FFI type is valid to be zero-initialized.
         let mut acpi: bindings::acpi_device_id = unsafe { core::mem::zeroed() };

@@ -101,7 +101,6 @@ static int imx_hdmi_probe(struct platform_device *pdev)
 	bool hdmi_out = of_property_read_bool(np, "hdmi-out");
 	bool hdmi_in = of_property_read_bool(np, "hdmi-in");
 	struct snd_soc_dai_link_component *dlc;
-	struct platform_device *cpu_pdev;
 	struct device_node *cpu_np;
 	struct imx_hdmi_data *data;
 	int ret;
@@ -117,17 +116,9 @@ static int imx_hdmi_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	cpu_pdev = of_find_device_by_node(cpu_np);
-	if (!cpu_pdev) {
-		dev_err(&pdev->dev, "failed to find SAI platform device\n");
-		ret = -EINVAL;
-		goto fail;
-	}
-
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
-		put_device(&cpu_pdev->dev);
 		goto fail;
 	}
 
@@ -140,14 +131,12 @@ static int imx_hdmi_probe(struct platform_device *pdev)
 
 	data->dai.name = "i.MX HDMI";
 	data->dai.stream_name = "i.MX HDMI";
-	data->dai.cpus->dai_name = dev_name(&cpu_pdev->dev);
+	data->dai.cpus->of_node = cpu_np;
 	data->dai.platforms->of_node = cpu_np;
 	data->dai.ops = &imx_hdmi_ops;
 	data->dai.playback_only = true;
 	data->dai.capture_only = false;
 	data->dai.init = imx_hdmi_init;
-
-	put_device(&cpu_pdev->dev);
 
 	if (of_node_name_eq(cpu_np, "sai")) {
 		data->cpu_priv.sysclk_id[1] = FSL_SAI_CLK_MAST1;

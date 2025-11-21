@@ -26,6 +26,7 @@
  */
 
 #include <linux/iopoll.h>
+#include <linux/seq_buf.h>
 #include <linux/string_helpers.h>
 
 #include <drm/display/drm_dp_helper.h>
@@ -596,8 +597,9 @@ intel_ddi_transcoder_func_reg_val_get(struct intel_encoder *encoder,
 			enum transcoder master;
 
 			master = crtc_state->mst_master_transcoder;
-			drm_WARN_ON(display->drm,
-				    master == INVALID_TRANSCODER);
+			if (drm_WARN_ON(display->drm,
+					master == INVALID_TRANSCODER))
+				master = TRANSCODER_A;
 			temp |= TRANS_DDI_MST_TRANSPORT_SELECT(master);
 		}
 	} else {
@@ -2166,7 +2168,8 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	enum tc_port tc_port = intel_encoder_to_tc(&dig_port->base);
-	u32 ln0, ln1, pin_assignment;
+	enum intel_tc_pin_assignment pin_assignment;
+	u32 ln0, ln1;
 	u8 width;
 
 	if (DISPLAY_VER(display) >= 14)
@@ -2188,11 +2191,11 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 	ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 
 	/* DPPATC */
-	pin_assignment = intel_tc_port_get_pin_assignment_mask(dig_port);
+	pin_assignment = intel_tc_port_get_pin_assignment(dig_port);
 	width = crtc_state->lane_count;
 
 	switch (pin_assignment) {
-	case 0x0:
+	case INTEL_TC_PIN_ASSIGNMENT_NONE:
 		drm_WARN_ON(display->drm,
 			    !intel_tc_port_in_legacy_mode(dig_port));
 		if (width == 1) {
@@ -2202,20 +2205,20 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-	case 0x1:
+	case INTEL_TC_PIN_ASSIGNMENT_A:
 		if (width == 4) {
 			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
 			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-	case 0x2:
+	case INTEL_TC_PIN_ASSIGNMENT_B:
 		if (width == 2) {
 			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
 			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-	case 0x3:
-	case 0x5:
+	case INTEL_TC_PIN_ASSIGNMENT_C:
+	case INTEL_TC_PIN_ASSIGNMENT_E:
 		if (width == 1) {
 			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE;
 			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE;
@@ -2224,8 +2227,8 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-	case 0x4:
-	case 0x6:
+	case INTEL_TC_PIN_ASSIGNMENT_D:
+	case INTEL_TC_PIN_ASSIGNMENT_F:
 		if (width == 1) {
 			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE;
 			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE;
@@ -2339,34 +2342,24 @@ static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
 		drm_dbg_kms(display->drm, "Failed to clear FEC detected flags\n");
 }
 
-static int read_fec_detected_status(struct drm_dp_aux *aux)
-{
-	int ret;
-	u8 status;
-
-	ret = drm_dp_dpcd_readb(aux, DP_FEC_STATUS, &status);
-	if (ret < 0)
-		return ret;
-
-	return status;
-}
-
 static int wait_for_fec_detected(struct drm_dp_aux *aux, bool enabled)
 {
 	struct intel_display *display = to_intel_display(aux->drm_dev);
 	int mask = enabled ? DP_FEC_DECODE_EN_DETECTED : DP_FEC_DECODE_DIS_DETECTED;
-	int status;
-	int err;
+	u8 status = 0;
+	int ret, err;
 
-	err = readx_poll_timeout(read_fec_detected_status, aux, status,
-				 status & mask || status < 0,
-				 10000, 200000);
+	ret = poll_timeout_us(err = drm_dp_dpcd_read_byte(aux, DP_FEC_STATUS, &status),
+			      err || (status & mask),
+			      10 * 1000, 200 * 1000, false);
 
-	if (err || status < 0) {
+	/* Either can be non-zero, but not both */
+	ret = ret ?: err;
+	if (ret) {
 		drm_dbg_kms(display->drm,
-			    "Failed waiting for FEC %s to get detected: %d (status %d)\n",
-			    str_enabled_disabled(enabled), err, status);
-		return err ? err : status;
+			    "Failed waiting for FEC %s to get detected: %d (status 0x%02x)\n",
+			    str_enabled_disabled(enabled), ret, status);
+		return ret;
 	}
 
 	return 0;
@@ -2561,6 +2554,7 @@ mtl_ddi_enable_d2d(struct intel_encoder *encoder)
 	enum port port = encoder->port;
 	i915_reg_t reg;
 	u32 set_bits, wait_bits;
+	int ret;
 
 	if (DISPLAY_VER(display) < 14)
 		return;
@@ -2576,7 +2570,11 @@ mtl_ddi_enable_d2d(struct intel_encoder *encoder)
 	}
 
 	intel_de_rmw(display, reg, 0, set_bits);
-	if (wait_for_us(intel_de_read(display, reg) & wait_bits, 100)) {
+
+	ret = intel_de_wait_custom(display, reg,
+				   wait_bits, wait_bits,
+				   100, 0, NULL);
+	if (ret) {
 		drm_err(display->drm, "Timeout waiting for D2D Link enable for DDI/PORT_BUF_CTL %c\n",
 			port_name(port));
 	}
@@ -3058,6 +3056,7 @@ mtl_ddi_disable_d2d(struct intel_encoder *encoder)
 	enum port port = encoder->port;
 	i915_reg_t reg;
 	u32 clr_bits, wait_bits;
+	int ret;
 
 	if (DISPLAY_VER(display) < 14)
 		return;
@@ -3073,7 +3072,11 @@ mtl_ddi_disable_d2d(struct intel_encoder *encoder)
 	}
 
 	intel_de_rmw(display, reg, clr_bits, 0);
-	if (wait_for_us(!(intel_de_read(display, reg) & wait_bits), 100))
+
+	ret = intel_de_wait_custom(display, reg,
+				   wait_bits, 0,
+				   100, 0, NULL);
+	if (ret)
 		drm_err(display->drm, "Timeout waiting for D2D Link disable for DDI/PORT_BUF_CTL %c\n",
 			port_name(port));
 }
@@ -5066,11 +5069,45 @@ static bool port_in_use(struct intel_display *display, enum port port)
 	return false;
 }
 
+static const char *intel_ddi_encoder_name(struct intel_display *display,
+					  enum port port, enum phy phy,
+					  struct seq_buf *s)
+{
+	if (DISPLAY_VER(display) >= 13 && port >= PORT_D_XELPD) {
+		seq_buf_printf(s, "DDI %c/PHY %c",
+			       port_name(port - PORT_D_XELPD + PORT_D),
+			       phy_name(phy));
+	} else if (DISPLAY_VER(display) >= 12) {
+		enum tc_port tc_port = intel_port_to_tc(display, port);
+
+		seq_buf_printf(s, "DDI %s%c/PHY %s%c",
+			       port >= PORT_TC1 ? "TC" : "",
+			       port >= PORT_TC1 ? port_tc_name(port) : port_name(port),
+			       tc_port != TC_PORT_NONE ? "TC" : "",
+			       tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
+	} else if (DISPLAY_VER(display) >= 11) {
+		enum tc_port tc_port = intel_port_to_tc(display, port);
+
+		seq_buf_printf(s, "DDI %c%s/PHY %s%c",
+			       port_name(port),
+			       port >= PORT_C ? " (TC)" : "",
+			       tc_port != TC_PORT_NONE ? "TC" : "",
+			       tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
+	} else {
+		seq_buf_printf(s, "DDI %c/PHY %c", port_name(port),  phy_name(phy));
+	}
+
+	drm_WARN_ON(display->drm, seq_buf_has_overflowed(s));
+
+	return seq_buf_str(s);
+}
+
 void intel_ddi_init(struct intel_display *display,
 		    const struct intel_bios_encoder_data *devdata)
 {
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *encoder;
+	DECLARE_SEQ_BUF(encoder_name, 20);
 	bool init_hdmi, init_dp;
 	enum port port;
 	enum phy phy;
@@ -5148,51 +5185,18 @@ void intel_ddi_init(struct intel_display *display,
 			    phy_name(phy));
 	}
 
-	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
+	dig_port = intel_dig_port_alloc();
 	if (!dig_port)
 		return;
-
-	dig_port->aux_ch = AUX_CH_NONE;
 
 	encoder = &dig_port->base;
 	encoder->devdata = devdata;
 
-	if (DISPLAY_VER(display) >= 13 && port >= PORT_D_XELPD) {
-		drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
-				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c/PHY %c",
-				 port_name(port - PORT_D_XELPD + PORT_D),
-				 phy_name(phy));
-	} else if (DISPLAY_VER(display) >= 12) {
-		enum tc_port tc_port = intel_port_to_tc(display, port);
-
-		drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
-				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %s%c/PHY %s%c",
-				 port >= PORT_TC1 ? "TC" : "",
-				 port >= PORT_TC1 ? port_tc_name(port) : port_name(port),
-				 tc_port != TC_PORT_NONE ? "TC" : "",
-				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
-	} else if (DISPLAY_VER(display) >= 11) {
-		enum tc_port tc_port = intel_port_to_tc(display, port);
-
-		drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
-				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c%s/PHY %s%c",
-				 port_name(port),
-				 port >= PORT_C ? " (TC)" : "",
-				 tc_port != TC_PORT_NONE ? "TC" : "",
-				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
-	} else {
-		drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
-				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c/PHY %c", port_name(port), phy_name(phy));
-	}
+	drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
+			 DRM_MODE_ENCODER_TMDS, "%s",
+			 intel_ddi_encoder_name(display, port, phy, &encoder_name));
 
 	intel_encoder_link_check_init(encoder, intel_ddi_link_check);
-
-	mutex_init(&dig_port->hdcp.mutex);
-	dig_port->hdcp.num_streams = 0;
 
 	encoder->hotplug = intel_ddi_hotplug;
 	encoder->compute_output_type = intel_ddi_compute_output_type;
@@ -5331,7 +5335,6 @@ void intel_ddi_init(struct intel_display *display,
 
 	dig_port->ddi_a_4_lanes = DISPLAY_VER(display) < 11 && ddi_buf_ctl & DDI_A_4_LANES;
 
-	dig_port->dp.output_reg = INVALID_MMIO_REG;
 	dig_port->max_lanes = intel_ddi_max_lanes(dig_port);
 
 	if (need_aux_ch(encoder, init_dp)) {

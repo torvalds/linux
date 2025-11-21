@@ -33,10 +33,39 @@ MODULE_PARM_DESC(ipc4_ignore_cpc,
 
 #define SOF_IPC4_GAIN_PARAM_ID  0
 #define SOF_IPC4_TPLG_ABI_SIZE 6
-#define SOF_IPC4_CHAIN_DMA_BUF_SIZE_MS 2
 
 static DEFINE_IDA(alh_group_ida);
 static DEFINE_IDA(pipeline_ida);
+
+struct sof_comp_domains {
+	const char *name;
+	enum sof_comp_domain domain;
+};
+
+static const struct sof_comp_domains sof_domains[] = {
+	{ "LL", SOF_COMP_DOMAIN_LL, },
+	{ "DP", SOF_COMP_DOMAIN_DP, }
+};
+
+static enum sof_comp_domain find_domain(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sof_domains); i++) {
+		if (strcmp(name, sof_domains[i].name) == 0)
+			return sof_domains[i].domain;
+	}
+	/* No valid value found, fall back to manifest value */
+	return SOF_COMP_DOMAIN_UNSET;
+}
+
+static int get_token_comp_domain(void *elem, void *object, u32 offset)
+{
+	u32 *val = (u32 *)((u8 *)object + offset);
+
+	*val = find_domain((const char *)elem);
+	return 0;
+}
 
 static const struct sof_topology_token ipc4_sched_tokens[] = {
 	{SOF_TKN_SCHED_LP_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -127,6 +156,8 @@ static const struct sof_topology_token comp_ext_tokens[] = {
 		offsetof(struct snd_sof_widget, uuid)},
 	{SOF_TKN_COMP_CORE_ID, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct snd_sof_widget, core)},
+	{SOF_TKN_COMP_SCHED_DOMAIN, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_comp_domain,
+		offsetof(struct snd_sof_widget, comp_domain)},
 };
 
 static const struct sof_topology_token gain_tokens[] = {
@@ -497,7 +528,17 @@ static int sof_ipc4_widget_setup_msg(struct snd_sof_widget *swidget, struct sof_
 
 	msg->extension = SOF_IPC4_MOD_EXT_CORE_ID(swidget->core);
 
-	type = (fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP) ? 1 : 0;
+	switch (swidget->comp_domain) {
+	case SOF_COMP_DOMAIN_LL:
+		type = 0;
+		break;
+	case SOF_COMP_DOMAIN_DP:
+		type = 1;
+		break;
+	default:
+		type = (fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP) ? 1 : 0;
+		break;
+	}
 	msg->extension |= SOF_IPC4_MOD_EXT_DOMAIN(type);
 
 	return 0;
@@ -624,8 +665,13 @@ static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 				      swidget->tuples,
 				      swidget->num_tuples, sizeof(u32), 1);
 		/* Set default DMA buffer size if it is not specified in topology */
-		if (!sps->dsp_max_burst_size_in_ms)
-			sps->dsp_max_burst_size_in_ms = SOF_IPC4_MIN_DMA_BUFFER_SIZE;
+		if (!sps->dsp_max_burst_size_in_ms) {
+			struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
+			struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+
+			sps->dsp_max_burst_size_in_ms = pipeline->use_chain_dma ?
+				SOF_IPC4_CHAIN_DMA_BUFFER_SIZE : SOF_IPC4_MIN_DMA_BUFFER_SIZE;
+		}
 	} else {
 		/* Capture data is copied from DSP to host in 1ms bursts */
 		spcm->stream[dir].dsp_max_burst_size_in_ms = 1;
@@ -1292,6 +1338,23 @@ static int sof_ipc4_widget_assign_instance_id(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+static u32 sof_ipc4_fmt_cfg_to_type(u32 fmt_cfg)
+{
+	/* Fetch  the sample type from the fmt for 8 and 32 bit formats */
+	u32 __bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt_cfg);
+
+	if (__bits == 8 || __bits == 32)
+		return SOF_IPC4_AUDIO_FORMAT_CFG_SAMPLE_TYPE(fmt_cfg);
+
+	/*
+	 * Return LSB integer type for 20 and 24 formats as the firmware is
+	 * handling the LSB/MSB alignment internally, for the kernel this
+	 * should not be taken into account, we treat them as LSB to match with
+	 * the format we support on the PCM side.
+	 */
+	return SOF_IPC4_TYPE_LSB_INTEGER;
+}
+
 /* update hw_params based on the audio stream format */
 static int sof_ipc4_update_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_hw_params *params,
 				     struct sof_ipc4_audio_format *fmt, u32 param_to_update)
@@ -1300,10 +1363,27 @@ static int sof_ipc4_update_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_hw
 
 	if (param_to_update & BIT(SNDRV_PCM_HW_PARAM_FORMAT)) {
 		int valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+		int type = sof_ipc4_fmt_cfg_to_type(fmt->fmt_cfg);
 		snd_pcm_format_t snd_fmt;
 		struct snd_mask *m;
 
 		switch (valid_bits) {
+		case 8:
+			switch (type) {
+			case SOF_IPC4_TYPE_A_LAW:
+				snd_fmt = SNDRV_PCM_FORMAT_A_LAW;
+				break;
+			case SOF_IPC4_TYPE_MU_LAW:
+				snd_fmt = SNDRV_PCM_FORMAT_MU_LAW;
+				break;
+			case SOF_IPC4_TYPE_UNSIGNED_INTEGER:
+				snd_fmt = SNDRV_PCM_FORMAT_U8;
+				break;
+			default:
+				dev_err(sdev->dev, "Unsupported PCM 8-bit IPC4 type %d\n", type);
+				return -EINVAL;
+			}
+			break;
 		case 16:
 			snd_fmt = SNDRV_PCM_FORMAT_S16_LE;
 			break;
@@ -1311,7 +1391,17 @@ static int sof_ipc4_update_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_hw
 			snd_fmt = SNDRV_PCM_FORMAT_S24_LE;
 			break;
 		case 32:
-			snd_fmt = SNDRV_PCM_FORMAT_S32_LE;
+			switch (type) {
+			case SOF_IPC4_TYPE_LSB_INTEGER:
+				snd_fmt = SNDRV_PCM_FORMAT_S32_LE;
+				break;
+			case SOF_IPC4_TYPE_FLOAT:
+				snd_fmt = SNDRV_PCM_FORMAT_FLOAT_LE;
+				break;
+			default:
+				dev_err(sdev->dev, "Unsupported PCM 32-bit IPC4 type %d\n", type);
+				return -EINVAL;
+			}
 			break;
 		default:
 			dev_err(sdev->dev, "invalid PCM valid_bits %d\n", valid_bits);
@@ -1375,7 +1465,7 @@ static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 					  struct sof_ipc4_base_module_cfg *base_config,
 					  struct sof_ipc4_available_audio_format *available_fmt,
 					  u32 out_ref_rate, u32 out_ref_channels,
-					  u32 out_ref_valid_bits)
+					  u32 out_ref_valid_bits, u32 out_ref_type)
 {
 	struct sof_ipc4_pin_format *pin_fmts = available_fmt->output_pin_fmts;
 	u32 pin_fmts_size = available_fmt->num_output_formats;
@@ -1401,19 +1491,22 @@ static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 	for (i = 0; i < pin_fmts_size; i++) {
 		struct sof_ipc4_audio_format *fmt = &pin_fmts[i].audio_fmt;
 
-		u32 _out_rate, _out_channels, _out_valid_bits;
+		u32 _out_rate, _out_channels, _out_valid_bits, _out_type;
 
 		_out_rate = fmt->sampling_frequency;
 		_out_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
 		_out_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+		_out_type = sof_ipc4_fmt_cfg_to_type(fmt->fmt_cfg);
 
 		if (_out_rate == out_ref_rate && _out_channels == out_ref_channels &&
-		    _out_valid_bits == out_ref_valid_bits)
+		    _out_valid_bits == out_ref_valid_bits && _out_type == out_ref_type)
 			goto out_fmt;
 	}
 
-	dev_err(sdev->dev, "%s: Unsupported audio format: %uHz, %ubit, %u channels\n",
-		__func__, out_ref_rate, out_ref_valid_bits, out_ref_channels);
+	dev_err(sdev->dev,
+		"%s: Unsupported audio format: %uHz, %ubit, %u channels, type: %d\n",
+		__func__, out_ref_rate, out_ref_valid_bits, out_ref_channels,
+		out_ref_type);
 
 	return -EINVAL;
 
@@ -1426,14 +1519,42 @@ out_fmt:
 static int sof_ipc4_get_valid_bits(struct snd_sof_dev *sdev, struct snd_pcm_hw_params *params)
 {
 	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_U8:
+	case SNDRV_PCM_FORMAT_MU_LAW:
+	case SNDRV_PCM_FORMAT_A_LAW:
+		return 8;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		return 16;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		return 24;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		return 32;
+	case SNDRV_PCM_FORMAT_FLOAT_LE:
+		return 32;
 	default:
 		dev_err(sdev->dev, "invalid pcm frame format %d\n", params_format(params));
+		return -EINVAL;
+	}
+}
+
+static int sof_ipc4_get_sample_type(struct snd_sof_dev *sdev, struct snd_pcm_hw_params *params)
+{
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_A_LAW:
+		return SOF_IPC4_TYPE_A_LAW;
+	case SNDRV_PCM_FORMAT_MU_LAW:
+		return SOF_IPC4_TYPE_MU_LAW;
+	case SNDRV_PCM_FORMAT_U8:
+		return SOF_IPC4_TYPE_UNSIGNED_INTEGER;
+	case SNDRV_PCM_FORMAT_S16_LE:
+	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S32_LE:
+	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
+		return SOF_IPC4_TYPE_LSB_INTEGER;
+	case SNDRV_PCM_FORMAT_FLOAT_LE:
+		return SOF_IPC4_TYPE_FLOAT;
+	default:
+		dev_err(sdev->dev, "invalid pcm sample type %d\n", params_format(params));
 		return -EINVAL;
 	}
 }
@@ -1449,8 +1570,10 @@ static int sof_ipc4_init_input_audio_fmt(struct snd_sof_dev *sdev,
 	u32 valid_bits;
 	u32 channels;
 	u32 rate;
+	u32 type;
 	bool single_format;
 	int sample_valid_bits;
+	int sample_type;
 	int i = 0;
 
 	if (!pin_fmts_size) {
@@ -1466,6 +1589,10 @@ static int sof_ipc4_init_input_audio_fmt(struct snd_sof_dev *sdev,
 	if (sample_valid_bits < 0)
 		return sample_valid_bits;
 
+	sample_type = sof_ipc4_get_sample_type(sdev, params);
+	if (sample_type < 0)
+		return sample_type;
+
 	/*
 	 * Search supported input audio formats with pin index 0 to match rate, channels and
 	 * sample_valid_bits from reference params
@@ -1479,14 +1606,17 @@ static int sof_ipc4_init_input_audio_fmt(struct snd_sof_dev *sdev,
 		rate = fmt->sampling_frequency;
 		channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
 		valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+		type = sof_ipc4_fmt_cfg_to_type(fmt->fmt_cfg);
 		if (params_rate(params) == rate && params_channels(params) == channels &&
-		    sample_valid_bits == valid_bits)
+		    sample_valid_bits == valid_bits && sample_type == type)
 			break;
 	}
 
 	if (i == pin_fmts_size) {
-		dev_err(sdev->dev, "%s: Unsupported audio format: %uHz, %ubit, %u channels\n",
-			__func__, params_rate(params), sample_valid_bits, params_channels(params));
+		dev_err(sdev->dev,
+			"%s: Unsupported audio format: %uHz, %ubit, %u channels, type: %d\n",
+			__func__, params_rate(params), sample_valid_bits,
+			params_channels(params), sample_type);
 		return -EINVAL;
 	}
 
@@ -1882,7 +2012,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	int *ipc_config_size;
 	u32 **data;
 	int ipc_size, ret, out_ref_valid_bits;
-	u32 out_ref_rate, out_ref_channels;
+	u32 out_ref_rate, out_ref_channels, out_ref_type;
 	u32 deep_buffer_dma_ms = 0;
 	bool single_output_bitdepth;
 	int i;
@@ -1923,8 +2053,11 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			host_dma_id = platform_params->stream_tag - 1;
 			pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_HOST_ID(host_dma_id);
 
-			/* Set SCS bit for S16_LE format only */
 			if (params_format(fe_params) == SNDRV_PCM_FORMAT_S16_LE)
+				pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_SCS_MASK;
+
+			/* Set SCS bit for 8 and 16 bit formats */
+			if (params_physical_width(fe_params) <= 16)
 				pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_SCS_MASK;
 
 			/*
@@ -2051,6 +2184,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		in_fmt = &available_fmt->input_pin_fmts[input_fmt_index].audio_fmt;
 		out_ref_rate = in_fmt->sampling_frequency;
 		out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
+		out_ref_type = sof_ipc4_fmt_cfg_to_type(in_fmt->fmt_cfg);
 
 		if (!single_output_bitdepth)
 			out_ref_valid_bits =
@@ -2061,6 +2195,11 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	case snd_soc_dapm_dai_in:
 		out_ref_rate = params_rate(fe_params);
 		out_ref_channels = params_channels(fe_params);
+		ret = sof_ipc4_get_sample_type(sdev, fe_params);
+		if (ret < 0)
+			return ret;
+		out_ref_type = (u32)ret;
+
 		if (!single_output_bitdepth) {
 			out_ref_valid_bits = sof_ipc4_get_valid_bits(sdev, fe_params);
 			if (out_ref_valid_bits < 0)
@@ -2085,12 +2224,14 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		out_fmt = &available_fmt->output_pin_fmts[0].audio_fmt;
 		out_ref_valid_bits =
 			SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(out_fmt->fmt_cfg);
+		out_ref_type = sof_ipc4_fmt_cfg_to_type(out_fmt->fmt_cfg);
 	}
 
 	output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, swidget,
 							  &copier_data->base_config,
 							  available_fmt, out_ref_rate,
-							  out_ref_channels, out_ref_valid_bits);
+							  out_ref_channels, out_ref_valid_bits,
+							  out_ref_type);
 	if (output_fmt_index < 0)
 		return output_fmt_index;
 
@@ -2319,7 +2460,7 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 	struct sof_ipc4_gain *gain = swidget->private;
 	struct sof_ipc4_available_audio_format *available_fmt = &gain->available_fmt;
 	struct sof_ipc4_audio_format *in_fmt;
-	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
+	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits, out_ref_type;
 	int input_fmt_index, output_fmt_index;
 
 	input_fmt_index = sof_ipc4_init_input_audio_fmt(sdev, swidget,
@@ -2333,13 +2474,15 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 	out_ref_rate = in_fmt->sampling_frequency;
 	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
 	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+	out_ref_type = sof_ipc4_fmt_cfg_to_type(in_fmt->fmt_cfg);
 
 	output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, swidget,
 							  &gain->data.base_config,
 							  available_fmt,
 							  out_ref_rate,
 							  out_ref_channels,
-							  out_ref_valid_bits);
+							  out_ref_valid_bits,
+							  out_ref_type);
 	if (output_fmt_index < 0)
 		return output_fmt_index;
 
@@ -2362,7 +2505,7 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 	struct sof_ipc4_mixer *mixer = swidget->private;
 	struct sof_ipc4_available_audio_format *available_fmt = &mixer->available_fmt;
 	struct sof_ipc4_audio_format *in_fmt;
-	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
+	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits, out_ref_type;
 	int input_fmt_index, output_fmt_index;
 
 	input_fmt_index = sof_ipc4_init_input_audio_fmt(sdev, swidget,
@@ -2376,13 +2519,15 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 	out_ref_rate = in_fmt->sampling_frequency;
 	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
 	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+	out_ref_type = sof_ipc4_fmt_cfg_to_type(in_fmt->fmt_cfg);
 
 	output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, swidget,
 							  &mixer->base_config,
 							  available_fmt,
 							  out_ref_rate,
 							  out_ref_channels,
-							  out_ref_valid_bits);
+							  out_ref_valid_bits,
+							  out_ref_type);
 	if (output_fmt_index < 0)
 		return output_fmt_index;
 
@@ -2406,7 +2551,7 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 	struct sof_ipc4_available_audio_format *available_fmt = &src->available_fmt;
 	struct sof_ipc4_audio_format *out_audio_fmt;
 	struct sof_ipc4_audio_format *in_audio_fmt;
-	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
+	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits, out_ref_type;
 	int output_fmt_index, input_fmt_index;
 
 	input_fmt_index = sof_ipc4_init_input_audio_fmt(sdev, swidget,
@@ -2433,6 +2578,7 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 	in_audio_fmt = &available_fmt->input_pin_fmts[input_fmt_index].audio_fmt;
 	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_audio_fmt->fmt_cfg);
 	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_audio_fmt->fmt_cfg);
+	out_ref_type = sof_ipc4_fmt_cfg_to_type(in_audio_fmt->fmt_cfg);
 
 	/*
 	 * For capture, the SRC module should convert the rate to match the rate requested by the
@@ -2446,7 +2592,8 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 							  available_fmt,
 							  out_ref_rate,
 							  out_ref_channels,
-							  out_ref_valid_bits);
+							  out_ref_valid_bits,
+							  out_ref_type);
 	if (output_fmt_index < 0)
 		return output_fmt_index;
 
@@ -2570,20 +2717,22 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 		struct sof_ipc4_audio_format *in_fmt;
 		struct sof_ipc4_pin_format *pin_fmt;
 		u32 out_ref_rate, out_ref_channels;
-		int out_ref_valid_bits;
+		int out_ref_valid_bits, out_ref_type;
 
 		in_fmt = &available_fmt->input_pin_fmts[input_fmt_index].audio_fmt;
 
 		out_ref_rate = in_fmt->sampling_frequency;
 		out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
 		out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+		out_ref_type = sof_ipc4_fmt_cfg_to_type(in_fmt->fmt_cfg);
 
 		output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, swidget,
 								  &process->base_config,
 								  available_fmt,
 								  out_ref_rate,
 								  out_ref_channels,
-								  out_ref_valid_bits);
+								  out_ref_valid_bits,
+								  out_ref_type);
 		if (output_fmt_index < 0)
 			return output_fmt_index;
 

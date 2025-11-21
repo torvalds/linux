@@ -271,20 +271,11 @@ void __send_fd(struct __test_metadata *_metadata,
 {
 #define MSG "x"
 #define MSGLEN 1
-	struct {
-		struct cmsghdr cmsghdr;
-		int fd[2];
-	} cmsg = {
-		.cmsghdr = {
-			.cmsg_len = CMSG_LEN(sizeof(cmsg.fd)),
-			.cmsg_level = SOL_SOCKET,
-			.cmsg_type = SCM_RIGHTS,
-		},
-		.fd = {
-			self->fd[inflight * 2],
-			self->fd[inflight * 2],
-		},
+	int fds[2] = {
+		self->fd[inflight * 2],
+		self->fd[inflight * 2],
 	};
+	char cmsg_buf[CMSG_SPACE(sizeof(fds))];
 	struct iovec iov = {
 		.iov_base = MSG,
 		.iov_len = MSGLEN,
@@ -294,10 +285,17 @@ void __send_fd(struct __test_metadata *_metadata,
 		.msg_namelen = 0,
 		.msg_iov = &iov,
 		.msg_iovlen = 1,
-		.msg_control = &cmsg,
-		.msg_controllen = CMSG_SPACE(sizeof(cmsg.fd)),
+		.msg_control = cmsg_buf,
+		.msg_controllen = sizeof(cmsg_buf),
 	};
+	struct cmsghdr *cmsg;
 	int ret;
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(fds));
+	memcpy(CMSG_DATA(cmsg), fds, sizeof(fds));
 
 	ret = sendmsg(self->fd[receiver * 2 + 1], &msg, variant->flags);
 

@@ -285,7 +285,7 @@ drivers/ 包含了每個已爲特定總線上的設備而掛載的驅動程序�
 假定驅動沒有跨越多個總線類型)。
 
 fs/ 包含了一個爲文件系統設立的目錄。現在每個想要導出屬性的文件系統必須
-在 fs/ 下創建自己的層次結構(參見Documentation/filesystems/fuse.rst)。
+在 fs/ 下創建自己的層次結構(參見Documentation/filesystems/fuse/fuse.rst)。
 
 dev/ 包含兩個子目錄： char/ 和 block/。在這兩個子目錄中，有以
 <major>:<minor> 格式命名的符號鏈接。這些符號鏈接指向 sysfs 目錄

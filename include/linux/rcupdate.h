@@ -24,7 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/atomic.h>
 #include <linux/irqflags.h>
-#include <linux/preempt.h>
+#include <linux/sched.h>
 #include <linux/bottom_half.h>
 #include <linux/lockdep.h>
 #include <linux/cleanup.h>
@@ -129,7 +129,7 @@ static inline void rcu_sysrq_start(void) { }
 static inline void rcu_sysrq_end(void) { }
 #endif /* #else #ifdef CONFIG_RCU_STALL_COMMON */
 
-#if defined(CONFIG_NO_HZ_FULL) && (!defined(CONFIG_GENERIC_ENTRY) || !defined(CONFIG_KVM_XFER_TO_GUEST_WORK))
+#if defined(CONFIG_NO_HZ_FULL) && (!defined(CONFIG_GENERIC_ENTRY) || !defined(CONFIG_VIRT_XFER_TO_GUEST_WORK))
 void rcu_irq_work_resched(void);
 #else
 static __always_inline void rcu_irq_work_resched(void) { }
@@ -713,6 +713,24 @@ do {									      \
 				(c) || rcu_read_lock_sched_held(), \
 				__rcu)
 
+/**
+ * rcu_dereference_all_check() - rcu_dereference_all with debug checking
+ * @p: The pointer to read, prior to dereferencing
+ * @c: The conditions under which the dereference will take place
+ *
+ * This is similar to rcu_dereference_check(), but allows protection
+ * by all forms of vanilla RCU readers, including preemption disabled,
+ * bh-disabled, and interrupt-disabled regions of code.  Note that "vanilla
+ * RCU" excludes SRCU and the various Tasks RCU flavors.  Please note
+ * that this macro should not be backported to any Linux-kernel version
+ * preceding v5.0 due to changes in synchronize_rcu() semantics prior
+ * to that version.
+ */
+#define rcu_dereference_all_check(p, c) \
+	__rcu_dereference_check((p), __UNIQUE_ID(rcu), \
+				(c) || rcu_read_lock_any_held(), \
+				__rcu)
+
 /*
  * The tracing infrastructure traces RCU (we want that), but unfortunately
  * some of the RCU checks causes tracing to lock up the system.
@@ -766,6 +784,14 @@ do {									      \
  * Makes rcu_dereference_check() do the dirty work.
  */
 #define rcu_dereference_sched(p) rcu_dereference_sched_check(p, 0)
+
+/**
+ * rcu_dereference_all() - fetch RCU-all-protected pointer for dereferencing
+ * @p: The pointer to read, prior to dereferencing
+ *
+ * Makes rcu_dereference_check() do the dirty work.
+ */
+#define rcu_dereference_all(p) rcu_dereference_all_check(p, 0)
 
 /**
  * rcu_pointer_handoff() - Hand off a pointer from RCU to other mechanism
@@ -960,6 +986,20 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 {
 	__release(RCU_SCHED);
 	preempt_enable_notrace();
+}
+
+static __always_inline void rcu_read_lock_dont_migrate(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_RCU))
+		migrate_disable();
+	rcu_read_lock();
+}
+
+static inline void rcu_read_unlock_migrate(void)
+{
+	rcu_read_unlock();
+	if (IS_ENABLED(CONFIG_PREEMPT_RCU))
+		migrate_enable();
 }
 
 /**

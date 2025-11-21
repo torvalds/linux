@@ -1392,8 +1392,6 @@ static u32 iwl_mvm_scan_umac_ooc_priority(int type)
 {
 	if (type == IWL_MVM_SCAN_REGULAR)
 		return IWL_SCAN_PRIORITY_EXT_6;
-	if (type == IWL_MVM_SCAN_INT_MLO)
-		return IWL_SCAN_PRIORITY_EXT_4;
 
 	return IWL_SCAN_PRIORITY_EXT_2;
 }
@@ -3220,7 +3218,6 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	struct iwl_umac_scan_complete *notif = (void *)pkt->data;
 	u32 uid = __le32_to_cpu(notif->uid);
 	bool aborted = (notif->status == IWL_SCAN_OFFLOAD_ABORTED);
-	bool select_links = false;
 
 	mvm->mei_scan_filter.is_mei_limited_scan = false;
 
@@ -3267,13 +3264,6 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_SCHED) {
 		ieee80211_sched_scan_stopped(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
-	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_INT_MLO) {
-		IWL_DEBUG_SCAN(mvm, "Internal MLO scan completed\n");
-		/*
-		 * Other scan types won't necessarily scan for the MLD links channels.
-		 * Therefore, only select links after successful internal scan.
-		 */
-		select_links = notif->status == IWL_SCAN_OFFLOAD_COMPLETED;
 	}
 
 	mvm->scan_status &= ~mvm->scan_uid_status[uid];
@@ -3286,9 +3276,6 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		mvm->last_ebs_successful = false;
 
 	mvm->scan_uid_status[uid] = 0;
-
-	if (select_links)
-		wiphy_work_queue(mvm->hw->wiphy, &mvm->trig_link_selection_wk);
 }
 
 void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
@@ -3483,11 +3470,6 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 			mvm->scan_uid_status[uid] = 0;
 		}
-		uid = iwl_mvm_scan_uid_by_status(mvm, IWL_MVM_SCAN_INT_MLO);
-		if (uid >= 0) {
-			IWL_DEBUG_SCAN(mvm, "Internal MLO scan aborted\n");
-			mvm->scan_uid_status[uid] = 0;
-		}
 
 		uid = iwl_mvm_scan_uid_by_status(mvm,
 						 IWL_MVM_SCAN_STOPPING_REGULAR);
@@ -3581,89 +3563,6 @@ out:
 	}
 
 	return ret;
-}
-
-static int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif,
-				      struct ieee80211_channel **channels,
-				      size_t n_channels)
-{
-	struct cfg80211_scan_request *req = NULL;
-	struct ieee80211_scan_ies ies = {};
-	size_t size, i;
-	int ret;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	IWL_DEBUG_SCAN(mvm, "Starting Internal MLO scan: n_channels=%zu\n",
-		       n_channels);
-
-	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif) ||
-	    hweight16(vif->valid_links) == 1)
-		return -EINVAL;
-
-	size = struct_size(req, channels, n_channels);
-	req = kzalloc(size, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
-
-	/* set the requested channels */
-	for (i = 0; i < n_channels; i++)
-		req->channels[i] = channels[i];
-
-	req->n_channels = n_channels;
-
-	/* set the rates */
-	for (i = 0; i < NUM_NL80211_BANDS; i++)
-		if (mvm->hw->wiphy->bands[i])
-			req->rates[i] =
-				(1 << mvm->hw->wiphy->bands[i]->n_bitrates) - 1;
-
-	req->wdev = ieee80211_vif_to_wdev(vif);
-	req->wiphy = mvm->hw->wiphy;
-	req->scan_start = jiffies;
-	req->tsf_report_link_id = -1;
-
-	ret = _iwl_mvm_single_scan_start(mvm, vif, req, &ies,
-					 IWL_MVM_SCAN_INT_MLO);
-	kfree(req);
-
-	IWL_DEBUG_SCAN(mvm, "Internal MLO scan: ret=%d\n", ret);
-	return ret;
-}
-
-int iwl_mvm_int_mlo_scan(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	struct ieee80211_channel *channels[IEEE80211_MLD_MAX_NUM_LINKS];
-	unsigned long usable_links = ieee80211_vif_usable_links(vif);
-	size_t n_channels = 0;
-	u8 link_id;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	if (mvm->scan_status & IWL_MVM_SCAN_INT_MLO) {
-		IWL_DEBUG_SCAN(mvm, "Internal MLO scan is already running\n");
-		return -EBUSY;
-	}
-
-	rcu_read_lock();
-
-	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
-		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference(vif->link_conf[link_id]);
-
-		if (WARN_ON_ONCE(!link_conf))
-			continue;
-
-		channels[n_channels++] = link_conf->chanreq.oper.chan;
-	}
-
-	rcu_read_unlock();
-
-	if (!n_channels)
-		return -EINVAL;
-
-	return iwl_mvm_int_mlo_scan_start(mvm, vif, channels, n_channels);
 }
 
 static int iwl_mvm_chanidx_from_phy(struct iwl_mvm *mvm,

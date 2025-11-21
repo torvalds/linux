@@ -130,10 +130,7 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 __be32 *xdr_encode_opaque_fixed(__be32 *p, const void *ptr, unsigned int len);
 __be32 *xdr_encode_opaque(__be32 *p, const void *ptr, unsigned int len);
 __be32 *xdr_encode_string(__be32 *p, const char *s);
-__be32 *xdr_decode_string_inplace(__be32 *p, char **sp, unsigned int *lenp,
-			unsigned int maxlen);
 __be32 *xdr_encode_netobj(__be32 *p, const struct xdr_netobj *);
-__be32 *xdr_decode_netobj(__be32 *p, struct xdr_netobj *);
 
 void	xdr_inline_pages(struct xdr_buf *, unsigned int,
 			 struct page **, unsigned int, unsigned int);
@@ -291,16 +288,16 @@ xdr_set_scratch_buffer(struct xdr_stream *xdr, void *buf, size_t buflen)
 }
 
 /**
- * xdr_set_scratch_page - Attach a scratch buffer for decoding data
+ * xdr_set_scratch_folio - Attach a scratch buffer for decoding data
  * @xdr: pointer to xdr_stream struct
- * @page: an anonymous page
+ * @page: an anonymous folio
  *
  * See xdr_set_scratch_buffer().
  */
 static inline void
-xdr_set_scratch_page(struct xdr_stream *xdr, struct page *page)
+xdr_set_scratch_folio(struct xdr_stream *xdr, struct folio *folio)
 {
-	xdr_set_scratch_buffer(xdr, page_address(page), PAGE_SIZE);
+	xdr_set_scratch_buffer(xdr, folio_address(folio), folio_size(folio));
 }
 
 /**
@@ -342,12 +339,6 @@ xdr_stream_remaining(const struct xdr_stream *xdr)
 	return xdr->nwords << 2;
 }
 
-ssize_t xdr_stream_decode_opaque(struct xdr_stream *xdr, void *ptr,
-		size_t size);
-ssize_t xdr_stream_decode_opaque_dup(struct xdr_stream *xdr, void **ptr,
-		size_t maxlen, gfp_t gfp_flags);
-ssize_t xdr_stream_decode_string(struct xdr_stream *xdr, char *str,
-		size_t size);
 ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
 		size_t maxlen, gfp_t gfp_flags);
 ssize_t xdr_stream_decode_opaque_auth(struct xdr_stream *xdr, u32 *flavor,
@@ -730,7 +721,7 @@ xdr_stream_decode_u64(struct xdr_stream *xdr, __u64 *ptr)
  * @len: size of buffer pointed to by @ptr
  *
  * Return values:
- *   On success, returns size of object stored in @ptr
+ *   %0 on success
  *   %-EBADMSG on XDR buffer overflow
  */
 static inline ssize_t
@@ -741,7 +732,7 @@ xdr_stream_decode_opaque_fixed(struct xdr_stream *xdr, void *ptr, size_t len)
 	if (unlikely(!p))
 		return -EBADMSG;
 	xdr_decode_opaque_fixed(p, ptr, len);
-	return len;
+	return 0;
 }
 
 /**

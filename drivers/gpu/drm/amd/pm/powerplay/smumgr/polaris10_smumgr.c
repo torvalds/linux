@@ -2578,9 +2578,8 @@ static int polaris10_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 
 static bool polaris10_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
-	return (1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
-			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON))
-			? true : false;
+	return PHM_READ_INDIRECT_FIELD(hwmgr->device,
+			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON) == 1;
 }
 
 static int polaris10_update_dpm_settings(struct pp_hwmgr *hwmgr,

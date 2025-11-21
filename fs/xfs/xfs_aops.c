@@ -760,6 +760,9 @@ xfs_vm_swap_activate(
 {
 	struct xfs_inode		*ip = XFS_I(file_inode(swap_file));
 
+	if (xfs_is_zoned_inode(ip))
+		return -EINVAL;
+
 	/*
 	 * Swap file activation can race against concurrent shared extent
 	 * removal in files that have been cloned.  If this happens,

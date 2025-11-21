@@ -74,8 +74,7 @@ static int ssd130x_spi_probe(struct spi_device *spi)
 
 	t = devm_kzalloc(dev, sizeof(*t), GFP_KERNEL);
 	if (!t)
-		return dev_err_probe(dev, -ENOMEM,
-				     "Failed to allocate SPI transport data\n");
+		return -ENOMEM;
 
 	t->spi = spi;
 	t->dc = dc;

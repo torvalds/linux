@@ -906,6 +906,10 @@ static int mcp2221_raw_event(struct hid_device *hdev,
 			}
 			if (data[2] == MCP2221_I2C_READ_COMPL ||
 			    data[2] == MCP2221_I2C_READ_PARTIAL) {
+				if (!mcp->rxbuf || mcp->rxbuf_idx < 0 || data[3] > 60) {
+					mcp->status = -EINVAL;
+					break;
+				}
 				buf = mcp->rxbuf;
 				memcpy(&buf[mcp->rxbuf_idx], &data[4], data[3]);
 				mcp->rxbuf_idx = mcp->rxbuf_idx + data[3];
@@ -1298,7 +1302,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 	mcp->gc->direction_input = mcp_gpio_direction_input;
 	mcp->gc->direction_output = mcp_gpio_direction_output;
 	mcp->gc->get_direction = mcp_gpio_get_direction;
-	mcp->gc->set_rv = mcp_gpio_set;
+	mcp->gc->set = mcp_gpio_set;
 	mcp->gc->get = mcp_gpio_get;
 	mcp->gc->ngpio = MCP_NGPIO;
 	mcp->gc->base = -1;

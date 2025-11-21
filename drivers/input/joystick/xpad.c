@@ -422,6 +422,7 @@ static const struct xpad_device {
 	{ 0x3537, 0x1010, "GameSir G7 SE", 0, XTYPE_XBOXONE },
 	{ 0x366c, 0x0005, "ByoWave Proteus Controller", MAP_SHARE_BUTTON, XTYPE_XBOXONE, FLAG_DELAY_INIT },
 	{ 0x3767, 0x0101, "Fanatec Speedster 3 Forceshock Wheel", 0, XTYPE_XBOX },
+	{ 0x37d7, 0x2501, "Flydigi Apex 5", 0, XTYPE_XBOX360 },
 	{ 0x413d, 0x2104, "Black Shark Green Ghost Gamepad", 0, XTYPE_XBOX360 },
 	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", 0, XTYPE_XBOX },
 	{ 0x0000, 0x0000, "Generic X-Box pad", 0, XTYPE_UNKNOWN }
@@ -442,8 +443,8 @@ static const signed short xpad_btn[] = {
 
 /* used when dpad is mapped to buttons */
 static const signed short xpad_btn_pad[] = {
-	BTN_TRIGGER_HAPPY1, BTN_TRIGGER_HAPPY2,		/* d-pad left, right */
-	BTN_TRIGGER_HAPPY3, BTN_TRIGGER_HAPPY4,		/* d-pad up, down */
+	BTN_DPAD_LEFT, BTN_DPAD_RIGHT,	/* d-pad left, right */
+	BTN_DPAD_UP, BTN_DPAD_DOWN,	/* d-pad up, down */
 	-1				/* terminating entry */
 };
 
@@ -479,8 +480,8 @@ static const signed short xpad_abs_triggers[] = {
 
 /* used when the controller has extra paddle buttons */
 static const signed short xpad_btn_paddles[] = {
-	BTN_TRIGGER_HAPPY5, BTN_TRIGGER_HAPPY6, /* paddle upper right, lower right */
-	BTN_TRIGGER_HAPPY7, BTN_TRIGGER_HAPPY8, /* paddle upper left, lower left */
+	BTN_GRIPR, BTN_GRIPR2, /* paddle upper right, lower right */
+	BTN_GRIPL, BTN_GRIPL2, /* paddle upper left, lower left */
 	-1						/* terminating entry */
 };
 
@@ -578,6 +579,7 @@ static const struct usb_device_id xpad_table[] = {
 	XPAD_XBOX360_VENDOR(0x3537),		/* GameSir Controllers */
 	XPAD_XBOXONE_VENDOR(0x3537),		/* GameSir Controllers */
 	XPAD_XBOXONE_VENDOR(0x366c),		/* ByoWave controllers */
+	XPAD_XBOX360_VENDOR(0x37d7),		/* Flydigi Controllers */
 	XPAD_XBOX360_VENDOR(0x413d),		/* Black Shark Green Ghost Controller */
 	{ }
 };
@@ -840,10 +842,10 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 	/* digital pad */
 	if (xpad->mapping & MAP_DPAD_TO_BUTTONS) {
 		/* dpad as buttons (left, right, up, down) */
-		input_report_key(dev, BTN_TRIGGER_HAPPY1, data[2] & BIT(2));
-		input_report_key(dev, BTN_TRIGGER_HAPPY2, data[2] & BIT(3));
-		input_report_key(dev, BTN_TRIGGER_HAPPY3, data[2] & BIT(0));
-		input_report_key(dev, BTN_TRIGGER_HAPPY4, data[2] & BIT(1));
+		input_report_key(dev, BTN_DPAD_LEFT, data[2] & BIT(2));
+		input_report_key(dev, BTN_DPAD_RIGHT, data[2] & BIT(3));
+		input_report_key(dev, BTN_DPAD_UP, data[2] & BIT(0));
+		input_report_key(dev, BTN_DPAD_DOWN, data[2] & BIT(1));
 	} else {
 		input_report_abs(dev, ABS_HAT0X,
 				 !!(data[2] & 0x08) - !!(data[2] & 0x04));
@@ -891,10 +893,10 @@ static void xpad360_process_packet(struct usb_xpad *xpad, struct input_dev *dev,
 	/* digital pad */
 	if (xpad->mapping & MAP_DPAD_TO_BUTTONS) {
 		/* dpad as buttons (left, right, up, down) */
-		input_report_key(dev, BTN_TRIGGER_HAPPY1, data[2] & BIT(2));
-		input_report_key(dev, BTN_TRIGGER_HAPPY2, data[2] & BIT(3));
-		input_report_key(dev, BTN_TRIGGER_HAPPY3, data[2] & BIT(0));
-		input_report_key(dev, BTN_TRIGGER_HAPPY4, data[2] & BIT(1));
+		input_report_key(dev, BTN_DPAD_LEFT, data[2] & BIT(2));
+		input_report_key(dev, BTN_DPAD_RIGHT, data[2] & BIT(3));
+		input_report_key(dev, BTN_DPAD_UP, data[2] & BIT(0));
+		input_report_key(dev, BTN_DPAD_DOWN, data[2] & BIT(1));
 	}
 
 	/*
@@ -1075,10 +1077,10 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 				data[18] = 0;
 
 			/* Elite Series 2 split packet paddle bits */
-			input_report_key(dev, BTN_TRIGGER_HAPPY5, data[18] & BIT(0));
-			input_report_key(dev, BTN_TRIGGER_HAPPY6, data[18] & BIT(1));
-			input_report_key(dev, BTN_TRIGGER_HAPPY7, data[18] & BIT(2));
-			input_report_key(dev, BTN_TRIGGER_HAPPY8, data[18] & BIT(3));
+			input_report_key(dev, BTN_GRIPR, data[18] & BIT(0));
+			input_report_key(dev, BTN_GRIPR2, data[18] & BIT(1));
+			input_report_key(dev, BTN_GRIPL, data[18] & BIT(2));
+			input_report_key(dev, BTN_GRIPL2, data[18] & BIT(3));
 
 			do_sync = true;
 		}
@@ -1113,10 +1115,10 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 		/* digital pad */
 		if (xpad->mapping & MAP_DPAD_TO_BUTTONS) {
 			/* dpad as buttons (left, right, up, down) */
-			input_report_key(dev, BTN_TRIGGER_HAPPY1, data[5] & BIT(2));
-			input_report_key(dev, BTN_TRIGGER_HAPPY2, data[5] & BIT(3));
-			input_report_key(dev, BTN_TRIGGER_HAPPY3, data[5] & BIT(0));
-			input_report_key(dev, BTN_TRIGGER_HAPPY4, data[5] & BIT(1));
+			input_report_key(dev, BTN_DPAD_LEFT, data[5] & BIT(2));
+			input_report_key(dev, BTN_DPAD_RIGHT, data[5] & BIT(3));
+			input_report_key(dev, BTN_DPAD_UP, data[5] & BIT(0));
+			input_report_key(dev, BTN_DPAD_DOWN, data[5] & BIT(1));
 		} else {
 			input_report_abs(dev, ABS_HAT0X,
 					!!(data[5] & 0x08) - !!(data[5] & 0x04));
@@ -1175,10 +1177,10 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 					data[32] = 0;
 
 				/* OG Elite Series Controller paddle bits */
-				input_report_key(dev, BTN_TRIGGER_HAPPY5, data[32] & BIT(1));
-				input_report_key(dev, BTN_TRIGGER_HAPPY6, data[32] & BIT(3));
-				input_report_key(dev, BTN_TRIGGER_HAPPY7, data[32] & BIT(0));
-				input_report_key(dev, BTN_TRIGGER_HAPPY8, data[32] & BIT(2));
+				input_report_key(dev, BTN_GRIPR, data[32] & BIT(1));
+				input_report_key(dev, BTN_GRIPR2, data[32] & BIT(3));
+				input_report_key(dev, BTN_GRIPL, data[32] & BIT(0));
+				input_report_key(dev, BTN_GRIPL2, data[32] & BIT(2));
 			} else if (xpad->packet_type == PKT_XBE2_FW_OLD) {
 				/* Mute paddles if controller has a custom mapping applied.
 				 * Checked by comparing the current mapping
@@ -1188,10 +1190,10 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 					data[18] = 0;
 
 				/* Elite Series 2 4.x firmware paddle bits */
-				input_report_key(dev, BTN_TRIGGER_HAPPY5, data[18] & BIT(0));
-				input_report_key(dev, BTN_TRIGGER_HAPPY6, data[18] & BIT(1));
-				input_report_key(dev, BTN_TRIGGER_HAPPY7, data[18] & BIT(2));
-				input_report_key(dev, BTN_TRIGGER_HAPPY8, data[18] & BIT(3));
+				input_report_key(dev, BTN_GRIPR, data[18] & BIT(0));
+				input_report_key(dev, BTN_GRIPR2, data[18] & BIT(1));
+				input_report_key(dev, BTN_GRIPL, data[18] & BIT(2));
+				input_report_key(dev, BTN_GRIPL2, data[18] & BIT(3));
 			} else if (xpad->packet_type == PKT_XBE2_FW_5_EARLY) {
 				/* Mute paddles if controller has a custom mapping applied.
 				 * Checked by comparing the current mapping
@@ -1203,10 +1205,10 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 				/* Elite Series 2 5.x firmware paddle bits
 				 * (before the packet was split)
 				 */
-				input_report_key(dev, BTN_TRIGGER_HAPPY5, data[22] & BIT(0));
-				input_report_key(dev, BTN_TRIGGER_HAPPY6, data[22] & BIT(1));
-				input_report_key(dev, BTN_TRIGGER_HAPPY7, data[22] & BIT(2));
-				input_report_key(dev, BTN_TRIGGER_HAPPY8, data[22] & BIT(3));
+				input_report_key(dev, BTN_GRIPR, data[22] & BIT(0));
+				input_report_key(dev, BTN_GRIPR2, data[22] & BIT(1));
+				input_report_key(dev, BTN_GRIPL, data[22] & BIT(2));
+				input_report_key(dev, BTN_GRIPL2, data[22] & BIT(3));
 			}
 		}
 

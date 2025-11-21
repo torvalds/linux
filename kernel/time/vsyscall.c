@@ -159,10 +159,10 @@ void vdso_time_update_aux(struct timekeeper *tk)
 	if (clock_mode != VDSO_CLOCKMODE_NONE) {
 		fill_clock_configuration(vc, &tk->tkr_mono);
 
-		vdso_ts->sec	= tk->xtime_sec;
+		vdso_ts->sec = tk->xtime_sec + tk->monotonic_to_aux.tv_sec;
 
 		nsec = tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift;
-		nsec += tk->offs_aux;
+		nsec += tk->monotonic_to_aux.tv_nsec;
 		vdso_ts->sec += __iter_div_u64_rem(nsec, NSEC_PER_SEC, &nsec);
 		nsec = nsec << tk->tkr_mono.shift;
 		vdso_ts->nsec = nsec;

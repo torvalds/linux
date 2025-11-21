@@ -105,6 +105,9 @@ KVM_NVHE_ALIAS(__hyp_stub_vectors);
 KVM_NVHE_ALIAS(vgic_v2_cpuif_trap);
 KVM_NVHE_ALIAS(vgic_v3_cpuif_trap);
 
+/* Static key indicating whether GICv3 has GICv2 compatibility */
+KVM_NVHE_ALIAS(vgic_v3_has_v2_compat);
+
 /* Static key which is set if CNTVOFF_EL2 is unusable */
 KVM_NVHE_ALIAS(broken_cntvoff_key);
 

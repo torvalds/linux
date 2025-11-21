@@ -1499,7 +1499,6 @@ static void dwcmshc_remove(struct platform_device *pdev)
 	clk_bulk_disable_unprepare(priv->num_other_clks, priv->other_clks);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dwcmshc_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -1570,9 +1569,6 @@ disable_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 	return ret;
 }
-#endif
-
-#ifdef CONFIG_PM
 
 static void dwcmshc_enable_card_clk(struct sdhci_host *host)
 {
@@ -1603,12 +1599,9 @@ static int dwcmshc_runtime_resume(struct device *dev)
 	return 0;
 }
 
-#endif
-
 static const struct dev_pm_ops dwcmshc_pmops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dwcmshc_suspend, dwcmshc_resume)
-	SET_RUNTIME_PM_OPS(dwcmshc_runtime_suspend,
-			   dwcmshc_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(dwcmshc_suspend, dwcmshc_resume)
+	RUNTIME_PM_OPS(dwcmshc_runtime_suspend, dwcmshc_runtime_resume, NULL)
 };
 
 static struct platform_driver sdhci_dwcmshc_driver = {
@@ -1617,7 +1610,7 @@ static struct platform_driver sdhci_dwcmshc_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_dwcmshc_dt_ids,
 		.acpi_match_table = ACPI_PTR(sdhci_dwcmshc_acpi_ids),
-		.pm = &dwcmshc_pmops,
+		.pm = pm_ptr(&dwcmshc_pmops),
 	},
 	.probe	= dwcmshc_probe,
 	.remove = dwcmshc_remove,

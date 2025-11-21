@@ -2,11 +2,17 @@
 
 menuconfig SND_HDA_CODEC_HDMI
 	tristate "HD-audio HDMI codec support"
+	help
+	  Say Y or M here to include HD-audio HDMI/DislayPort codec support.
+
+	  This will enable all HDMI/DP codec drivers as default, but you can
+	  enable/disable each codec driver individually, too (only when
+	  CONFIG_EXPERT is set).
 
 if SND_HDA_CODEC_HDMI
 
 config SND_HDA_CODEC_HDMI_GENERIC
-	tristate "Generic HDMI/DisplayPort HD-audio codec support"
+	tristate "Generic HDMI/DisplayPort HD-audio codec support" if EXPERT
 	select SND_DYNAMIC_MINORS
 	select SND_PCM_ELD
 	default y
@@ -18,14 +24,14 @@ config SND_HDA_CODEC_HDMI_GENERIC
 	  to assure the multiple streams for DP-MST support.
 
 config SND_HDA_CODEC_HDMI_SIMPLE
-	tristate "Simple HDMI/DisplayPort HD-audio codec support"
+	tristate "Simple HDMI/DisplayPort HD-audio codec support" if EXPERT
 	default y
 	help
 	  Say Y or M here to include Simple HDMI and DisplayPort HD-audio
 	  codec support for VIA and other codecs.
 
 config SND_HDA_CODEC_HDMI_INTEL
-	tristate "Intel HDMI/DisplayPort HD-audio codec support"
+	tristate "Intel HDMI/DisplayPort HD-audio codec support" if EXPERT
 	select SND_HDA_CODEC_HDMI_GENERIC
 	default y
 	help
@@ -48,7 +54,7 @@ config SND_HDA_INTEL_HDMI_SILENT_STREAM
 	  are kept reserved both at transmitter and receiver.
 
 config SND_HDA_CODEC_HDMI_ATI
-	tristate "AMD/ATI HDMI/DisplayPort HD-audio codec support"
+	tristate "AMD/ATI HDMI/DisplayPort HD-audio codec support" if EXPERT
 	select SND_HDA_CODEC_HDMI_GENERIC
 	default y
 	help
@@ -56,7 +62,7 @@ config SND_HDA_CODEC_HDMI_ATI
 	  HD-audio codec support.
 
 config SND_HDA_CODEC_HDMI_NVIDIA
-	tristate "Nvidia HDMI/DisplayPort HD-audio codec support"
+	tristate "Nvidia HDMI/DisplayPort HD-audio codec support" if EXPERT
 	select SND_HDA_CODEC_HDMI_GENERIC
 	default y
 	help
@@ -64,7 +70,7 @@ config SND_HDA_CODEC_HDMI_NVIDIA
 	  support for the recent Nvidia graphics cards.
 
 config SND_HDA_CODEC_HDMI_NVIDIA_MCP
-	tristate "Legacy Nvidia HDMI/DisplayPort HD-audio codec support"
+	tristate "Legacy Nvidia HDMI/DisplayPort HD-audio codec support" if EXPERT
 	select SND_HDA_CODEC_HDMI_SIMPLE
 	default y
 	help
@@ -72,7 +78,7 @@ config SND_HDA_CODEC_HDMI_NVIDIA_MCP
 	  support for the legacy Nvidia graphics like MCP73, MCP67, MCP77/78.
 
 config SND_HDA_CODEC_HDMI_TEGRA
-	tristate "Nvidia Tegra HDMI/DisplayPort HD-audio codec support"
+	tristate "Nvidia Tegra HDMI/DisplayPort HD-audio codec support" if EXPERT
 	select SND_HDA_CODEC_HDMI_GENERIC
 	default y
 	help

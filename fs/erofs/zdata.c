@@ -823,9 +823,6 @@ static int z_erofs_pcluster_begin(struct z_erofs_frontend *fe)
 			}
 			rcu_read_unlock();
 		}
-	} else if ((map->m_pa & ~PAGE_MASK) + map->m_plen > PAGE_SIZE) {
-		DBG_BUGON(1);
-		return -EFSCORRUPTED;
 	}
 
 	if (pcl) {
@@ -1432,6 +1429,16 @@ static void z_erofs_decompressqueue_kthread_work(struct kthread_work *work)
 }
 #endif
 
+/* Use (kthread_)work in atomic contexts to minimize scheduling overhead */
+static inline bool z_erofs_in_atomic(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPTION) && rcu_preempt_depth())
+		return true;
+	if (!IS_ENABLED(CONFIG_PREEMPT_COUNT))
+		return true;
+	return !preemptible();
+}
+
 static void z_erofs_decompress_kickoff(struct z_erofs_decompressqueue *io,
 				       int bios)
 {
@@ -1446,8 +1453,7 @@ static void z_erofs_decompress_kickoff(struct z_erofs_decompressqueue *io,
 
 	if (atomic_add_return(bios, &io->pending_bios))
 		return;
-	/* Use (kthread_)work and sync decompression for atomic contexts only */
-	if (!in_task() || irqs_disabled() || rcu_read_lock_any_held()) {
+	if (z_erofs_in_atomic()) {
 #ifdef CONFIG_EROFS_FS_PCPU_KTHREAD
 		struct kthread_worker *worker;
 
@@ -1826,7 +1832,7 @@ static void z_erofs_pcluster_readmore(struct z_erofs_frontend *f,
 		map->m_la = end;
 		err = z_erofs_map_blocks_iter(inode, map,
 					      EROFS_GET_BLOCKS_READMORE);
-		if (err)
+		if (err || !(map->m_flags & EROFS_MAP_ENCODED))
 			return;
 
 		/* expand ra for the trailing edge if readahead */
@@ -1838,7 +1844,7 @@ static void z_erofs_pcluster_readmore(struct z_erofs_frontend *f,
 		end = round_up(end, PAGE_SIZE);
 	} else {
 		end = round_up(map->m_la, PAGE_SIZE);
-		if (!map->m_llen)
+		if (!(map->m_flags & EROFS_MAP_ENCODED) || !map->m_llen)
 			return;
 	}
 

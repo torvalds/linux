@@ -128,30 +128,31 @@ static unsigned long vt8500_dclk_recalc_rate(struct clk_hw *hw,
 	return parent_rate / div;
 }
 
-static long vt8500_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *prate)
+static int vt8500_dclk_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
 	struct clk_device *cdev = to_clk_device(hw);
 	u32 divisor;
 
-	if (rate == 0)
+	if (req->rate == 0)
 		return 0;
 
-	divisor = *prate / rate;
+	divisor = req->best_parent_rate / req->rate;
 
 	/* If prate / rate would be decimal, incr the divisor */
-	if (rate * divisor < *prate)
+	if (req->rate * divisor < req->best_parent_rate)
 		divisor++;
 
 	/*
 	 * If this is a request for SDMMC we have to adjust the divisor
 	 * when >31 to use the fixed predivisor
 	 */
-	if ((cdev->div_mask == 0x3F) && (divisor > 31)) {
+	if ((cdev->div_mask == 0x3F) && (divisor > 31))
 		divisor = 64 * ((divisor / 64) + 1);
-	}
 
-	return *prate / divisor;
+	req->rate = req->best_parent_rate / divisor;
+
+	return 0;
 }
 
 static int vt8500_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -202,7 +203,7 @@ static const struct clk_ops vt8500_gated_clk_ops = {
 };
 
 static const struct clk_ops vt8500_divisor_clk_ops = {
-	.round_rate = vt8500_dclk_round_rate,
+	.determine_rate = vt8500_dclk_determine_rate,
 	.set_rate = vt8500_dclk_set_rate,
 	.recalc_rate = vt8500_dclk_recalc_rate,
 };
@@ -211,7 +212,7 @@ static const struct clk_ops vt8500_gated_divisor_clk_ops = {
 	.enable = vt8500_dclk_enable,
 	.disable = vt8500_dclk_disable,
 	.is_enabled = vt8500_dclk_is_enabled,
-	.round_rate = vt8500_dclk_round_rate,
+	.determine_rate = vt8500_dclk_determine_rate,
 	.set_rate = vt8500_dclk_set_rate,
 	.recalc_rate = vt8500_dclk_recalc_rate,
 };
@@ -594,8 +595,8 @@ static int vtwm_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static long vtwm_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *prate)
+static int vtwm_pll_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *req)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
 	u32 filter, mul, div1, div2;
@@ -604,33 +605,43 @@ static long vtwm_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	switch (pll->type) {
 	case PLL_TYPE_VT8500:
-		ret = vt8500_find_pll_bits(rate, *prate, &mul, &div1);
+		ret = vt8500_find_pll_bits(req->rate, req->best_parent_rate,
+					   &mul, &div1);
 		if (!ret)
-			round_rate = VT8500_BITS_TO_FREQ(*prate, mul, div1);
+			round_rate = VT8500_BITS_TO_FREQ(req->best_parent_rate,
+							 mul, div1);
 		break;
 	case PLL_TYPE_WM8650:
-		ret = wm8650_find_pll_bits(rate, *prate, &mul, &div1, &div2);
+		ret = wm8650_find_pll_bits(req->rate, req->best_parent_rate,
+					   &mul, &div1, &div2);
 		if (!ret)
-			round_rate = WM8650_BITS_TO_FREQ(*prate, mul, div1, div2);
+			round_rate = WM8650_BITS_TO_FREQ(req->best_parent_rate,
+							 mul, div1, div2);
 		break;
 	case PLL_TYPE_WM8750:
-		ret = wm8750_find_pll_bits(rate, *prate, &filter, &mul, &div1, &div2);
+		ret = wm8750_find_pll_bits(req->rate, req->best_parent_rate,
+					   &filter, &mul, &div1, &div2);
 		if (!ret)
-			round_rate = WM8750_BITS_TO_FREQ(*prate, mul, div1, div2);
+			round_rate = WM8750_BITS_TO_FREQ(req->best_parent_rate,
+							 mul, div1, div2);
 		break;
 	case PLL_TYPE_WM8850:
-		ret = wm8850_find_pll_bits(rate, *prate, &mul, &div1, &div2);
+		ret = wm8850_find_pll_bits(req->rate, req->best_parent_rate,
+					   &mul, &div1, &div2);
 		if (!ret)
-			round_rate = WM8850_BITS_TO_FREQ(*prate, mul, div1, div2);
+			round_rate = WM8850_BITS_TO_FREQ(req->best_parent_rate,
+							 mul, div1, div2);
 		break;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
 	if (ret)
-		return ret;
+		req->rate = ret;
+	else
+		req->rate = round_rate;
 
-	return round_rate;
+	return 0;
 }
 
 static unsigned long vtwm_pll_recalc_rate(struct clk_hw *hw,
@@ -665,7 +676,7 @@ static unsigned long vtwm_pll_recalc_rate(struct clk_hw *hw,
 }
 
 static const struct clk_ops vtwm_pll_ops = {
-	.round_rate = vtwm_pll_round_rate,
+	.determine_rate = vtwm_pll_determine_rate,
 	.set_rate = vtwm_pll_set_rate,
 	.recalc_rate = vtwm_pll_recalc_rate,
 };

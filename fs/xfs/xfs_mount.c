@@ -779,6 +779,25 @@ xfs_set_max_atomic_write_opt(
 		return -EINVAL;
 	}
 
+	if (xfs_has_reflink(mp))
+		goto set_limit;
+
+	if (new_max_fsbs == 1) {
+		if (mp->m_ddev_targp->bt_awu_max ||
+		    (mp->m_rtdev_targp && mp->m_rtdev_targp->bt_awu_max)) {
+		} else {
+			xfs_warn(mp,
+ "cannot support atomic writes of size %lluk with no reflink or HW support",
+				new_max_bytes >> 10);
+			return -EINVAL;
+		}
+	} else {
+		xfs_warn(mp,
+ "cannot support atomic writes of size %lluk with no reflink support",
+				new_max_bytes >> 10);
+		return -EINVAL;
+	}
+
 set_limit:
 	error = xfs_calc_atomic_write_reservation(mp, new_max_fsbs);
 	if (error) {
@@ -1037,19 +1056,6 @@ xfs_mountfs(
 	/* Enable background inode inactivation workers. */
 	xfs_inodegc_start(mp);
 	xfs_blockgc_start(mp);
-
-	/*
-	 * Now that we've recovered any pending superblock feature bit
-	 * additions, we can finish setting up the attr2 behaviour for the
-	 * mount. The noattr2 option overrides the superblock flag, so only
-	 * check the superblock feature flag if the mount option is not set.
-	 */
-	if (xfs_has_noattr2(mp)) {
-		mp->m_features &= ~XFS_FEAT_ATTR2;
-	} else if (!xfs_has_attr2(mp) &&
-		   (mp->m_sb.sb_features2 & XFS_SB_VERSION2_ATTR2BIT)) {
-		mp->m_features |= XFS_FEAT_ATTR2;
-	}
 
 	if (xfs_has_metadir(mp)) {
 		error = xfs_mount_setup_metadir(mp);

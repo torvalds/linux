@@ -39,11 +39,10 @@ struct dm_verity {
 	struct dm_target *ti;
 	struct dm_bufio_client *bufio;
 	char *alg_name;
-	struct crypto_ahash *ahash_tfm; /* either this or shash_tfm is set */
-	struct crypto_shash *shash_tfm; /* either this or ahash_tfm is set */
+	struct crypto_shash *shash_tfm;
 	u8 *root_digest;	/* digest of the root block */
 	u8 *salt;		/* salt: its size is salt_size */
-	u8 *initial_hashstate;	/* salted initial state, if shash_tfm is set */
+	u8 *initial_hashstate;	/* salted initial state, if version >= 1 */
 	u8 *zero_digest;	/* digest for a zero block */
 #ifdef CONFIG_SECURITY
 	u8 *root_digest_sig;	/* signature of the root digest */
@@ -61,7 +60,6 @@ struct dm_verity {
 	bool hash_failed:1;	/* set if hash of any block failed */
 	bool use_bh_wq:1;	/* try to verify in BH wq before normal work-queue */
 	unsigned int digest_size;	/* digest size for the current hash algorithm */
-	unsigned int hash_reqsize; /* the size of temporary space for crypto */
 	enum verity_mode mode;	/* mode for handling verification errors */
 	enum verity_mode error_mode;/* mode for handling I/O errors */
 	unsigned int corrupted_errs;/* Number of errors for corrupted blocks */
@@ -100,18 +98,12 @@ struct dm_verity_io {
 	u8 want_digest[HASH_MAX_DIGESTSIZE];
 
 	/*
-	 * This struct is followed by a variable-sized hash request of size
-	 * v->hash_reqsize, either a struct ahash_request or a struct shash_desc
-	 * (depending on whether ahash_tfm or shash_tfm is being used).  To
-	 * access it, use verity_io_hash_req().
+	 * Temporary space for hashing.  This is variable-length and must be at
+	 * the end of the struct.  struct shash_desc is just the fixed part;
+	 * it's followed by a context of size crypto_shash_descsize(shash_tfm).
 	 */
+	struct shash_desc hash_desc;
 };
-
-static inline void *verity_io_hash_req(struct dm_verity *v,
-				       struct dm_verity_io *io)
-{
-	return io + 1;
-}
 
 static inline u8 *verity_io_real_digest(struct dm_verity *v,
 					struct dm_verity_io *io)
@@ -126,7 +118,7 @@ static inline u8 *verity_io_want_digest(struct dm_verity *v,
 }
 
 extern int verity_hash(struct dm_verity *v, struct dm_verity_io *io,
-		       const u8 *data, size_t len, u8 *digest, bool may_sleep);
+		       const u8 *data, size_t len, u8 *digest);
 
 extern int verity_hash_for_block(struct dm_verity *v, struct dm_verity_io *io,
 				 sector_t block, u8 *digest, bool *is_zero);

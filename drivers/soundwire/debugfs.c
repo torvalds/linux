@@ -91,6 +91,8 @@ static int sdw_slave_reg_show(struct seq_file *s_file, void *data)
 		ret += sdw_sprintf(slave, buf, ret, i);
 	for (i = SDW_SCP_DEVID_0; i <= SDW_SCP_DEVID_5; i++)
 		ret += sdw_sprintf(slave, buf, ret, i);
+	for (i = SDW_SCP_SDCA_INT1; i <= SDW_SCP_SDCA_INTMASK4; i++)
+		ret += sdw_sprintf(slave, buf, ret, i);
 	for (i = SDW_SCP_FRAMECTRL_B0; i <= SDW_SCP_BUSCLOCK_SCALE_B0; i++)
 		ret += sdw_sprintf(slave, buf, ret, i);
 	for (i = SDW_SCP_FRAMECTRL_B1; i <= SDW_SCP_BUSCLOCK_SCALE_B1; i++)

@@ -211,6 +211,8 @@ config PINCTRL_EIC7700
 	depends on ARCH_ESWIN || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
 	help
 	  This driver support for the pin controller in ESWIN's EIC7700 SoC,
 	  which supports pin multiplexing, pin configuration,and rgmii voltage
@@ -357,6 +359,17 @@ config PINCTRL_LPC18XX
 	select GENERIC_PINCONF
 	help
 	  Pinctrl driver for NXP LPC18xx/43xx System Control Unit (SCU).
+
+config PINCTRL_MAX7360
+	tristate "MAX7360 Pincontrol support"
+	depends on MFD_MAX7360
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Say Y here to enable pin control support for Maxim MAX7360 keypad
+	  controller.
+	  This keypad controller has 8 GPIO pins that may work as GPIO, or PWM,
+	  or rotary encoder alternate modes.
 
 config PINCTRL_MAX77620
 	tristate "MAX77620/MAX20024 Pincontrol support"
@@ -539,6 +552,7 @@ config PINCTRL_STMFX
 	tristate "STMicroelectronics STMFX GPIO expander pinctrl driver"
 	depends on I2C
 	depends on OF_GPIO
+	depends on HAS_IOMEM
 	select GENERIC_PINCONF
 	select GPIOLIB_IRQCHIP
 	select MFD_STMFX
@@ -550,7 +564,7 @@ config PINCTRL_STMFX
 	  interrupt-controller.
 
 config PINCTRL_SX150X
-	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
+	tristate "Semtech SX150x I2C GPIO expander pinctrl driver"
 	depends on I2C=y
 	select PINMUX
 	select PINCONF
@@ -599,6 +613,25 @@ config PINCTRL_TH1520
 
 	  This driver is needed for RISC-V development boards like
 	  the BeagleV Ahead and the LicheePi 4A.
+
+config PINCTRL_UPBOARD
+	tristate "AAeon UP board FPGA pin controller"
+	depends on MFD_UPBOARD_FPGA
+	select PINMUX
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select GPIO_AGGREGATOR
+	help
+	  Pin controller for the FPGA GPIO lines on UP boards. Due to the
+	  hardware layout, the driver controls the FPGA pins in tandem with
+	  their corresponding Intel SoC GPIOs.
+
+	  Currently supported:
+	  - UP Squared
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pinctrl-upboard.
 
 config PINCTRL_ZYNQ
 	bool "Pinctrl driver for Xilinx Zynq"

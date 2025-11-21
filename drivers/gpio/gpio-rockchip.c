@@ -327,7 +327,7 @@ static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 static const struct gpio_chip rockchip_gpiolib_chip = {
 	.request = gpiochip_generic_request,
 	.free = gpiochip_generic_free,
-	.set_rv = rockchip_gpio_set,
+	.set = rockchip_gpio_set,
 	.get = rockchip_gpio_get,
 	.get_direction	= rockchip_gpio_get_direction,
 	.direction_input = rockchip_gpio_direction_input,
@@ -769,7 +769,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 		list_del(&cfg->head);
 
 		switch (cfg->param) {
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			ret = rockchip_gpio_direction_output(&bank->gpio_chip, cfg->pin, cfg->arg);
 			if (ret)
 				dev_warn(dev, "setting output pin %u to %u failed\n", cfg->pin,

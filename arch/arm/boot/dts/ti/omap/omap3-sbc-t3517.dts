@@ -57,8 +57,8 @@
 		&mmc1_aux_pins
 	>;
 
-	wp-gpios =  <&gpio2 27 GPIO_ACTIVE_HIGH>; /* gpio_59  */
-	cd-gpios =  <&gpio5 16 GPIO_ACTIVE_HIGH>; /* gpio_144 */
+	wp-gpios = <&gpio2 27 GPIO_ACTIVE_HIGH>; /* gpio_59  */
+	cd-gpios = <&gpio5 16 GPIO_ACTIVE_HIGH>; /* gpio_144 */
 };
 
 &dss {

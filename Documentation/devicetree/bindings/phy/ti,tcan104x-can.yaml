@@ -18,6 +18,7 @@ properties:
       - items:
           - enum:
               - microchip,ata6561
+              - ti,tcan1051
           - const: ti,tcan1042
       - enum:
           - ti,tcan1042

@@ -41,8 +41,8 @@ extern unsigned int speedstep_get_frequency(enum speedstep_processor processor);
  * SPEEDSTEP_LOW; the second argument is zero so that no
  * cpufreq_notify_transition calls are initiated.
  */
-extern unsigned int speedstep_get_freqs(enum speedstep_processor processor,
-	unsigned int *low_speed,
-	unsigned int *high_speed,
-	unsigned int *transition_latency,
-	void (*set_state) (unsigned int state));
+extern int speedstep_get_freqs(enum speedstep_processor processor,
+			       unsigned int *low_speed,
+			       unsigned int *high_speed,
+			       unsigned int *transition_latency,
+			       void (*set_state)(unsigned int state));

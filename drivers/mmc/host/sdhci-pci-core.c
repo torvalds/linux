@@ -679,8 +679,19 @@ static int intel_start_signal_voltage_switch(struct mmc_host *mmc,
 	return 0;
 }
 
+static void sdhci_intel_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	u16 clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+
+	/* Stop card clock separately to avoid glitches on clock line */
+	if (clk & SDHCI_CLOCK_CARD_EN)
+		sdhci_writew(host, clk & ~SDHCI_CLOCK_CARD_EN, SDHCI_CLOCK_CONTROL);
+
+	sdhci_set_clock(host, clock);
+}
+
 static const struct sdhci_ops sdhci_intel_byt_ops = {
-	.set_clock		= sdhci_set_clock,
+	.set_clock		= sdhci_intel_set_clock,
 	.set_power		= sdhci_intel_set_power,
 	.enable_dma		= sdhci_pci_enable_dma,
 	.set_bus_width		= sdhci_set_bus_width,
@@ -690,7 +701,7 @@ static const struct sdhci_ops sdhci_intel_byt_ops = {
 };
 
 static const struct sdhci_ops sdhci_intel_glk_ops = {
-	.set_clock		= sdhci_set_clock,
+	.set_clock		= sdhci_intel_set_clock,
 	.set_power		= sdhci_intel_set_power,
 	.enable_dma		= sdhci_pci_enable_dma,
 	.set_bus_width		= sdhci_set_bus_width,

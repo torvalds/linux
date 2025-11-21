@@ -358,13 +358,11 @@ static int ocfs2_info_handle_freeinode(struct inode *inode,
 				goto bail;
 			}
 		} else {
-			ocfs2_sprintf_system_inode_name(namebuf,
-							sizeof(namebuf),
-							type, i);
+			int len = ocfs2_sprintf_system_inode_name(namebuf,
+								  sizeof(namebuf),
+								  type, i);
 			status = ocfs2_lookup_ino_from_name(osb->sys_root_inode,
-							    namebuf,
-							    strlen(namebuf),
-							    &blkno);
+							    namebuf, len, &blkno);
 			if (status < 0) {
 				status = -ENOENT;
 				goto bail;
@@ -651,12 +649,10 @@ static int ocfs2_info_handle_freefrag(struct inode *inode,
 			goto bail;
 		}
 	} else {
-		ocfs2_sprintf_system_inode_name(namebuf, sizeof(namebuf), type,
-						OCFS2_INVALID_SLOT);
+		int len = ocfs2_sprintf_system_inode_name(namebuf, sizeof(namebuf),
+							  type, OCFS2_INVALID_SLOT);
 		status = ocfs2_lookup_ino_from_name(osb->sys_root_inode,
-						    namebuf,
-						    strlen(namebuf),
-						    &blkno);
+						    namebuf, len, &blkno);
 		if (status < 0) {
 			status = -ENOENT;
 			goto bail;

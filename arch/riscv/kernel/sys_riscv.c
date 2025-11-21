@@ -10,7 +10,7 @@
 
 static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 			   unsigned long prot, unsigned long flags,
-			   unsigned long fd, off_t offset,
+			   unsigned long fd, unsigned long offset,
 			   unsigned long page_shift_offset)
 {
 	if (unlikely(offset & (~PAGE_MASK >> page_shift_offset)))

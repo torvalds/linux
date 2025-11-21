@@ -29,8 +29,6 @@
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
 
-#include "mdio-boardinfo.h"
-
 /**
  * mdiobus_alloc_size - allocate a mii_bus structure
  * @size: extra amount of memory to allocate for private storage.
@@ -131,35 +129,6 @@ static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
 	of_mdiobus_find_phy(dev, mdiodev, bus->dev.of_node);
 }
 #endif
-
-/**
- * mdiobus_create_device - create a full MDIO device given
- * a mdio_board_info structure
- * @bus: MDIO bus to create the devices on
- * @bi: mdio_board_info structure describing the devices
- *
- * Returns 0 on success or < 0 on error.
- */
-static int mdiobus_create_device(struct mii_bus *bus,
-				 struct mdio_board_info *bi)
-{
-	struct mdio_device *mdiodev;
-	int ret = 0;
-
-	mdiodev = mdio_device_create(bus, bi->mdio_addr);
-	if (IS_ERR(mdiodev))
-		return -ENODEV;
-
-	strscpy(mdiodev->modalias, bi->modalias,
-		sizeof(mdiodev->modalias));
-	mdiodev->dev.platform_data = (void *)bi->platform_data;
-
-	ret = mdio_device_register(mdiodev);
-	if (ret)
-		mdio_device_free(mdiodev);
-
-	return ret;
-}
 
 static struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr, bool c45)
 {
@@ -404,8 +373,6 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 			goto error;
 	}
 
-	mdiobus_setup_mdiodev_from_board_info(bus, mdiobus_create_device);
-
 	bus->state = MDIOBUS_REGISTERED;
 	dev_dbg(&bus->dev, "probed\n");
 	return 0;
@@ -442,9 +409,6 @@ void mdiobus_unregister(struct mii_bus *bus)
 		mdiodev = bus->mdio_map[i];
 		if (!mdiodev)
 			continue;
-
-		if (mdiodev->reset_gpio)
-			gpiod_put(mdiodev->reset_gpio);
 
 		mdiodev->device_remove(mdiodev);
 		mdiodev->device_free(mdiodev);

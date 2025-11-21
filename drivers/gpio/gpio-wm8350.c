@@ -93,7 +93,7 @@ static const struct gpio_chip template_chip = {
 	.direction_input	= wm8350_gpio_direction_in,
 	.get			= wm8350_gpio_get,
 	.direction_output	= wm8350_gpio_direction_out,
-	.set_rv			= wm8350_gpio_set,
+	.set			= wm8350_gpio_set,
 	.to_irq			= wm8350_gpio_to_irq,
 	.can_sleep		= true,
 };

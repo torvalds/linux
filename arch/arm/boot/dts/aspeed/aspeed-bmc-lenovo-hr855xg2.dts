@@ -151,7 +151,7 @@
 	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
 };
 
-&adc{
+&adc {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc0_default
@@ -211,7 +211,7 @@
 	status = "okay";
 	bus-frequency = <90000>;
 	HotSwap@10 {
-		compatible = "adm1272";
+		compatible = "adi,adm1272";
 		reg = <0x10>;
 	};
 

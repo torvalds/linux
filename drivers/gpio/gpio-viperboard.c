@@ -408,7 +408,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	vb_gpio->gpioa.base = -1;
 	vb_gpio->gpioa.ngpio = 16;
 	vb_gpio->gpioa.can_sleep = true;
-	vb_gpio->gpioa.set_rv = vprbrd_gpioa_set;
+	vb_gpio->gpioa.set = vprbrd_gpioa_set;
 	vb_gpio->gpioa.get = vprbrd_gpioa_get;
 	vb_gpio->gpioa.direction_input = vprbrd_gpioa_direction_input;
 	vb_gpio->gpioa.direction_output = vprbrd_gpioa_direction_output;
@@ -424,7 +424,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	vb_gpio->gpiob.base = -1;
 	vb_gpio->gpiob.ngpio = 16;
 	vb_gpio->gpiob.can_sleep = true;
-	vb_gpio->gpiob.set_rv = vprbrd_gpiob_set;
+	vb_gpio->gpiob.set = vprbrd_gpiob_set;
 	vb_gpio->gpiob.get = vprbrd_gpiob_get;
 	vb_gpio->gpiob.direction_input = vprbrd_gpiob_direction_input;
 	vb_gpio->gpiob.direction_output = vprbrd_gpiob_direction_output;

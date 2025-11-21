@@ -96,6 +96,7 @@
 #define   GUC_GEN10_SHIM_WC_ENABLE		(1<<21)
 
 #define GUC_SHIM_CONTROL2		_MMIO(0xc068)
+#define   GUC_ENABLE_DEBUG_REG		(1<<11)
 #define   GUC_IS_PRIVILEGED		(1<<29)
 #define   GSC_LOADS_HUC			(1<<30)
 

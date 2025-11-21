@@ -410,6 +410,13 @@ static int eqr_of_xlate_twocells(struct reset_controller_dev *rcdev,
 	return eqr_of_xlate_internal(rcdev, reset_spec->args[0], reset_spec->args[1]);
 }
 
+static void eqr_of_node_put(void *_dev)
+{
+	struct device *dev = _dev;
+
+	of_node_put(dev->of_node);
+}
+
 static int eqr_probe(struct auxiliary_device *adev,
 		     const struct auxiliary_device_id *id)
 {
@@ -427,6 +434,10 @@ static int eqr_probe(struct auxiliary_device *adev,
 	device_set_of_node_from_dev(dev, dev->parent);
 	if (!dev->of_node)
 		return -ENODEV;
+
+	ret = devm_add_action_or_reset(dev, eqr_of_node_put, dev);
+	if (ret)
+		return ret;
 
 	/*
 	 * Using our newfound OF node, we can get match data. We cannot use

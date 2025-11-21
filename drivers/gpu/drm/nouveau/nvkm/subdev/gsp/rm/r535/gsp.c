@@ -582,10 +582,13 @@ struct nv_gsp_registry_entries {
  * RMSecBusResetEnable - enables PCI secondary bus reset
  * RMForcePcieConfigSave - forces GSP-RM to preserve PCI configuration
  *   registers on any PCI reset.
+ * RMDevidCheckIgnore - allows GSP-RM to boot even if the PCI dev ID
+ *   is not found in the internal product name database.
  */
 static const struct nv_gsp_registry_entries r535_registry_entries[] = {
 	{ "RMSecBusResetEnable", 1 },
 	{ "RMForcePcieConfigSave", 1 },
+	{ "RMDevidCheckIgnore", 1 },
 };
 #define NV_GSP_REG_NUM_ENTRIES ARRAY_SIZE(r535_registry_entries)
 

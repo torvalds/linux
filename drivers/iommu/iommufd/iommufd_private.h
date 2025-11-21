@@ -454,9 +454,8 @@ static inline void iommufd_hw_pagetable_put(struct iommufd_ctx *ictx,
 	if (hwpt->obj.type == IOMMUFD_OBJ_HWPT_PAGING) {
 		struct iommufd_hwpt_paging *hwpt_paging = to_hwpt_paging(hwpt);
 
-		lockdep_assert_not_held(&hwpt_paging->ioas->mutex);
-
 		if (hwpt_paging->auto_domain) {
+			lockdep_assert_not_held(&hwpt_paging->ioas->mutex);
 			iommufd_object_put_and_try_destroy(ictx, &hwpt->obj);
 			return;
 		}

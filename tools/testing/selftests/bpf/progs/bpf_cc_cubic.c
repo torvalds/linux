@@ -101,7 +101,7 @@ static void tcp_cwnd_reduction(struct sock *sk, int newly_acked_sacked,
 	tp->snd_cwnd = pkts_in_flight + sndcnt;
 }
 
-/* Decide wheather to run the increase function of congestion control. */
+/* Decide whether to run the increase function of congestion control. */
 static bool tcp_may_raise_cwnd(const struct sock *sk, const int flag)
 {
 	if (tcp_sk(sk)->reordering > TCP_REORDERING)

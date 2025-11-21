@@ -1536,7 +1536,7 @@ static int wm8993_probe(struct snd_soc_component *component)
 	 * VMID as an output and can disable it.
 	 */
 	if (wm8993->pdata.lineout1_diff && wm8993->pdata.lineout2_diff)
-		dapm->idle_bias_off = 1;
+		dapm->idle_bias = false;
 
 	return 0;
 

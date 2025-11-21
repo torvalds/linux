@@ -1,0 +1,79 @@
+#!/usr/bin/awk -f
+# SPDX-License-Identifier: GPL-2.0
+#
+# Use #line directives to preserve original __LINE__ numbers across patches to
+# avoid unwanted compilation changes.
+
+BEGIN {
+	in_hunk = 0
+	skip    = 0
+}
+
+/^--- / {
+	skip = $2 !~ /\.(c|h)$/
+	print
+	next
+}
+
+/^@@/ {
+	if (skip) {
+		print
+		next
+	}
+
+	in_hunk = 1
+
+	# @@ -1,3 +1,4 @@:
+	#   1: line number in old file
+	#   3: how many lines the hunk covers in old file
+	#   1: line number in new file
+	#   4: how many lines the hunk covers in new file
+
+	match($0, /^@@ -([0-9]+)(,([0-9]+))? \+([0-9]+)(,([0-9]+))? @@/, m)
+
+	# Set 'cur' to the old file's line number at the start of the hunk.  It
+	# gets incremented for every context line and every line removal, so
+	# that it always represents the old file's current line number.
+	cur = m[1]
+
+	# last = last line number of current hunk
+	last = cur + (m[3] ? m[3] : 1) - 1
+
+	need_line_directive = 0
+
+	print
+	next
+}
+
+{
+	if (skip || !in_hunk || $0 ~ /^\\ No newline at end of file/) {
+		print
+		next
+	}
+
+	# change line
+	if ($0 ~ /^[+-]/) {
+		# inject #line after this group of changes
+		need_line_directive = 1
+
+		if ($0 ~ /^-/)
+			cur++
+
+		print
+		next
+	}
+
+	# If this is the first context line after a group of changes, inject
+	# the #line directive to force the compiler to correct the line
+	# numbering to match the original file.
+	if (need_line_directive) {
+		print "+#line " cur
+		need_line_directive = 0
+	}
+
+	if (cur == last)
+		in_hunk = 0
+
+	cur++
+	print
+}

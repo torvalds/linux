@@ -13,6 +13,7 @@
 #include <linux/zalloc.h>
 #include <linux/perf_event.h>
 #include <api/fs/fs.h>
+#include <bpf/bpf.h>
 #include <perf/bpf_perf.h>
 
 #include "affinity.h"
@@ -185,7 +186,8 @@ static int bperf_cgrp__load(struct evsel *evsel,
 }
 
 static int bperf_cgrp__install_pe(struct evsel *evsel __maybe_unused,
-				  int cpu __maybe_unused, int fd __maybe_unused)
+				  int cpu_map_idx __maybe_unused,
+				  int fd __maybe_unused)
 {
 	/* nothing to do */
 	return 0;

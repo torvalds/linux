@@ -373,15 +373,13 @@ static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 		break;
 	}
 
-	case KDSETMODE:
+	case KDSETMODE: {
 		if (!perm)
 			return -EPERM;
 
-		console_lock();
-		ret = vt_kdsetmode(vc, arg);
-		console_unlock();
-		return ret;
-
+		guard(console_lock)();
+		return vt_kdsetmode(vc, arg);
+	}
 	case KDGETMODE:
 		return put_user(vc->vc_mode, (int __user *)arg);
 
@@ -601,23 +599,21 @@ static int vt_setactivate(struct vt_setactivate __user *sa)
 
 	vsa.console--;
 	vsa.console = array_index_nospec(vsa.console, MAX_NR_CONSOLES);
-	console_lock();
-	ret = vc_allocate(vsa.console);
-	if (ret) {
-		console_unlock();
-		return ret;
-	}
+	scoped_guard(console_lock) {
+		ret = vc_allocate(vsa.console);
+		if (ret)
+			return ret;
 
-	/*
-	 * This is safe providing we don't drop the console sem between
-	 * vc_allocate and finishing referencing nvc.
-	 */
-	nvc = vc_cons[vsa.console].d;
-	nvc->vt_mode = vsa.mode;
-	nvc->vt_mode.frsig = 0;
-	put_pid(nvc->vt_pid);
-	nvc->vt_pid = get_pid(task_pid(current));
-	console_unlock();
+		/*
+		 * This is safe providing we don't drop the console sem between
+		 * vc_allocate and finishing referencing nvc.
+		 */
+		nvc = vc_cons[vsa.console].d;
+		nvc->vt_mode = vsa.mode;
+		nvc->vt_mode.frsig = 0;
+		put_pid(nvc->vt_pid);
+		nvc->vt_pid = get_pid(task_pid(current));
+	}
 
 	/* Commence switch and lock */
 	/* Review set_console locks */
@@ -630,19 +626,18 @@ static int vt_setactivate(struct vt_setactivate __user *sa)
 static int vt_disallocate(unsigned int vc_num)
 {
 	struct vc_data *vc = NULL;
-	int ret = 0;
 
-	console_lock();
-	if (vt_busy(vc_num))
-		ret = -EBUSY;
-	else if (vc_num)
-		vc = vc_deallocate(vc_num);
-	console_unlock();
+	scoped_guard(console_lock) {
+		if (vt_busy(vc_num))
+			return -EBUSY;
+		if (vc_num)
+			vc = vc_deallocate(vc_num);
+	}
 
 	if (vc && vc_num >= MIN_NR_CONSOLES)
 		tty_port_put(&vc->port);
 
-	return ret;
+	return 0;
 }
 
 /* deallocate all unused consoles, but leave 0 */
@@ -651,13 +646,12 @@ static void vt_disallocate_all(void)
 	struct vc_data *vc[MAX_NR_CONSOLES];
 	int i;
 
-	console_lock();
-	for (i = 1; i < MAX_NR_CONSOLES; i++)
-		if (!vt_busy(i))
-			vc[i] = vc_deallocate(i);
-		else
-			vc[i] = NULL;
-	console_unlock();
+	scoped_guard(console_lock)
+		for (i = 1; i < MAX_NR_CONSOLES; i++)
+			if (!vt_busy(i))
+				vc[i] = vc_deallocate(i);
+			else
+				vc[i] = NULL;
 
 	for (i = 1; i < MAX_NR_CONSOLES; i++) {
 		if (vc[i] && i >= MIN_NR_CONSOLES)
@@ -703,7 +697,7 @@ static int vt_resizex(struct vc_data *vc, struct vt_consize __user *cs)
 
 		if (!vc_cons[i].d)
 			continue;
-		console_lock();
+		guard(console_lock)();
 		vcp = vc_cons[i].d;
 		if (vcp) {
 			int ret;
@@ -718,11 +712,9 @@ static int vt_resizex(struct vc_data *vc, struct vt_consize __user *cs)
 			if (ret) {
 				vcp->vc_scan_lines = save_scan_lines;
 				vcp->vc_cell_height = save_cell_height;
-				console_unlock();
 				return ret;
 			}
 		}
-		console_unlock();
 	}
 
 	return 0;
@@ -770,7 +762,7 @@ int vt_ioctl(struct tty_struct *tty,
 		if (tmp.mode != VT_AUTO && tmp.mode != VT_PROCESS)
 			return -EINVAL;
 
-		console_lock();
+		guard(console_lock)();
 		vc->vt_mode = tmp;
 		/* the frsig is ignored, so we set it to 0 */
 		vc->vt_mode.frsig = 0;
@@ -778,7 +770,6 @@ int vt_ioctl(struct tty_struct *tty,
 		vc->vt_pid = get_pid(task_pid(current));
 		/* no switch is required -- saw@shade.msu.ru */
 		vc->vt_newvt = -1;
-		console_unlock();
 		break;
 	}
 
@@ -787,9 +778,8 @@ int vt_ioctl(struct tty_struct *tty,
 		struct vt_mode tmp;
 		int rc;
 
-		console_lock();
-		memcpy(&tmp, &vc->vt_mode, sizeof(struct vt_mode));
-		console_unlock();
+		scoped_guard(console_lock)
+			memcpy(&tmp, &vc->vt_mode, sizeof(struct vt_mode));
 
 		rc = copy_to_user(up, &tmp, sizeof(struct vt_mode));
 		if (rc)
@@ -811,12 +801,10 @@ int vt_ioctl(struct tty_struct *tty,
 			return -EFAULT;
 
 		state = 1;	/* /dev/tty0 is always open */
-		console_lock(); /* required by vt_in_use() */
-		for (i = 0, mask = 2; i < MAX_NR_CONSOLES && mask;
-				++i, mask <<= 1)
-			if (vt_in_use(i))
-				state |= mask;
-		console_unlock();
+		scoped_guard(console_lock) /* required by vt_in_use() */
+			for (i = 0, mask = 2; i < MAX_NR_CONSOLES && mask; ++i, mask <<= 1)
+				if (vt_in_use(i))
+					state |= mask;
 		return put_user(state, &vtstat->v_state);
 	}
 
@@ -824,11 +812,10 @@ int vt_ioctl(struct tty_struct *tty,
 	 * Returns the first available (non-opened) console.
 	 */
 	case VT_OPENQRY:
-		console_lock(); /* required by vt_in_use() */
-		for (i = 0; i < MAX_NR_CONSOLES; ++i)
-			if (!vt_in_use(i))
-				break;
-		console_unlock();
+		scoped_guard(console_lock) /* required by vt_in_use() */
+			for (i = 0; i < MAX_NR_CONSOLES; ++i)
+				if (!vt_in_use(i))
+					break;
 		i = i < MAX_NR_CONSOLES ? (i+1) : -1;
 		return put_user(i, (int __user *)arg);
 
@@ -845,11 +832,11 @@ int vt_ioctl(struct tty_struct *tty,
 
 		arg--;
 		arg = array_index_nospec(arg, MAX_NR_CONSOLES);
-		console_lock();
-		ret = vc_allocate(arg);
-		console_unlock();
-		if (ret)
-			return ret;
+		scoped_guard(console_lock) {
+			ret = vc_allocate(arg);
+			if (ret)
+				return ret;
+		}
 		set_console(arg);
 		break;
 
@@ -880,15 +867,13 @@ int vt_ioctl(struct tty_struct *tty,
 	 *	2:	completed switch-to OK
 	 */
 	case VT_RELDISP:
+	{
 		if (!perm)
 			return -EPERM;
 
-		console_lock();
-		ret = vt_reldisp(vc, arg);
-		console_unlock();
-
-		return ret;
-
+		guard(console_lock)();
+		return vt_reldisp(vc, arg);
+	}
 
 	 /*
 	  * Disallocate memory associated to VT (but leave VT1)
@@ -917,16 +902,17 @@ int vt_ioctl(struct tty_struct *tty,
 		    get_user(cc, &vtsizes->v_cols))
 			return -EFAULT;
 
-		console_lock();
+		guard(console_lock)();
 		for (i = 0; i < MAX_NR_CONSOLES; i++) {
 			vc = vc_cons[i].d;
 
 			if (vc) {
 				/* FIXME: review v tty lock */
-				__vc_resize(vc_cons[i].d, cc, ll, true);
+				ret = __vc_resize(vc_cons[i].d, cc, ll, true);
+				if (ret)
+					return ret;
 			}
 		}
-		console_unlock();
 		break;
 	}
 
@@ -996,20 +982,17 @@ void vc_SAK(struct work_struct *work)
 	struct vc_data *vc;
 	struct tty_struct *tty;
 
-	console_lock();
+	guard(console_lock)();
 	vc = vc_con->d;
-	if (vc) {
-		/* FIXME: review tty ref counting */
-		tty = vc->port.tty;
-		/*
-		 * SAK should also work in all raw modes and reset
-		 * them properly.
-		 */
-		if (tty)
-			__do_SAK(tty);
-		reset_vc(vc);
-	}
-	console_unlock();
+	if (!vc)
+		return;
+
+	/* FIXME: review tty ref counting */
+	tty = vc->port.tty;
+	/* SAK should also work in all raw modes and reset them properly. */
+	if (tty)
+		__do_SAK(tty);
+	reset_vc(vc);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1287,31 +1270,29 @@ int vt_move_to_console(unsigned int vt, int alloc)
 {
 	int prev;
 
-	console_lock();
-	/* Graphics mode - up to X */
-	if (disable_vt_switch) {
-		console_unlock();
-		return 0;
-	}
-	prev = fg_console;
+	scoped_guard(console_lock) {
+		/* Graphics mode - up to X */
+		if (disable_vt_switch)
+			return 0;
 
-	if (alloc && vc_allocate(vt)) {
-		/* we can't have a free VC for now. Too bad,
-		 * we don't want to mess the screen for now. */
-		console_unlock();
-		return -ENOSPC;
-	}
+		prev = fg_console;
 
-	if (set_console(vt)) {
-		/*
-		 * We're unable to switch to the SUSPEND_CONSOLE.
-		 * Let the calling function know so it can decide
-		 * what to do.
-		 */
-		console_unlock();
-		return -EIO;
+		if (alloc && vc_allocate(vt)) {
+			/*
+			 * We can't have a free VC for now. Too bad, we don't want to mess the
+			 * screen for now.
+			 */
+			return -ENOSPC;
+		}
+
+		if (set_console(vt)) {
+			/*
+			 * We're unable to switch to the SUSPEND_CONSOLE. Let the calling function
+			 * know so it can decide what to do.
+			 */
+			return -EIO;
+		}
 	}
-	console_unlock();
 	if (vt_waitactive(vt + 1)) {
 		pr_debug("Suspend: Can't switch VCs.");
 		return -EINTR;
@@ -1328,8 +1309,7 @@ int vt_move_to_console(unsigned int vt, int alloc)
  */
 void pm_set_vt_switch(int do_switch)
 {
-	console_lock();
+	guard(console_lock)();
 	disable_vt_switch = !do_switch;
-	console_unlock();
 }
 EXPORT_SYMBOL(pm_set_vt_switch);

@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/libfdt.h>
 #include <linux/ctype.h>
+#include <asm/csr.h>
 
 #include "pi.h"
 
@@ -182,4 +183,43 @@ bool fdt_early_match_extension_isa(const void *fdt, const char *ext_name)
 	}
 
 	return ret;
+}
+
+/**
+ *  set_satp_mode_from_fdt - determine SATP mode based on the MMU type in fdt
+ *
+ * @dtb_pa: physical address of the device tree blob
+ *
+ *  Returns the SATP mode corresponding to the MMU type of the first enabled CPU,
+ *  0 otherwise
+ */
+u64 set_satp_mode_from_fdt(uintptr_t dtb_pa)
+{
+	const void *fdt = (const void *)dtb_pa;
+	const char *mmu_type;
+	int node, parent;
+
+	parent = fdt_path_offset(fdt, "/cpus");
+	if (parent < 0)
+		return 0;
+
+	fdt_for_each_subnode(node, fdt, parent) {
+		if (!fdt_node_name_eq(fdt, node, "cpu"))
+			continue;
+
+		if (!fdt_device_is_available(fdt, node))
+			continue;
+
+		mmu_type = fdt_getprop(fdt, node, "mmu-type", NULL);
+		if (!mmu_type)
+			break;
+
+		if (!strcmp(mmu_type, "riscv,sv39"))
+			return SATP_MODE_39;
+		else if (!strcmp(mmu_type, "riscv,sv48"))
+			return SATP_MODE_48;
+		break;
+	}
+
+	return 0;
 }

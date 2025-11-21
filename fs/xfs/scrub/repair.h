@@ -18,14 +18,6 @@ static inline int xrep_notsupported(struct xfs_scrub *sc)
 
 #ifdef CONFIG_XFS_ONLINE_REPAIR
 
-/*
- * This is the maximum number of deferred extent freeing item extents (EFIs)
- * that we'll attach to a transaction without rolling the transaction to avoid
- * overrunning a tr_itruncate reservation.
- */
-#define XREP_MAX_ITRUNCATE_EFIS	(128)
-
-
 /* Repair helpers */
 
 int xrep_attempt(struct xfs_scrub *sc, struct xchk_stats_run *run);

@@ -22,10 +22,6 @@
 
 #define PORT_BASE			8000
 
-#ifndef __maybe_unused
-# define __maybe_unused		__attribute__ ((__unused__))
-#endif
-
 static __maybe_unused void pair_udp_setfilter(int fd)
 {
 	/* the filter below checks for all of the following conditions that

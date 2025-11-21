@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/brcm,iproc-flexrm-mbox.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom FlexRM Ring Manager
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+description:
+  The Broadcom FlexRM ring manager provides a set of rings which can be used to
+  submit work to offload engines. An SoC may have multiple FlexRM hardware
+  blocks. There is one device tree entry per FlexRM block. The FlexRM driver
+  will create a mailbox-controller instance for given FlexRM hardware block
+  where each mailbox channel is a separate FlexRM ring.
+
+properties:
+  compatible:
+    const: brcm,iproc-flexrm-mbox
+
+  reg:
+    maxItems: 1
+
+  msi-parent:
+    maxItems: 1
+
+  '#mbox-cells':
+    description: >
+      The 1st cell is the mailbox channel number.
+
+      The 2nd cell contains MSI completion threshold. This is the number of
+      completion messages for which FlexRM will inject one MSI interrupt to CPU.
+
+      The 3rd cell contains MSI timer value representing time for which FlexRM
+      will wait to accumulate N completion messages where N is the value
+      specified by 2nd cell above. If FlexRM does not get required number of
+      completion messages in time specified by this cell then it will inject one
+      MSI interrupt to CPU provided at least one completion message is
+      available.
+    const: 3
+
+  dma-coherent: true
+
+required:
+  - compatible
+  - reg
+  - msi-parent
+  - '#mbox-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    mailbox@67000000 {
+        compatible = "brcm,iproc-flexrm-mbox";
+        reg = <0x67000000 0x200000>;
+        msi-parent = <&gic_its 0x7f00>;
+        #mbox-cells = <3>;
+        dma-coherent;
+    };

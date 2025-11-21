@@ -357,38 +357,26 @@ iwl_mld_vif_iter_emlsr_mode_notif(void *data, u8 *mac,
 				  struct ieee80211_vif *vif)
 {
 	const struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-	enum iwl_mvm_fw_esr_recommendation action;
-	const struct iwl_esr_mode_notif *notif = NULL;
-
-	if (iwl_fw_lookup_notif_ver(mld_vif->mld->fw, DATA_PATH_GROUP,
-				    ESR_MODE_NOTIF, 0) > 1) {
-		notif = (void *)data;
-		action = le32_to_cpu(notif->action);
-	} else {
-		const struct iwl_esr_mode_notif_v1 *notif_v1 = (void *)data;
-
-		action = le32_to_cpu(notif_v1->action);
-	}
+	const struct iwl_esr_mode_notif *notif = (void *)data;
+	enum iwl_mvm_fw_esr_recommendation action = le32_to_cpu(notif->action);
 
 	if (!iwl_mld_vif_has_emlsr_cap(vif))
 		return;
 
 	switch (action) {
 	case ESR_RECOMMEND_LEAVE:
-		if (notif)
-			IWL_DEBUG_INFO(mld_vif->mld,
-				       "FW recommend leave reason = 0x%x\n",
-				       le32_to_cpu(notif->leave_reason_mask));
+		IWL_DEBUG_INFO(mld_vif->mld,
+			       "FW recommend leave reason = 0x%x\n",
+			       le32_to_cpu(notif->leave_reason_mask));
 
 		iwl_mld_exit_emlsr(mld_vif->mld, vif,
 				   IWL_MLD_EMLSR_EXIT_FW_REQUEST,
 				   iwl_mld_get_primary_link(vif));
 		break;
 	case ESR_FORCE_LEAVE:
-		if (notif)
-			IWL_DEBUG_INFO(mld_vif->mld,
-				       "FW force leave reason = 0x%x\n",
-				       le32_to_cpu(notif->leave_reason_mask));
+		IWL_DEBUG_INFO(mld_vif->mld,
+			       "FW force leave reason = 0x%x\n",
+			       le32_to_cpu(notif->leave_reason_mask));
 		fallthrough;
 	case ESR_RECOMMEND_ENTER:
 	default:
@@ -735,12 +723,6 @@ iwl_mld_set_link_sel_data(struct iwl_mld *mld,
 	u16 max_grade = 0;
 	unsigned long link_id;
 
-	/*
-	 * TODO: don't select links that weren't discovered in the last scan
-	 * This requires mac80211 (or cfg80211) changes to forward/track when
-	 * a BSS was last updated. cfg80211 already tracks this information but
-	 * it is not exposed within the kernel.
-	 */
 	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_bss_conf *link_conf =
 			link_conf_dereference_protected(vif, link_id);

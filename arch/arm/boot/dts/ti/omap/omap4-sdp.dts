@@ -467,7 +467,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi1_pins>;
 
-	eth@0 {
+	ethernet@0 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&ks8851_pins>;
 

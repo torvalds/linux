@@ -13,6 +13,7 @@ struct drm_connector;
 struct drm_device;
 struct drm_file;
 struct drm_framebuffer;
+struct drm_format_info;
 struct drm_gem_object;
 struct drm_mode_fb_cmd2;
 struct drm_plane_state;
@@ -23,6 +24,7 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_format_info *info,
 		const struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
+		const struct drm_format_info *info,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 int omap_framebuffer_pin(struct drm_framebuffer *fb);
 void omap_framebuffer_unpin(struct drm_framebuffer *fb);

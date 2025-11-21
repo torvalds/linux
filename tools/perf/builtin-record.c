@@ -1408,8 +1408,6 @@ try_again:
 			ui__error("%s\n", msg);
 			goto out;
 		}
-
-		pos->supported = true;
 	}
 
 	if (symbol_conf.kptr_restrict && !evlist__exclude_kernel(evlist)) {

@@ -279,6 +279,13 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 		if (tmp & DS1340_BIT_OSF)
 			return -EINVAL;
 		break;
+	case ds_1341:
+		ret = regmap_read(ds1307->regmap, DS1337_REG_STATUS, &tmp);
+		if (ret)
+			return ret;
+		if (tmp & DS1337_BIT_OSF)
+			return -EINVAL;
+		break;
 	case ds_1388:
 		ret = regmap_read(ds1307->regmap, DS1388_REG_FLAG, &tmp);
 		if (ret)
@@ -376,6 +383,10 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	case ds_1340:
 		regmap_update_bits(ds1307->regmap, DS1340_REG_FLAG,
 				   DS1340_BIT_OSF, 0);
+		break;
+	case ds_1341:
+		regmap_update_bits(ds1307->regmap, DS1337_REG_STATUS,
+				   DS1337_BIT_OSF, 0);
 		break;
 	case ds_1388:
 		regmap_update_bits(ds1307->regmap, DS1388_REG_FLAG,
@@ -1456,15 +1467,20 @@ static unsigned long ds3231_clk_sqw_recalc_rate(struct clk_hw *hw,
 	return ds3231_clk_sqw_rates[rate_sel];
 }
 
-static long ds3231_clk_sqw_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *prate)
+static int ds3231_clk_sqw_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
 {
 	int i;
 
 	for (i = ARRAY_SIZE(ds3231_clk_sqw_rates) - 1; i >= 0; i--) {
-		if (ds3231_clk_sqw_rates[i] <= rate)
-			return ds3231_clk_sqw_rates[i];
+		if (ds3231_clk_sqw_rates[i] <= req->rate) {
+			req->rate = ds3231_clk_sqw_rates[i];
+
+			return 0;
+		}
 	}
+
+	req->rate = ds3231_clk_sqw_rates[ARRAY_SIZE(ds3231_clk_sqw_rates) - 1];
 
 	return 0;
 }
@@ -1525,7 +1541,7 @@ static const struct clk_ops ds3231_clk_sqw_ops = {
 	.unprepare = ds3231_clk_sqw_unprepare,
 	.is_prepared = ds3231_clk_sqw_is_prepared,
 	.recalc_rate = ds3231_clk_sqw_recalc_rate,
-	.round_rate = ds3231_clk_sqw_round_rate,
+	.determine_rate = ds3231_clk_sqw_determine_rate,
 	.set_rate = ds3231_clk_sqw_set_rate,
 };
 
@@ -1813,10 +1829,8 @@ static int ds1307_probe(struct i2c_client *client)
 		regmap_write(ds1307->regmap, DS1337_REG_CONTROL,
 			     regs[0]);
 
-		/* oscillator fault?  clear flag, and warn */
+		/* oscillator fault? warn */
 		if (regs[1] & DS1337_BIT_OSF) {
-			regmap_write(ds1307->regmap, DS1337_REG_STATUS,
-				     regs[1] & ~DS1337_BIT_OSF);
 			dev_warn(ds1307->dev, "SET TIME!\n");
 		}
 		break;

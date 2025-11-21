@@ -103,7 +103,7 @@ static struct sunxi_desc_pin *init_pins_table(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	pins = devm_kzalloc(dev, desc->npins * sizeof(*pins), GFP_KERNEL);
+	pins = devm_kcalloc(dev, desc->npins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		return ERR_PTR(-ENOMEM);
 
@@ -199,7 +199,7 @@ static int prepare_function_table(struct device *dev, struct device_node *pnode,
 	 * Allocate the memory needed for the functions in one table.
 	 * We later use pointers into this table to mark each pin.
 	 */
-	func = devm_kzalloc(dev, num_funcs * sizeof(*func), GFP_KERNEL);
+	func = devm_kcalloc(dev, num_funcs, sizeof(*func), GFP_KERNEL);
 	if (!func)
 		return -ENOMEM;
 
@@ -274,8 +274,7 @@ static void fill_pin_function(struct device *dev, struct device_node *node,
 			if (!strcmp(pins[pin].pin.name, name))
 				break;
 		if (pin == npins) {
-			dev_warn(dev, "%s: cannot find pin %s\n",
-				 of_node_full_name(node), name);
+			dev_warn(dev, "%pOF: cannot find pin %s\n", node, name);
 			index++;
 			continue;
 		}
@@ -283,8 +282,8 @@ static void fill_pin_function(struct device *dev, struct device_node *node,
 		/* Read the associated mux value. */
 		muxval = sunxi_pinctrl_dt_read_pinmux(node, index);
 		if (muxval == INVALID_MUX) {
-			dev_warn(dev, "%s: invalid mux value for pin %s\n",
-				 of_node_full_name(node), name);
+			dev_warn(dev, "%pOF: invalid mux value for pin %s\n",
+				 node, name);
 			index++;
 			continue;
 		}

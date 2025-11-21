@@ -35,10 +35,6 @@
 	(typeof(ptr)) (__ptr + (off));					\
 })
 
-#ifdef CONFIG_MITIGATION_RETPOLINE
-#define __noretpoline __attribute__((__indirect_branch__("keep")))
-#endif
-
 #if defined(LATENT_ENTROPY_PLUGIN) && !defined(__CHECKER__)
 #define __latent_entropy __attribute__((latent_entropy))
 #endif
@@ -126,6 +122,8 @@
 #else
 #define __diag_GCC_8(s)
 #endif
+
+#define __diag_GCC_all(s)	__diag(s)
 
 #define __diag_ignore_all(option, comment) \
 	__diag(__diag_GCC_ignore option)

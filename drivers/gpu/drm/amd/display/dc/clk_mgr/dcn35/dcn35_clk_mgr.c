@@ -44,7 +44,7 @@
 #include "dcn31/dcn31_clk_mgr.h"
 
 #include "dc_dmub_srv.h"
-#include "link.h"
+#include "link_service.h"
 #include "logger_types.h"
 
 #undef DC_LOGGER
@@ -587,9 +587,118 @@ bool dcn35_are_clock_states_equal(struct dc_clocks *a,
 	return true;
 }
 
-static void dcn35_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
+static void dcn35_save_clk_registers_internal(struct dcn35_clk_internal *internal, struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	// read dtbclk
+	internal->CLK1_CLK4_CURRENT_CNT = REG_READ(CLK1_CLK4_CURRENT_CNT);
+	internal->CLK1_CLK4_BYPASS_CNTL = REG_READ(CLK1_CLK4_BYPASS_CNTL);
+
+	// read dcfclk
+	internal->CLK1_CLK3_CURRENT_CNT = REG_READ(CLK1_CLK3_CURRENT_CNT);
+	internal->CLK1_CLK3_BYPASS_CNTL = REG_READ(CLK1_CLK3_BYPASS_CNTL);
+
+	// read dcf deep sleep divider
+	internal->CLK1_CLK3_DS_CNTL = REG_READ(CLK1_CLK3_DS_CNTL);
+	internal->CLK1_CLK3_ALLOW_DS = REG_READ(CLK1_CLK3_ALLOW_DS);
+
+	// read dppclk
+	internal->CLK1_CLK1_CURRENT_CNT = REG_READ(CLK1_CLK1_CURRENT_CNT);
+	internal->CLK1_CLK1_BYPASS_CNTL = REG_READ(CLK1_CLK1_BYPASS_CNTL);
+
+	// read dprefclk
+	internal->CLK1_CLK2_CURRENT_CNT = REG_READ(CLK1_CLK2_CURRENT_CNT);
+	internal->CLK1_CLK2_BYPASS_CNTL = REG_READ(CLK1_CLK2_BYPASS_CNTL);
+
+	// read dispclk
+	internal->CLK1_CLK0_CURRENT_CNT = REG_READ(CLK1_CLK0_CURRENT_CNT);
+	internal->CLK1_CLK0_BYPASS_CNTL = REG_READ(CLK1_CLK0_BYPASS_CNTL);
+}
+
+static void dcn35_save_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
 		struct clk_mgr_dcn35 *clk_mgr)
 {
+	struct dcn35_clk_internal internal = {0};
+	char *bypass_clks[5] = {"0x0 DFS", "0x1 REFCLK", "0x2 ERROR", "0x3 400 FCH", "0x4 600 FCH"};
+
+	dcn35_save_clk_registers_internal(&internal, &clk_mgr->base.base);
+
+	regs_and_bypass->dcfclk = internal.CLK1_CLK3_CURRENT_CNT / 10;
+	regs_and_bypass->dcf_deep_sleep_divider = internal.CLK1_CLK3_DS_CNTL / 10;
+	regs_and_bypass->dcf_deep_sleep_allow = internal.CLK1_CLK3_ALLOW_DS;
+	regs_and_bypass->dprefclk = internal.CLK1_CLK2_CURRENT_CNT / 10;
+	regs_and_bypass->dispclk = internal.CLK1_CLK0_CURRENT_CNT / 10;
+	regs_and_bypass->dppclk = internal.CLK1_CLK1_CURRENT_CNT / 10;
+	regs_and_bypass->dtbclk = internal.CLK1_CLK4_CURRENT_CNT / 10;
+
+	regs_and_bypass->dppclk_bypass = internal.CLK1_CLK1_BYPASS_CNTL & 0x0007;
+	if (regs_and_bypass->dppclk_bypass < 0 || regs_and_bypass->dppclk_bypass > 4)
+		regs_and_bypass->dppclk_bypass = 0;
+	regs_and_bypass->dcfclk_bypass = internal.CLK1_CLK3_BYPASS_CNTL & 0x0007;
+	if (regs_and_bypass->dcfclk_bypass < 0 || regs_and_bypass->dcfclk_bypass > 4)
+		regs_and_bypass->dcfclk_bypass = 0;
+	regs_and_bypass->dispclk_bypass = internal.CLK1_CLK0_BYPASS_CNTL & 0x0007;
+	if (regs_and_bypass->dispclk_bypass < 0 || regs_and_bypass->dispclk_bypass > 4)
+		regs_and_bypass->dispclk_bypass = 0;
+	regs_and_bypass->dprefclk_bypass = internal.CLK1_CLK2_BYPASS_CNTL & 0x0007;
+	if (regs_and_bypass->dprefclk_bypass < 0 || regs_and_bypass->dprefclk_bypass > 4)
+		regs_and_bypass->dprefclk_bypass = 0;
+
+	if (clk_mgr->base.base.ctx->dc->debug.pstate_enabled) {
+		DC_LOG_SMU("clk_type,clk_value,deepsleep_cntl,deepsleep_allow,bypass\n");
+
+		DC_LOG_SMU("dcfclk,%d,%d,%d,%s\n",
+				   regs_and_bypass->dcfclk,
+				   regs_and_bypass->dcf_deep_sleep_divider,
+				   regs_and_bypass->dcf_deep_sleep_allow,
+				   bypass_clks[(int) regs_and_bypass->dcfclk_bypass]);
+
+		DC_LOG_SMU("dprefclk,%d,N/A,N/A,%s\n",
+			regs_and_bypass->dprefclk,
+			bypass_clks[(int) regs_and_bypass->dprefclk_bypass]);
+
+		DC_LOG_SMU("dispclk,%d,N/A,N/A,%s\n",
+			regs_and_bypass->dispclk,
+			bypass_clks[(int) regs_and_bypass->dispclk_bypass]);
+
+		// REGISTER VALUES
+		DC_LOG_SMU("reg_name,value,clk_type");
+
+		DC_LOG_SMU("CLK1_CLK3_CURRENT_CNT,%d,dcfclk",
+				internal.CLK1_CLK3_CURRENT_CNT);
+
+		DC_LOG_SMU("CLK1_CLK4_CURRENT_CNT,%d,dtbclk",
+					internal.CLK1_CLK4_CURRENT_CNT);
+
+		DC_LOG_SMU("CLK1_CLK3_DS_CNTL,%d,dcf_deep_sleep_divider",
+					internal.CLK1_CLK3_DS_CNTL);
+
+		DC_LOG_SMU("CLK1_CLK3_ALLOW_DS,%d,dcf_deep_sleep_allow",
+					internal.CLK1_CLK3_ALLOW_DS);
+
+		DC_LOG_SMU("CLK1_CLK2_CURRENT_CNT,%d,dprefclk",
+					internal.CLK1_CLK2_CURRENT_CNT);
+
+		DC_LOG_SMU("CLK1_CLK0_CURRENT_CNT,%d,dispclk",
+					internal.CLK1_CLK0_CURRENT_CNT);
+
+		DC_LOG_SMU("CLK1_CLK1_CURRENT_CNT,%d,dppclk",
+					internal.CLK1_CLK1_CURRENT_CNT);
+
+		DC_LOG_SMU("CLK1_CLK3_BYPASS_CNTL,%d,dcfclk_bypass",
+					internal.CLK1_CLK3_BYPASS_CNTL);
+
+		DC_LOG_SMU("CLK1_CLK2_BYPASS_CNTL,%d,dprefclk_bypass",
+					internal.CLK1_CLK2_BYPASS_CNTL);
+
+		DC_LOG_SMU("CLK1_CLK0_BYPASS_CNTL,%d,dispclk_bypass",
+					internal.CLK1_CLK0_BYPASS_CNTL);
+
+		DC_LOG_SMU("CLK1_CLK1_BYPASS_CNTL,%d,dppclk_bypass",
+					internal.CLK1_CLK1_BYPASS_CNTL);
+
+	}
 }
 
 static bool dcn35_is_spll_ssc_enabled(struct clk_mgr *clk_mgr_base)
@@ -623,6 +732,7 @@ static void init_clk_states(struct clk_mgr *clk_mgr)
 void dcn35_init_clocks(struct clk_mgr *clk_mgr)
 {
 	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr);
+	struct clk_mgr_dcn35 *clk_mgr_dcn35 = TO_CLK_MGR_DCN35(clk_mgr_int);
 
 	init_clk_states(clk_mgr);
 
@@ -633,6 +743,13 @@ void dcn35_init_clocks(struct clk_mgr *clk_mgr)
 	else
 		clk_mgr->dp_dto_source_clock_in_khz = clk_mgr->dprefclk_khz;
 
+	dcn35_save_clk_registers(&clk_mgr->boot_snapshot, clk_mgr_dcn35);
+
+	clk_mgr->clks.ref_dtbclk_khz =  clk_mgr->boot_snapshot.dtbclk * 10;
+	if (clk_mgr->boot_snapshot.dtbclk > 59000) {
+		/*dtbclk enabled based on */
+		clk_mgr->clks.dtbclk_en = true;
+	}
 }
 static struct clk_bw_params dcn35_bw_params = {
 	.vram_type = Ddr4MemType,
@@ -1323,7 +1440,7 @@ void dcn35_clk_mgr_construct(
 		dcn35_bw_params.wm_table = ddr5_wm_table;
 	}
 	/* Saved clocks configured at boot for debug purposes */
-	dcn35_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, clk_mgr);
+	dcn35_save_clk_registers(&clk_mgr->base.base.boot_snapshot, clk_mgr);
 
 	clk_mgr->base.base.dprefclk_khz = dcn35_smu_get_dprefclk(&clk_mgr->base);
 	clk_mgr->base.base.clks.ref_dtbclk_khz = 600000;

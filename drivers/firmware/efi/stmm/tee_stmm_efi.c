@@ -143,6 +143,10 @@ static efi_status_t mm_communicate(u8 *comm_buf, size_t payload_size)
 	return var_hdr->ret_status;
 }
 
+#define COMM_BUF_SIZE(__payload_size)	(MM_COMMUNICATE_HEADER_SIZE + \
+					 MM_VARIABLE_COMMUNICATE_SIZE + \
+					 (__payload_size))
+
 /**
  * setup_mm_hdr() -	Allocate a buffer for StandAloneMM and initialize the
  *			header data.
@@ -150,11 +154,9 @@ static efi_status_t mm_communicate(u8 *comm_buf, size_t payload_size)
  * @dptr:		pointer address to store allocated buffer
  * @payload_size:	payload size
  * @func:		standAloneMM function number
- * @ret:		EFI return code
  * Return:		pointer to corresponding StandAloneMM function buffer or NULL
  */
-static void *setup_mm_hdr(u8 **dptr, size_t payload_size, size_t func,
-			  efi_status_t *ret)
+static void *setup_mm_hdr(u8 **dptr, size_t payload_size, size_t func)
 {
 	const efi_guid_t mm_var_guid = EFI_MM_VARIABLE_GUID;
 	struct efi_mm_communicate_header *mm_hdr;
@@ -169,17 +171,13 @@ static void *setup_mm_hdr(u8 **dptr, size_t payload_size, size_t func,
 	if (max_buffer_size &&
 	    max_buffer_size < (MM_COMMUNICATE_HEADER_SIZE +
 			       MM_VARIABLE_COMMUNICATE_SIZE + payload_size)) {
-		*ret = EFI_INVALID_PARAMETER;
 		return NULL;
 	}
 
-	comm_buf = kzalloc(MM_COMMUNICATE_HEADER_SIZE +
-				   MM_VARIABLE_COMMUNICATE_SIZE + payload_size,
-			   GFP_KERNEL);
-	if (!comm_buf) {
-		*ret = EFI_OUT_OF_RESOURCES;
+	comm_buf = alloc_pages_exact(COMM_BUF_SIZE(payload_size),
+				     GFP_KERNEL | __GFP_ZERO);
+	if (!comm_buf)
 		return NULL;
-	}
 
 	mm_hdr = (struct efi_mm_communicate_header *)comm_buf;
 	memcpy(&mm_hdr->header_guid, &mm_var_guid, sizeof(mm_hdr->header_guid));
@@ -187,9 +185,7 @@ static void *setup_mm_hdr(u8 **dptr, size_t payload_size, size_t func,
 
 	var_hdr = (struct smm_variable_communicate_header *)mm_hdr->data;
 	var_hdr->function = func;
-	if (dptr)
-		*dptr = comm_buf;
-	*ret = EFI_SUCCESS;
+	*dptr = comm_buf;
 
 	return var_hdr->data;
 }
@@ -212,10 +208,9 @@ static efi_status_t get_max_payload(size_t *size)
 
 	payload_size = sizeof(*var_payload);
 	var_payload = setup_mm_hdr(&comm_buf, payload_size,
-				   SMM_VARIABLE_FUNCTION_GET_PAYLOAD_SIZE,
-				   &ret);
+				   SMM_VARIABLE_FUNCTION_GET_PAYLOAD_SIZE);
 	if (!var_payload)
-		return EFI_OUT_OF_RESOURCES;
+		return EFI_DEVICE_ERROR;
 
 	ret = mm_communicate(comm_buf, payload_size);
 	if (ret != EFI_SUCCESS)
@@ -239,7 +234,7 @@ static efi_status_t get_max_payload(size_t *size)
 	 */
 	*size -= 2;
 out:
-	kfree(comm_buf);
+	free_pages_exact(comm_buf, COMM_BUF_SIZE(payload_size));
 	return ret;
 }
 
@@ -259,9 +254,9 @@ static efi_status_t get_property_int(u16 *name, size_t name_size,
 
 	smm_property = setup_mm_hdr(
 		&comm_buf, payload_size,
-		SMM_VARIABLE_FUNCTION_VAR_CHECK_VARIABLE_PROPERTY_GET, &ret);
+		SMM_VARIABLE_FUNCTION_VAR_CHECK_VARIABLE_PROPERTY_GET);
 	if (!smm_property)
-		return EFI_OUT_OF_RESOURCES;
+		return EFI_DEVICE_ERROR;
 
 	memcpy(&smm_property->guid, vendor, sizeof(smm_property->guid));
 	smm_property->name_size = name_size;
@@ -282,7 +277,7 @@ static efi_status_t get_property_int(u16 *name, size_t name_size,
 	memcpy(var_property, &smm_property->property, sizeof(*var_property));
 
 out:
-	kfree(comm_buf);
+	free_pages_exact(comm_buf, COMM_BUF_SIZE(payload_size));
 	return ret;
 }
 
@@ -315,9 +310,9 @@ static efi_status_t tee_get_variable(u16 *name, efi_guid_t *vendor,
 
 	payload_size = MM_VARIABLE_ACCESS_HEADER_SIZE + name_size + tmp_dsize;
 	var_acc = setup_mm_hdr(&comm_buf, payload_size,
-			       SMM_VARIABLE_FUNCTION_GET_VARIABLE, &ret);
+			       SMM_VARIABLE_FUNCTION_GET_VARIABLE);
 	if (!var_acc)
-		return EFI_OUT_OF_RESOURCES;
+		return EFI_DEVICE_ERROR;
 
 	/* Fill in contents */
 	memcpy(&var_acc->guid, vendor, sizeof(var_acc->guid));
@@ -347,7 +342,7 @@ static efi_status_t tee_get_variable(u16 *name, efi_guid_t *vendor,
 	memcpy(data, (u8 *)var_acc->name + var_acc->name_size,
 	       var_acc->data_size);
 out:
-	kfree(comm_buf);
+	free_pages_exact(comm_buf, COMM_BUF_SIZE(payload_size));
 	return ret;
 }
 
@@ -380,10 +375,9 @@ static efi_status_t tee_get_next_variable(unsigned long *name_size,
 
 	payload_size = MM_VARIABLE_GET_NEXT_HEADER_SIZE + out_name_size;
 	var_getnext = setup_mm_hdr(&comm_buf, payload_size,
-				   SMM_VARIABLE_FUNCTION_GET_NEXT_VARIABLE_NAME,
-				   &ret);
+				SMM_VARIABLE_FUNCTION_GET_NEXT_VARIABLE_NAME);
 	if (!var_getnext)
-		return EFI_OUT_OF_RESOURCES;
+		return EFI_DEVICE_ERROR;
 
 	/* Fill in contents */
 	memcpy(&var_getnext->guid, guid, sizeof(var_getnext->guid));
@@ -404,7 +398,7 @@ static efi_status_t tee_get_next_variable(unsigned long *name_size,
 	memcpy(name, var_getnext->name, var_getnext->name_size);
 
 out:
-	kfree(comm_buf);
+	free_pages_exact(comm_buf, COMM_BUF_SIZE(payload_size));
 	return ret;
 }
 
@@ -437,9 +431,9 @@ static efi_status_t tee_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 	 * the properties, if the allocation fails
 	 */
 	var_acc = setup_mm_hdr(&comm_buf, payload_size,
-			       SMM_VARIABLE_FUNCTION_SET_VARIABLE, &ret);
+			       SMM_VARIABLE_FUNCTION_SET_VARIABLE);
 	if (!var_acc)
-		return EFI_OUT_OF_RESOURCES;
+		return EFI_DEVICE_ERROR;
 
 	/*
 	 * The API has the ability to override RO flags. If no RO check was
@@ -467,7 +461,7 @@ static efi_status_t tee_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 	ret = mm_communicate(comm_buf, payload_size);
 	dev_dbg(pvt_data.dev, "Set Variable %s %d %lx\n", __FILE__, __LINE__, ret);
 out:
-	kfree(comm_buf);
+	free_pages_exact(comm_buf, COMM_BUF_SIZE(payload_size));
 	return ret;
 }
 
@@ -492,10 +486,9 @@ static efi_status_t tee_query_variable_info(u32 attributes,
 
 	payload_size = sizeof(*mm_query_info);
 	mm_query_info = setup_mm_hdr(&comm_buf, payload_size,
-				SMM_VARIABLE_FUNCTION_QUERY_VARIABLE_INFO,
-				&ret);
+				SMM_VARIABLE_FUNCTION_QUERY_VARIABLE_INFO);
 	if (!mm_query_info)
-		return EFI_OUT_OF_RESOURCES;
+		return EFI_DEVICE_ERROR;
 
 	mm_query_info->attr = attributes;
 	ret = mm_communicate(comm_buf, payload_size);
@@ -507,7 +500,7 @@ static efi_status_t tee_query_variable_info(u32 attributes,
 	*max_variable_size = mm_query_info->max_variable_size;
 
 out:
-	kfree(comm_buf);
+	free_pages_exact(comm_buf, COMM_BUF_SIZE(payload_size));
 	return ret;
 }
 

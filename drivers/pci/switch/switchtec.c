@@ -269,10 +269,9 @@ static void mrpc_event_work(struct work_struct *work)
 
 	dev_dbg(&stdev->dev, "%s\n", __func__);
 
-	mutex_lock(&stdev->mrpc_mutex);
+	guard(mutex)(&stdev->mrpc_mutex);
 	cancel_delayed_work(&stdev->mrpc_timeout);
 	mrpc_complete_cmd(stdev);
-	mutex_unlock(&stdev->mrpc_mutex);
 }
 
 static void mrpc_error_complete_cmd(struct switchtec_dev *stdev)
@@ -1322,18 +1321,18 @@ static void stdev_kill(struct switchtec_dev *stdev)
 	cancel_delayed_work_sync(&stdev->mrpc_timeout);
 
 	/* Mark the hardware as unavailable and complete all completions */
-	mutex_lock(&stdev->mrpc_mutex);
-	stdev->alive = false;
+	scoped_guard (mutex, &stdev->mrpc_mutex) {
+		stdev->alive = false;
 
-	/* Wake up and kill any users waiting on an MRPC request */
-	list_for_each_entry_safe(stuser, tmpuser, &stdev->mrpc_queue, list) {
-		stuser->cmd_done = true;
-		wake_up_interruptible(&stuser->cmd_comp);
-		list_del_init(&stuser->list);
-		stuser_put(stuser);
+		/* Wake up and kill any users waiting on an MRPC request */
+		list_for_each_entry_safe(stuser, tmpuser, &stdev->mrpc_queue, list) {
+			stuser->cmd_done = true;
+			wake_up_interruptible(&stuser->cmd_comp);
+			list_del_init(&stuser->list);
+			stuser_put(stuser);
+		}
+
 	}
-
-	mutex_unlock(&stdev->mrpc_mutex);
 
 	/* Wake up any users waiting on event_wq */
 	wake_up_interruptible(&stdev->event_wq);

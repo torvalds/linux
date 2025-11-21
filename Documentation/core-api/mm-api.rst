@@ -118,7 +118,6 @@ More Memory Management Functions
 .. kernel-doc:: mm/memremap.c
 .. kernel-doc:: mm/hugetlb.c
 .. kernel-doc:: mm/swap.c
-.. kernel-doc:: mm/zpool.c
 .. kernel-doc:: mm/memcontrol.c
 .. #kernel-doc:: mm/memory-tiers.c (build warnings)
 .. kernel-doc:: mm/shmem.c
@@ -133,4 +132,3 @@ More Memory Management Functions
 .. kernel-doc:: mm/mmu_notifier.c
 .. kernel-doc:: mm/balloon_compaction.c
 .. kernel-doc:: mm/huge_memory.c
-.. kernel-doc:: mm/io-mapping.c

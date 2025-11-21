@@ -97,6 +97,7 @@ config KEXEC_JUMP
 config KEXEC_HANDOVER
 	bool "kexec handover"
 	depends on ARCH_SUPPORTS_KEXEC_HANDOVER && ARCH_SUPPORTS_KEXEC_FILE
+	depends on !DEFERRED_STRUCT_PAGE_INIT
 	select MEMBLOCK_KHO_SCRATCH
 	select KEXEC_FILE
 	select DEBUG_FS
@@ -146,6 +147,17 @@ config CRASH_DM_CRYPT_CONFIGS
 	help
 	  CRASH_DM_CRYPT cannot directly select CONFIGFS_FS, because that
 	  is required to be built-in.
+
+config CRASH_DUMP_KUNIT_TEST
+	tristate "Unit Tests for kernel crash dumps" if !KUNIT_ALL_TESTS
+	depends on CRASH_DUMP && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This option builds KUnit unit tests for kernel crash dumps. The unit
+	  tests will be used to verify the correctness of covered functions and
+	  also prevent any regression.
+
+	  If unsure, say N.
 
 config CRASH_HOTPLUG
 	bool "Update the crash elfcorehdr on system configuration changes"

@@ -339,7 +339,6 @@ int
 sid_to_id(struct cifs_sb_info *cifs_sb, struct smb_sid *psid,
 		struct cifs_fattr *fattr, uint sidtype)
 {
-	int rc = 0;
 	struct key *sidkey;
 	char *sidstr;
 	const struct cred *saved_cred;
@@ -446,12 +445,12 @@ out_revert_creds:
 	 * fails then we just fall back to using the ctx->linux_uid/linux_gid.
 	 */
 got_valid_id:
-	rc = 0;
 	if (sidtype == SIDOWNER)
 		fattr->cf_uid = fuid;
 	else
 		fattr->cf_gid = fgid;
-	return rc;
+
+	return 0;
 }
 
 int

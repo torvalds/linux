@@ -145,7 +145,8 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq,
 		   "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x "
 		   "%08x %08x\n",
-		   READ_ONCE(sd->processed), atomic_read(&sd->dropped),
+		   READ_ONCE(sd->processed),
+		   numa_drop_read(&sd->drop_counters),
 		   READ_ONCE(sd->time_squeeze), 0,
 		   0, 0, 0, 0, /* was fastroute */
 		   0,	/* was cpu_collision */

@@ -69,7 +69,7 @@ static int cirrus_scodec_test_gpio_set_config(struct gpio_chip *gc,
 					      unsigned long config)
 {
 	switch (pinconf_to_config_param(config)) {
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		return -EOPNOTSUPP;
 	default:
@@ -86,7 +86,7 @@ static const struct gpio_chip cirrus_scodec_test_gpio_chip = {
 	.direction_input	= cirrus_scodec_test_gpio_direction_in,
 	.get			= cirrus_scodec_test_gpio_get,
 	.direction_output	= cirrus_scodec_test_gpio_direction_out,
-	.set_rv			= cirrus_scodec_test_gpio_set,
+	.set			= cirrus_scodec_test_gpio_set,
 	.set_config		= cirrus_scodec_test_gpio_set_config,
 	.base			= -1,
 	.ngpio			= 32,

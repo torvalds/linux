@@ -91,7 +91,7 @@ struct blktyp_devidx_map {
 };
 
 static const char deviceNumber[TASDEVICE_DSP_TAS_MAX_DEVICE] = {
-	1, 2, 1, 2, 1, 1, 0, 2, 4, 3, 1, 2, 3, 4
+	1, 2, 1, 2, 1, 1, 0, 2, 4, 3, 1, 2, 3, 4, 1, 2
 };
 
 /* fixed m68k compiling issue: mapping table can save code field */
@@ -179,6 +179,16 @@ static struct tasdevice_config_info *tasdevice_add_config(
 			*status = -EINVAL;
 			dev_err(tas_priv->dev, "add conf: Out of boundary\n");
 			goto out;
+		}
+		/* If in the RCA bin file are several profiles with the
+		 * keyword "init", init_profile_id only store the last
+		 * init profile id.
+		 */
+		if (strnstr(&config_data[config_offset], "init", 64)) {
+			tas_priv->rcabin.init_profile_id =
+				tas_priv->rcabin.ncfgs - 1;
+			dev_dbg(tas_priv->dev, "%s: init profile id = %d\n",
+				__func__, tas_priv->rcabin.init_profile_id);
 		}
 		config_offset += 64;
 	}
@@ -283,6 +293,8 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw)
 	int i;
 
 	rca = &(tas_priv->rcabin);
+	/* Initialize to none */
+	rca->init_profile_id = -1;
 	fw_hdr = &(rca->fw_hdr);
 	if (!fmw || !fmw->data) {
 		dev_err(tas_priv->dev, "Failed to read %s\n",
@@ -506,6 +518,56 @@ static int fw_parse_data_kernel(struct tasdevice_fw *tas_fmw,
 	}
 
 out:
+	return offset;
+}
+
+static int fw_parse_tas5825_program_data_kernel(
+	struct tasdevice_priv *tas_priv, struct tasdevice_fw *tas_fmw,
+	const struct firmware *fmw, int offset)
+{
+	struct tasdevice_prog *program;
+	unsigned int i;
+
+	for (i = 0; i < tas_fmw->nr_programs; i++) {
+		program = &(tas_fmw->programs[i]);
+		if (offset + 72 > fmw->size) {
+			dev_err(tas_priv->dev, "%s: mpName error\n", __func__);
+			return -EINVAL;
+		}
+		/* Skip 65 unused byts*/
+		offset += 65;
+		offset = fw_parse_data_kernel(tas_fmw, &(program->dev_data),
+			fmw, offset);
+		if (offset < 0)
+			return offset;
+	}
+
+	return offset;
+}
+
+static int fw_parse_tas5825_configuration_data_kernel(
+	struct tasdevice_priv *tas_priv,
+	struct tasdevice_fw *tas_fmw, const struct firmware *fmw, int offset)
+{
+	const unsigned char *data = fmw->data;
+	struct tasdevice_config *config;
+	unsigned int i;
+
+	for (i = 0; i < tas_fmw->nr_configurations; i++) {
+		config = &(tas_fmw->configs[i]);
+		if (offset + 80 > fmw->size) {
+			dev_err(tas_priv->dev, "%s: mpName error\n", __func__);
+			return -EINVAL;
+		}
+		memcpy(config->name, &data[offset], 64);
+		/* Skip extra 8 bytes*/
+		offset += 72;
+		offset = fw_parse_data_kernel(tas_fmw, &(config->dev_data),
+			fmw, offset);
+		if (offset < 0)
+			return offset;
+	}
+
 	return offset;
 }
 
@@ -1826,7 +1888,8 @@ static void dspbin_type_check(struct tasdevice_priv *tas_priv,
 		else
 			tas_priv->dspbin_typ = TASDEV_ALPHA;
 	}
-	if (tas_priv->dspbin_typ != TASDEV_BASIC)
+	if ((tas_priv->dspbin_typ != TASDEV_BASIC) &&
+		(ppcver < PPC3_VERSION_TAS5825_BASE))
 		tas_priv->fw_parse_fct_param_address =
 			fw_parse_fct_param_address;
 }
@@ -1837,7 +1900,17 @@ static int dspfw_default_callback(struct tasdevice_priv *tas_priv,
 	int rc = 0;
 
 	if (drv_ver == 0x100) {
-		if (ppcver >= PPC3_VERSION_BASE) {
+		if (ppcver >= PPC3_VERSION_TAS5825_BASE) {
+			tas_priv->fw_parse_variable_header =
+				fw_parse_variable_header_kernel;
+			tas_priv->fw_parse_program_data =
+				fw_parse_tas5825_program_data_kernel;
+			tas_priv->fw_parse_configuration_data =
+				fw_parse_tas5825_configuration_data_kernel;
+			tas_priv->tasdevice_load_block =
+				tasdevice_load_block_kernel;
+			dspbin_type_check(tas_priv, ppcver);
+		} else if (ppcver >= PPC3_VERSION_BASE) {
 			tas_priv->fw_parse_variable_header =
 				fw_parse_variable_header_kernel;
 			tas_priv->fw_parse_program_data =

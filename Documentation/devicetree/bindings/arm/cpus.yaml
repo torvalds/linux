@@ -80,6 +80,8 @@ properties:
 
   compatible:
     enum:
+      - apm,potenza
+      - apm,strega
       - apple,avalanche
       - apple,blizzard
       - apple,cyclone
@@ -121,6 +123,10 @@ properties:
       - arm,arm1176jzf-s
       - arm,arm11mpcore
       - arm,armv8 # Only for s/w models
+      - arm,c1-nano
+      - arm,c1-premium
+      - arm,c1-pro
+      - arm,c1-ultra
       - arm,cortex-a5
       - arm,cortex-a7
       - arm,cortex-a8
@@ -143,11 +149,14 @@ properties:
       - arm,cortex-a78
       - arm,cortex-a78ae
       - arm,cortex-a78c
+      - arm,cortex-a320
       - arm,cortex-a510
       - arm,cortex-a520
+      - arm,cortex-a520ae
       - arm,cortex-a710
       - arm,cortex-a715
       - arm,cortex-a720
+      - arm,cortex-a720ae
       - arm,cortex-a725
       - arm,cortex-m0
       - arm,cortex-m0+
@@ -345,13 +354,36 @@ properties:
     deprecated: true
     description: Use 'cpu-supply' instead
 
+  pu-supply:
+    deprecated: true
+    description: Only for i.MX6Q/DL/SL SoCs.
+
+  soc-supply:
+    deprecated: true
+    description: Only for i.MX6/7 Soc.
+
   sram-supply:
     deprecated: true
     description: Use 'mem-supply' instead
 
+  fsl,soc-operating-points:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: FSL i.MX6 Soc operation-points when change cpu frequency
+    deprecated: true
+    items:
+      items:
+        - description: Frequency in kHz
+        - description: Voltage for OPP in uV
+
   mediatek,cci:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Link to Mediatek Cache Coherent Interconnect
+
+  edac-enabled:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      A72 CPUs support Error Detection And Correction (EDAC) on their L1 and
+      L2 caches. This flag marks this function as usable.
 
   qcom,saw:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -399,6 +431,17 @@ properties:
 allOf:
   - $ref: /schemas/cpu.yaml#
   - $ref: /schemas/opp/opp-v1.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: arm,cortex-a72
+    then:
+      # Allow edac-enabled only for Cortex A72
+      properties:
+        edac-enabled: false
+
   - if:
       # If the enable-method property contains one of those values
       properties:

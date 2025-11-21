@@ -26,8 +26,8 @@ u64                           bytes_acked                                 read_w
 u32                           dsack_dups
 u32                           snd_una                 read_mostly         read_write          tcp_wnd_end,tcp_urg_mode,tcp_minshall_check,tcp_cwnd_validate(tx);tcp_ack,tcp_may_update_window,tcp_clean_rtx_queue(write),tcp_ack_tstamp(rx)
 u32                           snd_sml                 read_write                              tcp_minshall_check,tcp_minshall_update
-u32                           rcv_tstamp                                  read_mostly         tcp_ack
-void *                        tcp_clean_acked                             read_mostly         tcp_ack
+u32                           rcv_tstamp              read_write          read_write          tcp_ack
+void *                        tcp_clean_acked         read_mostly                             tcp_ack
 u32                           lsndtime                read_write                              tcp_slow_start_after_idle_check,tcp_event_data_sent
 u32                           last_oow_ack_time
 u32                           compressed_ack_rcv_nxt
@@ -57,7 +57,7 @@ u8:1                          is_sack_reneg                               read_m
 u8:2                          fastopen_client_fail
 u8:4                          nonagle                 read_write                              tcp_skb_entail,tcp_push_pending_frames
 u8:1                          thin_lto
-u8:1                          recvmsg_inq
+u8:1                          recvmsg_inq                                 read_mostly         tcp_recvmsg
 u8:1                          repair                  read_mostly                             tcp_write_xmit
 u8:1                          frto
 u8                            repair_queue
@@ -101,6 +101,18 @@ u32                           prr_delivered
 u32                           prr_out                 read_mostly         read_mostly         tcp_rate_skb_sent,tcp_newly_delivered(tx);tcp_ack,tcp_rate_gen,tcp_clean_rtx_queue(rx)
 u32                           delivered               read_mostly         read_write          tcp_rate_skb_sent, tcp_newly_delivered(tx);tcp_ack, tcp_rate_gen, tcp_clean_rtx_queue (rx)
 u32                           delivered_ce            read_mostly         read_write          tcp_rate_skb_sent(tx);tcp_rate_gen(rx)
+u32                           received_ce             read_mostly         read_write
+u32[3]                        received_ecn_bytes      read_mostly         read_write
+u8:4                          received_ce_pending     read_mostly         read_write
+u32[3]                        delivered_ecn_bytes                         read_write
+u8:2                          syn_ect_snt             write_mostly        read_write
+u8:2                          syn_ect_rcv             read_mostly         read_write
+u8:2                          accecn_minlen           write_mostly        read_write
+u8:2                          est_ecnfield                                read_write
+u8:2                          accecn_opt_demand       read_mostly         read_write
+u8:2                          prev_ecnfield                               read_write
+u64                           accecn_opt_tstamp       read_write
+u8:4                          accecn_fail_mode
 u32                           lost                                        read_mostly         tcp_ack
 u32                           app_limited             read_write          read_mostly         tcp_rate_check_app_limited,tcp_rate_skb_sent(tx);tcp_rate_gen(rx)
 u64                           first_tx_mstamp         read_write                              tcp_rate_skb_sent

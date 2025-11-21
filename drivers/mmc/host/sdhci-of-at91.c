@@ -229,7 +229,6 @@ static int sdhci_at91_set_clks_presets(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sdhci_at91_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -243,9 +242,7 @@ static int sdhci_at91_suspend(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
 static int sdhci_at91_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -302,13 +299,10 @@ out:
 	sdhci_runtime_resume_host(host, 0);
 	return 0;
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops sdhci_at91_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sdhci_at91_suspend, pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(sdhci_at91_runtime_suspend,
-			   sdhci_at91_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(sdhci_at91_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(sdhci_at91_runtime_suspend, sdhci_at91_runtime_resume, NULL)
 };
 
 static int sdhci_at91_probe(struct platform_device *pdev)
@@ -460,7 +454,7 @@ static struct platform_driver sdhci_at91_driver = {
 		.name	= "sdhci-at91",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_at91_dt_match,
-		.pm	= &sdhci_at91_dev_pm_ops,
+		.pm	= pm_ptr(&sdhci_at91_dev_pm_ops),
 	},
 	.probe		= sdhci_at91_probe,
 	.remove		= sdhci_at91_remove,

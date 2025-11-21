@@ -14,3 +14,12 @@ config LIBIE_ADMINQ
 	help
 	  Helper functions used by Intel Ethernet drivers for administration
 	  queue command interface (aka adminq).
+
+config LIBIE_FWLOG
+	tristate
+	select LIBIE_ADMINQ
+	help
+	  Library to support firmware logging on device that have support
+	  for it. Firmware logging is using admin queue interface to communicate
+	  with the device. Debugfs is a user interface used to config logging
+	  and dump all collected logs.

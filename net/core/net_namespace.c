@@ -20,6 +20,7 @@
 #include <linux/sched/task.h>
 #include <linux/uidgid.h>
 #include <linux/proc_fs.h>
+#include <linux/nstree.h>
 
 #include <net/aligned_data.h>
 #include <net/sock.h>
@@ -314,7 +315,7 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 {
 	int id;
 
-	if (refcount_read(&net->ns.count) == 0)
+	if (!check_net(net))
 		return NETNSA_NSID_NOT_ASSIGNED;
 
 	spin_lock(&net->nsid_lock);
@@ -397,10 +398,15 @@ static __net_init void preinit_net_sysctl(struct net *net)
 }
 
 /* init code that must occur even if setup_net() is not called. */
-static __net_init void preinit_net(struct net *net, struct user_namespace *user_ns)
+static __net_init int preinit_net(struct net *net, struct user_namespace *user_ns)
 {
+	int ret;
+
+	ret = ns_common_init(net);
+	if (ret)
+		return ret;
+
 	refcount_set(&net->passive, 1);
-	refcount_set(&net->ns.count, 1);
 	ref_tracker_dir_init(&net->refcnt_tracker, 128, "net_refcnt");
 	ref_tracker_dir_init(&net->notrefcnt_tracker, 128, "net_notrefcnt");
 
@@ -420,6 +426,7 @@ static __net_init void preinit_net(struct net *net, struct user_namespace *user_
 	INIT_LIST_HEAD(&net->ptype_all);
 	INIT_LIST_HEAD(&net->ptype_specific);
 	preinit_net_sysctl(net);
+	return 0;
 }
 
 /*
@@ -432,7 +439,7 @@ static __net_init int setup_net(struct net *net)
 	LIST_HEAD(net_exit_list);
 	int error = 0;
 
-	net->net_cookie = atomic64_inc_return(&net_aligned_data.net_cookie);
+	net->net_cookie = ns_tree_gen_id(&net->ns);
 
 	list_for_each_entry(ops, &pernet_list, list) {
 		error = ops_init(ops, net);
@@ -442,6 +449,7 @@ static __net_init int setup_net(struct net *net)
 	down_write(&net_rwsem);
 	list_add_tail_rcu(&net->list, &net_namespace_list);
 	up_write(&net_rwsem);
+	ns_tree_add_raw(net);
 out:
 	return error;
 
@@ -539,7 +547,7 @@ void net_drop_ns(void *p)
 		net_passive_dec(net);
 }
 
-struct net *copy_net_ns(unsigned long flags,
+struct net *copy_net_ns(u64 flags,
 			struct user_namespace *user_ns, struct net *old_net)
 {
 	struct ucounts *ucounts;
@@ -559,7 +567,9 @@ struct net *copy_net_ns(unsigned long flags,
 		goto dec_ucounts;
 	}
 
-	preinit_net(net, user_ns);
+	rv = preinit_net(net, user_ns);
+	if (rv < 0)
+		goto dec_ucounts;
 	net->ucounts = ucounts;
 	get_user_ns(user_ns);
 
@@ -573,6 +583,7 @@ struct net *copy_net_ns(unsigned long flags,
 
 	if (rv < 0) {
 put_userns:
+		ns_common_free(net);
 #ifdef CONFIG_KEYS
 		key_remove_domain(net->key_domain);
 #endif
@@ -659,8 +670,10 @@ static void cleanup_net(struct work_struct *work)
 
 	/* Don't let anyone else find us. */
 	down_write(&net_rwsem);
-	llist_for_each_entry(net, net_kill_list, cleanup_list)
+	llist_for_each_entry(net, net_kill_list, cleanup_list) {
+		ns_tree_remove(net);
 		list_del_rcu(&net->list);
+	}
 	/* Cache last net. After we unlock rtnl, no one new net
 	 * added to net_namespace_list can assign nsid pointer
 	 * to a net from net_kill_list (see peernet2id_alloc()).
@@ -693,6 +706,7 @@ static void cleanup_net(struct work_struct *work)
 	/* Finally it is safe to free my network namespace structure */
 	list_for_each_entry_safe(net, tmp, &net_exit_list, exit_list) {
 		list_del_init(&net->exit_list);
+		ns_common_free(net);
 		dec_net_namespaces(net->ucounts);
 #ifdef CONFIG_KEYS
 		key_remove_domain(net->key_domain);
@@ -812,31 +826,12 @@ static void net_ns_net_debugfs(struct net *net)
 
 static __net_init int net_ns_net_init(struct net *net)
 {
-#ifdef CONFIG_NET_NS
-	net->ns.ops = &netns_operations;
-#endif
-	net->ns.inum = PROC_NET_INIT_INO;
-	if (net != &init_net) {
-		int ret = ns_alloc_inum(&net->ns);
-		if (ret)
-			return ret;
-	}
 	net_ns_net_debugfs(net);
 	return 0;
 }
 
-static __net_exit void net_ns_net_exit(struct net *net)
-{
-	/*
-	 * Initial network namespace doesn't exit so we don't need any
-	 * special checks here.
-	 */
-	ns_free_inum(&net->ns);
-}
-
 static struct pernet_operations __net_initdata net_ns_ops = {
 	.init = net_ns_net_init,
-	.exit = net_ns_net_exit,
 };
 
 static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
@@ -1282,7 +1277,12 @@ void __init net_ns_init(void)
 #ifdef CONFIG_KEYS
 	init_net.key_domain = &init_net_key_domain;
 #endif
-	preinit_net(&init_net, &init_user_ns);
+	/*
+	 * This currently cannot fail as the initial network namespace
+	 * has a static inode number.
+	 */
+	if (preinit_net(&init_net, &init_user_ns))
+		panic("Could not preinitialize the initial network namespace");
 
 	down_write(&pernet_ops_rwsem);
 	if (setup_net(&init_net))
@@ -1517,11 +1517,6 @@ static struct ns_common *netns_get(struct task_struct *task)
 	return net ? &net->ns : NULL;
 }
 
-static inline struct net *to_net_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct net, ns);
-}
-
 static void netns_put(struct ns_common *ns)
 {
 	put_net(to_net_ns(ns));
@@ -1548,7 +1543,6 @@ static struct user_namespace *netns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations netns_operations = {
 	.name		= "net",
-	.type		= CLONE_NEWNET,
 	.get		= netns_get,
 	.put		= netns_put,
 	.install	= netns_install,

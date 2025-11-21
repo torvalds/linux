@@ -15,6 +15,7 @@
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/errno.h>
@@ -235,7 +236,8 @@ struct pcie_link_state {
 	u32 aspm_support:7;		/* Supported ASPM state */
 	u32 aspm_enabled:7;		/* Enabled ASPM state */
 	u32 aspm_capable:7;		/* Capable ASPM state with latency */
-	u32 aspm_default:7;		/* Default ASPM state by BIOS */
+	u32 aspm_default:7;		/* Default ASPM state by BIOS or
+					   override */
 	u32 aspm_disable:7;		/* Disabled ASPM state */
 
 	/* Clock PM state */
@@ -788,6 +790,27 @@ static void aspm_l1ss_init(struct pcie_link_state *link)
 		aspm_calc_l12_info(link, parent_l1ss_cap, child_l1ss_cap);
 }
 
+#define FLAG(x, y, d)	(((x) & (PCIE_LINK_STATE_##y)) ? d : "")
+
+static void pcie_aspm_override_default_link_state(struct pcie_link_state *link)
+{
+	struct pci_dev *pdev = link->downstream;
+	u32 override;
+
+	/* For devicetree platforms, enable L0s and L1 by default */
+	if (of_have_populated_dt()) {
+		if (link->aspm_support & PCIE_LINK_STATE_L0S)
+			link->aspm_default |= PCIE_LINK_STATE_L0S;
+		if (link->aspm_support & PCIE_LINK_STATE_L1)
+			link->aspm_default |= PCIE_LINK_STATE_L1;
+		override = link->aspm_default & ~link->aspm_enabled;
+		if (override)
+			pci_info(pdev, "ASPM: default states%s%s\n",
+				 FLAG(override, L0S, " L0s"),
+				 FLAG(override, L1, " L1"));
+	}
+}
+
 static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 {
 	struct pci_dev *child = link->downstream, *parent = link->pdev;
@@ -867,6 +890,8 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 
 	/* Save default state */
 	link->aspm_default = link->aspm_enabled;
+
+	pcie_aspm_override_default_link_state(link);
 
 	/* Setup initial capable state. Will be updated later */
 	link->aspm_capable = link->aspm_support;

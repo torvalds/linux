@@ -451,6 +451,9 @@ struct snd_sof_widget {
 	 */
 	bool dynamic_pipeline_widget;
 
+	/* Scheduling domain (enum sof_comp_domain), unset, Low Latency, or Data Processing */
+	u32 comp_domain;
+
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
 	struct snd_sof_pipeline *spipe;
@@ -623,6 +626,11 @@ void snd_sof_pcm_init_elapsed_work(struct work_struct *work);
  */
 #define spcm_dbg(__spcm, __dir, __fmt, ...)					\
 	dev_dbg((__spcm)->scomp->dev, "pcm%u (%s), dir %d: " __fmt,		\
+		(__spcm)->pcm.pcm_id, (__spcm)->pcm.pcm_name, __dir,		\
+		##__VA_ARGS__)
+
+#define spcm_dbg_ratelimited(__spcm, __dir, __fmt, ...)				\
+	dev_dbg_ratelimited((__spcm)->scomp->dev, "pcm%u (%s), dir %d: " __fmt,	\
 		(__spcm)->pcm.pcm_id, (__spcm)->pcm.pcm_name, __dir,		\
 		##__VA_ARGS__)
 

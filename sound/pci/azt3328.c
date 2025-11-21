@@ -412,25 +412,25 @@ snd_azf3328_ctrl_outl(const struct snd_azf3328 *chip, unsigned reg, u32 value)
 	outl(value, chip->ctrl_io + reg);
 }
 
-static inline void
+static inline void __maybe_unused
 snd_azf3328_game_outb(const struct snd_azf3328 *chip, unsigned reg, u8 value)
 {
 	outb(value, chip->game_io + reg);
 }
 
-static inline void
+static inline void __maybe_unused
 snd_azf3328_game_outw(const struct snd_azf3328 *chip, unsigned reg, u16 value)
 {
 	outw(value, chip->game_io + reg);
 }
 
-static inline u8
+static inline u8 __maybe_unused
 snd_azf3328_game_inb(const struct snd_azf3328 *chip, unsigned reg)
 {
 	return inb(chip->game_io + reg);
 }
 
-static inline u16
+static inline u16 __maybe_unused
 snd_azf3328_game_inw(const struct snd_azf3328 *chip, unsigned reg)
 {
 	return inw(chip->game_io + reg);
@@ -1201,7 +1201,6 @@ snd_azf3328_codec_setfmt(struct snd_azf3328_codec_data *codec,
 			       unsigned int channels
 )
 {
-	unsigned long flags;
 	u16 val = 0xff00;
 	u8 freq = 0;
 
@@ -1244,7 +1243,7 @@ snd_azf3328_codec_setfmt(struct snd_azf3328_codec_data *codec,
 	if (format_width == 16)
 		val |= SOUNDFORMAT_FLAG_16BIT;
 
-	spin_lock_irqsave(codec->lock, flags);
+	guard(spinlock_irqsave)(codec->lock);
 
 	/* set bitrate/format */
 	snd_azf3328_codec_outw(codec, IDX_IO_CODEC_SOUNDFORMAT, val);
@@ -1266,8 +1265,6 @@ snd_azf3328_codec_setfmt(struct snd_azf3328_codec_data *codec,
 			DMA_EPILOGUE_SOMETHING |
 			DMA_SOMETHING_ELSE
 		);
-
-	spin_unlock_irqrestore(codec->lock, flags);
 }
 
 static inline void
@@ -1373,8 +1370,6 @@ snd_azf3328_codec_setdmaa(struct snd_azf3328 *chip,
 	if (!codec->running) {
 		/* AZF3328 uses a two buffer pointer DMA transfer approach */
 
-		unsigned long flags;
-
 		/* width 32bit (prevent overflow): */
 		u32 area_length;
 		struct codec_setup_io {
@@ -1405,11 +1400,10 @@ snd_azf3328_codec_setdmaa(struct snd_azf3328 *chip,
 		/* build combined I/O buffer length word */
 		setup_io.dma_lengths = (area_length << 16) | (area_length);
 
-		spin_lock_irqsave(codec->lock, flags);
+		guard(spinlock_irqsave)(codec->lock);
 		snd_azf3328_codec_outl_multi(
 			codec, IDX_IO_CODEC_DMA_START_1, &setup_io, 3
 		);
-		spin_unlock_irqrestore(codec->lock, flags);
 	}
 }
 
@@ -1464,48 +1458,48 @@ snd_azf3328_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			snd_pcm_format_width(runtime->format),
 			runtime->channels);
 
-		spin_lock(codec->lock);
-		/* first, remember current value: */
-		flags1 = snd_azf3328_codec_inw(codec, IDX_IO_CODEC_DMA_FLAGS);
+		scoped_guard(spinlock, codec->lock) {
+			/* first, remember current value: */
+			flags1 = snd_azf3328_codec_inw(codec, IDX_IO_CODEC_DMA_FLAGS);
 
-		/* stop transfer */
-		flags1 &= ~DMA_RESUME;
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
+			/* stop transfer */
+			flags1 &= ~DMA_RESUME;
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
 
-		/* FIXME: clear interrupts or what??? */
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_IRQTYPE, 0xffff);
-		spin_unlock(codec->lock);
+			/* FIXME: clear interrupts or what??? */
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_IRQTYPE, 0xffff);
+		}
 
 		snd_azf3328_codec_setdmaa(chip, codec, runtime->dma_addr,
 			snd_pcm_lib_period_bytes(substream),
 			snd_pcm_lib_buffer_bytes(substream)
 		);
 
-		spin_lock(codec->lock);
+		scoped_guard(spinlock, codec->lock) {
 #ifdef WIN9X
-		/* FIXME: enable playback/recording??? */
-		flags1 |= DMA_RUN_SOMETHING1 | DMA_RUN_SOMETHING2;
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
+			/* FIXME: enable playback/recording??? */
+			flags1 |= DMA_RUN_SOMETHING1 | DMA_RUN_SOMETHING2;
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
 
-		/* start transfer again */
-		/* FIXME: what is this value (0x0010)??? */
-		flags1 |= DMA_RESUME | DMA_EPILOGUE_SOMETHING;
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
+			/* start transfer again */
+			/* FIXME: what is this value (0x0010)??? */
+			flags1 |= DMA_RESUME | DMA_EPILOGUE_SOMETHING;
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
 #else /* NT4 */
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
-			0x0000);
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
-			DMA_RUN_SOMETHING1);
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
-			DMA_RUN_SOMETHING1 |
-			DMA_RUN_SOMETHING2);
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
-			DMA_RESUME |
-			SOMETHING_ALMOST_ALWAYS_SET |
-			DMA_EPILOGUE_SOMETHING |
-			DMA_SOMETHING_ELSE);
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
+					       0x0000);
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
+					       DMA_RUN_SOMETHING1);
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
+					       DMA_RUN_SOMETHING1 |
+					       DMA_RUN_SOMETHING2);
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
+					       DMA_RESUME |
+					       SOMETHING_ALMOST_ALWAYS_SET |
+					       DMA_EPILOGUE_SOMETHING |
+					       DMA_SOMETHING_ELSE);
 #endif
-		spin_unlock(codec->lock);
+		}
 		snd_azf3328_ctrl_codec_activity(chip, codec->type, 1);
 
 		if (is_main_mixer_playback_codec) {
@@ -1521,14 +1515,14 @@ snd_azf3328_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_RESUME:
 		dev_dbg(chip->card->dev, "PCM RESUME %s\n", codec->name);
 		/* resume codec if we were active */
-		spin_lock(codec->lock);
-		if (codec->running)
-			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
-				snd_azf3328_codec_inw(
-					codec, IDX_IO_CODEC_DMA_FLAGS
-				) | DMA_RESUME
-			);
-		spin_unlock(codec->lock);
+		scoped_guard(spinlock, codec->lock) {
+			if (codec->running)
+				snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS,
+						       snd_azf3328_codec_inw(
+									     codec, IDX_IO_CODEC_DMA_FLAGS
+									     ) | DMA_RESUME
+						       );
+		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		dev_dbg(chip->card->dev, "PCM STOP %s\n", codec->name);
@@ -1541,22 +1535,22 @@ snd_azf3328_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 				);
 		}
 
-		spin_lock(codec->lock);
-		/* first, remember current value: */
-		flags1 = snd_azf3328_codec_inw(codec, IDX_IO_CODEC_DMA_FLAGS);
+		scoped_guard(spinlock, codec->lock) {
+			/* first, remember current value: */
+			flags1 = snd_azf3328_codec_inw(codec, IDX_IO_CODEC_DMA_FLAGS);
 
-		/* stop transfer */
-		flags1 &= ~DMA_RESUME;
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
+			/* stop transfer */
+			flags1 &= ~DMA_RESUME;
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
 
-		/* hmm, is this really required? we're resetting the same bit
-		 * immediately thereafter... */
-		flags1 |= DMA_RUN_SOMETHING1;
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
+			/* hmm, is this really required? we're resetting the same bit
+			 * immediately thereafter... */
+			flags1 |= DMA_RUN_SOMETHING1;
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
 
-		flags1 &= ~DMA_RUN_SOMETHING1;
-		snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
-		spin_unlock(codec->lock);
+			flags1 &= ~DMA_RUN_SOMETHING1;
+			snd_azf3328_codec_outw(codec, IDX_IO_CODEC_DMA_FLAGS, flags1);
+		}
 		snd_azf3328_ctrl_codec_activity(chip, codec->type, 0);
 
 		if (is_main_mixer_playback_codec) {
@@ -1724,12 +1718,11 @@ snd_azf3328_gameport_cooked_read(struct gameport *gameport,
 	struct snd_azf3328 *chip = gameport_get_port_data(gameport);
 	int i;
 	u8 val;
-	unsigned long flags;
 
 	if (snd_BUG_ON(!chip))
 		return 0;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	val = snd_azf3328_game_inb(chip, IDX_GAME_LEGACY_COMPATIBLE);
 	*buttons = (~(val) >> 4) & 0xf;
 
@@ -1766,7 +1759,6 @@ snd_azf3328_gameport_cooked_read(struct gameport *gameport,
 	snd_azf3328_game_outb(chip, IDX_GAME_AXES_CONFIG, val);
 
 	snd_azf3328_game_outw(chip, IDX_GAME_AXIS_VALUE, 0xffff);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	for (i = 0; i < ARRAY_SIZE(chip->axes); i++) {
 		axes[i] = chip->axes[i];
@@ -1863,11 +1855,11 @@ snd_azf3328_pcm_interrupt(struct snd_azf3328 *chip,
 		if (!(status & (1 << codec_type)))
 			continue;
 
-		spin_lock(codec->lock);
-		which = snd_azf3328_codec_inb(codec, IDX_IO_CODEC_IRQTYPE);
-		/* ack all IRQ types immediately */
-		snd_azf3328_codec_outb(codec, IDX_IO_CODEC_IRQTYPE, which);
-		spin_unlock(codec->lock);
+		scoped_guard(spinlock, codec->lock) {
+			which = snd_azf3328_codec_inb(codec, IDX_IO_CODEC_IRQTYPE);
+			/* ack all IRQ types immediately */
+			snd_azf3328_codec_outb(codec, IDX_IO_CODEC_IRQTYPE, which);
+		}
 
 		if (codec->substream) {
 			snd_pcm_period_elapsed(codec->substream);
@@ -1912,9 +1904,9 @@ snd_azf3328_interrupt(int irq, void *dev_id)
 		if (chip->timer)
 			snd_timer_interrupt(chip->timer, chip->timer->sticks);
 		/* ACK timer */
-                spin_lock(&chip->reg_lock);
-		snd_azf3328_ctrl_outb(chip, IDX_IO_TIMER_VALUE + 3, 0x07);
-		spin_unlock(&chip->reg_lock);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			snd_azf3328_ctrl_outb(chip, IDX_IO_TIMER_VALUE + 3, 0x07);
+		}
 		dev_dbg(chip->card->dev, "timer IRQ\n");
 	}
 
@@ -2137,7 +2129,6 @@ static int
 snd_azf3328_timer_start(struct snd_timer *timer)
 {
 	struct snd_azf3328 *chip;
-	unsigned long flags;
 	unsigned int delay;
 
 	chip = snd_timer_chip(timer);
@@ -2152,9 +2143,8 @@ snd_azf3328_timer_start(struct snd_timer *timer)
 	}
 	dev_dbg(chip->card->dev, "setting timer countdown value %d\n", delay);
 	delay |= TIMER_COUNTDOWN_ENABLE | TIMER_IRQ_ENABLE;
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_azf3328_ctrl_outl(chip, IDX_IO_TIMER_VALUE, delay);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return 0;
 }
 
@@ -2162,10 +2152,9 @@ static int
 snd_azf3328_timer_stop(struct snd_timer *timer)
 {
 	struct snd_azf3328 *chip;
-	unsigned long flags;
 
 	chip = snd_timer_chip(timer);
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	/* disable timer countdown and interrupt */
 	/* Hmm, should we write TIMER_IRQ_ACK here?
 	   YES indeed, otherwise a rogue timer operation - which prompts
@@ -2174,7 +2163,6 @@ snd_azf3328_timer_stop(struct snd_timer *timer)
 	   Simply manually poking 0x04 _once_ immediately successfully stops
 	   the hardware/ALSA interrupt activity. */
 	snd_azf3328_ctrl_outb(chip, IDX_IO_TIMER_VALUE + 3, 0x04);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return 0;
 }
 
@@ -2406,10 +2394,9 @@ snd_azf3328_create(struct snd_card *card,
 		codec->running = true;
 		snd_azf3328_ctrl_codec_activity(chip, codec_type, 0);
 
-		spin_lock_irq(codec->lock);
+		guard(spinlock_irq)(codec->lock);
 		snd_azf3328_codec_outb(codec, IDX_IO_CODEC_DMA_FLAGS,
 						 dma_init);
-		spin_unlock_irq(codec->lock);
 	}
 
 	return 0;

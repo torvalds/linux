@@ -120,7 +120,6 @@ static void psb_fbdev_fb_destroy(struct fb_info *info)
 	drm_fb_helper_fini(fb_helper);
 
 	drm_framebuffer_unregister_private(fb);
-	fb->obj[0] = NULL;
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 
@@ -245,7 +244,6 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 
 err_drm_framebuffer_unregister_private:
 	drm_framebuffer_unregister_private(fb);
-	fb->obj[0] = NULL;
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 err_drm_gem_object_put:

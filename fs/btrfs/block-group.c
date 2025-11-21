@@ -1358,7 +1358,7 @@ struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
  * data in this block group. That check should be done by relocation routine,
  * not this function.
  */
-static int inc_block_group_ro(struct btrfs_block_group *cache, int force)
+static int inc_block_group_ro(struct btrfs_block_group *cache, bool force)
 {
 	struct btrfs_space_info *sinfo = cache->space_info;
 	u64 num_bytes;
@@ -1795,7 +1795,14 @@ static int reclaim_bgs_cmp(void *unused, const struct list_head *a,
 	bg1 = list_entry(a, struct btrfs_block_group, bg_list);
 	bg2 = list_entry(b, struct btrfs_block_group, bg_list);
 
-	return bg1->used > bg2->used;
+	/*
+	 * Some other task may be updating the ->used field concurrently, but it
+	 * is not serious if we get a stale value or load/store tearing issues,
+	 * as sorting the list of block groups to reclaim is not critical and an
+	 * occasional imperfect order is ok. So silence KCSAN and avoid the
+	 * overhead of locking or any other synchronization.
+	 */
+	return data_race(bg1->used > bg2->used);
 }
 
 static inline bool btrfs_should_reclaim(const struct btrfs_fs_info *fs_info)
@@ -1964,7 +1971,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		 * called, which is where we will transfer a reserved extent's
 		 * size from the "reserved" counter to the "used" counter - this
 		 * happens when running delayed references. When we relocate the
-		 * chunk below, relocation first flushes dellaloc, waits for
+		 * chunk below, relocation first flushes delalloc, waits for
 		 * ordered extent completion (which is where we create delayed
 		 * references for data extents) and commits the current
 		 * transaction (which runs delayed references), and only after
@@ -2031,7 +2038,7 @@ void btrfs_reclaim_bgs(struct btrfs_fs_info *fs_info)
 	btrfs_reclaim_sweep(fs_info);
 	spin_lock(&fs_info->unused_bgs_lock);
 	if (!list_empty(&fs_info->reclaim_bgs))
-		queue_work(system_unbound_wq, &fs_info->reclaim_bgs_work);
+		queue_work(system_dfl_wq, &fs_info->reclaim_bgs_work);
 	spin_unlock(&fs_info->unused_bgs_lock);
 }
 
@@ -2064,7 +2071,7 @@ static int read_bg_from_eb(struct btrfs_fs_info *fs_info, const struct btrfs_key
 		return -ENOENT;
 	}
 
-	if (map->start != key->objectid || map->chunk_len != key->offset) {
+	if (unlikely(map->start != key->objectid || map->chunk_len != key->offset)) {
 		btrfs_err(fs_info,
 			"block group %llu len %llu mismatch with chunk %llu len %llu",
 			  key->objectid, key->offset, map->start, map->chunk_len);
@@ -2077,7 +2084,7 @@ static int read_bg_from_eb(struct btrfs_fs_info *fs_info, const struct btrfs_key
 	flags = btrfs_stack_block_group_flags(&bg) &
 		BTRFS_BLOCK_GROUP_TYPE_MASK;
 
-	if (flags != (map->type & BTRFS_BLOCK_GROUP_TYPE_MASK)) {
+	if (unlikely(flags != (map->type & BTRFS_BLOCK_GROUP_TYPE_MASK))) {
 		btrfs_err(fs_info,
 "block group %llu len %llu type flags 0x%llx mismatch with chunk type flags 0x%llx",
 			  key->objectid, key->offset, flags,
@@ -2238,7 +2245,7 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 			return ret;
 
 		/* Shouldn't have super stripes in sequential zones */
-		if (zoned && nr) {
+		if (unlikely(zoned && nr)) {
 			kfree(logical);
 			btrfs_err(fs_info,
 			"zoned: block group %llu must not contain super block",
@@ -2329,7 +2336,7 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 			break;
 
 		bg = btrfs_lookup_block_group(fs_info, map->start);
-		if (!bg) {
+		if (unlikely(!bg)) {
 			btrfs_err(fs_info,
 	"chunk start=%llu len=%llu doesn't have corresponding block group",
 				     map->start, map->chunk_len);
@@ -2337,9 +2344,9 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 			btrfs_free_chunk_map(map);
 			break;
 		}
-		if (bg->start != map->start || bg->length != map->chunk_len ||
-		    (bg->flags & BTRFS_BLOCK_GROUP_TYPE_MASK) !=
-		    (map->type & BTRFS_BLOCK_GROUP_TYPE_MASK)) {
+		if (unlikely(bg->start != map->start || bg->length != map->chunk_len ||
+			     (bg->flags & BTRFS_BLOCK_GROUP_TYPE_MASK) !=
+			     (map->type & BTRFS_BLOCK_GROUP_TYPE_MASK))) {
 			btrfs_err(fs_info,
 "chunk start=%llu len=%llu flags=0x%llx doesn't match block group start=%llu len=%llu flags=0x%llx",
 				map->start, map->chunk_len,
@@ -2832,7 +2839,7 @@ next:
 		 * space or none at all (due to no need to COW, extent buffers
 		 * were already COWed in the current transaction and still
 		 * unwritten, tree heights lower than the maximum possible
-		 * height, etc). For data we generally reserve the axact amount
+		 * height, etc). For data we generally reserve the exact amount
 		 * of space we are going to allocate later, the exception is
 		 * when using compression, as we must reserve space based on the
 		 * uncompressed data size, because the compression is only done
@@ -3241,7 +3248,7 @@ again:
 	 */
 	BTRFS_I(inode)->generation = 0;
 	ret = btrfs_update_inode(trans, BTRFS_I(inode));
-	if (ret) {
+	if (unlikely(ret)) {
 		/*
 		 * So theoretically we could recover from this, simply set the
 		 * super cache generation to 0 so we know to invalidate the
@@ -3988,7 +3995,7 @@ static struct btrfs_block_group *do_chunk_alloc(struct btrfs_trans_handle *trans
 		struct btrfs_space_info *sys_space_info;
 
 		sys_space_info = btrfs_find_space_info(trans->fs_info, sys_flags);
-		if (!sys_space_info) {
+		if (unlikely(!sys_space_info)) {
 			ret = -EINVAL;
 			btrfs_abort_transaction(trans, ret);
 			goto out;
@@ -4002,17 +4009,17 @@ static struct btrfs_block_group *do_chunk_alloc(struct btrfs_trans_handle *trans
 		}
 
 		ret = btrfs_chunk_alloc_add_chunk_item(trans, sys_bg);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
 		ret = btrfs_chunk_alloc_add_chunk_item(trans, bg);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
-	} else if (ret) {
+	} else if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}

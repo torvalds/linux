@@ -126,7 +126,8 @@ static char *get_config_name(const struct parse_events_terms *head_terms)
 	return get_config_str(head_terms, PARSE_EVENTS__TERM_TYPE_NAME);
 }
 
-static struct perf_cpu_map *get_config_cpu(const struct parse_events_terms *head_terms)
+static struct perf_cpu_map *get_config_cpu(const struct parse_events_terms *head_terms,
+					   bool fake_pmu)
 {
 	struct parse_events_term *term;
 	struct perf_cpu_map *cpus = NULL;
@@ -135,24 +136,33 @@ static struct perf_cpu_map *get_config_cpu(const struct parse_events_terms *head
 		return NULL;
 
 	list_for_each_entry(term, &head_terms->terms, list) {
-		if (term->type_term == PARSE_EVENTS__TERM_TYPE_CPU) {
-			struct perf_cpu_map *term_cpus;
+		struct perf_cpu_map *term_cpus;
 
-			if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
-				term_cpus = perf_cpu_map__new_int(term->val.num);
+		if (term->type_term != PARSE_EVENTS__TERM_TYPE_CPU)
+			continue;
+
+		if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
+			term_cpus = perf_cpu_map__new_int(term->val.num);
+		} else {
+			struct perf_pmu *pmu = perf_pmus__find(term->val.str);
+
+			if (pmu) {
+				term_cpus = pmu->is_core && perf_cpu_map__is_empty(pmu->cpus)
+					    ? cpu_map__online()
+					    : perf_cpu_map__get(pmu->cpus);
 			} else {
-				struct perf_pmu *pmu = perf_pmus__find(term->val.str);
-
-				if (pmu && perf_cpu_map__is_empty(pmu->cpus))
-					term_cpus = pmu->is_core ? cpu_map__online() : NULL;
-				else if (pmu)
-					term_cpus = perf_cpu_map__get(pmu->cpus);
-				else
-					term_cpus = perf_cpu_map__new(term->val.str);
+				term_cpus = perf_cpu_map__new(term->val.str);
+				if (!term_cpus && fake_pmu) {
+					/*
+					 * Assume the PMU string makes sense on a different
+					 * machine and fake a value with all online CPUs.
+					 */
+					term_cpus = cpu_map__online();
+				}
 			}
-			perf_cpu_map__merge(&cpus, term_cpus);
-			perf_cpu_map__put(term_cpus);
 		}
+		perf_cpu_map__merge(&cpus, term_cpus);
+		perf_cpu_map__put(term_cpus);
 	}
 
 	return cpus;
@@ -369,13 +379,13 @@ static int parse_aliases(const char *str, const char *const names[][EVSEL__MAX_A
 
 typedef int config_term_func_t(struct perf_event_attr *attr,
 			       struct parse_events_term *term,
-			       struct parse_events_error *err);
+			       struct parse_events_state *parse_state);
 static int config_term_common(struct perf_event_attr *attr,
 			      struct parse_events_term *term,
-			      struct parse_events_error *err);
+			      struct parse_events_state *parse_state);
 static int config_attr(struct perf_event_attr *attr,
 		       const struct parse_events_terms *head,
-		       struct parse_events_error *err,
+		       struct parse_events_state *parse_state,
 		       config_term_func_t config_term);
 
 /**
@@ -471,7 +481,7 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 	bool found_supported = false;
 	const char *config_name = get_config_name(parsed_terms);
 	const char *metric_id = get_config_metric_id(parsed_terms);
-	struct perf_cpu_map *cpus = get_config_cpu(parsed_terms);
+	struct perf_cpu_map *cpus = get_config_cpu(parsed_terms, parse_state->fake_pmu);
 	int ret = 0;
 	struct evsel *first_wildcard_match = NULL;
 
@@ -514,8 +524,7 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 		found_supported = true;
 
 		if (parsed_terms) {
-			if (config_attr(&attr, parsed_terms, parse_state->error,
-					config_term_common)) {
+			if (config_attr(&attr, parsed_terms, parse_state, config_term_common)) {
 				ret = -EINVAL;
 				goto out_err;
 			}
@@ -767,8 +776,7 @@ int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 	attr.sample_period = 1;
 
 	if (head_config) {
-		if (config_attr(&attr, head_config, parse_state->error,
-				config_term_common))
+		if (config_attr(&attr, head_config, parse_state, config_term_common))
 			return -EINVAL;
 
 		if (get_config_terms(head_config, &config_terms))
@@ -834,6 +842,7 @@ const char *parse_events__term_type_str(enum parse_events__term_type term_type)
 		[PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE]          = "legacy-cache",
 		[PARSE_EVENTS__TERM_TYPE_HARDWARE]              = "hardware",
 		[PARSE_EVENTS__TERM_TYPE_CPU]			= "cpu",
+		[PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV]         = "ratio-to-prev",
 	};
 	if ((unsigned int)term_type >= __PARSE_EVENTS__TERM_TYPE_NR)
 		return "unknown term";
@@ -884,6 +893,7 @@ config_term_avail(enum parse_events__term_type term_type, struct parse_events_er
 	case PARSE_EVENTS__TERM_TYPE_RAW:
 	case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
 	case PARSE_EVENTS__TERM_TYPE_HARDWARE:
+	case PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV:
 	default:
 		if (!err)
 			return false;
@@ -903,12 +913,12 @@ void parse_events__shrink_config_terms(void)
 
 static int config_term_common(struct perf_event_attr *attr,
 			      struct parse_events_term *term,
-			      struct parse_events_error *err)
+			      struct parse_events_state *parse_state)
 {
-#define CHECK_TYPE_VAL(type)						   \
-do {									   \
-	if (check_type_val(term, err, PARSE_EVENTS__TERM_TYPE_ ## type)) \
-		return -EINVAL;						   \
+#define CHECK_TYPE_VAL(type)								\
+do {											\
+	if (check_type_val(term, parse_state->error, PARSE_EVENTS__TERM_TYPE_ ## type))	\
+		return -EINVAL;								\
 } while (0)
 
 	switch (term->type_term) {
@@ -939,7 +949,7 @@ do {									   \
 		if (strcmp(term->val.str, "no") &&
 		    parse_branch_str(term->val.str,
 				    &attr->branch_sample_type)) {
-			parse_events_error__handle(err, term->err_val,
+			parse_events_error__handle(parse_state->error, term->err_val,
 					strdup("invalid branch sample type"),
 					NULL);
 			return -EINVAL;
@@ -948,7 +958,7 @@ do {									   \
 	case PARSE_EVENTS__TERM_TYPE_TIME:
 		CHECK_TYPE_VAL(NUM);
 		if (term->val.num > 1) {
-			parse_events_error__handle(err, term->err_val,
+			parse_events_error__handle(parse_state->error, term->err_val,
 						strdup("expected 0 or 1"),
 						NULL);
 			return -EINVAL;
@@ -990,7 +1000,7 @@ do {									   \
 	case PARSE_EVENTS__TERM_TYPE_PERCORE:
 		CHECK_TYPE_VAL(NUM);
 		if ((unsigned int)term->val.num > 1) {
-			parse_events_error__handle(err, term->err_val,
+			parse_events_error__handle(parse_state->error, term->err_val,
 						strdup("expected 0 or 1"),
 						NULL);
 			return -EINVAL;
@@ -1005,7 +1015,7 @@ do {									   \
 	case PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE:
 		CHECK_TYPE_VAL(NUM);
 		if (term->val.num > UINT_MAX) {
-			parse_events_error__handle(err, term->err_val,
+			parse_events_error__handle(parse_state->error, term->err_val,
 						strdup("too big"),
 						NULL);
 			return -EINVAL;
@@ -1016,7 +1026,7 @@ do {									   \
 
 		if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
 			if (term->val.num >= (u64)cpu__max_present_cpu().cpu) {
-				parse_events_error__handle(err, term->err_val,
+				parse_events_error__handle(parse_state->error, term->err_val,
 							strdup("too big"),
 							/*help=*/NULL);
 				return -EINVAL;
@@ -1028,8 +1038,8 @@ do {									   \
 			break;
 
 		map = perf_cpu_map__new(term->val.str);
-		if (!map) {
-			parse_events_error__handle(err, term->err_val,
+		if (!map && !parse_state->fake_pmu) {
+			parse_events_error__handle(parse_state->error, term->err_val,
 						   strdup("not a valid PMU or CPU number"),
 						   /*help=*/NULL);
 			return -EINVAL;
@@ -1037,12 +1047,27 @@ do {									   \
 		perf_cpu_map__put(map);
 		break;
 	}
+	case PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV:
+		CHECK_TYPE_VAL(STR);
+		if (strtod(term->val.str, NULL) <= 0) {
+			parse_events_error__handle(parse_state->error, term->err_val,
+						   strdup("zero or negative"),
+						   NULL);
+			return -EINVAL;
+		}
+		if (errno == ERANGE) {
+			parse_events_error__handle(parse_state->error, term->err_val,
+						   strdup("too big"),
+						   NULL);
+			return -EINVAL;
+		}
+		break;
 	case PARSE_EVENTS__TERM_TYPE_DRV_CFG:
 	case PARSE_EVENTS__TERM_TYPE_USER:
 	case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
 	case PARSE_EVENTS__TERM_TYPE_HARDWARE:
 	default:
-		parse_events_error__handle(err, term->err_term,
+		parse_events_error__handle(parse_state->error, term->err_term,
 					strdup(parse_events__term_type_str(term->type_term)),
 					parse_events_formats_error_string(NULL));
 		return -EINVAL;
@@ -1057,7 +1082,7 @@ do {									   \
 	 * if an invalid config term is provided for legacy events
 	 * (for example, instructions/badterm/...), which is confusing.
 	 */
-	if (!config_term_avail(term->type_term, err))
+	if (!config_term_avail(term->type_term, parse_state->error))
 		return -EINVAL;
 	return 0;
 #undef CHECK_TYPE_VAL
@@ -1065,7 +1090,7 @@ do {									   \
 
 static int config_term_pmu(struct perf_event_attr *attr,
 			   struct parse_events_term *term,
-			   struct parse_events_error *err)
+			   struct parse_events_state *parse_state)
 {
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE) {
 		struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
@@ -1074,7 +1099,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			char *err_str;
 
 			if (asprintf(&err_str, "Failed to find PMU for type %d", attr->type) >= 0)
-				parse_events_error__handle(err, term->err_term,
+				parse_events_error__handle(parse_state->error, term->err_term,
 							   err_str, /*help=*/NULL);
 			return -EINVAL;
 		}
@@ -1100,7 +1125,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			char *err_str;
 
 			if (asprintf(&err_str, "Failed to find PMU for type %d", attr->type) >= 0)
-				parse_events_error__handle(err, term->err_term,
+				parse_events_error__handle(parse_state->error, term->err_term,
 							   err_str, /*help=*/NULL);
 			return -EINVAL;
 		}
@@ -1128,12 +1153,12 @@ static int config_term_pmu(struct perf_event_attr *attr,
 		 */
 		return 0;
 	}
-	return config_term_common(attr, term, err);
+	return config_term_common(attr, term, parse_state);
 }
 
 static int config_term_tracepoint(struct perf_event_attr *attr,
 				  struct parse_events_term *term,
-				  struct parse_events_error *err)
+				  struct parse_events_state *parse_state)
 {
 	switch (term->type_term) {
 	case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
@@ -1147,7 +1172,7 @@ static int config_term_tracepoint(struct perf_event_attr *attr,
 	case PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT:
 	case PARSE_EVENTS__TERM_TYPE_AUX_ACTION:
 	case PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE:
-		return config_term_common(attr, term, err);
+		return config_term_common(attr, term, parse_state);
 	case PARSE_EVENTS__TERM_TYPE_USER:
 	case PARSE_EVENTS__TERM_TYPE_CONFIG:
 	case PARSE_EVENTS__TERM_TYPE_CONFIG1:
@@ -1165,13 +1190,12 @@ static int config_term_tracepoint(struct perf_event_attr *attr,
 	case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
 	case PARSE_EVENTS__TERM_TYPE_HARDWARE:
 	case PARSE_EVENTS__TERM_TYPE_CPU:
+	case PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV:
 	default:
-		if (err) {
-			parse_events_error__handle(err, term->err_term,
+		parse_events_error__handle(parse_state->error, term->err_term,
 					strdup(parse_events__term_type_str(term->type_term)),
 					strdup("valid terms: call-graph,stack-size\n")
 				);
-		}
 		return -EINVAL;
 	}
 
@@ -1180,13 +1204,13 @@ static int config_term_tracepoint(struct perf_event_attr *attr,
 
 static int config_attr(struct perf_event_attr *attr,
 		       const struct parse_events_terms *head,
-		       struct parse_events_error *err,
+		       struct parse_events_state *parse_state,
 		       config_term_func_t config_term)
 {
 	struct parse_events_term *term;
 
 	list_for_each_entry(term, &head->terms, list)
-		if (config_term(attr, term, err))
+		if (config_term(attr, term, parse_state))
 			return -EINVAL;
 
 	return 0;
@@ -1289,6 +1313,9 @@ do {								\
 			ADD_CONFIG_TERM_VAL(AUX_SAMPLE_SIZE, aux_sample_size,
 					    term->val.num, term->weak);
 			break;
+		case PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV:
+			ADD_CONFIG_TERM_STR(RATIO_TO_PREV, term->val.str, term->weak);
+			break;
 		case PARSE_EVENTS__TERM_TYPE_USER:
 		case PARSE_EVENTS__TERM_TYPE_CONFIG:
 		case PARSE_EVENTS__TERM_TYPE_CONFIG1:
@@ -1355,6 +1382,7 @@ static int get_config_chgs(struct perf_pmu *pmu, struct parse_events_terms *head
 		case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
 		case PARSE_EVENTS__TERM_TYPE_HARDWARE:
 		case PARSE_EVENTS__TERM_TYPE_CPU:
+		case PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV:
 		default:
 			break;
 		}
@@ -1378,8 +1406,7 @@ int parse_events_add_tracepoint(struct parse_events_state *parse_state,
 	if (head_config) {
 		struct perf_event_attr attr;
 
-		if (config_attr(&attr, head_config, err,
-				config_term_tracepoint))
+		if (config_attr(&attr, head_config, parse_state, config_term_tracepoint))
 			return -EINVAL;
 	}
 
@@ -1408,8 +1435,7 @@ static int __parse_events_add_numeric(struct parse_events_state *parse_state,
 	}
 
 	if (head_config) {
-		if (config_attr(&attr, head_config, parse_state->error,
-				config_term_common))
+		if (config_attr(&attr, head_config, parse_state, config_term_common))
 			return -EINVAL;
 
 		if (get_config_terms(head_config, &config_terms))
@@ -1418,7 +1444,7 @@ static int __parse_events_add_numeric(struct parse_events_state *parse_state,
 
 	name = get_config_name(head_config);
 	metric_id = get_config_metric_id(head_config);
-	cpus = get_config_cpu(head_config);
+	cpus = get_config_cpu(head_config, parse_state->fake_pmu);
 	ret = __add_event(list, &parse_state->idx, &attr, /*init_attr*/true, name,
 			metric_id, pmu, &config_terms, first_wildcard_match,
 			cpus, /*alternate_hw_config=*/PERF_COUNT_HW_MAX) ? 0 : -ENOMEM;
@@ -1531,7 +1557,7 @@ static int parse_events_add_pmu(struct parse_events_state *parse_state,
 	fix_raw(&parsed_terms, pmu);
 
 	/* Configure attr/terms with a known PMU, this will set hardcoded terms. */
-	if (config_attr(&attr, &parsed_terms, parse_state->error, config_term_pmu)) {
+	if (config_attr(&attr, &parsed_terms, parse_state, config_term_pmu)) {
 		parse_events_terms__exit(&parsed_terms);
 		return -EINVAL;
 	}
@@ -1555,7 +1581,7 @@ static int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	/* Configure attr/terms again if an alias was expanded. */
 	if (alias_rewrote_terms &&
-	    config_attr(&attr, &parsed_terms, parse_state->error, config_term_pmu)) {
+	    config_attr(&attr, &parsed_terms, parse_state, config_term_pmu)) {
 		parse_events_terms__exit(&parsed_terms);
 		return -EINVAL;
 	}
@@ -1583,7 +1609,7 @@ static int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return -EINVAL;
 	}
 
-	term_cpu = get_config_cpu(&parsed_terms);
+	term_cpu = get_config_cpu(&parsed_terms, parse_state->fake_pmu);
 	evsel = __add_event(list, &parse_state->idx, &attr, /*init_attr=*/true,
 			    get_config_name(&parsed_terms),
 			    get_config_metric_id(&parsed_terms), pmu,
@@ -1892,6 +1918,8 @@ static int parse_events__modifier_list(struct parse_events_state *parse_state,
 			evsel->bpf_counter = true;
 		if (mod.retire_lat)
 			evsel->retire_lat = true;
+		if (mod.dont_regroup)
+			evsel->dont_regroup = true;
 	}
 	return 0;
 }
@@ -2188,13 +2216,12 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 		 * Set the group leader respecting the given groupings and that
 		 * groups can't span PMUs.
 		 */
-		if (!cur_leader) {
+		if (!cur_leader || pos->dont_regroup) {
 			cur_leader = pos;
 			cur_leaders_grp = &pos->core;
 			if (pos_force_grouped)
 				force_grouped_leader = pos;
 		}
-
 		cur_leader_pmu_name = cur_leader->group_pmu_name;
 		if (strcmp(cur_leader_pmu_name, pos_pmu_name)) {
 			/* PMU changed so the group/leader must change. */

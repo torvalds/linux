@@ -39,6 +39,10 @@
 #define DWC_PCIE_EVENT_CLEAR			GENMASK(1, 0)
 #define DWC_PCIE_EVENT_PER_CLEAR		0x1
 
+/* Event Selection Field has two subfields */
+#define DWC_PCIE_CNT_EVENT_SEL_GROUP		GENMASK(11, 8)
+#define DWC_PCIE_CNT_EVENT_SEL_EVID		GENMASK(7, 0)
+
 #define DWC_PCIE_EVENT_CNT_DATA			0xC
 
 #define DWC_PCIE_TIME_BASED_ANAL_CTL		0x10
@@ -73,6 +77,10 @@ enum dwc_pcie_event_type {
 	DWC_PCIE_EVENT_TYPE_MAX,
 };
 
+#define DWC_PCIE_LANE_GROUP_6 6
+#define DWC_PCIE_LANE_GROUP_7 7
+#define DWC_PCIE_LANE_MAX_EVENTS_PER_GROUP 256
+
 #define DWC_PCIE_LANE_EVENT_MAX_PERIOD		GENMASK_ULL(31, 0)
 #define DWC_PCIE_MAX_PERIOD			GENMASK_ULL(63, 0)
 
@@ -82,8 +90,11 @@ struct dwc_pcie_pmu {
 	u16			ras_des_offset;
 	u32			nr_lanes;
 
+	/* Groups #6 and #7 */
+	DECLARE_BITMAP(lane_events, 2 * DWC_PCIE_LANE_MAX_EVENTS_PER_GROUP);
+	struct perf_event	*time_based_event;
+
 	struct hlist_node	cpuhp_node;
-	struct perf_event	*event[DWC_PCIE_EVENT_TYPE_MAX];
 	int			on_cpu;
 };
 
@@ -246,19 +257,26 @@ static const struct attribute_group *dwc_pcie_attr_groups[] = {
 };
 
 static void dwc_pcie_pmu_lane_event_enable(struct dwc_pcie_pmu *pcie_pmu,
+					   struct perf_event *event,
 					   bool enable)
 {
 	struct pci_dev *pdev = pcie_pmu->pdev;
 	u16 ras_des_offset = pcie_pmu->ras_des_offset;
+	int event_id = DWC_PCIE_EVENT_ID(event);
+	int lane = DWC_PCIE_EVENT_LANE(event);
+	u32 ctrl;
+
+	ctrl = FIELD_PREP(DWC_PCIE_CNT_EVENT_SEL, event_id) |
+		FIELD_PREP(DWC_PCIE_CNT_LANE_SEL, lane) |
+		FIELD_PREP(DWC_PCIE_EVENT_CLEAR, DWC_PCIE_EVENT_PER_CLEAR);
 
 	if (enable)
-		pci_clear_and_set_config_dword(pdev,
-					ras_des_offset + DWC_PCIE_EVENT_CNT_CTL,
-					DWC_PCIE_CNT_ENABLE, DWC_PCIE_PER_EVENT_ON);
+		ctrl |= FIELD_PREP(DWC_PCIE_CNT_ENABLE, DWC_PCIE_PER_EVENT_ON);
 	else
-		pci_clear_and_set_config_dword(pdev,
-					ras_des_offset + DWC_PCIE_EVENT_CNT_CTL,
-					DWC_PCIE_CNT_ENABLE, DWC_PCIE_PER_EVENT_OFF);
+		ctrl |= FIELD_PREP(DWC_PCIE_CNT_ENABLE, DWC_PCIE_PER_EVENT_OFF);
+
+	pci_write_config_dword(pdev, ras_des_offset + DWC_PCIE_EVENT_CNT_CTL,
+			       ctrl);
 }
 
 static void dwc_pcie_pmu_time_based_event_enable(struct dwc_pcie_pmu *pcie_pmu,
@@ -276,10 +294,21 @@ static u64 dwc_pcie_pmu_read_lane_event_counter(struct perf_event *event)
 {
 	struct dwc_pcie_pmu *pcie_pmu = to_dwc_pcie_pmu(event->pmu);
 	struct pci_dev *pdev = pcie_pmu->pdev;
+	int event_id = DWC_PCIE_EVENT_ID(event);
+	int lane = DWC_PCIE_EVENT_LANE(event);
 	u16 ras_des_offset = pcie_pmu->ras_des_offset;
-	u32 val;
+	u32 val, ctrl;
 
+	ctrl = FIELD_PREP(DWC_PCIE_CNT_EVENT_SEL, event_id) |
+		FIELD_PREP(DWC_PCIE_CNT_LANE_SEL, lane) |
+		FIELD_PREP(DWC_PCIE_CNT_ENABLE, DWC_PCIE_PER_EVENT_ON);
+	pci_write_config_dword(pdev, ras_des_offset + DWC_PCIE_EVENT_CNT_CTL,
+			       ctrl);
 	pci_read_config_dword(pdev, ras_des_offset + DWC_PCIE_EVENT_CNT_DATA, &val);
+
+	ctrl |= FIELD_PREP(DWC_PCIE_EVENT_CLEAR, DWC_PCIE_EVENT_PER_CLEAR);
+	pci_write_config_dword(pdev, ras_des_offset + DWC_PCIE_EVENT_CNT_CTL,
+			       ctrl);
 
 	return val;
 }
@@ -329,24 +358,75 @@ static void dwc_pcie_pmu_event_update(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	enum dwc_pcie_event_type type = DWC_PCIE_EVENT_TYPE(event);
-	u64 delta, prev, now = 0;
+	u64 delta, prev, now;
+
+	if (type == DWC_PCIE_LANE_EVENT) {
+		now = dwc_pcie_pmu_read_lane_event_counter(event) &
+			DWC_PCIE_LANE_EVENT_MAX_PERIOD;
+		local64_add(now, &event->count);
+		return;
+	}
 
 	do {
 		prev = local64_read(&hwc->prev_count);
-
-		if (type == DWC_PCIE_LANE_EVENT)
-			now = dwc_pcie_pmu_read_lane_event_counter(event);
-		else if (type == DWC_PCIE_TIME_BASE_EVENT)
-			now = dwc_pcie_pmu_read_time_based_counter(event);
+		now = dwc_pcie_pmu_read_time_based_counter(event);
 
 	} while (local64_cmpxchg(&hwc->prev_count, prev, now) != prev);
 
 	delta = (now - prev) & DWC_PCIE_MAX_PERIOD;
-	/* 32-bit counter for Lane Event Counting */
-	if (type == DWC_PCIE_LANE_EVENT)
-		delta &= DWC_PCIE_LANE_EVENT_MAX_PERIOD;
-
 	local64_add(delta, &event->count);
+}
+
+static int dwc_pcie_pmu_validate_add_lane_event(struct perf_event *event,
+						unsigned long val_lane_events[])
+{
+	int event_id, event_nr, group;
+
+	event_id = DWC_PCIE_EVENT_ID(event);
+	event_nr = FIELD_GET(DWC_PCIE_CNT_EVENT_SEL_EVID, event_id);
+	group = FIELD_GET(DWC_PCIE_CNT_EVENT_SEL_GROUP, event_id);
+
+	if (group != DWC_PCIE_LANE_GROUP_6 && group != DWC_PCIE_LANE_GROUP_7)
+		return -EINVAL;
+
+	group -= DWC_PCIE_LANE_GROUP_6;
+
+	if (test_and_set_bit(group * DWC_PCIE_LANE_MAX_EVENTS_PER_GROUP + event_nr,
+			     val_lane_events))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int dwc_pcie_pmu_validate_group(struct perf_event *event)
+{
+	struct perf_event *sibling, *leader = event->group_leader;
+	DECLARE_BITMAP(val_lane_events, 2 * DWC_PCIE_LANE_MAX_EVENTS_PER_GROUP);
+	bool time_event = false;
+	int type;
+
+	type = DWC_PCIE_EVENT_TYPE(leader);
+	if (type == DWC_PCIE_TIME_BASE_EVENT)
+		time_event = true;
+	else
+		if (dwc_pcie_pmu_validate_add_lane_event(leader, val_lane_events))
+			return -ENOSPC;
+
+	for_each_sibling_event(sibling, leader) {
+		type = DWC_PCIE_EVENT_TYPE(sibling);
+		if (type == DWC_PCIE_TIME_BASE_EVENT) {
+			if (time_event)
+				return -ENOSPC;
+
+			time_event = true;
+			continue;
+		}
+
+		if (dwc_pcie_pmu_validate_add_lane_event(sibling, val_lane_events))
+			return -ENOSPC;
+	}
+
+	return 0;
 }
 
 static int dwc_pcie_pmu_event_init(struct perf_event *event)
@@ -367,10 +447,6 @@ static int dwc_pcie_pmu_event_init(struct perf_event *event)
 	if (event->cpu < 0 || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
 
-	if (event->group_leader != event &&
-	    !is_software_event(event->group_leader))
-		return -EINVAL;
-
 	for_each_sibling_event(sibling, event->group_leader) {
 		if (sibling->pmu != event->pmu && !is_software_event(sibling))
 			return -EINVAL;
@@ -384,6 +460,9 @@ static int dwc_pcie_pmu_event_init(struct perf_event *event)
 		if (lane < 0 || lane >= pcie_pmu->nr_lanes)
 			return -EINVAL;
 	}
+
+	if (dwc_pcie_pmu_validate_group(event))
+		return -ENOSPC;
 
 	event->cpu = pcie_pmu->on_cpu;
 
@@ -400,7 +479,7 @@ static void dwc_pcie_pmu_event_start(struct perf_event *event, int flags)
 	local64_set(&hwc->prev_count, 0);
 
 	if (type == DWC_PCIE_LANE_EVENT)
-		dwc_pcie_pmu_lane_event_enable(pcie_pmu, true);
+		dwc_pcie_pmu_lane_event_enable(pcie_pmu, event, true);
 	else if (type == DWC_PCIE_TIME_BASE_EVENT)
 		dwc_pcie_pmu_time_based_event_enable(pcie_pmu, true);
 }
@@ -414,12 +493,13 @@ static void dwc_pcie_pmu_event_stop(struct perf_event *event, int flags)
 	if (event->hw.state & PERF_HES_STOPPED)
 		return;
 
+	dwc_pcie_pmu_event_update(event);
+
 	if (type == DWC_PCIE_LANE_EVENT)
-		dwc_pcie_pmu_lane_event_enable(pcie_pmu, false);
+		dwc_pcie_pmu_lane_event_enable(pcie_pmu, event, false);
 	else if (type == DWC_PCIE_TIME_BASE_EVENT)
 		dwc_pcie_pmu_time_based_event_enable(pcie_pmu, false);
 
-	dwc_pcie_pmu_event_update(event);
 	hwc->state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
 }
 
@@ -434,14 +514,17 @@ static int dwc_pcie_pmu_event_add(struct perf_event *event, int flags)
 	u16 ras_des_offset = pcie_pmu->ras_des_offset;
 	u32 ctrl;
 
-	/* one counter for each type and it is in use */
-	if (pcie_pmu->event[type])
-		return -ENOSPC;
-
-	pcie_pmu->event[type] = event;
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 
 	if (type == DWC_PCIE_LANE_EVENT) {
+		int event_nr = FIELD_GET(DWC_PCIE_CNT_EVENT_SEL_EVID, event_id);
+		int group = FIELD_GET(DWC_PCIE_CNT_EVENT_SEL_GROUP, event_id) -
+			DWC_PCIE_LANE_GROUP_6;
+
+		if (test_and_set_bit(group * DWC_PCIE_LANE_MAX_EVENTS_PER_GROUP + event_nr,
+				     pcie_pmu->lane_events))
+			return -ENOSPC;
+
 		/* EVENT_COUNTER_DATA_REG needs clear manually */
 		ctrl = FIELD_PREP(DWC_PCIE_CNT_EVENT_SEL, event_id) |
 			FIELD_PREP(DWC_PCIE_CNT_LANE_SEL, lane) |
@@ -450,6 +533,11 @@ static int dwc_pcie_pmu_event_add(struct perf_event *event, int flags)
 		pci_write_config_dword(pdev, ras_des_offset + DWC_PCIE_EVENT_CNT_CTL,
 				       ctrl);
 	} else if (type == DWC_PCIE_TIME_BASE_EVENT) {
+		if (pcie_pmu->time_based_event)
+			return -ENOSPC;
+
+		pcie_pmu->time_based_event = event;
+
 		/*
 		 * TIME_BASED_ANAL_DATA_REG is a 64 bit register, we can safely
 		 * use it with any manually controlled duration. And it is
@@ -478,7 +566,18 @@ static void dwc_pcie_pmu_event_del(struct perf_event *event, int flags)
 
 	dwc_pcie_pmu_event_stop(event, flags | PERF_EF_UPDATE);
 	perf_event_update_userpage(event);
-	pcie_pmu->event[type] = NULL;
+
+	if (type == DWC_PCIE_TIME_BASE_EVENT) {
+		pcie_pmu->time_based_event = NULL;
+	} else {
+		int event_id = DWC_PCIE_EVENT_ID(event);
+		int event_nr = FIELD_GET(DWC_PCIE_CNT_EVENT_SEL_EVID, event_id);
+		int group    = FIELD_GET(DWC_PCIE_CNT_EVENT_SEL_GROUP, event_id) -
+			DWC_PCIE_LANE_GROUP_6;
+
+		clear_bit(group * DWC_PCIE_LANE_MAX_EVENTS_PER_GROUP + event_nr,
+			  pcie_pmu->lane_events);
+	}
 }
 
 static void dwc_pcie_pmu_remove_cpuhp_instance(void *hotplug_node)

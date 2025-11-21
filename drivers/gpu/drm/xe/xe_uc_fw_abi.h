@@ -44,6 +44,39 @@
  *    in fw. So driver will load a truncated firmware in this case.
  */
 
+struct uc_css_rsa_info {
+	u32 key_size_dw;
+	u32 modulus_size_dw;
+	u32 exponent_size_dw;
+} __packed;
+
+struct uc_css_guc_info {
+	u32 time;
+#define CSS_TIME_HOUR				(0xFF << 0)
+#define CSS_TIME_MIN				(0xFF << 8)
+#define CSS_TIME_SEC				(0xFFFF << 16)
+	u32 reserved0[5];
+	u32 sw_version;
+#define CSS_SW_VERSION_UC_MAJOR			(0xFF << 16)
+#define CSS_SW_VERSION_UC_MINOR			(0xFF << 8)
+#define CSS_SW_VERSION_UC_PATCH			(0xFF << 0)
+	u32 submission_version;
+	u32 reserved1[11];
+	u32 header_info;
+#define CSS_HEADER_INFO_SVN			(0xFF)
+#define CSS_HEADER_INFO_COPY_VALID		(0x1 << 31)
+	u32 private_data_size;
+	u32 ukernel_info;
+#define CSS_UKERNEL_INFO_DEVICEID		(0xFFFF << 16)
+#define CSS_UKERNEL_INFO_PRODKEY		(0xFF << 8)
+#define CSS_UKERNEL_INFO_BUILDTYPE		(0x3 << 2)
+#define CSS_UKERNEL_INFO_BUILDTYPE_PROD		0
+#define CSS_UKERNEL_INFO_BUILDTYPE_PREPROD	1
+#define CSS_UKERNEL_INFO_BUILDTYPE_DEBUG	2
+#define CSS_UKERNEL_INFO_ENCSTATUS		(0x1 << 1)
+#define CSS_UKERNEL_INFO_COPY_VALID		(0x1 << 0)
+} __packed;
+
 struct uc_css_header {
 	u32 module_type;
 	/*
@@ -52,36 +85,21 @@ struct uc_css_header {
 	 */
 	u32 header_size_dw;
 	u32 header_version;
-	u32 module_id;
+	u32 reserved0;
 	u32 module_vendor;
 	u32 date;
-#define CSS_DATE_DAY			(0xFF << 0)
-#define CSS_DATE_MONTH			(0xFF << 8)
-#define CSS_DATE_YEAR			(0xFFFF << 16)
+#define CSS_DATE_DAY				(0xFF << 0)
+#define CSS_DATE_MONTH				(0xFF << 8)
+#define CSS_DATE_YEAR				(0xFFFF << 16)
 	u32 size_dw; /* uCode plus header_size_dw */
-	u32 key_size_dw;
-	u32 modulus_size_dw;
-	u32 exponent_size_dw;
-	u32 time;
-#define CSS_TIME_HOUR			(0xFF << 0)
-#define CSS_DATE_MIN			(0xFF << 8)
-#define CSS_DATE_SEC			(0xFFFF << 16)
-	char username[8];
-	char buildnumber[12];
-	u32 sw_version;
-#define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
-#define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
-#define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
 	union {
-		u32 submission_version; /* only applies to GuC */
-		u32 reserved2;
+		u32 reserved1[3];
+		struct uc_css_rsa_info rsa_info;
 	};
-	u32 reserved0[12];
 	union {
-		u32 private_data_size; /* only applies to GuC */
-		u32 reserved1;
+		u32 reserved2[22];
+		struct uc_css_guc_info guc_info;
 	};
-	u32 header_info;
 } __packed;
 static_assert(sizeof(struct uc_css_header) == 128);
 
@@ -316,6 +334,72 @@ struct gsc_manifest_header {
 	u8 reserved3[56];
 	u32 modulus_size; /* in dwords */
 	u32 exponent_size; /* in dwords */
+} __packed;
+
+/**
+ * DOC: Late binding Firmware Layout
+ *
+ * The Late binding binary starts with FPT header, which contains locations
+ * of various partitions of the binary. Here we're interested in finding out
+ * manifest version. To the manifest version, we need to locate CPD header
+ * one of the entry in CPD header points to manifest header. Manifest header
+ * contains the version.
+ *
+ *      +================================================+
+ *      |  FPT Header                                    |
+ *      +================================================+
+ *      |  FPT entries[]                                 |
+ *      |      entry1                                    |
+ *      |      ...                                       |
+ *      |      entryX                                    |
+ *      |          "LTES"                                |
+ *      |          ...                                   |
+ *      |          offset  >-----------------------------|------o
+ *      +================================================+      |
+ *                                                              |
+ *      +================================================+      |
+ *      |  CPD Header                                    |<-----o
+ *      +================================================+
+ *      |  CPD entries[]                                 |
+ *      |      entry1                                    |
+ *      |      ...                                       |
+ *      |      entryX                                    |
+ *      |          "LTES.man"                            |
+ *      |           ...                                  |
+ *      |           offset  >----------------------------|------o
+ *      +================================================+      |
+ *                                                              |
+ *      +================================================+      |
+ *      |  Manifest Header                               |<-----o
+ *      |      ...                                       |
+ *      |      FW version                                |
+ *      |      ...                                       |
+ *      +================================================+
+ */
+
+/* FPT Headers */
+struct csc_fpt_header {
+	u32 header_marker;
+#define CSC_FPT_HEADER_MARKER 0x54504624
+	u32 num_of_entries;
+	u8 header_version;
+	u8 entry_version;
+	u8 header_length; /* in bytes */
+	u8 flags;
+	u16 ticks_to_add;
+	u16 tokens_to_add;
+	u32 uma_size;
+	u32 crc32;
+	struct gsc_version fitc_version;
+} __packed;
+
+struct csc_fpt_entry {
+	u8 name[4]; /* partition name */
+	u32 reserved1;
+	u32 offset; /* offset from beginning of CSE region */
+	u32 length; /* partition length in bytes */
+	u32 reserved2[3];
+	u32 partition_flags;
 } __packed;
 
 #endif

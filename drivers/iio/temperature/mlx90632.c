@@ -1043,7 +1043,6 @@ static int mlx90632_read_raw(struct iio_dev *indio_dev,
 	}
 
 mlx90632_read_raw_pm:
-	pm_runtime_mark_last_busy(&data->client->dev);
 	pm_runtime_put_autosuspend(&data->client->dev);
 	return ret;
 }
@@ -1178,10 +1177,8 @@ static int mlx90632_probe(struct i2c_client *client)
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*mlx90632));
-	if (!indio_dev) {
-		dev_err(&client->dev, "Failed to allocate device\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	regmap = devm_regmap_init_i2c(client, &mlx90632_regmap);
 	if (IS_ERR(regmap)) {

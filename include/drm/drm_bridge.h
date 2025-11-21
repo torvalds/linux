@@ -23,6 +23,7 @@
 #ifndef __DRM_BRIDGE_H__
 #define __DRM_BRIDGE_H__
 
+#include <linux/cleanup.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -866,13 +867,61 @@ struct drm_bridge_funcs {
 				      struct drm_connector *connector,
 				      bool enable, int direction);
 
+	/**
+	 * @hdmi_cec_init:
+	 *
+	 * Initialize CEC part of the bridge.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_HDMI_CEC_ADAPTER flag in their
+	 * &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
 	int (*hdmi_cec_init)(struct drm_bridge *bridge,
 			     struct drm_connector *connector);
 
+	/**
+	 * @hdmi_cec_enable:
+	 *
+	 * Enable or disable the CEC adapter inside the bridge.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_HDMI_CEC_ADAPTER flag in their
+	 * &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
 	int (*hdmi_cec_enable)(struct drm_bridge *bridge, bool enable);
 
+	/**
+	 * @hdmi_cec_log_addr:
+	 *
+	 * Set the logical address of the CEC adapter inside the bridge.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_HDMI_CEC_ADAPTER flag in their
+	 * &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
 	int (*hdmi_cec_log_addr)(struct drm_bridge *bridge, u8 logical_addr);
 
+	/**
+	 * @hdmi_cec_transmit:
+	 *
+	 * Transmit the message using the CEC adapter inside the bridge.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_HDMI_CEC_ADAPTER flag in their
+	 * &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
 	int (*hdmi_cec_transmit)(struct drm_bridge *bridge, u8 attempts,
 				 u32 signal_free_time, struct cec_msg *msg);
 
@@ -1123,6 +1172,10 @@ struct drm_bridge {
 	 */
 	bool pre_enable_prev_first;
 	/**
+	 * @support_hdcp: Indicate that the bridge supports HDCP.
+	 */
+	bool support_hdcp;
+	/**
 	 * @ddc: Associated I2C adapter for DDC access, if any.
 	 */
 	struct i2c_adapter *ddc;
@@ -1228,6 +1281,9 @@ drm_priv_to_bridge(struct drm_private_obj *priv)
 struct drm_bridge *drm_bridge_get(struct drm_bridge *bridge);
 void drm_bridge_put(struct drm_bridge *bridge);
 
+/* Cleanup action for use with __free() */
+DEFINE_FREE(drm_bridge_put, struct drm_bridge *, if (_T) drm_bridge_put(_T))
+
 void *__devm_drm_bridge_alloc(struct device *dev, size_t size, size_t offset,
 			      const struct drm_bridge_funcs *funcs);
 
@@ -1264,6 +1320,11 @@ static inline struct drm_bridge *of_drm_find_bridge(struct device_node *np)
 	return NULL;
 }
 #endif
+
+static inline bool drm_bridge_is_last(struct drm_bridge *bridge)
+{
+	return list_is_last(&bridge->chain_node, &bridge->encoder->bridge_chain);
+}
 
 /**
  * drm_bridge_get_current_state() - Get the current bridge state
@@ -1317,6 +1378,13 @@ drm_bridge_get_next_bridge(struct drm_bridge *bridge)
  * drm_bridge_get_prev_bridge() - Get the previous bridge in the chain
  * @bridge: bridge object
  *
+ * The caller is responsible of having a reference to @bridge via
+ * drm_bridge_get() or equivalent. This function leaves the refcount of
+ * @bridge unmodified.
+ *
+ * The refcount of the returned bridge is incremented. Use drm_bridge_put()
+ * when done with it.
+ *
  * RETURNS:
  * the previous bridge in the chain, or NULL if @bridge is the first.
  */
@@ -1326,12 +1394,15 @@ drm_bridge_get_prev_bridge(struct drm_bridge *bridge)
 	if (list_is_first(&bridge->chain_node, &bridge->encoder->bridge_chain))
 		return NULL;
 
-	return list_prev_entry(bridge, chain_node);
+	return drm_bridge_get(list_prev_entry(bridge, chain_node));
 }
 
 /**
  * drm_bridge_chain_get_first_bridge() - Get the first bridge in the chain
  * @encoder: encoder object
+ *
+ * The refcount of the returned bridge is incremented. Use drm_bridge_put()
+ * when done with it.
  *
  * RETURNS:
  * the first bridge in the chain, or NULL if @encoder has no bridge attached
@@ -1340,8 +1411,26 @@ drm_bridge_get_prev_bridge(struct drm_bridge *bridge)
 static inline struct drm_bridge *
 drm_bridge_chain_get_first_bridge(struct drm_encoder *encoder)
 {
-	return list_first_entry_or_null(&encoder->bridge_chain,
-					struct drm_bridge, chain_node);
+	return drm_bridge_get(list_first_entry_or_null(&encoder->bridge_chain,
+						       struct drm_bridge, chain_node));
+}
+
+/**
+ * drm_bridge_chain_get_last_bridge() - Get the last bridge in the chain
+ * @encoder: encoder object
+ *
+ * The refcount of the returned bridge is incremented. Use drm_bridge_put()
+ * when done with it.
+ *
+ * RETURNS:
+ * the last bridge in the chain, or NULL if @encoder has no bridge attached
+ * to it.
+ */
+static inline struct drm_bridge *
+drm_bridge_chain_get_last_bridge(struct drm_encoder *encoder)
+{
+	return drm_bridge_get(list_last_entry_or_null(&encoder->bridge_chain,
+						      struct drm_bridge, chain_node));
 }
 
 /**

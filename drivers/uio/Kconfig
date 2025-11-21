@@ -140,7 +140,7 @@ config UIO_MF624
 
 config UIO_HV_GENERIC
 	tristate "Generic driver for Hyper-V VMBus"
-	depends on HYPERV
+	depends on HYPERV_VMBUS
 	help
 	  Generic driver that you can bind, dynamically, to any
 	  Hyper-V VMBus device. It is useful to provide direct access

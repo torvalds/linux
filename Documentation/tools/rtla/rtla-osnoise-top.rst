@@ -1,3 +1,5 @@
+.. |tool| replace:: osnoise top
+
 ===================
 rtla-osnoise-top
 ===================

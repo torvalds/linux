@@ -1068,5 +1068,5 @@ void __ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
 		   0,
 		   sock_i_ino(sp),
 		   refcount_read(&sp->sk_refcnt), sp,
-		   atomic_read(&sp->sk_drops));
+		   sk_drops_read(sp));
 }

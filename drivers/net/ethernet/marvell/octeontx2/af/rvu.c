@@ -1164,6 +1164,9 @@ cpt:
 	rvu_program_channels(rvu);
 	cgx_start_linkup(rvu);
 
+	rvu_block_bcast_xon(rvu, BLKADDR_NIX0);
+	rvu_block_bcast_xon(rvu, BLKADDR_NIX1);
+
 	err = rvu_mcs_init(rvu);
 	if (err) {
 		dev_err(rvu->dev, "%s: Failed to initialize mcs\n", __func__);

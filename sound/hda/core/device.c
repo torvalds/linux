@@ -147,9 +147,9 @@ int snd_hdac_device_register(struct hdac_device *codec)
 	err = device_add(&codec->dev);
 	if (err < 0)
 		return err;
-	mutex_lock(&codec->widget_lock);
-	err = hda_widget_sysfs_init(codec);
-	mutex_unlock(&codec->widget_lock);
+	scoped_guard(mutex, &codec->widget_lock) {
+		err = hda_widget_sysfs_init(codec);
+	}
 	if (err < 0) {
 		device_del(&codec->dev);
 		return err;
@@ -166,9 +166,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_register);
 void snd_hdac_device_unregister(struct hdac_device *codec)
 {
 	if (device_is_registered(&codec->dev)) {
-		mutex_lock(&codec->widget_lock);
-		hda_widget_sysfs_exit(codec);
-		mutex_unlock(&codec->widget_lock);
+		scoped_guard(mutex, &codec->widget_lock) {
+			hda_widget_sysfs_exit(codec);
+		}
 		device_del(&codec->dev);
 		snd_hdac_bus_remove_device(codec->bus, codec);
 	}
@@ -411,25 +411,22 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 	 * Serialize against multiple threads trying to update the sysfs
 	 * widgets array.
 	 */
-	mutex_lock(&codec->widget_lock);
+	guard(mutex)(&codec->widget_lock);
 	nums = snd_hdac_get_sub_nodes(codec, codec->afg, &start_nid);
 	if (!start_nid || nums <= 0 || nums >= 0xff) {
 		dev_err(&codec->dev, "cannot read sub nodes for FG 0x%02x\n",
 			codec->afg);
-		err = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	err = hda_widget_sysfs_reinit(codec, start_nid, nums);
 	if (err < 0)
-		goto unlock;
+		return err;
 
 	codec->num_nodes = nums;
 	codec->start_nid = start_nid;
 	codec->end_nid = start_nid + nums;
-unlock:
-	mutex_unlock(&codec->widget_lock);
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_refresh_widgets);
 

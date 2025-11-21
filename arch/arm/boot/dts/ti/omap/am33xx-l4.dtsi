@@ -200,7 +200,7 @@
 			ranges = <0x0 0x9000 0x1000>;
 
 			uart0: serial@0 {
-				compatible = "ti,am3352-uart", "ti,omap3-uart";
+				compatible = "ti,am3352-uart";
 				clock-frequency = <48000000>;
 				reg = <0x0 0x1000>;
 				interrupts = <72>;
@@ -1108,7 +1108,7 @@
 			ranges = <0x0 0x22000 0x1000>;
 
 			uart1: serial@0 {
-				compatible = "ti,am3352-uart", "ti,omap3-uart";
+				compatible = "ti,am3352-uart";
 				clock-frequency = <48000000>;
 				reg = <0x0 0x1000>;
 				interrupts = <73>;
@@ -1139,7 +1139,7 @@
 			ranges = <0x0 0x24000 0x1000>;
 
 			uart2: serial@0 {
-				compatible = "ti,am3352-uart", "ti,omap3-uart";
+				compatible = "ti,am3352-uart";
 				clock-frequency = <48000000>;
 				reg = <0x0 0x1000>;
 				interrupts = <74>;
@@ -1457,10 +1457,10 @@
 
 			gpio1: gpio@0 {
 				compatible = "ti,omap4-gpio";
-				gpio-ranges =   <&am33xx_pinmux  0  0  8>,
-						<&am33xx_pinmux  8 90  4>,
-						<&am33xx_pinmux 12 12 16>,
-						<&am33xx_pinmux 28 30  4>;
+				gpio-ranges = <&am33xx_pinmux  0  0  8>,
+					      <&am33xx_pinmux  8 90  4>,
+					      <&am33xx_pinmux 12 12 16>,
+					      <&am33xx_pinmux 28 30  4>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1770,7 +1770,7 @@
 			ranges = <0x0 0xa6000 0x1000>;
 
 			uart3: serial@0 {
-				compatible = "ti,am3352-uart", "ti,omap3-uart";
+				compatible = "ti,am3352-uart";
 				clock-frequency = <48000000>;
 				reg = <0x0 0x1000>;
 				interrupts = <44>;
@@ -1799,7 +1799,7 @@
 			ranges = <0x0 0xa8000 0x1000>;
 
 			uart4: serial@0 {
-				compatible = "ti,am3352-uart", "ti,omap3-uart";
+				compatible = "ti,am3352-uart";
 				clock-frequency = <48000000>;
 				reg = <0x0 0x1000>;
 				interrupts = <45>;
@@ -1828,7 +1828,7 @@
 			ranges = <0x0 0xaa000 0x1000>;
 
 			uart5: serial@0 {
-				compatible = "ti,am3352-uart", "ti,omap3-uart";
+				compatible = "ti,am3352-uart";
 				clock-frequency = <48000000>;
 				reg = <0x0 0x1000>;
 				interrupts = <46>;

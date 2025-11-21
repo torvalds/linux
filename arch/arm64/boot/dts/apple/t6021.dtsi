@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple T6021 "M2 Max" SoC
+ *
+ * Other names: H14J, "Rhodes"
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/apple-aic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/apple.h>
+#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/spmi/spmi.h>
+
+#include "multi-die-cpp.h"
+
+#include "t602x-common.dtsi"
+
+/ {
+	compatible = "apple,t6021", "apple,arm-platform";
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		ranges;
+		nonposted-mmio;
+
+		// filled via templated includes at the end of the file
+	};
+};
+
+#define DIE
+#define DIE_NO 0
+
+&{/soc} {
+	#include "t602x-die0.dtsi"
+	#include "t602x-dieX.dtsi"
+	#include "t602x-nvme.dtsi"
+};
+
+#include "t602x-gpio-pins.dtsi"
+#include "t602x-pmgr.dtsi"
+
+#undef DIE
+#undef DIE_NO
+
+
+&aic {
+	affinities {
+		e-core-pmu-affinity {
+			apple,fiq-index = <AIC_CPU_PMU_E>;
+			cpus = <&cpu_e00 &cpu_e01 &cpu_e02 &cpu_e03>;
+		};
+
+		p-core-pmu-affinity {
+			apple,fiq-index = <AIC_CPU_PMU_P>;
+			cpus = <&cpu_p00 &cpu_p01 &cpu_p02 &cpu_p03
+				&cpu_p10 &cpu_p11 &cpu_p12 &cpu_p13>;
+		};
+	};
+};
+
+&gpu {
+	compatible = "apple,agx-g14c", "apple,agx-g14s";
+};

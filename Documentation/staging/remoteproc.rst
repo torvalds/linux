@@ -104,7 +104,7 @@ Typical usage
 	rproc_shutdown(my_rproc);
   }
 
-API for implementors
+API for implementers
 ====================
 
 ::

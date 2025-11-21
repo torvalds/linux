@@ -9,6 +9,19 @@ menu "Analog to digital converters"
 config IIO_ADC_HELPER
 	tristate
 
+config 88PM886_GPADC
+	tristate "Marvell 88PM886 GPADC driver"
+	depends on MFD_88PM886_PMIC
+	default MFD_88PM886_PMIC
+	help
+	  Say Y here to enable support for the GPADC (General Purpose ADC)
+	  found on the Marvell 88PM886 PMIC. The GPADC measures various
+	  internal voltages and temperatures, including (but not limited to)
+	  system, battery and USB Vbus.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called 88pm886-gpadc.
+
 config AB8500_GPADC
 	bool "ST-Ericsson AB8500 GPADC driver"
 	depends on AB8500_CORE && REGULATOR_AB8500
@@ -389,6 +402,7 @@ config AD7779
 	depends on SPI
 	select CRC8
 	select IIO_BUFFER
+	select IIO_BACKEND
 	help
 	  Say yes here to build support for Analog Devices AD777X family
 	  (AD7770, AD7771, AD7779) analog to digital converter (ADC).
@@ -506,6 +520,25 @@ config AD9467
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad9467.
+
+config ADE9000
+	tristate "Analog Devices ADE9000 Multiphase Energy, and Power Quality Monitoring IC Driver"
+	depends on SPI
+	select REGMAP_SPI
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say yes here to build support for the Analog Devices ADE9000,
+	  a highly accurate, multiphase energy and power quality monitoring
+	  integrated circuit.
+
+	  The device features high-precision analog-to-digital converters
+	  and digital signal processing to compute RMS values, power factor,
+	  frequency, and harmonic analysis. It supports SPI communication
+	  and provides buffered data output through the IIO framework.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called ade9000.
 
 config ADI_AXI_ADC
 	tristate "Analog Devices Generic AXI ADC IP core driver"
@@ -765,6 +798,17 @@ config INGENIC_ADC
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ingenic_adc.
+
+config INTEL_DC_TI_ADC
+	tristate "Intel Bay Trail / Cherry Trail Dollar Cove TI ADC driver"
+	depends on INTEL_SOC_PMIC_CHTDC_TI
+	help
+	  Say yes here to have support for the Dollar Cove TI PMIC ADC device.
+	  Depending on platform configuration, this general purpose ADC can be
+	  used for sensors such as battery voltage and thermal resistors.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called intel_dc_ti_adc.
 
 config INTEL_MRFLD_ADC
 	tristate "Intel Merrifield Basin Cove ADC driver"
@@ -1298,9 +1342,19 @@ config RN5T618_ADC
 	  This driver can also be built as a module. If so, the module
 	  will be called rn5t618-adc.
 
+config ROHM_BD79112
+	tristate "Rohm BD79112 ADC driver"
+	depends on SPI && GPIOLIB
+	select REGMAP_SPI
+	select IIO_ADC_HELPER
+	help
+	  Say yes here to build support for the ROHM BD79112 ADC. The
+	  ROHM BD79112 is a 12-bit, 32-channel, SAR ADC. Analog inputs
+	  can also be used for GPIO.
+
 config ROHM_BD79124
 	tristate "Rohm BD79124 ADC driver"
-	depends on I2C
+	depends on I2C && GPIOLIB
 	select REGMAP_I2C
 	select IIO_ADC_HELPER
 	help

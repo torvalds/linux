@@ -4067,6 +4067,7 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 {
 	struct pid *pid;
 	enum pid_type type;
+	int ret;
 
 	/* Enforce flags be set to 0 until we add an extension. */
 	if (flags & ~PIDFD_SEND_SIGNAL_FLAGS)
@@ -4108,7 +4109,10 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	}
 	}
 
-	return do_pidfd_send_signal(pid, sig, type, info, flags);
+	ret = do_pidfd_send_signal(pid, sig, type, info, flags);
+	put_pid(pid);
+
+	return ret;
 }
 
 static int

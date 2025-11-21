@@ -20,7 +20,7 @@
 #ifndef _UAPI__ASM_OPENRISC_PTRACE_H
 #define _UAPI__ASM_OPENRISC_PTRACE_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * This is the layout of the regset returned by the GETREGSET ptrace call
  */

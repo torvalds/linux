@@ -239,7 +239,7 @@ int mei_hbm_start_wait(struct mei_device *dev)
 
 	if (ret == 0 && (dev->hbm_state <= MEI_HBM_STARTING)) {
 		dev->hbm_state = MEI_HBM_IDLE;
-		dev_err(dev->dev, "waiting for mei start failed\n");
+		dev_err(&dev->dev, "waiting for mei start failed\n");
 		return -ETIME;
 	}
 	return 0;
@@ -271,8 +271,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 	dev->hbm_state = MEI_HBM_IDLE;
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret) {
-		dev_err(dev->dev, "version message write failed: ret = %d\n",
-			ret);
+		dev_err(&dev->dev, "version message write failed: ret = %d\n", ret);
 		return ret;
 	}
 
@@ -312,8 +311,7 @@ static int mei_hbm_dma_setup_req(struct mei_device *dev)
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret) {
-		dev_err(dev->dev, "dma setup request write failed: ret = %d.\n",
-			ret);
+		dev_err(&dev->dev, "dma setup request write failed: ret = %d.\n", ret);
 		return ret;
 	}
 
@@ -351,8 +349,7 @@ static int mei_hbm_capabilities_req(struct mei_device *dev)
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret) {
-		dev_err(dev->dev,
-			"capabilities request write failed: ret = %d.\n", ret);
+		dev_err(&dev->dev, "capabilities request write failed: ret = %d.\n", ret);
 		return ret;
 	}
 
@@ -386,8 +383,7 @@ static int mei_hbm_enum_clients_req(struct mei_device *dev)
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret) {
-		dev_err(dev->dev, "enumeration request write failed: ret = %d.\n",
-			ret);
+		dev_err(&dev->dev, "enumeration request write failed: ret = %d.\n", ret);
 		return ret;
 	}
 	dev->hbm_state = MEI_HBM_ENUM_CLIENTS;
@@ -443,7 +439,7 @@ static int mei_hbm_add_cl_resp(struct mei_device *dev, u8 addr, u8 status)
 	struct hbm_add_client_response resp;
 	int ret;
 
-	dev_dbg(dev->dev, "adding client response\n");
+	dev_dbg(&dev->dev, "adding client response\n");
 
 	mei_hbm_hdr(&mei_hdr, sizeof(resp));
 
@@ -454,8 +450,7 @@ static int mei_hbm_add_cl_resp(struct mei_device *dev, u8 addr, u8 status)
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &resp);
 	if (ret)
-		dev_err(dev->dev, "add client response write failed: ret = %d\n",
-			ret);
+		dev_err(&dev->dev, "add client response write failed: ret = %d\n", ret);
 	return ret;
 }
 
@@ -752,7 +747,7 @@ static int mei_hbm_prop_req(struct mei_device *dev, unsigned long start_idx)
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret) {
-		dev_err(dev->dev, "properties request write failed: ret = %d\n",
+		dev_err(&dev->dev, "properties request write failed: ret = %d\n",
 			ret);
 		return ret;
 	}
@@ -788,7 +783,7 @@ int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd)
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret)
-		dev_err(dev->dev, "power gate command write failed.\n");
+		dev_err(&dev->dev, "power gate command write failed.\n");
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mei_hbm_pg);
@@ -847,7 +842,7 @@ static int mei_hbm_add_single_tx_flow_ctrl_creds(struct mei_device *dev,
 
 	me_cl = mei_me_cl_by_id(dev, fctrl->me_addr);
 	if (!me_cl) {
-		dev_err(dev->dev, "no such me client %d\n", fctrl->me_addr);
+		dev_err(&dev->dev, "no such me client %d\n", fctrl->me_addr);
 		return -ENOENT;
 	}
 
@@ -857,7 +852,7 @@ static int mei_hbm_add_single_tx_flow_ctrl_creds(struct mei_device *dev,
 	}
 
 	me_cl->tx_flow_ctrl_creds++;
-	dev_dbg(dev->dev, "recv flow ctrl msg ME %d (single) creds = %d.\n",
+	dev_dbg(&dev->dev, "recv flow ctrl msg ME %d (single) creds = %d.\n",
 		fctrl->me_addr, me_cl->tx_flow_ctrl_creds);
 
 	rets = 0;
@@ -1085,7 +1080,7 @@ static int mei_hbm_pg_enter_res(struct mei_device *dev)
 {
 	if (mei_pg_state(dev) != MEI_PG_OFF ||
 	    dev->pg_event != MEI_PG_EVENT_WAIT) {
-		dev_err(dev->dev, "hbm: pg entry response: state mismatch [%s, %d]\n",
+		dev_err(&dev->dev, "hbm: pg entry response: state mismatch [%s, %d]\n",
 			mei_pg_state_str(mei_pg_state(dev)), dev->pg_event);
 		return -EPROTO;
 	}
@@ -1103,7 +1098,7 @@ static int mei_hbm_pg_enter_res(struct mei_device *dev)
  */
 void mei_hbm_pg_resume(struct mei_device *dev)
 {
-	pm_request_resume(dev->dev);
+	pm_request_resume(dev->parent);
 }
 EXPORT_SYMBOL_GPL(mei_hbm_pg_resume);
 
@@ -1119,7 +1114,7 @@ static int mei_hbm_pg_exit_res(struct mei_device *dev)
 	if (mei_pg_state(dev) != MEI_PG_ON ||
 	    (dev->pg_event != MEI_PG_EVENT_WAIT &&
 	     dev->pg_event != MEI_PG_EVENT_IDLE)) {
-		dev_err(dev->dev, "hbm: pg exit response: state mismatch [%s, %d]\n",
+		dev_err(&dev->dev, "hbm: pg exit response: state mismatch [%s, %d]\n",
 			mei_pg_state_str(mei_pg_state(dev)), dev->pg_event);
 		return -EPROTO;
 	}
@@ -1276,19 +1271,19 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	 * hbm is put to idle during system reset
 	 */
 	if (dev->hbm_state == MEI_HBM_IDLE) {
-		dev_dbg(dev->dev, "hbm: state is idle ignore spurious messages\n");
+		dev_dbg(&dev->dev, "hbm: state is idle ignore spurious messages\n");
 		return 0;
 	}
 
 	switch (mei_msg->hbm_cmd) {
 	case HOST_START_RES_CMD:
-		dev_dbg(dev->dev, "hbm: start: response message received.\n");
+		dev_dbg(&dev->dev, "hbm: start: response message received.\n");
 
 		dev->init_clients_timer = 0;
 
 		version_res = (struct hbm_host_version_response *)mei_msg;
 
-		dev_dbg(dev->dev, "HBM VERSION: DRIVER=%02d:%02d DEVICE=%02d:%02d\n",
+		dev_dbg(&dev->dev, "HBM VERSION: DRIVER=%02d:%02d DEVICE=%02d:%02d\n",
 				HBM_MAJOR_VERSION, HBM_MINOR_VERSION,
 				version_res->me_max_version.major_version,
 				version_res->me_max_version.minor_version);
@@ -1304,11 +1299,11 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		}
 
 		if (!mei_hbm_version_is_supported(dev)) {
-			dev_warn(dev->dev, "hbm: start: version mismatch - stopping the driver.\n");
+			dev_warn(&dev->dev, "hbm: start: version mismatch - stopping the driver.\n");
 
 			dev->hbm_state = MEI_HBM_STOPPED;
 			if (mei_hbm_stop_req(dev)) {
-				dev_err(dev->dev, "hbm: start: failed to send stop request\n");
+				dev_err(&dev->dev, "hbm: start: failed to send stop request\n");
 				return -EIO;
 			}
 			break;
@@ -1320,10 +1315,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		    dev->hbm_state != MEI_HBM_STARTING) {
 			if (dev->dev_state == MEI_DEV_POWER_DOWN ||
 			    dev->dev_state == MEI_DEV_POWERING_DOWN) {
-				dev_dbg(dev->dev, "hbm: start: on shutdown, ignoring\n");
+				dev_dbg(&dev->dev, "hbm: start: on shutdown, ignoring\n");
 				return 0;
 			}
-			dev_err(dev->dev, "hbm: start: state mismatch, [%d, %d]\n",
+			dev_err(&dev->dev, "hbm: start: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
@@ -1337,7 +1332,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		if (dev->hbm_f_dr_supported) {
 			if (mei_dmam_ring_alloc(dev))
-				dev_info(dev->dev, "running w/o dma ring\n");
+				dev_info(&dev->dev, "running w/o dma ring\n");
 			if (mei_dma_ring_is_allocated(dev)) {
 				if (mei_hbm_dma_setup_req(dev))
 					return -EIO;
@@ -1357,7 +1352,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	case MEI_HBM_CAPABILITIES_RES_CMD:
-		dev_dbg(dev->dev, "hbm: capabilities response: message received.\n");
+		dev_dbg(&dev->dev, "hbm: capabilities response: message received.\n");
 
 		dev->init_clients_timer = 0;
 
@@ -1365,10 +1360,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		    dev->hbm_state != MEI_HBM_CAP_SETUP) {
 			if (dev->dev_state == MEI_DEV_POWER_DOWN ||
 			    dev->dev_state == MEI_DEV_POWERING_DOWN) {
-				dev_dbg(dev->dev, "hbm: capabilities response: on shutdown, ignoring\n");
+				dev_dbg(&dev->dev, "hbm: capabilities response: on shutdown, ignoring\n");
 				return 0;
 			}
-			dev_err(dev->dev, "hbm: capabilities response: state mismatch, [%d, %d]\n",
+			dev_err(&dev->dev, "hbm: capabilities response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
@@ -1384,7 +1379,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		if (dev->hbm_f_dr_supported) {
 			if (mei_dmam_ring_alloc(dev))
-				dev_info(dev->dev, "running w/o dma ring\n");
+				dev_info(&dev->dev, "running w/o dma ring\n");
 			if (mei_dma_ring_is_allocated(dev)) {
 				if (mei_hbm_dma_setup_req(dev))
 					return -EIO;
@@ -1400,7 +1395,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	case MEI_HBM_DMA_SETUP_RES_CMD:
-		dev_dbg(dev->dev, "hbm: dma setup response: message received.\n");
+		dev_dbg(&dev->dev, "hbm: dma setup response: message received.\n");
 
 		dev->init_clients_timer = 0;
 
@@ -1408,10 +1403,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		    dev->hbm_state != MEI_HBM_DR_SETUP) {
 			if (dev->dev_state == MEI_DEV_POWER_DOWN ||
 			    dev->dev_state == MEI_DEV_POWERING_DOWN) {
-				dev_dbg(dev->dev, "hbm: dma setup response: on shutdown, ignoring\n");
+				dev_dbg(&dev->dev, "hbm: dma setup response: on shutdown, ignoring\n");
 				return 0;
 			}
-			dev_err(dev->dev, "hbm: dma setup response: state mismatch, [%d, %d]\n",
+			dev_err(&dev->dev, "hbm: dma setup response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
@@ -1422,9 +1417,9 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			u8 status = dma_setup_res->status;
 
 			if (status == MEI_HBMS_NOT_ALLOWED) {
-				dev_dbg(dev->dev, "hbm: dma setup not allowed\n");
+				dev_dbg(&dev->dev, "hbm: dma setup not allowed\n");
 			} else {
-				dev_info(dev->dev, "hbm: dma setup response: failure = %d %s\n",
+				dev_info(&dev->dev, "hbm: dma setup response: failure = %d %s\n",
 					 status,
 					 mei_hbm_status_str(status));
 			}
@@ -1437,38 +1432,38 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	case CLIENT_CONNECT_RES_CMD:
-		dev_dbg(dev->dev, "hbm: client connect response: message received.\n");
+		dev_dbg(&dev->dev, "hbm: client connect response: message received.\n");
 		mei_hbm_cl_res(dev, cl_cmd, MEI_FOP_CONNECT);
 		break;
 
 	case CLIENT_DISCONNECT_RES_CMD:
-		dev_dbg(dev->dev, "hbm: client disconnect response: message received.\n");
+		dev_dbg(&dev->dev, "hbm: client disconnect response: message received.\n");
 		mei_hbm_cl_res(dev, cl_cmd, MEI_FOP_DISCONNECT);
 		break;
 
 	case MEI_FLOW_CONTROL_CMD:
-		dev_dbg(dev->dev, "hbm: client flow control response: message received.\n");
+		dev_dbg(&dev->dev, "hbm: client flow control response: message received.\n");
 
 		fctrl = (struct hbm_flow_control *)mei_msg;
 		mei_hbm_cl_tx_flow_ctrl_creds_res(dev, fctrl);
 		break;
 
 	case MEI_PG_ISOLATION_ENTRY_RES_CMD:
-		dev_dbg(dev->dev, "hbm: power gate isolation entry response received\n");
+		dev_dbg(&dev->dev, "hbm: power gate isolation entry response received\n");
 		ret = mei_hbm_pg_enter_res(dev);
 		if (ret)
 			return ret;
 		break;
 
 	case MEI_PG_ISOLATION_EXIT_REQ_CMD:
-		dev_dbg(dev->dev, "hbm: power gate isolation exit request received\n");
+		dev_dbg(&dev->dev, "hbm: power gate isolation exit request received\n");
 		ret = mei_hbm_pg_exit_res(dev);
 		if (ret)
 			return ret;
 		break;
 
 	case HOST_CLIENT_PROPERTIES_RES_CMD:
-		dev_dbg(dev->dev, "hbm: properties response: message received.\n");
+		dev_dbg(&dev->dev, "hbm: properties response: message received.\n");
 
 		dev->init_clients_timer = 0;
 
@@ -1476,10 +1471,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		    dev->hbm_state != MEI_HBM_CLIENT_PROPERTIES) {
 			if (dev->dev_state == MEI_DEV_POWER_DOWN ||
 			    dev->dev_state == MEI_DEV_POWERING_DOWN) {
-				dev_dbg(dev->dev, "hbm: properties response: on shutdown, ignoring\n");
+				dev_dbg(&dev->dev, "hbm: properties response: on shutdown, ignoring\n");
 				return 0;
 			}
-			dev_err(dev->dev, "hbm: properties response: state mismatch, [%d, %d]\n",
+			dev_err(&dev->dev, "hbm: properties response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
@@ -1487,10 +1482,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		props_res = (struct hbm_props_response *)mei_msg;
 
 		if (props_res->status == MEI_HBMS_CLIENT_NOT_FOUND) {
-			dev_dbg(dev->dev, "hbm: properties response: %d CLIENT_NOT_FOUND\n",
+			dev_dbg(&dev->dev, "hbm: properties response: %d CLIENT_NOT_FOUND\n",
 				props_res->me_addr);
 		} else if (props_res->status) {
-			dev_err(dev->dev, "hbm: properties response: wrong status = %d %s\n",
+			dev_err(&dev->dev, "hbm: properties response: wrong status = %d %s\n",
 				props_res->status,
 				mei_hbm_status_str(props_res->status));
 			return -EPROTO;
@@ -1505,7 +1500,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	case HOST_ENUM_RES_CMD:
-		dev_dbg(dev->dev, "hbm: enumeration response: message received\n");
+		dev_dbg(&dev->dev, "hbm: enumeration response: message received\n");
 
 		dev->init_clients_timer = 0;
 
@@ -1519,10 +1514,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		    dev->hbm_state != MEI_HBM_ENUM_CLIENTS) {
 			if (dev->dev_state == MEI_DEV_POWER_DOWN ||
 			    dev->dev_state == MEI_DEV_POWERING_DOWN) {
-				dev_dbg(dev->dev, "hbm: enumeration response: on shutdown, ignoring\n");
+				dev_dbg(&dev->dev, "hbm: enumeration response: on shutdown, ignoring\n");
 				return 0;
 			}
-			dev_err(dev->dev, "hbm: enumeration response: state mismatch, [%d, %d]\n",
+			dev_err(&dev->dev, "hbm: enumeration response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
@@ -1536,77 +1531,77 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	case HOST_STOP_RES_CMD:
-		dev_dbg(dev->dev, "hbm: stop response: message received\n");
+		dev_dbg(&dev->dev, "hbm: stop response: message received\n");
 
 		dev->init_clients_timer = 0;
 
 		if (dev->hbm_state != MEI_HBM_STOPPED) {
-			dev_err(dev->dev, "hbm: stop response: state mismatch, [%d, %d]\n",
+			dev_err(&dev->dev, "hbm: stop response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
 
 		mei_set_devstate(dev, MEI_DEV_POWER_DOWN);
-		dev_info(dev->dev, "hbm: stop response: resetting.\n");
+		dev_info(&dev->dev, "hbm: stop response: resetting.\n");
 		/* force the reset */
 		return -EPROTO;
 
 	case CLIENT_DISCONNECT_REQ_CMD:
-		dev_dbg(dev->dev, "hbm: disconnect request: message received\n");
+		dev_dbg(&dev->dev, "hbm: disconnect request: message received\n");
 
 		disconnect_req = (struct hbm_client_connect_request *)mei_msg;
 		mei_hbm_fw_disconnect_req(dev, disconnect_req);
 		break;
 
 	case ME_STOP_REQ_CMD:
-		dev_dbg(dev->dev, "hbm: stop request: message received\n");
+		dev_dbg(&dev->dev, "hbm: stop request: message received\n");
 		dev->hbm_state = MEI_HBM_STOPPED;
 		if (mei_hbm_stop_req(dev)) {
-			dev_err(dev->dev, "hbm: stop request: failed to send stop request\n");
+			dev_err(&dev->dev, "hbm: stop request: failed to send stop request\n");
 			return -EIO;
 		}
 		break;
 
 	case MEI_HBM_ADD_CLIENT_REQ_CMD:
-		dev_dbg(dev->dev, "hbm: add client request received\n");
+		dev_dbg(&dev->dev, "hbm: add client request received\n");
 		/*
 		 * after the host receives the enum_resp
 		 * message clients may be added or removed
 		 */
 		if (dev->hbm_state <= MEI_HBM_ENUM_CLIENTS ||
 		    dev->hbm_state >= MEI_HBM_STOPPED) {
-			dev_err(dev->dev, "hbm: add client: state mismatch, [%d, %d]\n",
+			dev_err(&dev->dev, "hbm: add client: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
 		add_cl_req = (struct hbm_add_client_request *)mei_msg;
 		ret = mei_hbm_fw_add_cl_req(dev, add_cl_req);
 		if (ret) {
-			dev_err(dev->dev, "hbm: add client: failed to send response %d\n",
+			dev_err(&dev->dev, "hbm: add client: failed to send response %d\n",
 				ret);
 			return -EIO;
 		}
-		dev_dbg(dev->dev, "hbm: add client request processed\n");
+		dev_dbg(&dev->dev, "hbm: add client request processed\n");
 		break;
 
 	case MEI_HBM_NOTIFY_RES_CMD:
-		dev_dbg(dev->dev, "hbm: notify response received\n");
+		dev_dbg(&dev->dev, "hbm: notify response received\n");
 		mei_hbm_cl_res(dev, cl_cmd, notify_res_to_fop(cl_cmd));
 		break;
 
 	case MEI_HBM_NOTIFICATION_CMD:
-		dev_dbg(dev->dev, "hbm: notification\n");
+		dev_dbg(&dev->dev, "hbm: notification\n");
 		mei_hbm_cl_notify(dev, cl_cmd);
 		break;
 
 	case MEI_HBM_CLIENT_DMA_MAP_RES_CMD:
-		dev_dbg(dev->dev, "hbm: client dma map response: message received.\n");
+		dev_dbg(&dev->dev, "hbm: client dma map response: message received.\n");
 		client_dma_res = (struct hbm_client_dma_response *)mei_msg;
 		mei_hbm_cl_dma_map_res(dev, client_dma_res);
 		break;
 
 	case MEI_HBM_CLIENT_DMA_UNMAP_RES_CMD:
-		dev_dbg(dev->dev, "hbm: client dma unmap response: message received.\n");
+		dev_dbg(&dev->dev, "hbm: client dma unmap response: message received.\n");
 		client_dma_res = (struct hbm_client_dma_response *)mei_msg;
 		mei_hbm_cl_dma_unmap_res(dev, client_dma_res);
 		break;

@@ -812,7 +812,7 @@ static const char * const ss_switch_groups[] = {
 };
 
 static const struct pinfunction msm8976_functions[] = {
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(blsp_spi1),
 	MSM_PIN_FUNCTION(smb_int),
 	MSM_PIN_FUNCTION(blsp_i2c1),

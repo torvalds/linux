@@ -603,7 +603,7 @@ static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
 	/*  set up format for the stream */
 	format = params_format(hw);
 
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	/* update the stream levels */
 	if( stream->pcm_number <= MIXART_PCM_DIGITAL ) {
@@ -618,10 +618,8 @@ static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
 
 	/* set the format to the board */
 	err = mixart_set_format(stream, format);
-	if(err < 0) {
-		mutex_unlock(&mgr->setup_mutex);
+	if (err < 0)
 		return err;
-	}
 
 	if (subs->runtime->buffer_changed) {
 		struct mixart_bufferinfo *bufferinfo;
@@ -641,7 +639,6 @@ static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
 				bufferinfo[i].available_length,
 				subs->number);
 	}
-	mutex_unlock(&mgr->setup_mutex);
 
 	return 0;
 }
@@ -712,7 +709,7 @@ static int snd_mixart_playback_open(struct snd_pcm_substream *subs)
 	int err = 0;
 	int pcm_number;
 
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	if ( pcm == chip->pcm ) {
 		pcm_number = MIXART_PCM_ANALOG;
@@ -734,25 +731,21 @@ static int snd_mixart_playback_open(struct snd_pcm_substream *subs)
 		dev_err(chip->card->dev,
 			"snd_mixart_playback_open C%d/P%d/Sub%d in use\n",
 			chip->chip_idx, pcm_number, subs->number);
-		err = -EBUSY;
-		goto _exit_open;
+		return -EBUSY;
 	}
 
 	/* get pipe pointer (out pipe) */
 	pipe = snd_mixart_add_ref_pipe(chip, pcm_number, 0, 0);
 
-	if (pipe == NULL) {
-		err = -EINVAL;
-		goto _exit_open;
-	}
+	if (pipe == NULL)
+		return -EINVAL;
 
 	/* start the pipe if necessary */
 	err = mixart_set_pipe_state(chip->mgr, pipe, 1);
 	if( err < 0 ) {
 		dev_err(chip->card->dev, "error starting pipe!\n");
 		snd_mixart_kill_ref_pipe(chip->mgr, pipe, 0);
-		err = -EINVAL;
-		goto _exit_open;
+		return -EINVAL;
 	}
 
 	stream->pipe        = pipe;
@@ -773,10 +766,7 @@ static int snd_mixart_playback_open(struct snd_pcm_substream *subs)
 		}
 	}
 
- _exit_open:
-	mutex_unlock(&mgr->setup_mutex);
-
-	return err;
+	return 0;
 }
 
 
@@ -791,7 +781,7 @@ static int snd_mixart_capture_open(struct snd_pcm_substream *subs)
 	int err = 0;
 	int pcm_number;
 
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	if ( pcm == chip->pcm ) {
 		pcm_number = MIXART_PCM_ANALOG;
@@ -815,25 +805,21 @@ static int snd_mixart_capture_open(struct snd_pcm_substream *subs)
 		dev_err(chip->card->dev,
 			"snd_mixart_capture_open C%d/P%d/Sub%d in use\n",
 			chip->chip_idx, pcm_number, subs->number);
-		err = -EBUSY;
-		goto _exit_open;
+		return -EBUSY;
 	}
 
 	/* get pipe pointer (in pipe) */
 	pipe = snd_mixart_add_ref_pipe(chip, pcm_number, 1, 0);
 
-	if (pipe == NULL) {
-		err = -EINVAL;
-		goto _exit_open;
-	}
+	if (pipe == NULL)
+		return -EINVAL;
 
 	/* start the pipe if necessary */
 	err = mixart_set_pipe_state(chip->mgr, pipe, 1);
 	if( err < 0 ) {
 		dev_err(chip->card->dev, "error starting pipe!\n");
 		snd_mixart_kill_ref_pipe(chip->mgr, pipe, 0);
-		err = -EINVAL;
-		goto _exit_open;
+		return -EINVAL;
 	}
 
 	stream->pipe        = pipe;
@@ -854,10 +840,7 @@ static int snd_mixart_capture_open(struct snd_pcm_substream *subs)
 		}
 	}
 
- _exit_open:
-	mutex_unlock(&mgr->setup_mutex);
-
-	return err;
+	return 0;
 }
 
 
@@ -868,7 +851,7 @@ static int snd_mixart_close(struct snd_pcm_substream *subs)
 	struct mixart_mgr *mgr = chip->mgr;
 	struct mixart_stream *stream = subs->runtime->private_data;
 
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	dev_dbg(chip->card->dev, "snd_mixart_close C%d/P%d/Sub%d\n",
 		chip->chip_idx, stream->pcm_number, subs->number);
@@ -890,7 +873,6 @@ static int snd_mixart_close(struct snd_pcm_substream *subs)
 	stream->status    = MIXART_STREAM_STATUS_FREE;
 	stream->substream = NULL;
 
-	mutex_unlock(&mgr->setup_mutex);
 	return 0;
 }
 

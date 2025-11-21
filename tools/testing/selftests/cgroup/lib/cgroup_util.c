@@ -522,6 +522,18 @@ int proc_mount_contains(const char *option)
 	return strstr(buf, option) != NULL;
 }
 
+int cgroup_feature(const char *feature)
+{
+	char buf[PAGE_SIZE];
+	ssize_t read;
+
+	read = read_text("/sys/kernel/cgroup/features", buf, sizeof(buf));
+	if (read < 0)
+		return read;
+
+	return strstr(buf, feature) != NULL;
+}
+
 ssize_t proc_read_text(int pid, bool thread, const char *item, char *buf, size_t size)
 {
 	char path[PATH_MAX];

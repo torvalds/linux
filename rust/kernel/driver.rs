@@ -2,8 +2,93 @@
 
 //! Generic support for drivers of different buses (e.g., PCI, Platform, Amba, etc.).
 //!
-//! Each bus / subsystem is expected to implement [`RegistrationOps`], which allows drivers to
-//! register using the [`Registration`] class.
+//! This documentation describes how to implement a bus specific driver API and how to align it with
+//! the design of (bus specific) devices.
+//!
+//! Note: Readers are expected to know the content of the documentation of [`Device`] and
+//! [`DeviceContext`].
+//!
+//! # Driver Trait
+//!
+//! The main driver interface is defined by a bus specific driver trait. For instance:
+//!
+//! ```ignore
+//! pub trait Driver: Send {
+//!     /// The type holding information about each device ID supported by the driver.
+//!     type IdInfo: 'static;
+//!
+//!     /// The table of OF device ids supported by the driver.
+//!     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = None;
+//!
+//!     /// The table of ACPI device ids supported by the driver.
+//!     const ACPI_ID_TABLE: Option<acpi::IdTable<Self::IdInfo>> = None;
+//!
+//!     /// Driver probe.
+//!     fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> Result<Pin<KBox<Self>>>;
+//!
+//!     /// Driver unbind (optional).
+//!     fn unbind(dev: &Device<device::Core>, this: Pin<&Self>) {
+//!         let _ = (dev, this);
+//!     }
+//! }
+//! ```
+//!
+//! For specific examples see [`auxiliary::Driver`], [`pci::Driver`] and [`platform::Driver`].
+//!
+//! The `probe()` callback should return a `Result<Pin<KBox<Self>>>`, i.e. the driver's private
+//! data. The bus abstraction should store the pointer in the corresponding bus device. The generic
+//! [`Device`] infrastructure provides common helpers for this purpose on its
+//! [`Device<CoreInternal>`] implementation.
+//!
+//! All driver callbacks should provide a reference to the driver's private data. Once the driver
+//! is unbound from the device, the bus abstraction should take back the ownership of the driver's
+//! private data from the corresponding [`Device`] and [`drop`] it.
+//!
+//! All driver callbacks should provide a [`Device<Core>`] reference (see also [`device::Core`]).
+//!
+//! # Adapter
+//!
+//! The adapter implementation of a bus represents the abstraction layer between the C bus
+//! callbacks and the Rust bus callbacks. It therefore has to be generic over an implementation of
+//! the [driver trait](#driver-trait).
+//!
+//! ```ignore
+//! pub struct Adapter<T: Driver>;
+//! ```
+//!
+//! There's a common [`Adapter`] trait that can be implemented to inherit common driver
+//! infrastructure, such as finding the ID info from an [`of::IdTable`] or [`acpi::IdTable`].
+//!
+//! # Driver Registration
+//!
+//! In order to register C driver types (such as `struct platform_driver`) the [adapter](#adapter)
+//! should implement the [`RegistrationOps`] trait.
+//!
+//! This trait implementation can be used to create the actual registration with the common
+//! [`Registration`] type.
+//!
+//! Typically, bus abstractions want to provide a bus specific `module_bus_driver!` macro, which
+//! creates a kernel module with exactly one [`Registration`] for the bus specific adapter.
+//!
+//! The generic driver infrastructure provides a helper for this with the [`module_driver`] macro.
+//!
+//! # Device IDs
+//!
+//! Besides the common device ID types, such as [`of::DeviceId`] and [`acpi::DeviceId`], most buses
+//! may need to implement their own device ID types.
+//!
+//! For this purpose the generic infrastructure in [`device_id`] should be used.
+//!
+//! [`auxiliary::Driver`]: kernel::auxiliary::Driver
+//! [`Core`]: device::Core
+//! [`Device`]: device::Device
+//! [`Device<Core>`]: device::Device<device::Core>
+//! [`Device<CoreInternal>`]: device::Device<device::CoreInternal>
+//! [`DeviceContext`]: device::DeviceContext
+//! [`device_id`]: kernel::device_id
+//! [`module_driver`]: kernel::module_driver
+//! [`pci::Driver`]: kernel::pci::Driver
+//! [`platform::Driver`]: kernel::platform::Driver
 
 use crate::error::{Error, Result};
 use crate::{acpi, device, of, str::CStr, try_pin_init, types::Opaque, ThisModule};

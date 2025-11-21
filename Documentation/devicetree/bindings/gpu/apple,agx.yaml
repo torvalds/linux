@@ -16,11 +16,17 @@ properties:
           - apple,agx-g13g
           - apple,agx-g13s
           - apple,agx-g14g
+          - apple,agx-g14s
       - items:
           - enum:
               - apple,agx-g13c
               - apple,agx-g13d
           - const: apple,agx-g13s
+      - items:
+          - enum:
+              - apple,agx-g14c
+              - apple,agx-g14d
+          - const: apple,agx-g14s
 
   reg:
     items:

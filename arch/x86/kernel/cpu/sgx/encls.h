@@ -68,7 +68,7 @@ static inline bool encls_failed(int ret)
 	({							\
 	int ret;						\
 	asm volatile(						\
-	"1: .byte 0x0f, 0x01, 0xcf;\n\t"			\
+	"1: encls\n"						\
 	"2:\n"							\
 	_ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_FAULT_SGX)		\
 	: "=a"(ret)						\
@@ -111,8 +111,8 @@ static inline bool encls_failed(int ret)
 	({							\
 	int ret;						\
 	asm volatile(						\
-	"1: .byte 0x0f, 0x01, 0xcf;\n\t"			\
-	"   xor %%eax,%%eax;\n"					\
+	"1: encls\n\t"						\
+	"xor %%eax,%%eax\n"					\
 	"2:\n"							\
 	_ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_FAULT_SGX)		\
 	: "=a"(ret), "=b"(rbx_out)				\

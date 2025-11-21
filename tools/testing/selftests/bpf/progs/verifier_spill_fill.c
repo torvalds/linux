@@ -506,17 +506,17 @@ SEC("raw_tp")
 __log_level(2)
 __success
 /* fp-8 is spilled IMPRECISE value zero (represented by a zero value fake reg) */
-__msg("2: (7a) *(u64 *)(r10 -8) = 0          ; R10=fp0 fp-8_w=0")
+__msg("2: (7a) *(u64 *)(r10 -8) = 0          ; R10=fp0 fp-8=0")
 /* but fp-16 is spilled IMPRECISE zero const reg */
-__msg("4: (7b) *(u64 *)(r10 -16) = r0        ; R0_w=0 R10=fp0 fp-16_w=0")
+__msg("4: (7b) *(u64 *)(r10 -16) = r0        ; R0=0 R10=fp0 fp-16=0")
 /* validate that assigning R2 from STACK_SPILL with zero value  doesn't mark register
  * precise immediately; if necessary, it will be marked precise later
  */
-__msg("6: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8_w=0")
+__msg("6: (71) r2 = *(u8 *)(r10 -1)          ; R2=0 R10=fp0 fp-8=0")
 /* similarly, when R2 is assigned from spilled register, it is initially
  * imprecise, but will be marked precise later once it is used in precise context
  */
-__msg("10: (71) r2 = *(u8 *)(r10 -9)         ; R2_w=0 R10=fp0 fp-16_w=0")
+__msg("10: (71) r2 = *(u8 *)(r10 -9)         ; R2=0 R10=fp0 fp-16=0")
 __msg("11: (0f) r1 += r2")
 __msg("mark_precise: frame0: last_idx 11 first_idx 0 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r2 stack= before 10: (71) r2 = *(u8 *)(r10 -9)")
@@ -598,7 +598,7 @@ __log_level(2)
 __success
 /* fp-4 is STACK_ZERO */
 __msg("2: (62) *(u32 *)(r10 -4) = 0          ; R10=fp0 fp-8=0000????")
-__msg("4: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8=0000????")
+__msg("4: (71) r2 = *(u8 *)(r10 -1)          ; R2=0 R10=fp0 fp-8=0000????")
 __msg("5: (0f) r1 += r2")
 __msg("mark_precise: frame0: last_idx 5 first_idx 0 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r2 stack= before 4: (71) r2 = *(u8 *)(r10 -1)")
@@ -640,25 +640,25 @@ SEC("raw_tp")
 __log_level(2) __flag(BPF_F_TEST_STATE_FREQ)
 __success
 /* make sure fp-8 is IMPRECISE fake register spill */
-__msg("3: (7a) *(u64 *)(r10 -8) = 1          ; R10=fp0 fp-8_w=1")
+__msg("3: (7a) *(u64 *)(r10 -8) = 1          ; R10=fp0 fp-8=1")
 /* and fp-16 is spilled IMPRECISE const reg */
-__msg("5: (7b) *(u64 *)(r10 -16) = r0        ; R0_w=1 R10=fp0 fp-16_w=1")
+__msg("5: (7b) *(u64 *)(r10 -16) = r0        ; R0=1 R10=fp0 fp-16=1")
 /* validate load from fp-8, which was initialized using BPF_ST_MEM */
-__msg("8: (79) r2 = *(u64 *)(r10 -8)         ; R2_w=1 R10=fp0 fp-8=1")
+__msg("8: (79) r2 = *(u64 *)(r10 -8)         ; R2=1 R10=fp0 fp-8=1")
 __msg("9: (0f) r1 += r2")
 __msg("mark_precise: frame0: last_idx 9 first_idx 7 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r2 stack= before 8: (79) r2 = *(u64 *)(r10 -8)")
 __msg("mark_precise: frame0: regs= stack=-8 before 7: (bf) r1 = r6")
 /* note, fp-8 is precise, fp-16 is not yet precise, we'll get there */
-__msg("mark_precise: frame0: parent state regs= stack=-8:  R0_w=1 R1=ctx() R6_r=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8_rw=P1 fp-16_w=1")
+__msg("mark_precise: frame0: parent state regs= stack=-8:  R0=1 R1=ctx() R6=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8=P1 fp-16=1")
 __msg("mark_precise: frame0: last_idx 6 first_idx 3 subseq_idx 7")
 __msg("mark_precise: frame0: regs= stack=-8 before 6: (05) goto pc+0")
 __msg("mark_precise: frame0: regs= stack=-8 before 5: (7b) *(u64 *)(r10 -16) = r0")
 __msg("mark_precise: frame0: regs= stack=-8 before 4: (b7) r0 = 1")
 __msg("mark_precise: frame0: regs= stack=-8 before 3: (7a) *(u64 *)(r10 -8) = 1")
-__msg("10: R1_w=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2_w=1")
+__msg("10: R1=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2=1")
 /* validate load from fp-16, which was initialized using BPF_STX_MEM */
-__msg("12: (79) r2 = *(u64 *)(r10 -16)       ; R2_w=1 R10=fp0 fp-16=1")
+__msg("12: (79) r2 = *(u64 *)(r10 -16)       ; R2=1 R10=fp0 fp-16=1")
 __msg("13: (0f) r1 += r2")
 __msg("mark_precise: frame0: last_idx 13 first_idx 7 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r2 stack= before 12: (79) r2 = *(u64 *)(r10 -16)")
@@ -668,12 +668,12 @@ __msg("mark_precise: frame0: regs= stack=-16 before 9: (0f) r1 += r2")
 __msg("mark_precise: frame0: regs= stack=-16 before 8: (79) r2 = *(u64 *)(r10 -8)")
 __msg("mark_precise: frame0: regs= stack=-16 before 7: (bf) r1 = r6")
 /* now both fp-8 and fp-16 are precise, very good */
-__msg("mark_precise: frame0: parent state regs= stack=-16:  R0_w=1 R1=ctx() R6_r=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8_rw=P1 fp-16_rw=P1")
+__msg("mark_precise: frame0: parent state regs= stack=-16:  R0=1 R1=ctx() R6=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8=P1 fp-16=P1")
 __msg("mark_precise: frame0: last_idx 6 first_idx 3 subseq_idx 7")
 __msg("mark_precise: frame0: regs= stack=-16 before 6: (05) goto pc+0")
 __msg("mark_precise: frame0: regs= stack=-16 before 5: (7b) *(u64 *)(r10 -16) = r0")
 __msg("mark_precise: frame0: regs=r0 stack= before 4: (b7) r0 = 1")
-__msg("14: R1_w=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2_w=1")
+__msg("14: R1=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2=1")
 __naked void stack_load_preserves_const_precision(void)
 {
 	asm volatile (
@@ -719,22 +719,22 @@ __success
 /* make sure fp-8 is 32-bit FAKE subregister spill */
 __msg("3: (62) *(u32 *)(r10 -8) = 1          ; R10=fp0 fp-8=????1")
 /* but fp-16 is spilled IMPRECISE zero const reg */
-__msg("5: (63) *(u32 *)(r10 -16) = r0        ; R0_w=1 R10=fp0 fp-16=????1")
+__msg("5: (63) *(u32 *)(r10 -16) = r0        ; R0=1 R10=fp0 fp-16=????1")
 /* validate load from fp-8, which was initialized using BPF_ST_MEM */
-__msg("8: (61) r2 = *(u32 *)(r10 -8)         ; R2_w=1 R10=fp0 fp-8=????1")
+__msg("8: (61) r2 = *(u32 *)(r10 -8)         ; R2=1 R10=fp0 fp-8=????1")
 __msg("9: (0f) r1 += r2")
 __msg("mark_precise: frame0: last_idx 9 first_idx 7 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r2 stack= before 8: (61) r2 = *(u32 *)(r10 -8)")
 __msg("mark_precise: frame0: regs= stack=-8 before 7: (bf) r1 = r6")
-__msg("mark_precise: frame0: parent state regs= stack=-8:  R0_w=1 R1=ctx() R6_r=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8_r=????P1 fp-16=????1")
+__msg("mark_precise: frame0: parent state regs= stack=-8:  R0=1 R1=ctx() R6=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8=????P1 fp-16=????1")
 __msg("mark_precise: frame0: last_idx 6 first_idx 3 subseq_idx 7")
 __msg("mark_precise: frame0: regs= stack=-8 before 6: (05) goto pc+0")
 __msg("mark_precise: frame0: regs= stack=-8 before 5: (63) *(u32 *)(r10 -16) = r0")
 __msg("mark_precise: frame0: regs= stack=-8 before 4: (b7) r0 = 1")
 __msg("mark_precise: frame0: regs= stack=-8 before 3: (62) *(u32 *)(r10 -8) = 1")
-__msg("10: R1_w=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2_w=1")
+__msg("10: R1=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2=1")
 /* validate load from fp-16, which was initialized using BPF_STX_MEM */
-__msg("12: (61) r2 = *(u32 *)(r10 -16)       ; R2_w=1 R10=fp0 fp-16=????1")
+__msg("12: (61) r2 = *(u32 *)(r10 -16)       ; R2=1 R10=fp0 fp-16=????1")
 __msg("13: (0f) r1 += r2")
 __msg("mark_precise: frame0: last_idx 13 first_idx 7 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r2 stack= before 12: (61) r2 = *(u32 *)(r10 -16)")
@@ -743,12 +743,12 @@ __msg("mark_precise: frame0: regs= stack=-16 before 10: (73) *(u8 *)(r1 +0) = r2
 __msg("mark_precise: frame0: regs= stack=-16 before 9: (0f) r1 += r2")
 __msg("mark_precise: frame0: regs= stack=-16 before 8: (61) r2 = *(u32 *)(r10 -8)")
 __msg("mark_precise: frame0: regs= stack=-16 before 7: (bf) r1 = r6")
-__msg("mark_precise: frame0: parent state regs= stack=-16:  R0_w=1 R1=ctx() R6_r=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8_r=????P1 fp-16_r=????P1")
+__msg("mark_precise: frame0: parent state regs= stack=-16:  R0=1 R1=ctx() R6=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8=????P1 fp-16=????P1")
 __msg("mark_precise: frame0: last_idx 6 first_idx 3 subseq_idx 7")
 __msg("mark_precise: frame0: regs= stack=-16 before 6: (05) goto pc+0")
 __msg("mark_precise: frame0: regs= stack=-16 before 5: (63) *(u32 *)(r10 -16) = r0")
 __msg("mark_precise: frame0: regs=r0 stack= before 4: (b7) r0 = 1")
-__msg("14: R1_w=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2_w=1")
+__msg("14: R1=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2=1")
 __naked void stack_load_preserves_const_precision_subreg(void)
 {
 	asm volatile (

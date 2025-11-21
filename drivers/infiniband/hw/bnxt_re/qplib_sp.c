@@ -66,14 +66,15 @@ static bool bnxt_qplib_is_atomic_cap(struct bnxt_qplib_rcfw *rcfw)
 	return (pcie_ctl2 & PCI_EXP_DEVCTL2_ATOMIC_REQ);
 }
 
-static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
-				     char *fw_ver)
+void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw)
 {
 	struct creq_query_version_resp resp = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct cmdq_query_version req = {};
+	struct bnxt_qplib_dev_attr *attr;
 	int rc;
 
+	attr = rcfw->res->dattr;
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_QUERY_VERSION,
 				 sizeof(req));
@@ -82,10 +83,10 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
 		return;
-	fw_ver[0] = resp.fw_maj;
-	fw_ver[1] = resp.fw_minor;
-	fw_ver[2] = resp.fw_bld;
-	fw_ver[3] = resp.fw_rsvd;
+	attr->fw_ver[0] = resp.fw_maj;
+	attr->fw_ver[1] = resp.fw_minor;
+	attr->fw_ver[2] = resp.fw_bld;
+	attr->fw_ver[3] = resp.fw_rsvd;
 }
 
 int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
@@ -178,8 +179,6 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 
 	if (_is_max_srq_ext_supported(attr->dev_cap_flags2))
 		attr->max_srq += le16_to_cpu(sb->max_srq_ext);
-
-	bnxt_qplib_query_version(rcfw, attr->fw_ver);
 
 	for (i = 0; i < MAX_TQM_ALLOC_REQ / 4; i++) {
 		temp = le32_to_cpu(sb->tqm_alloc_reqs[i]);
@@ -309,7 +308,8 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 
 int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 			struct bnxt_qplib_gid *gid, const u8 *smac,
-			u16 vlan_id, bool update, u32 *index)
+			u16 vlan_id, bool update, u32 *index,
+			bool is_ugid, u32 stats_ctx_id)
 {
 	struct bnxt_qplib_res *res = to_bnxt_qplib(sgid_tbl,
 						   struct bnxt_qplib_res,
@@ -374,6 +374,9 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 		req.src_mac[1] = cpu_to_be16(((u16 *)smac)[1]);
 		req.src_mac[2] = cpu_to_be16(((u16 *)smac)[2]);
 
+		req.stats_ctx = cpu_to_le16(CMDQ_ADD_GID_STATS_CTX_STATS_CTX_VALID |
+					    (u16)stats_ctx_id);
+
 		bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
 					sizeof(resp), 0);
 		rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
@@ -395,46 +398,6 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	*index = free_idx;
 	/* unlock */
 	return 0;
-}
-
-int bnxt_qplib_update_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
-			   struct bnxt_qplib_gid *gid, u16 gid_idx,
-			   const u8 *smac)
-{
-	struct bnxt_qplib_res *res = to_bnxt_qplib(sgid_tbl,
-						   struct bnxt_qplib_res,
-						   sgid_tbl);
-	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
-	struct creq_modify_gid_resp resp = {};
-	struct bnxt_qplib_cmdqmsg msg = {};
-	struct cmdq_modify_gid req = {};
-	int rc;
-
-	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
-				 CMDQ_BASE_OPCODE_MODIFY_GID,
-				 sizeof(req));
-
-	req.gid[0] = cpu_to_be32(((u32 *)gid->data)[3]);
-	req.gid[1] = cpu_to_be32(((u32 *)gid->data)[2]);
-	req.gid[2] = cpu_to_be32(((u32 *)gid->data)[1]);
-	req.gid[3] = cpu_to_be32(((u32 *)gid->data)[0]);
-	if (res->prio) {
-		req.vlan |= cpu_to_le16
-			(CMDQ_ADD_GID_VLAN_TPID_TPID_8100 |
-			 CMDQ_ADD_GID_VLAN_VLAN_EN);
-	}
-
-	/* MAC in network format */
-	req.src_mac[0] = cpu_to_be16(((u16 *)smac)[0]);
-	req.src_mac[1] = cpu_to_be16(((u16 *)smac)[1]);
-	req.src_mac[2] = cpu_to_be16(((u16 *)smac)[2]);
-
-	req.gid_index = cpu_to_le16(gid_idx);
-
-	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
-				sizeof(resp), 0);
-	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
-	return rc;
 }
 
 /* AH */
@@ -1142,4 +1105,41 @@ int bnxt_qplib_query_cc_param(struct bnxt_qplib_res *res,
 out:
 	dma_free_coherent(&rcfw->pdev->dev, sbuf.size, sbuf.sb, sbuf.dma_addr);
 	return rc;
+}
+
+int bnxt_qplib_create_flow(struct bnxt_qplib_res *res)
+{
+	struct creq_roce_mirror_cfg_resp resp = {};
+	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
+	struct cmdq_roce_mirror_cfg req = {};
+	struct bnxt_qplib_cmdqmsg msg = {};
+
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_ROCE_MIRROR_CFG,
+				 sizeof(req));
+
+	req.mirror_flags = (u8)CMDQ_ROCE_MIRROR_CFG_MIRROR_ENABLE;
+
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
+				sizeof(resp), 0);
+	return bnxt_qplib_rcfw_send_message(rcfw, &msg);
+}
+
+int bnxt_qplib_destroy_flow(struct bnxt_qplib_res *res)
+{
+	struct creq_roce_mirror_cfg_resp resp = {};
+	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
+	struct cmdq_roce_mirror_cfg req = {};
+	struct bnxt_qplib_cmdqmsg msg = {};
+
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_ROCE_MIRROR_CFG,
+				 sizeof(req));
+
+	req.mirror_flags &= ~((u8)CMDQ_ROCE_MIRROR_CFG_MIRROR_ENABLE);
+
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
+				sizeof(resp), 0);
+
+	return bnxt_qplib_rcfw_send_message(rcfw, &msg);
 }

@@ -22,6 +22,7 @@
 #include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_pm.h"
+#include "xe_sriov_pf.h"
 
 /*
  *      /sys/kernel/debug/dri/0/
@@ -205,7 +206,8 @@ static int CONFIG##_set(void *data, u64 val)					\
 		return -EOVERFLOW;						\
 										\
 	xe_pm_runtime_get(xe);							\
-	err = xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
+	err = xe_sriov_pf_wait_ready(xe) ?:					\
+	      xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
 	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\

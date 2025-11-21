@@ -555,7 +555,7 @@ static int cs42l43_pin_probe(struct platform_device *pdev)
 	priv->gpio_chip.direction_output = cs42l43_gpio_direction_out;
 	priv->gpio_chip.add_pin_ranges = cs42l43_gpio_add_pin_ranges;
 	priv->gpio_chip.get = cs42l43_gpio_get;
-	priv->gpio_chip.set_rv = cs42l43_gpio_set;
+	priv->gpio_chip.set = cs42l43_gpio_set;
 	priv->gpio_chip.label = dev_name(priv->dev);
 	priv->gpio_chip.parent = priv->dev;
 	priv->gpio_chip.can_sleep = true;

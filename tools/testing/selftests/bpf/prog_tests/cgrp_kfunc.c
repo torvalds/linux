@@ -4,6 +4,8 @@
 #define _GNU_SOURCE
 #include <cgroup_helpers.h>
 #include <test_progs.h>
+#include <sched.h>
+#include <sys/wait.h>
 
 #include "cgrp_kfunc_failure.skel.h"
 #include "cgrp_kfunc_success.skel.h"
@@ -87,6 +89,72 @@ static const char * const success_tests[] = {
 	"test_cgrp_from_id",
 };
 
+static void test_cgrp_from_id_ns(void)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, opts);
+	struct cgrp_kfunc_success *skel;
+	struct bpf_program *prog;
+	int pid, pipe_fd[2];
+
+	skel = open_load_cgrp_kfunc_skel();
+	if (!ASSERT_OK_PTR(skel, "open_load_skel"))
+		return;
+
+	if (!ASSERT_OK(skel->bss->err, "pre_mkdir_err"))
+		goto cleanup;
+
+	prog = skel->progs.test_cgrp_from_id_ns;
+
+	if (!ASSERT_OK(pipe(pipe_fd), "pipe"))
+		goto cleanup;
+
+	pid = fork();
+	if (!ASSERT_GE(pid, 0, "fork result")) {
+		close(pipe_fd[0]);
+		close(pipe_fd[1]);
+		goto cleanup;
+	}
+
+	if (pid == 0) {
+		int ret = 0;
+
+		close(pipe_fd[0]);
+
+		if (!ASSERT_GE(cgroup_setup_and_join("cgrp_from_id_ns"), 0, "join cgroup"))
+			exit(1);
+
+		if (!ASSERT_OK(unshare(CLONE_NEWCGROUP), "unshare cgns"))
+			exit(1);
+
+		ret = bpf_prog_test_run_opts(bpf_program__fd(prog), &opts);
+		if (!ASSERT_OK(ret, "test run ret"))
+			exit(1);
+
+		if (!ASSERT_OK(opts.retval, "test run retval"))
+			exit(1);
+
+		if (!ASSERT_EQ(write(pipe_fd[1], &ret, sizeof(ret)), sizeof(ret), "write pipe"))
+			exit(1);
+
+		exit(0);
+	} else {
+		int res;
+
+		close(pipe_fd[1]);
+
+		ASSERT_EQ(read(pipe_fd[0], &res, sizeof(res)), sizeof(res), "read res");
+		ASSERT_EQ(waitpid(pid, NULL, 0), pid, "wait on child");
+
+		remove_cgroup_pid("cgrp_from_id_ns", pid);
+
+		ASSERT_OK(res, "result from run");
+	}
+
+	close(pipe_fd[0]);
+cleanup:
+	cgrp_kfunc_success__destroy(skel);
+}
+
 void test_cgrp_kfunc(void)
 {
 	int i, err;
@@ -101,6 +169,9 @@ void test_cgrp_kfunc(void)
 
 		run_success_test(success_tests[i]);
 	}
+
+	if (test__start_subtest("test_cgrp_from_id_ns"))
+		test_cgrp_from_id_ns();
 
 	RUN_TESTS(cgrp_kfunc_failure);
 

@@ -320,9 +320,8 @@ int mac_prepare(struct phylink_config *config, unsigned int mode,
  *   If in 802.3z mode, the link speed is fixed, dependent on the
  *   @state->interface. Duplex and pause modes are negotiated via
  *   the in-band configuration word. Advertised pause modes are set
- *   according to the @state->an_enabled and @state->advertising
- *   flags. Beware of MACs which only support full duplex at gigabit
- *   and higher speeds.
+ *   according to @state->advertising. Beware of MACs which only
+ *   support full duplex at gigabit and higher speeds.
  *
  *   If in Cisco SGMII mode, the link speed and duplex mode are passed
  *   in the serial bitstream 16-bit configuration word, and the MAC
@@ -331,7 +330,7 @@ int mac_prepare(struct phylink_config *config, unsigned int mode,
  *   responsible for reading the configuration word and configuring
  *   itself accordingly.
  *
- *   Valid state members: interface, an_enabled, pause, advertising.
+ *   Valid state members: interface, pause, advertising.
  *
  * Implementations are expected to update the MAC to reflect the
  * requested settings - i.o.w., if nothing has changed between two

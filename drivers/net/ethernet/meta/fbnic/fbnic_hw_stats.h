@@ -5,6 +5,7 @@
 #define _FBNIC_HW_STATS_H_
 
 #include <linux/ethtool.h>
+#include <linux/spinlock.h>
 
 #include "fbnic_csr.h"
 
@@ -20,6 +21,16 @@ struct fbnic_stat_counter {
 struct fbnic_hw_stat {
 	struct fbnic_stat_counter frames;
 	struct fbnic_stat_counter bytes;
+};
+
+struct fbnic_fec_stats {
+	struct fbnic_stat_counter corrected_blocks, uncorrectable_blocks;
+};
+
+struct fbnic_pcs_stats {
+	struct {
+		struct fbnic_stat_counter lanes[FBNIC_PCS_MAX_LANES];
+	} SymbolErrorDuringCarrier;
 };
 
 /* Note: not updated by fbnic_get_hw_stats() */
@@ -39,6 +50,12 @@ struct fbnic_rmon_stats {
 	struct fbnic_stat_counter hist_tx[ETHTOOL_RMON_HIST_MAX];
 };
 
+/* Note: not updated by fbnic_get_hw_stats() */
+struct fbnic_pause_stats {
+	struct fbnic_stat_counter tx_pause_frames;
+	struct fbnic_stat_counter rx_pause_frames;
+};
+
 struct fbnic_eth_mac_stats {
 	struct fbnic_stat_counter FramesTransmittedOK;
 	struct fbnic_stat_counter FramesReceivedOK;
@@ -55,8 +72,14 @@ struct fbnic_eth_mac_stats {
 	struct fbnic_stat_counter FrameTooLongErrors;
 };
 
+struct fbnic_phy_stats {
+	struct fbnic_fec_stats fec;
+	struct fbnic_pcs_stats pcs;
+};
+
 struct fbnic_mac_stats {
 	struct fbnic_eth_mac_stats eth_mac;
+	struct fbnic_pause_stats pause;
 	struct fbnic_eth_ctrl_stats eth_ctrl;
 	struct fbnic_rmon_stats rmon;
 };
@@ -115,6 +138,7 @@ struct fbnic_pcie_stats {
 };
 
 struct fbnic_hw_stats {
+	struct fbnic_phy_stats phy;
 	struct fbnic_mac_stats mac;
 	struct fbnic_tmi_stats tmi;
 	struct fbnic_tti_stats tti;
@@ -122,11 +146,15 @@ struct fbnic_hw_stats {
 	struct fbnic_rxb_stats rxb;
 	struct fbnic_hw_q_stats hw_q[FBNIC_MAX_QUEUES];
 	struct fbnic_pcie_stats pcie;
+
+	/* Lock protecting the access to hw stats */
+	spinlock_t lock;
 };
 
 u64 fbnic_stat_rd64(struct fbnic_dev *fbd, u32 reg, u32 offset);
 
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd);
+void fbnic_init_hw_stats(struct fbnic_dev *fbd);
 void fbnic_get_hw_q_stats(struct fbnic_dev *fbd,
 			  struct fbnic_hw_q_stats *hw_q);
 void fbnic_get_hw_stats32(struct fbnic_dev *fbd);

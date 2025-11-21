@@ -167,7 +167,7 @@ static const struct gpio_chip sch_gpio_chip = {
 	.direction_input	= sch_gpio_direction_in,
 	.get			= sch_gpio_get,
 	.direction_output	= sch_gpio_direction_out,
-	.set_rv			= sch_gpio_set,
+	.set			= sch_gpio_set,
 	.get_direction		= sch_gpio_get_direction,
 };
 

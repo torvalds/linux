@@ -244,24 +244,17 @@ static ssize_t hmcdrv_dev_write(struct file *fp, const char __user *ubuf,
 				size_t len, loff_t *pos)
 {
 	ssize_t retlen;
+	void *pdata;
 
 	pr_debug("writing file '/dev/%pD' at pos. %lld with length %zd\n",
 		 fp, (long long) *pos, len);
 
 	if (!fp->private_data) { /* first expect a cmd write */
-		fp->private_data = kmalloc(len + 1, GFP_KERNEL);
-
-		if (!fp->private_data)
-			return -ENOMEM;
-
-		if (!copy_from_user(fp->private_data, ubuf, len)) {
-			((char *)fp->private_data)[len] = '\0';
-			return len;
-		}
-
-		kfree(fp->private_data);
-		fp->private_data = NULL;
-		return -EFAULT;
+		pdata = memdup_user_nul(ubuf, len);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+		fp->private_data = pdata;
+		return len;
 	}
 
 	retlen = hmcdrv_dev_transfer((char *) fp->private_data,

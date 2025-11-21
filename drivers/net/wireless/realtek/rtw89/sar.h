@@ -37,6 +37,7 @@ void rtw89_tas_reset(struct rtw89_dev *rtwdev, bool force);
 void rtw89_tas_scan(struct rtw89_dev *rtwdev, bool start);
 void rtw89_tas_chanctx_cb(struct rtw89_dev *rtwdev,
 			  enum rtw89_chanctx_state state);
+void rtw89_tas_fw_timer_enable(struct rtw89_dev *rtwdev, bool enable);
 void rtw89_sar_init(struct rtw89_dev *rtwdev);
 void rtw89_sar_track(struct rtw89_dev *rtwdev);
 

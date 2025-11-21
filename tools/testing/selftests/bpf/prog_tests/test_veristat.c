@@ -75,26 +75,26 @@ static void test_set_global_vars_succeeds(void)
 	    " -vl2 > %s", fix->veristat, fix->tmpfile);
 
 	read(fix->fd, fix->output, fix->sz);
-	__CHECK_STR("_w=0xf000000000000001 ", "var_s64 = 0xf000000000000001");
-	__CHECK_STR("_w=0xfedcba9876543210 ", "var_u64 = 0xfedcba9876543210");
-	__CHECK_STR("_w=0x80000000 ", "var_s32 = -0x80000000");
-	__CHECK_STR("_w=0x76543210 ", "var_u32 = 0x76543210");
-	__CHECK_STR("_w=0x8000 ", "var_s16 = -32768");
-	__CHECK_STR("_w=0xecec ", "var_u16 = 60652");
-	__CHECK_STR("_w=128 ", "var_s8 = -128");
-	__CHECK_STR("_w=255 ", "var_u8 = 255");
-	__CHECK_STR("_w=11 ", "var_ea = EA2");
-	__CHECK_STR("_w=12 ", "var_eb = EB2");
-	__CHECK_STR("_w=13 ", "var_ec = EC2");
-	__CHECK_STR("_w=1 ", "var_b = 1");
-	__CHECK_STR("_w=170 ", "struct1[2].struct2[1][2].u.var_u8[2]=170");
-	__CHECK_STR("_w=0xaaaa ", "union1.var_u16 = 0xaaaa");
-	__CHECK_STR("_w=171 ", "arr[3]= 171");
-	__CHECK_STR("_w=172 ", "arr[EA2] =172");
-	__CHECK_STR("_w=10 ", "enum_arr[EC2]=EA3");
-	__CHECK_STR("_w=173 ", "matrix[31][7][11]=173");
-	__CHECK_STR("_w=174 ", "struct1[2].struct2[1][2].u.mat[5][3]=174");
-	__CHECK_STR("_w=175 ", "struct11[7][5].struct2[0][1].u.mat[3][0]=175");
+	__CHECK_STR("=0xf000000000000001 ", "var_s64 = 0xf000000000000001");
+	__CHECK_STR("=0xfedcba9876543210 ", "var_u64 = 0xfedcba9876543210");
+	__CHECK_STR("=0x80000000 ", "var_s32 = -0x80000000");
+	__CHECK_STR("=0x76543210 ", "var_u32 = 0x76543210");
+	__CHECK_STR("=0x8000 ", "var_s16 = -32768");
+	__CHECK_STR("=0xecec ", "var_u16 = 60652");
+	__CHECK_STR("=128 ", "var_s8 = -128");
+	__CHECK_STR("=255 ", "var_u8 = 255");
+	__CHECK_STR("=11 ", "var_ea = EA2");
+	__CHECK_STR("=12 ", "var_eb = EB2");
+	__CHECK_STR("=13 ", "var_ec = EC2");
+	__CHECK_STR("=1 ", "var_b = 1");
+	__CHECK_STR("=170 ", "struct1[2].struct2[1][2].u.var_u8[2]=170");
+	__CHECK_STR("=0xaaaa ", "union1.var_u16 = 0xaaaa");
+	__CHECK_STR("=171 ", "arr[3]= 171");
+	__CHECK_STR("=172 ", "arr[EA2] =172");
+	__CHECK_STR("=10 ", "enum_arr[EC2]=EA3");
+	__CHECK_STR("=173 ", "matrix[31][7][11]=173");
+	__CHECK_STR("=174 ", "struct1[2].struct2[1][2].u.mat[5][3]=174");
+	__CHECK_STR("=175 ", "struct11[7][5].struct2[0][1].u.mat[3][0]=175");
 
 out:
 	teardown_fixture(fix);
@@ -117,8 +117,8 @@ static void test_set_global_vars_from_file_succeeds(void)
 	SYS(out, "%s set_global_vars.bpf.o -G \"@%s\" -vl2 > %s",
 	    fix->veristat, input_file, fix->tmpfile);
 	read(fix->fd, fix->output, fix->sz);
-	__CHECK_STR("_w=0x8000 ", "var_s16 = -32768");
-	__CHECK_STR("_w=0xecec ", "var_u16 = 60652");
+	__CHECK_STR("=0x8000 ", "var_s16 = -32768");
+	__CHECK_STR("=0xecec ", "var_u16 = 60652");
 
 out:
 	close(fd);

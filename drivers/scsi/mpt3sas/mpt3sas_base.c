@@ -1420,7 +1420,13 @@ _base_display_reply_info(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 	if (ioc_status & MPI2_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
 		loginfo = le32_to_cpu(mpi_reply->IOCLogInfo);
-		_base_sas_log_info(ioc, loginfo);
+		if (ioc->logging_level & MPT_DEBUG_REPLY)
+			_base_sas_log_info(ioc, loginfo);
+		else {
+			if (!((ioc_status & MPI2_IOCSTATUS_MASK) &
+			MPI2_IOCSTATUS_CONFIG_INVALID_PAGE))
+				_base_sas_log_info(ioc, loginfo);
+		}
 	}
 
 	if (ioc_status || loginfo) {

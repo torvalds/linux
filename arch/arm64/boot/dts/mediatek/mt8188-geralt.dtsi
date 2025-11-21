@@ -164,6 +164,12 @@
 		#size-cells = <2>;
 		ranges;
 
+		scp_mem_reserved: memory@50000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x50000000 0 0x800000>;
+			no-map;
+		};
+
 		apu_mem: memory@55000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x55000000 0 0x1400000>;
@@ -1077,6 +1083,13 @@
 		};
 	};
 
+	scp_pins: scp-pins {
+		pins-scp-vreq {
+			pinmux = <PINMUX_GPIO98__FUNC_O_SCP_VREQ_VAO>;
+			bias-disable;
+		};
+	};
+
 	spi0_pins: spi0-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO69__FUNC_O_SPIM0_CSB>,
@@ -1144,6 +1157,18 @@
 
 &postmask0_out {
 	remote-endpoint = <&dither0_in>;
+};
+
+&scp_cluster {
+	status = "okay";
+};
+
+&scp_c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&scp_pins>;
+	firmware-name = "mediatek/mt8188/scp.img";
+	memory-region = <&scp_mem_reserved>;
+	status = "okay";
 };
 
 &sound {

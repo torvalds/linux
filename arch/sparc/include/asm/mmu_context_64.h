@@ -4,7 +4,7 @@
 
 /* Derived heavily from Linus's Alpha/AXP ASN code... */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/spinlock.h>
 #include <linux/mm_types.h>
@@ -193,6 +193,6 @@ static inline unsigned long mm_untag_mask(struct mm_struct *mm)
 
 #include <asm-generic/mmu_context.h>
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #endif /* !(__SPARC64_MMU_CONTEXT_H) */

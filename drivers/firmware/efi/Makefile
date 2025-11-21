@@ -29,6 +29,7 @@ obj-$(CONFIG_APPLE_PROPERTIES)		+= apple-properties.o
 obj-$(CONFIG_EFI_RCI2_TABLE)		+= rci2-table.o
 obj-$(CONFIG_EFI_EMBEDDED_FIRMWARE)	+= embedded-firmware.o
 obj-$(CONFIG_LOAD_UEFI_KEYS)		+= mokvar-table.o
+obj-$(CONFIG_OVMF_DEBUG_LOG)		+= ovmf-debug-log.o
 
 obj-$(CONFIG_SYSFB)			+= sysfb_efi.o
 

@@ -1,5 +1,5 @@
-qcom-iris-objs += \
-	     iris_buffer.o \
+qcom-iris-objs += iris_buffer.o \
+             iris_common.o \
              iris_core.o \
              iris_ctrls.o \
              iris_firmware.o \
@@ -19,6 +19,7 @@ qcom-iris-objs += \
              iris_vidc.o \
              iris_vb2.o \
              iris_vdec.o \
+             iris_venc.o \
              iris_vpu2.o \
              iris_vpu3x.o \
              iris_vpu_buffer.o \

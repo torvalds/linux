@@ -1,6 +1,6 @@
-===============
-What is vesafb?
-===============
+===========================================
+vesafb - Generic graphic framebuffer driver
+===========================================
 
 This is a generic driver for a graphic framebuffer on intel boxes.
 

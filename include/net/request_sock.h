@@ -185,8 +185,8 @@ struct fastopen_queue {
 struct request_sock_queue {
 	spinlock_t		rskq_lock;
 	u8			rskq_defer_accept;
+	u8			synflood_warned;
 
-	u32			synflood_warned;
 	atomic_t		qlen;
 	atomic_t		young;
 

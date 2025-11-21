@@ -1114,7 +1114,7 @@ static const struct gpio_chip intel_gpio_chip = {
 	.direction_input = intel_gpio_direction_input,
 	.direction_output = intel_gpio_direction_output,
 	.get = intel_gpio_get,
-	.set_rv = intel_gpio_set,
+	.set = intel_gpio_set,
 	.set_config = gpiochip_generic_config,
 };
 

@@ -134,8 +134,8 @@ void flush_dcache_folio(struct folio *folio)
 	 */
 
 	if (mapping && !mapping_mapped(mapping)) {
-		if (!test_bit(PG_arch_1, &folio->flags))
-			set_bit(PG_arch_1, &folio->flags);
+		if (!test_bit(PG_arch_1, &folio->flags.f))
+			set_bit(PG_arch_1, &folio->flags.f);
 		return;
 
 	} else {
@@ -232,7 +232,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)
 
-	if (!folio_test_reserved(folio) && test_bit(PG_arch_1, &folio->flags)) {
+	if (!folio_test_reserved(folio) && test_bit(PG_arch_1, &folio->flags.f)) {
 		unsigned long phys = folio_pfn(folio) * PAGE_SIZE;
 		unsigned long tmp;
 
@@ -247,10 +247,10 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 		}
 		preempt_enable();
 
-		clear_bit(PG_arch_1, &folio->flags);
+		clear_bit(PG_arch_1, &folio->flags.f);
 	}
 #else
-	if (!folio_test_reserved(folio) && !test_bit(PG_arch_1, &folio->flags)
+	if (!folio_test_reserved(folio) && !test_bit(PG_arch_1, &folio->flags.f)
 	    && (vma->vm_flags & VM_EXEC) != 0) {
 		for (i = 0; i < nr; i++) {
 			void *paddr = kmap_local_folio(folio, i * PAGE_SIZE);
@@ -258,7 +258,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 			__invalidate_icache_page((unsigned long)paddr);
 			kunmap_local(paddr);
 		}
-		set_bit(PG_arch_1, &folio->flags);
+		set_bit(PG_arch_1, &folio->flags.f);
 	}
 #endif
 }

@@ -2,7 +2,7 @@
 /*
  * RainShadow Tech HDMI CEC driver
  *
- * Copyright 2016 Hans Verkuil <hverkuil@xs4all.nl
+ * Copyright 2016 Hans Verkuil <hverkuil@kernel.org>
  */
 
 /*
@@ -31,7 +31,7 @@
 
 #include <media/cec.h>
 
-MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
+MODULE_AUTHOR("Hans Verkuil <hverkuil@kernel.org>");
 MODULE_DESCRIPTION("RainShadow Tech HDMI CEC driver");
 MODULE_LICENSE("GPL");
 

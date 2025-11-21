@@ -51,6 +51,9 @@
 	{ PFERR_PRESENT_MASK, "P" },	\
 	{ PFERR_WRITE_MASK, "W" },	\
 	{ PFERR_USER_MASK, "U" },	\
+	{ PFERR_PK_MASK, "PK" },	\
+	{ PFERR_SS_MASK, "SS" },	\
+	{ PFERR_SGX_MASK, "SGX" },	\
 	{ PFERR_RSVD_MASK, "RSVD" },	\
 	{ PFERR_FETCH_MASK, "F" }
 

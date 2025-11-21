@@ -86,7 +86,7 @@ out_put:
  * @nhi ACPI node. For each reference a device link is added. The link
  * is automatically removed by the driver core.
  *
- * Returns %true if at least one link was created.
+ * Returns %true if at least one link was created, %false otherwise.
  */
 bool tb_acpi_add_links(struct tb_nhi *nhi)
 {
@@ -113,8 +113,10 @@ bool tb_acpi_add_links(struct tb_nhi *nhi)
 /**
  * tb_acpi_is_native() - Did the platform grant native TBT/USB4 control
  *
- * Returns %true if the platform granted OS native control over
- * TBT/USB4. In this case software based connection manager can be used,
+ * Return: %true if the platform granted OS native control over
+ * TBT/USB4, %false otherwise.
+ *
+ * When returned %true, software based connection manager can be used,
  * otherwise there is firmware based connection manager running.
  */
 bool tb_acpi_is_native(void)
@@ -126,8 +128,8 @@ bool tb_acpi_is_native(void)
 /**
  * tb_acpi_may_tunnel_usb3() - Is USB3 tunneling allowed by the platform
  *
- * When software based connection manager is used, this function
- * returns %true if platform allows native USB3 tunneling.
+ * Return: %true if software based connection manager is used and
+ * platform allows native USB 3.x tunneling, %false otherwise.
  */
 bool tb_acpi_may_tunnel_usb3(void)
 {
@@ -139,8 +141,8 @@ bool tb_acpi_may_tunnel_usb3(void)
 /**
  * tb_acpi_may_tunnel_dp() - Is DisplayPort tunneling allowed by the platform
  *
- * When software based connection manager is used, this function
- * returns %true if platform allows native DP tunneling.
+ * Return: %true if software based connection manager is used and
+ * platform allows native DP tunneling, %false otherwise.
  */
 bool tb_acpi_may_tunnel_dp(void)
 {
@@ -152,8 +154,8 @@ bool tb_acpi_may_tunnel_dp(void)
 /**
  * tb_acpi_may_tunnel_pcie() - Is PCIe tunneling allowed by the platform
  *
- * When software based connection manager is used, this function
- * returns %true if platform allows native PCIe tunneling.
+ * Return: %true if software based connection manager is used and
+ * platform allows native PCIe tunneling, %false otherwise.
  */
 bool tb_acpi_may_tunnel_pcie(void)
 {
@@ -165,8 +167,8 @@ bool tb_acpi_may_tunnel_pcie(void)
 /**
  * tb_acpi_is_xdomain_allowed() - Are XDomain connections allowed
  *
- * When software based connection manager is used, this function
- * returns %true if platform allows XDomain connections.
+ * Return: %true if software based connection manager is used and
+ * platform allows XDomain tunneling, %false otherwise.
  */
 bool tb_acpi_is_xdomain_allowed(void)
 {
@@ -256,7 +258,7 @@ static int tb_acpi_retimer_set_power(struct tb_port *port, bool power)
  *
  * This should only be called if the USB4/TBT link is not up.
  *
- * Returns %0 on success.
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_acpi_power_on_retimers(struct tb_port *port)
 {
@@ -270,7 +272,7 @@ int tb_acpi_power_on_retimers(struct tb_port *port)
  * This is the opposite of tb_acpi_power_on_retimers(). After returning
  * successfully the normal operations with the @port can continue.
  *
- * Returns %0 on success.
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_acpi_power_off_retimers(struct tb_port *port)
 {

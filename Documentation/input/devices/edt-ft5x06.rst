@@ -29,8 +29,25 @@ The driver allows configuration of the touch screen via a set of sysfs files:
 
 
 For debugging purposes the driver provides a few files in the debug
-filesystem (if available in the kernel). In /sys/kernel/debug/edt_ft5x06
-you'll find the following files:
+filesystem (if available in the kernel). They are located in:
+
+    /sys/kernel/debug/i2c/<i2c-bus>/<i2c-device>/
+
+If you don't know the bus and device numbers, you can look them up with this
+command:
+
+    $ ls -l /sys/bus/i2c/drivers/edt_ft5x06
+
+The dereference of the symlink will contain the needed information. You will
+need the last two elements of its path:
+
+    0-0038 -> ../../../../devices/platform/soc/fcfee800.i2c/i2c-0/0-0038
+
+So in this case, the location for the debug files is:
+
+    /sys/kernel/debug/i2c/i2c-0/0-0038/
+
+There, you'll find the following files:
 
 num_x, num_y:
     (readonly) contains the number of sensor fields in X- and

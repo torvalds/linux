@@ -1030,22 +1030,6 @@ out:
 	return 1;
 }
 
-/* helper */
-static void move_to_net_ee_or_free(struct drbd_device *device, struct drbd_peer_request *peer_req)
-{
-	if (drbd_peer_req_has_active_page(peer_req)) {
-		/* This might happen if sendpage() has not finished */
-		int i = PFN_UP(peer_req->i.size);
-		atomic_add(i, &device->pp_in_use_by_net);
-		atomic_sub(i, &device->pp_in_use);
-		spin_lock_irq(&device->resource->req_lock);
-		list_add_tail(&peer_req->w.list, &device->net_ee);
-		spin_unlock_irq(&device->resource->req_lock);
-		wake_up(&drbd_pp_wait);
-	} else
-		drbd_free_peer_req(device, peer_req);
-}
-
 /**
  * w_e_end_data_req() - Worker callback, to send a P_DATA_REPLY packet in response to a P_DATA_REQUEST
  * @w:		work object.
@@ -1059,9 +1043,8 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 	int err;
 
 	if (unlikely(cancel)) {
-		drbd_free_peer_req(device, peer_req);
-		dec_unacked(device);
-		return 0;
+		err = 0;
+		goto out;
 	}
 
 	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
@@ -1074,12 +1057,12 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 		err = drbd_send_ack(peer_device, P_NEG_DREPLY, peer_req);
 	}
 
-	dec_unacked(device);
-
-	move_to_net_ee_or_free(device, peer_req);
-
 	if (unlikely(err))
 		drbd_err(device, "drbd_send_block() failed\n");
+out:
+	dec_unacked(device);
+	drbd_free_peer_req(device, peer_req);
+
 	return err;
 }
 
@@ -1120,9 +1103,8 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 	int err;
 
 	if (unlikely(cancel)) {
-		drbd_free_peer_req(device, peer_req);
-		dec_unacked(device);
-		return 0;
+		err = 0;
+		goto out;
 	}
 
 	if (get_ldev_if_state(device, D_FAILED)) {
@@ -1155,13 +1137,12 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 		/* update resync data with failure */
 		drbd_rs_failed_io(peer_device, peer_req->i.sector, peer_req->i.size);
 	}
-
-	dec_unacked(device);
-
-	move_to_net_ee_or_free(device, peer_req);
-
 	if (unlikely(err))
 		drbd_err(device, "drbd_send_block() failed\n");
+out:
+	dec_unacked(device);
+	drbd_free_peer_req(device, peer_req);
+
 	return err;
 }
 
@@ -1176,9 +1157,8 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 	int err, eq = 0;
 
 	if (unlikely(cancel)) {
-		drbd_free_peer_req(device, peer_req);
-		dec_unacked(device);
-		return 0;
+		err = 0;
+		goto out;
 	}
 
 	if (get_ldev(device)) {
@@ -1220,12 +1200,12 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 		if (drbd_ratelimit())
 			drbd_err(device, "Sending NegDReply. I guess it gets messy.\n");
 	}
-
-	dec_unacked(device);
-	move_to_net_ee_or_free(device, peer_req);
-
 	if (unlikely(err))
 		drbd_err(device, "drbd_send_block/ack() failed\n");
+out:
+	dec_unacked(device);
+	drbd_free_peer_req(device, peer_req);
+
 	return err;
 }
 

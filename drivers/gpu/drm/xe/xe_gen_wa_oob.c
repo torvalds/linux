@@ -123,11 +123,19 @@ static int parse(FILE *input, FILE *csource, FILE *cheader, char *prefix)
 	return 0;
 }
 
+/* Avoid GNU vs POSIX basename() discrepancy, just use our own */
+static const char *xbasename(const char *s)
+{
+	const char *p = strrchr(s, '/');
+
+	return p ? p + 1 : s;
+}
+
 static int fn_to_prefix(const char *fn, char *prefix, size_t size)
 {
 	size_t len;
 
-	fn = basename(fn);
+	fn = xbasename(fn);
 	len = strlen(fn);
 
 	if (len > size - 1)

@@ -34,7 +34,7 @@
  * aligned to sizeof(unsigned long) because it's not accessed via bitops.
  */
 u32 kvm_cpu_caps[NR_KVM_CPU_CAPS] __read_mostly;
-EXPORT_SYMBOL_GPL(kvm_cpu_caps);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_cpu_caps);
 
 struct cpuid_xstate_sizes {
 	u32 eax;
@@ -131,7 +131,7 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry2(
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry2);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_find_cpuid_entry2);
 
 static int kvm_check_cpuid(struct kvm_vcpu *vcpu)
 {
@@ -263,6 +263,17 @@ static u64 cpuid_get_supported_xcr0(struct kvm_vcpu *vcpu)
 	return (best->eax | ((u64)best->edx << 32)) & kvm_caps.supported_xcr0;
 }
 
+static u64 cpuid_get_supported_xss(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry_index(vcpu, 0xd, 1);
+	if (!best)
+		return 0;
+
+	return (best->ecx | ((u64)best->edx << 32)) & kvm_caps.supported_xss;
+}
+
 static __always_inline void kvm_update_feature_runtime(struct kvm_vcpu *vcpu,
 						       struct kvm_cpuid_entry2 *entry,
 						       unsigned int x86_feature,
@@ -305,7 +316,8 @@ static void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu)
 	best = kvm_find_cpuid_entry_index(vcpu, 0xD, 1);
 	if (best && (cpuid_entry_has(best, X86_FEATURE_XSAVES) ||
 		     cpuid_entry_has(best, X86_FEATURE_XSAVEC)))
-		best->ebx = xstate_required_size(vcpu->arch.xcr0, true);
+		best->ebx = xstate_required_size(vcpu->arch.xcr0 |
+						 vcpu->arch.ia32_xss, true);
 }
 
 static bool kvm_cpuid_has_hyperv(struct kvm_vcpu *vcpu)
@@ -424,6 +436,7 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	}
 
 	vcpu->arch.guest_supported_xcr0 = cpuid_get_supported_xcr0(vcpu);
+	vcpu->arch.guest_supported_xss = cpuid_get_supported_xss(vcpu);
 
 	vcpu->arch.pv_cpuid.features = kvm_apply_cpuid_pv_features_quirk(vcpu);
 
@@ -448,6 +461,8 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	 * adjustments to the reserved GPA bits.
 	 */
 	kvm_mmu_after_set_cpuid(vcpu);
+
+	kvm_make_request(KVM_REQ_RECALC_INTERCEPTS, vcpu);
 }
 
 int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu)
@@ -931,6 +946,7 @@ void kvm_set_cpu_caps(void)
 		VENDOR_F(WAITPKG),
 		F(SGX_LC),
 		F(BUS_LOCK_DETECT),
+		X86_64_F(SHSTK),
 	);
 
 	/*
@@ -939,6 +955,14 @@ void kvm_set_cpu_caps(void)
 	 */
 	if (!tdp_enabled || !boot_cpu_has(X86_FEATURE_OSPKE))
 		kvm_cpu_cap_clear(X86_FEATURE_PKU);
+
+	/*
+	 * Shadow Stacks aren't implemented in the Shadow MMU.  Shadow Stack
+	 * accesses require "magic" Writable=0,Dirty=1 protection, which KVM
+	 * doesn't know how to emulate or map.
+	 */
+	if (!tdp_enabled)
+		kvm_cpu_cap_clear(X86_FEATURE_SHSTK);
 
 	kvm_cpu_cap_init(CPUID_7_EDX,
 		F(AVX512_4VNNIW),
@@ -957,7 +981,18 @@ void kvm_set_cpu_caps(void)
 		F(AMX_INT8),
 		F(AMX_BF16),
 		F(FLUSH_L1D),
+		F(IBT),
 	);
+
+	/*
+	 * Disable support for IBT and SHSTK if KVM is configured to emulate
+	 * accesses to reserved GPAs, as KVM's emulator doesn't support IBT or
+	 * SHSTK, nor does KVM handle Shadow Stack #PFs (see above).
+	 */
+	if (allow_smaller_maxphyaddr) {
+		kvm_cpu_cap_clear(X86_FEATURE_SHSTK);
+		kvm_cpu_cap_clear(X86_FEATURE_IBT);
+	}
 
 	if (boot_cpu_has(X86_FEATURE_AMD_IBPB_RET) &&
 	    boot_cpu_has(X86_FEATURE_AMD_IBPB) &&
@@ -983,6 +1018,10 @@ void kvm_set_cpu_caps(void)
 		F(AMX_FP16),
 		F(AVX_IFMA),
 		F(LAM),
+	);
+
+	kvm_cpu_cap_init(CPUID_7_1_ECX,
+		SCATTERED_F(MSR_IMM),
 	);
 
 	kvm_cpu_cap_init(CPUID_7_1_EDX,
@@ -1222,7 +1261,7 @@ void kvm_set_cpu_caps(void)
 		kvm_cpu_cap_clear(X86_FEATURE_RDPID);
 	}
 }
-EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_set_cpu_caps);
 
 #undef F
 #undef SCATTERED_F
@@ -1411,9 +1450,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 				goto out;
 
 			cpuid_entry_override(entry, CPUID_7_1_EAX);
+			cpuid_entry_override(entry, CPUID_7_1_ECX);
 			cpuid_entry_override(entry, CPUID_7_1_EDX);
 			entry->ebx = 0;
-			entry->ecx = 0;
 		}
 		if (max_idx >= 2) {
 			entry = do_host_cpuid(array, function, 2);
@@ -1820,7 +1859,8 @@ static int get_cpuid_func(struct kvm_cpuid_array *array, u32 func,
 	int r;
 
 	if (func == CENTAUR_CPUID_SIGNATURE &&
-	    boot_cpu_data.x86_vendor != X86_VENDOR_CENTAUR)
+	    boot_cpu_data.x86_vendor != X86_VENDOR_CENTAUR &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_ZHAOXIN)
 		return 0;
 
 	r = do_cpuid_func(array, func, type);
@@ -2001,7 +2041,7 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 		if (function == 7 && index == 0) {
 			u64 data;
 			if ((*ebx & (feature_bit(RTM) | feature_bit(HLE))) &&
-			    !__kvm_get_msr(vcpu, MSR_IA32_TSX_CTRL, &data, true) &&
+			    !kvm_msr_read(vcpu, MSR_IA32_TSX_CTRL, &data) &&
 			    (data & TSX_CTRL_CPUID_CLEAR))
 				*ebx &= ~(feature_bit(RTM) | feature_bit(HLE));
 		} else if (function == 0x80000007) {
@@ -2045,7 +2085,7 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 			used_max_basic);
 	return exact;
 }
-EXPORT_SYMBOL_GPL(kvm_cpuid);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_cpuid);
 
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
@@ -2063,4 +2103,4 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	kvm_rdx_write(vcpu, edx);
 	return kvm_skip_emulated_instruction(vcpu);
 }
-EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_emulate_cpuid);

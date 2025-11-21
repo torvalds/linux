@@ -606,6 +606,11 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 		    strstarts(symname, "_savevr_") ||
 		    strcmp(symname, ".TOC.") == 0)
 			return 1;
+
+	/* ignore linker-created section bounds variables */
+	if (strstarts(symname, "__start_") || strstarts(symname, "__stop_"))
+		return 1;
+
 	/* Do not ignore this symbol */
 	return 0;
 }
@@ -2067,11 +2072,26 @@ static void write_if_changed(struct buffer *b, const char *fname)
 static void write_vmlinux_export_c_file(struct module *mod)
 {
 	struct buffer buf = { };
+	struct module_alias *alias, *next;
 
 	buf_printf(&buf,
 		   "#include <linux/export-internal.h>\n");
 
 	add_exported_symbols(&buf, mod);
+
+	buf_printf(&buf,
+		   "#include <linux/module.h>\n"
+		   "#undef __MODULE_INFO_PREFIX\n"
+		   "#define __MODULE_INFO_PREFIX\n");
+
+	list_for_each_entry_safe(alias, next, &mod->aliases, node) {
+		buf_printf(&buf, "MODULE_INFO(%s.alias, \"%s\");\n",
+			   alias->builtin_modname, alias->str);
+		list_del(&alias->node);
+		free(alias->builtin_modname);
+		free(alias);
+	}
+
 	write_if_changed(&buf, ".vmlinux.export.c");
 	free(buf.p);
 }

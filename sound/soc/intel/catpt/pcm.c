@@ -568,8 +568,9 @@ static const struct snd_pcm_hardware catpt_pcm_hardware = {
 				  SNDRV_PCM_INFO_RESUME |
 				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-				  SNDRV_PCM_FMTBIT_S24_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
+	.subformats		= SNDRV_PCM_SUBFMTBIT_MSBITS_24 |
+				  SNDRV_PCM_SUBFMTBIT_MSBITS_MAX,
 	.period_bytes_min	= PAGE_SIZE,
 	.period_bytes_max	= CATPT_BUFFER_MAX_SIZE / CATPT_PCM_PERIODS_MIN,
 	.periods_min		= CATPT_PCM_PERIODS_MIN,
@@ -698,14 +699,18 @@ static struct snd_soc_dai_driver dai_drivers[] = {
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+		.subformats = SNDRV_PCM_SUBFMTBIT_MSBITS_24 |
+			      SNDRV_PCM_SUBFMTBIT_MSBITS_MAX,
 	},
 	.capture = {
 		.stream_name = "Analog Capture",
 		.channels_min = 2,
 		.channels_max = 4,
 		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+		.subformats = SNDRV_PCM_SUBFMTBIT_MSBITS_24 |
+			      SNDRV_PCM_SUBFMTBIT_MSBITS_MAX,
 	},
 },
 {
@@ -717,7 +722,9 @@ static struct snd_soc_dai_driver dai_drivers[] = {
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+		.subformats = SNDRV_PCM_SUBFMTBIT_MSBITS_24 |
+			      SNDRV_PCM_SUBFMTBIT_MSBITS_MAX,
 	},
 },
 {
@@ -729,7 +736,9 @@ static struct snd_soc_dai_driver dai_drivers[] = {
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+		.subformats = SNDRV_PCM_SUBFMTBIT_MSBITS_24 |
+			      SNDRV_PCM_SUBFMTBIT_MSBITS_MAX,
 	},
 },
 {
@@ -741,7 +750,9 @@ static struct snd_soc_dai_driver dai_drivers[] = {
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+		.subformats = SNDRV_PCM_SUBFMTBIT_MSBITS_24 |
+			      SNDRV_PCM_SUBFMTBIT_MSBITS_MAX,
 	},
 },
 {

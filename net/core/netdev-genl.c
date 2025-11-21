@@ -869,16 +869,79 @@ int netdev_nl_qstats_get_dumpit(struct sk_buff *skb,
 	return err;
 }
 
+static int netdev_nl_read_rxq_bitmap(struct genl_info *info,
+				     u32 rxq_bitmap_len,
+				     unsigned long *rxq_bitmap)
+{
+	const int maxtype = ARRAY_SIZE(netdev_queue_id_nl_policy) - 1;
+	struct nlattr *tb[ARRAY_SIZE(netdev_queue_id_nl_policy)];
+	struct nlattr *attr;
+	int rem, err = 0;
+	u32 rxq_idx;
+
+	nla_for_each_attr_type(attr, NETDEV_A_DMABUF_QUEUES,
+			       genlmsg_data(info->genlhdr),
+			       genlmsg_len(info->genlhdr), rem) {
+		err = nla_parse_nested(tb, maxtype, attr,
+				       netdev_queue_id_nl_policy, info->extack);
+		if (err < 0)
+			return err;
+
+		if (NL_REQ_ATTR_CHECK(info->extack, attr, tb, NETDEV_A_QUEUE_ID) ||
+		    NL_REQ_ATTR_CHECK(info->extack, attr, tb, NETDEV_A_QUEUE_TYPE))
+			return -EINVAL;
+
+		if (nla_get_u32(tb[NETDEV_A_QUEUE_TYPE]) != NETDEV_QUEUE_TYPE_RX) {
+			NL_SET_BAD_ATTR(info->extack, tb[NETDEV_A_QUEUE_TYPE]);
+			return -EINVAL;
+		}
+
+		rxq_idx = nla_get_u32(tb[NETDEV_A_QUEUE_ID]);
+		if (rxq_idx >= rxq_bitmap_len) {
+			NL_SET_BAD_ATTR(info->extack, tb[NETDEV_A_QUEUE_ID]);
+			return -EINVAL;
+		}
+
+		bitmap_set(rxq_bitmap, rxq_idx, 1);
+	}
+
+	return 0;
+}
+
+static struct device *
+netdev_nl_get_dma_dev(struct net_device *netdev, unsigned long *rxq_bitmap,
+		      struct netlink_ext_ack *extack)
+{
+	struct device *dma_dev = NULL;
+	u32 rxq_idx, prev_rxq_idx;
+
+	for_each_set_bit(rxq_idx, rxq_bitmap, netdev->real_num_rx_queues) {
+		struct device *rxq_dma_dev;
+
+		rxq_dma_dev = netdev_queue_get_dma_dev(netdev, rxq_idx);
+		if (dma_dev && rxq_dma_dev != dma_dev) {
+			NL_SET_ERR_MSG_FMT(extack, "DMA device mismatch between queue %u and %u (multi-PF device?)",
+					   rxq_idx, prev_rxq_idx);
+			return ERR_PTR(-EOPNOTSUPP);
+		}
+
+		dma_dev = rxq_dma_dev;
+		prev_rxq_idx = rxq_idx;
+	}
+
+	return dma_dev;
+}
+
 int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlattr *tb[ARRAY_SIZE(netdev_queue_id_nl_policy)];
 	struct net_devmem_dmabuf_binding *binding;
 	u32 ifindex, dmabuf_fd, rxq_idx;
 	struct netdev_nl_sock *priv;
 	struct net_device *netdev;
+	unsigned long *rxq_bitmap;
+	struct device *dma_dev;
 	struct sk_buff *rsp;
-	struct nlattr *attr;
-	int rem, err = 0;
+	int err = 0;
 	void *hdr;
 
 	if (GENL_REQ_ATTR_CHECK(info, NETDEV_A_DEV_IFINDEX) ||
@@ -921,36 +984,31 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock;
 	}
 
-	binding = net_devmem_bind_dmabuf(netdev, DMA_FROM_DEVICE, dmabuf_fd,
-					 priv, info->extack);
-	if (IS_ERR(binding)) {
-		err = PTR_ERR(binding);
+	rxq_bitmap = bitmap_zalloc(netdev->real_num_rx_queues, GFP_KERNEL);
+	if (!rxq_bitmap) {
+		err = -ENOMEM;
 		goto err_unlock;
 	}
 
-	nla_for_each_attr_type(attr, NETDEV_A_DMABUF_QUEUES,
-			       genlmsg_data(info->genlhdr),
-			       genlmsg_len(info->genlhdr), rem) {
-		err = nla_parse_nested(
-			tb, ARRAY_SIZE(netdev_queue_id_nl_policy) - 1, attr,
-			netdev_queue_id_nl_policy, info->extack);
-		if (err < 0)
-			goto err_unbind;
+	err = netdev_nl_read_rxq_bitmap(info, netdev->real_num_rx_queues,
+					rxq_bitmap);
+	if (err)
+		goto err_rxq_bitmap;
 
-		if (NL_REQ_ATTR_CHECK(info->extack, attr, tb, NETDEV_A_QUEUE_ID) ||
-		    NL_REQ_ATTR_CHECK(info->extack, attr, tb, NETDEV_A_QUEUE_TYPE)) {
-			err = -EINVAL;
-			goto err_unbind;
-		}
+	dma_dev = netdev_nl_get_dma_dev(netdev, rxq_bitmap, info->extack);
+	if (IS_ERR(dma_dev)) {
+		err = PTR_ERR(dma_dev);
+		goto err_rxq_bitmap;
+	}
 
-		if (nla_get_u32(tb[NETDEV_A_QUEUE_TYPE]) != NETDEV_QUEUE_TYPE_RX) {
-			NL_SET_BAD_ATTR(info->extack, tb[NETDEV_A_QUEUE_TYPE]);
-			err = -EINVAL;
-			goto err_unbind;
-		}
+	binding = net_devmem_bind_dmabuf(netdev, dma_dev, DMA_FROM_DEVICE,
+					 dmabuf_fd, priv, info->extack);
+	if (IS_ERR(binding)) {
+		err = PTR_ERR(binding);
+		goto err_rxq_bitmap;
+	}
 
-		rxq_idx = nla_get_u32(tb[NETDEV_A_QUEUE_ID]);
-
+	for_each_set_bit(rxq_idx, rxq_bitmap, netdev->real_num_rx_queues) {
 		err = net_devmem_bind_dmabuf_to_queue(netdev, rxq_idx, binding,
 						      info->extack);
 		if (err)
@@ -964,6 +1022,8 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto err_unbind;
 
+	bitmap_free(rxq_bitmap);
+
 	netdev_unlock(netdev);
 
 	mutex_unlock(&priv->lock);
@@ -972,6 +1032,8 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 
 err_unbind:
 	net_devmem_unbind_dmabuf(binding);
+err_rxq_bitmap:
+	bitmap_free(rxq_bitmap);
 err_unlock:
 	netdev_unlock(netdev);
 err_unlock_sock:
@@ -986,6 +1048,7 @@ int netdev_nl_bind_tx_doit(struct sk_buff *skb, struct genl_info *info)
 	struct net_devmem_dmabuf_binding *binding;
 	struct netdev_nl_sock *priv;
 	struct net_device *netdev;
+	struct device *dma_dev;
 	u32 ifindex, dmabuf_fd;
 	struct sk_buff *rsp;
 	int err = 0;
@@ -1032,8 +1095,9 @@ int netdev_nl_bind_tx_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock_netdev;
 	}
 
-	binding = net_devmem_bind_dmabuf(netdev, DMA_TO_DEVICE, dmabuf_fd, priv,
-					 info->extack);
+	dma_dev = netdev_queue_get_dma_dev(netdev, 0);
+	binding = net_devmem_bind_dmabuf(netdev, dma_dev, DMA_TO_DEVICE,
+					 dmabuf_fd, priv, info->extack);
 	if (IS_ERR(binding)) {
 		err = PTR_ERR(binding);
 		goto err_unlock_netdev;

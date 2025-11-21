@@ -1,33 +1,27 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-V4L2 File handlers
-------------------
+V4L2 File handles
+-----------------
 
-struct v4l2_fh provides a way to easily keep file handle specific
-data that is used by the V4L2 framework.
+struct v4l2_fh provides a way to easily keep file handle specific data that is
+used by the V4L2 framework. Its usage is mandatory in all drivers.
 
-.. attention::
-	New drivers must use struct v4l2_fh
-	since it is also used to implement priority handling
-	(:ref:`VIDIOC_G_PRIORITY`).
+struct v4l2_fh is allocated in the driver's ``open()`` file operation handler.
+It is typically embedded in a larger driver-specific structure. The
+:c:type:`v4l2_fh` must be initialized with a call to :c:func:`v4l2_fh_init`,
+and added to the video device with :c:func:`v4l2_fh_add`. This associates the
+:c:type:`v4l2_fh` with the :c:type:`file` by setting ``file->private_data`` to
+point to the :c:type:`v4l2_fh`.
 
-The users of :c:type:`v4l2_fh` (in the V4L2 framework, not the driver) know
-whether a driver uses :c:type:`v4l2_fh` as its ``file->private_data`` pointer
-by testing the ``V4L2_FL_USES_V4L2_FH`` bit in :c:type:`video_device`->flags.
-This bit is set whenever :c:func:`v4l2_fh_init` is called.
+Similarly, the struct v4l2_fh is freed in the driver's ``release()`` file
+operation handler. It must be removed from the video device with
+:c:func:`v4l2_fh_del` and cleaned up with :c:func:`v4l2_fh_exit` before being
+freed.
 
-struct v4l2_fh is allocated as a part of the driver's own file handle
-structure and ``file->private_data`` is set to it in the driver's ``open()``
-function by the driver.
-
-In many cases the struct v4l2_fh will be embedded in a larger
-structure. In that case you should call:
-
-#) :c:func:`v4l2_fh_init` and :c:func:`v4l2_fh_add` in ``open()``
-#) :c:func:`v4l2_fh_del` and :c:func:`v4l2_fh_exit` in ``release()``
-
-Drivers can extract their own file handle structure by using the container_of
-macro.
+Drivers must not access ``file->private_data`` directly. They can retrieve the
+:c:type:`v4l2_fh` associated with a :c:type:`file` by calling
+:c:func:`file_to_v4l2_fh`. Drivers can extract their own file handle structure
+by using the container_of macro.
 
 Example:
 
@@ -56,18 +50,17 @@ Example:
 
 		...
 
-		file->private_data = &my_fh->fh;
-		v4l2_fh_add(&my_fh->fh);
+		v4l2_fh_add(&my_fh->fh, file);
 		return 0;
 	}
 
 	int my_release(struct file *file)
 	{
-		struct v4l2_fh *fh = file->private_data;
+		struct v4l2_fh *fh = file_to_v4l2_fh(file);
 		struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
 
 		...
-		v4l2_fh_del(&my_fh->fh);
+		v4l2_fh_del(&my_fh->fh, file);
 		v4l2_fh_exit(&my_fh->fh);
 		kfree(my_fh);
 		return 0;
@@ -78,19 +71,17 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
 :c:func:`v4l2_fh_init <v4l2_fh_init>`
 (:c:type:`fh <v4l2_fh>`, :c:type:`vdev <video_device>`)
 
-
 - Initialise the file handle. This **MUST** be performed in the driver's
   :c:type:`v4l2_file_operations`->open() handler.
 
-
 :c:func:`v4l2_fh_add <v4l2_fh_add>`
-(:c:type:`fh <v4l2_fh>`)
+(:c:type:`fh <v4l2_fh>`, struct file \*filp)
 
 - Add a :c:type:`v4l2_fh` to :c:type:`video_device` file handle list.
   Must be called once the file handle is completely initialized.
 
 :c:func:`v4l2_fh_del <v4l2_fh_del>`
-(:c:type:`fh <v4l2_fh>`)
+(:c:type:`fh <v4l2_fh>`, struct file \*filp)
 
 - Unassociate the file handle from :c:type:`video_device`. The file handle
   exit function may now be called.
@@ -101,6 +92,10 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
 - Uninitialise the file handle. After uninitialisation the :c:type:`v4l2_fh`
   memory can be freed.
 
+:c:func:`file_to_v4l2_fh <file_to_v4l2_fh>`
+(struct file \*filp)
+
+- Retrieve the :c:type:`v4l2_fh` instance associated with a :c:type:`file`.
 
 If struct v4l2_fh is not embedded, then you can use these helper functions:
 

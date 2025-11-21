@@ -30,7 +30,6 @@ static inline bool check_ptr_reg(struct snd_emu10k1 *emu, unsigned int reg)
 
 unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn)
 {
-	unsigned long flags;
 	unsigned int regptr, val;
 	unsigned int mask;
 
@@ -38,10 +37,10 @@ unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, un
 	if (!check_ptr_reg(emu, regptr))
 		return 0;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(regptr, emu->port + PTR);
-	val = inl(emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	scoped_guard(spinlock_irqsave, &emu->emu_lock) {
+		outl(regptr, emu->port + PTR);
+		val = inl(emu->port + DATA);
+	}
 
 	if (reg & 0xff000000) {
 		unsigned char size, offset;
@@ -61,13 +60,13 @@ EXPORT_SYMBOL(snd_emu10k1_ptr_read);
 void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data)
 {
 	unsigned int regptr;
-	unsigned long flags;
 	unsigned int mask;
 
 	regptr = (reg << 16) | chn;
 	if (!check_ptr_reg(emu, regptr))
 		return;
 
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (reg & 0xff000000) {
 		unsigned char size, offset;
 
@@ -79,15 +78,12 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 		mask <<= offset;
 		data <<= offset;
 
-		spin_lock_irqsave(&emu->emu_lock, flags);
 		outl(regptr, emu->port + PTR);
 		data |= inl(emu->port + DATA) & ~mask;
 	} else {
-		spin_lock_irqsave(&emu->emu_lock, flags);
 		outl(regptr, emu->port + PTR);
 	}
 	outl(data, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 EXPORT_SYMBOL(snd_emu10k1_ptr_write);
@@ -96,7 +92,6 @@ void snd_emu10k1_ptr_write_multiple(struct snd_emu10k1 *emu, unsigned int chn, .
 {
 	va_list va;
 	u32 addr_mask;
-	unsigned long flags;
 
 	if (snd_BUG_ON(!emu))
 		return;
@@ -105,7 +100,7 @@ void snd_emu10k1_ptr_write_multiple(struct snd_emu10k1 *emu, unsigned int chn, .
 	addr_mask = ~((emu->audigy ? A_PTR_ADDRESS_MASK : PTR_ADDRESS_MASK) >> 16);
 
 	va_start(va, chn);
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	for (;;) {
 		u32 data;
 		u32 reg = va_arg(va, u32);
@@ -117,7 +112,6 @@ void snd_emu10k1_ptr_write_multiple(struct snd_emu10k1 *emu, unsigned int chn, .
 		outl((reg << 16) | chn, emu->port + PTR);
 		outl(data, emu->port + DATA);
 	}
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 	va_end(va);
 }
 
@@ -127,16 +121,13 @@ unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu,
 					  unsigned int reg, 
 					  unsigned int chn)
 {
-	unsigned long flags;
-	unsigned int regptr, val;
+	unsigned int regptr;
   
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outl(regptr, emu->port + PTR2);
-	val = inl(emu->port + DATA2);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
-	return val;
+	return inl(emu->port + DATA2);
 }
 
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, 
@@ -145,14 +136,12 @@ void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu,
 				   unsigned int data)
 {
 	unsigned int regptr;
-	unsigned long flags;
 
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outl(regptr, emu->port + PTR2);
 	outl(data, emu->port + DATA2);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
@@ -161,22 +150,19 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	unsigned int reset, set;
 	unsigned int reg, tmp;
 	int n, result;
-	int err = 0;
 
 	/* This function is not re-entrant, so protect against it. */
-	spin_lock(&emu->spi_lock);
+	guard(spinlock)(&emu->spi_lock);
 	if (emu->card_capabilities->ca0108_chip)
 		reg = P17V_SPI;
 	else {
 		/* For other chip types the SPI register
 		 * is currently unknown. */
-		err = 1;
-		goto spi_write_exit;
+		return 1;
 	}
 	if (data > 0xffff) {
 		/* Only 16bit values allowed */
-		err = 1;
-		goto spi_write_exit;
+		return 1;
 	}
 
 	tmp = snd_emu10k1_ptr20_read(emu, reg, 0);
@@ -197,15 +183,11 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	}
 	if (result) {
 		/* Timed out */
-		err = 1;
-		goto spi_write_exit;
+		return 1;
 	}
 	snd_emu10k1_ptr20_write(emu, reg, 0, reset | data);
 	tmp = snd_emu10k1_ptr20_read(emu, reg, 0); /* Write post */
-	err = 0;
-spi_write_exit:
-	spin_unlock(&emu->spi_lock);
-	return err;
+	return 0;
 }
 
 /* The ADC does not support i2c read, so only write is implemented */
@@ -217,7 +199,6 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 	int timeout = 0;
 	int status;
 	int retry;
-	int err = 0;
 
 	if ((reg > 0x7f) || (value > 0x1ff)) {
 		dev_err(emu->card->dev, "i2c_write: invalid values.\n");
@@ -225,7 +206,7 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 	}
 
 	/* This function is not re-entrant, so protect against it. */
-	spin_lock(&emu->i2c_lock);
+	guard(spinlock)(&emu->i2c_lock);
 
 	tmp = reg << 25 | value << 16;
 
@@ -264,11 +245,10 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 		dev_err(emu->card->dev, "status=0x%x, reg=%d, value=%d\n",
 			status, reg, value);
 		/* dump_stack(); */
-		err = -EINVAL;
+		return -EINVAL;
 	}
     
-	spin_unlock(&emu->i2c_lock);
-	return err;
+	return 0;
 }
 
 static void snd_emu1010_fpga_write_locked(struct snd_emu10k1 *emu, u32 reg, u32 value)
@@ -297,9 +277,8 @@ void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
 
 void snd_emu1010_fpga_write_lock(struct snd_emu10k1 *emu, u32 reg, u32 value)
 {
-	snd_emu1010_fpga_lock(emu);
+	guard(snd_emu1010_fpga_lock)(emu);
 	snd_emu1010_fpga_write_locked(emu, reg, value);
-	snd_emu1010_fpga_unlock(emu);
 }
 
 void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
@@ -477,32 +456,27 @@ void snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu, int dock,
 
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
-	unsigned long flags;
 	unsigned int enable;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	enable = inl(emu->port + INTE) | intrenb;
 	outl(enable, emu->port + INTE);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
-	unsigned long flags;
 	unsigned int enable;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	enable = inl(emu->port + INTE) & ~intrenb;
 	outl(enable, emu->port + INTE);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_voice_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
-	unsigned long flags;
 	unsigned int val;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (voicenum >= 32) {
 		outl(CLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -513,15 +487,13 @@ void snd_emu10k1_voice_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenu
 		val |= 1 << voicenum;
 	}
 	outl(val, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_voice_intr_disable(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
-	unsigned long flags;
 	unsigned int val;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (voicenum >= 32) {
 		outl(CLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -532,14 +504,11 @@ void snd_emu10k1_voice_intr_disable(struct snd_emu10k1 *emu, unsigned int voicen
 		val &= ~(1 << voicenum);
 	}
 	outl(val, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_voice_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (voicenum >= 32) {
 		outl(CLIPH << 16, emu->port + PTR);
 		voicenum = 1 << (voicenum - 32);
@@ -548,15 +517,13 @@ void snd_emu10k1_voice_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum)
 		voicenum = 1 << voicenum;
 	}
 	outl(voicenum, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_voice_half_loop_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
-	unsigned long flags;
 	unsigned int val;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (voicenum >= 32) {
 		outl(HLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -567,15 +534,13 @@ void snd_emu10k1_voice_half_loop_intr_enable(struct snd_emu10k1 *emu, unsigned i
 		val |= 1 << voicenum;
 	}
 	outl(val, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_voice_half_loop_intr_disable(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
-	unsigned long flags;
 	unsigned int val;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (voicenum >= 32) {
 		outl(HLIEH << 16, emu->port + PTR);
 		val = inl(emu->port + DATA);
@@ -586,14 +551,11 @@ void snd_emu10k1_voice_half_loop_intr_disable(struct snd_emu10k1 *emu, unsigned 
 		val &= ~(1 << voicenum);
 	}
 	outl(val, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (voicenum >= 32) {
 		outl(HLIPH << 16, emu->port + PTR);
 		voicenum = 1 << (voicenum - 32);
@@ -602,16 +564,14 @@ void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int 
 		voicenum = 1 << voicenum;
 	}
 	outl(voicenum, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 #if 0
 void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
-	unsigned long flags;
 	unsigned int sol;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (voicenum >= 32) {
 		outl(SOLEH << 16, emu->port + PTR);
 		sol = inl(emu->port + DATA);
@@ -622,15 +582,13 @@ void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voice
 		sol |= 1 << voicenum;
 	}
 	outl(sol, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
-	unsigned long flags;
 	unsigned int sol;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	if (voicenum >= 32) {
 		outl(SOLEH << 16, emu->port + PTR);
 		sol = inl(emu->port + DATA);
@@ -641,32 +599,25 @@ void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voi
 		sol &= ~(1 << voicenum);
 	}
 	outl(sol, emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 #endif
 
 void snd_emu10k1_voice_set_loop_stop_multiple(struct snd_emu10k1 *emu, u64 voices)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outl(SOLEL << 16, emu->port + PTR);
 	outl(inl(emu->port + DATA) | (u32)voices, emu->port + DATA);
 	outl(SOLEH << 16, emu->port + PTR);
 	outl(inl(emu->port + DATA) | (u32)(voices >> 32), emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_voice_clear_loop_stop_multiple(struct snd_emu10k1 *emu, u64 voices)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outl(SOLEL << 16, emu->port + PTR);
 	outl(inl(emu->port + DATA) & (u32)~voices, emu->port + DATA);
 	outl(SOLEH << 16, emu->port + PTR);
 	outl(inl(emu->port + DATA) & (u32)(~voices >> 32), emu->port + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 int snd_emu10k1_voice_clear_loop_stop_multiple_atomic(struct snd_emu10k1 *emu, u64 voices)
@@ -749,23 +700,17 @@ void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait)
 unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	struct snd_emu10k1 *emu = ac97->private_data;
-	unsigned long flags;
-	unsigned short val;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outb(reg, emu->port + AC97ADDRESS);
-	val = inw(emu->port + AC97DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
-	return val;
+	return inw(emu->port + AC97DATA);
 }
 
 void snd_emu10k1_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short data)
 {
 	struct snd_emu10k1 *emu = ac97->private_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outb(reg, emu->port + AC97ADDRESS);
 	outw(data, emu->port + AC97DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }

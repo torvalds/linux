@@ -270,8 +270,8 @@ static int clk_audio_pll_frac_determine_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static long clk_audio_pll_pad_round_rate(struct clk_hw *hw, unsigned long rate,
-					 unsigned long *parent_rate)
+static int clk_audio_pll_pad_determine_rate(struct clk_hw *hw,
+					    struct clk_rate_request *req)
 {
 	struct clk_hw *pclk = clk_hw_get_parent(hw);
 	long best_rate = -EINVAL;
@@ -283,7 +283,7 @@ static long clk_audio_pll_pad_round_rate(struct clk_hw *hw, unsigned long rate,
 	int best_diff = -1;
 
 	pr_debug("A PLL/PAD: %s, rate = %lu (parent_rate = %lu)\n", __func__,
-		 rate, *parent_rate);
+		 req->rate, req->best_parent_rate);
 
 	/*
 	 * Rate divisor is actually made of two different divisors, multiplied
@@ -304,12 +304,12 @@ static long clk_audio_pll_pad_round_rate(struct clk_hw *hw, unsigned long rate,
 				continue;
 
 			best_parent_rate = clk_hw_round_rate(pclk,
-							rate * tmp_qd * div);
+							req->rate * tmp_qd * div);
 			tmp_rate = best_parent_rate / (div * tmp_qd);
-			tmp_diff = abs(rate - tmp_rate);
+			tmp_diff = abs(req->rate - tmp_rate);
 
 			if (best_diff < 0 || best_diff > tmp_diff) {
-				*parent_rate = best_parent_rate;
+				req->best_parent_rate = best_parent_rate;
 				best_rate = tmp_rate;
 				best_diff = tmp_diff;
 			}
@@ -318,11 +318,13 @@ static long clk_audio_pll_pad_round_rate(struct clk_hw *hw, unsigned long rate,
 	pr_debug("A PLL/PAD: %s, best_rate = %ld, best_parent_rate = %lu\n",
 		 __func__, best_rate, best_parent_rate);
 
-	return best_rate;
+	req->rate = best_rate;
+
+	return 0;
 }
 
-static long clk_audio_pll_pmc_round_rate(struct clk_hw *hw, unsigned long rate,
-					 unsigned long *parent_rate)
+static int clk_audio_pll_pmc_determine_rate(struct clk_hw *hw,
+					    struct clk_rate_request *req)
 {
 	struct clk_hw *pclk = clk_hw_get_parent(hw);
 	long best_rate = -EINVAL;
@@ -333,20 +335,20 @@ static long clk_audio_pll_pmc_round_rate(struct clk_hw *hw, unsigned long rate,
 	int best_diff = -1;
 
 	pr_debug("A PLL/PMC: %s, rate = %lu (parent_rate = %lu)\n", __func__,
-		 rate, *parent_rate);
+		 req->rate, req->best_parent_rate);
 
-	if (!rate)
+	if (!req->rate)
 		return 0;
 
 	best_parent_rate = clk_round_rate(pclk->clk, 1);
-	div = max(best_parent_rate / rate, 1UL);
+	div = max(best_parent_rate / req->rate, 1UL);
 	for (; div <= AUDIO_PLL_QDPMC_MAX; div++) {
-		best_parent_rate = clk_round_rate(pclk->clk, rate * div);
+		best_parent_rate = clk_round_rate(pclk->clk, req->rate * div);
 		tmp_rate = best_parent_rate / div;
-		tmp_diff = abs(rate - tmp_rate);
+		tmp_diff = abs(req->rate - tmp_rate);
 
 		if (best_diff < 0 || best_diff > tmp_diff) {
-			*parent_rate = best_parent_rate;
+			req->best_parent_rate = best_parent_rate;
 			best_rate = tmp_rate;
 			best_diff = tmp_diff;
 			tmp_qd = div;
@@ -356,9 +358,11 @@ static long clk_audio_pll_pmc_round_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	pr_debug("A PLL/PMC: %s, best_rate = %ld, best_parent_rate = %lu (qd = %d)\n",
-		 __func__, best_rate, *parent_rate, tmp_qd - 1);
+		 __func__, best_rate, req->best_parent_rate, tmp_qd - 1);
 
-	return best_rate;
+	req->rate = best_rate;
+
+	return 0;
 }
 
 static int clk_audio_pll_frac_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -436,7 +440,7 @@ static const struct clk_ops audio_pll_pad_ops = {
 	.enable = clk_audio_pll_pad_enable,
 	.disable = clk_audio_pll_pad_disable,
 	.recalc_rate = clk_audio_pll_pad_recalc_rate,
-	.round_rate = clk_audio_pll_pad_round_rate,
+	.determine_rate = clk_audio_pll_pad_determine_rate,
 	.set_rate = clk_audio_pll_pad_set_rate,
 };
 
@@ -444,7 +448,7 @@ static const struct clk_ops audio_pll_pmc_ops = {
 	.enable = clk_audio_pll_pmc_enable,
 	.disable = clk_audio_pll_pmc_disable,
 	.recalc_rate = clk_audio_pll_pmc_recalc_rate,
-	.round_rate = clk_audio_pll_pmc_round_rate,
+	.determine_rate = clk_audio_pll_pmc_determine_rate,
 	.set_rate = clk_audio_pll_pmc_set_rate,
 };
 

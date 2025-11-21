@@ -9,6 +9,15 @@
 
 #include "page_pool_priv.h"
 
+/* See also page_pool_is_unreadable() */
+bool netif_rxq_has_unreadable_mp(struct net_device *dev, int idx)
+{
+	struct netdev_rx_queue *rxq = __netif_get_rx_queue(dev, idx);
+
+	return !!rxq->mp_params.mp_ops;
+}
+EXPORT_SYMBOL(netif_rxq_has_unreadable_mp);
+
 int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 {
 	struct netdev_rx_queue *rxq = __netif_get_rx_queue(dev, rxq_idx);

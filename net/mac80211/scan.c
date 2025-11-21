@@ -996,15 +996,15 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	local->scan_chandef.freq1_offset = chan->freq_offset;
 	local->scan_chandef.center_freq2 = 0;
 
-	/* For scanning on the S1G band, detect the channel width according to
-	 * the channel being scanned.
-	 */
+	/* For S1G, only scan the 1MHz primaries. */
 	if (chan->band == NL80211_BAND_S1GHZ) {
-		local->scan_chandef.width = ieee80211_s1g_channel_width(chan);
+		local->scan_chandef.width = NL80211_CHAN_WIDTH_1;
+		local->scan_chandef.s1g_primary_2mhz = false;
 		goto set_channel;
 	}
 
-	/* If scanning on oper channel, use whatever channel-type
+	/*
+	 * If scanning on oper channel, use whatever channel-type
 	 * is currently in use.
 	 */
 	if (chan == local->hw.conf.chandef.chan)
@@ -1213,7 +1213,8 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 
 		for (band = 0; band < NUM_NL80211_BANDS; band++) {
 			if (!local->hw.wiphy->bands[band] ||
-			    band == NL80211_BAND_6GHZ)
+			    band == NL80211_BAND_6GHZ ||
+			    band == NL80211_BAND_S1GHZ)
 				continue;
 
 			max_n = local->hw.wiphy->bands[band]->n_channels;

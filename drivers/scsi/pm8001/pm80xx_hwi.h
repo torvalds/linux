@@ -558,8 +558,10 @@ struct ssp_completion_resp {
 	__le32	status;
 	__le32	param;
 	__le32	ssptag_rescv_rescpad;
+
+	/* Must be last --ends in a flexible-array member. */
 	struct ssp_response_iu ssp_resp_iu;
-	__le32	residual_count;
+	/* __le32  residual_count; */
 } __attribute__((packed, aligned(4)));
 
 #define SSP_RESCV_BIT	0x00010000

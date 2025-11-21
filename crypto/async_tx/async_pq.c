@@ -119,7 +119,7 @@ do_sync_gen_syndrome(struct page **blocks, unsigned int *offsets, int disks,
 	for (i = 0; i < disks; i++) {
 		if (blocks[i] == NULL) {
 			BUG_ON(i > disks - 3); /* P or Q can't be zero */
-			srcs[i] = (void*)raid6_empty_zero_page;
+			srcs[i] = raid6_get_zero_page();
 		} else {
 			srcs[i] = page_address(blocks[i]) + offsets[i];
 

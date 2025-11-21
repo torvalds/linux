@@ -54,6 +54,7 @@ struct ctl_pkg {
  * @kref: Reference count
  * @ctl: Pointer to the control channel structure. Only set when the
  *	 request is queued.
+ * @request: Request is stored here
  * @request_size: Size of the request packet (in bytes)
  * @request_type: Type of the request packet
  * @response: Response is stored here

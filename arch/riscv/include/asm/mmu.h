@@ -7,7 +7,7 @@
 #ifndef _ASM_RISCV_MMU_H
 #define _ASM_RISCV_MMU_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 typedef struct {
 #ifndef CONFIG_MMU
@@ -40,6 +40,6 @@ typedef struct {
 
 void __meminit create_pgd_mapping(pgd_t *pgdp, uintptr_t va, phys_addr_t pa, phys_addr_t sz,
 				  pgprot_t prot);
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_RISCV_MMU_H */

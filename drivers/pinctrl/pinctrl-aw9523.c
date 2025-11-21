@@ -215,7 +215,7 @@ static int aw9523_pcfg_param_to_reg(enum pin_config_param pcp, int pin, u8 *r)
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		reg = AW9523_REG_CONF_STATE(pin);
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		reg = AW9523_REG_OUT_STATE(pin);
 		break;
 	default:
@@ -249,7 +249,7 @@ static int aw9523_pconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	switch (param) {
 	case PIN_CONFIG_BIAS_PULL_UP:
 	case PIN_CONFIG_INPUT_ENABLE:
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		val &= BIT(regbit);
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
@@ -301,7 +301,7 @@ static int aw9523_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			goto end;
 
 		switch (param) {
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			/* First, enable pin output */
 			rc = regmap_update_bits(awi->regmap,
 						AW9523_REG_CONF_STATE(pin),
@@ -785,8 +785,8 @@ static int aw9523_init_gpiochip(struct aw9523 *awi, unsigned int npins)
 	gc->direction_output = aw9523_direction_output;
 	gc->get = aw9523_gpio_get;
 	gc->get_multiple = aw9523_gpio_get_multiple;
-	gc->set_rv = aw9523_gpio_set;
-	gc->set_multiple_rv = aw9523_gpio_set_multiple;
+	gc->set = aw9523_gpio_set;
+	gc->set_multiple = aw9523_gpio_set_multiple;
 	gc->set_config = gpiochip_generic_config;
 	gc->parent = dev;
 	gc->owner = THIS_MODULE;

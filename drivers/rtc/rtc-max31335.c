@@ -497,15 +497,17 @@ static unsigned long max31335_clkout_recalc_rate(struct clk_hw *hw,
 	return max31335_clkout_freq[reg & freq_mask];
 }
 
-static long max31335_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
-				       unsigned long *prate)
+static int max31335_clkout_determine_rate(struct clk_hw *hw,
+					  struct clk_rate_request *req)
 {
 	int index;
 
-	index = find_closest(rate, max31335_clkout_freq,
+	index = find_closest(req->rate, max31335_clkout_freq,
 			     ARRAY_SIZE(max31335_clkout_freq));
 
-	return max31335_clkout_freq[index];
+	req->rate = max31335_clkout_freq[index];
+
+	return 0;
 }
 
 static int max31335_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -554,7 +556,7 @@ static int max31335_clkout_is_enabled(struct clk_hw *hw)
 
 static const struct clk_ops max31335_clkout_ops = {
 	.recalc_rate = max31335_clkout_recalc_rate,
-	.round_rate = max31335_clkout_round_rate,
+	.determine_rate = max31335_clkout_determine_rate,
 	.set_rate = max31335_clkout_set_rate,
 	.enable = max31335_clkout_enable,
 	.disable = max31335_clkout_disable,

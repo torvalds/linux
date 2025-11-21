@@ -49,6 +49,7 @@ static unsigned int lynx_pcs_inband_caps(struct phylink_pcs *pcs,
 		return LINK_INBAND_DISABLE;
 
 	case PHY_INTERFACE_MODE_USXGMII:
+	case PHY_INTERFACE_MODE_10G_QXGMII:
 		return LINK_INBAND_ENABLE;
 
 	default:
@@ -115,6 +116,7 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 		lynx_pcs_get_state_2500basex(lynx->mdio, state);
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
+	case PHY_INTERFACE_MODE_10G_QXGMII:
 		lynx_pcs_get_state_usxgmii(lynx->mdio, state);
 		break;
 	case PHY_INTERFACE_MODE_10GBASER:
@@ -170,6 +172,7 @@ static int lynx_pcs_config_giga(struct mdio_device *pcs,
 }
 
 static int lynx_pcs_config_usxgmii(struct mdio_device *pcs,
+				   phy_interface_t interface,
 				   const unsigned long *advertising,
 				   unsigned int neg_mode)
 {
@@ -177,7 +180,8 @@ static int lynx_pcs_config_usxgmii(struct mdio_device *pcs,
 	int addr = pcs->addr;
 
 	if (neg_mode != PHYLINK_PCS_NEG_INBAND_ENABLED) {
-		dev_err(&pcs->dev, "USXGMII only supports in-band AN for now\n");
+		dev_err(&pcs->dev, "%s only supports in-band AN for now\n",
+			phy_modes(interface));
 		return -EOPNOTSUPP;
 	}
 
@@ -208,7 +212,8 @@ static int lynx_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 		}
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
-		return lynx_pcs_config_usxgmii(lynx->mdio, advertising,
+	case PHY_INTERFACE_MODE_10G_QXGMII:
+		return lynx_pcs_config_usxgmii(lynx->mdio, ifmode, advertising,
 					       neg_mode);
 	case PHY_INTERFACE_MODE_10GBASER:
 		/* Nothing to do here for 10GBASER */
@@ -317,6 +322,7 @@ static void lynx_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 		lynx_pcs_link_up_2500basex(lynx->mdio, neg_mode, speed, duplex);
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
+	case PHY_INTERFACE_MODE_10G_QXGMII:
 		/* At the moment, only in-band AN is supported for USXGMII
 		 * so nothing to do in link_up
 		 */
@@ -341,6 +347,7 @@ static const phy_interface_t lynx_interfaces[] = {
 	PHY_INTERFACE_MODE_2500BASEX,
 	PHY_INTERFACE_MODE_10GBASER,
 	PHY_INTERFACE_MODE_USXGMII,
+	PHY_INTERFACE_MODE_10G_QXGMII,
 };
 
 static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)

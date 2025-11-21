@@ -15,6 +15,10 @@ description: |
   buck-<name> and ldo-<name>.
   MT6332 regulators node should be sub node of the MT6397 MFD node.
 
+properties:
+  compatible:
+    const: mediatek,mt6332-regulator
+
 patternProperties:
   "^buck-v(dram|dvfs2|pa|rf18a|rf18b|sbst)$":
     type: object
@@ -35,6 +39,9 @@ patternProperties:
         pattern: "^v(bif28|dig18|sram|usb33)$"
 
     unevaluatedProperties: false
+
+required:
+  - compatible
 
 additionalProperties: false
 

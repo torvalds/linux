@@ -25,7 +25,7 @@
 #define INSN_S_SIMM5_SHIFT		 7
 #define INSN_S_OPCODE_SHIFT		 0
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #ifdef CONFIG_AS_HAS_INSN
 
@@ -77,7 +77,7 @@
 #define __INSN_I(...)	insn_i __VA_ARGS__
 #define __INSN_S(...)	insn_s __VA_ARGS__
 
-#else /* ! __ASSEMBLY__ */
+#else /* ! __ASSEMBLER__ */
 
 #ifdef CONFIG_AS_HAS_INSN
 
@@ -153,7 +153,7 @@
 
 #endif
 
-#endif /* ! __ASSEMBLY__ */
+#endif /* ! __ASSEMBLER__ */
 
 #define INSN_R(opcode, func3, func7, rd, rs1, rs2)		\
 	__INSN_R(RV_##opcode, RV_##func3, RV_##func7,		\
@@ -256,14 +256,14 @@
 	INSN_S(OPCODE_OP_IMM, FUNC3(6), __RS2(3),		\
 	       SIMM12((offset) & 0xfe0), RS1(base))
 
-#define RISCV_PAUSE	".4byte 0x100000f"
-#define ZAWRS_WRS_NTO	".4byte 0x00d00073"
-#define ZAWRS_WRS_STO	".4byte 0x01d00073"
-#define RISCV_NOP4	".4byte 0x00000013"
+#define RISCV_PAUSE	ASM_INSN_I("0x100000f")
+#define ZAWRS_WRS_NTO	ASM_INSN_I("0x00d00073")
+#define ZAWRS_WRS_STO	ASM_INSN_I("0x01d00073")
+#define RISCV_NOP4	ASM_INSN_I("0x00000013")
 
 #define RISCV_INSN_NOP4	_AC(0x00000013, U)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define nop()           __asm__ __volatile__ ("nop")
 #define __nops(n)       ".rept  " #n "\nnop\n.endr\n"
 #define nops(n)         __asm__ __volatile__ (__nops(n))

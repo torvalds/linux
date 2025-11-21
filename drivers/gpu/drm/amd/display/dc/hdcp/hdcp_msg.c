@@ -28,7 +28,7 @@
 #include "include/hdcp_msg_types.h"
 #include "include/signal_types.h"
 #include "core_types.h"
-#include "link.h"
+#include "link_service.h"
 #include "link_hwss.h"
 #include "link/protocols/link_dpcd.h"
 

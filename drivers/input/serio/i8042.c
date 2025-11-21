@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>

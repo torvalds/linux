@@ -124,6 +124,7 @@ static int hws_pool_buddy_init(struct mlx5hws_pool *pool)
 		mlx5hws_err(pool->ctx, "Failed to create resource type: %d size %zu\n",
 			    pool->type, pool->alloc_log_sz);
 		mlx5hws_buddy_cleanup(buddy);
+		kfree(buddy);
 		return -ENOMEM;
 	}
 

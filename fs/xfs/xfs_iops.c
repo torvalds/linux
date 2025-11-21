@@ -431,14 +431,12 @@ xfs_vn_symlink(
 	struct dentry		*dentry,
 	const char		*symname)
 {
-	struct inode	*inode;
-	struct xfs_inode *cip = NULL;
-	struct xfs_name	name;
-	int		error;
-	umode_t		mode;
+	struct inode		*inode;
+	struct xfs_inode	*cip = NULL;
+	struct xfs_name		name;
+	int			error;
+	umode_t			mode = S_IFLNK | S_IRWXUGO;
 
-	mode = S_IFLNK |
-		(irix_symlink_mode ? 0777 & ~current_umask() : S_IRWXUGO);
 	error = xfs_dentry_mode_to_name(&name, dentry, mode);
 	if (unlikely(error))
 		goto out;
@@ -616,7 +614,8 @@ xfs_get_atomic_write_min(
 	 * write of exactly one single fsblock if the bdev will make that
 	 * guarantee for us.
 	 */
-	if (xfs_inode_can_hw_atomic_write(ip) || xfs_can_sw_atomic_write(mp))
+	if (xfs_inode_can_hw_atomic_write(ip) ||
+	    xfs_inode_can_sw_atomic_write(ip))
 		return mp->m_sb.sb_blocksize;
 
 	return 0;
@@ -633,7 +632,7 @@ xfs_get_atomic_write_max(
 	 * write of exactly one single fsblock if the bdev will make that
 	 * guarantee for us.
 	 */
-	if (!xfs_can_sw_atomic_write(mp)) {
+	if (!xfs_inode_can_sw_atomic_write(ip)) {
 		if (xfs_inode_can_hw_atomic_write(ip))
 			return mp->m_sb.sb_blocksize;
 		return 0;
@@ -1334,6 +1333,8 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 	.setattr		= xfs_vn_setattr,
 	.listxattr		= xfs_vn_listxattr,
 	.update_time		= xfs_vn_update_time,
+	.fileattr_get		= xfs_fileattr_get,
+	.fileattr_set		= xfs_fileattr_set,
 };
 
 /* Figure out if this file actually supports DAX. */

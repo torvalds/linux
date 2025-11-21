@@ -93,10 +93,9 @@
 			compatible = "fsl,qoriq-memory-controller";
 			reg = <0x0 0x1080000 0x0 0x1000>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
-			big-endian;
 		};
 
-		gic: interrupt-controller@1400000 {
+		gic: interrupt-controller@1401000 {
 			compatible = "arm,gic-400", "arm,cortex-a7-gic";
 			#interrupt-cells = <3>;
 			interrupt-controller;
@@ -155,14 +154,13 @@
 			status = "disabled";
 		};
 
-		esdhc: esdhc@1560000 {
+		esdhc: mmc@1560000 {
 			compatible = "fsl,ls1021a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x1560000 0x0 0x10000>;
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <0>;
 			voltage-ranges = <1800 1800 3300 3300>;
 			sdhci,auto-cmd12;
-			big-endian;
 			bus-width = <4>;
 			status = "disabled";
 		};
@@ -611,11 +609,10 @@
 		};
 
 		wdog0: watchdog@2ad0000 {
-			compatible = "fsl,imx21-wdt";
+			compatible = "fsl,ls1021a-wdt", "fsl,imx21-wdt";
 			reg = <0x0 0x2ad0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen 4 1>;
-			clock-names = "wdog-en";
 			big-endian;
 		};
 
@@ -627,9 +624,9 @@
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
 				 <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 47>,
-			       <&edma0 1 46>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 46>,
+			       <&edma0 1 47>;
 			status = "disabled";
 		};
 
@@ -641,9 +638,9 @@
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
 				 <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 45>,
-			       <&edma0 1 44>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 44>,
+			       <&edma0 1 45>;
 			status = "disabled";
 		};
 
@@ -707,6 +704,7 @@
 
 		enet0: ethernet@2d10000 {
 			compatible = "fsl,etsec2";
+			reg = <0x0 0x2d10000 0x0 0x5000>;
 			device_type = "network";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -717,8 +715,6 @@
 			dma-coherent;
 
 			queue-group@2d10000 {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d10000 0x0 0x1000>;
 				interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
@@ -726,8 +722,6 @@
 			};
 
 			queue-group@2d14000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d14000 0x0 0x1000>;
 				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
@@ -737,6 +731,7 @@
 
 		enet1: ethernet@2d50000 {
 			compatible = "fsl,etsec2";
+			reg = <0x0 0x2d50000 0x0 0x5000>;
 			device_type = "network";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -746,8 +741,6 @@
 			dma-coherent;
 
 			queue-group@2d50000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d50000 0x0 0x1000>;
 				interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
@@ -755,8 +748,6 @@
 			};
 
 			queue-group@2d54000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d54000 0x0 0x1000>;
 				interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
@@ -766,6 +757,7 @@
 
 		enet2: ethernet@2d90000 {
 			compatible = "fsl,etsec2";
+			reg = <0x0 0x2d90000 0x0 0x5000>;
 			device_type = "network";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -775,8 +767,6 @@
 			dma-coherent;
 
 			queue-group@2d90000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d90000 0x0 0x1000>;
 				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
@@ -784,8 +774,6 @@
 			};
 
 			queue-group@2d94000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d94000 0x0 0x1000>;
 				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
@@ -810,7 +798,6 @@
 			snps,dis_rxdet_inp3_quirk;
 			usb3-lpm-capable;
 			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
-			snps,host-vbus-glitches;
 		};
 
 		pcie@3400000 {
@@ -917,7 +904,7 @@
 			ranges = <0x0 0x0 0x10010000 0x10000>;
 		};
 
-		qdma: dma-controller@8390000 {
+		qdma: dma-controller@8388000 {
 			compatible = "fsl,ls1021a-qdma";
 			reg = <0x0 0x8388000 0x0 0x1000>, /* Controller regs */
 			      <0x0 0x8389000 0x0 0x1000>, /* Status regs */
@@ -937,17 +924,15 @@
 			big-endian;
 		};
 
-		rcpm: power-controller@1ee2140 {
+		rcpm: wakeup-controller@1ee2140 {
 			compatible = "fsl,ls1021a-rcpm", "fsl,qoriq-rcpm-2.1+";
 			reg = <0x0 0x1ee2140 0x0 0x8>;
 			#fsl,rcpm-wakeup-cells = <2>;
-			#power-domain-cells = <0>;
 		};
 
-		ftm_alarm0: timer0@29d0000 {
+		ftm_alarm0: rtc@29d0000 {
 			compatible = "fsl,ls1021a-ftm-alarm";
 			reg = <0x0 0x29d0000 0x0 0x10000>;
-			reg-names = "ftm";
 			fsl,rcpm-wakeup = <&rcpm 0x0 0x20000000>;
 			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 			big-endian;

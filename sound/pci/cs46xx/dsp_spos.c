@@ -283,7 +283,7 @@ void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
 	if (snd_BUG_ON(!ins))
 		return;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	for (i = 0; i < ins->nscb; ++i) {
 		if (ins->scbs[i].deleted) continue;
 
@@ -297,7 +297,6 @@ void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
 	vfree(ins->symbol_table.symbols);
 	kfree(ins->modules);
 	kfree(ins);
-	mutex_unlock(&chip->spos_mutex);
 }
 
 static int dsp_load_parameter(struct snd_cs46xx *chip,
@@ -525,7 +524,7 @@ static void cs46xx_dsp_proc_modules_read (struct snd_info_entry *entry,
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i,j;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	snd_iprintf(buffer, "MODULES:\n");
 	for ( i = 0; i < ins->nmodules; ++i ) {
 		snd_iprintf(buffer, "\n%s:\n", ins->modules[i].module_name);
@@ -538,7 +537,6 @@ static void cs46xx_dsp_proc_modules_read (struct snd_info_entry *entry,
 				    desc->segment_type,desc->offset, desc->size);
 		}
 	}
-	mutex_unlock(&chip->spos_mutex);
 }
 
 static void cs46xx_dsp_proc_task_tree_read (struct snd_info_entry *entry,
@@ -549,7 +547,7 @@ static void cs46xx_dsp_proc_task_tree_read (struct snd_info_entry *entry,
 	int i, j, col;
 	void __iomem *dst = chip->region.idx[1].remap_addr + DSP_PARAMETER_BYTE_OFFSET;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	snd_iprintf(buffer, "TASK TREES:\n");
 	for ( i = 0; i < ins->ntask; ++i) {
 		snd_iprintf(buffer,"\n%04x %s:\n",ins->tasks[i].address,ins->tasks[i].task_name);
@@ -566,7 +564,6 @@ static void cs46xx_dsp_proc_task_tree_read (struct snd_info_entry *entry,
 	}
 
 	snd_iprintf(buffer,"\n");  
-	mutex_unlock(&chip->spos_mutex);
 }
 
 static void cs46xx_dsp_proc_scb_read (struct snd_info_entry *entry,
@@ -576,7 +573,7 @@ static void cs46xx_dsp_proc_scb_read (struct snd_info_entry *entry,
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	snd_iprintf(buffer, "SCB's:\n");
 	for ( i = 0; i < ins->nscb; ++i) {
 		if (ins->scbs[i].deleted)
@@ -599,7 +596,6 @@ static void cs46xx_dsp_proc_scb_read (struct snd_info_entry *entry,
 	}
 
 	snd_iprintf(buffer,"\n");
-	mutex_unlock(&chip->spos_mutex);
 }
 
 static void cs46xx_dsp_proc_parameter_dump_read (struct snd_info_entry *entry,
@@ -831,14 +827,13 @@ int cs46xx_dsp_proc_init (struct snd_card *card, struct snd_cs46xx *chip)
 		snd_info_set_text_ops(entry, chip,
 				      cs46xx_dsp_proc_scb_read);
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	/* register/update SCB's entries on proc */
 	for (i = 0; i < ins->nscb; ++i) {
 		if (ins->scbs[i].deleted) continue;
 
 		cs46xx_dsp_proc_register_scb_desc (chip, (ins->scbs + i));
 	}
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }
@@ -851,12 +846,13 @@ int cs46xx_dsp_proc_done (struct snd_cs46xx *chip)
 	if (!ins)
 		return 0;
 
-	mutex_lock(&chip->spos_mutex);
-	for (i = 0; i < ins->nscb; ++i) {
-		if (ins->scbs[i].deleted) continue;
-		cs46xx_dsp_proc_free_scb_desc ( (ins->scbs + i) );
+	scoped_guard(mutex, &chip->spos_mutex) {
+		for (i = 0; i < ins->nscb; ++i) {
+			if (ins->scbs[i].deleted)
+				continue;
+			cs46xx_dsp_proc_free_scb_desc((ins->scbs + i));
+		}
 	}
-	mutex_unlock(&chip->spos_mutex);
 
 	snd_info_free_entry(ins->proc_dsp_dir);
 	ins->proc_dsp_dir = NULL;
@@ -1677,7 +1673,7 @@ int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip)
 	if (snd_BUG_ON(!ins->spdif_in_src))
 		return -EINVAL;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 
 	if ( ! (ins->spdif_status_out & DSP_SPDIF_STATUS_INPUT_CTRL_ENABLED) ) {
 		/* time countdown enable */
@@ -1700,7 +1696,7 @@ int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip)
 								ins->spdif_in_src,
 								SCB_ON_PARENT_SUBLIST_SCB);
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 
 	/* reset SPDIF input sample buffer pointer */
 	/*snd_cs46xx_poke (chip, (SPDIFI_SCB_INST + 0x0c) << 2,
@@ -1713,15 +1709,12 @@ int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip)
 	/* unmute SRC volume */
 	cs46xx_dsp_scb_set_volume (chip,ins->spdif_in_src,0x7fff,0x7fff);
 
-	spin_unlock_irq(&chip->reg_lock);
-
 	/* set SPDIF input sample rate and unmute
 	   NOTE: only 48khz support for SPDIF input this time */
 	/* cs46xx_dsp_set_src_sample_rate(chip,ins->spdif_in_src,48000); */
 
 	/* monitor state */
 	ins->spdif_status_in = 1;
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }
@@ -1735,17 +1728,16 @@ int cs46xx_dsp_disable_spdif_in (struct snd_cs46xx *chip)
 	if (snd_BUG_ON(!ins->spdif_in_src))
 		return -EINVAL;
 
-	mutex_lock(&chip->spos_mutex);
+	scoped_guard(mutex, &chip->spos_mutex) {
+		/* Remove the asynchronous receiver SCB */
+		cs46xx_dsp_remove_scb(chip, ins->asynch_rx_scb);
+		ins->asynch_rx_scb = NULL;
 
-	/* Remove the asynchronous receiver SCB */
-	cs46xx_dsp_remove_scb (chip,ins->asynch_rx_scb);
-	ins->asynch_rx_scb = NULL;
+		cs46xx_src_unlink(chip, ins->spdif_in_src);
 
-	cs46xx_src_unlink(chip,ins->spdif_in_src);
-
-	/* monitor state */
-	ins->spdif_status_in = 0;
-	mutex_unlock(&chip->spos_mutex);
+		/* monitor state */
+		ins->spdif_status_in = 0;
+	}
 
 	/* restore amplifier */
 	chip->active_ctrl(chip, -1);
@@ -1763,10 +1755,9 @@ int cs46xx_dsp_enable_pcm_capture (struct snd_cs46xx *chip)
 	if (snd_BUG_ON(!ins->ref_snoop_scb))
 		return -EINVAL;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	ins->pcm_input = cs46xx_add_record_source(chip,ins->ref_snoop_scb,PCMSERIALIN_PCM_SCB_ADDR,
                                                   "PCMSerialInput_Wave");
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }
@@ -1778,10 +1769,9 @@ int cs46xx_dsp_disable_pcm_capture (struct snd_cs46xx *chip)
 	if (snd_BUG_ON(!ins->pcm_input))
 		return -EINVAL;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	cs46xx_dsp_remove_scb (chip,ins->pcm_input);
 	ins->pcm_input = NULL;
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }
@@ -1795,10 +1785,9 @@ int cs46xx_dsp_enable_adc_capture (struct snd_cs46xx *chip)
 	if (snd_BUG_ON(!ins->codec_in_scb))
 		return -EINVAL;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	ins->adc_input = cs46xx_add_record_source(chip,ins->codec_in_scb,PCMSERIALIN_SCB_ADDR,
 						  "PCMSerialInput_ADC");
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }
@@ -1810,10 +1799,9 @@ int cs46xx_dsp_disable_adc_capture (struct snd_cs46xx *chip)
 	if (snd_BUG_ON(!ins->adc_input))
 		return -EINVAL;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	cs46xx_dsp_remove_scb (chip,ins->adc_input);
 	ins->adc_input = NULL;
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }
@@ -1861,7 +1849,7 @@ int cs46xx_dsp_set_dac_volume (struct snd_cs46xx * chip, u16 left, u16 right)
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	struct dsp_scb_descriptor * scb; 
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	
 	/* main output */
 	scb = ins->master_mix_scb->sub_list_ptr;
@@ -1880,8 +1868,6 @@ int cs46xx_dsp_set_dac_volume (struct snd_cs46xx * chip, u16 left, u16 right)
 	ins->dac_volume_left = left;
 	ins->dac_volume_right = right;
 
-	mutex_unlock(&chip->spos_mutex);
-
 	return 0;
 }
 
@@ -1889,7 +1875,7 @@ int cs46xx_dsp_set_iec958_volume (struct snd_cs46xx * chip, u16 left, u16 right)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 
 	if (ins->asynch_rx_scb != NULL)
 		cs46xx_dsp_scb_set_volume (chip,ins->asynch_rx_scb,
@@ -1897,8 +1883,6 @@ int cs46xx_dsp_set_iec958_volume (struct snd_cs46xx * chip, u16 left, u16 right)
 
 	ins->spdif_input_volume_left = left;
 	ins->spdif_input_volume_right = right;
-
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }

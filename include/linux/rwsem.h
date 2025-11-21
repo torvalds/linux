@@ -132,6 +132,18 @@ static inline int rwsem_is_contended(struct rw_semaphore *sem)
 	return !list_empty(&sem->wait_list);
 }
 
+#if defined(CONFIG_DEBUG_RWSEMS) || defined(CONFIG_DETECT_HUNG_TASK_BLOCKER)
+/*
+ * Return just the real task structure pointer of the owner
+ */
+extern struct task_struct *rwsem_owner(struct rw_semaphore *sem);
+
+/*
+ * Return true if the rwsem is owned by a reader.
+ */
+extern bool is_rwsem_reader_owned(struct rw_semaphore *sem);
+#endif
+
 #else /* !CONFIG_PREEMPT_RT */
 
 #include <linux/rwbase_rt.h>

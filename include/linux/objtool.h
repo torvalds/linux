@@ -3,16 +3,16 @@
 #define _LINUX_OBJTOOL_H
 
 #include <linux/objtool_types.h>
+#include <linux/annotate.h>
 
 #ifdef CONFIG_OBJTOOL
 
-#include <asm/asm.h>
-
 #ifndef __ASSEMBLY__
 
-#define UNWIND_HINT(type, sp_reg, sp_offset, signal)	\
+#define UNWIND_HINT(type, sp_reg, sp_offset, signal)		\
 	"987: \n\t"						\
 	".pushsection .discard.unwind_hints\n\t"		\
+	ANNOTATE_DATA_SPECIAL					\
 	/* struct unwind_hint */				\
 	".long 987b - .\n\t"					\
 	".short " __stringify(sp_offset) "\n\t"			\
@@ -53,16 +53,6 @@
 
 #define __ASM_BREF(label)	label ## b
 
-#define __ASM_ANNOTATE(label, type)					\
-	".pushsection .discard.annotate_insn,\"M\",@progbits,8\n\t"	\
-	".long " __stringify(label) " - .\n\t"			\
-	".long " __stringify(type) "\n\t"				\
-	".popsection\n\t"
-
-#define ASM_ANNOTATE(type)						\
-	"911:\n\t"						\
-	__ASM_ANNOTATE(911b, type)
-
 #else /* __ASSEMBLY__ */
 
 /*
@@ -89,6 +79,7 @@
 .macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0
 .Lhere_\@:
 	.pushsection .discard.unwind_hints
+		ANNOTATE_DATA_SPECIAL
 		/* struct unwind_hint */
 		.long .Lhere_\@ - .
 		.short \sp_offset
@@ -101,7 +92,7 @@
 
 .macro STACK_FRAME_NON_STANDARD func:req
 	.pushsection .discard.func_stack_frame_non_standard, "aw"
-	.long \func - .
+	.quad \func
 	.popsection
 .endm
 
@@ -109,14 +100,6 @@
 #ifdef CONFIG_FRAME_POINTER
 	STACK_FRAME_NON_STANDARD \func
 #endif
-.endm
-
-.macro ANNOTATE type:req
-.Lhere_\@:
-	.pushsection .discard.annotate_insn,"M",@progbits,8
-	.long	.Lhere_\@ - .
-	.long	\type
-	.popsection
 .endm
 
 #endif /* __ASSEMBLY__ */
@@ -128,73 +111,14 @@
 #define UNWIND_HINT(type, sp_reg, sp_offset, signal) "\n\t"
 #define STACK_FRAME_NON_STANDARD(func)
 #define STACK_FRAME_NON_STANDARD_FP(func)
-#define __ASM_ANNOTATE(label, type) ""
-#define ASM_ANNOTATE(type)
 #else
 .macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0
 .endm
 .macro STACK_FRAME_NON_STANDARD func:req
 .endm
-.macro ANNOTATE type:req
-.endm
 #endif
 
 #endif /* CONFIG_OBJTOOL */
-
-#ifndef __ASSEMBLY__
-/*
- * Annotate away the various 'relocation to !ENDBR` complaints; knowing that
- * these relocations will never be used for indirect calls.
- */
-#define ANNOTATE_NOENDBR		ASM_ANNOTATE(ANNOTYPE_NOENDBR)
-#define ANNOTATE_NOENDBR_SYM(sym)	asm(__ASM_ANNOTATE(sym, ANNOTYPE_NOENDBR))
-
-/*
- * This should be used immediately before an indirect jump/call. It tells
- * objtool the subsequent indirect jump/call is vouched safe for retpoline
- * builds.
- */
-#define ANNOTATE_RETPOLINE_SAFE		ASM_ANNOTATE(ANNOTYPE_RETPOLINE_SAFE)
-/*
- * See linux/instrumentation.h
- */
-#define ANNOTATE_INSTR_BEGIN(label)	__ASM_ANNOTATE(label, ANNOTYPE_INSTR_BEGIN)
-#define ANNOTATE_INSTR_END(label)	__ASM_ANNOTATE(label, ANNOTYPE_INSTR_END)
-/*
- * objtool annotation to ignore the alternatives and only consider the original
- * instruction(s).
- */
-#define ANNOTATE_IGNORE_ALTERNATIVE	ASM_ANNOTATE(ANNOTYPE_IGNORE_ALTS)
-/*
- * This macro indicates that the following intra-function call is valid.
- * Any non-annotated intra-function call will cause objtool to issue a warning.
- */
-#define ANNOTATE_INTRA_FUNCTION_CALL	ASM_ANNOTATE(ANNOTYPE_INTRA_FUNCTION_CALL)
-/*
- * Use objtool to validate the entry requirement that all code paths do
- * VALIDATE_UNRET_END before RET.
- *
- * NOTE: The macro must be used at the beginning of a global symbol, otherwise
- * it will be ignored.
- */
-#define ANNOTATE_UNRET_BEGIN		ASM_ANNOTATE(ANNOTYPE_UNRET_BEGIN)
-/*
- * This should be used to refer to an instruction that is considered
- * terminating, like a noreturn CALL or UD2 when we know they are not -- eg
- * WARN using UD2.
- */
-#define ANNOTATE_REACHABLE(label)	__ASM_ANNOTATE(label, ANNOTYPE_REACHABLE)
-
-#else
-#define ANNOTATE_NOENDBR		ANNOTATE type=ANNOTYPE_NOENDBR
-#define ANNOTATE_RETPOLINE_SAFE		ANNOTATE type=ANNOTYPE_RETPOLINE_SAFE
-/*	ANNOTATE_INSTR_BEGIN		ANNOTATE type=ANNOTYPE_INSTR_BEGIN */
-/*	ANNOTATE_INSTR_END		ANNOTATE type=ANNOTYPE_INSTR_END */
-#define ANNOTATE_IGNORE_ALTERNATIVE	ANNOTATE type=ANNOTYPE_IGNORE_ALTS
-#define ANNOTATE_INTRA_FUNCTION_CALL	ANNOTATE type=ANNOTYPE_INTRA_FUNCTION_CALL
-#define ANNOTATE_UNRET_BEGIN		ANNOTATE type=ANNOTYPE_UNRET_BEGIN
-#define ANNOTATE_REACHABLE		ANNOTATE type=ANNOTYPE_REACHABLE
-#endif
 
 #if defined(CONFIG_NOINSTR_VALIDATION) && \
 	(defined(CONFIG_MITIGATION_UNRET_ENTRY) || defined(CONFIG_MITIGATION_SRSO))

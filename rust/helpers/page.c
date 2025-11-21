@@ -2,6 +2,7 @@
 
 #include <linux/gfp.h>
 #include <linux/highmem.h>
+#include <linux/mm.h>
 
 struct page *rust_helper_alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
@@ -17,3 +18,10 @@ void rust_helper_kunmap_local(const void *addr)
 {
 	kunmap_local(addr);
 }
+
+#ifndef NODE_NOT_IN_PAGE_FLAGS
+int rust_helper_page_to_nid(const struct page *page)
+{
+	return page_to_nid(page);
+}
+#endif

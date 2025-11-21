@@ -4812,26 +4812,26 @@ int ring_buffer_write(struct trace_buffer *buffer,
 	int ret = -EBUSY;
 	int cpu;
 
-	preempt_disable_notrace();
+	guard(preempt_notrace)();
 
 	if (atomic_read(&buffer->record_disabled))
-		goto out;
+		return -EBUSY;
 
 	cpu = raw_smp_processor_id();
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
-		goto out;
+		return -EBUSY;
 
 	cpu_buffer = buffer->buffers[cpu];
 
 	if (atomic_read(&cpu_buffer->record_disabled))
-		goto out;
+		return -EBUSY;
 
 	if (length > buffer->max_data_size)
-		goto out;
+		return -EBUSY;
 
 	if (unlikely(trace_recursive_lock(cpu_buffer)))
-		goto out;
+		return -EBUSY;
 
 	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
@@ -4849,10 +4849,6 @@ int ring_buffer_write(struct trace_buffer *buffer,
 
  out_unlock:
 	trace_recursive_unlock(cpu_buffer);
-
- out:
-	preempt_enable_notrace();
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_write);
@@ -7277,7 +7273,7 @@ int ring_buffer_map(struct trace_buffer *buffer, int cpu,
 		atomic_dec(&cpu_buffer->resize_disabled);
 	}
 
-	return 0;
+	return err;
 }
 
 int ring_buffer_unmap(struct trace_buffer *buffer, int cpu)
@@ -7347,6 +7343,10 @@ consume:
 			rb_advance_reader(cpu_buffer);
 		goto out;
 	}
+
+	/* Did the reader catch up with the writer? */
+	if (cpu_buffer->reader_page == cpu_buffer->commit_page)
+		goto out;
 
 	reader = rb_get_reader_page(cpu_buffer);
 	if (WARN_ON(!reader))
@@ -7670,7 +7670,7 @@ static __init int test_ringbuffer(void)
 	rb_test_started = true;
 
 	set_current_state(TASK_INTERRUPTIBLE);
-	/* Just run for 10 seconds */;
+	/* Just run for 10 seconds */
 	schedule_timeout(10 * HZ);
 
 	kthread_stop(rb_hammer);

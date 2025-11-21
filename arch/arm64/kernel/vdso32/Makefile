@@ -21,8 +21,6 @@ endif
 
 cc32-option = $(call try-run,\
         $(CC_COMPAT) $(1) -c -x c /dev/null -o "$$TMP",$(1),$(2))
-cc32-disable-warning = $(call try-run,\
-	$(CC_COMPAT) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wno-$(strip $(1)))
 
 # We cannot use the global flags to compile the vDSO files, the main reason
 # being that the 32-bit compiler may be older than the main (64-bit) compiler
@@ -59,10 +57,10 @@ VDSO_CAFLAGS += -DDISABLE_BRANCH_PROFILING
 VDSO_CAFLAGS += -march=armv8-a
 
 VDSO_CFLAGS := $(VDSO_CAFLAGS)
-VDSO_CFLAGS += -DENABLE_COMPAT_VDSO=1
 # KBUILD_CFLAGS from top-level Makefile
 VDSO_CFLAGS += -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
                -fno-strict-aliasing -fno-common \
+               $(filter -Werror,$(KBUILD_CPPFLAGS)) \
                -Werror-implicit-function-declaration \
                -Wno-format-security \
                -std=gnu11
@@ -73,16 +71,6 @@ VDSO_CFLAGS += -fno-strict-overflow
 VDSO_CFLAGS += $(call cc32-option,-Werror=strict-prototypes)
 VDSO_CFLAGS += -Werror=date-time
 VDSO_CFLAGS += $(call cc32-option,-Werror=incompatible-pointer-types)
-
-# The 32-bit compiler does not provide 128-bit integers, which are used in
-# some headers that are indirectly included from the vDSO code.
-# This hack makes the compiler happy and should trigger a warning/error if
-# variables of such type are referenced.
-VDSO_CFLAGS += -D__uint128_t='void*'
-# Silence some warnings coming from headers that operate on long's
-# (on GCC 4.8 or older, there is unfortunately no way to silence this warning)
-VDSO_CFLAGS += $(call cc32-disable-warning,shift-count-overflow)
-VDSO_CFLAGS += -Wno-int-to-pointer-cast
 
 # Compile as THUMB2 or ARM. Unwinding via frame-pointers in THUMB2 is
 # unreliable.

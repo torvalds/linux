@@ -89,7 +89,7 @@ struct reloc *arch_find_switch_table(struct objtool_file *file,
 	/* look for a relocation which references .rodata */
 	text_reloc = find_reloc_by_dest_range(file->elf, insn->sec,
 					      insn->offset, insn->len);
-	if (!text_reloc || text_reloc->sym->type != STT_SECTION ||
+	if (!text_reloc || !is_sec_sym(text_reloc->sym) ||
 	    !text_reloc->sym->sec->rodata)
 		return NULL;
 

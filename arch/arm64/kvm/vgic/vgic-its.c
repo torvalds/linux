@@ -78,7 +78,6 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct vgic_irq *irq = vgic_get_irq(kvm, intid), *oldirq;
-	unsigned long flags;
 	int ret;
 
 	/* In this case there is no put, since we keep the reference. */
@@ -89,7 +88,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	if (!irq)
 		return ERR_PTR(-ENOMEM);
 
-	ret = xa_reserve_irq(&dist->lpi_xa, intid, GFP_KERNEL_ACCOUNT);
+	ret = xa_reserve(&dist->lpi_xa, intid, GFP_KERNEL_ACCOUNT);
 	if (ret) {
 		kfree(irq);
 		return ERR_PTR(ret);
@@ -99,19 +98,19 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	raw_spin_lock_init(&irq->irq_lock);
 
 	irq->config = VGIC_CONFIG_EDGE;
-	kref_init(&irq->refcount);
+	refcount_set(&irq->refcount, 1);
 	irq->intid = intid;
 	irq->target_vcpu = vcpu;
 	irq->group = 1;
 
-	xa_lock_irqsave(&dist->lpi_xa, flags);
+	xa_lock(&dist->lpi_xa);
 
 	/*
 	 * There could be a race with another vgic_add_lpi(), so we need to
 	 * check that we don't add a second list entry with the same LPI.
 	 */
 	oldirq = xa_load(&dist->lpi_xa, intid);
-	if (vgic_try_get_irq_kref(oldirq)) {
+	if (vgic_try_get_irq_ref(oldirq)) {
 		/* Someone was faster with adding this LPI, lets use that. */
 		kfree(irq);
 		irq = oldirq;
@@ -126,7 +125,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	}
 
 out_unlock:
-	xa_unlock_irqrestore(&dist->lpi_xa, flags);
+	xa_unlock(&dist->lpi_xa);
 
 	if (ret)
 		return ERR_PTR(ret);
@@ -547,7 +546,7 @@ static struct vgic_irq *vgic_its_check_cache(struct kvm *kvm, phys_addr_t db,
 	rcu_read_lock();
 
 	irq = xa_load(&its->translation_cache, cache_key);
-	if (!vgic_try_get_irq_kref(irq))
+	if (!vgic_try_get_irq_ref(irq))
 		irq = NULL;
 
 	rcu_read_unlock();
@@ -571,7 +570,7 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 	 * its_lock, as the ITE (and the reference it holds) cannot be freed.
 	 */
 	lockdep_assert_held(&its->its_lock);
-	vgic_get_irq_kref(irq);
+	vgic_get_irq_ref(irq);
 
 	old = xa_store(&its->translation_cache, cache_key, irq, GFP_KERNEL_ACCOUNT);
 

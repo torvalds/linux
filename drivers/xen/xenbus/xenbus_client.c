@@ -955,7 +955,7 @@ static const struct xenbus_ring_ops ring_ops_hvm = {
 void __init xenbus_ring_ops_init(void)
 {
 #ifdef CONFIG_XEN_PV
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
+	if (xen_pv_domain())
 		ring_ops = &ring_ops_pv;
 	else
 #endif

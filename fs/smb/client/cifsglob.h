@@ -24,6 +24,7 @@
 #include "cifsacl.h"
 #include <crypto/internal/hash.h>
 #include <uapi/linux/cifs/cifs_mount.h>
+#include "../common/cifsglob.h"
 #include "../common/smb2pdu.h"
 #include "smb2pdu.h"
 #include <linux/filelock.h>
@@ -87,7 +88,7 @@
 #define SMB_INTERFACE_POLL_INTERVAL	600
 
 /* maximum number of PDUs in one compound */
-#define MAX_COMPOUND 7
+#define MAX_COMPOUND 10
 
 /*
  * Default number of credits to keep available for SMB3.
@@ -221,9 +222,6 @@ struct session_key {
 
 /* crypto hashing related structure/fields, not specific to a sec mech */
 struct cifs_secmech {
-	struct shash_desc *md5; /* md5 hash function, for CIFS/SMB1 signatures */
-	struct shash_desc *hmacsha256; /* hmac-sha256 hash function, for SMB2 signatures */
-	struct shash_desc *sha512; /* sha512 hash function, for SMB3.1.1 preauth hash */
 	struct shash_desc *aes_cmac; /* block-cipher based MAC function, for SMB3 signatures */
 
 	struct crypto_aead *enc; /* smb3 encryption AEAD TFM (AES-CCM and AES-GCM) */
@@ -536,8 +534,6 @@ struct smb_version_operations {
 	void (*new_lease_key)(struct cifs_fid *);
 	int (*generate_signingkey)(struct cifs_ses *ses,
 				   struct TCP_Server_Info *server);
-	int (*calc_signature)(struct smb_rqst *, struct TCP_Server_Info *,
-				bool allocate_crypto);
 	int (*set_integrity)(const unsigned int, struct cifs_tcon *tcon,
 			     struct cifsFileInfo *src_file);
 	int (*enum_snapshots)(const unsigned int xid, struct cifs_tcon *tcon,
@@ -702,12 +698,6 @@ get_rfc1002_length(void *buf)
 	return be32_to_cpu(*((__be32 *)buf)) & 0xffffff;
 }
 
-static inline void
-inc_rfc1001_len(void *buf, int count)
-{
-	be32_add_cpu((__be32 *)buf, count);
-}
-
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
@@ -732,14 +722,15 @@ struct TCP_Server_Info {
 #endif
 	wait_queue_head_t response_q;
 	wait_queue_head_t request_q; /* if more than maxmpx to srvr must block*/
-	spinlock_t mid_lock;  /* protect mid queue and it's entries */
+	spinlock_t mid_queue_lock;  /* protect mid queue */
+	spinlock_t mid_counter_lock;
 	struct list_head pending_mid_q;
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
 	bool nosharesock;
 	bool tcp_nodelay;
 	bool terminate;
-	unsigned int credits;  /* send no more requests at once */
+	int credits;  /* send no more requests at once */
 	unsigned int max_credits; /* can override large 32000 default at mnt */
 	unsigned int in_flight;  /* number of requests on the wire to server */
 	unsigned int max_in_flight; /* max number of requests that were on wire */
@@ -770,7 +761,7 @@ struct TCP_Server_Info {
 	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
 	unsigned int capabilities; /* selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
-	__u64 CurrentMid;         /* multiplex id - rotating counter, protected by GlobalMid_Lock */
+	__u64 current_mid;	/* multiplex id - rotating counter, protected by mid_counter_lock */
 	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
@@ -813,6 +804,13 @@ struct TCP_Server_Info {
 	unsigned int	max_read;
 	unsigned int	max_write;
 	unsigned int	min_offload;
+	/*
+	 * If payload is less than or equal to the threshold,
+	 * use RDMA send/recv to send upper layer I/O.
+	 * If payload is more than the threshold,
+	 * use RDMA read/write through memory registration for I/O.
+	 */
+	unsigned int	rdma_readwrite_threshold;
 	unsigned int	retrans;
 	struct {
 		bool requested; /* "compress" mount option set*/
@@ -1012,8 +1010,6 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
  */
 #define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
 #define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP) + 4)
-
-#define CIFS_DEFAULT_IOSIZE (1024 * 1024)
 
 /*
  * Windows only supports a max of 60kb reads and 65535 byte writes. Default to
@@ -1539,7 +1535,7 @@ struct cifs_io_subrequest {
 	struct kvec			iov[2];
 	struct TCP_Server_Info		*server;
 #ifdef CONFIG_CIFS_SMB_DIRECT
-	struct smbd_mr			*mr;
+	struct smbdirect_mr_io		*mr;
 #endif
 	struct cifs_credits		credits;
 };
@@ -1558,6 +1554,11 @@ struct cifsFileInfo *cifsFileInfo_get(struct cifsFileInfo *cifs_file);
 void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_hdlr,
 		       bool offload);
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
+int cifs_file_flush(const unsigned int xid, struct inode *inode,
+		    struct cifsFileInfo *cfile);
+int cifs_file_set_size(const unsigned int xid, struct dentry *dentry,
+		       const char *full_path, struct cifsFileInfo *open_file,
+		       loff_t size);
 
 #define CIFS_CACHE_READ_FLG	1
 #define CIFS_CACHE_HANDLE_FLG	2
@@ -1729,9 +1730,11 @@ struct mid_q_entry {
 	unsigned int resp_buf_size;
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
 	int mid_rc;		/* rc for MID_RC */
-	unsigned int mid_flags;
 	__le16 command;		/* smb command code */
 	unsigned int optype;	/* operation type */
+	spinlock_t mid_lock;
+	bool wait_cancelled:1;  /* Cancelled while waiting for response */
+	bool deleted_from_q:1;  /* Whether Mid has been dequeued frem pending_mid_q */
 	bool large_buf:1;	/* if valid response, is pointer to large buf */
 	bool multiRsp:1;	/* multiple trans2 responses for one request  */
 	bool multiEnd:1;	/* both received */
@@ -1879,9 +1882,12 @@ static inline bool is_replayable_error(int error)
 
 
 /* cifs_get_writable_file() flags */
-#define FIND_WR_ANY         0
-#define FIND_WR_FSUID_ONLY  1
-#define FIND_WR_WITH_DELETE 2
+enum cifs_writable_file_flags {
+	FIND_WR_ANY			= 0U,
+	FIND_WR_FSUID_ONLY		= (1U << 0),
+	FIND_WR_WITH_DELETE		= (1U << 1),
+	FIND_WR_NO_PENDING_DELETE	= (1U << 2),
+};
 
 #define   MID_FREE 0
 #define   MID_REQUEST_ALLOCATED 1
@@ -1892,10 +1898,6 @@ static inline bool is_replayable_error(int error)
 #define   MID_SHUTDOWN		 0x20
 #define   MID_RESPONSE_READY 0x40 /* ready for other process handle the rsp */
 #define   MID_RC             0x80 /* mid_rc contains custom rc */
-
-/* Flags */
-#define   MID_WAIT_CANCELLED	 1 /* Cancelled while waiting for response */
-#define   MID_DELETED            2 /* Mid has been dequeued/deleted */
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */
@@ -2007,9 +2009,9 @@ require use of the stronger protocol */
  *				GlobalCurrentXid
  *				GlobalTotalActiveXid
  * TCP_Server_Info->srv_lock	(anything in struct not protected by another lock and can change)
- * TCP_Server_Info->mid_lock	TCP_Server_Info->pending_mid_q	cifs_get_tcp_session
- *				->CurrentMid
- *				(any changes in mid_q_entry fields)
+ * TCP_Server_Info->mid_queue_lock	TCP_Server_Info->pending_mid_q	cifs_get_tcp_session
+ *				mid_q_entry->deleted_from_q
+ * TCP_Server_Info->mid_counter_lock    TCP_Server_Info->current_mid    cifs_get_tcp_session
  * TCP_Server_Info->req_lock	TCP_Server_Info->in_flight	cifs_get_tcp_session
  *				->credits
  *				->echo_credits
@@ -2038,6 +2040,9 @@ require use of the stronger protocol */
  * cifsFileInfo->file_info_lock	cifsFileInfo->count		cifs_new_fileinfo
  *				->invalidHandle			initiate_cifs_search
  *				->oplock_break_cancelled
+ * mid_q_entry->mid_lock	mid_q_entry->callback           alloc_mid
+ *								smb2_mid_entry_alloc
+ *				(Any fields of mid_q_entry that will need protection)
  ****************************************************************************/
 
 #ifdef DECLARE_GLOBALS_HERE
@@ -2131,30 +2136,20 @@ extern mempool_t cifs_io_request_pool;
 extern mempool_t cifs_io_subrequest_pool;
 
 /* Operations for different SMB versions */
-#define SMB1_VERSION_STRING	"1.0"
-#define SMB20_VERSION_STRING    "2.0"
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 extern struct smb_version_operations smb1_operations;
 extern struct smb_version_values smb1_values;
 extern struct smb_version_operations smb20_operations;
 extern struct smb_version_values smb20_values;
 #endif /* CIFS_ALLOW_INSECURE_LEGACY */
-#define SMB21_VERSION_STRING	"2.1"
 extern struct smb_version_operations smb21_operations;
 extern struct smb_version_values smb21_values;
-#define SMBDEFAULT_VERSION_STRING "default"
 extern struct smb_version_values smbdefault_values;
-#define SMB3ANY_VERSION_STRING "3"
 extern struct smb_version_values smb3any_values;
-#define SMB30_VERSION_STRING	"3.0"
 extern struct smb_version_operations smb30_operations;
 extern struct smb_version_values smb30_values;
-#define SMB302_VERSION_STRING	"3.02"
-#define ALT_SMB302_VERSION_STRING "3.0.2"
 /*extern struct smb_version_operations smb302_operations;*/ /* not needed yet */
 extern struct smb_version_values smb302_values;
-#define SMB311_VERSION_STRING	"3.1.1"
-#define ALT_SMB311_VERSION_STRING "3.11"
 extern struct smb_version_operations smb311_operations;
 extern struct smb_version_values smb311_values;
 
@@ -2341,6 +2336,8 @@ struct smb2_compound_vars {
 	struct kvec qi_iov;
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
 	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
+	struct kvec unlink_iov[SMB2_SET_INFO_IOV_SIZE];
+	struct kvec rename_iov[SMB2_SET_INFO_IOV_SIZE];
 	struct kvec close_iov;
 	struct smb2_file_rename_info_hdr rename_info;
 	struct smb2_file_link_info_hdr link_info;
@@ -2376,5 +2373,27 @@ static inline bool cifs_netbios_name(const char *name, size_t namelen)
 	}
 	return ret;
 }
+
+/*
+ * Execute mid callback atomically - ensures callback runs exactly once
+ * and prevents sleeping in atomic context.
+ */
+static inline void mid_execute_callback(struct mid_q_entry *mid)
+{
+	void (*callback)(struct mid_q_entry *mid);
+
+	spin_lock(&mid->mid_lock);
+	callback = mid->callback;
+	mid->callback = NULL;  /* Mark as executed, */
+	spin_unlock(&mid->mid_lock);
+
+	if (callback)
+		callback(mid);
+}
+
+#define CIFS_REPARSE_SUPPORT(tcon) \
+	((tcon)->posix_extensions || \
+	 (le32_to_cpu((tcon)->fsAttrInfo.Attributes) & \
+	  FILE_SUPPORTS_REPARSE_POINTS))
 
 #endif	/* _CIFS_GLOB_H */

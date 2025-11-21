@@ -148,7 +148,7 @@ static int __sbi_rfence_v01(int fid, const struct cpumask *cpu_mask,
 
 static void sbi_set_power_off(void)
 {
-	pm_power_off = sbi_shutdown;
+	register_platform_power_off(sbi_shutdown);
 }
 #else
 static void __sbi_set_timer_v01(uint64_t stime_value)
@@ -682,7 +682,7 @@ void __init sbi_init(void)
 		if (sbi_spec_version >= sbi_mk_version(0, 3) &&
 		    sbi_probe_extension(SBI_EXT_SRST)) {
 			pr_info("SBI SRST extension detected\n");
-			pm_power_off = sbi_srst_power_off;
+			register_platform_power_off(sbi_srst_power_off);
 			sbi_srst_reboot_nb.notifier_call = sbi_srst_reboot;
 			sbi_srst_reboot_nb.priority = 192;
 			register_restart_handler(&sbi_srst_reboot_nb);

@@ -14,10 +14,10 @@
 #define NUM_BRANCH_INSNS_RETIRED	(NUM_LOOPS)
 
 /*
- * Number of instructions in each loop. 1 CLFLUSH/CLFLUSHOPT/NOP, 1 MFENCE,
- * 1 LOOP.
+ * Number of instructions in each loop. 1 ENTER, 1 CLFLUSH/CLFLUSHOPT/NOP,
+ * 1 MFENCE, 1 MOV, 1 LEAVE, 1 LOOP.
  */
-#define NUM_INSNS_PER_LOOP		4
+#define NUM_INSNS_PER_LOOP		6
 
 /*
  * Number of "extra" instructions that will be counted, i.e. the number of
@@ -75,6 +75,11 @@ static struct kvm_intel_pmu_event intel_event_to_feature(uint8_t idx)
 		[INTEL_ARCH_BRANCHES_RETIRED_INDEX]	 = { X86_PMU_FEATURE_BRANCH_INSNS_RETIRED, X86_PMU_FEATURE_NULL },
 		[INTEL_ARCH_BRANCHES_MISPREDICTED_INDEX] = { X86_PMU_FEATURE_BRANCHES_MISPREDICTED, X86_PMU_FEATURE_NULL },
 		[INTEL_ARCH_TOPDOWN_SLOTS_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_SLOTS, X86_PMU_FEATURE_TOPDOWN_SLOTS_FIXED },
+		[INTEL_ARCH_TOPDOWN_BE_BOUND_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_BE_BOUND, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_TOPDOWN_BAD_SPEC_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_BAD_SPEC, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_TOPDOWN_FE_BOUND_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_FE_BOUND, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_TOPDOWN_RETIRING_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_RETIRING, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_LBR_INSERTS_INDEX]		 = { X86_PMU_FEATURE_LBR_INSERTS, X86_PMU_FEATURE_NULL },
 	};
 
 	kvm_static_assert(ARRAY_SIZE(__intel_event_to_feature) == NR_INTEL_ARCH_EVENTS);
@@ -158,10 +163,18 @@ static void guest_assert_event_count(uint8_t idx, uint32_t pmc, uint32_t pmc_msr
 
 	switch (idx) {
 	case INTEL_ARCH_INSTRUCTIONS_RETIRED_INDEX:
-		GUEST_ASSERT_EQ(count, NUM_INSNS_RETIRED);
+		/* Relax precise count check due to VM-EXIT/VM-ENTRY overcount issue */
+		if (this_pmu_has_errata(INSTRUCTIONS_RETIRED_OVERCOUNT))
+			GUEST_ASSERT(count >= NUM_INSNS_RETIRED);
+		else
+			GUEST_ASSERT_EQ(count, NUM_INSNS_RETIRED);
 		break;
 	case INTEL_ARCH_BRANCHES_RETIRED_INDEX:
-		GUEST_ASSERT_EQ(count, NUM_BRANCH_INSNS_RETIRED);
+		/* Relax precise count check due to VM-EXIT/VM-ENTRY overcount issue */
+		if (this_pmu_has_errata(BRANCHES_RETIRED_OVERCOUNT))
+			GUEST_ASSERT(count >= NUM_BRANCH_INSNS_RETIRED);
+		else
+			GUEST_ASSERT_EQ(count, NUM_BRANCH_INSNS_RETIRED);
 		break;
 	case INTEL_ARCH_LLC_REFERENCES_INDEX:
 	case INTEL_ARCH_LLC_MISSES_INDEX:
@@ -171,9 +184,12 @@ static void guest_assert_event_count(uint8_t idx, uint32_t pmc, uint32_t pmc_msr
 		fallthrough;
 	case INTEL_ARCH_CPU_CYCLES_INDEX:
 	case INTEL_ARCH_REFERENCE_CYCLES_INDEX:
+	case INTEL_ARCH_TOPDOWN_BE_BOUND_INDEX:
+	case INTEL_ARCH_TOPDOWN_FE_BOUND_INDEX:
 		GUEST_ASSERT_NE(count, 0);
 		break;
 	case INTEL_ARCH_TOPDOWN_SLOTS_INDEX:
+	case INTEL_ARCH_TOPDOWN_RETIRING_INDEX:
 		__GUEST_ASSERT(count >= NUM_INSNS_RETIRED,
 			       "Expected top-down slots >= %u, got count = %lu",
 			       NUM_INSNS_RETIRED, count);
@@ -210,9 +226,11 @@ do {										\
 	__asm__ __volatile__("wrmsr\n\t"					\
 			     " mov $" __stringify(NUM_LOOPS) ", %%ecx\n\t"	\
 			     "1:\n\t"						\
+			     FEP "enter $0, $0\n\t"				\
 			     clflush "\n\t"					\
 			     "mfence\n\t"					\
 			     "mov %[m], %%eax\n\t"				\
+			     FEP "leave\n\t"					\
 			     FEP "loop 1b\n\t"					\
 			     FEP "mov %%edi, %%ecx\n\t"				\
 			     FEP "xor %%eax, %%eax\n\t"				\
@@ -311,7 +329,7 @@ static void guest_test_arch_events(void)
 }
 
 static void test_arch_events(uint8_t pmu_version, uint64_t perf_capabilities,
-			     uint8_t length, uint8_t unavailable_mask)
+			     uint8_t length, uint32_t unavailable_mask)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -319,6 +337,9 @@ static void test_arch_events(uint8_t pmu_version, uint64_t perf_capabilities,
 	/* Testing arch events requires a vPMU (there are no negative tests). */
 	if (!pmu_version)
 		return;
+
+	unavailable_mask &= GENMASK(X86_PROPERTY_PMU_EVENTS_MASK.hi_bit,
+				    X86_PROPERTY_PMU_EVENTS_MASK.lo_bit);
 
 	vm = pmu_vm_create_with_one_vcpu(&vcpu, guest_test_arch_events,
 					 pmu_version, perf_capabilities);
@@ -344,8 +365,8 @@ static void test_arch_events(uint8_t pmu_version, uint64_t perf_capabilities,
 
 #define GUEST_ASSERT_PMC_MSR_ACCESS(insn, msr, expect_gp, vector)		\
 __GUEST_ASSERT(expect_gp ? vector == GP_VECTOR : !vector,			\
-	       "Expected %s on " #insn "(0x%x), got vector %u",			\
-	       expect_gp ? "#GP" : "no fault", msr, vector)			\
+	       "Expected %s on " #insn "(0x%x), got %s",			\
+	       expect_gp ? "#GP" : "no fault", msr, ex_str(vector))		\
 
 #define GUEST_ASSERT_PMC_VALUE(insn, msr, val, expected)			\
 	__GUEST_ASSERT(val == expected,					\
@@ -575,6 +596,26 @@ static void test_intel_counters(void)
 	};
 
 	/*
+	 * To keep the total runtime reasonable, test only a handful of select,
+	 * semi-arbitrary values for the mask of unavailable PMU events.  Test
+	 * 0 (all events available) and all ones (no events available) as well
+	 * as alternating bit sequencues, e.g. to detect if KVM is checking the
+	 * wrong bit(s).
+	 */
+	const uint32_t unavailable_masks[] = {
+		0x0,
+		0xffffffffu,
+		0xaaaaaaaau,
+		0x55555555u,
+		0xf0f0f0f0u,
+		0x0f0f0f0fu,
+		0xa0a0a0a0u,
+		0x0a0a0a0au,
+		0x50505050u,
+		0x05050505u,
+	};
+
+	/*
 	 * Test up to PMU v5, which is the current maximum version defined by
 	 * Intel, i.e. is the last version that is guaranteed to be backwards
 	 * compatible with KVM's existing behavior.
@@ -611,16 +652,7 @@ static void test_intel_counters(void)
 
 			pr_info("Testing arch events, PMU version %u, perf_caps = %lx\n",
 				v, perf_caps[i]);
-			/*
-			 * To keep the total runtime reasonable, test every
-			 * possible non-zero, non-reserved bitmap combination
-			 * only with the native PMU version and the full bit
-			 * vector length.
-			 */
-			if (v == pmu_version) {
-				for (k = 1; k < (BIT(NR_INTEL_ARCH_EVENTS) - 1); k++)
-					test_arch_events(v, perf_caps[i], NR_INTEL_ARCH_EVENTS, k);
-			}
+
 			/*
 			 * Test single bits for all PMU version and lengths up
 			 * the number of events +1 (to verify KVM doesn't do
@@ -629,11 +661,8 @@ static void test_intel_counters(void)
 			 * ones i.e. all events being available and unavailable.
 			 */
 			for (j = 0; j <= NR_INTEL_ARCH_EVENTS + 1; j++) {
-				test_arch_events(v, perf_caps[i], j, 0);
-				test_arch_events(v, perf_caps[i], j, 0xff);
-
-				for (k = 0; k < NR_INTEL_ARCH_EVENTS; k++)
-					test_arch_events(v, perf_caps[i], j, BIT(k));
+				for (k = 1; k < ARRAY_SIZE(unavailable_masks); k++)
+					test_arch_events(v, perf_caps[i], j, unavailable_masks[k]);
 			}
 
 			pr_info("Testing GP counters, PMU version %u, perf_caps = %lx\n",

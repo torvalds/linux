@@ -427,7 +427,7 @@ static int qca807x_gpio(struct phy_device *phydev)
 	gc->get_direction = qca807x_gpio_get_direction;
 	gc->direction_output = qca807x_gpio_dir_out;
 	gc->get = qca807x_gpio_get;
-	gc->set_rv = qca807x_gpio_set;
+	gc->set = qca807x_gpio_set;
 
 	return devm_gpiochip_add_data(dev, gc, priv);
 }
@@ -646,13 +646,12 @@ exit:
 static int qca807x_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
 	struct phy_device *phydev = upstream;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(support) = { 0, };
+	const struct sfp_module_caps *caps;
 	phy_interface_t iface;
 	int ret;
-	DECLARE_PHY_INTERFACE_MASK(interfaces);
 
-	sfp_parse_support(phydev->sfp_bus, id, support, interfaces);
-	iface = sfp_select_interface(phydev->sfp_bus, support);
+	caps = sfp_get_module_caps(phydev->sfp_bus);
+	iface = sfp_select_interface(phydev->sfp_bus, caps->link_modes);
 
 	dev_info(&phydev->mdio.dev, "%s SFP module inserted\n", phy_modes(iface));
 

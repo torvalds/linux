@@ -12,7 +12,7 @@ static int alc268_beep_switch_put(struct snd_kcontrol *kcontrol,
 	unsigned long pval;
 	int err;
 
-	mutex_lock(&codec->control_mutex);
+	guard(mutex)(&codec->control_mutex);
 	pval = kcontrol->private_value;
 	kcontrol->private_value = (pval & ~0xff) | 0x0f;
 	err = snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
@@ -21,7 +21,6 @@ static int alc268_beep_switch_put(struct snd_kcontrol *kcontrol,
 		err = snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
 	}
 	kcontrol->private_value = pval;
-	mutex_unlock(&codec->control_mutex);
 	return err;
 }
 

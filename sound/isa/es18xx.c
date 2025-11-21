@@ -185,16 +185,13 @@ static int snd_es18xx_dsp_get_byte(struct snd_es18xx *chip)
 static int snd_es18xx_write(struct snd_es18xx *chip,
 			    unsigned char reg, unsigned char data)
 {
-	unsigned long flags;
 	int ret;
 	
-        spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	ret = snd_es18xx_dsp_command(chip, reg);
 	if (ret < 0)
-		goto end;
+		return ret;
         ret = snd_es18xx_dsp_command(chip, data);
- end:
-        spin_unlock_irqrestore(&chip->reg_lock, flags);
 #ifdef REG_DEBUG
 	dev_dbg(chip->card->dev, "Reg %02x set to %02x\n", reg, data);
 #endif
@@ -203,22 +200,20 @@ static int snd_es18xx_write(struct snd_es18xx *chip,
 
 static int snd_es18xx_read(struct snd_es18xx *chip, unsigned char reg)
 {
-	unsigned long flags;
 	int ret, data;
-        spin_lock_irqsave(&chip->reg_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	ret = snd_es18xx_dsp_command(chip, 0xC0);
 	if (ret < 0)
-		goto end;
+		return ret;
         ret = snd_es18xx_dsp_command(chip, reg);
 	if (ret < 0)
-		goto end;
+		return ret;
 	data = snd_es18xx_dsp_get_byte(chip);
 	ret = data;
 #ifdef REG_DEBUG
 	dev_dbg(chip->card->dev, "Reg %02x now is %02x (%d)\n", reg, data, ret);
 #endif
- end:
-        spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return ret;
 }
 
@@ -228,47 +223,41 @@ static int snd_es18xx_bits(struct snd_es18xx *chip, unsigned char reg,
 {
         int ret;
 	unsigned char old, new, oval;
-	unsigned long flags;
-        spin_lock_irqsave(&chip->reg_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->reg_lock);
         ret = snd_es18xx_dsp_command(chip, 0xC0);
 	if (ret < 0)
-		goto end;
+		return ret;
         ret = snd_es18xx_dsp_command(chip, reg);
 	if (ret < 0)
-		goto end;
+		return ret;
 	ret = snd_es18xx_dsp_get_byte(chip);
-	if (ret < 0) {
-		goto end;
-	}
+	if (ret < 0)
+		return ret;
 	old = ret;
 	oval = old & mask;
 	if (val != oval) {
 		ret = snd_es18xx_dsp_command(chip, reg);
 		if (ret < 0)
-			goto end;
+			return ret;
 		new = (old & ~mask) | (val & mask);
 		ret = snd_es18xx_dsp_command(chip, new);
 		if (ret < 0)
-			goto end;
+			return ret;
 #ifdef REG_DEBUG
 		dev_dbg(chip->card->dev, "Reg %02x was %02x, set to %02x (%d)\n",
 			reg, old, new, ret);
 #endif
 	}
-	ret = oval;
- end:
-        spin_unlock_irqrestore(&chip->reg_lock, flags);
-	return ret;
+	return oval;
 }
 
 static inline void snd_es18xx_mixer_write(struct snd_es18xx *chip,
 			    unsigned char reg, unsigned char data)
 {
-	unsigned long flags;
-        spin_lock_irqsave(&chip->mixer_lock, flags);
+	guard(spinlock_irqsave)(&chip->mixer_lock);
         outb(reg, chip->port + 0x04);
         outb(data, chip->port + 0x05);
-        spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
 	dev_dbg(chip->card->dev, "Mixer reg %02x set to %02x\n", reg, data);
 #endif
@@ -276,12 +265,11 @@ static inline void snd_es18xx_mixer_write(struct snd_es18xx *chip,
 
 static inline int snd_es18xx_mixer_read(struct snd_es18xx *chip, unsigned char reg)
 {
-	unsigned long flags;
 	int data;
-        spin_lock_irqsave(&chip->mixer_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->mixer_lock);
         outb(reg, chip->port + 0x04);
 	data = inb(chip->port + 0x05);
-        spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
 	dev_dbg(chip->card->dev, "Mixer reg %02x now is %02x\n", reg, data);
 #endif
@@ -293,8 +281,8 @@ static inline int snd_es18xx_mixer_bits(struct snd_es18xx *chip, unsigned char r
 					unsigned char mask, unsigned char val)
 {
 	unsigned char old, new, oval;
-	unsigned long flags;
-        spin_lock_irqsave(&chip->mixer_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->mixer_lock);
         outb(reg, chip->port + 0x04);
 	old = inb(chip->port + 0x05);
 	oval = old & mask;
@@ -306,7 +294,6 @@ static inline int snd_es18xx_mixer_bits(struct snd_es18xx *chip, unsigned char r
 			reg, old, new);
 #endif
 	}
-        spin_unlock_irqrestore(&chip->mixer_lock, flags);
 	return oval;
 }
 
@@ -314,14 +301,13 @@ static inline int snd_es18xx_mixer_writable(struct snd_es18xx *chip, unsigned ch
 					    unsigned char mask)
 {
 	int old, expected, new;
-	unsigned long flags;
-        spin_lock_irqsave(&chip->mixer_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->mixer_lock);
         outb(reg, chip->port + 0x04);
 	old = inb(chip->port + 0x05);
 	expected = old ^ mask;
 	outb(expected, chip->port + 0x05);
 	new = inb(chip->port + 0x05);
-        spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
 	dev_dbg(chip->card->dev, "Mixer reg %02x was %02x, set to %02x, now is %02x\n",
 		reg, old, expected, new);

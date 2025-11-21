@@ -52,7 +52,12 @@ properties:
               - mediatek,mt8188-pcie
               - mediatek,mt8195-pcie
           - const: mediatek,mt8192-pcie
+      - items:
+          - enum:
+              - mediatek,mt6991-pcie
+          - const: mediatek,mt8196-pcie
       - const: mediatek,mt8192-pcie
+      - const: mediatek,mt8196-pcie
       - const: airoha,en7581-pcie
 
   reg:
@@ -209,6 +214,36 @@ allOf:
         reset-names:
           minItems: 1
           maxItems: 2
+
+        mediatek,pbus-csr: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - mediatek,mt8196-pcie
+    then:
+      properties:
+        clocks:
+          minItems: 6
+
+        clock-names:
+          items:
+            - const: pl_250m
+            - const: tl_26m
+            - const: bus
+            - const: low_power
+            - const: peri_26m
+            - const: peri_mem
+
+        resets:
+          minItems: 2
+
+        reset-names:
+          items:
+            - const: phy
+            - const: mac
 
         mediatek,pbus-csr: false
 

@@ -368,6 +368,7 @@ static struct interp_sample_rate int_mix_sample_rate_val[] = {
 	{192000, 0x6},	/* 192K */
 };
 
+/* Matches also rx_mux_text */
 enum {
 	WSA_MACRO_AIF1_PB,
 	WSA_MACRO_AIF_MIX1_PB,
@@ -465,6 +466,7 @@ static const char *const rx_mix_ec_text[] = {
 	"ZERO", "RX_MIX_TX0", "RX_MIX_TX1"
 };
 
+/* Order must match WSA_MACRO_MAX_DAIS enum (offset by 1) */
 static const char *const rx_mux_text[] = {
 	"ZERO", "AIF1_PB", "AIF_MIX1_PB"
 };
@@ -2207,6 +2209,7 @@ static int wsa_macro_rx_mux_put(struct snd_kcontrol *kcontrol,
 	u32 rx_port_value = ucontrol->value.integer.value[0];
 	u32 bit_input;
 	u32 aif_rst;
+	unsigned int dai_id;
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
 
 	aif_rst = wsa->rx_port_value[widget->shift];
@@ -2224,17 +2227,22 @@ static int wsa_macro_rx_mux_put(struct snd_kcontrol *kcontrol,
 
 	switch (rx_port_value) {
 	case 0:
-		if (wsa->active_ch_cnt[aif_rst]) {
-			clear_bit(bit_input,
-				  &wsa->active_ch_mask[aif_rst]);
-			wsa->active_ch_cnt[aif_rst]--;
+		/*
+		 * active_ch_cnt and active_ch_mask use DAI IDs (WSA_MACRO_MAX_DAIS).
+		 * active_ch_cnt == 0 was tested in if() above.
+		 */
+		dai_id = aif_rst - 1;
+		if (wsa->active_ch_cnt[dai_id]) {
+			clear_bit(bit_input, &wsa->active_ch_mask[dai_id]);
+			wsa->active_ch_cnt[dai_id]--;
 		}
 		break;
 	case 1:
 	case 2:
-		set_bit(bit_input,
-			&wsa->active_ch_mask[rx_port_value]);
-		wsa->active_ch_cnt[rx_port_value]++;
+		/* active_ch_cnt and active_ch_mask use DAI IDs (WSA_MACRO_MAX_DAIS). */
+		dai_id = rx_port_value - 1;
+		set_bit(bit_input, &wsa->active_ch_mask[dai_id]);
+		wsa->active_ch_cnt[dai_id]++;
 		break;
 	default:
 		dev_err(component->dev,
@@ -2690,6 +2698,7 @@ static int wsa_macro_component_probe(struct snd_soc_component *comp)
 	case LPASS_CODEC_VERSION_2_6:
 	case LPASS_CODEC_VERSION_2_7:
 	case LPASS_CODEC_VERSION_2_8:
+	case LPASS_CODEC_VERSION_2_9:
 		widgets = wsa_macro_dapm_widgets_v2_5;
 		num_widgets = ARRAY_SIZE(wsa_macro_dapm_widgets_v2_5);
 		break;
@@ -2838,6 +2847,7 @@ static int wsa_macro_probe(struct platform_device *pdev)
 	case LPASS_CODEC_VERSION_2_6:
 	case LPASS_CODEC_VERSION_2_7:
 	case LPASS_CODEC_VERSION_2_8:
+	case LPASS_CODEC_VERSION_2_9:
 		wsa->reg_layout = &wsa_codec_v2_5;
 		def_count = ARRAY_SIZE(wsa_defaults) + ARRAY_SIZE(wsa_defaults_v2_5);
 		reg_defaults = kmalloc_array(def_count, sizeof(*reg_defaults),

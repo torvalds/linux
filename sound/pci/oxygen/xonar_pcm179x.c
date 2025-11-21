@@ -762,7 +762,7 @@ static int rolloff_put(struct snd_kcontrol *ctl,
 	int changed;
 	u8 reg;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = data->pcm1796_regs[0][19 - PCM1796_REG_BASE];
 	reg &= ~PCM1796_FLT_MASK;
 	if (!value->value.enumerated.item[0])
@@ -774,7 +774,6 @@ static int rolloff_put(struct snd_kcontrol *ctl,
 		for (i = 0; i < data->dacs; ++i)
 			pcm1796_write(chip, i, 19, reg);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -806,7 +805,7 @@ static int deemph_put(struct snd_kcontrol *ctl,
 	int changed;
 	u8 reg;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = data->pcm1796_regs[0][18 - PCM1796_REG_BASE];
 	if (!value->value.integer.value[0])
 		reg &= ~PCM1796_DME;
@@ -817,7 +816,6 @@ static int deemph_put(struct snd_kcontrol *ctl,
 		for (i = 0; i < data->dacs; ++i)
 			pcm1796_write(chip, i, 18, reg);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -872,7 +870,7 @@ static int st_output_switch_put(struct snd_kcontrol *ctl,
 	struct xonar_pcm179x *data = chip->model_data;
 	u16 gpio_old, gpio;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	gpio_old = oxygen_read16(chip, OXYGEN_GPIO_DATA);
 	gpio = gpio_old;
 	switch (value->value.enumerated.item[0]) {
@@ -889,7 +887,6 @@ static int st_output_switch_put(struct snd_kcontrol *ctl,
 	oxygen_write16(chip, OXYGEN_GPIO_DATA, gpio);
 	data->hp_active = gpio & GPIO_ST_HP;
 	update_pcm1796_volume(chip);
-	mutex_unlock(&chip->mutex);
 	return gpio != gpio_old;
 }
 
@@ -909,7 +906,7 @@ static int st_hp_volume_offset_get(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 	struct xonar_pcm179x *data = chip->model_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	if (data->hp_gain_offset < 2*-12)
 		value->value.enumerated.item[0] = 0;
 	else if (data->hp_gain_offset < 2*-6)
@@ -918,7 +915,6 @@ static int st_hp_volume_offset_get(struct snd_kcontrol *ctl,
 		value->value.enumerated.item[0] = 2;
 	else
 		value->value.enumerated.item[0] = 3;
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -935,13 +931,12 @@ static int st_hp_volume_offset_put(struct snd_kcontrol *ctl,
 	if (value->value.enumerated.item[0] > 3)
 		return -EINVAL;
 	offset = offsets[value->value.enumerated.item[0]];
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	changed = offset != data->hp_gain_offset;
 	if (changed) {
 		data->hp_gain_offset = offset;
 		update_pcm1796_volume(chip);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -985,7 +980,7 @@ static int xense_output_switch_put(struct snd_kcontrol *ctl,
 	struct xonar_pcm179x *data = chip->model_data;
 	u16 gpio_old, gpio;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	gpio_old = oxygen_read16(chip, OXYGEN_GPIO_DATA);
 	gpio = gpio_old;
 	switch (value->value.enumerated.item[0]) {
@@ -1002,7 +997,6 @@ static int xense_output_switch_put(struct snd_kcontrol *ctl,
 	oxygen_write16(chip, OXYGEN_GPIO_DATA, gpio);
 	data->hp_active = !(gpio & GPIO_XENSE_SPEAKERS);
 	update_pcm1796_volume(chip);
-	mutex_unlock(&chip->mutex);
 	return gpio != gpio_old;
 }
 
@@ -1027,11 +1021,10 @@ static void xonar_line_mic_ac97_switch(struct oxygen *chip,
 				       unsigned int reg, unsigned int mute)
 {
 	if (reg == AC97_LINE) {
-		spin_lock_irq(&chip->reg_lock);
+		guard(spinlock_irq)(&chip->reg_lock);
 		oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
 				      mute ? GPIO_INPUT_ROUTE : 0,
 				      GPIO_INPUT_ROUTE);
-		spin_unlock_irq(&chip->reg_lock);
 	}
 }
 

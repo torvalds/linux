@@ -273,7 +273,7 @@ again.
    does nothing at all; in that case you have to manually install your kernel,
    as outlined in the reference section.
 
-   If you are running a immutable Linux distribution, check its documentation
+   If you are running an immutable Linux distribution, check its documentation
    and the web to find out how to install your own kernel there.
 
    [:ref:`details<install>`]
@@ -884,7 +884,7 @@ When a build error occurs, it might be caused by some aspect of your machine's
 setup that often can be fixed quickly; other times though the problem lies in
 the code and can only be fixed by a developer. A close examination of the
 failure messages coupled with some research on the internet will often tell you
-which of the two it is. To perform such a investigation, restart the build
+which of the two it is. To perform such an investigation, restart the build
 process like this::
 
     make V=1

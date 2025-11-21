@@ -88,23 +88,30 @@ struct fw_card {
 
 	int node_id;
 	int generation;
-	int current_tlabel;
-	u64 tlabel_mask;
-	struct list_head transaction_list;
 	u64 reset_jiffies;
 
-	u32 split_timeout_hi;
-	u32 split_timeout_lo;
-	unsigned int split_timeout_cycles;
-	unsigned int split_timeout_jiffies;
+	struct {
+		int current_tlabel;
+		u64 tlabel_mask;
+		struct list_head list;
+		spinlock_t lock;
+	} transactions;
+
+	struct {
+		u32 hi;
+		u32 lo;
+		unsigned int cycles;
+		unsigned int jiffies;
+		spinlock_t lock;
+	} split_timeout;
 
 	unsigned long long guid;
 	unsigned max_receive;
 	int link_speed;
 	int config_rom_generation;
 
-	spinlock_t lock; /* Take this lock when handling the lists in
-			  * this struct. */
+	spinlock_t lock;
+
 	struct fw_node *local_node;
 	struct fw_node *root_node;
 	struct fw_node *irm_node;
@@ -114,8 +121,6 @@ struct fw_card {
 
 	int index;
 	struct list_head link;
-
-	struct list_head phy_receiver_list;
 
 	struct delayed_work br_work; /* bus reset job */
 	bool br_short;
@@ -131,7 +136,11 @@ struct fw_card {
 
 	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
-	__be32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
+
+	struct {
+		__be32 buffer[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
+		spinlock_t lock;
+	} topology_map;
 
 	__be32 maint_utility_register;
 
@@ -341,7 +350,11 @@ struct fw_address_handler {
 	u64 length;
 	fw_address_callback_t address_callback;
 	void *callback_data;
+
+	// Only for core functions.
 	struct list_head link;
+	struct kref kref;
+	struct completion done;
 };
 
 struct fw_address_region {

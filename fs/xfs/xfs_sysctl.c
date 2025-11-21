@@ -50,7 +50,7 @@ xfs_panic_mask_proc_handler(
 }
 #endif /* CONFIG_PROC_FS */
 
-STATIC int
+static inline int
 xfs_deprecated_dointvec_minmax(
 	const struct ctl_table	*ctl,
 	int			write,
@@ -67,24 +67,6 @@ xfs_deprecated_dointvec_minmax(
 }
 
 static const struct ctl_table xfs_table[] = {
-	{
-		.procname	= "irix_sgid_inherit",
-		.data		= &xfs_params.sgid_inherit.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= xfs_deprecated_dointvec_minmax,
-		.extra1		= &xfs_params.sgid_inherit.min,
-		.extra2		= &xfs_params.sgid_inherit.max
-	},
-	{
-		.procname	= "irix_symlink_mode",
-		.data		= &xfs_params.symlink_mode.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= xfs_deprecated_dointvec_minmax,
-		.extra1		= &xfs_params.symlink_mode.min,
-		.extra2		= &xfs_params.symlink_mode.max
-	},
 	{
 		.procname	= "panic_mask",
 		.data		= &xfs_params.panic_mask.val,
@@ -182,15 +164,6 @@ static const struct ctl_table xfs_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.blockgc_timer.min,
-		.extra2		= &xfs_params.blockgc_timer.max,
-	},
-	{
-		.procname	= "speculative_cow_prealloc_lifetime",
-		.data		= &xfs_params.blockgc_timer.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= xfs_deprecated_dointvec_minmax,
 		.extra1		= &xfs_params.blockgc_timer.min,
 		.extra2		= &xfs_params.blockgc_timer.max,
 	},

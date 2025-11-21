@@ -16,7 +16,7 @@
 
 .macro FRED_ENTER
 	UNWIND_HINT_END_OF_STACK
-	ENDBR
+	ANNOTATE_NOENDBR
 	PUSH_AND_CLEAR_REGS
 	movq	%rsp, %rdi	/* %rdi -> pt_regs */
 .endm
@@ -97,8 +97,7 @@ SYM_FUNC_START(asm_fred_entry_from_kvm)
 	push %rdi			/* fred_ss handed in by the caller */
 	push %rbp
 	pushf
-	mov $__KERNEL_CS, %rax
-	push %rax
+	push $__KERNEL_CS
 
 	/*
 	 * Unlike the IDT event delivery, FRED _always_ pushes an error code
@@ -112,18 +111,37 @@ SYM_FUNC_START(asm_fred_entry_from_kvm)
 	push %rax				/* Return RIP */
 	push $0					/* Error code, 0 for IRQ/NMI */
 
-	PUSH_AND_CLEAR_REGS clear_bp=0 unwind_hint=0
+	PUSH_AND_CLEAR_REGS clear_callee=0 unwind_hint=0
+
 	movq %rsp, %rdi				/* %rdi -> pt_regs */
-	call __fred_entry_from_kvm		/* Call the C entry point */
-	POP_REGS
-	ERETS
-1:
 	/*
-	 * Objtool doesn't understand what ERETS does, this hint tells it that
-	 * yes, we'll reach here and with what stack state. A save/restore pair
-	 * isn't strictly needed, but it's the simplest form.
+	 * At this point: {rdi, rsi, rdx, rcx, r8, r9}, {r10, r11}, {rax, rdx}
+	 * are clobbered, which corresponds to: arguments, extra caller-saved
+	 * and return. All registers a C function is allowed to clobber.
+	 *
+	 * Notably, the callee-saved registers: {rbx, r12, r13, r14, r15}
+	 * are untouched, with the exception of rbp, which carries the stack
+	 * frame and will be restored before exit.
+	 *
+	 * Further calling another C function will not alter this state.
+	 */
+	call __fred_entry_from_kvm		/* Call the C entry point */
+
+	/*
+	 * When FRED, use ERETS to potentially clear NMIs, otherwise simply
+	 * restore the stack pointer.
+	 */
+	ALTERNATIVE "nop; nop; mov %rbp, %rsp", \
+	            __stringify(add $C_PTREGS_SIZE, %rsp; ERETS), \
+		    X86_FEATURE_FRED
+
+1:	/*
+	 * Objtool doesn't understand ERETS, and the cfi register state is
+	 * different from initial_func_cfi due to PUSH_REGS. Tell it the state
+	 * is similar to where UNWIND_HINT_SAVE is.
 	 */
 	UNWIND_HINT_RESTORE
+
 	pop %rbp
 	RET
 

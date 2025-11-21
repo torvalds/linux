@@ -1087,7 +1087,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 				}
 
 				ret = bpf_add_extable_entry(fp, image, fimage, pass, ctx, insn_idx,
-							    jmp_off, dst_reg);
+							    jmp_off, dst_reg, code);
 				if (ret)
 					return ret;
 			}

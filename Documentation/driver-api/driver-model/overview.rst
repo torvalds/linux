@@ -22,7 +22,7 @@ uniformity across the different bus types.
 
 The current driver model provides a common, uniform data model for describing
 a bus and the devices that can appear under the bus. The unified bus
-model includes a set of common attributes which all busses carry, and a set
+model includes a set of common attributes which all buses carry, and a set
 of common callbacks, such as device discovery during bus probing, bus
 shutdown, bus power management, etc.
 

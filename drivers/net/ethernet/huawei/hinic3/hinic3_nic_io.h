@@ -75,8 +75,8 @@ static inline u16 hinic3_get_sq_hw_ci(const struct hinic3_io_queue *sq)
 #define DB_CFLAG_DP_RQ   1
 
 struct hinic3_nic_db {
-	u32 db_info;
-	u32 pi_hi;
+	__le32 db_info;
+	__le32 pi_hi;
 };
 
 static inline void hinic3_write_db(struct hinic3_io_queue *queue, int cos,
@@ -84,14 +84,24 @@ static inline void hinic3_write_db(struct hinic3_io_queue *queue, int cos,
 {
 	struct hinic3_nic_db db;
 
-	db.db_info = DB_INFO_SET(DB_SRC_TYPE, TYPE) |
-		     DB_INFO_SET(cflag, CFLAG) |
-		     DB_INFO_SET(cos, COS) |
-		     DB_INFO_SET(queue->q_id, QID);
-	db.pi_hi = DB_PI_HIGH(pi);
+	db.db_info =
+		cpu_to_le32(DB_INFO_SET(DB_SRC_TYPE, TYPE) |
+			    DB_INFO_SET(cflag, CFLAG) |
+			    DB_INFO_SET(cos, COS) |
+			    DB_INFO_SET(queue->q_id, QID));
+	db.pi_hi = cpu_to_le32(DB_PI_HIGH(pi));
 
 	writeq(*((u64 *)&db), DB_ADDR(queue, pi));
 }
+
+struct hinic3_dyna_qp_params {
+	u16                    num_qps;
+	u32                    sq_depth;
+	u32                    rq_depth;
+
+	struct hinic3_io_queue *sqs;
+	struct hinic3_io_queue *rqs;
+};
 
 struct hinic3_nic_io {
 	struct hinic3_io_queue *sq;
@@ -116,5 +126,20 @@ struct hinic3_nic_io {
 
 int hinic3_init_nic_io(struct hinic3_nic_dev *nic_dev);
 void hinic3_free_nic_io(struct hinic3_nic_dev *nic_dev);
+
+int hinic3_init_nicio_res(struct hinic3_nic_dev *nic_dev);
+void hinic3_free_nicio_res(struct hinic3_nic_dev *nic_dev);
+
+int hinic3_alloc_qps(struct hinic3_nic_dev *nic_dev,
+		     struct hinic3_dyna_qp_params *qp_params);
+void hinic3_free_qps(struct hinic3_nic_dev *nic_dev,
+		     struct hinic3_dyna_qp_params *qp_params);
+void hinic3_init_qps(struct hinic3_nic_dev *nic_dev,
+		     struct hinic3_dyna_qp_params *qp_params);
+void hinic3_uninit_qps(struct hinic3_nic_dev *nic_dev,
+		       struct hinic3_dyna_qp_params *qp_params);
+
+int hinic3_init_qp_ctxts(struct hinic3_nic_dev *nic_dev);
+void hinic3_free_qp_ctxts(struct hinic3_nic_dev *nic_dev);
 
 #endif

@@ -32,8 +32,8 @@ static unsigned long scpi_clk_recalc_rate(struct clk_hw *hw,
 	return clk->scpi_ops->clk_get_val(clk->id);
 }
 
-static long scpi_clk_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *parent_rate)
+static int scpi_clk_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *req)
 {
 	/*
 	 * We can't figure out what rate it will be, so just return the
@@ -41,7 +41,7 @@ static long scpi_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	 * after the rate is set and we'll know what rate the clock is
 	 * running at then.
 	 */
-	return rate;
+	return 0;
 }
 
 static int scpi_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -54,7 +54,7 @@ static int scpi_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops scpi_clk_ops = {
 	.recalc_rate = scpi_clk_recalc_rate,
-	.round_rate = scpi_clk_round_rate,
+	.determine_rate = scpi_clk_determine_rate,
 	.set_rate = scpi_clk_set_rate,
 };
 
@@ -92,12 +92,14 @@ static unsigned long scpi_dvfs_recalc_rate(struct clk_hw *hw,
 	return opp->freq;
 }
 
-static long scpi_dvfs_round_rate(struct clk_hw *hw, unsigned long rate,
-				 unsigned long *parent_rate)
+static int scpi_dvfs_determine_rate(struct clk_hw *hw,
+				    struct clk_rate_request *req)
 {
 	struct scpi_clk *clk = to_scpi_clk(hw);
 
-	return __scpi_dvfs_round_rate(clk, rate);
+	req->rate = __scpi_dvfs_round_rate(clk, req->rate);
+
+	return 0;
 }
 
 static int __scpi_find_dvfs_index(struct scpi_clk *clk, unsigned long rate)
@@ -124,7 +126,7 @@ static int scpi_dvfs_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops scpi_dvfs_ops = {
 	.recalc_rate = scpi_dvfs_recalc_rate,
-	.round_rate = scpi_dvfs_round_rate,
+	.determine_rate = scpi_dvfs_determine_rate,
 	.set_rate = scpi_dvfs_set_rate,
 };
 

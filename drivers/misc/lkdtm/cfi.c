@@ -43,7 +43,7 @@ static void lkdtm_CFI_FORWARD_PROTO(void)
 	lkdtm_indirect_call((void *)lkdtm_increment_int);
 
 	pr_err("FAIL: survived mismatched prototype function call!\n");
-	pr_expected_config(CONFIG_CFI_CLANG);
+	pr_expected_config(CONFIG_CFI);
 }
 
 /*

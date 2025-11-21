@@ -81,7 +81,7 @@ void __init rcar_gen2_pm_init(void)
 
 map:
 	/* RAM for jump stub, because BAR requires 256KB aligned address */
-	if (res.start & (256 * 1024 - 1) ||
+	if (res.start & (SZ_256K - 1) ||
 	    resource_size(&res) < shmobile_boot_size) {
 		pr_err("Invalid smp-sram region\n");
 		return;

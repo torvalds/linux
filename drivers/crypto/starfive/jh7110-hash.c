@@ -229,8 +229,7 @@ static int starfive_hash_one_request(struct crypto_engine *engine, void *areq)
 	for_each_sg(rctx->in_sg, tsg, rctx->in_sg_len, i) {
 		src_nents = dma_map_sg(cryp->dev, tsg, 1, DMA_TO_DEVICE);
 		if (src_nents == 0)
-			return dev_err_probe(cryp->dev, -ENOMEM,
-					     "dma_map_sg error\n");
+			return -ENOMEM;
 
 		ret = starfive_hash_dma_xfer(cryp, tsg);
 		dma_unmap_sg(cryp->dev, tsg, 1, DMA_TO_DEVICE);

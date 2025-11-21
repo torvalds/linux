@@ -271,14 +271,14 @@ struct iio_chan_spec {
 			unsigned int num_ext_scan_type;
 		};
 	};
-	long			info_mask_separate;
-	long			info_mask_separate_available;
-	long			info_mask_shared_by_type;
-	long			info_mask_shared_by_type_available;
-	long			info_mask_shared_by_dir;
-	long			info_mask_shared_by_dir_available;
-	long			info_mask_shared_by_all;
-	long			info_mask_shared_by_all_available;
+	unsigned long			info_mask_separate;
+	unsigned long			info_mask_separate_available;
+	unsigned long			info_mask_shared_by_type;
+	unsigned long			info_mask_shared_by_type_available;
+	unsigned long			info_mask_shared_by_dir;
+	unsigned long			info_mask_shared_by_dir_available;
+	unsigned long			info_mask_shared_by_all;
+	unsigned long			info_mask_shared_by_all_available;
 	const struct iio_event_spec *event_spec;
 	unsigned int		num_event_specs;
 	const struct iio_chan_spec_ext_info *ext_info;
@@ -779,7 +779,7 @@ static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
  * them safe for use with non-coherent DMA.
  *
  * A number of drivers also use this on buffers that include a 64-bit timestamp
- * that is used with iio_push_to_buffer_with_ts(). Therefore, in the case where
+ * that is used with iio_push_to_buffers_with_ts(). Therefore, in the case where
  * DMA alignment is not sufficient for proper timestamp alignment, we align to
  * 8 bytes instead.
  */
@@ -794,7 +794,7 @@ static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
  * @name: identifier name of the buffer
  * @count: number of elements in the buffer
  *
- * Declares a buffer that is safe to use with iio_push_to_buffer_with_ts(). In
+ * Declares a buffer that is safe to use with iio_push_to_buffers_with_ts(). In
  * addition to allocating enough space for @count elements of @type, it also
  * allocates space for a s64 timestamp at the end of the buffer and ensures
  * proper alignment of the timestamp.

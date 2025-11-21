@@ -41,7 +41,7 @@ static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t siz
 		"	ex	%1,0(1)\n"
 		"	lg	%1,0(%3)\n"
 		"	lra	%0,0(%0)\n"
-		"	sturg	%1,%0\n"
+		"	sturg	%1,%0"
 		: "+&a" (aligned), "+&a" (count), "=m" (tmp)
 		: "a" (&tmp), "a" (&tmp[offset]), "a" (src)
 		: "cc", "memory", "1");

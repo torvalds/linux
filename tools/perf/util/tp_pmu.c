@@ -88,8 +88,6 @@ int tp_pmu__for_each_tp_sys(void *state, tp_sys_callback cb)
 			continue;
 
 		ret = cb(state, events_ent->d_name);
-		if (ret)
-			break;
 	}
 	close(events_dir.dirfd);
 	return ret;

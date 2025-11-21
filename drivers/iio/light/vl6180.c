@@ -96,11 +96,6 @@ struct vl6180_data {
 	unsigned int als_it_ms;
 	unsigned int als_meas_rate;
 	unsigned int range_meas_rate;
-
-	struct {
-		u16 chan[2];
-		aligned_s64 timestamp;
-	} scan;
 };
 
 enum { VL6180_ALS, VL6180_RANGE, VL6180_PROX };
@@ -545,6 +540,11 @@ static irqreturn_t vl6180_trigger_handler(int irq, void *priv)
 	struct vl6180_data *data = iio_priv(indio_dev);
 	s64 time_ns = iio_get_time_ns(indio_dev);
 	int ret, bit, i = 0;
+	struct {
+		u16 chan[2];
+		aligned_s64 timestamp;
+	} scan = { };
+
 
 	iio_for_each_active_channel(indio_dev, bit) {
 		if (vl6180_chan_regs_table[bit].word)
@@ -560,10 +560,10 @@ static irqreturn_t vl6180_trigger_handler(int irq, void *priv)
 			return IRQ_HANDLED;
 		}
 
-		data->scan.chan[i++] = ret;
+		scan.chan[i++] = ret;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan, time_ns);
+	iio_push_to_buffers_with_ts(indio_dev, &scan, sizeof(scan), time_ns);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	/* Clear the interrupt flag after data read */
@@ -722,7 +722,7 @@ static int vl6180_probe(struct i2c_client *client)
 						IRQF_ONESHOT,
 						indio_dev->name, indio_dev);
 		if (ret)
-			return dev_err_probe(&client->dev, ret, "devm_request_irq error \n");
+			return dev_err_probe(&client->dev, ret, "devm_request_irq error\n");
 
 		init_completion(&data->completion);
 

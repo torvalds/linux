@@ -469,11 +469,8 @@ static int stm32_i2smclk_determine_rate(struct clk_hw *hw,
 	int ret;
 
 	ret = stm32_i2s_calc_clk_div(i2s, req->best_parent_rate, req->rate);
-	if (ret) {
-		req->rate = ret;
-
-		return 0;
-	}
+	if (ret)
+		return ret;
 
 	mclk->freq = req->best_parent_rate / i2s->divider;
 

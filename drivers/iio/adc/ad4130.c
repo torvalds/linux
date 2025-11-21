@@ -2035,8 +2035,7 @@ static int ad4130_probe(struct spi_device *spi)
 
 	ret = devm_add_action_or_reset(dev, ad4130_disable_regulators, st);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add regulators disable action\n");
+		return ret;
 
 	ret = ad4130_soft_reset(st);
 	if (ret)
@@ -2064,7 +2063,7 @@ static int ad4130_probe(struct spi_device *spi)
 	st->gc.can_sleep = true;
 	st->gc.init_valid_mask = ad4130_gpio_init_valid_mask;
 	st->gc.get_direction = ad4130_gpio_get_direction;
-	st->gc.set_rv = ad4130_gpio_set;
+	st->gc.set = ad4130_gpio_set;
 
 	ret = devm_gpiochip_add_data(dev, &st->gc, st);
 	if (ret)

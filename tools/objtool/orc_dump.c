@@ -8,7 +8,6 @@
 #include <objtool/objtool.h>
 #include <objtool/orc.h>
 #include <objtool/warn.h>
-#include <objtool/endianness.h>
 
 int orc_dump(const char *filename)
 {

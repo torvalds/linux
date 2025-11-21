@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/lantiq,cputemp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Lantiq cpu temperature sensor
+
+maintainers:
+  - Florian Eckert <fe@dev.tdt.de>
+
+properties:
+  compatible:
+    const: lantiq,cputemp
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    cputemp@103040 {
+        compatible = "lantiq,cputemp";
+        reg = <0x103040 0x4>;
+    };

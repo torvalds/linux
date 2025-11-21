@@ -91,7 +91,6 @@ ov5647        OmniVision OV5647 sensor
 ov5670        OmniVision OV5670 sensor
 ov5675        OmniVision OV5675 sensor
 ov5695        OmniVision OV5695 sensor
-ov6650        OmniVision OV6650 sensor
 ov7251        OmniVision OV7251 sensor
 ov7640        OmniVision OV7640 sensor
 ov7670        OmniVision OV7670 sensor

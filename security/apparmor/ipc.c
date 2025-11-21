@@ -80,21 +80,20 @@ static int profile_signal_perm(const struct cred *cred,
 			       struct aa_label *peer, u32 request,
 			       struct apparmor_audit_data *ad)
 {
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 	struct aa_perms perms;
 	aa_state_t state;
 
-	if (profile_unconfined(profile) ||
-	    !ANY_RULE_MEDIATES(&profile->rules, AA_CLASS_SIGNAL))
+	if (profile_unconfined(profile))
 		return 0;
 
 	ad->subj_cred = cred;
 	ad->peer = peer;
 	/* TODO: secondary cache check <profile, profile, perm> */
-	state = aa_dfa_next(rules->policy->dfa,
-			    rules->policy->start[AA_CLASS_SIGNAL],
-			    ad->signal);
+	state = RULE_MEDIATES(rules, AA_CLASS_SIGNAL);
+	if (!state)
+		return 0;
+	state = aa_dfa_next(rules->policy->dfa, state, ad->signal);
 	aa_label_match(profile, rules, peer, state, false, request, &perms);
 	aa_apply_modes_to_perms(profile, &perms);
 	return aa_check_perms(profile, &perms, request, ad, audit_signal_cb);

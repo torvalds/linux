@@ -608,6 +608,24 @@
 	ccw_timeout_log	[S390]
 			See Documentation/arch/s390/common_io.rst for details.
 
+	cfi=		[X86-64] Set Control Flow Integrity checking features
+			when CONFIG_FINEIBT is enabled.
+			Format: feature[,feature...]
+			Default: auto
+
+			auto:	  Use FineIBT if IBT available, otherwise kCFI.
+				  Under FineIBT, enable "paranoid" mode when
+				  FRED is not available.
+			off:	  Turn off CFI checking.
+			kcfi:	  Use kCFI (disable FineIBT).
+			fineibt:  Use FineIBT (even if IBT not available).
+			norand:   Do not re-randomize CFI hashes.
+			paranoid: Add caller hash checking under FineIBT.
+			bhi:	  Enable register poisoning to stop speculation
+				  across FineIBT. (Disabled by default.)
+			warn:	  Do not enforce CFI checking: warn only.
+			debug:    Report CFI initialization details.
+
 	cgroup_disable=	[KNL] Disable a particular controller or optional feature
 			Format: {name of the controller(s) or feature(s) to disable}
 			The effects of cgroup_disable=foo are:
@@ -994,6 +1012,28 @@
 			0: to disable low allocation.
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
+	crashkernel=size[KMG],cma
+			[KNL, X86] Reserve additional crash kernel memory from
+			CMA. This reservation is usable by the first system's
+			userspace memory and kernel movable allocations (memory
+			balloon, zswap). Pages allocated from this memory range
+			will not be included in the vmcore so this should not
+			be used if dumping of userspace memory is intended and
+			it has to be expected that some movable kernel pages
+			may be missing from the dump.
+
+			A standard crashkernel reservation, as described above,
+			is still needed to hold the crash kernel and initrd.
+
+			This option increases the risk of a kdump failure: DMA
+			transfers configured by the first kernel may end up
+			corrupting the second kernel's memory.
+
+			This reservation method is intended for systems that
+			can't afford to sacrifice enough memory for standard
+			crashkernel reservation and where less reliable and
+			possibly incomplete kdump is preferable to no kdump at
+			all.
 
 	cryptomgr.notests
 			[KNL] Disable crypto self-tests
@@ -1806,6 +1846,27 @@
 			backtraces on all cpus.
 			Format: 0 | 1
 
+	hash_pointers=
+			[KNL,EARLY]
+			By default, when pointers are printed to the console
+			or buffers via the %p format string, that pointer is
+			"hashed", i.e. obscured by hashing the pointer value.
+			This is a security feature that hides actual kernel
+			addresses from unprivileged users, but it also makes
+			debugging the kernel more difficult since unequal
+			pointers can no longer be compared. The choices are:
+			Format: { auto | always | never }
+			Default: auto
+
+			auto   - Hash pointers unless slab_debug is enabled.
+			always - Always hash pointers (even if slab_debug is
+				 enabled).
+			never  - Never hash pointers. This option should only
+				 be specified when debugging the kernel. Do
+				 not use on production kernels. The boot
+				 param "no_hash_pointers" is an alias for
+				 this mode.
+
 	hashdist=	[KNL,NUMA] Large hashes allocated during boot
 			are distributed across NUMA nodes.  Defaults on
 			for 64-bit NUMA, off otherwise.
@@ -2563,6 +2624,11 @@
 			for it. Intended to get systems with badly broken
 			firmware running.
 
+	irqhandler.duration_warn_us= [KNL]
+			Warn if an IRQ handler exceeds the specified duration
+			threshold in microseconds. Useful for identifying
+			long-running IRQs in the system.
+
 	irqpoll		[HW]
 			When an interrupt is not handled search all handlers
 			for it. Also check all handlers each timer
@@ -2913,6 +2979,27 @@
 			a.k.a. Two-Dimensional Page Tables. Default is 1
 			(enabled). Disable by KVM if hardware lacks support
 			for NPT.
+
+	kvm-amd.ciphertext_hiding_asids=
+			[KVM,AMD] Ciphertext hiding prevents disallowed accesses
+			to SNP private memory from reading ciphertext.  Instead,
+			reads will see constant default values (0xff).
+
+			If ciphertext hiding is enabled, the joint SEV-ES and
+			SEV-SNP ASID space is partitioned into separate SEV-ES
+			and SEV-SNP ASID ranges, with the SEV-SNP range being
+			[1..max_snp_asid] and the SEV-ES range being
+			(max_snp_asid..min_sev_asid), where min_sev_asid is
+			enumerated by CPUID.0x.8000_001F[EDX].
+
+			A non-zero value enables SEV-SNP ciphertext hiding and
+			adjusts the ASID ranges for SEV-ES and SEV-SNP guests.
+			KVM caps the number of SEV-SNP ASIDs at the maximum
+			possible value, e.g. specifying -1u will assign all
+			joint SEV-ES and SEV-SNP ASIDs to SEV-SNP.  Note,
+			assigning all joint ASIDs to SEV-SNP, i.e. configuring
+			max_snp_asid == min_sev_asid-1, will effectively make
+			SEV-ES unusable.
 
 	kvm-arm.mode=
 			[KVM,ARM,EARLY] Select one of KVM/arm64's modes of
@@ -3657,7 +3744,7 @@
 			looking for corruption.  Enabling this will
 			both detect corruption and prevent the kernel
 			from using the memory being corrupted.
-			However, its intended as a diagnostic tool; if
+			However, it's intended as a diagnostic tool; if
 			repeatable BIOS-originated corruption always
 			affects the same memory, you can use memmap=
 			to prevent the kernel from using that memory.
@@ -3724,8 +3811,16 @@
 
 	mga=		[HW,DRM]
 
-	microcode.force_minrev=	[X86]
-			Format: <bool>
+	microcode=      [X86] Control the behavior of the microcode loader.
+	                Available options, comma separated:
+
+			base_rev=X - with <X> with format: <u32>
+			Set the base microcode revision of each thread when in
+			debug mode.
+
+			dis_ucode_ldr: disable the microcode loader
+
+			force_minrev:
 			Enable or disable the microcode minimal revision
 			enforcement for the runtime microcode loader.
 
@@ -3786,6 +3881,7 @@
 					       srbds=off [X86,INTEL]
 					       ssbd=force-off [ARM64]
 					       tsx_async_abort=off [X86]
+					       vmscape=off [X86]
 
 				Exceptions:
 					       This does not have any effect on
@@ -4194,18 +4290,7 @@
 
 	no_hash_pointers
 			[KNL,EARLY]
-			Force pointers printed to the console or buffers to be
-			unhashed.  By default, when a pointer is printed via %p
-			format string, that pointer is "hashed", i.e. obscured
-			by hashing the pointer value.  This is a security feature
-			that hides actual kernel addresses from unprivileged
-			users, but it also makes debugging the kernel more
-			difficult since unequal pointers can no longer be
-			compared.  However, if this command-line option is
-			specified, then all normal pointers will have their true
-			value printed. This option should only be specified when
-			debugging the kernel.  Please do not use on production
-			kernels.
+			Alias for "hash_pointers=never".
 
 	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
@@ -4557,13 +4642,32 @@
 			bit 2: print timer info
 			bit 3: print locks info if CONFIG_LOCKDEP is on
 			bit 4: print ftrace buffer
-			bit 5: print all printk messages in buffer
+			bit 5: replay all kernel messages on consoles at the end of panic
 			bit 6: print all CPUs backtrace (if available in the arch)
 			bit 7: print only tasks in uninterruptible (blocked) state
 			*Be aware* that this option may print a _lot_ of lines,
 			so there are risks of losing older messages in the log.
 			Use this option carefully, maybe worth to setup a
 			bigger log buffer with "log_buf_len" along with this.
+
+	panic_sys_info= A comma separated list of extra information to be dumped
+                        on panic.
+                        Format: val[,val...]
+                        Where @val can be any of the following:
+
+                        tasks:          print all tasks info
+                        mem:            print system memory info
+			timers:         print timers info
+                        locks:          print locks info if CONFIG_LOCKDEP is on
+                        ftrace:         print ftrace buffer
+                        all_bt:         print all CPUs backtrace (if available in the arch)
+                        blocked_tasks:  print only tasks in uninterruptible (blocked) state
+
+                        This is a human readable alternative to the 'panic_print' option.
+
+	panic_console_replay
+			When panic happens, replay all kernel messages on
+			consoles at the end of panic.
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
 			connected to, default is 0.
@@ -6103,7 +6207,7 @@
 	rdt=		[HW,X86,RDT]
 			Turn on/off individual RDT features. List is:
 			cmt, mbmtotal, mbmlocal, l3cat, l3cdp, l2cat, l2cdp,
-			mba, smba, bmec.
+			mba, smba, bmec, abmc.
 			E.g. to turn on cmt and turn off mba use:
 				rdt=cmt,!mba
 
@@ -6354,8 +6458,9 @@
 	rodata=		[KNL,EARLY]
 		on	Mark read-only kernel memory as read-only (default).
 		off	Leave read-only kernel memory writable for debugging.
-		full	Mark read-only kernel memory and aliases as read-only
-		        [arm64]
+		noalias	Mark read-only kernel memory as read-only but retain
+			writable aliases in the direct map for regions outside
+			of the kernel image. [arm64]
 
 	rockchip.usb_uart
 			[EARLY]
@@ -6376,6 +6481,9 @@
 			mount the root filesystem
 
 	rootflags=	[KNL] Set root filesystem mount option string
+
+	initramfs_options= [KNL]
+                        Specify mount options for for the initramfs mount.
 
 	rootfstype=	[KNL] Set root filesystem type
 
@@ -6602,6 +6710,10 @@
 			last alloc / free. For more information see
 			Documentation/admin-guide/mm/slab.rst.
 			(slub_debug legacy name also accepted for now)
+
+			Using this option implies the "no_hash_pointers"
+			option which can be undone by adding the
+			"hash_pointers=always" option.
 
 	slab_max_order= [MM]
 			Determines the maximum allowed order for slabs.
@@ -7032,6 +7144,11 @@
 			consumed by the stack hash table. By default this is set
 			to false.
 
+	stack_depot_max_pools= [KNL,EARLY]
+			Specify the maximum number of pools to use for storing
+			stack traces. Pools are allocated on-demand up to this
+			limit. Default value is 8191 pools.
+
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.
 
@@ -7322,7 +7439,7 @@
 				(converted into nanoseconds). Fast, but
 				depending on the architecture, may not be
 				in sync between CPUs.
-			global - Event time stamps are synchronize across
+			global - Event time stamps are synchronized across
 				CPUs. May be slower than the local clock,
 				but better for some race conditions.
 			counter - Simple counting of events (1, 2, ..)
@@ -7442,12 +7559,12 @@
 			section.
 
 	trace_trigger=[trigger-list]
-			[FTRACE] Add a event trigger on specific events.
+			[FTRACE] Add an event trigger on specific events.
 			Set a trigger on top of a specific event, with an optional
 			filter.
 
-			The format is is "trace_trigger=<event>.<trigger>[ if <filter>],..."
-			Where more than one trigger may be specified that are comma deliminated.
+			The format is "trace_trigger=<event>.<trigger>[ if <filter>],..."
+			Where more than one trigger may be specified that are comma delimited.
 
 			For example:
 
@@ -7455,7 +7572,7 @@
 
 			The above will enable the "stacktrace" trigger on the "sched_switch"
 			event but only trigger it if the "prev_state" of the "sched_switch"
-			event is "2" (TASK_UNINTERUPTIBLE).
+			event is "2" (TASK_UNINTERRUPTIBLE).
 
 			See also "Event triggers" in Documentation/trace/events.rst
 
@@ -7980,6 +8097,16 @@
 
 	vmpoff=		[KNL,S390] Perform z/VM CP command after power off.
 			Format: <command>
+
+	vmscape=	[X86] Controls mitigation for VMscape attacks.
+			VMscape attacks can leak information from a userspace
+			hypervisor to a guest via speculative side-channels.
+
+			off		- disable the mitigation
+			ibpb		- use Indirect Branch Prediction Barrier
+					  (IBPB) mitigation (default)
+			force		- force vulnerability detection even on
+					  unaffected processors
 
 	vsyscall=	[X86-64,EARLY]
 			Controls the behavior of vsyscalls (i.e. calls to

@@ -219,7 +219,7 @@ xfs_bulk_ireq_setup(
 		else if (XFS_INO_TO_AGNO(mp, breq->startino) < hdr->agno)
 			return -EINVAL;
 
-		breq->flags |= XFS_IBULK_SAME_AG;
+		breq->iwalk_flags |= XFS_IWALK_SAME_AG;
 
 		/* Asking for an inode past the end of the AG?  We're done! */
 		if (XFS_INO_TO_AGNO(mp, breq->startino) > hdr->agno)
@@ -512,9 +512,6 @@ xfs_fileattr_get(
 {
 	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
 
-	if (d_is_special(dentry))
-		return -ENOTTY;
-
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	xfs_fill_fsxattr(ip, XFS_DATA_FORK, fa);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -735,9 +732,6 @@ xfs_fileattr_set(
 	int			error;
 
 	trace_xfs_ioctl_setattr(ip);
-
-	if (d_is_special(dentry))
-		return -ENOTTY;
 
 	if (!fa->fsx_valid) {
 		if (fa->flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL |
@@ -1209,21 +1203,21 @@ xfs_file_ioctl(
 				current->comm);
 		return -ENOTTY;
 	case XFS_IOC_DIOINFO: {
-		struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
+		struct kstat		st;
 		struct dioattr		da;
 
-		da.d_mem = target->bt_logical_sectorsize;
+		error = vfs_getattr(&filp->f_path, &st, STATX_DIOALIGN, 0);
+		if (error)
+			return error;
 
 		/*
-		 * See xfs_report_dioalign() for an explanation about why this
-		 * reports a value larger than the sector size for COW inodes.
+		 * Some userspace directly feeds the return value to
+		 * posix_memalign, which fails for values that are smaller than
+		 * the pointer size.  Round up the value to not break userspace.
 		 */
-		if (xfs_is_cow_inode(ip))
-			da.d_miniosz = xfs_inode_alloc_unitsize(ip);
-		else
-			da.d_miniosz = target->bt_logical_sectorsize;
+		da.d_mem = roundup(st.dio_mem_align, sizeof(void *));
+		da.d_miniosz = st.dio_offset_align;
 		da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
-
 		if (copy_to_user(arg, &da, sizeof(da)))
 			return -EFAULT;
 		return 0;

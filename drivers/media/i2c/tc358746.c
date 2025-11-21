@@ -816,7 +816,6 @@ static int tc358746_s_stream(struct v4l2_subdev *sd, int enable)
 		return 0;
 
 err_out:
-		pm_runtime_mark_last_busy(sd->dev);
 		pm_runtime_put_sync_autosuspend(sd->dev);
 
 		return err;
@@ -838,7 +837,6 @@ err_out:
 	if (err)
 		return err;
 
-	pm_runtime_mark_last_busy(sd->dev);
 	pm_runtime_put_sync_autosuspend(sd->dev);
 
 	return v4l2_subdev_call(src, video, s_stream, 0);
@@ -1016,7 +1014,6 @@ tc358746_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 	err = tc358746_read(tc358746, reg->reg, &val);
 	reg->val = val;
 
-	pm_runtime_mark_last_busy(sd->dev);
 	pm_runtime_put_sync_autosuspend(sd->dev);
 
 	return err;
@@ -1032,7 +1029,6 @@ tc358746_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 
 	tc358746_write(tc358746, (u32)reg->reg, (u32)reg->val);
 
-	pm_runtime_mark_last_busy(sd->dev);
 	pm_runtime_put_sync_autosuspend(sd->dev);
 
 	return 0;
@@ -1395,7 +1391,6 @@ static int tc358746_init_hw(struct tc358746 *tc358746)
 	}
 
 	err = tc358746_read(tc358746, CHIPID_REG, &val);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_sync_autosuspend(dev);
 	if (err)
 		return -ENODEV;

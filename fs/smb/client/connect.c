@@ -310,6 +310,8 @@ cifs_abort_connection(struct TCP_Server_Info *server)
 			 server->ssocket->flags);
 		sock_release(server->ssocket);
 		server->ssocket = NULL;
+	} else if (cifs_rdma_enabled(server)) {
+		smbd_destroy(server);
 	}
 	server->sequence_number = 0;
 	server->session_estab = false;
@@ -321,28 +323,22 @@ cifs_abort_connection(struct TCP_Server_Info *server)
 	/* mark submitted MIDs for retry and issue callback */
 	INIT_LIST_HEAD(&retry_list);
 	cifs_dbg(FYI, "%s: moving mids to private list\n", __func__);
-	spin_lock(&server->mid_lock);
+	spin_lock(&server->mid_queue_lock);
 	list_for_each_entry_safe(mid, nmid, &server->pending_mid_q, qhead) {
 		kref_get(&mid->refcount);
 		if (mid->mid_state == MID_REQUEST_SUBMITTED)
 			mid->mid_state = MID_RETRY_NEEDED;
 		list_move(&mid->qhead, &retry_list);
-		mid->mid_flags |= MID_DELETED;
+		mid->deleted_from_q = true;
 	}
-	spin_unlock(&server->mid_lock);
+	spin_unlock(&server->mid_queue_lock);
 	cifs_server_unlock(server);
 
 	cifs_dbg(FYI, "%s: issuing mid callbacks\n", __func__);
 	list_for_each_entry_safe(mid, nmid, &retry_list, qhead) {
 		list_del_init(&mid->qhead);
-		mid->callback(mid);
+		mid_execute_callback(mid);
 		release_mid(mid);
-	}
-
-	if (cifs_rdma_enabled(server)) {
-		cifs_server_lock(server);
-		smbd_destroy(server);
-		cifs_server_unlock(server);
 	}
 }
 
@@ -358,7 +354,7 @@ static bool cifs_tcp_ses_needs_reconnect(struct TCP_Server_Info *server, int num
 	}
 
 	cifs_dbg(FYI, "Mark tcp session as need reconnect\n");
-	trace_smb3_reconnect(server->CurrentMid, server->conn_id,
+	trace_smb3_reconnect(server->current_mid, server->conn_id,
 			     server->hostname);
 	server->tcpStatus = CifsNeedReconnect;
 
@@ -884,13 +880,13 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 			 * server there should be exactly one pending mid
 			 * corresponding to SMB1/SMB2 Negotiate packet.
 			 */
-			spin_lock(&server->mid_lock);
+			spin_lock(&server->mid_queue_lock);
 			list_for_each_entry_safe(mid, nmid, &server->pending_mid_q, qhead) {
 				kref_get(&mid->refcount);
 				list_move(&mid->qhead, &dispose_list);
-				mid->mid_flags |= MID_DELETED;
+				mid->deleted_from_q = true;
 			}
-			spin_unlock(&server->mid_lock);
+			spin_unlock(&server->mid_queue_lock);
 
 			/* Now try to reconnect once with NetBIOS session. */
 			server->with_rfc1001 = true;
@@ -919,7 +915,7 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 				list_del_init(&mid->qhead);
 				mid->mid_rc = mid_rc;
 				mid->mid_state = MID_RC;
-				mid->callback(mid);
+				mid_execute_callback(mid);
 				release_mid(mid);
 			}
 
@@ -957,7 +953,7 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 #ifdef CONFIG_CIFS_STATS2
 	mid->when_received = jiffies;
 #endif
-	spin_lock(&mid->server->mid_lock);
+	spin_lock(&mid->server->mid_queue_lock);
 	if (!malformed)
 		mid->mid_state = MID_RESPONSE_RECEIVED;
 	else
@@ -966,13 +962,13 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 	 * Trying to handle/dequeue a mid after the send_recv()
 	 * function has finished processing it is a bug.
 	 */
-	if (mid->mid_flags & MID_DELETED) {
-		spin_unlock(&mid->server->mid_lock);
+	if (mid->deleted_from_q == true) {
+		spin_unlock(&mid->server->mid_queue_lock);
 		pr_warn_once("trying to dequeue a deleted mid\n");
 	} else {
 		list_del_init(&mid->qhead);
-		mid->mid_flags |= MID_DELETED;
-		spin_unlock(&mid->server->mid_lock);
+		mid->deleted_from_q = true;
+		spin_unlock(&mid->server->mid_queue_lock);
 	}
 }
 
@@ -1101,23 +1097,23 @@ clean_demultiplex_info(struct TCP_Server_Info *server)
 		struct list_head *tmp, *tmp2;
 		LIST_HEAD(dispose_list);
 
-		spin_lock(&server->mid_lock);
+		spin_lock(&server->mid_queue_lock);
 		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 			cifs_dbg(FYI, "Clearing mid %llu\n", mid_entry->mid);
 			kref_get(&mid_entry->refcount);
 			mid_entry->mid_state = MID_SHUTDOWN;
 			list_move(&mid_entry->qhead, &dispose_list);
-			mid_entry->mid_flags |= MID_DELETED;
+			mid_entry->deleted_from_q = true;
 		}
-		spin_unlock(&server->mid_lock);
+		spin_unlock(&server->mid_queue_lock);
 
 		/* now walk dispose list and issue callbacks */
 		list_for_each_safe(tmp, tmp2, &dispose_list) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 			cifs_dbg(FYI, "Callback mid %llu\n", mid_entry->mid);
 			list_del_init(&mid_entry->qhead);
-			mid_entry->callback(mid_entry);
+			mid_execute_callback(mid_entry);
 			release_mid(mid_entry);
 		}
 		/* 1/8th of sec is more than enough time for them to exit */
@@ -1242,7 +1238,7 @@ smb2_add_credits_from_hdr(char *buffer, struct TCP_Server_Info *server)
 		spin_unlock(&server->req_lock);
 		wake_up(&server->request_q);
 
-		trace_smb3_hdr_credits(server->CurrentMid,
+		trace_smb3_hdr_credits(server->current_mid,
 				server->conn_id, server->hostname, scredits,
 				le16_to_cpu(shdr->CreditRequest), in_flight);
 		cifs_server_dbg(FYI, "%s: added %u credits total=%d\n",
@@ -1394,7 +1390,7 @@ next_pdu:
 				}
 
 				if (!mids[i]->multiRsp || mids[i]->multiEnd)
-					mids[i]->callback(mids[i]);
+					mid_execute_callback(mids[i]);
 
 				release_mid(mids[i]);
 			} else if (server->ops->is_oplock_break &&
@@ -1822,7 +1818,8 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	tcp_ses->compression.requested = ctx->compress;
 	spin_lock_init(&tcp_ses->req_lock);
 	spin_lock_init(&tcp_ses->srv_lock);
-	spin_lock_init(&tcp_ses->mid_lock);
+	spin_lock_init(&tcp_ses->mid_queue_lock);
+	spin_lock_init(&tcp_ses->mid_counter_lock);
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
 	INIT_DELAYED_WORK(&tcp_ses->echo, cifs_echo_request);
@@ -2014,39 +2011,31 @@ static int match_session(struct cifs_ses *ses,
 /**
  * cifs_setup_ipc - helper to setup the IPC tcon for the session
  * @ses: smb session to issue the request on
- * @ctx: the superblock configuration context to use for building the
- *       new tree connection for the IPC (interprocess communication RPC)
+ * @seal: if encryption is requested
  *
  * A new IPC connection is made and stored in the session
  * tcon_ipc. The IPC tcon has the same lifetime as the session.
  */
-static int
-cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
+struct cifs_tcon *cifs_setup_ipc(struct cifs_ses *ses, bool seal)
 {
 	int rc = 0, xid;
 	struct cifs_tcon *tcon;
 	char unc[SERVER_NAME_LENGTH + sizeof("//x/IPC$")] = {0};
-	bool seal = false;
 	struct TCP_Server_Info *server = ses->server;
 
 	/*
 	 * If the mount request that resulted in the creation of the
 	 * session requires encryption, force IPC to be encrypted too.
 	 */
-	if (ctx->seal) {
-		if (server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION)
-			seal = true;
-		else {
-			cifs_server_dbg(VFS,
-				 "IPC: server doesn't support encryption\n");
-			return -EOPNOTSUPP;
-		}
+	if (seal && !(server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION)) {
+		cifs_server_dbg(VFS, "IPC: server doesn't support encryption\n");
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	/* no need to setup directory caching on IPC share, so pass in false */
 	tcon = tcon_info_alloc(false, netfs_trace_tcon_ref_new_ipc);
 	if (tcon == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock(&server->srv_lock);
 	scnprintf(unc, sizeof(unc), "\\\\%s\\IPC$", server->hostname);
@@ -2056,13 +2045,13 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	tcon->ses = ses;
 	tcon->ipc = true;
 	tcon->seal = seal;
-	rc = server->ops->tree_connect(xid, ses, unc, tcon, ctx->local_nls);
+	rc = server->ops->tree_connect(xid, ses, unc, tcon, ses->local_nls);
 	free_xid(xid);
 
 	if (rc) {
-		cifs_server_dbg(VFS, "failed to connect to IPC (rc=%d)\n", rc);
+		cifs_server_dbg(VFS | ONCE, "failed to connect to IPC (rc=%d)\n", rc);
 		tconInfoFree(tcon, netfs_trace_tcon_ref_free_ipc_fail);
-		goto out;
+		return ERR_PTR(rc);
 	}
 
 	cifs_dbg(FYI, "IPC tcon rc=%d ipc tid=0x%x\n", rc, tcon->tid);
@@ -2070,9 +2059,7 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	spin_lock(&tcon->tc_lock);
 	tcon->status = TID_GOOD;
 	spin_unlock(&tcon->tc_lock);
-	ses->tcon_ipc = tcon;
-out:
-	return rc;
+	return tcon;
 }
 
 static struct cifs_ses *
@@ -2346,6 +2333,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 {
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
+	struct cifs_tcon *ipc;
 	struct cifs_ses *ses;
 	unsigned int xid;
 	int retries = 0;
@@ -2524,7 +2512,12 @@ retry_new_session:
 	list_add(&ses->smb_ses_list, &server->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	cifs_setup_ipc(ses, ctx);
+	ipc = cifs_setup_ipc(ses, ctx->seal);
+	spin_lock(&cifs_tcp_ses_lock);
+	spin_lock(&ses->ses_lock);
+	ses->tcon_ipc = !IS_ERR(ipc) ? ipc : NULL;
+	spin_unlock(&ses->ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	free_xid(xid);
 
@@ -4204,7 +4197,6 @@ retry:
 		return 0;
 	}
 
-	server->lstrp = jiffies;
 	server->tcpStatus = CifsInNegotiate;
 	server->neg_start = jiffies;
 	spin_unlock(&server->srv_lock);

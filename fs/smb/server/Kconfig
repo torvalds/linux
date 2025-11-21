@@ -10,6 +10,7 @@ config SMB_SERVER
 	select CRYPTO_MD5
 	select CRYPTO_HMAC
 	select CRYPTO_ECB
+	select CRYPTO_LIB_ARC4
 	select CRYPTO_LIB_DES
 	select CRYPTO_LIB_SHA256
 	select CRYPTO_SHA256

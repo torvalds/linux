@@ -721,20 +721,12 @@ static int kdb_defcmd(int argc, const char **argv)
 	mp->name = kdb_strdup(argv[1], GFP_KDB);
 	if (!mp->name)
 		goto fail_name;
-	mp->usage = kdb_strdup(argv[2], GFP_KDB);
+	mp->usage = kdb_strdup_dequote(argv[2], GFP_KDB);
 	if (!mp->usage)
 		goto fail_usage;
-	mp->help = kdb_strdup(argv[3], GFP_KDB);
+	mp->help = kdb_strdup_dequote(argv[3], GFP_KDB);
 	if (!mp->help)
 		goto fail_help;
-	if (mp->usage[0] == '"') {
-		strcpy(mp->usage, argv[2]+1);
-		mp->usage[strlen(mp->usage)-1] = '\0';
-	}
-	if (mp->help[0] == '"') {
-		strcpy(mp->help, argv[3]+1);
-		mp->help[strlen(mp->help)-1] = '\0';
-	}
 
 	INIT_LIST_HEAD(&kdb_macro->statements);
 	defcmd_in_progress = true;
@@ -860,7 +852,7 @@ static void parse_grep(const char *str)
 		kdb_printf("search string too long\n");
 		return;
 	}
-	strcpy(kdb_grep_string, cp);
+	memcpy(kdb_grep_string, cp, len + 1);
 	kdb_grepping_flag++;
 	return;
 }

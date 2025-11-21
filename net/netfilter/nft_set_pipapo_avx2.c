@@ -1099,7 +1099,7 @@ bool nft_pipapo_avx2_estimate(const struct nft_set_desc *desc, u32 features,
 	    desc->field_count < NFT_PIPAPO_MIN_FIELDS)
 		return false;
 
-	if (!boot_cpu_has(X86_FEATURE_AVX2) || !boot_cpu_has(X86_FEATURE_AVX))
+	if (!boot_cpu_has(X86_FEATURE_AVX2))
 		return false;
 
 	est->size = pipapo_estimate_size(desc);
@@ -1133,76 +1133,59 @@ static inline void pipapo_resmap_init_avx2(const struct nft_pipapo_match *m, uns
 }
 
 /**
- * nft_pipapo_avx2_lookup() - Lookup function for AVX2 implementation
- * @net:	Network namespace
- * @set:	nftables API set representation
- * @key:	nftables API element representation containing key data
+ * pipapo_get_avx2() - Lookup function for AVX2 implementation
+ * @m:		Storage containing the set elements
+ * @data:	Key data to be matched against existing elements
+ * @genmask:	If set, check that element is active in given genmask
+ * @tstamp:	Timestamp to check for expired elements
  *
  * For more details, see DOC: Theory of Operation in nft_set_pipapo.c.
  *
  * This implementation exploits the repetitive characteristic of the algorithm
  * to provide a fast, vectorised version using the AVX2 SIMD instruction set.
  *
- * Return: true on match, false otherwise.
+ * The caller must check that the FPU is usable.
+ * This function must be called with BH disabled.
+ *
+ * Return: pointer to &struct nft_pipapo_elem on match, NULL otherwise.
  */
-const struct nft_set_ext *
-nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
-		       const u32 *key)
+struct nft_pipapo_elem *pipapo_get_avx2(const struct nft_pipapo_match *m,
+					const u8 *data, u8 genmask,
+					u64 tstamp)
 {
-	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_scratch *scratch;
-	u8 genmask = nft_genmask_cur(net);
-	const struct nft_pipapo_match *m;
 	const struct nft_pipapo_field *f;
-	const u8 *rp = (const u8 *)key;
-	const struct nft_set_ext *ext;
-	unsigned long *res, *fill;
+	unsigned long *res, *fill, *map;
 	bool map_index;
 	int i;
 
-	local_bh_disable();
+	scratch = *raw_cpu_ptr(m->scratch);
+	if (unlikely(!scratch))
+		return NULL;
 
-	if (unlikely(!irq_fpu_usable())) {
-		ext = nft_pipapo_lookup(net, set, key);
+	__local_lock_nested_bh(&scratch->bh_lock);
+	map_index = scratch->map_index;
+	map = NFT_PIPAPO_LT_ALIGN(&scratch->__map[0]);
+	res  = map + (map_index ? m->bsize_max : 0);
+	fill = map + (map_index ? 0 : m->bsize_max);
 
-		local_bh_enable();
-		return ext;
-	}
+	pipapo_resmap_init_avx2(m, res);
 
-	m = rcu_dereference(priv->match);
-
-	/* This also protects access to all data related to scratch maps.
-	 *
-	 * Note that we don't need a valid MXCSR state for any of the
+	/* Note that we don't need a valid MXCSR state for any of the
 	 * operations we use here, so pass 0 as mask and spare a LDMXCSR
 	 * instruction.
 	 */
 	kernel_fpu_begin_mask(0);
 
-	scratch = *raw_cpu_ptr(m->scratch);
-	if (unlikely(!scratch)) {
-		kernel_fpu_end();
-		local_bh_enable();
-		return NULL;
-	}
-
-	map_index = scratch->map_index;
-
-	res  = scratch->map + (map_index ? m->bsize_max : 0);
-	fill = scratch->map + (map_index ? 0 : m->bsize_max);
-
-	pipapo_resmap_init_avx2(m, res);
-
 	nft_pipapo_avx2_prepare();
 
-next_match:
 	nft_pipapo_for_each_field(f, i, m) {
 		bool last = i == m->field_count - 1, first = !i;
 		int ret = 0;
 
 #define NFT_SET_PIPAPO_AVX2_LOOKUP(b, n)				\
 		(ret = nft_pipapo_avx2_lookup_##b##b_##n(res, fill, f,	\
-							 ret, rp,	\
+							 ret, data,	\
 							 first, last))
 
 		if (likely(f->bb == 8)) {
@@ -1218,7 +1201,7 @@ next_match:
 				NFT_SET_PIPAPO_AVX2_LOOKUP(8, 16);
 			} else {
 				ret = nft_pipapo_avx2_lookup_slow(m, res, fill, f,
-								  ret, rp,
+								  ret, data,
 								  first, last);
 			}
 		} else {
@@ -1234,7 +1217,7 @@ next_match:
 				NFT_SET_PIPAPO_AVX2_LOOKUP(4, 32);
 			} else {
 				ret = nft_pipapo_avx2_lookup_slow(m, res, fill, f,
-								  ret, rp,
+								  ret, data,
 								  first, last);
 			}
 		}
@@ -1242,29 +1225,78 @@ next_match:
 
 #undef NFT_SET_PIPAPO_AVX2_LOOKUP
 
-		if (ret < 0)
-			goto out;
+next_match:
+		if (ret < 0) {
+			scratch->map_index = map_index;
+			kernel_fpu_end();
+			__local_unlock_nested_bh(&scratch->bh_lock);
+			return NULL;
+		}
 
 		if (last) {
-			ext = &f->mt[ret].e->ext;
-			if (unlikely(nft_set_elem_expired(ext) ||
-				     !nft_set_elem_active(ext, genmask))) {
-				ext = NULL;
+			struct nft_pipapo_elem *e;
+
+			e = f->mt[ret].e;
+			if (unlikely(__nft_set_elem_expired(&e->ext, tstamp) ||
+				     !nft_set_elem_active(&e->ext, genmask))) {
+				ret = pipapo_refill(res, f->bsize, f->rules,
+						    fill, f->mt, last);
 				goto next_match;
 			}
 
-			goto out;
+			scratch->map_index = map_index;
+			kernel_fpu_end();
+			__local_unlock_nested_bh(&scratch->bh_lock);
+			return e;
 		}
 
+		map_index = !map_index;
 		swap(res, fill);
-		rp += NFT_PIPAPO_GROUPS_PADDED_SIZE(f);
+		data += NFT_PIPAPO_GROUPS_PADDED_SIZE(f);
 	}
 
-out:
-	if (i % 2)
-		scratch->map_index = !map_index;
 	kernel_fpu_end();
+	__local_unlock_nested_bh(&scratch->bh_lock);
+	return NULL;
+}
+
+/**
+ * nft_pipapo_avx2_lookup() - Dataplane frontend for AVX2 implementation
+ * @net:	Network namespace
+ * @set:	nftables API set representation
+ * @key:	nftables API element representation containing key data
+ *
+ * This function is called from the data path.  It will search for
+ * an element matching the given key in the current active copy using
+ * the AVX2 routines if the FPU is usable or fall back to the generic
+ * implementation of the algorithm otherwise.
+ *
+ * Return: nftables API extension pointer or NULL if no match.
+ */
+const struct nft_set_ext *
+nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
+		       const u32 *key)
+{
+	struct nft_pipapo *priv = nft_set_priv(set);
+	const struct nft_pipapo_match *m;
+	const u8 *rp = (const u8 *)key;
+	const struct nft_pipapo_elem *e;
+
+	local_bh_disable();
+
+	if (unlikely(!irq_fpu_usable())) {
+		const struct nft_set_ext *ext;
+
+		ext = nft_pipapo_lookup(net, set, key);
+
+		local_bh_enable();
+		return ext;
+	}
+
+	m = rcu_dereference(priv->match);
+
+	e = pipapo_get_avx2(m, rp, 0, get_jiffies_64());
 	local_bh_enable();
 
-	return ext;
+	return e ? &e->ext : NULL;
 }

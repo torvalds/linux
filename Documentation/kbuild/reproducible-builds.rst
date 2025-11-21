@@ -61,6 +61,9 @@ supported.
 The Reproducible Builds web site has more information about these
 `prefix-map options`_.
 
+Some CONFIG options such as `CONFIG_DEBUG_EFI` embed absolute paths in
+object files. Such options should be disabled.
+
 Generated files in source packages
 ----------------------------------
 

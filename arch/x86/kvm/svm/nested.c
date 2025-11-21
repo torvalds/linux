@@ -636,6 +636,14 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 		vmcb_mark_dirty(vmcb02, VMCB_DT);
 	}
 
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_SHSTK) &&
+	    (unlikely(new_vmcb12 || vmcb_is_dirty(vmcb12, VMCB_CET)))) {
+		vmcb02->save.s_cet  = vmcb12->save.s_cet;
+		vmcb02->save.isst_addr = vmcb12->save.isst_addr;
+		vmcb02->save.ssp = vmcb12->save.ssp;
+		vmcb_mark_dirty(vmcb02, VMCB_CET);
+	}
+
 	kvm_set_rflags(vcpu, vmcb12->save.rflags | X86_EFLAGS_FIXED);
 
 	svm_set_efer(vcpu, svm->nested.save.efer);
@@ -1044,6 +1052,12 @@ void svm_copy_vmrun_state(struct vmcb_save_area *to_save,
 	to_save->rsp = from_save->rsp;
 	to_save->rip = from_save->rip;
 	to_save->cpl = 0;
+
+	if (kvm_cpu_cap_has(X86_FEATURE_SHSTK)) {
+		to_save->s_cet  = from_save->s_cet;
+		to_save->isst_addr = from_save->isst_addr;
+		to_save->ssp = from_save->ssp;
+	}
 }
 
 void svm_copy_vmloadsave_state(struct vmcb *to_vmcb, struct vmcb *from_vmcb)
@@ -1110,6 +1124,12 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	vmcb12->save.dr7    = vmcb02->save.dr7;
 	vmcb12->save.dr6    = svm->vcpu.arch.dr6;
 	vmcb12->save.cpl    = vmcb02->save.cpl;
+
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_SHSTK)) {
+		vmcb12->save.s_cet	= vmcb02->save.s_cet;
+		vmcb12->save.isst_addr	= vmcb02->save.isst_addr;
+		vmcb12->save.ssp	= vmcb02->save.ssp;
+	}
 
 	vmcb12->control.int_state         = vmcb02->control.int_state;
 	vmcb12->control.exit_code         = vmcb02->control.exit_code;
@@ -1798,17 +1818,15 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	if (kvm_state->size < sizeof(*kvm_state) + KVM_STATE_NESTED_SVM_VMCB_SIZE)
 		return -EINVAL;
 
-	ret  = -ENOMEM;
-	ctl  = kzalloc(sizeof(*ctl),  GFP_KERNEL);
-	save = kzalloc(sizeof(*save), GFP_KERNEL);
-	if (!ctl || !save)
-		goto out_free;
+	ctl = memdup_user(&user_vmcb->control, sizeof(*ctl));
+	if (IS_ERR(ctl))
+		return PTR_ERR(ctl);
 
-	ret = -EFAULT;
-	if (copy_from_user(ctl, &user_vmcb->control, sizeof(*ctl)))
-		goto out_free;
-	if (copy_from_user(save, &user_vmcb->save, sizeof(*save)))
-		goto out_free;
+	save = memdup_user(&user_vmcb->save, sizeof(*save));
+	if (IS_ERR(save)) {
+		kfree(ctl);
+		return PTR_ERR(save);
+	}
 
 	ret = -EINVAL;
 	__nested_copy_vmcb_control_to_cache(vcpu, &ctl_cached, ctl);

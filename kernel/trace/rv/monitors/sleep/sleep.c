@@ -127,7 +127,9 @@ static void handle_sys_enter(void *data, struct pt_regs *regs, long id)
 	mon = ltl_get_monitor(current);
 
 	switch (id) {
+#ifdef __NR_clock_nanosleep
 	case __NR_clock_nanosleep:
+#endif
 #ifdef __NR_clock_nanosleep_time64
 	case __NR_clock_nanosleep_time64:
 #endif
@@ -138,7 +140,9 @@ static void handle_sys_enter(void *data, struct pt_regs *regs, long id)
 		ltl_atom_update(current, LTL_CLOCK_NANOSLEEP, true);
 		break;
 
+#ifdef __NR_futex
 	case __NR_futex:
+#endif
 #ifdef __NR_futex_time64
 	case __NR_futex_time64:
 #endif

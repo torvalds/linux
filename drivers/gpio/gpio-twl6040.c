@@ -69,7 +69,7 @@ static struct gpio_chip twl6040gpo_chip = {
 	.get			= twl6040gpo_get,
 	.direction_output	= twl6040gpo_direction_out,
 	.get_direction		= twl6040gpo_get_direction,
-	.set_rv			= twl6040gpo_set,
+	.set			= twl6040gpo_set,
 	.can_sleep		= true,
 };
 

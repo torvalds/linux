@@ -1697,9 +1697,11 @@ static int smu_v14_0_2_get_power_limit(struct smu_context *smu,
 				       uint32_t *min_power_limit)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_14_0_2_powerplay_table *powerplay_table =
+		table_context->power_play_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 	CustomSkuTable_t *skutable = &pptable->CustomSkuTable;
-	uint32_t power_limit;
+	uint32_t power_limit, od_percent_upper = 0, od_percent_lower = 0;
 	uint32_t msg_limit = pptable->SkuTable.MsgLimits.Power[PPT_THROTTLER_PPT0][POWER_SOURCE_AC];
 
 	if (smu_v14_0_get_current_power_limit(smu, &power_limit))
@@ -1712,11 +1714,29 @@ static int smu_v14_0_2_get_power_limit(struct smu_context *smu,
 	if (default_power_limit)
 		*default_power_limit = power_limit;
 
-	if (max_power_limit)
-		*max_power_limit = msg_limit;
+	if (powerplay_table) {
+		if (smu->od_enabled &&
+		    smu_v14_0_2_is_od_feature_supported(smu, PP_OD_FEATURE_PPT_BIT)) {
+			od_percent_upper = pptable->SkuTable.OverDriveLimitsBasicMax.Ppt;
+			od_percent_lower = pptable->SkuTable.OverDriveLimitsBasicMin.Ppt;
+		} else if (smu_v14_0_2_is_od_feature_supported(smu, PP_OD_FEATURE_PPT_BIT)) {
+			od_percent_upper = 0;
+			od_percent_lower = pptable->SkuTable.OverDriveLimitsBasicMin.Ppt;
+		}
+	}
 
-	if (min_power_limit)
-		*min_power_limit = 0;
+	dev_dbg(smu->adev->dev, "od percent upper:%d, od percent lower:%d (default power: %d)\n",
+					od_percent_upper, od_percent_lower, power_limit);
+
+	if (max_power_limit) {
+		*max_power_limit = msg_limit * (100 + od_percent_upper);
+		*max_power_limit /= 100;
+	}
+
+	if (min_power_limit) {
+		*min_power_limit = power_limit * (100 + od_percent_lower);
+		*min_power_limit /= 100;
+	}
 
 	return 0;
 }
@@ -2067,10 +2087,10 @@ static int smu_v14_0_2_i2c_control_init(struct smu_context *smu)
 		control->quirks = &smu_v14_0_2_i2c_control_quirks;
 		i2c_set_adapdata(control, smu_i2c);
 
-		res = i2c_add_adapter(control);
+		res = devm_i2c_add_adapter(adev->dev, control);
 		if (res) {
 			DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
-			goto Out_err;
+			return res;
 		}
 	}
 
@@ -2080,27 +2100,12 @@ static int smu_v14_0_2_i2c_control_init(struct smu_context *smu)
 	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
 
 	return 0;
-Out_err:
-	for ( ; i >= 0; i--) {
-		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
-		struct i2c_adapter *control = &smu_i2c->adapter;
-
-		i2c_del_adapter(control);
-	}
-	return res;
 }
 
 static void smu_v14_0_2_i2c_control_fini(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int i;
 
-	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
-		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
-		struct i2c_adapter *control = &smu_i2c->adapter;
-
-		i2c_del_adapter(control);
-	}
 	adev->pm.ras_eeprom_i2c_bus = NULL;
 	adev->pm.fru_eeprom_i2c_bus = NULL;
 }

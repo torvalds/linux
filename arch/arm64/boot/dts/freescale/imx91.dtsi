@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2025 NXP
+ */
+
+#include "imx91-pinfunc.h"
+#include "imx91_93_common.dtsi"
+
+&clk {
+	compatible = "fsl,imx91-ccm";
+};
+
+&ddr_pmu {
+	compatible = "fsl,imx91-ddr-pmu", "fsl,imx93-ddr-pmu";
+};
+
+&eqos {
+	clocks = <&clk IMX91_CLK_ENET1_QOS_TSN_GATE>,
+		 <&clk IMX91_CLK_ENET1_QOS_TSN_GATE>,
+		 <&clk IMX91_CLK_ENET_TIMER>,
+		 <&clk IMX91_CLK_ENET1_QOS_TSN>,
+		 <&clk IMX91_CLK_ENET1_QOS_TSN_GATE>;
+	assigned-clocks = <&clk IMX91_CLK_ENET_TIMER>,
+			  <&clk IMX91_CLK_ENET1_QOS_TSN>;
+	assigned-clock-parents = <&clk IMX93_CLK_SYS_PLL_PFD1_DIV2>,
+				 <&clk IMX93_CLK_SYS_PLL_PFD0_DIV2>;
+	assigned-clock-rates = <100000000>, <250000000>;
+};
+
+&fec {
+	clocks = <&clk IMX91_CLK_ENET2_REGULAR_GATE>,
+		 <&clk IMX91_CLK_ENET2_REGULAR_GATE>,
+		 <&clk IMX91_CLK_ENET_TIMER>,
+		 <&clk IMX91_CLK_ENET2_REGULAR>,
+		 <&clk IMX93_CLK_DUMMY>;
+	assigned-clocks = <&clk IMX91_CLK_ENET_TIMER>,
+			  <&clk IMX91_CLK_ENET2_REGULAR>;
+	assigned-clock-parents = <&clk IMX93_CLK_SYS_PLL_PFD1_DIV2>,
+				 <&clk IMX93_CLK_SYS_PLL_PFD0_DIV2>;
+	assigned-clock-rates = <100000000>, <250000000>;
+};
+
+&i3c1 {
+	clocks = <&clk IMX93_CLK_BUS_AON>,
+		 <&clk IMX93_CLK_I3C1_GATE>,
+		 <&clk IMX93_CLK_DUMMY>;
+};
+
+&i3c2 {
+	clocks = <&clk IMX93_CLK_BUS_WAKEUP>,
+		 <&clk IMX93_CLK_I3C2_GATE>,
+		 <&clk IMX93_CLK_DUMMY>;
+};
+
+&iomuxc {
+	compatible = "fsl,imx91-iomuxc";
+};
+
+&media_blk_ctrl {
+	compatible = "fsl,imx91-media-blk-ctrl", "syscon";
+	clocks = <&clk IMX93_CLK_MEDIA_APB>,
+		 <&clk IMX93_CLK_MEDIA_AXI>,
+		 <&clk IMX93_CLK_NIC_MEDIA_GATE>,
+		 <&clk IMX93_CLK_MEDIA_DISP_PIX>,
+		 <&clk IMX93_CLK_CAM_PIX>,
+		 <&clk IMX93_CLK_LCDIF_GATE>,
+		 <&clk IMX93_CLK_ISI_GATE>,
+		 <&clk IMX93_CLK_MIPI_CSI_GATE>;
+	clock-names = "apb", "axi", "nic", "disp", "cam",
+		      "lcdif", "isi", "csi";
+};

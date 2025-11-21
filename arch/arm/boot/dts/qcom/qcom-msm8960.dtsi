@@ -322,6 +322,8 @@
 
 			syscon-tcsr = <&tcsr>;
 
+			status = "disabled";
+
 			gsbi5_serial: serial@16440000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16440000 0x1000>,
@@ -329,6 +331,34 @@
 				interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI5_UART_CLK>, <&gcc GSBI5_H_CLK>;
 				clock-names = "core", "iface";
+				status = "disabled";
+			};
+		};
+
+		gsbi8: gsbi@1a000000  {
+			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <8>;
+			reg = <0x1a000000 0x100>;
+			clocks = <&gcc GSBI8_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			syscon-tcsr = <&tcsr>;
+
+			status = "disabled";
+
+			gsbi8_serial: serial@1a040000 {
+				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+				reg = <0x1a040000 0x1000>,
+				      <0x1a000000 0x1000>;
+				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gcc GSBI8_UART_CLK>,
+					 <&gcc GSBI8_H_CLK>;
+				clock-names = "core",
+					      "iface";
+
 				status = "disabled";
 			};
 		};
@@ -416,6 +446,8 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			status = "disabled";
 
 			gsbi1_spi: spi@16080000 {
 				compatible = "qcom,spi-qup-v1.1.1";

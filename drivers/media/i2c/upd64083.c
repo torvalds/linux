@@ -4,7 +4,7 @@
  *
  * 2003 by T.Adachi (tadachi@tadachi-net.com)
  * 2003 by Takeru KOMORIYA <komoriya@paken.org>
- * 2006 by Hans Verkuil <hverkuil@xs4all.nl>
+ * 2006 by Hans Verkuil <hverkuil@kernel.org>
  */
 
 #include <linux/module.h>

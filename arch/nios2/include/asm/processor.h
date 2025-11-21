@@ -36,7 +36,7 @@
 /* Kuser helpers is mapped to this user space address */
 #define KUSER_BASE		0x1000
 #define KUSER_SIZE		(PAGE_SIZE)
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 # define TASK_SIZE		0x7FFF0000UL
 # define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
@@ -72,6 +72,6 @@ extern unsigned long __get_wchan(struct task_struct *p);
 
 #define cpu_relax()	barrier()
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_NIOS2_PROCESSOR_H */

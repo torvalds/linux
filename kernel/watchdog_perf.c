@@ -12,6 +12,7 @@
 
 #define pr_fmt(fmt) "NMI watchdog: " fmt
 
+#include <linux/panic.h>
 #include <linux/nmi.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
@@ -107,6 +108,9 @@ static void watchdog_overflow_callback(struct perf_event *event,
 {
 	/* Ensure the watchdog never gets throttled */
 	event->hw.interrupts = 0;
+
+	if (panic_in_progress())
+		return;
 
 	if (!watchdog_check_timestamp())
 		return;

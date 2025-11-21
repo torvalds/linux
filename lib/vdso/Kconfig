@@ -12,24 +12,6 @@ config GENERIC_GETTIMEOFDAY
 	  Each architecture that enables this feature has to
 	  provide the fallback implementation.
 
-config GENERIC_VDSO_32
-	bool
-	depends on GENERIC_GETTIMEOFDAY && !64BIT
-	help
-	  This config option helps to avoid possible performance issues
-	  in 32 bit only architectures.
-
-config GENERIC_COMPAT_VDSO
-	bool
-	help
-	  This config option enables the compat VDSO layer.
-
-config GENERIC_VDSO_TIME_NS
-	bool
-	help
-	  Selected by architectures which support time namespaces in the
-	  VDSO
-
 config GENERIC_VDSO_OVERFLOW_PROTECT
 	bool
 	help
@@ -37,14 +19,9 @@ config GENERIC_VDSO_OVERFLOW_PROTECT
 	  time getter functions for the price of an extra conditional
 	  in the hotpath.
 
-endif
-
 config VDSO_GETRANDOM
 	bool
 	help
 	  Selected by architectures that support vDSO getrandom().
 
-config GENERIC_VDSO_DATA_STORE
-	bool
-	help
-	  Selected by architectures that use the generic vDSO data store.
+endif

@@ -65,7 +65,7 @@ enum config_control_status_bits {
 	IRQ_SELECT_MASK = 0x7,
 	DMA_CONFIG_MASK = 0x18,
 	ENABLE_DMA_CONFIG_BIT = 0x20,
-	XILINX_READY_BIT = 0x40,	//read only
+	XILINX_READY_BIT = 0x40,	// read only
 	DONE_PGL_BIT = 0x80
 };
 
@@ -94,7 +94,7 @@ static inline unsigned int IRQ_SELECT_BITS(int irq)
 };
 
 enum mode_control_status_bits {
-	SLOT8_BIT = 0x1,	// read only
+	SLOT8_BIT = 0x1,		// read only
 	ACTIVE_CONTROLLER_BIT = 0x2,	// read only
 	ENABLE_DMA_BIT = 0x4,
 	SYSTEM_CONTROLLER_BIT = 0x8,
@@ -106,12 +106,12 @@ enum mode_control_status_bits {
 enum monitor_bits {
 	MONITOR_INTERRUPT_PENDING_BIT = 0x1,	// read only
 	MONITOR_CLEAR_HOLDOFF_BIT = 0x2,	// write only
-	MONITOR_PPOLL_BIT = 0x4,	// write clear
-	MONITOR_SRQ_BIT = 0x8,	// write clear
-	MONITOR_IFC_BIT = 0x10,	// write clear
-	MONITOR_REN_BIT = 0x20,	// write clear
-	MONITOR_END_BIT = 0x40,	// write clear
-	MONITOR_DAV_BIT = 0x80	// write clear
+	MONITOR_PPOLL_BIT = 0x4,		// write clear
+	MONITOR_SRQ_BIT = 0x8,			// write clear
+	MONITOR_IFC_BIT = 0x10,			// write clear
+	MONITOR_REN_BIT = 0x20,			// write clear
+	MONITOR_END_BIT = 0x40,			// write clear
+	MONITOR_DAV_BIT = 0x80			// write clear
 };
 
 enum interrupt_enable_bits {
@@ -123,36 +123,36 @@ enum interrupt_enable_bits {
 };
 
 enum event_status_bits {
-	TI_INTERRUPT_EVENT_BIT = 0x1,	//write clear
+	TI_INTERRUPT_EVENT_BIT = 0x1,		// write clear
 	INTERRUPT_PENDING_EVENT_BIT = 0x2,	// read only
-	POINTERS_EQUAL_EVENT_BIT = 0x4,	//write clear
-	BUFFER_END_EVENT_BIT = 0x10,	//write clear
+	POINTERS_EQUAL_EVENT_BIT = 0x4,		// write clear
+	BUFFER_END_EVENT_BIT = 0x10,		// write clear
 	TERMINAL_COUNT_EVENT_BIT = 0x20,	// write clear
 	DMA_TERMINAL_COUNT_EVENT_BIT = 0x80,	// write clear
 };
 
 enum event_enable_bits {
-	ENABLE_TI_INTERRUPT_EVENT_BIT = 0x1,	//write clear
-	ENABLE_POINTERS_EQUAL_EVENT_BIT = 0x4,	//write clear
-	ENABLE_BUFFER_END_EVENT_BIT = 0x10,	//write clear
-	ENABLE_TERMINAL_COUNT_EVENT_BIT = 0x20,	// write clear
+	ENABLE_TI_INTERRUPT_EVENT_BIT = 0x1,		// write clear
+	ENABLE_POINTERS_EQUAL_EVENT_BIT = 0x4,		// write clear
+	ENABLE_BUFFER_END_EVENT_BIT = 0x10,		// write clear
+	ENABLE_TERMINAL_COUNT_EVENT_BIT = 0x20,		// write clear
 	ENABLE_DMA_TERMINAL_COUNT_EVENT_BIT = 0x80,	// write clear
 };
 
 enum stream_status_bits {
-	HALTED_STATUS_BIT = 0x1,	//read
-	RESTART_STREAM_BIT = 0x1	//write
+	HALTED_STATUS_BIT = 0x1,	// read
+	RESTART_STREAM_BIT = 0x1	// write
 };
 
 enum buffer_control_bits {
 	DIRECTION_GPIB_TO_HOST_BIT = 0x20,	// transfer direction (set for gpib to host)
-	ENABLE_TI_BUFFER_BIT = 0x40,	//enable fifo
-	FAST_WR_EN_BIT = 0x80,	// 350 ns t1 delay?
+	ENABLE_TI_BUFFER_BIT = 0x40,		// enable fifo
+	FAST_WR_EN_BIT = 0x80,			// 350 ns t1 delay?
 };
 
 // registers accessible through isapnp chip on 82341d
 enum hp_82341d_pnp_registers {
-	PIO_DATA_REG = 0x20,	//read/write pio data lines
+	PIO_DATA_REG = 0x20,		// read/write pio data lines
 	PIO_DIRECTION_REG = 0x21,	// set pio data line directions (set for input)
 };
 

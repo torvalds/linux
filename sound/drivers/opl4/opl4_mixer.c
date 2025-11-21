@@ -19,13 +19,11 @@ static int snd_opl4_ctl_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 static int snd_opl4_ctl_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_opl4 *opl4 = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	u8 reg = kcontrol->private_value;
 	u8 value;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 	value = snd_opl4_read(opl4, reg);
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 	ucontrol->value.integer.value[0] = 7 - (value & 7);
 	ucontrol->value.integer.value[1] = 7 - ((value >> 3) & 7);
 	return 0;
@@ -34,16 +32,14 @@ static int snd_opl4_ctl_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 static int snd_opl4_ctl_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_opl4 *opl4 = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	u8 reg = kcontrol->private_value;
 	u8 value, old_value;
 
 	value = (7 - (ucontrol->value.integer.value[0] & 7)) |
 		((7 - (ucontrol->value.integer.value[1] & 7)) << 3);
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 	old_value = snd_opl4_read(opl4, reg);
 	snd_opl4_write(opl4, reg, value);
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 	return value != old_value;
 }
 

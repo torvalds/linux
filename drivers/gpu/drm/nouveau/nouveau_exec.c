@@ -60,14 +60,14 @@
  * virtual address in the GPU's VA space there is no guarantee that the actual
  * mappings are created in the GPU's MMU. If the given memory is swapped out
  * at the time the bind operation is executed the kernel will stash the mapping
- * details into it's internal alloctor and create the actual MMU mappings once
+ * details into it's internal allocator and create the actual MMU mappings once
  * the memory is swapped back in. While this is transparent for userspace, it is
  * guaranteed that all the backing memory is swapped back in and all the memory
  * mappings, as requested by userspace previously, are actually mapped once the
  * DRM_NOUVEAU_EXEC ioctl is called to submit an exec job.
  *
  * A VM_BIND job can be executed either synchronously or asynchronously. If
- * exectued asynchronously, userspace may provide a list of syncobjs this job
+ * executed asynchronously, userspace may provide a list of syncobjs this job
  * will wait for and/or a list of syncobj the kernel will signal once the
  * VM_BIND job finished execution. If executed synchronously the ioctl will
  * block until the bind job is finished. For synchronous jobs the kernel will
@@ -82,7 +82,7 @@
  * Since VM_BIND jobs update the GPU's VA space on job submit, EXEC jobs do have
  * an up to date view of the VA space. However, the actual mappings might still
  * be pending. Hence, EXEC jobs require to have the particular fences - of
- * the corresponding VM_BIND jobs they depent on - attached to them.
+ * the corresponding VM_BIND jobs they depend on - attached to them.
  */
 
 static int

@@ -32,7 +32,7 @@
 /*
  *  Configure language
  */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define _ULCAST_
 #define _U64CAST_
 #else
@@ -1346,7 +1346,7 @@
 #define FPU_CSR_RD	0x3	/* towards -Infinity */
 
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * Macros for handling the ISA mode bit for MIPS16 and microMIPS.
@@ -3095,6 +3095,6 @@ static inline unsigned int get_ebase_cpunum(void)
 	return read_c0_ebase() & MIPS_EBASE_CPUNUM;
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _ASM_MIPSREGS_H */

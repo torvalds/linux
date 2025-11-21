@@ -272,5 +272,4 @@ module_platform_driver(am654_hbmc_platform_driver);
 
 MODULE_DESCRIPTION("HBMC driver for AM654 SoC");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:hbmc-am654");
 MODULE_AUTHOR("Vignesh Raghavendra <vigneshr@ti.com>");

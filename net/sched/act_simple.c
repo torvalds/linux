@@ -72,7 +72,6 @@ static int reset_policy(struct tc_action *a, const struct nlattr *defdata,
 	d = to_defact(a);
 	spin_lock_bh(&d->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(a, p->action, goto_ch);
-	memset(d->tcfd_defdata, 0, SIMP_MAX_DATA);
 	nla_strscpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	spin_unlock_bh(&d->tcf_lock);
 	if (goto_ch)

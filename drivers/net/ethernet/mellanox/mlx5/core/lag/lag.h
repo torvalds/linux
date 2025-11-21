@@ -67,6 +67,7 @@ struct mlx5_lag {
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
 	struct notifier_block     nb;
+	possible_net_t net;
 	struct lag_mp             lag_mp;
 	struct mlx5_lag_port_sel  port_sel;
 	/* Protect lag fields/state changes */

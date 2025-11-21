@@ -605,7 +605,7 @@ static void __init reserve_crashkernel(void)
 	int rc;
 
 	rc = parse_crashkernel(boot_command_line, ident_map_size,
-			       &crash_size, &crash_base, NULL, NULL);
+			       &crash_size, &crash_base, NULL, NULL, NULL);
 
 	crash_base = ALIGN(crash_base, KEXEC_CRASH_MEM_ALIGN);
 	crash_size = ALIGN(crash_size, KEXEC_CRASH_MEM_ALIGN);
@@ -717,6 +717,11 @@ static void __init memblock_add_physmem_info(void)
 		memblock_physmem_add(start, end - start);
 	memblock_set_bottom_up(false);
 	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
+}
+
+static void __init setup_high_memory(void)
+{
+	high_memory = __va(ident_map_size);
 }
 
 /*
@@ -834,7 +839,7 @@ static void __init setup_control_program_code(void)
 		return;
 
 	diag_stat_inc(DIAG_STAT_X318);
-	asm volatile("diag %0,0,0x318\n" : : "d" (diag318_info.val));
+	asm volatile("diag %0,0,0x318" : : "d" (diag318_info.val));
 }
 
 /*
@@ -951,6 +956,7 @@ void __init setup_arch(char **cmdline_p)
 
 	free_physmem_info();
 	setup_memory_end();
+	setup_high_memory();
 	memblock_dump_all();
 	setup_memory();
 

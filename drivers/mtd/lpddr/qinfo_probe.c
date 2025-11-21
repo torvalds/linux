@@ -55,7 +55,7 @@ static long lpddr_get_qinforec_pos(struct map_info *map, char *id_str)
 			return minor | (major << bankwidth);
 		}
 	}
-	printk(KERN_ERR"%s qinfo id string is wrong! \n", map->name);
+	printk(KERN_ERR"%s qinfo id string is wrong!\n", map->name);
 	BUG();
 	return -1;
 }
@@ -112,7 +112,7 @@ static int lpddr_pfow_present(struct map_info *map, struct lpddr_private *lpddr)
 
 	return 1;	/* "PFOW" is found */
 out:
-	printk(KERN_WARNING"%s: PFOW string at 0x%lx is not found \n",
+	printk(KERN_WARNING"%s: PFOW string at 0x%lx is not found\n",
 					map->name, map->pfow_base);
 	return 0;
 }

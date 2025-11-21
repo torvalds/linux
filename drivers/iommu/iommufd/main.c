@@ -23,6 +23,7 @@
 #include "iommufd_test.h"
 
 struct iommufd_object_ops {
+	size_t file_offset;
 	void (*pre_destroy)(struct iommufd_object *obj);
 	void (*destroy)(struct iommufd_object *obj);
 	void (*abort)(struct iommufd_object *obj);
@@ -121,6 +122,10 @@ void iommufd_object_abort(struct iommufd_ctx *ictx, struct iommufd_object *obj)
 	old = xas_store(&xas, NULL);
 	xa_unlock(&ictx->objects);
 	WARN_ON(old != XA_ZERO_ENTRY);
+
+	if (WARN_ON(!refcount_dec_and_test(&obj->users)))
+		return;
+
 	kfree(obj);
 }
 
@@ -131,10 +136,30 @@ void iommufd_object_abort(struct iommufd_ctx *ictx, struct iommufd_object *obj)
 void iommufd_object_abort_and_destroy(struct iommufd_ctx *ictx,
 				      struct iommufd_object *obj)
 {
-	if (iommufd_object_ops[obj->type].abort)
-		iommufd_object_ops[obj->type].abort(obj);
+	const struct iommufd_object_ops *ops = &iommufd_object_ops[obj->type];
+
+	if (ops->file_offset) {
+		struct file **filep = ((void *)obj) + ops->file_offset;
+
+		/*
+		 * A file should hold a users refcount while the file is open
+		 * and put it back in its release. The file should hold a
+		 * pointer to obj in their private data. Normal fput() is
+		 * deferred to a workqueue and can get out of order with the
+		 * following kfree(obj). Using the sync version ensures the
+		 * release happens immediately. During abort we require the file
+		 * refcount is one at this point - meaning the object alloc
+		 * function cannot do anything to allow another thread to take a
+		 * refcount prior to a guaranteed success.
+		 */
+		if (*filep)
+			__fput_sync(*filep);
+	}
+
+	if (ops->abort)
+		ops->abort(obj);
 	else
-		iommufd_object_ops[obj->type].destroy(obj);
+		ops->destroy(obj);
 	iommufd_object_abort(ictx, obj);
 }
 
@@ -550,16 +575,23 @@ static int iommufd_fops_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_EXEC)
 		return -EPERM;
 
+	mtree_lock(&ictx->mt_mmap);
 	/* vma->vm_pgoff carries a page-shifted start position to an immap */
 	immap = mtree_load(&ictx->mt_mmap, vma->vm_pgoff << PAGE_SHIFT);
-	if (!immap)
+	if (!immap || !refcount_inc_not_zero(&immap->owner->users)) {
+		mtree_unlock(&ictx->mt_mmap);
 		return -ENXIO;
+	}
+	mtree_unlock(&ictx->mt_mmap);
+
 	/*
 	 * mtree_load() returns the immap for any contained mmio_addr, so only
 	 * allow the exact immap thing to be mapped
 	 */
-	if (vma->vm_pgoff != immap->vm_pgoff || length != immap->length)
-		return -ENXIO;
+	if (vma->vm_pgoff != immap->vm_pgoff || length != immap->length) {
+		rc = -ENXIO;
+		goto err_refcount;
+	}
 
 	vma->vm_pgoff = 0;
 	vma->vm_private_data = immap;
@@ -570,10 +602,11 @@ static int iommufd_fops_mmap(struct file *filp, struct vm_area_struct *vma)
 				immap->mmio_addr >> PAGE_SHIFT, length,
 				vma->vm_page_prot);
 	if (rc)
-		return rc;
+		goto err_refcount;
+	return 0;
 
-	/* vm_ops.open won't be called for mmap itself. */
-	refcount_inc(&immap->owner->users);
+err_refcount:
+	refcount_dec(&immap->owner->users);
 	return rc;
 }
 
@@ -651,6 +684,12 @@ void iommufd_ctx_put(struct iommufd_ctx *ictx)
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_ctx_put, "IOMMUFD");
 
+#define IOMMUFD_FILE_OFFSET(_struct, _filep, _obj)                           \
+	.file_offset = (offsetof(_struct, _filep) +                          \
+			BUILD_BUG_ON_ZERO(!__same_type(                      \
+				struct file *, ((_struct *)NULL)->_filep)) + \
+			BUILD_BUG_ON_ZERO(offsetof(_struct, _obj)))
+
 static const struct iommufd_object_ops iommufd_object_ops[] = {
 	[IOMMUFD_OBJ_ACCESS] = {
 		.destroy = iommufd_access_destroy_object,
@@ -661,6 +700,7 @@ static const struct iommufd_object_ops iommufd_object_ops[] = {
 	},
 	[IOMMUFD_OBJ_FAULT] = {
 		.destroy = iommufd_fault_destroy,
+		IOMMUFD_FILE_OFFSET(struct iommufd_fault, common.filep, common.obj),
 	},
 	[IOMMUFD_OBJ_HW_QUEUE] = {
 		.destroy = iommufd_hw_queue_destroy,
@@ -683,6 +723,7 @@ static const struct iommufd_object_ops iommufd_object_ops[] = {
 	[IOMMUFD_OBJ_VEVENTQ] = {
 		.destroy = iommufd_veventq_destroy,
 		.abort = iommufd_veventq_abort,
+		IOMMUFD_FILE_OFFSET(struct iommufd_veventq, common.filep, common.obj),
 	},
 	[IOMMUFD_OBJ_VIOMMU] = {
 		.destroy = iommufd_viommu_destroy,

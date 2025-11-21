@@ -75,52 +75,47 @@ xfs_dir_fsync(
 	return xfs_log_force_inode(ip);
 }
 
-static xfs_csn_t
-xfs_fsync_seq(
-	struct xfs_inode	*ip,
-	bool			datasync)
-{
-	if (!xfs_ipincount(ip))
-		return 0;
-	if (datasync && !(ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
-		return 0;
-	return ip->i_itemp->ili_commit_seq;
-}
-
 /*
- * All metadata updates are logged, which means that we just have to flush the
- * log up to the latest LSN that touched the inode.
+ * All metadata updates are logged, which means that we just have to push the
+ * journal to the required sequence number than holds the updates. We track
+ * datasync commits separately to full sync commits, and hence only need to
+ * select the correct sequence number for the log force here.
  *
- * If we have concurrent fsync/fdatasync() calls, we need them to all block on
- * the log force before we clear the ili_fsync_fields field. This ensures that
- * we don't get a racing sync operation that does not wait for the metadata to
- * hit the journal before returning.  If we race with clearing ili_fsync_fields,
- * then all that will happen is the log force will do nothing as the lsn will
- * already be on disk.  We can't race with setting ili_fsync_fields because that
- * is done under XFS_ILOCK_EXCL, and that can't happen because we hold the lock
- * shared until after the ili_fsync_fields is cleared.
+ * We don't have to serialise against concurrent modifications, as we do not
+ * have to wait for modifications that have not yet completed. We define a
+ * transaction commit as completing when the commit sequence number is updated,
+ * hence if the sequence number has not updated, the sync operation has been
+ * run before the commit completed and we don't have to wait for it.
+ *
+ * If we have concurrent fsync/fdatasync() calls, the sequence numbers remain
+ * set on the log item until - at least - the journal flush completes. In
+ * reality, they are only cleared when the inode is fully unpinned (i.e.
+ * persistent in the journal and not dirty in the CIL), and so we rely on
+ * xfs_log_force_seq() either skipping sequences that have been persisted or
+ * waiting on sequences that are still in flight to correctly order concurrent
+ * sync operations.
  */
-static  int
+static int
 xfs_fsync_flush_log(
 	struct xfs_inode	*ip,
 	bool			datasync,
 	int			*log_flushed)
 {
-	int			error = 0;
-	xfs_csn_t		seq;
+	struct xfs_inode_log_item *iip = ip->i_itemp;
+	xfs_csn_t		seq = 0;
 
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	seq = xfs_fsync_seq(ip, datasync);
-	if (seq) {
-		error = xfs_log_force_seq(ip->i_mount, seq, XFS_LOG_SYNC,
+	spin_lock(&iip->ili_lock);
+	if (datasync)
+		seq = iip->ili_datasync_seq;
+	else
+		seq = iip->ili_commit_seq;
+	spin_unlock(&iip->ili_lock);
+
+	if (!seq)
+		return 0;
+
+	return xfs_log_force_seq(ip->i_mount, seq, XFS_LOG_SYNC,
 					  log_flushed);
-
-		spin_lock(&ip->i_itemp->ili_lock);
-		ip->i_itemp->ili_fsync_fields = 0;
-		spin_unlock(&ip->i_itemp->ili_lock);
-	}
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	return error;
 }
 
 STATIC int
@@ -158,12 +153,10 @@ xfs_file_fsync(
 		error = blkdev_issue_flush(mp->m_ddev_targp->bt_bdev);
 
 	/*
-	 * Any inode that has dirty modifications in the log is pinned.  The
-	 * racy check here for a pinned inode will not catch modifications
-	 * that happen concurrently to the fsync call, but fsync semantics
-	 * only require to sync previously completed I/O.
+	 * If the inode has a inode log item attached, it may need the journal
+	 * flushed to persist any changes the log item might be tracking.
 	 */
-	if (xfs_ipincount(ip)) {
+	if (ip->i_itemp) {
 		err2 = xfs_fsync_flush_log(ip, datasync, &log_flushed);
 		if (err2 && !error)
 			error = err2;
@@ -1101,9 +1094,6 @@ xfs_file_write_iter(
 	if (xfs_is_shutdown(ip->i_mount))
 		return -EIO;
 
-	if (IS_DAX(inode))
-		return xfs_file_dax_write(iocb, from);
-
 	if (iocb->ki_flags & IOCB_ATOMIC) {
 		if (ocount < xfs_get_atomic_write_min(ip))
 			return -EINVAL;
@@ -1115,6 +1105,9 @@ xfs_file_write_iter(
 		if (ret)
 			return ret;
 	}
+
+	if (IS_DAX(inode))
+		return xfs_file_dax_write(iocb, from);
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		/*

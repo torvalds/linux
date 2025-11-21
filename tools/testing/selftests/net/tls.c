@@ -181,13 +181,12 @@ static int tls_send_cmsg(int fd, unsigned char record_type,
 	return sendmsg(fd, &msg, flags);
 }
 
-static int tls_recv_cmsg(struct __test_metadata *_metadata,
-			 int fd, unsigned char record_type,
-			 void *data, size_t len, int flags)
+static int __tls_recv_cmsg(struct __test_metadata *_metadata,
+			   int fd, unsigned char *ctype,
+			   void *data, size_t len, int flags)
 {
 	char cbuf[CMSG_SPACE(sizeof(char))];
 	struct cmsghdr *cmsg;
-	unsigned char ctype;
 	struct msghdr msg;
 	struct iovec vec;
 	int n;
@@ -206,7 +205,20 @@ static int tls_recv_cmsg(struct __test_metadata *_metadata,
 	EXPECT_NE(cmsg, NULL);
 	EXPECT_EQ(cmsg->cmsg_level, SOL_TLS);
 	EXPECT_EQ(cmsg->cmsg_type, TLS_GET_RECORD_TYPE);
-	ctype = *((unsigned char *)CMSG_DATA(cmsg));
+	if (ctype)
+		*ctype = *((unsigned char *)CMSG_DATA(cmsg));
+
+	return n;
+}
+
+static int tls_recv_cmsg(struct __test_metadata *_metadata,
+			 int fd, unsigned char record_type,
+			 void *data, size_t len, int flags)
+{
+	unsigned char ctype;
+	int n;
+
+	n = __tls_recv_cmsg(_metadata, fd, &ctype, data, len, flags);
 	EXPECT_EQ(ctype, record_type);
 
 	return n;
@@ -427,6 +439,8 @@ TEST_F(tls, sendfile)
 	EXPECT_GE(filefd, 0);
 	fstat(filefd, &st);
 	EXPECT_GE(sendfile(self->fd, filefd, 0, st.st_size), 0);
+
+	close(filefd);
 }
 
 TEST_F(tls, send_then_sendfile)
@@ -448,6 +462,9 @@ TEST_F(tls, send_then_sendfile)
 
 	EXPECT_GE(sendfile(self->fd, filefd, 0, st.st_size), 0);
 	EXPECT_EQ(recv(self->cfd, buf, st.st_size, MSG_WAITALL), st.st_size);
+
+	free(buf);
+	close(filefd);
 }
 
 static void chunked_sendfile(struct __test_metadata *_metadata,
@@ -545,6 +562,40 @@ TEST_F(tls, msg_more)
 	EXPECT_EQ(recv(self->cfd, buf, send_len * 2, MSG_WAITALL),
 		  send_len * 2);
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+}
+
+TEST_F(tls, cmsg_msg_more)
+{
+	char *test_str =  "test_read";
+	char record_type = 100;
+	int send_len = 10;
+
+	/* we don't allow MSG_MORE with non-DATA records */
+	EXPECT_EQ(tls_send_cmsg(self->fd, record_type, test_str, send_len,
+				MSG_MORE), -1);
+	EXPECT_EQ(errno, EINVAL);
+}
+
+TEST_F(tls, msg_more_then_cmsg)
+{
+	char *test_str = "test_read";
+	char record_type = 100;
+	int send_len = 10;
+	char buf[10 * 2];
+	int ret;
+
+	EXPECT_EQ(send(self->fd, test_str, send_len, MSG_MORE), send_len);
+	EXPECT_EQ(recv(self->cfd, buf, send_len, MSG_DONTWAIT), -1);
+
+	ret = tls_send_cmsg(self->fd, record_type, test_str, send_len, 0);
+	EXPECT_EQ(ret, send_len);
+
+	/* initial DATA record didn't get merged with the non-DATA record */
+	EXPECT_EQ(recv(self->cfd, buf, send_len * 2, 0), send_len);
+
+	EXPECT_EQ(tls_recv_cmsg(_metadata, self->cfd, record_type,
+				buf, sizeof(buf), MSG_WAITALL),
+		  send_len);
 }
 
 TEST_F(tls, msg_more_unsent)
@@ -894,6 +945,37 @@ TEST_F(tls, peek_and_splice)
 	EXPECT_EQ(read(p[0], mem_recv, send_len), send_len);
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
+
+#define MAX_FRAGS 48
+TEST_F(tls, splice_short)
+{
+	struct iovec sendchar_iov;
+	char read_buf[0x10000];
+	char sendbuf[0x100];
+	char sendchar = 'S';
+	int pipefds[2];
+	int i;
+
+	sendchar_iov.iov_base = &sendchar;
+	sendchar_iov.iov_len = 1;
+
+	memset(sendbuf, 's', sizeof(sendbuf));
+
+	ASSERT_GE(pipe2(pipefds, O_NONBLOCK), 0);
+	ASSERT_GE(fcntl(pipefds[0], F_SETPIPE_SZ, (MAX_FRAGS + 1) * 0x1000), 0);
+
+	for (i = 0; i < MAX_FRAGS; i++)
+		ASSERT_GE(vmsplice(pipefds[1], &sendchar_iov, 1, 0), 0);
+
+	ASSERT_EQ(write(pipefds[1], sendbuf, sizeof(sendbuf)), sizeof(sendbuf));
+
+	EXPECT_EQ(splice(pipefds[0], NULL, self->fd, NULL, MAX_FRAGS + 0x1000, 0),
+		  MAX_FRAGS + sizeof(sendbuf));
+	EXPECT_EQ(recv(self->cfd, read_buf, sizeof(read_buf), 0), MAX_FRAGS + sizeof(sendbuf));
+	EXPECT_EQ(recv(self->cfd, read_buf, sizeof(read_buf), MSG_DONTWAIT), -1);
+	EXPECT_EQ(errno, EAGAIN);
+}
+#undef MAX_FRAGS
 
 TEST_F(tls, recvmsg_single)
 {
@@ -2164,6 +2246,284 @@ TEST_F(tls, rekey_poll_delay)
 	}
 }
 
+struct raw_rec {
+	unsigned int plain_len;
+	unsigned char plain_data[100];
+	unsigned int cipher_len;
+	unsigned char cipher_data[128];
+};
+
+/* TLS 1.2, AES_CCM, data, seqno:0, plaintext: 'Hello world' */
+static const struct raw_rec id0_data_l11 = {
+	.plain_len = 11,
+	.plain_data = {
+		0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f,
+		0x72, 0x6c, 0x64,
+	},
+	.cipher_len = 40,
+	.cipher_data = {
+		0x17, 0x03, 0x03, 0x00, 0x23, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x26, 0xa2, 0x33,
+		0xde, 0x8d, 0x94, 0xf0, 0x29, 0x6c, 0xb1, 0xaf,
+		0x6a, 0x75, 0xb2, 0x93, 0xad, 0x45, 0xd5, 0xfd,
+		0x03, 0x51, 0x57, 0x8f, 0xf9, 0xcc, 0x3b, 0x42,
+	},
+};
+
+/* TLS 1.2, AES_CCM, ctrl, seqno:0, plaintext: '' */
+static const struct raw_rec id0_ctrl_l0 = {
+	.plain_len = 0,
+	.plain_data = {
+	},
+	.cipher_len = 29,
+	.cipher_data = {
+		0x16, 0x03, 0x03, 0x00, 0x18, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x38, 0x7b,
+		0xa6, 0x1c, 0xdd, 0xa7, 0x19, 0x33, 0xab, 0xae,
+		0x88, 0xe1, 0xd2, 0x08, 0x4f,
+	},
+};
+
+/* TLS 1.2, AES_CCM, data, seqno:0, plaintext: '' */
+static const struct raw_rec id0_data_l0 = {
+	.plain_len = 0,
+	.plain_data = {
+	},
+	.cipher_len = 29,
+	.cipher_data = {
+		0x17, 0x03, 0x03, 0x00, 0x18, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0xc5, 0x37, 0x90,
+		0x70, 0x45, 0x89, 0xfb, 0x5c, 0xc7, 0x89, 0x03,
+		0x68, 0x80, 0xd3, 0xd8, 0xcc,
+	},
+};
+
+/* TLS 1.2, AES_CCM, data, seqno:1, plaintext: 'Hello world' */
+static const struct raw_rec id1_data_l11 = {
+	.plain_len = 11,
+	.plain_data = {
+		0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f,
+		0x72, 0x6c, 0x64,
+	},
+	.cipher_len = 40,
+	.cipher_data = {
+		0x17, 0x03, 0x03, 0x00, 0x23, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x01, 0x3a, 0x1a, 0x9c,
+		0xd0, 0xa8, 0x9a, 0xd6, 0x69, 0xd6, 0x1a, 0xe3,
+		0xb5, 0x1f, 0x0d, 0x2c, 0xe2, 0x97, 0x46, 0xff,
+		0x2b, 0xcc, 0x5a, 0xc4, 0xa3, 0xb9, 0xef, 0xba,
+	},
+};
+
+/* TLS 1.2, AES_CCM, ctrl, seqno:1, plaintext: '' */
+static const struct raw_rec id1_ctrl_l0 = {
+	.plain_len = 0,
+	.plain_data = {
+	},
+	.cipher_len = 29,
+	.cipher_data = {
+		0x16, 0x03, 0x03, 0x00, 0x18, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0xf0, 0xfe,
+		0xee, 0xd9, 0xe2, 0x5d, 0xc7, 0x11, 0x4c, 0xe6,
+		0xb4, 0x7e, 0xef, 0x40, 0x2b,
+	},
+};
+
+/* TLS 1.2, AES_CCM, data, seqno:1, plaintext: '' */
+static const struct raw_rec id1_data_l0 = {
+	.plain_len = 0,
+	.plain_data = {
+	},
+	.cipher_len = 29,
+	.cipher_data = {
+		0x17, 0x03, 0x03, 0x00, 0x18, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x01, 0xce, 0xfc, 0x86,
+		0xc8, 0xf0, 0x55, 0xf9, 0x47, 0x3f, 0x74, 0xdc,
+		0xc9, 0xbf, 0xfe, 0x5b, 0xb1,
+	},
+};
+
+/* TLS 1.2, AES_CCM, ctrl, seqno:2, plaintext: 'Hello world' */
+static const struct raw_rec id2_ctrl_l11 = {
+	.plain_len = 11,
+	.plain_data = {
+		0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f,
+		0x72, 0x6c, 0x64,
+	},
+	.cipher_len = 40,
+	.cipher_data = {
+		0x16, 0x03, 0x03, 0x00, 0x23, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x02, 0xe5, 0x3d, 0x19,
+		0x3d, 0xca, 0xb8, 0x16, 0xb6, 0xff, 0x79, 0x87,
+		0x2a, 0x04, 0x11, 0x3d, 0xf8, 0x64, 0x5f, 0x36,
+		0x8b, 0xa8, 0xee, 0x4c, 0x6d, 0x62, 0xa5, 0x00,
+	},
+};
+
+/* TLS 1.2, AES_CCM, data, seqno:2, plaintext: 'Hello world' */
+static const struct raw_rec id2_data_l11 = {
+	.plain_len = 11,
+	.plain_data = {
+		0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f,
+		0x72, 0x6c, 0x64,
+	},
+	.cipher_len = 40,
+	.cipher_data = {
+		0x17, 0x03, 0x03, 0x00, 0x23, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x02, 0xe5, 0x3d, 0x19,
+		0x3d, 0xca, 0xb8, 0x16, 0xb6, 0xff, 0x79, 0x87,
+		0x8e, 0xa1, 0xd0, 0xcd, 0x33, 0xb5, 0x86, 0x2b,
+		0x17, 0xf1, 0x52, 0x2a, 0x55, 0x62, 0x65, 0x11,
+	},
+};
+
+/* TLS 1.2, AES_CCM, ctrl, seqno:2, plaintext: '' */
+static const struct raw_rec id2_ctrl_l0 = {
+	.plain_len = 0,
+	.plain_data = {
+	},
+	.cipher_len = 29,
+	.cipher_data = {
+		0x16, 0x03, 0x03, 0x00, 0x18, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x02, 0xdc, 0x5c, 0x0e,
+		0x41, 0xdd, 0xba, 0xd3, 0xcc, 0xcf, 0x6d, 0xd9,
+		0x06, 0xdb, 0x79, 0xe5, 0x5d,
+	},
+};
+
+/* TLS 1.2, AES_CCM, data, seqno:2, plaintext: '' */
+static const struct raw_rec id2_data_l0 = {
+	.plain_len = 0,
+	.plain_data = {
+	},
+	.cipher_len = 29,
+	.cipher_data = {
+		0x17, 0x03, 0x03, 0x00, 0x18, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x02, 0xc3, 0xca, 0x26,
+		0x22, 0xe4, 0x25, 0xfb, 0x5f, 0x6d, 0xbf, 0x83,
+		0x30, 0x48, 0x69, 0x1a, 0x47,
+	},
+};
+
+FIXTURE(zero_len)
+{
+	int fd, cfd;
+	bool notls;
+};
+
+FIXTURE_VARIANT(zero_len)
+{
+	const struct raw_rec *recs[4];
+	ssize_t recv_ret[4];
+};
+
+FIXTURE_VARIANT_ADD(zero_len, data_data_data)
+{
+	.recs = { &id0_data_l11, &id1_data_l11, &id2_data_l11, },
+	.recv_ret = { 33, -EAGAIN, },
+};
+
+FIXTURE_VARIANT_ADD(zero_len, data_0ctrl_data)
+{
+	.recs = { &id0_data_l11, &id1_ctrl_l0, &id2_data_l11, },
+	.recv_ret = { 11, 0, 11, -EAGAIN, },
+};
+
+FIXTURE_VARIANT_ADD(zero_len, 0data_0data_0data)
+{
+	.recs = { &id0_data_l0, &id1_data_l0, &id2_data_l0, },
+	.recv_ret = { -EAGAIN, },
+};
+
+FIXTURE_VARIANT_ADD(zero_len, 0data_0data_ctrl)
+{
+	.recs = { &id0_data_l0, &id1_data_l0, &id2_ctrl_l11, },
+	.recv_ret = { 0, 11, -EAGAIN, },
+};
+
+FIXTURE_VARIANT_ADD(zero_len, 0data_0data_0ctrl)
+{
+	.recs = { &id0_data_l0, &id1_data_l0, &id2_ctrl_l0, },
+	.recv_ret = { 0, 0, -EAGAIN, },
+};
+
+FIXTURE_VARIANT_ADD(zero_len, 0ctrl_0ctrl_0ctrl)
+{
+	.recs = { &id0_ctrl_l0, &id1_ctrl_l0, &id2_ctrl_l0, },
+	.recv_ret = { 0, 0, 0, -EAGAIN, },
+};
+
+FIXTURE_VARIANT_ADD(zero_len, 0data_0data_data)
+{
+	.recs = { &id0_data_l0, &id1_data_l0, &id2_data_l11, },
+	.recv_ret = { 11, -EAGAIN, },
+};
+
+FIXTURE_VARIANT_ADD(zero_len, data_0data_0data)
+{
+	.recs = { &id0_data_l11, &id1_data_l0, &id2_data_l0, },
+	.recv_ret = { 11, -EAGAIN, },
+};
+
+FIXTURE_SETUP(zero_len)
+{
+	struct tls_crypto_info_keys tls12;
+	int ret;
+
+	tls_crypto_info_init(TLS_1_2_VERSION, TLS_CIPHER_AES_CCM_128,
+			     &tls12, 0);
+
+	ulp_sock_pair(_metadata, &self->fd, &self->cfd, &self->notls);
+	if (self->notls)
+		return;
+
+	/* Don't install keys on fd, we'll send raw records */
+	ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls12, tls12.len);
+	ASSERT_EQ(ret, 0);
+}
+
+FIXTURE_TEARDOWN(zero_len)
+{
+	close(self->fd);
+	close(self->cfd);
+}
+
+TEST_F(zero_len, test)
+{
+	const struct raw_rec *const *rec;
+	unsigned char buf[128];
+	int rec_off;
+	int i;
+
+	for (i = 0; i < 4 && variant->recs[i]; i++)
+		EXPECT_EQ(send(self->fd, variant->recs[i]->cipher_data,
+			       variant->recs[i]->cipher_len, 0),
+			  variant->recs[i]->cipher_len);
+
+	rec = &variant->recs[0];
+	rec_off = 0;
+	for (i = 0; i < 4; i++) {
+		int j, ret;
+
+		ret = variant->recv_ret[i] >= 0 ? variant->recv_ret[i] : -1;
+		EXPECT_EQ(__tls_recv_cmsg(_metadata, self->cfd, NULL,
+					  buf, sizeof(buf), MSG_DONTWAIT), ret);
+		if (ret == -1)
+			EXPECT_EQ(errno, -variant->recv_ret[i]);
+		if (variant->recv_ret[i] == -EAGAIN)
+			break;
+
+		for (j = 0; j < ret; j++) {
+			while (rec_off == (*rec)->plain_len) {
+				rec++;
+				rec_off = 0;
+			}
+			EXPECT_EQ(buf[j], (*rec)->plain_data[rec_off]);
+			rec_off++;
+		}
+	}
+};
+
 FIXTURE(tls_err)
 {
 	int fd, cfd;
@@ -2480,6 +2840,22 @@ TEST_F(tls_err, poll_partial_rec_async)
 	}
 }
 
+/* Use OOB+large send to trigger copy mode due to memory pressure.
+ * OOB causes a short read.
+ */
+TEST_F(tls_err, oob_pressure)
+{
+	char buf[1<<16];
+	int i;
+
+	memrnd(buf, sizeof(buf));
+
+	EXPECT_EQ(send(self->fd2, buf, 5, MSG_OOB), 5);
+	EXPECT_EQ(send(self->fd2, buf, sizeof(buf), 0), sizeof(buf));
+	for (i = 0; i < 64; i++)
+		EXPECT_EQ(send(self->fd2, buf, 5, MSG_OOB), 5);
+}
+
 TEST(non_established) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
 	struct sockaddr_in addr;
@@ -2703,6 +3079,67 @@ TEST(prequeue) {
 	EXPECT_EQ(recv(cfd, buf2, sizeof(buf2), MSG_WAITALL), sizeof(buf2));
 
 	EXPECT_EQ(memcmp(buf, buf2, sizeof(buf)), 0);
+
+	close(fd);
+	close(cfd);
+}
+
+TEST(data_steal) {
+	struct tls_crypto_info_keys tls;
+	char buf[20000], buf2[20000];
+	struct sockaddr_in addr;
+	int sfd, cfd, ret, fd;
+	int pid, status;
+	socklen_t len;
+
+	len = sizeof(addr);
+	memrnd(buf, sizeof(buf));
+
+	tls_crypto_info_init(TLS_1_2_VERSION, TLS_CIPHER_AES_GCM_256, &tls, 0);
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = 0;
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	sfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	ASSERT_EQ(bind(sfd, &addr, sizeof(addr)), 0);
+	ASSERT_EQ(listen(sfd, 10), 0);
+	ASSERT_EQ(getsockname(sfd, &addr, &len), 0);
+	ASSERT_EQ(connect(fd, &addr, sizeof(addr)), 0);
+	ASSERT_GE(cfd = accept(sfd, &addr, &len), 0);
+	close(sfd);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	if (ret) {
+		ASSERT_EQ(errno, ENOENT);
+		SKIP(return, "no TLS support");
+	}
+	ASSERT_EQ(setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls")), 0);
+
+	/* Spawn a child and get it into the read wait path of the underlying
+	 * TCP socket.
+	 */
+	pid = fork();
+	ASSERT_GE(pid, 0);
+	if (!pid) {
+		EXPECT_EQ(recv(cfd, buf, sizeof(buf) / 2, MSG_WAITALL),
+			  sizeof(buf) / 2);
+		exit(!__test_passed(_metadata));
+	}
+
+	usleep(10000);
+	ASSERT_EQ(setsockopt(fd, SOL_TLS, TLS_TX, &tls, tls.len), 0);
+	ASSERT_EQ(setsockopt(cfd, SOL_TLS, TLS_RX, &tls, tls.len), 0);
+
+	EXPECT_EQ(send(fd, buf, sizeof(buf), 0), sizeof(buf));
+	EXPECT_EQ(wait(&status), pid);
+	EXPECT_EQ(status, 0);
+	EXPECT_EQ(recv(cfd, buf2, sizeof(buf2), MSG_DONTWAIT), -1);
+	/* Don't check errno, the error will be different depending
+	 * on what random bytes TLS interpreted as the record length.
+	 */
 
 	close(fd);
 	close(cfd);

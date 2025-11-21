@@ -102,27 +102,23 @@ struct adcxx1c_model {
 	int bits;
 };
 
-#define ADCxx1C_MODEL(_name, _bits)					\
-	{								\
-		.channels = _name ## _channels,				\
-		.bits = (_bits),					\
-	}
-
 DEFINE_ADCxx1C_CHANNELS(adc081c,  8);
 DEFINE_ADCxx1C_CHANNELS(adc101c, 10);
 DEFINE_ADCxx1C_CHANNELS(adc121c, 12);
 
-/* Model ids are indexes in _models array */
-enum adcxx1c_model_id {
-	ADC081C = 0,
-	ADC101C = 1,
-	ADC121C = 2,
+static const struct adcxx1c_model adc081c_model = {
+	.channels = adc081c_channels,
+	.bits = 8,
 };
 
-static struct adcxx1c_model adcxx1c_models[] = {
-	ADCxx1C_MODEL(adc081c,  8),
-	ADCxx1C_MODEL(adc101c, 10),
-	ADCxx1C_MODEL(adc121c, 12),
+static const struct adcxx1c_model adc101c_model = {
+	.channels = adc101c_channels,
+	.bits = 10,
+};
+
+static const struct adcxx1c_model adc121c_model = {
+	.channels = adc121c_channels,
+	.bits = 12,
 };
 
 static const struct iio_info adc081c_info = {
@@ -203,24 +199,24 @@ static int adc081c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adc081c_id[] = {
-	{ "adc081c", (kernel_ulong_t)&adcxx1c_models[ADC081C] },
-	{ "adc101c", (kernel_ulong_t)&adcxx1c_models[ADC101C] },
-	{ "adc121c", (kernel_ulong_t)&adcxx1c_models[ADC121C] },
+	{ "adc081c", (kernel_ulong_t)&adc081c_model },
+	{ "adc101c", (kernel_ulong_t)&adc101c_model },
+	{ "adc121c", (kernel_ulong_t)&adc121c_model },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adc081c_id);
 
 static const struct acpi_device_id adc081c_acpi_match[] = {
 	/* Used on some AAEON boards */
-	{ "ADC081C", (kernel_ulong_t)&adcxx1c_models[ADC081C] },
+	{ "ADC081C", (kernel_ulong_t)&adc081c_model },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, adc081c_acpi_match);
 
 static const struct of_device_id adc081c_of_match[] = {
-	{ .compatible = "ti,adc081c", .data = &adcxx1c_models[ADC081C] },
-	{ .compatible = "ti,adc101c", .data = &adcxx1c_models[ADC101C] },
-	{ .compatible = "ti,adc121c", .data = &adcxx1c_models[ADC121C] },
+	{ .compatible = "ti,adc081c", .data = &adc081c_model },
+	{ .compatible = "ti,adc101c", .data = &adc101c_model },
+	{ .compatible = "ti,adc121c", .data = &adc121c_model },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adc081c_of_match);

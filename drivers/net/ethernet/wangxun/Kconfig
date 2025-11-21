@@ -20,6 +20,7 @@ config LIBWX
 	tristate
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select PAGE_POOL
+	select DIMLIB
 	help
 	Common library for Wangxun(R) Ethernet drivers.
 

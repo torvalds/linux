@@ -129,7 +129,7 @@ static int tusb1046_i2c_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return dev_err_probe(dev, -ENOMEM, "failed to allocate driver data\n");
+		return -ENOMEM;
 
 	priv->client = client;
 

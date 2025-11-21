@@ -3,8 +3,8 @@
 // Copyright 2024 Advanced Micro Devices, Inc.
 
 #include "dc.h"
+#include "link_service.h"
 #include "dc_dmub_srv.h"
-#include "dc_dp_types.h"
 #include "dmub/dmub_srv.h"
 #include "core_types.h"
 #include "dmub_replay.h"
@@ -44,45 +44,21 @@ static void dmub_replay_get_state(struct dmub_replay *dmub, enum replay_state *s
 /*
  * Enable/Disable Replay.
  */
-static void dmub_replay_enable(struct dmub_replay *dmub, bool enable, bool wait, uint8_t panel_inst,
-			       struct dc_link *link)
+static void dmub_replay_enable(struct dmub_replay *dmub, bool enable, bool wait, uint8_t panel_inst)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
 	uint32_t retry_count;
 	enum replay_state state = REPLAY_STATE_0;
-	struct pipe_ctx *pipe_ctx = NULL;
-	struct resource_context *res_ctx = &link->ctx->dc->current_state->res_ctx;
-	uint8_t i;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.replay_enable.header.type = DMUB_CMD__REPLAY;
 	cmd.replay_enable.data.panel_inst = panel_inst;
 
 	cmd.replay_enable.header.sub_type = DMUB_CMD__REPLAY_ENABLE;
-	if (enable) {
+	if (enable)
 		cmd.replay_enable.data.enable = REPLAY_ENABLE;
-		// hpo stream/link encoder assignments are not static, need to update everytime we try to enable replay
-		if (link->cur_link_settings.link_rate >= LINK_RATE_UHBR10) {
-			for (i = 0; i < MAX_PIPES; i++) {
-				if (res_ctx &&
-					res_ctx->pipe_ctx[i].stream &&
-					res_ctx->pipe_ctx[i].stream->link &&
-					res_ctx->pipe_ctx[i].stream->link == link &&
-					res_ctx->pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
-					pipe_ctx = &res_ctx->pipe_ctx[i];
-					//TODO: refactor for multi edp support
-					break;
-				}
-			}
-
-			if (!pipe_ctx)
-				return;
-
-			cmd.replay_enable.data.hpo_stream_enc_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
-			cmd.replay_enable.data.hpo_link_enc_inst = pipe_ctx->link_res.hpo_dp_link_enc->inst;
-		}
-	} else
+	else
 		cmd.replay_enable.data.enable = REPLAY_DISABLE;
 
 	cmd.replay_enable.header.payload_bytes = sizeof(struct dmub_rb_cmd_replay_enable_data);
@@ -174,17 +150,6 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 	copy_settings_data->digbe_inst				= replay_context->digbe_inst;
 	copy_settings_data->digfe_inst				= replay_context->digfe_inst;
 
-	if (link->cur_link_settings.link_rate >= LINK_RATE_UHBR10) {
-		if (pipe_ctx->stream_res.hpo_dp_stream_enc)
-			copy_settings_data->hpo_stream_enc_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
-		else
-			copy_settings_data->hpo_stream_enc_inst = 0;
-		if (pipe_ctx->link_res.hpo_dp_link_enc)
-			copy_settings_data->hpo_link_enc_inst = pipe_ctx->link_res.hpo_dp_link_enc->inst;
-		else
-			copy_settings_data->hpo_link_enc_inst = 0;
-	}
-
 	if (pipe_ctx->plane_res.dpp)
 		copy_settings_data->dpp_inst			= pipe_ctx->plane_res.dpp->inst;
 	else
@@ -204,6 +169,7 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 	copy_settings_data->max_deviation_line			= link->dpcd_caps.pr_info.max_deviation_line;
 	copy_settings_data->smu_optimizations_en		= link->replay_settings.replay_smu_opt_enable;
 	copy_settings_data->replay_timing_sync_supported = link->replay_settings.config.replay_timing_sync_supported;
+	copy_settings_data->replay_support_fast_resync_in_ultra_sleep_mode = link->replay_settings.config.replay_support_fast_resync_in_ultra_sleep_mode;
 
 	copy_settings_data->debug.bitfields.enable_ips_visual_confirm = dc->dc->debug.enable_ips_visual_confirm;
 
@@ -224,6 +190,18 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 		copy_settings_data->flags.bitfields.force_wakeup_by_tps3 = 1;
 	else
 		copy_settings_data->flags.bitfields.force_wakeup_by_tps3 = 0;
+
+	copy_settings_data->flags.bitfields.alpm_mode = (enum dmub_alpm_mode)link->replay_settings.config.alpm_mode;
+	if (link->replay_settings.config.alpm_mode == DC_ALPM_AUXLESS) {
+		copy_settings_data->auxless_alpm_data.lfps_setup_ns = dc->dc->debug.auxless_alpm_lfps_setup_ns;
+		copy_settings_data->auxless_alpm_data.lfps_period_ns = dc->dc->debug.auxless_alpm_lfps_period_ns;
+		copy_settings_data->auxless_alpm_data.lfps_silence_ns = dc->dc->debug.auxless_alpm_lfps_silence_ns;
+		copy_settings_data->auxless_alpm_data.lfps_t1_t2_override_us =
+			dc->dc->debug.auxless_alpm_lfps_t1t2_us;
+		copy_settings_data->auxless_alpm_data.lfps_t1_t2_offset_us =
+			dc->dc->debug.auxless_alpm_lfps_t1t2_offset_us;
+		copy_settings_data->auxless_alpm_data.lttpr_count = link->dc->link_srv->dp_get_lttpr_count(link);
+	}
 
 	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
@@ -247,7 +225,6 @@ static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
 	pCmd->header.type = DMUB_CMD__REPLAY;
 	pCmd->header.sub_type = DMUB_CMD__REPLAY_SET_COASTING_VTOTAL;
 	pCmd->header.payload_bytes = sizeof(struct dmub_cmd_replay_set_coasting_vtotal_data);
-	pCmd->replay_set_coasting_vtotal_data.panel_inst = panel_inst;
 	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal = (coasting_vtotal & 0xFFFF);
 	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal_high = (coasting_vtotal & 0xFFFF0000) >> 16;
 

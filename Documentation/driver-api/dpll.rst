@@ -179,7 +179,23 @@ Phase offset measurement and adjustment
 Device may provide ability to measure a phase difference between signals
 on a pin and its parent dpll device. If pin-dpll phase offset measurement
 is supported, it shall be provided with ``DPLL_A_PIN_PHASE_OFFSET``
-attribute for each parent dpll device.
+attribute for each parent dpll device. The reported phase offset may be
+computed as the average of prior values and the current measurement, using
+the following formula:
+
+.. math::
+   curr\_avg = prev\_avg * \frac{2^N-1}{2^N} + new\_val * \frac{1}{2^N}
+
+where `curr_avg` is the current reported phase offset, `prev_avg` is the
+previously reported value, `new_val` is the current measurement, and `N` is
+the averaging factor. Configured averaging factor value is provided with
+``DPLL_A_PHASE_OFFSET_AVG_FACTOR`` attribute of a device and value change can
+be requested with the same attribute with ``DPLL_CMD_DEVICE_SET`` command.
+
+  ================================== ======================================
+  ``DPLL_A_PHASE_OFFSET_AVG_FACTOR`` attr configured value of phase offset
+                                     averaging factor
+  ================================== ======================================
 
 Device may also provide ability to adjust a signal phase on a pin.
 If pin phase adjustment is supported, minimal and maximal values that pin

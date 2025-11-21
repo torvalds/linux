@@ -27,7 +27,7 @@ static inline unsigned long __hypfs_sprp_diag304(void *data, unsigned long cmd)
 {
 	union register_pair r1 = { .even = virt_to_phys(data), };
 
-	asm volatile("diag %[r1],%[r3],0x304\n"
+	asm volatile("diag %[r1],%[r3],0x304"
 		     : [r1] "+&d" (r1.pair)
 		     : [r3] "d" (cmd)
 		     : "memory");

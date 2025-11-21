@@ -67,6 +67,8 @@ struct ptp_system_timestamp {
  * @n_ext_ts:  The number of external time stamp channels.
  * @n_per_out: The number of programmable periodic signals.
  * @n_pins:    The number of programmable pins.
+ * @n_per_lp:  The number of channels that support loopback the periodic
+ *             output signal.
  * @pps:       Indicates whether the clock supports a PPS callback.
  *
  * @supported_perout_flags:  The set of flags the driver supports for the
@@ -175,6 +177,11 @@ struct ptp_system_timestamp {
  *                scheduling time (>=0) or negative value in case further
  *                scheduling is not required.
  *
+ * @perout_loopback: Request driver to enable or disable the periodic output
+ *                   signal loopback.
+ *                   parameter index: index of the periodic output signal channel.
+ *                   parameter on: caller passes one to enable or zero to disable.
+ *
  * Drivers should embed their ptp_clock_info within a private
  * structure, obtaining a reference to it using container_of().
  *
@@ -189,6 +196,7 @@ struct ptp_clock_info {
 	int n_ext_ts;
 	int n_per_out;
 	int n_pins;
+	int n_per_lp;
 	int pps;
 	unsigned int supported_perout_flags;
 	unsigned int supported_extts_flags;
@@ -213,6 +221,8 @@ struct ptp_clock_info {
 	int (*verify)(struct ptp_clock_info *ptp, unsigned int pin,
 		      enum ptp_pin_function func, unsigned int chan);
 	long (*do_aux_work)(struct ptp_clock_info *ptp);
+	int (*perout_loopback)(struct ptp_clock_info *ptp, unsigned int index,
+			       int on);
 };
 
 struct ptp_clock;
@@ -361,6 +371,24 @@ extern void ptp_clock_event(struct ptp_clock *ptp,
 extern int ptp_clock_index(struct ptp_clock *ptp);
 
 /**
+ * ptp_clock_index_by_of_node() - obtain the device index of
+ * a PTP clock based on the PTP device of_node
+ *
+ * @np:    The device of_node pointer of the PTP device.
+ * Return: The PHC index on success or -1 on failure.
+ */
+int ptp_clock_index_by_of_node(struct device_node *np);
+
+/**
+ * ptp_clock_index_by_dev() - obtain the device index of
+ * a PTP clock based on the PTP device.
+ *
+ * @parent:    The parent device (PTP device) pointer of the PTP clock.
+ * Return: The PHC index on success or -1 on failure.
+ */
+int ptp_clock_index_by_dev(struct device *parent);
+
+/**
  * ptp_find_pin() - obtain the pin index of a given auxiliary function
  *
  * The caller must hold ptp_clock::pincfg_mux.  Drivers do not have
@@ -424,6 +452,10 @@ static inline void ptp_clock_event(struct ptp_clock *ptp,
 				   struct ptp_clock_event *event)
 { }
 static inline int ptp_clock_index(struct ptp_clock *ptp)
+{ return -1; }
+static inline int ptp_clock_index_by_of_node(struct device_node *np)
+{ return -1; }
+static inline int ptp_clock_index_by_dev(struct device *parent)
 { return -1; }
 static inline int ptp_find_pin(struct ptp_clock *ptp,
 			       enum ptp_pin_function func, unsigned int chan)

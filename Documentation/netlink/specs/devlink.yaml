@@ -853,6 +853,10 @@ attribute-sets:
         type: nest
         multi-attr: true
         nested-attributes: dl-rate-tc-bws
+      -
+        name: health-reporter-burst-period
+        type: u64
+        doc: Time (in msec) for recoveries before starting the grace period.
   -
     name: dl-dev-stats
     subset-of: devlink
@@ -1216,6 +1220,8 @@ attribute-sets:
         name: health-reporter-dump-ts-ns
       -
         name: health-reporter-auto-dump
+      -
+        name: health-reporter-burst-period
 
   -
     name: dl-attr-stats
@@ -1961,6 +1967,7 @@ operations:
             - health-reporter-graceful-period
             - health-reporter-auto-recover
             - health-reporter-auto-dump
+            - health-reporter-burst-period
 
     -
       name: health-reporter-recover

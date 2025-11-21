@@ -135,8 +135,7 @@ static void xra1403_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	gcr = value[XRA_GCR + 1] << 8 | value[XRA_GCR];
 	gsr = value[XRA_GSR + 1] << 8 | value[XRA_GSR];
 	for_each_requested_gpio(chip, i, label) {
-		seq_printf(s, " gpio-%-3d (%-12s) %s %s\n",
-			   chip->base + i, label,
+		seq_printf(s, " gpio-%-3d (%-12s) %s %s\n", i, label,
 			   (gcr & BIT(i)) ? "in" : "out",
 			   str_hi_lo(gsr & BIT(i)));
 	}
@@ -164,7 +163,7 @@ static int xra1403_probe(struct spi_device *spi)
 	xra->chip.direction_output = xra1403_direction_output;
 	xra->chip.get_direction = xra1403_get_direction;
 	xra->chip.get = xra1403_get;
-	xra->chip.set_rv = xra1403_set;
+	xra->chip.set = xra1403_set;
 
 	xra->chip.dbg_show = xra1403_dbg_show;
 

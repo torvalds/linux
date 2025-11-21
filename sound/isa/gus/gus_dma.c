@@ -11,12 +11,9 @@
 
 static void snd_gf1_dma_ack(struct snd_gus_card * gus)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	snd_gf1_write8(gus, SNDRV_GF1_GB_DRAM_DMA_CONTROL, 0x00);
 	snd_gf1_look8(gus, SNDRV_GF1_GB_DRAM_DMA_CONTROL);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 static void snd_gf1_dma_program(struct snd_gus_card * gus,
@@ -25,7 +22,6 @@ static void snd_gf1_dma_program(struct snd_gus_card * gus,
 				unsigned int count,
 				unsigned int cmd)
 {
-	unsigned long flags;
 	unsigned int address;
 	unsigned char dma_cmd;
 	unsigned int address_high;
@@ -70,7 +66,7 @@ static void snd_gf1_dma_program(struct snd_gus_card * gus,
 		"address = 0x%x, count = 0x%x, dma_cmd = 0x%x\n",
 		address << 1, count, dma_cmd);
 #endif
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	if (gus->gf1.enh_mode) {
 		address_high = ((address >> 16) & 0x000000f0) | (address & 0x0000000f);
 		snd_gf1_write16(gus, SNDRV_GF1_GW_DRAM_DMA_LOW, (unsigned short) (address >> 4));
@@ -78,7 +74,6 @@ static void snd_gf1_dma_program(struct snd_gus_card * gus,
 	} else
 		snd_gf1_write16(gus, SNDRV_GF1_GW_DRAM_DMA_LOW, (unsigned short) (address >> 4));
 	snd_gf1_write8(gus, SNDRV_GF1_GB_DRAM_DMA_CONTROL, dma_cmd);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 static struct snd_gf1_dma_block *snd_gf1_dma_next_block(struct snd_gus_card * gus)
@@ -120,16 +115,15 @@ static void snd_gf1_dma_interrupt(struct snd_gus_card * gus)
 	snd_gf1_dma_ack(gus);
 	if (gus->gf1.dma_ack)
 		gus->gf1.dma_ack(gus, gus->gf1.dma_private_data);
-	spin_lock(&gus->dma_lock);
-	if (gus->gf1.dma_data_pcm == NULL &&
-	    gus->gf1.dma_data_synth == NULL) {
-	    	gus->gf1.dma_ack = NULL;
-		gus->gf1.dma_flags &= ~SNDRV_GF1_DMA_TRIGGER;
-		spin_unlock(&gus->dma_lock);
-		return;
+	scoped_guard(spinlock, &gus->dma_lock) {
+		if (gus->gf1.dma_data_pcm == NULL &&
+		    gus->gf1.dma_data_synth == NULL) {
+			gus->gf1.dma_ack = NULL;
+			gus->gf1.dma_flags &= ~SNDRV_GF1_DMA_TRIGGER;
+			return;
+		}
+		block = snd_gf1_dma_next_block(gus);
 	}
-	block = snd_gf1_dma_next_block(gus);
-	spin_unlock(&gus->dma_lock);
 	if (!block)
 		return;
 	snd_gf1_dma_program(gus, block->addr, block->buf_addr, block->count, (unsigned short) block->cmd);
@@ -143,18 +137,15 @@ static void snd_gf1_dma_interrupt(struct snd_gus_card * gus)
 
 int snd_gf1_dma_init(struct snd_gus_card * gus)
 {
-	mutex_lock(&gus->dma_mutex);
+	guard(mutex)(&gus->dma_mutex);
 	gus->gf1.dma_shared++;
-	if (gus->gf1.dma_shared > 1) {
-		mutex_unlock(&gus->dma_mutex);
+	if (gus->gf1.dma_shared > 1)
 		return 0;
-	}
 	gus->gf1.interrupt_handler_dma_write = snd_gf1_dma_interrupt;
 	gus->gf1.dma_data_pcm = 
 	gus->gf1.dma_data_pcm_last =
 	gus->gf1.dma_data_synth = 
 	gus->gf1.dma_data_synth_last = NULL;
-	mutex_unlock(&gus->dma_mutex);
 	return 0;
 }
 
@@ -162,7 +153,7 @@ int snd_gf1_dma_done(struct snd_gus_card * gus)
 {
 	struct snd_gf1_dma_block *block;
 
-	mutex_lock(&gus->dma_mutex);
+	guard(mutex)(&gus->dma_mutex);
 	gus->gf1.dma_shared--;
 	if (!gus->gf1.dma_shared) {
 		snd_dma_disable(gus->gf1.dma1);
@@ -179,7 +170,6 @@ int snd_gf1_dma_done(struct snd_gus_card * gus)
 		gus->gf1.dma_data_pcm_last =
 		gus->gf1.dma_data_synth_last = NULL;
 	}
-	mutex_unlock(&gus->dma_mutex);
 	return 0;
 }
 
@@ -188,8 +178,8 @@ int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 			       int atomic,
 			       int synth)
 {
-	unsigned long flags;
 	struct snd_gf1_dma_block *block;
+	struct snd_gf1_dma_block *free_block = NULL;
 
 	block = kmalloc(sizeof(*block), atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!block)
@@ -210,34 +200,36 @@ int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 		"gus->gf1.dma_data_pcm = 0x%lx\n",
 		(long)gus->gf1.dma_data_pcm);
 
-	spin_lock_irqsave(&gus->dma_lock, flags);
-	if (synth) {
-		if (gus->gf1.dma_data_synth_last) {
-			gus->gf1.dma_data_synth_last->next = block;
-			gus->gf1.dma_data_synth_last = block;
+	scoped_guard(spinlock_irqsave, &gus->dma_lock) {
+		if (synth) {
+			if (gus->gf1.dma_data_synth_last) {
+				gus->gf1.dma_data_synth_last->next = block;
+				gus->gf1.dma_data_synth_last = block;
+			} else {
+				gus->gf1.dma_data_synth =
+					gus->gf1.dma_data_synth_last = block;
+			}
 		} else {
-			gus->gf1.dma_data_synth = 
-			gus->gf1.dma_data_synth_last = block;
+			if (gus->gf1.dma_data_pcm_last) {
+				gus->gf1.dma_data_pcm_last->next = block;
+				gus->gf1.dma_data_pcm_last = block;
+			} else {
+				gus->gf1.dma_data_pcm =
+					gus->gf1.dma_data_pcm_last = block;
+			}
 		}
-	} else {
-		if (gus->gf1.dma_data_pcm_last) {
-			gus->gf1.dma_data_pcm_last->next = block;
-			gus->gf1.dma_data_pcm_last = block;
-		} else {
-			gus->gf1.dma_data_pcm = 
-			gus->gf1.dma_data_pcm_last = block;
+		if (!(gus->gf1.dma_flags & SNDRV_GF1_DMA_TRIGGER)) {
+			gus->gf1.dma_flags |= SNDRV_GF1_DMA_TRIGGER;
+			free_block = snd_gf1_dma_next_block(gus);
 		}
 	}
-	if (!(gus->gf1.dma_flags & SNDRV_GF1_DMA_TRIGGER)) {
-		gus->gf1.dma_flags |= SNDRV_GF1_DMA_TRIGGER;
-		block = snd_gf1_dma_next_block(gus);
-		spin_unlock_irqrestore(&gus->dma_lock, flags);
-		if (block == NULL)
-			return 0;
-		snd_gf1_dma_program(gus, block->addr, block->buf_addr, block->count, (unsigned short) block->cmd);
-		kfree(block);
-		return 0;
+
+	if (free_block) {
+		snd_gf1_dma_program(gus, free_block->addr, free_block->buf_addr,
+				    free_block->count,
+				    (unsigned short)free_block->cmd);
+		kfree(free_block);
 	}
-	spin_unlock_irqrestore(&gus->dma_lock, flags);
+
 	return 0;
 }

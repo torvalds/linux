@@ -691,6 +691,11 @@ void __init init_IRQ(void)
 	os_setup_epoll();
 }
 
+int __init arch_probe_nr_irqs(void)
+{
+	return NR_IRQS;
+}
+
 void sigchld_handler(int sig, struct siginfo *unused_si,
 		     struct uml_pt_regs *regs, void *mc)
 {

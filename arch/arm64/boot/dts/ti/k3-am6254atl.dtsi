@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * DTS for AM625 SiP SoC family in Quad core configuration and 512MiB RAM.
+ *
+ * Webpage: https://www.ti.com/product/AM625SIP
+ *
+ * Copyright (C) 2025 Texas Instruments Incorporated - https://www.ti.com/
+ */
+
+#include "k3-am625.dtsi"
+
+/ {
+	model = "Texas Instruments AM6254atl SiP";
+	compatible = "ti,am6254atl", "ti,am625";
+
+	memory@80000000 {
+		/* 512MiB of integrated RAM */
+		reg = <0x00000000 0x80000000 0x00000000 0x20000000>;
+		device_type = "memory";
+		bootph-all;
+	};
+
+};

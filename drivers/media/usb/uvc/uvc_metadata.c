@@ -23,10 +23,10 @@
  * V4L2 ioctls
  */
 
-static int uvc_meta_v4l2_querycap(struct file *file, void *fh,
+static int uvc_meta_v4l2_querycap(struct file *file, void *priv,
 				  struct v4l2_capability *cap)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_video_chain *chain = stream->chain;
 
@@ -39,17 +39,15 @@ static int uvc_meta_v4l2_querycap(struct file *file, void *fh,
 	return 0;
 }
 
-static int uvc_meta_v4l2_get_format(struct file *file, void *fh,
+static int uvc_meta_v4l2_get_format(struct file *file, void *priv,
 				    struct v4l2_format *format)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
 
 	if (format->type != vfh->vdev->queue->type)
 		return -EINVAL;
-
-	memset(fmt, 0, sizeof(*fmt));
 
 	fmt->dataformat = stream->meta.format;
 	fmt->buffersize = UVC_METADATA_BUF_SIZE;
@@ -57,10 +55,10 @@ static int uvc_meta_v4l2_get_format(struct file *file, void *fh,
 	return 0;
 }
 
-static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
+static int uvc_meta_v4l2_try_format(struct file *file, void *priv,
 				    struct v4l2_format *format)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_device *dev = stream->dev;
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
@@ -69,11 +67,12 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 	if (format->type != vfh->vdev->queue->type)
 		return -EINVAL;
 
-	for (unsigned int i = 0; i < dev->nmeta_formats; i++)
+	for (unsigned int i = 0; i < dev->nmeta_formats; i++) {
 		if (dev->meta_formats[i] == fmt->dataformat) {
 			fmeta = fmt->dataformat;
 			break;
 		}
+	}
 
 	memset(fmt, 0, sizeof(*fmt));
 
@@ -83,15 +82,15 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 	return 0;
 }
 
-static int uvc_meta_v4l2_set_format(struct file *file, void *fh,
+static int uvc_meta_v4l2_set_format(struct file *file, void *priv,
 				    struct v4l2_format *format)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
 	int ret;
 
-	ret = uvc_meta_v4l2_try_format(file, fh, format);
+	ret = uvc_meta_v4l2_try_format(file, priv, format);
 	if (ret < 0)
 		return ret;
 
@@ -100,37 +99,28 @@ static int uvc_meta_v4l2_set_format(struct file *file, void *fh,
 	 * Metadata buffers would still be perfectly parseable, but it's more
 	 * consistent and cleaner to disallow that.
 	 */
-	mutex_lock(&stream->mutex);
-
 	if (vb2_is_busy(&stream->meta.queue.queue))
-		ret = -EBUSY;
-	else
-		stream->meta.format = fmt->dataformat;
+		return -EBUSY;
 
-	mutex_unlock(&stream->mutex);
+	stream->meta.format = fmt->dataformat;
 
-	return ret;
+	return 0;
 }
 
-static int uvc_meta_v4l2_enum_formats(struct file *file, void *fh,
+static int uvc_meta_v4l2_enum_formats(struct file *file, void *priv,
 				      struct v4l2_fmtdesc *fdesc)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_device *dev = stream->dev;
-	u32 i = fdesc->index;
 
 	if (fdesc->type != vfh->vdev->queue->type)
 		return -EINVAL;
 
-	if (i >= dev->nmeta_formats)
+	if (fdesc->index >= dev->nmeta_formats)
 		return -EINVAL;
 
-	memset(fdesc, 0, sizeof(*fdesc));
-
-	fdesc->type = vfh->vdev->queue->type;
-	fdesc->index = i;
-	fdesc->pixelformat = dev->meta_formats[i];
+	fdesc->pixelformat = dev->meta_formats[fdesc->index];
 
 	return 0;
 }
@@ -177,7 +167,6 @@ static struct uvc_entity *uvc_meta_find_msxu(struct uvc_device *dev)
 	return NULL;
 }
 
-#define MSXU_CONTROL_METADATA 0x9
 static int uvc_meta_detect_msxu(struct uvc_device *dev)
 {
 	u32 *data __free(kfree) = NULL;
@@ -196,9 +185,12 @@ static int uvc_meta_detect_msxu(struct uvc_device *dev)
 	if (!data)
 		return -ENOMEM;
 
-	/* Check if the metadata is already enabled. */
+	/*
+	 * Check if the metadata is already enabled, or if the device always
+	 * returns metadata.
+	 */
 	ret = uvc_query_ctrl(dev, UVC_GET_CUR, entity->id, dev->intfnum,
-			     MSXU_CONTROL_METADATA, data, sizeof(*data));
+			     UVC_MSXU_CONTROL_METADATA, data, sizeof(*data));
 	if (ret)
 		return 0;
 
@@ -208,21 +200,23 @@ static int uvc_meta_detect_msxu(struct uvc_device *dev)
 	}
 
 	/*
-	 * We have seen devices that require 1 to enable the metadata, others
-	 * requiring a value != 1 and others requiring a value >1. Luckily for
-	 * us, the value from GET_MAX seems to work all the time.
+	 * Set the value of UVC_MSXU_CONTROL_METADATA to the value reported by
+	 * GET_MAX to enable production of MSXU metadata. The GET_MAX request
+	 * reports the maximum size of the metadata, if its value is 0 then MSXU
+	 * metadata is not supported. For more information, see
+	 * https://learn.microsoft.com/en-us/windows-hardware/drivers/stream/uvc-extensions-1-5#2229-metadata-control
 	 */
 	ret = uvc_query_ctrl(dev, UVC_GET_MAX, entity->id, dev->intfnum,
-			     MSXU_CONTROL_METADATA, data, sizeof(*data));
+			     UVC_MSXU_CONTROL_METADATA, data, sizeof(*data));
 	if (ret || !*data)
 		return 0;
 
 	/*
-	 * If we can set MSXU_CONTROL_METADATA, the device will report
+	 * If we can set UVC_MSXU_CONTROL_METADATA, the device will report
 	 * metadata.
 	 */
 	ret = uvc_query_ctrl(dev, UVC_SET_CUR, entity->id, dev->intfnum,
-			     MSXU_CONTROL_METADATA, data, sizeof(*data));
+			     UVC_MSXU_CONTROL_METADATA, data, sizeof(*data));
 	if (!ret)
 		dev->quirks |= UVC_QUIRK_MSXU_META;
 
@@ -232,12 +226,11 @@ static int uvc_meta_detect_msxu(struct uvc_device *dev)
 int uvc_meta_register(struct uvc_streaming *stream)
 {
 	struct uvc_device *dev = stream->dev;
-	struct video_device *vdev = &stream->meta.vdev;
 	struct uvc_video_queue *queue = &stream->meta.queue;
 
 	stream->meta.format = V4L2_META_FMT_UVC;
 
-	return uvc_register_video_device(dev, stream, vdev, queue,
+	return uvc_register_video_device(dev, stream, queue,
 					 V4L2_BUF_TYPE_META_CAPTURE,
 					 &uvc_meta_fops, &uvc_meta_ioctl_ops);
 }

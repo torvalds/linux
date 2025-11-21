@@ -9,7 +9,7 @@
 
 #include <linux/types.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct adi_caps {
 	__u64 blksz;
@@ -41,6 +41,6 @@ static inline unsigned long adi_nbits(void)
 	return adi_state.caps.nbits;
 }
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 #endif	/* !(__ASM_SPARC64_ADI_H) */

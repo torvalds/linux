@@ -98,9 +98,11 @@ bool menu_is_visible(struct menu *menu);
 bool menu_has_prompt(const struct menu *menu);
 const char *menu_get_prompt(const struct menu *menu);
 struct menu *menu_get_parent_menu(struct menu *menu);
+struct menu *menu_get_menu_or_parent_menu(struct menu *menu);
 int get_jump_key_char(void);
 struct gstr get_relations_str(struct symbol **sym_arr, struct list_head *head);
 void menu_get_ext_help(struct menu *menu, struct gstr *help);
+void menu_dump(void);
 
 /* symbol.c */
 void sym_clear_all_valid(void);

@@ -154,13 +154,6 @@ static void quickstart_notify_remove(void *context)
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, quickstart_notify);
 }
 
-static void quickstart_mutex_destroy(void *data)
-{
-	struct mutex *lock = data;
-
-	mutex_destroy(lock);
-}
-
 static int quickstart_probe(struct platform_device *pdev)
 {
 	struct quickstart_data *data;
@@ -179,8 +172,7 @@ static int quickstart_probe(struct platform_device *pdev)
 	data->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, data);
 
-	mutex_init(&data->input_lock);
-	ret = devm_add_action_or_reset(&pdev->dev, quickstart_mutex_destroy, &data->input_lock);
+	ret = devm_mutex_init(&pdev->dev, &data->input_lock);
 	if (ret < 0)
 		return ret;
 

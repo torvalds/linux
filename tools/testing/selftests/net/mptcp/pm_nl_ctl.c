@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <error.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,6 +114,8 @@ static int capture_events(int fd, int event_group)
 		error(1, errno, "could not join the " MPTCP_PM_EV_GRP_NAME " mcast group");
 
 	do {
+		bool server_side = false;
+
 		FD_ZERO(&rfds);
 		FD_SET(fd, &rfds);
 		res_len = NLMSG_ALIGN(sizeof(struct nlmsghdr)) +
@@ -187,11 +190,22 @@ static int capture_events(int fd, int event_group)
 				else if (attrs->rta_type == MPTCP_ATTR_ERROR)
 					fprintf(stderr, ",error:%u", *(__u8 *)RTA_DATA(attrs));
 				else if (attrs->rta_type == MPTCP_ATTR_SERVER_SIDE)
-					fprintf(stderr, ",server_side:%u", *(__u8 *)RTA_DATA(attrs));
+					server_side = !!*(__u8 *)RTA_DATA(attrs);
+				else if (attrs->rta_type == MPTCP_ATTR_FLAGS) {
+					__u16 flags = *(__u16 *)RTA_DATA(attrs);
+
+					/* only print when present, easier */
+					if (flags & MPTCP_PM_EV_FLAG_DENY_JOIN_ID0)
+						fprintf(stderr, ",deny_join_id0:1");
+					if (flags & MPTCP_PM_EV_FLAG_SERVER_SIDE)
+						server_side = true;
+				}
 
 				attrs = RTA_NEXT(attrs, msg_len);
 			}
 		}
+		if (server_side)
+			fprintf(stderr, ",server_side:1");
 		fprintf(stderr, "\n");
 	} while (1);
 
@@ -816,6 +830,8 @@ int add_addr(int fd, int pm_family, int argc, char *argv[])
 					flags |= MPTCP_PM_ADDR_FLAG_SUBFLOW;
 				else if (!strcmp(tok, "signal"))
 					flags |= MPTCP_PM_ADDR_FLAG_SIGNAL;
+				else if (!strcmp(tok, "laminar"))
+					flags |= MPTCP_PM_ADDR_FLAG_LAMINAR;
 				else if (!strcmp(tok, "backup"))
 					flags |= MPTCP_PM_ADDR_FLAG_BACKUP;
 				else if (!strcmp(tok, "fullmesh"))
@@ -1000,6 +1016,13 @@ static void print_addr(struct rtattr *attrs, int len)
 			if (flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
 				printf("subflow");
 				flags &= ~MPTCP_PM_ADDR_FLAG_SUBFLOW;
+				if (flags)
+					printf(",");
+			}
+
+			if (flags & MPTCP_PM_ADDR_FLAG_LAMINAR) {
+				printf("laminar");
+				flags &= ~MPTCP_PM_ADDR_FLAG_LAMINAR;
 				if (flags)
 					printf(",");
 			}

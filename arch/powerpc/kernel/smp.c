@@ -1028,19 +1028,19 @@ static int powerpc_shared_proc_flags(void)
  * We can't just pass cpu_l2_cache_mask() directly because
  * returns a non-const pointer and the compiler barfs on that.
  */
-static const struct cpumask *shared_cache_mask(int cpu)
+static const struct cpumask *tl_cache_mask(struct sched_domain_topology_level *tl, int cpu)
 {
 	return per_cpu(cpu_l2_cache_map, cpu);
 }
 
 #ifdef CONFIG_SCHED_SMT
-static const struct cpumask *smallcore_smt_mask(int cpu)
+static const struct cpumask *tl_smallcore_smt_mask(struct sched_domain_topology_level *tl, int cpu)
 {
 	return cpu_smallcore_mask(cpu);
 }
 #endif
 
-static struct cpumask *cpu_coregroup_mask(int cpu)
+struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	return per_cpu(cpu_coregroup_map, cpu);
 }
@@ -1052,11 +1052,6 @@ static bool has_coregroup_support(void)
 		return 0;
 
 	return coregroup_enabled;
-}
-
-static const struct cpumask *cpu_mc_mask(int cpu)
-{
-	return cpu_coregroup_mask(cpu);
 }
 
 static int __init init_big_cores(void)
@@ -1448,7 +1443,7 @@ static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 		return false;
 	}
 
-	cpumask_and(*mask, cpu_online_mask, cpu_cpu_mask(cpu));
+	cpumask_and(*mask, cpu_online_mask, cpu_node_mask(cpu));
 
 	/* Update l2-cache mask with all the CPUs that are part of submask */
 	or_cpumasks_related(cpu, cpu, submask_fn, cpu_l2_cache_mask);
@@ -1538,7 +1533,7 @@ static void update_coregroup_mask(int cpu, cpumask_var_t *mask)
 		return;
 	}
 
-	cpumask_and(*mask, cpu_online_mask, cpu_cpu_mask(cpu));
+	cpumask_and(*mask, cpu_online_mask, cpu_node_mask(cpu));
 
 	/* Update coregroup mask with all the CPUs that are part of submask */
 	or_cpumasks_related(cpu, cpu, submask_fn, cpu_coregroup_mask);
@@ -1601,7 +1596,7 @@ static void add_cpu_to_masks(int cpu)
 
 	/* If chip_id is -1; limit the cpu_core_mask to within PKG */
 	if (chip_id == -1)
-		cpumask_and(mask, mask, cpu_cpu_mask(cpu));
+		cpumask_and(mask, mask, cpu_node_mask(cpu));
 
 	for_each_cpu(i, mask) {
 		if (chip_id == cpu_to_chip_id(i)) {
@@ -1701,22 +1696,22 @@ static void __init build_sched_topology(void)
 	if (has_big_cores) {
 		pr_info("Big cores detected but using small core scheduling\n");
 		powerpc_topology[i++] =
-			SDTL_INIT(smallcore_smt_mask, powerpc_smt_flags, SMT);
+			SDTL_INIT(tl_smallcore_smt_mask, powerpc_smt_flags, SMT);
 	} else {
-		powerpc_topology[i++] = SDTL_INIT(cpu_smt_mask, powerpc_smt_flags, SMT);
+		powerpc_topology[i++] = SDTL_INIT(tl_smt_mask, powerpc_smt_flags, SMT);
 	}
 #endif
 	if (shared_caches) {
 		powerpc_topology[i++] =
-			SDTL_INIT(shared_cache_mask, powerpc_shared_cache_flags, CACHE);
+			SDTL_INIT(tl_cache_mask, powerpc_shared_cache_flags, CACHE);
 	}
 
 	if (has_coregroup_support()) {
 		powerpc_topology[i++] =
-			SDTL_INIT(cpu_mc_mask, powerpc_shared_proc_flags, MC);
+			SDTL_INIT(tl_mc_mask, powerpc_shared_proc_flags, MC);
 	}
 
-	powerpc_topology[i++] = SDTL_INIT(cpu_cpu_mask, powerpc_shared_proc_flags, PKG);
+	powerpc_topology[i++] = SDTL_INIT(tl_pkg_mask, powerpc_shared_proc_flags, PKG);
 
 	/* There must be one trailing NULL entry left.  */
 	BUG_ON(i >= ARRAY_SIZE(powerpc_topology) - 1);

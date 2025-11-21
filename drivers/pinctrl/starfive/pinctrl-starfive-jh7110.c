@@ -935,7 +935,7 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 	sfp->gc.direction_input = jh7110_gpio_direction_input;
 	sfp->gc.direction_output = jh7110_gpio_direction_output;
 	sfp->gc.get = jh7110_gpio_get;
-	sfp->gc.set_rv = jh7110_gpio_set;
+	sfp->gc.set = jh7110_gpio_set;
 	sfp->gc.set_config = jh7110_gpio_set_config;
 	sfp->gc.add_pin_ranges = jh7110_gpio_add_pin_ranges;
 	sfp->gc.base = info->gc_base;

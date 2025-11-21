@@ -18,74 +18,36 @@
 #
 ###############################################################################
 
-# Test for a color capable console
-if [ -z "$USE_COLOR" ]; then
-    tput setf 7 || tput setaf 7
-    if [ $? -eq 0 ]; then
-        USE_COLOR=1
-        tput sgr0
-    fi
-fi
-if [ "$USE_COLOR" -eq 1 ]; then
-    COLOR="-c"
-fi
-
+echo
+./futex_requeue_pi
 
 echo
-# requeue pi testing
-# without timeouts
-./futex_requeue_pi $COLOR
-./futex_requeue_pi $COLOR -b
-./futex_requeue_pi $COLOR -b -l
-./futex_requeue_pi $COLOR -b -o
-./futex_requeue_pi $COLOR -l
-./futex_requeue_pi $COLOR -o
-# with timeouts
-./futex_requeue_pi $COLOR -b -l -t 5000
-./futex_requeue_pi $COLOR -l -t 5000
-./futex_requeue_pi $COLOR -b -l -t 500000
-./futex_requeue_pi $COLOR -l -t 500000
-./futex_requeue_pi $COLOR -b -t 5000
-./futex_requeue_pi $COLOR -t 5000
-./futex_requeue_pi $COLOR -b -t 500000
-./futex_requeue_pi $COLOR -t 500000
-./futex_requeue_pi $COLOR -b -o -t 5000
-./futex_requeue_pi $COLOR -l -t 5000
-./futex_requeue_pi $COLOR -b -o -t 500000
-./futex_requeue_pi $COLOR -l -t 500000
-# with long timeout
-./futex_requeue_pi $COLOR -b -l -t 2000000000
-./futex_requeue_pi $COLOR -l -t 2000000000
-
+./futex_requeue_pi_mismatched_ops
 
 echo
-./futex_requeue_pi_mismatched_ops $COLOR
+./futex_requeue_pi_signal_restart
 
 echo
-./futex_requeue_pi_signal_restart $COLOR
+./futex_wait_timeout
 
 echo
-./futex_wait_timeout $COLOR
+./futex_wait_wouldblock
 
 echo
-./futex_wait_wouldblock $COLOR
+./futex_wait_uninitialized_heap
+./futex_wait_private_mapped_file
 
 echo
-./futex_wait_uninitialized_heap $COLOR
-./futex_wait_private_mapped_file $COLOR
+./futex_wait
 
 echo
-./futex_wait $COLOR
+./futex_requeue
 
 echo
-./futex_requeue $COLOR
+./futex_waitv
 
 echo
-./futex_waitv $COLOR
+./futex_priv_hash
 
 echo
-./futex_priv_hash $COLOR
-./futex_priv_hash -g $COLOR
-
-echo
-./futex_numa_mpol $COLOR
+./futex_numa_mpol

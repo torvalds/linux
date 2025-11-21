@@ -335,7 +335,7 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 static int ubifs_drop_inode(struct inode *inode)
 {
-	int drop = generic_drop_inode(inode);
+	int drop = inode_generic_drop(inode);
 
 	if (!drop)
 		drop = fscrypt_drop_inode(inode);
@@ -358,7 +358,7 @@ static void ubifs_evict_inode(struct inode *inode)
 		goto out;
 
 	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
-	ubifs_assert(c, !atomic_read(&inode->i_count));
+	ubifs_assert(c, !icount_read(inode));
 
 	truncate_inode_pages_final(&inode->i_data);
 

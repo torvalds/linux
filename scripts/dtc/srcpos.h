@@ -88,6 +88,7 @@ extern void srcpos_update(struct srcpos *pos, const char *text, int len);
 extern struct srcpos *srcpos_copy(struct srcpos *pos);
 extern struct srcpos *srcpos_extend(struct srcpos *new_srcpos,
 				    struct srcpos *old_srcpos);
+extern void srcpos_free(struct srcpos *pos);
 extern char *srcpos_string(struct srcpos *pos);
 extern char *srcpos_string_first(struct srcpos *pos, int level);
 extern char *srcpos_string_last(struct srcpos *pos, int level);

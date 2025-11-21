@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple T6020 "M2 Pro" SoC
+ *
+ * Other names: H14J, "Rhodes Chop"
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/* This chip is just a cut down version of t6021, so include it and disable the missing parts */
+
+#include "t6021.dtsi"
+
+/ {
+	compatible = "apple,t6020", "apple,arm-platform";
+};
+
+/delete-node/ &pmgr_south;
+
+&gpu {
+	compatible = "apple,agx-g14s";
+};

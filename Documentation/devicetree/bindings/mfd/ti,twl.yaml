@@ -11,9 +11,9 @@ maintainers:
 
 description: |
   The TWLs are Integrated Power Management Chips.
-  Some version might contain much more analog function like
+  Some versions might contain much more analog functions like
   USB transceiver or Audio amplifier.
-  These chips are connected to an i2c bus.
+  These chips are connected to an I2C bus.
 
 allOf:
   - if:
@@ -49,33 +49,14 @@ allOf:
             ti,retain-on-reset: false
 
       properties:
-        madc:
-          type: object
-          $ref: /schemas/iio/adc/ti,twl4030-madc.yaml
-          unevaluatedProperties: false
-
         charger:
-          type: object
           $ref: /schemas/power/supply/twl4030-charger.yaml
           unevaluatedProperties: false
 
-        pwrbutton:
-          type: object
-          additionalProperties: false
-          properties:
-            compatible:
-              const: ti,twl4030-pwrbutton
-            interrupts:
-              items:
-                - items:
-                    const: 8
+        gpadc: false
 
-        watchdog:
-          type: object
-          additionalProperties: false
-          properties:
-            compatible:
-              const: ti,twl4030-wdt
+        usb-comparator: false
+
   - if:
       properties:
         compatible:
@@ -106,15 +87,30 @@ allOf:
 
       properties:
         charger:
-          type: object
-          properties:
-            compatible:
-              const: ti,twl6030-charger
+          $ref: /schemas/power/supply/ti,twl6030-charger.yaml
+          unevaluatedProperties: false
+
         gpadc:
-          type: object
           properties:
             compatible:
               const: ti,twl6030-gpadc
+
+        pwrbutton: false
+
+        madc: false
+
+        watchdog: false
+
+        audio: false
+
+        keypad: false
+
+        twl4030-usb: false
+
+        gpio: false
+
+        power: false
+
   - if:
       properties:
         compatible:
@@ -142,23 +138,36 @@ allOf:
 
       properties:
         charger:
-          type: object
-          properties:
-            compatible:
-              items:
-                - const: ti,twl6032-charger
-                - const: ti,twl6030-charger
+          $ref: /schemas/power/supply/ti,twl6030-charger.yaml
+          unevaluatedProperties: false
+
         gpadc:
-          type: object
           properties:
             compatible:
               const: ti,twl6032-gpadc
 
+        pwrbutton: false
+
+        madc: false
+
+        watchdog: false
+
+        audio: false
+
+        keypad: false
+
+        twl4030-usb: false
+
+        gpio: false
+
+        power: false
+
 properties:
   compatible:
-    description:
-      TWL4030 for integrated power-management/audio CODEC device used in OMAP3
-      based boards
+    description: >
+      TWL4030 for integrated power-management/audio CODEC device used in
+      OMAP3 based boards.
+
       TWL6030/32 for integrated power-management used in OMAP4 based boards
     enum:
       - ti,twl4030
@@ -181,28 +190,221 @@ properties:
   "#clock-cells":
     const: 1
 
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: fck
+
   charger:
     type: object
-    additionalProperties: true
+
     properties:
       compatible: true
+
     required:
       - compatible
 
   rtc:
     type: object
     additionalProperties: false
+
     properties:
       compatible:
         const: ti,twl4030-rtc
       interrupts:
         maxItems: 1
 
+  madc:
+    type: object
+    $ref: /schemas/iio/adc/ti,twl4030-madc.yaml
+    unevaluatedProperties: false
+
+  pwrbutton:
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: ti,twl4030-pwrbutton
+      interrupts:
+        items:
+          - items:
+              const: 8
+
+  watchdog:
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: ti,twl4030-wdt
+
+  audio:
+    type: object
+    additionalProperties: true
+
+    properties:
+      compatible:
+        const: ti,twl4030-audio
+
+    required:
+      - compatible
+
+  keypad:
+    type: object
+    additionalProperties: true
+
+    properties:
+      compatible:
+        const: ti,twl4030-keypad
+
+    required:
+      - compatible
+
+  twl4030-usb:
+    type: object
+    additionalProperties: true
+
+    properties:
+      compatible:
+        const: ti,twl4030-usb
+
+    required:
+      - compatible
+
+  gpio:
+    type: object
+    additionalProperties: true
+
+    properties:
+      compatible:
+        const: ti,twl4030-gpio
+
+    required:
+      - compatible
+
+  power:
+    type: object
+    additionalProperties: false
+    description: >
+      The power management module inside the TWL4030 provides several
+      facilities to control the power resources, including power scripts.
+
+      For now, the binding only supports the complete shutdown of the
+      system after poweroff.
+
+      Board-specific compatible strings may be used for platform-specific
+      power configurations.
+
+      A board-specific compatible string (e.g., ti,twl4030-power-omap3-evm)
+      may be paired with a generic fallback (generally for power saving mode).
+
+    properties:
+      compatible:
+        oneOf:
+          # Case 1: A single compatible string is provided.
+          - enum:
+              - ti,twl4030-power
+              - ti,twl4030-power-reset
+              - ti,twl4030-power-idle
+              - ti,twl4030-power-idle-osc-off
+              - ti,twl4030-power-omap3-sdp
+              - ti,twl4030-power-omap3-ldp
+              - ti,twl4030-power-omap3-evm
+
+          # Case 2: The specific, valid fallback for 'idle-osc-off'.
+          - items:
+              - const: ti,twl4030-power-idle-osc-off
+              - const: ti,twl4030-power-idle
+
+          # Case 3: The specific, valid fallback for 'omap3-evm'.
+          - items:
+              - const: ti,twl4030-power-omap3-evm
+              - const: ti,twl4030-power-idle
+
+      ti,system-power-controller:
+        type: boolean
+        deprecated: true
+        description: >
+          DEPRECATED. The standard 'system-power-controller'
+          property on the parent node should be used instead.
+
+      ti,use_poweroff:
+        type: boolean
+        deprecated: true
+        description: DEPRECATED, to be removed.
+
+    required:
+      - compatible
+
+  gpadc:
+    type: object
+    $ref: /schemas/iio/adc/ti,twl6030-gpadc.yaml
+    unevaluatedProperties: false
+
+    properties:
+      compatible: true
+
+  usb-comparator:
+    type: object
+    additionalProperties: true
+
+    properties:
+      compatible:
+        const: ti,twl6030-usb
+
+    required:
+      - compatible
+
+  pwm:
+    type: object
+    $ref: /schemas/pwm/pwm.yaml#
+    unevaluatedProperties: false
+    description:
+      PWM controllers (PWM1 and PWM2 on TWL4030, PWM0 and PWM1 on TWL6030/32).
+
+    properties:
+      compatible:
+        enum:
+          - ti,twl4030-pwm
+          - ti,twl6030-pwm
+
+      '#pwm-cells':
+        const: 2
+
+    required:
+      - compatible
+      - '#pwm-cells'
+
+  pwmled:
+    type: object
+    $ref: /schemas/pwm/pwm.yaml#
+    unevaluatedProperties: false
+    description: >
+      PWM controllers connected to LED terminals (PWMA and PWMB on TWL4030.
+
+      LED PWM on TWL6030/32, mainly used as charging indicator LED).
+
+    properties:
+      compatible:
+        enum:
+          - ti,twl4030-pwmled
+          - ti,twl6030-pwmled
+
+      '#pwm-cells':
+        const: 2
+
+    required:
+      - compatible
+      - '#pwm-cells'
+
 patternProperties:
   "^regulator-":
     type: object
     unevaluatedProperties: false
     $ref: /schemas/regulator/regulator.yaml
+
     properties:
       compatible: true
       regulator-initial-mode:
@@ -211,12 +413,13 @@ patternProperties:
                  # with low power consumption with low load current capability
           - 0x0e # Active mode, the regulator can deliver its nominal output
                  # voltage with full-load current capability
+
       ti,retain-on-reset:
-        description:
-          Does not turn off the supplies during warm
-          reset. Could be needed for VMMC, as TWL6030
-          reset sequence for this signal does not comply
-          with the SD specification.
+        description: >
+          Does not turn off the supplies during warm reset.
+
+          Could be needed for VMMC, as TWL6030 reset sequence for
+          this signal does not comply with the SD specification.
         type: boolean
 
 unevaluatedProperties: false
@@ -271,6 +474,16 @@ examples:
           compatible = "ti,twl6030-vmmc";
           ti,retain-on-reset;
         };
+
+        pwm {
+          compatible = "ti,twl6030-pwm";
+          #pwm-cells = <2>;
+        };
+
+        pwmled {
+          compatible = "ti,twl6030-pwmled";
+          #pwm-cells = <2>;
+        };
       };
     };
 
@@ -324,6 +537,20 @@ examples:
 
         watchdog {
           compatible = "ti,twl4030-wdt";
+        };
+
+        power {
+          compatible = "ti,twl4030-power";
+        };
+
+        pwm {
+          compatible = "ti,twl4030-pwm";
+          #pwm-cells = <2>;
+        };
+
+        pwmled {
+          compatible = "ti,twl4030-pwmled";
+          #pwm-cells = <2>;
         };
       };
     };

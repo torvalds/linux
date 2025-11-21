@@ -332,6 +332,7 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 	struct ieee80211_key_conf *key;
 	u32 len = le16_to_cpu(desc->mpdu_len);
 	const u8 *frame = (void *)hdr;
+	const u8 *mmie;
 
 	if ((status & IWL_RX_MPDU_STATUS_SEC_MASK) == IWL_RX_MPDU_STATUS_SEC_NONE)
 		return 0;
@@ -375,11 +376,15 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 			goto report;
 	}
 
-	if (len < key->icv_len + IEEE80211_GMAC_PN_LEN + 2)
+	if (len < key->icv_len)
 		goto report;
 
 	/* get the real key ID */
-	keyid = frame[len - key->icv_len - IEEE80211_GMAC_PN_LEN - 2];
+	mmie = frame + (len - key->icv_len);
+
+	/* the position of the key_id in ieee80211_mmie_16 is the same */
+	keyid = le16_to_cpu(((const struct ieee80211_mmie *) mmie)->key_id);
+
 	/* and if that's the other key, look it up */
 	if (keyid != key->keyidx) {
 		/*
@@ -2099,7 +2104,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0;
-	u8 sta_id = le32_get_bits(desc->status, IWL_RX_MPDU_STATUS_STA_ID);
 	size_t desc_size;
 	struct iwl_mvm_rx_phy_data phy_data = {};
 	u32 format;
@@ -2246,6 +2250,9 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rcu_read_lock();
 
 	if (desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_SRC_STA_FOUND)) {
+		u8 sta_id = le32_get_bits(desc->status,
+					  IWL_RX_MPDU_STATUS_STA_ID);
+
 		if (!WARN_ON_ONCE(sta_id >= mvm->fw->ucode_capa.num_stations)) {
 			struct ieee80211_link_sta *link_sta;
 
@@ -2372,16 +2379,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			u32 reorder_data = le32_to_cpu(desc->reorder_data);
 
 			iwl_mvm_agg_rx_received(mvm, reorder_data, baid);
-		}
-
-		if (ieee80211_is_data(hdr->frame_control)) {
-			u8 sub_frame_idx = desc->amsdu_info &
-				IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
-
-			/* 0 means not an A-MSDU, and 1 means a new A-MSDU */
-			if (!sub_frame_idx || sub_frame_idx == 1)
-				iwl_mvm_count_mpdu(mvmsta, sta_id, 1, false,
-						   queue);
 		}
 	}
 

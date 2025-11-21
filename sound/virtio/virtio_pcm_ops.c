@@ -327,7 +327,6 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 	struct virtio_snd *snd = vss->snd;
 	struct virtio_snd_queue *queue;
 	struct virtio_snd_msg *msg;
-	unsigned long flags;
 	int rc = 0;
 
 	switch (command) {
@@ -335,23 +334,20 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		queue = virtsnd_pcm_queue(vss);
 
-		spin_lock_irqsave(&queue->lock, flags);
-		spin_lock(&vss->lock);
-		if (vss->direction == SNDRV_PCM_STREAM_CAPTURE)
-			rc = virtsnd_pcm_msg_send(vss, 0, vss->buffer_bytes);
-		if (!rc)
+		scoped_guard(spinlock_irqsave, &queue->lock) {
+			guard(spinlock)(&vss->lock);
+			if (vss->direction == SNDRV_PCM_STREAM_CAPTURE)
+				rc = virtsnd_pcm_msg_send(vss, 0, vss->buffer_bytes);
+			if (rc)
+				return rc;
 			vss->xfer_enabled = true;
-		spin_unlock(&vss->lock);
-		spin_unlock_irqrestore(&queue->lock, flags);
-		if (rc)
-			return rc;
+		}
 
 		msg = virtsnd_pcm_ctl_msg_alloc(vss, VIRTIO_SND_R_PCM_START,
 						GFP_KERNEL);
 		if (!msg) {
-			spin_lock_irqsave(&vss->lock, flags);
+			guard(spinlock_irqsave)(&vss->lock);
 			vss->xfer_enabled = false;
-			spin_unlock_irqrestore(&vss->lock, flags);
 
 			return -ENOMEM;
 		}
@@ -364,9 +360,9 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 		vss->stopped = true;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		spin_lock_irqsave(&vss->lock, flags);
-		vss->xfer_enabled = false;
-		spin_unlock_irqrestore(&vss->lock, flags);
+		scoped_guard(spinlock_irqsave, &vss->lock) {
+			vss->xfer_enabled = false;
+		}
 
 		msg = virtsnd_pcm_ctl_msg_alloc(vss, VIRTIO_SND_R_PCM_STOP,
 						GFP_KERNEL);
@@ -480,38 +476,24 @@ static int virtsnd_pcm_pb_ack(struct snd_pcm_substream *substream)
 {
 	struct virtio_pcm_substream *vss = snd_pcm_substream_chip(substream);
 	struct virtio_snd_queue *queue = virtsnd_pcm_queue(vss);
-	unsigned long flags;
-	int rc;
 
-	spin_lock_irqsave(&queue->lock, flags);
-	spin_lock(&vss->lock);
+	guard(spinlock_irqsave)(&queue->lock);
+	guard(spinlock)(&vss->lock);
 
-	rc = snd_pcm_indirect_playback_transfer(substream, &vss->pcm_indirect,
-						virtsnd_pcm_trans_copy);
-
-	spin_unlock(&vss->lock);
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-	return rc;
+	return snd_pcm_indirect_playback_transfer(substream, &vss->pcm_indirect,
+						  virtsnd_pcm_trans_copy);
 }
 
 static int virtsnd_pcm_cp_ack(struct snd_pcm_substream *substream)
 {
 	struct virtio_pcm_substream *vss = snd_pcm_substream_chip(substream);
 	struct virtio_snd_queue *queue = virtsnd_pcm_queue(vss);
-	unsigned long flags;
-	int rc;
 
-	spin_lock_irqsave(&queue->lock, flags);
-	spin_lock(&vss->lock);
+	guard(spinlock_irqsave)(&queue->lock);
+	guard(spinlock)(&vss->lock);
 
-	rc = snd_pcm_indirect_capture_transfer(substream, &vss->pcm_indirect,
-					       virtsnd_pcm_trans_copy);
-
-	spin_unlock(&vss->lock);
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-	return rc;
+	return snd_pcm_indirect_capture_transfer(substream, &vss->pcm_indirect,
+						 virtsnd_pcm_trans_copy);
 }
 
 /* PCM substream operators map. */

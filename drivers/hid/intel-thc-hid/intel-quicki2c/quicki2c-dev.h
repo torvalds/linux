@@ -13,6 +13,8 @@
 #define PCI_DEVICE_ID_INTEL_THC_PTL_H_DEVICE_ID_I2C_PORT2	0xE34A
 #define PCI_DEVICE_ID_INTEL_THC_PTL_U_DEVICE_ID_I2C_PORT1	0xE448
 #define PCI_DEVICE_ID_INTEL_THC_PTL_U_DEVICE_ID_I2C_PORT2	0xE44A
+#define PCI_DEVICE_ID_INTEL_THC_WCL_DEVICE_ID_I2C_PORT1 	0x4D48
+#define PCI_DEVICE_ID_INTEL_THC_WCL_DEVICE_ID_I2C_PORT2 	0x4D4A
 
 /* Packet size value, the unit is 16 bytes */
 #define MAX_PACKET_SIZE_VALUE_LNL			256
@@ -38,6 +40,8 @@
 
 /* PTL Max packet size detection capability is 255 Bytes */
 #define MAX_RX_DETECT_SIZE_PTL			255
+/* Max interrupt delay capability is 2.56ms */
+#define MAX_RX_INTERRUPT_DELAY			256
 
 /* Default interrupt delay is 1ms, suitable for most devices */
 #define DEFAULT_INTERRUPT_DELAY_US		(1 * USEC_PER_MSEC)
@@ -77,6 +81,7 @@ struct quicki2c_subip_acpi_parameter {
 	u16 device_address;
 	u64 connection_speed;
 	u8 addressing_mode;
+	u8 reserved;
 } __packed;
 
 /**
@@ -100,6 +105,10 @@ struct quicki2c_subip_acpi_parameter {
  * @HMTD: High Speed Mode Plus (3.4Mbits/sec) Serial Data Line Transmit HOLD Period
  * @HMRD: High Speed Mode Plus (3.4Mbits/sec) Serial Data Line Receive HOLD Period
  * @HMSL: Maximum length (in ic_clk_cycles) of suppressed spikes in High Speed Mode
+ * @FSEN: Maximum Frame Size Feature Enable Control
+ * @FSVL: Maximum Frame Size Value (unit in Bytes)
+ * @INDE: Interrupt Delay Feature Enable Control
+ * @INDV: Interrupt Delay Value (unit in 10 us)
  *
  * Those properties get from QUICKI2C_ACPI_METHOD_NAME_ISUB method, used for
  * I2C timing configure.
@@ -126,16 +135,22 @@ struct quicki2c_subip_acpi_config {
 	u64 HMTD;
 	u64 HMRD;
 	u64 HMSL;
+
+	u64 FSEN;
+	u64 FSVL;
+	u64 INDE;
+	u64 INDV;
+	u8 reserved;
 };
 
 /**
  * struct quicki2c_ddata - Driver specific data for quicki2c device
  * @max_detect_size: Identify max packet size detect for rx
- * @interrupt_delay: Identify interrupt detect delay for rx
+ * @interrupt_delay: Identify max interrupt detect delay for rx
  */
 struct quicki2c_ddata {
 	u32 max_detect_size;
-	u32 interrupt_delay;
+	u32 max_interrupt_delay;
 };
 
 struct device;
@@ -168,6 +183,10 @@ struct acpi_device;
  * @report_len: The length of input/output report packet
  * @reset_ack_wq: Workqueue for waiting reset response from device
  * @reset_ack: Indicate reset response received or not
+ * @i2c_max_frame_size_enable: Indicate max frame size feature enabled or not
+ * @i2c_max_frame_size: Max RX frame size (unit in Bytes)
+ * @i2c_int_delay_enable: Indicate interrupt delay feature enabled or not
+ * @i2c_int_delay: Interrupt detection delay value (unit in 10 us)
  */
 struct quicki2c_device {
 	struct device *dev;
@@ -198,6 +217,11 @@ struct quicki2c_device {
 
 	wait_queue_head_t reset_ack_wq;
 	bool reset_ack;
+
+	u32 i2c_max_frame_size_enable;
+	u32 i2c_max_frame_size;
+	u32 i2c_int_delay_enable;
+	u32 i2c_int_delay;
 };
 
 #endif /* _QUICKI2C_DEV_H_ */

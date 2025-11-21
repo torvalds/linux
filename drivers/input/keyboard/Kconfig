@@ -262,24 +262,6 @@ config KEYBOARD_GPIO_POLLED
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_keys_polled.
 
-config KEYBOARD_TCA6416
-	tristate "TCA6416/TCA6408A Keypad Support"
-	depends on I2C
-	help
-	  This driver implements basic keypad functionality
-	  for keys connected through TCA6416/TCA6408A IO expanders.
-
-	  Say Y here if your device has keys connected to
-	  TCA6416/TCA6408A IO expander. Your board-specific setup logic
-	  must also provide pin-mask details(of which TCA6416 pins
-	  are used for keypad).
-
-	  If enabled the entire TCA6416 device will be managed through
-	  this driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tca6416_keypad.
-
 config KEYBOARD_TCA8418
 	tristate "TCA8418 Keypad Support"
 	depends on I2C
@@ -421,6 +403,18 @@ config KEYBOARD_MAX7359
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called max7359_keypad.
+
+config KEYBOARD_MAX7360
+	tristate "Maxim MAX7360 Key Switch Controller"
+	select INPUT_MATRIXKMAP
+	depends on I2C
+	depends on MFD_MAX7360
+	help
+	  If you say yes here you get support for the keypad controller on the
+	  Maxim MAX7360 I/O Expander.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max7360_keypad.
 
 config KEYBOARD_MPR121
 	tristate "Freescale MPR121 Touchkey"

@@ -23,3 +23,9 @@ Contact:	Longfang Liu <liulongfang@huawei.com>
 Description:	Read the live migration status of the vfio device.
 		The contents of the state file reflects the migration state
 		relative to those defined in the vfio_device_mig_state enum
+
+What:		/sys/kernel/debug/vfio/<device>/migration/features
+Date:		Oct 2025
+KernelVersion:	6.18
+Contact:	Cédric Le Goater <clg@redhat.com>
+Description:	Read the migration features of the vfio device.

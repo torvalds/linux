@@ -252,7 +252,7 @@ static int v9fs_drop_inode(struct inode *inode)
 
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
-		return generic_drop_inode(inode);
+		return inode_generic_drop(inode);
 	/*
 	 * in case of non cached mode always drop the
 	 * inode because we want the inode attribute

@@ -1,0 +1,41 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+
+Kernel driver sa67mcu
+=====================
+
+Supported chips:
+
+   * Kontron sa67mcu
+
+     Prefix: 'sa67mcu'
+
+     Datasheet: not available
+
+Authors: Michael Walle <mwalle@kernel.org>
+
+Description
+-----------
+
+The sa67mcu is a board management controller which also exposes a hardware
+monitoring controller.
+
+The controller has two voltage and one temperature sensor. The values are
+hold in two 8 bit registers to form one 16 bit value. Reading the lower byte
+will also capture the high byte to make the access atomic. The unit of the
+volatge sensors are 1mV and the unit of the temperature sensor is 0.1degC.
+
+Sysfs entries
+-------------
+
+The following attributes are supported.
+
+======================= ========================================================
+in0_label		"VDDIN"
+in0_input		Measured VDDIN voltage.
+
+in1_label		"VDD_RTC"
+in1_input		Measured VDD_RTC voltage.
+
+temp1_input		MCU temperature. Roughly the board temperature.
+======================= ========================================================
+

@@ -174,7 +174,7 @@ static struct ctl_table sctp_net_table[] = {
 	},
 	{
 		.procname	= "cookie_hmac_alg",
-		.data		= &init_net.sctp.sctp_hmac_alg,
+		.data		= &init_net.sctp.cookie_auth_enable,
 		.maxlen		= 8,
 		.mode		= 0644,
 		.proc_handler	= proc_sctp_do_hmac_alg,
@@ -388,10 +388,8 @@ static int proc_sctp_do_hmac_alg(const struct ctl_table *ctl, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = container_of(ctl->data, struct net,
-				       sctp.sctp_hmac_alg);
+				       sctp.cookie_auth_enable);
 	struct ctl_table tbl;
-	bool changed = false;
-	char *none = "none";
 	char tmp[8] = {0};
 	int ret;
 
@@ -399,35 +397,26 @@ static int proc_sctp_do_hmac_alg(const struct ctl_table *ctl, int write,
 
 	if (write) {
 		tbl.data = tmp;
-		tbl.maxlen = sizeof(tmp);
-	} else {
-		tbl.data = net->sctp.sctp_hmac_alg ? : none;
-		tbl.maxlen = strlen(tbl.data);
+		tbl.maxlen = sizeof(tmp) - 1;
+		ret = proc_dostring(&tbl, 1, buffer, lenp, ppos);
+		if (ret)
+			return ret;
+		if (!strcmp(tmp, "sha256")) {
+			net->sctp.cookie_auth_enable = 1;
+			return 0;
+		}
+		if (!strcmp(tmp, "none")) {
+			net->sctp.cookie_auth_enable = 0;
+			return 0;
+		}
+		return -EINVAL;
 	}
-
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0) {
-#ifdef CONFIG_CRYPTO_MD5
-		if (!strncmp(tmp, "md5", 3)) {
-			net->sctp.sctp_hmac_alg = "md5";
-			changed = true;
-		}
-#endif
-#ifdef CONFIG_CRYPTO_SHA1
-		if (!strncmp(tmp, "sha1", 4)) {
-			net->sctp.sctp_hmac_alg = "sha1";
-			changed = true;
-		}
-#endif
-		if (!strncmp(tmp, "none", 4)) {
-			net->sctp.sctp_hmac_alg = NULL;
-			changed = true;
-		}
-		if (!changed)
-			ret = -EINVAL;
-	}
-
-	return ret;
+	if (net->sctp.cookie_auth_enable)
+		tbl.data = (char *)"sha256";
+	else
+		tbl.data = (char *)"none";
+	tbl.maxlen = strlen(tbl.data);
+	return proc_dostring(&tbl, 0, buffer, lenp, ppos);
 }
 
 static int proc_sctp_do_rto_min(const struct ctl_table *ctl, int write,

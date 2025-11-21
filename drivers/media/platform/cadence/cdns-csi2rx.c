@@ -5,8 +5,10 @@
  * Copyright (C) 2017 Cadence Design Systems Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -17,6 +19,7 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
+#include <media/cadence/cdns-csi2rx.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -52,7 +55,9 @@
 #define CSI2RX_STREAM_DATA_CFG_VC_SELECT(n)		BIT((n) + 16)
 
 #define CSI2RX_STREAM_CFG_REG(n)		(CSI2RX_STREAM_BASE(n) + 0x00c)
-#define CSI2RX_STREAM_CFG_FIFO_MODE_LARGE_BUF		(1 << 8)
+#define CSI2RX_STREAM_CFG_FIFO_MODE_LARGE_BUF		BIT(8)
+#define CSI2RX_STREAM_CFG_NUM_PIXELS_MASK		GENMASK(5, 4)
+#define CSI2RX_STREAM_CFG_NUM_PIXELS(n)			((n) >> 1U)
 
 #define CSI2RX_LANES_MAX	4
 #define CSI2RX_STREAMS_MAX	4
@@ -87,7 +92,10 @@ enum csi2rx_pads {
 
 struct csi2rx_fmt {
 	u32				code;
+	/* width of a single pixel on CSI-2 bus */
 	u8				bpp;
+	/* max pixels per clock supported on output bus */
+	u8				max_pixels;
 };
 
 struct csi2rx_event {
@@ -132,6 +140,7 @@ struct csi2rx_priv {
 	struct reset_control		*pixel_rst[CSI2RX_STREAMS_MAX];
 	struct phy			*dphy;
 
+	u8				num_pixels[CSI2RX_STREAMS_MAX];
 	u8				lanes[CSI2RX_LANES_MAX];
 	u8				num_lanes;
 	u8				max_lanes;
@@ -149,22 +158,22 @@ struct csi2rx_priv {
 };
 
 static const struct csi2rx_fmt formats[] = {
-	{ .code	= MEDIA_BUS_FMT_YUYV8_1X16, .bpp = 16, },
-	{ .code	= MEDIA_BUS_FMT_UYVY8_1X16, .bpp = 16, },
-	{ .code	= MEDIA_BUS_FMT_YVYU8_1X16, .bpp = 16, },
-	{ .code	= MEDIA_BUS_FMT_VYUY8_1X16, .bpp = 16, },
-	{ .code	= MEDIA_BUS_FMT_SBGGR8_1X8, .bpp = 8, },
-	{ .code	= MEDIA_BUS_FMT_SGBRG8_1X8, .bpp = 8, },
-	{ .code	= MEDIA_BUS_FMT_SGRBG8_1X8, .bpp = 8, },
-	{ .code	= MEDIA_BUS_FMT_SRGGB8_1X8, .bpp = 8, },
-	{ .code	= MEDIA_BUS_FMT_Y8_1X8,     .bpp = 8, },
-	{ .code	= MEDIA_BUS_FMT_SBGGR10_1X10, .bpp = 10, },
-	{ .code	= MEDIA_BUS_FMT_SGBRG10_1X10, .bpp = 10, },
-	{ .code	= MEDIA_BUS_FMT_SGRBG10_1X10, .bpp = 10, },
-	{ .code	= MEDIA_BUS_FMT_SRGGB10_1X10, .bpp = 10, },
-	{ .code	= MEDIA_BUS_FMT_RGB565_1X16,  .bpp = 16, },
-	{ .code	= MEDIA_BUS_FMT_RGB888_1X24,  .bpp = 24, },
-	{ .code	= MEDIA_BUS_FMT_BGR888_1X24,  .bpp = 24, },
+	{ .code	= MEDIA_BUS_FMT_YUYV8_1X16, .bpp = 16, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_UYVY8_1X16, .bpp = 16, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_YVYU8_1X16, .bpp = 16, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_VYUY8_1X16, .bpp = 16, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_SBGGR8_1X8, .bpp = 8, .max_pixels = 4, },
+	{ .code	= MEDIA_BUS_FMT_SGBRG8_1X8, .bpp = 8, .max_pixels = 4, },
+	{ .code	= MEDIA_BUS_FMT_SGRBG8_1X8, .bpp = 8, .max_pixels = 4, },
+	{ .code	= MEDIA_BUS_FMT_SRGGB8_1X8, .bpp = 8, .max_pixels = 4, },
+	{ .code	= MEDIA_BUS_FMT_Y8_1X8,     .bpp = 8, .max_pixels = 4, },
+	{ .code	= MEDIA_BUS_FMT_SBGGR10_1X10, .bpp = 10, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_SGBRG10_1X10, .bpp = 10, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_SGRBG10_1X10, .bpp = 10, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_SRGGB10_1X10, .bpp = 10, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_RGB565_1X16,  .bpp = 16, .max_pixels = 1, },
+	{ .code	= MEDIA_BUS_FMT_RGB888_1X24,  .bpp = 24, .max_pixels = 1, },
+	{ .code	= MEDIA_BUS_FMT_BGR888_1X24,  .bpp = 24, .max_pixels = 1, },
 };
 
 static void csi2rx_configure_error_irq_mask(void __iomem *base,
@@ -370,7 +379,9 @@ static int csi2rx_start(struct csi2rx_priv *csi2rx)
 
 		reset_control_deassert(csi2rx->pixel_rst[i]);
 
-		writel(CSI2RX_STREAM_CFG_FIFO_MODE_LARGE_BUF,
+		writel(CSI2RX_STREAM_CFG_FIFO_MODE_LARGE_BUF |
+			       FIELD_PREP(CSI2RX_STREAM_CFG_NUM_PIXELS_MASK,
+					  csi2rx->num_pixels[i]),
 		       csi2rx->base + CSI2RX_STREAM_CFG_REG(i));
 
 		/*
@@ -569,6 +580,33 @@ static int csi2rx_init_state(struct v4l2_subdev *subdev,
 	return csi2rx_set_fmt(subdev, state, &format);
 }
 
+int cdns_csi2rx_negotiate_ppc(struct v4l2_subdev *subdev, unsigned int pad,
+			      u8 *ppc)
+{
+	struct csi2rx_priv *csi2rx = v4l2_subdev_to_csi2rx(subdev);
+	const struct csi2rx_fmt *csi_fmt;
+	struct v4l2_subdev_state *state;
+	struct v4l2_mbus_framefmt *fmt;
+
+	if (!ppc || pad < CSI2RX_PAD_SOURCE_STREAM0 || pad >= CSI2RX_PAD_MAX)
+		return -EINVAL;
+
+	state = v4l2_subdev_lock_and_get_active_state(subdev);
+	fmt = v4l2_subdev_state_get_format(state, pad);
+	csi_fmt = csi2rx_get_fmt_by_code(fmt->code);
+
+	/* Reduce requested PPC if it is too high */
+	*ppc = min(*ppc, csi_fmt->max_pixels);
+
+	v4l2_subdev_unlock_state(state);
+
+	csi2rx->num_pixels[pad - CSI2RX_PAD_SOURCE_STREAM0] =
+		CSI2RX_STREAM_CFG_NUM_PIXELS(*ppc);
+
+	return 0;
+}
+EXPORT_SYMBOL_FOR_MODULES(cdns_csi2rx_negotiate_ppc, "j721e-csi2rx");
+
 static const struct v4l2_subdev_pad_ops csi2rx_pad_ops = {
 	.enum_mbus_code	= csi2rx_enum_mbus_code,
 	.get_fmt	= v4l2_subdev_get_fmt,
@@ -595,6 +633,7 @@ static const struct v4l2_subdev_internal_ops csi2rx_internal_ops = {
 
 static const struct media_entity_operations csi2rx_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
+	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
 };
 
 static int csi2rx_async_bound(struct v4l2_async_notifier *notifier,

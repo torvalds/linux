@@ -16,6 +16,8 @@ arch/x86/include/asm/orc_types.h
 arch/x86/include/asm/emulate_prefix.h
 arch/x86/lib/x86-opcode-map.txt
 arch/x86/tools/gen-insn-attr-x86.awk
+include/linux/interval_tree_generic.h
+include/linux/livepatch_external.h
 include/linux/static_call_types.h
 "
 

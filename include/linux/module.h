@@ -33,7 +33,7 @@
 #include <linux/percpu.h>
 #include <asm/module.h>
 
-#define MODULE_NAME_LEN MAX_PARAM_PREFIX_LEN
+#define MODULE_NAME_LEN __MODULE_NAME_LEN
 
 struct modversion_info {
 	unsigned long crc;
@@ -165,9 +165,6 @@ extern void cleanup_module(void);
 
 struct module_kobject *lookup_or_create_module_kobject(const char *name);
 
-/* Generic info of form tag = "info" */
-#define MODULE_INFO(tag, info) __MODULE_INFO(tag, tag, info)
-
 /* For userspace: you can also call me... */
 #define MODULE_ALIAS(_alias) MODULE_INFO(alias, _alias)
 
@@ -247,14 +244,23 @@ struct module_kobject *lookup_or_create_module_kobject(const char *name);
 /* What your module does. */
 #define MODULE_DESCRIPTION(_description) MODULE_INFO(description, _description)
 
-#ifdef MODULE
+/*
+ * Format: __mod_device_table__kmod_<modname>__<type>__<name>
+ * Parts of the string `__kmod_` and `__` are used as delimiters when parsing
+ * a symbol in file2alias.c
+ */
+#define __mod_device_table(type, name)	\
+	__PASTE(__mod_device_table__,	\
+	__PASTE(kmod_,			\
+	__PASTE(__KBUILD_MODNAME,	\
+	__PASTE(__,			\
+	__PASTE(type,			\
+	__PASTE(__, name))))))
+
 /* Creates an alias so file2alias.c can find device table. */
 #define MODULE_DEVICE_TABLE(type, name)					\
-static typeof(name) __mod_device_table__##type##__##name		\
+static typeof(name) __mod_device_table(type, name)			\
   __attribute__ ((used, alias(__stringify(name))))
-#else  /* !MODULE */
-#define MODULE_DEVICE_TABLE(type, name)
-#endif
 
 /* Version of form [<epoch>:]<version>[-<extra-version>].
  * Or for CVS/RCS ID version, everything but the number is stripped.
@@ -302,23 +308,6 @@ static typeof(name) __mod_device_table__##type##__##name		\
 #define MODULE_IMPORT_NS(ns)	MODULE_INFO(import_ns, ns)
 
 struct notifier_block;
-
-#ifdef CONFIG_MODULES
-
-/* Get/put a kernel symbol (calls must be symmetric) */
-void *__symbol_get(const char *symbol);
-void *__symbol_get_gpl(const char *symbol);
-#define symbol_get(x)	({ \
-	static const char __notrim[] \
-		__used __section(".no_trim_symbol") = __stringify(x); \
-	(typeof(&x))(__symbol_get(__stringify(x))); })
-
-/* modules using other modules: kdb wants to see this. */
-struct module_use {
-	struct list_head source_list;
-	struct list_head target_list;
-	struct module *source, *target;
-};
 
 enum module_state {
 	MODULE_STATE_LIVE,	/* Normal state. */
@@ -603,6 +592,16 @@ struct module {
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
 #endif
+
+#ifdef CONFIG_MODULES
+
+/* Get/put a kernel symbol (calls must be symmetric) */
+void *__symbol_get(const char *symbol);
+void *__symbol_get_gpl(const char *symbol);
+#define symbol_get(x)	({ \
+	static const char __notrim[] \
+		__used __section(".no_trim_symbol") = __stringify(x); \
+	(typeof(&x))(__symbol_get(__stringify(x))); })
 
 #ifndef HAVE_ARCH_KALLSYMS_SYMBOL_VALUE
 static inline unsigned long kallsyms_symbol_value(const Elf_Sym *sym)

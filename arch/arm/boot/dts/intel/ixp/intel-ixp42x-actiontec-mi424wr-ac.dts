@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: ISC
+/*
+ * Device Tree file for the IXP425-based Actiontec MI424WR revision A and C
+ * Based on a board file from OpenWrt by Jose Vasconcellos.
+ */
+
+/dts-v1/;
+
+#include "intel-ixp42x-actiontec-mi424wr.dtsi"
+
+/ {
+	model = "Actiontec MI424WR rev A/C";
+	compatible = "actiontec,mi424wr-ac", "intel,ixp42x";
+
+	soc {
+		/* EthB used for WAN */
+		ethernet@c8009000 {
+			phy-handle = <&phy17>; // 17 on revision A-C
+
+			mdio {
+				phy17: ethernet-phy@17 {
+					/* WAN */
+					reg = <17>;
+				};
+			};
+		};
+
+		/* EthC used for LAN */
+		ethernet@c800a000 {
+			/* Fixed link to the CPU MII port on the KS8995 */
+			fixed-link {
+				speed = <100>;
+				full-duplex;
+			};
+		};
+	};
+};

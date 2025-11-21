@@ -68,15 +68,16 @@ struct max77693_haptic {
 
 static int max77693_haptic_set_duty_cycle(struct max77693_haptic *haptic)
 {
-	struct pwm_args pargs;
-	int delta;
+	struct pwm_state state;
 	int error;
 
-	pwm_get_args(haptic->pwm_dev, &pargs);
-	delta = (pargs.period + haptic->pwm_duty) / 2;
-	error = pwm_config(haptic->pwm_dev, delta, pargs.period);
+	pwm_init_state(haptic->pwm_dev, &state);
+	state.duty_cycle = (state.period + haptic->pwm_duty) / 2;
+
+	error = pwm_apply_might_sleep(haptic->pwm_dev, &state);
 	if (error) {
-		dev_err(haptic->dev, "failed to configure pwm: %d\n", error);
+		dev_err(haptic->dev,
+			"failed to set pwm duty cycle: %d\n", error);
 		return error;
 	}
 
@@ -166,12 +167,17 @@ static int max77693_haptic_lowsys(struct max77693_haptic *haptic, bool enable)
 
 static void max77693_haptic_enable(struct max77693_haptic *haptic)
 {
+	struct pwm_state state;
 	int error;
 
 	if (haptic->enabled)
 		return;
 
-	error = pwm_enable(haptic->pwm_dev);
+	pwm_init_state(haptic->pwm_dev, &state);
+	state.duty_cycle = (state.period + haptic->pwm_duty) / 2;
+	state.enabled = true;
+
+	error = pwm_apply_might_sleep(haptic->pwm_dev, &state);
 	if (error) {
 		dev_err(haptic->dev,
 			"failed to enable haptic pwm device: %d\n", error);
@@ -224,18 +230,13 @@ static void max77693_haptic_play_work(struct work_struct *work)
 {
 	struct max77693_haptic *haptic =
 			container_of(work, struct max77693_haptic, work);
-	int error;
 
-	error = max77693_haptic_set_duty_cycle(haptic);
-	if (error) {
-		dev_err(haptic->dev, "failed to set duty cycle: %d\n", error);
-		return;
-	}
-
-	if (haptic->magnitude)
-		max77693_haptic_enable(haptic);
-	else
+	if (!haptic->magnitude)
 		max77693_haptic_disable(haptic);
+	else if (haptic->enabled)
+		max77693_haptic_set_duty_cycle(haptic);
+	else
+		max77693_haptic_enable(haptic);
 }
 
 static int max77693_haptic_play_effect(struct input_dev *dev, void *data,
@@ -339,12 +340,6 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get pwm device\n");
 		return PTR_ERR(haptic->pwm_dev);
 	}
-
-	/*
-	 * FIXME: pwm_apply_args() should be removed when switching to the
-	 * atomic PWM API.
-	 */
-	pwm_apply_args(haptic->pwm_dev);
 
 	haptic->motor_reg = devm_regulator_get(&pdev->dev, "haptic");
 	if (IS_ERR(haptic->motor_reg)) {

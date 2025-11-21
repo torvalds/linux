@@ -12,9 +12,9 @@
 #include <asm/extable.h>
 #include <asm/page.h>
 
+#include <xen/xen.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/grant_table.h>
-#include <xen/features.h>
 
 /* Xen machine address */
 typedef struct xmaddr {
@@ -162,7 +162,7 @@ static inline unsigned long pfn_to_mfn(unsigned long pfn)
 	 * pfn_to_mfn. This will have to be removed when we figured
 	 * out which call.
 	 */
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return pfn;
 
 	mfn = __pfn_to_mfn(pfn);
@@ -175,7 +175,7 @@ static inline unsigned long pfn_to_mfn(unsigned long pfn)
 
 static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 {
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return 1;
 
 	return __pfn_to_mfn(pfn) != INVALID_P2M_ENTRY;
@@ -210,7 +210,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	 * gfn_to_pfn. This will have to be removed when we figure
 	 * out which call.
 	 */
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return mfn;
 
 	pfn = mfn_to_pfn_no_overrides(mfn);
@@ -242,7 +242,7 @@ static inline xpaddr_t machine_to_phys(xmaddr_t machine)
 /* Pseudo-physical <-> Guest conversion */
 static inline unsigned long pfn_to_gfn(unsigned long pfn)
 {
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return pfn;
 	else
 		return pfn_to_mfn(pfn);
@@ -250,7 +250,7 @@ static inline unsigned long pfn_to_gfn(unsigned long pfn)
 
 static inline unsigned long gfn_to_pfn(unsigned long gfn)
 {
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return gfn;
 	else
 		return mfn_to_pfn(gfn);
@@ -284,7 +284,7 @@ static inline unsigned long bfn_to_local_pfn(unsigned long mfn)
 {
 	unsigned long pfn;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return mfn;
 
 	pfn = mfn_to_pfn(mfn);

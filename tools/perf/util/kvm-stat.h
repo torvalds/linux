@@ -190,5 +190,15 @@ static inline struct kvm_info *kvm_info__new(void)
 #define kvm_info__zput(ki) do { } while (0)
 #endif /* HAVE_KVM_STAT_SUPPORT */
 
+#define STRDUP_FAIL_EXIT(s)		\
+	({	char *_p;		\
+		_p = strdup(s);		\
+		if (!_p) {		\
+			ret = -ENOMEM;	\
+			goto EXIT;	\
+		}			\
+		_p;			\
+	})
+
 extern int kvm_add_default_arch_event(int *argc, const char **argv);
 #endif /* __PERF_KVM_STAT_H */

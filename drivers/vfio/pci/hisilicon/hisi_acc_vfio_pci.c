@@ -1583,6 +1583,7 @@ static const struct vfio_device_ops hisi_acc_vfio_pci_ops = {
 	.mmap = vfio_pci_core_mmap,
 	.request = vfio_pci_core_request,
 	.match = vfio_pci_core_match,
+	.match_token_uuid = vfio_pci_core_match_token_uuid,
 	.bind_iommufd = vfio_iommufd_physical_bind,
 	.unbind_iommufd = vfio_iommufd_physical_unbind,
 	.attach_ioas = vfio_iommufd_physical_attach_ioas,
@@ -1611,8 +1612,10 @@ static void hisi_acc_vfio_debug_init(struct hisi_acc_vf_core_device *hisi_acc_vd
 	}
 
 	migf = kzalloc(sizeof(*migf), GFP_KERNEL);
-	if (!migf)
+	if (!migf) {
+		dput(vfio_dev_migration);
 		return;
+	}
 	hisi_acc_vdev->debug_migf = migf;
 
 	vfio_hisi_acc = debugfs_create_dir("hisi_acc", vfio_dev_migration);
@@ -1622,6 +1625,8 @@ static void hisi_acc_vfio_debug_init(struct hisi_acc_vf_core_device *hisi_acc_vd
 				    hisi_acc_vf_migf_read);
 	debugfs_create_devm_seqfile(dev, "cmd_state", vfio_hisi_acc,
 				    hisi_acc_vf_debug_cmd);
+
+	dput(vfio_dev_migration);
 }
 
 static void hisi_acc_vf_debugfs_exit(struct hisi_acc_vf_core_device *hisi_acc_vdev)

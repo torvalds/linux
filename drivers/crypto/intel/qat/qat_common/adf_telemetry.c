@@ -212,6 +212,23 @@ int adf_tl_halt(struct adf_accel_dev *accel_dev)
 	return ret;
 }
 
+static void adf_set_cmdq_cnt(struct adf_accel_dev *accel_dev,
+			     struct adf_tl_hw_data *tl_data)
+{
+	struct icp_qat_fw_init_admin_slice_cnt *slice_cnt, *cmdq_cnt;
+
+	slice_cnt = &accel_dev->telemetry->slice_cnt;
+	cmdq_cnt = &accel_dev->telemetry->cmdq_cnt;
+
+	cmdq_cnt->cpr_cnt = slice_cnt->cpr_cnt * tl_data->multiplier.cpr_cnt;
+	cmdq_cnt->dcpr_cnt = slice_cnt->dcpr_cnt * tl_data->multiplier.dcpr_cnt;
+	cmdq_cnt->pke_cnt = slice_cnt->pke_cnt * tl_data->multiplier.pke_cnt;
+	cmdq_cnt->wat_cnt = slice_cnt->wat_cnt * tl_data->multiplier.wat_cnt;
+	cmdq_cnt->wcp_cnt = slice_cnt->wcp_cnt * tl_data->multiplier.wcp_cnt;
+	cmdq_cnt->ucs_cnt = slice_cnt->ucs_cnt * tl_data->multiplier.ucs_cnt;
+	cmdq_cnt->ath_cnt = slice_cnt->ath_cnt * tl_data->multiplier.ath_cnt;
+}
+
 int adf_tl_run(struct adf_accel_dev *accel_dev, int state)
 {
 	struct adf_tl_hw_data *tl_data = &GET_TL_DATA(accel_dev);
@@ -234,6 +251,8 @@ int adf_tl_run(struct adf_accel_dev *accel_dev, int state)
 		adf_send_admin_tl_stop(accel_dev);
 		return ret;
 	}
+
+	adf_set_cmdq_cnt(accel_dev, tl_data);
 
 	telemetry->hbuffs = state;
 	atomic_set(&telemetry->state, state);

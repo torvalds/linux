@@ -741,7 +741,6 @@ static void soc15_reg_base_init(struct amdgpu_device *adev)
 void soc15_set_virt_ops(struct amdgpu_device *adev)
 {
 	adev->virt.ops = &xgpu_ai_virt_ops;
-
 	/* init soc15 reg base early enough so we can
 	 * request request full access for sriov before
 	 * set_ip_blocks. */
@@ -1218,6 +1217,8 @@ static int soc15_common_early_init(struct amdgpu_ip_block *ip_block)
 			AMD_PG_SUPPORT_JPEG;
 		/*TODO: need a new external_rev_id for GC 9.4.4? */
 		adev->external_rev_id = adev->rev_id + 0x46;
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0))
+			adev->external_rev_id = adev->rev_id + 0x50;
 		break;
 	default:
 		/* FIXME: not supported yet */

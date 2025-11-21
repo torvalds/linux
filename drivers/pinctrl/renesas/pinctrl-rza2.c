@@ -237,7 +237,7 @@ static struct gpio_chip chip = {
 	.direction_input = rza2_chip_direction_input,
 	.direction_output = rza2_chip_direction_output,
 	.get = rza2_chip_get,
-	.set_rv = rza2_chip_set,
+	.set = rza2_chip_set,
 };
 
 static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)
@@ -442,7 +442,7 @@ static int rza2_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 			unsigned int group)
 {
 	struct rza2_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
-	struct function_desc *func;
+	const struct function_desc *func;
 	unsigned int i, *psel_val;
 	struct group_desc *grp;
 

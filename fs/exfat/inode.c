@@ -25,7 +25,7 @@ int __exfat_write_inode(struct inode *inode, int sync)
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
-	bool is_dir = (ei->type == TYPE_DIR) ? true : false;
+	bool is_dir = (ei->type == TYPE_DIR);
 	struct timespec64 ts;
 
 	if (inode->i_ino == EXFAT_ROOT_INO)

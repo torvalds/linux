@@ -398,7 +398,7 @@ There are 3 different data modes:
 * writeback mode
 
   In data=writeback mode, ext4 does not journal data at all.  This mode provides
-  a similar level of journaling as that of XFS, JFS, and ReiserFS in its default
+  a similar level of journaling as that of XFS and JFS in its default
   mode - metadata journaling.  A crash+recovery can cause incorrect data to
   appear in files which were written shortly before the crash.  This mode will
   typically provide the best ext4 performance.

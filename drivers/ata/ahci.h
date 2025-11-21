@@ -330,6 +330,7 @@ struct ahci_host_priv {
 	/* Input fields */
 	unsigned int		flags;		/* AHCI_HFLAG_* */
 	u32			mask_port_map;	/* Mask of valid ports */
+	u32			mask_port_ext;	/* Mask of ports ext capability */
 
 	void __iomem *		mmio;		/* bus-independent mem map */
 	u32			cap;		/* cap to use */

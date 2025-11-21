@@ -585,8 +585,8 @@ static int max732x_setup_gpio(struct max732x_chip *chip,
 		gc->direction_input = max732x_gpio_direction_input;
 	if (chip->dir_output) {
 		gc->direction_output = max732x_gpio_direction_output;
-		gc->set_rv = max732x_gpio_set_value;
-		gc->set_multiple_rv = max732x_gpio_set_multiple;
+		gc->set = max732x_gpio_set_value;
+		gc->set_multiple = max732x_gpio_set_multiple;
 	}
 	gc->get = max732x_gpio_get_value;
 	gc->can_sleep = true;

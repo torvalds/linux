@@ -1890,11 +1890,9 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 
 		rt712_sdca_va_io_init(rt712);
 	} else {
-		if (!rt712->dmic_function_found) {
-			dev_err(&slave->dev, "%s RT712 VB detected but no SMART_MIC function exposed in ACPI\n",
+		if (!rt712->dmic_function_found)
+			dev_warn(&slave->dev, "%s RT712 VB detected but no SMART_MIC function exposed in ACPI\n",
 				__func__);
-			goto suspend;
-		}
 
 		/* multilanes and DMIC are supported by rt712vb */
 		prop->lane_control_support = true;

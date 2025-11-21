@@ -134,8 +134,13 @@ extern struct fs_context *fs_context_for_submount(struct file_system_type *fs_ty
 
 extern struct fs_context *vfs_dup_fs_context(struct fs_context *fc);
 extern int vfs_parse_fs_param(struct fs_context *fc, struct fs_parameter *param);
-extern int vfs_parse_fs_string(struct fs_context *fc, const char *key,
-			       const char *value, size_t v_size);
+extern int vfs_parse_fs_qstr(struct fs_context *fc, const char *key,
+				const struct qstr *value);
+static inline int vfs_parse_fs_string(struct fs_context *fc, const char *key,
+			       const char *value)
+{
+	return vfs_parse_fs_qstr(fc, key, value ? &QSTR(value) : NULL);
+}
 int vfs_parse_monolithic_sep(struct fs_context *fc, void *data,
 			     char *(*sep)(char **));
 extern int generic_parse_monolithic(struct fs_context *fc, void *data);
@@ -186,10 +191,12 @@ struct fc_log {
 extern __attribute__((format(printf, 4, 5)))
 void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, ...);
 
-#define __logfc(fc, l, fmt, ...) logfc((fc)->log.log, NULL, \
-					l, fmt, ## __VA_ARGS__)
-#define __plog(p, l, fmt, ...) logfc((p)->log, (p)->prefix, \
-					l, fmt, ## __VA_ARGS__)
+#define __logfc(fc, l, fmt, ...) \
+	logfc((fc)->log.log, NULL, (l), (fmt), ## __VA_ARGS__)
+#define __plogp(p, prefix, l, fmt, ...) \
+	logfc((p)->log, (prefix), (l), (fmt), ## __VA_ARGS__)
+#define __plog(p, l, fmt, ...) __plogp(p, (p)->prefix, l, fmt, ## __VA_ARGS__)
+
 /**
  * infof - Store supplementary informational message
  * @fc: The context in which to log the informational message
@@ -201,6 +208,8 @@ void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, 
 #define infof(fc, fmt, ...) __logfc(fc, 'i', fmt, ## __VA_ARGS__)
 #define info_plog(p, fmt, ...) __plog(p, 'i', fmt, ## __VA_ARGS__)
 #define infofc(fc, fmt, ...) __plog((&(fc)->log), 'i', fmt, ## __VA_ARGS__)
+#define infofcp(fc, prefix, fmt, ...) \
+	__plogp((&(fc)->log), prefix, 'i', fmt, ## __VA_ARGS__)
 
 /**
  * warnf - Store supplementary warning message
@@ -213,6 +222,8 @@ void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, 
 #define warnf(fc, fmt, ...) __logfc(fc, 'w', fmt, ## __VA_ARGS__)
 #define warn_plog(p, fmt, ...) __plog(p, 'w', fmt, ## __VA_ARGS__)
 #define warnfc(fc, fmt, ...) __plog((&(fc)->log), 'w', fmt, ## __VA_ARGS__)
+#define warnfcp(fc, prefix, fmt, ...) \
+	__plogp((&(fc)->log), prefix, 'w', fmt, ## __VA_ARGS__)
 
 /**
  * errorf - Store supplementary error message
@@ -225,6 +236,8 @@ void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, 
 #define errorf(fc, fmt, ...) __logfc(fc, 'e', fmt, ## __VA_ARGS__)
 #define error_plog(p, fmt, ...) __plog(p, 'e', fmt, ## __VA_ARGS__)
 #define errorfc(fc, fmt, ...) __plog((&(fc)->log), 'e', fmt, ## __VA_ARGS__)
+#define errorfcp(fc, prefix, fmt, ...) \
+	__plogp((&(fc)->log), prefix, 'e', fmt, ## __VA_ARGS__)
 
 /**
  * invalf - Store supplementary invalid argument error message
@@ -237,5 +250,7 @@ void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, 
 #define invalf(fc, fmt, ...) (errorf(fc, fmt, ## __VA_ARGS__), -EINVAL)
 #define inval_plog(p, fmt, ...) (error_plog(p, fmt, ## __VA_ARGS__), -EINVAL)
 #define invalfc(fc, fmt, ...) (errorfc(fc, fmt, ## __VA_ARGS__), -EINVAL)
+#define invalfcp(fc, prefix, fmt, ...) \
+	(errorfcp(fc, prefix, fmt, ## __VA_ARGS__), -EINVAL)
 
 #endif /* _LINUX_FS_CONTEXT_H */

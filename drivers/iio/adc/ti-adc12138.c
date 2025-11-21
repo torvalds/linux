@@ -38,15 +38,13 @@ enum {
 struct adc12138 {
 	struct spi_device *spi;
 	unsigned int id;
-	/* conversion clock */
-	struct clk *cclk;
 	/* positive analog voltage reference */
 	struct regulator *vref_p;
 	/* negative analog voltage reference */
 	struct regulator *vref_n;
 	struct mutex lock;
 	struct completion complete;
-	/* The number of cclk periods for the S/H's acquisition time */
+	/* The number of conversion clock periods for the S/H's acquisition time */
 	unsigned int acquisition_time;
 	/*
 	 * Maximum size needed: 16x 2 bytes ADC data + 8 bytes timestamp.
@@ -400,6 +398,7 @@ static int adc12138_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct adc12138 *adc;
+	struct clk *cclk;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
@@ -435,9 +434,14 @@ static int adc12138_probe(struct spi_device *spi)
 	if (ret)
 		adc->acquisition_time = 10;
 
-	adc->cclk = devm_clk_get(&spi->dev, NULL);
-	if (IS_ERR(adc->cclk))
-		return PTR_ERR(adc->cclk);
+	ret = devm_request_irq(&spi->dev, spi->irq, adc12138_eoc_handler,
+			       IRQF_TRIGGER_RISING, indio_dev->name, indio_dev);
+	if (ret)
+		return ret;
+
+	cclk = devm_clk_get_enabled(&spi->dev, NULL);
+	if (IS_ERR(cclk))
+		return PTR_ERR(cclk);
 
 	adc->vref_p = devm_regulator_get(&spi->dev, "vref-p");
 	if (IS_ERR(adc->vref_p))
@@ -454,18 +458,9 @@ static int adc12138_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	ret = devm_request_irq(&spi->dev, spi->irq, adc12138_eoc_handler,
-			       IRQF_TRIGGER_RISING, indio_dev->name, indio_dev);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(adc->cclk);
-	if (ret)
-		return ret;
-
 	ret = regulator_enable(adc->vref_p);
 	if (ret)
-		goto err_clk_disable;
+		return ret;
 
 	if (!IS_ERR(adc->vref_n)) {
 		ret = regulator_enable(adc->vref_n);
@@ -496,8 +491,6 @@ err_vref_n_disable:
 		regulator_disable(adc->vref_n);
 err_vref_p_disable:
 	regulator_disable(adc->vref_p);
-err_clk_disable:
-	clk_disable_unprepare(adc->cclk);
 
 	return ret;
 }
@@ -512,7 +505,6 @@ static void adc12138_remove(struct spi_device *spi)
 	if (!IS_ERR(adc->vref_n))
 		regulator_disable(adc->vref_n);
 	regulator_disable(adc->vref_p);
-	clk_disable_unprepare(adc->cclk);
 }
 
 static const struct of_device_id adc12138_dt_ids[] = {

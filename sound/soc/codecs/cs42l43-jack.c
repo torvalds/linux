@@ -684,7 +684,7 @@ static int cs42l43_run_type_detect(struct cs42l43_codec *priv)
 	}
 }
 
-static void cs42l43_clear_jack(struct cs42l43_codec *priv)
+void cs42l43_clear_jack(struct cs42l43_codec *priv)
 {
 	struct cs42l43 *cs42l43 = priv->core;
 
@@ -703,8 +703,6 @@ static void cs42l43_clear_jack(struct cs42l43_codec *priv)
 	regmap_update_bits(cs42l43->regmap, CS42L43_HS2,
 			   CS42L43_HSDET_MODE_MASK | CS42L43_HSDET_MANUAL_MODE_MASK,
 			   0x2 << CS42L43_HSDET_MODE_SHIFT);
-
-	snd_soc_jack_report(priv->jack_hp, 0, 0xFFFF);
 }
 
 void cs42l43_tip_sense_work(struct work_struct *work)
@@ -752,6 +750,8 @@ void cs42l43_tip_sense_work(struct work_struct *work)
 		priv->jack_override = 0;
 
 		cs42l43_clear_jack(priv);
+
+		snd_soc_jack_report(priv->jack_hp, 0, 0xFFFF);
 
 		if (cs42l43->sdw && priv->jack_present) {
 			pm_runtime_put(priv->dev);
@@ -902,6 +902,8 @@ int cs42l43_jack_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *u
 	priv->jack_override = override;
 
 	cs42l43_clear_jack(priv);
+
+	snd_soc_jack_report(priv->jack_hp, 0, 0xFFFF);
 
 	if (!override) {
 		queue_delayed_work(system_long_wq, &priv->tip_sense_work, 0);

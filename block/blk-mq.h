@@ -6,6 +6,7 @@
 #include "blk-stat.h"
 
 struct blk_mq_tag_set;
+struct elevator_tags;
 
 struct blk_mq_ctxs {
 	struct kobject kobj;
@@ -45,7 +46,9 @@ void blk_mq_submit_bio(struct bio *bio);
 int blk_mq_poll(struct request_queue *q, blk_qc_t cookie, struct io_comp_batch *iob,
 		unsigned int flags);
 void blk_mq_exit_queue(struct request_queue *q);
-int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
+struct elevator_tags *blk_mq_update_nr_requests(struct request_queue *q,
+						struct elevator_tags *tags,
+						unsigned int nr);
 void blk_mq_wake_waiters(struct request_queue *q);
 bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *,
 			     bool);
@@ -59,7 +62,7 @@ void blk_mq_put_rq_ref(struct request *rq);
  */
 void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx);
-void blk_mq_free_rq_map(struct blk_mq_tags *tags);
+void blk_mq_free_rq_map(struct blk_mq_tag_set *set, struct blk_mq_tags *tags);
 struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 				unsigned int hctx_idx, unsigned int depth);
 void blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
@@ -107,6 +110,17 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue(blk_opf_t opf,
 						     struct blk_mq_ctx *ctx)
 {
 	return ctx->hctxs[blk_mq_get_hctx_type(opf)];
+}
+
+/*
+ * Default to double of smaller one between hw queue_depth and
+ * 128, since we don't split into sync/async like the old code
+ * did. Additionally, this is a per-hw queue depth.
+ */
+static inline unsigned int blk_mq_default_nr_requests(
+		struct blk_mq_tag_set *set)
+{
+	return 2 * min_t(unsigned int, set->queue_depth, BLKDEV_DEFAULT_RQ);
 }
 
 /*
@@ -162,7 +176,7 @@ struct blk_mq_alloc_data {
 
 struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags,
 		unsigned int reserved_tags, unsigned int flags, int node);
-void blk_mq_free_tags(struct blk_mq_tags *tags);
+void blk_mq_free_tags(struct blk_mq_tag_set *set, struct blk_mq_tags *tags);
 
 unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);
 unsigned long blk_mq_get_tags(struct blk_mq_alloc_data *data, int nr_tags,
@@ -170,11 +184,10 @@ unsigned long blk_mq_get_tags(struct blk_mq_alloc_data *data, int nr_tags,
 void blk_mq_put_tag(struct blk_mq_tags *tags, struct blk_mq_ctx *ctx,
 		unsigned int tag);
 void blk_mq_put_tags(struct blk_mq_tags *tags, int *tag_array, int nr_tags);
-int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
-		struct blk_mq_tags **tags, unsigned int depth, bool can_grow);
 void blk_mq_tag_resize_shared_tags(struct blk_mq_tag_set *set,
 		unsigned int size);
-void blk_mq_tag_update_sched_shared_tags(struct request_queue *q);
+void blk_mq_tag_update_sched_shared_tags(struct request_queue *q,
+					 unsigned int nr);
 
 void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool);
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_tag_iter_fn *fn,

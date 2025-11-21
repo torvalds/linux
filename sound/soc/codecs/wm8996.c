@@ -77,7 +77,7 @@ struct wm8996_priv {
 	int rx_rate[WM8996_AIFS];
 	int bclk_rate[WM8996_AIFS];
 
-	/* Platform dependant ReTune mobile configuration */
+	/* Platform dependent ReTune mobile configuration */
 	int num_retune_mobile_texts;
 	const char **retune_mobile_texts;
 	int retune_mobile_cfg[2];
@@ -2186,7 +2186,7 @@ static const struct gpio_chip wm8996_template_chip = {
 	.label			= "wm8996",
 	.owner			= THIS_MODULE,
 	.direction_output	= wm8996_gpio_direction_out,
-	.set_rv			= wm8996_gpio_set,
+	.set			= wm8996_gpio_set,
 	.direction_input	= wm8996_gpio_direction_in,
 	.get			= wm8996_gpio_get,
 	.can_sleep		= 1,

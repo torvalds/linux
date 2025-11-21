@@ -19,11 +19,10 @@
 #include <objtool/elf.h>
 #include <objtool/arch.h>
 #include <objtool/warn.h>
-#include <objtool/endianness.h>
 #include <objtool/builtin.h>
 #include <arch/elf.h>
 
-int arch_ftrace_match(char *name)
+int arch_ftrace_match(const char *name)
 {
 	return !strcmp(name, "__fentry__");
 }
@@ -68,9 +67,65 @@ bool arch_callee_saved_reg(unsigned char reg)
 	}
 }
 
-unsigned long arch_dest_reloc_offset(int addend)
+/* Undo the effects of __pa_symbol() if necessary */
+static unsigned long phys_to_virt(unsigned long pa)
 {
-	return addend + 4;
+	s64 va = pa;
+
+	if (va > 0)
+		va &= ~(0x80000000);
+
+	return va;
+}
+
+s64 arch_insn_adjusted_addend(struct instruction *insn, struct reloc *reloc)
+{
+	s64 addend = reloc_addend(reloc);
+
+	if (arch_pc_relative_reloc(reloc))
+		addend += insn->offset + insn->len - reloc_offset(reloc);
+
+	return phys_to_virt(addend);
+}
+
+static void scan_for_insn(struct section *sec, unsigned long offset,
+			  unsigned long *insn_off, unsigned int *insn_len)
+{
+	unsigned long o = 0;
+	struct insn insn;
+
+	while (1) {
+
+		insn_decode(&insn, sec->data->d_buf + o, sec_size(sec) - o,
+			    INSN_MODE_64);
+
+		if (o + insn.length > offset) {
+			*insn_off = o;
+			*insn_len = insn.length;
+			return;
+		}
+
+		o += insn.length;
+	}
+}
+
+u64 arch_adjusted_addend(struct reloc *reloc)
+{
+	unsigned int type = reloc_type(reloc);
+	s64 addend = reloc_addend(reloc);
+	unsigned long insn_off;
+	unsigned int insn_len;
+
+	if (type == R_X86_64_PLT32)
+		return addend + 4;
+
+	if (type != R_X86_64_PC32 || !is_text_sec(reloc->sec->base))
+		return addend;
+
+	scan_for_insn(reloc->sec->base, reloc_offset(reloc),
+		      &insn_off, &insn_len);
+
+	return addend + insn_off + insn_len - reloc_offset(reloc);
 }
 
 unsigned long arch_jump_destination(struct instruction *insn)
@@ -188,15 +243,6 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 	op1 = ins.opcode.bytes[0];
 	op2 = ins.opcode.bytes[1];
 	op3 = ins.opcode.bytes[2];
-
-	/*
-	 * XXX hack, decoder is buggered and thinks 0xea is 7 bytes long.
-	 */
-	if (op1 == 0xea) {
-		insn->len = 1;
-		insn->type = INSN_BUG;
-		return 0;
-	}
 
 	if (ins.rex_prefix.nbytes) {
 		rex = ins.rex_prefix.bytes[0];
@@ -503,6 +549,12 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		break;
 
 	case 0x90:
+		if (rex_b) /* XCHG %r8, %rax */
+			break;
+
+		if (prefix == 0xf3) /* REP NOP := PAUSE */
+			break;
+
 		insn->type = INSN_NOP;
 		break;
 
@@ -556,13 +608,14 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 
 		} else if (op2 == 0x0b || op2 == 0xb9) {
 
-			/* ud2 */
+			/* ud2, ud1 */
 			insn->type = INSN_BUG;
 
-		} else if (op2 == 0x0d || op2 == 0x1f) {
+		} else if (op2 == 0x1f) {
 
-			/* nopl/nopw */
-			insn->type = INSN_NOP;
+			/* 0f 1f /0 := NOPL */
+			if (modrm_reg == 0)
+				insn->type = INSN_NOP;
 
 		} else if (op2 == 0x1e) {
 
@@ -690,6 +743,10 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 	case 0xca: /* retf */
 	case 0xcb: /* retf */
 		insn->type = INSN_SYSRET;
+		break;
+
+	case 0xd6: /* udb */
+		insn->type = INSN_BUG;
 		break;
 
 	case 0xe0: /* loopne */
@@ -878,5 +935,17 @@ unsigned int arch_reloc_size(struct reloc *reloc)
 		return 4;
 	default:
 		return 8;
+	}
+}
+
+bool arch_absolute_reloc(struct elf *elf, struct reloc *reloc)
+{
+	switch (reloc_type(reloc)) {
+	case R_X86_64_32:
+	case R_X86_64_32S:
+	case R_X86_64_64:
+		return true;
+	default:
+		return false;
 	}
 }

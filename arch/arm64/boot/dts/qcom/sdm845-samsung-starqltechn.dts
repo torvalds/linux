@@ -56,6 +56,21 @@
 		};
 	};
 
+	slpi_regulator: slpi-regulator {
+		compatible = "regulator-fixed";
+		pinctrl-0 = <&slpi_ldo_active_state>;
+		pinctrl-names = "default";
+
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-name = "slpi";
+
+		enable-active-high;
+		gpio = <&tlmm 8 GPIO_ACTIVE_HIGH>;
+	};
+
 	vib_regulator: gpio-regulator {
 		compatible = "regulator-fixed";
 
@@ -118,7 +133,7 @@
 		};
 
 		slpi_mem: slpi@96700000 {
-			reg = <0 0x96700000 0 0xf00000>;
+			reg = <0 0x96700000 0 0x1000000>;
 			no-map;
 		};
 
@@ -145,8 +160,8 @@
 
 	i2c21 {
 		compatible = "i2c-gpio";
-		sda-gpios = <&tlmm 127 GPIO_ACTIVE_HIGH>;
-		scl-gpios = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+		sda-gpios = <&tlmm 127 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 128 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <2>;
 		pinctrl-0 = <&i2c21_sda_state &i2c21_scl_state>;
 		pinctrl-names = "default";
@@ -633,7 +648,6 @@
 		monitored-battery = <&battery>;
 		interrupt-parent = <&pm8998_gpios>;
 		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
-
 	};
 
 	fuel-gauge@36 {
@@ -701,7 +715,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	audio-routing =	"RX_BIAS", "MCLK",
+	audio-routing = "RX_BIAS", "MCLK",
 			"AMIC2", "MIC BIAS2",	/* Headset Mic */
 			"AMIC3", "MIC BIAS2",	/* FM radio left Tx */
 			"AMIC4", "MIC BIAS2",	/* FM radio right Tx */
@@ -903,6 +917,13 @@
 	status = "okay";
 };
 
+&slpi_pas {
+	firmware-name = "qcom/sdm845/starqltechn/slpi.mbn";
+	cx-supply = <&slpi_regulator>;
+
+	status = "okay";
+};
+
 &usb_1 {
 	status = "okay";
 };
@@ -1027,6 +1048,13 @@
 		pins = "gpio126";
 		function = "gpio";
 		bias-pull-up;
+	};
+
+	slpi_ldo_active_state: slpi-ldo-active-state {
+		pins = "gpio8";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	touch_irq_state: touch-irq-state {

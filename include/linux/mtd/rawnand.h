@@ -1519,11 +1519,6 @@ int rawnand_sw_bch_correct(struct nand_chip *chip, unsigned char *buf,
 			   unsigned char *read_ecc, unsigned char *calc_ecc);
 void rawnand_sw_bch_cleanup(struct nand_chip *chip);
 
-int nand_check_erased_ecc_chunk(void *data, int datalen,
-				void *ecc, int ecclen,
-				void *extraoob, int extraooblen,
-				int threshold);
-
 int nand_ecc_choose_conf(struct nand_chip *chip,
 			 const struct nand_ecc_caps *caps, int oobavail);
 

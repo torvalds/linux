@@ -165,6 +165,7 @@ config I2C_I801
 	    Birch Stream (SOC)
 	    Arrow Lake (SOC)
 	    Panther Lake (SOC)
+	    Wildcat Lake (SOC)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -414,7 +415,7 @@ config I2C_ASPEED
 
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
-	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ARCH_MICROCHIP || COMPILE_TEST
 	help
 	  This supports the use of the I2C interface on Atmel AT91
 	  processors.
@@ -992,7 +993,6 @@ config I2C_APPLE
 	tristate "Apple SMBus platform driver"
 	depends on !I2C_PASEMI
 	depends on ARCH_APPLE || COMPILE_TEST
-	default ARCH_APPLE
 	help
 	  Say Y here if you want to use the I2C controller present on Apple
 	  Silicon chips such as the M1.
@@ -1357,6 +1357,27 @@ config I2C_LJCA
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-ljca.
+
+config I2C_NCT6694
+	tristate "Nuvoton NCT6694 I2C adapter support"
+	depends on MFD_NCT6694
+	help
+	  If you say yes to this option, support will be included for Nuvoton
+	  NCT6694, a USB to I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called i2c-nct6694.
+
+config I2C_USBIO
+	tristate "Intel USBIO I2C Adapter support"
+	depends on USB_USBIO
+	default USB_USBIO
+	help
+	  Select this option to enable I2C driver for the INTEL
+	  USBIO driver stack.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c_usbio.
 
 config I2C_CP2615
 	tristate "Silicon Labs CP2615 USB sound card and I2C adapter"

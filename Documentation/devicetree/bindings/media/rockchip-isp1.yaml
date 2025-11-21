@@ -71,7 +71,16 @@ properties:
     const: dphy
 
   power-domains:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: ISP power domain
+      - description: MIPI CSI-2 power domain
+
+  power-domain-names:
+    minItems: 1
+    items:
+      - const: isp
+      - const: csi2
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
@@ -155,14 +164,26 @@ allOf:
             const: fsl,imx8mp-isp
     then:
       properties:
+        clocks:
+          minItems: 4
+        clock-names:
+          minItems: 4
         iommus: false
         phys: false
         phy-names: false
+        power-domains:
+          minItems: 2
+        power-domain-names:
+          minItems: 2
       required:
         - fsl,blk-ctrl
+        - power-domain-names
     else:
       properties:
         fsl,blk-ctrl: false
+        power-domains:
+          maxItems: 1
+        power-domain-names: false
       required:
         - iommus
         - phys

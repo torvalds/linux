@@ -215,7 +215,7 @@ __weak int subprog_untrusted(const volatile struct task_struct *restrict task __
 SEC("tp_btf/sys_enter")
 __success
 __log_level(2)
-__msg("r1 = {{.*}}; {{.*}}R1_w=trusted_ptr_task_struct()")
+__msg("r1 = {{.*}}; {{.*}}R1=trusted_ptr_task_struct()")
 __msg("Func#1 ('subprog_untrusted') is global and assumed valid.")
 __msg("Validating subprog_untrusted() func#1...")
 __msg(": R1=untrusted_ptr_task_struct")
@@ -225,7 +225,7 @@ int trusted_to_untrusted(void *ctx)
 }
 
 char mem[16];
-u32 off;
+u32 offset;
 
 SEC("tp_btf/sys_enter")
 __success
@@ -240,9 +240,9 @@ int anything_to_untrusted(void *ctx)
 	/* scalar to untrusted */
 	subprog_untrusted(0);
 	/* variable offset to untrusted (map) */
-	subprog_untrusted((void *)mem + off);
+	subprog_untrusted((void *)mem + offset);
 	/* variable offset to untrusted (trusted) */
-	subprog_untrusted((void *)bpf_get_current_task_btf() + off);
+	subprog_untrusted((void *)bpf_get_current_task_btf() + offset);
 	return 0;
 }
 
@@ -278,7 +278,7 @@ __weak int subprog_enum_untrusted(enum bpf_attach_type *p __arg_untrusted)
 SEC("tp_btf/sys_enter")
 __success
 __log_level(2)
-__msg("r1 = {{.*}}; {{.*}}R1_w=trusted_ptr_task_struct()")
+__msg("r1 = {{.*}}; {{.*}}R1=trusted_ptr_task_struct()")
 __msg("Func#1 ('subprog_void_untrusted') is global and assumed valid.")
 __msg("Validating subprog_void_untrusted() func#1...")
 __msg(": R1=rdonly_untrusted_mem(sz=0)")
@@ -298,12 +298,12 @@ int anything_to_untrusted_mem(void *ctx)
 	/* scalar to untrusted mem */
 	subprog_void_untrusted(0);
 	/* variable offset to untrusted mem (map) */
-	subprog_void_untrusted((void *)mem + off);
+	subprog_void_untrusted((void *)mem + offset);
 	/* variable offset to untrusted mem (trusted) */
-	subprog_void_untrusted(bpf_get_current_task_btf() + off);
+	subprog_void_untrusted(bpf_get_current_task_btf() + offset);
 	/* variable offset to untrusted char/enum (map) */
-	subprog_char_untrusted(mem + off);
-	subprog_enum_untrusted((void *)mem + off);
+	subprog_char_untrusted(mem + offset);
+	subprog_enum_untrusted((void *)mem + offset);
 	return 0;
 }
 

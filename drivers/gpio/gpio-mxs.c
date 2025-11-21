@@ -7,17 +7,18 @@
 // Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
 
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/gpio/driver.h>
-#include <linux/module.h>
 
 #define MXS_SET		0x4
 #define MXS_CLR		0x8
@@ -48,7 +49,7 @@ struct mxs_gpio_port {
 	int id;
 	int irq;
 	struct irq_domain *domain;
-	struct gpio_chip gc;
+	struct gpio_generic_chip chip;
 	struct device *dev;
 	enum mxs_gpio_id devid;
 	u32 both_edges;
@@ -258,6 +259,7 @@ MODULE_DEVICE_TABLE(of, mxs_gpio_dt_ids);
 static int mxs_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct gpio_generic_chip_config config;
 	struct device_node *parent;
 	static void __iomem *base;
 	struct mxs_gpio_port *port;
@@ -319,19 +321,24 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	irq_set_chained_handler_and_data(port->irq, mxs_gpio_irq_handler,
 					 port);
 
-	err = bgpio_init(&port->gc, &pdev->dev, 4,
-			 port->base + PINCTRL_DIN(port),
-			 port->base + PINCTRL_DOUT(port) + MXS_SET,
-			 port->base + PINCTRL_DOUT(port) + MXS_CLR,
-			 port->base + PINCTRL_DOE(port), NULL, 0);
+	config = (struct gpio_generic_chip_config) {
+		.dev = &pdev->dev,
+		.sz = 4,
+		.dat = port->base + PINCTRL_DIN(port),
+		.set = port->base + PINCTRL_DOUT(port) + MXS_SET,
+		.clr = port->base + PINCTRL_DOUT(port) + MXS_CLR,
+		.dirout = port->base + PINCTRL_DOE(port),
+	};
+
+	err = gpio_generic_chip_init(&port->chip, &config);
 	if (err)
 		goto out_irqdomain_remove;
 
-	port->gc.to_irq = mxs_gpio_to_irq;
-	port->gc.get_direction = mxs_gpio_get_direction;
-	port->gc.base = port->id * 32;
+	port->chip.gc.to_irq = mxs_gpio_to_irq;
+	port->chip.gc.get_direction = mxs_gpio_get_direction;
+	port->chip.gc.base = port->id * 32;
 
-	err = gpiochip_add_data(&port->gc, port);
+	err = gpiochip_add_data(&port->chip.gc, port);
 	if (err)
 		goto out_irqdomain_remove;
 

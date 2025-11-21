@@ -23,7 +23,7 @@
 
 #include <asm-generic/pgtable-nopmd.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/mmu.h>
 #include <asm/fixmap.h>
 
@@ -182,23 +182,6 @@ extern void paging_init(void);
 /* zero page used for uninitialized stuff */
 extern unsigned long empty_zero_page[2048];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
-
-/* number of bits that fit into a memory pointer */
-#define BITS_PER_PTR			(8*sizeof(unsigned long))
-
-/* to align the pointer to a pointer address */
-#define PTR_MASK			(~(sizeof(void *)-1))
-
-/* sizeof(void*)==1<<SIZEOF_PTR_LOG2 */
-/* 64-bit machines, beware!  SRB. */
-#define SIZEOF_PTR_LOG2			2
-
-/* to find an entry in a page-table */
-#define PAGE_PTR(address) \
-((unsigned long)(address)>>(PAGE_SHIFT-SIZEOF_PTR_LOG2)&PTR_MASK&~PAGE_MASK)
-
-/* to set the page-dir */
-#define SET_PAGE_DIR(tsk, pgdir)
 
 #define pte_none(x)	(!pte_val(x))
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
@@ -430,5 +413,5 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 
 typedef pte_t *pte_addr_t;
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_OPENRISC_PGTABLE_H */

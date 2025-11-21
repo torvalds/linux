@@ -15,7 +15,6 @@
 #include "i9xx_plane.h"
 #include "i9xx_plane_regs.h"
 #include "intel_atomic.h"
-#include "intel_bo.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_regs.h"
@@ -23,6 +22,7 @@
 #include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
+#include "intel_panic.h"
 #include "intel_plane.h"
 #include "intel_sprite.h"
 
@@ -155,8 +155,7 @@ static bool i9xx_plane_has_windowing(struct intel_plane *plane)
 			i9xx_plane == PLANE_C;
 }
 
-static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
-			  const struct intel_plane_state *plane_state)
+static u32 i9xx_plane_ctl(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -355,9 +354,22 @@ i9xx_plane_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	plane_state->ctl = i9xx_plane_ctl(crtc_state, plane_state);
+	plane_state->ctl = i9xx_plane_ctl(plane_state);
 
 	return 0;
+}
+
+static u32 i8xx_plane_surf_offset(const struct intel_plane_state *plane_state)
+{
+	int x = plane_state->view.color_plane[0].x;
+	int y = plane_state->view.color_plane[0].y;
+
+	return intel_fb_xy_to_linear(x, y, plane_state, 0);
+}
+
+u32 i965_plane_surf_offset(const struct intel_plane_state *plane_state)
+{
+	return plane_state->view.color_plane[0].offset;
 }
 
 static u32 i9xx_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
@@ -463,7 +475,7 @@ static void i9xx_plane_update_arm(struct intel_dsb *dsb,
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	int x = plane_state->view.color_plane[0].x;
 	int y = plane_state->view.color_plane[0].y;
-	u32 dspcntr, dspaddr_offset, linear_offset;
+	u32 dspcntr;
 
 	dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 
@@ -471,13 +483,6 @@ static void i9xx_plane_update_arm(struct intel_dsb *dsb,
 	if (plane->need_async_flip_toggle_wa &&
 	    crtc_state->async_flip_planes & BIT(plane->id))
 		dspcntr |= DISP_ASYNC_FLIP;
-
-	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
-
-	if (DISPLAY_VER(display) >= 4)
-		dspaddr_offset = plane_state->view.color_plane[0].offset;
-	else
-		dspaddr_offset = linear_offset;
 
 	if (display->platform.cherryview && i9xx_plane == PLANE_B) {
 		int crtc_x = plane_state->uapi.dst.x1;
@@ -498,7 +503,7 @@ static void i9xx_plane_update_arm(struct intel_dsb *dsb,
 				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
 	} else if (DISPLAY_VER(display) >= 4) {
 		intel_de_write_fw(display, DSPLINOFF(display, i9xx_plane),
-				  linear_offset);
+				  intel_fb_xy_to_linear(x, y, plane_state, 0));
 		intel_de_write_fw(display, DSPTILEOFF(display, i9xx_plane),
 				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
 	}
@@ -511,11 +516,9 @@ static void i9xx_plane_update_arm(struct intel_dsb *dsb,
 	intel_de_write_fw(display, DSPCNTR(display, i9xx_plane), dspcntr);
 
 	if (DISPLAY_VER(display) >= 4)
-		intel_de_write_fw(display, DSPSURF(display, i9xx_plane),
-				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
+		intel_de_write_fw(display, DSPSURF(display, i9xx_plane), plane_state->surf);
 	else
-		intel_de_write_fw(display, DSPADDR(display, i9xx_plane),
-				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
+		intel_de_write_fw(display, DSPADDR(display, i9xx_plane), plane_state->surf);
 }
 
 static void i830_plane_update_arm(struct intel_dsb *dsb,
@@ -604,16 +607,13 @@ g4x_primary_async_flip(struct intel_dsb *dsb,
 {
 	struct intel_display *display = to_intel_display(plane);
 	u32 dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
-	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 
 	if (async_flip)
 		dspcntr |= DISP_ASYNC_FLIP;
 
 	intel_de_write_fw(display, DSPCNTR(display, i9xx_plane), dspcntr);
-
-	intel_de_write_fw(display, DSPSURF(display, i9xx_plane),
-			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
+	intel_de_write_fw(display, DSPSURF(display, i9xx_plane), plane_state->surf);
 }
 
 static void
@@ -624,11 +624,9 @@ vlv_primary_async_flip(struct intel_dsb *dsb,
 		       bool async_flip)
 {
 	struct intel_display *display = to_intel_display(plane);
-	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 
-	intel_de_write_fw(display, DSPADDR_VLV(display, i9xx_plane),
-			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
+	intel_de_write_fw(display, DSPADDR_VLV(display, i9xx_plane), plane_state->surf);
 }
 
 static void
@@ -1037,6 +1035,11 @@ intel_primary_plane_create(struct intel_display *display, enum pipe pipe)
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
 
+	if (DISPLAY_VER(display) >= 4)
+		plane->surf_offset = i965_plane_surf_offset;
+	else
+		plane->surf_offset = i8xx_plane_surf_offset;
+
 	if (DISPLAY_VER(display) >= 5 || display->platform.g4x)
 		plane->capture_error = g4x_primary_capture_error;
 	else if (DISPLAY_VER(display) >= 4)
@@ -1175,7 +1178,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	drm_WARN_ON(display->drm, pipe != crtc->pipe);
 
-	intel_fb = intel_bo_alloc_framebuffer();
+	intel_fb = intel_framebuffer_alloc();
 	if (!intel_fb) {
 		drm_dbg_kms(display->drm, "failed to alloc fb\n");
 		return;
@@ -1254,24 +1257,21 @@ bool i9xx_fixup_initial_plane_config(struct intel_crtc *crtc,
 	const struct intel_plane_state *plane_state =
 		to_intel_plane_state(plane->base.state);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	u32 base;
 
 	if (!plane_state->uapi.visible)
 		return false;
-
-	base = intel_plane_ggtt_offset(plane_state);
 
 	/*
 	 * We may have moved the surface to a different
 	 * part of ggtt, make the plane aware of that.
 	 */
-	if (plane_config->base == base)
+	if (plane_config->base == plane_state->surf)
 		return false;
 
 	if (DISPLAY_VER(display) >= 4)
-		intel_de_write(display, DSPSURF(display, i9xx_plane), base);
+		intel_de_write(display, DSPSURF(display, i9xx_plane), plane_state->surf);
 	else
-		intel_de_write(display, DSPADDR(display, i9xx_plane), base);
+		intel_de_write(display, DSPADDR(display, i9xx_plane), plane_state->surf);
 
 	return true;
 }

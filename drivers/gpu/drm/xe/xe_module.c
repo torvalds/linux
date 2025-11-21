@@ -27,6 +27,8 @@
 #define DEFAULT_PROBE_DISPLAY		true
 #define DEFAULT_VRAM_BAR_SIZE		0
 #define DEFAULT_FORCE_PROBE		CONFIG_DRM_XE_FORCE_PROBE
+#define DEFAULT_MAX_VFS			~0
+#define DEFAULT_MAX_VFS_STR		"unlimited"
 #define DEFAULT_WEDGED_MODE		1
 #define DEFAULT_SVM_NOTIFIER_SIZE	512
 
@@ -34,6 +36,9 @@ struct xe_modparam xe_modparam = {
 	.probe_display =	DEFAULT_PROBE_DISPLAY,
 	.guc_log_level =	DEFAULT_GUC_LOG_LEVEL,
 	.force_probe =		DEFAULT_FORCE_PROBE,
+#ifdef CONFIG_PCI_IOV
+	.max_vfs =		DEFAULT_MAX_VFS,
+#endif
 	.wedged_mode =		DEFAULT_WEDGED_MODE,
 	.svm_notifier_size =	DEFAULT_SVM_NOTIFIER_SIZE,
 	/* the rest are 0 by default */
@@ -79,7 +84,8 @@ MODULE_PARM_DESC(force_probe,
 module_param_named(max_vfs, xe_modparam.max_vfs, uint, 0400);
 MODULE_PARM_DESC(max_vfs,
 		 "Limit number of Virtual Functions (VFs) that could be managed. "
-		 "(0 = no VFs [default]; N = allow up to N VFs)");
+		 "(0=no VFs; N=allow up to N VFs "
+		 "[default=" DEFAULT_MAX_VFS_STR "])");
 #endif
 
 module_param_named_unsafe(wedged_mode, xe_modparam.wedged_mode, int, 0600);
@@ -129,24 +135,17 @@ static const struct init_funcs init_funcs[] = {
 	},
 };
 
-static int __init xe_call_init_func(unsigned int i)
+static int __init xe_call_init_func(const struct init_funcs *func)
 {
-	if (WARN_ON(i >= ARRAY_SIZE(init_funcs)))
-		return 0;
-	if (!init_funcs[i].init)
-		return 0;
-
-	return init_funcs[i].init();
+	if (func->init)
+		return func->init();
+	return 0;
 }
 
-static void xe_call_exit_func(unsigned int i)
+static void xe_call_exit_func(const struct init_funcs *func)
 {
-	if (WARN_ON(i >= ARRAY_SIZE(init_funcs)))
-		return;
-	if (!init_funcs[i].exit)
-		return;
-
-	init_funcs[i].exit();
+	if (func->exit)
+		func->exit();
 }
 
 static int __init xe_init(void)
@@ -154,10 +153,12 @@ static int __init xe_init(void)
 	int err, i;
 
 	for (i = 0; i < ARRAY_SIZE(init_funcs); i++) {
-		err = xe_call_init_func(i);
+		err = xe_call_init_func(init_funcs + i);
 		if (err) {
+			pr_info("%s: module_init aborted at %ps %pe\n",
+				DRIVER_NAME, init_funcs[i].init, ERR_PTR(err));
 			while (i--)
-				xe_call_exit_func(i);
+				xe_call_exit_func(init_funcs + i);
 			return err;
 		}
 	}
@@ -170,7 +171,7 @@ static void __exit xe_exit(void)
 	int i;
 
 	for (i = ARRAY_SIZE(init_funcs) - 1; i >= 0; i--)
-		xe_call_exit_func(i);
+		xe_call_exit_func(init_funcs + i);
 }
 
 module_init(xe_init);

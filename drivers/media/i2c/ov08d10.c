@@ -515,11 +515,12 @@ static const char * const ov08d10_test_pattern_menu[] = {
 };
 
 struct ov08d10 {
+	struct device *dev;
+	struct clk *clk;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
-
-	struct clk		*xvclk;
 
 	/* V4L2 Controls */
 	struct v4l2_ctrl *link_freq;
@@ -663,7 +664,7 @@ static int ov08d10_write_reg_list(struct ov08d10 *ov08d10,
 		ret = i2c_smbus_write_byte_data(client, r_list->regs[i].address,
 						r_list->regs[i].val);
 		if (ret) {
-			dev_err_ratelimited(&client->dev,
+			dev_err_ratelimited(ov08d10->dev,
 					    "failed to write reg 0x%2.2x. error = %d",
 					    r_list->regs[i].address, ret);
 			return ret;
@@ -849,7 +850,6 @@ static int ov08d10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov08d10 *ov08d10 = container_of(ctrl->handler,
 					     struct ov08d10, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov08d10->sd);
 	s64 exposure_max;
 	int ret;
 
@@ -865,7 +865,7 @@ static int ov08d10_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov08d10->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -901,7 +901,7 @@ static int ov08d10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov08d10->dev);
 
 	return ret;
 }
@@ -1025,32 +1025,32 @@ static int ov08d10_start_streaming(struct ov08d10 *ov08d10)
 	/* soft reset */
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x00);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor");
 		return ret;
 	}
 	ret = i2c_smbus_write_byte_data(client, 0x20, 0x0e);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor");
 		return ret;
 	}
 	usleep_range(3000, 4000);
 	ret = i2c_smbus_write_byte_data(client, 0x20, 0x0b);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor");
 		return ret;
 	}
 
 	/* update sensor setting */
 	ret = ov08d10_write_reg_list(ov08d10, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set plls");
+		dev_err(ov08d10->dev, "failed to set plls");
 		return ret;
 	}
 
 	reg_list = &ov08d10->cur_mode->reg_list;
 	ret = ov08d10_write_reg_list(ov08d10, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode");
+		dev_err(ov08d10->dev, "failed to set mode");
 		return ret;
 	}
 
@@ -1077,19 +1077,19 @@ static void ov08d10_stop_streaming(struct ov08d10 *ov08d10)
 
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x00);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming");
 		return;
 	}
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_MODE_SELECT,
 					OV08D10_MODE_STANDBY);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming");
 		return;
 	}
 
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x01);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming");
 		return;
 	}
 }
@@ -1097,12 +1097,11 @@ static void ov08d10_stop_streaming(struct ov08d10 *ov08d10)
 static int ov08d10_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov08d10 *ov08d10 = to_ov08d10(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&ov08d10->mutex);
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov08d10->dev);
 		if (ret < 0) {
 			mutex_unlock(&ov08d10->mutex);
 			return ret;
@@ -1112,11 +1111,11 @@ static int ov08d10_set_stream(struct v4l2_subdev *sd, int enable)
 		if (ret) {
 			enable = 0;
 			ov08d10_stop_streaming(ov08d10);
-			pm_runtime_put(&client->dev);
+			pm_runtime_put(ov08d10->dev);
 		}
 	} else {
 		ov08d10_stop_streaming(ov08d10);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov08d10->dev);
 	}
 
 	/* vflip and hflip cannot change during streaming */
@@ -1293,7 +1292,7 @@ static int ov08d10_identify_module(struct ov08d10 *ov08d10)
 	chip_id = val | ret;
 
 	if ((chip_id & OV08D10_ID_MASK) != OV08D10_CHIP_ID) {
-		dev_err(&client->dev, "unexpected sensor id(0x%04x)\n",
+		dev_err(ov08d10->dev, "unexpected sensor id(0x%04x)\n",
 			chip_id);
 		return -EINVAL;
 	}
@@ -1301,27 +1300,19 @@ static int ov08d10_identify_module(struct ov08d10 *ov08d10)
 	return 0;
 }
 
-static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10, struct device *dev)
+static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10)
 {
+	struct device *dev = ov08d10->dev;
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	u32 xvclk_rate;
 	unsigned int i, j;
 	int ret;
 
 	if (!fwnode)
 		return -ENXIO;
-
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &xvclk_rate);
-	if (ret)
-		return ret;
-
-	if (xvclk_rate != OV08D10_XVCLK_19_2)
-		dev_warn(dev, "external clock rate %u is unsupported",
-			 xvclk_rate);
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -1380,22 +1371,35 @@ static void ov08d10_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	pm_runtime_disable(&client->dev);
+	pm_runtime_disable(ov08d10->dev);
 	mutex_destroy(&ov08d10->mutex);
 }
 
 static int ov08d10_probe(struct i2c_client *client)
 {
 	struct ov08d10 *ov08d10;
+	unsigned long freq;
 	int ret;
 
 	ov08d10 = devm_kzalloc(&client->dev, sizeof(*ov08d10), GFP_KERNEL);
 	if (!ov08d10)
 		return -ENOMEM;
 
-	ret = ov08d10_get_hwcfg(ov08d10, &client->dev);
+	ov08d10->dev = &client->dev;
+
+	ov08d10->clk = devm_v4l2_sensor_clk_get(ov08d10->dev, NULL);
+	if (IS_ERR(ov08d10->clk))
+		return dev_err_probe(ov08d10->dev, PTR_ERR(ov08d10->clk),
+				     "failed to get clock\n");
+
+	freq = clk_get_rate(ov08d10->clk);
+	if (freq != OV08D10_XVCLK_19_2)
+		dev_warn(ov08d10->dev,
+			 "external clock rate %lu is not supported\n", freq);
+
+	ret = ov08d10_get_hwcfg(ov08d10);
 	if (ret) {
-		dev_err(&client->dev, "failed to get HW configuration: %d",
+		dev_err(ov08d10->dev, "failed to get HW configuration: %d",
 			ret);
 		return ret;
 	}
@@ -1404,7 +1408,7 @@ static int ov08d10_probe(struct i2c_client *client)
 
 	ret = ov08d10_identify_module(ov08d10);
 	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
+		dev_err(ov08d10->dev, "failed to find sensor: %d", ret);
 		return ret;
 	}
 
@@ -1412,7 +1416,7 @@ static int ov08d10_probe(struct i2c_client *client)
 	ov08d10->cur_mode = &ov08d10->priv_lane->sp_modes[0];
 	ret = ov08d10_init_controls(ov08d10);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
+		dev_err(ov08d10->dev, "failed to init controls: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -1422,13 +1426,13 @@ static int ov08d10_probe(struct i2c_client *client)
 	ov08d10->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov08d10->sd.entity, 1, &ov08d10->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err(ov08d10->dev, "failed to init entity pads: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
 	ret = v4l2_async_register_subdev_sensor(&ov08d10->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
+		dev_err(ov08d10->dev, "failed to register V4L2 subdev: %d",
 			ret);
 		goto probe_error_media_entity_cleanup;
 	}
@@ -1437,9 +1441,9 @@ static int ov08d10_probe(struct i2c_client *client)
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
 	 */
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+	pm_runtime_set_active(ov08d10->dev);
+	pm_runtime_enable(ov08d10->dev);
+	pm_runtime_idle(ov08d10->dev);
 
 	return 0;
 

@@ -2282,7 +2282,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		 * If this block group has some small extents we don't want to
 		 * use up all of our free slots in the cache with them, we want
 		 * to reserve them to larger extents, however if we have plenty
-		 * of cache left then go ahead an dadd them, no sense in adding
+		 * of cache left then go ahead and add them, no sense in adding
 		 * the overhead of a bitmap if we don't have to.
 		 */
 		if (info->bytes <= fs_info->sectorsize * 8) {
@@ -3829,7 +3829,7 @@ out_unlock:
 
 /*
  * If we break out of trimming a bitmap prematurely, we should reset the
- * trimming bit.  In a rather contrieved case, it's possible to race here so
+ * trimming bit.  In a rather contrived case, it's possible to race here so
  * reset the state to BTRFS_TRIM_STATE_UNTRIMMED.
  *
  * start = start of bitmap
@@ -4142,7 +4142,7 @@ int btrfs_set_free_space_cache_v1_active(struct btrfs_fs_info *fs_info, bool act
 	if (!active) {
 		set_bit(BTRFS_FS_CLEANUP_SPACE_CACHE_V1, &fs_info->flags);
 		ret = cleanup_free_space_cache_v1(fs_info, trans);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			btrfs_end_transaction(trans);
 			goto out;

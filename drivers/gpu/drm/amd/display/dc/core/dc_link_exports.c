@@ -33,8 +33,9 @@
  * dc.h with detail interface documentation, then add function implementation
  * in this file which calls link functions.
  */
-#include "link.h"
+#include "link_service.h"
 #include "dce/dce_i2c.h"
+
 struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index)
 {
 	if (link_index >= MAX_LINKS)
@@ -518,5 +519,12 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 enum dc_status dc_link_validate_dp_tunneling_bandwidth(const struct dc *dc, const struct dc_state *new_ctx)
 {
 	return dc->link_srv->validate_dp_tunnel_bandwidth(dc, new_ctx);
+}
+
+void dc_link_get_alpm_support(struct dc_link *link,
+	bool *auxless_support,
+	bool *auxwake_support)
+{
+	link->dc->link_srv->edp_get_alpm_support(link, auxless_support, auxwake_support);
 }
 

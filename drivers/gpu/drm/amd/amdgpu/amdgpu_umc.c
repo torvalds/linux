@@ -252,6 +252,7 @@ int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
 				block, pasid, pasid_fn, data, reset);
 			if (!ret) {
 				atomic_inc(&con->page_retirement_req_cnt);
+				atomic_inc(&con->poison_consumption_count);
 				wake_up(&con->page_retirement_wq);
 			}
 		}

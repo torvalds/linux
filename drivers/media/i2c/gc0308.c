@@ -974,7 +974,6 @@ static int gc0308_s_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		dev_err(gc0308->dev, "failed to set control: %d\n", ret);
 
-	pm_runtime_mark_last_busy(gc0308->dev);
 	pm_runtime_put_autosuspend(gc0308->dev);
 
 	return ret;
@@ -1157,14 +1156,12 @@ static int gc0308_start_stream(struct gc0308 *gc0308)
 	return 0;
 
 disable_pm:
-	pm_runtime_mark_last_busy(gc0308->dev);
 	pm_runtime_put_autosuspend(gc0308->dev);
 	return ret;
 }
 
 static int gc0308_stop_stream(struct gc0308 *gc0308)
 {
-	pm_runtime_mark_last_busy(gc0308->dev);
 	pm_runtime_put_autosuspend(gc0308->dev);
 	return 0;
 }

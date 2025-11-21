@@ -1077,3 +1077,75 @@ int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms)
 	return err;
 }
 EXPORT_SYMBOL_GPL(mmc_sanitize);
+
+/**
+ * mmc_read_tuning() - read data blocks from the mmc
+ * @host: mmc host doing the read
+ * @blksz: data block size
+ * @blocks: number of blocks to read
+ *
+ * Read one or more blocks of data from the beginning of the mmc. This is a
+ * low-level helper for tuning operation. It is assumed that CMD23 can be used
+ * for multi-block read if the host supports it.
+ *
+ * Note: Allocate and free a temporary buffer to store the data read. The data
+ * is not available outside of the function, only the status of the read
+ * operation.
+ *
+ * Return: 0 in case of success, otherwise -EIO / -ENOMEM / -E2BIG
+ */
+int mmc_read_tuning(struct mmc_host *host, unsigned int blksz, unsigned int blocks)
+{
+	struct mmc_request mrq = {};
+	struct mmc_command sbc = {};
+	struct mmc_command cmd = {};
+	struct mmc_command stop = {};
+	struct mmc_data data = {};
+	struct scatterlist sg;
+	void *buf;
+	unsigned int len;
+
+	if (blocks > 1) {
+		if (mmc_host_can_cmd23(host)) {
+			mrq.sbc = &sbc;
+			sbc.opcode = MMC_SET_BLOCK_COUNT;
+			sbc.arg = blocks;
+			sbc.flags = MMC_RSP_R1 | MMC_CMD_AC;
+		}
+		cmd.opcode = MMC_READ_MULTIPLE_BLOCK;
+		mrq.stop = &stop;
+		stop.opcode = MMC_STOP_TRANSMISSION;
+		stop.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+	} else {
+		cmd.opcode = MMC_READ_SINGLE_BLOCK;
+	}
+
+	mrq.cmd = &cmd;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	mrq.data = &data;
+	data.flags = MMC_DATA_READ;
+	data.blksz = blksz;
+	data.blocks = blocks;
+	data.blk_addr = 0;
+	data.sg = &sg;
+	data.sg_len = 1;
+	data.timeout_ns = 1000000000;
+
+	if (check_mul_overflow(blksz, blocks, &len))
+		return -E2BIG;
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	sg_init_one(&sg, buf, len);
+
+	mmc_wait_for_req(host, &mrq);
+	kfree(buf);
+
+	if (sbc.error || cmd.error || data.error)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mmc_read_tuning);

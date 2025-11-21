@@ -1623,6 +1623,7 @@ static void encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg
 			| FATTR4_WORD1_RAWDEV
 			| FATTR4_WORD1_SPACE_USED
 			| FATTR4_WORD1_TIME_ACCESS
+			| FATTR4_WORD1_TIME_CREATE
 			| FATTR4_WORD1_TIME_METADATA
 			| FATTR4_WORD1_TIME_MODIFY;
 		attrs[2] |= FATTR4_WORD2_SECURITY_LABEL;
@@ -4207,6 +4208,24 @@ static int decode_attr_time_access(struct xdr_stream *xdr, uint32_t *bitmap, str
 	return status;
 }
 
+static int decode_attr_time_create(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec64 *time)
+{
+	int status = 0;
+
+	time->tv_sec = 0;
+	time->tv_nsec = 0;
+	if (unlikely(bitmap[1] & (FATTR4_WORD1_TIME_CREATE - 1U)))
+		return -EIO;
+	if (likely(bitmap[1] & FATTR4_WORD1_TIME_CREATE)) {
+		status = decode_attr_time(xdr, time);
+		if (status == 0)
+			status = NFS_ATTR_FATTR_BTIME;
+		bitmap[1] &= ~FATTR4_WORD1_TIME_CREATE;
+	}
+	dprintk("%s: btime=%lld\n", __func__, time->tv_sec);
+	return status;
+}
+
 static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec64 *time)
 {
 	int status = 0;
@@ -4781,6 +4800,11 @@ static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
 		goto xdr_error;
 	fattr->valid |= status;
 
+	status = decode_attr_time_create(xdr, bitmap, &fattr->btime);
+	if (status < 0)
+		goto xdr_error;
+	fattr->valid |= status;
+
 	status = decode_attr_time_metadata(xdr, bitmap, &fattr->ctime);
 	if (status < 0)
 		goto xdr_error;
@@ -4906,7 +4930,7 @@ static int decode_attr_pnfstype(struct xdr_stream *xdr, uint32_t *bitmap,
 }
 
 /*
- * The prefered block size for layout directed io
+ * The preferred block size for layout directed io
  */
 static int decode_attr_layout_blksize(struct xdr_stream *xdr, uint32_t *bitmap,
 				      uint32_t *res)
@@ -6561,7 +6585,7 @@ nfs4_xdr_dec_getacl(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	int status;
 
 	if (res->acl_scratch != NULL)
-		xdr_set_scratch_page(xdr, res->acl_scratch);
+		xdr_set_scratch_folio(xdr, res->acl_scratch);
 	status = decode_compound_hdr(xdr, &hdr);
 	if (status)
 		goto out;

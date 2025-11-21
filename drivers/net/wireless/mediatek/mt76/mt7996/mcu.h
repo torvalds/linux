@@ -351,17 +351,6 @@ enum {
 	BP_HW_MODE,
 };
 
-struct mt7996_mcu_bcn_prot_tlv {
-	__le16 tag;
-	__le16 len;
-	u8 pn[6];
-	u8 enable;
-	u8 cipher_id;
-	u8 key[WLAN_MAX_KEY_LEN];
-	u8 key_id;
-	u8 __rsv[3];
-} __packed;
-
 struct bss_ra_tlv {
 	__le16 tag;
 	__le16 len;
@@ -481,7 +470,8 @@ struct bss_mld_tlv {
 	u8 own_mld_id;
 	u8 mac_addr[ETH_ALEN];
 	u8 remap_idx;
-	u8 __rsv[3];
+	u8 link_id;
+	u8 __rsv[2];
 } __packed;
 
 struct sta_rec_ht_uni {
@@ -530,6 +520,9 @@ struct sec_key_uni {
 	u8 key_len;
 	u8 need_resp;
 	u8 key[32];
+	u8 pn[6];
+	u8 bcn_mode;
+	u8 _rsv;
 } __packed;
 
 struct sta_rec_sec_uni {

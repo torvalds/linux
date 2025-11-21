@@ -746,6 +746,11 @@ ieee80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 			BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
 			BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
+	[NL80211_IFTYPE_NAN] = {
+		.tx = 0xffff,
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+			BIT(IEEE80211_STYPE_AUTH >> 4),
+	},
 };
 
 static const struct ieee80211_ht_cap mac80211_ht_capa_mod_mask = {
@@ -862,6 +867,14 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	if (emulate_chanctx || ops->remain_on_channel)
 		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
+	wiphy->bss_param_support = WIPHY_BSS_PARAM_CTS_PROT |
+				   WIPHY_BSS_PARAM_SHORT_PREAMBLE |
+				   WIPHY_BSS_PARAM_SHORT_SLOT_TIME |
+				   WIPHY_BSS_PARAM_BASIC_RATES |
+				   WIPHY_BSS_PARAM_AP_ISOLATE |
+				   WIPHY_BSS_PARAM_HT_OPMODE |
+				   WIPHY_BSS_PARAM_P2P_CTWINDOW |
+				   WIPHY_BSS_PARAM_P2P_OPPPS;
 	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS |
 			   NL80211_FEATURE_SAE |
 			   NL80211_FEATURE_HT_IBSS |
@@ -1111,7 +1124,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int result, i;
 	enum nl80211_band band;
 	int channels, max_bitrates;
-	bool supp_ht, supp_vht, supp_he, supp_eht;
+	bool supp_ht, supp_vht, supp_he, supp_eht, supp_s1g;
 	struct cfg80211_chan_def dflt_chandef = {};
 
 	if (ieee80211_hw_check(hw, QUEUE_CONTROL) &&
@@ -1162,9 +1175,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			return -EINVAL;
 
 		if (WARN_ON(!ieee80211_hw_check(hw, MFP_CAPABLE)))
-			return -EINVAL;
-
-		if (WARN_ON(!ieee80211_hw_check(hw, CONNECTION_MONITOR)))
 			return -EINVAL;
 
 		if (WARN_ON(ieee80211_hw_check(hw, NEED_DTIM_BEFORE_ASSOC)))
@@ -1227,6 +1237,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	supp_vht = false;
 	supp_he = false;
 	supp_eht = false;
+	supp_s1g = false;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		const struct ieee80211_sband_iftype_data *iftd;
 		struct ieee80211_supported_band *sband;
@@ -1238,11 +1249,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		if (!dflt_chandef.chan) {
 			/*
 			 * Assign the first enabled channel to dflt_chandef
-			 * from the list of channels
+			 * from the list of channels. For S1G interfaces
+			 * ensure it can be used as a primary.
 			 */
 			for (i = 0; i < sband->n_channels; i++)
 				if (!(sband->channels[i].flags &
-						IEEE80211_CHAN_DISABLED))
+				      (IEEE80211_CHAN_DISABLED |
+				       IEEE80211_CHAN_S1G_NO_PRIMARY)))
 					break;
 			/* if none found then use the first anyway */
 			if (i == sband->n_channels)
@@ -1274,6 +1287,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			max_bitrates = sband->n_bitrates;
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 		supp_vht = supp_vht || sband->vht_cap.vht_supported;
+		supp_s1g = supp_s1g || sband->s1g_cap.s1g;
 
 		for_each_sband_iftype_data(sband, i, iftd) {
 			u8 he_40_mhz_cap;
@@ -1405,6 +1419,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (supp_vht)
 		local->scan_ies_len +=
 			2 + sizeof(struct ieee80211_vht_cap);
+
+	if (supp_s1g)
+		local->scan_ies_len += 2 + sizeof(struct ieee80211_s1g_cap);
 
 	/*
 	 * HE cap element is variable in size - set len to allow max size */

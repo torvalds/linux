@@ -275,13 +275,26 @@ static int sht21_probe(struct i2c_client *client)
 
 /* Device ID table */
 static const struct i2c_device_id sht21_id[] = {
+	{ "sht20" },
 	{ "sht21" },
+	{ "sht25" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sht21_id);
 
+static const struct of_device_id sht21_of_match[] = {
+	{ .compatible = "sensirion,sht20" },
+	{ .compatible = "sensirion,sht21" },
+	{ .compatible = "sensirion,sht25" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sht21_of_match);
+
 static struct i2c_driver sht21_driver = {
-	.driver.name = "sht21",
+	.driver = {
+		.name = "sht21",
+		.of_match_table = sht21_of_match,
+	},
 	.probe       = sht21_probe,
 	.id_table    = sht21_id,
 };

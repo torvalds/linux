@@ -45,7 +45,7 @@
 #define IEEE80211_ASSOC_TIMEOUT_SHORT	(HZ / 10)
 #define IEEE80211_ASSOC_MAX_TRIES	3
 
-#define IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS msecs_to_jiffies(100)
+#define IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS (100 * USEC_PER_MSEC)
 #define IEEE80211_ADV_TTLM_ST_UNDERFLOW 0xff00
 
 #define IEEE80211_NEG_TTLM_REQ_TIMEOUT (HZ / 5)
@@ -180,10 +180,11 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 
 	/* get special S1G case out of the way */
 	if (sband->band == NL80211_BAND_S1GHZ) {
-		if (!ieee80211_chandef_s1g_oper(elems->s1g_oper, chandef)) {
-			sdata_info(sdata,
-				   "Missing S1G Operation Element? Trying operating == primary\n");
-			chandef->width = ieee80211_s1g_channel_width(channel);
+		if (!ieee80211_chandef_s1g_oper(sdata->local, elems->s1g_oper,
+						chandef)) {
+			/* Fallback to default 1MHz */
+			chandef->width = NL80211_CHAN_WIDTH_1;
+			chandef->s1g_primary_2mhz = false;
 		}
 
 		return IEEE80211_CONN_MODE_S1G;
@@ -1046,6 +1047,14 @@ again:
 			ret = -EINVAL;
 			goto free;
 		}
+
+		chanreq->oper = *ap_chandef;
+		if (!cfg80211_chandef_usable(sdata->wdev.wiphy, &chanreq->oper,
+					     IEEE80211_CHAN_DISABLED)) {
+			ret = -EINVAL;
+			goto free;
+		}
+
 		return elems;
 	case NL80211_BAND_6GHZ:
 		if (ap_mode < IEEE80211_CONN_MODE_HE) {
@@ -1187,6 +1196,14 @@ again:
 				       IEEE80211_CONN_BW_LIMIT_160);
 		link_id_info(sdata, link_id,
 			     "required MCSes not supported, disabling EHT\n");
+	}
+
+	if (conn->mode >= IEEE80211_CONN_MODE_EHT &&
+	    channel->band != NL80211_BAND_2GHZ &&
+	    conn->bw_limit == IEEE80211_CONN_BW_LIMIT_40) {
+		conn->mode = IEEE80211_CONN_MODE_HE;
+		link_id_info(sdata, link_id,
+			     "required bandwidth not supported, disabling EHT\n");
 	}
 
 	/* the mode can only decrease, so this must terminate */
@@ -1842,7 +1859,8 @@ ieee80211_add_link_elems(struct ieee80211_sub_if_data *sdata,
 		ieee80211_put_he_cap(skb, sdata, sband,
 				     &assoc_data->link[link_id].conn);
 		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_HE_CAPABILITY);
-		ieee80211_put_he_6ghz_cap(skb, sdata, smps_mode);
+		if (sband->band == NL80211_BAND_6GHZ)
+			ieee80211_put_he_6ghz_cap(skb, sdata, smps_mode);
 	}
 
 	/*
@@ -2104,8 +2122,11 @@ ieee80211_link_common_elems_size(struct ieee80211_sub_if_data *sdata,
 		sizeof(struct ieee80211_he_mcs_nss_supp) +
 		IEEE80211_HE_PPE_THRES_MAX_LEN;
 
-	if (sband->band == NL80211_BAND_6GHZ)
+	if (sband->band == NL80211_BAND_6GHZ) {
 		size += 2 + 1 + sizeof(struct ieee80211_he_6ghz_capa);
+		/* reg connection */
+		size += 4;
+	}
 
 	size += 2 + 1 + sizeof(struct ieee80211_eht_cap_elem) +
 		sizeof(struct ieee80211_eht_mcs_nss_supp) +
@@ -2179,11 +2200,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			2 + /* ext capa & op */
 			2; /* EML capa */
 
-		/*
-		 * The capability elements were already considered above;
-		 * note this over-estimates a bit because there's no
-		 * STA profile for the assoc link.
-		 */
+		/* The capability elements were already considered above */
 		size += (n_links - 1) *
 			(1 + 1 + /* subelement ID/length */
 			 2 + /* STA control */
@@ -2577,7 +2594,7 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
 			return;
 		}
 
-		wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+		wiphy_hrtimer_work_queue(sdata->local->hw.wiphy,
 					 &link->u.mgd.csa.switch_work, 0);
 	}
 
@@ -2736,7 +2753,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		.timestamp = timestamp,
 		.device_timestamp = device_timestamp,
 	};
-	unsigned long now;
+	u32 csa_time_tu;
+	ktime_t now;
 	int res;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -2966,10 +2984,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 					  csa_ie.mode);
 
 	/* we may have to handle timeout for deactivated link in software */
-	now = jiffies;
-	link->u.mgd.csa.time = now +
-			       TU_TO_JIFFIES((max_t(int, csa_ie.count, 1) - 1) *
-					     link->conf->beacon_int);
+	now = ktime_get_boottime();
+	csa_time_tu = (max_t(int, csa_ie.count, 1) - 1) * link->conf->beacon_int;
+	link->u.mgd.csa.time = now + us_to_ktime(ieee80211_tu_to_usec(csa_time_tu));
 
 	if (ieee80211_vif_link_active(&sdata->vif, link->link_id) &&
 	    local->ops->channel_switch) {
@@ -2984,7 +3001,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	}
 
 	/* channel switch handled in software */
-	wiphy_delayed_work_queue(local->hw.wiphy,
+	wiphy_hrtimer_work_queue(local->hw.wiphy,
 				 &link->u.mgd.csa.switch_work,
 				 link->u.mgd.csa.time - now);
 	return;
@@ -4225,14 +4242,14 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	memset(&sdata->u.mgd.ttlm_info, 0,
 	       sizeof(sdata->u.mgd.ttlm_info));
-	wiphy_delayed_work_cancel(sdata->local->hw.wiphy, &ifmgd->ttlm_work);
+	wiphy_hrtimer_work_cancel(sdata->local->hw.wiphy, &ifmgd->ttlm_work);
 
 	memset(&sdata->vif.neg_ttlm, 0, sizeof(sdata->vif.neg_ttlm));
 	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
 				  &ifmgd->neg_ttlm_timeout_work);
 
 	sdata->u.mgd.removed_links = 0;
-	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+	wiphy_hrtimer_work_cancel(sdata->local->hw.wiphy,
 				  &sdata->u.mgd.ml_reconf_work);
 
 	wiphy_work_cancel(sdata->local->hw.wiphy,
@@ -5721,7 +5738,7 @@ static u8 ieee80211_max_rx_chains(struct ieee80211_link_data *link,
 	he_cap_elem = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY,
 					     ies->data, ies->len);
 
-	if (!he_cap_elem || he_cap_elem->datalen < sizeof(*he_cap))
+	if (!he_cap_elem || he_cap_elem->datalen < sizeof(*he_cap) + 1)
 		return chains;
 
 	/* skip one byte ext_tag_id */
@@ -6348,6 +6365,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	};
 	u8 ap_mld_addr[ETH_ALEN] __aligned(2);
 	unsigned int link_id;
+	u16 max_aid = IEEE80211_MAX_AID;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
@@ -6374,10 +6392,12 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	reassoc = ieee80211_is_reassoc_resp(mgmt->frame_control);
 	capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
 	status_code = le16_to_cpu(mgmt->u.assoc_resp.status_code);
-	if (assoc_data->s1g)
+	if (assoc_data->s1g) {
 		elem_start = mgmt->u.s1g_assoc_resp.variable;
-	else
+		max_aid = IEEE80211_MAX_SUPPORTED_S1G_AID;
+	} else {
 		elem_start = mgmt->u.assoc_resp.variable;
+	}
 
 	/*
 	 * Note: this may not be perfect, AP might misbehave - if
@@ -6401,16 +6421,15 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	if (elems->aid_resp)
 		aid = le16_to_cpu(elems->aid_resp->aid);
-	else if (assoc_data->s1g)
-		aid = 0; /* TODO */
 	else
 		aid = le16_to_cpu(mgmt->u.assoc_resp.aid);
 
 	/*
-	 * The 5 MSB of the AID field are reserved
-	 * (802.11-2016 9.4.1.8 AID field)
+	 * The 5 MSB of the AID field are reserved for a non-S1G STA. For
+	 * an S1G STA the 3 MSBs are reserved.
+	 * (802.11-2016 9.4.1.8 AID field).
 	 */
-	aid &= 0x7ff;
+	aid &= assoc_data->s1g ? 0x1fff : 0x7ff;
 
 	sdata_info(sdata,
 		   "RX %sssocResp from %pM (capab=0x%x status=%d aid=%d)\n",
@@ -6447,7 +6466,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		event.u.mlme.reason = status_code;
 		drv_event_callback(sdata->local, sdata, &event);
 	} else {
-		if (aid == 0 || aid > IEEE80211_MAX_AID) {
+		if (aid == 0 || aid > max_aid) {
 			sdata_info(sdata,
 				   "invalid AID value %d (out of range), turn off PS\n",
 				   aid);
@@ -6485,6 +6504,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		}
 
 		sdata->vif.cfg.aid = aid;
+		sdata->vif.cfg.s1g = assoc_data->s1g;
 
 		if (!ieee80211_assoc_success(sdata, mgmt, elems,
 					     elem_start, elem_len)) {
@@ -6856,7 +6876,7 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 		/* In case the removal was cancelled, abort it */
 		if (sdata->u.mgd.removed_links) {
 			sdata->u.mgd.removed_links = 0;
-			wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+			wiphy_hrtimer_work_cancel(sdata->local->hw.wiphy,
 						  &sdata->u.mgd.ml_reconf_work);
 		}
 		return;
@@ -6886,9 +6906,9 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sdata->u.mgd.removed_links = removed_links;
-	wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+	wiphy_hrtimer_work_queue(sdata->local->hw.wiphy,
 				 &sdata->u.mgd.ml_reconf_work,
-				 TU_TO_JIFFIES(delay));
+				 us_to_ktime(ieee80211_tu_to_usec(delay)));
 }
 
 static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
@@ -7075,7 +7095,7 @@ static void ieee80211_process_adv_ttlm(struct ieee80211_sub_if_data *sdata,
 			/* if a planned TID-to-link mapping was cancelled -
 			 * abort it
 			 */
-			wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+			wiphy_hrtimer_work_cancel(sdata->local->hw.wiphy,
 						  &sdata->u.mgd.ttlm_work);
 		} else if (sdata->u.mgd.ttlm_info.active) {
 			/* if no TID-to-link element, set to default mapping in
@@ -7110,7 +7130,7 @@ static void ieee80211_process_adv_ttlm(struct ieee80211_sub_if_data *sdata,
 
 		if (ttlm_info.switch_time) {
 			u16 beacon_ts_tu, st_tu, delay;
-			u32 delay_jiffies;
+			u64 delay_usec;
 			u64 mask;
 
 			/* The t2l map switch time is indicated with a partial
@@ -7132,23 +7152,23 @@ static void ieee80211_process_adv_ttlm(struct ieee80211_sub_if_data *sdata,
 			if (delay > IEEE80211_ADV_TTLM_ST_UNDERFLOW)
 				return;
 
-			delay_jiffies = TU_TO_JIFFIES(delay);
+			delay_usec = ieee80211_tu_to_usec(delay);
 
 			/* Link switching can take time, so schedule it
 			 * 100ms before to be ready on time
 			 */
-			if (delay_jiffies > IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS)
-				delay_jiffies -=
+			if (delay_usec > IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS)
+				delay_usec -=
 					IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS;
 			else
-				delay_jiffies = 0;
+				delay_usec = 0;
 
 			sdata->u.mgd.ttlm_info = ttlm_info;
-			wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+			wiphy_hrtimer_work_cancel(sdata->local->hw.wiphy,
 						  &sdata->u.mgd.ttlm_work);
-			wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+			wiphy_hrtimer_work_queue(sdata->local->hw.wiphy,
 						 &sdata->u.mgd.ttlm_work,
-						 delay_jiffies);
+						 us_to_ktime(delay_usec));
 			return;
 		}
 	}
@@ -7281,6 +7301,38 @@ static bool ieee80211_mgd_ssid_mismatch(struct ieee80211_sub_if_data *sdata,
 	return memcmp(elems->ssid, cfg->ssid, cfg->ssid_len);
 }
 
+static bool
+ieee80211_rx_beacon_freq_valid(struct ieee80211_local *local,
+			       struct ieee80211_mgmt *mgmt,
+			       struct ieee80211_rx_status *rx_status,
+			       struct ieee80211_chanctx_conf *chanctx)
+{
+	u32 pri_2mhz_khz;
+	struct ieee80211_channel *s1g_sibling_1mhz;
+	u32 pri_khz = ieee80211_channel_to_khz(chanctx->def.chan);
+	u32 rx_khz = ieee80211_rx_status_to_khz(rx_status);
+
+	if (rx_khz == pri_khz)
+		return true;
+
+	if (!chanctx->def.s1g_primary_2mhz)
+		return false;
+
+	/*
+	 * If we have an S1G interface with a 2MHz primary, beacons are
+	 * sent on the center frequency of the 2MHz primary. Find the sibling
+	 * 1MHz channel and calculate the 2MHz primary center frequency.
+	 */
+	s1g_sibling_1mhz = cfg80211_s1g_get_primary_sibling(local->hw.wiphy,
+							    &chanctx->def);
+	if (!s1g_sibling_1mhz)
+		return false;
+
+	pri_2mhz_khz =
+		(pri_khz + ieee80211_channel_to_khz(s1g_sibling_1mhz)) / 2;
+	return rx_khz == pri_2mhz_khz;
+}
+
 static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 				     struct ieee80211_hdr *hdr, size_t len,
 				     struct ieee80211_rx_status *rx_status)
@@ -7335,8 +7387,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		return;
 	}
 
-	if (ieee80211_rx_status_to_khz(rx_status) !=
-	    ieee80211_channel_to_khz(chanctx_conf->def.chan)) {
+	if (!ieee80211_rx_beacon_freq_valid(local, mgmt, rx_status,
+					    chanctx_conf)) {
 		rcu_read_unlock();
 		return;
 	}
@@ -7432,7 +7484,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	ncrc = elems->crc;
 
 	if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK) &&
-	    ieee80211_check_tim(elems->tim, elems->tim_len, vif_cfg->aid)) {
+	    ieee80211_check_tim(elems->tim, elems->tim_len, vif_cfg->aid,
+				vif_cfg->s1g)) {
 		if (local->hw.conf.dynamic_ps_timeout > 0) {
 			if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 				local->hw.conf.flags &= ~IEEE80211_CONF_PS;
@@ -8740,7 +8793,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 			ieee80211_csa_connection_drop_work);
 	wiphy_delayed_work_init(&ifmgd->tdls_peer_del_work,
 				ieee80211_tdls_peer_del_work);
-	wiphy_delayed_work_init(&ifmgd->ml_reconf_work,
+	wiphy_hrtimer_work_init(&ifmgd->ml_reconf_work,
 				ieee80211_ml_reconf_work);
 	wiphy_delayed_work_init(&ifmgd->reconf.wk,
 				ieee80211_ml_sta_reconf_timeout);
@@ -8749,7 +8802,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	timer_setup(&ifmgd->conn_mon_timer, ieee80211_sta_conn_mon_timer, 0);
 	wiphy_delayed_work_init(&ifmgd->tx_tspec_wk,
 				ieee80211_sta_handle_tspec_ac_params_wk);
-	wiphy_delayed_work_init(&ifmgd->ttlm_work,
+	wiphy_hrtimer_work_init(&ifmgd->ttlm_work,
 				ieee80211_tid_to_link_map_work);
 	wiphy_delayed_work_init(&ifmgd->neg_ttlm_timeout_work,
 				ieee80211_neg_ttlm_timeout_work);
@@ -8796,7 +8849,7 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
 	else
 		link->u.mgd.req_smps = IEEE80211_SMPS_OFF;
 
-	wiphy_delayed_work_init(&link->u.mgd.csa.switch_work,
+	wiphy_hrtimer_work_init(&link->u.mgd.csa.switch_work,
 				ieee80211_csa_switch_work);
 
 	ieee80211_clear_tpe(&link->conf->tpe);
@@ -10011,7 +10064,7 @@ void ieee80211_mgd_stop_link(struct ieee80211_link_data *link)
 			  &link->u.mgd.request_smps_work);
 	wiphy_work_cancel(link->sdata->local->hw.wiphy,
 			  &link->u.mgd.recalc_smps);
-	wiphy_delayed_work_cancel(link->sdata->local->hw.wiphy,
+	wiphy_hrtimer_work_cancel(link->sdata->local->hw.wiphy,
 				  &link->u.mgd.csa.switch_work);
 }
 

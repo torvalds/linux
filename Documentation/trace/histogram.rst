@@ -186,8 +186,8 @@ Documentation written by Tom Zanussi
   The examples below provide a more concrete illustration of the
   concepts and typical usage patterns discussed above.
 
-'special' event fields
-------------------------
+2.1. 'special' event fields
+---------------------------
 
   There are a number of 'special event fields' available for use as
   keys or values in a hist trigger.  These look like and behave as if
@@ -204,16 +204,16 @@ Documentation written by Tom Zanussi
     common_cpu             int  the cpu on which the event occurred.
     ====================== ==== =======================================
 
-Extended error information
---------------------------
+2.2. Extended error information
+-------------------------------
 
   For some error conditions encountered when invoking a hist trigger
   command, extended error information is available via the
-  tracing/error_log file.  See Error Conditions in
-  :file:`Documentation/trace/ftrace.rst` for details.
+  tracing/error_log file.  See "Error conditions" section in
+  Documentation/trace/ftrace.rst for details.
 
-6.2 'hist' trigger examples
----------------------------
+2.3. 'hist' trigger examples
+----------------------------
 
   The first set of examples creates aggregations using the kmalloc
   event.  The fields that can be used for the hist trigger are listed
@@ -840,7 +840,7 @@ Extended error information
 
   The compound key examples used a key and a sum value (hitcount) to
   sort the output, but we can just as easily use two keys instead.
-  Here's an example where we use a compound key composed of the the
+  Here's an example where we use a compound key composed of the
   common_pid and size event fields.  Sorting with pid as the primary
   key and 'size' as the secondary key allows us to display an
   ordered summary of the recvfrom sizes, with counts, received by
@@ -1608,8 +1608,8 @@ Extended error information
         Entries: 7
         Dropped: 0
 
-2.2 Inter-event hist triggers
------------------------------
+2.4. Inter-event hist triggers
+------------------------------
 
 Inter-event hist triggers are hist triggers that combine values from
 one or more other events and create a histogram using that data.  Data
@@ -1685,8 +1685,8 @@ pseudo-file.
 
 These features are described in more detail in the following sections.
 
-2.2.1 Histogram Variables
--------------------------
+2.5. Histogram Variables
+------------------------
 
 Variables are simply named locations used for saving and retrieving
 values between matching events.  A 'matching' event is defined as an
@@ -1789,8 +1789,8 @@ or assigned to a variable and referenced in a subsequent expression::
 
 Variables can even hold stacktraces, which are useful with synthetic events.
 
-2.2.2 Synthetic Events
-----------------------
+2.6. Synthetic Events
+---------------------
 
 Synthetic events are user-defined events generated from hist trigger
 variables or fields associated with one or more other events.  Their
@@ -1846,7 +1846,7 @@ the command that defined it with a '!'::
 At this point, there isn't yet an actual 'wakeup_latency' event
 instantiated in the event subsystem - for this to happen, a 'hist
 trigger action' needs to be instantiated and bound to actual fields
-and variables defined on other events (see Section 2.2.3 below on
+and variables defined on other events (see Section 2.7. below on
 how that is done using hist trigger 'onmatch' action). Once that is
 done, the 'wakeup_latency' synthetic event instance is created.
 
@@ -2094,8 +2094,8 @@ histogram::
     Entries: 7
     Dropped: 0
 
-2.2.3 Hist trigger 'handlers' and 'actions'
--------------------------------------------
+2.7. Hist trigger 'handlers' and 'actions'
+------------------------------------------
 
 A hist trigger 'action' is a function that's executed (in most cases
 conditionally) whenever a histogram entry is added or updated.
@@ -2526,8 +2526,8 @@ The following commonly-used handler.action pairs are available:
          kworker/3:2-135   [003] d..3    49.823123: sched_switch: prev_comm=kworker/3:2 prev_pid=135 prev_prio=120 prev_state=T ==> next_comm=swapper/3 next_pid=0 next_prio=120
               <idle>-0     [004] ..s7    49.823798: tcp_probe: src=10.0.0.10:54326 dest=23.215.104.193:80 mark=0x0 length=32 snd_nxt=0xe3ae2ff5 snd_una=0xe3ae2ecd snd_cwnd=10 ssthresh=2147483647 snd_wnd=28960 srtt=19604 rcv_wnd=29312
 
-3. User space creating a trigger
---------------------------------
+2.8. User space creating a trigger
+----------------------------------
 
 Writing into /sys/kernel/tracing/trace_marker writes into the ftrace
 ring buffer. This can also act like an event, by writing into the trigger

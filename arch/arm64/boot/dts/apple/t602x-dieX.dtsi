@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Nodes present on both dies of T6022 (M2 Ultra) and present on M2 Pro/Max.
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+	DIE_NODE(cpufreq_e): cpufreq@210e20000 {
+		compatible = "apple,t6020-cluster-cpufreq", "apple,t8112-cluster-cpufreq";
+		reg = <0x2 0x10e20000 0 0x1000>;
+		#performance-domain-cells = <0>;
+	};
+
+	DIE_NODE(cpufreq_p0): cpufreq@211e20000 {
+		compatible = "apple,t6020-cluster-cpufreq", "apple,t8112-cluster-cpufreq";
+		reg = <0x2 0x11e20000 0 0x1000>;
+		#performance-domain-cells = <0>;
+	};
+
+	DIE_NODE(cpufreq_p1): cpufreq@212e20000 {
+		compatible = "apple,t6020-cluster-cpufreq", "apple,t8112-cluster-cpufreq";
+		reg = <0x2 0x12e20000 0 0x1000>;
+		#performance-domain-cells = <0>;
+	};
+
+	DIE_NODE(pmgr): power-management@28e080000 {
+		compatible = "apple,t6020-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x2 0x8e080000 0 0x8000>;
+	};
+
+	DIE_NODE(pmgr_south): power-management@28e680000 {
+		compatible = "apple,t6020-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x2 0x8e680000 0 0x8000>;
+	};
+
+	DIE_NODE(pmgr_east): power-management@290280000 {
+		compatible = "apple,t6020-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x2 0x90280000 0 0xc000>;
+	};
+
+	DIE_NODE(pinctrl_nub): pinctrl@29e1f0000 {
+		compatible = "apple,t6020-pinctrl", "apple,t8103-pinctrl";
+		reg = <0x2 0x9e1f0000 0x0 0x4000>;
+		power-domains = <&DIE_NODE(ps_nub_gpio)>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_nub) 0 0 30>;
+		apple,npins = <30>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 711 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 712 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 713 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 714 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 715 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 716 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 717 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	DIE_NODE(pmgr_mini): power-management@29e280000 {
+		compatible = "apple,t6020-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x2 0x9e280000 0 0x4000>;
+	};
+
+	DIE_NODE(pinctrl_aop): pinctrl@2a6820000 {
+		compatible = "apple,t6020-pinctrl", "apple,t8103-pinctrl";
+		reg = <0x2 0xa6820000 0x0 0x4000>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_aop) 0 0 72>;
+		apple,npins = <72>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 598 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 599 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 600 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 601 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 602 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 603 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 604 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	DIE_NODE(pinctrl_ap): pinctrl@39b028000 {
+		compatible = "apple,t6020-pinctrl", "apple,t8103-pinctrl";
+		reg = <0x3 0x9b028000 0x0 0x4000>;
+
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 458 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 459 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 460 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 461 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 462 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 463 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 464 IRQ_TYPE_LEVEL_HIGH>;
+
+		clocks = <&clkref>;
+		power-domains = <&DIE_NODE(ps_gpio)>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_ap) 0 0 255>;
+		apple,npins = <255>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	DIE_NODE(pmgr_gfx): power-management@404e80000 {
+		compatible = "apple,t6020-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		reg = <0x4 0x4e80000 0 0x4000>;
+	};

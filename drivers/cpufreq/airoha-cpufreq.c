@@ -107,6 +107,7 @@ static struct platform_driver airoha_cpufreq_driver = {
 };
 
 static const struct of_device_id airoha_cpufreq_match_list[] __initconst = {
+	{ .compatible = "airoha,an7583" },
 	{ .compatible = "airoha,en7581" },
 	{},
 };

@@ -75,7 +75,7 @@ static inline void sync_icache_dcache(struct page *page)
 
 static inline void flush_dcache_folio(struct folio *folio)
 {
-	clear_bit(PG_dc_clean, &folio->flags);
+	clear_bit(PG_dc_clean, &folio->flags.f);
 }
 #define flush_dcache_folio flush_dcache_folio
 

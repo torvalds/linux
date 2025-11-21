@@ -139,6 +139,78 @@ struct virtio_config_ops {
 	int (*enable_vq_after_reset)(struct virtqueue *vq);
 };
 
+/**
+ * struct virtio_map_ops - operations for mapping buffer for a virtio device
+ * Note: For transport that has its own mapping logic it must
+ * implements all of the operations
+ * @map_page: map a buffer to the device
+ *      map: metadata for performing mapping
+ *      page: the page that will be mapped by the device
+ *      offset: the offset in the page for a buffer
+ *      size: the buffer size
+ *      dir: mapping direction
+ *      attrs: mapping attributes
+ *      Returns: the mapped address
+ * @unmap_page: unmap a buffer from the device
+ *      map: device specific mapping map
+ *      map_handle: the mapped address
+ *      size: the buffer size
+ *      dir: mapping direction
+ *      attrs: unmapping attributes
+ * @sync_single_for_cpu: sync a single buffer from device to cpu
+ *      map: metadata for performing mapping
+ *      map_handle: the mapping address to sync
+ *      size: the size of the buffer
+ *      dir: synchronization direction
+ * @sync_single_for_device: sync a single buffer from cpu to device
+ *      map: metadata for performing mapping
+ *      map_handle: the mapping address to sync
+ *      size: the size of the buffer
+ *      dir: synchronization direction
+ * @alloc: alloc a coherent buffer mapping
+ *      map: metadata for performing mapping
+ *      size: the size of the buffer
+ *      map_handle: the mapping address to sync
+ *      gfp: allocation flag (GFP_XXX)
+ *      Returns: virtual address of the allocated buffer
+ * @free: free a coherent buffer mapping
+ *      map: metadata for performing mapping
+ *      size: the size of the buffer
+ *      vaddr: virtual address of the buffer
+ *      map_handle: the mapping address to sync
+ *      attrs: unmapping attributes
+ * @need_sync: if the buffer needs synchronization
+ *      map: metadata for performing mapping
+ *      map_handle: the mapped address
+ *      Returns: whether the buffer needs synchronization
+ * @mapping_error: if the mapping address is error
+ *      map: metadata for performing mapping
+ *      map_handle: the mapped address
+ * @max_mapping_size: get the maximum buffer size that can be mapped
+ *      map: metadata for performing mapping
+ *      Returns: the maximum buffer size that can be mapped
+ */
+struct virtio_map_ops {
+	dma_addr_t (*map_page)(union virtio_map map, struct page *page,
+			       unsigned long offset, size_t size,
+			       enum dma_data_direction dir, unsigned long attrs);
+	void (*unmap_page)(union virtio_map map, dma_addr_t map_handle,
+			   size_t size, enum dma_data_direction dir,
+			   unsigned long attrs);
+	void (*sync_single_for_cpu)(union virtio_map map, dma_addr_t map_handle,
+				    size_t size, enum dma_data_direction dir);
+	void (*sync_single_for_device)(union virtio_map map,
+				       dma_addr_t map_handle, size_t size,
+				       enum dma_data_direction dir);
+	void *(*alloc)(union virtio_map map, size_t size,
+		       dma_addr_t *map_handle, gfp_t gfp);
+	void (*free)(union virtio_map map, size_t size, void *vaddr,
+		     dma_addr_t map_handle, unsigned long attrs);
+	bool (*need_sync)(union virtio_map map, dma_addr_t map_handle);
+	int (*mapping_error)(union virtio_map map, dma_addr_t map_handle);
+	size_t (*max_mapping_size)(union virtio_map map);
+};
+
 /* If driver didn't advertise the feature, it will never appear. */
 void virtio_check_driver_offered_feature(const struct virtio_device *vdev,
 					 unsigned int fbit);
@@ -193,14 +265,15 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
 }
 
 static inline void virtio_get_features(struct virtio_device *vdev,
-				       u64 *features)
+				       u64 *features_out)
 {
 	if (vdev->config->get_extended_features) {
-		vdev->config->get_extended_features(vdev, features);
+		vdev->config->get_extended_features(vdev, features_out);
 		return;
 	}
 
-	virtio_features_from_u64(features, vdev->config->get_features(vdev));
+	virtio_features_from_u64(features_out,
+		vdev->config->get_features(vdev));
 }
 
 /**
@@ -326,13 +399,11 @@ int virtqueue_set_affinity(struct virtqueue *vq, const struct cpumask *cpu_mask)
 
 static inline
 bool virtio_get_shm_region(struct virtio_device *vdev,
-			   struct virtio_shm_region *region, u8 id)
+			   struct virtio_shm_region *region_out, u8 id)
 {
-	if (!region->len)
-		return false;
 	if (!vdev->config->get_shm_region)
 		return false;
-	return vdev->config->get_shm_region(vdev, region, id);
+	return vdev->config->get_shm_region(vdev, region_out, id);
 }
 
 static inline bool virtio_is_little_endian(struct virtio_device *vdev)

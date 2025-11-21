@@ -37,7 +37,7 @@ enum hwmon_type {
 /**
  * enum hwmon_item:
  *
- * Similar to enum hwmon_type but describes the item part of a a sysfs filename.
+ * Similar to enum hwmon_type but describes the item part of a sysfs filename.
  *
  * This enum is exposed for testing.
  */

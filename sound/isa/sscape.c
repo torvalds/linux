@@ -200,11 +200,8 @@ static inline void sscape_write_unsafe(unsigned io_base, enum GA_REG reg,
 static void sscape_write(struct soundscape *s, enum GA_REG reg,
 			 unsigned char val)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->lock, flags);
+	guard(spinlock_irqsave)(&s->lock);
 	sscape_write_unsafe(s->io_base, reg, val);
-	spin_unlock_irqrestore(&s->lock, flags);
 }
 
 /*
@@ -367,12 +364,11 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 	unsigned long end_time = jiffies + msecs_to_jiffies(timeout);
 
 	do {
-		unsigned long flags;
 		int x;
 
-		spin_lock_irqsave(&s->lock, flags);
-		x = host_read_unsafe(s->io_base);
-		spin_unlock_irqrestore(&s->lock, flags);
+		scoped_guard(spinlock_irqsave, &s->lock) {
+			x = host_read_unsafe(s->io_base);
+		}
 		if (x == 0xfe || x == 0xff)
 			return 1;
 
@@ -394,12 +390,11 @@ static int host_startup_ack(struct soundscape *s, unsigned timeout)
 	unsigned long end_time = jiffies + msecs_to_jiffies(timeout);
 
 	do {
-		unsigned long flags;
 		int x;
 
-		spin_lock_irqsave(&s->lock, flags);
-		x = host_read_unsafe(s->io_base);
-		spin_unlock_irqrestore(&s->lock, flags);
+		scoped_guard(spinlock_irqsave, &s->lock) {
+			x = host_read_unsafe(s->io_base);
+		}
 		if (x == 0xfe)
 			return 1;
 
@@ -415,7 +410,6 @@ static int host_startup_ack(struct soundscape *s, unsigned timeout)
 static int upload_dma_data(struct soundscape *s, const unsigned char *data,
 			   size_t size)
 {
-	unsigned long flags;
 	struct snd_dma_buffer dma;
 	int ret;
 	unsigned char val;
@@ -423,62 +417,57 @@ static int upload_dma_data(struct soundscape *s, const unsigned char *data,
 	if (!get_dmabuf(s, &dma, PAGE_ALIGN(32 * 1024)))
 		return -ENOMEM;
 
-	spin_lock_irqsave(&s->lock, flags);
+	scoped_guard(spinlock_irqsave, &s->lock) {
 
-	/*
-	 * Reset the board ...
-	 */
-	val = sscape_read_unsafe(s->io_base, GA_HMCTL_REG);
-	sscape_write_unsafe(s->io_base, GA_HMCTL_REG, val & 0x3f);
+		/*
+		 * Reset the board ...
+		 */
+		val = sscape_read_unsafe(s->io_base, GA_HMCTL_REG);
+		sscape_write_unsafe(s->io_base, GA_HMCTL_REG, val & 0x3f);
 
-	/*
-	 * Enable the DMA channels and configure them ...
-	 */
-	val = (s->chip->dma1 << 4) | DMA_8BIT;
-	sscape_write_unsafe(s->io_base, GA_DMAA_REG, val);
-	sscape_write_unsafe(s->io_base, GA_DMAB_REG, 0x20);
+		/*
+		 * Enable the DMA channels and configure them ...
+		 */
+		val = (s->chip->dma1 << 4) | DMA_8BIT;
+		sscape_write_unsafe(s->io_base, GA_DMAA_REG, val);
+		sscape_write_unsafe(s->io_base, GA_DMAB_REG, 0x20);
 
-	/*
-	 * Take the board out of reset ...
-	 */
-	val = sscape_read_unsafe(s->io_base, GA_HMCTL_REG);
-	sscape_write_unsafe(s->io_base, GA_HMCTL_REG, val | 0x80);
+		/*
+		 * Take the board out of reset ...
+		 */
+		val = sscape_read_unsafe(s->io_base, GA_HMCTL_REG);
+		sscape_write_unsafe(s->io_base, GA_HMCTL_REG, val | 0x80);
 
-	/*
-	 * Upload the firmware to the SoundScape
-	 * board through the DMA channel ...
-	 */
-	while (size != 0) {
-		unsigned long len;
+		/*
+		 * Upload the firmware to the SoundScape
+		 * board through the DMA channel ...
+		 */
+		while (size != 0) {
+			unsigned long len;
 
-		len = min(size, dma.bytes);
-		memcpy(dma.area, data, len);
-		data += len;
-		size -= len;
+			len = min(size, dma.bytes);
+			memcpy(dma.area, data, len);
+			data += len;
+			size -= len;
 
-		snd_dma_program(s->chip->dma1, dma.addr, len, DMA_MODE_WRITE);
-		sscape_start_dma_unsafe(s->io_base, GA_DMAA_REG);
-		if (!sscape_wait_dma_unsafe(s->io_base, GA_DMAA_REG, 5000)) {
-			/*
-			 * Don't forget to release this spinlock we're holding
-			 */
-			spin_unlock_irqrestore(&s->lock, flags);
+			snd_dma_program(s->chip->dma1, dma.addr, len, DMA_MODE_WRITE);
+			sscape_start_dma_unsafe(s->io_base, GA_DMAA_REG);
+			if (!sscape_wait_dma_unsafe(s->io_base, GA_DMAA_REG, 5000)) {
+				dev_err(s->dev, "sscape: DMA upload has timed out\n");
+				ret = -EAGAIN;
+				goto _release_dma;
+			}
+		} /* while */
 
-			dev_err(s->dev, "sscape: DMA upload has timed out\n");
-			ret = -EAGAIN;
-			goto _release_dma;
-		}
-	} /* while */
+		set_host_mode_unsafe(s->io_base);
+		outb(0x0, s->io_base);
 
-	set_host_mode_unsafe(s->io_base);
-	outb(0x0, s->io_base);
-
-	/*
-	 * Boot the board ... (I think)
-	 */
-	val = sscape_read_unsafe(s->io_base, GA_HMCTL_REG);
-	sscape_write_unsafe(s->io_base, GA_HMCTL_REG, val | 0x40);
-	spin_unlock_irqrestore(&s->lock, flags);
+		/*
+		 * Boot the board ... (I think)
+		 */
+		val = sscape_read_unsafe(s->io_base, GA_HMCTL_REG);
+		sscape_write_unsafe(s->io_base, GA_HMCTL_REG, val | 0x40);
+	}
 
 	/*
 	 * If all has gone well, then the board should acknowledge
@@ -513,7 +502,6 @@ _release_dma:
 static int sscape_upload_bootblock(struct snd_card *card)
 {
 	struct soundscape *sscape = get_card_soundscape(card);
-	unsigned long flags;
 	const struct firmware *init_fw = NULL;
 	int data = 0;
 	int ret;
@@ -527,14 +515,12 @@ static int sscape_upload_bootblock(struct snd_card *card)
 
 	release_firmware(init_fw);
 
-	spin_lock_irqsave(&sscape->lock, flags);
+	guard(spinlock_irqsave)(&sscape->lock);
 	if (ret == 0)
 		data = host_read_ctrl_unsafe(sscape->io_base, 100);
 
 	if (data & 0x10)
 		sscape_write_unsafe(sscape->io_base, GA_SMCFGA_REG, 0x2f);
-
-	spin_unlock_irqrestore(&sscape->lock, flags);
 
 	data &= 0xf;
 	if (ret == 0 && data > 7) {
@@ -593,11 +579,9 @@ static int sscape_midi_get(struct snd_kcontrol *kctl,
 	struct snd_wss *chip = snd_kcontrol_chip(kctl);
 	struct snd_card *card = chip->card;
 	register struct soundscape *s = get_card_soundscape(card);
-	unsigned long flags;
 
-	spin_lock_irqsave(&s->lock, flags);
+	guard(spinlock_irqsave)(&s->lock);
 	uctl->value.integer.value[0] = s->midi_vol;
-	spin_unlock_irqrestore(&s->lock, flags);
 	return 0;
 }
 
@@ -607,11 +591,10 @@ static int sscape_midi_put(struct snd_kcontrol *kctl,
 	struct snd_wss *chip = snd_kcontrol_chip(kctl);
 	struct snd_card *card = chip->card;
 	struct soundscape *s = get_card_soundscape(card);
-	unsigned long flags;
 	int change;
 	unsigned char new_val;
 
-	spin_lock_irqsave(&s->lock, flags);
+	guard(spinlock_irqsave)(&s->lock);
 
 	new_val = uctl->value.integer.value[0] & 127;
 	/*
@@ -642,7 +625,6 @@ __skip_change:
 	 */
 	set_midi_mode_unsafe(s->io_base);
 
-	spin_unlock_irqrestore(&s->lock, flags);
 	return change;
 }
 
@@ -852,8 +834,6 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 	err = snd_wss_create(card, port, -1, irq, dma1, dma2,
 			     codec_type, WSS_HWSHARE_DMA1, &chip);
 	if (!err) {
-		unsigned long flags;
-
 		if (sscape->type != SSCAPE_VIVO) {
 			/*
 			 * The input clock frequency on the SoundScape must
@@ -861,9 +841,9 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 			 * to get the playback to sound correct ...
 			 */
 			snd_wss_mce_up(chip);
-			spin_lock_irqsave(&chip->reg_lock, flags);
-			snd_wss_out(chip, AD1845_CLOCK, 0x20);
-			spin_unlock_irqrestore(&chip->reg_lock, flags);
+			scoped_guard(spinlock_irqsave, &chip->reg_lock) {
+				snd_wss_out(chip, AD1845_CLOCK, 0x20);
+			}
 			snd_wss_mce_down(chip);
 
 		}
@@ -920,7 +900,6 @@ static int create_sscape(int dev, struct snd_card *card)
 	unsigned mpu_irq_cfg;
 	struct resource *io_res;
 	struct resource *wss_res;
-	unsigned long flags;
 	int err;
 	int val;
 	const char *name;
@@ -1006,34 +985,34 @@ static int create_sscape(int dev, struct snd_card *card)
 	 * Tell the on-board devices where their resources are (I think -
 	 * I can't be sure without a datasheet ... So many magic values!)
 	 */
-	spin_lock_irqsave(&sscape->lock, flags);
+	scoped_guard(spinlock_irqsave, &sscape->lock) {
 
-	sscape_write_unsafe(sscape->io_base, GA_SMCFGA_REG, 0x2e);
-	sscape_write_unsafe(sscape->io_base, GA_SMCFGB_REG, 0x00);
+		sscape_write_unsafe(sscape->io_base, GA_SMCFGA_REG, 0x2e);
+		sscape_write_unsafe(sscape->io_base, GA_SMCFGB_REG, 0x00);
 
-	/*
-	 * Enable and configure the DMA channels ...
-	 */
-	sscape_write_unsafe(sscape->io_base, GA_DMACFG_REG, 0x50);
-	dma_cfg = (sscape->ic_type == IC_OPUS ? 0x40 : 0x70);
-	sscape_write_unsafe(sscape->io_base, GA_DMAA_REG, dma_cfg);
-	sscape_write_unsafe(sscape->io_base, GA_DMAB_REG, 0x20);
+		/*
+		 * Enable and configure the DMA channels ...
+		 */
+		sscape_write_unsafe(sscape->io_base, GA_DMACFG_REG, 0x50);
+		dma_cfg = (sscape->ic_type == IC_OPUS ? 0x40 : 0x70);
+		sscape_write_unsafe(sscape->io_base, GA_DMAA_REG, dma_cfg);
+		sscape_write_unsafe(sscape->io_base, GA_DMAB_REG, 0x20);
 
-	mpu_irq_cfg |= mpu_irq_cfg << 2;
-	val = sscape_read_unsafe(sscape->io_base, GA_HMCTL_REG) & 0xF7;
-	if (joystick[dev])
-		val |= 8;
-	sscape_write_unsafe(sscape->io_base, GA_HMCTL_REG, val | 0x10);
-	sscape_write_unsafe(sscape->io_base, GA_INTCFG_REG, 0xf0 | mpu_irq_cfg);
-	sscape_write_unsafe(sscape->io_base,
-			    GA_CDCFG_REG, 0x09 | DMA_8BIT
-			    | (dma[dev] << 4) | (irq_cfg << 1));
-	/*
-	 * Enable the master IRQ ...
-	 */
-	sscape_write_unsafe(sscape->io_base, GA_INTENA_REG, 0x80);
+		mpu_irq_cfg |= mpu_irq_cfg << 2;
+		val = sscape_read_unsafe(sscape->io_base, GA_HMCTL_REG) & 0xF7;
+		if (joystick[dev])
+			val |= 8;
+		sscape_write_unsafe(sscape->io_base, GA_HMCTL_REG, val | 0x10);
+		sscape_write_unsafe(sscape->io_base, GA_INTCFG_REG, 0xf0 | mpu_irq_cfg);
+		sscape_write_unsafe(sscape->io_base,
+				    GA_CDCFG_REG, 0x09 | DMA_8BIT
+				    | (dma[dev] << 4) | (irq_cfg << 1));
+		/*
+		 * Enable the master IRQ ...
+		 */
+		sscape_write_unsafe(sscape->io_base, GA_INTENA_REG, 0x80);
 
-	spin_unlock_irqrestore(&sscape->lock, flags);
+	}
 
 	/*
 	 * We have now enabled the codec chip, and so we should
@@ -1073,7 +1052,7 @@ static int create_sscape(int dev, struct snd_card *card)
 			/*
 			 * Initialize mixer
 			 */
-			spin_lock_irqsave(&sscape->lock, flags);
+			guard(spinlock_irqsave)(&sscape->lock);
 			sscape->midi_vol = 0;
 			host_write_ctrl_unsafe(sscape->io_base,
 						CMD_SET_MIDI_VOL, 100);
@@ -1090,7 +1069,6 @@ static int create_sscape(int dev, struct snd_card *card)
 			host_write_ctrl_unsafe(sscape->io_base, CMD_ACK, 100);
 
 			set_midi_mode_unsafe(sscape->io_base);
-			spin_unlock_irqrestore(&sscape->lock, flags);
 		}
 	}
 

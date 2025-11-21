@@ -926,7 +926,7 @@ l1_%=:	r0 = 0;						\
 SEC("socket")
 __description("bounds check for non const xor src dst")
 __success __log_level(2)
-__msg("5: (af) r0 ^= r6                      ; R0_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=431,var_off=(0x0; 0x1af))")
+__msg("5: (af) r0 ^= r6                      ; R0=scalar(smin=smin32=0,smax=umax=smax32=umax32=431,var_off=(0x0; 0x1af))")
 __naked void non_const_xor_src_dst(void)
 {
 	asm volatile ("					\
@@ -947,7 +947,7 @@ __naked void non_const_xor_src_dst(void)
 SEC("socket")
 __description("bounds check for non const or src dst")
 __success __log_level(2)
-__msg("5: (4f) r0 |= r6                      ; R0_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=431,var_off=(0x0; 0x1af))")
+__msg("5: (4f) r0 |= r6                      ; R0=scalar(smin=smin32=0,smax=umax=smax32=umax32=431,var_off=(0x0; 0x1af))")
 __naked void non_const_or_src_dst(void)
 {
 	asm volatile ("					\
@@ -968,7 +968,7 @@ __naked void non_const_or_src_dst(void)
 SEC("socket")
 __description("bounds check for non const mul regs")
 __success __log_level(2)
-__msg("5: (2f) r0 *= r6                      ; R0_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=3825,var_off=(0x0; 0xfff))")
+__msg("5: (2f) r0 *= r6                      ; R0=scalar(smin=smin32=0,smax=umax=smax32=umax32=3825,var_off=(0x0; 0xfff))")
 __naked void non_const_mul_regs(void)
 {
 	asm volatile ("					\
@@ -1241,7 +1241,7 @@ l0_%=:	r0 = 0;						\
 SEC("tc")
 __description("multiply mixed sign bounds. test 1")
 __success __log_level(2)
-__msg("r6 *= r7 {{.*}}; R6_w=scalar(smin=umin=0x1bc16d5cd4927ee1,smax=umax=0x1bc16d674ec80000,smax32=0x7ffffeff,umax32=0xfffffeff,var_off=(0x1bc16d4000000000; 0x3ffffffeff))")
+__msg("r6 *= r7 {{.*}}; R6=scalar(smin=umin=0x1bc16d5cd4927ee1,smax=umax=0x1bc16d674ec80000,smax32=0x7ffffeff,umax32=0xfffffeff,var_off=(0x1bc16d4000000000; 0x3ffffffeff))")
 __naked void mult_mixed0_sign(void)
 {
 	asm volatile (
@@ -1264,7 +1264,7 @@ __naked void mult_mixed0_sign(void)
 SEC("tc")
 __description("multiply mixed sign bounds. test 2")
 __success __log_level(2)
-__msg("r6 *= r7 {{.*}}; R6_w=scalar(smin=smin32=-100,smax=smax32=200)")
+__msg("r6 *= r7 {{.*}}; R6=scalar(smin=smin32=-100,smax=smax32=200)")
 __naked void mult_mixed1_sign(void)
 {
 	asm volatile (
@@ -1287,7 +1287,7 @@ __naked void mult_mixed1_sign(void)
 SEC("tc")
 __description("multiply negative bounds")
 __success __log_level(2)
-__msg("r6 *= r7 {{.*}}; R6_w=scalar(smin=umin=smin32=umin32=0x3ff280b0,smax=umax=smax32=umax32=0x3fff0001,var_off=(0x3ff00000; 0xf81ff))")
+__msg("r6 *= r7 {{.*}}; R6=scalar(smin=umin=smin32=umin32=0x3ff280b0,smax=umax=smax32=umax32=0x3fff0001,var_off=(0x3ff00000; 0xf81ff))")
 __naked void mult_sign_bounds(void)
 {
 	asm volatile (
@@ -1311,7 +1311,7 @@ __naked void mult_sign_bounds(void)
 SEC("tc")
 __description("multiply bounds that don't cross signed boundary")
 __success __log_level(2)
-__msg("r8 *= r6 {{.*}}; R6_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=11,var_off=(0x0; 0xb)) R8_w=scalar(smin=0,smax=umax=0x7b96bb0a94a3a7cd,var_off=(0x0; 0x7fffffffffffffff))")
+__msg("r8 *= r6 {{.*}}; R6=scalar(smin=smin32=0,smax=umax=smax32=umax32=11,var_off=(0x0; 0xb)) R8=scalar(smin=0,smax=umax=0x7b96bb0a94a3a7cd,var_off=(0x0; 0x7fffffffffffffff))")
 __naked void mult_no_sign_crossing(void)
 {
 	asm volatile (
@@ -1331,7 +1331,7 @@ __naked void mult_no_sign_crossing(void)
 SEC("tc")
 __description("multiplication overflow, result in unbounded reg. test 1")
 __success __log_level(2)
-__msg("r6 *= r7 {{.*}}; R6_w=scalar()")
+__msg("r6 *= r7 {{.*}}; R6=scalar()")
 __naked void mult_unsign_ovf(void)
 {
 	asm volatile (
@@ -1353,7 +1353,7 @@ __naked void mult_unsign_ovf(void)
 SEC("tc")
 __description("multiplication overflow, result in unbounded reg. test 2")
 __success __log_level(2)
-__msg("r6 *= r7 {{.*}}; R6_w=scalar()")
+__msg("r6 *= r7 {{.*}}; R6=scalar()")
 __naked void mult_sign_ovf(void)
 {
 	asm volatile (
@@ -1376,7 +1376,7 @@ __naked void mult_sign_ovf(void)
 SEC("socket")
 __description("64-bit addition, all outcomes overflow")
 __success __log_level(2)
-__msg("5: (0f) r3 += r3 {{.*}} R3_w=scalar(umin=0x4000000000000000,umax=0xfffffffffffffffe)")
+__msg("5: (0f) r3 += r3 {{.*}} R3=scalar(umin=0x4000000000000000,umax=0xfffffffffffffffe)")
 __retval(0)
 __naked void add64_full_overflow(void)
 {
@@ -1396,7 +1396,7 @@ __naked void add64_full_overflow(void)
 SEC("socket")
 __description("64-bit addition, partial overflow, result in unbounded reg")
 __success __log_level(2)
-__msg("4: (0f) r3 += r3 {{.*}} R3_w=scalar()")
+__msg("4: (0f) r3 += r3 {{.*}} R3=scalar()")
 __retval(0)
 __naked void add64_partial_overflow(void)
 {
@@ -1416,7 +1416,7 @@ __naked void add64_partial_overflow(void)
 SEC("socket")
 __description("32-bit addition overflow, all outcomes overflow")
 __success __log_level(2)
-__msg("4: (0c) w3 += w3 {{.*}} R3_w=scalar(smin=umin=umin32=0x40000000,smax=umax=umax32=0xfffffffe,var_off=(0x0; 0xffffffff))")
+__msg("4: (0c) w3 += w3 {{.*}} R3=scalar(smin=umin=umin32=0x40000000,smax=umax=umax32=0xfffffffe,var_off=(0x0; 0xffffffff))")
 __retval(0)
 __naked void add32_full_overflow(void)
 {
@@ -1436,7 +1436,7 @@ __naked void add32_full_overflow(void)
 SEC("socket")
 __description("32-bit addition, partial overflow, result in unbounded u32 bounds")
 __success __log_level(2)
-__msg("4: (0c) w3 += w3 {{.*}} R3_w=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
+__msg("4: (0c) w3 += w3 {{.*}} R3=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
 __retval(0)
 __naked void add32_partial_overflow(void)
 {
@@ -1456,7 +1456,7 @@ __naked void add32_partial_overflow(void)
 SEC("socket")
 __description("64-bit subtraction, all outcomes underflow")
 __success __log_level(2)
-__msg("6: (1f) r3 -= r1 {{.*}} R3_w=scalar(umin=1,umax=0x8000000000000000)")
+__msg("6: (1f) r3 -= r1 {{.*}} R3=scalar(umin=1,umax=0x8000000000000000)")
 __retval(0)
 __naked void sub64_full_overflow(void)
 {
@@ -1477,7 +1477,7 @@ __naked void sub64_full_overflow(void)
 SEC("socket")
 __description("64-bit subtraction, partial overflow, result in unbounded reg")
 __success __log_level(2)
-__msg("3: (1f) r3 -= r2 {{.*}} R3_w=scalar()")
+__msg("3: (1f) r3 -= r2 {{.*}} R3=scalar()")
 __retval(0)
 __naked void sub64_partial_overflow(void)
 {
@@ -1496,7 +1496,7 @@ __naked void sub64_partial_overflow(void)
 SEC("socket")
 __description("32-bit subtraction overflow, all outcomes underflow")
 __success __log_level(2)
-__msg("5: (1c) w3 -= w1 {{.*}} R3_w=scalar(smin=umin=umin32=1,smax=umax=umax32=0x80000000,var_off=(0x0; 0xffffffff))")
+__msg("5: (1c) w3 -= w1 {{.*}} R3=scalar(smin=umin=umin32=1,smax=umax=umax32=0x80000000,var_off=(0x0; 0xffffffff))")
 __retval(0)
 __naked void sub32_full_overflow(void)
 {
@@ -1517,7 +1517,7 @@ __naked void sub32_full_overflow(void)
 SEC("socket")
 __description("32-bit subtraction, partial overflow, result in unbounded u32 bounds")
 __success __log_level(2)
-__msg("3: (1c) w3 -= w2 {{.*}} R3_w=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
+__msg("3: (1c) w3 -= w2 {{.*}} R3=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
 __retval(0)
 __naked void sub32_partial_overflow(void)
 {
@@ -1617,7 +1617,7 @@ l0_%=:	r0 = 0;				\
 SEC("socket")
 __description("bounds deduction cross sign boundary, positive overlap")
 __success __log_level(2) __flag(BPF_F_TEST_REG_INVARIANTS)
-__msg("3: (2d) if r0 > r1 {{.*}} R0_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=127,var_off=(0x0; 0x7f))")
+__msg("3: (2d) if r0 > r1 {{.*}} R0=scalar(smin=smin32=0,smax=umax=smax32=umax32=127,var_off=(0x0; 0x7f))")
 __retval(0)
 __naked void bounds_deduct_positive_overlap(void)
 {
@@ -1650,7 +1650,7 @@ l0_%=:	r0 = 0;				\
 SEC("socket")
 __description("bounds deduction cross sign boundary, two overlaps")
 __failure __flag(BPF_F_TEST_REG_INVARIANTS)
-__msg("3: (2d) if r0 > r1 {{.*}} R0_w=scalar(smin=smin32=-128,smax=smax32=127,umax=0xffffffffffffff80)")
+__msg("3: (2d) if r0 > r1 {{.*}} R0=scalar(smin=smin32=-128,smax=smax32=127,umax=0xffffffffffffff80)")
 __msg("frame pointer is read only")
 __naked void bounds_deduct_two_overlaps(void)
 {
@@ -1662,6 +1662,47 @@ __naked void bounds_deduct_two_overlaps(void)
 	if r0 < 128 goto l0_%=;		\
 	r10 = 0;			\
 l0_%=:	r0 = 0;				\
+	exit;				\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("dead jne branch due to disagreeing tnums")
+__success __log_level(2)
+__naked void jne_disagreeing_tnums(void *ctx)
+{
+	asm volatile("			\
+	call %[bpf_get_prandom_u32];	\
+	w0 = w0;			\
+	r0 >>= 30;			\
+	r0 <<= 30;			\
+	r1 = r0;			\
+	r1 += 1024;			\
+	if r1 != r0 goto +1;		\
+	r10 = 0;			\
+	exit;				\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("dead jeq branch due to disagreeing tnums")
+__success __log_level(2)
+__naked void jeq_disagreeing_tnums(void *ctx)
+{
+	asm volatile("			\
+	call %[bpf_get_prandom_u32];	\
+	w0 = w0;			\
+	r0 >>= 30;			\
+	r0 <<= 30;			\
+	r1 = r0;			\
+	r1 += 1024;			\
+	if r1 == r0 goto +1;		\
+	exit;				\
+	r10 = 0;			\
 	exit;				\
 "	:
 	: __imm(bpf_get_prandom_u32)

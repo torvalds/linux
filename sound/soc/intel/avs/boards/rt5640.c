@@ -67,7 +67,7 @@ static int avs_rt5640_codec_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 
 	snd_soc_component_set_jack(codec_dai->component, jack, NULL);
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	return 0;
 }

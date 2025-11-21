@@ -1,0 +1,345 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (c) 2024 Beijing ESWIN Computing Technology Co., Ltd.
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <1000000>;
+
+		cpu0: cpu@0 {
+			compatible = "sifive,p550", "riscv";
+			device_type = "cpu";
+			d-cache-block-size = <64>;
+			d-cache-sets = <128>;
+			d-cache-size = <32768>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			i-cache-block-size = <64>;
+			i-cache-sets = <128>;
+			i-cache-size = <32768>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv48";
+			next-level-cache = <&l2_cache_0>;
+			reg = <0x0>;
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "h", "sscofpmf",
+					       "zba", "zbb", "zicsr", "zifencei";
+			tlb-split;
+
+			cpu0_intc: interrupt-controller {
+				compatible = "riscv,cpu-intc";
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+
+		cpu1: cpu@1 {
+			compatible = "sifive,p550", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <128>;
+			d-cache-size = <32768>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <128>;
+			i-cache-size = <32768>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv48";
+			next-level-cache = <&l2_cache_1>;
+			reg = <0x1>;
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "h", "sscofpmf",
+					       "zba", "zbb", "zicsr", "zifencei";
+			tlb-split;
+
+			cpu1_intc: interrupt-controller {
+				compatible = "riscv,cpu-intc";
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+
+		cpu2: cpu@2 {
+			compatible = "sifive,p550", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <128>;
+			d-cache-size = <32768>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <128>;
+			i-cache-size = <32768>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv48";
+			next-level-cache = <&l2_cache_2>;
+			reg = <0x2>;
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "h", "sscofpmf",
+					       "zba", "zbb", "zicsr", "zifencei";
+			tlb-split;
+
+			cpu2_intc: interrupt-controller {
+				compatible = "riscv,cpu-intc";
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+
+		cpu3: cpu@3 {
+			compatible = "sifive,p550", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <128>;
+			d-cache-size = <32768>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <128>;
+			i-cache-size = <32768>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv48";
+			next-level-cache = <&l2_cache_3>;
+			reg = <0x3>;
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "h", "sscofpmf",
+					       "zba", "zbb", "zicsr", "zifencei";
+			tlb-split;
+
+			cpu3_intc: interrupt-controller {
+				compatible = "riscv,cpu-intc";
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+
+		l2_cache_0: l2-cache0 {
+			compatible = "cache";
+			cache-block-size = <64>;
+			cache-level = <2>;
+			cache-sets = <512>;
+			cache-size = <262144>;
+			cache-unified;
+			next-level-cache = <&ccache>;
+		};
+
+		l2_cache_1: l2-cache1 {
+			compatible = "cache";
+			cache-block-size = <64>;
+			cache-level = <2>;
+			cache-sets = <512>;
+			cache-size = <262144>;
+			cache-unified;
+			next-level-cache = <&ccache>;
+		};
+
+		l2_cache_2: l2-cache2 {
+			compatible = "cache";
+			cache-block-size = <64>;
+			cache-level = <2>;
+			cache-sets = <512>;
+			cache-size = <262144>;
+			cache-unified;
+			next-level-cache = <&ccache>;
+		};
+
+		l2_cache_3: l2-cache3 {
+			compatible = "cache";
+			cache-block-size = <64>;
+			cache-level = <2>;
+			cache-sets = <512>;
+			cache-size = <262144>;
+			cache-unified;
+			next-level-cache = <&ccache>;
+		};
+	};
+
+	pmu {
+		compatible = "riscv,pmu";
+		riscv,event-to-mhpmcounters =
+				<0x00001 0x00001 0x00000001>,
+				<0x00002 0x00002 0x00000004>,
+				<0x00004 0x00006 0x00000078>,
+				<0x10009 0x10009 0x00000078>,
+				<0x10019 0x10019 0x00000078>,
+				<0x10021 0x10021 0x00000078>;
+		riscv,event-to-mhpmevent =
+				<0x00004 0x00000000 0x00000202>,
+				<0x00005 0x00000000 0x00004000>,
+				<0x00006 0x00000000 0x00002001>,
+				<0x10009 0x00000000 0x00000102>,
+				<0x10019 0x00000000 0x00001002>,
+				<0x10021 0x00000000 0x00000802>;
+		riscv,raw-event-to-mhpmcounters =
+				<0x00000000 0x00000000 0xffffffff 0xfc0000ff 0x00000078>,
+				<0x00000000 0x00000001 0xffffffff 0xfffe07ff 0x00000078>,
+				<0x00000000 0x00000002 0xffffffff 0xfffe00ff 0x00000078>,
+				<0x00000000 0x00000003 0xfffffffc 0x000000ff 0x00000078>,
+				<0x00000000 0x00000004 0xffffffc0 0x000000ff 0x00000078>,
+				<0x00000000 0x00000005 0xffffffff 0xfffffdff 0x00000078>,
+				<0x00000000 0x00000006 0xfffffe00 0x110204ff 0x00000078>,
+				<0x00000000 0x00000007 0xffffffff 0xf00000ff 0x00000078>,
+				<0x00000000 0x00000008 0xfffffe04 0x000000ff 0x00000078>,
+				<0x00000000 0x00000009 0xffffffff 0xffffc0ff 0x00000078>,
+				<0x00000000 0x0000000a 0xffffffff 0xf00000ff 0x00000078>,
+				<0x00000000 0x0000000b 0xffffffff 0xfffffcff 0x00000078>,
+				<0x00000000 0x0000000c 0xfffffff0 0x000000ff 0x00000078>,
+				<0x00000000 0x0000000d 0xffffffff 0x800000ff 0x00000078>,
+				<0x00000000 0x0000000e 0xffffffff 0xf80000ff 0x00000078>,
+				<0x00000000 0x0000000f 0xfffffffc 0x000000ff 0x00000078>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		ranges;
+		interrupt-parent = <&plic>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		dma-noncoherent;
+
+		clint: timer@2000000 {
+			compatible = "eswin,eic7700-clint", "sifive,clint0";
+			reg = <0x0 0x02000000 0x0 0x10000>;
+			interrupts-extended =
+				<&cpu0_intc 3>, <&cpu0_intc 7>,
+				<&cpu1_intc 3>, <&cpu1_intc 7>,
+				<&cpu2_intc 3>, <&cpu2_intc 7>,
+				<&cpu3_intc 3>, <&cpu3_intc 7>;
+		};
+
+		ccache: cache-controller@2010000 {
+			compatible = "eswin,eic7700-l3-cache", "sifive,ccache0", "cache";
+			reg = <0x0 0x2010000 0x0 0x4000>;
+			interrupts = <1>, <3>, <4>, <2>;
+			cache-block-size = <64>;
+			cache-level = <3>;
+			cache-sets = <4096>;
+			cache-size = <4194304>;
+			cache-unified;
+		};
+
+		plic: interrupt-controller@c000000 {
+			compatible = "eswin,eic7700-plic", "sifive,plic-1.0.0";
+			reg = <0x0 0xc000000 0x0 0x4000000>;
+			interrupt-controller;
+			interrupts-extended =
+				<&cpu0_intc 11>, <&cpu0_intc 9>,
+				<&cpu1_intc 11>, <&cpu1_intc 9>,
+				<&cpu2_intc 11>, <&cpu2_intc 9>,
+				<&cpu3_intc 11>, <&cpu3_intc 9>;
+			riscv,ndev = <520>;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+		};
+
+		uart0: serial@50900000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x50900000 0x0 0x10000>;
+			interrupts = <100>;
+			clock-frequency = <200000000>;
+			reg-io-width = <4>;
+			reg-shift = <2>;
+			status = "disabled";
+		};
+
+		uart1: serial@50910000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x50910000 0x0 0x10000>;
+			interrupts = <101>;
+			clock-frequency = <200000000>;
+			reg-io-width = <4>;
+			reg-shift = <2>;
+			status = "disabled";
+		};
+
+		uart2: serial@50920000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x50920000 0x0 0x10000>;
+			interrupts = <102>;
+			clock-frequency = <200000000>;
+			reg-io-width = <4>;
+			reg-shift = <2>;
+			status = "disabled";
+		};
+
+		uart3: serial@50930000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x50930000 0x0 0x10000>;
+			interrupts = <103>;
+			clock-frequency = <200000000>;
+			reg-io-width = <4>;
+			reg-shift = <2>;
+			status = "disabled";
+		};
+
+		uart4: serial@50940000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x50940000 0x0 0x10000>;
+			interrupts = <104>;
+			clock-frequency = <200000000>;
+			reg-io-width = <4>;
+			reg-shift = <2>;
+			status = "disabled";
+		};
+
+		gpio@51600000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x0 0x51600000 0x0 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gpioA: gpio-port@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts =
+					<303>, <304>, <305>, <306>, <307>, <308>, <309>,
+					<310>, <311>, <312>, <313>, <314>, <315>, <316>,
+					<317>, <318>, <319>, <320>, <321>, <322>, <323>,
+					<324>, <325>, <326>, <327>, <328>, <329>, <330>,
+					<331>, <332>, <333>, <334>;
+				gpio-controller;
+				ngpios = <32>;
+				#gpio-cells = <2>;
+			};
+
+			gpioB: gpio-port@1 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <1>;
+				gpio-controller;
+				ngpios = <32>;
+				#gpio-cells = <2>;
+			};
+
+			gpioC: gpio-port@2 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <2>;
+				gpio-controller;
+				ngpios = <32>;
+				#gpio-cells = <2>;
+			};
+
+			gpioD: gpio-port@3 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <3>;
+				gpio-controller;
+				ngpios = <16>;
+				#gpio-cells = <2>;
+			};
+		};
+	};
+};

@@ -51,9 +51,6 @@ enum batadv_dbg_level {
 	/** @BATADV_DBG_DAT: ARP snooping and DAT related messages */
 	BATADV_DBG_DAT		= BIT(4),
 
-	/** @BATADV_DBG_NC: network coding related messages */
-	BATADV_DBG_NC		= BIT(5),
-
 	/** @BATADV_DBG_MCAST: multicast related messages */
 	BATADV_DBG_MCAST	= BIT(6),
 

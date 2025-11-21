@@ -51,7 +51,7 @@ void sclp_early_wait_irq(void)
 			"	stg	%[addr],%[psw_wait_addr]\n"
 			"	stg	%[addr],%[psw_ext_addr]\n"
 			"	lpswe	%[psw_wait]\n"
-			"0:\n"
+			"0:"
 			: [addr] "=&d" (addr),
 			  [psw_wait_addr] "=Q" (psw_wait.addr),
 			  [psw_ext_addr] "=Q" (get_lowcore()->external_new_psw.addr)

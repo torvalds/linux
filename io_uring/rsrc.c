@@ -13,6 +13,7 @@
 
 #include <uapi/linux/io_uring.h>
 
+#include "filetable.h"
 #include "io_uring.h"
 #include "openclose.h"
 #include "rsrc.h"
@@ -1299,10 +1300,17 @@ int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg)
 	if (src_ctx != ctx) {
 		mutex_unlock(&ctx->uring_lock);
 		lock_two_rings(ctx, src_ctx);
+
+		if (src_ctx->submitter_task &&
+		    src_ctx->submitter_task != current) {
+			ret = -EEXIST;
+			goto out;
+		}
 	}
 
 	ret = io_clone_buffers(ctx, src_ctx, &buf);
 
+out:
 	if (src_ctx != ctx)
 		mutex_unlock(&src_ctx->uring_lock);
 
@@ -1395,8 +1403,11 @@ static int io_estimate_bvec_size(struct iovec *iov, unsigned nr_iovs,
 	size_t max_segs = 0;
 	unsigned i;
 
-	for (i = 0; i < nr_iovs; i++)
+	for (i = 0; i < nr_iovs; i++) {
 		max_segs += (iov[i].iov_len >> shift) + 2;
+		if (max_segs > INT_MAX)
+			return -EOVERFLOW;
+	}
 	return max_segs;
 }
 
@@ -1502,7 +1513,11 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 		if (unlikely(ret))
 			return ret;
 	} else {
-		nr_segs = io_estimate_bvec_size(iov, nr_iovs, imu);
+		int ret = io_estimate_bvec_size(iov, nr_iovs, imu);
+
+		if (ret < 0)
+			return ret;
+		nr_segs = ret;
 	}
 
 	if (sizeof(struct bio_vec) > sizeof(struct iovec)) {

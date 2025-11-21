@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
+#include "capstone.h"
 #include "debug.h"
 #include "sample.h"
 #include "symbol.h"
@@ -29,84 +30,6 @@ size_t sample__fprintf_insn_raw(struct perf_sample *sample, FILE *fp)
 	return printed;
 }
 
-#ifdef HAVE_LIBCAPSTONE_SUPPORT
-#include <capstone/capstone.h>
-
-int capstone_init(struct machine *machine, csh *cs_handle, bool is64, bool disassembler_style);
-
-int capstone_init(struct machine *machine, csh *cs_handle, bool is64, bool disassembler_style)
-{
-	cs_arch arch;
-	cs_mode mode;
-
-	if (machine__is(machine, "x86_64") && is64) {
-		arch = CS_ARCH_X86;
-		mode = CS_MODE_64;
-	} else if (machine__normalized_is(machine, "x86")) {
-		arch = CS_ARCH_X86;
-		mode = CS_MODE_32;
-	} else if (machine__normalized_is(machine, "arm64")) {
-		arch = CS_ARCH_ARM64;
-		mode = CS_MODE_ARM;
-	} else if (machine__normalized_is(machine, "arm")) {
-		arch = CS_ARCH_ARM;
-		mode = CS_MODE_ARM + CS_MODE_V8;
-	} else if (machine__normalized_is(machine, "s390")) {
-		arch = CS_ARCH_SYSZ;
-		mode = CS_MODE_BIG_ENDIAN;
-	} else {
-		return -1;
-	}
-
-	if (cs_open(arch, mode, cs_handle) != CS_ERR_OK) {
-		pr_warning_once("cs_open failed\n");
-		return -1;
-	}
-
-	if (machine__normalized_is(machine, "x86")) {
-		/*
-		 * In case of using capstone_init while symbol__disassemble
-		 * setting CS_OPT_SYNTAX_ATT depends if disassembler_style opts
-		 * is set via annotation args
-		 */
-		if (disassembler_style)
-			cs_option(*cs_handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
-		/*
-		 * Resolving address operands to symbols is implemented
-		 * on x86 by investigating instruction details.
-		 */
-		cs_option(*cs_handle, CS_OPT_DETAIL, CS_OPT_ON);
-	}
-
-	return 0;
-}
-
-static size_t print_insn_x86(struct thread *thread, u8 cpumode, cs_insn *insn,
-			     int print_opts, FILE *fp)
-{
-	struct addr_location al;
-	size_t printed = 0;
-
-	if (insn->detail && insn->detail->x86.op_count == 1) {
-		cs_x86_op *op = &insn->detail->x86.operands[0];
-
-		addr_location__init(&al);
-		if (op->type == X86_OP_IMM &&
-		    thread__find_symbol(thread, cpumode, op->imm, &al)) {
-			printed += fprintf(fp, "%s ", insn[0].mnemonic);
-			printed += symbol__fprintf_symname_offs(al.sym, &al, fp);
-			if (print_opts & PRINT_INSN_IMM_HEX)
-				printed += fprintf(fp, " [%#" PRIx64 "]", op->imm);
-			addr_location__exit(&al);
-			return printed;
-		}
-		addr_location__exit(&al);
-	}
-
-	printed += fprintf(fp, "%s %s", insn[0].mnemonic, insn[0].op_str);
-	return printed;
-}
-
 static bool is64bitip(struct machine *machine, struct addr_location *al)
 {
 	const struct dso *dso = al->map ? map__dso(al->map) : NULL;
@@ -123,32 +46,8 @@ ssize_t fprintf_insn_asm(struct machine *machine, struct thread *thread, u8 cpum
 			 bool is64bit, const uint8_t *code, size_t code_size,
 			 uint64_t ip, int *lenp, int print_opts, FILE *fp)
 {
-	size_t printed;
-	cs_insn *insn;
-	csh cs_handle;
-	size_t count;
-	int ret;
-
-	/* TODO: Try to initiate capstone only once but need a proper place. */
-	ret = capstone_init(machine, &cs_handle, is64bit, true);
-	if (ret < 0)
-		return ret;
-
-	count = cs_disasm(cs_handle, code, code_size, ip, 1, &insn);
-	if (count > 0) {
-		if (machine__normalized_is(machine, "x86"))
-			printed = print_insn_x86(thread, cpumode, &insn[0], print_opts, fp);
-		else
-			printed = fprintf(fp, "%s %s", insn[0].mnemonic, insn[0].op_str);
-		if (lenp)
-			*lenp = insn->size;
-		cs_free(insn, count);
-	} else {
-		printed = -1;
-	}
-
-	cs_close(&cs_handle);
-	return printed;
+	return capstone__fprintf_insn_asm(machine, thread, cpumode, is64bit, code, code_size,
+					  ip, lenp, print_opts, fp);
 }
 
 size_t sample__fprintf_insn_asm(struct perf_sample *sample, struct thread *thread,
@@ -166,13 +65,3 @@ size_t sample__fprintf_insn_asm(struct perf_sample *sample, struct thread *threa
 
 	return printed;
 }
-#else
-size_t sample__fprintf_insn_asm(struct perf_sample *sample __maybe_unused,
-				struct thread *thread __maybe_unused,
-				struct machine *machine __maybe_unused,
-				FILE *fp __maybe_unused,
-				struct addr_location *al __maybe_unused)
-{
-	return 0;
-}
-#endif

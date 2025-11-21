@@ -965,7 +965,7 @@ static const struct gpio_chip gpio_chip_template = {
 	.ngpio			= 32,
 	.direction_input	= sm501_gpio_input,
 	.direction_output	= sm501_gpio_output,
-	.set_rv			= sm501_gpio_set,
+	.set			= sm501_gpio_set,
 	.get			= sm501_gpio_get,
 };
 

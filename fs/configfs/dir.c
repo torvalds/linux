@@ -1601,10 +1601,7 @@ static int configfs_dir_open(struct inode *inode, struct file *file)
 	err = -ENOENT;
 	if (configfs_dirent_is_ready(parent_sd)) {
 		file->private_data = configfs_new_dirent(parent_sd, NULL, 0, NULL);
-		if (IS_ERR(file->private_data))
-			err = PTR_ERR(file->private_data);
-		else
-			err = 0;
+		err = PTR_ERR_OR_ZERO(file->private_data);
 	}
 	inode_unlock(d_inode(dentry));
 

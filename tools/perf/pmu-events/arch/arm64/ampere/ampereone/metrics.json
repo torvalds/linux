@@ -113,7 +113,7 @@
     {
 	"MetricName": "load_store_spec_rate",
 	"MetricExpr": "((LDST_SPEC / INST_SPEC) * 100)",
-	"BriefDescription": "The rate of load or store instructions speculatively executed to overall instructions speclatively executed",
+	"BriefDescription": "The rate of load or store instructions speculatively executed to overall instructions speculatively executed",
         "MetricGroup": "Operation_Mix",
         "ScaleUnit": "1percent of operations"
     },
@@ -132,7 +132,7 @@
     {
 	"MetricName": "pc_write_spec_rate",
 	"MetricExpr": "((PC_WRITE_SPEC / INST_SPEC) * 100)",
-	"BriefDescription": "The rate of software change of the PC speculatively executed to overall instructions speclatively executed",
+	"BriefDescription": "The rate of software change of the PC speculatively executed to overall instructions speculatively executed",
         "MetricGroup": "Operation_Mix",
         "ScaleUnit": "1percent of operations"
     },
@@ -195,14 +195,14 @@
     {
 	"MetricName": "stall_frontend_cache_rate",
 	"MetricExpr": "((STALL_FRONTEND_CACHE / CPU_CYCLES) * 100)",
-	"BriefDescription": "Proportion of cycles stalled and no ops delivered from frontend and cache miss",
+	"BriefDescription": "Proportion of cycles stalled and no operations delivered from frontend and cache miss",
 	"MetricGroup": "Stall",
         "ScaleUnit": "1percent of cycles"
     },
     {
 	"MetricName": "stall_frontend_tlb_rate",
 	"MetricExpr": "((STALL_FRONTEND_TLB / CPU_CYCLES) * 100)",
-	"BriefDescription": "Proportion of cycles stalled and no ops delivered from frontend and TLB miss",
+	"BriefDescription": "Proportion of cycles stalled and no operations delivered from frontend and TLB miss",
 	"MetricGroup": "Stall",
         "ScaleUnit": "1percent of cycles"
     },

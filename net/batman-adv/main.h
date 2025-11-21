@@ -13,7 +13,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2025.3"
+#define BATADV_SOURCE_VERSION "2025.4"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -120,8 +120,6 @@
 /* don't reset again within 30 seconds */
 #define BATADV_RESET_PROTECTION_MS 30000
 #define BATADV_EXPECTED_SEQNO_RANGE	65536
-
-#define BATADV_NC_NODE_TIMEOUT 10000 /* Milliseconds */
 
 /**
  * BATADV_TP_MAX_NUM - maximum number of simultaneously active tp sessions
@@ -250,7 +248,6 @@ batadv_recv_handler_register(u8 packet_type,
 			     int (*recv_handler)(struct sk_buff *,
 						 struct batadv_hard_iface *));
 void batadv_recv_handler_unregister(u8 packet_type);
-__be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr);
 
 /**
  * batadv_compare_eth() - Compare two not u16 aligned Ethernet addresses

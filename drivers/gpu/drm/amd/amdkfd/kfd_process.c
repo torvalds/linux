@@ -1088,6 +1088,8 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 			pdd->runtime_inuse = false;
 		}
 
+		atomic_dec(&pdd->dev->kfd->kfd_processes_count);
+
 		kfree(pdd);
 		p->pdds[i] = NULL;
 	}
@@ -1648,6 +1650,8 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_node *dev,
 
 	/* Init idr used for memory handle translation */
 	idr_init(&pdd->alloc_idr);
+
+	atomic_inc(&dev->kfd->kfd_processes_count);
 
 	return pdd;
 }

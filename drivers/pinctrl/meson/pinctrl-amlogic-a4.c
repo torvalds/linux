@@ -422,7 +422,7 @@ static int aml_pinconf_get(struct pinctrl_dev *pcdev, unsigned int pin,
 			return -EINVAL;
 		arg = 1;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		ret = aml_pinconf_get_output(info, pin);
 		if (ret <= 0)
 			return -EINVAL;
@@ -568,7 +568,7 @@ static int aml_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 		switch (param) {
 		case PIN_CONFIG_DRIVE_STRENGTH_UA:
 		case PIN_CONFIG_OUTPUT_ENABLE:
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			arg = pinconf_to_config_argument(configs[i]);
 			break;
 
@@ -592,7 +592,7 @@ static int aml_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 		case PIN_CONFIG_OUTPUT_ENABLE:
 			ret = aml_pinconf_set_output(info, pin, arg);
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			ret = aml_pinconf_set_output_drive(info, pin, arg);
 			break;
 		default:
@@ -888,7 +888,7 @@ static const struct gpio_chip aml_gpio_template = {
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.set_config		= gpiochip_generic_config,
-	.set_rv			= aml_gpio_set,
+	.set			= aml_gpio_set,
 	.get			= aml_gpio_get,
 	.direction_input	= aml_gpio_direction_input,
 	.direction_output	= aml_gpio_direction_output,
@@ -1093,7 +1093,7 @@ static const struct of_device_id aml_pctl_of_match[] = {
 	{ .compatible = "amlogic,pinctrl-s6", .data = &s6_priv_data, },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, aml_pctl_dt_match);
+MODULE_DEVICE_TABLE(of, aml_pctl_of_match);
 
 static struct platform_driver aml_pctl_driver = {
 	.driver = {

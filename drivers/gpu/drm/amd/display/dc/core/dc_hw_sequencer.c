@@ -1177,6 +1177,8 @@ void hwss_wait_for_odm_update_pending_complete(struct dc *dc, struct dc_state *c
 		tg = otg_master->stream_res.tg;
 		if (tg->funcs->wait_odm_doublebuffer_pending_clear)
 			tg->funcs->wait_odm_doublebuffer_pending_clear(tg);
+		if (tg->funcs->wait_otg_disable)
+			tg->funcs->wait_otg_disable(tg);
 	}
 
 	/* ODM update may require to reprogram blank pattern for each OPP */

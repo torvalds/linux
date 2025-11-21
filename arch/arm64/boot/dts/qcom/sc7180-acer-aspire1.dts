@@ -438,15 +438,11 @@
 };
 
 &mdss_dp {
-	data-lanes = <0 1>;
-
-	vdda-1p2-supply = <&vreg_l3c_1p2>;
-	vdda-0p9-supply = <&vreg_l4a_0p8>;
-
 	status = "okay";
 };
 
 &mdss_dp_out {
+	data-lanes = <0 1>;
 	remote-endpoint = <&ec_dp_in>;
 };
 

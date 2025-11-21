@@ -323,6 +323,14 @@ static inline enum netdev_napi_threaded napi_get_threaded(struct napi_struct *n)
 	return NETDEV_NAPI_THREADED_DISABLED;
 }
 
+static inline enum netdev_napi_threaded
+napi_get_threaded_config(struct net_device *dev, struct napi_struct *n)
+{
+	if (n->config)
+		return n->config->threaded;
+	return dev->threaded;
+}
+
 int napi_set_threaded(struct napi_struct *n,
 		      enum netdev_napi_threaded threaded);
 
@@ -349,7 +357,7 @@ static inline void napi_assert_will_not_race(const struct napi_struct *napi)
 	WARN_ON(READ_ONCE(napi->list_owner) != -1);
 }
 
-void kick_defer_list_purge(struct softnet_data *sd, unsigned int cpu);
+void kick_defer_list_purge(unsigned int cpu);
 
 #define XMIT_RECURSION_LIMIT	8
 

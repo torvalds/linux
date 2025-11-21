@@ -473,7 +473,7 @@ static int pca9532_configure(struct i2c_client *client,
 		data->gpio.label = "gpio-pca9532";
 		data->gpio.direction_input = pca9532_gpio_direction_input;
 		data->gpio.direction_output = pca9532_gpio_direction_output;
-		data->gpio.set_rv = pca9532_gpio_set_value;
+		data->gpio.set = pca9532_gpio_set_value;
 		data->gpio.get = pca9532_gpio_get_value;
 		data->gpio.request = pca9532_gpio_request_pin;
 		data->gpio.can_sleep = 1;

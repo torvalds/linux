@@ -1905,7 +1905,7 @@ static int pic32_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 	case PIN_CONFIG_INPUT_ENABLE:
 		arg = !!(readl(bank->reg_base + TRIS_REG) & mask);
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		arg = !(readl(bank->reg_base + TRIS_REG) & mask);
 		break;
 	default:
@@ -1960,7 +1960,7 @@ static int pic32_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 		case PIN_CONFIG_INPUT_ENABLE:
 			pic32_gpio_direction_input(&bank->gpio_chip, offset);
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			pic32_gpio_direction_output(&bank->gpio_chip,
 						    offset, arg);
 			break;
@@ -2120,7 +2120,7 @@ static void pic32_gpio_irq_handler(struct irq_desc *desc)
 			.direction_input = pic32_gpio_direction_input,	\
 			.direction_output = pic32_gpio_direction_output, \
 			.get = pic32_gpio_get,				\
-			.set_rv = pic32_gpio_set,			\
+			.set = pic32_gpio_set,				\
 			.ngpio = _npins,				\
 			.base = GPIO_BANK_START(_bank),			\
 			.owner = THIS_MODULE,				\

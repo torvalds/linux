@@ -837,7 +837,7 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 		.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
 	};
 
-	if (!mvm->trans->ltr_enabled)
+	if (!iwl_trans_is_ltr_enabled(mvm->trans))
 		return 0;
 
 	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,

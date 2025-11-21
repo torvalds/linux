@@ -30,7 +30,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <crypto/hash.h>
+#include <crypto/utils.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/ip.h>
@@ -1319,7 +1319,7 @@ struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc,
 				  __u16 key_id)
 {
 	struct sctp_authhdr auth_hdr;
-	struct sctp_hmac *hmac_desc;
+	const struct sctp_hmac *hmac_desc;
 	struct sctp_chunk *retval;
 
 	/* Get the first hmac that the peer told us to use */
@@ -1674,8 +1674,10 @@ static struct sctp_cookie_param *sctp_pack_cookie(
 	 * out on the network.
 	 */
 	retval = kzalloc(*cookie_len, GFP_ATOMIC);
-	if (!retval)
-		goto nodata;
+	if (!retval) {
+		*cookie_len = 0;
+		return NULL;
+	}
 
 	cookie = (struct sctp_signed_cookie *) retval->body;
 
@@ -1706,26 +1708,14 @@ static struct sctp_cookie_param *sctp_pack_cookie(
 	memcpy((__u8 *)(cookie + 1) +
 	       ntohs(init_chunk->chunk_hdr->length), raw_addrs, addrs_len);
 
-	if (sctp_sk(ep->base.sk)->hmac) {
-		struct crypto_shash *tfm = sctp_sk(ep->base.sk)->hmac;
-		int err;
-
-		/* Sign the message.  */
-		err = crypto_shash_setkey(tfm, ep->secret_key,
-					  sizeof(ep->secret_key)) ?:
-		      crypto_shash_tfm_digest(tfm, (u8 *)&cookie->c, bodysize,
-					      cookie->signature);
-		if (err)
-			goto free_cookie;
+	/* Sign the cookie, if cookie authentication is enabled. */
+	if (sctp_sk(ep->base.sk)->cookie_auth_enable) {
+		static_assert(sizeof(cookie->mac) == SHA256_DIGEST_SIZE);
+		hmac_sha256(&ep->cookie_auth_key, (const u8 *)&cookie->c,
+			    bodysize, cookie->mac);
 	}
 
 	return retval;
-
-free_cookie:
-	kfree(retval);
-nodata:
-	*cookie_len = 0;
-	return NULL;
 }
 
 /* Unpack the cookie from COOKIE ECHO chunk, recreating the association.  */
@@ -1740,7 +1730,6 @@ struct sctp_association *sctp_unpack_cookie(
 	struct sctp_signed_cookie *cookie;
 	struct sk_buff *skb = chunk->skb;
 	struct sctp_cookie *bear_cookie;
-	__u8 *digest = ep->digest;
 	enum sctp_scope scope;
 	unsigned int len;
 	ktime_t kt;
@@ -1770,30 +1759,19 @@ struct sctp_association *sctp_unpack_cookie(
 	cookie = chunk->subh.cookie_hdr;
 	bear_cookie = &cookie->c;
 
-	if (!sctp_sk(ep->base.sk)->hmac)
-		goto no_hmac;
+	/* Verify the cookie's MAC, if cookie authentication is enabled. */
+	if (sctp_sk(ep->base.sk)->cookie_auth_enable) {
+		u8 mac[SHA256_DIGEST_SIZE];
 
-	/* Check the signature.  */
-	{
-		struct crypto_shash *tfm = sctp_sk(ep->base.sk)->hmac;
-		int err;
-
-		err = crypto_shash_setkey(tfm, ep->secret_key,
-					  sizeof(ep->secret_key)) ?:
-		      crypto_shash_tfm_digest(tfm, (u8 *)bear_cookie, bodysize,
-					      digest);
-		if (err) {
-			*error = -SCTP_IERROR_NOMEM;
+		hmac_sha256(&ep->cookie_auth_key, (const u8 *)bear_cookie,
+			    bodysize, mac);
+		static_assert(sizeof(cookie->mac) == sizeof(mac));
+		if (crypto_memneq(mac, cookie->mac, sizeof(mac))) {
+			*error = -SCTP_IERROR_BAD_SIG;
 			goto fail;
 		}
 	}
 
-	if (memcmp(digest, cookie->signature, SCTP_SIGNATURE_SIZE)) {
-		*error = -SCTP_IERROR_BAD_SIG;
-		goto fail;
-	}
-
-no_hmac:
 	/* IG Section 2.35.2:
 	 *  3) Compare the port numbers and the verification tag contained
 	 *     within the COOKIE ECHO chunk to the actual port numbers and the

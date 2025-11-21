@@ -155,7 +155,7 @@ long syscall##nr(unsigned long syscall SYSCALL_PARM_##nr)		\
 	SYSCALL_REGS_##nr;						\
 									\
 	asm volatile (							\
-		"	svc	0\n"					\
+		"	svc	0"					\
 		: "=d" (rc)						\
 		: "d" (r1) SYSCALL_FMT_##nr				\
 		: "memory");						\

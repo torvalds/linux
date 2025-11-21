@@ -1843,7 +1843,7 @@ static const struct gpio_chip wm8903_template_chip = {
 	.direction_input	= wm8903_gpio_direction_in,
 	.get			= wm8903_gpio_get,
 	.direction_output	= wm8903_gpio_direction_out,
-	.set_rv			= wm8903_gpio_set,
+	.set			= wm8903_gpio_set,
 	.can_sleep		= 1,
 };
 

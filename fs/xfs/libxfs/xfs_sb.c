@@ -142,8 +142,6 @@ xfs_sb_version_to_features(
 	if (sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT) {
 		if (sbp->sb_features2 & XFS_SB_VERSION2_LAZYSBCOUNTBIT)
 			features |= XFS_FEAT_LAZYSBCOUNT;
-		if (sbp->sb_features2 & XFS_SB_VERSION2_ATTR2BIT)
-			features |= XFS_FEAT_ATTR2;
 		if (sbp->sb_features2 & XFS_SB_VERSION2_PROJID32BIT)
 			features |= XFS_FEAT_PROJID32;
 		if (sbp->sb_features2 & XFS_SB_VERSION2_FTYPE)
@@ -155,7 +153,7 @@ xfs_sb_version_to_features(
 
 	/* Always on V5 features */
 	features |= XFS_FEAT_ALIGN | XFS_FEAT_LOGV2 | XFS_FEAT_EXTFLG |
-		    XFS_FEAT_LAZYSBCOUNT | XFS_FEAT_ATTR2 | XFS_FEAT_PROJID32 |
+		    XFS_FEAT_LAZYSBCOUNT | XFS_FEAT_PROJID32 |
 		    XFS_FEAT_V3INODES | XFS_FEAT_CRC | XFS_FEAT_PQUOTINO;
 
 	/* Optional V5 features */
@@ -1524,7 +1522,8 @@ xfs_fs_geometry(
 	geo->version = XFS_FSOP_GEOM_VERSION;
 	geo->flags = XFS_FSOP_GEOM_FLAGS_NLINK |
 		     XFS_FSOP_GEOM_FLAGS_DIRV2 |
-		     XFS_FSOP_GEOM_FLAGS_EXTFLG;
+		     XFS_FSOP_GEOM_FLAGS_EXTFLG |
+		     XFS_FSOP_GEOM_FLAGS_ATTR2;
 	if (xfs_has_attr(mp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_ATTR;
 	if (xfs_has_quota(mp))
@@ -1537,8 +1536,6 @@ xfs_fs_geometry(
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_DIRV2CI;
 	if (xfs_has_lazysbcount(mp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_LAZYSB;
-	if (xfs_has_attr2(mp))
-		geo->flags |= XFS_FSOP_GEOM_FLAGS_ATTR2;
 	if (xfs_has_projid32(mp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_PROJID32;
 	if (xfs_has_crc(mp))

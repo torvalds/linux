@@ -116,13 +116,11 @@ e_free:
 
 static int get_derived_key(struct snp_guest_dev *snp_dev, struct snp_guest_request_ioctl *arg)
 {
+	struct snp_derived_key_resp *derived_key_resp __free(kfree) = NULL;
 	struct snp_derived_key_req *derived_key_req __free(kfree) = NULL;
-	struct snp_derived_key_resp derived_key_resp = {0};
 	struct snp_msg_desc *mdesc = snp_dev->msg_desc;
 	struct snp_guest_req req = {};
 	int rc, resp_len;
-	/* Response data is 64 bytes and max authsize for GCM is 16 bytes. */
-	u8 buf[64 + 16];
 
 	if (!arg->req_data || !arg->resp_data)
 		return -EINVAL;
@@ -132,8 +130,9 @@ static int get_derived_key(struct snp_guest_dev *snp_dev, struct snp_guest_reque
 	 * response payload. Make sure that it has enough space to cover the
 	 * authtag.
 	 */
-	resp_len = sizeof(derived_key_resp.data) + mdesc->ctx->authsize;
-	if (sizeof(buf) < resp_len)
+	resp_len = sizeof(derived_key_resp->data) + mdesc->ctx->authsize;
+	derived_key_resp = kzalloc(resp_len, GFP_KERNEL_ACCOUNT);
+	if (!derived_key_resp)
 		return -ENOMEM;
 
 	derived_key_req = kzalloc(sizeof(*derived_key_req), GFP_KERNEL_ACCOUNT);
@@ -149,23 +148,21 @@ static int get_derived_key(struct snp_guest_dev *snp_dev, struct snp_guest_reque
 	req.vmpck_id = mdesc->vmpck_id;
 	req.req_buf = derived_key_req;
 	req.req_sz = sizeof(*derived_key_req);
-	req.resp_buf = buf;
+	req.resp_buf = derived_key_resp;
 	req.resp_sz = resp_len;
 	req.exit_code = SVM_VMGEXIT_GUEST_REQUEST;
 
 	rc = snp_send_guest_request(mdesc, &req);
 	arg->exitinfo2 = req.exitinfo2;
-	if (rc)
-		return rc;
-
-	memcpy(derived_key_resp.data, buf, sizeof(derived_key_resp.data));
-	if (copy_to_user((void __user *)arg->resp_data, &derived_key_resp,
-			 sizeof(derived_key_resp)))
-		rc = -EFAULT;
+	if (!rc) {
+		if (copy_to_user((void __user *)arg->resp_data, derived_key_resp,
+				 sizeof(derived_key_resp->data)))
+			rc = -EFAULT;
+	}
 
 	/* The response buffer contains the sensitive data, explicitly clear it. */
-	memzero_explicit(buf, sizeof(buf));
-	memzero_explicit(&derived_key_resp, sizeof(derived_key_resp));
+	memzero_explicit(derived_key_resp, sizeof(*derived_key_resp));
+
 	return rc;
 }
 

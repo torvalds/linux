@@ -420,7 +420,8 @@ static int armada_37xx_gpio_direction_output(struct gpio_chip *chip,
 	struct armada_37xx_pinctrl *info = gpiochip_get_data(chip);
 	unsigned int en_offset = offset;
 	unsigned int reg = OUTPUT_VAL;
-	unsigned int mask, val, ret;
+	unsigned int mask, val;
+	int ret;
 
 	armada_37xx_update_reg(&reg, &offset);
 	mask = BIT(offset);
@@ -518,7 +519,7 @@ static const struct pinmux_ops armada_37xx_pmx_ops = {
 static const struct gpio_chip armada_37xx_gpiolib_chip = {
 	.request = gpiochip_generic_request,
 	.free = gpiochip_generic_free,
-	.set_rv = armada_37xx_gpio_set,
+	.set = armada_37xx_gpio_set,
 	.get = armada_37xx_gpio_get,
 	.get_direction	= armada_37xx_gpio_get_direction,
 	.direction_input = armada_37xx_gpio_direction_input,
@@ -634,8 +635,9 @@ static int armada_37xx_edge_both_irq_swap_pol(struct armada_37xx_pinctrl *info,
 {
 	u32 reg_idx = pin_idx / GPIO_PER_REG;
 	u32 bit_num = pin_idx % GPIO_PER_REG;
-	u32 p, l, ret;
 	unsigned long flags;
+	u32 p, l;
+	int ret;
 
 	regmap_read(info->regmap, INPUT_VAL + 4*reg_idx, &l);
 

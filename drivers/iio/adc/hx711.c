@@ -465,7 +465,7 @@ static int hx711_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct hx711_data));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM, "failed to allocate IIO device\n");
+		return -ENOMEM;
 
 	hx711_data = iio_priv(indio_dev);
 	hx711_data->dev = dev;

@@ -28,7 +28,7 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 #include "dc_state_priv.h"
-#include "link.h"
+#include "link_service.h"
 
 #include "dce100/dce_clk_mgr.h"
 #include "dce110/dce110_clk_mgr.h"
@@ -158,7 +158,6 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			return NULL;
 		}
 		dce60_clk_mgr_construct(ctx, clk_mgr);
-		dce_clk_mgr_construct(ctx, clk_mgr);
 		return &clk_mgr->base;
 	}
 #endif

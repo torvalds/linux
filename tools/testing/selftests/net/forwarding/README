@@ -57,6 +57,21 @@ o Code shall be checked using ShellCheck [1] prior to submission.
 
 1. https://www.shellcheck.net/
 
+Cleanups
+--------
+
+o lib.sh brings in defer.sh (by way of ../lib.sh) by default. Consider
+  making use of the defer primitive to schedule automatic cleanups. This
+  makes it harder to forget to remove a temporary netdevice, kill a running
+  process or perform other cleanup when the test script is interrupted.
+
+o When adding a helper that dirties the environment, but schedules all
+  necessary cleanups through defer, consider prefixing it adf_ for
+  consistency with lib.sh and ../lib.sh helpers. This serves as an
+  immediately visible bit of documentation about the helper API.
+
+o Definitely do the above for any new code in lib.sh, if practical.
+
 Customization
 =============
 

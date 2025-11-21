@@ -57,7 +57,7 @@ struct mlx5e_l2_table {
 	bool                       promisc_enabled;
 };
 
-#define MLX5E_NUM_INDIR_TIRS (MLX5_NUM_TT - 1)
+#define MLX5E_NUM_INDIR_TIRS (MLX5_NUM_INDIR_TIRS)
 
 #define MLX5_HASH_IP		(MLX5_HASH_FIELD_SEL_SRC_IP   |\
 				 MLX5_HASH_FIELD_SEL_DST_IP)
@@ -88,10 +88,11 @@ enum {
 #ifdef CONFIG_MLX5_EN_ARFS
 	MLX5E_ARFS_FT_LEVEL = MLX5E_INNER_TTC_FT_LEVEL + 1,
 #endif
-#ifdef CONFIG_MLX5_EN_IPSEC
+#if defined(CONFIG_MLX5_EN_IPSEC) || defined(CONFIG_MLX5_EN_PSP)
 	MLX5E_ACCEL_FS_ESP_FT_LEVEL = MLX5E_INNER_TTC_FT_LEVEL + 1,
 	MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL,
 	MLX5E_ACCEL_FS_POL_FT_LEVEL,
+	MLX5E_ACCEL_FS_POL_MISS_FT_LEVEL,
 	MLX5E_ACCEL_FS_ESP_FT_ROCE_LEVEL,
 #endif
 };
@@ -131,7 +132,8 @@ struct mlx5e_ptp_fs;
 
 void mlx5e_set_ttc_params(struct mlx5e_flow_steering *fs,
 			  struct mlx5e_rx_res *rx_res,
-			  struct ttc_params *ttc_params, bool tunnel);
+			  struct ttc_params *ttc_params, bool tunnel,
+			  bool ipsec_rss);
 
 void mlx5e_destroy_ttc_table(struct mlx5e_flow_steering *fs);
 int mlx5e_create_ttc_table(struct mlx5e_flow_steering  *fs,

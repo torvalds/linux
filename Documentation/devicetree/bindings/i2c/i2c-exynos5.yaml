@@ -35,9 +35,14 @@ properties:
           - const: samsung,exynos7-hsi2c
       - items:
           - enum:
+              - samsung,exynos8890-hsi2c
+          - const: samsung,exynos8895-hsi2c
+      - items:
+          - enum:
               - google,gs101-hsi2c
               - samsung,exynos2200-hsi2c
               - samsung,exynos850-hsi2c
+              - samsung,exynos990-hsi2c
           - const: samsung,exynosautov9-hsi2c
       - const: samsung,exynos5-hsi2c    # Exynos5250 and Exynos5420
         deprecated: true

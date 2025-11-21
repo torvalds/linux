@@ -171,6 +171,8 @@ nodes with particular properties as defined by ``enum node_states``:
   The node has memory(regular, high, movable)
 ``N_CPU``
   The node has one or more CPUs
+``N_GENERIC_INITIATOR``
+  The node has one or more Generic Initiators
 
 For each node that has a property described above, the bit corresponding to the
 node ID in the ``node_states[<property>]`` bitmask is set.

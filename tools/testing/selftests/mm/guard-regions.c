@@ -145,7 +145,7 @@ static bool try_access_buf(char *ptr, bool write)
 		if (write)
 			*ptr = 'x';
 		else
-			FORCE_READ(ptr);
+			FORCE_READ(*ptr);
 	}
 
 	signal_jump_set = false;

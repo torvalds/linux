@@ -151,7 +151,7 @@ static int amdisp_gpiochip_add(struct platform_device *pdev,
 	gc->direction_input	= amdisp_gpio_direction_input;
 	gc->direction_output	= amdisp_gpio_direction_output;
 	gc->get			= amdisp_gpio_get;
-	gc->set_rv		= amdisp_gpio_set;
+	gc->set			= amdisp_gpio_set;
 	gc->base		= -1;
 	gc->ngpio		= ARRAY_SIZE(amdisp_range_pins);
 

@@ -3,9 +3,12 @@
  * Copyright © 2022-2023 Intel Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include <drm/drm_vblank.h>
 
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -492,9 +495,14 @@ static void wait_for_pipe_scanline_moving(struct intel_crtc *crtc, bool state)
 {
 	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
+	bool is_moving;
+	int ret;
 
 	/* Wait for the display line to settle/start moving */
-	if (wait_for(pipe_scanline_is_moving(display, pipe) == state, 100))
+	ret = poll_timeout_us(is_moving = pipe_scanline_is_moving(display, pipe),
+			      is_moving == state,
+			      500, 100 * 1000, false);
+	if (ret)
 		drm_err(display->drm,
 			"pipe %c scanline %s wait timed out\n",
 			pipe_name(pipe), str_on_off(state));
@@ -724,9 +732,9 @@ int intel_vblank_evade(struct intel_vblank_evade_ctx *evade)
 			break;
 
 		if (!timeout) {
-			drm_err(display->drm,
-				"Potential atomic update failure on pipe %c\n",
-				pipe_name(crtc->pipe));
+			drm_dbg_kms(display->drm,
+				    "Potential atomic update failure on pipe %c\n",
+				    pipe_name(crtc->pipe));
 			break;
 		}
 

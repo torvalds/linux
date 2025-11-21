@@ -256,6 +256,6 @@ static struct i2c_driver atla10_ec_driver = {
 };
 module_i2c_driver(atla10_ec_driver);
 
-MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
+MODULE_AUTHOR("Hans de Goede <hansg@kernel.org>");
 MODULE_DESCRIPTION("Battery driver for Vexia EDU ATLA 10 tablet EC");
 MODULE_LICENSE("GPL");

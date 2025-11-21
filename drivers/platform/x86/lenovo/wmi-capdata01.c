@@ -93,7 +93,7 @@ int lwmi_cd01_get_data(struct cd01_list *list, u32 attribute_id, struct capdata0
 			continue;
 		memcpy(output, &list->data[idx], sizeof(list->data[idx]));
 		return 0;
-	};
+	}
 
 	return -EINVAL;
 }

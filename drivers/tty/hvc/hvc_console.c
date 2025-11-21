@@ -184,7 +184,7 @@ static void hvc_console_print(struct console *co, const char *b,
 					hvc_console_flush(cons_ops[index],
 						      vtermnos[index]);
 				}
-			} else if (r > 0) {
+			} else {
 				i -= r;
 				if (i > 0)
 					memmove(c, c+r, i);
@@ -543,10 +543,10 @@ static ssize_t hvc_write(struct tty_struct *tty, const u8 *buf, size_t count)
 	}
 
 	/*
-	 * Racy, but harmless, kick thread if there is still pending data.
+	 * Kick thread to flush if there's still pending data
+	 * or to wakeup the write queue.
 	 */
-	if (hp->n_outbuf)
-		hvc_kick();
+	hvc_kick();
 
 	return written;
 }

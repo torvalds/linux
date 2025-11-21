@@ -200,7 +200,7 @@ static void __init preprocess_cmdline(void)
 	static char cmdline[COMMAND_LINE_SIZE] __initdata;
 	char *s;
 
-	strcpy(cmdline, arcs_cmdline);
+	strscpy(cmdline, arcs_cmdline);
 	s = cmdline;
 	arcs_cmdline[0] = '\0';
 	while (s && *s) {
@@ -270,7 +270,7 @@ void __init prom_init(void)
 	preprocess_cmdline();
 	select_board();
 
-	strcpy(txx9_system_type, txx9_board_vec->system);
+	strscpy(txx9_system_type, txx9_board_vec->system);
 
 	txx9_board_vec->prom_init();
 }
@@ -655,7 +655,7 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 	if (!iocled->mmioaddr)
 		goto out_free;
 	iocled->chip.get = txx9_iocled_get;
-	iocled->chip.set_rv = txx9_iocled_set;
+	iocled->chip.set = txx9_iocled_set;
 	iocled->chip.direction_input = txx9_iocled_dir_in;
 	iocled->chip.direction_output = txx9_iocled_dir_out;
 	iocled->chip.label = "iocled";

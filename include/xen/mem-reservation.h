@@ -39,7 +39,7 @@ static inline void xenmem_reservation_va_mapping_update(unsigned long count,
 							xen_pfn_t *frames)
 {
 #ifdef CONFIG_XEN_HAVE_PVMMU
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
+	if (xen_pv_domain())
 		__xenmem_reservation_va_mapping_update(count, pages, frames);
 #endif
 }
@@ -48,7 +48,7 @@ static inline void xenmem_reservation_va_mapping_reset(unsigned long count,
 						       struct page **pages)
 {
 #ifdef CONFIG_XEN_HAVE_PVMMU
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
+	if (xen_pv_domain())
 		__xenmem_reservation_va_mapping_reset(count, pages);
 #endif
 }

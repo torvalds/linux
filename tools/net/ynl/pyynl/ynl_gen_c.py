@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 
 import argparse
-import collections
 import filecmp
 import pathlib
 import os
@@ -14,7 +13,7 @@ import yaml
 
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation, SpecEnumSet, SpecEnumEntry
-from lib import SpecSubMessage, SpecSubMessageFormat
+from lib import SpecSubMessage
 
 
 def c_upper(name):
@@ -243,7 +242,7 @@ class Type(SpecAttr):
         raise Exception(f"Attr get not implemented for class type {self.type}")
 
     def attr_get(self, ri, var, first):
-        lines, init_lines, local_vars = self._attr_get(ri, var)
+        lines, init_lines, _ = self._attr_get(ri, var)
         if type(lines) is str:
             lines = [lines]
         if type(init_lines) is str:
@@ -251,10 +250,6 @@ class Type(SpecAttr):
 
         kw = 'if' if first else 'else if'
         ri.cw.block_start(line=f"{kw} (type == {self.enum_name})")
-        if local_vars:
-            for local in local_vars:
-                ri.cw.p(local)
-            ri.cw.nl()
 
         if not self.is_multi_val():
             ri.cw.p("if (ynl_attr_validate(yarg, attr))")
@@ -398,7 +393,7 @@ class TypeScalar(Type):
         if 'enum' in self.attr:
             enum = self.family.consts[self.attr['enum']]
             low, high = enum.value_range()
-            if low == None and high == None:
+            if low is None and high is None:
                 self.checks['sparse'] = True
             else:
                 if 'min' not in self.checks:
@@ -485,7 +480,7 @@ class TypeString(Type):
         ri.cw.p(f"char *{self.c_name};")
 
     def _attr_typol(self):
-        typol = f'.type = YNL_PT_NUL_STR, '
+        typol = '.type = YNL_PT_NUL_STR, '
         if self.is_selector:
             typol += '.is_selector = 1, '
         return typol
@@ -539,7 +534,7 @@ class TypeBinary(Type):
         ri.cw.p(f"void *{self.c_name};")
 
     def _attr_typol(self):
-        return f'.type = YNL_PT_BINARY,'
+        return '.type = YNL_PT_BINARY,'
 
     def _attr_policy(self, policy):
         if len(self.checks) == 0:
@@ -556,7 +551,7 @@ class TypeBinary(Type):
         elif 'exact-len' in self.checks:
             mem = 'NLA_POLICY_EXACT_LEN(' + self.get_limit_str('exact-len') + ')'
         elif 'min-len' in self.checks:
-            mem = '{ .len = ' + self.get_limit_str('min-len') + ', }'
+            mem = 'NLA_POLICY_MIN_LEN(' + self.get_limit_str('min-len') + ')'
         elif 'max-len' in self.checks:
             mem = 'NLA_POLICY_MAX_LEN(' + self.get_limit_str('max-len') + ')'
 
@@ -636,10 +631,10 @@ class TypeBitfield32(Type):
         return "struct nla_bitfield32"
 
     def _attr_typol(self):
-        return f'.type = YNL_PT_BITFIELD32, '
+        return '.type = YNL_PT_BITFIELD32, '
 
     def _attr_policy(self, policy):
-        if not 'enum' in self.attr:
+        if 'enum' not in self.attr:
             raise Exception('Enum required for bitfield32 attr')
         enum = self.family.consts[self.attr['enum']]
         mask = enum.get_mask(as_flags=True)
@@ -725,7 +720,11 @@ class TypeMultiAttr(Type):
             return 'struct ynl_string *'
         elif self.attr['type'] in scalars:
             scalar_pfx = '__' if ri.ku_space == 'user' else ''
-            return scalar_pfx + self.attr['type']
+            if self.is_auto_scalar:
+                name = self.type[0] + '64'
+            else:
+                name = self.attr['type']
+            return scalar_pfx + name
         else:
             raise Exception(f"Sub-type {self.attr['type']} not supported yet")
 
@@ -792,7 +791,7 @@ class TypeMultiAttr(Type):
                 f"{presence} = n_{self.c_name};"]
 
 
-class TypeArrayNest(Type):
+class TypeIndexedArray(Type):
     def is_multi_val(self):
         return True
 
@@ -816,21 +815,28 @@ class TypeArrayNest(Type):
                     f'unsigned int n_{self.c_name}']
         return super().arg_member(ri)
 
+    def _attr_policy(self, policy):
+        if self.attr['sub-type'] == 'nest':
+            return f'NLA_POLICY_NESTED_ARRAY({self.nested_render_name}_nl_policy)'
+        return super()._attr_policy(policy)
+
     def _attr_typol(self):
         if self.attr['sub-type'] in scalars:
             return f'.type = YNL_PT_U{c_upper(self.sub_type[1:])}, '
         elif self.attr['sub-type'] == 'binary' and 'exact-len' in self.checks:
             return f'.type = YNL_PT_BINARY, .len = {self.checks["exact-len"]}, '
-        else:
+        elif self.attr['sub-type'] == 'nest':
             return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
+        else:
+            raise Exception(f"Typol for IndexedArray sub-type {self.attr['sub-type']} not supported, yet")
 
     def _attr_get(self, ri, var):
         local_vars = ['const struct nlattr *attr2;']
         get_lines = [f'attr_{self.c_name} = attr;',
                      'ynl_attr_for_each_nested(attr2, attr) {',
-                     '\tif (ynl_attr_validate(yarg, attr2))',
+                     '\tif (__ynl_attr_validate(yarg, attr2, type))',
                      '\t\treturn YNL_PARSE_CB_ERROR;',
-                     f'\t{var}->_count.{self.c_name}++;',
+                     f'\tn_{self.c_name}++;',
                      '}']
         return get_lines, None, local_vars
 
@@ -848,7 +854,7 @@ class TypeArrayNest(Type):
             ri.cw.p(f'for (i = 0; i < {var}->_count.{self.c_name}; i++)')
             ri.cw.p(f"{self.nested_render_name}_put(nlh, i, &{var}->{self.c_name}[i]);")
         else:
-            raise Exception(f"Put for ArrayNest sub-type {self.attr['sub-type']} not supported, yet")
+            raise Exception(f"Put for IndexedArray sub-type {self.attr['sub-type']} not supported, yet")
         ri.cw.p('ynl_attr_nest_end(nlh, array);')
 
     def _setter_lines(self, ri, member, presence):
@@ -909,7 +915,7 @@ class TypeSubMessage(TypeNest):
         else:
             sel_var = f"{var}->{sel}"
         get_lines = [f'if (!{sel_var})',
-                     f'return ynl_submsg_failed(yarg, "%s", "%s");' %
+                     'return ynl_submsg_failed(yarg, "%s", "%s");' %
                         (self.name, self['selector']),
                     f"if ({self.nested_render_name}_parse(&parg, {sel_var}, attr))",
                      "return YNL_PARSE_CB_ERROR;"]
@@ -1125,7 +1131,7 @@ class AttrSet(SpecAttrSet):
             t = TypeNest(self.family, self, elem, value)
         elif elem['type'] == 'indexed-array' and 'sub-type' in elem:
             if elem["sub-type"] in ['binary', 'nest', 'u32']:
-                t = TypeArrayNest(self.family, self, elem, value)
+                t = TypeIndexedArray(self.family, self, elem, value)
             else:
                 raise Exception(f'new_attr: unsupported sub-type {elem["sub-type"]}')
         elif elem['type'] == 'nest-type-value':
@@ -1563,7 +1569,7 @@ class RenderInfo:
                 if family.is_classic():
                     self.fixed_hdr_len = f"sizeof(struct {c_lower(fixed_hdr)})"
                 else:
-                    raise Exception(f"Per-op fixed header not supported, yet")
+                    raise Exception("Per-op fixed header not supported, yet")
 
 
         # 'do' and 'dump' response parsing is identical
@@ -2034,6 +2040,20 @@ def put_enum_to_str(family, cw, enum):
     _put_enum_to_str_helper(cw, enum.render_name, map_name, 'value', enum=enum)
 
 
+def put_local_vars(struct):
+    local_vars = []
+    has_array = False
+    has_count = False
+    for _, arg in struct.member_list():
+        has_array |= arg.type == 'indexed-array'
+        has_count |= arg.presence_type() == 'count'
+    if has_array:
+        local_vars.append('struct nlattr *array;')
+    if has_count:
+        local_vars.append('unsigned int i;')
+    return local_vars
+
+
 def put_req_nested_prototype(ri, struct, suffix=';'):
     func_args = ['struct nlmsghdr *nlh',
                  'unsigned int attr_type',
@@ -2056,15 +2076,7 @@ def put_req_nested(ri, struct):
         init_lines.append(f"hdr = ynl_nlmsg_put_extra_header(nlh, {struct_sz});")
         init_lines.append(f"memcpy(hdr, &obj->_hdr, {struct_sz});")
 
-    has_anest = False
-    has_count = False
-    for _, arg in struct.member_list():
-        has_anest |= arg.type == 'indexed-array'
-        has_count |= arg.presence_type() == 'count'
-    if has_anest:
-        local_vars.append('struct nlattr *array;')
-    if has_count:
-        local_vars.append('unsigned int i;')
+    local_vars += put_local_vars(struct)
 
     put_req_nested_prototype(ri, struct, suffix='')
     ri.cw.block_start()
@@ -2099,35 +2111,43 @@ def _multi_parse(ri, struct, init_lines, local_vars):
             if ri.family.is_classic():
                 iter_line = f"ynl_attr_for_each(attr, nlh, sizeof({struct.fixed_header}))"
             else:
-                raise Exception(f"Per-op fixed header not supported, yet")
+                raise Exception("Per-op fixed header not supported, yet")
 
-    array_nests = set()
+    indexed_arrays = set()
     multi_attrs = set()
     needs_parg = False
+    var_set = set()
     for arg, aspec in struct.member_list():
         if aspec['type'] == 'indexed-array' and 'sub-type' in aspec:
             if aspec["sub-type"] in {'binary', 'nest'}:
-                local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
-                array_nests.add(arg)
+                local_vars.append(f'const struct nlattr *attr_{aspec.c_name} = NULL;')
+                indexed_arrays.add(arg)
             elif aspec['sub-type'] in scalars:
-                local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
-                array_nests.add(arg)
+                local_vars.append(f'const struct nlattr *attr_{aspec.c_name} = NULL;')
+                indexed_arrays.add(arg)
             else:
                 raise Exception(f'Not supported sub-type {aspec["sub-type"]}')
         if 'multi-attr' in aspec:
             multi_attrs.add(arg)
         needs_parg |= 'nested-attributes' in aspec
         needs_parg |= 'sub-message' in aspec
-    if array_nests or multi_attrs:
+
+        try:
+            _, _, l_vars = aspec._attr_get(ri, '')
+            var_set |= set(l_vars) if l_vars else set()
+        except Exception:
+            pass  # _attr_get() not implemented by simple types, ignore
+    local_vars += list(var_set)
+    if indexed_arrays or multi_attrs:
         local_vars.append('int i;')
     if needs_parg:
         local_vars.append('struct ynl_parse_arg parg;')
         init_lines.append('parg.ys = yarg->ys;')
 
-    all_multi = array_nests | multi_attrs
+    all_multi = indexed_arrays | multi_attrs
 
-    for anest in sorted(all_multi):
-        local_vars.append(f"unsigned int n_{struct[anest].c_name} = 0;")
+    for arg in sorted(all_multi):
+        local_vars.append(f"unsigned int n_{struct[arg].c_name} = 0;")
 
     ri.cw.block_start()
     ri.cw.write_func_lvar(local_vars)
@@ -2147,8 +2167,8 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         else:
             ri.cw.p('hdr = ynl_nlmsg_data_offset(nlh, sizeof(struct genlmsghdr));')
         ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({struct.fixed_header}));")
-    for anest in sorted(all_multi):
-        aspec = struct[anest]
+    for arg in sorted(all_multi):
+        aspec = struct[arg]
         ri.cw.p(f"if (dst->{aspec.c_name})")
         ri.cw.p(f'return ynl_error_parse(yarg, "attribute already present ({struct.attr_set.name}.{aspec.name})");')
 
@@ -2166,8 +2186,8 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     ri.cw.block_end()
     ri.cw.nl()
 
-    for anest in sorted(array_nests):
-        aspec = struct[anest]
+    for arg in sorted(indexed_arrays):
+        aspec = struct[arg]
 
         ri.cw.block_start(line=f"if (n_{aspec.c_name})")
         ri.cw.p(f"dst->{aspec.c_name} = calloc(n_{aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
@@ -2192,8 +2212,8 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         ri.cw.block_end()
     ri.cw.nl()
 
-    for anest in sorted(multi_attrs):
-        aspec = struct[anest]
+    for arg in sorted(multi_attrs):
+        aspec = struct[arg]
         ri.cw.block_start(line=f"if (n_{aspec.c_name})")
         ri.cw.p(f"dst->{aspec.c_name} = calloc(n_{aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
         ri.cw.p(f"dst->_count.{aspec.c_name} = n_{aspec.c_name};")
@@ -2348,10 +2368,7 @@ def print_req(ri):
         local_vars += ['size_t hdr_len;',
                        'void *hdr;']
 
-    for _, attr in ri.struct["request"].member_list():
-        if attr.presence_type() == 'count':
-            local_vars += ['unsigned int i;']
-            break
+    local_vars += put_local_vars(ri.struct['request'])
 
     print_prototype(ri, direction, terminate=False)
     ri.cw.block_start()
@@ -2417,6 +2434,9 @@ def print_dump(ri):
     if ri.struct['request'].fixed_header:
         local_vars += ['size_t hdr_len;',
                        'void *hdr;']
+
+    if 'request' in ri.op[ri.op_mode]:
+        local_vars += put_local_vars(ri.struct['request'])
 
     ri.cw.write_func_lvar(local_vars)
 
@@ -2502,7 +2522,7 @@ def print_free_prototype(ri, direction, suffix=';'):
 
 def print_nlflags_set(ri, direction):
     name = op_prefix(ri, direction)
-    ri.cw.write_func_prot(f'static inline void', f"{name}_set_nlflags",
+    ri.cw.write_func_prot('static inline void', f"{name}_set_nlflags",
                           [f"struct {name} *req", "__u16 nl_flags"])
     ri.cw.block_start()
     ri.cw.p('req->_nlmsg_flags = nl_flags;')
@@ -2533,7 +2553,7 @@ def _print_type(ri, direction, struct):
             line = attr.presence_member(ri.ku_space, type_filter)
             if line:
                 if not meta_started:
-                    ri.cw.block_start(line=f"struct")
+                    ri.cw.block_start(line="struct")
                     meta_started = True
                 ri.cw.p(line)
         if meta_started:
@@ -2697,7 +2717,7 @@ def print_dump_type_free(ri):
     ri.cw.nl()
 
     _free_type_members(ri, 'rsp', ri.struct['reply'], ref='obj.')
-    ri.cw.p(f'free(rsp);')
+    ri.cw.p('free(rsp);')
     ri.cw.block_end()
     ri.cw.block_end()
     ri.cw.nl()
@@ -2708,7 +2728,7 @@ def print_ntf_type_free(ri):
     ri.cw.block_start()
     _free_type_members_iter(ri, ri.struct['reply'])
     _free_type_members(ri, 'rsp', ri.struct['reply'], ref='obj.')
-    ri.cw.p(f'free(rsp);')
+    ri.cw.p('free(rsp);')
     ri.cw.block_end()
     ri.cw.nl()
 
@@ -2803,8 +2823,6 @@ def print_kernel_policy_sparse_enum_validates(family, cw):
                 cw.p('/* Sparse enums validation callbacks */')
                 first = False
 
-            sign = '' if attr.type[0] == 'u' else '_signed'
-            suffix = 'ULL' if attr.type[0] == 'u' else 'LL'
             cw.write_func_prot('static int', f'{c_lower(attr.enum_name)}_validate',
                                ['const struct nlattr *attr', 'struct netlink_ext_ack *extack'])
             cw.block_start()
@@ -3211,8 +3229,9 @@ def render_uapi(family, cw):
             cw.block_end(line=';')
             cw.nl()
         elif const['type'] == 'const':
+            name_pfx = const.get('name-prefix', f"{family.ident_name}-")
             defines.append([c_upper(family.get('c-define-name',
-                                               f"{family.ident_name}-{const['name']}")),
+                                               f"{name_pfx}{const['name']}")),
                             const['value']])
 
     if defines:
@@ -3324,7 +3343,7 @@ def render_user_family(family, cw, prototype):
     cw.block_start(f'{symbol} = ')
     cw.p(f'.name\t\t= "{family.c_name}",')
     if family.is_classic():
-        cw.p(f'.is_classic\t= true,')
+        cw.p('.is_classic\t= true,')
         cw.p(f'.classic_id\t= {family.get("protonum")},')
     if family.is_classic():
         if family.fixed_header:

@@ -19,7 +19,7 @@
 
 #define SB1250_DUART_MINOR_BASE		64
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/addrspace.h>
 

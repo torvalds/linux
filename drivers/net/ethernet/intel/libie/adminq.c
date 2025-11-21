@@ -6,7 +6,7 @@
 
 static const char * const libie_aq_str_arr[] = {
 #define LIBIE_AQ_STR(x)					\
-	[LIBIE_AQ_RC_##x]	= "LIBIE_AQ_RC" #x
+	[LIBIE_AQ_RC_##x]	= "LIBIE_AQ_RC_" #x
 	LIBIE_AQ_STR(OK),
 	LIBIE_AQ_STR(EPERM),
 	LIBIE_AQ_STR(ENOENT),

@@ -348,10 +348,11 @@ struct bufdesc_ex {
  * the skbuffer directly.
  */
 
+#define FEC_DRV_RESERVE_SPACE (XDP_PACKET_HEADROOM + \
+		SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 #define FEC_ENET_XDP_HEADROOM	(XDP_PACKET_HEADROOM)
 #define FEC_ENET_RX_PAGES	256
-#define FEC_ENET_RX_FRSIZE	(PAGE_SIZE - FEC_ENET_XDP_HEADROOM \
-		- SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define FEC_ENET_RX_FRSIZE	(PAGE_SIZE - FEC_DRV_RESERVE_SPACE)
 #define FEC_ENET_RX_FRPPG	(PAGE_SIZE / FEC_ENET_RX_FRSIZE)
 #define RX_RING_SIZE		(FEC_ENET_RX_FRPPG * FEC_ENET_RX_PAGES)
 #define FEC_ENET_TX_FRSIZE	2048
@@ -513,6 +514,9 @@ struct bufdesc_ex {
  */
 #define FEC_QUIRK_HAS_MDIO_C45		BIT(24)
 
+/* Jumbo Frame support */
+#define FEC_QUIRK_JUMBO_FRAME		BIT(25)
+
 struct bufdesc_prop {
 	int qid;
 	/* Address of Rx and Tx buffers */
@@ -619,6 +623,9 @@ struct fec_enet_private {
 
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
+	unsigned int max_buf_size;
+	unsigned int pagepool_order;
+	unsigned int rx_frame_size;
 
 	struct	platform_device *pdev;
 

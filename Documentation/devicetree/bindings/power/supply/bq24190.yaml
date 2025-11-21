@@ -30,6 +30,12 @@ properties:
   interrupts:
     maxItems: 1
 
+  ce-gpios:
+    description:
+      Active low Charge Enable pin. Battery charging is enabled when
+      REG01[5:4] = 01 and CE pin is Low. CE pin must be pulled high or low.
+    maxItems: 1
+
   usb-otg-vbus:
     $ref: /schemas/regulator/regulator.yaml#
     description: |

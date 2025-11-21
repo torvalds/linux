@@ -9,6 +9,7 @@
 
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/string.h>
 
 #include <asm/ebus_dma.h>
 #include <asm/ns87303.h>
@@ -149,7 +150,7 @@ static int ecpp_probe(struct platform_device *op)
 	sparc_ebus_dmas[slot].info.callback = NULL;
 	sparc_ebus_dmas[slot].info.client_cookie = NULL;
 	sparc_ebus_dmas[slot].info.irq = 0xdeadbeef;
-	strcpy(sparc_ebus_dmas[slot].info.name, "parport");
+	strscpy(sparc_ebus_dmas[slot].info.name, "parport");
 	if (ebus_dma_register(&sparc_ebus_dmas[slot].info))
 		goto out_unmap_regs;
 

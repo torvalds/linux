@@ -179,7 +179,7 @@ static int xe_hwmon_pcode_rmw_power_limit(const struct xe_hwmon *hwmon, u32 attr
 					  u32 clr, u32 set)
 {
 	struct xe_tile *root_tile = xe_device_get_root_tile(hwmon->xe);
-	u32 val0, val1;
+	u32 val0 = 0, val1 = 0;
 	int ret = 0;
 
 	ret = xe_pcode_read(root_tile, PCODE_MBOX(PCODE_POWER_SETUP,
@@ -286,7 +286,7 @@ static struct xe_reg xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg 
  */
 static void xe_hwmon_power_max_read(struct xe_hwmon *hwmon, u32 attr, int channel, long *value)
 {
-	u64 reg_val = 0, min, max;
+	u32 reg_val = 0;
 	struct xe_device *xe = hwmon->xe;
 	struct xe_reg rapl_limit, pkg_power_sku;
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
@@ -294,7 +294,7 @@ static void xe_hwmon_power_max_read(struct xe_hwmon *hwmon, u32 attr, int channe
 	mutex_lock(&hwmon->hwmon_lock);
 
 	if (hwmon->xe->info.has_mbx_power_limits) {
-		xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, (u32 *)&reg_val);
+		xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, &reg_val);
 	} else {
 		rapl_limit = xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel);
 		pkg_power_sku = xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU, channel);
@@ -304,19 +304,21 @@ static void xe_hwmon_power_max_read(struct xe_hwmon *hwmon, u32 attr, int channe
 	/* Check if PL limits are disabled. */
 	if (!(reg_val & PWR_LIM_EN)) {
 		*value = PL_DISABLE;
-		drm_info(&hwmon->xe->drm, "%s disabled for channel %d, val 0x%016llx\n",
+		drm_info(&hwmon->xe->drm, "%s disabled for channel %d, val 0x%08x\n",
 			 PWR_ATTR_TO_STR(attr), channel, reg_val);
 		goto unlock;
 	}
 
 	reg_val = REG_FIELD_GET(PWR_LIM_VAL, reg_val);
-	*value = mul_u64_u32_shr(reg_val, SF_POWER, hwmon->scl_shift_power);
+	*value = mul_u32_u32(reg_val, SF_POWER) >> hwmon->scl_shift_power;
 
 	/* For platforms with mailbox power limit support clamping would be done by pcode. */
 	if (!hwmon->xe->info.has_mbx_power_limits) {
-		reg_val = xe_mmio_read64_2x32(mmio, pkg_power_sku);
-		min = REG_FIELD_GET(PKG_MIN_PWR, reg_val);
-		max = REG_FIELD_GET(PKG_MAX_PWR, reg_val);
+		u64 pkg_pwr, min, max;
+
+		pkg_pwr = xe_mmio_read64_2x32(mmio, pkg_power_sku);
+		min = REG_FIELD_GET(PKG_MIN_PWR, pkg_pwr);
+		max = REG_FIELD_GET(PKG_MAX_PWR, pkg_pwr);
 		min = mul_u64_u32_shr(min, SF_POWER, hwmon->scl_shift_power);
 		max = mul_u64_u32_shr(max, SF_POWER, hwmon->scl_shift_power);
 		if (min && max)
@@ -332,6 +334,7 @@ static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, u32 attr, int channe
 	int ret = 0;
 	u32 reg_val, max;
 	struct xe_reg rapl_limit;
+	u64 max_supp_power_limit = 0;
 
 	mutex_lock(&hwmon->hwmon_lock);
 
@@ -354,6 +357,20 @@ static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, u32 attr, int channe
 			ret = -EOPNOTSUPP;
 		}
 		goto unlock;
+	}
+
+	/*
+	 * If the sysfs value exceeds the maximum pcode supported power limit value, clamp it to
+	 * the supported maximum (U12.3 format).
+	 * This is to avoid truncation during reg_val calculation below and ensure the valid
+	 * power limit is sent for pcode which would clamp it to card-supported value.
+	 */
+	max_supp_power_limit = ((PWR_LIM_VAL) >> hwmon->scl_shift_power) * SF_POWER;
+	if (value > max_supp_power_limit) {
+		value = max_supp_power_limit;
+		drm_info(&hwmon->xe->drm,
+			 "Power limit clamped as selected %s exceeds channel %d limit\n",
+			 PWR_ATTR_TO_STR(attr), channel);
 	}
 
 	/* Computation in 64-bits to avoid overflow. Round to nearest. */
@@ -478,8 +495,8 @@ xe_hwmon_power_max_interval_show(struct device *dev, struct device_attribute *at
 {
 	struct xe_hwmon *hwmon = dev_get_drvdata(dev);
 	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
-	u32 x, y, x_w = 2; /* 2 bits */
-	u64 r, tau4, out;
+	u32 reg_val, x, y, x_w = 2; /* 2 bits */
+	u64 tau4, out;
 	int channel = (to_sensor_dev_attr(attr)->index % 2) ? CHANNEL_PKG : CHANNEL_CARD;
 	u32 power_attr = (to_sensor_dev_attr(attr)->index > 1) ? PL2_HWMON_ATTR : PL1_HWMON_ATTR;
 
@@ -490,23 +507,24 @@ xe_hwmon_power_max_interval_show(struct device *dev, struct device_attribute *at
 	mutex_lock(&hwmon->hwmon_lock);
 
 	if (hwmon->xe->info.has_mbx_power_limits) {
-		ret = xe_hwmon_pcode_read_power_limit(hwmon, power_attr, channel, (u32 *)&r);
+		ret = xe_hwmon_pcode_read_power_limit(hwmon, power_attr, channel, &reg_val);
 		if (ret) {
 			drm_err(&hwmon->xe->drm,
-				"power interval read fail, ch %d, attr %d, r 0%llx, ret %d\n",
-				channel, power_attr, r, ret);
-			r = 0;
+				"power interval read fail, ch %d, attr %d, val 0x%08x, ret %d\n",
+				channel, power_attr, reg_val, ret);
+			reg_val = 0;
 		}
 	} else {
-		r = xe_mmio_read32(mmio, xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel));
+		reg_val = xe_mmio_read32(mmio, xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT,
+								channel));
 	}
 
 	mutex_unlock(&hwmon->hwmon_lock);
 
 	xe_pm_runtime_put(hwmon->xe);
 
-	x = REG_FIELD_GET(PWR_LIM_TIME_X, r);
-	y = REG_FIELD_GET(PWR_LIM_TIME_Y, r);
+	x = REG_FIELD_GET(PWR_LIM_TIME_X, reg_val);
+	y = REG_FIELD_GET(PWR_LIM_TIME_Y, reg_val);
 
 	/*
 	 * tau = (1 + (x / 4)) * power(2,y), x = bits(23:22), y = bits(21:17)
@@ -719,7 +737,7 @@ static int xe_hwmon_power_curr_crit_read(struct xe_hwmon *hwmon, int channel,
 					 long *value, u32 scale_factor)
 {
 	int ret;
-	u32 uval;
+	u32 uval = 0;
 
 	mutex_lock(&hwmon->hwmon_lock);
 
@@ -739,9 +757,23 @@ static int xe_hwmon_power_curr_crit_write(struct xe_hwmon *hwmon, int channel,
 {
 	int ret;
 	u32 uval;
+	u64 max_crit_power_curr = 0;
 
 	mutex_lock(&hwmon->hwmon_lock);
 
+	/*
+	 * If the sysfs value exceeds the pcode mailbox cmd POWER_SETUP_SUBCOMMAND_WRITE_I1
+	 * max supported value, clamp it to the command's max (U10.6 format).
+	 * This is to avoid truncation during uval calculation below and ensure the valid power
+	 * limit is sent for pcode which would clamp it to card-supported value.
+	 */
+	max_crit_power_curr = (POWER_SETUP_I1_DATA_MASK >> POWER_SETUP_I1_SHIFT) * scale_factor;
+	if (value > max_crit_power_curr) {
+		value = max_crit_power_curr;
+		drm_info(&hwmon->xe->drm,
+			 "Power limit clamped as selected exceeds channel %d limit\n",
+			 channel);
+	}
 	uval = DIV_ROUND_CLOSEST_ULL(value << POWER_SETUP_I1_SHIFT, scale_factor);
 	ret = xe_hwmon_pcode_write_i1(hwmon, uval);
 
@@ -889,7 +921,7 @@ xe_hwmon_power_write(struct xe_hwmon *hwmon, u32 attr, int channel, long val)
 static umode_t
 xe_hwmon_curr_is_visible(const struct xe_hwmon *hwmon, u32 attr, int channel)
 {
-	u32 uval;
+	u32 uval = 0;
 
 	/* hwmon sysfs attribute of current available only for package */
 	if (channel != CHANNEL_PKG)
@@ -991,7 +1023,7 @@ xe_hwmon_energy_read(struct xe_hwmon *hwmon, u32 attr, int channel, long *val)
 static umode_t
 xe_hwmon_fan_is_visible(struct xe_hwmon *hwmon, u32 attr, int channel)
 {
-	u32 uval;
+	u32 uval = 0;
 
 	if (!hwmon->xe->info.has_fan_control)
 		return 0;
@@ -1265,13 +1297,6 @@ xe_hwmon_get_preregistration_info(struct xe_hwmon *hwmon)
 			xe_hwmon_fan_input_read(hwmon, channel, &fan_speed);
 }
 
-static void xe_hwmon_mutex_destroy(void *arg)
-{
-	struct xe_hwmon *hwmon = arg;
-
-	mutex_destroy(&hwmon->hwmon_lock);
-}
-
 int xe_hwmon_register(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
@@ -1290,8 +1315,7 @@ int xe_hwmon_register(struct xe_device *xe)
 	if (!hwmon)
 		return -ENOMEM;
 
-	mutex_init(&hwmon->hwmon_lock);
-	ret = devm_add_action_or_reset(dev, xe_hwmon_mutex_destroy, hwmon);
+	ret = devm_mutex_init(dev, &hwmon->hwmon_lock);
 	if (ret)
 		return ret;
 

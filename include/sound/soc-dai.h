@@ -256,7 +256,7 @@ int snd_soc_dai_compr_ack(struct snd_soc_dai *dai,
 			  size_t bytes);
 int snd_soc_dai_compr_pointer(struct snd_soc_dai *dai,
 			      struct snd_compr_stream *cstream,
-			      struct snd_compr_tstamp *tstamp);
+			      struct snd_compr_tstamp64 *tstamp);
 int snd_soc_dai_compr_set_metadata(struct snd_soc_dai *dai,
 				   struct snd_compr_stream *cstream,
 				   struct snd_compr_metadata *metadata);
@@ -383,8 +383,9 @@ struct snd_soc_cdai_ops {
 			struct snd_compr_metadata *, struct snd_soc_dai *);
 	int (*trigger)(struct snd_compr_stream *, int,
 			struct snd_soc_dai *);
-	int (*pointer)(struct snd_compr_stream *,
-			struct snd_compr_tstamp *, struct snd_soc_dai *);
+	int (*pointer)(struct snd_compr_stream *stream,
+		       struct snd_compr_tstamp64 *tstamp,
+		       struct snd_soc_dai *dai);
 	int (*ack)(struct snd_compr_stream *, size_t,
 			struct snd_soc_dai *);
 };

@@ -138,8 +138,7 @@ void setup_dio_stream_attribute(struct pipe_ctx *pipe_ctx)
 		stream_encoder->funcs->dvi_set_stream_attribute(
 				stream_encoder,
 				&stream->timing,
-				(stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
-						true : false);
+				stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK);
 	else if (dc_is_lvds_signal(stream->signal))
 		stream_encoder->funcs->lvds_set_stream_attribute(
 				stream_encoder,

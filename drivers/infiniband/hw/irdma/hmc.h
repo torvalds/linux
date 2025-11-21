@@ -16,11 +16,21 @@
 #define IRDMA_HMC_PD_BP_BUF_ALIGNMENT		4096
 #define IRDMA_FIRST_VF_FPM_ID			8
 #define FPM_MULTIPLIER				1024
+#define IRDMA_OBJ_LOC_MEM_BIT			0x4
+#define IRDMA_XF_MULTIPLIER			16
+#define IRDMA_RRF_MULTIPLIER			8
+#define IRDMA_MIN_PBLE_PAGES			3
+#define IRDMA_HMC_PAGE_SIZE			2097152
+#define IRDMA_MIN_MR_PER_QP			4
+#define IRDMA_MIN_QP_CNT			64
+#define IRDMA_FSIAV_CNT_MAX			1048576
+#define IRDMA_MIN_IRD				8
+#define IRDMA_HMC_MIN_RRF			16
 
 enum irdma_hmc_rsrc_type {
 	IRDMA_HMC_IW_QP		 = 0,
 	IRDMA_HMC_IW_CQ		 = 1,
-	IRDMA_HMC_IW_RESERVED	 = 2,
+	IRDMA_HMC_IW_SRQ	 = 2,
 	IRDMA_HMC_IW_HTE	 = 3,
 	IRDMA_HMC_IW_ARP	 = 4,
 	IRDMA_HMC_IW_APBVT_ENTRY = 5,
@@ -48,11 +58,17 @@ enum irdma_sd_entry_type {
 	IRDMA_SD_TYPE_DIRECT  = 2,
 };
 
+enum irdma_hmc_obj_mem {
+	IRDMA_HOST_MEM = 0,
+	IRDMA_LOC_MEM  = 1,
+};
+
 struct irdma_hmc_obj_info {
 	u64 base;
 	u32 max_cnt;
 	u32 cnt;
 	u64 size;
+	enum irdma_hmc_obj_mem mem_loc;
 };
 
 struct irdma_hmc_bp {
@@ -117,6 +133,7 @@ struct irdma_update_sds_info {
 struct irdma_ccq_cqe_info;
 struct irdma_hmc_fcn_info {
 	u32 vf_id;
+	u8 protocol_used;
 	u8 free_fcn;
 };
 

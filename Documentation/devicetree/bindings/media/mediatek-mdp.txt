@@ -5,7 +5,8 @@ Media Data Path is used for scaling and color space conversion.
 Required properties (controller node):
 - compatible: "mediatek,mt8173-mdp"
 - mediatek,vpu: the node of video processor unit, see
-  Documentation/devicetree/bindings/media/mediatek-vpu.txt for details.
+  Documentation/devicetree/bindings/media/mediatek,mt8173-vpu.yaml for 
+  details.
 
 Required properties (all function blocks, child node):
 - compatible: Should be one of

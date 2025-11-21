@@ -356,7 +356,7 @@ static __always_inline void pfcr_query(u8 (*query)[16])
 {
 	asm volatile(
 		"	lghi	0,0\n"
-		"	.insn   rsy,0xeb0000000016,0,0,%[query]\n"
+		"	.insn   rsy,0xeb0000000016,0,0,%[query]"
 		: [query] "=QS" (*query)
 		:
 		: "cc", "0");
@@ -368,7 +368,7 @@ static __always_inline void __sortl_query(u8 (*query)[32])
 		"	lghi	0,0\n"
 		"	la	1,%[query]\n"
 		/* Parameter registers are ignored */
-		"	.insn	rre,0xb9380000,2,4\n"
+		"	.insn	rre,0xb9380000,2,4"
 		: [query] "=R" (*query)
 		:
 		: "cc", "0", "1");
@@ -380,7 +380,7 @@ static __always_inline void __dfltcc_query(u8 (*query)[32])
 		"	lghi	0,0\n"
 		"	la	1,%[query]\n"
 		/* Parameter registers are ignored */
-		"	.insn	rrf,0xb9390000,2,4,6,0\n"
+		"	.insn	rrf,0xb9390000,2,4,6,0"
 		: [query] "=R" (*query)
 		:
 		: "cc", "0", "1");
@@ -4864,12 +4864,12 @@ static void kvm_s390_assert_primary_as(struct kvm_vcpu *vcpu)
  * @vcpu: the vCPU whose gmap is to be fixed up
  * @gfn: the guest frame number used for memslots (including fake memslots)
  * @gaddr: the gmap address, does not have to match @gfn for ucontrol gmaps
- * @flags: FOLL_* flags
+ * @foll: FOLL_* flags
  *
  * Return: 0 on success, < 0 in case of error.
  * Context: The mm lock must not be held before calling. May sleep.
  */
-int __kvm_s390_handle_dat_fault(struct kvm_vcpu *vcpu, gfn_t gfn, gpa_t gaddr, unsigned int flags)
+int __kvm_s390_handle_dat_fault(struct kvm_vcpu *vcpu, gfn_t gfn, gpa_t gaddr, unsigned int foll)
 {
 	struct kvm_memory_slot *slot;
 	unsigned int fault_flags;
@@ -4883,13 +4883,13 @@ int __kvm_s390_handle_dat_fault(struct kvm_vcpu *vcpu, gfn_t gfn, gpa_t gaddr, u
 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return vcpu_post_run_addressing_exception(vcpu);
 
-	fault_flags = flags & FOLL_WRITE ? FAULT_FLAG_WRITE : 0;
+	fault_flags = foll & FOLL_WRITE ? FAULT_FLAG_WRITE : 0;
 	if (vcpu->arch.gmap->pfault_enabled)
-		flags |= FOLL_NOWAIT;
+		foll |= FOLL_NOWAIT;
 	vmaddr = __gfn_to_hva_memslot(slot, gfn);
 
 try_again:
-	pfn = __kvm_faultin_pfn(slot, gfn, flags, &writable, &page);
+	pfn = __kvm_faultin_pfn(slot, gfn, foll, &writable, &page);
 
 	/* Access outside memory, inject addressing exception */
 	if (is_noslot_pfn(pfn))
@@ -4905,7 +4905,7 @@ try_again:
 			return 0;
 		vcpu->stat.pfault_sync++;
 		/* Could not setup async pfault, try again synchronously */
-		flags &= ~FOLL_NOWAIT;
+		foll &= ~FOLL_NOWAIT;
 		goto try_again;
 	}
 	/* Any other error */
@@ -4925,7 +4925,7 @@ try_again:
 	return rc;
 }
 
-static int vcpu_dat_fault_handler(struct kvm_vcpu *vcpu, unsigned long gaddr, unsigned int flags)
+static int vcpu_dat_fault_handler(struct kvm_vcpu *vcpu, unsigned long gaddr, unsigned int foll)
 {
 	unsigned long gaddr_tmp;
 	gfn_t gfn;
@@ -4950,18 +4950,18 @@ static int vcpu_dat_fault_handler(struct kvm_vcpu *vcpu, unsigned long gaddr, un
 		}
 		gfn = gpa_to_gfn(gaddr_tmp);
 	}
-	return __kvm_s390_handle_dat_fault(vcpu, gfn, gaddr, flags);
+	return __kvm_s390_handle_dat_fault(vcpu, gfn, gaddr, foll);
 }
 
 static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 {
-	unsigned int flags = 0;
+	unsigned int foll = 0;
 	unsigned long gaddr;
 	int rc;
 
 	gaddr = current->thread.gmap_teid.addr * PAGE_SIZE;
 	if (kvm_s390_cur_gmap_fault_is_write())
-		flags = FAULT_FLAG_WRITE;
+		foll = FOLL_WRITE;
 
 	switch (current->thread.gmap_int_code & PGM_INT_CODE_MASK) {
 	case 0:
@@ -5003,7 +5003,7 @@ static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 			send_sig(SIGSEGV, current, 0);
 		if (rc != -ENXIO)
 			break;
-		flags = FAULT_FLAG_WRITE;
+		foll = FOLL_WRITE;
 		fallthrough;
 	case PGM_PROTECTION:
 	case PGM_SEGMENT_TRANSLATION:
@@ -5013,7 +5013,7 @@ static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 	case PGM_REGION_SECOND_TRANS:
 	case PGM_REGION_THIRD_TRANS:
 		kvm_s390_assert_primary_as(vcpu);
-		return vcpu_dat_fault_handler(vcpu, gaddr, flags);
+		return vcpu_dat_fault_handler(vcpu, gaddr, foll);
 	default:
 		KVM_BUG(1, vcpu->kvm, "Unexpected program interrupt 0x%x, TEID 0x%016lx",
 			current->thread.gmap_int_code, current->thread.gmap_teid.val);

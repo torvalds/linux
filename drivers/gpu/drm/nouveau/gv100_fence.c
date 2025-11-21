@@ -18,7 +18,7 @@ gv100_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 	struct nvif_push *push = &chan->chan.push;
 	int ret;
 
-	ret = PUSH_WAIT(push, 8);
+	ret = PUSH_WAIT(push, 13);
 	if (ret)
 		return ret;
 
@@ -31,6 +31,11 @@ gv100_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 		  NVDEF(NVC36F, SEM_EXECUTE, RELEASE_WFI, EN) |
 		  NVDEF(NVC36F, SEM_EXECUTE, PAYLOAD_SIZE, 32BIT) |
 		  NVDEF(NVC36F, SEM_EXECUTE, RELEASE_TIMESTAMP, DIS));
+
+	PUSH_MTHD(push, NVC36F, MEM_OP_A, 0,
+				MEM_OP_B, 0,
+				MEM_OP_C, NVDEF(NVC36F, MEM_OP_C, MEMBAR_TYPE, SYS_MEMBAR),
+				MEM_OP_D, NVDEF(NVC36F, MEM_OP_D, OPERATION, MEMBAR));
 
 	PUSH_MTHD(push, NVC36F, NON_STALL_INTERRUPT, 0);
 

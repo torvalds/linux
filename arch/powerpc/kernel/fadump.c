@@ -333,7 +333,7 @@ static __init u64 fadump_calculate_reserve_size(void)
 	 * memory at a predefined offset.
 	 */
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
-				&size, &base, NULL, NULL);
+				&size, &base, NULL, NULL, NULL);
 	if (ret == 0 && size > 0) {
 		unsigned long max_size;
 
@@ -1746,6 +1746,9 @@ err_out:
 void __init fadump_setup_param_area(void)
 {
 	phys_addr_t range_start, range_end;
+
+	if (!fw_dump.fadump_enabled)
+		return;
 
 	if (!fw_dump.param_area_supported || fw_dump.dump_active)
 		return;

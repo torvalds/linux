@@ -47,4 +47,8 @@ xe_gt_topology_has_dss_in_quadrant(struct xe_gt *gt, int quad);
 bool xe_gt_has_geometry_dss(struct xe_gt *gt, unsigned int dss);
 bool xe_gt_has_compute_dss(struct xe_gt *gt, unsigned int dss);
 
+bool xe_gt_has_discontiguous_dss_groups(const struct xe_gt *gt);
+
+bool xe_gt_topology_report_l3(struct xe_gt *gt);
+
 #endif /* _XE_GT_TOPOLOGY_H_ */

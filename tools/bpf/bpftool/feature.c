@@ -10,7 +10,6 @@
 #ifdef USE_LIBCAP
 #include <sys/capability.h>
 #endif
-#include <sys/utsname.h>
 #include <sys/vfs.h>
 
 #include <linux/filter.h>
@@ -18,7 +17,6 @@
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
-#include <zlib.h>
 
 #include "main.h"
 
@@ -327,40 +325,9 @@ static void probe_jit_limit(void)
 	}
 }
 
-static bool read_next_kernel_config_option(gzFile file, char *buf, size_t n,
-					   char **value)
-{
-	char *sep;
-
-	while (gzgets(file, buf, n)) {
-		if (strncmp(buf, "CONFIG_", 7))
-			continue;
-
-		sep = strchr(buf, '=');
-		if (!sep)
-			continue;
-
-		/* Trim ending '\n' */
-		buf[strlen(buf) - 1] = '\0';
-
-		/* Split on '=' and ensure that a value is present. */
-		*sep = '\0';
-		if (!sep[1])
-			continue;
-
-		*value = sep + 1;
-		return true;
-	}
-
-	return false;
-}
-
 static void probe_kernel_image_config(const char *define_prefix)
 {
-	static const struct {
-		const char * const name;
-		bool macro_dump;
-	} options[] = {
+	struct kernel_config_option options[] = {
 		/* Enable BPF */
 		{ "CONFIG_BPF", },
 		/* Enable bpf() syscall */
@@ -435,52 +402,11 @@ static void probe_kernel_image_config(const char *define_prefix)
 		{ "CONFIG_HZ", true, }
 	};
 	char *values[ARRAY_SIZE(options)] = { };
-	struct utsname utsn;
-	char path[PATH_MAX];
-	gzFile file = NULL;
-	char buf[4096];
-	char *value;
 	size_t i;
 
-	if (!uname(&utsn)) {
-		snprintf(path, sizeof(path), "/boot/config-%s", utsn.release);
-
-		/* gzopen also accepts uncompressed files. */
-		file = gzopen(path, "r");
-	}
-
-	if (!file) {
-		/* Some distributions build with CONFIG_IKCONFIG=y and put the
-		 * config file at /proc/config.gz.
-		 */
-		file = gzopen("/proc/config.gz", "r");
-	}
-	if (!file) {
-		p_info("skipping kernel config, can't open file: %s",
-		       strerror(errno));
-		goto end_parse;
-	}
-	/* Sanity checks */
-	if (!gzgets(file, buf, sizeof(buf)) ||
-	    !gzgets(file, buf, sizeof(buf))) {
-		p_info("skipping kernel config, can't read from file: %s",
-		       strerror(errno));
-		goto end_parse;
-	}
-	if (strcmp(buf, "# Automatically generated file; DO NOT EDIT.\n")) {
-		p_info("skipping kernel config, can't find correct file");
-		goto end_parse;
-	}
-
-	while (read_next_kernel_config_option(file, buf, sizeof(buf), &value)) {
-		for (i = 0; i < ARRAY_SIZE(options); i++) {
-			if ((define_prefix && !options[i].macro_dump) ||
-			    values[i] || strcmp(buf, options[i].name))
-				continue;
-
-			values[i] = strdup(value);
-		}
-	}
+	if (read_kernel_config(options, ARRAY_SIZE(options), values,
+			       define_prefix))
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(options); i++) {
 		if (define_prefix && !options[i].macro_dump)
@@ -488,10 +414,6 @@ static void probe_kernel_image_config(const char *define_prefix)
 		print_kernel_option(options[i].name, values[i], define_prefix);
 		free(values[i]);
 	}
-
-end_parse:
-	if (file)
-		gzclose(file);
 }
 
 static bool probe_bpf_syscall(const char *define_prefix)

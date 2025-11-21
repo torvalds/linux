@@ -8,7 +8,7 @@
 #ifdef __ASSEMBLY__
 #include <linux/linkage.h>
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_CFI
 /*
  * Use the __kcfi_typeid_<function> type identifier symbol to
  * annotate indirectly called assembly functions. The compiler emits
@@ -29,16 +29,39 @@
 #define SYM_TYPED_START(name, linkage, align...)	\
 	SYM_TYPED_ENTRY(name, linkage, align)
 
-#else /* CONFIG_CFI_CLANG */
+#else /* CONFIG_CFI */
 
 #define SYM_TYPED_START(name, linkage, align...)	\
 	SYM_START(name, linkage, align)
 
-#endif /* CONFIG_CFI_CLANG */
+#endif /* CONFIG_CFI */
 
 #ifndef SYM_TYPED_FUNC_START
 #define SYM_TYPED_FUNC_START(name) 			\
 	SYM_TYPED_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)
+#endif
+
+#else /* __ASSEMBLY__ */
+
+#ifdef CONFIG_CFI
+#define DEFINE_CFI_TYPE(name, func)						\
+	/*									\
+	 * Force a reference to the function so the compiler generates		\
+	 * __kcfi_typeid_<func>.						\
+	 */									\
+	__ADDRESSABLE(func);							\
+	/* u32 name __ro_after_init = __kcfi_typeid_<func> */			\
+	extern u32 name;							\
+	asm (									\
+	"	.pushsection	.data..ro_after_init,\"aw\",\%progbits	\n"	\
+	"	.type	" #name ",\%object				\n"	\
+	"	.globl	" #name "					\n"	\
+	"	.p2align	2, 0x0					\n"	\
+	#name ":							\n"	\
+	"	.4byte	__kcfi_typeid_" #func "				\n"	\
+	"	.size	" #name ", 4					\n"	\
+	"	.popsection						\n"	\
+	);
 #endif
 
 #endif /* __ASSEMBLY__ */

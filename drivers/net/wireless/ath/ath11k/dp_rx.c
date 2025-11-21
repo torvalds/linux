@@ -4615,7 +4615,6 @@ static void ath11k_hal_rx_msdu_list_get(struct ath11k *ar,
 			      msdu_details[i].buf_addr_info.info0) == 0) {
 			msdu_desc_info = &msdu_details[i - 1].rx_msdu_info;
 			msdu_desc_info->info0 |= last;
-			;
 			break;
 		}
 		msdu_desc_info = &msdu_details[i].rx_msdu_info;

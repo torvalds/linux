@@ -117,16 +117,16 @@ int dm_register_path_selector(struct path_selector_type *pst)
 }
 EXPORT_SYMBOL_GPL(dm_register_path_selector);
 
-int dm_unregister_path_selector(struct path_selector_type *pst)
+void dm_unregister_path_selector(struct path_selector_type *pst)
 {
 	struct ps_internal *psi;
 
 	down_write(&_ps_lock);
 
 	psi = __find_path_selector_type(pst->name);
-	if (!psi) {
+	if (WARN_ON(!psi)) {
 		up_write(&_ps_lock);
-		return -EINVAL;
+		return;
 	}
 
 	list_del(&psi->list);
@@ -134,7 +134,5 @@ int dm_unregister_path_selector(struct path_selector_type *pst)
 	up_write(&_ps_lock);
 
 	kfree(psi);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_unregister_path_selector);

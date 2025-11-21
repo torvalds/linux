@@ -60,7 +60,8 @@ vmlinux_link()
 	# skip output file argument
 	shift
 
-	if is_enabled CONFIG_LTO_CLANG || is_enabled CONFIG_X86_KERNEL_IBT; then
+	if is_enabled CONFIG_LTO_CLANG || is_enabled CONFIG_X86_KERNEL_IBT ||
+	   is_enabled CONFIG_KLP_BUILD; then
 		# Use vmlinux.o instead of performing the slow LTO link again.
 		objs=vmlinux.o
 		libs=
@@ -73,10 +74,7 @@ vmlinux_link()
 		objs="${objs} .builtin-dtbs.o"
 	fi
 
-	if is_enabled CONFIG_MODULES; then
-		objs="${objs} .vmlinux.export.o"
-	fi
-
+	objs="${objs} .vmlinux.export.o"
 	objs="${objs} init/version-timestamp.o"
 
 	if [ "${SRCARCH}" = "um" ]; then

@@ -616,7 +616,7 @@ xfs_exchmaps_finish_one(
 			return error;
 	}
 
-	if (XFS_TEST_ERROR(false, tp->t_mountp, XFS_ERRTAG_EXCHMAPS_FINISH_ONE))
+	if (XFS_TEST_ERROR(tp->t_mountp, XFS_ERRTAG_EXCHMAPS_FINISH_ONE))
 		return -EIO;
 
 	/* If we still have work to do, ask for a new transaction. */
@@ -882,7 +882,7 @@ xmi_ensure_delta_nextents(
 				&new_nextents))
 		return -EFBIG;
 
-	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_REDUCE_MAX_IEXTENTS) &&
+	if (XFS_TEST_ERROR(mp, XFS_ERRTAG_REDUCE_MAX_IEXTENTS) &&
 	    new_nextents > 10)
 		return -EFBIG;
 

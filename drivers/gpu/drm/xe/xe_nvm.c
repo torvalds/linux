@@ -35,21 +35,25 @@ static const struct intel_dg_nvm_region regions[INTEL_DG_NVM_REGIONS] = {
 
 static void xe_nvm_release_dev(struct device *dev)
 {
+	struct auxiliary_device *aux = container_of(dev, struct auxiliary_device, dev);
+	struct intel_dg_nvm_dev *nvm = container_of(aux, struct intel_dg_nvm_dev, aux_dev);
+
+	kfree(nvm);
 }
 
 static bool xe_nvm_non_posted_erase(struct xe_device *xe)
 {
-	struct xe_gt *gt = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 
 	if (xe->info.platform != XE_BATTLEMAGE)
 		return false;
-	return !(xe_mmio_read32(&gt->mmio, XE_REG(GEN12_CNTL_PROTECTED_NVM_REG)) &
+	return !(xe_mmio_read32(mmio, XE_REG(GEN12_CNTL_PROTECTED_NVM_REG)) &
 		 NVM_NON_POSTED_ERASE_CHICKEN_BIT);
 }
 
 static bool xe_nvm_writable_override(struct xe_device *xe)
 {
-	struct xe_gt *gt = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	bool writable_override;
 	resource_size_t base;
 
@@ -72,7 +76,7 @@ static bool xe_nvm_writable_override(struct xe_device *xe)
 	}
 
 	writable_override =
-		!(xe_mmio_read32(&gt->mmio, HECI_FWSTS2(base)) &
+		!(xe_mmio_read32(mmio, HECI_FWSTS2(base)) &
 		  HECI_FW_STATUS_2_NVM_ACCESS_MODE);
 	if (writable_override)
 		drm_info(&xe->drm, "NVM access overridden by jumper\n");
@@ -162,6 +166,5 @@ void xe_nvm_fini(struct xe_device *xe)
 
 	auxiliary_device_delete(&nvm->aux_dev);
 	auxiliary_device_uninit(&nvm->aux_dev);
-	kfree(nvm);
 	xe->nvm = NULL;
 }

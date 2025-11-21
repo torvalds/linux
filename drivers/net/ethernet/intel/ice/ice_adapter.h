@@ -33,7 +33,7 @@ struct ice_port_list {
  * @txq_ctx_lock: Spinlock protecting access to the GLCOMM_QTX_CNTX_CTL register
  * @ctrl_pf: Control PF of the adapter
  * @ports: Ports list
- * @device_serial_number: DSN cached for collision detection on 32bit systems
+ * @index: 64-bit index cached for collision detection on 32bit systems
  */
 struct ice_adapter {
 	refcount_t refcount;
@@ -44,7 +44,7 @@ struct ice_adapter {
 
 	struct ice_pf *ctrl_pf;
 	struct ice_port_list ports;
-	u64 device_serial_number;
+	u64 index;
 };
 
 struct ice_adapter *ice_adapter_get(struct pci_dev *pdev);

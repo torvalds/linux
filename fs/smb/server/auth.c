@@ -20,6 +20,7 @@
 #include "glob.h"
 
 #include <linux/fips.h>
+#include <crypto/arc4.h>
 #include <crypto/des.h>
 
 #include "server.h"
@@ -29,7 +30,6 @@
 #include "mgmt/user_config.h"
 #include "crypto_ctx.h"
 #include "transport_ipc.h"
-#include "../common/arc4.h"
 
 /*
  * Fixed format data defining GSS header and fixed string
@@ -365,10 +365,9 @@ int ksmbd_decode_ntlmssp_auth_blob(struct authenticate_message *authblob,
 		if (!ctx_arc4)
 			return -ENOMEM;
 
-		cifs_arc4_setkey(ctx_arc4, sess->sess_key,
-				 SMB2_NTLMV2_SESSKEY_SIZE);
-		cifs_arc4_crypt(ctx_arc4, sess->sess_key,
-				(char *)authblob + sess_key_off, sess_key_len);
+		arc4_setkey(ctx_arc4, sess->sess_key, SMB2_NTLMV2_SESSKEY_SIZE);
+		arc4_crypt(ctx_arc4, sess->sess_key,
+			   (char *)authblob + sess_key_off, sess_key_len);
 		kfree_sensitive(ctx_arc4);
 	}
 

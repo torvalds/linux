@@ -4,7 +4,7 @@
 #define __SOF_CLIENT_PROBES_H
 
 struct snd_compr_stream;
-struct snd_compr_tstamp;
+struct snd_compr_tstamp64;
 struct snd_compr_params;
 struct sof_client_dev;
 struct snd_soc_dai;
@@ -24,7 +24,7 @@ struct sof_probes_host_ops {
 	int (*trigger)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
 		       int cmd, struct snd_soc_dai *dai);
 	int (*pointer)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
-		       struct snd_compr_tstamp *tstamp,
+		       struct snd_compr_tstamp64 *tstamp,
 		       struct snd_soc_dai *dai);
 };
 
@@ -34,13 +34,20 @@ struct sof_probe_point_desc {
 	unsigned int stream_tag;
 } __packed;
 
+enum sof_probe_info_type {
+	PROBES_INFO_ACTIVE_PROBES,
+	PROBES_INFO_AVAILABE_PROBES,
+};
+
 struct sof_probes_ipc_ops {
 	int (*init)(struct sof_client_dev *cdev, u32 stream_tag,
 		    size_t buffer_size);
 	int (*deinit)(struct sof_client_dev *cdev);
 	int (*points_info)(struct sof_client_dev *cdev,
 			   struct sof_probe_point_desc **desc,
-			   size_t *num_desc);
+			   size_t *num_desc, enum sof_probe_info_type type);
+	int (*point_print)(struct sof_client_dev *cdev, char *buf, size_t size,
+			   struct sof_probe_point_desc *desc);
 	int (*points_add)(struct sof_client_dev *cdev,
 			  struct sof_probe_point_desc *desc,
 			  size_t num_desc);

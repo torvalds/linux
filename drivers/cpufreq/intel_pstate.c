@@ -620,24 +620,9 @@ static int min_perf_pct_min(void)
 		(cpu->pstate.min_pstate * 100 / turbo_pstate) : 0;
 }
 
-static s16 intel_pstate_get_epb(struct cpudata *cpu_data)
-{
-	u64 epb;
-	int ret;
-
-	if (!boot_cpu_has(X86_FEATURE_EPB))
-		return -ENXIO;
-
-	ret = rdmsrq_on_cpu(cpu_data->cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
-	if (ret)
-		return (s16)ret;
-
-	return (s16)(epb & 0x0f);
-}
-
 static s16 intel_pstate_get_epp(struct cpudata *cpu_data, u64 hwp_req_data)
 {
-	s16 epp;
+	s16 epp = -EOPNOTSUPP;
 
 	if (boot_cpu_has(X86_FEATURE_HWP_EPP)) {
 		/*
@@ -651,34 +636,13 @@ static s16 intel_pstate_get_epp(struct cpudata *cpu_data, u64 hwp_req_data)
 				return epp;
 		}
 		epp = (hwp_req_data >> 24) & 0xff;
-	} else {
-		/* When there is no EPP present, HWP uses EPB settings */
-		epp = intel_pstate_get_epb(cpu_data);
 	}
 
 	return epp;
 }
 
-static int intel_pstate_set_epb(int cpu, s16 pref)
-{
-	u64 epb;
-	int ret;
-
-	if (!boot_cpu_has(X86_FEATURE_EPB))
-		return -ENXIO;
-
-	ret = rdmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
-	if (ret)
-		return ret;
-
-	epb = (epb & ~0x0f) | pref;
-	wrmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, epb);
-
-	return 0;
-}
-
 /*
- * EPP/EPB display strings corresponding to EPP index in the
+ * EPP display strings corresponding to EPP index in the
  * energy_perf_strings[]
  *	index		String
  *-------------------------------------
@@ -782,7 +746,7 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 					      u32 raw_epp)
 {
 	int epp = -EINVAL;
-	int ret;
+	int ret = -EOPNOTSUPP;
 
 	if (!pref_index)
 		epp = cpu_data->epp_default;
@@ -802,10 +766,6 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 			return -EBUSY;
 
 		ret = intel_pstate_set_epp(cpu_data, epp);
-	} else {
-		if (epp == -EINVAL)
-			epp = (pref_index - 1) << 2;
-		ret = intel_pstate_set_epb(cpu_data->cpu, epp);
 	}
 
 	return ret;
@@ -937,11 +897,19 @@ static ssize_t show_base_frequency(struct cpufreq_policy *policy, char *buf)
 
 cpufreq_freq_attr_ro(base_frequency);
 
+enum hwp_cpufreq_attr_index {
+	HWP_BASE_FREQUENCY_INDEX = 0,
+	HWP_PERFORMANCE_PREFERENCE_INDEX,
+	HWP_PERFORMANCE_AVAILABLE_PREFERENCES_INDEX,
+	HWP_CPUFREQ_ATTR_COUNT,
+};
+
 static struct freq_attr *hwp_cpufreq_attrs[] = {
-	&energy_performance_preference,
-	&energy_performance_available_preferences,
-	&base_frequency,
-	NULL,
+	[HWP_BASE_FREQUENCY_INDEX] = &base_frequency,
+	[HWP_PERFORMANCE_PREFERENCE_INDEX] = &energy_performance_preference,
+	[HWP_PERFORMANCE_AVAILABLE_PREFERENCES_INDEX] =
+				&energy_performance_available_preferences,
+	[HWP_CPUFREQ_ATTR_COUNT] = NULL,
 };
 
 static bool no_cas __ro_after_init;
@@ -1034,8 +1002,8 @@ static bool hybrid_register_perf_domain(unsigned int cpu)
 	if (!cpu_dev)
 		return false;
 
-	if (em_dev_register_perf_domain(cpu_dev, HYBRID_EM_STATE_COUNT, &cb,
-					cpumask_of(cpu), false))
+	if (em_dev_register_pd_no_update(cpu_dev, HYBRID_EM_STATE_COUNT, &cb,
+					 cpumask_of(cpu), false))
 		return false;
 
 	cpudata->pd_registered = true;
@@ -1337,9 +1305,8 @@ static void intel_pstate_hwp_set(unsigned int cpu)
 	if (boot_cpu_has(X86_FEATURE_HWP_EPP)) {
 		value &= ~GENMASK_ULL(31, 24);
 		value |= (u64)epp << 24;
-	} else {
-		intel_pstate_set_epb(cpu, epp);
 	}
+
 skip_epp:
 	WRITE_ONCE(cpu_data->hwp_req_cached, value);
 	wrmsrq_on_cpu(cpu, MSR_HWP_REQUEST, value);
@@ -1410,6 +1377,9 @@ static void intel_pstate_hwp_offline(struct cpudata *cpu)
 
 #define POWER_CTL_EE_ENABLE	1
 #define POWER_CTL_EE_DISABLE	2
+
+/* Enable bit for Dynamic Efficiency Control (DEC) */
+#define POWER_CTL_DEC_ENABLE	27
 
 static int power_ctl_ee_state;
 
@@ -1502,9 +1472,7 @@ static void __intel_pstate_update_max_freq(struct cpufreq_policy *policy,
 
 static bool intel_pstate_update_max_freq(struct cpudata *cpudata)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy);
-
-	policy = cpufreq_cpu_get(cpudata->cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpudata->cpu);
 	if (!policy)
 		return false;
 
@@ -1695,41 +1663,40 @@ unlock_driver:
 	return count;
 }
 
-static void update_qos_request(enum freq_qos_req_type type)
+static void update_cpu_qos_request(int cpu, enum freq_qos_req_type type)
 {
+	struct cpudata *cpudata = all_cpu_data[cpu];
+	unsigned int freq = cpudata->pstate.turbo_freq;
 	struct freq_qos_request *req;
-	struct cpufreq_policy *policy;
+
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
+	if (!policy)
+		return;
+
+	req = policy->driver_data;
+	if (!req)
+		return;
+
+	if (hwp_active)
+		intel_pstate_get_hwp_cap(cpudata);
+
+	if (type == FREQ_QOS_MIN) {
+		freq = DIV_ROUND_UP(freq * global.min_perf_pct, 100);
+	} else {
+		req++;
+		freq = (freq * global.max_perf_pct) / 100;
+	}
+
+	if (freq_qos_update_request(req, freq) < 0)
+		pr_warn("Failed to update freq constraint: CPU%d\n", cpu);
+}
+
+static void update_qos_requests(enum freq_qos_req_type type)
+{
 	int i;
 
-	for_each_possible_cpu(i) {
-		struct cpudata *cpu = all_cpu_data[i];
-		unsigned int freq, perf_pct;
-
-		policy = cpufreq_cpu_get(i);
-		if (!policy)
-			continue;
-
-		req = policy->driver_data;
-		cpufreq_cpu_put(policy);
-
-		if (!req)
-			continue;
-
-		if (hwp_active)
-			intel_pstate_get_hwp_cap(cpu);
-
-		if (type == FREQ_QOS_MIN) {
-			perf_pct = global.min_perf_pct;
-		} else {
-			req++;
-			perf_pct = global.max_perf_pct;
-		}
-
-		freq = DIV_ROUND_UP(cpu->pstate.turbo_freq * perf_pct, 100);
-
-		if (freq_qos_update_request(req, freq) < 0)
-			pr_warn("Failed to update freq constraint: CPU%d\n", i);
-	}
+	for_each_possible_cpu(i)
+		update_cpu_qos_request(i, type);
 }
 
 static ssize_t store_max_perf_pct(struct kobject *a, struct kobj_attribute *b,
@@ -1758,7 +1725,7 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	if (intel_pstate_driver == &intel_pstate)
 		intel_pstate_update_policies();
 	else
-		update_qos_request(FREQ_QOS_MAX);
+		update_qos_requests(FREQ_QOS_MAX);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1792,7 +1759,7 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	if (intel_pstate_driver == &intel_pstate)
 		intel_pstate_update_policies();
 	else
-		update_qos_request(FREQ_QOS_MIN);
+		update_qos_requests(FREQ_QOS_MIN);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -2575,7 +2542,7 @@ static inline bool intel_pstate_sample(struct cpudata *cpu, u64 time)
 	 * that sample.time will always be reset before setting the utilization
 	 * update hook and make the caller skip the sample then.
 	 */
-	if (cpu->last_sample_time) {
+	if (likely(cpu->last_sample_time)) {
 		intel_pstate_calc_avg_perf(cpu);
 		return true;
 	}
@@ -2793,6 +2760,7 @@ static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
 	X86_MATCH(INTEL_GRANITERAPIDS_X,	core_funcs),
 	X86_MATCH(INTEL_ATOM_CRESTMONT,		core_funcs),
 	X86_MATCH(INTEL_ATOM_CRESTMONT_X,	core_funcs),
+	X86_MATCH(INTEL_ATOM_DARKMONT_X,	core_funcs),
 	{}
 };
 #endif
@@ -3801,6 +3769,26 @@ static const struct x86_cpu_id intel_hybrid_scaling_factor[] = {
 	{}
 };
 
+static bool hwp_check_epp(void)
+{
+	if (boot_cpu_has(X86_FEATURE_HWP_EPP))
+		return true;
+
+	/* Without EPP support, don't expose EPP-related sysfs attributes. */
+	hwp_cpufreq_attrs[HWP_PERFORMANCE_PREFERENCE_INDEX] = NULL;
+	hwp_cpufreq_attrs[HWP_PERFORMANCE_AVAILABLE_PREFERENCES_INDEX] = NULL;
+
+	return false;
+}
+
+static bool hwp_check_dec(void)
+{
+	u64 power_ctl;
+
+	rdmsrq(MSR_IA32_POWER_CTL, power_ctl);
+	return !!(power_ctl & BIT(POWER_CTL_DEC_ENABLE));
+}
+
 static int __init intel_pstate_init(void)
 {
 	static struct cpudata **_all_cpu_data;
@@ -3821,23 +3809,32 @@ static int __init intel_pstate_init(void)
 
 	id = x86_match_cpu(hwp_support_ids);
 	if (id) {
-		hwp_forced = intel_pstate_hwp_is_enabled();
+		bool epp_present = hwp_check_epp();
 
-		if (hwp_forced)
+		/*
+		 * If HWP is enabled already, there is no choice but to deal
+		 * with it.
+		 */
+		hwp_forced = intel_pstate_hwp_is_enabled();
+		if (hwp_forced) {
 			pr_info("HWP enabled by BIOS\n");
-		else if (no_load)
+			no_hwp = 0;
+		} else if (no_load) {
 			return -ENODEV;
+		} else if (!epp_present && !hwp_check_dec()) {
+			/*
+			 * Avoid enabling HWP for processors without EPP support
+			 * unless the Dynamic Efficiency Control (DEC) enable
+			 * bit (MSR_IA32_POWER_CTL, bit 27) is set because that
+			 * means incomplete HWP implementation which is a corner
+			 * case and supporting it is generally problematic.
+			 */
+			no_hwp = 1;
+		}
 
 		copy_cpu_funcs(&core_funcs);
-		/*
-		 * Avoid enabling HWP for processors without EPP support,
-		 * because that means incomplete HWP implementation which is a
-		 * corner case and supporting it is generally problematic.
-		 *
-		 * If HWP is enabled already, though, there is no choice but to
-		 * deal with it.
-		 */
-		if ((!no_hwp && boot_cpu_has(X86_FEATURE_HWP_EPP)) || hwp_forced) {
+
+		if (!no_hwp) {
 			hwp_active = true;
 			hwp_mode_bdw = id->driver_data;
 			intel_pstate.attr = hwp_cpufreq_attrs;

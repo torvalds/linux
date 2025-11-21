@@ -192,6 +192,12 @@ static void vmd_pci_msi_enable(struct irq_data *data)
 	data->chip->irq_unmask(data);
 }
 
+static unsigned int vmd_pci_msi_startup(struct irq_data *data)
+{
+	vmd_pci_msi_enable(data);
+	return 0;
+}
+
 static void vmd_irq_disable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
@@ -208,6 +214,11 @@ static void vmd_pci_msi_disable(struct irq_data *data)
 {
 	data->chip->irq_mask(data);
 	vmd_irq_disable(data->parent_data);
+}
+
+static void vmd_pci_msi_shutdown(struct irq_data *data)
+{
+	vmd_pci_msi_disable(data);
 }
 
 static struct irq_chip vmd_msi_controller = {
@@ -280,10 +291,12 @@ static int vmd_msi_alloc(struct irq_domain *domain, unsigned int virq,
 static void vmd_msi_free(struct irq_domain *domain, unsigned int virq,
 			 unsigned int nr_irqs)
 {
+	struct irq_data *irq_data;
 	struct vmd_irq *vmdirq;
 
 	for (int i = 0; i < nr_irqs; ++i) {
-		vmdirq = irq_get_chip_data(virq + i);
+		irq_data = irq_domain_get_irq_data(domain, virq + i);
+		vmdirq = irq_data->chip_data;
 
 		synchronize_srcu(&vmdirq->irq->srcu);
 
@@ -304,12 +317,11 @@ static bool vmd_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 				  struct irq_domain *real_parent,
 				  struct msi_domain_info *info)
 {
-	if (WARN_ON_ONCE(info->bus_token != DOMAIN_BUS_PCI_DEVICE_MSIX))
-		return false;
-
 	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
 		return false;
 
+	info->chip->irq_startup		= vmd_pci_msi_startup;
+	info->chip->irq_shutdown	= vmd_pci_msi_shutdown;
 	info->chip->irq_enable		= vmd_pci_msi_enable;
 	info->chip->irq_disable		= vmd_pci_msi_disable;
 	return true;

@@ -38,6 +38,15 @@ config PWM_DEBUG
 	  It is expected to introduce some runtime overhead and diagnostic
 	  output to the kernel log, so only enable while working on a driver.
 
+config PWM_PROVIDE_GPIO
+	bool "Provide a GPIO chip for each PWM chip"
+	depends on GPIOLIB
+	help
+	  Most PWMs can emit both a constant active high and a constant active
+	  low signal and so they can be used as GPIO. Say Y here to let each
+	  PWM chip provide a GPIO chip and so be easily plugged into consumers
+	  that know how to handle GPIOs but not PWMs.
+
 config PWM_AB8500
 	tristate "AB8500 PWM support"
 	depends on AB8500_CORE && ARCH_U8500
@@ -431,6 +440,16 @@ config PWM_LPSS_PLATFORM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpss-platform.
+
+config PWM_MAX7360
+	tristate "MAX7360 PWMs"
+	depends on MFD_MAX7360
+	help
+	  PWM driver for Maxim Integrated MAX7360 multifunction device, with
+	  support for up to 8 PWM outputs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-max7360.
 
 config PWM_MC33XS2410
 	tristate "MC33XS2410 PWM support"

@@ -16,8 +16,8 @@ provides the following two features:
 
 - one 64-bit counter for Time Based Analysis (RX/TX data throughput and
   time spent in each low-power LTSSM state) and
-- one 32-bit counter for Event Counting (error and non-error events for
-  a specified lane)
+- one 32-bit counter per event for Event Counting (error and non-error
+  events for a specified lane)
 
 Note: There is no interrupt for counter overflow.
 

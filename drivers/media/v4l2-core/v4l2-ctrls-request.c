@@ -2,7 +2,7 @@
 /*
  * V4L2 controls framework Request API implementation.
  *
- * Copyright (C) 2018-2021  Hans Verkuil <hverkuil-cisco@xs4all.nl>
+ * Copyright (C) 2018-2021  Hans Verkuil <hverkuil@kernel.org>
  */
 
 #define pr_fmt(fmt) "v4l2-ctrls: " fmt

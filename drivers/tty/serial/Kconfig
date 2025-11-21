@@ -128,7 +128,7 @@ config SERIAL_SB1250_DUART_CONSOLE
 config SERIAL_ATMEL
 	bool "AT91 on-chip serial port support"
 	depends on COMMON_CLK
-	depends on ARCH_AT91 || ARCH_LAN969X || COMPILE_TEST
+	depends on ARCH_MICROCHIP || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	select MFD_AT91_USART
@@ -782,7 +782,7 @@ config SERIAL_CPM
 	depends on CPM2 || CPM1
 	select SERIAL_CORE
 	help
-	  This driver supports the SCC and SMC serial ports on Motorola 
+	  This driver supports the SCC and SMC serial ports on Motorola
 	  embedded PowerPC that contain a CPM1 (8xx) or CPM2 (8xxx)
 
 config SERIAL_CPM_CONSOLE
@@ -927,6 +927,14 @@ config SERIAL_QCOM_GENI_CONSOLE
 	help
 	  Serial console driver for Qualcomm Technologies Inc's GENI based
 	  QUP hardware.
+
+config SERIAL_QCOM_GENI_UART_PORTS
+	int "Maximum number of GENI UART ports"
+	depends on SERIAL_QCOM_GENI
+	default "8"
+	help
+	  Set this to the maximum number of serial ports you want the driver
+	  to support.
 
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
@@ -1412,7 +1420,7 @@ config SERIAL_STM32
 
 config SERIAL_STM32_CONSOLE
 	bool "Support for console on STM32"
-	depends on SERIAL_STM32=y
+	depends on SERIAL_STM32
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 

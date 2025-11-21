@@ -2174,13 +2174,10 @@ static int ata_read_log_directory(struct ata_device *dev)
 	}
 
 	version = get_unaligned_le16(&dev->gp_log_dir[0]);
-	if (version != 0x0001) {
-		ata_dev_err(dev, "Invalid log directory version 0x%04x\n",
-			    version);
-		ata_clear_log_directory(dev);
-		dev->quirks |= ATA_QUIRK_NO_LOG_DIR;
-		return -EINVAL;
-	}
+	if (version != 0x0001)
+		ata_dev_warn_once(dev,
+				  "Invalid log directory version 0x%04x\n",
+				  version);
 
 	return 0;
 }
@@ -4602,7 +4599,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 		return AC_ERR_INVALID;
 
 	/* set up init dev params taskfile */
-	ata_dev_dbg(dev, "init dev params \n");
+	ata_dev_dbg(dev, "init dev params\n");
 
 	ata_tf_init(dev, &tf);
 	tf.command = ATA_CMD_INIT_DEV_PARAMS;

@@ -380,10 +380,9 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <50000000>;
+	/* Boot failures are observed at 50MHz */
+	max-frequency = <35000000>;
 	disable-wp;
-
-	/* TOFIX: SD card is barely usable in SDR modes */
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&tflash_vdd>;

@@ -433,7 +433,7 @@ static const struct gpio_chip stm32_gpio_template = {
 	.request		= stm32_gpio_request,
 	.free			= stm32_gpio_free,
 	.get			= stm32_gpio_get,
-	.set_rv			= stm32_gpio_set,
+	.set			= stm32_gpio_set,
 	.direction_input	= pinctrl_gpio_direction_input,
 	.direction_output	= stm32_gpio_direction_output,
 	.to_irq			= stm32_gpio_to_irq,
@@ -1236,7 +1236,7 @@ static int stm32_pconf_parse_conf(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		ret = stm32_pconf_set_bias(bank, offset, 2);
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		__stm32_gpio_set(bank, offset, arg);
 		ret = stm32_pmx_gpio_set_direction(pctldev, range, pin, false);
 		break;

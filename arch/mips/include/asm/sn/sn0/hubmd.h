@@ -423,7 +423,7 @@
  * Operations on page migration threshold register
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * LED register macros
@@ -735,7 +735,7 @@ typedef union md_perf_cnt {
 } md_perf_cnt_t;
 
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 
 #define DIR_ERROR_VALID_MASK	0xe000000000000000

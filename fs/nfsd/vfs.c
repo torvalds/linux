@@ -49,6 +49,8 @@
 #define NFSDDBG_FACILITY		NFSDDBG_FILEOP
 
 bool nfsd_disable_splice_read __read_mostly;
+u64 nfsd_io_cache_read __read_mostly = NFSD_IO_BUFFERED;
+u64 nfsd_io_cache_write __read_mostly = NFSD_IO_BUFFERED;
 
 /**
  * nfserrno - Map Linux errnos to NFS errnos
@@ -467,10 +469,18 @@ static int __nfsd_setattr(struct dentry *dentry, struct iattr *iap)
 			return 0;
 	}
 
-	if (!iap->ia_valid)
+	if ((iap->ia_valid & ~ATTR_DELEG) == 0)
 		return 0;
 
-	iap->ia_valid |= ATTR_CTIME;
+	/*
+	 * If ATTR_DELEG is set, then this is an update from a client that
+	 * holds a delegation. If this is an update for only the atime, the
+	 * ctime should not be changed. If the update contains the mtime
+	 * too, then ATTR_CTIME should already be set.
+	 */
+	if (!(iap->ia_valid & ATTR_DELEG))
+		iap->ia_valid |= ATTR_CTIME;
+
 	return notify_change(&nop_mnt_idmap, dentry, iap, NULL);
 }
 
@@ -1091,6 +1101,16 @@ __be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	size_t len;
 
 	init_sync_kiocb(&kiocb, file);
+
+	switch (nfsd_io_cache_read) {
+	case NFSD_IO_BUFFERED:
+		break;
+	case NFSD_IO_DONTCACHE:
+		if (file->f_op->fop_flags & FOP_DONTCACHE)
+			kiocb.ki_flags = IOCB_DONTCACHE;
+		break;
+	}
+
 	kiocb.ki_pos = offset;
 
 	v = 0;
@@ -1216,6 +1236,15 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	since = READ_ONCE(file->f_wb_err);
 	if (verf)
 		nfsd_copy_write_verifier(verf, nn);
+
+	switch (nfsd_io_cache_write) {
+	case NFSD_IO_BUFFERED:
+		break;
+	case NFSD_IO_DONTCACHE:
+		if (file->f_op->fop_flags & FOP_DONTCACHE)
+			kiocb.ki_flags |= IOCB_DONTCACHE;
+		break;
+	}
 	host_err = vfs_iocb_iter_write(file, &kiocb, &iter);
 	if (host_err < 0) {
 		commit_reset_write_verifier(nn, rqstp, host_err);
@@ -1943,10 +1972,9 @@ retry:
 		goto out_dput_old;
 	} else {
 		struct renamedata rd = {
-			.old_mnt_idmap	= &nop_mnt_idmap,
+			.mnt_idmap	= &nop_mnt_idmap,
 			.old_parent	= fdentry,
 			.old_dentry	= odentry,
-			.new_mnt_idmap	= &nop_mnt_idmap,
 			.new_parent	= tdentry,
 			.new_dentry	= ndentry,
 		};

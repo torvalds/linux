@@ -4,8 +4,14 @@
  * the RP1 driver to load the RP1 dtb overlay at runtime, while
  * bcm2712-rpi-5-b.dts (this file) is the fully defined one (i.e. it
  * already contains RP1 node, so no overlay is loaded nor needed).
- * This file is not intended to be modified, nodes should be added
- * to the included bcm2712-rpi-5-b-ovl-rp1.dts.
+ * This file is intended to host the override nodes for the RP1 peripherals,
+ * e.g. to declare the phy of the ethernet interface or the custom pin setup
+ * for several RP1 peripherals.
+ * This in turn is due to the fact that there's no current generic
+ * infrastructure to reference nodes (i.e. the nodes in rp1-common.dtsi) that
+ * are not yet defined in the DT since they are loaded at runtime via overlay.
+ * All other nodes that do not have anything to do with RP1 should be added
+ * to the included bcm2712-rpi-5-b-ovl-rp1.dts instead.
  */
 
 /dts-v1/;
@@ -16,10 +22,37 @@
 	#include "rp1-nexus.dtsi"
 };
 
-&pcie1 {
+&rp1_eth {
+	status = "okay";
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy1>;
+
+	mdio {
+		reg = <0x1>;
+		reset-gpios = <&rp1_gpio 32 GPIO_ACTIVE_LOW>;
+		reset-delay-us = <5000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy1: ethernet-phy@1 {
+			reg = <0x1>;
+		};
+	};
+};
+
+&rp1_gpio {
+	usb_vbus_default_state: usb-vbus-default-state {
+		function = "vbus1";
+		groups = "vbus1";
+	};
+};
+
+&rp1_usb0 {
+	pinctrl-0 = <&usb_vbus_default_state>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
-&pcie2 {
+&rp1_usb1 {
 	status = "okay";
 };

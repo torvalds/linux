@@ -29,23 +29,18 @@
 #define GET_BITFIELD(v, lo, hi) \
 	(((v) & GENMASK_ULL((hi), (lo))) >> (lo))
 
-#define SKX_NUM_IMC		2	/* Memory controllers per socket */
 #define SKX_NUM_CHANNELS	3	/* Channels per memory controller */
 #define SKX_NUM_DIMMS		2	/* Max DIMMS per channel */
 
-#define I10NM_NUM_DDR_IMC	12
 #define I10NM_NUM_DDR_CHANNELS	2
 #define I10NM_NUM_DDR_DIMMS	2
 
-#define I10NM_NUM_HBM_IMC	16
 #define I10NM_NUM_HBM_CHANNELS	2
 #define I10NM_NUM_HBM_DIMMS	1
 
-#define I10NM_NUM_IMC		(I10NM_NUM_DDR_IMC + I10NM_NUM_HBM_IMC)
 #define I10NM_NUM_CHANNELS	MAX(I10NM_NUM_DDR_CHANNELS, I10NM_NUM_HBM_CHANNELS)
 #define I10NM_NUM_DIMMS		MAX(I10NM_NUM_DDR_DIMMS, I10NM_NUM_HBM_DIMMS)
 
-#define NUM_IMC		MAX(SKX_NUM_IMC, I10NM_NUM_IMC)
 #define NUM_CHANNELS	MAX(SKX_NUM_CHANNELS, I10NM_NUM_CHANNELS)
 #define NUM_DIMMS	MAX(SKX_NUM_DIMMS, I10NM_NUM_DIMMS)
 
@@ -134,16 +129,7 @@ struct skx_dev {
 	struct pci_dev *uracu; /* for i10nm CPU */
 	struct pci_dev *pcu_cr3; /* for HBM memory detection */
 	u32 mcroute;
-	/*
-	 * Some server BIOS may hide certain memory controllers, and the
-	 * EDAC driver skips those hidden memory controllers. However, the
-	 * ADXL still decodes memory error address using physical memory
-	 * controller indices. The mapping table is used to convert the
-	 * physical indices (reported by ADXL) to the logical indices
-	 * (used the EDAC driver) of present memory controllers during the
-	 * error handling process.
-	 */
-	u8 mc_mapping[NUM_IMC];
+	int num_imc;
 	struct skx_imc {
 		struct mem_ctl_info *mci;
 		struct pci_dev *mdev; /* for i10nm CPU */
@@ -155,6 +141,16 @@ struct skx_dev {
 		u8 mc;	/* system wide mc# */
 		u8 lmc;	/* socket relative mc# */
 		u8 src_id;
+		/*
+		 * Some server BIOS may hide certain memory controllers, and the
+		 * EDAC driver skips those hidden memory controllers. However, the
+		 * ADXL still decodes memory error address using physical memory
+		 * controller indices. The mapping table is used to convert the
+		 * physical indices (reported by ADXL) to the logical indices
+		 * (used the EDAC driver) of present memory controllers during the
+		 * error handling process.
+		 */
+		u8 mc_mapping;
 		struct skx_channel {
 			struct pci_dev	*cdev;
 			struct pci_dev	*edev;
@@ -171,7 +167,7 @@ struct skx_dev {
 				u8 colbits;
 			} dimms[NUM_DIMMS];
 		} chan[NUM_CHANNELS];
-	} imc[NUM_IMC];
+	} imc[];
 };
 
 struct skx_pvt {

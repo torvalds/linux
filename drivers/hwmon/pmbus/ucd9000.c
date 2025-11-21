@@ -364,7 +364,7 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 	data->gpio.direction_input = ucd9000_gpio_direction_input;
 	data->gpio.direction_output = ucd9000_gpio_direction_output;
 	data->gpio.get = ucd9000_gpio_get;
-	data->gpio.set_rv = ucd9000_gpio_set;
+	data->gpio.set = ucd9000_gpio_set;
 	data->gpio.can_sleep = true;
 	data->gpio.base = -1;
 	data->gpio.parent = &client->dev;

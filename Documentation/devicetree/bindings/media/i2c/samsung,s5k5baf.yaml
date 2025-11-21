@@ -26,6 +26,7 @@ properties:
   clock-frequency:
     default: 24000000
     description: mclk clock frequency
+    deprecated: true
 
   rstn-gpios:
     maxItems: 1
@@ -82,9 +83,12 @@ examples:
         sensor@2d {
             compatible = "samsung,s5k5baf";
             reg = <0x2d>;
+
             clocks = <&camera 0>;
+            assigned-clocks = <&camera 0>;
+            assigned-clock-rates = <24000000>;
+
             clock-names = "mclk";
-            clock-frequency = <24000000>;
             rstn-gpios = <&gpl2 1 GPIO_ACTIVE_LOW>;
             stbyn-gpios = <&gpl2 0 GPIO_ACTIVE_LOW>;
             vdda-supply = <&cam_io_en_reg>;

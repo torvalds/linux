@@ -59,54 +59,19 @@ static int discover_region(struct device *dev, void *unused)
 
 static int cxl_switch_port_probe(struct cxl_port *port)
 {
-	struct cxl_hdm *cxlhdm;
-	int rc;
+	/* Reset nr_dports for rebind of driver */
+	port->nr_dports = 0;
 
 	/* Cache the data early to ensure is_visible() works */
 	read_cdat_data(port);
 
-	rc = devm_cxl_port_enumerate_dports(port);
-	if (rc < 0)
-		return rc;
-
-	cxl_switch_parse_cdat(port);
-
-	cxlhdm = devm_cxl_setup_hdm(port, NULL);
-	if (!IS_ERR(cxlhdm))
-		return devm_cxl_enumerate_decoders(cxlhdm, NULL);
-
-	if (PTR_ERR(cxlhdm) != -ENODEV) {
-		dev_err(&port->dev, "Failed to map HDM decoder capability\n");
-		return PTR_ERR(cxlhdm);
-	}
-
-	if (rc == 1) {
-		dev_dbg(&port->dev, "Fallback to passthrough decoder\n");
-		return devm_cxl_add_passthrough_decoder(port);
-	}
-
-	dev_err(&port->dev, "HDM decoder capability not found\n");
-	return -ENXIO;
+	return 0;
 }
 
 static int cxl_endpoint_port_probe(struct cxl_port *port)
 {
-	struct cxl_endpoint_dvsec_info info = { .port = port };
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
-	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_hdm *cxlhdm;
 	int rc;
-
-	rc = cxl_dvsec_rr_decode(cxlds, &info);
-	if (rc < 0)
-		return rc;
-
-	cxlhdm = devm_cxl_setup_hdm(port, &info);
-	if (IS_ERR(cxlhdm)) {
-		if (PTR_ERR(cxlhdm) == -ENODEV)
-			dev_err(&port->dev, "HDM decoder registers not found\n");
-		return PTR_ERR(cxlhdm);
-	}
 
 	/* Cache the data early to ensure is_visible() works */
 	read_cdat_data(port);
@@ -117,11 +82,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	if (rc)
 		return rc;
 
-	rc = cxl_hdm_decode_init(cxlds, cxlhdm, &info);
-	if (rc)
-		return rc;
-
-	rc = devm_cxl_enumerate_decoders(cxlhdm, &info);
+	rc = devm_cxl_endpoint_decoders_setup(port);
 	if (rc)
 		return rc;
 

@@ -62,7 +62,8 @@ static int uvc_input_init(struct uvc_device *dev)
 	__set_bit(EV_KEY, input->evbit);
 	__set_bit(KEY_CAMERA, input->keybit);
 
-	if ((ret = input_register_device(input)) < 0)
+	ret = input_register_device(input);
+	if (ret < 0)
 		goto error;
 
 	dev->input = input;
@@ -215,7 +216,7 @@ static void uvc_status_complete(struct urb *urb)
 		return;
 
 	default:
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "Non-zero status (%d) in status completion handler.\n",
 			 urb->status);
 		return;
@@ -247,7 +248,7 @@ static void uvc_status_complete(struct urb *urb)
 	urb->interval = dev->int_ep->desc.bInterval;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret < 0)
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->intf->dev,
 			"Failed to resubmit status URB (%d).\n", ret);
 }
 

@@ -8,6 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -53,14 +54,14 @@
 
 /**
  * struct ixp4xx_gpio - IXP4 GPIO state container
+ * @chip: generic GPIO chip for this instance
  * @dev: containing device for this instance
- * @gc: gpiochip for this instance
  * @base: remapped I/O-memory base
  * @irq_edge: Each bit represents an IRQ: 1: edge-triggered,
  * 0: level triggered
  */
 struct ixp4xx_gpio {
-	struct gpio_chip gc;
+	struct gpio_generic_chip chip;
 	struct device *dev;
 	void __iomem *base;
 	unsigned long long irq_edge;
@@ -100,7 +101,6 @@ static int ixp4xx_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct ixp4xx_gpio *g = gpiochip_get_data(gc);
 	int line = d->hwirq;
-	unsigned long flags;
 	u32 int_style;
 	u32 int_reg;
 	u32 val;
@@ -144,26 +144,24 @@ static int ixp4xx_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		int_reg = IXP4XX_REG_GPIT1;
 	}
 
-	raw_spin_lock_irqsave(&g->gc.bgpio_lock, flags);
+	scoped_guard(gpio_generic_lock_irqsave, &g->chip) {
+		/* Clear the style for the appropriate pin */
+		val = __raw_readl(g->base + int_reg);
+		val &= ~(IXP4XX_GPIO_STYLE_MASK << (line * IXP4XX_GPIO_STYLE_SIZE));
+		__raw_writel(val, g->base + int_reg);
 
-	/* Clear the style for the appropriate pin */
-	val = __raw_readl(g->base + int_reg);
-	val &= ~(IXP4XX_GPIO_STYLE_MASK << (line * IXP4XX_GPIO_STYLE_SIZE));
-	__raw_writel(val, g->base + int_reg);
+		__raw_writel(BIT(line), g->base + IXP4XX_REG_GPIS);
 
-	__raw_writel(BIT(line), g->base + IXP4XX_REG_GPIS);
+		/* Set the new style */
+		val = __raw_readl(g->base + int_reg);
+		val |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
+		__raw_writel(val, g->base + int_reg);
 
-	/* Set the new style */
-	val = __raw_readl(g->base + int_reg);
-	val |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
-	__raw_writel(val, g->base + int_reg);
-
-	/* Force-configure this line as an input */
-	val = __raw_readl(g->base + IXP4XX_REG_GPOE);
-	val |= BIT(d->hwirq);
-	__raw_writel(val, g->base + IXP4XX_REG_GPOE);
-
-	raw_spin_unlock_irqrestore(&g->gc.bgpio_lock, flags);
+		/* Force-configure this line as an input */
+		val = __raw_readl(g->base + IXP4XX_REG_GPOE);
+		val |= BIT(d->hwirq);
+		__raw_writel(val, g->base + IXP4XX_REG_GPOE);
+	}
 
 	/* This parent only accept level high (asserted) */
 	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
@@ -206,6 +204,7 @@ static int ixp4xx_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 
 static int ixp4xx_gpio_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
 	unsigned long flags;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -290,35 +289,38 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	 * for big endian.
 	 */
 #if defined(CONFIG_CPU_BIG_ENDIAN)
-	flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+	flags = GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER;
 #else
 	flags = 0;
 #endif
 
+	config = (struct gpio_generic_chip_config) {
+		.dev = dev,
+		.sz = 4,
+		.dat = g->base + IXP4XX_REG_GPIN,
+		.set = g->base + IXP4XX_REG_GPOUT,
+		.dirin = g->base + IXP4XX_REG_GPOE,
+		.flags = flags,
+	};
+
 	/* Populate and register gpio chip */
-	ret = bgpio_init(&g->gc, dev, 4,
-			 g->base + IXP4XX_REG_GPIN,
-			 g->base + IXP4XX_REG_GPOUT,
-			 NULL,
-			 NULL,
-			 g->base + IXP4XX_REG_GPOE,
-			 flags);
+	ret = gpio_generic_chip_init(&g->chip, &config);
 	if (ret) {
 		dev_err(dev, "unable to init generic GPIO\n");
 		return ret;
 	}
-	g->gc.ngpio = 16;
-	g->gc.label = "IXP4XX_GPIO_CHIP";
+	g->chip.gc.ngpio = 16;
+	g->chip.gc.label = "IXP4XX_GPIO_CHIP";
 	/*
 	 * TODO: when we have migrated to device tree and all GPIOs
 	 * are fetched using phandles, set this to -1 to get rid of
 	 * the fixed gpiochip base.
 	 */
-	g->gc.base = 0;
-	g->gc.parent = &pdev->dev;
-	g->gc.owner = THIS_MODULE;
+	g->chip.gc.base = 0;
+	g->chip.gc.parent = &pdev->dev;
+	g->chip.gc.owner = THIS_MODULE;
 
-	girq = &g->gc.irq;
+	girq = &g->chip.gc.irq;
 	gpio_irq_chip_set_chip(girq, &ixp4xx_gpio_irqchip);
 	girq->fwnode = dev_fwnode(dev);
 	girq->parent_domain = parent;
@@ -326,7 +328,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	girq->handler = handle_bad_irq;
 	girq->default_type = IRQ_TYPE_NONE;
 
-	ret = devm_gpiochip_add_data(dev, &g->gc, g);
+	ret = devm_gpiochip_add_data(dev, &g->chip.gc, g);
 	if (ret) {
 		dev_err(dev, "failed to add SoC gpiochip\n");
 		return ret;

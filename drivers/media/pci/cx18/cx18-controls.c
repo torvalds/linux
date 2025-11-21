@@ -4,7 +4,7 @@
  *
  *  Derived from ivtv-controls.c
  *
- *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2007  Hans Verkuil <hverkuil@kernel.org>
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>

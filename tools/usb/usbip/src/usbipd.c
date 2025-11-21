@@ -396,7 +396,7 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
 
 		usbip_net_set_reuseaddr(sock);
 		usbip_net_set_nodelay(sock);
-		/* We use seperate sockets for IPv4 and IPv6
+		/* We use separate sockets for IPv4 and IPv6
 		 * (see do_standalone_mode()) */
 		usbip_net_set_v6only(sock);
 
@@ -517,7 +517,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 
 	/*
 	 * To suppress warnings on systems with bindv6only disabled
-	 * (default), we use seperate sockets for IPv6 and IPv4 and set
+	 * (default), we use separate sockets for IPv6 and IPv4 and set
 	 * IPV6_V6ONLY on the IPv6 sockets.
 	 */
 	if (ipv4 && ipv6)

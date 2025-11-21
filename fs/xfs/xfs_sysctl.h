@@ -19,9 +19,6 @@ typedef struct xfs_sysctl_val {
 } xfs_sysctl_val_t;
 
 typedef struct xfs_param {
-	xfs_sysctl_val_t sgid_inherit;	/* Inherit S_ISGID if process' GID is
-					 * not a member of parent dir GID. */
-	xfs_sysctl_val_t symlink_mode;	/* Link creat mode affected by umask */
 	xfs_sysctl_val_t panic_mask;	/* bitmask to cause panic on errors. */
 	xfs_sysctl_val_t error_level;	/* Degree of reporting for problems  */
 	xfs_sysctl_val_t syncd_timer;	/* Interval between xfssyncd wakeups */

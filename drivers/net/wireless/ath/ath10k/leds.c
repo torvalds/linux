@@ -27,7 +27,7 @@ static int ath10k_leds_set_brightness_blocking(struct led_classdev *led_cdev,
 		goto out;
 
 	ar->leds.gpio_state_pin = (brightness != LED_OFF) ^ led->active_low;
-	ath10k_wmi_gpio_output(ar, led->gpio, ar->leds.gpio_state_pin);
+	ath10k_wmi_gpio_output(ar, ar->hw_params.led_pin, ar->leds.gpio_state_pin);
 
 out:
 	mutex_unlock(&ar->conf_mutex);
@@ -64,7 +64,6 @@ int ath10k_leds_register(struct ath10k *ar)
 	snprintf(ar->leds.label, sizeof(ar->leds.label), "ath10k-%s",
 		 wiphy_name(ar->hw->wiphy));
 	ar->leds.wifi_led.active_low = 1;
-	ar->leds.wifi_led.gpio = ar->hw_params.led_pin;
 	ar->leds.wifi_led.name = ar->leds.label;
 	ar->leds.wifi_led.default_state = LEDS_GPIO_DEFSTATE_KEEP;
 

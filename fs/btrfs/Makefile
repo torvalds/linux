@@ -36,7 +36,7 @@ btrfs-y += super.o ctree.o extent-tree.o print-tree.o root-tree.o dir-item.o \
 	   lru_cache.o raid-stripe-tree.o fiemap.o direct-io.o
 
 btrfs-$(CONFIG_BTRFS_FS_POSIX_ACL) += acl.o
-btrfs-$(CONFIG_BTRFS_FS_REF_VERIFY) += ref-verify.o
+btrfs-$(CONFIG_BTRFS_DEBUG) += ref-verify.o
 btrfs-$(CONFIG_BLK_DEV_ZONED) += zoned.o
 btrfs-$(CONFIG_FS_VERITY) += verity.o
 

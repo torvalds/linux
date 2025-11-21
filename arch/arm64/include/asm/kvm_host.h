@@ -252,7 +252,8 @@ struct kvm_protected_vm {
 	pkvm_handle_t handle;
 	struct kvm_hyp_memcache teardown_mc;
 	struct kvm_hyp_memcache stage2_teardown_mc;
-	bool enabled;
+	bool is_protected;
+	bool is_created;
 };
 
 struct kvm_mpidr_data {
@@ -815,6 +816,11 @@ struct kvm_vcpu_arch {
 	u64 hcrx_el2;
 	u64 mdcr_el2;
 
+	struct {
+		u64 r;
+		u64 w;
+	} fgt[__NR_FGT_GROUP_IDS__];
+
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
 
@@ -1160,115 +1166,8 @@ u64 kvm_vcpu_apply_reg_masks(const struct kvm_vcpu *, enum vcpu_sysreg, u64);
 		__v;							\
 	})
 
-u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg);
-void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg);
-
-static inline bool __vcpu_read_sys_reg_from_cpu(int reg, u64 *val)
-{
-	/*
-	 * *** VHE ONLY ***
-	 *
-	 * System registers listed in the switch are not saved on every
-	 * exit from the guest but are only saved on vcpu_put.
-	 *
-	 * SYSREGS_ON_CPU *MUST* be checked before using this helper.
-	 *
-	 * Note that MPIDR_EL1 for the guest is set by KVM via VMPIDR_EL2 but
-	 * should never be listed below, because the guest cannot modify its
-	 * own MPIDR_EL1 and MPIDR_EL1 is accessed for VCPU A from VCPU B's
-	 * thread when emulating cross-VCPU communication.
-	 */
-	if (!has_vhe())
-		return false;
-
-	switch (reg) {
-	case SCTLR_EL1:		*val = read_sysreg_s(SYS_SCTLR_EL12);	break;
-	case CPACR_EL1:		*val = read_sysreg_s(SYS_CPACR_EL12);	break;
-	case TTBR0_EL1:		*val = read_sysreg_s(SYS_TTBR0_EL12);	break;
-	case TTBR1_EL1:		*val = read_sysreg_s(SYS_TTBR1_EL12);	break;
-	case TCR_EL1:		*val = read_sysreg_s(SYS_TCR_EL12);	break;
-	case TCR2_EL1:		*val = read_sysreg_s(SYS_TCR2_EL12);	break;
-	case PIR_EL1:		*val = read_sysreg_s(SYS_PIR_EL12);	break;
-	case PIRE0_EL1:		*val = read_sysreg_s(SYS_PIRE0_EL12);	break;
-	case POR_EL1:		*val = read_sysreg_s(SYS_POR_EL12);	break;
-	case ESR_EL1:		*val = read_sysreg_s(SYS_ESR_EL12);	break;
-	case AFSR0_EL1:		*val = read_sysreg_s(SYS_AFSR0_EL12);	break;
-	case AFSR1_EL1:		*val = read_sysreg_s(SYS_AFSR1_EL12);	break;
-	case FAR_EL1:		*val = read_sysreg_s(SYS_FAR_EL12);	break;
-	case MAIR_EL1:		*val = read_sysreg_s(SYS_MAIR_EL12);	break;
-	case VBAR_EL1:		*val = read_sysreg_s(SYS_VBAR_EL12);	break;
-	case CONTEXTIDR_EL1:	*val = read_sysreg_s(SYS_CONTEXTIDR_EL12);break;
-	case TPIDR_EL0:		*val = read_sysreg_s(SYS_TPIDR_EL0);	break;
-	case TPIDRRO_EL0:	*val = read_sysreg_s(SYS_TPIDRRO_EL0);	break;
-	case TPIDR_EL1:		*val = read_sysreg_s(SYS_TPIDR_EL1);	break;
-	case AMAIR_EL1:		*val = read_sysreg_s(SYS_AMAIR_EL12);	break;
-	case CNTKCTL_EL1:	*val = read_sysreg_s(SYS_CNTKCTL_EL12);	break;
-	case ELR_EL1:		*val = read_sysreg_s(SYS_ELR_EL12);	break;
-	case SPSR_EL1:		*val = read_sysreg_s(SYS_SPSR_EL12);	break;
-	case PAR_EL1:		*val = read_sysreg_par();		break;
-	case DACR32_EL2:	*val = read_sysreg_s(SYS_DACR32_EL2);	break;
-	case IFSR32_EL2:	*val = read_sysreg_s(SYS_IFSR32_EL2);	break;
-	case DBGVCR32_EL2:	*val = read_sysreg_s(SYS_DBGVCR32_EL2);	break;
-	case ZCR_EL1:		*val = read_sysreg_s(SYS_ZCR_EL12);	break;
-	case SCTLR2_EL1:	*val = read_sysreg_s(SYS_SCTLR2_EL12);	break;
-	default:		return false;
-	}
-
-	return true;
-}
-
-static inline bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
-{
-	/*
-	 * *** VHE ONLY ***
-	 *
-	 * System registers listed in the switch are not restored on every
-	 * entry to the guest but are only restored on vcpu_load.
-	 *
-	 * SYSREGS_ON_CPU *MUST* be checked before using this helper.
-	 *
-	 * Note that MPIDR_EL1 for the guest is set by KVM via VMPIDR_EL2 but
-	 * should never be listed below, because the MPIDR should only be set
-	 * once, before running the VCPU, and never changed later.
-	 */
-	if (!has_vhe())
-		return false;
-
-	switch (reg) {
-	case SCTLR_EL1:		write_sysreg_s(val, SYS_SCTLR_EL12);	break;
-	case CPACR_EL1:		write_sysreg_s(val, SYS_CPACR_EL12);	break;
-	case TTBR0_EL1:		write_sysreg_s(val, SYS_TTBR0_EL12);	break;
-	case TTBR1_EL1:		write_sysreg_s(val, SYS_TTBR1_EL12);	break;
-	case TCR_EL1:		write_sysreg_s(val, SYS_TCR_EL12);	break;
-	case TCR2_EL1:		write_sysreg_s(val, SYS_TCR2_EL12);	break;
-	case PIR_EL1:		write_sysreg_s(val, SYS_PIR_EL12);	break;
-	case PIRE0_EL1:		write_sysreg_s(val, SYS_PIRE0_EL12);	break;
-	case POR_EL1:		write_sysreg_s(val, SYS_POR_EL12);	break;
-	case ESR_EL1:		write_sysreg_s(val, SYS_ESR_EL12);	break;
-	case AFSR0_EL1:		write_sysreg_s(val, SYS_AFSR0_EL12);	break;
-	case AFSR1_EL1:		write_sysreg_s(val, SYS_AFSR1_EL12);	break;
-	case FAR_EL1:		write_sysreg_s(val, SYS_FAR_EL12);	break;
-	case MAIR_EL1:		write_sysreg_s(val, SYS_MAIR_EL12);	break;
-	case VBAR_EL1:		write_sysreg_s(val, SYS_VBAR_EL12);	break;
-	case CONTEXTIDR_EL1:	write_sysreg_s(val, SYS_CONTEXTIDR_EL12);break;
-	case TPIDR_EL0:		write_sysreg_s(val, SYS_TPIDR_EL0);	break;
-	case TPIDRRO_EL0:	write_sysreg_s(val, SYS_TPIDRRO_EL0);	break;
-	case TPIDR_EL1:		write_sysreg_s(val, SYS_TPIDR_EL1);	break;
-	case AMAIR_EL1:		write_sysreg_s(val, SYS_AMAIR_EL12);	break;
-	case CNTKCTL_EL1:	write_sysreg_s(val, SYS_CNTKCTL_EL12);	break;
-	case ELR_EL1:		write_sysreg_s(val, SYS_ELR_EL12);	break;
-	case SPSR_EL1:		write_sysreg_s(val, SYS_SPSR_EL12);	break;
-	case PAR_EL1:		write_sysreg_s(val, SYS_PAR_EL1);	break;
-	case DACR32_EL2:	write_sysreg_s(val, SYS_DACR32_EL2);	break;
-	case IFSR32_EL2:	write_sysreg_s(val, SYS_IFSR32_EL2);	break;
-	case DBGVCR32_EL2:	write_sysreg_s(val, SYS_DBGVCR32_EL2);	break;
-	case ZCR_EL1:		write_sysreg_s(val, SYS_ZCR_EL12);	break;
-	case SCTLR2_EL1:	write_sysreg_s(val, SYS_SCTLR2_EL12);	break;
-	default:		return false;
-	}
-
-	return true;
-}
+u64 vcpu_read_sys_reg(const struct kvm_vcpu *, enum vcpu_sysreg);
+void vcpu_write_sys_reg(struct kvm_vcpu *, u64, enum vcpu_sysreg);
 
 struct kvm_vm_stat {
 	struct kvm_vm_stat_generic generic;
@@ -1476,6 +1375,7 @@ static inline bool kvm_system_needs_idmapped_vectors(void)
 }
 
 void kvm_init_host_debug_data(void);
+void kvm_debug_init_vhe(void);
 void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu);
 void kvm_vcpu_put_debug(struct kvm_vcpu *vcpu);
 void kvm_debug_set_guest_ownership(struct kvm_vcpu *vcpu);
@@ -1548,7 +1448,7 @@ struct kvm *kvm_arch_alloc_vm(void);
 
 #define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLBS_RANGE
 
-#define kvm_vm_is_protected(kvm)	(is_protected_kvm_enabled() && (kvm)->arch.pkvm.enabled)
+#define kvm_vm_is_protected(kvm)	(is_protected_kvm_enabled() && (kvm)->arch.pkvm.is_protected)
 
 #define vcpu_is_protected(vcpu)		kvm_vm_is_protected((vcpu)->kvm)
 
@@ -1705,6 +1605,51 @@ static inline bool kvm_arch_has_irq_bypass(void)
 void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt);
 void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *res1);
 void check_feature_map(void);
+void kvm_vcpu_load_fgt(struct kvm_vcpu *vcpu);
 
+static __always_inline enum fgt_group_id __fgt_reg_to_group_id(enum vcpu_sysreg reg)
+{
+	switch (reg) {
+	case HFGRTR_EL2:
+	case HFGWTR_EL2:
+		return HFGRTR_GROUP;
+	case HFGITR_EL2:
+		return HFGITR_GROUP;
+	case HDFGRTR_EL2:
+	case HDFGWTR_EL2:
+		return HDFGRTR_GROUP;
+	case HAFGRTR_EL2:
+		return HAFGRTR_GROUP;
+	case HFGRTR2_EL2:
+	case HFGWTR2_EL2:
+		return HFGRTR2_GROUP;
+	case HFGITR2_EL2:
+		return HFGITR2_GROUP;
+	case HDFGRTR2_EL2:
+	case HDFGWTR2_EL2:
+		return HDFGRTR2_GROUP;
+	default:
+		BUILD_BUG_ON(1);
+	}
+}
+
+#define vcpu_fgt(vcpu, reg)						\
+	({								\
+		enum fgt_group_id id = __fgt_reg_to_group_id(reg);	\
+		u64 *p;							\
+		switch (reg) {						\
+		case HFGWTR_EL2:					\
+		case HDFGWTR_EL2:					\
+		case HFGWTR2_EL2:					\
+		case HDFGWTR2_EL2:					\
+			p = &(vcpu)->arch.fgt[id].w;			\
+			break;						\
+		default:						\
+			p = &(vcpu)->arch.fgt[id].r;			\
+			break;						\
+		}							\
+									\
+		p;							\
+	})
 
 #endif /* __ARM64_KVM_HOST_H__ */

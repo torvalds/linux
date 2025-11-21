@@ -759,6 +759,9 @@ static void hid_ishtp_cl_resume_handler(struct work_struct *work)
 	if (ishtp_wait_resume(ishtp_get_ishtp_device(hid_ishtp_cl))) {
 		client_data->suspended = false;
 		wake_up_interruptible(&client_data->ishtp_resume_wait);
+	} else {
+		hid_ishtp_trace(client_data, "hid client: wait for resume timed out");
+		dev_err(cl_data_to_dev(client_data), "wait for resume timed out");
 	}
 }
 

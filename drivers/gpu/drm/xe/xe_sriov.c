@@ -15,6 +15,7 @@
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
 #include "xe_sriov_vf.h"
+#include "xe_sriov_vf_ccs.h"
 
 /**
  * xe_sriov_mode_to_string - Convert enum value to string.
@@ -156,4 +157,18 @@ const char *xe_sriov_function_name(unsigned int n, char *buf, size_t size)
 	else
 		strscpy(buf, "PF", size);
 	return buf;
+}
+
+/**
+ * xe_sriov_init_late() - SR-IOV late initialization functions.
+ * @xe: the &xe_device to initialize
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_init_late(struct xe_device *xe)
+{
+	if (IS_SRIOV_VF(xe))
+		return xe_sriov_vf_init_late(xe);
+
+	return 0;
 }

@@ -5,7 +5,7 @@ void test_stacktrace_map_raw_tp(void)
 {
 	const char *prog_name = "oncpu";
 	int control_map_fd, stackid_hmap_fd, stackmap_fd;
-	const char *file = "./test_stacktrace_map.bpf.o";
+	const char *file = "./stacktrace_map.bpf.o";
 	__u32 key, val, duration = 0;
 	int err, prog_fd;
 	struct bpf_program *prog;
@@ -46,7 +46,7 @@ void test_stacktrace_map_raw_tp(void)
 	bpf_map_update_elem(control_map_fd, &key, &val, 0);
 
 	/* for every element in stackid_hmap, we can find a corresponding one
-	 * in stackmap, and vise versa.
+	 * in stackmap, and vice versa.
 	 */
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",

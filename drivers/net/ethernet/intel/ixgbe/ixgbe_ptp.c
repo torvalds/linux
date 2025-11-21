@@ -641,7 +641,7 @@ static int ixgbe_ptp_feature_enable(struct ptp_clock_info *ptp,
 	 * disabled
 	 */
 	if (rq->type != PTP_CLK_REQ_PPS || !adapter->ptp_setup_sdp)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (on)
 		adapter->flags2 |= IXGBE_FLAG2_PTP_PPS_ENABLED;

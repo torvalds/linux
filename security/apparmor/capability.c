@@ -27,6 +27,7 @@
 
 struct aa_sfs_entry aa_sfs_entry_caps[] = {
 	AA_SFS_FILE_STRING("mask", AA_SFS_CAPS_MASK),
+	AA_SFS_FILE_BOOLEAN("extended", 1),
 	{ }
 };
 
@@ -68,8 +69,7 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 {
 	const u64 AUDIT_CACHE_TIMEOUT_NS = 1000*1000*1000; /* 1 second */
 
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 	struct audit_cache *ent;
 	int type = AUDIT_APPARMOR_AUTO;
 
@@ -121,10 +121,32 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 static int profile_capable(struct aa_profile *profile, int cap,
 			   unsigned int opts, struct apparmor_audit_data *ad)
 {
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
+	aa_state_t state;
 	int error;
 
+	state = RULE_MEDIATES(rules, ad->class);
+	if (state) {
+		struct aa_perms perms = { };
+		u32 request;
+
+		/* caps broken into 256 x 32 bit permission chunks */
+		state = aa_dfa_next(rules->policy->dfa, state, cap >> 5);
+		request = 1 << (cap & 0x1f);
+		perms = *aa_lookup_perms(rules->policy, state);
+		aa_apply_modes_to_perms(profile, &perms);
+
+		if (opts & CAP_OPT_NOAUDIT) {
+			if (perms.complain & request)
+				ad->info = "optional: no audit";
+			else
+				ad = NULL;
+		}
+		return aa_check_perms(profile, &perms, request, ad,
+				      audit_cb);
+	}
+
+	/* fallback to old caps mediation that doesn't support conditionals */
 	if (cap_raised(rules->caps.allow, cap) &&
 	    !cap_raised(rules->caps.denied, cap))
 		error = 0;
@@ -167,4 +189,35 @@ int aa_capable(const struct cred *subj_cred, struct aa_label *label,
 			profile_capable(profile, cap, opts, &ad));
 
 	return error;
+}
+
+kernel_cap_t aa_profile_capget(struct aa_profile *profile)
+{
+	struct aa_ruleset *rules = profile->label.rules[0];
+	aa_state_t state;
+
+	state = RULE_MEDIATES(rules, AA_CLASS_CAP);
+	if (state) {
+		kernel_cap_t caps = CAP_EMPTY_SET;
+		int i;
+
+		/* caps broken into up to 256, 32 bit permission chunks */
+		for (i = 0; i < (CAP_LAST_CAP >> 5); i++) {
+			struct aa_perms perms = { };
+			aa_state_t tmp;
+
+			tmp = aa_dfa_next(rules->policy->dfa, state, i);
+			perms = *aa_lookup_perms(rules->policy, tmp);
+			aa_apply_modes_to_perms(profile, &perms);
+			caps.val |= ((u64)(perms.allow)) << (i * 5);
+			caps.val |= ((u64)(perms.complain)) << (i * 5);
+		}
+		return caps;
+	}
+
+	/* fallback to old caps */
+	if (COMPLAIN_MODE(profile))
+		return CAP_FULL_SET;
+
+	return rules->caps.allow;
 }

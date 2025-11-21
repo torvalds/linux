@@ -196,52 +196,44 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		break;
 	}
 
-	mutex_lock(&dice->mutex);
+	scoped_guard(mutex, &dice->mutex) {
+		// When source of clock is not internal or any stream is reserved for
+		// transmission of PCM frames, the available sampling rate is limited
+		// at current one.
+		if (!internal ||
+		    (dice->substreams_counter > 0 && d->events_per_period > 0)) {
+			unsigned int frames_per_period = d->events_per_period;
+			unsigned int frames_per_buffer = d->events_per_buffer;
+			unsigned int rate;
 
-	// When source of clock is not internal or any stream is reserved for
-	// transmission of PCM frames, the available sampling rate is limited
-	// at current one.
-	if (!internal ||
-	    (dice->substreams_counter > 0 && d->events_per_period > 0)) {
-		unsigned int frames_per_period = d->events_per_period;
-		unsigned int frames_per_buffer = d->events_per_buffer;
-		unsigned int rate;
-
-		err = snd_dice_transaction_get_rate(dice, &rate);
-		if (err < 0) {
-			mutex_unlock(&dice->mutex);
-			goto err_locked;
-		}
-
-		substream->runtime->hw.rate_min = rate;
-		substream->runtime->hw.rate_max = rate;
-
-		if (frames_per_period > 0) {
-			// For double_pcm_frame quirk.
-			if (rate > 96000 && !dice->disable_double_pcm_frames) {
-				frames_per_period *= 2;
-				frames_per_buffer *= 2;
-			}
-
-			err = snd_pcm_hw_constraint_minmax(substream->runtime,
-					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-					frames_per_period, frames_per_period);
-			if (err < 0) {
-				mutex_unlock(&dice->mutex);
+			err = snd_dice_transaction_get_rate(dice, &rate);
+			if (err < 0)
 				goto err_locked;
-			}
 
-			err = snd_pcm_hw_constraint_minmax(substream->runtime,
-					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
-					frames_per_buffer, frames_per_buffer);
-			if (err < 0) {
-				mutex_unlock(&dice->mutex);
-				goto err_locked;
+			substream->runtime->hw.rate_min = rate;
+			substream->runtime->hw.rate_max = rate;
+
+			if (frames_per_period > 0) {
+				// For double_pcm_frame quirk.
+				if (rate > 96000 && !dice->disable_double_pcm_frames) {
+					frames_per_period *= 2;
+					frames_per_buffer *= 2;
+				}
+
+				err = snd_pcm_hw_constraint_minmax(substream->runtime,
+								   SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+								   frames_per_period, frames_per_period);
+				if (err < 0)
+					goto err_locked;
+
+				err = snd_pcm_hw_constraint_minmax(substream->runtime,
+								   SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+								   frames_per_buffer, frames_per_buffer);
+				if (err < 0)
+					goto err_locked;
 			}
 		}
 	}
-
-	mutex_unlock(&dice->mutex);
 
 	snd_pcm_set_sync(substream);
 
@@ -271,7 +263,7 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 		unsigned int events_per_period = params_period_size(hw_params);
 		unsigned int events_per_buffer = params_buffer_size(hw_params);
 
-		mutex_lock(&dice->mutex);
+		guard(mutex)(&dice->mutex);
 		// For double_pcm_frame quirk.
 		if (rate > 96000 && !dice->disable_double_pcm_frames) {
 			events_per_period /= 2;
@@ -281,7 +273,6 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 					events_per_period, events_per_buffer);
 		if (err >= 0)
 			++dice->substreams_counter;
-		mutex_unlock(&dice->mutex);
 	}
 
 	return err;
@@ -291,14 +282,12 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
 
-	mutex_lock(&dice->mutex);
+	guard(mutex)(&dice->mutex);
 
 	if (substream->runtime->state != SNDRV_PCM_STATE_OPEN)
 		--dice->substreams_counter;
 
 	snd_dice_stream_stop_duplex(dice);
-
-	mutex_unlock(&dice->mutex);
 
 	return 0;
 }
@@ -309,9 +298,9 @@ static int capture_prepare(struct snd_pcm_substream *substream)
 	struct amdtp_stream *stream = &dice->tx_stream[substream->pcm->device];
 	int err;
 
-	mutex_lock(&dice->mutex);
-	err = snd_dice_stream_start_duplex(dice);
-	mutex_unlock(&dice->mutex);
+	scoped_guard(mutex, &dice->mutex) {
+		err = snd_dice_stream_start_duplex(dice);
+	}
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(stream);
 
@@ -323,9 +312,9 @@ static int playback_prepare(struct snd_pcm_substream *substream)
 	struct amdtp_stream *stream = &dice->rx_stream[substream->pcm->device];
 	int err;
 
-	mutex_lock(&dice->mutex);
-	err = snd_dice_stream_start_duplex(dice);
-	mutex_unlock(&dice->mutex);
+	scoped_guard(mutex, &dice->mutex) {
+		err = snd_dice_stream_start_duplex(dice);
+	}
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(stream);
 

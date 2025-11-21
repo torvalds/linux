@@ -1586,8 +1586,8 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 	}
 
 	if (rdev->constraints->active_discharge && ops->set_active_discharge) {
-		bool ad_state = (rdev->constraints->active_discharge ==
-			      REGULATOR_ACTIVE_DISCHARGE_ENABLE) ? true : false;
+		bool ad_state = rdev->constraints->active_discharge ==
+			      REGULATOR_ACTIVE_DISCHARGE_ENABLE;
 
 		ret = ops->set_active_discharge(rdev, ad_state);
 		if (ret < 0) {
@@ -3884,7 +3884,7 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 			new_delta = ret;
 
 			/* check that voltage is converging quickly enough */
-			if (new_delta - delta > rdev->constraints->max_uV_step) {
+			if (delta - new_delta < rdev->constraints->max_uV_step) {
 				ret = -EWOULDBLOCK;
 				goto out;
 			}

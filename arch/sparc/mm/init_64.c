@@ -224,7 +224,7 @@ inline void flush_dcache_folio_impl(struct folio *folio)
 	((1UL<<ilog2(roundup_pow_of_two(NR_CPUS)))-1UL)
 
 #define dcache_dirty_cpu(folio) \
-	(((folio)->flags >> PG_dcache_cpu_shift) & PG_dcache_cpu_mask)
+	(((folio)->flags.f >> PG_dcache_cpu_shift) & PG_dcache_cpu_mask)
 
 static inline void set_dcache_dirty(struct folio *folio, int this_cpu)
 {
@@ -243,7 +243,7 @@ static inline void set_dcache_dirty(struct folio *folio, int this_cpu)
 			     "bne,pn	%%xcc, 1b\n\t"
 			     " nop"
 			     : /* no outputs */
-			     : "r" (mask), "r" (non_cpu_bits), "r" (&folio->flags)
+			     : "r" (mask), "r" (non_cpu_bits), "r" (&folio->flags.f)
 			     : "g1", "g7");
 }
 
@@ -265,7 +265,7 @@ static inline void clear_dcache_dirty_cpu(struct folio *folio, unsigned long cpu
 			     " nop\n"
 			     "2:"
 			     : /* no outputs */
-			     : "r" (cpu), "r" (mask), "r" (&folio->flags),
+			     : "r" (cpu), "r" (mask), "r" (&folio->flags.f),
 			       "i" (PG_dcache_cpu_mask),
 			       "i" (PG_dcache_cpu_shift)
 			     : "g1", "g7");
@@ -292,7 +292,7 @@ static void flush_dcache(unsigned long pfn)
 		struct folio *folio = page_folio(page);
 		unsigned long pg_flags;
 
-		pg_flags = folio->flags;
+		pg_flags = folio->flags.f;
 		if (pg_flags & (1UL << PG_dcache_dirty)) {
 			int cpu = ((pg_flags >> PG_dcache_cpu_shift) &
 				   PG_dcache_cpu_mask);
@@ -480,7 +480,7 @@ void flush_dcache_folio(struct folio *folio)
 
 	mapping = folio_flush_mapping(folio);
 	if (mapping && !mapping_mapped(mapping)) {
-		bool dirty = test_bit(PG_dcache_dirty, &folio->flags);
+		bool dirty = test_bit(PG_dcache_dirty, &folio->flags.f);
 		if (dirty) {
 			int dirty_cpu = dcache_dirty_cpu(folio);
 

@@ -283,39 +283,6 @@ TRACE_EVENT(cdns3_ep0_queue,
 		  __entry->length)
 );
 
-DECLARE_EVENT_CLASS(cdns3_stream_split_transfer_len,
-	TP_PROTO(struct cdns3_request *req),
-	TP_ARGS(req),
-	TP_STRUCT__entry(
-		__string(name, req->priv_ep->name)
-		__field(struct cdns3_request *, req)
-		__field(unsigned int, length)
-		__field(unsigned int, actual)
-		__field(unsigned int, stream_id)
-	),
-	TP_fast_assign(
-		__assign_str(name);
-		__entry->req = req;
-		__entry->actual = req->request.length;
-		__entry->length = req->request.actual;
-		__entry->stream_id = req->request.stream_id;
-	),
-	TP_printk("%s: req: %p,request length: %u actual length: %u  SID: %u",
-		  __get_str(name), __entry->req, __entry->length,
-		  __entry->actual, __entry->stream_id)
-);
-
-DEFINE_EVENT(cdns3_stream_split_transfer_len, cdns3_stream_transfer_split,
-	     TP_PROTO(struct cdns3_request *req),
-	     TP_ARGS(req)
-);
-
-DEFINE_EVENT(cdns3_stream_split_transfer_len,
-	     cdns3_stream_transfer_split_next_part,
-	     TP_PROTO(struct cdns3_request *req),
-	     TP_ARGS(req)
-);
-
 DECLARE_EVENT_CLASS(cdns3_log_aligned_request,
 	TP_PROTO(struct cdns3_request *priv_req),
 	TP_ARGS(priv_req),
@@ -352,34 +319,6 @@ DEFINE_EVENT(cdns3_log_aligned_request, cdns3_free_aligned_request,
 DEFINE_EVENT(cdns3_log_aligned_request, cdns3_prepare_aligned_request,
 	TP_PROTO(struct cdns3_request *req),
 	TP_ARGS(req)
-);
-
-DECLARE_EVENT_CLASS(cdns3_log_map_request,
-	TP_PROTO(struct cdns3_request *priv_req),
-	TP_ARGS(priv_req),
-	TP_STRUCT__entry(
-		__string(name, priv_req->priv_ep->name)
-		__field(struct usb_request *, req)
-		__field(void *, buf)
-		__field(dma_addr_t, dma)
-	),
-	TP_fast_assign(
-		__assign_str(name);
-		__entry->req = &priv_req->request;
-		__entry->buf = priv_req->request.buf;
-		__entry->dma = priv_req->request.dma;
-	),
-	TP_printk("%s: req: %p, req buf %p, dma %p",
-		  __get_str(name), __entry->req, __entry->buf, &__entry->dma
-	)
-);
-DEFINE_EVENT(cdns3_log_map_request, cdns3_map_request,
-	     TP_PROTO(struct cdns3_request *req),
-	     TP_ARGS(req)
-);
-DEFINE_EVENT(cdns3_log_map_request, cdns3_mapped_request,
-	     TP_PROTO(struct cdns3_request *req),
-	     TP_ARGS(req)
 );
 
 DECLARE_EVENT_CLASS(cdns3_log_trb,

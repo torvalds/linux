@@ -95,17 +95,17 @@ cifs_find_mid(struct TCP_Server_Info *server, char *buffer)
 	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct mid_q_entry *mid;
 
-	spin_lock(&server->mid_lock);
+	spin_lock(&server->mid_queue_lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
 		if (compare_mid(mid->mid, buf) &&
 		    mid->mid_state == MID_REQUEST_SUBMITTED &&
 		    le16_to_cpu(mid->command) == buf->Command) {
 			kref_get(&mid->refcount);
-			spin_unlock(&server->mid_lock);
+			spin_unlock(&server->mid_queue_lock);
 			return mid;
 		}
 	}
-	spin_unlock(&server->mid_lock);
+	spin_unlock(&server->mid_queue_lock);
 	return NULL;
 }
 
@@ -169,10 +169,9 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 	__u16 last_mid, cur_mid;
 	bool collision, reconnect = false;
 
-	spin_lock(&server->mid_lock);
-
+	spin_lock(&server->mid_counter_lock);
 	/* mid is 16 bit only for CIFS/SMB */
-	cur_mid = (__u16)((server->CurrentMid) & 0xffff);
+	cur_mid = (__u16)((server->current_mid) & 0xffff);
 	/* we do not want to loop forever */
 	last_mid = cur_mid;
 	cur_mid++;
@@ -198,6 +197,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 			cur_mid++;
 
 		num_mids = 0;
+		spin_lock(&server->mid_queue_lock);
 		list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
 			++num_mids;
 			if (mid_entry->mid == cur_mid &&
@@ -207,6 +207,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 				break;
 			}
 		}
+		spin_unlock(&server->mid_queue_lock);
 
 		/*
 		 * if we have more than 32k mids in the list, then something
@@ -223,12 +224,12 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 
 		if (!collision) {
 			mid = (__u64)cur_mid;
-			server->CurrentMid = mid;
+			server->current_mid = mid;
 			break;
 		}
 		cur_mid++;
 	}
-	spin_unlock(&server->mid_lock);
+	spin_unlock(&server->mid_counter_lock);
 
 	if (reconnect) {
 		cifs_signal_cifsd_for_reconnect(server, false);
@@ -651,13 +652,71 @@ static int cifs_query_path_info(const unsigned int xid,
 
 #ifdef CONFIG_CIFS_XATTR
 	/*
+	 * For non-symlink WSL reparse points it is required to fetch
+	 * EA $LXMOD which contains in its S_DT part the mandatory file type.
+	 */
+	if (!rc && data->reparse_point) {
+		struct smb2_file_full_ea_info *ea;
+		u32 next = 0;
+
+		ea = (struct smb2_file_full_ea_info *)data->wsl.eas;
+		do {
+			ea = (void *)((u8 *)ea + next);
+			next = le32_to_cpu(ea->next_entry_offset);
+		} while (next);
+		if (le16_to_cpu(ea->ea_value_length)) {
+			ea->next_entry_offset = cpu_to_le32(ALIGN(sizeof(*ea) +
+						ea->ea_name_length + 1 +
+						le16_to_cpu(ea->ea_value_length), 4));
+			ea = (void *)((u8 *)ea + le32_to_cpu(ea->next_entry_offset));
+		}
+
+		rc = CIFSSMBQAllEAs(xid, tcon, full_path, SMB2_WSL_XATTR_MODE,
+				    &ea->ea_data[SMB2_WSL_XATTR_NAME_LEN + 1],
+				    SMB2_WSL_XATTR_MODE_SIZE, cifs_sb);
+		if (rc == SMB2_WSL_XATTR_MODE_SIZE) {
+			ea->next_entry_offset = cpu_to_le32(0);
+			ea->flags = 0;
+			ea->ea_name_length = SMB2_WSL_XATTR_NAME_LEN;
+			ea->ea_value_length = cpu_to_le16(SMB2_WSL_XATTR_MODE_SIZE);
+			memcpy(&ea->ea_data[0], SMB2_WSL_XATTR_MODE, SMB2_WSL_XATTR_NAME_LEN + 1);
+			data->wsl.eas_len += ALIGN(sizeof(*ea) + SMB2_WSL_XATTR_NAME_LEN + 1 +
+						   SMB2_WSL_XATTR_MODE_SIZE, 4);
+			rc = 0;
+		} else if (rc >= 0) {
+			/* It is an error if EA $LXMOD has wrong size. */
+			rc = -EINVAL;
+		} else {
+			/*
+			 * In all other cases ignore error if fetching
+			 * of EA $LXMOD failed. It is needed only for
+			 * non-symlink WSL reparse points and wsl_to_fattr()
+			 * handle the case when EA is missing.
+			 */
+			rc = 0;
+		}
+	}
+
+	/*
 	 * For WSL CHR and BLK reparse points it is required to fetch
 	 * EA $LXDEV which contains major and minor device numbers.
 	 */
 	if (!rc && data->reparse_point) {
 		struct smb2_file_full_ea_info *ea;
+		u32 next = 0;
 
 		ea = (struct smb2_file_full_ea_info *)data->wsl.eas;
+		do {
+			ea = (void *)((u8 *)ea + next);
+			next = le32_to_cpu(ea->next_entry_offset);
+		} while (next);
+		if (le16_to_cpu(ea->ea_value_length)) {
+			ea->next_entry_offset = cpu_to_le32(ALIGN(sizeof(*ea) +
+						ea->ea_name_length + 1 +
+						le16_to_cpu(ea->ea_value_length), 4));
+			ea = (void *)((u8 *)ea + le32_to_cpu(ea->next_entry_offset));
+		}
+
 		rc = CIFSSMBQAllEAs(xid, tcon, full_path, SMB2_WSL_XATTR_DEV,
 				    &ea->ea_data[SMB2_WSL_XATTR_NAME_LEN + 1],
 				    SMB2_WSL_XATTR_DEV_SIZE, cifs_sb);
@@ -667,8 +726,8 @@ static int cifs_query_path_info(const unsigned int xid,
 			ea->ea_name_length = SMB2_WSL_XATTR_NAME_LEN;
 			ea->ea_value_length = cpu_to_le16(SMB2_WSL_XATTR_DEV_SIZE);
 			memcpy(&ea->ea_data[0], SMB2_WSL_XATTR_DEV, SMB2_WSL_XATTR_NAME_LEN + 1);
-			data->wsl.eas_len = sizeof(*ea) + SMB2_WSL_XATTR_NAME_LEN + 1 +
-					    SMB2_WSL_XATTR_DEV_SIZE;
+			data->wsl.eas_len += ALIGN(sizeof(*ea) + SMB2_WSL_XATTR_NAME_LEN + 1 +
+						   SMB2_WSL_XATTR_MODE_SIZE, 4);
 			rc = 0;
 		} else if (rc >= 0) {
 			/* It is an error if EA $LXDEV has wrong size. */
@@ -817,6 +876,11 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 	info.Attributes = cpu_to_le32(dosattrs);
 	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, &info, cifs_sb->local_nls,
 				cifs_sb);
+	if (rc == -EOPNOTSUPP || rc == -EINVAL)
+		rc = SMBSetInformation(xid, tcon, full_path,
+				       info.Attributes,
+				       0 /* do not change write time */,
+				       cifs_sb->local_nls, cifs_sb);
 	if (rc == 0)
 		cifsInode->cifsAttrs = dosattrs;
 }
@@ -973,7 +1037,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 		.tcon = tcon,
 		.cifs_sb = cifs_sb,
 		.desired_access = SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
-		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
+		.create_options = cifs_create_options(cifs_sb, 0),
 		.disposition = FILE_OPEN,
 		.path = full_path,
 		.fid = &fid,
@@ -1004,7 +1068,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 			rc = -EOPNOTSUPP;
 	}
 
-	/* Fallback to SMB_COM_SETATTR command when absolutelty needed. */
+	/* Fallback to SMB_COM_SETATTR command when absolutely needed. */
 	if (rc == -EOPNOTSUPP) {
 		cifs_dbg(FYI, "calling SetInformation since SetPathInfo for attrs/times not supported by this server\n");
 		rc = SMBSetInformation(xid, tcon, full_path,
@@ -1038,7 +1102,7 @@ set_via_filehandle:
 		cifsFileInfo_put(open_file);
 
 	/*
-	 * Setting the read-only bit is not honered on non-NT servers when done
+	* Setting the read-only bit is not honored on non-NT servers when done
 	 * via open-semantics. So for setting it, use SMB_COM_SETATTR command.
 	 * This command works only after the file is closed, so use it only when
 	 * operation was called without the filehandle.
@@ -1272,7 +1336,7 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 		 */
 		return cifs_sfu_make_node(xid, inode, dentry, tcon,
 					  full_path, mode, dev);
-	} else if (le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS) {
+	} else if (CIFS_REPARSE_SUPPORT(tcon)) {
 		/*
 		 * mknod via reparse points requires server support for
 		 * storing reparse points, which is available since

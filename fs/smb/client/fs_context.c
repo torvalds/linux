@@ -773,16 +773,14 @@ static int smb3_fs_context_parse_monolithic(struct fs_context *fc,
 		}
 
 
-		len = 0;
 		value = strchr(key, '=');
 		if (value) {
 			if (value == key)
 				continue;
 			*value++ = 0;
-			len = strlen(value);
 		}
 
-		ret = vfs_parse_fs_string(fc, key, value, len);
+		ret = vfs_parse_fs_string(fc, key, value);
 		if (ret < 0)
 			break;
 	}
@@ -1652,6 +1650,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 				pr_warn_once("conflicting posix mount options specified\n");
 			ctx->linux_ext = 1;
 			ctx->no_linux_ext = 0;
+			ctx->nonativesocket = 1; /* POSIX mounts use NFS style reparse points */
 		}
 		break;
 	case Opt_nocase:
@@ -1819,6 +1818,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		goto cifs_parse_mount_err;
 	}
 
+	/*
+	 * Multichannel is not meaningful if max_channels is 1.
+	 * Force multichannel to false to ensure consistent configuration.
+	 */
+	if (ctx->multichannel && ctx->max_channels == 1)
+		ctx->multichannel = false;
+
 	return 0;
 
  cifs_parse_mount_err:
@@ -1827,24 +1833,6 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	kfree_sensitive(ctx->password2);
 	ctx->password2 = NULL;
 	return -EINVAL;
-}
-
-enum cifs_symlink_type get_cifs_symlink_type(struct cifs_sb_info *cifs_sb)
-{
-	if (cifs_sb->ctx->symlink_type == CIFS_SYMLINK_TYPE_DEFAULT) {
-		if (cifs_sb->ctx->mfsymlinks)
-			return CIFS_SYMLINK_TYPE_MFSYMLINKS;
-		else if (cifs_sb->ctx->sfu_emul)
-			return CIFS_SYMLINK_TYPE_SFU;
-		else if (cifs_sb->ctx->linux_ext && !cifs_sb->ctx->no_linux_ext)
-			return CIFS_SYMLINK_TYPE_UNIX;
-		else if (cifs_sb->ctx->reparse_type != CIFS_REPARSE_TYPE_NONE)
-			return CIFS_SYMLINK_TYPE_NATIVE;
-		else
-			return CIFS_SYMLINK_TYPE_NONE;
-	} else {
-		return cifs_sb->ctx->symlink_type;
-	}
 }
 
 int smb3_init_fs_context(struct fs_context *fc)

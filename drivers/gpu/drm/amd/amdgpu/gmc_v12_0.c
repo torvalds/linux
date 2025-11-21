@@ -336,6 +336,22 @@ static void gmc_v12_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	uint16_t queried;
 	int vmid, i;
 
+	if (adev->enable_uni_mes && adev->mes.ring[AMDGPU_MES_SCHED_PIPE].sched.ready &&
+	    (adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x84) {
+		struct mes_inv_tlbs_pasid_input input = {0};
+		input.pasid = pasid;
+		input.flush_type = flush_type;
+		input.hub_id = AMDGPU_GFXHUB(0);
+		/* MES will invalidate all gc_hub for the device from master */
+		adev->mes.funcs->invalidate_tlbs_pasid(&adev->mes, &input);
+		if (all_hub) {
+			/* Only need to invalidate mm_hub now, gfx12 only support one mmhub */
+			input.hub_id = AMDGPU_MMHUB0(0);
+			adev->mes.funcs->invalidate_tlbs_pasid(&adev->mes, &input);
+		}
+		return;
+	}
+
 	for (vmid = 1; vmid < 16; vmid++) {
 		bool valid;
 
@@ -453,20 +469,6 @@ static void gmc_v12_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid
  * 0 valid
  */
 
-static uint64_t gmc_v12_0_map_mtype(struct amdgpu_device *adev, uint32_t flags)
-{
-	switch (flags) {
-	case AMDGPU_VM_MTYPE_DEFAULT:
-		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
-	case AMDGPU_VM_MTYPE_NC:
-		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
-	case AMDGPU_VM_MTYPE_UC:
-		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_UC);
-	default:
-		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
-	}
-}
-
 static void gmc_v12_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				 uint64_t *addr, uint64_t *flags)
 {
@@ -490,18 +492,35 @@ static void gmc_v12_0_get_vm_pde(struct amdgpu_device *adev, int level,
 }
 
 static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
-				 struct amdgpu_bo_va_mapping *mapping,
+				 struct amdgpu_vm *vm,
+				 struct amdgpu_bo *bo,
+				 uint32_t vm_flags,
 				 uint64_t *flags)
 {
-	struct amdgpu_bo *bo = mapping->bo_va->base.bo;
+	if (vm_flags & AMDGPU_VM_PAGE_EXECUTABLE)
+		*flags |= AMDGPU_PTE_EXECUTABLE;
+	else
+		*flags &= ~AMDGPU_PTE_EXECUTABLE;
 
-	*flags &= ~AMDGPU_PTE_EXECUTABLE;
-	*flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
+	switch (vm_flags & AMDGPU_VM_MTYPE_MASK) {
+	case AMDGPU_VM_MTYPE_DEFAULT:
+		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_NC);
+		break;
+	case AMDGPU_VM_MTYPE_NC:
+	default:
+		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_NC);
+		break;
+	case AMDGPU_VM_MTYPE_UC:
+		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_UC);
+		break;
+	}
 
-	*flags &= ~AMDGPU_PTE_MTYPE_GFX12_MASK;
-	*flags |= (mapping->flags & AMDGPU_PTE_MTYPE_GFX12_MASK);
+	if (vm_flags & AMDGPU_VM_PAGE_NOALLOC)
+		*flags |= AMDGPU_PTE_NOALLOC;
+	else
+		*flags &= ~AMDGPU_PTE_NOALLOC;
 
-	if (mapping->flags & AMDGPU_PTE_PRT_GFX12) {
+	if (vm_flags & AMDGPU_VM_PAGE_PRT) {
 		*flags |= AMDGPU_PTE_PRT_GFX12;
 		*flags |= AMDGPU_PTE_SNOOPED;
 		*flags |= AMDGPU_PTE_SYSTEM;
@@ -543,7 +562,6 @@ static const struct amdgpu_gmc_funcs gmc_v12_0_gmc_funcs = {
 	.flush_gpu_tlb_pasid = gmc_v12_0_flush_gpu_tlb_pasid,
 	.emit_flush_gpu_tlb = gmc_v12_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v12_0_emit_pasid_mapping,
-	.map_mtype = gmc_v12_0_map_mtype,
 	.get_vm_pde = gmc_v12_0_get_vm_pde,
 	.get_vm_pte = gmc_v12_0_get_vm_pte,
 	.get_vbios_fb_size = gmc_v12_0_get_vbios_fb_size,
@@ -876,8 +894,7 @@ static int gmc_v12_0_gart_enable(struct amdgpu_device *adev)
 	/* Flush HDP after it is initialized */
 	amdgpu_device_flush_hdp(adev, NULL);
 
-	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
-		false : true;
+	value = amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS;
 
 	adev->mmhub.funcs->set_fault_enable_default(adev, value);
 	gmc_v12_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB0(0), 0);

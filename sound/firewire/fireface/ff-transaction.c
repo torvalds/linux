@@ -132,15 +132,13 @@ static void handle_msg(struct fw_card *card, struct fw_request *request, int tco
 	struct snd_ff *ff = callback_data;
 	__le32 *buf = data;
 	u32 tstamp = fw_request_get_timestamp(request);
-	unsigned long flag;
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 
 	offset -= ff->async_handler.offset;
 
-	spin_lock_irqsave(&ff->lock, flag);
+	guard(spinlock_irqsave)(&ff->lock);
 	ff->spec->protocol->handle_msg(ff, (unsigned int)offset, buf, length, tstamp);
-	spin_unlock_irqrestore(&ff->lock, flag);
 }
 
 static int allocate_own_address(struct snd_ff *ff, int i)

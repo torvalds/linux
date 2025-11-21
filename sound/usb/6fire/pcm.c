@@ -289,7 +289,7 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 	struct pcm_urb *out_urb = in_urb->peer;
 	struct pcm_runtime *rt = in_urb->chip->pcm;
 	struct pcm_substream *sub;
-	unsigned long flags;
+	bool period_elapsed;
 	int total_length = 0;
 	int frame_count;
 	int frame;
@@ -313,17 +313,18 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 
 	/* receive our capture data */
 	sub = &rt->capture;
-	spin_lock_irqsave(&sub->lock, flags);
-	if (sub->active) {
-		usb6fire_pcm_capture(sub, in_urb);
-		if (sub->period_off >= sub->instance->runtime->period_size) {
-			sub->period_off %= sub->instance->runtime->period_size;
-			spin_unlock_irqrestore(&sub->lock, flags);
-			snd_pcm_period_elapsed(sub->instance);
-		} else
-			spin_unlock_irqrestore(&sub->lock, flags);
-	} else
-		spin_unlock_irqrestore(&sub->lock, flags);
+	period_elapsed = false;
+	scoped_guard(spinlock_irqsave, &sub->lock) {
+		if (sub->active) {
+			usb6fire_pcm_capture(sub, in_urb);
+			if (sub->period_off >= sub->instance->runtime->period_size) {
+				sub->period_off %= sub->instance->runtime->period_size;
+				period_elapsed = true;
+			}
+		}
+	}
+	if (period_elapsed)
+		snd_pcm_period_elapsed(sub->instance);
 
 	/* setup out urb structure */
 	for (i = 0; i < PCM_N_PACKETS_PER_URB; i++) {
@@ -338,17 +339,18 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 
 	/* now send our playback data (if a free out urb was found) */
 	sub = &rt->playback;
-	spin_lock_irqsave(&sub->lock, flags);
-	if (sub->active) {
-		usb6fire_pcm_playback(sub, out_urb);
-		if (sub->period_off >= sub->instance->runtime->period_size) {
-			sub->period_off %= sub->instance->runtime->period_size;
-			spin_unlock_irqrestore(&sub->lock, flags);
-			snd_pcm_period_elapsed(sub->instance);
-		} else
-			spin_unlock_irqrestore(&sub->lock, flags);
-	} else
-		spin_unlock_irqrestore(&sub->lock, flags);
+	period_elapsed = false;
+	scoped_guard(spinlock_irqsave, &sub->lock) {
+		if (sub->active) {
+			usb6fire_pcm_playback(sub, out_urb);
+			if (sub->period_off >= sub->instance->runtime->period_size) {
+				sub->period_off %= sub->instance->runtime->period_size;
+				period_elapsed = true;
+			}
+		}
+	}
+	if (period_elapsed)
+		snd_pcm_period_elapsed(sub->instance);
 
 	/* setup the 4th byte of each sample (0x40 for analog channels) */
 	dest = out_urb->buffer;
@@ -392,7 +394,7 @@ static int usb6fire_pcm_open(struct snd_pcm_substream *alsa_sub)
 	if (rt->panic)
 		return -EPIPE;
 
-	mutex_lock(&rt->stream_mutex);
+	guard(mutex)(&rt->stream_mutex);
 	alsa_rt->hw = pcm_hw;
 
 	if (alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -408,14 +410,12 @@ static int usb6fire_pcm_open(struct snd_pcm_substream *alsa_sub)
 	}
 
 	if (!sub) {
-		mutex_unlock(&rt->stream_mutex);
 		dev_err(&rt->chip->dev->dev, "invalid stream type.\n");
 		return -EINVAL;
 	}
 
 	sub->instance = alsa_sub;
 	sub->active = false;
-	mutex_unlock(&rt->stream_mutex);
 	return 0;
 }
 
@@ -423,18 +423,17 @@ static int usb6fire_pcm_close(struct snd_pcm_substream *alsa_sub)
 {
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
 	struct pcm_substream *sub = usb6fire_pcm_get_substream(alsa_sub);
-	unsigned long flags;
 
 	if (rt->panic)
 		return 0;
 
-	mutex_lock(&rt->stream_mutex);
+	guard(mutex)(&rt->stream_mutex);
 	if (sub) {
 		/* deactivate substream */
-		spin_lock_irqsave(&sub->lock, flags);
-		sub->instance = NULL;
-		sub->active = false;
-		spin_unlock_irqrestore(&sub->lock, flags);
+		scoped_guard(spinlock_irqsave, &sub->lock) {
+			sub->instance = NULL;
+			sub->active = false;
+		}
 
 		/* all substreams closed? if so, stop streaming */
 		if (!rt->playback.instance && !rt->capture.instance) {
@@ -442,7 +441,6 @@ static int usb6fire_pcm_close(struct snd_pcm_substream *alsa_sub)
 			rt->rate = ARRAY_SIZE(rates);
 		}
 	}
-	mutex_unlock(&rt->stream_mutex);
 	return 0;
 }
 
@@ -458,7 +456,7 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	if (!sub)
 		return -ENODEV;
 
-	mutex_lock(&rt->stream_mutex);
+	guard(mutex)(&rt->stream_mutex);
 	sub->dma_off = 0;
 	sub->period_off = 0;
 
@@ -467,7 +465,6 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 			if (alsa_rt->rate == rates[rt->rate])
 				break;
 		if (rt->rate == ARRAY_SIZE(rates)) {
-			mutex_unlock(&rt->stream_mutex);
 			dev_err(&rt->chip->dev->dev,
 				"invalid rate %d in prepare.\n",
 				alsa_rt->rate);
@@ -475,19 +472,15 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 		}
 
 		ret = usb6fire_pcm_set_rate(rt);
-		if (ret) {
-			mutex_unlock(&rt->stream_mutex);
+		if (ret)
 			return ret;
-		}
 		ret = usb6fire_pcm_stream_start(rt);
 		if (ret) {
-			mutex_unlock(&rt->stream_mutex);
 			dev_err(&rt->chip->dev->dev,
 				"could not start pcm stream.\n");
 			return ret;
 		}
 	}
-	mutex_unlock(&rt->stream_mutex);
 	return 0;
 }
 
@@ -495,26 +488,22 @@ static int usb6fire_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd)
 {
 	struct pcm_substream *sub = usb6fire_pcm_get_substream(alsa_sub);
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
-	unsigned long flags;
 
 	if (rt->panic)
 		return -EPIPE;
 	if (!sub)
 		return -ENODEV;
 
+	guard(spinlock_irqsave)(&sub->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		spin_lock_irqsave(&sub->lock, flags);
 		sub->active = true;
-		spin_unlock_irqrestore(&sub->lock, flags);
 		return 0;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		spin_lock_irqsave(&sub->lock, flags);
 		sub->active = false;
-		spin_unlock_irqrestore(&sub->lock, flags);
 		return 0;
 
 	default:
@@ -527,15 +516,13 @@ static snd_pcm_uframes_t usb6fire_pcm_pointer(
 {
 	struct pcm_substream *sub = usb6fire_pcm_get_substream(alsa_sub);
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
-	unsigned long flags;
 	snd_pcm_uframes_t ret;
 
 	if (rt->panic || !sub)
 		return SNDRV_PCM_POS_XRUN;
 
-	spin_lock_irqsave(&sub->lock, flags);
+	guard(spinlock_irqsave)(&sub->lock);
 	ret = sub->dma_off;
-	spin_unlock_irqrestore(&sub->lock, flags);
 	return ret;
 }
 

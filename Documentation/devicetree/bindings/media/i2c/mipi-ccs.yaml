@@ -55,6 +55,7 @@ properties:
 
   clock-frequency:
     description: Frequency of the external clock to the sensor in Hz.
+    deprecated: true
 
   reset-gpios:
     description: Reset GPIO. Also commonly called XSHUTDOWN in hardware
@@ -93,7 +94,6 @@ properties:
 required:
   - compatible
   - reg
-  - clock-frequency
   - clocks
 
 additionalProperties: false
@@ -114,8 +114,11 @@ examples:
             reg = <0x10>;
             reset-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
             vana-supply = <&vaux3>;
+
             clocks = <&omap3_isp 0>;
-            clock-frequency = <9600000>;
+            assigned-clocks = <&omap3_isp 0>;
+            assigned-clock-rates = <9600000>;
+
             port {
                 ccs_ep: endpoint {
                     data-lanes = <1 2>;

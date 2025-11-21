@@ -18,9 +18,10 @@ config SUNRPC_SWAP
 
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism"
-	depends on SUNRPC && CRYPTO
+	depends on SUNRPC
 	default y
 	select SUNRPC_GSS
+	select CRYPTO
 	select CRYPTO_SKCIPHER
 	select CRYPTO_HASH
 	help
@@ -100,6 +101,20 @@ config SUNRPC_DEBUG
 	  but makes troubleshooting NFS issues significantly harder.
 
 	  If unsure, say Y.
+
+config SUNRPC_DEBUG_TRACE
+	bool "RPC: Send dfprintk() output to the trace buffer"
+	depends on SUNRPC_DEBUG && TRACING
+	default n
+	help
+          dprintk() output can be voluminous, which can overwhelm the
+          kernel's logging facility as it must be sent to the console.
+          This option causes dprintk() output to go to the trace buffer
+          instead of the kernel log.
+
+          This will cause warnings about trace_printk() being used to be
+          logged at boot time, so say N unless you are debugging a problem
+          with sunrpc-based clients or services.
 
 config SUNRPC_XPRT_RDMA
 	tristate "RPC-over-RDMA transport"

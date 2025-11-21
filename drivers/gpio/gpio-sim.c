@@ -262,8 +262,7 @@ static void gpio_sim_dbg_show(struct seq_file *seq, struct gpio_chip *gc)
 	guard(mutex)(&chip->lock);
 
 	for_each_hwgpio(gc, i, label)
-		seq_printf(seq, " gpio-%-3d (%s) %s,%s\n",
-			   gc->base + i,
+		seq_printf(seq, " gpio-%-3d (%s) %s,%s\n", i,
 			   label ?: "<unused>",
 			   test_bit(i, chip->direction_map) ? "input" :
 				test_bit(i, chip->value_map) ? "output-high" :
@@ -486,9 +485,9 @@ static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 	gc->parent = dev;
 	gc->fwnode = swnode;
 	gc->get = gpio_sim_get;
-	gc->set_rv = gpio_sim_set;
+	gc->set = gpio_sim_set;
 	gc->get_multiple = gpio_sim_get_multiple;
-	gc->set_multiple_rv = gpio_sim_set_multiple;
+	gc->set_multiple = gpio_sim_set_multiple;
 	gc->direction_output = gpio_sim_direction_output;
 	gc->direction_input = gpio_sim_direction_input;
 	gc->get_direction = gpio_sim_get_direction;

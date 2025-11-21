@@ -82,6 +82,21 @@ config RMI4_F12
 	  touchpads. For sensors that support relative pointing, F12 also
 	  provides mouse input.
 
+config RMI4_F1A
+	bool "RMI4 Function 1A (0D pointing)"
+	help
+	  Say Y here if you want to add support for RMI4 function 1A.
+
+	  Function 1A provides capacitive keys support for RMI4 devices.
+
+config RMI4_F21
+	bool "RMI4 Function 21 (PRESSURE)"
+	help
+	  Say Y here if you want to add support for RMI4 function 21.
+
+	  Function 21 provides buttons/pressure handling for RMI4 devices.
+	  This includes support for buttons/pressure on PressurePad.
+
 config RMI4_F30
 	bool "RMI4 Function 30 (GPIO LED)"
 	help

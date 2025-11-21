@@ -7,6 +7,7 @@
  *              Pavel Shilovsky (pshilovsky@samba.org) 2012
  *
  */
+#include <crypto/sha2.h>
 #include <linux/ctype.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -614,6 +615,15 @@ smb2_is_valid_lease_break(char *buffer, struct TCP_Server_Info *server)
 	struct cifs_tcon *tcon;
 	struct cifs_pending_open *open;
 
+	/* Trace receipt of lease break request from server */
+	trace_smb3_lease_break_enter(le32_to_cpu(rsp->CurrentLeaseState),
+		le32_to_cpu(rsp->Flags),
+		le16_to_cpu(rsp->Epoch),
+		le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+		le64_to_cpu(rsp->hdr.SessionId),
+		*((u64 *)rsp->LeaseKey),
+		*((u64 *)&rsp->LeaseKey[8]));
+
 	cifs_dbg(FYI, "Checking for lease break\n");
 
 	/* If server is a channel, select the primary channel */
@@ -660,10 +670,12 @@ smb2_is_valid_lease_break(char *buffer, struct TCP_Server_Info *server)
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "Can not process lease break - no lease matched\n");
 	trace_smb3_lease_not_found(le32_to_cpu(rsp->CurrentLeaseState),
-				   le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
-				   le64_to_cpu(rsp->hdr.SessionId),
-				   *((u64 *)rsp->LeaseKey),
-				   *((u64 *)&rsp->LeaseKey[8]));
+					   le32_to_cpu(rsp->Flags),
+					   le16_to_cpu(rsp->Epoch),
+					   le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+					   le64_to_cpu(rsp->hdr.SessionId),
+					   *((u64 *)rsp->LeaseKey),
+					   *((u64 *)&rsp->LeaseKey[8]));
 
 	return false;
 }
@@ -877,13 +889,13 @@ smb2_handle_cancelled_mid(struct mid_q_entry *mid, struct TCP_Server_Info *serve
  * @iov:	array containing the SMB request we will send to the server
  * @nvec:	number of array entries for the iov
  */
-int
+void
 smb311_update_preauth_hash(struct cifs_ses *ses, struct TCP_Server_Info *server,
 			   struct kvec *iov, int nvec)
 {
-	int i, rc;
+	int i;
 	struct smb2_hdr *hdr;
-	struct shash_desc *sha512 = NULL;
+	struct sha512_ctx sha_ctx;
 
 	hdr = (struct smb2_hdr *)iov[0].iov_base;
 	/* neg prot are always taken */
@@ -896,52 +908,22 @@ smb311_update_preauth_hash(struct cifs_ses *ses, struct TCP_Server_Info *server,
 	 * and we can test it. Preauth requires 3.1.1 for now.
 	 */
 	if (server->dialect != SMB311_PROT_ID)
-		return 0;
+		return;
 
 	if (hdr->Command != SMB2_SESSION_SETUP)
-		return 0;
+		return;
 
 	/* skip last sess setup response */
 	if ((hdr->Flags & SMB2_FLAGS_SERVER_TO_REDIR)
 	    && (hdr->Status == NT_STATUS_OK
 		|| (hdr->Status !=
 		    cpu_to_le32(NT_STATUS_MORE_PROCESSING_REQUIRED))))
-		return 0;
+		return;
 
 ok:
-	rc = smb311_crypto_shash_allocate(server);
-	if (rc)
-		return rc;
-
-	sha512 = server->secmech.sha512;
-	rc = crypto_shash_init(sha512);
-	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init sha512 shash\n", __func__);
-		return rc;
-	}
-
-	rc = crypto_shash_update(sha512, ses->preauth_sha_hash,
-				 SMB2_PREAUTH_HASH_SIZE);
-	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update sha512 shash\n", __func__);
-		return rc;
-	}
-
-	for (i = 0; i < nvec; i++) {
-		rc = crypto_shash_update(sha512, iov[i].iov_base, iov[i].iov_len);
-		if (rc) {
-			cifs_dbg(VFS, "%s: Could not update sha512 shash\n",
-				 __func__);
-			return rc;
-		}
-	}
-
-	rc = crypto_shash_final(sha512, ses->preauth_sha_hash);
-	if (rc) {
-		cifs_dbg(VFS, "%s: Could not finalize sha512 shash\n",
-			 __func__);
-		return rc;
-	}
-
-	return 0;
+	sha512_init(&sha_ctx);
+	sha512_update(&sha_ctx, ses->preauth_sha_hash, SMB2_PREAUTH_HASH_SIZE);
+	for (i = 0; i < nvec; i++)
+		sha512_update(&sha_ctx, iov[i].iov_base, iov[i].iov_len);
+	sha512_final(&sha_ctx, ses->preauth_sha_hash);
 }

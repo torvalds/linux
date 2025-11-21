@@ -260,10 +260,7 @@ static int __init dm_ioa_init(void)
 
 static void __exit dm_ioa_exit(void)
 {
-	int ret = dm_unregister_path_selector(&ioa_ps);
-
-	if (ret < 0)
-		DMERR("unregister failed %d", ret);
+	dm_unregister_path_selector(&ioa_ps);
 }
 
 module_init(dm_ioa_init);

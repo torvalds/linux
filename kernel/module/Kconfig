@@ -460,6 +460,6 @@ config UNUSED_KSYMS_WHITELIST
 
 config MODULES_TREE_LOOKUP
 	def_bool y
-	depends on PERF_EVENTS || TRACING || CFI_CLANG
+	depends on PERF_EVENTS || TRACING || CFI
 
 endif # MODULES

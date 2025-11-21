@@ -14,12 +14,12 @@
 #define PUD_INDEX_SIZE  9
 #define PGD_INDEX_SIZE  9
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_INDEX_SIZE)
 #define PMD_TABLE_SIZE	(sizeof(pmd_t) << PMD_INDEX_SIZE)
 #define PUD_TABLE_SIZE	(sizeof(pud_t) << PUD_INDEX_SIZE)
 #define PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 #define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
 #define PTRS_PER_PMD	(1 << PMD_INDEX_SIZE)
@@ -57,7 +57,7 @@
 #define p4d_bad(p4d)		(p4d_val(p4d) == 0)
 #define p4d_present(p4d)	(p4d_val(p4d) != 0)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline pud_t *p4d_pgtable(p4d_t p4d)
 {
@@ -80,7 +80,7 @@ static inline p4d_t pte_p4d(pte_t pte)
 }
 extern struct page *p4d_page(p4d_t p4d);
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #define pud_ERROR(e) \
 	pr_err("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))

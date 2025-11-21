@@ -42,14 +42,14 @@
 		led-bus {
 			label = "bus";
 			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "off";
 		};
 
 		led-error {
 			label = "error";
 			gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "off";
 		};
 

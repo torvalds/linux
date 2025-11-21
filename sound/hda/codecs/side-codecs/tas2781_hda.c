@@ -18,6 +18,8 @@
 
 #include "tas2781_hda.h"
 
+#define CALIBRATION_DATA_AREA_NUM 2
+
 const efi_guid_t tasdev_fct_efi_guid[] = {
 	/* DELL */
 	EFI_GUID(0xcc92382d, 0x6337, 0x41cb, 0xa8, 0x8b, 0x8e, 0xce, 0x74,
@@ -30,6 +32,23 @@ const efi_guid_t tasdev_fct_efi_guid[] = {
 		0x31, 0x0a, 0x92),
 };
 EXPORT_SYMBOL_NS_GPL(tasdev_fct_efi_guid, "SND_HDA_SCODEC_TAS2781");
+
+/*
+ * The order of calibrated-data writing function is a bit different from the
+ * order in UEFI. Here is the conversion to match the order of calibrated-data
+ * writing function.
+ */
+static void cali_cnv(unsigned char *data, unsigned int base, int offset)
+{
+	struct cali_reg reg_data;
+
+	memcpy(&reg_data, &data[base], sizeof(reg_data));
+	/* the data order has to be swapped between r0_low_reg and inv0_reg */
+	swap(reg_data.r0_low_reg, reg_data.invr0_reg);
+
+	cpu_to_be32_array((__force __be32 *)(data + offset + 1),
+		(u32 *)&reg_data, TASDEV_CALIB_N);
+}
 
 static void tas2781_apply_calib(struct tasdevice_priv *p)
 {
@@ -101,8 +120,7 @@ static void tas2781_apply_calib(struct tasdevice_priv *p)
 
 				data[l] = k;
 				oft++;
-				for (i = 0; i < TASDEV_CALIB_N * 4; i++)
-					data[l + i + 1] = data[4 * oft + i];
+				cali_cnv(data, 4 * oft, l);
 				k++;
 			}
 		}
@@ -128,9 +146,8 @@ static void tas2781_apply_calib(struct tasdevice_priv *p)
 
 		for (j = p->ndev - 1; j >= 0; j--) {
 			l = j * (cali_data->cali_dat_sz_per_dev + 1);
-			for (i = TASDEV_CALIB_N * 4; i > 0 ; i--)
-				data[l + i] = data[p->index * 5 + i];
-			data[l+i] = j;
+			cali_cnv(data, cali_data->cali_dat_sz_per_dev * j, l);
+			data[l] = j;
 		}
 	}
 
@@ -160,36 +177,56 @@ int tas2781_save_calibration(struct tas2781_hda *hda)
 	 * manufactory.
 	 */
 	efi_guid_t efi_guid = tasdev_fct_efi_guid[LENOVO];
-	static efi_char16_t efi_name[] = TASDEVICE_CALIBRATION_DATA_NAME;
+	/*
+	 * Some devices save the calibrated data into L"CALI_DATA",
+	 * and others into L"SmartAmpCalibrationData".
+	 */
+	static efi_char16_t *efi_name[CALIBRATION_DATA_AREA_NUM] = {
+		L"CALI_DATA",
+		L"SmartAmpCalibrationData",
+	};
 	struct tasdevice_priv *p = hda->priv;
 	struct calidata *cali_data = &p->cali_data;
 	unsigned long total_sz = 0;
 	unsigned int attr, size;
 	unsigned char *data;
 	efi_status_t status;
+	int i;
+
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE)) {
+		dev_err(p->dev, "%s: NO EFI FOUND!\n", __func__);
+		return -EINVAL;
+	}
 
 	if (hda->catlog_id < LENOVO)
 		efi_guid = tasdev_fct_efi_guid[hda->catlog_id];
 
 	cali_data->cali_dat_sz_per_dev = 20;
 	size = p->ndev * (cali_data->cali_dat_sz_per_dev + 1);
-	/* Get real size of UEFI variable */
-	status = efi.get_variable(efi_name, &efi_guid, &attr, &total_sz, NULL);
-	cali_data->total_sz = total_sz > size ? total_sz : size;
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		/* Allocate data buffer of data_size bytes */
-		data = p->cali_data.data = devm_kzalloc(p->dev,
-			p->cali_data.total_sz, GFP_KERNEL);
-		if (!data) {
-			p->cali_data.total_sz = 0;
-			return -ENOMEM;
+	for (i = 0; i < CALIBRATION_DATA_AREA_NUM; i++) {
+		/* Get real size of UEFI variable */
+		status = efi.get_variable(efi_name[i], &efi_guid, &attr,
+			&total_sz, NULL);
+		cali_data->total_sz = total_sz > size ? total_sz : size;
+		if (status == EFI_BUFFER_TOO_SMALL) {
+			/* Allocate data buffer of data_size bytes */
+			data = cali_data->data = devm_kzalloc(p->dev,
+				cali_data->total_sz, GFP_KERNEL);
+			if (!data) {
+				status = -ENOMEM;
+				continue;
+			}
+			/* Get variable contents into buffer */
+			status = efi.get_variable(efi_name[i], &efi_guid,
+				&attr, &cali_data->total_sz, data);
 		}
-		/* Get variable contents into buffer */
-		status = efi.get_variable(efi_name, &efi_guid, &attr,
-			&p->cali_data.total_sz, data);
+		/* Check whether get the calibrated data */
+		if (status == EFI_SUCCESS)
+			break;
 	}
+
 	if (status != EFI_SUCCESS) {
-		p->cali_data.total_sz = 0;
+		cali_data->total_sz = 0;
 		return status;
 	}
 

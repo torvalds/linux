@@ -20,8 +20,7 @@ static const guid_t acpi_cxl_qtg_id_guid =
 	GUID_INIT(0xF365F9A6, 0xA7DE, 0x4071,
 		  0xA6, 0x6A, 0xB4, 0x0C, 0x0B, 0x4F, 0x8E, 0x52);
 
-
-static u64 cxl_xor_hpa_to_spa(struct cxl_root_decoder *cxlrd, u64 hpa)
+static u64 cxl_apply_xor_maps(struct cxl_root_decoder *cxlrd, u64 addr)
 {
 	struct cxl_cxims_data *cximsd = cxlrd->platform_data;
 	int hbiw = cxlrd->cxlsd.nr_targets;
@@ -30,19 +29,23 @@ static u64 cxl_xor_hpa_to_spa(struct cxl_root_decoder *cxlrd, u64 hpa)
 
 	/* No xormaps for host bridge interleave ways of 1 or 3 */
 	if (hbiw == 1 || hbiw == 3)
-		return hpa;
+		return addr;
 
 	/*
-	 * For root decoders using xormaps (hbiw: 2,4,6,8,12,16) restore
-	 * the position bit to its value before the xormap was applied at
-	 * HPA->DPA translation.
+	 * In regions using XOR interleave arithmetic the CXL HPA may not
+	 * be the same as the SPA. This helper performs the SPA->CXL HPA
+	 * or the CXL HPA->SPA translation. Since XOR is self-inverting,
+	 * so is this function.
+	 *
+	 * For root decoders using xormaps (hbiw: 2,4,6,8,12,16) applying the
+	 * xormaps will toggle a position bit.
 	 *
 	 * pos is the lowest set bit in an XORMAP
-	 * val is the XORALLBITS(HPA & XORMAP)
+	 * val is the XORALLBITS(addr & XORMAP)
 	 *
 	 * XORALLBITS: The CXL spec (3.1 Table 9-22) defines XORALLBITS
 	 * as an operation that outputs a single bit by XORing all the
-	 * bits in the input (hpa & xormap). Implement XORALLBITS using
+	 * bits in the input (addr & xormap). Implement XORALLBITS using
 	 * hweight64(). If the hamming weight is even the XOR of those
 	 * bits results in val==0, if odd the XOR result is val==1.
 	 */
@@ -51,11 +54,11 @@ static u64 cxl_xor_hpa_to_spa(struct cxl_root_decoder *cxlrd, u64 hpa)
 		if (!cximsd->xormaps[i])
 			continue;
 		pos = __ffs(cximsd->xormaps[i]);
-		val = (hweight64(hpa & cximsd->xormaps[i]) & 1);
-		hpa = (hpa & ~(1ULL << pos)) | (val << pos);
+		val = (hweight64(addr & cximsd->xormaps[i]) & 1);
+		addr = (addr & ~(1ULL << pos)) | (val << pos);
 	}
 
-	return hpa;
+	return addr;
 }
 
 struct cxl_cxims_context {
@@ -113,9 +116,9 @@ static unsigned long cfmws_to_decoder_flags(int restrictions)
 {
 	unsigned long flags = CXL_DECODER_F_ENABLE;
 
-	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_TYPE2)
+	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_DEVMEM)
 		flags |= CXL_DECODER_F_TYPE2;
-	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_TYPE3)
+	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM)
 		flags |= CXL_DECODER_F_TYPE3;
 	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_VOLATILE)
 		flags |= CXL_DECODER_F_RAM;
@@ -345,7 +348,7 @@ static int cxl_acpi_set_cache_size(struct cxl_root_decoder *cxlrd)
 	struct resource res;
 	int nid, rc;
 
-	res = DEFINE_RES(start, size, 0);
+	res = DEFINE_RES_MEM(start, size);
 	nid = phys_to_target_node(start);
 
 	rc = hmat_get_extended_linear_cache_size(&res, nid, &cache_size);
@@ -398,7 +401,6 @@ DEFINE_FREE(del_cxl_resource, struct resource *, if (_T) del_cxl_resource(_T))
 static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 			     struct cxl_cfmws_context *ctx)
 {
-	int target_map[CXL_DECODER_MAX_INTERLEAVE];
 	struct cxl_port *root_port = ctx->root_port;
 	struct cxl_cxims_context cxims_ctx;
 	struct device *dev = ctx->dev;
@@ -416,8 +418,6 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	rc = eig_to_granularity(cfmws->granularity, &ig);
 	if (rc)
 		return rc;
-	for (i = 0; i < ways; i++)
-		target_map[i] = cfmws->interleave_targets[i];
 
 	struct resource *res __free(del_cxl_resource) = alloc_cxl_resource(
 		cfmws->base_hpa, cfmws->window_size, ctx->id++);
@@ -443,6 +443,8 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 		.end = cfmws->base_hpa + cfmws->window_size - 1,
 	};
 	cxld->interleave_ways = ways;
+	for (i = 0; i < ways; i++)
+		cxld->target_map[i] = cfmws->interleave_targets[i];
 	/*
 	 * Minimize the x1 granularity to advertise support for any
 	 * valid region granularity
@@ -472,10 +474,16 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 
 	cxlrd->qos_class = cfmws->qtg_id;
 
-	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR)
-		cxlrd->hpa_to_spa = cxl_xor_hpa_to_spa;
+	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
+		cxlrd->ops = kzalloc(sizeof(*cxlrd->ops), GFP_KERNEL);
+		if (!cxlrd->ops)
+			return -ENOMEM;
 
-	rc = cxl_decoder_add(cxld, target_map);
+		cxlrd->ops->hpa_to_spa = cxl_apply_xor_maps;
+		cxlrd->ops->spa_to_hpa = cxl_apply_xor_maps;
+	}
+
+	rc = cxl_decoder_add(cxld);
 	if (rc)
 		return rc;
 

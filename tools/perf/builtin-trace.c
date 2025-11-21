@@ -196,6 +196,7 @@ struct trace {
 	unsigned int		max_stack;
 	unsigned int		min_stack;
 	enum trace_summary_mode	summary_mode;
+	int			max_summary;
 	int			raw_augmented_syscalls_args_size;
 	bool			raw_augmented_syscalls;
 	bool			fd_path_disabled;
@@ -4440,7 +4441,7 @@ create_maps:
 
 	if (trace->summary_mode == SUMMARY__BY_TOTAL && !trace->summary_bpf) {
 		trace->syscall_stats = alloc_syscall_stats();
-		if (trace->syscall_stats == NULL)
+		if (IS_ERR(trace->syscall_stats))
 			goto out_delete_evlist;
 	}
 
@@ -4599,7 +4600,7 @@ out_disable:
 	if (!err) {
 		if (trace->summary) {
 			if (trace->summary_bpf)
-				trace_print_bpf_summary(trace->output);
+				trace_print_bpf_summary(trace->output, trace->max_summary);
 			else if (trace->summary_mode == SUMMARY__BY_TOTAL)
 				trace__fprintf_total_summary(trace, trace->output);
 			else
@@ -4748,7 +4749,7 @@ static int trace__replay(struct trace *trace)
 
 	if (trace->summary_mode == SUMMARY__BY_TOTAL) {
 		trace->syscall_stats = alloc_syscall_stats();
-		if (trace->syscall_stats == NULL)
+		if (IS_ERR(trace->syscall_stats))
 			goto out;
 	}
 
@@ -4822,6 +4823,7 @@ static size_t syscall__dump_stats(struct trace *trace, int e_machine, FILE *fp,
 				  struct hashmap *syscall_stats)
 {
 	size_t printed = 0;
+	int lines = 0;
 	struct syscall *sc;
 	struct syscall_entry *entries;
 
@@ -4866,7 +4868,11 @@ static size_t syscall__dump_stats(struct trace *trace, int e_machine, FILE *fp,
 						fprintf(fp, "\t\t\t\t%s: %d\n", perf_env__arch_strerrno(trace->host->env, e + 1), stats->errnos[e]);
 				}
 			}
+			lines++;
 		}
+
+		if (trace->max_summary && trace->max_summary <= lines)
+			break;
 	}
 
 	free(entries);
@@ -5443,6 +5449,8 @@ int cmd_trace(int argc, const char **argv)
 	OPT_BOOLEAN(0, "force-btf", &trace.force_btf, "Prefer btf_dump general pretty printer"
 		       "to customized ones"),
 	OPT_BOOLEAN(0, "bpf-summary", &trace.summary_bpf, "Summary syscall stats in BPF"),
+	OPT_INTEGER(0, "max-summary", &trace.max_summary,
+		     "Max number of entries in the summary."),
 	OPTS_EVSWITCH(&trace.evswitch),
 	OPT_END()
 	};

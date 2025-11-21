@@ -125,7 +125,7 @@ static inline void *memscan(void *s, int c, size_t n)
 	asm volatile(
 		"	lgr	0,%[c]\n"
 		"0:	srst	%[ret],%[s]\n"
-		"	jo	0b\n"
+		"	jo	0b"
 		: [ret] "+&a" (ret), [s] "+&a" (s)
 		: [c] "d" (c)
 		: "cc", "memory", "0");

@@ -178,11 +178,6 @@ DEFINE_EVENT(cdnsp_log_simple, cdnsp_ep0_set_config,
 	TP_ARGS(msg)
 );
 
-DEFINE_EVENT(cdnsp_log_simple, cdnsp_ep0_halted,
-	TP_PROTO(char *msg),
-	TP_ARGS(msg)
-);
-
 DEFINE_EVENT(cdnsp_log_simple, cdnsp_ep_halt,
 	TP_PROTO(char *msg),
 	TP_ARGS(msg)
@@ -399,11 +394,6 @@ DEFINE_EVENT(cdnsp_log_trb, cdnsp_cmd_timeout,
 	TP_ARGS(ring, trb)
 );
 
-DEFINE_EVENT(cdnsp_log_trb, cdnsp_defered_event,
-	TP_PROTO(struct cdnsp_ring *ring, struct cdnsp_generic_trb *trb),
-	TP_ARGS(ring, trb)
-);
-
 DECLARE_EVENT_CLASS(cdnsp_log_pdev,
 	TP_PROTO(struct cdnsp_device *pdev),
 	TP_ARGS(pdev),
@@ -429,16 +419,6 @@ DECLARE_EVENT_CLASS(cdnsp_log_pdev,
 );
 
 DEFINE_EVENT(cdnsp_log_pdev, cdnsp_alloc_priv_device,
-	TP_PROTO(struct cdnsp_device *vdev),
-	TP_ARGS(vdev)
-);
-
-DEFINE_EVENT(cdnsp_log_pdev, cdnsp_free_priv_device,
-	TP_PROTO(struct cdnsp_device *vdev),
-	TP_ARGS(vdev)
-);
-
-DEFINE_EVENT(cdnsp_log_pdev, cdnsp_setup_device,
 	TP_PROTO(struct cdnsp_device *vdev),
 	TP_ARGS(vdev)
 );
@@ -571,11 +551,6 @@ DEFINE_EVENT(cdnsp_log_ep_ctx, cdnsp_remove_request,
 );
 
 DEFINE_EVENT(cdnsp_log_ep_ctx, cdnsp_handle_cmd_stop_ep,
-	TP_PROTO(struct cdnsp_ep_ctx *ctx),
-	TP_ARGS(ctx)
-);
-
-DEFINE_EVENT(cdnsp_log_ep_ctx, cdnsp_handle_cmd_flush_ep,
 	TP_PROTO(struct cdnsp_ep_ctx *ctx),
 	TP_ARGS(ctx)
 );

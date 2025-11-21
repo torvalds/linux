@@ -682,8 +682,8 @@ done:
 		return 0;
 
 	dev_dbg(walk->mdev->dev,
-		"media pipeline: adding unconnected pads of '%s'\n",
-		local->entity->name);
+		"media pipeline: adding unconnected pads of '%s' reachable from pad %u\n",
+		origin->entity->name, origin->index);
 
 	media_entity_for_each_pad(origin->entity, local) {
 		/*
@@ -691,7 +691,7 @@ done:
 		 * (already discovered through iterating over links) and pads
 		 * not internally connected.
 		 */
-		if (origin == local || !local->num_links ||
+		if (origin == local || local->num_links ||
 		    !media_entity_has_pad_interdep(origin->entity, origin->index,
 						   local->index))
 			continue;

@@ -764,12 +764,11 @@ static void azx_clear_irq_pending(struct azx *chip)
 	struct hdac_bus *bus = azx_bus(chip);
 	struct hdac_stream *s;
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	list_for_each_entry(s, &bus->stream_list, list) {
 		struct azx_dev *azx_dev = stream_to_azx_dev(s);
 		azx_dev->irq_pending = 0;
 	}
-	spin_unlock_irq(&bus->reg_lock);
 }
 
 static int azx_acquire_irq(struct azx *chip, int do_disconnect)
@@ -915,17 +914,17 @@ static void azx_shutdown_chip(struct azx *chip)
 static void azx_add_card_list(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
-	mutex_lock(&card_list_lock);
+
+	guard(mutex)(&card_list_lock);
 	list_add(&hda->list, &card_list);
-	mutex_unlock(&card_list_lock);
 }
 
 static void azx_del_card_list(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
-	mutex_lock(&card_list_lock);
+
+	guard(mutex)(&card_list_lock);
 	list_del_init(&hda->list);
-	mutex_unlock(&card_list_lock);
 }
 
 /* trigger power-save check at writing parameter */
@@ -942,7 +941,7 @@ static int __maybe_unused param_set_xint(const char *val, const struct kernel_pa
 	if (pm_blacklist > 0)
 		return 0;
 
-	mutex_lock(&card_list_lock);
+	guard(mutex)(&card_list_lock);
 	list_for_each_entry(hda, &card_list, list) {
 		chip = &hda->chip;
 		if (!hda->probe_continued || chip->disabled ||
@@ -950,7 +949,6 @@ static int __maybe_unused param_set_xint(const char *val, const struct kernel_pa
 			continue;
 		snd_hda_set_power_save(&chip->bus, power_save * 1000);
 	}
-	mutex_unlock(&card_list_lock);
 	return 0;
 }
 
@@ -2077,7 +2075,7 @@ static const struct pci_device_id driver_denylist[] = {
 	{ PCI_DEVICE_SUB(0x1022, 0x1487, 0x1043, 0x874f) }, /* ASUS ROG Zenith II / Strix */
 	{ PCI_DEVICE_SUB(0x1022, 0x1487, 0x1462, 0xcb59) }, /* MSI TRX40 Creator */
 	{ PCI_DEVICE_SUB(0x1022, 0x1487, 0x1462, 0xcb60) }, /* MSI TRX40 */
-	{ PCI_DEVICE_SUB(0x1022, 0x15e3, 0x1022, 0xd601) }, /* ASRock X670E Taichi */
+	{ PCI_DEVICE_SUB(0x1022, 0x15e3, 0x1462, 0xee59) }, /* MSI X870E Tomahawk WiFi */
 	{}
 };
 

@@ -24,6 +24,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/page-states.h>
+#include <asm/pgtable.h>
 #include <asm/machine.h>
 
 pgprot_t pgprot_writecombine(pgprot_t prot)
@@ -113,28 +114,6 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 		ptep_ipte_global(mm, addr, ptep, nodat);
 	atomic_dec(&mm->context.flush_count);
 	return old;
-}
-
-static inline pgste_t pgste_get_lock(pte_t *ptep)
-{
-	unsigned long value = 0;
-#ifdef CONFIG_PGSTE
-	unsigned long *ptr = (unsigned long *)(ptep + PTRS_PER_PTE);
-
-	do {
-		value = __atomic64_or_barrier(PGSTE_PCL_BIT, ptr);
-	} while (value & PGSTE_PCL_BIT);
-	value |= PGSTE_PCL_BIT;
-#endif
-	return __pgste(value);
-}
-
-static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
-{
-#ifdef CONFIG_PGSTE
-	barrier();
-	WRITE_ONCE(*(unsigned long *)(ptep + PTRS_PER_PTE), pgste_val(pgste) & ~PGSTE_PCL_BIT);
-#endif
 }
 
 static inline pgste_t pgste_get(pte_t *ptep)
@@ -335,7 +314,6 @@ pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
 	int nodat;
 	struct mm_struct *mm = vma->vm_mm;
 
-	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
 	old = ptep_flush_lazy(mm, addr, ptep, nodat);
@@ -360,7 +338,6 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 	} else {
 		set_pte(ptep, pte);
 	}
-	preempt_enable();
 }
 
 static inline void pmdp_idte_local(struct mm_struct *mm,

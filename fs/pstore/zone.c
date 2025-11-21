@@ -43,7 +43,7 @@ struct psz_buffer {
  *
  * @magic: magic num for kmsg dump header
  * @time: kmsg dump trigger time
- * @compressed: whether conpressed
+ * @compressed: whether compressed
  * @counter: kmsg dump counter
  * @reason: the kmsg dump reason (e.g. oops, panic, etc)
  * @data: pointer to log data
@@ -214,7 +214,7 @@ static int psz_zone_write(struct pstore_zone *zone,
 		atomic_set(&zone->buffer->datalen, wlen + off);
 	}
 
-	/* avoid to damage old records */
+	/* avoid damaging old records */
 	if (!is_on_panic() && !atomic_read(&pstore_zone_cxt.recovered))
 		goto dirty;
 
@@ -249,7 +249,7 @@ static int psz_zone_write(struct pstore_zone *zone,
 
 	return 0;
 dirty:
-	/* no need to mark dirty if going to try next zone */
+	/* no need to mark it dirty if going to try next zone */
 	if (wcnt == -ENOMSG)
 		return -ENOMSG;
 	atomic_set(&zone->dirty, true);
@@ -378,7 +378,7 @@ static int psz_kmsg_recover_meta(struct psz_context *cxt)
 	struct timespec64 time = { };
 	unsigned long i;
 	/*
-	 * Recover may on panic, we can't allocate any memory by kmalloc.
+	 * Recover may happen on panic, we can't allocate any memory by kmalloc.
 	 * So, we use local array instead.
 	 */
 	char buffer_header[sizeof(*buf) + sizeof(*hdr)] = {0};
@@ -856,11 +856,11 @@ static int notrace psz_record_write(struct pstore_zone *zone,
 
 	/**
 	 * psz_zone_write will set datalen as start + cnt.
-	 * It work if actual data length lesser than buffer size.
-	 * If data length greater than buffer size, pmsg will rewrite to
-	 * beginning of zone, which make buffer->datalen wrongly.
+	 * It works if actual data length is lesser than buffer size.
+	 * If data length is greater than buffer size, pmsg will rewrite to
+	 * the beginning of the zone, which makes buffer->datalen wrong.
 	 * So we should reset datalen as buffer size once actual data length
-	 * greater than buffer size.
+	 * is greater than buffer size.
 	 */
 	if (is_full_data) {
 		atomic_set(&zone->buffer->datalen, zone->buffer_size);
@@ -878,8 +878,9 @@ static int notrace psz_pstore_write(struct pstore_record *record)
 		atomic_set(&cxt->on_panic, 1);
 
 	/*
-	 * if on panic, do not write except panic records
-	 * Fix case that panic_write prints log which wakes up console backend.
+	 * If on panic, do not write anything except panic records.
+	 * Fix the case when panic_write prints log that wakes up
+	 * console backend.
 	 */
 	if (is_on_panic() && record->type != PSTORE_TYPE_DMESG)
 		return -EBUSY;

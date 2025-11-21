@@ -8,7 +8,7 @@
 #ifndef _BPF_JIT_H
 #define _BPF_JIT_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/types.h>
 #include <asm/ppc-opcode.h>
@@ -161,9 +161,11 @@ struct codegen_context {
 	unsigned int seen;
 	unsigned int idx;
 	unsigned int stack_size;
-	int b2p[MAX_BPF_JIT_REG + 2];
+	int b2p[MAX_BPF_JIT_REG + 3];
 	unsigned int exentry_idx;
 	unsigned int alt_exit_addr;
+	u64 arena_vm_start;
+	u64 user_vm_start;
 };
 
 #define bpf_to_ppc(r)	(ctx->b2p[r])
@@ -201,7 +203,7 @@ int bpf_jit_emit_exit_insn(u32 *image, struct codegen_context *ctx, int tmp_reg,
 
 int bpf_add_extable_entry(struct bpf_prog *fp, u32 *image, u32 *fimage, int pass,
 			  struct codegen_context *ctx, int insn_idx,
-			  int jmp_off, int dst_reg);
+			  int jmp_off, int dst_reg, u32 code);
 
 #endif
 

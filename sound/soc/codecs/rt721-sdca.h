@@ -56,6 +56,7 @@ struct rt721_sdca_dmic_kctrl_priv {
 #define RT721_CBJ_CTRL				0x0a
 #define RT721_CAP_PORT_CTRL			0x0c
 #define RT721_CLASD_AMP_CTRL			0x0d
+#define RT721_BOOST_CTRL			0x0f
 #define RT721_VENDOR_REG			0x20
 #define RT721_RC_CALIB_CTRL			0x40
 #define RT721_VENDOR_EQ_L			0x53
@@ -92,6 +93,9 @@ struct rt721_sdca_dmic_kctrl_priv {
 
 /* Index (NID:0dh) */
 #define RT721_CLASD_AMP_2CH_CAL			0x14
+
+/* Index (NID:0fh) */
+#define RT721_BST_4CH_TOP_GATING_CTRL1		0x05
 
 /* Index (NID:20h) */
 #define RT721_JD_PRODUCT_NUM			0x00
@@ -133,6 +137,7 @@ struct rt721_sdca_dmic_kctrl_priv {
 #define RT721_HDA_LEGACY_UAJ_CTL		0x02
 #define RT721_HDA_LEGACY_CTL1			0x05
 #define RT721_HDA_LEGACY_RESET_CTL		0x06
+#define RT721_MISC_CTL				0x07
 #define RT721_XU_REL_CTRL			0x0c
 #define RT721_GE_REL_CTRL1			0x0d
 #define RT721_HDA_LEGACY_GPIO_WAKE_EN_CTL	0x0e

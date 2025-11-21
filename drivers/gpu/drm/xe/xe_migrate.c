@@ -9,6 +9,7 @@
 #include <linux/sizes.h>
 
 #include <drm/drm_managed.h>
+#include <drm/drm_pagemap.h>
 #include <drm/ttm/ttm_tt.h>
 #include <uapi/drm/xe_drm.h>
 
@@ -30,10 +31,13 @@
 #include "xe_mocs.h"
 #include "xe_pt.h"
 #include "xe_res_cursor.h"
+#include "xe_sa.h"
 #include "xe_sched_job.h"
 #include "xe_sync.h"
 #include "xe_trace_bo.h"
+#include "xe_validation.h"
 #include "xe_vm.h"
+#include "xe_vram.h"
 
 /**
  * struct xe_migrate - migrate context.
@@ -84,19 +88,6 @@ struct xe_migrate {
  */
 #define MAX_PTE_PER_SDI 0x1FEU
 
-/**
- * xe_tile_migrate_exec_queue() - Get this tile's migrate exec queue.
- * @tile: The tile.
- *
- * Returns the default migrate exec queue of this tile.
- *
- * Return: The default migrate exec queue
- */
-struct xe_exec_queue *xe_tile_migrate_exec_queue(struct xe_tile *tile)
-{
-	return tile->migrate->q;
-}
-
 static void xe_migrate_fini(void *arg)
 {
 	struct xe_migrate *m = arg;
@@ -130,38 +121,39 @@ static u64 xe_migrate_vram_ofs(struct xe_device *xe, u64 addr, bool is_comp_pte)
 	u64 identity_offset = IDENTITY_OFFSET;
 
 	if (GRAPHICS_VER(xe) >= 20 && is_comp_pte)
-		identity_offset += DIV_ROUND_UP_ULL(xe->mem.vram.actual_physical_size, SZ_1G);
+		identity_offset += DIV_ROUND_UP_ULL(xe_vram_region_actual_physical_size
+							(xe->mem.vram), SZ_1G);
 
-	addr -= xe->mem.vram.dpa_base;
+	addr -= xe_vram_region_dpa_base(xe->mem.vram);
 	return addr + (identity_offset << xe_pt_shift(2));
 }
 
 static void xe_migrate_program_identity(struct xe_device *xe, struct xe_vm *vm, struct xe_bo *bo,
 					u64 map_ofs, u64 vram_offset, u16 pat_index, u64 pt_2m_ofs)
 {
+	struct xe_vram_region *vram = xe->mem.vram;
+	resource_size_t dpa_base = xe_vram_region_dpa_base(vram);
 	u64 pos, ofs, flags;
 	u64 entry;
 	/* XXX: Unclear if this should be usable_size? */
-	u64 vram_limit =  xe->mem.vram.actual_physical_size +
-		xe->mem.vram.dpa_base;
+	u64 vram_limit = xe_vram_region_actual_physical_size(vram) + dpa_base;
 	u32 level = 2;
 
 	ofs = map_ofs + XE_PAGE_SIZE * level + vram_offset * 8;
 	flags = vm->pt_ops->pte_encode_addr(xe, 0, pat_index, level,
 					    true, 0);
 
-	xe_assert(xe, IS_ALIGNED(xe->mem.vram.usable_size, SZ_2M));
+	xe_assert(xe, IS_ALIGNED(xe_vram_region_usable_size(vram), SZ_2M));
 
 	/*
 	 * Use 1GB pages when possible, last chunk always use 2M
 	 * pages as mixing reserved memory (stolen, WOCPM) with a single
 	 * mapping is not allowed on certain platforms.
 	 */
-	for (pos = xe->mem.vram.dpa_base; pos < vram_limit;
+	for (pos = dpa_base; pos < vram_limit;
 	     pos += SZ_1G, ofs += 8) {
 		if (pos + SZ_1G >= vram_limit) {
-			entry = vm->pt_ops->pde_encode_bo(bo, pt_2m_ofs,
-							  pat_index);
+			entry = vm->pt_ops->pde_encode_bo(bo, pt_2m_ofs);
 			xe_map_wr(xe, &bo->vmap, ofs, u64, entry);
 
 			flags = vm->pt_ops->pte_encode_addr(xe, 0,
@@ -182,7 +174,7 @@ static void xe_migrate_program_identity(struct xe_device *xe, struct xe_vm *vm, 
 }
 
 static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
-				 struct xe_vm *vm)
+				 struct xe_vm *vm, struct drm_exec *exec)
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	u16 pat_index = xe->pat.idx[XE_CACHE_WB];
@@ -209,13 +201,13 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 				  num_entries * XE_PAGE_SIZE,
 				  ttm_bo_type_kernel,
 				  XE_BO_FLAG_VRAM_IF_DGFX(tile) |
-				  XE_BO_FLAG_PAGETABLE);
+				  XE_BO_FLAG_PAGETABLE, exec);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
 	/* PT30 & PT31 reserved for 2M identity map */
 	pt29_ofs = xe_bo_size(bo) - 3 * XE_PAGE_SIZE;
-	entry = vm->pt_ops->pde_encode_bo(bo, pt29_ofs, pat_index);
+	entry = vm->pt_ops->pde_encode_bo(bo, pt29_ofs);
 	xe_pt_write(xe, &vm->pt_root[id]->bo->vmap, 0, entry);
 
 	map_ofs = (num_entries - num_setup) * XE_PAGE_SIZE;
@@ -283,15 +275,14 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 			flags = XE_PDE_64K;
 
 		entry = vm->pt_ops->pde_encode_bo(bo, map_ofs + (u64)(level - 1) *
-						  XE_PAGE_SIZE, pat_index);
+						  XE_PAGE_SIZE);
 		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE * level, u64,
 			  entry | flags);
 	}
 
 	/* Write PDE's that point to our BO. */
-	for (i = 0; i < map_ofs / PAGE_SIZE; i++) {
-		entry = vm->pt_ops->pde_encode_bo(bo, (u64)i * XE_PAGE_SIZE,
-						  pat_index);
+	for (i = 0; i < map_ofs / XE_PAGE_SIZE; i++) {
+		entry = vm->pt_ops->pde_encode_bo(bo, (u64)i * XE_PAGE_SIZE);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE +
 			  (i + 1) * 8, u64, entry);
@@ -307,11 +298,11 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	/* Identity map the entire vram at 256GiB offset */
 	if (IS_DGFX(xe)) {
 		u64 pt30_ofs = xe_bo_size(bo) - 2 * XE_PAGE_SIZE;
+		resource_size_t actual_phy_size = xe_vram_region_actual_physical_size(xe->mem.vram);
 
 		xe_migrate_program_identity(xe, vm, bo, map_ofs, IDENTITY_OFFSET,
 					    pat_index, pt30_ofs);
-		xe_assert(xe, xe->mem.vram.actual_physical_size <=
-					(MAX_NUM_PTE - IDENTITY_OFFSET) * SZ_1G);
+		xe_assert(xe, actual_phy_size <= (MAX_NUM_PTE - IDENTITY_OFFSET) * SZ_1G);
 
 		/*
 		 * Identity map the entire vram for compressed pat_index for xe2+
@@ -320,11 +311,11 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		if (GRAPHICS_VER(xe) >= 20 && xe_device_has_flat_ccs(xe)) {
 			u16 comp_pat_index = xe->pat.idx[XE_CACHE_NONE_COMPRESSION];
 			u64 vram_offset = IDENTITY_OFFSET +
-				DIV_ROUND_UP_ULL(xe->mem.vram.actual_physical_size, SZ_1G);
+				DIV_ROUND_UP_ULL(actual_phy_size, SZ_1G);
 			u64 pt31_ofs = xe_bo_size(bo) - XE_PAGE_SIZE;
 
-			xe_assert(xe, xe->mem.vram.actual_physical_size <= (MAX_NUM_PTE -
-						IDENTITY_OFFSET - IDENTITY_OFFSET / 2) * SZ_1G);
+			xe_assert(xe, actual_phy_size <= (MAX_NUM_PTE - IDENTITY_OFFSET -
+							  IDENTITY_OFFSET / 2) * SZ_1G);
 			xe_migrate_program_identity(xe, vm, bo, map_ofs, vram_offset,
 						    comp_pat_index, pt31_ofs);
 		}
@@ -387,38 +378,63 @@ static bool xe_migrate_needs_ccs_emit(struct xe_device *xe)
 }
 
 /**
- * xe_migrate_init() - Initialize a migrate context
- * @tile: Back-pointer to the tile we're initializing for.
+ * xe_migrate_alloc - Allocate a migrate struct for a given &xe_tile
+ * @tile: &xe_tile
  *
- * Return: Pointer to a migrate context on success. Error pointer on error.
+ * Allocates a &xe_migrate for a given tile.
+ *
+ * Return: &xe_migrate on success, or NULL when out of memory.
  */
-struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
+struct xe_migrate *xe_migrate_alloc(struct xe_tile *tile)
+{
+	struct xe_migrate *m = drmm_kzalloc(&tile_to_xe(tile)->drm, sizeof(*m), GFP_KERNEL);
+
+	if (m)
+		m->tile = tile;
+	return m;
+}
+
+static int xe_migrate_lock_prepare_vm(struct xe_tile *tile, struct xe_migrate *m, struct xe_vm *vm)
 {
 	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_validation_ctx ctx;
+	struct drm_exec exec;
+	int err = 0;
+
+	xe_validation_guard(&ctx, &xe->val, &exec, (struct xe_val_flags) {}, err) {
+		err = xe_vm_drm_exec_lock(vm, &exec);
+		drm_exec_retry_on_contention(&exec);
+		err = xe_migrate_prepare_vm(tile, m, vm, &exec);
+		drm_exec_retry_on_contention(&exec);
+		xe_validation_retry_on_oom(&ctx, &err);
+	}
+
+	return err;
+}
+
+/**
+ * xe_migrate_init() - Initialize a migrate context
+ * @m: The migration context
+ *
+ * Return: 0 if successful, negative error code on failure
+ */
+int xe_migrate_init(struct xe_migrate *m)
+{
+	struct xe_tile *tile = m->tile;
 	struct xe_gt *primary_gt = tile->primary_gt;
-	struct xe_migrate *m;
+	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_vm *vm;
 	int err;
 
-	m = devm_kzalloc(xe->drm.dev, sizeof(*m), GFP_KERNEL);
-	if (!m)
-		return ERR_PTR(-ENOMEM);
-
-	m->tile = tile;
-
 	/* Special layout, prepared below.. */
 	vm = xe_vm_create(xe, XE_VM_FLAG_MIGRATION |
-			  XE_VM_FLAG_SET_TILE_ID(tile));
+			  XE_VM_FLAG_SET_TILE_ID(tile), NULL);
 	if (IS_ERR(vm))
-		return ERR_CAST(vm);
+		return PTR_ERR(vm);
 
-	xe_vm_lock(vm, false);
-	err = xe_migrate_prepare_vm(tile, m, vm);
-	xe_vm_unlock(vm);
-	if (err) {
-		xe_vm_close_and_put(vm);
-		return ERR_PTR(err);
-	}
+	err = xe_migrate_lock_prepare_vm(tile, m, vm);
+	if (err)
+		goto err_out;
 
 	if (xe->info.has_usm) {
 		struct xe_hw_engine *hwe = xe_gt_hw_engine(primary_gt,
@@ -427,8 +443,10 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 							   false);
 		u32 logical_mask = xe_migrate_usm_logical_mask(primary_gt);
 
-		if (!hwe || !logical_mask)
-			return ERR_PTR(-EINVAL);
+		if (!hwe || !logical_mask) {
+			err = -EINVAL;
+			goto err_out;
+		}
 
 		/*
 		 * XXX: Currently only reserving 1 (likely slow) BCS instance on
@@ -437,16 +455,18 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 		m->q = xe_exec_queue_create(xe, vm, logical_mask, 1, hwe,
 					    EXEC_QUEUE_FLAG_KERNEL |
 					    EXEC_QUEUE_FLAG_PERMANENT |
-					    EXEC_QUEUE_FLAG_HIGH_PRIORITY, 0);
+					    EXEC_QUEUE_FLAG_HIGH_PRIORITY |
+					    EXEC_QUEUE_FLAG_MIGRATE, 0);
 	} else {
 		m->q = xe_exec_queue_create_class(xe, primary_gt, vm,
 						  XE_ENGINE_CLASS_COPY,
 						  EXEC_QUEUE_FLAG_KERNEL |
-						  EXEC_QUEUE_FLAG_PERMANENT, 0);
+						  EXEC_QUEUE_FLAG_PERMANENT |
+						  EXEC_QUEUE_FLAG_MIGRATE, 0);
 	}
 	if (IS_ERR(m->q)) {
-		xe_vm_close_and_put(vm);
-		return ERR_CAST(m->q);
+		err = PTR_ERR(m->q);
+		goto err_out;
 	}
 
 	mutex_init(&m->job_mutex);
@@ -456,7 +476,7 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 
 	err = devm_add_action_or_reset(xe->drm.dev, xe_migrate_fini, m);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	if (IS_DGFX(xe)) {
 		if (xe_migrate_needs_ccs_emit(xe))
@@ -471,7 +491,12 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 			(unsigned long long)m->min_chunk_size);
 	}
 
-	return m;
+	return err;
+
+err_out:
+	xe_vm_close_and_put(vm);
+	return err;
+
 }
 
 static u64 max_mem_transfer_per_pass(struct xe_device *xe)
@@ -834,11 +859,15 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 		batch_size += pte_update_size(m, pte_flags, src, &src_it, &src_L0,
 					      &src_L0_ofs, &src_L0_pt, 0, 0,
 					      avail_pts);
-
-		pte_flags = dst_is_vram ? PTE_UPDATE_FLAG_IS_VRAM : 0;
-		batch_size += pte_update_size(m, pte_flags, dst, &dst_it, &src_L0,
-					      &dst_L0_ofs, &dst_L0_pt, 0,
-					      avail_pts, avail_pts);
+		if (copy_only_ccs) {
+			dst_L0_ofs = src_L0_ofs;
+		} else {
+			pte_flags = dst_is_vram ? PTE_UPDATE_FLAG_IS_VRAM : 0;
+			batch_size += pte_update_size(m, pte_flags, dst,
+						      &dst_it, &src_L0,
+						      &dst_L0_ofs, &dst_L0_pt,
+						      0, avail_pts, avail_pts);
+		}
 
 		if (copy_system_ccs) {
 			xe_assert(xe, type_device);
@@ -868,7 +897,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 
 		if (dst_is_vram && xe_migrate_allow_identity(src_L0, &dst_it))
 			xe_res_next(&dst_it, src_L0);
-		else
+		else if (!copy_only_ccs)
 			emit_pte(m, bb, dst_L0_pt, dst_is_vram, copy_system_ccs,
 				 &dst_it, src_L0, dst);
 
@@ -896,11 +925,11 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 			goto err;
 		}
 
-		xe_sched_job_add_migrate_flush(job, flush_flags);
+		xe_sched_job_add_migrate_flush(job, flush_flags | MI_INVALIDATE_TLB);
 		if (!fence) {
 			err = xe_sched_job_add_deps(job, src_bo->ttm.base.resv,
 						    DMA_RESV_USAGE_BOOKKEEP);
-			if (!err && src_bo != dst_bo)
+			if (!err && src_bo->ttm.base.resv != dst_bo->ttm.base.resv)
 				err = xe_sched_job_add_deps(job, dst_bo->ttm.base.resv,
 							    DMA_RESV_USAGE_BOOKKEEP);
 			if (err)
@@ -938,6 +967,167 @@ err_sync:
 	}
 
 	return fence;
+}
+
+/**
+ * xe_migrate_lrc() - Get the LRC from migrate context.
+ * @migrate: Migrate context.
+ *
+ * Return: Pointer to LRC on success, error on failure
+ */
+struct xe_lrc *xe_migrate_lrc(struct xe_migrate *migrate)
+{
+	return migrate->q->lrc[0];
+}
+
+static int emit_flush_invalidate(struct xe_exec_queue *q, u32 *dw, int i,
+				 u32 flags)
+{
+	struct xe_lrc *lrc = xe_exec_queue_lrc(q);
+	dw[i++] = MI_FLUSH_DW | MI_INVALIDATE_TLB | MI_FLUSH_DW_OP_STOREDW |
+		  MI_FLUSH_IMM_DW | flags;
+	dw[i++] = lower_32_bits(xe_lrc_start_seqno_ggtt_addr(lrc)) |
+		  MI_FLUSH_DW_USE_GTT;
+	dw[i++] = upper_32_bits(xe_lrc_start_seqno_ggtt_addr(lrc));
+	dw[i++] = MI_NOOP;
+	dw[i++] = MI_NOOP;
+
+	return i;
+}
+
+/**
+ * xe_migrate_ccs_rw_copy() - Copy content of TTM resources.
+ * @tile: Tile whose migration context to be used.
+ * @q : Execution to be used along with migration context.
+ * @src_bo: The buffer object @src is currently bound to.
+ * @read_write : Creates BB commands for CCS read/write.
+ *
+ * Creates batch buffer instructions to copy CCS metadata from CCS pool to
+ * memory and vice versa.
+ *
+ * This function should only be called for IGPU.
+ *
+ * Return: 0 if successful, negative error code on failure.
+ */
+int xe_migrate_ccs_rw_copy(struct xe_tile *tile, struct xe_exec_queue *q,
+			   struct xe_bo *src_bo,
+			   enum xe_sriov_vf_ccs_rw_ctxs read_write)
+
+{
+	bool src_is_pltt = read_write == XE_SRIOV_VF_CCS_READ_CTX;
+	bool dst_is_pltt = read_write == XE_SRIOV_VF_CCS_WRITE_CTX;
+	struct ttm_resource *src = src_bo->ttm.resource;
+	struct xe_migrate *m = tile->migrate;
+	struct xe_gt *gt = tile->primary_gt;
+	u32 batch_size, batch_size_allocated;
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_res_cursor src_it, ccs_it;
+	u64 size = xe_bo_size(src_bo);
+	struct xe_bb *bb = NULL;
+	u64 src_L0, src_L0_ofs;
+	u32 src_L0_pt;
+	int err;
+
+	xe_res_first_sg(xe_bo_sg(src_bo), 0, size, &src_it);
+
+	xe_res_first_sg(xe_bo_sg(src_bo), xe_bo_ccs_pages_start(src_bo),
+			PAGE_ALIGN(xe_device_ccs_bytes(xe, size)),
+			&ccs_it);
+
+	/* Calculate Batch buffer size */
+	batch_size = 0;
+	while (size) {
+		batch_size += 10; /* Flush + ggtt addr + 2 NOP */
+		u64 ccs_ofs, ccs_size;
+		u32 ccs_pt;
+
+		u32 avail_pts = max_mem_transfer_per_pass(xe) / LEVEL0_PAGE_TABLE_ENCODE_SIZE;
+
+		src_L0 = min_t(u64, max_mem_transfer_per_pass(xe), size);
+
+		batch_size += pte_update_size(m, false, src, &src_it, &src_L0,
+					      &src_L0_ofs, &src_L0_pt, 0, 0,
+					      avail_pts);
+
+		ccs_size = xe_device_ccs_bytes(xe, src_L0);
+		batch_size += pte_update_size(m, 0, NULL, &ccs_it, &ccs_size, &ccs_ofs,
+					      &ccs_pt, 0, avail_pts, avail_pts);
+		xe_assert(xe, IS_ALIGNED(ccs_it.start, PAGE_SIZE));
+
+		/* Add copy commands size here */
+		batch_size += EMIT_COPY_CCS_DW;
+
+		size -= src_L0;
+	}
+
+	bb = xe_bb_ccs_new(gt, batch_size, read_write);
+	if (IS_ERR(bb)) {
+		drm_err(&xe->drm, "BB allocation failed.\n");
+		err = PTR_ERR(bb);
+		goto err_ret;
+	}
+
+	batch_size_allocated = batch_size;
+	size = xe_bo_size(src_bo);
+	batch_size = 0;
+
+	/*
+	 * Emit PTE and copy commands here.
+	 * The CCS copy command can only support limited size. If the size to be
+	 * copied is more than the limit, divide copy into chunks. So, calculate
+	 * sizes here again before copy command is emitted.
+	 */
+	while (size) {
+		batch_size += 10; /* Flush + ggtt addr + 2 NOP */
+		u32 flush_flags = 0;
+		u64 ccs_ofs, ccs_size;
+		u32 ccs_pt;
+
+		u32 avail_pts = max_mem_transfer_per_pass(xe) / LEVEL0_PAGE_TABLE_ENCODE_SIZE;
+
+		src_L0 = xe_migrate_res_sizes(m, &src_it);
+
+		batch_size += pte_update_size(m, false, src, &src_it, &src_L0,
+					      &src_L0_ofs, &src_L0_pt, 0, 0,
+					      avail_pts);
+
+		ccs_size = xe_device_ccs_bytes(xe, src_L0);
+		batch_size += pte_update_size(m, 0, NULL, &ccs_it, &ccs_size, &ccs_ofs,
+					      &ccs_pt, 0, avail_pts, avail_pts);
+		xe_assert(xe, IS_ALIGNED(ccs_it.start, PAGE_SIZE));
+		batch_size += EMIT_COPY_CCS_DW;
+
+		emit_pte(m, bb, src_L0_pt, false, true, &src_it, src_L0, src);
+
+		emit_pte(m, bb, ccs_pt, false, false, &ccs_it, ccs_size, src);
+
+		bb->len = emit_flush_invalidate(q, bb->cs, bb->len, flush_flags);
+		flush_flags = xe_migrate_ccs_copy(m, bb, src_L0_ofs, src_is_pltt,
+						  src_L0_ofs, dst_is_pltt,
+						  src_L0, ccs_ofs, true);
+		bb->len = emit_flush_invalidate(q, bb->cs, bb->len, flush_flags);
+
+		size -= src_L0;
+	}
+
+	xe_assert(xe, (batch_size_allocated == bb->len));
+	src_bo->bb_ccs[read_write] = bb;
+
+	return 0;
+
+err_ret:
+	return err;
+}
+
+/**
+ * xe_get_migrate_exec_queue() - Get the execution queue from migrate context.
+ * @migrate: Migrate context.
+ *
+ * Return: Pointer to execution queue on success, error on failure
+ */
+struct xe_exec_queue *xe_migrate_exec_queue(struct xe_migrate *migrate)
+{
+	return migrate->q;
 }
 
 static void emit_clear_link_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
@@ -1119,11 +1309,13 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 
 		size -= clear_L0;
 		/* Preemption is enabled again by the ring ops. */
-		if (clear_vram && xe_migrate_allow_identity(clear_L0, &src_it))
+		if (clear_vram && xe_migrate_allow_identity(clear_L0, &src_it)) {
 			xe_res_next(&src_it, clear_L0);
-		else
-			emit_pte(m, bb, clear_L0_pt, clear_vram, clear_only_system_ccs,
-				 &src_it, clear_L0, dst);
+		} else {
+			emit_pte(m, bb, clear_L0_pt, clear_vram,
+				 clear_only_system_ccs, &src_it, clear_L0, dst);
+			flush_flags |= MI_INVALIDATE_TLB;
+		}
 
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
@@ -1134,7 +1326,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		if (xe_migrate_needs_ccs_emit(xe)) {
 			emit_copy_ccs(gt, bb, clear_L0_ofs, true,
 				      m->cleared_mem_ofs, false, clear_L0);
-			flush_flags = MI_FLUSH_DW_CCS;
+			flush_flags |= MI_FLUSH_DW_CCS;
 		}
 
 		job = xe_bb_create_migration_job(m->q, bb,
@@ -1469,6 +1661,8 @@ next_cmd:
 		goto err_sa;
 	}
 
+	xe_sched_job_add_migrate_flush(job, MI_INVALIDATE_TLB);
+
 	if (ops->pre_commit) {
 		pt_update->job = job;
 		err = ops->pre_commit(pt_update);
@@ -1571,7 +1765,8 @@ static u32 pte_update_cmd_size(u64 size)
 
 static void build_pt_update_batch_sram(struct xe_migrate *m,
 				       struct xe_bb *bb, u32 pt_offset,
-				       dma_addr_t *sram_addr, u32 size)
+				       struct drm_pagemap_addr *sram_addr,
+				       u32 size)
 {
 	u16 pat_index = tile_to_xe(m->tile)->pat.idx[XE_CACHE_WB];
 	u32 ptes;
@@ -1589,14 +1784,18 @@ static void build_pt_update_batch_sram(struct xe_migrate *m,
 		ptes -= chunk;
 
 		while (chunk--) {
-			u64 addr = sram_addr[i++] & PAGE_MASK;
+			u64 addr = sram_addr[i].addr & PAGE_MASK;
 
+			xe_tile_assert(m->tile, sram_addr[i].proto ==
+				       DRM_INTERCONNECT_SYSTEM);
 			xe_tile_assert(m->tile, addr);
 			addr = m->q->vm->pt_ops->pte_encode_addr(m->tile->xe,
 								 addr, pat_index,
 								 0, false, 0);
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
+
+			i++;
 		}
 	}
 }
@@ -1612,7 +1811,8 @@ enum xe_migrate_copy_dir {
 static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 					 unsigned long len,
 					 unsigned long sram_offset,
-					 dma_addr_t *sram_addr, u64 vram_addr,
+					 struct drm_pagemap_addr *sram_addr,
+					 u64 vram_addr,
 					 const enum xe_migrate_copy_dir dir)
 {
 	struct xe_gt *gt = m->tile->primary_gt;
@@ -1628,6 +1828,7 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 	unsigned int pitch = len >= PAGE_SIZE && !(len & ~PAGE_MASK) ?
 		PAGE_SIZE : 4;
 	int err;
+	unsigned long i, j;
 
 	if (drm_WARN_ON(&xe->drm, (len & XE_CACHELINE_MASK) ||
 			(sram_offset | vram_addr) & XE_CACHELINE_MASK))
@@ -1642,6 +1843,24 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 	if (IS_ERR(bb)) {
 		err = PTR_ERR(bb);
 		return ERR_PTR(err);
+	}
+
+	/*
+	 * If the order of a struct drm_pagemap_addr entry is greater than 0,
+	 * the entry is populated by GPU pagemap but subsequent entries within
+	 * the range of that order are not populated.
+	 * build_pt_update_batch_sram() expects a fully populated array of
+	 * struct drm_pagemap_addr. Ensure this is the case even with higher
+	 * orders.
+	 */
+	for (i = 0; i < npages;) {
+		unsigned int order = sram_addr[i].order;
+
+		for (j = 1; j < NR_PAGES(order) && i + j < npages; j++)
+			if (!sram_addr[i + j].addr)
+				sram_addr[i + j].addr = sram_addr[i].addr + j * PAGE_SIZE;
+
+		i += NR_PAGES(order);
 	}
 
 	build_pt_update_batch_sram(m, bb, pt_slot * XE_PAGE_SIZE,
@@ -1669,7 +1888,7 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 		goto err;
 	}
 
-	xe_sched_job_add_migrate_flush(job, 0);
+	xe_sched_job_add_migrate_flush(job, MI_INVALIDATE_TLB);
 
 	mutex_lock(&m->job_mutex);
 	xe_sched_job_arm(job);
@@ -1694,7 +1913,7 @@ err:
  * xe_migrate_to_vram() - Migrate to VRAM
  * @m: The migration context.
  * @npages: Number of pages to migrate.
- * @src_addr: Array of dma addresses (source of migrate)
+ * @src_addr: Array of DMA information (source of migrate)
  * @dst_addr: Device physical address of VRAM (destination of migrate)
  *
  * Copy from an array dma addresses to a VRAM device physical address
@@ -1704,7 +1923,7 @@ err:
  */
 struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
 				     unsigned long npages,
-				     dma_addr_t *src_addr,
+				     struct drm_pagemap_addr *src_addr,
 				     u64 dst_addr)
 {
 	return xe_migrate_vram(m, npages * PAGE_SIZE, 0, src_addr, dst_addr,
@@ -1716,7 +1935,7 @@ struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
  * @m: The migration context.
  * @npages: Number of pages to migrate.
  * @src_addr: Device physical address of VRAM (source of migrate)
- * @dst_addr: Array of dma addresses (destination of migrate)
+ * @dst_addr: Array of DMA information (destination of migrate)
  *
  * Copy from a VRAM device physical address to an array dma addresses
  *
@@ -1726,61 +1945,65 @@ struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
 struct dma_fence *xe_migrate_from_vram(struct xe_migrate *m,
 				       unsigned long npages,
 				       u64 src_addr,
-				       dma_addr_t *dst_addr)
+				       struct drm_pagemap_addr *dst_addr)
 {
 	return xe_migrate_vram(m, npages * PAGE_SIZE, 0, dst_addr, src_addr,
 			       XE_MIGRATE_COPY_TO_SRAM);
 }
 
-static void xe_migrate_dma_unmap(struct xe_device *xe, dma_addr_t *dma_addr,
+static void xe_migrate_dma_unmap(struct xe_device *xe,
+				 struct drm_pagemap_addr *pagemap_addr,
 				 int len, int write)
 {
 	unsigned long i, npages = DIV_ROUND_UP(len, PAGE_SIZE);
 
 	for (i = 0; i < npages; ++i) {
-		if (!dma_addr[i])
+		if (!pagemap_addr[i].addr)
 			break;
 
-		dma_unmap_page(xe->drm.dev, dma_addr[i], PAGE_SIZE,
+		dma_unmap_page(xe->drm.dev, pagemap_addr[i].addr, PAGE_SIZE,
 			       write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	}
-	kfree(dma_addr);
+	kfree(pagemap_addr);
 }
 
-static dma_addr_t *xe_migrate_dma_map(struct xe_device *xe,
-				      void *buf, int len, int write)
+static struct drm_pagemap_addr *xe_migrate_dma_map(struct xe_device *xe,
+						   void *buf, int len,
+						   int write)
 {
-	dma_addr_t *dma_addr;
+	struct drm_pagemap_addr *pagemap_addr;
 	unsigned long i, npages = DIV_ROUND_UP(len, PAGE_SIZE);
 
-	dma_addr = kcalloc(npages, sizeof(*dma_addr), GFP_KERNEL);
-	if (!dma_addr)
+	pagemap_addr = kcalloc(npages, sizeof(*pagemap_addr), GFP_KERNEL);
+	if (!pagemap_addr)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < npages; ++i) {
 		dma_addr_t addr;
 		struct page *page;
+		enum dma_data_direction dir = write ? DMA_TO_DEVICE :
+						      DMA_FROM_DEVICE;
 
 		if (is_vmalloc_addr(buf))
 			page = vmalloc_to_page(buf);
 		else
 			page = virt_to_page(buf);
 
-		addr = dma_map_page(xe->drm.dev,
-				    page, 0, PAGE_SIZE,
-				    write ? DMA_TO_DEVICE :
-				    DMA_FROM_DEVICE);
+		addr = dma_map_page(xe->drm.dev, page, 0, PAGE_SIZE, dir);
 		if (dma_mapping_error(xe->drm.dev, addr))
 			goto err_fault;
 
-		dma_addr[i] = addr;
+		pagemap_addr[i] =
+			drm_pagemap_addr_encode(addr,
+						DRM_INTERCONNECT_SYSTEM,
+						0, dir);
 		buf += PAGE_SIZE;
 	}
 
-	return dma_addr;
+	return pagemap_addr;
 
 err_fault:
-	xe_migrate_dma_unmap(xe, dma_addr, len, write);
+	xe_migrate_dma_unmap(xe, pagemap_addr, len, write);
 	return ERR_PTR(-EFAULT);
 }
 
@@ -1809,7 +2032,7 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_res_cursor cursor;
 	struct dma_fence *fence = NULL;
-	dma_addr_t *dma_addr;
+	struct drm_pagemap_addr *pagemap_addr;
 	unsigned long page_offset = (unsigned long)buf & ~PAGE_MASK;
 	int bytes_left = len, current_page = 0;
 	void *orig_buf = buf;
@@ -1820,15 +2043,19 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 	if (!IS_ALIGNED(len, XE_CACHELINE_BYTES) ||
 	    !IS_ALIGNED((unsigned long)buf + offset, XE_CACHELINE_BYTES)) {
 		int buf_offset = 0;
+		void *bounce;
+		int err;
+
+		BUILD_BUG_ON(!is_power_of_2(XE_CACHELINE_BYTES));
+		bounce = kmalloc(XE_CACHELINE_BYTES, GFP_KERNEL);
+		if (!bounce)
+			return -ENOMEM;
 
 		/*
 		 * Less than ideal for large unaligned access but this should be
 		 * fairly rare, can fixup if this becomes common.
 		 */
 		do {
-			u8 bounce[XE_CACHELINE_BYTES];
-			void *ptr = (void *)bounce;
-			int err;
 			int copy_bytes = min_t(int, bytes_left,
 					       XE_CACHELINE_BYTES -
 					       (offset & XE_CACHELINE_MASK));
@@ -1837,22 +2064,22 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 			err = xe_migrate_access_memory(m, bo,
 						       offset &
 						       ~XE_CACHELINE_MASK,
-						       (void *)ptr,
-						       sizeof(bounce), 0);
+						       bounce,
+						       XE_CACHELINE_BYTES, 0);
 			if (err)
-				return err;
+				break;
 
 			if (write) {
-				memcpy(ptr + ptr_offset, buf + buf_offset, copy_bytes);
+				memcpy(bounce + ptr_offset, buf + buf_offset, copy_bytes);
 
 				err = xe_migrate_access_memory(m, bo,
 							       offset & ~XE_CACHELINE_MASK,
-							       (void *)ptr,
-							       sizeof(bounce), write);
+							       bounce,
+							       XE_CACHELINE_BYTES, write);
 				if (err)
-					return err;
+					break;
 			} else {
-				memcpy(buf + buf_offset, ptr + ptr_offset,
+				memcpy(buf + buf_offset, bounce + ptr_offset,
 				       copy_bytes);
 			}
 
@@ -1861,12 +2088,13 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 			offset += copy_bytes;
 		} while (bytes_left);
 
-		return 0;
+		kfree(bounce);
+		return err;
 	}
 
-	dma_addr = xe_migrate_dma_map(xe, buf, len + page_offset, write);
-	if (IS_ERR(dma_addr))
-		return PTR_ERR(dma_addr);
+	pagemap_addr = xe_migrate_dma_map(xe, buf, len + page_offset, write);
+	if (IS_ERR(pagemap_addr))
+		return PTR_ERR(pagemap_addr);
 
 	xe_res_first(bo->ttm.resource, offset, xe_bo_size(bo) - offset, &cursor);
 
@@ -1882,21 +2110,30 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 		else
 			current_bytes = min_t(int, bytes_left, cursor.size);
 
-		if (fence)
-			dma_fence_put(fence);
+		if (current_bytes & ~PAGE_MASK) {
+			int pitch = 4;
+
+			current_bytes = min_t(int, current_bytes,
+					      round_down(S16_MAX * pitch,
+							 XE_CACHELINE_BYTES));
+		}
 
 		__fence = xe_migrate_vram(m, current_bytes,
 					  (unsigned long)buf & ~PAGE_MASK,
-					  dma_addr + current_page,
+					  &pagemap_addr[current_page],
 					  vram_addr, write ?
 					  XE_MIGRATE_COPY_TO_VRAM :
 					  XE_MIGRATE_COPY_TO_SRAM);
 		if (IS_ERR(__fence)) {
-			if (fence)
+			if (fence) {
 				dma_fence_wait(fence, false);
+				dma_fence_put(fence);
+			}
 			fence = __fence;
 			goto out_err;
 		}
+
+		dma_fence_put(fence);
 		fence = __fence;
 
 		buf += current_bytes;
@@ -1911,8 +2148,44 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 	dma_fence_put(fence);
 
 out_err:
-	xe_migrate_dma_unmap(xe, dma_addr, len + page_offset, write);
+	xe_migrate_dma_unmap(xe, pagemap_addr, len + page_offset, write);
 	return IS_ERR(fence) ? PTR_ERR(fence) : 0;
+}
+
+/**
+ * xe_migrate_job_lock() - Lock migrate job lock
+ * @m: The migration context.
+ * @q: Queue associated with the operation which requires a lock
+ *
+ * Lock the migrate job lock if the queue is a migration queue, otherwise
+ * assert the VM's dma-resv is held (user queue's have own locking).
+ */
+void xe_migrate_job_lock(struct xe_migrate *m, struct xe_exec_queue *q)
+{
+	bool is_migrate = q == m->q;
+
+	if (is_migrate)
+		mutex_lock(&m->job_mutex);
+	else
+		xe_vm_assert_held(q->vm);	/* User queues VM's should be locked */
+}
+
+/**
+ * xe_migrate_job_unlock() - Unlock migrate job lock
+ * @m: The migration context.
+ * @q: Queue associated with the operation which requires a lock
+ *
+ * Unlock the migrate job lock if the queue is a migration queue, otherwise
+ * assert the VM's dma-resv is held (user queue's have own locking).
+ */
+void xe_migrate_job_unlock(struct xe_migrate *m, struct xe_exec_queue *q)
+{
+	bool is_migrate = q == m->q;
+
+	if (is_migrate)
+		mutex_unlock(&m->job_mutex);
+	else
+		xe_vm_assert_held(q->vm);	/* User queues VM's should be locked */
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

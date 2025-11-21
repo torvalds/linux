@@ -87,7 +87,7 @@ void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
 	struct folio *src = page_folio(from);
 	void *kto = kmap_atomic(to);
 
-	if (!test_and_set_bit(PG_dcache_clean, &src->flags))
+	if (!test_and_set_bit(PG_dcache_clean, &src->flags.f))
 		__flush_dcache_folio(folio_flush_mapping(src), src);
 
 	raw_spin_lock(&minicache_lock);

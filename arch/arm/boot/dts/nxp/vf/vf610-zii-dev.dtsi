@@ -335,7 +335,7 @@
 		>;
 	};
 
-	pinctrl_gpio_spi0: pinctrl-gpio-spi0 {
+	pinctrl_gpio_spi0: pinctrl-gpio-spi0-grp {
 		fsl,pins = <
 			VF610_PAD_PTB22__GPIO_44	0x33e2
 			VF610_PAD_PTB21__GPIO_43	0x33e2
@@ -345,19 +345,19 @@
 		>;
 	};
 
-	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
+	pinctrl_gpio_switch0: pinctrl-gpio-switch0-grp {
 		fsl,pins = <
 			VF610_PAD_PTB5__GPIO_27		0x219d
 		>;
 	};
 
-	pinctrl_gpio_switch1: pinctrl-gpio-switch1 {
+	pinctrl_gpio_switch1: pinctrl-gpio-switch1-grp {
 		fsl,pins = <
 			VF610_PAD_PTB4__GPIO_26		0x219d
 		>;
 	};
 
-	pinctrl_i2c_mux_reset: pinctrl-i2c-mux-reset {
+	pinctrl_i2c_mux_reset: pinctrl-i2c-mux-reset-grp {
 		fsl,pins = <
 			 VF610_PAD_PTE14__GPIO_119	0x31c2
 			 >;
@@ -370,7 +370,7 @@
 		>;
 	};
 
-	pinctrl_i2c0_gpio: i2c0grp-gpio {
+	pinctrl_i2c0_gpio: i2c0-gpio-grp {
 		fsl,pins = <
 			VF610_PAD_PTB14__GPIO_36	0x31c2
 			VF610_PAD_PTB15__GPIO_37	0x31c2
@@ -392,7 +392,7 @@
 		>;
 	};
 
-	pinctrl_leds_debug: pinctrl-leds-debug {
+	pinctrl_leds_debug: pinctrl-leds-debug-grp {
 		fsl,pins = <
 			 VF610_PAD_PTD20__GPIO_74	0x31c2
 			 >;
@@ -436,7 +436,7 @@
 		>;
 	};
 
-	pinctrl_usb_vbus: pinctrl-usb-vbus {
+	pinctrl_usb_vbus: pinctrl-usb-vbus-grp {
 		fsl,pins = <
 			VF610_PAD_PTA16__GPIO_6	0x31c2
 		>;

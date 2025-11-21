@@ -2,7 +2,7 @@
 /* Copyright © 2024 Intel Corporation */
 
 #include <drm/drm_panic.h>
-#include "display/intel_display_types.h"
+
 #include "gem/i915_gem_mman.h"
 #include "gem/i915_gem_object.h"
 #include "gem/i915_gem_object_frontbuffer.h"
@@ -58,19 +58,4 @@ struct intel_frontbuffer *intel_bo_set_frontbuffer(struct drm_gem_object *obj,
 void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj)
 {
 	i915_debugfs_describe_obj(m, to_intel_bo(obj));
-}
-
-struct intel_framebuffer *intel_bo_alloc_framebuffer(void)
-{
-	return i915_gem_object_alloc_framebuffer();
-}
-
-int intel_bo_panic_setup(struct drm_scanout_buffer *sb)
-{
-	return i915_gem_object_panic_setup(sb);
-}
-
-void intel_bo_panic_finish(struct intel_framebuffer *fb)
-{
-	return i915_gem_object_panic_finish(fb);
 }

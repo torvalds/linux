@@ -549,7 +549,7 @@ static const struct gpio_chip wmt_gpio_chip = {
 	.direction_input = pinctrl_gpio_direction_input,
 	.direction_output = wmt_gpio_direction_output,
 	.get = wmt_gpio_get_value,
-	.set_rv = wmt_gpio_set_value,
+	.set = wmt_gpio_set_value,
 	.can_sleep = false,
 };
 

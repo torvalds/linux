@@ -4,7 +4,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright (C) 2019, 2022-2024 Intel Corporation
+ * Copyright (C) 2019, 2022-2025 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -96,6 +96,9 @@ void rate_control_tx_status(struct ieee80211_local *local,
 	struct ieee80211_supported_band *sband;
 
 	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
+		return;
+
+	if (st->info->band >= NUM_NL80211_BANDS)
 		return;
 
 	sband = local->hw.wiphy->bands[st->info->band];
@@ -418,6 +421,9 @@ static bool rate_control_send_low(struct ieee80211_sta *pubsta,
 	struct sta_info *sta;
 	int mcast_rate;
 	bool use_basicrate = false;
+
+	if (!sband)
+		return false;
 
 	if (!pubsta || rc_no_data_or_no_ack_use_min(txrc)) {
 		__rate_control_send_low(txrc->hw, sband, pubsta, info,
@@ -898,6 +904,9 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
 		return;
 
 	sdata = vif_to_sdata(vif);
+	if (info->band >= NUM_NL80211_BANDS)
+		return;
+
 	sband = sdata->local->hw.wiphy->bands[info->band];
 
 	if (ieee80211_is_tx_data(skb))

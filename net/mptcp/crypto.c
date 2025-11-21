@@ -22,7 +22,6 @@
 
 #include <linux/kernel.h>
 #include <crypto/sha2.h>
-#include <linux/unaligned.h>
 
 #include "protocol.h"
 
@@ -43,39 +42,9 @@ void mptcp_crypto_key_sha(u64 key, u32 *token, u64 *idsn)
 
 void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac)
 {
-	u8 input[SHA256_BLOCK_SIZE + SHA256_DIGEST_SIZE];
-	u8 key1be[8];
-	u8 key2be[8];
-	int i;
+	__be64 key[2] = { cpu_to_be64(key1), cpu_to_be64(key2) };
 
-	if (WARN_ON_ONCE(len > SHA256_DIGEST_SIZE))
-		len = SHA256_DIGEST_SIZE;
-
-	put_unaligned_be64(key1, key1be);
-	put_unaligned_be64(key2, key2be);
-
-	/* Generate key xored with ipad */
-	memset(input, 0x36, SHA256_BLOCK_SIZE);
-	for (i = 0; i < 8; i++)
-		input[i] ^= key1be[i];
-	for (i = 0; i < 8; i++)
-		input[i + 8] ^= key2be[i];
-
-	memcpy(&input[SHA256_BLOCK_SIZE], msg, len);
-
-	/* emit sha256(K1 || msg) on the second input block, so we can
-	 * reuse 'input' for the last hashing
-	 */
-	sha256(input, SHA256_BLOCK_SIZE + len, &input[SHA256_BLOCK_SIZE]);
-
-	/* Prepare second part of hmac */
-	memset(input, 0x5C, SHA256_BLOCK_SIZE);
-	for (i = 0; i < 8; i++)
-		input[i] ^= key1be[i];
-	for (i = 0; i < 8; i++)
-		input[i + 8] ^= key2be[i];
-
-	sha256(input, SHA256_BLOCK_SIZE + SHA256_DIGEST_SIZE, hmac);
+	hmac_sha256_usingrawkey((const u8 *)key, sizeof(key), msg, len, hmac);
 }
 
 #if IS_MODULE(CONFIG_MPTCP_KUNIT_TEST)
