@@ -10,6 +10,12 @@
 #ifndef __LINUX_FS_NFS_NFS4_FS_H
 #define __LINUX_FS_NFS_NFS4_FS_H
 
+#if defined(CONFIG_NFS_V4_0)
+#define NFS4_MIN_MINOR_VERSION 0
+#else
+#define NFS4_MIN_MINOR_VERSION 1
+#endif
+
 #if defined(CONFIG_NFS_V4_2)
 #define NFS4_MAX_MINOR_VERSION 2
 #elif defined(CONFIG_NFS_V4_1)

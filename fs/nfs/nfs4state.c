@@ -1804,9 +1804,11 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 	switch (error) {
 	case 0:
 		break;
+#if IS_ENABLED(CONFIG_NFS_V4_0)
 	case -NFS4ERR_CB_PATH_DOWN:
 		nfs40_handle_cb_pathdown(clp);
 		break;
+#endif /* CONFIG_NFS_V4_0 */
 	case -NFS4ERR_NO_GRACE:
 		nfs4_state_end_reclaim_reboot(clp);
 		break;

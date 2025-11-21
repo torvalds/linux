@@ -96,6 +96,15 @@ config NFS_SWAP
 	help
 	  This option enables swapon to work on files located on NFS mounts.
 
+config NFS_V4_0
+	bool "NFS client support for NFSv4.0"
+	depends on NFS_V4
+	help
+	  This option enables support for minor version 0 of the NFSv4 protocol
+	  (RFC 3530) in the kernel's NFS client.
+
+	  If unsure, say N.
+
 config NFS_V4_1
 	bool "NFS client support for NFSv4.1"
 	depends on NFS_V4

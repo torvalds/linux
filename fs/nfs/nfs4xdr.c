@@ -1399,11 +1399,13 @@ static void encode_locku(struct xdr_stream *xdr, const struct nfs_locku_args *ar
 	xdr_encode_hyper(p, nfs4_lock_length(args->fl));
 }
 
+#if defined(CONFIG_NFS_V4_0)
 static void encode_release_lockowner(struct xdr_stream *xdr, const struct nfs_lowner *lowner, struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_RELEASE_LOCKOWNER, decode_release_lockowner_maxsz, hdr);
 	encode_lockowner(xdr, lowner);
 }
+#endif /* CONFIG_NFS_V4_0 */
 
 static void encode_lookup(struct xdr_stream *xdr, const struct qstr *name, struct compound_hdr *hdr)
 {
@@ -2583,6 +2585,7 @@ static void nfs4_xdr_enc_locku(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_nops(&hdr);
 }
 
+#if defined(CONFIG_NFS_V4_0)
 static void nfs4_xdr_enc_release_lockowner(struct rpc_rqst *req,
 					   struct xdr_stream *xdr,
 					   const void *data)
@@ -2596,6 +2599,7 @@ static void nfs4_xdr_enc_release_lockowner(struct rpc_rqst *req,
 	encode_release_lockowner(xdr, &args->lock_owner, &hdr);
 	encode_nops(&hdr);
 }
+#endif /* CONFIG_NFS_V4_0 */
 
 /*
  * Encode a READLINK request
@@ -2825,6 +2829,7 @@ static void nfs4_xdr_enc_server_caps(struct rpc_rqst *req,
 /*
  * a RENEW request
  */
+#if defined(CONFIG_NFS_V4_0)
 static void nfs4_xdr_enc_renew(struct rpc_rqst *req, struct xdr_stream *xdr,
 			       const void *data)
 
@@ -2838,6 +2843,7 @@ static void nfs4_xdr_enc_renew(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_renew(xdr, clp->cl_clientid, &hdr);
 	encode_nops(&hdr);
 }
+#endif /* CONFIG_NFS_V4_0 */
 
 /*
  * a SETCLIENTID request
@@ -5224,10 +5230,12 @@ static int decode_locku(struct xdr_stream *xdr, struct nfs_locku_res *res)
 	return status;
 }
 
+#if defined(CONFIG_NFS_V4_0)
 static int decode_release_lockowner(struct xdr_stream *xdr)
 {
 	return decode_op_hdr(xdr, OP_RELEASE_LOCKOWNER);
 }
+#endif /* CONFIG_NFS_V4_0 */
 
 static int decode_lookup(struct xdr_stream *xdr)
 {
@@ -6930,6 +6938,7 @@ out:
 	return status;
 }
 
+#if defined(CONFIG_NFS_V4_0)
 static int nfs4_xdr_dec_release_lockowner(struct rpc_rqst *rqstp,
 					  struct xdr_stream *xdr, void *dummy)
 {
@@ -6941,6 +6950,7 @@ static int nfs4_xdr_dec_release_lockowner(struct rpc_rqst *rqstp,
 		status = decode_release_lockowner(xdr);
 	return status;
 }
+#endif /* CONFIG_NFS_V4_0 */
 
 /*
  * Decode READLINK response
@@ -7162,6 +7172,7 @@ out:
 /*
  * Decode RENEW response
  */
+#if defined(CONFIG_NFS_V4_0)
 static int nfs4_xdr_dec_renew(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 			      void *__unused)
 {
@@ -7173,6 +7184,7 @@ static int nfs4_xdr_dec_renew(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 		status = decode_renew(xdr);
 	return status;
 }
+#endif /* CONFIG_NFS_V4_0 */
 
 /*
  * Decode SETCLIENTID response
@@ -7754,6 +7766,14 @@ int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	.p_name = #proc,	\
 }
 
+#if defined(CONFIG_NFS_V4_0)
+#define PROC40(proc, argtype, restype)				\
+	PROC(proc, argtype, restype)
+#else
+#define PROC40(proc, argtype, restype)				\
+	STUB(proc)
+#endif /* CONFIG_NFS_V4_0 */
+
 #if defined(CONFIG_NFS_V4_1)
 #define PROC41(proc, argtype, restype)				\
 	PROC(proc, argtype, restype)
@@ -7781,7 +7801,7 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC(CLOSE,		enc_close,		dec_close),
 	PROC(SETATTR,		enc_setattr,		dec_setattr),
 	PROC(FSINFO,		enc_fsinfo,		dec_fsinfo),
-	PROC(RENEW,		enc_renew,		dec_renew),
+	PROC40(RENEW,		enc_renew,		dec_renew),
 	PROC(SETCLIENTID,	enc_setclientid,	dec_setclientid),
 	PROC(SETCLIENTID_CONFIRM, enc_setclientid_confirm, dec_setclientid_confirm),
 	PROC(LOCK,		enc_lock,		dec_lock),
@@ -7805,7 +7825,7 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC(GETACL,		enc_getacl,		dec_getacl),
 	PROC(SETACL,		enc_setacl,		dec_setacl),
 	PROC(FS_LOCATIONS,	enc_fs_locations,	dec_fs_locations),
-	PROC(RELEASE_LOCKOWNER,	enc_release_lockowner,	dec_release_lockowner),
+	PROC40(RELEASE_LOCKOWNER,	enc_release_lockowner,	dec_release_lockowner),
 	PROC(SECINFO,		enc_secinfo,		dec_secinfo),
 	PROC(FSID_PRESENT,	enc_fsid_present,	dec_fsid_present),
 	PROC41(EXCHANGE_ID,	enc_exchange_id,	dec_exchange_id),
