@@ -5154,8 +5154,6 @@ static bool ext4_should_enable_large_folio(struct inode *inode)
 
 	if (!S_ISREG(inode->i_mode))
 		return false;
-	if (ext4_has_feature_verity(sb))
-		return false;
 	if (ext4_has_feature_encrypt(sb))
 		return false;
 
