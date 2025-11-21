@@ -52,6 +52,7 @@ struct disas_alt {
 	struct {
 		char *str;			/* instruction string */
 		int offset;			/* instruction offset */
+		int nops;			/* number of nops */
 	} insn[DISAS_ALT_INSN_MAX];		/* alternative instructions */
 	int insn_idx;				/* index of the next instruction to print */
 };
@@ -727,7 +728,7 @@ static int disas_alt_init(struct disas_alt *dalt,
 }
 
 static int disas_alt_add_insn(struct disas_alt *dalt, int index, char *insn_str,
-			      int offset)
+			      int offset, int nops)
 {
 	int len;
 
@@ -740,6 +741,7 @@ static int disas_alt_add_insn(struct disas_alt *dalt, int index, char *insn_str,
 	len = strlen(insn_str);
 	dalt->insn[index].str = insn_str;
 	dalt->insn[index].offset = offset;
+	dalt->insn[index].nops = nops;
 	if (len > dalt->width)
 		dalt->width = len;
 
@@ -752,6 +754,7 @@ static int disas_alt_jump(struct disas_alt *dalt)
 	struct instruction *dest_insn;
 	char suffix[2] = { 0 };
 	char *str;
+	int nops;
 
 	orig_insn = dalt->orig_insn;
 	dest_insn = dalt->alt->insn;
@@ -762,14 +765,16 @@ static int disas_alt_jump(struct disas_alt *dalt)
 		str = strfmt("jmp%-3s %lx <%s+0x%lx>", suffix,
 			     dest_insn->offset, dest_insn->sym->name,
 			     dest_insn->offset - dest_insn->sym->offset);
+		nops = 0;
 	} else {
 		str = strfmt("nop%d", orig_insn->len);
+		nops = orig_insn->len;
 	}
 
 	if (!str)
 		return -1;
 
-	disas_alt_add_insn(dalt, 0, str, 0);
+	disas_alt_add_insn(dalt, 0, str, 0, nops);
 
 	return 1;
 }
@@ -789,7 +794,7 @@ static int disas_alt_extable(struct disas_alt *dalt)
 	if (!str)
 		return -1;
 
-	disas_alt_add_insn(dalt, 0, str, 0);
+	disas_alt_add_insn(dalt, 0, str, 0, 0);
 
 	return 1;
 }
@@ -805,11 +810,13 @@ static int disas_alt_group(struct disas_context *dctx, struct disas_alt *dalt)
 	int offset;
 	char *str;
 	int count;
+	int nops;
 	int err;
 
 	file = dctx->file;
 	count = 0;
 	offset = 0;
+	nops = 0;
 
 	alt_for_each_insn(file, DALT_GROUP(dalt), insn) {
 
@@ -818,7 +825,8 @@ static int disas_alt_group(struct disas_context *dctx, struct disas_alt *dalt)
 		if (!str)
 			return -1;
 
-		err = disas_alt_add_insn(dalt, count, str, offset);
+		nops = insn->type == INSN_NOP ? insn->len : 0;
+		err = disas_alt_add_insn(dalt, count, str, offset, nops);
 		if (err)
 			break;
 		offset += insn->len;
@@ -834,6 +842,7 @@ static int disas_alt_group(struct disas_context *dctx, struct disas_alt *dalt)
 static int disas_alt_default(struct disas_context *dctx, struct disas_alt *dalt)
 {
 	char *str;
+	int nops;
 	int err;
 
 	if (DALT_GROUP(dalt))
@@ -849,7 +858,8 @@ static int disas_alt_default(struct disas_context *dctx, struct disas_alt *dalt)
 	str = strdup(disas_result(dctx));
 	if (!str)
 		return -1;
-	err = disas_alt_add_insn(dalt, 0, str, 0);
+	nops = dalt->orig_insn->type == INSN_NOP ? dalt->orig_insn->len : 0;
+	err = disas_alt_add_insn(dalt, 0, str, 0, nops);
 	if (err)
 		return -1;
 
@@ -996,6 +1006,62 @@ static void disas_alt_print_compact(char *alt_name, struct disas_alt *dalts,
 }
 
 /*
+ * Trim NOPs in alternatives. This replaces trailing NOPs in alternatives
+ * with a single indication of the number of bytes covered with NOPs.
+ *
+ * Return the maximum numbers of instructions in all alternatives after
+ * trailing NOPs have been trimmed.
+ */
+static int disas_alt_trim_nops(struct disas_alt *dalts, int alt_count,
+			       int insn_count)
+{
+	struct disas_alt *dalt;
+	int nops_count;
+	const char *s;
+	int offset;
+	int count;
+	int nops;
+	int i, j;
+
+	count = 0;
+	for (i = 0; i < alt_count; i++) {
+		offset = 0;
+		nops = 0;
+		nops_count = 0;
+		dalt = &dalts[i];
+		for (j = insn_count - 1; j >= 0; j--) {
+			if (!dalt->insn[j].str || !dalt->insn[j].nops)
+				break;
+			offset = dalt->insn[j].offset;
+			free(dalt->insn[j].str);
+			dalt->insn[j].offset = 0;
+			dalt->insn[j].str = NULL;
+			nops += dalt->insn[j].nops;
+			nops_count++;
+		}
+
+		/*
+		 * All trailing NOPs have been removed. If there was a single
+		 * NOP instruction then re-add it. If there was a block of
+		 * NOPs then indicate the number of bytes than the block
+		 * covers (nop*<number-of-bytes>).
+		 */
+		if (nops_count) {
+			s = nops_count == 1 ? "" : "*";
+			dalt->insn[j + 1].str = strfmt("nop%s%d", s, nops);
+			dalt->insn[j + 1].offset = offset;
+			dalt->insn[j + 1].nops = nops;
+			j++;
+		}
+
+		if (j > count)
+			count = j;
+	}
+
+	return count + 1;
+}
+
+/*
  * Disassemble an alternative.
  *
  * Return the last instruction in the default alternative so that
@@ -1082,6 +1148,8 @@ static void *disas_alt(struct disas_context *dctx,
 	/*
 	 * Print default and non-default alternatives.
 	 */
+
+	insn_count = disas_alt_trim_nops(dalts, alt_count, insn_count);
 
 	if (opts.wide)
 		disas_alt_print_wide(alt_name, dalts, alt_count, insn_count);
