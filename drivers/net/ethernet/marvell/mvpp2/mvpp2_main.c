@@ -5580,6 +5580,13 @@ static int mvpp2_ethtool_set_link_ksettings(struct net_device *dev,
 	return phylink_ethtool_ksettings_set(port->phylink, cmd);
 }
 
+static u32 mvpp2_ethtool_get_rx_ring_count(struct net_device *dev)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	return port->nrxqs;
+}
+
 static int mvpp2_ethtool_get_rxnfc(struct net_device *dev,
 				   struct ethtool_rxnfc *info, u32 *rules)
 {
@@ -5590,9 +5597,6 @@ static int mvpp2_ethtool_get_rxnfc(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = port->nrxqs;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		info->rule_cnt = port->n_rfs_rules;
 		break;
@@ -5827,6 +5831,7 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.set_pauseparam		= mvpp2_ethtool_set_pause_param,
 	.get_link_ksettings	= mvpp2_ethtool_get_link_ksettings,
 	.set_link_ksettings	= mvpp2_ethtool_set_link_ksettings,
+	.get_rx_ring_count	= mvpp2_ethtool_get_rx_ring_count,
 	.get_rxnfc		= mvpp2_ethtool_get_rxnfc,
 	.set_rxnfc		= mvpp2_ethtool_set_rxnfc,
 	.get_rxfh_indir_size	= mvpp2_ethtool_get_rxfh_indir_size,
