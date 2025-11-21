@@ -22,19 +22,19 @@
 
 			channel@0 {
 				reg = <VADC_USBIN>;
-				qcom,pre-scaling = <1 4>;
+				qcom,pre-scaling = <1 20>;
 				label = "usbin";
 			};
 
 			channel@1 {
 				reg = <VADC_DCIN>;
-				qcom,pre-scaling = <1 4>;
+				qcom,pre-scaling = <1 20>;
 				label = "dcin";
 			};
 
 			channel@2 {
 				reg = <VADC_VCHG_SNS>;
-				qcom,pre-scaling = <1 1>;
+				qcom,pre-scaling = <1 3>;
 				label = "vchg_sns";
 			};
 
@@ -54,6 +54,14 @@
 				reg = <VADC_SPARE2>;
 				qcom,pre-scaling = <1 1>;
 				label = "chg_temp";
+			};
+
+			channel@e {
+				reg = <VADC_GND_REF>;
+			};
+
+			channel@f {
+				reg = <VADC_VDD_VADC>;
 			};
 		};
 

@@ -3,8 +3,8 @@
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
-/* X1P42100 is heavily based on X1E80100, with some meaningful differences */
-#include "x1e80100.dtsi"
+/* X1P42100 is heavily based on hamoa, with some meaningful differences */
+#include "hamoa.dtsi"
 
 /delete-node/ &bwmon_cluster0;
 /delete-node/ &cluster_pd2;

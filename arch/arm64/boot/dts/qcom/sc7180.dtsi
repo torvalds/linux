@@ -1474,6 +1474,12 @@
 			};
 		};
 
+		refgen: regulator@ff1000 {
+			compatible = "qcom,sc7180-refgen-regulator",
+				     "qcom,sdm845-refgen-regulator";
+			reg = <0x0 0x00ff1000 0x0 0x60>;
+		};
+
 		config_noc: interconnect@1500000 {
 			compatible = "qcom,sc7180-config-noc";
 			reg = <0 0x01500000 0 0x28000>;
@@ -2178,6 +2184,10 @@
 
 			interconnects = <&gem_noc MASTER_GFX3D 0 &mc_virt SLAVE_EBI1 0>;
 			interconnect-names = "gfx-mem";
+
+			gpu_zap_shader: zap-shader {
+				memory-region = <&gpu_mem>;
+			};
 
 			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
@@ -3331,6 +3341,8 @@
 				power-domains = <&rpmhpd SC7180_CX>;
 
 				phys = <&mdss_dsi0_phy>;
+
+				refgen-supply = <&refgen>;
 
 				#address-cells = <1>;
 				#size-cells = <0>;

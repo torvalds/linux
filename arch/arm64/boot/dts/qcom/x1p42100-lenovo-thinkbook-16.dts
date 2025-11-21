@@ -13,8 +13,8 @@
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
-#include "x1p42100.dtsi"
-#include "x1e80100-pmics.dtsi"
+#include "purwa.dtsi"
+#include "hamoa-pmics.dtsi"
 
 /delete-node/ &pmc8380_6;
 /delete-node/ &pmc8380_6_thermal;

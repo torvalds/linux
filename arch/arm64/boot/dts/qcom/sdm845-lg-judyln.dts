@@ -47,10 +47,8 @@
 	firmware-name = "qcom/sdm845/judyln/cdsp.mbn";
 };
 
-&gpu {
-	zap-shader {
-		firmware-name = "qcom/sdm845/judyln/a630_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sdm845/judyln/a630_zap.mbn";
 };
 
 &mss_pil {

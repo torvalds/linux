@@ -31,7 +31,7 @@
 	};
 
 	reserved-memory {
-		zap_mem: zap-shader@80840000 {
+		gpu_mem: zap-shader@80840000 {
 			reg = <0x0 0x80840000 0 0x2000>;
 			no-map;
 		};
@@ -426,11 +426,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		memory-region = <&zap_mem>;
-		firmware-name = "qcom/sc7180/acer/aspire1/qcdxkmsuc7180.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sc7180/acer/aspire1/qcdxkmsuc7180.mbn";
 };
 
 &mdss {

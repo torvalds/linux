@@ -75,7 +75,6 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd0>, <&scmi_dvfs 0>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 
 			l2_0: l2-cache {
 				compatible = "cache";
@@ -92,7 +91,6 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd1>, <&scmi_dvfs 0>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu2: cpu@200 {
@@ -103,7 +101,6 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd2>, <&scmi_dvfs 0>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu3: cpu@300 {
@@ -114,7 +111,6 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd3>, <&scmi_dvfs 0>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu4: cpu@10000 {
@@ -125,7 +121,6 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd4>, <&scmi_dvfs 1>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 
 			l2_1: l2-cache {
 				compatible = "cache";
@@ -142,7 +137,6 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd5>, <&scmi_dvfs 1>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu6: cpu@10200 {
@@ -153,7 +147,6 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd6>, <&scmi_dvfs 1>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu7: cpu@10300 {
@@ -164,7 +157,6 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd7>, <&scmi_dvfs 1>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu8: cpu@20000 {
@@ -175,7 +167,6 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd8>, <&scmi_dvfs 2>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 
 			l2_2: l2-cache {
 				compatible = "cache";
@@ -192,7 +183,6 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd9>, <&scmi_dvfs 2>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu10: cpu@20200 {
@@ -203,7 +193,6 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd10>, <&scmi_dvfs 2>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu11: cpu@20300 {
@@ -214,7 +203,6 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd11>, <&scmi_dvfs 2>;
 			power-domain-names = "psci", "perf";
-			cpu-idle-states = <&cluster_c4>;
 		};
 
 		cpu-map {
@@ -371,61 +359,73 @@
 		cpu_pd0: power-domain-cpu0 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd0>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd1: power-domain-cpu1 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd0>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd2: power-domain-cpu2 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd0>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd3: power-domain-cpu3 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd0>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd4: power-domain-cpu4 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd1>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd5: power-domain-cpu5 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd1>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd6: power-domain-cpu6 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd1>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd7: power-domain-cpu7 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd1>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd8: power-domain-cpu8 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd2>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd9: power-domain-cpu9 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd2>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd10: power-domain-cpu10 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd2>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cpu_pd11: power-domain-cpu11 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_pd2>;
+			domain-idle-states = <&cluster_c4>;
 		};
 
 		cluster_pd0: power-domain-cpu-cluster0 {
@@ -807,7 +807,34 @@
 				 <0>,
 				 <&usb_1_ss0_qmpphy QMP_USB43DP_USB3_PIPE_CLK>,
 				 <&usb_1_ss1_qmpphy QMP_USB43DP_USB3_PIPE_CLK>,
-				 <&usb_1_ss2_qmpphy QMP_USB43DP_USB3_PIPE_CLK>;
+				 <&usb_1_ss2_qmpphy QMP_USB43DP_USB3_PIPE_CLK>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>;
 
 			power-domains = <&rpmhpd RPMHPD_CX>;
 			#clock-cells = <1>;
@@ -3240,74 +3267,132 @@
 			pcie3_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
-				/* GEN 1 x1 */
-				opp-2500000 {
+				/* 2.5GT/s x1 */
+				opp-2500000-1 {
 					opp-hz = /bits/ 64 <2500000>;
 					required-opps = <&rpmhpd_opp_low_svs>;
 					opp-peak-kBps = <250000 1>;
+					opp-level = <1>;
 				};
 
-				/* GEN 1 x2 and GEN 2 x1 */
-				opp-5000000 {
+				/* 2.5 GT/s x2 */
+				opp-5000000-1 {
 					opp-hz = /bits/ 64 <5000000>;
 					required-opps = <&rpmhpd_opp_low_svs>;
 					opp-peak-kBps = <500000 1>;
+					opp-level = <1>;
 				};
 
-				/* GEN 1 x4 and GEN 2 x2 */
-				opp-10000000 {
+				/* 2.5 GT/s x4 */
+				opp-10000000-1 {
 					opp-hz = /bits/ 64 <10000000>;
 					required-opps = <&rpmhpd_opp_low_svs>;
 					opp-peak-kBps = <1000000 1>;
+					opp-level = <1>;
 				};
 
-				/* GEN 1 x8 and GEN 2 x4 */
-				opp-20000000 {
+				/* 2.5 GT/s x8 */
+				opp-20000000-1 {
 					opp-hz = /bits/ 64 <20000000>;
 					required-opps = <&rpmhpd_opp_low_svs>;
 					opp-peak-kBps = <2000000 1>;
+					opp-level = <1>;
 				};
 
-				/* GEN 2 x8 */
-				opp-40000000 {
+				/* 5 GT/s x1 */
+				opp-5000000-2 {
+					opp-hz = /bits/ 64 <5000000>;
+					required-opps = <&rpmhpd_opp_low_svs>;
+					opp-peak-kBps = <500000 1>;
+					opp-level = <2>;
+				};
+
+				/* 5 GT/s x2 */
+				opp-10000000-2 {
+					opp-hz = /bits/ 64 <10000000>;
+					required-opps = <&rpmhpd_opp_low_svs>;
+					opp-peak-kBps = <1000000 1>;
+					opp-level = <2>;
+				};
+
+				/* 5 GT/s x4 */
+				opp-20000000-2 {
+					opp-hz = /bits/ 64 <20000000>;
+					required-opps = <&rpmhpd_opp_low_svs>;
+					opp-peak-kBps = <2000000 1>;
+					opp-level = <2>;
+				};
+
+				/* 5 GT/s x8 */
+				opp-40000000-2 {
 					opp-hz = /bits/ 64 <40000000>;
 					required-opps = <&rpmhpd_opp_low_svs>;
 					opp-peak-kBps = <4000000 1>;
+					opp-level = <2>;
 				};
 
-				/* GEN 3 x1 */
-				opp-8000000 {
+				/* 8 GT/s x1 */
+				opp-8000000-3 {
 					opp-hz = /bits/ 64 <8000000>;
 					required-opps = <&rpmhpd_opp_svs>;
 					opp-peak-kBps = <984500 1>;
+					opp-level = <3>;
 				};
 
-				/* GEN 3 x2 and GEN 4 x1 */
-				opp-16000000 {
+				/* 8 GT/s x2 */
+				opp-16000000-3 {
 					opp-hz = /bits/ 64 <16000000>;
 					required-opps = <&rpmhpd_opp_svs>;
 					opp-peak-kBps = <1969000 1>;
+					opp-level = <3>;
 				};
 
-				/* GEN 3 x4 and GEN 4 x2 */
-				opp-32000000 {
+				/* 8 GT/s x4 */
+				opp-32000000-3 {
 					opp-hz = /bits/ 64 <32000000>;
 					required-opps = <&rpmhpd_opp_svs>;
 					opp-peak-kBps = <3938000 1>;
+					opp-level = <3>;
 				};
 
-				/* GEN 3 x8 and GEN 4 x4 */
-				opp-64000000 {
+				/* 8 GT/s x8 */
+				opp-64000000-3 {
 					opp-hz = /bits/ 64 <64000000>;
 					required-opps = <&rpmhpd_opp_svs>;
 					opp-peak-kBps = <7876000 1>;
+					opp-level = <3>;
 				};
 
-				/* GEN 4 x8 */
-				opp-128000000 {
+				/* 16 GT/s x1 */
+				opp-16000000-4 {
+					opp-hz = /bits/ 64 <16000000>;
+					required-opps = <&rpmhpd_opp_svs>;
+					opp-peak-kBps = <1969000 1>;
+					opp-level = <4>;
+				};
+
+				/* 16 GT/s x2 */
+				opp-32000000-4 {
+					opp-hz = /bits/ 64 <32000000>;
+					required-opps = <&rpmhpd_opp_svs>;
+					opp-peak-kBps = <3938000 1>;
+					opp-level = <4>;
+				};
+
+				/* 16 GT/s x4 */
+				opp-64000000-4 {
+					opp-hz = /bits/ 64 <64000000>;
+					required-opps = <&rpmhpd_opp_svs>;
+					opp-peak-kBps = <7876000 1>;
+					opp-level = <4>;
+				};
+
+				/* 16 GT/s x8 */
+				opp-128000000-4 {
 					opp-hz = /bits/ 64 <128000000>;
 					required-opps = <&rpmhpd_opp_svs>;
 					opp-peak-kBps = <15753000 1>;
+					opp-level = <4>;
 				};
 			};
 
@@ -4922,6 +5007,7 @@
 			interconnect-names = "usb-ddr",
 					     "apps-usb";
 
+			qcom,select-utmi-as-pipe-clk;
 			wakeup-source;
 
 			status = "disabled";
@@ -4939,15 +5025,8 @@
 
 				dma-coherent;
 
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						usb_2_dwc3_hs: endpoint {
-						};
+				port {
+					usb_2_dwc3_hs: endpoint {
 					};
 				};
 			};
@@ -5466,7 +5545,7 @@
 				compatible = "qcom,x1e80100-dp";
 				reg = <0 0x0ae90000 0 0x200>,
 				      <0 0x0ae90200 0 0x200>,
-				      <0 0x0ae90400 0 0x600>,
+				      <0 0x0ae90400 0 0xc00>,
 				      <0 0x0ae91000 0 0x400>,
 				      <0 0x0ae91400 0 0x400>;
 
@@ -5554,7 +5633,7 @@
 				compatible = "qcom,x1e80100-dp";
 				reg = <0 0x0ae98000 0 0x200>,
 				      <0 0x0ae98200 0 0x200>,
-				      <0 0x0ae98400 0 0x600>,
+				      <0 0x0ae98400 0 0xc00>,
 				      <0 0x0ae99000 0 0x400>,
 				      <0 0x0ae99400 0 0x400>;
 
@@ -5642,7 +5721,7 @@
 				compatible = "qcom,x1e80100-dp";
 				reg = <0 0x0ae9a000 0 0x200>,
 				      <0 0x0ae9a200 0 0x200>,
-				      <0 0x0ae9a400 0 0x600>,
+				      <0 0x0ae9a400 0 0xc00>,
 				      <0 0x0ae9b000 0 0x400>,
 				      <0 0x0ae9b400 0 0x400>;
 
@@ -5729,7 +5808,7 @@
 				compatible = "qcom,x1e80100-dp";
 				reg = <0 0x0aea0000 0 0x200>,
 				      <0 0x0aea0200 0 0x200>,
-				      <0 0x0aea0400 0 0x600>,
+				      <0 0x0aea0400 0 0xc00>,
 				      <0 0x0aea1000 0 0x400>,
 				      <0 0x0aea1400 0 0x400>;
 
