@@ -1,7 +1,20 @@
 # SPDX-License-Identifier: GPL-2.0+ OR MIT
 
+# Check if io_uring supports zero-copy receive
+HAS_IOURING_ZCRX := $(shell \
+	echo -e '#include <liburing.h>\n' \
+	     'void *func = (void *)io_uring_register_ifq;\n' \
+	     'int main() {return 0;}' | \
+	$(CC) -luring -x c - -o /dev/null 2>&1 && echo y)
+
+ifeq ($(HAS_IOURING_ZCRX),y)
+COND_GEN_FILES += iou-zcrx
+else
+$(warning excluding iouring tests, liburing not installed or too old)
+endif
+
 TEST_GEN_FILES := \
-	iou-zcrx \
+	$(COND_GEN_FILES) \
 	toeplitz \
 # end of TEST_GEN_FILES
 
@@ -58,4 +71,6 @@ include ../../../net/ynl.mk
 
 include ../../../net/bpf.mk
 
+ifeq ($(HAS_IOURING_ZCRX),y)
 $(OUTPUT)/iou-zcrx: LDLIBS += -luring
+endif
