@@ -1189,7 +1189,7 @@ static int rt274_i2c_probe(struct i2c_client *i2c)
 	regmap_write(rt274->regmap, RT274_UNSOLICITED_MIC, 0x82);
 
 	if (rt274->i2c->irq) {
-		ret = request_threaded_irq(rt274->i2c->irq, NULL, rt274_irq,
+		ret = devm_request_threaded_irq(&rt274->i2c->dev, rt274->i2c->irq, NULL, rt274_irq,
 			IRQF_TRIGGER_HIGH | IRQF_ONESHOT, "rt274", rt274);
 		if (ret != 0) {
 			dev_err(&i2c->dev,
@@ -1205,15 +1205,6 @@ static int rt274_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static void rt274_i2c_remove(struct i2c_client *i2c)
-{
-	struct rt274_priv *rt274 = i2c_get_clientdata(i2c);
-
-	if (i2c->irq)
-		free_irq(i2c->irq, rt274);
-}
-
-
 static struct i2c_driver rt274_i2c_driver = {
 	.driver = {
 		   .name = "rt274",
@@ -1223,7 +1214,6 @@ static struct i2c_driver rt274_i2c_driver = {
 #endif
 		   },
 	.probe = rt274_i2c_probe,
-	.remove = rt274_i2c_remove,
 	.id_table = rt274_i2c_id,
 };
 
