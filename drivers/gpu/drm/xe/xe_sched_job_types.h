@@ -63,8 +63,8 @@ struct xe_sched_job {
 	bool ring_ops_flush_tlb;
 	/** @ggtt: mapped in ggtt. */
 	bool ggtt;
-	/** @skip_emit: skip emitting the job */
-	bool skip_emit;
+	/** @restore_replay: job being replayed for restore */
+	bool restore_replay;
 	/** @last_replay: last job being replayed */
 	bool last_replay;
 	/** @ptrs: per instance pointers. */
