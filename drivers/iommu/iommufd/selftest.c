@@ -5,6 +5,8 @@
  */
 #include <linux/anon_inodes.h>
 #include <linux/debugfs.h>
+#include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 #include <linux/fault-inject.h>
 #include <linux/file.h>
 #include <linux/iommu.h>
@@ -2031,6 +2033,140 @@ void iommufd_selftest_destroy(struct iommufd_object *obj)
 	}
 }
 
+struct iommufd_test_dma_buf {
+	void *memory;
+	size_t length;
+	bool revoked;
+};
+
+static int iommufd_test_dma_buf_attach(struct dma_buf *dmabuf,
+				       struct dma_buf_attachment *attachment)
+{
+	return 0;
+}
+
+static void iommufd_test_dma_buf_detach(struct dma_buf *dmabuf,
+					struct dma_buf_attachment *attachment)
+{
+}
+
+static struct sg_table *
+iommufd_test_dma_buf_map(struct dma_buf_attachment *attachment,
+			 enum dma_data_direction dir)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static void iommufd_test_dma_buf_unmap(struct dma_buf_attachment *attachment,
+				       struct sg_table *sgt,
+				       enum dma_data_direction dir)
+{
+}
+
+static void iommufd_test_dma_buf_release(struct dma_buf *dmabuf)
+{
+	struct iommufd_test_dma_buf *priv = dmabuf->priv;
+
+	kfree(priv->memory);
+	kfree(priv);
+}
+
+static const struct dma_buf_ops iommufd_test_dmabuf_ops = {
+	.attach = iommufd_test_dma_buf_attach,
+	.detach = iommufd_test_dma_buf_detach,
+	.map_dma_buf = iommufd_test_dma_buf_map,
+	.release = iommufd_test_dma_buf_release,
+	.unmap_dma_buf = iommufd_test_dma_buf_unmap,
+};
+
+int iommufd_test_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
+				     struct dma_buf_phys_vec *phys)
+{
+	struct iommufd_test_dma_buf *priv = attachment->dmabuf->priv;
+
+	dma_resv_assert_held(attachment->dmabuf->resv);
+
+	if (attachment->dmabuf->ops != &iommufd_test_dmabuf_ops)
+		return -EOPNOTSUPP;
+
+	if (priv->revoked)
+		return -ENODEV;
+
+	phys->paddr = virt_to_phys(priv->memory);
+	phys->len = priv->length;
+	return 0;
+}
+
+static int iommufd_test_dmabuf_get(struct iommufd_ucmd *ucmd,
+				   unsigned int open_flags,
+				   size_t len)
+{
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+	struct iommufd_test_dma_buf *priv;
+	struct dma_buf *dmabuf;
+	int rc;
+
+	len = ALIGN(len, PAGE_SIZE);
+	if (len == 0 || len > PAGE_SIZE * 512)
+		return -EINVAL;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->length = len;
+	priv->memory = kzalloc(len, GFP_KERNEL);
+	if (!priv->memory) {
+		rc = -ENOMEM;
+		goto err_free;
+	}
+
+	exp_info.ops = &iommufd_test_dmabuf_ops;
+	exp_info.size = len;
+	exp_info.flags = open_flags;
+	exp_info.priv = priv;
+
+	dmabuf = dma_buf_export(&exp_info);
+	if (IS_ERR(dmabuf)) {
+		rc = PTR_ERR(dmabuf);
+		goto err_free;
+	}
+
+	return dma_buf_fd(dmabuf, open_flags);
+
+err_free:
+	kfree(priv->memory);
+	kfree(priv);
+	return rc;
+}
+
+static int iommufd_test_dmabuf_revoke(struct iommufd_ucmd *ucmd, int fd,
+				      bool revoked)
+{
+	struct iommufd_test_dma_buf *priv;
+	struct dma_buf *dmabuf;
+	int rc = 0;
+
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR(dmabuf))
+		return PTR_ERR(dmabuf);
+
+	if (dmabuf->ops != &iommufd_test_dmabuf_ops) {
+		rc = -EOPNOTSUPP;
+		goto err_put;
+	}
+
+	priv = dmabuf->priv;
+	dma_resv_lock(dmabuf->resv, NULL);
+	priv->revoked = revoked;
+	dma_buf_move_notify(dmabuf);
+	dma_resv_unlock(dmabuf->resv);
+
+err_put:
+	dma_buf_put(dmabuf);
+	return rc;
+}
+
 int iommufd_test(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_test_cmd *cmd = ucmd->cmd;
@@ -2109,6 +2245,13 @@ int iommufd_test(struct iommufd_ucmd *ucmd)
 		return iommufd_test_pasid_detach(ucmd, cmd);
 	case IOMMU_TEST_OP_PASID_CHECK_HWPT:
 		return iommufd_test_pasid_check_hwpt(ucmd, cmd);
+	case IOMMU_TEST_OP_DMABUF_GET:
+		return iommufd_test_dmabuf_get(ucmd, cmd->dmabuf_get.open_flags,
+					       cmd->dmabuf_get.length);
+	case IOMMU_TEST_OP_DMABUF_REVOKE:
+		return iommufd_test_dmabuf_revoke(ucmd,
+						  cmd->dmabuf_revoke.dmabuf_fd,
+						  cmd->dmabuf_revoke.revoked);
 	default:
 		return -EOPNOTSUPP;
 	}

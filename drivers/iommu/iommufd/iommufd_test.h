@@ -29,6 +29,8 @@ enum {
 	IOMMU_TEST_OP_PASID_REPLACE,
 	IOMMU_TEST_OP_PASID_DETACH,
 	IOMMU_TEST_OP_PASID_CHECK_HWPT,
+	IOMMU_TEST_OP_DMABUF_GET,
+	IOMMU_TEST_OP_DMABUF_REVOKE,
 };
 
 enum {
@@ -176,6 +178,14 @@ struct iommu_test_cmd {
 			__u32 hwpt_id;
 			/* @id is stdev_id */
 		} pasid_check;
+		struct {
+			__u32 length;
+			__u32 open_flags;
+		} dmabuf_get;
+		struct {
+			__s32 dmabuf_fd;
+			__u32 revoked;
+		} dmabuf_revoke;
 	};
 	__u32 last;
 };

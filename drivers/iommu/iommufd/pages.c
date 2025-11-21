@@ -1465,6 +1465,10 @@ sym_vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
 	typeof(&vfio_pci_dma_buf_iommufd_map) fn;
 	int rc;
 
+	rc = iommufd_test_dma_buf_iommufd_map(attachment, phys);
+	if (rc != -EOPNOTSUPP)
+		return rc;
+
 	if (!IS_ENABLED(CONFIG_VFIO_PCI_DMABUF))
 		return -EOPNOTSUPP;
 
