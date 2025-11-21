@@ -732,7 +732,7 @@ static void unregister_trigger(char *glob,
  *   param             - text following cmd and ':' and stripped of filter
  *   filter            - the optional filter text following (and including) 'if'
  *
- * To illustrate the use of these componenents, here are some concrete
+ * To illustrate the use of these components, here are some concrete
  * examples. For the following triggers:
  *
  *   echo 'traceon:5 if pid == 0' > trigger
