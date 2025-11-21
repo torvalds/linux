@@ -238,6 +238,14 @@ static inline bool iopt_is_dmabuf(struct iopt_pages *pages)
 	return pages->type == IOPT_ADDRESS_DMABUF;
 }
 
+static inline bool iopt_dmabuf_revoked(struct iopt_pages *pages)
+{
+	lockdep_assert_held(&pages->mutex);
+	if (iopt_is_dmabuf(pages))
+		return pages->dmabuf.phys.len == 0;
+	return false;
+}
+
 struct iopt_pages *iopt_alloc_user_pages(void __user *uptr,
 					 unsigned long length, bool writable);
 struct iopt_pages *iopt_alloc_file_pages(struct file *file, unsigned long start,
