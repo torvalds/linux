@@ -46,19 +46,18 @@ static bool clean_pages_on_read;
 static bool clean_pages_on_decompress;
 
 /*
- *	The swap map is a data structure used for keeping track of each page
- *	written to a swap partition.  It consists of many swap_map_page
- *	structures that contain each an array of MAP_PAGE_ENTRIES swap entries.
- *	These structures are stored on the swap and linked together with the
- *	help of the .next_swap member.
+ * The swap map is a data structure used for keeping track of each page
+ * written to a swap partition.  It consists of many swap_map_page structures
+ * that contain each an array of MAP_PAGE_ENTRIES swap entries.  These
+ * structures are stored on the swap and linked together with the help of the
+ * .next_swap member.
  *
- *	The swap map is created during suspend.  The swap map pages are
- *	allocated and populated one at a time, so we only need one memory
- *	page to set up the entire structure.
+ * The swap map is created during suspend.  The swap map pages are allocated and
+ * populated one at a time, so we only need one memory page to set up the entire
+ * structure.
  *
- *	During resume we pick up all swap_map_page structures into a list.
+ * During resume we pick up all swap_map_page structures into a list.
  */
-
 #define MAP_PAGE_ENTRIES	(PAGE_SIZE / sizeof(sector_t) - 1)
 
 /*
@@ -89,10 +88,8 @@ struct swap_map_page_list {
 };
 
 /*
- *	The swap_map_handle structure is used for handling swap in
- *	a file-alike way
+ * The swap_map_handle structure is used for handling swap in a file-alike way.
  */
-
 struct swap_map_handle {
 	struct swap_map_page *cur;
 	struct swap_map_page_list *maps;
@@ -117,10 +114,9 @@ struct swsusp_header {
 static struct swsusp_header *swsusp_header;
 
 /*
- *	The following functions are used for tracing the allocated
- *	swap pages, so that they can be freed in case of an error.
+ * The following functions are used for tracing the allocated swap pages, so
+ * that they can be freed in case of an error.
  */
-
 struct swsusp_extent {
 	struct rb_node node;
 	unsigned long start;
@@ -170,15 +166,14 @@ static int swsusp_extents_insert(unsigned long swap_offset)
 	return 0;
 }
 
-/*
- *	alloc_swapdev_block - allocate a swap page and register that it has
- *	been allocated, so that it can be freed in case of an error.
- */
-
 sector_t alloc_swapdev_block(int swap)
 {
 	unsigned long offset;
 
+	/*
+	 * Allocate a swap page and register that it has been allocated, so that
+	 * it can be freed in case of an error.
+	 */
 	offset = swp_offset(get_swap_page_of_type(swap));
 	if (offset) {
 		if (swsusp_extents_insert(offset))
@@ -189,16 +184,14 @@ sector_t alloc_swapdev_block(int swap)
 	return 0;
 }
 
-/*
- *	free_all_swap_pages - free swap pages allocated for saving image data.
- *	It also frees the extents used to register which swap entries had been
- *	allocated.
- */
-
 void free_all_swap_pages(int swap)
 {
 	struct rb_node *node;
 
+	/*
+	 * Free swap pages allocated for saving image data.  It also frees the
+	 * extents used to register which swap entries had been allocated.
+	 */
 	while ((node = swsusp_extents.rb_node)) {
 		struct swsusp_extent *ext;
 
@@ -303,6 +296,7 @@ static int hib_wait_io(struct hib_bio_batch *hb)
 /*
  * Saving part
  */
+
 static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 {
 	int error;
@@ -615,9 +609,6 @@ static void free_crc_data(struct crc_data *crc)
 	kfree(crc);
 }
 
-/*
- * CRC32 update function that runs in its own thread.
- */
 static int crc32_threadfn(void *data)
 {
 	struct crc_data *d = data;
@@ -642,6 +633,7 @@ static int crc32_threadfn(void *data)
 	}
 	return 0;
 }
+
 /*
  * Structure used for data compression.
  */
@@ -663,9 +655,6 @@ struct cmp_data {
 /* Indicates the image size after compression */
 static atomic64_t compressed_size = ATOMIC_INIT(0);
 
-/*
- * Compression function that runs in its own thread.
- */
 static int compress_threadfn(void *data)
 {
 	struct cmp_data *d = data;
@@ -936,15 +925,15 @@ static int enough_swap(unsigned int nr_pages)
 }
 
 /**
- *	swsusp_write - Write entire image and metadata.
- *	@flags: flags to pass to the "boot" kernel in the image header
+ * swsusp_write - Write entire image and metadata.
+ * @flags: flags to pass to the "boot" kernel in the image header
  *
- *	It is important _NOT_ to umount filesystems at this point. We want
- *	them synced (in case something goes wrong) but we DO not want to mark
- *	filesystem clean: it is not. (And it does not matter, if we resume
- *	correctly, we'll mark system clean, anyway.)
+ * It is important _NOT_ to umount filesystems at this point. We want them
+ * synced (in case something goes wrong) but we DO not want to mark filesystem
+ * clean: it is not. (And it does not matter, if we resume correctly, we'll mark
+ * system clean, anyway.)
  *
- *	Return: 0 on success, negative error code on failure.
+ * Return: 0 on success, negative error code on failure.
  */
 int swsusp_write(unsigned int flags)
 {
@@ -988,8 +977,8 @@ out_finish:
 }
 
 /*
- *	The following functions allow us to read data using a swap map
- *	in a file-like way.
+ * The following functions allow us to read data using a swap map in a file-like
+ * way.
  */
 
 static void release_swap_reader(struct swap_map_handle *handle)
@@ -1161,9 +1150,6 @@ struct dec_data {
 	unsigned char cmp[CMP_SIZE];              /* compressed buffer */
 };
 
-/*
- * Decompression function that runs in its own thread.
- */
 static int decompress_threadfn(void *data)
 {
 	struct dec_data *d = data;
@@ -1618,7 +1604,6 @@ put:
 /**
  * swsusp_close - close resume device.
  */
-
 void swsusp_close(void)
 {
 	if (IS_ERR(hib_resume_bdev_file)) {
@@ -1630,9 +1615,9 @@ void swsusp_close(void)
 }
 
 /**
- *      swsusp_unmark - Unmark swsusp signature in the resume device
+ * swsusp_unmark - Unmark swsusp signature in the resume device
  *
- *      Return: 0 on success, negative error code on failure.
+ * Return: 0 on success, negative error code on failure.
  */
 #ifdef CONFIG_SUSPEND
 int swsusp_unmark(void)
