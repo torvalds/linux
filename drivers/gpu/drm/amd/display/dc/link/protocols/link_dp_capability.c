@@ -1691,7 +1691,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	union edp_configuration_cap edp_config_cap;
 	union dp_downstream_port_present ds_port = { 0 };
 	enum dc_status status = DC_ERROR_UNEXPECTED;
-	uint32_t read_dpcd_retry_cnt = 3;
+	uint32_t read_dpcd_retry_cnt = 20;
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 	const uint32_t post_oui_delay = 30; // 30ms
@@ -1734,12 +1734,13 @@ static bool retrieve_link_cap(struct dc_link *link)
 	}
 
 	dpcd_set_source_specific_data(link);
-	/* Sink may need to configure internals based on vendor, so allow some
-	 * time before proceeding with possibly vendor specific transactions
-	 */
-	msleep(post_oui_delay);
 
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
+		/*
+		 * Sink may need to configure internals based on vendor, so allow some
+		 * time before proceeding with possibly vendor specific transactions
+		 */
+		msleep(post_oui_delay);
 		status = core_link_read_dpcd(
 				link,
 				DP_DPCD_REV,
