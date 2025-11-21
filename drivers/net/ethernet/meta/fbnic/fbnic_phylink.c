@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) Meta Platforms, Inc. and affiliates. */
 
+#include <linux/pcs/pcs-xpcs.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
 
@@ -101,56 +102,6 @@ int fbnic_phylink_get_fecparam(struct net_device *netdev,
 	return 0;
 }
 
-static struct fbnic_net *
-fbnic_pcs_to_net(struct phylink_pcs *pcs)
-{
-	return container_of(pcs, struct fbnic_net, phylink_pcs);
-}
-
-static void
-fbnic_phylink_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
-			    struct phylink_link_state *state)
-{
-	struct fbnic_net *fbn = fbnic_pcs_to_net(pcs);
-	struct fbnic_dev *fbd = fbn->fbd;
-
-	switch (fbn->aui) {
-	case FBNIC_AUI_25GAUI:
-		state->speed = SPEED_25000;
-		break;
-	case FBNIC_AUI_LAUI2:
-	case FBNIC_AUI_50GAUI1:
-		state->speed = SPEED_50000;
-		break;
-	case FBNIC_AUI_100GAUI2:
-		state->speed = SPEED_100000;
-		break;
-	default:
-		state->link = 0;
-		return;
-	}
-
-	state->duplex = DUPLEX_FULL;
-
-	state->link = (fbd->pmd_state == FBNIC_PMD_SEND_DATA) &&
-		      (rd32(fbd, FBNIC_PCS(MDIO_STAT1, 0)) &
-		       MDIO_STAT1_LSTATUS);
-}
-
-static int
-fbnic_phylink_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
-			 phy_interface_t interface,
-			 const unsigned long *advertising,
-			 bool permit_pause_to_mac)
-{
-	return 0;
-}
-
-static const struct phylink_pcs_ops fbnic_phylink_pcs_ops = {
-	.pcs_config = fbnic_phylink_pcs_config,
-	.pcs_get_state = fbnic_phylink_pcs_get_state,
-};
-
 static struct phylink_pcs *
 fbnic_phylink_mac_select_pcs(struct phylink_config *config,
 			     phy_interface_t interface)
@@ -158,7 +109,7 @@ fbnic_phylink_mac_select_pcs(struct phylink_config *config,
 	struct net_device *netdev = to_net_dev(config->dev);
 	struct fbnic_net *fbn = netdev_priv(netdev);
 
-	return &fbn->phylink_pcs;
+	return fbn->pcs;
 }
 
 static int
@@ -232,13 +183,33 @@ static const struct phylink_mac_ops fbnic_phylink_mac_ops = {
 	.mac_link_up = fbnic_phylink_mac_link_up,
 };
 
-int fbnic_phylink_init(struct net_device *netdev)
+/**
+ * fbnic_phylink_create - Phylink device creation
+ * @netdev: Network Device struct to attach phylink device
+ *
+ * Initialize and attach a phylink instance to the device. The phylink
+ * device will make use of the netdev struct to track carrier and will
+ * eventually be used to expose the current state of the MAC and PCS
+ * setup.
+ *
+ * Return: 0 on success, negative on failure
+ **/
+int fbnic_phylink_create(struct net_device *netdev)
 {
 	struct fbnic_net *fbn = netdev_priv(netdev);
 	struct fbnic_dev *fbd = fbn->fbd;
+	struct phylink_pcs *pcs;
 	struct phylink *phylink;
+	int err;
 
-	fbn->phylink_pcs.ops = &fbnic_phylink_pcs_ops;
+	pcs = xpcs_create_pcs_mdiodev(fbd->mdio_bus, 0);
+	if (IS_ERR(pcs)) {
+		err = PTR_ERR(pcs);
+		dev_err(fbd->dev, "Failed to create PCS device: %d\n", err);
+		return err;
+	}
+
+	fbn->pcs = pcs;
 
 	fbn->phylink_config.dev = &netdev->dev;
 	fbn->phylink_config.type = PHYLINK_NETDEV;
@@ -261,12 +232,33 @@ int fbnic_phylink_init(struct net_device *netdev)
 	phylink = phylink_create(&fbn->phylink_config, NULL,
 				 fbnic_phylink_select_interface(fbn->aui),
 				 &fbnic_phylink_mac_ops);
-	if (IS_ERR(phylink))
-		return PTR_ERR(phylink);
+	if (IS_ERR(phylink)) {
+		err = PTR_ERR(phylink);
+		dev_err(netdev->dev.parent,
+			"Failed to create Phylink interface, err: %d\n", err);
+		xpcs_destroy_pcs(pcs);
+		return err;
+	}
 
 	fbn->phylink = phylink;
 
 	return 0;
+}
+
+/**
+ * fbnic_phylink_destroy - Teardown phylink related interfaces
+ * @netdev: Network Device struct containing phylink device
+ *
+ * Detach and free resources related to phylink interface.
+ **/
+void fbnic_phylink_destroy(struct net_device *netdev)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	if (fbn->phylink)
+		phylink_destroy(fbn->phylink);
+	if (fbn->pcs)
+		xpcs_destroy_pcs(fbn->pcs);
 }
 
 /**
@@ -315,5 +307,5 @@ void fbnic_phylink_pmd_training_complete_notify(struct net_device *netdev)
 		    FBNIC_PMD_SEND_DATA) != FBNIC_PMD_LINK_READY)
 		return;
 
-	phylink_pcs_change(&fbn->phylink_pcs, false);
+	phylink_pcs_change(fbn->pcs, false);
 }

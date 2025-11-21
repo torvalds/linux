@@ -26,6 +26,7 @@ config FBNIC
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select NET_DEVLINK
 	select PAGE_POOL
+	select PCS_XPCS
 	select PHYLINK
 	select PLDMFW
 	help

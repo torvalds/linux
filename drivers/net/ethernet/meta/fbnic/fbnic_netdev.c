@@ -697,10 +697,7 @@ void fbnic_reset_queues(struct fbnic_net *fbn,
  **/
 void fbnic_netdev_free(struct fbnic_dev *fbd)
 {
-	struct fbnic_net *fbn = netdev_priv(fbd->netdev);
-
-	if (fbn->phylink)
-		phylink_destroy(fbn->phylink);
+	fbnic_phylink_destroy(fbd->netdev);
 
 	free_netdev(fbd->netdev);
 	fbd->netdev = NULL;
@@ -802,7 +799,7 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 
 	netif_tx_stop_all_queues(netdev);
 
-	if (fbnic_phylink_init(netdev)) {
+	if (fbnic_phylink_create(netdev)) {
 		fbnic_netdev_free(fbd);
 		return NULL;
 	}
