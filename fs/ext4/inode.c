@@ -5154,9 +5154,6 @@ static bool ext4_should_enable_large_folio(struct inode *inode)
 
 	if (!S_ISREG(inode->i_mode))
 		return false;
-	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
-	    ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA))
-		return false;
 	if (ext4_has_feature_verity(sb))
 		return false;
 	if (ext4_has_feature_encrypt(sb))
@@ -5174,12 +5171,20 @@ static bool ext4_should_enable_large_folio(struct inode *inode)
 		umin(MAX_PAGECACHE_ORDER, (11 + (i)->i_blkbits - PAGE_SHIFT))
 void ext4_set_inode_mapping_order(struct inode *inode)
 {
+	u32 max_order;
+
 	if (!ext4_should_enable_large_folio(inode))
 		return;
 
+	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
+	    ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA))
+		max_order = EXT4_SB(inode->i_sb)->s_min_folio_order;
+	else
+		max_order = EXT4_MAX_PAGECACHE_ORDER(inode);
+
 	mapping_set_folio_order_range(inode->i_mapping,
 				      EXT4_SB(inode->i_sb)->s_min_folio_order,
-				      EXT4_MAX_PAGECACHE_ORDER(inode));
+				      max_order);
 }
 
 struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
@@ -6554,14 +6559,14 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 	 * dirty data which can be converted only after flushing the dirty
 	 * data (and journalled aops don't know how to handle these cases).
 	 */
-	if (val) {
-		filemap_invalidate_lock(inode->i_mapping);
-		err = filemap_write_and_wait(inode->i_mapping);
-		if (err < 0) {
-			filemap_invalidate_unlock(inode->i_mapping);
-			return err;
-		}
+	filemap_invalidate_lock(inode->i_mapping);
+	err = filemap_write_and_wait(inode->i_mapping);
+	if (err < 0) {
+		filemap_invalidate_unlock(inode->i_mapping);
+		return err;
 	}
+	/* Before switch the inode journalling mode evict all the page cache. */
+	truncate_pagecache(inode, 0);
 
 	alloc_ctx = ext4_writepages_down_write(inode->i_sb);
 	jbd2_journal_lock_updates(journal);
@@ -6581,17 +6586,17 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 		if (err < 0) {
 			jbd2_journal_unlock_updates(journal);
 			ext4_writepages_up_write(inode->i_sb, alloc_ctx);
+			filemap_invalidate_unlock(inode->i_mapping);
 			return err;
 		}
 		ext4_clear_inode_flag(inode, EXT4_INODE_JOURNAL_DATA);
 	}
 	ext4_set_aops(inode);
+	ext4_set_inode_mapping_order(inode);
 
 	jbd2_journal_unlock_updates(journal);
 	ext4_writepages_up_write(inode->i_sb, alloc_ctx);
-
-	if (val)
-		filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(inode->i_mapping);
 
 	/* Finally we can mark the inode as dirty. */
 
