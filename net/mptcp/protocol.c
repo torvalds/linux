@@ -3222,6 +3222,27 @@ static void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk)
 	inet_sk(msk)->inet_rcv_saddr = inet_sk(ssk)->inet_rcv_saddr;
 }
 
+static void mptcp_destroy_common(struct mptcp_sock *msk)
+{
+	struct mptcp_subflow_context *subflow, *tmp;
+	struct sock *sk = (struct sock *)msk;
+
+	__mptcp_clear_xmit(sk);
+
+	/* join list will be eventually flushed (with rst) at sock lock release time */
+	mptcp_for_each_subflow_safe(msk, subflow, tmp)
+		__mptcp_close_ssk(sk, mptcp_subflow_tcp_sock(subflow), subflow, 0);
+
+	__skb_queue_purge(&sk->sk_receive_queue);
+	skb_rbtree_purge(&msk->out_of_order_queue);
+
+	/* move all the rx fwd alloc into the sk_mem_reclaim_final in
+	 * inet_sock_destruct() will dispose it
+	 */
+	mptcp_token_destroy(msk);
+	mptcp_pm_destroy(msk);
+}
+
 static int mptcp_disconnect(struct sock *sk, int flags)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
@@ -3425,27 +3446,6 @@ void mptcp_rcv_space_init(struct mptcp_sock *msk, const struct sock *ssk)
 				      TCP_INIT_CWND * tp->advmss);
 	if (msk->rcvq_space.space == 0)
 		msk->rcvq_space.space = TCP_INIT_CWND * TCP_MSS_DEFAULT;
-}
-
-void mptcp_destroy_common(struct mptcp_sock *msk)
-{
-	struct mptcp_subflow_context *subflow, *tmp;
-	struct sock *sk = (struct sock *)msk;
-
-	__mptcp_clear_xmit(sk);
-
-	/* join list will be eventually flushed (with rst) at sock lock release time */
-	mptcp_for_each_subflow_safe(msk, subflow, tmp)
-		__mptcp_close_ssk(sk, mptcp_subflow_tcp_sock(subflow), subflow, 0);
-
-	__skb_queue_purge(&sk->sk_receive_queue);
-	skb_rbtree_purge(&msk->out_of_order_queue);
-
-	/* move all the rx fwd alloc into the sk_mem_reclaim_final in
-	 * inet_sock_destruct() will dispose it
-	 */
-	mptcp_token_destroy(msk);
-	mptcp_pm_destroy(msk);
 }
 
 static void mptcp_destroy(struct sock *sk)
