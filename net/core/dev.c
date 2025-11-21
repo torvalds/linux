@@ -4434,7 +4434,7 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 		*pt_prev = NULL;
 	}
 
-	qdisc_skb_cb(skb)->pkt_len = skb->len;
+	qdisc_pkt_len_segs_init(skb);
 	tcx_set_ingress(skb, true);
 
 	if (static_branch_unlikely(&tcx_needed_key)) {
