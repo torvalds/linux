@@ -29,6 +29,43 @@ struct disas_context {
 	struct disassemble_info info;
 };
 
+/*
+ * Maximum number of alternatives
+ */
+#define DISAS_ALT_MAX		5
+
+/*
+ * Maximum number of instructions per alternative
+ */
+#define DISAS_ALT_INSN_MAX	50
+
+/*
+ * Information to disassemble an alternative
+ */
+struct disas_alt {
+	struct instruction *orig_insn;		/* original instruction */
+	struct alternative *alt;		/* alternative or NULL if default code */
+	char *name;				/* name for this alternative */
+	int width;				/* formatting width */
+};
+
+/*
+ * Wrapper around asprintf() to allocate and format a string.
+ * Return the allocated string or NULL on error.
+ */
+static char *strfmt(const char *fmt, ...)
+{
+	va_list ap;
+	char *str;
+	int rv;
+
+	va_start(ap, fmt);
+	rv = vasprintf(&str, fmt, ap);
+	va_end(ap);
+
+	return rv == -1 ? NULL : str;
+}
+
 static int sprint_name(char *str, const char *name, unsigned long offset)
 {
 	int len;
@@ -314,6 +351,9 @@ char *disas_result(struct disas_context *dctx)
 #define DISAS_INSN_OFFSET_SPACE		10
 #define DISAS_INSN_SPACE		60
 
+#define DISAS_PRINSN(dctx, insn, depth)			\
+	disas_print_insn(stdout, dctx, insn, depth, "\n")
+
 /*
  * Print a message in the instruction flow. If insn is not NULL then
  * the instruction address is printed in addition of the message,
@@ -352,6 +392,19 @@ static int disas_vprint(FILE *stream, struct section *sec, unsigned long offset,
 		n += vfprintf(stream, format, ap);
 
 	return n;
+}
+
+static int disas_print(FILE *stream, struct section *sec, unsigned long offset,
+			int depth, const char *format, ...)
+{
+	va_list args;
+	int len;
+
+	va_start(args, format);
+	len = disas_vprint(stream, sec, offset, depth, format, args);
+	va_end(args);
+
+	return len;
 }
 
 /*
@@ -524,20 +577,143 @@ char *disas_alt_name(struct alternative *alt)
 }
 
 /*
+ * Initialize an alternative. The default alternative should be initialized
+ * with alt=NULL.
+ */
+static int disas_alt_init(struct disas_alt *dalt,
+			  struct instruction *orig_insn,
+			  struct alternative *alt)
+{
+	dalt->orig_insn = orig_insn;
+	dalt->alt = alt;
+	dalt->name = alt ? disas_alt_name(alt) : strdup("DEFAULT");
+	if (!dalt->name)
+		return -1;
+	dalt->width = strlen(dalt->name);
+
+	return 0;
+}
+
+/*
+ * Print all alternatives one above the other.
+ */
+static void disas_alt_print_compact(char *alt_name, struct disas_alt *dalts,
+				    int alt_count)
+{
+	struct instruction *orig_insn;
+	int len;
+	int i;
+
+	orig_insn = dalts[0].orig_insn;
+
+	len = disas_print(stdout, orig_insn->sec, orig_insn->offset, 0, NULL);
+	printf("%s\n", alt_name);
+
+	for (i = 0; i < alt_count; i++)
+		printf("%*s= %s\n", len, "", dalts[i].name);
+}
+
+/*
+ * Disassemble an alternative.
+ *
+ * Return the last instruction in the default alternative so that
+ * disassembly can continue with the next instruction. Return NULL
+ * on error.
+ */
+static void *disas_alt(struct disas_context *dctx,
+		       struct instruction *orig_insn)
+{
+	struct disas_alt dalts[DISAS_ALT_MAX] = { 0 };
+	struct alternative *alt;
+	int alt_count = 0;
+	char *alt_name;
+	int err;
+	int i;
+
+	alt_name = strfmt("<%s.%lx>", disas_alt_type_name(orig_insn),
+			  orig_insn->offset);
+	if (!alt_name) {
+		WARN("Failed to define name for alternative at instruction 0x%lx",
+		     orig_insn->offset);
+		goto done;
+	}
+
+	/*
+	 * Initialize the default alternative.
+	 */
+	err = disas_alt_init(&dalts[0], orig_insn, NULL);
+	if (err) {
+		WARN("%s: failed to initialize default alternative", alt_name);
+		goto done;
+	}
+
+	/*
+	 * Initialize all other alternatives.
+	 */
+	i = 1;
+	for (alt = orig_insn->alts; alt; alt = alt->next) {
+		if (i >= DISAS_ALT_MAX) {
+			WARN("%s has more alternatives than supported", alt_name);
+			break;
+		}
+		err = disas_alt_init(&dalts[i], orig_insn, alt);
+		if (err) {
+			WARN("%s: failed to disassemble alternative", alt_name);
+			goto done;
+		}
+
+		i++;
+	}
+	alt_count = i;
+
+	/*
+	 * Print default and non-default alternatives.
+	 *
+	 * At the moment, this just prints an header for each alternative.
+	 */
+	disas_alt_print_compact(alt_name, dalts, alt_count);
+
+done:
+	for (i = 0; i < alt_count; i++)
+		free(dalts[i].name);
+
+	free(alt_name);
+
+	/*
+	 * Currently we are not disassembling any alternative but just
+	 * printing alternative names. Return NULL to have disas_func()
+	 * resume the disassembly with the default alternative.
+	 */
+	return NULL;
+}
+
+/*
  * Disassemble a function.
  */
 static void disas_func(struct disas_context *dctx, struct symbol *func)
 {
+	struct instruction *insn_start;
 	struct instruction *insn;
-	size_t addr;
 
 	printf("%s:\n", func->name);
 	sym_for_each_insn(dctx->file, func, insn) {
-		addr = insn->offset;
-		disas_insn(dctx, insn);
-		printf(" %6lx:  %s+0x%-6lx      %s\n",
-		       addr, func->name, addr - func->offset,
-		       disas_result(dctx));
+		if (insn->alts) {
+			insn_start = insn;
+			insn = disas_alt(dctx, insn);
+			if (insn)
+				continue;
+			/*
+			 * There was an error with disassembling
+			 * the alternative. Resume disassembling
+			 * at the current instruction, this will
+			 * disassemble the default alternative
+			 * only and continue with the code after
+			 * the alternative.
+			 */
+			insn = insn_start;
+		}
+
+		DISAS_PRINSN(dctx, insn, 0);
 	}
 	printf("\n");
 }
