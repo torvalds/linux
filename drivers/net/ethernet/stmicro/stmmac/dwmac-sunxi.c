@@ -27,7 +27,7 @@ struct sunxi_priv_data {
 #define SUN7I_GMAC_GMII_RGMII_RATE	125000000
 #define SUN7I_GMAC_MII_RATE		25000000
 
-static int sun7i_gmac_init(struct platform_device *pdev, void *priv)
+static int sun7i_gmac_init(struct device *dev, void *priv)
 {
 	struct sunxi_priv_data *gmac = priv;
 	int ret = 0;
@@ -58,7 +58,7 @@ static int sun7i_gmac_init(struct platform_device *pdev, void *priv)
 	return ret;
 }
 
-static void sun7i_gmac_exit(struct platform_device *pdev, void *priv)
+static void sun7i_gmac_exit(struct device *dev, void *priv)
 {
 	struct sunxi_priv_data *gmac = priv;
 

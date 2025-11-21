@@ -571,16 +571,16 @@ static const struct stmmac_dma_ops sun8i_dwmac_dma_ops = {
 
 static int sun8i_dwmac_power_internal_phy(struct stmmac_priv *priv);
 
-static int sun8i_dwmac_init(struct platform_device *pdev, void *priv)
+static int sun8i_dwmac_init(struct device *dev, void *priv)
 {
-	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct net_device *ndev = dev_get_drvdata(dev);
 	struct sunxi_priv_data *gmac = priv;
 	int ret;
 
 	if (gmac->regulator) {
 		ret = regulator_enable(gmac->regulator);
 		if (ret) {
-			dev_err(&pdev->dev, "Fail to enable regulator\n");
+			dev_err(dev, "Fail to enable regulator\n");
 			return ret;
 		}
 	}
@@ -1005,7 +1005,7 @@ static void sun8i_dwmac_unset_syscon(struct sunxi_priv_data *gmac)
 				   (H3_EPHY_SHUTDOWN | H3_EPHY_SELECT));
 }
 
-static void sun8i_dwmac_exit(struct platform_device *pdev, void *priv)
+static void sun8i_dwmac_exit(struct device *dev, void *priv)
 {
 	struct sunxi_priv_data *gmac = priv;
 
@@ -1265,7 +1265,7 @@ static void sun8i_dwmac_shutdown(struct platform_device *pdev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct sunxi_priv_data *gmac = priv->plat->bsp_priv;
 
-	sun8i_dwmac_exit(pdev, gmac);
+	sun8i_dwmac_exit(&pdev->dev, gmac);
 }
 
 static const struct of_device_id sun8i_dwmac_match[] = {

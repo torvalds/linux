@@ -229,14 +229,14 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	return 0;
 }
 
-static int sti_dwmac_init(struct platform_device *pdev, void *bsp_priv)
+static int sti_dwmac_init(struct device *dev, void *bsp_priv)
 {
 	struct sti_dwmac *dwmac = bsp_priv;
 
 	return clk_prepare_enable(dwmac->clk);
 }
 
-static void sti_dwmac_exit(struct platform_device *pdev, void *bsp_priv)
+static void sti_dwmac_exit(struct device *dev, void *bsp_priv)
 {
 	struct sti_dwmac *dwmac = bsp_priv;
 

@@ -47,7 +47,7 @@ static int s32_gmac_write_phy_intf_select(struct s32_priv_data *gmac)
 	return 0;
 }
 
-static int s32_gmac_init(struct platform_device *pdev, void *priv)
+static int s32_gmac_init(struct device *dev, void *priv)
 {
 	struct s32_priv_data *gmac = priv;
 	int ret;
@@ -55,31 +55,31 @@ static int s32_gmac_init(struct platform_device *pdev, void *priv)
 	/* Set initial TX interface clock */
 	ret = clk_prepare_enable(gmac->tx_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't enable tx clock\n");
+		dev_err(dev, "Can't enable tx clock\n");
 		return ret;
 	}
 	ret = clk_set_rate(gmac->tx_clk, GMAC_INTF_RATE_125M);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't set tx clock\n");
+		dev_err(dev, "Can't set tx clock\n");
 		goto err_tx_disable;
 	}
 
 	/* Set initial RX interface clock */
 	ret = clk_prepare_enable(gmac->rx_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't enable rx clock\n");
+		dev_err(dev, "Can't enable rx clock\n");
 		goto err_tx_disable;
 	}
 	ret = clk_set_rate(gmac->rx_clk, GMAC_INTF_RATE_125M);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't set rx clock\n");
+		dev_err(dev, "Can't set rx clock\n");
 		goto err_txrx_disable;
 	}
 
 	/* Set interface mode */
 	ret = s32_gmac_write_phy_intf_select(gmac);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't set PHY interface mode\n");
+		dev_err(dev, "Can't set PHY interface mode\n");
 		goto err_txrx_disable;
 	}
 
@@ -92,7 +92,7 @@ err_tx_disable:
 	return ret;
 }
 
-static void s32_gmac_exit(struct platform_device *pdev, void *priv)
+static void s32_gmac_exit(struct device *dev, void *priv)
 {
 	struct s32_priv_data *gmac = priv;
 
