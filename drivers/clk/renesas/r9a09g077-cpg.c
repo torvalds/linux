@@ -78,7 +78,7 @@ enum rzt2h_clk_types {
 #define DEF_MUX(_name, _id, _conf, _parent_names, _num_parents, _mux_flags) \
 	DEF_TYPE(_name, _id, CLK_TYPE_RZT2H_MUX, .conf = _conf, \
 		 .parent_names = _parent_names, .num_parents = _num_parents, \
-		 .flag = 0, .mux_flags = _mux_flags)
+		 .flag = CLK_SET_RATE_PARENT, .mux_flags = _mux_flags)
 #define DEF_DIV_FSELXSPI(_name, _id, _parent, _conf, _dtable) \
 	DEF_TYPE(_name, _id, CLK_TYPE_RZT2H_FSELXSPI, .conf = _conf, \
 		 .parent = _parent, .dtable = _dtable, .flag = 0)
