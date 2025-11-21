@@ -19,6 +19,10 @@ config MACH_MT6572
 	bool "MediaTek MT6572 SoCs support"
 	default ARCH_MEDIATEK
 
+config MACH_MT6582
+	bool "MediaTek MT6582 SoCs support"
+	default ARCH_MEDIATEK
+
 config MACH_MT6589
 	bool "MediaTek MT6589 SoCs support"
 	default ARCH_MEDIATEK
