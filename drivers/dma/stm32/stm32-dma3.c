@@ -288,6 +288,7 @@ struct stm32_dma3_chan {
 	u32 fifo_size;
 	u32 max_burst;
 	bool semaphore_mode;
+	bool semaphore_taken;
 	struct stm32_dma3_dt_conf dt_config;
 	struct dma_slave_config dma_config;
 	u8 config_set;
@@ -1063,11 +1064,50 @@ static irqreturn_t stm32_dma3_chan_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static int stm32_dma3_get_chan_sem(struct stm32_dma3_chan *chan)
+{
+	struct stm32_dma3_ddata *ddata = to_stm32_dma3_ddata(chan);
+	u32 csemcr, ccid;
+
+	csemcr = readl_relaxed(ddata->base + STM32_DMA3_CSEMCR(chan->id));
+	/* Make an attempt to take the channel semaphore if not already taken */
+	if (!(csemcr & CSEMCR_SEM_MUTEX)) {
+		writel_relaxed(CSEMCR_SEM_MUTEX, ddata->base + STM32_DMA3_CSEMCR(chan->id));
+		csemcr = readl_relaxed(ddata->base + STM32_DMA3_CSEMCR(chan->id));
+	}
+
+	/* Check if channel is under CID1 control */
+	ccid = FIELD_GET(CSEMCR_SEM_CCID, csemcr);
+	if (!(csemcr & CSEMCR_SEM_MUTEX) || ccid != CCIDCFGR_CID1)
+		goto bad_cid;
+
+	chan->semaphore_taken = true;
+	dev_dbg(chan2dev(chan), "under CID1 control (semcr=0x%08x)\n", csemcr);
+
+	return 0;
+
+bad_cid:
+	chan->semaphore_taken = false;
+	dev_err(chan2dev(chan), "not under CID1 control (in-use by CID%d)\n", ccid);
+
+	return -EACCES;
+}
+
+static void stm32_dma3_put_chan_sem(struct stm32_dma3_chan *chan)
+{
+	struct stm32_dma3_ddata *ddata = to_stm32_dma3_ddata(chan);
+
+	if (chan->semaphore_taken) {
+		writel_relaxed(0, ddata->base + STM32_DMA3_CSEMCR(chan->id));
+		chan->semaphore_taken = false;
+		dev_dbg(chan2dev(chan), "no more under CID1 control\n");
+	}
+}
+
 static int stm32_dma3_alloc_chan_resources(struct dma_chan *c)
 {
 	struct stm32_dma3_chan *chan = to_stm32_dma3_chan(c);
 	struct stm32_dma3_ddata *ddata = to_stm32_dma3_ddata(chan);
-	u32 id = chan->id, csemcr, ccid;
 	int ret;
 
 	ret = pm_runtime_resume_and_get(ddata->dma_dev.dev);
@@ -1092,16 +1132,9 @@ static int stm32_dma3_alloc_chan_resources(struct dma_chan *c)
 
 	/* Take the channel semaphore */
 	if (chan->semaphore_mode) {
-		writel_relaxed(CSEMCR_SEM_MUTEX, ddata->base + STM32_DMA3_CSEMCR(id));
-		csemcr = readl_relaxed(ddata->base + STM32_DMA3_CSEMCR(id));
-		ccid = FIELD_GET(CSEMCR_SEM_CCID, csemcr);
-		/* Check that the channel is well taken */
-		if (ccid != CCIDCFGR_CID1) {
-			dev_err(chan2dev(chan), "Not under CID1 control (in-use by CID%d)\n", ccid);
-			ret = -EPERM;
+		ret = stm32_dma3_get_chan_sem(chan);
+		if (ret)
 			goto err_pool_destroy;
-		}
-		dev_dbg(chan2dev(chan), "Under CID1 control (semcr=0x%08x)\n", csemcr);
 	}
 
 	return 0;
@@ -1135,7 +1168,7 @@ static void stm32_dma3_free_chan_resources(struct dma_chan *c)
 
 	/* Release the channel semaphore */
 	if (chan->semaphore_mode)
-		writel_relaxed(0, ddata->base + STM32_DMA3_CSEMCR(chan->id));
+		stm32_dma3_put_chan_sem(chan);
 
 	pm_runtime_put_sync(ddata->dma_dev.dev);
 
