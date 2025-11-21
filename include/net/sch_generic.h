@@ -429,13 +429,16 @@ struct tcf_proto {
 };
 
 struct qdisc_skb_cb {
-	struct {
-		unsigned int		pkt_len;
-		u16			slave_dev_queue_mapping;
-		u16			tc_classid;
-	};
+	unsigned int		pkt_len;
+	u16			pkt_segs;
+	u16			tc_classid;
 #define QDISC_CB_PRIV_LEN 20
 	unsigned char		data[QDISC_CB_PRIV_LEN];
+
+	u16			slave_dev_queue_mapping;
+	u8			post_ct:1;
+	u8			post_ct_snat:1;
+	u8			post_ct_dnat:1;
 };
 
 typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
@@ -1064,11 +1067,8 @@ struct tc_skb_cb {
 	struct qdisc_skb_cb qdisc_cb;
 	u32 drop_reason;
 
-	u16 zone; /* Only valid if post_ct = true */
+	u16 zone; /* Only valid if qdisc_skb_cb(skb)->post_ct = true */
 	u16 mru;
-	u8 post_ct:1;
-	u8 post_ct_snat:1;
-	u8 post_ct_dnat:1;
 };
 
 static inline struct tc_skb_cb *tc_skb_cb(const struct sk_buff *skb)

@@ -4355,7 +4355,7 @@ static int tc_run(struct tcx_entry *entry, struct sk_buff *skb,
 		return ret;
 
 	tc_skb_cb(skb)->mru = 0;
-	tc_skb_cb(skb)->post_ct = false;
+	qdisc_skb_cb(skb)->post_ct = false;
 	tcf_set_drop_reason(skb, *drop_reason);
 
 	mini_qdisc_bstats_cpu_update(miniq, skb);
