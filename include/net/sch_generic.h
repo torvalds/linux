@@ -88,6 +88,8 @@ struct Qdisc {
 #define TCQ_F_INVISIBLE		0x80 /* invisible by default in dump */
 #define TCQ_F_NOLOCK		0x100 /* qdisc does not require locking */
 #define TCQ_F_OFFLOADED		0x200 /* qdisc is offloaded to HW */
+#define TCQ_F_DEQUEUE_DROPS	0x400 /* ->dequeue() can drop packets in q->to_free */
+
 	u32			limit;
 	const struct Qdisc_ops	*ops;
 	struct qdisc_size_table	__rcu *stab;
@@ -119,6 +121,8 @@ struct Qdisc {
 
 		/* Note : we only change qstats.backlog in fast path. */
 		struct gnet_stats_queue	qstats;
+
+		struct sk_buff		*to_free;
 	__cacheline_group_end(Qdisc_write);
 
 
@@ -218,8 +222,10 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 	return true;
 }
 
-static inline void qdisc_run_end(struct Qdisc *qdisc)
+static inline struct sk_buff *qdisc_run_end(struct Qdisc *qdisc)
 {
+	struct sk_buff *to_free = NULL;
+
 	if (qdisc->flags & TCQ_F_NOLOCK) {
 		spin_unlock(&qdisc->seqlock);
 
@@ -232,9 +238,16 @@ static inline void qdisc_run_end(struct Qdisc *qdisc)
 		if (unlikely(test_bit(__QDISC_STATE_MISSED,
 				      &qdisc->state)))
 			__netif_schedule(qdisc);
-	} else {
-		WRITE_ONCE(qdisc->running, false);
+		return NULL;
 	}
+
+	if (qdisc->flags & TCQ_F_DEQUEUE_DROPS) {
+		to_free = qdisc->to_free;
+		if (to_free)
+			qdisc->to_free = NULL;
+	}
+	WRITE_ONCE(qdisc->running, false);
+	return to_free;
 }
 
 static inline bool qdisc_may_bulk(const struct Qdisc *qdisc)
@@ -1114,6 +1127,17 @@ static inline void tcf_kfree_skb_list(struct sk_buff *skb)
 		kfree_skb_reason(skb, tcf_get_drop_reason(skb));
 		skb = next;
 	}
+}
+
+static inline void qdisc_dequeue_drop(struct Qdisc *q, struct sk_buff *skb,
+				      enum skb_drop_reason reason)
+{
+	DEBUG_NET_WARN_ON_ONCE(!(q->flags & TCQ_F_DEQUEUE_DROPS));
+	DEBUG_NET_WARN_ON_ONCE(q->flags & TCQ_F_NOLOCK);
+
+	tcf_set_drop_reason(skb, reason);
+	skb->next = q->to_free;
+	q->to_free = skb;
 }
 
 /* Instead of calling kfree_skb() while root qdisc lock is held,

@@ -4141,7 +4141,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				 struct net_device *dev,
 				 struct netdev_queue *txq)
 {
-	struct sk_buff *next, *to_free = NULL;
+	struct sk_buff *next, *to_free = NULL, *to_free2 = NULL;
 	spinlock_t *root_lock = qdisc_lock(q);
 	struct llist_node *ll_list, *first_n;
 	unsigned long defer_count = 0;
@@ -4160,7 +4160,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 			if (unlikely(!nolock_qdisc_is_empty(q))) {
 				rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
 				__qdisc_run(q);
-				qdisc_run_end(q);
+				to_free2 = qdisc_run_end(q);
 
 				goto free_skbs;
 			}
@@ -4170,12 +4170,13 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 			    !nolock_qdisc_is_empty(q))
 				__qdisc_run(q);
 
-			qdisc_run_end(q);
-			return NET_XMIT_SUCCESS;
+			to_free2 = qdisc_run_end(q);
+			rc = NET_XMIT_SUCCESS;
+			goto free_skbs;
 		}
 
 		rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
-		qdisc_run(q);
+		to_free2 = qdisc_run(q);
 		goto free_skbs;
 	}
 
@@ -4234,7 +4235,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		qdisc_bstats_update(q, skb);
 		if (sch_direct_xmit(skb, q, dev, txq, root_lock, true))
 			__qdisc_run(q);
-		qdisc_run_end(q);
+		to_free2 = qdisc_run_end(q);
 		rc = NET_XMIT_SUCCESS;
 	} else {
 		int count = 0;
@@ -4246,7 +4247,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 			rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
 			count++;
 		}
-		qdisc_run(q);
+		to_free2 = qdisc_run(q);
 		if (count != 1)
 			rc = NET_XMIT_SUCCESS;
 	}
@@ -4255,6 +4256,7 @@ unlock:
 
 free_skbs:
 	tcf_kfree_skb_list(to_free);
+	tcf_kfree_skb_list(to_free2);
 	return rc;
 }
 
@@ -5747,8 +5749,9 @@ static __latent_entropy void net_tx_action(void)
 		rcu_read_lock();
 
 		while (head) {
-			struct Qdisc *q = head;
 			spinlock_t *root_lock = NULL;
+			struct sk_buff *to_free;
+			struct Qdisc *q = head;
 
 			head = head->next_sched;
 
@@ -5775,9 +5778,10 @@ static __latent_entropy void net_tx_action(void)
 			}
 
 			clear_bit(__QDISC_STATE_SCHED, &q->state);
-			qdisc_run(q);
+			to_free = qdisc_run(q);
 			if (root_lock)
 				spin_unlock(root_lock);
+			tcf_kfree_skb_list(to_free);
 		}
 
 		rcu_read_unlock();

@@ -114,12 +114,13 @@ bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 
 void __qdisc_run(struct Qdisc *q);
 
-static inline void qdisc_run(struct Qdisc *q)
+static inline struct sk_buff *qdisc_run(struct Qdisc *q)
 {
 	if (qdisc_run_begin(q)) {
 		__qdisc_run(q);
-		qdisc_run_end(q);
+		return qdisc_run_end(q);
 	}
+	return NULL;
 }
 
 extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
