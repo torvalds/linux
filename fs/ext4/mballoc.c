@@ -1659,17 +1659,15 @@ err:
 
 /*
  * Locking note:  This routine calls ext4_mb_init_cache(), which takes the
- * block group lock of all groups for this page; do not hold the BG lock when
+ * block group lock of all groups for this folio; do not hold the BG lock when
  * calling this routine!
  */
 static noinline_for_stack int
 ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
 		       struct ext4_buddy *e4b, gfp_t gfp)
 {
-	int blocks_per_page;
 	int block;
 	int pnum;
-	int poff;
 	struct folio *folio;
 	int ret;
 	struct ext4_group_info *grp;
@@ -1679,7 +1677,6 @@ ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
 	might_sleep();
 	mb_debug(sb, "load group %u\n", group);
 
-	blocks_per_page = PAGE_SIZE / sb->s_blocksize;
 	grp = ext4_get_group_info(sb, group);
 	if (!grp)
 		return -EFSCORRUPTED;
@@ -1707,8 +1704,7 @@ ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
 	 * So for each group we need two blocks.
 	 */
 	block = group * 2;
-	pnum = block / blocks_per_page;
-	poff = block % blocks_per_page;
+	pnum = EXT4_LBLK_TO_PG(inode, block);
 
 	/* Avoid locking the folio in the fast path ... */
 	folio = __filemap_get_folio(inode->i_mapping, pnum, FGP_ACCESSED, 0);
@@ -1740,7 +1736,8 @@ ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
 					goto err;
 				}
 				mb_cmp_bitmaps(e4b, folio_address(folio) +
-					       (poff * sb->s_blocksize));
+					offset_in_folio(folio,
+						EXT4_LBLK_TO_B(inode, block)));
 			}
 			folio_unlock(folio);
 		}
@@ -1756,12 +1753,18 @@ ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
 
 	/* Folios marked accessed already */
 	e4b->bd_bitmap_folio = folio;
-	e4b->bd_bitmap = folio_address(folio) + (poff * sb->s_blocksize);
+	e4b->bd_bitmap = folio_address(folio) +
+			 offset_in_folio(folio, EXT4_LBLK_TO_B(inode, block));
 
 	block++;
-	pnum = block / blocks_per_page;
-	poff = block % blocks_per_page;
+	pnum = EXT4_LBLK_TO_PG(inode, block);
+	/* buddy and bitmap are on the same folio? */
+	if (folio_contains(folio, pnum)) {
+		folio_get(folio);
+		goto update_buddy;
+	}
 
+	/* we need another folio for the buddy */
 	folio = __filemap_get_folio(inode->i_mapping, pnum, FGP_ACCESSED, 0);
 	if (IS_ERR(folio) || !folio_test_uptodate(folio)) {
 		if (!IS_ERR(folio))
@@ -1796,9 +1799,11 @@ ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
 		goto err;
 	}
 
+update_buddy:
 	/* Folios marked accessed already */
 	e4b->bd_buddy_folio = folio;
-	e4b->bd_buddy = folio_address(folio) + (poff * sb->s_blocksize);
+	e4b->bd_buddy = folio_address(folio) +
+			offset_in_folio(folio, EXT4_LBLK_TO_B(inode, block));
 
 	return 0;
 
