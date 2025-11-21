@@ -357,6 +357,9 @@ struct mptcp_sock {
 					 * allow_infinite_fallback and
 					 * allow_join
 					 */
+
+	struct list_head backlog_list;	/* protected by the data lock */
+	u32		backlog_len;
 };
 
 #define mptcp_data_lock(sk) spin_lock_bh(&(sk)->sk_lock.slock)
@@ -407,6 +410,7 @@ static inline int mptcp_space_from_win(const struct sock *sk, int win)
 static inline int __mptcp_space(const struct sock *sk)
 {
 	return mptcp_win_from_space(sk, READ_ONCE(sk->sk_rcvbuf) -
+				    READ_ONCE(mptcp_sk(sk)->backlog_len) -
 				    sk_rmem_alloc_get(sk));
 }
 
@@ -655,23 +659,32 @@ static inline void mptcp_borrow_fwdmem(struct sock *sk, struct sk_buff *skb)
 {
 	struct sock *ssk = skb->sk;
 
-	/* The subflow just lend the skb fwd memory, and we know that the skb
-	 * is only accounted on the incoming subflow rcvbuf.
+	/* The subflow just lend the skb fwd memory; if the subflow meanwhile
+	 * closed, mptcp_close_ssk() already released the ssk rcv memory.
 	 */
 	DEBUG_NET_WARN_ON_ONCE(skb->destructor);
-	skb->sk = NULL;
 	sk_forward_alloc_add(sk, skb->truesize);
+	if (!ssk)
+		return;
+
 	atomic_sub(skb->truesize, &ssk->sk_rmem_alloc);
+	skb->sk = NULL;
+}
+
+static inline void
+__mptcp_subflow_lend_fwdmem(struct mptcp_subflow_context *subflow, int size)
+{
+	int frag = (subflow->lent_mem_frag + size) & (PAGE_SIZE - 1);
+
+	subflow->lent_mem_frag = frag;
 }
 
 static inline void
 mptcp_subflow_lend_fwdmem(struct mptcp_subflow_context *subflow,
 			  struct sk_buff *skb)
 {
-	int frag = (subflow->lent_mem_frag + skb->truesize) & (PAGE_SIZE - 1);
-
+	__mptcp_subflow_lend_fwdmem(subflow, skb->truesize);
 	skb->destructor = NULL;
-	subflow->lent_mem_frag = frag;
 }
 
 static inline u64
