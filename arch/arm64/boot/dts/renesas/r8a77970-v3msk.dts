@@ -146,7 +146,6 @@
 
 	hdmi@39 {
 		compatible = "adi,adv7511w";
-		#sound-dai-cells = <0>;
 		reg = <0x39>;
 		interrupts-extended = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
 		avdd-supply = <&vcc_d1_8v>;
@@ -293,10 +292,20 @@
 	};
 };
 
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
+
 &scif0 {
 	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";
 	bootph-all;
 
 	status = "okay";
+};
+
+/* Firmware should reserve it but sadly doesn't */
+&swdt {
+	status = "reserved";
 };
