@@ -8,6 +8,7 @@
  * The datastructure uses the iopt_pages to optimize the storage of the PFNs
  * between the domains and xarray.
  */
+#include <linux/dma-buf.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/file.h>
@@ -484,19 +485,41 @@ int iopt_map_file_pages(struct iommufd_ctx *ictx, struct io_pagetable *iopt,
 			unsigned int flags)
 {
 	struct iopt_pages *pages;
-	struct file *file;
+	struct dma_buf *dmabuf;
+	unsigned long start_byte;
+	unsigned long last;
 
-	file = fget(fd);
-	if (!file)
-		return -EBADF;
+	if (!length)
+		return -EINVAL;
+	if (check_add_overflow(start, length - 1, &last))
+		return -EOVERFLOW;
 
-	pages = iopt_alloc_file_pages(file, start, length,
-				      iommu_prot & IOMMU_WRITE);
-	fput(file);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
+	start_byte = start - ALIGN_DOWN(start, PAGE_SIZE);
+	dmabuf = dma_buf_get(fd);
+	if (!IS_ERR(dmabuf)) {
+		pages = iopt_alloc_dmabuf_pages(ictx, dmabuf, start_byte, start,
+						length,
+						iommu_prot & IOMMU_WRITE);
+		if (IS_ERR(pages)) {
+			dma_buf_put(dmabuf);
+			return PTR_ERR(pages);
+		}
+	} else {
+		struct file *file;
+
+		file = fget(fd);
+		if (!file)
+			return -EBADF;
+
+		pages = iopt_alloc_file_pages(file, start_byte, start, length,
+					      iommu_prot & IOMMU_WRITE);
+		fput(file);
+		if (IS_ERR(pages))
+			return PTR_ERR(pages);
+	}
+
 	return iopt_map_common(ictx, iopt, pages, iova, length,
-			       start - pages->start, iommu_prot, flags);
+			       start_byte, iommu_prot, flags);
 }
 
 struct iova_bitmap_fn_arg {

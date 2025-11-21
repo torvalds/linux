@@ -265,7 +265,9 @@ static inline bool iopt_dmabuf_revoked(struct iopt_pages *pages)
 
 struct iopt_pages *iopt_alloc_user_pages(void __user *uptr,
 					 unsigned long length, bool writable);
-struct iopt_pages *iopt_alloc_file_pages(struct file *file, unsigned long start,
+struct iopt_pages *iopt_alloc_file_pages(struct file *file,
+					 unsigned long start_byte,
+					 unsigned long start,
 					 unsigned long length, bool writable);
 struct iopt_pages *iopt_alloc_dmabuf_pages(struct iommufd_ctx *ictx,
 					   struct dma_buf *dmabuf,
