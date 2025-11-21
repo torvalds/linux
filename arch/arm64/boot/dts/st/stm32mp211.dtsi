@@ -94,18 +94,20 @@
 		#size-cells = <2>;
 
 		rifsc: bus@42080000 {
-			compatible = "simple-bus";
+			compatible = "st,stm32mp21-rifsc", "simple-bus";
 			reg = <0x42080000 0x0 0x1000>;
 			ranges;
 			dma-ranges;
 			#address-cells = <1>;
 			#size-cells = <2>;
+			#access-controller-cells = <1>;
 
 			usart2: serial@400e0000 {
 				compatible = "st,stm32h7-uart";
 				reg = <0x400e0000 0x0 0x400>;
 				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&ck_flexgen_08>;
+				access-controllers = <&rifsc 32>;
 				status = "disabled";
 			};
 		};
