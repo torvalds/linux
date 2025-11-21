@@ -9,6 +9,7 @@
 #include <objtool/arch.h>
 #include <objtool/check.h>
 #include <objtool/disas.h>
+#include <objtool/special.h>
 #include <objtool/warn.h>
 
 #include <bfd.h>
@@ -59,6 +60,21 @@ struct disas_alt {
 #define DALT_INSN(dalt)		(DALT_DEFAULT(dalt) ? (dalt)->orig_insn : (dalt)->alt->insn)
 #define DALT_GROUP(dalt)	(DALT_INSN(dalt)->alt_group)
 #define DALT_ALTID(dalt)	((dalt)->orig_insn->offset)
+
+#define ALT_FLAGS_SHIFT		16
+#define ALT_FLAG_NOT		(1 << 0)
+#define ALT_FLAG_DIRECT_CALL	(1 << 1)
+#define ALT_FEATURE_MASK	((1 << ALT_FLAGS_SHIFT) - 1)
+
+static int alt_feature(unsigned int ft_flags)
+{
+	return (ft_flags & ALT_FEATURE_MASK);
+}
+
+static int alt_flags(unsigned int ft_flags)
+{
+	return (ft_flags >> ALT_FLAGS_SHIFT);
+}
 
 /*
  * Wrapper around asprintf() to allocate and format a string.
@@ -635,7 +651,12 @@ const char *disas_alt_type_name(struct instruction *insn)
  */
 char *disas_alt_name(struct alternative *alt)
 {
+	char pfx[4] = { 0 };
 	char *str = NULL;
+	const char *name;
+	int feature;
+	int flags;
+	int num;
 
 	switch (alt->type) {
 
@@ -649,13 +670,37 @@ char *disas_alt_name(struct alternative *alt)
 
 	case ALT_TYPE_INSTRUCTIONS:
 		/*
-		 * This is a non-default group alternative. Create a unique
-		 * name using the offset of the first original and alternative
-		 * instructions.
+		 * This is a non-default group alternative. Create a name
+		 * based on the feature and flags associated with this
+		 * alternative. Use either the feature name (it is available)
+		 * or the feature number. And add a prefix to show the flags
+		 * used.
+		 *
+		 * Prefix flags characters:
+		 *
+		 *   '!'  alternative used when feature not enabled
+		 *   '+'  direct call alternative
+		 *   '?'  unknown flag
 		 */
-		asprintf(&str, "ALTERNATIVE %lx.%lx",
-			 alt->insn->alt_group->orig_group->first_insn->offset,
-			 alt->insn->alt_group->first_insn->offset);
+
+		feature = alt->insn->alt_group->feature;
+		num = alt_feature(feature);
+		flags = alt_flags(feature);
+		str = pfx;
+
+		if (flags & ~(ALT_FLAG_NOT | ALT_FLAG_DIRECT_CALL))
+			*str++ = '?';
+		if (flags & ALT_FLAG_DIRECT_CALL)
+			*str++ = '+';
+		if (flags & ALT_FLAG_NOT)
+			*str++ = '!';
+
+		name = arch_cpu_feature_name(num);
+		if (!name)
+			str = strfmt("%sFEATURE 0x%X", pfx, num);
+		else
+			str = strfmt("%s%s", pfx, name);
+
 		break;
 	}
 
@@ -892,6 +937,7 @@ static void *disas_alt(struct disas_context *dctx,
 			WARN("%s has more alternatives than supported", alt_name);
 			break;
 		}
+
 		dalt = &dalts[i];
 		err = disas_alt_init(dalt, orig_insn, alt);
 		if (err) {
