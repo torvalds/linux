@@ -12,9 +12,16 @@
 #include <linux/string.h>
 #include <tools/dis-asm-compat.h>
 
+/*
+ * Size of the buffer for storing the result of disassembling
+ * a single instruction.
+ */
+#define DISAS_RESULT_SIZE	1024
+
 struct disas_context {
 	struct objtool_file *file;
 	struct instruction *insn;
+	char result[DISAS_RESULT_SIZE];
 	disassembler_ftype disassembler;
 	struct disassemble_info info;
 };
@@ -33,6 +40,59 @@ static int sprint_name(char *str, const char *name, unsigned long offset)
 
 #define DINFO_FPRINTF(dinfo, ...)	\
 	((*(dinfo)->fprintf_func)((dinfo)->stream, __VA_ARGS__))
+
+static int disas_result_fprintf(struct disas_context *dctx,
+				const char *fmt, va_list ap)
+{
+	char *buf = dctx->result;
+	int avail, len;
+
+	len = strlen(buf);
+	if (len >= DISAS_RESULT_SIZE - 1) {
+		WARN_FUNC(dctx->insn->sec, dctx->insn->offset,
+			  "disassembly buffer is full");
+		return -1;
+	}
+	avail = DISAS_RESULT_SIZE - len;
+
+	len = vsnprintf(buf + len, avail, fmt, ap);
+	if (len < 0 || len >= avail) {
+		WARN_FUNC(dctx->insn->sec, dctx->insn->offset,
+			  "disassembly buffer is truncated");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int disas_fprintf(void *stream, const char *fmt, ...)
+{
+	va_list arg;
+	int rv;
+
+	va_start(arg, fmt);
+	rv = disas_result_fprintf(stream, fmt, arg);
+	va_end(arg);
+
+	return rv;
+}
+
+/*
+ * For init_disassemble_info_compat().
+ */
+static int disas_fprintf_styled(void *stream,
+				enum disassembler_style style,
+				const char *fmt, ...)
+{
+	va_list arg;
+	int rv;
+
+	va_start(arg, fmt);
+	rv = disas_result_fprintf(stream, fmt, arg);
+	va_end(arg);
+
+	return rv;
+}
 
 static void disas_print_addr_sym(struct section *sec, struct symbol *sym,
 				 bfd_vma addr, struct disassemble_info *dinfo)
@@ -195,9 +255,8 @@ struct disas_context *disas_context_create(struct objtool_file *file)
 	dctx->file = file;
 	dinfo = &dctx->info;
 
-	init_disassemble_info_compat(dinfo, stdout,
-				     (fprintf_ftype)fprintf,
-				     fprintf_styled);
+	init_disassemble_info_compat(dinfo, dctx,
+				     disas_fprintf, disas_fprintf_styled);
 
 	dinfo->read_memory_func = buffer_read_memory;
 	dinfo->print_address_func = disas_print_address;
@@ -244,6 +303,11 @@ void disas_context_destroy(struct disas_context *dctx)
 	free(dctx);
 }
 
+static char *disas_result(struct disas_context *dctx)
+{
+	return dctx->result;
+}
+
 /*
  * Disassemble a single instruction. Return the size of the instruction.
  */
@@ -254,6 +318,7 @@ static size_t disas_insn(struct disas_context *dctx,
 	struct disassemble_info *dinfo = &dctx->info;
 
 	dctx->insn = insn;
+	dctx->result[0] = '\0';
 
 	if (insn->type == INSN_NOP) {
 		DINFO_FPRINTF(dinfo, "nop%d", insn->len);
@@ -282,10 +347,10 @@ static void disas_func(struct disas_context *dctx, struct symbol *func)
 	printf("%s:\n", func->name);
 	sym_for_each_insn(dctx->file, func, insn) {
 		addr = insn->offset;
-		printf(" %6lx:  %s+0x%-6lx      ",
-		       addr, func->name, addr - func->offset);
 		disas_insn(dctx, insn);
-		printf("\n");
+		printf(" %6lx:  %s+0x%-6lx      %s\n",
+		       addr, func->name, addr - func->offset,
+		       disas_result(dctx));
 	}
 	printf("\n");
 }
