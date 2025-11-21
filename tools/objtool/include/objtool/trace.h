@@ -30,6 +30,12 @@ extern int trace_depth;
 	}							\
 })
 
+#define TRACE_INSN_STATE(insn, sprev, snext)			\
+({								\
+	if (trace)						\
+		trace_insn_state(insn, sprev, snext);		\
+})
+
 static inline void trace_enable(void)
 {
 	trace = true;
@@ -53,10 +59,14 @@ static inline void trace_depth_dec(void)
 		trace_depth--;
 }
 
+void trace_insn_state(struct instruction *insn, struct insn_state *sprev,
+		      struct insn_state *snext);
+
 #else /* DISAS */
 
 #define TRACE(fmt, ...) ({})
 #define TRACE_INSN(insn, fmt, ...) ({})
+#define TRACE_INSN_STATE(insn, sprev, snext) ({})
 
 static inline void trace_enable(void) {}
 static inline void trace_disable(void) {}
