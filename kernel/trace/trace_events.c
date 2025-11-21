@@ -360,7 +360,7 @@ static bool process_string(const char *fmt, int len, struct trace_event_call *ca
 			/* Anything else, this isn't a function */
 			break;
 		}
-		/* A function could be wrapped in parethesis, try the next one */
+		/* A function could be wrapped in parenthesis, try the next one */
 		s = r + 1;
 	} while (s < e);
 
@@ -567,7 +567,7 @@ static void test_event_printk(struct trace_event_call *call)
 			 * If start_arg is zero, then this is the start of the
 			 * first argument. The processing of the argument happens
 			 * when the end of the argument is found, as it needs to
-			 * handle paranthesis and such.
+			 * handle parenthesis and such.
 			 */
 			if (!start_arg) {
 				start_arg = i;
@@ -785,7 +785,7 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 		 *
 		 * When soft_disable is not set but the soft_mode is,
 		 * we do nothing. Do not disable the tracepoint, otherwise
-		 * "soft enable"s (clearing the SOFT_DISABLED bit) wont work.
+		 * "soft enable"s (clearing the SOFT_DISABLED bit) won't work.
 		 */
 		if (soft_disable) {
 			if (atomic_dec_return(&file->sm_ref) > 0)
@@ -1394,7 +1394,7 @@ int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 	if (!tr)
 		return -ENOENT;
 
-	/* Modules events can be appened with :mod:<module> */
+	/* Modules events can be appended with :mod:<module> */
 	mod = strstr(buf, ":mod:");
 	if (mod) {
 		*mod = '\0';
