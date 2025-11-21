@@ -24,6 +24,7 @@
 struct disas_context {
 	struct objtool_file *file;
 	struct instruction *insn;
+	bool alt_applied;
 	char result[DISAS_RESULT_SIZE];
 	disassembler_ftype disassembler;
 	struct disassemble_info info;
@@ -160,12 +161,52 @@ static void disas_print_addr_sym(struct section *sec, struct symbol *sym,
 	}
 }
 
+static bool disas_print_addr_alt(bfd_vma addr, struct disassemble_info *dinfo)
+{
+	struct disas_context *dctx = dinfo->application_data;
+	struct instruction *orig_first_insn;
+	struct alt_group *alt_group;
+	unsigned long offset;
+	struct symbol *sym;
+
+	/*
+	 * Check if we are processing an alternative at the original
+	 * instruction address (i.e. if alt_applied is true) and if
+	 * we are referencing an address inside the alternative.
+	 *
+	 * For example, this happens if there is a branch inside an
+	 * alternative. In that case, the address should be updated
+	 * to a reference inside the original instruction flow.
+	 */
+	if (!dctx->alt_applied)
+		return false;
+
+	alt_group = dctx->insn->alt_group;
+	if (!alt_group || !alt_group->orig_group ||
+	    addr < alt_group->first_insn->offset ||
+	    addr > alt_group->last_insn->offset)
+		return false;
+
+	orig_first_insn = alt_group->orig_group->first_insn;
+	offset = addr - alt_group->first_insn->offset;
+
+	addr = orig_first_insn->offset + offset;
+	sym = orig_first_insn->sym;
+
+	disas_print_addr_sym(orig_first_insn->sec, sym, addr, dinfo);
+
+	return true;
+}
+
 static void disas_print_addr_noreloc(bfd_vma addr,
 				     struct disassemble_info *dinfo)
 {
 	struct disas_context *dctx = dinfo->application_data;
 	struct instruction *insn = dctx->insn;
 	struct symbol *sym = NULL;
+
+	if (disas_print_addr_alt(addr, dinfo))
+		return;
 
 	if (insn->sym && addr >= insn->sym->offset &&
 	    addr < insn->sym->offset + insn->sym->len) {
@@ -232,8 +273,9 @@ static void disas_print_address(bfd_vma addr, struct disassemble_info *dinfo)
 	 */
 	jump_dest = insn->jump_dest;
 	if (jump_dest && jump_dest->sym && jump_dest->offset == addr) {
-		disas_print_addr_sym(jump_dest->sec, jump_dest->sym,
-				     addr, dinfo);
+		if (!disas_print_addr_alt(addr, dinfo))
+			disas_print_addr_sym(jump_dest->sec, jump_dest->sym,
+					     addr, dinfo);
 		return;
 	}
 
@@ -490,13 +532,22 @@ void disas_print_insn(FILE *stream, struct disas_context *dctx,
 
 /*
  * Disassemble a single instruction. Return the size of the instruction.
+ *
+ * If alt_applied is true then insn should be an instruction from of an
+ * alternative (i.e. insn->alt_group != NULL), and it is disassembled
+ * at the location of the original code it is replacing. When the
+ * instruction references any address inside the alternative then
+ * these references will be re-adjusted to replace the original code.
  */
-size_t disas_insn(struct disas_context *dctx, struct instruction *insn)
+static size_t disas_insn_common(struct disas_context *dctx,
+				struct instruction *insn,
+				bool alt_applied)
 {
 	disassembler_ftype disasm = dctx->disassembler;
 	struct disassemble_info *dinfo = &dctx->info;
 
 	dctx->insn = insn;
+	dctx->alt_applied = alt_applied;
 	dctx->result[0] = '\0';
 
 	if (insn->type == INSN_NOP) {
@@ -513,6 +564,17 @@ size_t disas_insn(struct disas_context *dctx, struct instruction *insn)
 	dinfo->buffer_length = insn->sec->sh.sh_size;
 
 	return disasm(insn->offset, &dctx->info);
+}
+
+size_t disas_insn(struct disas_context *dctx, struct instruction *insn)
+{
+	return disas_insn_common(dctx, insn, false);
+}
+
+static size_t disas_insn_alt(struct disas_context *dctx,
+			     struct instruction *insn)
+{
+	return disas_insn_common(dctx, insn, true);
 }
 
 static struct instruction *next_insn_same_alt(struct objtool_file *file,
@@ -706,7 +768,7 @@ static int disas_alt_group(struct disas_context *dctx, struct disas_alt *dalt)
 
 	alt_for_each_insn(file, DALT_GROUP(dalt), insn) {
 
-		disas_insn(dctx, insn);
+		disas_insn_alt(dctx, insn);
 		str = strdup(disas_result(dctx));
 		if (!str)
 			return -1;
