@@ -166,7 +166,7 @@ def test(cfg, proto_flag, ipver, grp):
         proto_flag,
         "-d", str(port),
         "-i", cfg.ifname,
-        "-T", "1000",
+        "-T", "4000",
         "-s",
         "-v"
     ]
