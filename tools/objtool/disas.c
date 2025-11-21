@@ -47,7 +47,13 @@ struct disas_alt {
 	struct alternative *alt;		/* alternative or NULL if default code */
 	char *name;				/* name for this alternative */
 	int width;				/* formatting width */
+	char *insn[DISAS_ALT_INSN_MAX];		/* alternative instructions */
 };
+
+#define DALT_DEFAULT(dalt)	(!(dalt)->alt)
+#define DALT_INSN(dalt)		(DALT_DEFAULT(dalt) ? (dalt)->orig_insn : (dalt)->alt->insn)
+#define DALT_GROUP(dalt)	(DALT_INSN(dalt)->alt_group)
+#define DALT_ALTID(dalt)	((dalt)->orig_insn->offset)
 
 /*
  * Wrapper around asprintf() to allocate and format a string.
@@ -506,6 +512,21 @@ size_t disas_insn(struct disas_context *dctx, struct instruction *insn)
 	return disasm(insn->offset, &dctx->info);
 }
 
+static struct instruction *next_insn_same_alt(struct objtool_file *file,
+					      struct alt_group *alt_grp,
+					      struct instruction *insn)
+{
+	if (alt_grp->last_insn == insn || alt_grp->nop == insn)
+		return NULL;
+
+	return next_insn_same_sec(file, insn);
+}
+
+#define alt_for_each_insn(file, alt_grp, insn)			\
+	for (insn = alt_grp->first_insn; 			\
+	     insn;						\
+	     insn = next_insn_same_alt(file, alt_grp, insn))
+
 /*
  * Provide a name for the type of alternatives present at the
  * specified instruction.
@@ -594,23 +615,107 @@ static int disas_alt_init(struct disas_alt *dalt,
 	return 0;
 }
 
+static int disas_alt_add_insn(struct disas_alt *dalt, int index, char *insn_str)
+{
+	int len;
+
+	if (index >= DISAS_ALT_INSN_MAX) {
+		WARN("Alternative %lx.%s has more instructions than supported",
+		     DALT_ALTID(dalt), dalt->name);
+		return -1;
+	}
+
+	len = strlen(insn_str);
+	dalt->insn[index] = insn_str;
+	if (len > dalt->width)
+		dalt->width = len;
+
+	return 0;
+}
+
+/*
+ * Disassemble an alternative and store instructions in the disas_alt
+ * structure. Return the number of instructions in the alternative.
+ */
+static int disas_alt_group(struct disas_context *dctx, struct disas_alt *dalt)
+{
+	struct objtool_file *file;
+	struct instruction *insn;
+	char *str;
+	int count;
+	int err;
+
+	file = dctx->file;
+	count = 0;
+
+	alt_for_each_insn(file, DALT_GROUP(dalt), insn) {
+
+		disas_insn(dctx, insn);
+		str = strdup(disas_result(dctx));
+		if (!str)
+			return -1;
+
+		err = disas_alt_add_insn(dalt, count, str);
+		if (err)
+			break;
+		count++;
+	}
+
+	return count;
+}
+
+/*
+ * Disassemble the default alternative.
+ */
+static int disas_alt_default(struct disas_context *dctx, struct disas_alt *dalt)
+{
+	char *str;
+	int err;
+
+	if (DALT_GROUP(dalt))
+		return disas_alt_group(dctx, dalt);
+
+	/*
+	 * Default alternative with no alt_group: this is the default
+	 * code associated with either a jump table or an exception
+	 * table and no other instruction alternatives. In that case
+	 * the default alternative is made of a single instruction.
+	 */
+	disas_insn(dctx, dalt->orig_insn);
+	str = strdup(disas_result(dctx));
+	if (!str)
+		return -1;
+	err = disas_alt_add_insn(dalt, 0, str);
+	if (err)
+		return -1;
+
+	return 1;
+}
+
 /*
  * Print all alternatives one above the other.
  */
 static void disas_alt_print_compact(char *alt_name, struct disas_alt *dalts,
-				    int alt_count)
+				    int alt_count, int insn_count)
 {
 	struct instruction *orig_insn;
+	int i, j;
 	int len;
-	int i;
 
 	orig_insn = dalts[0].orig_insn;
 
 	len = disas_print(stdout, orig_insn->sec, orig_insn->offset, 0, NULL);
 	printf("%s\n", alt_name);
 
-	for (i = 0; i < alt_count; i++)
+	for (i = 0; i < alt_count; i++) {
 		printf("%*s= %s\n", len, "", dalts[i].name);
+		for (j = 0; j < insn_count; j++) {
+			if (!dalts[i].insn[j])
+				break;
+			printf("%*s| %s\n", len, "", dalts[i].insn[j]);
+		}
+		printf("%*s|\n", len, "");
+	}
 }
 
 /*
@@ -624,11 +729,15 @@ static void *disas_alt(struct disas_context *dctx,
 		       struct instruction *orig_insn)
 {
 	struct disas_alt dalts[DISAS_ALT_MAX] = { 0 };
+	struct instruction *last_insn = NULL;
 	struct alternative *alt;
+	struct disas_alt *dalt;
+	int insn_count = 0;
 	int alt_count = 0;
 	char *alt_name;
+	int count;
+	int i, j;
 	int err;
-	int i;
 
 	alt_name = strfmt("<%s.%lx>", disas_alt_type_name(orig_insn),
 			  orig_insn->offset);
@@ -639,7 +748,7 @@ static void *disas_alt(struct disas_context *dctx,
 	}
 
 	/*
-	 * Initialize the default alternative.
+	 * Initialize and disassemble the default alternative.
 	 */
 	err = disas_alt_init(&dalts[0], orig_insn, NULL);
 	if (err) {
@@ -647,8 +756,14 @@ static void *disas_alt(struct disas_context *dctx,
 		goto done;
 	}
 
+	insn_count = disas_alt_default(dctx, &dalts[0]);
+	if (insn_count < 0) {
+		WARN("%s: failed to disassemble default alternative", alt_name);
+		goto done;
+	}
+
 	/*
-	 * Initialize all other alternatives.
+	 * Initialize and disassemble all other alternatives.
 	 */
 	i = 1;
 	for (alt = orig_insn->alts; alt; alt = alt->next) {
@@ -656,35 +771,52 @@ static void *disas_alt(struct disas_context *dctx,
 			WARN("%s has more alternatives than supported", alt_name);
 			break;
 		}
-		err = disas_alt_init(&dalts[i], orig_insn, alt);
+		dalt = &dalts[i];
+		err = disas_alt_init(dalt, orig_insn, alt);
 		if (err) {
 			WARN("%s: failed to disassemble alternative", alt_name);
 			goto done;
 		}
 
+		/*
+		 * Only group alternatives are supported at the moment.
+		 */
+		switch (dalt->alt->type) {
+		case ALT_TYPE_INSTRUCTIONS:
+			count = disas_alt_group(dctx, dalt);
+			break;
+		default:
+			count = 0;
+		}
+		if (count < 0) {
+			WARN("%s: failed to disassemble alternative %s",
+			     alt_name, dalt->name);
+			goto done;
+		}
+
+		insn_count = count > insn_count ? count : insn_count;
 		i++;
 	}
 	alt_count = i;
 
 	/*
 	 * Print default and non-default alternatives.
-	 *
-	 * At the moment, this just prints an header for each alternative.
 	 */
-	disas_alt_print_compact(alt_name, dalts, alt_count);
+	disas_alt_print_compact(alt_name, dalts, alt_count, insn_count);
+
+	last_insn = orig_insn->alt_group ? orig_insn->alt_group->last_insn :
+		orig_insn;
 
 done:
-	for (i = 0; i < alt_count; i++)
+	for (i = 0; i < alt_count; i++) {
 		free(dalts[i].name);
+		for (j = 0; j < insn_count; j++)
+			free(dalts[i].insn[j]);
+	}
 
 	free(alt_name);
 
-	/*
-	 * Currently we are not disassembling any alternative but just
-	 * printing alternative names. Return NULL to have disas_func()
-	 * resume the disassembly with the default alternative.
-	 */
-	return NULL;
+	return last_insn;
 }
 
 /*
