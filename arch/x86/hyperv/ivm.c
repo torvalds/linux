@@ -392,7 +392,7 @@ u64 hv_snp_hypercall(u64 control, u64 param1, u64 param2)
 
 	register u64 __r8 asm("r8") = param2;
 	asm volatile("vmmcall"
-		     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
+		     : "=a" (hv_status),
 		       "+c" (control), "+d" (param1), "+r" (__r8)
 		     : : "cc", "memory", "r9", "r10", "r11");
 
