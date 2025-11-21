@@ -409,7 +409,7 @@ static ssize_t mini_led_mode_current_value_store(struct kobject *kobj,
 	}
 
 	if (mode >= mini_led_mode_map_size) {
-		return pr_warn("mini-LED mode unrecognized device: %u\n", mode);
+		pr_warn("mini-LED mode unrecognized device: %u\n", mode);
 		return -ENODEV;
 	}
 
