@@ -3485,7 +3485,7 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	struct adapter *adap = pi->adapter;
 	struct ch_sched_queue qe = { 0 };
 	struct ch_sched_params p = { 0 };
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	u32 req_rate;
 	int err = 0;
 

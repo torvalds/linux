@@ -56,7 +56,7 @@ static int cxgb4_matchall_egress_validate(struct net_device *dev,
 	struct port_info *pi = netdev2pinfo(dev);
 	struct flow_action_entry *entry;
 	struct ch_sched_queue qe;
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	u64 max_link_rate;
 	u32 i, speed;
 	int ret;
@@ -180,7 +180,7 @@ static int cxgb4_matchall_alloc_tc(struct net_device *dev,
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
 	struct flow_action_entry *entry;
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	int ret;
 	u32 i;
 
