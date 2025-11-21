@@ -241,8 +241,10 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	TEST_ASSERT(state->size >= sizeof(*state) && state->size <= state_sz,
 		    "Size must be between %ld and %d.  The size returned was %d.",
 		    sizeof(*state), state_sz, state->size);
-	TEST_ASSERT(state->hdr.vmx.vmxon_pa == -1ull, "vmxon_pa must be -1ull.");
-	TEST_ASSERT(state->hdr.vmx.vmcs12_pa == -1ull, "vmcs_pa must be -1ull.");
+
+	TEST_ASSERT_EQ(state->hdr.vmx.vmxon_pa, -1ull);
+	TEST_ASSERT_EQ(state->hdr.vmx.vmcs12_pa, -1ull);
+	TEST_ASSERT_EQ(state->flags, 0);
 
 	free(state);
 }
