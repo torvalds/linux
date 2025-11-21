@@ -68,6 +68,7 @@
 #define FOUR_TUPLE_MAX_LEN	((sizeof(struct in6_addr) * 2) + (sizeof(uint16_t) * 2))
 
 #define RSS_MAX_CPUS (1 << 16)	/* real constraint is PACKET_FANOUT_MAX */
+#define RSS_MAX_INDIR	(1 << 16)
 
 #define RPS_MAX_CPUS 16UL	/* must be a power of 2 */
 
@@ -105,6 +106,8 @@ struct ring_state {
 static unsigned int rx_irq_cpus[RSS_MAX_CPUS];	/* map from rxq to cpu */
 static int rps_silo_to_cpu[RPS_MAX_CPUS];
 static unsigned char toeplitz_key[TOEPLITZ_KEY_MAX_LEN];
+static unsigned int rss_indir_tbl[RSS_MAX_INDIR];
+static unsigned int rss_indir_tbl_size;
 static struct ring_state rings[RSS_MAX_CPUS];
 
 static inline uint32_t toeplitz(const unsigned char *four_tuple,
@@ -133,7 +136,12 @@ static inline uint32_t toeplitz(const unsigned char *four_tuple,
 /* Compare computed cpu with arrival cpu from packet_fanout_cpu */
 static void verify_rss(uint32_t rx_hash, int cpu)
 {
-	int queue = rx_hash % cfg_num_queues;
+	int queue;
+
+	if (rss_indir_tbl_size)
+		queue = rss_indir_tbl[rx_hash % rss_indir_tbl_size];
+	else
+		queue = rx_hash % cfg_num_queues;
 
 	log_verbose(" rxq %d (cpu %d)", queue, rx_irq_cpus[queue]);
 	if (rx_irq_cpus[queue] != cpu) {
@@ -516,6 +524,20 @@ static void read_rss_dev_info_ynl(void)
 		      TOEPLITZ_KEY_MAX_LEN);
 
 	memcpy(toeplitz_key, rsp->hkey, rsp->_len.hkey);
+
+	if (rsp->_count.indir > RSS_MAX_INDIR)
+		error(1, 0, "RSS indirection table too large (%u > %u)",
+		      rsp->_count.indir, RSS_MAX_INDIR);
+
+	/* If indir table not available we'll fallback to simple modulo math */
+	if (rsp->_count.indir) {
+		memcpy(rss_indir_tbl, rsp->indir,
+		       rsp->_count.indir * sizeof(rss_indir_tbl[0]));
+		rss_indir_tbl_size = rsp->_count.indir;
+
+		log_verbose("RSS indirection table size: %u\n",
+			    rss_indir_tbl_size);
+	}
 
 	ethtool_rss_get_rsp_free(rsp);
 	ethtool_rss_get_req_free(req);
