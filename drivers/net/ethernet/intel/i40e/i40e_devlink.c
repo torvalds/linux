@@ -24,7 +24,8 @@ static int i40e_max_mac_per_vf_set(struct devlink *devlink,
 
 static int i40e_max_mac_per_vf_get(struct devlink *devlink,
 				   u32 id,
-				   struct devlink_param_gset_ctx *ctx)
+				   struct devlink_param_gset_ctx *ctx,
+				   struct netlink_ext_ack *extack)
 {
 	struct i40e_pf *pf = devlink_priv(devlink);
 
