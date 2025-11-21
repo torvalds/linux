@@ -1142,7 +1142,6 @@ static bool __reuse_device_table(struct amd_iommu *iommu)
 	u16 dom_id;
 	bool dte_v;
 	u64 entry;
-	int ret;
 
 	/* Each IOMMU use separate device table with the same size */
 	lo = readl(iommu->mmio_base + MMIO_DEV_TABLE_OFFSET);
@@ -1189,8 +1188,7 @@ static bool __reuse_device_table(struct amd_iommu *iommu)
 		 * are multiple devices present in the same domain,
 		 * hence check only for -ENOMEM.
 		 */
-		ret = ida_alloc_range(&pdom_ids, dom_id, dom_id, GFP_KERNEL);
-		if (ret == -ENOMEM)
+		if (amd_iommu_pdom_id_reserve(dom_id, GFP_KERNEL) == -ENOMEM)
 			return false;
 	}
 
@@ -3148,8 +3146,7 @@ static bool __init check_ioapic_information(void)
 
 static void __init free_dma_resources(void)
 {
-	ida_destroy(&pdom_ids);
-
+	amd_iommu_pdom_id_destroy();
 	free_unity_maps();
 }
 
