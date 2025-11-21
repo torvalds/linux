@@ -2967,7 +2967,7 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf,
 			dev_err(&pf->pdev->dev,
 				"Cannot add more MAC addresses: VF reached its maximum allowed limit (%d)\n",
 				mac_add_max);
-				return -EPERM;
+			return -EPERM;
 		}
 		if (!vf_trusted) {
 			dev_err(&pf->pdev->dev,
