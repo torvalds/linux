@@ -103,17 +103,24 @@ struct Qdisc {
 	int			pad;
 	refcount_t		refcnt;
 
-	/*
-	 * For performance sake on SMP, we put highly modified fields at the end
-	 */
-	struct sk_buff_head	gso_skb ____cacheline_aligned_in_smp;
-	struct qdisc_skb_head	q;
-	struct gnet_stats_basic_sync bstats;
-	struct gnet_stats_queue	qstats;
-	bool			running; /* must be written under qdisc spinlock */
-	unsigned long		state;
-	struct Qdisc            *next_sched;
-	struct sk_buff_head	skb_bad_txq;
+	/* Cache line potentially dirtied in dequeue() or __netif_reschedule(). */
+	__cacheline_group_begin(Qdisc_read_mostly) ____cacheline_aligned;
+		struct sk_buff_head	gso_skb;
+		struct Qdisc		*next_sched;
+		struct sk_buff_head	skb_bad_txq;
+	__cacheline_group_end(Qdisc_read_mostly);
+
+	/* Fields dirtied in dequeue() fast path. */
+	__cacheline_group_begin(Qdisc_write) ____cacheline_aligned;
+		struct qdisc_skb_head	q;
+		unsigned long		state;
+		struct gnet_stats_basic_sync bstats;
+		bool			running; /* must be written under qdisc spinlock */
+
+		/* Note : we only change qstats.backlog in fast path. */
+		struct gnet_stats_queue	qstats;
+	__cacheline_group_end(Qdisc_write);
+
 
 	atomic_long_t		defer_count ____cacheline_aligned_in_smp;
 	struct llist_head	defer_list;
