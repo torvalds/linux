@@ -49,6 +49,4 @@ int check(struct objtool_file *file);
 int orc_dump(const char *objname);
 int orc_create(struct objtool_file *file);
 
-void disas_warned_funcs(struct objtool_file *file);
-
 #endif /* _OBJTOOL_H */

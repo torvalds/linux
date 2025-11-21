@@ -12,6 +12,7 @@
 #include <objtool/builtin.h>
 #include <objtool/cfi.h>
 #include <objtool/arch.h>
+#include <objtool/disas.h>
 #include <objtool/check.h>
 #include <objtool/special.h>
 #include <objtool/warn.h>
@@ -4802,6 +4803,7 @@ static void free_insns(struct objtool_file *file)
 
 int check(struct objtool_file *file)
 {
+	struct disas_context *disas_ctx;
 	int ret = 0, warnings = 0;
 
 	arch_initial_func_cfi_state(&initial_func_cfi);
@@ -4943,7 +4945,9 @@ out:
 	if (opts.verbose) {
 		if (opts.werror && warnings)
 			WARN("%d warning(s) upgraded to errors", warnings);
-		disas_warned_funcs(file);
+		disas_ctx = disas_context_create(file);
+		disas_warned_funcs(disas_ctx);
+		disas_context_destroy(disas_ctx);
 	}
 
 	if (opts.backup && make_backup())
