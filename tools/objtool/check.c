@@ -1751,6 +1751,7 @@ static int handle_group_alt(struct objtool_file *file,
 		orig_alt_group->last_insn = last_orig_insn;
 		orig_alt_group->nop = NULL;
 		orig_alt_group->ignore = orig_insn->ignore_alts;
+		orig_alt_group->feature = 0;
 	} else {
 		if (orig_alt_group->last_insn->offset + orig_alt_group->last_insn->len -
 		    orig_alt_group->first_insn->offset != special_alt->orig_len) {
@@ -1855,6 +1856,7 @@ end:
 	new_alt_group->nop = nop;
 	new_alt_group->ignore = (*new_insn)->ignore_alts;
 	new_alt_group->cfi = orig_alt_group->cfi;
+	new_alt_group->feature = special_alt->feature;
 	return 0;
 }
 

@@ -81,6 +81,8 @@ static int get_alt_entry(struct elf *elf, const struct special_entry *entry,
 						   entry->orig_len);
 		alt->new_len = *(unsigned char *)(sec->data->d_buf + offset +
 						  entry->new_len);
+		alt->feature = *(unsigned int *)(sec->data->d_buf + offset +
+						 entry->feature);
 	}
 
 	orig_reloc = find_reloc_by_dest(elf, sec, offset + entry->orig);

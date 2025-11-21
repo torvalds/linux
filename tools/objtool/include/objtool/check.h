@@ -36,6 +36,7 @@ struct alt_group {
 	struct cfi_state **cfi;
 
 	bool ignore;
+	unsigned int feature;
 };
 
 enum alternative_type {

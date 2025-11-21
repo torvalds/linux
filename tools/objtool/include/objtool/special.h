@@ -25,7 +25,7 @@ struct special_alt {
 	struct section *new_sec;
 	unsigned long new_off;
 
-	unsigned int orig_len, new_len; /* group only */
+	unsigned int orig_len, new_len, feature; /* group only */
 };
 
 int special_get_alts(struct elf *elf, struct list_head *alts);
