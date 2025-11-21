@@ -367,6 +367,19 @@ static int host_stage2_unmap_dev_all(void)
 	return kvm_pgtable_stage2_unmap(pgt, addr, BIT(pgt->ia_bits) - addr);
 }
 
+/*
+ * Ensure the PFN range is contained within PA-range.
+ *
+ * This check is also robust to overflows and is therefore a requirement before
+ * using a pfn/nr_pages pair from an untrusted source.
+ */
+static bool pfn_range_is_valid(u64 pfn, u64 nr_pages)
+{
+	u64 limit = BIT(kvm_phys_shift(&host_mmu.arch.mmu) - PAGE_SHIFT);
+
+	return pfn < limit && ((limit - pfn) >= nr_pages);
+}
+
 struct kvm_mem_range {
 	u64 start;
 	u64 end;
@@ -776,6 +789,9 @@ int __pkvm_host_donate_hyp(u64 pfn, u64 nr_pages)
 	void *virt = __hyp_va(phys);
 	int ret;
 
+	if (!pfn_range_is_valid(pfn, nr_pages))
+		return -EINVAL;
+
 	host_lock_component();
 	hyp_lock_component();
 
@@ -803,6 +819,9 @@ int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 	u64 size = PAGE_SIZE * nr_pages;
 	u64 virt = (u64)__hyp_va(phys);
 	int ret;
+
+	if (!pfn_range_is_valid(pfn, nr_pages))
+		return -EINVAL;
 
 	host_lock_component();
 	hyp_lock_component();
@@ -887,6 +906,9 @@ int __pkvm_host_share_ffa(u64 pfn, u64 nr_pages)
 	u64 size = PAGE_SIZE * nr_pages;
 	int ret;
 
+	if (!pfn_range_is_valid(pfn, nr_pages))
+		return -EINVAL;
+
 	host_lock_component();
 	ret = __host_check_page_state_range(phys, size, PKVM_PAGE_OWNED);
 	if (!ret)
@@ -901,6 +923,9 @@ int __pkvm_host_unshare_ffa(u64 pfn, u64 nr_pages)
 	u64 phys = hyp_pfn_to_phys(pfn);
 	u64 size = PAGE_SIZE * nr_pages;
 	int ret;
+
+	if (!pfn_range_is_valid(pfn, nr_pages))
+		return -EINVAL;
 
 	host_lock_component();
 	ret = __host_check_page_state_range(phys, size, PKVM_PAGE_SHARED_OWNED);
@@ -943,6 +968,9 @@ int __pkvm_host_share_guest(u64 pfn, u64 gfn, u64 nr_pages, struct pkvm_hyp_vcpu
 	int ret;
 
 	if (prot & ~KVM_PGTABLE_PROT_RWX)
+		return -EINVAL;
+
+	if (!pfn_range_is_valid(pfn, nr_pages))
 		return -EINVAL;
 
 	ret = __guest_check_transition_size(phys, ipa, nr_pages, &size);

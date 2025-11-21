@@ -157,6 +157,8 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_TLB;
 	if (config & CPUCFG1_IOCSR)
 		c->options |= LOONGARCH_CPU_IOCSR;
+	if (config & CPUCFG1_MSGINT)
+		c->options |= LOONGARCH_CPU_MSGINT;
 	if (config & CPUCFG1_UAL) {
 		c->options |= LOONGARCH_CPU_UAL;
 		elf_hwcap |= HWCAP_LOONGARCH_UAL;
@@ -331,6 +333,8 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 		c->options |= LOONGARCH_CPU_EIODECODE;
 	if (config & IOCSRF_AVEC)
 		c->options |= LOONGARCH_CPU_AVECINT;
+	if (config & IOCSRF_REDIRECT)
+		c->options |= LOONGARCH_CPU_REDIRECTINT;
 	if (config & IOCSRF_VM)
 		c->options |= LOONGARCH_CPU_HYPERVISOR;
 }

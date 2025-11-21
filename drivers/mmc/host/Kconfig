@@ -950,7 +950,7 @@ config MMC_USHC
 config MMC_WMT
 	tristate "Wondermedia SD/MMC Host Controller support"
 	depends on ARCH_VT8500 || COMPILE_TEST
-	default y
+	default ARCH_VT8500
 	help
 	  This selects support for the SD/MMC Host Controller on
 	  Wondermedia WM8505/WM8650 based SoCs.

@@ -220,10 +220,13 @@ static bool need_sha_check(u32 cur_rev)
 	case 0xaa001: return cur_rev <= 0xaa00116; break;
 	case 0xaa002: return cur_rev <= 0xaa00218; break;
 	case 0xb0021: return cur_rev <= 0xb002146; break;
+	case 0xb0081: return cur_rev <= 0xb008111; break;
 	case 0xb1010: return cur_rev <= 0xb101046; break;
 	case 0xb2040: return cur_rev <= 0xb204031; break;
 	case 0xb4040: return cur_rev <= 0xb404031; break;
+	case 0xb4041: return cur_rev <= 0xb404101; break;
 	case 0xb6000: return cur_rev <= 0xb600031; break;
+	case 0xb6080: return cur_rev <= 0xb608031; break;
 	case 0xb7000: return cur_rev <= 0xb700031; break;
 	default: break;
 	}

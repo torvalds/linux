@@ -31,7 +31,7 @@ config RISCV_MODULE_LINKING_KUNIT
          If unsure, say N.
 
 config RISCV_KPROBES_KUNIT
-       bool "KUnit test for riscv kprobes" if !KUNIT_ALL_TESTS
+       tristate "KUnit test for riscv kprobes" if !KUNIT_ALL_TESTS
        depends on KUNIT
        depends on KPROBES
        default KUNIT_ALL_TESTS
