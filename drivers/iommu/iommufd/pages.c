@@ -1366,8 +1366,19 @@ struct iopt_pages *iopt_alloc_file_pages(struct file *file, unsigned long start,
 static void iopt_revoke_notify(struct dma_buf_attachment *attach)
 {
 	struct iopt_pages *pages = attach->importer_priv;
+	struct iopt_pages_dmabuf_track *track;
 
 	guard(mutex)(&pages->mutex);
+	if (iopt_dmabuf_revoked(pages))
+		return;
+
+	list_for_each_entry(track, &pages->dmabuf.tracker, elm) {
+		struct iopt_area *area = track->area;
+
+		iopt_area_unmap_domain_range(area, track->domain,
+					     iopt_area_index(area),
+					     iopt_area_last_index(area));
+	}
 	pages->dmabuf.phys.len = 0;
 }
 
@@ -1468,6 +1479,7 @@ struct iopt_pages *iopt_alloc_dmabuf_pages(struct iommufd_ctx *ictx,
 	pages->account_mode = IOPT_PAGES_ACCOUNT_NONE;
 	pages->type = IOPT_ADDRESS_DMABUF;
 	pages->dmabuf.start = start - start_byte;
+	INIT_LIST_HEAD(&pages->dmabuf.tracker);
 
 	rc = iopt_map_dmabuf(ictx, pages, dmabuf);
 	if (rc) {
@@ -1476,6 +1488,86 @@ struct iopt_pages *iopt_alloc_dmabuf_pages(struct iommufd_ctx *ictx,
 	}
 
 	return pages;
+}
+
+int iopt_dmabuf_track_domain(struct iopt_pages *pages, struct iopt_area *area,
+			     struct iommu_domain *domain)
+{
+	struct iopt_pages_dmabuf_track *track;
+
+	lockdep_assert_held(&pages->mutex);
+	if (WARN_ON(!iopt_is_dmabuf(pages)))
+		return -EINVAL;
+
+	list_for_each_entry(track, &pages->dmabuf.tracker, elm)
+		if (WARN_ON(track->domain == domain && track->area == area))
+			return -EINVAL;
+
+	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	if (!track)
+		return -ENOMEM;
+	track->domain = domain;
+	track->area = area;
+	list_add_tail(&track->elm, &pages->dmabuf.tracker);
+
+	return 0;
+}
+
+void iopt_dmabuf_untrack_domain(struct iopt_pages *pages,
+				struct iopt_area *area,
+				struct iommu_domain *domain)
+{
+	struct iopt_pages_dmabuf_track *track;
+
+	lockdep_assert_held(&pages->mutex);
+	WARN_ON(!iopt_is_dmabuf(pages));
+
+	list_for_each_entry(track, &pages->dmabuf.tracker, elm) {
+		if (track->domain == domain && track->area == area) {
+			list_del(&track->elm);
+			kfree(track);
+			return;
+		}
+	}
+	WARN_ON(true);
+}
+
+int iopt_dmabuf_track_all_domains(struct iopt_area *area,
+				  struct iopt_pages *pages)
+{
+	struct iopt_pages_dmabuf_track *track;
+	struct iommu_domain *domain;
+	unsigned long index;
+	int rc;
+
+	list_for_each_entry(track, &pages->dmabuf.tracker, elm)
+		if (WARN_ON(track->area == area))
+			return -EINVAL;
+
+	xa_for_each(&area->iopt->domains, index, domain) {
+		rc = iopt_dmabuf_track_domain(pages, area, domain);
+		if (rc)
+			goto err_untrack;
+	}
+	return 0;
+err_untrack:
+	iopt_dmabuf_untrack_all_domains(area, pages);
+	return rc;
+}
+
+void iopt_dmabuf_untrack_all_domains(struct iopt_area *area,
+				     struct iopt_pages *pages)
+{
+	struct iopt_pages_dmabuf_track *track;
+	struct iopt_pages_dmabuf_track *tmp;
+
+	list_for_each_entry_safe(track, tmp, &pages->dmabuf.tracker,
+				 elm) {
+		if (track->area == area) {
+			list_del(&track->elm);
+			kfree(track);
+		}
+	}
 }
 
 void iopt_release_pages(struct kref *kref)
@@ -1495,6 +1587,7 @@ void iopt_release_pages(struct kref *kref)
 
 		dma_buf_detach(dmabuf, pages->dmabuf.attach);
 		dma_buf_put(dmabuf);
+		WARN_ON(!list_empty(&pages->dmabuf.tracker));
 	} else if (pages->type == IOPT_ADDRESS_FILE) {
 		fput(pages->file);
 	}
@@ -1735,11 +1828,17 @@ int iopt_area_fill_domains(struct iopt_area *area, struct iopt_pages *pages)
 		return 0;
 
 	mutex_lock(&pages->mutex);
+	if (iopt_is_dmabuf(pages)) {
+		rc = iopt_dmabuf_track_all_domains(area, pages);
+		if (rc)
+			goto out_unlock;
+	}
+
 	if (!iopt_dmabuf_revoked(pages)) {
 		rc = pfn_reader_first(&pfns, pages, iopt_area_index(area),
 				      iopt_area_last_index(area));
 		if (rc)
-			goto out_unlock;
+			goto out_untrack;
 
 		while (!pfn_reader_done(&pfns)) {
 			done_first_end_index = pfns.batch_end_index;
@@ -1794,6 +1893,9 @@ out_unmap:
 		}
 	}
 	pfn_reader_destroy(&pfns);
+out_untrack:
+	if (iopt_is_dmabuf(pages))
+		iopt_dmabuf_untrack_all_domains(area, pages);
 out_unlock:
 	mutex_unlock(&pages->mutex);
 	return rc;
@@ -1833,6 +1935,8 @@ void iopt_area_unfill_domains(struct iopt_area *area, struct iopt_pages *pages)
 		WARN_ON(RB_EMPTY_NODE(&area->pages_node.rb));
 	interval_tree_remove(&area->pages_node, &pages->domains_itree);
 	iopt_area_unfill_domain(area, pages, area->storage_domain);
+	if (iopt_is_dmabuf(pages))
+		iopt_dmabuf_untrack_all_domains(area, pages);
 	area->storage_domain = NULL;
 out_unlock:
 	mutex_unlock(&pages->mutex);

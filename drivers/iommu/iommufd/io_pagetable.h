@@ -70,6 +70,16 @@ void iopt_area_unfill_domain(struct iopt_area *area, struct iopt_pages *pages,
 void iopt_area_unmap_domain(struct iopt_area *area,
 			    struct iommu_domain *domain);
 
+int iopt_dmabuf_track_domain(struct iopt_pages *pages, struct iopt_area *area,
+			     struct iommu_domain *domain);
+void iopt_dmabuf_untrack_domain(struct iopt_pages *pages,
+				struct iopt_area *area,
+				struct iommu_domain *domain);
+int iopt_dmabuf_track_all_domains(struct iopt_area *area,
+				  struct iopt_pages *pages);
+void iopt_dmabuf_untrack_all_domains(struct iopt_area *area,
+				     struct iopt_pages *pages);
+
 static inline unsigned long iopt_area_index(struct iopt_area *area)
 {
 	return area->pages_node.start;
@@ -184,11 +194,18 @@ enum iopt_address_type {
 	IOPT_ADDRESS_DMABUF,
 };
 
+struct iopt_pages_dmabuf_track {
+	struct iommu_domain *domain;
+	struct iopt_area *area;
+	struct list_head elm;
+};
+
 struct iopt_pages_dmabuf {
 	struct dma_buf_attachment *attach;
 	struct dma_buf_phys_vec phys;
 	/* Always PAGE_SIZE aligned */
 	unsigned long start;
+	struct list_head tracker;
 };
 
 /*
