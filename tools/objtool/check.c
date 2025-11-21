@@ -1921,6 +1921,7 @@ static int add_special_section_alts(struct objtool_file *file)
 	struct special_alt *special_alt, *tmp;
 	enum alternative_type alt_type;
 	struct alternative *alt;
+	struct alternative *a;
 
 	if (special_get_alts(file->elf, &special_alts))
 		return -1;
@@ -1973,9 +1974,20 @@ static int add_special_section_alts(struct objtool_file *file)
 		}
 
 		alt->insn = new_insn;
-		alt->next = orig_insn->alts;
 		alt->type = alt_type;
-		orig_insn->alts = alt;
+		alt->next = NULL;
+
+		/*
+		 * Store alternatives in the same order they have been
+		 * defined.
+		 */
+		if (!orig_insn->alts) {
+			orig_insn->alts = alt;
+		} else {
+			for (a = orig_insn->alts; a->next; a = a->next)
+				;
+			a->next = alt;
+		}
 
 		list_del(&special_alt->list);
 		free(special_alt);
