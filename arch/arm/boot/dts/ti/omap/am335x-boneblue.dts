@@ -13,7 +13,7 @@
 	compatible = "ti,am335x-bone-blue", "ti,am33xx";
 
 	chosen {
-		stdout-path = &uart0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	leds {

@@ -129,6 +129,13 @@ properties:
           - const: phytec,am335x-phycore-som
           - const: ti,am33xx
 
+      - description: TQ-Systems TQMa335x[L] SoM
+        items:
+          - enum:
+              - tq,tqma3359-mba335x # MBa335x carrier board
+          - const: tq,tqma3359
+          - const: ti,am33xx
+
       - description: TI OMAP4430 SoC based platforms
         items:
           - enum:

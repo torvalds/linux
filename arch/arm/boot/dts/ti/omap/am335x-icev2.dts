@@ -22,7 +22,7 @@
 	};
 
 	chosen {
-		stdout-path = &uart3;
+		stdout-path = "serial3:115200n8";
 	};
 
 	vbat: fixedregulator0 {
