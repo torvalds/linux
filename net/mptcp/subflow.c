@@ -1712,6 +1712,16 @@ err_out:
 	return err;
 }
 
+void __mptcp_inherit_memcg(struct sock *sk, struct sock *ssk, gfp_t gfp)
+{
+	/* Only if the msk has been accepted already (and not orphaned).*/
+	if (!mem_cgroup_sockets_enabled || !sk->sk_socket)
+		return;
+
+	mem_cgroup_sk_inherit(sk, ssk);
+	__sk_charge(ssk, gfp);
+}
+
 void __mptcp_inherit_cgrp_data(struct sock *sk, struct sock *ssk)
 {
 #ifdef CONFIG_SOCK_CGROUP_DATA
