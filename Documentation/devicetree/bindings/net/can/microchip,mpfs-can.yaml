@@ -32,11 +32,15 @@ properties:
       - description: AHB peripheral clock
       - description: CAN bus clock
 
+  resets:
+    maxItems: 1
+
 required:
   - compatible
   - reg
   - interrupts
   - clocks
+  - resets
 
 additionalProperties: false
 
@@ -46,6 +50,7 @@ examples:
         compatible = "microchip,mpfs-can";
         reg = <0x2010c000 0x1000>;
         clocks = <&clkcfg 17>, <&clkcfg 37>;
+        resets = <&clkcfg 17>;
         interrupt-parent = <&plic>;
         interrupts = <56>;
     };
