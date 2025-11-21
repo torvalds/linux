@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+arch/x86/lib/cpu-feature-names.c
 arch/x86/lib/inat-tables.c
 /objtool
 feature

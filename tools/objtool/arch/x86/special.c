@@ -4,6 +4,10 @@
 #include <objtool/special.h>
 #include <objtool/builtin.h>
 #include <objtool/warn.h>
+#include <asm/cpufeatures.h>
+
+/* cpu feature name array generated from cpufeatures.h */
+#include "cpu-feature-names.c"
 
 void arch_handle_alternative(struct special_alt *alt)
 {
@@ -133,4 +137,10 @@ struct reloc *arch_find_switch_table(struct objtool_file *file,
 
 	*table_size = 0;
 	return rodata_reloc;
+}
+
+const char *arch_cpu_feature_name(int feature_number)
+{
+	return (feature_number < ARRAY_SIZE(cpu_feature_names)) ?
+		cpu_feature_names[feature_number] : NULL;
 }
