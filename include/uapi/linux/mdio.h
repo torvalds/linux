@@ -147,6 +147,11 @@
 #define MDIO_AN_STAT1_PAGE		0x0040	/* Page received */
 #define MDIO_AN_STAT1_XNP		0x0080	/* Extended next page status */
 
+/* Device Identifier 2 */
+#define MDIO_DEVID2_OUI			0xfc00	/* OUI Portion of PHY ID */
+#define MDIO_DEVID2_MODEL_NUM		0x03f0	/* Manufacturer's Model Number */
+#define MDIO_DEVID2_REV_NUM		0x000f	/* Revision Number */
+
 /* Speed register. */
 #define MDIO_SPEED_10G			0x0001	/* 10G capable */
 #define MDIO_PMA_SPEED_2B		0x0002	/* 2BASE-TL capable */

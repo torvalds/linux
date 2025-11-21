@@ -1365,17 +1365,16 @@ static int xpcs_read_ids(struct dw_xpcs *xpcs)
 	if (ret < 0)
 		return ret;
 
-	id = ret;
+	id = ret << 16;
 
 	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID2);
 	if (ret < 0)
 		return ret;
 
-	/* Note the inverted dword order and masked out Model/Revision numbers
-	 * with respect to what is done with the PCS ID...
+	/* For now we only record the OUI for the PMAPMD, we may want to
+	 * add the model number at some point in the future.
 	 */
-	ret = (ret >> 10) & 0x3F;
-	id |= ret << 16;
+	id |= ret & MDIO_DEVID2_OUI;
 
 	/* Set the PMA ID if it hasn't been pre-initialized */
 	if (xpcs->info.pma == DW_XPCS_PMA_ID_NATIVE)
