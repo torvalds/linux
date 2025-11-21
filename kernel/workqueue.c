@@ -3539,10 +3539,9 @@ repeat:
 			if (pwq->nr_active && need_to_create_worker(pool)) {
 				raw_spin_lock(&wq_mayday_lock);
 				/*
-				 * Queue iff we aren't racing destruction
-				 * and somebody else hasn't queued it already.
+				 * Queue iff somebody else hasn't queued it already.
 				 */
-				if (wq->rescuer && list_empty(&pwq->mayday_node)) {
+				if (list_empty(&pwq->mayday_node)) {
 					get_pwq(pwq);
 					list_add_tail(&pwq->mayday_node, &wq->maydays);
 				}
@@ -5905,16 +5904,10 @@ void destroy_workqueue(struct workqueue_struct *wq)
 
 	/* kill rescuer, if sanity checks fail, leave it w/o rescuer */
 	if (wq->rescuer) {
-		struct worker *rescuer = wq->rescuer;
-
-		/* this prevents new queueing */
-		raw_spin_lock_irq(&wq_mayday_lock);
-		wq->rescuer = NULL;
-		raw_spin_unlock_irq(&wq_mayday_lock);
-
 		/* rescuer will empty maydays list before exiting */
-		kthread_stop(rescuer->task);
-		kfree(rescuer);
+		kthread_stop(wq->rescuer->task);
+		kfree(wq->rescuer);
+		wq->rescuer = NULL;
 	}
 
 	/*
