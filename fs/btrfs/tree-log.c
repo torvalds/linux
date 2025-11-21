@@ -7201,28 +7201,24 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 		item_size = btrfs_item_size(leaf, slot);
 		ptr = btrfs_item_ptr_offset(leaf, slot);
 		while (cur_offset < item_size) {
-			struct btrfs_key inode_key;
+			u64 dir_id;
 			struct btrfs_inode *dir_inode;
-
-			inode_key.type = BTRFS_INODE_ITEM_KEY;
-			inode_key.offset = 0;
 
 			if (key.type == BTRFS_INODE_EXTREF_KEY) {
 				struct btrfs_inode_extref *extref;
 
 				extref = (struct btrfs_inode_extref *)
 					(ptr + cur_offset);
-				inode_key.objectid = btrfs_inode_extref_parent(
-					leaf, extref);
+				dir_id = btrfs_inode_extref_parent(leaf, extref);
 				cur_offset += sizeof(*extref);
 				cur_offset += btrfs_inode_extref_name_len(leaf,
 					extref);
 			} else {
-				inode_key.objectid = key.offset;
+				dir_id = key.offset;
 				cur_offset = item_size;
 			}
 
-			dir_inode = btrfs_iget_logging(inode_key.objectid, root);
+			dir_inode = btrfs_iget_logging(dir_id, root);
 			/*
 			 * If the parent inode was deleted, return an error to
 			 * fallback to a transaction commit. This is to prevent
