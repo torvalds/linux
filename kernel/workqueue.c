@@ -3442,6 +3442,10 @@ static bool assign_rescuer_work(struct pool_workqueue *pwq, struct worker *rescu
 	struct worker_pool *pool = pwq->pool;
 	struct work_struct *work, *n;
 
+	/* need rescue? */
+	if (!pwq->nr_active || !need_to_create_worker(pool))
+		return false;
+
 	/*
 	 * Slurp in all works issued via this workqueue and
 	 * process'em.
