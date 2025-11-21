@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0+ OR MIT
 
-TEST_GEN_FILES = iou-zcrx
+TEST_GEN_FILES := \
+	iou-zcrx \
+	toeplitz \
+# end of TEST_GEN_FILES
 
 TEST_PROGS = \
 	csum.py \
@@ -21,6 +24,7 @@ TEST_PROGS = \
 	rss_ctx.py \
 	rss_flow_label.py \
 	rss_input_xfrm.py \
+	toeplitz.py \
 	tso.py \
 	xsk_reconfig.py \
 	#
