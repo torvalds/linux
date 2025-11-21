@@ -1449,9 +1449,35 @@
 			status = "disabled";
 		};
 
+		cmu_mfc: clock-controller@19c00000 {
+			compatible = "samsung,exynosautov920-cmu-mfc";
+			reg = <0x19c00000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_MFC_MFC>,
+				 <&cmu_top DOUT_CLKCMU_MFC_WFD>;
+			clock-names = "oscclk",
+				      "mfc",
+				      "wfd";
+		};
+
 		pinctrl_aud: pinctrl@1a460000 {
 			compatible = "samsung,exynosautov920-pinctrl";
 			reg = <0x1a460000 0x10000>;
+		};
+
+		cmu_m2m: clock-controller@1a800000 {
+			compatible = "samsung,exynosautov920-cmu-m2m";
+			reg = <0x1a800000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_M2M_NOC>,
+				 <&cmu_top DOUT_CLKCMU_M2M_JPEG>;
+			clock-names = "oscclk",
+				      "noc",
+				      "jpeg";
 		};
 
 		cmu_cpucl0: clock-controller@1ec00000 {
