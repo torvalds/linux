@@ -261,6 +261,11 @@ static struct iopt_area *iopt_pages_find_domain_area(struct iopt_pages *pages,
 	return container_of(node, struct iopt_area, pages_node);
 }
 
+enum batch_kind {
+	BATCH_CPU_MEMORY = 0,
+	BATCH_MMIO,
+};
+
 /*
  * A simple datastructure to hold a vector of PFNs, optimized for contiguous
  * PFNs. This is used as a temporary holding memory for shuttling pfns from one
@@ -274,6 +279,7 @@ struct pfn_batch {
 	unsigned int array_size;
 	unsigned int end;
 	unsigned int total_pfns;
+	enum batch_kind kind;
 };
 enum { MAX_NPFNS = type_max(typeof(((struct pfn_batch *)0)->npfns[0])) };
 
@@ -352,9 +358,16 @@ static void batch_destroy(struct pfn_batch *batch, void *backup)
 }
 
 static bool batch_add_pfn_num(struct pfn_batch *batch, unsigned long pfn,
-			      u32 nr)
+			      u32 nr, enum batch_kind kind)
 {
 	unsigned int end = batch->end;
+
+	if (batch->kind != kind) {
+		/* One kind per batch */
+		if (batch->end != 0)
+			return false;
+		batch->kind = kind;
+	}
 
 	if (end && pfn == batch->pfns[end - 1] + batch->npfns[end - 1] &&
 	    nr <= MAX_NPFNS - batch->npfns[end - 1]) {
@@ -382,7 +395,7 @@ static void batch_remove_pfn_num(struct pfn_batch *batch, unsigned long nr)
 /* true if the pfn was added, false otherwise */
 static bool batch_add_pfn(struct pfn_batch *batch, unsigned long pfn)
 {
-	return batch_add_pfn_num(batch, pfn, 1);
+	return batch_add_pfn_num(batch, pfn, 1, BATCH_CPU_MEMORY);
 }
 
 /*
@@ -495,12 +508,18 @@ static int batch_to_domain(struct pfn_batch *batch, struct iommu_domain *domain,
 {
 	bool disable_large_pages = area->iopt->disable_large_pages;
 	unsigned long last_iova = iopt_area_last_iova(area);
+	int iommu_prot = area->iommu_prot;
 	unsigned int page_offset = 0;
 	unsigned long start_iova;
 	unsigned long next_iova;
 	unsigned int cur = 0;
 	unsigned long iova;
 	int rc;
+
+	if (batch->kind == BATCH_MMIO) {
+		iommu_prot &= ~IOMMU_CACHE;
+		iommu_prot |= IOMMU_MMIO;
+	}
 
 	/* The first index might be a partial page */
 	if (start_index == iopt_area_index(area))
@@ -515,11 +534,11 @@ static int batch_to_domain(struct pfn_batch *batch, struct iommu_domain *domain,
 			rc = batch_iommu_map_small(
 				domain, iova,
 				PFN_PHYS(batch->pfns[cur]) + page_offset,
-				next_iova - iova, area->iommu_prot);
+				next_iova - iova, iommu_prot);
 		else
 			rc = iommu_map(domain, iova,
 				       PFN_PHYS(batch->pfns[cur]) + page_offset,
-				       next_iova - iova, area->iommu_prot,
+				       next_iova - iova, iommu_prot,
 				       GFP_KERNEL_ACCOUNT);
 		if (rc)
 			goto err_unmap;
@@ -655,7 +674,7 @@ static int batch_from_folios(struct pfn_batch *batch, struct folio ***folios_p,
 		nr = min(nr, npages);
 		npages -= nr;
 
-		if (!batch_add_pfn_num(batch, pfn, nr))
+		if (!batch_add_pfn_num(batch, pfn, nr, BATCH_CPU_MEMORY))
 			break;
 		if (nr > 1) {
 			rc = folio_add_pins(folio, nr - 1);
