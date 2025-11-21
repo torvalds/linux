@@ -15,7 +15,6 @@ endif
 
 TEST_GEN_FILES := \
 	$(COND_GEN_FILES) \
-	toeplitz \
 # end of TEST_GEN_FILES
 
 TEST_PROGS = \
@@ -55,7 +54,10 @@ TEST_INCLUDES := \
 	#
 
 # YNL files, must be before "include ..lib.mk"
-YNL_GEN_FILES := ncdevmem
+YNL_GEN_FILES := \
+	ncdevmem \
+	toeplitz \
+# end of YNL_GEN_FILES
 TEST_GEN_FILES += $(YNL_GEN_FILES)
 TEST_GEN_FILES += $(patsubst %.c,%.o,$(wildcard *.bpf.c))
 

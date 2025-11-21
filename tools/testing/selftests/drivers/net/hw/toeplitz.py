@@ -156,10 +156,6 @@ def test(cfg, proto_flag, ipver, grp):
                                   "hfunc": rss.get('hfunc'),
                                   "input-xfrm": rss.get('input-xfrm', {})
                                   })
-        # Refresh in case changing hfunc changes things.
-        rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
-
-    key = ':'.join(f'{b:02x}' for b in rss["hkey"])
 
     port = rand_port(socket.SOCK_DGRAM)
 
@@ -170,7 +166,6 @@ def test(cfg, proto_flag, ipver, grp):
         proto_flag,
         "-d", str(port),
         "-i", cfg.ifname,
-        "-k", key,
         "-T", "1000",
         "-s",
         "-v"

@@ -52,6 +52,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <ynl.h>
+#include "ethtool-user.h"
+
 #include "../../../kselftest.h"
 #include "../../../net/lib/ksft.h"
 
@@ -483,6 +486,42 @@ static void parse_rps_bitmap(const char *arg)
 			rps_silo_to_cpu[cfg_num_rps_cpus++] = i;
 }
 
+static void read_rss_dev_info_ynl(void)
+{
+	struct ethtool_rss_get_req *req;
+	struct ethtool_rss_get_rsp *rsp;
+	struct ynl_sock *ys;
+
+	ys = ynl_sock_create(&ynl_ethtool_family, NULL);
+	if (!ys)
+		error(1, errno, "ynl_sock_create failed");
+
+	req = ethtool_rss_get_req_alloc();
+	if (!req)
+		error(1, errno, "ethtool_rss_get_req_alloc failed");
+
+	ethtool_rss_get_req_set_header_dev_name(req, cfg_ifname);
+
+	rsp = ethtool_rss_get(ys, req);
+	if (!rsp)
+		error(1, ys->err.code, "YNL: %s", ys->err.msg);
+
+	if (!rsp->_len.hkey)
+		error(1, 0, "RSS key not available for %s", cfg_ifname);
+
+	if (rsp->_len.hkey < TOEPLITZ_KEY_MIN_LEN ||
+	    rsp->_len.hkey > TOEPLITZ_KEY_MAX_LEN)
+		error(1, 0, "RSS key length %u out of bounds [%u, %u]",
+		      rsp->_len.hkey, TOEPLITZ_KEY_MIN_LEN,
+		      TOEPLITZ_KEY_MAX_LEN);
+
+	memcpy(toeplitz_key, rsp->hkey, rsp->_len.hkey);
+
+	ethtool_rss_get_rsp_free(rsp);
+	ethtool_rss_get_req_free(req);
+	ynl_sock_destroy(ys);
+}
+
 static void parse_opts(int argc, char **argv)
 {
 	static struct option long_options[] = {
@@ -551,7 +590,7 @@ static void parse_opts(int argc, char **argv)
 	}
 
 	if (!have_toeplitz)
-		error(1, 0, "Must supply rss key ('-k')");
+		read_rss_dev_info_ynl();
 
 	num_cpus = get_nprocs();
 	if (num_cpus > RSS_MAX_CPUS)
