@@ -1105,6 +1105,17 @@ static inline void tcf_set_drop_reason(const struct sk_buff *skb,
 	tc_skb_cb(skb)->drop_reason = reason;
 }
 
+static inline void tcf_kfree_skb_list(struct sk_buff *skb)
+{
+	while (unlikely(skb)) {
+		struct sk_buff *next = skb->next;
+
+		prefetch(next);
+		kfree_skb_reason(skb, tcf_get_drop_reason(skb));
+		skb = next;
+	}
+}
+
 /* Instead of calling kfree_skb() while root qdisc lock is held,
  * queue the skb for future freeing at end of __dev_xmit_skb()
  */

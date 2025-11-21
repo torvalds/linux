@@ -4162,7 +4162,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				__qdisc_run(q);
 				qdisc_run_end(q);
 
-				goto no_lock_out;
+				goto free_skbs;
 			}
 
 			qdisc_bstats_cpu_update(q, skb);
@@ -4176,12 +4176,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 
 		rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
 		qdisc_run(q);
-
-no_lock_out:
-		if (unlikely(to_free))
-			kfree_skb_list_reason(to_free,
-					      tcf_get_drop_reason(to_free));
-		return rc;
+		goto free_skbs;
 	}
 
 	/* Open code llist_add(&skb->ll_node, &q->defer_list) + queue limit.
@@ -4257,9 +4252,9 @@ no_lock_out:
 	}
 unlock:
 	spin_unlock(root_lock);
-	if (unlikely(to_free))
-		kfree_skb_list_reason(to_free,
-				      tcf_get_drop_reason(to_free));
+
+free_skbs:
+	tcf_kfree_skb_list(to_free);
 	return rc;
 }
 
