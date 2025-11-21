@@ -480,7 +480,10 @@ static void fq_erase_head(struct Qdisc *sch, struct fq_flow *flow,
 			  struct sk_buff *skb)
 {
 	if (skb == flow->head) {
-		flow->head = skb->next;
+		struct sk_buff *next = skb->next;
+
+		prefetch(next);
+		flow->head = next;
 	} else {
 		rb_erase(&skb->rbnode, &flow->t_root);
 		skb->dev = qdisc_dev(sch);
@@ -712,6 +715,7 @@ begin:
 			goto begin;
 		}
 		prefetch(&skb->end);
+		fq_dequeue_skb(sch, f, skb);
 		if ((s64)(now - time_next_packet - q->ce_threshold) > 0) {
 			INET_ECN_set_ce(skb);
 			q->stat_ce_mark++;
@@ -719,7 +723,6 @@ begin:
 		if (--f->qlen == 0)
 			q->inactive_flows++;
 		q->band_pkt_count[fq_skb_cb(skb)->band]--;
-		fq_dequeue_skb(sch, f, skb);
 	} else {
 		head->first = f->next;
 		/* force a pass through old_flows to prevent starvation */
