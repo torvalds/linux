@@ -1549,4 +1549,11 @@ static inline int do_munmap(struct mm_struct *, unsigned long, size_t,
 	return 0;
 }
 
+static inline void vm_flags_reset(struct vm_area_struct *vma, vm_flags_t flags)
+{
+	vm_flags_t *dst = (vm_flags_t *)(&vma->vm_flags);
+
+	*dst = flags;
+}
+
 #endif	/* __MM_VMA_INTERNAL_H */
