@@ -45,6 +45,7 @@ struct opts {
 	const char *trace;
 	bool verbose;
 	bool werror;
+	bool wide;
 };
 
 extern struct opts opts;

@@ -857,6 +857,95 @@ static int disas_alt_default(struct disas_context *dctx, struct disas_alt *dalt)
 }
 
 /*
+ * For each alternative, if there is an instruction at the specified
+ * offset then print this instruction, otherwise print a blank entry.
+ * The offset is an offset from the start of the alternative.
+ *
+ * Return the offset for the next instructions to print, or -1 if all
+ * instructions have been printed.
+ */
+static int disas_alt_print_insn(struct disas_alt *dalts, int alt_count,
+				int insn_count, int offset)
+{
+	struct disas_alt *dalt;
+	int offset_next;
+	char *str;
+	int i, j;
+
+	offset_next = -1;
+
+	for (i = 0; i < alt_count; i++) {
+		dalt = &dalts[i];
+		j = dalt->insn_idx;
+		if (j == -1) {
+			printf("| %-*s ", dalt->width, "");
+			continue;
+		}
+
+		if (dalt->insn[j].offset == offset) {
+			str = dalt->insn[j].str;
+			printf("| %-*s ", dalt->width, str ?: "");
+			if (++j < insn_count) {
+				dalt->insn_idx = j;
+			} else {
+				dalt->insn_idx = -1;
+				continue;
+			}
+		} else {
+			printf("| %-*s ", dalt->width, "");
+		}
+
+		if (dalt->insn[j].offset > 0 &&
+		    (offset_next == -1 ||
+		     (dalt->insn[j].offset < offset_next)))
+			offset_next = dalt->insn[j].offset;
+	}
+	printf("\n");
+
+	return offset_next;
+}
+
+/*
+ * Print all alternatives side-by-side.
+ */
+static void disas_alt_print_wide(char *alt_name, struct disas_alt *dalts, int alt_count,
+				 int insn_count)
+{
+	struct instruction *orig_insn;
+	int offset_next;
+	int offset;
+	int i;
+
+	orig_insn = dalts[0].orig_insn;
+
+	/*
+	 * Print an header with the name of each alternative.
+	 */
+	disas_print_info(stdout, orig_insn, -2, NULL);
+
+	if (strlen(alt_name) > dalts[0].width)
+		dalts[0].width = strlen(alt_name);
+	printf("| %-*s ", dalts[0].width, alt_name);
+
+	for (i = 1; i < alt_count; i++)
+		printf("| %-*s ", dalts[i].width, dalts[i].name);
+
+	printf("\n");
+
+	/*
+	 * Print instructions for each alternative.
+	 */
+	offset_next = 0;
+	do {
+		offset = offset_next;
+		disas_print(stdout, orig_insn->sec, orig_insn->offset + offset,
+			    -2, NULL);
+		offset_next = disas_alt_print_insn(dalts, alt_count, insn_count,
+						   offset);
+	} while (offset_next > offset);
+}
+
+/*
  * Print all alternatives one above the other.
  */
 static void disas_alt_print_compact(char *alt_name, struct disas_alt *dalts,
@@ -993,7 +1082,11 @@ static void *disas_alt(struct disas_context *dctx,
 	/*
 	 * Print default and non-default alternatives.
 	 */
-	disas_alt_print_compact(alt_name, dalts, alt_count, insn_count);
+
+	if (opts.wide)
+		disas_alt_print_wide(alt_name, dalts, alt_count, insn_count);
+	else
+		disas_alt_print_compact(alt_name, dalts, alt_count, insn_count);
 
 	last_insn = orig_insn->alt_group ? orig_insn->alt_group->last_insn :
 		orig_insn;
