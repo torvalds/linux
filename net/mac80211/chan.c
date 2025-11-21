@@ -1715,7 +1715,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		n_reserved = 0;
 		n_ready = 0;
 
-		for_each_chanctx_user_assigned(local, ctx, &iter) {
+		for_each_chanctx_user_assigned(local, ctx->replace_ctx, &iter) {
 			n_assigned++;
 			if (iter.link->reserved_chanctx) {
 				n_reserved++;
