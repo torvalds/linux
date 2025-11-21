@@ -355,4 +355,6 @@
 /* Check the reserved and fixed bits in address */
 #define SDW_SDCA_VALID_CTL(reg) (((reg) & (GENMASK(31, 25) | BIT(18) | BIT(13))) == BIT(30))
 
+#define SDW_SDCA_MAX_REGISTER			0x47FFFFFF
+
 #endif /* __SDW_REGISTERS_H */
