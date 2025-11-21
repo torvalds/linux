@@ -168,15 +168,10 @@ static int _get_gpio_reg(unsigned int offset, unsigned int base)
 #define GET_GPI_VAL_REG(offset)  _get_gpio_reg((offset), BD79112_REG_GPI_VALUE_A0_A7)
 
 static const struct regmap_range bd71815_volatile_ro_ranges[] = {
-	{
-		/* Read ADC data */
-		.range_min = BD79112_REG_AGIO0A,
-		.range_max = BD79112_REG_AGIO15B,
-	}, {
-		/* GPI state */
-		.range_min = BD79112_REG_GPI_VALUE_B8_15,
-		.range_max = BD79112_REG_GPI_VALUE_A0_A7,
-	},
+	/* Read ADC data */
+	regmap_reg_range(BD79112_REG_AGIO0A, BD79112_REG_AGIO15B),
+	/* GPI state */
+	regmap_reg_range(BD79112_REG_GPI_VALUE_B8_15, BD79112_REG_GPI_VALUE_A0_A7),
 };
 
 static const struct regmap_access_table bd79112_volatile_regs = {

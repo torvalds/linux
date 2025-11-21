@@ -26,7 +26,9 @@
 #include "adxl380.h"
 
 #define ADXL380_ID_VAL				380
+#define ADXL318_ID_VAL				380
 #define ADXL382_ID_VAL				382
+#define ADXL319_ID_VAL				382
 
 #define ADXL380_DEVID_AD_REG			0x00
 #define ADLX380_PART_ID_REG			0x02
@@ -178,41 +180,6 @@ enum adxl380_tap_time_type {
 
 static const int adxl380_range_scale_factor_tbl[] = { 1, 2, 4 };
 
-const struct adxl380_chip_info adxl380_chip_info = {
-	.name = "adxl380",
-	.chip_id = ADXL380_ID_VAL,
-	.scale_tbl = {
-		[ADXL380_OP_MODE_4G_RANGE] = { 0, 1307226 },
-		[ADXL380_OP_MODE_8G_RANGE] = { 0, 2615434 },
-		[ADXL380_OP_MODE_16G_RANGE] = { 0, 5229886 },
-	},
-	.samp_freq_tbl = { 8000, 16000, 32000 },
-	/*
-	 * The datasheet defines an intercept of 470 LSB at 25 degC
-	 * and a sensitivity of 10.2 LSB/C.
-	 */
-	.temp_offset =  25 * 102 / 10 - 470,
-
-};
-EXPORT_SYMBOL_NS_GPL(adxl380_chip_info, "IIO_ADXL380");
-
-const struct adxl380_chip_info adxl382_chip_info = {
-	.name = "adxl382",
-	.chip_id = ADXL382_ID_VAL,
-	.scale_tbl = {
-		[ADXL382_OP_MODE_15G_RANGE] = { 0, 4903325 },
-		[ADXL382_OP_MODE_30G_RANGE] = { 0, 9806650 },
-		[ADXL382_OP_MODE_60G_RANGE] = { 0, 19613300 },
-	},
-	.samp_freq_tbl = { 16000, 32000, 64000 },
-	/*
-	 * The datasheet defines an intercept of 570 LSB at 25 degC
-	 * and a sensitivity of 10.2 LSB/C.
-	 */
-	.temp_offset =  25 * 102 / 10 - 570,
-};
-EXPORT_SYMBOL_NS_GPL(adxl382_chip_info, "IIO_ADXL380");
-
 static const unsigned int adxl380_th_reg_high_addr[2] = {
 	[ADXL380_ACTIVITY] = ADXL380_THRESH_ACT_H_REG,
 	[ADXL380_INACTIVITY] = ADXL380_THRESH_INACT_H_REG,
@@ -276,9 +243,14 @@ static int adxl380_set_measure_en(struct adxl380_state *st, bool en)
 		if (ret)
 			return ret;
 
-		/* Activity/ Inactivity detection available only in VLP/ULP mode */
-		if (FIELD_GET(ADXL380_ACT_EN_MSK, act_inact_ctl) ||
-		    FIELD_GET(ADXL380_INACT_EN_MSK, act_inact_ctl))
+		/*
+		 * Activity/Inactivity detection available only in VLP/ULP
+		 * mode and for devices that support low power modes. Otherwise
+		 * go straight to measure mode (same bits as ADXL380_OP_MODE_HP).
+		 */
+		if (st->chip_info->has_low_power &&
+		    (FIELD_GET(ADXL380_ACT_EN_MSK, act_inact_ctl) ||
+		     FIELD_GET(ADXL380_INACT_EN_MSK, act_inact_ctl)))
 			op_mode = ADXL380_OP_MODE_VLP;
 		else
 			op_mode = ADXL380_OP_MODE_HP;
@@ -1618,6 +1590,15 @@ static int adxl380_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	return 0;
 }
 
+static const struct iio_info adxl318_info = {
+	.read_raw = adxl380_read_raw,
+	.read_avail = &adxl380_read_avail,
+	.write_raw = adxl380_write_raw,
+	.write_raw_get_fmt = adxl380_write_raw_get_fmt,
+	.debugfs_reg_access = &adxl380_reg_access,
+	.hwfifo_set_watermark = adxl380_set_watermark,
+};
+
 static const struct iio_info adxl380_info = {
 	.read_raw = adxl380_read_raw,
 	.read_avail = &adxl380_read_avail,
@@ -1631,6 +1612,81 @@ static const struct iio_info adxl380_info = {
 	.debugfs_reg_access = &adxl380_reg_access,
 	.hwfifo_set_watermark = adxl380_set_watermark,
 };
+
+const struct adxl380_chip_info adxl318_chip_info = {
+	.name = "adxl318",
+	.chip_id = ADXL318_ID_VAL,
+	.scale_tbl = {
+		[ADXL380_OP_MODE_4G_RANGE] = { 0, 1307226 },
+		[ADXL380_OP_MODE_8G_RANGE] = { 0, 2615434 },
+		[ADXL380_OP_MODE_16G_RANGE] = { 0, 5229886 },
+	},
+	.samp_freq_tbl = { 8000, 16000, 32000 },
+	/*
+	 * The datasheet defines an intercept of 550 LSB at 25 degC
+	 * and a sensitivity of 10.2 LSB/C.
+	 */
+	.temp_offset =  25 * 102 / 10 - 550,
+	.info = &adxl318_info,
+};
+EXPORT_SYMBOL_NS_GPL(adxl318_chip_info, "IIO_ADXL380");
+
+const struct adxl380_chip_info adxl319_chip_info = {
+	.name = "adxl319",
+	.chip_id = ADXL319_ID_VAL,
+	.scale_tbl = {
+		[ADXL382_OP_MODE_15G_RANGE] = { 0, 4903325 },
+		[ADXL382_OP_MODE_30G_RANGE] = { 0, 9806650 },
+		[ADXL382_OP_MODE_60G_RANGE] = { 0, 19613300 },
+	},
+	.samp_freq_tbl = { 16000, 32000, 64000 },
+	/*
+	 * The datasheet defines an intercept of 550 LSB at 25 degC
+	 * and a sensitivity of 10.2 LSB/C.
+	 */
+	.temp_offset =  25 * 102 / 10 - 550,
+	.info = &adxl318_info,
+};
+EXPORT_SYMBOL_NS_GPL(adxl319_chip_info, "IIO_ADXL380");
+
+const struct adxl380_chip_info adxl380_chip_info = {
+	.name = "adxl380",
+	.chip_id = ADXL380_ID_VAL,
+	.scale_tbl = {
+		[ADXL380_OP_MODE_4G_RANGE] = { 0, 1307226 },
+		[ADXL380_OP_MODE_8G_RANGE] = { 0, 2615434 },
+		[ADXL380_OP_MODE_16G_RANGE] = { 0, 5229886 },
+	},
+	.samp_freq_tbl = { 8000, 16000, 32000 },
+	/*
+	 * The datasheet defines an intercept of 470 LSB at 25 degC
+	 * and a sensitivity of 10.2 LSB/C.
+	 */
+	.temp_offset =  25 * 102 / 10 - 470,
+	.has_low_power = true,
+	.info = &adxl380_info,
+
+};
+EXPORT_SYMBOL_NS_GPL(adxl380_chip_info, "IIO_ADXL380");
+
+const struct adxl380_chip_info adxl382_chip_info = {
+	.name = "adxl382",
+	.chip_id = ADXL382_ID_VAL,
+	.scale_tbl = {
+		[ADXL382_OP_MODE_15G_RANGE] = { 0, 4903325 },
+		[ADXL382_OP_MODE_30G_RANGE] = { 0, 9806650 },
+		[ADXL382_OP_MODE_60G_RANGE] = { 0, 19613300 },
+	},
+	.samp_freq_tbl = { 16000, 32000, 64000 },
+	/*
+	 * The datasheet defines an intercept of 570 LSB at 25 degC
+	 * and a sensitivity of 10.2 LSB/C.
+	 */
+	.temp_offset =  25 * 102 / 10 - 570,
+	.has_low_power = true,
+	.info = &adxl380_info,
+};
+EXPORT_SYMBOL_NS_GPL(adxl382_chip_info, "IIO_ADXL380");
 
 static const struct iio_event_spec adxl380_events[] = {
 	{
@@ -1866,7 +1922,7 @@ int adxl380_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->channels = adxl380_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adxl380_channels);
 	indio_dev->name = chip_info->name;
-	indio_dev->info = &adxl380_info;
+	indio_dev->info = chip_info->info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = devm_regulator_get_enable(dev, "vddio");

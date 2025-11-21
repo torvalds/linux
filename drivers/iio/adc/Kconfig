@@ -1020,6 +1020,16 @@ config MAX1363
 	  To compile this driver as a module, choose M here: the module will be
 	  called max1363.
 
+config MAX14001
+	tristate "Analog Devices MAX14001/MAX14002 ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices MAX14001/MAX14002
+	  Configurable, Isolated 10-bit ADCs for Multi-Range Binary Inputs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max14001.
+
 config MAX34408
 	tristate "Maxim max34408/max344089 ADC driver"
 	depends on I2C
@@ -1402,6 +1412,27 @@ config RZG2L_ADC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rzg2l_adc.
+
+config RZN1_ADC
+	tristate "Renesas RZ/N1 ADC driver"
+	depends on ARCH_RZN1 || COMPILE_TEST
+	help
+	  Say yes here to build support for the ADC found in Renesas
+	  RZ/N1 family.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rzn1-adc.
+
+config RZT2H_ADC
+	tristate "Renesas RZ/T2H / RZ/N2H ADC driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select IIO_ADC_HELPER
+	help
+	  Say yes here to build support for the ADC found in Renesas
+	  RZ/T2H / RZ/N2H SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rzt2h_adc.
 
 config SC27XX_ADC
 	tristate "Spreadtrum SC27xx series PMICs ADC"

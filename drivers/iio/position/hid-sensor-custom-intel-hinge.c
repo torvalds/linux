@@ -176,7 +176,7 @@ static int hinge_read_label(struct iio_dev *indio_dev,
 {
 	struct hinge_state *st = iio_priv(indio_dev);
 
-	return sprintf(label, "%s\n", st->labels[chan->channel]);
+	return sysfs_emit(label, "%s\n", st->labels[chan->channel]);
 }
 
 static const struct iio_info hinge_info = {

@@ -125,7 +125,12 @@
 
 /* Miscellaneous Definitions */
 #define AD4080_SPI_READ						BIT(7)
-#define AD4080_CHIP_ID						GENMASK(2, 0)
+#define AD4080_CHIP_ID						0x0050
+#define AD4081_CHIP_ID						0x0051
+#define AD4083_CHIP_ID						0x0053
+#define AD4084_CHIP_ID						0x0054
+#define AD4086_CHIP_ID						0x0056
+#define AD4087_CHIP_ID						0x0057
 
 #define AD4080_LVDS_CNV_CLK_CNT_MAX				7
 
@@ -167,6 +172,7 @@ struct ad4080_chip_info {
 	const unsigned int (*scale_table)[2];
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
+	unsigned int lvds_cnv_clk_cnt_max;
 };
 
 struct ad4080_state {
@@ -414,23 +420,35 @@ static struct iio_chan_spec_ext_info ad4080_ext_info[] = {
 	{ }
 };
 
-static const struct iio_chan_spec ad4080_channel = {
-	.type = IIO_VOLTAGE,
-	.indexed = 1,
-	.channel = 0,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE),
-	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
-	.info_mask_shared_by_all_available =
-			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
-	.ext_info = ad4080_ext_info,
-	.scan_index = 0,
-	.scan_type = {
-		.sign = 's',
-		.realbits = 20,
-		.storagebits = 32,
-	},
-};
+#define AD4080_CHANNEL_DEFINE(bits, storage) {				\
+	.type = IIO_VOLTAGE,						\
+	.indexed = 1,							\
+	.channel = 0,							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE),			\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ) |	\
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),		\
+	.info_mask_shared_by_all_available =				\
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),		\
+	.ext_info = ad4080_ext_info,					\
+	.scan_index = 0,						\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = (bits),					\
+		.storagebits = (storage),				\
+	},								\
+}
+
+static const struct iio_chan_spec ad4080_channel = AD4080_CHANNEL_DEFINE(20, 32);
+
+static const struct iio_chan_spec ad4081_channel = AD4080_CHANNEL_DEFINE(20, 32);
+
+static const struct iio_chan_spec ad4083_channel = AD4080_CHANNEL_DEFINE(16, 16);
+
+static const struct iio_chan_spec ad4084_channel = AD4080_CHANNEL_DEFINE(16, 16);
+
+static const struct iio_chan_spec ad4086_channel = AD4080_CHANNEL_DEFINE(14, 16);
+
+static const struct iio_chan_spec ad4087_channel = AD4080_CHANNEL_DEFINE(14, 16);
 
 static const struct ad4080_chip_info ad4080_chip_info = {
 	.name = "ad4080",
@@ -439,13 +457,65 @@ static const struct ad4080_chip_info ad4080_chip_info = {
 	.num_scales = ARRAY_SIZE(ad4080_scale_table),
 	.num_channels = 1,
 	.channels = &ad4080_channel,
+	.lvds_cnv_clk_cnt_max = AD4080_LVDS_CNV_CLK_CNT_MAX,
+};
+
+static const struct ad4080_chip_info ad4081_chip_info = {
+	.name = "ad4081",
+	.product_id = AD4081_CHIP_ID,
+	.scale_table = ad4080_scale_table,
+	.num_scales = ARRAY_SIZE(ad4080_scale_table),
+	.num_channels = 1,
+	.channels = &ad4081_channel,
+	.lvds_cnv_clk_cnt_max = 2,
+};
+
+static const struct ad4080_chip_info ad4083_chip_info = {
+	.name = "ad4083",
+	.product_id = AD4083_CHIP_ID,
+	.scale_table = ad4080_scale_table,
+	.num_scales = ARRAY_SIZE(ad4080_scale_table),
+	.num_channels = 1,
+	.channels = &ad4083_channel,
+	.lvds_cnv_clk_cnt_max = 5,
+};
+
+static const struct ad4080_chip_info ad4084_chip_info = {
+	.name = "ad4084",
+	.product_id = AD4084_CHIP_ID,
+	.scale_table = ad4080_scale_table,
+	.num_scales = ARRAY_SIZE(ad4080_scale_table),
+	.num_channels = 1,
+	.channels = &ad4084_channel,
+	.lvds_cnv_clk_cnt_max = 2,
+};
+
+static const struct ad4080_chip_info ad4086_chip_info = {
+	.name = "ad4086",
+	.product_id = AD4086_CHIP_ID,
+	.scale_table = ad4080_scale_table,
+	.num_scales = ARRAY_SIZE(ad4080_scale_table),
+	.num_channels = 1,
+	.channels = &ad4086_channel,
+	.lvds_cnv_clk_cnt_max = 4,
+};
+
+static const struct ad4080_chip_info ad4087_chip_info = {
+	.name = "ad4087",
+	.product_id = AD4087_CHIP_ID,
+	.scale_table = ad4080_scale_table,
+	.num_scales = ARRAY_SIZE(ad4080_scale_table),
+	.num_channels = 1,
+	.channels = &ad4087_channel,
+	.lvds_cnv_clk_cnt_max = 1,
 };
 
 static int ad4080_setup(struct iio_dev *indio_dev)
 {
 	struct ad4080_state *st = iio_priv(indio_dev);
 	struct device *dev = regmap_get_device(st->regmap);
-	unsigned int id;
+	__le16 id_le;
+	u16 id;
 	int ret;
 
 	ret = regmap_write(st->regmap, AD4080_REG_INTERFACE_CONFIG_A,
@@ -458,11 +528,13 @@ static int ad4080_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	ret = regmap_read(st->regmap, AD4080_REG_CHIP_TYPE, &id);
+	ret = regmap_bulk_read(st->regmap, AD4080_REG_PRODUCT_ID_L, &id_le,
+			       sizeof(id_le));
 	if (ret)
 		return ret;
 
-	if (id != AD4080_CHIP_ID)
+	id = le16_to_cpu(id_le);
+	if (id != st->info->product_id)
 		dev_info(dev, "Unrecognized CHIP_ID 0x%X\n", id);
 
 	ret = regmap_set_bits(st->regmap, AD4080_REG_GPIO_CONFIG_A,
@@ -488,7 +560,7 @@ static int ad4080_setup(struct iio_dev *indio_dev)
 				 AD4080_REG_ADC_DATA_INTF_CONFIG_B,
 				 AD4080_ADC_DATA_INTF_CONFIG_B_LVDS_CNV_CLK_CNT_MSK,
 				 FIELD_PREP(AD4080_ADC_DATA_INTF_CONFIG_B_LVDS_CNV_CLK_CNT_MSK,
-					    AD4080_LVDS_CNV_CLK_CNT_MAX));
+					    st->info->lvds_cnv_clk_cnt_max));
 	if (ret)
 		return ret;
 
@@ -593,12 +665,22 @@ static int ad4080_probe(struct spi_device *spi)
 
 static const struct spi_device_id ad4080_id[] = {
 	{ "ad4080", (kernel_ulong_t)&ad4080_chip_info },
+	{ "ad4081", (kernel_ulong_t)&ad4081_chip_info },
+	{ "ad4083", (kernel_ulong_t)&ad4083_chip_info },
+	{ "ad4084", (kernel_ulong_t)&ad4084_chip_info },
+	{ "ad4086", (kernel_ulong_t)&ad4086_chip_info },
+	{ "ad4087", (kernel_ulong_t)&ad4087_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4080_id);
 
 static const struct of_device_id ad4080_of_match[] = {
 	{ .compatible = "adi,ad4080", &ad4080_chip_info },
+	{ .compatible = "adi,ad4081", &ad4081_chip_info },
+	{ .compatible = "adi,ad4083", &ad4083_chip_info },
+	{ .compatible = "adi,ad4084", &ad4084_chip_info },
+	{ .compatible = "adi,ad4086", &ad4086_chip_info },
+	{ .compatible = "adi,ad4087", &ad4087_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad4080_of_match);
