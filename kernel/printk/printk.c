@@ -2393,7 +2393,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	/* If called from the scheduler, we can not call up(). */
 	if (level == LOGLEVEL_SCHED) {
 		level = LOGLEVEL_DEFAULT;
-		ft.legacy_offload |= ft.legacy_direct;
+		ft.legacy_offload |= ft.legacy_direct && !console_irqwork_blocked;
 		ft.legacy_direct = false;
 	}
 
