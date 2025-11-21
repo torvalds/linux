@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * vmx_set_nested_state_test
- *
  * Copyright (C) 2019, Google LLC.
  *
  * This test verifies the integrity of calling the ioctl KVM_SET_NESTED_STATE.
@@ -11,6 +9,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "vmx.h"
+#include "svm_util.h"
 
 #include <errno.h>
 #include <linux/kvm.h>
@@ -249,6 +248,104 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	free(state);
 }
 
+static void vcpu_efer_enable_svm(struct kvm_vcpu *vcpu)
+{
+	uint64_t old_efer = vcpu_get_msr(vcpu, MSR_EFER);
+
+	vcpu_set_msr(vcpu, MSR_EFER, old_efer | EFER_SVME);
+}
+
+static void vcpu_efer_disable_svm(struct kvm_vcpu *vcpu)
+{
+	uint64_t old_efer = vcpu_get_msr(vcpu, MSR_EFER);
+
+	vcpu_set_msr(vcpu, MSR_EFER, old_efer & ~EFER_SVME);
+}
+
+void set_default_svm_state(struct kvm_nested_state *state, int size)
+{
+	memset(state, 0, size);
+	state->format = 1;
+	state->size = size;
+	state->hdr.svm.vmcb_pa = 0x3000;
+}
+
+void test_svm_nested_state(struct kvm_vcpu *vcpu)
+{
+	/* Add a page for VMCB. */
+	const int state_sz = sizeof(struct kvm_nested_state) + getpagesize();
+	struct kvm_nested_state *state =
+		(struct kvm_nested_state *)malloc(state_sz);
+
+	vcpu_set_cpuid_feature(vcpu, X86_FEATURE_SVM);
+
+	/* The format must be set to 1. 0 for VMX, 1 for SVM. */
+	set_default_svm_state(state, state_sz);
+	state->format = 0;
+	test_nested_state_expect_einval(vcpu, state);
+
+	/* Invalid flags are rejected, KVM_STATE_NESTED_EVMCS is VMX-only  */
+	set_default_svm_state(state, state_sz);
+	state->flags = KVM_STATE_NESTED_EVMCS;
+	test_nested_state_expect_einval(vcpu, state);
+
+	/*
+	 * If EFER.SVME is clear, guest mode is disallowed and GIF can be set or
+	 * cleared.
+	 */
+	vcpu_efer_disable_svm(vcpu);
+
+	set_default_svm_state(state, state_sz);
+	state->flags = KVM_STATE_NESTED_GUEST_MODE;
+	test_nested_state_expect_einval(vcpu, state);
+
+	state->flags = 0;
+	test_nested_state(vcpu, state);
+
+	state->flags = KVM_STATE_NESTED_GIF_SET;
+	test_nested_state(vcpu, state);
+
+	/* Enable SVM in the guest EFER. */
+	vcpu_efer_enable_svm(vcpu);
+
+	/* Setting vmcb_pa to a non-aligned address is only fine when not entering guest mode */
+	set_default_svm_state(state, state_sz);
+	state->hdr.svm.vmcb_pa = -1ull;
+	state->flags = 0;
+	test_nested_state(vcpu, state);
+	state->flags = KVM_STATE_NESTED_GUEST_MODE;
+	test_nested_state_expect_einval(vcpu, state);
+
+	/*
+	 * Size must be large enough to fit kvm_nested_state and VMCB
+	 * only when entering guest mode.
+	 */
+	set_default_svm_state(state, state_sz/2);
+	state->flags = 0;
+	test_nested_state(vcpu, state);
+	state->flags = KVM_STATE_NESTED_GUEST_MODE;
+	test_nested_state_expect_einval(vcpu, state);
+
+	/*
+	 * Test that if we leave nesting the state reflects that when we get it
+	 * again, except for vmcb_pa, which is always returned as 0 when not in
+	 * guest mode.
+	 */
+	set_default_svm_state(state, state_sz);
+	state->hdr.svm.vmcb_pa = -1ull;
+	state->flags = KVM_STATE_NESTED_GIF_SET;
+	test_nested_state(vcpu, state);
+	vcpu_nested_state_get(vcpu, state);
+	TEST_ASSERT(state->size >= sizeof(*state) && state->size <= state_sz,
+		    "Size must be between %ld and %d.  The size returned was %d.",
+		    sizeof(*state), state_sz, state->size);
+
+	TEST_ASSERT_EQ(state->hdr.svm.vmcb_pa, 0);
+	TEST_ASSERT_EQ(state->flags, KVM_STATE_NESTED_GIF_SET);
+
+	free(state);
+}
+
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
@@ -257,20 +354,20 @@ int main(int argc, char *argv[])
 
 	have_evmcs = kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS);
 
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX) ||
+		     kvm_cpu_has(X86_FEATURE_SVM));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_NESTED_STATE));
-
-	/*
-	 * AMD currently does not implement set_nested_state, so for now we
-	 * just early out.
-	 */
-	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 
 	vm = vm_create_with_one_vcpu(&vcpu, NULL);
 
 	/*
-	 * First run tests with VMX disabled to check error handling.
+	 * First run tests with VMX/SVM disabled to check error handling.
+	 * test_{vmx/svm}_nested_state() will re-enable as needed.
 	 */
-	vcpu_clear_cpuid_feature(vcpu, X86_FEATURE_VMX);
+	if (kvm_cpu_has(X86_FEATURE_VMX))
+		vcpu_clear_cpuid_feature(vcpu, X86_FEATURE_VMX);
+	else
+		vcpu_clear_cpuid_feature(vcpu, X86_FEATURE_SVM);
 
 	/* Passing a NULL kvm_nested_state causes a EFAULT. */
 	test_nested_state_expect_efault(vcpu, NULL);
@@ -299,7 +396,10 @@ int main(int argc, char *argv[])
 	state.flags = KVM_STATE_NESTED_RUN_PENDING;
 	test_nested_state_expect_einval(vcpu, &state);
 
-	test_vmx_nested_state(vcpu);
+	if (kvm_cpu_has(X86_FEATURE_VMX))
+		test_vmx_nested_state(vcpu);
+	else
+		test_svm_nested_state(vcpu);
 
 	kvm_vm_free(vm);
 	return 0;
