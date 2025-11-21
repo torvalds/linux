@@ -70,6 +70,29 @@ OBJTOOL_CFLAGS += $(if $(elfshdr),,-DLIBELF_USE_DEPRECATED)
 # Always want host compilation.
 HOST_OVERRIDES := CC="$(HOSTCC)" LD="$(HOSTLD)" AR="$(HOSTAR)"
 
+#
+# To support disassembly, objtool needs libopcodes which is provided
+# with libbdf (binutils-dev or binutils-devel package).
+#
+FEATURE_USER = .objtool
+FEATURE_TESTS = libbfd disassembler-init-styled
+FEATURE_DISPLAY =
+include $(srctree)/tools/build/Makefile.feature
+
+ifeq ($(feature-disassembler-init-styled), 1)
+	OBJTOOL_CFLAGS += -DDISASM_INIT_STYLED
+endif
+
+BUILD_DISAS := n
+
+ifeq ($(feature-libbfd),1)
+	BUILD_DISAS := y
+	OBJTOOL_CFLAGS += -DDISAS
+	OBJTOOL_LDFLAGS += -lopcodes
+endif
+
+export BUILD_DISAS
+
 AWK = awk
 MKDIR = mkdir
 
@@ -103,6 +126,8 @@ clean: $(LIBSUBCMD)-clean
 	$(call QUIET_CLEAN, objtool) $(RM) $(OBJTOOL)
 	$(Q)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT)arch/x86/lib/inat-tables.c $(OUTPUT)fixdep
+	$(Q)$(RM) -- $(OUTPUT)FEATURE-DUMP.objtool
+	$(Q)$(RM) -r -- $(OUTPUT)feature
 
 FORCE:
 
