@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2024 Yangyu Chen <cyy@cyyself.name>
- * Copyright (C) 2025 Hendrik Hamerlinck <hendrik.hamerlinck@hammernet.be>
+ * Copyright (C) 2025 Michael Opdenacker <michael.opdenacker@rootcommit.com>
  */
 
 /dts-v1/;
@@ -10,8 +9,8 @@
 #include "k1-pinctrl.dtsi"
 
 / {
-	model = "OrangePi RV2";
-	compatible = "xunlong,orangepi-rv2", "spacemit,k1";
+	model = "OrangePi R2S";
+	compatible = "xunlong,orangepi-r2s", "spacemit,k1";
 
 	aliases {
 		serial0 = &uart0;
@@ -22,17 +21,16 @@
 	chosen {
 		stdout-path = "serial0";
 	};
+};
 
-	leds {
-		compatible = "gpio-leds";
-
-		led1 {
-			label = "sys-led";
-			gpios = <&gpio K1_GPIO(96) GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "heartbeat";
-			default-state = "on";
-		};
-	};
+&emmc {
+	bus-width = <8>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	non-removable;
+	no-sd;
+	no-sdio;
+	status = "okay";
 };
 
 &eth0 {

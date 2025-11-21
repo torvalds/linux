@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Copyright (C) 2024 Yangyu Chen <cyy@cyyself.name>
- * Copyright (C) 2025 Hendrik Hamerlinck <hendrik.hamerlinck@hammernet.be>
+ * Copyright (C) 2025 SpacemiT, Inc
+ * Copyright (C) 2025 Troy Mitchell <troy.mitchell@linux.spacemit.com>
  */
 
 /dts-v1/;
@@ -10,13 +11,12 @@
 #include "k1-pinctrl.dtsi"
 
 / {
-	model = "OrangePi RV2";
-	compatible = "xunlong,orangepi-rv2", "spacemit,k1";
+	model = "SpacemiT MusePi Pro";
+	compatible = "spacemit,musepi-pro", "spacemit,k1";
 
 	aliases {
-		serial0 = &uart0;
 		ethernet0 = &eth0;
-		ethernet1 = &eth1;
+		serial0 = &uart0;
 	};
 
 	chosen {
@@ -28,18 +28,28 @@
 
 		led1 {
 			label = "sys-led";
-			gpios = <&gpio K1_GPIO(96) GPIO_ACTIVE_LOW>;
+			gpios = <&gpio K1_GPIO(96) GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "on";
 		};
 	};
 };
 
+&emmc {
+	bus-width = <8>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	non-removable;
+	no-sd;
+	no-sdio;
+	status = "okay";
+};
+
 &eth0 {
 	phy-handle = <&rgmii0>;
 	phy-mode = "rgmii-id";
-	pinctrl-names = "default";
 	pinctrl-0 = <&gmac0_cfg>;
+	pinctrl-names = "default";
 	rx-internal-delay-ps = <0>;
 	tx-internal-delay-ps = <0>;
 	status = "okay";
@@ -58,35 +68,12 @@
 	};
 };
 
-&eth1 {
-	phy-handle = <&rgmii1>;
-	phy-mode = "rgmii-id";
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1_cfg>;
-	rx-internal-delay-ps = <0>;
-	tx-internal-delay-ps = <250>;
-	status = "okay";
-
-	mdio-bus {
-		#address-cells = <0x1>;
-		#size-cells = <0x0>;
-
-		reset-gpios = <&gpio K1_GPIO(115) GPIO_ACTIVE_LOW>;
-		reset-delay-us = <10000>;
-		reset-post-delay-us = <100000>;
-
-		rgmii1: phy@1 {
-			reg = <0x1>;
-		};
-	};
-};
-
 &pdma {
 	status = "okay";
 };
 
 &uart0 {
-	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_2_cfg>;
+	pinctrl-names = "default";
 	status = "okay";
 };
