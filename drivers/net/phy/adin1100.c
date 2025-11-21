@@ -192,16 +192,15 @@ static irqreturn_t adin_phy_handle_interrupt(struct phy_device *phydev)
 static int adin_set_powerdown_mode(struct phy_device *phydev, bool en)
 {
 	int ret;
-	int val;
 
-	val = en ? ADIN_CRSM_SFT_PD_CNTRL_EN : 0;
 	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			    ADIN_CRSM_SFT_PD_CNTRL, val);
+			    ADIN_CRSM_SFT_PD_CNTRL,
+			    en ? ADIN_CRSM_SFT_PD_CNTRL_EN : 0);
 	if (ret < 0)
 		return ret;
 
 	return phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1, ADIN_CRSM_STAT, ret,
-					 (ret & ADIN_CRSM_SFT_PD_RDY) == val,
+					 !!(ret & ADIN_CRSM_SFT_PD_RDY) == en,
 					 1000, 30000, true);
 }
 
