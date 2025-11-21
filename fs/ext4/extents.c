@@ -4562,7 +4562,7 @@ retry:
 		 * allow a full retry cycle for any remaining allocations
 		 */
 		retries = 0;
-		epos = (loff_t)(map.m_lblk + ret) << blkbits;
+		epos = EXT4_LBLK_TO_B(inode, map.m_lblk + ret);
 		inode_set_ctime_current(inode);
 		if (new_size) {
 			if (epos > new_size)

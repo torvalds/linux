@@ -1076,7 +1076,7 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 	for (; de < top; de = ext4_next_entry(de, dir->i_sb->s_blocksize)) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 				bh->b_data, bh->b_size,
-				(block<<EXT4_BLOCK_SIZE_BITS(dir->i_sb))
+				EXT4_LBLK_TO_B(dir, block)
 					 + ((char *)de - bh->b_data))) {
 			/* silently ignore the rest of the block */
 			break;
@@ -1630,7 +1630,7 @@ restart:
 		}
 		set_buffer_verified(bh);
 		i = search_dirblock(bh, dir, fname,
-			    block << EXT4_BLOCK_SIZE_BITS(sb), res_dir);
+				    EXT4_LBLK_TO_B(dir, block), res_dir);
 		if (i == 1) {
 			EXT4_I(dir)->i_dir_start_lookup = block;
 			ret = bh;
@@ -1710,7 +1710,6 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 			struct ext4_filename *fname,
 			struct ext4_dir_entry_2 **res_dir)
 {
-	struct super_block * sb = dir->i_sb;
 	struct dx_frame frames[EXT4_HTREE_LEVEL], *frame;
 	struct buffer_head *bh;
 	ext4_lblk_t block;
@@ -1729,8 +1728,7 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 			goto errout;
 
 		retval = search_dirblock(bh, dir, fname,
-					 block << EXT4_BLOCK_SIZE_BITS(sb),
-					 res_dir);
+					 EXT4_LBLK_TO_B(dir, block), res_dir);
 		if (retval == 1)
 			goto success;
 		brelse(bh);

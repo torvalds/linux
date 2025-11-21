@@ -368,6 +368,7 @@ struct ext4_io_submit {
 								  blkbits))
 #define EXT4_B_TO_LBLK(inode, offset) \
 	(round_up((offset), i_blocksize(inode)) >> (inode)->i_blkbits)
+#define EXT4_LBLK_TO_B(inode, lblk) ((loff_t)(lblk) << (inode)->i_blkbits)
 
 /* Translate a block number to a cluster number */
 #define EXT4_B2C(sbi, blk)	((blk) >> (sbi)->s_cluster_bits)
