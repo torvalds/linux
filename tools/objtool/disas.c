@@ -640,6 +640,26 @@ static int disas_alt_add_insn(struct disas_alt *dalt, int index, char *insn_str,
 }
 
 /*
+ * Disassemble an exception table alternative.
+ */
+static int disas_alt_extable(struct disas_alt *dalt)
+{
+	struct instruction *alt_insn;
+	char *str;
+
+	alt_insn = dalt->alt->insn;
+	str = strfmt("resume at 0x%lx <%s+0x%lx>",
+		     alt_insn->offset, alt_insn->sym->name,
+		     alt_insn->offset - alt_insn->sym->offset);
+	if (!str)
+		return -1;
+
+	disas_alt_add_insn(dalt, 0, str, 0);
+
+	return 1;
+}
+
+/*
  * Disassemble an alternative and store instructions in the disas_alt
  * structure. Return the number of instructions in the alternative.
  */
@@ -790,11 +810,15 @@ static void *disas_alt(struct disas_context *dctx,
 		}
 
 		/*
-		 * Only group alternatives are supported at the moment.
+		 * Only group alternatives and exception tables are
+		 * supported at the moment.
 		 */
 		switch (dalt->alt->type) {
 		case ALT_TYPE_INSTRUCTIONS:
 			count = disas_alt_group(dctx, dalt);
+			break;
+		case ALT_TYPE_EX_TABLE:
+			count = disas_alt_extable(dalt);
 			break;
 		default:
 			count = 0;
