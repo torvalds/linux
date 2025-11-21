@@ -1076,6 +1076,41 @@ static int pfn_reader_user_update_pinned(struct pfn_reader_user *user,
 	return iopt_pages_update_pinned(pages, npages, inc, user);
 }
 
+struct pfn_reader_dmabuf {
+	struct dma_buf_phys_vec phys;
+	unsigned long start_offset;
+};
+
+static int pfn_reader_dmabuf_init(struct pfn_reader_dmabuf *dmabuf,
+				  struct iopt_pages *pages)
+{
+	/* Callers must not get here if the dmabuf was already revoked */
+	if (WARN_ON(iopt_dmabuf_revoked(pages)))
+		return -EINVAL;
+
+	dmabuf->phys = pages->dmabuf.phys;
+	dmabuf->start_offset = pages->dmabuf.start;
+	return 0;
+}
+
+static int pfn_reader_fill_dmabuf(struct pfn_reader_dmabuf *dmabuf,
+				  struct pfn_batch *batch,
+				  unsigned long start_index,
+				  unsigned long last_index)
+{
+	unsigned long start = dmabuf->start_offset + start_index * PAGE_SIZE;
+
+	/*
+	 * start/last_index and start are all PAGE_SIZE aligned, the batch is
+	 * always filled using page size aligned PFNs just like the other types.
+	 * If the dmabuf has been sliced on a sub page offset then the common
+	 * batch to domain code will adjust it before mapping to the domain.
+	 */
+	batch_add_pfn_num(batch, PHYS_PFN(dmabuf->phys.paddr + start),
+			  last_index - start_index + 1, BATCH_MMIO);
+	return 0;
+}
+
 /*
  * PFNs are stored in three places, in order of preference:
  * - The iopt_pages xarray. This is only populated if there is a
@@ -1094,7 +1129,10 @@ struct pfn_reader {
 	unsigned long batch_end_index;
 	unsigned long last_index;
 
-	struct pfn_reader_user user;
+	union {
+		struct pfn_reader_user user;
+		struct pfn_reader_dmabuf dmabuf;
+	};
 };
 
 static int pfn_reader_update_pinned(struct pfn_reader *pfns)
@@ -1130,7 +1168,7 @@ static int pfn_reader_fill_span(struct pfn_reader *pfns)
 {
 	struct interval_tree_double_span_iter *span = &pfns->span;
 	unsigned long start_index = pfns->batch_end_index;
-	struct pfn_reader_user *user = &pfns->user;
+	struct pfn_reader_user *user;
 	unsigned long npages;
 	struct iopt_area *area;
 	int rc;
@@ -1162,8 +1200,13 @@ static int pfn_reader_fill_span(struct pfn_reader *pfns)
 		return 0;
 	}
 
-	if (start_index >= pfns->user.upages_end) {
-		rc = pfn_reader_user_pin(&pfns->user, pfns->pages, start_index,
+	if (iopt_is_dmabuf(pfns->pages))
+		return pfn_reader_fill_dmabuf(&pfns->dmabuf, &pfns->batch,
+					      start_index, span->last_hole);
+
+	user = &pfns->user;
+	if (start_index >= user->upages_end) {
+		rc = pfn_reader_user_pin(user, pfns->pages, start_index,
 					 span->last_hole);
 		if (rc)
 			return rc;
@@ -1231,7 +1274,10 @@ static int pfn_reader_init(struct pfn_reader *pfns, struct iopt_pages *pages,
 	pfns->batch_start_index = start_index;
 	pfns->batch_end_index = start_index;
 	pfns->last_index = last_index;
-	pfn_reader_user_init(&pfns->user, pages);
+	if (iopt_is_dmabuf(pages))
+		pfn_reader_dmabuf_init(&pfns->dmabuf, pages);
+	else
+		pfn_reader_user_init(&pfns->user, pages);
 	rc = batch_init(&pfns->batch, last_index - start_index + 1);
 	if (rc)
 		return rc;
@@ -1252,8 +1298,12 @@ static int pfn_reader_init(struct pfn_reader *pfns, struct iopt_pages *pages,
 static void pfn_reader_release_pins(struct pfn_reader *pfns)
 {
 	struct iopt_pages *pages = pfns->pages;
-	struct pfn_reader_user *user = &pfns->user;
+	struct pfn_reader_user *user;
 
+	if (iopt_is_dmabuf(pages))
+		return;
+
+	user = &pfns->user;
 	if (user->upages_end > pfns->batch_end_index) {
 		/* Any pages not transferred to the batch are just unpinned */
 
@@ -1283,7 +1333,8 @@ static void pfn_reader_destroy(struct pfn_reader *pfns)
 	struct iopt_pages *pages = pfns->pages;
 
 	pfn_reader_release_pins(pfns);
-	pfn_reader_user_destroy(&pfns->user, pfns->pages);
+	if (!iopt_is_dmabuf(pfns->pages))
+		pfn_reader_user_destroy(&pfns->user, pfns->pages);
 	batch_destroy(&pfns->batch, NULL);
 	WARN_ON(pages->last_npinned != pages->npinned);
 }
@@ -1686,6 +1737,14 @@ static void __iopt_area_unfill_domain(struct iopt_area *area,
 	struct pfn_batch batch;
 
 	lockdep_assert_held(&pages->mutex);
+
+	if (iopt_is_dmabuf(pages)) {
+		if (WARN_ON(iopt_dmabuf_revoked(pages)))
+			return;
+		iopt_area_unmap_domain_range(area, domain, start_index,
+					     last_index);
+		return;
+	}
 
 	/*
 	 * For security we must not unpin something that is still DMA mapped,
