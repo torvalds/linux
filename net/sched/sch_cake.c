@@ -2183,7 +2183,7 @@ retry:
 		b->tin_dropped++;
 		qdisc_tree_reduce_backlog(sch, 1, qdisc_pkt_len(skb));
 		qdisc_qstats_drop(sch);
-		kfree_skb_reason(skb, reason);
+		qdisc_dequeue_drop(sch, skb, reason);
 		if (q->rate_flags & CAKE_FLAG_INGRESS)
 			goto retry;
 	}
@@ -2724,6 +2724,8 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	int i, j, err;
 
 	sch->limit = 10240;
+	sch->flags |= TCQ_F_DEQUEUE_DROPS;
+
 	q->tin_mode = CAKE_DIFFSERV_DIFFSERV3;
 	q->flow_mode  = CAKE_FLOW_TRIPLE;
 
