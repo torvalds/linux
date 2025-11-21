@@ -33,6 +33,8 @@
 /* private data for RAPL MSR Interface */
 static struct rapl_if_priv *rapl_msr_priv;
 
+static bool rapl_msr_pmu __ro_after_init;
+
 static struct rapl_if_priv rapl_msr_priv_intel = {
 	.type = RAPL_IF_MSR,
 	.reg_unit.msr = MSR_RAPL_POWER_UNIT,
@@ -79,6 +81,8 @@ static int rapl_cpu_online(unsigned int cpu)
 		rp = rapl_add_package_cpuslocked(cpu, rapl_msr_priv, true);
 		if (IS_ERR(rp))
 			return PTR_ERR(rp);
+		if (rapl_msr_pmu)
+			rapl_package_add_pmu(rp);
 	}
 	cpumask_set_cpu(cpu, &rp->cpumask);
 	return 0;
@@ -95,10 +99,14 @@ static int rapl_cpu_down_prep(unsigned int cpu)
 
 	cpumask_clear_cpu(cpu, &rp->cpumask);
 	lead_cpu = cpumask_first(&rp->cpumask);
-	if (lead_cpu >= nr_cpu_ids)
+	if (lead_cpu >= nr_cpu_ids) {
+		if (rapl_msr_pmu)
+			rapl_package_remove_pmu(rp);
 		rapl_remove_package_cpuslocked(rp);
-	else if (rp->lead_cpu == cpu)
+	} else if (rp->lead_cpu == cpu) {
 		rp->lead_cpu = lead_cpu;
+	}
+
 	return 0;
 }
 
@@ -171,6 +179,13 @@ static const struct x86_cpu_id pl4_support_ids[] = {
 	{}
 };
 
+/* List of MSR-based RAPL PMU support CPUs */
+static const struct x86_cpu_id pmu_support_ids[] = {
+	X86_MATCH_VFM(INTEL_PANTHERLAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_WILDCATLAKE_L, NULL),
+	{}
+};
+
 static int rapl_msr_probe(struct platform_device *pdev)
 {
 	const struct x86_cpu_id *id = x86_match_cpu(pl4_support_ids);
@@ -196,6 +211,11 @@ static int rapl_msr_probe(struct platform_device *pdev)
 		rapl_msr_priv->regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_PL4].msr =
 			MSR_VR_CURRENT_CONFIG;
 		pr_info("PL4 support detected.\n");
+	}
+
+	if (x86_match_cpu(pmu_support_ids)) {
+		rapl_msr_pmu = true;
+		pr_info("MSR-based RAPL PMU support enabled\n");
 	}
 
 	rapl_msr_priv->control_type = powercap_register_control_type(NULL, "intel-rapl", NULL);

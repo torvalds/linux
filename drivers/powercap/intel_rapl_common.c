@@ -1597,11 +1597,11 @@ static int get_pmu_cpu(struct rapl_package *rp)
 	if (!rp->has_pmu)
 		return nr_cpu_ids;
 
-	/* Only TPMI RAPL is supported for now */
-	if (rp->priv->type != RAPL_IF_TPMI)
+	/* Only TPMI & MSR RAPL are supported for now */
+	if (rp->priv->type != RAPL_IF_TPMI && rp->priv->type != RAPL_IF_MSR)
 		return nr_cpu_ids;
 
-	/* TPMI RAPL uses any CPU in the package for PMU */
+	/* TPMI/MSR RAPL uses any CPU in the package for PMU */
 	for_each_online_cpu(cpu)
 		if (topology_physical_package_id(cpu) == rp->id)
 			return cpu;
@@ -1614,11 +1614,11 @@ static bool is_rp_pmu_cpu(struct rapl_package *rp, int cpu)
 	if (!rp->has_pmu)
 		return false;
 
-	/* Only TPMI RAPL is supported for now */
-	if (rp->priv->type != RAPL_IF_TPMI)
+	/* Only TPMI & MSR RAPL are supported for now */
+	if (rp->priv->type != RAPL_IF_TPMI && rp->priv->type != RAPL_IF_MSR)
 		return false;
 
-	/* TPMI RAPL uses any CPU in the package for PMU */
+	/* TPMI/MSR RAPL uses any CPU in the package for PMU */
 	return topology_physical_package_id(cpu) == rp->id;
 }
 
