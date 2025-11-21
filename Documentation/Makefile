@@ -42,12 +42,6 @@ FONTS_CONF_DENY_VF ?= $(HOME)/deny-vf
 # User-friendly check for sphinx-build
 HAVE_SPHINX := $(shell if which $(SPHINXBUILD) >/dev/null 2>&1; then echo 1; else echo 0; fi)
 
-ifneq ($(wildcard $(srctree)/.config),)
-ifeq ($(CONFIG_RUST),y)
-	RUSTDOC=--rustdoc
-endif
-endif
-
 ifeq ($(HAVE_SPHINX),0)
 
 .DEFAULT:

@@ -119,6 +119,29 @@ class SphinxBuilder:
 
         return path
 
+    def check_rust(self):
+        """
+        Checks if Rust is enabled
+        """
+        self.rustdoc = False
+
+        config = os.path.join(self.srctree, ".config")
+
+        if not os.path.isfile(config):
+            return
+
+        re_rust = re.compile(r"CONFIG_RUST=(m|y)")
+
+        try:
+            with open(config, "r", encoding="utf-8") as fp:
+                for line in fp:
+                    if re_rust.match(line):
+                        self.rustdoc = True
+                        return
+
+        except OSError as e:
+            print(f"Failed to open {config}", file=sys.stderr)
+
     def get_sphinx_extra_opts(self, n_jobs):
         """
         Get the number of jobs to be used for docs build passed via command
@@ -236,6 +259,8 @@ class SphinxBuilder:
 
         self.get_sphinx_extra_opts(n_jobs)
 
+        self.check_rust()
+
         #
         # If venv command line argument is specified, run Sphinx from venv
         #
@@ -306,7 +331,7 @@ class SphinxBuilder:
 
             return subprocess.call(cmd, *args, **pwargs)
 
-    def handle_html(self, css, output_dir, rustdoc):
+    def handle_html(self, css, output_dir):
         """
         Extra steps for HTML and epub output.
 
@@ -327,7 +352,8 @@ class SphinxBuilder:
             except (OSError, IOError) as e:
                 print(f"Warning: Failed to copy CSS: {e}", file=sys.stderr)
 
-        if rustdoc:
+        if self.rustdoc:
+            print("Building rust docs")
             if "MAKE" in self.env:
                 cmd = [self.env["MAKE"]]
             else:
@@ -622,7 +648,7 @@ class SphinxBuilder:
         shutil.rmtree(self.builddir, ignore_errors=True)
 
     def build(self, target, sphinxdirs=None,
-              theme=None, css=None, paper=None, deny_vf=None, rustdoc=False,
+              theme=None, css=None, paper=None, deny_vf=None,
               skip_sphinx=False):
         """
         Build documentation using Sphinx. This is the core function of this
@@ -671,7 +697,7 @@ class SphinxBuilder:
 
             args.extend(["-D", f"latex_elements.papersize={paper}paper"])
 
-        if rustdoc:
+        if self.rustdoc:
             args.extend(["-t", "rustdoc"])
 
         if not sphinxdirs:
@@ -749,7 +775,7 @@ class SphinxBuilder:
             # Ensure that each html/epub output will have needed static files
             #
             if target in ["htmldocs", "epubdocs"]:
-                self.handle_html(css, output_dir, rustdoc)
+                self.handle_html(css, output_dir)
 
         #
         # Step 2: Some targets (PDF and info) require an extra step once
@@ -804,9 +830,6 @@ def main():
     parser.add_argument('--deny-vf',
                         help="Configuration to deny variable fonts on pdf builds")
 
-    parser.add_argument('--rustdoc', action="store_true",
-                        help="Enable rustdoc build. Requires CONFIG_RUST")
-
     parser.add_argument("-v", "--verbose", action='store_true',
                         help="place build in verbose mode")
 
@@ -834,7 +857,7 @@ def main():
 
     builder.build(args.target, sphinxdirs=args.sphinxdirs,
                   theme=args.theme, css=args.css, paper=args.paper,
-                  rustdoc=args.rustdoc, deny_vf=args.deny_vf,
+                  deny_vf=args.deny_vf,
                   skip_sphinx=args.skip_sphinx_build)
 
 if __name__ == "__main__":
