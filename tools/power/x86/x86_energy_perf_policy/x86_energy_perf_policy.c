@@ -372,7 +372,7 @@ void validate_cpu_selected_set(void)
 	for (cpu = 0; cpu <= max_cpu_num; ++cpu) {
 		if (CPU_ISSET_S(cpu, cpu_setsize, cpu_selected_set))
 			if (!CPU_ISSET_S(cpu, cpu_setsize, cpu_present_set))
-				errx(1, "Requested cpu% is not present", cpu);
+				errx(1, "Requested cpu%d is not present", cpu);
 	}
 }
 
