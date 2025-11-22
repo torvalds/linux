@@ -520,7 +520,7 @@ void for_packages(unsigned long long pkg_set, int (func)(int))
 
 void print_version(void)
 {
-	printf("x86_energy_perf_policy 2025.9.19 Len Brown <lenb@kernel.org>\n");
+	printf("x86_energy_perf_policy 2025.11.22 Len Brown <lenb@kernel.org>\n");
 }
 
 void cmdline(int argc, char **argv)
@@ -662,6 +662,11 @@ void err_on_hypervisor(void)
 	}
 
 	flags = strstr(buffer, "flags");
+	if (!flags) {
+		fclose(cpuinfo);
+		free(buffer);
+		err(1, "Failed to find 'flags' in /proc/cpuinfo");
+	}
 	rewind(cpuinfo);
 	fseek(cpuinfo, flags - buffer, SEEK_SET);
 	if (!fgets(buffer, 4096, cpuinfo)) {
