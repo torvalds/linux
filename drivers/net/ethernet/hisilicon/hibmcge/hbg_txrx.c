@@ -377,7 +377,8 @@ static int hbg_rx_fill_one_buffer(struct hbg_priv *priv)
 	struct hbg_buffer *buffer;
 	int ret;
 
-	if (hbg_queue_is_full(ring->ntc, ring->ntu, ring))
+	if (hbg_queue_is_full(ring->ntc, ring->ntu, ring) ||
+	    hbg_fifo_is_full(priv, ring->dir))
 		return 0;
 
 	buffer = &ring->queue[ring->ntu];
@@ -394,6 +395,26 @@ static int hbg_rx_fill_one_buffer(struct hbg_priv *priv)
 	hbg_hw_fill_buffer(priv, buffer->skb_dma);
 	hbg_queue_move_next(ntu, ring);
 	return 0;
+}
+
+static int hbg_rx_fill_buffers(struct hbg_priv *priv)
+{
+	u32 remained = hbg_hw_get_fifo_used_num(priv, HBG_DIR_RX);
+	u32 max_count = priv->dev_specs.rx_fifo_num;
+	u32 refill_count;
+	int ret;
+
+	if (unlikely(remained >= max_count))
+		return 0;
+
+	refill_count = max_count - remained;
+	while (refill_count--) {
+		ret = hbg_rx_fill_one_buffer(priv);
+		if (unlikely(ret))
+			break;
+	}
+
+	return ret;
 }
 
 static bool hbg_sync_data_from_hw(struct hbg_priv *priv,
@@ -420,6 +441,7 @@ static int hbg_napi_rx_poll(struct napi_struct *napi, int budget)
 	u32 packet_done = 0;
 	u32 pkt_len;
 
+	hbg_rx_fill_buffers(priv);
 	while (packet_done < budget) {
 		if (unlikely(hbg_queue_is_empty(ring->ntc, ring->ntu, ring)))
 			break;
@@ -497,6 +519,16 @@ static int hbg_ring_init(struct hbg_priv *priv, struct hbg_ring *ring,
 	u32 i, len;
 
 	len = hbg_get_spec_fifo_max_num(priv, dir) + 1;
+	/* To improve receiving performance under high-stress scenarios,
+	 * in the `hbg_napi_rx_poll()`, we first use the other half of
+	 * the buffer to receive packets from the hardware via the
+	 * `hbg_rx_fill_buffers()`, and then process the packets in the
+	 * original half of the buffer to avoid packet loss caused by
+	 * hardware overflow as much as possible.
+	 */
+	if (dir == HBG_DIR_RX)
+		len += hbg_get_spec_fifo_max_num(priv, dir);
+
 	ring->queue = dma_alloc_coherent(&priv->pdev->dev,
 					 len * sizeof(*ring->queue),
 					 &ring->queue_dma, GFP_KERNEL);
@@ -545,21 +577,16 @@ static int hbg_tx_ring_init(struct hbg_priv *priv)
 static int hbg_rx_ring_init(struct hbg_priv *priv)
 {
 	int ret;
-	u32 i;
 
 	ret = hbg_ring_init(priv, &priv->rx_ring, hbg_napi_rx_poll, HBG_DIR_RX);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < priv->rx_ring.len - 1; i++) {
-		ret = hbg_rx_fill_one_buffer(priv);
-		if (ret) {
-			hbg_ring_uninit(&priv->rx_ring);
-			return ret;
-		}
-	}
+	ret = hbg_rx_fill_buffers(priv);
+	if (ret)
+		hbg_ring_uninit(&priv->rx_ring);
 
-	return 0;
+	return ret;
 }
 
 int hbg_txrx_init(struct hbg_priv *priv)
