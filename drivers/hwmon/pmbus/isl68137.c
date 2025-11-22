@@ -336,10 +336,9 @@ static int isl68137_probe_from_dt(struct device *dev,
 				  struct isl68137_data *data)
 {
 	const struct device_node *np = dev->of_node;
-	struct device_node *child;
 	int err;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		if (strcmp(child->name, "channel"))
 			continue;
 

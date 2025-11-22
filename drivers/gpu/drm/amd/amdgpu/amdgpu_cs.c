@@ -364,6 +364,12 @@ static int amdgpu_cs_p2_ib(struct amdgpu_cs_parser *p,
 	if (p->uf_bo && ring->funcs->no_user_fence)
 		return -EINVAL;
 
+	if (!p->adev->debug_enable_ce_cs &&
+	    chunk_ib->flags & AMDGPU_IB_FLAG_CE) {
+		dev_err_ratelimited(p->adev->dev, "CE CS is blocked, use debug=0x400 to override\n");
+		return -EINVAL;
+	}
+
 	if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX &&
 	    chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
 		if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
@@ -702,7 +708,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	 */
 	const s64 us_upper_bound = 200000;
 
-	if (!adev->mm_stats.log2_max_MBps) {
+	if ((!adev->mm_stats.log2_max_MBps) || !ttm_resource_manager_used(&adev->mman.vram_mgr.manager)) {
 		*max_bytes = 0;
 		*max_vis_bytes = 0;
 		return;

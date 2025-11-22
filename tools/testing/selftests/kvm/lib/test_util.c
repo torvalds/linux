@@ -18,6 +18,13 @@
 
 #include "test_util.h"
 
+sigjmp_buf expect_sigbus_jmpbuf;
+
+void __attribute__((used)) expect_sigbus_handler(int signum)
+{
+	siglongjmp(expect_sigbus_jmpbuf, 1);
+}
+
 /*
  * Random number generator that is usable from guest code. This is the
  * Park-Miller LCG using standard constants.

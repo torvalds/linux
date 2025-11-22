@@ -1761,7 +1761,6 @@ static int stm32f7_i2c_xfer_core(struct i2c_adapter *i2c_adap,
 	}
 
 pm_free:
-	pm_runtime_mark_last_busy(i2c_dev->dev);
 	pm_runtime_put_autosuspend(i2c_dev->dev);
 
 	return (ret < 0) ? ret : num;
@@ -1870,7 +1869,6 @@ static int stm32f7_i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	}
 
 pm_free:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	return ret;
 }
@@ -1977,7 +1975,6 @@ pm_free:
 	if (!stm32f7_i2c_is_slave_registered(i2c_dev))
 		stm32f7_i2c_enable_wakeup(i2c_dev, false);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;
@@ -2015,7 +2012,6 @@ static int stm32f7_i2c_unreg_slave(struct i2c_client *slave)
 		stm32f7_i2c_enable_wakeup(i2c_dev, false);
 	}
 
-	pm_runtime_mark_last_busy(i2c_dev->dev);
 	pm_runtime_put_autosuspend(i2c_dev->dev);
 
 	return 0;
@@ -2328,7 +2324,6 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 
 	dev_info(i2c_dev->dev, "STM32F7 I2C-%d bus adapter\n", adap->nr);
 
-	pm_runtime_mark_last_busy(i2c_dev->dev);
 	pm_runtime_put_autosuspend(i2c_dev->dev);
 
 	return 0;

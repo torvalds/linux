@@ -123,6 +123,7 @@ static void guest_setup_gic(void)
 static void guest_code(size_t nr_lpis)
 {
 	guest_setup_gic();
+	local_irq_enable();
 
 	GUEST_SYNC(0);
 
@@ -331,7 +332,7 @@ static void setup_vm(void)
 {
 	int i;
 
-	vcpus = malloc(test_data.nr_cpus * sizeof(struct kvm_vcpu));
+	vcpus = malloc(test_data.nr_cpus * sizeof(struct kvm_vcpu *));
 	TEST_ASSERT(vcpus, "Failed to allocate vCPU array");
 
 	vm = vm_create_with_vcpus(test_data.nr_cpus, guest_code, vcpus);

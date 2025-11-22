@@ -13,7 +13,8 @@ will act as the VM interrupt controller, requiring emulated user-space devices
 to inject interrupts to the VGIC instead of directly to CPUs.  It is not
 possible to create both a GICv3 and GICv2 on the same VM.
 
-Creating a guest GICv3 device requires a host GICv3 as well.
+Creating a guest GICv3 device requires a host GICv3 host, or a GICv5 host with
+support for FEAT_GCIE_LEGACY.
 
 
 Groups:

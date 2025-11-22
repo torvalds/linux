@@ -2015,6 +2015,7 @@ static int mlxbf_pmc_init_perftype_counter(struct device *dev, unsigned int blk_
 	if (pmc->block[blk_num].type == MLXBF_PMC_TYPE_CRSPACE) {
 		/* Program crspace counters to count clock cycles using "count_clock" sysfs */
 		attr = &pmc->block[blk_num].attr_count_clock;
+		sysfs_attr_init(&attr->dev_attr.attr);
 		attr->dev_attr.attr.mode = 0644;
 		attr->dev_attr.show = mlxbf_pmc_count_clock_show;
 		attr->dev_attr.store = mlxbf_pmc_count_clock_store;

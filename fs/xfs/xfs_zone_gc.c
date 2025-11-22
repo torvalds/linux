@@ -491,21 +491,6 @@ xfs_zone_gc_select_victim(
 	struct xfs_rtgroup	*victim_rtg = NULL;
 	unsigned int		bucket;
 
-	if (xfs_is_shutdown(mp))
-		return false;
-
-	if (iter->victim_rtg)
-		return true;
-
-	/*
-	 * Don't start new work if we are asked to stop or park.
-	 */
-	if (kthread_should_stop() || kthread_should_park())
-		return false;
-
-	if (!xfs_zoned_need_gc(mp))
-		return false;
-
 	spin_lock(&zi->zi_used_buckets_lock);
 	for (bucket = 0; bucket < XFS_ZONE_USED_BUCKETS; bucket++) {
 		victim_rtg = xfs_zone_gc_pick_victim_from(mp, bucket);
@@ -975,6 +960,27 @@ xfs_zone_gc_reset_zones(
 	} while (next);
 }
 
+static bool
+xfs_zone_gc_should_start_new_work(
+	struct xfs_zone_gc_data	*data)
+{
+	if (xfs_is_shutdown(data->mp))
+		return false;
+	if (!xfs_zone_gc_space_available(data))
+		return false;
+
+	if (!data->iter.victim_rtg) {
+		if (kthread_should_stop() || kthread_should_park())
+			return false;
+		if (!xfs_zoned_need_gc(data->mp))
+			return false;
+		if (!xfs_zone_gc_select_victim(data))
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * Handle the work to read and write data for GC and to reset the zones,
  * including handling all completions.
@@ -982,7 +988,7 @@ xfs_zone_gc_reset_zones(
  * Note that the order of the chunks is preserved so that we don't undo the
  * optimal order established by xfs_zone_gc_query().
  */
-static bool
+static void
 xfs_zone_gc_handle_work(
 	struct xfs_zone_gc_data	*data)
 {
@@ -996,30 +1002,22 @@ xfs_zone_gc_handle_work(
 	zi->zi_reset_list = NULL;
 	spin_unlock(&zi->zi_reset_list_lock);
 
-	if (!xfs_zone_gc_select_victim(data) ||
-	    !xfs_zone_gc_space_available(data)) {
-		if (list_empty(&data->reading) &&
-		    list_empty(&data->writing) &&
-		    list_empty(&data->resetting) &&
-		    !reset_list)
-			return false;
-	}
-
-	__set_current_state(TASK_RUNNING);
-	try_to_freeze();
-
-	if (reset_list)
+	if (reset_list) {
+		set_current_state(TASK_RUNNING);
 		xfs_zone_gc_reset_zones(data, reset_list);
+	}
 
 	list_for_each_entry_safe(chunk, next, &data->resetting, entry) {
 		if (READ_ONCE(chunk->state) != XFS_GC_BIO_DONE)
 			break;
+		set_current_state(TASK_RUNNING);
 		xfs_zone_gc_finish_reset(chunk);
 	}
 
 	list_for_each_entry_safe(chunk, next, &data->writing, entry) {
 		if (READ_ONCE(chunk->state) != XFS_GC_BIO_DONE)
 			break;
+		set_current_state(TASK_RUNNING);
 		xfs_zone_gc_finish_chunk(chunk);
 	}
 
@@ -1027,15 +1025,18 @@ xfs_zone_gc_handle_work(
 	list_for_each_entry_safe(chunk, next, &data->reading, entry) {
 		if (READ_ONCE(chunk->state) != XFS_GC_BIO_DONE)
 			break;
+		set_current_state(TASK_RUNNING);
 		xfs_zone_gc_write_chunk(chunk);
 	}
 	blk_finish_plug(&plug);
 
-	blk_start_plug(&plug);
-	while (xfs_zone_gc_start_chunk(data))
-		;
-	blk_finish_plug(&plug);
-	return true;
+	if (xfs_zone_gc_should_start_new_work(data)) {
+		set_current_state(TASK_RUNNING);
+		blk_start_plug(&plug);
+		while (xfs_zone_gc_start_chunk(data))
+			;
+		blk_finish_plug(&plug);
+	}
 }
 
 /*
@@ -1059,8 +1060,18 @@ xfs_zoned_gcd(
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE | TASK_FREEZABLE);
 		xfs_set_zonegc_running(mp);
-		if (xfs_zone_gc_handle_work(data))
+
+		xfs_zone_gc_handle_work(data);
+
+		/*
+		 * Only sleep if nothing set the state to running.  Else check for
+		 * work again as someone might have queued up more work and woken
+		 * us in the meantime.
+		 */
+		if (get_current_state() == TASK_RUNNING) {
+			try_to_freeze();
 			continue;
+		}
 
 		if (list_empty(&data->reading) &&
 		    list_empty(&data->writing) &&

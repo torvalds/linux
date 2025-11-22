@@ -2110,9 +2110,9 @@ void btrfs_kill_all_delayed_nodes(struct btrfs_root *root)
 
 		for (int i = 0; i < count; i++) {
 			__btrfs_kill_delayed_node(delayed_nodes[i]);
+			btrfs_delayed_node_ref_tracker_dir_print(delayed_nodes[i]);
 			btrfs_release_delayed_node(delayed_nodes[i],
 						   &delayed_node_trackers[i]);
-			btrfs_delayed_node_ref_tracker_dir_print(delayed_nodes[i]);
 		}
 	}
 }

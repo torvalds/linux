@@ -217,6 +217,7 @@ static bool is_rust_noreturn(const struct symbol *func)
 	 * these come from the Rust standard library).
 	 */
 	return str_ends_with(func->name, "_4core5sliceSp15copy_from_slice17len_mismatch_fail")		||
+	       str_ends_with(func->name, "_4core6option13expect_failed")				||
 	       str_ends_with(func->name, "_4core6option13unwrap_failed")				||
 	       str_ends_with(func->name, "_4core6result13unwrap_failed")				||
 	       str_ends_with(func->name, "_4core9panicking5panic")					||
@@ -4710,8 +4711,8 @@ static int check_abs_references(struct objtool_file *file)
 
 		for_each_reloc(sec->rsec, reloc) {
 			if (arch_absolute_reloc(file->elf, reloc)) {
-				WARN("section %s has absolute relocation at offset 0x%lx",
-				     sec->name, reloc_offset(reloc));
+				WARN("section %s has absolute relocation at offset 0x%llx",
+				     sec->name, (unsigned long long)reloc_offset(reloc));
 				ret++;
 			}
 		}
