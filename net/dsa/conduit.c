@@ -26,7 +26,7 @@ static int dsa_conduit_get_regs_len(struct net_device *dev)
 	int ret = 0;
 	int len;
 
-	if (ops->get_regs_len) {
+	if (ops && ops->get_regs_len) {
 		netdev_lock_ops(dev);
 		len = ops->get_regs_len(dev);
 		netdev_unlock_ops(dev);
@@ -59,7 +59,7 @@ static void dsa_conduit_get_regs(struct net_device *dev,
 	int port = cpu_dp->index;
 	int len;
 
-	if (ops->get_regs_len && ops->get_regs) {
+	if (ops && ops->get_regs_len && ops->get_regs) {
 		netdev_lock_ops(dev);
 		len = ops->get_regs_len(dev);
 		if (len < 0) {
@@ -97,7 +97,7 @@ static void dsa_conduit_get_ethtool_stats(struct net_device *dev,
 	int port = cpu_dp->index;
 	int count = 0;
 
-	if (ops->get_sset_count && ops->get_ethtool_stats) {
+	if (ops && ops->get_sset_count && ops->get_ethtool_stats) {
 		netdev_lock_ops(dev);
 		count = ops->get_sset_count(dev, ETH_SS_STATS);
 		ops->get_ethtool_stats(dev, stats, data);
@@ -118,11 +118,11 @@ static void dsa_conduit_get_ethtool_phy_stats(struct net_device *dev,
 	int port = cpu_dp->index;
 	int count = 0;
 
-	if (dev->phydev && !ops->get_ethtool_phy_stats) {
+	if (dev->phydev && (!ops || !ops->get_ethtool_phy_stats)) {
 		count = phy_ethtool_get_sset_count(dev->phydev);
 		if (count >= 0)
 			phy_ethtool_get_stats(dev->phydev, stats, data);
-	} else if (ops->get_sset_count && ops->get_ethtool_phy_stats) {
+	} else if (ops && ops->get_sset_count && ops->get_ethtool_phy_stats) {
 		netdev_lock_ops(dev);
 		count = ops->get_sset_count(dev, ETH_SS_PHY_STATS);
 		ops->get_ethtool_phy_stats(dev, stats, data);
@@ -145,9 +145,9 @@ static int dsa_conduit_get_sset_count(struct net_device *dev, int sset)
 
 	netdev_lock_ops(dev);
 	if (sset == ETH_SS_PHY_STATS && dev->phydev &&
-	    !ops->get_ethtool_phy_stats)
+	    (!ops || !ops->get_ethtool_phy_stats))
 		count = phy_ethtool_get_sset_count(dev->phydev);
-	else if (ops->get_sset_count)
+	else if (ops && ops->get_sset_count)
 		count = ops->get_sset_count(dev, sset);
 	netdev_unlock_ops(dev);
 
