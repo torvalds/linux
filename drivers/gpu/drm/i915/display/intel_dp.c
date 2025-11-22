@@ -520,7 +520,8 @@ static int mtl_max_source_rate(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
-	if (intel_encoder_is_c10phy(encoder))
+	if (intel_encoder_is_c10phy(encoder) ||
+	    display->platform.pantherlake_wildcatlake)
 		return 810000;
 
 	if (DISPLAY_VERx100(display) == 1401)
