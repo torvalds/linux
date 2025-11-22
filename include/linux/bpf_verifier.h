@@ -416,7 +416,7 @@ struct bpf_verifier_state {
 	u32 active_irq_id;
 	u32 active_lock_id;
 	void *active_lock_ptr;
-	bool active_rcu_lock;
+	u32 active_rcu_locks;
 
 	bool speculative;
 	bool in_sleepable;
