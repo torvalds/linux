@@ -987,6 +987,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 				dso__put(ndso);
 				return -1;
 			}
+			dso__put(ndso);
 			++kernel_range;
 		} else if (delta) {
 			/* Kernel was relocated at boot time */
