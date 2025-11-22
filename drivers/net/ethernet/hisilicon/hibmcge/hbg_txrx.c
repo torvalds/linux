@@ -7,6 +7,9 @@
 #include "hbg_reg.h"
 #include "hbg_txrx.h"
 
+#define CREATE_TRACE_POINTS
+#include "hbg_trace.h"
+
 #define netdev_get_tx_ring(netdev) \
 			(&(((struct hbg_priv *)netdev_priv(netdev))->tx_ring))
 
@@ -429,6 +432,7 @@ static int hbg_napi_rx_poll(struct napi_struct *napi, int budget)
 			break;
 		rx_desc = (struct hbg_rx_desc *)buffer->skb->data;
 		pkt_len = FIELD_GET(HBG_RX_DESC_W2_PKT_LEN_M, rx_desc->word2);
+		trace_hbg_rx_desc(priv, ring->ntc, rx_desc);
 
 		if (unlikely(!hbg_rx_pkt_check(priv, rx_desc, buffer->skb))) {
 			hbg_buffer_free(buffer);
