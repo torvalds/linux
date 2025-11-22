@@ -641,10 +641,6 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 	conflock->fl.c.flc_owner = lock->fl.c.flc_owner;
 	error = vfs_test_lock(file->f_file[mode], &conflock->fl);
 	if (error) {
-		/* We can't currently deal with deferred test requests */
-		if (error == FILE_LOCK_DEFERRED)
-			WARN_ON_ONCE(1);
-
 		ret = nlm_lck_denied_nolocks;
 		goto out;
 	}
