@@ -322,7 +322,7 @@ static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 	struct c2c_stats stats = { .nr_entries = 0, };
 	struct hist_entry *he;
 	struct addr_location al;
-	struct mem_info *mi, *mi_dup;
+	struct mem_info *mi = NULL;
 	struct callchain_cursor *cursor;
 	int ret;
 
@@ -349,20 +349,15 @@ static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 		goto out;
 	}
 
-	/*
-	 * The mi object is released in hists__add_entry_ops,
-	 * if it gets sorted out into existing data, so we need
-	 * to take the copy now.
-	 */
-	mi_dup = mem_info__get(mi);
-
 	c2c_decode_stats(&stats, mi);
 
 	he = hists__add_entry_ops(&c2c_hists->hists, &c2c_entry_ops,
 				  &al, NULL, NULL, mi, NULL,
 				  sample, true);
-	if (he == NULL)
-		goto free_mi;
+	if (he == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 	c2c_add_stats(&c2c_he->stats, &stats);
@@ -393,17 +388,19 @@ static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 		int cpu = sample->cpu == (unsigned int) -1 ? 0 : sample->cpu;
 		int node = c2c.cpu2node[cpu];
 
-		mi = mi_dup;
-
 		c2c_hists = he__get_c2c_hists(he, c2c.cl_sort, 2, machine->env);
-		if (!c2c_hists)
-			goto free_mi;
+		if (!c2c_hists) {
+			ret = -ENOMEM;
+			goto out;
+		}
 
 		he = hists__add_entry_ops(&c2c_hists->hists, &c2c_entry_ops,
 					  &al, NULL, NULL, mi, NULL,
 					  sample, true);
-		if (he == NULL)
-			goto free_mi;
+		if (he == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
 
 		c2c_he = container_of(he, struct c2c_hist_entry, he);
 		c2c_add_stats(&c2c_he->stats, &stats);
@@ -421,14 +418,9 @@ static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 	}
 
 out:
+	mem_info__put(mi);
 	addr_location__exit(&al);
 	return ret;
-
-free_mi:
-	mem_info__put(mi_dup);
-	mem_info__put(mi);
-	ret = -ENOMEM;
-	goto out;
 }
 
 static const char * const c2c_usage[] = {
