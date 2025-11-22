@@ -35,6 +35,7 @@ macro_rules! fits_within {
 }
 
 /// Returns `true` if `value` can be represented with at most `N` bits in a `T`.
+#[inline(always)]
 fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
     fits_within!(value, T, num_bits)
 }
@@ -362,6 +363,7 @@ where
     /// assert_eq!(Bounded::<u8, 1>::from_expr(1).get(), 1);
     /// assert_eq!(Bounded::<u16, 8>::from_expr(0xff).get(), 0xff);
     /// ```
+    #[inline(always)]
     pub fn from_expr(expr: T) -> Self {
         crate::build_assert!(
             fits_within(expr, N),
