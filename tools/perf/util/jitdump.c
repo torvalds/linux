@@ -547,6 +547,8 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 
 		if (dso)
 			dso__set_hit(dso);
+
+		dso__put(dso);
 	}
 out:
 	perf_sample__exit(&sample);
