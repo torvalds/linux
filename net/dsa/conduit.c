@@ -89,7 +89,7 @@ static void dsa_conduit_get_regs(struct net_device *dev,
 
 static void dsa_conduit_get_ethtool_stats(struct net_device *dev,
 					  struct ethtool_stats *stats,
-					  uint64_t *data)
+					  u64 *data)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -110,7 +110,7 @@ static void dsa_conduit_get_ethtool_stats(struct net_device *dev,
 
 static void dsa_conduit_get_ethtool_phy_stats(struct net_device *dev,
 					      struct ethtool_stats *stats,
-					      uint64_t *data)
+					      u64 *data)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -160,8 +160,8 @@ static int dsa_conduit_get_sset_count(struct net_device *dev, int sset)
 	return count;
 }
 
-static void dsa_conduit_get_strings(struct net_device *dev, uint32_t stringset,
-				    uint8_t *data)
+static void dsa_conduit_get_strings(struct net_device *dev, u32 stringset,
+				    u8 *data)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -169,8 +169,7 @@ static void dsa_conduit_get_strings(struct net_device *dev, uint32_t stringset,
 	int port = cpu_dp->index;
 	int len = ETH_GSTRING_LEN;
 	int mcount = 0, count, i;
-	uint8_t pfx[4];
-	uint8_t *ndata;
+	u8 pfx[4], *ndata;
 
 	snprintf(pfx, sizeof(pfx), "p%.2d", port);
 	/* We do not want to be NULL-terminated, since this is a prefix */
