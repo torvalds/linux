@@ -151,6 +151,7 @@ config HIBMCGE
 	select FIXED_PHY
 	select MOTORCOMM_PHY
 	select REALTEK_PHY
+	select PAGE_POOL
 	help
 	  If you wish to compile a kernel for a BMC with HIBMC-xx_gmac
 	  then you should answer Y to this. This makes this driver suitable for use
