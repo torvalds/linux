@@ -1447,8 +1447,11 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			map__set_mapping_type(curr_map, MAPPING_TYPE__IDENTITY);
 		}
 		dso__set_symtab_type(curr_dso, dso__symtab_type(dso));
-		if (maps__insert(kmaps, curr_map))
+		if (maps__insert(kmaps, curr_map)) {
+			dso__put(curr_dso);
+			map__put(curr_map);
 			return -1;
+		}
 		dsos__add(&maps__machine(kmaps)->dsos, curr_dso);
 		dso__set_loaded(curr_dso);
 		dso__put(*curr_dsop);
