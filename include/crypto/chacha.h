@@ -38,18 +38,18 @@ struct chacha_state {
 };
 
 void chacha_block_generic(struct chacha_state *state,
-			  u8 out[CHACHA_BLOCK_SIZE], int nrounds);
+			  u8 out[at_least CHACHA_BLOCK_SIZE], int nrounds);
 static inline void chacha20_block(struct chacha_state *state,
-				  u8 out[CHACHA_BLOCK_SIZE])
+				  u8 out[at_least CHACHA_BLOCK_SIZE])
 {
 	chacha_block_generic(state, out, 20);
 }
 
 void hchacha_block_generic(const struct chacha_state *state,
-			   u32 out[HCHACHA_OUT_WORDS], int nrounds);
+			   u32 out[at_least HCHACHA_OUT_WORDS], int nrounds);
 
 void hchacha_block(const struct chacha_state *state,
-		   u32 out[HCHACHA_OUT_WORDS], int nrounds);
+		   u32 out[at_least HCHACHA_OUT_WORDS], int nrounds);
 
 enum chacha_constants { /* expand 32-byte k */
 	CHACHA_CONSTANT_EXPA = 0x61707865U,
@@ -67,8 +67,8 @@ static inline void chacha_init_consts(struct chacha_state *state)
 }
 
 static inline void chacha_init(struct chacha_state *state,
-			       const u32 key[CHACHA_KEY_WORDS],
-			       const u8 iv[CHACHA_IV_SIZE])
+			       const u32 key[at_least CHACHA_KEY_WORDS],
+			       const u8 iv[at_least CHACHA_IV_SIZE])
 {
 	chacha_init_consts(state);
 	state->x[4]  = key[0];
