@@ -300,7 +300,7 @@ static struct ccu_nm pll_audio0_4x_clk = {
 	.m		= _SUNXI_CCU_DIV(16, 6),
 	.sdm		= _SUNXI_CCU_SDM(pll_audio0_sdm_table, BIT(24),
 					 0x178, BIT(31)),
-	.min_rate	= 180000000U,
+	.min_rate	= 90000000U,
 	.max_rate	= 3000000000U,
 	.common		= {
 		.reg		= 0x078,
