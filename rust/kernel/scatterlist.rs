@@ -38,7 +38,8 @@ use crate::{
     io::ResourceSize,
     page,
     prelude::*,
-    types::{ARef, Opaque},
+    sync::aref::ARef,
+    types::Opaque,
 };
 use core::{ops::Deref, ptr::NonNull};
 
