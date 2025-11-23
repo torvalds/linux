@@ -869,7 +869,8 @@ static bool has_valid_limit(const char *name, const struct power_limits *limits)
 
 static int asus_fw_attr_add(void)
 {
-	const struct rog_tunables *const ac_rog_tunables = asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_DC];
+	const struct rog_tunables *const ac_rog_tunables =
+		asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_AC];
 	const struct power_limits *limits;
 	bool should_create;
 	const char *name;
