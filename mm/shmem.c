@@ -1076,7 +1076,7 @@ static struct folio *shmem_get_partial_folio(struct inode *inode, pgoff_t index)
  * Remove range of pages and swap entries from page cache, and free them.
  * If !unfalloc, truncate or punch hole; if unfalloc, undo failed fallocate.
  */
-static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+static void shmem_undo_range(struct inode *inode, loff_t lstart, uoff_t lend,
 								 bool unfalloc)
 {
 	struct address_space *mapping = inode->i_mapping;
@@ -1227,7 +1227,7 @@ whole_folios:
 	shmem_recalc_inode(inode, 0, -nr_swaps_freed);
 }
 
-void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
+void shmem_truncate_range(struct inode *inode, loff_t lstart, uoff_t lend)
 {
 	shmem_undo_range(inode, lstart, lend, false);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
@@ -5776,7 +5776,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 }
 #endif
 
-void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
+void shmem_truncate_range(struct inode *inode, loff_t lstart, uoff_t lend)
 {
 	truncate_inode_pages_range(inode->i_mapping, lstart, lend);
 }

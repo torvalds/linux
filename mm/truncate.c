@@ -339,7 +339,7 @@ long mapping_evict_folio(struct address_space *mapping, struct folio *folio)
  * page aligned properly.
  */
 void truncate_inode_pages_range(struct address_space *mapping,
-				loff_t lstart, loff_t lend)
+				loff_t lstart, uoff_t lend)
 {
 	pgoff_t		start;		/* inclusive */
 	pgoff_t		end;		/* exclusive */
