@@ -37,9 +37,10 @@ use kernel::debugfs::{Dir, File};
 use kernel::new_mutex;
 use kernel::prelude::*;
 use kernel::sizes::*;
+use kernel::sync::aref::ARef;
 use kernel::sync::atomic::{Atomic, Relaxed};
 use kernel::sync::Mutex;
-use kernel::{acpi, device::Core, of, platform, str::CString, types::ARef};
+use kernel::{acpi, device::Core, of, platform, str::CString};
 
 kernel::module_platform_driver! {
     type: RustDebugFs,
