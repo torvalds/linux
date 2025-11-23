@@ -127,4 +127,130 @@ extern void __fput_sync(struct file *);
 
 extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
 
+/*
+ * fd_prepare: Combined fd + file allocation cleanup class.
+ * @err: Error code to indicate if allocation succeeded.
+ * @__fd: Allocated fd (may not be accessed directly)
+ * @__file: Allocated struct file pointer (may not be accessed directly)
+ *
+ * Allocates an fd and a file together. On error paths, automatically cleans
+ * up whichever resource was successfully allocated. Allows flexible file
+ * allocation with different functions per usage.
+ *
+ * Do not use directly.
+ */
+struct fd_prepare {
+	s32 err;
+	s32 __fd; /* do not access directly */
+	struct file *__file; /* do not access directly */
+};
+
+/* Typedef for fd_prepare cleanup guards. */
+typedef struct fd_prepare class_fd_prepare_t;
+
+/*
+ * Accessors for fd_prepare class members.
+ * _Generic() is used for zero-cost type safety.
+ */
+#define fd_prepare_fd(_fdf) \
+	(_Generic((_fdf), struct fd_prepare: (_fdf).__fd))
+
+#define fd_prepare_file(_fdf) \
+	(_Generic((_fdf), struct fd_prepare: (_fdf).__file))
+
+/* Do not use directly. */
+static inline void class_fd_prepare_destructor(const struct fd_prepare *fdf)
+{
+	if (unlikely(fdf->err)) {
+		if (likely(fdf->__fd >= 0))
+			put_unused_fd(fdf->__fd);
+		if (unlikely(!IS_ERR_OR_NULL(fdf->__file)))
+			fput(fdf->__file);
+	}
+}
+
+/* Do not use directly. */
+static inline int class_fd_prepare_lock_err(const struct fd_prepare *fdf)
+{
+	if (unlikely(fdf->err))
+		return fdf->err;
+	if (unlikely(fdf->__fd < 0))
+		return fdf->__fd;
+	if (unlikely(IS_ERR(fdf->__file)))
+		return PTR_ERR(fdf->__file);
+	if (unlikely(!fdf->__file))
+		return -ENOMEM;
+	return 0;
+}
+
+/*
+ * __FD_PREPARE_INIT - Helper to initialize fd_prepare class.
+ * @_fd_flags: flags for get_unused_fd_flags()
+ * @_file_owned: expression that returns struct file *
+ *
+ * Returns a struct fd_prepare with fd, file, and err set.
+ * If fd allocation fails, fd will be negative and err will be set. If
+ * fd succeeds but file_init_expr fails, file will be ERR_PTR and err
+ * will be set. The err field is the single source of truth for error
+ * checking.
+ */
+#define __FD_PREPARE_INIT(_fd_flags, _file_owned)                 \
+	({                                                        \
+		struct fd_prepare fdf = {                         \
+			.__fd = get_unused_fd_flags((_fd_flags)), \
+		};                                                \
+		if (likely(fdf.__fd >= 0))                        \
+			fdf.__file = (_file_owned);               \
+		fdf.err = ACQUIRE_ERR(fd_prepare, &fdf);          \
+		fdf;                                              \
+	})
+
+/*
+ * FD_PREPARE - Macro to declare and initialize an fd_prepare variable.
+ *
+ * Declares and initializes an fd_prepare variable with automatic
+ * cleanup. No separate scope required - cleanup happens when variable
+ * goes out of scope.
+ *
+ * @_fdf: name of struct fd_prepare variable to define
+ * @_fd_flags: flags for get_unused_fd_flags()
+ * @_file_owned: struct file to take ownership of (can be expression)
+ */
+#define FD_PREPARE(_fdf, _fd_flags, _file_owned) \
+	CLASS_INIT(fd_prepare, _fdf, __FD_PREPARE_INIT(_fd_flags, _file_owned))
+
+/*
+ * fd_publish - Publish prepared fd and file to the fd table.
+ * @_fdf: struct fd_prepare variable
+ */
+#define fd_publish(_fdf)                                       \
+	({                                                     \
+		struct fd_prepare *fdp = &(_fdf);              \
+		VFS_WARN_ON_ONCE(fdp->err);                    \
+		VFS_WARN_ON_ONCE(fdp->__fd < 0);               \
+		VFS_WARN_ON_ONCE(IS_ERR_OR_NULL(fdp->__file)); \
+		fd_install(fdp->__fd, fdp->__file);            \
+		fdp->__fd;                                     \
+	})
+
+/* Do not use directly. */
+#define __FD_ADD(_fdf, _fd_flags, _file_owned)            \
+	({                                                \
+		FD_PREPARE(_fdf, _fd_flags, _file_owned); \
+		s32 ret = _fdf.err;                       \
+		if (likely(!ret))                         \
+			ret = fd_publish(_fdf);           \
+		ret;                                      \
+	})
+
+/*
+ * FD_ADD - Allocate and install an fd and file in one step.
+ * @_fd_flags: flags for get_unused_fd_flags()
+ * @_file_owned: struct file to take ownership of
+ *
+ * Returns the allocated fd number, or negative error code on failure.
+ */
+#define FD_ADD(_fd_flags, _file_owned) \
+	__FD_ADD(__UNIQUE_ID(fd_prepare), _fd_flags, _file_owned)
+
 #endif /* __LINUX_FILE_H */
