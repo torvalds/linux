@@ -589,6 +589,23 @@ static inline void legacy_pty_init(void) { }
 #ifdef CONFIG_UNIX98_PTYS
 static struct cdev ptmx_cdev;
 
+static struct file *ptm_open_peer_file(struct file *master,
+				       struct tty_struct *tty, int flags)
+{
+	struct path path;
+	struct file *file;
+
+	/* Compute the slave's path */
+	path.mnt = devpts_mntget(master, tty->driver_data);
+	if (IS_ERR(path.mnt))
+		return ERR_CAST(path.mnt);
+	path.dentry = tty->link->driver_data;
+
+	file = dentry_open(&path, flags, current_cred());
+	mntput(path.mnt);
+	return file;
+}
+
 /**
  *	ptm_open_peer - open the peer of a pty
  *	@master: the open struct file of the ptmx device node
@@ -601,42 +618,10 @@ static struct cdev ptmx_cdev;
  */
 int ptm_open_peer(struct file *master, struct tty_struct *tty, int flags)
 {
-	int fd;
-	struct file *filp;
-	int retval = -EINVAL;
-	struct path path;
-
 	if (tty->driver != ptm_driver)
 		return -EIO;
 
-	fd = get_unused_fd_flags(flags);
-	if (fd < 0) {
-		retval = fd;
-		goto err;
-	}
-
-	/* Compute the slave's path */
-	path.mnt = devpts_mntget(master, tty->driver_data);
-	if (IS_ERR(path.mnt)) {
-		retval = PTR_ERR(path.mnt);
-		goto err_put;
-	}
-	path.dentry = tty->link->driver_data;
-
-	filp = dentry_open(&path, flags, current_cred());
-	mntput(path.mnt);
-	if (IS_ERR(filp)) {
-		retval = PTR_ERR(filp);
-		goto err_put;
-	}
-
-	fd_install(fd, filp);
-	return fd;
-
-err_put:
-	put_unused_fd(fd);
-err:
-	return retval;
+	return FD_ADD(flags, ptm_open_peer_file(master, tty, flags));
 }
 
 static int pty_unix98_ioctl(struct tty_struct *tty,
