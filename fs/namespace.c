@@ -4271,10 +4271,10 @@ static unsigned int attr_flags_to_mnt_flags(u64 attr_flags)
 SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 		unsigned int, attr_flags)
 {
+	struct path new_path __free(path_put) = {};
 	struct mnt_namespace *ns;
 	struct fs_context *fc;
-	struct file *file;
-	struct path newmount;
+	struct vfsmount *new_mnt;
 	struct mount *mnt;
 	unsigned int mnt_flags = 0;
 	long ret;
@@ -4312,35 +4312,36 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 
 	fc = fd_file(f)->private_data;
 
-	ret = mutex_lock_interruptible(&fc->uapi_mutex);
-	if (ret < 0)
+	ACQUIRE(mutex_intr, uapi_mutex)(&fc->uapi_mutex);
+	ret = ACQUIRE_ERR(mutex_intr, &uapi_mutex);
+	if (ret)
 		return ret;
 
 	/* There must be a valid superblock or we can't mount it */
 	ret = -EINVAL;
 	if (!fc->root)
-		goto err_unlock;
+		return ret;
 
 	ret = -EPERM;
 	if (mount_too_revealing(fc->root->d_sb, &mnt_flags)) {
 		errorfcp(fc, "VFS", "Mount too revealing");
-		goto err_unlock;
+		return ret;
 	}
 
 	ret = -EBUSY;
 	if (fc->phase != FS_CONTEXT_AWAITING_MOUNT)
-		goto err_unlock;
+		return ret;
 
 	if (fc->sb_flags & SB_MANDLOCK)
 		warn_mandlock();
 
-	newmount.mnt = vfs_create_mount(fc);
-	if (IS_ERR(newmount.mnt)) {
-		ret = PTR_ERR(newmount.mnt);
-		goto err_unlock;
-	}
-	newmount.dentry = dget(fc->root);
-	newmount.mnt->mnt_flags = mnt_flags;
+	new_mnt = vfs_create_mount(fc);
+	if (IS_ERR(new_mnt))
+		return PTR_ERR(new_mnt);
+	new_mnt->mnt_flags = mnt_flags;
+
+	new_path.dentry = dget(fc->root);
+	new_path.mnt = new_mnt;
 
 	/* We've done the mount bit - now move the file context into more or
 	 * less the same state as if we'd done an fspick().  We don't want to
@@ -4350,38 +4351,27 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 	vfs_clean_context(fc);
 
 	ns = alloc_mnt_ns(current->nsproxy->mnt_ns->user_ns, true);
-	if (IS_ERR(ns)) {
-		ret = PTR_ERR(ns);
-		goto err_path;
-	}
-	mnt = real_mount(newmount.mnt);
+	if (IS_ERR(ns))
+		return PTR_ERR(ns);
+	mnt = real_mount(new_path.mnt);
 	ns->root = mnt;
 	ns->nr_mounts = 1;
 	mnt_add_to_ns(ns, mnt);
-	mntget(newmount.mnt);
+	mntget(new_path.mnt);
 
-	/* Attach to an apparent O_PATH fd with a note that we need to unmount
-	 * it, not just simply put it.
-	 */
-	file = dentry_open(&newmount, O_PATH, fc->cred);
-	if (IS_ERR(file)) {
-		dissolve_on_fput(newmount.mnt);
-		ret = PTR_ERR(file);
-		goto err_path;
+	FD_PREPARE(fdf, (flags & FSMOUNT_CLOEXEC) ? O_CLOEXEC : 0,
+		   dentry_open(&new_path, O_PATH, fc->cred));
+	if (fdf.err) {
+		dissolve_on_fput(new_path.mnt);
+		return fdf.err;
 	}
-	file->f_mode |= FMODE_NEED_UNMOUNT;
 
-	ret = get_unused_fd_flags((flags & FSMOUNT_CLOEXEC) ? O_CLOEXEC : 0);
-	if (ret >= 0)
-		fd_install(ret, file);
-	else
-		fput(file);
-
-err_path:
-	path_put(&newmount);
-err_unlock:
-	mutex_unlock(&fc->uapi_mutex);
-	return ret;
+	/*
+	 * Attach to an apparent O_PATH fd with a note that we
+	 * need to unmount it, not just simply put it.
+	 */
+	fd_prepare_file(fdf)->f_mode |= FMODE_NEED_UNMOUNT;
+	return fd_publish(fdf);
 }
 
 static inline int vfs_move_mount(const struct path *from_path,
