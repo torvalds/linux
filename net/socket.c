@@ -2003,8 +2003,6 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
 			      int __user *upeer_addrlen, int flags)
 {
 	struct proto_accept_arg arg = { };
-	struct file *newfile;
-	int newfd;
 
 	if (flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
 		return -EINVAL;
@@ -2012,18 +2010,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
 	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
-	newfd = get_unused_fd_flags(flags);
-	if (unlikely(newfd < 0))
-		return newfd;
-
-	newfile = do_accept(file, &arg, upeer_sockaddr, upeer_addrlen,
-			    flags);
-	if (IS_ERR(newfile)) {
-		put_unused_fd(newfd);
-		return PTR_ERR(newfile);
-	}
-	fd_install(newfd, newfile);
-	return newfd;
+	return FD_ADD(flags, do_accept(file, &arg, upeer_sockaddr, upeer_addrlen, flags));
 }
 
 /*
