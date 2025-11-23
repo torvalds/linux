@@ -16,10 +16,10 @@ use kernel::prelude::*;
 use kernel::regulator;
 use kernel::regulator::Regulator;
 use kernel::sizes::SZ_2M;
+use kernel::sync::aref::ARef;
 use kernel::sync::Arc;
 use kernel::sync::Mutex;
 use kernel::time;
-use kernel::types::ARef;
 
 use crate::file::File;
 use crate::gem::TyrObject;

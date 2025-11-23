@@ -11,8 +11,8 @@ use kernel::{
         Alignable,
         Alignment, //
     },
+    sync::aref::ARef,
     transmute::FromBytes,
-    types::ARef,
 };
 
 use crate::{

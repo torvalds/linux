@@ -14,12 +14,12 @@ use kernel::{
     device,
     io::poll::read_poll_timeout,
     prelude::*,
+    sync::aref::ARef,
     time::{
         delay::fsleep,
         Delta, //
     },
-    transmute::FromBytes,
-    types::ARef, //
+    transmute::FromBytes, //
 };
 
 use crate::{
