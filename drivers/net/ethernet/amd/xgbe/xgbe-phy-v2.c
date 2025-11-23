@@ -989,6 +989,7 @@ static int xgbe_phy_find_phy_device(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 	phy_data->phydev = phydev;
+	phy_data->phydev->mac_managed_pm = true;
 
 	xgbe_phy_external_phy_quirks(pdata);
 

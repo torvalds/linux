@@ -1259,6 +1259,11 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	udp_tunnel_nic_reset_ntf(netdev);
 
+	/* Reset the phy settings */
+	ret = xgbe_phy_reset(pdata);
+	if (ret)
+		goto err_txrx;
+
 	netif_tx_start_all_queues(netdev);
 
 	xgbe_start_timers(pdata);
@@ -1267,6 +1272,10 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	clear_bit(XGBE_STOPPED, &pdata->dev_state);
 
 	return 0;
+
+err_txrx:
+	hw_if->disable_rx(pdata);
+	hw_if->disable_tx(pdata);
 
 err_irqs:
 	xgbe_free_irqs(pdata);
@@ -1573,11 +1582,6 @@ static int xgbe_open(struct net_device *netdev)
 		ret = -ENOMEM;
 		goto err_dev_wq;
 	}
-
-	/* Reset the phy settings */
-	ret = xgbe_phy_reset(pdata);
-	if (ret)
-		goto err_an_wq;
 
 	/* Enable the clocks */
 	ret = clk_prepare_enable(pdata->sysclk);
