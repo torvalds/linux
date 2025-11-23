@@ -22115,7 +22115,7 @@ F:	include/soc/microchip/mpfs.h
 RISC-V MISC SOC SUPPORT
 M:	Conor Dooley <conor@kernel.org>
 L:	linux-riscv@lists.infradead.org
-S:	Maintained
+S:	Odd Fixes
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
 F:	arch/riscv/boot/dts/canaan/
 F:	arch/riscv/boot/dts/sifive/
