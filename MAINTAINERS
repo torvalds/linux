@@ -22120,7 +22120,6 @@ T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
 F:	arch/riscv/boot/dts/canaan/
 F:	arch/riscv/boot/dts/microchip/
 F:	arch/riscv/boot/dts/sifive/
-F:	arch/riscv/boot/dts/starfive/
 
 RISC-V PMU DRIVERS
 M:	Atish Patra <atish.patra@linux.dev>
@@ -24445,7 +24444,10 @@ F:	drivers/crypto/starfive/
 
 STARFIVE DEVICETREES
 M:	Emil Renner Berthing <kernel@esmil.dk>
+M:	Conor Dooley <conor@kernel.org>
+L:	linux-riscv@lists.infradead.org
 S:	Maintained
+T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
 F:	arch/riscv/boot/dts/starfive/
 
 STARFIVE DWMAC GLUE LAYER
