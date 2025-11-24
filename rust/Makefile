@@ -60,10 +60,19 @@ rustdoc_test_quiet=--test-args -q
 rustdoc_test_kernel_quiet=>/dev/null
 endif
 
-core-cfgs = \
+core-cfgs := \
     --cfg no_fp_fmt_parse
 
 core-edition := $(if $(call rustc-min-version,108700),2024,2021)
+
+core-skip_flags := \
+    --edition=2021 \
+    -Wunreachable_pub \
+    -Wrustdoc::unescaped_backticks
+
+core-flags := \
+    --edition=$(core-edition) \
+    $(core-cfgs)
 
 # `rustdoc` did not save the target modifiers, thus workaround for
 # the time being (https://github.com/rust-lang/rust/issues/144521).
@@ -122,8 +131,8 @@ rustdoc-macros: $(src)/macros/lib.rs rustdoc-clean FORCE
 
 # Starting with Rust 1.82.0, skipping `-Wrustdoc::unescaped_backticks` should
 # not be needed -- see https://github.com/rust-lang/rust/pull/128307.
-rustdoc-core: private skip_flags = --edition=2021 -Wrustdoc::unescaped_backticks
-rustdoc-core: private rustc_target_flags = --edition=$(core-edition) $(core-cfgs)
+rustdoc-core: private skip_flags = $(core-skip_flags)
+rustdoc-core: private rustc_target_flags = $(core-flags)
 rustdoc-core: $(RUST_LIB_SRC)/core/src/lib.rs rustdoc-clean FORCE
 	+$(call if_changed,rustdoc)
 
@@ -499,9 +508,9 @@ $(obj)/helpers/helpers.o: $(src)/helpers/helpers.c $(recordmcount_source) FORCE
 $(obj)/exports.o: private skip_gendwarfksyms = 1
 
 $(obj)/core.o: private skip_clippy = 1
-$(obj)/core.o: private skip_flags = --edition=2021 -Wunreachable_pub
+$(obj)/core.o: private skip_flags = $(core-skip_flags)
 $(obj)/core.o: private rustc_objcopy = $(foreach sym,$(redirect-intrinsics),--redefine-sym $(sym)=__rust$(sym))
-$(obj)/core.o: private rustc_target_flags = --edition=$(core-edition) $(core-cfgs)
+$(obj)/core.o: private rustc_target_flags = $(core-flags)
 $(obj)/core.o: $(RUST_LIB_SRC)/core/src/lib.rs \
     $(wildcard $(objtree)/include/config/RUSTC_VERSION_TEXT) FORCE
 	+$(call if_changed_rule,rustc_library)
