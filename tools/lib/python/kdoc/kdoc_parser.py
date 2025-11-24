@@ -22,8 +22,8 @@ from kdoc.kdoc_item import KdocItem
 #
 # Regular expressions used to parse kernel-doc markups at KernelDoc class.
 #
-# Let's declare them in lowercase outside any class to make easier to
-# convert from the python script.
+# Let's declare them in lowercase outside any class to make it easier to
+# convert from the Perl script.
 #
 # As those are evaluated at the beginning, no need to cache them
 #
@@ -135,7 +135,7 @@ struct_xforms = [
     # TODO: use NestedMatch for FOO($1, $2, ...) matches
     #
     # it is better to also move those to the NestedMatch logic,
-    # to ensure that parenthesis will be properly matched.
+    # to ensure that parentheses will be properly matched.
     #
     (KernRe(r'__ETHTOOL_DECLARE_LINK_MODE_MASK\s*\(([^\)]+)\)', re.S),
      r'DECLARE_BITMAP(\1, __ETHTOOL_LINK_MODE_MASK_NBITS)'),
@@ -155,7 +155,7 @@ struct_xforms = [
     (KernRe(r'DEFINE_DMA_UNMAP_LEN\s*\(' + struct_args_pattern + r'\)', re.S), r'__u32 \1'),
 ]
 #
-# Regexes here are guaranteed to have the end limiter matching
+# Regexes here are guaranteed to have the end delimiter matching
 # the start delimiter. Yet, right now, only one replace group
 # is allowed.
 #
@@ -815,7 +815,7 @@ class KernelDoc:
 
     def dump_struct(self, ln, proto):
         """
-        Store an entry for an struct or union
+        Store an entry for a struct or union
         """
         #
         # Do the basic parse to get the pieces of the declaration.
@@ -944,7 +944,7 @@ class KernelDoc:
 
     def dump_function(self, ln, prototype):
         """
-        Stores a function of function macro inside self.entries array.
+        Stores a function or function macro inside self.entries array.
         """
 
         found = func_macro = False
@@ -1179,7 +1179,7 @@ class KernelDoc:
             #
             else:
                 self.emit_msg(ln,
-                              f"This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n{line}")
+                              f"This comment starts with '/**', but isn't a kernel-doc comment. Refer to Documentation/doc-guide/kernel-doc.rst\n{line}")
                 self.state = state.NORMAL
                 return
             #

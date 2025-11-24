@@ -8,7 +8,7 @@
 Implement output filters to print kernel-doc documentation.
 
 The implementation uses a virtual base class (OutputFormat) which
-contains a dispatches to virtual methods, and some code to filter
+contains dispatches to virtual methods, and some code to filter
 out output messages.
 
 The actual implementation is done on one separate class per each type
@@ -59,7 +59,7 @@ class OutputFormat:
     OUTPUT_EXPORTED     = 2 # output exported symbols
     OUTPUT_INTERNAL     = 3 # output non-exported symbols
 
-    # Virtual member to be overriden at the  inherited classes
+    # Virtual member to be overridden at the inherited classes
     highlights = []
 
     def __init__(self):
@@ -85,7 +85,7 @@ class OutputFormat:
     def set_filter(self, export, internal, symbol, nosymbol, function_table,
                    enable_lineno, no_doc_sections):
         """
-        Initialize filter variables according with the requested mode.
+        Initialize filter variables according to the requested mode.
 
         Only one choice is valid between export, internal and symbol.
 
@@ -208,7 +208,7 @@ class OutputFormat:
             return self.data
 
         # Warn if some type requires an output logic
-        self.config.log.warning("doesn't now how to output '%s' block",
+        self.config.log.warning("doesn't know how to output '%s' block",
                                 dtype)
 
         return None

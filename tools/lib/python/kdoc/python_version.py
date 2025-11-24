@@ -139,7 +139,7 @@ class PythonVersion:
 
         available_versions = PythonVersion.find_python(min_version)
         if not available_versions:
-            print(f"ERROR: Python version {python_ver} is not spported anymore\n")
+            print(f"ERROR: Python version {python_ver} is not supported anymore\n")
             print("       Can't find a new version. This script may fail")
             return
 

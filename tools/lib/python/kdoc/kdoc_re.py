@@ -16,7 +16,7 @@ re_cache = {}
 
 class KernRe:
     """
-    Helper class to simplify regex declaration and usage,
+    Helper class to simplify regex declaration and usage.
 
     It calls re.compile for a given pattern. It also allows adding
     regular expressions and define sub at class init time.
@@ -27,7 +27,7 @@ class KernRe:
 
     def _add_regex(self, string, flags):
         """
-        Adds a new regex or re-use it from the cache.
+        Adds a new regex or reuses it from the cache.
         """
         self.regex = re_cache.get(string, None)
         if not self.regex:
@@ -114,7 +114,7 @@ class NestedMatch:
 
             '\\bSTRUCT_GROUP(\\(((?:(?>[^)(]+)|(?1))*)\\))[^;]*;'
 
-    which is used to properly match open/close parenthesis of the
+    which is used to properly match open/close parentheses of the
     string search STRUCT_GROUP(),
 
     Add a class that counts pairs of delimiters, using it to match and
@@ -136,13 +136,13 @@ class NestedMatch:
     #       \bSTRUCT_GROUP\(
     #
     # is similar to: STRUCT_GROUP\((.*)\)
-    # except that the content inside the match group is delimiter's aligned.
+    # except that the content inside the match group is delimiter-aligned.
     #
-    # The content inside parenthesis are converted into a single replace
+    # The content inside parentheses is converted into a single replace
     # group (e.g. r`\1').
     #
     # It would be nice to change such definition to support multiple
-    # match groups, allowing a regex equivalent to.
+    # match groups, allowing a regex equivalent to:
     #
     #   FOO\((.*), (.*), (.*)\)
     #
@@ -168,14 +168,14 @@ class NestedMatch:
         but I ended using a different implementation to align all three types
         of delimiters and seek for an initial regular expression.
 
-        The algorithm seeks for open/close paired delimiters and place them
-        into a stack, yielding a start/stop position of each match  when the
+        The algorithm seeks for open/close paired delimiters and places them
+        into a stack, yielding a start/stop position of each match when the
         stack is zeroed.
 
-        The algorithm shoud work fine for properly paired lines, but will
-        silently ignore end delimiters that preceeds an start delimiter.
+        The algorithm should work fine for properly paired lines, but will
+        silently ignore end delimiters that precede a start delimiter.
         This should be OK for kernel-doc parser, as unaligned delimiters
-        would cause compilation errors. So, we don't need to rise exceptions
+        would cause compilation errors. So, we don't need to raise exceptions
         to cover such issues.
         """
 
@@ -203,7 +203,7 @@ class NestedMatch:
                     stack.append(end)
                     continue
 
-                # Does the end delimiter match what it is expected?
+                # Does the end delimiter match what is expected?
                 if stack and d == stack[-1]:
                     stack.pop()
 

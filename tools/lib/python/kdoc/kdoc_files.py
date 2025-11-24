@@ -64,7 +64,7 @@ class GlobSourceFiles:
 
     def parse_files(self, file_list, file_not_found_cb):
         """
-        Define an interator to parse all source files from file_list,
+        Define an iterator to parse all source files from file_list,
         handling directories if any
         """
 
@@ -229,7 +229,7 @@ class KernelFiles():
         Return output messages from a file name using the output style
         filtering.
 
-        If output type was not handled by the syler, return None.
+        If output type was not handled by the styler, return None.
         """
 
         # NOTE: we can add rules here to filter out unwanted parts,
