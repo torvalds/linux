@@ -474,7 +474,20 @@ static void smbdirect_socket_cleanup_work(struct work_struct *work)
 	case SMBDIRECT_SOCKET_CONNECTED:
 	case SMBDIRECT_SOCKET_ERROR:
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTING;
+		/*
+		 * Make sure we hold the callback lock
+		 * im order to coordinate with the
+		 * rdma_event handlers, typically
+		 * smbdirect_connection_rdma_event_handler(),
+		 * and smbdirect_socket_destroy().
+		 *
+		 * So that the order of ib_drain_qp()
+		 * and rdma_disconnect() is controlled
+		 * by the mutex.
+		 */
+		rdma_lock_handler(sc->rdma.cm_id);
 		rdma_disconnect(sc->rdma.cm_id);
+		rdma_unlock_handler(sc->rdma.cm_id);
 		break;
 
 	case SMBDIRECT_SOCKET_CREATED:
