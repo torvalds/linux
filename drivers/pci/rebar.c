@@ -139,6 +139,9 @@ bool pci_rebar_size_supported(struct pci_dev *pdev, int bar, int size)
 {
 	u64 sizes = pci_rebar_get_possible_sizes(pdev, bar);
 
+	if (size < 0 || size > ilog2(SZ_128T) - ilog2(PCI_REBAR_MIN_SIZE))
+		return false;
+
 	return BIT(size) & sizes;
 }
 EXPORT_SYMBOL_GPL(pci_rebar_size_supported);

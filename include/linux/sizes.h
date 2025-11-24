@@ -67,5 +67,6 @@
 #define SZ_16T				_AC(0x100000000000, ULL)
 #define SZ_32T				_AC(0x200000000000, ULL)
 #define SZ_64T				_AC(0x400000000000, ULL)
+#define SZ_128T				_AC(0x800000000000, ULL)
 
 #endif /* __LINUX_SIZES_H__ */
