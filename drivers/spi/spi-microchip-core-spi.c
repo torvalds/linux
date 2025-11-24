@@ -295,10 +295,10 @@ static int mchp_corespi_transfer_one(struct spi_controller *host,
 
 static int mchp_corespi_probe(struct platform_device *pdev)
 {
+	const char *protocol = "motorola";
 	struct spi_controller *host;
 	struct mchp_corespi *spi;
 	struct resource *res;
-	const char *protocol;
 	u32 num_cs, mode, frame_size;
 	bool assert_ssel;
 	int ret = 0;
@@ -320,6 +320,8 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	 */
 	ret = of_property_read_string(pdev->dev.of_node, "microchip,protocol-configuration",
 				      &protocol);
+	if (ret && ret != -EINVAL)
+		return dev_err_probe(&pdev->dev, ret, "Error reading protocol-configuration\n");
 	if (strcmp(protocol, "motorola") != 0)
 		return dev_err_probe(&pdev->dev, -EINVAL,
 				     "CoreSPI: protocol '%s' not supported by this driver\n",
