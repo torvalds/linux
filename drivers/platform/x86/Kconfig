@@ -545,6 +545,7 @@ config MSI_WMI
 config MSI_WMI_PLATFORM
 	tristate "MSI WMI Platform features"
 	depends on ACPI_WMI
+	depends on DMI
 	depends on HWMON
 	help
 	  Say Y here if you want to have support for WMI-based platform features

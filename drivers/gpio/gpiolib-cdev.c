@@ -2548,8 +2548,15 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 		container_of(nb, struct gpio_chardev_data, lineinfo_changed_nb);
 	struct lineinfo_changed_ctx *ctx;
 	struct gpio_desc *desc = data;
+	struct file *fp;
 
 	if (!test_bit(gpio_chip_hwgpio(desc), cdev->watched_lines))
+		return NOTIFY_DONE;
+
+	/* Keep the file descriptor alive for the duration of the notification. */
+	fp = get_file_active(&cdev->fp);
+	if (!fp)
+		/* Chardev file descriptor was or is being released. */
 		return NOTIFY_DONE;
 
 	/*
@@ -2575,8 +2582,6 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 	/* Keep the GPIO device alive until we emit the event. */
 	ctx->gdev = gpio_device_get(desc->gdev);
 	ctx->cdev = cdev;
-	/* Keep the file descriptor alive too. */
-	get_file(ctx->cdev->fp);
 
 	INIT_WORK(&ctx->work, lineinfo_changed_func);
 	queue_work(ctx->gdev->line_state_wq, &ctx->work);

@@ -30,6 +30,11 @@ tfail()
 	do_test "tfail" false
 }
 
+tfail2()
+{
+	do_test "tfail2" false
+}
+
 txfail()
 {
 	FAIL_TO_XFAIL=yes do_test "txfail" false
@@ -132,6 +137,8 @@ test_ret()
 	ret_subtest $ksft_fail "tfail" txfail tfail
 
 	ret_subtest $ksft_xfail "txfail" txfail txfail
+
+	ret_subtest $ksft_fail "tfail2" tfail2 tfail
 }
 
 exit_status_tests_run()

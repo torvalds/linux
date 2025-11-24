@@ -324,10 +324,8 @@ err_xa:
 	free_irq(irq->map.virq, &irq->nh);
 err_req_irq:
 #ifdef CONFIG_RFS_ACCEL
-	if (i && rmap && *rmap) {
-		free_irq_cpu_rmap(*rmap);
-		*rmap = NULL;
-	}
+	if (i && rmap && *rmap)
+		irq_cpu_rmap_remove(*rmap, irq->map.virq);
 err_irq_rmap:
 #endif
 	if (i && pci_msix_can_alloc_dyn(dev->pdev))

@@ -282,7 +282,7 @@ static int airoha_ppe_foe_entry_prepare(struct airoha_eth *eth,
 			if (!airoha_is_valid_gdm_port(eth, port))
 				return -EINVAL;
 
-			if (dsa_port >= 0)
+			if (dsa_port >= 0 || eth->ports[1])
 				pse_port = port->id == 4 ? FE_PSE_PORT_GDM4
 							 : port->id;
 			else
