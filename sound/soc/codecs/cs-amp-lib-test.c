@@ -145,8 +145,6 @@ static void cs_amp_lib_test_cal_data_too_short_test(struct kunit *test)
 
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, 0, 0, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -EOVERFLOW);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /* Redirected get_efi_variable to simulate that the count is larger than the file */
@@ -189,8 +187,6 @@ static void cs_amp_lib_test_cal_count_too_big_test(struct kunit *test)
 
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, 0, 0, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -EOVERFLOW);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /* Redirected get_efi_variable to simulate that the variable not found */
@@ -217,8 +213,6 @@ static void cs_amp_lib_test_no_cal_data_test(struct kunit *test)
 
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, 0, 0, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -ENOENT);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /* Redirected get_efi_variable to simulate reading a cal data blob */
@@ -383,8 +377,6 @@ static void cs_amp_lib_test_get_efi_cal_by_uid_test(struct kunit *test)
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, target_uid, -1, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, 0);
 
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
-
 	KUNIT_EXPECT_EQ(test, result_data.calTarget[0], target_uid & 0xFFFFFFFFULL);
 	KUNIT_EXPECT_EQ(test, result_data.calTarget[1], target_uid >> 32);
 	KUNIT_EXPECT_EQ(test, result_data.calTime[0],
@@ -418,8 +410,6 @@ static void cs_amp_lib_test_get_efi_cal_by_index_unchecked_test(struct kunit *te
 					      param->amp_index, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, 0);
 
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
-
 	KUNIT_EXPECT_EQ(test, result_data.calTime[0],
 			      priv->cal_blob->data[param->amp_index].calTime[0]);
 	KUNIT_EXPECT_EQ(test, result_data.calTime[1],
@@ -452,8 +442,6 @@ static void cs_amp_lib_test_get_efi_cal_by_index_checked_test(struct kunit *test
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, target_uid,
 					      param->amp_index, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, 0);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 
 	KUNIT_EXPECT_EQ(test, result_data.calTime[0],
 			      priv->cal_blob->data[param->amp_index].calTime[0]);
@@ -491,8 +479,6 @@ static void cs_amp_lib_test_get_efi_cal_by_index_uid_mismatch_test(struct kunit 
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, target_uid,
 					      param->amp_index, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -ENOENT);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /*
@@ -523,8 +509,6 @@ static void cs_amp_lib_test_get_efi_cal_by_index_fallback_test(struct kunit *tes
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, bad_target_uid,
 					      param->amp_index, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, 0);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 
 	KUNIT_EXPECT_EQ(test, result_data.calTime[0],
 			      priv->cal_blob->data[param->amp_index].calTime[0]);
@@ -565,8 +549,6 @@ static void cs_amp_lib_test_get_efi_cal_uid_not_found_noindex_test(struct kunit 
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, bad_target_uid, -1,
 					      &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -ENOENT);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /*
@@ -596,8 +578,6 @@ static void cs_amp_lib_test_get_efi_cal_uid_not_found_index_not_found_test(struc
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, bad_target_uid, 99,
 					      &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -ENOENT);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /*
@@ -619,8 +599,6 @@ static void cs_amp_lib_test_get_efi_cal_no_uid_index_not_found_test(struct kunit
 
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, 0, 99, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -ENOENT);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /* If neither the target UID or the index is given the result should be -ENOENT. */
@@ -639,8 +617,6 @@ static void cs_amp_lib_test_get_efi_cal_no_uid_no_index_test(struct kunit *test)
 
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, 0, -1, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -ENOENT);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /*
@@ -668,8 +644,6 @@ static void cs_amp_lib_test_get_efi_cal_zero_not_matched_test(struct kunit *test
 
 	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, 0, -1, &result_data);
 	KUNIT_EXPECT_EQ(test, ret, -ENOENT);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 /*
@@ -711,8 +685,6 @@ static void cs_amp_lib_test_get_efi_cal_empty_entry_test(struct kunit *test)
 							0, 2,
 							&result_data),
 			-ENOENT);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
 static const struct cirrus_amp_cal_controls cs_amp_lib_test_calibration_controls = {
@@ -768,9 +740,6 @@ static void cs_amp_lib_test_write_cal_data_test(struct kunit *test)
 
 	ret = cs_amp_write_cal_coeffs(dsp, &cs_amp_lib_test_calibration_controls, &data);
 	KUNIT_EXPECT_EQ(test, ret, 0);
-
-	kunit_deactivate_static_stub(test, cs_amp_test_hooks->write_cal_coeff);
-
 	KUNIT_EXPECT_EQ(test, list_count_nodes(&priv->ctl_write_list), 4);
 
 	/* Checksum control must be written last */
