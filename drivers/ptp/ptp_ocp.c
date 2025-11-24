@@ -25,8 +25,7 @@
 #include <linux/crc16.h>
 #include <linux/dpll.h>
 
-#define PCI_VENDOR_ID_FACEBOOK			0x1d9b
-#define PCI_DEVICE_ID_FACEBOOK_TIMECARD		0x0400
+#define PCI_DEVICE_ID_META_TIMECARD		0x0400
 
 #define PCI_VENDOR_ID_CELESTICA			0x18d4
 #define PCI_DEVICE_ID_CELESTICA_TIMECARD	0x1008
@@ -1030,7 +1029,7 @@ static struct ocp_resource ocp_adva_resource[] = {
 };
 
 static const struct pci_device_id ptp_ocp_pcidev_id[] = {
-	{ PCI_DEVICE_DATA(FACEBOOK, TIMECARD, &ocp_fb_resource) },
+	{ PCI_DEVICE_DATA(META, TIMECARD, &ocp_fb_resource) },
 	{ PCI_DEVICE_DATA(CELESTICA, TIMECARD, &ocp_fb_resource) },
 	{ PCI_DEVICE_DATA(OROLIA, ARTCARD, &ocp_art_resource) },
 	{ PCI_DEVICE_DATA(ADVA, TIMECARD, &ocp_adva_resource) },
