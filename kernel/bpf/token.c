@@ -110,16 +110,15 @@ const struct file_operations bpf_token_fops = {
 
 int bpf_token_create(union bpf_attr *attr)
 {
+	struct bpf_token *token __free(kfree) = NULL;
 	struct bpf_mount_opts *mnt_opts;
-	struct bpf_token *token = NULL;
 	struct user_namespace *userns;
 	struct inode *inode;
-	struct file *file;
 	CLASS(fd, f)(attr->token_create.bpffs_fd);
 	struct path path;
 	struct super_block *sb;
 	umode_t mode;
-	int err, fd;
+	int err;
 
 	if (fd_empty(f))
 		return -EBADF;
@@ -166,23 +165,20 @@ int bpf_token_create(union bpf_attr *attr)
 	inode->i_fop = &bpf_token_fops;
 	clear_nlink(inode); /* make sure it is unlinked */
 
-	file = alloc_file_pseudo(inode, path.mnt, BPF_TOKEN_INODE_NAME, O_RDWR, &bpf_token_fops);
-	if (IS_ERR(file)) {
-		iput(inode);
-		return PTR_ERR(file);
-	}
+	FD_PREPARE(fdf, O_CLOEXEC,
+		   alloc_file_pseudo(inode, path.mnt, BPF_TOKEN_INODE_NAME,
+				     O_RDWR, &bpf_token_fops));
+	if (fdf.err)
+		return fdf.err;
 
 	token = kzalloc(sizeof(*token), GFP_USER);
-	if (!token) {
-		err = -ENOMEM;
-		goto out_file;
-	}
+	if (!token)
+		return -ENOMEM;
 
 	atomic64_set(&token->refcnt, 1);
 
-	/* remember bpffs owning userns for future ns_capable() checks */
-	token->userns = get_user_ns(userns);
-
+	/* remember bpffs owning userns for future ns_capable() checks. */
+	token->userns = userns;
 	token->allowed_cmds = mnt_opts->delegate_cmds;
 	token->allowed_maps = mnt_opts->delegate_maps;
 	token->allowed_progs = mnt_opts->delegate_progs;
@@ -190,24 +186,11 @@ int bpf_token_create(union bpf_attr *attr)
 
 	err = security_bpf_token_create(token, attr, &path);
 	if (err)
-		goto out_token;
+		return err;
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0) {
-		err = fd;
-		goto out_token;
-	}
-
-	file->private_data = token;
-	fd_install(fd, file);
-
-	return fd;
-
-out_token:
-	bpf_token_free(token);
-out_file:
-	fput(file);
-	return err;
+	get_user_ns(token->userns);
+	fd_prepare_file(fdf)->private_data = no_free_ptr(token);
+	return fd_publish(fdf);
 }
 
 int bpf_token_get_info_by_fd(struct bpf_token *token,

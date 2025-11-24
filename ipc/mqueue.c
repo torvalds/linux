@@ -892,14 +892,35 @@ static int prepare_open(struct dentry *dentry, int oflag, int ro,
 	return inode_permission(&nop_mnt_idmap, d_inode(dentry), acc);
 }
 
+static struct file *mqueue_file_open(struct filename *name,
+				     struct vfsmount *mnt, int oflag, bool ro,
+				     umode_t mode, struct mq_attr *attr)
+{
+	struct path path __free(path_put) = {};
+	struct dentry *dentry;
+	int ret;
+
+	dentry = lookup_noperm(&QSTR(name->name), mnt->mnt_root);
+	if (IS_ERR(dentry))
+		return ERR_CAST(dentry);
+
+	path.dentry = dentry;
+	path.mnt = mntget(mnt);
+
+	ret = prepare_open(path.dentry, oflag, ro, mode, name, attr);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return dentry_open(&path, oflag, current_cred());
+}
+
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		      struct mq_attr *attr)
 {
+	struct filename *name __free(putname) = NULL;;
 	struct vfsmount *mnt = current->nsproxy->ipc_ns->mq_mnt;
 	struct dentry *root = mnt->mnt_root;
-	struct filename *name;
-	struct path path;
-	int fd, error;
+	int fd;
 	int ro;
 
 	audit_mq_open(oflag, mode, attr);
@@ -908,37 +929,12 @@ static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0)
-		goto out_putname;
-
 	ro = mnt_want_write(mnt);	/* we'll drop it in any case */
 	inode_lock(d_inode(root));
-	path.dentry = lookup_noperm(&QSTR(name->name), root);
-	if (IS_ERR(path.dentry)) {
-		error = PTR_ERR(path.dentry);
-		goto out_putfd;
-	}
-	path.mnt = mntget(mnt);
-	error = prepare_open(path.dentry, oflag, ro, mode, name, attr);
-	if (!error) {
-		struct file *file = dentry_open(&path, oflag, current_cred());
-		if (!IS_ERR(file))
-			fd_install(fd, file);
-		else
-			error = PTR_ERR(file);
-	}
-	path_put(&path);
-out_putfd:
-	if (error) {
-		put_unused_fd(fd);
-		fd = error;
-	}
+	fd = FD_ADD(O_CLOEXEC, mqueue_file_open(name, mnt, oflag, ro, mode, attr));
 	inode_unlock(d_inode(root));
 	if (!ro)
 		mnt_drop_write(mnt);
-out_putname:
-	putname(name);
 	return fd;
 }
 

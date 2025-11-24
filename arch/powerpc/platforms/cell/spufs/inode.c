@@ -267,22 +267,11 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 
 static int spufs_context_open(const struct path *path)
 {
-	int ret;
-	struct file *filp;
-
-	ret = get_unused_fd_flags(0);
-	if (ret < 0)
-		return ret;
-
-	filp = dentry_open(path, O_RDONLY, current_cred());
-	if (IS_ERR(filp)) {
-		put_unused_fd(ret);
-		return PTR_ERR(filp);
-	}
-
-	filp->f_op = &spufs_context_fops;
-	fd_install(ret, filp);
-	return ret;
+	FD_PREPARE(fdf, 0, dentry_open(path, O_RDONLY, current_cred()));
+	if (fdf.err)
+		return fdf.err;
+	fd_prepare_file(fdf)->f_op = &spufs_context_fops;
+	return fd_publish(fdf);
 }
 
 static struct spu_context *
@@ -508,26 +497,15 @@ static const struct file_operations spufs_gang_fops = {
 
 static int spufs_gang_open(const struct path *path)
 {
-	int ret;
-	struct file *filp;
-
-	ret = get_unused_fd_flags(0);
-	if (ret < 0)
-		return ret;
-
 	/*
 	 * get references for dget and mntget, will be released
 	 * in error path of *_open().
 	 */
-	filp = dentry_open(path, O_RDONLY, current_cred());
-	if (IS_ERR(filp)) {
-		put_unused_fd(ret);
-		return PTR_ERR(filp);
-	}
-
-	filp->f_op = &spufs_gang_fops;
-	fd_install(ret, filp);
-	return ret;
+	FD_PREPARE(fdf, 0, dentry_open(path, O_RDONLY, current_cred()));
+	if (fdf.err)
+		return fdf.err;
+	fd_prepare_file(fdf)->f_op = &spufs_gang_fops;
+	return fd_publish(fdf);
 }
 
 static int spufs_create_gang(struct inode *inode,
