@@ -77,19 +77,13 @@ struct amdgpu_usermode_queue {
 };
 
 struct amdgpu_userq_funcs {
-	int (*mqd_create)(struct amdgpu_userq_mgr *uq_mgr,
-			  struct drm_amdgpu_userq_in *args,
-			  struct amdgpu_usermode_queue *queue);
-	void (*mqd_destroy)(struct amdgpu_userq_mgr *uq_mgr,
-			    struct amdgpu_usermode_queue *uq);
-	int (*unmap)(struct amdgpu_userq_mgr *uq_mgr,
-		     struct amdgpu_usermode_queue *queue);
-	int (*map)(struct amdgpu_userq_mgr *uq_mgr,
-		   struct amdgpu_usermode_queue *queue);
-	int (*preempt)(struct amdgpu_userq_mgr *uq_mgr,
-		   struct amdgpu_usermode_queue *queue);
-	int (*restore)(struct amdgpu_userq_mgr *uq_mgr,
-		   struct amdgpu_usermode_queue *queue);
+	int (*mqd_create)(struct amdgpu_usermode_queue *queue,
+			  struct drm_amdgpu_userq_in *args);
+	void (*mqd_destroy)(struct amdgpu_usermode_queue *uq);
+	int (*unmap)(struct amdgpu_usermode_queue *queue);
+	int (*map)(struct amdgpu_usermode_queue *queue);
+	int (*preempt)(struct amdgpu_usermode_queue *queue);
+	int (*restore)(struct amdgpu_usermode_queue *queue);
 	int (*detect_and_reset)(struct amdgpu_device *adev,
 		  int queue_type);
 };

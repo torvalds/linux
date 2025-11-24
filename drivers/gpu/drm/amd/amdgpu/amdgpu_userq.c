@@ -283,7 +283,7 @@ amdgpu_userq_preempt_helper(struct amdgpu_userq_mgr *uq_mgr,
 	int r = 0;
 
 	if (queue->state == AMDGPU_USERQ_STATE_MAPPED) {
-		r = userq_funcs->preempt(uq_mgr, queue);
+		r = userq_funcs->preempt(queue);
 		if (r) {
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
 			found_hung_queue = true;
@@ -308,7 +308,7 @@ amdgpu_userq_restore_helper(struct amdgpu_userq_mgr *uq_mgr,
 	int r = 0;
 
 	if (queue->state == AMDGPU_USERQ_STATE_PREEMPTED) {
-		r = userq_funcs->restore(uq_mgr, queue);
+		r = userq_funcs->restore(queue);
 		if (r) {
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
 		} else {
@@ -331,7 +331,7 @@ amdgpu_userq_unmap_helper(struct amdgpu_userq_mgr *uq_mgr,
 
 	if ((queue->state == AMDGPU_USERQ_STATE_MAPPED) ||
 		(queue->state == AMDGPU_USERQ_STATE_PREEMPTED)) {
-		r = userq_funcs->unmap(uq_mgr, queue);
+		r = userq_funcs->unmap(queue);
 		if (r) {
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
 			found_hung_queue = true;
@@ -356,7 +356,7 @@ amdgpu_userq_map_helper(struct amdgpu_userq_mgr *uq_mgr,
 	int r = 0;
 
 	if (queue->state == AMDGPU_USERQ_STATE_UNMAPPED) {
-		r = userq_funcs->map(uq_mgr, queue);
+		r = userq_funcs->map(queue);
 		if (r) {
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
 			amdgpu_userq_detect_and_reset_queues(uq_mgr);
@@ -401,7 +401,7 @@ amdgpu_userq_cleanup(struct amdgpu_userq_mgr *uq_mgr,
 
 	/* Drop the userq reference. */
 	amdgpu_userq_buffer_vas_list_cleanup(adev, queue);
-	uq_funcs->mqd_destroy(uq_mgr, queue);
+	uq_funcs->mqd_destroy(queue);
 	amdgpu_userq_fence_driver_free(queue);
 	/* Use interrupt-safe locking since IRQ handlers may access these XArrays */
 	xa_erase_irq(&uq_mgr->userq_mgr_xa, (unsigned long)queue_id);
@@ -730,6 +730,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	db_info.db_obj = &queue->db_obj;
 	db_info.doorbell_offset = args->in.doorbell_offset;
 
+	queue->userq_mgr = uq_mgr;
 	/* Validate the userq virtual address.*/
 	if (amdgpu_userq_input_va_validate(adev, queue, args->in.queue_va, args->in.queue_size) ||
 	    amdgpu_userq_input_va_validate(adev, queue, args->in.rptr_va, AMDGPU_GPU_PAGE_SIZE) ||
@@ -756,7 +757,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		goto unlock;
 	}
 
-	r = uq_funcs->mqd_create(uq_mgr, &args->in, queue);
+	r = uq_funcs->mqd_create(queue, &args->in);
 	if (r) {
 		drm_file_err(uq_mgr->file, "Failed to create Queue\n");
 		amdgpu_userq_fence_driver_free(queue);
@@ -777,14 +778,13 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	if (r) {
 		drm_file_err(uq_mgr->file, "Failed to allocate a queue id\n");
 		amdgpu_userq_fence_driver_free(queue);
-		uq_funcs->mqd_destroy(uq_mgr, queue);
+		uq_funcs->mqd_destroy(queue);
 		kfree(queue);
 		r = -ENOMEM;
 		up_read(&adev->reset_domain->sem);
 		goto unlock;
 	}
 	up_read(&adev->reset_domain->sem);
-	queue->userq_mgr = uq_mgr;
 
 	/* don't map the queue if scheduling is halted */
 	if (adev->userq_halt_for_enforce_isolation &&
@@ -799,7 +799,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 			drm_file_err(uq_mgr->file, "Failed to map Queue\n");
 			xa_erase(&uq_mgr->userq_mgr_xa, qid);
 			amdgpu_userq_fence_driver_free(queue);
-			uq_funcs->mqd_destroy(uq_mgr, queue);
+			uq_funcs->mqd_destroy(queue);
 			kfree(queue);
 			goto unlock;
 		}
@@ -1442,7 +1442,7 @@ void amdgpu_userq_pre_reset(struct amdgpu_device *adev)
 		if (queue->state == AMDGPU_USERQ_STATE_MAPPED) {
 			amdgpu_userq_wait_for_last_fence(uqm, queue);
 			userq_funcs = adev->userq_funcs[queue->queue_type];
-			userq_funcs->unmap(uqm, queue);
+			userq_funcs->unmap(queue);
 			/* just mark all queues as hung at this point.
 			 * if unmap succeeds, we could map again
 			 * in amdgpu_userq_post_reset() if vram is not lost
@@ -1459,18 +1459,16 @@ int amdgpu_userq_post_reset(struct amdgpu_device *adev, bool vram_lost)
 	 * at this point, we should be able to map it again
 	 * and continue if vram is not lost.
 	 */
-	struct amdgpu_userq_mgr *uqm;
 	struct amdgpu_usermode_queue *queue;
 	const struct amdgpu_userq_funcs *userq_funcs;
 	unsigned long queue_id;
 	int r = 0;
 
 	xa_for_each(&adev->userq_doorbell_xa, queue_id, queue) {
-		uqm = queue->userq_mgr;
 		if (queue->state == AMDGPU_USERQ_STATE_HUNG && !vram_lost) {
 			userq_funcs = adev->userq_funcs[queue->queue_type];
 			/* Re-map queue */
-			r = userq_funcs->map(uqm, queue);
+			r = userq_funcs->map(queue);
 			if (r) {
 				dev_err(adev->dev, "Failed to remap queue %ld\n", queue_id);
 				continue;

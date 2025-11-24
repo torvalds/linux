@@ -113,9 +113,9 @@ static int convert_to_mes_priority(int priority)
 	}
 }
 
-static int mes_userq_map(struct amdgpu_userq_mgr *uq_mgr,
-			 struct amdgpu_usermode_queue *queue)
+static int mes_userq_map(struct amdgpu_usermode_queue *queue)
 {
+	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct amdgpu_userq_obj *ctx = &queue->fw_obj;
 	struct amdgpu_mqd_prop *userq_props = queue->userq_prop;
@@ -158,9 +158,9 @@ static int mes_userq_map(struct amdgpu_userq_mgr *uq_mgr,
 	return 0;
 }
 
-static int mes_userq_unmap(struct amdgpu_userq_mgr *uq_mgr,
-			   struct amdgpu_usermode_queue *queue)
+static int mes_userq_unmap(struct amdgpu_usermode_queue *queue)
 {
+	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct mes_remove_queue_input queue_input;
 	struct amdgpu_userq_obj *ctx = &queue->fw_obj;
@@ -252,10 +252,10 @@ static int mes_userq_detect_and_reset(struct amdgpu_device *adev,
 	return r;
 }
 
-static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
-				struct drm_amdgpu_userq_in *args_in,
-				struct amdgpu_usermode_queue *queue)
+static int mes_userq_mqd_create(struct amdgpu_usermode_queue *queue,
+				struct drm_amdgpu_userq_in *args_in)
 {
+	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct amdgpu_mqd *mqd_hw_default = &adev->mqds[queue->queue_type];
 	struct drm_amdgpu_userq_in *mqd_user = args_in;
@@ -412,18 +412,18 @@ free_props:
 	return r;
 }
 
-static void
-mes_userq_mqd_destroy(struct amdgpu_userq_mgr *uq_mgr,
-		      struct amdgpu_usermode_queue *queue)
+static void mes_userq_mqd_destroy(struct amdgpu_usermode_queue *queue)
 {
+	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
+
 	amdgpu_userq_destroy_object(uq_mgr, &queue->fw_obj);
 	kfree(queue->userq_prop);
 	amdgpu_userq_destroy_object(uq_mgr, &queue->mqd);
 }
 
-static int mes_userq_preempt(struct amdgpu_userq_mgr *uq_mgr,
-				struct amdgpu_usermode_queue *queue)
+static int mes_userq_preempt(struct amdgpu_usermode_queue *queue)
 {
+	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct mes_suspend_gang_input queue_input;
 	struct amdgpu_userq_obj *ctx = &queue->fw_obj;
@@ -467,9 +467,9 @@ out:
 	return r;
 }
 
-static int mes_userq_restore(struct amdgpu_userq_mgr *uq_mgr,
-				struct amdgpu_usermode_queue *queue)
+static int mes_userq_restore(struct amdgpu_usermode_queue *queue)
 {
+	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct mes_resume_gang_input queue_input;
 	struct amdgpu_userq_obj *ctx = &queue->fw_obj;
