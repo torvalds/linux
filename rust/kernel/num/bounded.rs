@@ -218,11 +218,11 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// use kernel::num::{Bounded, TryIntoBounded};
 ///
 /// // Succeeds because `128` fits into 8 bits.
-/// let v: Option<Bounded<u16, 8>> = 128u32.try_into_bitint();
+/// let v: Option<Bounded<u16, 8>> = 128u32.try_into_bounded();
 /// assert_eq!(v.as_deref().copied(), Some(128));
 ///
 /// // Fails because `128` doesn't fits into 6 bits.
-/// let v: Option<Bounded<u16, 6>> = 128u32.try_into_bitint();
+/// let v: Option<Bounded<u16, 6>> = 128u32.try_into_bounded();
 /// assert_eq!(v, None);
 /// ```
 #[repr(transparent)]
@@ -498,18 +498,18 @@ where
 /// use kernel::num::{Bounded, TryIntoBounded};
 ///
 /// // Succeeds because `128` fits into 8 bits.
-/// let v: Option<Bounded<u16, 8>> = 128u32.try_into_bitint();
+/// let v: Option<Bounded<u16, 8>> = 128u32.try_into_bounded();
 /// assert_eq!(v.as_deref().copied(), Some(128));
 ///
 /// // Fails because `128` doesn't fits into 6 bits.
-/// let v: Option<Bounded<u16, 6>> = 128u32.try_into_bitint();
+/// let v: Option<Bounded<u16, 6>> = 128u32.try_into_bounded();
 /// assert_eq!(v, None);
 /// ```
 pub trait TryIntoBounded<T: Integer, const N: u32> {
     /// Attempts to convert `self` into a [`Bounded`] using `N` bits.
     ///
     /// Returns [`None`] if `self` does not fit into the target type.
-    fn try_into_bitint(self) -> Option<Bounded<T, N>>;
+    fn try_into_bounded(self) -> Option<Bounded<T, N>>;
 }
 
 /// Any integer value can be attempted to be converted into a [`Bounded`] of any size.
@@ -518,7 +518,7 @@ where
     T: Integer,
     U: TryInto<T>,
 {
-    fn try_into_bitint(self) -> Option<Bounded<T, N>> {
+    fn try_into_bounded(self) -> Option<Bounded<T, N>> {
         self.try_into().ok().and_then(Bounded::try_new)
     }
 }
