@@ -1930,6 +1930,7 @@ static struct capabilities hw_capabilities(struct hw *hw)
 
 	cap.digit_io_switch = 0;
 	cap.dedicated_mic = hw->model == CTSB1270;
+	cap.dedicated_rca = 0;
 	cap.output_switch = hw->model == CTSB1270;
 	cap.mic_source_switch = hw->model == CTSB1270;
 

@@ -82,6 +82,8 @@ struct ct_atc {
 	const char *chip_name;
 	const char *model_name;
 
+	unsigned char rca_state; /* 0 = dedicated RCA, 1 = 7.1ch Front */
+
 	struct ct_vm *vm; /* device virtual memory manager for this card */
 	int (*map_audio_buffer)(struct ct_atc *atc, struct ct_atc_pcm *apcm);
 	void (*unmap_audio_buffer)(struct ct_atc *atc, struct ct_atc_pcm *apcm);
@@ -113,12 +115,14 @@ struct ct_atc {
 	int (*line_rear_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*line_in_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*mic_unmute)(struct ct_atc *atc, unsigned char state);
+	int (*rca_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*spdif_out_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*spdif_in_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*spdif_out_get_status)(struct ct_atc *atc, unsigned int *status);
 	int (*spdif_out_set_status)(struct ct_atc *atc, unsigned int status);
 	int (*spdif_out_passthru)(struct ct_atc *atc, unsigned char state);
 	struct capabilities (*capabilities)(struct ct_atc *atc);
+	void (*dedicated_rca_select)(struct ct_atc *atc);
 	int (*output_switch_get)(struct ct_atc *atc);
 	int (*output_switch_put)(struct ct_atc *atc, int position);
 	int (*mic_source_switch_get)(struct ct_atc *atc);

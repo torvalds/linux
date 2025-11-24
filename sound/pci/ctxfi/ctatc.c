@@ -987,6 +987,24 @@ static struct capabilities atc_capabilities(struct ct_atc *atc)
 	return hw->capabilities(hw);
 }
 
+static void atc_dedicated_rca_select(struct ct_atc *atc)
+{
+	struct dao *dao;
+	struct ct_mixer *mixer = atc->mixer;
+	struct rsc *rscs[2] = {NULL};
+
+	dao = container_of(atc->daios[atc->rca_state ? RCA : LINEO1],
+		struct dao, daio);
+	dao->ops->clear_left_input(dao);
+	dao->ops->clear_right_input(dao);
+
+	mixer->get_output_ports(mixer, MIX_WAVE_FRONT, &rscs[0], &rscs[1]);
+	dao = container_of(atc->daios[atc->rca_state ? LINEO1 : RCA],
+		struct dao, daio);
+	dao->ops->set_left_input(dao, rscs[0]);
+	dao->ops->set_right_input(dao, rscs[1]);
+}
+
 static int atc_output_switch_get(struct ct_atc *atc)
 {
 	struct hw *hw = atc->hw;
@@ -1086,6 +1104,11 @@ static int atc_line_in_unmute(struct ct_atc *atc, unsigned char state)
 static int atc_mic_unmute(struct ct_atc *atc, unsigned char state)
 {
 	return atc_daio_unmute(atc, state, MIC);
+}
+
+static int atc_rca_unmute(struct ct_atc *atc, unsigned char state)
+{
+	return atc_daio_unmute(atc, state, RCA);
 }
 
 static int atc_spdif_out_unmute(struct ct_atc *atc, unsigned char state)
@@ -1303,6 +1326,7 @@ static int atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 	dev_info(atc->card->dev, "chip %s model %s (%04x:%04x) is found\n",
 		   atc->chip_name, atc->model_name,
 		   vendor_id, device_id);
+	atc->rca_state = 0;
 	return 0;
 }
 
@@ -1400,11 +1424,11 @@ static int atc_get_resources(struct ct_atc *atc)
 	daio_mgr = (struct daio_mgr *)atc->rsc_mgrs[DAIO];
 	da_desc.msr = atc->msr;
 	for (i = 0; i < NUM_DAIOTYP; i++) {
-		if ((i == MIC) && !cap.dedicated_mic)
+		if (((i == MIC) && !cap.dedicated_mic) || ((i == RCA) && !cap.dedicated_rca))
 			continue;
 		da_desc.type = (atc->model != CTSB073X) ? i :
 			     ((i == SPDIFIO) ? SPDIFI1 : i);
-		da_desc.output = i < LINEIM;
+		da_desc.output = (i < LINEIM) || (i == RCA);
 		err = daio_mgr->get_daio(daio_mgr, &da_desc,
 					(struct daio **)&atc->daios[i]);
 		if (err) {
@@ -1510,6 +1534,9 @@ static void atc_connect_resources(struct ct_atc *atc)
 		dao->ops->set_left_input(dao, rscs[0]);
 		dao->ops->set_right_input(dao, rscs[1]);
 	}
+
+	if (cap.dedicated_rca)
+		atc_dedicated_rca_select(atc);
 
 	dai = container_of(atc->daios[LINEIM], struct dai, daio);
 	atc_connect_dai(atc->rsc_mgrs[SRC], dai,
@@ -1643,12 +1670,14 @@ static const struct ct_atc atc_preset = {
 	.line_rear_unmute = atc_line_rear_unmute,
 	.line_in_unmute = atc_line_in_unmute,
 	.mic_unmute = atc_mic_unmute,
+	.rca_unmute = atc_rca_unmute,
 	.spdif_out_unmute = atc_spdif_out_unmute,
 	.spdif_in_unmute = atc_spdif_in_unmute,
 	.spdif_out_get_status = atc_spdif_out_get_status,
 	.spdif_out_set_status = atc_spdif_out_set_status,
 	.spdif_out_passthru = atc_spdif_out_passthru,
 	.capabilities = atc_capabilities,
+	.dedicated_rca_select = atc_dedicated_rca_select,
 	.output_switch_get = atc_output_switch_get,
 	.output_switch_put = atc_output_switch_put,
 	.mic_source_switch_get = atc_mic_source_switch_get,

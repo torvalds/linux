@@ -45,6 +45,7 @@ static const struct daio_rsc_idx idx_20k2[NUM_DAIOTYP] = {
 	[LINEO4] = {.left = 0x70, .right = 0x71},
 	[LINEIM] = {.left = 0x45, .right = 0xc5},
 	[MIC]	 = {.left = 0x55, .right = 0xd5},
+	[RCA]	 = {.left = 0x30, .right = 0x31},
 	[SPDIFOO] = {.left = 0x00, .right = 0x01},
 	[SPDIFIO] = {.left = 0x05, .right = 0x85},
 };
@@ -123,6 +124,7 @@ static unsigned int daio_device_index(enum DAIOTYP type, struct hw *hw)
 		case LINEO4:	return 6;
 		case LINEIM:	return 4;
 		case MIC:	return 5;
+		case RCA:	return 3;
 		default:	return -EINVAL;
 		}
 	default:

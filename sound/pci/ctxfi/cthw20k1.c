@@ -1775,6 +1775,7 @@ static struct capabilities hw_capabilities(struct hw *hw)
 	/* SB073x and Vista compatible cards have no digit IO switch */
 	cap.digit_io_switch = !(hw->model == CTSB073X || hw->model == CTUAA);
 	cap.dedicated_mic = 0;
+	cap.dedicated_rca = 0;
 	cap.output_switch = 0;
 	cap.mic_source_switch = 0;
 
