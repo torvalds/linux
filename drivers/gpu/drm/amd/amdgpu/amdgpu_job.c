@@ -224,6 +224,7 @@ err_fence:
 	kfree((*job)->hw_fence);
 err_job:
 	kfree(*job);
+	*job = NULL;
 
 	return r;
 }
@@ -246,6 +247,7 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev,
 		if (entity)
 			drm_sched_job_cleanup(&(*job)->base);
 		kfree(*job);
+		*job = NULL;
 	}
 
 	return r;
