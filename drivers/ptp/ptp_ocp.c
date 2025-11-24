@@ -3250,20 +3250,16 @@ signal_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 	struct ptp_ocp *bp = dev_get_drvdata(dev);
 	struct ptp_ocp_signal *signal;
+	int gen = (uintptr_t)ea->var;
 	struct timespec64 ts;
-	ssize_t count;
-	int i;
 
-	i = (uintptr_t)ea->var;
-	signal = &bp->signal[i];
-
-	count = sysfs_emit(buf, "%llu %d %llu %d", signal->period,
-			   signal->duty, signal->phase, signal->polarity);
+	signal = &bp->signal[gen];
 
 	ts = ktime_to_timespec64(signal->start);
-	count += sysfs_emit_at(buf, count, " %ptT TAI\n", &ts);
 
-	return count;
+	return sysfs_emit(buf, "%llu %d %llu %d %ptT TAI\n",
+			  signal->period, signal->duty, signal->phase, signal->polarity,
+			  &ts.tv_sec);
 }
 static EXT_ATTR_RW(signal, signal, 0);
 static EXT_ATTR_RW(signal, signal, 1);
