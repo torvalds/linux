@@ -124,7 +124,6 @@ int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
 }
 
 struct s2_walk_info {
-	void	     *data;
 	u64	     baddr;
 	unsigned int max_oa_bits;
 	unsigned int pgshift;
@@ -198,10 +197,8 @@ static int check_output_size(struct s2_walk_info *wi, phys_addr_t output)
 	return 0;
 }
 
-static int read_guest_s2_desc(phys_addr_t pa, u64 *desc, void *data)
+static int read_guest_s2_desc(struct kvm_vcpu *vcpu, phys_addr_t pa, u64 *desc)
 {
-	struct kvm_vcpu *vcpu = data;
-
 	return kvm_read_guest(vcpu->kvm, pa, desc, sizeof(*desc));
 }
 
@@ -212,7 +209,7 @@ static int read_guest_s2_desc(phys_addr_t pa, u64 *desc, void *data)
  *
  * Must be called with the kvm->srcu read lock held
  */
-static int walk_nested_s2_pgd(phys_addr_t ipa,
+static int walk_nested_s2_pgd(struct kvm_vcpu *vcpu, phys_addr_t ipa,
 			      struct s2_walk_info *wi, struct kvm_s2_trans *out)
 {
 	int first_block_level, level, stride, input_size, base_lower_bound;
@@ -263,7 +260,7 @@ static int walk_nested_s2_pgd(phys_addr_t ipa,
 			>> (addr_bottom - 3);
 
 		paddr = base_addr | index;
-		ret = read_guest_s2_desc(paddr, &desc, wi->data);
+		ret = read_guest_s2_desc(vcpu, paddr, &desc);
 		if (ret < 0)
 			return ret;
 
@@ -363,14 +360,13 @@ int kvm_walk_nested_s2(struct kvm_vcpu *vcpu, phys_addr_t gipa,
 	if (!vcpu_has_nv(vcpu))
 		return 0;
 
-	wi.data = vcpu;
 	wi.baddr = vcpu_read_sys_reg(vcpu, VTTBR_EL2);
 
 	vtcr_to_walk_info(vtcr, &wi);
 
 	wi.be = vcpu_read_sys_reg(vcpu, SCTLR_EL2) & SCTLR_ELx_EE;
 
-	ret = walk_nested_s2_pgd(gipa, &wi, result);
+	ret = walk_nested_s2_pgd(vcpu, gipa, &wi, result);
 	if (ret)
 		result->esr |= (kvm_vcpu_get_esr(vcpu) & ~ESR_ELx_FSC);
 
