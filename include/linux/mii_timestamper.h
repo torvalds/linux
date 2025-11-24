@@ -29,6 +29,8 @@ struct phy_device;
  *
  * @hwtstamp_set: Handles SIOCSHWTSTAMP ioctl for hardware time stamping.
  *
+ * @hwtstamp_get: Handles SIOCGHWTSTAMP ioctl for hardware time stamping.
+ *
  * @link_state: Allows the device to respond to changes in the link
  *		state.  The caller invokes this function while holding
  *		the phy_device mutex.
@@ -54,6 +56,9 @@ struct mii_timestamper {
 	int  (*hwtstamp_set)(struct mii_timestamper *mii_ts,
 			     struct kernel_hwtstamp_config *kernel_config,
 			     struct netlink_ext_ack *extack);
+
+	int  (*hwtstamp_get)(struct mii_timestamper *mii_ts,
+			     struct kernel_hwtstamp_config *kernel_config);
 
 	void (*link_state)(struct mii_timestamper *mii_ts,
 			   struct phy_device *phydev);
