@@ -181,7 +181,7 @@ static void cache_info_init_default(struct pcache_cache *cache)
 {
 	struct pcache_cache_info *cache_info = &cache->cache_info;
 
-	cache_info->header.seq = 0;
+	memset(cache_info, 0, sizeof(*cache_info));
 	cache_info->n_segs = cache->cache_dev->seg_num;
 	cache_info_set_gc_percent(cache_info, PCACHE_CACHE_GC_PERCENT_DEFAULT);
 }
@@ -411,7 +411,7 @@ void pcache_cache_stop(struct dm_pcache *pcache)
 {
 	struct pcache_cache *cache = &pcache->cache;
 
-	cache_flush(cache);
+	pcache_cache_flush(cache);
 
 	cancel_delayed_work_sync(&cache->gc_work);
 	flush_work(&cache->clean_work);
