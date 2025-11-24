@@ -358,27 +358,13 @@ xfs_reinit_inode(
 static int
 xfs_iget_recycle(
 	struct xfs_perag	*pag,
-	struct xfs_inode	*ip) __releases(&ip->i_flags_lock)
+	struct xfs_inode	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct inode		*inode = VFS_I(ip);
 	int			error;
 
 	trace_xfs_iget_recycle(ip);
-
-	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
-		return -EAGAIN;
-
-	/*
-	 * We need to make it look like the inode is being reclaimed to prevent
-	 * the actual reclaim workers from stomping over us while we recycle
-	 * the inode.  We can't clear the radix tree tag yet as it requires
-	 * pag_ici_lock to be held exclusive.
-	 */
-	ip->i_flags |= XFS_IRECLAIM;
-
-	spin_unlock(&ip->i_flags_lock);
-	rcu_read_unlock();
 
 	ASSERT(!rwsem_is_locked(&inode->i_rwsem));
 	error = xfs_reinit_inode(mp, inode);
@@ -576,10 +562,19 @@ xfs_iget_cache_hit(
 
 	/* The inode fits the selection criteria; process it. */
 	if (ip->i_flags & XFS_IRECLAIMABLE) {
-		/* Drops i_flags_lock and RCU read lock. */
-		error = xfs_iget_recycle(pag, ip);
-		if (error == -EAGAIN)
+		/*
+		 * We need to make it look like the inode is being reclaimed to
+		 * prevent the actual reclaim workers from stomping over us
+		 * while we recycle the inode.  We can't clear the radix tree
+		 * tag yet as it requires pag_ici_lock to be held exclusive.
+		 */
+		if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
 			goto out_skip;
+		ip->i_flags |= XFS_IRECLAIM;
+		spin_unlock(&ip->i_flags_lock);
+		rcu_read_unlock();
+
+		error = xfs_iget_recycle(pag, ip);
 		if (error)
 			return error;
 	} else {
