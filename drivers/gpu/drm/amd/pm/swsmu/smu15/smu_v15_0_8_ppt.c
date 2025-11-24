@@ -430,6 +430,49 @@ static bool smu_v15_0_8_is_dpm_running(struct smu_context *smu)
 					  smu_v15_0_8_dpm_features.bits);
 }
 
+static int smu_v15_0_8_mode2_reset(struct smu_context *smu)
+{
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+	struct amdgpu_device *adev = smu->adev;
+	int timeout = 10;
+	int ret = 0;
+
+	mutex_lock(&ctl->lock);
+
+	ret = smu_msg_send_async_locked(ctl, SMU_MSG_GfxDeviceDriverReset,
+					SMU_RESET_MODE_2);
+
+	if (ret)
+		goto out;
+
+	/* Reset takes a bit longer, wait for 200ms. */
+	msleep(200);
+
+	dev_dbg(adev->dev, "wait for reset ack\n");
+	do {
+		ret = smu_msg_wait_response(ctl, 0);
+		/* Wait a bit more time for getting ACK */
+		if (ret == -ETIME) {
+			--timeout;
+			usleep_range(500, 1000);
+			continue;
+		}
+
+		if (ret)
+			goto out;
+
+	} while (ret == -ETIME && timeout);
+
+out:
+	mutex_unlock(&ctl->lock);
+
+	if (ret)
+		dev_err(adev->dev, "failed to send mode2 reset, error code %d",
+			ret);
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.init_allowed_features = smu_v15_0_8_init_allowed_features,
 	.set_default_dpm_table = smu_v15_0_8_set_default_dpm_table,
@@ -450,6 +493,7 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.setup_pptable = smu_v15_0_8_setup_pptable,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.wait_for_event = smu_v15_0_wait_for_event,
+	.mode2_reset = smu_v15_0_8_mode2_reset,
 };
 
 static void smu_v15_0_8_init_msg_ctl(struct smu_context *smu,
