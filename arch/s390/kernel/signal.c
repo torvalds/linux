@@ -326,7 +326,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = (unsigned long) ka->sa.sa_restorer;
 	else
-		restorer = VDSO64_SYMBOL(current, sigreturn);
+		restorer = VDSO_SYMBOL(current, sigreturn);
 
 	/* Set up registers for signal handler */
 	regs->gprs[14] = restorer;
@@ -378,7 +378,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		restorer = (unsigned long) ksig->ka.sa.sa_restorer;
 	else
-		restorer = VDSO64_SYMBOL(current, rt_sigreturn);
+		restorer = VDSO_SYMBOL(current, rt_sigreturn);
 
 	/* Create siginfo on the signal stack */
 	if (copy_siginfo_to_user(&frame->info, &ksig->info))
@@ -490,7 +490,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 			/* Restart with sys_restart_syscall */
 			regs->gprs[2] = regs->orig_gpr2;
 			current->restart_block.arch_data = regs->psw.addr;
-			regs->psw.addr = VDSO64_SYMBOL(current, restart_syscall);
+			regs->psw.addr = VDSO_SYMBOL(current, restart_syscall);
 			if (test_thread_flag(TIF_SINGLE_STEP))
 				clear_thread_flag(TIF_PER_TRAP);
 			break;

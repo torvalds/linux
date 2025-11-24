@@ -151,9 +151,9 @@ ifeq ($(KBUILD_EXTMOD),)
 # this hack.
 prepare: vdso_prepare
 vdso_prepare: prepare0
-	$(Q)$(MAKE) $(build)=arch/s390/kernel/vdso64 include/generated/vdso64-offsets.h
+	$(Q)$(MAKE) $(build)=arch/s390/kernel/vdso include/generated/vdso-offsets.h
 
-vdso-install-y			+= arch/s390/kernel/vdso64/vdso64.so.dbg
+vdso-install-y			+= arch/s390/kernel/vdso/vdso.so.dbg
 
 endif
 
