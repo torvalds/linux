@@ -2112,6 +2112,18 @@ static void guc_exec_queue_revert_pending_state_change(struct xe_guc *guc,
 	q->guc->resume_time = 0;
 }
 
+static void lrc_parallel_clear(struct xe_lrc *lrc)
+{
+	struct xe_device *xe = gt_to_xe(lrc->gt);
+	struct iosys_map map = xe_lrc_parallel_map(lrc);
+	int i;
+
+	for (i = 0; i < WQ_SIZE / sizeof(u32); ++i)
+		parallel_write(xe, map, wq[i],
+			       FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_NOOP) |
+			       FIELD_PREP(WQ_LEN_MASK, 0));
+}
+
 /*
  * This function is quite complex but only real way to ensure no state is lost
  * during VF resume flows. The function scans the queue state, make adjustments
@@ -2135,8 +2147,8 @@ static void guc_exec_queue_pause(struct xe_guc *guc, struct xe_exec_queue *q)
 	guc_exec_queue_revert_pending_state_change(guc, q);
 
 	if (xe_exec_queue_is_parallel(q)) {
-		struct xe_device *xe = guc_to_xe(guc);
-		struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
+		/* Pairs with WRITE_ONCE in __xe_exec_queue_init  */
+		struct xe_lrc *lrc = READ_ONCE(q->lrc[0]);
 
 		/*
 		 * NOP existing WQ commands that may contain stale GGTT
@@ -2144,10 +2156,8 @@ static void guc_exec_queue_pause(struct xe_guc *guc, struct xe_exec_queue *q)
 		 * seems to get confused if the WQ head/tail pointers are
 		 * adjusted.
 		 */
-		for (i = 0; i < WQ_SIZE / sizeof(u32); ++i)
-			parallel_write(xe, map, wq[i],
-				       FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_NOOP) |
-				       FIELD_PREP(WQ_LEN_MASK, 0));
+		if (lrc)
+			lrc_parallel_clear(lrc);
 	}
 
 	job = xe_sched_first_pending_job(sched);
