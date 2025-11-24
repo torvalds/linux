@@ -2801,7 +2801,7 @@ EXPORT_SYMBOL_GPL(sdev_evt_send_simple);
  *
  *	Must be called with user context, may sleep.
  *
- *	Returns zero if unsuccessful or an error if not.
+ *	Returns zero if successful or an error if not.
  */
 int
 scsi_device_quiesce(struct scsi_device *sdev)
