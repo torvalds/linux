@@ -328,9 +328,9 @@ static u64 ines_find_txts(struct ines_port *port, struct sk_buff *skb)
 	return ns;
 }
 
-static int ines_hwtstamp(struct mii_timestamper *mii_ts,
-			 struct kernel_hwtstamp_config *cfg,
-			 struct netlink_ext_ack *extack)
+static int ines_hwtstamp_set(struct mii_timestamper *mii_ts,
+			     struct kernel_hwtstamp_config *cfg,
+			     struct netlink_ext_ack *extack)
 {
 	struct ines_port *port = container_of(mii_ts, struct ines_port, mii_ts);
 	u32 cm_one_step = 0, port_conf, ts_stat_rx, ts_stat_tx;
@@ -709,7 +709,7 @@ static struct mii_timestamper *ines_ptp_probe_channel(struct device *device,
 	}
 	port->mii_ts.rxtstamp = ines_rxtstamp;
 	port->mii_ts.txtstamp = ines_txtstamp;
-	port->mii_ts.hwtstamp = ines_hwtstamp;
+	port->mii_ts.hwtstamp_set = ines_hwtstamp_set;
 	port->mii_ts.link_state = ines_link_state;
 	port->mii_ts.ts_info = ines_ts_info;
 

@@ -2657,7 +2657,7 @@ static int gbe_hwtstamp_set(void *intf_priv, struct kernel_hwtstamp_config *cfg,
 
 	phy = gbe_intf->slave->phy;
 	if (phy_has_hwtstamp(phy))
-		return phy->mii_ts->hwtstamp(phy->mii_ts, cfg, extack);
+		return phy->mii_ts->hwtstamp_set(phy->mii_ts, cfg, extack);
 
 	switch (cfg->tx_type) {
 	case HWTSTAMP_TX_OFF:
