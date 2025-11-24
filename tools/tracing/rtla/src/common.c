@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "common.h"
 
@@ -367,4 +368,42 @@ int osn_set_stop(struct osnoise_tool *tool)
 	}
 
 	return 0;
+}
+
+static void print_msg_array(const char * const *msgs)
+{
+	if (!msgs)
+		return;
+
+	for (int i = 0; msgs[i]; i++)
+		fprintf(stderr, "%s\n", msgs[i]);
+}
+
+/*
+ * common_usage - print complete usage information
+ */
+void common_usage(const char *tool, const char *mode,
+		  const char *desc, const char * const *start_msgs, const char * const *opt_msgs)
+{
+	static const char * const common_options[] = {
+		"	  -h/--help: print this menu",
+		NULL
+	};
+	fprintf(stderr, "rtla %s", tool);
+	if (strcmp(mode, ""))
+		fprintf(stderr, " %s", mode);
+	fprintf(stderr, ": %s (version %s)\n\n", desc, VERSION);
+	fprintf(stderr, "  usage: [rtla] %s ", tool);
+
+	if (strcmp(mode, "top") == 0)
+		fprintf(stderr, "[top] [-h] ");
+	else
+		fprintf(stderr, "%s [-h] ", mode);
+
+	print_msg_array(start_msgs);
+	fprintf(stderr, "\n");
+	print_msg_array(common_options);
+	print_msg_array(opt_msgs);
+
+	exit(EXIT_SUCCESS);
 }

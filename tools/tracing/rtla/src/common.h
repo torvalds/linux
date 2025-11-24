@@ -160,3 +160,6 @@ int common_apply_config(struct osnoise_tool *tool, struct common_params *params)
 int top_main_loop(struct osnoise_tool *tool);
 int hist_main_loop(struct osnoise_tool *tool);
 int osn_set_stop(struct osnoise_tool *tool);
+
+void common_usage(const char *tool, const char *mode,
+		  const char *desc, const char * const *start_msgs, const char * const *opt_msgs);

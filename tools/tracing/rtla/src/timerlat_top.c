@@ -476,15 +476,14 @@ timerlat_print_stats(struct osnoise_tool *top)
  */
 static void timerlat_top_usage(void)
 {
-	int i;
-
-	static const char *const msg[] = {
-		"",
-		"  usage: rtla timerlat [top] [-h] [-q] [-a us] [-d s] [-D] [-n] [-p us] [-i us] [-T us] [-s us] \\",
+	static const char *const msg_start[] = {
+		"[-q] [-a us] [-d s] [-D] [-n] [-p us] [-i us] [-T us] [-s us] \\",
 		"	  [[-t [file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] [-c cpu-list] [-H cpu-list]\\",
 		"	  [-P priority] [--dma-latency us] [--aa-only us] [-C [cgroup_name]] [-u|-k] [--warm-up s] [--deepest-idle-state n]",
-		"",
-		"	  -h/--help: print this menu",
+		NULL,
+	};
+
+	static const char *const msg_opts[] = {
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us latency is hit",
 		"	     --aa-only us: stop if <us> latency is hit, only printing the auto analysis (reduces CPU usage)",
 		"	  -p/--period us: timerlat period in us",
@@ -522,13 +521,8 @@ static void timerlat_top_usage(void)
 		NULL,
 	};
 
-	fprintf(stderr, "rtla timerlat top: a per-cpu summary of the timer latency (version %s)\n",
-			VERSION);
-
-	for (i = 0; msg[i]; i++)
-		fprintf(stderr, "%s\n", msg[i]);
-
-	exit(EXIT_SUCCESS);
+	common_usage("timerlat", "top", "a per-cpu summary of the timer latency",
+		     msg_start, msg_opts);
 }
 
 /*
