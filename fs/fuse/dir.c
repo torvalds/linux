@@ -199,9 +199,8 @@ void fuse_epoch_work(struct work_struct *work)
 	down_read(&fc->killsb);
 
 	inode = fuse_ilookup(fc, FUSE_ROOT_ID, &fm);
-	iput(inode);
-
-	if (fm) {
+	if (inode) {
+		iput(inode);
 		/* Remove all possible active references to cached inodes */
 		shrink_dcache_sb(fm->sb);
 	} else
