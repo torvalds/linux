@@ -1290,26 +1290,14 @@ static void cb_gpib_release(struct pcmcia_device *link)
 
 static int cb_gpib_suspend(struct pcmcia_device *link)
 {
-	//struct local_info *info = link->priv;
-	//struct struct gpib_board *dev = info->dev;
-
 	if (link->open)
 		dev_warn(&link->dev, "Device still open\n");
-	//netif_device_detach(dev);
 
 	return 0;
 }
 
 static int cb_gpib_resume(struct pcmcia_device *link)
 {
-	//struct local_info *info = link->priv;
-	//struct struct gpib_board *dev = info->dev;
-
-	/*if (link->open) {
-	 *	ni_gpib_probe(dev);	/ really?
-	 *	//netif_device_attach(dev);
-	 *
-	 */
 	return cb_gpib_config(link);
 }
 
