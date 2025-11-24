@@ -22266,6 +22266,15 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		cond_resched();
 	}
 
+	/*
+	 * Cleanup func[i]->aux fields which aren't required
+	 * or can become invalid in future
+	 */
+	for (i = 0; i < env->subprog_cnt; i++) {
+		func[i]->aux->used_maps = NULL;
+		func[i]->aux->used_map_cnt = 0;
+	}
+
 	/* finally lock prog and jit images for all functions and
 	 * populate kallsysm. Begin at the first subprogram, since
 	 * bpf_prog_load will add the kallsyms for the main program.
