@@ -50,6 +50,7 @@ SCSI主机适配器驱动
 .. toctree::
    :maxdepth: 1
 
+   libsas
    sd-parameters
 
 Todolist:
@@ -71,7 +72,6 @@ Todolist:
 * g_NCR5380
 * hpsa
 * hptiop
-* libsas
 * lpfc
 * megaraid
 * ncr53c8xx
