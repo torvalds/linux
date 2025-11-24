@@ -304,7 +304,7 @@ static int sec_irq_init_s2mpg1x(struct sec_pmic_dev *sec_pmic)
 	default:
 		return dev_err_probe(sec_pmic->dev, -EINVAL, "Unsupported device type %d\n",
 				     sec_pmic->device_type);
-	};
+	}
 
 	regmap_common = dev_get_regmap(sec_pmic->dev, "common");
 	if (!regmap_common)
