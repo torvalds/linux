@@ -52,6 +52,7 @@ SCSI主机适配器驱动
 
    libsas
    sd-parameters
+   wd719x
 
 Todolist:
 
@@ -87,6 +88,5 @@ Todolist:
 * sym53c8xx_2
 * tcm_qla2xxx
 * ufs
-* wd719x
 
 * scsi_transport_srp/figures

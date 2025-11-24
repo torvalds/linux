@@ -1,0 +1,35 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: Documentation/scsi/libsas.rst
+
+:翻译:
+
+ 张钰杰 Yujie Zhang <yjzhang@leap-io-kernel.com>
+
+:校译:
+
+====================================================
+Western Digital WD7193, WD7197 和 WD7296 SCSI 卡驱动
+====================================================
+
+这些卡需要加载固件。固件可从 WD 提供下载的 Windows NT 驱动程
+序中提取。地址如下：
+
+http://support.wdc.com/product/download.asp?groupid=801&sid=27&lang=en
+
+该文件或网页上都未包含任何许可声明，因此该固件可能无法被收录到
+linux-firmware 项目中。
+
+提供的脚本可用于下载并提取固件，生成 wd719x-risc.bin 和
+wd719x-wcs.bin 文件。请将它们放置在 /lib/firmware/ 目录下。
+脚本内容如下：
+
+	#!/bin/sh
+	wget http://support.wdc.com/download/archive/pciscsi.exe
+	lha xi pciscsi.exe pci-scsi.exe
+	lha xi pci-scsi.exe nt/wd7296a.sys
+	rm pci-scsi.exe
+	dd if=wd7296a.sys of=wd719x-risc.bin bs=1 skip=5760 count=14336
+	dd if=wd7296a.sys of=wd719x-wcs.bin bs=1 skip=20096 count=514
+	rm wd7296a.sys
