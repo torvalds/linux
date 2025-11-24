@@ -143,6 +143,7 @@ static int stm32_sai_set_sync(struct stm32_sai_data *sai_client,
 	}
 
 	sai_provider = platform_get_drvdata(pdev);
+	put_device(&pdev->dev);
 	if (!sai_provider) {
 		dev_err(&sai_client->pdev->dev,
 			"SAI sync provider data not found\n");
@@ -159,7 +160,6 @@ static int stm32_sai_set_sync(struct stm32_sai_data *sai_client,
 	ret = stm32_sai_sync_conf_provider(sai_provider, synco);
 
 error:
-	put_device(&pdev->dev);
 	of_node_put(np_provider);
 	return ret;
 }
