@@ -1484,8 +1484,6 @@ static int idpf_vport_open(struct idpf_vport *vport, bool rtnl)
 {
 	struct idpf_netdev_priv *np = netdev_priv(vport->netdev);
 	struct idpf_adapter *adapter = vport->adapter;
-	struct idpf_vport_config *vport_config;
-	struct idpf_rss_data *rss_data;
 	int err;
 
 	if (test_bit(IDPF_VPORT_UP, np->state))
@@ -1578,19 +1576,6 @@ static int idpf_vport_open(struct idpf_vport *vport, bool rtnl)
 	}
 
 	idpf_restore_features(vport);
-
-	vport_config = adapter->vport_config[vport->idx];
-	rss_data = &vport_config->user_config.rss_data;
-
-	if (!rss_data->rss_lut) {
-		err = idpf_init_rss_lut(vport);
-		if (err) {
-			dev_err(&adapter->pdev->dev,
-				"Failed to initialize RSS LUT for vport %u: %d\n",
-				vport->vport_id, err);
-			goto disable_vport;
-		}
-	}
 
 	err = idpf_config_rss(vport);
 	if (err) {
@@ -2068,7 +2053,6 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 		idpf_vport_stop(vport, false);
 	}
 
-	idpf_deinit_rss_lut(vport);
 	/* We're passing in vport here because we need its wait_queue
 	 * to send a message and it should be getting all the vport
 	 * config data out of the adapter but we need to be careful not
@@ -2093,6 +2077,10 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	err = idpf_set_real_num_queues(vport);
 	if (err)
 		goto err_open;
+
+	if (reset_cause == IDPF_SR_Q_CHANGE &&
+	    !netif_is_rxfh_configured(vport->netdev))
+		idpf_fill_dflt_rss_lut(vport);
 
 	if (vport_is_up)
 		err = idpf_vport_open(vport, false);
