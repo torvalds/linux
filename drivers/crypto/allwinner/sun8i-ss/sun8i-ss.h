@@ -248,9 +248,11 @@ struct sun8i_ss_hash_tfm_ctx {
 struct sun8i_ss_hash_reqctx {
 	struct sginfo t_src[MAX_SG];
 	struct sginfo t_dst[MAX_SG];
-	struct ahash_request fallback_req;
 	u32 method;
 	int flow;
+
+	/* Must be last as it ends in a flexible-array member. */
+	struct ahash_request fallback_req;
 };
 
 /*
