@@ -55,9 +55,20 @@ void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl)
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	unsigned long flags;
 	u32 reg_val;
+	u8 err;
 
 	if (!(master_ctl & SOC_H2DMEMINT_IRQ))
 		return;
+
+	reg_val = xe_mmio_read32(&tile->mmio, MERT_TLB_CT_INTR_ERR_ID_PORT);
+	xe_mmio_write32(&tile->mmio, MERT_TLB_CT_INTR_ERR_ID_PORT, 0);
+
+	err = FIELD_GET(MERT_TLB_CT_ERROR_MASK, reg_val);
+	if (err == MERT_TLB_CT_LMTT_FAULT)
+		drm_dbg(&xe->drm, "MERT catastrophic error: LMTT fault (VF%u)\n",
+			FIELD_GET(MERT_TLB_CT_VFID_MASK, reg_val));
+	else if (err)
+		drm_dbg(&xe->drm, "MERT catastrophic error: Unexpected fault (0x%x)\n", err);
 
 	spin_lock_irqsave(&tile->mert.lock, flags);
 	if (tile->mert.tlb_inv_triggered) {
