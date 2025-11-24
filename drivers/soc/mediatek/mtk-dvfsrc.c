@@ -72,6 +72,7 @@ struct mtk_dvfsrc {
 
 struct dvfsrc_soc_data {
 	const int *regs;
+	const bool has_emi_ddr;
 	const struct dvfsrc_opp_desc *opps_desc;
 	u32 (*calc_dram_bw)(struct mtk_dvfsrc *dvfsrc, int type, u64 bw);
 	u32 (*get_target_level)(struct mtk_dvfsrc *dvfsrc);
@@ -107,6 +108,7 @@ enum dvfsrc_regs {
 	DVFSRC_SW_BW,
 	DVFSRC_SW_PEAK_BW,
 	DVFSRC_SW_HRT_BW,
+	DVFSRC_SW_EMI_BW,
 	DVFSRC_VCORE,
 	DVFSRC_REGS_MAX,
 };
@@ -292,6 +294,9 @@ static void __dvfsrc_set_dram_bw_v1(struct mtk_dvfsrc *dvfsrc, u32 reg,
 		new_bw = max(new_bw, min_bw);
 
 	dvfsrc_writel(dvfsrc, reg, new_bw);
+
+	if (type == DVFSRC_BW_AVG && dvfsrc->dvd->has_emi_ddr)
+		dvfsrc_writel(dvfsrc, DVFSRC_SW_EMI_BW, bw);
 }
 
 static void dvfsrc_set_dram_bw_v1(struct mtk_dvfsrc *dvfsrc, u64 bw)
