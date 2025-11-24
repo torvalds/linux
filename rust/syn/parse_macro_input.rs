@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 /// Parse the input TokenStream of a macro, triggering a compile error if the
 /// tokens fail to parse.
 ///

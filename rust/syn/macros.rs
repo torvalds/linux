@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[cfg_attr(
     not(any(feature = "full", feature = "derive")),
     allow(unknown_lints, unused_macro_rules)

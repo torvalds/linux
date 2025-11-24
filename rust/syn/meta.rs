@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Facility for interpreting structured content inside of an `Attribute`.
 
 use crate::error::{Error, Result};

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use proc_macro2::extra::DelimSpan;
 use proc_macro2::{Delimiter, Group, Span, TokenStream};
 

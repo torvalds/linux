@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::attr::Attribute;
 use crate::data::{Fields, FieldsNamed, Variant};
 use crate::derive::{Data, DataEnum, DataStruct, DataUnion, DeriveInput};

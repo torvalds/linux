@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 /// Quasi-quotation macro that accepts input like the [`quote!`] macro but uses
 /// type inference to figure out a return type for those tokens.
 ///

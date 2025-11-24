@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::parse::ParseStream;
 use proc_macro2::{Delimiter, TokenStream};
 use std::cmp::Ordering;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use std::ops::{AddAssign, MulAssign};
 
 // For implementing base10_digits() accessor on LitInt.

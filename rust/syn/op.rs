@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 ast_enum! {
     /// A binary operator: `+`, `+=`, `&`.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "derive"))))]

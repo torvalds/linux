@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! A stably addressed token buffer supporting efficient traversal based on a
 //! cheaply copyable cursor.
 

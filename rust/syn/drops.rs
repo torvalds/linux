@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use std::iter;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};

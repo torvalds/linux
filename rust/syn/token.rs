@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Tokens representing Rust punctuation, keywords, and delimiters.
 //!
 //! The type names in this module can be difficult to keep straight, so we

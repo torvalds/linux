@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use self::{Action::*, Input::*};
 use proc_macro2::{Delimiter, Ident, Spacing, TokenTree};
 use syn::parse::{ParseStream, Result};

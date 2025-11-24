@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[cfg(all(feature = "printing", feature = "full"))]
 use crate::attr::{AttrStyle, Attribute};
 #[cfg(feature = "printing")]

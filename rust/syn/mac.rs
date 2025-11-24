@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[cfg(feature = "parsing")]
 use crate::error::Result;
 #[cfg(feature = "parsing")]

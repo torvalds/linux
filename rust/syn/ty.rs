@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::attr::Attribute;
 use crate::expr::Expr;
 use crate::generics::{BoundLifetimes, TypeParamBound};

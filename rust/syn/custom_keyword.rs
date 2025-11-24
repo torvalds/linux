@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 /// Define a type that supports parsing and printing a given identifier as if it
 /// were a keyword.
 ///

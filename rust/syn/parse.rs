@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Parsing interface for parsing a token stream into a syntax tree node.
 //!
 //! Parsing in Syn is built on parser functions that take in a [`ParseStream`]

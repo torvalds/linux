@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Extensions to the parsing API with niche applicability.
 
 use crate::buffer::Cursor;

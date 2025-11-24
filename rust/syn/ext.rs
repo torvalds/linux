@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Extension traits to provide parsing methods on foreign types.
 
 use crate::buffer::Cursor;

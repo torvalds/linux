@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[cfg(feature = "full")]
 use crate::expr::Expr;
 #[cfg(any(feature = "printing", feature = "full"))]

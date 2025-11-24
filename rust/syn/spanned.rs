@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! A trait that can provide the `Span` of the complete contents of a syntax
 //! tree node.
 //!

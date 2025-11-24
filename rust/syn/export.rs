@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[doc(hidden)]
 pub use std::clone::Clone;
 #[doc(hidden)]
