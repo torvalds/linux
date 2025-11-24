@@ -249,32 +249,6 @@ config SONYPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called sonypi.
 
-config MWAVE
-	tristate "ACP Modem (Mwave) support"
-	depends on X86 && TTY
-	select SERIAL_8250
-	help
-	  The ACP modem (Mwave) for Linux is a WinModem. It is composed of a
-	  kernel driver and a user level application. Together these components
-	  support direct attachment to public switched telephone networks (PSTNs)
-	  and support selected world wide countries.
-
-	  This version of the ACP Modem driver supports the IBM Thinkpad 600E,
-	  600, and 770 that include on board ACP modem hardware.
-
-	  The modem also supports the standard communications port interface
-	  (ttySx) and is compatible with the Hayes AT Command Set.
-
-	  The user level application needed to use this driver can be found at
-	  the IBM Linux Technology Center (LTC) web site:
-	  <http://www.ibm.com/linux/ltc/>.
-
-	  If you own one of the above IBM Thinkpads which has the Mwave chipset
-	  in it, say Y.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mwave.
-
 config SCx200_GPIO
 	tristate "NatSemi SCx200 GPIO Support"
 	depends on SCx200
