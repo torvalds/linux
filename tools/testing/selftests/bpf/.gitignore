@@ -23,6 +23,7 @@ test_tcpnotify_user
 test_libbpf
 xdping
 test_cpp
+test_progs_verification_cert
 *.d
 *.subskel.h
 *.skel.h

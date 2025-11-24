@@ -28,6 +28,12 @@
 
 #define OPEN_SSL_ERR_BUF_LEN 256
 
+/* Use deprecated in 3.0 ERR_get_error_line_data for openssl < 3 */
+#if !defined(OPENSSL_VERSION_MAJOR) || (OPENSSL_VERSION_MAJOR < 3)
+#define ERR_get_error_all(file, line, func, data, flags) \
+	ERR_get_error_line_data(file, line, data, flags)
+#endif
+
 static void display_openssl_errors(int l)
 {
 	char buf[OPEN_SSL_ERR_BUF_LEN];
