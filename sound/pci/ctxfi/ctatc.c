@@ -63,6 +63,7 @@ static const struct snd_pci_quirk subsys_20k2_list[] = {
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_CREATIVE, 0xf000,
 			   PCI_SUBDEVICE_ID_CREATIVE_HENDRIX, "HENDRIX",
 			   CTHENDRIX),
+	SND_PCI_QUIRK(0x160b, 0x0101, "OK0010", CTOK0010),
 	{ } /* terminator */
 };
 
@@ -78,6 +79,7 @@ static const char *ct_subsys_name[NUM_CTCARDS] = {
 	[CTHENDRIX]	= "Hendrix",
 	[CTSB0880]	= "SB0880",
 	[CTSB1270]      = "SB1270",
+	[CTOK0010]    = "OK0010",
 	[CT20K2_UNKNOWN] = "Unknown",
 };
 
@@ -1535,8 +1537,10 @@ static void atc_connect_resources(struct ct_atc *atc)
 		dao->ops->set_right_input(dao, rscs[1]);
 	}
 
-	if (cap.dedicated_rca)
+	if (cap.dedicated_rca) {
+		/* SE-300PCIE has a dedicated DAC for the RCA. */
 		atc_dedicated_rca_select(atc);
+	}
 
 	dai = container_of(atc->daios[LINEIM], struct dai, daio);
 	atc_connect_dai(atc->rsc_mgrs[SRC], dai,
@@ -1549,6 +1553,7 @@ static void atc_connect_resources(struct ct_atc *atc)
 
 	if (cap.dedicated_mic) {
 		/* Titanium HD has a dedicated ADC for the Mic. */
+		/* SE-300PCIE has a 4-channel ADC. */
 		dai = container_of(atc->daios[MIC], struct dai, daio);
 		atc_connect_dai(atc->rsc_mgrs[SRC], dai,
 			(struct src **)&atc->srcs[4],

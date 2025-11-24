@@ -38,6 +38,7 @@ enum CTCARDS {
 	CTHENDRIX,
 	CTSB0880,
 	CTSB1270,
+	CTOK0010,
 	CT20K2_UNKNOWN,
 	NUM_CTCARDS		/* This should always be the last */
 };
