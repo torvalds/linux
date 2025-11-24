@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use core::cmp::Ordering;
 
 /// A line-column pair representing the start or end of a `Span`.

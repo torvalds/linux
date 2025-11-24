@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Items which do not have a correspondence to any API in the proc_macro crate,
 //! but are necessary to include in proc-macro2.
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use alloc::rc::Rc;
 use alloc::vec;
 use core::mem;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::fallback::{
     self, is_ident_continue, is_ident_start, Group, Ident, LexError, Literal, Span, TokenStream,
     TokenStreamBuilder,

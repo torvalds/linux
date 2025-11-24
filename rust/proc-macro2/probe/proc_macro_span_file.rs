@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // The subset of Span's API stabilized in Rust 1.88.
 
 extern crate proc_macro;

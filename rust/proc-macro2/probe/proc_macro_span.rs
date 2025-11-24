@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // This code exercises the surface area that we expect of Span's unstable API.
 // If the current toolchain is able to compile it, then proc-macro2 is able to
 // offer these APIs too.

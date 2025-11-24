@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[cfg(wrap_proc_macro)]
 use crate::imp;
 #[cfg(span_locations)]

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Once;
 
