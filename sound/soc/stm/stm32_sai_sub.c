@@ -1716,15 +1716,15 @@ static int stm32_sai_sub_probe(struct platform_device *pdev)
 
 	ret = snd_soc_register_component(&pdev->dev, &stm32_component,
 					 &sai->cpu_dai_drv, 1);
-	if (ret) {
-		snd_dmaengine_pcm_unregister(&pdev->dev);
-		goto err_unprepare_pclk;
-	}
+	if (ret)
+		goto err_deregister_pcm_dma;
 
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 
+err_deregister_pcm_dma:
+	snd_dmaengine_pcm_unregister(&pdev->dev);
 err_unprepare_pclk:
 	clk_unprepare(sai->pdata->pclk);
 	of_node_put(sai->np_sync_provider);
