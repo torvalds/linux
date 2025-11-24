@@ -403,4 +403,6 @@ void kvm_handle_s1e2_tlbi(struct kvm_vcpu *vcpu, u32 inst, u64 val);
 		(FIX_VNCR - __c);				\
 	})
 
+int __kvm_at_swap_desc(struct kvm *kvm, gpa_t ipa, u64 old, u64 new);
+
 #endif /* __ARM64_KVM_NESTED_H */
