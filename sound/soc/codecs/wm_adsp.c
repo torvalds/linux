@@ -1561,7 +1561,7 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 
 	for (i = 0; i < 5; ++i) {
 		ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, &coeff_v1,
-					     min(cs_ctl->len, sizeof(coeff_v1)));
+					     min((size_t)cs_ctl->len, sizeof(coeff_v1)));
 		if (ret < 0)
 			return ret;
 

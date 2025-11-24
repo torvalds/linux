@@ -102,7 +102,7 @@ struct cs_dsp_coeff_ctl {
 	const char *subname;
 	unsigned int subname_len;
 	unsigned int offset;
-	size_t len;
+	unsigned int len;
 	unsigned int type;
 	unsigned int flags;
 	unsigned int set:1;
