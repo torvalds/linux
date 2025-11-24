@@ -510,7 +510,7 @@ static bool tcp_rtx_probe0_timed_out(const struct sock *sk,
 	 * and tp->rcv_tstamp might very well have been written recently.
 	 * rcv_delta can thus be negative.
 	 */
-	rcv_delta = icsk_timeout(icsk) - tp->rcv_tstamp;
+	rcv_delta = tcp_timeout_expires(sk) - tp->rcv_tstamp;
 	if (rcv_delta <= timeout)
 		return false;
 
@@ -697,9 +697,9 @@ void tcp_write_timer_handler(struct sock *sk)
 	    !icsk->icsk_pending)
 		return;
 
-	if (time_after(icsk_timeout(icsk), jiffies)) {
+	if (time_after(tcp_timeout_expires(sk), jiffies)) {
 		sk_reset_timer(sk, &icsk->icsk_retransmit_timer,
-			       icsk_timeout(icsk));
+			       tcp_timeout_expires(sk));
 		return;
 	}
 	tcp_mstamp_refresh(tcp_sk(sk));

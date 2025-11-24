@@ -184,10 +184,9 @@ static inline void inet_csk_delack_init(struct sock *sk)
 	memset(&inet_csk(sk)->icsk_ack, 0, sizeof(inet_csk(sk)->icsk_ack));
 }
 
-static inline unsigned long
-icsk_timeout(const struct inet_connection_sock *icsk)
+static inline unsigned long tcp_timeout_expires(const struct sock *sk)
 {
-	return READ_ONCE(icsk->icsk_retransmit_timer.expires);
+	return READ_ONCE(inet_csk(sk)->icsk_retransmit_timer.expires);
 }
 
 static inline unsigned long
