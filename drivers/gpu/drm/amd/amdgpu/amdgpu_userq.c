@@ -398,7 +398,7 @@ static void amdgpu_userq_cleanup(struct amdgpu_usermode_queue *queue,
 	uq_funcs->mqd_destroy(queue);
 	amdgpu_userq_fence_driver_free(queue);
 	/* Use interrupt-safe locking since IRQ handlers may access these XArrays */
-	xa_erase_irq(&uq_mgr->userq_mgr_xa, (unsigned long)queue_id);
+	xa_erase_irq(&uq_mgr->userq_xa, (unsigned long)queue_id);
 	xa_erase_irq(&adev->userq_doorbell_xa, queue->doorbell_index);
 	queue->userq_mgr = NULL;
 	list_del(&queue->userq_va_list);
@@ -410,7 +410,7 @@ static void amdgpu_userq_cleanup(struct amdgpu_usermode_queue *queue,
 static struct amdgpu_usermode_queue *
 amdgpu_userq_find(struct amdgpu_userq_mgr *uq_mgr, int qid)
 {
-	return xa_load(&uq_mgr->userq_mgr_xa, qid);
+	return xa_load(&uq_mgr->userq_xa, qid);
 }
 
 void
@@ -768,7 +768,8 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		goto unlock;
 	}
 
-	r = xa_alloc(&uq_mgr->userq_mgr_xa, &qid, queue, XA_LIMIT(1, AMDGPU_MAX_USERQ_COUNT), GFP_KERNEL);
+	r = xa_alloc(&uq_mgr->userq_xa, &qid, queue,
+		     XA_LIMIT(1, AMDGPU_MAX_USERQ_COUNT), GFP_KERNEL);
 	if (r) {
 		drm_file_err(uq_mgr->file, "Failed to allocate a queue id\n");
 		amdgpu_userq_fence_driver_free(queue);
@@ -791,7 +792,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		r = amdgpu_userq_map_helper(queue);
 		if (r) {
 			drm_file_err(uq_mgr->file, "Failed to map Queue\n");
-			xa_erase(&uq_mgr->userq_mgr_xa, qid);
+			xa_erase(&uq_mgr->userq_xa, qid);
 			amdgpu_userq_fence_driver_free(queue);
 			uq_funcs->mqd_destroy(queue);
 			kfree(queue);
@@ -918,8 +919,7 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 	int ret = 0, r;
 
 	/* Resume all the queues for this process */
-	xa_for_each(&uq_mgr->userq_mgr_xa, queue_id, queue) {
-
+	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
 		if (!amdgpu_userq_buffer_vas_mapped(queue)) {
 			drm_file_err(uq_mgr->file,
 				     "trying restore queue without va mapping\n");
@@ -1162,7 +1162,7 @@ amdgpu_userq_evict_all(struct amdgpu_userq_mgr *uq_mgr)
 
 	amdgpu_userq_detect_and_reset_queues(uq_mgr);
 	/* Try to unmap all the queues in this process ctx */
-	xa_for_each(&uq_mgr->userq_mgr_xa, queue_id, queue) {
+	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
 		r = amdgpu_userq_preempt_helper(queue);
 		if (r)
 			ret = r;
@@ -1197,7 +1197,7 @@ amdgpu_userq_wait_for_signal(struct amdgpu_userq_mgr *uq_mgr)
 	unsigned long queue_id;
 	int ret;
 
-	xa_for_each(&uq_mgr->userq_mgr_xa, queue_id, queue) {
+	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
 		struct dma_fence *f = queue->last_fence;
 
 		if (!f || dma_fence_is_signaled(f))
@@ -1247,7 +1247,7 @@ int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct drm_file *f
 			  struct amdgpu_device *adev)
 {
 	mutex_init(&userq_mgr->userq_mutex);
-	xa_init_flags(&userq_mgr->userq_mgr_xa, XA_FLAGS_ALLOC);
+	xa_init_flags(&userq_mgr->userq_xa, XA_FLAGS_ALLOC);
 	userq_mgr->adev = adev;
 	userq_mgr->file = file_priv;
 
@@ -1264,13 +1264,13 @@ void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr)
 
 	mutex_lock(&userq_mgr->userq_mutex);
 	amdgpu_userq_detect_and_reset_queues(userq_mgr);
-	xa_for_each(&userq_mgr->userq_mgr_xa, queue_id, queue) {
+	xa_for_each(&userq_mgr->userq_xa, queue_id, queue) {
 		amdgpu_userq_wait_for_last_fence(queue);
 		amdgpu_userq_unmap_helper(queue);
 		amdgpu_userq_cleanup(queue, queue_id);
 	}
 
-	xa_destroy(&userq_mgr->userq_mgr_xa);
+	xa_destroy(&userq_mgr->userq_xa);
 	mutex_unlock(&userq_mgr->userq_mutex);
 	mutex_destroy(&userq_mgr->userq_mutex);
 }

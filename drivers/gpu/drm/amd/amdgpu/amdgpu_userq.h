@@ -91,11 +91,11 @@ struct amdgpu_userq_funcs {
 /* Usermode queues for gfx */
 struct amdgpu_userq_mgr {
 	/**
-	 * @userq_mgr_xa: Per-process user queue map (queue ID → queue)
+	 * @userq_xa: Per-process user queue map (queue ID → queue)
 	 * Key: queue_id (unique ID within the process's userq manager)
 	 * Value: struct amdgpu_usermode_queue
 	 */
-	struct xarray			userq_mgr_xa;
+	struct xarray			userq_xa;
 	struct mutex			userq_mutex;
 	struct amdgpu_device		*adev;
 	struct delayed_work		resume_work;
