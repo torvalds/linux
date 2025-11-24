@@ -9,6 +9,7 @@ config PINCTRL_SKY1_BASE
 config PINCTRL_SKY1
 	tristate "Cix Sky1 pinctrl driver"
 	depends on ARCH_CIX || COMPILE_TEST
+	depends on HAS_IOMEM
 	select PINCTRL_SKY1_BASE
 	help
 	  Say Y here to enable the sky1 pinctrl driver
