@@ -39,6 +39,7 @@
 #include "psp_v13_0.h"
 #include "psp_v13_0_4.h"
 #include "psp_v14_0.h"
+#include "psp_v15_0.h"
 #include "psp_v15_0_8.h"
 
 #include "amdgpu_ras.h"
@@ -258,6 +259,10 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 		break;
 	case IP_VERSION(14, 0, 5):
 		psp_v14_0_set_psp_funcs(psp);
+		psp->boot_time_tmr = false;
+		break;
+	case IP_VERSION(15, 0, 0):
+		psp_v15_0_0_set_psp_funcs(psp);
 		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(15, 0, 8):
@@ -905,6 +910,7 @@ static bool psp_skip_tmr(struct psp_context *psp)
 	case IP_VERSION(13, 0, 10):
 	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
+	case IP_VERSION(15, 0, 0):
 	case IP_VERSION(15, 0, 8):
 		return true;
 	default:
@@ -2927,7 +2933,7 @@ static int psp_prep_load_ip_fw_cmd_buf(struct psp_context *psp,
 
 	ret = psp_get_fw_type(psp, ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
 	if (ret)
-		dev_err(psp->adev->dev, "Unknown firmware type\n");
+		dev_err(psp->adev->dev, "Unknown firmware type %d\n", ucode->ucode_id);
 	return ret;
 }
 
@@ -3091,6 +3097,8 @@ static int psp_load_non_psp_fw(struct psp_context *psp)
 			     IP_VERSION(11, 0, 11) ||
 		     amdgpu_ip_version(adev, MP0_HWIP, 0) ==
 			     IP_VERSION(11, 0, 12) ||
+		     amdgpu_ip_version(adev, MP0_HWIP, 0) ==
+			     IP_VERSION(15, 0, 0) ||
 		     amdgpu_ip_version(adev, MP0_HWIP, 0) ==
 			     IP_VERSION(15, 0, 8)) &&
 		    (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1 ||
@@ -4542,6 +4550,14 @@ const struct amdgpu_ip_block_version psp_v13_0_4_ip_block = {
 const struct amdgpu_ip_block_version psp_v14_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 14,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v15_0_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 15,
 	.minor = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
