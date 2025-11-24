@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::ToTokens;
 use proc_macro2::extra::DelimSpan;
 use proc_macro2::{Span, TokenStream};

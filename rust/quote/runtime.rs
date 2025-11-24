@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use self::get_span::{GetSpan, GetSpanBase, GetSpanInner};
 use crate::{IdentFragment, ToTokens, TokenStreamExt};
 use core::fmt;

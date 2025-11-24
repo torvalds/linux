@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::ToTokens;
 use core::iter;
 use proc_macro2::{TokenStream, TokenTree};

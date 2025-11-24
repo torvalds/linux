@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::TokenStreamExt;
 use alloc::borrow::Cow;
 use alloc::rc::Rc;

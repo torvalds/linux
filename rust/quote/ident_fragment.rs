@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use alloc::borrow::Cow;
 use core::fmt;
 use proc_macro2::{Ident, Span};
