@@ -1826,6 +1826,32 @@ static int hw_adc_input_select(struct hw *hw, enum ADCSRC type)
 	return 0;
 }
 
+static void hw_adc_stop(struct hw *hw)
+{
+	u32 data;
+	/* Reset the ADC (reset is active low). */
+	data = hw_read_20kx(hw, GPIO_DATA);
+	data &= ~(0x1 << 15);
+	hw_write_20kx(hw, GPIO_DATA, data);
+	usleep_range(10000, 11000);
+}
+
+static void hw_adc_start(struct hw *hw)
+{
+	u32 data;
+	/* Return the ADC to normal operation. */
+	data = hw_read_20kx(hw, GPIO_DATA);
+	data |= (0x1 << 15);
+	hw_write_20kx(hw, GPIO_DATA, data);
+	msleep(50);
+}
+
+static void __maybe_unused hw_adc_reset(struct hw *hw)
+{
+	hw_adc_stop(hw);
+	hw_adc_start(hw);
+}
+
 static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 {
 	int err;
@@ -1843,10 +1869,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 		goto error;
 	}
 
-	/* Reset the ADC (reset is active low). */
-	data = hw_read_20kx(hw, GPIO_DATA);
-	data &= ~(0x1 << 15);
-	hw_write_20kx(hw, GPIO_DATA, data);
+	hw_adc_stop(hw);
 
 	if (hw->model == CTSB1270) {
 		/* Set up the PCM4220 ADC on Titanium HD */
@@ -1860,11 +1883,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 		hw_write_20kx(hw, GPIO_DATA, data);
 	}
 
-	usleep_range(10000, 11000);
-	/* Return the ADC to normal operation. */
-	data |= (0x1 << 15);
-	hw_write_20kx(hw, GPIO_DATA, data);
-	msleep(50);
+	hw_adc_start(hw);
 
 	/* I2C write to register offset 0x0B to set ADC LRCLK polarity */
 	/* invert bit, interface format to I2S, word length to 24-bit, */
