@@ -110,7 +110,7 @@ struct exception_table_entry __amode31_ref *__stop_amode31_ex_table = _stop_amod
  * Because the AMODE31 sections are relocated below 2G at startup,
  * the content of control registers CR2, CR5 and CR15 must be updated
  * with new addresses after the relocation. The initial initialization of
- * control registers occurs in head64.S and then gets updated again after AMODE31
+ * control registers occurs in head.S and then gets updated again after AMODE31
  * relocation. We must access the relevant AMODE31 tables indirectly via
  * pointers placed in the .amode31.refs linker section. Those pointers get
  * updated automatically during AMODE31 relocation and always contain a valid
