@@ -481,8 +481,6 @@ struct sock {
 		struct rb_root	tcp_rtx_queue;
 	};
 	struct sk_buff_head	sk_write_queue;
-	u32			sk_dst_pending_confirm;
-	u32			sk_pacing_status; /* see enum sk_pacing */
 	struct page_frag	sk_frag;
 	struct timer_list	sk_timer;
 
@@ -493,6 +491,8 @@ struct sock {
 	__cacheline_group_end(sock_write_tx);
 
 	__cacheline_group_begin(sock_read_tx);
+	u32			sk_dst_pending_confirm;
+	u32			sk_pacing_status; /* see enum sk_pacing */
 	unsigned long		sk_max_pacing_rate;
 	long			sk_sndtimeo;
 	u32			sk_priority;
