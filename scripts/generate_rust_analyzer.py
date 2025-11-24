@@ -15,7 +15,7 @@ def args_crates_cfgs(cfgs):
     crates_cfgs = {}
     for cfg in cfgs:
         crate, vals = cfg.split("=", 1)
-        crates_cfgs[crate] = vals.replace("--cfg", "").split()
+        crates_cfgs[crate] = vals.split()
 
     return crates_cfgs
 

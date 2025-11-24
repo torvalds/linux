@@ -60,8 +60,10 @@ rustdoc_test_quiet=--test-args -q
 rustdoc_test_kernel_quiet=>/dev/null
 endif
 
+cfgs-to-flags = $(patsubst %,--cfg='%',$1)
+
 core-cfgs := \
-    --cfg no_fp_fmt_parse
+    no_fp_fmt_parse
 
 core-edition := $(if $(call rustc-min-version,108700),2024,2021)
 
@@ -72,7 +74,7 @@ core-skip_flags := \
 
 core-flags := \
     --edition=$(core-edition) \
-    $(core-cfgs)
+    $(call cfgs-to-flags,$(core-cfgs))
 
 # `rustdoc` did not save the target modifiers, thus workaround for
 # the time being (https://github.com/rust-lang/rust/issues/144521).
