@@ -90,6 +90,7 @@ bool xe_sriov_pf_readiness(struct xe_device *xe)
  */
 int xe_sriov_pf_init_early(struct xe_device *xe)
 {
+	struct xe_mert *mert = &xe_device_get_root_tile(xe)->mert;
 	int err;
 
 	xe_assert(xe, IS_SRIOV_PF(xe));
@@ -110,6 +111,9 @@ int xe_sriov_pf_init_early(struct xe_device *xe)
 	xe_guard_init(&xe->sriov.pf.guard_vfs_enabling, "vfs_enabling");
 
 	xe_sriov_pf_service_init(xe);
+
+	spin_lock_init(&mert->lock);
+	init_completion(&mert->tlb_inv_done);
 
 	return 0;
 }
