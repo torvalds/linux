@@ -5263,7 +5263,6 @@ struct walk_control {
  * @root:	the root we are currently deleting
  * @wc:		the walk control for this deletion
  * @eb:		the parent eb that we're currently visiting
- * @refs:	the number of refs for wc->level - 1
  * @flags:	the flags for wc->level - 1
  * @slot:	the slot in the eb that we're currently checking
  *
