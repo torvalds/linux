@@ -36,6 +36,13 @@
 #define MTK_SIP_DVFSRC_INIT		0x0
 #define MTK_SIP_DVFSRC_START		0x1
 
+enum mtk_dvfsrc_bw_type {
+	DVFSRC_BW_AVG,
+	DVFSRC_BW_PEAK,
+	DVFSRC_BW_HRT,
+	DVFSRC_BW_MAX,
+};
+
 struct dvfsrc_bw_constraints {
 	u16 max_dram_nom_bw;
 	u16 max_dram_peak_bw;
@@ -268,7 +275,7 @@ static void dvfsrc_set_vscp_level_v2(struct mtk_dvfsrc *dvfsrc, u32 level)
 }
 
 static void __dvfsrc_set_dram_bw_v1(struct mtk_dvfsrc *dvfsrc, u32 reg,
-				    u16 max_bw, u16 min_bw, u64 bw)
+				    int type, u16 max_bw, u16 min_bw, u64 bw)
 {
 	u32 new_bw = (u32)div_u64(bw, 100 * 1000);
 
@@ -285,21 +292,21 @@ static void dvfsrc_set_dram_bw_v1(struct mtk_dvfsrc *dvfsrc, u64 bw)
 {
 	u64 max_bw = dvfsrc->dvd->bw_constraints->max_dram_nom_bw;
 
-	__dvfsrc_set_dram_bw_v1(dvfsrc, DVFSRC_SW_BW, max_bw, 0, bw);
+	__dvfsrc_set_dram_bw_v1(dvfsrc, DVFSRC_SW_BW, DVFSRC_BW_AVG, max_bw, 0, bw);
 };
 
 static void dvfsrc_set_dram_peak_bw_v1(struct mtk_dvfsrc *dvfsrc, u64 bw)
 {
 	u64 max_bw = dvfsrc->dvd->bw_constraints->max_dram_peak_bw;
 
-	__dvfsrc_set_dram_bw_v1(dvfsrc, DVFSRC_SW_PEAK_BW, max_bw, 0, bw);
+	__dvfsrc_set_dram_bw_v1(dvfsrc, DVFSRC_SW_PEAK_BW, DVFSRC_BW_PEAK, max_bw, 0, bw);
 }
 
 static void dvfsrc_set_dram_hrt_bw_v1(struct mtk_dvfsrc *dvfsrc, u64 bw)
 {
 	u64 max_bw = dvfsrc->dvd->bw_constraints->max_dram_hrt_bw;
 
-	__dvfsrc_set_dram_bw_v1(dvfsrc, DVFSRC_SW_HRT_BW, max_bw, 0, bw);
+	__dvfsrc_set_dram_bw_v1(dvfsrc, DVFSRC_SW_HRT_BW, DVFSRC_BW_HRT, max_bw, 0, bw);
 }
 
 static void dvfsrc_set_opp_level_v1(struct mtk_dvfsrc *dvfsrc, u32 level)
