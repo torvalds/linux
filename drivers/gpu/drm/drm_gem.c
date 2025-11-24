@@ -798,13 +798,10 @@ int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 	*objs_out = objs;
 
 	handles = vmemdup_array_user(bo_handles, count, sizeof(u32));
-	if (IS_ERR(handles)) {
-		ret = PTR_ERR(handles);
-		goto out;
-	}
+	if (IS_ERR(handles))
+		return PTR_ERR(handles);
 
 	ret = objects_lookup(filp, handles, count, objs);
-out:
 	kvfree(handles);
 	return ret;
 
