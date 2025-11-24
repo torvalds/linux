@@ -27,7 +27,7 @@ endif
 
 obj-$(CONFIG_RUST) += exports.o
 
-always-$(CONFIG_RUST) += libproc_macro2.rlib libquote.rlib
+always-$(CONFIG_RUST) += libproc_macro2.rlib libquote.rlib libsyn.rlib
 
 always-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated.rs
 always-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated_kunit.c
@@ -101,6 +101,22 @@ quote-flags := \
     --extern proc_macro2 \
     $(call cfgs-to-flags,$(quote-cfgs))
 
+# `extra-traits`, `fold` and `visit` may be enabled if needed.
+syn-cfgs := \
+    feature="clone-impls" \
+    feature="derive" \
+    feature="full" \
+    feature="parsing" \
+    feature="printing" \
+    feature="proc-macro" \
+    feature="visit-mut"
+
+syn-flags := \
+    --cap-lints=allow \
+    --extern proc_macro2 \
+    --extern quote \
+    $(call cfgs-to-flags,$(syn-cfgs))
+
 # `rustdoc` did not save the target modifiers, thus workaround for
 # the time being (https://github.com/rust-lang/rust/issues/144521).
 rustdoc_modifiers_workaround := $(if $(call rustc-min-version,108800),-Cunsafe-allow-abi-mismatch=fixed-x18)
@@ -161,11 +177,16 @@ rustdoc-quote: private skip_flags = $(quote-skip_flags)
 rustdoc-quote: $(src)/quote/lib.rs rustdoc-clean rustdoc-proc_macro2 FORCE
 	+$(call if_changed,rustdoc)
 
+rustdoc-syn: private rustdoc_host = yes
+rustdoc-syn: private rustc_target_flags = $(syn-flags)
+rustdoc-syn: $(src)/syn/lib.rs rustdoc-clean rustdoc-quote FORCE
+	+$(call if_changed,rustdoc)
+
 rustdoc-macros: private rustdoc_host = yes
 rustdoc-macros: private rustc_target_flags = --crate-type proc-macro \
     --extern proc_macro
 rustdoc-macros: $(src)/macros/lib.rs rustdoc-clean rustdoc-proc_macro2 \
-    rustdoc-quote FORCE
+    rustdoc-quote rustdoc-syn FORCE
 	+$(call if_changed,rustdoc)
 
 # Starting with Rust 1.82.0, skipping `-Wrustdoc::unescaped_backticks` should
@@ -229,6 +250,10 @@ rusttestlib-proc_macro2: $(src)/proc-macro2/lib.rs FORCE
 rusttestlib-quote: private skip_flags = $(quote-skip_flags)
 rusttestlib-quote: private rustc_target_flags = $(quote-flags)
 rusttestlib-quote: $(src)/quote/lib.rs rusttestlib-proc_macro2 FORCE
+	+$(call if_changed,rustc_test_library)
+
+rusttestlib-syn: private rustc_target_flags = $(syn-flags)
+rusttestlib-syn: $(src)/syn/lib.rs rusttestlib-quote FORCE
 	+$(call if_changed,rustc_test_library)
 
 rusttestlib-macros: private rustc_target_flags = --extern proc_macro
@@ -488,6 +513,11 @@ $(obj)/libquote.rlib: private rustc_target_flags = $(quote-flags)
 $(obj)/libquote.rlib: $(src)/quote/lib.rs $(obj)/libproc_macro2.rlib FORCE
 	+$(call if_changed_dep,rustc_procmacrolibrary)
 
+$(obj)/libsyn.rlib: private skip_clippy = 1
+$(obj)/libsyn.rlib: private rustc_target_flags = $(syn-flags)
+$(obj)/libsyn.rlib: $(src)/syn/lib.rs $(obj)/libquote.rlib FORCE
+	+$(call if_changed_dep,rustc_procmacrolibrary)
+
 quiet_cmd_rustc_procmacro = $(RUSTC_OR_CLIPPY_QUIET) P $@
       cmd_rustc_procmacro = \
 	$(RUSTC_OR_CLIPPY) $(rust_common_flags) $(rustc_target_flags) \
@@ -500,7 +530,7 @@ quiet_cmd_rustc_procmacro = $(RUSTC_OR_CLIPPY_QUIET) P $@
 
 # Procedural macros can only be used with the `rustc` that compiled it.
 $(obj)/$(libmacros_name): $(src)/macros/lib.rs $(obj)/libproc_macro2.rlib \
-    $(obj)/libquote.rlib FORCE
+    $(obj)/libquote.rlib $(obj)/libsyn.rlib FORCE
 	+$(call if_changed_dep,rustc_procmacro)
 
 $(obj)/$(libpin_init_internal_name): private rustc_target_flags = --cfg kernel
@@ -525,6 +555,7 @@ rust-analyzer:
 		--cfgs='core=$(core-cfgs)' $(core-edition) \
 		--cfgs='proc_macro2=$(proc_macro2-cfgs)' \
 		--cfgs='quote=$(quote-cfgs)' \
+		--cfgs='syn=$(syn-cfgs)' \
 		$(realpath $(srctree)) $(realpath $(objtree)) \
 		$(rustc_sysroot) $(RUST_LIB_SRC) $(if $(KBUILD_EXTMOD),$(srcroot)) \
 		> rust-project.json

@@ -101,6 +101,13 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
     )
 
     append_crate(
+        "syn",
+        srctree / "rust" / "syn" / "lib.rs",
+        ["proc_macro", "proc_macro2", "quote"],
+        cfg=crates_cfgs["syn"],
+    )
+
+    append_crate(
         "macros",
         srctree / "rust" / "macros" / "lib.rs",
         ["std", "proc_macro"],
