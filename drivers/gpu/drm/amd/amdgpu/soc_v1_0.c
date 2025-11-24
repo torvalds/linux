@@ -229,8 +229,31 @@ static bool soc_v1_0_need_reset_on_init(struct amdgpu_device *adev)
 	return false;
 }
 
+static enum amd_reset_method
+soc_v1_0_asic_reset_method(struct amdgpu_device *adev)
+{
+	if ((adev->gmc.xgmi.supported && adev->gmc.xgmi.connected_to_cpu) ||
+	    (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 8))) {
+		if (amdgpu_reset_method != -1)
+			dev_warn_once(adev->dev, "Reset override isn't supported, using Mode2 instead.\n");
+
+		return AMD_RESET_METHOD_MODE2;
+	}
+
+	return amdgpu_reset_method;
+}
+
 static int soc_v1_0_asic_reset(struct amdgpu_device *adev)
 {
+	switch (soc_v1_0_asic_reset_method(adev)) {
+	case AMD_RESET_METHOD_MODE2:
+		dev_info(adev->dev, "MODE2 reset\n");
+		return amdgpu_dpm_mode2_reset(adev);
+	default:
+		dev_info(adev->dev, "Invalid reset method Not supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
@@ -244,6 +267,7 @@ static const struct amdgpu_asic_funcs soc_v1_0_asic_funcs = {
 	.need_reset_on_init = &soc_v1_0_need_reset_on_init,
 	.encode_ext_smn_addressing = &soc_v1_0_encode_ext_smn_addressing,
 	.reset = soc_v1_0_asic_reset,
+	.reset_method = &soc_v1_0_asic_reset_method,
 };
 
 static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
