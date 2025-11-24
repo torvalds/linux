@@ -1559,7 +1559,6 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		val &= ~(ID_AA64MMFR1_EL1_CMOW		|
 			 ID_AA64MMFR1_EL1_nTLBPA	|
 			 ID_AA64MMFR1_EL1_ETS		|
-			 ID_AA64MMFR1_EL1_XNX		|
 			 ID_AA64MMFR1_EL1_HAFDBS);
 		/* FEAT_E2H0 implies no VHE */
 		if (test_bit(KVM_ARM_VCPU_HAS_EL2_E2H0, kvm->arch.vcpu_features))
