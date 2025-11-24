@@ -365,9 +365,6 @@ static int xpcs_plat_init_dev(struct dw_xpcs_plat *pxpcs)
 err_clean_data:
 	mdiodev->dev.platform_data = NULL;
 
-	fwnode_handle_put(dev_fwnode(&mdiodev->dev));
-	device_set_node(&mdiodev->dev, NULL);
-
 	mdio_device_free(mdiodev);
 
 	return ret;
