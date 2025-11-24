@@ -56,7 +56,6 @@ struct inet_connection_sock_af_ops {
  * @icsk_accept_queue:	   FIFO of established children
  * @icsk_bind_hash:	   Bind node
  * @icsk_bind2_hash:	   Bind node in the bhash2 table
- * @icsk_retransmit_timer: Resend (no ack)
  * @icsk_delack_timer:     Delayed ACK timer
  * @icsk_keepalive_timer:  Keepalive timer
  * @mptcp_tout_timer: mptcp timer
@@ -84,7 +83,6 @@ struct inet_connection_sock {
 	struct request_sock_queue icsk_accept_queue;
 	struct inet_bind_bucket	  *icsk_bind_hash;
 	struct inet_bind2_bucket  *icsk_bind2_hash;
-	struct timer_list	  icsk_retransmit_timer;
 	struct timer_list	  icsk_delack_timer;
 	union {
 		struct timer_list icsk_keepalive_timer;
@@ -193,7 +191,7 @@ static inline void inet_csk_delack_init(struct sock *sk)
 
 static inline unsigned long tcp_timeout_expires(const struct sock *sk)
 {
-	return READ_ONCE(inet_csk(sk)->icsk_retransmit_timer.expires);
+	return READ_ONCE(sk->tcp_retransmit_timer.expires);
 }
 
 static inline unsigned long
@@ -209,7 +207,7 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
 		smp_store_release(&icsk->icsk_pending, 0);
 #ifdef INET_CSK_CLEAR_TIMERS
-		sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
+		sk_stop_timer(sk, &sk->tcp_retransmit_timer);
 #endif
 	} else if (what == ICSK_TIME_DACK) {
 		smp_store_release(&icsk->icsk_ack.pending, 0);
@@ -241,7 +239,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0 ||
 	    what == ICSK_TIME_LOSS_PROBE || what == ICSK_TIME_REO_TIMEOUT) {
 		smp_store_release(&icsk->icsk_pending, what);
-		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, when);
+		sk_reset_timer(sk, &sk->tcp_retransmit_timer, when);
 	} else if (what == ICSK_TIME_DACK) {
 		smp_store_release(&icsk->icsk_ack.pending,
 				  icsk->icsk_ack.pending | ICSK_ACK_TIMER);

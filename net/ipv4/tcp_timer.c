@@ -698,7 +698,7 @@ void tcp_write_timer_handler(struct sock *sk)
 		return;
 
 	if (time_after(tcp_timeout_expires(sk), jiffies)) {
-		sk_reset_timer(sk, &icsk->icsk_retransmit_timer,
+		sk_reset_timer(sk, &sk->tcp_retransmit_timer,
 			       tcp_timeout_expires(sk));
 		return;
 	}
@@ -725,12 +725,10 @@ void tcp_write_timer_handler(struct sock *sk)
 
 static void tcp_write_timer(struct timer_list *t)
 {
-	struct inet_connection_sock *icsk =
-			timer_container_of(icsk, t, icsk_retransmit_timer);
-	struct sock *sk = &icsk->icsk_inet.sk;
+	struct sock *sk = timer_container_of(sk, t, tcp_retransmit_timer);
 
 	/* Avoid locking the socket when there is no pending event. */
-	if (!smp_load_acquire(&icsk->icsk_pending))
+	if (!smp_load_acquire(&inet_csk(sk)->icsk_pending))
 		goto out;
 
 	bh_lock_sock(sk);
