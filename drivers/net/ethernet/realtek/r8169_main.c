@@ -2379,26 +2379,6 @@ void r8169_apply_firmware(struct rtl8169_private *tp)
 	}
 }
 
-static void rtl8168_config_eee_mac(struct rtl8169_private *tp)
-{
-	/* Adjust EEE LED frequency */
-	if (tp->mac_version != RTL_GIGA_MAC_VER_38)
-		RTL_W8(tp, EEE_LED, RTL_R8(tp, EEE_LED) & ~0x07);
-
-	rtl_eri_set_bits(tp, 0x1b0, 0x0003);
-}
-
-static void rtl8125a_config_eee_mac(struct rtl8169_private *tp)
-{
-	r8168_mac_ocp_modify(tp, 0xe040, 0, BIT(1) | BIT(0));
-	r8168_mac_ocp_modify(tp, 0xeb62, 0, BIT(2) | BIT(1));
-}
-
-static void rtl8125b_config_eee_mac(struct rtl8169_private *tp)
-{
-	r8168_mac_ocp_modify(tp, 0xe040, 0, BIT(1) | BIT(0));
-}
-
 static void rtl_rar_exgmac_set(struct rtl8169_private *tp, const u8 *addr)
 {
 	rtl_eri_write(tp, 0xe0, ERIAR_MASK_1111, get_unaligned_le32(addr));
@@ -3176,8 +3156,6 @@ static void rtl_hw_start_8168e_2(struct rtl8169_private *tp)
 
 	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
 
-	rtl8168_config_eee_mac(tp);
-
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) | PFM_EN);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | PWM_EN);
 	rtl_mod_config5(tp, Spi_en, 0);
@@ -3202,8 +3180,6 @@ static void rtl_hw_start_8168f(struct rtl8169_private *tp)
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) | PFM_EN);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | PWM_EN);
 	rtl_mod_config5(tp, Spi_en, 0);
-
-	rtl8168_config_eee_mac(tp);
 }
 
 static void rtl_hw_start_8168f_1(struct rtl8169_private *tp)
@@ -3252,8 +3228,6 @@ static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
-
-	rtl8168_config_eee_mac(tp);
 
 	rtl_w0w1_eri(tp, 0x2fc, 0x01, 0x06);
 	rtl_eri_clear_bits(tp, 0x1b0, BIT(12));
@@ -3395,8 +3369,6 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
 
-	rtl8168_config_eee_mac(tp);
-
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) & ~PFM_EN);
 	RTL_W8(tp, MISC_1, RTL_R8(tp, MISC_1) & ~PFM_D3COLD_EN);
 
@@ -3443,8 +3415,6 @@ static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
-
-	rtl8168_config_eee_mac(tp);
 
 	rtl_w0w1_eri(tp, 0x2fc, 0x01, 0x06);
 
@@ -3500,8 +3470,6 @@ static void rtl_hw_start_8117(struct rtl8169_private *tp)
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
-
-	rtl8168_config_eee_mac(tp);
 
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) & ~PFM_EN);
 	RTL_W8(tp, MISC_1, RTL_R8(tp, MISC_1) & ~PFM_D3COLD_EN);
@@ -3742,11 +3710,6 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 	r8168_mac_ocp_write(tp, 0xe098, 0xc302);
 
 	rtl_loop_wait_low(tp, &rtl_mac_ocp_e00e_cond, 1000, 10);
-
-	if (tp->mac_version == RTL_GIGA_MAC_VER_61)
-		rtl8125a_config_eee_mac(tp);
-	else
-		rtl8125b_config_eee_mac(tp);
 
 	rtl_disable_rxdvgate(tp);
 }
@@ -4750,6 +4713,41 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
+static void rtl_enable_tx_lpi(struct rtl8169_private *tp, bool enable)
+{
+	if (!rtl_supports_eee(tp))
+		return;
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_34 ... RTL_GIGA_MAC_VER_52:
+		/* Adjust EEE LED frequency */
+		if (tp->mac_version != RTL_GIGA_MAC_VER_38)
+			RTL_W8(tp, EEE_LED, RTL_R8(tp, EEE_LED) & ~0x07);
+		if (enable)
+			rtl_eri_set_bits(tp, 0x1b0, 0x0003);
+		else
+			rtl_eri_clear_bits(tp, 0x1b0, 0x0003);
+		break;
+	case RTL_GIGA_MAC_VER_61:
+		if (enable) {
+			r8168_mac_ocp_modify(tp, 0xe040, 0, 0x0003);
+			r8168_mac_ocp_modify(tp, 0xeb62, 0, 0x0006);
+		} else {
+			r8168_mac_ocp_modify(tp, 0xe040, 0x0003, 0);
+			r8168_mac_ocp_modify(tp, 0xeb62, 0x0006, 0);
+		}
+		break;
+	case RTL_GIGA_MAC_VER_63 ... RTL_GIGA_MAC_VER_LAST:
+		if (enable)
+			r8168_mac_ocp_modify(tp, 0xe040, 0, 0x0003);
+		else
+			r8168_mac_ocp_modify(tp, 0xe040, 0x0003, 0);
+		break;
+	default:
+		break;
+	}
+}
+
 static void r8169_phylink_handler(struct net_device *ndev)
 {
 	struct rtl8169_private *tp = netdev_priv(ndev);
@@ -4757,6 +4755,7 @@ static void r8169_phylink_handler(struct net_device *ndev)
 
 	if (netif_carrier_ok(ndev)) {
 		rtl_link_chg_patch(tp);
+		rtl_enable_tx_lpi(tp, tp->phydev->enable_tx_lpi);
 		pm_request_resume(d);
 	} else {
 		pm_runtime_idle(d);
