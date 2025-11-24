@@ -20,6 +20,16 @@
 #define RTW89_MAX_ENDPOINT_NUM		9
 #define RTW89_MAX_BULKOUT_NUM		7
 
+struct rtw89_usb_info {
+	u32 usb_host_request_2;
+	u32 usb_wlan0_1;
+	u32 hci_func_en;
+	u32 usb3_mac_npi_config_intf_0;
+	u32 usb_endpoint_0;
+	u32 usb_endpoint_2;
+	u8 bulkout_id[RTW89_DMA_CH_NUM];
+};
+
 struct rtw89_usb_rx_ctrl_block {
 	struct rtw89_dev *rtwdev;
 	struct urb *rx_urb;
@@ -35,6 +45,7 @@ struct rtw89_usb_tx_ctrl_block {
 struct rtw89_usb {
 	struct rtw89_dev *rtwdev;
 	struct usb_device *udev;
+	const struct rtw89_usb_info *info;
 
 	__le32 *vendor_req_buf;
 
@@ -49,6 +60,7 @@ struct rtw89_usb {
 	struct sk_buff_head rx_free_queue;
 	struct work_struct rx_work;
 	struct work_struct rx_urb_work;
+	struct usb_anchor tx_submitted;
 
 	struct sk_buff_head tx_queue[RTW89_TXCH_NUM];
 };

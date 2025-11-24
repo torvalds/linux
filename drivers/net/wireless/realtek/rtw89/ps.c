@@ -11,6 +11,7 @@
 #include "phy.h"
 #include "ps.h"
 #include "reg.h"
+#include "ser.h"
 #include "util.h"
 
 static int rtw89_fw_receive_lps_h2c_check(struct rtw89_dev *rtwdev, u8 macid)
@@ -26,16 +27,27 @@ static int rtw89_fw_receive_lps_h2c_check(struct rtw89_dev *rtwdev, u8 macid)
 	c2h_info.id = RTW89_FWCMD_C2HREG_FUNC_PS_LEAVE_ACK;
 	ret = rtw89_fw_msg_reg(rtwdev, NULL, &c2h_info);
 	if (ret)
-		return ret;
+		goto fw_fail;
 
 	c2hreg_macid = u32_get_bits(c2h_info.u.c2hreg[0],
 				    RTW89_C2HREG_PS_LEAVE_ACK_MACID);
 	c2hreg_ret = u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_PS_LEAVE_ACK_RET);
 
-	if (macid != c2hreg_macid || c2hreg_ret)
+	if (macid != c2hreg_macid || c2hreg_ret) {
 		rtw89_warn(rtwdev, "rtw89: check lps h2c received by firmware fail\n");
+		ret = -EINVAL;
+		goto fw_fail;
+	}
+	rtwdev->ps_hang_cnt = 0;
 
 	return 0;
+
+fw_fail:
+	rtwdev->ps_hang_cnt++;
+	if (rtwdev->ps_hang_cnt >= RTW89_PS_HANG_MAX_CNT)
+		rtw89_ser_notify(rtwdev, MAC_AX_ERR_ASSERTION);
+
+	return ret;
 }
 
 static int rtw89_fw_leave_lps_check(struct rtw89_dev *rtwdev, u8 macid)
@@ -51,8 +63,15 @@ static int rtw89_fw_leave_lps_check(struct rtw89_dev *rtwdev, u8 macid)
 				       mac->ps_status, chk_msk);
 	if (ret) {
 		rtw89_info(rtwdev, "rtw89: failed to leave lps state\n");
+
+		rtwdev->ps_hang_cnt++;
+		if (rtwdev->ps_hang_cnt >= RTW89_PS_HANG_MAX_CNT)
+			rtw89_ser_notify(rtwdev, MAC_AX_ERR_ASSERTION);
+
 		return -EBUSY;
 	}
+
+	rtwdev->ps_hang_cnt = 0;
 
 	return 0;
 }
