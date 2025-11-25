@@ -20,18 +20,14 @@ targets := $(obj-vdso) $(obj-cvdso) vdso.so vdso.so.dbg
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 obj-cvdso := $(addprefix $(obj)/, $(obj-cvdso))
 
-KBUILD_AFLAGS += -DBUILD_VDSO
-KBUILD_CFLAGS += -DBUILD_VDSO -DDISABLE_BRANCH_PROFILING
+KBUILD_AFLAGS_VDSO := $(KBUILD_AFLAGS) -DBUILD_VDSO
 
-KBUILD_AFLAGS_VDSO := $(filter-out -m64,$(KBUILD_AFLAGS))
-KBUILD_AFLAGS_VDSO += -m64
-
-KBUILD_CFLAGS_VDSO := $(filter-out -m64,$(KBUILD_CFLAGS))
+KBUILD_CFLAGS_VDSO := $(KBUILD_CFLAGS) -DBUILD_VDSO -DDISABLE_BRANCH_PROFILING
 KBUILD_CFLAGS_VDSO := $(filter-out -mpacked-stack,$(KBUILD_CFLAGS_VDSO))
 KBUILD_CFLAGS_VDSO := $(filter-out -mno-pic-data-is-text-relative,$(KBUILD_CFLAGS_VDSO))
 KBUILD_CFLAGS_VDSO := $(filter-out -munaligned-symbols,$(KBUILD_CFLAGS_VDSO))
 KBUILD_CFLAGS_VDSO := $(filter-out -fno-asynchronous-unwind-tables,$(KBUILD_CFLAGS_VDSO))
-KBUILD_CFLAGS_VDSO += -m64 -fPIC -fno-common -fno-builtin -fasynchronous-unwind-tables
+KBUILD_CFLAGS_VDSO += -fPIC -fno-common -fno-builtin -fasynchronous-unwind-tables
 KBUILD_CFLAGS_VDSO += -fno-stack-protector
 ldflags-y := -shared -soname=linux-vdso.so.1 \
 	     --hash-style=both --build-id=sha1 -T
