@@ -2311,8 +2311,8 @@ static int irdma_setup_kmode_srq(struct irdma_device *iwdev,
 	ukinfo->srq_size = depth >> shift;
 	ukinfo->shadow_area = mem->va + ring_size;
 
-	info->shadow_area_pa = info->srq_pa + ring_size;
 	info->srq_pa = mem->pa;
+	info->shadow_area_pa = info->srq_pa + ring_size;
 
 	return 0;
 }
