@@ -314,9 +314,6 @@ static int xe_svm_range_set_default_attr(struct xe_vm *vm, u64 start, u64 end)
 	has_default_attr = xe_vma_has_default_mem_attrs(vma);
 
 	if (has_default_attr) {
-		if (xe_svm_has_mapping(vm, xe_vma_start(vma), xe_vma_end(vma)))
-			return 0;
-
 		start = xe_vma_start(vma);
 		end = xe_vma_end(vma);
 	} else if (xe_vma_start(vma) == start && xe_vma_end(vma) == end) {
