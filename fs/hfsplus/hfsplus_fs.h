@@ -16,7 +16,6 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/fs_context.h>
-#include <linux/hfs_common.h>
 #include "hfsplus_raw.h"
 
 /* Runtime config options */

@@ -18,7 +18,6 @@
 
 #include <asm/byteorder.h>
 #include <linux/uaccess.h>
-#include <linux/hfs_common.h>
 
 #include "hfs.h"
 
