@@ -15,6 +15,7 @@
 #include <linux/kexec.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
+#include <linux/liveupdate.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
 #include <linux/reboot.h>
@@ -1136,6 +1137,10 @@ int kernel_kexec(void)
 		error = -EINVAL;
 		goto Unlock;
 	}
+
+	error = liveupdate_reboot();
+	if (error)
+		goto Unlock;
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
