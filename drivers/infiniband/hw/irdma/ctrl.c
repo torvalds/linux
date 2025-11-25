@@ -4635,7 +4635,8 @@ static int irdma_sc_aeq_destroy(struct irdma_sc_aeq *aeq, u64 scratch,
 	u64 hdr;
 
 	dev = aeq->dev;
-	if (dev->privileged)
+
+	if (dev->hw_attrs.uk_attrs.hw_rev <= IRDMA_GEN_2)
 		writel(0, dev->hw_regs[IRDMA_PFINT_AEQCTL]);
 
 	cqp = dev->cqp;
