@@ -19,6 +19,7 @@
 
 #include "panthor_device.h"
 #include "panthor_gpu.h"
+#include "panthor_hw.h"
 #include "panthor_regs.h"
 
 /**
@@ -241,6 +242,11 @@ int panthor_gpu_block_power_on(struct panthor_device *ptdev,
 	return 0;
 }
 
+void panthor_gpu_l2_power_off(struct panthor_device *ptdev)
+{
+	panthor_gpu_power_off(ptdev, L2, ptdev->gpu_info.l2_present, 20000);
+}
+
 /**
  * panthor_gpu_l2_power_on() - Power-on the L2-cache
  * @ptdev: Device.
@@ -368,9 +374,9 @@ void panthor_gpu_suspend(struct panthor_device *ptdev)
 {
 	/* On a fast reset, simply power down the L2. */
 	if (!ptdev->reset.fast)
-		panthor_gpu_soft_reset(ptdev);
+		panthor_hw_soft_reset(ptdev);
 	else
-		panthor_gpu_power_off(ptdev, L2, 1, 20000);
+		panthor_hw_l2_power_off(ptdev);
 
 	panthor_gpu_irq_suspend(&ptdev->gpu->irq);
 }
@@ -385,6 +391,6 @@ void panthor_gpu_suspend(struct panthor_device *ptdev)
 void panthor_gpu_resume(struct panthor_device *ptdev)
 {
 	panthor_gpu_irq_resume(&ptdev->gpu->irq, GPU_INTERRUPTS_MASK);
-	panthor_gpu_l2_power_on(ptdev);
+	panthor_hw_l2_power_on(ptdev);
 }
 
