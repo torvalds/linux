@@ -10,6 +10,7 @@
 #include <linux/xattr.h>
 #include <linux/fs_parser.h>
 #include <linux/userfaultfd_k.h>
+#include <linux/bits.h>
 
 struct swap_iocb;
 
@@ -18,6 +19,11 @@ struct swap_iocb;
 #ifdef CONFIG_TMPFS_QUOTA
 #define SHMEM_MAXQUOTAS 2
 #endif
+
+/* Suppress pre-accounting of the entire object size. */
+#define SHMEM_F_NORESERVE	BIT(0)
+/* Disallow swapping. */
+#define SHMEM_F_LOCKED		BIT(1)
 
 struct shmem_inode_info {
 	spinlock_t		lock;
