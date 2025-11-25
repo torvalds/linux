@@ -401,11 +401,9 @@ static DEFINE_PER_CPU_CACHE_HOT(bool, posted_msi_handler_active);
 
 void intel_posted_msi_init(void)
 {
-	u32 destination;
-	u32 apic_id;
+	u32 destination, apic_id;
 
 	this_cpu_write(posted_msi_pi_desc.nv, POSTED_MSI_NOTIFICATION_VECTOR);
-
 	/*
 	 * APIC destination ID is stored in bit 8:15 while in XAPIC mode.
 	 * VT-d spec. CH 9.11
@@ -449,8 +447,8 @@ static __always_inline bool handle_pending_pir(unsigned long *pir, struct pt_reg
 }
 
 /*
- * Performance data shows that 3 is good enough to harvest 90+% of the benefit
- * on high IRQ rate workload.
+ * Performance data shows that 3 is good enough to harvest 90+% of the
+ * benefit on high interrupt rate workloads.
  */
 #define MAX_POSTED_MSI_COALESCING_LOOP 3
 
@@ -460,11 +458,8 @@ static __always_inline bool handle_pending_pir(unsigned long *pir, struct pt_reg
  */
 DEFINE_IDTENTRY_SYSVEC(sysvec_posted_msi_notification)
 {
+	struct pi_desc *pid = this_cpu_ptr(&posted_msi_pi_desc);
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct pi_desc *pid;
-	int i = 0;
-
-	pid = this_cpu_ptr(&posted_msi_pi_desc);
 
 	/* Mark the handler active for intel_ack_posted_msi_irq() */
 	__this_cpu_write(posted_msi_handler_active, true);
@@ -472,25 +467,25 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_posted_msi_notification)
 	irq_enter();
 
 	/*
-	 * Max coalescing count includes the extra round of handle_pending_pir
-	 * after clearing the outstanding notification bit. Hence, at most
-	 * MAX_POSTED_MSI_COALESCING_LOOP - 1 loops are executed here.
+	 * Loop only MAX_POSTED_MSI_COALESCING_LOOP - 1 times here to take
+	 * the final handle_pending_pir() invocation after clearing the
+	 * outstanding notification bit into account.
 	 */
-	while (++i < MAX_POSTED_MSI_COALESCING_LOOP) {
+	for (int i = 1; i < MAX_POSTED_MSI_COALESCING_LOOP; i++) {
 		if (!handle_pending_pir(pid->pir, regs))
 			break;
 	}
 
 	/*
-	 * Clear outstanding notification bit to allow new IRQ notifications,
-	 * do this last to maximize the window of interrupt coalescing.
+	 * Clear the outstanding notification bit to rearm the notification
+	 * mechanism.
 	 */
 	pi_clear_on(pid);
 
 	/*
-	 * There could be a race of PI notification and the clearing of ON bit,
-	 * process PIR bits one last time such that handling the new interrupts
-	 * are not delayed until the next IRQ.
+	 * Clearing the ON bit can race with a notification. Process the
+	 * PIR bits one last time so that handling the new interrupts is
+	 * not delayed until the next notification happens.
 	 */
 	handle_pending_pir(pid->pir, regs);
 
