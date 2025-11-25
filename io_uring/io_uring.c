@@ -634,6 +634,8 @@ static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool dying)
 			is_cqe32 = true;
 			cqe_size <<= 1;
 		}
+		if (ctx->flags & IORING_SETUP_CQE32)
+			is_cqe32 = false;
 
 		if (!dying) {
 			if (!io_get_cqe_overflow(ctx, &cqe, true, is_cqe32))
