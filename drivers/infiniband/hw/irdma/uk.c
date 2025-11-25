@@ -114,33 +114,8 @@ void irdma_clr_wqes(struct irdma_qp_uk *qp, u32 qp_wqe_idx)
  */
 void irdma_uk_qp_post_wr(struct irdma_qp_uk *qp)
 {
-	u64 temp;
-	u32 hw_sq_tail;
-	u32 sw_sq_head;
-
-	/* valid bit is written and loads completed before reading shadow */
-	mb();
-
-	/* read the doorbell shadow area */
-	get_64bit_val(qp->shadow_area, 0, &temp);
-
-	hw_sq_tail = (u32)FIELD_GET(IRDMA_QP_DBSA_HW_SQ_TAIL, temp);
-	sw_sq_head = IRDMA_RING_CURRENT_HEAD(qp->sq_ring);
-	if (sw_sq_head != qp->initial_ring.head) {
-		if (sw_sq_head != hw_sq_tail) {
-			if (sw_sq_head > qp->initial_ring.head) {
-				if (hw_sq_tail >= qp->initial_ring.head &&
-				    hw_sq_tail < sw_sq_head)
-					writel(qp->qp_id, qp->wqe_alloc_db);
-			} else {
-				if (hw_sq_tail >= qp->initial_ring.head ||
-				    hw_sq_tail < sw_sq_head)
-					writel(qp->qp_id, qp->wqe_alloc_db);
-			}
-		}
-	}
-
-	qp->initial_ring.head = qp->sq_ring.head;
+	dma_wmb();
+	writel(qp->qp_id, qp->wqe_alloc_db);
 }
 
 /**
@@ -1606,7 +1581,6 @@ static void irdma_setup_connection_wqes(struct irdma_qp_uk *qp,
 	qp->conn_wqes = move_cnt;
 	IRDMA_RING_MOVE_HEAD_BY_COUNT_NOCHECK(qp->sq_ring, move_cnt);
 	IRDMA_RING_MOVE_TAIL_BY_COUNT(qp->sq_ring, move_cnt);
-	IRDMA_RING_MOVE_HEAD_BY_COUNT_NOCHECK(qp->initial_ring, move_cnt);
 }
 
 /**
@@ -1751,7 +1725,6 @@ int irdma_uk_qp_init(struct irdma_qp_uk *qp, struct irdma_qp_uk_init_info *info)
 	qp->max_sq_frag_cnt = info->max_sq_frag_cnt;
 	sq_ring_size = qp->sq_size << info->sq_shift;
 	IRDMA_RING_INIT(qp->sq_ring, sq_ring_size);
-	IRDMA_RING_INIT(qp->initial_ring, sq_ring_size);
 	if (info->first_sq_wq) {
 		irdma_setup_connection_wqes(qp, info);
 		qp->swqe_polarity = 1;

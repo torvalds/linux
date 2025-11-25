@@ -685,7 +685,6 @@ static int irdma_puda_qp_create(struct irdma_puda_rsrc *rsrc)
 	ukqp->rq_size = rsrc->rq_size;
 
 	IRDMA_RING_INIT(ukqp->sq_ring, ukqp->sq_size);
-	IRDMA_RING_INIT(ukqp->initial_ring, ukqp->sq_size);
 	IRDMA_RING_INIT(ukqp->rq_ring, ukqp->rq_size);
 	ukqp->wqe_alloc_db = qp->pd->dev->wqe_alloc_db;
 
