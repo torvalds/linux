@@ -79,7 +79,6 @@ struct fbcon_par {
 	int    cursor_reset;
 	int    blank_state;
 	int    graphics;
-	int    save_graphics; /* for debug enter/leave */
 	bool   initialized;
 	int    rotate;
 	int    cur_rotate;
