@@ -966,14 +966,14 @@ static struct gfs2_inode *gfs2_grab_existing_inode(struct gfs2_glock *gl)
 	return ip;
 }
 
-static void gfs2_try_evict(struct gfs2_glock *gl)
+static void gfs2_try_to_evict(struct gfs2_glock *gl)
 {
 	struct gfs2_inode *ip;
 
 	/*
 	 * If there is contention on the iopen glock and we have an inode, try
 	 * to grab and release the inode so that it can be evicted.  The
-	 * GIF_DEFER_DELETE flag indicates to gfs2_evict_inode() that the inode
+	 * GLF_DEFER_DELETE flag indicates to gfs2_evict_inode() that the inode
 	 * should not be deleted locally.  This will allow the remote node to
 	 * go ahead and delete the inode without us having to do it, which will
 	 * avoid rgrp glock thrashing.
@@ -1026,8 +1026,14 @@ static void delete_work_func(struct work_struct *work)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	bool verify_delete = test_and_clear_bit(GLF_VERIFY_DELETE, &gl->gl_flags);
 
+	/*
+	 * Check for the GLF_VERIFY_DELETE above: this ensures that we won't
+	 * immediately process GLF_VERIFY_DELETE work that the below call to
+	 * gfs2_try_to_evict() queues.
+	 */
+
 	if (test_and_clear_bit(GLF_TRY_TO_EVICT, &gl->gl_flags))
-		gfs2_try_evict(gl);
+		gfs2_try_to_evict(gl);
 
 	if (verify_delete) {
 		u64 no_addr = gl->gl_name.ln_number;
