@@ -642,7 +642,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	/*
 	 * Disable all GPE and clear their status bits before interrupts are
 	 * enabled. Some GPEs (like wakeup GPEs) have no handlers and this can
-	 * prevent them from producing spurious interrups.
+	 * prevent them from producing spurious interrupts.
 	 *
 	 * acpi_leave_sleep_state() will reenable specific GPEs later.
 	 *
