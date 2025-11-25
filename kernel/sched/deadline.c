@@ -3162,20 +3162,11 @@ void dl_add_task_root_domain(struct task_struct *p)
 		return;
 	}
 
-	/*
-	 * Get an active rq, whose rq->rd traces the correct root
-	 * domain.
-	 * Ideally this would be under cpuset reader lock until rq->rd is
-	 * fetched.  However, sleepable locks cannot nest inside pi_lock, so we
-	 * rely on the caller of dl_add_task_root_domain() holds 'cpuset_mutex'
-	 * to guarantee the CPU stays in the cpuset.
-	 */
 	dl_get_task_effective_cpus(p, msk);
 	cpu = cpumask_first_and(cpu_active_mask, msk);
 	BUG_ON(cpu >= nr_cpu_ids);
 	rq = cpu_rq(cpu);
 	dl_b = &rq->rd->dl_bw;
-	/* End of fetching rd */
 
 	raw_spin_lock(&dl_b->lock);
 	__dl_add(dl_b, p->dl.dl_bw, cpumask_weight(rq->rd->span));
