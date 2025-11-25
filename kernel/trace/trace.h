@@ -1798,7 +1798,6 @@ struct event_trigger_data {
 	unsigned long			count;
 	int				ref;
 	int				flags;
-	const struct event_trigger_ops	*ops;
 	struct event_command		*cmd_ops;
 	struct event_filter __rcu	*filter;
 	char				*filter_str;
@@ -1890,20 +1889,76 @@ extern void event_file_get(struct trace_event_file *file);
 extern void event_file_put(struct trace_event_file *file);
 
 /**
- * struct event_trigger_ops - callbacks for trace event triggers
+ * struct event_command - callbacks and data members for event commands
  *
- * The methods in this structure provide per-event trigger hooks for
- * various trigger operations.
+ * Event commands are invoked by users by writing the command name
+ * into the 'trigger' file associated with a trace event.  The
+ * parameters associated with a specific invocation of an event
+ * command are used to create an event trigger instance, which is
+ * added to the list of trigger instances associated with that trace
+ * event.  When the event is hit, the set of triggers associated with
+ * that event is invoked.
  *
- * The @init and @free methods are used during trigger setup and
- * teardown, typically called from an event_command's @parse()
- * function implementation.
+ * The data members in this structure provide per-event command data
+ * for various event commands.
  *
- * The @print method is used to print the trigger spec.
+ * All the data members below, except for @post_trigger, must be set
+ * for each event command.
  *
- * The @trigger method is the function that actually implements the
- * trigger and is called in the context of the triggering event
- * whenever that event occurs.
+ * @name: The unique name that identifies the event command.  This is
+ *	the name used when setting triggers via trigger files.
+ *
+ * @trigger_type: A unique id that identifies the event command
+ *	'type'.  This value has two purposes, the first to ensure that
+ *	only one trigger of the same type can be set at a given time
+ *	for a particular event e.g. it doesn't make sense to have both
+ *	a traceon and traceoff trigger attached to a single event at
+ *	the same time, so traceon and traceoff have the same type
+ *	though they have different names.  The @trigger_type value is
+ *	also used as a bit value for deferring the actual trigger
+ *	action until after the current event is finished.  Some
+ *	commands need to do this if they themselves log to the trace
+ *	buffer (see the @post_trigger() member below).  @trigger_type
+ *	values are defined by adding new values to the trigger_type
+ *	enum in include/linux/trace_events.h.
+ *
+ * @flags: See the enum event_command_flags below.
+ *
+ * All the methods below, except for @set_filter() and @unreg_all(),
+ * must be implemented.
+ *
+ * @parse: The callback function responsible for parsing and
+ *	registering the trigger written to the 'trigger' file by the
+ *	user.  It allocates the trigger instance and registers it with
+ *	the appropriate trace event.  It makes use of the other
+ *	event_command callback functions to orchestrate this, and is
+ *	usually implemented by the generic utility function
+ *	@event_trigger_callback() (see trace_event_triggers.c).
+ *
+ * @reg: Adds the trigger to the list of triggers associated with the
+ *	event, and enables the event trigger itself, after
+ *	initializing it (via the event_command @init() function).
+ *	This is also where commands can use the @trigger_type value to
+ *	make the decision as to whether or not multiple instances of
+ *	the trigger should be allowed.  This is usually implemented by
+ *	the generic utility function @register_trigger() (see
+ *	trace_event_triggers.c).
+ *
+ * @unreg: Removes the trigger from the list of triggers associated
+ *	with the event, and disables the event trigger itself, after
+ *	initializing it (via the event_command @free() function).
+ *	This is usually implemented by the generic utility function
+ *	@unregister_trigger() (see trace_event_triggers.c).
+ *
+ * @unreg_all: An optional function called to remove all the triggers
+ *	from the list of triggers associated with the event.  Called
+ *	when a trigger file is opened in truncate mode.
+ *
+ * @set_filter: An optional function called to parse and set a filter
+ *	for the trigger.  If no @set_filter() method is set for the
+ *	event command, filters set by the user for the command will be
+ *	ignored.  This is usually implemented by the generic utility
+ *	function @set_trigger_filter() (see trace_event_triggers.c).
  *
  * All the methods below, except for @init() and @free(), must be
  * implemented.
@@ -1941,100 +1996,9 @@ extern void event_file_put(struct trace_event_file *file);
  *	that calls the generic utility function @event_trigger_print()
  *	(see trace_event_triggers.c).
  */
-struct event_trigger_ops {
-	void			(*trigger)(struct event_trigger_data *data,
-					   struct trace_buffer *buffer,
-					   void *rec,
-					   struct ring_buffer_event *rbe);
-	bool			(*count_func)(struct event_trigger_data *data,
-					      struct trace_buffer *buffer,
-					      void *rec,
-					      struct ring_buffer_event *rbe);
-	int			(*init)(struct event_trigger_data *data);
-	void			(*free)(struct event_trigger_data *data);
-	int			(*print)(struct seq_file *m,
-					 struct event_trigger_data *data);
-};
-
-/**
- * struct event_command - callbacks and data members for event commands
- *
- * Event commands are invoked by users by writing the command name
- * into the 'trigger' file associated with a trace event.  The
- * parameters associated with a specific invocation of an event
- * command are used to create an event trigger instance, which is
- * added to the list of trigger instances associated with that trace
- * event.  When the event is hit, the set of triggers associated with
- * that event is invoked.
- *
- * The data members in this structure provide per-event command data
- * for various event commands.
- *
- * All the data members below, except for @post_trigger, must be set
- * for each event command.
- *
- * @name: The unique name that identifies the event command.  This is
- *	the name used when setting triggers via trigger files.
- *
- * @trigger_ops: The event_trigger_ops implementation associated with
- *	the command.
- *
- * @trigger_type: A unique id that identifies the event command
- *	'type'.  This value has two purposes, the first to ensure that
- *	only one trigger of the same type can be set at a given time
- *	for a particular event e.g. it doesn't make sense to have both
- *	a traceon and traceoff trigger attached to a single event at
- *	the same time, so traceon and traceoff have the same type
- *	though they have different names.  The @trigger_type value is
- *	also used as a bit value for deferring the actual trigger
- *	action until after the current event is finished.  Some
- *	commands need to do this if they themselves log to the trace
- *	buffer (see the @post_trigger() member below).  @trigger_type
- *	values are defined by adding new values to the trigger_type
- *	enum in include/linux/trace_events.h.
- *
- * @flags: See the enum event_command_flags below.
- *
- * All the methods below, except for @set_filter() and @unreg_all(),
- * must be implemented.
- *
- * @parse: The callback function responsible for parsing and
- *	registering the trigger written to the 'trigger' file by the
- *	user.  It allocates the trigger instance and registers it with
- *	the appropriate trace event.  It makes use of the other
- *	event_command callback functions to orchestrate this, and is
- *	usually implemented by the generic utility function
- *	@event_trigger_callback() (see trace_event_triggers.c).
- *
- * @reg: Adds the trigger to the list of triggers associated with the
- *	event, and enables the event trigger itself, after
- *	initializing it (via the event_trigger_ops @init() function).
- *	This is also where commands can use the @trigger_type value to
- *	make the decision as to whether or not multiple instances of
- *	the trigger should be allowed.  This is usually implemented by
- *	the generic utility function @register_trigger() (see
- *	trace_event_triggers.c).
- *
- * @unreg: Removes the trigger from the list of triggers associated
- *	with the event, and disables the event trigger itself, after
- *	initializing it (via the event_trigger_ops @free() function).
- *	This is usually implemented by the generic utility function
- *	@unregister_trigger() (see trace_event_triggers.c).
- *
- * @unreg_all: An optional function called to remove all the triggers
- *	from the list of triggers associated with the event.  Called
- *	when a trigger file is opened in truncate mode.
- *
- * @set_filter: An optional function called to parse and set a filter
- *	for the trigger.  If no @set_filter() method is set for the
- *	event command, filters set by the user for the command will be
- *	ignored.  This is usually implemented by the generic utility
- *	function @set_trigger_filter() (see trace_event_triggers.c).
- */
 struct event_command {
 	struct list_head	list;
 	char			*name;
-	const struct event_trigger_ops *trigger_ops;
 	enum event_trigger_type	trigger_type;
 	int			flags;
 	int			(*parse)(struct event_command *cmd_ops,
@@ -2051,6 +2015,18 @@ struct event_command {
 	int			(*set_filter)(char *filter_str,
 					      struct event_trigger_data *data,
 					      struct trace_event_file *file);
+	void			(*trigger)(struct event_trigger_data *data,
+					   struct trace_buffer *buffer,
+					   void *rec,
+					   struct ring_buffer_event *rbe);
+	bool			(*count_func)(struct event_trigger_data *data,
+					      struct trace_buffer *buffer,
+					      void *rec,
+					      struct ring_buffer_event *rbe);
+	int			(*init)(struct event_trigger_data *data);
+	void			(*free)(struct event_trigger_data *data);
+	int			(*print)(struct seq_file *m,
+					 struct event_trigger_data *data);
 };
 
 /**
@@ -2071,7 +2047,7 @@ struct event_command {
  *	either committed or discarded.  At that point, if any commands
  *	have deferred their triggers, those commands are finally
  *	invoked following the close of the current event.  In other
- *	words, if the event_trigger_ops @func() probe implementation
+ *	words, if the event_command @func() probe implementation
  *	itself logs to the trace buffer, this flag should be set,
  *	otherwise it can be left unspecified.
  *
