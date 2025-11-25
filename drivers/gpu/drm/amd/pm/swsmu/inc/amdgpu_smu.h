@@ -292,6 +292,28 @@ struct smu_clock_info {
 	uint32_t max_bus_bandwidth;
 };
 
+#define SMU_MAX_DPM_LEVELS 16
+
+struct smu_dpm_clk_level {
+	bool		enabled;
+	uint32_t	value;
+};
+
+#define SMU_DPM_TABLE_FINE_GRAINED	BIT(0)
+
+struct smu_dpm_table {
+	enum smu_clk_type	clk_type;
+	uint32_t		count;
+	uint32_t		flags;
+	struct smu_dpm_clk_level dpm_levels[SMU_MAX_DPM_LEVELS];
+};
+
+#define SMU_DPM_TABLE_MIN(table) \
+	((table)->count > 0 ? (table)->dpm_levels[0].value : 0)
+
+#define SMU_DPM_TABLE_MAX(table) \
+	((table)->count > 0 ? (table)->dpm_levels[(table)->count - 1].value : 0)
+
 struct smu_bios_boot_up_values {
 	uint32_t			revision;
 	uint32_t			gfxclk;
