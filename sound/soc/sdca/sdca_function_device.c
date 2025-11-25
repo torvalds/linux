@@ -96,8 +96,8 @@ int sdca_dev_register_functions(struct sdw_slave *slave)
 
 		func_dev = sdca_dev_register(&slave->dev,
 					     &sdca_data->function[i]);
-		if (!func_dev)
-			return -ENODEV;
+		if (IS_ERR(func_dev))
+			return PTR_ERR(func_dev);
 
 		sdca_data->function[i].func_dev = func_dev;
 	}
