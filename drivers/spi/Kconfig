@@ -873,9 +873,9 @@ config SPI_PL022
 	  bus and a PL022 controller, say Y or M here.
 
 config SPI_POLARFIRE_SOC
-
 	tristate "Microchip FPGA SPI controllers"
-	depends on SPI_MASTER && ARCH_MICROCHIP
+	depends on SPI_MASTER
+	depends on ARCH_MICROCHIP || COMPILE_TEST
 	help
 	  This enables the SPI driver for Microchip FPGA SPI controllers.
 	  Say Y or M here if you want to use the "hard" controllers on
