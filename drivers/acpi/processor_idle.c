@@ -1400,45 +1400,47 @@ void acpi_processor_unregister_idle_driver(void)
 	cpuidle_unregister_driver(&acpi_idle_driver);
 }
 
-void acpi_processor_power_init(struct acpi_processor *pr)
+int acpi_processor_power_init(struct acpi_processor *pr)
 {
+	int retval;
 	struct cpuidle_device *dev;
 
 	if (disabled_by_idle_boot_param())
-		return;
+		return 0;
 
 	acpi_processor_cstate_first_run_checks();
 
 	if (!acpi_processor_get_power_info(pr))
 		pr->flags.power_setup_done = 1;
 
-	if (!pr->flags.power)
-		return;
+	if (pr->flags.power) {
+		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		if (!dev)
+			return -ENOMEM;
+		per_cpu(acpi_cpuidle_device, pr->id) = dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return;
+		acpi_processor_setup_cpuidle_dev(pr, dev);
 
-	per_cpu(acpi_cpuidle_device, pr->id) = dev;
+		/* Register per-cpu cpuidle_device. Cpuidle driver
+		 * must already be registered before registering device
+		 */
+		retval = cpuidle_register_device(dev);
+		if (retval) {
 
-	acpi_processor_setup_cpuidle_dev(pr, dev);
-
-	/*
-	 * Register a cpuidle device for this CPU.  The cpuidle driver using
-	 * this device is expected to be registered.
-	 */
-	if (cpuidle_register_device(dev)) {
-		per_cpu(acpi_cpuidle_device, pr->id) = NULL;
-		kfree(dev);
+			per_cpu(acpi_cpuidle_device, pr->id) = NULL;
+			kfree(dev);
+			return retval;
+		}
 	}
+	return 0;
 }
 
-void acpi_processor_power_exit(struct acpi_processor *pr)
+int acpi_processor_power_exit(struct acpi_processor *pr)
 {
 	struct cpuidle_device *dev = per_cpu(acpi_cpuidle_device, pr->id);
 
 	if (disabled_by_idle_boot_param())
-		return;
+		return 0;
 
 	if (pr->flags.power) {
 		cpuidle_unregister_device(dev);
@@ -1446,6 +1448,7 @@ void acpi_processor_power_exit(struct acpi_processor *pr)
 	}
 
 	pr->flags.power_setup_done = 0;
+	return 0;
 }
 
 MODULE_IMPORT_NS("ACPI_PROCESSOR_IDLE");
