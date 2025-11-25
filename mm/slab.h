@@ -40,13 +40,29 @@ typedef u64 freelist_full_t;
  * Freelist pointer and counter to cmpxchg together, avoids the typical ABA
  * problems with cmpxchg of just a pointer.
  */
-typedef union {
-	struct {
-		void *freelist;
-		unsigned long counter;
+struct freelist_counters {
+	union {
+		struct {
+			void *freelist;
+			union {
+				unsigned long counters;
+				struct {
+					unsigned inuse:16;
+					unsigned objects:15;
+					/*
+					 * If slab debugging is enabled then the
+					 * frozen bit can be reused to indicate
+					 * that the slab was corrupted
+					 */
+					unsigned frozen:1;
+				};
+			};
+		};
+#ifdef system_has_freelist_aba
+		freelist_full_t freelist_counters;
+#endif
 	};
-	freelist_full_t full;
-} freelist_aba_t;
+};
 
 /* Reuses the bits in struct page */
 struct slab {
@@ -69,27 +85,7 @@ struct slab {
 #endif
 			};
 			/* Double-word boundary */
-			union {
-				struct {
-					void *freelist;		/* first free object */
-					union {
-						unsigned long counters;
-						struct {
-							unsigned inuse:16;
-							unsigned objects:15;
-							/*
-							 * If slab debugging is enabled then the
-							 * frozen bit can be reused to indicate
-							 * that the slab was corrupted
-							 */
-							unsigned frozen:1;
-						};
-					};
-				};
-#ifdef system_has_freelist_aba
-				freelist_aba_t freelist_counter;
-#endif
-			};
+			struct freelist_counters;
 		};
 		struct rcu_head rcu_head;
 	};
@@ -114,7 +110,7 @@ SLAB_MATCH(_unused_slab_obj_exts, obj_exts);
 #undef SLAB_MATCH
 static_assert(sizeof(struct slab) <= sizeof(struct page));
 #if defined(system_has_freelist_aba)
-static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)));
+static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(struct freelist_counters)));
 #endif
 
 /**
