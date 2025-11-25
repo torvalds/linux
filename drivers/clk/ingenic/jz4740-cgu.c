@@ -266,6 +266,6 @@ static void __init jz4740_cgu_init(struct device_node *np)
 	if (retval)
 		pr_err("%s: failed to register CGU Clocks\n", __func__);
 
-	ingenic_cgu_register_syscore_ops(cgu);
+	ingenic_cgu_register_syscore(cgu);
 }
 CLK_OF_DECLARE_DRIVER(jz4740_cgu, "ingenic,jz4740-cgu", jz4740_cgu_init);

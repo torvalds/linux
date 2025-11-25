@@ -34,9 +34,9 @@ extern void __init pxa27x_map_io(void);
 extern void __init pxa3xx_init_irq(void);
 extern void __init pxa3xx_map_io(void);
 
-extern struct syscore_ops pxa_irq_syscore_ops;
-extern struct syscore_ops pxa2xx_mfp_syscore_ops;
-extern struct syscore_ops pxa3xx_mfp_syscore_ops;
+extern struct syscore pxa_irq_syscore;
+extern struct syscore pxa2xx_mfp_syscore;
+extern struct syscore pxa3xx_mfp_syscore;
 
 void __init pxa_set_ffuart_info(void *info);
 void __init pxa_set_btuart_info(void *info);

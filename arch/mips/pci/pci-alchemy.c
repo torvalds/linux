@@ -304,7 +304,7 @@ static int alchemy_pci_def_idsel(unsigned int devsel, int assert)
 }
 
 /* save PCI controller register contents. */
-static int alchemy_pci_suspend(void)
+static int alchemy_pci_suspend(void *data)
 {
 	struct alchemy_pci_context *ctx = __alchemy_pci_ctx;
 	if (!ctx)
@@ -326,7 +326,7 @@ static int alchemy_pci_suspend(void)
 	return 0;
 }
 
-static void alchemy_pci_resume(void)
+static void alchemy_pci_resume(void *data)
 {
 	struct alchemy_pci_context *ctx = __alchemy_pci_ctx;
 	if (!ctx)
@@ -354,9 +354,13 @@ static void alchemy_pci_resume(void)
 	alchemy_pci_wired_entry(ctx);	/* install it */
 }
 
-static struct syscore_ops alchemy_pci_pmops = {
-	.suspend	= alchemy_pci_suspend,
-	.resume		= alchemy_pci_resume,
+static const struct syscore_ops alchemy_pci_syscore_ops = {
+	.suspend = alchemy_pci_suspend,
+	.resume = alchemy_pci_resume,
+};
+
+static struct syscore alchemy_pci_syscore = {
+	.ops = &alchemy_pci_syscore_ops,
 };
 
 static int alchemy_pci_probe(struct platform_device *pdev)
@@ -478,7 +482,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 
 	__alchemy_pci_ctx = ctx;
 	platform_set_drvdata(pdev, ctx);
-	register_syscore_ops(&alchemy_pci_pmops);
+	register_syscore(&alchemy_pci_syscore);
 	register_pci_controller(&ctx->alchemy_pci_ctrl);
 
 	dev_info(&pdev->dev, "PCI controller at %ld MHz\n",

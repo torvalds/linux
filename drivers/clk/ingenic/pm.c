@@ -15,7 +15,7 @@
 
 static void __iomem * __maybe_unused ingenic_cgu_base;
 
-static int __maybe_unused ingenic_cgu_pm_suspend(void)
+static int __maybe_unused ingenic_cgu_pm_suspend(void *data)
 {
 	u32 val = readl(ingenic_cgu_base + CGU_REG_LCR);
 
@@ -24,22 +24,26 @@ static int __maybe_unused ingenic_cgu_pm_suspend(void)
 	return 0;
 }
 
-static void __maybe_unused ingenic_cgu_pm_resume(void)
+static void __maybe_unused ingenic_cgu_pm_resume(void *data)
 {
 	u32 val = readl(ingenic_cgu_base + CGU_REG_LCR);
 
 	writel(val & ~LCR_LOW_POWER_MODE, ingenic_cgu_base + CGU_REG_LCR);
 }
 
-static struct syscore_ops __maybe_unused ingenic_cgu_pm_ops = {
+static const struct syscore_ops __maybe_unused ingenic_cgu_pm_ops = {
 	.suspend = ingenic_cgu_pm_suspend,
 	.resume = ingenic_cgu_pm_resume,
 };
 
-void ingenic_cgu_register_syscore_ops(struct ingenic_cgu *cgu)
+static struct syscore __maybe_unused ingenic_cgu_pm = {
+	.ops = &ingenic_cgu_pm_ops,
+};
+
+void ingenic_cgu_register_syscore(struct ingenic_cgu *cgu)
 {
 	if (IS_ENABLED(CONFIG_PM_SLEEP)) {
 		ingenic_cgu_base = cgu->base;
-		register_syscore_ops(&ingenic_cgu_pm_ops);
+		register_syscore(&ingenic_cgu_pm);
 	}
 }

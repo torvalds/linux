@@ -519,7 +519,7 @@ out:
 	kfree(priv);
 }
 
-static void mpic_timer_resume(void)
+static void mpic_timer_resume(void *data)
 {
 	struct timer_group_priv *priv;
 
@@ -535,8 +535,12 @@ static const struct of_device_id mpic_timer_ids[] = {
 	{},
 };
 
-static struct syscore_ops mpic_timer_syscore_ops = {
+static const struct syscore_ops mpic_timer_syscore_ops = {
 	.resume = mpic_timer_resume,
+};
+
+static struct syscore mpic_timer_syscore = {
+	.ops = &mpic_timer_syscore_ops,
 };
 
 static int __init mpic_timer_init(void)
@@ -546,7 +550,7 @@ static int __init mpic_timer_init(void)
 	for_each_matching_node(np, mpic_timer_ids)
 		timer_group_init(np);
 
-	register_syscore_ops(&mpic_timer_syscore_ops);
+	register_syscore(&mpic_timer_syscore);
 
 	if (list_empty(&timer_group_list))
 		return -ENODEV;

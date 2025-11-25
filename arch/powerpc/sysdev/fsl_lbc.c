@@ -350,7 +350,7 @@ err:
 #ifdef CONFIG_SUSPEND
 
 /* save lbc registers */
-static int fsl_lbc_syscore_suspend(void)
+static int fsl_lbc_syscore_suspend(void *data)
 {
 	struct fsl_lbc_ctrl *ctrl;
 	struct fsl_lbc_regs __iomem *lbc;
@@ -374,7 +374,7 @@ out:
 }
 
 /* restore lbc registers */
-static void fsl_lbc_syscore_resume(void)
+static void fsl_lbc_syscore_resume(void *data)
 {
 	struct fsl_lbc_ctrl *ctrl;
 	struct fsl_lbc_regs __iomem *lbc;
@@ -408,9 +408,13 @@ static const struct of_device_id fsl_lbc_match[] = {
 };
 
 #ifdef CONFIG_SUSPEND
-static struct syscore_ops lbc_syscore_pm_ops = {
+static const struct syscore_ops lbc_syscore_pm_ops = {
 	.suspend = fsl_lbc_syscore_suspend,
 	.resume = fsl_lbc_syscore_resume,
+};
+
+static struct syscore lbc_syscore_pm = {
+	.ops = &lbc_syscore_pm_ops,
 };
 #endif
 
@@ -425,7 +429,7 @@ static struct platform_driver fsl_lbc_ctrl_driver = {
 static int __init fsl_lbc_init(void)
 {
 #ifdef CONFIG_SUSPEND
-	register_syscore_ops(&lbc_syscore_pm_ops);
+	register_syscore(&lbc_syscore_pm);
 #endif
 	return platform_driver_register(&fsl_lbc_ctrl_driver);
 }

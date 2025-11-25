@@ -86,13 +86,17 @@ static int umwait_cpu_offline(unsigned int cpu)
  * trust the firmware nor does it matter if the same value is written
  * again.
  */
-static void umwait_syscore_resume(void)
+static void umwait_syscore_resume(void *data)
 {
 	umwait_update_control_msr(NULL);
 }
 
-static struct syscore_ops umwait_syscore_ops = {
+static const struct syscore_ops umwait_syscore_ops = {
 	.resume	= umwait_syscore_resume,
+};
+
+static struct syscore umwait_syscore = {
+	.ops = &umwait_syscore_ops,
 };
 
 /* sysfs interface */
@@ -226,7 +230,7 @@ static int __init umwait_init(void)
 		return ret;
 	}
 
-	register_syscore_ops(&umwait_syscore_ops);
+	register_syscore(&umwait_syscore);
 
 	/*
 	 * Add umwait control interface. Ignore failure, so at least the

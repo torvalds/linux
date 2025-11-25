@@ -466,7 +466,7 @@ struct tegra_pmc {
 	unsigned long *wake_type_dual_edge_map;
 	unsigned long *wake_sw_status_map;
 	unsigned long *wake_cntrl_level_map;
-	struct syscore_ops syscore;
+	struct syscore syscore;
 };
 
 static struct tegra_pmc *pmc = &(struct tegra_pmc) {
@@ -3147,7 +3147,7 @@ static void tegra186_pmc_process_wake_events(struct tegra_pmc *pmc, unsigned int
 	}
 }
 
-static void tegra186_pmc_wake_syscore_resume(void)
+static void tegra186_pmc_wake_syscore_resume(void *data)
 {
 	u32 status, mask;
 	unsigned int i;
@@ -3160,7 +3160,7 @@ static void tegra186_pmc_wake_syscore_resume(void)
 	}
 }
 
-static int tegra186_pmc_wake_syscore_suspend(void)
+static int tegra186_pmc_wake_syscore_suspend(void *data)
 {
 	wke_read_sw_wake_status(pmc);
 
@@ -3178,6 +3178,11 @@ static int tegra186_pmc_wake_syscore_suspend(void)
 
 	return 0;
 }
+
+static const struct syscore_ops tegra186_pmc_wake_syscore_ops = {
+	.suspend = tegra186_pmc_wake_syscore_suspend,
+	.resume = tegra186_pmc_wake_syscore_resume,
+};
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM)
 static int tegra_pmc_suspend(struct device *dev)
@@ -3829,10 +3834,8 @@ static const struct tegra_pmc_regs tegra186_pmc_regs = {
 
 static void tegra186_pmc_init(struct tegra_pmc *pmc)
 {
-	pmc->syscore.suspend = tegra186_pmc_wake_syscore_suspend;
-	pmc->syscore.resume = tegra186_pmc_wake_syscore_resume;
-
-	register_syscore_ops(&pmc->syscore);
+	pmc->syscore.ops = &tegra186_pmc_wake_syscore_ops;
+	register_syscore(&pmc->syscore);
 }
 
 static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,

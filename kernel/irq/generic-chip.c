@@ -650,7 +650,7 @@ static struct irq_data *irq_gc_get_irq_data(struct irq_chip_generic *gc)
 }
 
 #ifdef CONFIG_PM
-static int irq_gc_suspend(void)
+static int irq_gc_suspend(void *data)
 {
 	struct irq_chip_generic *gc;
 
@@ -670,7 +670,7 @@ static int irq_gc_suspend(void)
 	return 0;
 }
 
-static void irq_gc_resume(void)
+static void irq_gc_resume(void *data)
 {
 	struct irq_chip_generic *gc;
 
@@ -693,7 +693,7 @@ static void irq_gc_resume(void)
 #define irq_gc_resume NULL
 #endif
 
-static void irq_gc_shutdown(void)
+static void irq_gc_shutdown(void *data)
 {
 	struct irq_chip_generic *gc;
 
@@ -709,15 +709,19 @@ static void irq_gc_shutdown(void)
 	}
 }
 
-static struct syscore_ops irq_gc_syscore_ops = {
+static const struct syscore_ops irq_gc_syscore_ops = {
 	.suspend = irq_gc_suspend,
 	.resume = irq_gc_resume,
 	.shutdown = irq_gc_shutdown,
 };
 
+static struct syscore irq_gc_syscore = {
+	.ops = &irq_gc_syscore_ops,
+};
+
 static int __init irq_gc_init_ops(void)
 {
-	register_syscore_ops(&irq_gc_syscore_ops);
+	register_syscore(&irq_gc_syscore);
 	return 0;
 }
 device_initcall(irq_gc_init_ops);

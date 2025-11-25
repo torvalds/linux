@@ -817,7 +817,7 @@ static struct {
 	u32 sercr;
 } ipic_saved_state;
 
-static int ipic_suspend(void)
+static int ipic_suspend(void *data)
 {
 	struct ipic *ipic = primary_ipic;
 
@@ -848,7 +848,7 @@ static int ipic_suspend(void)
 	return 0;
 }
 
-static void ipic_resume(void)
+static void ipic_resume(void *data)
 {
 	struct ipic *ipic = primary_ipic;
 
@@ -870,9 +870,13 @@ static void ipic_resume(void)
 #define ipic_resume NULL
 #endif
 
-static struct syscore_ops ipic_syscore_ops = {
+static const struct syscore_ops ipic_syscore_ops = {
 	.suspend = ipic_suspend,
 	.resume = ipic_resume,
+};
+
+static struct syscore ipic_syscore = {
+	.ops = &ipic_syscore_ops,
 };
 
 static int __init init_ipic_syscore(void)
@@ -881,7 +885,7 @@ static int __init init_ipic_syscore(void)
 		return -ENODEV;
 
 	printk(KERN_DEBUG "Registering ipic system core operations\n");
-	register_syscore_ops(&ipic_syscore_ops);
+	register_syscore(&ipic_syscore);
 
 	return 0;
 }
