@@ -7,8 +7,6 @@
 use crate::alloc::{AllocError, Flags};
 use crate::bitmap::BitmapVec;
 
-const BITS_PER_LONG: usize = bindings::BITS_PER_LONG as usize;
-
 /// Represents a dynamic ID pool backed by a [`BitmapVec`].
 ///
 /// Clients acquire and release IDs from unset bits in a bitmap.
@@ -97,13 +95,12 @@ impl ReallocRequest {
 impl IdPool {
     /// Constructs a new [`IdPool`].
     ///
-    /// A capacity below [`BITS_PER_LONG`] is adjusted to
-    /// [`BITS_PER_LONG`].
+    /// A capacity below [`MAX_INLINE_LEN`] is adjusted to [`MAX_INLINE_LEN`].
     ///
-    /// [`BITS_PER_LONG`]: srctree/include/asm-generic/bitsperlong.h
+    /// [`MAX_INLINE_LEN`]: BitmapVec::MAX_INLINE_LEN
     #[inline]
     pub fn new(num_ids: usize, flags: Flags) -> Result<Self, AllocError> {
-        let num_ids = core::cmp::max(num_ids, BITS_PER_LONG);
+        let num_ids = usize::max(num_ids, BitmapVec::MAX_INLINE_LEN);
         let map = BitmapVec::new(num_ids, flags)?;
         Ok(Self { map })
     }
@@ -116,28 +113,34 @@ impl IdPool {
 
     /// Returns a [`ReallocRequest`] if the [`IdPool`] can be shrunk, [`None`] otherwise.
     ///
-    /// The capacity of an [`IdPool`] cannot be shrunk below [`BITS_PER_LONG`].
+    /// The capacity of an [`IdPool`] cannot be shrunk below [`MAX_INLINE_LEN`].
     ///
-    /// [`BITS_PER_LONG`]: srctree/include/asm-generic/bitsperlong.h
+    /// [`MAX_INLINE_LEN`]: BitmapVec::MAX_INLINE_LEN
     ///
     /// # Examples
     ///
     /// ```
-    /// use kernel::alloc::{AllocError, flags::GFP_KERNEL};
-    /// use kernel::id_pool::{ReallocRequest, IdPool};
+    /// use kernel::{
+    ///     alloc::AllocError,
+    ///     bitmap::BitmapVec,
+    ///     id_pool::{
+    ///         IdPool,
+    ///         ReallocRequest,
+    ///     },
+    /// };
     ///
     /// let mut pool = IdPool::new(1024, GFP_KERNEL)?;
     /// let alloc_request = pool.shrink_request().ok_or(AllocError)?;
     /// let resizer = alloc_request.realloc(GFP_KERNEL)?;
     /// pool.shrink(resizer);
-    /// assert_eq!(pool.capacity(), kernel::bindings::BITS_PER_LONG as usize);
+    /// assert_eq!(pool.capacity(), BitmapVec::MAX_INLINE_LEN);
     /// # Ok::<(), AllocError>(())
     /// ```
     #[inline]
     pub fn shrink_request(&self) -> Option<ReallocRequest> {
         let cap = self.capacity();
-        // Shrinking below [`BITS_PER_LONG`] is never possible.
-        if cap <= BITS_PER_LONG {
+        // Shrinking below `MAX_INLINE_LEN` is never possible.
+        if cap <= BitmapVec::MAX_INLINE_LEN {
             return None;
         }
         // Determine if the bitmap can shrink based on the position of
@@ -146,13 +149,13 @@ impl IdPool {
         // bitmap should shrink to half its current size.
         let Some(bit) = self.map.last_bit() else {
             return Some(ReallocRequest {
-                num_ids: BITS_PER_LONG,
+                num_ids: BitmapVec::MAX_INLINE_LEN,
             });
         };
         if bit >= (cap / 4) {
             return None;
         }
-        let num_ids = usize::max(BITS_PER_LONG, cap / 2);
+        let num_ids = usize::max(BitmapVec::MAX_INLINE_LEN, cap / 2);
         Some(ReallocRequest { num_ids })
     }
 
@@ -177,11 +180,13 @@ impl IdPool {
 
     /// Returns a [`ReallocRequest`] for growing this [`IdPool`], if possible.
     ///
-    /// The capacity of an [`IdPool`] cannot be grown above [`i32::MAX`].
+    /// The capacity of an [`IdPool`] cannot be grown above [`MAX_LEN`].
+    ///
+    /// [`MAX_LEN`]: BitmapVec::MAX_LEN
     #[inline]
     pub fn grow_request(&self) -> Option<ReallocRequest> {
         let num_ids = self.capacity() * 2;
-        if num_ids > i32::MAX.try_into().unwrap() {
+        if num_ids > BitmapVec::MAX_LEN {
             return None;
         }
         Some(ReallocRequest { num_ids })
