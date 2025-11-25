@@ -354,6 +354,7 @@ properties:
               - qcom,qcs6490-rb3gen2
               - radxa,dragon-q6a
               - shift,otter
+              - thundercomm,rubikpi3
           - const: qcom,qcm6490
 
       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
