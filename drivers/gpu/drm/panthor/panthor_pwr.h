@@ -10,6 +10,10 @@ void panthor_pwr_unplug(struct panthor_device *ptdev);
 
 int panthor_pwr_init(struct panthor_device *ptdev);
 
+void panthor_pwr_l2_power_off(struct panthor_device *ptdev);
+
+int panthor_pwr_l2_power_on(struct panthor_device *ptdev);
+
 void panthor_pwr_suspend(struct panthor_device *ptdev);
 
 void panthor_pwr_resume(struct panthor_device *ptdev);
