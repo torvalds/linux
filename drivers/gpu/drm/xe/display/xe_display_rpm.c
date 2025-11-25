@@ -5,10 +5,12 @@
 
 #include "intel_display_core.h"
 #include "intel_display_rpm.h"
-#include "intel_wakeref.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_pm.h"
+
+/* -ENOENT means we got the ref, but there's no tracking */
+#define INTEL_WAKEREF_DEF ERR_PTR(-ENOENT)
 
 static struct ref_tracker *xe_display_rpm_get(const struct drm_device *drm)
 {

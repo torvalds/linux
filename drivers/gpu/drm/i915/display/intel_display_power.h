@@ -9,8 +9,6 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
-#include "intel_wakeref.h"
-
 enum aux_ch;
 enum port;
 struct i915_power_well;
@@ -18,6 +16,9 @@ struct intel_display;
 struct intel_encoder;
 struct ref_tracker;
 struct seq_file;
+
+/* -ENOENT means we got the ref, but there's no tracking */
+#define INTEL_WAKEREF_DEF ERR_PTR(-ENOENT)
 
 /*
  * Keep the pipe, transcoder, port (DDI_LANES,DDI_IO,AUX) domain instances
