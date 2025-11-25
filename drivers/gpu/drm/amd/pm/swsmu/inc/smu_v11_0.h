@@ -79,12 +79,6 @@ struct smu_11_0_max_sustainable_clocks {
 	uint32_t soc_clock;
 };
 
-
-struct smu_11_0_pcie_table {
-	uint8_t  pcie_gen[MAX_PCIE_CONF];
-	uint8_t  pcie_lane[MAX_PCIE_CONF];
-};
-
 struct smu_11_0_dpm_tables {
 	struct smu_dpm_table             soc_table;
 	struct smu_dpm_table             gfx_table;
@@ -99,7 +93,7 @@ struct smu_11_0_dpm_tables {
 	struct smu_dpm_table             display_table;
 	struct smu_dpm_table             phy_table;
 	struct smu_dpm_table             fclk_table;
-	struct smu_11_0_pcie_table       pcie_table;
+	struct smu_pcie_table            pcie_table;
 };
 
 struct smu_11_0_dpm_context {

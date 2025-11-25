@@ -958,6 +958,7 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int i, ret = 0;
 	DpmDescriptor_t *table_member;
+	uint16_t *lclk_freq;
 
 	/* socclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.soc_table;
@@ -1141,6 +1142,11 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->dpm_levels[0].enabled = true;
 	}
 
+	GET_PPTABLE_MEMBER(LclkFreq, &lclk_freq);
+	for (i = 0; i < NUM_LINK_LEVELS; i++)
+		dpm_context->dpm_tables.pcie_table.lclk_freq[i] = lclk_freq[i];
+	dpm_context->dpm_tables.pcie_table.lclk_levels = NUM_LINK_LEVELS;
+
 	return 0;
 }
 
@@ -1269,13 +1275,12 @@ static int sienna_cichlid_emit_clk_levels(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
-	uint16_t *table_member;
-
 	struct smu_11_0_7_overdrive_table *od_settings = smu->od_settings;
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)table_context->overdrive_table;
 	int i, size = *offset, ret = 0, start_offset = *offset;
 	uint32_t cur_value = 0, value = 0, count = 0;
+	struct smu_pcie_table *pcie_table;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
 	uint32_t gen_speed, lane_width;
@@ -1338,23 +1343,28 @@ static int sienna_cichlid_emit_clk_levels(struct smu_context *smu,
 	case SMU_PCIE:
 		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
 		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
-		GET_PPTABLE_MEMBER(LclkFreq, &table_member);
-		for (i = 0; i < NUM_LINK_LEVELS; i++)
-			size += sysfs_emit_at(buf, size, "%d: %s %s %dMhz %s\n", i,
-					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 0) ? "2.5GT/s," :
-					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 1) ? "5.0GT/s," :
-					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 2) ? "8.0GT/s," :
-					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 3) ? "16.0GT/s," : "",
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 1) ? "x1" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 2) ? "x2" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 3) ? "x4" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 4) ? "x8" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 5) ? "x12" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 6) ? "x16" : "",
-					table_member[i],
-					(gen_speed == dpm_context->dpm_tables.pcie_table.pcie_gen[i]) &&
-					(lane_width == dpm_context->dpm_tables.pcie_table.pcie_lane[i]) ?
-					"*" : "");
+		pcie_table = &dpm_context->dpm_tables.pcie_table;
+		for (i = 0; i < pcie_table->lclk_levels; i++)
+			size += sysfs_emit_at(
+				buf, size, "%d: %s %s %dMhz %s\n", i,
+				(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
+				(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
+				(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
+				(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," :
+								 "",
+				(pcie_table->pcie_lane[i] == 1) ? "x1" :
+				(pcie_table->pcie_lane[i] == 2) ? "x2" :
+				(pcie_table->pcie_lane[i] == 3) ? "x4" :
+				(pcie_table->pcie_lane[i] == 4) ? "x8" :
+				(pcie_table->pcie_lane[i] == 5) ? "x12" :
+				(pcie_table->pcie_lane[i] == 6) ? "x16" :
+								  "",
+				pcie_table->lclk_freq[i],
+				(gen_speed == pcie_table->pcie_gen[i]) &&
+						(lane_width ==
+						 pcie_table->pcie_lane[i]) ?
+					"*" :
+					"");
 		break;
 	case SMU_OD_SCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
@@ -2129,7 +2139,7 @@ static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 						 uint8_t pcie_width_cap)
 {
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_11_0_pcie_table *pcie_table = &dpm_context->dpm_tables.pcie_table;
+	struct smu_pcie_table *pcie_table = &dpm_context->dpm_tables.pcie_table;
 	uint8_t *table_member1, *table_member2;
 	uint8_t min_gen_speed, max_gen_speed;
 	uint8_t min_lane_width, max_lane_width;
