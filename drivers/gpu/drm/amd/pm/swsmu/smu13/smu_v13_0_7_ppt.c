@@ -578,11 +578,12 @@ static int smu_v13_0_7_set_default_dpm_table(struct smu_context *smu)
 	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	PPTable_t *driver_ppt = smu->smu_table.driver_pptable;
 	SkuTable_t *skutable = &driver_ppt->SkuTable;
-	struct smu_13_0_dpm_table *dpm_table;
+	struct smu_dpm_table *dpm_table;
 	int ret = 0;
 
 	/* socclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.soc_table;
+	dpm_table->clk_type = SMU_SOCCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_SOCCLK,
@@ -593,12 +594,11 @@ static int smu_v13_0_7_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.socclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* gfxclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.gfx_table;
+	dpm_table->clk_type = SMU_GFXCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_GFXCLK,
@@ -611,18 +611,16 @@ static int smu_v13_0_7_set_default_dpm_table(struct smu_context *smu)
 			skutable->DriverReportedClocks.GameClockAc)) {
 			dpm_table->dpm_levels[dpm_table->count - 1].value =
 				skutable->DriverReportedClocks.GameClockAc;
-			dpm_table->max = skutable->DriverReportedClocks.GameClockAc;
 		}
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.gfxclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* uclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.uclk_table;
+	dpm_table->clk_type = SMU_UCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_UCLK,
@@ -633,12 +631,11 @@ static int smu_v13_0_7_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.uclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* fclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.fclk_table;
+	dpm_table->clk_type = SMU_FCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_FCLK,
@@ -649,12 +646,11 @@ static int smu_v13_0_7_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.fclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* vclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.vclk_table;
+	dpm_table->clk_type = SMU_VCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_VCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_VCLK,
@@ -665,12 +661,11 @@ static int smu_v13_0_7_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* dclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.dclk_table;
+	dpm_table->clk_type = SMU_DCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_DCLK,
@@ -681,12 +676,11 @@ static int smu_v13_0_7_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* dcefclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.dcef_table;
+	dpm_table->clk_type = SMU_DCEFCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCN_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_DCEFCLK,
@@ -697,8 +691,6 @@ static int smu_v13_0_7_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dcefclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	return 0;
@@ -865,7 +857,7 @@ static int smu_v13_0_7_get_dpm_ultimate_freq(struct smu_context *smu,
 {
 	struct smu_13_0_dpm_context *dpm_context =
 		smu->smu_dpm.dpm_context;
-	struct smu_13_0_dpm_table *dpm_table;
+	struct smu_dpm_table *dpm_table;
 
 	switch (clk_type) {
 	case SMU_MCLK:
@@ -902,9 +894,9 @@ static int smu_v13_0_7_get_dpm_ultimate_freq(struct smu_context *smu,
 	}
 
 	if (min)
-		*min = dpm_table->min;
+		*min = SMU_DPM_TABLE_MIN(dpm_table);
 	if (max)
-		*max = dpm_table->max;
+		*max = SMU_DPM_TABLE_MAX(dpm_table);
 
 	return 0;
 }
@@ -1182,7 +1174,7 @@ static int smu_v13_0_7_emit_clk_levels(struct smu_context *smu,
 	OverDriveTableExternal_t *od_table =
 		(OverDriveTableExternal_t *)smu->smu_table.overdrive_table;
 	int i, curr_freq, size = *offset, start_offset = *offset;
-	struct smu_13_0_dpm_table *single_dpm_table;
+	struct smu_dpm_table *single_dpm_table;
 	struct smu_13_0_pcie_table *pcie_table;
 	uint32_t gen_speed, lane_width;
 	int32_t min_value, max_value;
@@ -1237,7 +1229,7 @@ static int smu_v13_0_7_emit_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
-		if (single_dpm_table->is_fine_grained) {
+		if (single_dpm_table->flags & SMU_DPM_TABLE_FINE_GRAINED) {
 			/*
 			 * For fine grained dpms, there are only two dpm levels:
 			 *   - level 0 -> min clock freq
@@ -1977,7 +1969,7 @@ static int smu_v13_0_7_force_clk_levels(struct smu_context *smu,
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
-	struct smu_13_0_dpm_table *single_dpm_table;
+	struct smu_dpm_table *single_dpm_table;
 	uint32_t soft_min_level, soft_max_level;
 	uint32_t min_freq, max_freq;
 	int ret = 0;
@@ -2023,7 +2015,7 @@ static int smu_v13_0_7_force_clk_levels(struct smu_context *smu,
 	case SMU_VCLK1:
 	case SMU_DCLK:
 	case SMU_DCLK1:
-		if (single_dpm_table->is_fine_grained) {
+		if (single_dpm_table->flags & SMU_DPM_TABLE_FINE_GRAINED) {
 			/* There is only 2 levels for fine grained DPM */
 			soft_max_level = (soft_max_level >= 1 ? 1 : 0);
 			soft_min_level = (soft_min_level >= 1 ? 1 : 0);
@@ -2288,18 +2280,12 @@ static int smu_v13_0_7_populate_umd_state_clk(struct smu_context *smu)
 {
 	struct smu_13_0_dpm_context *dpm_context =
 				smu->smu_dpm.dpm_context;
-	struct smu_13_0_dpm_table *gfx_table =
-				&dpm_context->dpm_tables.gfx_table;
-	struct smu_13_0_dpm_table *mem_table =
-				&dpm_context->dpm_tables.uclk_table;
-	struct smu_13_0_dpm_table *soc_table =
-				&dpm_context->dpm_tables.soc_table;
-	struct smu_13_0_dpm_table *vclk_table =
-				&dpm_context->dpm_tables.vclk_table;
-	struct smu_13_0_dpm_table *dclk_table =
-				&dpm_context->dpm_tables.dclk_table;
-	struct smu_13_0_dpm_table *fclk_table =
-				&dpm_context->dpm_tables.fclk_table;
+	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
+	struct smu_dpm_table *mem_table = &dpm_context->dpm_tables.uclk_table;
+	struct smu_dpm_table *soc_table = &dpm_context->dpm_tables.soc_table;
+	struct smu_dpm_table *vclk_table = &dpm_context->dpm_tables.vclk_table;
+	struct smu_dpm_table *dclk_table = &dpm_context->dpm_tables.dclk_table;
+	struct smu_dpm_table *fclk_table = &dpm_context->dpm_tables.fclk_table;
 	struct smu_umd_pstate_table *pstate_table =
 				&smu->pstate_table;
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -2307,38 +2293,39 @@ static int smu_v13_0_7_populate_umd_state_clk(struct smu_context *smu)
 	DriverReportedClocks_t driver_clocks =
 		pptable->SkuTable.DriverReportedClocks;
 
-	pstate_table->gfxclk_pstate.min = gfx_table->min;
+	pstate_table->gfxclk_pstate.min = SMU_DPM_TABLE_MIN(gfx_table);
 	if (driver_clocks.GameClockAc &&
-		(driver_clocks.GameClockAc < gfx_table->max))
+	    (driver_clocks.GameClockAc < SMU_DPM_TABLE_MAX(gfx_table)))
 		pstate_table->gfxclk_pstate.peak = driver_clocks.GameClockAc;
 	else
-		pstate_table->gfxclk_pstate.peak = gfx_table->max;
+		pstate_table->gfxclk_pstate.peak = SMU_DPM_TABLE_MAX(gfx_table);
 
-	pstate_table->uclk_pstate.min = mem_table->min;
-	pstate_table->uclk_pstate.peak = mem_table->max;
+	pstate_table->uclk_pstate.min = SMU_DPM_TABLE_MIN(mem_table);
+	pstate_table->uclk_pstate.peak = SMU_DPM_TABLE_MAX(mem_table);
 
-	pstate_table->socclk_pstate.min = soc_table->min;
-	pstate_table->socclk_pstate.peak = soc_table->max;
+	pstate_table->socclk_pstate.min = SMU_DPM_TABLE_MIN(soc_table);
+	pstate_table->socclk_pstate.peak = SMU_DPM_TABLE_MAX(soc_table);
 
-	pstate_table->vclk_pstate.min = vclk_table->min;
-	pstate_table->vclk_pstate.peak = vclk_table->max;
+	pstate_table->vclk_pstate.min = SMU_DPM_TABLE_MIN(vclk_table);
+	pstate_table->vclk_pstate.peak = SMU_DPM_TABLE_MAX(vclk_table);
 
-	pstate_table->dclk_pstate.min = dclk_table->min;
-	pstate_table->dclk_pstate.peak = dclk_table->max;
+	pstate_table->dclk_pstate.min = SMU_DPM_TABLE_MIN(dclk_table);
+	pstate_table->dclk_pstate.peak = SMU_DPM_TABLE_MAX(dclk_table);
 
-	pstate_table->fclk_pstate.min = fclk_table->min;
-	pstate_table->fclk_pstate.peak = fclk_table->max;
+	pstate_table->fclk_pstate.min = SMU_DPM_TABLE_MIN(fclk_table);
+	pstate_table->fclk_pstate.peak = SMU_DPM_TABLE_MAX(fclk_table);
 
 	if (driver_clocks.BaseClockAc &&
-		driver_clocks.BaseClockAc < gfx_table->max)
+	    driver_clocks.BaseClockAc < SMU_DPM_TABLE_MAX(gfx_table))
 		pstate_table->gfxclk_pstate.standard = driver_clocks.BaseClockAc;
 	else
-		pstate_table->gfxclk_pstate.standard = gfx_table->max;
-	pstate_table->uclk_pstate.standard = mem_table->max;
-	pstate_table->socclk_pstate.standard = soc_table->min;
-	pstate_table->vclk_pstate.standard = vclk_table->min;
-	pstate_table->dclk_pstate.standard = dclk_table->min;
-	pstate_table->fclk_pstate.standard = fclk_table->min;
+		pstate_table->gfxclk_pstate.standard =
+			SMU_DPM_TABLE_MAX(gfx_table);
+	pstate_table->uclk_pstate.standard = SMU_DPM_TABLE_MAX(mem_table);
+	pstate_table->socclk_pstate.standard = SMU_DPM_TABLE_MIN(soc_table);
+	pstate_table->vclk_pstate.standard = SMU_DPM_TABLE_MIN(vclk_table);
+	pstate_table->dclk_pstate.standard = SMU_DPM_TABLE_MIN(dclk_table);
+	pstate_table->fclk_pstate.standard = SMU_DPM_TABLE_MIN(fclk_table);
 
 	return 0;
 }

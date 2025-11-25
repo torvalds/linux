@@ -347,7 +347,7 @@ static int aldebaran_get_dpm_ultimate_freq(struct smu_context *smu,
 					   uint32_t *min, uint32_t *max)
 {
 	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_13_0_dpm_table *dpm_table;
+	struct smu_dpm_table *dpm_table;
 	uint32_t min_clk, max_clk;
 
 	if (amdgpu_sriov_vf(smu->adev)) {
@@ -376,8 +376,8 @@ static int aldebaran_get_dpm_ultimate_freq(struct smu_context *smu,
 			return -EINVAL;
 		}
 
-		min_clk = dpm_table->min;
-		max_clk = dpm_table->max;
+		min_clk = SMU_DPM_TABLE_MIN(dpm_table);
+		max_clk = SMU_DPM_TABLE_MAX(dpm_table);
 
 		if (min) {
 			if (!min_clk)
@@ -400,12 +400,13 @@ static int aldebaran_get_dpm_ultimate_freq(struct smu_context *smu,
 static int aldebaran_set_default_dpm_table(struct smu_context *smu)
 {
 	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_13_0_dpm_table *dpm_table = NULL;
+	struct smu_dpm_table *dpm_table = NULL;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	int ret = 0;
 
 	/* socclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.soc_table;
+	dpm_table->clk_type = SMU_SOCCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_SOCCLK,
@@ -416,12 +417,11 @@ static int aldebaran_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.socclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* gfxclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.gfx_table;
+	dpm_table->clk_type = SMU_GFXCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		/* in the case of gfxclk, only fine-grained dpm is honored */
 		dpm_table->count = 2;
@@ -429,18 +429,15 @@ static int aldebaran_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->dpm_levels[0].enabled = true;
 		dpm_table->dpm_levels[1].value = pptable->GfxclkFmax;
 		dpm_table->dpm_levels[1].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[1].value;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.gfxclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* memclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.uclk_table;
+	dpm_table->clk_type = SMU_UCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_UCLK,
@@ -451,12 +448,11 @@ static int aldebaran_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.uclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* fclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.fclk_table;
+	dpm_table->clk_type = SMU_FCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
 		ret = smu_v13_0_set_single_dpm_table(smu,
 						     SMU_FCLK,
@@ -467,8 +463,6 @@ static int aldebaran_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.fclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	return 0;
@@ -593,29 +587,26 @@ static int aldebaran_populate_umd_state_clk(struct smu_context *smu)
 {
 	struct smu_13_0_dpm_context *dpm_context =
 		smu->smu_dpm.dpm_context;
-	struct smu_13_0_dpm_table *gfx_table =
-		&dpm_context->dpm_tables.gfx_table;
-	struct smu_13_0_dpm_table *mem_table =
-		&dpm_context->dpm_tables.uclk_table;
-	struct smu_13_0_dpm_table *soc_table =
-		&dpm_context->dpm_tables.soc_table;
+	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
+	struct smu_dpm_table *mem_table = &dpm_context->dpm_tables.uclk_table;
+	struct smu_dpm_table *soc_table = &dpm_context->dpm_tables.soc_table;
 	struct smu_umd_pstate_table *pstate_table =
 		&smu->pstate_table;
 
-	pstate_table->gfxclk_pstate.min = gfx_table->min;
-	pstate_table->gfxclk_pstate.peak = gfx_table->max;
-	pstate_table->gfxclk_pstate.curr.min = gfx_table->min;
-	pstate_table->gfxclk_pstate.curr.max = gfx_table->max;
+	pstate_table->gfxclk_pstate.min = SMU_DPM_TABLE_MIN(gfx_table);
+	pstate_table->gfxclk_pstate.peak = SMU_DPM_TABLE_MAX(gfx_table);
+	pstate_table->gfxclk_pstate.curr.min = SMU_DPM_TABLE_MIN(gfx_table);
+	pstate_table->gfxclk_pstate.curr.max = SMU_DPM_TABLE_MAX(gfx_table);
 
-	pstate_table->uclk_pstate.min = mem_table->min;
-	pstate_table->uclk_pstate.peak = mem_table->max;
-	pstate_table->uclk_pstate.curr.min = mem_table->min;
-	pstate_table->uclk_pstate.curr.max = mem_table->max;
+	pstate_table->uclk_pstate.min = SMU_DPM_TABLE_MIN(mem_table);
+	pstate_table->uclk_pstate.peak = SMU_DPM_TABLE_MAX(mem_table);
+	pstate_table->uclk_pstate.curr.min = SMU_DPM_TABLE_MIN(mem_table);
+	pstate_table->uclk_pstate.curr.max = SMU_DPM_TABLE_MAX(mem_table);
 
-	pstate_table->socclk_pstate.min = soc_table->min;
-	pstate_table->socclk_pstate.peak = soc_table->max;
-	pstate_table->socclk_pstate.curr.min = soc_table->min;
-	pstate_table->socclk_pstate.curr.max = soc_table->max;
+	pstate_table->socclk_pstate.min = SMU_DPM_TABLE_MIN(soc_table);
+	pstate_table->socclk_pstate.peak = SMU_DPM_TABLE_MAX(soc_table);
+	pstate_table->socclk_pstate.curr.min = SMU_DPM_TABLE_MIN(soc_table);
+	pstate_table->socclk_pstate.curr.max = SMU_DPM_TABLE_MAX(soc_table);
 
 	if (gfx_table->count > ALDEBARAN_UMD_PSTATE_GFXCLK_LEVEL &&
 	    mem_table->count > ALDEBARAN_UMD_PSTATE_MCLK_LEVEL &&
@@ -640,7 +631,7 @@ static int aldebaran_populate_umd_state_clk(struct smu_context *smu)
 
 static void aldebaran_get_clk_table(struct smu_context *smu,
 				    struct pp_clock_levels_with_latency *clocks,
-				    struct smu_13_0_dpm_table *dpm_table)
+				    struct smu_dpm_table *dpm_table)
 {
 	uint32_t i;
 
@@ -829,7 +820,7 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 	int ret = 0;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 	struct pp_clock_levels_with_latency clocks;
-	struct smu_13_0_dpm_table *single_dpm_table;
+	struct smu_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
 	uint32_t i;
@@ -1040,7 +1031,7 @@ static int aldebaran_force_clk_levels(struct smu_context *smu,
 				      enum smu_clk_type type, uint32_t mask)
 {
 	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_13_0_dpm_table *single_dpm_table = NULL;
+	struct smu_dpm_table *single_dpm_table = NULL;
 	uint32_t soft_min_level, soft_max_level;
 	int ret = 0;
 
@@ -1322,8 +1313,7 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 {
 	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
 	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
-	struct smu_13_0_dpm_table *gfx_table =
-		&dpm_context->dpm_tables.gfx_table;
+	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 	int r;
 
@@ -1331,7 +1321,8 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 	if ((smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) &&
 	    (level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)) {
 		smu_cmn_send_smc_msg(smu, SMU_MSG_DisableDeterminism, NULL);
-		pstate_table->gfxclk_pstate.curr.max = gfx_table->max;
+		pstate_table->gfxclk_pstate.curr.max =
+			SMU_DPM_TABLE_MAX(gfx_table);
 	}
 
 	switch (level) {
@@ -1372,7 +1363,8 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 
 	if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK)
 		return -EINVAL;
-
+	min_clk = SMU_DPM_TABLE_MIN(&dpm_context->dpm_tables.gfx_table);
+	max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.gfx_table);
 	if ((smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
 			&& (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM))
 		return -EINVAL;
@@ -1399,16 +1391,13 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 	}
 
 	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) {
-		if (!max || (max < dpm_context->dpm_tables.gfx_table.min) ||
-			(max > dpm_context->dpm_tables.gfx_table.max)) {
+		if (!max || (max < min_clk) || (max > max_clk)) {
 			dev_warn(adev->dev,
 					"Invalid max frequency %d MHz specified for determinism\n", max);
 			return -EINVAL;
 		}
 
 		/* Restore default min/max clocks and enable determinism */
-		min_clk = dpm_context->dpm_tables.gfx_table.min;
-		max_clk = dpm_context->dpm_tables.gfx_table.max;
 		ret = smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk, false);
 		if (!ret) {
 			usleep_range(500, 1000);
@@ -1449,11 +1438,14 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 			dev_err(smu->adev->dev, "Input parameter number not correct\n");
 			return -EINVAL;
 		}
-
+		min_clk = SMU_DPM_TABLE_MIN(&dpm_context->dpm_tables.gfx_table);
+		max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.gfx_table);
 		if (input[0] == 0) {
-			if (input[1] < dpm_context->dpm_tables.gfx_table.min) {
-				dev_warn(smu->adev->dev, "Minimum GFX clk (%ld) MHz specified is less than the minimum allowed (%d) MHz\n",
-					input[1], dpm_context->dpm_tables.gfx_table.min);
+			if (input[1] < min_clk) {
+				dev_warn(
+					smu->adev->dev,
+					"Minimum GFX clk (%ld) MHz specified is less than the minimum allowed (%d) MHz\n",
+					input[1], min_clk);
 				pstate_table->gfxclk_pstate.custom.min =
 					pstate_table->gfxclk_pstate.curr.min;
 				return -EINVAL;
@@ -1461,9 +1453,11 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 
 			pstate_table->gfxclk_pstate.custom.min = input[1];
 		} else if (input[0] == 1) {
-			if (input[1] > dpm_context->dpm_tables.gfx_table.max) {
-				dev_warn(smu->adev->dev, "Maximum GFX clk (%ld) MHz specified is greater than the maximum allowed (%d) MHz\n",
-					input[1], dpm_context->dpm_tables.gfx_table.max);
+			if (input[1] > max_clk) {
+				dev_warn(
+					smu->adev->dev,
+					"Maximum GFX clk (%ld) MHz specified is greater than the maximum allowed (%d) MHz\n",
+					input[1], max_clk);
 				pstate_table->gfxclk_pstate.custom.max =
 					pstate_table->gfxclk_pstate.curr.max;
 				return -EINVAL;
@@ -1480,8 +1474,10 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 			return -EINVAL;
 		} else {
 			/* Use the default frequencies for manual and determinism mode */
-			min_clk = dpm_context->dpm_tables.gfx_table.min;
-			max_clk = dpm_context->dpm_tables.gfx_table.max;
+			min_clk = SMU_DPM_TABLE_MIN(
+				&dpm_context->dpm_tables.gfx_table);
+			max_clk = SMU_DPM_TABLE_MAX(
+				&dpm_context->dpm_tables.gfx_table);
 
 			ret = aldebaran_set_soft_freq_limited_range(
 				smu, SMU_GFXCLK, min_clk, max_clk, false);
