@@ -69,6 +69,11 @@
  *     Metadata for a single session, including its name and a physical pointer
  *     to another preserved memory block containing an array of
  *     `struct luo_file_ser` for all files in that session.
+ *
+ *   - struct luo_file_ser:
+ *     Metadata for a single preserved file. Contains the `compatible` string to
+ *     find the correct handler in the new kernel, a user-provided `token` for
+ *     identification, and an opaque `data` handle for the handler to use.
  */
 
 #ifndef _LINUX_KHO_ABI_LUO_H
@@ -86,13 +91,43 @@
 #define LUO_FDT_COMPATIBLE	"luo-v1"
 #define LUO_FDT_LIVEUPDATE_NUM	"liveupdate-number"
 
+#define LIVEUPDATE_HNDL_COMPAT_LENGTH	48
+
+/**
+ * struct luo_file_ser - Represents the serialized preserves files.
+ * @compatible:  File handler compatible string.
+ * @data:        Private data
+ * @token:       User provided token for this file
+ *
+ * If this structure is modified, LUO_SESSION_COMPATIBLE must be updated.
+ */
+struct luo_file_ser {
+	char compatible[LIVEUPDATE_HNDL_COMPAT_LENGTH];
+	u64 data;
+	u64 token;
+} __packed;
+
+/**
+ * struct luo_file_set_ser - Represents the serialized metadata for file set
+ * @files:   The physical address of a contiguous memory block that holds
+ *           the serialized state of files (array of luo_file_ser) in this file
+ *           set.
+ * @count:   The total number of files that were part of this session during
+ *           serialization. Used for iteration and validation during
+ *           restoration.
+ */
+struct luo_file_set_ser {
+	u64 files;
+	u64 count;
+} __packed;
+
 /*
  * LUO FDT session node
  * LUO_FDT_SESSION_HEADER:  is a u64 physical address of struct
  *                          luo_session_header_ser
  */
 #define LUO_FDT_SESSION_NODE_NAME	"luo-session"
-#define LUO_FDT_SESSION_COMPATIBLE	"luo-session-v1"
+#define LUO_FDT_SESSION_COMPATIBLE	"luo-session-v2"
 #define LUO_FDT_SESSION_HEADER		"luo-session-header"
 
 /**
@@ -114,6 +149,7 @@ struct luo_session_header_ser {
  * struct luo_session_ser - Represents the serialized metadata for a LUO session.
  * @name:         The unique name of the session, provided by the userspace at
  *                the time of session creation.
+ * @file_set_ser: Serialized files belonging to this session,
  *
  * This structure is used to package session-specific metadata for transfer
  * between kernels via Kexec Handover. An array of these structures (one per
@@ -124,6 +160,7 @@ struct luo_session_header_ser {
  */
 struct luo_session_ser {
 	char name[LIVEUPDATE_SESSION_NAME_LENGTH];
+	struct luo_file_set_ser file_set_ser;
 } __packed;
 
 #endif /* _LINUX_KHO_ABI_LUO_H */
