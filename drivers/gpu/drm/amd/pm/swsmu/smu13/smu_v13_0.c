@@ -2374,9 +2374,8 @@ int smu_v13_0_update_pcie_parameters(struct smu_context *smu,
 				     uint8_t pcie_width_cap)
 {
 	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_13_0_pcie_table *pcie_table =
-				&dpm_context->dpm_tables.pcie_table;
-	int num_of_levels = pcie_table->num_of_link_levels;
+	struct smu_pcie_table *pcie_table = &dpm_context->dpm_tables.pcie_table;
+	int num_of_levels = pcie_table->lclk_levels;
 	uint32_t smu_pcie_arg;
 	int ret = 0;
 	int i;

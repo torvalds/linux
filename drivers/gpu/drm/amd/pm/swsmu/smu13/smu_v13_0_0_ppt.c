@@ -1186,7 +1186,8 @@ static int smu_v13_0_0_emit_clk_levels(struct smu_context *smu,
 		(OverDriveTableExternal_t *)smu->smu_table.overdrive_table;
 	int i, curr_freq, size = *offset, start_offset = *offset;
 	struct smu_dpm_table *single_dpm_table;
-	struct smu_13_0_pcie_table *pcie_table;
+	struct smu_pcie_table *pcie_table;
+	uint32_t pcie_speed, pcie_width;
 	uint32_t gen_speed, lane_width;
 	int32_t min_value, max_value;
 	int ret = 0;
@@ -1289,22 +1290,30 @@ static int smu_v13_0_0_emit_clk_levels(struct smu_context *smu,
 			return ret;
 
 		pcie_table = &(dpm_context->dpm_tables.pcie_table);
-		for (i = 0; i < pcie_table->num_of_link_levels; i++)
-			size += sysfs_emit_at(buf, size, "%d: %s %s %dMhz %s\n", i,
-					(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
-					(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
-					(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
-					(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," : "",
-					(pcie_table->pcie_lane[i] == 1) ? "x1" :
-					(pcie_table->pcie_lane[i] == 2) ? "x2" :
-					(pcie_table->pcie_lane[i] == 3) ? "x4" :
-					(pcie_table->pcie_lane[i] == 4) ? "x8" :
-					(pcie_table->pcie_lane[i] == 5) ? "x12" :
-					(pcie_table->pcie_lane[i] == 6) ? "x16" : "",
-					pcie_table->clk_freq[i],
-					(gen_speed == DECODE_GEN_SPEED(pcie_table->pcie_gen[i])) &&
-					(lane_width == DECODE_LANE_WIDTH(pcie_table->pcie_lane[i])) ?
-					"*" : "");
+		for (i = 0; i < pcie_table->lclk_levels; i++) {
+			pcie_speed = DECODE_GEN_SPEED(pcie_table->pcie_gen[i]);
+			pcie_width =
+				DECODE_LANE_WIDTH(pcie_table->pcie_lane[i]);
+			size += sysfs_emit_at(
+				buf, size, "%d: %s %s %dMhz %s\n", i,
+				(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
+				(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
+				(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
+				(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," :
+								 "",
+				(pcie_table->pcie_lane[i] == 1) ? "x1" :
+				(pcie_table->pcie_lane[i] == 2) ? "x2" :
+				(pcie_table->pcie_lane[i] == 3) ? "x4" :
+				(pcie_table->pcie_lane[i] == 4) ? "x8" :
+				(pcie_table->pcie_lane[i] == 5) ? "x12" :
+				(pcie_table->pcie_lane[i] == 6) ? "x16" :
+								  "",
+				pcie_table->lclk_freq[i],
+				(gen_speed == pcie_speed &&
+				 lane_width == pcie_width) ?
+					"*" :
+					"");
+		}
 		break;
 
 	case SMU_OD_SCLK:
@@ -3107,8 +3116,7 @@ static int smu_v13_0_0_update_pcie_parameters(struct smu_context *smu,
 				     uint8_t pcie_width_cap)
 {
 	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_13_0_pcie_table *pcie_table =
-				&dpm_context->dpm_tables.pcie_table;
+	struct smu_pcie_table *pcie_table = &dpm_context->dpm_tables.pcie_table;
 	int num_of_levels;
 	uint32_t smu_pcie_arg;
 	uint32_t link_level;
@@ -3118,7 +3126,7 @@ static int smu_v13_0_0_update_pcie_parameters(struct smu_context *smu,
 	int ret = 0;
 	int i;
 
-	pcie_table->num_of_link_levels = 0;
+	pcie_table->lclk_levels = 0;
 
 	for (link_level = 0; link_level < NUM_LINK_LEVELS; link_level++) {
 		if (!skutable->PcieGenSpeed[link_level] &&
@@ -3126,16 +3134,16 @@ static int smu_v13_0_0_update_pcie_parameters(struct smu_context *smu,
 		    !skutable->LclkFreq[link_level])
 			continue;
 
-		pcie_table->pcie_gen[pcie_table->num_of_link_levels] =
-					skutable->PcieGenSpeed[link_level];
-		pcie_table->pcie_lane[pcie_table->num_of_link_levels] =
-					skutable->PcieLaneCount[link_level];
-		pcie_table->clk_freq[pcie_table->num_of_link_levels] =
-					skutable->LclkFreq[link_level];
-		pcie_table->num_of_link_levels++;
+		pcie_table->pcie_gen[pcie_table->lclk_levels] =
+			skutable->PcieGenSpeed[link_level];
+		pcie_table->pcie_lane[pcie_table->lclk_levels] =
+			skutable->PcieLaneCount[link_level];
+		pcie_table->lclk_freq[pcie_table->lclk_levels] =
+			skutable->LclkFreq[link_level];
+		pcie_table->lclk_levels++;
 	}
 
-	num_of_levels = pcie_table->num_of_link_levels;
+	num_of_levels = pcie_table->lclk_levels;
 	if (!num_of_levels)
 		return 0;
 
