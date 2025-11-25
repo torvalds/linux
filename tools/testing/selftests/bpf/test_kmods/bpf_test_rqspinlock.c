@@ -51,6 +51,16 @@ module_param(test_mode, int, 0644);
 MODULE_PARM_DESC(test_mode,
 		 "rqspinlock test mode: 0 = AA, 1 = ABBA, 2 = ABBCCA");
 
+static int normal_delay = 20;
+module_param(normal_delay, int, 0644);
+MODULE_PARM_DESC(normal_delay,
+		 "rqspinlock critical section length for normal context (20ms default)");
+
+static int nmi_delay = 10;
+module_param(nmi_delay, int, 0644);
+MODULE_PARM_DESC(nmi_delay,
+		 "rqspinlock critical section length for NMI context (10ms default)");
+
 static struct perf_event **rqsl_evts;
 static int rqsl_nevts;
 
@@ -138,7 +148,7 @@ static int rqspinlock_worker_fn(void *arg)
 			start_ns = ktime_get_mono_fast_ns();
 			ret = raw_res_spin_lock_irqsave(worker_lock, flags);
 			rqsl_record_lock_time(ktime_get_mono_fast_ns() - start_ns, false);
-			mdelay(20);
+			mdelay(normal_delay);
 			if (!ret)
 				raw_res_spin_unlock_irqrestore(worker_lock, flags);
 			cpu_relax();
@@ -182,7 +192,7 @@ static void nmi_cb(struct perf_event *event, struct perf_sample_data *data,
 	ret = raw_res_spin_lock_irqsave(locks.nmi_lock, flags);
 	rqsl_record_lock_time(ktime_get_mono_fast_ns() - start_ns, true);
 
-	mdelay(10);
+	mdelay(nmi_delay);
 
 	if (!ret)
 		raw_res_spin_unlock_irqrestore(locks.nmi_lock, flags);
