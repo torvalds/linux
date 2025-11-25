@@ -303,7 +303,7 @@ static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi, struct platform_device
 		return dev_err_probe(dev, ret, "Failed to get clocks\n");
 
 	hdmi->irq = platform_get_irq(pdev, 0);
-	if (!hdmi->irq)
+	if (hdmi->irq < 0)
 		return hdmi->irq;
 
 	hdmi->regs = device_node_to_regmap(dev->of_node);
