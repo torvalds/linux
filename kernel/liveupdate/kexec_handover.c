@@ -1096,7 +1096,7 @@ void *kho_restore_vmalloc(const struct kho_vmalloc *preservation)
 				goto err_free_pages_array;
 
 			for (int j = 0; j < contig_pages; j++)
-				pages[idx++] = page;
+				pages[idx++] = page + j;
 
 			phys += contig_pages * PAGE_SIZE;
 		}
