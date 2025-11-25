@@ -2325,14 +2325,14 @@ static bool can_trap_icv_dir_el1(const struct arm64_cpu_capabilities *entry,
 
 	BUILD_BUG_ON(ARM64_HAS_ICH_HCR_EL2_TDIR <= ARM64_HAS_GICV3_CPUIF);
 	BUILD_BUG_ON(ARM64_HAS_ICH_HCR_EL2_TDIR <= ARM64_HAS_GICV5_LEGACY);
-	if (!cpus_have_cap(ARM64_HAS_GICV3_CPUIF) &&
+	if (!this_cpu_has_cap(ARM64_HAS_GICV3_CPUIF) &&
 	    !is_midr_in_range_list(has_vgic_v3))
 		return false;
 
 	if (!is_hyp_mode_available())
 		return false;
 
-	if (cpus_have_cap(ARM64_HAS_GICV5_LEGACY))
+	if (this_cpu_has_cap(ARM64_HAS_GICV5_LEGACY))
 		return true;
 
 	if (is_kernel_in_hyp_mode())
@@ -2863,7 +2863,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		 */
 		.desc = "ICV_DIR_EL1 trapping",
 		.capability = ARM64_HAS_ICH_HCR_EL2_TDIR,
-		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.type = ARM64_CPUCAP_EARLY_LOCAL_CPU_FEATURE,
 		.matches = can_trap_icv_dir_el1,
 	},
 #ifdef CONFIG_ARM64_E0PD
