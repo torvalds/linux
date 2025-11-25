@@ -135,10 +135,10 @@ static void dwmac1000_dma_operation_mode_rx(struct stmmac_priv *priv,
 
 	if (mode == SF_DMA_MODE) {
 		pr_debug("GMAC: enable RX store and forward mode\n");
-		csr6 |= DMA_CONTROL_RSF;
+		csr6 |= DMA_CONTROL_RSF | DMA_CONTROL_DFF;
 	} else {
 		pr_debug("GMAC: disable RX SF mode (threshold %d)\n", mode);
-		csr6 &= ~DMA_CONTROL_RSF;
+		csr6 &= ~(DMA_CONTROL_RSF | DMA_CONTROL_DFF);
 		csr6 &= DMA_CONTROL_TC_RX_MASK;
 		if (mode <= 32)
 			csr6 |= DMA_CONTROL_RTC_32;
@@ -262,6 +262,7 @@ const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.dma_rx_mode = dwmac1000_dma_operation_mode_rx,
 	.dma_tx_mode = dwmac1000_dma_operation_mode_tx,
 	.enable_dma_transmission = dwmac_enable_dma_transmission,
+	.enable_dma_reception = dwmac_enable_dma_reception,
 	.enable_dma_irq = dwmac_enable_dma_irq,
 	.disable_dma_irq = dwmac_disable_dma_irq,
 	.start_tx = dwmac_dma_start_tx,
