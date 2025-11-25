@@ -170,16 +170,16 @@
 	};
 
 	vcc3v3_pcie: regulator-vcc3v3-pcie {
-		compatible = "regulator-gpio";
-		regulator-name = "vcc3v3_pcie";
-		regulator-min-microvolt = <100000>;
-		regulator-max-microvolt = <3300000>;
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpios = <&gpio3 RK_PC3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc3v3_pcie_en_pin>;
-		gpios = <&gpio3 RK_PC3 GPIO_ACTIVE_HIGH>;
-		gpios-states = <1>;
-		states = <100000 0>, <3300000 1>;
+		regulator-name = "vcc3v3_pcie";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <5000>;
+		vin-supply = <&dc_12v>;
 	};
 
 	vcc5v0_sys: regulator-vcc5v0-sys {

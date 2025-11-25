@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
- * Copyright (c) 2024 Uwe Kleine-König
+ * Copyright (c) 2024 Heiko Stuebner <heiko@sntech.de>
  */
 
 /dts-v1/;
@@ -9,21 +9,11 @@
 #include "rk3568-qnap-tsx33.dtsi"
 
 / {
-	model = "Qnap TS-433-4G NAS System 4-Bay";
-	compatible = "qnap,ts433", "rockchip,rk3568";
+	model = "Qnap TS-233-2G NAS System 2-Bay";
+	compatible = "qnap,ts233", "rockchip,rk3568";
 
 	aliases {
 		ethernet0 = &gmac0;
-	};
-
-	vcc3v3_pcie: regulator-vcc3v3-pcie {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_pcie";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&dc_12v>;
 	};
 };
 
@@ -70,30 +60,10 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdd2_led_pin>;
 	};
-
-	led-2 {
-		color = <LED_COLOR_ID_GREEN>;
-		function = LED_FUNCTION_DISK;
-		gpios = <&gpio1 RK_PD7 GPIO_ACTIVE_LOW>;
-		label = "hdd3:green:disk";
-		linux,default-trigger = "disk-activity";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdd3_led_pin>;
-	};
-
-	led-3 {
-		color = <LED_COLOR_ID_GREEN>;
-		function = LED_FUNCTION_DISK;
-		gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_LOW>;
-		label = "hdd4:green:disk";
-		linux,default-trigger = "disk-activity";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdd4_led_pin>;
-	};
 };
 
 &mcu {
-	compatible = "qnap,ts433-mcu";
+	compatible = "qnap,ts233-mcu";
 };
 
 &mdio0 {
@@ -108,26 +78,6 @@
 	};
 };
 
-&pcie30phy {
-	data-lanes = <1 2>;
-	status = "okay";
-};
-
-/* Connected to a JMicron AHCI SATA controller */
-&pcie3x1 {
-	reset-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&vcc3v3_pcie>;
-	status = "okay";
-};
-
-/* Connected to the 2.5G NIC for the upper network jack */
-&pcie3x2 {
-	num-lanes = <1>;
-	reset-gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&vcc3v3_pcie>;
-	status = "okay";
-};
-
 &pinctrl {
 	gmac0 {
 		eth_phy0_reset_pin: eth-phy0-reset-pin {
@@ -138,14 +88,6 @@
 	leds {
 		hdd2_led_pin: hdd2-led-pin {
 			rockchip,pins = <1 RK_PD6 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		hdd3_led_pin: hdd3-led-pin {
-			rockchip,pins = <1 RK_PD7 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		hdd4_led_pin: hdd4_led-pin {
-			rockchip,pins = <2 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

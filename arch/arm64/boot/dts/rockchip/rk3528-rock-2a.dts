@@ -45,7 +45,6 @@
 		default-state = "on";
 		function = LED_FUNCTION_STATUS;
 		gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>;
-		linux,default-trigger = "default-on";
 	};
 };
 
