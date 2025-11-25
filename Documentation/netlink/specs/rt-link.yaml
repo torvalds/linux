@@ -1869,6 +1869,7 @@ attribute-sets:
       -
         name: remote
         type: u32
+        byte-order: big-endian
         display-hint: ipv4
       -
         name: ttl
@@ -1987,6 +1988,7 @@ attribute-sets:
       -
         name: 6rd-relay-prefix
         type: u32
+        byte-order: big-endian
         display-hint: ipv4
       -
         name: 6rd-prefixlen

@@ -97,6 +97,7 @@ attribute-sets:
       -
         name: broadcast
         type: u32
+        byte-order: big-endian
         display-hint: ipv4
       -
         name: anycast
