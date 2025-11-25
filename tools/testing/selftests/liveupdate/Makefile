@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+LIB_C += luo_test_utils.c
+
 TEST_GEN_PROGS += liveupdate
+
+TEST_GEN_PROGS_EXTENDED += luo_kexec_simple
+
+TEST_FILES += do_kexec.sh
 
 include ../lib.mk
 
