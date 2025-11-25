@@ -105,11 +105,11 @@ static void intel_cx0_program_msgbus_timer(struct intel_encoder *encoder)
  * We also do the msgbus timer programming here to ensure that the timer
  * is already programmed before any access to the msgbus.
  */
-static intel_wakeref_t intel_cx0_phy_transaction_begin(struct intel_encoder *encoder)
+static struct ref_tracker *intel_cx0_phy_transaction_begin(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	intel_psr_pause(intel_dp);
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_DC_OFF);
@@ -118,7 +118,7 @@ static intel_wakeref_t intel_cx0_phy_transaction_begin(struct intel_encoder *enc
 	return wakeref;
 }
 
-static void intel_cx0_phy_transaction_end(struct intel_encoder *encoder, intel_wakeref_t wakeref)
+static void intel_cx0_phy_transaction_end(struct intel_encoder *encoder, struct ref_tracker *wakeref)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -476,7 +476,7 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	const struct intel_ddi_buf_trans *trans;
 	u8 owned_lane_mask;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int n_entries, ln;
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
@@ -2252,7 +2252,7 @@ static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	u8 lane = INTEL_CX0_LANE0;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int i;
 
 	cx0pll_state->use_c10 = true;
@@ -2756,7 +2756,7 @@ static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
 	struct intel_c20pll_state *pll_state = &cx0pll_state->c20;
 	struct intel_display *display = to_intel_display(encoder);
 	bool cntx;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int i;
 
 	cx0pll_state->use_c10 = false;
@@ -3225,7 +3225,7 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	bool lane_reversal = dig_port->lane_reversal;
 	u8 maxpclk_lane = lane_reversal ? INTEL_CX0_LANE1 :
 					  INTEL_CX0_LANE0;
-	intel_wakeref_t wakeref = intel_cx0_phy_transaction_begin(encoder);
+	struct ref_tracker *wakeref = intel_cx0_phy_transaction_begin(encoder);
 
 	/*
 	 * Lane reversal is never used in DP-alt mode, in that case the
@@ -3463,7 +3463,7 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int i;
 	u8 owned_lane_mask;
 
@@ -3510,7 +3510,7 @@ static void intel_cx0pll_disable(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
-	intel_wakeref_t wakeref = intel_cx0_phy_transaction_begin(encoder);
+	struct ref_tracker *wakeref = intel_cx0_phy_transaction_begin(encoder);
 
 	/* 1. Change owned PHY lane power to Disable state. */
 	intel_cx0_powerdown_change_sequence(encoder, INTEL_CX0_BOTH_LANES,

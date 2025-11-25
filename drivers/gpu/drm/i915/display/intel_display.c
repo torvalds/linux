@@ -372,7 +372,7 @@ void assert_transcoder(struct intel_display *display,
 {
 	bool cur_state;
 	enum intel_display_power_domain power_domain;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	/* we keep both pipes enabled on 830 */
 	if (display->platform.i830)
@@ -3035,7 +3035,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	struct intel_display *display = to_intel_display(crtc);
 	enum intel_display_power_domain power_domain;
 	enum transcoder cpu_transcoder = (enum transcoder)crtc->pipe;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret = false;
 	u32 tmp;
 
@@ -3379,7 +3379,7 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 	struct intel_display *display = to_intel_display(crtc);
 	enum intel_display_power_domain power_domain;
 	enum transcoder cpu_transcoder = (enum transcoder)crtc->pipe;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret = false;
 	u32 tmp;
 
@@ -7376,7 +7376,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
 	struct intel_power_domain_mask put_domains[I915_MAX_PIPES] = {};
-	intel_wakeref_t wakeref = NULL;
+	struct ref_tracker *wakeref = NULL;
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)

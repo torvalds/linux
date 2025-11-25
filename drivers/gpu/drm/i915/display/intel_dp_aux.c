@@ -247,7 +247,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	i915_reg_t ch_ctl, ch_data[5];
 	u32 aux_clock_divider;
 	enum intel_display_power_domain aux_domain;
-	intel_wakeref_t aux_wakeref;
+	struct ref_tracker *aux_wakeref;
 	struct ref_tracker *pps_wakeref = NULL;
 	int i, ret, recv_bytes;
 	int try, clock = 0;

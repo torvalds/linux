@@ -544,8 +544,8 @@ __intel_display_power_get_domain(struct intel_display *display,
  * Any power domain reference obtained by this function must have a symmetric
  * call to intel_display_power_put() to release the reference again.
  */
-intel_wakeref_t intel_display_power_get(struct intel_display *display,
-					enum intel_display_power_domain domain)
+struct ref_tracker *intel_display_power_get(struct intel_display *display,
+					    enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct ref_tracker *wakeref;
@@ -571,7 +571,7 @@ intel_wakeref_t intel_display_power_get(struct intel_display *display,
  * Any power domain reference obtained by this function must have a symmetric
  * call to intel_display_power_put() to release the reference again.
  */
-intel_wakeref_t
+struct ref_tracker *
 intel_display_power_get_if_enabled(struct intel_display *display,
 				   enum intel_display_power_domain domain)
 {
@@ -638,7 +638,7 @@ static void __intel_display_power_put(struct intel_display *display,
 
 static void
 queue_async_put_domains_work(struct i915_power_domains *power_domains,
-			     intel_wakeref_t wakeref,
+			     struct ref_tracker *wakeref,
 			     int delay_ms)
 {
 	struct intel_display *display = container_of(power_domains,
@@ -740,7 +740,7 @@ out_verify:
  */
 void __intel_display_power_put_async(struct intel_display *display,
 				     enum intel_display_power_domain domain,
-				     intel_wakeref_t wakeref,
+				     struct ref_tracker *wakeref,
 				     int delay_ms)
 {
 	struct i915_power_domains *power_domains = &display->power.domains;
@@ -799,7 +799,7 @@ void intel_display_power_flush_work(struct intel_display *display)
 {
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct intel_power_domain_mask async_put_mask;
-	intel_wakeref_t work_wakeref;
+	struct ref_tracker *work_wakeref;
 
 	mutex_lock(&power_domains->lock);
 
@@ -853,7 +853,7 @@ intel_display_power_flush_work_sync(struct intel_display *display)
  */
 void intel_display_power_put(struct intel_display *display,
 			     enum intel_display_power_domain domain,
-			     intel_wakeref_t wakeref)
+			     struct ref_tracker *wakeref)
 {
 	__intel_display_power_put(display, domain);
 	intel_display_rpm_put(display, wakeref);
@@ -885,7 +885,7 @@ intel_display_power_get_in_set(struct intel_display *display,
 			       struct intel_display_power_domain_set *power_domain_set,
 			       enum intel_display_power_domain domain)
 {
-	intel_wakeref_t __maybe_unused wf;
+	struct ref_tracker *__maybe_unused wf;
 
 	drm_WARN_ON(display->drm, test_bit(domain, power_domain_set->mask.bits));
 
@@ -901,7 +901,7 @@ intel_display_power_get_in_set_if_enabled(struct intel_display *display,
 					  struct intel_display_power_domain_set *power_domain_set,
 					  enum intel_display_power_domain domain)
 {
-	intel_wakeref_t wf;
+	struct ref_tracker *wf;
 
 	drm_WARN_ON(display->drm, test_bit(domain, power_domain_set->mask.bits));
 
@@ -928,7 +928,7 @@ intel_display_power_put_mask_in_set(struct intel_display *display,
 		    !bitmap_subset(mask->bits, power_domain_set->mask.bits, POWER_DOMAIN_NUM));
 
 	for_each_power_domain(domain, mask) {
-		intel_wakeref_t __maybe_unused wf = INTEL_WAKEREF_DEF;
+		struct ref_tracker *__maybe_unused wf = INTEL_WAKEREF_DEF;
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 		wf = fetch_and_zero(&power_domain_set->wakerefs[domain]);
@@ -2002,7 +2002,7 @@ void intel_power_domains_init_hw(struct intel_display *display, bool resume)
  */
 void intel_power_domains_driver_remove(struct intel_display *display)
 {
-	intel_wakeref_t wakeref __maybe_unused =
+	struct ref_tracker *wakeref __maybe_unused =
 		fetch_and_zero(&display->power.domains.init_wakeref);
 
 	/* Remove the refcount we took to keep power well support disabled. */
@@ -2063,7 +2063,7 @@ void intel_power_domains_sanitize_state(struct intel_display *display)
  */
 void intel_power_domains_enable(struct intel_display *display)
 {
-	intel_wakeref_t wakeref __maybe_unused =
+	struct ref_tracker *wakeref __maybe_unused =
 		fetch_and_zero(&display->power.domains.init_wakeref);
 
 	intel_display_power_put(display, POWER_DOMAIN_INIT, wakeref);
@@ -2102,7 +2102,7 @@ void intel_power_domains_disable(struct intel_display *display)
 void intel_power_domains_suspend(struct intel_display *display, bool s2idle)
 {
 	struct i915_power_domains *power_domains = &display->power.domains;
-	intel_wakeref_t wakeref __maybe_unused =
+	struct ref_tracker *wakeref __maybe_unused =
 		fetch_and_zero(&power_domains->init_wakeref);
 
 	intel_display_power_put(display, POWER_DOMAIN_INIT, wakeref);

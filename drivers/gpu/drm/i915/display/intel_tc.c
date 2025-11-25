@@ -51,7 +51,7 @@ struct intel_tc_port {
 	const struct intel_tc_phy_ops *phy_ops;
 
 	struct mutex lock;	/* protects the TypeC port mode */
-	intel_wakeref_t lock_wakeref;
+	struct ref_tracker *lock_wakeref;
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 	enum intel_display_power_domain lock_power_domain;
 #endif
@@ -182,7 +182,7 @@ bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 	       intel_display_power_legacy_aux_domain(display, dig_port->aux_ch);
 }
 
-static intel_wakeref_t
+static struct ref_tracker *
 __tc_cold_block(struct intel_tc_port *tc, enum intel_display_power_domain *domain)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
@@ -192,11 +192,11 @@ __tc_cold_block(struct intel_tc_port *tc, enum intel_display_power_domain *domai
 	return intel_display_power_get(display, *domain);
 }
 
-static intel_wakeref_t
+static struct ref_tracker *
 tc_cold_block(struct intel_tc_port *tc)
 {
 	enum intel_display_power_domain domain;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	wakeref = __tc_cold_block(tc, &domain);
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
@@ -207,7 +207,7 @@ tc_cold_block(struct intel_tc_port *tc)
 
 static void
 __tc_cold_unblock(struct intel_tc_port *tc, enum intel_display_power_domain domain,
-		  intel_wakeref_t wakeref)
+		  struct ref_tracker *wakeref)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
 
@@ -215,7 +215,7 @@ __tc_cold_unblock(struct intel_tc_port *tc, enum intel_display_power_domain doma
 }
 
 static void
-tc_cold_unblock(struct intel_tc_port *tc, intel_wakeref_t wakeref)
+tc_cold_unblock(struct intel_tc_port *tc, struct ref_tracker *wakeref)
 {
 	struct intel_display __maybe_unused *display = to_intel_display(tc->dig_port);
 	enum intel_display_power_domain domain = tc_phy_cold_off_domain(tc);
@@ -625,7 +625,7 @@ static bool icl_tc_phy_is_owned(struct intel_tc_port *tc)
 static void icl_tc_phy_get_hw_state(struct intel_tc_port *tc)
 {
 	enum intel_display_power_domain domain;
-	intel_wakeref_t tc_cold_wref;
+	struct ref_tracker *tc_cold_wref;
 
 	tc_cold_wref = __tc_cold_block(tc, &domain);
 
@@ -892,7 +892,7 @@ static void adlp_tc_phy_get_hw_state(struct intel_tc_port *tc)
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum intel_display_power_domain port_power_domain =
 		tc_port_power_domain(tc);
-	intel_wakeref_t port_wakeref;
+	struct ref_tracker *port_wakeref;
 
 	port_wakeref = intel_display_power_get(display, port_power_domain);
 
@@ -911,7 +911,7 @@ static bool adlp_tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum intel_display_power_domain port_power_domain =
 		tc_port_power_domain(tc);
-	intel_wakeref_t port_wakeref;
+	struct ref_tracker *port_wakeref;
 
 	if (tc->mode == TC_PORT_TBT_ALT) {
 		tc->lock_wakeref = tc_cold_block(tc);
@@ -963,7 +963,7 @@ static void adlp_tc_phy_disconnect(struct intel_tc_port *tc)
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum intel_display_power_domain port_power_domain =
 		tc_port_power_domain(tc);
-	intel_wakeref_t port_wakeref;
+	struct ref_tracker *port_wakeref;
 
 	port_wakeref = intel_display_power_get(display, port_power_domain);
 
@@ -1169,7 +1169,7 @@ static bool xelpdp_tc_phy_is_owned(struct intel_tc_port *tc)
 static void xelpdp_tc_phy_get_hw_state(struct intel_tc_port *tc)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
-	intel_wakeref_t tc_cold_wref;
+	struct ref_tracker *tc_cold_wref;
 	enum intel_display_power_domain domain;
 
 	tc_cold_wref = __tc_cold_block(tc, &domain);

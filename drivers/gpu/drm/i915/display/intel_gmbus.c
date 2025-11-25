@@ -789,7 +789,7 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct intel_display *display = bus->display;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_GMBUS);
@@ -829,7 +829,7 @@ int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 			.buf = buf,
 		}
 	};
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_GMBUS);

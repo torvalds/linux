@@ -785,7 +785,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 		container_of(work, typeof(*display), hotplug.poll_init_work);
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool enabled;
 
 	mutex_lock(&display->drm->mode_config.mutex);

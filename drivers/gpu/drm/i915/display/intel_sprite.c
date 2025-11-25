@@ -462,7 +462,7 @@ vlv_sprite_get_hw_state(struct intel_plane *plane,
 	struct intel_display *display = to_intel_display(plane);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
@@ -893,7 +893,7 @@ ivb_sprite_get_hw_state(struct intel_plane *plane,
 {
 	struct intel_display *display = to_intel_display(plane);
 	enum intel_display_power_domain power_domain;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
@@ -1233,7 +1233,7 @@ g4x_sprite_get_hw_state(struct intel_plane *plane,
 {
 	struct intel_display *display = to_intel_display(plane);
 	enum intel_display_power_domain power_domain;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(plane->pipe);

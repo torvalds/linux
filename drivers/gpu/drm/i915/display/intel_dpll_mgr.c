@@ -547,7 +547,7 @@ static bool ibx_pch_dpll_get_hw_state(struct intel_display *display,
 {
 	struct i9xx_dpll_hw_state *hw_state = &dpll_hw_state->i9xx;
 	const enum intel_dpll_id id = pll->info->id;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	u32 val;
 
 	wakeref = intel_display_power_get_if_enabled(display,
@@ -768,7 +768,7 @@ static bool hsw_ddi_wrpll_get_hw_state(struct intel_display *display,
 {
 	struct hsw_dpll_hw_state *hw_state = &dpll_hw_state->hsw;
 	const enum intel_dpll_id id = pll->info->id;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	u32 val;
 
 	wakeref = intel_display_power_get_if_enabled(display,
@@ -789,7 +789,7 @@ static bool hsw_ddi_spll_get_hw_state(struct intel_display *display,
 				      struct intel_dpll_hw_state *dpll_hw_state)
 {
 	struct hsw_dpll_hw_state *hw_state = &dpll_hw_state->hsw;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	u32 val;
 
 	wakeref = intel_display_power_get_if_enabled(display,
@@ -1447,7 +1447,7 @@ static bool skl_ddi_pll_get_hw_state(struct intel_display *display,
 	struct skl_dpll_hw_state *hw_state = &dpll_hw_state->skl;
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
 	const enum intel_dpll_id id = pll->info->id;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 	u32 val;
 
@@ -1485,7 +1485,7 @@ static bool skl_ddi_dpll0_get_hw_state(struct intel_display *display,
 	struct skl_dpll_hw_state *hw_state = &dpll_hw_state->skl;
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
 	const enum intel_dpll_id id = pll->info->id;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	u32 val;
 	bool ret;
 
@@ -2188,7 +2188,7 @@ static bool bxt_ddi_pll_get_hw_state(struct intel_display *display,
 {
 	struct bxt_dpll_hw_state *hw_state = &dpll_hw_state->bxt;
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 	u32 val;
@@ -3598,7 +3598,7 @@ static bool mg_pll_get_hw_state(struct intel_display *display,
 	struct icl_dpll_hw_state *hw_state = &dpll_hw_state->icl;
 	const enum intel_dpll_id id = pll->info->id;
 	enum tc_port tc_port = icl_pll_id_to_tc_port(id);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret = false;
 	u32 val;
 
@@ -3665,7 +3665,7 @@ static bool dkl_pll_get_hw_state(struct intel_display *display,
 	struct icl_dpll_hw_state *hw_state = &dpll_hw_state->icl;
 	const enum intel_dpll_id id = pll->info->id;
 	enum tc_port tc_port = icl_pll_id_to_tc_port(id);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret = false;
 	u32 val;
 
@@ -3737,7 +3737,7 @@ static bool icl_pll_get_hw_state(struct intel_display *display,
 {
 	struct icl_dpll_hw_state *hw_state = &dpll_hw_state->icl;
 	const enum intel_dpll_id id = pll->info->id;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret = false;
 	u32 val;
 

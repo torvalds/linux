@@ -324,7 +324,7 @@ static bool i845_cursor_get_hw_state(struct intel_plane *plane,
 {
 	struct intel_display *display = to_intel_display(plane);
 	enum intel_display_power_domain power_domain;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(PIPE_A);
@@ -727,7 +727,7 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 {
 	struct intel_display *display = to_intel_display(plane);
 	enum intel_display_power_domain power_domain;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 	u32 val;
 

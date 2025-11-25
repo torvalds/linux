@@ -588,7 +588,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *_crtc, const char *source_name)
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
 	enum pipe pipe = crtc->pipe;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	u32 val = 0; /* shut up gcc */
 	int ret = 0;
 	bool enable;

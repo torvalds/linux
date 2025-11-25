@@ -667,7 +667,7 @@ static void vlv_set_cdclk(struct intel_display *display,
 {
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	switch (cdclk) {
@@ -757,7 +757,7 @@ static void chv_set_cdclk(struct intel_display *display,
 {
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	switch (cdclk) {

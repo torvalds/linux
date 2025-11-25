@@ -728,7 +728,7 @@ int intel_ddi_toggle_hdcp_bits(struct intel_encoder *intel_encoder,
 			       bool enable, u32 hdcp_mask)
 {
 	struct intel_display *display = to_intel_display(intel_encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret = 0;
 
 	wakeref = intel_display_power_get_if_enabled(display,
@@ -749,7 +749,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	int type = intel_connector->base.connector_type;
 	enum port port = encoder->port;
 	enum transcoder cpu_transcoder;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	enum pipe pipe = 0;
 	u32 ddi_mode;
 	bool ret;
@@ -805,7 +805,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum port port = encoder->port;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	enum pipe p;
 	u32 tmp;
 	u8 mst_pipe_mask = 0, dp128b132b_pipe_mask = 0;
@@ -848,7 +848,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	for_each_pipe(display, p) {
 		enum transcoder cpu_transcoder = (enum transcoder)p;
 		u32 port_mask, ddi_select, ddi_mode;
-		intel_wakeref_t trans_wakeref;
+		struct ref_tracker *trans_wakeref;
 
 		trans_wakeref = intel_display_power_get_if_enabled(display,
 								   POWER_DOMAIN_TRANSCODER(cpu_transcoder));
@@ -1002,7 +1002,7 @@ main_link_aux_power_domain_put(struct intel_digital_port *dig_port,
 	struct intel_display *display = to_intel_display(dig_port);
 	enum intel_display_power_domain domain =
 		intel_ddi_main_link_aux_domain(dig_port, crtc_state);
-	intel_wakeref_t wf;
+	struct ref_tracker *wf;
 
 	wf = fetch_and_zero(&dig_port->aux_wakeref);
 	if (!wf)
@@ -3130,7 +3130,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct intel_dp *intel_dp = &dig_port->dp;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool is_mst = intel_crtc_has_type(old_crtc_state,
 					  INTEL_OUTPUT_DP_MST);
 
@@ -3198,7 +3198,7 @@ static void intel_ddi_post_disable_hdmi(struct intel_atomic_state *state,
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct intel_hdmi *intel_hdmi = &dig_port->hdmi;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	dig_port->set_infoframes(encoder, false,
 				 old_crtc_state, old_conn_state);
@@ -3965,7 +3965,7 @@ static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 
 	for_each_cpu_transcoder_masked(display, cpu_transcoder, transcoders) {
 		enum intel_display_power_domain power_domain;
-		intel_wakeref_t trans_wakeref;
+		struct ref_tracker *trans_wakeref;
 
 		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 		trans_wakeref = intel_display_power_get_if_enabled(display,

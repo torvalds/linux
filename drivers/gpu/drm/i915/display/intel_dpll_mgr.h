@@ -28,7 +28,6 @@
 #include <linux/types.h>
 
 #include "intel_display_power.h"
-#include "intel_wakeref.h"
 
 #define for_each_dpll(__display, __pll, __i) \
 	for ((__i) = 0; (__i) < (__display)->dpll.num_dpll && \
@@ -42,6 +41,7 @@ struct intel_crtc_state;
 struct intel_dpll_funcs;
 struct intel_encoder;
 struct intel_shared_dpll;
+struct ref_tracker;
 
 /**
  * enum intel_dpll_id - possible DPLL ids
@@ -396,7 +396,7 @@ struct intel_dpll {
 	 * @wakeref: In some platforms a device-level runtime pm reference may
 	 * need to be grabbed to disable DC states while this DPLL is enabled
 	 */
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 };
 
 #define SKL_DPLL0 0
