@@ -91,11 +91,23 @@ static const struct rockchip_grf_info rk3328_grf __initconst = {
 
 static const struct rockchip_grf_value rk3368_defaults[] __initconst = {
 	{ "jtag switching", RK3368_GRF_SOC_CON15, FIELD_PREP_WM16_CONST(BIT(13), 0) },
+	{ "pwm select", RK3368_GRF_SOC_CON15, FIELD_PREP_WM16_CONST(BIT(12), 1) },
 };
 
 static const struct rockchip_grf_info rk3368_grf __initconst = {
 	.values = rk3368_defaults,
 	.num_values = ARRAY_SIZE(rk3368_defaults),
+};
+
+#define RK3368_PMUGRF_SOC_CON0		0x100
+
+static const struct rockchip_grf_value rk3368_pmugrf_defaults[] __initconst = {
+	{ "pwm2 select", RK3368_PMUGRF_SOC_CON0, FIELD_PREP_WM16_CONST(BIT(7), 0) },
+};
+
+static const struct rockchip_grf_info rk3368_pmugrf __initconst = {
+	.values = rk3368_pmugrf_defaults,
+	.num_values = ARRAY_SIZE(rk3368_pmugrf_defaults),
 };
 
 #define RK3399_GRF_SOC_CON7		0xe21c
@@ -175,6 +187,9 @@ static const struct of_device_id rockchip_grf_dt_match[] __initconst = {
 	}, {
 		.compatible = "rockchip,rk3368-grf",
 		.data = (void *)&rk3368_grf,
+	}, {
+		.compatible = "rockchip,rk3368-pmugrf",
+		.data = (void *)&rk3368_pmugrf,
 	}, {
 		.compatible = "rockchip,rk3399-grf",
 		.data = (void *)&rk3399_grf,
