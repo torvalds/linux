@@ -1631,6 +1631,8 @@ static inline void sk_mem_uncharge(struct sock *sk, int size)
 	sk_mem_reclaim(sk);
 }
 
+void __sk_charge(struct sock *sk, gfp_t gfp);
+
 #if IS_ENABLED(CONFIG_PROVE_LOCKING) && IS_ENABLED(CONFIG_MODULES)
 static inline void sk_owner_set(struct sock *sk, struct module *owner)
 {
