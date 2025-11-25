@@ -592,8 +592,6 @@ static int lynx_28g_probe_lane(struct lynx_28g_priv *priv, int id,
 	struct lynx_28g_lane *lane = &priv->lane[id];
 	struct phy *phy;
 
-	memset(lane, 0, sizeof(*lane));
-
 	phy = devm_phy_create(priv->dev, dn, &lynx_28g_ops);
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
