@@ -92,12 +92,6 @@ struct intel_community_context {
 
 #define PINMODE(m, i)		((m) | ((i) * PINMODE_INVERT_OE))
 
-#define CHV_GPP(start, end)			\
-	{					\
-		.base = (start),		\
-		.size = (end) - (start) + 1,	\
-	}
-
 #define CHV_COMMUNITY(g, i, a)			\
 	{					\
 		.gpps = (g),			\
@@ -258,13 +252,13 @@ static const struct intel_function southwest_functions[] = {
 };
 
 static const struct intel_padgroup southwest_gpps[] = {
-	CHV_GPP(0, 7),
-	CHV_GPP(15, 22),
-	CHV_GPP(30, 37),
-	CHV_GPP(45, 52),
-	CHV_GPP(60, 67),
-	CHV_GPP(75, 82),
-	CHV_GPP(90, 97),
+	INTEL_GPP(0, 0, 7, 0),
+	INTEL_GPP(1, 15, 22, 15),
+	INTEL_GPP(2, 30, 37, 30),
+	INTEL_GPP(3, 45, 52, 45),
+	INTEL_GPP(4, 60, 67, 60),
+	INTEL_GPP(5, 75, 82, 75),
+	INTEL_GPP(6, 90, 97, 90),
 };
 
 /*
@@ -354,11 +348,11 @@ static const struct pinctrl_pin_desc north_pins[] = {
 };
 
 static const struct intel_padgroup north_gpps[] = {
-	CHV_GPP(0, 8),
-	CHV_GPP(15, 27),
-	CHV_GPP(30, 41),
-	CHV_GPP(45, 56),
-	CHV_GPP(60, 72),
+	INTEL_GPP(0, 0, 8, 0),
+	INTEL_GPP(1, 15, 27, 15),
+	INTEL_GPP(2, 30, 41, 30),
+	INTEL_GPP(3, 45, 56, 45),
+	INTEL_GPP(4, 60, 72, 60),
 };
 
 /*
@@ -406,8 +400,8 @@ static const struct pinctrl_pin_desc east_pins[] = {
 };
 
 static const struct intel_padgroup east_gpps[] = {
-	CHV_GPP(0, 11),
-	CHV_GPP(15, 26),
+	INTEL_GPP(0, 0, 11, 0),
+	INTEL_GPP(1, 15, 26, 15),
 };
 
 static const struct intel_community east_communities[] = {
@@ -526,12 +520,12 @@ static const struct intel_function southeast_functions[] = {
 };
 
 static const struct intel_padgroup southeast_gpps[] = {
-	CHV_GPP(0, 7),
-	CHV_GPP(15, 26),
-	CHV_GPP(30, 35),
-	CHV_GPP(45, 52),
-	CHV_GPP(60, 69),
-	CHV_GPP(75, 85),
+	INTEL_GPP(0, 0, 7, 0),
+	INTEL_GPP(1, 15, 26, 15),
+	INTEL_GPP(2, 30, 35, 30),
+	INTEL_GPP(3, 45, 52, 45),
+	INTEL_GPP(4, 60, 69, 60),
+	INTEL_GPP(5, 75, 85, 75),
 };
 
 static const struct intel_community southeast_communities[] = {
@@ -1517,26 +1511,6 @@ static int chv_gpio_irq_init_hw(struct gpio_chip *chip)
 	return 0;
 }
 
-static int chv_gpio_add_pin_ranges(struct gpio_chip *chip)
-{
-	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
-	struct device *dev = pctrl->dev;
-	const struct intel_community *community = &pctrl->communities[0];
-	const struct intel_padgroup *gpp;
-	int ret, i;
-
-	for (i = 0; i < community->ngpps; i++) {
-		gpp = &community->gpps[i];
-		ret = gpiochip_add_pin_range(chip, dev_name(dev), gpp->base, gpp->base, gpp->size);
-		if (ret) {
-			dev_err(dev, "failed to add GPIO pin range\n");
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 {
 	const struct intel_community *community = &pctrl->communities[0];
@@ -1550,7 +1524,7 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 
 	chip->ngpio = pctrl->soc->pins[pctrl->soc->npins - 1].number + 1;
 	chip->label = dev_name(dev);
-	chip->add_pin_ranges = chv_gpio_add_pin_ranges;
+	chip->add_pin_ranges = intel_gpio_add_pin_ranges;
 	chip->parent = dev;
 	chip->base = -1;
 
@@ -1567,17 +1541,13 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 		chip->irq.init_valid_mask = chv_init_irq_valid_mask;
 	} else {
 		irq_base = devm_irq_alloc_descs(dev, -1, 0, pctrl->soc->npins, NUMA_NO_NODE);
-		if (irq_base < 0) {
-			dev_err(dev, "Failed to allocate IRQ numbers\n");
-			return irq_base;
-		}
+		if (irq_base < 0)
+			return dev_err_probe(dev, irq_base, "failed to allocate IRQ numbers\n");
 	}
 
 	ret = devm_gpiochip_add_data(dev, chip, pctrl);
-	if (ret) {
-		dev_err(dev, "Failed to register gpiochip\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register gpiochip\n");
 
 	if (!need_valid_mask) {
 		for (i = 0; i < community->ngpps; i++) {
@@ -1673,10 +1643,8 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	pctrl->pctldesc.npins = pctrl->soc->npins;
 
 	pctrl->pctldev = devm_pinctrl_register(dev, &pctrl->pctldesc, pctrl);
-	if (IS_ERR(pctrl->pctldev)) {
-		dev_err(dev, "failed to register pinctrl driver\n");
-		return PTR_ERR(pctrl->pctldev);
-	}
+	if (IS_ERR(pctrl->pctldev))
+		return dev_err_probe(dev, PTR_ERR(pctrl->pctldev), "failed to register pinctrl\n");
 
 	ret = chv_gpio_probe(pctrl, irq);
 	if (ret)

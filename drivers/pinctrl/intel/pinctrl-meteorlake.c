@@ -27,14 +27,6 @@
 #define MTL_S_GPI_IS		0x200
 #define MTL_S_GPI_IE		0x210
 
-#define MTL_GPP(r, s, e, g)				\
-	{						\
-		.reg_num = (r),				\
-		.base = (s),				\
-		.size = ((e) - (s) + 1),		\
-		.gpio_base = (g),			\
-	}
-
 #define MTL_P_COMMUNITY(b, s, e, g)			\
 	INTEL_COMMUNITY_GPPS(b, s, e, g, MTL_P)
 
@@ -349,33 +341,33 @@ static const struct pinctrl_pin_desc mtlp_pins[] = {
 };
 
 static const struct intel_padgroup mtlp_community0_gpps[] = {
-	MTL_GPP(0, 0, 4, 0),		/* CPU */
-	MTL_GPP(1, 5, 28, 32),		/* GPP_V */
-	MTL_GPP(2, 29, 52, 64),		/* GPP_C */
+	INTEL_GPP(0, 0, 4, 0),		/* CPU */
+	INTEL_GPP(1, 5, 28, 32),	/* GPP_V */
+	INTEL_GPP(2, 29, 52, 64),	/* GPP_C */
 };
 
 static const struct intel_padgroup mtlp_community1_gpps[] = {
-	MTL_GPP(0, 53, 77, 96),		/* GPP_A */
-	MTL_GPP(1, 78, 102, 128),	/* GPP_E */
+	INTEL_GPP(0, 53, 77, 96),	/* GPP_A */
+	INTEL_GPP(1, 78, 102, 128),	/* GPP_E */
 };
 
 static const struct intel_padgroup mtlp_community3_gpps[] = {
-	MTL_GPP(0, 103, 128, 160),	/* GPP_H */
-	MTL_GPP(1, 129, 154, 192),	/* GPP_F */
-	MTL_GPP(2, 155, 169, 224),	/* SPI0 */
-	MTL_GPP(3, 170, 183, 256),	/* vGPIO_3 */
+	INTEL_GPP(0, 103, 128, 160),	/* GPP_H */
+	INTEL_GPP(1, 129, 154, 192),	/* GPP_F */
+	INTEL_GPP(2, 155, 169, 224),	/* SPI0 */
+	INTEL_GPP(3, 170, 183, 256),	/* vGPIO_3 */
 };
 
 static const struct intel_padgroup mtlp_community4_gpps[] = {
-	MTL_GPP(0, 184, 191, 288),	/* GPP_S */
-	MTL_GPP(1, 192, 203, 320),	/* JTAG */
+	INTEL_GPP(0, 184, 191, 288),	/* GPP_S */
+	INTEL_GPP(1, 192, 203, 320),	/* JTAG */
 };
 
 static const struct intel_padgroup mtlp_community5_gpps[] = {
-	MTL_GPP(0, 204, 228, 352),	/* GPP_B */
-	MTL_GPP(1, 229, 253, 384),	/* GPP_D */
-	MTL_GPP(2, 254, 285, 416),	/* vGPIO_0 */
-	MTL_GPP(3, 286, 288, 448),	/* vGPIO_1 */
+	INTEL_GPP(0, 204, 228, 352),	/* GPP_B */
+	INTEL_GPP(1, 229, 253, 384),	/* GPP_D */
+	INTEL_GPP(2, 254, 285, 416),	/* vGPIO_0 */
+	INTEL_GPP(3, 286, 288, 448),	/* vGPIO_1 */
 };
 
 static const struct intel_community mtlp_communities[] = {
@@ -554,20 +546,20 @@ static const struct pinctrl_pin_desc mtls_pins[] = {
 };
 
 static const struct intel_padgroup mtls_community0_gpps[] = {
-	MTL_GPP(0, 0, 27, 0),		/* GPP_A */
-	MTL_GPP(1, 28, 46, 32),		/* vGPIO_0 */
-	MTL_GPP(2, 47, 73, 64),		/* GPP_C */
+	INTEL_GPP(0, 0, 27, 0),		/* GPP_A */
+	INTEL_GPP(1, 28, 46, 32),	/* vGPIO_0 */
+	INTEL_GPP(2, 47, 73, 64),	/* GPP_C */
 };
 
 static const struct intel_padgroup mtls_community1_gpps[] = {
-	MTL_GPP(0, 74, 93, 96),		/* GPP_B */
-	MTL_GPP(1, 94, 95, 128),	/* vGPIO_3 */
-	MTL_GPP(2, 96, 119, 160),	/* GPP_D */
+	INTEL_GPP(0, 74, 93, 96),	/* GPP_B */
+	INTEL_GPP(1, 94, 95, 128),	/* vGPIO_3 */
+	INTEL_GPP(2, 96, 119, 160),	/* GPP_D */
 };
 
 static const struct intel_padgroup mtls_community3_gpps[] = {
-	MTL_GPP(0, 120, 135, 192),	/* JTAG_CPU */
-	MTL_GPP(1, 136, 147, 224),	/* vGPIO_4 */
+	INTEL_GPP(0, 120, 135, 192),	/* JTAG_CPU */
+	INTEL_GPP(1, 136, 147, 224),	/* vGPIO_4 */
 };
 
 static const struct intel_community mtls_communities[] = {

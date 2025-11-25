@@ -700,9 +700,9 @@ static int lp_gpio_add_pin_ranges(struct gpio_chip *chip)
 
 	ret = gpiochip_add_pin_range(chip, dev_name(dev), 0, 0, lg->soc->npins);
 	if (ret)
-		dev_err(dev, "failed to add GPIO pin range\n");
+		return dev_err_probe(dev, ret, "failed to add GPIO pin range\n");
 
-	return ret;
+	return 0;
 }
 
 static int lp_gpio_probe(struct platform_device *pdev)
@@ -739,24 +739,18 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	lg->pctldesc.npins     = lg->soc->npins;
 
 	lg->pctldev = devm_pinctrl_register(dev, &lg->pctldesc, lg);
-	if (IS_ERR(lg->pctldev)) {
-		dev_err(dev, "failed to register pinctrl driver\n");
-		return PTR_ERR(lg->pctldev);
-	}
+	if (IS_ERR(lg->pctldev))
+		return dev_err_probe(dev, PTR_ERR(lg->pctldev), "failed to register pinctrl\n");
 
 	platform_set_drvdata(pdev, lg);
 
 	io_rc = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!io_rc) {
-		dev_err(dev, "missing IO resources\n");
-		return -EINVAL;
-	}
+	if (!io_rc)
+		return dev_err_probe(dev, -EINVAL, "missing IO resources\n");
 
 	regs = devm_ioport_map(dev, io_rc->start, resource_size(io_rc));
-	if (!regs) {
-		dev_err(dev, "failed mapping IO region %pR\n", &io_rc);
-		return -EBUSY;
-	}
+	if (!regs)
+		return dev_err_probe(dev, -EBUSY, "failed mapping IO region %pR\n", &io_rc);
 
 	for (i = 0; i < lg->soc->ncommunities; i++) {
 		struct intel_community *comm = &lg->communities[i];
@@ -807,10 +801,8 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_gpiochip_add_data(dev, gc, lg);
-	if (ret) {
-		dev_err(dev, "failed adding lp-gpio chip\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register gpiochip\n");
 
 	return 0;
 }

@@ -21,14 +21,6 @@
 #define MTP_GPI_IS	0x200
 #define MTP_GPI_IE	0x220
 
-#define MTP_GPP(r, s, e, g)				\
-	{						\
-		.reg_num = (r),				\
-		.base = (s),				\
-		.size = ((e) - (s) + 1),		\
-		.gpio_base = (g),			\
-	}
-
 #define MTP_COMMUNITY(b, s, e, g)			\
 	INTEL_COMMUNITY_GPPS(b, s, e, g, MTP)
 
@@ -395,37 +387,37 @@ static const struct pinctrl_pin_desc mtps_pins[] = {
 };
 
 static const struct intel_padgroup mtps_community0_gpps[] = {
-	MTP_GPP(0, 0, 24, 0),		/* GPP_D */
-	MTP_GPP(1, 25, 38, 32),		/* GPP_R */
-	MTP_GPP(2, 39, 56, 64),		/* GPP_J */
-	MTP_GPP(3, 57, 87, 96),		/* vGPIO */
+	INTEL_GPP(0, 0, 24, 0),		/* GPP_D */
+	INTEL_GPP(1, 25, 38, 32),	/* GPP_R */
+	INTEL_GPP(2, 39, 56, 64),	/* GPP_J */
+	INTEL_GPP(3, 57, 87, 96),	/* vGPIO */
 };
 
 static const struct intel_padgroup mtps_community1_gpps[] = {
-	MTP_GPP(0, 88, 102, 128),	/* GPP_A */
-	MTP_GPP(1, 103, 114, 160),	/* DIR_ESPI */
-	MTP_GPP(2, 115, 136, 192),	/* GPP_B */
+	INTEL_GPP(0, 88, 102, 128),	/* GPP_A */
+	INTEL_GPP(1, 103, 114, 160),	/* DIR_ESPI */
+	INTEL_GPP(2, 115, 136, 192),	/* GPP_B */
 };
 
 static const struct intel_padgroup mtps_community3_gpps[] = {
-	MTP_GPP(0, 137, 145, 224),	/* SPI0 */
-	MTP_GPP(1, 146, 169, 256),	/* GPP_C */
-	MTP_GPP(2, 170, 189, 288),	/* GPP_H */
-	MTP_GPP(3, 190, 193, 320),	/* vGPIO_3 */
-	MTP_GPP(4, 194, 201, 352),	/* vGPIO_0 */
-	MTP_GPP(5, 202, 232, 384),	/* vGPIO_4 */
+	INTEL_GPP(0, 137, 145, 224),	/* SPI0 */
+	INTEL_GPP(1, 146, 169, 256),	/* GPP_C */
+	INTEL_GPP(2, 170, 189, 288),	/* GPP_H */
+	INTEL_GPP(3, 190, 193, 320),	/* vGPIO_3 */
+	INTEL_GPP(4, 194, 201, 352),	/* vGPIO_0 */
+	INTEL_GPP(5, 202, 232, 384),	/* vGPIO_4 */
 };
 
 static const struct intel_padgroup mtps_community4_gpps[] = {
-	MTP_GPP(0, 233, 240, 416),	/* GPP_S */
-	MTP_GPP(1, 241, 263, 448),	/* GPP_E */
-	MTP_GPP(2, 264, 277, 480),	/* GPP_K */
-	MTP_GPP(3, 278, 301, 512),	/* GPP_F */
+	INTEL_GPP(0, 233, 240, 416),	/* GPP_S */
+	INTEL_GPP(1, 241, 263, 448),	/* GPP_E */
+	INTEL_GPP(2, 264, 277, 480),	/* GPP_K */
+	INTEL_GPP(3, 278, 301, 512),	/* GPP_F */
 };
 
 static const struct intel_padgroup mtps_community5_gpps[] = {
-	MTP_GPP(0, 302, 322, 544),	/* GPP_I */
-	MTP_GPP(1, 323, 338, 576),	/* JTAG_CPU */
+	INTEL_GPP(0, 302, 322, 544),	/* GPP_I */
+	INTEL_GPP(1, 323, 338, 576),	/* JTAG_CPU */
 };
 
 static const struct intel_community mtps_communities[] = {

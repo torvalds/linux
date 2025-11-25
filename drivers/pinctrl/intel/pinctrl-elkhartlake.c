@@ -21,13 +21,6 @@
 #define EHL_GPI_IS	0x100
 #define EHL_GPI_IE	0x120
 
-#define EHL_GPP(r, s, e)				\
-	{						\
-		.reg_num = (r),				\
-		.base = (s),				\
-		.size = ((e) - (s) + 1),		\
-	}
-
 #define EHL_COMMUNITY(b, s, e, g)			\
 	INTEL_COMMUNITY_GPPS(b, s, e, g, EHL)
 
@@ -106,9 +99,9 @@ static const struct pinctrl_pin_desc ehl_community0_pins[] = {
 };
 
 static const struct intel_padgroup ehl_community0_gpps[] = {
-	EHL_GPP(0, 0, 25),	/* GPP_B */
-	EHL_GPP(1, 26, 41),	/* GPP_T */
-	EHL_GPP(2, 42, 66),	/* GPP_G */
+	INTEL_GPP(0, 0, 25, 0),		/* GPP_B */
+	INTEL_GPP(1, 26, 41, 26),	/* GPP_T */
+	INTEL_GPP(2, 42, 66, 42),	/* GPP_G */
 };
 
 static const struct intel_community ehl_community0[] = {
@@ -245,11 +238,11 @@ static const struct pinctrl_pin_desc ehl_community1_pins[] = {
 };
 
 static const struct intel_padgroup ehl_community1_gpps[] = {
-	EHL_GPP(0, 0, 15),	/* GPP_V */
-	EHL_GPP(1, 16, 39),	/* GPP_H */
-	EHL_GPP(2, 40, 60),	/* GPP_D */
-	EHL_GPP(3, 61, 84),	/* GPP_U */
-	EHL_GPP(4, 85, 112),	/* vGPIO */
+	INTEL_GPP(0, 0, 15, 0),		/* GPP_V */
+	INTEL_GPP(1, 16, 39, 16),	/* GPP_H */
+	INTEL_GPP(2, 40, 60, 40),	/* GPP_D */
+	INTEL_GPP(3, 61, 84, 61),	/* GPP_U */
+	INTEL_GPP(4, 85, 112, 85),	/* vGPIO */
 };
 
 static const struct intel_community ehl_community1[] = {
@@ -286,7 +279,7 @@ static const struct pinctrl_pin_desc ehl_community2_pins[] = {
 };
 
 static const struct intel_padgroup ehl_community2_gpps[] = {
-	EHL_GPP(0, 0, 16),	/* DSW */
+	INTEL_GPP(0, 0, 16, 0),		/* DSW */
 };
 
 static const struct intel_community ehl_community2[] = {
@@ -356,10 +349,10 @@ static const struct pinctrl_pin_desc ehl_community3_pins[] = {
 };
 
 static const struct intel_padgroup ehl_community3_gpps[] = {
-	EHL_GPP(0, 0, 16),	/* CPU */
-	EHL_GPP(1, 17, 18),	/* GPP_S */
-	EHL_GPP(2, 19, 42),	/* GPP_A */
-	EHL_GPP(3, 43, 46),	/* vGPIO_3 */
+	INTEL_GPP(0, 0, 16,  0),	/* CPU */
+	INTEL_GPP(1, 17, 18, 17),	/* GPP_S */
+	INTEL_GPP(2, 19, 42, 19),	/* GPP_A */
+	INTEL_GPP(3, 43, 46, 43),	/* vGPIO_3 */
 };
 
 static const struct intel_community ehl_community3[] = {
@@ -462,10 +455,10 @@ static const struct pinctrl_pin_desc ehl_community4_pins[] = {
 };
 
 static const struct intel_padgroup ehl_community4_gpps[] = {
-	EHL_GPP(0, 0, 23),	/* GPP_C */
-	EHL_GPP(1, 24, 48),	/* GPP_F */
-	EHL_GPP(2, 49, 54),	/* HVCMOS */
-	EHL_GPP(3, 55, 79),	/* GPP_E */
+	INTEL_GPP(0, 0, 23, 0),		/* GPP_C */
+	INTEL_GPP(1, 24, 48, 24),	/* GPP_F */
+	INTEL_GPP(2, 49, 54, 49),	/* HVCMOS */
+	INTEL_GPP(3, 55, 79, 55),	/* GPP_E */
 };
 
 static const struct intel_community ehl_community4[] = {
@@ -493,7 +486,7 @@ static const struct pinctrl_pin_desc ehl_community5_pins[] = {
 };
 
 static const struct intel_padgroup ehl_community5_gpps[] = {
-	EHL_GPP(0, 0, 7),	/* GPP_R */
+	INTEL_GPP(0, 0, 7, 0),		/* GPP_R */
 };
 
 static const struct intel_community ehl_community5[] = {
