@@ -1113,7 +1113,7 @@ static inline void ftrace_graph_addr_finish(struct fgraph_ops *gops, struct ftra
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 extern unsigned int fgraph_max_depth;
-extern unsigned int fgraph_no_sleep_time;
+extern int fgraph_no_sleep_time;
 extern bool fprofile_no_sleep_time;
 
 static inline bool

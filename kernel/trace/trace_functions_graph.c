@@ -20,7 +20,7 @@
 static int ftrace_graph_skip_irqs;
 
 /* Do not record function time when task is sleeping */
-unsigned int fgraph_no_sleep_time;
+int fgraph_no_sleep_time;
 
 struct fgraph_cpu_data {
 	pid_t		last_pid;
