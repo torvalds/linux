@@ -37,6 +37,7 @@ struct xe_device_desc {
 	u8 require_force_probe:1;
 	u8 is_dgfx:1;
 
+	u8 has_cached_pt:1;
 	u8 has_display:1;
 	u8 has_fan_control:1;
 	u8 has_flat_ccs:1;
