@@ -332,8 +332,6 @@ static inline enum pmu_kind perf_pmu__kind(const struct perf_pmu *pmu)
 		return PERF_PMU_KIND_PE;
 	if (type <= PERF_PMU_TYPE_DRM_END)
 		return PERF_PMU_KIND_DRM;
-	if (type <= PERF_PMU_TYPE_DRM_END)
-		return PERF_PMU_KIND_DRM;
 	if (type <= PERF_PMU_TYPE_HWMON_END)
 		return PERF_PMU_KIND_HWMON;
 	if (type == PERF_PMU_TYPE_TOOL)
