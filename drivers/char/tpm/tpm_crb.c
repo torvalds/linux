@@ -412,7 +412,7 @@ static int crb_do_acpi_start(struct tpm_chip *chip)
 #ifdef CONFIG_ARM64
 /*
  * This is a TPM Command Response Buffer start method that invokes a
- * Secure Monitor Call to requrest the firmware to execute or cancel
+ * Secure Monitor Call to request the firmware to execute or cancel
  * a TPM 2.0 command.
  */
 static int tpm_crb_smc_start(struct device *dev, unsigned long func_id)
