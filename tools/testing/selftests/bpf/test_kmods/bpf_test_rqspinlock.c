@@ -182,7 +182,7 @@ static int bpf_test_rqspinlock_init(void)
 
 	pr_err("Mode = %s\n", rqsl_mode_names[test_mode]);
 
-	if (ncpus < 3)
+	if (ncpus < test_mode + 2)
 		return -ENOTSUPP;
 
 	raw_res_spin_lock_init(&lock_a);
