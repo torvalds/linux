@@ -314,6 +314,15 @@ struct smu_dpm_table {
 #define SMU_DPM_TABLE_MAX(table) \
 	((table)->count > 0 ? (table)->dpm_levels[(table)->count - 1].value : 0)
 
+#define SMU_MAX_PCIE_LEVELS 3
+
+struct smu_pcie_table {
+	uint8_t pcie_gen[SMU_MAX_PCIE_LEVELS];
+	uint8_t pcie_lane[SMU_MAX_PCIE_LEVELS];
+	uint16_t lclk_freq[SMU_MAX_PCIE_LEVELS];
+	uint32_t lclk_levels;
+};
+
 struct smu_bios_boot_up_values {
 	uint32_t			revision;
 	uint32_t			gfxclk;
