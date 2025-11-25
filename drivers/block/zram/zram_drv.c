@@ -1043,7 +1043,7 @@ static int zram_writeback_slots(struct zram *zram,
 		index = pps->index;
 		zram_slot_lock(zram, index);
 		/*
-		 * scan_slots() sets ZRAM_PP_SLOT and relases slot lock, so
+		 * scan_slots() sets ZRAM_PP_SLOT and releases slot lock, so
 		 * slots can change in the meantime. If slots are accessed or
 		 * freed they lose ZRAM_PP_SLOT flag and hence we don't
 		 * post-process them.
