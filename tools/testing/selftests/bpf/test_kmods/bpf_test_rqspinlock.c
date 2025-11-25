@@ -5,6 +5,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/prandom.h>
+#include <linux/ktime.h>
 #include <asm/rqspinlock.h>
 #include <linux/perf_event.h>
 #include <linux/kthread.h>
@@ -23,6 +24,21 @@ static struct perf_event_attr hw_attr = {
 static rqspinlock_t lock_a;
 static rqspinlock_t lock_b;
 static rqspinlock_t lock_c;
+
+#define RQSL_SLOW_THRESHOLD_MS 10
+static const unsigned int rqsl_hist_ms[] = {
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+	12, 14, 16, 18, 20, 25, 30, 40, 50, 75,
+	100, 150, 200, 250, 1000,
+};
+#define RQSL_NR_HIST_BUCKETS ARRAY_SIZE(rqsl_hist_ms)
+
+struct rqsl_cpu_hist {
+	atomic64_t normal[RQSL_NR_HIST_BUCKETS];
+	atomic64_t nmi[RQSL_NR_HIST_BUCKETS];
+};
+
+static DEFINE_PER_CPU(struct rqsl_cpu_hist, rqsl_cpu_hists);
 
 enum rqsl_mode {
 	RQSL_MODE_AA = 0,
@@ -79,10 +95,33 @@ static struct rqsl_lock_pair rqsl_get_lock_pair(int cpu)
 	}
 }
 
+static u32 rqsl_hist_bucket_idx(u32 delta_ms)
+{
+	int i;
+
+	for (i = 0; i < RQSL_NR_HIST_BUCKETS; i++) {
+		if (delta_ms <= rqsl_hist_ms[i])
+			return i;
+	}
+
+	return RQSL_NR_HIST_BUCKETS - 1;
+}
+
+static void rqsl_record_lock_time(u64 delta_ns, bool is_nmi)
+{
+	struct rqsl_cpu_hist *hist = this_cpu_ptr(&rqsl_cpu_hists);
+	u32 delta_ms = DIV_ROUND_UP_ULL(delta_ns, NSEC_PER_MSEC);
+	u32 bucket = rqsl_hist_bucket_idx(delta_ms);
+	atomic64_t *buckets = is_nmi ? hist->nmi : hist->normal;
+
+	atomic64_inc(&buckets[bucket]);
+}
+
 static int rqspinlock_worker_fn(void *arg)
 {
 	int cpu = smp_processor_id();
 	unsigned long flags;
+	u64 start_ns;
 	int ret;
 
 	if (cpu) {
@@ -96,7 +135,9 @@ static int rqspinlock_worker_fn(void *arg)
 				msleep(1000);
 				continue;
 			}
+			start_ns = ktime_get_mono_fast_ns();
 			ret = raw_res_spin_lock_irqsave(worker_lock, flags);
+			rqsl_record_lock_time(ktime_get_mono_fast_ns() - start_ns, false);
 			mdelay(20);
 			if (!ret)
 				raw_res_spin_unlock_irqrestore(worker_lock, flags);
@@ -130,13 +171,16 @@ static void nmi_cb(struct perf_event *event, struct perf_sample_data *data,
 	struct rqsl_lock_pair locks;
 	int cpu = smp_processor_id();
 	unsigned long flags;
+	u64 start_ns;
 	int ret;
 
 	if (!cpu || READ_ONCE(pause))
 		return;
 
 	locks = rqsl_get_lock_pair(cpu);
+	start_ns = ktime_get_mono_fast_ns();
 	ret = raw_res_spin_lock_irqsave(locks.nmi_lock, flags);
+	rqsl_record_lock_time(ktime_get_mono_fast_ns() - start_ns, true);
 
 	mdelay(10);
 
@@ -235,10 +279,70 @@ err_perf_events:
 
 module_init(bpf_test_rqspinlock_init);
 
+static void rqsl_print_histograms(void)
+{
+	int cpu, i;
+
+	pr_err("rqspinlock acquisition latency histogram (ms):\n");
+
+	for_each_online_cpu(cpu) {
+		struct rqsl_cpu_hist *hist = per_cpu_ptr(&rqsl_cpu_hists, cpu);
+		u64 norm_counts[RQSL_NR_HIST_BUCKETS];
+		u64 nmi_counts[RQSL_NR_HIST_BUCKETS];
+		u64 total_counts[RQSL_NR_HIST_BUCKETS];
+		u64 norm_total = 0, nmi_total = 0, total = 0;
+		bool has_slow = false;
+
+		for (i = 0; i < RQSL_NR_HIST_BUCKETS; i++) {
+			norm_counts[i] = atomic64_read(&hist->normal[i]);
+			nmi_counts[i] = atomic64_read(&hist->nmi[i]);
+			total_counts[i] = norm_counts[i] + nmi_counts[i];
+			norm_total += norm_counts[i];
+			nmi_total += nmi_counts[i];
+			total += total_counts[i];
+			if (rqsl_hist_ms[i] > RQSL_SLOW_THRESHOLD_MS &&
+			    total_counts[i])
+				has_slow = true;
+		}
+
+		if (!total)
+			continue;
+
+		if (!has_slow) {
+			pr_err(" cpu%d: total %llu (normal %llu, nmi %llu), all within 0-%ums\n",
+			       cpu, total, norm_total, nmi_total, RQSL_SLOW_THRESHOLD_MS);
+			continue;
+		}
+
+		pr_err(" cpu%d: total %llu (normal %llu, nmi %llu)\n",
+		       cpu, total, norm_total, nmi_total);
+		for (i = 0; i < RQSL_NR_HIST_BUCKETS; i++) {
+			unsigned int start_ms;
+
+			if (!total_counts[i])
+				continue;
+
+			start_ms = i == 0 ? 0 : rqsl_hist_ms[i - 1] + 1;
+			if (i == RQSL_NR_HIST_BUCKETS - 1) {
+				pr_err("   >= %ums: total %llu (normal %llu, nmi %llu)\n",
+				       start_ms, total_counts[i],
+				       norm_counts[i], nmi_counts[i]);
+			} else {
+				pr_err("   %u-%ums: total %llu (normal %llu, nmi %llu)\n",
+				       start_ms, rqsl_hist_ms[i],
+				       total_counts[i],
+				       norm_counts[i], nmi_counts[i]);
+			}
+		}
+	}
+}
+
 static void bpf_test_rqspinlock_exit(void)
 {
+	WRITE_ONCE(pause, 1);
 	free_rqsl_threads();
 	free_rqsl_evts();
+	rqsl_print_histograms();
 }
 
 module_exit(bpf_test_rqspinlock_exit);
