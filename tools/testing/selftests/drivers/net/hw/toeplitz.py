@@ -17,6 +17,9 @@ from lib.py import cmd, bkg, rand_port, defer
 from lib.py import ksft_in
 from lib.py import ksft_variants, KsftNamedVariant, KsftSkipEx, KsftFailEx
 
+# "define" for the ID of the Toeplitz hash function
+ETH_RSS_HASH_TOP = 1
+
 
 def _check_rps_and_rfs_not_configured(cfg):
     """Verify that RPS is not already configured."""
@@ -32,16 +35,6 @@ def _check_rps_and_rfs_not_configured(cfg):
         val = fp.read().strip()
         if val != "0":
             raise KsftSkipEx(f"RFS already configured {rfs_file}: {val}")
-
-
-def _get_rss_key(cfg):
-    """
-    Read the RSS key from the device.
-    Return a string in the traditional %02x:%02x:%02x:.. format.
-    """
-
-    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
-    return ':'.join(f'{b:02x}' for b in rss["hkey"])
 
 
 def _get_cpu_for_irq(irq):
@@ -153,8 +146,18 @@ def test(cfg, proto_flag, ipver, grp):
     # Check that rxhash is enabled
     ksft_in("receive-hashing: on", cmd(f"ethtool -k {cfg.ifname}").stdout)
 
+    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    # Make sure NIC is configured to use Toeplitz hash, and no key xfrm.
+    if rss.get('hfunc') != ETH_RSS_HASH_TOP or rss.get('input-xfrm'):
+        cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                           "hfunc": ETH_RSS_HASH_TOP,
+                           "input-xfrm": {}})
+        defer(cfg.ethnl.rss_set, {"header": {"dev-index": cfg.ifindex},
+                                  "hfunc": rss.get('hfunc'),
+                                  "input-xfrm": rss.get('input-xfrm', {})
+                                  })
+
     port = rand_port(socket.SOCK_DGRAM)
-    key = _get_rss_key(cfg)
 
     toeplitz_path = cfg.test_dir / "toeplitz"
     rx_cmd = [
@@ -163,8 +166,7 @@ def test(cfg, proto_flag, ipver, grp):
         proto_flag,
         "-d", str(port),
         "-i", cfg.ifname,
-        "-k", key,
-        "-T", "1000",
+        "-T", "4000",
         "-s",
         "-v"
     ]

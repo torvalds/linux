@@ -52,6 +52,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <ynl.h>
+#include "ethtool-user.h"
+
 #include "../../../kselftest.h"
 #include "../../../net/lib/ksft.h"
 
@@ -65,6 +68,7 @@
 #define FOUR_TUPLE_MAX_LEN	((sizeof(struct in6_addr) * 2) + (sizeof(uint16_t) * 2))
 
 #define RSS_MAX_CPUS (1 << 16)	/* real constraint is PACKET_FANOUT_MAX */
+#define RSS_MAX_INDIR	(1 << 16)
 
 #define RPS_MAX_CPUS 16UL	/* must be a power of 2 */
 
@@ -102,6 +106,8 @@ struct ring_state {
 static unsigned int rx_irq_cpus[RSS_MAX_CPUS];	/* map from rxq to cpu */
 static int rps_silo_to_cpu[RPS_MAX_CPUS];
 static unsigned char toeplitz_key[TOEPLITZ_KEY_MAX_LEN];
+static unsigned int rss_indir_tbl[RSS_MAX_INDIR];
+static unsigned int rss_indir_tbl_size;
 static struct ring_state rings[RSS_MAX_CPUS];
 
 static inline uint32_t toeplitz(const unsigned char *four_tuple,
@@ -130,7 +136,12 @@ static inline uint32_t toeplitz(const unsigned char *four_tuple,
 /* Compare computed cpu with arrival cpu from packet_fanout_cpu */
 static void verify_rss(uint32_t rx_hash, int cpu)
 {
-	int queue = rx_hash % cfg_num_queues;
+	int queue;
+
+	if (rss_indir_tbl_size)
+		queue = rss_indir_tbl[rx_hash % rss_indir_tbl_size];
+	else
+		queue = rx_hash % cfg_num_queues;
 
 	log_verbose(" rxq %d (cpu %d)", queue, rx_irq_cpus[queue]);
 	if (rx_irq_cpus[queue] != cpu) {
@@ -483,6 +494,56 @@ static void parse_rps_bitmap(const char *arg)
 			rps_silo_to_cpu[cfg_num_rps_cpus++] = i;
 }
 
+static void read_rss_dev_info_ynl(void)
+{
+	struct ethtool_rss_get_req *req;
+	struct ethtool_rss_get_rsp *rsp;
+	struct ynl_sock *ys;
+
+	ys = ynl_sock_create(&ynl_ethtool_family, NULL);
+	if (!ys)
+		error(1, errno, "ynl_sock_create failed");
+
+	req = ethtool_rss_get_req_alloc();
+	if (!req)
+		error(1, errno, "ethtool_rss_get_req_alloc failed");
+
+	ethtool_rss_get_req_set_header_dev_name(req, cfg_ifname);
+
+	rsp = ethtool_rss_get(ys, req);
+	if (!rsp)
+		error(1, ys->err.code, "YNL: %s", ys->err.msg);
+
+	if (!rsp->_len.hkey)
+		error(1, 0, "RSS key not available for %s", cfg_ifname);
+
+	if (rsp->_len.hkey < TOEPLITZ_KEY_MIN_LEN ||
+	    rsp->_len.hkey > TOEPLITZ_KEY_MAX_LEN)
+		error(1, 0, "RSS key length %u out of bounds [%u, %u]",
+		      rsp->_len.hkey, TOEPLITZ_KEY_MIN_LEN,
+		      TOEPLITZ_KEY_MAX_LEN);
+
+	memcpy(toeplitz_key, rsp->hkey, rsp->_len.hkey);
+
+	if (rsp->_count.indir > RSS_MAX_INDIR)
+		error(1, 0, "RSS indirection table too large (%u > %u)",
+		      rsp->_count.indir, RSS_MAX_INDIR);
+
+	/* If indir table not available we'll fallback to simple modulo math */
+	if (rsp->_count.indir) {
+		memcpy(rss_indir_tbl, rsp->indir,
+		       rsp->_count.indir * sizeof(rss_indir_tbl[0]));
+		rss_indir_tbl_size = rsp->_count.indir;
+
+		log_verbose("RSS indirection table size: %u\n",
+			    rss_indir_tbl_size);
+	}
+
+	ethtool_rss_get_rsp_free(rsp);
+	ethtool_rss_get_req_free(req);
+	ynl_sock_destroy(ys);
+}
+
 static void parse_opts(int argc, char **argv)
 {
 	static struct option long_options[] = {
@@ -551,7 +612,7 @@ static void parse_opts(int argc, char **argv)
 	}
 
 	if (!have_toeplitz)
-		error(1, 0, "Must supply rss key ('-k')");
+		read_rss_dev_info_ynl();
 
 	num_cpus = get_nprocs();
 	if (num_cpus > RSS_MAX_CPUS)
