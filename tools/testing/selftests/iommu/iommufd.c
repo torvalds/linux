@@ -1574,6 +1574,49 @@ TEST_F(iommufd_ioas, copy_sweep)
 	test_ioctl_destroy(dst_ioas_id);
 }
 
+TEST_F(iommufd_ioas, dmabuf_simple)
+{
+	size_t buf_size = PAGE_SIZE*4;
+	__u64 iova;
+	int dfd;
+
+	test_cmd_get_dmabuf(buf_size, &dfd);
+	test_err_ioctl_ioas_map_file(EINVAL, dfd, 0, 0, &iova);
+	test_err_ioctl_ioas_map_file(EINVAL, dfd, buf_size, buf_size, &iova);
+	test_err_ioctl_ioas_map_file(EINVAL, dfd, 0, buf_size + 1, &iova);
+	test_ioctl_ioas_map_file(dfd, 0, buf_size, &iova);
+
+	close(dfd);
+}
+
+TEST_F(iommufd_ioas, dmabuf_revoke)
+{
+	size_t buf_size = PAGE_SIZE*4;
+	__u32 hwpt_id;
+	__u64 iova;
+	__u64 iova2;
+	int dfd;
+
+	test_cmd_get_dmabuf(buf_size, &dfd);
+	test_ioctl_ioas_map_file(dfd, 0, buf_size, &iova);
+	test_cmd_revoke_dmabuf(dfd, true);
+
+	if (variant->mock_domains)
+		test_cmd_hwpt_alloc(self->device_id, self->ioas_id, 0,
+				    &hwpt_id);
+
+	test_err_ioctl_ioas_map_file(ENODEV, dfd, 0, buf_size, &iova2);
+
+	test_cmd_revoke_dmabuf(dfd, false);
+	test_ioctl_ioas_map_file(dfd, 0, buf_size, &iova2);
+
+	/* Restore the iova back */
+	test_ioctl_ioas_unmap(iova, buf_size);
+	test_ioctl_ioas_map_fixed_file(dfd, 0, buf_size, iova);
+
+	close(dfd);
+}
+
 FIXTURE(iommufd_mock_domain)
 {
 	int fd;
