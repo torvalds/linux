@@ -202,6 +202,16 @@ void smu_cmn_get_backend_workload_mask(struct smu_context *smu,
 				       u32 workload_mask,
 				       u32 *backend_workload_mask);
 
+int smu_cmn_print_dpm_clk_levels(struct smu_context *smu,
+				  struct smu_dpm_table *dpm_table,
+				  uint32_t cur_clk,
+				  char *buf, int *offset);
+
+int smu_cmn_print_pcie_levels(struct smu_context *smu,
+			       struct smu_pcie_table *pcie_table,
+			       uint32_t cur_gen, uint32_t cur_lane,
+			       char *buf, int *offset);
+
 /*SMU gpu metrics */
 
 /* Attribute ID mapping */

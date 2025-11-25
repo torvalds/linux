@@ -1199,3 +1199,121 @@ void smu_cmn_get_backend_workload_mask(struct smu_context *smu,
 		*backend_workload_mask |= 1 << workload_type;
 	}
 }
+
+static inline bool smu_cmn_freqs_match(uint32_t freq1, uint32_t freq2)
+{
+	/* Frequencies within 25 MHz are considered equal */
+	return (abs((int)freq1 - (int)freq2) <= 25);
+}
+
+int smu_cmn_print_dpm_clk_levels(struct smu_context *smu,
+				 struct smu_dpm_table *dpm_table,
+				 uint32_t cur_clk, char *buf, int *offset)
+{
+	uint32_t min_clk, level_index, count;
+	uint32_t freq_values[3] = { 0 };
+	bool is_fine_grained;
+	bool is_deep_sleep;
+	int size, lvl, i;
+	bool freq_match;
+
+	if (!dpm_table || !buf)
+		return -EINVAL;
+
+	level_index = 0;
+	size = *offset;
+	count = dpm_table->count;
+	is_fine_grained = dpm_table->flags & SMU_DPM_TABLE_FINE_GRAINED;
+	min_clk = SMU_DPM_TABLE_MIN(dpm_table);
+
+	/* Deep sleep - current clock < min_clock/2, TBD: cur_clk = 0 as GFXOFF */
+	is_deep_sleep = cur_clk < min_clk / 2;
+	if (is_deep_sleep) {
+		size += sysfs_emit_at(buf, size, "S: %uMhz *\n", cur_clk);
+		level_index = 1;
+	}
+
+	if (!is_fine_grained) {
+		for (i = 0; i < count; i++) {
+			freq_match = !is_deep_sleep &&
+				     smu_cmn_freqs_match(
+					     cur_clk,
+					     dpm_table->dpm_levels[i].value);
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+					      level_index + i,
+					      dpm_table->dpm_levels[i].value,
+					      freq_match ? "*" : "");
+		}
+	} else {
+		freq_values[0] = min_clk;
+		freq_values[2] = SMU_DPM_TABLE_MAX(dpm_table);
+		freq_values[1] = cur_clk;
+
+		lvl = -1;
+		if (!is_deep_sleep) {
+			lvl = 1;
+			if (smu_cmn_freqs_match(cur_clk, freq_values[0]))
+				lvl = 0;
+			else if (smu_cmn_freqs_match(cur_clk, freq_values[2]))
+				lvl = 2;
+		}
+		count = 3;
+		if (lvl != 1) {
+			count = 2;
+			freq_values[1] = freq_values[2];
+		}
+
+		for (i = 0; i < count; i++) {
+			size += sysfs_emit_at(
+				buf, size, "%d: %uMhz %s\n", level_index + i,
+				freq_values[i],
+				(!is_deep_sleep && i == lvl) ? "*" : "");
+		}
+	}
+
+	*offset = size;
+
+	return 0;
+}
+
+int smu_cmn_print_pcie_levels(struct smu_context *smu,
+			      struct smu_pcie_table *pcie_table,
+			      uint32_t cur_gen, uint32_t cur_lane, char *buf,
+			      int *offset)
+{
+	int size, i;
+
+	if (!pcie_table || !buf)
+		return -EINVAL;
+
+	size = *offset;
+
+	for (i = 0; i < pcie_table->lclk_levels; i++) {
+		size += sysfs_emit_at(
+			buf, size, "%d: %s %s %dMhz %s\n", i,
+			(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
+			(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
+			(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
+			(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," :
+			(pcie_table->pcie_gen[i] == 4) ? "32.0GT/s," :
+			(pcie_table->pcie_gen[i] == 5) ? "64.0GT/s," :
+							 "",
+			(pcie_table->pcie_lane[i] == 1) ? "x1" :
+			(pcie_table->pcie_lane[i] == 2) ? "x2" :
+			(pcie_table->pcie_lane[i] == 3) ? "x4" :
+			(pcie_table->pcie_lane[i] == 4) ? "x8" :
+			(pcie_table->pcie_lane[i] == 5) ? "x12" :
+			(pcie_table->pcie_lane[i] == 6) ? "x16" :
+			(pcie_table->pcie_lane[i] == 7) ? "x32" :
+							  "",
+			pcie_table->lclk_freq[i],
+			(cur_gen == pcie_table->pcie_gen[i]) &&
+					(cur_lane == pcie_table->pcie_lane[i]) ?
+				"*" :
+				"");
+	}
+
+	*offset = size;
+
+	return 0;
+}
