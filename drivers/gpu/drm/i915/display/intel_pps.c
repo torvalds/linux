@@ -67,10 +67,10 @@ static const char *pps_name(struct intel_dp *intel_dp)
 	return "PPS <invalid>";
 }
 
-intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp)
+struct ref_tracker *intel_pps_lock(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	/*
 	 * See vlv_pps_reset_all() why we need a power domain reference here.
@@ -81,8 +81,7 @@ intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp)
 	return wakeref;
 }
 
-intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp,
-				 intel_wakeref_t wakeref)
+struct ref_tracker *intel_pps_unlock(struct intel_dp *intel_dp, struct ref_tracker *wakeref)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 

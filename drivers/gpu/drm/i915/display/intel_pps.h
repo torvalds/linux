@@ -8,20 +8,19 @@
 
 #include <linux/types.h>
 
-#include "intel_wakeref.h"
-
 enum pipe;
 struct intel_connector;
 struct intel_crtc_state;
 struct intel_display;
 struct intel_dp;
 struct intel_encoder;
+struct ref_tracker;
 
-intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp);
-intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp, intel_wakeref_t wakeref);
+struct ref_tracker *intel_pps_lock(struct intel_dp *intel_dp);
+struct ref_tracker *intel_pps_unlock(struct intel_dp *intel_dp, struct ref_tracker *wakeref);
 
 #define __with_intel_pps_lock(dp, wf) \
-	for (intel_wakeref_t (wf) = intel_pps_lock(dp); (wf); (wf) = intel_pps_unlock((dp), (wf)))
+	for (struct ref_tracker *(wf) = intel_pps_lock(dp); (wf); (wf) = intel_pps_unlock((dp), (wf)))
 
 #define with_intel_pps_lock(dp) \
 	__with_intel_pps_lock((dp), __UNIQUE_ID(wakeref))
