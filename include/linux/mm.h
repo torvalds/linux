@@ -911,7 +911,8 @@ static inline void vm_flags_init(struct vm_area_struct *vma,
 				 vm_flags_t flags)
 {
 	VM_WARN_ON_ONCE(!pgtable_supports_soft_dirty() && (flags & VM_SOFTDIRTY));
-	ACCESS_PRIVATE(vma, __vm_flags) = flags;
+	vma_flags_clear_all(&vma->flags);
+	vma_flags_overwrite_word(&vma->flags, flags);
 }
 
 /*
@@ -931,14 +932,25 @@ static inline void vm_flags_reset_once(struct vm_area_struct *vma,
 				       vm_flags_t flags)
 {
 	vma_assert_write_locked(vma);
-	WRITE_ONCE(ACCESS_PRIVATE(vma, __vm_flags), flags);
+	/*
+	 * If VMA flags exist beyond the first system word, also clear these. It
+	 * is assumed the write once behaviour is required only for the first
+	 * system word.
+	 */
+	if (NUM_VMA_FLAG_BITS > BITS_PER_LONG) {
+		unsigned long *bitmap = ACCESS_PRIVATE(&vma->flags, __vma_flags);
+
+		bitmap_zero(&bitmap[1], NUM_VMA_FLAG_BITS - BITS_PER_LONG);
+	}
+
+	vma_flags_overwrite_word_once(&vma->flags, flags);
 }
 
 static inline void vm_flags_set(struct vm_area_struct *vma,
 				vm_flags_t flags)
 {
 	vma_start_write(vma);
-	ACCESS_PRIVATE(vma, __vm_flags) |= flags;
+	vma_flags_set_word(&vma->flags, flags);
 }
 
 static inline void vm_flags_clear(struct vm_area_struct *vma,
@@ -946,7 +958,7 @@ static inline void vm_flags_clear(struct vm_area_struct *vma,
 {
 	VM_WARN_ON_ONCE(!pgtable_supports_soft_dirty() && (flags & VM_SOFTDIRTY));
 	vma_start_write(vma);
-	ACCESS_PRIVATE(vma, __vm_flags) &= ~flags;
+	vma_flags_clear_word(&vma->flags, flags);
 }
 
 /*
@@ -989,12 +1001,14 @@ static inline bool __vma_flag_atomic_valid(struct vm_area_struct *vma,
 static inline void vma_flag_set_atomic(struct vm_area_struct *vma,
 				       vma_flag_t bit)
 {
+	unsigned long *bitmap = ACCESS_PRIVATE(&vma->flags, __vma_flags);
+
 	/* mmap read lock/VMA read lock must be held. */
 	if (!rwsem_is_locked(&vma->vm_mm->mmap_lock))
 		vma_assert_locked(vma);
 
 	if (__vma_flag_atomic_valid(vma, bit))
-		set_bit((__force int)bit, &ACCESS_PRIVATE(vma, __vm_flags));
+		set_bit((__force int)bit, bitmap);
 }
 
 /*
