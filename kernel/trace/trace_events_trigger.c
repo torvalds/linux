@@ -308,7 +308,8 @@ int trigger_process_regex(struct trace_event_file *file, char *buff)
 	char *command, *next;
 	struct event_command *p;
 
-	next = buff = skip_spaces(buff);
+	next = buff = strim(buff);
+
 	command = strsep(&next, ": \t");
 	if (next) {
 		next = skip_spaces(next);
@@ -344,8 +345,6 @@ static ssize_t event_trigger_regex_write(struct file *file,
 	buf = memdup_user_nul(ubuf, cnt);
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
-
-	strim(buf);
 
 	guard(mutex)(&event_mutex);
 
