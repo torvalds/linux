@@ -95,7 +95,6 @@ unsigned int bdx_highest_ratio;
 #define PATH_TO_CPU "/sys/devices/system/cpu/"
 #define SYSFS_PATH_MAX 255
 
-/* keep Default as a linux path */
 static int use_android_msr_path;
 
 /*
@@ -679,29 +678,6 @@ void err_on_hypervisor(void)
 	if (hypervisor)
 		err(-1,
 		    "not supported on this virtual machine");
-}
-
-static void probe_msr_path_format(void)
-{
-	struct stat sb;
-	char test_path[32];
-
-	/* Test standard Linux path */
-	sprintf(test_path, "/dev/cpu/%d/msr", base_cpu);
-	if (stat(test_path, &sb) == 0) {
-		use_android_msr_path = 0;
-		return;
-	}
-
-	/* Test Android-style path */
-	sprintf(test_path, "/dev/msr%d", base_cpu);
-	if (stat(test_path, &sb) == 0) {
-		use_android_msr_path = 1;
-		return;
-	}
-
-	/* If neither exists, keep the default Linux format */
-	use_android_msr_path = 0;
 }
 
 int get_msr(int cpu, int offset, unsigned long long *msr)
@@ -1450,11 +1426,22 @@ void set_base_cpu(void)
 		err(-ENODEV, "No valid cpus found");
 }
 
+static void probe_android_msr_path(void)
+{
+	struct stat sb;
+	char test_path[32];
+
+	sprintf(test_path, "/dev/msr%d", base_cpu);
+	if (stat(test_path, &sb) == 0)
+		use_android_msr_path = 1;
+}
 
 void probe_dev_msr(void)
 {
 	struct stat sb;
 	char pathname[32];
+
+	probe_android_msr_path();
 
 	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", base_cpu);
 	if (stat(pathname, &sb)) {
@@ -1581,9 +1568,6 @@ void parse_cpuid(void)
 int main(int argc, char **argv)
 {
 	set_base_cpu();
-
-	/* probe MSR path */
-	probe_msr_path_format();
 
 	probe_dev_msr();
 	init_data_structures();
