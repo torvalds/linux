@@ -297,12 +297,18 @@ enum dbuf_slice {
 void gen9_dbuf_slices_update(struct intel_display *display,
 			     u8 req_slices);
 
-#define with_intel_display_power(display, domain, wf) \
-	for ((wf) = intel_display_power_get((display), (domain)); (wf); \
+#define __with_intel_display_power(display, domain, wf) \
+	for (intel_wakeref_t (wf) = intel_display_power_get((display), (domain)); (wf); \
 	     intel_display_power_put_async((display), (domain), (wf)), (wf) = NULL)
 
-#define with_intel_display_power_if_enabled(display, domain, wf) \
-	for ((wf) = intel_display_power_get_if_enabled((display), (domain)); (wf); \
+#define with_intel_display_power(display, domain) \
+	__with_intel_display_power(display, domain, __UNIQUE_ID(wakeref))
+
+#define __with_intel_display_power_if_enabled(display, domain, wf) \
+	for (intel_wakeref_t (wf) = intel_display_power_get_if_enabled((display), (domain)); (wf); \
 	     intel_display_power_put_async((display), (domain), (wf)), (wf) = NULL)
+
+#define with_intel_display_power_if_enabled(display, domain) \
+	__with_intel_display_power_if_enabled(display, domain, __UNIQUE_ID(wakeref))
 
 #endif /* __INTEL_DISPLAY_POWER_H__ */
