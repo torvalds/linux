@@ -475,7 +475,6 @@ static int smi330_read_avail(struct iio_dev *indio_dev,
 		*vals = smi330_average_attr.vals;
 		*length = smi330_average_attr.len;
 		*type = smi330_average_attr.type;
-		*type = IIO_VAL_INT;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		*vals = smi330_bandwidth_attr.vals;
