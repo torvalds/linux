@@ -4178,6 +4178,9 @@ int nl80211_send_chandef(struct sk_buff *msg, const struct cfg80211_chan_def *ch
 	if (chandef->punctured &&
 	    nla_put_u32(msg, NL80211_ATTR_PUNCT_BITMAP, chandef->punctured))
 		return -ENOBUFS;
+	if (chandef->s1g_primary_2mhz &&
+	    nla_put_flag(msg, NL80211_ATTR_S1G_PRIMARY_2MHZ))
+		return -ENOBUFS;
 
 	return 0;
 }
