@@ -948,9 +948,9 @@ static int tcf_ct_act_nat(struct sk_buff *skb,
 		return err & NF_VERDICT_MASK;
 
 	if (action & BIT(NF_NAT_MANIP_SRC))
-		tc_skb_cb(skb)->post_ct_snat = 1;
+		qdisc_skb_cb(skb)->post_ct_snat = 1;
 	if (action & BIT(NF_NAT_MANIP_DST))
-		tc_skb_cb(skb)->post_ct_dnat = 1;
+		qdisc_skb_cb(skb)->post_ct_dnat = 1;
 
 	return err;
 #else
@@ -986,7 +986,7 @@ TC_INDIRECT_SCOPE int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	tcf_action_update_bstats(&c->common, skb);
 
 	if (clear) {
-		tc_skb_cb(skb)->post_ct = false;
+		qdisc_skb_cb(skb)->post_ct = false;
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct) {
 			nf_ct_put(ct);
@@ -1097,7 +1097,7 @@ do_nat:
 out_push:
 	skb_push_rcsum(skb, nh_ofs);
 
-	tc_skb_cb(skb)->post_ct = true;
+	qdisc_skb_cb(skb)->post_ct = true;
 	tc_skb_cb(skb)->zone = p->zone;
 out_clear:
 	if (defrag)

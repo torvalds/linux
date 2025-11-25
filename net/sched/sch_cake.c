@@ -1398,15 +1398,15 @@ static u32 cake_overhead(struct cake_sched_data *q, const struct sk_buff *skb)
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
 	unsigned int hdr_len, last_len = 0;
 	u32 off = skb_network_offset(skb);
+	u16 segs = qdisc_pkt_segs(skb);
 	u32 len = qdisc_pkt_len(skb);
-	u16 segs = 1;
 
 	q->avg_netoff = cake_ewma(q->avg_netoff, off << 16, 8);
 
-	if (!shinfo->gso_size)
+	if (segs == 1)
 		return cake_calc_overhead(q, len, off);
 
-	/* borrowed from qdisc_pkt_len_init() */
+	/* borrowed from qdisc_pkt_len_segs_init() */
 	if (!skb->encapsulation)
 		hdr_len = skb_transport_offset(skb);
 	else
@@ -1429,12 +1429,6 @@ static u32 cake_overhead(struct cake_sched_data *q, const struct sk_buff *skb)
 				       sizeof(_udphdr), &_udphdr))
 			hdr_len += sizeof(struct udphdr);
 	}
-
-	if (unlikely(shinfo->gso_type & SKB_GSO_DODGY))
-		segs = DIV_ROUND_UP(skb->len - hdr_len,
-				    shinfo->gso_size);
-	else
-		segs = shinfo->gso_segs;
 
 	len = shinfo->gso_size + hdr_len;
 	last_len = skb->len - shinfo->gso_size * (segs - 1);
@@ -1788,7 +1782,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (unlikely(len > b->max_skblen))
 		b->max_skblen = len;
 
-	if (skb_is_gso(skb) && q->rate_flags & CAKE_FLAG_SPLIT_GSO) {
+	if (qdisc_pkt_segs(skb) > 1 && q->rate_flags & CAKE_FLAG_SPLIT_GSO) {
 		struct sk_buff *segs, *nskb;
 		netdev_features_t features = netif_skb_features(skb);
 		unsigned int slen = 0, numsegs = 0;
@@ -1800,6 +1794,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		skb_list_walk_safe(segs, segs, nskb) {
 			skb_mark_not_on_list(segs);
 			qdisc_skb_cb(segs)->pkt_len = segs->len;
+			qdisc_skb_cb(segs)->pkt_segs = 1;
 			cobalt_set_enqueue_time(segs, now);
 			get_cobalt_cb(segs)->adjusted_len = cake_overhead(q,
 									  segs);
@@ -2188,7 +2183,7 @@ retry:
 		b->tin_dropped++;
 		qdisc_tree_reduce_backlog(sch, 1, qdisc_pkt_len(skb));
 		qdisc_qstats_drop(sch);
-		kfree_skb_reason(skb, reason);
+		qdisc_dequeue_drop(sch, skb, reason);
 		if (q->rate_flags & CAKE_FLAG_INGRESS)
 			goto retry;
 	}
@@ -2729,6 +2724,8 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	int i, j, err;
 
 	sch->limit = 10240;
+	sch->flags |= TCQ_F_DEQUEUE_DROPS;
+
 	q->tin_mode = CAKE_DIFFSERV_DIFFSERV3;
 	q->flow_mode  = CAKE_FLOW_TRIPLE;
 

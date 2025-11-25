@@ -88,6 +88,8 @@ struct Qdisc {
 #define TCQ_F_INVISIBLE		0x80 /* invisible by default in dump */
 #define TCQ_F_NOLOCK		0x100 /* qdisc does not require locking */
 #define TCQ_F_OFFLOADED		0x200 /* qdisc is offloaded to HW */
+#define TCQ_F_DEQUEUE_DROPS	0x400 /* ->dequeue() can drop packets in q->to_free */
+
 	u32			limit;
 	const struct Qdisc_ops	*ops;
 	struct qdisc_size_table	__rcu *stab;
@@ -103,17 +105,26 @@ struct Qdisc {
 	int			pad;
 	refcount_t		refcnt;
 
-	/*
-	 * For performance sake on SMP, we put highly modified fields at the end
-	 */
-	struct sk_buff_head	gso_skb ____cacheline_aligned_in_smp;
-	struct qdisc_skb_head	q;
-	struct gnet_stats_basic_sync bstats;
-	struct gnet_stats_queue	qstats;
-	bool			running; /* must be written under qdisc spinlock */
-	unsigned long		state;
-	struct Qdisc            *next_sched;
-	struct sk_buff_head	skb_bad_txq;
+	/* Cache line potentially dirtied in dequeue() or __netif_reschedule(). */
+	__cacheline_group_begin(Qdisc_read_mostly) ____cacheline_aligned;
+		struct sk_buff_head	gso_skb;
+		struct Qdisc		*next_sched;
+		struct sk_buff_head	skb_bad_txq;
+	__cacheline_group_end(Qdisc_read_mostly);
+
+	/* Fields dirtied in dequeue() fast path. */
+	__cacheline_group_begin(Qdisc_write) ____cacheline_aligned;
+		struct qdisc_skb_head	q;
+		unsigned long		state;
+		struct gnet_stats_basic_sync bstats;
+		bool			running; /* must be written under qdisc spinlock */
+
+		/* Note : we only change qstats.backlog in fast path. */
+		struct gnet_stats_queue	qstats;
+
+		struct sk_buff		*to_free;
+	__cacheline_group_end(Qdisc_write);
+
 
 	atomic_long_t		defer_count ____cacheline_aligned_in_smp;
 	struct llist_head	defer_list;
@@ -211,8 +222,10 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 	return true;
 }
 
-static inline void qdisc_run_end(struct Qdisc *qdisc)
+static inline struct sk_buff *qdisc_run_end(struct Qdisc *qdisc)
 {
+	struct sk_buff *to_free = NULL;
+
 	if (qdisc->flags & TCQ_F_NOLOCK) {
 		spin_unlock(&qdisc->seqlock);
 
@@ -225,9 +238,16 @@ static inline void qdisc_run_end(struct Qdisc *qdisc)
 		if (unlikely(test_bit(__QDISC_STATE_MISSED,
 				      &qdisc->state)))
 			__netif_schedule(qdisc);
-	} else {
-		WRITE_ONCE(qdisc->running, false);
+		return NULL;
 	}
+
+	if (qdisc->flags & TCQ_F_DEQUEUE_DROPS) {
+		to_free = qdisc->to_free;
+		if (to_free)
+			qdisc->to_free = NULL;
+	}
+	WRITE_ONCE(qdisc->running, false);
+	return to_free;
 }
 
 static inline bool qdisc_may_bulk(const struct Qdisc *qdisc)
@@ -429,13 +449,16 @@ struct tcf_proto {
 };
 
 struct qdisc_skb_cb {
-	struct {
-		unsigned int		pkt_len;
-		u16			slave_dev_queue_mapping;
-		u16			tc_classid;
-	};
+	unsigned int		pkt_len;
+	u16			pkt_segs;
+	u16			tc_classid;
 #define QDISC_CB_PRIV_LEN 20
 	unsigned char		data[QDISC_CB_PRIV_LEN];
+
+	u16			slave_dev_queue_mapping;
+	u8			post_ct:1;
+	u8			post_ct_snat:1;
+	u8			post_ct_dnat:1;
 };
 
 typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
@@ -826,6 +849,15 @@ static inline unsigned int qdisc_pkt_len(const struct sk_buff *skb)
 	return qdisc_skb_cb(skb)->pkt_len;
 }
 
+static inline unsigned int qdisc_pkt_segs(const struct sk_buff *skb)
+{
+	u32 pkt_segs = qdisc_skb_cb(skb)->pkt_segs;
+
+	DEBUG_NET_WARN_ON_ONCE(pkt_segs !=
+			(skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1));
+	return pkt_segs;
+}
+
 /* additional qdisc xmit flags (NET_XMIT_MASK in linux/netdevice.h) */
 enum net_xmit_qdisc_t {
 	__NET_XMIT_STOLEN = 0x00010000,
@@ -867,9 +899,7 @@ static inline void _bstats_update(struct gnet_stats_basic_sync *bstats,
 static inline void bstats_update(struct gnet_stats_basic_sync *bstats,
 				 const struct sk_buff *skb)
 {
-	_bstats_update(bstats,
-		       qdisc_pkt_len(skb),
-		       skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1);
+	_bstats_update(bstats, qdisc_pkt_len(skb), qdisc_pkt_segs(skb));
 }
 
 static inline void qdisc_bstats_cpu_update(struct Qdisc *sch,
@@ -1064,11 +1094,8 @@ struct tc_skb_cb {
 	struct qdisc_skb_cb qdisc_cb;
 	u32 drop_reason;
 
-	u16 zone; /* Only valid if post_ct = true */
+	u16 zone; /* Only valid if qdisc_skb_cb(skb)->post_ct = true */
 	u16 mru;
-	u8 post_ct:1;
-	u8 post_ct_snat:1;
-	u8 post_ct_dnat:1;
 };
 
 static inline struct tc_skb_cb *tc_skb_cb(const struct sk_buff *skb)
@@ -1089,6 +1116,28 @@ static inline void tcf_set_drop_reason(const struct sk_buff *skb,
 				       enum skb_drop_reason reason)
 {
 	tc_skb_cb(skb)->drop_reason = reason;
+}
+
+static inline void tcf_kfree_skb_list(struct sk_buff *skb)
+{
+	while (unlikely(skb)) {
+		struct sk_buff *next = skb->next;
+
+		prefetch(next);
+		kfree_skb_reason(skb, tcf_get_drop_reason(skb));
+		skb = next;
+	}
+}
+
+static inline void qdisc_dequeue_drop(struct Qdisc *q, struct sk_buff *skb,
+				      enum skb_drop_reason reason)
+{
+	DEBUG_NET_WARN_ON_ONCE(!(q->flags & TCQ_F_DEQUEUE_DROPS));
+	DEBUG_NET_WARN_ON_ONCE(q->flags & TCQ_F_NOLOCK);
+
+	tcf_set_drop_reason(skb, reason);
+	skb->next = q->to_free;
+	q->to_free = skb;
 }
 
 /* Instead of calling kfree_skb() while root qdisc lock is held,
