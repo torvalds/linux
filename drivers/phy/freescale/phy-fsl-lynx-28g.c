@@ -1160,10 +1160,10 @@ static int lynx_28g_probe(struct platform_device *pdev)
 	struct device_node *dn;
 	int err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	priv->dev = &pdev->dev;
+	priv->dev = dev;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -1216,8 +1216,8 @@ static int lynx_28g_probe(struct platform_device *pdev)
 	queue_delayed_work(system_power_efficient_wq, &priv->cdr_check,
 			   msecs_to_jiffies(1000));
 
-	dev_set_drvdata(&pdev->dev, priv);
-	provider = devm_of_phy_provider_register(&pdev->dev, lynx_28g_xlate);
+	dev_set_drvdata(dev, priv);
+	provider = devm_of_phy_provider_register(dev, lynx_28g_xlate);
 
 	return PTR_ERR_OR_ZERO(provider);
 }
