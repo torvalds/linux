@@ -964,7 +964,8 @@ extern int __trace_graph_entry(struct trace_array *tr,
 extern int __trace_graph_retaddr_entry(struct trace_array *tr,
 				struct ftrace_graph_ent *trace,
 				unsigned int trace_ctx,
-				unsigned long retaddr);
+				unsigned long retaddr,
+				struct ftrace_regs *fregs);
 extern void __trace_graph_return(struct trace_array *tr,
 				 struct ftrace_graph_ret *trace,
 				 unsigned int trace_ctx,
@@ -2275,5 +2276,26 @@ static inline int rv_init_interface(void)
  * So this value has no meaning.
  */
 #define FTRACE_TRAMPOLINE_MARKER  ((unsigned long) INT_MAX)
+
+/*
+ * This is used to get the address of the args array based on
+ * the type of the entry.
+ */
+#define FGRAPH_ENTRY_ARGS(e)						\
+	({								\
+		unsigned long *_args;					\
+		struct ftrace_graph_ent_entry *_e = e;			\
+									\
+		if (IS_ENABLED(CONFIG_FUNCTION_GRAPH_RETADDR) &&	\
+			e->ent.type == TRACE_GRAPH_RETADDR_ENT) {	\
+			struct fgraph_retaddr_ent_entry *_re;		\
+									\
+			_re = (typeof(_re))_e;				\
+			_args = _re->args;				\
+		} else {						\
+			_args = _e->args;				\
+		}							\
+		_args;							\
+	})
 
 #endif /* _LINUX_KERNEL_TRACE_H */
