@@ -2127,6 +2127,25 @@ SYSCALL_DEFINE3(connect, int, fd, struct sockaddr __user *, uservaddr,
 	return __sys_connect(fd, uservaddr, addrlen);
 }
 
+int do_getsockname(struct socket *sock, int peer,
+		   struct sockaddr __user *usockaddr, int __user *usockaddr_len)
+{
+	struct sockaddr_storage address;
+	int err;
+
+	if (peer)
+		err = security_socket_getpeername(sock);
+	else
+		err = security_socket_getsockname(sock);
+	if (err)
+		return err;
+	err = READ_ONCE(sock->ops)->getname(sock, (struct sockaddr *)&address, peer);
+	if (err < 0)
+		return err;
+	/* "err" is actually length in this case */
+	return move_addr_to_user(&address, err, usockaddr, usockaddr_len);
+}
+
 /*
  *	Get the remote or local address ('name') of a socket object. Move the
  *	obtained name to user space.
@@ -2135,29 +2154,14 @@ int __sys_getsockname(int fd, struct sockaddr __user *usockaddr,
 		      int __user *usockaddr_len, int peer)
 {
 	struct socket *sock;
-	struct sockaddr_storage address;
 	CLASS(fd, f)(fd);
-	int err;
 
 	if (fd_empty(f))
 		return -EBADF;
 	sock = sock_from_file(fd_file(f));
 	if (unlikely(!sock))
 		return -ENOTSOCK;
-
-	if (peer)
-		err = security_socket_getpeername(sock);
-	else
-		err = security_socket_getsockname(sock);
-	if (err)
-		return err;
-
-	err = READ_ONCE(sock->ops)->getname(sock, (struct sockaddr *)&address, peer);
-	if (err < 0)
-		return err;
-
-	/* "err" is actually length in this case */
-	return move_addr_to_user(&address, err, usockaddr, usockaddr_len);
+	return do_getsockname(sock, peer, usockaddr, usockaddr_len);
 }
 
 SYSCALL_DEFINE3(getsockname, int, fd, struct sockaddr __user *, usockaddr,
