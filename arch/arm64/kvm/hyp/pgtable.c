@@ -754,6 +754,7 @@ enum kvm_pgtable_prot kvm_pgtable_stage2_pte_prot(kvm_pte_t pte)
 		prot |= KVM_PGTABLE_PROT_PX;
 		break;
 	default:
+		break;
 	}
 
 	return prot;
