@@ -718,8 +718,11 @@ static irqreturn_t fec_pps_interrupt(int irq, void *dev_id)
 		fep->next_counter = (fep->next_counter + fep->reload_period) &
 				fep->cc.mask;
 
-		event.type = PTP_CLOCK_PPS;
-		ptp_clock_event(fep->ptp_clock, &event);
+		if (fep->pps_enable) {
+			event.type = PTP_CLOCK_PPS;
+			ptp_clock_event(fep->ptp_clock, &event);
+		}
+
 		return IRQ_HANDLED;
 	}
 
