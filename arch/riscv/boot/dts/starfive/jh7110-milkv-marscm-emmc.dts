@@ -10,3 +10,12 @@
 	model = "Milk-V Mars CM";
 	compatible = "milkv,marscm-emmc", "starfive,jh7110";
 };
+
+&mmc0 {
+	cap-mmc-highspeed;
+	cap-mmc-hw-reset;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	vmmc-supply = <&vcc_3v3>;
+	vqmmc-supply = <&emmc_vdd>;
+};
