@@ -314,12 +314,8 @@ static ssize_t event_trigger_regex_write(struct file *file,
 
 static int event_trigger_regex_release(struct inode *inode, struct file *file)
 {
-	mutex_lock(&event_mutex);
-
 	if (file->f_mode & FMODE_READ)
 		seq_release(inode, file);
-
-	mutex_unlock(&event_mutex);
 
 	return 0;
 }
