@@ -6,6 +6,7 @@
  */
 
 #include <linux/security.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/mutex.h>
@@ -17,15 +18,63 @@
 static LIST_HEAD(trigger_commands);
 static DEFINE_MUTEX(trigger_cmd_mutex);
 
+static struct task_struct *trigger_kthread;
+static struct llist_head trigger_data_free_list;
+static DEFINE_MUTEX(trigger_data_kthread_mutex);
+
+/* Bulk garbage collection of event_trigger_data elements */
+static int trigger_kthread_fn(void *ignore)
+{
+	struct event_trigger_data *data, *tmp;
+	struct llist_node *llnodes;
+
+	/* Once this task starts, it lives forever */
+	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (llist_empty(&trigger_data_free_list))
+			schedule();
+
+		__set_current_state(TASK_RUNNING);
+
+		llnodes = llist_del_all(&trigger_data_free_list);
+
+		/* make sure current triggers exit before free */
+		tracepoint_synchronize_unregister();
+
+		llist_for_each_entry_safe(data, tmp, llnodes, llist)
+			kfree(data);
+	}
+
+	return 0;
+}
+
 void trigger_data_free(struct event_trigger_data *data)
 {
 	if (data->cmd_ops->set_filter)
 		data->cmd_ops->set_filter(NULL, data, NULL);
 
-	/* make sure current triggers exit before free */
-	tracepoint_synchronize_unregister();
+	if (unlikely(!trigger_kthread)) {
+		guard(mutex)(&trigger_data_kthread_mutex);
+		/* Check again after taking mutex */
+		if (!trigger_kthread) {
+			struct task_struct *kthread;
 
-	kfree(data);
+			kthread = kthread_create(trigger_kthread_fn, NULL,
+						 "trigger_data_free");
+			if (!IS_ERR(kthread))
+				WRITE_ONCE(trigger_kthread, kthread);
+		}
+	}
+
+	if (!trigger_kthread) {
+		/* Do it the slow way */
+		tracepoint_synchronize_unregister();
+		kfree(data);
+		return;
+	}
+
+	llist_add(&data->llist, &trigger_data_free_list);
+	wake_up_process(trigger_kthread);
 }
 
 static inline void data_ops_trigger(struct event_trigger_data *data,

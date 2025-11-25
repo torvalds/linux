@@ -22,6 +22,7 @@
 #include <linux/ctype.h>
 #include <linux/once_lite.h>
 #include <linux/ftrace_regs.h>
+#include <linux/llist.h>
 
 #include "pid_list.h"
 
@@ -1808,6 +1809,7 @@ struct event_trigger_data {
 	char				*name;
 	struct list_head		named_list;
 	struct event_trigger_data	*named_data;
+	struct llist_node		llist;
 };
 
 /* Avoid typos */
