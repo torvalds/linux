@@ -6,6 +6,12 @@
 
 struct panthor_device;
 
+/**
+ * struct panthor_hw - GPU specific register mapping and functions
+ */
+struct panthor_hw {
+};
+
 int panthor_hw_init(struct panthor_device *ptdev);
 
 #endif /* __PANTHOR_HW_H__ */
