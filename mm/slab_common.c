@@ -997,26 +997,27 @@ void __init create_kmalloc_caches(void)
  */
 size_t __ksize(const void *object)
 {
-	struct folio *folio;
+	const struct page *page;
+	const struct slab *slab;
 
 	if (unlikely(object == ZERO_SIZE_PTR))
 		return 0;
 
-	folio = virt_to_folio(object);
+	page = virt_to_page(object);
 
-	if (unlikely(!folio_test_slab(folio))) {
-		if (WARN_ON(folio_size(folio) <= KMALLOC_MAX_CACHE_SIZE))
-			return 0;
-		if (WARN_ON(object != folio_address(folio)))
-			return 0;
-		return folio_size(folio);
-	}
+	if (unlikely(PageLargeKmalloc(page)))
+		return large_kmalloc_size(page);
+
+	slab = page_slab(page);
+	/* Delete this after we're sure there are no users */
+	if (WARN_ON(!slab))
+		return page_size(page);
 
 #ifdef CONFIG_SLUB_DEBUG
-	skip_orig_size_check(folio_slab(folio)->slab_cache, object);
+	skip_orig_size_check(slab->slab_cache, object);
 #endif
 
-	return slab_ksize(folio_slab(folio)->slab_cache);
+	return slab_ksize(slab->slab_cache);
 }
 
 gfp_t kmalloc_fix_flags(gfp_t flags)
@@ -1614,17 +1615,15 @@ static void kfree_rcu_work(struct work_struct *work)
 static bool kfree_rcu_sheaf(void *obj)
 {
 	struct kmem_cache *s;
-	struct folio *folio;
 	struct slab *slab;
 
 	if (is_vmalloc_addr(obj))
 		return false;
 
-	folio = virt_to_folio(obj);
-	if (unlikely(!folio_test_slab(folio)))
+	slab = virt_to_slab(obj);
+	if (unlikely(!slab))
 		return false;
 
-	slab = folio_slab(folio);
 	s = slab->slab_cache;
 	if (s->cpu_sheaves) {
 		if (likely(!IS_ENABLED(CONFIG_NUMA) ||

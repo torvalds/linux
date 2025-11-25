@@ -2372,33 +2372,34 @@ bool memcg_slab_post_charge(void *p, gfp_t flags)
 {
 	struct slabobj_ext *slab_exts;
 	struct kmem_cache *s;
-	struct folio *folio;
+	struct page *page;
 	struct slab *slab;
 	unsigned long off;
 
-	folio = virt_to_folio(p);
-	if (!folio_test_slab(folio)) {
+	page = virt_to_page(p);
+	if (PageLargeKmalloc(page)) {
+		unsigned int order;
 		int size;
 
-		if (folio_memcg_kmem(folio))
+		if (PageMemcgKmem(page))
 			return true;
 
-		if (__memcg_kmem_charge_page(folio_page(folio, 0), flags,
-					     folio_order(folio)))
+		order = large_kmalloc_order(page);
+		if (__memcg_kmem_charge_page(page, flags, order))
 			return false;
 
 		/*
-		 * This folio has already been accounted in the global stats but
+		 * This page has already been accounted in the global stats but
 		 * not in the memcg stats. So, subtract from the global and use
 		 * the interface which adds to both global and memcg stats.
 		 */
-		size = folio_size(folio);
-		node_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B, -size);
-		lruvec_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B, size);
+		size = PAGE_SIZE << order;
+		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE_B, -size);
+		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B, size);
 		return true;
 	}
 
-	slab = folio_slab(folio);
+	slab = page_slab(page);
 	s = slab->slab_cache;
 
 	/*
@@ -3066,24 +3067,24 @@ static inline struct slab *alloc_slab_page(gfp_t flags, int node,
 					   struct kmem_cache_order_objects oo,
 					   bool allow_spin)
 {
-	struct folio *folio;
+	struct page *page;
 	struct slab *slab;
 	unsigned int order = oo_order(oo);
 
 	if (unlikely(!allow_spin))
-		folio = (struct folio *)alloc_frozen_pages_nolock(0/* __GFP_COMP is implied */,
+		page = alloc_frozen_pages_nolock(0/* __GFP_COMP is implied */,
 								  node, order);
 	else if (node == NUMA_NO_NODE)
-		folio = (struct folio *)alloc_frozen_pages(flags, order);
+		page = alloc_frozen_pages(flags, order);
 	else
-		folio = (struct folio *)__alloc_frozen_pages(flags, order, node, NULL);
+		page = __alloc_frozen_pages(flags, order, node, NULL);
 
-	if (!folio)
+	if (!page)
 		return NULL;
 
-	slab = folio_slab(folio);
-	__folio_set_slab(folio);
-	if (folio_is_pfmemalloc(folio))
+	__SetPageSlab(page);
+	slab = page_slab(page);
+	if (page_is_pfmemalloc(page))
 		slab_set_pfmemalloc(slab);
 
 	return slab;
@@ -3307,16 +3308,16 @@ static struct slab *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 
 static void __free_slab(struct kmem_cache *s, struct slab *slab)
 {
-	struct folio *folio = slab_folio(slab);
-	int order = folio_order(folio);
+	struct page *page = slab_page(slab);
+	int order = compound_order(page);
 	int pages = 1 << order;
 
 	__slab_clear_pfmemalloc(slab);
-	folio->mapping = NULL;
-	__folio_clear_slab(folio);
+	page->mapping = NULL;
+	__ClearPageSlab(page);
 	mm_account_reclaimed_pages(pages);
 	unaccount_slab(slab, order, s);
-	free_frozen_pages(&folio->page, order);
+	free_frozen_pages(page, order);
 }
 
 static void rcu_free_slab(struct rcu_head *h)
@@ -5139,7 +5140,7 @@ void *alloc_from_pcs(struct kmem_cache *s, gfp_t gfp, int node)
 		 * be false because of cpu migration during an unlocked part of
 		 * the current allocation or previous freeing process.
 		 */
-		if (folio_nid(virt_to_folio(object)) != node) {
+		if (page_to_nid(virt_to_page(object)) != node) {
 			local_unlock(&s->cpu_sheaves->lock);
 			return NULL;
 		}
@@ -5593,7 +5594,7 @@ unsigned int kmem_cache_sheaf_size(struct slab_sheaf *sheaf)
  */
 static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
 {
-	struct folio *folio;
+	struct page *page;
 	void *ptr = NULL;
 	unsigned int order = get_order(size);
 
@@ -5603,15 +5604,15 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
 	flags |= __GFP_COMP;
 
 	if (node == NUMA_NO_NODE)
-		folio = (struct folio *)alloc_frozen_pages_noprof(flags, order);
+		page = alloc_frozen_pages_noprof(flags, order);
 	else
-		folio = (struct folio *)__alloc_frozen_pages_noprof(flags, order, node, NULL);
+		page = __alloc_frozen_pages_noprof(flags, order, node, NULL);
 
-	if (folio) {
-		ptr = folio_address(folio);
-		lruvec_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B,
+	if (page) {
+		ptr = page_address(page);
+		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B,
 				      PAGE_SIZE << order);
-		__folio_set_large_kmalloc(folio);
+		__SetPageLargeKmalloc(page);
 	}
 
 	ptr = kasan_kmalloc_large(ptr, size, flags);
@@ -6783,12 +6784,12 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
-static void free_large_kmalloc(struct folio *folio, void *object)
+static void free_large_kmalloc(struct page *page, void *object)
 {
-	unsigned int order = folio_order(folio);
+	unsigned int order = compound_order(page);
 
-	if (WARN_ON_ONCE(!folio_test_large_kmalloc(folio))) {
-		dump_page(&folio->page, "Not a kmalloc allocation");
+	if (WARN_ON_ONCE(!PageLargeKmalloc(page))) {
+		dump_page(page, "Not a kmalloc allocation");
 		return;
 	}
 
@@ -6799,10 +6800,10 @@ static void free_large_kmalloc(struct folio *folio, void *object)
 	kasan_kfree_large(object);
 	kmsan_kfree_large(object);
 
-	lruvec_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B,
+	mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B,
 			      -(PAGE_SIZE << order));
-	__folio_clear_large_kmalloc(folio);
-	free_frozen_pages(&folio->page, order);
+	__ClearPageLargeKmalloc(page);
+	free_frozen_pages(page, order);
 }
 
 /*
@@ -6812,7 +6813,7 @@ static void free_large_kmalloc(struct folio *folio, void *object)
 void kvfree_rcu_cb(struct rcu_head *head)
 {
 	void *obj = head;
-	struct folio *folio;
+	struct page *page;
 	struct slab *slab;
 	struct kmem_cache *s;
 	void *slab_addr;
@@ -6823,20 +6824,20 @@ void kvfree_rcu_cb(struct rcu_head *head)
 		return;
 	}
 
-	folio = virt_to_folio(obj);
-	if (!folio_test_slab(folio)) {
+	page = virt_to_page(obj);
+	slab = page_slab(page);
+	if (!slab) {
 		/*
 		 * rcu_head offset can be only less than page size so no need to
-		 * consider folio order
+		 * consider allocation order
 		 */
 		obj = (void *) PAGE_ALIGN_DOWN((unsigned long)obj);
-		free_large_kmalloc(folio, obj);
+		free_large_kmalloc(page, obj);
 		return;
 	}
 
-	slab = folio_slab(folio);
 	s = slab->slab_cache;
-	slab_addr = folio_address(folio);
+	slab_addr = slab_address(slab);
 
 	if (is_kfence_address(obj)) {
 		obj = kfence_object_start(obj);
@@ -6858,7 +6859,7 @@ void kvfree_rcu_cb(struct rcu_head *head)
  */
 void kfree(const void *object)
 {
-	struct folio *folio;
+	struct page *page;
 	struct slab *slab;
 	struct kmem_cache *s;
 	void *x = (void *)object;
@@ -6868,13 +6869,13 @@ void kfree(const void *object)
 	if (unlikely(ZERO_OR_NULL_PTR(object)))
 		return;
 
-	folio = virt_to_folio(object);
-	if (unlikely(!folio_test_slab(folio))) {
-		free_large_kmalloc(folio, (void *)object);
+	page = virt_to_page(object);
+	slab = page_slab(page);
+	if (!slab) {
+		free_large_kmalloc(page, (void *)object);
 		return;
 	}
 
-	slab = folio_slab(folio);
 	s = slab->slab_cache;
 	slab_free(s, slab, x, _RET_IP_);
 }
@@ -6891,7 +6892,6 @@ EXPORT_SYMBOL(kfree);
  */
 void kfree_nolock(const void *object)
 {
-	struct folio *folio;
 	struct slab *slab;
 	struct kmem_cache *s;
 	void *x = (void *)object;
@@ -6899,13 +6899,12 @@ void kfree_nolock(const void *object)
 	if (unlikely(ZERO_OR_NULL_PTR(object)))
 		return;
 
-	folio = virt_to_folio(object);
-	if (unlikely(!folio_test_slab(folio))) {
+	slab = virt_to_slab(object);
+	if (unlikely(!slab)) {
 		WARN_ONCE(1, "large_kmalloc is not supported by kfree_nolock()");
 		return;
 	}
 
-	slab = folio_slab(folio);
 	s = slab->slab_cache;
 
 	memcg_slab_free_hook(s, slab, &x, 1);
@@ -6969,16 +6968,16 @@ __do_krealloc(const void *p, size_t new_size, unsigned long align, gfp_t flags, 
 	if (is_kfence_address(p)) {
 		ks = orig_size = kfence_ksize(p);
 	} else {
-		struct folio *folio;
+		struct page *page = virt_to_page(p);
+		struct slab *slab = page_slab(page);
 
-		folio = virt_to_folio(p);
-		if (unlikely(!folio_test_slab(folio))) {
+		if (!slab) {
 			/* Big kmalloc object */
-			WARN_ON(folio_size(folio) <= KMALLOC_MAX_CACHE_SIZE);
-			WARN_ON(p != folio_address(folio));
-			ks = folio_size(folio);
+			ks = page_size(page);
+			WARN_ON(ks <= KMALLOC_MAX_CACHE_SIZE);
+			WARN_ON(p != page_address(page));
 		} else {
-			s = folio_slab(folio)->slab_cache;
+			s = slab->slab_cache;
 			orig_size = get_orig_size(s, (void *)p);
 			ks = s->object_size;
 		}
@@ -7282,23 +7281,25 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
 {
 	int lookahead = 3;
 	void *object;
-	struct folio *folio;
+	struct page *page;
+	struct slab *slab;
 	size_t same;
 
 	object = p[--size];
-	folio = virt_to_folio(object);
+	page = virt_to_page(object);
+	slab = page_slab(page);
 	if (!s) {
 		/* Handle kalloc'ed objects */
-		if (unlikely(!folio_test_slab(folio))) {
-			free_large_kmalloc(folio, object);
+		if (!slab) {
+			free_large_kmalloc(page, object);
 			df->slab = NULL;
 			return size;
 		}
 		/* Derive kmem_cache from object */
-		df->slab = folio_slab(folio);
-		df->s = df->slab->slab_cache;
+		df->slab = slab;
+		df->s = slab->slab_cache;
 	} else {
-		df->slab = folio_slab(folio);
+		df->slab = slab;
 		df->s = cache_from_obj(s, object); /* Support for memcg */
 	}
 
