@@ -26047,7 +26047,7 @@ M:	Jarkko Sakkinen <jarkko@kernel.org>
 R:	Jason Gunthorpe <jgg@ziepe.ca>
 L:	linux-integrity@vger.kernel.org
 S:	Maintained
-W:	https://codeberg.org/jarkko/linux-tpmdd-test
+W:	https://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-tpmdd-test.git/about/
 Q:	https://patchwork.kernel.org/project/linux-integrity/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-tpmdd.git
 F:	Documentation/devicetree/bindings/tpm/
