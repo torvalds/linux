@@ -93,6 +93,18 @@ impl ReallocRequest {
 }
 
 impl IdPool {
+    /// Constructs a new [`IdPool`].
+    ///
+    /// The pool will have a capacity of [`MAX_INLINE_LEN`].
+    ///
+    /// [`MAX_INLINE_LEN`]: BitmapVec::MAX_INLINE_LEN
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            map: BitmapVec::new_inline(),
+        }
+    }
+
     /// Constructs a new [`IdPool`] with space for a specific number of bits.
     ///
     /// A capacity below [`MAX_INLINE_LEN`] is adjusted to [`MAX_INLINE_LEN`].
@@ -227,5 +239,12 @@ impl IdPool {
     #[inline]
     pub fn release_id(&mut self, id: usize) {
         self.map.clear_bit(id);
+    }
+}
+
+impl Default for IdPool {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
     }
 }
