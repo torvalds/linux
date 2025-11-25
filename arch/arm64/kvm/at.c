@@ -386,11 +386,11 @@ static int kvm_swap_s1_desc(struct kvm_vcpu *vcpu, u64 pa, u64 old, u64 new,
 			    struct s1_walk_info *wi)
 {
 	if (wi->be) {
-		old = cpu_to_be64(old);
-		new = cpu_to_be64(new);
+		old = (__force u64)cpu_to_be64(old);
+		new = (__force u64)cpu_to_be64(new);
 	} else {
-		old = cpu_to_le64(old);
-		new = cpu_to_le64(new);
+		old = (__force u64)cpu_to_le64(old);
+		new = (__force u64)cpu_to_le64(new);
 	}
 
 	return __kvm_at_swap_desc(vcpu->kvm, pa, old, new);
