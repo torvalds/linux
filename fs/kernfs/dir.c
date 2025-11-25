@@ -675,11 +675,14 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	if (parent) {
 		ret = security_kernfs_init_security(parent, kn);
 		if (ret)
-			goto err_out3;
+			goto err_out4;
 	}
 
 	return kn;
 
+ err_out4:
+	simple_xattrs_free(&kn->iattr->xattrs, NULL);
+	kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
  err_out3:
 	spin_lock(&root->kernfs_idr_lock);
 	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
