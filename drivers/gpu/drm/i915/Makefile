@@ -74,6 +74,10 @@ i915-$(CONFIG_DEBUG_FS) += \
 i915-$(CONFIG_PERF_EVENTS) += \
 	i915_pmu.o
 
+# core display adaptation
+i915-y += \
+	i915_hdcp_gsc.o
+
 # "Graphics Technology" (aka we talk to the gpu)
 gt-y += \
 	gt/gen2_engine_cs.o \
@@ -277,7 +281,6 @@ i915-y += \
 	display/intel_frontbuffer.o \
 	display/intel_global_state.o \
 	display/intel_hdcp.o \
-	display/intel_hdcp_gsc.o \
 	display/intel_hdcp_gsc_message.o \
 	display/intel_hotplug.o \
 	display/intel_hotplug_irq.o \

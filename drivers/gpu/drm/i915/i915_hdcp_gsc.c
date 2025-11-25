@@ -6,11 +6,11 @@
 #include <drm/drm_print.h>
 #include <drm/intel/i915_hdcp_interface.h>
 
+#include "display/intel_hdcp_gsc.h"
 #include "gem/i915_gem_region.h"
 #include "gt/intel_gt.h"
 #include "gt/uc/intel_gsc_uc_heci_cmd_submit.h"
 #include "i915_drv.h"
-#include "intel_hdcp_gsc.h"
 
 struct intel_hdcp_gsc_context {
 	struct drm_i915_private *i915;
