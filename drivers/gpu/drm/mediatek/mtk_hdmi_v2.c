@@ -746,7 +746,7 @@ static void mtk_hdmi_v2_change_video_resolution(struct mtk_hdmi *hdmi,
 	case HDMI_COLORSPACE_YUV420:
 		mtk_hdmi_yuv420_downsampling(hdmi, true);
 		break;
-	};
+	}
 }
 
 static void mtk_hdmi_v2_output_set_display_mode(struct mtk_hdmi *hdmi,
@@ -1157,7 +1157,7 @@ static int mtk_hdmi_v2_hdmi_clear_infoframe(struct drm_bridge *bridge,
 	case HDMI_INFOFRAME_TYPE_DRM:
 	default:
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -1185,7 +1185,7 @@ static int mtk_hdmi_v2_hdmi_write_infoframe(struct drm_bridge *bridge,
 	default:
 		dev_err(hdmi->dev, "Unsupported HDMI infoframe type %u\n", type);
 		break;
-	};
+	}
 
 	return 0;
 }
