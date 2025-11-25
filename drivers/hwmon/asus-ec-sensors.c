@@ -113,15 +113,19 @@ enum ec_sensors {
 	ec_sensor_temp_t_sensor,
 	/* VRM temperature [℃] */
 	ec_sensor_temp_vrm,
+	/* VRM east (right) temperature [℃] */
+	ec_sensor_temp_vrme,
+	/* VRM west (left) temperature [℃] */
+	ec_sensor_temp_vrmw,
 	/* CPU Core voltage [mV] */
 	ec_sensor_in_cpu_core,
 	/* CPU_Opt fan [RPM] */
 	ec_sensor_fan_cpu_opt,
 	/* VRM heat sink fan [RPM] */
 	ec_sensor_fan_vrm_hs,
-	/* VRM east heat sink fan [RPM] */
+	/* VRM east (right) heat sink fan [RPM] */
 	ec_sensor_fan_vrme_hs,
-	/* VRM west heat sink fan [RPM] */
+	/* VRM west (left) heat sink fan [RPM] */
 	ec_sensor_fan_vrmw_hs,
 	/* Chipset fan [RPM] */
 	ec_sensor_fan_chipset,
@@ -157,6 +161,8 @@ enum ec_sensors {
 #define SENSOR_TEMP_MB BIT(ec_sensor_temp_mb)
 #define SENSOR_TEMP_T_SENSOR BIT(ec_sensor_temp_t_sensor)
 #define SENSOR_TEMP_VRM BIT(ec_sensor_temp_vrm)
+#define SENSOR_TEMP_VRME BIT(ec_sensor_temp_vrme)
+#define SENSOR_TEMP_VRMW BIT(ec_sensor_temp_vrmw)
 #define SENSOR_IN_CPU_CORE BIT(ec_sensor_in_cpu_core)
 #define SENSOR_FAN_CPU_OPT BIT(ec_sensor_fan_cpu_opt)
 #define SENSOR_FAN_VRM_HS BIT(ec_sensor_fan_vrm_hs)
@@ -296,10 +302,14 @@ static const struct ec_sensor_info sensors_family_amd_800[] = {
 };
 
 static const struct ec_sensor_info sensors_family_amd_trx_50[] = {
-	[ec_sensor_fan_vrmw_hs] =
-		EC_SENSOR("VRMW HS", hwmon_fan, 2, 0x00, 0xb4),
-	[ec_sensor_fan_vrme_hs] =
-		EC_SENSOR("VRME HS", hwmon_fan, 2, 0x00, 0xbc),
+	[ec_sensor_temp_cpu] = EC_SENSOR("CPU", hwmon_temp, 1, 0x00, 0x30),
+	[ec_sensor_temp_cpu_package] =
+		EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
+	[ec_sensor_temp_vrme] = EC_SENSOR("VRM_E", hwmon_temp, 1, 0x00, 0x33),
+	[ec_sensor_temp_vrmw] = EC_SENSOR("VRM_W", hwmon_temp, 1, 0x00, 0x34),
+	[ec_sensor_fan_cpu_opt] = EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
+	[ec_sensor_fan_vrmw_hs] = EC_SENSOR("VRM_E HS", hwmon_fan, 2, 0x00, 0xb4),
+	[ec_sensor_fan_vrme_hs] = EC_SENSOR("VRM_W HS", hwmon_fan, 2, 0x00, 0xbc),
 	[ec_sensor_temp_t_sensor] =
 		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x01, 0x04),
 };
@@ -545,7 +555,9 @@ static const struct ec_board_info board_info_pro_art_x870E_creator_wifi = {
 
 static const struct ec_board_info board_info_pro_ws_trx50_sage_wifi = {
 	/* Board also has a nct6798 */
-	.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_FAN_VRME_HS | SENSOR_FAN_VRMW_HS,
+	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE | SENSOR_TEMP_VRME |
+		SENSOR_TEMP_VRMW | SENSOR_FAN_CPU_OPT | SENSOR_FAN_VRME_HS |
+		SENSOR_FAN_VRMW_HS | SENSOR_TEMP_T_SENSOR,
 	.mutex_path = ASUS_HW_ACCESS_MUTEX_RMTW_ASMX,
 	.family = family_amd_trx_50,
 };
