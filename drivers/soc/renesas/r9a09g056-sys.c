@@ -34,6 +34,24 @@
 #define SYS_RZV2N_FEATURE_C55		BIT(1)
 #define SYS_RZV2N_FEATURE_SEC		BIT(2)
 
+#define SYS_LSI_OTPTSU0TRMVAL0		0x320
+#define SYS_LSI_OTPTSU0TRMVAL1		0x324
+#define SYS_LSI_OTPTSU1TRMVAL0		0x330
+#define SYS_LSI_OTPTSU1TRMVAL1		0x334
+#define SYS_GBETH0_CFG			0xf00
+#define SYS_GBETH1_CFG			0xf04
+#define SYS_PCIE_INTX_CH0		0x1000
+#define SYS_PCIE_MSI1_CH0		0x1004
+#define SYS_PCIE_MSI2_CH0		0x1008
+#define SYS_PCIE_MSI3_CH0		0x100c
+#define SYS_PCIE_MSI4_CH0		0x1010
+#define SYS_PCIE_MSI5_CH0		0x1014
+#define SYS_PCIE_PME_CH0		0x1018
+#define SYS_PCIE_ACK_CH0		0x101c
+#define SYS_PCIE_MISC_CH0		0x1020
+#define SYS_PCIE_MODE_CH0		0x1024
+#define SYS_ADC_CFG			0x1600
+
 static void rzv2n_sys_print_id(struct device *dev,
 			       void __iomem *sysc_base,
 			       struct soc_device_attribute *soc_dev_attr)
@@ -70,6 +88,57 @@ static const struct rz_sysc_soc_id_init_data rzv2n_sys_soc_id_init_data __initco
 	.print_id = rzv2n_sys_print_id,
 };
 
+static bool rzv2n_regmap_readable_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case SYS_LSI_OTPTSU0TRMVAL0:
+	case SYS_LSI_OTPTSU0TRMVAL1:
+	case SYS_LSI_OTPTSU1TRMVAL0:
+	case SYS_LSI_OTPTSU1TRMVAL1:
+	case SYS_GBETH0_CFG:
+	case SYS_GBETH1_CFG:
+	case SYS_PCIE_INTX_CH0:
+	case SYS_PCIE_MSI1_CH0:
+	case SYS_PCIE_MSI2_CH0:
+	case SYS_PCIE_MSI3_CH0:
+	case SYS_PCIE_MSI4_CH0:
+	case SYS_PCIE_MSI5_CH0:
+	case SYS_PCIE_PME_CH0:
+	case SYS_PCIE_ACK_CH0:
+	case SYS_PCIE_MISC_CH0:
+	case SYS_PCIE_MODE_CH0:
+	case SYS_ADC_CFG:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool rzv2n_regmap_writeable_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case SYS_GBETH0_CFG:
+	case SYS_GBETH1_CFG:
+	case SYS_PCIE_INTX_CH0:
+	case SYS_PCIE_MSI1_CH0:
+	case SYS_PCIE_MSI2_CH0:
+	case SYS_PCIE_MSI3_CH0:
+	case SYS_PCIE_MSI4_CH0:
+	case SYS_PCIE_MSI5_CH0:
+	case SYS_PCIE_PME_CH0:
+	case SYS_PCIE_ACK_CH0:
+	case SYS_PCIE_MISC_CH0:
+	case SYS_PCIE_MODE_CH0:
+	case SYS_ADC_CFG:
+		return true;
+	default:
+		return false;
+	}
+}
+
 const struct rz_sysc_init_data rzv2n_sys_init_data = {
 	.soc_id_init_data = &rzv2n_sys_soc_id_init_data,
+	.readable_reg = rzv2n_regmap_readable_reg,
+	.writeable_reg = rzv2n_regmap_writeable_reg,
+	.max_register = 0x170c,
 };
