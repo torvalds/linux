@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pwrseq/provider.h>
 #include <linux/string.h>
@@ -373,7 +374,7 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 
 	ctx->of_node = dev->of_node;
 
-	ctx->pdata = of_device_get_match_data(dev);
+	ctx->pdata = device_get_match_data(dev);
 	if (!ctx->pdata)
 		return dev_err_probe(dev, -ENODEV,
 				     "Failed to obtain platform data\n");
