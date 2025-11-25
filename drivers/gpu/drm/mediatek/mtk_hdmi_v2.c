@@ -1120,9 +1120,10 @@ static void mtk_hdmi_v2_hpd_disable(struct drm_bridge *bridge)
 	mtk_hdmi_v2_disable(hdmi);
 }
 
-static int mtk_hdmi_v2_hdmi_tmds_char_rate_valid(const struct drm_bridge *bridge,
-						 const struct drm_display_mode *mode,
-						 unsigned long long tmds_rate)
+static enum drm_mode_status
+mtk_hdmi_v2_hdmi_tmds_char_rate_valid(const struct drm_bridge *bridge,
+				      const struct drm_display_mode *mode,
+				      unsigned long long tmds_rate)
 {
 	if (mode->clock < MTK_HDMI_V2_CLOCK_MIN)
 		return MODE_CLOCK_LOW;
