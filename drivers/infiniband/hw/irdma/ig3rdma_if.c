@@ -55,6 +55,7 @@ static int ig3rdma_vchnl_init(struct irdma_pci_f *rf,
 	ret = irdma_sc_vchnl_init(&rf->sc_dev, &virt_info);
 	if (ret) {
 		destroy_workqueue(rf->vchnl_wq);
+		mutex_destroy(&rf->sc_dev.vchnl_mutex);
 		return ret;
 	}
 
@@ -124,7 +125,9 @@ static void ig3rdma_decfg_rf(struct irdma_pci_f *rf)
 {
 	struct irdma_hw *hw = &rf->hw;
 
+	mutex_destroy(&rf->ah_tbl_lock);
 	destroy_workqueue(rf->vchnl_wq);
+	mutex_destroy(&rf->sc_dev.vchnl_mutex);
 	kfree(hw->io_regs);
 	iounmap(hw->rdma_reg.addr);
 }
@@ -149,6 +152,7 @@ static int ig3rdma_cfg_rf(struct irdma_pci_f *rf,
 	err = ig3rdma_cfg_regions(&rf->hw, cdev_info);
 	if (err) {
 		destroy_workqueue(rf->vchnl_wq);
+		mutex_destroy(&rf->sc_dev.vchnl_mutex);
 		return err;
 	}
 
