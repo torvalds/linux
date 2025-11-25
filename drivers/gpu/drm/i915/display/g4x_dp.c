@@ -684,12 +684,11 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	struct intel_display *display = to_intel_display(state);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u32 dp_reg = intel_de_read(display, intel_dp->output_reg);
-	intel_wakeref_t wakeref;
 
 	if (drm_WARN_ON(display->drm, dp_reg & DP_PORT_EN))
 		return;
 
-	with_intel_pps_lock(intel_dp, wakeref) {
+	with_intel_pps_lock(intel_dp) {
 		if (display->platform.valleyview || display->platform.cherryview)
 			vlv_pps_port_enable_unlocked(encoder, pipe_config);
 

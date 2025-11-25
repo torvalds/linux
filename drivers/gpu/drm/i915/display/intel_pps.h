@@ -20,8 +20,11 @@ struct intel_encoder;
 intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp);
 intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp, intel_wakeref_t wakeref);
 
-#define with_intel_pps_lock(dp, wf)						\
-	for ((wf) = intel_pps_lock(dp); (wf); (wf) = intel_pps_unlock((dp), (wf)))
+#define __with_intel_pps_lock(dp, wf) \
+	for (intel_wakeref_t (wf) = intel_pps_lock(dp); (wf); (wf) = intel_pps_unlock((dp), (wf)))
+
+#define with_intel_pps_lock(dp) \
+	__with_intel_pps_lock((dp), __UNIQUE_ID(wakeref))
 
 void intel_pps_backlight_on(struct intel_dp *intel_dp);
 void intel_pps_backlight_off(struct intel_dp *intel_dp);
