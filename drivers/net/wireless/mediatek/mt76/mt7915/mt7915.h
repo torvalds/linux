@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ISC */
+/* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #ifndef __MT7915_H
@@ -70,6 +70,7 @@
 #define MT7915_CDEV_THROTTLE_MAX	99
 
 #define MT7915_SKU_RATE_NUM		161
+#define MT7915_SKU_PATH_NUM		185
 
 #define MT7915_MAX_TWT_AGRT		16
 #define MT7915_MAX_STA_TWT_AGRT		8
@@ -222,6 +223,9 @@ struct mt7915_phy {
 
 	struct mt76_mib_stats mib;
 	struct mt76_channel_state state_ts;
+
+	bool sku_limit_en:1;
+	bool sku_path_en:1;
 
 #ifdef CONFIG_NL80211_TESTMODE
 	struct {
@@ -491,9 +495,10 @@ int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
 int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
 			      u8 en);
 int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
-int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable);
+int mt7915_mcu_set_sku_en(struct mt7915_phy *phy);
 int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy);
-int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len);
+int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len,
+			       u8 category);
 int mt7915_mcu_set_txpower_frame_min(struct mt7915_phy *phy, s8 txpower);
 int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
 				 struct ieee80211_vif *vif,

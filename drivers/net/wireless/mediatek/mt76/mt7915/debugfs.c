@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/relay.h>
@@ -1008,7 +1008,7 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = mt7915_mcu_get_txpower_sku(phy, txpwr, sizeof(txpwr));
+	ret = mt7915_mcu_get_txpower_sku(phy, txpwr, sizeof(txpwr), TX_POWER_INFO_RATE);
 	if (ret)
 		goto out;
 
@@ -1118,7 +1118,7 @@ mt7915_rate_txpower_set(struct file *file, const char __user *user_buf,
 
 	mutex_lock(&dev->mt76.mutex);
 	ret = mt7915_mcu_get_txpower_sku(phy, req.txpower_sku,
-					 sizeof(req.txpower_sku));
+					 sizeof(req.txpower_sku), TX_POWER_INFO_RATE);
 	if (ret)
 		goto out;
 
@@ -1160,13 +1160,77 @@ out:
 	return ret ? ret : count;
 }
 
-static const struct file_operations mt7915_rate_txpower_fops = {
+static const struct file_operations mt7915_txpower_fops = {
 	.write = mt7915_rate_txpower_set,
 	.read = mt7915_rate_txpower_get,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
+
+static int
+mt7915_path_txpower_show(struct seq_file *file)
+{
+	struct mt7915_phy *phy = file->private;
+	s8 txpower[MT7915_SKU_PATH_NUM], *buf = txpower;
+	int ret;
+
+#define PATH_POWER_SHOW(_name, _len, _skip) do {			\
+		size_t __len = (_len);					\
+		if (_skip) {						\
+			buf -= 1;					\
+			*buf = 0;					\
+		}							\
+		mt76_seq_puts_array(file, _name, buf, __len);		\
+		buf += __len;						\
+	} while (0)
+
+	seq_printf(file, "\n%*c", 18, ' ');
+	seq_puts(file, "1T1S/2T1S/3T1S/4T1S/2T2S/3T2S/4T2S/3T3S/4T3S/4T4S\n");
+	ret = mt7915_mcu_get_txpower_sku(phy, txpower, sizeof(txpower),
+					 TX_POWER_INFO_PATH);
+	if (ret)
+		return ret;
+
+	PATH_POWER_SHOW("CCK", 4, 0);
+	PATH_POWER_SHOW("OFDM", 4, 0);
+	PATH_POWER_SHOW("BF-OFDM", 4, 1);
+
+	PATH_POWER_SHOW("HT/VHT20", 10, 0);
+	PATH_POWER_SHOW("BF-HT/VHT20", 10, 1);
+	PATH_POWER_SHOW("HT/VHT40", 10, 0);
+	PATH_POWER_SHOW("BF-HT/VHT40", 10, 1);
+
+	PATH_POWER_SHOW("BW20/RU242", 10, 0);
+	PATH_POWER_SHOW("BF-BW20/RU242", 10, 1);
+	PATH_POWER_SHOW("BW40/RU484", 10, 0);
+	PATH_POWER_SHOW("BF-BW40/RU484", 10, 1);
+	PATH_POWER_SHOW("BW80/RU996", 10, 0);
+	PATH_POWER_SHOW("BF-BW80/RU996", 10, 1);
+	PATH_POWER_SHOW("BW160/RU2x996", 10, 0);
+	PATH_POWER_SHOW("BF-BW160/RU2x996", 10, 1);
+	PATH_POWER_SHOW("RU26", 10, 0);
+	PATH_POWER_SHOW("BF-RU26", 10, 0);
+	PATH_POWER_SHOW("RU52", 10, 0);
+	PATH_POWER_SHOW("BF-RU52", 10, 0);
+	PATH_POWER_SHOW("RU106", 10, 0);
+	PATH_POWER_SHOW("BF-RU106", 10, 0);
+#undef PATH_POWER_SHOW
+
+	return 0;
+}
+
+static int
+mt7915_txpower_path_show(struct seq_file *file, void *data)
+{
+	struct mt7915_phy *phy = file->private;
+
+	seq_printf(file, "\nBand %d\n", phy != &phy->dev->phy);
+
+	return mt7915_path_txpower_show(file);
+}
+
+DEFINE_SHOW_ATTRIBUTE(mt7915_txpower_path);
 
 static int
 mt7915_twt_stats(struct seq_file *s, void *data)
@@ -1254,7 +1318,9 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 	debugfs_create_file("implicit_txbf", 0600, dir, dev,
 			    &fops_implicit_txbf);
 	debugfs_create_file("txpower_sku", 0400, dir, phy,
-			    &mt7915_rate_txpower_fops);
+			    &mt7915_txpower_fops);
+	debugfs_create_file("txpower_path", 0400, dir, phy,
+			    &mt7915_txpower_path_fops);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
 				    mt7915_twt_stats);
 	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);

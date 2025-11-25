@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ISC */
+/* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /* Copyright (C) 2023 MediaTek Inc. */
 
 #ifndef __MT7925_MCU_H
@@ -150,6 +150,14 @@ enum {
 	UNI_EVENT_SCAN_DONE_BASIC = 0,
 	UNI_EVENT_SCAN_DONE_CHNLINFO = 2,
 	UNI_EVENT_SCAN_DONE_NLO = 3,
+};
+
+enum {
+	UNI_CMD_RSSI_MONITOR_SET = 0,
+};
+
+enum {
+	UNI_EVENT_RSSI_MONITOR_INFO = 0,
 };
 
 enum connac3_mcu_cipher_type {

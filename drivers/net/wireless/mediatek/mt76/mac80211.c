@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
@@ -630,6 +630,8 @@ int mt76_create_page_pool(struct mt76_dev *dev, struct mt76_queue *q)
 	case MT_RXQ_MAIN:
 	case MT_RXQ_BAND1:
 	case MT_RXQ_BAND2:
+	case MT_RXQ_NPU0:
+	case MT_RXQ_NPU1:
 		pp_params.pool_size = 256;
 		break;
 	default:
@@ -814,6 +816,7 @@ void mt76_free_device(struct mt76_dev *dev)
 		destroy_workqueue(dev->wq);
 		dev->wq = NULL;
 	}
+	mt76_npu_deinit(dev);
 	ieee80211_free_hw(dev->hw);
 }
 EXPORT_SYMBOL_GPL(mt76_free_device);
@@ -846,8 +849,6 @@ void mt76_reset_device(struct mt76_dev *dev)
 		rcu_assign_pointer(dev->wcid[i], NULL);
 	}
 	rcu_read_unlock();
-
-	mt76_abort_scan(dev);
 
 	INIT_LIST_HEAD(&dev->wcid_list);
 	INIT_LIST_HEAD(&dev->sta_poll_list);
@@ -1553,7 +1554,8 @@ void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 
 	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL) {
 		mt76_check_sta(dev, skb);
-		if (mtk_wed_device_active(&dev->mmio.wed))
+		if (mtk_wed_device_active(&dev->mmio.wed) ||
+		    mt76_npu_device_active(dev))
 			__skb_queue_tail(&frames, skb);
 		else
 			mt76_rx_aggr_reorder(skb, &frames);
