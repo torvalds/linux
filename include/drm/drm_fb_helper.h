@@ -167,13 +167,6 @@ struct drm_fb_helper {
 	struct mutex lock;
 
 	/**
-	 * @kernel_fb_list:
-	 *
-	 * Entry on the global kernel_fb_helper_list, used for kgdb entry/exit.
-	 */
-	struct list_head kernel_fb_list;
-
-	/**
 	 * @delayed_hotplug:
 	 *
 	 * A hotplug was received while fbdev wasn't in control of the DRM
@@ -236,8 +229,6 @@ drm_fb_helper_from_client(struct drm_client_dev *client)
 	.fb_setcmap	= drm_fb_helper_setcmap, \
 	.fb_blank	= drm_fb_helper_blank, \
 	.fb_pan_display	= drm_fb_helper_pan_display, \
-	.fb_debug_enter = drm_fb_helper_debug_enter, \
-	.fb_debug_leave = drm_fb_helper_debug_leave, \
 	.fb_ioctl	= drm_fb_helper_ioctl
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -280,8 +271,6 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper);
-int drm_fb_helper_debug_enter(struct fb_info *info);
-int drm_fb_helper_debug_leave(struct fb_info *info);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					 struct drm_fb_helper *helper,
@@ -384,16 +373,6 @@ static inline int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 }
 
 static inline int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
-{
-	return 0;
-}
-
-static inline int drm_fb_helper_debug_enter(struct fb_info *info)
-{
-	return 0;
-}
-
-static inline int drm_fb_helper_debug_leave(struct fb_info *info)
 {
 	return 0;
 }
