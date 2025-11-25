@@ -8,6 +8,7 @@
 
 struct dma_fence;
 struct drm_device;
+struct intel_hdcp_gsc_context;
 struct ref_tracker;
 
 struct intel_display_rpm_interface {
@@ -24,6 +25,15 @@ struct intel_display_rpm_interface {
 	void (*assert_held)(const struct drm_device *drm);
 	void (*assert_block)(const struct drm_device *drm);
 	void (*assert_unblock)(const struct drm_device *drm);
+};
+
+struct intel_display_hdcp_interface {
+	ssize_t (*gsc_msg_send)(struct intel_hdcp_gsc_context *gsc_context,
+				void *msg_in, size_t msg_in_len,
+				void *msg_out, size_t msg_out_len);
+	bool (*gsc_check_status)(struct drm_device *drm);
+	struct intel_hdcp_gsc_context *(*gsc_context_alloc)(struct drm_device *drm);
+	void (*gsc_context_free)(struct intel_hdcp_gsc_context *gsc_context);
 };
 
 struct intel_display_irq_interface {
@@ -50,6 +60,9 @@ struct intel_display_rps_interface {
  * check the optional pointers.
  */
 struct intel_display_parent_interface {
+	/** @hdcp: HDCP GSC interface */
+	const struct intel_display_hdcp_interface *hdcp;
+
 	/** @rpm: Runtime PM functions */
 	const struct intel_display_rpm_interface *rpm;
 

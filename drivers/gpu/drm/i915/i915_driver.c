@@ -96,6 +96,7 @@
 #include "i915_file_private.h"
 #include "i915_getparam.h"
 #include "i915_gmch.h"
+#include "i915_hdcp_gsc.h"
 #include "i915_hwmon.h"
 #include "i915_ioc32.h"
 #include "i915_ioctl.h"
@@ -757,6 +758,7 @@ static void fence_priority_display(struct dma_fence *fence)
 }
 
 static const struct intel_display_parent_interface parent = {
+	.hdcp = &i915_display_hdcp_interface,
 	.rpm = &i915_display_rpm_interface,
 	.irq = &i915_display_irq_interface,
 	.rps = &i915_display_rps_interface,

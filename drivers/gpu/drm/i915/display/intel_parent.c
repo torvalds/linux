@@ -22,6 +22,30 @@
 #include "intel_display_core.h"
 #include "intel_parent.h"
 
+ssize_t intel_parent_hdcp_gsc_msg_send(struct intel_display *display,
+				       struct intel_hdcp_gsc_context *gsc_context,
+				       void *msg_in, size_t msg_in_len,
+				       void *msg_out, size_t msg_out_len)
+{
+	return display->parent->hdcp->gsc_msg_send(gsc_context, msg_in, msg_in_len, msg_out, msg_out_len);
+}
+
+bool intel_parent_hdcp_gsc_check_status(struct intel_display *display)
+{
+	return display->parent->hdcp->gsc_check_status(display->drm);
+}
+
+struct intel_hdcp_gsc_context *intel_parent_hdcp_gsc_context_alloc(struct intel_display *display)
+{
+	return display->parent->hdcp->gsc_context_alloc(display->drm);
+}
+
+void intel_parent_hdcp_gsc_context_free(struct intel_display *display,
+					struct intel_hdcp_gsc_context *gsc_context)
+{
+	display->parent->hdcp->gsc_context_free(gsc_context);
+}
+
 bool intel_parent_irq_enabled(struct intel_display *display)
 {
 	return display->parent->irq->enabled(display->drm);

@@ -37,6 +37,7 @@
 #include "skl_watermark.h"
 #include "xe_display_rpm.h"
 #include "xe_module.h"
+#include "xe_hdcp_gsc.h"
 
 /* Ensure drm and display members are placed properly. */
 INTEL_DISPLAY_MEMBER_STATIC_ASSERT(struct xe_device, drm, display);
@@ -534,6 +535,7 @@ static const struct intel_display_irq_interface xe_display_irq_interface = {
 };
 
 static const struct intel_display_parent_interface parent = {
+	.hdcp = &xe_display_hdcp_interface,
 	.rpm = &xe_display_rpm_interface,
 	.irq = &xe_display_irq_interface,
 };

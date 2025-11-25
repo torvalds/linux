@@ -8,6 +8,16 @@
 
 struct dma_fence;
 struct intel_display;
+struct intel_hdcp_gsc_context;
+
+ssize_t intel_parent_hdcp_gsc_msg_send(struct intel_display *display,
+				       struct intel_hdcp_gsc_context *gsc_context,
+				       void *msg_in, size_t msg_in_len,
+				       void *msg_out, size_t msg_out_len);
+bool intel_parent_hdcp_gsc_check_status(struct intel_display *display);
+struct intel_hdcp_gsc_context *intel_parent_hdcp_gsc_context_alloc(struct intel_display *display);
+void intel_parent_hdcp_gsc_context_free(struct intel_display *display,
+					struct intel_hdcp_gsc_context *gsc_context);
 
 bool intel_parent_irq_enabled(struct intel_display *display);
 void intel_parent_irq_synchronize(struct intel_display *display);
