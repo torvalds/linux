@@ -1740,7 +1740,7 @@ static bool file_backed_vma_is_retractable(struct vm_area_struct *vma)
 	 * obtained on guard region installation after the flag is set, so this
 	 * check being performed under this lock excludes races.
 	 */
-	if (vma_flag_test_atomic(vma, VM_MAYBE_GUARD_BIT))
+	if (vma_flag_test_atomic(vma, VMA_MAYBE_GUARD_BIT))
 		return false;
 
 	return true;
