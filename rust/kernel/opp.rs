@@ -87,7 +87,7 @@ use core::{marker::PhantomData, ptr};
 
 use macros::vtable;
 
-/// Creates a null-terminated slice of pointers to [`Cstring`]s.
+/// Creates a null-terminated slice of pointers to [`CString`]s.
 fn to_c_str_array(names: &[CString]) -> Result<KVec<*const u8>> {
     // Allocated a null-terminated vector of pointers.
     let mut list = KVec::with_capacity(names.len() + 1, GFP_KERNEL)?;
@@ -443,66 +443,70 @@ impl<T: ConfigOps + Default> Config<T> {
     ///
     /// The returned [`ConfigToken`] will remove the configuration when dropped.
     pub fn set(self, dev: &Device) -> Result<ConfigToken> {
-        let (_clk_list, clk_names) = match &self.clk_names {
-            Some(x) => {
-                let list = to_c_str_array(x)?;
-                let ptr = list.as_ptr();
-                (Some(list), ptr)
-            }
-            None => (None, ptr::null()),
+        let clk_names = self.clk_names.as_deref().map(to_c_str_array).transpose()?;
+        let regulator_names = self
+            .regulator_names
+            .as_deref()
+            .map(to_c_str_array)
+            .transpose()?;
+
+        let set_config = || {
+            let clk_names = clk_names.as_ref().map_or(ptr::null(), |c| c.as_ptr());
+            let regulator_names = regulator_names.as_ref().map_or(ptr::null(), |c| c.as_ptr());
+
+            let prop_name = self
+                .prop_name
+                .as_ref()
+                .map_or(ptr::null(), |p| p.as_char_ptr());
+
+            let (supported_hw, supported_hw_count) = self
+                .supported_hw
+                .as_ref()
+                .map_or((ptr::null(), 0), |hw| (hw.as_ptr(), hw.len() as u32));
+
+            let (required_dev, required_dev_index) = self
+                .required_dev
+                .as_ref()
+                .map_or((ptr::null_mut(), 0), |(dev, idx)| (dev.as_raw(), *idx));
+
+            let mut config = bindings::dev_pm_opp_config {
+                clk_names,
+                config_clks: if T::HAS_CONFIG_CLKS {
+                    Some(Self::config_clks)
+                } else {
+                    None
+                },
+                prop_name,
+                regulator_names,
+                config_regulators: if T::HAS_CONFIG_REGULATORS {
+                    Some(Self::config_regulators)
+                } else {
+                    None
+                },
+                supported_hw,
+                supported_hw_count,
+
+                required_dev,
+                required_dev_index,
+            };
+
+            // SAFETY: The requirements are satisfied by the existence of [`Device`] and its safety
+            // requirements. The OPP core guarantees not to access fields of [`Config`] after this
+            // call and so we don't need to save a copy of them for future use.
+            let ret = unsafe { bindings::dev_pm_opp_set_config(dev.as_raw(), &mut config) };
+
+            to_result(ret).map(|()| ConfigToken(ret))
         };
 
-        let (_regulator_list, regulator_names) = match &self.regulator_names {
-            Some(x) => {
-                let list = to_c_str_array(x)?;
-                let ptr = list.as_ptr();
-                (Some(list), ptr)
-            }
-            None => (None, ptr::null()),
-        };
+        // Ensure the closure does not accidentally drop owned data; if violated, the compiler
+        // produces E0525 with e.g.:
+        //
+        // ```
+        // closure is `FnOnce` because it moves the variable `clk_names` out of its environment
+        // ```
+        let _: &dyn Fn() -> _ = &set_config;
 
-        let prop_name = self
-            .prop_name
-            .as_ref()
-            .map_or(ptr::null(), |p| p.as_char_ptr());
-
-        let (supported_hw, supported_hw_count) = self
-            .supported_hw
-            .as_ref()
-            .map_or((ptr::null(), 0), |hw| (hw.as_ptr(), hw.len() as u32));
-
-        let (required_dev, required_dev_index) = self
-            .required_dev
-            .as_ref()
-            .map_or((ptr::null_mut(), 0), |(dev, idx)| (dev.as_raw(), *idx));
-
-        let mut config = bindings::dev_pm_opp_config {
-            clk_names,
-            config_clks: if T::HAS_CONFIG_CLKS {
-                Some(Self::config_clks)
-            } else {
-                None
-            },
-            prop_name,
-            regulator_names,
-            config_regulators: if T::HAS_CONFIG_REGULATORS {
-                Some(Self::config_regulators)
-            } else {
-                None
-            },
-            supported_hw,
-            supported_hw_count,
-
-            required_dev,
-            required_dev_index,
-        };
-
-        // SAFETY: The requirements are satisfied by the existence of [`Device`] and its safety
-        // requirements. The OPP core guarantees not to access fields of [`Config`] after this call
-        // and so we don't need to save a copy of them for future use.
-        let ret = unsafe { bindings::dev_pm_opp_set_config(dev.as_raw(), &mut config) };
-
-        to_result(ret).map(|()| ConfigToken(ret))
+        set_config()
     }
 
     /// Config's clk callback.

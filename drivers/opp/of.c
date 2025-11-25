@@ -45,9 +45,10 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_node);
 struct opp_table *_managed_opp(struct device *dev, int index)
 {
 	struct opp_table *opp_table, *managed_table = NULL;
-	struct device_node *np __free(device_node);
 
-	np = _opp_of_get_opp_desc_node(dev->of_node, index);
+	struct device_node *np __free(device_node) =
+		_opp_of_get_opp_desc_node(dev->of_node, index);
+
 	if (!np)
 		return NULL;
 
@@ -95,10 +96,11 @@ static struct device_node *of_parse_required_opp(struct device_node *np,
 /* The caller must call dev_pm_opp_put_opp_table() after the table is used */
 static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 {
-	struct device_node *opp_table_np __free(device_node);
 	struct opp_table *opp_table;
 
-	opp_table_np = of_get_parent(opp_np);
+	struct device_node *opp_table_np __free(device_node) =
+		of_get_parent(opp_np);
+
 	if (!opp_table_np)
 		return ERR_PTR(-ENODEV);
 
@@ -146,12 +148,13 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 					     struct device_node *opp_np)
 {
 	struct opp_table **required_opp_tables;
-	struct device_node *np __free(device_node);
 	bool lazy = false;
 	int count, i, size;
 
 	/* Traversing the first OPP node is all we need */
-	np = of_get_next_available_child(opp_np, NULL);
+	struct device_node *np __free(device_node) =
+		of_get_next_available_child(opp_np, NULL);
+
 	if (!np) {
 		dev_warn(dev, "Empty OPP table\n");
 		return;
@@ -171,9 +174,9 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	opp_table->required_opp_count = count;
 
 	for (i = 0; i < count; i++) {
-		struct device_node *required_np __free(device_node);
+		struct device_node *required_np __free(device_node) =
+			of_parse_required_opp(np, i);
 
-		required_np = of_parse_required_opp(np, i);
 		if (!required_np) {
 			_opp_table_free_required_tables(opp_table);
 			return;
@@ -199,14 +202,15 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 			int index)
 {
-	struct device_node *np __free(device_node), *opp_np;
+	struct device_node *opp_np;
 	u32 val;
 
 	/*
 	 * Only required for backward compatibility with v1 bindings, but isn't
 	 * harmful for other cases. And so we do it unconditionally.
 	 */
-	np = of_node_get(dev->of_node);
+	struct device_node *np __free(device_node) = of_node_get(dev->of_node);
+
 	if (!np)
 		return;
 
@@ -273,9 +277,9 @@ void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp)
 static int _link_required_opps(struct dev_pm_opp *opp,
 			       struct opp_table *required_table, int index)
 {
-	struct device_node *np __free(device_node);
+	struct device_node *np __free(device_node) =
+		of_parse_required_opp(opp->np, index);
 
-	np = of_parse_required_opp(opp->np, index);
 	if (unlikely(!np))
 		return -ENODEV;
 
@@ -349,16 +353,13 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 	guard(mutex)(&opp_table_lock);
 
 	list_for_each_entry_safe(opp_table, temp, &lazy_opp_tables, lazy) {
-		struct device_node *opp_np __free(device_node);
 		bool lazy = false;
 
 		/* opp_np can't be invalid here */
-		opp_np = of_get_next_available_child(opp_table->np, NULL);
+		struct device_node *opp_np __free(device_node) =
+			of_get_next_available_child(opp_table->np, NULL);
 
 		for (i = 0; i < opp_table->required_opp_count; i++) {
-			struct device_node *required_np __free(device_node) = NULL;
-			struct device_node *required_table_np __free(device_node) = NULL;
-
 			required_opp_tables = opp_table->required_opp_tables;
 
 			/* Required opp-table is already parsed */
@@ -366,8 +367,10 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 				continue;
 
 			/* required_np can't be invalid here */
-			required_np = of_parse_required_opp(opp_np, i);
-			required_table_np = of_get_parent(required_np);
+			struct device_node *required_np __free(device_node) =
+				of_parse_required_opp(opp_np, i);
+			struct device_node *required_table_np __free(device_node) =
+				of_get_parent(required_np);
 
 			/*
 			 * Newly added table isn't the required opp-table for
@@ -402,13 +405,12 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
 {
 	struct device_node *opp_np __free(device_node) = NULL;
-	struct device_node *np __free(device_node) = NULL;
 	struct property *prop;
 
 	if (!opp_table) {
-		struct device_node *np __free(device_node);
+		struct device_node *np __free(device_node) =
+			of_node_get(dev->of_node);
 
-		np = of_node_get(dev->of_node);
 		if (!np)
 			return -ENODEV;
 
@@ -422,7 +424,9 @@ static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
 		return 0;
 
 	/* Checking only first OPP is sufficient */
-	np = of_get_next_available_child(opp_np, NULL);
+	struct device_node *np __free(device_node) =
+		of_get_next_available_child(opp_np, NULL);
+
 	if (!np) {
 		dev_err(dev, "OPP table empty\n");
 		return -EINVAL;
@@ -1269,11 +1273,12 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_add_table);
 int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 				   struct cpumask *cpumask)
 {
-	struct device_node *np __free(device_node);
 	int cpu;
 
 	/* Get OPP descriptor node */
-	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	struct device_node *np __free(device_node) =
+		dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+
 	if (!np) {
 		dev_dbg(cpu_dev, "%s: Couldn't find opp node.\n", __func__);
 		return -ENOENT;
@@ -1286,13 +1291,12 @@ int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 		return 0;
 
 	for_each_possible_cpu(cpu) {
-		struct device_node *cpu_np __free(device_node) = NULL;
-		struct device_node *tmp_np __free(device_node) = NULL;
-
 		if (cpu == cpu_dev->id)
 			continue;
 
-		cpu_np = of_cpu_device_node_get(cpu);
+		struct device_node *cpu_np __free(device_node) =
+			of_cpu_device_node_get(cpu);
+
 		if (!cpu_np) {
 			dev_err(cpu_dev, "%s: failed to get cpu%d node\n",
 				__func__, cpu);
@@ -1300,7 +1304,9 @@ int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 		}
 
 		/* Get OPP descriptor node */
-		tmp_np = _opp_of_get_opp_desc_node(cpu_np, 0);
+		struct device_node *tmp_np __free(device_node) =
+			_opp_of_get_opp_desc_node(cpu_np, 0);
+
 		if (!tmp_np) {
 			pr_err("%pOF: Couldn't find opp node\n", cpu_np);
 			return -ENOENT;
@@ -1328,16 +1334,17 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
  */
 int of_get_required_opp_performance_state(struct device_node *np, int index)
 {
-	struct device_node *required_np __free(device_node);
-	struct opp_table *opp_table __free(put_opp_table) = NULL;
-	struct dev_pm_opp *opp __free(put_opp) = NULL;
 	int pstate = -EINVAL;
 
-	required_np = of_parse_required_opp(np, index);
+	struct device_node *required_np __free(device_node) =
+		of_parse_required_opp(np, index);
+
 	if (!required_np)
 		return -ENODEV;
 
-	opp_table = _find_table_of_opp_np(required_np);
+	struct opp_table *opp_table __free(put_opp_table) =
+		_find_table_of_opp_np(required_np);
+
 	if (IS_ERR(opp_table)) {
 		pr_err("%s: Failed to find required OPP table %pOF: %ld\n",
 		       __func__, np, PTR_ERR(opp_table));
@@ -1350,7 +1357,9 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 		return -EINVAL;
 	}
 
-	opp = _find_opp_of_np(opp_table, required_np);
+	struct dev_pm_opp *opp __free(put_opp) =
+		_find_opp_of_np(opp_table, required_np);
+
 	if (opp) {
 		if (opp->level == OPP_LEVEL_UNSET) {
 			pr_err("%s: OPP levels aren't available for %pOF\n",
@@ -1376,14 +1385,17 @@ EXPORT_SYMBOL_GPL(of_get_required_opp_performance_state);
  */
 bool dev_pm_opp_of_has_required_opp(struct device *dev)
 {
-	struct device_node *np __free(device_node) = NULL, *opp_np __free(device_node);
 	int count;
 
-	opp_np = _opp_of_get_opp_desc_node(dev->of_node, 0);
+	struct device_node *opp_np __free(device_node) =
+		_opp_of_get_opp_desc_node(dev->of_node, 0);
+
 	if (!opp_np)
 		return false;
 
-	np = of_get_next_available_child(opp_np, NULL);
+	struct device_node *np __free(device_node) =
+		of_get_next_available_child(opp_np, NULL);
+
 	if (!np) {
 		dev_warn(dev, "Empty OPP table\n");
 		return false;
@@ -1425,12 +1437,14 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
 static int __maybe_unused
 _get_dt_power(struct device *dev, unsigned long *uW, unsigned long *kHz)
 {
-	struct dev_pm_opp *opp __free(put_opp);
 	unsigned long opp_freq, opp_power;
 
 	/* Find the right frequency and related OPP */
 	opp_freq = *kHz * 1000;
-	opp = dev_pm_opp_find_freq_ceil(dev, &opp_freq);
+
+	struct dev_pm_opp *opp __free(put_opp) =
+		dev_pm_opp_find_freq_ceil(dev, &opp_freq);
+
 	if (IS_ERR(opp))
 		return -EINVAL;
 
@@ -1465,14 +1479,13 @@ _get_dt_power(struct device *dev, unsigned long *uW, unsigned long *kHz)
 int dev_pm_opp_calc_power(struct device *dev, unsigned long *uW,
 			  unsigned long *kHz)
 {
-	struct dev_pm_opp *opp __free(put_opp) = NULL;
-	struct device_node *np __free(device_node);
 	unsigned long mV, Hz;
 	u32 cap;
 	u64 tmp;
 	int ret;
 
-	np = of_node_get(dev->of_node);
+	struct device_node *np __free(device_node) = of_node_get(dev->of_node);
+
 	if (!np)
 		return -EINVAL;
 
@@ -1481,7 +1494,10 @@ int dev_pm_opp_calc_power(struct device *dev, unsigned long *uW,
 		return -EINVAL;
 
 	Hz = *kHz * 1000;
-	opp = dev_pm_opp_find_freq_ceil(dev, &Hz);
+
+	struct dev_pm_opp *opp __free(put_opp) =
+		dev_pm_opp_find_freq_ceil(dev, &Hz);
+
 	if (IS_ERR(opp))
 		return -EINVAL;
 
@@ -1502,11 +1518,12 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_calc_power);
 
 static bool _of_has_opp_microwatt_property(struct device *dev)
 {
-	struct dev_pm_opp *opp __free(put_opp);
 	unsigned long freq = 0;
 
 	/* Check if at least one OPP has needed property */
-	opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+	struct dev_pm_opp *opp __free(put_opp) =
+		dev_pm_opp_find_freq_ceil(dev, &freq);
+
 	if (IS_ERR(opp))
 		return false;
 
@@ -1526,12 +1543,16 @@ static bool _of_has_opp_microwatt_property(struct device *dev)
  */
 int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 {
-	struct device_node *np __free(device_node) = NULL;
 	struct em_data_callback em_cb;
 	int ret, nr_opp;
 	u32 cap;
 
-	if (IS_ERR_OR_NULL(dev)) {
+	if (IS_ERR_OR_NULL(dev))
+		return -EINVAL;
+
+	struct device_node *np __free(device_node) = of_node_get(dev->of_node);
+
+	if (!np) {
 		ret = -EINVAL;
 		goto failed;
 	}
@@ -1546,12 +1567,6 @@ int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 	if (_of_has_opp_microwatt_property(dev)) {
 		EM_SET_ACTIVE_POWER_CB(em_cb, _get_dt_power);
 		goto register_em;
-	}
-
-	np = of_node_get(dev->of_node);
-	if (!np) {
-		ret = -EINVAL;
-		goto failed;
 	}
 
 	/*
