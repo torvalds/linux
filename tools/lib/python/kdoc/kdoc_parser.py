@@ -922,7 +922,7 @@ class KernelDoc:
         for k in self.entry.parameterdescs:
             if k not in member_set:
                 self.emit_msg(ln,
-                              f"Excess enum value '%{k}' description in '{declaration_name}'")
+                              f"Excess enum value '@{k}' description in '{declaration_name}'")
 
         self.output_declaration('enum', declaration_name,
                                 purpose=self.entry.declaration_purpose)
