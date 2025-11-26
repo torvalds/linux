@@ -105,7 +105,6 @@ check_with_osnoise_options() {
 			[ "$1" == "" ] && continue
 			option=$(echo $1 | cut -d '=' -f 1)
 			value=$(echo $1 | cut -d '=' -f 2)
-			echo "option: $option, value: $value"
 			echo "$value" > "/sys/kernel/tracing/osnoise/$option" || return 1
 		done
 	fi
