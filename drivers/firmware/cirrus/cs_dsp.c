@@ -13,6 +13,7 @@
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -316,44 +317,6 @@ struct cs_dsp_alg_region_list_item {
 	struct list_head list;
 	struct cs_dsp_alg_region alg_region;
 };
-
-struct cs_dsp_buf {
-	struct list_head list;
-	void *buf;
-};
-
-static struct cs_dsp_buf *cs_dsp_buf_alloc(const void *src, size_t len,
-					   struct list_head *list)
-{
-	struct cs_dsp_buf *buf = kzalloc(sizeof(*buf), GFP_KERNEL);
-
-	if (buf == NULL)
-		return NULL;
-
-	buf->buf = vmalloc(len);
-	if (!buf->buf) {
-		kfree(buf);
-		return NULL;
-	}
-	memcpy(buf->buf, src, len);
-
-	if (list)
-		list_add_tail(&buf->list, list);
-
-	return buf;
-}
-
-static void cs_dsp_buf_free(struct list_head *list)
-{
-	while (!list_empty(list)) {
-		struct cs_dsp_buf *buf = list_first_entry(list,
-							  struct cs_dsp_buf,
-							  list);
-		list_del(&buf->list);
-		vfree(buf->buf);
-		kfree(buf);
-	}
-}
 
 /**
  * cs_dsp_mem_region_name() - Return a name string for a memory type
@@ -1481,7 +1444,9 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 	const struct wmfw_region *region;
 	const struct cs_dsp_region *mem;
 	const char *region_name;
-	struct cs_dsp_buf *buf;
+	u8 *buf __free(kfree) = NULL;
+	size_t buf_len = 0;
+	size_t region_len;
 	unsigned int reg;
 	int regions = 0;
 	int ret, offset, type;
@@ -1601,23 +1566,23 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 			   region_name);
 
 		if (reg) {
-			buf = cs_dsp_buf_alloc(region->data,
-					       le32_to_cpu(region->len),
-					       &buf_list);
-			if (!buf) {
-				cs_dsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
-				goto out_fw;
+			region_len = le32_to_cpu(region->len);
+			if (region_len > buf_len) {
+				buf_len = round_up(region_len, PAGE_SIZE);
+				kfree(buf);
+				buf = kmalloc(buf_len, GFP_KERNEL | GFP_DMA);
+				if (!buf) {
+					ret = -ENOMEM;
+					goto out_fw;
+				}
 			}
 
-			ret = regmap_raw_write(regmap, reg, buf->buf,
-					       le32_to_cpu(region->len));
+			memcpy(buf, region->data, region_len);
+			ret = regmap_raw_write(regmap, reg, buf, region_len);
 			if (ret != 0) {
 				cs_dsp_err(dsp,
-					   "%s.%d: Failed to write %d bytes at %d in %s: %d\n",
-					   file, regions,
-					   le32_to_cpu(region->len), offset,
-					   region_name, ret);
+					   "%s.%d: Failed to write %zu bytes at %d in %s: %d\n",
+					   file, regions, region_len, offset, region_name, ret);
 				goto out_fw;
 			}
 		}
@@ -1634,8 +1599,6 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 
 	ret = 0;
 out_fw:
-	cs_dsp_buf_free(&buf_list);
-
 	if (ret == -EOVERFLOW)
 		cs_dsp_err(dsp, "%s: file content overflows file data\n", file);
 
@@ -2167,7 +2130,9 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 	struct cs_dsp_alg_region *alg_region;
 	const char *region_name;
 	int ret, pos, blocks, type, offset, reg, version;
-	struct cs_dsp_buf *buf;
+	u8 *buf __free(kfree) = NULL;
+	size_t buf_len = 0;
+	size_t region_len;
 
 	if (!firmware)
 		return 0;
@@ -2309,20 +2274,22 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 		}
 
 		if (reg) {
-			buf = cs_dsp_buf_alloc(blk->data,
-					       le32_to_cpu(blk->len),
-					       &buf_list);
-			if (!buf) {
-				cs_dsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
-				goto out_fw;
+			region_len = le32_to_cpu(blk->len);
+			if (region_len > buf_len) {
+				buf_len = round_up(region_len, PAGE_SIZE);
+				kfree(buf);
+				buf = kmalloc(buf_len, GFP_KERNEL | GFP_DMA);
+				if (!buf) {
+					ret = -ENOMEM;
+					goto out_fw;
+				}
 			}
 
-			cs_dsp_dbg(dsp, "%s.%d: Writing %d bytes at %x\n",
-				   file, blocks, le32_to_cpu(blk->len),
-				   reg);
-			ret = regmap_raw_write(regmap, reg, buf->buf,
-					       le32_to_cpu(blk->len));
+			memcpy(buf, blk->data, region_len);
+
+			cs_dsp_dbg(dsp, "%s.%d: Writing %zu bytes at %x\n",
+				   file, blocks, region_len, reg);
+			ret = regmap_raw_write(regmap, reg, buf, region_len);
 			if (ret != 0) {
 				cs_dsp_err(dsp,
 					   "%s.%d: Failed to write to %x in %s: %d\n",
@@ -2342,8 +2309,6 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 
 	ret = 0;
 out_fw:
-	cs_dsp_buf_free(&buf_list);
-
 	if (ret == -EOVERFLOW)
 		cs_dsp_err(dsp, "%s: file content overflows file data\n", file);
 
