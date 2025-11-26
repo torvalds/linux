@@ -96,6 +96,11 @@ static inline unsigned int rzg2l_gpt_subchannel(unsigned int hwpwm)
 	return hwpwm & 0x1;
 }
 
+static inline unsigned int rzg2l_gpt_sibling(unsigned int hwpwm)
+{
+	return hwpwm ^ 0x1;
+}
+
 static void rzg2l_gpt_write(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 data)
 {
 	writel(data, rzg2l_gpt->mmio + reg);
@@ -271,10 +276,14 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * in use with different settings.
 	 */
 	if (rzg2l_gpt->channel_request_count[ch] > 1) {
-		if (period_ticks < rzg2l_gpt->period_ticks[ch])
-			return -EBUSY;
-		else
+		u8 sibling_ch = rzg2l_gpt_sibling(pwm->hwpwm);
+
+		if (rzg2l_gpt_is_ch_enabled(rzg2l_gpt, sibling_ch)) {
+			if (period_ticks < rzg2l_gpt->period_ticks[ch])
+				return -EBUSY;
+
 			period_ticks = rzg2l_gpt->period_ticks[ch];
+		}
 	}
 
 	prescale = rzg2l_gpt_calculate_prescale(rzg2l_gpt, period_ticks);
