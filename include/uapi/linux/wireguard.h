@@ -11,13 +11,6 @@
 
 #define WG_KEY_LEN 32
 
-enum wg_cmd {
-	WG_CMD_GET_DEVICE,
-	WG_CMD_SET_DEVICE,
-	__WG_CMD_MAX
-};
-#define WG_CMD_MAX (__WG_CMD_MAX - 1)
-
 enum wgdevice_flag {
 	WGDEVICE_F_REPLACE_PEERS = 1U << 0,
 	__WGDEVICE_F_ALL = WGDEVICE_F_REPLACE_PEERS
@@ -72,5 +65,13 @@ enum wgallowedip_attribute {
 	__WGALLOWEDIP_A_LAST
 };
 #define WGALLOWEDIP_A_MAX (__WGALLOWEDIP_A_LAST - 1)
+
+enum wg_cmd {
+	WG_CMD_GET_DEVICE,
+	WG_CMD_SET_DEVICE,
+
+	__WG_CMD_MAX
+};
+#define WG_CMD_MAX (__WG_CMD_MAX - 1)
 
 #endif /* _WG_UAPI_WIREGUARD_H */
