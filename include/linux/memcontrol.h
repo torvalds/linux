@@ -1452,16 +1452,6 @@ struct slabobj_ext {
 #endif
 } __aligned(8);
 
-static inline void inc_lruvec_kmem_state(void *p, enum node_stat_item idx)
-{
-	mod_lruvec_kmem_state(p, idx, 1);
-}
-
-static inline void dec_lruvec_kmem_state(void *p, enum node_stat_item idx)
-{
-	mod_lruvec_kmem_state(p, idx, -1);
-}
-
 static inline struct lruvec *parent_lruvec(struct lruvec *lruvec)
 {
 	struct mem_cgroup *memcg;
