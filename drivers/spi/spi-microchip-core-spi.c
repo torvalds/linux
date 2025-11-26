@@ -74,8 +74,8 @@ struct mchp_corespi {
 	u8 *rx_buf;
 	u32 clk_gen;
 	int irq;
-	int tx_len;
-	int rx_len;
+	unsigned int tx_len;
+	unsigned int rx_len;
 	u32 fifo_depth;
 };
 
@@ -214,7 +214,7 @@ static irqreturn_t mchp_corespi_interrupt(int irq, void *dev_id)
 		       spi->regs + MCHP_CORESPI_REG_INTCLEAR);
 		finalise = true;
 		dev_err(&host->dev,
-			"RX OVERFLOW: rxlen: %d, txlen: %d\n",
+			"RX OVERFLOW: rxlen: %u, txlen: %u\n",
 			spi->rx_len, spi->tx_len);
 	}
 
@@ -223,7 +223,7 @@ static irqreturn_t mchp_corespi_interrupt(int irq, void *dev_id)
 		       spi->regs + MCHP_CORESPI_REG_INTCLEAR);
 		finalise = true;
 		dev_err(&host->dev,
-			"TX UNDERFLOW: rxlen: %d, txlen: %d\n",
+			"TX UNDERFLOW: rxlen: %u, txlen: %u\n",
 			spi->rx_len, spi->tx_len);
 	}
 
@@ -283,7 +283,7 @@ static int mchp_corespi_transfer_one(struct spi_controller *host,
 	spi->rx_len = xfer->len;
 
 	while (spi->tx_len) {
-		int fifo_max = min_t(int, spi->tx_len, spi->fifo_depth);
+		unsigned int fifo_max = min(spi->tx_len, spi->fifo_depth);
 
 		mchp_corespi_write_fifo(spi, fifo_max);
 		mchp_corespi_read_fifo(spi, fifo_max);
