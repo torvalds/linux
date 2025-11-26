@@ -401,11 +401,11 @@ void __nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	struct eptPageTableEntry *pt = vmx->eptp_hva, *pte;
 	uint16_t index;
 
-	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		    "unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+	TEST_ASSERT(vm->mode == VM_MODE_PXXVYY_4K,
+		    "Unknown or unsupported guest mode: 0x%x", vm->mode);
 
 	TEST_ASSERT((nested_paddr >> 48) == 0,
-		    "Nested physical address 0x%lx requires 5-level paging",
+		    "Nested physical address 0x%lx is > 48-bits and requires 5-level EPT",
 		    nested_paddr);
 	TEST_ASSERT((nested_paddr % page_size) == 0,
 		    "Nested physical address not on page boundary,\n"
@@ -534,8 +534,7 @@ bool kvm_cpu_has_ept(void)
 	return ctrl & SECONDARY_EXEC_ENABLE_EPT;
 }
 
-void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
-		  uint32_t eptp_memslot)
+void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm)
 {
 	TEST_ASSERT(kvm_cpu_has_ept(), "KVM doesn't support nested EPT");
 

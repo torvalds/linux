@@ -178,7 +178,7 @@ enum vm_guest_mode {
 	VM_MODE_P40V48_4K,
 	VM_MODE_P40V48_16K,
 	VM_MODE_P40V48_64K,
-	VM_MODE_PXXV48_4K,	/* For 48bits VA but ANY bits PA */
+	VM_MODE_PXXVYY_4K,	/* For 48-bit or 57-bit VA, depending on host support */
 	VM_MODE_P47V64_4K,
 	VM_MODE_P44V64_4K,
 	VM_MODE_P36V48_4K,
@@ -220,7 +220,7 @@ extern enum vm_guest_mode vm_mode_default;
 
 #elif defined(__x86_64__)
 
-#define VM_MODE_DEFAULT			VM_MODE_PXXV48_4K
+#define VM_MODE_DEFAULT			VM_MODE_PXXVYY_4K
 #define MIN_PAGE_SHIFT			12U
 #define ptes_per_page(page_size)	((page_size) / 8)
 
@@ -1203,6 +1203,7 @@ void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr);
 static inline void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
 	virt_arch_pg_map(vm, vaddr, paddr);
+	sparsebit_set(vm->vpages_mapped, vaddr >> vm->page_shift);
 }
 
 
