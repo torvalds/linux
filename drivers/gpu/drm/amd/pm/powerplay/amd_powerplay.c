@@ -724,21 +724,6 @@ static int pp_dpm_emit_clock_levels(void *handle,
 	return hwmgr->hwmgr_func->emit_clock_levels(hwmgr, type, buf, offset);
 }
 
-static int pp_dpm_print_clock_levels(void *handle,
-		enum pp_clock_type type, char *buf)
-{
-	struct pp_hwmgr *hwmgr = handle;
-
-	if (!hwmgr || !hwmgr->pm_en)
-		return -EINVAL;
-
-	if (hwmgr->hwmgr_func->print_clock_levels == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return 0;
-	}
-	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
-}
-
 static int pp_dpm_get_sclk_od(void *handle)
 {
 	struct pp_hwmgr *hwmgr = handle;
@@ -1582,7 +1567,6 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_pp_table = pp_dpm_set_pp_table,
 	.force_clock_level = pp_dpm_force_clock_level,
 	.emit_clock_levels = pp_dpm_emit_clock_levels,
-	.print_clock_levels = pp_dpm_print_clock_levels,
 	.get_sclk_od = pp_dpm_get_sclk_od,
 	.set_sclk_od = pp_dpm_set_sclk_od,
 	.get_mclk_od = pp_dpm_get_mclk_od,

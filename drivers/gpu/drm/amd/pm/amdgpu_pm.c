@@ -863,14 +863,6 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 		if (ret)
 			break;
 	}
-	if (ret == -ENOENT) {
-		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf + size);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf + size);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDGFX_OFFSET, buf + size);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf + size);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_CCLK, buf + size);
-	}
 
 	if (size == 0)
 		size = sysfs_emit(buf, "\n");
@@ -999,8 +991,8 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
 		return ret;
 
 	ret = amdgpu_dpm_emit_clock_levels(adev, type, buf, &size);
-	if (ret == -ENOENT)
-		size = amdgpu_dpm_print_clock_levels(adev, type, buf);
+	if (ret)
+		return ret;
 
 	if (size == 0)
 		size = sysfs_emit(buf, "\n");
@@ -3921,7 +3913,9 @@ static int amdgpu_retrieve_od_settings(struct amdgpu_device *adev,
 	if (ret)
 		return ret;
 
-	size = amdgpu_dpm_print_clock_levels(adev, od_type, buf);
+	ret = amdgpu_dpm_emit_clock_levels(adev, od_type, buf, &size);
+	if (ret)
+		return ret;
 	if (size == 0)
 		size = sysfs_emit(buf, "\n");
 

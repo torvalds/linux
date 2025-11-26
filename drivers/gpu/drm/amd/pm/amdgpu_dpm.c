@@ -1243,25 +1243,6 @@ int amdgpu_dpm_odn_edit_dpm_table(struct amdgpu_device *adev,
 	return ret;
 }
 
-int amdgpu_dpm_print_clock_levels(struct amdgpu_device *adev,
-				  enum pp_clock_type type,
-				  char *buf)
-{
-	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	int ret = 0;
-
-	if (!pp_funcs->print_clock_levels)
-		return 0;
-
-	mutex_lock(&adev->pm.mutex);
-	ret = pp_funcs->print_clock_levels(adev->powerplay.pp_handle,
-					   type,
-					   buf);
-	mutex_unlock(&adev->pm.mutex);
-
-	return ret;
-}
-
 int amdgpu_dpm_emit_clock_levels(struct amdgpu_device *adev,
 				  enum pp_clock_type type,
 				  char *buf,
