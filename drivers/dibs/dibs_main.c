@@ -6,8 +6,7 @@
  *
  *  Copyright IBM Corp. 2025
  */
-#define KMSG_COMPONENT "dibs"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "dibs: " fmt
 
 #include <linux/module.h>
 #include <linux/types.h>
