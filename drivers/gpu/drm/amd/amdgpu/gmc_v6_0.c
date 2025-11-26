@@ -1070,6 +1070,12 @@ static int gmc_v6_0_process_interrupt(struct amdgpu_device *adev,
 {
 	u32 addr, status;
 
+	/* Delegate to the soft IRQ handler ring */
+	if (adev->irq.ih_soft.enabled && entry->ih != &adev->irq.ih_soft) {
+		amdgpu_irq_delegate(adev, entry, 4);
+		return 1;
+	}
+
 	addr = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_ADDR);
 	status = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_STATUS);
 	WREG32_P(mmVM_CONTEXT1_CNTL2, 1, ~1);
