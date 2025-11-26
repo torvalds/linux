@@ -8,6 +8,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/screen_info.h>
 #include <linux/types.h>
 
 #include <linux/platform_data/simplefb.h>
@@ -58,6 +59,10 @@ struct efifb_dmi_info {
 	int width;
 	int height;
 	int flags;
+};
+
+struct sysfb_display_info {
+	struct screen_info screen;
 };
 
 #ifdef CONFIG_SYSFB
