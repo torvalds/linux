@@ -1269,8 +1269,9 @@ static void sienna_cichlid_get_od_setting_range(struct smu_11_0_7_overdrive_tabl
 		*max = od_table->max[setting];
 }
 
-static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
-			enum smu_clk_type clk_type, char *buf)
+static int sienna_cichlid_emit_clk_levels(struct smu_context *smu,
+					  enum smu_clk_type clk_type, char *buf,
+					  int *offset)
 {
 	struct amdgpu_device *adev = smu->adev;
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -1281,15 +1282,12 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	struct smu_11_0_7_overdrive_table *od_settings = smu->od_settings;
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)table_context->overdrive_table;
-	int i, size = 0, ret = 0, start_offset = 0;
+	int i, size = *offset, ret = 0, start_offset = *offset;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
 	uint32_t gen_speed, lane_width;
 	uint32_t min_value, max_value;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
-	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -1305,17 +1303,17 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	case SMU_DCEFCLK:
 		ret = sienna_cichlid_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
 		if (ret)
-			goto print_clk_out;
+			return ret;
 
 		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
-			goto print_clk_out;
+			return ret;
 
 		if (!sienna_cichlid_is_support_fine_grained_dpm(smu, clk_type)) {
 			for (i = 0; i < count; i++) {
 				ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, i, &value);
 				if (ret)
-					goto print_clk_out;
+					return ret;
 
 				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
 						cur_value == value ? "*" : "");
@@ -1323,10 +1321,10 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 		} else {
 			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
 			if (ret)
-				goto print_clk_out;
+				return ret;
 			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
 			if (ret)
-				goto print_clk_out;
+				return ret;
 
 			freq_values[1] = cur_value;
 			mark_index = cur_value == freq_values[0] ? 0 :
@@ -1434,8 +1432,9 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-print_clk_out:
-	return size - start_offset;
+	*offset += size - start_offset;
+
+	return 0;
 }
 
 static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
@@ -3129,7 +3128,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.dpm_set_jpeg_enable = sienna_cichlid_dpm_set_jpeg_enable,
 	.i2c_init = sienna_cichlid_i2c_control_init,
 	.i2c_fini = sienna_cichlid_i2c_control_fini,
-	.print_clk_levels = sienna_cichlid_print_clk_levels,
+	.emit_clk_levels = sienna_cichlid_emit_clk_levels,
 	.force_clk_levels = sienna_cichlid_force_clk_levels,
 	.populate_umd_state_clk = sienna_cichlid_populate_umd_state_clk,
 	.pre_display_config_changed = sienna_cichlid_pre_display_config_changed,
