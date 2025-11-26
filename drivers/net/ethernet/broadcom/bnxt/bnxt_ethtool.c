@@ -4623,6 +4623,11 @@ static int bnxt_get_module_status(struct bnxt *bp, struct netlink_ext_ack *extac
 	    PORT_PHY_QCFG_RESP_MODULE_STATUS_WARNINGMSG)
 		return 0;
 
+	if (bp->link_info.phy_type == PORT_PHY_QCFG_RESP_PHY_TYPE_BASET ||
+	    bp->link_info.phy_type == PORT_PHY_QCFG_RESP_PHY_TYPE_BASETE){
+		NL_SET_ERR_MSG_MOD(extack, "Operation not supported as PHY type is Base-T");
+		return -EOPNOTSUPP;
+	}
 	switch (bp->link_info.module_status) {
 	case PORT_PHY_QCFG_RESP_MODULE_STATUS_PWRDOWN:
 		NL_SET_ERR_MSG_MOD(extack, "Transceiver module is powering down");
