@@ -7642,7 +7642,7 @@ static ssize_t write_raw_marker_to_buffer(struct trace_array *tr,
 	size_t size;
 
 	/* cnt includes both the entry->id and the data behind it. */
-	size = struct_size(entry, buf, cnt - sizeof(entry->id));
+	size = struct_offset(entry, id) + cnt;
 
 	buffer = tr->array_buffer.buffer;
 
