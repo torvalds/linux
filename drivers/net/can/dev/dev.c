@@ -117,6 +117,12 @@ const char *can_get_ctrlmode_str(u32 ctrlmode)
 		return "TDC-MANUAL";
 	case CAN_CTRLMODE_RESTRICTED:
 		return "RESTRICTED";
+	case CAN_CTRLMODE_XL:
+		return "XL";
+	case CAN_CTRLMODE_XL_TDC_AUTO:
+		return "XL-TDC-AUTO";
+	case CAN_CTRLMODE_XL_TDC_MANUAL:
+		return "XL-TDC-MANUAL";
 	default:
 		return "<unknown>";
 	}
@@ -350,7 +356,13 @@ void can_set_default_mtu(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	if (priv->ctrlmode & CAN_CTRLMODE_FD) {
+	if (priv->ctrlmode & CAN_CTRLMODE_XL) {
+		if (can_is_canxl_dev_mtu(dev->mtu))
+			return;
+		dev->mtu = CANXL_MTU;
+		dev->min_mtu = CANXL_MIN_MTU;
+		dev->max_mtu = CANXL_MAX_MTU;
+	} else if (priv->ctrlmode & CAN_CTRLMODE_FD) {
 		dev->mtu = CANFD_MTU;
 		dev->min_mtu = CANFD_MTU;
 		dev->max_mtu = CANFD_MTU;
