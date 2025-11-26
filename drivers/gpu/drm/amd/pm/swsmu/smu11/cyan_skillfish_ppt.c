@@ -287,16 +287,13 @@ static int cyan_skillfish_get_current_clk_freq(struct smu_context *smu,
 	return cyan_skillfish_get_smu_metrics_data(smu, member_type, value);
 }
 
-static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
-					enum smu_clk_type clk_type,
-					char *buf)
+static int cyan_skillfish_emit_clk_levels(struct smu_context *smu,
+					  enum smu_clk_type clk_type, char *buf,
+					  int *offset)
 {
-	int ret = 0, size = 0, start_offset = 0;
+	int ret = 0, size = *offset, start_offset = *offset;
 	uint32_t cur_value = 0;
 	int i;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
-	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -354,7 +351,9 @@ static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
 		return ret;
 	}
 
-	return size - start_offset;
+	*offset += size - start_offset;
+
+	return 0;
 }
 
 static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
@@ -582,7 +581,7 @@ static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
 	.init_smc_tables = cyan_skillfish_init_smc_tables,
 	.fini_smc_tables = smu_v11_0_fini_smc_tables,
 	.read_sensor = cyan_skillfish_read_sensor,
-	.print_clk_levels = cyan_skillfish_print_clk_levels,
+	.emit_clk_levels = cyan_skillfish_emit_clk_levels,
 	.get_enabled_mask = cyan_skillfish_get_enabled_mask,
 	.is_dpm_running = cyan_skillfish_is_dpm_running,
 	.get_gpu_metrics = cyan_skillfish_get_gpu_metrics,
