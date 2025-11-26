@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/quotaops.h>
@@ -1037,7 +1038,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 			memset(bhs[i]->b_data, 0, osb->sb->s_blocksize);
 			eb = (struct ocfs2_extent_block *) bhs[i]->b_data;
 			/* Ok, setup the minimal stuff here. */
-			strcpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
+			strscpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
 			eb->h_blkno = cpu_to_le64(first_blkno);
 			eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
 			eb->h_suballoc_slot =
@@ -6746,7 +6747,7 @@ static int ocfs2_reuse_blk_from_dealloc(handle_t *handle,
 		/* We can't guarantee that buffer head is still cached, so
 		 * polutlate the extent block again.
 		 */
-		strcpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
+		strscpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
 		eb->h_blkno = cpu_to_le64(bf->free_blk);
 		eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
 		eb->h_suballoc_slot = cpu_to_le16(real_slot);
