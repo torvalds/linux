@@ -843,6 +843,7 @@ struct vfio_pci_device *vfio_pci_device_init(const char *bdf, struct iommu *iomm
 
 	VFIO_ASSERT_NOT_NULL(iommu);
 	device->iommu = iommu;
+	device->bdf = bdf;
 
 	if (iommu->mode->container_path)
 		vfio_pci_container_setup(device, bdf);
