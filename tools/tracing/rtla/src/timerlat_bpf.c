@@ -60,6 +60,19 @@ int timerlat_bpf_init(struct timerlat_params *params)
 }
 
 /*
+ * timerlat_bpf_set_action - set action on threshold executed on BPF side
+ */
+static int timerlat_bpf_set_action(struct bpf_program *prog)
+{
+	unsigned int key = 0, value = bpf_program__fd(prog);
+
+	return bpf_map__update_elem(bpf->maps.bpf_action,
+				    &key, sizeof(key),
+				    &value, sizeof(value),
+				    BPF_ANY);
+}
+
+/*
  * timerlat_bpf_attach - attach BPF program to collect timerlat data
  */
 int timerlat_bpf_attach(void)
