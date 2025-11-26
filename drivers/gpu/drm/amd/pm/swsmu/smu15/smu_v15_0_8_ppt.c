@@ -263,6 +263,37 @@ static int smu_v15_0_8_init_allowed_features(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v15_0_8_get_metrics_table_internal(struct smu_context *smu, uint32_t tmo, void *data)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
+	struct smu_table *table = &smu_table->driver_table;
+	struct amdgpu_device *adev = smu->adev;
+	int ret;
+
+	mutex_lock(&smu_table->metrics_lock);
+
+	if (!tmo || !smu_table->metrics_time ||
+	    time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(tmo))) {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetMetricsTable, NULL);
+		if (ret) {
+			dev_info(adev->dev,
+				 "Failed to export SMU metrics table!\n");
+			return ret;
+		}
+
+		amdgpu_device_invalidate_hdp(smu->adev, NULL);
+		memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
+
+		smu_table->metrics_time = jiffies;
+	}
+
+	if (data)
+		memcpy(data, smu_table->metrics_table, table_size);
+	mutex_unlock(&smu_table->metrics_lock);
+	return ret;
+}
+
 static int smu_v15_0_8_get_dpm_ultimate_freq(struct smu_context *smu,
 					     enum smu_clk_type clk_type,
 					     uint32_t *min, uint32_t *max)
@@ -860,6 +891,39 @@ static bool smu_v15_0_8_is_dpm_running(struct smu_context *smu)
 					  smu_v15_0_8_dpm_features.bits);
 }
 
+static ssize_t smu_v15_0_8_get_pm_metrics(struct smu_context *smu,
+					  void *metrics, size_t max_size)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct amdgpu_pm_metrics *pm_metrics = (struct amdgpu_pm_metrics *)metrics;
+	uint32_t table_version = smu_table->tables[SMU_TABLE_SMU_METRICS].version;
+	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
+	uint32_t pmfw_version;
+	int ret;
+
+	if (!pm_metrics || !max_size)
+		return -EINVAL;
+
+	if (max_size < (table_size + sizeof(pm_metrics->common_header)))
+		return -EOVERFLOW;
+
+	/* Don't use cached metrics data */
+	ret = smu_v15_0_8_get_metrics_table_internal(smu, 0, pm_metrics->data);
+	if (ret)
+		return ret;
+
+	smu_cmn_get_smc_version(smu, NULL, &pmfw_version);
+	memset(&pm_metrics->common_header, 0, sizeof(pm_metrics->common_header));
+	pm_metrics->common_header.mp1_ip_discovery_version =
+		amdgpu_ip_version(smu->adev, MP1_HWIP, 0);
+	pm_metrics->common_header.pmfw_version = pmfw_version;
+	pm_metrics->common_header.pmmetrics_version = table_version;
+	pm_metrics->common_header.structure_size =
+		sizeof(pm_metrics->common_header) + table_size;
+
+	return pm_metrics->common_header.structure_size;
+}
+
 static int smu_v15_0_8_mode2_reset(struct smu_context *smu)
 {
 	struct smu_msg_ctl *ctl = &smu->msg_ctl;
@@ -923,6 +987,7 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.setup_pptable = smu_v15_0_8_setup_pptable,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.wait_for_event = smu_v15_0_wait_for_event,
+	.get_pm_metrics = smu_v15_0_8_get_pm_metrics,
 	.mode2_reset = smu_v15_0_8_mode2_reset,
 	.get_dpm_ultimate_freq = smu_v15_0_8_get_dpm_ultimate_freq,
 };
