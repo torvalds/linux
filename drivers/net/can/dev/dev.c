@@ -123,6 +123,8 @@ const char *can_get_ctrlmode_str(u32 ctrlmode)
 		return "XL-TDC-AUTO";
 	case CAN_CTRLMODE_XL_TDC_MANUAL:
 		return "XL-TDC-MANUAL";
+	case CAN_CTRLMODE_XL_TMS:
+		return "TMS";
 	default:
 		return "<unknown>";
 	}
