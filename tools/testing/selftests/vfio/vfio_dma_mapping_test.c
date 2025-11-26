@@ -94,6 +94,7 @@ static int iommu_mapping_get(const char *bdf, u64 iova,
 }
 
 FIXTURE(vfio_dma_mapping_test) {
+	struct iommu *iommu;
 	struct vfio_pci_device *device;
 	struct iova_allocator *iova_allocator;
 };
@@ -119,7 +120,8 @@ FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES(anonymous_hugetlb_1gb, SZ_1G, MAP_HUGETLB | 
 
 FIXTURE_SETUP(vfio_dma_mapping_test)
 {
-	self->device = vfio_pci_device_init(device_bdf, variant->iommu_mode);
+	self->iommu = iommu_init(variant->iommu_mode);
+	self->device = vfio_pci_device_init(device_bdf, self->iommu);
 	self->iova_allocator = iova_allocator_init(self->device);
 }
 
@@ -127,6 +129,7 @@ FIXTURE_TEARDOWN(vfio_dma_mapping_test)
 {
 	iova_allocator_cleanup(self->iova_allocator);
 	vfio_pci_device_cleanup(self->device);
+	iommu_cleanup(self->iommu);
 }
 
 TEST_F(vfio_dma_mapping_test, dma_map_unmap)
@@ -203,6 +206,7 @@ unmap:
 }
 
 FIXTURE(vfio_dma_map_limit_test) {
+	struct iommu *iommu;
 	struct vfio_pci_device *device;
 	struct vfio_dma_region region;
 	size_t mmap_size;
@@ -235,7 +239,8 @@ FIXTURE_SETUP(vfio_dma_map_limit_test)
 	 */
 	self->mmap_size = 2 * region_size;
 
-	self->device = vfio_pci_device_init(device_bdf, variant->iommu_mode);
+	self->iommu = iommu_init(variant->iommu_mode);
+	self->device = vfio_pci_device_init(device_bdf, self->iommu);
 	region->vaddr = mmap(NULL, self->mmap_size, PROT_READ | PROT_WRITE,
 			     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	ASSERT_NE(region->vaddr, MAP_FAILED);
@@ -253,6 +258,7 @@ FIXTURE_SETUP(vfio_dma_map_limit_test)
 FIXTURE_TEARDOWN(vfio_dma_map_limit_test)
 {
 	vfio_pci_device_cleanup(self->device);
+	iommu_cleanup(self->iommu);
 	ASSERT_EQ(munmap(self->region.vaddr, self->mmap_size), 0);
 }
 

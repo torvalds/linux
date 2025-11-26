@@ -44,6 +44,7 @@ static void region_teardown(struct vfio_pci_device *device,
 }
 
 FIXTURE(vfio_pci_driver_test) {
+	struct iommu *iommu;
 	struct vfio_pci_device *device;
 	struct iova_allocator *iova_allocator;
 	struct vfio_dma_region memcpy_region;
@@ -73,7 +74,8 @@ FIXTURE_SETUP(vfio_pci_driver_test)
 {
 	struct vfio_pci_driver *driver;
 
-	self->device = vfio_pci_device_init(device_bdf, variant->iommu_mode);
+	self->iommu = iommu_init(variant->iommu_mode);
+	self->device = vfio_pci_device_init(device_bdf, self->iommu);
 	self->iova_allocator = iova_allocator_init(self->device);
 
 	driver = &self->device->driver;
@@ -113,6 +115,7 @@ FIXTURE_TEARDOWN(vfio_pci_driver_test)
 
 	iova_allocator_cleanup(self->iova_allocator);
 	vfio_pci_device_cleanup(self->device);
+	iommu_cleanup(self->iommu);
 }
 
 TEST_F(vfio_pci_driver_test, init_remove)
@@ -231,18 +234,31 @@ TEST_F_TIMEOUT(vfio_pci_driver_test, memcpy_storm, 60)
 	ASSERT_NO_MSI(self->msi_fd);
 }
 
-int main(int argc, char *argv[])
+static bool device_has_selftests_driver(const char *bdf)
 {
 	struct vfio_pci_device *device;
+	struct iommu *iommu;
+	bool has_driver;
 
+	iommu = iommu_init(default_iommu_mode);
+	device = vfio_pci_device_init(device_bdf, iommu);
+
+	has_driver = !!device->driver.ops;
+
+	vfio_pci_device_cleanup(device);
+	iommu_cleanup(iommu);
+
+	return has_driver;
+}
+
+int main(int argc, char *argv[])
+{
 	device_bdf = vfio_selftests_get_bdf(&argc, argv);
 
-	device = vfio_pci_device_init(device_bdf, default_iommu_mode);
-	if (!device->driver.ops) {
+	if (!device_has_selftests_driver(device_bdf)) {
 		fprintf(stderr, "No driver found for device %s\n", device_bdf);
 		return KSFT_SKIP;
 	}
-	vfio_pci_device_cleanup(device);
 
 	return test_harness_run(argc, argv);
 }
