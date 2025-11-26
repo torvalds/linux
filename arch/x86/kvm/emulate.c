@@ -81,9 +81,8 @@
  */
 
 /* Operand sizes: 8-bit operands or specified/overridden size. */
-#define ByteOp      (1<<0)	/* 8-bit operands. */
-/* Destination operand type. */
-#define DstShift    1
+#define ByteOp      (1<<0)      /* 8-bit operands. */
+#define DstShift    1           /* Destination operand type at bits 1-5 */
 #define ImplicitOps (OpImplicit << DstShift)
 #define DstReg      (OpReg << DstShift)
 #define DstMem      (OpMem << DstShift)
@@ -95,8 +94,7 @@
 #define DstDX       (OpDX << DstShift)
 #define DstAccLo    (OpAccLo << DstShift)
 #define DstMask     (OpMask << DstShift)
-/* Source operand type. */
-#define SrcShift    6
+#define SrcShift    6           /* Source operand type at bits 6-10 */
 #define SrcNone     (OpNone << SrcShift)
 #define SrcReg      (OpReg << SrcShift)
 #define SrcMem      (OpMem << SrcShift)
@@ -119,10 +117,10 @@
 #define SrcAccHi    (OpAccHi << SrcShift)
 #define SrcMask     (OpMask << SrcShift)
 #define BitOp       (1<<11)
-#define MemAbs      (1<<12)      /* Memory operand is absolute displacement */
+#define MemAbs      (1<<12)     /* Memory operand is absolute displacement */
 #define String      (1<<13)     /* String instruction (rep capable) */
 #define Stack       (1<<14)     /* Stack instruction (push/pop) */
-#define GroupMask   (7<<15)     /* Opcode uses one of the group mechanisms */
+#define GroupMask   (7<<15)     /* Group mechanisms, at bits 15-17 */
 #define Group       (1<<15)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (2<<15)     /* Alternate decoding of mod == 3 */
 #define Prefix      (3<<15)     /* Instruction varies with 66/f2/f3 prefix */
@@ -131,11 +129,8 @@
 #define InstrDual   (6<<15)     /* Alternate instruction decoding of mod == 3 */
 #define ModeDual    (7<<15)     /* Different instruction for 32/64 bit */
 #define Sse         (1<<18)     /* SSE Vector instruction */
-/* Generic ModRM decode. */
-#define ModRM       (1<<19)
-/* Destination is only written; never read. */
-#define Mov         (1<<20)
-/* Misc flags */
+#define ModRM       (1<<19)     /* Generic ModRM decode. */
+#define Mov         (1<<20)     /* Destination is only written; never read. */
 #define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
 #define EmulateOnUD (1<<22) /* Emulate if unsupported by the host */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
@@ -143,11 +138,11 @@
 #define Undefined   (1<<25) /* No Such Instruction */
 #define Lock        (1<<26) /* lock prefix is allowed for the instruction */
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
-#define No64	    (1<<28)
+#define No64        (1<<28)     /* Instruction generates #UD in 64-bit mode */
 #define PageTable   (1 << 29)   /* instruction used to write page table */
 #define NotImpl     (1 << 30)   /* instruction is not implemented */
-/* Source 2 operand type */
-#define Src2Shift   (31)
+#define Avx         ((u64)1 << 31)   /* Instruction uses VEX prefix */
+#define Src2Shift   (32)        /* Source 2 operand type at bits 32-36 */
 #define Src2None    (OpNone << Src2Shift)
 #define Src2Mem     (OpMem << Src2Shift)
 #define Src2CL      (OpCL << Src2Shift)
@@ -161,12 +156,13 @@
 #define Src2FS      (OpFS << Src2Shift)
 #define Src2GS      (OpGS << Src2Shift)
 #define Src2Mask    (OpMask << Src2Shift)
+/* free: 37-39 */
 #define Mmx         ((u64)1 << 40)  /* MMX Vector instruction */
-#define AlignMask   ((u64)7 << 41)
+#define AlignMask   ((u64)3 << 41)  /* Memory alignment requirement at bits 41-42 */
 #define Aligned     ((u64)1 << 41)  /* Explicitly aligned (e.g. MOVDQA) */
 #define Unaligned   ((u64)2 << 41)  /* Explicitly unaligned (e.g. MOVDQU) */
-#define Avx         ((u64)3 << 41)  /* Advanced Vector Extensions */
-#define Aligned16   ((u64)4 << 41)  /* Aligned to 16 byte boundary (e.g. FXSAVE) */
+#define Aligned16   ((u64)3 << 41)  /* Aligned to 16 byte boundary (e.g. FXSAVE) */
+/* free: 43-44 */
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
 #define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
 #define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
@@ -241,6 +237,13 @@ enum x86_transfer_type {
 	X86_TRANSFER_CALL_JMP,
 	X86_TRANSFER_RET,
 	X86_TRANSFER_TASK_SWITCH,
+};
+
+enum rex_bits {
+	REX_B = 1,
+	REX_X = 2,
+	REX_R = 4,
+	REX_W = 8,
 };
 
 static void writeback_registers(struct x86_emulate_ctxt *ctxt)
@@ -622,7 +625,6 @@ static unsigned insn_alignment(struct x86_emulate_ctxt *ctxt, unsigned size)
 
 	switch (alignment) {
 	case Unaligned:
-	case Avx:
 		return 1;
 	case Aligned16:
 		return 16;
@@ -924,7 +926,7 @@ static void *decode_register(struct x86_emulate_ctxt *ctxt, u8 modrm_reg,
 			     int byteop)
 {
 	void *p;
-	int highbyte_regs = (ctxt->rex_prefix == 0) && byteop;
+	int highbyte_regs = (ctxt->rex_prefix == REX_NONE) && byteop;
 
 	if (highbyte_regs && modrm_reg >= 4 && modrm_reg < 8)
 		p = (unsigned char *)reg_rmw(ctxt, modrm_reg & 3) + 1;
@@ -1030,6 +1032,7 @@ static void fetch_register_operand(struct operand *op)
 		op->val = *(u64 *)op->addr.reg;
 		break;
 	}
+	op->orig_val = op->val;
 }
 
 static int em_fninit(struct x86_emulate_ctxt *ctxt)
@@ -1075,17 +1078,17 @@ static int em_fnstsw(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
-				    struct operand *op)
+static void __decode_register_operand(struct x86_emulate_ctxt *ctxt,
+				      struct operand *op, int reg)
 {
-	unsigned int reg;
-
-	if (ctxt->d & ModRM)
-		reg = ctxt->modrm_reg;
-	else
-		reg = (ctxt->b & 7) | ((ctxt->rex_prefix & 1) << 3);
-
-	if (ctxt->d & Sse) {
+	if ((ctxt->d & Avx) && ctxt->op_bytes == 32) {
+		op->type = OP_YMM;
+		op->bytes = 32;
+		op->addr.xmm = reg;
+		kvm_read_avx_reg(reg, &op->vec_val2);
+		return;
+	}
+	if (ctxt->d & (Avx|Sse)) {
 		op->type = OP_XMM;
 		op->bytes = 16;
 		op->addr.xmm = reg;
@@ -1103,9 +1106,20 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 	op->type = OP_REG;
 	op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 	op->addr.reg = decode_register(ctxt, reg, ctxt->d & ByteOp);
-
 	fetch_register_operand(op);
-	op->orig_val = op->val;
+}
+
+static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
+				    struct operand *op)
+{
+	unsigned int reg;
+
+	if (ctxt->d & ModRM)
+		reg = ctxt->modrm_reg;
+	else
+		reg = (ctxt->b & 7) | (ctxt->rex_bits & REX_B ? 8 : 0);
+
+	__decode_register_operand(ctxt, op, reg);
 }
 
 static void adjust_modrm_seg(struct x86_emulate_ctxt *ctxt, int base_reg)
@@ -1122,9 +1136,9 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	int rc = X86EMUL_CONTINUE;
 	ulong modrm_ea = 0;
 
-	ctxt->modrm_reg = ((ctxt->rex_prefix << 1) & 8); /* REX.R */
-	index_reg = (ctxt->rex_prefix << 2) & 8; /* REX.X */
-	base_reg = (ctxt->rex_prefix << 3) & 8; /* REX.B */
+	ctxt->modrm_reg = (ctxt->rex_bits & REX_R ? 8 : 0);
+	index_reg = (ctxt->rex_bits & REX_X ? 8 : 0);
+	base_reg = (ctxt->rex_bits & REX_B ? 8 : 0);
 
 	ctxt->modrm_mod = (ctxt->modrm & 0xc0) >> 6;
 	ctxt->modrm_reg |= (ctxt->modrm & 0x38) >> 3;
@@ -1132,24 +1146,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	ctxt->modrm_seg = VCPU_SREG_DS;
 
 	if (ctxt->modrm_mod == 3 || (ctxt->d & NoMod)) {
-		op->type = OP_REG;
-		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm,
-				ctxt->d & ByteOp);
-		if (ctxt->d & Sse) {
-			op->type = OP_XMM;
-			op->bytes = 16;
-			op->addr.xmm = ctxt->modrm_rm;
-			kvm_read_sse_reg(ctxt->modrm_rm, &op->vec_val);
-			return rc;
-		}
-		if (ctxt->d & Mmx) {
-			op->type = OP_MM;
-			op->bytes = 8;
-			op->addr.mm = ctxt->modrm_rm & 7;
-			return rc;
-		}
-		fetch_register_operand(op);
+		__decode_register_operand(ctxt, op, ctxt->modrm_rm);
 		return rc;
 	}
 
@@ -1783,7 +1780,15 @@ static int writeback(struct x86_emulate_ctxt *ctxt, struct operand *op)
 				       op->data,
 				       op->bytes * op->count);
 	case OP_XMM:
-		kvm_write_sse_reg(op->addr.xmm, &op->vec_val);
+		if (!(ctxt->d & Avx)) {
+			kvm_write_sse_reg(op->addr.xmm, &op->vec_val);
+			break;
+		}
+		/* full YMM write but with high bytes cleared */
+		memset(op->valptr + 16, 0, 16);
+		fallthrough;
+	case OP_YMM:
+		kvm_write_avx_reg(op->addr.xmm, &op->vec_val2);
 		break;
 	case OP_MM:
 		kvm_write_mmx_reg(op->addr.mm, &op->mm_val);
@@ -2466,7 +2471,7 @@ static int em_sysexit(struct x86_emulate_ctxt *ctxt)
 
 	setup_syscalls_segments(&cs, &ss);
 
-	if ((ctxt->rex_prefix & 0x8) != 0x0)
+	if (ctxt->rex_bits & REX_W)
 		usermode = X86EMUL_MODE_PROT64;
 	else
 		usermode = X86EMUL_MODE_PROT32;
@@ -3958,6 +3963,8 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 		I2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock, _e),	\
 		I2bv(((_f) & ~Lock) | DstAcc | SrcImm, _e)
 
+static const struct opcode ud = I(SrcNone, emulate_ud);
+
 static const struct opcode group7_rm0[] = {
 	N,
 	I(SrcNone | Priv | EmulateOnUD,	em_hypercall),
@@ -4114,7 +4121,7 @@ static const struct group_dual group15 = { {
 } };
 
 static const struct gprefix pfx_0f_6f_0f_7f = {
-	I(Mmx, em_mov), I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
+	I(Mmx, em_mov), I(Sse | Avx | Aligned, em_mov), N, I(Sse | Avx | Unaligned, em_mov),
 };
 
 static const struct instr_dual instr_dual_0f_2b = {
@@ -4133,8 +4140,8 @@ static const struct gprefix pfx_0f_28_0f_29 = {
 	I(Aligned, em_mov), I(Aligned, em_mov), N, N,
 };
 
-static const struct gprefix pfx_0f_e7 = {
-	N, I(Sse, em_mov), N, N,
+static const struct gprefix pfx_0f_e7_0f_38_2a = {
+	N, I(Sse | Avx, em_mov), N, N,
 };
 
 static const struct escape escape_d9 = { {
@@ -4347,8 +4354,8 @@ static const struct opcode twobyte_table[256] = {
 	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM | SrcMem | NoAccess), N, N,
 	/* 0x10 - 0x1F */
-	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_10_0f_11),
-	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_10_0f_11),
+	GP(ModRM | DstReg | SrcMem | Mov | Sse | Avx, &pfx_0f_10_0f_11),
+	GP(ModRM | DstMem | SrcReg | Mov | Sse | Avx, &pfx_0f_10_0f_11),
 	N, N, N, N, N, N,
 	D(ImplicitOps | ModRM | SrcMem | NoAccess), /* 4 * prefetch + 4 * reserved NOP */
 	D(ImplicitOps | ModRM | SrcMem | NoAccess), N, N,
@@ -4364,9 +4371,9 @@ static const struct opcode twobyte_table[256] = {
 	IIP(ModRM | SrcMem | Priv | Op3264 | NoMod, em_dr_write, dr_write,
 						check_dr_write),
 	N, N, N, N,
-	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_28_0f_29),
-	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_28_0f_29),
-	N, GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_2b),
+	GP(ModRM | DstReg | SrcMem | Mov | Sse | Avx, &pfx_0f_28_0f_29),
+	GP(ModRM | DstMem | SrcReg | Mov | Sse | Avx, &pfx_0f_28_0f_29),
+	N, GP(ModRM | DstMem | SrcReg | Mov | Sse | Avx, &pfx_0f_2b),
 	N, N, N, N,
 	/* 0x30 - 0x3F */
 	II(ImplicitOps | Priv, em_wrmsr, wrmsr),
@@ -4431,7 +4438,7 @@ static const struct opcode twobyte_table[256] = {
 	/* 0xD0 - 0xDF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xEF */
-	N, N, N, N, N, N, N, GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_e7),
+	N, N, N, N, N, N, N, GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_e7_0f_38_2a),
 	N, N, N, N, N, N, N, N,
 	/* 0xF0 - 0xFF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N
@@ -4458,8 +4465,13 @@ static const struct gprefix three_byte_0f_38_f1 = {
  * byte.
  */
 static const struct opcode opcode_map_0f_38[256] = {
-	/* 0x00 - 0x7f */
-	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
+	/* 0x00 - 0x1f */
+	X16(N), X16(N),
+	/* 0x20 - 0x2f */
+	X8(N),
+	X2(N), GP(SrcReg | DstMem | ModRM | Mov | Aligned, &pfx_0f_e7_0f_38_2a), N, N, N, N, N,
+	/* 0x30 - 0x7f */
+	X16(N), X16(N), X16(N), X16(N), X16(N),
 	/* 0x80 - 0xef */
 	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
 	/* 0xf0 - 0xf1 */
@@ -4618,14 +4630,12 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RAX);
 		fetch_register_operand(op);
-		op->orig_val = op->val;
 		break;
 	case OpAccLo:
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 2 : ctxt->op_bytes;
 		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RAX);
 		fetch_register_operand(op);
-		op->orig_val = op->val;
 		break;
 	case OpAccHi:
 		if (ctxt->d & ByteOp) {
@@ -4636,7 +4646,6 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->bytes = ctxt->op_bytes;
 		op->addr.reg = reg_rmw(ctxt, VCPU_REGS_RDX);
 		fetch_register_operand(op);
-		op->orig_val = op->val;
 		break;
 	case OpDI:
 		op->type = OP_MEM;
@@ -4755,12 +4764,87 @@ done:
 	return rc;
 }
 
+static int x86_decode_avx(struct x86_emulate_ctxt *ctxt,
+			  u8 vex_1st, u8 vex_2nd, struct opcode *opcode)
+{
+	u8 vex_3rd, map, pp, l, v;
+	int rc = X86EMUL_CONTINUE;
+
+	if (ctxt->rep_prefix || ctxt->op_prefix || ctxt->rex_prefix)
+		goto ud;
+
+	if (vex_1st == 0xc5) {
+		/* Expand RVVVVlpp to VEX3 format */
+		vex_3rd = vex_2nd & ~0x80;         /* VVVVlpp from VEX2, w=0 */
+		vex_2nd = (vex_2nd & 0x80) | 0x61; /* R from VEX2, X=1 B=1 mmmmm=00001 */
+	} else {
+		vex_3rd = insn_fetch(u8, ctxt);
+	}
+
+	/* vex_2nd = RXBmmmmm, vex_3rd = wVVVVlpp.  Fix polarity */
+	vex_2nd ^= 0xE0; /* binary 11100000 */
+	vex_3rd ^= 0x78; /* binary 01111000 */
+
+	ctxt->rex_prefix = REX_PREFIX;
+	ctxt->rex_bits = (vex_2nd & 0xE0) >> 5; /* RXB */
+	ctxt->rex_bits |= (vex_3rd & 0x80) >> 4; /* w */
+	if (ctxt->rex_bits && ctxt->mode != X86EMUL_MODE_PROT64)
+		goto ud;
+
+	map = vex_2nd & 0x1f;
+	v = (vex_3rd >> 3) & 0xf;
+	l = vex_3rd & 0x4;
+	pp = vex_3rd & 0x3;
+
+	ctxt->b = insn_fetch(u8, ctxt);
+	switch (map) {
+	case 1:
+		ctxt->opcode_len = 2;
+		*opcode = twobyte_table[ctxt->b];
+		break;
+	case 2:
+		ctxt->opcode_len = 3;
+		*opcode = opcode_map_0f_38[ctxt->b];
+		break;
+	case 3:
+		/* no 0f 3a instructions are supported yet */
+		return X86EMUL_UNHANDLEABLE;
+	default:
+		goto ud;
+	}
+
+	/*
+	 * No three operand instructions are supported yet; those that
+	 * *are* marked with the Avx flag reserve the VVVV flag.
+	 */
+	if (v)
+		goto ud;
+
+	if (l)
+		ctxt->op_bytes = 32;
+	else
+		ctxt->op_bytes = 16;
+
+	switch (pp) {
+	case 0: break;
+	case 1: ctxt->op_prefix = true; break;
+	case 2: ctxt->rep_prefix = 0xf3; break;
+	case 3: ctxt->rep_prefix = 0xf2; break;
+	}
+
+done:
+	return rc;
+ud:
+	*opcode = ud;
+	return rc;
+}
+
 int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int emulation_type)
 {
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
 	int def_op_bytes, def_ad_bytes, goffset, simd_prefix;
-	bool op_prefix = false;
+	bool vex_prefix = false;
 	bool has_seg_override = false;
 	struct opcode opcode;
 	u16 dummy;
@@ -4812,7 +4896,7 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int
 	for (;;) {
 		switch (ctxt->b = insn_fetch(u8, ctxt)) {
 		case 0x66:	/* operand-size override */
-			op_prefix = true;
+			ctxt->op_prefix = true;
 			/* switch between 2/4 bytes */
 			ctxt->op_bytes = def_op_bytes ^ 6;
 			break;
@@ -4851,7 +4935,8 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int
 		case 0x40 ... 0x4f: /* REX */
 			if (mode != X86EMUL_MODE_PROT64)
 				goto done_prefixes;
-			ctxt->rex_prefix = ctxt->b;
+			ctxt->rex_prefix = REX_PREFIX;
+			ctxt->rex_bits   = ctxt->b & 0xf;
 			continue;
 		case 0xf0:	/* LOCK */
 			ctxt->lock_prefix = 1;
@@ -4865,20 +4950,33 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int
 		}
 
 		/* Any legacy prefix after a REX prefix nullifies its effect. */
-
-		ctxt->rex_prefix = 0;
+		ctxt->rex_prefix = REX_NONE;
+		ctxt->rex_bits = 0;
 	}
 
 done_prefixes:
 
 	/* REX prefix. */
-	if (ctxt->rex_prefix & 8)
-		ctxt->op_bytes = 8;	/* REX.W */
+	if (ctxt->rex_bits & REX_W)
+		ctxt->op_bytes = 8;
 
 	/* Opcode byte(s). */
-	opcode = opcode_table[ctxt->b];
-	/* Two-byte opcode? */
-	if (ctxt->b == 0x0f) {
+	if (ctxt->b == 0xc4 || ctxt->b == 0xc5) {
+		/* VEX or LDS/LES */
+		u8 vex_2nd = insn_fetch(u8, ctxt);
+		if (mode != X86EMUL_MODE_PROT64 && (vex_2nd & 0xc0) != 0xc0) {
+			opcode = opcode_table[ctxt->b];
+			ctxt->modrm = vex_2nd;
+			/* the Mod/RM byte has been fetched already!  */
+			goto done_modrm;
+		}
+
+		vex_prefix = true;
+		rc = x86_decode_avx(ctxt, ctxt->b, vex_2nd, &opcode);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+	} else if (ctxt->b == 0x0f) {
+		/* Two- or three-byte opcode */
 		ctxt->opcode_len = 2;
 		ctxt->b = insn_fetch(u8, ctxt);
 		opcode = twobyte_table[ctxt->b];
@@ -4889,18 +4987,16 @@ done_prefixes:
 			ctxt->b = insn_fetch(u8, ctxt);
 			opcode = opcode_map_0f_38[ctxt->b];
 		}
+	} else {
+		/* Opcode byte(s). */
+		opcode = opcode_table[ctxt->b];
 	}
-	ctxt->d = opcode.flags;
 
-	if (ctxt->d & ModRM)
+	if (opcode.flags & ModRM)
 		ctxt->modrm = insn_fetch(u8, ctxt);
 
-	/* vex-prefix instructions are not implemented */
-	if (ctxt->opcode_len == 1 && (ctxt->b == 0xc5 || ctxt->b == 0xc4) &&
-	    (mode == X86EMUL_MODE_PROT64 || (ctxt->modrm & 0xc0) == 0xc0)) {
-		ctxt->d = NotImpl;
-	}
-
+done_modrm:
+	ctxt->d = opcode.flags;
 	while (ctxt->d & GroupMask) {
 		switch (ctxt->d & GroupMask) {
 		case Group:
@@ -4919,9 +5015,9 @@ done_prefixes:
 			opcode = opcode.u.group[goffset];
 			break;
 		case Prefix:
-			if (ctxt->rep_prefix && op_prefix)
+			if (ctxt->rep_prefix && ctxt->op_prefix)
 				return EMULATION_FAILED;
-			simd_prefix = op_prefix ? 0x66 : ctxt->rep_prefix;
+			simd_prefix = ctxt->op_prefix ? 0x66 : ctxt->rep_prefix;
 			switch (simd_prefix) {
 			case 0x00: opcode = opcode.u.gprefix->pfx_no; break;
 			case 0x66: opcode = opcode.u.gprefix->pfx_66; break;
@@ -4965,6 +5061,19 @@ done_prefixes:
 	/* Unrecognised? */
 	if (ctxt->d == 0)
 		return EMULATION_FAILED;
+
+	if (unlikely(vex_prefix)) {
+		/*
+		 * Only specifically marked instructions support VEX.  Since many
+		 * instructions support it but are not annotated, return not implemented
+		 * rather than #UD.
+		 */
+		if (!(ctxt->d & Avx))
+			return EMULATION_FAILED;
+
+		if (!(ctxt->d & AlignMask))
+			ctxt->d |= Unaligned;
+	}
 
 	ctxt->execute = opcode.u.execute;
 
@@ -5036,8 +5145,10 @@ done_prefixes:
 		if ((ctxt->d & No16) && ctxt->op_bytes == 2)
 			ctxt->op_bytes = 4;
 
-		if (ctxt->d & Sse)
-			ctxt->op_bytes = 16;
+		if (vex_prefix)
+			;
+		else if (ctxt->d & Sse)
+			ctxt->op_bytes = 16, ctxt->d &= ~Avx;
 		else if (ctxt->d & Mmx)
 			ctxt->op_bytes = 8;
 	}
@@ -5137,8 +5248,10 @@ void init_decode_cache(struct x86_emulate_ctxt *ctxt)
 {
 	/* Clear fields that are set conditionally but read without a guard. */
 	ctxt->rip_relative = false;
-	ctxt->rex_prefix = 0;
+	ctxt->rex_prefix = REX_NONE;
+	ctxt->rex_bits = 0;
 	ctxt->lock_prefix = 0;
+	ctxt->op_prefix = false;
 	ctxt->rep_prefix = 0;
 	ctxt->regs_valid = 0;
 	ctxt->regs_dirty = 0;
@@ -5168,20 +5281,34 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt, bool check_intercepts)
 	}
 
 	if (unlikely(ctxt->d &
-		     (No64|Undefined|Sse|Mmx|Intercept|CheckPerm|Priv|Prot|String))) {
+		     (No64|Undefined|Avx|Sse|Mmx|Intercept|CheckPerm|Priv|Prot|String))) {
 		if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
 				(ctxt->d & Undefined)) {
 			rc = emulate_ud(ctxt);
 			goto done;
 		}
 
-		if (((ctxt->d & (Sse|Mmx)) && ((ops->get_cr(ctxt, 0) & X86_CR0_EM)))
-		    || ((ctxt->d & Sse) && !(ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR))) {
+		if ((ctxt->d & (Avx|Sse|Mmx)) && ((ops->get_cr(ctxt, 0) & X86_CR0_EM))) {
 			rc = emulate_ud(ctxt);
 			goto done;
 		}
 
-		if ((ctxt->d & (Sse|Mmx)) && (ops->get_cr(ctxt, 0) & X86_CR0_TS)) {
+		if (ctxt->d & Avx) {
+			u64 xcr = 0;
+			if (!(ops->get_cr(ctxt, 4) & X86_CR4_OSXSAVE)
+			    || ops->get_xcr(ctxt, 0, &xcr)
+			    || !(xcr & XFEATURE_MASK_YMM)) {
+				rc = emulate_ud(ctxt);
+				goto done;
+			}
+		} else if (ctxt->d & Sse) {
+			if (!(ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR)) {
+				rc = emulate_ud(ctxt);
+				goto done;
+			}
+		}
+
+		if ((ctxt->d & (Avx|Sse|Mmx)) && (ops->get_cr(ctxt, 0) & X86_CR0_TS)) {
 			rc = emulate_nm(ctxt);
 			goto done;
 		}
