@@ -6108,9 +6108,10 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	ret = ieee80211_link_use_channel(link, &chanreq,
 					 IEEE80211_CHANCTX_SHARED);
 
-	/* don't downgrade for 5 and 10 MHz channels, though. */
+	/* don't downgrade for 5/10/S1G MHz channels, though. */
 	if (chanreq.oper.width == NL80211_CHAN_WIDTH_5 ||
-	    chanreq.oper.width == NL80211_CHAN_WIDTH_10)
+	    chanreq.oper.width == NL80211_CHAN_WIDTH_10 ||
+	    cfg80211_chandef_is_s1g(&chanreq.oper))
 		return ret;
 
 	while (ret && chanreq.oper.width != NL80211_CHAN_WIDTH_20_NOHT) {

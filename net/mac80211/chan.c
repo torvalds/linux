@@ -654,8 +654,19 @@ static void _ieee80211_change_chanctx(struct ieee80211_local *local,
 	};
 	u32 changed = 0;
 
-	/* expected to handle only 20/40/80/160/320 channel widths */
+	/* 5/10 MHz not handled here */
 	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_1:
+	case NL80211_CHAN_WIDTH_2:
+	case NL80211_CHAN_WIDTH_4:
+	case NL80211_CHAN_WIDTH_8:
+	case NL80211_CHAN_WIDTH_16:
+		/*
+		 * mac80211 currently only supports sharing identical
+		 * chanctx's for S1G interfaces.
+		 */
+		WARN_ON(!ieee80211_chanreq_identical(&ctx_req, chanreq));
+		return;
 	case NL80211_CHAN_WIDTH_20_NOHT:
 	case NL80211_CHAN_WIDTH_20:
 	case NL80211_CHAN_WIDTH_40:
