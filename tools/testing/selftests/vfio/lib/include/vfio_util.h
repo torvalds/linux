@@ -260,51 +260,9 @@ void vfio_pci_device_cleanup(struct vfio_pci_device *device);
 
 void vfio_pci_device_reset(struct vfio_pci_device *device);
 
-static inline struct iommu_iova_range *vfio_pci_iova_ranges(struct vfio_pci_device *device,
-							    u32 *nranges)
-{
-	return iommu_iova_ranges(device->iommu, nranges);
-}
-
-struct iova_allocator *iova_allocator_init(struct vfio_pci_device *device);
+struct iova_allocator *iova_allocator_init(struct iommu *iommu);
 void iova_allocator_cleanup(struct iova_allocator *allocator);
 iova_t iova_allocator_alloc(struct iova_allocator *allocator, size_t size);
-
-static inline int __vfio_pci_dma_map(struct vfio_pci_device *device,
-				     struct dma_region *region)
-{
-	return __iommu_map(device->iommu, region);
-}
-
-static inline void vfio_pci_dma_map(struct vfio_pci_device *device,
-				    struct dma_region *region)
-{
-	VFIO_ASSERT_EQ(__vfio_pci_dma_map(device, region), 0);
-}
-
-static inline int __vfio_pci_dma_unmap(struct vfio_pci_device *device,
-				       struct dma_region *region,
-				       u64 *unmapped)
-{
-	return __iommu_unmap(device->iommu, region, unmapped);
-}
-
-static inline void vfio_pci_dma_unmap(struct vfio_pci_device *device,
-				      struct dma_region *region)
-{
-	VFIO_ASSERT_EQ(__vfio_pci_dma_unmap(device, region, NULL), 0);
-}
-
-static inline int __vfio_pci_dma_unmap_all(struct vfio_pci_device *device,
-					   u64 *unmapped)
-{
-	return __iommu_unmap_all(device->iommu, unmapped);
-}
-
-static inline void vfio_pci_dma_unmap_all(struct vfio_pci_device *device)
-{
-	VFIO_ASSERT_EQ(__vfio_pci_dma_unmap_all(device, NULL), 0);
-}
 
 void vfio_pci_config_access(struct vfio_pci_device *device, bool write,
 			    size_t config, size_t size, void *data);

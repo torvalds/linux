@@ -21,13 +21,13 @@
 
 #include <vfio_util.h>
 
-struct iova_allocator *iova_allocator_init(struct vfio_pci_device *device)
+struct iova_allocator *iova_allocator_init(struct iommu *iommu)
 {
 	struct iova_allocator *allocator;
 	struct iommu_iova_range *ranges;
 	u32 nranges;
 
-	ranges = vfio_pci_iova_ranges(device, &nranges);
+	ranges = iommu_iova_ranges(iommu, &nranges);
 	VFIO_ASSERT_NOT_NULL(ranges);
 
 	allocator = malloc(sizeof(*allocator));

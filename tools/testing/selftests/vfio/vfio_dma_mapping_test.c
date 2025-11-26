@@ -122,7 +122,7 @@ FIXTURE_SETUP(vfio_dma_mapping_test)
 {
 	self->iommu = iommu_init(variant->iommu_mode);
 	self->device = vfio_pci_device_init(device_bdf, self->iommu);
-	self->iova_allocator = iova_allocator_init(self->device);
+	self->iova_allocator = iova_allocator_init(self->iommu);
 }
 
 FIXTURE_TEARDOWN(vfio_dma_mapping_test)
@@ -153,7 +153,7 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	region.iova = iova_allocator_alloc(self->iova_allocator, size);
 	region.size = size;
 
-	vfio_pci_dma_map(self->device, &region);
+	iommu_map(self->iommu, &region);
 	printf("Mapped HVA %p (size 0x%lx) at IOVA 0x%lx\n", region.vaddr, size, region.iova);
 
 	ASSERT_EQ(region.iova, to_iova(self->device, region.vaddr));
@@ -195,7 +195,7 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	}
 
 unmap:
-	rc = __vfio_pci_dma_unmap(self->device, &region, &unmapped);
+	rc = __iommu_unmap(self->iommu, &region, &unmapped);
 	ASSERT_EQ(rc, 0);
 	ASSERT_EQ(unmapped, region.size);
 	printf("Unmapped IOVA 0x%lx\n", region.iova);
@@ -245,7 +245,7 @@ FIXTURE_SETUP(vfio_dma_map_limit_test)
 			     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	ASSERT_NE(region->vaddr, MAP_FAILED);
 
-	ranges = vfio_pci_iova_ranges(self->device, &nranges);
+	ranges = iommu_iova_ranges(self->iommu, &nranges);
 	VFIO_ASSERT_NOT_NULL(ranges);
 	last_iova = ranges[nranges - 1].last;
 	free(ranges);
@@ -268,10 +268,10 @@ TEST_F(vfio_dma_map_limit_test, unmap_range)
 	u64 unmapped;
 	int rc;
 
-	vfio_pci_dma_map(self->device, region);
+	iommu_map(self->iommu, region);
 	ASSERT_EQ(region->iova, to_iova(self->device, region->vaddr));
 
-	rc = __vfio_pci_dma_unmap(self->device, region, &unmapped);
+	rc = __iommu_unmap(self->iommu, region, &unmapped);
 	ASSERT_EQ(rc, 0);
 	ASSERT_EQ(unmapped, region->size);
 }
@@ -282,10 +282,10 @@ TEST_F(vfio_dma_map_limit_test, unmap_all)
 	u64 unmapped;
 	int rc;
 
-	vfio_pci_dma_map(self->device, region);
+	iommu_map(self->iommu, region);
 	ASSERT_EQ(region->iova, to_iova(self->device, region->vaddr));
 
-	rc = __vfio_pci_dma_unmap_all(self->device, &unmapped);
+	rc = __iommu_unmap_all(self->iommu, &unmapped);
 	ASSERT_EQ(rc, 0);
 	ASSERT_EQ(unmapped, region->size);
 }
@@ -298,10 +298,10 @@ TEST_F(vfio_dma_map_limit_test, overflow)
 	region->iova = ~(iova_t)0 & ~(region->size - 1);
 	region->size = self->mmap_size;
 
-	rc = __vfio_pci_dma_map(self->device, region);
+	rc = __iommu_map(self->iommu, region);
 	ASSERT_EQ(rc, -EOVERFLOW);
 
-	rc = __vfio_pci_dma_unmap(self->device, region, NULL);
+	rc = __iommu_unmap(self->iommu, region, NULL);
 	ASSERT_EQ(rc, -EOVERFLOW);
 }
 
