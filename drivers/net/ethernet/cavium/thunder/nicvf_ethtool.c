@@ -541,21 +541,11 @@ static int nicvf_get_rxfh_fields(struct net_device *dev,
 	return 0;
 }
 
-static int nicvf_get_rxnfc(struct net_device *dev,
-			   struct ethtool_rxnfc *info, u32 *rules)
+static u32 nicvf_get_rx_ring_count(struct net_device *dev)
 {
 	struct nicvf *nic = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
 
-	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = nic->rx_queues;
-		ret = 0;
-		break;
-	default:
-		break;
-	}
-	return ret;
+	return nic->rx_queues;
 }
 
 static int nicvf_set_rxfh_fields(struct net_device *dev,
@@ -861,7 +851,7 @@ static const struct ethtool_ops nicvf_ethtool_ops = {
 	.get_coalesce		= nicvf_get_coalesce,
 	.get_ringparam		= nicvf_get_ringparam,
 	.set_ringparam		= nicvf_set_ringparam,
-	.get_rxnfc		= nicvf_get_rxnfc,
+	.get_rx_ring_count	= nicvf_get_rx_ring_count,
 	.get_rxfh_key_size	= nicvf_get_rxfh_key_size,
 	.get_rxfh_indir_size	= nicvf_get_rxfh_indir_size,
 	.get_rxfh		= nicvf_get_rxfh,
