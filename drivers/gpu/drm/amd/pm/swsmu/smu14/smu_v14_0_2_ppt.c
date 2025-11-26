@@ -1045,9 +1045,9 @@ static void smu_v14_0_2_get_od_setting_limits(struct smu_context *smu,
 		*max = od_max_setting;
 }
 
-static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
-					enum smu_clk_type clk_type,
-					char *buf)
+static int smu_v14_0_2_emit_clk_levels(struct smu_context *smu,
+				       enum smu_clk_type clk_type, char *buf,
+				       int *offset)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_14_0_dpm_context *dpm_context = smu_dpm->dpm_context;
@@ -1056,16 +1056,13 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 	struct smu_14_0_dpm_table *single_dpm_table;
 	struct smu_14_0_pcie_table *pcie_table;
 	uint32_t gen_speed, lane_width;
-	int i, curr_freq, size = 0, start_offset = 0;
+	int i, curr_freq, size = *offset, start_offset = *offset;
 	int32_t min_value, max_value;
 	int ret = 0;
 
-	smu_cmn_get_sysfs_buf(&buf, &size);
-	start_offset = size;
-
 	if (amdgpu_ras_intr_triggered()) {
-		size += sysfs_emit_at(buf, size, "unavailable\n");
-		return size - start_offset;
+		sysfs_emit_at(buf, size, "unavailable\n");
+		return -EBUSY;
 	}
 
 	switch (clk_type) {
@@ -1375,7 +1372,9 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size - start_offset;
+	*offset += size - start_offset;
+
+	return 0;
 }
 
 static int smu_v14_0_2_force_clk_levels(struct smu_context *smu,
@@ -2873,7 +2872,7 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.get_vbios_bootup_values = smu_v14_0_get_vbios_bootup_values,
 	.read_sensor = smu_v14_0_2_read_sensor,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
-	.print_clk_levels = smu_v14_0_2_print_clk_levels,
+	.emit_clk_levels = smu_v14_0_2_emit_clk_levels,
 	.force_clk_levels = smu_v14_0_2_force_clk_levels,
 	.update_pcie_parameters = smu_v14_0_2_update_pcie_parameters,
 	.get_thermal_temperature_range = smu_v14_0_2_get_thermal_temperature_range,
