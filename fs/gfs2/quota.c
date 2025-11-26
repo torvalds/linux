@@ -1558,20 +1558,6 @@ static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)
 	}
 }
 
-static void quotad_check_timeo(struct gfs2_sbd *sdp, const char *msg,
-			       int (*fxn)(struct super_block *sb, int type),
-			       unsigned long t, unsigned long *timeo,
-			       unsigned int *new_timeo)
-{
-	if (t >= *timeo) {
-		int error = fxn(sdp->sd_vfs, 0);
-		quotad_error(sdp, msg, error);
-		*timeo = gfs2_tune_get_i(&sdp->sd_tune, new_timeo) * HZ;
-	} else {
-		*timeo -= t;
-	}
-}
-
 void gfs2_wake_up_statfs(struct gfs2_sbd *sdp) {
 	if (!sdp->sd_statfs_force_sync) {
 		sdp->sd_statfs_force_sync = 1;
@@ -1589,34 +1575,44 @@ void gfs2_wake_up_statfs(struct gfs2_sbd *sdp) {
 int gfs2_quotad(void *data)
 {
 	struct gfs2_sbd *sdp = data;
-	struct gfs2_tune *tune = &sdp->sd_tune;
-	unsigned long statfs_timeo = 0;
-	unsigned long quotad_timeo = 0;
-	unsigned long t = 0;
+	unsigned long now = jiffies;
+	unsigned long statfs_deadline = now;
+	unsigned long quotad_deadline = now;
 
 	set_freezable();
 	while (!kthread_should_stop()) {
+		unsigned long t;
+
 		if (gfs2_withdrawing_or_withdrawn(sdp))
 			break;
 
-		/* Update the master statfs file */
-		if (sdp->sd_statfs_force_sync) {
-			int error = gfs2_statfs_sync(sdp->sd_vfs, 0);
+		now = jiffies;
+		if (sdp->sd_statfs_force_sync ||
+		    time_after(now, statfs_deadline)) {
+			unsigned int quantum;
+			int error;
+
+			/* Update the master statfs file */
+			error = gfs2_statfs_sync(sdp->sd_vfs, 0);
 			quotad_error(sdp, "statfs", error);
-			statfs_timeo = gfs2_tune_get(sdp, gt_statfs_quantum) * HZ;
+
+			quantum = gfs2_tune_get(sdp, gt_statfs_quantum);
+			statfs_deadline = now + quantum * HZ;
 		}
-		else
-			quotad_check_timeo(sdp, "statfs", gfs2_statfs_sync, t,
-				   	   &statfs_timeo,
-					   &tune->gt_statfs_quantum);
+		if (time_after(now, quotad_deadline)) {
+			unsigned int quantum;
+			int error;
 
-		/* Update quota file */
-		quotad_check_timeo(sdp, "sync", gfs2_quota_sync, t,
-				   &quotad_timeo, &tune->gt_quota_quantum);
+			/* Update the quota file */
+			error = gfs2_quota_sync(sdp->sd_vfs, 0);
+			quotad_error(sdp, "sync", error);
 
-		t = min(quotad_timeo, statfs_timeo);
+			quantum = gfs2_tune_get(sdp, gt_quota_quantum);
+			quotad_deadline = now + quantum * HZ;
+		}
 
-		t -= wait_event_freezable_timeout(sdp->sd_quota_wait,
+		t = min(statfs_deadline - now, quotad_deadline - now);
+		wait_event_freezable_timeout(sdp->sd_quota_wait,
 				sdp->sd_statfs_force_sync ||
 				gfs2_withdrawing_or_withdrawn(sdp) ||
 				kthread_should_stop(),
