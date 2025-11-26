@@ -167,6 +167,9 @@ struct xe_exec_queue {
 	/** @ufence_timeline_value: User fence timeline value */
 	u64 ufence_timeline_value;
 
+	/** @replay_state: GPU hang replay state */
+	void *replay_state;
+
 	/** @ops: submission backend exec queue operations */
 	const struct xe_exec_queue_ops *ops;
 
