@@ -56,13 +56,13 @@ static const struct yt921x_mib_desc yt921x_mib_descs[] = {
 
 	MIB_DESC(1, 0x30, NULL),	/* RxPktSz1024To1518 */
 	MIB_DESC(1, 0x34, NULL),	/* RxPktSz1519ToMax */
-	MIB_DESC(2, 0x38, NULL),	/* RxGoodBytes */
-	/* 0x3c */
+	/* 0x38 unused */
+	MIB_DESC(2, 0x3c, NULL),	/* RxGoodBytes */
 
-	MIB_DESC(2, 0x40, "RxBadBytes"),
-	/* 0x44 */
-	MIB_DESC(2, 0x48, NULL),	/* RxOverSzErr */
-	/* 0x4c */
+	/* 0x40 */
+	MIB_DESC(2, 0x44, "RxBadBytes"),
+	/* 0x48 */
+	MIB_DESC(1, 0x4c, NULL),	/* RxOverSzErr */
 
 	MIB_DESC(1, 0x50, NULL),	/* RxDropped */
 	MIB_DESC(1, 0x54, NULL),	/* TxBroadcast */
@@ -79,10 +79,10 @@ static const struct yt921x_mib_desc yt921x_mib_descs[] = {
 	MIB_DESC(1, 0x78, NULL),	/* TxPktSz1024To1518 */
 	MIB_DESC(1, 0x7c, NULL),	/* TxPktSz1519ToMax */
 
-	MIB_DESC(2, 0x80, NULL),	/* TxGoodBytes */
-	/* 0x84 */
-	MIB_DESC(2, 0x88, NULL),	/* TxCollision */
-	/* 0x8c */
+	/* 0x80 unused */
+	MIB_DESC(2, 0x84, NULL),	/* TxGoodBytes */
+	/* 0x88 */
+	MIB_DESC(1, 0x8c, NULL),	/* TxCollision */
 
 	MIB_DESC(1, 0x90, NULL),	/* TxExcessiveCollistion */
 	MIB_DESC(1, 0x94, NULL),	/* TxMultipleCollision */
@@ -705,7 +705,7 @@ static int yt921x_read_mib(struct yt921x_priv *priv, int port)
 			res = yt921x_reg_read(priv, reg + 4, &val1);
 			if (res)
 				break;
-			val = ((u64)val0 << 32) | val1;
+			val = ((u64)val1 << 32) | val0;
 		}
 
 		WRITE_ONCE(*valp, val);
