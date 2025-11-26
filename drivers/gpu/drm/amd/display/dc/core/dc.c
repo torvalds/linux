@@ -784,7 +784,7 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream, uint8_t id
 		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
 {
 	int i;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = NULL;
 	struct timing_generator *tg;
 
 	dc_exit_ips_for_hw_access(dc);
@@ -5437,35 +5437,23 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update)
 {
-	bool ret = false;
+	struct dc_update_scratch_space *scratch = dc_update_planes_and_stream_init(
+			dc,
+			srf_updates,
+			surface_count,
+			stream,
+			stream_update
+	);
+	bool more = true;
 
-	dc_exit_ips_for_hw_access(dc);
-	/*
-	 * update planes and stream version 3 separates FULL and FAST updates
-	 * to their own sequences. It aims to clean up frequent checks for
-	 * update type resulting unnecessary branching in logic flow. It also
-	 * adds a new commit minimal transition sequence, which detects the need
-	 * for minimal transition based on the actual comparison of current and
-	 * new states instead of "predicting" it based on per feature software
-	 * policy.i.e could_mpcc_tree_change_for_active_pipes. The new commit
-	 * minimal transition sequence is made universal to any power saving
-	 * features that would use extra free pipes such as Dynamic ODM/MPC
-	 * Combine, MPO or SubVp. Therefore there is no longer a need to
-	 * specially handle compatibility problems with transitions among those
-	 * features as they are now transparent to the new sequence.
-	 */
-	if (dc->ctx->dce_version >= DCN_VERSION_4_01 || dc->ctx->dce_version == DCN_VERSION_3_2 ||
-			dc->ctx->dce_version == DCN_VERSION_3_21)
-		ret = update_planes_and_stream_v3(dc, srf_updates,
-				surface_count, stream, stream_update);
-	else
-		ret = update_planes_and_stream_v2(dc, srf_updates,
-			surface_count, stream, stream_update);
-	if (ret && (dc->ctx->dce_version >= DCN_VERSION_3_2 ||
-		dc->ctx->dce_version == DCN_VERSION_3_01))
-		clear_update_flags(srf_updates, surface_count, stream);
+	while (more) {
+		if (!dc_update_planes_and_stream_prepare(scratch))
+			return false;
 
-	return ret;
+		dc_update_planes_and_stream_execute(scratch);
+		more = dc_update_planes_and_stream_cleanup(scratch);
+	}
+	return true;
 }
 
 void dc_commit_updates_for_stream(struct dc *dc,
@@ -7241,7 +7229,7 @@ static bool update_planes_and_stream_cleanup_v2(
 	return false;
 }
 
-static void update_planes_and_stream_cleanup_v3_intermediate(
+static void update_planes_and_stream_cleanup_v3_release_minimal(
 		struct dc_update_scratch_space *scratch,
 		bool backup
 );
@@ -7262,6 +7250,10 @@ static bool update_planes_and_stream_prepare_v3(
 		struct dc_update_scratch_space *scratch
 )
 {
+	if (scratch->flow == UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS) {
+		return true;
+	}
+	ASSERT(scratch->flow == UPDATE_V3_FLOW_INVALID);
 	dc_exit_ips_for_hw_access(scratch->dc);
 
 	if (!update_planes_and_stream_state(
@@ -7327,11 +7319,11 @@ static bool update_planes_and_stream_prepare_v3(
 			return true;
 		}
 
-		update_planes_and_stream_cleanup_v3_intermediate(scratch, false);
+		update_planes_and_stream_cleanup_v3_release_minimal(scratch, false);
 	}
 
-	restore_planes_and_stream_state(&scratch->dc->scratch.current_state, scratch->stream);
 	scratch->backup_context = scratch->dc->current_state;
+	restore_planes_and_stream_state(&scratch->dc->scratch.current_state, scratch->stream);
 	dc_state_retain(scratch->backup_context);
 	scratch->intermediate_context = create_minimal_transition_state(
 			scratch->dc,
@@ -7347,7 +7339,7 @@ static bool update_planes_and_stream_prepare_v3(
 			return true;
 		}
 
-		update_planes_and_stream_cleanup_v3_intermediate(scratch, true);
+		update_planes_and_stream_cleanup_v3_release_minimal(scratch, true);
 	}
 
 	scratch->flow = UPDATE_V3_FLOW_INVALID;
@@ -7398,12 +7390,10 @@ static void update_planes_and_stream_execute_v3(
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
 		update_planes_and_stream_execute_v3_commit(scratch, false, true);
-		update_planes_and_stream_execute_v3_commit(scratch, false, false);
 		break;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
 		update_planes_and_stream_execute_v3_commit(scratch, true, true);
-		update_planes_and_stream_execute_v3_commit(scratch, false, false);
 		break;
 
 	case UPDATE_V3_FLOW_INVALID:
@@ -7419,7 +7409,7 @@ static void update_planes_and_stream_cleanup_v3_new_context(
 	swap_and_release_current_context(scratch->dc, scratch->new_context, scratch->stream);
 }
 
-static void update_planes_and_stream_cleanup_v3_intermediate(
+static void update_planes_and_stream_cleanup_v3_release_minimal(
 		struct dc_update_scratch_space *scratch,
 		bool backup
 )
@@ -7430,6 +7420,16 @@ static void update_planes_and_stream_cleanup_v3_intermediate(
 			backup ? scratch->backup_context : scratch->new_context,
 			&scratch->intermediate_policy
 	);
+}
+
+static void update_planes_and_stream_cleanup_v3_intermediate(
+		struct dc_update_scratch_space *scratch,
+		bool backup
+)
+{
+	swap_and_release_current_context(scratch->dc, scratch->intermediate_context, scratch->stream);
+	dc_state_retain(scratch->dc->current_state);
+	update_planes_and_stream_cleanup_v3_release_minimal(scratch, backup);
 }
 
 static bool update_planes_and_stream_cleanup_v3(
@@ -7448,17 +7448,15 @@ static bool update_planes_and_stream_cleanup_v3(
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
 		update_planes_and_stream_cleanup_v3_intermediate(scratch, false);
-		update_planes_and_stream_cleanup_v3_new_context(scratch);
-		break;
+		scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
+		return true;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
-		swap_and_release_current_context(scratch->dc, scratch->intermediate_context, scratch->stream);
-		dc_state_retain(scratch->dc->current_state);
 		update_planes_and_stream_cleanup_v3_intermediate(scratch, true);
 		dc_state_release(scratch->backup_context);
 		restore_planes_and_stream_state(&scratch->dc->scratch.new_state, scratch->stream);
-		update_planes_and_stream_cleanup_v3_new_context(scratch);
-		break;
+		scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
+		return true;
 
 	case UPDATE_V3_FLOW_INVALID:
 	default:
