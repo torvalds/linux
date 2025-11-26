@@ -15,6 +15,20 @@ enum wgdevice_flag {
 	WGDEVICE_F_REPLACE_PEERS = 1U << 0,
 	__WGDEVICE_F_ALL = WGDEVICE_F_REPLACE_PEERS
 };
+
+enum wgpeer_flag {
+	WGPEER_F_REMOVE_ME = 1U << 0,
+	WGPEER_F_REPLACE_ALLOWEDIPS = 1U << 1,
+	WGPEER_F_UPDATE_ONLY = 1U << 2,
+	__WGPEER_F_ALL = WGPEER_F_REMOVE_ME | WGPEER_F_REPLACE_ALLOWEDIPS |
+			 WGPEER_F_UPDATE_ONLY
+};
+
+enum wgallowedip_flag {
+	WGALLOWEDIP_F_REMOVE_ME = 1U << 0,
+	__WGALLOWEDIP_F_ALL = WGALLOWEDIP_F_REMOVE_ME
+};
+
 enum wgdevice_attribute {
 	WGDEVICE_A_UNSPEC,
 	WGDEVICE_A_IFINDEX,
@@ -29,13 +43,6 @@ enum wgdevice_attribute {
 };
 #define WGDEVICE_A_MAX (__WGDEVICE_A_LAST - 1)
 
-enum wgpeer_flag {
-	WGPEER_F_REMOVE_ME = 1U << 0,
-	WGPEER_F_REPLACE_ALLOWEDIPS = 1U << 1,
-	WGPEER_F_UPDATE_ONLY = 1U << 2,
-	__WGPEER_F_ALL = WGPEER_F_REMOVE_ME | WGPEER_F_REPLACE_ALLOWEDIPS |
-			 WGPEER_F_UPDATE_ONLY
-};
 enum wgpeer_attribute {
 	WGPEER_A_UNSPEC,
 	WGPEER_A_PUBLIC_KEY,
@@ -52,10 +59,6 @@ enum wgpeer_attribute {
 };
 #define WGPEER_A_MAX (__WGPEER_A_LAST - 1)
 
-enum wgallowedip_flag {
-	WGALLOWEDIP_F_REMOVE_ME = 1U << 0,
-	__WGALLOWEDIP_F_ALL = WGALLOWEDIP_F_REMOVE_ME
-};
 enum wgallowedip_attribute {
 	WGALLOWEDIP_A_UNSPEC,
 	WGALLOWEDIP_A_FAMILY,
