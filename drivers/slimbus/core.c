@@ -408,11 +408,13 @@ static struct slim_device *of_find_slim_device(struct slim_controller *ctrl,
 /**
  * of_slim_get_device() - get handle to a device using dt node.
  *
- * @ctrl: Controller on which this device will be added/queried
+ * @ctrl: Controller on which this device will be queried
  * @np: node pointer to device
  *
- * Return: pointer to a device if it has already reported. Creates a new
- * device and returns pointer to it if the device has not yet enumerated.
+ * Takes a reference to the embedded struct device which needs to be dropped
+ * after use.
+ *
+ * Return: pointer to a device if it has been registered, otherwise NULL.
  */
 struct slim_device *of_slim_get_device(struct slim_controller *ctrl,
 				       struct device_node *np)
