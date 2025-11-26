@@ -232,9 +232,6 @@ static int graph_entry(struct ftrace_graph_ent *trace,
 		return 1;
 	}
 
-	if (!ftrace_trace_task(tr))
-		return 0;
-
 	if (ftrace_graph_ignore_func(gops, trace))
 		return 0;
 
