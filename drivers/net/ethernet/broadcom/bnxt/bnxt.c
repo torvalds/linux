@@ -5695,6 +5695,10 @@ int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap, int bmap_size,
 			u16 cmd = bnxt_vf_req_snif[i];
 			unsigned int bit, idx;
 
+			if ((bp->fw_cap & BNXT_FW_CAP_LINK_ADMIN) &&
+			    cmd == HWRM_PORT_PHY_QCFG)
+				continue;
+
 			idx = cmd / 32;
 			bit = cmd % 32;
 			data[idx] |= 1 << bit;
@@ -9665,6 +9669,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->flags |= BNXT_FLAG_ROCEV1_CAP;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED)
 		bp->flags |= BNXT_FLAG_ROCEV2_CAP;
+	if (flags & FUNC_QCAPS_RESP_FLAGS_LINK_ADMIN_STATUS_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_LINK_ADMIN;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_PCIE_STATS_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_PCIE_STATS_SUPPORTED;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_HOT_RESET_CAPABLE)
