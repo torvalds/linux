@@ -380,7 +380,7 @@ static void rtl_ecc_cleanup_ctx(struct nand_device *nand)
 		nand_ecc_cleanup_req_tweaking(&ctx->req_ctx);
 }
 
-static struct nand_ecc_engine_ops rtl_ecc_engine_ops = {
+static const struct nand_ecc_engine_ops rtl_ecc_engine_ops = {
 	.init_ctx = rtl_ecc_init_ctx,
 	.cleanup_ctx = rtl_ecc_cleanup_ctx,
 	.prepare_io_req = rtl_ecc_prepare_io_req,
@@ -418,8 +418,8 @@ static int rtl_ecc_probe(struct platform_device *pdev)
 
 	rtlc->buf = dma_alloc_noncoherent(dev, RTL_ECC_DMA_SIZE, &rtlc->buf_dma,
 					  DMA_BIDIRECTIONAL, GFP_KERNEL);
-	if (IS_ERR(rtlc->buf))
-		return PTR_ERR(rtlc->buf);
+	if (!rtlc->buf)
+		return -ENOMEM;
 
 	rtlc->dev = dev;
 	rtlc->engine.dev = dev;

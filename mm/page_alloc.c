@@ -1822,14 +1822,9 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 	 * If memory tags should be zeroed
 	 * (which happens only when memory should be initialized as well).
 	 */
-	if (zero_tags) {
-		/* Initialize both memory and memory tags. */
-		for (i = 0; i != 1 << order; ++i)
-			tag_clear_highpage(page + i);
+	if (zero_tags)
+		init = !tag_clear_highpages(page, 1 << order);
 
-		/* Take note that memory was initialized by the loop above. */
-		init = false;
-	}
 	if (!should_skip_kasan_unpoison(gfp_flags) &&
 	    kasan_unpoison_pages(page, order, init)) {
 		/* Take note that memory was initialized by KASAN. */
