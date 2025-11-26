@@ -4053,6 +4053,7 @@ struct xe_vm_snapshot {
 		unsigned long flags;
 		int uapi_mem_region;
 		int pat_index;
+		int cpu_caching;
 		struct xe_bo *bo;
 		void *data;
 		struct mm_struct *mm;
@@ -4097,6 +4098,7 @@ struct xe_vm_snapshot *xe_vm_snapshot_capture(struct xe_vm *vm)
 			XE_VM_SNAP_FLAG_READ_ONLY : 0;
 		snap->snap[i].pat_index = vma->attr.pat_index;
 		if (bo) {
+			snap->snap[i].cpu_caching = bo->cpu_caching;
 			snap->snap[i].bo = xe_bo_get(bo);
 			snap->snap[i].bo_ofs = xe_vma_bo_offset(vma);
 			switch (bo->ttm.resource->mem_type) {
@@ -4197,7 +4199,7 @@ void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p)
 	for (i = 0; i < snap->num_snaps; i++) {
 		drm_printf(p, "[%llx].length: 0x%lx\n", snap->snap[i].ofs, snap->snap[i].len);
 
-		drm_printf(p, "[%llx].properties: %s|%s|mem_region=0x%lx|pat_index=%d\n",
+		drm_printf(p, "[%llx].properties: %s|%s|mem_region=0x%lx|pat_index=%d|cpu_caching=%d\n",
 			   snap->snap[i].ofs,
 			   snap->snap[i].flags & XE_VM_SNAP_FLAG_READ_ONLY ?
 			   "read_only" : "read_write",
@@ -4207,7 +4209,8 @@ void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p)
 			   "userptr" : "bo",
 			   snap->snap[i].uapi_mem_region == -1 ? 0 :
 			   BIT(snap->snap[i].uapi_mem_region),
-			   snap->snap[i].pat_index);
+			   snap->snap[i].pat_index,
+			   snap->snap[i].cpu_caching);
 
 		if (IS_ERR(snap->snap[i].data)) {
 			drm_printf(p, "[%llx].error: %li\n", snap->snap[i].ofs,
