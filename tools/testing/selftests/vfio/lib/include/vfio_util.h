@@ -50,6 +50,12 @@
 	VFIO_LOG_AND_EXIT(_fmt, ##__VA_ARGS__);			\
 } while (0)
 
+#define ioctl_assert(_fd, _op, _arg) do {						       \
+	void *__arg = (_arg);								       \
+	int __ret = ioctl((_fd), (_op), (__arg));					       \
+	VFIO_ASSERT_EQ(__ret, 0, "ioctl(%s, %s, %s) returned %d\n", #_fd, #_op, #_arg, __ret); \
+} while (0)
+
 #define dev_info(_dev, _fmt, ...) printf("%s: " _fmt, (_dev)->bdf, ##__VA_ARGS__)
 #define dev_err(_dev, _fmt, ...) fprintf(stderr, "%s: " _fmt, (_dev)->bdf, ##__VA_ARGS__)
 
@@ -223,24 +229,52 @@ extern const char *default_iommu_mode;
 struct iommu *iommu_init(const char *iommu_mode);
 void iommu_cleanup(struct iommu *iommu);
 
+int __iommu_map(struct iommu *iommu, struct dma_region *region);
+
+static inline void iommu_map(struct iommu *iommu, struct dma_region *region)
+{
+	VFIO_ASSERT_EQ(__iommu_map(iommu, region), 0);
+}
+
+int __iommu_unmap(struct iommu *iommu, struct dma_region *region, u64 *unmapped);
+
+static inline void iommu_unmap(struct iommu *iommu, struct dma_region *region)
+{
+	VFIO_ASSERT_EQ(__iommu_unmap(iommu, region, NULL), 0);
+}
+
+int __iommu_unmap_all(struct iommu *iommu, u64 *unmapped);
+
+static inline void iommu_unmap_all(struct iommu *iommu)
+{
+	VFIO_ASSERT_EQ(__iommu_unmap_all(iommu, NULL), 0);
+}
+
+iova_t __iommu_hva2iova(struct iommu *iommu, void *vaddr);
+iova_t iommu_hva2iova(struct iommu *iommu, void *vaddr);
+
+struct iommu_iova_range *iommu_iova_ranges(struct iommu *iommu, u32 *nranges);
+
 struct vfio_pci_device *vfio_pci_device_init(const char *bdf, struct iommu *iommu);
 void vfio_pci_device_cleanup(struct vfio_pci_device *device);
 
 void vfio_pci_device_reset(struct vfio_pci_device *device);
 
-struct iommu_iova_range *vfio_pci_iova_ranges(struct vfio_pci_device *device,
-					      u32 *nranges);
+static inline struct iommu_iova_range *vfio_pci_iova_ranges(struct vfio_pci_device *device,
+							    u32 *nranges)
+{
+	return iommu_iova_ranges(device->iommu, nranges);
+}
 
 struct iova_allocator *iova_allocator_init(struct vfio_pci_device *device);
 void iova_allocator_cleanup(struct iova_allocator *allocator);
 iova_t iova_allocator_alloc(struct iova_allocator *allocator, size_t size);
 
-int __vfio_pci_dma_map(struct vfio_pci_device *device,
-		       struct dma_region *region);
-int __vfio_pci_dma_unmap(struct vfio_pci_device *device,
-			 struct dma_region *region,
-			 u64 *unmapped);
-int __vfio_pci_dma_unmap_all(struct vfio_pci_device *device, u64 *unmapped);
+static inline int __vfio_pci_dma_map(struct vfio_pci_device *device,
+				     struct dma_region *region)
+{
+	return __iommu_map(device->iommu, region);
+}
 
 static inline void vfio_pci_dma_map(struct vfio_pci_device *device,
 				    struct dma_region *region)
@@ -248,10 +282,23 @@ static inline void vfio_pci_dma_map(struct vfio_pci_device *device,
 	VFIO_ASSERT_EQ(__vfio_pci_dma_map(device, region), 0);
 }
 
+static inline int __vfio_pci_dma_unmap(struct vfio_pci_device *device,
+				       struct dma_region *region,
+				       u64 *unmapped)
+{
+	return __iommu_unmap(device->iommu, region, unmapped);
+}
+
 static inline void vfio_pci_dma_unmap(struct vfio_pci_device *device,
 				      struct dma_region *region)
 {
 	VFIO_ASSERT_EQ(__vfio_pci_dma_unmap(device, region, NULL), 0);
+}
+
+static inline int __vfio_pci_dma_unmap_all(struct vfio_pci_device *device,
+					   u64 *unmapped)
+{
+	return __iommu_unmap_all(device->iommu, unmapped);
 }
 
 static inline void vfio_pci_dma_unmap_all(struct vfio_pci_device *device)
@@ -319,8 +366,15 @@ static inline void vfio_pci_msix_disable(struct vfio_pci_device *device)
 	vfio_pci_irq_disable(device, VFIO_PCI_MSIX_IRQ_INDEX);
 }
 
-iova_t __to_iova(struct vfio_pci_device *device, void *vaddr);
-iova_t to_iova(struct vfio_pci_device *device, void *vaddr);
+static inline iova_t __to_iova(struct vfio_pci_device *device, void *vaddr)
+{
+	return __iommu_hva2iova(device->iommu, vaddr);
+}
+
+static inline iova_t to_iova(struct vfio_pci_device *device, void *vaddr)
+{
+	return iommu_hva2iova(device->iommu, vaddr);
+}
 
 static inline bool vfio_pci_device_match(struct vfio_pci_device *device,
 					 u16 vendor_id, u16 device_id)

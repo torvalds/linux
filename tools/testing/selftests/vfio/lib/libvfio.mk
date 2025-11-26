@@ -3,7 +3,8 @@ ARCH ?= $(SUBARCH)
 
 LIBVFIO_SRCDIR := $(selfdir)/vfio/lib
 
-LIBVFIO_C := vfio_pci_device.c
+LIBVFIO_C := iommu.c
+LIBVFIO_C += vfio_pci_device.c
 LIBVFIO_C += vfio_pci_driver.c
 
 ifeq ($(ARCH:x86_64=x86),x86)
