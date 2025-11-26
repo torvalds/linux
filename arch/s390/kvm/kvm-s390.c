@@ -4962,13 +4962,8 @@ int noinstr kvm_s390_enter_exit_sie(struct kvm_s390_sie_block *scb,
 	 * The guest_state_{enter,exit}_irqoff() functions inform lockdep and
 	 * tracing that entry to the guest will enable host IRQs, and exit from
 	 * the guest will disable host IRQs.
-	 *
-	 * We must not use lockdep/tracing/RCU in this critical section, so we
-	 * use the low-level arch_local_irq_*() helpers to enable/disable IRQs.
 	 */
-	arch_local_irq_enable();
 	ret = sie64a(scb, gprs, gasce);
-	arch_local_irq_disable();
 
 	guest_state_exit_irqoff();
 
