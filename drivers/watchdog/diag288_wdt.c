@@ -18,8 +18,7 @@
  *
  */
 
-#define KMSG_COMPONENT "diag288_wdt"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "diag288_wdt: " fmt
 
 #include <linux/init.h>
 #include <linux/kernel.h>
