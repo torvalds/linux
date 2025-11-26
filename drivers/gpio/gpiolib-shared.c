@@ -73,6 +73,19 @@ gpio_shared_find_entry(struct fwnode_handle *controller_node,
 	return NULL;
 }
 
+/* Handle all special nodes that we should ignore. */
+static bool gpio_shared_of_node_ignore(struct device_node *node)
+{
+	/*
+	 * __symbols__ is a special, internal node and should not be considered
+	 * when scanning for shared GPIOs.
+	 */
+	if (of_node_name_eq(node, "__symbols__"))
+		return true;
+
+	return false;
+}
+
 static int gpio_shared_of_traverse(struct device_node *curr)
 {
 	struct gpio_shared_entry *entry;
@@ -83,6 +96,9 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 	unsigned int offset;
 	const char *suffix;
 	int ret, count, i;
+
+	if (gpio_shared_of_node_ignore(curr))
+		return 0;
 
 	for_each_property_of_node(curr, prop) {
 		/*
