@@ -510,7 +510,7 @@ static bool tcp_rtx_probe0_timed_out(const struct sock *sk,
 	 * and tp->rcv_tstamp might very well have been written recently.
 	 * rcv_delta can thus be negative.
 	 */
-	rcv_delta = icsk_timeout(icsk) - tp->rcv_tstamp;
+	rcv_delta = tcp_timeout_expires(sk) - tp->rcv_tstamp;
 	if (rcv_delta <= timeout)
 		return false;
 
@@ -697,9 +697,9 @@ void tcp_write_timer_handler(struct sock *sk)
 	    !icsk->icsk_pending)
 		return;
 
-	if (time_after(icsk_timeout(icsk), jiffies)) {
-		sk_reset_timer(sk, &icsk->icsk_retransmit_timer,
-			       icsk_timeout(icsk));
+	if (time_after(tcp_timeout_expires(sk), jiffies)) {
+		sk_reset_timer(sk, &sk->tcp_retransmit_timer,
+			       tcp_timeout_expires(sk));
 		return;
 	}
 	tcp_mstamp_refresh(tcp_sk(sk));
@@ -725,12 +725,10 @@ void tcp_write_timer_handler(struct sock *sk)
 
 static void tcp_write_timer(struct timer_list *t)
 {
-	struct inet_connection_sock *icsk =
-			timer_container_of(icsk, t, icsk_retransmit_timer);
-	struct sock *sk = &icsk->icsk_inet.sk;
+	struct sock *sk = timer_container_of(sk, t, tcp_retransmit_timer);
 
 	/* Avoid locking the socket when there is no pending event. */
-	if (!smp_load_acquire(&icsk->icsk_pending))
+	if (!smp_load_acquire(&inet_csk(sk)->icsk_pending))
 		goto out;
 
 	bh_lock_sock(sk);
@@ -755,12 +753,12 @@ void tcp_syn_ack_timeout(const struct request_sock *req)
 
 void tcp_reset_keepalive_timer(struct sock *sk, unsigned long len)
 {
-	sk_reset_timer(sk, &sk->sk_timer, jiffies + len);
+	sk_reset_timer(sk, &inet_csk(sk)->icsk_keepalive_timer, jiffies + len);
 }
 
 static void tcp_delete_keepalive_timer(struct sock *sk)
 {
-	sk_stop_timer(sk, &sk->sk_timer);
+	sk_stop_timer(sk, &inet_csk(sk)->icsk_keepalive_timer);
 }
 
 void tcp_set_keepalive(struct sock *sk, int val)
@@ -777,8 +775,9 @@ EXPORT_IPV6_MOD_GPL(tcp_set_keepalive);
 
 static void tcp_keepalive_timer(struct timer_list *t)
 {
-	struct sock *sk = timer_container_of(sk, t, sk_timer);
-	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct inet_connection_sock *icsk =
+		timer_container_of(icsk, t, icsk_keepalive_timer);
+	struct sock *sk = &icsk->icsk_inet.sk;
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 elapsed;
 
