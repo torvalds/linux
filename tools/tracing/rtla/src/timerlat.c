@@ -48,6 +48,17 @@ timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params)
 		}
 	}
 
+	/* Check if BPF action program is requested but BPF is not available */
+	if (params->bpf_action_program) {
+		if (params->mode == TRACING_MODE_TRACEFS) {
+			err_msg("BPF actions are not supported in tracefs-only mode\n");
+			goto out_err;
+		}
+
+		if (timerlat_load_bpf_action_program(params->bpf_action_program))
+			goto out_err;
+	}
+
 	retval = osnoise_set_timerlat_period_us(tool->context,
 						params->timerlat_period_us ?
 						params->timerlat_period_us :
