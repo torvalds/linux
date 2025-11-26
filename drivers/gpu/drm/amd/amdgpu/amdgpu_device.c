@@ -2665,6 +2665,8 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		chip_name = "navi12";
 		break;
 	case CHIP_CYAN_SKILLFISH:
+		if (adev->discovery.bin)
+			return 0;
 		chip_name = "cyan_skillfish";
 		break;
 	}
