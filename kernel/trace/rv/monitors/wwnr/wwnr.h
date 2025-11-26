@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME wwnr
+
 enum states_wwnr {
 	not_running_wwnr = 0,
 	running_wwnr,

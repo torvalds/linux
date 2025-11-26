@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME opid
+
 enum states_opid {
 	disabled_opid = 0,
 	enabled_opid,

@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME sssw
+
 enum states_sssw {
 	runnable_sssw = 0,
 	signal_wakeup_sssw,

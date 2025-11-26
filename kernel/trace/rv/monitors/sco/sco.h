@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME sco
+
 enum states_sco {
 	thread_context_sco = 0,
 	scheduling_context_sco,

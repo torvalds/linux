@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME snroc
+
 enum states_snroc {
 	other_context_snroc = 0,
 	own_context_snroc,

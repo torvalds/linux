@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/rv.h>
 #include <rv/instrumentation.h>
-#include <rv/da_monitor.h>
 
 #define MODULE_NAME "wip"
 
@@ -14,31 +13,30 @@
 #include <trace/events/sched.h>
 #include <trace/events/preemptirq.h>
 
+#define RV_MON_TYPE RV_MON_PER_CPU
 #include "wip.h"
-
-static struct rv_monitor rv_wip;
-DECLARE_DA_MON_PER_CPU(wip, unsigned char);
+#include <rv/da_monitor.h>
 
 static void handle_preempt_disable(void *data, unsigned long ip, unsigned long parent_ip)
 {
-	da_handle_event_wip(preempt_disable_wip);
+	da_handle_event(preempt_disable_wip);
 }
 
 static void handle_preempt_enable(void *data, unsigned long ip, unsigned long parent_ip)
 {
-	da_handle_start_event_wip(preempt_enable_wip);
+	da_handle_start_event(preempt_enable_wip);
 }
 
 static void handle_sched_waking(void *data, struct task_struct *task)
 {
-	da_handle_event_wip(sched_waking_wip);
+	da_handle_event(sched_waking_wip);
 }
 
 static int enable_wip(void)
 {
 	int retval;
 
-	retval = da_monitor_init_wip();
+	retval = da_monitor_init();
 	if (retval)
 		return retval;
 
@@ -51,32 +49,32 @@ static int enable_wip(void)
 
 static void disable_wip(void)
 {
-	rv_wip.enabled = 0;
+	rv_this.enabled = 0;
 
 	rv_detach_trace_probe("wip", preempt_disable, handle_preempt_disable);
 	rv_detach_trace_probe("wip", preempt_enable, handle_preempt_enable);
 	rv_detach_trace_probe("wip", sched_waking, handle_sched_waking);
 
-	da_monitor_destroy_wip();
+	da_monitor_destroy();
 }
 
-static struct rv_monitor rv_wip = {
+static struct rv_monitor rv_this = {
 	.name = "wip",
 	.description = "wakeup in preemptive per-cpu testing monitor.",
 	.enable = enable_wip,
 	.disable = disable_wip,
-	.reset = da_monitor_reset_all_wip,
+	.reset = da_monitor_reset_all,
 	.enabled = 0,
 };
 
 static int __init register_wip(void)
 {
-	return rv_register_monitor(&rv_wip, NULL);
+	return rv_register_monitor(&rv_this, NULL);
 }
 
 static void __exit unregister_wip(void)
 {
-	rv_unregister_monitor(&rv_wip);
+	rv_unregister_monitor(&rv_this);
 }
 
 module_init(register_wip);

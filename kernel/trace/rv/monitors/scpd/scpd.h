@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME scpd
+
 enum states_scpd {
 	cant_sched_scpd = 0,
 	can_sched_scpd,

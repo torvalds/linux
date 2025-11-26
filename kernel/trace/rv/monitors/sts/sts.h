@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME sts
+
 enum states_sts {
 	can_sched_sts = 0,
 	cant_sched_sts,

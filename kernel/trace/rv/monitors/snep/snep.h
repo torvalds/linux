@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME snep
+
 enum states_snep {
 	non_scheduling_context_snep = 0,
 	scheduling_contex_snep,

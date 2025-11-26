@@ -13,82 +13,85 @@
 
 #include <rv/automata.h>
 #include <linux/rv.h>
+#include <linux/stringify.h>
 #include <linux/bug.h>
 #include <linux/sched.h>
+
+static struct rv_monitor rv_this;
 
 /*
  * Generic helpers for all types of deterministic automata monitors.
  */
-#define DECLARE_DA_MON_GENERIC_HELPERS(name, type)						\
-												\
-static void react_##name(type curr_state, type event)						\
-{												\
-	rv_react(&rv_##name,									\
-		 "rv: monitor %s does not allow event %s on state %s\n",			\
-		 #name,										\
-		 model_get_event_name_##name(event),						\
-		 model_get_state_name_##name(curr_state));					\
-}												\
-												\
-/*												\
- * da_monitor_reset_##name - reset a monitor and setting it to init state			\
- */												\
-static inline void da_monitor_reset_##name(struct da_monitor *da_mon)				\
-{												\
-	da_mon->monitoring = 0;									\
-	da_mon->curr_state = model_get_initial_state_##name();					\
-}												\
-												\
-/*												\
- * da_monitor_start_##name - start monitoring							\
- *												\
- * The monitor will ignore all events until monitoring is set to true. This			\
- * function needs to be called to tell the monitor to start monitoring.				\
- */												\
-static inline void da_monitor_start_##name(struct da_monitor *da_mon)				\
-{												\
-	da_mon->curr_state = model_get_initial_state_##name();					\
-	da_mon->monitoring = 1;									\
-}												\
-												\
-/*												\
- * da_monitoring_##name - returns true if the monitor is processing events			\
- */												\
-static inline bool da_monitoring_##name(struct da_monitor *da_mon)				\
-{												\
-	return da_mon->monitoring;								\
-}												\
-												\
-/*												\
- * da_monitor_enabled_##name - checks if the monitor is enabled					\
- */												\
-static inline bool da_monitor_enabled_##name(void)						\
-{												\
-	/* global switch */									\
-	if (unlikely(!rv_monitoring_on()))							\
-		return 0;									\
-												\
-	/* monitor enabled */									\
-	if (unlikely(!rv_##name.enabled))							\
-		return 0;									\
-												\
-	return 1;										\
-}												\
-												\
-/*												\
- * da_monitor_handling_event_##name - checks if the monitor is ready to handle events		\
- */												\
-static inline bool da_monitor_handling_event_##name(struct da_monitor *da_mon)			\
-{												\
-												\
-	if (!da_monitor_enabled_##name())							\
-		return 0;									\
-												\
-	/* monitor is actually monitoring */							\
-	if (unlikely(!da_monitoring_##name(da_mon)))						\
-		return 0;									\
-												\
-	return 1;										\
+#define DECLARE_DA_MON_GENERIC_HELPERS(name, type)
+
+static void react(type curr_state, type event)
+{
+	rv_react(&rv_this,
+		 "rv: monitor %s does not allow event %s on state %s\n",
+		 __stringify(MONITOR_NAME),
+		 model_get_event_name(event),
+		 model_get_state_name(curr_state));
+}
+
+/*
+ * da_monitor_reset - reset a monitor and setting it to init state
+ */
+static inline void da_monitor_reset(struct da_monitor *da_mon)
+{
+	da_mon->monitoring = 0;
+	da_mon->curr_state = model_get_initial_state();
+}
+
+/*
+ * da_monitor_start - start monitoring
+ *
+ * The monitor will ignore all events until monitoring is set to true. This
+ * function needs to be called to tell the monitor to start monitoring.
+ */
+static inline void da_monitor_start(struct da_monitor *da_mon)
+{
+	da_mon->curr_state = model_get_initial_state();
+	da_mon->monitoring = 1;
+}
+
+/*
+ * da_monitoring - returns true if the monitor is processing events
+ */
+static inline bool da_monitoring(struct da_monitor *da_mon)
+{
+	return da_mon->monitoring;
+}
+
+/*
+ * da_monitor_enabled - checks if the monitor is enabled
+ */
+static inline bool da_monitor_enabled(void)
+{
+	/* global switch */
+	if (unlikely(!rv_monitoring_on()))
+		return 0;
+
+	/* monitor enabled */
+	if (unlikely(!rv_this.enabled))
+		return 0;
+
+	return 1;
+}
+
+/*
+ * da_monitor_handling_event - checks if the monitor is ready to handle events
+ */
+static inline bool da_monitor_handling_event(struct da_monitor *da_mon)
+{
+
+	if (!da_monitor_enabled())
+		return 0;
+
+	/* monitor is actually monitoring */
+	if (unlikely(!da_monitoring(da_mon)))
+		return 0;
+
+	return 1;
 }
 
 /*
@@ -100,37 +103,37 @@ static inline bool da_monitor_handling_event_##name(struct da_monitor *da_mon)		
  * warn and reset the monitor if it runs out of retries. The monitor should be
  * able to handle various orders.
  */
-#define DECLARE_DA_MON_MODEL_HANDLER_IMPLICIT(name, type)					\
-												\
-static inline bool										\
-da_event_##name(struct da_monitor *da_mon, enum events_##name event)				\
-{												\
-	enum states_##name curr_state, next_state;						\
-												\
-	curr_state = READ_ONCE(da_mon->curr_state);						\
-	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {					\
-		next_state = model_get_next_state_##name(curr_state, event);			\
-		if (next_state == INVALID_STATE) {						\
-			react_##name(curr_state, event);					\
-			trace_error_##name(model_get_state_name_##name(curr_state),		\
-					   model_get_event_name_##name(event));			\
-			return false;								\
-		}										\
-		if (likely(try_cmpxchg(&da_mon->curr_state, &curr_state, next_state))) {	\
-			trace_event_##name(model_get_state_name_##name(curr_state),		\
-					   model_get_event_name_##name(event),			\
-					   model_get_state_name_##name(next_state),		\
-					   model_is_final_state_##name(next_state));		\
-			return true;								\
-		}										\
-	}											\
-												\
-	trace_rv_retries_error(#name, model_get_event_name_##name(event));			\
-	pr_warn("rv: " __stringify(MAX_DA_RETRY_RACING_EVENTS)					\
-		" retries reached for event %s, resetting monitor %s",				\
-		model_get_event_name_##name(event), #name);					\
-	return false;										\
-}												\
+#if RV_MON_TYPE == RV_MON_GLOBAL || RV_MON_TYPE == RV_MON_PER_CPU
+
+static inline bool
+da_event(struct da_monitor *da_mon, enum events event)
+{
+	enum states curr_state, next_state;
+
+	curr_state = READ_ONCE(da_mon->curr_state);
+	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {
+		next_state = model_get_next_state(curr_state, event);
+		if (next_state == INVALID_STATE) {
+			react(curr_state, event);
+			CONCATENATE(trace_error_, MONITOR_NAME)(model_get_state_name(curr_state),
+					   model_get_event_name(event));
+			return false;
+		}
+		if (likely(try_cmpxchg(&da_mon->curr_state, &curr_state, next_state))) {
+			CONCATENATE(trace_event_, MONITOR_NAME)(model_get_state_name(curr_state),
+					   model_get_event_name(event),
+					   model_get_state_name(next_state),
+					   model_is_final_state(next_state));
+			return true;
+		}
+	}
+
+	trace_rv_retries_error(__stringify(MONITOR_NAME), model_get_event_name(event));
+	pr_warn("rv: " __stringify(MAX_DA_RETRY_RACING_EVENTS)
+		" retries reached for event %s, resetting monitor %s",
+		model_get_event_name(event), __stringify(MONITOR_NAME));
+	return false;
+}
 
 /*
  * Event handler for per_task monitors.
@@ -139,395 +142,380 @@ da_event_##name(struct da_monitor *da_mon, enum events_##name event)				\
  * warn and reset the monitor if it runs out of retries. The monitor should be
  * able to handle various orders.
  */
-#define DECLARE_DA_MON_MODEL_HANDLER_PER_TASK(name, type)					\
-												\
-static inline bool da_event_##name(struct da_monitor *da_mon, struct task_struct *tsk,		\
-				   enum events_##name event)					\
-{												\
-	enum states_##name curr_state, next_state;						\
-												\
-	curr_state = READ_ONCE(da_mon->curr_state);						\
-	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {					\
-		next_state = model_get_next_state_##name(curr_state, event);			\
-		if (next_state == INVALID_STATE) {						\
-			react_##name(curr_state, event);					\
-			trace_error_##name(tsk->pid,						\
-					   model_get_state_name_##name(curr_state),		\
-					   model_get_event_name_##name(event));			\
-			return false;								\
-		}										\
-		if (likely(try_cmpxchg(&da_mon->curr_state, &curr_state, next_state))) {	\
-			trace_event_##name(tsk->pid,						\
-					   model_get_state_name_##name(curr_state),		\
-					   model_get_event_name_##name(event),			\
-					   model_get_state_name_##name(next_state),		\
-					   model_is_final_state_##name(next_state));		\
-			return true;								\
-		}										\
-	}											\
-												\
-	trace_rv_retries_error(#name, model_get_event_name_##name(event));			\
-	pr_warn("rv: " __stringify(MAX_DA_RETRY_RACING_EVENTS)					\
-		" retries reached for event %s, resetting monitor %s",				\
-		model_get_event_name_##name(event), #name);					\
-	return false;										\
+#elif RV_MON_TYPE == RV_MON_PER_TASK
+
+static inline bool da_event(struct da_monitor *da_mon, struct task_struct *tsk,
+				   enum events event)
+{
+	enum states curr_state, next_state;
+
+	curr_state = READ_ONCE(da_mon->curr_state);
+	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {
+		next_state = model_get_next_state(curr_state, event);
+		if (next_state == INVALID_STATE) {
+			react(curr_state, event);
+			CONCATENATE(trace_error_, MONITOR_NAME)(tsk->pid,
+					   model_get_state_name(curr_state),
+					   model_get_event_name(event));
+			return false;
+		}
+		if (likely(try_cmpxchg(&da_mon->curr_state, &curr_state, next_state))) {
+			CONCATENATE(trace_event_, MONITOR_NAME)(tsk->pid,
+					   model_get_state_name(curr_state),
+					   model_get_event_name(event),
+					   model_get_state_name(next_state),
+					   model_is_final_state(next_state));
+			return true;
+		}
+	}
+
+	trace_rv_retries_error(__stringify(MONITOR_NAME), model_get_event_name(event));
+	pr_warn("rv: " __stringify(MAX_DA_RETRY_RACING_EVENTS)
+		" retries reached for event %s, resetting monitor %s",
+		model_get_event_name(event), __stringify(MONITOR_NAME));
+	return false;
 }
+#endif
 
 /*
  * Functions to define, init and get a global monitor.
  */
-#define DECLARE_DA_MON_INIT_GLOBAL(name, type)							\
-												\
-/*												\
- * global monitor (a single variable)								\
- */												\
-static struct da_monitor da_mon_##name;								\
-												\
-/*												\
- * da_get_monitor_##name - return the global monitor address					\
- */												\
-static struct da_monitor *da_get_monitor_##name(void)						\
-{												\
-	return &da_mon_##name;									\
-}												\
-												\
-/*												\
- * da_monitor_reset_all_##name - reset the single monitor					\
- */												\
-static void da_monitor_reset_all_##name(void)							\
-{												\
-	da_monitor_reset_##name(da_get_monitor_##name());					\
-}												\
-												\
-/*												\
- * da_monitor_init_##name - initialize a monitor						\
- */												\
-static inline int da_monitor_init_##name(void)							\
-{												\
-	da_monitor_reset_all_##name();								\
-	return 0;										\
-}												\
-												\
-/*												\
- * da_monitor_destroy_##name - destroy the monitor						\
- */												\
-static inline void da_monitor_destroy_##name(void)						\
-{												\
-	return;											\
+#if RV_MON_TYPE == RV_MON_GLOBAL
+
+/*
+ * global monitor (a single variable)
+ */
+static struct da_monitor da_mon_this;
+
+/*
+ * da_get_monitor - return the global monitor address
+ */
+static struct da_monitor *da_get_monitor(void)
+{
+	return &da_mon_this;
+}
+
+/*
+ * da_monitor_reset_all - reset the single monitor
+ */
+static void da_monitor_reset_all(void)
+{
+	da_monitor_reset(da_get_monitor());
+}
+
+/*
+ * da_monitor_init - initialize a monitor
+ */
+static inline int da_monitor_init(void)
+{
+	da_monitor_reset_all();
+	return 0;
+}
+
+/*
+ * da_monitor_destroy - destroy the monitor
+ */
+static inline void da_monitor_destroy(void)
+{
+	return;
 }
 
 /*
  * Functions to define, init and get a per-cpu monitor.
  */
-#define DECLARE_DA_MON_INIT_PER_CPU(name, type)							\
-												\
-/*												\
- * per-cpu monitor variables									\
- */												\
-static DEFINE_PER_CPU(struct da_monitor, da_mon_##name);					\
-												\
-/*												\
- * da_get_monitor_##name - return current CPU monitor address					\
- */												\
-static struct da_monitor *da_get_monitor_##name(void)						\
-{												\
-	return this_cpu_ptr(&da_mon_##name);							\
-}												\
-												\
-/*												\
- * da_monitor_reset_all_##name - reset all CPUs' monitor					\
- */												\
-static void da_monitor_reset_all_##name(void)							\
-{												\
-	struct da_monitor *da_mon;								\
-	int cpu;										\
-	for_each_cpu(cpu, cpu_online_mask) {							\
-		da_mon = per_cpu_ptr(&da_mon_##name, cpu);					\
-		da_monitor_reset_##name(da_mon);						\
-	}											\
-}												\
-												\
-/*												\
- * da_monitor_init_##name - initialize all CPUs' monitor					\
- */												\
-static inline int da_monitor_init_##name(void)							\
-{												\
-	da_monitor_reset_all_##name();								\
-	return 0;										\
-}												\
-												\
-/*												\
- * da_monitor_destroy_##name - destroy the monitor						\
- */												\
-static inline void da_monitor_destroy_##name(void)						\
-{												\
-	return;											\
+#elif RV_MON_TYPE == RV_MON_PER_CPU
+
+/*
+ * per-cpu monitor variables
+ */
+static DEFINE_PER_CPU(struct da_monitor, da_mon_this);
+
+/*
+ * da_get_monitor - return current CPU monitor address
+ */
+static struct da_monitor *da_get_monitor(void)
+{
+	return this_cpu_ptr(&da_mon_this);
+}
+
+/*
+ * da_monitor_reset_all - reset all CPUs' monitor
+ */
+static void da_monitor_reset_all(void)
+{
+	struct da_monitor *da_mon;
+	int cpu;
+	for_each_cpu(cpu, cpu_online_mask) {
+		da_mon = per_cpu_ptr(&da_mon_this, cpu);
+		da_monitor_reset(da_mon);
+	}
+}
+
+/*
+ * da_monitor_init - initialize all CPUs' monitor
+ */
+static inline int da_monitor_init(void)
+{
+	da_monitor_reset_all();
+	return 0;
+}
+
+/*
+ * da_monitor_destroy - destroy the monitor
+ */
+static inline void da_monitor_destroy(void)
+{
+	return;
 }
 
 /*
  * Functions to define, init and get a per-task monitor.
  */
-#define DECLARE_DA_MON_INIT_PER_TASK(name, type)						\
-												\
-/*												\
- * The per-task monitor is stored a vector in the task struct. This variable			\
- * stores the position on the vector reserved for this monitor.					\
- */												\
-static int task_mon_slot_##name = RV_PER_TASK_MONITOR_INIT;					\
-												\
-/*												\
- * da_get_monitor_##name - return the monitor in the allocated slot for tsk 			\
- */												\
-static inline struct da_monitor *da_get_monitor_##name(struct task_struct *tsk)			\
-{												\
-	return &tsk->rv[task_mon_slot_##name].da_mon;						\
-}												\
-												\
-static void da_monitor_reset_all_##name(void)							\
-{												\
-	struct task_struct *g, *p;								\
-	int cpu;										\
-												\
-	read_lock(&tasklist_lock);								\
-	for_each_process_thread(g, p)								\
-		da_monitor_reset_##name(da_get_monitor_##name(p));				\
-	for_each_present_cpu(cpu)								\
-		da_monitor_reset_##name(da_get_monitor_##name(idle_task(cpu)));			\
-	read_unlock(&tasklist_lock);								\
-}												\
-												\
-/*												\
- * da_monitor_init_##name - initialize the per-task monitor					\
- *												\
- * Try to allocate a slot in the task's vector of monitors. If there				\
- * is an available slot, use it and reset all task's monitor.					\
- */												\
-static int da_monitor_init_##name(void)								\
-{												\
-	int slot;										\
-												\
-	slot = rv_get_task_monitor_slot();							\
-	if (slot < 0 || slot >= RV_PER_TASK_MONITOR_INIT)					\
-		return slot;									\
-												\
-	task_mon_slot_##name = slot;								\
-												\
-	da_monitor_reset_all_##name();								\
-	return 0;										\
-}												\
-												\
-/*												\
- * da_monitor_destroy_##name - return the allocated slot					\
- */												\
-static inline void da_monitor_destroy_##name(void)						\
-{												\
-	if (task_mon_slot_##name == RV_PER_TASK_MONITOR_INIT) {					\
-		WARN_ONCE(1, "Disabling a disabled monitor: " #name);				\
-		return;										\
-	}											\
-	rv_put_task_monitor_slot(task_mon_slot_##name);						\
-	task_mon_slot_##name = RV_PER_TASK_MONITOR_INIT;					\
-	return;											\
+#elif RV_MON_TYPE == RV_MON_PER_TASK
+
+/*
+ * The per-task monitor is stored a vector in the task struct. This variable
+ * stores the position on the vector reserved for this monitor.
+ */
+static int task_mon_slot = RV_PER_TASK_MONITOR_INIT;
+
+/*
+ * da_get_monitor - return the monitor in the allocated slot for tsk
+ */
+static inline struct da_monitor *da_get_monitor(struct task_struct *tsk)
+{
+	return &tsk->rv[task_mon_slot].da_mon;
+}
+
+static void da_monitor_reset_all(void)
+{
+	struct task_struct *g, *p;
+	int cpu;
+
+	read_lock(&tasklist_lock);
+	for_each_process_thread(g, p)
+		da_monitor_reset(da_get_monitor(p));
+	for_each_present_cpu(cpu)
+		da_monitor_reset(da_get_monitor(idle_task(cpu)));
+	read_unlock(&tasklist_lock);
 }
 
 /*
- * Handle event for implicit monitor: da_get_monitor_##name() will figure out
+ * da_monitor_init - initialize the per-task monitor
+ *
+ * Try to allocate a slot in the task's vector of monitors. If there
+ * is an available slot, use it and reset all task's monitor.
+ */
+static int da_monitor_init(void)
+{
+	int slot;
+
+	slot = rv_get_task_monitor_slot();
+	if (slot < 0 || slot >= RV_PER_TASK_MONITOR_INIT)
+		return slot;
+
+	task_mon_slot = slot;
+
+	da_monitor_reset_all();
+	return 0;
+}
+
+/*
+ * da_monitor_destroy - return the allocated slot
+ */
+static inline void da_monitor_destroy(void)
+{
+	if (task_mon_slot == RV_PER_TASK_MONITOR_INIT) {
+		WARN_ONCE(1, "Disabling a disabled monitor: " __stringify(MONITOR_NAME));
+		return;
+	}
+	rv_put_task_monitor_slot(task_mon_slot);
+	task_mon_slot = RV_PER_TASK_MONITOR_INIT;
+	return;
+}
+#endif
+
+/*
+ * Handle event for implicit monitor: da_get_monitor() will figure out
  * the monitor.
  */
-#define DECLARE_DA_MON_MONITOR_HANDLER_IMPLICIT(name, type)					\
-												\
-static inline void __da_handle_event_##name(struct da_monitor *da_mon,				\
-					    enum events_##name event)				\
-{												\
-	bool retval;										\
-												\
-	retval = da_event_##name(da_mon, event);						\
-	if (!retval)										\
-		da_monitor_reset_##name(da_mon);						\
-}												\
-												\
-/*												\
- * da_handle_event_##name - handle an event							\
- */												\
-static inline void da_handle_event_##name(enum events_##name event)				\
-{												\
-	struct da_monitor *da_mon = da_get_monitor_##name();					\
-	bool retval;										\
-												\
-	retval = da_monitor_handling_event_##name(da_mon);					\
-	if (!retval)										\
-		return;										\
-												\
-	__da_handle_event_##name(da_mon, event);						\
-}												\
-												\
-/*												\
- * da_handle_start_event_##name - start monitoring or handle event				\
- *												\
- * This function is used to notify the monitor that the system is returning			\
- * to the initial state, so the monitor can start monitoring in the next event.			\
- * Thus:											\
- *												\
- * If the monitor already started, handle the event.						\
- * If the monitor did not start yet, start the monitor but skip the event.			\
- */												\
-static inline bool da_handle_start_event_##name(enum events_##name event)			\
-{												\
-	struct da_monitor *da_mon;								\
-												\
-	if (!da_monitor_enabled_##name())							\
-		return 0;									\
-												\
-	da_mon = da_get_monitor_##name();							\
-												\
-	if (unlikely(!da_monitoring_##name(da_mon))) {						\
-		da_monitor_start_##name(da_mon);						\
-		return 0;									\
-	}											\
-												\
-	__da_handle_event_##name(da_mon, event);						\
-												\
-	return 1;										\
-}												\
-												\
-/*												\
- * da_handle_start_run_event_##name - start monitoring and handle event				\
- *												\
- * This function is used to notify the monitor that the system is in the			\
- * initial state, so the monitor can start monitoring and handling event.			\
- */												\
-static inline bool da_handle_start_run_event_##name(enum events_##name event)			\
-{												\
-	struct da_monitor *da_mon;								\
-												\
-	if (!da_monitor_enabled_##name())							\
-		return 0;									\
-												\
-	da_mon = da_get_monitor_##name();							\
-												\
-	if (unlikely(!da_monitoring_##name(da_mon)))						\
-		da_monitor_start_##name(da_mon);						\
-												\
-	__da_handle_event_##name(da_mon, event);						\
-												\
-	return 1;										\
+#if RV_MON_TYPE == RV_MON_GLOBAL || RV_MON_TYPE == RV_MON_PER_CPU
+
+static inline void __da_handle_event(struct da_monitor *da_mon,
+					    enum events event)
+{
+	bool retval;
+
+	retval = da_event(da_mon, event);
+	if (!retval)
+		da_monitor_reset(da_mon);
+}
+
+/*
+ * da_handle_event - handle an event
+ */
+static inline void da_handle_event(enum events event)
+{
+	struct da_monitor *da_mon = da_get_monitor();
+	bool retval;
+
+	retval = da_monitor_handling_event(da_mon);
+	if (!retval)
+		return;
+
+	__da_handle_event(da_mon, event);
+}
+
+/*
+ * da_handle_start_event - start monitoring or handle event
+ *
+ * This function is used to notify the monitor that the system is returning
+ * to the initial state, so the monitor can start monitoring in the next event.
+ * Thus:
+ *
+ * If the monitor already started, handle the event.
+ * If the monitor did not start yet, start the monitor but skip the event.
+ */
+static inline bool da_handle_start_event(enum events event)
+{
+	struct da_monitor *da_mon;
+
+	if (!da_monitor_enabled())
+		return 0;
+
+	da_mon = da_get_monitor();
+
+	if (unlikely(!da_monitoring(da_mon))) {
+		da_monitor_start(da_mon);
+		return 0;
+	}
+
+	__da_handle_event(da_mon, event);
+
+	return 1;
+}
+
+/*
+ * da_handle_start_run_event - start monitoring and handle event
+ *
+ * This function is used to notify the monitor that the system is in the
+ * initial state, so the monitor can start monitoring and handling event.
+ */
+static inline bool da_handle_start_run_event(enum events event)
+{
+	struct da_monitor *da_mon;
+
+	if (!da_monitor_enabled())
+		return 0;
+
+	da_mon = da_get_monitor();
+
+	if (unlikely(!da_monitoring(da_mon)))
+		da_monitor_start(da_mon);
+
+	__da_handle_event(da_mon, event);
+
+	return 1;
 }
 
 /*
  * Handle event for per task.
  */
-#define DECLARE_DA_MON_MONITOR_HANDLER_PER_TASK(name, type)					\
-												\
-static inline void										\
-__da_handle_event_##name(struct da_monitor *da_mon, struct task_struct *tsk,			\
-			 enum events_##name event)						\
-{												\
-	bool retval;										\
-												\
-	retval = da_event_##name(da_mon, tsk, event);						\
-	if (!retval)										\
-		da_monitor_reset_##name(da_mon);						\
-}												\
-												\
-/*												\
- * da_handle_event_##name - handle an event							\
- */												\
-static inline void										\
-da_handle_event_##name(struct task_struct *tsk, enum events_##name event)			\
-{												\
-	struct da_monitor *da_mon = da_get_monitor_##name(tsk);					\
-	bool retval;										\
-												\
-	retval = da_monitor_handling_event_##name(da_mon);					\
-	if (!retval)										\
-		return;										\
-												\
-	__da_handle_event_##name(da_mon, tsk, event);						\
-}												\
-												\
-/*												\
- * da_handle_start_event_##name - start monitoring or handle event				\
- *												\
- * This function is used to notify the monitor that the system is returning			\
- * to the initial state, so the monitor can start monitoring in the next event.			\
- * Thus:											\
- *												\
- * If the monitor already started, handle the event.						\
- * If the monitor did not start yet, start the monitor but skip the event.			\
- */												\
-static inline bool										\
-da_handle_start_event_##name(struct task_struct *tsk, enum events_##name event)			\
-{												\
-	struct da_monitor *da_mon;								\
-												\
-	if (!da_monitor_enabled_##name())							\
-		return 0;									\
-												\
-	da_mon = da_get_monitor_##name(tsk);							\
-												\
-	if (unlikely(!da_monitoring_##name(da_mon))) {						\
-		da_monitor_start_##name(da_mon);						\
-		return 0;									\
-	}											\
-												\
-	__da_handle_event_##name(da_mon, tsk, event);						\
-												\
-	return 1;										\
-}												\
-												\
-/*												\
- * da_handle_start_run_event_##name - start monitoring and handle event				\
- *												\
- * This function is used to notify the monitor that the system is in the			\
- * initial state, so the monitor can start monitoring and handling event.			\
- */												\
-static inline bool										\
-da_handle_start_run_event_##name(struct task_struct *tsk, enum events_##name event)		\
-{												\
-	struct da_monitor *da_mon;								\
-												\
-	if (!da_monitor_enabled_##name())							\
-		return 0;									\
-												\
-	da_mon = da_get_monitor_##name(tsk);							\
-												\
-	if (unlikely(!da_monitoring_##name(da_mon)))						\
-		da_monitor_start_##name(da_mon);						\
-												\
-	__da_handle_event_##name(da_mon, tsk, event);						\
-												\
-	return 1;										\
+#elif RV_MON_TYPE == RV_MON_PER_TASK
+
+static inline void
+__da_handle_event(struct da_monitor *da_mon, struct task_struct *tsk,
+			 enum events event)
+{
+	bool retval;
+
+	retval = da_event(da_mon, tsk, event);
+	if (!retval)
+		da_monitor_reset(da_mon);
 }
+
+/*
+ * da_handle_event - handle an event
+ */
+static inline void
+da_handle_event(struct task_struct *tsk, enum events event)
+{
+	struct da_monitor *da_mon = da_get_monitor(tsk);
+	bool retval;
+
+	retval = da_monitor_handling_event(da_mon);
+	if (!retval)
+		return;
+
+	__da_handle_event(da_mon, tsk, event);
+}
+
+/*
+ * da_handle_start_event - start monitoring or handle event
+ *
+ * This function is used to notify the monitor that the system is returning
+ * to the initial state, so the monitor can start monitoring in the next event.
+ * Thus:
+ *
+ * If the monitor already started, handle the event.
+ * If the monitor did not start yet, start the monitor but skip the event.
+ */
+static inline bool
+da_handle_start_event(struct task_struct *tsk, enum events event)
+{
+	struct da_monitor *da_mon;
+
+	if (!da_monitor_enabled())
+		return 0;
+
+	da_mon = da_get_monitor(tsk);
+
+	if (unlikely(!da_monitoring(da_mon))) {
+		da_monitor_start(da_mon);
+		return 0;
+	}
+
+	__da_handle_event(da_mon, tsk, event);
+
+	return 1;
+}
+
+/*
+ * da_handle_start_run_event - start monitoring and handle event
+ *
+ * This function is used to notify the monitor that the system is in the
+ * initial state, so the monitor can start monitoring and handling event.
+ */
+static inline bool
+da_handle_start_run_event(struct task_struct *tsk, enum events event)
+{
+	struct da_monitor *da_mon;
+
+	if (!da_monitor_enabled())
+		return 0;
+
+	da_mon = da_get_monitor(tsk);
+
+	if (unlikely(!da_monitoring(da_mon)))
+		da_monitor_start(da_mon);
+
+	__da_handle_event(da_mon, tsk, event);
+
+	return 1;
+}
+#endif
 
 /*
  * Entry point for the global monitor.
  */
-#define DECLARE_DA_MON_GLOBAL(name, type)							\
-												\
-DECLARE_AUTOMATA_HELPERS(name, type)								\
-DECLARE_DA_MON_GENERIC_HELPERS(name, type)							\
-DECLARE_DA_MON_MODEL_HANDLER_IMPLICIT(name, type)						\
-DECLARE_DA_MON_INIT_GLOBAL(name, type)								\
-DECLARE_DA_MON_MONITOR_HANDLER_IMPLICIT(name, type)
+#define DECLARE_DA_MON_GLOBAL(name, type)
 
 /*
  * Entry point for the per-cpu monitor.
  */
-#define DECLARE_DA_MON_PER_CPU(name, type)							\
-												\
-DECLARE_AUTOMATA_HELPERS(name, type)								\
-DECLARE_DA_MON_GENERIC_HELPERS(name, type)							\
-DECLARE_DA_MON_MODEL_HANDLER_IMPLICIT(name, type)						\
-DECLARE_DA_MON_INIT_PER_CPU(name, type)								\
-DECLARE_DA_MON_MONITOR_HANDLER_IMPLICIT(name, type)
+#define DECLARE_DA_MON_PER_CPU(name, type)
 
 /*
  * Entry point for the per-task monitor.
  */
-#define DECLARE_DA_MON_PER_TASK(name, type)							\
-												\
-DECLARE_AUTOMATA_HELPERS(name, type)								\
-DECLARE_DA_MON_GENERIC_HELPERS(name, type)							\
-DECLARE_DA_MON_MODEL_HANDLER_PER_TASK(name, type)						\
-DECLARE_DA_MON_INIT_PER_TASK(name, type)							\
-DECLARE_DA_MON_MONITOR_HANDLER_PER_TASK(name, type)
+#define DECLARE_DA_MON_PER_TASK(name, type)

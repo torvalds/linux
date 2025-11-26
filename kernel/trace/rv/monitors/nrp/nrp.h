@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME nrp
+
 enum states_nrp {
 	preempt_irq_nrp = 0,
 	any_thread_running_nrp,

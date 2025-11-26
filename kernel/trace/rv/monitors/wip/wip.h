@@ -5,6 +5,8 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME wip
+
 enum states_wip {
 	preemptive_wip = 0,
 	non_preemptive_wip,
