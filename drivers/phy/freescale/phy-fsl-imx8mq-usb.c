@@ -126,8 +126,6 @@ struct imx8mq_usb_phy {
 static void tca_blk_orientation_set(struct tca_blk *tca,
 				enum typec_orientation orientation);
 
-#ifdef CONFIG_TYPEC
-
 static int tca_blk_typec_switch_set(struct typec_switch_dev *sw,
 				enum typec_orientation orientation)
 {
@@ -174,18 +172,6 @@ static void tca_blk_put_typec_switch(struct typec_switch_dev *sw)
 {
 	typec_switch_unregister(sw);
 }
-
-#else
-
-static struct typec_switch_dev *tca_blk_get_typec_switch(struct platform_device *pdev,
-			struct imx8mq_usb_phy *imx_phy)
-{
-	return NULL;
-}
-
-static void tca_blk_put_typec_switch(struct typec_switch_dev *sw) {}
-
-#endif /* CONFIG_TYPEC */
 
 static void tca_blk_orientation_set(struct tca_blk *tca,
 				enum typec_orientation orientation)
