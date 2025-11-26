@@ -215,10 +215,6 @@ arch_initcall(init_x86_sysctl);
 
 struct sysfb_display_info sysfb_primary_display;
 EXPORT_SYMBOL(sysfb_primary_display);
-#if defined(CONFIG_FIRMWARE_EDID)
-struct edid_info edid_info;
-EXPORT_SYMBOL_GPL(edid_info);
-#endif
 
 extern int root_mountflags;
 
@@ -530,7 +526,7 @@ static void __init parse_boot_params(void)
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
 	sysfb_primary_display.screen = boot_params.screen_info;
 #if defined(CONFIG_FIRMWARE_EDID)
-	edid_info = boot_params.edid_info;
+	sysfb_primary_display.edid = boot_params.edid_info;
 #endif
 #ifdef CONFIG_X86_32
 	apm_info.bios = boot_params.apm_bios_info;
