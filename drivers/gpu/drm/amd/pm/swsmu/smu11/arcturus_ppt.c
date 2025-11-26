@@ -74,9 +74,6 @@
 	FEATURE_DPM_FCLK_MASK | \
 	FEATURE_DPM_XGMI_MASK)
 
-/* possible frequency drift (1Mhz) */
-#define EPSILON				1
-
 #define smnPCIE_ESM_CTRL			0x111003D0
 
 #define mmCG_FDO_CTRL0_ARCT			0x8B
@@ -604,29 +601,6 @@ static int arcturus_populate_umd_state_clk(struct smu_context *smu)
 	return 0;
 }
 
-static void arcturus_get_clk_table(struct smu_context *smu,
-				   struct pp_clock_levels_with_latency *clocks,
-				   struct smu_dpm_table *dpm_table)
-{
-	uint32_t i;
-
-	clocks->num_levels = min_t(uint32_t,
-				   dpm_table->count,
-				   (uint32_t)PP_MAX_CLOCK_LEVELS);
-
-	for (i = 0; i < clocks->num_levels; i++) {
-		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 1000;
-		clocks->data[i].latency_in_us = 0;
-	}
-}
-
-static int arcturus_freqs_in_same_level(int32_t frequency1,
-					int32_t frequency2)
-{
-	return (abs(frequency1 - frequency2) <= EPSILON);
-}
-
 static int arcturus_get_smu_metrics_data(struct smu_context *smu,
 					 MetricsMember_t member,
 					 uint32_t *value)
@@ -793,23 +767,18 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 static int arcturus_emit_clk_levels(struct smu_context *smu,
 				    enum smu_clk_type type, char *buf, int *offset)
 {
-	int ret = 0;
-	struct pp_clock_levels_with_latency clocks;
+	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	struct smu_dpm_table *single_dpm_table;
-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
-	struct smu_11_0_dpm_context *dpm_context = NULL;
+	struct smu_pcie_table *pcie_table;
 	uint32_t gen_speed, lane_width;
-	uint32_t i, cur_value = 0;
-	bool freq_match;
-	unsigned int clock_mhz;
+	uint32_t cur_value = 0;
+	int ret = 0;
 	static const char attempt_string[] = "Attempt to get current";
 
 	if (amdgpu_ras_intr_triggered()) {
 		*offset += sysfs_emit_at(buf, *offset, "unavailable\n");
 		return -EBUSY;
 	}
-
-	dpm_context = smu_dpm->dpm_context;
 
 	switch (type) {
 	case SMU_SCLK:
@@ -818,10 +787,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s gfx clk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_MCLK:
@@ -830,10 +800,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s mclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.uclk_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_SOCCLK:
@@ -842,10 +813,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s socclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.soc_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_FCLK:
@@ -854,10 +826,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s fclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.fclk_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_VCLK:
@@ -866,10 +839,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s vclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_DCLK:
@@ -878,56 +852,27 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s dclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_PCIE:
 		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
 		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	switch (type) {
-	case SMU_SCLK:
-	case SMU_MCLK:
-	case SMU_SOCCLK:
-	case SMU_FCLK:
-	case SMU_VCLK:
-	case SMU_DCLK:
-		/*
-		 * For DPM disabled case, there will be only one clock level.
-		 * And it's safe to assume that is always the current clock.
-		 */
-		for (i = 0; i < clocks.num_levels; i++) {
-			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
-			freq_match = arcturus_freqs_in_same_level(clock_mhz, cur_value);
-			freq_match |= (clocks.num_levels == 1);
-
-			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
-				i, clock_mhz,
-				freq_match ? "*" : "");
-		}
-		break;
-
-	case SMU_PCIE:
-		*offset += sysfs_emit_at(buf, *offset, "0: %s %s %dMhz *\n",
-				(gen_speed == 0) ? "2.5GT/s," :
-				(gen_speed == 1) ? "5.0GT/s," :
-				(gen_speed == 2) ? "8.0GT/s," :
-				(gen_speed == 3) ? "16.0GT/s," : "",
-				(lane_width == 1) ? "x1" :
-				(lane_width == 2) ? "x2" :
-				(lane_width == 3) ? "x4" :
-				(lane_width == 4) ? "x8" :
-				(lane_width == 5) ? "x12" :
-				(lane_width == 6) ? "x16" : "",
-				smu->smu_table.boot_values.lclk / 100);
+		pcie_table = &(dpm_context->dpm_tables.pcie_table);
+		/* Populate with current state - arcturus only has boot level lclk */
+		pcie_table->lclk_levels = 1;
+		pcie_table->pcie_gen[0] = gen_speed;
+		pcie_table->pcie_lane[0] = lane_width;
+		pcie_table->lclk_freq[0] =
+			smu->smu_table.boot_values.lclk / 100;
+		ret = smu_cmn_print_pcie_levels(smu, pcie_table, gen_speed,
+						lane_width, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	default:
