@@ -4,7 +4,10 @@ TEST_GEN_PROGS += vfio_iommufd_setup_test
 TEST_GEN_PROGS += vfio_pci_device_test
 TEST_GEN_PROGS += vfio_pci_driver_test
 
+TEST_FILES += scripts/cleanup.sh
+TEST_FILES += scripts/lib.sh
 TEST_FILES += scripts/run.sh
+TEST_FILES += scripts/setup.sh
 
 include ../lib.mk
 include lib/libvfio.mk
