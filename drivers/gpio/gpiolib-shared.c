@@ -83,6 +83,13 @@ static bool gpio_shared_of_node_ignore(struct device_node *node)
 	if (of_node_name_eq(node, "__symbols__"))
 		return true;
 
+	/*
+	 * GPIO hogs have a "gpios" property which is not a phandle and can't
+	 * possibly refer to a shared GPIO.
+	 */
+	if (of_property_present(node, "gpio-hog"))
+		return true;
+
 	return false;
 }
 
