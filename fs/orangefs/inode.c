@@ -878,7 +878,9 @@ int orangefs_update_time(struct inode *inode, int flags)
 
 	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_update_time: %pU\n",
 	    get_khandle_from_ino(inode));
-	flags = generic_update_time(inode, flags);
+
+	flags = inode_update_timestamps(inode, flags);
+
 	memset(&iattr, 0, sizeof iattr);
         if (flags & S_ATIME)
 		iattr.ia_valid |= ATTR_ATIME;
