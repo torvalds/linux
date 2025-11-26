@@ -87,7 +87,7 @@ BUILD_DISAS := n
 
 ifeq ($(feature-libbfd),1)
 	BUILD_DISAS := y
-	OBJTOOL_CFLAGS += -DDISAS
+	OBJTOOL_CFLAGS += -DDISAS -DPACKAGE="objtool"
 	OBJTOOL_LDFLAGS += -lopcodes
 endif
 
