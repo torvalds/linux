@@ -1512,6 +1512,7 @@ static enum rtl_dash_type rtl_get_dash_type(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_51 ... RTL_GIGA_MAC_VER_52:
 		return RTL_DASH_EP;
 	case RTL_GIGA_MAC_VER_66:
+	case RTL_GIGA_MAC_VER_80:
 		return RTL_DASH_25_BP;
 	default:
 		return RTL_DASH_NONE;
