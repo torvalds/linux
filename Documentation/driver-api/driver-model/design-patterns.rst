@@ -103,7 +103,7 @@ The design pattern is the same for an hrtimer or something similar that will
 return a single argument which is a pointer to a struct member in the
 callback.
 
-container_of() is a macro defined in <linux/kernel.h>
+container_of() is a macro defined in <linux/container_of.h>
 
 What container_of() does is to obtain a pointer to the containing struct from
 a pointer to a member by a simple subtraction using the offsetof() macro from
