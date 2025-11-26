@@ -820,12 +820,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	/* add another 512KB for all other allocations on gart (HPD, fences) */
 	size += 512 * 1024;
 
-	if (amdgpu_amdkfd_alloc_gtt_mem(
-			kfd->adev, size, &kfd->gtt_mem,
+	if (amdgpu_amdkfd_alloc_kernel_mem(
+			kfd->adev, size, AMDGPU_GEM_DOMAIN_GTT,
+			&kfd->gtt_mem,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
 		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
-		goto alloc_gtt_mem_failure;
+		goto alloc_kernel_mem_failure;
 	}
 
 	dev_info(kfd_device, "Allocated %d bytes on gart\n", size);
@@ -951,8 +952,8 @@ node_alloc_error:
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
-	amdgpu_amdkfd_free_gtt_mem(kfd->adev, &kfd->gtt_mem);
-alloc_gtt_mem_failure:
+	amdgpu_amdkfd_free_kernel_mem(kfd->adev, &kfd->gtt_mem);
+alloc_kernel_mem_failure:
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
 		kfd->adev->pdev->vendor, kfd->adev->pdev->device);
@@ -969,7 +970,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_doorbell_fini(kfd);
 		ida_destroy(&kfd->doorbell_ida);
 		kfd_gtt_sa_fini(kfd);
-		amdgpu_amdkfd_free_gtt_mem(kfd->adev, &kfd->gtt_mem);
+		amdgpu_amdkfd_free_kernel_mem(kfd->adev, &kfd->gtt_mem);
 	}
 
 	kfree(kfd);

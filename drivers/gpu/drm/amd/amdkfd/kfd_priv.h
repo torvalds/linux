@@ -252,7 +252,7 @@ struct kfd_mem_obj {
 	uint32_t range_end;
 	uint64_t gpu_addr;
 	uint32_t *cpu_ptr;
-	void *gtt_mem;
+	void *mem;
 };
 
 struct kfd_vmid_info {

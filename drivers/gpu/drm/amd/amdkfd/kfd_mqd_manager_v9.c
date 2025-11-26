@@ -135,11 +135,12 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 		if (!mqd_mem_obj)
 			return NULL;
-		retval = amdgpu_amdkfd_alloc_gtt_mem(node->adev,
+		retval = amdgpu_amdkfd_alloc_kernel_mem(node->adev,
 			(ALIGN(q->ctl_stack_size, PAGE_SIZE) +
 			ALIGN(sizeof(struct v9_mqd), PAGE_SIZE)) *
 			NUM_XCC(node->xcc_mask),
-			&(mqd_mem_obj->gtt_mem),
+			AMDGPU_GEM_DOMAIN_GTT,
+			&(mqd_mem_obj->mem),
 			&(mqd_mem_obj->gpu_addr),
 			(void *)&(mqd_mem_obj->cpu_ptr), true);
 
@@ -665,8 +666,8 @@ static void get_xcc_mqd(struct kfd_mem_obj *mqd_mem_obj,
 			       struct kfd_mem_obj *xcc_mqd_mem_obj,
 			       uint64_t offset)
 {
-	xcc_mqd_mem_obj->gtt_mem = (offset == 0) ?
-					mqd_mem_obj->gtt_mem : NULL;
+	xcc_mqd_mem_obj->mem = (offset == 0) ?
+					mqd_mem_obj->mem : NULL;
 	xcc_mqd_mem_obj->gpu_addr = mqd_mem_obj->gpu_addr + offset;
 	xcc_mqd_mem_obj->cpu_ptr = (uint32_t *)((uintptr_t)mqd_mem_obj->cpu_ptr
 						+ offset);
