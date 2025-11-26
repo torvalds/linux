@@ -9,13 +9,7 @@
 #include <linux/types.h>
 
 struct drm_device;
-struct i915_vma;
-
-struct intel_dsb_buffer {
-	u32 *cmd_buf;
-	struct i915_vma *vma;
-	size_t buf_size;
-};
+struct intel_dsb_buffer;
 
 u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf);
 void intel_dsb_buffer_write(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val);
