@@ -308,7 +308,7 @@ struct tb_port {
  * struct usb4_port - USB4 port device
  * @dev: Device for the port
  * @port: Pointer to the lane 0 adapter
- * @can_offline: Does the port have necessary platform support to moved
+ * @can_offline: Does the port have necessary platform support to move
  *		 it into offline mode and back
  * @offline: The port is currently in offline mode
  * @margining: Pointer to margining structure if enabled
@@ -355,7 +355,7 @@ struct tb_retimer {
  * struct tb_path_hop - routing information for a tb_path
  * @in_port: Ingress port of a switch
  * @out_port: Egress port of a switch where the packet is routed out
- *	      (must be on the same switch than @in_port)
+ *	      (must be on the same switch as @in_port)
  * @in_hop_index: HopID where the path configuration entry is placed in
  *		  the path config space of @in_port.
  * @in_counter_index: Used counter index (not used in the driver
@@ -499,9 +499,9 @@ struct tb_path {
  *		    performed. If this returns %-EOPNOTSUPP then the
  *		    native USB4 router operation is called.
  * @usb4_switch_nvm_authenticate_status: Optional callback that the CM
- *					 implementation can be used to
- *					 return status of USB4 NVM_AUTH
- *					 router operation.
+ *					 implementation can use to return
+ *					 status of USB4 NVM_AUTH router
+ *					 operation.
  */
 struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
@@ -1109,7 +1109,7 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 				     struct tb_port *prev);
 
 /**
- * tb_port_path_direction_downstream() - Checks if path directed downstream
+ * tb_port_path_direction_downstream() - Checks if path is directed downstream
  * @src: Source adapter
  * @dst: Destination adapter
  *
@@ -1141,7 +1141,7 @@ static inline bool tb_port_use_credit_allocation(const struct tb_port *port)
 	     (p) = tb_next_port_on_path((src), (dst), (p)))
 
 /**
- * tb_for_each_upstream_port_on_path() - Iterate over each upstreamm port on path
+ * tb_for_each_upstream_port_on_path() - Iterate over each upstream port on path
  * @src: Source port
  * @dst: Destination port
  * @p: Port used as iterator

@@ -201,7 +201,7 @@ static bool parse_line(char **line, u32 *offs, u32 *val, int short_fmt_len,
 #if IS_ENABLED(CONFIG_USB4_DEBUGFS_WRITE)
 /*
  * Path registers need to be written in double word pairs and they both must be
- * read before written. This writes one double word in patch config space
+ * read before written. This writes one double word in path config space
  * following the spec flow.
  */
 static int path_write_one(struct tb_port *port, u32 val, u32 offset)
@@ -1196,7 +1196,7 @@ static int validate_margining(struct tb_margining *margining)
 {
 	/*
 	 * For running on RX2 the link must be asymmetric with 3
-	 * receivers. Because this is can change dynamically, check it
+	 * receivers. Because this can change dynamically, check it
 	 * here before we start the margining and report back error if
 	 * expectations are not met.
 	 */
