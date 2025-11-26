@@ -216,7 +216,7 @@ static int catpt_restore_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
 			continue;
 
 		off = catpt_to_host_offset(info->offset);
-		if (off < cdev->dram.start || off > cdev->dram.end)
+		if (off < cdev->dram.start || off + info->size >= cdev->dram.end)
 			continue;
 
 		dev_dbg(cdev->dev, "restoring memdump: off 0x%08x size %d\n",
@@ -261,11 +261,11 @@ static int catpt_restore_fwimage(struct catpt_dev *cdev,
 			continue;
 
 		off = catpt_to_host_offset(info->offset);
-		if (off < cdev->dram.start || off > cdev->dram.end)
-			continue;
-
 		r2.start = off;
 		r2.end = r2.start + info->size - 1;
+
+		if (r2.start < cdev->dram.start || r2.end > cdev->dram.end)
+			continue;
 
 		if (!resource_intersection(&r2, &r1, &common))
 			continue;
