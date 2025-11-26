@@ -146,6 +146,7 @@ struct kvm_vcpu_stat {
 	u64 instruction_diagnose_500;
 	u64 instruction_diagnose_other;
 	u64 pfault_sync;
+	u64 signal_exits;
 };
 
 #define PGM_OPERATION			0x01

@@ -185,7 +185,8 @@ const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
 	STATS_DESC_COUNTER(VCPU, instruction_diagnose_308),
 	STATS_DESC_COUNTER(VCPU, instruction_diagnose_500),
 	STATS_DESC_COUNTER(VCPU, instruction_diagnose_other),
-	STATS_DESC_COUNTER(VCPU, pfault_sync)
+	STATS_DESC_COUNTER(VCPU, pfault_sync),
+	STATS_DESC_COUNTER(VCPU, signal_exits)
 };
 
 const struct kvm_stats_header kvm_vcpu_stats_header = {
@@ -5251,6 +5252,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 	if (signal_pending(current) && !rc) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
+		vcpu->stat.signal_exits++;
 		rc = -EINTR;
 	}
 
