@@ -174,12 +174,6 @@ static void init_hygon(struct cpuinfo_x86 *c)
 
 	early_init_hygon(c);
 
-	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
-	 */
-	clear_cpu_cap(c, 0*32+31);
-
 	set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 
 	/*
