@@ -3,7 +3,9 @@ TEST_GEN_PROGS += vfio_dma_mapping_test
 TEST_GEN_PROGS += vfio_iommufd_setup_test
 TEST_GEN_PROGS += vfio_pci_device_test
 TEST_GEN_PROGS += vfio_pci_driver_test
-TEST_PROGS_EXTENDED := run.sh
+
+TEST_FILES += scripts/run.sh
+
 include ../lib.mk
 include lib/libvfio.mk
 
