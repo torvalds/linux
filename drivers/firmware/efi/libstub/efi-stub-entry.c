@@ -14,18 +14,15 @@ static void *kernel_image_addr(void *addr)
 	return addr + kernel_image_offset;
 }
 
-struct screen_info *alloc_screen_info(void)
+struct sysfb_display_info *alloc_primary_display(void)
 {
 	if (IS_ENABLED(CONFIG_ARM))
-		return __alloc_screen_info();
+		return __alloc_primary_display();
 
 	if (IS_ENABLED(CONFIG_X86) ||
 	    IS_ENABLED(CONFIG_EFI_EARLYCON) ||
-	    IS_ENABLED(CONFIG_SYSFB)) {
-		struct sysfb_display_info *dpy = kernel_image_addr(&sysfb_primary_display);
-
-		return &dpy->screen;
-	}
+	    IS_ENABLED(CONFIG_SYSFB))
+		return kernel_image_addr(&sysfb_primary_display);
 
 	return NULL;
 }
