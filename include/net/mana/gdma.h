@@ -382,6 +382,10 @@ struct gdma_irq_context {
 	char name[MANA_IRQ_NAME_SZ];
 };
 
+enum gdma_context_flags {
+	GC_PROBE_SUCCEEDED	= 0,
+};
+
 struct gdma_context {
 	struct device		*dev;
 	struct dentry		*mana_pci_debugfs;
@@ -430,6 +434,8 @@ struct gdma_context {
 	u64 pf_cap_flags1;
 
 	struct workqueue_struct *service_wq;
+
+	unsigned long		flags;
 };
 
 static inline bool mana_gd_is_mana(struct gdma_dev *gd)
@@ -600,6 +606,9 @@ enum {
 /* Driver can send HWC periodically to query stats */
 #define GDMA_DRV_CAP_FLAG_1_PERIODIC_STATS_QUERY BIT(21)
 
+/* Driver can handle hardware recovery events during probe */
+#define GDMA_DRV_CAP_FLAG_1_PROBE_RECOVERY BIT(22)
+
 #define GDMA_DRV_CAP_FLAGS1 \
 	(GDMA_DRV_CAP_FLAG_1_EQ_SHARING_MULTI_VPORT | \
 	 GDMA_DRV_CAP_FLAG_1_NAPI_WKDONE_FIX | \
@@ -611,7 +620,8 @@ enum {
 	 GDMA_DRV_CAP_FLAG_1_HANDLE_RECONFIG_EQE | \
 	 GDMA_DRV_CAP_FLAG_1_HW_VPORT_LINK_AWARE | \
 	 GDMA_DRV_CAP_FLAG_1_PERIODIC_STATS_QUERY | \
-	 GDMA_DRV_CAP_FLAG_1_SKB_LINEARIZE)
+	 GDMA_DRV_CAP_FLAG_1_SKB_LINEARIZE | \
+	 GDMA_DRV_CAP_FLAG_1_PROBE_RECOVERY)
 
 #define GDMA_DRV_CAP_FLAGS2 0
 
