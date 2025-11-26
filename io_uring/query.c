@@ -53,8 +53,7 @@ static ssize_t io_query_scq(union io_query_data *data)
 	return sizeof(*e);
 }
 
-static int io_handle_query_entry(struct io_ring_ctx *ctx,
-				 union io_query_data *data, void __user *uhdr,
+static int io_handle_query_entry(union io_query_data *data, void __user *uhdr,
 				 u64 *next_entry)
 {
 	struct io_uring_query_hdr hdr;
@@ -107,7 +106,7 @@ out:
 	return 0;
 }
 
-int io_query(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
+int io_query(void __user *arg, unsigned nr_args)
 {
 	union io_query_data entry_buffer;
 	void __user *uhdr = arg;
@@ -121,7 +120,7 @@ int io_query(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 	while (uhdr) {
 		u64 next_hdr;
 
-		ret = io_handle_query_entry(ctx, &entry_buffer, uhdr, &next_hdr);
+		ret = io_handle_query_entry(&entry_buffer, uhdr, &next_hdr);
 		if (ret)
 			return ret;
 		uhdr = u64_to_user_ptr(next_hdr);

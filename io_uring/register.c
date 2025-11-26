@@ -813,7 +813,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		ret = io_register_mem_region(ctx, arg);
 		break;
 	case IORING_REGISTER_QUERY:
-		ret = io_query(ctx, arg, nr_args);
+		ret = io_query(arg, nr_args);
 		break;
 	case IORING_REGISTER_ZCRX_CTRL:
 		ret = io_zcrx_ctrl(ctx, arg, nr_args);
@@ -888,7 +888,7 @@ static int io_uring_register_blind(unsigned int opcode, void __user *arg,
 	case IORING_REGISTER_SEND_MSG_RING:
 		return io_uring_register_send_msg_ring(arg, nr_args);
 	case IORING_REGISTER_QUERY:
-		return io_query(NULL, arg, nr_args);
+		return io_query(arg, nr_args);
 	}
 	return -EINVAL;
 }
