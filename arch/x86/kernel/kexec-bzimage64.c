@@ -20,6 +20,7 @@
 #include <linux/of_fdt.h>
 #include <linux/efi.h>
 #include <linux/random.h>
+#include <linux/sysfb.h>
 
 #include <asm/bootparam.h>
 #include <asm/setup.h>
@@ -303,7 +304,8 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	params->hdr.hardware_subarch = boot_params.hdr.hardware_subarch;
 
 	/* Copying screen_info will do? */
-	memcpy(&params->screen_info, &screen_info, sizeof(struct screen_info));
+	memcpy(&params->screen_info, &sysfb_primary_display.screen,
+	       sizeof(sysfb_primary_display.screen));
 
 	/* Fill in memsize later */
 	params->screen_info.ext_mem_k = 0;

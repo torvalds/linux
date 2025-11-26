@@ -176,7 +176,7 @@ static int __init efifb_set_system(struct screen_info *si, const struct dmi_syst
 
 static int __init efifb_set_system_callback(const struct dmi_system_id *id)
 {
-	return efifb_set_system(&screen_info, id);
+	return efifb_set_system(&sysfb_primary_display.screen, id);
 }
 
 #define EFIFB_DMI_SYSTEM_ID(vendor, name, enumid)		\
@@ -237,7 +237,7 @@ static const struct dmi_system_id efifb_dmi_system_table[] __initconst = {
 
 static int __init efifb_swap_width_height(const struct dmi_system_id *id)
 {
-	struct screen_info *si = &screen_info;
+	struct screen_info *si = &sysfb_primary_display.screen;
 	u32 bpp = __screen_info_lfb_bits_per_pixel(si);
 
 	swap(si->lfb_width, si->lfb_height);
@@ -256,7 +256,7 @@ static int __init
 efifb_check_and_swap_width_height(const struct dmi_system_id *id)
 {
 	const struct efifb_mode_fixup *data = id->driver_data;
-	struct screen_info *si = &screen_info;
+	struct screen_info *si = &sysfb_primary_display.screen;
 
 	if (data->width == si->lfb_width && data->height == si->lfb_height) {
 		swap(si->lfb_width, si->lfb_height);
@@ -379,7 +379,7 @@ static struct device_node *find_pci_overlap_node(void)
 		}
 
 		for_each_of_pci_range(&parser, &range)
-			if (efifb_overlaps_pci_range(&screen_info, &range))
+			if (efifb_overlaps_pci_range(&sysfb_primary_display.screen, &range))
 				return np;
 	}
 	return NULL;

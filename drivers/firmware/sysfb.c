@@ -66,7 +66,7 @@ static bool sysfb_unregister(void)
  */
 void sysfb_disable(struct device *dev)
 {
-	struct screen_info *si = &screen_info;
+	struct screen_info *si = &sysfb_primary_display.screen;
 	struct device *parent;
 
 	mutex_lock(&disable_lock);
@@ -92,7 +92,7 @@ EXPORT_SYMBOL_GPL(sysfb_disable);
  */
 bool sysfb_handles_screen_info(void)
 {
-	const struct screen_info *si = &screen_info;
+	const struct screen_info *si = &sysfb_primary_display.screen;
 
 	return !!screen_info_video_type(si);
 }
@@ -141,7 +141,7 @@ static struct device *sysfb_parent_dev(const struct screen_info *si)
 
 static __init int sysfb_init(void)
 {
-	struct screen_info *si = &screen_info;
+	struct screen_info *si = &sysfb_primary_display.screen;
 	struct device *parent;
 	unsigned int type;
 	struct simplefb_platform_data mode;

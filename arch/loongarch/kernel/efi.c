@@ -18,7 +18,7 @@
 #include <linux/kobject.h>
 #include <linux/memblock.h>
 #include <linux/reboot.h>
-#include <linux/screen_info.h>
+#include <linux/sysfb.h>
 #include <linux/uaccess.h>
 
 #include <asm/early_ioremap.h>
@@ -75,11 +75,11 @@ bool efi_poweroff_required(void)
 unsigned long __initdata screen_info_table = EFI_INVALID_TABLE_ADDR;
 
 #if defined(CONFIG_SYSFB) || defined(CONFIG_EFI_EARLYCON)
-struct screen_info screen_info __section(".data");
-EXPORT_SYMBOL_GPL(screen_info);
+struct sysfb_display_info sysfb_primary_display __section(".data");
+EXPORT_SYMBOL_GPL(sysfb_primary_display);
 #endif
 
-static void __init init_screen_info(void)
+static void __init init_primary_display(void)
 {
 	struct screen_info *si;
 
@@ -91,11 +91,12 @@ static void __init init_screen_info(void)
 		pr_err("Could not map screen_info config table\n");
 		return;
 	}
-	screen_info = *si;
+	sysfb_primary_display.screen = *si;
 	memset(si, 0, sizeof(*si));
 	early_memunmap(si, sizeof(*si));
 
-	memblock_reserve(__screen_info_lfb_base(&screen_info), screen_info.lfb_size);
+	memblock_reserve(__screen_info_lfb_base(&sysfb_primary_display.screen),
+			 sysfb_primary_display.screen.lfb_size);
 }
 
 void __init efi_init(void)
@@ -129,7 +130,7 @@ void __init efi_init(void)
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
 	if (IS_ENABLED(CONFIG_EFI_EARLYCON) || IS_ENABLED(CONFIG_SYSFB))
-		init_screen_info();
+		init_primary_display();
 
 	if (boot_memmap == EFI_INVALID_TABLE_ADDR)
 		return;

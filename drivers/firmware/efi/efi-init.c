@@ -19,7 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
 #include <linux/platform_device.h>
-#include <linux/screen_info.h>
+#include <linux/sysfb.h>
 
 #include <asm/efi.h>
 
@@ -57,15 +57,15 @@ static phys_addr_t __init efi_to_phys(unsigned long addr)
 extern __weak const efi_config_table_type_t efi_arch_tables[];
 
 /*
- * x86 defines its own screen_info and uses it even without EFI,
- * everything else can get it from here.
+ * x86 defines its own instance of sysfb_primary_display and uses
+ * it even without EFI, everything else can get them from here.
  */
 #if !defined(CONFIG_X86) && (defined(CONFIG_SYSFB) || defined(CONFIG_EFI_EARLYCON))
-struct screen_info screen_info __section(".data");
-EXPORT_SYMBOL_GPL(screen_info);
+struct sysfb_display_info sysfb_primary_display __section(".data");
+EXPORT_SYMBOL_GPL(sysfb_primary_display);
 #endif
 
-static void __init init_screen_info(void)
+static void __init init_primary_display(void)
 {
 	struct screen_info *si;
 
@@ -75,13 +75,13 @@ static void __init init_screen_info(void)
 			pr_err("Could not map screen_info config table\n");
 			return;
 		}
-		screen_info = *si;
+		sysfb_primary_display.screen = *si;
 		memset(si, 0, sizeof(*si));
 		early_memunmap(si, sizeof(*si));
 
-		if (memblock_is_map_memory(screen_info.lfb_base))
-			memblock_mark_nomap(screen_info.lfb_base,
-					    screen_info.lfb_size);
+		if (memblock_is_map_memory(sysfb_primary_display.screen.lfb_base))
+			memblock_mark_nomap(sysfb_primary_display.screen.lfb_base,
+					    sysfb_primary_display.screen.lfb_size);
 
 		if (IS_ENABLED(CONFIG_EFI_EARLYCON))
 			efi_earlycon_reprobe();
@@ -274,5 +274,5 @@ void __init efi_init(void)
 	if (IS_ENABLED(CONFIG_X86) ||
 	    IS_ENABLED(CONFIG_SYSFB) ||
 	    IS_ENABLED(CONFIG_EFI_EARLYCON))
-		init_screen_info();
+		init_primary_display();
 }

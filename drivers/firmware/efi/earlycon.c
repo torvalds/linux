@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/serial_core.h>
-#include <linux/screen_info.h>
+#include <linux/sysfb.h>
 #include <linux/string.h>
 
 #include <asm/early_ioremap.h>
@@ -32,7 +32,7 @@ static void *efi_fb;
  */
 static int __init efi_earlycon_remap_fb(void)
 {
-	const struct screen_info *si = &screen_info;
+	const struct screen_info *si = &sysfb_primary_display.screen;
 
 	/* bail if there is no bootconsole or it was unregistered already */
 	if (!earlycon_console || !console_is_registered(earlycon_console))
@@ -147,7 +147,7 @@ static void efi_earlycon_write_char(u32 *dst, unsigned char c, unsigned int h,
 static void
 efi_earlycon_write(struct console *con, const char *str, unsigned int num)
 {
-	const struct screen_info *si = &screen_info;
+	const struct screen_info *si = &sysfb_primary_display.screen;
 	u32 cur_efi_x = efi_x;
 	unsigned int len;
 	const char *s;
@@ -227,7 +227,7 @@ void __init efi_earlycon_reprobe(void)
 static int __init efi_earlycon_setup(struct earlycon_device *device,
 				     const char *opt)
 {
-	const struct screen_info *si = &screen_info;
+	const struct screen_info *si = &sysfb_primary_display.screen;
 	u16 xres, yres;
 	u32 i;
 

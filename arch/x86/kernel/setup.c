@@ -22,6 +22,7 @@
 #include <linux/random.h>
 #include <linux/root_dev.h>
 #include <linux/static_call.h>
+#include <linux/sysfb.h>
 #include <linux/swiotlb.h>
 #include <linux/tboot.h>
 #include <linux/usb/xhci-dbgp.h>
@@ -211,8 +212,9 @@ arch_initcall(init_x86_sysctl);
 /*
  * Setup options
  */
-struct screen_info screen_info;
-EXPORT_SYMBOL(screen_info);
+
+struct sysfb_display_info sysfb_primary_display;
+EXPORT_SYMBOL(sysfb_primary_display);
 #if defined(CONFIG_FIRMWARE_EDID)
 struct edid_info edid_info;
 EXPORT_SYMBOL_GPL(edid_info);
@@ -526,7 +528,7 @@ static void __init parse_setup_data(void)
 static void __init parse_boot_params(void)
 {
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
-	screen_info = boot_params.screen_info;
+	sysfb_primary_display.screen = boot_params.screen_info;
 #if defined(CONFIG_FIRMWARE_EDID)
 	edid_info = boot_params.edid_info;
 #endif
@@ -1254,7 +1256,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
 	if (!efi_enabled(EFI_BOOT) || (efi_mem_type(0xa0000) != EFI_CONVENTIONAL_MEMORY))
-		vgacon_register_screen(&screen_info);
+		vgacon_register_screen(&sysfb_primary_display.screen);
 #endif
 #endif
 	x86_init.oem.banner();
