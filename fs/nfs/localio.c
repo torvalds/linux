@@ -339,8 +339,6 @@ nfs_is_local_dio_possible(struct nfs_local_kiocb *iocb, int rw,
 
 	if (unlikely(!nf_dio_mem_align || !nf_dio_offset_align))
 		return false;
-	if (unlikely(nf_dio_offset_align > PAGE_SIZE))
-		return false;
 	if (unlikely(len < nf_dio_offset_align))
 		return false;
 
