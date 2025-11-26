@@ -1205,7 +1205,7 @@ class SubMessage(SpecSubMessage):
 
 
 class Family(SpecFamily):
-    def __init__(self, file_name, exclude_ops):
+    def __init__(self, file_name, exclude_ops, fn_prefix):
         # Added by resolve:
         self.c_name = None
         delattr(self, "c_name")
@@ -1236,6 +1236,8 @@ class Family(SpecFamily):
             self.uapi_header_name = self.uapi_header[6:-2]
         else:
             self.uapi_header_name = self.ident_name
+
+        self.fn_prefix = fn_prefix if fn_prefix else f'{self.ident_name}-nl'
 
     def resolve(self):
         self.resolve_up(super())
@@ -2911,12 +2913,12 @@ def print_kernel_op_table_fwd(family, cw, terminate):
             continue
 
         if 'do' in op:
-            name = c_lower(f"{family.ident_name}-nl-{op_name}-doit")
+            name = c_lower(f"{family.fn_prefix}-{op_name}-doit")
             cw.write_func_prot('int', name,
                                ['struct sk_buff *skb', 'struct genl_info *info'], suffix=';')
 
         if 'dump' in op:
-            name = c_lower(f"{family.ident_name}-nl-{op_name}-dumpit")
+            name = c_lower(f"{family.fn_prefix}-{op_name}-dumpit")
             cw.write_func_prot('int', name,
                                ['struct sk_buff *skb', 'struct netlink_callback *cb'], suffix=';')
     cw.nl()
@@ -2942,7 +2944,7 @@ def print_kernel_op_table(family, cw):
                                             for x in op['dont-validate']])), )
             for op_mode in ['do', 'dump']:
                 if op_mode in op:
-                    name = c_lower(f"{family.ident_name}-nl-{op_name}-{op_mode}it")
+                    name = c_lower(f"{family.fn_prefix}-{op_name}-{op_mode}it")
                     members.append((op_mode + 'it', name))
             if family.kernel_policy == 'per-op':
                 struct = Struct(family, op['attribute-set'],
@@ -2980,7 +2982,7 @@ def print_kernel_op_table(family, cw):
                         members.append(('validate',
                                         ' | '.join([c_upper('genl-dont-validate-' + x)
                                                     for x in dont_validate])), )
-                name = c_lower(f"{family.ident_name}-nl-{op_name}-{op_mode}it")
+                name = c_lower(f"{family.fn_prefix}-{op_name}-{op_mode}it")
                 if 'pre' in op[op_mode]:
                     members.append((cb_names[op_mode]['pre'], c_lower(op[op_mode]['pre'])))
                 members.append((op_mode + 'it', name))
@@ -3402,6 +3404,7 @@ def main():
                         help='Do not overwrite the output file if the new output is identical to the old')
     parser.add_argument('--exclude-op', action='append', default=[])
     parser.add_argument('-o', dest='out_file', type=str, default=None)
+    parser.add_argument('--function-prefix', dest='fn_prefix', type=str)
     args = parser.parse_args()
 
     if args.header is None:
@@ -3410,7 +3413,7 @@ def main():
     exclude_ops = [re.compile(expr) for expr in args.exclude_op]
 
     try:
-        parsed = Family(args.spec, exclude_ops)
+        parsed = Family(args.spec, exclude_ops, args.fn_prefix)
         if parsed.license != '((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)':
             print('Spec license:', parsed.license)
             print('License must be: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)')
@@ -3430,11 +3433,16 @@ def main():
     cw.p("/* Do not edit directly, auto-generated from: */")
     cw.p(f"/*\t{spec_kernel} */")
     cw.p(f"/* YNL-GEN {args.mode} {'header' if args.header else 'source'} */")
-    if args.exclude_op or args.user_header:
+    if args.exclude_op or args.user_header or args.fn_prefix:
         line = ''
-        line += ' --user-header '.join([''] + args.user_header)
-        line += ' --exclude-op '.join([''] + args.exclude_op)
+        if args.user_header:
+            line += ' --user-header '.join([''] + args.user_header)
+        if args.exclude_op:
+            line += ' --exclude-op '.join([''] + args.exclude_op)
+        if args.fn_prefix:
+            line += f' --function-prefix {args.fn_prefix}'
         cw.p(f'/* YNL-ARG{line} */')
+    cw.p('/* To regenerate run: tools/net/ynl/ynl-regen.sh */')
     cw.nl()
 
     if args.mode == 'uapi':
