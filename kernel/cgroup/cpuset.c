@@ -1103,52 +1103,32 @@ void dl_rebuild_rd_accounting(void)
  */
 void rebuild_sched_domains_locked(void)
 {
-	struct cgroup_subsys_state *pos_css;
 	struct sched_domain_attr *attr;
 	cpumask_var_t *doms;
-	struct cpuset *cs;
 	int ndoms;
+	int i;
 
 	lockdep_assert_cpus_held();
 	lockdep_assert_held(&cpuset_mutex);
 	force_sd_rebuild = false;
 
-	/*
-	 * If we have raced with CPU hotplug, return early to avoid
-	 * passing doms with offlined cpu to partition_sched_domains().
-	 * Anyways, cpuset_handle_hotplug() will rebuild sched domains.
-	 *
-	 * With no CPUs in any subpartitions, top_cpuset's effective CPUs
-	 * should be the same as the active CPUs, so checking only top_cpuset
-	 * is enough to detect racing CPU offlines.
-	 */
-	if (cpumask_empty(subpartitions_cpus) &&
-	    !cpumask_equal(top_cpuset.effective_cpus, cpu_active_mask))
-		return;
-
-	/*
-	 * With subpartition CPUs, however, the effective CPUs of a partition
-	 * root should be only a subset of the active CPUs.  Since a CPU in any
-	 * partition root could be offlined, all must be checked.
-	 */
-	if (!cpumask_empty(subpartitions_cpus)) {
-		rcu_read_lock();
-		cpuset_for_each_descendant_pre(cs, pos_css, &top_cpuset) {
-			if (!is_partition_valid(cs)) {
-				pos_css = css_rightmost_descendant(pos_css);
-				continue;
-			}
-			if (!cpumask_subset(cs->effective_cpus,
-					    cpu_active_mask)) {
-				rcu_read_unlock();
-				return;
-			}
-		}
-		rcu_read_unlock();
-	}
-
 	/* Generate domain masks and attrs */
 	ndoms = generate_sched_domains(&doms, &attr);
+
+	/*
+	* cpuset_hotplug_workfn is invoked synchronously now, thus this
+	* function should not race with CPU hotplug. And the effective CPUs
+	* must not include any offline CPUs. Passing an offline CPU in the
+	* doms to partition_sched_domains() will trigger a kernel panic.
+	*
+	* We perform a final check here: if the doms contains any
+	* offline CPUs, a warning is emitted and we return directly to
+	* prevent the panic.
+	*/
+	for (i = 0; i < ndoms; ++i) {
+		if (WARN_ON_ONCE(!cpumask_subset(doms[i], cpu_active_mask)))
+			return;
+	}
 
 	/* Have scheduler rebuild the domains */
 	partition_sched_domains(ndoms, doms, attr);
