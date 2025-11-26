@@ -615,8 +615,11 @@ static void nfs_local_read_aio_complete(struct kiocb *kiocb, long ret)
 	nfs_local_pgio_aio_complete(iocb); /* Calls nfs_local_read_aio_complete_work */
 }
 
-static void do_nfs_local_call_read(struct nfs_local_kiocb *iocb, struct file *filp)
+static void nfs_local_call_read(struct work_struct *work)
 {
+	struct nfs_local_kiocb *iocb =
+		container_of(work, struct nfs_local_kiocb, work);
+	struct file *filp = iocb->kiocb.ki_filp;
 	bool force_done = false;
 	ssize_t status;
 	int n_iters;
@@ -633,7 +636,9 @@ static void do_nfs_local_call_read(struct nfs_local_kiocb *iocb, struct file *fi
 		} else
 			iocb->kiocb.ki_flags &= ~IOCB_DIRECT;
 
-		status = filp->f_op->read_iter(&iocb->kiocb, &iocb->iters[i]);
+		scoped_with_creds(filp->f_cred)
+			status = filp->f_op->read_iter(&iocb->kiocb, &iocb->iters[i]);
+
 		if (status != -EIOCBQUEUED) {
 			if (unlikely(status >= 0 && status < iocb->iters[i].count))
 				force_done = true; /* Partial read */
@@ -643,16 +648,6 @@ static void do_nfs_local_call_read(struct nfs_local_kiocb *iocb, struct file *fi
 			}
 		}
 	}
-}
-
-static void nfs_local_call_read(struct work_struct *work)
-{
-	struct nfs_local_kiocb *iocb =
-		container_of(work, struct nfs_local_kiocb, work);
-	struct file *filp = iocb->kiocb.ki_filp;
-
-	scoped_with_creds(filp->f_cred)
-		do_nfs_local_call_read(iocb, filp);
 }
 
 static int
@@ -822,12 +817,17 @@ static void nfs_local_write_aio_complete(struct kiocb *kiocb, long ret)
 	nfs_local_pgio_aio_complete(iocb); /* Calls nfs_local_write_aio_complete_work */
 }
 
-static ssize_t do_nfs_local_call_write(struct nfs_local_kiocb *iocb,
-				       struct file *filp)
+static void nfs_local_call_write(struct work_struct *work)
 {
+	struct nfs_local_kiocb *iocb =
+		container_of(work, struct nfs_local_kiocb, work);
+	struct file *filp = iocb->kiocb.ki_filp;
+	unsigned long old_flags = current->flags;
 	bool force_done = false;
 	ssize_t status;
 	int n_iters;
+
+	current->flags |= PF_LOCAL_THROTTLE | PF_MEMALLOC_NOIO;
 
 	file_start_write(filp);
 	n_iters = atomic_read(&iocb->n_iters);
@@ -842,7 +842,9 @@ static ssize_t do_nfs_local_call_write(struct nfs_local_kiocb *iocb,
 		} else
 			iocb->kiocb.ki_flags &= ~IOCB_DIRECT;
 
-		status = filp->f_op->write_iter(&iocb->kiocb, &iocb->iters[i]);
+		scoped_with_creds(filp->f_cred)
+			status = filp->f_op->write_iter(&iocb->kiocb, &iocb->iters[i]);
+
 		if (status != -EIOCBQUEUED) {
 			if (unlikely(status >= 0 && status < iocb->iters[i].count))
 				force_done = true; /* Partial write */
@@ -853,22 +855,6 @@ static ssize_t do_nfs_local_call_write(struct nfs_local_kiocb *iocb,
 		}
 	}
 	file_end_write(filp);
-
-	return status;
-}
-
-static void nfs_local_call_write(struct work_struct *work)
-{
-	struct nfs_local_kiocb *iocb =
-		container_of(work, struct nfs_local_kiocb, work);
-	struct file *filp = iocb->kiocb.ki_filp;
-	unsigned long old_flags = current->flags;
-	ssize_t status;
-
-	current->flags |= PF_LOCAL_THROTTLE | PF_MEMALLOC_NOIO;
-
-	scoped_with_creds(filp->f_cred)
-		status = do_nfs_local_call_write(iocb, filp);
 
 	current->flags = old_flags;
 }
