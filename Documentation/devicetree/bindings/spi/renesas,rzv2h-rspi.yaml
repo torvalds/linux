@@ -16,6 +16,9 @@ properties:
           - renesas,r9a09g057-rspi # RZ/V2H(P)
           - renesas,r9a09g077-rspi # RZ/T2H
       - items:
+          - const: renesas,r9a09g056-rspi # RZ/V2N
+          - const: renesas,r9a09g057-rspi
+      - items:
           - const: renesas,r9a09g087-rspi # RZ/N2H
           - const: renesas,r9a09g077-rspi # RZ/T2H
 
