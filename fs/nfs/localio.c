@@ -43,8 +43,8 @@ struct nfs_local_kiocb {
 	size_t                  end_len;
 	short int		end_iter_index;
 	atomic_t		n_iters;
+	struct iov_iter		iters[NFSLOCAL_MAX_IOS];
 	bool			iter_is_dio_aligned[NFSLOCAL_MAX_IOS];
-	struct iov_iter		iters[NFSLOCAL_MAX_IOS] ____cacheline_aligned;
 	/* End mostly DIO-specific members */
 };
 
