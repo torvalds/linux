@@ -623,7 +623,7 @@ static const struct genl_split_ops wireguard_nl_ops[] = {
 		.dumpit = wg_get_device_dump,
 		.done = wg_get_device_done,
 		.policy = device_policy,
-		.maxattr = WGDEVICE_A_PEERS,
+		.maxattr = WGDEVICE_A_IFNAME,
 		.flags = GENL_UNS_ADMIN_PERM | GENL_CMD_CAP_DUMP,
 	}, {
 		.cmd = WG_CMD_SET_DEVICE,
