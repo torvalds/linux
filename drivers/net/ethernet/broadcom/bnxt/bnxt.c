@@ -14025,11 +14025,19 @@ static void bnxt_dump_rx_sw_state(struct bnxt_napi *bnapi)
 
 static void bnxt_dump_cp_sw_state(struct bnxt_napi *bnapi)
 {
-	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-	int i = bnapi->index;
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring, *cpr2;
+	int i = bnapi->index, j;
 
 	netdev_info(bnapi->bp->dev, "[%d]: cp{fw_ring: %d raw_cons: %x}\n",
 		    i, cpr->cp_ring_struct.fw_ring_id, cpr->cp_raw_cons);
+	for (j = 0; j < cpr->cp_ring_count; j++) {
+		cpr2 = &cpr->cp_ring_arr[j];
+		if (!cpr2->bnapi)
+			continue;
+		netdev_info(bnapi->bp->dev, "[%d.%d]: cp{fw_ring: %d raw_cons: %x}\n",
+			    i, j, cpr2->cp_ring_struct.fw_ring_id,
+			    cpr2->cp_raw_cons);
+	}
 }
 
 static void bnxt_dbg_dump_states(struct bnxt *bp)
