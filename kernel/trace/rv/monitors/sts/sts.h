@@ -8,26 +8,26 @@
 #define MONITOR_NAME sts
 
 enum states_sts {
-	can_sched_sts = 0,
+	can_sched_sts,
 	cant_sched_sts,
 	disable_to_switch_sts,
 	enable_to_exit_sts,
 	in_irq_sts,
 	scheduling_sts,
 	switching_sts,
-	state_max_sts
+	state_max_sts,
 };
 
 #define INVALID_STATE state_max_sts
 
 enum events_sts {
-	irq_disable_sts = 0,
+	irq_disable_sts,
 	irq_enable_sts,
 	irq_entry_sts,
 	sched_switch_sts,
 	schedule_entry_sts,
 	schedule_exit_sts,
-	event_max_sts
+	event_max_sts,
 };
 
 struct automaton_sts {
@@ -46,7 +46,7 @@ static const struct automaton_sts automaton_sts = {
 		"enable_to_exit",
 		"in_irq",
 		"scheduling",
-		"switching"
+		"switching",
 	},
 	.event_names = {
 		"irq_disable",
@@ -54,7 +54,7 @@ static const struct automaton_sts automaton_sts = {
 		"irq_entry",
 		"sched_switch",
 		"schedule_entry",
-		"schedule_exit"
+		"schedule_exit",
 	},
 	.function = {
 		{
@@ -63,7 +63,7 @@ static const struct automaton_sts automaton_sts = {
 			INVALID_STATE,
 			INVALID_STATE,
 			scheduling_sts,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 		{
 			INVALID_STATE,
@@ -71,7 +71,7 @@ static const struct automaton_sts automaton_sts = {
 			cant_sched_sts,
 			INVALID_STATE,
 			INVALID_STATE,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 		{
 			INVALID_STATE,
@@ -79,7 +79,7 @@ static const struct automaton_sts automaton_sts = {
 			in_irq_sts,
 			switching_sts,
 			INVALID_STATE,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 		{
 			enable_to_exit_sts,
@@ -87,7 +87,7 @@ static const struct automaton_sts automaton_sts = {
 			enable_to_exit_sts,
 			INVALID_STATE,
 			INVALID_STATE,
-			can_sched_sts
+			can_sched_sts,
 		},
 		{
 			INVALID_STATE,
@@ -95,7 +95,7 @@ static const struct automaton_sts automaton_sts = {
 			in_irq_sts,
 			INVALID_STATE,
 			INVALID_STATE,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 		{
 			disable_to_switch_sts,
@@ -103,7 +103,7 @@ static const struct automaton_sts automaton_sts = {
 			INVALID_STATE,
 			INVALID_STATE,
 			INVALID_STATE,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 		{
 			INVALID_STATE,
@@ -111,7 +111,7 @@ static const struct automaton_sts automaton_sts = {
 			INVALID_STATE,
 			INVALID_STATE,
 			INVALID_STATE,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 	},
 	.initial_state = can_sched_sts,

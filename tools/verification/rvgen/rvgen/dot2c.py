@@ -28,11 +28,11 @@ class Dot2c(Automata):
 
     def __get_enum_states_content(self) -> list[str]:
         buff = []
-        buff.append("\t%s%s = 0," % (self.initial_state, self.enum_suffix))
+        buff.append("\t%s%s," % (self.initial_state, self.enum_suffix))
         for state in self.states:
             if state != self.initial_state:
                 buff.append("\t%s%s," % (state, self.enum_suffix))
-        buff.append("\tstate_max%s" % (self.enum_suffix))
+        buff.append("\tstate_max%s," % (self.enum_suffix))
 
         return buff
 
@@ -46,15 +46,10 @@ class Dot2c(Automata):
 
     def __get_enum_events_content(self) -> list[str]:
         buff = []
-        first = True
         for event in self.events:
-            if first:
-                buff.append("\t%s%s = 0," % (event, self.enum_suffix))
-                first = False
-            else:
-                buff.append("\t%s%s," % (event, self.enum_suffix))
+            buff.append("\t%s%s," % (event, self.enum_suffix))
 
-        buff.append("\tevent_max%s" % self.enum_suffix)
+        buff.append("\tevent_max%s," % self.enum_suffix)
 
         return buff
 
@@ -97,18 +92,11 @@ class Dot2c(Automata):
         buff.append("static const struct %s %s = {" % (self.struct_automaton_def, self.var_automaton_def))
         return buff
 
-    def __get_string_vector_per_line_content(self, buff: list[str]) -> str:
-        first = True
-        string = ""
-        for entry in buff:
-            if first:
-                string = string + "\t\t\"" + entry
-                first = False;
-            else:
-                string = string + "\",\n\t\t\"" + entry
-        string = string + "\""
-
-        return string
+    def __get_string_vector_per_line_content(self, entries: list[str]) -> str:
+        buff = []
+        for entry in entries:
+            buff.append(f"\t\t\"{entry}\",")
+        return "\n".join(buff)
 
     def format_aut_init_events_string(self) -> list[str]:
         buff = []
@@ -152,7 +140,7 @@ class Dot2c(Automata):
                 if y != nr_events-1:
                     line += ",\n" if linetoolong else ", "
                 else:
-                    line += "\n\t\t}," if linetoolong else " },"
+                    line += ",\n\t\t}," if linetoolong else " },"
             buff.append(line)
 
         return '\n'.join(buff)
@@ -179,12 +167,12 @@ class Dot2c(Automata):
         line = ""
         first = True
         for state in self.states:
-            if first == False:
+            if not first:
                 line = line + ', '
             else:
                 first = False
 
-            if self.final_states.__contains__(state):
+            if state in self.final_states:
                 line = line + '1'
             else:
                 line = line + '0'
