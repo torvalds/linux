@@ -688,16 +688,22 @@ skip_ring_stats:
 				buf[j] = *(rx_port_stats_ext + n);
 			}
 			for (i = 0; i < 8; i++, j++) {
-				long n = bnxt_tx_bytes_pri_arr[i].base_off +
-					 bp->pri2cos_idx[i];
+				u8 cos_idx = bp->pri2cos_idx[i];
+				long n;
 
+				n = bnxt_tx_bytes_pri_arr[i].base_off + cos_idx;
 				buf[j] = *(tx_port_stats_ext + n);
+				if (bp->cos0_cos1_shared && !cos_idx)
+					buf[j] += *(tx_port_stats_ext + n + 1);
 			}
 			for (i = 0; i < 8; i++, j++) {
-				long n = bnxt_tx_pkts_pri_arr[i].base_off +
-					 bp->pri2cos_idx[i];
+				u8 cos_idx = bp->pri2cos_idx[i];
+				long n;
 
+				n = bnxt_tx_pkts_pri_arr[i].base_off + cos_idx;
 				buf[j] = *(tx_port_stats_ext + n);
+				if (bp->cos0_cos1_shared && !cos_idx)
+					buf[j] += *(tx_port_stats_ext + n + 1);
 			}
 		}
 	}

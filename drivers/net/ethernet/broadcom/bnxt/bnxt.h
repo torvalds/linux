@@ -2424,6 +2424,7 @@ struct bnxt {
 	u8			tc_to_qidx[BNXT_MAX_QUEUE];
 	u8			q_ids[BNXT_MAX_QUEUE];
 	u8			max_q;
+	u8			cos0_cos1_shared;
 	u8			num_tc;
 
 	u16			max_pfcwd_tmo_ms;

@@ -8506,6 +8506,11 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 
 	if (flags & FUNC_QCFG_RESP_FLAGS_ENABLE_RDMA_SRIOV)
 		bp->fw_cap |= BNXT_FW_CAP_ENABLE_RDMA_SRIOV;
+	if (resp->roce_bidi_opt_mode &
+	    FUNC_QCFG_RESP_ROCE_BIDI_OPT_MODE_DEDICATED)
+		bp->cos0_cos1_shared = 1;
+	else
+		bp->cos0_cos1_shared = 0;
 
 	switch (resp->port_partition_type) {
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
