@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define KMSG_COMPONENT "IPVS"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "IPVS: " fmt
 
 #include <linux/module.h>
 #include <linux/spinlock.h>

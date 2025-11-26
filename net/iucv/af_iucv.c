@@ -10,8 +10,7 @@
  *		Ursula Braun <ursula.braun@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "af_iucv"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "af_iucv: " fmt
 
 #include <linux/filter.h>
 #include <linux/module.h>

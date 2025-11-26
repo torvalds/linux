@@ -16,8 +16,7 @@
  *              based on prototype from Frank Blaschka
  */
 
-#define KMSG_COMPONENT "smc"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "smc: " fmt
 
 #include <linux/module.h>
 #include <linux/socket.h>

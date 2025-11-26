@@ -20,8 +20,7 @@
  *    CP Programming Service, IBM document # SC24-5760
  */
 
-#define KMSG_COMPONENT "iucv"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "iucv: " fmt
 
 #include <linux/kernel_stat.h>
 #include <linux/export.h>
