@@ -163,15 +163,19 @@ struct vfio_pci_driver {
 	int msi;
 };
 
-struct vfio_pci_device {
-	int fd;
-
-	const struct iommu_mode *iommu_mode;
-	int group_fd;
+struct iommu {
+	const struct iommu_mode *mode;
 	int container_fd;
-
 	int iommufd;
 	u32 ioas_id;
+	struct list_head dma_regions;
+};
+
+struct vfio_pci_device {
+	int fd;
+	int group_fd;
+
+	struct iommu *iommu;
 
 	struct vfio_device_info info;
 	struct vfio_region_info config_space;
@@ -179,8 +183,6 @@ struct vfio_pci_device {
 
 	struct vfio_irq_info msi_info;
 	struct vfio_irq_info msix_info;
-
-	struct list_head dma_regions;
 
 	/* eventfds for MSI and MSI-x interrupts */
 	int msi_eventfds[PCI_MSIX_FLAGS_QSIZE + 1];
