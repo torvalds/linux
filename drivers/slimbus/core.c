@@ -390,21 +390,6 @@ struct slim_device *slim_get_device(struct slim_controller *ctrl,
 }
 EXPORT_SYMBOL_GPL(slim_get_device);
 
-static struct slim_device *of_find_slim_device(struct slim_controller *ctrl,
-					       struct device_node *np)
-{
-	struct slim_device *sbdev;
-	struct device *dev;
-
-	dev = device_find_child(ctrl->dev, np, device_match_of_node);
-	if (dev) {
-		sbdev = to_slim_device(dev);
-		return sbdev;
-	}
-
-	return NULL;
-}
-
 /**
  * of_slim_get_device() - get handle to a device using dt node.
  *
@@ -419,7 +404,16 @@ static struct slim_device *of_find_slim_device(struct slim_controller *ctrl,
 struct slim_device *of_slim_get_device(struct slim_controller *ctrl,
 				       struct device_node *np)
 {
-	return of_find_slim_device(ctrl, np);
+	struct slim_device *sbdev;
+	struct device *dev;
+
+	dev = device_find_child(ctrl->dev, np, device_match_of_node);
+	if (dev) {
+		sbdev = to_slim_device(dev);
+		return sbdev;
+	}
+
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(of_slim_get_device);
 
