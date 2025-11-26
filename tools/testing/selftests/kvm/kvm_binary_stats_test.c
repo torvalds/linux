@@ -239,14 +239,14 @@ int main(int argc, char *argv[])
 		 * single stats file works and doesn't cause explosions.
 		 */
 		vm_stats_fds = vm_get_stats_fd(vms[i]);
-		stats_test(dup(vm_stats_fds));
+		stats_test(kvm_dup(vm_stats_fds));
 
 		/* Verify userspace can instantiate multiple stats files. */
 		stats_test(vm_get_stats_fd(vms[i]));
 
 		for (j = 0; j < max_vcpu; ++j) {
 			vcpu_stats_fds[j] = vcpu_get_stats_fd(vcpus[i * max_vcpu + j]);
-			stats_test(dup(vcpu_stats_fds[j]));
+			stats_test(kvm_dup(vcpu_stats_fds[j]));
 			stats_test(vcpu_get_stats_fd(vcpus[i * max_vcpu + j]));
 		}
 
