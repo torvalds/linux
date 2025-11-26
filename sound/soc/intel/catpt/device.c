@@ -28,7 +28,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-static int catpt_suspend(struct device *dev)
+static int catpt_do_suspend(struct device *dev)
 {
 	struct catpt_dev *cdev = dev_get_drvdata(dev);
 	struct dma_chan *chan;
@@ -70,6 +70,13 @@ release_dma_chan:
 	if (ret)
 		return ret;
 	return catpt_dsp_power_down(cdev);
+}
+
+/* Do not block the system from suspending, recover on resume() if needed. */
+static int catpt_suspend(struct device *dev)
+{
+	catpt_do_suspend(dev);
+	return 0;
 }
 
 static int catpt_resume(struct device *dev)
@@ -114,7 +121,7 @@ static int catpt_runtime_suspend(struct device *dev)
 	}
 	module_put(dev->driver->owner);
 
-	return catpt_suspend(dev);
+	return catpt_do_suspend(dev);
 }
 
 static int catpt_runtime_resume(struct device *dev)
