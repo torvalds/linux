@@ -109,6 +109,7 @@ struct smu_15_0_dpm_context {
 	uint32_t                    workload_policy_mask;
 	uint32_t                    dcef_min_ds_clk;
 	uint64_t                    caps;
+	uint32_t		    board_volt;
 };
 
 enum smu_15_0_power_state {

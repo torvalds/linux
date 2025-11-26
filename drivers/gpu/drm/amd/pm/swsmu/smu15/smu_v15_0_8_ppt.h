@@ -25,4 +25,34 @@
 
 extern void smu_v15_0_8_set_ppt_funcs(struct smu_context *smu);
 
+typedef struct {
+	uint32_t MaxSocketPowerLimit;
+	uint32_t MaxGfxclkFrequency;
+	uint32_t MinGfxclkFrequency;
+	uint32_t MaxFclkFrequency;
+	uint32_t MinFclkFrequency;
+	uint32_t MaxGl2clkFrequency;
+	uint32_t MinGl2clkFrequency;
+	uint32_t UclkFrequencyTable[4];
+	uint32_t SocclkFrequency;
+	uint32_t LclkFrequency;
+	uint32_t VclkFrequency;
+	uint32_t DclkFrequency;
+	uint32_t CTFLimitMID;
+	uint32_t CTFLimitAID;
+	uint32_t CTFLimitXCD;
+	uint32_t CTFLimitHBM;
+	uint32_t ThermalLimitMID;
+	uint32_t ThermalLimitAID;
+	uint32_t ThermalLimitXCD;
+	uint32_t ThermalLimitHBM;
+	uint64_t PublicSerialNumberMID;
+	uint64_t PublicSerialNumberAID;
+	uint64_t PublicSerialNumberXCD;
+	uint32_t PPT1Max;
+	uint32_t PPT1Min;
+	uint32_t PPT1Default;
+	bool init;
+} PPTable_t;
+
 #endif

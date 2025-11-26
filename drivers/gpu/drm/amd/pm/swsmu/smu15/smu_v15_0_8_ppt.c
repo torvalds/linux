@@ -35,6 +35,7 @@
 #include "mp/mp_15_0_8_offset.h"
 #include "mp/mp_15_0_8_sh_mask.h"
 #include "smu_v15_0.h"
+#include "amdgpu_fru_eeprom.h"
 
 #undef MP1_Public
 
@@ -50,6 +51,10 @@
 #undef pr_warn
 #undef pr_info
 #undef pr_debug
+
+#define SMUQ10_TO_UINT(x) ((x) >> 10)
+#define SMUQ10_FRAC(x) ((x) & 0x3ff)
+#define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
@@ -161,6 +166,35 @@ static const struct cmn2asic_mapping smu_v15_0_8_table_map[SMU_TABLE_COUNT] = {
 
 static int smu_v15_0_8_tables_init(struct smu_context *smu)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	int gpu_metrcs_size = sizeof(MetricsTable_t);
+	void *driver_pptable __free(kfree) = NULL;
+	void *metrics_table __free(kfree) = NULL;
+
+	SMU_TABLE_INIT(tables, SMU_TABLE_PMSTATUSLOG, SMU15_TOOL_SIZE,
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS,
+		       gpu_metrcs_size,
+		       PAGE_SIZE,
+		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
+
+	metrics_table = kzalloc(gpu_metrcs_size, GFP_KERNEL);
+	if (!metrics_table)
+		return -ENOMEM;
+
+	smu_table->metrics_time = 0;
+
+	driver_pptable = kzalloc(sizeof(PPTable_t), GFP_KERNEL);
+	if (!driver_pptable)
+		return -ENOMEM;
+
+	smu_table->metrics_table = no_free_ptr(metrics_table);
+	smu_table->driver_pptable = no_free_ptr(driver_pptable);
+
+	mutex_init(&smu_table->metrics_lock);
+
 	return 0;
 }
 
@@ -197,16 +231,35 @@ static int smu_v15_0_8_init_smc_tables(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v15_0_8_tables_fini(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	mutex_destroy(&smu_table->metrics_lock);
+
+	return 0;
+}
+
+static int smu_v15_0_8_fini_smc_tables(struct smu_context *smu)
+{
+	int ret;
+
+	ret = smu_v15_0_8_tables_fini(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_v15_0_fini_smc_tables(smu);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static int smu_v15_0_8_init_allowed_features(struct smu_context *smu)
 {
 	/* pptable will handle the features to enable */
 	smu_feature_list_set_all(smu, SMU_FEATURE_LIST_ALLOWED);
 
-	return 0;
-}
-
-static int smu_v15_0_8_set_default_dpm_table(struct smu_context *smu)
-{
 	return 0;
 }
 
@@ -236,6 +289,173 @@ static int smu_v15_0_8_check_fw_status(struct smu_context *smu)
 		return 0;
 
 	return -EIO;
+}
+
+static int smu_v15_0_8_get_static_metrics_table(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
+	struct smu_table *table = &smu_table->driver_table;
+	int ret;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetStaticMetricsTable, NULL);
+	if (ret) {
+		dev_err(smu->adev->dev,
+			 "Failed to export static metrics table!\n");
+		return ret;
+	}
+
+	amdgpu_hdp_invalidate(smu->adev, NULL);
+	memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
+
+	return 0;
+}
+
+static int smu_v15_0_8_fru_get_product_info(struct smu_context *smu,
+					    StaticMetricsTable_t *static_metrics)
+{
+	struct amdgpu_fru_info *fru_info;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!adev->fru_info) {
+		adev->fru_info = kzalloc(sizeof(*adev->fru_info), GFP_KERNEL);
+		if (!adev->fru_info)
+			return -ENOMEM;
+	}
+
+	fru_info = adev->fru_info;
+	strscpy(fru_info->product_number, static_metrics->ProductInfo.ModelNumber,
+		sizeof(fru_info->product_number));
+	strscpy(fru_info->product_name, static_metrics->ProductInfo.Name,
+		sizeof(fru_info->product_name));
+	strscpy(fru_info->serial, static_metrics->ProductInfo.Serial,
+		sizeof(fru_info->serial));
+	strscpy(fru_info->manufacturer_name, static_metrics->ProductInfo.ManufacturerName,
+		sizeof(fru_info->manufacturer_name));
+	strscpy(fru_info->fru_id, static_metrics->ProductInfo.FruId,
+		sizeof(fru_info->fru_id));
+
+	return 0;
+}
+
+static void smu_v15_0_8_init_xgmi_data(struct smu_context *smu,
+				       StaticMetricsTable_t *static_metrics)
+{
+	uint16_t max_speed;
+	uint8_t max_width;
+
+	max_width = (uint8_t)static_metrics->MaxXgmiWidth;
+	max_speed = (uint16_t)static_metrics->MaxXgmiBitrate;
+	amgpu_xgmi_set_max_speed_width(smu->adev, max_speed, max_width);
+}
+
+static int smu_v15_0_8_set_driver_pptable(struct smu_context *smu)
+{
+	struct smu_15_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	StaticMetricsTable_t *static_metrics = (StaticMetricsTable_t *)smu_table->metrics_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	int ret, i, n;
+	uint32_t table_version;
+
+	if (!pptable->init) {
+		ret = smu_v15_0_8_get_static_metrics_table(smu);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetMetricsVersion,
+					   &table_version);
+		if (ret)
+			return ret;
+		smu_table->tables[SMU_TABLE_SMU_METRICS].version =
+			table_version;
+
+		pptable->MaxSocketPowerLimit =
+			SMUQ10_ROUND(static_metrics->MaxSocketPowerLimit);
+		pptable->MaxGfxclkFrequency =
+			SMUQ10_ROUND(static_metrics->MaxGfxclkFrequency);
+		pptable->MinGfxclkFrequency =
+			SMUQ10_ROUND(static_metrics->MinGfxclkFrequency);
+		pptable->MaxFclkFrequency =
+			SMUQ10_ROUND(static_metrics->MaxFclkFrequency);
+		pptable->MinFclkFrequency =
+			SMUQ10_ROUND(static_metrics->MinFclkFrequency);
+		pptable->MaxGl2clkFrequency =
+			SMUQ10_ROUND(static_metrics->MaxGl2clkFrequency);
+		pptable->MinGl2clkFrequency =
+			SMUQ10_ROUND(static_metrics->MinGl2clkFrequency);
+
+		for (i = 0; i < ARRAY_SIZE(static_metrics->UclkFrequencyTable); ++i)
+			pptable->UclkFrequencyTable[i] =
+				SMUQ10_ROUND(static_metrics->UclkFrequencyTable[i]);
+
+		pptable->SocclkFrequency = SMUQ10_ROUND(static_metrics->SocclkFrequency);
+		pptable->LclkFrequency = SMUQ10_ROUND(static_metrics->LclkFrequency);
+		pptable->VclkFrequency = SMUQ10_ROUND(static_metrics->VclkFrequency);
+		pptable->DclkFrequency = SMUQ10_ROUND(static_metrics->DclkFrequency);
+
+		pptable->CTFLimitMID = SMUQ10_ROUND(static_metrics->CTFLimit_MID);
+		pptable->CTFLimitAID = SMUQ10_ROUND(static_metrics->CTFLimit_AID);
+		pptable->CTFLimitXCD = SMUQ10_ROUND(static_metrics->CTFLimit_XCD);
+		pptable->CTFLimitHBM = SMUQ10_ROUND(static_metrics->CTFLimit_HBM);
+		pptable->ThermalLimitMID = SMUQ10_ROUND(static_metrics->ThermalLimit_MID);
+		pptable->ThermalLimitAID = SMUQ10_ROUND(static_metrics->ThermalLimit_AID);
+		pptable->ThermalLimitXCD = SMUQ10_ROUND(static_metrics->ThermalLimit_XCD);
+		pptable->ThermalLimitHBM = SMUQ10_ROUND(static_metrics->ThermalLimit_HBM);
+
+		/* use MID0 serial number by default */
+		pptable->PublicSerialNumberMID =
+			static_metrics->PublicSerialNumber_MID[0];
+
+		amdgpu_device_set_uid(smu->adev->uid_info, AMDGPU_UID_TYPE_SOC,
+				      0, pptable->PublicSerialNumberMID);
+		pptable->PublicSerialNumberAID =
+			static_metrics->PublicSerialNumber_AID[0];
+		pptable->PublicSerialNumberXCD =
+			static_metrics->PublicSerialNumber_XCD[0];
+		n = ARRAY_SIZE(static_metrics->PublicSerialNumber_MID);
+		for (i = 0; i < n; i++) {
+			amdgpu_device_set_uid(smu->adev->uid_info, AMDGPU_UID_TYPE_MID, i,
+					      static_metrics->PublicSerialNumber_MID[i]);
+		}
+		n = ARRAY_SIZE(static_metrics->PublicSerialNumber_AID);
+		for (i = 0; i < n; i++) {
+			amdgpu_device_set_uid(smu->adev->uid_info, AMDGPU_UID_TYPE_AID, i,
+					      static_metrics->PublicSerialNumber_AID[i]);
+		}
+		n = ARRAY_SIZE(static_metrics->PublicSerialNumber_XCD);
+		for (i = 0; i < n; i++) {
+			amdgpu_device_set_uid(smu->adev->uid_info, AMDGPU_UID_TYPE_XCD, i,
+					      static_metrics->PublicSerialNumber_XCD[i]);
+		}
+
+		ret = smu_v15_0_8_fru_get_product_info(smu, static_metrics);
+		if (ret)
+			return ret;
+		pptable->PPT1Max = static_metrics->PPT1Max;
+		pptable->PPT1Min = static_metrics->PPT1Min;
+		pptable->PPT1Default = static_metrics->PPT1Default;
+
+		if (static_metrics->pldmVersion[0] != 0xFFFFFFFF)
+			smu->adev->firmware.pldm_version =
+				static_metrics->pldmVersion[0];
+		dpm_context->board_volt = static_metrics->InputTelemetryVoltageInmV;
+		smu_v15_0_8_init_xgmi_data(smu, static_metrics);
+		pptable->init = true;
+	}
+
+	return 0;
+}
+
+static int smu_v15_0_8_set_default_dpm_table(struct smu_context *smu)
+{
+	int ret;
+
+	ret = smu_v15_0_8_set_driver_pptable(smu);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int smu_v15_0_8_irq_process(struct amdgpu_device *adev,
@@ -478,7 +698,7 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.set_default_dpm_table = smu_v15_0_8_set_default_dpm_table,
 	.is_dpm_running = smu_v15_0_8_is_dpm_running,
 	.init_smc_tables = smu_v15_0_8_init_smc_tables,
-	.fini_smc_tables = smu_v15_0_fini_smc_tables,
+	.fini_smc_tables = smu_v15_0_8_fini_smc_tables,
 	.init_power = smu_v15_0_init_power,
 	.fini_power = smu_v15_0_fini_power,
 	.check_fw_status = smu_v15_0_8_check_fw_status,
