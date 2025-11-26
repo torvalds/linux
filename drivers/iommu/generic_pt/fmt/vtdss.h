@@ -174,6 +174,9 @@ static inline unsigned int vtdss_pt_max_sw_bit(struct pt_common *common)
 
 static inline u64 vtdss_pt_sw_bit(unsigned int bitnr)
 {
+	if (__builtin_constant_p(bitnr) && bitnr > 10)
+		BUILD_BUG();
+
 	/* Bits marked Ignored in the specification */
 	switch (bitnr) {
 	case 0:
@@ -184,10 +187,7 @@ static inline u64 vtdss_pt_sw_bit(unsigned int bitnr)
 		return BIT_ULL(63);
 	/* Some bits in 9-3 are available in some entries */
 	default:
-		if (__builtin_constant_p(bitnr))
-			BUILD_BUG();
-		else
-			PT_WARN_ON(true);
+		PT_WARN_ON(true);
 		return 0;
 	}
 }

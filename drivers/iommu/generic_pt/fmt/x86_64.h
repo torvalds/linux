@@ -175,6 +175,9 @@ static inline unsigned int x86_64_pt_max_sw_bit(struct pt_common *common)
 
 static inline u64 x86_64_pt_sw_bit(unsigned int bitnr)
 {
+	if (__builtin_constant_p(bitnr) && bitnr > 12)
+		BUILD_BUG();
+
 	/* Bits marked Ignored/AVL in the specification */
 	switch (bitnr) {
 	case 0:
@@ -185,10 +188,7 @@ static inline u64 x86_64_pt_sw_bit(unsigned int bitnr)
 		return BIT_ULL((bitnr - 2) + 52);
 	/* Some bits in 8,6,4,3 are available in some entries */
 	default:
-		if (__builtin_constant_p(bitnr))
-			BUILD_BUG();
-		else
-			PT_WARN_ON(true);
+		PT_WARN_ON(true);
 		return 0;
 	}
 }
