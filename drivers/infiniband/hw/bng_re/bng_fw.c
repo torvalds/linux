@@ -525,7 +525,7 @@ static irqreturn_t bng_re_creq_irq(int irq, void *dev_instance)
 	hwq = &creq->hwq;
 	/* Prefetch the CREQ element */
 	sw_cons = HWQ_CMP(hwq->cons, hwq);
-	prefetch(bng_re_get_qe(hwq, sw_cons, NULL));
+	bng_re_get_qe(hwq, sw_cons, NULL);
 
 	tasklet_schedule(&creq->creq_tasklet);
 	return IRQ_HANDLED;
