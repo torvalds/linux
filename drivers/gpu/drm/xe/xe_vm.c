@@ -4043,6 +4043,7 @@ int xe_vm_validate_protected(struct xe_vm *vm)
 }
 
 struct xe_vm_snapshot {
+	int uapi_flags;
 	unsigned long num_snaps;
 	struct {
 		u64 ofs, bo_ofs;
@@ -4081,6 +4082,13 @@ struct xe_vm_snapshot *xe_vm_snapshot_capture(struct xe_vm *vm)
 		snap = num_snaps ? ERR_PTR(-ENOMEM) : ERR_PTR(-ENODEV);
 		goto out_unlock;
 	}
+
+	if (vm->flags & XE_VM_FLAG_FAULT_MODE)
+		snap->uapi_flags |= DRM_XE_VM_CREATE_FLAG_FAULT_MODE;
+	if (vm->flags & XE_VM_FLAG_LR_MODE)
+		snap->uapi_flags |= DRM_XE_VM_CREATE_FLAG_LR_MODE;
+	if (vm->flags & XE_VM_FLAG_SCRATCH_PAGE)
+		snap->uapi_flags |= DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE;
 
 	snap->num_snaps = num_snaps;
 	i = 0;
@@ -4196,6 +4204,7 @@ void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p)
 		return;
 	}
 
+	drm_printf(p, "VM.uapi_flags: 0x%x\n", snap->uapi_flags);
 	for (i = 0; i < snap->num_snaps; i++) {
 		drm_printf(p, "[%llx].length: 0x%lx\n", snap->snap[i].ofs, snap->snap[i].len);
 
