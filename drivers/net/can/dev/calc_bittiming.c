@@ -22,6 +22,21 @@ static int can_calc_sample_point_nrz(const struct can_bittiming *bt)
 	return 875;
 }
 
+/* Sample points for Pulse-Width Modulation encoding. */
+static int can_calc_sample_point_pwm(const struct can_bittiming *bt)
+{
+	if (bt->bitrate > 15 * MEGA /* BPS */)
+		return 625;
+
+	if (bt->bitrate > 9 * MEGA /* BPS */)
+		return 600;
+
+	if (bt->bitrate > 4 * MEGA /* BPS */)
+		return 560;
+
+	return 520;
+}
+
 /* Bit-timing calculation derived from:
  *
  * Code based on LinCAN sources and H8S2638 project
@@ -93,6 +108,9 @@ int can_calc_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 
 	if (bt->sample_point)
 		sample_point_reference = bt->sample_point;
+	else if (btc == priv->xl.data_bittiming_const &&
+		 (priv->ctrlmode & CAN_CTRLMODE_XL_TMS))
+		sample_point_reference = can_calc_sample_point_pwm(bt);
 	else
 		sample_point_reference = can_calc_sample_point_nrz(bt);
 
