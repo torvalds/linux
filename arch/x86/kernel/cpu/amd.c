@@ -951,26 +951,14 @@ static void init_amd_zen1(struct cpuinfo_x86 *c)
 	}
 }
 
-static bool cpu_has_zenbleed_microcode(void)
-{
-	u32 good_rev = 0;
-
-	switch (boot_cpu_data.x86_model) {
-	case 0x30 ... 0x3f: good_rev = 0x0830107b; break;
-	case 0x60 ... 0x67: good_rev = 0x0860010c; break;
-	case 0x68 ... 0x6f: good_rev = 0x08608107; break;
-	case 0x70 ... 0x7f: good_rev = 0x08701033; break;
-	case 0xa0 ... 0xaf: good_rev = 0x08a00009; break;
-
-	default:
-		return false;
-	}
-
-	if (boot_cpu_data.microcode < good_rev)
-		return false;
-
-	return true;
-}
+static const struct x86_cpu_id amd_zenbleed_microcode[] = {
+	ZEN_MODEL_STEP_UCODE(0x17, 0x31, 0x0, 0x0830107b),
+	ZEN_MODEL_STEP_UCODE(0x17, 0x60, 0x1, 0x0860010c),
+	ZEN_MODEL_STEP_UCODE(0x17, 0x68, 0x1, 0x08608107),
+	ZEN_MODEL_STEP_UCODE(0x17, 0x71, 0x0, 0x08701033),
+	ZEN_MODEL_STEP_UCODE(0x17, 0xa0, 0x0, 0x08a00009),
+	{}
+};
 
 static void zen2_zenbleed_check(struct cpuinfo_x86 *c)
 {
@@ -980,7 +968,7 @@ static void zen2_zenbleed_check(struct cpuinfo_x86 *c)
 	if (!cpu_has(c, X86_FEATURE_AVX))
 		return;
 
-	if (!cpu_has_zenbleed_microcode()) {
+	if (!x86_match_min_microcode_rev(amd_zenbleed_microcode)) {
 		pr_notice_once("Zenbleed: please update your microcode for the most optimal fix\n");
 		msr_set_bit(MSR_AMD64_DE_CFG, MSR_AMD64_DE_CFG_ZEN2_FP_BACKUP_FIX_BIT);
 	} else {
