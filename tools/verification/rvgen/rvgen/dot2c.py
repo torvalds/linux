@@ -26,15 +26,6 @@ class Dot2c(Automata):
         super().__init__(file_path, model_name)
         self.line_length = 100
 
-    def __buff_to_string(self, buff):
-        string = ""
-
-        for line in buff:
-            string = string + line + "\n"
-
-        # cut off the last \n
-        return string[:-1]
-
     def __get_enum_states_content(self) -> list[str]:
         buff = []
         buff.append("\t%s%s = 0," % (self.initial_state, self.enum_suffix))
@@ -45,14 +36,10 @@ class Dot2c(Automata):
 
         return buff
 
-    def get_enum_states_string(self):
-        buff = self.__get_enum_states_content()
-        return self.__buff_to_string(buff)
-
     def format_states_enum(self) -> list[str]:
         buff = []
         buff.append("enum %s {" % self.enum_states_def)
-        buff.append(self.get_enum_states_string())
+        buff += self.__get_enum_states_content()
         buff.append("};\n")
 
         return buff
@@ -71,14 +58,10 @@ class Dot2c(Automata):
 
         return buff
 
-    def get_enum_events_string(self):
-        buff = self.__get_enum_events_content()
-        return self.__buff_to_string(buff)
-
     def format_events_enum(self) -> list[str]:
         buff = []
         buff.append("enum %s {" % self.enum_events_def)
-        buff.append(self.get_enum_events_string())
+        buff += self.__get_enum_events_content()
         buff.append("};\n")
 
         return buff
@@ -127,23 +110,17 @@ class Dot2c(Automata):
 
         return string
 
-    def get_aut_init_events_string(self):
-        return self.__get_string_vector_per_line_content(self.events)
-
-    def get_aut_init_states_string(self):
-        return self.__get_string_vector_per_line_content(self.states)
-
     def format_aut_init_events_string(self) -> list[str]:
         buff = []
         buff.append("\t.event_names = {")
-        buff.append(self.get_aut_init_events_string())
+        buff.append(self.__get_string_vector_per_line_content(self.events))
         buff.append("\t},")
         return buff
 
     def format_aut_init_states_string(self) -> list[str]:
         buff = []
         buff.append("\t.state_names = {")
-        buff.append(self.get_aut_init_states_string())
+        buff.append(self.__get_string_vector_per_line_content(self.states))
         buff.append("\t},")
 
         return buff
@@ -178,7 +155,7 @@ class Dot2c(Automata):
                     line += "\n\t\t}," if linetoolong else " },"
             buff.append(line)
 
-        return self.__buff_to_string(buff)
+        return '\n'.join(buff)
 
     def format_aut_init_function(self) -> list[str]:
         buff = []
@@ -253,4 +230,4 @@ class Dot2c(Automata):
 
     def print_model_classic(self):
         buff = self.format_model()
-        print(self.__buff_to_string(buff))
+        print('\n'.join(buff))
