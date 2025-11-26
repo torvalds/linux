@@ -38,9 +38,9 @@ class dot2k(Monitor, Dot2c):
                 handle = "handle_start_run_event"
             if self.monitor_type == "per_task":
                 buff.append("\tstruct task_struct *p = /* XXX: how do I get p? */;");
-                buff.append("\tda_%s_%s(p, %s%s);" % (handle, self.name, event, self.enum_suffix));
+                buff.append("\tda_%s(p, %s%s);" % (handle, event, self.enum_suffix));
             else:
-                buff.append("\tda_%s_%s(%s%s);" % (handle, self.name, event, self.enum_suffix));
+                buff.append("\tda_%s(%s%s);" % (handle, event, self.enum_suffix));
             buff.append("}")
             buff.append("")
         return '\n'.join(buff)
@@ -65,6 +65,8 @@ class dot2k(Monitor, Dot2c):
         buff.append(" * For further information about this format, see kernel documentation:")
         buff.append(" *   Documentation/trace/rv/deterministic_automata.rst")
         buff.append(" */")
+        buff.append("")
+        buff.append("#define MONITOR_NAME %s" % (self.name))
         buff.append("")
 
         return buff
