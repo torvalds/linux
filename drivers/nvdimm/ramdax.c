@@ -143,7 +143,7 @@ static int ramdax_get_config_data(struct nvdimm *nvdimm, int buf_len,
 		return -EINVAL;
 	if (struct_size(cmd, out_buf, cmd->in_length) > buf_len)
 		return -EINVAL;
-	if (cmd->in_offset + cmd->in_length > LABEL_AREA_SIZE)
+	if (size_add(cmd->in_offset, cmd->in_length) > LABEL_AREA_SIZE)
 		return -EINVAL;
 
 	memcpy(cmd->out_buf, dimm->label_area + cmd->in_offset, cmd->in_length);
@@ -160,7 +160,7 @@ static int ramdax_set_config_data(struct nvdimm *nvdimm, int buf_len,
 		return -EINVAL;
 	if (struct_size(cmd, in_buf, cmd->in_length) > buf_len)
 		return -EINVAL;
-	if (cmd->in_offset + cmd->in_length > LABEL_AREA_SIZE)
+	if (size_add(cmd->in_offset, cmd->in_length) > LABEL_AREA_SIZE)
 		return -EINVAL;
 
 	memcpy(dimm->label_area + cmd->in_offset, cmd->in_buf, cmd->in_length);
