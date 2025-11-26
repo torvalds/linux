@@ -953,7 +953,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	/* ~1 qword per instruction, full cachelines */
 	size = ALIGN(max_cmds * 8, CACHELINE_BYTES);
 
-	if (!intel_dsb_buffer_create(crtc, &dsb->dsb_buf, size))
+	if (!intel_dsb_buffer_create(display->drm, &dsb->dsb_buf, size))
 		goto out_put_rpm;
 
 	intel_display_rpm_put(display, wakeref);
