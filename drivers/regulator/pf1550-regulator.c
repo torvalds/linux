@@ -71,9 +71,9 @@ static int pf1550_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 
 static int pf1550_set_suspend_enable(struct regulator_dev *rdev)
 {
-	const struct pf1550_desc *desc = container_of(rdev->desc,
-						      struct pf1550_desc,
-						      desc);
+	const struct pf1550_desc *desc = container_of_const(rdev->desc,
+							    struct pf1550_desc,
+							    desc);
 	unsigned int val = desc->stby_enable_mask;
 
 	return regmap_update_bits(rdev->regmap, desc->stby_enable_reg,
@@ -82,9 +82,9 @@ static int pf1550_set_suspend_enable(struct regulator_dev *rdev)
 
 static int pf1550_set_suspend_disable(struct regulator_dev *rdev)
 {
-	const struct pf1550_desc *desc = container_of(rdev->desc,
-						      struct pf1550_desc,
-						      desc);
+	const struct pf1550_desc *desc = container_of_const(rdev->desc,
+							    struct pf1550_desc,
+							    desc);
 
 	return regmap_update_bits(rdev->regmap, desc->stby_enable_reg,
 				  desc->stby_enable_mask, 0);
@@ -93,9 +93,9 @@ static int pf1550_set_suspend_disable(struct regulator_dev *rdev)
 static int pf1550_buck_set_table_suspend_voltage(struct regulator_dev *rdev,
 						 int uV)
 {
-	const struct pf1550_desc *desc = container_of(rdev->desc,
-						      struct pf1550_desc,
-						      desc);
+	const struct pf1550_desc *desc = container_of_const(rdev->desc,
+							    struct pf1550_desc,
+							    desc);
 	int ret;
 
 	ret = regulator_map_voltage_ascend(rdev, uV, uV);
@@ -111,9 +111,9 @@ static int pf1550_buck_set_table_suspend_voltage(struct regulator_dev *rdev,
 static int pf1550_buck_set_linear_suspend_voltage(struct regulator_dev *rdev,
 						  int uV)
 {
-	const struct pf1550_desc *desc = container_of(rdev->desc,
-						      struct pf1550_desc,
-						      desc);
+	const struct pf1550_desc *desc = container_of_const(rdev->desc,
+							    struct pf1550_desc,
+							    desc);
 	int ret;
 
 	ret = regulator_map_voltage_linear(rdev, uV, uV);
