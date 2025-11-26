@@ -144,7 +144,17 @@ static const char *bug_get_format(struct bug_entry *bug)
 	const char *format = NULL;
 #ifdef HAVE_ARCH_BUG_FORMAT
 #ifdef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	format = (const char *)&bug->format_disp + bug->format_disp;
+	/*
+	 * Allow an architecture to:
+	 *  - relative encode NULL (difficult vs KASLR);
+	 *  - use a literal 0 (there are no valid objects inside
+	 *    the __bug_table itself to refer to after all);
+	 *  - use an empty string.
+	 */
+	if (bug->format_disp)
+		format = (const char *)&bug->format_disp + bug->format_disp;
+	if (format && format[0] == '\0')
+		format = NULL;
 #else
 	format = bug->format;
 #endif

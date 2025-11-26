@@ -86,7 +86,7 @@ extern void __WARN_trap(struct bug_entry *bug, ...);
 #ifdef CONFIG_DEBUG_BUGVERBOSE_DETAILED
 #define WARN_CONDITION_STR(cond_str) cond_str
 #else
-#define WARN_CONDITION_STR(cond_str) NULL
+#define WARN_CONDITION_STR(cond_str) ""
 #endif
 
 #define _BUG_FLAGS(cond_str, ins, flags, extra)				\
@@ -103,8 +103,12 @@ do {									\
 } while (0)
 
 #define ARCH_WARN_ASM(file, line, flags, size)				\
+	".pushsection .rodata.str1.1, \"aMS\", @progbits, 1\n"		\
+	"99:\n"								\
+	"\t.string \"\"\n"						\
+	".popsection\n"							\
 	"1:\t " ASM_UD2 "\n"						\
-	_BUG_FLAGS_ASM("0", file, line, flags, size, "")
+	_BUG_FLAGS_ASM("99b", file, line, flags, size, "")
 
 #else
 
