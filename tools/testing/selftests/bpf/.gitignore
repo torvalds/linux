@@ -33,7 +33,6 @@ test_progs_verification_cert
 /cpuv4
 /host-tools
 /tools
-/runqslower
 /bench
 /veristat
 /sign-file
