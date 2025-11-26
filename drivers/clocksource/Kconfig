@@ -782,4 +782,15 @@ config NXP_STM_TIMER
           Enables the support for NXP System Timer Module found in the
           s32g NXP platform series.
 
+config RTK_SYSTIMER
+	bool "Realtek SYSTIMER support"
+	depends on ARM || ARM64
+	depends on ARCH_REALTEK || COMPILE_TEST
+	select TIMER_OF
+	help
+	  This option enables the driver that registers the global 1 MHz hardware
+	  counter as a clock event device on Realtek SoCs. Make sure to enable
+	  this option only when building for a Realtek platform or for compilation
+	  testing.
+
 endmenu
