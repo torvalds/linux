@@ -208,6 +208,7 @@ static int catpt_restore_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
 
 	for (i = 0; i < cdev->dx_ctx.num_meminfo; i++) {
 		struct catpt_save_meminfo *info;
+		struct resource r = {};
 		u32 off;
 		int ret;
 
@@ -216,7 +217,8 @@ static int catpt_restore_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
 			continue;
 
 		off = catpt_to_host_offset(info->offset);
-		if (off < cdev->dram.start || off + info->size >= cdev->dram.end)
+		resource_set_range(&r, off, info->size);
+		if (!resource_contains(&cdev->dram, &r))
 			continue;
 
 		dev_dbg(cdev->dev, "restoring memdump: off 0x%08x size %d\n",
@@ -239,32 +241,30 @@ static int catpt_restore_fwimage(struct catpt_dev *cdev,
 				 struct dma_chan *chan, dma_addr_t paddr,
 				 struct catpt_fw_block_hdr *blk)
 {
-	struct resource r1, r2, common;
+	struct resource r1 = {};
 	int i;
 
 	print_hex_dump_debug(__func__, DUMP_PREFIX_OFFSET, 8, 4,
 			     blk, sizeof(*blk), false);
 
-	r1.start = cdev->dram.start + blk->ram_offset;
-	r1.end = r1.start + blk->size - 1;
+	resource_set_range(&r1, cdev->dram.start + blk->ram_offset, blk->size);
 	/* advance to data area */
 	paddr += sizeof(*blk);
 
 	for (i = 0; i < cdev->dx_ctx.num_meminfo; i++) {
 		struct catpt_save_meminfo *info;
+		struct resource common = {};
+		struct resource r2 = {};
 		u32 off;
 		int ret;
 
 		info = &cdev->dx_ctx.meminfo[i];
-
 		if (info->source != CATPT_DX_TYPE_FW_IMAGE)
 			continue;
 
 		off = catpt_to_host_offset(info->offset);
-		r2.start = off;
-		r2.end = r2.start + info->size - 1;
-
-		if (r2.start < cdev->dram.start || r2.end > cdev->dram.end)
+		resource_set_range(&r2, off, info->size);
+		if (!resource_contains(&cdev->dram, &r2))
 			continue;
 
 		if (!resource_intersection(&r2, &r1, &common))
