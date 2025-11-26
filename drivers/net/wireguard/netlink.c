@@ -616,28 +616,30 @@ out_nodev:
 	return ret;
 }
 
-static const struct genl_ops genl_ops[] = {
+static const struct genl_split_ops wireguard_nl_ops[] = {
 	{
 		.cmd = WG_CMD_GET_DEVICE,
 		.start = wg_get_device_start,
 		.dumpit = wg_get_device_dump,
 		.done = wg_get_device_done,
-		.flags = GENL_UNS_ADMIN_PERM
+		.policy = device_policy,
+		.maxattr = WGDEVICE_A_PEERS,
+		.flags = GENL_UNS_ADMIN_PERM | GENL_CMD_CAP_DUMP,
 	}, {
 		.cmd = WG_CMD_SET_DEVICE,
 		.doit = wg_set_device,
-		.flags = GENL_UNS_ADMIN_PERM
+		.policy = device_policy,
+		.maxattr = WGDEVICE_A_PEERS,
+		.flags = GENL_UNS_ADMIN_PERM | GENL_CMD_CAP_DO,
 	}
 };
 
 static struct genl_family genl_family __ro_after_init = {
-	.ops = genl_ops,
-	.n_ops = ARRAY_SIZE(genl_ops),
+	.split_ops = wireguard_nl_ops,
+	.n_split_ops = ARRAY_SIZE(wireguard_nl_ops),
 	.name = WG_GENL_NAME,
 	.version = WG_GENL_VERSION,
-	.maxattr = WGDEVICE_A_MAX,
 	.module = THIS_MODULE,
-	.policy = device_policy,
 	.netnsok = true
 };
 
