@@ -764,13 +764,12 @@ static void detach_buf_split(struct vring_virtqueue *vq, unsigned int head,
 	i = head;
 
 	while (vq->split.vring.desc[i].flags & nextflag) {
-		vring_unmap_one_split(vq, &extra[i]);
-		i = vq->split.desc_extra[i].next;
+		i = vring_unmap_one_split(vq, &extra[i]);
 		vq->vq.num_free++;
 	}
 
 	vring_unmap_one_split(vq, &extra[i]);
-	vq->split.desc_extra[i].next = vq->free_head;
+	extra[i].next = vq->free_head;
 	vq->free_head = head;
 
 	/* Plus final descriptor */
