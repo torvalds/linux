@@ -366,6 +366,9 @@ static struct slim_device *find_slim_device(struct slim_controller *ctrl,
  * @ctrl: Controller on which this device will be added/queried
  * @e_addr: Enumeration address of the device to be queried
  *
+ * Takes a reference to the embedded struct device which needs to be dropped
+ * after use.
+ *
  * Return: pointer to a device if it has already reported. Creates a new
  * device and returns pointer to it if the device has not yet enumerated.
  */
