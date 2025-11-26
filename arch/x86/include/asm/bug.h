@@ -42,16 +42,10 @@ extern void __WARN_trap(struct bug_entry *bug, ...);
 
 #ifdef CONFIG_GENERIC_BUG
 
-#ifdef CONFIG_X86_32
-#define __BUG_REL(val)		".long " val
-#else
-#define __BUG_REL(val)		".long " val " - ."
-#endif
-
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #define __BUG_ENTRY_VERBOSE(file, line)					\
-	"\t" __BUG_REL(file)   "\t# bug_entry::file\n"			\
-	"\t.word " line        "\t# bug_entry::line\n"
+	"\t.long " file " - .\t# bug_entry::file\n"			\
+	"\t.word " line     "\t# bug_entry::line\n"
 #else
 #define __BUG_ENTRY_VERBOSE(file, line)
 #endif
@@ -59,7 +53,7 @@ extern void __WARN_trap(struct bug_entry *bug, ...);
 #if defined(CONFIG_X86_64) || defined(CONFIG_DEBUG_BUGVERBOSE_DETAILED)
 #define HAVE_ARCH_BUG_FORMAT
 #define __BUG_ENTRY_FORMAT(format)					\
-	"\t" __BUG_REL(format)	"\t# bug_entry::format\n"
+	"\t.long " format " - .\t# bug_entry::format\n"
 #else
 #define __BUG_ENTRY_FORMAT(format)
 #endif
@@ -69,7 +63,7 @@ extern void __WARN_trap(struct bug_entry *bug, ...);
 #endif
 
 #define __BUG_ENTRY(format, file, line, flags)				\
-	__BUG_REL("1b")		"\t# bug_entry::bug_addr\n"		\
+	"\t.long 1b - ."	"\t# bug_entry::bug_addr\n"		\
 	__BUG_ENTRY_FORMAT(format)					\
 	__BUG_ENTRY_VERBOSE(file, line)					\
 	"\t.word " flags	"\t# bug_entry::flags\n"
