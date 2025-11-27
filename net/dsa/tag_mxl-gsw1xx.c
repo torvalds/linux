@@ -43,8 +43,8 @@
 static struct sk_buff *gsw1xx_tag_xmit(struct sk_buff *skb,
 				       struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_user_to_port(dev);
 	__be16 *gsw1xx_tag;
+	u16 tag;
 
 	/* provide additional space 'GSW1XX_HEADER_LEN' bytes */
 	skb_push(skb, GSW1XX_HEADER_LEN);
@@ -55,9 +55,10 @@ static struct sk_buff *gsw1xx_tag_xmit(struct sk_buff *skb,
 	/* special tag ingress */
 	gsw1xx_tag = dsa_etype_header_pos_tx(skb);
 	gsw1xx_tag[0] = htons(ETH_P_MXLGSW);
-	gsw1xx_tag[1] = htons(GSW1XX_TX_PORT_MAP_EN | GSW1XX_TX_LRN_DIS |
-			FIELD_PREP(GSW1XX_TX_PORT_MAP, BIT(dp->index)));
 
+	tag = FIELD_PREP(GSW1XX_TX_PORT_MAP, dsa_xmit_port_mask(skb, dev)) |
+	      GSW1XX_TX_PORT_MAP_EN | GSW1XX_TX_LRN_DIS;
+	gsw1xx_tag[1] = htons(tag);
 	gsw1xx_tag[2] = 0;
 	gsw1xx_tag[3] = 0;
 
