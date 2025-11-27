@@ -438,6 +438,8 @@ static int cs_dsp_debugfs_read_controls_show(struct seq_file *s, void *ignored)
 	struct cs_dsp_coeff_ctl *ctl;
 	unsigned int reg;
 
+	guard(mutex)(&dsp->pwr_lock);
+
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
 		cs_dsp_coeff_base_reg(ctl, &reg, 0);
 		seq_printf(s, "%22.*s: %#8x %s:%08x %#8x %s %#8x %#4x %c%c%c%c %s %s\n",
