@@ -154,6 +154,10 @@ static int kvm_vm_feature_has_attr(struct kvm *kvm, struct kvm_device_attr *attr
 		if (cpu_has_ptw)
 			return 0;
 		return -ENXIO;
+	case KVM_LOONGARCH_VM_FEAT_MSGINT:
+		if (cpu_has_msgint)
+			return 0;
+		return -ENXIO;
 	case KVM_LOONGARCH_VM_FEAT_PMU:
 	case KVM_LOONGARCH_VM_FEAT_PV_IPI:
 	case KVM_LOONGARCH_VM_FEAT_PV_STEALTIME:
