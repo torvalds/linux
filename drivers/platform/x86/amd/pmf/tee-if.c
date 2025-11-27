@@ -73,14 +73,53 @@ static void amd_pmf_update_uevents(struct amd_pmf_dev *dev, u16 event)
 	input_sync(dev->pmf_idev);
 }
 
+static int amd_pmf_get_bios_output_idx(u32 action_idx)
+{
+	switch (action_idx) {
+	case PMF_POLICY_BIOS_OUTPUT_1:
+		return 0;
+	case PMF_POLICY_BIOS_OUTPUT_2:
+		return 1;
+	case PMF_POLICY_BIOS_OUTPUT_3:
+		return 2;
+	case PMF_POLICY_BIOS_OUTPUT_4:
+		return 3;
+	case PMF_POLICY_BIOS_OUTPUT_5:
+		return 4;
+	case PMF_POLICY_BIOS_OUTPUT_6:
+		return 5;
+	case PMF_POLICY_BIOS_OUTPUT_7:
+		return 6;
+	case PMF_POLICY_BIOS_OUTPUT_8:
+		return 7;
+	case PMF_POLICY_BIOS_OUTPUT_9:
+		return 8;
+	case PMF_POLICY_BIOS_OUTPUT_10:
+		return 9;
+	default:
+		return -EINVAL;
+	}
+}
+
+static void amd_pmf_update_bios_output(struct amd_pmf_dev *pdev, struct ta_pmf_action *action)
+{
+	u32 bios_idx;
+
+	bios_idx = amd_pmf_get_bios_output_idx(action->action_index);
+
+	amd_pmf_smartpc_apply_bios_output(pdev, action->value, BIT(bios_idx), bios_idx);
+}
+
 static void amd_pmf_apply_policies(struct amd_pmf_dev *dev, struct ta_pmf_enact_result *out)
 {
+	struct ta_pmf_action *action;
 	u32 val;
 	int idx;
 
 	for (idx = 0; idx < out->actions_count; idx++) {
-		val = out->actions_list[idx].value;
-		switch (out->actions_list[idx].action_index) {
+		action = &out->actions_list[idx];
+		val = action->value;
+		switch (action->action_index) {
 		case PMF_POLICY_SPL:
 			if (dev->prev_data->spl != val) {
 				amd_pmf_send_cmd(dev, SET_SPL, SET_CMD, val, NULL);
@@ -183,43 +222,16 @@ static void amd_pmf_apply_policies(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 			break;
 
 		case PMF_POLICY_BIOS_OUTPUT_1:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(0), 0);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_2:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(1), 1);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_3:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(2), 2);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_4:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(3), 3);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_5:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(4), 4);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_6:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(5), 5);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_7:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(6), 6);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_8:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(7), 7);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_9:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(8), 8);
-			break;
-
 		case PMF_POLICY_BIOS_OUTPUT_10:
-			amd_pmf_smartpc_apply_bios_output(dev, val, BIT(9), 9);
+			amd_pmf_update_bios_output(dev, action);
 			break;
 		}
 	}
