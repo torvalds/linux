@@ -249,10 +249,11 @@ int net_hwtstamp_validate(const struct kernel_hwtstamp_config *cfg)
  *
  * Helper for calling the default hardware provider timestamping.
  *
- * Note: phy_mii_ioctl() only handles SIOCSHWTSTAMP (not SIOCGHWTSTAMP), and
- * there only exists a phydev->mii_ts->hwtstamp() method. So this will return
- * -EOPNOTSUPP for phylib for now, which is still more accurate than letting
- * the netdev handle the GET request.
+ * Note: phy_mii_ioctl() only handles SIOCSHWTSTAMP (not SIOCGHWTSTAMP), but
+ * phydev->mii_ts has both hwtstamp_get() and hwtstamp_set() methods. So this
+ * will return -EOPNOTSUPP for phylib only if hwtstamp_get() is not
+ * implemented for now, which is still more accurate than letting the netdev
+ * handle the GET request.
  */
 int dev_get_hwtstamp_phylib(struct net_device *dev,
 			    struct kernel_hwtstamp_config *cfg)

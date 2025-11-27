@@ -1915,7 +1915,7 @@ static inline bool phy_polling_mode(struct phy_device *phydev)
  */
 static inline bool phy_has_hwtstamp(struct phy_device *phydev)
 {
-	return phydev && phydev->mii_ts && phydev->mii_ts->hwtstamp;
+	return phydev && phydev->mii_ts && phydev->mii_ts->hwtstamp_set;
 }
 
 /**
@@ -1950,7 +1950,7 @@ static inline int phy_hwtstamp(struct phy_device *phydev,
 			       struct kernel_hwtstamp_config *cfg,
 			       struct netlink_ext_ack *extack)
 {
-	return phydev->mii_ts->hwtstamp(phydev->mii_ts, cfg, extack);
+	return phydev->mii_ts->hwtstamp_set(phydev->mii_ts, cfg, extack);
 }
 
 static inline bool phy_rxtstamp(struct phy_device *phydev, struct sk_buff *skb,
