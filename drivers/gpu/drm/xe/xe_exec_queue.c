@@ -10,6 +10,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_syncobj.h>
 #include <uapi/drm/xe_drm.h>
 
 #include "xe_dep_scheduler.h"
@@ -324,6 +325,16 @@ struct xe_exec_queue *xe_exec_queue_create_bind(struct xe_device *xe,
 	}
 	xe_vm_put(migrate_vm);
 
+	if (!IS_ERR(q)) {
+		int err = drm_syncobj_create(&q->ufence_syncobj,
+					     DRM_SYNCOBJ_CREATE_SIGNALED,
+					     NULL);
+		if (err) {
+			xe_exec_queue_put(q);
+			return ERR_PTR(err);
+		}
+	}
+
 	return q;
 }
 ALLOW_ERROR_INJECTION(xe_exec_queue_create_bind, ERRNO);
@@ -332,6 +343,9 @@ void xe_exec_queue_destroy(struct kref *ref)
 {
 	struct xe_exec_queue *q = container_of(ref, struct xe_exec_queue, refcount);
 	struct xe_exec_queue *eq, *next;
+
+	if (q->ufence_syncobj)
+		drm_syncobj_put(q->ufence_syncobj);
 
 	if (xe_exec_queue_uses_pxp(q))
 		xe_pxp_exec_queue_remove(gt_to_xe(q->gt)->pxp, q);

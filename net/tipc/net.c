@@ -145,7 +145,9 @@ void tipc_net_finalize_work(struct work_struct *work)
 {
 	struct tipc_net *tn = container_of(work, struct tipc_net, work);
 
+	rtnl_lock();
 	tipc_net_finalize(tipc_link_net(tn->bcl), tn->trial_addr);
+	rtnl_unlock();
 }
 
 void tipc_net_stop(struct net *net)

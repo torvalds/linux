@@ -135,7 +135,7 @@ static int io_region_pin_pages(struct io_ring_ctx *ctx,
 				struct io_mapped_region *mr,
 				struct io_uring_region_desc *reg)
 {
-	unsigned long size = mr->nr_pages << PAGE_SHIFT;
+	unsigned long size = (size_t) mr->nr_pages << PAGE_SHIFT;
 	struct page **pages;
 	int nr_pages;
 

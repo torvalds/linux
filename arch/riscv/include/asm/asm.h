@@ -12,6 +12,12 @@
 #define __ASM_STR(x)	#x
 #endif
 
+#ifdef CONFIG_AS_HAS_INSN
+#define ASM_INSN_I(__x) ".insn " __x
+#else
+#define ASM_INSN_I(__x) ".4byte " __x
+#endif
+
 #if __riscv_xlen == 64
 #define __REG_SEL(a, b)	__ASM_STR(a)
 #elif __riscv_xlen == 32

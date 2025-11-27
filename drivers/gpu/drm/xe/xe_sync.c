@@ -113,6 +113,8 @@ static void user_fence_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 			struct xe_sync_entry *sync,
 			struct drm_xe_sync __user *sync_user,
+			struct drm_syncobj *ufence_syncobj,
+			u64 ufence_timeline_value,
 			unsigned int flags)
 {
 	struct drm_xe_sync sync_in;
@@ -192,10 +194,15 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		if (exec) {
 			sync->addr = sync_in.addr;
 		} else {
+			sync->ufence_timeline_value = ufence_timeline_value;
 			sync->ufence = user_fence_create(xe, sync_in.addr,
 							 sync_in.timeline_value);
 			if (XE_IOCTL_DBG(xe, IS_ERR(sync->ufence)))
 				return PTR_ERR(sync->ufence);
+			sync->ufence_chain_fence = dma_fence_chain_alloc();
+			if (!sync->ufence_chain_fence)
+				return -ENOMEM;
+			sync->ufence_syncobj = ufence_syncobj;
 		}
 
 		break;
@@ -239,7 +246,12 @@ void xe_sync_entry_signal(struct xe_sync_entry *sync, struct dma_fence *fence)
 	} else if (sync->ufence) {
 		int err;
 
-		dma_fence_get(fence);
+		drm_syncobj_add_point(sync->ufence_syncobj,
+				      sync->ufence_chain_fence,
+				      fence, sync->ufence_timeline_value);
+		sync->ufence_chain_fence = NULL;
+
+		fence = drm_syncobj_fence_get(sync->ufence_syncobj);
 		user_fence_get(sync->ufence);
 		err = dma_fence_add_callback(fence, &sync->ufence->cb,
 					     user_fence_cb);
@@ -259,7 +271,8 @@ void xe_sync_entry_cleanup(struct xe_sync_entry *sync)
 		drm_syncobj_put(sync->syncobj);
 	dma_fence_put(sync->fence);
 	dma_fence_chain_free(sync->chain_fence);
-	if (sync->ufence)
+	dma_fence_chain_free(sync->ufence_chain_fence);
+	if (!IS_ERR_OR_NULL(sync->ufence))
 		user_fence_put(sync->ufence);
 }
 

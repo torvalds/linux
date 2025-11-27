@@ -50,25 +50,6 @@ static inline u32 tb10x_reg_read(struct tb10x_gpio *gpio, unsigned int offs)
 	return ioread32(gpio->base + offs);
 }
 
-static inline void tb10x_reg_write(struct tb10x_gpio *gpio, unsigned int offs,
-				u32 val)
-{
-	iowrite32(val, gpio->base + offs);
-}
-
-static inline void tb10x_set_bits(struct tb10x_gpio *gpio, unsigned int offs,
-				u32 mask, u32 val)
-{
-	u32 r;
-
-	guard(gpio_generic_lock_irqsave)(&gpio->chip);
-
-	r = tb10x_reg_read(gpio, offs);
-	r = (r & ~mask) | (val & mask);
-
-	tb10x_reg_write(gpio, offs, r);
-}
-
 static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);

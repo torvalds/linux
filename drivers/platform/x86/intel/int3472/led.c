@@ -43,7 +43,7 @@ int skl_int3472_register_pled(struct int3472_discrete_device *int3472, struct gp
 
 	int3472->pled.lookup.provider = int3472->pled.name;
 	int3472->pled.lookup.dev_id = int3472->sensor_name;
-	int3472->pled.lookup.con_id = "privacy-led";
+	int3472->pled.lookup.con_id = "privacy";
 	led_add_lookup(&int3472->pled.lookup);
 
 	return 0;

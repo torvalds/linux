@@ -689,9 +689,6 @@ enum io_uring_register_op {
 	/* query various aspects of io_uring, see linux/io_uring/query.h */
 	IORING_REGISTER_QUERY			= 35,
 
-	/* return zcrx buffers back into circulation */
-	IORING_REGISTER_ZCRX_REFILL		= 36,
-
 	/* this goes last */
 	IORING_REGISTER_LAST,
 
@@ -1071,15 +1068,6 @@ struct io_uring_zcrx_ifq_reg {
 	__u32	zcrx_id;
 	__u32	__resv2;
 	__u64	__resv[3];
-};
-
-struct io_uring_zcrx_sync_refill {
-	__u32		zcrx_id;
-	/* the number of entries to return */
-	__u32		nr_entries;
-	/* pointer to an array of struct io_uring_zcrx_rqe */
-	__u64		rqes;
-	__u64		__resv[2];
 };
 
 #ifdef __cplusplus
