@@ -288,7 +288,7 @@ TEST(restrict_self_fd)
 	EXPECT_EQ(EBADFD, errno);
 }
 
-TEST(restrict_self_fd_flags)
+TEST(restrict_self_fd_logging_flags)
 {
 	int fd;
 
@@ -304,7 +304,7 @@ TEST(restrict_self_fd_flags)
 	EXPECT_EQ(EBADFD, errno);
 }
 
-TEST(restrict_self_flags)
+TEST(restrict_self_logging_flags)
 {
 	const __u32 last_flag = LANDLOCK_RESTRICT_SELF_TSYNC;
 
