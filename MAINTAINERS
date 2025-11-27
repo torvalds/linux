@@ -15412,14 +15412,12 @@ S:	Supported
 F:	drivers/net/phy/mxl-86110.c
 F:	drivers/net/phy/mxl-gpy.c
 
-MCAN MMIO DEVICE DRIVER
-M:	Chandrasekar Ramakrishnan <rcsekar@samsung.com>
+MCAN DEVICE DRIVER
+M:	Markus Schneider-Pargmann <msp@baylibre.com>
 L:	linux-can@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/can/bosch,m_can.yaml
-F:	drivers/net/can/m_can/m_can.c
-F:	drivers/net/can/m_can/m_can.h
-F:	drivers/net/can/m_can/m_can_platform.c
+F:	drivers/net/can/m_can/
 
 MCBA MICROCHIP CAN BUS ANALYZER TOOL DRIVER
 R:	Yasushi SHOJI <yashi@spacecubics.com>
