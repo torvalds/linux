@@ -154,6 +154,7 @@ static const char *z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 	struct xz_buf buf = {};
 	struct z_erofs_lzma *strm;
 	enum xz_ret xz_err;
+	const char *reason = NULL;
 	int err;
 
 	/* 1. get the exact LZMA compressed size */
@@ -207,7 +208,9 @@ again:
 		if (xz_err != XZ_OK) {
 			if (xz_err == XZ_STREAM_END && !rq->outputsize)
 				break;
-			err = -EFSCORRUPTED;
+			reason = (xz_err == XZ_DATA_ERROR ?
+				"corrupted compressed data" :
+				"unexpected end of stream");
 			break;
 		}
 	} while (1);
@@ -221,7 +224,7 @@ again:
 	z_erofs_lzma_head = strm;
 	spin_unlock(&z_erofs_lzma_lock);
 	wake_up(&z_erofs_lzma_wq);
-	return ERR_PTR(err);
+	return reason ?: ERR_PTR(err);
 }
 
 const struct z_erofs_decompressor z_erofs_lzma_decomp = {
