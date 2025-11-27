@@ -964,8 +964,14 @@ static void fbc_sys_cache_update_config(struct intel_display *display, u32 reg,
 
 	lockdep_assert_held(&display->fbc.sys_cache.lock);
 
-	/* Cache read enable is set by default */
-	reg |= FBC_SYS_CACHE_READ_ENABLE;
+	/*
+	 * Wa_14025769978:
+	 * Fixes: SoC hardware issue in read caching
+	 * Workaround: disable cache read setting which is enabled by default.
+	 */
+	if (!intel_display_wa(display, 14025769978))
+		/* Cache read enable is set by default */
+		reg |= FBC_SYS_CACHE_READ_ENABLE;
 
 	intel_de_write(display, XE3P_LPD_FBC_SYS_CACHE_USAGE_CFG, reg);
 

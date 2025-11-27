@@ -27,6 +27,7 @@ enum intel_display_wa {
 	INTEL_DISPLAY_WA_14011503117,
 	INTEL_DISPLAY_WA_22014263786,
 	INTEL_DISPLAY_WA_15018326506,
+	INTEL_DISPLAY_WA_14025769978,
 };
 
 bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa, const char *name);
