@@ -56,6 +56,8 @@ install: libynl.a lib/*.h
 run_tests:
 	@$(MAKE) -C tests run_tests
 
+lint:
+	yamllint $(SPECDIR)
 
 schema_check:
 	@N=1; \
@@ -72,4 +74,4 @@ schema_check:
 		N=$$((N+1)) ; \
 	done
 
-.PHONY: all clean distclean install run_tests schema_check $(SUBDIRS)
+.PHONY: all clean distclean install run_tests lint schema_check $(SUBDIRS)
