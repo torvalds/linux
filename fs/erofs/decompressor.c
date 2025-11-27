@@ -178,21 +178,21 @@ static void *z_erofs_lz4_handle_overlap(const struct z_erofs_decompress_req *rq,
 }
 
 /*
- * Get the exact inputsize with zero_padding feature.
- *  - For LZ4, it should work if zero_padding feature is on (5.3+);
- *  - For MicroLZMA, it'd be enabled all the time.
+ * Get the exact on-disk size of the compressed data:
+ *  - For LZ4, it should apply if the zero_padding feature is on (5.3+);
+ *  - For others, zero_padding is enabled all the time.
  */
-int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
-			 unsigned int padbufsize)
+const char *z_erofs_fixup_insize(struct z_erofs_decompress_req *rq,
+				 const char *padbuf, unsigned int padbufsize)
 {
 	const char *padend;
 
 	padend = memchr_inv(padbuf, 0, padbufsize);
 	if (!padend)
-		return -EFSCORRUPTED;
+		return "compressed data start not found";
 	rq->inputsize -= padend - padbuf;
 	rq->pageofs_in += padend - padbuf;
-	return 0;
+	return NULL;
 }
 
 static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst)
@@ -200,6 +200,7 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 	bool support_0padding = false, may_inplace = false;
 	unsigned int inputmargin;
 	u8 *out, *headpage, *src;
+	const char *reason;
 	int ret, maptype;
 
 	DBG_BUGON(*rq->in == NULL);
@@ -208,12 +209,12 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 	/* LZ4 decompression inplace is only safe if zero_padding is enabled */
 	if (erofs_sb_has_zero_padding(EROFS_SB(rq->sb))) {
 		support_0padding = true;
-		ret = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
+		reason = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
 				min_t(unsigned int, rq->inputsize,
 				      rq->sb->s_blocksize - rq->pageofs_in));
-		if (ret) {
+		if (reason) {
 			kunmap_local(headpage);
-			return ret;
+			return IS_ERR(reason) ? PTR_ERR(reason) : -EFSCORRUPTED;
 		}
 		may_inplace = !((rq->pageofs_in + rq->inputsize) &
 				(rq->sb->s_blocksize - 1));

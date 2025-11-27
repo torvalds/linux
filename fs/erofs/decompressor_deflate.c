@@ -103,16 +103,16 @@ static const char *__z_erofs_deflate_decompress(struct z_erofs_decompress_req *r
 	struct super_block *sb = rq->sb;
 	struct z_erofs_stream_dctx dctx = { .rq = rq, .no = -1, .ni = 0 };
 	struct z_erofs_deflate *strm;
-	const char *reason = NULL;
-	int zerr, err;
+	const char *reason;
+	int zerr;
 
 	/* 1. get the exact DEFLATE compressed size */
 	dctx.kin = kmap_local_page(*rq->in);
-	err = z_erofs_fixup_insize(rq, dctx.kin + rq->pageofs_in,
+	reason = z_erofs_fixup_insize(rq, dctx.kin + rq->pageofs_in,
 			min(rq->inputsize, sb->s_blocksize - rq->pageofs_in));
-	if (err) {
+	if (reason) {
 		kunmap_local(dctx.kin);
-		return ERR_PTR(err);
+		return reason;
 	}
 
 	/* 2. get an available DEFLATE context */
@@ -130,7 +130,7 @@ again:
 	/* 3. multi-call decompress */
 	zerr = zlib_inflateInit2(&strm->z, -MAX_WBITS);
 	if (zerr != Z_OK) {
-		err = -EINVAL;
+		reason = ERR_PTR(-EINVAL);
 		goto failed_zinit;
 	}
 
@@ -161,12 +161,11 @@ again:
 			reason = (zerr == Z_DATA_ERROR ?
 				"corrupted compressed data" :
 				"unexpected end of stream");
-			err = -EFSCORRUPTED;
 			break;
 		}
 	}
-	if (zlib_inflateEnd(&strm->z) != Z_OK && !err)
-		err = -EIO;
+	if (zlib_inflateEnd(&strm->z) != Z_OK && !reason)
+		reason = ERR_PTR(-EIO);
 	if (dctx.kout)
 		kunmap_local(dctx.kout);
 failed_zinit:
@@ -177,7 +176,7 @@ failed_zinit:
 	z_erofs_deflate_head = strm;
 	spin_unlock(&z_erofs_deflate_lock);
 	wake_up(&z_erofs_deflate_wq);
-	return reason ?: ERR_PTR(err);
+	return reason;
 }
 
 static const char *z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,

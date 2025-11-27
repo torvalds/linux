@@ -154,16 +154,15 @@ static const char *z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 	struct xz_buf buf = {};
 	struct z_erofs_lzma *strm;
 	enum xz_ret xz_err;
-	const char *reason = NULL;
-	int err;
+	const char *reason;
 
 	/* 1. get the exact LZMA compressed size */
 	dctx.kin = kmap_local_page(*rq->in);
-	err = z_erofs_fixup_insize(rq, dctx.kin + rq->pageofs_in,
+	reason = z_erofs_fixup_insize(rq, dctx.kin + rq->pageofs_in,
 			min(rq->inputsize, sb->s_blocksize - rq->pageofs_in));
-	if (err) {
+	if (reason) {
 		kunmap_local(dctx.kin);
-		return ERR_PTR(err);
+		return reason;
 	}
 
 	/* 2. get an available lzma context */
@@ -224,7 +223,7 @@ again:
 	z_erofs_lzma_head = strm;
 	spin_unlock(&z_erofs_lzma_lock);
 	wake_up(&z_erofs_lzma_wq);
-	return reason ?: ERR_PTR(err);
+	return reason;
 }
 
 const struct z_erofs_decompressor z_erofs_lzma_decomp = {
