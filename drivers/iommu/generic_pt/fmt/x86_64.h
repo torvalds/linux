@@ -241,13 +241,10 @@ x86_64_pt_iommu_fmt_init(struct pt_iommu_x86_64 *iommu_table,
 {
 	struct pt_x86_64 *table = &iommu_table->x86_64_pt;
 
-	if (cfg->common.hw_max_vasz_lg2 < 31 ||
-	    cfg->common.hw_max_vasz_lg2 > 57)
-		return -EINVAL;
+	if (cfg->top_level < 3 || cfg->top_level > 4)
+		return -EOPNOTSUPP;
 
-	/* Top of 2, 3, 4 */
-	pt_top_set_level(&table->common,
-			 (cfg->common.hw_max_vasz_lg2 - 31) / 9 + 2);
+	pt_top_set_level(&table->common, cfg->top_level);
 
 	table->common.max_oasz_lg2 =
 		min(PT_MAX_OUTPUT_ADDRESS_LG2, cfg->common.hw_max_oasz_lg2);
@@ -269,12 +266,12 @@ x86_64_pt_iommu_fmt_hw_info(struct pt_iommu_x86_64 *table,
 #if defined(GENERIC_PT_KUNIT)
 static const struct pt_iommu_x86_64_cfg x86_64_kunit_fmt_cfgs[] = {
 	[0] = { .common.features = BIT(PT_FEAT_SIGN_EXTEND),
-		.common.hw_max_vasz_lg2 = 48 },
+		.common.hw_max_vasz_lg2 = 48, .top_level = 3 },
 	[1] = { .common.features = BIT(PT_FEAT_SIGN_EXTEND),
-		.common.hw_max_vasz_lg2 = 57 },
+		.common.hw_max_vasz_lg2 = 57, .top_level = 4 },
 	/* AMD IOMMU PASID 0 formats with no SIGN_EXTEND */
-	[2] = { .common.hw_max_vasz_lg2 = 47 },
-	[3] = { .common.hw_max_vasz_lg2 = 56 },
+	[2] = { .common.hw_max_vasz_lg2 = 47, .top_level = 3 },
+	[3] = { .common.hw_max_vasz_lg2 = 56, .top_level = 4},
 };
 #define kunit_fmt_cfgs x86_64_kunit_fmt_cfgs
 enum { KUNIT_FMT_FEATURES =  BIT(PT_FEAT_SIGN_EXTEND)};

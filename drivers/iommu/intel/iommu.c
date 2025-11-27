@@ -2794,6 +2794,28 @@ static struct dmar_domain *paging_domain_alloc(void)
 	return domain;
 }
 
+static unsigned int compute_vasz_lg2_fs(struct intel_iommu *iommu,
+					unsigned int *top_level)
+{
+	unsigned int mgaw = cap_mgaw(iommu->cap);
+
+	/*
+	 * Spec 3.6 First-Stage Translation:
+	 *
+	 * Software must limit addresses to less than the minimum of MGAW
+	 * and the lower canonical address width implied by FSPM (i.e.,
+	 * 47-bit when FSPM is 4-level and 56-bit when FSPM is 5-level).
+	 */
+	if (mgaw > 48 && cap_fl5lp_support(iommu->cap)) {
+		*top_level = 4;
+		return min(57, mgaw);
+	}
+
+	/* Four level is always supported */
+	*top_level = 3;
+	return min(48, mgaw);
+}
+
 static struct iommu_domain *
 intel_iommu_domain_alloc_first_stage(struct device *dev,
 				     struct intel_iommu *iommu, u32 flags)
@@ -2813,20 +2835,8 @@ intel_iommu_domain_alloc_first_stage(struct device *dev,
 	if (IS_ERR(dmar_domain))
 		return ERR_CAST(dmar_domain);
 
-	if (cap_fl5lp_support(iommu->cap))
-		cfg.common.hw_max_vasz_lg2 = 57;
-	else
-		cfg.common.hw_max_vasz_lg2 = 48;
-
-	/*
-	 * Spec 3.6 First-Stage Translation:
-	 *
-	 * Software must limit addresses to less than the minimum of MGAW
-	 * and the lower canonical address width implied by FSPM (i.e.,
-	 * 47-bit when FSPM is 4-level and 56-bit when FSPM is 5-level).
-	 */
-	cfg.common.hw_max_vasz_lg2 = min(cap_mgaw(iommu->cap),
-					 cfg.common.hw_max_vasz_lg2);
+	cfg.common.hw_max_vasz_lg2 =
+		compute_vasz_lg2_fs(iommu, &cfg.top_level);
 	cfg.common.hw_max_oasz_lg2 = 52;
 	cfg.common.features = BIT(PT_FEAT_SIGN_EXTEND) |
 			      BIT(PT_FEAT_FLUSH_RANGE);

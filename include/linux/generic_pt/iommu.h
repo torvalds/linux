@@ -277,6 +277,8 @@ IOMMU_FORMAT(vtdss, vtdss_pt);
 
 struct pt_iommu_x86_64_cfg {
 	struct pt_iommu_cfg common;
+	/* 4 is a 57 bit 5 level table */
+	unsigned int top_level;
 };
 
 struct pt_iommu_x86_64_hw_info {

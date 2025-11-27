@@ -2708,10 +2708,13 @@ static struct iommu_domain *amd_iommu_domain_alloc_paging_v2(struct device *dev,
 	 * in both modes the top bit is removed and PT_FEAT_SIGN_EXTEND is not
 	 * set which creates a table that is compatible in both modes.
 	 */
-	if (amd_iommu_gpt_level == PAGE_MODE_5_LEVEL)
+	if (amd_iommu_gpt_level == PAGE_MODE_5_LEVEL) {
 		cfg.common.hw_max_vasz_lg2 = 56;
-	else
+		cfg.top_level = 4;
+	} else {
 		cfg.common.hw_max_vasz_lg2 = 47;
+		cfg.top_level = 3;
+	}
 	cfg.common.hw_max_oasz_lg2 = 52;
 	domain->domain.ops = &amdv2_ops;
 
