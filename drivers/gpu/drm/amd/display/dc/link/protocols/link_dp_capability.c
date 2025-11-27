@@ -2220,6 +2220,13 @@ void detect_edp_sink_caps(struct dc_link *link)
 				sizeof(link->dpcd_caps.edp_oled_emission_rate));
 
 	/*
+	 * Read DRR granularity
+	 */
+	core_link_read_dpcd(link, DP_SINK_DRR_GRANULARITY,
+			(uint8_t *)&link->dpcd_caps.drr_granularity,
+			sizeof(link->dpcd_caps.drr_granularity));
+
+	/*
 	 * Read Multi-SST (Single Stream Transport) capability
 	 * for eDP version 1.4 or higher.
 	 */
