@@ -237,20 +237,16 @@ struct mstp_clock {
 
 #define to_mstp_clock(_hw) container_of(_hw, struct mstp_clock, hw)
 
-static u32 cpg_rzt2h_mstp_read(struct clk_hw *hw, u16 offset)
+static u32 cpg_rzt2h_mstp_read(struct cpg_mssr_priv *priv, u16 offset)
 {
-	struct mstp_clock *clock = to_mstp_clock(hw);
-	struct cpg_mssr_priv *priv = clock->priv;
 	void __iomem *base =
 		RZT2H_MSTPCR_BLOCK(offset) ? priv->pub.base1 : priv->pub.base0;
 
 	return readl(base + RZT2H_MSTPCR_OFFSET(offset));
 }
 
-static void cpg_rzt2h_mstp_write(struct clk_hw *hw, u16 offset, u32 value)
+static void cpg_rzt2h_mstp_write(struct cpg_mssr_priv *priv, u16 offset, u32 value)
 {
-	struct mstp_clock *clock = to_mstp_clock(hw);
-	struct cpg_mssr_priv *priv = clock->priv;
 	void __iomem *base =
 		RZT2H_MSTPCR_BLOCK(offset) ? priv->pub.base1 : priv->pub.base0;
 
@@ -286,17 +282,14 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		barrier_data(priv->pub.base0 + priv->control_regs[reg]);
 
 	} else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H) {
-		value = cpg_rzt2h_mstp_read(hw,
-					    priv->control_regs[reg]);
+		value = cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
 
 		if (enable)
 			value &= ~bitmask;
 		else
 			value |= bitmask;
 
-		cpg_rzt2h_mstp_write(hw,
-				     priv->control_regs[reg],
-				     value);
+		cpg_rzt2h_mstp_write(priv, priv->control_regs[reg], value);
 	} else {
 		value = readl(priv->pub.base0 + priv->control_regs[reg]);
 		if (enable)
@@ -318,7 +311,7 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		 * the IP at least seven times. Instead of memory-mapping the IP
 		 * register, we simply add a delay after the read operation.
 		 */
-		cpg_rzt2h_mstp_read(hw, priv->control_regs[reg]);
+		cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
 		udelay(10);
 		return 0;
 	}
@@ -352,8 +345,7 @@ static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
 	if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 		value = readb(priv->pub.base0 + priv->control_regs[reg]);
 	else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H)
-		value = cpg_rzt2h_mstp_read(hw,
-					    priv->control_regs[reg]);
+		value = cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
 	else
 		value = readl(priv->pub.base0 + priv->status_regs[reg]);
 
