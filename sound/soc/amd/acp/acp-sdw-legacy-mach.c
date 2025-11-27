@@ -360,16 +360,18 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
 	struct asoc_sdw_endpoint *soc_ends __free(kfree) = NULL;
 	struct asoc_sdw_dailink *soc_dais __free(kfree) = NULL;
+	struct snd_soc_aux_dev *soc_aux;
 	struct snd_soc_codec_conf *codec_conf;
 	struct snd_soc_dai_link *dai_links;
 	int num_devs = 0;
 	int num_ends = 0;
+	int num_aux = 0;
 	int num_confs;
 	int num_links;
 	int be_id = 0;
 	int ret;
 
-	ret = asoc_sdw_count_sdw_endpoints(card, &num_devs, &num_ends);
+	ret = asoc_sdw_count_sdw_endpoints(card, &num_devs, &num_ends, &num_aux);
 	if (ret < 0) {
 		dev_err(dev, "failed to count devices/endpoints: %d\n", ret);
 		return ret;
@@ -387,7 +389,11 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 	if (!soc_ends)
 		return -ENOMEM;
 
-	ret = asoc_sdw_parse_sdw_endpoints(card, soc_dais, soc_ends, &num_confs);
+	soc_aux = devm_kcalloc(dev, num_aux, sizeof(*soc_aux), GFP_KERNEL);
+	if (!soc_aux)
+		return -ENOMEM;
+
+	ret = asoc_sdw_parse_sdw_endpoints(card, soc_aux, soc_dais, soc_ends, &num_confs);
 	if (ret < 0)
 		return ret;
 
@@ -413,6 +419,8 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 	card->num_configs = num_confs;
 	card->dai_link = dai_links;
 	card->num_links = num_links;
+	card->aux_dev = soc_aux;
+	card->num_aux_devs = num_aux;
 
 	/* SDW */
 	if (sdw_be_num) {

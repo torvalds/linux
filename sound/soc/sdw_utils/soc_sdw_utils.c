@@ -1252,7 +1252,8 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 }
 EXPORT_SYMBOL_NS(asoc_sdw_init_simple_dai_link, "SND_SOC_SDW_UTILS");
 
-int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends)
+int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card,
+				 int *num_devs, int *num_ends, int *num_aux)
 {
 	struct device *dev = card->dev;
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(dev);
@@ -1263,8 +1264,18 @@ int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *
 	for (adr_link = mach_params->links; adr_link->num_adr; adr_link++) {
 		*num_devs += adr_link->num_adr;
 
-		for (i = 0; i < adr_link->num_adr; i++)
-			*num_ends += adr_link->adr_d[i].num_endpoints;
+		for (i = 0; i < adr_link->num_adr; i++) {
+			const struct snd_soc_acpi_adr_device *adr_dev = &adr_link->adr_d[i];
+			struct asoc_sdw_codec_info *codec_info;
+
+			*num_ends += adr_dev->num_endpoints;
+
+			codec_info = asoc_sdw_find_codec_info_part(adr_dev->adr);
+			if (!codec_info)
+				return -EINVAL;
+
+			*num_aux += codec_info->aux_num;
+		}
 	}
 
 	dev_dbg(dev, "Found %d devices with %d endpoints\n", *num_devs, *num_ends);
@@ -1402,6 +1413,7 @@ put_device:
 }
 
 int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
+				 struct snd_soc_aux_dev *soc_aux,
 				 struct asoc_sdw_dailink *soc_dais,
 				 struct asoc_sdw_endpoint *soc_ends,
 				 int *num_devs)
@@ -1440,6 +1452,11 @@ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 			codec_info = asoc_sdw_find_codec_info_part(adr_dev->adr);
 			if (!codec_info)
 				return -EINVAL;
+
+			for (j = 0; j < codec_info->aux_num; j++) {
+				soc_aux->dlc.name = codec_info->auxs[j].codec_name;
+				soc_aux++;
+			}
 
 			ctx->ignore_internal_dmic |= codec_info->ignore_internal_dmic;
 
