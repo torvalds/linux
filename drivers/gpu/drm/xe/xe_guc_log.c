@@ -428,6 +428,76 @@ xe_guc_log_output_lfd_init(struct drm_printer *p, struct xe_guc_log_snapshot *sn
 	return size;
 }
 
+static void
+xe_guc_log_print_chunks(struct drm_printer *p, struct xe_guc_log_snapshot *snapshot,
+			u32 from, u32 to)
+{
+	int chunk_from = from % GUC_LOG_CHUNK_SIZE;
+	int chunk_id = from / GUC_LOG_CHUNK_SIZE;
+	int to_chunk_id = to / GUC_LOG_CHUNK_SIZE;
+	int chunk_to = to % GUC_LOG_CHUNK_SIZE;
+	int pos = from;
+
+	do {
+		size_t size = (to_chunk_id == chunk_id ? chunk_to : GUC_LOG_CHUNK_SIZE) -
+			      chunk_from;
+
+		lfd_output_binary(p, snapshot->copy[chunk_id] + chunk_from, size);
+		pos += size;
+		chunk_id++;
+		chunk_from = 0;
+	} while (pos < to);
+}
+
+static inline int
+xe_guc_log_add_log_event(struct drm_printer *p, struct xe_guc_log_snapshot *snapshot,
+			 struct guc_lic_save *config)
+{
+	size_t size;
+	u32 data_len, section_len;
+	struct guc_lfd_data lfd;
+	struct guc_log_buffer_entry_list *entry;
+	struct guc_lfd_data_log_events_buf events_buf;
+
+	entry = &config->entry[GUC_LOG_TYPE_EVENT_DATA];
+
+	/* Skip empty log */
+	if (entry->rd_ptr == entry->wr_ptr)
+		return 0;
+
+	size = xe_guc_log_add_lfd_header(&lfd);
+	lfd.header |= FIELD_PREP(GUC_LFD_DATA_HEADER_MASK_TYPE, GUC_LFD_TYPE_LOG_EVENTS_BUFFER);
+	events_buf.log_events_format_version = config->version;
+
+	/* Adjust to log_format_buf */
+	section_len = offsetof(struct guc_lfd_data_log_events_buf, log_event);
+	data_len = section_len;
+
+	/* Calculate data length */
+	data_len += entry->rd_ptr < entry->wr_ptr ? (entry->wr_ptr - entry->rd_ptr) :
+		(entry->wr_ptr + entry->wrap_offset - entry->rd_ptr);
+	/* make length u32 aligned */
+	lfd.data_count = DIV_ROUND_UP(data_len, sizeof(u32));
+
+	/* Output GUC_LFD_TYPE_LOG_EVENTS_BUFFER header */
+	lfd_output_binary(p, (char *)&lfd, size);
+	lfd_output_binary(p, (char *)&events_buf, section_len);
+
+	/* Output data from guc log chunks directly */
+	if (entry->rd_ptr < entry->wr_ptr) {
+		xe_guc_log_print_chunks(p, snapshot, entry->offset + entry->rd_ptr,
+					entry->offset + entry->wr_ptr);
+	} else {
+		/* 1st, print from rd to wrap offset */
+		xe_guc_log_print_chunks(p, snapshot, entry->offset + entry->rd_ptr,
+					entry->offset + entry->wrap_offset);
+
+		/* 2nd, print from buf start to wr */
+		xe_guc_log_print_chunks(p, snapshot, entry->offset, entry->offset + entry->wr_ptr);
+	}
+	return size;
+}
+
 void
 xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_printer *p);
 void
@@ -435,6 +505,7 @@ xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_p
 {
 	struct guc_lfd_file_header header;
 	struct guc_lic_save config;
+	size_t size;
 
 	if (!snapshot || !snapshot->size)
 		return;
@@ -451,7 +522,11 @@ xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_p
 
 	/* Output LFD stream */
 	xe_guc_log_load_lic(snapshot->copy[0], &config);
-	xe_guc_log_output_lfd_init(p, snapshot, &config);
+	size = xe_guc_log_output_lfd_init(p, snapshot, &config);
+	if (!size)
+		return;
+
+	xe_guc_log_add_log_event(p, snapshot, &config);
 }
 
 /**
