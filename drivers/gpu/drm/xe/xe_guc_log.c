@@ -542,9 +542,7 @@ xe_guc_log_add_crash_dump(struct drm_printer *p, struct xe_guc_log_snapshot *sna
 	return size;
 }
 
-void
-xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_printer *p);
-void
+static void
 xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_printer *p)
 {
 	struct guc_lfd_file_header header;
@@ -606,6 +604,20 @@ void xe_guc_log_print(struct xe_guc_log *log, struct drm_printer *p)
 	snapshot = xe_guc_log_snapshot_capture(log, false);
 	drm_printf(p, "CS reference clock: %u\n", log_to_gt(log)->info.reference_clock);
 	xe_guc_log_snapshot_print(snapshot, p);
+	xe_guc_log_snapshot_free(snapshot);
+}
+
+/**
+ * xe_guc_log_print_lfd - dump a copy of the GuC log in LFD format
+ * @log: GuC log structure
+ * @p: the printer object to output to
+ */
+void xe_guc_log_print_lfd(struct xe_guc_log *log, struct drm_printer *p)
+{
+	struct xe_guc_log_snapshot *snapshot;
+
+	snapshot = xe_guc_log_snapshot_capture(log, false);
+	xe_guc_log_snapshot_print_lfd(snapshot, p);
 	xe_guc_log_snapshot_free(snapshot);
 }
 
