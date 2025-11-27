@@ -72,7 +72,7 @@ static int mux_mmio_probe(struct platform_device *pdev)
 		if (IS_ERR(base))
 			regmap = ERR_PTR(-ENODEV);
 		else
-			regmap = regmap_init_mmio(dev, base, &mux_mmio_regmap_cfg);
+			regmap = devm_regmap_init_mmio(dev, base, &mux_mmio_regmap_cfg);
 		/* Fallback to checking the parent node on "real" errors. */
 		if (IS_ERR(regmap) && regmap != ERR_PTR(-EPROBE_DEFER)) {
 			regmap = dev_get_regmap(dev->parent, NULL);
