@@ -710,9 +710,9 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 			return -EINVAL;
 
 		cpu_addr = devm_ioremap_resource_wc(dev, &res);
-		if (!cpu_addr) {
+		if (IS_ERR(cpu_addr)) {
 			dev_err(dev, "failed to map memory %pR\n", &res);
-			return -ENOMEM;
+			return PTR_ERR(cpu_addr);
 		}
 
 		/* Register memory region */
