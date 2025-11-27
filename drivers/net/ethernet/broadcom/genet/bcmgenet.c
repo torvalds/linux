@@ -1640,6 +1640,13 @@ static int bcmgenet_get_num_flows(struct bcmgenet_priv *priv)
 	return res;
 }
 
+static u32 bcmgenet_get_rx_ring_count(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	return priv->hw_params->rx_queues ?: 1;
+}
+
 static int bcmgenet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			      u32 *rule_locs)
 {
@@ -1649,9 +1656,6 @@ static int bcmgenet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int i = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = priv->hw_params->rx_queues ?: 1;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bcmgenet_get_num_flows(priv);
 		cmd->data = MAX_NUM_OF_FS_RULES | RX_CLS_LOC_SPECIAL;
@@ -1700,6 +1704,7 @@ static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_rxnfc		= bcmgenet_get_rxnfc,
 	.set_rxnfc		= bcmgenet_set_rxnfc,
+	.get_rx_ring_count	= bcmgenet_get_rx_ring_count,
 	.get_pauseparam		= bcmgenet_get_pauseparam,
 	.set_pauseparam		= bcmgenet_set_pauseparam,
 };
