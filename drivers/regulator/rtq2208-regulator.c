@@ -543,14 +543,14 @@ static int rtq2208_regulator_check(struct device *dev, int *num, int *regulator_
 
 	switch (FIELD_GET(RTQ2208_MASK_BUCKPH_GROUP2, buck_phase)) {
 	case 2:
-		rtq2208_used_table[RTQ2208_BUCK_F] = true;
+		rtq2208_used_table[RTQ2208_BUCK_H] = true;
 		fallthrough;
 	case 1:
 		rtq2208_used_table[RTQ2208_BUCK_E] = true;
 		fallthrough;
 	case 0:
 	case 3:
-		rtq2208_used_table[RTQ2208_BUCK_H] = true;
+		rtq2208_used_table[RTQ2208_BUCK_F] = true;
 		fallthrough;
 	default:
 		rtq2208_used_table[RTQ2208_BUCK_G] = true;
