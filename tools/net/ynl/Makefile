@@ -12,6 +12,8 @@ endif
 libdir  ?= $(prefix)/$(libdir_relative)
 includedir ?= $(prefix)/include
 
+SPECDIR=../../../Documentation/netlink/specs
+
 SUBDIRS = lib generated samples ynltool tests
 
 all: $(SUBDIRS) libynl.a
@@ -54,4 +56,20 @@ install: libynl.a lib/*.h
 run_tests:
 	@$(MAKE) -C tests run_tests
 
-.PHONY: all clean distclean install run_tests $(SUBDIRS)
+
+schema_check:
+	@N=1; \
+	for spec in $(SPECDIR)/*.yaml ; do \
+		NAME=$$(basename $$spec) ; \
+		OUTPUT=$$(./pyynl/cli.py --spec $$spec --validate) ; \
+		if [ $$? -eq 0 ] ; then \
+			echo "ok $$N $$NAME schema validation" ; \
+		else \
+			echo "not ok $$N $$NAME schema validation" ; \
+			echo "$$OUTPUT" ; \
+			echo ; \
+		fi ; \
+		N=$$((N+1)) ; \
+	done
+
+.PHONY: all clean distclean install run_tests schema_check $(SUBDIRS)
