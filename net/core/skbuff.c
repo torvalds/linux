@@ -1490,7 +1490,7 @@ void napi_skb_free_stolen_head(struct sk_buff *skb)
 void napi_consume_skb(struct sk_buff *skb, int budget)
 {
 	/* Zero budget indicate non-NAPI context called us, like netpoll */
-	if (unlikely(!budget)) {
+	if (unlikely(!budget || !skb)) {
 		dev_consume_skb_any(skb);
 		return;
 	}
