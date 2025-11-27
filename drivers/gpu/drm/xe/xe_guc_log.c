@@ -498,6 +498,50 @@ xe_guc_log_add_log_event(struct drm_printer *p, struct xe_guc_log_snapshot *snap
 	return size;
 }
 
+static int
+xe_guc_log_add_crash_dump(struct drm_printer *p, struct xe_guc_log_snapshot *snapshot,
+			  struct guc_lic_save *config)
+{
+	struct guc_log_buffer_entry_list *entry;
+	int chunk_from, chunk_id;
+	int from, to, i;
+	size_t size = 0;
+	u32 *buf32;
+
+	entry = &config->entry[GUC_LOG_TYPE_CRASH_DUMP];
+
+	/* Skip zero sized crash dump */
+	if (!entry->buf_size)
+		return 0;
+
+	/* Check if crash dump section are all zero */
+	from = entry->offset;
+	to = entry->offset + entry->buf_size;
+	chunk_from = from % GUC_LOG_CHUNK_SIZE;
+	chunk_id = from / GUC_LOG_CHUNK_SIZE;
+	buf32 = snapshot->copy[chunk_id] + chunk_from;
+
+	for (i = 0; i < entry->buf_size / sizeof(u32); i++)
+		if (buf32[i])
+			break;
+
+	/* Buffer has non-zero data? */
+	if (i < entry->buf_size / sizeof(u32)) {
+		struct guc_lfd_data lfd;
+
+		size = xe_guc_log_add_lfd_header(&lfd);
+		lfd.header |= FIELD_PREP(GUC_LFD_DATA_HEADER_MASK_TYPE, GUC_LFD_TYPE_FW_CRASH_DUMP);
+		/* Calculate data length */
+		lfd.data_count = DIV_ROUND_UP(entry->buf_size, sizeof(u32));
+		/* Output GUC_LFD_TYPE_FW_CRASH_DUMP header */
+		lfd_output_binary(p, (char *)&lfd, size);
+
+		/* rd/wr ptr is not used for crash dump */
+		xe_guc_log_print_chunks(p, snapshot, from, to);
+	}
+	return size;
+}
+
 void
 xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_printer *p);
 void
@@ -527,6 +571,7 @@ xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_p
 		return;
 
 	xe_guc_log_add_log_event(p, snapshot, &config);
+	xe_guc_log_add_crash_dump(p, snapshot, &config);
 }
 
 /**
