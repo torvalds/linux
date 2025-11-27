@@ -23,8 +23,8 @@ struct z_erofs_decompress_req {
 struct z_erofs_decompressor {
 	int (*config)(struct super_block *sb, struct erofs_super_block *dsb,
 		      void *data, int size);
-	int (*decompress)(struct z_erofs_decompress_req *rq,
-			  struct page **pagepool);
+	const char *(*decompress)(struct z_erofs_decompress_req *rq,
+				  struct page **pagepool);
 	int (*init)(void);
 	void (*exit)(void);
 	char *name;

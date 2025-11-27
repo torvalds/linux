@@ -235,8 +235,6 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 					  rq->inputsize, rq->outputsize);
 
 	if (ret != rq->outputsize) {
-		erofs_err(rq->sb, "failed to decompress %d in[%u, %u] out[%u]",
-			  ret, rq->inputsize, inputmargin, rq->outputsize);
 		if (ret >= 0)
 			memset(out + ret, 0, rq->outputsize - ret);
 		ret = -EFSCORRUPTED;
@@ -257,8 +255,8 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 	return ret;
 }
 
-static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
-				  struct page **pagepool)
+static const char *z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
+					  struct page **pagepool)
 {
 	unsigned int dst_maptype;
 	void *dst;
@@ -273,14 +271,14 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 		/* general decoding path which can be used for all cases */
 		ret = z_erofs_lz4_prepare_dstpages(rq, pagepool);
 		if (ret < 0)
-			return ret;
+			return ERR_PTR(ret);
 		if (ret > 0) {
 			dst = page_address(*rq->out);
 			dst_maptype = 1;
 		} else {
 			dst = erofs_vm_map_ram(rq->out, rq->outpages);
 			if (!dst)
-				return -ENOMEM;
+				return ERR_PTR(-ENOMEM);
 			dst_maptype = 2;
 		}
 	}
@@ -289,11 +287,11 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 		kunmap_local(dst);
 	else if (dst_maptype == 2)
 		vm_unmap_ram(dst, rq->outpages);
-	return ret;
+	return ERR_PTR(ret);
 }
 
-static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
-				   struct page **pagepool)
+static const char *z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
+					   struct page **pagepool)
 {
 	const unsigned int nrpages_in = rq->inpages, nrpages_out = rq->outpages;
 	const unsigned int bs = rq->sb->s_blocksize;
@@ -301,7 +299,7 @@ static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 	u8 *kin;
 
 	if (rq->outputsize > rq->inputsize)
-		return -EOPNOTSUPP;
+		return ERR_PTR(-EOPNOTSUPP);
 	if (rq->alg == Z_EROFS_COMPRESSION_INTERLACED) {
 		cur = bs - (rq->pageofs_out & (bs - 1));
 		pi = (rq->pageofs_in + rq->inputsize - cur) & ~PAGE_MASK;
@@ -341,7 +339,7 @@ static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 		kunmap_local(kin);
 	}
 	DBG_BUGON(ni > nrpages_in);
-	return 0;
+	return NULL;
 }
 
 int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,

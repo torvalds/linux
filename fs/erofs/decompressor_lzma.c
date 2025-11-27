@@ -146,8 +146,8 @@ again:
 	return err;
 }
 
-static int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
-				   struct page **pgpl)
+static const char *z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
+					   struct page **pgpl)
 {
 	struct super_block *sb = rq->sb;
 	struct z_erofs_stream_dctx dctx = { .rq = rq, .no = -1, .ni = 0 };
@@ -162,7 +162,7 @@ static int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 			min(rq->inputsize, sb->s_blocksize - rq->pageofs_in));
 	if (err) {
 		kunmap_local(dctx.kin);
-		return err;
+		return ERR_PTR(err);
 	}
 
 	/* 2. get an available lzma context */
@@ -207,8 +207,6 @@ again:
 		if (xz_err != XZ_OK) {
 			if (xz_err == XZ_STREAM_END && !rq->outputsize)
 				break;
-			erofs_err(sb, "failed to decompress %d in[%u] out[%u]",
-				  xz_err, rq->inputsize, rq->outputsize);
 			err = -EFSCORRUPTED;
 			break;
 		}
@@ -223,7 +221,7 @@ again:
 	z_erofs_lzma_head = strm;
 	spin_unlock(&z_erofs_lzma_lock);
 	wake_up(&z_erofs_lzma_wq);
-	return err;
+	return ERR_PTR(err);
 }
 
 const struct z_erofs_decompressor z_erofs_lzma_decomp = {

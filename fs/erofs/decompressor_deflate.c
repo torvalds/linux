@@ -157,8 +157,6 @@ again:
 				break;
 			if (zerr == Z_STREAM_END && !rq->outputsize)
 				break;
-			erofs_err(sb, "failed to decompress %d in[%u] out[%u]",
-				  zerr, rq->inputsize, rq->outputsize);
 			err = -EFSCORRUPTED;
 			break;
 		}
@@ -178,8 +176,8 @@ failed_zinit:
 	return err;
 }
 
-static int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
-				      struct page **pgpl)
+static const char *z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
+					      struct page **pgpl)
 {
 #ifdef CONFIG_EROFS_FS_ZIP_ACCEL
 	int err;
@@ -187,11 +185,11 @@ static int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
 	if (!rq->partial_decoding) {
 		err = z_erofs_crypto_decompress(rq, pgpl);
 		if (err != -EOPNOTSUPP)
-			return err;
+			return ERR_PTR(err);
 
 	}
 #endif
-	return __z_erofs_deflate_decompress(rq, pgpl);
+	return ERR_PTR(__z_erofs_deflate_decompress(rq, pgpl));
 }
 
 const struct z_erofs_decompressor z_erofs_deflate_decomp = {
