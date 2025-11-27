@@ -1077,11 +1077,19 @@ static int cpg_mssr_suspend_noirq(struct device *dev)
 
 	/* Save module registers with bits under our control */
 	for (reg = 0; reg < ARRAY_SIZE(priv->smstpcr_saved); reg++) {
-		if (priv->smstpcr_saved[reg].mask)
-			priv->smstpcr_saved[reg].val =
-				priv->reg_layout == CLK_REG_LAYOUT_RZ_A ?
-				readb(priv->pub.base0 + priv->control_regs[reg]) :
-				readl(priv->pub.base0 + priv->control_regs[reg]);
+		u32 val;
+
+		if (!priv->smstpcr_saved[reg].mask)
+			continue;
+
+		if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
+			val = readb(priv->pub.base0 + priv->control_regs[reg]);
+		else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H)
+			val = cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
+		else
+			val = readl(priv->pub.base0 + priv->control_regs[reg]);
+
+		priv->smstpcr_saved[reg].val = val;
 	}
 
 	/* Save core clocks */
@@ -1112,6 +1120,8 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 
 		if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 			oldval = readb(priv->pub.base0 + priv->control_regs[reg]);
+		else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H)
+			oldval = cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
 		else
 			oldval = readl(priv->pub.base0 + priv->control_regs[reg]);
 		newval = oldval & ~mask;
@@ -1124,6 +1134,12 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 			/* dummy read to ensure write has completed */
 			readb(priv->pub.base0 + priv->control_regs[reg]);
 			barrier_data(priv->pub.base0 + priv->control_regs[reg]);
+			continue;
+		} else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H) {
+			cpg_rzt2h_mstp_write(priv, priv->control_regs[reg], newval);
+			/* See cpg_mstp_clock_endisable() on why this is necessary. */
+			cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
+			udelay(10);
 			continue;
 		} else
 			writel(newval, priv->pub.base0 + priv->control_regs[reg]);
