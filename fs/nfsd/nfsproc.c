@@ -407,6 +407,9 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		/* File doesn't exist. Create it and set attrs */
 		resp->status = nfsd_create_locked(rqstp, dirfhp, &attrs, type,
 						  rdev, newfhp);
+		/* nfsd_create_locked() unlocked the parent */
+		dput(dchild);
+		goto out_write;
 	} else if (type == S_IFREG) {
 		dprintk("nfsd:   existing %s, valid=%x, size=%ld\n",
 			argp->name, attr->ia_valid, (long) attr->ia_size);
