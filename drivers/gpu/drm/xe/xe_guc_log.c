@@ -7,8 +7,10 @@
 
 #include <linux/fault-inject.h>
 
+#include <linux/utsname.h>
 #include <drm/drm_managed.h>
 
+#include "abi/guc_lfd_abi.h"
 #include "regs/xe_guc_regs.h"
 #include "xe_bo.h"
 #include "xe_devcoredump.h"
@@ -19,7 +21,76 @@
 #include "xe_mmio.h"
 #include "xe_module.h"
 
-#define GUC_LOG_CHUNK_SIZE	SZ_2M
+#define GUC_LOG_CHUNK_SIZE			SZ_2M
+
+/* Magic keys define */
+#define GUC_LFD_DRIVER_KEY_STREAMING		0x8086AAAA474C5346
+#define GUC_LFD_LOG_BUFFER_MARKER_2		0xDEADFEED
+#define GUC_LFD_CRASH_DUMP_BUFFER_MARKER_2	0x8086DEAD
+#define GUC_LFD_STATE_CAPTURE_BUFFER_MARKER_2	0xBEEFFEED
+#define GUC_LFD_LOG_BUFFER_MARKER_1V2		0xCABBA9E6
+#define GUC_LFD_STATE_CAPTURE_BUFFER_MARKER_1V2	0xCABBA9F7
+#define GUC_LFD_DATA_HEADER_MAGIC		0x8086
+
+/* LFD supported LIC type range */
+#define GUC_LIC_TYPE_FIRST			GUC_LIC_TYPE_GUC_SW_VERSION
+#define GUC_LIC_TYPE_LAST			GUC_LIC_TYPE_BUILD_PLATFORM_ID
+#define GUC_LFD_TYPE_FW_RANGE_FIRST		GUC_LFD_TYPE_FW_VERSION
+#define GUC_LFD_TYPE_FW_RANGE_LAST		GUC_LFD_TYPE_BUILD_PLATFORM_ID
+
+#define GUC_LOG_BUFFER_STATE_HEADER_LENGTH	4096
+#define GUC_LOG_BUFFER_INIT_CONFIG		3
+
+struct guc_log_buffer_entry_list {
+	u32 offset;
+	u32 rd_ptr;
+	u32 wr_ptr;
+	u32 wrap_offset;
+	u32 buf_size;
+};
+
+struct guc_lic_save {
+	u32 version;
+	/*
+	 * Array of init config KLV values.
+	 * Range from GUC_LOG_LIC_TYPE_FIRST to GUC_LOG_LIC_TYPE_LAST
+	 */
+	u32 values[GUC_LIC_TYPE_LAST - GUC_LIC_TYPE_FIRST + 1];
+	struct guc_log_buffer_entry_list entry[GUC_LOG_BUFFER_INIT_CONFIG];
+};
+
+static struct guc_log_buffer_entry_markers {
+	u32 key[2];
+} const entry_markers[GUC_LOG_BUFFER_INIT_CONFIG + 1] = {
+	{{
+		GUC_LFD_LOG_BUFFER_MARKER_1V2,
+		GUC_LFD_LOG_BUFFER_MARKER_2
+	}},
+	{{
+		GUC_LFD_LOG_BUFFER_MARKER_1V2,
+		GUC_LFD_CRASH_DUMP_BUFFER_MARKER_2
+	}},
+	{{
+		GUC_LFD_STATE_CAPTURE_BUFFER_MARKER_1V2,
+		GUC_LFD_STATE_CAPTURE_BUFFER_MARKER_2
+	}},
+	{{
+		GUC_LIC_MAGIC,
+		(FIELD_PREP_CONST(GUC_LIC_VERSION_MASK_MAJOR, GUC_LIC_VERSION_MAJOR) |
+		 FIELD_PREP_CONST(GUC_LIC_VERSION_MASK_MINOR, GUC_LIC_VERSION_MINOR))
+	}}
+};
+
+static struct guc_log_lic_lfd_map {
+	u32 lic;
+	u32 lfd;
+} const lic_lfd_type_map[] = {
+	{GUC_LIC_TYPE_GUC_SW_VERSION,		GUC_LFD_TYPE_FW_VERSION},
+	{GUC_LIC_TYPE_GUC_DEVICE_ID,		GUC_LFD_TYPE_GUC_DEVICE_ID},
+	{GUC_LIC_TYPE_TSC_FREQUENCY,		GUC_LFD_TYPE_TSC_FREQUENCY},
+	{GUC_LIC_TYPE_GMD_ID,			GUC_LFD_TYPE_GMD_ID},
+	{GUC_LIC_TYPE_BUILD_PLATFORM_ID,	GUC_LFD_TYPE_BUILD_PLATFORM_ID}
+};
 
 static struct xe_guc *
 log_to_guc(struct xe_guc_log *log)
@@ -187,6 +258,200 @@ void xe_guc_log_snapshot_print(struct xe_guc_log_snapshot *snapshot, struct drm_
 		xe_print_blob_ascii85(p, prefix, suffix, snapshot->copy[i], 0, size);
 		remain -= size;
 	}
+}
+
+static inline void lfd_output_binary(struct drm_printer *p, char *buf, int buf_size)
+{
+	seq_write(p->arg, buf, buf_size);
+}
+
+static inline int xe_guc_log_add_lfd_header(struct guc_lfd_data *lfd)
+{
+	lfd->header = FIELD_PREP_CONST(GUC_LFD_DATA_HEADER_MASK_MAGIC, GUC_LFD_DATA_HEADER_MAGIC);
+	return offsetof(struct guc_lfd_data, data);
+}
+
+static int xe_guc_log_add_typed_payload(struct drm_printer *p, u32 type,
+					u32 data_len, void *data)
+{
+	struct guc_lfd_data lfd;
+	int len;
+
+	len = xe_guc_log_add_lfd_header(&lfd);
+	lfd.header |= FIELD_PREP(GUC_LFD_DATA_HEADER_MASK_TYPE, type);
+	/* make length DW aligned */
+	lfd.data_count = DIV_ROUND_UP(data_len, sizeof(u32));
+	lfd_output_binary(p, (char *)&lfd, len);
+
+	lfd_output_binary(p, data, data_len);
+	len += lfd.data_count * sizeof(u32);
+
+	return len;
+}
+
+static inline int lic_type_to_index(u32 lic_type)
+{
+	XE_WARN_ON(lic_type < GUC_LIC_TYPE_FIRST || lic_type > GUC_LIC_TYPE_LAST);
+
+	return lic_type - GUC_LIC_TYPE_FIRST;
+}
+
+static inline int lfd_type_to_index(u32 lfd_type)
+{
+	int i, lic_type = 0;
+
+	XE_WARN_ON(lfd_type < GUC_LFD_TYPE_FW_RANGE_FIRST || lfd_type > GUC_LFD_TYPE_FW_RANGE_LAST);
+
+	for (i = 0; i < ARRAY_SIZE(lic_lfd_type_map); i++)
+		if (lic_lfd_type_map[i].lfd == lfd_type)
+			lic_type = lic_lfd_type_map[i].lic;
+
+	/* If not found, lic_type_to_index will warning invalid type */
+	return lic_type_to_index(lic_type);
+}
+
+static int xe_guc_log_add_klv(struct drm_printer *p, u32 lfd_type,
+			      struct guc_lic_save *config)
+{
+	int klv_index = lfd_type_to_index(lfd_type);
+
+	return xe_guc_log_add_typed_payload(p, lfd_type, sizeof(u32), &config->values[klv_index]);
+}
+
+static int xe_guc_log_add_os_id(struct drm_printer *p, u32 id)
+{
+	struct guc_lfd_data_os_info os_id;
+	struct guc_lfd_data lfd;
+	int len, info_len, section_len;
+	char *version;
+	u32 blank = 0;
+
+	len = xe_guc_log_add_lfd_header(&lfd);
+	lfd.header |= FIELD_PREP(GUC_LFD_DATA_HEADER_MASK_TYPE, GUC_LFD_TYPE_OS_ID);
+
+	os_id.os_id = id;
+	section_len = offsetof(struct guc_lfd_data_os_info, build_version);
+
+	version = init_utsname()->release;
+	info_len = strlen(version);
+
+	/* make length DW aligned */
+	lfd.data_count = DIV_ROUND_UP(section_len + info_len, sizeof(u32));
+	lfd_output_binary(p, (char *)&lfd, len);
+	lfd_output_binary(p, (char *)&os_id, section_len);
+	lfd_output_binary(p, version, info_len);
+
+	/* Padding with 0 */
+	section_len = lfd.data_count * sizeof(u32) - section_len - info_len;
+	if (section_len)
+		lfd_output_binary(p, (char *)&blank, section_len);
+
+	len +=  lfd.data_count * sizeof(u32);
+	return len;
+}
+
+static void xe_guc_log_loop_log_init(struct guc_lic *init, struct guc_lic_save *config)
+{
+	struct guc_klv_generic_dw_t *p = (void *)init->data;
+	int i;
+
+	for (i = 0; i < init->data_count;) {
+		int klv_len = FIELD_GET(GUC_KLV_0_LEN, p->kl) + 1;
+		int key = FIELD_GET(GUC_KLV_0_KEY, p->kl);
+
+		if (key < GUC_LIC_TYPE_FIRST || key > GUC_LIC_TYPE_LAST) {
+			XE_WARN_ON(key < GUC_LIC_TYPE_FIRST || key > GUC_LIC_TYPE_LAST);
+			break;
+		}
+		config->values[lic_type_to_index(key)] = p->value;
+		i += klv_len + 1; /* Whole KLV structure length in dwords */
+		p = (void *)((u32 *)p + klv_len);
+	}
+}
+
+static int find_marker(u32 mark0, u32 mark1)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(entry_markers); i++)
+		if (mark0 == entry_markers[i].key[0] && mark1 == entry_markers[i].key[1])
+			return i;
+
+	return ARRAY_SIZE(entry_markers);
+}
+
+static void xe_guc_log_load_lic(void *guc_log, struct guc_lic_save *config)
+{
+	u32 offset = GUC_LOG_BUFFER_STATE_HEADER_LENGTH;
+	struct guc_log_buffer_state *p = guc_log;
+
+	config->version = p->version;
+	while (p->marker[0]) {
+		int index;
+
+		index = find_marker(p->marker[0], p->marker[1]);
+
+		if (index < ARRAY_SIZE(entry_markers)) {
+			if (index == GUC_LOG_BUFFER_INIT_CONFIG) {
+				/* Load log init config */
+				xe_guc_log_loop_log_init((void *)p, config);
+
+				/* LIC structure is the last */
+				return;
+			}
+			config->entry[index].offset = offset;
+			config->entry[index].rd_ptr = p->read_ptr;
+			config->entry[index].wr_ptr = p->write_ptr;
+			config->entry[index].wrap_offset = p->wrap_offset;
+			config->entry[index].buf_size = p->size;
+		}
+		offset += p->size;
+		p++;
+	}
+}
+
+static int
+xe_guc_log_output_lfd_init(struct drm_printer *p, struct xe_guc_log_snapshot *snapshot,
+			   struct guc_lic_save *config)
+{
+	int type, len;
+	size_t size = 0;
+
+	/* FW required types */
+	for (type = GUC_LFD_TYPE_FW_RANGE_FIRST; type <= GUC_LFD_TYPE_FW_RANGE_LAST; type++)
+		size += xe_guc_log_add_klv(p, type, config);
+
+	/* KMD required type(s) */
+	len = xe_guc_log_add_os_id(p, GUC_LFD_OS_TYPE_OSID_LIN);
+	size += len;
+
+	return size;
+}
+
+void
+xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_printer *p);
+void
+xe_guc_log_snapshot_print_lfd(struct xe_guc_log_snapshot *snapshot, struct drm_printer *p)
+{
+	struct guc_lfd_file_header header;
+	struct guc_lic_save config;
+
+	if (!snapshot || !snapshot->size)
+		return;
+
+	header.magic = GUC_LFD_DRIVER_KEY_STREAMING;
+	header.version = FIELD_PREP_CONST(GUC_LFD_FILE_HEADER_VERSION_MASK_MINOR,
+					  GUC_LFD_FORMAT_VERSION_MINOR) |
+			 FIELD_PREP_CONST(GUC_LFD_FILE_HEADER_VERSION_MASK_MAJOR,
+					  GUC_LFD_FORMAT_VERSION_MAJOR);
+
+	/* Output LFD file header */
+	lfd_output_binary(p, (char *)&header,
+			  offsetof(struct guc_lfd_file_header, stream));
+
+	/* Output LFD stream */
+	xe_guc_log_load_lic(snapshot->copy[0], &config);
+	xe_guc_log_output_lfd_init(p, snapshot, &config);
 }
 
 /**
