@@ -192,6 +192,11 @@ void route_exception(struct ex_regs *regs)
 	while (1) ;
 }
 
+uint32_t guest_get_vcpuid(void)
+{
+	return csr_read(LOONGARCH_CSR_CPUID);
+}
+
 void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...)
 {
 	int i;
