@@ -7,6 +7,7 @@
 
 #include <asm/byteorder.h>
 #include <kunit/static_stub.h>
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/dev_printk.h>
 #include <linux/efi.h>
@@ -309,9 +310,8 @@ static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev,
 							     efi_guid_t **guid,
 							     u32 *attr)
 {
-	struct cirrus_amp_efi_data *efi_data;
+	struct cirrus_amp_efi_data *efi_data __free(kfree) = NULL;
 	unsigned long data_size = 0;
-	u8 *data;
 	efi_status_t status;
 	int i, ret;
 
@@ -339,19 +339,18 @@ static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev,
 	}
 
 	/* Get variable contents into buffer */
-	data = kmalloc(data_size, GFP_KERNEL);
-	if (!data)
+	efi_data = kmalloc(data_size, GFP_KERNEL);
+	if (!efi_data)
 		return ERR_PTR(-ENOMEM);
 
 	status = cs_amp_get_efi_variable(cs_amp_lib_cal_efivars[i].name,
 					 cs_amp_lib_cal_efivars[i].guid,
-					 attr, &data_size, data);
+					 attr, &data_size, efi_data);
 	if (status != EFI_SUCCESS) {
 		ret = -EINVAL;
 		goto err;
 	}
 
-	efi_data = (struct cirrus_amp_efi_data *)data;
 	dev_dbg(dev, "Calibration: Size=%d, Amp Count=%d\n", efi_data->size, efi_data->count);
 
 	if ((efi_data->count > 128) ||
@@ -365,10 +364,9 @@ static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev,
 	if (efi_data->size == 0)
 		efi_data->size = data_size;
 
-	return efi_data;
+	return_ptr(efi_data);
 
 err:
-	kfree(data);
 	dev_err(dev, "Failed to read calibration data from EFI: %d\n", ret);
 
 	return ERR_PTR(ret);
@@ -391,9 +389,9 @@ static int cs_amp_set_cal_efi_buffer(struct device *dev,
 static int _cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, int amp_index,
 					    struct cirrus_amp_cal_data *out_data)
 {
-	struct cirrus_amp_efi_data *efi_data;
+	struct cirrus_amp_efi_data *efi_data __free(kfree) = NULL;
 	struct cirrus_amp_cal_data *cal = NULL;
-	int i, ret;
+	int i;
 
 	efi_data = cs_amp_get_cal_efi_buffer(dev, NULL, NULL, NULL);
 	if (IS_ERR(efi_data))
@@ -434,17 +432,14 @@ static int _cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, 
 			dev_warn(dev, "Calibration entry %d does not match silicon ID", amp_index);
 	}
 
-	if (cal) {
-		memcpy(out_data, cal, sizeof(*out_data));
-		ret = 0;
-	} else {
+	if (!cal) {
 		dev_warn(dev, "No calibration for silicon ID %#llx\n", target_uid);
-		ret = -ENOENT;
+		return -ENOENT;
 	}
 
-	kfree(efi_data);
+	memcpy(out_data, cal, sizeof(*out_data));
 
-	return ret;
+	return 0;
 }
 
 static int _cs_amp_set_efi_calibration_data(struct device *dev, int amp_index, int num_amps,
