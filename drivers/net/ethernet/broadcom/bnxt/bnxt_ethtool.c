@@ -1770,6 +1770,13 @@ static int bnxt_set_rxfh_fields(struct net_device *dev,
 	return rc;
 }
 
+static u32 bnxt_get_rx_ring_count(struct net_device *dev)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	return bp->rx_nr_rings;
+}
+
 static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			  u32 *rule_locs)
 {
@@ -1777,10 +1784,6 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int rc = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = bp->rx_nr_rings;
-		break;
-
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bp->ntp_fltr_count;
 		cmd->data = bp->max_fltr | RX_CLS_LOC_SPECIAL;
@@ -5616,6 +5619,7 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_channels		= bnxt_set_channels,
 	.get_rxnfc		= bnxt_get_rxnfc,
 	.set_rxnfc		= bnxt_set_rxnfc,
+	.get_rx_ring_count	= bnxt_get_rx_ring_count,
 	.get_rxfh_indir_size    = bnxt_get_rxfh_indir_size,
 	.get_rxfh_key_size      = bnxt_get_rxfh_key_size,
 	.get_rxfh               = bnxt_get_rxfh,
