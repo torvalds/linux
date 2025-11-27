@@ -1541,7 +1541,6 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 	}
 
 	ab->dev = &pdev->dev;
-	pci_set_drvdata(pdev, ab);
 	ab_pci = ath12k_pci_priv(ab);
 	ab_pci->dev_id = pci_dev->device;
 	ab_pci->ab = ab;
