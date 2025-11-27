@@ -97,15 +97,12 @@ static inline void mchp_corespi_read_fifo(struct mchp_corespi *spi, u32 fifo_max
 		       MCHP_CORESPI_STATUS_RXFIFO_EMPTY)
 			;
 
+		/* On TX-only transfers always perform a dummy read */
 		data = readb(spi->regs + MCHP_CORESPI_REG_RXDATA);
+		if (spi->rx_buf)
+			*spi->rx_buf++ = data;
 
 		spi->rx_len--;
-		if (!spi->rx_buf)
-			continue;
-
-		*spi->rx_buf = data;
-
-		spi->rx_buf++;
 	}
 }
 
@@ -127,23 +124,19 @@ static void mchp_corespi_disable_ints(struct mchp_corespi *spi)
 
 static inline void mchp_corespi_write_fifo(struct mchp_corespi *spi, u32 fifo_max)
 {
-	int i = 0;
+	for (int i = 0; i < fifo_max; i++) {
+		if (readb(spi->regs + MCHP_CORESPI_REG_STAT) &
+		    MCHP_CORESPI_STATUS_TXFIFO_FULL)
+			break;
 
-	while ((i < fifo_max) &&
-	       !(readb(spi->regs + MCHP_CORESPI_REG_STAT) &
-		 MCHP_CORESPI_STATUS_TXFIFO_FULL)) {
-		u32 word;
-
-		word = spi->tx_buf ? *spi->tx_buf : 0xaa;
-		writeb(word, spi->regs + MCHP_CORESPI_REG_TXDATA);
-
+		/* On RX-only transfers always perform a dummy write */
 		if (spi->tx_buf)
-			spi->tx_buf++;
+			writeb(*spi->tx_buf++, spi->regs + MCHP_CORESPI_REG_TXDATA);
+		else
+			writeb(0xaa, spi->regs + MCHP_CORESPI_REG_TXDATA);
 
-		i++;
+		spi->tx_len--;
 	}
-
-	spi->tx_len -= i;
 }
 
 static void mchp_corespi_set_cs(struct spi_device *spi, bool disable)
