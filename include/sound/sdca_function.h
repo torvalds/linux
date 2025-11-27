@@ -611,7 +611,7 @@ enum sdca_entity0_controls {
 #define SDCA_CTL_NDAI_PACKETTYPE_NAME			"NDAI Packet Type"
 #define SDCA_CTL_MIXER_NAME				"Mixer"
 #define SDCA_CTL_SELECTOR_NAME				"Selector"
-#define SDCA_CTL_MUTE_NAME				"Mute"
+#define SDCA_CTL_MUTE_NAME				"Channel"
 #define SDCA_CTL_CHANNEL_VOLUME_NAME			"Channel Volume"
 #define SDCA_CTL_AGC_NAME				"AGC"
 #define SDCA_CTL_BASS_BOOST_NAME			"Bass Boost"
