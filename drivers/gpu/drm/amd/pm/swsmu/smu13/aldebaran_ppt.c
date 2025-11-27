@@ -71,9 +71,6 @@
 			  FEATURE_MASK(FEATURE_DPM_XGMI_BIT)	| \
 			  FEATURE_MASK(FEATURE_DPM_VCN_BIT))
 
-/* possible frequency drift (1Mhz) */
-#define EPSILON				1
-
 #define smnPCIE_ESM_CTRL			0x111003D0
 
 /*
@@ -629,30 +626,6 @@ static int aldebaran_populate_umd_state_clk(struct smu_context *smu)
 	return 0;
 }
 
-static void aldebaran_get_clk_table(struct smu_context *smu,
-				    struct pp_clock_levels_with_latency *clocks,
-				    struct smu_dpm_table *dpm_table)
-{
-	uint32_t i;
-
-	clocks->num_levels = min_t(uint32_t,
-				   dpm_table->count,
-				   (uint32_t)PP_MAX_CLOCK_LEVELS);
-
-	for (i = 0; i < clocks->num_levels; i++) {
-		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 1000;
-		clocks->data[i].latency_in_us = 0;
-	}
-
-}
-
-static int aldebaran_freqs_in_same_level(int32_t frequency1,
-					 int32_t frequency2)
-{
-	return (abs(frequency1 - frequency2) <= EPSILON);
-}
-
 static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 					  MetricsMember_t member,
 					  uint32_t *value)
@@ -819,16 +792,10 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 {
 	int ret = 0;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
-	struct pp_clock_levels_with_latency clocks;
-	struct smu_dpm_table *single_dpm_table;
+	struct smu_dpm_table *single_dpm_table = NULL;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
-	uint32_t i;
-	int display_levels;
-	uint32_t freq_values[3] = {0};
-	uint32_t min_clk, max_clk, cur_value = 0;
-	bool freq_match;
-	unsigned int clock_mhz;
+	uint32_t cur_value = 0;
 	static const char attempt_string[] = "Attempt to get current";
 
 	if (amdgpu_ras_intr_triggered()) {
@@ -839,134 +806,50 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 	dpm_context = smu_dpm->dpm_context;
 
 	switch (type) {
-
 	case SMU_OD_SCLK:
 		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_SCLK");
 		*offset += sysfs_emit_at(buf, *offset, "0: %uMhz\n1: %uMhz\n",
-				      pstate_table->gfxclk_pstate.curr.min,
-				      pstate_table->gfxclk_pstate.curr.max);
+					 pstate_table->gfxclk_pstate.curr.min,
+					 pstate_table->gfxclk_pstate.curr.max);
 		return 0;
-	case SMU_SCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &cur_value);
-		if (ret) {
-			dev_err(smu->adev->dev, "%s gfx clk Failed!", attempt_string);
-			return ret;
-		}
-
-		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
-		aldebaran_get_clk_table(smu, &clocks, single_dpm_table);
-
-		display_levels = (clocks.num_levels == 1) ? 1 : 2;
-
-		min_clk = pstate_table->gfxclk_pstate.curr.min;
-		max_clk = pstate_table->gfxclk_pstate.curr.max;
-
-		freq_values[0] = min_clk;
-		freq_values[1] = max_clk;
-
-		/* fine-grained dpm has only 2 levels */
-		if (cur_value > min_clk && cur_value < max_clk) {
-			display_levels++;
-			freq_values[2] = max_clk;
-			freq_values[1] = cur_value;
-		}
-		break;
-
 	case SMU_OD_MCLK:
 		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_MCLK");
 		*offset += sysfs_emit_at(buf, *offset, "0: %uMhz\n1: %uMhz\n",
-				      pstate_table->uclk_pstate.curr.min,
-				      pstate_table->uclk_pstate.curr.max);
+					 pstate_table->uclk_pstate.curr.min,
+					 pstate_table->uclk_pstate.curr.max);
 		return 0;
+
+	case SMU_SCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
+		break;
 	case SMU_MCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &cur_value);
-		if (ret) {
-			dev_err(smu->adev->dev, "%s mclk Failed!", attempt_string);
-			return ret;
-		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.uclk_table);
-		aldebaran_get_clk_table(smu, &clocks, single_dpm_table);
 		break;
-
 	case SMU_SOCCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_SOCCLK, &cur_value);
-		if (ret) {
-			dev_err(smu->adev->dev, "%s socclk Failed!", attempt_string);
-			return ret;
-		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.soc_table);
-		aldebaran_get_clk_table(smu, &clocks, single_dpm_table);
 		break;
-
 	case SMU_FCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_FCLK, &cur_value);
-		if (ret) {
-			dev_err(smu->adev->dev, "%s fclk Failed!", attempt_string);
-			return ret;
-		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.fclk_table);
-		aldebaran_get_clk_table(smu, &clocks, single_dpm_table);
 		break;
-
 	case SMU_VCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_VCLK, &cur_value);
-		if (ret) {
-			dev_err(smu->adev->dev, "%s vclk Failed!", attempt_string);
-			return ret;
-		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
-		aldebaran_get_clk_table(smu, &clocks, single_dpm_table);
 		break;
-
 	case SMU_DCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_DCLK, &cur_value);
-		if (ret) {
-			dev_err(smu->adev->dev, "%s dclk Failed!", attempt_string);
-			return ret;
-		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
-		aldebaran_get_clk_table(smu, &clocks, single_dpm_table);
 		break;
-
 	default:
 		return -EINVAL;
 	}
 
-	switch (type) {
-	case SMU_SCLK:
-		for (i = 0; i < display_levels; i++) {
-			clock_mhz = freq_values[i];
-			freq_match = aldebaran_freqs_in_same_level(clock_mhz, cur_value);
-			freq_match |= (display_levels == 1);
-
-			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n", i,
-				clock_mhz,
-				(freq_match) ? "*" : "");
+	if (single_dpm_table) {
+		ret = aldebaran_get_current_clk_freq_by_table(smu, type,
+							      &cur_value);
+		if (ret) {
+			dev_err(smu->adev->dev, "%s Failed!", attempt_string);
+			return ret;
 		}
-		break;
-
-	case SMU_MCLK:
-	case SMU_SOCCLK:
-	case SMU_FCLK:
-	case SMU_VCLK:
-	case SMU_DCLK:
-		for (i = 0; i < clocks.num_levels; i++) {
-			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
-			freq_match = aldebaran_freqs_in_same_level(clock_mhz, cur_value);
-			freq_match |= (clocks.num_levels == 1);
-
-			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
-				i, clock_mhz,
-				(freq_match) ? "*" : "");
-		}
-		break;
-	default:
-		return -EINVAL;
+		return smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						    cur_value, buf, offset);
 	}
 
 	return 0;
