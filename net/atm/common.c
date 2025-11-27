@@ -881,7 +881,7 @@ out_atmproc_exit:
 out_atmsvc_exit:
 	atmsvc_exit();
 out_atmpvc_exit:
-	atmsvc_exit();
+	atmpvc_exit();
 out_unregister_vcc_proto:
 	proto_unregister(&vcc_proto);
 	goto out;
