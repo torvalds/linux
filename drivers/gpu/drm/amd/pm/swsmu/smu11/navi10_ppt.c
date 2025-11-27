@@ -1252,9 +1252,8 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 {
 	uint16_t *curve_settings;
 	int ret = 0;
-	uint32_t cur_value = 0, value = 0;
-	uint32_t freq_values[3] = {0};
-	uint32_t i, levels, mark_index = 0, count = 0;
+	uint32_t cur_value = 0;
+	uint32_t i;
 	struct smu_table_context *table_context = &smu->smu_table;
 	uint32_t gen_speed, lane_width;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
@@ -1262,100 +1261,39 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)table_context->overdrive_table;
 	struct smu_11_0_overdrive_table *od_settings = smu->od_settings;
+	struct smu_dpm_table *single_dpm_table = NULL;
 	struct smu_pcie_table *pcie_table;
 	uint32_t min_value, max_value;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
 	case SMU_SCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
+		break;
+	/* FCLK and SOC CLK mapped to SOCCLK in clock map table */
 	case SMU_SOCCLK:
+	case SMU_FCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.soc_table);
+		break;
 	case SMU_MCLK:
 	case SMU_UCLK:
-	case SMU_FCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.uclk_table);
+		break;
 	case SMU_VCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
+		break;
 	case SMU_DCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
+		break;
 	case SMU_DCEFCLK:
-		ret = navi10_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
-		if (ret)
-			return ret;
-
-		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &count);
-		if (ret)
-			return ret;
-
-		ret = navi10_is_support_fine_grained_dpm(smu, clk_type);
-		if (ret < 0)
-			return ret;
-
-		if (!ret) {
-			for (i = 0; i < count; i++) {
-				ret = smu_v11_0_get_dpm_freq_by_index(smu,
-								      clk_type, i, &value);
-				if (ret)
-					return ret;
-
-				*offset += sysfs_emit_at(buf, *offset,
-						"%d: %uMhz %s\n",
-						i, value,
-						cur_value == value ? "*" : "");
-			}
-		} else {
-			ret = smu_v11_0_get_dpm_freq_by_index(smu,
-							      clk_type, 0, &freq_values[0]);
-			if (ret)
-				return ret;
-			ret = smu_v11_0_get_dpm_freq_by_index(smu,
-							      clk_type,
-							      count - 1,
-							      &freq_values[2]);
-			if (ret)
-				return ret;
-
-			freq_values[1] = cur_value;
-			mark_index = cur_value == freq_values[0] ? 0 :
-				     cur_value == freq_values[2] ? 2 : 1;
-
-			levels = 3;
-			if (mark_index != 1) {
-				levels = 2;
-				freq_values[1] = freq_values[2];
-			}
-
-			for (i = 0; i < levels; i++) {
-				*offset += sysfs_emit_at(buf, *offset,
-						"%d: %uMhz %s\n",
-						i, freq_values[i],
-						i == mark_index ? "*" : "");
-			}
-		}
+		single_dpm_table = &(dpm_context->dpm_tables.dcef_table);
 		break;
 	case SMU_PCIE:
 		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
 		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
 		pcie_table = &dpm_context->dpm_tables.pcie_table;
-		for (i = 0; i < pcie_table->lclk_levels; i++) {
-			*offset += sysfs_emit_at(
-				buf, *offset, "%d: %s %s %dMhz %s\n", i,
-				(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
-				(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
-				(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
-				(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," :
-								 "",
-				(pcie_table->pcie_lane[i] == 1) ? "x1" :
-				(pcie_table->pcie_lane[i] == 2) ? "x2" :
-				(pcie_table->pcie_lane[i] == 3) ? "x4" :
-				(pcie_table->pcie_lane[i] == 4) ? "x8" :
-				(pcie_table->pcie_lane[i] == 5) ? "x12" :
-				(pcie_table->pcie_lane[i] == 6) ? "x16" :
-								  "",
-				pcie_table->lclk_freq[i],
-				(gen_speed == pcie_table->pcie_gen[i]) &&
-						(lane_width ==
-						 pcie_table->pcie_lane[i]) ?
-					"*" :
-					"");
-		}
-		break;
+		return smu_cmn_print_pcie_levels(smu, pcie_table, gen_speed,
+						 lane_width, buf, offset);
 	case SMU_OD_SCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
 			return -EOPNOTSUPP;
@@ -1457,6 +1395,15 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 		break;
 	default:
 		break;
+	}
+
+	if (single_dpm_table) {
+		ret = navi10_get_current_clk_freq_by_table(smu, clk_type,
+							   &cur_value);
+		if (ret)
+			return ret;
+		return smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						    cur_value, buf, offset);
 	}
 
 	return 0;
