@@ -7448,6 +7448,8 @@ M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-doc@vger.kernel.org
 S:	Maintained
 F:	Documentation/sphinx/
+F:	scripts/kernel-doc*
+F:	tools/lib/python/*
 F:	tools/docs/
 
 DOCUMENTATION/ITALIAN
