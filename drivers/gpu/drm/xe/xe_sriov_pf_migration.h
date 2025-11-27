@@ -14,6 +14,7 @@ struct xe_sriov_packet;
 
 int xe_sriov_pf_migration_init(struct xe_device *xe);
 bool xe_sriov_pf_migration_supported(struct xe_device *xe);
+void xe_sriov_pf_migration_disable(struct xe_device *xe, const char *fmt, ...);
 int xe_sriov_pf_migration_restore_produce(struct xe_device *xe, unsigned int vfid,
 					  struct xe_sriov_packet *data);
 struct xe_sriov_packet *

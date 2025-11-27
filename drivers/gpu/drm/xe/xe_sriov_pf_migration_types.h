@@ -14,8 +14,8 @@
  * struct xe_sriov_pf_migration - Xe device level VF migration data
  */
 struct xe_sriov_pf_migration {
-	/** @supported: indicates whether VF migration feature is supported */
-	bool supported;
+	/** @disabled: indicates whether VF migration feature is disabled */
+	bool disabled;
 };
 
 /**

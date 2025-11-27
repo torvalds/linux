@@ -46,13 +46,37 @@ bool xe_sriov_pf_migration_supported(struct xe_device *xe)
 {
 	xe_assert(xe, IS_SRIOV_PF(xe));
 
-	return xe->sriov.pf.migration.supported;
+	return IS_ENABLED(CONFIG_DRM_XE_DEBUG) || !xe->sriov.pf.migration.disabled;
 }
 
-static bool pf_check_migration_support(struct xe_device *xe)
+/**
+ * xe_sriov_pf_migration_disable() - Turn off SR-IOV VF migration support on PF.
+ * @xe: the &xe_device instance.
+ * @fmt: format string for the log message, to be combined with following VAs.
+ */
+void xe_sriov_pf_migration_disable(struct xe_device *xe, const char *fmt, ...)
 {
-	/* XXX: for now this is for feature enabling only */
-	return IS_ENABLED(CONFIG_DRM_XE_DEBUG);
+	struct va_format vaf;
+	va_list va_args;
+
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	va_start(va_args, fmt);
+	vaf.fmt = fmt;
+	vaf.va  = &va_args;
+	xe_sriov_notice(xe, "migration %s: %pV\n",
+			IS_ENABLED(CONFIG_DRM_XE_DEBUG) ?
+			"missing prerequisite" : "disabled",
+			&vaf);
+	va_end(va_args);
+
+	xe->sriov.pf.migration.disabled = true;
+}
+
+static void pf_migration_check_support(struct xe_device *xe)
+{
+	if (!xe_device_has_memirq(xe))
+		xe_sriov_pf_migration_disable(xe, "requires memory-based IRQ support");
 }
 
 static void pf_migration_cleanup(void *arg)
@@ -77,7 +101,8 @@ int xe_sriov_pf_migration_init(struct xe_device *xe)
 
 	xe_assert(xe, IS_SRIOV_PF(xe));
 
-	xe->sriov.pf.migration.supported = pf_check_migration_support(xe);
+	pf_migration_check_support(xe);
+
 	if (!xe_sriov_pf_migration_supported(xe))
 		return 0;
 
