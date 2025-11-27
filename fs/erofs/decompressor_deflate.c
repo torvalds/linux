@@ -144,10 +144,10 @@ again:
 	while (1) {
 		dctx.avail_out = strm->z.avail_out;
 		dctx.inbuf_sz = strm->z.avail_in;
-		err = z_erofs_stream_switch_bufs(&dctx,
+		reason = z_erofs_stream_switch_bufs(&dctx,
 					(void **)&strm->z.next_out,
 					(void **)&strm->z.next_in, pgpl);
-		if (err)
+		if (reason)
 			break;
 		strm->z.avail_out = dctx.avail_out;
 		strm->z.avail_in = dctx.inbuf_sz;

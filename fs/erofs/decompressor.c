@@ -342,19 +342,16 @@ static const char *z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 	return NULL;
 }
 
-int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
-			       void **src, struct page **pgpl)
+const char *z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx,
+				void **dst, void **src, struct page **pgpl)
 {
 	struct z_erofs_decompress_req *rq = dctx->rq;
-	struct super_block *sb = rq->sb;
 	struct page **pgo, *tmppage;
 	unsigned int j;
 
 	if (!dctx->avail_out) {
-		if (++dctx->no >= rq->outpages || !rq->outputsize) {
-			erofs_err(sb, "insufficient space for decompressed data");
-			return -EFSCORRUPTED;
-		}
+		if (++dctx->no >= rq->outpages || !rq->outputsize)
+			return "insufficient space for decompressed data";
 
 		if (dctx->kout)
 			kunmap_local(dctx->kout);
@@ -365,7 +362,7 @@ int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
 			*pgo = erofs_allocpage(pgpl, rq->gfp);
 			if (!*pgo) {
 				dctx->kout = NULL;
-				return -ENOMEM;
+				return ERR_PTR(-ENOMEM);
 			}
 			set_page_private(*pgo, Z_EROFS_SHORTLIVED_PAGE);
 		}
@@ -379,10 +376,8 @@ int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
 	}
 
 	if (dctx->inbuf_pos == dctx->inbuf_sz && rq->inputsize) {
-		if (++dctx->ni >= rq->inpages) {
-			erofs_err(sb, "invalid compressed data");
-			return -EFSCORRUPTED;
-		}
+		if (++dctx->ni >= rq->inpages)
+			return "invalid compressed data";
 		if (dctx->kout) /* unlike kmap(), take care of the orders */
 			kunmap_local(dctx->kout);
 		kunmap_local(dctx->kin);
@@ -417,12 +412,12 @@ int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
 			continue;
 		tmppage = erofs_allocpage(pgpl, rq->gfp);
 		if (!tmppage)
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		set_page_private(tmppage, Z_EROFS_SHORTLIVED_PAGE);
 		copy_highpage(tmppage, rq->in[j]);
 		rq->in[j] = tmppage;
 	}
-	return 0;
+	return NULL;
 }
 
 const struct z_erofs_decompressor *z_erofs_decomp[] = {

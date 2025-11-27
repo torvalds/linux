@@ -175,9 +175,9 @@ static const char *z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,
 	do {
 		dctx.inbuf_sz = in_buf.size;
 		dctx.inbuf_pos = in_buf.pos;
-		err = z_erofs_stream_switch_bufs(&dctx, &out_buf.dst,
+		reason = z_erofs_stream_switch_bufs(&dctx, &out_buf.dst,
 						 (void **)&in_buf.src, pgpl);
-		if (err)
+		if (reason)
 			break;
 
 		if (out_buf.size == out_buf.pos) {

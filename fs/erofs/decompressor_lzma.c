@@ -189,9 +189,9 @@ again:
 		dctx.avail_out = buf.out_size - buf.out_pos;
 		dctx.inbuf_sz = buf.in_size;
 		dctx.inbuf_pos = buf.in_pos;
-		err = z_erofs_stream_switch_bufs(&dctx, (void **)&buf.out,
-						 (void **)&buf.in, pgpl);
-		if (err)
+		reason = z_erofs_stream_switch_bufs(&dctx, (void **)&buf.out,
+						    (void **)&buf.in, pgpl);
+		if (reason)
 			break;
 
 		if (buf.out_size == buf.out_pos) {
