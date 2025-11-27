@@ -84,6 +84,11 @@
 #define LOONGARCH_CSR_EUEN		0x2
 #define LOONGARCH_CSR_ECFG		0x4
 #define LOONGARCH_CSR_ESTAT		0x5  /* Exception status */
+#define  CSR_ESTAT_EXC_SHIFT		16
+#define  CSR_ESTAT_EXC_WIDTH		6
+#define  CSR_ESTAT_EXC			(0x3f << CSR_ESTAT_EXC_SHIFT)
+#define    EXCCODE_INT			0    /* Interrupt */
+#define      INT_TI			11   /* Timer interrupt*/
 #define LOONGARCH_CSR_ERA		0x6  /* ERA */
 #define LOONGARCH_CSR_BADV		0x7  /* Bad virtual address */
 #define LOONGARCH_CSR_EENTRY		0xc
@@ -154,6 +159,17 @@ struct ex_regs {
 #define BADV_OFFSET_EXREGS		offsetof(struct ex_regs, badv)
 #define PRMD_OFFSET_EXREGS		offsetof(struct ex_regs, prmd)
 #define EXREGS_SIZE			sizeof(struct ex_regs)
+
+#define VECTOR_NUM			64
+
+typedef void(*handler_fn)(struct ex_regs *);
+
+struct handlers {
+	handler_fn exception_handlers[VECTOR_NUM];
+};
+
+void vm_init_descriptor_tables(struct kvm_vm *vm);
+void vm_install_exception_handler(struct kvm_vm *vm, int vector, handler_fn handler);
 
 static inline void cpu_relax(void)
 {

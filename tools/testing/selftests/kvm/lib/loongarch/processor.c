@@ -11,6 +11,7 @@
 #define LOONGARCH_GUEST_STACK_VADDR_MIN		0x200000
 
 static vm_paddr_t invalid_pgtable[4];
+static vm_vaddr_t exception_handlers;
 
 static uint64_t virt_pte_index(struct kvm_vm *vm, vm_vaddr_t gva, int level)
 {
@@ -183,13 +184,41 @@ void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 
 void route_exception(struct ex_regs *regs)
 {
+	int vector;
 	unsigned long pc, estat, badv;
+	struct handlers *handlers;
+
+	handlers = (struct handlers *)exception_handlers;
+	vector = (regs->estat & CSR_ESTAT_EXC) >> CSR_ESTAT_EXC_SHIFT;
+	if (handlers && handlers->exception_handlers[vector])
+		return handlers->exception_handlers[vector](regs);
 
 	pc = regs->pc;
 	badv  = regs->badv;
 	estat = regs->estat;
 	ucall(UCALL_UNHANDLED, 3, pc, estat, badv);
 	while (1) ;
+}
+
+void vm_init_descriptor_tables(struct kvm_vm *vm)
+{
+	void *addr;
+
+	vm->handlers = __vm_vaddr_alloc(vm, sizeof(struct handlers),
+			LOONGARCH_GUEST_STACK_VADDR_MIN, MEM_REGION_DATA);
+
+	addr = addr_gva2hva(vm, vm->handlers);
+	memset(addr, 0, vm->page_size);
+	exception_handlers = vm->handlers;
+	sync_global_to_guest(vm, exception_handlers);
+}
+
+void vm_install_exception_handler(struct kvm_vm *vm, int vector, handler_fn handler)
+{
+	struct handlers *handlers = addr_gva2hva(vm, vm->handlers);
+
+	assert(vector < VECTOR_NUM);
+	handlers->exception_handlers[vector] = handler;
 }
 
 uint32_t guest_get_vcpuid(void)
