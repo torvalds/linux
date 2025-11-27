@@ -4953,25 +4953,54 @@ EXPORT_SYMBOL(start_creating_user_path);
  * On success, returns a "struct file *". Otherwise a ERR_PTR
  * is returned.
  */
-struct file *dentry_create(const struct path *path, int flags, umode_t mode,
+struct file *dentry_create(struct path *path, int flags, umode_t mode,
 			   const struct cred *cred)
 {
-	struct file *f;
-	int error;
+	struct file *file __free(fput) = NULL;
+	struct dentry *dentry = path->dentry;
+	struct dentry *dir = dentry->d_parent;
+	struct inode *dir_inode = d_inode(dir);
+	struct mnt_idmap *idmap;
+	int error, create_error;
 
-	f = alloc_empty_file(flags, cred);
-	if (IS_ERR(f))
-		return f;
+	file = alloc_empty_file(flags, cred);
+	if (IS_ERR(file))
+		return file;
 
-	error = vfs_create(mnt_idmap(path->mnt), path->dentry, mode, NULL);
-	if (!error)
-		error = vfs_open(path, f);
+	idmap = mnt_idmap(path->mnt);
 
-	if (unlikely(error)) {
-		fput(f);
-		return ERR_PTR(error);
+	if (dir_inode->i_op->atomic_open) {
+		path->dentry = dir;
+		mode = vfs_prepare_mode(idmap, dir_inode, mode, S_IALLUGO, S_IFREG);
+
+		create_error = may_o_create(idmap, path, dentry, mode);
+		if (create_error)
+			flags &= ~O_CREAT;
+
+		dentry = atomic_open(path, dentry, file, flags, mode);
+		error = PTR_ERR_OR_ZERO(dentry);
+
+		if (unlikely(create_error) && error == -ENOENT)
+			error = create_error;
+
+		if (!error) {
+			if (file->f_mode & FMODE_CREATED)
+				fsnotify_create(dir->d_inode, dentry);
+			if (file->f_mode & FMODE_OPENED)
+				fsnotify_open(file);
+		}
+
+		path->dentry = dentry;
+
+	} else {
+		error = vfs_create(mnt_idmap(path->mnt), path->dentry, mode, NULL);
+		if (!error)
+			error = vfs_open(path, file);
 	}
-	return f;
+	if (unlikely(error))
+		return ERR_PTR(error);
+
+	return no_free_ptr(file);
 }
 EXPORT_SYMBOL(dentry_create);
 
