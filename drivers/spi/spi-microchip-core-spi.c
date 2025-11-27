@@ -74,8 +74,8 @@ struct mchp_corespi {
 	u8 *rx_buf;
 	u32 clk_gen;
 	int irq;
-	int tx_len;
-	int rx_len;
+	unsigned int tx_len;
+	unsigned int rx_len;
 	u32 fifo_depth;
 };
 
@@ -160,8 +160,6 @@ static void mchp_corespi_set_cs(struct spi_device *spi, bool disable)
 
 static int mchp_corespi_setup(struct spi_device *spi)
 {
-	u32 dev_mode = spi->mode & (SPI_CPOL | SPI_CPHA);
-
 	if (spi_get_csgpiod(spi, 0))
 		return 0;
 
@@ -170,7 +168,7 @@ static int mchp_corespi_setup(struct spi_device *spi)
 		return -EOPNOTSUPP;
 	}
 
-	if (dev_mode & ~spi->controller->mode_bits) {
+	if (spi->mode & SPI_MODE_X_MASK & ~spi->controller->mode_bits) {
 		dev_err(&spi->dev, "incompatible CPOL/CPHA, must match controller's Motorola mode\n");
 		return -EINVAL;
 	}
@@ -214,7 +212,7 @@ static irqreturn_t mchp_corespi_interrupt(int irq, void *dev_id)
 		       spi->regs + MCHP_CORESPI_REG_INTCLEAR);
 		finalise = true;
 		dev_err(&host->dev,
-			"RX OVERFLOW: rxlen: %d, txlen: %d\n",
+			"RX OVERFLOW: rxlen: %u, txlen: %u\n",
 			spi->rx_len, spi->tx_len);
 	}
 
@@ -223,7 +221,7 @@ static irqreturn_t mchp_corespi_interrupt(int irq, void *dev_id)
 		       spi->regs + MCHP_CORESPI_REG_INTCLEAR);
 		finalise = true;
 		dev_err(&host->dev,
-			"TX UNDERFLOW: rxlen: %d, txlen: %d\n",
+			"TX UNDERFLOW: rxlen: %u, txlen: %u\n",
 			spi->rx_len, spi->tx_len);
 	}
 
@@ -283,7 +281,7 @@ static int mchp_corespi_transfer_one(struct spi_controller *host,
 	spi->rx_len = xfer->len;
 
 	while (spi->tx_len) {
-		int fifo_max = min_t(int, spi->tx_len, spi->fifo_depth);
+		unsigned int fifo_max = min(spi->tx_len, spi->fifo_depth);
 
 		mchp_corespi_write_fifo(spi, fifo_max);
 		mchp_corespi_read_fifo(spi, fifo_max);
@@ -296,6 +294,7 @@ static int mchp_corespi_transfer_one(struct spi_controller *host,
 static int mchp_corespi_probe(struct platform_device *pdev)
 {
 	const char *protocol = "motorola";
+	struct device *dev = &pdev->dev;
 	struct spi_controller *host;
 	struct mchp_corespi *spi;
 	struct resource *res;
@@ -303,14 +302,13 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	bool assert_ssel;
 	int ret = 0;
 
-	host = devm_spi_alloc_host(&pdev->dev, sizeof(*spi));
+	host = devm_spi_alloc_host(dev, sizeof(*spi));
 	if (!host)
-		return dev_err_probe(&pdev->dev, -ENOMEM,
-				     "unable to allocate host for SPI controller\n");
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, host);
 
-	if (of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs))
+	if (of_property_read_u32(dev->of_node, "num-cs", &num_cs))
 		num_cs = MCHP_CORESPI_MAX_CS;
 
 	/*
@@ -318,12 +316,12 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	 * CoreSPI can be configured for Motorola, TI or NSC.
 	 * The current driver supports only Motorola mode.
 	 */
-	ret = of_property_read_string(pdev->dev.of_node, "microchip,protocol-configuration",
+	ret = of_property_read_string(dev->of_node, "microchip,protocol-configuration",
 				      &protocol);
 	if (ret && ret != -EINVAL)
-		return dev_err_probe(&pdev->dev, ret, "Error reading protocol-configuration\n");
+		return dev_err_probe(dev, ret, "Error reading protocol-configuration\n");
 	if (strcmp(protocol, "motorola") != 0)
-		return dev_err_probe(&pdev->dev, -EINVAL,
+		return dev_err_probe(dev, -EINVAL,
 				     "CoreSPI: protocol '%s' not supported by this driver\n",
 				      protocol);
 
@@ -331,11 +329,11 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	 * Motorola mode (0-3): CFG_MOT_MODE
 	 * Mode is fixed in the IP configurator.
 	 */
-	ret = of_property_read_u32(pdev->dev.of_node, "microchip,motorola-mode", &mode);
+	ret = of_property_read_u32(dev->of_node, "microchip,motorola-mode", &mode);
 	if (ret)
 		mode = MCHP_CORESPI_DEFAULT_MOTOROLA_MODE;
 	else if (mode > 3)
-		return dev_err_probe(&pdev->dev, -EINVAL,
+		return dev_err_probe(dev, -EINVAL,
 				     "invalid 'microchip,motorola-mode' value %u\n", mode);
 
 	/*
@@ -343,9 +341,9 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	 * The hardware allows frame sizes <= APB data width.
 	 * However, this driver currently only supports 8-bit frames.
 	 */
-	ret = of_property_read_u32(pdev->dev.of_node, "microchip,frame-size", &frame_size);
+	ret = of_property_read_u32(dev->of_node, "microchip,frame-size", &frame_size);
 	if (!ret && frame_size != 8)
-		return dev_err_probe(&pdev->dev, -EINVAL,
+		return dev_err_probe(dev, -EINVAL,
 				     "CoreSPI: frame size %u not supported by this driver\n",
 				     frame_size);
 
@@ -355,9 +353,9 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	 * To prevent CS deassertion when TX FIFO drains, the ssel-active property
 	 * keeps CS asserted for the full SPI transfer.
 	 */
-	assert_ssel = of_property_read_bool(pdev->dev.of_node, "microchip,ssel-active");
+	assert_ssel = of_property_read_bool(dev->of_node, "microchip,ssel-active");
 	if (!assert_ssel)
-		return dev_err_probe(&pdev->dev, -EINVAL,
+		return dev_err_probe(dev, -EINVAL,
 				     "hardware must enable 'microchip,ssel-active' to keep CS asserted for the SPI transfer\n");
 
 	spi = spi_controller_get_devdata(host);
@@ -369,9 +367,9 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	host->transfer_one = mchp_corespi_transfer_one;
 	host->set_cs = mchp_corespi_set_cs;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_node = dev->of_node;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "fifo-depth", &spi->fifo_depth);
+	ret = of_property_read_u32(dev->of_node, "fifo-depth", &spi->fifo_depth);
 	if (ret)
 		spi->fifo_depth = MCHP_CORESPI_DEFAULT_FIFO_DEPTH;
 
@@ -383,24 +381,21 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	if (spi->irq < 0)
 		return spi->irq;
 
-	ret = devm_request_irq(&pdev->dev, spi->irq, mchp_corespi_interrupt,
-			       IRQF_SHARED, dev_name(&pdev->dev), host);
+	ret = devm_request_irq(dev, spi->irq, mchp_corespi_interrupt, IRQF_SHARED,
+			       dev_name(dev), host);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "could not request irq\n");
+		return dev_err_probe(dev, ret, "could not request irq\n");
 
-	spi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	spi->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(spi->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(spi->clk),
-				     "could not get clk\n");
+		return dev_err_probe(dev, PTR_ERR(spi->clk), "could not get clk\n");
 
 	mchp_corespi_init(host, spi);
 
-	ret = devm_spi_register_controller(&pdev->dev, host);
+	ret = devm_spi_register_controller(dev, host);
 	if (ret) {
 		mchp_corespi_disable(spi);
-		return dev_err_probe(&pdev->dev, ret,
-				     "unable to register host for CoreSPI controller\n");
+		return dev_err_probe(dev, ret, "unable to register host for CoreSPI controller\n");
 	}
 
 	return 0;
@@ -414,8 +409,6 @@ static void mchp_corespi_remove(struct platform_device *pdev)
 	mchp_corespi_disable_ints(spi);
 	mchp_corespi_disable(spi);
 }
-
-#define MICROCHIP_SPI_PM_OPS (NULL)
 
 /*
  * Platform driver data structure
@@ -433,7 +426,6 @@ static struct platform_driver mchp_corespi_driver = {
 	.probe = mchp_corespi_probe,
 	.driver = {
 		.name = "microchip-corespi",
-		.pm = MICROCHIP_SPI_PM_OPS,
 		.of_match_table = of_match_ptr(mchp_corespi_dt_ids),
 	},
 	.remove = mchp_corespi_remove,
