@@ -106,6 +106,13 @@ static const struct drm_info_list vf_safe_debugfs_list[] = {
 	{ "sa_info", .show = xe_tile_debugfs_show_with_rpm, .data = sa_info },
 };
 
+static void tile_debugfs_create_vram_mm(struct xe_tile *tile)
+{
+	if (tile->mem.vram)
+		ttm_resource_manager_create_debugfs(&tile->mem.vram->ttm.manager, tile->debugfs,
+						    "vram_mm");
+}
+
 /**
  * xe_tile_debugfs_register - Register tile's debugfs attributes
  * @tile: the &xe_tile to register
@@ -135,4 +142,6 @@ void xe_tile_debugfs_register(struct xe_tile *tile)
 	drm_debugfs_create_files(vf_safe_debugfs_list,
 				 ARRAY_SIZE(vf_safe_debugfs_list),
 				 tile->debugfs, minor);
+
+	tile_debugfs_create_vram_mm(tile);
 }
