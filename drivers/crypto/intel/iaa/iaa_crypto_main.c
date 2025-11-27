@@ -542,13 +542,7 @@ static struct iaa_device *add_iaa_device(struct idxd_device *idxd)
 
 static int init_iaa_device(struct iaa_device *iaa_device, struct iaa_wq *iaa_wq)
 {
-	int ret = 0;
-
-	ret = init_device_compression_modes(iaa_device, iaa_wq->wq);
-	if (ret)
-		return ret;
-
-	return ret;
+	return init_device_compression_modes(iaa_device, iaa_wq->wq);
 }
 
 static void del_iaa_device(struct iaa_device *iaa_device)
