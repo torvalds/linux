@@ -115,50 +115,6 @@ int sdca_asoc_count_component(struct device *dev, struct sdca_function_data *fun
 }
 EXPORT_SYMBOL_NS(sdca_asoc_count_component, "SND_SOC_SDCA");
 
-static const char *get_terminal_name(enum sdca_terminal_type type)
-{
-	switch (type) {
-	case SDCA_TERM_TYPE_LINEIN_STEREO:
-		return SDCA_TERM_TYPE_LINEIN_STEREO_NAME;
-	case SDCA_TERM_TYPE_LINEIN_FRONT_LR:
-		return SDCA_TERM_TYPE_LINEIN_FRONT_LR_NAME;
-	case SDCA_TERM_TYPE_LINEIN_CENTER_LFE:
-		return SDCA_TERM_TYPE_LINEIN_CENTER_LFE_NAME;
-	case SDCA_TERM_TYPE_LINEIN_SURROUND_LR:
-		return SDCA_TERM_TYPE_LINEIN_SURROUND_LR_NAME;
-	case SDCA_TERM_TYPE_LINEIN_REAR_LR:
-		return SDCA_TERM_TYPE_LINEIN_REAR_LR_NAME;
-	case SDCA_TERM_TYPE_LINEOUT_STEREO:
-		return SDCA_TERM_TYPE_LINEOUT_STEREO_NAME;
-	case SDCA_TERM_TYPE_LINEOUT_FRONT_LR:
-		return SDCA_TERM_TYPE_LINEOUT_FRONT_LR_NAME;
-	case SDCA_TERM_TYPE_LINEOUT_CENTER_LFE:
-		return SDCA_TERM_TYPE_LINEOUT_CENTER_LFE_NAME;
-	case SDCA_TERM_TYPE_LINEOUT_SURROUND_LR:
-		return SDCA_TERM_TYPE_LINEOUT_SURROUND_LR_NAME;
-	case SDCA_TERM_TYPE_LINEOUT_REAR_LR:
-		return SDCA_TERM_TYPE_LINEOUT_REAR_LR_NAME;
-	case SDCA_TERM_TYPE_MIC_JACK:
-		return SDCA_TERM_TYPE_MIC_JACK_NAME;
-	case SDCA_TERM_TYPE_STEREO_JACK:
-		return SDCA_TERM_TYPE_STEREO_JACK_NAME;
-	case SDCA_TERM_TYPE_FRONT_LR_JACK:
-		return SDCA_TERM_TYPE_FRONT_LR_JACK_NAME;
-	case SDCA_TERM_TYPE_CENTER_LFE_JACK:
-		return SDCA_TERM_TYPE_CENTER_LFE_JACK_NAME;
-	case SDCA_TERM_TYPE_SURROUND_LR_JACK:
-		return SDCA_TERM_TYPE_SURROUND_LR_JACK_NAME;
-	case SDCA_TERM_TYPE_REAR_LR_JACK:
-		return SDCA_TERM_TYPE_REAR_LR_JACK_NAME;
-	case SDCA_TERM_TYPE_HEADPHONE_JACK:
-		return SDCA_TERM_TYPE_HEADPHONE_JACK_NAME;
-	case SDCA_TERM_TYPE_HEADSET_JACK:
-		return SDCA_TERM_TYPE_HEADSET_JACK_NAME;
-	default:
-		return NULL;
-	}
-}
-
 static int entity_early_parse_ge(struct device *dev,
 				 struct sdca_function_data *function,
 				 struct sdca_entity *entity)
@@ -217,7 +173,7 @@ static int entity_early_parse_ge(struct device *dev,
 		type = sdca_range(range, SDCA_SELECTED_MODE_TERM_TYPE, i);
 
 		values[i + 3] = sdca_range(range, SDCA_SELECTED_MODE_INDEX, i);
-		texts[i + 3] = get_terminal_name(type);
+		texts[i + 3] = sdca_find_terminal_name(type);
 		if (!texts[i + 3]) {
 			dev_err(dev, "%s: unrecognised terminal type: %#x\n",
 				entity->label, type);
@@ -499,7 +455,7 @@ static int entity_parse_su_device(struct device *dev,
 				return -EINVAL;
 			}
 
-			add_route(route, entity->label, get_terminal_name(term),
+			add_route(route, entity->label, sdca_find_terminal_name(term),
 				  entity->sources[affected->val - 1]->label);
 		}
 	}
