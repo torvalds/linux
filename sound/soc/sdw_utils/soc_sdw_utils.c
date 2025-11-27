@@ -1442,15 +1442,6 @@ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 
 			ctx->ignore_internal_dmic |= codec_info->ignore_internal_dmic;
 
-			codec_name = asoc_sdw_get_codec_name(dev, codec_info, adr_link, i);
-			if (!codec_name)
-				return -ENOMEM;
-
-			dev_dbg(dev, "Adding prefix %s for %s\n",
-				adr_dev->name_prefix, codec_name);
-
-			soc_end->name_prefix = adr_dev->name_prefix;
-
 			if (codec_info->count_sidecar && codec_info->add_sidecar) {
 				ret = codec_info->count_sidecar(card, &num_dais, num_devs);
 				if (ret)
@@ -1537,6 +1528,16 @@ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 
 				num_link_dailinks += !!list_empty(&soc_dai->endpoints);
 				list_add_tail(&soc_end->list, &soc_dai->endpoints);
+
+				codec_name = asoc_sdw_get_codec_name(dev, codec_info,
+								     adr_link, i);
+				if (!codec_name)
+					return -ENOMEM;
+
+				dev_dbg(dev, "Adding prefix %s for %s\n",
+					adr_dev->name_prefix, codec_name);
+
+				soc_end->name_prefix = adr_dev->name_prefix;
 
 				soc_end->link_mask = adr_link->mask;
 				soc_end->codec_name = codec_name;
