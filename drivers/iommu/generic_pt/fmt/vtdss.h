@@ -248,18 +248,11 @@ static inline int vtdss_pt_iommu_fmt_init(struct pt_iommu_vtdss *iommu_table,
 					  const struct pt_iommu_vtdss_cfg *cfg)
 {
 	struct pt_vtdss *table = &iommu_table->vtdss_pt;
-	unsigned int vasz_lg2 = cfg->common.hw_max_vasz_lg2;
 
-	if (vasz_lg2 > PT_MAX_VA_ADDRESS_LG2)
+	if (cfg->top_level > 4 || cfg->top_level < 2)
 		return -EOPNOTSUPP;
-	else if (vasz_lg2 > 48)
-		pt_top_set_level(&table->common, 4);
-	else if (vasz_lg2 > 39)
-		pt_top_set_level(&table->common, 3);
-	else if (vasz_lg2 > 30)
-		pt_top_set_level(&table->common, 2);
-	else
-		return -EOPNOTSUPP;
+
+	pt_top_set_level(&table->common, cfg->top_level);
 	return 0;
 }
 #define pt_iommu_fmt_init vtdss_pt_iommu_fmt_init
@@ -282,9 +275,9 @@ vtdss_pt_iommu_fmt_hw_info(struct pt_iommu_vtdss *table,
 
 #if defined(GENERIC_PT_KUNIT)
 static const struct pt_iommu_vtdss_cfg vtdss_kunit_fmt_cfgs[] = {
-	[0] = { .common.hw_max_vasz_lg2 = 39 },
-	[1] = { .common.hw_max_vasz_lg2 = 48 },
-	[2] = { .common.hw_max_vasz_lg2 = 57 },
+	[0] = { .common.hw_max_vasz_lg2 = 39, .top_level = 2},
+	[1] = { .common.hw_max_vasz_lg2 = 48, .top_level = 3},
+	[2] = { .common.hw_max_vasz_lg2 = 57, .top_level = 4},
 };
 #define kunit_fmt_cfgs vtdss_kunit_fmt_cfgs
 enum { KUNIT_FMT_FEATURES = BIT(PT_FEAT_VTDSS_FORCE_WRITEABLE) };

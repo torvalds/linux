@@ -264,6 +264,8 @@ IOMMU_PROTOTYPES(amdv1_mock);
 
 struct pt_iommu_vtdss_cfg {
 	struct pt_iommu_cfg common;
+	/* 4 is a 57 bit 5 level table */
+	unsigned int top_level;
 };
 
 struct pt_iommu_vtdss_hw_info {

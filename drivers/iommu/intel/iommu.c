@@ -2858,22 +2858,28 @@ intel_iommu_domain_alloc_first_stage(struct device *dev,
 	return &dmar_domain->domain;
 }
 
-static int compute_vasz_lg2_ss(struct intel_iommu *iommu)
+static unsigned int compute_vasz_lg2_ss(struct intel_iommu *iommu,
+					unsigned int *top_level)
 {
 	unsigned int sagaw = cap_sagaw(iommu->cap);
 	unsigned int mgaw = cap_mgaw(iommu->cap);
 
 	/*
 	 * Find the largest table size that both the mgaw and sagaw support.
-	 * This sets both the number of table levels and the valid range of
-	 * IOVA.
+	 * This sets the valid range of IOVA and the top starting level.
+	 * Some HW may only support a 4 or 5 level walk but must limit IOVA to
+	 * 3 levels.
 	 */
-	if (mgaw >= 48 && (sagaw & BIT(3)))
+	if (mgaw > 48 && sagaw >= BIT(3)) {
+		*top_level = 4;
 		return min(57, mgaw);
-	else if (mgaw >= 39 && (sagaw & BIT(2)))
+	} else if (mgaw > 39 && sagaw >= BIT(2)) {
+		*top_level = 3 + ffs(sagaw >> 3);
 		return min(48, mgaw);
-	else if (mgaw >= 30 && (sagaw & BIT(1)))
+	} else if (mgaw > 30 && sagaw >= BIT(1)) {
+		*top_level = 2 + ffs(sagaw >> 2);
 		return min(39, mgaw);
+	}
 	return 0;
 }
 
@@ -2910,7 +2916,7 @@ intel_iommu_domain_alloc_second_stage(struct device *dev,
 	if (IS_ERR(dmar_domain))
 		return ERR_CAST(dmar_domain);
 
-	cfg.common.hw_max_vasz_lg2 = compute_vasz_lg2_ss(iommu);
+	cfg.common.hw_max_vasz_lg2 = compute_vasz_lg2_ss(iommu, &cfg.top_level);
 	cfg.common.hw_max_oasz_lg2 = 52;
 	cfg.common.features = BIT(PT_FEAT_FLUSH_RANGE);
 

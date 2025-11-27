@@ -1128,6 +1128,20 @@ static int pt_init_common(struct pt_common *common)
 		     PT_FORCE_ENABLED_FEATURES))
 		return -EOPNOTSUPP;
 
+	/*
+	 * Check if the top level of the page table is too small to hold the
+	 * specified maxvasz.
+	 */
+	if (!pt_feature(common, PT_FEAT_DYNAMIC_TOP) &&
+	    top_range.top_level != PT_MAX_TOP_LEVEL) {
+		struct pt_state pts = { .range = &top_range,
+					.level = top_range.top_level };
+
+		if (common->max_vasz_lg2 >
+		    pt_num_items_lg2(&pts) + pt_table_item_lg2sz(&pts))
+			return -EOPNOTSUPP;
+	}
+
 	if (common->max_oasz_lg2 == 0)
 		common->max_oasz_lg2 = pt_max_oa_lg2(common);
 	else
