@@ -416,6 +416,7 @@ bool __vfio_pci_memory_enabled(struct vfio_pci_core_device *vdev)
 	return pdev->current_state < PCI_D3hot &&
 	       (pdev->no_command_memory || (cmd & PCI_COMMAND_MEMORY));
 }
+EXPORT_SYMBOL_GPL(__vfio_pci_memory_enabled);
 
 /*
  * Restore the *real* BARs after we detect a FLR or backdoor reset.
