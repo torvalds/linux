@@ -1189,8 +1189,11 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	struct asoc_sdw_codec_info *ssp_info;
 	struct asoc_sdw_endpoint *sof_ends;
 	struct asoc_sdw_dailink *sof_dais;
+	struct snd_soc_aux_dev *sof_aux;
 	int num_devs = 0;
 	int num_ends = 0;
+	int num_aux = 0;
+	int num_confs;
 	struct snd_soc_dai_link *dai_links;
 	int num_links;
 	int be_id = 0;
@@ -1198,11 +1201,13 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	unsigned long ssp_mask;
 	int ret;
 
-	ret = asoc_sdw_count_sdw_endpoints(card, &num_devs, &num_ends);
+	ret = asoc_sdw_count_sdw_endpoints(card, &num_devs, &num_ends, &num_aux);
 	if (ret < 0) {
 		dev_err(dev, "failed to count devices/endpoints: %d\n", ret);
 		return ret;
 	}
+
+	num_confs = num_ends;
 
 	/*
 	 * One per DAI link, worst case is a DAI link for every endpoint, also
@@ -1220,7 +1225,13 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		goto err_dai;
 	}
 
-	ret = asoc_sdw_parse_sdw_endpoints(card, sof_dais, sof_ends, &num_devs);
+	sof_aux = devm_kcalloc(dev, num_aux, sizeof(*sof_aux), GFP_KERNEL);
+	if (!sof_aux) {
+		ret = -ENOMEM;
+		goto err_dai;
+	}
+
+	ret = asoc_sdw_parse_sdw_endpoints(card, sof_aux, sof_dais, sof_ends, &num_confs);
 	if (ret < 0)
 		goto err_end;
 
@@ -1268,7 +1279,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		sdw_be_num, ssp_num, dmic_num,
 		intel_ctx->hdmi.idisp_codec ? hdmi_num : 0, bt_num);
 
-	codec_conf = devm_kcalloc(dev, num_devs, sizeof(*codec_conf), GFP_KERNEL);
+	codec_conf = devm_kcalloc(dev, num_confs, sizeof(*codec_conf), GFP_KERNEL);
 	if (!codec_conf) {
 		ret = -ENOMEM;
 		goto err_end;
@@ -1283,9 +1294,11 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	}
 
 	card->codec_conf = codec_conf;
-	card->num_configs = num_devs;
+	card->num_configs = num_confs;
 	card->dai_link = dai_links;
 	card->num_links = num_links;
+	card->aux_dev = sof_aux;
+	card->num_aux_devs = num_aux;
 
 	/* SDW */
 	if (sdw_be_num) {

@@ -611,7 +611,7 @@ enum sdca_entity0_controls {
 #define SDCA_CTL_NDAI_PACKETTYPE_NAME			"NDAI Packet Type"
 #define SDCA_CTL_MIXER_NAME				"Mixer"
 #define SDCA_CTL_SELECTOR_NAME				"Selector"
-#define SDCA_CTL_MUTE_NAME				"Mute"
+#define SDCA_CTL_MUTE_NAME				"Channel"
 #define SDCA_CTL_CHANNEL_VOLUME_NAME			"Channel Volume"
 #define SDCA_CTL_AGC_NAME				"AGC"
 #define SDCA_CTL_BASS_BOOST_NAME			"Bass Boost"
@@ -1455,6 +1455,8 @@ static inline u32 sdca_range_search(struct sdca_control_range *range,
 int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
 			struct sdca_function_desc *desc,
 			struct sdca_function_data *function);
+
+const char *sdca_find_terminal_name(enum sdca_terminal_type type);
 
 struct sdca_control *sdca_selector_find_control(struct device *dev,
 						struct sdca_entity *entity,
