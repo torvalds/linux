@@ -124,18 +124,21 @@ struct ex_regs {
 	unsigned long pc;
 	unsigned long estat;
 	unsigned long badv;
+	unsigned long prmd;
 };
 
 #define PC_OFFSET_EXREGS		offsetof(struct ex_regs, pc)
 #define ESTAT_OFFSET_EXREGS		offsetof(struct ex_regs, estat)
 #define BADV_OFFSET_EXREGS		offsetof(struct ex_regs, badv)
+#define PRMD_OFFSET_EXREGS		offsetof(struct ex_regs, prmd)
 #define EXREGS_SIZE			sizeof(struct ex_regs)
 
 #else
 #define PC_OFFSET_EXREGS		((EXREGS_GPRS + 0) * 8)
 #define ESTAT_OFFSET_EXREGS		((EXREGS_GPRS + 1) * 8)
 #define BADV_OFFSET_EXREGS		((EXREGS_GPRS + 2) * 8)
-#define EXREGS_SIZE			((EXREGS_GPRS + 3) * 8)
+#define PRMD_OFFSET_EXREGS		((EXREGS_GPRS + 3) * 8)
+#define EXREGS_SIZE			((EXREGS_GPRS + 4) * 8)
 #endif
 
 #endif /* SELFTEST_KVM_PROCESSOR_H */
