@@ -134,7 +134,7 @@ static struct intel_fbc *i9xx_plane_fbc(struct intel_display *display,
 					enum i9xx_plane_id i9xx_plane)
 {
 	if (i9xx_plane_has_fbc(display, i9xx_plane))
-		return display->fbc[INTEL_FBC_A];
+		return display->fbc.instances[INTEL_FBC_A];
 	else
 		return NULL;
 }

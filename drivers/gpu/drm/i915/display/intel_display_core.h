@@ -399,6 +399,10 @@ struct intel_display {
 	} dram;
 
 	struct {
+		struct intel_fbc *instances[I915_MAX_FBCS];
+	} fbc;
+
+	struct {
 		/* list of fbdev register on this device */
 		struct intel_fbdev *fbdev;
 	} fbdev;
@@ -615,7 +619,6 @@ struct intel_display {
 	struct drm_dp_tunnel_mgr *dp_tunnel_mgr;
 	struct intel_audio audio;
 	struct intel_dpll_global dpll;
-	struct intel_fbc *fbc[I915_MAX_FBCS];
 	struct intel_frontbuffer_tracking fb_tracking;
 	struct intel_hotplug hotplug;
 	struct intel_opregion *opregion;

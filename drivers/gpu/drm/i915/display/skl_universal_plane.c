@@ -2443,7 +2443,7 @@ static struct intel_fbc *skl_plane_fbc(struct intel_display *display,
 	enum intel_fbc_id fbc_id = skl_fbc_id_for_pipe(pipe);
 
 	if (skl_plane_has_fbc(display, fbc_id, plane_id))
-		return display->fbc[fbc_id];
+		return display->fbc.instances[fbc_id];
 	else
 		return NULL;
 }

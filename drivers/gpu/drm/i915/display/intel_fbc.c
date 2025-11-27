@@ -69,7 +69,7 @@
 
 #define for_each_intel_fbc(__display, __fbc, __fbc_id) \
 	for_each_fbc_id((__display), (__fbc_id)) \
-		for_each_if((__fbc) = (__display)->fbc[(__fbc_id)])
+		for_each_if((__fbc) = (__display)->fbc.instances[(__fbc_id)])
 
 struct intel_fbc_funcs {
 	void (*activate)(struct intel_fbc *fbc);
@@ -2255,7 +2255,7 @@ void intel_fbc_init(struct intel_display *display)
 		    display->params.enable_fbc);
 
 	for_each_fbc_id(display, fbc_id)
-		display->fbc[fbc_id] = intel_fbc_create(display, fbc_id);
+		display->fbc.instances[fbc_id] = intel_fbc_create(display, fbc_id);
 }
 
 /**
@@ -2374,7 +2374,7 @@ void intel_fbc_debugfs_register(struct intel_display *display)
 {
 	struct intel_fbc *fbc;
 
-	fbc = display->fbc[INTEL_FBC_A];
+	fbc = display->fbc.instances[INTEL_FBC_A];
 	if (fbc)
 		intel_fbc_debugfs_add(fbc, display->drm->debugfs_root);
 }
