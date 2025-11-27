@@ -6051,6 +6051,33 @@ static int conflicting_inode_is_dir(struct btrfs_root *root, u64 ino,
 	return ret;
 }
 
+static bool can_log_conflicting_inode(const struct btrfs_trans_handle *trans,
+				      const struct btrfs_inode *inode)
+{
+	if (!S_ISDIR(inode->vfs_inode.i_mode))
+		return true;
+
+	if (inode->last_unlink_trans < trans->transid)
+		return true;
+
+	/*
+	 * If this is a directory and its unlink_trans is not from a past
+	 * transaction then we must fallback to a transaction commit in order
+	 * to avoid getting a directory with 2 hard links after log replay.
+	 *
+	 * This happens if a directory A is renamed, moved from one parent
+	 * directory to another one, a new file is created in the old parent
+	 * directory with the old name of our directory A, the new file is
+	 * fsynced, then we moved the new file to some other parent directory
+	 * and fsync again the new file. This results in a log tree where we
+	 * logged that directory A existed, with the INODE_REF item for the
+	 * new location but without having logged its old parent inode, so
+	 * that on log replay we add a new link for the new location but the
+	 * old link remains, resulting in a link count of 2.
+	 */
+	return false;
+}
+
 static int add_conflicting_inode(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path,
@@ -6154,6 +6181,11 @@ static int add_conflicting_inode(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
+	if (!can_log_conflicting_inode(trans, inode)) {
+		btrfs_add_delayed_iput(inode);
+		return BTRFS_LOG_FORCE_COMMIT;
+	}
+
 	btrfs_add_delayed_iput(inode);
 
 	ino_elem = kmalloc(sizeof(*ino_elem), GFP_NOFS);
@@ -6215,6 +6247,12 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 			inode = btrfs_iget_logging(parent, root);
 			if (IS_ERR(inode)) {
 				ret = PTR_ERR(inode);
+				break;
+			}
+
+			if (!can_log_conflicting_inode(trans, inode)) {
+				btrfs_add_delayed_iput(inode);
+				ret = BTRFS_LOG_FORCE_COMMIT;
 				break;
 			}
 
