@@ -148,8 +148,6 @@ pf_migration_consume(struct xe_device *xe, unsigned int vfid)
  * Return: Pointer to &xe_sriov_packet on success,
  *	   NULL if ring is empty and no more migration data is expected,
  *	   ERR_PTR value in case of error.
- *
- * Return: 0 on success or a negative error code on failure.
  */
 struct xe_sriov_packet *
 xe_sriov_pf_migration_save_consume(struct xe_device *xe, unsigned int vfid)

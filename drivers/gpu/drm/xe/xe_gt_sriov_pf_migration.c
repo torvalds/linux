@@ -571,6 +571,10 @@ static int pf_save_vram_chunk(struct xe_gt *gt, unsigned int vfid,
 	fence = __pf_save_restore_vram(gt, vfid,
 				       src_vram, src_vram_offset,
 				       data->bo, 0, size, true);
+	if (IS_ERR(fence)) {
+		ret = PTR_ERR(fence);
+		goto fail;
+	}
 
 	ret = dma_fence_wait_timeout(fence, false, PF_VRAM_SAVE_RESTORE_TIMEOUT);
 	dma_fence_put(fence);
@@ -654,12 +658,19 @@ static int pf_restore_vf_vram_mig_data(struct xe_gt *gt, unsigned int vfid,
 
 	fence = __pf_save_restore_vram(gt, vfid, vram, data->hdr.offset,
 				       data->bo, 0, data->hdr.size, false);
+	if (IS_ERR(fence)) {
+		ret = PTR_ERR(fence);
+		goto err;
+	}
+
 	ret = dma_fence_wait_timeout(fence, false, PF_VRAM_SAVE_RESTORE_TIMEOUT);
 	dma_fence_put(fence);
 	if (!ret) {
 		ret = -ETIME;
 		goto err;
 	}
+
+	xe_bo_put(vram);
 
 	return 0;
 err:
