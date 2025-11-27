@@ -430,10 +430,10 @@ static int __init gtdt_platform_timer_init(void)
 				continue;
 
 			pdev = platform_device_register_data(NULL, "gtdt-arm-mmio-timer",
-							     gwdt_count, &atm,
+							     mmio_timer_count, &atm,
 							     sizeof(atm));
 			if (IS_ERR(pdev)) {
-				pr_err("Can't register timer %d\n", gwdt_count);
+				pr_err("Can't register timer %d\n", mmio_timer_count);
 				continue;
 			}
 

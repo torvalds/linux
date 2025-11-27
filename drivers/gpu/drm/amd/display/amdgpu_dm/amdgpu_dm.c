@@ -3859,6 +3859,97 @@ void amdgpu_dm_update_connector_after_detect(
 	update_subconnector_property(aconnector);
 }
 
+static bool are_sinks_equal(const struct dc_sink *sink1, const struct dc_sink *sink2)
+{
+	if (!sink1 || !sink2)
+		return false;
+	if (sink1->sink_signal != sink2->sink_signal)
+		return false;
+
+	if (sink1->dc_edid.length != sink2->dc_edid.length)
+		return false;
+
+	if (memcmp(sink1->dc_edid.raw_edid, sink2->dc_edid.raw_edid,
+		   sink1->dc_edid.length) != 0)
+		return false;
+	return true;
+}
+
+
+/**
+ * DOC: hdmi_hpd_debounce_work
+ *
+ * HDMI HPD debounce delay in milliseconds. When an HDMI display toggles HPD
+ * (such as during power save transitions), this delay determines how long to
+ * wait before processing the HPD event. This allows distinguishing between a
+ * physical unplug (>hdmi_hpd_debounce_delay)
+ * and a spontaneous RX HPD toggle (<hdmi_hpd_debounce_delay).
+ *
+ * If the toggle is less than this delay, the driver compares sink capabilities
+ * and permits a hotplug event if they changed.
+ *
+ * The default value of 1500ms was chosen based on experimental testing with
+ * various monitors that exhibit spontaneous HPD toggling behavior.
+ */
+static void hdmi_hpd_debounce_work(struct work_struct *work)
+{
+	struct amdgpu_dm_connector *aconnector =
+		container_of(to_delayed_work(work), struct amdgpu_dm_connector,
+			     hdmi_hpd_debounce_work);
+	struct drm_connector *connector = &aconnector->base;
+	struct drm_device *dev = connector->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct dc *dc = aconnector->dc_link->ctx->dc;
+	bool fake_reconnect = false;
+	bool reallow_idle = false;
+	bool ret = false;
+	guard(mutex)(&aconnector->hpd_lock);
+
+	/* Re-detect the display */
+	scoped_guard(mutex, &adev->dm.dc_lock) {
+		if (dc->caps.ips_support && dc->ctx->dmub_srv->idle_allowed) {
+			dc_allow_idle_optimizations(dc, false);
+			reallow_idle = true;
+		}
+		ret = dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+	}
+
+	if (ret) {
+		/* Apply workaround delay for certain panels */
+		apply_delay_after_dpcd_poweroff(adev, aconnector->dc_sink);
+		/* Compare sinks to determine if this was a spontaneous HPD toggle */
+		if (are_sinks_equal(aconnector->dc_link->local_sink, aconnector->hdmi_prev_sink)) {
+			/*
+			* Sinks match - this was a spontaneous HDMI HPD toggle.
+			*/
+			drm_dbg_kms(dev, "HDMI HPD: Sink unchanged after debounce, internal re-enable\n");
+			fake_reconnect = true;
+		}
+
+		/* Update connector state */
+		amdgpu_dm_update_connector_after_detect(aconnector);
+
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		/* Only notify OS if sink actually changed */
+		if (!fake_reconnect && aconnector->base.force == DRM_FORCE_UNSPECIFIED)
+			drm_kms_helper_hotplug_event(dev);
+	}
+
+	/* Release the cached sink reference */
+	if (aconnector->hdmi_prev_sink) {
+		dc_sink_release(aconnector->hdmi_prev_sink);
+		aconnector->hdmi_prev_sink = NULL;
+	}
+
+	scoped_guard(mutex, &adev->dm.dc_lock) {
+		if (reallow_idle && dc->caps.ips_support)
+			dc_allow_idle_optimizations(dc, true);
+	}
+}
+
 static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 {
 	struct drm_connector *connector = &aconnector->base;
@@ -3868,6 +3959,7 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 	struct dm_connector_state *dm_con_state = to_dm_connector_state(connector->state);
 	struct dc *dc = aconnector->dc_link->ctx->dc;
 	bool ret = false;
+	bool debounce_required = false;
 
 	if (adev->dm.disable_hpd_irq)
 		return;
@@ -3890,6 +3982,14 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 	if (!dc_link_detect_connection_type(aconnector->dc_link, &new_connection_type))
 		drm_err(adev_to_drm(adev), "KMS: Failed to detect connector\n");
 
+	/*
+	 * Check for HDMI disconnect with debounce enabled.
+	 */
+	debounce_required = (aconnector->hdmi_hpd_debounce_delay_ms > 0 &&
+			      dc_is_hdmi_signal(aconnector->dc_link->connector_signal) &&
+			      new_connection_type == dc_connection_none &&
+			      aconnector->dc_link->local_sink != NULL);
+
 	if (aconnector->base.force && new_connection_type == dc_connection_none) {
 		emulated_link_detect(aconnector->dc_link);
 
@@ -3899,7 +3999,34 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 
 		if (aconnector->base.force == DRM_FORCE_UNSPECIFIED)
 			drm_kms_helper_connector_hotplug_event(connector);
+	} else if (debounce_required) {
+		/*
+		 * HDMI disconnect detected - schedule delayed work instead of
+		 * processing immediately. This allows us to coalesce spurious
+		 * HDMI signals from physical unplugs.
+		 */
+		drm_dbg_kms(dev, "HDMI HPD: Disconnect detected, scheduling debounce work (%u ms)\n",
+			    aconnector->hdmi_hpd_debounce_delay_ms);
+
+		/* Cache the current sink for later comparison */
+		if (aconnector->hdmi_prev_sink)
+			dc_sink_release(aconnector->hdmi_prev_sink);
+		aconnector->hdmi_prev_sink = aconnector->dc_link->local_sink;
+		if (aconnector->hdmi_prev_sink)
+			dc_sink_retain(aconnector->hdmi_prev_sink);
+
+		/* Schedule delayed detection. */
+		if (mod_delayed_work(system_wq,
+				 &aconnector->hdmi_hpd_debounce_work,
+				 msecs_to_jiffies(aconnector->hdmi_hpd_debounce_delay_ms)))
+			drm_dbg_kms(dev, "HDMI HPD: Re-scheduled debounce work\n");
+
 	} else {
+
+		/* If the aconnector->hdmi_hpd_debounce_work is scheduled, exit early */
+		if (delayed_work_pending(&aconnector->hdmi_hpd_debounce_work))
+			return;
+
 		scoped_guard(mutex, &adev->dm.dc_lock) {
 			dc_exit_ips_for_hw_access(dc);
 			ret = dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
@@ -7388,6 +7515,13 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	if (aconnector->mst_mgr.dev)
 		drm_dp_mst_topology_mgr_destroy(&aconnector->mst_mgr);
 
+	/* Cancel and flush any pending HDMI HPD debounce work */
+	cancel_delayed_work_sync(&aconnector->hdmi_hpd_debounce_work);
+	if (aconnector->hdmi_prev_sink) {
+		dc_sink_release(aconnector->hdmi_prev_sink);
+		aconnector->hdmi_prev_sink = NULL;
+	}
+
 	if (aconnector->bl_idx != -1) {
 		backlight_device_unregister(dm->backlight_dev[aconnector->bl_idx]);
 		dm->backlight_dev[aconnector->bl_idx] = NULL;
@@ -8548,6 +8682,10 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	memset(&aconnector->vsdb_info, 0, sizeof(aconnector->vsdb_info));
 	mutex_init(&aconnector->hpd_lock);
 	mutex_init(&aconnector->handle_mst_msg_ready);
+
+	aconnector->hdmi_hpd_debounce_delay_ms = AMDGPU_DM_HDMI_HPD_DEBOUNCE_MS;
+	INIT_DELAYED_WORK(&aconnector->hdmi_hpd_debounce_work, hdmi_hpd_debounce_work);
+	aconnector->hdmi_prev_sink = NULL;
 
 	/*
 	 * configure support HPD hot plug connector_>polled default value is 0

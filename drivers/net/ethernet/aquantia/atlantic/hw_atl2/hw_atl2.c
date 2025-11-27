@@ -759,7 +759,7 @@ static int hw_atl2_hw_stop(struct aq_hw_s *self)
 {
 	hw_atl_b0_hw_irq_disable(self, HW_ATL2_INT_MASK);
 
-	return 0;
+	return aq_hw_invalidate_descriptor_cache(self);
 }
 
 static struct aq_stats_s *hw_atl2_utils_get_hw_stats(struct aq_hw_s *self)

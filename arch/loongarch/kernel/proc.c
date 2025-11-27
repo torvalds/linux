@@ -17,6 +17,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	unsigned long n = (unsigned long) v - 1;
 	unsigned int isa = cpu_data[n].isa_level;
+	unsigned int prid = cpu_data[n].processor_id;
 	unsigned int version = cpu_data[n].processor_id & 0xff;
 	unsigned int fp_version = cpu_data[n].fpu_vers;
 
@@ -37,6 +38,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "global_id\t\t: %d\n", cpu_data[n].global_id);
 	seq_printf(m, "CPU Family\t\t: %s\n", __cpu_family[n]);
 	seq_printf(m, "Model Name\t\t: %s\n", __cpu_full_name[n]);
+	seq_printf(m, "PRID\t\t\t: %s (%08x)\n", id_to_core_name(prid), prid);
 	seq_printf(m, "CPU Revision\t\t: 0x%02x\n", version);
 	seq_printf(m, "FPU Revision\t\t: 0x%02x\n", fp_version);
 	seq_printf(m, "CPU MHz\t\t\t: %llu.%02llu\n",
