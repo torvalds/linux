@@ -40,6 +40,34 @@ OPTIONS for 'convert'
 --force::
 	Don't complain, do it.
 
+--time::
+	Only convert samples within given time window: <start>,<stop>. Times
+	have the format seconds.nanoseconds. If start is not given (i.e. time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e. time string is 'x.y,') then analysis goes
+	to end of file. Multiple ranges can be separated by spaces, which
+	requires the argument to be quoted e.g. --time "1234.567,1234.789 1235,"
+
+	Also support time percent with multiple time ranges. Time string is
+	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'.
+
+	For example:
+	Select the second 10% time slice:
+
+	  perf data convert --to-json out.json --time 10%/2
+
+	Select from 0% to 10% time slice:
+
+	  perf data convert --to-json out.json --time 0%-10%
+
+	Select the first and second 10% time slices:
+
+	  perf data convert --to-json out.json --time 10%/1,10%/2
+
+	Select from 0% to 10% and 30% to 40% slices:
+
+	  perf data convert --to-json out.json --time 0%-10%,30%-40%
+
 -v::
 --verbose::
         Be more verbose (show counter open errors, etc).
