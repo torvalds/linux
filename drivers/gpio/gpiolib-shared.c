@@ -49,6 +49,7 @@ struct gpio_shared_entry {
 	unsigned int offset;
 	/* Index in the property value array. */
 	size_t index;
+	struct mutex lock;
 	struct gpio_shared_desc *shared_desc;
 	struct kref ref;
 	struct list_head refs;
@@ -170,6 +171,7 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 				entry->offset = offset;
 				entry->index = count;
 				INIT_LIST_HEAD(&entry->refs);
+				mutex_init(&entry->lock);
 
 				list_add_tail(&entry->list, &gpio_shared_list);
 			}
@@ -246,6 +248,7 @@ static void gpio_shared_adev_release(struct device *dev)
 }
 
 static int gpio_shared_make_adev(struct gpio_device *gdev,
+				 struct gpio_shared_entry *entry,
 				 struct gpio_shared_ref *ref)
 {
 	struct auxiliary_device *adev = &ref->adev;
@@ -258,6 +261,7 @@ static int gpio_shared_make_adev(struct gpio_device *gdev,
 	adev->id = ref->dev_id;
 	adev->name = "proxy";
 	adev->dev.parent = gdev->dev.parent;
+	adev->dev.platform_data = entry;
 	adev->dev.release = gpio_shared_adev_release;
 
 	ret = auxiliary_device_init(adev);
@@ -461,7 +465,7 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 			pr_debug("Setting up a shared GPIO entry for %s\n",
 				 fwnode_get_name(ref->fwnode));
 
-			ret = gpio_shared_make_adev(gdev, ref);
+			ret = gpio_shared_make_adev(gdev, entry, ref);
 			if (ret)
 				return ret;
 		}
@@ -495,10 +499,11 @@ static void gpio_shared_release(struct kref *kref)
 {
 	struct gpio_shared_entry *entry =
 		container_of(kref, struct gpio_shared_entry, ref);
-	struct gpio_shared_desc *shared_desc = entry->shared_desc;
+	struct gpio_shared_desc *shared_desc;
 
-	guard(mutex)(&gpio_shared_lock);
+	guard(mutex)(&entry->lock);
 
+	shared_desc = entry->shared_desc;
 	gpio_device_put(shared_desc->desc->gdev);
 	if (shared_desc->can_sleep)
 		mutex_destroy(&shared_desc->mutex);
@@ -521,6 +526,8 @@ gpiod_shared_desc_create(struct gpio_shared_entry *entry)
 	struct gpio_shared_desc *shared_desc;
 	struct gpio_device *gdev;
 
+	lockdep_assert_held(&entry->lock);
+
 	shared_desc = kzalloc(sizeof(*shared_desc), GFP_KERNEL);
 	if (!shared_desc)
 		return ERR_PTR(-ENOMEM);
@@ -541,57 +548,42 @@ gpiod_shared_desc_create(struct gpio_shared_entry *entry)
 	return shared_desc;
 }
 
-static struct gpio_shared_entry *gpiod_shared_find(struct auxiliary_device *adev)
+struct gpio_shared_desc *devm_gpiod_shared_get(struct device *dev)
 {
 	struct gpio_shared_desc *shared_desc;
 	struct gpio_shared_entry *entry;
-	struct gpio_shared_ref *ref;
+	int ret;
 
-	guard(mutex)(&gpio_shared_lock);
+	lockdep_assert_not_held(&gpio_shared_lock);
 
-	list_for_each_entry(entry, &gpio_shared_list, list) {
-		list_for_each_entry(ref, &entry->refs, list) {
-			if (adev != &ref->adev)
-				continue;
+	entry = dev_get_platdata(dev);
+	if (WARN_ON(!entry))
+		/* Programmer bug */
+		return ERR_PTR(-ENOENT);
 
-			if (entry->shared_desc) {
-				kref_get(&entry->ref);
-				return entry;
-			}
-
+	scoped_guard(mutex, &entry->lock) {
+		if (entry->shared_desc) {
+			kref_get(&entry->ref);
+			shared_desc = entry->shared_desc;
+		} else {
 			shared_desc = gpiod_shared_desc_create(entry);
 			if (IS_ERR(shared_desc))
 				return ERR_CAST(shared_desc);
 
 			kref_init(&entry->ref);
 			entry->shared_desc = shared_desc;
-
-			pr_debug("Device %s acquired a reference to the shared GPIO %u owned by %s\n",
-				 dev_name(&adev->dev), gpiod_hwgpio(shared_desc->desc),
-				 gpio_device_get_label(shared_desc->desc->gdev));
-
-
-			return entry;
 		}
+
+		pr_debug("Device %s acquired a reference to the shared GPIO %u owned by %s\n",
+			 dev_name(dev), gpiod_hwgpio(shared_desc->desc),
+			 gpio_device_get_label(shared_desc->desc->gdev));
 	}
-
-	return ERR_PTR(-ENOENT);
-}
-
-struct gpio_shared_desc *devm_gpiod_shared_get(struct device *dev)
-{
-	struct gpio_shared_entry *entry;
-	int ret;
-
-	entry = gpiod_shared_find(to_auxiliary_dev(dev));
-	if (IS_ERR(entry))
-		return ERR_CAST(entry);
 
 	ret = devm_add_action_or_reset(dev, gpiod_shared_put, entry);
 	if (ret)
 		return ERR_PTR(ret);
 
-	return entry->shared_desc;
+	return shared_desc;
 }
 EXPORT_SYMBOL_GPL(devm_gpiod_shared_get);
 
@@ -607,6 +599,7 @@ static void gpio_shared_drop_ref(struct gpio_shared_ref *ref)
 static void gpio_shared_drop_entry(struct gpio_shared_entry *entry)
 {
 	list_del(&entry->list);
+	mutex_destroy(&entry->lock);
 	fwnode_handle_put(entry->fwnode);
 	kfree(entry);
 }
