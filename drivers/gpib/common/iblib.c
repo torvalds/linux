@@ -227,11 +227,10 @@ int ibonline(struct gpib_board *board)
 #ifndef CONFIG_NIOS2
 	board->autospoll_task = kthread_run(&autospoll_thread, board,
 					    "gpib%d_autospoll_kthread", board->minor);
-	retval = IS_ERR(board->autospoll_task);
-	if (retval) {
+	if (IS_ERR(board->autospoll_task)) {
 		dev_err(board->gpib_dev, "failed to create autospoll thread\n");
 		board->interface->detach(board);
-		return retval;
+		return PTR_ERR(board->autospoll_task);
 	}
 #endif
 	board->online = 1;
