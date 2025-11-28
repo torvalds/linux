@@ -964,26 +964,20 @@ int xe_gt_resume(struct xe_gt *gt)
  */
 int xe_gt_runtime_suspend(struct xe_gt *gt)
 {
-	unsigned int fw_ref;
-	int err = -ETIMEDOUT;
-
 	xe_gt_dbg(gt, "runtime suspending\n");
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
-		goto err_force_wake;
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL)) {
+		xe_gt_err(gt, "runtime suspend failed (%pe)\n", ERR_PTR(-ETIMEDOUT));
+		return -ETIMEDOUT;
+	}
 
 	xe_uc_runtime_suspend(&gt->uc);
 	xe_gt_disable_host_l2_vram(gt);
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	xe_gt_dbg(gt, "runtime suspended\n");
 
 	return 0;
-
-err_force_wake:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-	return err;
 }
 
 /**
@@ -994,26 +988,20 @@ err_force_wake:
  */
 int xe_gt_runtime_resume(struct xe_gt *gt)
 {
-	unsigned int fw_ref;
-	int err = -ETIMEDOUT;
-
 	xe_gt_dbg(gt, "runtime resuming\n");
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
-		goto err_force_wake;
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL)) {
+		xe_gt_err(gt, "runtime resume failed (%pe)\n", ERR_PTR(-ETIMEDOUT));
+		return -ETIMEDOUT;
+	}
 
 	xe_gt_enable_host_l2_vram(gt);
 	xe_uc_runtime_resume(&gt->uc);
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	xe_gt_dbg(gt, "runtime resumed\n");
 
 	return 0;
-
-err_force_wake:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-	return err;
 }
 
 struct xe_hw_engine *xe_gt_hw_engine(struct xe_gt *gt,
