@@ -538,14 +538,12 @@ static int as_send_cmd_and_wait(struct panthor_device *ptdev, u32 as_nr, u32 cmd
 	return status;
 }
 
-static int lock_region(struct panthor_device *ptdev, u32 as_nr,
-		       u64 region_start, u64 size)
+static u64 pack_region_range(struct panthor_device *ptdev, u64 region_start, u64 size)
 {
 	u8 region_width;
-	u64 region;
 	u64 region_end = region_start + size;
 
-	if (!size)
+	if (drm_WARN_ON_ONCE(&ptdev->base, !size))
 		return 0;
 
 	/*
@@ -565,11 +563,7 @@ static int lock_region(struct panthor_device *ptdev, u32 as_nr,
 	 */
 	region_start &= GENMASK_ULL(63, region_width);
 
-	region = region_width | region_start;
-
-	/* Lock the region that needs to be updated */
-	gpu_write64(ptdev, AS_LOCKADDR(as_nr), region);
-	return as_send_cmd_and_wait(ptdev, as_nr, AS_COMMAND_LOCK);
+	return region_width | region_start;
 }
 
 static int mmu_hw_do_operation_locked(struct panthor_device *ptdev, int as_nr,
@@ -580,6 +574,9 @@ static int mmu_hw_do_operation_locked(struct panthor_device *ptdev, int as_nr,
 	int ret;
 
 	lockdep_assert_held(&ptdev->mmu->as.slots_lock);
+
+	if (!size)
+		return 0;
 
 	switch (op) {
 	case AS_COMMAND_FLUSH_MEM:
@@ -602,7 +599,10 @@ static int mmu_hw_do_operation_locked(struct panthor_device *ptdev, int as_nr,
 	 * power it up
 	 */
 
-	ret = lock_region(ptdev, as_nr, iova, size);
+	/* Lock the region that needs to be updated */
+	gpu_write64(ptdev, AS_LOCKADDR(as_nr),
+		    pack_region_range(ptdev, iova, size));
+	ret = as_send_cmd_and_wait(ptdev, as_nr, AS_COMMAND_LOCK);
 	if (ret)
 		return ret;
 
