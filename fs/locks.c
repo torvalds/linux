@@ -1681,8 +1681,9 @@ void lease_get_mtime(struct inode *inode, struct timespec64 *time)
 EXPORT_SYMBOL(lease_get_mtime);
 
 /**
- *	fcntl_getlease - Enquire what lease is currently active
+ *	__fcntl_getlease - Enquire what lease is currently active
  *	@filp: the file
+ *	@flavor: type of lease flags to check
  *
  *	The value returned by this function will be one of
  *	(if no lease break is pending):
