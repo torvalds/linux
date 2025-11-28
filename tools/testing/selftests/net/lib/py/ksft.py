@@ -163,7 +163,7 @@ def ksft_flush_defer():
         entry = global_defer_queue.pop()
         try:
             entry.exec_only()
-        except BaseException:
+        except Exception:
             ksft_pr(f"Exception while handling defer / cleanup (callback {i} of {qlen_start})!")
             tb = traceback.format_exc()
             for line in tb.strip().split('\n'):
@@ -333,7 +333,21 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
             KSFT_RESULT = False
             cnt_key = 'fail'
 
-        ksft_flush_defer()
+        try:
+            ksft_flush_defer()
+        except BaseException as e:
+            tb = traceback.format_exc()
+            for line in tb.strip().split('\n'):
+                ksft_pr("Exception|", line)
+            if isinstance(e, KeyboardInterrupt):
+                ksft_pr()
+                ksft_pr("WARN: defer() interrupted, cleanup may be incomplete.")
+                ksft_pr("      Attempting to finish cleanup before exiting.")
+                ksft_pr("      Interrupt again to exit immediately.")
+                ksft_pr()
+                stop = True
+            # Flush was interrupted, try to finish the job best we can
+            ksft_flush_defer()
 
         if not cnt_key:
             cnt_key = 'pass' if KSFT_RESULT else 'fail'
