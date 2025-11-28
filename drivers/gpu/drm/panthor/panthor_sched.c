@@ -2753,13 +2753,6 @@ static void panthor_group_start(struct panthor_group *group)
 	group_put(group);
 }
 
-static void panthor_sched_immediate_tick(struct panthor_device *ptdev)
-{
-	struct panthor_scheduler *sched = ptdev->scheduler;
-
-	sched_queue_delayed_work(sched, tick, 0);
-}
-
 /**
  * panthor_sched_report_mmu_fault() - Report MMU faults to the scheduler.
  */
@@ -2767,13 +2760,13 @@ void panthor_sched_report_mmu_fault(struct panthor_device *ptdev)
 {
 	/* Force a tick to immediately kill faulty groups. */
 	if (ptdev->scheduler)
-		panthor_sched_immediate_tick(ptdev);
+		sched_queue_delayed_work(ptdev->scheduler, tick, 0);
 }
 
 void panthor_sched_resume(struct panthor_device *ptdev)
 {
 	/* Force a tick to re-evaluate after a resume. */
-	panthor_sched_immediate_tick(ptdev);
+	sched_queue_delayed_work(ptdev->scheduler, tick, 0);
 }
 
 void panthor_sched_suspend(struct panthor_device *ptdev)
