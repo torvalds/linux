@@ -4535,7 +4535,12 @@ static void __blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 		if (hctxs)
 			memcpy(new_hctxs, hctxs, q->nr_hw_queues *
 			       sizeof(*hctxs));
-		q->queue_hw_ctx = new_hctxs;
+		rcu_assign_pointer(q->queue_hw_ctx, new_hctxs);
+		/*
+		 * Make sure reading the old queue_hw_ctx from other
+		 * context concurrently won't trigger uaf.
+		 */
+		synchronize_rcu_expedited();
 		kfree(hctxs);
 		hctxs = new_hctxs;
 	}
