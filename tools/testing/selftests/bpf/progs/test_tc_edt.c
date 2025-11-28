@@ -70,7 +70,7 @@ static inline int handle_tcp(struct __sk_buff *skb, struct tcphdr *tcp)
 	if ((void *)(tcp + 1) > data_end)
 		return TC_ACT_SHOT;
 
-	if (tcp->dest == bpf_htons(9000))
+	if (tcp->source == bpf_htons(9000))
 		return throttle_flow(skb);
 
 	return TC_ACT_OK;
