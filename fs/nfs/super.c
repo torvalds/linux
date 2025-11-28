@@ -1052,16 +1052,6 @@ int nfs_reconfigure(struct fs_context *fc)
 	sync_filesystem(sb);
 
 	/*
-	 * The SB_RDONLY flag has been removed from the superblock during
-	 * mounts to prevent interference between different filesystems.
-	 * Similarly, it is also necessary to ignore the SB_RDONLY flag
-	 * during reconfiguration; otherwise, it may also result in the
-	 * creation of redundant superblocks when mounting a directory with
-	 * different rw and ro flags multiple times.
-	 */
-	fc->sb_flags_mask &= ~SB_RDONLY;
-
-	/*
 	 * Userspace mount programs that send binary options generally send
 	 * them populated with default values. We have no way to know which
 	 * ones were explicitly specified. Fall back to legacy behavior and
