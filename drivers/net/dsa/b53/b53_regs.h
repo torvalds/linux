@@ -376,10 +376,8 @@
 #define B53_ARL_SRCH_RSLT_MACVID_89	0x33
 #define B53_ARL_SRCH_RSLT_MACVID_63XX	0x34
 
-/* Single register search result on 5325 */
+/* Single register search result on 5325/5365 */
 #define B53_ARL_SRCH_RSTL_0_MACVID_25	0x24
-/* Single register search result on 5365 */
-#define B53_ARL_SRCH_RSTL_0_MACVID_65	0x30
 
 /* ARL Search Data Result (32 bit) */
 #define B53_ARL_SRCH_RSTL_0		0x68

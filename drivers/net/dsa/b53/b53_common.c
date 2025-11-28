@@ -2125,16 +2125,6 @@ static void b53_arl_search_read_25(struct b53_device *dev, u8 idx,
 	b53_arl_to_entry_25(ent, mac_vid);
 }
 
-static void b53_arl_search_read_65(struct b53_device *dev, u8 idx,
-				   struct b53_arl_entry *ent)
-{
-	u64 mac_vid;
-
-	b53_read64(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSTL_0_MACVID_65,
-		   &mac_vid);
-	b53_arl_to_entry_25(ent, mac_vid);
-}
-
 static void b53_arl_search_read_89(struct b53_device *dev, u8 idx,
 				   struct b53_arl_entry *ent)
 {
@@ -2746,12 +2736,6 @@ static const struct b53_arl_ops b53_arl_ops_25 = {
 	.arl_search_read = b53_arl_search_read_25,
 };
 
-static const struct b53_arl_ops b53_arl_ops_65 = {
-	.arl_read_entry = b53_arl_read_entry_25,
-	.arl_write_entry = b53_arl_write_entry_25,
-	.arl_search_read = b53_arl_search_read_65,
-};
-
 static const struct b53_arl_ops b53_arl_ops_89 = {
 	.arl_read_entry = b53_arl_read_entry_89,
 	.arl_write_entry = b53_arl_write_entry_89,
@@ -2814,7 +2798,7 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.arl_buckets = 1024,
 		.imp_port = 5,
 		.duplex_reg = B53_DUPLEX_STAT_FE,
-		.arl_ops = &b53_arl_ops_65,
+		.arl_ops = &b53_arl_ops_25,
 	},
 	{
 		.chip_id = BCM5389_DEVICE_ID,
