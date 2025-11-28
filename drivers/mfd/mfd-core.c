@@ -100,7 +100,6 @@ static int mfd_match_of_node_to_dev(struct platform_device *pdev,
 				    struct device_node *np,
 				    const struct mfd_cell *cell)
 {
-#if IS_ENABLED(CONFIG_OF)
 	struct mfd_of_node_entry *of_entry;
 	u64 of_node_addr;
 
@@ -133,7 +132,6 @@ allocate_of_node:
 
 	of_node_get(np);
 	device_set_node(&pdev->dev, of_fwnode_handle(np));
-#endif
 	return 0;
 }
 
