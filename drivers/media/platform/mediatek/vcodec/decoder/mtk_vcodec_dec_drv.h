@@ -7,6 +7,8 @@
 #ifndef _MTK_VCODEC_DEC_DRV_H_
 #define _MTK_VCODEC_DEC_DRV_H_
 
+#include <linux/kref.h>
+
 #include "../common/mtk_vcodec_cmn_drv.h"
 #include "../common/mtk_vcodec_dbgfs.h"
 #include "../common/mtk_vcodec_fw_priv.h"
@@ -126,6 +128,16 @@ struct mtk_vcodec_dec_pdata {
 
 	bool is_subdev_supported;
 	bool uses_stateless_api;
+};
+
+/**
+ * struct mtk_vcodec_dec_request - Media request private data.
+ * @refcount: Used to ensure we don't complete the request too soon
+ * @req: Media Request structure
+ */
+struct mtk_vcodec_dec_request {
+	struct kref refcount;
+	struct media_request req;
 };
 
 /**
@@ -322,6 +334,11 @@ static inline struct mtk_vcodec_dec_ctx *file_to_dec_ctx(struct file *filp)
 static inline struct mtk_vcodec_dec_ctx *ctrl_to_dec_ctx(struct v4l2_ctrl *ctrl)
 {
 	return container_of(ctrl->handler, struct mtk_vcodec_dec_ctx, ctrl_hdl);
+}
+
+static inline struct mtk_vcodec_dec_request *req_to_dec_req(struct media_request *req)
+{
+	return container_of(req, struct mtk_vcodec_dec_request, req);
 }
 
 /* Wake up context wait_queue */
