@@ -872,10 +872,7 @@ static void b53_enable_stp(struct b53_device *dev)
 
 static u16 b53_default_pvid(struct b53_device *dev)
 {
-	if (is5325(dev) || is5365(dev))
-		return 1;
-	else
-		return 0;
+	return 0;
 }
 
 static bool b53_vlan_port_needs_forced_tagged(struct dsa_switch *ds, int port)
@@ -1698,9 +1695,6 @@ static int b53_vlan_prepare(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct b53_device *dev = ds->priv;
-
-	if ((is5325(dev) || is5365(dev)) && vlan->vid == 0)
-		return -EOPNOTSUPP;
 
 	/* Port 7 on 7278 connects to the ASP's UniMAC which is not capable of
 	 * receiving VLAN tagged frames at all, we can still allow the port to
