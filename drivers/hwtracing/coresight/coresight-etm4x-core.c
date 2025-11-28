@@ -750,6 +750,9 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 	int ret = 0;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	struct etmv4_config *config = &drvdata->config;
+	struct perf_event_attr max_timestamp = {
+		.ATTR_CFG_FLD_timestamp_CFG = U64_MAX,
+	};
 	struct perf_event_attr *attr = &event->attr;
 	unsigned long cfg_hash;
 	int preset, cc_threshold;
@@ -790,21 +793,23 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 		config->ccctlr = cc_threshold;
 	}
 
-	ts_level = ATTR_CFG_GET_FLD(attr, timestamp);
+	ts_level = max(ATTR_CFG_GET_FLD(attr, timestamp),
+		       ATTR_CFG_GET_FLD(attr, deprecated_timestamp));
 	if (ts_level) {
 		/*
-		 * Configure timestamps to be emitted at regular intervals in
-		 * order to correlate instructions executed on different CPUs
-		 * (CPU-wide trace scenarios).
+		 * Don't do counter generated timestamps when ts_level == MAX.
+		 * Leave only SYNC timestamps from TRCCONFIGR_TS.
 		 */
-		ret = etm4_config_timestamp_event(drvdata, ts_level);
+		if (ts_level != ATTR_CFG_GET_FLD(&max_timestamp, timestamp)) {
+			ret = etm4_config_timestamp_event(drvdata, ts_level);
 
-		/*
-		 * No need to go further if timestamp intervals can't
-		 * be configured.
-		 */
-		if (ret)
-			goto out;
+			/*
+			 * Error if user asked for timestamps but there was no
+			 * free counter.
+			 */
+			if (ret)
+				goto out;
+		}
 
 		/* bit[11], Global timestamp tracing bit */
 		config->cfg |= TRCCONFIGR_TS;

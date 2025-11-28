@@ -310,6 +310,7 @@ static int etm_parse_event_config(struct etm_drvdata *drvdata,
 {
 	struct etm_config *config = &drvdata->config;
 	struct perf_event_attr *attr = &event->attr;
+	u8 ts_level;
 
 	if (!attr)
 		return -EINVAL;
@@ -338,7 +339,16 @@ static int etm_parse_event_config(struct etm_drvdata *drvdata,
 	if (ATTR_CFG_GET_FLD(attr, cycacc))
 		config->ctrl |= ETMCR_CYC_ACC;
 
-	if (ATTR_CFG_GET_FLD(attr, timestamp))
+	ts_level = max(ATTR_CFG_GET_FLD(attr, timestamp),
+		       ATTR_CFG_GET_FLD(attr, deprecated_timestamp));
+
+	if (ts_level > 1) {
+		dev_dbg(&drvdata->csdev->dev,
+			"timestamp format attribute should be 0 (off) or 1 (on)\n");
+		return -EINVAL;
+	}
+
+	if (ts_level)
 		config->ctrl |= ETMCR_TIMESTAMP_EN;
 
 	/*
