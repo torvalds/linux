@@ -71,6 +71,8 @@
 	for_each_fbc_id((__display), (__fbc_id)) \
 		for_each_if((__fbc) = (__display)->fbc.instances[(__fbc_id)])
 
+#define FBC_SYS_CACHE_ID_NONE	I915_MAX_FBCS
+
 struct intel_fbc_funcs {
 	void (*activate)(struct intel_fbc *fbc);
 	void (*deactivate)(struct intel_fbc *fbc);
@@ -954,6 +956,66 @@ static void intel_fbc_program_workarounds(struct intel_fbc *fbc)
 		fbc_compressor_clkgate_disable_wa(fbc, true);
 }
 
+static void fbc_sys_cache_update_config(struct intel_display *display, u32 reg,
+					enum intel_fbc_id id)
+{
+	if (!HAS_FBC_SYS_CACHE(display))
+		return;
+
+	lockdep_assert_held(&display->fbc.sys_cache.lock);
+
+	/* Cache read enable is set by default */
+	reg |= FBC_SYS_CACHE_READ_ENABLE;
+
+	intel_de_write(display, XE3P_LPD_FBC_SYS_CACHE_USAGE_CFG, reg);
+
+	display->fbc.sys_cache.id = id;
+}
+
+static void fbc_sys_cache_disable(const struct intel_fbc *fbc)
+{
+	struct intel_display *display = fbc->display;
+	struct sys_cache_cfg *sys_cache = &display->fbc.sys_cache;
+
+	mutex_lock(&sys_cache->lock);
+	/* clear only if "fbc" reserved the cache */
+	if (sys_cache->id == fbc->id)
+		fbc_sys_cache_update_config(display, 0, FBC_SYS_CACHE_ID_NONE);
+	mutex_unlock(&sys_cache->lock);
+}
+
+static int fbc_sys_cache_limit(struct intel_display *display)
+{
+	if (DISPLAY_VER(display) == 35)
+		return 2 * 1024 * 1024;
+
+	return 0;
+}
+
+static void fbc_sys_cache_enable(const struct intel_fbc *fbc)
+{
+	struct intel_display *display = fbc->display;
+	struct sys_cache_cfg *sys_cache = &display->fbc.sys_cache;
+	int range, offset;
+	u32 cfg;
+
+	if (!HAS_FBC_SYS_CACHE(display))
+		return;
+
+	range = fbc_sys_cache_limit(display) / (64 * 1024);
+
+	offset = i915_gem_stolen_node_offset(fbc->compressed_fb) / (4 * 1024);
+
+	cfg = FBC_SYS_CACHE_TAG_USE_RES_SPACE | FBC_SYS_CACHEABLE_RANGE(range) |
+	      FBC_SYS_CACHE_START_BASE(offset);
+
+	mutex_lock(&sys_cache->lock);
+	/* update sys cache config only if sys cache is unassigned */
+	if (sys_cache->id == FBC_SYS_CACHE_ID_NONE)
+		fbc_sys_cache_update_config(display, cfg, fbc->id);
+	mutex_unlock(&sys_cache->lock);
+}
+
 static void __intel_fbc_cleanup_cfb(struct intel_fbc *fbc)
 {
 	if (WARN_ON(intel_fbc_hw_is_active(fbc)))
@@ -980,6 +1042,11 @@ void intel_fbc_cleanup(struct intel_display *display)
 
 		kfree(fbc);
 	}
+
+	mutex_lock(&display->fbc.sys_cache.lock);
+	drm_WARN_ON(display->drm,
+		    display->fbc.sys_cache.id != FBC_SYS_CACHE_ID_NONE);
+	mutex_unlock(&display->fbc.sys_cache.lock);
 }
 
 static bool i8xx_fbc_stride_is_valid(const struct intel_plane_state *plane_state)
@@ -1793,6 +1860,8 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 
 	__intel_fbc_cleanup_cfb(fbc);
 
+	fbc_sys_cache_disable(fbc);
+
 	/* wa_18038517565 Enable DPFC clock gating after FBC disable */
 	if (display->platform.dg2 || DISPLAY_VER(display) >= 14)
 		fbc_compressor_clkgate_disable_wa(fbc, false);
@@ -1985,6 +2054,8 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 
 	intel_fbc_program_workarounds(fbc);
 	intel_fbc_program_cfb(fbc);
+
+	fbc_sys_cache_enable(fbc);
 }
 
 /**
@@ -2256,6 +2327,9 @@ void intel_fbc_init(struct intel_display *display)
 
 	for_each_fbc_id(display, fbc_id)
 		display->fbc.instances[fbc_id] = intel_fbc_create(display, fbc_id);
+
+	mutex_init(&display->fbc.sys_cache.lock);
+	display->fbc.sys_cache.id = FBC_SYS_CACHE_ID_NONE;
 }
 
 /**
@@ -2275,6 +2349,11 @@ void intel_fbc_sanitize(struct intel_display *display)
 		if (intel_fbc_hw_is_active(fbc))
 			intel_fbc_hw_deactivate(fbc);
 	}
+
+	/* Ensure the sys cache usage config is clear as well */
+	mutex_lock(&display->fbc.sys_cache.lock);
+	fbc_sys_cache_update_config(display, 0, FBC_SYS_CACHE_ID_NONE);
+	mutex_unlock(&display->fbc.sys_cache.lock);
 }
 
 static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
@@ -2293,6 +2372,11 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 		seq_puts(m, "FBC enabled\n");
 		seq_printf(m, "Compressing: %s\n",
 			   str_yes_no(intel_fbc_is_compressing(fbc)));
+
+		mutex_lock(&display->fbc.sys_cache.lock);
+		seq_printf(m, "Using system cache: %s\n",
+			   str_yes_no(display->fbc.sys_cache.id == fbc->id));
+		mutex_unlock(&display->fbc.sys_cache.lock);
 	} else {
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
 	}
