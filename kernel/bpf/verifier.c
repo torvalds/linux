@@ -6482,6 +6482,8 @@ static int check_ptr_alignment(struct bpf_verifier_env *env,
 		break;
 	case PTR_TO_MAP_VALUE:
 		pointer_desc = "value ";
+		if (reg->map_ptr->map_type == BPF_MAP_TYPE_INSN_ARRAY)
+			strict = true;
 		break;
 	case PTR_TO_CTX:
 		pointer_desc = "context ";
@@ -7529,8 +7531,6 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 {
 	struct bpf_reg_state *regs = cur_regs(env);
 	struct bpf_reg_state *reg = regs + regno;
-	bool insn_array = reg->type == PTR_TO_MAP_VALUE &&
-			  reg->map_ptr->map_type == BPF_MAP_TYPE_INSN_ARRAY;
 	int size, err = 0;
 
 	size = bpf_size_to_bytes(bpf_size);
@@ -7538,7 +7538,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		return size;
 
 	/* alignment checks will add in reg->off themselves */
-	err = check_ptr_alignment(env, reg, off, size, strict_alignment_once || insn_array);
+	err = check_ptr_alignment(env, reg, off, size, strict_alignment_once);
 	if (err)
 		return err;
 
@@ -7565,11 +7565,6 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			verbose(env, "R%d leaks addr into map\n", value_regno);
 			return -EACCES;
 		}
-		if (t == BPF_WRITE && insn_array) {
-			verbose(env, "writes into insn_array not allowed\n");
-			return -EACCES;
-		}
-
 		err = check_map_access_type(env, regno, off, size, t);
 		if (err)
 			return err;
@@ -7584,10 +7579,14 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		} else if (t == BPF_READ && value_regno >= 0) {
 			struct bpf_map *map = reg->map_ptr;
 
-			/* if map is read-only, track its contents as scalars */
+			/*
+			 * If map is read-only, track its contents as scalars,
+			 * unless it is an insn array (see the special case below)
+			 */
 			if (tnum_is_const(reg->var_off) &&
 			    bpf_map_is_rdonly(map) &&
-			    map->ops->map_direct_value_addr) {
+			    map->ops->map_direct_value_addr &&
+			    map->map_type != BPF_MAP_TYPE_INSN_ARRAY) {
 				int map_off = off + reg->var_off.value;
 				u64 val = 0;
 

@@ -244,7 +244,7 @@ jt0_%=:								\
 }
 
 SEC("socket")
-__failure __msg("writes into insn_array not allowed")
+__failure __msg("write into map forbidden, value_size=16 off=8 size=8")
 __naked void jump_table_no_writes(void)
 {
 	asm volatile ("						\
