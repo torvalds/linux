@@ -207,7 +207,7 @@ static int tc_filter_del(struct ynl_sock *ys, int ifi)
 
 	req = tc_deltfilter_req_alloc();
 	if (!req) {
-		fprintf(stderr, "tc_deltfilter_req_alloc failedq\n");
+		fprintf(stderr, "tc_deltfilter_req_alloc failed\n");
 		return -1;
 	}
 	memset(req, 0, sizeof(*req));
