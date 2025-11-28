@@ -1693,12 +1693,10 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	else
 		pr_err("Error during conversion.\n");
 
-	fprintf(stderr,
-		"[ perf data convert: Converted '%s' into CTF data '%s' ]\n",
+	fprintf(stderr,	"[ perf data convert: Converted '%s' into CTF data '%s' ]\n",
 		data.path, path);
 
-	fprintf(stderr,
-		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples",
+	fprintf(stderr,	"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples",
 		(double) c.events_size / 1024.0 / 1024.0,
 		c.events_count);
 

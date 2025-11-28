@@ -427,13 +427,12 @@ int bt_convert__perf2json(const char *input_name, const char *output_name,
 	output_json_format(c.out, false, 0, "}");
 	fputc('\n', c.out);
 
-	fprintf(stderr,
-			"[ perf data convert: Converted '%s' into JSON data '%s' ]\n",
-			data.path, output_name);
+	fprintf(stderr,	"[ perf data convert: Converted '%s' into JSON data '%s' ]\n",
+		data.path, output_name);
 
 	fprintf(stderr,
-			"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples) ]\n",
-			(ftell(c.out)) / 1024.0 / 1024.0, c.events_count);
+		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples) ]\n",
+		(ftell(c.out)) / 1024.0 / 1024.0, c.events_count);
 
 	if (c.skipped) {
 		fprintf(stderr,	"[ perf data convert: Skipped %" PRIu64 " samples ]\n",
