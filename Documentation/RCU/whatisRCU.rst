@@ -1227,7 +1227,10 @@ SRCU: Initialization/cleanup/ordering::
 
 	DEFINE_SRCU
 	DEFINE_STATIC_SRCU
+	DEFINE_SRCU_FAST        // for srcu_read_lock_fast() and friends
+	DEFINE_STATIC_SRCU_FAST // for srcu_read_lock_fast() and friends
 	init_srcu_struct
+	init_srcu_struct_fast
 	cleanup_srcu_struct
 	smp_mb__after_srcu_read_unlock
 

@@ -286,15 +286,36 @@ err_free_sup:
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
-int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
-		       struct lock_class_key *key)
+static int
+__init_srcu_struct_common(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
 {
 	/* Don't re-initialize a lock while it is held. */
 	debug_check_no_locks_freed((void *)ssp, sizeof(*ssp));
 	lockdep_init_map(&ssp->dep_map, name, key, 0);
 	return init_srcu_struct_fields(ssp, false);
 }
+
+int __init_srcu_struct(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
+{
+	ssp->srcu_reader_flavor = 0;
+	return __init_srcu_struct_common(ssp, name, key);
+}
 EXPORT_SYMBOL_GPL(__init_srcu_struct);
+
+int __init_srcu_struct_fast(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST;
+	return __init_srcu_struct_common(ssp, name, key);
+}
+EXPORT_SYMBOL_GPL(__init_srcu_struct_fast);
+
+int __init_srcu_struct_fast_updown(struct srcu_struct *ssp, const char *name,
+				   struct lock_class_key *key)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST_UPDOWN;
+	return __init_srcu_struct_common(ssp, name, key);
+}
+EXPORT_SYMBOL_GPL(__init_srcu_struct_fast_updown);
 
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -302,15 +323,54 @@ EXPORT_SYMBOL_GPL(__init_srcu_struct);
  * init_srcu_struct - initialize a sleep-RCU structure
  * @ssp: structure to initialize.
  *
- * Must invoke this on a given srcu_struct before passing that srcu_struct
+ * Use this in place of DEFINE_SRCU() and DEFINE_STATIC_SRCU()
+ * for non-static srcu_struct structures that are to be passed to
+ * srcu_read_lock(), srcu_read_lock_nmisafe(), and friends.  It is necessary
+ * to invoke this on a given srcu_struct before passing that srcu_struct
  * to any other function.  Each srcu_struct represents a separate domain
  * of SRCU protection.
  */
 int init_srcu_struct(struct srcu_struct *ssp)
 {
+	ssp->srcu_reader_flavor = 0;
 	return init_srcu_struct_fields(ssp, false);
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct);
+
+/**
+ * init_srcu_struct_fast - initialize a fast-reader sleep-RCU structure
+ * @ssp: structure to initialize.
+ *
+ * Use this in place of DEFINE_SRCU_FAST() and DEFINE_STATIC_SRCU_FAST()
+ * for non-static srcu_struct structures that are to be passed to
+ * srcu_read_lock_fast() and friends.  It is necessary to invoke this on a
+ * given srcu_struct before passing that srcu_struct to any other function.
+ * Each srcu_struct represents a separate domain of SRCU protection.
+ */
+int init_srcu_struct_fast(struct srcu_struct *ssp)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST;
+	return init_srcu_struct_fields(ssp, false);
+}
+EXPORT_SYMBOL_GPL(init_srcu_struct_fast);
+
+/**
+ * init_srcu_struct_fast_updown - initialize a fast-reader up/down sleep-RCU structure
+ * @ssp: structure to initialize.
+ *
+ * Use this function in place of DEFINE_SRCU_FAST_UPDOWN() and
+ * DEFINE_STATIC_SRCU_FAST_UPDOWN() for non-static srcu_struct
+ * structures that are to be passed to srcu_read_lock_fast_updown(),
+ * srcu_down_read_fast(), and friends.  It is necessary to invoke this on a
+ * given srcu_struct before passing that srcu_struct to any other function.
+ * Each srcu_struct represents a separate domain of SRCU protection.
+ */
+int init_srcu_struct_fast_updown(struct srcu_struct *ssp)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST_UPDOWN;
+	return init_srcu_struct_fields(ssp, false);
+}
+EXPORT_SYMBOL_GPL(init_srcu_struct_fast_updown);
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -461,7 +521,7 @@ static bool srcu_readers_lock_idx(struct srcu_struct *ssp, int idx, bool gp, uns
 static unsigned long srcu_readers_unlock_idx(struct srcu_struct *ssp, int idx, unsigned long *rdm)
 {
 	int cpu;
-	unsigned long mask = 0;
+	unsigned long mask = ssp->srcu_reader_flavor;
 	unsigned long sum = 0;
 
 	for_each_possible_cpu(cpu) {
@@ -734,6 +794,10 @@ void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
 
 	sdp = raw_cpu_ptr(ssp->sda);
 	old_read_flavor = READ_ONCE(sdp->srcu_reader_flavor);
+	WARN_ON_ONCE(ssp->srcu_reader_flavor && read_flavor != ssp->srcu_reader_flavor);
+	WARN_ON_ONCE(old_read_flavor && ssp->srcu_reader_flavor &&
+		     old_read_flavor != ssp->srcu_reader_flavor);
+	WARN_ON_ONCE(read_flavor == SRCU_READ_FLAVOR_FAST && !ssp->srcu_reader_flavor);
 	if (!old_read_flavor) {
 		old_read_flavor = cmpxchg(&sdp->srcu_reader_flavor, 0, read_flavor);
 		if (!old_read_flavor)
@@ -1687,6 +1751,64 @@ void srcu_barrier(struct srcu_struct *ssp)
 	mutex_unlock(&ssp->srcu_sup->srcu_barrier_mutex);
 }
 EXPORT_SYMBOL_GPL(srcu_barrier);
+
+/* Callback for srcu_expedite_current() usage. */
+static void srcu_expedite_current_cb(struct rcu_head *rhp)
+{
+	unsigned long flags;
+	bool needcb = false;
+	struct srcu_data *sdp = container_of(rhp, struct srcu_data, srcu_ec_head);
+
+	spin_lock_irqsave_sdp_contention(sdp, &flags);
+	if (sdp->srcu_ec_state == SRCU_EC_IDLE) {
+		WARN_ON_ONCE(1);
+	} else if (sdp->srcu_ec_state == SRCU_EC_PENDING) {
+		sdp->srcu_ec_state = SRCU_EC_IDLE;
+	} else {
+		WARN_ON_ONCE(sdp->srcu_ec_state != SRCU_EC_REPOST);
+		sdp->srcu_ec_state = SRCU_EC_PENDING;
+		needcb = true;
+	}
+	spin_unlock_irqrestore_rcu_node(sdp, flags);
+	// If needed, requeue ourselves as an expedited SRCU callback.
+	if (needcb)
+		__call_srcu(sdp->ssp, &sdp->srcu_ec_head, srcu_expedite_current_cb, false);
+}
+
+/**
+ * srcu_expedite_current - Expedite the current SRCU grace period
+ * @ssp: srcu_struct to expedite.
+ *
+ * Cause the current SRCU grace period to become expedited.  The grace
+ * period following the current one might also be expedited.  If there is
+ * no current grace period, one might be created.  If the current grace
+ * period is currently sleeping, that sleep will complete before expediting
+ * will take effect.
+ */
+void srcu_expedite_current(struct srcu_struct *ssp)
+{
+	unsigned long flags;
+	bool needcb = false;
+	struct srcu_data *sdp;
+
+	migrate_disable();
+	sdp = this_cpu_ptr(ssp->sda);
+	spin_lock_irqsave_sdp_contention(sdp, &flags);
+	if (sdp->srcu_ec_state == SRCU_EC_IDLE) {
+		sdp->srcu_ec_state = SRCU_EC_PENDING;
+		needcb = true;
+	} else if (sdp->srcu_ec_state == SRCU_EC_PENDING) {
+		sdp->srcu_ec_state = SRCU_EC_REPOST;
+	} else {
+		WARN_ON_ONCE(sdp->srcu_ec_state != SRCU_EC_REPOST);
+	}
+	spin_unlock_irqrestore_rcu_node(sdp, flags);
+	// If needed, queue an expedited SRCU callback.
+	if (needcb)
+		__call_srcu(ssp, &sdp->srcu_ec_head, srcu_expedite_current_cb, false);
+	migrate_enable();
+}
+EXPORT_SYMBOL_GPL(srcu_expedite_current);
 
 /**
  * srcu_batches_completed - return batches completed.
