@@ -140,7 +140,9 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	cell->name = kmalloc(1 + namelen + 1, GFP_KERNEL);
+	/* Allocate the cell name and the key name in one go. */
+	cell->name = kmalloc(1 + namelen + 1 +
+			     4 + namelen + 1, GFP_KERNEL);
 	if (!cell->name) {
 		kfree(cell);
 		return ERR_PTR(-ENOMEM);
@@ -151,7 +153,11 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 	cell->name_len = namelen;
 	for (i = 0; i < namelen; i++)
 		cell->name[i] = tolower(name[i]);
-	cell->name[i] = 0;
+	cell->name[i++] = 0;
+
+	cell->key_desc = cell->name + i;
+	memcpy(cell->key_desc, "afs@", 4);
+	memcpy(cell->key_desc + 4, cell->name, cell->name_len + 1);
 
 	cell->net = net;
 	refcount_set(&cell->ref, 1);
@@ -711,33 +717,6 @@ void afs_set_cell_timer(struct afs_cell *cell, unsigned int delay_secs)
 }
 
 /*
- * Allocate a key to use as a placeholder for anonymous user security.
- */
-static int afs_alloc_anon_key(struct afs_cell *cell)
-{
-	struct key *key;
-	char keyname[4 + AFS_MAXCELLNAME + 1], *cp, *dp;
-
-	/* Create a key to represent an anonymous user. */
-	memcpy(keyname, "afs@", 4);
-	dp = keyname + 4;
-	cp = cell->name;
-	do {
-		*dp++ = tolower(*cp);
-	} while (*cp++);
-
-	key = rxrpc_get_null_key(keyname);
-	if (IS_ERR(key))
-		return PTR_ERR(key);
-
-	cell->anonymous_key = key;
-
-	_debug("anon key %p{%x}",
-	       cell->anonymous_key, key_serial(cell->anonymous_key));
-	return 0;
-}
-
-/*
  * Activate a cell.
  */
 static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
@@ -745,12 +724,6 @@ static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
 	struct hlist_node **p;
 	struct afs_cell *pcell;
 	int ret;
-
-	if (!cell->anonymous_key) {
-		ret = afs_alloc_anon_key(cell);
-		if (ret < 0)
-			return ret;
-	}
 
 	ret = afs_proc_cell_setup(cell);
 	if (ret < 0)

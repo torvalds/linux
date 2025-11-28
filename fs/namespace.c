@@ -5746,6 +5746,8 @@ static struct mnt_namespace *grab_requested_mnt_ns(const struct mnt_id_req *kreq
 
 	if (kreq->mnt_ns_id) {
 		mnt_ns = lookup_mnt_ns(kreq->mnt_ns_id);
+		if (!mnt_ns)
+			return ERR_PTR(-ENOENT);
 	} else if (kreq->mnt_ns_fd) {
 		struct ns_common *ns;
 
@@ -5761,13 +5763,12 @@ static struct mnt_namespace *grab_requested_mnt_ns(const struct mnt_id_req *kreq
 			return ERR_PTR(-EINVAL);
 
 		mnt_ns = to_mnt_ns(ns);
+		refcount_inc(&mnt_ns->passive);
 	} else {
 		mnt_ns = current->nsproxy->mnt_ns;
+		refcount_inc(&mnt_ns->passive);
 	}
-	if (!mnt_ns)
-		return ERR_PTR(-ENOENT);
 
-	refcount_inc(&mnt_ns->passive);
 	return mnt_ns;
 }
 
