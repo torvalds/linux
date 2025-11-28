@@ -16,6 +16,7 @@
 #include <net/pkt_sched.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
+#include <net/inet_ecn.h>
 #include <uapi/linux/tc_act/tc_ctinfo.h>
 #include <net/tc_act/tc_ctinfo.h>
 #include <net/tc_wrapper.h>
