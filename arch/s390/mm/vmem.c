@@ -330,10 +330,14 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 			if (pud_leaf(*pud)) {
 				if (IS_ALIGNED(addr, PUD_SIZE) &&
 				    IS_ALIGNED(next, PUD_SIZE)) {
+					if (!direct)
+						vmem_free_pages(pud_deref(*pud), get_order(PUD_SIZE), altmap);
 					pud_clear(pud);
 					pages++;
+					continue;
+				} else {
+					split_pud_page(pud, addr & PUD_MASK);
 				}
-				continue;
 			}
 		} else if (pud_none(*pud)) {
 			if (IS_ALIGNED(addr, PUD_SIZE) &&
