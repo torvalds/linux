@@ -1156,7 +1156,8 @@ EXPORT_SYMBOL_GPL(iommu_add_device);
  */
 static int
 spapr_tce_platform_iommu_attach_dev(struct iommu_domain *platform_domain,
-				    struct device *dev)
+				    struct device *dev,
+				    struct iommu_domain *old)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct iommu_table_group *table_group;
@@ -1189,7 +1190,7 @@ static struct iommu_domain spapr_tce_platform_domain = {
 
 static int
 spapr_tce_blocked_iommu_attach_dev(struct iommu_domain *platform_domain,
-				     struct device *dev)
+				   struct device *dev, struct iommu_domain *old)
 {
 	struct iommu_group *grp = iommu_group_get(dev);
 	struct iommu_table_group *table_group;

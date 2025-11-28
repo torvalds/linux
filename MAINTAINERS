@@ -388,7 +388,7 @@ B:	https://bugzilla.kernel.org
 F:	drivers/acpi/*thermal*
 
 ACPI VIOT DRIVER
-M:	Jean-Philippe Brucker <jean-philippe@linaro.org>
+M:	Jean-Philippe Brucker <jpb@kernel.org>
 L:	linux-acpi@vger.kernel.org
 L:	iommu@lists.linux.dev
 S:	Maintained
@@ -2244,7 +2244,7 @@ F:	drivers/iommu/arm/
 F:	drivers/iommu/io-pgtable-arm*
 
 ARM SMMU SVA SUPPORT
-R:	Jean-Philippe Brucker <jean-philippe@linaro.org>
+R:	Jean-Philippe Brucker <jpb@kernel.org>
 F:	drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-sva.c
 
 ARM SUB-ARCHITECTURES
@@ -27241,7 +27241,7 @@ F:	drivers/virtio/virtio_input.c
 F:	include/uapi/linux/virtio_input.h
 
 VIRTIO IOMMU DRIVER
-M:	Jean-Philippe Brucker <jean-philippe@linaro.org>
+M:	Jean-Philippe Brucker <jpb@kernel.org>
 L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/iommu/virtio-iommu.c
