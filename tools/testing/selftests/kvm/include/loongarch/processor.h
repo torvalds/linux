@@ -83,6 +83,8 @@
 #define LOONGARCH_CSR_PRMD		0x1
 #define LOONGARCH_CSR_EUEN		0x2
 #define LOONGARCH_CSR_ECFG		0x4
+#define  ECFGB_TIMER			11
+#define  ECFGF_TIMER			(BIT_ULL(ECFGB_TIMER))
 #define LOONGARCH_CSR_ESTAT		0x5  /* Exception status */
 #define  CSR_ESTAT_EXC_SHIFT		16
 #define  CSR_ESTAT_EXC_WIDTH		6
@@ -111,6 +113,14 @@
 #define LOONGARCH_CSR_KS1		0x31
 #define LOONGARCH_CSR_TMID		0x40
 #define LOONGARCH_CSR_TCFG		0x41
+#define  CSR_TCFG_VAL			(BIT_ULL(48) - BIT_ULL(2))
+#define  CSR_TCFG_PERIOD_SHIFT		1
+#define  CSR_TCFG_PERIOD		(0x1UL << CSR_TCFG_PERIOD_SHIFT)
+#define  CSR_TCFG_EN			(0x1UL)
+#define LOONGARCH_CSR_TVAL		0x42
+#define LOONGARCH_CSR_TINTCLR		0x44 /* Timer interrupt clear */
+#define  CSR_TINTCLR_TI_SHIFT		0
+#define  CSR_TINTCLR_TI			(1 << CSR_TINTCLR_TI_SHIFT)
 /* TLB refill exception entry */
 #define LOONGARCH_CSR_TLBRENTRY		0x88
 #define LOONGARCH_CSR_TLBRSAVE		0x8b

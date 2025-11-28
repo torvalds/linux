@@ -276,8 +276,8 @@ static void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
 	}
 
-	/* user mode and page enable mode */
-	val = PLV_USER | CSR_CRMD_PG;
+	/* kernel mode and page enable mode */
+	val = PLV_KERN | CSR_CRMD_PG;
 	loongarch_set_csr(vcpu, LOONGARCH_CSR_CRMD, val);
 	loongarch_set_csr(vcpu, LOONGARCH_CSR_PRMD, val);
 	loongarch_set_csr(vcpu, LOONGARCH_CSR_EUEN, 1);

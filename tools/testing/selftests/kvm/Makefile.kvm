@@ -210,6 +210,7 @@ TEST_GEN_PROGS_riscv += mmu_stress_test
 TEST_GEN_PROGS_riscv += rseq_test
 TEST_GEN_PROGS_riscv += steal_time
 
+TEST_GEN_PROGS_loongarch = arch_timer
 TEST_GEN_PROGS_loongarch += coalesced_io_test
 TEST_GEN_PROGS_loongarch += demand_paging_test
 TEST_GEN_PROGS_loongarch += dirty_log_perf_test
