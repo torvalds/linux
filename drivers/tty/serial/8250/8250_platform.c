@@ -75,7 +75,7 @@ static void __init __serial8250_isa_init_ports(void)
 
 	/* chain base port ops to support Remote Supervisor Adapter */
 	univ8250_port_ops = *univ8250_port_base_ops;
-	univ8250_rsa_support(&univ8250_port_ops);
+	univ8250_rsa_support(&univ8250_port_ops, univ8250_port_base_ops);
 
 	if (share_irqs)
 		irqflag = IRQF_SHARED;
