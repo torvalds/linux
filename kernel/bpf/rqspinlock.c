@@ -196,32 +196,21 @@ static noinline int check_deadlock_ABBA(rqspinlock_t *lock, u32 mask)
 	return 0;
 }
 
-static noinline int check_deadlock(rqspinlock_t *lock, u32 mask)
-{
-	int ret;
-
-	ret = check_deadlock_AA(lock);
-	if (ret)
-		return ret;
-	ret = check_deadlock_ABBA(lock, mask);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static noinline int check_timeout(rqspinlock_t *lock, u32 mask,
 				  struct rqspinlock_timeout *ts)
 {
-	u64 time = ktime_get_mono_fast_ns();
 	u64 prev = ts->cur;
+	u64 time;
 
 	if (!ts->timeout_end) {
-		ts->cur = time;
-		ts->timeout_end = time + ts->duration;
+		if (check_deadlock_AA(lock))
+			return -EDEADLK;
+		ts->cur = ktime_get_mono_fast_ns();
+		ts->timeout_end = ts->cur + ts->duration;
 		return 0;
 	}
 
+	time = ktime_get_mono_fast_ns();
 	if (time > ts->timeout_end)
 		return -ETIMEDOUT;
 
@@ -231,7 +220,7 @@ static noinline int check_timeout(rqspinlock_t *lock, u32 mask,
 	 */
 	if (prev + NSEC_PER_MSEC < time) {
 		ts->cur = time;
-		return check_deadlock(lock, mask);
+		return check_deadlock_ABBA(lock, mask);
 	}
 
 	return 0;
