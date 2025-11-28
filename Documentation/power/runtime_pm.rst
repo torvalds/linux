@@ -480,16 +480,6 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
   `bool pm_runtime_status_suspended(struct device *dev);`
     - return true if the device's runtime PM status is 'suspended'
 
-  `void pm_runtime_allow(struct device *dev);`
-    - set the power.runtime_auto flag for the device and decrease its usage
-      counter (used by the /sys/devices/.../power/control interface to
-      effectively allow the device to be power managed at run time)
-
-  `void pm_runtime_forbid(struct device *dev);`
-    - unset the power.runtime_auto flag for the device and increase its usage
-      counter (used by the /sys/devices/.../power/control interface to
-      effectively prevent the device from being power managed at run time)
-
   `void pm_runtime_no_callbacks(struct device *dev);`
     - set the power.no_callbacks flag for the device and remove the runtime
       PM attributes from /sys/devices/.../power (or prevent them from being
