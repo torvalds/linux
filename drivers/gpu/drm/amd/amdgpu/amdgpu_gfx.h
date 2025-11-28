@@ -358,6 +358,8 @@ struct amdgpu_gfx_funcs {
 				     int num_xccs_per_xcp);
 	int (*ih_node_to_logical_xcc)(struct amdgpu_device *adev, int ih_node);
 	int (*get_xccs_per_xcp)(struct amdgpu_device *adev);
+	void (*get_hdp_flush_mask)(struct amdgpu_ring *ring,
+				uint32_t *ref_and_mask, uint32_t *reg_mem_engine);
 };
 
 struct sq_work {
@@ -617,6 +619,8 @@ int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
 				  struct amdgpu_iv_entry *entry);
 uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_id);
 void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint32_t xcc_id);
+void amdgpu_gfx_get_hdp_flush_mask(struct amdgpu_ring *ring,
+		uint32_t *ref_and_mask, uint32_t *reg_mem_engine);
 int amdgpu_kiq_hdp_flush(struct amdgpu_device *adev);
 int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev);
 void amdgpu_gfx_cp_init_microcode(struct amdgpu_device *adev, uint32_t ucode_id);

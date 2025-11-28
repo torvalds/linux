@@ -1197,6 +1197,40 @@ failed_kiq_write:
 	dev_err(adev->dev, "failed to write reg:%x\n", reg);
 }
 
+void amdgpu_gfx_get_hdp_flush_mask(struct amdgpu_ring *ring,
+		uint32_t *hdp_flush_mask, uint32_t *reg_mem_engine)
+{
+
+	if (!ring || !hdp_flush_mask || !reg_mem_engine) {
+		DRM_INFO("%s:invalid params\n", __func__);
+		return;
+	}
+
+	const struct nbio_hdp_flush_reg *nbio_hf_reg = ring->adev->nbio.hdp_flush_reg;
+
+	switch (ring->funcs->type) {
+	case AMDGPU_RING_TYPE_GFX:
+		*hdp_flush_mask = nbio_hf_reg->ref_and_mask_cp0 << ring->pipe;
+		*reg_mem_engine = 1; /* pfp */
+		break;
+	case AMDGPU_RING_TYPE_COMPUTE:
+		*hdp_flush_mask = nbio_hf_reg->ref_and_mask_cp2 << ring->pipe;
+		*reg_mem_engine = 0;
+		break;
+	case AMDGPU_RING_TYPE_MES:
+		*hdp_flush_mask = nbio_hf_reg->ref_and_mask_cp8;
+		*reg_mem_engine = 0;
+		break;
+	case AMDGPU_RING_TYPE_KIQ:
+		*hdp_flush_mask = nbio_hf_reg->ref_and_mask_cp9;
+		*reg_mem_engine = 0;
+		break;
+	default:
+		DRM_ERROR("%s:unsupported ring type %d\n", __func__, ring->funcs->type);
+		return;
+	}
+}
+
 int amdgpu_kiq_hdp_flush(struct amdgpu_device *adev)
 {
 	signed long r, cnt = 0;

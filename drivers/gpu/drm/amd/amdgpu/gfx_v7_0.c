@@ -2068,23 +2068,15 @@ static int gfx_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 static void gfx_v7_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask;
-	int usepfp = ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE ? 0 : 1;
+	int usepfp;
+	struct amdgpu_device *adev = ring->adev;
 
-	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) {
-		switch (ring->me) {
-		case 1:
-			ref_and_mask = GPU_HDP_FLUSH_DONE__CP2_MASK << ring->pipe;
-			break;
-		case 2:
-			ref_and_mask = GPU_HDP_FLUSH_DONE__CP6_MASK << ring->pipe;
-			break;
-		default:
-			return;
-		}
-	} else {
-		ref_and_mask = GPU_HDP_FLUSH_DONE__CP0_MASK;
+	if (!adev->gfx.funcs->get_hdp_flush_mask) {
+		dev_err(adev->dev, "%s: gfx hdp flush is not supported.\n", __func__);
+		return;
 	}
 
+	adev->gfx.funcs->get_hdp_flush_mask(ring, &ref_and_mask, &usepfp);
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
 	amdgpu_ring_write(ring, (WAIT_REG_MEM_OPERATION(1) | /* write, wait, write */
 				 WAIT_REG_MEM_FUNCTION(3) |  /* == */
@@ -4075,12 +4067,49 @@ static void gfx_v7_0_select_me_pipe_q(struct amdgpu_device *adev,
 	cik_srbm_select(adev, me, pipe, q, vm);
 }
 
+/**
+ * gfx_v7_0_get_hdp_flush_mask - get the reference and mask for HDP flush
+ *
+ * @ring: amdgpu_ring structure holding ring information
+ * @ref_and_mask: pointer to store the reference and mask
+ * @reg_mem_engine: pointer to store the register memory engine
+ *
+ * Calculates the reference and mask for HDP flush based on the ring type and me.
+ */
+static void gfx_v7_0_get_hdp_flush_mask(struct amdgpu_ring *ring,
+					uint32_t *ref_and_mask, uint32_t *reg_mem_engine)
+{
+	if (!ring || !ref_and_mask || !reg_mem_engine) {
+		DRM_INFO("%s:invalid params\n", __func__);
+		return;
+	}
+
+	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE ||
+		ring->funcs->type == AMDGPU_RING_TYPE_KIQ) {
+		switch (ring->me) {
+		case 1:
+			*ref_and_mask = GPU_HDP_FLUSH_DONE__CP2_MASK << ring->pipe;
+			break;
+		case 2:
+			*ref_and_mask = GPU_HDP_FLUSH_DONE__CP6_MASK << ring->pipe;
+			break;
+		default:
+			return;
+		}
+		*reg_mem_engine = 0;
+	} else {
+		*ref_and_mask = GPU_HDP_FLUSH_DONE__CP0_MASK;
+		*reg_mem_engine = 1;
+	}
+}
+
 static const struct amdgpu_gfx_funcs gfx_v7_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v7_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v7_0_select_se_sh,
 	.read_wave_data = &gfx_v7_0_read_wave_data,
 	.read_wave_sgprs = &gfx_v7_0_read_wave_sgprs,
-	.select_me_pipe_q = &gfx_v7_0_select_me_pipe_q
+	.select_me_pipe_q = &gfx_v7_0_select_me_pipe_q,
+	.get_hdp_flush_mask = &gfx_v7_0_get_hdp_flush_mask,
 };
 
 static const struct amdgpu_rlc_funcs gfx_v7_0_rlc_funcs = {
