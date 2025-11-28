@@ -240,7 +240,9 @@ enum kvm_pgtable_stage2_flags {
 
 /**
  * enum kvm_pgtable_prot - Page-table permissions and attributes.
- * @KVM_PGTABLE_PROT_X:		Execute permission.
+ * @KVM_PGTABLE_PROT_UX:	Unprivileged execute permission.
+ * @KVM_PGTABLE_PROT_PX:	Privileged execute permission.
+ * @KVM_PGTABLE_PROT_X:		Privileged and unprivileged execute permission.
  * @KVM_PGTABLE_PROT_W:		Write permission.
  * @KVM_PGTABLE_PROT_R:		Read permission.
  * @KVM_PGTABLE_PROT_DEVICE:	Device attributes.
