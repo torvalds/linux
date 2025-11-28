@@ -136,9 +136,39 @@ static void guest_test_emulate_timer(uint32_t cpu)
 	local_irq_enable();
 }
 
+static void guest_time_count_test(uint32_t cpu)
+{
+	uint32_t config_iter;
+	unsigned long start, end, prev, us;
+
+	/* Assuming that test case starts to run in 1 second */
+	start = timer_get_cycles();
+	us = msec_to_cycles(1000);
+	__GUEST_ASSERT(start <= us,
+			"start = 0x%lx, us = 0x%lx.\n",
+			start, us);
+
+	us = msec_to_cycles(test_args.timer_period_ms);
+	for (config_iter = 0; config_iter < test_args.nr_iter; config_iter++) {
+		start = timer_get_cycles();
+		end = start + us;
+		/* test time count growing up always */
+		while (start < end) {
+			prev = start;
+			start = timer_get_cycles();
+			__GUEST_ASSERT(prev <= start,
+					"prev = 0x%lx, start = 0x%lx.\n",
+					prev, start);
+		}
+	}
+}
+
 static void guest_code(void)
 {
 	uint32_t cpu = guest_get_vcpuid();
+
+	/* must run at first */
+	guest_time_count_test(cpu);
 
 	timer_irq_enable();
 	local_irq_enable();
