@@ -146,6 +146,14 @@ struct pvr_device {
 	 */
 	struct clk *mem_clk;
 
+	/**
+	 * @power: Optional power domain devices.
+	 *
+	 * On platforms with more than one power domain for the GPU, they are
+	 * stored here in @domain_devs, along with links between them in
+	 * @domain_links. The size of @domain_devs is given by @domain_count,
+	 * while the size of @domain_links is (2 * @domain_count) - 1.
+	 */
 	struct pvr_device_power {
 		struct device **domain_devs;
 		struct device_link **domain_links;
