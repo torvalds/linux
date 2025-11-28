@@ -351,7 +351,7 @@ static bool cpu_power_down_ok(struct dev_pm_domain *pd)
 	ktime_t domain_wakeup, next_hrtimer;
 	ktime_t now = ktime_get();
 	struct device *cpu_dev;
-	s64 cpu_constraint, global_constraint;
+	s64 cpu_constraint, global_constraint, wakeup_constraint;
 	s64 idle_duration_ns;
 	int cpu, i;
 
@@ -362,7 +362,11 @@ static bool cpu_power_down_ok(struct dev_pm_domain *pd)
 	if (!(genpd->flags & GENPD_FLAG_CPU_DOMAIN))
 		return true;
 
+	wakeup_constraint = cpu_wakeup_latency_qos_limit();
 	global_constraint = cpu_latency_qos_limit();
+	if (global_constraint > wakeup_constraint)
+		global_constraint = wakeup_constraint;
+
 	/*
 	 * Find the next wakeup for any of the online CPUs within the PM domain
 	 * and its subdomains. Note, we only need the genpd->cpus, as it already
@@ -415,9 +419,36 @@ static bool cpu_power_down_ok(struct dev_pm_domain *pd)
 	return false;
 }
 
+static bool cpu_system_power_down_ok(struct dev_pm_domain *pd)
+{
+	s64 constraint_ns = cpu_wakeup_latency_qos_limit() * NSEC_PER_USEC;
+	struct generic_pm_domain *genpd = pd_to_genpd(pd);
+	int state_idx = genpd->state_count - 1;
+
+	if (!(genpd->flags & GENPD_FLAG_CPU_DOMAIN)) {
+		genpd->state_idx = state_idx;
+		return true;
+	}
+
+	/* Find the deepest state for the latency constraint. */
+	while (state_idx >= 0) {
+		s64 latency_ns = genpd->states[state_idx].power_off_latency_ns +
+				 genpd->states[state_idx].power_on_latency_ns;
+
+		if (latency_ns <= constraint_ns) {
+			genpd->state_idx = state_idx;
+			return true;
+		}
+		state_idx--;
+	}
+
+	return false;
+}
+
 struct dev_power_governor pm_domain_cpu_gov = {
 	.suspend_ok = default_suspend_ok,
 	.power_down_ok = cpu_power_down_ok,
+	.system_power_down_ok = cpu_system_power_down_ok,
 };
 #endif
 
