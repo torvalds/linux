@@ -1180,12 +1180,10 @@ cs_slot_prog_locked(struct panthor_device *ptdev, u32 csg_id, u32 cs_id)
 	panthor_fw_update_reqs(cs_iface, req,
 			       CS_IDLE_SYNC_WAIT |
 			       CS_IDLE_EMPTY |
-			       CS_STATE_START |
-			       CS_EXTRACT_EVENT,
+			       CS_STATE_START,
 			       CS_IDLE_SYNC_WAIT |
 			       CS_IDLE_EMPTY |
-			       CS_STATE_MASK |
-			       CS_EXTRACT_EVENT);
+			       CS_STATE_MASK);
 	if (queue->iface.input->insert != queue->iface.input->extract)
 		queue_resume_timeout(queue);
 }
