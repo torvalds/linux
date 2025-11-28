@@ -14,7 +14,6 @@
 #define TIME_HORIZON_NS (2000 * 1000 * 1000)
 #define NS_PER_SEC 1000000000
 #define ECN_HORIZON_NS 5000000
-#define THROTTLE_RATE_BPS (5 * 1000 * 1000)
 
 /* flow_key => last_tstamp timestamp used */
 struct {
@@ -24,12 +23,13 @@ struct {
 	__uint(max_entries, 1);
 } flow_map SEC(".maps");
 
+__uint64_t target_rate;
+
 static inline int throttle_flow(struct __sk_buff *skb)
 {
 	int key = 0;
 	uint64_t *last_tstamp = bpf_map_lookup_elem(&flow_map, &key);
-	uint64_t delay_ns = ((uint64_t)skb->len) * NS_PER_SEC /
-			THROTTLE_RATE_BPS;
+	uint64_t delay_ns = ((uint64_t)skb->len) * NS_PER_SEC / target_rate;
 	uint64_t now = bpf_ktime_get_ns();
 	uint64_t tstamp, next_tstamp = 0;
 

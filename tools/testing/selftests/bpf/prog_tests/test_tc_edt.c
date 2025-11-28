@@ -66,6 +66,7 @@ static int setup(struct test_tc_edt *skel)
 	ret = tc_prog_attach("veth2", -1, bpf_program__fd(skel->progs.tc_prog));
 	if (!ASSERT_OK(ret, "attach bpf prog"))
 		goto fail_close_server_ns;
+	skel->bss->target_rate = TARGET_RATE_MBPS * 1000 * 1000;
 	close_netns(nstoken_server);
 	close_netns(nstoken_client);
 
