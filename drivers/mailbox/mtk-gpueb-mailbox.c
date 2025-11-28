@@ -200,7 +200,7 @@ static bool mtk_gpueb_mbox_last_tx_done(struct mbox_chan *chan)
 	return !(readl(ch->ebm->mbox_ctl + GPUEB_MBOX_CTL_TX_STS) & BIT(ch->num));
 }
 
-const struct mbox_chan_ops mtk_gpueb_mbox_ops = {
+static const struct mbox_chan_ops mtk_gpueb_mbox_ops = {
 	.send_data = mtk_gpueb_mbox_send_data,
 	.startup = mtk_gpueb_mbox_startup,
 	.shutdown = mtk_gpueb_mbox_shutdown,
