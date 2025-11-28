@@ -9,6 +9,21 @@
 #include "timer_test.h"
 #include "ucall_common.h"
 
+static void do_idle(void)
+{
+	unsigned int intid;
+	unsigned long estat;
+
+	__asm__ __volatile__("idle 0" : : : "memory");
+
+	estat = csr_read(LOONGARCH_CSR_ESTAT);
+	intid = !!(estat & BIT(INT_TI));
+
+	/* Make sure pending timer IRQ arrived */
+	GUEST_ASSERT_EQ(intid, 1);
+	csr_write(CSR_TINTCLR_TI, LOONGARCH_CSR_TINTCLR);
+}
+
 static void guest_irq_handler(struct ex_regs *regs)
 {
 	unsigned int intid;
@@ -97,6 +112,30 @@ static void guest_test_oneshot_timer(uint32_t cpu)
 	}
 }
 
+static void guest_test_emulate_timer(uint32_t cpu)
+{
+	uint32_t config_iter;
+	uint64_t xcnt_diff_us, us;
+	struct test_vcpu_shared_data *shared_data = &vcpu_shared_data[cpu];
+
+	local_irq_disable();
+	shared_data->nr_iter = 0;
+	us = msecs_to_usecs(test_args.timer_period_ms);
+	for (config_iter = 0; config_iter < test_args.nr_iter; config_iter++) {
+		shared_data->xcnt = timer_get_cycles();
+
+		/* Setup the next interrupt */
+		timer_set_next_cmp_ms(test_args.timer_period_ms, false);
+		do_idle();
+
+		xcnt_diff_us = cycles_to_usec(timer_get_cycles() - shared_data->xcnt);
+		__GUEST_ASSERT(xcnt_diff_us >= us,
+				"xcnt_diff_us = 0x%lx, us = 0x%lx.\n",
+				xcnt_diff_us, us);
+	}
+	local_irq_enable();
+}
+
 static void guest_code(void)
 {
 	uint32_t cpu = guest_get_vcpuid();
@@ -105,6 +144,7 @@ static void guest_code(void)
 	local_irq_enable();
 	guest_test_period_timer(cpu);
 	guest_test_oneshot_timer(cpu);
+	guest_test_emulate_timer(cpu);
 
 	GUEST_DONE();
 }
