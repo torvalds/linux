@@ -26,172 +26,6 @@ static const struct regmap_config aw88399_remap_config = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 };
 
-static int aw_dev_dsp_write_16bit(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int dsp_data)
-{
-	int ret;
-
-	ret = regmap_write(aw_dev->regmap, AW88399_DSPMADD_REG, dsp_addr);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write addr error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	ret = regmap_write(aw_dev->regmap, AW88399_DSPMDAT_REG, (u16)dsp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write data error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int aw_dev_dsp_write_32bit(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int dsp_data)
-{
-	unsigned int temp_data;
-	int ret;
-
-	ret = regmap_write(aw_dev->regmap, AW88399_DSPMADD_REG, dsp_addr);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write addr error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	temp_data = dsp_data & AW88395_DSP_16_DATA_MASK;
-	ret = regmap_write(aw_dev->regmap, AW88399_DSPMDAT_REG, temp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write datal error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	temp_data = dsp_data >> 16;
-	ret = regmap_write(aw_dev->regmap, AW88399_DSPMDAT_REG, temp_data);
-	if (ret)
-		dev_err(aw_dev->dev, "%s write datah error, ret=%d", __func__, ret);
-
-	return ret;
-}
-
-static int aw_dev_dsp_write(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int dsp_data, unsigned char data_type)
-{
-	unsigned int reg_value;
-	int ret;
-
-	mutex_lock(&aw_dev->dsp_lock);
-	switch (data_type) {
-	case AW88395_DSP_16_DATA:
-		ret = aw_dev_dsp_write_16bit(aw_dev, dsp_addr, dsp_data);
-		if (ret)
-			dev_err(aw_dev->dev, "write dsp_addr[0x%x] 16-bit dsp_data[0x%x] failed",
-					dsp_addr, dsp_data);
-		break;
-	case AW88395_DSP_32_DATA:
-		ret = aw_dev_dsp_write_32bit(aw_dev, dsp_addr, dsp_data);
-		if (ret)
-			dev_err(aw_dev->dev, "write dsp_addr[0x%x] 32-bit dsp_data[0x%x] failed",
-					dsp_addr, dsp_data);
-		break;
-	default:
-		dev_err(aw_dev->dev, "data type[%d] unsupported", data_type);
-		ret = -EINVAL;
-		break;
-	}
-
-	/* clear dsp chip select state */
-	if (regmap_read(aw_dev->regmap, 0x00, &reg_value))
-		dev_err(aw_dev->dev, "%s fail to clear chip state. Err=%d\n", __func__, ret);
-	mutex_unlock(&aw_dev->dsp_lock);
-
-	return ret;
-}
-
-static int aw_dev_dsp_read_16bit(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int *dsp_data)
-{
-	unsigned int temp_data;
-	int ret;
-
-	ret = regmap_write(aw_dev->regmap, AW88399_DSPMADD_REG, dsp_addr);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	ret = regmap_read(aw_dev->regmap, AW88399_DSPMDAT_REG, &temp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s read error, ret=%d", __func__, ret);
-		return ret;
-	}
-	*dsp_data = temp_data;
-
-	return 0;
-}
-
-static int aw_dev_dsp_read_32bit(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int *dsp_data)
-{
-	unsigned int temp_data;
-	int ret;
-
-	ret = regmap_write(aw_dev->regmap, AW88399_DSPMADD_REG, dsp_addr);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	ret = regmap_read(aw_dev->regmap, AW88399_DSPMDAT_REG, &temp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s read error, ret=%d", __func__, ret);
-		return ret;
-	}
-	*dsp_data = temp_data;
-
-	ret = regmap_read(aw_dev->regmap, AW88399_DSPMDAT_REG, &temp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s read error, ret=%d", __func__, ret);
-		return ret;
-	}
-	*dsp_data |= (temp_data << 16);
-
-	return 0;
-}
-
-static int aw_dev_dsp_read(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int *dsp_data, unsigned char data_type)
-{
-	u32 reg_value;
-	int ret;
-
-	mutex_lock(&aw_dev->dsp_lock);
-	switch (data_type) {
-	case AW88399_DSP_16_DATA:
-		ret = aw_dev_dsp_read_16bit(aw_dev, dsp_addr, dsp_data);
-		if (ret)
-			dev_err(aw_dev->dev, "read dsp_addr[0x%x] 16-bit dsp_data[0x%x] failed",
-					(u32)dsp_addr, *dsp_data);
-		break;
-	case AW88399_DSP_32_DATA:
-		ret = aw_dev_dsp_read_32bit(aw_dev, dsp_addr, dsp_data);
-		if (ret)
-			dev_err(aw_dev->dev, "read dsp_addr[0x%x] 32r-bit dsp_data[0x%x] failed",
-					(u32)dsp_addr, *dsp_data);
-		break;
-	default:
-		dev_err(aw_dev->dev, "data type[%d] unsupported", data_type);
-		ret = -EINVAL;
-		break;
-	}
-
-	/* clear dsp chip select state */
-	if (regmap_read(aw_dev->regmap, AW88399_ID_REG, &reg_value))
-		dev_err(aw_dev->dev, "%s fail to clear chip state. ret=%d\n", __func__, ret);
-	mutex_unlock(&aw_dev->dsp_lock);
-
-	return ret;
-}
-
 static void aw_dev_pwd(struct aw_device *aw_dev, bool pwd)
 {
 	int ret;
@@ -929,25 +763,19 @@ static int aw_dev_dsp_update_container(struct aw_device *aw_dev,
 	u32 tmp_len;
 	int i, ret;
 
-	mutex_lock(&aw_dev->dsp_lock);
 	ret = regmap_write(aw_dev->regmap, AW88399_DSPMADD_REG, base);
 	if (ret)
-		goto error_operation;
+		return ret;
 
 	for (i = 0; i < len; i += AW88399_MAX_RAM_WRITE_BYTE_SIZE) {
 		tmp_len = min(len - i, AW88399_MAX_RAM_WRITE_BYTE_SIZE);
 		ret = regmap_raw_write(aw_dev->regmap, AW88399_DSPMDAT_REG,
 					&data[i], tmp_len);
 		if (ret)
-			goto error_operation;
+			return ret;
 	}
-	mutex_unlock(&aw_dev->dsp_lock);
 
 	return 0;
-
-error_operation:
-	mutex_unlock(&aw_dev->dsp_lock);
-	return ret;
 }
 
 static int aw_dev_get_ra(struct aw_cali_desc *cali_desc)
@@ -958,7 +786,7 @@ static int aw_dev_get_ra(struct aw_cali_desc *cali_desc)
 	int ret;
 
 	ret = aw_dev_dsp_read(aw_dev, AW88399_DSP_REG_CFG_ADPZ_RA,
-				&dsp_ra, AW88399_DSP_32_DATA);
+				&dsp_ra, AW_DSP_32_DATA);
 	if (ret) {
 		dev_err(aw_dev->dev, "read ra error");
 		return ret;
@@ -1015,29 +843,25 @@ static int aw_dev_check_sram(struct aw_device *aw_dev)
 {
 	unsigned int reg_val;
 
-	mutex_lock(&aw_dev->dsp_lock);
 	/* read dsp_rom_check_reg */
-	aw_dev_dsp_read_16bit(aw_dev, AW88399_DSP_ROM_CHECK_ADDR, &reg_val);
+	aw_dev_dsp_read(aw_dev, AW88399_DSP_ROM_CHECK_ADDR, &reg_val, AW_DSP_16_DATA);
 	if (reg_val != AW88399_DSP_ROM_CHECK_DATA) {
 		dev_err(aw_dev->dev, "check dsp rom failed, read[0x%x] != check[0x%x]",
 						reg_val, AW88399_DSP_ROM_CHECK_DATA);
-		goto error;
+		return -EPERM;
 	}
 
 	/* check dsp_cfg_base_addr */
-	aw_dev_dsp_write_16bit(aw_dev, AW88399_DSP_CFG_ADDR, AW88399_DSP_ODD_NUM_BIT_TEST);
-	aw_dev_dsp_read_16bit(aw_dev, AW88399_DSP_CFG_ADDR, &reg_val);
+	aw_dev_dsp_write(aw_dev, AW88399_DSP_CFG_ADDR,
+				AW88399_DSP_ODD_NUM_BIT_TEST, AW_DSP_16_DATA);
+	aw_dev_dsp_read(aw_dev, AW88399_DSP_CFG_ADDR, &reg_val, AW_DSP_16_DATA);
 	if (reg_val != AW88399_DSP_ODD_NUM_BIT_TEST) {
 		dev_err(aw_dev->dev, "check dsp cfg failed, read[0x%x] != write[0x%x]",
 						reg_val, AW88399_DSP_ODD_NUM_BIT_TEST);
-		goto error;
+		return -EPERM;
 	}
-	mutex_unlock(&aw_dev->dsp_lock);
 
 	return 0;
-error:
-	mutex_unlock(&aw_dev->dsp_lock);
-	return -EPERM;
 }
 
 static void aw_dev_select_memclk(struct aw_device *aw_dev, unsigned char flag)
@@ -1432,22 +1256,22 @@ static int aw_cali_svc_get_cali_cfg(struct aw_device *aw_dev)
 	int ret;
 
 	ret = aw_dev_dsp_read(aw_dev, AW88399_DSP_REG_CFG_MBMEC_ACTAMPTH,
-					&cali_cfg->data[0], AW88399_DSP_32_DATA);
+					&cali_cfg->data[0], AW_DSP_32_DATA);
 	if (ret)
 		return ret;
 
 	ret = aw_dev_dsp_read(aw_dev, AW88399_DSP_REG_CFG_MBMEC_NOISEAMPTH,
-					&cali_cfg->data[1], AW88399_DSP_32_DATA);
+					&cali_cfg->data[1], AW_DSP_32_DATA);
 	if (ret)
 		return ret;
 
 	ret = aw_dev_dsp_read(aw_dev, AW88399_DSP_REG_CFG_ADPZ_USTEPN,
-					&cali_cfg->data[2], AW88399_DSP_16_DATA);
+					&cali_cfg->data[2], AW_DSP_16_DATA);
 	if (ret)
 		return ret;
 
 	ret = aw_dev_dsp_read(aw_dev, AW88399_DSP_REG_CFG_RE_ALPHA,
-					&cali_cfg->data[3], AW88399_DSP_16_DATA);
+					&cali_cfg->data[3], AW_DSP_16_DATA);
 
 	return ret;
 }
@@ -1458,22 +1282,22 @@ static int aw_cali_svc_set_cali_cfg(struct aw_device *aw_dev,
 	int ret;
 
 	ret = aw_dev_dsp_write(aw_dev, AW88399_DSP_REG_CFG_MBMEC_ACTAMPTH,
-					cali_cfg.data[0], AW88399_DSP_32_DATA);
+					cali_cfg.data[0], AW_DSP_32_DATA);
 	if (ret)
 		return ret;
 
 	ret = aw_dev_dsp_write(aw_dev, AW88399_DSP_REG_CFG_MBMEC_NOISEAMPTH,
-					cali_cfg.data[1], AW88399_DSP_32_DATA);
+					cali_cfg.data[1], AW_DSP_32_DATA);
 	if (ret)
 		return ret;
 
 	ret = aw_dev_dsp_write(aw_dev, AW88399_DSP_REG_CFG_ADPZ_USTEPN,
-					cali_cfg.data[2], AW88399_DSP_16_DATA);
+					cali_cfg.data[2], AW_DSP_16_DATA);
 	if (ret)
 		return ret;
 
 	ret = aw_dev_dsp_write(aw_dev, AW88399_DSP_REG_CFG_RE_ALPHA,
-					cali_cfg.data[3], AW88399_DSP_16_DATA);
+					cali_cfg.data[3], AW_DSP_16_DATA);
 
 	return ret;
 }
@@ -1488,7 +1312,7 @@ static int aw_cali_svc_cali_en(struct aw_device *aw_dev, bool cali_en)
 		regmap_update_bits(aw_dev->regmap, AW88399_DBGCTRL_REG,
 				~AW883XX_DSP_NG_EN_MASK, AW883XX_DSP_NG_EN_DISABLE_VALUE);
 		aw_dev_dsp_write(aw_dev, AW88399_DSP_LOW_POWER_SWITCH_CFG_ADDR,
-				AW88399_DSP_LOW_POWER_SWITCH_DISABLE, AW88399_DSP_16_DATA);
+				AW88399_DSP_LOW_POWER_SWITCH_DISABLE, AW_DSP_16_DATA);
 
 		ret = aw_cali_svc_get_cali_cfg(aw_dev);
 		if (ret) {
@@ -1548,8 +1372,7 @@ static void aw_cali_svc_backup_info(struct aw_device *aw_dev)
 	regmap_read(aw_dev->regmap, AW88399_DBGCTRL_REG, &reg_val);
 	backup_desc->dsp_ng_cfg = reg_val & (~AW883XX_DSP_NG_EN_MASK);
 
-	aw_dev_dsp_read(aw_dev, AW88399_DSP_LOW_POWER_SWITCH_CFG_ADDR,
-			&dsp_val, AW88399_DSP_16_DATA);
+	aw_dev_dsp_read(aw_dev, AW88399_DSP_LOW_POWER_SWITCH_CFG_ADDR, &dsp_val, AW_DSP_16_DATA);
 
 	backup_desc->dsp_lp_cfg = dsp_val;
 }
@@ -1562,7 +1385,7 @@ static void aw_cali_svc_recover_info(struct aw_device *aw_dev)
 			~AW883XX_DSP_NG_EN_MASK, backup_desc->dsp_ng_cfg);
 
 	aw_dev_dsp_write(aw_dev, AW88399_DSP_LOW_POWER_SWITCH_CFG_ADDR,
-			backup_desc->dsp_lp_cfg, AW88399_DSP_16_DATA);
+			backup_desc->dsp_lp_cfg, AW_DSP_16_DATA);
 }
 
 static int aw_cali_svc_cali_re_mode_enable(struct aw_device *aw_dev, bool is_enable)
@@ -1609,7 +1432,7 @@ static int aw_cali_svc_get_dev_re(struct aw_device *aw_dev, uint32_t *re)
 	uint32_t dsp_re, show_re;
 	int ret;
 
-	ret = aw_dev_dsp_read(aw_dev, AW88399_DSP_REG_CALRE, &dsp_re, AW88399_DSP_16_DATA);
+	ret = aw_dev_dsp_read(aw_dev, AW88399_DSP_REG_CALRE, &dsp_re, AW_DSP_16_DATA);
 	if (ret)
 		return ret;
 

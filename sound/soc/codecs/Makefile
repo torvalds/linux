@@ -50,9 +50,9 @@ snd-soc-audio-iio-aux-y := audio-iio-aux.o
 snd-soc-aw8738-y := aw8738.o
 snd-soc-aw87390-y := aw87390.o
 snd-soc-aw88081-y := aw88081.o
-snd-soc-aw88395-lib-y := aw88395/aw88395_lib.o
-snd-soc-aw88395-y := aw88395/aw88395.o \
+snd-soc-aw88395-lib-y := aw88395/aw88395_lib.o \
 			aw88395/aw88395_device.o
+snd-soc-aw88395-y := aw88395/aw88395.o
 snd-soc-aw88166-y := aw88166.o
 snd-soc-aw88261-y := aw88261.o
 snd-soc-aw88399-y := aw88399.o

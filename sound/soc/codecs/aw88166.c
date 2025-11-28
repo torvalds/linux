@@ -41,109 +41,6 @@ static const struct regmap_config aw88166_remap_config = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 };
 
-static int aw_dev_dsp_write_16bit(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int dsp_data)
-{
-	int ret;
-
-	ret = regmap_write(aw_dev->regmap, AW88166_DSPMADD_REG, dsp_addr);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write addr error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	ret = regmap_write(aw_dev->regmap, AW88166_DSPMDAT_REG, (u16)dsp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write data error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int aw_dev_dsp_read_16bit(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int *dsp_data)
-{
-	unsigned int temp_data;
-	int ret;
-
-	ret = regmap_write(aw_dev->regmap, AW88166_DSPMADD_REG, dsp_addr);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	ret = regmap_read(aw_dev->regmap, AW88166_DSPMDAT_REG, &temp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s read error, ret=%d", __func__, ret);
-		return ret;
-	}
-	*dsp_data = temp_data;
-
-	return 0;
-}
-
-static int aw_dev_dsp_read_32bit(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int *dsp_data)
-{
-	unsigned int temp_data;
-	int ret;
-
-	ret = regmap_write(aw_dev->regmap, AW88166_DSPMADD_REG, dsp_addr);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s write error, ret=%d", __func__, ret);
-		return ret;
-	}
-
-	ret = regmap_read(aw_dev->regmap, AW88166_DSPMDAT_REG, &temp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s read error, ret=%d", __func__, ret);
-		return ret;
-	}
-	*dsp_data = temp_data;
-
-	ret = regmap_read(aw_dev->regmap, AW88166_DSPMDAT_REG, &temp_data);
-	if (ret) {
-		dev_err(aw_dev->dev, "%s read error, ret=%d", __func__, ret);
-		return ret;
-	}
-	*dsp_data |= (temp_data << 16);
-
-	return 0;
-}
-
-static int aw_dev_dsp_read(struct aw_device *aw_dev,
-		unsigned short dsp_addr, unsigned int *dsp_data, unsigned char data_type)
-{
-	u32 reg_value;
-	int ret;
-
-	mutex_lock(&aw_dev->dsp_lock);
-	switch (data_type) {
-	case AW88166_DSP_16_DATA:
-		ret = aw_dev_dsp_read_16bit(aw_dev, dsp_addr, dsp_data);
-		if (ret)
-			dev_err(aw_dev->dev, "read dsp_addr[0x%x] 16-bit failed", (u32)dsp_addr);
-		break;
-	case AW88166_DSP_32_DATA:
-		ret = aw_dev_dsp_read_32bit(aw_dev, dsp_addr, dsp_data);
-		if (ret)
-			dev_err(aw_dev->dev, "read dsp_addr[0x%x] 32-bit failed", (u32)dsp_addr);
-		break;
-	default:
-		dev_err(aw_dev->dev, "data type[%d] unsupported", data_type);
-		ret = -EINVAL;
-		break;
-	}
-
-	/* clear dsp chip select state */
-	if (regmap_read(aw_dev->regmap, AW88166_ID_REG, &reg_value))
-		dev_err(aw_dev->dev, "%s fail to clear chip state. ret=%d\n", __func__, ret);
-	mutex_unlock(&aw_dev->dsp_lock);
-
-	return ret;
-}
-
 static void aw_dev_pwd(struct aw_device *aw_dev, bool pwd)
 {
 	int ret;
@@ -904,25 +801,19 @@ static int aw_dev_dsp_update_container(struct aw_device *aw_dev,
 	u32 tmp_len;
 	int i, ret;
 
-	mutex_lock(&aw_dev->dsp_lock);
 	ret = regmap_write(aw_dev->regmap, AW88166_DSPMADD_REG, base);
 	if (ret)
-		goto error_operation;
+		return ret;
 
 	for (i = 0; i < len; i += AW88166_MAX_RAM_WRITE_BYTE_SIZE) {
 		tmp_len = min(len - i, AW88166_MAX_RAM_WRITE_BYTE_SIZE);
 		ret = regmap_raw_write(aw_dev->regmap, AW88166_DSPMDAT_REG,
 					&data[i], tmp_len);
 		if (ret)
-			goto error_operation;
+			return ret;
 	}
-	mutex_unlock(&aw_dev->dsp_lock);
 
 	return 0;
-
-error_operation:
-	mutex_unlock(&aw_dev->dsp_lock);
-	return ret;
 }
 
 static int aw_dev_get_ra(struct aw_cali_desc *cali_desc)
@@ -933,7 +824,7 @@ static int aw_dev_get_ra(struct aw_cali_desc *cali_desc)
 	int ret;
 
 	ret = aw_dev_dsp_read(aw_dev, AW88166_DSP_REG_CFG_ADPZ_RA,
-				&dsp_ra, AW88166_DSP_32_DATA);
+				&dsp_ra, AW_DSP_32_DATA);
 	if (ret) {
 		dev_err(aw_dev->dev, "read ra error\n");
 		return ret;
@@ -990,29 +881,25 @@ static int aw_dev_check_sram(struct aw_device *aw_dev)
 {
 	unsigned int reg_val;
 
-	mutex_lock(&aw_dev->dsp_lock);
 	/* read dsp_rom_check_reg */
-	aw_dev_dsp_read_16bit(aw_dev, AW88166_DSP_ROM_CHECK_ADDR, &reg_val);
+	aw_dev_dsp_read(aw_dev, AW88166_DSP_ROM_CHECK_ADDR, &reg_val, AW_DSP_16_DATA);
 	if (reg_val != AW88166_DSP_ROM_CHECK_DATA) {
 		dev_err(aw_dev->dev, "check dsp rom failed, read[0x%x] != check[0x%x]\n",
 						reg_val, AW88166_DSP_ROM_CHECK_DATA);
-		goto error;
+		return -EPERM;
 	}
 
 	/* check dsp_cfg_base_addr */
-	aw_dev_dsp_write_16bit(aw_dev, AW88166_DSP_CFG_ADDR, AW88166_DSP_ODD_NUM_BIT_TEST);
-	aw_dev_dsp_read_16bit(aw_dev, AW88166_DSP_CFG_ADDR, &reg_val);
+	aw_dev_dsp_write(aw_dev, AW88166_DSP_CFG_ADDR,
+				AW88166_DSP_ODD_NUM_BIT_TEST, AW_DSP_16_DATA);
+	aw_dev_dsp_read(aw_dev, AW88166_DSP_CFG_ADDR, &reg_val, AW_DSP_16_DATA);
 	if (reg_val != AW88166_DSP_ODD_NUM_BIT_TEST) {
 		dev_err(aw_dev->dev, "check dsp cfg failed, read[0x%x] != write[0x%x]\n",
 						reg_val, AW88166_DSP_ODD_NUM_BIT_TEST);
-		goto error;
+		return -EPERM;
 	}
-	mutex_unlock(&aw_dev->dsp_lock);
 
 	return 0;
-error:
-	mutex_unlock(&aw_dev->dsp_lock);
-	return -EPERM;
 }
 
 static void aw_dev_select_memclk(struct aw_device *aw_dev, unsigned char flag)
