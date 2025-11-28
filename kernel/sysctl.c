@@ -692,10 +692,10 @@ int proc_dointvec_minmax(const struct ctl_table *table, int dir,
  * values from/to the user buffer, treated as an ASCII string. Negative
  * strings are not allowed.
  *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max). There is a final sanity
- * check for UINT_MAX to avoid having to support wrap around uses from
- * userspace.
+ * When changing the kernel variable, this routine will ensure the values
+ * are within the range specified by table->extra1 (min) and table->extra2
+ * (max). And Check that the values are less than UINT_MAX to avoid having to
+ * support wrap around uses from userspace.
  *
  * Returns 0 on success or -ERANGE when range check failes and
  * SYSCTL_USER_TO_KERN(dir) == true
