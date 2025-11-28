@@ -55,6 +55,9 @@ static struct bpf_map *insn_array_alloc(union bpf_attr *attr)
 
 	bpf_map_init_from_attr(&insn_array->map, attr);
 
+	/* BPF programs aren't allowed to write to the map */
+	insn_array->map.map_flags |= BPF_F_RDONLY_PROG;
+
 	return &insn_array->map;
 }
 
