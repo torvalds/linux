@@ -680,6 +680,7 @@
 				      "aclk_dbi", "pclk",
 				      "aux";
 			device_type = "pci";
+			dma-coherent;
 			interrupts = <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
@@ -734,6 +735,7 @@
 				      "aclk_dbi", "pclk",
 				      "aux";
 			device_type = "pci";
+			dma-coherent;
 			interrupts = <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
@@ -1696,6 +1698,7 @@
 			clock-names = "stmmaceth", "clk_mac_ref",
 				      "pclk_mac", "aclk_mac",
 				      "ptp_ref";
+			dma-coherent;
 			interrupts = <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq", "eth_wake_irq";
@@ -1743,6 +1746,7 @@
 			clock-names = "stmmaceth", "clk_mac_ref",
 				      "pclk_mac", "aclk_mac",
 				      "ptp_ref";
+			dma-coherent;
 			interrupts = <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq", "eth_wake_irq";
