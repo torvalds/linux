@@ -329,11 +329,9 @@
 #define B53_ARLTBL_MAC_VID_ENTRY(n)	((0x10 * (n)) + 0x10)
 #define   ARLTBL_MAC_MASK		0xffffffffffffULL
 #define   ARLTBL_VID_S			48
-#define   ARLTBL_VID_MASK_25		0xff
 #define   ARLTBL_VID_MASK		0xfff
 #define   ARLTBL_DATA_PORT_ID_S_25	48
 #define   ARLTBL_DATA_PORT_ID_MASK_25	GENMASK_ULL(53, 48)
-#define   ARLTBL_VID_S_65		53
 #define   ARLTBL_AGE_25			BIT_ULL(61)
 #define   ARLTBL_STATIC_25		BIT_ULL(62)
 #define   ARLTBL_VALID_25		BIT_ULL(63)
@@ -352,6 +350,9 @@
 #define   ARLTBL_AGE_89			BIT(13)
 #define   ARLTBL_STATIC_89		BIT(14)
 #define   ARLTBL_VALID_89		BIT(15)
+
+/* BCM5325/BCM565 ARL Table VID Entry N Registers (8 bit) */
+#define B53_ARLTBL_VID_ENTRY_25(n)	((0x2 * (n)) + 0x30)
 
 /* Maximum number of bin entries in the ARL for all switches */
 #define B53_ARLTBL_MAX_BIN_ENTRIES	4
@@ -380,6 +381,8 @@
 #define B53_ARL_SRCH_RSTL_0_MACVID_25	0x24
 #define   ARL_SRCH_RSLT_PORT_ID_S_25	48
 #define   ARL_SRCH_RSLT_PORT_ID_MASK_25	GENMASK_ULL(52, 48)
+#define   ARL_SRCH_RSLT_VID_S_25	53
+#define   ARL_SRCH_RSLT_VID_MASK_25	GENMASK_ULL(60, 53)
 
 /* BCM5325/5365 Search result extend register (8 bit) */
 #define B53_ARL_SRCH_RSLT_EXT_25	0x2c
