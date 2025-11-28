@@ -39,6 +39,8 @@ config SND_SOC_SDCA_OPTIONAL
 
 config SND_SOC_SDCA_CLASS
 	tristate "SDCA Class Driver"
+	depends on SOUNDWIRE
+	depends on HID=y || HID=SND_SOC_SDCA
 	depends on SND_SOC_SDCA
 	select SND_SOC_SDCA_CLASS_FUNCTION
 	select SND_SOC_SDCA_FDL
