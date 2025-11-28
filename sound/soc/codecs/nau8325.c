@@ -422,7 +422,7 @@ static int nau8325_clksrc_choose(struct nau8325 *nau8325,
 				*n1_sel = i;
 				*mult_sel = j;
 				ratio_sel = ratio;
-					goto proc_done;
+				goto proc_done;
 			}
 		}
 	}
