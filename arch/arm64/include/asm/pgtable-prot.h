@@ -84,7 +84,7 @@ extern unsigned long prot_ns_shared;
 #else
 static inline bool __pure lpa2_is_enabled(void)
 {
-	return read_tcr() & TCR_DS;
+	return read_tcr() & TCR_EL1_DS;
 }
 
 #define PTE_MAYBE_SHARED	(lpa2_is_enabled() ? 0 : PTE_SHARED)
