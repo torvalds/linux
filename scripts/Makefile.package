@@ -201,7 +201,6 @@ quiet_cmd_cpio = CPIO    $@
       cmd_cpio = $(CONFIG_SHELL) $(srctree)/usr/gen_initramfs.sh -o $@ $<
 
 modules-$(KERNELRELEASE)-$(ARCH).cpio: .tmp_modules_cpio
-	$(Q)$(MAKE) $(build)=usr usr/gen_init_cpio
 	$(call cmd,cpio)
 
 PHONY += modules-cpio-pkg

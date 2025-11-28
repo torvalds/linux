@@ -1417,6 +1417,10 @@ ifdef CONFIG_HEADERS_INSTALL
 prepare: headers
 endif
 
+PHONY += usr_gen_init_cpio
+usr_gen_init_cpio: scripts_basic
+	$(Q)$(MAKE) $(build)=usr usr/gen_init_cpio
+
 PHONY += scripts_unifdef
 scripts_unifdef: scripts_basic
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
@@ -1668,6 +1672,8 @@ distclean: mrproper
 
 # Packaging of the kernel to various formats
 # ---------------------------------------------------------------------------
+
+modules-cpio-pkg: usr_gen_init_cpio
 
 %src-pkg: FORCE
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.package $@
