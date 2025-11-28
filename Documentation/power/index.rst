@@ -19,6 +19,7 @@ Power Management
     power_supply_class
     runtime_pm
     s2ram
+    shutdown-debugging
     suspend-and-cpuhotplug
     suspend-and-interrupts
     swsusp-and-swap-files
