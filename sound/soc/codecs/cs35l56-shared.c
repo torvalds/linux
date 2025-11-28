@@ -1337,6 +1337,23 @@ int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_read_prot_status, "SND_SOC_CS35L56_SHARED");
 
+void cs35l56_warn_if_firmware_missing(struct cs35l56_base *cs35l56_base)
+{
+	unsigned int firmware_version;
+	bool firmware_missing;
+	int ret;
+
+	ret = cs35l56_read_prot_status(cs35l56_base, &firmware_missing, &firmware_version);
+	if (ret)
+		return;
+
+	if (!firmware_missing)
+		return;
+
+	dev_warn(cs35l56_base->dev, "FIRMWARE_MISSING\n");
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_warn_if_firmware_missing, "SND_SOC_CS35L56_SHARED");
+
 void cs35l56_log_tuning(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp)
 {
 	__be32 pid, sid, tid;

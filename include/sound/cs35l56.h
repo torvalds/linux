@@ -409,6 +409,7 @@ int cs35l56_cal_set_status_get(struct cs35l56_base *cs35l56_base,
 			       struct snd_ctl_elem_value *uvalue);
 int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 			     bool *fw_missing, unsigned int *fw_version);
+void cs35l56_warn_if_firmware_missing(struct cs35l56_base *cs35l56_base);
 void cs35l56_log_tuning(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
 int cs35l56_hw_init(struct cs35l56_base *cs35l56_base);
 int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base);

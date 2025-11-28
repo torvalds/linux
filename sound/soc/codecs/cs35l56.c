@@ -823,6 +823,9 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing
 		goto err_unlock;
 	}
 
+	/* Check if the firmware is still reported missing */
+	cs35l56_warn_if_firmware_missing(&cs35l56->base);
+
 	regmap_clear_bits(cs35l56->base.regmap,
 			  cs35l56->base.fw_reg->prot_sts,
 			  CS35L56_FIRMWARE_MISSING);
