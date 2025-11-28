@@ -450,19 +450,17 @@ queue:
 	 * not be nested NMIs taking spinlocks. That may not be true in
 	 * some architectures even though the chance of needing more than
 	 * 4 nodes will still be extremely unlikely. When that happens,
-	 * we fall back to spinning on the lock directly without using
-	 * any MCS node. This is not the most elegant solution, but is
-	 * simple enough.
+	 * we fall back to attempting a trylock operation without using
+	 * any MCS node. Unlike qspinlock which cannot fail, we have the
+	 * option of failing the slow path, and under contention, such a
+	 * trylock spinning will likely be treated unfairly due to lack of
+	 * queueing, hence do not spin.
 	 */
 	if (unlikely(idx >= _Q_MAX_NODES || (in_nmi() && idx > 0))) {
 		lockevent_inc(lock_no_node);
-		RES_RESET_TIMEOUT(ts, RES_DEF_TIMEOUT);
-		while (!queued_spin_trylock(lock)) {
-			if (RES_CHECK_TIMEOUT(ts, ret, ~0u)) {
-				lockevent_inc(rqspinlock_lock_timeout);
-				goto err_release_node;
-			}
-			cpu_relax();
+		if (!queued_spin_trylock(lock)) {
+			ret = -EDEADLK;
+			goto err_release_node;
 		}
 		goto release;
 	}
