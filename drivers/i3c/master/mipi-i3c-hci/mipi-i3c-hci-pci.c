@@ -27,6 +27,18 @@ static DEFINE_IDA(mipi_i3c_hci_pci_ida);
 #define INTEL_RESETS_RESET_DONE		BIT(1)
 #define INTEL_RESETS_TIMEOUT_US		(10 * USEC_PER_MSEC)
 
+static void intel_reset(void __iomem *priv)
+{
+	u32 reg;
+
+	/* Assert reset, wait for completion and release reset */
+	writel(0, priv + INTEL_RESETS);
+	readl_poll_timeout(priv + INTEL_RESETS, reg,
+			   reg & INTEL_RESETS_RESET_DONE, 0,
+			   INTEL_RESETS_TIMEOUT_US);
+	writel(INTEL_RESETS_RESET, priv + INTEL_RESETS);
+}
+
 static void __iomem *intel_priv(struct pci_dev *pci)
 {
 	resource_size_t base = pci_resource_start(pci, 0);
@@ -37,19 +49,13 @@ static void __iomem *intel_priv(struct pci_dev *pci)
 static int intel_i3c_init(struct pci_dev *pci)
 {
 	void __iomem *priv = intel_priv(pci);
-	u32 reg;
 
 	if (!priv)
 		return -ENOMEM;
 
 	dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(64));
 
-	/* Assert reset, wait for completion and release reset */
-	writel(0, priv + INTEL_RESETS);
-	readl_poll_timeout(priv + INTEL_RESETS, reg,
-			   reg & INTEL_RESETS_RESET_DONE, 0,
-			   INTEL_RESETS_TIMEOUT_US);
-	writel(INTEL_RESETS_RESET, priv + INTEL_RESETS);
+	intel_reset(priv);
 
 	return 0;
 }
