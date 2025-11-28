@@ -304,6 +304,8 @@ struct xe_device {
 		u8 has_heci_cscfi:1;
 		/** @info.has_heci_gscfi: device has heci gscfi */
 		u8 has_heci_gscfi:1;
+		/** @info.has_i2c: Device has I2C controller */
+		u8 has_i2c:1;
 		/** @info.has_late_bind: Device has firmware late binding support */
 		u8 has_late_bind:1;
 		/** @info.has_llc: Device has a shared CPU+GPU last level cache */
