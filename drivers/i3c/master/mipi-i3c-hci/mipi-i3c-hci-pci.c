@@ -17,10 +17,12 @@
 struct mipi_i3c_hci_pci {
 	struct pci_dev *pci;
 	struct platform_device *pdev;
+	const struct mipi_i3c_hci_pci_info *info;
 };
 
 struct mipi_i3c_hci_pci_info {
 	int (*init)(struct mipi_i3c_hci_pci *hci);
+	void (*exit)(struct mipi_i3c_hci_pci *hci);
 };
 
 static DEFINE_IDA(mipi_i3c_hci_pci_ida);
@@ -72,7 +74,6 @@ static const struct mipi_i3c_hci_pci_info intel_info = {
 static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 				  const struct pci_device_id *id)
 {
-	const struct mipi_i3c_hci_pci_info *info;
 	struct mipi_i3c_hci_pci *hci;
 	struct resource res[2];
 	int dev_id, ret;
@@ -114,21 +115,24 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	if (ret)
 		goto err;
 
-	info = (const struct mipi_i3c_hci_pci_info *)id->driver_data;
-	if (info && info->init) {
-		ret = info->init(hci);
+	hci->info = (const struct mipi_i3c_hci_pci_info *)id->driver_data;
+	if (hci->info && hci->info->init) {
+		ret = hci->info->init(hci);
 		if (ret)
 			goto err;
 	}
 
 	ret = platform_device_add(hci->pdev);
 	if (ret)
-		goto err;
+		goto err_exit;
 
 	pci_set_drvdata(pci, hci);
 
 	return 0;
 
+err_exit:
+	if (hci->info && hci->info->exit)
+		hci->info->exit(hci);
 err:
 	platform_device_put(hci->pdev);
 	ida_free(&mipi_i3c_hci_pci_ida, dev_id);
@@ -140,6 +144,9 @@ static void mipi_i3c_hci_pci_remove(struct pci_dev *pci)
 	struct mipi_i3c_hci_pci *hci = pci_get_drvdata(pci);
 	struct platform_device *pdev = hci->pdev;
 	int dev_id = pdev->id;
+
+	if (hci->info && hci->info->exit)
+		hci->info->exit(hci);
 
 	platform_device_unregister(pdev);
 	ida_free(&mipi_i3c_hci_pci_ida, dev_id);
