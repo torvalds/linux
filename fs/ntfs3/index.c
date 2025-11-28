@@ -252,9 +252,7 @@ static int bmp_buf_get(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	bbuf->bh = bh;
 
-	if (buffer_locked(bh))
-		__wait_on_buffer(bh);
-
+	wait_on_buffer(bh);
 	lock_buffer(bh);
 
 	sb = sbi->sb;

@@ -875,9 +875,7 @@ void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
 			return;
 		}
 
-		if (buffer_locked(bh2))
-			__wait_on_buffer(bh2);
-
+		wait_on_buffer(bh2);
 		lock_buffer(bh2);
 		memcpy(bh2->b_data, bh1->b_data, blocksize);
 		set_buffer_uptodate(bh2);
@@ -1069,9 +1067,7 @@ int ntfs_sb_write(struct super_block *sb, u64 lbo, size_t bytes,
 				return -ENOMEM;
 		}
 
-		if (buffer_locked(bh))
-			__wait_on_buffer(bh);
-
+		wait_on_buffer(bh);
 		lock_buffer(bh);
 		if (buf) {
 			memcpy(bh->b_data + off, buf, op);
@@ -1347,8 +1343,8 @@ int ntfs_get_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
 					err = -ENOMEM;
 					goto out;
 				}
-				if (buffer_locked(bh))
-					__wait_on_buffer(bh);
+
+				wait_on_buffer(bh);
 
 				lock_buffer(bh);
 				if (!buffer_uptodate(bh))
@@ -1427,9 +1423,7 @@ int ntfs_write_bh(struct ntfs_sb_info *sbi, struct NTFS_RECORD_HEADER *rhdr,
 		if (op > bytes)
 			op = bytes;
 
-		if (buffer_locked(bh))
-			__wait_on_buffer(bh);
-
+		wait_on_buffer(bh);
 		lock_buffer(bh);
 
 		bh_data = bh->b_data + off;

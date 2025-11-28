@@ -1652,9 +1652,7 @@ load_root:
 		 */
 		struct buffer_head *bh0 = sb_getblk(sb, 0);
 		if (bh0) {
-			if (buffer_locked(bh0))
-				__wait_on_buffer(bh0);
-
+			wait_on_buffer(bh0);
 			lock_buffer(bh0);
 			memcpy(bh0->b_data, boot2, sizeof(*boot2));
 			set_buffer_uptodate(bh0);
