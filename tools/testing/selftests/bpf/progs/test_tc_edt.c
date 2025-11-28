@@ -99,7 +99,8 @@ static inline int handle_ipv4(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("cls_test") int tc_prog(struct __sk_buff *skb)
+SEC("tc")
+int tc_prog(struct __sk_buff *skb)
 {
 	if (skb->protocol == bpf_htons(ETH_P_IP))
 		return handle_ipv4(skb);
