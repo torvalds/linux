@@ -1696,12 +1696,10 @@ out:
 	return ret;
 }
 
-static int iaa_unregister_compression_device(void)
+static void iaa_unregister_compression_device(void)
 {
 	if (iaa_crypto_registered)
 		crypto_unregister_acomp(&iaa_acomp_fixed_deflate);
-
-	return 0;
 }
 
 static int iaa_crypto_probe(struct idxd_dev *idxd_dev)
@@ -1917,8 +1915,7 @@ err_aecs_init:
 
 static void __exit iaa_crypto_cleanup_module(void)
 {
-	if (iaa_unregister_compression_device())
-		pr_debug("IAA compression device unregister failed\n");
+	iaa_unregister_compression_device();
 
 	iaa_crypto_debugfs_cleanup();
 	driver_remove_file(&iaa_crypto_driver.drv,
