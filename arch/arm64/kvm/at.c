@@ -346,7 +346,9 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 
 	wi->baddr &= GENMASK_ULL(wi->max_oa_bits - 1, x);
 
-	wi->ha = tcr & TCR_HA;
+	wi->ha = (wi->regime == TR_EL2 ?
+		  FIELD_GET(TCR_EL2_HA, tcr) :
+		  FIELD_GET(TCR_HA, tcr));
 
 	return 0;
 
