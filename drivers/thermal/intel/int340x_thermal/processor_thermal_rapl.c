@@ -19,7 +19,7 @@ static const struct rapl_mmio_regs rapl_mmio_default = {
 	.limits[RAPL_DOMAIN_DRAM] = BIT(POWER_LIMIT2),
 };
 
-static int rapl_mmio_read_raw(int cpu, struct reg_action *ra)
+static int rapl_mmio_read_raw(int cpu, struct reg_action *ra, bool atomic)
 {
 	if (!ra->reg.mmio)
 		return -EINVAL;
