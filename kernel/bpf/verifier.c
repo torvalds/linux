@@ -6482,6 +6482,8 @@ static int check_ptr_alignment(struct bpf_verifier_env *env,
 		break;
 	case PTR_TO_MAP_VALUE:
 		pointer_desc = "value ";
+		if (reg->map_ptr->map_type == BPF_MAP_TYPE_INSN_ARRAY)
+			strict = true;
 		break;
 	case PTR_TO_CTX:
 		pointer_desc = "context ";
@@ -7529,8 +7531,6 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 {
 	struct bpf_reg_state *regs = cur_regs(env);
 	struct bpf_reg_state *reg = regs + regno;
-	bool insn_array = reg->type == PTR_TO_MAP_VALUE &&
-			  reg->map_ptr->map_type == BPF_MAP_TYPE_INSN_ARRAY;
 	int size, err = 0;
 
 	size = bpf_size_to_bytes(bpf_size);
@@ -7538,7 +7538,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		return size;
 
 	/* alignment checks will add in reg->off themselves */
-	err = check_ptr_alignment(env, reg, off, size, strict_alignment_once || insn_array);
+	err = check_ptr_alignment(env, reg, off, size, strict_alignment_once);
 	if (err)
 		return err;
 
