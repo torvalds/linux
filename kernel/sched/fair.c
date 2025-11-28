@@ -12857,7 +12857,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
 	rq_unpin_lock(this_rq, rf);
 
 	rcu_read_lock();
-	sd = rcu_dereference_check_sched_domain(this_rq->sd);
+	sd = rcu_dereference_sched_domain(this_rq->sd);
 	if (!sd) {
 		rcu_read_unlock();
 		goto out;
