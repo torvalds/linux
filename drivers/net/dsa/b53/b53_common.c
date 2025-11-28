@@ -2119,10 +2119,12 @@ static void b53_arl_search_read_25(struct b53_device *dev, u8 idx,
 				   struct b53_arl_entry *ent)
 {
 	u64 mac_vid;
+	u8 ext;
 
+	b53_read8(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSLT_EXT_25, &ext);
 	b53_read64(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSTL_0_MACVID_25,
 		   &mac_vid);
-	b53_arl_to_entry_25(ent, mac_vid);
+	b53_arl_search_to_entry_25(ent, mac_vid, ext);
 }
 
 static void b53_arl_search_read_89(struct b53_device *dev, u8 idx,
