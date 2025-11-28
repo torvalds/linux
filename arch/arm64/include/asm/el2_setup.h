@@ -7,7 +7,7 @@
 #ifndef __ARM_KVM_INIT_H__
 #define __ARM_KVM_INIT_H__
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #error Assembly-only header
 #endif
 
@@ -28,7 +28,7 @@
 	 * Fruity CPUs seem to have HCR_EL2.E2H set to RAO/WI, but
 	 * don't advertise it (they predate this relaxation).
 	 *
-	 * Initalize HCR_EL2.E2H so that later code can rely upon HCR_EL2.E2H
+	 * Initialize HCR_EL2.E2H so that later code can rely upon HCR_EL2.E2H
 	 * indicating whether the CPU is running in E2H mode.
 	 */
 	mrs_s	x1, SYS_ID_AA64MMFR4_EL1

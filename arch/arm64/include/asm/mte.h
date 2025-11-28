@@ -8,7 +8,7 @@
 #include <asm/compiler.h>
 #include <asm/mte-def.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/bitfield.h>
 #include <linux/kasan-enabled.h>
@@ -282,5 +282,5 @@ static inline void mte_check_tfsr_exit(void)
 }
 #endif /* CONFIG_KASAN_HW_TAGS */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_MTE_H  */

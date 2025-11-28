@@ -1755,7 +1755,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 
 	/*
 	 * Check if this is non-struct page memory PFN, and cannot support
-	 * CMOs. It could potentially be unsafe to access as cachable.
+	 * CMOs. It could potentially be unsafe to access as cacheable.
 	 */
 	if (vm_flags & (VM_PFNMAP | VM_MIXEDMAP) && !pfn_is_map_memory(pfn)) {
 		if (is_vma_cacheable) {

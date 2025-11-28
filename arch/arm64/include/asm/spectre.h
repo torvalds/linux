@@ -12,7 +12,7 @@
 #define BP_HARDEN_EL2_SLOTS 4
 #define __BP_HARDEN_HYP_VECS_SZ	((BP_HARDEN_EL2_SLOTS - 1) * SZ_2K)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/smp.h>
 #include <asm/percpu.h>
 
@@ -118,5 +118,5 @@ void spectre_bhb_patch_wa3(struct alt_instr *alt,
 void spectre_bhb_patch_clearbhb(struct alt_instr *alt,
 				__le32 *origptr, __le32 *updptr, int nr_inst);
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 #endif	/* __ASM_SPECTRE_H */

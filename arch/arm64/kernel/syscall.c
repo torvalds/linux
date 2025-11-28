@@ -96,7 +96,7 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	 * (Similarly for HVC and SMC elsewhere.)
 	 */
 
-	if (flags & _TIF_MTE_ASYNC_FAULT) {
+	if (unlikely(flags & _TIF_MTE_ASYNC_FAULT)) {
 		/*
 		 * Process the asynchronous tag check fault before the actual
 		 * syscall. do_notify_resume() will send a signal to userspace

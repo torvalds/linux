@@ -303,40 +303,6 @@ error:
 	return -EINVAL;
 }
 
-/**
- * acpi_arch_timer_mem_init() - Get the info of all GT blocks in GTDT table.
- * @timer_mem:	The pointer to the array of struct arch_timer_mem for returning
- *		the result of parsing. The element number of this array should
- *		be platform_timer_count(the total number of platform timers).
- * @timer_count: It points to a integer variable which is used for storing the
- *		number of GT blocks we have parsed.
- *
- * Return: 0 if success, -EINVAL/-ENODEV if error.
- */
-int __init acpi_arch_timer_mem_init(struct arch_timer_mem *timer_mem,
-				    int *timer_count)
-{
-	int ret;
-	void *platform_timer;
-
-	*timer_count = 0;
-	for_each_platform_timer(platform_timer) {
-		if (is_timer_block(platform_timer)) {
-			ret = gtdt_parse_timer_block(platform_timer, timer_mem);
-			if (ret)
-				return ret;
-			timer_mem++;
-			(*timer_count)++;
-		}
-	}
-
-	if (*timer_count)
-		pr_info("found %d memory-mapped timer block(s).\n",
-			*timer_count);
-
-	return 0;
-}
-
 /*
  * Initialize a SBSA generic Watchdog platform device info from GTDT
  */
