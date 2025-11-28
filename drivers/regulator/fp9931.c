@@ -444,7 +444,7 @@ static int fp9931_probe(struct i2c_client *client)
 	data->vin_reg = devm_regulator_get_optional(&client->dev, "vin");
 	if (IS_ERR(data->vin_reg))
 		return dev_err_probe(&client->dev, PTR_ERR(data->vin_reg),
-				     "failid to get vin regulator\n");
+				     "failed to get vin regulator\n");
 
 	data->pgood_gpio = devm_gpiod_get(&client->dev, "pg", GPIOD_IN);
 	if (IS_ERR(data->pgood_gpio))
