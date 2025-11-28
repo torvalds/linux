@@ -4,9 +4,12 @@
 
 #include <fcntl.h>
 #include <string.h>
-#include <linux/vfio.h>
+
+#include <uapi/linux/types.h>
+#include <linux/iommufd.h>
 #include <linux/list.h>
 #include <linux/pci_regs.h>
+#include <linux/vfio.h>
 
 #include "../../../kselftest.h"
 
@@ -185,6 +188,13 @@ struct vfio_pci_device {
 	struct vfio_pci_driver driver;
 };
 
+struct iova_allocator {
+	struct iommu_iova_range *ranges;
+	u32 nranges;
+	u32 range_idx;
+	u64 range_offset;
+};
+
 /*
  * Return the BDF string of the device that the test should use.
  *
@@ -205,6 +215,13 @@ extern const char *default_iommu_mode;
 struct vfio_pci_device *vfio_pci_device_init(const char *bdf, const char *iommu_mode);
 void vfio_pci_device_cleanup(struct vfio_pci_device *device);
 void vfio_pci_device_reset(struct vfio_pci_device *device);
+
+struct iommu_iova_range *vfio_pci_iova_ranges(struct vfio_pci_device *device,
+					      u32 *nranges);
+
+struct iova_allocator *iova_allocator_init(struct vfio_pci_device *device);
+void iova_allocator_cleanup(struct iova_allocator *allocator);
+iova_t iova_allocator_alloc(struct iova_allocator *allocator, size_t size);
 
 int __vfio_pci_dma_map(struct vfio_pci_device *device,
 		       struct vfio_dma_region *region);

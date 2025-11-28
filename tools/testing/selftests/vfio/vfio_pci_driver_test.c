@@ -19,6 +19,7 @@ static const char *device_bdf;
 } while (0)
 
 static void region_setup(struct vfio_pci_device *device,
+			 struct iova_allocator *iova_allocator,
 			 struct vfio_dma_region *region, u64 size)
 {
 	const int flags = MAP_SHARED | MAP_ANONYMOUS;
@@ -29,7 +30,7 @@ static void region_setup(struct vfio_pci_device *device,
 	VFIO_ASSERT_NE(vaddr, MAP_FAILED);
 
 	region->vaddr = vaddr;
-	region->iova = (u64)vaddr;
+	region->iova = iova_allocator_alloc(iova_allocator, size);
 	region->size = size;
 
 	vfio_pci_dma_map(device, region);
@@ -44,6 +45,7 @@ static void region_teardown(struct vfio_pci_device *device,
 
 FIXTURE(vfio_pci_driver_test) {
 	struct vfio_pci_device *device;
+	struct iova_allocator *iova_allocator;
 	struct vfio_dma_region memcpy_region;
 	void *vaddr;
 	int msi_fd;
@@ -72,14 +74,15 @@ FIXTURE_SETUP(vfio_pci_driver_test)
 	struct vfio_pci_driver *driver;
 
 	self->device = vfio_pci_device_init(device_bdf, variant->iommu_mode);
+	self->iova_allocator = iova_allocator_init(self->device);
 
 	driver = &self->device->driver;
 
-	region_setup(self->device, &self->memcpy_region, SZ_1G);
-	region_setup(self->device, &driver->region, SZ_2M);
+	region_setup(self->device, self->iova_allocator, &self->memcpy_region, SZ_1G);
+	region_setup(self->device, self->iova_allocator, &driver->region, SZ_2M);
 
 	/* Any IOVA that doesn't overlap memcpy_region and driver->region. */
-	self->unmapped_iova = 8UL * SZ_1G;
+	self->unmapped_iova = iova_allocator_alloc(self->iova_allocator, SZ_1G);
 
 	vfio_pci_driver_init(self->device);
 	self->msi_fd = self->device->msi_eventfds[driver->msi];
@@ -108,6 +111,7 @@ FIXTURE_TEARDOWN(vfio_pci_driver_test)
 	region_teardown(self->device, &self->memcpy_region);
 	region_teardown(self->device, &driver->region);
 
+	iova_allocator_cleanup(self->iova_allocator);
 	vfio_pci_device_cleanup(self->device);
 }
 
