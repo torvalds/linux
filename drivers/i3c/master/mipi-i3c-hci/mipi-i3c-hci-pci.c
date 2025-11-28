@@ -15,11 +15,12 @@
 #include <linux/platform_device.h>
 
 struct mipi_i3c_hci_pci {
+	struct pci_dev *pci;
 	struct platform_device *pdev;
 };
 
 struct mipi_i3c_hci_pci_info {
-	int (*init)(struct pci_dev *pci);
+	int (*init)(struct mipi_i3c_hci_pci *hci);
 };
 
 static DEFINE_IDA(mipi_i3c_hci_pci_ida);
@@ -50,14 +51,14 @@ static void __iomem *intel_priv(struct pci_dev *pci)
 	return devm_ioremap(&pci->dev, base + INTEL_PRIV_OFFSET, INTEL_PRIV_SIZE);
 }
 
-static int intel_i3c_init(struct pci_dev *pci)
+static int intel_i3c_init(struct mipi_i3c_hci_pci *hci)
 {
-	void __iomem *priv = intel_priv(pci);
+	void __iomem *priv = intel_priv(hci->pci);
 
 	if (!priv)
 		return -ENOMEM;
 
-	dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(64));
+	dma_set_mask_and_coherent(&hci->pci->dev, DMA_BIT_MASK(64));
 
 	intel_reset(priv);
 
@@ -79,6 +80,8 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	hci = devm_kzalloc(&pci->dev, sizeof(*hci), GFP_KERNEL);
 	if (!hci)
 		return -ENOMEM;
+
+	hci->pci = pci;
 
 	ret = pcim_enable_device(pci);
 	if (ret)
@@ -113,7 +116,7 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 
 	info = (const struct mipi_i3c_hci_pci_info *)id->driver_data;
 	if (info && info->init) {
-		ret = info->init(pci);
+		ret = info->init(hci);
 		if (ret)
 			goto err;
 	}
