@@ -1957,10 +1957,6 @@ static uint64_t cik_get_pcie_replay_count(struct amdgpu_device *adev)
 	return (nak_r + nak_g);
 }
 
-static void cik_pre_asic_init(struct amdgpu_device *adev)
-{
-}
-
 static const struct amdgpu_asic_funcs cik_asic_funcs =
 {
 	.read_disabled_bios = &cik_read_disabled_bios,
@@ -1981,7 +1977,6 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.need_reset_on_init = &cik_need_reset_on_init,
 	.get_pcie_replay_count = &cik_get_pcie_replay_count,
 	.supports_baco = &cik_asic_supports_baco,
-	.pre_asic_init = &cik_pre_asic_init,
 	.query_video_codecs = &cik_query_video_codecs,
 };
 

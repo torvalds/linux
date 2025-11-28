@@ -327,10 +327,6 @@ static void soc24_init_doorbell_index(struct amdgpu_device *adev)
 	adev->doorbell_index.sdma_doorbell_range = 20;
 }
 
-static void soc24_pre_asic_init(struct amdgpu_device *adev)
-{
-}
-
 static int soc24_update_umd_stable_pstate(struct amdgpu_device *adev,
 					  bool enter)
 {
@@ -357,7 +353,6 @@ static const struct amdgpu_asic_funcs soc24_asic_funcs = {
 	.need_reset_on_init = &soc24_need_reset_on_init,
 	.get_pcie_replay_count = &soc24_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,
-	.pre_asic_init = &soc24_pre_asic_init,
 	.query_video_codecs = &soc24_query_video_codecs,
 	.update_umd_stable_pstate = &soc24_update_umd_stable_pstate,
 };
