@@ -437,6 +437,19 @@ int __lockfunc resilient_queued_spin_lock_slowpath(rqspinlock_t *lock, u32 val)
 	 * queuing.
 	 */
 queue:
+	/*
+	 * Do not queue if we're a waiter and someone is attempting this lock on
+	 * the same CPU. In case of NMIs, this prevents long timeouts where we
+	 * interrupt the pending waiter, and the owner, that will eventually
+	 * signal the head of our queue, both of which are logically but not
+	 * physically part of the queue, hence outside the scope of the idx > 0
+	 * check above for the trylock fallback.
+	 */
+	if (check_deadlock_AA(lock)) {
+		ret = -EDEADLK;
+		goto err_release_entry;
+	}
+
 	lockevent_inc(lock_slowpath);
 	/* Deadlock detection entry already held after failing fast path. */
 	node = this_cpu_ptr(&rqnodes[0].mcs);
