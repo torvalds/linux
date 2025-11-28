@@ -437,9 +437,15 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 
 	if (WARN_ON_ONCE(!PAGE_ALIGNED(start | end)))
 		return -EINVAL;
-	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
+	/* Don't mess with any tables not fully in 1:1 mapping, vmemmap & kasan area */
+#ifdef CONFIG_KASAN
+	if (WARN_ON_ONCE(!(start >= KASAN_SHADOW_START && end <= KASAN_SHADOW_END) &&
+			 end > __abs_lowcore))
+		return -EINVAL;
+#else
 	if (WARN_ON_ONCE(end > __abs_lowcore))
 		return -EINVAL;
+#endif
 	for (addr = start; addr < end; addr = next) {
 		next = pgd_addr_end(addr, end);
 		pgd = pgd_offset_k(addr);
