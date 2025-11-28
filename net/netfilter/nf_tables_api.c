@@ -14,6 +14,7 @@
 #include <linux/rhashtable.h>
 #include <linux/audit.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter_ipv4.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_flow_table.h>
