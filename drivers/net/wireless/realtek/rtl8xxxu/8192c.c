@@ -593,6 +593,84 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 	return 0;
 }
 
+static void rtl8192cu_power_off(struct rtl8xxxu_priv *priv)
+{
+	u32 val32;
+	u16 val16;
+	u8 val8;
+	int i;
+
+	/*
+	 * Workaround for 8188RU LNA power leakage problem.
+	 */
+	if (priv->rtl_chip == RTL8188R) {
+		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XCD_RF_PARM);
+		val32 |= BIT(1);
+		rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_PARM, val32);
+	}
+
+	/* _DisableRFAFEAndResetBB */
+	rtl8xxxu_write8(priv, REG_TXPAUSE, 0xff);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_AC, 0xff, 0);
+
+	rtl8xxxu_write8_set(priv, REG_APSD_CTRL, APSD_CTRL_OFF);
+	rtl8xxxu_write32_set(priv, REG_FPGA0_XCD_RF_PARM, FPGA0_RF_PARM_CLK_GATE);
+
+	rtl8xxxu_write8(priv, REG_SYS_FUNC,
+			SYS_FUNC_USBA | SYS_FUNC_USBD | SYS_FUNC_BB_GLB_RSTN);
+	rtl8xxxu_write8(priv, REG_SYS_FUNC, SYS_FUNC_USBA | SYS_FUNC_USBD);
+
+	/* _ResetDigitalProcedure1 */
+	if (rtl8xxxu_read8(priv, REG_MCU_FW_DL) & MCU_FW_DL_READY) {
+		rtl8xxxu_write8(priv, REG_MCU_FW_DL, 0x00);
+
+		rtl8xxxu_write8(priv, REG_FWIMR, 0x20);
+
+		rtl8xxxu_write8(priv, REG_HMTFR + 3, 0x20);
+
+		for (i = 0; i < 100; i++) {
+			val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
+			if (!(val16 & SYS_FUNC_CPU_ENABLE))
+				break;
+
+			fsleep(50);
+		}
+
+		if (i == 100) {
+			rtl8xxxu_write8(priv, REG_SYS_FUNC + 1,
+					(SYS_FUNC_HWPDN | SYS_FUNC_ELDR) >> 8);
+			msleep(10);
+		}
+	}
+
+	val8 = (SYS_FUNC_HWPDN | SYS_FUNC_ELDR | SYS_FUNC_CPU_ENABLE) >> 8;
+	rtl8xxxu_write8(priv, REG_SYS_FUNC + 1, val8);
+
+	/* _DisableGPIO */
+	rtl8xxxu_write16(priv, REG_GPIO_PIN_CTRL + 2, 0);
+	val32 = rtl8xxxu_read32(priv, REG_GPIO_PIN_CTRL) & 0xffff00ff;
+	val32 |= (val32 & 0xff) << 8;
+	val32 |= 0x00ff0000;
+	rtl8xxxu_write32(priv, REG_GPIO_PIN_CTRL, val32);
+
+	rtl8xxxu_write8(priv, REG_GPIO_MUXCFG + 3, 0);
+	val16 = rtl8xxxu_read16(priv, REG_GPIO_MUXCFG + 2) & 0xff0f;
+	val16 |= (val16 & 0xf) << 4;
+	val16 |= 0x0780;
+	rtl8xxxu_write16(priv, REG_GPIO_MUXCFG + 2, val16);
+
+	/* _DisableAnalog */
+	val8 = 0x23;
+	if (priv->vendor_umc && priv->chip_cut == 1)
+		val8 |= BIT(3);
+	rtl8xxxu_write8(priv, REG_SPS0_CTRL, val8);
+
+	val16 = APS_FSMCO_HOST | APS_FSMCO_HW_SUSPEND | APS_FSMCO_PFM_ALDN;
+	rtl8xxxu_write16(priv, REG_APS_FSMCO, val16);
+
+	rtl8xxxu_write8(priv, REG_RSV_CTRL, 0x0e);
+}
+
 static int rtl8192cu_led_brightness_set(struct led_classdev *led_cdev,
 					enum led_brightness brightness)
 {
@@ -618,7 +696,7 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.parse_efuse = rtl8192cu_parse_efuse,
 	.load_firmware = rtl8192cu_load_firmware,
 	.power_on = rtl8192cu_power_on,
-	.power_off = rtl8xxxu_power_off,
+	.power_off = rtl8192cu_power_off,
 	.read_efuse = rtl8xxxu_read_efuse,
 	.reset_8051 = rtl8xxxu_reset_8051,
 	.llt_init = rtl8xxxu_init_llt_table,

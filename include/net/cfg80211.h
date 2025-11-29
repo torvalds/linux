@@ -974,7 +974,8 @@ cfg80211_chandef_identical(const struct cfg80211_chan_def *chandef1,
 		chandef1->center_freq1 == chandef2->center_freq1 &&
 		chandef1->freq1_offset == chandef2->freq1_offset &&
 		chandef1->center_freq2 == chandef2->center_freq2 &&
-		chandef1->punctured == chandef2->punctured);
+		chandef1->punctured == chandef2->punctured &&
+		chandef1->s1g_primary_2mhz == chandef2->s1g_primary_2mhz);
 }
 
 /**
@@ -10148,6 +10149,7 @@ cfg80211_6ghz_power_type(u8 control, u32 client_flags)
 	switch (u8_get_bits(control, IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
 	case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
 	case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
+	case IEEE80211_6GHZ_CTRL_REG_AP_ROLE_NOT_RELEVANT:
 		return IEEE80211_REG_LPI_AP;
 	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
 	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD:

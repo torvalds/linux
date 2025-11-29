@@ -1344,7 +1344,7 @@ static void _iqk_get_ch_info(struct rtw89_dev *rtwdev,
 		    path, iqk_info->iqk_ch[path]);
 	rtw89_debug(rtwdev, RTW89_DBG_RFK,
 		    "[IQK]S%d (PHY%d): / DBCC %s/ %s/ CH%d/ %s\n", path, phy,
-		    rtwdev->dbcc_en ? "on" : "off",
+		    str_on_off(rtwdev->dbcc_en),
 		    iqk_info->iqk_band[path] == 0 ? "2G" :
 		    iqk_info->iqk_band[path] == 1 ? "5G" : "6G",
 		    iqk_info->iqk_ch[path],
@@ -1920,8 +1920,8 @@ static void _dpk_information(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_RFK,
 		    "[DPK] S%d[%d] (PHY%d): TSSI %s/ DBCC %s/ %s/ CH%d/ %s\n",
 		    path, dpk->cur_idx[path], phy,
-		    rtwdev->is_tssi_mode[path] ? "on" : "off",
-		    rtwdev->dbcc_en ? "on" : "off",
+		    str_on_off(rtwdev->is_tssi_mode[path]),
+		    str_on_off(rtwdev->dbcc_en),
 		    dpk->bp[path][kidx].band == 0 ? "2G" :
 		    dpk->bp[path][kidx].band == 1 ? "5G" : "6G",
 		    dpk->bp[path][kidx].ch,
@@ -2000,7 +2000,7 @@ static void _dpk_txpwr_bb_force(struct rtw89_dev *rtwdev, u8 path, bool force)
 	rtw89_phy_write32_mask(rtwdev, R_TXPWRB_H + (path << 13), B_TXPWRB_RDY, force);
 
 	rtw89_debug(rtwdev, RTW89_DBG_RFK,  "[DPK] S%d txpwr_bb_force %s\n",
-		    path, force ? "on" : "off");
+		    path, str_on_off(force));
 }
 
 static void _dpk_kip_restore(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
@@ -2828,7 +2828,7 @@ static void _dpk_onoff(struct rtw89_dev *rtwdev,
 			       B_DPD_MEN, val);
 
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DPK] S%d[%d] DPK %s !!!\n", path,
-		    kidx, dpk->is_dpk_enable && !off ? "enable" : "disable");
+		    kidx, str_enable_disable(dpk->is_dpk_enable && !off));
 }
 
 static void _dpk_track(struct rtw89_dev *rtwdev)
@@ -3987,37 +3987,56 @@ static void _ctrl_ch(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	}
 }
 
+static void _set_rxbb_bw(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
+			 enum rtw89_bandwidth bw)
+{
+	u32 val;
+
+	rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_RTXBW, 0x1);
+	rtw89_write_rf(rtwdev, path, RR_LUTWA, RR_LUTWA_M2, 0xa);
+
+	switch (bw) {
+	case RTW89_CHANNEL_WIDTH_20:
+		val = 0x1b;
+		break;
+	case RTW89_CHANNEL_WIDTH_40:
+		val = 0x13;
+		break;
+	case RTW89_CHANNEL_WIDTH_80:
+		val = 0xb;
+		break;
+	case RTW89_CHANNEL_WIDTH_160:
+	default:
+		val = 0x3;
+		break;
+	}
+
+	rtw89_write_rf(rtwdev, path, RR_LUTWD0, RR_LUTWD0_LB, val);
+	rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_RTXBW, 0x0);
+}
+
+static void _set_tia_bw(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
+			enum rtw89_bandwidth bw)
+{
+	if (bw == RTW89_CHANNEL_WIDTH_160)
+		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_EBW, 0x0);
+	else
+		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_EBW, 0x2);
+}
+
 static void _rxbb_bw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 		     enum rtw89_bandwidth bw)
 {
 	u8 kpath;
 	u8 path;
-	u32 val;
 
 	kpath = _kpath(rtwdev, phy);
 	for (path = 0; path < 2; path++) {
 		if (!(kpath & BIT(path)))
 			continue;
 
-		rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_RTXBW, 0x1);
-		rtw89_write_rf(rtwdev, path, RR_LUTWA, RR_LUTWA_M2, 0xa);
-		switch (bw) {
-		case RTW89_CHANNEL_WIDTH_20:
-			val = 0x1b;
-			break;
-		case RTW89_CHANNEL_WIDTH_40:
-			val = 0x13;
-			break;
-		case RTW89_CHANNEL_WIDTH_80:
-			val = 0xb;
-			break;
-		case RTW89_CHANNEL_WIDTH_160:
-		default:
-			val = 0x3;
-			break;
-		}
-		rtw89_write_rf(rtwdev, path, RR_LUTWD0, RR_LUTWD0_LB, val);
-		rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_RTXBW, 0x0);
+		_set_rxbb_bw(rtwdev, path, bw);
+		_set_tia_bw(rtwdev, path, bw);
 	}
 }
 
