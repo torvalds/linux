@@ -503,8 +503,8 @@ static int ext4_map_query_blocks_next_in_leaf(handle_t *handle,
 	retval = ext4_ext_map_blocks(handle, inode, &map2, 0);
 
 	if (retval <= 0) {
-		ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
-				      map->m_pblk, status, false);
+		ext4_es_cache_extent(inode, map->m_lblk, map->m_len,
+				     map->m_pblk, status);
 		return map->m_len;
 	}
 
@@ -525,13 +525,13 @@ static int ext4_map_query_blocks_next_in_leaf(handle_t *handle,
 	 */
 	if (map->m_pblk + map->m_len == map2.m_pblk &&
 			status == status2) {
-		ext4_es_insert_extent(inode, map->m_lblk,
-				      map->m_len + map2.m_len, map->m_pblk,
-				      status, false);
+		ext4_es_cache_extent(inode, map->m_lblk,
+				     map->m_len + map2.m_len, map->m_pblk,
+				     status);
 		map->m_len += map2.m_len;
 	} else {
-		ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
-				      map->m_pblk, status, false);
+		ext4_es_cache_extent(inode, map->m_lblk, map->m_len,
+				     map->m_pblk, status);
 	}
 
 	return map->m_len;
@@ -573,8 +573,8 @@ static int ext4_map_query_blocks(handle_t *handle, struct inode *inode,
 			map->m_len == orig_mlen) {
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
-		ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
-				      map->m_pblk, status, false);
+		ext4_es_cache_extent(inode, map->m_lblk, map->m_len,
+				     map->m_pblk, status);
 	} else {
 		retval = ext4_map_query_blocks_next_in_leaf(handle, inode, map,
 							    orig_mlen);
