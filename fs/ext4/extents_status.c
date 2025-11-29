@@ -1039,7 +1039,6 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 	newes.es_lblk = lblk;
 	newes.es_len = len;
 	ext4_es_store_pblock_status(&newes, pblk, status);
-	trace_ext4_es_cache_extent(inode, &newes);
 
 	if (!len)
 		return;
@@ -1065,6 +1064,8 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 		}
 	}
 	__es_insert_extent(inode, &newes, NULL);
+	trace_ext4_es_cache_extent(inode, &newes);
+	ext4_es_print_tree(inode);
 unlock:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
 	if (!conflict)
