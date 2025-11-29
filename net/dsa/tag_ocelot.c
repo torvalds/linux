@@ -46,11 +46,10 @@ static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
 static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
-	struct dsa_port *dp = dsa_user_to_port(netdev);
 	void *injection;
 
 	ocelot_xmit_common(skb, netdev, cpu_to_be32(0x8880000a), &injection);
-	ocelot_ifh_set_dest(injection, BIT_ULL(dp->index));
+	ocelot_ifh_set_dest(injection, dsa_xmit_port_mask(skb, netdev));
 
 	return skb;
 }
@@ -58,11 +57,10 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 static struct sk_buff *seville_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
-	struct dsa_port *dp = dsa_user_to_port(netdev);
 	void *injection;
 
 	ocelot_xmit_common(skb, netdev, cpu_to_be32(0x88800005), &injection);
-	seville_ifh_set_dest(injection, BIT_ULL(dp->index));
+	seville_ifh_set_dest(injection, dsa_xmit_port_mask(skb, netdev));
 
 	return skb;
 }

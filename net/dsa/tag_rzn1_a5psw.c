@@ -39,7 +39,6 @@ struct a5psw_tag {
 
 static struct sk_buff *a5psw_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct a5psw_tag *ptag;
 	u32 data2_val;
 
@@ -60,7 +59,7 @@ static struct sk_buff *a5psw_tag_xmit(struct sk_buff *skb, struct net_device *de
 
 	ptag = dsa_etype_header_pos_tx(skb);
 
-	data2_val = FIELD_PREP(A5PSW_CTRL_DATA_PORT, BIT(dp->index));
+	data2_val = FIELD_PREP(A5PSW_CTRL_DATA_PORT, dsa_xmit_port_mask(skb, dev));
 	ptag->ctrl_tag = htons(ETH_P_DSA_A5PSW);
 	ptag->ctrl_data = htons(A5PSW_CTRL_DATA_FORCE_FORWARD);
 	ptag->ctrl_data2_lo = htons(data2_val);

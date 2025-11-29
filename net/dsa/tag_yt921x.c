@@ -38,14 +38,11 @@
 #define  YT921X_TAG_RX_CMD_FORWARDED		0x80
 #define  YT921X_TAG_RX_CMD_UNK_UCAST		0xb2
 #define  YT921X_TAG_RX_CMD_UNK_MCAST		0xb4
-#define YT921X_TAG_TX_PORTS_M		GENMASK(10, 0)
-#define YT921X_TAG_TX_PORTn(port)	BIT(port)
+#define YT921X_TAG_TX_PORTS		GENMASK(10, 0)
 
 static struct sk_buff *
 yt921x_tag_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-	struct dsa_port *dp = dsa_user_to_port(netdev);
-	unsigned int port = dp->index;
 	__be16 *tag;
 	u16 tx;
 
@@ -58,7 +55,8 @@ yt921x_tag_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* VLAN tag unrelated when TX */
 	tag[1] = 0;
 	tag[2] = 0;
-	tx = YT921X_TAG_PORT_EN | YT921X_TAG_TX_PORTn(port);
+	tx = FIELD_PREP(YT921X_TAG_TX_PORTS, dsa_xmit_port_mask(skb, netdev)) |
+	     YT921X_TAG_PORT_EN;
 	tag[3] = htons(tx);
 
 	return skb;

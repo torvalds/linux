@@ -319,6 +319,24 @@ static inline void *dsa_etype_header_pos_tx(struct sk_buff *skb)
 	return skb->data + 2 * ETH_ALEN;
 }
 
+static inline unsigned long dsa_xmit_port_mask(const struct sk_buff *skb,
+					       const struct net_device *dev)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	unsigned long mask = BIT(dp->index);
+
+	if (IS_ENABLED(CONFIG_HSR) &&
+	    unlikely(dev->features & NETIF_F_HW_HSR_DUP)) {
+		struct net_device *hsr_dev = dp->hsr_dev;
+		struct dsa_port *other_dp;
+
+		dsa_hsr_foreach_port(other_dp, dp->ds, hsr_dev)
+			mask |= BIT(other_dp->index);
+	}
+
+	return mask;
+}
+
 /* Create 2 modaliases per tagging protocol, one to auto-load the module
  * given the ID reported by get_tag_protocol(), and the other by name.
  */
