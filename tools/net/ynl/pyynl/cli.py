@@ -10,7 +10,7 @@ import sys
 import textwrap
 
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
-from lib import YnlFamily, Netlink, NlError
+from lib import YnlFamily, Netlink, NlError, SpecFamily
 
 sys_schema_dir='/usr/share/ynl'
 relative_schema_dir='../../../../Documentation/netlink'
@@ -127,6 +127,7 @@ def main():
     group.add_argument('--list-msgs', action='store_true')
     group.add_argument('--list-attrs', dest='list_attrs', metavar='OPERATION', type=str,
                        help='List attributes for an operation')
+    group.add_argument('--validate', action='store_true')
 
     parser.add_argument('--duration', dest='duration', type=int,
                         help='when subscribed, watch for DURATION seconds')
@@ -168,14 +169,24 @@ def main():
 
     if args.family:
         spec = f"{spec_dir()}/{args.family}.yaml"
-        if args.schema is None and spec.startswith(sys_schema_dir):
-            args.schema = '' # disable schema validation when installed
-        if args.process_unknown is None:
-            args.process_unknown = True
     else:
         spec = args.spec
     if not os.path.isfile(spec):
         raise Exception(f"Spec file {spec} does not exist")
+
+    if args.validate:
+        try:
+            SpecFamily(spec, args.schema)
+        except Exception as error:
+            print(error)
+            exit(1)
+        return
+
+    if args.family: # set behaviour when using installed specs
+        if args.schema is None and spec.startswith(sys_schema_dir):
+            args.schema = '' # disable schema validation when installed
+        if args.process_unknown is None:
+            args.process_unknown = True
 
     ynl = YnlFamily(spec, args.schema, args.process_unknown,
                     recv_size=args.dbg_small_recv)
