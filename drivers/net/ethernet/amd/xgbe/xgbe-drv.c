@@ -410,15 +410,29 @@ static void xgbe_isr_bh_work(struct work_struct *work)
 		 * Decide which NAPI to use and whether to schedule:
 		 * - When not using per-channel IRQs: schedule on global NAPI
 		 *   if TI or RI are set.
+		 * - RBU should also trigger NAPI (either per-channel or global)
+		 *   to allow refill.
 		 */
 		if (!per_ch_irq && (ti || ri))
 			schedule_napi = true;
+
+		if (rbu) {
+			schedule_napi = true;
+			pdata->ext_stats.rx_buffer_unavailable++;
+		}
 
 		napi = per_ch_irq ? &channel->napi : &pdata->napi;
 
 		if (schedule_napi && napi_schedule_prep(napi)) {
 			/* Disable interrupts appropriately before polling */
-			xgbe_disable_rx_tx_ints(pdata);
+			if (per_ch_irq) {
+				if (pdata->channel_irq_mode)
+					xgbe_disable_rx_tx_int(pdata, channel);
+				else
+					disable_irq_nosync(channel->dma_irq);
+			} else {
+				xgbe_disable_rx_tx_ints(pdata);
+			}
 
 			/* Turn on polling */
 			__napi_schedule(napi);
@@ -435,9 +449,6 @@ static void xgbe_isr_bh_work(struct work_struct *work)
 			XGMAC_SET_BITS(dma_ch_isr, DMA_CH_SR, TI, 0);
 			XGMAC_SET_BITS(dma_ch_isr, DMA_CH_SR, RI, 0);
 		}
-
-		if (rbu)
-			pdata->ext_stats.rx_buffer_unavailable++;
 
 		/* Restart the device on a Fatal Bus Error */
 		if (fbe)
