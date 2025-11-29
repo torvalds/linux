@@ -150,7 +150,7 @@ enum rtrs_msg_types {
 
 /**
  * enum rtrs_msg_flags - RTRS message flags.
- * @RTRS_NEED_INVAL:	Send invalidation in response.
+ * @RTRS_MSG_NEED_INVAL_F: Send invalidation in response.
  * @RTRS_MSG_NEW_RKEY_F: Send refreshed rkey in response.
  */
 enum rtrs_msg_flags {
@@ -179,16 +179,19 @@ struct rtrs_sg_desc {
  * @recon_cnt:	   Reconnections counter
  * @sess_uuid:	   UUID of a session (path)
  * @paths_uuid:	   UUID of a group of sessions (paths)
- *
+ * @first_conn:    %1 if the connection request is the first for that session,
+ *			otherwise %0
  * NOTE: max size 56 bytes, see man rdma_connect().
  */
 struct rtrs_msg_conn_req {
-	/* Is set to 0 by cma.c in case of AF_IB, do not touch that.
-	 * see https://www.spinics.net/lists/linux-rdma/msg22397.html
+	/**
+	 * @__cma_version: Is set to 0 by cma.c in case of AF_IB, do not touch
+	 * that. See https://www.spinics.net/lists/linux-rdma/msg22397.html
 	 */
 	u8		__cma_version;
-	/* On sender side that should be set to 0, or cma_save_ip_info()
-	 * extract garbage and will fail.
+	/**
+	 * @__ip_version: On sender side that should be set to 0, or
+	 * cma_save_ip_info() extract garbage and will fail.
 	 */
 	u8		__ip_version;
 	__le16		magic;
@@ -199,6 +202,7 @@ struct rtrs_msg_conn_req {
 	uuid_t		sess_uuid;
 	uuid_t		paths_uuid;
 	u8		first_conn : 1;
+	/* private: */
 	u8		reserved_bits : 7;
 	u8		reserved[11];
 };
@@ -211,6 +215,7 @@ struct rtrs_msg_conn_req {
  * @queue_depth:   max inflight messages (queue-depth) in this session
  * @max_io_size:   max io size server supports
  * @max_hdr_size:  max msg header size server supports
+ * @flags:	   RTRS message flags for this message
  *
  * NOTE: size is 56 bytes, max possible is 136 bytes, see man rdma_accept().
  */
@@ -222,22 +227,24 @@ struct rtrs_msg_conn_rsp {
 	__le32		max_io_size;
 	__le32		max_hdr_size;
 	__le32		flags;
+	/* private: */
 	u8		reserved[36];
 };
 
 /**
- * struct rtrs_msg_info_req
+ * struct rtrs_msg_info_req - client additional info request
  * @type:		@RTRS_MSG_INFO_REQ
  * @pathname:		Path name chosen by client
  */
 struct rtrs_msg_info_req {
 	__le16		type;
 	u8		pathname[NAME_MAX];
+	/* private: */
 	u8		reserved[15];
 };
 
 /**
- * struct rtrs_msg_info_rsp
+ * struct rtrs_msg_info_rsp - server additional info response
  * @type:		@RTRS_MSG_INFO_RSP
  * @sg_cnt:		Number of @desc entries
  * @desc:		RDMA buffers where the client can write to server
@@ -245,12 +252,14 @@ struct rtrs_msg_info_req {
 struct rtrs_msg_info_rsp {
 	__le16		type;
 	__le16          sg_cnt;
+	/* private: */
 	u8              reserved[4];
+	/* public: */
 	struct rtrs_sg_desc desc[];
 };
 
 /**
- * struct rtrs_msg_rkey_rsp
+ * struct rtrs_msg_rkey_rsp - server refreshed rkey response
  * @type:		@RTRS_MSG_RKEY_RSP
  * @buf_id:		RDMA buf_id of the new rkey
  * @rkey:		new remote key for RDMA buffers id from server
@@ -264,6 +273,7 @@ struct rtrs_msg_rkey_rsp {
 /**
  * struct rtrs_msg_rdma_read - RDMA data transfer request from client
  * @type:		always @RTRS_MSG_READ
+ * @flags:		RTRS message flags (enum rtrs_msg_flags)
  * @usr_len:		length of user payload
  * @sg_cnt:		number of @desc entries
  * @desc:		RDMA buffers where the server can write the result to
@@ -277,7 +287,7 @@ struct rtrs_msg_rdma_read {
 };
 
 /**
- * struct_msg_rdma_write - Message transferred to server with RDMA-Write
+ * struct rtrs_msg_rdma_write - Message transferred to server with RDMA-Write
  * @type:		always @RTRS_MSG_WRITE
  * @usr_len:		length of user payload
  */
@@ -287,7 +297,7 @@ struct rtrs_msg_rdma_write {
 };
 
 /**
- * struct_msg_rdma_hdr - header for read or write request
+ * struct rtrs_msg_rdma_hdr - header for read or write request
  * @type:		@RTRS_MSG_WRITE | @RTRS_MSG_READ
  */
 struct rtrs_msg_rdma_hdr {
