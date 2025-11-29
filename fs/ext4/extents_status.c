@@ -1434,7 +1434,7 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	struct extent_status orig_es;
 	ext4_lblk_t len1, len2;
 	ext4_fsblk_t block;
-	int err = 0;
+	int err;
 	bool count_reserved = true;
 	struct rsvd_count rc;
 
@@ -1443,9 +1443,9 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 
 	es = __es_tree_search(&tree->root, lblk);
 	if (!es)
-		goto out;
+		return 0;
 	if (es->es_lblk > end)
-		goto out;
+		return 0;
 
 	/* Simply invalidate cache_es. */
 	tree->cache_es = NULL;
@@ -1480,7 +1480,7 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 
 				es->es_lblk = orig_es.es_lblk;
 				es->es_len = orig_es.es_len;
-				goto out;
+				return err;
 			}
 		} else {
 			es->es_lblk = end + 1;
@@ -1494,7 +1494,7 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 		if (count_reserved)
 			count_rsvd(inode, orig_es.es_lblk + len1,
 				   orig_es.es_len - len1 - len2, &orig_es, &rc);
-		goto out_get_reserved;
+		goto out;
 	}
 
 	if (len1 > 0) {
@@ -1536,11 +1536,10 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 		}
 	}
 
-out_get_reserved:
+out:
 	if (count_reserved)
 		*reserved = get_rsvd(inode, end, es, &rc);
-out:
-	return err;
+	return 0;
 }
 
 /*
