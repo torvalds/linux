@@ -3287,63 +3287,48 @@ static struct ext4_ext_path *ext4_split_extent_at(handle_t *handle,
 	ex = path[depth].p_ext;
 
 	if (EXT4_EXT_MAY_ZEROOUT & split_flag) {
-		if (split_flag & (EXT4_EXT_DATA_VALID1|EXT4_EXT_DATA_VALID2)) {
-			if (split_flag & EXT4_EXT_DATA_VALID1) {
-				err = ext4_ext_zeroout(inode, ex2);
-				zero_ex.ee_block = ex2->ee_block;
-				zero_ex.ee_len = cpu_to_le16(
-						ext4_ext_get_actual_len(ex2));
-				ext4_ext_store_pblock(&zero_ex,
-						      ext4_ext_pblock(ex2));
-			} else {
-				err = ext4_ext_zeroout(inode, ex);
-				zero_ex.ee_block = ex->ee_block;
-				zero_ex.ee_len = cpu_to_le16(
-						ext4_ext_get_actual_len(ex));
-				ext4_ext_store_pblock(&zero_ex,
-						      ext4_ext_pblock(ex));
-			}
-		} else {
-			err = ext4_ext_zeroout(inode, &orig_ex);
-			zero_ex.ee_block = orig_ex.ee_block;
-			zero_ex.ee_len = cpu_to_le16(
-						ext4_ext_get_actual_len(&orig_ex));
-			ext4_ext_store_pblock(&zero_ex,
-					      ext4_ext_pblock(&orig_ex));
-		}
+		if (split_flag & EXT4_EXT_DATA_VALID1)
+			memcpy(&zero_ex, ex2, sizeof(zero_ex));
+		else if (split_flag & EXT4_EXT_DATA_VALID2)
+			memcpy(&zero_ex, ex, sizeof(zero_ex));
+		else
+			memcpy(&zero_ex, &orig_ex, sizeof(zero_ex));
+		ext4_ext_mark_initialized(&zero_ex);
 
-		if (!err) {
+		err = ext4_ext_zeroout(inode, &zero_ex);
+		if (err)
+			goto fix_extent_len;
+
+		/*
+		 * The first half contains partially valid data, the splitting
+		 * of this extent has not been completed, fix extent length
+		 * and ext4_split_extent() split will the first half again.
+		 */
+		if (split_flag & EXT4_EXT_DATA_PARTIAL_VALID1) {
 			/*
-			 * The first half contains partially valid data, the
-			 * splitting of this extent has not been completed, fix
-			 * extent length and ext4_split_extent() split will the
-			 * first half again.
+			 * Drop extent cache to prevent stale unwritten
+			 * extents remaining after zeroing out.
 			 */
-			if (split_flag & EXT4_EXT_DATA_PARTIAL_VALID1) {
-				/*
-				 * Drop extent cache to prevent stale unwritten
-				 * extents remaining after zeroing out.
-				 */
-				ext4_es_remove_extent(inode,
+			ext4_es_remove_extent(inode,
 					le32_to_cpu(zero_ex.ee_block),
 					ext4_ext_get_actual_len(&zero_ex));
-				goto fix_extent_len;
-			}
-
-			/* update the extent length and mark as initialized */
-			ex->ee_len = cpu_to_le16(ee_len);
-			ext4_ext_try_to_merge(handle, inode, path, ex);
-			err = ext4_ext_dirty(handle, inode, path + path->p_depth);
-			if (!err)
-				/* update extent status tree */
-				ext4_zeroout_es(inode, &zero_ex);
-			/* If we failed at this point, we don't know in which
-			 * state the extent tree exactly is so don't try to fix
-			 * length of the original extent as it may do even more
-			 * damage.
-			 */
-			goto out;
+			goto fix_extent_len;
 		}
+
+		/* update the extent length and mark as initialized */
+		ex->ee_len = cpu_to_le16(ee_len);
+		ext4_ext_try_to_merge(handle, inode, path, ex);
+		err = ext4_ext_dirty(handle, inode, path + path->p_depth);
+		if (!err)
+			/* update extent status tree */
+			ext4_zeroout_es(inode, &zero_ex);
+		/*
+		 * If we failed at this point, we don't know in which
+		 * state the extent tree exactly is so don't try to fix
+		 * length of the original extent as it may do even more
+		 * damage.
+		 */
+		goto out;
 	}
 
 fix_extent_len:
