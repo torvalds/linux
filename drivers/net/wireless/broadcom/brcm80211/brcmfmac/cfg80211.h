@@ -182,7 +182,7 @@ struct brcmf_cfg80211_profile {
  * @BRCMF_VIF_STATUS_CONNECTED: connected/joined successfully.
  * @BRCMF_VIF_STATUS_DISCONNECTING: disconnect/disable in progress.
  * @BRCMF_VIF_STATUS_AP_CREATED: AP operation started.
- * @BRCMF_VIF_STATUS_EAP_SUCCUSS: EAPOL handshake successful.
+ * @BRCMF_VIF_STATUS_EAP_SUCCESS: EAPOL handshake successful.
  * @BRCMF_VIF_STATUS_ASSOC_SUCCESS: successful SET_SSID received.
  */
 enum brcmf_vif_status {
@@ -201,10 +201,12 @@ enum brcmf_vif_status {
  * @probe_req_ie: IE info for probe request.
  * @probe_res_ie: IE info for probe response.
  * @beacon_ie: IE info for beacon frame.
+ * @assoc_req_ie: IE info for association request frame.
  * @assoc_res_ie: IE info for association response frame.
  * @probe_req_ie_len: IE info length for probe request.
  * @probe_res_ie_len: IE info length for probe response.
  * @beacon_ie_len: IE info length for beacon frame.
+ * @assoc_req_ie_len: IE info length for association request frame.
  * @assoc_res_ie_len: IE info length for association response frame.
  */
 struct vif_saved_ie {
@@ -227,12 +229,14 @@ struct vif_saved_ie {
  * @wdev: wireless device.
  * @profile: profile information.
  * @sme_state: SME state using enum brcmf_vif_status bits.
+ * @saved_ie: saved IE info for a vif.
  * @list: linked list.
  * @mgmt_tx: completion for management frame transmit.
  * @mgmt_tx_status: status of last management frame sent to firmware.
  * @mgmt_tx_id:
  * @mgmt_rx_reg: registered rx mgmt frame types.
  * @mbss: Multiple BSS type, set if not first AP (not relevant for P2P).
+ * @is_11d: beacon contains country IE, enable regulatory 802.11d support
  * @cqm_rssi_low: Lower RSSI limit for CQM monitoring
  * @cqm_rssi_high: Upper RSSI limit for CQM monitoring
  * @cqm_rssi_last: Last RSSI reading for CQM monitoring
