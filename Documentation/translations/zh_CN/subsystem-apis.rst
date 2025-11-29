@@ -75,7 +75,6 @@ TODOList:
 
 TODOList:
 
-* block/index
 * cdrom/index
 * target/index
 
