@@ -127,6 +127,8 @@ ip -net "$nsr1" addr add fee1:2::1/64 dev veth1 nodad
 ip -net "$nsr2" addr add 192.168.10.2/24 dev veth0
 ip -net "$nsr2" addr add fee1:2::2/64 dev veth0 nodad
 
+ip netns exec "$nsr1" sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
+ip netns exec "$nsr2" sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
 for i in 0 1; do
   ip netns exec "$nsr1" sysctl net.ipv4.conf.veth$i.forwarding=1 > /dev/null
   ip netns exec "$nsr2" sysctl net.ipv4.conf.veth$i.forwarding=1 > /dev/null
@@ -153,7 +155,9 @@ ip -net "$ns1" route add default via dead:1::1
 ip -net "$ns2" route add default via dead:2::1
 
 ip -net "$nsr1" route add default via 192.168.10.2
+ip -6 -net "$nsr1" route add default via fee1:2::2
 ip -net "$nsr2" route add default via 192.168.10.1
+ip -6 -net "$nsr2" route add default via fee1:2::1
 
 ip netns exec "$nsr1" nft -f - <<EOF
 table inet filter {
@@ -352,8 +356,9 @@ test_tcp_forwarding_ip()
 	local nsa=$1
 	local nsb=$2
 	local pmtu=$3
-	local dstip=$4
-	local dstport=$5
+	local proto=$4
+	local dstip=$5
+	local dstport=$6
 	local lret=0
 	local socatc
 	local socatl
@@ -363,12 +368,14 @@ test_tcp_forwarding_ip()
 		infile="$nsin_small"
 	fi
 
-	timeout "$SOCAT_TIMEOUT" ip netns exec "$nsb" socat -4 TCP-LISTEN:12345,reuseaddr STDIO < "$infile" > "$ns2out" &
+	timeout "$SOCAT_TIMEOUT" ip netns exec "$nsb" socat -${proto} \
+            TCP"${proto}"-LISTEN:12345,reuseaddr STDIO < "$infile" > "$ns2out" &
 	lpid=$!
 
 	busywait 1000 listener_ready
 
-	timeout "$SOCAT_TIMEOUT" ip netns exec "$nsa" socat -4 TCP:"$dstip":"$dstport" STDIO < "$infile" > "$ns1out"
+	timeout "$SOCAT_TIMEOUT" ip netns exec "$nsa" socat -${proto} \
+            TCP"${proto}":"$dstip":"$dstport" STDIO < "$infile" > "$ns1out"
 	socatc=$?
 
 	wait $lpid
@@ -394,8 +401,11 @@ test_tcp_forwarding_ip()
 test_tcp_forwarding()
 {
 	local pmtu="$3"
+	local proto="$4"
+	local dstip="$5"
+	local dstport="$6"
 
-	test_tcp_forwarding_ip "$1" "$2" "$pmtu" 10.0.2.99 12345
+	test_tcp_forwarding_ip "$1" "$2" "$pmtu" "$proto" "$dstip" "$dstport"
 
 	return $?
 }
@@ -403,6 +413,9 @@ test_tcp_forwarding()
 test_tcp_forwarding_set_dscp()
 {
 	local pmtu="$3"
+	local proto="$4"
+	local dstip="$5"
+	local dstport="$6"
 
 ip netns exec "$nsr1" nft -f - <<EOF
 table netdev dscpmangle {
@@ -413,7 +426,7 @@ table netdev dscpmangle {
 }
 EOF
 if [ $? -eq 0 ]; then
-	test_tcp_forwarding_ip "$1" "$2" "$3" 10.0.2.99 12345
+	test_tcp_forwarding_ip "$1" "$2" "$pmtu" "$proto" "$dstip" "$dstport"
 	check_dscp "dscp_ingress" "$pmtu"
 
 	ip netns exec "$nsr1" nft delete table netdev dscpmangle
@@ -430,7 +443,7 @@ table netdev dscpmangle {
 }
 EOF
 if [ $? -eq 0 ]; then
-	test_tcp_forwarding_ip "$1" "$2" "$pmtu"  10.0.2.99 12345
+	test_tcp_forwarding_ip "$1" "$2" "$pmtu" "$proto" "$dstip" "$dstport"
 	check_dscp "dscp_egress" "$pmtu"
 
 	ip netns exec "$nsr1" nft delete table netdev dscpmangle
@@ -441,7 +454,7 @@ fi
 	# partial.  If flowtable really works, then both dscp-is-0 and dscp-is-cs3
 	# counters should have seen packets (before and after ft offload kicks in).
 	ip netns exec "$nsr1" nft -a insert rule inet filter forward ip dscp set cs3
-	test_tcp_forwarding_ip "$1" "$2" "$pmtu"  10.0.2.99 12345
+	test_tcp_forwarding_ip "$1" "$2" "$pmtu" "$proto" "$dstip" "$dstport"
 	check_dscp "dscp_fwd" "$pmtu"
 }
 
@@ -455,7 +468,7 @@ test_tcp_forwarding_nat()
 
 	[ "$pmtu" -eq 0 ] && what="$what (pmtu disabled)"
 
-	test_tcp_forwarding_ip "$nsa" "$nsb" "$pmtu" 10.0.2.99 12345
+	test_tcp_forwarding_ip "$nsa" "$nsb" "$pmtu" 4 10.0.2.99 12345
 	lret=$?
 
 	if [ "$lret" -eq 0 ] ; then
@@ -465,7 +478,7 @@ test_tcp_forwarding_nat()
 			echo "PASS: flow offload for ns1/ns2 with masquerade $what"
 		fi
 
-		test_tcp_forwarding_ip "$1" "$2" "$pmtu" 10.6.6.6 1666
+		test_tcp_forwarding_ip "$1" "$2" "$pmtu" 4 10.6.6.6 1666
 		lret=$?
 		if [ "$pmtu" -eq 1 ] ;then
 			check_counters "flow offload for ns1/ns2 with dnat $what"
@@ -487,10 +500,18 @@ make_file "$nsin_small" "$filesize_small"
 # Due to MTU mismatch in both directions, all packets (except small packets like pure
 # acks) have to be handled by normal forwarding path.  Therefore, packet counters
 # are not checked.
-if test_tcp_forwarding "$ns1" "$ns2" 0; then
+if test_tcp_forwarding "$ns1" "$ns2" 0 4 10.0.2.99 12345; then
 	echo "PASS: flow offloaded for ns1/ns2"
 else
 	echo "FAIL: flow offload for ns1/ns2:" 1>&2
+	ip netns exec "$nsr1" nft list ruleset
+	ret=1
+fi
+
+if test_tcp_forwarding "$ns1" "$ns2" 0 6 "[dead:2::99]" 12345; then
+	echo "PASS: IPv6 flow offloaded for ns1/ns2"
+else
+	echo "FAIL: IPv6 flow offload for ns1/ns2:" 1>&2
 	ip netns exec "$nsr1" nft list ruleset
 	ret=1
 fi
@@ -520,7 +541,7 @@ table ip nat {
 EOF
 
 check_dscp "dscp_none" "0"
-if ! test_tcp_forwarding_set_dscp "$ns1" "$ns2" 0 ""; then
+if ! test_tcp_forwarding_set_dscp "$ns1" "$ns2" 0 4 10.0.2.99 12345; then
 	echo "FAIL: flow offload for ns1/ns2 with dscp update and no pmtu discovery" 1>&2
 	exit 0
 fi
@@ -546,7 +567,7 @@ ip netns exec "$ns2" sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
 ip netns exec "$nsr1" nft reset counters table inet filter >/dev/null
 ip netns exec "$ns2"  nft reset counters table inet filter >/dev/null
 
-if ! test_tcp_forwarding_set_dscp "$ns1" "$ns2" 1 ""; then
+if ! test_tcp_forwarding_set_dscp "$ns1" "$ns2" 1 4 10.0.2.99 12345; then
 	echo "FAIL: flow offload for ns1/ns2 with dscp update and pmtu discovery" 1>&2
 	exit 0
 fi
@@ -557,6 +578,73 @@ if ! test_tcp_forwarding_nat "$ns1" "$ns2" 1 ""; then
 	echo "FAIL: flow offload for ns1/ns2 with NAT and pmtu discovery" 1>&2
 	ip netns exec "$nsr1" nft list ruleset
 fi
+
+# IPIP tunnel test:
+# Add IPIP tunnel interfaces and check flowtable acceleration.
+test_ipip() {
+if ! ip -net "$nsr1" link add name tun0 type ipip \
+     local 192.168.10.1 remote 192.168.10.2 >/dev/null;then
+	echo "SKIP: could not add ipip tunnel"
+	[ "$ret" -eq 0 ] && ret=$ksft_skip
+	return
+fi
+ip -net "$nsr1" link set tun0 up
+ip -net "$nsr1" addr add 192.168.100.1/24 dev tun0
+ip netns exec "$nsr1" sysctl net.ipv4.conf.tun0.forwarding=1 > /dev/null
+
+ip -net "$nsr2" link add name tun0 type ipip local 192.168.10.2 remote 192.168.10.1
+ip -net "$nsr2" link set tun0 up
+ip -net "$nsr2" addr add 192.168.100.2/24 dev tun0
+ip netns exec "$nsr2" sysctl net.ipv4.conf.tun0.forwarding=1 > /dev/null
+
+ip -net "$nsr1" route change default via 192.168.100.2
+ip -net "$nsr2" route change default via 192.168.100.1
+ip -net "$ns2" route add default via 10.0.2.1
+
+ip netns exec "$nsr1" nft -a insert rule inet filter forward 'meta oif tun0 accept'
+ip netns exec "$nsr1" nft -a insert rule inet filter forward \
+	'meta oif "veth0" tcp sport 12345 ct mark set 1 flow add @f1 counter name routed_repl accept'
+
+if ! test_tcp_forwarding_nat "$ns1" "$ns2" 1 "IPIP tunnel"; then
+	echo "FAIL: flow offload for ns1/ns2 with IPIP tunnel" 1>&2
+	ip netns exec "$nsr1" nft list ruleset
+	ret=1
+fi
+
+# Create vlan tagged devices for IPIP traffic.
+ip -net "$nsr1" link add link veth1 name veth1.10 type vlan id 10
+ip -net "$nsr1" link set veth1.10 up
+ip -net "$nsr1" addr add 192.168.20.1/24 dev veth1.10
+ip netns exec "$nsr1" sysctl net.ipv4.conf.veth1/10.forwarding=1 > /dev/null
+ip netns exec "$nsr1" nft -a insert rule inet filter forward 'meta oif veth1.10 accept'
+ip -net "$nsr1" link add name tun1 type ipip local 192.168.20.1 remote 192.168.20.2
+ip -net "$nsr1" link set tun1 up
+ip -net "$nsr1" addr add 192.168.200.1/24 dev tun1
+ip -net "$nsr1" route change default via 192.168.200.2
+ip netns exec "$nsr1" sysctl net.ipv4.conf.tun1.forwarding=1 > /dev/null
+ip netns exec "$nsr1" nft -a insert rule inet filter forward 'meta oif tun1 accept'
+
+ip -net "$nsr2" link add link veth0 name veth0.10 type vlan id 10
+ip -net "$nsr2" link set veth0.10 up
+ip -net "$nsr2" addr add 192.168.20.2/24 dev veth0.10
+ip netns exec "$nsr2" sysctl net.ipv4.conf.veth0/10.forwarding=1 > /dev/null
+ip -net "$nsr2" link add name tun1 type ipip local 192.168.20.2 remote 192.168.20.1
+ip -net "$nsr2" link set tun1 up
+ip -net "$nsr2" addr add 192.168.200.2/24 dev tun1
+ip -net "$nsr2" route change default via 192.168.200.1
+ip netns exec "$nsr2" sysctl net.ipv4.conf.tun1.forwarding=1 > /dev/null
+
+if ! test_tcp_forwarding_nat "$ns1" "$ns2" 1 "IPIP tunnel over vlan"; then
+	echo "FAIL: flow offload for ns1/ns2 with IPIP tunnel over vlan" 1>&2
+	ip netns exec "$nsr1" nft list ruleset
+	ret=1
+fi
+
+# Restore the previous configuration
+ip -net "$nsr1" route change default via 192.168.10.2
+ip -net "$nsr2" route change default via 192.168.10.1
+ip -net "$ns2" route del default via 10.0.2.1
+}
 
 # Another test:
 # Add bridge interface br0 to Router1, with NAT enabled.
@@ -643,6 +731,8 @@ ip -net "$nsr1" addr add dead:1::1/64 dev veth0 nodad
 ip -net "$nsr1" link set up dev veth0
 }
 
+test_ipip
+
 test_bridge
 
 KEY_SHA="0x"$(ps -af | sha1sum | cut -d " " -f 1)
@@ -683,10 +773,18 @@ ip -net "$ns2" route del 192.168.10.1 via 10.0.2.1
 ip -net "$ns2" route add default via 10.0.2.1
 ip -net "$ns2" route add default via dead:2::1
 
-if test_tcp_forwarding "$ns1" "$ns2" 1; then
+if test_tcp_forwarding "$ns1" "$ns2" 1 4 10.0.2.99 12345; then
 	check_counters "ipsec tunnel mode for ns1/ns2"
 else
 	echo "FAIL: ipsec tunnel mode for ns1/ns2"
+	ip netns exec "$nsr1" nft list ruleset 1>&2
+	ip netns exec "$nsr1" cat /proc/net/xfrm_stat 1>&2
+fi
+
+if test_tcp_forwarding "$ns1" "$ns2" 1 6 "[dead:2::99]" 12345; then
+	check_counters "IPv6 ipsec tunnel mode for ns1/ns2"
+else
+	echo "FAIL: IPv6 ipsec tunnel mode for ns1/ns2"
 	ip netns exec "$nsr1" nft list ruleset 1>&2
 	ip netns exec "$nsr1" cat /proc/net/xfrm_stat 1>&2
 fi
