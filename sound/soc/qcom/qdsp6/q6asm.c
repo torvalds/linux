@@ -335,7 +335,6 @@ static int __q6asm_memory_unmap(struct audio_client *ac,
 	struct q6asm *a = dev_get_drvdata(ac->dev->parent);
 	struct apr_pkt *pkt;
 	int rc, pkt_size;
-	void *p __free(kfree) = NULL;
 
 	if (ac->port[dir].mem_map_handle == 0) {
 		dev_err(ac->dev, "invalid mem handle\n");
@@ -343,7 +342,7 @@ static int __q6asm_memory_unmap(struct audio_client *ac,
 	}
 
 	pkt_size = APR_HDR_SIZE + sizeof(*mem_unmap);
-	p = kzalloc(pkt_size, GFP_KERNEL);
+	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -428,7 +427,6 @@ static int __q6asm_memory_map_regions(struct audio_client *ac, int dir,
 	struct audio_port_data *port = NULL;
 	struct audio_buffer *ab = NULL;
 	struct apr_pkt *pkt;
-	void *p __free(kfree) = NULL;
 	unsigned long flags;
 	uint32_t num_regions, buf_sz;
 	int i, pkt_size;
@@ -447,7 +445,7 @@ static int __q6asm_memory_map_regions(struct audio_client *ac, int dir,
 	pkt_size = APR_HDR_SIZE + sizeof(*cmd) +
 		   (sizeof(*mregions) * num_regions);
 
-	p = kzalloc(pkt_size, GFP_KERNEL);
+	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
