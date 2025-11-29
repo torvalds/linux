@@ -3933,6 +3933,8 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 
 	/* get_block() before submitting IO, split the extent */
 	if (flags & EXT4_GET_BLOCKS_SPLIT_NOMERGE) {
+		int depth;
+
 		path = ext4_split_convert_extents(handle, inode, map, path,
 						  flags, allocated);
 		if (IS_ERR(path))
@@ -3948,7 +3950,13 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 			err = -EFSCORRUPTED;
 			goto errout;
 		}
-		map->m_flags |= EXT4_MAP_UNWRITTEN;
+		/* Don't mark unwritten if the extent has been zeroed out. */
+		path = ext4_find_extent(inode, map->m_lblk, path, flags);
+		if (IS_ERR(path))
+			return path;
+		depth = ext_depth(inode);
+		if (ext4_ext_is_unwritten(path[depth].p_ext))
+			map->m_flags |= EXT4_MAP_UNWRITTEN;
 		goto out;
 	}
 	/* IO end_io complete, convert the filled extent to written */
