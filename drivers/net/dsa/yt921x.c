@@ -2855,6 +2855,8 @@ static int yt921x_mdio_probe(struct mdio_device *mdiodev)
 	ds->assisted_learning_on_cpu_port = true;
 	ds->priv = priv;
 	ds->ops = &yt921x_dsa_switch_ops;
+	ds->ageing_time_min = 1 * 5000;
+	ds->ageing_time_max = U16_MAX * 5000;
 	ds->phylink_mac_ops = &yt921x_phylink_mac_ops;
 	ds->num_ports = YT921X_PORT_NUM;
 
