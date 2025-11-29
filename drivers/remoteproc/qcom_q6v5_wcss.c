@@ -887,9 +887,9 @@ static int q6v5_alloc_memory_region(struct q6v5_wcss *wcss)
 	wcss->mem_reloc = res.start;
 	wcss->mem_size = resource_size(&res);
 	wcss->mem_region = devm_ioremap_resource_wc(dev, &res);
-	if (!wcss->mem_region) {
+	if (IS_ERR(wcss->mem_region)) {
 		dev_err(dev, "unable to map memory region: %pR\n", &res);
-		return -EBUSY;
+		return PTR_ERR(wcss->mem_region);
 	}
 
 	return 0;
