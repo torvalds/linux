@@ -1077,6 +1077,7 @@ static int q6afe_set_param(struct q6afe *afe, struct q6afe_port *port,
 	struct apr_pkt *pkt;
 	int ret, pkt_size = APR_HDR_SIZE + sizeof(*param) + sizeof(*pdata) + psize;
 	void *pl;
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -1128,6 +1129,7 @@ static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
 	u16 port_id = port->id;
 	int ret, pkt_size = APR_HDR_SIZE + sizeof(*param) + sizeof(*pdata) + psize;
 	void *pl;
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -1832,6 +1834,7 @@ int q6afe_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
 	struct apr_pkt *pkt;
 	int ret = 0;
 	int pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -1866,6 +1869,7 @@ int q6afe_vote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
 	struct apr_pkt *pkt;
 	int ret = 0;
 	int pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;

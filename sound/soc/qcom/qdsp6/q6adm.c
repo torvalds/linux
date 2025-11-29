@@ -331,6 +331,7 @@ static int q6adm_device_open(struct q6adm *adm, struct q6copp *copp,
 	int afe_port = q6afe_get_port_id(port_id);
 	struct apr_pkt *pkt;
 	int ret, pkt_size = APR_HDR_SIZE + sizeof(*open);
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -466,6 +467,7 @@ int q6adm_matrix_map(struct device *dev, int path,
 	struct q6copp *copp;
 	int pkt_size = (APR_HDR_SIZE + sizeof(*route) +  sizeof(*node) +
 		    (sizeof(uint32_t) * payload_map.num_copps));
+
 	void *matrix_map __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!matrix_map)
 		return -ENOMEM;
