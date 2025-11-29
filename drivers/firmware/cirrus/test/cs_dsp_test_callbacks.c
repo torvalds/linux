@@ -600,6 +600,7 @@ KUNIT_ARRAY_PARAM(cs_dsp_callbacks_ops,
 
 static const struct cs_dsp_callbacks_test_param cs_dsp_no_callbacks_cases[] = {
 	{ .ops =  &cs_dsp_callback_test_empty_client_ops, .case_name = "empty ops" },
+	{ .ops =  NULL, .case_name = "NULL ops" },
 };
 
 KUNIT_ARRAY_PARAM(cs_dsp_no_callbacks,

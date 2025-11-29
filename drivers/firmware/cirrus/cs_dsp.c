@@ -2329,6 +2329,9 @@ static int cs_dsp_create_name(struct cs_dsp *dsp)
 	return 0;
 }
 
+static const struct cs_dsp_client_ops cs_dsp_default_client_ops = {
+};
+
 static int cs_dsp_common_init(struct cs_dsp *dsp)
 {
 	int ret;
@@ -2341,6 +2344,9 @@ static int cs_dsp_common_init(struct cs_dsp *dsp)
 	INIT_LIST_HEAD(&dsp->ctl_list);
 
 	mutex_init(&dsp->pwr_lock);
+
+	if (!dsp->client_ops)
+		dsp->client_ops = &cs_dsp_default_client_ops;
 
 #ifdef CONFIG_DEBUG_FS
 	/* Ensure this is invalid if client never provides a debugfs root */
