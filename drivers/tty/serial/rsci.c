@@ -24,7 +24,6 @@ MODULE_IMPORT_NS("SH_SCI");
 #define CCR3	0x14
 #define CCR4	0x18
 #define FCR	0x24
-#define DCR	0x30
 #define CSR	0x48
 #define FRSR	0x50
 #define FTSR	0x54
@@ -118,8 +117,6 @@ MODULE_IMPORT_NS("SH_SCI");
 
 /* FFCLR (FIFO Flag CLear Register) */
 #define FFCLR_DRC		BIT(0)	/* DR Clear */
-
-#define DCR_DEPOL		BIT(0)
 
 static u32 rsci_serial_in(struct uart_port *p, int offset)
 {
