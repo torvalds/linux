@@ -11,9 +11,9 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/bitfield.h>
@@ -1143,12 +1143,9 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 		SPI_MODE_0  | SPI_MODE_3;
 
 	cdns_xspi = spi_controller_get_devdata(host);
-	cdns_xspi->driver_data = of_device_get_match_data(dev);
-	if (!cdns_xspi->driver_data) {
-		cdns_xspi->driver_data = acpi_device_get_match_data(dev);
-		if (!cdns_xspi->driver_data)
-			return -ENODEV;
-	}
+	cdns_xspi->driver_data = device_get_match_data(dev);
+	if (!cdns_xspi->driver_data)
+		return -ENODEV;
 
 	if (cdns_xspi->driver_data->mrvl_hw_overlay) {
 		host->mem_ops = &marvell_xspi_mem_ops;
