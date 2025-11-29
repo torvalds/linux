@@ -637,9 +637,10 @@ static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 	adsp->mem_phys = adsp->mem_reloc = res.start;
 	adsp->mem_size = resource_size(&res);
 	adsp->mem_region = devm_ioremap_resource_wc(adsp->dev, &res);
-	if (!adsp->mem_region) {
+	if (IS_ERR(adsp->mem_region)) {
 		dev_err(adsp->dev, "unable to map memory region: %pR\n", &res);
-		return -EBUSY;
+		return PTR_ERR(adsp->mem_region);
+
 	}
 
 	return 0;
