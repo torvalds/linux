@@ -178,7 +178,8 @@ static struct kmem_cache *ext4_pending_cachep;
 static int __es_insert_extent(struct inode *inode, struct extent_status *newes,
 			      struct extent_status *prealloc);
 static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
-			      ext4_lblk_t end, int *reserved,
+			      ext4_lblk_t end, unsigned int status,
+			      int *reserved, struct extent_status *res,
 			      struct extent_status *prealloc);
 static int es_reclaim_extents(struct ext4_inode_info *ei, int *nr_to_scan);
 static int __es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
@@ -240,6 +241,21 @@ static inline void ext4_es_inc_seq(struct inode *inode)
 	struct ext4_inode_info *ei = EXT4_I(inode);
 
 	WRITE_ONCE(ei->i_es_seq, ei->i_es_seq + 1);
+}
+
+static inline int __es_check_extent_status(struct extent_status *es,
+					   unsigned int status,
+					   struct extent_status *res)
+{
+	if (ext4_es_type(es) & status)
+		return 0;
+
+	if (res) {
+		res->es_lblk = es->es_lblk;
+		res->es_len = es->es_len;
+		res->es_pblk = es->es_pblk;
+	}
+	return -EINVAL;
 }
 
 /*
@@ -929,7 +945,7 @@ retry:
 		pr = __alloc_pending(true);
 	write_lock(&EXT4_I(inode)->i_es_lock);
 
-	err1 = __es_remove_extent(inode, lblk, end, &resv_used, es1);
+	err1 = __es_remove_extent(inode, lblk, end, 0, &resv_used, NULL, es1);
 	if (err1 != 0)
 		goto error;
 	/* Free preallocated extent if it didn't get used. */
@@ -1409,23 +1425,27 @@ static unsigned int get_rsvd(struct inode *inode, ext4_lblk_t end,
 	return rc->ndelayed;
 }
 
-
 /*
  * __es_remove_extent - removes block range from extent status tree
  *
  * @inode - file containing range
  * @lblk - first block in range
  * @end - last block in range
+ * @status - the extent status to be checked
  * @reserved - number of cluster reservations released
+ * @res - return the extent if the status is not match
  * @prealloc - pre-allocated es to avoid memory allocation failures
  *
  * If @reserved is not NULL and delayed allocation is enabled, counts
  * block/cluster reservations freed by removing range and if bigalloc
- * enabled cancels pending reservations as needed. Returns 0 on success,
- * error code on failure.
+ * enabled cancels pending reservations as needed. If @status is not
+ * zero, check extent status type while removing extent, return -EINVAL
+ * and pass out the extent through @res if not match.  Returns 0 on
+ * success, error code on failure.
  */
 static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
-			      ext4_lblk_t end, int *reserved,
+			      ext4_lblk_t end, unsigned int status,
+			      int *reserved, struct extent_status *res,
 			      struct extent_status *prealloc)
 {
 	struct ext4_es_tree *tree = &EXT4_I(inode)->i_es_tree;
@@ -1440,12 +1460,18 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 
 	if (reserved == NULL || !test_opt(inode->i_sb, DELALLOC))
 		count_reserved = false;
+	if (status == 0)
+		status = ES_TYPE_MASK;
 
 	es = __es_tree_search(&tree->root, lblk);
 	if (!es)
 		return 0;
 	if (es->es_lblk > end)
 		return 0;
+
+	err = __es_check_extent_status(es, status, res);
+	if (err)
+		return err;
 
 	/* Simply invalidate cache_es. */
 	tree->cache_es = NULL;
@@ -1509,6 +1535,9 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	}
 
 	while (es && ext4_es_end(es) <= end) {
+		err = __es_check_extent_status(es, status, res);
+		if (err)
+			return err;
 		if (count_reserved)
 			count_rsvd(inode, es->es_lblk, es->es_len, es, &rc);
 		node = rb_next(&es->rb_node);
@@ -1523,6 +1552,10 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 
 	if (es && es->es_lblk < end + 1) {
 		ext4_lblk_t orig_len = es->es_len;
+
+		err = __es_check_extent_status(es, status, res);
+		if (err)
+			return err;
 
 		len1 = ext4_es_end(es) - end;
 		if (count_reserved)
@@ -1581,7 +1614,7 @@ retry:
 	 * is reclaimed.
 	 */
 	write_lock(&EXT4_I(inode)->i_es_lock);
-	err = __es_remove_extent(inode, lblk, end, &reserved, es);
+	err = __es_remove_extent(inode, lblk, end, 0, &reserved, NULL, es);
 	if (err)
 		goto error;
 	/* Free preallocated extent if it didn't get used. */
@@ -2173,7 +2206,7 @@ retry:
 	}
 	write_lock(&EXT4_I(inode)->i_es_lock);
 
-	err1 = __es_remove_extent(inode, lblk, end, NULL, es1);
+	err1 = __es_remove_extent(inode, lblk, end, 0, NULL, NULL, es1);
 	if (err1 != 0)
 		goto error;
 	/* Free preallocated extent if it didn't get used. */
