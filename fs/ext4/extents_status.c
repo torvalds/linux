@@ -898,7 +898,8 @@ out:
 
 /*
  * ext4_es_insert_extent() adds information to an inode's extent
- * status tree.
+ * status tree. This interface is used for modifying extents. To cache
+ * on-disk extents, use ext4_es_cache_extent() instead.
  */
 void ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 			   ext4_lblk_t len, ext4_fsblk_t pblk,
@@ -977,10 +978,6 @@ retry:
 		}
 		pending = err3;
 	}
-	/*
-	 * TODO: For cache on-disk extents, there is no need to increment
-	 * the sequence counter, this requires future optimization.
-	 */
 	ext4_es_inc_seq(inode);
 error:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
