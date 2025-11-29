@@ -367,10 +367,11 @@ static irqreturn_t xgbe_ecc_isr(int irq, void *data)
 static void xgbe_isr_bh_work(struct work_struct *work)
 {
 	struct xgbe_prv_data *pdata = from_work(pdata, work, dev_bh_work);
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	struct xgbe_channel *channel;
-	unsigned int dma_isr, dma_ch_isr;
 	unsigned int mac_isr, mac_tssr, mac_mdioisr;
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+	bool per_ch_irq, ti, ri, rbu, fbe;
+	unsigned int dma_isr, dma_ch_isr;
+	struct xgbe_channel *channel;
 	unsigned int i;
 
 	/* The DMA interrupt status register also reports MAC and MTL
@@ -384,43 +385,62 @@ static void xgbe_isr_bh_work(struct work_struct *work)
 	netif_dbg(pdata, intr, pdata->netdev, "DMA_ISR=%#010x\n", dma_isr);
 
 	for (i = 0; i < pdata->channel_count; i++) {
+		bool schedule_napi = false;
+		struct napi_struct *napi;
+
 		if (!(dma_isr & (1 << i)))
 			continue;
 
 		channel = pdata->channel[i];
 
 		dma_ch_isr = XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
+
+		/* Precompute flags once */
+		ti  = !!XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, TI);
+		ri  = !!XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RI);
+		rbu = !!XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RBU);
+		fbe = !!XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, FBE);
+
 		netif_dbg(pdata, intr, pdata->netdev, "DMA_CH%u_ISR=%#010x\n",
 			  i, dma_ch_isr);
 
-		/* The TI or RI interrupt bits may still be set even if using
-		 * per channel DMA interrupts. Check to be sure those are not
-		 * enabled before using the private data napi structure.
-		 */
-		if (!pdata->per_channel_irq &&
-		    (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, TI) ||
-		     XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RI))) {
-			if (napi_schedule_prep(&pdata->napi)) {
-				/* Disable Tx and Rx interrupts */
-				xgbe_disable_rx_tx_ints(pdata);
+		per_ch_irq = pdata->per_channel_irq;
 
-				/* Turn on polling */
-				__napi_schedule(&pdata->napi);
-			}
+		/*
+		 * Decide which NAPI to use and whether to schedule:
+		 * - When not using per-channel IRQs: schedule on global NAPI
+		 *   if TI or RI are set.
+		 */
+		if (!per_ch_irq && (ti || ri))
+			schedule_napi = true;
+
+		napi = per_ch_irq ? &channel->napi : &pdata->napi;
+
+		if (schedule_napi && napi_schedule_prep(napi)) {
+			/* Disable interrupts appropriately before polling */
+			xgbe_disable_rx_tx_ints(pdata);
+
+			/* Turn on polling */
+			__napi_schedule(napi);
 		} else {
-			/* Don't clear Rx/Tx status if doing per channel DMA
-			 * interrupts, these will be cleared by the ISR for
-			 * per channel DMA interrupts.
+			/*
+			 * Don't clear Rx/Tx status if doing per-channel DMA
+			 * interrupts; those bits will be serviced/cleared by
+			 * the per-channel ISR/NAPI. In non-per-channel mode
+			 * when we're not scheduling NAPI here, ensure we don't
+			 * accidentally clear TI/RI in HW: zero them in the
+			 * local copy so that the eventual write-back does not
+			 * clear TI/RI.
 			 */
 			XGMAC_SET_BITS(dma_ch_isr, DMA_CH_SR, TI, 0);
 			XGMAC_SET_BITS(dma_ch_isr, DMA_CH_SR, RI, 0);
 		}
 
-		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RBU))
+		if (rbu)
 			pdata->ext_stats.rx_buffer_unavailable++;
 
 		/* Restart the device on a Fatal Bus Error */
-		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, FBE))
+		if (fbe)
 			schedule_work(&pdata->restart_work);
 
 		/* Clear interrupt signals */
