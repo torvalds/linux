@@ -196,32 +196,21 @@ static noinline int check_deadlock_ABBA(rqspinlock_t *lock, u32 mask)
 	return 0;
 }
 
-static noinline int check_deadlock(rqspinlock_t *lock, u32 mask)
-{
-	int ret;
-
-	ret = check_deadlock_AA(lock);
-	if (ret)
-		return ret;
-	ret = check_deadlock_ABBA(lock, mask);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static noinline int check_timeout(rqspinlock_t *lock, u32 mask,
 				  struct rqspinlock_timeout *ts)
 {
-	u64 time = ktime_get_mono_fast_ns();
 	u64 prev = ts->cur;
+	u64 time;
 
 	if (!ts->timeout_end) {
-		ts->cur = time;
-		ts->timeout_end = time + ts->duration;
+		if (check_deadlock_AA(lock))
+			return -EDEADLK;
+		ts->cur = ktime_get_mono_fast_ns();
+		ts->timeout_end = ts->cur + ts->duration;
 		return 0;
 	}
 
+	time = ktime_get_mono_fast_ns();
 	if (time > ts->timeout_end)
 		return -ETIMEDOUT;
 
@@ -231,7 +220,7 @@ static noinline int check_timeout(rqspinlock_t *lock, u32 mask,
 	 */
 	if (prev + NSEC_PER_MSEC < time) {
 		ts->cur = time;
-		return check_deadlock(lock, mask);
+		return check_deadlock_ABBA(lock, mask);
 	}
 
 	return 0;
@@ -275,6 +264,10 @@ int __lockfunc resilient_tas_spin_lock(rqspinlock_t *lock)
 	int val, ret = 0;
 
 	RES_INIT_TIMEOUT(ts);
+	/*
+	 * The fast path is not invoked for the TAS fallback, so we must grab
+	 * the deadlock detection entry here.
+	 */
 	grab_held_lock_entry(lock);
 
 	/*
@@ -397,10 +390,7 @@ int __lockfunc resilient_queued_spin_lock_slowpath(rqspinlock_t *lock, u32 val)
 		goto queue;
 	}
 
-	/*
-	 * Grab an entry in the held locks array, to enable deadlock detection.
-	 */
-	grab_held_lock_entry(lock);
+	/* Deadlock detection entry already held after failing fast path. */
 
 	/*
 	 * We're pending, wait for the owner to go away.
@@ -447,12 +437,21 @@ int __lockfunc resilient_queued_spin_lock_slowpath(rqspinlock_t *lock, u32 val)
 	 * queuing.
 	 */
 queue:
-	lockevent_inc(lock_slowpath);
 	/*
-	 * Grab deadlock detection entry for the queue path.
+	 * Do not queue if we're a waiter and someone is attempting this lock on
+	 * the same CPU. In case of NMIs, this prevents long timeouts where we
+	 * interrupt the pending waiter, and the owner, that will eventually
+	 * signal the head of our queue, both of which are logically but not
+	 * physically part of the queue, hence outside the scope of the idx > 0
+	 * check above for the trylock fallback.
 	 */
-	grab_held_lock_entry(lock);
+	if (check_deadlock_AA(lock)) {
+		ret = -EDEADLK;
+		goto err_release_entry;
+	}
 
+	lockevent_inc(lock_slowpath);
+	/* Deadlock detection entry already held after failing fast path. */
 	node = this_cpu_ptr(&rqnodes[0].mcs);
 	idx = node->count++;
 	tail = encode_tail(smp_processor_id(), idx);
@@ -464,19 +463,17 @@ queue:
 	 * not be nested NMIs taking spinlocks. That may not be true in
 	 * some architectures even though the chance of needing more than
 	 * 4 nodes will still be extremely unlikely. When that happens,
-	 * we fall back to spinning on the lock directly without using
-	 * any MCS node. This is not the most elegant solution, but is
-	 * simple enough.
+	 * we fall back to attempting a trylock operation without using
+	 * any MCS node. Unlike qspinlock which cannot fail, we have the
+	 * option of failing the slow path, and under contention, such a
+	 * trylock spinning will likely be treated unfairly due to lack of
+	 * queueing, hence do not spin.
 	 */
-	if (unlikely(idx >= _Q_MAX_NODES || in_nmi())) {
+	if (unlikely(idx >= _Q_MAX_NODES || (in_nmi() && idx > 0))) {
 		lockevent_inc(lock_no_node);
-		RES_RESET_TIMEOUT(ts, RES_DEF_TIMEOUT);
-		while (!queued_spin_trylock(lock)) {
-			if (RES_CHECK_TIMEOUT(ts, ret, ~0u)) {
-				lockevent_inc(rqspinlock_lock_timeout);
-				goto err_release_node;
-			}
-			cpu_relax();
+		if (!queued_spin_trylock(lock)) {
+			ret = -EDEADLK;
+			goto err_release_node;
 		}
 		goto release;
 	}

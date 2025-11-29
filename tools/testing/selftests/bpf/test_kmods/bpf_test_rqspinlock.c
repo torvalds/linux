@@ -33,9 +33,16 @@ static const unsigned int rqsl_hist_ms[] = {
 };
 #define RQSL_NR_HIST_BUCKETS ARRAY_SIZE(rqsl_hist_ms)
 
+enum rqsl_context {
+	RQSL_CTX_NORMAL = 0,
+	RQSL_CTX_NMI,
+	RQSL_CTX_MAX,
+};
+
 struct rqsl_cpu_hist {
-	atomic64_t normal[RQSL_NR_HIST_BUCKETS];
-	atomic64_t nmi[RQSL_NR_HIST_BUCKETS];
+	atomic64_t hist[RQSL_CTX_MAX][RQSL_NR_HIST_BUCKETS];
+	atomic64_t success[RQSL_CTX_MAX];
+	atomic64_t failure[RQSL_CTX_MAX];
 };
 
 static DEFINE_PER_CPU(struct rqsl_cpu_hist, rqsl_cpu_hists);
@@ -117,14 +124,18 @@ static u32 rqsl_hist_bucket_idx(u32 delta_ms)
 	return RQSL_NR_HIST_BUCKETS - 1;
 }
 
-static void rqsl_record_lock_time(u64 delta_ns, bool is_nmi)
+static void rqsl_record_lock_result(u64 delta_ns, enum rqsl_context ctx, int ret)
 {
 	struct rqsl_cpu_hist *hist = this_cpu_ptr(&rqsl_cpu_hists);
 	u32 delta_ms = DIV_ROUND_UP_ULL(delta_ns, NSEC_PER_MSEC);
 	u32 bucket = rqsl_hist_bucket_idx(delta_ms);
-	atomic64_t *buckets = is_nmi ? hist->nmi : hist->normal;
+	atomic64_t *buckets = hist->hist[ctx];
 
 	atomic64_inc(&buckets[bucket]);
+	if (!ret)
+		atomic64_inc(&hist->success[ctx]);
+	else
+		atomic64_inc(&hist->failure[ctx]);
 }
 
 static int rqspinlock_worker_fn(void *arg)
@@ -147,7 +158,8 @@ static int rqspinlock_worker_fn(void *arg)
 			}
 			start_ns = ktime_get_mono_fast_ns();
 			ret = raw_res_spin_lock_irqsave(worker_lock, flags);
-			rqsl_record_lock_time(ktime_get_mono_fast_ns() - start_ns, false);
+			rqsl_record_lock_result(ktime_get_mono_fast_ns() - start_ns,
+						RQSL_CTX_NORMAL, ret);
 			mdelay(normal_delay);
 			if (!ret)
 				raw_res_spin_unlock_irqrestore(worker_lock, flags);
@@ -190,7 +202,8 @@ static void nmi_cb(struct perf_event *event, struct perf_sample_data *data,
 	locks = rqsl_get_lock_pair(cpu);
 	start_ns = ktime_get_mono_fast_ns();
 	ret = raw_res_spin_lock_irqsave(locks.nmi_lock, flags);
-	rqsl_record_lock_time(ktime_get_mono_fast_ns() - start_ns, true);
+	rqsl_record_lock_result(ktime_get_mono_fast_ns() - start_ns,
+				RQSL_CTX_NMI, ret);
 
 	mdelay(nmi_delay);
 
@@ -300,12 +313,14 @@ static void rqsl_print_histograms(void)
 		u64 norm_counts[RQSL_NR_HIST_BUCKETS];
 		u64 nmi_counts[RQSL_NR_HIST_BUCKETS];
 		u64 total_counts[RQSL_NR_HIST_BUCKETS];
+		u64 norm_success, nmi_success, success_total;
+		u64 norm_failure, nmi_failure, failure_total;
 		u64 norm_total = 0, nmi_total = 0, total = 0;
 		bool has_slow = false;
 
 		for (i = 0; i < RQSL_NR_HIST_BUCKETS; i++) {
-			norm_counts[i] = atomic64_read(&hist->normal[i]);
-			nmi_counts[i] = atomic64_read(&hist->nmi[i]);
+			norm_counts[i] = atomic64_read(&hist->hist[RQSL_CTX_NORMAL][i]);
+			nmi_counts[i] = atomic64_read(&hist->hist[RQSL_CTX_NMI][i]);
 			total_counts[i] = norm_counts[i] + nmi_counts[i];
 			norm_total += norm_counts[i];
 			nmi_total += nmi_counts[i];
@@ -315,17 +330,33 @@ static void rqsl_print_histograms(void)
 				has_slow = true;
 		}
 
+		norm_success = atomic64_read(&hist->success[RQSL_CTX_NORMAL]);
+		nmi_success = atomic64_read(&hist->success[RQSL_CTX_NMI]);
+		norm_failure = atomic64_read(&hist->failure[RQSL_CTX_NORMAL]);
+		nmi_failure = atomic64_read(&hist->failure[RQSL_CTX_NMI]);
+		success_total = norm_success + nmi_success;
+		failure_total = norm_failure + nmi_failure;
+
 		if (!total)
 			continue;
 
 		if (!has_slow) {
-			pr_err(" cpu%d: total %llu (normal %llu, nmi %llu), all within 0-%ums\n",
-			       cpu, total, norm_total, nmi_total, RQSL_SLOW_THRESHOLD_MS);
+			pr_err(" cpu%d: total %llu (normal %llu, nmi %llu) | "
+			       "success %llu (normal %llu, nmi %llu) | "
+			       "failure %llu (normal %llu, nmi %llu), all within 0-%ums\n",
+			       cpu, total, norm_total, nmi_total,
+			       success_total, norm_success, nmi_success,
+			       failure_total, norm_failure, nmi_failure,
+			       RQSL_SLOW_THRESHOLD_MS);
 			continue;
 		}
 
-		pr_err(" cpu%d: total %llu (normal %llu, nmi %llu)\n",
-		       cpu, total, norm_total, nmi_total);
+		pr_err(" cpu%d: total %llu (normal %llu, nmi %llu) | "
+		       "success %llu (normal %llu, nmi %llu) | "
+		       "failure %llu (normal %llu, nmi %llu)\n",
+		       cpu, total, norm_total, nmi_total,
+		       success_total, norm_success, nmi_success,
+		       failure_total, norm_failure, nmi_failure);
 		for (i = 0; i < RQSL_NR_HIST_BUCKETS; i++) {
 			unsigned int start_ms;
 
