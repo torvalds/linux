@@ -26,7 +26,8 @@ static int afs_alloc_anon_key(struct afs_cell *cell)
 	struct key *key;
 
 	mutex_lock(&afs_key_lock);
-	if (!cell->anonymous_key) {
+	key = cell->anonymous_key;
+	if (!key) {
 		key = rxrpc_get_null_key(cell->key_desc);
 		if (!IS_ERR(key))
 			cell->anonymous_key = key;
