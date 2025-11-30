@@ -1584,8 +1584,8 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 {
 	int err = -ENOTDIR;
 	struct inode *parent;
-	struct dentry *dir;
-	struct dentry *entry;
+	struct dentry *dir = NULL;
+	struct dentry *entry = NULL;
 
 	parent = fuse_ilookup(fc, parent_nodeid, NULL);
 	if (!parent)
@@ -1598,11 +1598,19 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 	dir = d_find_alias(parent);
 	if (!dir)
 		goto put_parent;
-
-	entry = start_removing_noperm(dir, name);
-	dput(dir);
-	if (IS_ERR(entry))
-		goto put_parent;
+	while (!entry) {
+		struct dentry *child = try_lookup_noperm(name, dir);
+		if (!child || IS_ERR(child))
+			goto put_parent;
+		entry = start_removing_dentry(dir, child);
+		dput(child);
+		if (IS_ERR(entry))
+			goto put_parent;
+		if (!d_same_name(entry, dir, name)) {
+			end_removing(entry);
+			entry = NULL;
+		}
+	}
 
 	fuse_dir_changed(parent);
 	if (!(flags & FUSE_EXPIRE_ONLY))
@@ -1640,6 +1648,7 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 
 	end_removing(entry);
  put_parent:
+	dput(dir);
 	iput(parent);
 	return err;
 }
