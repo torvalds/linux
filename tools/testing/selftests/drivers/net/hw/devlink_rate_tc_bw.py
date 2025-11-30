@@ -117,8 +117,8 @@ def setup_vf(cfg, set_tc_mapping=True):
     except Exception as exc:
         raise KsftSkipEx(f"Failed to enable switchdev mode on {cfg.pci}") from exc
     try:
-        cmd(f"echo 1 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs")
-        defer(cmd, f"echo 0 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs")
+        cmd(f"echo 1 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs", shell=True)
+        defer(cmd, f"echo 0 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs", shell=True)
     except Exception as exc:
         raise KsftSkipEx(f"Failed to enable SR-IOV on {cfg.ifname}") from exc
 
