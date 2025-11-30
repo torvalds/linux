@@ -1652,6 +1652,8 @@ static const struct dsa_switch_ops gswip_switch_ops = {
 	.get_sset_count		= gswip_get_sset_count,
 	.set_mac_eee		= gswip_set_mac_eee,
 	.support_eee		= gswip_support_eee,
+	.port_hsr_join		= dsa_port_simple_hsr_join,
+	.port_hsr_leave		= dsa_port_simple_hsr_leave,
 };
 
 void gswip_disable_switch(struct gswip_priv *priv)
