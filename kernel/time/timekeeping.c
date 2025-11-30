@@ -3073,8 +3073,10 @@ static int __init tk_aux_sysfs_init(void)
 		char id[2] = { [0] = '0' + i, };
 		struct kobject *clk = kobject_create_and_add(id, auxo);
 
-		if (!clk)
+		if (!clk) {
+			ret = -ENOMEM;
 			goto err_clean;
+		}
 
 		ret = sysfs_create_group(clk, &aux_clock_enable_attr_group);
 		if (ret)
