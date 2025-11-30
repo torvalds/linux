@@ -1104,12 +1104,11 @@ health of the network and for discovery of other nodes.
 In Linux, both HSR and PRP are implemented in the hsr driver, which
 instantiates a virtual, stackable network interface with two member ports.
 The driver only implements the basic roles of DANH (Doubly Attached Node
-implementing HSR) and DANP (Doubly Attached Node implementing PRP); the roles
-of RedBox and QuadBox are not implemented (therefore, bridging a hsr network
-interface with a physical switch port does not produce the expected result).
+implementing HSR), DANP (Doubly Attached Node implementing PRP) and RedBox
+(allows non-HSR devices to connect to the ring via Interlink ports).
 
-A driver which is able of offloading certain functions of a DANP or DANH should
-declare the corresponding netdev features as indicated by the documentation at
+A driver which is able of offloading certain functions should declare the
+corresponding netdev features as indicated by the documentation at
 ``Documentation/networking/netdev-features.rst``. Additionally, the following
 methods must be implemented:
 
