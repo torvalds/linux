@@ -3254,7 +3254,7 @@ static int mt7988_setup(struct dsa_switch *ds)
 	return mt7531_setup_common(ds);
 }
 
-const struct dsa_switch_ops mt7530_switch_ops = {
+static const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_tag_protocol	= mtk_get_tag_protocol,
 	.setup			= mt753x_setup,
 	.preferred_default_local_cpu_port = mt753x_preferred_default_local_cpu_port,
@@ -3291,7 +3291,6 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.conduit_state_change	= mt753x_conduit_state_change,
 	.port_setup_tc		= mt753x_setup_tc,
 };
-EXPORT_SYMBOL_GPL(mt7530_switch_ops);
 
 static const struct phylink_mac_ops mt753x_phylink_mac_ops = {
 	.mac_select_pcs	= mt753x_phylink_mac_select_pcs,
