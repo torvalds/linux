@@ -297,6 +297,8 @@ static const struct dsa_switch_ops mv88e6060_switch_ops = {
 	.phy_read	= mv88e6060_phy_read,
 	.phy_write	= mv88e6060_phy_write,
 	.phylink_get_caps = mv88e6060_phylink_get_caps,
+	.port_hsr_join	= dsa_port_simple_hsr_join,
+	.port_hsr_leave	= dsa_port_simple_hsr_leave,
 };
 
 static int mv88e6060_probe(struct mdio_device *mdiodev)
