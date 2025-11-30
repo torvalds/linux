@@ -2,21 +2,89 @@
 
 import re
 import time
+import json
 
 from lib.py import ksft_pr, cmd, ip, rand_port, wait_port_listen
 
-class GenerateTraffic:
-    def __init__(self, env, port=None):
+
+class Iperf3Runner:
+    """
+    Sets up and runs iperf3 traffic.
+    """
+    def __init__(self, env, port=None, server_ip=None, client_ip=None):
         env.require_cmd("iperf3", local=True, remote=True)
-
         self.env = env
-
         self.port = rand_port() if port is None else port
-        self._iperf_server = cmd(f"iperf3 -s -1 -p {self.port}", background=True)
+        self.server_ip = server_ip
+        self.client_ip = client_ip
+
+    def _build_server(self):
+        cmdline = f"iperf3 -s -1 -p {self.port}"
+        if self.server_ip:
+            cmdline += f" -B {self.server_ip}"
+        return cmdline
+
+    def _build_client(self, streams, duration, reverse):
+        host = self.env.addr if self.server_ip is None else self.server_ip
+        cmdline = f"iperf3 -c {host} -p {self.port} -P {streams} -t {duration} -J"
+        if self.client_ip:
+            cmdline += f" -B {self.client_ip}"
+        if reverse:
+            cmdline += " --reverse"
+        return cmdline
+
+    def start_server(self):
+        """
+        Starts an iperf3 server with optional bind IP.
+        """
+        cmdline = self._build_server()
+        proc = cmd(cmdline, background=True)
         wait_port_listen(self.port)
         time.sleep(0.1)
-        self._iperf_client = cmd(f"iperf3 -c {env.addr} -P 16 -p {self.port} -t 86400",
-                                 background=True, host=env.remote)
+        return proc
+
+    def start_client(self, background=False, streams=1, duration=10, reverse=False):
+        """
+        Starts the iperf3 client with the configured options.
+        """
+        cmdline = self._build_client(streams, duration, reverse)
+        return cmd(cmdline, background=background, host=self.env.remote)
+
+    def measure_bandwidth(self, reverse=False):
+        """
+        Runs an iperf3 measurement and returns the average bandwidth (Gbps).
+        Discards the first and last few reporting intervals and uses only the
+        middle part of the run where throughput is typically stable.
+        """
+        self.start_server()
+        result = self.start_client(duration=10, reverse=reverse)
+
+        if result.ret != 0:
+            raise RuntimeError("iperf3 failed to run successfully")
+        try:
+            out = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Failed to parse iperf3 JSON output") from exc
+
+        intervals = out.get("intervals", [])
+        samples = [i["sum"]["bits_per_second"] / 1e9 for i in intervals]
+        if len(samples) < 10:
+            raise ValueError(f"iperf3 returned too few intervals: {len(samples)}")
+        # Discard potentially unstable first and last 3 seconds.
+        stable = samples[3:-3]
+
+        avg = sum(stable) / len(stable)
+
+        return avg
+
+
+class GenerateTraffic:
+    def __init__(self, env, port=None):
+        self.env = env
+        self.runner = Iperf3Runner(env, port)
+
+        self._iperf_server = self.runner.start_server()
+        self._iperf_client = self.runner.start_client(background=True, streams=16, duration=86400)
 
         # Wait for traffic to ramp up
         if not self._wait_pkts(pps=1000):
@@ -61,7 +129,7 @@ class GenerateTraffic:
     def _wait_client_stopped(self, sleep=0.005, timeout=5):
         end = time.monotonic() + timeout
 
-        live_port_pattern = re.compile(fr":{self.port:04X} 0[^6] ")
+        live_port_pattern = re.compile(fr":{self.runner.port:04X} 0[^6] ")
 
         while time.monotonic() < end:
             data = cmd("cat /proc/net/tcp*", host=self.env.remote).stdout
