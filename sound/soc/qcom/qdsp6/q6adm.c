@@ -186,11 +186,11 @@ static void q6adm_free_copp(struct kref *ref)
 	kfree(c);
 }
 
-static int q6adm_callback(struct apr_device *adev, struct apr_resp_pkt *data)
+static int q6adm_callback(struct apr_device *adev, const struct apr_resp_pkt *data)
 {
 	struct aprv2_ibasic_rsp_result_t *result = data->payload;
 	int port_idx, copp_idx;
-	struct apr_hdr *hdr = &data->hdr;
+	const struct apr_hdr *hdr = &data->hdr;
 	struct q6copp *copp;
 	struct q6adm *adm = dev_get_drvdata(&adev->dev);
 

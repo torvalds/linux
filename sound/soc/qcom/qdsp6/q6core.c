@@ -67,11 +67,11 @@ struct q6core {
 
 static struct q6core *g_core;
 
-static int q6core_callback(struct apr_device *adev, struct apr_resp_pkt *data)
+static int q6core_callback(struct apr_device *adev, const struct apr_resp_pkt *data)
 {
 	struct q6core *core = dev_get_drvdata(&adev->dev);
 	struct aprv2_ibasic_rsp_result_t *result;
-	struct apr_hdr *hdr = &data->hdr;
+	const struct apr_hdr *hdr = &data->hdr;
 
 	result = data->payload;
 	switch (hdr->opcode) {
