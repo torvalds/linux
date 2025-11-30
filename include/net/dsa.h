@@ -1322,6 +1322,15 @@ bool dsa_mdb_present_in_other_db(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_mdb *mdb,
 				 struct dsa_db db);
 
+int dsa_port_simple_hsr_validate(struct dsa_switch *ds, int port,
+				 struct net_device *hsr,
+				 struct netlink_ext_ack *extack);
+int dsa_port_simple_hsr_join(struct dsa_switch *ds, int port,
+			     struct net_device *hsr,
+			     struct netlink_ext_ack *extack);
+int dsa_port_simple_hsr_leave(struct dsa_switch *ds, int port,
+			      struct net_device *hsr);
+
 /* Keep inline for faster access in hot path */
 static inline bool netdev_uses_dsa(const struct net_device *dev)
 {
