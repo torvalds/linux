@@ -1119,6 +1119,14 @@ methods must be implemented:
 - ``port_hsr_leave``: function invoked when a given switch port leaves a
   DANP/DANH and returns to normal operation as a standalone port.
 
+Note that the ``NETIF_F_HW_HSR_DUP`` feature relies on transmission towards
+multiple ports, which is generally available whenever the tagging protocol uses
+the ``dsa_xmit_port_mask()`` helper function. If the helper is used, the HSR
+offload feature should also be set. The ``dsa_port_simple_hsr_join()`` and
+``dsa_port_simple_hsr_leave()`` methods can be used as generic implementations
+of ``port_hsr_join`` and ``port_hsr_leave``, if this is the only supported
+offload feature.
+
 TODO
 ====
 
