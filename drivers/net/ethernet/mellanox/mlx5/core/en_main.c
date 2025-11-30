@@ -2612,7 +2612,7 @@ static int mlx5e_open_queues(struct mlx5e_channel *c,
 	if (err)
 		goto err_close_icosq_cq;
 
-	if (netdev_ops->ndo_xdp_xmit) {
+	if (netdev_ops->ndo_xdp_xmit && c->xdp) {
 		c->xdpsq = mlx5e_open_xdpredirect_sq(c, params, cparam, &ccp);
 		if (IS_ERR(c->xdpsq)) {
 			err = PTR_ERR(c->xdpsq);
@@ -4415,19 +4415,18 @@ void mlx5e_set_xdp_feature(struct mlx5e_priv *priv)
 {
 	struct mlx5e_params *params = &priv->channels.params;
 	struct net_device *netdev = priv->netdev;
-	xdp_features_t val;
+	xdp_features_t val = 0;
 
-	if (!netdev->netdev_ops->ndo_bpf ||
-	    params->packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
-		xdp_set_features_flag_locked(netdev, 0);
-		return;
-	}
+	if (netdev->netdev_ops->ndo_bpf &&
+	    params->packet_merge.type == MLX5E_PACKET_MERGE_NONE)
+		val = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		      NETDEV_XDP_ACT_XSK_ZEROCOPY |
+		      NETDEV_XDP_ACT_RX_SG;
 
-	val = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-	      NETDEV_XDP_ACT_XSK_ZEROCOPY |
-	      NETDEV_XDP_ACT_RX_SG |
-	      NETDEV_XDP_ACT_NDO_XMIT |
-	      NETDEV_XDP_ACT_NDO_XMIT_SG;
+	if (netdev->netdev_ops->ndo_xdp_xmit && params->xdp_prog)
+		val |= NETDEV_XDP_ACT_NDO_XMIT |
+			NETDEV_XDP_ACT_NDO_XMIT_SG;
+
 	xdp_set_features_flag_locked(netdev, val);
 }
 
