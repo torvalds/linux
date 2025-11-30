@@ -399,10 +399,8 @@ static long luo_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	int err;
 
 	nr = _IOC_NR(cmd);
-	if (nr < LIVEUPDATE_CMD_BASE ||
-	    (nr - LIVEUPDATE_CMD_BASE) >= ARRAY_SIZE(luo_ioctl_ops)) {
+	if (nr - LIVEUPDATE_CMD_BASE >= ARRAY_SIZE(luo_ioctl_ops))
 		return -EINVAL;
-	}
 
 	ucmd.ubuffer = (void __user *)arg;
 	err = get_user(ucmd.user_size, (u32 __user *)ucmd.ubuffer);
