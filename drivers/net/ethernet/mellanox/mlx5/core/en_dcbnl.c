@@ -595,8 +595,8 @@ static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 max_bw_value[IEEE_8021QAZ_MAX_TCS];
 	u8 max_bw_unit[IEEE_8021QAZ_MAX_TCS];
-	__u64 upper_limit_mbps;
-	__u64 upper_limit_gbps;
+	u64 upper_limit_mbps;
+	u64 upper_limit_gbps;
 	int i;
 	struct {
 		int scale;
