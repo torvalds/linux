@@ -175,12 +175,12 @@ int q6prm_set_lpass_clock(struct device *dev, int clk_id, int clk_attr, int clk_
 }
 EXPORT_SYMBOL_GPL(q6prm_set_lpass_clock);
 
-static int prm_callback(struct gpr_resp_pkt *data, void *priv, int op)
+static int prm_callback(const struct gpr_resp_pkt *data, void *priv, int op)
 {
 	gpr_device_t *gdev = priv;
 	struct q6prm *prm = dev_get_drvdata(&gdev->dev);
 	struct gpr_ibasic_rsp_result_t *result;
-	struct gpr_hdr *hdr = &data->hdr;
+	const struct gpr_hdr *hdr = &data->hdr;
 
 	switch (hdr->opcode) {
 	case PRM_CMD_RSP_REQUEST_HW_RSC:

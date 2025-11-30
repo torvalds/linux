@@ -487,14 +487,14 @@ int q6apm_get_hw_pointer(struct q6apm_graph *graph, int dir)
 }
 EXPORT_SYMBOL_GPL(q6apm_get_hw_pointer);
 
-static int graph_callback(struct gpr_resp_pkt *data, void *priv, int op)
+static int graph_callback(const struct gpr_resp_pkt *data, void *priv, int op)
 {
 	struct data_cmd_rsp_rd_sh_mem_ep_data_buffer_done_v2 *rd_done;
 	struct data_cmd_rsp_wr_sh_mem_ep_data_buffer_done_v2 *done;
 	struct apm_cmd_rsp_shared_mem_map_regions *rsp;
 	struct gpr_ibasic_rsp_result_t *result;
 	struct q6apm_graph *graph = priv;
-	struct gpr_hdr *hdr = &data->hdr;
+	const struct gpr_hdr *hdr = &data->hdr;
 	struct device *dev = graph->dev;
 	uint32_t client_event;
 	phys_addr_t phys;
@@ -761,13 +761,13 @@ struct audioreach_module *q6apm_find_module_by_mid(struct q6apm_graph *graph, ui
 
 }
 
-static int apm_callback(struct gpr_resp_pkt *data, void *priv, int op)
+static int apm_callback(const struct gpr_resp_pkt *data, void *priv, int op)
 {
 	gpr_device_t *gdev = priv;
 	struct q6apm *apm = dev_get_drvdata(&gdev->dev);
 	struct device *dev = &gdev->dev;
 	struct gpr_ibasic_rsp_result_t *result;
-	struct gpr_hdr *hdr = &data->hdr;
+	const struct gpr_hdr *hdr = &data->hdr;
 
 	result = data->payload;
 
