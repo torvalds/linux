@@ -142,6 +142,7 @@ struct msr_counter {
 #define	FLAGS_SHOW	(1 << 1)
 #define	SYSFS_PERCPU	(1 << 1)
 };
+static int use_android_msr_path;
 
 struct msr_counter bic[] = {
 	{ 0x0, "usec", NULL, 0, 0, 0, NULL, 0 },
@@ -2413,20 +2414,11 @@ int get_msr_fd(int cpu)
 
 	if (fd)
 		return fd;
-#if defined(ANDROID)
-	sprintf(pathname, "/dev/msr%d", cpu);
-#else
-	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
-#endif
+	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
-#if defined(ANDROID)
-		err(-1, "%s open failed, try chown or chmod +r /dev/msr*, "
-		    "or run with --no-msr, or run as root", pathname);
-#else
-		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, "
-		    "or run with --no-msr, or run as root", pathname);
-#endif
+		err(-1, "%s open failed, try chown or chmod +r %s, "
+		    "or run with --no-msr, or run as root", pathname, use_android_msr_path ? "/dev/msr*" : "/dev/cpu/*/msr");
 	fd_percpu[cpu] = fd;
 
 	return fd;
@@ -6777,21 +6769,43 @@ restart:
 	}
 }
 
-void check_dev_msr()
+int probe_dev_msr(void)
 {
 	struct stat sb;
 	char pathname[32];
 
-	if (no_msr)
-		return;
-#if defined(ANDROID)
-	sprintf(pathname, "/dev/msr%d", base_cpu);
-#else
+        sprintf(pathname, "/dev/msr%d", base_cpu);
+        return !stat(pathname, &sb);
+}
+
+int probe_dev_cpu_msr(void)
+{
+	struct stat sb;
+	char pathname[32];
+
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
-#endif
-	if (stat(pathname, &sb))
-		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
-			no_msr = 1;
+	return !stat(pathname, &sb);
+}
+
+int probe_msr_driver(void)
+{
+	if (probe_dev_msr()) {
+		use_android_msr_path = 1;
+		return 1;
+	}
+	return probe_dev_cpu_msr();
+}
+
+void check_msr_driver(void)
+{
+	if (probe_msr_driver())
+		return;
+
+	if (system("/sbin/modprobe msr > /dev/null 2>&1"))
+		no_msr = 1;
+
+	if (!probe_msr_driver())
+		no_msr = 1;
 }
 
 /*
@@ -6846,11 +6860,7 @@ void check_msr_permission(void)
 	failed += check_for_cap_sys_rawio();
 
 	/* test file permissions */
-#if defined(ANDROID)
-	sprintf(pathname, "/dev/msr%d", base_cpu);
-#else
-	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
-#endif
+	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", base_cpu);
 	if (euidaccess(pathname, R_OK)) {
 		failed++;
 	}
@@ -9476,7 +9486,7 @@ bool has_added_counters(void)
 
 void check_msr_access(void)
 {
-	check_dev_msr();
+	check_msr_driver();
 	check_msr_permission();
 
 	if (no_msr)
@@ -10147,7 +10157,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2025.10.24 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2025.11.29 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
