@@ -156,7 +156,7 @@ struct apr_driver {
 	void	(*remove)(struct apr_device *sl);
 	int	(*callback)(struct apr_device *a,
 			    const struct apr_resp_pkt *d);
-	int	(*gpr_callback)(struct gpr_resp_pkt *d, void *data, int op);
+	gpr_port_cb gpr_callback;
 	struct device_driver		driver;
 	const struct apr_device_id	*id_table;
 };
