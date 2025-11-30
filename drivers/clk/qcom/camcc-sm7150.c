@@ -1895,7 +1895,7 @@ static struct gdsc camcc_titan_top_gdsc = {
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
-struct clk_hw *camcc_sm7150_hws[] = {
+static struct clk_hw *camcc_sm7150_hws[] = {
 	[CAMCC_PLL0_OUT_EVEN] = &camcc_pll0_out_even.hw,
 	[CAMCC_PLL0_OUT_ODD] = &camcc_pll0_out_odd.hw,
 	[CAMCC_PLL1_OUT_EVEN] = &camcc_pll1_out_even.hw,
