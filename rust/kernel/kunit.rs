@@ -190,7 +190,7 @@ pub fn is_test_result_ok(t: impl TestResult) -> bool {
 
 /// Represents an individual test case.
 ///
-/// The [`kunit_unsafe_test_suite!`] macro expects a NULL-terminated list of valid test cases.
+/// The [`kunit_unsafe_test_suite!`] macro expects a `NULL`-terminated list of valid test cases.
 /// Use [`kunit_case_null`] to generate such a delimiter.
 #[doc(hidden)]
 pub const fn kunit_case(
@@ -212,9 +212,9 @@ pub const fn kunit_case(
     }
 }
 
-/// Represents the NULL test case delimiter.
+/// Represents the `NULL` test case delimiter.
 ///
-/// The [`kunit_unsafe_test_suite!`] macro expects a NULL-terminated list of test cases. This
+/// The [`kunit_unsafe_test_suite!`] macro expects a `NULL`-terminated list of test cases. This
 /// function returns such a delimiter.
 #[doc(hidden)]
 pub const fn kunit_case_null() -> kernel::bindings::kunit_case {
@@ -237,7 +237,7 @@ pub const fn kunit_case_null() -> kernel::bindings::kunit_case {
 ///
 /// # Safety
 ///
-/// `test_cases` must be a NULL terminated array of valid test cases,
+/// `test_cases` must be a `NULL` terminated array of valid test cases,
 /// whose lifetime is at least that of the test suite (i.e., static).
 ///
 /// # Examples

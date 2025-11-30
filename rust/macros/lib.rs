@@ -154,7 +154,7 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// case the default implementation will never be executed. The reason for this
 /// is that the functions will be called through function pointers installed in
 /// C side vtables. When an optional method is not implemented on a `#[vtable]`
-/// trait, a NULL entry is installed in the vtable. Thus the default
+/// trait, a `NULL` entry is installed in the vtable. Thus the default
 /// implementation is never called. Since these traits are not designed to be
 /// used on the Rust side, it should not be possible to call the default
 /// implementation. This is done to ensure that we call the vtable methods

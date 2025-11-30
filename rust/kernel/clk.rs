@@ -94,7 +94,7 @@ mod common_clk {
     /// # Invariants
     ///
     /// A [`Clk`] instance holds either a pointer to a valid [`struct clk`] created by the C
-    /// portion of the kernel or a NULL pointer.
+    /// portion of the kernel or a `NULL` pointer.
     ///
     /// Instances of this type are reference-counted. Calling [`Clk::get`] ensures that the
     /// allocation remains valid for the lifetime of the [`Clk`].
