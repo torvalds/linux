@@ -614,8 +614,8 @@ static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
 
 	memset(max_bw_value, 0, sizeof(max_bw_value));
 	memset(max_bw_unit, 0, sizeof(max_bw_unit));
-	upper_limit_100mbps = 255 * MLX5E_100MB;
-	upper_limit_gbps = 255 * MLX5E_1GB;
+	upper_limit_100mbps = U8_MAX * MLX5E_100MB;
+	upper_limit_gbps = U8_MAX * MLX5E_1GB;
 
 	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
 		if (!maxrate->tc_maxrate[i]) {
