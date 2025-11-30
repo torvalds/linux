@@ -64,6 +64,7 @@ from lib.py import KsftSkipEx, KsftFailEx, KsftXfailEx
 from lib.py import NetDrvEpEnv, DevlinkFamily
 from lib.py import NlError
 from lib.py import cmd, defer, ethtool, ip
+from lib.py import Iperf3Runner
 
 
 class BandwidthValidator:
@@ -139,8 +140,8 @@ def setup_vlans_on_vf(vf_ifc):
     Sets up two VLAN interfaces on the given VF, each mapped to a different TC.
     """
     vlan_configs = [
-        {"vlan_id": 101, "tc": 3, "ip": "198.51.100.2"},
-        {"vlan_id": 102, "tc": 4, "ip": "198.51.100.10"},
+        {"vlan_id": 101, "tc": 3, "ip": "198.51.100.1"},
+        {"vlan_id": 102, "tc": 4, "ip": "198.51.100.9"},
     ]
 
     for config in vlan_configs:
@@ -224,13 +225,13 @@ def setup_devlink_rate(cfg):
         raise KsftFailEx(f"rate_set failed on VF port {port_index}") from exc
 
 
-def setup_remote_server(cfg):
+def setup_remote_vlans(cfg):
     """
-    Sets up VLAN interfaces and starts iperf3 servers on the remote side.
+    Sets up VLAN interfaces on the remote side.
     """
     remote_dev = cfg.remote_ifname
     vlan_ids = [101, 102]
-    remote_ips = ["198.51.100.1", "198.51.100.9"]
+    remote_ips = ["198.51.100.2", "198.51.100.10"]
 
     for vlan_id, ip_addr in zip(vlan_ids, remote_ips):
         vlan_dev = f"{remote_dev}.{vlan_id}"
@@ -238,14 +239,13 @@ def setup_remote_server(cfg):
             f"type vlan id {vlan_id}", host=cfg.remote)
         cmd(f"ip addr add {ip_addr}/29 dev {vlan_dev}", host=cfg.remote)
         cmd(f"ip link set dev {vlan_dev} up", host=cfg.remote)
-        cmd(f"iperf3 -s -1 -B {ip_addr}",background=True, host=cfg.remote)
         defer(cmd, f"ip link del {vlan_dev}", host=cfg.remote)
 
 
 def setup_test_environment(cfg, set_tc_mapping=True):
     """
     Sets up the complete test environment including VF creation, VLANs,
-    bridge configuration, devlink rate setup, and the remote server.
+    bridge configuration and devlink rate setup.
     """
     vf_ifc = setup_vf(cfg, set_tc_mapping)
     ksft_pr(f"Created VF interface: {vf_ifc}")
@@ -256,51 +256,39 @@ def setup_test_environment(cfg, set_tc_mapping=True):
     setup_bridge(cfg)
 
     setup_devlink_rate(cfg)
-    setup_remote_server(cfg)
-    time.sleep(2)
+    setup_remote_vlans(cfg)
 
 
-def run_iperf_client(server_ip, local_ip, barrier, min_expected_gbps=0.1):
+def measure_bandwidth(cfg, server_ip, client_ip, barrier):
     """
-    Runs a single iperf3 client instance, binding to the given local IP.
-    Waits on a barrier to synchronize with other threads.
+    Synchronizes with peers and runs an iperf3-based bandwidth measurement
+    between the given endpoints. Returns average Gbps.
     """
+    runner = Iperf3Runner(cfg, server_ip=server_ip, client_ip=client_ip)
     try:
         barrier.wait(timeout=10)
     except Exception as exc:
         raise KsftFailEx("iperf3 barrier wait timed") from exc
 
-    iperf_cmd = ["iperf3", "-c", server_ip, "-B", local_ip, "-J"]
-    result = subprocess.run(iperf_cmd, capture_output=True, text=True,
-                            check=True)
-
     try:
-        output = json.loads(result.stdout)
-        bits_per_second = output["end"]["sum_received"]["bits_per_second"]
-        gbps = bits_per_second / 1e9
-        if gbps < min_expected_gbps:
-            ksft_pr(
-                f"iperf3 bandwidth too low: {gbps:.2f} Gbps "
-                f"(expected ≥ {min_expected_gbps} Gbps)"
-            )
-            return None
-        return gbps
-    except json.JSONDecodeError as exc:
-        ksft_pr(f"Failed to parse iperf3 JSON output: {exc}")
-        return None
+        bw_gbps = runner.measure_bandwidth(reverse=True)
+    except Exception as exc:
+        raise KsftFailEx("iperf3 bandwidth measurement failed") from exc
+
+    return bw_gbps
 
 
-def run_bandwidth_test():
+def run_bandwidth_test(cfg):
     """
-    Launches iperf3 client threads for each VLAN/TC pair and collects results.
+    Runs parallel bandwidth measurements for each VLAN/TC pair and collects results.
     """
-    def _run_iperf_client_thread(server_ip, local_ip, results, barrier, tc_ix):
-        results[tc_ix] = run_iperf_client(server_ip, local_ip, barrier)
+    def _run_measure_bandwidth_thread(local_ip, remote_ip, results, barrier, tc_ix):
+        results[tc_ix] = measure_bandwidth(cfg, local_ip, remote_ip, barrier)
 
     vf_vlan_data = [
         # (local_ip, remote_ip, TC)
-        ("198.51.100.2",  "198.51.100.1", 3),
-        ("198.51.100.10", "198.51.100.9", 4),
+        ("198.51.100.1",  "198.51.100.2", 3),
+        ("198.51.100.9", "198.51.100.10", 4),
     ]
 
     results = {}
@@ -309,8 +297,8 @@ def run_bandwidth_test():
 
     for local_ip, remote_ip, tc_ix in vf_vlan_data:
         thread = threading.Thread(
-            target=_run_iperf_client_thread,
-            args=(remote_ip, local_ip, results, start_barrier, tc_ix)
+            target=_run_measure_bandwidth_thread,
+            args=(local_ip, remote_ip, results, start_barrier, tc_ix)
         )
         thread.start()
         threads.append(thread)
@@ -320,9 +308,10 @@ def run_bandwidth_test():
 
     for tc_ix, tc_bw in results.items():
         if tc_bw is None:
-            raise KsftFailEx("iperf3 client failed; cannot evaluate bandwidth")
+            raise KsftFailEx("iperf3 failed; cannot evaluate bandwidth")
 
     return results
+
 
 def calculate_bandwidth_percentages(results):
     """
@@ -398,10 +387,10 @@ def check_bandwidth_distribution(bw_data, validator):
 
 def run_bandwidth_distribution_test(cfg, set_tc_mapping):
     """
-    Runs parallel iperf3 tests for both TCs and collects results.
+    Runs parallel bandwidth measurements for both TCs and collects results.
     """
     setup_test_environment(cfg, set_tc_mapping)
-    bandwidths = run_bandwidth_test()
+    bandwidths = run_bandwidth_test(cfg)
     bw_data = calculate_bandwidth_percentages(bandwidths)
     test_name = "with TC mapping" if set_tc_mapping else "without TC mapping"
     print_bandwidth_results(bw_data, test_name)
@@ -451,7 +440,6 @@ def main() -> None:
         )
         if not cfg.pci:
             raise KsftSkipEx("Could not get PCI address of the interface")
-        cfg.require_cmd("iperf3", local=True, remote=True)
 
         cfg.bw_validator = BandwidthValidator()
 
