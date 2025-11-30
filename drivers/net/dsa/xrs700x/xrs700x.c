@@ -566,6 +566,7 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	struct xrs700x *priv = ds->priv;
 	struct net_device *user;
 	int ret, i, hsr_pair[2];
+	enum hsr_port_type type;
 	enum hsr_version ver;
 	bool fwd = false;
 
@@ -586,6 +587,16 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	} else {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Only HSR v1 and PRP v1 can be offloaded");
+		return -EOPNOTSUPP;
+	}
+
+	ret = hsr_get_port_type(hsr, dsa_to_port(ds, port)->user, &type);
+	if (ret)
+		return ret;
+
+	if (type != HSR_PT_SLAVE_A && type != HSR_PT_SLAVE_B) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only HSR slave ports can be offloaded");
 		return -EOPNOTSUPP;
 	}
 
