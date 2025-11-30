@@ -603,7 +603,7 @@ static int32_t q6asm_stream_callback(struct apr_device *adev,
 				     int session_id)
 {
 	struct q6asm *q6asm = dev_get_drvdata(&adev->dev);
-	struct aprv2_ibasic_rsp_result_t *result;
+	const struct aprv2_ibasic_rsp_result_t *result;
 	const struct apr_hdr *hdr = &data->hdr;
 	struct audio_port_data *port;
 	struct audio_client *ac;

@@ -961,7 +961,7 @@ static struct q6afe_port *q6afe_find_port(struct q6afe *afe, int token)
 static int q6afe_callback(struct apr_device *adev, const struct apr_resp_pkt *data)
 {
 	struct q6afe *afe = dev_get_drvdata(&adev->dev);
-	struct aprv2_ibasic_rsp_result_t *res;
+	const struct aprv2_ibasic_rsp_result_t *res;
 	const struct apr_hdr *hdr = &data->hdr;
 	struct q6afe_port *port;
 
