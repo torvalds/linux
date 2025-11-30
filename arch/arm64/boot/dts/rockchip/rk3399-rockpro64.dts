@@ -28,3 +28,10 @@
 		};
 	};
 };
+
+&uart0 {
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		max-speed = <1500000>;
+	};
+};
