@@ -85,7 +85,6 @@ void xe_hw_fence_irq_finish(struct xe_hw_fence_irq *irq)
 {
 	struct xe_hw_fence *fence, *next;
 	unsigned long flags;
-	int err;
 	bool tmp;
 
 	if (XE_WARN_ON(!list_empty(&irq->pending))) {
@@ -93,9 +92,8 @@ void xe_hw_fence_irq_finish(struct xe_hw_fence_irq *irq)
 		spin_lock_irqsave(&irq->lock, flags);
 		list_for_each_entry_safe(fence, next, &irq->pending, irq_link) {
 			list_del_init(&fence->irq_link);
-			err = dma_fence_signal_locked(&fence->dma);
+			XE_WARN_ON(dma_fence_check_and_signal_locked(&fence->dma));
 			dma_fence_put(&fence->dma);
-			XE_WARN_ON(err);
 		}
 		spin_unlock_irqrestore(&irq->lock, flags);
 		dma_fence_end_signalling(tmp);
