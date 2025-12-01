@@ -329,8 +329,21 @@ static inline void clk_restore_context(void) {}
  * Must not be called from within atomic context.
  */
 int clk_prepare(struct clk *clk);
+
+/**
+ * clk_unprepare - undo preparation of a clock source
+ * @clk: clock source
+ *
+ * This undoes a previously prepared clock.  The caller must balance
+ * the number of prepare and unprepare calls.
+ *
+ * Must not be called from within atomic context.
+ */
+void clk_unprepare(struct clk *clk);
+
 int __must_check clk_bulk_prepare(int num_clks,
 				  const struct clk_bulk_data *clks);
+void clk_bulk_unprepare(int num_clks, const struct clk_bulk_data *clks);
 
 /**
  * clk_is_enabled_when_prepared - indicate if preparing a clock also enables it.
@@ -355,6 +368,11 @@ static inline int clk_prepare(struct clk *clk)
 	return 0;
 }
 
+static inline void clk_unprepare(struct clk *clk)
+{
+	might_sleep();
+}
+
 static inline int __must_check
 clk_bulk_prepare(int num_clks, const struct clk_bulk_data *clks)
 {
@@ -362,33 +380,15 @@ clk_bulk_prepare(int num_clks, const struct clk_bulk_data *clks)
 	return 0;
 }
 
-static inline bool clk_is_enabled_when_prepared(struct clk *clk)
-{
-	return false;
-}
-#endif
-
-/**
- * clk_unprepare - undo preparation of a clock source
- * @clk: clock source
- *
- * This undoes a previously prepared clock.  The caller must balance
- * the number of prepare and unprepare calls.
- *
- * Must not be called from within atomic context.
- */
-#ifdef CONFIG_HAVE_CLK_PREPARE
-void clk_unprepare(struct clk *clk);
-void clk_bulk_unprepare(int num_clks, const struct clk_bulk_data *clks);
-#else
-static inline void clk_unprepare(struct clk *clk)
-{
-	might_sleep();
-}
 static inline void clk_bulk_unprepare(int num_clks,
 				      const struct clk_bulk_data *clks)
 {
 	might_sleep();
+}
+
+static inline bool clk_is_enabled_when_prepared(struct clk *clk)
+{
+	return false;
 }
 #endif
 
