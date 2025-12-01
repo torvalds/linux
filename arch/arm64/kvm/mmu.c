@@ -1553,6 +1553,16 @@ static void adjust_nested_fault_perms(struct kvm_s2_trans *nested,
 	*prot |= kvm_encode_nested_level(nested);
 }
 
+static void adjust_nested_exec_perms(struct kvm *kvm,
+				     struct kvm_s2_trans *nested,
+				     enum kvm_pgtable_prot *prot)
+{
+	if (!kvm_s2_trans_exec_el0(kvm, nested))
+		*prot &= ~KVM_PGTABLE_PROT_UX;
+	if (!kvm_s2_trans_exec_el1(kvm, nested))
+		*prot &= ~KVM_PGTABLE_PROT_PX;
+}
+
 #define KVM_PGTABLE_WALK_MEMABORT_FLAGS (KVM_PGTABLE_WALK_HANDLE_FAULT | KVM_PGTABLE_WALK_SHARED)
 
 static int gmem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
@@ -1604,10 +1614,11 @@ static int gmem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	if (writable)
 		prot |= KVM_PGTABLE_PROT_W;
 
-	if (exec_fault ||
-	    (cpus_have_final_cap(ARM64_HAS_CACHE_DIC) &&
-	     (!nested || kvm_s2_trans_executable(nested))))
+	if (exec_fault || cpus_have_final_cap(ARM64_HAS_CACHE_DIC))
 		prot |= KVM_PGTABLE_PROT_X;
+
+	if (nested)
+		adjust_nested_exec_perms(kvm, nested, &prot);
 
 	kvm_fault_lock(kvm);
 	if (mmu_invalidate_retry(kvm, mmu_seq)) {
@@ -1883,10 +1894,12 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			prot |= KVM_PGTABLE_PROT_NORMAL_NC;
 		else
 			prot |= KVM_PGTABLE_PROT_DEVICE;
-	} else if (cpus_have_final_cap(ARM64_HAS_CACHE_DIC) &&
-		   (!nested || kvm_s2_trans_executable(nested))) {
+	} else if (cpus_have_final_cap(ARM64_HAS_CACHE_DIC)) {
 		prot |= KVM_PGTABLE_PROT_X;
 	}
+
+	if (nested)
+		adjust_nested_exec_perms(kvm, nested, &prot);
 
 	/*
 	 * Under the premise of getting a FSC_PERM fault, we just need to relax
@@ -2097,6 +2110,11 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		u32 esr;
 
 		ret = kvm_walk_nested_s2(vcpu, fault_ipa, &nested_trans);
+		if (ret == -EAGAIN) {
+			ret = 1;
+			goto out_unlock;
+		}
+
 		if (ret) {
 			esr = kvm_s2_trans_esr(&nested_trans);
 			kvm_inject_s2_fault(vcpu, esr);
