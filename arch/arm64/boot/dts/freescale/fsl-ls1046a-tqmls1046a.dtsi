@@ -10,6 +10,18 @@
 #include "fsl-ls1046a.dtsi"
 #include "tqmls10xxa.dtsi"
 
+&bman_fbpr {
+	alloc-ranges = <0 0x88000000 1 0x00000000>;
+};
+
+&qman_fqd {
+	alloc-ranges = <0 0x88000000 1 0x00000000>;
+};
+
+&qman_pfdr {
+	alloc-ranges = <0 0x88000000 1 0x00000000>;
+};
+
 &qspi {
 	num-cs = <2>;
 	status = "okay";
