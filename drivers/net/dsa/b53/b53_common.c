@@ -872,10 +872,7 @@ static void b53_enable_stp(struct b53_device *dev)
 
 static u16 b53_default_pvid(struct b53_device *dev)
 {
-	if (is5325(dev) || is5365(dev))
-		return 1;
-	else
-		return 0;
+	return 0;
 }
 
 static bool b53_vlan_port_needs_forced_tagged(struct dsa_switch *ds, int port)
@@ -1699,9 +1696,6 @@ static int b53_vlan_prepare(struct dsa_switch *ds, int port,
 {
 	struct b53_device *dev = ds->priv;
 
-	if ((is5325(dev) || is5365(dev)) && vlan->vid == 0)
-		return -EOPNOTSUPP;
-
 	/* Port 7 on 7278 connects to the ASP's UniMAC which is not capable of
 	 * receiving VLAN tagged frames at all, we can still allow the port to
 	 * be configured for egress untagged.
@@ -1853,19 +1847,24 @@ static int b53_arl_rw_op(struct b53_device *dev, unsigned int op)
 static void b53_arl_read_entry_25(struct b53_device *dev,
 				  struct b53_arl_entry *ent, u8 idx)
 {
+	u8 vid_entry;
 	u64 mac_vid;
 
+	b53_read8(dev, B53_ARLIO_PAGE, B53_ARLTBL_VID_ENTRY_25(idx),
+		  &vid_entry);
 	b53_read64(dev, B53_ARLIO_PAGE, B53_ARLTBL_MAC_VID_ENTRY(idx),
 		   &mac_vid);
-	b53_arl_to_entry_25(ent, mac_vid);
+	b53_arl_to_entry_25(ent, mac_vid, vid_entry);
 }
 
 static void b53_arl_write_entry_25(struct b53_device *dev,
 				   const struct b53_arl_entry *ent, u8 idx)
 {
+	u8 vid_entry;
 	u64 mac_vid;
 
-	b53_arl_from_entry_25(&mac_vid, ent);
+	b53_arl_from_entry_25(&mac_vid, &vid_entry, ent);
+	b53_write8(dev, B53_ARLIO_PAGE, B53_ARLTBL_VID_ENTRY_25(idx), vid_entry);
 	b53_write64(dev, B53_ARLIO_PAGE, B53_ARLTBL_MAC_VID_ENTRY(idx),
 		    mac_vid);
 }
@@ -1966,8 +1965,12 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 
 	/* Perform a read for the given MAC and VID */
 	b53_write48(dev, B53_ARLIO_PAGE, B53_MAC_ADDR_IDX, mac);
-	if (!is5325m(dev))
-		b53_write16(dev, B53_ARLIO_PAGE, B53_VLAN_ID_IDX, vid);
+	if (!is5325m(dev)) {
+		if (is5325(dev) || is5365(dev))
+			b53_write8(dev, B53_ARLIO_PAGE, B53_VLAN_ID_IDX, vid);
+		else
+			b53_write16(dev, B53_ARLIO_PAGE, B53_VLAN_ID_IDX, vid);
+	}
 
 	/* Issue a read operation for this MAC */
 	ret = b53_arl_rw_op(dev, 1);
@@ -2115,20 +2118,12 @@ static void b53_arl_search_read_25(struct b53_device *dev, u8 idx,
 				   struct b53_arl_entry *ent)
 {
 	u64 mac_vid;
+	u8 ext;
 
+	b53_read8(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSLT_EXT_25, &ext);
 	b53_read64(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSTL_0_MACVID_25,
 		   &mac_vid);
-	b53_arl_to_entry_25(ent, mac_vid);
-}
-
-static void b53_arl_search_read_65(struct b53_device *dev, u8 idx,
-				   struct b53_arl_entry *ent)
-{
-	u64 mac_vid;
-
-	b53_read64(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSTL_0_MACVID_65,
-		   &mac_vid);
-	b53_arl_to_entry_25(ent, mac_vid);
+	b53_arl_search_to_entry_25(ent, mac_vid, ext);
 }
 
 static void b53_arl_search_read_89(struct b53_device *dev, u8 idx,
@@ -2742,12 +2737,6 @@ static const struct b53_arl_ops b53_arl_ops_25 = {
 	.arl_search_read = b53_arl_search_read_25,
 };
 
-static const struct b53_arl_ops b53_arl_ops_65 = {
-	.arl_read_entry = b53_arl_read_entry_25,
-	.arl_write_entry = b53_arl_write_entry_25,
-	.arl_search_read = b53_arl_search_read_65,
-};
-
 static const struct b53_arl_ops b53_arl_ops_89 = {
 	.arl_read_entry = b53_arl_read_entry_89,
 	.arl_write_entry = b53_arl_write_entry_89,
@@ -2810,7 +2799,7 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.arl_buckets = 1024,
 		.imp_port = 5,
 		.duplex_reg = B53_DUPLEX_STAT_FE,
-		.arl_ops = &b53_arl_ops_65,
+		.arl_ops = &b53_arl_ops_25,
 	},
 	{
 		.chip_id = BCM5389_DEVICE_ID,
