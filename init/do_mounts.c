@@ -120,7 +120,8 @@ static int __init fs_names_setup(char *str)
 static unsigned int __initdata root_delay;
 static int __init root_delay_setup(char *str)
 {
-	root_delay = simple_strtoul(str, NULL, 0);
+	if (kstrtouint(str, 0, &root_delay))
+		return 0;
 	return 1;
 }
 

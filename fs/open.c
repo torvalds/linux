@@ -940,7 +940,7 @@ static int do_dentry_open(struct file *f,
 	}
 
 	error = security_file_open(f);
-	if (error)
+	if (unlikely(error))
 		goto cleanup_all;
 
 	/*
@@ -950,11 +950,11 @@ static int do_dentry_open(struct file *f,
 	 * pseudo file, this call will not change the mode.
 	 */
 	error = fsnotify_open_perm_and_set_mode(f);
-	if (error)
+	if (unlikely(error))
 		goto cleanup_all;
 
 	error = break_lease(file_inode(f), f->f_flags);
-	if (error)
+	if (unlikely(error))
 		goto cleanup_all;
 
 	/* normally all 3 are set; ->open() can clear them if needed */
