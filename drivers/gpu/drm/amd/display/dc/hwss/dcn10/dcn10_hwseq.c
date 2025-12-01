@@ -3666,7 +3666,11 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	int y_plane = pipe_ctx->plane_state->dst_rect.y;
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
-	int clip_x = pipe_ctx->plane_state->clip_rect.x;
+	bool is_primary_plane = (pipe_ctx->plane_state->layer_index == 0);
+
+	int clip_x = (pos_cpy.use_viewport_for_clip && is_primary_plane &&
+		!odm_combine_on && !pipe_split_on && param.viewport.x != 0)
+		? param.viewport.x : pipe_ctx->plane_state->clip_rect.x;
 	int clip_width = pipe_ctx->plane_state->clip_rect.width;
 
 	if ((pipe_ctx->top_pipe != NULL) || (pipe_ctx->bottom_pipe != NULL)) {
