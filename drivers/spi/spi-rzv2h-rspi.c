@@ -219,16 +219,13 @@ static int rzv2h_rspi_receive(struct rzv2h_rspi_priv *rspi, void *rxbuf,
 	return 0;
 }
 
-static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
+static int rzv2h_rspi_transfer_pio(struct rzv2h_rspi_priv *rspi,
 				   struct spi_device *spi,
-				   struct spi_transfer *transfer)
+				   struct spi_transfer *transfer,
+				   unsigned int words_to_transfer)
 {
-	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(controller);
-	unsigned int words_to_transfer, i;
+	unsigned int i;
 	int ret = 0;
-
-	transfer->effective_speed_hz = rspi->freq;
-	words_to_transfer = transfer->len / rspi->bytes_per_word;
 
 	for (i = 0; i < words_to_transfer; i++) {
 		rzv2h_rspi_clear_all_irqs(rspi);
@@ -239,6 +236,22 @@ static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
 		if (ret)
 			break;
 	}
+
+	return ret;
+}
+
+static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
+				   struct spi_device *spi,
+				   struct spi_transfer *transfer)
+{
+	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(controller);
+	unsigned int words_to_transfer;
+	int ret;
+
+	transfer->effective_speed_hz = rspi->freq;
+	words_to_transfer = transfer->len / rspi->bytes_per_word;
+
+	ret = rzv2h_rspi_transfer_pio(rspi, spi, transfer, words_to_transfer);
 
 	rzv2h_rspi_clear_all_irqs(rspi);
 
