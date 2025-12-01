@@ -454,7 +454,6 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct task_struct *task __free(put_task) = NULL;
 	struct nsproxy *nsp __free(put_nsproxy) = NULL;
 	struct ns_common *ns_common = NULL;
-	struct pid_namespace *pid_ns;
 
 	if (!pidfs_ioctl_valid(cmd))
 		return -ENOIOCTLCMD;
@@ -496,66 +495,64 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	/* Namespaces that hang of nsproxy. */
 	case PIDFD_GET_CGROUP_NAMESPACE:
-		if (IS_ENABLED(CONFIG_CGROUPS)) {
-			get_cgroup_ns(nsp->cgroup_ns);
-			ns_common = to_ns_common(nsp->cgroup_ns);
-		}
+		if (!ns_ref_get(nsp->cgroup_ns))
+			break;
+		ns_common = to_ns_common(nsp->cgroup_ns);
 		break;
 	case PIDFD_GET_IPC_NAMESPACE:
-		if (IS_ENABLED(CONFIG_IPC_NS)) {
-			get_ipc_ns(nsp->ipc_ns);
-			ns_common = to_ns_common(nsp->ipc_ns);
-		}
+		if (!ns_ref_get(nsp->ipc_ns))
+			break;
+		ns_common = to_ns_common(nsp->ipc_ns);
 		break;
 	case PIDFD_GET_MNT_NAMESPACE:
-		get_mnt_ns(nsp->mnt_ns);
+		if (!ns_ref_get(nsp->mnt_ns))
+			break;
 		ns_common = to_ns_common(nsp->mnt_ns);
 		break;
 	case PIDFD_GET_NET_NAMESPACE:
-		if (IS_ENABLED(CONFIG_NET_NS)) {
-			ns_common = to_ns_common(nsp->net_ns);
-			get_net_ns(ns_common);
-		}
+		if (!ns_ref_get(nsp->net_ns))
+			break;
+		ns_common = to_ns_common(nsp->net_ns);
 		break;
 	case PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE:
-		if (IS_ENABLED(CONFIG_PID_NS)) {
-			get_pid_ns(nsp->pid_ns_for_children);
-			ns_common = to_ns_common(nsp->pid_ns_for_children);
-		}
+		if (!ns_ref_get(nsp->pid_ns_for_children))
+			break;
+		ns_common = to_ns_common(nsp->pid_ns_for_children);
 		break;
 	case PIDFD_GET_TIME_NAMESPACE:
-		if (IS_ENABLED(CONFIG_TIME_NS)) {
-			get_time_ns(nsp->time_ns);
-			ns_common = to_ns_common(nsp->time_ns);
-		}
+		if (!ns_ref_get(nsp->time_ns))
+			break;
+		ns_common = to_ns_common(nsp->time_ns);
 		break;
 	case PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE:
-		if (IS_ENABLED(CONFIG_TIME_NS)) {
-			get_time_ns(nsp->time_ns_for_children);
-			ns_common = to_ns_common(nsp->time_ns_for_children);
-		}
+		if (!ns_ref_get(nsp->time_ns_for_children))
+			break;
+		ns_common = to_ns_common(nsp->time_ns_for_children);
 		break;
 	case PIDFD_GET_UTS_NAMESPACE:
-		if (IS_ENABLED(CONFIG_UTS_NS)) {
-			get_uts_ns(nsp->uts_ns);
-			ns_common = to_ns_common(nsp->uts_ns);
-		}
+		if (!ns_ref_get(nsp->uts_ns))
+			break;
+		ns_common = to_ns_common(nsp->uts_ns);
 		break;
 	/* Namespaces that don't hang of nsproxy. */
 	case PIDFD_GET_USER_NAMESPACE:
-		if (IS_ENABLED(CONFIG_USER_NS)) {
-			rcu_read_lock();
-			ns_common = to_ns_common(get_user_ns(task_cred_xxx(task, user_ns)));
-			rcu_read_unlock();
+		scoped_guard(rcu) {
+			struct user_namespace *user_ns;
+
+			user_ns = task_cred_xxx(task, user_ns);
+			if (!ns_ref_get(user_ns))
+				break;
+			ns_common = to_ns_common(user_ns);
 		}
 		break;
 	case PIDFD_GET_PID_NAMESPACE:
-		if (IS_ENABLED(CONFIG_PID_NS)) {
-			rcu_read_lock();
+		scoped_guard(rcu) {
+			struct pid_namespace *pid_ns;
+
 			pid_ns = task_active_pid_ns(task);
-			if (pid_ns)
-				ns_common = to_ns_common(get_pid_ns(pid_ns));
-			rcu_read_unlock();
+			if (!ns_ref_get(pid_ns))
+				break;
+			ns_common = to_ns_common(pid_ns);
 		}
 		break;
 	default:
@@ -1022,6 +1019,7 @@ static int pidfs_init_fs_context(struct fs_context *fc)
 
 	fc->s_iflags |= SB_I_NOEXEC;
 	fc->s_iflags |= SB_I_NODEV;
+	ctx->s_d_flags |= DCACHE_DONTCACHE;
 	ctx->ops = &pidfs_sops;
 	ctx->eops = &pidfs_export_operations;
 	ctx->dops = &pidfs_dentry_operations;

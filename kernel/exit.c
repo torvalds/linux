@@ -291,6 +291,7 @@ repeat:
 	write_unlock_irq(&tasklist_lock);
 	/* @thread_pid can't go away until free_pids() below */
 	proc_flush_pid(thread_pid);
+	exit_cred_namespaces(p);
 	add_device_randomness(&p->se.sum_exec_runtime,
 			      sizeof(p->se.sum_exec_runtime));
 	free_pids(post.pids);
@@ -962,7 +963,7 @@ void __noreturn do_exit(long code)
 	exit_fs(tsk);
 	if (group_dead)
 		disassociate_ctty(1);
-	exit_task_namespaces(tsk);
+	exit_nsproxy_namespaces(tsk);
 	exit_task_work(tsk);
 	exit_thread(tsk);
 

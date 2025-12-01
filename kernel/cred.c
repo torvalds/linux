@@ -306,6 +306,7 @@ int copy_creds(struct task_struct *p, u64 clone_flags)
 		kdebug("share_creds(%p{%ld})",
 		       p->cred, atomic_long_read(&p->cred->usage));
 		inc_rlimit_ucounts(task_ucounts(p), UCOUNT_RLIMIT_NPROC, 1);
+		get_cred_namespaces(p);
 		return 0;
 	}
 
@@ -343,6 +344,8 @@ int copy_creds(struct task_struct *p, u64 clone_flags)
 
 	p->cred = p->real_cred = get_cred(new);
 	inc_rlimit_ucounts(task_ucounts(p), UCOUNT_RLIMIT_NPROC, 1);
+	get_cred_namespaces(p);
+
 	return 0;
 
 error_put:
@@ -435,10 +438,13 @@ int commit_creds(struct cred *new)
 	 */
 	if (new->user != old->user || new->user_ns != old->user_ns)
 		inc_rlimit_ucounts(new->ucounts, UCOUNT_RLIMIT_NPROC, 1);
+
 	rcu_assign_pointer(task->real_cred, new);
 	rcu_assign_pointer(task->cred, new);
 	if (new->user != old->user || new->user_ns != old->user_ns)
 		dec_rlimit_ucounts(old->ucounts, UCOUNT_RLIMIT_NPROC, 1);
+	if (new->user_ns != old->user_ns)
+		switch_cred_namespaces(old, new);
 
 	/* send notifications */
 	if (!uid_eq(new->uid,   old->uid)  ||

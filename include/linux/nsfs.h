@@ -37,4 +37,7 @@ void nsfs_init(void);
 
 #define current_in_namespace(__ns) (__current_namespace_from_type(__ns) == __ns)
 
+void nsproxy_ns_active_get(struct nsproxy *ns);
+void nsproxy_ns_active_put(struct nsproxy *ns);
+
 #endif /* _LINUX_NSFS_H */
