@@ -452,7 +452,7 @@ static int _cs_amp_set_efi_calibration_data(struct device *dev, int amp_index, i
 {
 	u64 cal_target = cs_amp_cal_target_u64(in_data);
 	unsigned long num_entries;
-	struct cirrus_amp_efi_data *data __free(kfree) = NULL;
+	struct cirrus_amp_efi_data *data;
 	efi_char16_t *name = CIRRUS_LOGIC_CALIBRATION_EFI_NAME;
 	efi_guid_t *guid = &CIRRUS_LOGIC_CALIBRATION_EFI_GUID;
 	u32 attr = CS_AMP_CAL_DEFAULT_EFI_ATTR;
@@ -515,28 +515,33 @@ alloc_new:
 
 	num_entries = max(num_amps, amp_index + 1);
 	if (!data || (data->count < num_entries)) {
-		struct cirrus_amp_efi_data *old_data __free(kfree) = no_free_ptr(data);
+		struct cirrus_amp_efi_data *new_data;
 		unsigned int new_data_size = struct_size(data, data, num_entries);
 
-		data = kzalloc(new_data_size, GFP_KERNEL);
-		if (!data)
-			return -ENOMEM;
+		new_data = kzalloc(new_data_size, GFP_KERNEL);
+		if (!new_data) {
+			ret = -ENOMEM;
+			goto err;
+		}
 
-		if (old_data)
-			memcpy(data, old_data, struct_size(old_data, data, old_data->count));
+		if (data) {
+			memcpy(new_data, data, struct_size(data, data, data->count));
+			kfree(data);
+		}
 
+		data = new_data;
 		data->count = num_entries;
 		data->size = new_data_size;
 	}
 
 	data->data[amp_index] = *in_data;
 	ret = cs_amp_set_cal_efi_buffer(dev, name, guid, attr, data);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Failed writing calibration to EFI: %d\n", ret);
-		return ret;
-	}
+err:
+	kfree(data);
 
-	return 0;
+	return ret;
 }
 
 /**
