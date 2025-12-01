@@ -483,6 +483,7 @@ static int uvc_ctrl_get_zoom(struct uvc_control_mapping *mapping, u8 query,
 		return 0;
 
 	case UVC_GET_MIN:
+		/* Not used, we use -UVC_GET_MAX */
 	case UVC_GET_MAX:
 	case UVC_GET_RES:
 	case UVC_GET_DEF:
@@ -526,8 +527,7 @@ static int uvc_ctrl_get_rel_speed(struct uvc_control_mapping *mapping,
 		*out = (sign == 0) ? 0 : (sign > 0 ? value : -value);
 		return 0;
 	case UVC_GET_MIN:
-		*out = -value;
-		return 0;
+		/* Not used, we use -UVC_GET_MAX */
 	case UVC_GET_MAX:
 	case UVC_GET_RES:
 	case UVC_GET_DEF:
@@ -1527,6 +1527,17 @@ static u32 uvc_get_ctrl_bitmap(struct uvc_control *ctrl,
 	return ~0;
 }
 
+static bool uvc_ctrl_is_relative_ptz(__u32 ctrl_id)
+{
+	switch (ctrl_id) {
+	case V4L2_CID_ZOOM_CONTINUOUS:
+	case V4L2_CID_PAN_SPEED:
+	case V4L2_CID_TILT_SPEED:
+		return true;
+	}
+	return false;
+}
+
 /*
  * Maximum retry count to avoid spurious errors with controls. Increasing this
  * value does no seem to produce better results in the tested hardware.
@@ -1586,17 +1597,31 @@ static int __uvc_queryctrl_boundaries(struct uvc_video_chain *chain,
 		break;
 	}
 
-	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MIN)
-		v4l2_ctrl->minimum = uvc_mapping_get_s32(mapping, UVC_GET_MIN,
-				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
-	else
-		v4l2_ctrl->minimum = 0;
-
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MAX)
 		v4l2_ctrl->maximum = uvc_mapping_get_s32(mapping, UVC_GET_MAX,
 				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
 	else
 		v4l2_ctrl->maximum = 0;
+
+	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MIN) {
+		/*
+		 * For relative PTZ controls, UVC_GET_MIN for
+		 * b(Pan|Tilt|Zoom)Speed returns the minimum speed of the
+		 * movement in direction specified in the sign field.
+		 * See in USB Device Class Definition for Video Devices:
+		 * 4.2.2.1.13 Zoom (Relative) Control
+		 * 4.2.2.1.15 PanTilt (Relative) Control
+		 *
+		 * For minimum value, use maximum speed but in negative direction.
+		 */
+		if (uvc_ctrl_is_relative_ptz(v4l2_ctrl->id))
+			v4l2_ctrl->minimum = -v4l2_ctrl->maximum;
+		else
+			v4l2_ctrl->minimum = uvc_mapping_get_s32(mapping,
+				UVC_GET_MIN, uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
+	} else {
+		v4l2_ctrl->minimum = 0;
+	}
 
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_RES)
 		v4l2_ctrl->step = uvc_mapping_get_s32(mapping, UVC_GET_RES,
@@ -2459,6 +2484,7 @@ int uvc_ctrl_get(struct uvc_video_chain *chain, u32 which,
 
 static int uvc_ctrl_clamp(struct uvc_video_chain *chain,
 			  struct uvc_control *ctrl,
+			  u32 v4l2_id,
 			  struct uvc_control_mapping *mapping,
 			  s32 *value_in_out)
 {
@@ -2476,10 +2502,24 @@ static int uvc_ctrl_clamp(struct uvc_video_chain *chain,
 				return ret;
 		}
 
-		min = uvc_mapping_get_s32(mapping, UVC_GET_MIN,
-					  uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
 		max = uvc_mapping_get_s32(mapping, UVC_GET_MAX,
 					  uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+		/*
+		 * For relative PTZ controls, UVC_GET_MIN for
+		 * b(Pan|Tilt|Zoom)Speed returns the minimum speed of the
+		 * movement in direction specified in the sign field.
+		 * See in USB Device Class Definition for Video Devices:
+		 * 4.2.2.1.13 Zoom (Relative) Control
+		 * 4.2.2.1.15 PanTilt (Relative) Control
+		 *
+		 * For minimum value, use maximum speed but in negative direction.
+		 */
+		if (uvc_ctrl_is_relative_ptz(v4l2_id))
+			min = -max;
+		else
+			min = uvc_mapping_get_s32(mapping, UVC_GET_MIN,
+					uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
+
 		step = uvc_mapping_get_s32(mapping, UVC_GET_RES,
 					   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
 		if (step == 0)
@@ -2593,7 +2633,7 @@ int uvc_ctrl_set(struct uvc_fh *handle, struct v4l2_ext_control *xctrl)
 	if (!(ctrl->info.flags & UVC_CTRL_FLAG_SET_CUR))
 		return -EACCES;
 
-	ret = uvc_ctrl_clamp(chain, ctrl, mapping, &xctrl->value);
+	ret = uvc_ctrl_clamp(chain, ctrl, xctrl->id, mapping, &xctrl->value);
 	if (ret)
 		return ret;
 	/*
