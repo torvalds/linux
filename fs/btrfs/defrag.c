@@ -254,10 +254,9 @@ again:
 	range.extent_thresh = defrag->extent_thresh;
 	file_ra_state_init(ra, inode->vfs_inode.i_mapping);
 
-	sb_start_write(fs_info->sb);
-	ret = btrfs_defrag_file(inode, ra, &range, defrag->transid,
-				BTRFS_DEFRAG_BATCH);
-	sb_end_write(fs_info->sb);
+	scoped_guard(super_write, fs_info->sb)
+		ret = btrfs_defrag_file(inode, ra, &range,
+					defrag->transid, BTRFS_DEFRAG_BATCH);
 	iput(&inode->vfs_inode);
 
 	if (ret < 0)

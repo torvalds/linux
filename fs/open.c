@@ -191,12 +191,9 @@ int do_ftruncate(struct file *file, loff_t length, int small)
 	if (error)
 		return error;
 
-	sb_start_write(inode->i_sb);
-	error = do_truncate(file_mnt_idmap(file), dentry, length,
-			    ATTR_MTIME | ATTR_CTIME, file);
-	sb_end_write(inode->i_sb);
-
-	return error;
+	scoped_guard(super_write, inode->i_sb)
+		return do_truncate(file_mnt_idmap(file), dentry, length,
+				   ATTR_MTIME | ATTR_CTIME, file);
 }
 
 int do_sys_ftruncate(unsigned int fd, loff_t length, int small)
