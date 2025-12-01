@@ -31,14 +31,15 @@
  */
 #include <linux/device.h>
 #include <linux/netdevice.h>
+#include <linux/units.h>
 #include "en.h"
 #include "en/port.h"
 #include "en/port_buffer.h"
 
 #define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
 
-#define MLX5E_100MB (100000)
-#define MLX5E_1GB   (1000000)
+#define MLX5E_100MB_TO_KB (100 * MEGA / KILO)
+#define MLX5E_1GB_TO_KB   (GIGA / KILO)
 
 #define MLX5E_CEE_STATE_UP    1
 #define MLX5E_CEE_STATE_DOWN  0
@@ -572,10 +573,10 @@ static int mlx5e_dcbnl_ieee_getmaxrate(struct net_device *netdev,
 	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
 		switch (max_bw_unit[i]) {
 		case MLX5_100_MBPS_UNIT:
-			maxrate->tc_maxrate[i] = max_bw_value[i] * MLX5E_100MB;
+			maxrate->tc_maxrate[i] = max_bw_value[i] * MLX5E_100MB_TO_KB;
 			break;
 		case MLX5_GBPS_UNIT:
-			maxrate->tc_maxrate[i] = max_bw_value[i] * MLX5E_1GB;
+			maxrate->tc_maxrate[i] = max_bw_value[i] * MLX5E_1GB_TO_KB;
 			break;
 		case MLX5_BW_NO_LIMIT:
 			break;
@@ -595,8 +596,8 @@ static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 max_bw_value[IEEE_8021QAZ_MAX_TCS];
 	u8 max_bw_unit[IEEE_8021QAZ_MAX_TCS];
-	__u64 upper_limit_mbps;
-	__u64 upper_limit_gbps;
+	u64 upper_limit_100mbps;
+	u64 upper_limit_gbps;
 	int i;
 	struct {
 		int scale;
@@ -614,22 +615,22 @@ static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
 
 	memset(max_bw_value, 0, sizeof(max_bw_value));
 	memset(max_bw_unit, 0, sizeof(max_bw_unit));
-	upper_limit_mbps = 255 * MLX5E_100MB;
-	upper_limit_gbps = 255 * MLX5E_1GB;
+	upper_limit_100mbps = U8_MAX * MLX5E_100MB_TO_KB;
+	upper_limit_gbps = U8_MAX * MLX5E_1GB_TO_KB;
 
 	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
 		if (!maxrate->tc_maxrate[i]) {
 			max_bw_unit[i]  = MLX5_BW_NO_LIMIT;
 			continue;
 		}
-		if (maxrate->tc_maxrate[i] <= upper_limit_mbps) {
+		if (maxrate->tc_maxrate[i] <= upper_limit_100mbps) {
 			max_bw_value[i] = div_u64(maxrate->tc_maxrate[i],
-						  MLX5E_100MB);
+						  MLX5E_100MB_TO_KB);
 			max_bw_value[i] = max_bw_value[i] ? max_bw_value[i] : 1;
 			max_bw_unit[i]  = MLX5_100_MBPS_UNIT;
 		} else if (maxrate->tc_maxrate[i] <= upper_limit_gbps) {
 			max_bw_value[i] = div_u64(maxrate->tc_maxrate[i],
-						  MLX5E_1GB);
+						  MLX5E_1GB_TO_KB);
 			max_bw_unit[i]  = MLX5_GBPS_UNIT;
 		} else {
 			netdev_err(netdev,
