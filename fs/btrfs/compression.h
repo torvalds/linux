@@ -85,8 +85,8 @@ static inline u32 btrfs_calc_input_length(struct folio *folio, u64 range_end, u6
 {
 	/* @cur must be inside the folio. */
 	ASSERT(folio_pos(folio) <= cur);
-	ASSERT(cur < folio_end(folio));
-	return min(range_end, folio_end(folio)) - cur;
+	ASSERT(cur < folio_next_pos(folio));
+	return umin(range_end, folio_next_pos(folio)) - cur;
 }
 
 int btrfs_alloc_compress_wsm(struct btrfs_fs_info *fs_info);

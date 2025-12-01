@@ -2732,7 +2732,7 @@ int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
 	loff_t i_size = i_size_read(inode);
 
 	/* Is the folio fully inside i_size? */
-	if (folio_pos(folio) + folio_size(folio) <= i_size)
+	if (folio_next_pos(folio) <= i_size)
 		return __block_write_full_folio(inode, folio, get_block, wbc);
 
 	/* Is the folio fully outside i_size? (truncate in progress) */

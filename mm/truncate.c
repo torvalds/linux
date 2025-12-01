@@ -364,7 +364,7 @@ long mapping_evict_folio(struct address_space *mapping, struct folio *folio)
  * page aligned properly.
  */
 void truncate_inode_pages_range(struct address_space *mapping,
-				loff_t lstart, loff_t lend)
+				loff_t lstart, uoff_t lend)
 {
 	pgoff_t		start;		/* inclusive */
 	pgoff_t		end;		/* exclusive */
@@ -412,7 +412,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 	same_folio = (lstart >> PAGE_SHIFT) == (lend >> PAGE_SHIFT);
 	folio = __filemap_get_folio(mapping, lstart >> PAGE_SHIFT, FGP_LOCK, 0);
 	if (!IS_ERR(folio)) {
-		same_folio = lend < folio_pos(folio) + folio_size(folio);
+		same_folio = lend < folio_next_pos(folio);
 		if (!truncate_inode_partial_folio(folio, lstart, lend)) {
 			start = folio_next_index(folio);
 			if (same_folio)

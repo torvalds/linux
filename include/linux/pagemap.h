@@ -939,6 +939,17 @@ static inline pgoff_t folio_next_index(const struct folio *folio)
 }
 
 /**
+ * folio_next_pos - Get the file position of the next folio.
+ * @folio: The current folio.
+ *
+ * Return: The position of the folio which follows this folio in the file.
+ */
+static inline loff_t folio_next_pos(const struct folio *folio)
+{
+	return (loff_t)folio_next_index(folio) << PAGE_SHIFT;
+}
+
+/**
  * folio_file_page - The page for a particular index.
  * @folio: The folio which contains this index.
  * @index: The index we want to look up.
