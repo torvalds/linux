@@ -684,6 +684,9 @@ char *disas_alt_name(struct alternative *alt)
 		 *   '?'  unknown flag
 		 */
 
+		if (!alt->insn->alt_group)
+			return NULL;
+
 		feature = alt->insn->alt_group->feature;
 		num = alt_feature(feature);
 		flags = alt_flags(feature);
