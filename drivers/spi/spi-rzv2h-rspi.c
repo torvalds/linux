@@ -93,7 +93,6 @@ struct rzv2h_rspi_info {
 };
 
 struct rzv2h_rspi_priv {
-	struct reset_control_bulk_data resets[RSPI_RESET_NUM];
 	struct spi_controller *controller;
 	const struct rzv2h_rspi_info *info;
 	void __iomem *base;
@@ -533,6 +532,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	struct spi_controller *controller;
 	struct device *dev = &pdev->dev;
 	struct rzv2h_rspi_priv *rspi;
+	struct reset_control *reset;
 	struct clk_bulk_data *clks;
 	int irq_rx, ret, i;
 	long tclk_rate;
@@ -568,20 +568,21 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	if (!rspi->tclk)
 		return dev_err_probe(dev, -EINVAL, "Failed to get tclk\n");
 
-	rspi->resets[0].id = "presetn";
-	rspi->resets[1].id = "tresetn";
-	ret = devm_reset_control_bulk_get_optional_exclusive(dev, RSPI_RESET_NUM,
-							     rspi->resets);
-	if (ret)
-		return dev_err_probe(dev, ret, "cannot get resets\n");
+	reset = devm_reset_control_get_optional_exclusive_deasserted(&pdev->dev,
+								     "presetn");
+	if (IS_ERR(reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(reset),
+				     "cannot get presetn reset\n");
+
+	reset = devm_reset_control_get_optional_exclusive_deasserted(&pdev->dev,
+								     "tresetn");
+	if (IS_ERR(reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(reset),
+				     "cannot get tresetn reset\n");
 
 	irq_rx = platform_get_irq_byname(pdev, "rx");
 	if (irq_rx < 0)
 		return dev_err_probe(dev, irq_rx, "cannot get IRQ 'rx'\n");
-
-	ret = reset_control_bulk_deassert(RSPI_RESET_NUM, rspi->resets);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to deassert resets\n");
 
 	init_waitqueue_head(&rspi->wait);
 
@@ -589,7 +590,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 			       dev_name(dev), rspi);
 	if (ret) {
 		dev_err(dev, "cannot request `rx` IRQ\n");
-		goto quit_resets;
+		return ret;
 	}
 
 	controller->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH |
@@ -601,20 +602,16 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	controller->transfer_one = rzv2h_rspi_transfer_one;
 
 	tclk_rate = clk_round_rate(rspi->tclk, 0);
-	if (tclk_rate < 0) {
-		ret = tclk_rate;
-		goto quit_resets;
-	}
+	if (tclk_rate < 0)
+		return tclk_rate;
 
 	controller->min_speed_hz = rzv2h_rspi_calc_bitrate(tclk_rate,
 							   RSPI_SPBR_SPR_MAX,
 							   RSPI_SPCMD_BRDV_MAX);
 
 	tclk_rate = clk_round_rate(rspi->tclk, ULONG_MAX);
-	if (tclk_rate < 0) {
-		ret = tclk_rate;
-		goto quit_resets;
-	}
+	if (tclk_rate < 0)
+		return tclk_rate;
 
 	controller->max_speed_hz = rzv2h_rspi_calc_bitrate(tclk_rate,
 							   RSPI_SPBR_SPR_MIN,
@@ -622,27 +619,11 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 
 	device_set_node(&controller->dev, dev_fwnode(dev));
 
-	ret = spi_register_controller(controller);
-	if (ret) {
+	ret = devm_spi_register_controller(dev, controller);
+	if (ret)
 		dev_err(dev, "register controller failed\n");
-		goto quit_resets;
-	}
-
-	return 0;
-
-quit_resets:
-	reset_control_bulk_assert(RSPI_RESET_NUM, rspi->resets);
 
 	return ret;
-}
-
-static void rzv2h_rspi_remove(struct platform_device *pdev)
-{
-	struct rzv2h_rspi_priv *rspi = platform_get_drvdata(pdev);
-
-	spi_unregister_controller(rspi->controller);
-
-	reset_control_bulk_assert(RSPI_RESET_NUM, rspi->resets);
 }
 
 static const struct rzv2h_rspi_info rzv2h_info = {
@@ -669,7 +650,6 @@ MODULE_DEVICE_TABLE(of, rzv2h_rspi_match);
 
 static struct platform_driver rzv2h_rspi_drv = {
 	.probe = rzv2h_rspi_probe,
-	.remove = rzv2h_rspi_remove,
 	.driver = {
 		.name = "rzv2h_rspi",
 		.of_match_table = rzv2h_rspi_match,
