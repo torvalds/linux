@@ -795,7 +795,7 @@ void d_mark_dontcache(struct inode *inode)
 		de->d_flags |= DCACHE_DONTCACHE;
 		spin_unlock(&de->d_lock);
 	}
-	inode->i_state |= I_DONTCACHE;
+	inode_state_set(inode, I_DONTCACHE);
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(d_mark_dontcache);
@@ -1074,7 +1074,7 @@ struct dentry *d_find_alias_rcu(struct inode *inode)
 	spin_lock(&inode->i_lock);
 	// ->i_dentry and ->i_rcu are colocated, but the latter won't be
 	// used without having I_FREEING set, which means no aliases left
-	if (likely(!(inode->i_state & I_FREEING) && !hlist_empty(l))) {
+	if (likely(!(inode_state_read(inode) & I_FREEING) && !hlist_empty(l))) {
 		if (S_ISDIR(inode->i_mode)) {
 			de = hlist_entry(l->first, struct dentry, d_u.d_alias);
 		} else {
@@ -1981,14 +1981,8 @@ void d_instantiate_new(struct dentry *entry, struct inode *inode)
 	security_d_instantiate(entry, inode);
 	spin_lock(&inode->i_lock);
 	__d_instantiate(entry, inode);
-	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW & ~I_CREATING;
-	/*
-	 * Pairs with the barrier in prepare_to_wait_event() to make sure
-	 * ___wait_var_event() either sees the bit cleared or
-	 * waitqueue_active() check in wake_up_var() sees the waiter.
-	 */
-	smp_mb();
+	WARN_ON(!(inode_state_read(inode) & I_NEW));
+	inode_state_clear(inode, I_NEW | I_CREATING);
 	inode_wake_up_bit(inode, __I_NEW);
 	spin_unlock(&inode->i_lock);
 }
@@ -2307,11 +2301,20 @@ struct dentry *__d_lookup_rcu(const struct dentry *parent,
 		seq = raw_seqcount_begin(&dentry->d_seq);
 		if (dentry->d_parent != parent)
 			continue;
-		if (d_unhashed(dentry))
-			continue;
 		if (dentry->d_name.hash_len != hashlen)
 			continue;
-		if (dentry_cmp(dentry, str, hashlen_len(hashlen)) != 0)
+		if (unlikely(dentry_cmp(dentry, str, hashlen_len(hashlen)) != 0))
+			continue;
+		/*
+		 * Check for the dentry being unhashed.
+		 *
+		 * As tempting as it is, we *can't* skip it because of a race window
+		 * between us finding the dentry before it gets unhashed and loading
+		 * the sequence counter after unhashing is finished.
+		 *
+		 * We can at least predict on it.
+		 */
+		if (unlikely(d_unhashed(dentry)))
 			continue;
 		*seqp = seq;
 		return dentry;

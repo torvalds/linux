@@ -251,7 +251,7 @@ struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
 	struct inode *inode;
 
 	inode = iget_locked(sb, kernfs_ino(kn));
-	if (inode && (inode->i_state & I_NEW))
+	if (inode && (inode_state_read_once(inode) & I_NEW))
 		kernfs_init_inode(kn, inode);
 
 	return inode;

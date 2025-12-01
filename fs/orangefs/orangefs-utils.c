@@ -247,7 +247,7 @@ again:
 	spin_lock(&inode->i_lock);
 	/* Must have all the attributes in the mask and be within cache time. */
 	if ((!flags && time_before(jiffies, orangefs_inode->getattr_time)) ||
-	    orangefs_inode->attr_valid || inode->i_state & I_DIRTY_PAGES) {
+	    orangefs_inode->attr_valid || inode_state_read(inode) & I_DIRTY_PAGES) {
 		if (orangefs_inode->attr_valid) {
 			spin_unlock(&inode->i_lock);
 			write_inode_now(inode, 1);
@@ -281,13 +281,13 @@ again2:
 	spin_lock(&inode->i_lock);
 	/* Must have all the attributes in the mask and be within cache time. */
 	if ((!flags && time_before(jiffies, orangefs_inode->getattr_time)) ||
-	    orangefs_inode->attr_valid || inode->i_state & I_DIRTY_PAGES) {
+	    orangefs_inode->attr_valid || inode_state_read(inode) & I_DIRTY_PAGES) {
 		if (orangefs_inode->attr_valid) {
 			spin_unlock(&inode->i_lock);
 			write_inode_now(inode, 1);
 			goto again2;
 		}
-		if (inode->i_state & I_DIRTY_PAGES) {
+		if (inode_state_read(inode) & I_DIRTY_PAGES) {
 			ret = 0;
 			goto out_unlock;
 		}

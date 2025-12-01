@@ -160,7 +160,7 @@ static void fuse_evict_inode(struct inode *inode)
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	/* Will write inode on close/munmap and in all other dirtiers */
-	WARN_ON(inode->i_state & I_DIRTY_INODE);
+	WARN_ON(inode_state_read_once(inode) & I_DIRTY_INODE);
 
 	if (FUSE_IS_DAX(inode))
 		dax_break_layout_final(inode);
@@ -505,7 +505,7 @@ retry:
 	if (!inode)
 		return NULL;
 
-	if ((inode->i_state & I_NEW)) {
+	if ((inode_state_read_once(inode) & I_NEW)) {
 		inode->i_flags |= S_NOATIME;
 		if (!fc->writeback_cache || !S_ISREG(attr->mode))
 			inode->i_flags |= S_NOCMTIME;

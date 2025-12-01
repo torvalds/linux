@@ -46,7 +46,7 @@ static void clear_shadow_entries(struct address_space *mapping,
 
 	xas_unlock_irq(&xas);
 	if (mapping_shrinkable(mapping))
-		inode_add_lru(mapping->host);
+		inode_lru_list_add(mapping->host);
 	spin_unlock(&mapping->host->i_lock);
 }
 
@@ -111,7 +111,7 @@ static void truncate_folio_batch_exceptionals(struct address_space *mapping,
 
 	xas_unlock_irq(&xas);
 	if (mapping_shrinkable(mapping))
-		inode_add_lru(mapping->host);
+		inode_lru_list_add(mapping->host);
 	spin_unlock(&mapping->host->i_lock);
 out:
 	folio_batch_remove_exceptionals(fbatch);
@@ -647,7 +647,7 @@ int folio_unmap_invalidate(struct address_space *mapping, struct folio *folio,
 	__filemap_remove_folio(folio, NULL);
 	xa_unlock_irq(&mapping->i_pages);
 	if (mapping_shrinkable(mapping))
-		inode_add_lru(mapping->host);
+		inode_lru_list_add(mapping->host);
 	spin_unlock(&mapping->host->i_lock);
 
 	filemap_free_folio(mapping, folio);

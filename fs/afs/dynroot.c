@@ -64,7 +64,7 @@ static struct inode *afs_iget_pseudo_dir(struct super_block *sb, ino_t ino)
 
 	vnode = AFS_FS_I(inode);
 
-	if (inode->i_state & I_NEW) {
+	if (inode_state_read_once(inode) & I_NEW) {
 		netfs_inode_init(&vnode->netfs, NULL, false);
 		simple_inode_init_ts(inode);
 		set_nlink(inode, 2);
@@ -259,7 +259,7 @@ static struct dentry *afs_lookup_atcell(struct inode *dir, struct dentry *dentry
 
 	vnode = AFS_FS_I(inode);
 
-	if (inode->i_state & I_NEW) {
+	if (inode_state_read_once(inode) & I_NEW) {
 		netfs_inode_init(&vnode->netfs, NULL, false);
 		simple_inode_init_ts(inode);
 		set_nlink(inode, 1);
@@ -384,7 +384,7 @@ struct inode *afs_dynroot_iget_root(struct super_block *sb)
 	vnode = AFS_FS_I(inode);
 
 	/* there shouldn't be an existing inode */
-	if (inode->i_state & I_NEW) {
+	if (inode_state_read_once(inode) & I_NEW) {
 		netfs_inode_init(&vnode->netfs, NULL, false);
 		simple_inode_init_ts(inode);
 		set_nlink(inode, 2);

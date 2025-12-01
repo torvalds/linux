@@ -67,7 +67,7 @@ static void bdev_write_inode(struct block_device *bdev)
 	int ret;
 
 	spin_lock(&inode->i_lock);
-	while (inode->i_state & I_DIRTY) {
+	while (inode_state_read(inode) & I_DIRTY) {
 		spin_unlock(&inode->i_lock);
 		ret = write_inode_now(inode, true);
 		if (ret)
@@ -1282,7 +1282,7 @@ void sync_bdevs(bool wait)
 		struct block_device *bdev;
 
 		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW) ||
+		if (inode_state_read(inode) & (I_FREEING | I_WILL_FREE | I_NEW) ||
 		    mapping->nrpages == 0) {
 			spin_unlock(&inode->i_lock);
 			continue;

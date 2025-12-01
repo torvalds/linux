@@ -4106,7 +4106,7 @@ int vfs_tmpfile(struct mnt_idmap *idmap,
 	inode = file_inode(file);
 	if (!(open_flag & O_EXCL)) {
 		spin_lock(&inode->i_lock);
-		inode->i_state |= I_LINKABLE;
+		inode_state_set(inode, I_LINKABLE);
 		spin_unlock(&inode->i_lock);
 	}
 	security_inode_post_create_tmpfile(idmap, inode);
@@ -5001,7 +5001,7 @@ int vfs_link(struct dentry *old_dentry, struct mnt_idmap *idmap,
 
 	inode_lock(inode);
 	/* Make sure we don't allow creating hardlink to an unlinked file */
-	if (inode->i_nlink == 0 && !(inode->i_state & I_LINKABLE))
+	if (inode->i_nlink == 0 && !(inode_state_read_once(inode) & I_LINKABLE))
 		error =  -ENOENT;
 	else if (max_links && inode->i_nlink >= max_links)
 		error = -EMLINK;
@@ -5011,9 +5011,9 @@ int vfs_link(struct dentry *old_dentry, struct mnt_idmap *idmap,
 			error = dir->i_op->link(old_dentry, dir, new_dentry);
 	}
 
-	if (!error && (inode->i_state & I_LINKABLE)) {
+	if (!error && (inode_state_read_once(inode) & I_LINKABLE)) {
 		spin_lock(&inode->i_lock);
-		inode->i_state &= ~I_LINKABLE;
+		inode_state_clear(inode, I_LINKABLE);
 		spin_unlock(&inode->i_lock);
 	}
 	inode_unlock(inode);

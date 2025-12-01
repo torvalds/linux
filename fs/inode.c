@@ -233,7 +233,7 @@ int inode_init_always_gfp(struct super_block *sb, struct inode *inode, gfp_t gfp
 	inode->i_sb = sb;
 	inode->i_blkbits = sb->s_blocksize_bits;
 	inode->i_flags = 0;
-	inode->i_state = 0;
+	inode_state_assign_raw(inode, 0);
 	atomic64_set(&inode->i_sequence, 0);
 	atomic_set(&inode->i_count, 1);
 	inode->i_op = &empty_iops;
@@ -471,7 +471,7 @@ EXPORT_SYMBOL(set_nlink);
 void inc_nlink(struct inode *inode)
 {
 	if (unlikely(inode->i_nlink == 0)) {
-		WARN_ON(!(inode->i_state & I_LINKABLE));
+		WARN_ON(!(inode_state_read_once(inode) & I_LINKABLE));
 		atomic_long_dec(&inode->i_sb->s_remove_count);
 	}
 
@@ -530,23 +530,6 @@ void ihold(struct inode *inode)
 }
 EXPORT_SYMBOL(ihold);
 
-static void __inode_add_lru(struct inode *inode, bool rotate)
-{
-	if (inode->i_state & (I_DIRTY_ALL | I_SYNC | I_FREEING | I_WILL_FREE))
-		return;
-	if (icount_read(inode))
-		return;
-	if (!(inode->i_sb->s_flags & SB_ACTIVE))
-		return;
-	if (!mapping_shrinkable(&inode->i_data))
-		return;
-
-	if (list_lru_add_obj(&inode->i_sb->s_inode_lru, &inode->i_lru))
-		this_cpu_inc(nr_unused);
-	else if (rotate)
-		inode->i_state |= I_REFERENCED;
-}
-
 struct wait_queue_head *inode_bit_waitqueue(struct wait_bit_queue_entry *wqe,
 					    struct inode *inode, u32 bit)
 {
@@ -558,18 +541,64 @@ struct wait_queue_head *inode_bit_waitqueue(struct wait_bit_queue_entry *wqe,
 }
 EXPORT_SYMBOL(inode_bit_waitqueue);
 
+void wait_on_new_inode(struct inode *inode)
+{
+	struct wait_bit_queue_entry wqe;
+	struct wait_queue_head *wq_head;
+
+	spin_lock(&inode->i_lock);
+	if (!(inode_state_read(inode) & I_NEW)) {
+		spin_unlock(&inode->i_lock);
+		return;
+	}
+
+	wq_head = inode_bit_waitqueue(&wqe, inode, __I_NEW);
+	for (;;) {
+		prepare_to_wait_event(wq_head, &wqe.wq_entry, TASK_UNINTERRUPTIBLE);
+		if (!(inode_state_read(inode) & I_NEW))
+			break;
+		spin_unlock(&inode->i_lock);
+		schedule();
+		spin_lock(&inode->i_lock);
+	}
+	finish_wait(wq_head, &wqe.wq_entry);
+	WARN_ON(inode_state_read(inode) & I_NEW);
+	spin_unlock(&inode->i_lock);
+}
+EXPORT_SYMBOL(wait_on_new_inode);
+
+static void __inode_lru_list_add(struct inode *inode, bool rotate)
+{
+	lockdep_assert_held(&inode->i_lock);
+
+	if (inode_state_read(inode) & (I_DIRTY_ALL | I_SYNC | I_FREEING | I_WILL_FREE))
+		return;
+	if (icount_read(inode))
+		return;
+	if (!(inode->i_sb->s_flags & SB_ACTIVE))
+		return;
+	if (!mapping_shrinkable(&inode->i_data))
+		return;
+
+	if (list_lru_add_obj(&inode->i_sb->s_inode_lru, &inode->i_lru))
+		this_cpu_inc(nr_unused);
+	else if (rotate)
+		inode_state_set(inode, I_REFERENCED);
+}
+
 /*
  * Add inode to LRU if needed (inode is unused and clean).
- *
- * Needs inode->i_lock held.
  */
-void inode_add_lru(struct inode *inode)
+void inode_lru_list_add(struct inode *inode)
 {
-	__inode_add_lru(inode, false);
+	__inode_lru_list_add(inode, false);
 }
 
 static void inode_lru_list_del(struct inode *inode)
 {
+	if (list_empty(&inode->i_lru))
+		return;
+
 	if (list_lru_del_obj(&inode->i_sb->s_inode_lru, &inode->i_lru))
 		this_cpu_dec(nr_unused);
 }
@@ -577,15 +606,15 @@ static void inode_lru_list_del(struct inode *inode)
 static void inode_pin_lru_isolating(struct inode *inode)
 {
 	lockdep_assert_held(&inode->i_lock);
-	WARN_ON(inode->i_state & (I_LRU_ISOLATING | I_FREEING | I_WILL_FREE));
-	inode->i_state |= I_LRU_ISOLATING;
+	WARN_ON(inode_state_read(inode) & (I_LRU_ISOLATING | I_FREEING | I_WILL_FREE));
+	inode_state_set(inode, I_LRU_ISOLATING);
 }
 
 static void inode_unpin_lru_isolating(struct inode *inode)
 {
 	spin_lock(&inode->i_lock);
-	WARN_ON(!(inode->i_state & I_LRU_ISOLATING));
-	inode->i_state &= ~I_LRU_ISOLATING;
+	WARN_ON(!(inode_state_read(inode) & I_LRU_ISOLATING));
+	inode_state_clear(inode, I_LRU_ISOLATING);
 	/* Called with inode->i_lock which ensures memory ordering. */
 	inode_wake_up_bit(inode, __I_LRU_ISOLATING);
 	spin_unlock(&inode->i_lock);
@@ -597,7 +626,7 @@ static void inode_wait_for_lru_isolating(struct inode *inode)
 	struct wait_queue_head *wq_head;
 
 	lockdep_assert_held(&inode->i_lock);
-	if (!(inode->i_state & I_LRU_ISOLATING))
+	if (!(inode_state_read(inode) & I_LRU_ISOLATING))
 		return;
 
 	wq_head = inode_bit_waitqueue(&wqe, inode, __I_LRU_ISOLATING);
@@ -607,14 +636,14 @@ static void inode_wait_for_lru_isolating(struct inode *inode)
 		 * Checking I_LRU_ISOLATING with inode->i_lock guarantees
 		 * memory ordering.
 		 */
-		if (!(inode->i_state & I_LRU_ISOLATING))
+		if (!(inode_state_read(inode) & I_LRU_ISOLATING))
 			break;
 		spin_unlock(&inode->i_lock);
 		schedule();
 		spin_lock(&inode->i_lock);
 	}
 	finish_wait(wq_head, &wqe.wq_entry);
-	WARN_ON(inode->i_state & I_LRU_ISOLATING);
+	WARN_ON(inode_state_read(inode) & I_LRU_ISOLATING);
 }
 
 /**
@@ -761,11 +790,11 @@ void clear_inode(struct inode *inode)
 	 */
 	xa_unlock_irq(&inode->i_data.i_pages);
 	BUG_ON(!list_empty(&inode->i_data.i_private_list));
-	BUG_ON(!(inode->i_state & I_FREEING));
-	BUG_ON(inode->i_state & I_CLEAR);
+	BUG_ON(!(inode_state_read_once(inode) & I_FREEING));
+	BUG_ON(inode_state_read_once(inode) & I_CLEAR);
 	BUG_ON(!list_empty(&inode->i_wb_list));
 	/* don't need i_lock here, no concurrent mods to i_state */
-	inode->i_state = I_FREEING | I_CLEAR;
+	inode_state_assign_raw(inode, I_FREEING | I_CLEAR);
 }
 EXPORT_SYMBOL(clear_inode);
 
@@ -786,12 +815,10 @@ static void evict(struct inode *inode)
 {
 	const struct super_operations *op = inode->i_sb->s_op;
 
-	BUG_ON(!(inode->i_state & I_FREEING));
+	BUG_ON(!(inode_state_read_once(inode) & I_FREEING));
 	BUG_ON(!list_empty(&inode->i_lru));
 
-	if (!list_empty(&inode->i_io_list))
-		inode_io_list_del(inode);
-
+	inode_io_list_del(inode);
 	inode_sb_list_del(inode);
 
 	spin_lock(&inode->i_lock);
@@ -829,7 +856,7 @@ static void evict(struct inode *inode)
 	 * This also means we don't need any fences for the call below.
 	 */
 	inode_wake_up_bit(inode, __I_NEW);
-	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
+	BUG_ON(inode_state_read_once(inode) != (I_FREEING | I_CLEAR));
 
 	destroy_inode(inode);
 }
@@ -879,12 +906,12 @@ again:
 			spin_unlock(&inode->i_lock);
 			continue;
 		}
-		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
+		if (inode_state_read(inode) & (I_NEW | I_FREEING | I_WILL_FREE)) {
 			spin_unlock(&inode->i_lock);
 			continue;
 		}
 
-		inode->i_state |= I_FREEING;
+		inode_state_set(inode, I_FREEING);
 		inode_lru_list_del(inode);
 		spin_unlock(&inode->i_lock);
 		list_add(&inode->i_lru, &dispose);
@@ -938,7 +965,7 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 	 * sync, or the last page cache deletion will requeue them.
 	 */
 	if (icount_read(inode) ||
-	    (inode->i_state & ~I_REFERENCED) ||
+	    (inode_state_read(inode) & ~I_REFERENCED) ||
 	    !mapping_shrinkable(&inode->i_data)) {
 		list_lru_isolate(lru, &inode->i_lru);
 		spin_unlock(&inode->i_lock);
@@ -947,8 +974,8 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 	}
 
 	/* Recently referenced inodes get one more pass */
-	if (inode->i_state & I_REFERENCED) {
-		inode->i_state &= ~I_REFERENCED;
+	if (inode_state_read(inode) & I_REFERENCED) {
+		inode_state_clear(inode, I_REFERENCED);
 		spin_unlock(&inode->i_lock);
 		return LRU_ROTATE;
 	}
@@ -975,8 +1002,8 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 		return LRU_RETRY;
 	}
 
-	WARN_ON(inode->i_state & I_NEW);
-	inode->i_state |= I_FREEING;
+	WARN_ON(inode_state_read(inode) & I_NEW);
+	inode_state_set(inode, I_FREEING);
 	list_lru_isolate_move(lru, &inode->i_lru, freeable);
 	spin_unlock(&inode->i_lock);
 
@@ -1008,7 +1035,8 @@ static void __wait_on_freeing_inode(struct inode *inode, bool is_inode_hash_lock
 static struct inode *find_inode(struct super_block *sb,
 				struct hlist_head *head,
 				int (*test)(struct inode *, void *),
-				void *data, bool is_inode_hash_locked)
+				void *data, bool is_inode_hash_locked,
+				bool *isnew)
 {
 	struct inode *inode = NULL;
 
@@ -1025,16 +1053,17 @@ repeat:
 		if (!test(inode, data))
 			continue;
 		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
+		if (inode_state_read(inode) & (I_FREEING | I_WILL_FREE)) {
 			__wait_on_freeing_inode(inode, is_inode_hash_locked);
 			goto repeat;
 		}
-		if (unlikely(inode->i_state & I_CREATING)) {
+		if (unlikely(inode_state_read(inode) & I_CREATING)) {
 			spin_unlock(&inode->i_lock);
 			rcu_read_unlock();
 			return ERR_PTR(-ESTALE);
 		}
 		__iget(inode);
+		*isnew = !!(inode_state_read(inode) & I_NEW);
 		spin_unlock(&inode->i_lock);
 		rcu_read_unlock();
 		return inode;
@@ -1049,7 +1078,7 @@ repeat:
  */
 static struct inode *find_inode_fast(struct super_block *sb,
 				struct hlist_head *head, unsigned long ino,
-				bool is_inode_hash_locked)
+				bool is_inode_hash_locked, bool *isnew)
 {
 	struct inode *inode = NULL;
 
@@ -1066,16 +1095,17 @@ repeat:
 		if (inode->i_sb != sb)
 			continue;
 		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
+		if (inode_state_read(inode) & (I_FREEING | I_WILL_FREE)) {
 			__wait_on_freeing_inode(inode, is_inode_hash_locked);
 			goto repeat;
 		}
-		if (unlikely(inode->i_state & I_CREATING)) {
+		if (unlikely(inode_state_read(inode) & I_CREATING)) {
 			spin_unlock(&inode->i_lock);
 			rcu_read_unlock();
 			return ERR_PTR(-ESTALE);
 		}
 		__iget(inode);
+		*isnew = !!(inode_state_read(inode) & I_NEW);
 		spin_unlock(&inode->i_lock);
 		rcu_read_unlock();
 		return inode;
@@ -1180,14 +1210,8 @@ void unlock_new_inode(struct inode *inode)
 {
 	lockdep_annotate_inode_mutex_key(inode);
 	spin_lock(&inode->i_lock);
-	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW & ~I_CREATING;
-	/*
-	 * Pairs with the barrier in prepare_to_wait_event() to make sure
-	 * ___wait_var_event() either sees the bit cleared or
-	 * waitqueue_active() check in wake_up_var() sees the waiter.
-	 */
-	smp_mb();
+	WARN_ON(!(inode_state_read(inode) & I_NEW));
+	inode_state_clear(inode, I_NEW | I_CREATING);
 	inode_wake_up_bit(inode, __I_NEW);
 	spin_unlock(&inode->i_lock);
 }
@@ -1197,14 +1221,8 @@ void discard_new_inode(struct inode *inode)
 {
 	lockdep_annotate_inode_mutex_key(inode);
 	spin_lock(&inode->i_lock);
-	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW;
-	/*
-	 * Pairs with the barrier in prepare_to_wait_event() to make sure
-	 * ___wait_var_event() either sees the bit cleared or
-	 * waitqueue_active() check in wake_up_var() sees the waiter.
-	 */
-	smp_mb();
+	WARN_ON(!(inode_state_read(inode) & I_NEW));
+	inode_state_clear(inode, I_NEW);
 	inode_wake_up_bit(inode, __I_NEW);
 	spin_unlock(&inode->i_lock);
 	iput(inode);
@@ -1260,6 +1278,7 @@ EXPORT_SYMBOL(unlock_two_nondirectories);
  * @test:	callback used for comparisons between inodes
  * @set:	callback used to initialize a new struct inode
  * @data:	opaque data pointer to pass to @test and @set
+ * @isnew:	pointer to a bool which will indicate whether I_NEW is set
  *
  * Search for the inode specified by @hashval and @data in the inode cache,
  * and if present return it with an increased reference count. This is a
@@ -1278,12 +1297,13 @@ struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
 {
 	struct hlist_head *head = inode_hashtable + hash(inode->i_sb, hashval);
 	struct inode *old;
+	bool isnew;
 
 	might_sleep();
 
 again:
 	spin_lock(&inode_hash_lock);
-	old = find_inode(inode->i_sb, head, test, data, true);
+	old = find_inode(inode->i_sb, head, test, data, true, &isnew);
 	if (unlikely(old)) {
 		/*
 		 * Uhhuh, somebody else created the same inode under us.
@@ -1292,7 +1312,8 @@ again:
 		spin_unlock(&inode_hash_lock);
 		if (IS_ERR(old))
 			return NULL;
-		wait_on_inode(old);
+		if (unlikely(isnew))
+			wait_on_new_inode(old);
 		if (unlikely(inode_unhashed(old))) {
 			iput(old);
 			goto again;
@@ -1310,7 +1331,7 @@ again:
 	 * caller is responsible for filling in the contents
 	 */
 	spin_lock(&inode->i_lock);
-	inode->i_state |= I_NEW;
+	inode_state_set(inode, I_NEW);
 	hlist_add_head_rcu(&inode->i_hash, head);
 	spin_unlock(&inode->i_lock);
 
@@ -1383,15 +1404,17 @@ struct inode *iget5_locked_rcu(struct super_block *sb, unsigned long hashval,
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
 	struct inode *inode, *new;
+	bool isnew;
 
 	might_sleep();
 
 again:
-	inode = find_inode(sb, head, test, data, false);
+	inode = find_inode(sb, head, test, data, false, &isnew);
 	if (inode) {
 		if (IS_ERR(inode))
 			return NULL;
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1426,15 +1449,17 @@ struct inode *iget_locked(struct super_block *sb, unsigned long ino)
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
 	struct inode *inode;
+	bool isnew;
 
 	might_sleep();
 
 again:
-	inode = find_inode_fast(sb, head, ino, false);
+	inode = find_inode_fast(sb, head, ino, false, &isnew);
 	if (inode) {
 		if (IS_ERR(inode))
 			return NULL;
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1448,11 +1473,11 @@ again:
 
 		spin_lock(&inode_hash_lock);
 		/* We released the lock, so.. */
-		old = find_inode_fast(sb, head, ino, true);
+		old = find_inode_fast(sb, head, ino, true, &isnew);
 		if (!old) {
 			inode->i_ino = ino;
 			spin_lock(&inode->i_lock);
-			inode->i_state = I_NEW;
+			inode_state_assign(inode, I_NEW);
 			hlist_add_head_rcu(&inode->i_hash, head);
 			spin_unlock(&inode->i_lock);
 			spin_unlock(&inode_hash_lock);
@@ -1474,7 +1499,8 @@ again:
 		if (IS_ERR(old))
 			return NULL;
 		inode = old;
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1545,7 +1571,7 @@ EXPORT_SYMBOL(iunique);
 struct inode *igrab(struct inode *inode)
 {
 	spin_lock(&inode->i_lock);
-	if (!(inode->i_state & (I_FREEING|I_WILL_FREE))) {
+	if (!(inode_state_read(inode) & (I_FREEING | I_WILL_FREE))) {
 		__iget(inode);
 		spin_unlock(&inode->i_lock);
 	} else {
@@ -1578,13 +1604,13 @@ EXPORT_SYMBOL(igrab);
  * Note2: @test is called with the inode_hash_lock held, so can't sleep.
  */
 struct inode *ilookup5_nowait(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data)
+		int (*test)(struct inode *, void *), void *data, bool *isnew)
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
 	struct inode *inode;
 
 	spin_lock(&inode_hash_lock);
-	inode = find_inode(sb, head, test, data, true);
+	inode = find_inode(sb, head, test, data, true, isnew);
 	spin_unlock(&inode_hash_lock);
 
 	return IS_ERR(inode) ? NULL : inode;
@@ -1612,13 +1638,15 @@ struct inode *ilookup5(struct super_block *sb, unsigned long hashval,
 		int (*test)(struct inode *, void *), void *data)
 {
 	struct inode *inode;
+	bool isnew;
 
 	might_sleep();
 
 again:
-	inode = ilookup5_nowait(sb, hashval, test, data);
+	inode = ilookup5_nowait(sb, hashval, test, data, &isnew);
 	if (inode) {
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1640,16 +1668,18 @@ struct inode *ilookup(struct super_block *sb, unsigned long ino)
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
 	struct inode *inode;
+	bool isnew;
 
 	might_sleep();
 
 again:
-	inode = find_inode_fast(sb, head, ino, false);
+	inode = find_inode_fast(sb, head, ino, false, &isnew);
 
 	if (inode) {
 		if (IS_ERR(inode))
 			return NULL;
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1741,7 +1771,7 @@ struct inode *find_inode_rcu(struct super_block *sb, unsigned long hashval,
 
 	hlist_for_each_entry_rcu(inode, head, i_hash) {
 		if (inode->i_sb == sb &&
-		    !(READ_ONCE(inode->i_state) & (I_FREEING | I_WILL_FREE)) &&
+		    !(inode_state_read_once(inode) & (I_FREEING | I_WILL_FREE)) &&
 		    test(inode, data))
 			return inode;
 	}
@@ -1780,7 +1810,7 @@ struct inode *find_inode_by_ino_rcu(struct super_block *sb,
 	hlist_for_each_entry_rcu(inode, head, i_hash) {
 		if (inode->i_ino == ino &&
 		    inode->i_sb == sb &&
-		    !(READ_ONCE(inode->i_state) & (I_FREEING | I_WILL_FREE)))
+		    !(inode_state_read_once(inode) & (I_FREEING | I_WILL_FREE)))
 		    return inode;
 	}
 	return NULL;
@@ -1792,6 +1822,7 @@ int insert_inode_locked(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	ino_t ino = inode->i_ino;
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
+	bool isnew;
 
 	might_sleep();
 
@@ -1804,7 +1835,7 @@ int insert_inode_locked(struct inode *inode)
 			if (old->i_sb != sb)
 				continue;
 			spin_lock(&old->i_lock);
-			if (old->i_state & (I_FREEING|I_WILL_FREE)) {
+			if (inode_state_read(old) & (I_FREEING | I_WILL_FREE)) {
 				spin_unlock(&old->i_lock);
 				continue;
 			}
@@ -1812,21 +1843,23 @@ int insert_inode_locked(struct inode *inode)
 		}
 		if (likely(!old)) {
 			spin_lock(&inode->i_lock);
-			inode->i_state |= I_NEW | I_CREATING;
+			inode_state_set(inode, I_NEW | I_CREATING);
 			hlist_add_head_rcu(&inode->i_hash, head);
 			spin_unlock(&inode->i_lock);
 			spin_unlock(&inode_hash_lock);
 			return 0;
 		}
-		if (unlikely(old->i_state & I_CREATING)) {
+		if (unlikely(inode_state_read(old) & I_CREATING)) {
 			spin_unlock(&old->i_lock);
 			spin_unlock(&inode_hash_lock);
 			return -EBUSY;
 		}
 		__iget(old);
+		isnew = !!(inode_state_read(old) & I_NEW);
 		spin_unlock(&old->i_lock);
 		spin_unlock(&inode_hash_lock);
-		wait_on_inode(old);
+		if (isnew)
+			wait_on_new_inode(old);
 		if (unlikely(!inode_unhashed(old))) {
 			iput(old);
 			return -EBUSY;
@@ -1843,7 +1876,7 @@ int insert_inode_locked4(struct inode *inode, unsigned long hashval,
 
 	might_sleep();
 
-	inode->i_state |= I_CREATING;
+	inode_state_set_raw(inode, I_CREATING);
 	old = inode_insert5(inode, hashval, test, NULL, data);
 
 	if (old != inode) {
@@ -1875,10 +1908,10 @@ static void iput_final(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	const struct super_operations *op = inode->i_sb->s_op;
-	unsigned long state;
 	int drop;
 
-	WARN_ON(inode->i_state & I_NEW);
+	WARN_ON(inode_state_read(inode) & I_NEW);
+	VFS_BUG_ON_INODE(atomic_read(&inode->i_count) != 0, inode);
 
 	if (op->drop_inode)
 		drop = op->drop_inode(inode);
@@ -1886,29 +1919,33 @@ static void iput_final(struct inode *inode)
 		drop = inode_generic_drop(inode);
 
 	if (!drop &&
-	    !(inode->i_state & I_DONTCACHE) &&
+	    !(inode_state_read(inode) & I_DONTCACHE) &&
 	    (sb->s_flags & SB_ACTIVE)) {
-		__inode_add_lru(inode, true);
+		__inode_lru_list_add(inode, true);
 		spin_unlock(&inode->i_lock);
 		return;
 	}
 
-	state = inode->i_state;
-	if (!drop) {
-		WRITE_ONCE(inode->i_state, state | I_WILL_FREE);
+	/*
+	 * Re-check ->i_count in case the ->drop_inode() hooks played games.
+	 * Note we only execute this if the verdict was to drop the inode.
+	 */
+	VFS_BUG_ON_INODE(atomic_read(&inode->i_count) != 0, inode);
+
+	if (drop) {
+		inode_state_set(inode, I_FREEING);
+	} else {
+		inode_state_set(inode, I_WILL_FREE);
 		spin_unlock(&inode->i_lock);
 
 		write_inode_now(inode, 1);
 
 		spin_lock(&inode->i_lock);
-		state = inode->i_state;
-		WARN_ON(state & I_NEW);
-		state &= ~I_WILL_FREE;
+		WARN_ON(inode_state_read(inode) & I_NEW);
+		inode_state_replace(inode, I_WILL_FREE, I_FREEING);
 	}
 
-	WRITE_ONCE(inode->i_state, state | I_FREEING);
-	if (!list_empty(&inode->i_lru))
-		inode_lru_list_del(inode);
+	inode_lru_list_del(inode);
 	spin_unlock(&inode->i_lock);
 
 	evict(inode);
@@ -1931,7 +1968,7 @@ void iput(struct inode *inode)
 
 retry:
 	lockdep_assert_not_held(&inode->i_lock);
-	VFS_BUG_ON_INODE(inode->i_state & I_CLEAR, inode);
+	VFS_BUG_ON_INODE(inode_state_read_once(inode) & I_CLEAR, inode);
 	/*
 	 * Note this assert is technically racy as if the count is bogusly
 	 * equal to one, then two CPUs racing to further drop it can both
@@ -1942,14 +1979,14 @@ retry:
 	if (atomic_add_unless(&inode->i_count, -1, 1))
 		return;
 
-	if ((inode->i_state & I_DIRTY_TIME) && inode->i_nlink) {
+	if ((inode_state_read_once(inode) & I_DIRTY_TIME) && inode->i_nlink) {
 		trace_writeback_lazytime_iput(inode);
 		mark_inode_dirty_sync(inode);
 		goto retry;
 	}
 
 	spin_lock(&inode->i_lock);
-	if (unlikely((inode->i_state & I_DIRTY_TIME) && inode->i_nlink)) {
+	if (unlikely((inode_state_read(inode) & I_DIRTY_TIME) && inode->i_nlink)) {
 		spin_unlock(&inode->i_lock);
 		goto retry;
 	}
@@ -2962,7 +2999,7 @@ void dump_inode(struct inode *inode, const char *reason)
 	pr_warn("%s encountered for inode %px\n"
 		"fs %s mode %ho opflags 0x%hx flags 0x%x state 0x%x count %d\n",
 		reason, inode, sb->s_type->name, inode->i_mode, inode->i_opflags,
-		inode->i_flags, inode->i_state, atomic_read(&inode->i_count));
+		inode->i_flags, inode_state_read_once(inode), atomic_read(&inode->i_count));
 }
 
 EXPORT_SYMBOL(dump_inode);
