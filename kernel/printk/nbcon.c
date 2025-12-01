@@ -1302,6 +1302,13 @@ void nbcon_kthreads_wake(void)
 	if (!printk_kthreads_running)
 		return;
 
+	/*
+	 * It is not allowed to call this function when console irq_work
+	 * is blocked.
+	 */
+	if (WARN_ON_ONCE(console_irqwork_blocked))
+		return;
+
 	cookie = console_srcu_read_lock();
 	for_each_console_srcu(con) {
 		if (!(console_srcu_read_flags(con) & CON_NBCON))
@@ -1892,7 +1899,7 @@ void nbcon_device_release(struct console *con)
 			if (console_trylock())
 				console_unlock();
 		} else if (ft.legacy_offload) {
-			printk_trigger_flush();
+			defer_console_output();
 		}
 	}
 	console_srcu_read_unlock(cookie);
