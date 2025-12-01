@@ -5,6 +5,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bsearch.h>
+#include <linux/delay.h>
 
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
@@ -40,6 +41,37 @@
 #include "xe_wopcm.h"
 
 #define make_u64_from_u32(hi, lo) ((u64)((u64)(u32)(hi) << 32 | (u32)(lo)))
+
+#ifdef CONFIG_DRM_XE_DEBUG
+enum VF_MIGRATION_WAIT_POINTS {
+	VF_MIGRATION_WAIT_RESFIX_START	= BIT(0),
+	VF_MIGRATION_WAIT_FIXUPS	= BIT(1),
+	VF_MIGRATION_WAIT_RESTART_JOBS	= BIT(2),
+	VF_MIGRATION_WAIT_RESFIX_DONE	= BIT(3),
+};
+
+#define VF_MIGRATION_WAIT_DELAY_IN_MS	1000
+static void vf_post_migration_inject_wait(struct xe_gt *gt,
+					  enum VF_MIGRATION_WAIT_POINTS wait)
+{
+	while (gt->sriov.vf.migration.debug.resfix_stoppers & wait) {
+		xe_gt_dbg(gt,
+			  "*TESTING* injecting %u ms delay due to resfix_stoppers=%#x, to continue clear %#x\n",
+			  VF_MIGRATION_WAIT_DELAY_IN_MS,
+			  gt->sriov.vf.migration.debug.resfix_stoppers, wait);
+
+		msleep(VF_MIGRATION_WAIT_DELAY_IN_MS);
+	}
+}
+
+#define VF_MIGRATION_INJECT_WAIT(gt, _POS) ({					\
+	struct xe_gt *__gt = (gt);						\
+	vf_post_migration_inject_wait(__gt, VF_MIGRATION_WAIT_##_POS);		\
+	})
+
+#else
+#define VF_MIGRATION_INJECT_WAIT(_gt, ...)	typecheck(struct xe_gt *, (_gt))
+#endif
 
 static int guc_action_vf_reset(struct xe_guc *guc)
 {
@@ -319,6 +351,8 @@ static int vf_resfix_start(struct xe_gt *gt, u16 marker)
 	struct xe_guc *guc = &gt->uc.guc;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	VF_MIGRATION_INJECT_WAIT(gt, RESFIX_START);
 
 	xe_gt_sriov_dbg_verbose(gt, "Sending resfix start marker %u\n", marker);
 
@@ -1158,6 +1192,8 @@ static int vf_post_migration_fixups(struct xe_gt *gt)
 	void *buf = gt->sriov.vf.migration.scratch;
 	int err;
 
+	VF_MIGRATION_INJECT_WAIT(gt, FIXUPS);
+
 	/* xe_gt_sriov_vf_query_config will fixup the GGTT addresses */
 	err = xe_gt_sriov_vf_query_config(gt);
 	if (err)
@@ -1176,6 +1212,8 @@ static int vf_post_migration_fixups(struct xe_gt *gt)
 
 static void vf_post_migration_rearm(struct xe_gt *gt)
 {
+	VF_MIGRATION_INJECT_WAIT(gt, RESTART_JOBS);
+
 	/*
 	 * Make sure interrupts on the new HW are properly set. The GuC IRQ
 	 * must be working at this point, since the recovery did started,
@@ -1206,6 +1244,8 @@ static void vf_post_migration_abort(struct xe_gt *gt)
 
 static int vf_post_migration_resfix_done(struct xe_gt *gt, u16 marker)
 {
+	VF_MIGRATION_INJECT_WAIT(gt, RESFIX_DONE);
+
 	spin_lock_irq(&gt->sriov.vf.migration.lock);
 	if (gt->sriov.vf.migration.recovery_queued)
 		xe_gt_sriov_dbg(gt, "another recovery imminent\n");
