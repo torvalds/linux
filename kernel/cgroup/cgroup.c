@@ -5360,7 +5360,6 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	struct cgroup_file_ctx *ctx = of->priv;
 	struct cgroup *src_cgrp, *dst_cgrp;
 	struct task_struct *task;
-	const struct cred *saved_cred;
 	ssize_t ret;
 	enum cgroup_attach_lock_mode lock_mode;
 
@@ -5383,11 +5382,10 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	 * permissions using the credentials from file open to protect against
 	 * inherited fd attacks.
 	 */
-	saved_cred = override_creds(of->file->f_cred);
-	ret = cgroup_attach_permissions(src_cgrp, dst_cgrp,
-					of->file->f_path.dentry->d_sb,
-					threadgroup, ctx->ns);
-	revert_creds(saved_cred);
+	scoped_with_creds(of->file->f_cred)
+		ret = cgroup_attach_permissions(src_cgrp, dst_cgrp,
+						of->file->f_path.dentry->d_sb,
+						threadgroup, ctx->ns);
 	if (ret)
 		goto out_finish;
 

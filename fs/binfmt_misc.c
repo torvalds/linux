@@ -782,8 +782,6 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		return PTR_ERR(e);
 
 	if (e->flags & MISC_FMT_OPEN_FILE) {
-		const struct cred *old_cred;
-
 		/*
 		 * Now that we support unprivileged binfmt_misc mounts make
 		 * sure we use the credentials that the register @file was
@@ -791,9 +789,8 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		 * didn't matter much as only a privileged process could open
 		 * the register file.
 		 */
-		old_cred = override_creds(file->f_cred);
-		f = open_exec(e->interpreter);
-		revert_creds(old_cred);
+		scoped_with_creds(file->f_cred)
+			f = open_exec(e->interpreter);
 		if (IS_ERR(f)) {
 			pr_notice("register: failed to install interpreter file %s\n",
 				 e->interpreter);
