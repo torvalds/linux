@@ -299,12 +299,13 @@ void xe_gt_sriov_vf_guc_versions(struct xe_gt *gt,
 		*found = gt->sriov.vf.guc_version;
 }
 
-static int guc_action_vf_notify_resfix_done(struct xe_guc *guc)
+static int guc_action_vf_resfix_start(struct xe_guc *guc, u16 marker)
 {
 	u32 request[GUC_HXG_REQUEST_MSG_MIN_LEN] = {
 		FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_HOST) |
 		FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_REQUEST) |
-		FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION, GUC_ACTION_VF2GUC_NOTIFY_RESFIX_DONE),
+		FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION, GUC_ACTION_VF2GUC_RESFIX_START) |
+		FIELD_PREP(VF2GUC_RESFIX_START_REQUEST_MSG_0_MARKER, marker),
 	};
 	int ret;
 
@@ -313,28 +314,41 @@ static int guc_action_vf_notify_resfix_done(struct xe_guc *guc)
 	return ret > 0 ? -EPROTO : ret;
 }
 
-/**
- * vf_notify_resfix_done - Notify GuC about resource fixups apply completed.
- * @gt: the &xe_gt struct instance linked to target GuC
- *
- * Returns: 0 if the operation completed successfully, or a negative error
- * code otherwise.
- */
-static int vf_notify_resfix_done(struct xe_gt *gt)
+static int vf_resfix_start(struct xe_gt *gt, u16 marker)
 {
 	struct xe_guc *guc = &gt->uc.guc;
-	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
 
-	err = guc_action_vf_notify_resfix_done(guc);
-	if (unlikely(err))
-		xe_gt_sriov_err(gt, "Failed to notify GuC about resource fixup done (%pe)\n",
-				ERR_PTR(err));
-	else
-		xe_gt_sriov_dbg_verbose(gt, "sent GuC resource fixup done\n");
+	xe_gt_sriov_dbg_verbose(gt, "Sending resfix start marker %u\n", marker);
 
-	return err;
+	return guc_action_vf_resfix_start(guc, marker);
+}
+
+static int guc_action_vf_resfix_done(struct xe_guc *guc, u16 marker)
+{
+	u32 request[GUC_HXG_REQUEST_MSG_MIN_LEN] = {
+		FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_HOST) |
+		FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_REQUEST) |
+		FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION, GUC_ACTION_VF2GUC_RESFIX_DONE) |
+		FIELD_PREP(VF2GUC_RESFIX_DONE_REQUEST_MSG_0_MARKER, marker),
+	};
+	int ret;
+
+	ret = xe_guc_mmio_send(guc, request, ARRAY_SIZE(request));
+
+	return ret > 0 ? -EPROTO : ret;
+}
+
+static int vf_resfix_done(struct xe_gt *gt, u16 marker)
+{
+	struct xe_guc *guc = &gt->uc.guc;
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	xe_gt_sriov_dbg_verbose(gt, "Sending resfix done marker %u\n", marker);
+
+	return guc_action_vf_resfix_done(guc, marker);
 }
 
 static int guc_action_query_single_klv(struct xe_guc *guc, u32 key,
@@ -1162,6 +1176,13 @@ static int vf_post_migration_fixups(struct xe_gt *gt)
 
 static void vf_post_migration_rearm(struct xe_gt *gt)
 {
+	/*
+	 * Make sure interrupts on the new HW are properly set. The GuC IRQ
+	 * must be working at this point, since the recovery did started,
+	 * but the rest was not enabled using the procedure from spec.
+	 */
+	xe_irq_resume(gt_to_xe(gt));
+
 	xe_guc_ct_restart(&gt->uc.guc.ct);
 	xe_guc_submit_unpause_prepare_vf(&gt->uc.guc);
 }
@@ -1183,37 +1204,40 @@ static void vf_post_migration_abort(struct xe_gt *gt)
 	xe_guc_submit_pause_abort(&gt->uc.guc);
 }
 
-static int vf_post_migration_notify_resfix_done(struct xe_gt *gt)
+static int vf_post_migration_resfix_done(struct xe_gt *gt, u16 marker)
 {
-	bool skip_resfix = false;
-
 	spin_lock_irq(&gt->sriov.vf.migration.lock);
-	if (gt->sriov.vf.migration.recovery_queued) {
-		skip_resfix = true;
-		xe_gt_sriov_dbg(gt, "another recovery imminent, resfix skipped\n");
-	} else {
+	if (gt->sriov.vf.migration.recovery_queued)
+		xe_gt_sriov_dbg(gt, "another recovery imminent\n");
+	else
 		WRITE_ONCE(gt->sriov.vf.migration.recovery_inprogress, false);
-	}
 	spin_unlock_irq(&gt->sriov.vf.migration.lock);
 
-	if (skip_resfix)
-		return -EAGAIN;
+	return vf_resfix_done(gt, marker);
+}
 
-	/*
-	 * Make sure interrupts on the new HW are properly set. The GuC IRQ
-	 * must be working at this point, since the recovery did started,
-	 * but the rest was not enabled using the procedure from spec.
-	 */
-	xe_irq_resume(gt_to_xe(gt));
+static int vf_post_migration_resfix_start(struct xe_gt *gt, u16 marker)
+{
+	return vf_resfix_start(gt, marker);
+}
 
-	return vf_notify_resfix_done(gt);
+static u16 vf_post_migration_next_resfix_marker(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	BUILD_BUG_ON(1 + ((typeof(gt->sriov.vf.migration.resfix_marker))~0) >
+		     FIELD_MAX(VF2GUC_RESFIX_START_REQUEST_MSG_0_MARKER));
+
+	/* add 1 to avoid zero-marker */
+	return 1 + gt->sriov.vf.migration.resfix_marker++;
 }
 
 static void vf_post_migration_recovery(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	int err;
+	u16 marker;
 	bool retry;
+	int err;
 
 	xe_gt_sriov_dbg(gt, "migration recovery in progress\n");
 
@@ -1227,15 +1251,27 @@ static void vf_post_migration_recovery(struct xe_gt *gt)
 		goto fail;
 	}
 
+	marker = vf_post_migration_next_resfix_marker(gt);
+
+	err = vf_post_migration_resfix_start(gt, marker);
+	if (unlikely(err)) {
+		xe_gt_sriov_err(gt, "Recovery failed at GuC RESFIX_START step (%pe)\n",
+				ERR_PTR(err));
+		goto fail;
+	}
+
 	err = vf_post_migration_fixups(gt);
 	if (err)
 		goto fail;
 
 	vf_post_migration_rearm(gt);
 
-	err = vf_post_migration_notify_resfix_done(gt);
-	if (err && err != -EAGAIN)
+	err = vf_post_migration_resfix_done(gt, marker);
+	if (err) {
+		xe_gt_sriov_err(gt, "Recovery failed at GuC RESFIX_DONE step (%pe)\n",
+				ERR_PTR(err));
 		goto fail;
+	}
 
 	vf_post_migration_kickstart(gt);
 

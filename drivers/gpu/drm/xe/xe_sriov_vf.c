@@ -49,11 +49,13 @@
  *
  * As soon as Virtual GPU of the VM starts, the VF driver within receives
  * the MIGRATED interrupt and schedules post-migration recovery worker.
- * That worker queries GuC for new provisioning (using MMIO communication),
+ * That worker sends `VF2GUC_RESFIX_START` action along with non-zero
+ * marker, queries GuC for new provisioning (using MMIO communication),
  * and applies fixups to any non-virtualized resources used by the VF.
  *
  * When the VF driver is ready to continue operation on the newly connected
- * hardware, it sends `VF2GUC_NOTIFY_RESFIX_DONE` which causes it to
+ * hardware, it sends `VF2GUC_RESFIX_DONE` action along with the same
+ * marker which was sent with `VF2GUC_RESFIX_START` which causes it to
  * enter the long awaited `VF_RUNNING` state, and therefore start handling
  * CTB messages and scheduling workloads from the VF::
  *
@@ -102,12 +104,17 @@
  *      |                              [ ]        new VF provisioning  [ ]
  *      |                              [ ]---------------------------> [ ]
  *      |                               |                              [ ]
+ *      |                               |   VF2GUC_RESFIX_START        [ ]
+ *      |                              [ ] <---------------------------[ ]
+ *      |                              [ ]                             [ ]
+ *      |                              [ ]                     success [ ]
+ *      |                              [ ]---------------------------> [ ]
  *      |                               |       VF driver applies post [ ]
  *      |                               |      migration fixups -------[ ]
  *      |                               |                       |      [ ]
  *      |                               |                       -----> [ ]
  *      |                               |                              [ ]
- *      |                               |    VF2GUC_NOTIFY_RESFIX_DONE [ ]
+ *      |                               |    VF2GUC_RESFIX_DONE        [ ]
  *      |                              [ ] <---------------------------[ ]
  *      |                              [ ]                             [ ]
  *      |                              [ ]  GuC sets new VF state to   [ ]
@@ -118,6 +125,55 @@
  *      |                              [ ]---------------------------> [ ]
  *      |                               |                               |
  *      |                               |                               |
+ *
+ * Handling of VF double migration flow is shown below::
+ *
+ *     GuC1                                             VF
+ *      |                                               |
+ *      |                                              [ ]<--- start fixups
+ *      |                  VF2GUC_RESFIX_START(marker) [ ]
+ *     [ ] <-------------------------------------------[ ]
+ *     [ ]                                             [ ]
+ *     [ ]---\                                         [ ]
+ *     [ ]   store marker                              [ ]
+ *     [ ]<--/                                         [ ]
+ *     [ ]                                             [ ]
+ *     [ ] success                                     [ ]
+ *     [ ] ------------------------------------------> [ ]
+ *      |                                              [ ]
+ *      |                                              [ ]---\
+ *      |                                              [ ]   do fixups
+ *      |                                              [ ]<--/
+ *      |                                              [ ]
+ *      -------------- VF paused / saved ----------------
+ *      :
+ *
+ *     GuC2
+ *      |
+ *      ----------------- VF restored  ------------------
+ *      |
+ *     [ ]
+ *     [ ]---\
+ *     [ ]   reset marker
+ *     [ ]<--/
+ *     [ ]
+ *      ----------------- VF resumed  ------------------
+ *      |                                              [ ]
+ *      |                                              [ ]
+ *      |                   VF2GUC_RESFIX_DONE(marker) [ ]
+ *     [ ] <-------------------------------------------[ ]
+ *     [ ]                                             [ ]
+ *     [ ]---\                                         [ ]
+ *     [ ]   check marker                              [ ]
+ *     [ ]   (mismatch)                                [ ]
+ *     [ ]<--/                                         [ ]
+ *     [ ]                                             [ ]
+ *     [ ] RESPONSE_VF_MIGRATED                        [ ]
+ *     [ ] ------------------------------------------> [ ]
+ *      |                                              [ ]---\
+ *      |                                              [ ]  reschedule fixups
+ *      |                                              [ ]<--/
+ *      |                                               |
  */
 
 /**
