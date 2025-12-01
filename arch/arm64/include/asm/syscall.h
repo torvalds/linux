@@ -77,8 +77,6 @@ static inline void syscall_set_nr(struct task_struct *task,
 	}
 }
 
-#define SYSCALL_MAX_ARGS 6
-
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
 					 unsigned long *args)

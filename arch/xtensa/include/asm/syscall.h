@@ -61,7 +61,6 @@ static inline void syscall_set_return_value(struct task_struct *task,
 	regs->areg[2] = (long) error ? error : val;
 }
 
-#define SYSCALL_MAX_ARGS 6
 #define XTENSA_SYSCALL_ARGUMENT_REGS {6, 3, 4, 5, 8, 9}
 
 static inline void syscall_get_arguments(struct task_struct *task,
