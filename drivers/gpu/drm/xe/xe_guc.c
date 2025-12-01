@@ -1484,6 +1484,12 @@ timeout:
 		u32 hint = FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, header);
 		u32 error = FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, header);
 
+		if (unlikely(error == XE_GUC_RESPONSE_VF_MIGRATED)) {
+			xe_gt_dbg(gt, "GuC mmio request %#x rejected due to MIGRATION (hint %#x)\n",
+				  request[0], hint);
+			return -EREMCHG;
+		}
+
 		xe_gt_err(gt, "GuC mmio request %#x: failure %#x hint %#x\n",
 			  request[0], error, hint);
 		return -ENXIO;

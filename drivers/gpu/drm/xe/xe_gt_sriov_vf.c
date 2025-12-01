@@ -1268,6 +1268,9 @@ static void vf_post_migration_recovery(struct xe_gt *gt)
 
 	err = vf_post_migration_resfix_done(gt, marker);
 	if (err) {
+		if (err == -EREMCHG)
+			goto queue;
+
 		xe_gt_sriov_err(gt, "Recovery failed at GuC RESFIX_DONE step (%pe)\n",
 				ERR_PTR(err));
 		goto fail;
