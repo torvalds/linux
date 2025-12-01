@@ -11,10 +11,9 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
-#include "smb2pdu.h"
 #include "smb2proto.h"
-#include "../common/smb2status.h"
 #include "smb2glob.h"
+#include "../common/smb2status.h"
 #include "trace.h"
 
 struct status_to_posix_error {
