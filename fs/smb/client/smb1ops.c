@@ -7,6 +7,7 @@
 
 #include <linux/pagemap.h>
 #include <linux/vfs.h>
+#include <linux/fs_struct.h>
 #include <uapi/linux/magic.h>
 #include "cifsglob.h"
 #include "cifsproto.h"

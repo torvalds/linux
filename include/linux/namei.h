@@ -7,6 +7,7 @@
 #include <linux/path.h>
 #include <linux/fcntl.h>
 #include <linux/errno.h>
+#include <linux/fs_struct.h>
 
 enum { MAX_NESTED_LINKS = 8 };
 
