@@ -692,7 +692,7 @@ static int threaded_fence_signal(void *arg)
 
 	msleep(20);
 
-	return dma_fence_signal(fence);
+	return dma_fence_check_and_signal(fence) ? -EINVAL : 0;
 }
 
 static void ttm_bo_validate_move_fence_not_signaled(struct kunit *test)
