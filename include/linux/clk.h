@@ -245,7 +245,7 @@ int clk_save_context(void);
  */
 void clk_restore_context(void);
 
-#else
+#else /* !CONFIG_COMMON_CLK */
 
 static inline int clk_notifier_register(struct clk *clk,
 					struct notifier_block *nb)
@@ -317,7 +317,7 @@ static inline int clk_save_context(void)
 
 static inline void clk_restore_context(void) {}
 
-#endif
+#endif /* !CONFIG_COMMON_CLK */
 
 #ifdef CONFIG_HAVE_CLK_PREPARE
 /**
@@ -361,7 +361,7 @@ void clk_bulk_unprepare(int num_clks, const struct clk_bulk_data *clks);
  * to be right.
  */
 bool clk_is_enabled_when_prepared(struct clk *clk);
-#else
+#else /* !CONFIG_HAVE_CLK_PREPARE */
 static inline int clk_prepare(struct clk *clk)
 {
 	might_sleep();
@@ -390,7 +390,7 @@ static inline bool clk_is_enabled_when_prepared(struct clk *clk)
 {
 	return false;
 }
-#endif
+#endif /* !CONFIG_HAVE_CLK_PREPARE */
 
 #ifdef CONFIG_HAVE_CLK
 /**
@@ -1136,7 +1136,7 @@ static inline struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 	return NULL;
 }
 
-#endif
+#endif /* !CONFIG_HAVE_CLK */
 
 /* clk_prepare_enable helps cases using clk_enable in non-atomic context. */
 static inline int clk_prepare_enable(struct clk *clk)
