@@ -250,8 +250,6 @@ static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
 	if (ret)
 		transfer->error = SPI_TRANS_FAIL_IO;
 
-	spi_finalize_current_transfer(controller);
-
 	return ret;
 }
 
