@@ -41,6 +41,8 @@
 #include <linux/init_task.h>
 #include <linux/uaccess.h>
 
+#include <asm/runtime-const.h>
+
 #include "internal.h"
 #include "mount.h"
 
@@ -124,23 +126,25 @@
  */
 
 /* SLAB cache for struct filename instances */
-static struct kmem_cache *names_cachep __ro_after_init;
+static struct kmem_cache *__names_cache __ro_after_init;
+#define names_cache	runtime_const_ptr(__names_cache)
 
 void __init filename_init(void)
 {
-	names_cachep = kmem_cache_create_usercopy("names_cache", sizeof(struct filename), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, offsetof(struct filename, iname),
-						EMBEDDED_NAME_MAX, NULL);
+	__names_cache = kmem_cache_create_usercopy("names_cache", sizeof(struct filename), 0,
+			 SLAB_HWCACHE_ALIGN|SLAB_PANIC, offsetof(struct filename, iname),
+			 EMBEDDED_NAME_MAX, NULL);
+	runtime_const_init(ptr, __names_cache);
 }
 
 static inline struct filename *alloc_filename(void)
 {
-	return kmem_cache_alloc(names_cachep, GFP_KERNEL);
+	return kmem_cache_alloc(names_cache, GFP_KERNEL);
 }
 
 static inline void free_filename(struct filename *p)
 {
-	kmem_cache_free(names_cachep, p);
+	kmem_cache_free(names_cache, p);
 }
 
 static inline void initname(struct filename *name)
