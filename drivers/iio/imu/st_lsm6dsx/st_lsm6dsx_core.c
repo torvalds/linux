@@ -1885,12 +1885,50 @@ static int st_lsm6dsx_event_setup(struct st_lsm6dsx_hw *hw,
 	const struct st_lsm6dsx_event_src *src;
 	unsigned int data;
 	int err;
+	u8 old_enable, new_enable;
 
 	if (!hw->irq_routing)
 		return -ENOTSUPP;
 
 	/* Enable/disable event interrupt */
 	src = &hw->settings->event_settings.sources[event];
+	if (src->enable_axis_reg) {
+		u8 enable_mask;
+
+		switch (axis) {
+		case IIO_MOD_X:
+			enable_mask = src->enable_x_mask;
+			break;
+		case IIO_MOD_Y:
+			enable_mask = src->enable_y_mask;
+			break;
+		case IIO_MOD_Z:
+			enable_mask = src->enable_z_mask;
+			break;
+		default:
+			enable_mask = 0;
+		}
+		if (enable_mask) {
+			data = ST_LSM6DSX_SHIFT_VAL(state, enable_mask);
+			err = st_lsm6dsx_update_bits_locked(hw,
+							    src->enable_axis_reg,
+							    enable_mask, data);
+			if (err < 0)
+				return err;
+		}
+	}
+
+	/*
+	 * If the set of axes for which the event source is enabled does not
+	 * change from empty to non-empty or vice versa, there is nothing else
+	 * to do.
+	 */
+	old_enable = hw->enable_event[event];
+	new_enable = state ? (old_enable | BIT(axis)) :
+			     (old_enable & ~BIT(axis));
+	if (!old_enable == !new_enable)
+		return 0;
+
 	data = ST_LSM6DSX_SHIFT_VAL(state, src->enable_mask);
 	return st_lsm6dsx_update_bits_locked(hw, hw->irq_routing,
 					     src->enable_mask, data);
@@ -1905,6 +1943,39 @@ st_lsm6dsx_get_event_id(enum iio_event_type type)
 	default:
 		return ST_LSM6DSX_EVENT_MAX;
 	}
+}
+
+static const struct st_lsm6dsx_reg *
+st_lsm6dsx_get_event_reg(struct st_lsm6dsx_hw *hw,
+			 enum st_lsm6dsx_event_id event,
+			 const struct iio_chan_spec *chan)
+{
+	const struct st_lsm6dsx_event_src *src;
+	const struct st_lsm6dsx_reg *reg;
+
+	src = &hw->settings->event_settings.sources[event];
+	switch (chan->channel2) {
+	case IIO_MOD_X:
+		reg = &src->x_value;
+		break;
+	case IIO_MOD_Y:
+		reg = &src->y_value;
+		break;
+	case IIO_MOD_Z:
+		reg = &src->z_value;
+		break;
+	default:
+		return NULL;
+	}
+	if (reg->addr)
+		return reg;
+
+	/*
+	 * The sensor does not support configuring this event source on a per
+	 * axis basis: return the register to configure the event source for all
+	 * axes.
+	 */
+	return &src->value;
 }
 
 static int st_lsm6dsx_read_event(struct iio_dev *iio_dev,
@@ -1924,7 +1995,10 @@ static int st_lsm6dsx_read_event(struct iio_dev *iio_dev,
 	if (event == ST_LSM6DSX_EVENT_MAX)
 		return -EINVAL;
 
-	reg = &hw->settings->event_settings.sources[event].value;
+	reg = st_lsm6dsx_get_event_reg(hw, event, chan);
+	if (!reg)
+		return -EINVAL;
+
 	err = st_lsm6dsx_read_locked(hw, reg->addr, &data, sizeof(data));
 	if (err < 0)
 		return err;
@@ -1956,7 +2030,10 @@ st_lsm6dsx_write_event(struct iio_dev *iio_dev,
 	if (val < 0 || val > 31)
 		return -EINVAL;
 
-	reg = &hw->settings->event_settings.sources[event].value;
+	reg = st_lsm6dsx_get_event_reg(hw, event, chan);
+	if (!reg)
+		return -EINVAL;
+
 	data = ST_LSM6DSX_SHIFT_VAL(val, reg->mask);
 	err = st_lsm6dsx_update_bits_locked(hw, reg->addr,
 					    reg->mask, data);
@@ -2039,19 +2116,10 @@ st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
 	if (event == ST_LSM6DSX_EVENT_MAX)
 		return -EINVAL;
 
-	if (state) {
+	if (state)
 		enable_event = hw->enable_event[event] | BIT(chan->channel2);
-
-		/* do not enable events if they are already enabled */
-		if (hw->enable_event[event])
-			goto out;
-	} else {
+	else
 		enable_event = hw->enable_event[event] & ~BIT(chan->channel2);
-
-		/* only turn off sensor if no events is enabled */
-		if (enable_event)
-			goto out;
-	}
 
 	/* stop here if no changes have been made */
 	if (hw->enable_event[event] == enable_event)
@@ -2070,7 +2138,6 @@ st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
 	if (err < 0)
 		return err;
 
-out:
 	hw->enable_event[event] = enable_event;
 
 	return 0;
