@@ -100,6 +100,7 @@ struct rzv2h_rspi_priv {
 	struct clk *pclk;
 	wait_queue_head_t wait;
 	unsigned int bytes_per_word;
+	int irq_rx;
 	u32 last_speed_hz;
 	u32 freq;
 	u16 status;
@@ -534,8 +535,8 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	struct rzv2h_rspi_priv *rspi;
 	struct reset_control *reset;
 	struct clk_bulk_data *clks;
-	int irq_rx, ret, i;
 	long tclk_rate;
+	int ret, i;
 
 	controller = devm_spi_alloc_host(dev, sizeof(*rspi));
 	if (!controller)
@@ -580,13 +581,13 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(reset),
 				     "cannot get tresetn reset\n");
 
-	irq_rx = platform_get_irq_byname(pdev, "rx");
-	if (irq_rx < 0)
-		return dev_err_probe(dev, irq_rx, "cannot get IRQ 'rx'\n");
+	rspi->irq_rx = platform_get_irq_byname(pdev, "rx");
+	if (rspi->irq_rx < 0)
+		return dev_err_probe(dev, rspi->irq_rx, "cannot get IRQ 'rx'\n");
 
 	init_waitqueue_head(&rspi->wait);
 
-	ret = devm_request_irq(dev, irq_rx, rzv2h_rx_irq_handler, 0,
+	ret = devm_request_irq(dev, rspi->irq_rx, rzv2h_rx_irq_handler, 0,
 			       dev_name(dev), rspi);
 	if (ret) {
 		dev_err(dev, "cannot request `rx` IRQ\n");
