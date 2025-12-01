@@ -26,8 +26,12 @@
 #define PIDFD_INFO_CGROUPID		(1UL << 2) /* Always returned if available, even if not requested */
 #define PIDFD_INFO_EXIT			(1UL << 3) /* Only returned if requested. */
 #define PIDFD_INFO_COREDUMP		(1UL << 4) /* Only returned if requested. */
+#define PIDFD_INFO_SUPPORTED_MASK	(1UL << 5) /* Want/got supported mask flags */
+#define PIDFD_INFO_COREDUMP_SIGNAL	(1UL << 6) /* Always returned if PIDFD_INFO_COREDUMP is requested. */
 
 #define PIDFD_INFO_SIZE_VER0		64 /* sizeof first published struct */
+#define PIDFD_INFO_SIZE_VER1		72 /* sizeof second published struct */
+#define PIDFD_INFO_SIZE_VER2		80 /* sizeof third published struct */
 
 /*
  * Values for @coredump_mask in pidfd_info.
@@ -91,8 +95,11 @@ struct pidfd_info {
 	__u32 fsuid;
 	__u32 fsgid;
 	__s32 exit_code;
-	__u32 coredump_mask;
-	__u32 __spare1;
+	struct /* coredump info */ {
+		__u32 coredump_mask;
+		__u32 coredump_signal;
+	};
+	__u64 supported_mask;	/* Mask flags that this kernel supports */
 };
 
 #define PIDFS_IOCTL_MAGIC 0xFF
