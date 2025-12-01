@@ -1078,6 +1078,7 @@ enum replay_coasting_vtotal_type {
 	PR_COASTING_TYPE_STATIC,
 	PR_COASTING_TYPE_FULL_SCREEN_VIDEO,
 	PR_COASTING_TYPE_TEST_HARNESS,
+	PR_COASTING_TYPE_VIDEO_CONFERENCING_V2,
 	PR_COASTING_TYPE_NUM,
 };
 
@@ -1134,6 +1135,17 @@ union replay_low_refresh_rate_enable_options {
 	unsigned int raw;
 };
 
+union replay_optimization {
+	struct {
+		//BIT[0-3]: Replay Teams Optimization
+		unsigned int TEAMS_OPTIMIZATION_VER_1           :1;
+		unsigned int TEAMS_OPTIMIZATION_VER_2           :1;
+		unsigned int RESERVED_2_3                       :2;
+	} bits;
+
+	unsigned int raw;
+};
+
 struct replay_config {
 	/* Replay version */
 	enum dc_replay_version replay_version;
@@ -1171,6 +1183,8 @@ struct replay_config {
 	enum dc_alpm_mode alpm_mode;
 	/* Replay full screen only */
 	bool os_request_force_ffu;
+	/* Replay optimization */
+	union replay_optimization replay_optimization;
 };
 
 /* Replay feature flags*/
