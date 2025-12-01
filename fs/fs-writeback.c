@@ -14,6 +14,7 @@
  *		Additions for address_space-based writeback
  */
 
+#include <linux/sched/sysctl.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
@@ -30,11 +31,6 @@
 #include <linux/device.h>
 #include <linux/memcontrol.h>
 #include "internal.h"
-
-/*
- * 4MB minimal write chunk size
- */
-#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_SHIFT - 10))
 
 /*
  * Passed into wb_writeback(), essentially a subset of writeback_control
@@ -200,6 +196,19 @@ static void wb_queue_work(struct bdi_writeback *wb,
 	spin_unlock_irq(&wb->work_lock);
 }
 
+static bool wb_wait_for_completion_cb(struct wb_completion *done)
+{
+	unsigned long waited_secs = (jiffies - done->wait_start) / HZ;
+
+	done->progress_stamp = jiffies;
+	if (waited_secs > sysctl_hung_task_timeout_secs)
+		pr_info("INFO: The task %s:%d has been waiting for writeback "
+			"completion for more than %lu seconds.",
+			current->comm, current->pid, waited_secs);
+
+	return !atomic_read(&done->cnt);
+}
+
 /**
  * wb_wait_for_completion - wait for completion of bdi_writeback_works
  * @done: target wb_completion
@@ -212,8 +221,9 @@ static void wb_queue_work(struct bdi_writeback *wb,
  */
 void wb_wait_for_completion(struct wb_completion *done)
 {
+	done->wait_start = jiffies;
 	atomic_dec(&done->cnt);		/* put down the initial count */
-	wait_event(*done->waitq, !atomic_read(&done->cnt));
+	wait_event(*done->waitq, wb_wait_for_completion_cb(done));
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -808,9 +818,9 @@ static void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
  * @wbc: writeback_control of interest
  * @inode: target inode
  *
- * This function is to be used by __filemap_fdatawrite_range(), which is an
- * alternative entry point into writeback code, and first ensures @inode is
- * associated with a bdi_writeback and attaches it to @wbc.
+ * This function is to be used by filemap_writeback(), which is an alternative
+ * entry point into writeback code, and first ensures @inode is associated with
+ * a bdi_writeback and attaches it to @wbc.
  */
 void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
 		struct inode *inode)
@@ -1882,8 +1892,8 @@ out:
 	return ret;
 }
 
-static long writeback_chunk_size(struct bdi_writeback *wb,
-				 struct wb_writeback_work *work)
+static long writeback_chunk_size(struct super_block *sb,
+		struct bdi_writeback *wb, struct wb_writeback_work *work)
 {
 	long pages;
 
@@ -1901,16 +1911,13 @@ static long writeback_chunk_size(struct bdi_writeback *wb,
 	 *                   (maybe slowly) sync all tagged pages
 	 */
 	if (work->sync_mode == WB_SYNC_ALL || work->tagged_writepages)
-		pages = LONG_MAX;
-	else {
-		pages = min(wb->avg_write_bandwidth / 2,
-			    global_wb_domain.dirty_limit / DIRTY_SCOPE);
-		pages = min(pages, work->nr_pages);
-		pages = round_down(pages + MIN_WRITEBACK_PAGES,
-				   MIN_WRITEBACK_PAGES);
-	}
+		return LONG_MAX;
 
-	return pages;
+	pages = min(wb->avg_write_bandwidth / 2,
+		    global_wb_domain.dirty_limit / DIRTY_SCOPE);
+	pages = min(pages, work->nr_pages);
+	return round_down(pages + sb->s_min_writeback_pages,
+			sb->s_min_writeback_pages);
 }
 
 /*
@@ -2012,7 +2019,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 		inode_state_set(inode, I_SYNC);
 		wbc_attach_and_unlock_inode(&wbc, inode);
 
-		write_chunk = writeback_chunk_size(wb, work);
+		write_chunk = writeback_chunk_size(inode->i_sb, wb, work);
 		wbc.nr_to_write = write_chunk;
 		wbc.pages_skipped = 0;
 
@@ -2021,6 +2028,12 @@ static long writeback_sb_inodes(struct super_block *sb,
 		 * evict_inode() will wait so the inode cannot be freed.
 		 */
 		__writeback_single_inode(inode, &wbc);
+
+		/* Report progress to inform the hung task detector of the progress. */
+		if (work->done && work->done->progress_stamp &&
+		   (jiffies - work->done->progress_stamp) > HZ *
+		   sysctl_hung_task_timeout_secs / 2)
+			wake_up_all(work->done->waitq);
 
 		wbc_detach_inode(&wbc);
 		work->nr_pages -= write_chunk - wbc.nr_to_write;
