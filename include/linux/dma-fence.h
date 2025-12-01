@@ -365,6 +365,8 @@ static inline void __dma_fence_might_wait(void) {}
 #endif
 
 int dma_fence_signal(struct dma_fence *fence);
+bool dma_fence_check_and_signal(struct dma_fence *fence);
+bool dma_fence_check_and_signal_locked(struct dma_fence *fence);
 int dma_fence_signal_locked(struct dma_fence *fence);
 int dma_fence_signal_timestamp(struct dma_fence *fence, ktime_t timestamp);
 int dma_fence_signal_timestamp_locked(struct dma_fence *fence,

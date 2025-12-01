@@ -444,6 +444,50 @@ int dma_fence_signal_locked(struct dma_fence *fence)
 EXPORT_SYMBOL(dma_fence_signal_locked);
 
 /**
+ * dma_fence_check_and_signal_locked - signal the fence if it's not yet signaled
+ * @fence: the fence to check and signal
+ *
+ * Checks whether a fence was signaled and signals it if it was not yet signaled.
+ *
+ * Unlike dma_fence_check_and_signal(), this function must be called with
+ * &struct dma_fence.lock being held.
+ *
+ * Return: true if fence has been signaled already, false otherwise.
+ */
+bool dma_fence_check_and_signal_locked(struct dma_fence *fence)
+{
+	bool ret;
+
+	ret = dma_fence_test_signaled_flag(fence);
+	dma_fence_signal_locked(fence);
+
+	return ret;
+}
+EXPORT_SYMBOL(dma_fence_check_and_signal_locked);
+
+/**
+ * dma_fence_check_and_signal - signal the fence if it's not yet signaled
+ * @fence: the fence to check and signal
+ *
+ * Checks whether a fence was signaled and signals it if it was not yet signaled.
+ * All this is done in a race-free manner.
+ *
+ * Return: true if fence has been signaled already, false otherwise.
+ */
+bool dma_fence_check_and_signal(struct dma_fence *fence)
+{
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(fence->lock, flags);
+	ret = dma_fence_check_and_signal_locked(fence);
+	spin_unlock_irqrestore(fence->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(dma_fence_check_and_signal);
+
+/**
  * dma_fence_signal - signal completion of a fence
  * @fence: the fence to signal
  *
