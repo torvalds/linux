@@ -113,11 +113,7 @@ struct rzv2h_rspi_priv {
 static inline void rzv2h_rspi_tx_##type(struct rzv2h_rspi_priv *rspi,	\
 					const void *txbuf,		\
 					unsigned int index) {		\
-	type buf = 0;							\
-									\
-	if (txbuf)							\
-		buf = ((type *)txbuf)[index];				\
-									\
+	type buf = ((type *)txbuf)[index];				\
 	func(buf, rspi->base + RSPI_SPDR);				\
 }
 
@@ -126,9 +122,7 @@ static inline void rzv2h_rspi_rx_##type(struct rzv2h_rspi_priv *rspi,	\
 					void *rxbuf,			\
 					unsigned int index) {		\
 	type buf = func(rspi->base + RSPI_SPDR);			\
-									\
-	if (rxbuf)							\
-		((type *)rxbuf)[index] = buf;				\
+	((type *)rxbuf)[index] = buf;					\
 }
 
 RZV2H_RSPI_TX(writel, u32)
@@ -596,6 +590,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 
 	controller->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH |
 				SPI_LSB_FIRST | SPI_LOOP;
+	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
 	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	controller->prepare_message = rzv2h_rspi_prepare_message;
 	controller->unprepare_message = rzv2h_rspi_unprepare_message;
