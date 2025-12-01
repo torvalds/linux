@@ -3673,6 +3673,19 @@ exit:
 	return ret;
 }
 
+static bool ublk_ctrl_uring_cmd_may_sleep(u32 cmd_op)
+{
+	switch (_IOC_NR(cmd_op)) {
+	case UBLK_CMD_GET_QUEUE_AFFINITY:
+	case UBLK_CMD_GET_DEV_INFO:
+	case UBLK_CMD_GET_DEV_INFO2:
+	case _IOC_NR(UBLK_U_CMD_GET_FEATURES):
+		return false;
+	default:
+		return true;
+	}
+}
+
 static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 		unsigned int issue_flags)
 {
@@ -3681,7 +3694,8 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 	u32 cmd_op = cmd->cmd_op;
 	int ret = -EINVAL;
 
-	if (issue_flags & IO_URING_F_NONBLOCK)
+	if (ublk_ctrl_uring_cmd_may_sleep(cmd_op) &&
+	    issue_flags & IO_URING_F_NONBLOCK)
 		return -EAGAIN;
 
 	ublk_ctrl_cmd_dump(cmd);
