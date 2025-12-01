@@ -56,6 +56,8 @@
 /* Advanced Diagnostic Features Capability Register*/
 #define MDIO_OATC14_ADFCAP		0xcc00
 #define OATC14_ADFCAP_HDD_CAPABILITY	GENMASK(10, 8)
+#define OATC14_ADFCAP_SQIPLUS_CAPABILITY	GENMASK(4, 1)
+#define OATC14_ADFCAP_SQI_CAPABILITY	BIT(0)
 
 /* Harness Defect Detection Register */
 #define MDIO_OATC14_HDD			0xcc01
@@ -64,6 +66,17 @@
 #define OATC14_HDD_START_CONTROL	BIT(13)
 #define OATC14_HDD_VALID		BIT(2)
 #define OATC14_HDD_SHORT_OPEN_STATUS	GENMASK(1, 0)
+
+/* Dynamic Channel Quality SQI Register */
+#define MDIO_OATC14_DCQ_SQI		0xcc03
+#define OATC14_DCQ_SQI_VALUE		GENMASK(2, 0)
+
+/* Dynamic Channel Quality SQI Plus Register */
+#define MDIO_OATC14_DCQ_SQIPLUS		0xcc04
+#define OATC14_DCQ_SQIPLUS_VALUE	GENMASK(7, 0)
+
+/* SQI is supported using 3 bits means 8 levels (0-7) */
+#define OATC14_SQI_MAX_LEVEL		7
 
 /* Bus Short/Open Status:
  * 0 0 - no fault; everything is ok. (Default)
