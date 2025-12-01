@@ -6,24 +6,9 @@ skip_cnt=0
 ok_cnt=0
 err_cnt=0
 
-cleanup()
-{
-	rm -f perf.data
-	rm -f perf.data.old
-	trap - EXIT TERM INT
-}
-
-trap_cleanup()
-{
-	cleanup
-	exit 1
-}
-
-trap trap_cleanup EXIT TERM INT
-
 perf_record()
 {
-	perf record "$@" -- true 1>/dev/null 2>&1
+	perf record -o /dev/null "$@" -- true 1>/dev/null 2>&1
 }
 
 test_decrease_precise_ip()
@@ -49,7 +34,7 @@ test_decrease_precise_ip_complicated()
 
 	perf list pmu | grep -q 'mem-loads-aux' || return 2
 
-	if ! perf_record -e '{cpu/mem-loads-aux/S,cpu/mem-loads/PS}'; then
+	if ! perf_record -e '{mem-loads-aux:S,mem-loads:PS}'; then
 		return 1
 	fi
 	return 0
