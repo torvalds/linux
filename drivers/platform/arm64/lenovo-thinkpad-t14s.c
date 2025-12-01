@@ -124,6 +124,7 @@ static int t14s_ec_write(void *context, unsigned int reg,
 	if (ret < 0)
 		return ret;
 
+	fsleep(10000);
 	return 0;
 }
 
@@ -161,6 +162,7 @@ static int t14s_ec_read(void *context, unsigned int reg,
 
 out:
 	i2c_unlock_bus(client->adapter, I2C_LOCK_SEGMENT);
+	fsleep(10000);
 	return ret;
 }
 
@@ -194,6 +196,8 @@ static int t14s_ec_read_evt(struct t14s_ec *ec, u8 *val)
 	ret = __i2c_transfer(client->adapter, &response, 1);
 	if (ret < 0)
 		goto out;
+
+	fsleep(10000);
 
 	ret = 0;
 
@@ -570,12 +574,6 @@ static int t14s_ec_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(ec->regmap),
 				     "Failed to init regmap\n");
 
-	ret = devm_request_threaded_irq(dev, client->irq, NULL,
-					t14s_ec_irq_handler,
-					IRQF_ONESHOT, dev_name(dev), ec);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "Failed to get IRQ\n");
-
 	ret = t14s_leds_probe(ec);
 	if (ret < 0)
 		return ret;
@@ -591,6 +589,12 @@ static int t14s_ec_probe(struct i2c_client *client)
 	ret = t14s_input_probe(ec);
 	if (ret < 0)
 		return ret;
+
+	ret = devm_request_threaded_irq(dev, client->irq, NULL,
+					t14s_ec_irq_handler,
+					IRQF_ONESHOT, dev_name(dev), ec);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to get IRQ\n");
 
 	/*
 	 * Disable wakeup support by default, because the driver currently does
