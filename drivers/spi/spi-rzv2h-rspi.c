@@ -9,6 +9,7 @@
 #include <linux/bitops.h>
 #include <linux/bits.h>
 #include <linux/clk.h>
+#include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/limits.h>
@@ -20,6 +21,8 @@
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
 #include <linux/wait.h>
+
+#include "internals.h"
 
 /* Registers */
 #define RSPI_SPDR		0x00
@@ -96,6 +99,7 @@ struct rzv2h_rspi_info {
 struct rzv2h_rspi_priv {
 	struct spi_controller *controller;
 	const struct rzv2h_rspi_info *info;
+	struct platform_device *pdev;
 	void __iomem *base;
 	struct clk *tclk;
 	struct clk *pclk;
@@ -108,6 +112,7 @@ struct rzv2h_rspi_priv {
 	u8 spr;
 	u8 brdv;
 	bool use_pclk;
+	bool dma_callbacked;
 };
 
 #define RZV2H_RSPI_TX(func, type)					\
@@ -219,6 +224,20 @@ static int rzv2h_rspi_receive(struct rzv2h_rspi_priv *rspi, void *rxbuf,
 	return 0;
 }
 
+static bool rzv2h_rspi_can_dma(struct spi_controller *ctlr, struct spi_device *spi,
+			       struct spi_transfer *xfer)
+{
+	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(ctlr);
+
+	if (ctlr->fallback)
+		return false;
+
+	if (!ctlr->dma_tx || !ctlr->dma_rx)
+		return false;
+
+	return xfer->len > rspi->info->fifo_size;
+}
+
 static int rzv2h_rspi_transfer_pio(struct rzv2h_rspi_priv *rspi,
 				   struct spi_device *spi,
 				   struct spi_transfer *transfer,
@@ -240,20 +259,148 @@ static int rzv2h_rspi_transfer_pio(struct rzv2h_rspi_priv *rspi,
 	return ret;
 }
 
+static void rzv2h_rspi_dma_complete(void *arg)
+{
+	struct rzv2h_rspi_priv *rspi = arg;
+
+	rspi->dma_callbacked = 1;
+	wake_up_interruptible(&rspi->wait);
+}
+
+static struct dma_async_tx_descriptor *
+rzv2h_rspi_setup_dma_channel(struct rzv2h_rspi_priv *rspi,
+			     struct dma_chan *chan, struct sg_table *sg,
+			     enum dma_slave_buswidth width,
+			     enum dma_transfer_direction direction)
+{
+	struct dma_slave_config config = {
+		.dst_addr = rspi->pdev->resource->start + RSPI_SPDR,
+		.src_addr = rspi->pdev->resource->start + RSPI_SPDR,
+		.dst_addr_width = width,
+		.src_addr_width = width,
+		.direction = direction,
+	};
+	struct dma_async_tx_descriptor *desc;
+	int ret;
+
+	ret = dmaengine_slave_config(chan, &config);
+	if (ret)
+		return ERR_PTR(ret);
+
+	desc = dmaengine_prep_slave_sg(chan, sg->sgl, sg->nents, direction,
+				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc)
+		return ERR_PTR(-EAGAIN);
+
+	if (direction == DMA_DEV_TO_MEM) {
+		desc->callback = rzv2h_rspi_dma_complete;
+		desc->callback_param = rspi;
+	}
+
+	return desc;
+}
+
+static enum dma_slave_buswidth
+rzv2h_rspi_dma_width(struct rzv2h_rspi_priv *rspi)
+{
+	switch (rspi->bytes_per_word) {
+	case 4:
+		return DMA_SLAVE_BUSWIDTH_4_BYTES;
+	case 2:
+		return DMA_SLAVE_BUSWIDTH_2_BYTES;
+	case 1:
+		return DMA_SLAVE_BUSWIDTH_1_BYTE;
+	default:
+		return DMA_SLAVE_BUSWIDTH_UNDEFINED;
+	}
+}
+
+static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
+				   struct spi_device *spi,
+				   struct spi_transfer *transfer,
+				   unsigned int words_to_transfer)
+{
+	struct dma_async_tx_descriptor *tx_desc = NULL, *rx_desc = NULL;
+	enum dma_slave_buswidth width;
+	dma_cookie_t cookie;
+	int ret;
+
+	width = rzv2h_rspi_dma_width(rspi);
+	if (width == DMA_SLAVE_BUSWIDTH_UNDEFINED)
+		return -EINVAL;
+
+	rx_desc = rzv2h_rspi_setup_dma_channel(rspi, rspi->controller->dma_rx,
+					       &transfer->rx_sg, width,
+					       DMA_DEV_TO_MEM);
+	if (IS_ERR(rx_desc))
+		return PTR_ERR(rx_desc);
+
+	tx_desc = rzv2h_rspi_setup_dma_channel(rspi, rspi->controller->dma_tx,
+					       &transfer->tx_sg, width,
+					       DMA_MEM_TO_DEV);
+	if (IS_ERR(tx_desc))
+		return PTR_ERR(tx_desc);
+
+	cookie = dmaengine_submit(rx_desc);
+	if (dma_submit_error(cookie))
+		return cookie;
+
+	cookie = dmaengine_submit(tx_desc);
+	if (dma_submit_error(cookie)) {
+		dmaengine_terminate_sync(rspi->controller->dma_rx);
+		return cookie;
+	}
+
+	/*
+	 * DMA transfer does not need IRQs to be enabled.
+	 * For PIO, we only use RX IRQ, so disable that.
+	 */
+	disable_irq(rspi->irq_rx);
+
+	rspi->dma_callbacked = 0;
+
+	dma_async_issue_pending(rspi->controller->dma_rx);
+	dma_async_issue_pending(rspi->controller->dma_tx);
+	rzv2h_rspi_clear_all_irqs(rspi);
+
+	ret = wait_event_interruptible_timeout(rspi->wait, rspi->dma_callbacked, HZ);
+	if (ret) {
+		dmaengine_synchronize(rspi->controller->dma_tx);
+		dmaengine_synchronize(rspi->controller->dma_rx);
+		ret = 0;
+	} else {
+		dmaengine_terminate_sync(rspi->controller->dma_tx);
+		dmaengine_terminate_sync(rspi->controller->dma_rx);
+		ret = -ETIMEDOUT;
+	}
+
+	enable_irq(rspi->irq_rx);
+
+	return ret;
+}
+
 static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
 				   struct spi_device *spi,
 				   struct spi_transfer *transfer)
 {
 	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(controller);
+	bool is_dma = spi_xfer_is_dma_mapped(controller, spi, transfer);
 	unsigned int words_to_transfer;
 	int ret;
 
 	transfer->effective_speed_hz = rspi->freq;
 	words_to_transfer = transfer->len / rspi->bytes_per_word;
 
-	ret = rzv2h_rspi_transfer_pio(rspi, spi, transfer, words_to_transfer);
+	if (is_dma)
+		ret = rzv2h_rspi_transfer_dma(rspi, spi, transfer, words_to_transfer);
+	else
+		ret = rzv2h_rspi_transfer_pio(rspi, spi, transfer, words_to_transfer);
 
 	rzv2h_rspi_clear_all_irqs(rspi);
+
+	if (is_dma && ret == -EAGAIN)
+		/* Retry with PIO */
+		transfer->error = SPI_TRANS_FAIL_NO_START;
 
 	return ret;
 }
@@ -557,6 +704,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rspi);
 
 	rspi->controller = controller;
+	rspi->pdev = pdev;
 
 	rspi->info = device_get_match_data(dev);
 
@@ -613,6 +761,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	controller->unprepare_message = rzv2h_rspi_unprepare_message;
 	controller->num_chipselect = 4;
 	controller->transfer_one = rzv2h_rspi_transfer_one;
+	controller->can_dma = rzv2h_rspi_can_dma;
 
 	tclk_rate = clk_round_rate(rspi->tclk, 0);
 	if (tclk_rate < 0)
@@ -629,6 +778,24 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	controller->max_speed_hz = rzv2h_rspi_calc_bitrate(tclk_rate,
 							   RSPI_SPBR_SPR_MIN,
 							   RSPI_SPCMD_BRDV_MIN);
+
+	controller->dma_tx = devm_dma_request_chan(dev, "tx");
+	if (IS_ERR(controller->dma_tx)) {
+		ret = dev_warn_probe(dev, PTR_ERR(controller->dma_tx),
+				     "failed to request TX DMA channel\n");
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		controller->dma_tx = NULL;
+	}
+
+	controller->dma_rx = devm_dma_request_chan(dev, "rx");
+	if (IS_ERR(controller->dma_rx)) {
+		ret = dev_warn_probe(dev, PTR_ERR(controller->dma_rx),
+				     "failed to request RX DMA channel\n");
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		controller->dma_rx = NULL;
+	}
 
 	device_set_node(&controller->dev, dev_fwnode(dev));
 
