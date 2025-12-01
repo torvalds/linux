@@ -1695,3 +1695,140 @@ int genphy_c45_oatc14_cable_test_start(struct phy_device *phydev)
 				OATC14_HDD_START_CONTROL);
 }
 EXPORT_SYMBOL(genphy_c45_oatc14_cable_test_start);
+
+/**
+ * oatc14_update_sqi_capability - Read and update OATC14 10Base-T1S PHY SQI/SQI+
+ *                                capability
+ * @phydev: Pointer to the PHY device structure
+ *
+ * This helper reads the OATC14 ADFCAP capability register to determine whether
+ * the PHY supports SQI or SQI+ reporting.
+ *
+ * SQI+ capability is detected first. The SQI+ field indicates the number of
+ * valid MSBs (3–8), corresponding to 8–256 SQI+ levels. When present, the
+ * function stores the number of SQI+ bits and computes the maximum SQI+ value
+ * as (2^bits - 1).
+ *
+ * If SQI+ is not supported, the function checks for basic SQI capability,
+ * which provides 0–7 SQI levels.
+ *
+ * On success, the capability information is stored in
+ * @phydev->oatc14_sqi_capability and marked as updated.
+ *
+ * Return:
+ * * 0        - capability successfully read and stored
+ * * -EOPNOTSUPP - SQI/SQI+ not supported by this PHY
+ * * Negative errno on read failure
+ */
+static int oatc14_update_sqi_capability(struct phy_device *phydev)
+{
+	u8 bits;
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, MDIO_OATC14_ADFCAP);
+	if (ret < 0)
+		return ret;
+
+	/* Check for SQI+ capability
+	 * 0 - SQI+ is not supported
+	 * (3-8) bits for (8-256) SQI+ levels supported
+	 */
+	bits = FIELD_GET(OATC14_ADFCAP_SQIPLUS_CAPABILITY, ret);
+	if (bits) {
+		phydev->oatc14_sqi_capability.sqiplus_bits = bits;
+		/* Max sqi+ level supported: (2 ^ bits) - 1 */
+		phydev->oatc14_sqi_capability.sqi_max = BIT(bits) - 1;
+		goto update_done;
+	}
+
+	/* Check for SQI capability
+	 * 0 - SQI is not supported
+	 * 1 - SQI is supported (0-7 levels)
+	 */
+	if (ret & OATC14_ADFCAP_SQI_CAPABILITY) {
+		phydev->oatc14_sqi_capability.sqi_max = OATC14_SQI_MAX_LEVEL;
+		goto update_done;
+	}
+
+	return -EOPNOTSUPP;
+
+update_done:
+	phydev->oatc14_sqi_capability.updated = true;
+	return 0;
+}
+
+/**
+ * genphy_c45_oatc14_get_sqi_max - Get maximum supported SQI or SQI+ level of
+ *				   OATC14 10Base-T1S PHY
+ * @phydev: pointer to the PHY device structure
+ *
+ * This function returns the maximum supported Signal Quality Indicator (SQI) or
+ * SQI+ level. The SQI capability is updated on first invocation if it has not
+ * already been updated.
+ *
+ * Return:
+ * * Maximum SQI/SQI+ level supported
+ * * Negative errno on capability read failure
+ */
+int genphy_c45_oatc14_get_sqi_max(struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->oatc14_sqi_capability.updated) {
+		ret = oatc14_update_sqi_capability(phydev);
+		if (ret)
+			return ret;
+	}
+
+	return phydev->oatc14_sqi_capability.sqi_max;
+}
+EXPORT_SYMBOL(genphy_c45_oatc14_get_sqi_max);
+
+/**
+ * genphy_c45_oatc14_get_sqi - Get Signal Quality Indicator (SQI) from an OATC14
+ *			       10Base-T1S PHY
+ * @phydev: pointer to the PHY device structure
+ *
+ * This function reads the SQI+ or SQI value from an OATC14-compatible
+ * 10Base-T1S PHY. If SQI+ capability is supported, the function returns the
+ * extended SQI+ value; otherwise, it returns the basic SQI value. The SQI
+ * capability is updated on first invocation if it has not already been updated.
+ *
+ * Return:
+ * * SQI/SQI+ value on success
+ * * Negative errno on read failure
+ */
+int genphy_c45_oatc14_get_sqi(struct phy_device *phydev)
+{
+	u8 shift;
+	int ret;
+
+	if (!phydev->oatc14_sqi_capability.updated) {
+		ret = oatc14_update_sqi_capability(phydev);
+		if (ret)
+			return ret;
+	}
+
+	/* Calculate and return SQI+ value if supported */
+	if (phydev->oatc14_sqi_capability.sqiplus_bits) {
+		ret = phy_read_mmd(phydev, MDIO_MMD_VEND2,
+				   MDIO_OATC14_DCQ_SQIPLUS);
+		if (ret < 0)
+			return ret;
+
+		/* SQI+ uses N MSBs out of 8 bits, left-aligned with padding 1's
+		 * Calculate the right-shift needed to isolate the N bits.
+		 */
+		shift = 8 - phydev->oatc14_sqi_capability.sqiplus_bits;
+
+		return (ret & OATC14_DCQ_SQIPLUS_VALUE) >> shift;
+	}
+
+	/* Read and return SQI value if SQI+ capability is not supported */
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, MDIO_OATC14_DCQ_SQI);
+	if (ret < 0)
+		return ret;
+
+	return ret & OATC14_DCQ_SQI_VALUE;
+}
+EXPORT_SYMBOL(genphy_c45_oatc14_get_sqi);
