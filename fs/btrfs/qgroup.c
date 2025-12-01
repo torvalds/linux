@@ -3211,6 +3211,9 @@ static int qgroup_snapshot_quick_inherit(struct btrfs_fs_info *fs_info,
 	struct btrfs_qgroup_list *list;
 	int nr_parents = 0;
 
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_FULL)
+		return 0;
+
 	src = find_qgroup_rb(fs_info, srcid);
 	if (!src)
 		return -ENOENT;
