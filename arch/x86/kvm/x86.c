@@ -3874,15 +3874,9 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 
 /*
  * Returns true if the MSR in question is managed via XSTATE, i.e. is context
- * switched with the rest of guest FPU state.  Note!  S_CET is _not_ context
- * switched via XSTATE even though it _is_ saved/restored via XSAVES/XRSTORS.
- * Because S_CET is loaded on VM-Enter and VM-Exit via dedicated VMCS fields,
- * the value saved/restored via XSTATE is always the host's value.  That detail
- * is _extremely_ important, as the guest's S_CET must _never_ be resident in
- * hardware while executing in the host.  Loading guest values for U_CET and
- * PL[0-3]_SSP while executing in the kernel is safe, as U_CET is specific to
- * userspace, and PL[0-3]_SSP are only consumed when transitioning to lower
- * privilege levels, i.e. are effectively only consumed by userspace as well.
+ * switched with the rest of guest FPU state.
+ *
+ * Note, S_CET is _not_ saved/restored via XSAVES/XRSTORS.
  */
 static bool is_xstate_managed_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
@@ -3905,6 +3899,11 @@ static bool is_xstate_managed_msr(struct kvm_vcpu *vcpu, u32 msr)
  * MSR that is managed via XSTATE.  Note, the caller is responsible for doing
  * the initial FPU load, this helper only ensures that guest state is resident
  * in hardware (the kernel can load its FPU state in IRQ context).
+ *
+ * Note, loading guest values for U_CET and PL[0-3]_SSP while executing in the
+ * kernel is safe, as U_CET is specific to userspace, and PL[0-3]_SSP are only
+ * consumed when transitioning to lower privilege levels, i.e. are effectively
+ * only consumed by userspace as well.
  */
 static __always_inline void kvm_access_xstate_msr(struct kvm_vcpu *vcpu,
 						  struct msr_data *msr_info,
@@ -11807,6 +11806,9 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 /* Swap (qemu) user FPU context for the guest FPU context. */
 static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
+	if (KVM_BUG_ON(vcpu->arch.guest_fpu.fpstate->in_use, vcpu->kvm))
+		return;
+
 	/* Exclude PKRU, it's restored separately immediately after VM-Exit. */
 	fpu_swap_kvm_fpstate(&vcpu->arch.guest_fpu, true);
 	trace_kvm_fpu(1);
@@ -11815,6 +11817,9 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 /* When vcpu_run ends, restore user space FPU context. */
 static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 {
+	if (KVM_BUG_ON(!vcpu->arch.guest_fpu.fpstate->in_use, vcpu->kvm))
+		return;
+
 	fpu_swap_kvm_fpstate(&vcpu->arch.guest_fpu, false);
 	++vcpu->stat.fpu_reload;
 	trace_kvm_fpu(0);
@@ -12137,9 +12142,6 @@ int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 	int r;
 
 	vcpu_load(vcpu);
-	if (kvm_mpx_supported())
-		kvm_load_guest_fpu(vcpu);
-
 	kvm_vcpu_srcu_read_lock(vcpu);
 
 	r = kvm_apic_accept_events(vcpu);
@@ -12156,9 +12158,6 @@ int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 
 out:
 	kvm_vcpu_srcu_read_unlock(vcpu);
-
-	if (kvm_mpx_supported())
-		kvm_put_guest_fpu(vcpu);
 	vcpu_put(vcpu);
 	return r;
 }
@@ -12788,6 +12787,7 @@ static void kvm_xstate_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct fpstate *fpstate = vcpu->arch.guest_fpu.fpstate;
 	u64 xfeatures_mask;
+	bool fpu_in_use;
 	int i;
 
 	/*
@@ -12811,13 +12811,23 @@ static void kvm_xstate_reset(struct kvm_vcpu *vcpu, bool init_event)
 	BUILD_BUG_ON(sizeof(xfeatures_mask) * BITS_PER_BYTE <= XFEATURE_MAX);
 
 	/*
-	 * All paths that lead to INIT are required to load the guest's FPU
-	 * state (because most paths are buried in KVM_RUN).
+	 * Unload guest FPU state (if necessary) before zeroing XSTATE fields
+	 * as the kernel can only modify the state when its resident in memory,
+	 * i.e. when it's not loaded into hardware.
+	 *
+	 * WARN if the vCPU's desire to run, i.e. whether or not its in KVM_RUN,
+	 * doesn't match the loaded/in-use state of the FPU, as KVM_RUN is the
+	 * only path that can trigger INIT emulation _and_ loads FPU state, and
+	 * KVM_RUN should _always_ load FPU state.
 	 */
-	kvm_put_guest_fpu(vcpu);
+	WARN_ON_ONCE(vcpu->wants_to_run != fpstate->in_use);
+	fpu_in_use = fpstate->in_use;
+	if (fpu_in_use)
+		kvm_put_guest_fpu(vcpu);
 	for_each_set_bit(i, (unsigned long *)&xfeatures_mask, XFEATURE_MAX)
 		fpstate_clear_xstate_component(fpstate, i);
-	kvm_load_guest_fpu(vcpu);
+	if (fpu_in_use)
+		kvm_load_guest_fpu(vcpu);
 }
 
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)

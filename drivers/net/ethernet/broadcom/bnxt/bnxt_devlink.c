@@ -461,7 +461,7 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 			rtnl_unlock();
 			break;
 		}
-		bnxt_cancel_reservations(bp, false);
+		bnxt_clear_reservations(bp, false);
 		bnxt_free_ctx_mem(bp, false);
 		break;
 	}

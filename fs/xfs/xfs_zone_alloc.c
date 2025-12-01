@@ -615,7 +615,7 @@ xfs_select_open_zone_mru(
 	lockdep_assert_held(&zi->zi_open_zones_lock);
 
 	list_for_each_entry_reverse(oz, &zi->zi_open_zones, oz_entry)
-		if (xfs_try_use_zone(zi, file_hint, oz, false))
+		if (xfs_try_use_zone(zi, file_hint, oz, XFS_ZONE_ALLOC_OK))
 			return oz;
 
 	cond_resched_lock(&zi->zi_open_zones_lock);
@@ -1249,8 +1249,10 @@ xfs_mount_zones(
 
 		while ((rtg = xfs_rtgroup_next(mp, rtg))) {
 			error = xfs_init_zone(&iz, rtg, NULL);
-			if (error)
+			if (error) {
+				xfs_rtgroup_rele(rtg);
 				goto out_free_zone_info;
+			}
 		}
 	}
 

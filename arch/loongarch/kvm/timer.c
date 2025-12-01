@@ -4,6 +4,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <asm/delay.h>
 #include <asm/kvm_csr.h>
 #include <asm/kvm_vcpu.h>
 
@@ -95,6 +96,7 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 		 * and set CSR TVAL with -1
 		 */
 		write_gcsr_timertick(0);
+		__delay(2); /* Wait cycles until timer interrupt injected */
 
 		/*
 		 * Writing CSR_TINTCLR_TI to LOONGARCH_CSR_TINTCLR will clear

@@ -577,6 +577,8 @@ void fw_card_initialize(struct fw_card *card,
 	INIT_LIST_HEAD(&card->transactions.list);
 	spin_lock_init(&card->transactions.lock);
 
+	spin_lock_init(&card->topology_map.lock);
+
 	card->split_timeout.hi = DEFAULT_SPLIT_TIMEOUT / 8000;
 	card->split_timeout.lo = (DEFAULT_SPLIT_TIMEOUT % 8000) << 19;
 	card->split_timeout.cycles = DEFAULT_SPLIT_TIMEOUT;

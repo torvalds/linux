@@ -401,7 +401,8 @@ virtio_net_hdr_tnl_from_skb(const struct sk_buff *skb,
 	if (!tnl_hdr_negotiated)
 		return -EINVAL;
 
-        vhdr->hash_hdr.hash_value = 0;
+	vhdr->hash_hdr.hash_value_lo = 0;
+	vhdr->hash_hdr.hash_value_hi = 0;
         vhdr->hash_hdr.hash_report = 0;
         vhdr->hash_hdr.padding = 0;
 

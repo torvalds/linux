@@ -118,6 +118,7 @@ struct pca954x {
 	raw_spinlock_t lock;
 	struct regulator *supply;
 
+	struct gpio_desc *reset_gpio;
 	struct reset_control *reset_cont;
 };
 
@@ -315,25 +316,6 @@ static u8 pca954x_regval(struct pca954x *data, u8 chan)
 		return 1 << chan;
 }
 
-static void pca954x_reset_assert(struct pca954x *data)
-{
-	if (data->reset_cont)
-		reset_control_assert(data->reset_cont);
-}
-
-static void pca954x_reset_deassert(struct pca954x *data)
-{
-	if (data->reset_cont)
-		reset_control_deassert(data->reset_cont);
-}
-
-static void pca954x_reset_mux(struct pca954x *data)
-{
-	pca954x_reset_assert(data);
-	udelay(1);
-	pca954x_reset_deassert(data);
-}
-
 static int pca954x_select_chan(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct pca954x *data = i2c_mux_priv(muxc);
@@ -347,8 +329,6 @@ static int pca954x_select_chan(struct i2c_mux_core *muxc, u32 chan)
 		ret = pca954x_reg_write(muxc->parent, client, regval);
 		data->last_chan = ret < 0 ? 0 : regval;
 	}
-	if (ret == -ETIMEDOUT && data->reset_cont)
-		pca954x_reset_mux(data);
 
 	return ret;
 }
@@ -358,7 +338,6 @@ static int pca954x_deselect_mux(struct i2c_mux_core *muxc, u32 chan)
 	struct pca954x *data = i2c_mux_priv(muxc);
 	struct i2c_client *client = data->client;
 	s32 idle_state;
-	int ret = 0;
 
 	idle_state = READ_ONCE(data->idle_state);
 	if (idle_state >= 0)
@@ -368,10 +347,8 @@ static int pca954x_deselect_mux(struct i2c_mux_core *muxc, u32 chan)
 	if (idle_state == MUX_IDLE_DISCONNECT) {
 		/* Deselect active channel */
 		data->last_chan = 0;
-		ret = pca954x_reg_write(muxc->parent, client,
-					data->last_chan);
-		if (ret == -ETIMEDOUT && data->reset_cont)
-			pca954x_reset_mux(data);
+		return pca954x_reg_write(muxc->parent, client,
+					 data->last_chan);
 	}
 
 	/* otherwise leave as-is */
@@ -550,8 +527,27 @@ static int pca954x_get_reset(struct device *dev, struct pca954x *data)
 	if (IS_ERR(data->reset_cont))
 		return dev_err_probe(dev, PTR_ERR(data->reset_cont),
 				     "Failed to get reset\n");
+	else if (data->reset_cont)
+		return 0;
+
+	/*
+	 * fallback to legacy reset-gpios
+	 */
+	data->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(data->reset_gpio)) {
+		return dev_err_probe(dev, PTR_ERR(data->reset_gpio),
+				     "Failed to get reset gpio");
+	}
 
 	return 0;
+}
+
+static void pca954x_reset_deassert(struct pca954x *data)
+{
+	if (data->reset_cont)
+		reset_control_deassert(data->reset_cont);
+	else
+		gpiod_set_value_cansleep(data->reset_gpio, 0);
 }
 
 /*
@@ -593,7 +589,7 @@ static int pca954x_probe(struct i2c_client *client)
 	if (ret)
 		goto fail_cleanup;
 
-	if (data->reset_cont) {
+	if (data->reset_cont || data->reset_gpio) {
 		udelay(1);
 		pca954x_reset_deassert(data);
 		/* Give the chip some time to recover. */

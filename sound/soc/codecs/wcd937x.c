@@ -2748,7 +2748,8 @@ static int wcd937x_bind(struct device *dev)
 	wcd937x->rxdev = of_sdw_find_device_by_node(wcd937x->rxnode);
 	if (!wcd937x->rxdev) {
 		dev_err(dev, "could not find slave with matching of node\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_component_unbind;
 	}
 
 	wcd937x->sdw_priv[AIF1_PB] = dev_get_drvdata(wcd937x->rxdev);
@@ -2757,7 +2758,8 @@ static int wcd937x_bind(struct device *dev)
 	wcd937x->txdev = of_sdw_find_device_by_node(wcd937x->txnode);
 	if (!wcd937x->txdev) {
 		dev_err(dev, "could not find txslave with matching of node\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_put_rxdev;
 	}
 
 	wcd937x->sdw_priv[AIF1_CAP] = dev_get_drvdata(wcd937x->txdev);
@@ -2765,7 +2767,8 @@ static int wcd937x_bind(struct device *dev)
 	wcd937x->tx_sdw_dev = dev_to_sdw_dev(wcd937x->txdev);
 	if (!wcd937x->tx_sdw_dev) {
 		dev_err(dev, "could not get txslave with matching of dev\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_put_txdev;
 	}
 
 	/*
@@ -2775,31 +2778,35 @@ static int wcd937x_bind(struct device *dev)
 	if (!device_link_add(wcd937x->rxdev, wcd937x->txdev,
 			     DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME)) {
 		dev_err(dev, "Could not devlink TX and RX\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_put_txdev;
 	}
 
 	if (!device_link_add(dev, wcd937x->txdev,
 			     DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME)) {
 		dev_err(dev, "Could not devlink WCD and TX\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_remove_link1;
 	}
 
 	if (!device_link_add(dev, wcd937x->rxdev,
 			     DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME)) {
 		dev_err(dev, "Could not devlink WCD and RX\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_remove_link2;
 	}
 
 	wcd937x->regmap = wcd937x->sdw_priv[AIF1_CAP]->regmap;
 	if (!wcd937x->regmap) {
 		dev_err(dev, "could not get TX device regmap\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_remove_link3;
 	}
 
 	ret = wcd937x_irq_init(wcd937x, dev);
 	if (ret) {
 		dev_err(dev, "IRQ init failed: %d\n", ret);
-		return ret;
+		goto err_remove_link3;
 	}
 
 	wcd937x->sdw_priv[AIF1_PB]->slave_irq = wcd937x->virq;
@@ -2809,9 +2816,25 @@ static int wcd937x_bind(struct device *dev)
 
 	ret = snd_soc_register_component(dev, &soc_codec_dev_wcd937x,
 					 wcd937x_dais, ARRAY_SIZE(wcd937x_dais));
-	if (ret)
+	if (ret) {
 		dev_err(dev, "Codec registration failed\n");
+		goto err_remove_link3;
+	}
 
+	return ret;
+
+err_remove_link3:
+	device_link_remove(dev, wcd937x->rxdev);
+err_remove_link2:
+	device_link_remove(dev, wcd937x->txdev);
+err_remove_link1:
+	device_link_remove(wcd937x->rxdev, wcd937x->txdev);
+err_put_txdev:
+	put_device(wcd937x->txdev);
+err_put_rxdev:
+	put_device(wcd937x->rxdev);
+err_component_unbind:
+	component_unbind_all(dev, wcd937x);
 	return ret;
 }
 
@@ -2825,6 +2848,8 @@ static void wcd937x_unbind(struct device *dev)
 	device_link_remove(wcd937x->rxdev, wcd937x->txdev);
 	component_unbind_all(dev, wcd937x);
 	mutex_destroy(&wcd937x->micb_lock);
+	put_device(wcd937x->txdev);
+	put_device(wcd937x->rxdev);
 }
 
 static const struct component_master_ops wcd937x_comp_ops = {

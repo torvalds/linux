@@ -334,6 +334,9 @@ smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 		break;
 
 	case SMBDIRECT_SOCKET_CREATED:
+		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
+		break;
+
 	case SMBDIRECT_SOCKET_CONNECTED:
 		sc->status = SMBDIRECT_SOCKET_ERROR;
 		break;
@@ -1883,6 +1886,7 @@ static int smb_direct_accept_client(struct smbdirect_socket *sc)
 static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 {
 	struct smbdirect_recv_io *recvmsg;
+	bool recv_posted = false;
 	int ret;
 
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_CREATED);
@@ -1899,6 +1903,7 @@ static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 		pr_err("Can't post recv: %d\n", ret);
 		goto out_err;
 	}
+	recv_posted = true;
 
 	ret = smb_direct_accept_client(sc);
 	if (ret) {
@@ -1908,7 +1913,14 @@ static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 
 	return 0;
 out_err:
-	put_recvmsg(sc, recvmsg);
+	/*
+	 * If the recv was never posted, return it to the free list.
+	 * If it was posted, leave it alone so disconnect teardown can
+	 * drain the QP and complete it (flush) and the completion path
+	 * will unmap it exactly once.
+	 */
+	if (!recv_posted)
+		put_recvmsg(sc, recvmsg);
 	return ret;
 }
 
@@ -2606,7 +2618,7 @@ void ksmbd_rdma_destroy(void)
 	}
 }
 
-bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
+static bool ksmbd_find_rdma_capable_netdev(struct net_device *netdev)
 {
 	struct smb_direct_device *smb_dev;
 	int i;
@@ -2646,6 +2658,28 @@ out:
 		    netdev->name, str_true_false(rdma_capable));
 
 	return rdma_capable;
+}
+
+bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	if (ksmbd_find_rdma_capable_netdev(netdev))
+		return true;
+
+	/* check if netdev is bridge or VLAN */
+	if (netif_is_bridge_master(netdev) ||
+	    netdev->priv_flags & IFF_802_1Q_VLAN)
+		netdev_for_each_lower_dev(netdev, lower_dev, iter)
+			if (ksmbd_find_rdma_capable_netdev(lower_dev))
+				return true;
+
+	/* check if netdev is IPoIB safely without layer violation */
+	if (netdev->type == ARPHRD_INFINIBAND)
+		return true;
+
+	return false;
 }
 
 static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {

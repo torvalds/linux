@@ -13,7 +13,7 @@
 void __init memblock_init(void)
 {
 	u32 mem_type;
-	u64 mem_start, mem_end, mem_size;
+	u64 mem_start, mem_size;
 	efi_memory_desc_t *md;
 
 	/* Parse memory information */
@@ -21,7 +21,6 @@ void __init memblock_init(void)
 		mem_type = md->type;
 		mem_start = md->phys_addr;
 		mem_size = md->num_pages << EFI_PAGE_SHIFT;
-		mem_end = mem_start + mem_size;
 
 		switch (mem_type) {
 		case EFI_LOADER_CODE:
@@ -31,8 +30,6 @@ void __init memblock_init(void)
 		case EFI_PERSISTENT_MEMORY:
 		case EFI_CONVENTIONAL_MEMORY:
 			memblock_add(mem_start, mem_size);
-			if (max_low_pfn < (mem_end >> PAGE_SHIFT))
-				max_low_pfn = mem_end >> PAGE_SHIFT;
 			break;
 		case EFI_PAL_CODE:
 		case EFI_UNUSABLE_MEMORY:
@@ -49,6 +46,8 @@ void __init memblock_init(void)
 		}
 	}
 
+	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	max_low_pfn = min(PFN_DOWN(HIGHMEM_START), max_pfn);
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 
 	/* Reserve the first 2MB */

@@ -143,7 +143,7 @@ int load_other_segments(struct kimage *image,
 	unsigned long initrd_load_addr = 0;
 	unsigned long orig_segments = image->nr_segments;
 	char *modified_cmdline = NULL;
-	struct kexec_buf kbuf;
+	struct kexec_buf kbuf = {};
 
 	kbuf.image = image;
 	/* Don't allocate anything below the kernel */

@@ -706,7 +706,7 @@ struct irdma_sc_dev {
 	u32 vchnl_ver;
 	u16 num_vfs;
 	u16 hmc_fn_id;
-	u8 vf_id;
+	u16 vf_id;
 	bool privileged:1;
 	bool vchnl_up:1;
 	bool ceq_valid:1;
