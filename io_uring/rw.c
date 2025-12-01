@@ -277,7 +277,6 @@ static int __io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	} else {
 		rw->kiocb.ki_ioprio = get_current_ioprio();
 	}
-	rw->kiocb.dio_complete = NULL;
 	rw->kiocb.ki_flags = 0;
 	rw->kiocb.ki_write_stream = READ_ONCE(sqe->write_stream);
 
@@ -569,15 +568,6 @@ static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
 
 void io_req_rw_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
-	struct kiocb *kiocb = &rw->kiocb;
-
-	if ((kiocb->ki_flags & IOCB_DIO_CALLER_COMP) && kiocb->dio_complete) {
-		long res = kiocb->dio_complete(rw->kiocb.private);
-
-		io_req_set_res(req, io_fixup_rw_res(req, res), 0);
-	}
-
 	io_req_io_end(req);
 
 	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING))
@@ -592,10 +582,8 @@ static void io_complete_rw(struct kiocb *kiocb, long res)
 	struct io_rw *rw = container_of(kiocb, struct io_rw, kiocb);
 	struct io_kiocb *req = cmd_to_io_kiocb(rw);
 
-	if (!kiocb->dio_complete || !(kiocb->ki_flags & IOCB_DIO_CALLER_COMP)) {
-		__io_complete_rw_common(req, res);
-		io_req_set_res(req, io_fixup_rw_res(req, res), 0);
-	}
+	__io_complete_rw_common(req, res);
+	io_req_set_res(req, io_fixup_rw_res(req, res), 0);
 	req->io_task_work.func = io_req_rw_complete;
 	__io_req_task_work_add(req, IOU_F_TWQ_LAZY_WAKE);
 }
