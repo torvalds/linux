@@ -118,6 +118,9 @@
  * from scratch.
  */
 
+/* Counter of active nbcon emergency contexts. */
+static atomic_t nbcon_cpu_emergency_cnt = ATOMIC_INIT(0);
+
 /**
  * nbcon_state_set - Helper function to set the console state
  * @con:	Console to update
@@ -1163,6 +1166,17 @@ static bool nbcon_kthread_should_wakeup(struct console *con, struct nbcon_contex
 	if (kthread_should_stop())
 		return true;
 
+	/*
+	 * Block the kthread when the system is in an emergency or panic mode.
+	 * It increases the chance that these contexts would be able to show
+	 * the messages directly. And it reduces the risk of interrupted writes
+	 * where the context with a higher priority takes over the nbcon console
+	 * ownership in the middle of a message.
+	 */
+	if (unlikely(atomic_read(&nbcon_cpu_emergency_cnt)) ||
+	    unlikely(panic_in_progress()))
+		return false;
+
 	cookie = console_srcu_read_lock();
 
 	flags = console_srcu_read_flags(con);
@@ -1213,6 +1227,14 @@ wait_for_event:
 	do {
 		if (kthread_should_stop())
 			return 0;
+
+		/*
+		 * Block the kthread when the system is in an emergency or panic
+		 * mode. See nbcon_kthread_should_wakeup() for more details.
+		 */
+		if (unlikely(atomic_read(&nbcon_cpu_emergency_cnt)) ||
+		    unlikely(panic_in_progress()))
+			goto wait_for_event;
 
 		backlog = false;
 
@@ -1505,10 +1527,10 @@ static int __nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq,
 	ctxt->prio			= nbcon_get_default_prio();
 	ctxt->allow_unsafe_takeover	= allow_unsafe_takeover;
 
-	if (!nbcon_context_try_acquire(ctxt, false))
-		return -EPERM;
-
 	while (nbcon_seq_read(con) < stop_seq) {
+		if (!nbcon_context_try_acquire(ctxt, false))
+			return -EPERM;
+
 		/*
 		 * nbcon_emit_next_record() returns false when the console was
 		 * handed over or taken over. In both cases the context is no
@@ -1516,6 +1538,8 @@ static int __nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq,
 		 */
 		if (!nbcon_emit_next_record(&wctxt, true))
 			return -EAGAIN;
+
+		nbcon_context_release(ctxt);
 
 		if (!ctxt->backlog) {
 			/* Are there reserved but not yet finalized records? */
@@ -1525,7 +1549,6 @@ static int __nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq,
 		}
 	}
 
-	nbcon_context_release(ctxt);
 	return err;
 }
 
@@ -1655,6 +1678,8 @@ void nbcon_cpu_emergency_enter(void)
 
 	preempt_disable();
 
+	atomic_inc(&nbcon_cpu_emergency_cnt);
+
 	cpu_emergency_nesting = nbcon_get_cpu_emergency_nesting();
 	(*cpu_emergency_nesting)++;
 }
@@ -1669,9 +1694,23 @@ void nbcon_cpu_emergency_exit(void)
 	unsigned int *cpu_emergency_nesting;
 
 	cpu_emergency_nesting = nbcon_get_cpu_emergency_nesting();
-
 	if (!WARN_ON_ONCE(*cpu_emergency_nesting == 0))
 		(*cpu_emergency_nesting)--;
+
+	/*
+	 * Wake up kthreads because there might be some pending messages
+	 * added by other CPUs with normal priority since the last flush
+	 * in the emergency context.
+	 */
+	if (!WARN_ON_ONCE(atomic_read(&nbcon_cpu_emergency_cnt) == 0)) {
+		if (atomic_dec_return(&nbcon_cpu_emergency_cnt) == 0) {
+			struct console_flush_type ft;
+
+			printk_get_console_flush_type(&ft);
+			if (ft.nbcon_offload)
+				nbcon_kthreads_wake();
+		}
+	}
 
 	preempt_enable();
 }
