@@ -1185,7 +1185,12 @@ static int wait_on_sem(struct amd_iommu *iommu, u64 data)
 {
 	int i = 0;
 
-	while (*iommu->cmd_sem != data && i < LOOP_TIMEOUT) {
+	/*
+	 * cmd_sem holds a monotonically non-decreasing completion sequence
+	 * number.
+	 */
+	while ((__s64)(READ_ONCE(*iommu->cmd_sem) - data) < 0 &&
+	       i < LOOP_TIMEOUT) {
 		udelay(1);
 		i += 1;
 	}
@@ -1437,13 +1442,12 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	raw_spin_lock_irqsave(&iommu->lock, flags);
 
 	ret = __iommu_queue_command_sync(iommu, &cmd, false);
+	raw_spin_unlock_irqrestore(&iommu->lock, flags);
+
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	ret = wait_on_sem(iommu, data);
-
-out_unlock:
-	raw_spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return ret;
 }
@@ -3121,13 +3125,18 @@ static void iommu_flush_irt_and_complete(struct amd_iommu *iommu, u16 devid)
 	raw_spin_lock_irqsave(&iommu->lock, flags);
 	ret = __iommu_queue_command_sync(iommu, &cmd, true);
 	if (ret)
-		goto out;
+		goto out_err;
 	ret = __iommu_queue_command_sync(iommu, &cmd2, false);
 	if (ret)
-		goto out;
-	wait_on_sem(iommu, data);
-out:
+		goto out_err;
 	raw_spin_unlock_irqrestore(&iommu->lock, flags);
+
+	wait_on_sem(iommu, data);
+	return;
+
+out_err:
+	raw_spin_unlock_irqrestore(&iommu->lock, flags);
+	return;
 }
 
 static inline u8 iommu_get_int_tablen(struct iommu_dev_data *dev_data)
