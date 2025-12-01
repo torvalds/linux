@@ -1381,7 +1381,10 @@ typedef struct smb_com_transaction_change_notify_rsp {
 #define FILE_ACTION_REMOVED_STREAM	0x00000007
 #define FILE_ACTION_MODIFIED_STREAM	0x00000008
 
-/* response contains array of the following structures */
+/*
+ * response contains array of the following structures
+ * See MS-FSCC 2.7.1
+ */
 struct file_notify_information {
 	__le32 NextEntryOffset;
 	__le32 Action;

@@ -1002,7 +1002,10 @@ struct smb2_set_info_rsp {
 #define FILE_NOTIFY_CHANGE_STREAM_SIZE		0x00000400
 #define FILE_NOTIFY_CHANGE_STREAM_WRITE		0x00000800
 
-/* SMB2 Notify Action Flags */
+/*
+ * SMB2 Notify Action Flags
+ * See MS-FSCC 2.7.1
+ */
 #define FILE_ACTION_ADDED                       0x00000001
 #define FILE_ACTION_REMOVED                     0x00000002
 #define FILE_ACTION_MODIFIED                    0x00000003
@@ -1013,6 +1016,7 @@ struct smb2_set_info_rsp {
 #define FILE_ACTION_MODIFIED_STREAM             0x00000008
 #define FILE_ACTION_REMOVED_BY_DELETE           0x00000009
 
+/* See MS-SMB2 2.2.35 */
 struct smb2_change_notify_req {
 	struct smb2_hdr hdr;
 	__le16	StructureSize;
@@ -1024,6 +1028,7 @@ struct smb2_change_notify_req {
 	__u32	Reserved;
 } __packed;
 
+/* See MS-SMB2 2.2.36 */
 struct smb2_change_notify_rsp {
 	struct smb2_hdr hdr;
 	__le16	StructureSize;  /* Must be 9 */
