@@ -3023,21 +3023,18 @@ out:
 }
 
 /*
- * Legacy console printing from printk() caller context does not respect
- * raw_spinlock/spinlock nesting. For !PREEMPT_RT the lockdep warning is a
- * false positive. For PREEMPT_RT the false positive condition does not
- * occur.
- *
- * This map is used to temporarily establish LD_WAIT_SLEEP context for the
- * console write() callback when legacy printing to avoid false positive
- * lockdep complaints, thus allowing lockdep to continue to function for
- * real issues.
+ * The legacy console always acquires a spinlock_t from its printing
+ * callback. This violates lock nesting if the caller acquired an always
+ * spinning lock (raw_spinlock_t) while invoking printk(). This is not a
+ * problem on PREEMPT_RT because legacy consoles print always from a
+ * dedicated thread and never from within printk(). Therefore we tell
+ * lockdep that a sleeping spin lock (spinlock_t) is valid here.
  */
 #ifdef CONFIG_PREEMPT_RT
 static inline void printk_legacy_allow_spinlock_enter(void) { }
 static inline void printk_legacy_allow_spinlock_exit(void) { }
 #else
-static DEFINE_WAIT_OVERRIDE_MAP(printk_legacy_map, LD_WAIT_SLEEP);
+static DEFINE_WAIT_OVERRIDE_MAP(printk_legacy_map, LD_WAIT_CONFIG);
 
 static inline void printk_legacy_allow_spinlock_enter(void)
 {
