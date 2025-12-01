@@ -1908,12 +1908,20 @@ static int st_lsm6dsx_read_event(struct iio_dev *iio_dev,
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
+	const struct st_lsm6dsx_reg *reg;
+	u8 data;
+	int err;
 
 	if (type != IIO_EV_TYPE_THRESH)
 		return -EINVAL;
 
+	reg = &hw->settings->event_settings.sources[ST_LSM6DSX_EVENT_WAKEUP].value;
+	err = st_lsm6dsx_read_locked(hw, reg->addr, &data, sizeof(data));
+	if (err < 0)
+		return err;
+
 	*val2 = 0;
-	*val = hw->event_threshold;
+	*val = st_lsm6dsx_field_get(reg->mask, data);
 
 	return IIO_VAL_INT;
 }
@@ -1944,8 +1952,6 @@ st_lsm6dsx_write_event(struct iio_dev *iio_dev,
 					    reg->mask, data);
 	if (err < 0)
 		return -EINVAL;
-
-	hw->event_threshold = val;
 
 	return 0;
 }
