@@ -57,6 +57,14 @@ properties:
       - const: presetn
       - const: tresetn
 
+  dmas:
+    maxItems: 2
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
   power-domains:
     maxItems: 1
 
