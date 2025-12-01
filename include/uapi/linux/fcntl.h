@@ -4,6 +4,11 @@
 
 #include <asm/fcntl.h>
 #include <linux/openat2.h>
+#ifdef __KERNEL__
+#include <linux/types.h>
+#else
+#include <stdint.h>
+#endif
 
 #define F_SETLEASE	(F_LINUX_SPECIFIC_BASE + 0)
 #define F_GETLEASE	(F_LINUX_SPECIFIC_BASE + 1)
@@ -78,6 +83,17 @@
  * v4.13-rc1~212^2~51.
  */
 #define RWF_WRITE_LIFE_NOT_SET	RWH_WRITE_LIFE_NOT_SET
+
+/* Set/Get delegations */
+#define F_GETDELEG		(F_LINUX_SPECIFIC_BASE + 15)
+#define F_SETDELEG		(F_LINUX_SPECIFIC_BASE + 16)
+
+/* Argument structure for F_GETDELEG and F_SETDELEG */
+struct delegation {
+	uint32_t	d_flags;	/* Must be 0 */
+	uint16_t	d_type;		/* F_RDLCK, F_WRLCK, F_UNLCK */
+	uint16_t	__pad;		/* Must be 0 */
+};
 
 /*
  * Types of directory notifications that may be requested.
