@@ -225,8 +225,8 @@ static int rzv2h_rspi_receive(struct rzv2h_rspi_priv *rspi, void *rxbuf,
 }
 
 static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
-				  struct spi_device *spi,
-				  struct spi_transfer *transfer)
+				   struct spi_device *spi,
+				   struct spi_transfer *transfer)
 {
 	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(controller);
 	unsigned int words_to_transfer, i;
