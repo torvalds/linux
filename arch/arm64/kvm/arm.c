@@ -440,7 +440,7 @@ struct kvm *kvm_arch_alloc_vm(void)
 	if (!has_vhe())
 		return kzalloc(sz, GFP_KERNEL_ACCOUNT);
 
-	return __vmalloc(sz, GFP_KERNEL_ACCOUNT | __GFP_HIGHMEM | __GFP_ZERO);
+	return kvzalloc(sz, GFP_KERNEL_ACCOUNT);
 }
 
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
