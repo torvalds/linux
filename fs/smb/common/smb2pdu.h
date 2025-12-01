@@ -1545,9 +1545,10 @@ struct duplicate_extents_to_file {
 	__le64 ByteCount;  /* Bytes to be copied */
 } __packed;
 
-/* See MS-FSCC 2.3.8 */
+/* See MS-FSCC 2.3.9 */
 #define DUPLICATE_EXTENTS_DATA_EX_SOURCE_ATOMIC	0x00000001
 struct duplicate_extents_to_file_ex {
+	__le64 StructureSize; /* MUST be set to 0x30 */
 	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
 	__u64 VolatileFileHandle;
 	__le64 SourceFileOffset;
