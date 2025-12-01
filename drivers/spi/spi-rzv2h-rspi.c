@@ -37,6 +37,7 @@
 /* Register SPCR */
 #define RSPI_SPCR_BPEN		BIT(31)
 #define RSPI_SPCR_MSTR		BIT(30)
+#define RSPI_SPCR_SPTIE		BIT(20)
 #define RSPI_SPCR_SPRIE		BIT(17)
 #define RSPI_SPCR_SCKASE	BIT(12)
 #define RSPI_SPCR_SPE		BIT(0)
@@ -473,6 +474,9 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 
 	/* SPI receive buffer full interrupt enable */
 	conf32 |= RSPI_SPCR_SPRIE;
+
+	/* SPI transmit buffer empty interrupt enable */
+	conf32 |= RSPI_SPCR_SPTIE;
 
 	/* Bypass synchronization circuit */
 	conf32 |= FIELD_PREP(RSPI_SPCR_BPEN, rspi->use_pclk);
