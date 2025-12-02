@@ -2858,6 +2858,11 @@ static int mlxsw_sp_router_schedule_work(struct net *net,
 	if (!net_work)
 		return NOTIFY_BAD;
 
+	/* Take a reference to ensure the neighbour won't be destructed until
+	 * we drop the reference in the work item.
+	 */
+	neigh_clone(n);
+
 	INIT_WORK(&net_work->work, cb);
 	net_work->mlxsw_sp = router->mlxsw_sp;
 	net_work->n = n;
@@ -2881,11 +2886,6 @@ static int mlxsw_sp_router_schedule_neigh_work(struct mlxsw_sp_router *router,
 	struct net *net;
 
 	net = neigh_parms_net(n->parms);
-
-	/* Take a reference to ensure the neighbour won't be destructed until we
-	 * drop the reference in delayed work.
-	 */
-	neigh_clone(n);
 	return mlxsw_sp_router_schedule_work(net, router, n,
 					     mlxsw_sp_router_neigh_event_work);
 }
