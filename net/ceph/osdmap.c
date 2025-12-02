@@ -806,51 +806,49 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 	ceph_decode_need(p, end, len, bad);
 	pool_end = *p + len;
 
+	ceph_decode_need(p, end, 4 + 4 + 4, bad);
 	pi->type = ceph_decode_8(p);
 	pi->size = ceph_decode_8(p);
 	pi->crush_ruleset = ceph_decode_8(p);
 	pi->object_hash = ceph_decode_8(p);
-
 	pi->pg_num = ceph_decode_32(p);
 	pi->pgp_num = ceph_decode_32(p);
 
-	*p += 4 + 4;  /* skip lpg* */
-	*p += 4;      /* skip last_change */
-	*p += 8 + 4;  /* skip snap_seq, snap_epoch */
+	/* lpg*, last_change, snap_seq, snap_epoch */
+	ceph_decode_skip_n(p, end, 8 + 4 + 8 + 4, bad);
 
 	/* skip snaps */
-	num = ceph_decode_32(p);
+	ceph_decode_32_safe(p, end, num, bad);
 	while (num--) {
-		*p += 8;  /* snapid key */
-		*p += 1 + 1; /* versions */
-		len = ceph_decode_32(p);
-		*p += len;
+		/* snapid key, pool snap (with versions) */
+		ceph_decode_skip_n(p, end, 8 + 2, bad);
+		ceph_decode_skip_string(p, end, bad);
 	}
 
-	/* skip removed_snaps */
-	num = ceph_decode_32(p);
-	*p += num * (8 + 8);
+	/* removed_snaps */
+	ceph_decode_skip_map(p, end, 64, 64, bad);
 
+	ceph_decode_need(p, end, 8 + 8 + 4, bad);
 	*p += 8;  /* skip auid */
 	pi->flags = ceph_decode_64(p);
 	*p += 4;  /* skip crash_replay_interval */
 
 	if (ev >= 7)
-		pi->min_size = ceph_decode_8(p);
+		ceph_decode_8_safe(p, end, pi->min_size, bad);
 	else
 		pi->min_size = pi->size - pi->size / 2;
 
 	if (ev >= 8)
-		*p += 8 + 8;  /* skip quota_max_* */
+		/* quota_max_* */
+		ceph_decode_skip_n(p, end, 8 + 8, bad);
 
 	if (ev >= 9) {
-		/* skip tiers */
-		num = ceph_decode_32(p);
-		*p += num * 8;
+		/* tiers */
+		ceph_decode_skip_set(p, end, 64, bad);
 
+		ceph_decode_need(p, end, 8 + 1 + 8 + 8, bad);
 		*p += 8;  /* skip tier_of */
 		*p += 1;  /* skip cache_mode */
-
 		pi->read_tier = ceph_decode_64(p);
 		pi->write_tier = ceph_decode_64(p);
 	} else {
@@ -858,86 +856,76 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 		pi->write_tier = -1;
 	}
 
-	if (ev >= 10) {
-		/* skip properties */
-		num = ceph_decode_32(p);
-		while (num--) {
-			len = ceph_decode_32(p);
-			*p += len; /* key */
-			len = ceph_decode_32(p);
-			*p += len; /* val */
-		}
-	}
+	if (ev >= 10)
+		/* properties */
+		ceph_decode_skip_map(p, end, string, string, bad);
 
 	if (ev >= 11) {
-		/* skip hit_set_params */
-		*p += 1 + 1; /* versions */
-		len = ceph_decode_32(p);
-		*p += len;
+		/* hit_set_params (with versions) */
+		ceph_decode_skip_n(p, end, 2, bad);
+		ceph_decode_skip_string(p, end, bad);
 
-		*p += 4; /* skip hit_set_period */
-		*p += 4; /* skip hit_set_count */
+		/* hit_set_period, hit_set_count */
+		ceph_decode_skip_n(p, end, 4 + 4, bad);
 	}
 
 	if (ev >= 12)
-		*p += 4; /* skip stripe_width */
+		/* stripe_width */
+		ceph_decode_skip_32(p, end, bad);
 
-	if (ev >= 13) {
-		*p += 8; /* skip target_max_bytes */
-		*p += 8; /* skip target_max_objects */
-		*p += 4; /* skip cache_target_dirty_ratio_micro */
-		*p += 4; /* skip cache_target_full_ratio_micro */
-		*p += 4; /* skip cache_min_flush_age */
-		*p += 4; /* skip cache_min_evict_age */
-	}
+	if (ev >= 13)
+		/* target_max_*, cache_target_*, cache_min_* */
+		ceph_decode_skip_n(p, end, 16 + 8 + 8, bad);
 
-	if (ev >=  14) {
-		/* skip erasure_code_profile */
-		len = ceph_decode_32(p);
-		*p += len;
-	}
+	if (ev >= 14)
+		/* erasure_code_profile */
+		ceph_decode_skip_string(p, end, bad);
 
 	/*
 	 * last_force_op_resend_preluminous, will be overridden if the
 	 * map was encoded with RESEND_ON_SPLIT
 	 */
 	if (ev >= 15)
-		pi->last_force_request_resend = ceph_decode_32(p);
+		ceph_decode_32_safe(p, end, pi->last_force_request_resend, bad);
 	else
 		pi->last_force_request_resend = 0;
 
 	if (ev >= 16)
-		*p += 4; /* skip min_read_recency_for_promote */
+		/* min_read_recency_for_promote */
+		ceph_decode_skip_32(p, end, bad);
 
 	if (ev >= 17)
-		*p += 8; /* skip expected_num_objects */
+		/* expected_num_objects */
+		ceph_decode_skip_64(p, end, bad);
 
 	if (ev >= 19)
-		*p += 4; /* skip cache_target_dirty_high_ratio_micro */
+		/* cache_target_dirty_high_ratio_micro */
+		ceph_decode_skip_32(p, end, bad);
 
 	if (ev >= 20)
-		*p += 4; /* skip min_write_recency_for_promote */
+		/* min_write_recency_for_promote */
+		ceph_decode_skip_32(p, end, bad);
 
 	if (ev >= 21)
-		*p += 1; /* skip use_gmt_hitset */
+		/* use_gmt_hitset */
+		ceph_decode_skip_8(p, end, bad);
 
 	if (ev >= 22)
-		*p += 1; /* skip fast_read */
+		/* fast_read */
+		ceph_decode_skip_8(p, end, bad);
 
-	if (ev >= 23) {
-		*p += 4; /* skip hit_set_grade_decay_rate */
-		*p += 4; /* skip hit_set_search_last_n */
-	}
+	if (ev >= 23)
+		/* hit_set_grade_decay_rate, hit_set_search_last_n */
+		ceph_decode_skip_n(p, end, 4 + 4, bad);
 
 	if (ev >= 24) {
-		/* skip opts */
-		*p += 1 + 1; /* versions */
-		len = ceph_decode_32(p);
-		*p += len;
+		/* opts (with versions) */
+		ceph_decode_skip_n(p, end, 2, bad);
+		ceph_decode_skip_string(p, end, bad);
 	}
 
 	if (ev >= 25)
-		pi->last_force_request_resend = ceph_decode_32(p);
+		ceph_decode_32_safe(p, end, pi->last_force_request_resend, bad);
 
 	/* ignore the rest */
 
