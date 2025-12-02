@@ -541,7 +541,7 @@ EXPORT_SYMBOL(BUG_func);
  * Rewrite the "call BUG_func" replacement to point to the target of the
  * indirect pv_ops call "call *disp(%ip)".
  */
-static int alt_replace_call(u8 *instr, u8 *insn_buff, struct alt_instr *a)
+static unsigned int alt_replace_call(u8 *instr, u8 *insn_buff, struct alt_instr *a)
 {
 	void *target, *bug = &BUG_func;
 	s32 disp;
@@ -625,7 +625,7 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 	 * order.
 	 */
 	for (a = start; a < end; a++) {
-		int insn_buff_sz = 0;
+		unsigned int insn_buff_sz = 0;
 
 		/*
 		 * In case of nested ALTERNATIVE()s the outer alternative might
@@ -665,11 +665,8 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		memcpy(insn_buff, replacement, a->replacementlen);
 		insn_buff_sz = a->replacementlen;
 
-		if (a->flags & ALT_FLAG_DIRECT_CALL) {
+		if (a->flags & ALT_FLAG_DIRECT_CALL)
 			insn_buff_sz = alt_replace_call(instr, insn_buff, a);
-			if (insn_buff_sz < 0)
-				continue;
-		}
 
 		for (; insn_buff_sz < a->instrlen; insn_buff_sz++)
 			insn_buff[insn_buff_sz] = 0x90;
