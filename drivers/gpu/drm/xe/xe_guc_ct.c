@@ -253,8 +253,11 @@ static bool g2h_fence_needs_alloc(struct g2h_fence *g2h_fence)
 #define CTB_DESC_SIZE		ALIGN(sizeof(struct guc_ct_buffer_desc), SZ_2K)
 #define CTB_H2G_BUFFER_OFFSET	(CTB_DESC_SIZE * 2)
 #define CTB_H2G_BUFFER_SIZE	(SZ_4K)
+#define CTB_H2G_BUFFER_DWORDS	(CTB_H2G_BUFFER_SIZE / sizeof(u32))
 #define CTB_G2H_BUFFER_SIZE	(SZ_128K)
+#define CTB_G2H_BUFFER_DWORDS	(CTB_G2H_BUFFER_SIZE / sizeof(u32))
 #define G2H_ROOM_BUFFER_SIZE	(CTB_G2H_BUFFER_SIZE / 2)
+#define G2H_ROOM_BUFFER_DWORDS	(CTB_G2H_BUFFER_DWORDS / 2)
 
 /**
  * xe_guc_ct_queue_proc_time_jiffies - Return maximum time to process a full
@@ -403,7 +406,7 @@ int xe_guc_ct_init_post_hwconfig(struct xe_guc_ct *ct)
 static void guc_ct_ctb_h2g_init(struct xe_device *xe, struct guc_ctb *h2g,
 				struct iosys_map *map)
 {
-	h2g->info.size = CTB_H2G_BUFFER_SIZE / sizeof(u32);
+	h2g->info.size = CTB_H2G_BUFFER_DWORDS;
 	h2g->info.resv_space = 0;
 	h2g->info.tail = 0;
 	h2g->info.head = 0;
@@ -421,8 +424,8 @@ static void guc_ct_ctb_h2g_init(struct xe_device *xe, struct guc_ctb *h2g,
 static void guc_ct_ctb_g2h_init(struct xe_device *xe, struct guc_ctb *g2h,
 				struct iosys_map *map)
 {
-	g2h->info.size = CTB_G2H_BUFFER_SIZE / sizeof(u32);
-	g2h->info.resv_space = G2H_ROOM_BUFFER_SIZE / sizeof(u32);
+	g2h->info.size = CTB_G2H_BUFFER_DWORDS;
+	g2h->info.resv_space = G2H_ROOM_BUFFER_DWORDS;
 	g2h->info.head = 0;
 	g2h->info.tail = 0;
 	g2h->info.space = CIRC_SPACE(g2h->info.tail, g2h->info.head,
@@ -725,6 +728,12 @@ void xe_guc_ct_stop(struct xe_guc_ct *ct)
  */
 void xe_guc_ct_runtime_suspend(struct xe_guc_ct *ct)
 {
+	struct guc_ctb *g2h = &ct->ctbs.g2h;
+	u32 credits = CIRC_SPACE(0, 0, CTB_G2H_BUFFER_DWORDS) - G2H_ROOM_BUFFER_DWORDS;
+
+	/* We should be back to guc_ct_ctb_g2h_init() values */
+	xe_gt_assert(ct_to_gt(ct), g2h->info.space == credits);
+
 	/*
 	 * Since we're already in runtime suspend path, we shouldn't have pending
 	 * messages. But if there happen to be any, we'd probably want them to be
