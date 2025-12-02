@@ -77,8 +77,12 @@ class Metric(TreeValue):
         return perf.parse_metrics(self.metric_name, self.metric_pmu)
 
     def value(self, evlist: perf.evlist, evsel: perf.evsel, cpu: int, thread: int) -> float:
-        val = evlist.compute_metric(self.metric_name, cpu, thread)
-        return 0 if math.isnan(val) else val
+        try:
+            val = evlist.compute_metric(self.metric_name, cpu, thread)
+            return 0 if math.isnan(val) else val
+        except:
+            # Be tolerant of failures to compute metrics on particular CPUs/threads.
+            return 0
 
 
 @dataclass
