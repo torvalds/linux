@@ -2723,20 +2723,22 @@ void bic_lookup(cpu_set_t *ret_set, char *name_list, enum show_hide_mode mode)
 
 /*
  * print_name()
- * Print column header name for 64-bit counter in 16 columns (at least 8-char plus a tab)
+ * Print column header name for raw 64-bit counter in 16 columns (at least 8-char plus a tab)
  * Otherwise, allow the name + tab to fit within 8-coumn tab-stop.
  * In both cases, left justififed, just like other turbostat columns,
  * to allow the column values to consume the tab.
  *
- * Yes, 32-bit counters can overflow 8-columns, but then they are usually 64-bit counters.
- * 64-bit counters can overflow 16-columns, but rarely do.
+ * Yes, 32-bit counters can overflow 8-columns, and
+ * 64-bit counters can overflow 16-columns, but that is uncommon.
  */
-static inline int print_name(int width, int *printed, char *delim, char *name)
+static inline int print_name(int width, int *printed, char *delim, char *name, enum counter_type type, enum counter_format format)
 {
-	if (width <= 32)
-		return (sprintf(outp, "%s%s", (*printed++ ? delim : ""), name));
-	else
+	UNUSED(type);
+
+	if (format == FORMAT_RAW && width >= 64)
 		return (sprintf(outp, "%s%-8s", (*printed++ ? delim : ""), name));
+	else
+		return (sprintf(outp, "%s%s", (*printed++ ? delim : ""), name));
 }
 static inline int print_hex_value(int width, int *printed, char *delim, unsigned long long value)
 {
@@ -2819,21 +2821,21 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sLLC%%hit", (printed++ ? delim : ""));
 
 	for (mp = sys.tp; mp; mp = mp->next)
-		outp += print_name(mp->width, &printed, delim, mp->name);
+		outp += print_name(mp->width, &printed, delim, mp->name, mp->type, mp->format);
 
 	for (pp = sys.perf_tp; pp; pp = pp->next)
-		outp += print_name(pp->width, &printed, delim, pp->name);
+		outp += print_name(pp->width, &printed, delim, pp->name, pp->type, pp->format);
 
 	ppmt = sys.pmt_tp;
 	while (ppmt) {
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
-			outp += print_name(pmt_counter_get_width(ppmt), &printed, delim, ppmt->name);
+			outp += print_name(pmt_counter_get_width(ppmt), &printed, delim, ppmt->name, COUNTER_ITEMS, ppmt->format);
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
 		case PMT_TYPE_TCORE_CLOCK:
-			outp += print_name(32, &printed, delim, ppmt->name);
+			outp += print_name(32, &printed, delim, ppmt->name, COUNTER_ITEMS, ppmt->format);
 			break;
 		}
 
@@ -2867,22 +2869,22 @@ void print_header(char *delim)
 	}
 
 	for (mp = sys.cp; mp; mp = mp->next)
-		outp += print_name(mp->width, &printed, delim, mp->name);
+		outp += print_name(mp->width, &printed, delim, mp->name, mp->type, mp->format);
 
 	for (pp = sys.perf_cp; pp; pp = pp->next)
-		outp += print_name(pp->width, &printed, delim, pp->name);
+		outp += print_name(pp->width, &printed, delim, pp->name, pp->type, pp->format);
 
 	ppmt = sys.pmt_cp;
 	while (ppmt) {
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
-			outp += print_name(pmt_counter_get_width(ppmt), &printed, delim, ppmt->name);
+			outp += print_name(pmt_counter_get_width(ppmt), &printed, delim, ppmt->name, COUNTER_ITEMS, ppmt->format);
 
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
 		case PMT_TYPE_TCORE_CLOCK:
-			outp += print_name(32, &printed, delim, ppmt->name);
+			outp += print_name(32, &printed, delim, ppmt->name, COUNTER_ITEMS, ppmt->format);
 			break;
 		}
 
@@ -2970,21 +2972,21 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sUncMHz", (printed++ ? delim : ""));
 
 	for (mp = sys.pp; mp; mp = mp->next)
-		outp += print_name(mp->width, &printed, delim, mp->name);
+		outp += print_name(mp->width, &printed, delim, mp->name, mp->type, mp->format);
 
 	for (pp = sys.perf_pp; pp; pp = pp->next)
-		outp += print_name(pp->width, &printed, delim, pp->name);
+		outp += print_name(pp->width, &printed, delim, pp->name, pp->type, pp->format);
 
 	ppmt = sys.pmt_pp;
 	while (ppmt) {
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
-			outp += print_name(pmt_counter_get_width(ppmt), &printed, delim, ppmt->name);
+			outp += print_name(pmt_counter_get_width(ppmt), &printed, delim, ppmt->name, COUNTER_ITEMS, ppmt->format);
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
 		case PMT_TYPE_TCORE_CLOCK:
-			outp += print_name(32, &printed, delim, ppmt->name);
+			outp += print_name(32, &printed, delim, ppmt->name, COUNTER_ITEMS, ppmt->format);
 			break;
 		}
 
