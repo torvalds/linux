@@ -4362,22 +4362,24 @@ TEST_F_FORK(layout1, named_unix_domain_socket_ioctl)
 {
 	const char *const path = file1_s1d1;
 	int srv_fd, cli_fd, ruleset_fd;
-	socklen_t size;
-	struct sockaddr_un srv_un, cli_un;
+	struct sockaddr_un srv_un = {
+		.sun_family = AF_UNIX,
+	};
+	struct sockaddr_un cli_un = {
+		.sun_family = AF_UNIX,
+	};
 	const struct landlock_ruleset_attr attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_IOCTL_DEV,
 	};
 
 	/* Sets up a server */
-	srv_un.sun_family = AF_UNIX;
-	strncpy(srv_un.sun_path, path, sizeof(srv_un.sun_path));
-
 	ASSERT_EQ(0, unlink(path));
 	srv_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	ASSERT_LE(0, srv_fd);
 
-	size = offsetof(struct sockaddr_un, sun_path) + strlen(srv_un.sun_path);
-	ASSERT_EQ(0, bind(srv_fd, (struct sockaddr *)&srv_un, size));
+	strncpy(srv_un.sun_path, path, sizeof(srv_un.sun_path));
+	ASSERT_EQ(0, bind(srv_fd, (struct sockaddr *)&srv_un, sizeof(srv_un)));
+
 	ASSERT_EQ(0, listen(srv_fd, 10 /* qlen */));
 
 	/* Enables Landlock. */
@@ -4387,16 +4389,12 @@ TEST_F_FORK(layout1, named_unix_domain_socket_ioctl)
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	/* Sets up a client connection to it */
-	cli_un.sun_family = AF_UNIX;
 	cli_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	ASSERT_LE(0, cli_fd);
 
-	bzero(&cli_un, sizeof(cli_un));
-	cli_un.sun_family = AF_UNIX;
 	strncpy(cli_un.sun_path, path, sizeof(cli_un.sun_path));
-	size = offsetof(struct sockaddr_un, sun_path) + strlen(cli_un.sun_path);
-
-	ASSERT_EQ(0, connect(cli_fd, (struct sockaddr *)&cli_un, size));
+	ASSERT_EQ(0,
+		  connect(cli_fd, (struct sockaddr *)&cli_un, sizeof(cli_un)));
 
 	/* FIONREAD and other IOCTLs should not be forbidden. */
 	EXPECT_EQ(0, test_fionread_ioctl(cli_fd));
