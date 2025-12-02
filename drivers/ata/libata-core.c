@@ -474,6 +474,33 @@ static void ata_force_xfermask(struct ata_device *dev)
 	}
 }
 
+static const struct ata_force_ent *
+ata_force_get_fe_for_dev(struct ata_device *dev)
+{
+	const struct ata_force_ent *fe;
+	int devno = dev->link->pmp + dev->devno;
+	int alt_devno = devno;
+	int i;
+
+	/* allow n.15/16 for devices attached to host port */
+	if (ata_is_host_link(dev->link))
+		alt_devno += 15;
+
+	for (i = 0; i < ata_force_tbl_size; i++) {
+		fe = &ata_force_tbl[i];
+		if (fe->port != -1 && fe->port != dev->link->ap->print_id)
+			continue;
+
+		if (fe->device != -1 && fe->device != devno &&
+		    fe->device != alt_devno)
+			continue;
+
+		return fe;
+	}
+
+	return NULL;
+}
+
 /**
  *	ata_force_quirks - force quirks according to libata.force
  *	@dev: ATA device of interest
@@ -487,34 +514,19 @@ static void ata_force_xfermask(struct ata_device *dev)
  */
 static void ata_force_quirks(struct ata_device *dev)
 {
-	int devno = dev->link->pmp + dev->devno;
-	int alt_devno = devno;
-	int i;
+	const struct ata_force_ent *fe = ata_force_get_fe_for_dev(dev);
 
-	/* allow n.15/16 for devices attached to host port */
-	if (ata_is_host_link(dev->link))
-		alt_devno += 15;
+	if (!fe)
+		return;
 
-	for (i = 0; i < ata_force_tbl_size; i++) {
-		const struct ata_force_ent *fe = &ata_force_tbl[i];
+	if (!(~dev->quirks & fe->param.quirk_on) &&
+	    !(dev->quirks & fe->param.quirk_off))
+		return;
 
-		if (fe->port != -1 && fe->port != dev->link->ap->print_id)
-			continue;
+	dev->quirks |= fe->param.quirk_on;
+	dev->quirks &= ~fe->param.quirk_off;
 
-		if (fe->device != -1 && fe->device != devno &&
-		    fe->device != alt_devno)
-			continue;
-
-		if (!(~dev->quirks & fe->param.quirk_on) &&
-		    !(dev->quirks & fe->param.quirk_off))
-			continue;
-
-		dev->quirks |= fe->param.quirk_on;
-		dev->quirks &= ~fe->param.quirk_off;
-
-		ata_dev_notice(dev, "FORCE: modified (%s)\n",
-			       fe->param.name);
-	}
+	ata_dev_notice(dev, "FORCE: modified (%s)\n", fe->param.name);
 }
 #else
 static inline void ata_force_pflags(struct ata_port *ap) { }
