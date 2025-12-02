@@ -824,6 +824,19 @@ void sched_set_fifo_low(struct task_struct *p)
 }
 EXPORT_SYMBOL_GPL(sched_set_fifo_low);
 
+/*
+ * Used when the primary interrupt handler is forced into a thread, in addition
+ * to the (always threaded) secondary handler.  The secondary handler gets a
+ * slightly lower priority so that the primary handler can preempt it, thereby
+ * emulating the behavior of a non-PREEMPT_RT system where the primary handler
+ * runs in hard interrupt context.
+ */
+void sched_set_fifo_secondary(struct task_struct *p)
+{
+	struct sched_param sp = { .sched_priority = MAX_RT_PRIO / 2 - 1 };
+	WARN_ON_ONCE(sched_setscheduler_nocheck(p, SCHED_FIFO, &sp) != 0);
+}
+
 void sched_set_normal(struct task_struct *p, int nice)
 {
 	struct sched_attr attr = {
