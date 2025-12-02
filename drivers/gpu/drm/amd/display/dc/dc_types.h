@@ -941,6 +941,12 @@ enum dc_psr_version {
 	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
 };
 
+enum dc_replay_version {
+	DC_FREESYNC_REPLAY = 0,
+	DC_VESA_PANEL_REPLAY = 1,
+	DC_REPLAY_VERSION_UNSUPPORTED = 0XFF,
+};
+
 /* Possible values of display_endpoint_id.endpoint */
 enum display_endpoint_type {
 	DISPLAY_ENDPOINT_PHY = 0, /* Physical connector. */
@@ -1093,6 +1099,7 @@ enum replay_FW_Message_type {
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
 	Replay_Disabled_Adaptive_Sync_SDP,
+	Replay_Set_Version,
 	Replay_Set_General_Cmd,
 };
 
@@ -1128,6 +1135,8 @@ union replay_low_refresh_rate_enable_options {
 };
 
 struct replay_config {
+	/* Replay version */
+	enum dc_replay_version replay_version;
 	/* Replay feature is supported */
 	bool replay_supported;
 	/* Replay caps support DPCD & EDID caps*/

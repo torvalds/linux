@@ -265,7 +265,7 @@ void color_space_to_black_color(
 			black_color_format[BLACK_COLOR_FORMAT_RGB_LIMITED];
 		break;
 
-	/**
+	/*
 	 * Remove default and add case for all color space
 	 * so when we forget to add new color space
 	 * compiler will give a warning
@@ -1293,6 +1293,9 @@ void hwss_execute_sequence(struct dc *dc,
 		case HUBP_MEM_PROGRAM_VIEWPORT:
 			hwss_hubp_mem_program_viewport(params);
 			break;
+		case ABORT_CURSOR_OFFLOAD_UPDATE:
+			hwss_abort_cursor_offload_update(params);
+			break;
 		case SET_CURSOR_ATTRIBUTE:
 			hwss_set_cursor_attribute(params);
 			break;
@@ -1318,7 +1321,7 @@ void hwss_execute_sequence(struct dc *dc,
 	}
 }
 
-/**
+/*
  * Helper function to add OPTC pipe control lock to block sequence
  */
 void hwss_add_optc_pipe_control_lock(struct block_sequence_state *seq_state,
@@ -1335,7 +1338,7 @@ void hwss_add_optc_pipe_control_lock(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP set flip control GSL to block sequence
  */
 void hwss_add_hubp_set_flip_control_gsl(struct block_sequence_state *seq_state,
@@ -1350,7 +1353,7 @@ void hwss_add_hubp_set_flip_control_gsl(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP program triplebuffer to block sequence
  */
 void hwss_add_hubp_program_triplebuffer(struct block_sequence_state *seq_state,
@@ -1367,7 +1370,7 @@ void hwss_add_hubp_program_triplebuffer(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP update plane address to block sequence
  */
 void hwss_add_hubp_update_plane_addr(struct block_sequence_state *seq_state,
@@ -1382,7 +1385,7 @@ void hwss_add_hubp_update_plane_addr(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add DPP set input transfer function to block sequence
  */
 void hwss_add_dpp_set_input_transfer_func(struct block_sequence_state *seq_state,
@@ -1399,7 +1402,7 @@ void hwss_add_dpp_set_input_transfer_func(struct block_sequence_state *seq_state
 	}
 }
 
-/**
+/*
  * Helper function to add DPP program gamut remap to block sequence
  */
 void hwss_add_dpp_program_gamut_remap(struct block_sequence_state *seq_state,
@@ -1412,7 +1415,7 @@ void hwss_add_dpp_program_gamut_remap(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add DPP program bias and scale to block sequence
  */
 void hwss_add_dpp_program_bias_and_scale(struct block_sequence_state *seq_state, struct pipe_ctx *pipe_ctx)
@@ -1424,7 +1427,7 @@ void hwss_add_dpp_program_bias_and_scale(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add OPTC program manual trigger to block sequence
  */
 void hwss_add_optc_program_manual_trigger(struct block_sequence_state *seq_state,
@@ -1437,7 +1440,7 @@ void hwss_add_optc_program_manual_trigger(struct block_sequence_state *seq_state
 	}
 }
 
-/**
+/*
  * Helper function to add DPP set output transfer function to block sequence
  */
 void hwss_add_dpp_set_output_transfer_func(struct block_sequence_state *seq_state,
@@ -1454,7 +1457,7 @@ void hwss_add_dpp_set_output_transfer_func(struct block_sequence_state *seq_stat
 	}
 }
 
-/**
+/*
  * Helper function to add MPC update visual confirm to block sequence
  */
 void hwss_add_mpc_update_visual_confirm(struct block_sequence_state *seq_state,
@@ -1471,7 +1474,7 @@ void hwss_add_mpc_update_visual_confirm(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add MPC power on MPC mem PWR to block sequence
  */
 void hwss_add_mpc_power_on_mpc_mem_pwr(struct block_sequence_state *seq_state,
@@ -1488,7 +1491,7 @@ void hwss_add_mpc_power_on_mpc_mem_pwr(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add MPC set output CSC to block sequence
  */
 void hwss_add_mpc_set_output_csc(struct block_sequence_state *seq_state,
@@ -1507,7 +1510,7 @@ void hwss_add_mpc_set_output_csc(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add MPC set OCSC default to block sequence
  */
 void hwss_add_mpc_set_ocsc_default(struct block_sequence_state *seq_state,
@@ -1526,7 +1529,7 @@ void hwss_add_mpc_set_ocsc_default(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add DMUB send DMCUB command to block sequence
  */
 void hwss_add_dmub_send_dmcub_cmd(struct block_sequence_state *seq_state,
@@ -1543,7 +1546,7 @@ void hwss_add_dmub_send_dmcub_cmd(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add DMUB SubVP save surface address to block sequence
  */
 void hwss_add_dmub_subvp_save_surf_addr(struct block_sequence_state *seq_state,
@@ -1560,7 +1563,7 @@ void hwss_add_dmub_subvp_save_surf_addr(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP wait for DCC meta propagation to block sequence
  */
 void hwss_add_hubp_wait_for_dcc_meta_prop(struct block_sequence_state *seq_state,
@@ -1575,7 +1578,7 @@ void hwss_add_hubp_wait_for_dcc_meta_prop(struct block_sequence_state *seq_state
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP wait pipe read start to block sequence
  */
 void hwss_add_hubp_wait_pipe_read_start(struct block_sequence_state *seq_state,
@@ -1588,7 +1591,7 @@ void hwss_add_hubp_wait_pipe_read_start(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add HWS apply update flags for phantom to block sequence
  */
 void hwss_add_hws_apply_update_flags_for_phantom(struct block_sequence_state *seq_state,
@@ -1601,7 +1604,7 @@ void hwss_add_hws_apply_update_flags_for_phantom(struct block_sequence_state *se
 	}
 }
 
-/**
+/*
  * Helper function to add HWS update phantom VP position to block sequence
  */
 void hwss_add_hws_update_phantom_vp_position(struct block_sequence_state *seq_state,
@@ -1618,7 +1621,7 @@ void hwss_add_hws_update_phantom_vp_position(struct block_sequence_state *seq_st
 	}
 }
 
-/**
+/*
  * Helper function to add OPTC set ODM combine to block sequence
  */
 void hwss_add_optc_set_odm_combine(struct block_sequence_state *seq_state,
@@ -1636,7 +1639,7 @@ void hwss_add_optc_set_odm_combine(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add OPTC set ODM bypass to block sequence
  */
 void hwss_add_optc_set_odm_bypass(struct block_sequence_state *seq_state,
@@ -1659,7 +1662,7 @@ void hwss_send_dmcub_cmd(union block_sequence_params *params)
 	dc_wake_and_execute_dmub_cmd(ctx, cmd, wait_type);
 }
 
-/**
+/*
  * Helper function to add TG program global sync to block sequence
  */
 void hwss_add_tg_program_global_sync(struct block_sequence_state *seq_state,
@@ -1682,7 +1685,7 @@ void hwss_add_tg_program_global_sync(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add TG wait for state to block sequence
  */
 void hwss_add_tg_wait_for_state(struct block_sequence_state *seq_state,
@@ -1697,7 +1700,7 @@ void hwss_add_tg_wait_for_state(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add TG set VTG params to block sequence
  */
 void hwss_add_tg_set_vtg_params(struct block_sequence_state *seq_state,
@@ -1714,7 +1717,7 @@ void hwss_add_tg_set_vtg_params(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add TG setup vertical interrupt2 to block sequence
  */
 void hwss_add_tg_setup_vertical_interrupt2(struct block_sequence_state *seq_state,
@@ -1728,7 +1731,7 @@ void hwss_add_tg_setup_vertical_interrupt2(struct block_sequence_state *seq_stat
 	}
 }
 
-/**
+/*
  * Helper function to add DPP set HDR multiplier to block sequence
  */
 void hwss_add_dpp_set_hdr_multiplier(struct block_sequence_state *seq_state,
@@ -1742,7 +1745,7 @@ void hwss_add_dpp_set_hdr_multiplier(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP program DET size to block sequence
  */
 void hwss_add_hubp_program_det_size(struct block_sequence_state *seq_state,
@@ -1785,7 +1788,7 @@ void hwss_add_hubbub_force_pstate_change_control(struct block_sequence_state *se
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP program DET segments to block sequence
  */
 void hwss_add_hubp_program_det_segments(struct block_sequence_state *seq_state,
@@ -1802,7 +1805,7 @@ void hwss_add_hubp_program_det_segments(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add OPP set dynamic expansion to block sequence
  */
 void hwss_add_opp_set_dyn_expansion(struct block_sequence_state *seq_state,
@@ -1821,7 +1824,7 @@ void hwss_add_opp_set_dyn_expansion(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add OPP program FMT to block sequence
  */
 void hwss_add_opp_program_fmt(struct block_sequence_state *seq_state,
@@ -1852,7 +1855,7 @@ void hwss_add_opp_program_left_edge_extra_pixel(struct block_sequence_state *seq
 	}
 }
 
-/**
+/*
  * Helper function to add ABM set pipe to block sequence
  */
 void hwss_add_abm_set_pipe(struct block_sequence_state *seq_state,
@@ -1867,7 +1870,7 @@ void hwss_add_abm_set_pipe(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add ABM set level to block sequence
  */
 void hwss_add_abm_set_level(struct block_sequence_state *seq_state,
@@ -1882,7 +1885,7 @@ void hwss_add_abm_set_level(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add TG enable CRTC to block sequence
  */
 void hwss_add_tg_enable_crtc(struct block_sequence_state *seq_state,
@@ -1895,7 +1898,7 @@ void hwss_add_tg_enable_crtc(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP wait flip pending to block sequence
  */
 void hwss_add_hubp_wait_flip_pending(struct block_sequence_state *seq_state,
@@ -1912,7 +1915,7 @@ void hwss_add_hubp_wait_flip_pending(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add TG wait double buffer pending to block sequence
  */
 void hwss_add_tg_wait_double_buffer_pending(struct block_sequence_state *seq_state,
@@ -3076,6 +3079,15 @@ void hwss_hubp_mem_program_viewport(union block_sequence_params *params)
 		hubp->funcs->mem_program_viewport(hubp, viewport, viewport_c);
 }
 
+void hwss_abort_cursor_offload_update(union block_sequence_params *params)
+{
+	struct dc *dc = params->abort_cursor_offload_update_params.dc;
+	struct pipe_ctx *pipe_ctx = params->abort_cursor_offload_update_params.pipe_ctx;
+
+	if (dc && dc->hwss.abort_cursor_offload_update)
+		dc->hwss.abort_cursor_offload_update(dc, pipe_ctx);
+}
+
 void hwss_set_cursor_attribute(union block_sequence_params *params)
 {
 	struct dc *dc = params->set_cursor_attribute_params.dc;
@@ -3270,7 +3282,7 @@ void hwss_add_opp_set_disp_pattern_generator(struct block_sequence_state *seq_st
 	}
 }
 
-/**
+/*
  * Helper function to add MPC update blending to block sequence
  */
 void hwss_add_mpc_update_blending(struct block_sequence_state *seq_state,
@@ -3287,7 +3299,7 @@ void hwss_add_mpc_update_blending(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add MPC insert plane to block sequence
  */
 void hwss_add_mpc_insert_plane(struct block_sequence_state *seq_state,
@@ -3312,7 +3324,7 @@ void hwss_add_mpc_insert_plane(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add MPC assert idle MPCC to block sequence
  */
 void hwss_add_mpc_assert_idle_mpcc(struct block_sequence_state *seq_state,
@@ -3327,7 +3339,7 @@ void hwss_add_mpc_assert_idle_mpcc(struct block_sequence_state *seq_state,
 	}
 }
 
-/**
+/*
  * Helper function to add HUBP set blank to block sequence
  */
 void hwss_add_hubp_set_blank(struct block_sequence_state *seq_state,
@@ -3930,6 +3942,18 @@ void hwss_add_hubp_mem_program_viewport(struct block_sequence_state *seq_state,
 		seq_state->steps[*seq_state->num_steps].params.hubp_mem_program_viewport_params.hubp = hubp;
 		seq_state->steps[*seq_state->num_steps].params.hubp_mem_program_viewport_params.viewport = viewport;
 		seq_state->steps[*seq_state->num_steps].params.hubp_mem_program_viewport_params.viewport_c = viewport_c;
+		(*seq_state->num_steps)++;
+	}
+}
+
+void hwss_add_abort_cursor_offload_update(struct block_sequence_state *seq_state,
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx)
+{
+	if (*seq_state->num_steps < MAX_HWSS_BLOCK_SEQUENCE_SIZE) {
+		seq_state->steps[*seq_state->num_steps].func = ABORT_CURSOR_OFFLOAD_UPDATE;
+		seq_state->steps[*seq_state->num_steps].params.abort_cursor_offload_update_params.dc = dc;
+		seq_state->steps[*seq_state->num_steps].params.abort_cursor_offload_update_params.pipe_ctx = pipe_ctx;
 		(*seq_state->num_steps)++;
 	}
 }

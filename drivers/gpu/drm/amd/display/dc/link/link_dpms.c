@@ -2226,7 +2226,11 @@ static enum dc_status enable_link(
 {
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->link;
+	struct dc_link *link = NULL;
+
+	if (stream == NULL)
+		return DC_ERROR_UNEXPECTED;
+	link = stream->link;
 
 	/* There's some scenarios where driver is unloaded with display
 	 * still enabled. When driver is reloaded, it may cause a display
@@ -2374,8 +2378,7 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 			set_avmute(pipe_ctx, true);
 	}
 
-	if (!dc_is_rgb_signal(pipe_ctx->stream->signal))
-		dc->hwss.disable_audio_stream(pipe_ctx);
+	dc->hwss.disable_audio_stream(pipe_ctx);
 
 	update_psp_stream_config(pipe_ctx, true);
 	dc->hwss.blank_stream(pipe_ctx);
@@ -2464,6 +2467,7 @@ void link_set_dpms_on(
 	struct link_encoder *link_enc = pipe_ctx->link_res.dio_link_enc;
 	enum otg_out_mux_dest otg_out_dest = OUT_MUX_DIO;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	bool apply_edp_fast_boot_optimization =
 		pipe_ctx->stream->apply_edp_fast_boot_optimization;
 
@@ -2507,6 +2511,8 @@ void link_set_dpms_on(
 			otg_out_dest = OUT_MUX_DIO;
 		pipe_ctx->stream_res.tg->funcs->set_out_mux(pipe_ctx->stream_res.tg, otg_out_dest);
 	}
+
+	link_hwss->setup_stream_attribute(pipe_ctx);
 
 	pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
 
@@ -2660,8 +2666,7 @@ void link_set_dpms_on(
 		enable_stream_features(pipe_ctx);
 	update_psp_stream_config(pipe_ctx, false);
 
-	if (!dc_is_rgb_signal(pipe_ctx->stream->signal))
-		dc->hwss.enable_audio_stream(pipe_ctx);
+	dc->hwss.enable_audio_stream(pipe_ctx);
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
 		set_avmute(pipe_ctx, false);

@@ -1157,6 +1157,16 @@ struct dprx_states {
 	bool cable_id_written;
 };
 
+union dpcd_panel_replay_capability_supported {
+	struct {
+		unsigned char PANEL_REPLAY_SUPPORT          :1;
+		unsigned char SELECTIVE_UPDATE_SUPPORT      :1;
+		unsigned char EARLY_TRANSPORT_SUPPORT       :1;
+		unsigned char RESERVED				        :5;
+	} bits;
+	unsigned char raw;
+};
+
 enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_8BPC = 0,
 	DOWN_STREAM_MAX_10BPC,
@@ -1280,6 +1290,7 @@ struct dpcd_caps {
 	struct edp_psr_info psr_info;
 
 	struct replay_info pr_info;
+	union dpcd_panel_replay_capability_supported pr_caps_supported;
 	uint16_t edp_oled_emission_rate;
 	union dp_receive_port0_cap receive_port0_cap;
 	/* Indicates the number of SST links supported by MSO (Multi-Stream Output) */
@@ -1342,6 +1353,31 @@ union dpcd_replay_configuration {
 		unsigned char SINK_DEVICE_REPLAY_STATUS        : 3;
 		unsigned char SINK_FRAME_LOCKED                : 2;
 		unsigned char RESERVED                         : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union panel_replay_enable_and_configuration_1 {
+	struct {
+		unsigned char PANEL_REPLAY_ENABLE                     :1;
+		unsigned char PANEL_REPLAY_CRC_ENABLE                 :1;
+		unsigned char IRQ_HPD_ASSDP_MISSING                   :1;
+		unsigned char IRQ_HPD_VSCSDP_UNCORRECTABLE_ERROR      :1;
+		unsigned char IRQ_HPD_RFB_ERROR                       :1;
+		unsigned char IRQ_HPD_ACTIVE_FRAME_CRC_ERROR          :1;
+		unsigned char PANEL_REPLAY_SELECTIVE_UPDATE_ENABLE    :1;
+		unsigned char PANEL_REPLAY_EARLY_TRANSPORT_ENABLE     :1;
+	} bits;
+	unsigned char raw;
+};
+
+union panel_replay_enable_and_configuration_2 {
+	struct {
+		unsigned char SINK_REFRESH_RATE_UNLOCK_GRANTED        :1;
+		unsigned char RESERVED                                :1;
+		unsigned char SU_Y_GRANULARITY_EXT_VALUE_ENABLED      :1;
+		unsigned char SU_Y_GRANULARITY_EXT_VALUE              :4;
+		unsigned char SU_REGION_SCAN_LINE_CAPTURE_INDICATION  :1;
 	} bits;
 	unsigned char raw;
 };
