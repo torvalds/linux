@@ -23,9 +23,21 @@ bool rust_helper_dev_is_pci(const struct device *dev)
 }
 
 #ifndef CONFIG_PCI_MSI
+int rust_helper_pci_alloc_irq_vectors(struct pci_dev *dev,
+				      unsigned int min_vecs,
+				      unsigned int max_vecs,
+				      unsigned int flags)
+{
+	return pci_alloc_irq_vectors(dev, min_vecs, max_vecs, flags);
+}
+
+void rust_helper_pci_free_irq_vectors(struct pci_dev *dev)
+{
+	pci_free_irq_vectors(dev);
+}
+
 int rust_helper_pci_irq_vector(struct pci_dev *pdev, unsigned int nvec)
 {
 	return pci_irq_vector(pdev, nvec);
 }
-
 #endif
