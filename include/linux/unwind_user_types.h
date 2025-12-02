@@ -36,8 +36,10 @@ struct unwind_user_state {
 	unsigned long				ip;
 	unsigned long				sp;
 	unsigned long				fp;
+	unsigned int				ws;
 	enum unwind_user_type			current_type;
 	unsigned int				available_types;
+	bool					topmost;
 	bool					done;
 };
 

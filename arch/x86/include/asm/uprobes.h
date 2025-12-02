@@ -62,4 +62,13 @@ struct arch_uprobe_task {
 	unsigned int			saved_tf;
 };
 
+#ifdef CONFIG_UPROBES
+extern bool is_uprobe_at_func_entry(struct pt_regs *regs);
+#else
+static bool is_uprobe_at_func_entry(struct pt_regs *regs)
+{
+	return false;
+}
+#endif /* CONFIG_UPROBES */
+
 #endif	/* _ASM_UPROBES_H */

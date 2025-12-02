@@ -9,6 +9,7 @@
 
 #include <asm/text-patching.h>
 #include <asm/insn.h>
+#include <asm/insn-eval.h>
 #include <asm/ibt.h>
 #include <asm/set_memory.h>
 #include <asm/nmi.h>
@@ -343,25 +344,6 @@ static void add_nop(u8 *buf, unsigned int len)
 
 	for (;buf < target; buf++)
 		*buf = INT3_INSN_OPCODE;
-}
-
-/*
- * Matches NOP and NOPL, not any of the other possible NOPs.
- */
-static bool insn_is_nop(struct insn *insn)
-{
-	/* Anything NOP, but no REP NOP */
-	if (insn->opcode.bytes[0] == 0x90 &&
-	    (!insn->prefixes.nbytes || insn->prefixes.bytes[0] != 0xF3))
-		return true;
-
-	/* NOPL */
-	if (insn->opcode.bytes[0] == 0x0F && insn->opcode.bytes[1] == 0x1F)
-		return true;
-
-	/* TODO: more nops */
-
-	return false;
 }
 
 /*
