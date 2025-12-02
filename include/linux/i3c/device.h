@@ -51,7 +51,7 @@ enum i3c_xfer_mode {
 	I3C_HDR_TSP = 1,
 	I3C_HDR_TSL = 2,
 	/* Use for default SDR transfer mode */
-	I3C_SDR = 0x31,
+	I3C_SDR = 31,
 };
 
 /**
