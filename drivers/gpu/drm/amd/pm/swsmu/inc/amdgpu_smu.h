@@ -273,6 +273,8 @@ struct smu_table {
 
 enum smu_driver_table_id {
 	SMU_DRIVER_TABLE_GPU_METRICS = 0,
+	SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS,
+	SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS,
 	SMU_DRIVER_TABLE_COUNT,
 };
 
@@ -375,8 +377,6 @@ enum smu_table_id {
 	SMU_TABLE_ECCINFO,
 	SMU_TABLE_COMBO_PPTABLE,
 	SMU_TABLE_WIFIBAND,
-	SMU_TABLE_GPUBOARD_TEMP_METRICS,
-	SMU_TABLE_BASEBOARD_TEMP_METRICS,
 	SMU_TABLE_PMFW_SYSTEM_METRICS,
 	SMU_TABLE_COUNT,
 };
@@ -1722,19 +1722,19 @@ typedef struct {
 struct smu_dpm_policy *smu_get_pm_policy(struct smu_context *smu,
 					 enum pp_pm_policy p_type);
 
-static inline enum smu_table_id
+static inline enum smu_driver_table_id
 smu_metrics_get_temp_table_id(enum smu_temp_metric_type type)
 {
 	switch (type) {
 	case SMU_TEMP_METRIC_BASEBOARD:
-		return SMU_TABLE_BASEBOARD_TEMP_METRICS;
+		return SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS;
 	case SMU_TEMP_METRIC_GPUBOARD:
-		return SMU_TABLE_GPUBOARD_TEMP_METRICS;
+		return SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS;
 	default:
-		return SMU_TABLE_COUNT;
+		return SMU_DRIVER_TABLE_COUNT;
 	}
 
-	return SMU_TABLE_COUNT;
+	return SMU_DRIVER_TABLE_COUNT;
 }
 
 static inline void smu_table_cache_update_time(struct smu_table *table,

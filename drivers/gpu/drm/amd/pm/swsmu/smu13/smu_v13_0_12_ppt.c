@@ -156,9 +156,6 @@ int smu_v13_0_12_tables_init(struct smu_context *smu)
 {
 	struct amdgpu_baseboard_temp_metrics_v1_0 *baseboard_temp_metrics;
 	struct amdgpu_gpuboard_temp_metrics_v1_0 *gpuboard_temp_metrics;
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *tables = smu_table->tables;
-	struct smu_table_cache *cache;
 	int ret;
 
 	ret = smu_table_cache_init(smu, SMU_TABLE_PMFW_SYSTEM_METRICS,
@@ -167,25 +164,28 @@ int smu_v13_0_12_tables_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_table_cache_init(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS,
-				   sizeof(*baseboard_temp_metrics), 50);
+	ret = smu_driver_table_init(smu,
+				    SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS,
+				    sizeof(*baseboard_temp_metrics), 50);
 	if (ret)
 		return ret;
 	/* Initialize base board temperature metrics */
-	cache = &(tables[SMU_TABLE_BASEBOARD_TEMP_METRICS].cache);
-	baseboard_temp_metrics =
-		(struct amdgpu_baseboard_temp_metrics_v1_0 *) cache->buffer;
+	baseboard_temp_metrics = (struct amdgpu_baseboard_temp_metrics_v1_0 *)
+		smu_driver_table_ptr(smu,
+				     SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS);
 	smu_cmn_init_baseboard_temp_metrics(baseboard_temp_metrics, 1, 0);
 	/* Initialize GPU board temperature metrics */
-	ret = smu_table_cache_init(smu, SMU_TABLE_GPUBOARD_TEMP_METRICS,
-				   sizeof(*gpuboard_temp_metrics), 50);
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS,
+				    sizeof(*gpuboard_temp_metrics), 50);
 	if (ret) {
 		smu_table_cache_fini(smu, SMU_TABLE_PMFW_SYSTEM_METRICS);
-		smu_table_cache_fini(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS);
+		smu_driver_table_fini(smu,
+				      SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS);
 		return ret;
 	}
-	cache = &(tables[SMU_TABLE_GPUBOARD_TEMP_METRICS].cache);
-	gpuboard_temp_metrics = (struct amdgpu_gpuboard_temp_metrics_v1_0 *)cache->buffer;
+	gpuboard_temp_metrics = (struct amdgpu_gpuboard_temp_metrics_v1_0 *)
+		smu_driver_table_ptr(smu,
+				     SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS);
 	smu_cmn_init_gpuboard_temp_metrics(gpuboard_temp_metrics, 1, 0);
 
 	return 0;
@@ -193,8 +193,8 @@ int smu_v13_0_12_tables_init(struct smu_context *smu)
 
 void smu_v13_0_12_tables_fini(struct smu_context *smu)
 {
-	smu_table_cache_fini(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS);
-	smu_table_cache_fini(smu, SMU_TABLE_GPUBOARD_TEMP_METRICS);
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS);
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS);
 	smu_table_cache_fini(smu, SMU_TABLE_PMFW_SYSTEM_METRICS);
 }
 
@@ -686,8 +686,8 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 	struct amdgpu_gpuboard_temp_metrics_v1_0 *gpuboard_temp_metrics;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
+	enum smu_driver_table_id table_id;
 	SystemMetricsTable_t *metrics;
-	struct smu_table *data_table;
 	struct smu_table *sys_table;
 	int ret, sensor_type;
 	u32 idx, sensors;
@@ -695,18 +695,16 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 
 	if (type == SMU_TEMP_METRIC_BASEBOARD) {
 		/* Initialize base board temperature metrics */
-		data_table =
-			&smu->smu_table.tables[SMU_TABLE_BASEBOARD_TEMP_METRICS];
+		table_id = SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS;
 		baseboard_temp_metrics =
 			(struct amdgpu_baseboard_temp_metrics_v1_0 *)
-				data_table->cache.buffer;
+				smu_driver_table_ptr(smu, table_id);
 		size = sizeof(*baseboard_temp_metrics);
 	} else {
-		data_table =
-			&smu->smu_table.tables[SMU_TABLE_GPUBOARD_TEMP_METRICS];
+		table_id = SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS;
 		gpuboard_temp_metrics =
 			(struct amdgpu_gpuboard_temp_metrics_v1_0 *)
-				data_table->cache.buffer;
+				smu_driver_table_ptr(smu, table_id);
 		size = sizeof(*baseboard_temp_metrics);
 	}
 
@@ -716,7 +714,7 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 
 	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
 	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
-	smu_table_cache_update_time(data_table, jiffies);
+	smu_driver_table_update_cache_time(smu, table_id);
 
 	if (type == SMU_TEMP_METRIC_GPUBOARD) {
 		gpuboard_temp_metrics->accumulation_counter = metrics->AccumulationCounter;
@@ -762,7 +760,10 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 		}
 	}
 
-	memcpy(table, data_table->cache.buffer, size);
+	if (type == SMU_TEMP_METRIC_BASEBOARD)
+		memcpy(table, baseboard_temp_metrics, size);
+	else
+		memcpy(table, gpuboard_temp_metrics, size);
 
 	return size;
 }

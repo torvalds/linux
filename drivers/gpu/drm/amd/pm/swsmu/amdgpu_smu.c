@@ -3864,8 +3864,9 @@ static ssize_t smu_sys_get_temp_metrics(void *handle, enum smu_temp_metric_type 
 {
 	struct smu_context *smu = handle;
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *tables = smu_table->tables;
-	enum smu_table_id table_id;
+	struct smu_driver_table *driver_tables = smu_table->driver_tables;
+	enum smu_driver_table_id table_id;
+	struct smu_driver_table *temp_table;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
@@ -3875,17 +3876,18 @@ static ssize_t smu_sys_get_temp_metrics(void *handle, enum smu_temp_metric_type 
 
 	table_id = smu_metrics_get_temp_table_id(type);
 
-	if (table_id == SMU_TABLE_COUNT)
+	if (table_id == SMU_DRIVER_TABLE_COUNT)
 		return -EINVAL;
 
-	/* If the request is to get size alone, return the cached table size */
-	if (!table && tables[table_id].cache.size)
-		return tables[table_id].cache.size;
+	temp_table = &driver_tables[table_id];
 
-	if (smu_table_cache_is_valid(&tables[table_id])) {
-		memcpy(table, tables[table_id].cache.buffer,
-		       tables[table_id].cache.size);
-		return tables[table_id].cache.size;
+	/* If the request is to get size alone, return the cached table size */
+	if (!table && temp_table->cache.size)
+		return temp_table->cache.size;
+
+	if (smu_driver_table_is_valid(temp_table)) {
+		memcpy(table, temp_table->cache.buffer, temp_table->cache.size);
+		return temp_table->cache.size;
 	}
 
 	return smu->smu_temp.temp_funcs->get_temp_metrics(smu, type, table);
