@@ -541,7 +541,7 @@ void ishtp_cl_bus_rx_event(struct ishtp_cl_device *device)
 		return;
 
 	if (device->event_cb)
-		schedule_work(&device->event_work);
+		queue_work(device->ishtp_dev->unbound_wq, &device->event_work);
 }
 
 /**
@@ -875,6 +875,22 @@ struct device *ishtp_get_pci_device(struct ishtp_cl_device *device)
 	return device->ishtp_dev->devc;
 }
 EXPORT_SYMBOL(ishtp_get_pci_device);
+
+/**
+ * ishtp_get_workqueue - Retrieve the workqueue associated with an ISHTP device
+ * @cl_device: Pointer to the ISHTP client device structure
+ *
+ * Returns the workqueue_struct pointer (unbound_wq) associated with the given
+ * ISHTP client device. This workqueue is typically used for scheduling work
+ * related to the device.
+ *
+ * Return: Pointer to struct workqueue_struct.
+ */
+struct workqueue_struct *ishtp_get_workqueue(struct ishtp_cl_device *cl_device)
+{
+	return cl_device->ishtp_dev->unbound_wq;
+}
+EXPORT_SYMBOL(ishtp_get_workqueue);
 
 /**
  * ishtp_trace_callback() - Return trace callback
