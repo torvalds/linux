@@ -52,7 +52,6 @@ enum ata_quirks {
 	__ATA_QUIRK_DIAGNOSTIC,		/* Failed boot diag */
 	__ATA_QUIRK_NODMA,		/* DMA problems */
 	__ATA_QUIRK_NONCQ,		/* Don't use NCQ */
-	__ATA_QUIRK_MAX_SEC_128,	/* Limit max sects to 128 */
 	__ATA_QUIRK_BROKEN_HPA,		/* Broken HPA */
 	__ATA_QUIRK_DISABLE,		/* Disable it */
 	__ATA_QUIRK_HPA_SIZE,		/* Native size off by one */
@@ -74,7 +73,6 @@ enum ata_quirks {
 	__ATA_QUIRK_ZERO_AFTER_TRIM,	/* Guarantees zero after trim */
 	__ATA_QUIRK_NO_DMA_LOG,		/* Do not use DMA for log read */
 	__ATA_QUIRK_NOTRIM,		/* Do not use TRIM */
-	__ATA_QUIRK_MAX_SEC_1024,	/* Limit max sects to 1024 */
 	__ATA_QUIRK_MAX_SEC,		/* Limit max sectors */
 	__ATA_QUIRK_MAX_TRIM_128M,	/* Limit max trim size to 128M */
 	__ATA_QUIRK_NO_NCQ_ON_ATI,	/* Disable NCQ on ATI chipset */
@@ -94,7 +92,6 @@ enum {
 	ATA_QUIRK_DIAGNOSTIC		= (1U << __ATA_QUIRK_DIAGNOSTIC),
 	ATA_QUIRK_NODMA			= (1U << __ATA_QUIRK_NODMA),
 	ATA_QUIRK_NONCQ			= (1U << __ATA_QUIRK_NONCQ),
-	ATA_QUIRK_MAX_SEC_128		= (1U << __ATA_QUIRK_MAX_SEC_128),
 	ATA_QUIRK_BROKEN_HPA		= (1U << __ATA_QUIRK_BROKEN_HPA),
 	ATA_QUIRK_DISABLE		= (1U << __ATA_QUIRK_DISABLE),
 	ATA_QUIRK_HPA_SIZE		= (1U << __ATA_QUIRK_HPA_SIZE),
@@ -115,7 +112,6 @@ enum {
 	ATA_QUIRK_ZERO_AFTER_TRIM	= (1U << __ATA_QUIRK_ZERO_AFTER_TRIM),
 	ATA_QUIRK_NO_DMA_LOG		= (1U << __ATA_QUIRK_NO_DMA_LOG),
 	ATA_QUIRK_NOTRIM		= (1U << __ATA_QUIRK_NOTRIM),
-	ATA_QUIRK_MAX_SEC_1024		= (1U << __ATA_QUIRK_MAX_SEC_1024),
 	ATA_QUIRK_MAX_SEC		= (1U << __ATA_QUIRK_MAX_SEC),
 	ATA_QUIRK_MAX_TRIM_128M		= (1U << __ATA_QUIRK_MAX_TRIM_128M),
 	ATA_QUIRK_NO_NCQ_ON_ATI		= (1U << __ATA_QUIRK_NO_NCQ_ON_ATI),

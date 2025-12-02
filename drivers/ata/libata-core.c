@@ -84,6 +84,7 @@ static DEFINE_IDA(ata_ida);
 #ifdef CONFIG_ATA_FORCE
 struct ata_force_param {
 	const char	*name;
+	u64		value;
 	u8		cbl;
 	u8		spd_limit;
 	unsigned int	xfer_mask;
@@ -3169,14 +3170,6 @@ int ata_dev_configure(struct ata_device *dev)
 		dev->quirks |= ATA_QUIRK_STUCK_ERR;
 	}
 
-	if (dev->quirks & ATA_QUIRK_MAX_SEC_128)
-		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
-					 dev->max_sectors);
-
-	if (dev->quirks & ATA_QUIRK_MAX_SEC_1024)
-		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_1024,
-					 dev->max_sectors);
-
 	if (dev->quirks & ATA_QUIRK_MAX_SEC)
 		dev->max_sectors = min_t(unsigned int, dev->max_sectors,
 					 ata_dev_get_quirk_value(dev,
@@ -4012,7 +4005,6 @@ static const char * const ata_quirk_names[] = {
 	[__ATA_QUIRK_DIAGNOSTIC]	= "diagnostic",
 	[__ATA_QUIRK_NODMA]		= "nodma",
 	[__ATA_QUIRK_NONCQ]		= "noncq",
-	[__ATA_QUIRK_MAX_SEC_128]	= "maxsec128",
 	[__ATA_QUIRK_BROKEN_HPA]	= "brokenhpa",
 	[__ATA_QUIRK_DISABLE]		= "disable",
 	[__ATA_QUIRK_HPA_SIZE]		= "hpasize",
@@ -4033,7 +4025,6 @@ static const char * const ata_quirk_names[] = {
 	[__ATA_QUIRK_ZERO_AFTER_TRIM]	= "zeroaftertrim",
 	[__ATA_QUIRK_NO_DMA_LOG]	= "nodmalog",
 	[__ATA_QUIRK_NOTRIM]		= "notrim",
-	[__ATA_QUIRK_MAX_SEC_1024]	= "maxsec1024",
 	[__ATA_QUIRK_MAX_SEC]		= "maxsec",
 	[__ATA_QUIRK_MAX_TRIM_128M]	= "maxtrim128m",
 	[__ATA_QUIRK_NO_NCQ_ON_ATI]	= "noncqonati",
@@ -4417,6 +4408,14 @@ static u64 ata_dev_get_max_sec_quirk_value(struct ata_device *dev)
 	const struct ata_dev_quirk_value *ad = __ata_dev_max_sec_quirks;
 	u64 val = 0;
 
+#ifdef CONFIG_ATA_FORCE
+	const struct ata_force_ent *fe = ata_force_get_fe_for_dev(dev);
+	if (fe && (fe->param.quirk_on & ATA_QUIRK_MAX_SEC) && fe->param.value)
+		val = fe->param.value;
+#endif
+	if (val)
+		goto out;
+
 	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	ata_id_c_string(dev->id, model_rev, ATA_ID_FW_REV, sizeof(model_rev));
 
@@ -4429,6 +4428,7 @@ static u64 ata_dev_get_max_sec_quirk_value(struct ata_device *dev)
 		ad++;
 	}
 
+out:
 	ata_dev_warn(dev, "%s quirk is using value: %llu\n",
 		     ata_quirk_names[__ATA_QUIRK_MAX_SEC], val);
 
@@ -6482,6 +6482,10 @@ EXPORT_SYMBOL_GPL(ata_platform_remove_one);
 #define force_quirk_on(name, flag)			\
 	{ #name,	.quirk_on	= (flag) }
 
+#define force_quirk_val(name, flag, val)		\
+	{ #name,	.quirk_on	= (flag),	\
+			.value		= (val) }
+
 #define force_quirk_onoff(name, flag)			\
 	{ "no" #name,	.quirk_on	= (flag) },	\
 	{ #name,	.quirk_off	= (flag) }
@@ -6556,8 +6560,8 @@ static const struct ata_force_param force_tbl[] __initconst = {
 	force_quirk_onoff(iddevlog,	ATA_QUIRK_NO_ID_DEV_LOG),
 	force_quirk_onoff(logdir,	ATA_QUIRK_NO_LOG_DIR),
 
-	force_quirk_on(max_sec_128,	ATA_QUIRK_MAX_SEC_128),
-	force_quirk_on(max_sec_1024,	ATA_QUIRK_MAX_SEC_1024),
+	force_quirk_val(max_sec_128,	ATA_QUIRK_MAX_SEC,	128),
+	force_quirk_val(max_sec_1024,	ATA_QUIRK_MAX_SEC,	1024),
 	force_quirk_on(max_sec_lba48,	ATA_QUIRK_MAX_SEC_LBA48),
 
 	force_quirk_onoff(lpm,		ATA_QUIRK_NOLPM),
