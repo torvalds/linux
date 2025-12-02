@@ -537,9 +537,6 @@ static int pcie_port_probe_service(struct device *dev)
 	struct pcie_port_service_driver *driver;
 	int status;
 
-	if (!dev || !dev->driver)
-		return -ENODEV;
-
 	driver = to_service_driver(dev->driver);
 	if (!driver || !driver->probe)
 		return -ENODEV;
@@ -566,9 +563,6 @@ static int pcie_port_remove_service(struct device *dev)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;
-
-	if (!dev || !dev->driver)
-		return 0;
 
 	pciedev = to_pcie_device(dev);
 	driver = to_service_driver(dev->driver);
