@@ -53,53 +53,6 @@
  * mitigation option.
  */
 
-static void __init spectre_v1_select_mitigation(void);
-static void __init spectre_v1_apply_mitigation(void);
-static void __init spectre_v2_select_mitigation(void);
-static void __init spectre_v2_update_mitigation(void);
-static void __init spectre_v2_apply_mitigation(void);
-static void __init retbleed_select_mitigation(void);
-static void __init retbleed_update_mitigation(void);
-static void __init retbleed_apply_mitigation(void);
-static void __init spectre_v2_user_select_mitigation(void);
-static void __init spectre_v2_user_update_mitigation(void);
-static void __init spectre_v2_user_apply_mitigation(void);
-static void __init ssb_select_mitigation(void);
-static void __init ssb_apply_mitigation(void);
-static void __init l1tf_select_mitigation(void);
-static void __init l1tf_apply_mitigation(void);
-static void __init mds_select_mitigation(void);
-static void __init mds_update_mitigation(void);
-static void __init mds_apply_mitigation(void);
-static void __init taa_select_mitigation(void);
-static void __init taa_update_mitigation(void);
-static void __init taa_apply_mitigation(void);
-static void __init mmio_select_mitigation(void);
-static void __init mmio_update_mitigation(void);
-static void __init mmio_apply_mitigation(void);
-static void __init rfds_select_mitigation(void);
-static void __init rfds_update_mitigation(void);
-static void __init rfds_apply_mitigation(void);
-static void __init srbds_select_mitigation(void);
-static void __init srbds_apply_mitigation(void);
-static void __init l1d_flush_select_mitigation(void);
-static void __init srso_select_mitigation(void);
-static void __init srso_update_mitigation(void);
-static void __init srso_apply_mitigation(void);
-static void __init gds_select_mitigation(void);
-static void __init gds_apply_mitigation(void);
-static void __init bhi_select_mitigation(void);
-static void __init bhi_update_mitigation(void);
-static void __init bhi_apply_mitigation(void);
-static void __init its_select_mitigation(void);
-static void __init its_update_mitigation(void);
-static void __init its_apply_mitigation(void);
-static void __init tsa_select_mitigation(void);
-static void __init tsa_apply_mitigation(void);
-static void __init vmscape_select_mitigation(void);
-static void __init vmscape_update_mitigation(void);
-static void __init vmscape_apply_mitigation(void);
-
 /* The base value of the SPEC_CTRL MSR without task-specific bits set */
 u64 x86_spec_ctrl_base;
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_base);
@@ -231,99 +184,6 @@ static void __init cpu_print_attack_vectors(void)
 	case SMT_MITIGATIONS_ON:
 		pr_cont("on\n");
 	}
-}
-
-void __init cpu_select_mitigations(void)
-{
-	/*
-	 * Read the SPEC_CTRL MSR to account for reserved bits which may
-	 * have unknown values. AMD64_LS_CFG MSR is cached in the early AMD
-	 * init code as it is not enumerated and depends on the family.
-	 */
-	if (cpu_feature_enabled(X86_FEATURE_MSR_SPEC_CTRL)) {
-		rdmsrq(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
-
-		/*
-		 * Previously running kernel (kexec), may have some controls
-		 * turned ON. Clear them and let the mitigations setup below
-		 * rediscover them based on configuration.
-		 */
-		x86_spec_ctrl_base &= ~SPEC_CTRL_MITIGATIONS_MASK;
-	}
-
-	x86_arch_cap_msr = x86_read_arch_cap_msr();
-
-	cpu_print_attack_vectors();
-
-	/* Select the proper CPU mitigations before patching alternatives: */
-	spectre_v1_select_mitigation();
-	spectre_v2_select_mitigation();
-	retbleed_select_mitigation();
-	spectre_v2_user_select_mitigation();
-	ssb_select_mitigation();
-	l1tf_select_mitigation();
-	mds_select_mitigation();
-	taa_select_mitigation();
-	mmio_select_mitigation();
-	rfds_select_mitigation();
-	srbds_select_mitigation();
-	l1d_flush_select_mitigation();
-	srso_select_mitigation();
-	gds_select_mitigation();
-	its_select_mitigation();
-	bhi_select_mitigation();
-	tsa_select_mitigation();
-	vmscape_select_mitigation();
-
-	/*
-	 * After mitigations are selected, some may need to update their
-	 * choices.
-	 */
-	spectre_v2_update_mitigation();
-	/*
-	 * retbleed_update_mitigation() relies on the state set by
-	 * spectre_v2_update_mitigation(); specifically it wants to know about
-	 * spectre_v2=ibrs.
-	 */
-	retbleed_update_mitigation();
-	/*
-	 * its_update_mitigation() depends on spectre_v2_update_mitigation()
-	 * and retbleed_update_mitigation().
-	 */
-	its_update_mitigation();
-
-	/*
-	 * spectre_v2_user_update_mitigation() depends on
-	 * retbleed_update_mitigation(), specifically the STIBP
-	 * selection is forced for UNRET or IBPB.
-	 */
-	spectre_v2_user_update_mitigation();
-	mds_update_mitigation();
-	taa_update_mitigation();
-	mmio_update_mitigation();
-	rfds_update_mitigation();
-	bhi_update_mitigation();
-	/* srso_update_mitigation() depends on retbleed_update_mitigation(). */
-	srso_update_mitigation();
-	vmscape_update_mitigation();
-
-	spectre_v1_apply_mitigation();
-	spectre_v2_apply_mitigation();
-	retbleed_apply_mitigation();
-	spectre_v2_user_apply_mitigation();
-	ssb_apply_mitigation();
-	l1tf_apply_mitigation();
-	mds_apply_mitigation();
-	taa_apply_mitigation();
-	mmio_apply_mitigation();
-	rfds_apply_mitigation();
-	srbds_apply_mitigation();
-	srso_apply_mitigation();
-	gds_apply_mitigation();
-	its_apply_mitigation();
-	bhi_apply_mitigation();
-	tsa_apply_mitigation();
-	vmscape_apply_mitigation();
 }
 
 /*
@@ -3369,6 +3229,99 @@ void cpu_bugs_smt_update(void)
 	}
 
 	mutex_unlock(&spec_ctrl_mutex);
+}
+
+void __init cpu_select_mitigations(void)
+{
+	/*
+	 * Read the SPEC_CTRL MSR to account for reserved bits which may
+	 * have unknown values. AMD64_LS_CFG MSR is cached in the early AMD
+	 * init code as it is not enumerated and depends on the family.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_MSR_SPEC_CTRL)) {
+		rdmsrq(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
+
+		/*
+		 * Previously running kernel (kexec), may have some controls
+		 * turned ON. Clear them and let the mitigations setup below
+		 * rediscover them based on configuration.
+		 */
+		x86_spec_ctrl_base &= ~SPEC_CTRL_MITIGATIONS_MASK;
+	}
+
+	x86_arch_cap_msr = x86_read_arch_cap_msr();
+
+	cpu_print_attack_vectors();
+
+	/* Select the proper CPU mitigations before patching alternatives: */
+	spectre_v1_select_mitigation();
+	spectre_v2_select_mitigation();
+	retbleed_select_mitigation();
+	spectre_v2_user_select_mitigation();
+	ssb_select_mitigation();
+	l1tf_select_mitigation();
+	mds_select_mitigation();
+	taa_select_mitigation();
+	mmio_select_mitigation();
+	rfds_select_mitigation();
+	srbds_select_mitigation();
+	l1d_flush_select_mitigation();
+	srso_select_mitigation();
+	gds_select_mitigation();
+	its_select_mitigation();
+	bhi_select_mitigation();
+	tsa_select_mitigation();
+	vmscape_select_mitigation();
+
+	/*
+	 * After mitigations are selected, some may need to update their
+	 * choices.
+	 */
+	spectre_v2_update_mitigation();
+	/*
+	 * retbleed_update_mitigation() relies on the state set by
+	 * spectre_v2_update_mitigation(); specifically it wants to know about
+	 * spectre_v2=ibrs.
+	 */
+	retbleed_update_mitigation();
+	/*
+	 * its_update_mitigation() depends on spectre_v2_update_mitigation()
+	 * and retbleed_update_mitigation().
+	 */
+	its_update_mitigation();
+
+	/*
+	 * spectre_v2_user_update_mitigation() depends on
+	 * retbleed_update_mitigation(), specifically the STIBP
+	 * selection is forced for UNRET or IBPB.
+	 */
+	spectre_v2_user_update_mitigation();
+	mds_update_mitigation();
+	taa_update_mitigation();
+	mmio_update_mitigation();
+	rfds_update_mitigation();
+	bhi_update_mitigation();
+	/* srso_update_mitigation() depends on retbleed_update_mitigation(). */
+	srso_update_mitigation();
+	vmscape_update_mitigation();
+
+	spectre_v1_apply_mitigation();
+	spectre_v2_apply_mitigation();
+	retbleed_apply_mitigation();
+	spectre_v2_user_apply_mitigation();
+	ssb_apply_mitigation();
+	l1tf_apply_mitigation();
+	mds_apply_mitigation();
+	taa_apply_mitigation();
+	mmio_apply_mitigation();
+	rfds_apply_mitigation();
+	srbds_apply_mitigation();
+	srso_apply_mitigation();
+	gds_apply_mitigation();
+	its_apply_mitigation();
+	bhi_apply_mitigation();
+	tsa_apply_mitigation();
+	vmscape_apply_mitigation();
 }
 
 #ifdef CONFIG_SYSFS
