@@ -46,10 +46,6 @@ struct set_mtrr_context {
 	u32		ccr3;
 };
 
-void set_mtrr_done(struct set_mtrr_context *ctxt);
-void set_mtrr_cache_disable(struct set_mtrr_context *ctxt);
-void set_mtrr_prepare_save(struct set_mtrr_context *ctxt);
-
 void fill_mtrr_var_range(unsigned int index,
 		u32 base_lo, u32 base_hi, u32 mask_lo, u32 mask_hi);
 bool get_mtrr_state(void);
