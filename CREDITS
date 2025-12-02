@@ -1983,6 +1983,7 @@ D: netfilter: TCP window tracking code
 D: netfilter: raw table
 D: netfilter: iprange match
 D: netfilter: new logging interfaces
+D: netfilter: ipset
 D: netfilter: various other hacks
 S: Tata
 S: Hungary
