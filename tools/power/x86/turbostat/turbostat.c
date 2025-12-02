@@ -2438,6 +2438,13 @@ static void bic_disable_msr_access(void)
 	free_sys_msr_counters();
 }
 
+static void bic_disable_perf_access(void)
+{
+	CLR_BIC(BIC_IPC, &bic_enabled);
+	CLR_BIC(BIC_LLC_RPS, &bic_enabled);
+	CLR_BIC(BIC_LLC_HIT, &bic_enabled);
+}
+
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags)
 {
 	assert(!no_perf);
@@ -8327,26 +8334,23 @@ void print_dev_latency(void)
 	close(fd);
 }
 
-static int has_instr_count_access(void)
+static int has_perf_instr_count_access(void)
 {
 	int fd;
-	int has_access;
 
 	if (no_perf)
 		return 0;
 
 	fd = open_perf_counter(base_cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, -1, 0);
-	has_access = fd != -1;
-
 	if (fd != -1)
 		close(fd);
 
-	if (!has_access)
+	if (fd == -1)
 		warnx("Failed to access %s. Some of the counters may not be available\n"
-		      "\tRun as root to enable them or use %s to disable the access explicitly",
-		      "instructions retired perf counter", "--no-perf");
+		      "\tRun as root to enable them or use %s to disable the access explicitly", "perf instructions retired counter",
+		      "'--hide IPC' or '--no-perf'");
 
-	return has_access;
+	return (fd != -1);
 }
 
 int add_rapl_perf_counter(int cpu, struct rapl_counter_info_t *rci, const struct rapl_counter_arch_info *cai,
@@ -9080,6 +9084,28 @@ void probe_pm_features(void)
 		decode_misc_feature_control();
 }
 
+/* perf_llc_probe
+ *
+ * return 1 on success, else 0
+ */
+int has_perf_llc_access(void)
+{
+	int fd;
+
+	if (no_perf)
+		return 0;
+
+	fd = open_perf_counter(base_cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, -1, PERF_FORMAT_GROUP);
+	if (fd != -1)
+		close(fd);
+
+	if (fd == -1)
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly", "perf LLC counters", "'--hide LLC' or '--no-perf'");
+
+	return (fd != -1);
+}
+
 void perf_llc_init(void)
 {
 	int cpu;
@@ -9535,8 +9561,16 @@ void check_msr_access(void)
 
 void check_perf_access(void)
 {
-	if (no_perf || !BIC_IS_ENABLED(BIC_IPC) || !has_instr_count_access())
-		CLR_BIC(BIC_IPC, &bic_enabled);
+	if (BIC_IS_ENABLED(BIC_IPC))
+		if (!has_perf_instr_count_access())
+			no_perf = 1;
+
+	if (BIC_IS_ENABLED(BIC_LLC_RPS) || BIC_IS_ENABLED(BIC_LLC_HIT))
+		if (!has_perf_llc_access())
+			no_perf = 1;
+
+	if (no_perf)
+		bic_disable_perf_access();
 }
 
 bool perf_has_hybrid_devices(void)
