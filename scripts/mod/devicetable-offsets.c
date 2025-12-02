@@ -199,6 +199,9 @@ int main(void)
 	DEVID(cpu_feature);
 	DEVID_FIELD(cpu_feature, feature);
 
+	DEVID(mcb_device_id);
+	DEVID_FIELD(mcb_device_id, device);
+
 	DEVID(mei_cl_device_id);
 	DEVID_FIELD(mei_cl_device_id, name);
 	DEVID_FIELD(mei_cl_device_id, uuid);
