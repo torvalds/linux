@@ -341,6 +341,14 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 	if (autofs_oz_mode(sbi))
 		return NULL;
 
+	/* Refuse to trigger mount if current namespace is not the owner
+	 * and the mount is propagation private.
+	 */
+	if (sbi->mnt_ns_id != to_ns_common(current->nsproxy->mnt_ns)->ns_id) {
+		if (vfsmount_to_propagation_flags(path->mnt) & MS_PRIVATE)
+			return ERR_PTR(-EPERM);
+	}
+
 	/*
 	 * If an expire request is pending everyone must wait.
 	 * If the expire fails we're still mounted so continue

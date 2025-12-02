@@ -5148,6 +5148,12 @@ static u64 mnt_to_propagation_flags(struct mount *m)
 	return propagation;
 }
 
+u64 vfsmount_to_propagation_flags(struct vfsmount *mnt)
+{
+	return mnt_to_propagation_flags(real_mount(mnt));
+}
+EXPORT_SYMBOL_GPL(vfsmount_to_propagation_flags);
+
 static void statmount_sb_basic(struct kstatmount *s)
 {
 	struct super_block *sb = s->mnt->mnt_sb;
