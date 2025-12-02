@@ -2566,30 +2566,32 @@ static u32 __hwe_oa_unit(struct xe_hw_engine *hwe)
 static struct xe_oa_regs __oam_regs(u32 base)
 {
 	return (struct xe_oa_regs) {
-		base,
-		OAM_HEAD_POINTER(base),
-		OAM_TAIL_POINTER(base),
-		OAM_BUFFER(base),
-		OAM_CONTEXT_CONTROL(base),
-		OAM_CONTROL(base),
-		OAM_DEBUG(base),
-		OAM_STATUS(base),
-		OAM_CONTROL_COUNTER_SEL_MASK,
+		.base		= base,
+		.oa_head_ptr	= OAM_HEAD_POINTER(base),
+		.oa_tail_ptr	= OAM_TAIL_POINTER(base),
+		.oa_buffer	= OAM_BUFFER(base),
+		.oa_ctx_ctrl	= OAM_CONTEXT_CONTROL(base),
+		.oa_ctrl	= OAM_CONTROL(base),
+		.oa_debug	= OAM_DEBUG(base),
+		.oa_status	= OAM_STATUS(base),
+		.oa_mmio_trg	= OAM_MMIO_TRG(base),
+		.oa_ctrl_counter_select_mask = OAM_CONTROL_COUNTER_SEL_MASK,
 	};
 }
 
 static struct xe_oa_regs __oag_regs(void)
 {
 	return (struct xe_oa_regs) {
-		0,
-		OAG_OAHEADPTR,
-		OAG_OATAILPTR,
-		OAG_OABUFFER,
-		OAG_OAGLBCTXCTRL,
-		OAG_OACONTROL,
-		OAG_OA_DEBUG,
-		OAG_OASTATUS,
-		OAG_OACONTROL_OA_COUNTER_SEL_MASK,
+		.base		= 0,
+		.oa_head_ptr	= OAG_OAHEADPTR,
+		.oa_tail_ptr	= OAG_OATAILPTR,
+		.oa_buffer	= OAG_OABUFFER,
+		.oa_ctx_ctrl	= OAG_OAGLBCTXCTRL,
+		.oa_ctrl	= OAG_OACONTROL,
+		.oa_debug	= OAG_OA_DEBUG,
+		.oa_status	= OAG_OASTATUS,
+		.oa_mmio_trg	= OAG_MMIOTRIGGER,
+		.oa_ctrl_counter_select_mask = OAG_OACONTROL_OA_COUNTER_SEL_MASK,
 	};
 }
 
