@@ -23,6 +23,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/math64.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/platform_data/tsc2007.h>
@@ -68,7 +69,7 @@ static void tsc2007_read_values(struct tsc2007 *tsc, struct ts_event *tc)
 
 u32 tsc2007_calculate_resistance(struct tsc2007 *tsc, struct ts_event *tc)
 {
-	u32 rt = 0;
+	u64 rt = 0;
 
 	/* range filtering */
 	if (tc->x == MAX_12BIT)
@@ -79,11 +80,13 @@ u32 tsc2007_calculate_resistance(struct tsc2007 *tsc, struct ts_event *tc)
 		rt = tc->z2 - tc->z1;
 		rt *= tc->x;
 		rt *= tsc->x_plate_ohms;
-		rt /= tc->z1;
+		rt = div_u64(rt, tc->z1);
 		rt = (rt + 2047) >> 12;
 	}
 
-	return rt;
+	if (rt > U32_MAX)
+		return U32_MAX;
+	return (u32) rt;
 }
 
 bool tsc2007_is_pen_down(struct tsc2007 *ts)
@@ -177,7 +180,8 @@ static void tsc2007_stop(struct tsc2007 *ts)
 	mb();
 	wake_up(&ts->wait);
 
-	disable_irq(ts->irq);
+	if (ts->irq)
+		disable_irq(ts->irq);
 }
 
 static int tsc2007_open(struct input_dev *input_dev)
@@ -188,7 +192,8 @@ static int tsc2007_open(struct input_dev *input_dev)
 	ts->stopped = false;
 	mb();
 
-	enable_irq(ts->irq);
+	if (ts->irq)
+		enable_irq(ts->irq);
 
 	/* Prepare for touch readings - power down ADC and enable PENIRQ */
 	err = tsc2007_xfer(ts, PWRDOWN);
@@ -253,7 +258,7 @@ static int tsc2007_probe_properties(struct device *dev, struct tsc2007 *ts)
 	if (ts->gpiod)
 		ts->get_pendown_state = tsc2007_get_pendown_state_gpio;
 	else
-		dev_warn(dev, "Pen down GPIO is not specified in properties\n");
+		dev_dbg(dev, "Pen down GPIO is not specified in properties\n");
 
 	return 0;
 }
@@ -361,17 +366,19 @@ static int tsc2007_probe(struct i2c_client *client)
 			pdata->init_platform_hw();
 	}
 
-	err = devm_request_threaded_irq(&client->dev, ts->irq,
-					NULL, tsc2007_soft_irq,
-					IRQF_ONESHOT,
-					client->dev.driver->name, ts);
-	if (err) {
-		dev_err(&client->dev, "Failed to request irq %d: %d\n",
-			ts->irq, err);
-		return err;
-	}
+	if (ts->irq) {
+		err = devm_request_threaded_irq(&client->dev, ts->irq,
+						NULL, tsc2007_soft_irq,
+						IRQF_ONESHOT,
+						client->dev.driver->name, ts);
+		if (err) {
+			dev_err(&client->dev, "Failed to request irq %d: %d\n",
+				ts->irq, err);
+			return err;
+		}
 
-	tsc2007_stop(ts);
+		tsc2007_stop(ts);
+	}
 
 	/* power down the chip (TSC2007_SETUP does not ACK on I2C) */
 	err = tsc2007_xfer(ts, PWRDOWN);

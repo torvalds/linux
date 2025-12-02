@@ -430,10 +430,7 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 	return err;
 }
 
-/*  */
-/* 	Description: */
-/* 		Enter the leisure power save mode. */
-/*  */
+/* Description: Enter the leisure power save mode. */
 void LPS_Enter(struct adapter *padapter, const char *msg)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
@@ -466,10 +463,7 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 	}
 }
 
-/*  */
-/* 	Description: */
-/* 		Leave the leisure power save mode. */
-/*  */
+/* Description: Leave the leisure power save mode. */
 void LPS_Leave(struct adapter *padapter, const char *msg)
 {
 #define LPS_LEAVE_TIMEOUT_MS 100

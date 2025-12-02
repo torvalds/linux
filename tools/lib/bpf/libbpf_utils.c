@@ -148,16 +148,20 @@ const char *libbpf_errstr(int err)
 	}
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpacked"
-#pragma GCC diagnostic ignored "-Wattributes"
-struct __packed_u32 { __u32 __val; } __attribute__((packed));
-#pragma GCC diagnostic pop
+static inline __u32 get_unaligned_be32(const void *p)
+{
+	__be32 val;
 
-#define get_unaligned_be32(p) be32_to_cpu((((struct __packed_u32 *)(p))->__val))
-#define put_unaligned_be32(v, p) do {							\
-	((struct __packed_u32 *)(p))->__val = cpu_to_be32(v);				\
-} while (0)
+	memcpy(&val, p, sizeof(val));
+	return be32_to_cpu(val);
+}
+
+static inline void put_unaligned_be32(__u32 val, void *p)
+{
+	__be32 be_val = cpu_to_be32(val);
+
+	memcpy(p, &be_val, sizeof(be_val));
+}
 
 #define SHA256_BLOCK_LENGTH 64
 #define Ch(x, y, z) (((x) & (y)) ^ (~(x) & (z)))

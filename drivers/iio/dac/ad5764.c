@@ -278,10 +278,8 @@ static int ad5764_probe(struct spi_device *spi)
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL) {
-		dev_err(&spi->dev, "Failed to allocate iio device\n");
+	if (indio_dev == NULL)
 		return -ENOMEM;
-	}
 
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);

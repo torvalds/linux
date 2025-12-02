@@ -366,7 +366,7 @@ static struct qcom_cc_driver_data video_cc_milos_driver_data = {
 	.num_clk_cbcrs = ARRAY_SIZE(video_cc_milos_critical_cbcrs),
 };
 
-static struct qcom_cc_desc video_cc_milos_desc = {
+static const struct qcom_cc_desc video_cc_milos_desc = {
 	.config = &video_cc_milos_regmap_config,
 	.clks = video_cc_milos_clocks,
 	.num_clks = ARRAY_SIZE(video_cc_milos_clocks),

@@ -56,30 +56,26 @@ static ssize_t mode_store(struct device *dev,
 {
 	struct nd_pfn *nd_pfn = to_nd_pfn_safe(dev);
 	ssize_t rc = 0;
+	size_t n = len - 1;
 
-	device_lock(dev);
-	nvdimm_bus_lock(dev);
+	guard(device)(dev);
+	guard(nvdimm_bus)(dev);
 	if (dev->driver)
-		rc = -EBUSY;
-	else {
-		size_t n = len - 1;
+		return -EBUSY;
 
-		if (strncmp(buf, "pmem\n", n) == 0
-				|| strncmp(buf, "pmem", n) == 0) {
-			nd_pfn->mode = PFN_MODE_PMEM;
-		} else if (strncmp(buf, "ram\n", n) == 0
-				|| strncmp(buf, "ram", n) == 0)
-			nd_pfn->mode = PFN_MODE_RAM;
-		else if (strncmp(buf, "none\n", n) == 0
-				|| strncmp(buf, "none", n) == 0)
-			nd_pfn->mode = PFN_MODE_NONE;
-		else
-			rc = -EINVAL;
-	}
+	if (strncmp(buf, "pmem\n", n) == 0
+			|| strncmp(buf, "pmem", n) == 0) {
+		nd_pfn->mode = PFN_MODE_PMEM;
+	} else if (strncmp(buf, "ram\n", n) == 0
+			|| strncmp(buf, "ram", n) == 0)
+		nd_pfn->mode = PFN_MODE_RAM;
+	else if (strncmp(buf, "none\n", n) == 0
+			|| strncmp(buf, "none", n) == 0)
+		nd_pfn->mode = PFN_MODE_NONE;
+	else
+		rc = -EINVAL;
 	dev_dbg(dev, "result: %zd wrote: %s%s", rc, buf,
 			buf[len - 1] == '\n' ? "" : "\n");
-	nvdimm_bus_unlock(dev);
-	device_unlock(dev);
 
 	return rc ? rc : len;
 }
@@ -125,14 +121,12 @@ static ssize_t align_store(struct device *dev,
 	unsigned long aligns[MAX_NVDIMM_ALIGN] = { [0] = 0, };
 	ssize_t rc;
 
-	device_lock(dev);
-	nvdimm_bus_lock(dev);
+	guard(device)(dev);
+	guard(nvdimm_bus)(dev);
 	rc = nd_size_select_store(dev, buf, &nd_pfn->align,
 			nd_pfn_supported_alignments(aligns));
 	dev_dbg(dev, "result: %zd wrote: %s%s", rc, buf,
 			buf[len - 1] == '\n' ? "" : "\n");
-	nvdimm_bus_unlock(dev);
-	device_unlock(dev);
 
 	return rc ? rc : len;
 }
@@ -168,13 +162,10 @@ static ssize_t namespace_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct nd_pfn *nd_pfn = to_nd_pfn_safe(dev);
-	ssize_t rc;
 
-	nvdimm_bus_lock(dev);
-	rc = sprintf(buf, "%s\n", nd_pfn->ndns
+	guard(nvdimm_bus)(dev);
+	return sprintf(buf, "%s\n", nd_pfn->ndns
 			? dev_name(&nd_pfn->ndns->dev) : "");
-	nvdimm_bus_unlock(dev);
-	return rc;
 }
 
 static ssize_t namespace_store(struct device *dev,
@@ -183,13 +174,11 @@ static ssize_t namespace_store(struct device *dev,
 	struct nd_pfn *nd_pfn = to_nd_pfn_safe(dev);
 	ssize_t rc;
 
-	device_lock(dev);
-	nvdimm_bus_lock(dev);
+	guard(device)(dev);
+	guard(nvdimm_bus)(dev);
 	rc = nd_namespace_store(dev, &nd_pfn->ndns, buf, len);
 	dev_dbg(dev, "result: %zd wrote: %s%s", rc, buf,
 			buf[len - 1] == '\n' ? "" : "\n");
-	nvdimm_bus_unlock(dev);
-	device_unlock(dev);
 
 	return rc;
 }
@@ -639,10 +628,10 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 		return -ENODEV;
 	}
 
-	nvdimm_bus_lock(&ndns->dev);
-	nd_pfn = nd_pfn_alloc(nd_region);
-	pfn_dev = nd_pfn_devinit(nd_pfn, ndns);
-	nvdimm_bus_unlock(&ndns->dev);
+	scoped_guard(nvdimm_bus, &ndns->dev) {
+		nd_pfn = nd_pfn_alloc(nd_region);
+		pfn_dev = nd_pfn_devinit(nd_pfn, ndns);
+	}
 	if (!pfn_dev)
 		return -ENOMEM;
 	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);

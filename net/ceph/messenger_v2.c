@@ -709,7 +709,7 @@ static int setup_crypto(struct ceph_connection *con,
 
 	dout("%s con %p con_mode %d session_key_len %d con_secret_len %d\n",
 	     __func__, con, con->v2.con_mode, session_key_len, con_secret_len);
-	WARN_ON(con->v2.hmac_tfm || con->v2.gcm_tfm || con->v2.gcm_req);
+	WARN_ON(con->v2.hmac_key_set || con->v2.gcm_tfm || con->v2.gcm_req);
 
 	if (con->v2.con_mode != CEPH_CON_MODE_CRC &&
 	    con->v2.con_mode != CEPH_CON_MODE_SECURE) {
@@ -723,22 +723,8 @@ static int setup_crypto(struct ceph_connection *con,
 		return 0;  /* auth_none */
 	}
 
-	noio_flag = memalloc_noio_save();
-	con->v2.hmac_tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	memalloc_noio_restore(noio_flag);
-	if (IS_ERR(con->v2.hmac_tfm)) {
-		ret = PTR_ERR(con->v2.hmac_tfm);
-		con->v2.hmac_tfm = NULL;
-		pr_err("failed to allocate hmac tfm context: %d\n", ret);
-		return ret;
-	}
-
-	ret = crypto_shash_setkey(con->v2.hmac_tfm, session_key,
-				  session_key_len);
-	if (ret) {
-		pr_err("failed to set hmac key: %d\n", ret);
-		return ret;
-	}
+	hmac_sha256_preparekey(&con->v2.hmac_key, session_key, session_key_len);
+	con->v2.hmac_key_set = true;
 
 	if (con->v2.con_mode == CEPH_CON_MODE_CRC) {
 		WARN_ON(con_secret_len);
@@ -793,38 +779,26 @@ static int setup_crypto(struct ceph_connection *con,
 	return 0;  /* auth_x, secure mode */
 }
 
-static int ceph_hmac_sha256(struct ceph_connection *con,
-			    const struct kvec *kvecs, int kvec_cnt, u8 *hmac)
+static void ceph_hmac_sha256(struct ceph_connection *con,
+			     const struct kvec *kvecs, int kvec_cnt,
+			     u8 hmac[SHA256_DIGEST_SIZE])
 {
-	SHASH_DESC_ON_STACK(desc, con->v2.hmac_tfm);  /* tfm arg is ignored */
-	int ret;
+	struct hmac_sha256_ctx ctx;
 	int i;
 
-	dout("%s con %p hmac_tfm %p kvec_cnt %d\n", __func__, con,
-	     con->v2.hmac_tfm, kvec_cnt);
+	dout("%s con %p hmac_key_set %d kvec_cnt %d\n", __func__, con,
+	     con->v2.hmac_key_set, kvec_cnt);
 
-	if (!con->v2.hmac_tfm) {
+	if (!con->v2.hmac_key_set) {
 		memset(hmac, 0, SHA256_DIGEST_SIZE);
-		return 0;  /* auth_none */
+		return;  /* auth_none */
 	}
 
-	desc->tfm = con->v2.hmac_tfm;
-	ret = crypto_shash_init(desc);
-	if (ret)
-		goto out;
-
-	for (i = 0; i < kvec_cnt; i++) {
-		ret = crypto_shash_update(desc, kvecs[i].iov_base,
-					  kvecs[i].iov_len);
-		if (ret)
-			goto out;
-	}
-
-	ret = crypto_shash_final(desc, hmac);
-
-out:
-	shash_desc_zero(desc);
-	return ret;  /* auth_x, both plain and secure modes */
+	/* auth_x, both plain and secure modes */
+	hmac_sha256_init(&ctx, &con->v2.hmac_key);
+	for (i = 0; i < kvec_cnt; i++)
+		hmac_sha256_update(&ctx, kvecs[i].iov_base, kvecs[i].iov_len);
+	hmac_sha256_final(&ctx, hmac);
 }
 
 static void gcm_inc_nonce(struct ceph_gcm_nonce *nonce)
@@ -1455,17 +1429,14 @@ static int prepare_auth_request_more(struct ceph_connection *con,
 static int prepare_auth_signature(struct ceph_connection *con)
 {
 	void *buf;
-	int ret;
 
 	buf = alloc_conn_buf(con, head_onwire_len(SHA256_DIGEST_SIZE,
 						  con_secure(con)));
 	if (!buf)
 		return -ENOMEM;
 
-	ret = ceph_hmac_sha256(con, con->v2.in_sign_kvecs,
-			       con->v2.in_sign_kvec_cnt, CTRL_BODY(buf));
-	if (ret)
-		return ret;
+	ceph_hmac_sha256(con, con->v2.in_sign_kvecs, con->v2.in_sign_kvec_cnt,
+			 CTRL_BODY(buf));
 
 	return prepare_control(con, FRAME_TAG_AUTH_SIGNATURE, buf,
 			       SHA256_DIGEST_SIZE);
@@ -1589,10 +1560,11 @@ static int prepare_ack(struct ceph_connection *con)
 	return prepare_control(con, FRAME_TAG_ACK, con->v2.out_buf, 8);
 }
 
-static void prepare_epilogue_plain(struct ceph_connection *con, bool aborted)
+static void prepare_epilogue_plain(struct ceph_connection *con,
+				   struct ceph_msg *msg, bool aborted)
 {
 	dout("%s con %p msg %p aborted %d crcs %u %u %u\n", __func__, con,
-	     con->out_msg, aborted, con->v2.out_epil.front_crc,
+	     msg, aborted, con->v2.out_epil.front_crc,
 	     con->v2.out_epil.middle_crc, con->v2.out_epil.data_crc);
 
 	encode_epilogue_plain(con, aborted);
@@ -1603,10 +1575,9 @@ static void prepare_epilogue_plain(struct ceph_connection *con, bool aborted)
  * For "used" empty segments, crc is -1.  For unused (trailing)
  * segments, crc is 0.
  */
-static void prepare_message_plain(struct ceph_connection *con)
+static void prepare_message_plain(struct ceph_connection *con,
+				  struct ceph_msg *msg)
 {
-	struct ceph_msg *msg = con->out_msg;
-
 	prepare_head_plain(con, con->v2.out_buf,
 			   sizeof(struct ceph_msg_header2), NULL, 0, false);
 
@@ -1647,7 +1618,7 @@ static void prepare_message_plain(struct ceph_connection *con)
 		con->v2.out_state = OUT_S_QUEUE_DATA;
 	} else {
 		con->v2.out_epil.data_crc = 0;
-		prepare_epilogue_plain(con, false);
+		prepare_epilogue_plain(con, msg, false);
 		con->v2.out_state = OUT_S_FINISH_MESSAGE;
 	}
 }
@@ -1659,7 +1630,8 @@ static void prepare_message_plain(struct ceph_connection *con)
  * allocate pages for the entire tail of the message (currently up
  * to ~32M) and two sgs arrays (up to ~256K each)...
  */
-static int prepare_message_secure(struct ceph_connection *con)
+static int prepare_message_secure(struct ceph_connection *con,
+				  struct ceph_msg *msg)
 {
 	void *zerop = page_address(ceph_zero_page);
 	struct sg_table enc_sgt = {};
@@ -1674,7 +1646,7 @@ static int prepare_message_secure(struct ceph_connection *con)
 	if (ret)
 		return ret;
 
-	tail_len = tail_onwire_len(con->out_msg, true);
+	tail_len = tail_onwire_len(msg, true);
 	if (!tail_len) {
 		/*
 		 * Empty message: once the head is written,
@@ -1685,7 +1657,7 @@ static int prepare_message_secure(struct ceph_connection *con)
 	}
 
 	encode_epilogue_secure(con, false);
-	ret = setup_message_sgs(&sgt, con->out_msg, zerop, zerop, zerop,
+	ret = setup_message_sgs(&sgt, msg, zerop, zerop, zerop,
 				&con->v2.out_epil, NULL, 0, false);
 	if (ret)
 		goto out;
@@ -1714,7 +1686,7 @@ static int prepare_message_secure(struct ceph_connection *con)
 		goto out;
 
 	dout("%s con %p msg %p sg_cnt %d enc_page_cnt %d\n", __func__, con,
-	     con->out_msg, sgt.orig_nents, enc_page_cnt);
+	     msg, sgt.orig_nents, enc_page_cnt);
 	con->v2.out_state = OUT_S_QUEUE_ENC_PAGE;
 
 out:
@@ -1723,19 +1695,19 @@ out:
 	return ret;
 }
 
-static int prepare_message(struct ceph_connection *con)
+static int prepare_message(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	int lens[] = {
 		sizeof(struct ceph_msg_header2),
-		front_len(con->out_msg),
-		middle_len(con->out_msg),
-		data_len(con->out_msg)
+		front_len(msg),
+		middle_len(msg),
+		data_len(msg)
 	};
 	struct ceph_frame_desc desc;
 	int ret;
 
 	dout("%s con %p msg %p logical %d+%d+%d+%d\n", __func__, con,
-	     con->out_msg, lens[0], lens[1], lens[2], lens[3]);
+	     msg, lens[0], lens[1], lens[2], lens[3]);
 
 	if (con->in_seq > con->in_seq_acked) {
 		dout("%s con %p in_seq_acked %llu -> %llu\n", __func__, con,
@@ -1746,15 +1718,15 @@ static int prepare_message(struct ceph_connection *con)
 	reset_out_kvecs(con);
 	init_frame_desc(&desc, FRAME_TAG_MESSAGE, lens, 4);
 	encode_preamble(&desc, con->v2.out_buf);
-	fill_header2(CTRL_BODY(con->v2.out_buf), &con->out_msg->hdr,
+	fill_header2(CTRL_BODY(con->v2.out_buf), &msg->hdr,
 		     con->in_seq_acked);
 
 	if (con_secure(con)) {
-		ret = prepare_message_secure(con);
+		ret = prepare_message_secure(con, msg);
 		if (ret)
 			return ret;
 	} else {
-		prepare_message_plain(con);
+		prepare_message_plain(con, msg);
 	}
 
 	ceph_con_flag_set(con, CEPH_CON_F_WRITE_PENDING);
@@ -2460,10 +2432,8 @@ static int process_auth_signature(struct ceph_connection *con,
 		return -EINVAL;
 	}
 
-	ret = ceph_hmac_sha256(con, con->v2.out_sign_kvecs,
-			       con->v2.out_sign_kvec_cnt, hmac);
-	if (ret)
-		return ret;
+	ceph_hmac_sha256(con, con->v2.out_sign_kvecs, con->v2.out_sign_kvec_cnt,
+			 hmac);
 
 	ceph_decode_need(&p, end, SHA256_DIGEST_SIZE, bad);
 	if (crypto_memneq(p, hmac, SHA256_DIGEST_SIZE)) {
@@ -3184,20 +3154,20 @@ int ceph_con_v2_try_read(struct ceph_connection *con)
 	}
 }
 
-static void queue_data(struct ceph_connection *con)
+static void queue_data(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	struct bio_vec bv;
 
 	con->v2.out_epil.data_crc = -1;
-	ceph_msg_data_cursor_init(&con->v2.out_cursor, con->out_msg,
-				  data_len(con->out_msg));
+	ceph_msg_data_cursor_init(&con->v2.out_cursor, msg,
+				  data_len(msg));
 
 	get_bvec_at(&con->v2.out_cursor, &bv);
 	set_out_bvec(con, &bv, true);
 	con->v2.out_state = OUT_S_QUEUE_DATA_CONT;
 }
 
-static void queue_data_cont(struct ceph_connection *con)
+static void queue_data_cont(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	struct bio_vec bv;
 
@@ -3218,7 +3188,7 @@ static void queue_data_cont(struct ceph_connection *con)
 	 * we are done.
 	 */
 	reset_out_kvecs(con);
-	prepare_epilogue_plain(con, false);
+	prepare_epilogue_plain(con, msg, false);
 	con->v2.out_state = OUT_S_FINISH_MESSAGE;
 }
 
@@ -3250,7 +3220,7 @@ static void queue_enc_page(struct ceph_connection *con)
 	con->v2.out_state = OUT_S_FINISH_MESSAGE;
 }
 
-static void queue_zeros(struct ceph_connection *con)
+static void queue_zeros(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	dout("%s con %p out_zero %d\n", __func__, con, con->v2.out_zero);
 
@@ -3267,7 +3237,7 @@ static void queue_zeros(struct ceph_connection *con)
 	 * Once it's written, we are done patching up for the revoke.
 	 */
 	reset_out_kvecs(con);
-	prepare_epilogue_plain(con, true);
+	prepare_epilogue_plain(con, msg, true);
 	con->v2.out_state = OUT_S_FINISH_MESSAGE;
 }
 
@@ -3294,6 +3264,7 @@ static void finish_message(struct ceph_connection *con)
 
 static int populate_out_iter(struct ceph_connection *con)
 {
+	struct ceph_msg *msg;
 	int ret;
 
 	dout("%s con %p state %d out_state %d\n", __func__, con, con->state,
@@ -3309,18 +3280,18 @@ static int populate_out_iter(struct ceph_connection *con)
 	switch (con->v2.out_state) {
 	case OUT_S_QUEUE_DATA:
 		WARN_ON(!con->out_msg);
-		queue_data(con);
+		queue_data(con, con->out_msg);
 		goto populated;
 	case OUT_S_QUEUE_DATA_CONT:
 		WARN_ON(!con->out_msg);
-		queue_data_cont(con);
+		queue_data_cont(con, con->out_msg);
 		goto populated;
 	case OUT_S_QUEUE_ENC_PAGE:
 		queue_enc_page(con);
 		goto populated;
 	case OUT_S_QUEUE_ZEROS:
 		WARN_ON(con->out_msg);  /* revoked */
-		queue_zeros(con);
+		queue_zeros(con, con->out_msg);
 		goto populated;
 	case OUT_S_FINISH_MESSAGE:
 		finish_message(con);
@@ -3339,9 +3310,8 @@ static int populate_out_iter(struct ceph_connection *con)
 			pr_err("prepare_keepalive2 failed: %d\n", ret);
 			return ret;
 		}
-	} else if (!list_empty(&con->out_queue)) {
-		ceph_con_get_out_msg(con);
-		ret = prepare_message(con);
+	} else if ((msg = ceph_con_get_out_msg(con)) != NULL) {
+		ret = prepare_message(con, msg);
 		if (ret) {
 			pr_err("prepare_message failed: %d\n", ret);
 			return ret;
@@ -3453,17 +3423,18 @@ static u32 crc32c_zeros(u32 crc, int zero_len)
 	return crc;
 }
 
-static void prepare_zero_front(struct ceph_connection *con, int resid)
+static void prepare_zero_front(struct ceph_connection *con,
+			       struct ceph_msg *msg, int resid)
 {
 	int sent;
 
-	WARN_ON(!resid || resid > front_len(con->out_msg));
-	sent = front_len(con->out_msg) - resid;
+	WARN_ON(!resid || resid > front_len(msg));
+	sent = front_len(msg) - resid;
 	dout("%s con %p sent %d resid %d\n", __func__, con, sent, resid);
 
 	if (sent) {
 		con->v2.out_epil.front_crc =
-			crc32c(-1, con->out_msg->front.iov_base, sent);
+			crc32c(-1, msg->front.iov_base, sent);
 		con->v2.out_epil.front_crc =
 			crc32c_zeros(con->v2.out_epil.front_crc, resid);
 	} else {
@@ -3474,17 +3445,18 @@ static void prepare_zero_front(struct ceph_connection *con, int resid)
 	out_zero_add(con, resid);
 }
 
-static void prepare_zero_middle(struct ceph_connection *con, int resid)
+static void prepare_zero_middle(struct ceph_connection *con,
+				struct ceph_msg *msg, int resid)
 {
 	int sent;
 
-	WARN_ON(!resid || resid > middle_len(con->out_msg));
-	sent = middle_len(con->out_msg) - resid;
+	WARN_ON(!resid || resid > middle_len(msg));
+	sent = middle_len(msg) - resid;
 	dout("%s con %p sent %d resid %d\n", __func__, con, sent, resid);
 
 	if (sent) {
 		con->v2.out_epil.middle_crc =
-			crc32c(-1, con->out_msg->middle->vec.iov_base, sent);
+			crc32c(-1, msg->middle->vec.iov_base, sent);
 		con->v2.out_epil.middle_crc =
 			crc32c_zeros(con->v2.out_epil.middle_crc, resid);
 	} else {
@@ -3495,61 +3467,64 @@ static void prepare_zero_middle(struct ceph_connection *con, int resid)
 	out_zero_add(con, resid);
 }
 
-static void prepare_zero_data(struct ceph_connection *con)
+static void prepare_zero_data(struct ceph_connection *con,
+			      struct ceph_msg *msg)
 {
 	dout("%s con %p\n", __func__, con);
-	con->v2.out_epil.data_crc = crc32c_zeros(-1, data_len(con->out_msg));
-	out_zero_add(con, data_len(con->out_msg));
+	con->v2.out_epil.data_crc = crc32c_zeros(-1, data_len(msg));
+	out_zero_add(con, data_len(msg));
 }
 
-static void revoke_at_queue_data(struct ceph_connection *con)
+static void revoke_at_queue_data(struct ceph_connection *con,
+				 struct ceph_msg *msg)
 {
 	int boundary;
 	int resid;
 
-	WARN_ON(!data_len(con->out_msg));
+	WARN_ON(!data_len(msg));
 	WARN_ON(!iov_iter_is_kvec(&con->v2.out_iter));
 	resid = iov_iter_count(&con->v2.out_iter);
 
-	boundary = front_len(con->out_msg) + middle_len(con->out_msg);
+	boundary = front_len(msg) + middle_len(msg);
 	if (resid > boundary) {
 		resid -= boundary;
 		WARN_ON(resid > MESSAGE_HEAD_PLAIN_LEN);
 		dout("%s con %p was sending head\n", __func__, con);
-		if (front_len(con->out_msg))
-			prepare_zero_front(con, front_len(con->out_msg));
-		if (middle_len(con->out_msg))
-			prepare_zero_middle(con, middle_len(con->out_msg));
-		prepare_zero_data(con);
+		if (front_len(msg))
+			prepare_zero_front(con, msg, front_len(msg));
+		if (middle_len(msg))
+			prepare_zero_middle(con, msg, middle_len(msg));
+		prepare_zero_data(con, msg);
 		WARN_ON(iov_iter_count(&con->v2.out_iter) != resid);
 		con->v2.out_state = OUT_S_QUEUE_ZEROS;
 		return;
 	}
 
-	boundary = middle_len(con->out_msg);
+	boundary = middle_len(msg);
 	if (resid > boundary) {
 		resid -= boundary;
 		dout("%s con %p was sending front\n", __func__, con);
-		prepare_zero_front(con, resid);
-		if (middle_len(con->out_msg))
-			prepare_zero_middle(con, middle_len(con->out_msg));
-		prepare_zero_data(con);
-		queue_zeros(con);
+		prepare_zero_front(con, msg, resid);
+		if (middle_len(msg))
+			prepare_zero_middle(con, msg, middle_len(msg));
+		prepare_zero_data(con, msg);
+		queue_zeros(con, msg);
 		return;
 	}
 
 	WARN_ON(!resid);
 	dout("%s con %p was sending middle\n", __func__, con);
-	prepare_zero_middle(con, resid);
-	prepare_zero_data(con);
-	queue_zeros(con);
+	prepare_zero_middle(con, msg, resid);
+	prepare_zero_data(con, msg);
+	queue_zeros(con, msg);
 }
 
-static void revoke_at_queue_data_cont(struct ceph_connection *con)
+static void revoke_at_queue_data_cont(struct ceph_connection *con,
+				      struct ceph_msg *msg)
 {
 	int sent, resid;  /* current piece of data */
 
-	WARN_ON(!data_len(con->out_msg));
+	WARN_ON(!data_len(msg));
 	WARN_ON(!iov_iter_is_bvec(&con->v2.out_iter));
 	resid = iov_iter_count(&con->v2.out_iter);
 	WARN_ON(!resid || resid > con->v2.out_bvec.bv_len);
@@ -3568,10 +3543,11 @@ static void revoke_at_queue_data_cont(struct ceph_connection *con)
 
 	con->v2.out_iter.count -= resid;
 	out_zero_add(con, con->v2.out_cursor.total_resid);
-	queue_zeros(con);
+	queue_zeros(con, msg);
 }
 
-static void revoke_at_finish_message(struct ceph_connection *con)
+static void revoke_at_finish_message(struct ceph_connection *con,
+				     struct ceph_msg *msg)
 {
 	int boundary;
 	int resid;
@@ -3579,39 +3555,39 @@ static void revoke_at_finish_message(struct ceph_connection *con)
 	WARN_ON(!iov_iter_is_kvec(&con->v2.out_iter));
 	resid = iov_iter_count(&con->v2.out_iter);
 
-	if (!front_len(con->out_msg) && !middle_len(con->out_msg) &&
-	    !data_len(con->out_msg)) {
+	if (!front_len(msg) && !middle_len(msg) &&
+	    !data_len(msg)) {
 		WARN_ON(!resid || resid > MESSAGE_HEAD_PLAIN_LEN);
 		dout("%s con %p was sending head (empty message) - noop\n",
 		     __func__, con);
 		return;
 	}
 
-	boundary = front_len(con->out_msg) + middle_len(con->out_msg) +
+	boundary = front_len(msg) + middle_len(msg) +
 		   CEPH_EPILOGUE_PLAIN_LEN;
 	if (resid > boundary) {
 		resid -= boundary;
 		WARN_ON(resid > MESSAGE_HEAD_PLAIN_LEN);
 		dout("%s con %p was sending head\n", __func__, con);
-		if (front_len(con->out_msg))
-			prepare_zero_front(con, front_len(con->out_msg));
-		if (middle_len(con->out_msg))
-			prepare_zero_middle(con, middle_len(con->out_msg));
+		if (front_len(msg))
+			prepare_zero_front(con, msg, front_len(msg));
+		if (middle_len(msg))
+			prepare_zero_middle(con, msg, middle_len(msg));
 		con->v2.out_iter.count -= CEPH_EPILOGUE_PLAIN_LEN;
 		WARN_ON(iov_iter_count(&con->v2.out_iter) != resid);
 		con->v2.out_state = OUT_S_QUEUE_ZEROS;
 		return;
 	}
 
-	boundary = middle_len(con->out_msg) + CEPH_EPILOGUE_PLAIN_LEN;
+	boundary = middle_len(msg) + CEPH_EPILOGUE_PLAIN_LEN;
 	if (resid > boundary) {
 		resid -= boundary;
 		dout("%s con %p was sending front\n", __func__, con);
-		prepare_zero_front(con, resid);
-		if (middle_len(con->out_msg))
-			prepare_zero_middle(con, middle_len(con->out_msg));
+		prepare_zero_front(con, msg, resid);
+		if (middle_len(msg))
+			prepare_zero_middle(con, msg, middle_len(msg));
 		con->v2.out_iter.count -= CEPH_EPILOGUE_PLAIN_LEN;
-		queue_zeros(con);
+		queue_zeros(con, msg);
 		return;
 	}
 
@@ -3619,9 +3595,9 @@ static void revoke_at_finish_message(struct ceph_connection *con)
 	if (resid > boundary) {
 		resid -= boundary;
 		dout("%s con %p was sending middle\n", __func__, con);
-		prepare_zero_middle(con, resid);
+		prepare_zero_middle(con, msg, resid);
 		con->v2.out_iter.count -= CEPH_EPILOGUE_PLAIN_LEN;
-		queue_zeros(con);
+		queue_zeros(con, msg);
 		return;
 	}
 
@@ -3629,7 +3605,7 @@ static void revoke_at_finish_message(struct ceph_connection *con)
 	dout("%s con %p was sending epilogue - noop\n", __func__, con);
 }
 
-void ceph_con_v2_revoke(struct ceph_connection *con)
+void ceph_con_v2_revoke(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	WARN_ON(con->v2.out_zero);
 
@@ -3642,13 +3618,13 @@ void ceph_con_v2_revoke(struct ceph_connection *con)
 
 	switch (con->v2.out_state) {
 	case OUT_S_QUEUE_DATA:
-		revoke_at_queue_data(con);
+		revoke_at_queue_data(con, msg);
 		break;
 	case OUT_S_QUEUE_DATA_CONT:
-		revoke_at_queue_data_cont(con);
+		revoke_at_queue_data_cont(con, msg);
 		break;
 	case OUT_S_FINISH_MESSAGE:
-		revoke_at_finish_message(con);
+		revoke_at_finish_message(con, msg);
 		break;
 	default:
 		WARN(1, "bad out_state %d", con->v2.out_state);
@@ -3814,10 +3790,8 @@ void ceph_con_v2_reset_protocol(struct ceph_connection *con)
 	memzero_explicit(&con->v2.in_gcm_nonce, CEPH_GCM_IV_LEN);
 	memzero_explicit(&con->v2.out_gcm_nonce, CEPH_GCM_IV_LEN);
 
-	if (con->v2.hmac_tfm) {
-		crypto_free_shash(con->v2.hmac_tfm);
-		con->v2.hmac_tfm = NULL;
-	}
+	memzero_explicit(&con->v2.hmac_key, sizeof(con->v2.hmac_key));
+	con->v2.hmac_key_set = false;
 	if (con->v2.gcm_req) {
 		aead_request_free(con->v2.gcm_req);
 		con->v2.gcm_req = NULL;

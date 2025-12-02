@@ -57,6 +57,11 @@
 #define L3C_V2_NR_EVENTS	0xFF
 
 HISI_PMU_EVENT_ATTR_EXTRACTOR(ext, config, 17, 16);
+/*
+ * Remain the config1:0-7 for backward compatibility if some existing users
+ * hardcode the config1:0-7 directly without parsing the sysfs attribute.
+ */
+HISI_PMU_EVENT_ATTR_EXTRACTOR(tt_core_deprecated, config1, 7, 0);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(tt_req, config1, 10, 8);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(datasrc_cfg, config1, 15, 11);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(datasrc_skt, config1, 16, 16);
@@ -93,6 +98,21 @@ static bool support_ext(struct hisi_l3c_pmu *pmu)
 	struct hisi_l3c_pmu_ext *l3c_pmu_ext = pmu->l3c_pmu.dev_info->private;
 
 	return l3c_pmu_ext->support_ext;
+}
+
+/*
+ * tt_core was extended to cover all the CPUs sharing the L3 and was moved from
+ * config1:0-7 to config2:0-*. Try it first and fallback to tt_core_deprecated
+ * if user's still using the deprecated one.
+ */
+static u32 hisi_l3c_pmu_get_tt_core(struct perf_event *event)
+{
+	u32 core = hisi_get_tt_core(event);
+
+	if (core)
+		return core;
+
+	return hisi_get_tt_core_deprecated(event);
 }
 
 static int hisi_l3c_pmu_get_event_idx(struct perf_event *event)
@@ -259,7 +279,7 @@ static void hisi_l3c_pmu_clear_ds(struct perf_event *event)
 static void hisi_l3c_pmu_config_core_tracetag(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	u32 core = hisi_get_tt_core(event);
+	u32 core = hisi_l3c_pmu_get_tt_core(event);
 
 	if (core) {
 		u32 val;
@@ -280,7 +300,7 @@ static void hisi_l3c_pmu_config_core_tracetag(struct perf_event *event)
 static void hisi_l3c_pmu_clear_core_tracetag(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	u32 core = hisi_get_tt_core(event);
+	u32 core = hisi_l3c_pmu_get_tt_core(event);
 
 	if (core) {
 		u32 val;
@@ -300,7 +320,7 @@ static void hisi_l3c_pmu_clear_core_tracetag(struct perf_event *event)
 
 static bool hisi_l3c_pmu_have_filter(struct perf_event *event)
 {
-	return hisi_get_tt_req(event) || hisi_get_tt_core(event) ||
+	return hisi_get_tt_req(event) || hisi_l3c_pmu_get_tt_core(event) ||
 	       hisi_get_datasrc_cfg(event) || hisi_get_datasrc_skt(event);
 }
 
@@ -329,6 +349,9 @@ static int hisi_l3c_pmu_check_filter(struct perf_event *event)
 	int ext = hisi_get_ext(event);
 
 	if (ext < 0 || ext > hisi_l3c_pmu->ext_num)
+		return -EINVAL;
+
+	if (hisi_get_tt_core(event) && hisi_get_tt_core_deprecated(event))
 		return -EINVAL;
 
 	return 0;
@@ -602,10 +625,11 @@ static const struct attribute_group hisi_l3c_pmu_v1_format_group = {
 
 static struct attribute *hisi_l3c_pmu_v2_format_attr[] = {
 	HISI_PMU_FORMAT_ATTR(event, "config:0-7"),
-	HISI_PMU_FORMAT_ATTR(tt_core, "config2:0-15"),
+	HISI_PMU_FORMAT_ATTR(tt_core_deprecated, "config1:0-7"),
 	HISI_PMU_FORMAT_ATTR(tt_req, "config1:8-10"),
 	HISI_PMU_FORMAT_ATTR(datasrc_cfg, "config1:11-15"),
 	HISI_PMU_FORMAT_ATTR(datasrc_skt, "config1:16"),
+	HISI_PMU_FORMAT_ATTR(tt_core, "config2:0-15"),
 	NULL
 };
 
@@ -617,6 +641,7 @@ static const struct attribute_group hisi_l3c_pmu_v2_format_group = {
 static struct attribute *hisi_l3c_pmu_v3_format_attr[] = {
 	HISI_PMU_FORMAT_ATTR(event, "config:0-7"),
 	HISI_PMU_FORMAT_ATTR(ext, "config:16-17"),
+	HISI_PMU_FORMAT_ATTR(tt_core_deprecated, "config1:0-7"),
 	HISI_PMU_FORMAT_ATTR(tt_req, "config1:8-10"),
 	HISI_PMU_FORMAT_ATTR(tt_core, "config2:0-15"),
 	NULL

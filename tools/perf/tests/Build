@@ -20,7 +20,6 @@ perf-test-y += hists_link.o
 perf-test-y += hists_filter.o
 perf-test-y += hists_output.o
 perf-test-y += hists_cumulate.o
-perf-test-y += python-use.o
 perf-test-y += bp_signal.o
 perf-test-y += bp_signal_overflow.o
 perf-test-y += bp_account.o
@@ -75,7 +74,6 @@ ifeq ($(SRCARCH),$(filter $(SRCARCH),x86 arm arm64 powerpc))
 perf-test-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
 endif
 
-CFLAGS_python-use.o   += -DPYTHONPATH="BUILD_STR($(OUTPUT)python)" -DPYTHON="BUILD_STR($(PYTHON_WORD))"
 CFLAGS_dwarf-unwind.o += -fno-optimize-sibling-calls
 
 perf-test-y += workloads/

@@ -31,6 +31,12 @@ enum imx_rproc_method {
 /* dcfg flags */
 #define IMX_RPROC_NEED_SYSTEM_OFF	BIT(0)
 
+struct imx_rproc_plat_ops {
+	int (*start)(struct rproc *rproc);
+	int (*stop)(struct rproc *rproc);
+	int (*detect_mode)(struct rproc *rproc);
+};
+
 struct imx_rproc_dcfg {
 	u32				src_reg;
 	u32				src_mask;
@@ -42,6 +48,7 @@ struct imx_rproc_dcfg {
 	size_t				att_size;
 	enum imx_rproc_method		method;
 	u32				flags;
+	const struct imx_rproc_plat_ops	*ops;
 };
 
 #endif /* _IMX_RPROC_H */

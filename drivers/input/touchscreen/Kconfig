@@ -441,6 +441,16 @@ config TOUCHSCREEN_HIDEEP
 	  To compile this driver as a module, choose M here : the
 	  module will be called hideep_ts.
 
+config TOUCHSCREEN_HIMAX_HX852X
+	tristate "Himax HX852x(ES) touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have a Himax HX852x(ES) touchscreen.
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called himax_hx852x.
+
 config TOUCHSCREEN_HYCON_HY46XX
 	tristate "Hycon hy46xx touchscreen support"
 	depends on I2C
@@ -464,6 +474,18 @@ config TOUCHSCREEN_HYNITRON_CSTXXX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hynitron-cstxxx.
+
+config TOUCHSCREEN_HYNITRON_CST816X
+	tristate "Hynitron CST816x touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using a Hynitron
+	  CST816x series touchscreen controller.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hynitron-cst816x.
 
 config TOUCHSCREEN_ILI210X
 	tristate "Ilitek ILI210X based touchscreen"

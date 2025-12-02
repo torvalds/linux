@@ -562,8 +562,8 @@ void invalidate_all_cached_dirs(struct cifs_tcon *tcon)
 
 	/*
 	 * Mark all the cfids as closed, and move them to the cfids->dying list.
-	 * They'll be cleaned up later by cfids_invalidation_worker. Take
-	 * a reference to each cfid during this process.
+	 * They'll be cleaned up by laundromat.  Take a reference to each cfid
+	 * during this process.
 	 */
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
@@ -580,12 +580,11 @@ void invalidate_all_cached_dirs(struct cifs_tcon *tcon)
 		} else
 			kref_get(&cfid->refcount);
 	}
-	/*
-	 * Queue dropping of the dentries once locks have been dropped
-	 */
-	if (!list_empty(&cfids->dying))
-		queue_work(cfid_put_wq, &cfids->invalidation_work);
 	spin_unlock(&cfids->cfid_list_lock);
+
+	/* run laundromat unconditionally now as there might have been previously queued work */
+	mod_delayed_work(cfid_put_wq, &cfids->laundromat_work, 0);
+	flush_delayed_work(&cfids->laundromat_work);
 }
 
 static void
@@ -715,25 +714,6 @@ static void free_cached_dir(struct cached_fid *cfid)
 	kfree(cfid);
 }
 
-static void cfids_invalidation_worker(struct work_struct *work)
-{
-	struct cached_fids *cfids = container_of(work, struct cached_fids,
-						 invalidation_work);
-	struct cached_fid *cfid, *q;
-	LIST_HEAD(entry);
-
-	spin_lock(&cfids->cfid_list_lock);
-	/* move cfids->dying to the local list */
-	list_cut_before(&entry, &cfids->dying, &cfids->dying);
-	spin_unlock(&cfids->cfid_list_lock);
-
-	list_for_each_entry_safe(cfid, q, &entry, entry) {
-		list_del(&cfid->entry);
-		/* Drop the ref-count acquired in invalidate_all_cached_dirs */
-		kref_put(&cfid->refcount, smb2_close_cached_fid);
-	}
-}
-
 static void cfids_laundromat_worker(struct work_struct *work)
 {
 	struct cached_fids *cfids;
@@ -743,6 +723,9 @@ static void cfids_laundromat_worker(struct work_struct *work)
 	cfids = container_of(work, struct cached_fids, laundromat_work.work);
 
 	spin_lock(&cfids->cfid_list_lock);
+	/* move cfids->dying to the local list */
+	list_cut_before(&entry, &cfids->dying, &cfids->dying);
+
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
 		if (cfid->last_access_time &&
 		    time_after(jiffies, cfid->last_access_time + HZ * dir_cache_timeout)) {
@@ -796,7 +779,6 @@ struct cached_fids *init_cached_dirs(void)
 	INIT_LIST_HEAD(&cfids->entries);
 	INIT_LIST_HEAD(&cfids->dying);
 
-	INIT_WORK(&cfids->invalidation_work, cfids_invalidation_worker);
 	INIT_DELAYED_WORK(&cfids->laundromat_work, cfids_laundromat_worker);
 	queue_delayed_work(cfid_put_wq, &cfids->laundromat_work,
 			   dir_cache_timeout * HZ);
@@ -820,7 +802,6 @@ void free_cached_dirs(struct cached_fids *cfids)
 		return;
 
 	cancel_delayed_work_sync(&cfids->laundromat_work);
-	cancel_work_sync(&cfids->invalidation_work);
 
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {

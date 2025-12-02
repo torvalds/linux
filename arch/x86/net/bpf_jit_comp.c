@@ -420,12 +420,12 @@ static void emit_fineibt(u8 **pprog, u8 *ip, u32 hash, int arity)
 	u8 *prog = *pprog;
 
 	EMIT_ENDBR();
-	EMIT3_off32(0x41, 0x81, 0xea, hash);		/* subl $hash, %r10d	*/
+	EMIT1_off32(0x2d, hash);			/* subl $hash, %eax	*/
 	if (cfi_bhi) {
+		EMIT2(0x2e, 0x2e);			/* cs cs */
 		emit_call(&prog, __bhi_args[arity], ip + 11);
 	} else {
-		EMIT2(0x75, 0xf9);			/* jne.d8 .-7		*/
-		EMIT3(0x0f, 0x1f, 0x00);		/* nop3			*/
+		EMIT3_off32(0x2e, 0x0f, 0x85, 3);	/* jne.d32,pn 3		*/
 	}
 	EMIT_ENDBR_POISON();
 

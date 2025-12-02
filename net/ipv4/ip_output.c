@@ -1668,7 +1668,7 @@ void ip_send_unicast_reply(struct sock *sk, const struct sock *orig_sk,
 		nskb->ip_summed = CHECKSUM_NONE;
 		if (orig_sk) {
 			skb_set_owner_edemux(nskb, (struct sock *)orig_sk);
-			psp_reply_set_decrypted(nskb);
+			psp_reply_set_decrypted(orig_sk, nskb);
 		}
 		if (transmit_time)
 			nskb->tstamp_type = SKB_CLOCK_MONOTONIC;

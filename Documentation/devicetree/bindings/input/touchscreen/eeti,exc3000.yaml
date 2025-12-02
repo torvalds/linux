@@ -9,27 +9,35 @@ title: EETI EXC3000 series touchscreen controller
 maintainers:
   - Dmitry Torokhov <dmitry.torokhov@gmail.com>
 
-allOf:
-  - $ref: touchscreen.yaml#
-
 properties:
   compatible:
     oneOf:
       - const: eeti,exc3000
       - const: eeti,exc80h60
       - const: eeti,exc80h84
+      - const: eeti,egalax_ts # Do NOT use for new binding
+      - const: eeti,exc3000-i2c
+        deprecated: true
       - items:
           - enum:
               - eeti,exc81w32
           - const: eeti,exc80h84
   reg:
-    const: 0x2a
+    enum: [0x4, 0xa, 0x2a]
   interrupts:
     maxItems: 1
   reset-gpios:
     maxItems: 1
+  wakeup-gpios:
+    maxItems: 1
   vdd-supply:
     description: Power supply regulator for the chip
+  attn-gpios:
+    deprecated: true
+    maxItems: 1
+    description: Phandle to a GPIO to check whether interrupt is still
+                 latched. This is necessary for platforms that lack
+                 support for level-triggered IRQs.
   touchscreen-size-x: true
   touchscreen-size-y: true
   touchscreen-inverted-x: true
@@ -40,10 +48,32 @@ required:
   - compatible
   - reg
   - interrupts
-  - touchscreen-size-x
-  - touchscreen-size-y
 
 additionalProperties: false
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - eeti,egalax_ts
+                - eeti,exc3000-i2c
+    then:
+      properties:
+        reg:
+          const: 0x2a
+
+        wakeup-gpios: false
+
+        attn-gpios: false
+
+      required:
+        - touchscreen-size-x
+        - touchscreen-size-y
 
 examples:
   - |

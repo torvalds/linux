@@ -131,7 +131,7 @@ static ssize_t adi_write(struct file *file, const char __user *buf,
 	ssize_t ret;
 	int i;
 
-	if (count <= 0)
+	if (count == 0)
 		return -EINVAL;
 
 	ver_buf_sz = min_t(size_t, count, MAX_BUF_SZ);

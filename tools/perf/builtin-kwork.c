@@ -2273,12 +2273,23 @@ static void setup_event_list(struct perf_kwork *kwork,
 	pr_debug("\n");
 }
 
+#define STRDUP_FAIL_EXIT(s)		\
+	({	char *_p;		\
+		_p = strdup(s);		\
+		if (!_p) {		\
+			ret = -ENOMEM;	\
+			goto EXIT;	\
+		}			\
+		_p;			\
+	})
+
 static int perf_kwork__record(struct perf_kwork *kwork,
 			      int argc, const char **argv)
 {
 	const char **rec_argv;
 	unsigned int rec_argc, i, j;
 	struct kwork_class *class;
+	int ret;
 
 	const char *const record_args[] = {
 		"record",
@@ -2298,17 +2309,17 @@ static int perf_kwork__record(struct perf_kwork *kwork,
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
-		rec_argv[i] = strdup(record_args[i]);
+		rec_argv[i] = STRDUP_FAIL_EXIT(record_args[i]);
 
 	list_for_each_entry(class, &kwork->class_list, list) {
 		for (j = 0; j < class->nr_tracepoints; j++) {
-			rec_argv[i++] = strdup("-e");
-			rec_argv[i++] = strdup(class->tp_handlers[j].name);
+			rec_argv[i++] = STRDUP_FAIL_EXIT("-e");
+			rec_argv[i++] = STRDUP_FAIL_EXIT(class->tp_handlers[j].name);
 		}
 	}
 
 	for (j = 1; j < (unsigned int)argc; j++, i++)
-		rec_argv[i] = argv[j];
+		rec_argv[i] = STRDUP_FAIL_EXIT(argv[j]);
 
 	BUG_ON(i != rec_argc);
 
@@ -2317,7 +2328,13 @@ static int perf_kwork__record(struct perf_kwork *kwork,
 		pr_debug("%s ", rec_argv[j]);
 	pr_debug("\n");
 
-	return cmd_record(i, rec_argv);
+	ret = cmd_record(i, rec_argv);
+
+EXIT:
+	for (i = 0; i < rec_argc; i++)
+		free((void *)rec_argv[i]);
+	free(rec_argv);
+	return ret;
 }
 
 int cmd_kwork(int argc, const char **argv)

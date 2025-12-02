@@ -73,6 +73,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 
 #include "ad525x_dpot.h"
 
@@ -418,10 +419,8 @@ static ssize_t sysfs_show_reg(struct device *dev,
 	s32 value;
 
 	if (reg & DPOT_ADDR_OTP_EN)
-		return sprintf(buf, "%s\n",
-			test_bit(DPOT_RDAC_MASK & reg, data->otp_en_mask) ?
-			"enabled" : "disabled");
-
+		return sprintf(buf, "%s\n", str_enabled_disabled(
+			test_bit(DPOT_RDAC_MASK & reg, data->otp_en_mask)));
 
 	mutex_lock(&data->update_lock);
 	value = dpot_read(data, reg);

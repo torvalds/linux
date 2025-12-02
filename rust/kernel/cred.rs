@@ -50,6 +50,12 @@ impl Credential {
         unsafe { &*ptr.cast() }
     }
 
+    /// Returns a raw pointer to the inner credential.
+    #[inline]
+    pub fn as_ptr(&self) -> *const bindings::cred {
+        self.0.get()
+    }
+
     /// Get the id for this security context.
     #[inline]
     pub fn get_secid(&self) -> u32 {

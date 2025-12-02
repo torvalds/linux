@@ -367,6 +367,7 @@ static struct skcipher_engine_alg cipher_algs[] = {
 			.cra_driver_name	= "ecb-aes-dthev2",
 			.cra_priority		= 299,
 			.cra_flags		= CRYPTO_ALG_TYPE_SKCIPHER |
+						  CRYPTO_ALG_ASYNC |
 						  CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_alignmask		= AES_BLOCK_SIZE - 1,
 			.cra_blocksize		= AES_BLOCK_SIZE,
@@ -389,6 +390,7 @@ static struct skcipher_engine_alg cipher_algs[] = {
 			.cra_driver_name	= "cbc-aes-dthev2",
 			.cra_priority		= 299,
 			.cra_flags		= CRYPTO_ALG_TYPE_SKCIPHER |
+						  CRYPTO_ALG_ASYNC |
 						  CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_alignmask		= AES_BLOCK_SIZE - 1,
 			.cra_blocksize		= AES_BLOCK_SIZE,

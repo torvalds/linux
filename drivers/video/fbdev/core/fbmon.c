@@ -36,6 +36,7 @@
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 #include "../edid.h"
+#include <linux/string_choices.h>
 
 /*
  * EDID parser
@@ -320,9 +321,9 @@ static void get_dpms_capabilities(unsigned char flags,
 	if (flags & DPMS_STANDBY)
 		specs->dpms |= FB_DPMS_STANDBY;
 	DPRINTK("      DPMS: Active %s, Suspend %s, Standby %s\n",
-	       (flags & DPMS_ACTIVE_OFF) ? "yes" : "no",
-	       (flags & DPMS_SUSPEND)    ? "yes" : "no",
-	       (flags & DPMS_STANDBY)    ? "yes" : "no");
+	       str_yes_no(flags & DPMS_ACTIVE_OFF),
+	       str_yes_no(flags & DPMS_SUSPEND),
+	       str_yes_no(flags & DPMS_STANDBY));
 }
 
 static void get_chroma(unsigned char *block, struct fb_monspecs *specs)

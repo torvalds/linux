@@ -21,7 +21,7 @@ static int rt722_sdca_mbq_size(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case 0x2f01 ... 0x2f0a:
 	case 0x2f35 ... 0x2f36:
-	case 0x2f50:
+	case 0x2f50 ... 0x2f52:
 	case 0x2f54:
 	case 0x2f58 ... 0x2f5d:
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT0, RT722_SDCA_CTL_FUNC_STATUS, 0):

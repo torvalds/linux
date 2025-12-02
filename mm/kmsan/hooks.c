@@ -339,13 +339,12 @@ static void kmsan_handle_dma_page(const void *addr, size_t size,
 void kmsan_handle_dma(phys_addr_t phys, size_t size,
 		      enum dma_data_direction dir)
 {
-	struct page *page = phys_to_page(phys);
 	u64 page_offset, to_go;
 	void *addr;
 
 	if (PhysHighMem(phys))
 		return;
-	addr = page_to_virt(page);
+	addr = phys_to_virt(phys);
 	/*
 	 * The kernel may occasionally give us adjacent DMA pages not belonging
 	 * to the same allocation. Process them separately to avoid triggering

@@ -117,6 +117,7 @@ enum perf_synth_id {
 	PERF_SYNTH_INTEL_PSB,
 	PERF_SYNTH_INTEL_EVT,
 	PERF_SYNTH_INTEL_IFLAG_CHG,
+	PERF_SYNTH_POWERPC_VPA_DTL,
 };
 
 /*
@@ -253,6 +254,25 @@ struct perf_synth_intel_iflag_chg {
 	};
 	u64	branch_ip; /* If via_branch */
 };
+
+/*
+ * The powerpc VPA DTL entries are of below format
+ */
+struct powerpc_vpadtl_entry {
+	u8      dispatch_reason;
+	u8      preempt_reason;
+	u16     processor_id;
+	u32     enqueue_to_dispatch_time;
+	u32     ready_to_enqueue_time;
+	u32     waiting_to_ready_time;
+	u64     timebase;
+	u64     fault_addr;
+	u64     srr0;
+	u64     srr1;
+};
+
+extern const char *dispatch_reasons[11];
+extern const char *preempt_reasons[10];
 
 static inline void *perf_synth__raw_data(void *p)
 {

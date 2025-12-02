@@ -685,16 +685,16 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 }
 ALLOW_ERROR_INJECTION(wait_for_lmem_ready, ERRNO); /* See xe_pci_probe() */
 
-static void sriov_update_device_info(struct xe_device *xe)
+static void vf_update_device_info(struct xe_device *xe)
 {
+	xe_assert(xe, IS_SRIOV_VF(xe));
 	/* disable features that are not available/applicable to VFs */
-	if (IS_SRIOV_VF(xe)) {
-		xe->info.probe_display = 0;
-		xe->info.has_heci_cscfi = 0;
-		xe->info.has_heci_gscfi = 0;
-		xe->info.skip_guc_pc = 1;
-		xe->info.skip_pcode = 1;
-	}
+	xe->info.probe_display = 0;
+	xe->info.has_heci_cscfi = 0;
+	xe->info.has_heci_gscfi = 0;
+	xe->info.has_late_bind = 0;
+	xe->info.skip_guc_pc = 1;
+	xe->info.skip_pcode = 1;
 }
 
 static int xe_device_vram_alloc(struct xe_device *xe)
@@ -735,7 +735,8 @@ int xe_device_probe_early(struct xe_device *xe)
 
 	xe_sriov_probe_early(xe);
 
-	sriov_update_device_info(xe);
+	if (IS_SRIOV_VF(xe))
+		vf_update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
 	if (err || xe_survivability_mode_is_requested(xe)) {
@@ -1069,7 +1070,7 @@ void xe_device_l2_flush(struct xe_device *xe)
 	spin_lock(&gt->global_invl_lock);
 
 	xe_mmio_write32(&gt->mmio, XE2_GLOBAL_INVAL, 0x1);
-	if (xe_mmio_wait32(&gt->mmio, XE2_GLOBAL_INVAL, 0x1, 0x0, 500, NULL, true))
+	if (xe_mmio_wait32(&gt->mmio, XE2_GLOBAL_INVAL, 0x1, 0x0, 1000, NULL, true))
 		xe_gt_err_once(gt, "Global invalidation timeout\n");
 
 	spin_unlock(&gt->global_invl_lock);

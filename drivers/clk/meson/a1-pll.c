@@ -26,7 +26,7 @@
 
 #include <dt-bindings/clock/amlogic,a1-pll-clkc.h>
 
-static struct clk_regmap fixed_pll_dco = {
+static struct clk_regmap a1_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_FIXPLL_CTRL0,
@@ -69,7 +69,7 @@ static struct clk_regmap fixed_pll_dco = {
 	},
 };
 
-static struct clk_regmap fixed_pll = {
+static struct clk_regmap a1_fixed_pll = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_FIXPLL_CTRL0,
 		.bit_idx = 20,
@@ -78,18 +78,18 @@ static struct clk_regmap fixed_pll = {
 		.name = "fixed_pll",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fixed_pll_dco.hw
+			&a1_fixed_pll_dco.hw
 		},
 		.num_parents = 1,
 	},
 };
 
-static const struct pll_mult_range hifi_pll_mult_range = {
+static const struct pll_mult_range a1_hifi_pll_range = {
 	.min = 32,
 	.max = 64,
 };
 
-static const struct reg_sequence hifi_init_regs[] = {
+static const struct reg_sequence a1_hifi_pll_init_regs[] = {
 	{ .reg = ANACTRL_HIFIPLL_CTRL1, .def = 0x01800000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2, .def = 0x00001100 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3, .def = 0x100a1100 },
@@ -97,7 +97,7 @@ static const struct reg_sequence hifi_init_regs[] = {
 	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x01f18000 },
 };
 
-static struct clk_regmap hifi_pll = {
+static struct clk_regmap a1_hifi_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
@@ -134,9 +134,9 @@ static struct clk_regmap hifi_pll = {
 			.shift   = 6,
 			.width   = 1,
 		},
-		.range = &hifi_pll_mult_range,
-		.init_regs = hifi_init_regs,
-		.init_count = ARRAY_SIZE(hifi_init_regs),
+		.range = &a1_hifi_pll_range,
+		.init_regs = a1_hifi_pll_init_regs,
+		.init_count = ARRAY_SIZE(a1_hifi_pll_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll",
@@ -148,20 +148,20 @@ static struct clk_regmap hifi_pll = {
 	},
 };
 
-static struct clk_fixed_factor fclk_div2_div = {
+static struct clk_fixed_factor a1_fclk_div2_div = {
 	.mult = 1,
 	.div = 2,
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div2_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fixed_pll.hw
+			&a1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap fclk_div2 = {
+static struct clk_regmap a1_fclk_div2 = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_FIXPLL_CTRL0,
 		.bit_idx = 21,
@@ -170,7 +170,7 @@ static struct clk_regmap fclk_div2 = {
 		.name = "fclk_div2",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div2_div.hw
+			&a1_fclk_div2_div.hw
 		},
 		.num_parents = 1,
 		/*
@@ -186,20 +186,20 @@ static struct clk_regmap fclk_div2 = {
 	},
 };
 
-static struct clk_fixed_factor fclk_div3_div = {
+static struct clk_fixed_factor a1_fclk_div3_div = {
 	.mult = 1,
 	.div = 3,
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div3_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fixed_pll.hw
+			&a1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap fclk_div3 = {
+static struct clk_regmap a1_fclk_div3 = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_FIXPLL_CTRL0,
 		.bit_idx = 22,
@@ -208,7 +208,7 @@ static struct clk_regmap fclk_div3 = {
 		.name = "fclk_div3",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div3_div.hw
+			&a1_fclk_div3_div.hw
 		},
 		.num_parents = 1,
 		/*
@@ -219,20 +219,20 @@ static struct clk_regmap fclk_div3 = {
 	},
 };
 
-static struct clk_fixed_factor fclk_div5_div = {
+static struct clk_fixed_factor a1_fclk_div5_div = {
 	.mult = 1,
 	.div = 5,
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div5_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fixed_pll.hw
+			&a1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap fclk_div5 = {
+static struct clk_regmap a1_fclk_div5 = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_FIXPLL_CTRL0,
 		.bit_idx = 23,
@@ -241,7 +241,7 @@ static struct clk_regmap fclk_div5 = {
 		.name = "fclk_div5",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div5_div.hw
+			&a1_fclk_div5_div.hw
 		},
 		.num_parents = 1,
 		/*
@@ -252,20 +252,20 @@ static struct clk_regmap fclk_div5 = {
 	},
 };
 
-static struct clk_fixed_factor fclk_div7_div = {
+static struct clk_fixed_factor a1_fclk_div7_div = {
 	.mult = 1,
 	.div = 7,
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div7_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fixed_pll.hw
+			&a1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap fclk_div7 = {
+static struct clk_regmap a1_fclk_div7 = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_FIXPLL_CTRL0,
 		.bit_idx = 24,
@@ -274,7 +274,7 @@ static struct clk_regmap fclk_div7 = {
 		.name = "fclk_div7",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div7_div.hw
+			&a1_fclk_div7_div.hw
 		},
 		.num_parents = 1,
 	},
@@ -282,69 +282,37 @@ static struct clk_regmap fclk_div7 = {
 
 /* Array of all clocks registered by this provider */
 static struct clk_hw *a1_pll_hw_clks[] = {
-	[CLKID_FIXED_PLL_DCO]	= &fixed_pll_dco.hw,
-	[CLKID_FIXED_PLL]	= &fixed_pll.hw,
-	[CLKID_FCLK_DIV2_DIV]	= &fclk_div2_div.hw,
-	[CLKID_FCLK_DIV3_DIV]	= &fclk_div3_div.hw,
-	[CLKID_FCLK_DIV5_DIV]	= &fclk_div5_div.hw,
-	[CLKID_FCLK_DIV7_DIV]	= &fclk_div7_div.hw,
-	[CLKID_FCLK_DIV2]	= &fclk_div2.hw,
-	[CLKID_FCLK_DIV3]	= &fclk_div3.hw,
-	[CLKID_FCLK_DIV5]	= &fclk_div5.hw,
-	[CLKID_FCLK_DIV7]	= &fclk_div7.hw,
-	[CLKID_HIFI_PLL]	= &hifi_pll.hw,
+	[CLKID_FIXED_PLL_DCO]	= &a1_fixed_pll_dco.hw,
+	[CLKID_FIXED_PLL]	= &a1_fixed_pll.hw,
+	[CLKID_FCLK_DIV2_DIV]	= &a1_fclk_div2_div.hw,
+	[CLKID_FCLK_DIV3_DIV]	= &a1_fclk_div3_div.hw,
+	[CLKID_FCLK_DIV5_DIV]	= &a1_fclk_div5_div.hw,
+	[CLKID_FCLK_DIV7_DIV]	= &a1_fclk_div7_div.hw,
+	[CLKID_FCLK_DIV2]	= &a1_fclk_div2.hw,
+	[CLKID_FCLK_DIV3]	= &a1_fclk_div3.hw,
+	[CLKID_FCLK_DIV5]	= &a1_fclk_div5.hw,
+	[CLKID_FCLK_DIV7]	= &a1_fclk_div7.hw,
+	[CLKID_HIFI_PLL]	= &a1_hifi_pll.hw,
 };
 
-static const struct regmap_config a1_pll_regmap_cfg = {
-	.reg_bits   = 32,
-	.val_bits   = 32,
-	.reg_stride = 4,
-	.max_register = ANACTRL_HIFIPLL_STS,
+static const struct meson_clkc_data a1_pll_clkc_data = {
+	.hw_clks = {
+		.hws = a1_pll_hw_clks,
+		.num = ARRAY_SIZE(a1_pll_hw_clks),
+	},
 };
-
-static struct meson_clk_hw_data a1_pll_clks = {
-	.hws = a1_pll_hw_clks,
-	.num = ARRAY_SIZE(a1_pll_hw_clks),
-};
-
-static int meson_a1_pll_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	void __iomem *base;
-	struct regmap *map;
-	int clkid, err;
-
-	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return dev_err_probe(dev, PTR_ERR(base),
-				     "can't ioremap resource\n");
-
-	map = devm_regmap_init_mmio(dev, base, &a1_pll_regmap_cfg);
-	if (IS_ERR(map))
-		return dev_err_probe(dev, PTR_ERR(map),
-				     "can't init regmap mmio region\n");
-
-	/* Register clocks */
-	for (clkid = 0; clkid < a1_pll_clks.num; clkid++) {
-		err = devm_clk_hw_register(dev, a1_pll_clks.hws[clkid]);
-		if (err)
-			return dev_err_probe(dev, err,
-					     "clock[%d] registration failed\n",
-					     clkid);
-	}
-
-	return devm_of_clk_add_hw_provider(dev, meson_clk_hw_get,
-					   &a1_pll_clks);
-}
 
 static const struct of_device_id a1_pll_clkc_match_table[] = {
-	{ .compatible = "amlogic,a1-pll-clkc", },
+	{
+		.compatible = "amlogic,a1-pll-clkc",
+		.data = &a1_pll_clkc_data,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, a1_pll_clkc_match_table);
 
 static struct platform_driver a1_pll_clkc_driver = {
-	.probe = meson_a1_pll_probe,
+	.probe = meson_clkc_mmio_probe,
 	.driver = {
 		.name = "a1-pll-clkc",
 		.of_match_table = a1_pll_clkc_match_table,

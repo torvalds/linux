@@ -359,6 +359,44 @@ static void test_mmio_ease(void)
 	kvm_vm_free(vm);
 }
 
+static void test_serror_amo_guest(void)
+{
+	/*
+	 * The ISB is entirely unnecessary (and highlights how FEAT_NV2 is borked)
+	 * since the write is redirected to memory. But don't write (intentionally)
+	 * broken code!
+	 */
+	sysreg_clear_set(hcr_el2, HCR_EL2_AMO | HCR_EL2_TGE, 0);
+	isb();
+
+	GUEST_SYNC(0);
+	GUEST_ASSERT(read_sysreg(isr_el1) & ISR_EL1_A);
+
+	/*
+	 * KVM treats the effective value of AMO as 1 when
+	 * HCR_EL2.{E2H,TGE} = {1, 0}, meaning the SError will be taken when
+	 * unmasked.
+	 */
+	local_serror_enable();
+	isb();
+	local_serror_disable();
+
+	GUEST_FAIL("Should've taken pending SError exception");
+}
+
+static void test_serror_amo(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm = vm_create_with_dabt_handler(&vcpu, test_serror_amo_guest,
+							unexpected_dabt_handler);
+
+	vm_install_exception_handler(vm, VECTOR_ERROR_CURRENT, expect_serror_handler);
+	vcpu_run_expect_sync(vcpu);
+	vcpu_inject_serror(vcpu);
+	vcpu_run_expect_done(vcpu);
+	kvm_vm_free(vm);
+}
+
 int main(void)
 {
 	test_mmio_abort();
@@ -369,4 +407,9 @@ int main(void)
 	test_serror_emulated();
 	test_mmio_ease();
 	test_s1ptw_abort();
+
+	if (!test_supports_el2())
+		return 0;
+
+	test_serror_amo();
 }

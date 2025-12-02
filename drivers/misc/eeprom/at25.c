@@ -379,50 +379,55 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 	struct at25_data *at25 = container_of(chip, struct at25_data, chip);
 	u8 sernum[FM25_SN_LEN];
 	u8 id[FM25_ID_LEN];
+	u32 val;
 	int i;
 
 	strscpy(chip->name, "fm25", sizeof(chip->name));
 
-	/* Get ID of chip */
-	fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);
-	/* There are inside-out FRAM variations, detect them and reverse the ID bytes */
-	if (id[6] == 0x7f && id[2] == 0xc2)
-		for (i = 0; i < ARRAY_SIZE(id) / 2; i++) {
-			u8 tmp = id[i];
-			int j = ARRAY_SIZE(id) - i - 1;
+	if (!device_property_read_u32(dev, "size", &val)) {
+		chip->byte_len = val;
+	} else {
+		/* Get ID of chip */
+		fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);
+		/* There are inside-out FRAM variations, detect them and reverse the ID bytes */
+		if (id[6] == 0x7f && id[2] == 0xc2)
+			for (i = 0; i < ARRAY_SIZE(id) / 2; i++) {
+				u8 tmp = id[i];
+				int j = ARRAY_SIZE(id) - i - 1;
 
-			id[i] = id[j];
-			id[j] = tmp;
+				id[i] = id[j];
+				id[j] = tmp;
+			}
+		if (id[6] != 0xc2) {
+			dev_err(dev, "Error: no Cypress FRAM with device ID (manufacturer ID bank 7: %02x)\n", id[6]);
+			return -ENODEV;
 		}
-	if (id[6] != 0xc2) {
-		dev_err(dev, "Error: no Cypress FRAM (id %02x)\n", id[6]);
-		return -ENODEV;
-	}
 
-	switch (id[7]) {
-	case 0x21 ... 0x26:
-		chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
-		break;
-	case 0x2a ... 0x30:
-		/* CY15B116QN ... CY15B116QN */
-		chip->byte_len = BIT(((id[7] >> 1) & 0xf) + 13);
-		break;
-	default:
-		dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
-		return -ENODEV;
+		switch (id[7]) {
+		case 0x21 ... 0x26:
+			chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
+			break;
+		case 0x2a ... 0x30:
+			/* CY15B116QN ... CY15B116QN */
+			chip->byte_len = BIT(((id[7] >> 1) & 0xf) + 13);
+			break;
+		default:
+			dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
+			return -ENODEV;
+		}
+
+		if (id[8]) {
+			fm25_aux_read(at25, sernum, FM25_RDSN, FM25_SN_LEN);
+			/* Swap byte order */
+			for (i = 0; i < FM25_SN_LEN; i++)
+				at25->sernum[i] = sernum[FM25_SN_LEN - 1 - i];
+		}
 	}
 
 	if (chip->byte_len > 64 * 1024)
 		chip->flags |= EE_ADDR3;
 	else
 		chip->flags |= EE_ADDR2;
-
-	if (id[8]) {
-		fm25_aux_read(at25, sernum, FM25_RDSN, FM25_SN_LEN);
-		/* Swap byte order */
-		for (i = 0; i < FM25_SN_LEN; i++)
-			at25->sernum[i] = sernum[FM25_SN_LEN - 1 - i];
-	}
 
 	chip->page_size = PAGE_SIZE;
 	return 0;

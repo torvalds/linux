@@ -29,7 +29,7 @@
  *
  * Also see the examples in the liburing library:
  *
- *	git://git.kernel.dk/liburing
+ *	git://git.kernel.org/pub/scm/linux/kernel/git/axboe/liburing.git
  *
  * io_uring also uses READ/WRITE_ONCE() for _any_ store or load that happens
  * from data shared between the kernel and application. This is done both

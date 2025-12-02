@@ -9,6 +9,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mman.h>
 #include <linux/uaccess.h>
+#include <linux/objtool.h>
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
 
@@ -86,6 +87,10 @@ static noinline __nocfi void execute_location(void *dst, bool write)
 	func();
 	pr_err("FAIL: func returned\n");
 }
+/*
+ * Explicitly doing the wrong thing for testing.
+ */
+ANNOTATE_NOCFI_SYM(execute_location);
 
 static void execute_user_location(void *dst)
 {

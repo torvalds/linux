@@ -3277,7 +3277,7 @@ replay_again:
 		buf->EndOfFile = rsp->EndofFile;
 		buf->Attributes = rsp->FileAttributes;
 		buf->NumberOfLinks = cpu_to_le32(1);
-		buf->DeletePending = 0;
+		buf->DeletePending = 0; /* successful open = not delete pending */
 	}
 
 

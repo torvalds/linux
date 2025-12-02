@@ -1732,6 +1732,21 @@ static enum dc_status dcn351_validate_bandwidth(struct dc *dc,
 	return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
+static int populate_dml_pipes_from_context_fpu(struct dc *dc,
+					       struct dc_state *context,
+					       display_e2e_pipe_params_st *pipes,
+					       enum dc_validate_mode validate_mode)
+{
+	int ret;
+
+	DC_FP_START();
+	ret = dcn351_populate_dml_pipes_from_context_fpu(dc, context, pipes, validate_mode);
+	DC_FP_END();
+
+	return ret;
+
+}
+
 static struct resource_funcs dcn351_res_pool_funcs = {
 	.destroy = dcn351_destroy_resource_pool,
 	.link_enc_create = dcn35_link_encoder_create,
@@ -1742,7 +1757,7 @@ static struct resource_funcs dcn351_res_pool_funcs = {
 	.validate_bandwidth = dcn351_validate_bandwidth,
 	.calculate_wm_and_dlg = NULL,
 	.update_soc_for_wm_a = dcn31_update_soc_for_wm_a,
-	.populate_dml_pipes = dcn351_populate_dml_pipes_from_context_fpu,
+	.populate_dml_pipes = populate_dml_pipes_from_context_fpu,
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
 	.release_pipe = dcn20_release_pipe,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,

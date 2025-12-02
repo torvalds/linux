@@ -305,8 +305,7 @@ static int ens160_setup_trigger(struct iio_dev *indio_dev, int irq)
 	trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
 				      iio_device_id(indio_dev));
 	if (!trig)
-		return dev_err_probe(dev, -ENOMEM,
-				     "failed to allocate trigger\n");
+		return -ENOMEM;
 
 	trig->ops = &ens160_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);

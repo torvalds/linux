@@ -499,7 +499,7 @@ static inline struct i2c_client *i2c_verify_client(struct device *dev)
  * Modules for add-on boards must use other calls.
  */
 #ifdef CONFIG_I2C_BOARDINFO
-int __init
+int
 i2c_register_board_info(int busnum, struct i2c_board_info const *info,
 			unsigned n);
 #else

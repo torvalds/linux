@@ -30,7 +30,7 @@ static int mei_dmam_dscr_alloc(struct mei_device *dev,
 	if (dscr->vaddr)
 		return 0;
 
-	dscr->vaddr = dmam_alloc_coherent(dev->dev, dscr->size, &dscr->daddr,
+	dscr->vaddr = dmam_alloc_coherent(dev->parent, dscr->size, &dscr->daddr,
 					  GFP_KERNEL);
 	if (!dscr->vaddr)
 		return -ENOMEM;
@@ -50,7 +50,7 @@ static void mei_dmam_dscr_free(struct mei_device *dev,
 	if (!dscr->vaddr)
 		return;
 
-	dmam_free_coherent(dev->dev, dscr->size, dscr->vaddr, dscr->daddr);
+	dmam_free_coherent(dev->parent, dscr->size, dscr->vaddr, dscr->daddr);
 	dscr->vaddr = NULL;
 }
 
@@ -177,7 +177,7 @@ void mei_dma_ring_read(struct mei_device *dev, unsigned char *buf, u32 len)
 	if (WARN_ON(!ctrl))
 		return;
 
-	dev_dbg(dev->dev, "reading from dma %u bytes\n", len);
+	dev_dbg(&dev->dev, "reading from dma %u bytes\n", len);
 
 	if (!len)
 		return;
@@ -254,7 +254,7 @@ void mei_dma_ring_write(struct mei_device *dev, unsigned char *buf, u32 len)
 	if (WARN_ON(!ctrl))
 		return;
 
-	dev_dbg(dev->dev, "writing to dma %u bytes\n", len);
+	dev_dbg(&dev->dev, "writing to dma %u bytes\n", len);
 	hbuf_depth = mei_dma_ring_hbuf_depth(dev);
 	wr_idx = READ_ONCE(ctrl->hbuf_wr_idx) & (hbuf_depth - 1);
 	slots = mei_data2slots(len);

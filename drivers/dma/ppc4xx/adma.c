@@ -874,7 +874,7 @@ static int ppc440spe_dma2_pq_slot_count(dma_addr_t *srcs,
 		pr_err("%s: src_cnt=%d, state=%d, addr_count=%d, order=%lld\n",
 			__func__, src_cnt, state, addr_count, order);
 		for (i = 0; i < src_cnt; i++)
-			pr_err("\t[%d] 0x%llx \n", i, srcs[i]);
+			pr_err("\t[%d] 0x%llx\n", i, srcs[i]);
 		BUG();
 	}
 
@@ -3636,7 +3636,7 @@ static void ppc440spe_adma_issue_pending(struct dma_chan *chan)
 
 	ppc440spe_chan = to_ppc440spe_adma_chan(chan);
 	dev_dbg(ppc440spe_chan->device->common.dev,
-		"ppc440spe adma%d: %s %d \n", ppc440spe_chan->device->id,
+		"ppc440spe adma%d: %s %d\n", ppc440spe_chan->device->id,
 		__func__, ppc440spe_chan->pending);
 
 	if (ppc440spe_chan->pending) {

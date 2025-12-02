@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/console.h>
 #include <linux/sched.h>
+#include <linux/string.h>
 #include <linux/tty.h>
 
 #include <asm/addrspace.h>
@@ -65,7 +66,7 @@ void __init plat_mem_setup(void)
 		static char options[8] __initdata;
 		char *baud = ArcGetEnvironmentVariable("dbaud");
 		if (baud)
-			strcpy(options, baud);
+			strscpy(options, baud);
 		add_preferred_console("ttyS", *(ctype + 1) == '2' ? 1 : 0,
 				      baud ? options : NULL);
 	} else if (!ctype || *ctype != 'g') {

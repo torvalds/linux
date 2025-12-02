@@ -6,6 +6,7 @@
  *  Copyright (c) 2014 Sebastian Reichel <sre@kernel.org>
  */
 
+#include <linux/export.h>
 #include <linux/property.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>

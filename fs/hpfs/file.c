@@ -51,7 +51,9 @@ static secno hpfs_bmap(struct inode *inode, unsigned file_secno, unsigned *n_sec
 		return hpfs_inode->i_disk_sec + n;
 	}
 	if (!(fnode = hpfs_map_fnode(inode->i_sb, inode->i_ino, &bh))) return 0;
-	disk_secno = hpfs_bplus_lookup(inode->i_sb, inode, &fnode->btree, file_secno, bh);
+	disk_secno = hpfs_bplus_lookup(inode->i_sb, inode,
+				       GET_BTREE_PTR(&fnode->btree),
+				       file_secno, bh);
 	if (disk_secno == -1) return 0;
 	if (hpfs_chk_sectors(inode->i_sb, disk_secno, 1, "bmap")) return 0;
 	n = file_secno - hpfs_inode->i_file_sec;

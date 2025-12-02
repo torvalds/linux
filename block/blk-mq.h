@@ -186,7 +186,8 @@ void blk_mq_put_tag(struct blk_mq_tags *tags, struct blk_mq_ctx *ctx,
 void blk_mq_put_tags(struct blk_mq_tags *tags, int *tag_array, int nr_tags);
 void blk_mq_tag_resize_shared_tags(struct blk_mq_tag_set *set,
 		unsigned int size);
-void blk_mq_tag_update_sched_shared_tags(struct request_queue *q);
+void blk_mq_tag_update_sched_shared_tags(struct request_queue *q,
+					 unsigned int nr);
 
 void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool);
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_tag_iter_fn *fn,

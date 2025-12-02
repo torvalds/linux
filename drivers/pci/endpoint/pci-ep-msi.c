@@ -24,7 +24,7 @@ static void pci_epf_write_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
 	struct pci_epf *epf;
 
 	epc = pci_epc_get(dev_name(msi_desc_to_dev(desc)));
-	if (!epc)
+	if (IS_ERR(epc))
 		return;
 
 	epf = list_first_entry_or_null(&epc->pci_epf, struct pci_epf, list);

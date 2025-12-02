@@ -75,4 +75,7 @@ int input_event_to_user(char __user *buffer,
 int input_ff_effect_from_user(const char __user *buffer, size_t size,
 			      struct ff_effect *effect);
 
+int input_bits_to_string(char *buf, int buf_size, unsigned long bits,
+                         bool skip_empty);
+
 #endif /* _INPUT_COMPAT_H */

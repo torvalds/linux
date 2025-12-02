@@ -38,7 +38,7 @@ enum {
 	BINDER_TYPE_PTR		= B_PACK_CHARS('p', 't', '*', B_TYPE_LARGE),
 };
 
-enum {
+enum flat_binder_object_flags {
 	FLAT_BINDER_FLAG_PRIORITY_MASK = 0xff,
 	FLAT_BINDER_FLAG_ACCEPTS_FDS = 0x100,
 

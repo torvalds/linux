@@ -134,10 +134,10 @@ SYM_CODE_END(__x86_indirect_jump_thunk_array)
 .macro ITS_THUNK reg
 
 /*
- * If CFI paranoid is used then the ITS thunk starts with opcodes (0xea; jne 1b)
+ * If CFI paranoid is used then the ITS thunk starts with opcodes (1: udb; jne 1b)
  * that complete the fineibt_paranoid caller sequence.
  */
-1:	.byte 0xea
+1:	ASM_UDB
 SYM_INNER_LABEL(__x86_indirect_paranoid_thunk_\reg, SYM_L_GLOBAL)
 	UNWIND_HINT_UNDEFINED
 	ANNOTATE_NOENDBR

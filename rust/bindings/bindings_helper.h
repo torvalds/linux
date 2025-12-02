@@ -53,6 +53,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/errname.h>
 #include <linux/ethtool.h>
+#include <linux/fdtable.h>
 #include <linux/file.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
@@ -77,6 +78,7 @@
 #include <linux/sched.h>
 #include <linux/security.h>
 #include <linux/slab.h>
+#include <linux/task_work.h>
 #include <linux/tracepoint.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -106,3 +108,10 @@ const xa_mark_t RUST_CONST_HELPER_XA_PRESENT = XA_PRESENT;
 
 const gfp_t RUST_CONST_HELPER_XA_FLAGS_ALLOC = XA_FLAGS_ALLOC;
 const gfp_t RUST_CONST_HELPER_XA_FLAGS_ALLOC1 = XA_FLAGS_ALLOC1;
+const vm_flags_t RUST_CONST_HELPER_VM_MERGEABLE = VM_MERGEABLE;
+
+#if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
+#include "../../drivers/android/binder/rust_binder.h"
+#include "../../drivers/android/binder/rust_binder_events.h"
+#include "../../drivers/android/binder/page_range_helper.h"
+#endif

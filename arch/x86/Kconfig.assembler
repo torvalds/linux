@@ -1,26 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (C) 2020 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
-config AS_AVX512
-	def_bool $(as-instr,vpmovm2b %k1$(comma)%zmm5)
-	help
-	  Supported by binutils >= 2.25 and LLVM integrated assembler
-
-config AS_GFNI
-	def_bool $(as-instr,vgf2p8mulb %xmm0$(comma)%xmm1$(comma)%xmm2)
-	help
-	  Supported by binutils >= 2.30 and LLVM integrated assembler
-
-config AS_VAES
-	def_bool $(as-instr,vaesenc %ymm0$(comma)%ymm1$(comma)%ymm2)
-	help
-	  Supported by binutils >= 2.30 and LLVM integrated assembler
-
-config AS_VPCLMULQDQ
-	def_bool $(as-instr,vpclmulqdq \$0x10$(comma)%ymm0$(comma)%ymm1$(comma)%ymm2)
-	help
-	  Supported by binutils >= 2.30 and LLVM integrated assembler
-
 config AS_WRUSS
 	def_bool $(as-instr64,wrussq %rax$(comma)(%rbx))
 	help

@@ -19,7 +19,12 @@ select: false
 
 properties:
   compatible:
-    const: kontron,sl28-vpd
+    oneOf:
+      - items:
+          - enum:
+              - kontron,sa67-vpd
+          - const: kontron,sl28-vpd
+      - const: kontron,sl28-vpd
 
   serial-number:
     type: object

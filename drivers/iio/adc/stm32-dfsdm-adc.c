@@ -1764,10 +1764,8 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 
 	dev_data = of_device_get_match_data(dev);
 	iio = devm_iio_device_alloc(dev, sizeof(*adc));
-	if (!iio) {
-		dev_err(dev, "%s: Failed to allocate IIO\n", __func__);
+	if (!iio)
 		return -ENOMEM;
-	}
 
 	adc = iio_priv(iio);
 	adc->dfsdm = dev_get_drvdata(dev->parent);

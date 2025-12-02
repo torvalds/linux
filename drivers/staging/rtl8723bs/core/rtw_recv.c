@@ -66,7 +66,8 @@ signed int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *pada
 
 		list_add_tail(&(precvframe->u.list), &(precvpriv->free_recv_queue.queue));
 
-		rtw_os_recv_resource_alloc(padapter, precvframe);
+		precvframe->u.hdr.pkt_newalloc = NULL;
+		precvframe->u.hdr.pkt = NULL;
 
 		precvframe->u.hdr.len = 0;
 
@@ -90,11 +91,22 @@ exit:
 
 void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 {
+	signed int i;
+	union recv_frame *precvframe;
 	struct adapter	*padapter = precvpriv->adapter;
 
 	rtw_free_uc_swdec_pending_queue(padapter);
 
-	rtw_os_recv_resource_free(precvpriv);
+	precvframe = (union recv_frame *)precvpriv->precv_frame_buf;
+
+	for (i = 0; i < NR_RECVFRAME; i++) {
+		if (precvframe->u.hdr.pkt) {
+			/* free skb by driver */
+			dev_kfree_skb_any(precvframe->u.hdr.pkt);
+			precvframe->u.hdr.pkt = NULL;
+		}
+		precvframe++;
+	}
 
 	vfree(precvpriv->pallocated_frame_buf);
 
@@ -147,8 +159,10 @@ int rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_
 	struct adapter *padapter = precvframe->u.hdr.adapter;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
-	rtw_os_free_recvframe(precvframe);
-
+	if (precvframe->u.hdr.pkt) {
+		dev_kfree_skb_any(precvframe->u.hdr.pkt);/* free skb by driver */
+		precvframe->u.hdr.pkt = NULL;
+	}
 
 	spin_lock_bh(&pfree_recv_queue->lock);
 
@@ -292,6 +306,50 @@ struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue)
 
 	return precvbuf;
 
+}
+
+static void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
+{
+	enum nl80211_key_type key_type = 0;
+	union iwreq_data wrqu;
+	struct iw_michaelmicfailure    ev;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	unsigned long cur_time = 0;
+
+	if (psecuritypriv->last_mic_err_time == 0) {
+		psecuritypriv->last_mic_err_time = jiffies;
+	} else {
+		cur_time = jiffies;
+
+		if (cur_time - psecuritypriv->last_mic_err_time < 60*HZ) {
+			psecuritypriv->btkip_countermeasure = true;
+			psecuritypriv->last_mic_err_time = 0;
+			psecuritypriv->btkip_countermeasure_time = cur_time;
+		} else {
+			psecuritypriv->last_mic_err_time = jiffies;
+		}
+	}
+
+	if (bgroup)
+		key_type |= NL80211_KEYTYPE_GROUP;
+	else
+		key_type |= NL80211_KEYTYPE_PAIRWISE;
+
+	cfg80211_michael_mic_failure(padapter->pnetdev, (u8 *)&pmlmepriv->assoc_bssid[0], key_type, -1,
+		NULL, GFP_ATOMIC);
+
+	memset(&ev, 0x00, sizeof(ev));
+	if (bgroup)
+		ev.flags |= IW_MICFAILURE_GROUP;
+	else
+		ev.flags |= IW_MICFAILURE_PAIRWISE;
+
+	ev.src_addr.sa_family = ARPHRD_ETHER;
+	memcpy(ev.src_addr.sa_data, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
+
+	memset(&wrqu, 0x00, sizeof(wrqu));
+	wrqu.data.length = sizeof(ev);
 }
 
 static signed int recvframe_chkmic(struct adapter *adapter,  union recv_frame *precvframe)
@@ -1564,6 +1622,93 @@ static signed int wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	return _SUCCESS;
 }
 
+static struct sk_buff *rtw_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 *pdata)
+{
+	u16 eth_type;
+	struct sk_buff *sub_skb;
+	struct rx_pkt_attrib *pattrib;
+
+	pattrib = &prframe->u.hdr.attrib;
+
+	sub_skb = rtw_skb_alloc(nSubframe_Length + 12);
+	if (!sub_skb)
+		return NULL;
+
+	skb_reserve(sub_skb, 12);
+	skb_put_data(sub_skb, (pdata + ETH_HLEN), nSubframe_Length);
+
+	eth_type = get_unaligned_be16(&sub_skb->data[6]);
+
+	if (sub_skb->len >= 8 &&
+		((!memcmp(sub_skb->data, rfc1042_header, SNAP_SIZE) &&
+		eth_type != ETH_P_AARP && eth_type != ETH_P_IPX) ||
+		!memcmp(sub_skb->data, bridge_tunnel_header, SNAP_SIZE))) {
+		/*
+		 * remove RFC1042 or Bridge-Tunnel encapsulation and replace
+		 * EtherType
+		 */
+		skb_pull(sub_skb, SNAP_SIZE);
+		memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->src, ETH_ALEN);
+		memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->dst, ETH_ALEN);
+	} else {
+		__be16 len;
+		/* Leave Ethernet header part of hdr and full payload */
+		len = htons(sub_skb->len);
+		memcpy(skb_push(sub_skb, 2), &len, 2);
+		memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->src, ETH_ALEN);
+		memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->dst, ETH_ALEN);
+	}
+
+	return sub_skb;
+}
+
+static void rtw_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, struct rx_pkt_attrib *pattrib)
+{
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+
+	/* Indicate the packets to upper layer */
+	if (pkt) {
+		if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+			struct sk_buff *pskb2 = NULL;
+			struct sta_info *psta = NULL;
+			struct sta_priv *pstapriv = &padapter->stapriv;
+			int bmcast = is_multicast_ether_addr(pattrib->dst);
+
+			if (memcmp(pattrib->dst, myid(&padapter->eeprompriv), ETH_ALEN)) {
+				if (bmcast) {
+					psta = rtw_get_bcmc_stainfo(padapter);
+					pskb2 = skb_clone(pkt, GFP_ATOMIC);
+				} else {
+					psta = rtw_get_stainfo(pstapriv, pattrib->dst);
+				}
+
+				if (psta) {
+					struct net_device *pnetdev = (struct net_device *)padapter->pnetdev;
+					/* skb->ip_summed = CHECKSUM_NONE; */
+					pkt->dev = pnetdev;
+					skb_set_queue_mapping(pkt, rtw_recv_select_queue(pkt));
+
+					_rtw_xmit_entry(pkt, pnetdev);
+
+					if (bmcast && pskb2)
+						pkt = pskb2;
+					else
+						return;
+				}
+			} else {
+				/*  to APself */
+			}
+		}
+
+		pkt->protocol = eth_type_trans(pkt, padapter->pnetdev);
+		pkt->dev = padapter->pnetdev;
+
+		pkt->ip_summed = CHECKSUM_NONE;
+
+		rtw_netif_rx(padapter->pnetdev, pkt);
+	}
+}
+
 static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 {
 	int	a_len, padding_len;
@@ -1593,7 +1738,7 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 		if (a_len < ETH_HLEN + nSubframe_Length)
 			break;
 
-		sub_pkt = rtw_os_alloc_msdu_pkt(prframe, nSubframe_Length, pdata);
+		sub_pkt = rtw_alloc_msdu_pkt(prframe, nSubframe_Length, pdata);
 		if (!sub_pkt)
 			break;
 
@@ -1626,7 +1771,7 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 
 		/* Indicate the packets to upper layer */
 		if (sub_pkt)
-			rtw_os_recv_indicate_pkt(padapter, sub_pkt, &prframe->u.hdr.attrib);
+			rtw_recv_indicate_pkt(padapter, sub_pkt, &prframe->u.hdr.attrib);
 	}
 
 	prframe->u.hdr.len = 0;
@@ -1723,6 +1868,43 @@ static void recv_indicatepkts_pkt_loss_cnt(struct debug_priv *pdbgpriv, u64 prev
 	else
 		pdbgpriv->dbg_rx_ampdu_loss_count += (current_seq - prev_seq);
 
+}
+
+static int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *precv_frame)
+{
+	struct recv_priv *precvpriv;
+	struct __queue	*pfree_recv_queue;
+	struct sk_buff *skb;
+	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
+
+	precvpriv = &(padapter->recvpriv);
+	pfree_recv_queue = &(precvpriv->free_recv_queue);
+
+	skb = precv_frame->u.hdr.pkt;
+	if (!skb)
+		goto _recv_indicatepkt_drop;
+
+	skb->data = precv_frame->u.hdr.rx_data;
+
+	skb_set_tail_pointer(skb, precv_frame->u.hdr.len);
+
+	skb->len = precv_frame->u.hdr.len;
+
+	rtw_recv_indicate_pkt(padapter, skb, pattrib);
+
+	/* pointers to NULL before rtw_free_recvframe() */
+	precv_frame->u.hdr.pkt = NULL;
+
+	rtw_free_recvframe(precv_frame, pfree_recv_queue);
+
+	return _SUCCESS;
+
+_recv_indicatepkt_drop:
+
+	/* enqueue back to free_recv_queue */
+	rtw_free_recvframe(precv_frame, pfree_recv_queue);
+
+	return _FAIL;
 }
 
 static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctrl *preorder_ctrl, int bforced)

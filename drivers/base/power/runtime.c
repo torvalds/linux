@@ -498,6 +498,9 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	if (retval < 0)
 		;	/* Conditions are wrong. */
 
+	else if ((rpmflags & RPM_GET_PUT) && retval == 1)
+		;	/* put() is allowed in RPM_SUSPENDED */
+
 	/* Idle notifications are allowed only in the RPM_ACTIVE state. */
 	else if (dev->power.runtime_status != RPM_ACTIVE)
 		retval = -EAGAIN;
@@ -796,6 +799,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		if (dev->power.runtime_status == RPM_ACTIVE &&
 		    dev->power.last_status == RPM_ACTIVE)
 			retval = 1;
+		else if (rpmflags & RPM_TRANSPARENT)
+			goto out;
 		else
 			retval = -EACCES;
 	}

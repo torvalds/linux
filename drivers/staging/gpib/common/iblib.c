@@ -608,7 +608,7 @@ static int wait_satisfied(struct wait_info *winfo, struct gpib_status_queue *sta
 		*status = temp_status;
 		return 1;
 	}
-//XXX does wait for END work?
+// XXX does wait for END work?
 	return 0;
 }
 

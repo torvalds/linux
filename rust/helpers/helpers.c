@@ -10,6 +10,7 @@
 #include "atomic.c"
 #include "auxiliary.c"
 #include "barrier.c"
+#include "binder.c"
 #include "bitmap.c"
 #include "bitops.c"
 #include "blk.c"

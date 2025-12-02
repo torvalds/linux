@@ -322,8 +322,8 @@ err_reconfig:
 	return err;
 }
 
-static long clk_wzrd_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *prate)
+static int clk_wzrd_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *req)
 {
 	u8 div;
 
@@ -331,16 +331,18 @@ static long clk_wzrd_round_rate(struct clk_hw *hw, unsigned long rate,
 	 * since we don't change parent rate we just round rate to closest
 	 * achievable
 	 */
-	div = DIV_ROUND_CLOSEST(*prate, rate);
+	div = DIV_ROUND_CLOSEST(req->best_parent_rate, req->rate);
 
-	return *prate / div;
+	req->rate = req->best_parent_rate / div;
+
+	return 0;
 }
 
 static int clk_wzrd_get_divisors_ver(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
-	u64 vco_freq, freq, diff, vcomin, vcomax;
+	u64 vco_freq, freq, diff, vcomin, vcomax, best_diff = -1ULL;
 	u32 m, d, o;
 	u32 mmin, mmax, dmin, dmax, omin, omax;
 
@@ -356,22 +358,26 @@ static int clk_wzrd_get_divisors_ver(struct clk_hw *hw, unsigned long rate,
 	for (m = mmin; m <= mmax; m++) {
 		for (d = dmin; d <= dmax; d++) {
 			vco_freq = DIV_ROUND_CLOSEST((parent_rate * m), d);
-			if (vco_freq >= vcomin && vco_freq <= vcomax) {
-				for (o = omin; o <= omax; o++) {
-					freq = DIV_ROUND_CLOSEST_ULL(vco_freq, o);
-					diff = abs(freq - rate);
+			if (vco_freq < vcomin || vco_freq > vcomax)
+				continue;
 
-					if (diff < WZRD_MIN_ERR) {
-						divider->m = m;
-						divider->d = d;
-						divider->o = o;
-						return 0;
-					}
-				}
+			o = DIV_ROUND_CLOSEST_ULL(vco_freq, rate);
+			if (o < omin || o > omax)
+				continue;
+			freq = DIV_ROUND_CLOSEST_ULL(vco_freq, o);
+			diff = abs(freq - rate);
+
+			if (diff < best_diff) {
+				best_diff = diff;
+				divider->m = m;
+				divider->d = d;
+				divider->o = o;
+				if (!diff)
+					return 0;
 			}
 		}
 	}
-	return -EBUSY;
+	return 0;
 }
 
 static int clk_wzrd_get_divisors(struct clk_hw *hw, unsigned long rate,
@@ -642,14 +648,14 @@ static unsigned long clk_wzrd_recalc_rate_all_ver(struct clk_hw *hw,
 			divider->flags, divider->width);
 }
 
-static long clk_wzrd_round_rate_all(struct clk_hw *hw, unsigned long rate,
-				    unsigned long *prate)
+static int clk_wzrd_determine_rate_all(struct clk_hw *hw,
+				       struct clk_rate_request *req)
 {
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
 	u32 m, d, o;
 	int err;
 
-	err = clk_wzrd_get_divisors(hw, rate, *prate);
+	err = clk_wzrd_get_divisors(hw, req->rate, req->best_parent_rate);
 	if (err)
 		return err;
 
@@ -657,19 +663,20 @@ static long clk_wzrd_round_rate_all(struct clk_hw *hw, unsigned long rate,
 	d = divider->d;
 	o = divider->o;
 
-	rate = div_u64(*prate * (m * 1000 + divider->m_frac), d * (o * 1000 + divider->o_frac));
-	return rate;
+	req->rate = div_u64(req->best_parent_rate * (m * 1000 + divider->m_frac),
+			    d * (o * 1000 + divider->o_frac));
+	return 0;
 }
 
-static long clk_wzrd_ver_round_rate_all(struct clk_hw *hw, unsigned long rate,
-					unsigned long *prate)
+static int clk_wzrd_ver_determine_rate_all(struct clk_hw *hw,
+					   struct clk_rate_request *req)
 {
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
 	unsigned long int_freq;
 	u32 m, d, o, div, f;
 	int err;
 
-	err = clk_wzrd_get_divisors_ver(hw, rate, *prate);
+	err = clk_wzrd_get_divisors_ver(hw, req->rate, req->best_parent_rate);
 	if (err)
 		return err;
 
@@ -678,36 +685,38 @@ static long clk_wzrd_ver_round_rate_all(struct clk_hw *hw, unsigned long rate,
 	o = divider->o;
 
 	div = d * o;
-	int_freq =  divider_recalc_rate(hw, *prate * m, div, divider->table,
+	int_freq =  divider_recalc_rate(hw, req->best_parent_rate * m, div,
+					divider->table,
 					divider->flags, divider->width);
 
-	if (rate > int_freq) {
-		f = DIV_ROUND_CLOSEST_ULL(rate * WZRD_FRAC_POINTS, int_freq);
-		rate = DIV_ROUND_CLOSEST(int_freq * f, WZRD_FRAC_POINTS);
+	if (req->rate > int_freq) {
+		f = DIV_ROUND_CLOSEST_ULL(req->rate * WZRD_FRAC_POINTS,
+					  int_freq);
+		req->rate = DIV_ROUND_CLOSEST(int_freq * f, WZRD_FRAC_POINTS);
 	}
-	return rate;
+	return 0;
 }
 
 static const struct clk_ops clk_wzrd_ver_divider_ops = {
-	.round_rate = clk_wzrd_round_rate,
+	.determine_rate = clk_wzrd_determine_rate,
 	.set_rate = clk_wzrd_ver_dynamic_reconfig,
 	.recalc_rate = clk_wzrd_recalc_rate_ver,
 };
 
 static const struct clk_ops clk_wzrd_ver_div_all_ops = {
-	.round_rate = clk_wzrd_ver_round_rate_all,
+	.determine_rate = clk_wzrd_ver_determine_rate_all,
 	.set_rate = clk_wzrd_dynamic_all_ver,
 	.recalc_rate = clk_wzrd_recalc_rate_all_ver,
 };
 
 static const struct clk_ops clk_wzrd_clk_divider_ops = {
-	.round_rate = clk_wzrd_round_rate,
+	.determine_rate = clk_wzrd_determine_rate,
 	.set_rate = clk_wzrd_dynamic_reconfig,
 	.recalc_rate = clk_wzrd_recalc_rate,
 };
 
 static const struct clk_ops clk_wzrd_clk_div_all_ops = {
-	.round_rate = clk_wzrd_round_rate_all,
+	.determine_rate = clk_wzrd_determine_rate_all,
 	.set_rate = clk_wzrd_dynamic_all,
 	.recalc_rate = clk_wzrd_recalc_rate_all,
 };
@@ -769,14 +778,14 @@ static int clk_wzrd_dynamic_reconfig_f(struct clk_hw *hw, unsigned long rate,
 				WZRD_USEC_POLL, WZRD_TIMEOUT_POLL);
 }
 
-static long clk_wzrd_round_rate_f(struct clk_hw *hw, unsigned long rate,
-				  unsigned long *prate)
+static int clk_wzrd_determine_rate_f(struct clk_hw *hw,
+				     struct clk_rate_request *req)
 {
-	return rate;
+	return 0;
 }
 
 static const struct clk_ops clk_wzrd_clk_divider_ops_f = {
-	.round_rate = clk_wzrd_round_rate_f,
+	.determine_rate = clk_wzrd_determine_rate_f,
 	.set_rate = clk_wzrd_dynamic_reconfig_f,
 	.recalc_rate = clk_wzrd_recalc_ratef,
 };
@@ -1108,7 +1117,7 @@ static int clk_wzrd_register_output_clocks(struct device *dev, int nr_outputs)
 						(dev,
 						 clkout_name, clk_name, 0,
 						 clk_wzrd->base,
-						 (WZRD_CLK_CFG_REG(is_versal, 3) + i * 8),
+						 (WZRD_CLK_CFG_REG(is_versal, 2) + i * 8),
 						 WZRD_CLKOUT_DIVIDE_SHIFT,
 						 WZRD_CLKOUT_DIVIDE_WIDTH,
 						 CLK_DIVIDER_ONE_BASED |

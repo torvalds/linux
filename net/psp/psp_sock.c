@@ -279,12 +279,12 @@ void psp_twsk_assoc_free(struct inet_timewait_sock *tw)
 	psp_assoc_put(pas);
 }
 
-void psp_reply_set_decrypted(struct sk_buff *skb)
+void psp_reply_set_decrypted(const struct sock *sk, struct sk_buff *skb)
 {
 	struct psp_assoc *pas;
 
 	rcu_read_lock();
-	pas = psp_sk_get_assoc_rcu(skb->sk);
+	pas = psp_sk_get_assoc_rcu(sk);
 	if (pas && pas->tx.spi)
 		skb->decrypted = 1;
 	rcu_read_unlock();

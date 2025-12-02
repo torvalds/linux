@@ -10,7 +10,7 @@
 
 #define arch_jump_label_transform_static arch_jump_label_transform
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <asm/isa-rev.h>
@@ -76,5 +76,5 @@ struct jump_entry {
 	jump_label_t key;
 };
 
-#endif  /* __ASSEMBLY__ */
+#endif  /* __ASSEMBLER__ */
 #endif /* _ASM_MIPS_JUMP_LABEL_H */

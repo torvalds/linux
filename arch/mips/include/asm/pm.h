@@ -8,7 +8,7 @@
 #ifndef __ASM_PM_H
 #define __ASM_PM_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #include <asm/asm-offsets.h>
 #include <asm/asm.h>
@@ -130,7 +130,7 @@
 	RESUME_RESTORE_REGS_RETURN
 .endm
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 /**
  * struct mips_static_suspend_state - Core saved CPU state across S2R.
@@ -150,6 +150,6 @@ struct mips_static_suspend_state {
 	unsigned long sp;
 };
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_PM_HELPERS_H */

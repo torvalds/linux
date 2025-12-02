@@ -1102,7 +1102,7 @@ msm_find_best_baud(struct uart_port *port, unsigned int baud,
 
 			if (result == baud)
 				break;
-		} else if (entry->divisor > divisor) {
+		} else {
 			old = target;
 			target = clk_round_rate(msm_port->clk, old + 1);
 			/*

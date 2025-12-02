@@ -34,7 +34,7 @@ enum type_state_kind {
 	TSR_KIND_TYPE,
 	TSR_KIND_PERCPU_BASE,
 	TSR_KIND_CONST,
-	TSR_KIND_POINTER,
+	TSR_KIND_PERCPU_POINTER,
 	TSR_KIND_CANARY,
 };
 
@@ -189,12 +189,15 @@ struct type_state_stack {
 	u8 kind;
 };
 
-/* FIXME: This should be arch-dependent */
-#ifdef __powerpc__
+/*
+ * Maximum number of registers tracked in type_state.
+ *
+ * This limit must cover all supported architectures, since perf
+ * may analyze perf.data files generated on systems with a different
+ * register set. Use 32 as a safe upper bound instead of relying on
+ * build-arch specific values.
+ */
 #define TYPE_STATE_MAX_REGS  32
-#else
-#define TYPE_STATE_MAX_REGS  16
-#endif
 
 /*
  * State table to maintain type info in each register and stack location.

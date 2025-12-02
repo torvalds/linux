@@ -5,12 +5,16 @@ CFLAGS += -I../../../../../usr/include/ $(KHDR_INCLUDES)
 # Additional include paths needed by kselftest.h
 CFLAGS += -I../../
 
-TEST_FILES := ../../../../../Documentation/netlink/specs
-TEST_FILES += ../../../../net/ynl
+TEST_FILES := \
+	../../../../net/ynl \
+	../../../../../Documentation/netlink/specs \
+# end of TEST_FILES
 
-TEST_GEN_FILES += csum
-TEST_GEN_FILES += $(patsubst %.c,%.o,$(wildcard *.bpf.c))
-TEST_GEN_FILES += xdp_helper
+TEST_GEN_FILES := \
+	$(patsubst %.c,%.o,$(wildcard *.bpf.c)) \
+	csum \
+	xdp_helper \
+# end of TEST_GEN_FILES
 
 TEST_INCLUDES := $(wildcard py/*.py sh/*.sh)
 

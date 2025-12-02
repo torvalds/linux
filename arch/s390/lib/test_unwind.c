@@ -150,7 +150,7 @@ static __always_inline struct pt_regs fake_pt_regs(void)
 	regs.gprs[15] = current_stack_pointer;
 
 	asm volatile(
-		"basr	%[psw_addr],0\n"
+		"basr	%[psw_addr],0"
 		: [psw_addr] "=d" (regs.psw.addr));
 	return regs;
 }
@@ -232,7 +232,7 @@ static noinline void test_unwind_kprobed_func(void)
 	asm volatile(
 		"	nopr	%%r7\n"
 		"test_unwind_kprobed_insn:\n"
-		"	nopr	%%r7\n"
+		"	nopr	%%r7"
 		:);
 }
 

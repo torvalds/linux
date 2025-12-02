@@ -9,7 +9,6 @@
 struct dso;
 struct symbol;
 
-extern int addr2line_timeout_ms;
 extern bool srcline_full_filename;
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 		  bool show_sym, bool show_addr, u64 ip);
@@ -28,6 +27,8 @@ void srcline__tree_delete(struct rb_root_cached *tree);
 
 extern char *srcline__unknown;
 #define SRCLINE_UNKNOWN srcline__unknown
+
+#define MAX_INLINE_NEST 1024
 
 struct inline_list {
 	struct symbol		*symbol;
@@ -54,5 +55,11 @@ void inlines__tree_insert(struct rb_root_cached *tree,
 struct inline_node *inlines__tree_find(struct rb_root_cached *tree, u64 addr);
 /* delete all nodes within the tree of inline_node s */
 void inlines__tree_delete(struct rb_root_cached *tree);
+
+int inline_list__append(struct symbol *symbol, char *srcline, struct inline_node *node);
+char *srcline_from_fileline(const char *file, unsigned int line);
+struct symbol *new_inline_sym(struct dso *dso,
+			      struct symbol *base_sym,
+			      const char *funcname);
 
 #endif /* PERF_SRCLINE_H */

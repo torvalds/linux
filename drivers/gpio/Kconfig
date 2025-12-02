@@ -1951,6 +1951,17 @@ config GPIO_MPSSE
 	  GPIO driver for FTDI's MPSSE interface. These can do input and
 	  output. Each MPSSE provides 16 IO pins.
 
+config GPIO_USBIO
+	tristate "Intel USBIO GPIO support"
+	depends on USB_USBIO
+	default USB_USBIO
+	help
+	  Select this option to enable GPIO driver for the INTEL
+	  USBIO driver stack.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio_usbio.
+
 endmenu
 
 menu "Virtual GPIO drivers"

@@ -370,7 +370,7 @@ __uml_help(ubd_setup,
 "    useful when a unique number should be given to the device. Note when\n"
 "    specifying a label, the filename2 must be also presented. It can be\n"
 "    an empty string, in which case the backing file is not used:\n"
-"       ubd0=File,,Serial\n"
+"       ubd0=File,,Serial\n\n"
 );
 
 static int udb_setup(char *str)

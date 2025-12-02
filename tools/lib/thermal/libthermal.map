@@ -1,6 +1,5 @@
 LIBTHERMAL_0.0.1 {
 	global:
-		thermal_init;
 		for_each_thermal_zone;
 		for_each_thermal_trip;
 		for_each_thermal_cdev;
@@ -9,9 +8,12 @@ LIBTHERMAL_0.0.1 {
 		thermal_zone_find_by_id;
 		thermal_zone_discover;
 		thermal_init;
+		thermal_exit;
+		thermal_events_exit;
 		thermal_events_init;
 		thermal_events_handle;
 		thermal_events_fd;
+		thermal_cmd_exit;
 		thermal_cmd_init;
 		thermal_cmd_get_tz;
 		thermal_cmd_get_cdev;
@@ -22,6 +24,7 @@ LIBTHERMAL_0.0.1 {
 		thermal_cmd_threshold_add;
 		thermal_cmd_threshold_delete;
 		thermal_cmd_threshold_flush;
+		thermal_sampling_exit;
 		thermal_sampling_init;
 		thermal_sampling_handle;
 		thermal_sampling_fd;

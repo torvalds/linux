@@ -446,13 +446,8 @@ int submit_bio_wait(struct bio *bio);
 int bdev_rw_virt(struct block_device *bdev, sector_t sector, void *data,
 		size_t len, enum req_op op);
 
-int bio_iov_iter_get_pages_aligned(struct bio *bio, struct iov_iter *iter,
+int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter,
 		unsigned len_align_mask);
-
-static inline int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
-{
-	return bio_iov_iter_get_pages_aligned(bio, iter, 0);
-}
 
 void bio_iov_bvec_set(struct bio *bio, const struct iov_iter *iter);
 void __bio_release_pages(struct bio *bio, bool mark_dirty);

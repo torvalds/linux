@@ -850,4 +850,3 @@ MODULE_DESCRIPTION("Broadcom SATA PHY driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Carino");
 MODULE_AUTHOR("Brian Norris");
-MODULE_ALIAS("platform:phy-brcm-sata");

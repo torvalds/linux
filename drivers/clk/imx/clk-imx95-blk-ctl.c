@@ -36,6 +36,7 @@ struct imx95_blk_ctl {
 	void __iomem *base;
 	/* clock gate register */
 	u32 clk_reg_restore;
+	const struct imx95_blk_ctl_dev_data *pdata;
 };
 
 struct imx95_blk_ctl_clk_dev_data {
@@ -349,7 +350,6 @@ static const struct imx95_blk_ctl_dev_data imx94_dispmix_csr_dev_data = {
 static int imx95_bc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct imx95_blk_ctl_dev_data *bc_data;
 	struct imx95_blk_ctl *bc;
 	struct clk_hw_onecell_data *clk_hw_data;
 	struct clk_hw **hws;
@@ -379,25 +379,25 @@ static int imx95_bc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bc_data = of_device_get_match_data(dev);
-	if (!bc_data)
+	bc->pdata = of_device_get_match_data(dev);
+	if (!bc->pdata)
 		return devm_of_platform_populate(dev);
 
-	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws, bc_data->num_clks),
+	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws, bc->pdata->num_clks),
 				   GFP_KERNEL);
 	if (!clk_hw_data)
 		return -ENOMEM;
 
-	if (bc_data->rpm_enabled) {
+	if (bc->pdata->rpm_enabled) {
 		devm_pm_runtime_enable(&pdev->dev);
 		pm_runtime_resume_and_get(&pdev->dev);
 	}
 
-	clk_hw_data->num = bc_data->num_clks;
+	clk_hw_data->num = bc->pdata->num_clks;
 	hws = clk_hw_data->hws;
 
-	for (i = 0; i < bc_data->num_clks; i++) {
-		const struct imx95_blk_ctl_clk_dev_data *data = &bc_data->clk_dev_data[i];
+	for (i = 0; i < bc->pdata->num_clks; i++) {
+		const struct imx95_blk_ctl_clk_dev_data *data = &bc->pdata->clk_dev_data[i];
 		void __iomem *reg = base + data->reg;
 
 		if (data->type == CLK_MUX) {
@@ -439,7 +439,7 @@ static int imx95_bc_probe(struct platform_device *pdev)
 	return 0;
 
 cleanup:
-	for (i = 0; i < bc_data->num_clks; i++) {
+	for (i = 0; i < bc->pdata->num_clks; i++) {
 		if (IS_ERR_OR_NULL(hws[i]))
 			continue;
 		clk_hw_unregister(hws[i]);
@@ -453,15 +453,24 @@ static int imx95_bc_runtime_suspend(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
 
+	bc->clk_reg_restore = readl(bc->base + bc->pdata->clk_reg_offset);
 	clk_disable_unprepare(bc->clk_apb);
+
 	return 0;
 }
 
 static int imx95_bc_runtime_resume(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
+	int ret;
 
-	return clk_prepare_enable(bc->clk_apb);
+	ret = clk_prepare_enable(bc->clk_apb);
+	if (ret)
+		return ret;
+
+	writel(bc->clk_reg_restore, bc->base + bc->pdata->clk_reg_offset);
+
+	return 0;
 }
 #endif
 
@@ -469,22 +478,12 @@ static int imx95_bc_runtime_resume(struct device *dev)
 static int imx95_bc_suspend(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
-	const struct imx95_blk_ctl_dev_data *bc_data;
-	int ret;
 
-	bc_data = of_device_get_match_data(dev);
-	if (!bc_data)
+	if (pm_runtime_suspended(dev))
 		return 0;
 
-	if (bc_data->rpm_enabled) {
-		ret = pm_runtime_get_sync(bc->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(bc->dev);
-			return ret;
-		}
-	}
-
-	bc->clk_reg_restore = readl(bc->base + bc_data->clk_reg_offset);
+	bc->clk_reg_restore = readl(bc->base + bc->pdata->clk_reg_offset);
+	clk_disable_unprepare(bc->clk_apb);
 
 	return 0;
 }
@@ -492,16 +491,16 @@ static int imx95_bc_suspend(struct device *dev)
 static int imx95_bc_resume(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
-	const struct imx95_blk_ctl_dev_data *bc_data;
+	int ret;
 
-	bc_data = of_device_get_match_data(dev);
-	if (!bc_data)
+	if (pm_runtime_suspended(dev))
 		return 0;
 
-	writel(bc->clk_reg_restore, bc->base + bc_data->clk_reg_offset);
+	ret = clk_prepare_enable(bc->clk_apb);
+	if (ret)
+		return ret;
 
-	if (bc_data->rpm_enabled)
-		pm_runtime_put(bc->dev);
+	writel(bc->clk_reg_restore, bc->base + bc->pdata->clk_reg_offset);
 
 	return 0;
 }

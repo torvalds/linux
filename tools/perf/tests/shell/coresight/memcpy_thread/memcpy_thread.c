@@ -27,6 +27,8 @@ static void *thrfn(void *arg)
 	}
 	for (i = 0; i < len; i++)
 		memcpy(dst, src, a->size * 1024);
+
+	return NULL;
 }
 
 static pthread_t new_thr(void *(*fn) (void *arg), void *arg)

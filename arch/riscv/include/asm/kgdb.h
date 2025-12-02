@@ -3,14 +3,18 @@
 #ifndef __ASM_KGDB_H_
 #define __ASM_KGDB_H_
 
+#include <linux/build_bug.h>
+
 #ifdef __KERNEL__
 
 #define GDB_SIZEOF_REG sizeof(unsigned long)
 
-#define DBG_MAX_REG_NUM (36)
-#define NUMREGBYTES ((DBG_MAX_REG_NUM) * GDB_SIZEOF_REG)
+#define DBG_MAX_REG_NUM 36
+#define NUMREGBYTES (DBG_MAX_REG_NUM * GDB_SIZEOF_REG)
 #define CACHE_FLUSH_IS_SAFE     1
 #define BUFMAX                  2048
+static_assert(BUFMAX > NUMREGBYTES,
+	      "As per KGDB documentation, BUFMAX must be larger than NUMREGBYTES");
 #ifdef CONFIG_RISCV_ISA_C
 #define BREAK_INSTR_SIZE	2
 #else
@@ -97,6 +101,7 @@ extern unsigned long kgdb_compiled_break;
 #define DBG_REG_STATUS_OFF 33
 #define DBG_REG_BADADDR_OFF 34
 #define DBG_REG_CAUSE_OFF 35
+/* NOTE: increase DBG_MAX_REG_NUM if you add more values here. */
 
 extern const char riscv_gdb_stub_feature[64];
 

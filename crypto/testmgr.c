@@ -4187,6 +4187,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "authenc(hmac(sha1),cbc(aes))",
 		.generic_driver = "authenc(hmac-sha1-lib,cbc(aes-generic))",
 		.test = alg_test_aead,
+		.fips_allowed = 1,
 		.suite = {
 			.aead = __VECS(hmac_sha1_aes_cbc_tv_temp)
 		}
@@ -4207,6 +4208,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "authenc(hmac(sha1),ctr(aes))",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 	}, {
 		.alg = "authenc(hmac(sha1),ecb(cipher_null))",
 		.generic_driver = "authenc(hmac-sha1-lib,ecb-cipher_null)",
@@ -4217,6 +4219,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "authenc(hmac(sha1),rfc3686(ctr(aes)))",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 	}, {
 		.alg = "authenc(hmac(sha224),cbc(des))",
 		.generic_driver = "authenc(hmac-sha224-lib,cbc(des-generic))",
@@ -5075,6 +5078,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "hmac(sha1)",
 		.generic_driver = "hmac-sha1-lib",
 		.test = alg_test_hash,
+		.fips_allowed = 1,
 		.suite = {
 			.hash = __VECS(hmac_sha1_tv_template)
 		}
@@ -5448,6 +5452,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "sha1",
 		.generic_driver = "sha1-lib",
 		.test = alg_test_hash,
+		.fips_allowed = 1,
 		.suite = {
 			.hash = __VECS(sha1_tv_template)
 		}

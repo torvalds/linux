@@ -1505,4 +1505,3 @@ module_platform_driver(rk_nfc_driver);
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("Yifeng Zhao <yifeng.zhao@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip Nand Flash Controller Driver");
-MODULE_ALIAS("platform:rockchip-nand-controller");

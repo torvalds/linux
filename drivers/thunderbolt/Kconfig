@@ -4,8 +4,8 @@ menuconfig USB4
 	depends on PCI
 	select APPLE_PROPERTIES if EFI_STUB && X86
 	select CRC32
-	select CRYPTO
-	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA256
+	select CRYPTO_LIB_UTILS
 	select NVMEM
 	help
 	  USB4 and Thunderbolt driver. USB4 is the public specification

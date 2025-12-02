@@ -1,0 +1,53 @@
+Intel Auto Counter Reload Support
+---------------------------------
+Support for Intel Auto Counter Reload in perf tools
+
+Auto counter reload provides a means for software to specify to hardware
+that certain counters, if supported, should be automatically reloaded
+upon overflow of chosen counters. By taking a sample only if the rate of
+one event exceeds some threshold relative to the rate of another event,
+this feature enables software to sample based on the relative rate of
+two or more events. To enable this, the user must provide a sample period
+term and a bitmask ("acr_mask") for each relevant event specifying the
+counters in an event group to reload if the event's specified sample
+period is exceeded.
+
+For example, if the user desires to measure a scenario when IPC > 2,
+the event group might look like the one below:
+
+	perf record -e {cpu_atom/instructions,period=200000,acr_mask=0x2/, \
+	cpu_atom/cycles,period=100000,acr_mask=0x3/} -- true
+
+In this case, if the "instructions" counter exceeds the sample period of
+200000, the second counter, "cycles", will be reset and a sample will be
+taken. If "cycles" is exceeded first, both counters in the group will be
+reset. In this way, samples will only be taken for cases where IPC > 2.
+
+The acr_mask term is a hexadecimal value representing a bitmask of the
+events in the group to be reset when the period is exceeded. In the
+example above, "instructions" is assigned an acr_mask of 0x2, meaning
+only the second event in the group is reloaded and a sample is taken
+for the first event. "cycles" is assigned an acr_mask of 0x3, meaning
+that both event counters will be reset if the sample period is exceeded
+first.
+
+ratio-to-prev Event Term
+------------------------
+To simplify this, an event term "ratio-to-prev" is provided which is used
+alongside the sample period term n or the -c/--count option. This would
+allow users to specify the desired relative rate between events as a
+ratio. Note: Both events compared must belong to the same PMU.
+
+The command above would then become
+
+	perf record -e {cpu_atom/instructions/, \
+	cpu_atom/cycles,period=100000,ratio-to-prev=0.5/} -- true
+
+ratio-to-prev is the ratio of the event using the term relative
+to the previous event in the group, which will always be 1,
+for a 1:0.5 or 2:1 ratio.
+
+To sample for IPC < 2 for example, the events need to be reordered:
+
+	perf record -e {cpu_atom/cycles/, \
+	cpu_atom/instructions,period=200000,ratio-to-prev=2.0/} -- true

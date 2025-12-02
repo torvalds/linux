@@ -83,7 +83,15 @@ static void fbnic_mac_init_axi(struct fbnic_dev *fbd)
 
 static void fbnic_mac_init_qm(struct fbnic_dev *fbd)
 {
+	u64 default_meta = FIELD_PREP(FBNIC_TWD_L2_HLEN_MASK, ETH_HLEN) |
+			   FBNIC_TWD_FLAG_REQ_COMPLETION;
 	u32 clock_freq;
+
+	/* Configure default TWQ Metadata descriptor */
+	wr32(fbd, FBNIC_QM_TWQ_DEFAULT_META_L,
+	     lower_32_bits(default_meta));
+	wr32(fbd, FBNIC_QM_TWQ_DEFAULT_META_H,
+	     upper_32_bits(default_meta));
 
 	/* Configure TSO behavior */
 	wr32(fbd, FBNIC_QM_TQS_CTL0,

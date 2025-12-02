@@ -120,16 +120,18 @@ static unsigned long atl_clk_recalc_rate(struct clk_hw *hw,
 	return parent_rate / cdesc->divider;
 }
 
-static long atl_clk_round_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long *parent_rate)
+static int atl_clk_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	unsigned divider;
 
-	divider = (*parent_rate + rate / 2) / rate;
+	divider = (req->best_parent_rate + req->rate / 2) / req->rate;
 	if (divider > DRA7_ATL_DIVIDER_MASK + 1)
 		divider = DRA7_ATL_DIVIDER_MASK + 1;
 
-	return *parent_rate / divider;
+	req->rate = req->best_parent_rate / divider;
+
+	return 0;
 }
 
 static int atl_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -156,7 +158,7 @@ static const struct clk_ops atl_clk_ops = {
 	.disable	= atl_clk_disable,
 	.is_enabled	= atl_clk_is_enabled,
 	.recalc_rate	= atl_clk_recalc_rate,
-	.round_rate	= atl_clk_round_rate,
+	.determine_rate = atl_clk_determine_rate,
 	.set_rate	= atl_clk_set_rate,
 };
 

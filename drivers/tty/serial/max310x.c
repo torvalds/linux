@@ -823,17 +823,28 @@ static irqreturn_t max310x_ist(int irq, void *dev_id)
 	bool handled = false;
 
 	if (s->devtype->nr > 1) {
+		bool done;
+
 		do {
 			unsigned int val = ~0;
+			unsigned long irq;
+			unsigned int port;
+
+			done = true;
 
 			WARN_ON_ONCE(regmap_read(s->regmap,
 						 MAX310X_GLOBALIRQ_REG, &val));
-			val = ((1 << s->devtype->nr) - 1) & ~val;
-			if (!val)
-				break;
-			if (max310x_port_irq(s, fls(val) - 1) == IRQ_HANDLED)
-				handled = true;
-		} while (1);
+
+			irq = val;
+
+			for_each_clear_bit(port, &irq, s->devtype->nr) {
+				done = false;
+
+				if (max310x_port_irq(s, port) == IRQ_HANDLED)
+					handled = true;
+			}
+
+		} while (!done);
 	} else {
 		if (max310x_port_irq(s, 0) == IRQ_HANDLED)
 			handled = true;
@@ -1269,8 +1280,7 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 	/* Alloc port structure */
 	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr), GFP_KERNEL);
 	if (!s)
-		return dev_err_probe(dev, -ENOMEM,
-				     "Error allocating port structure\n");
+		return -ENOMEM;
 
 	/* Always ask for fixed clock rate from a property. */
 	device_property_read_u32(dev, "clock-frequency", &uartclk);
@@ -1644,6 +1654,8 @@ static int max310x_i2c_probe(struct i2c_client *client)
 		port_client = devm_i2c_new_dummy_device(&client->dev,
 							client->adapter,
 							port_addr);
+		if (IS_ERR(port_client))
+			return PTR_ERR(port_client);
 
 		regcfg_i2c.name = max310x_regmap_name(i);
 		regmaps[i] = devm_regmap_init_i2c(port_client, &regcfg_i2c);

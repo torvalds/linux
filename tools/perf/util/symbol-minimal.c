@@ -42,7 +42,7 @@ static int read_build_id(void *note_data, size_t note_len, struct build_id *bid,
 	void *ptr;
 
 	ptr = note_data;
-	while (ptr < (note_data + note_len)) {
+	while ((ptr + sizeof(*nhdr)) < (note_data + note_len)) {
 		const char *name;
 		size_t namesz, descsz;
 

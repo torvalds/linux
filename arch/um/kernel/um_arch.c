@@ -54,12 +54,9 @@ static void __init add_arg(char *arg)
 
 /*
  * These fields are initialized at boot time and not changed.
- * XXX This structure is used only in the non-SMP case.  Maybe this
- * should be moved to smp.c.
  */
 struct cpuinfo_um boot_cpu_data = {
 	.loops_per_jiffy	= 0,
-	.ipi_pipe		= { -1, -1 },
 	.cache_alignment	= L1_CACHE_BYTES,
 	.x86_capability		= { 0 }
 };
@@ -331,9 +328,7 @@ int __init linux_main(int argc, char **argv, char **envp)
 
 	host_task_size = get_top_address(envp);
 	/* reserve a few pages for the stubs */
-	stub_start = host_task_size - STUB_DATA_PAGES * PAGE_SIZE;
-	/* another page for the code portion */
-	stub_start -= PAGE_SIZE;
+	stub_start = host_task_size - STUB_SIZE;
 	host_task_size = stub_start;
 
 	/* Limit TASK_SIZE to what is addressable by the page table */

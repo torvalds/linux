@@ -879,7 +879,7 @@ void mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 					      struct mlx5_eswitch *slave_esw);
 int mlx5_eswitch_reload_ib_reps(struct mlx5_eswitch *esw);
 
-bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev);
+bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev, bool from_fdb);
 void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev);
 
 int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev);
@@ -974,7 +974,8 @@ mlx5_eswitch_reload_ib_reps(struct mlx5_eswitch *esw)
 	return 0;
 }
 
-static inline bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev)
+static inline bool
+mlx5_eswitch_block_encap(struct mlx5_core_dev *dev, bool from_fdb)
 {
 	return true;
 }

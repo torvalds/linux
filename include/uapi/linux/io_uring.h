@@ -404,7 +404,7 @@ enum io_uring_op {
  *				will be	contiguous from the starting buffer ID.
  *
  * IORING_SEND_VECTORIZED	If set, SEND[_ZC] will take a pointer to a io_vec
- * 				to allow vectorized send operations.
+ *				to allow vectorized send operations.
  */
 #define IORING_RECVSEND_POLL_FIRST	(1U << 0)
 #define IORING_RECV_MULTISHOT		(1U << 1)

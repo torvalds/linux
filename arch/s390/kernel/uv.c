@@ -866,8 +866,8 @@ static int find_secret_in_page(const u8 secret_id[UV_SECRET_ID_LEN],
 	return -ENOENT;
 }
 
-/*
- * Do the actual search for `uv_get_secret_metadata`.
+/**
+ * uv_find_secret() - search secret metadata for a given secret id.
  * @secret_id: search pattern.
  * @list: ephemeral buffer space
  * @secret: output data, containing the secret's metadata.

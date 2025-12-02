@@ -256,7 +256,7 @@ struct sdma_script_start_addrs {
 	/* End of v3 array */
 	union { s32 v3_end; s32 mcu_2_zqspi_addr; };
 	/* End of v4 array */
-	s32 v4_end[0];
+	s32 v4_end[];
 };
 
 /*

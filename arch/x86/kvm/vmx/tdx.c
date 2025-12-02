@@ -620,6 +620,11 @@ int tdx_vm_init(struct kvm *kvm)
 	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
 
 	kvm->arch.has_protected_state = true;
+	/*
+	 * TDX Module doesn't allow the hypervisor to modify the EOI-bitmap,
+	 * i.e. all EOIs are accelerated and never trigger exits.
+	 */
+	kvm->arch.has_protected_eoi = true;
 	kvm->arch.has_private_mem = true;
 	kvm->arch.disabled_quirks |= KVM_X86_QUIRK_IGNORE_GUEST_PAT;
 
@@ -1994,6 +1999,8 @@ static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 	 * handle retries locally in their EPT violation handlers.
 	 */
 	while (1) {
+		struct kvm_memory_slot *slot;
+
 		ret = __vmx_handle_ept_violation(vcpu, gpa, exit_qual);
 
 		if (ret != RET_PF_RETRY || !local_retry)
@@ -2006,6 +2013,15 @@ static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 			ret = -EIO;
 			break;
 		}
+
+		/*
+		 * Bail if the memslot is invalid, i.e. is being deleted, as
+		 * faulting in will never succeed and this task needs to drop
+		 * SRCU in order to let memslot deletion complete.
+		 */
+		slot = kvm_vcpu_gfn_to_memslot(vcpu, gpa_to_gfn(gpa));
+		if (slot && slot->flags & KVM_MEMSLOT_INVALID)
+			break;
 
 		cond_resched();
 	}
@@ -2472,7 +2488,7 @@ static int __tdx_td_init(struct kvm *kvm, struct td_params *td_params,
 	/* TDVPS = TDVPR(4K page) + TDCX(multiple 4K pages), -1 for TDVPR. */
 	kvm_tdx->td.tdcx_nr_pages = tdx_sysinfo->td_ctrl.tdvps_base_size / PAGE_SIZE - 1;
 	tdcs_pages = kcalloc(kvm_tdx->td.tdcs_nr_pages, sizeof(*kvm_tdx->td.tdcs_pages),
-			     GFP_KERNEL | __GFP_ZERO);
+			     GFP_KERNEL);
 	if (!tdcs_pages)
 		goto free_tdr;
 
@@ -3460,12 +3476,11 @@ static int __init __tdx_bringup(void)
 	if (r)
 		goto tdx_bringup_err;
 
+	r = -EINVAL;
 	/* Get TDX global information for later use */
 	tdx_sysinfo = tdx_get_sysinfo();
-	if (WARN_ON_ONCE(!tdx_sysinfo)) {
-		r = -EINVAL;
+	if (WARN_ON_ONCE(!tdx_sysinfo))
 		goto get_sysinfo_err;
-	}
 
 	/* Check TDX module and KVM capabilities */
 	if (!tdx_get_supported_attrs(&tdx_sysinfo->td_conf) ||
@@ -3508,14 +3523,11 @@ static int __init __tdx_bringup(void)
 	if (td_conf->max_vcpus_per_td < num_present_cpus()) {
 		pr_err("Disable TDX: MAX_VCPU_PER_TD (%u) smaller than number of logical CPUs (%u).\n",
 				td_conf->max_vcpus_per_td, num_present_cpus());
-		r = -EINVAL;
 		goto get_sysinfo_err;
 	}
 
-	if (misc_cg_set_capacity(MISC_CG_RES_TDX, tdx_get_nr_guest_keyids())) {
-		r = -EINVAL;
+	if (misc_cg_set_capacity(MISC_CG_RES_TDX, tdx_get_nr_guest_keyids()))
 		goto get_sysinfo_err;
-	}
 
 	/*
 	 * Leave hardware virtualization enabled after TDX is enabled

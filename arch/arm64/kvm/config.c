@@ -5,6 +5,8 @@
  */
 
 #include <linux/kvm_host.h>
+#include <asm/kvm_emulate.h>
+#include <asm/kvm_nested.h>
 #include <asm/sysreg.h>
 
 /*
@@ -1427,4 +1429,92 @@ void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *r
 		*res0 = *res1 = 0;
 		break;
 	}
+}
+
+static __always_inline struct fgt_masks *__fgt_reg_to_masks(enum vcpu_sysreg reg)
+{
+	switch (reg) {
+	case HFGRTR_EL2:
+		return &hfgrtr_masks;
+	case HFGWTR_EL2:
+		return &hfgwtr_masks;
+	case HFGITR_EL2:
+		return &hfgitr_masks;
+	case HDFGRTR_EL2:
+		return &hdfgrtr_masks;
+	case HDFGWTR_EL2:
+		return &hdfgwtr_masks;
+	case HAFGRTR_EL2:
+		return &hafgrtr_masks;
+	case HFGRTR2_EL2:
+		return &hfgrtr2_masks;
+	case HFGWTR2_EL2:
+		return &hfgwtr2_masks;
+	case HFGITR2_EL2:
+		return &hfgitr2_masks;
+	case HDFGRTR2_EL2:
+		return &hdfgrtr2_masks;
+	case HDFGWTR2_EL2:
+		return &hdfgwtr2_masks;
+	default:
+		BUILD_BUG_ON(1);
+	}
+}
+
+static __always_inline void __compute_fgt(struct kvm_vcpu *vcpu, enum vcpu_sysreg reg)
+{
+	u64 fgu = vcpu->kvm->arch.fgu[__fgt_reg_to_group_id(reg)];
+	struct fgt_masks *m = __fgt_reg_to_masks(reg);
+	u64 clear = 0, set = 0, val = m->nmask;
+
+	set |= fgu & m->mask;
+	clear |= fgu & m->nmask;
+
+	if (is_nested_ctxt(vcpu)) {
+		u64 nested = __vcpu_sys_reg(vcpu, reg);
+		set |= nested & m->mask;
+		clear |= ~nested & m->nmask;
+	}
+
+	val |= set;
+	val &= ~clear;
+	*vcpu_fgt(vcpu, reg) = val;
+}
+
+static void __compute_hfgwtr(struct kvm_vcpu *vcpu)
+{
+	__compute_fgt(vcpu, HFGWTR_EL2);
+
+	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
+		*vcpu_fgt(vcpu, HFGWTR_EL2) |= HFGWTR_EL2_TCR_EL1;
+}
+
+static void __compute_hdfgwtr(struct kvm_vcpu *vcpu)
+{
+	__compute_fgt(vcpu, HDFGWTR_EL2);
+
+	if (is_hyp_ctxt(vcpu))
+		*vcpu_fgt(vcpu, HDFGWTR_EL2) |= HDFGWTR_EL2_MDSCR_EL1;
+}
+
+void kvm_vcpu_load_fgt(struct kvm_vcpu *vcpu)
+{
+	if (!cpus_have_final_cap(ARM64_HAS_FGT))
+		return;
+
+	__compute_fgt(vcpu, HFGRTR_EL2);
+	__compute_hfgwtr(vcpu);
+	__compute_fgt(vcpu, HFGITR_EL2);
+	__compute_fgt(vcpu, HDFGRTR_EL2);
+	__compute_hdfgwtr(vcpu);
+	__compute_fgt(vcpu, HAFGRTR_EL2);
+
+	if (!cpus_have_final_cap(ARM64_HAS_FGT2))
+		return;
+
+	__compute_fgt(vcpu, HFGRTR2_EL2);
+	__compute_fgt(vcpu, HFGWTR2_EL2);
+	__compute_fgt(vcpu, HFGITR2_EL2);
+	__compute_fgt(vcpu, HDFGRTR2_EL2);
+	__compute_fgt(vcpu, HDFGWTR2_EL2);
 }

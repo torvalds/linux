@@ -4891,7 +4891,7 @@ union bpf_attr {
  *
  *		**-ENOENT** if the bpf_local_storage cannot be found.
  *
- * long bpf_d_path(struct path *path, char *buf, u32 sz)
+ * long bpf_d_path(const struct path *path, char *buf, u32 sz)
  *	Description
  *		Return full path for given **struct path** object, which
  *		needs to be the kernel BTF *path* object. The path is

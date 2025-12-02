@@ -1362,6 +1362,11 @@ static inline bool kvm_is_unrestricted_guest_enabled(void)
 	return get_kvm_intel_param_bool("unrestricted_guest");
 }
 
+static inline bool kvm_is_ignore_msrs(void)
+{
+	return get_kvm_param_bool("ignore_msrs");
+}
+
 uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
 				    int *level);
 uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr);

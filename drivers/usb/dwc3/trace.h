@@ -19,6 +19,23 @@
 #include "core.h"
 #include "debug.h"
 
+DECLARE_EVENT_CLASS(dwc3_log_set_prtcap,
+	TP_PROTO(u32 mode),
+	TP_ARGS(mode),
+	TP_STRUCT__entry(
+		__field(u32, mode)
+	),
+	TP_fast_assign(
+		__entry->mode = mode;
+	),
+	TP_printk("mode %s", dwc3_mode_string(__entry->mode))
+);
+
+DEFINE_EVENT(dwc3_log_set_prtcap, dwc3_set_prtcap,
+	TP_PROTO(u32 mode),
+	TP_ARGS(mode)
+);
+
 DECLARE_EVENT_CLASS(dwc3_log_io,
 	TP_PROTO(void *base, u32 offset, u32 value),
 	TP_ARGS(base, offset, value),

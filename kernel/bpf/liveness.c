@@ -195,8 +195,10 @@ static struct func_instance *__lookup_instance(struct bpf_verifier_env *env,
 		return ERR_PTR(-ENOMEM);
 	result->must_write_set = kvcalloc(subprog_sz, sizeof(*result->must_write_set),
 					  GFP_KERNEL_ACCOUNT);
-	if (!result->must_write_set)
+	if (!result->must_write_set) {
+		kvfree(result);
 		return ERR_PTR(-ENOMEM);
+	}
 	memcpy(&result->callchain, callchain, sizeof(*callchain));
 	result->insn_cnt = subprog_sz;
 	hash_add(liveness->func_instances, &result->hl_node, key);

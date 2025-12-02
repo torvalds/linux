@@ -83,7 +83,8 @@ enum parse_events__term_type {
 	PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE,
 	PARSE_EVENTS__TERM_TYPE_HARDWARE,
 	PARSE_EVENTS__TERM_TYPE_CPU,
-#define	__PARSE_EVENTS__TERM_TYPE_NR (PARSE_EVENTS__TERM_TYPE_CPU + 1)
+	PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV,
+#define	__PARSE_EVENTS__TERM_TYPE_NR (PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV + 1)
 };
 
 struct parse_events_term {
@@ -216,6 +217,7 @@ struct parse_events_modifier {
 	bool guest : 1;		/* 'G' */
 	bool host : 1;		/* 'H' */
 	bool retire_lat : 1;	/* 'R' */
+	bool dont_regroup : 1;	/* 'X' */
 };
 
 int parse_events__modifier_event(struct parse_events_state *parse_state, void *loc,

@@ -450,8 +450,7 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 	    ((pgm == 4) && (fw_ver >= 0x4557000)))
 		smu_v13_0_6_cap_set(smu, SMU_CAP(SDMA_RESET));
 
-	if (((pgm == 0) && (fw_ver >= 0x00558200)) ||
-	    ((pgm == 4) && (fw_ver >= 0x04557100)))
+	if ((pgm == 0) && (fw_ver >= 0x00558200))
 		smu_v13_0_6_cap_set(smu, SMU_CAP(VCN_RESET));
 }
 
@@ -3933,7 +3932,7 @@ void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)
 	smu->feature_map = (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12)) ?
 		smu_v13_0_12_feature_mask_map : smu_v13_0_6_feature_mask_map;
 	smu->table_map = smu_v13_0_6_table_map;
-	smu->smc_driver_if_version = SMU13_0_6_DRIVER_IF_VERSION;
+	smu->smc_driver_if_version = SMU_IGNORE_IF_VERSION;
 	smu->smc_fw_caps |= SMU_FW_CAP_RAS_PRI;
 	smu_v13_0_set_smu_mailbox_registers(smu);
 	smu_v13_0_6_set_temp_funcs(smu);

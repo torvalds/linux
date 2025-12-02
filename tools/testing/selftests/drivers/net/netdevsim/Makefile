@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0+ OR MIT
 
-TEST_PROGS = devlink.sh \
+TEST_PROGS := \
+	devlink.sh \
 	devlink_in_netns.sh \
 	devlink_trap.sh \
 	ethtool-coalesce.sh \
@@ -17,5 +18,6 @@ TEST_PROGS = devlink.sh \
 	psample.sh \
 	tc-mq-visibility.sh \
 	udp_tunnel_nic.sh \
+# end of TEST_PROGS
 
 include ../../../lib.mk

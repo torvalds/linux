@@ -112,7 +112,10 @@ static int cpio_trailer(void)
 	    push_pad(padlen(offset, 512)) < 0)
 		return -1;
 
-	return fsync(outfd);
+	if (fsync(outfd) < 0 && errno != EINVAL)
+		return -1;
+
+	return 0;
 }
 
 static int cpio_mkslink(const char *name, const char *target,

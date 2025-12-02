@@ -437,12 +437,21 @@ enum smbdirect_mr_state {
 	SMBDIRECT_MR_READY,
 	SMBDIRECT_MR_REGISTERED,
 	SMBDIRECT_MR_INVALIDATED,
-	SMBDIRECT_MR_ERROR
+	SMBDIRECT_MR_ERROR,
+	SMBDIRECT_MR_DISABLED
 };
 
 struct smbdirect_mr_io {
 	struct smbdirect_socket *socket;
 	struct ib_cqe cqe;
+
+	/*
+	 * We can have up to two references:
+	 * 1. by the connection
+	 * 2. by the registration
+	 */
+	struct kref kref;
+	struct mutex mutex;
 
 	struct list_head list;
 

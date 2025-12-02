@@ -18,7 +18,6 @@ static const struct regmap_config owl_regmap_config = {
 	.reg_stride	= 4,
 	.val_bits	= 32,
 	.max_register	= 0x00cc,
-	.fast_io	= true,
 };
 
 static void owl_clk_set_regmap(const struct owl_clk_desc *desc,

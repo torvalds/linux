@@ -403,9 +403,11 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	}
 
 	info->cpu_clk = clk_get(cpu_dev, "cpu");
-	if (IS_ERR(info->cpu_clk))
-		return dev_err_probe(cpu_dev, PTR_ERR(info->cpu_clk),
-				     "cpu%d: failed to get cpu clk\n", cpu);
+	if (IS_ERR(info->cpu_clk)) {
+		ret = PTR_ERR(info->cpu_clk);
+		dev_err_probe(cpu_dev, ret, "cpu%d: failed to get cpu clk\n", cpu);
+		goto out_put_cci_dev;
+	}
 
 	info->inter_clk = clk_get(cpu_dev, "intermediate");
 	if (IS_ERR(info->inter_clk)) {
@@ -551,6 +553,10 @@ out_free_inter_clock:
 out_free_mux_clock:
 	clk_put(info->cpu_clk);
 
+out_put_cci_dev:
+	if (info->soc_data->ccifreq_supported)
+		put_device(info->cci_dev);
+
 	return ret;
 }
 
@@ -568,6 +574,8 @@ static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
 	clk_put(info->inter_clk);
 	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
 	dev_pm_opp_unregister_notifier(info->cpu_dev, &info->opp_nb);
+	if (info->soc_data->ccifreq_supported)
+		put_device(info->cci_dev);
 }
 
 static int mtk_cpufreq_init(struct cpufreq_policy *policy)

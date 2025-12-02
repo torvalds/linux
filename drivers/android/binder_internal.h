@@ -537,8 +537,8 @@ struct binder_transaction {
 	struct binder_proc *to_proc;
 	struct binder_thread *to_thread;
 	struct binder_transaction *to_parent;
-	unsigned need_reply:1;
-	/* unsigned is_dead:1; */       /* not used at the moment */
+	unsigned is_async:1;
+	unsigned is_reply:1;
 
 	struct binder_buffer *buffer;
 	unsigned int    code;

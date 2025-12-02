@@ -4006,23 +4006,25 @@ int mlx5_devlink_eswitch_inline_mode_get(struct devlink *devlink, u8 *mode)
 	return esw_inline_mode_to_devlink(esw->offloads.inline_mode, mode);
 }
 
-bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev)
+bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev, bool from_fdb)
 {
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	enum devlink_eswitch_encap_mode encap;
+	bool allow_tunnel = false;
 
 	if (!mlx5_esw_allowed(esw))
 		return true;
 
 	down_write(&esw->mode_lock);
-	if (esw->mode != MLX5_ESWITCH_LEGACY &&
-	    esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE) {
-		up_write(&esw->mode_lock);
-		return false;
+	encap = esw->offloads.encap;
+	if (esw->mode == MLX5_ESWITCH_LEGACY ||
+	    (encap == DEVLINK_ESWITCH_ENCAP_MODE_NONE && !from_fdb)) {
+		allow_tunnel = true;
+		esw->offloads.num_block_encap++;
 	}
-
-	esw->offloads.num_block_encap++;
 	up_write(&esw->mode_lock);
-	return true;
+
+	return allow_tunnel;
 }
 
 void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev)

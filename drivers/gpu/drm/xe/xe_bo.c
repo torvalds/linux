@@ -1737,6 +1737,24 @@ static bool should_migrate_to_smem(struct xe_bo *bo)
 	       bo->attr.atomic_access == DRM_XE_ATOMIC_CPU;
 }
 
+static int xe_bo_wait_usage_kernel(struct xe_bo *bo, struct ttm_operation_ctx *ctx)
+{
+	long lerr;
+
+	if (ctx->no_wait_gpu)
+		return dma_resv_test_signaled(bo->ttm.base.resv, DMA_RESV_USAGE_KERNEL) ?
+			0 : -EBUSY;
+
+	lerr = dma_resv_wait_timeout(bo->ttm.base.resv, DMA_RESV_USAGE_KERNEL,
+				     ctx->interruptible, MAX_SCHEDULE_TIMEOUT);
+	if (lerr < 0)
+		return lerr;
+	if (lerr == 0)
+		return -EBUSY;
+
+	return 0;
+}
+
 /* Populate the bo if swapped out, or migrate if the access mode requires that. */
 static int xe_bo_fault_migrate(struct xe_bo *bo, struct ttm_operation_ctx *ctx,
 			       struct drm_exec *exec)
@@ -1745,10 +1763,9 @@ static int xe_bo_fault_migrate(struct xe_bo *bo, struct ttm_operation_ctx *ctx,
 	int err = 0;
 
 	if (ttm_manager_type(tbo->bdev, tbo->resource->mem_type)->use_tt) {
-		xe_assert(xe_bo_device(bo),
-			  dma_resv_test_signaled(tbo->base.resv, DMA_RESV_USAGE_KERNEL) ||
-			  (tbo->ttm && ttm_tt_is_populated(tbo->ttm)));
-		err = ttm_bo_populate(&bo->ttm, ctx);
+		err = xe_bo_wait_usage_kernel(bo, ctx);
+		if (!err)
+			err = ttm_bo_populate(&bo->ttm, ctx);
 	} else if (should_migrate_to_smem(bo)) {
 		xe_assert(xe_bo_device(bo), bo->flags & XE_BO_FLAG_SYSTEM);
 		err = xe_bo_migrate(bo, XE_PL_TT, ctx, exec);
@@ -1922,7 +1939,6 @@ static vm_fault_t xe_bo_cpu_fault(struct vm_fault *vmf)
 			.no_wait_gpu = false,
 			.gfp_retry_mayfail = retry_after_wait,
 		};
-		long lerr;
 
 		err = drm_exec_lock_obj(&exec, &tbo->base);
 		drm_exec_retry_on_contention(&exec);
@@ -1942,13 +1958,9 @@ static vm_fault_t xe_bo_cpu_fault(struct vm_fault *vmf)
 			break;
 		}
 
-		lerr = dma_resv_wait_timeout(tbo->base.resv,
-					     DMA_RESV_USAGE_KERNEL, true,
-					     MAX_SCHEDULE_TIMEOUT);
-		if (lerr < 0) {
-			err = lerr;
+		err = xe_bo_wait_usage_kernel(bo, &tctx);
+		if (err)
 			break;
-		}
 
 		if (!retry_after_wait)
 			ret = __xe_bo_cpu_fault(vmf, xe, bo);

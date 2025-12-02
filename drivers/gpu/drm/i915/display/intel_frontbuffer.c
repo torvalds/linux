@@ -270,6 +270,8 @@ static void frontbuffer_release(struct kref *ref)
 	spin_unlock(&display->fb_tracking.lock);
 
 	i915_active_fini(&front->write);
+
+	drm_gem_object_put(obj);
 	kfree_rcu(front, rcu);
 }
 
@@ -287,6 +289,8 @@ intel_frontbuffer_get(struct drm_gem_object *obj)
 	if (!front)
 		return NULL;
 
+	drm_gem_object_get(obj);
+
 	front->obj = obj;
 	kref_init(&front->ref);
 	atomic_set(&front->bits, 0);
@@ -299,8 +303,12 @@ intel_frontbuffer_get(struct drm_gem_object *obj)
 	spin_lock(&display->fb_tracking.lock);
 	cur = intel_bo_set_frontbuffer(obj, front);
 	spin_unlock(&display->fb_tracking.lock);
-	if (cur != front)
+
+	if (cur != front) {
+		drm_gem_object_put(obj);
 		kfree(front);
+	}
+
 	return cur;
 }
 

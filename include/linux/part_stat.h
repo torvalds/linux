@@ -17,8 +17,8 @@ struct disk_stats {
 /*
  * Macros to operate on percpu disk statistics:
  *
- * {disk|part|all}_stat_{add|sub|inc|dec}() modify the stat counters and should
- * be called between disk_stat_lock() and disk_stat_unlock().
+ * part_stat_{add|sub|inc|dec}() modify the stat counters and should
+ * be called between part_stat_lock() and part_stat_unlock().
  *
  * part_stat_read() can be called at any time.
  */

@@ -179,7 +179,6 @@ struct drm_gpusvm_range {
  * @name: Name of the GPU SVM
  * @drm: Pointer to the DRM device structure
  * @mm: Pointer to the mm_struct for the address space
- * @device_private_page_owner: Device private pages owner
  * @mm_start: Start address of GPU SVM
  * @mm_range: Range of the GPU SVM
  * @notifier_size: Size of individual notifiers
@@ -204,7 +203,6 @@ struct drm_gpusvm {
 	const char *name;
 	struct drm_device *drm;
 	struct mm_struct *mm;
-	void *device_private_page_owner;
 	unsigned long mm_start;
 	unsigned long mm_range;
 	unsigned long notifier_size;
@@ -226,6 +224,8 @@ struct drm_gpusvm {
 /**
  * struct drm_gpusvm_ctx - DRM GPU SVM context
  *
+ * @device_private_page_owner: The device-private page owner to use for
+ * this operation
  * @check_pages_threshold: Check CPU pages for present if chunk is less than or
  *                         equal to threshold. If not present, reduce chunk
  *                         size.
@@ -239,6 +239,7 @@ struct drm_gpusvm {
  * Context that is DRM GPUSVM is operating in (i.e. user arguments).
  */
 struct drm_gpusvm_ctx {
+	void *device_private_page_owner;
 	unsigned long check_pages_threshold;
 	unsigned long timeslice_ms;
 	unsigned int in_notifier :1;
@@ -249,7 +250,7 @@ struct drm_gpusvm_ctx {
 
 int drm_gpusvm_init(struct drm_gpusvm *gpusvm,
 		    const char *name, struct drm_device *drm,
-		    struct mm_struct *mm, void *device_private_page_owner,
+		    struct mm_struct *mm,
 		    unsigned long mm_start, unsigned long mm_range,
 		    unsigned long notifier_size,
 		    const struct drm_gpusvm_ops *ops,

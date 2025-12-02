@@ -39,7 +39,6 @@ struct mx25_tcq_priv {
 };
 
 static const struct regmap_config mx25_tcq_regconfig = {
-	.fast_io = true,
 	.max_register = 0x5c,
 	.reg_bits = 32,
 	.val_bits = 32,

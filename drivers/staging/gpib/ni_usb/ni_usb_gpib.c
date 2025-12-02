@@ -29,7 +29,7 @@ static void ni_usb_stop(struct ni_usb_priv *ni_priv);
 
 static DEFINE_MUTEX(ni_usb_hotplug_lock);
 
-//calculates a reasonable timeout in that can be passed to usb functions
+// calculates a reasonable timeout in that can be passed to usb functions
 static inline unsigned long ni_usb_timeout_msecs(unsigned int usec)
 {
 	if (usec == 0)
@@ -327,7 +327,7 @@ static void ni_usb_soft_update_status(struct gpib_board *board, unsigned int ni_
 	board->status &= ~clear_mask;
 	board->status &= ~ni_usb_ibsta_mask;
 	board->status |= ni_usb_ibsta & ni_usb_ibsta_mask;
-	//FIXME should generate events on DTAS and DCAS
+	// FIXME should generate events on DTAS and DCAS
 
 	spin_lock_irqsave(&board->spinlock, flags);
 /* remove set status bits from monitored set why ?***/
@@ -569,7 +569,7 @@ static int ni_usb_write_registers(struct ni_usb_priv *ni_priv,
 	mutex_unlock(&ni_priv->addressed_transfer_lock);
 
 	ni_usb_parse_reg_write_status_block(in_data, &status, &reg_writes_completed);
-	//FIXME parse extra 09 status bits and termination
+	// FIXME parse extra 09 status bits and termination
 	kfree(in_data);
 	if (status.id != NIUSB_REG_WRITE_ID) {
 		dev_err(&usb_dev->dev, "parse error, id=0x%x != NIUSB_REG_WRITE_ID\n", status.id);
@@ -1106,7 +1106,7 @@ static int ni_usb_request_system_control(struct gpib_board *board, int request_c
 	return 0;
 }
 
-//FIXME maybe the interface should have a "pulse interface clear" function that can return an error?
+// FIXME maybe the interface should have a "pulse interface clear" function that can return an error?
 static void ni_usb_interface_clear(struct gpib_board *board, int assert)
 {
 	int retval;
@@ -1363,7 +1363,7 @@ static int ni_usb_parallel_poll(struct gpib_board *board, u8 *result)
 		return -ENOMEM;
 
 	out_data[i++] = NIUSB_IBRPP_ID;
-	out_data[i++] = 0xf0;	//FIXME: this should be the parallel poll timeout code
+	out_data[i++] = 0xf0;	// FIXME: this should be the parallel poll timeout code
 	out_data[i++] = 0x0;
 	out_data[i++] = 0x0;
 	i += ni_usb_bulk_termination(&out_data[i]);

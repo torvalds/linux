@@ -77,32 +77,6 @@ config MTD_NAND_NDFC
 	help
 	  NDFC Nand Flash Controllers are integrated in IBM/AMCC's 4xx SoCs
 
-config MTD_NAND_S3C2410
-	tristate "Samsung S3C NAND controller"
-	depends on ARCH_S3C64XX
-	help
-	  This enables the NAND flash controller on the S3C24xx and S3C64xx
-	  SoCs
-
-	  No board specific support is done by this driver, each board
-	  must advertise a platform_device for the driver to attach.
-
-config MTD_NAND_S3C2410_DEBUG
-	bool "Samsung S3C NAND controller debug"
-	depends on MTD_NAND_S3C2410
-	help
-	  Enable debugging of the S3C NAND driver
-
-config MTD_NAND_S3C2410_CLKSTOP
-	bool "Samsung S3C NAND IDLE clock stop"
-	depends on MTD_NAND_S3C2410
-	default n
-	help
-	  Stop the clock to the NAND controller when there is no chip
-	  selected to save power. This will mean there is a small delay
-	  when the is NAND chip selected or released, but will save
-	  approximately 5mA of power when there is nothing happening.
-
 config MTD_NAND_SHARPSL
 	tristate "Sharp SL Series (C7xx + others) NAND controller"
 	depends on ARCH_PXA || COMPILE_TEST
@@ -462,12 +436,12 @@ config MTD_NAND_NUVOTON_MA35
 	  Enables support for the NAND controller found on
 	  the Nuvoton MA35 series SoCs.
 
-config MTD_NAND_LOONGSON1
-	tristate "Loongson1 NAND controller"
-	depends on LOONGSON1_APB_DMA || COMPILE_TEST
+config MTD_NAND_LOONGSON
+	tristate "Loongson NAND controller"
+	depends on LOONGSON1_APB_DMA || LOONGSON2_APB_DMA || COMPILE_TEST
 	select REGMAP_MMIO
 	help
-	  Enables support for NAND controller on Loongson1 SoCs.
+	  Enables support for NAND controller on Loongson family chips.
 
 comment "Misc"
 

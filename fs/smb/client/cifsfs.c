@@ -392,11 +392,27 @@ static long cifs_fallocate(struct file *file, int mode, loff_t off, loff_t len)
 	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct TCP_Server_Info *server = tcon->ses->server;
+	struct inode *inode = file_inode(file);
+	int rc;
 
-	if (server->ops->fallocate)
-		return server->ops->fallocate(file, tcon, mode, off, len);
+	if (!server->ops->fallocate)
+		return -EOPNOTSUPP;
 
-	return -EOPNOTSUPP;
+	rc = inode_lock_killable(inode);
+	if (rc)
+		return rc;
+
+	netfs_wait_for_outstanding_io(inode);
+
+	rc = file_modified(file);
+	if (rc)
+		goto out_unlock;
+
+	rc = server->ops->fallocate(file, tcon, mode, off, len);
+
+out_unlock:
+	inode_unlock(inode);
+	return rc;
 }
 
 static int cifs_permission(struct mnt_idmap *idmap,
@@ -2123,13 +2139,9 @@ MODULE_DESCRIPTION
 	"also older servers complying with the SNIA CIFS Specification)");
 MODULE_VERSION(CIFS_VERSION);
 MODULE_SOFTDEP("ecb");
-MODULE_SOFTDEP("hmac");
-MODULE_SOFTDEP("md5");
 MODULE_SOFTDEP("nls");
 MODULE_SOFTDEP("aes");
 MODULE_SOFTDEP("cmac");
-MODULE_SOFTDEP("sha256");
-MODULE_SOFTDEP("sha512");
 MODULE_SOFTDEP("aead2");
 MODULE_SOFTDEP("ccm");
 MODULE_SOFTDEP("gcm");

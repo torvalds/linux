@@ -40,6 +40,7 @@ properties:
       - description: LS1B based boards
         items:
           - enum:
+              - loongson,ls1b-demo
               - loongson,lsgz-1b-dev
           - const: loongson,ls1b
 
@@ -47,6 +48,7 @@ properties:
         items:
           - enum:
               - loongmasses,smartloong-1c
+              - loongson,cq-t300b
           - const: loongson,ls1c
 
 additionalProperties: true

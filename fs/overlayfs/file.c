@@ -369,11 +369,6 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (!ovl_should_sync(OVL_FS(inode->i_sb)))
 		ifl &= ~(IOCB_DSYNC | IOCB_SYNC);
 
-	/*
-	 * Overlayfs doesn't support deferred completions, don't copy
-	 * this property in case it is set by the issuer.
-	 */
-	ifl &= ~IOCB_DIO_CALLER_COMP;
 	ret = backing_file_write_iter(realfile, iter, iocb, ifl, &ctx);
 
 out_unlock:

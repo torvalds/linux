@@ -215,8 +215,8 @@ static int aspeed_scu_ic_of_init_common(struct aspeed_scu_ic *scu_ic,
 	int irq, rc = 0;
 
 	scu_ic->base = of_iomap(node, 0);
-	if (IS_ERR(scu_ic->base)) {
-		rc = PTR_ERR(scu_ic->base);
+	if (!scu_ic->base) {
+		rc = -ENOMEM;
 		goto err;
 	}
 

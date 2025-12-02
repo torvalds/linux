@@ -29,6 +29,7 @@
  *       - Support for async sampling control for noisy LCDs.
  */
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>

@@ -802,3 +802,25 @@ bool x86__is_amd_cpu(void)
 
 	return is_amd;
 }
+
+bool perf_env__is_x86_intel_cpu(struct perf_env *env)
+{
+	static int is_intel; /* 0: Uninitialized, 1: Yes, -1: No */
+
+	if (is_intel == 0)
+		is_intel = env->cpuid && strstarts(env->cpuid, "GenuineIntel") ? 1 : -1;
+
+	return is_intel >= 1 ? true : false;
+}
+
+bool x86__is_intel_cpu(void)
+{
+	struct perf_env env = { .total_mem = 0, };
+	bool is_intel;
+
+	perf_env__cpuid(&env);
+	is_intel = perf_env__is_x86_intel_cpu(&env);
+	perf_env__exit(&env);
+
+	return is_intel;
+}

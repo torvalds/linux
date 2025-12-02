@@ -121,7 +121,7 @@ static int init_vas_instance(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	xd = irq_get_handler_data(vinst->virq);
+	xd = irq_get_chip_data(vinst->virq);
 	if (!xd) {
 		pr_err("Inst%d: Invalid virq %d\n",
 				vinst->vas_id, vinst->virq);

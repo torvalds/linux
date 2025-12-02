@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/mediatek,mt8196-sys-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek System Clock Controller for MT8196
+
+maintainers:
+  - Guangjie Song <guangjie.song@mediatek.com>
+  - Laura Nao <laura.nao@collabora.com>
+
+description: |
+  The clock architecture in MediaTek SoCs is structured like below:
+  PLLs -->
+          dividers -->
+                      muxes
+                           -->
+                              clock gate
+
+  The apmixedsys, apmixedsys_gp2, vlpckgen, armpll, ccipll, mfgpll and ptppll
+  provide most of the PLLs which are generated from the SoC's 26MHZ crystal oscillator.
+  The topckgen, topckgen_gp2 and vlpckgen provide dividers and muxes which
+  provide the clock source to other IP blocks.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - mediatek,mt8196-apmixedsys
+          - mediatek,mt8196-armpll-b-pll-ctrl
+          - mediatek,mt8196-armpll-bl-pll-ctrl
+          - mediatek,mt8196-armpll-ll-pll-ctrl
+          - mediatek,mt8196-apmixedsys-gp2
+          - mediatek,mt8196-ccipll-pll-ctrl
+          - mediatek,mt8196-mfgpll-pll-ctrl
+          - mediatek,mt8196-mfgpll-sc0-pll-ctrl
+          - mediatek,mt8196-mfgpll-sc1-pll-ctrl
+          - mediatek,mt8196-ptppll-pll-ctrl
+          - mediatek,mt8196-topckgen
+          - mediatek,mt8196-topckgen-gp2
+          - mediatek,mt8196-vlpckgen
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  mediatek,hardware-voter:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      Phandle to the "Hardware Voter" (HWV), as named in the vendor
+      documentation for MT8196/MT6991.
+
+      The HWV is a SoC-internal fixed-function MCU used to collect votes from
+      both the Application Processor and other remote processors within the SoC.
+      It is intended to transparently enable or disable hardware resources (such
+      as power domains or clocks) based on internal vote aggregation handled by
+      the MCU's internal state machine.
+
+      However, in practice, this design is incomplete. While the HWV performs
+      some internal vote aggregation,software is still required to
+      - Manually enable power supplies externally, if present and if required
+      - Manually enable parent clocks via direct MMIO writes to clock controllers
+      - Enable the FENC after the clock has been ungated via direct MMIO
+      writes to clock controllers
+
+      As such, the HWV behaves more like a hardware-managed clock reference
+      counter than a true voter. Furthermore, it is not a separate
+      controller. It merely serves as an alternative interface to the same
+      underlying clock or power controller. Actual control still requires
+      direct access to the controller's own MMIO register space, in
+      addition to writing to the HWV's MMIO region.
+
+      For this reason, a custom phandle is used here - drivers need to directly
+      access the HWV MMIO region in a syscon-like fashion, due to how the
+      hardware is wired. This differs from true hardware voting systems, which
+      typically do not require custom phandles and rely instead on generic APIs
+      (clocks, power domains, interconnects).
+
+      The name "hardware-voter" is retained to match vendor documentation, but
+      this should not be reused or misunderstood as a proper voting mechanism.
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    apmixedsys_clk: syscon@10000800 {
+        compatible = "mediatek,mt8196-apmixedsys", "syscon";
+        reg = <0x10000800 0x1000>;
+        #clock-cells = <1>;
+    };
+  - |
+    topckgen: syscon@10000000 {
+        compatible = "mediatek,mt8196-topckgen", "syscon";
+        reg = <0x10000000 0x800>;
+        mediatek,hardware-voter = <&scp_hwv>;
+        #clock-cells = <1>;
+    };
+

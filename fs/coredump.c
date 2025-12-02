@@ -1468,7 +1468,7 @@ static int proc_dostring_coredump(const struct ctl_table *table, int write,
 	ssize_t retval;
 	char old_core_pattern[CORENAME_MAX_SIZE];
 
-	if (write)
+	if (!write)
 		return proc_dostring(table, write, buffer, lenp, ppos);
 
 	retval = strscpy(old_core_pattern, core_pattern, CORENAME_MAX_SIZE);

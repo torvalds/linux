@@ -361,7 +361,6 @@ static const struct mmu_interval_notifier_ops drm_gpusvm_notifier_ops = {
  * @name: Name of the GPU SVM.
  * @drm: Pointer to the DRM device structure.
  * @mm: Pointer to the mm_struct for the address space.
- * @device_private_page_owner: Device private pages owner.
  * @mm_start: Start address of GPU SVM.
  * @mm_range: Range of the GPU SVM.
  * @notifier_size: Size of individual notifiers.
@@ -383,7 +382,7 @@ static const struct mmu_interval_notifier_ops drm_gpusvm_notifier_ops = {
  */
 int drm_gpusvm_init(struct drm_gpusvm *gpusvm,
 		    const char *name, struct drm_device *drm,
-		    struct mm_struct *mm, void *device_private_page_owner,
+		    struct mm_struct *mm,
 		    unsigned long mm_start, unsigned long mm_range,
 		    unsigned long notifier_size,
 		    const struct drm_gpusvm_ops *ops,
@@ -395,15 +394,13 @@ int drm_gpusvm_init(struct drm_gpusvm *gpusvm,
 		mmgrab(mm);
 	} else {
 		/* No full SVM mode, only core drm_gpusvm_pages API. */
-		if (ops || num_chunks || mm_range || notifier_size ||
-		    device_private_page_owner)
+		if (ops || num_chunks || mm_range || notifier_size)
 			return -EINVAL;
 	}
 
 	gpusvm->name = name;
 	gpusvm->drm = drm;
 	gpusvm->mm = mm;
-	gpusvm->device_private_page_owner = device_private_page_owner;
 	gpusvm->mm_start = mm_start;
 	gpusvm->mm_range = mm_range;
 	gpusvm->notifier_size = notifier_size;
@@ -684,6 +681,7 @@ static unsigned int drm_gpusvm_hmm_pfn_to_order(unsigned long hmm_pfn,
  * @notifier: Pointer to the GPU SVM notifier structure
  * @start: Start address
  * @end: End address
+ * @dev_private_owner: The device private page owner
  *
  * Check if pages between start and end have been faulted in on the CPU. Use to
  * prevent migration of pages without CPU backing store.
@@ -692,14 +690,15 @@ static unsigned int drm_gpusvm_hmm_pfn_to_order(unsigned long hmm_pfn,
  */
 static bool drm_gpusvm_check_pages(struct drm_gpusvm *gpusvm,
 				   struct drm_gpusvm_notifier *notifier,
-				   unsigned long start, unsigned long end)
+				   unsigned long start, unsigned long end,
+				   void *dev_private_owner)
 {
 	struct hmm_range hmm_range = {
 		.default_flags = 0,
 		.notifier = &notifier->notifier,
 		.start = start,
 		.end = end,
-		.dev_private_owner = gpusvm->device_private_page_owner,
+		.dev_private_owner = dev_private_owner,
 	};
 	unsigned long timeout =
 		jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
@@ -753,6 +752,7 @@ err_free:
  * @gpuva_start: Start address of GPUVA which mirrors CPU
  * @gpuva_end: End address of GPUVA which mirrors CPU
  * @check_pages_threshold: Check CPU pages for present threshold
+ * @dev_private_owner: The device private page owner
  *
  * This function determines the chunk size for the GPU SVM range based on the
  * fault address, GPU SVM chunk sizes, existing GPU SVM ranges, and the virtual
@@ -767,7 +767,8 @@ drm_gpusvm_range_chunk_size(struct drm_gpusvm *gpusvm,
 			    unsigned long fault_addr,
 			    unsigned long gpuva_start,
 			    unsigned long gpuva_end,
-			    unsigned long check_pages_threshold)
+			    unsigned long check_pages_threshold,
+			    void *dev_private_owner)
 {
 	unsigned long start, end;
 	int i = 0;
@@ -814,7 +815,7 @@ retry:
 		 * process-many-malloc' mallocs at least 64k at a time.
 		 */
 		if (end - start <= check_pages_threshold &&
-		    !drm_gpusvm_check_pages(gpusvm, notifier, start, end)) {
+		    !drm_gpusvm_check_pages(gpusvm, notifier, start, end, dev_private_owner)) {
 			++i;
 			goto retry;
 		}
@@ -957,7 +958,8 @@ drm_gpusvm_range_find_or_insert(struct drm_gpusvm *gpusvm,
 	chunk_size = drm_gpusvm_range_chunk_size(gpusvm, notifier, vas,
 						 fault_addr, gpuva_start,
 						 gpuva_end,
-						 ctx->check_pages_threshold);
+						 ctx->check_pages_threshold,
+						 ctx->device_private_page_owner);
 	if (chunk_size == LONG_MAX) {
 		err = -EINVAL;
 		goto err_notifier_remove;
@@ -1268,7 +1270,7 @@ int drm_gpusvm_get_pages(struct drm_gpusvm *gpusvm,
 		.notifier = notifier,
 		.start = pages_start,
 		.end = pages_end,
-		.dev_private_owner = gpusvm->device_private_page_owner,
+		.dev_private_owner = ctx->device_private_page_owner,
 	};
 	void *zdd;
 	unsigned long timeout =

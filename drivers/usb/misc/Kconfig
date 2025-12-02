@@ -147,6 +147,7 @@ config USB_APPLEDISPLAY
 config USB_QCOM_EUD
 	tristate "QCOM Embedded USB Debugger(EUD) Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
+	select QCOM_SCM
 	select USB_ROLE_SWITCH
 	help
 	  This module enables support for Qualcomm Technologies, Inc.
@@ -177,6 +178,20 @@ config USB_LJCA
 
 	  This driver can also be built as a module. If so, the module
 	  will be called usb-ljca.
+
+config USB_USBIO
+	tristate "Intel USBIO Bridge support"
+	depends on USB && ACPI
+	select AUXILIARY_BUS
+	help
+	  This adds support for Intel USBIO drivers.
+	  This enables the USBIO bridge driver module in charge to talk
+	  to the USB device. Additional drivers such as GPIO_USBIO and
+	  I2C_USBIO must be enabled in order to use the device's full
+	  functionality.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called usbio.
 
 source "drivers/usb/misc/sisusbvga/Kconfig"
 
@@ -231,8 +246,8 @@ config USB_EHSET_TEST_FIXTURE
 	  VID/PID pairs. This driver then initiates a corresponding test mode on
 	  the downstream port to which the test fixture is attached.
 
-	  See <http://www.usb.org/developers/onthego/EHSET_v1.01.pdf> for more
-	  information.
+	  See <https://www.usb.org/sites/default/files/EHSET_v1.01%281%29.pdf>
+	  for more information.
 
 config USB_ISIGHTFW
 	tristate "iSight firmware loading support"

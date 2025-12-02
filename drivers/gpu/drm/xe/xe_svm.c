@@ -67,11 +67,6 @@ void xe_svm_range_debug(struct xe_svm_range *range, const char *operation)
 	range_debug(range, operation);
 }
 
-static void *xe_svm_devm_owner(struct xe_device *xe)
-{
-	return xe;
-}
-
 static struct drm_gpusvm_range *
 xe_svm_range_alloc(struct drm_gpusvm *gpusvm)
 {
@@ -744,15 +739,14 @@ int xe_svm_init(struct xe_vm *vm)
 			  xe_svm_garbage_collector_work_func);
 
 		err = drm_gpusvm_init(&vm->svm.gpusvm, "Xe SVM", &vm->xe->drm,
-				      current->mm, xe_svm_devm_owner(vm->xe), 0,
-				      vm->size,
+				      current->mm, 0, vm->size,
 				      xe_modparam.svm_notifier_size * SZ_1M,
 				      &gpusvm_ops, fault_chunk_sizes,
 				      ARRAY_SIZE(fault_chunk_sizes));
 		drm_gpusvm_driver_set_lock(&vm->svm.gpusvm, &vm->lock);
 	} else {
 		err = drm_gpusvm_init(&vm->svm.gpusvm, "Xe SVM (simple)",
-				      &vm->xe->drm, NULL, NULL, 0, 0, 0, NULL,
+				      &vm->xe->drm, NULL, 0, 0, 0, NULL,
 				      NULL, 0);
 	}
 
@@ -1017,6 +1011,7 @@ static int __xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 		.devmem_only = need_vram && devmem_possible,
 		.timeslice_ms = need_vram && devmem_possible ?
 			vm->xe->atomic_svm_timeslice_ms : 0,
+		.device_private_page_owner = xe_svm_devm_owner(vm->xe),
 	};
 	struct xe_validation_ctx vctx;
 	struct drm_exec exec;
@@ -1039,6 +1034,9 @@ retry:
 	if (err)
 		return err;
 
+	dpagemap = xe_vma_resolve_pagemap(vma, tile);
+	if (!dpagemap && !ctx.devmem_only)
+		ctx.device_private_page_owner = NULL;
 	range = xe_svm_range_find_or_insert(vm, fault_addr, vma, &ctx);
 
 	if (IS_ERR(range))
@@ -1059,7 +1057,6 @@ retry:
 
 	range_debug(range, "PAGE FAULT");
 
-	dpagemap = xe_vma_resolve_pagemap(vma, tile);
 	if (--migrate_try_count >= 0 &&
 	    xe_svm_range_needs_migrate_to_vram(range, vma, !!dpagemap || ctx.devmem_only)) {
 		ktime_t migrate_start = xe_svm_stats_ktime_get();
@@ -1078,7 +1075,17 @@ retry:
 				drm_dbg(&vm->xe->drm,
 					"VRAM allocation failed, falling back to retrying fault, asid=%u, errno=%pe\n",
 					vm->usm.asid, ERR_PTR(err));
-				goto retry;
+
+				/*
+				 * In the devmem-only case, mixed mappings may
+				 * be found. The get_pages function will fix
+				 * these up to a single location, allowing the
+				 * page fault handler to make forward progress.
+				 */
+				if (ctx.devmem_only)
+					goto get_pages;
+				else
+					goto retry;
 			} else {
 				drm_err(&vm->xe->drm,
 					"VRAM allocation failed, retry count exceeded, asid=%u, errno=%pe\n",
@@ -1088,6 +1095,7 @@ retry:
 		}
 	}
 
+get_pages:
 	get_pages_start = xe_svm_stats_ktime_get();
 
 	range_debug(range, "GET PAGES");

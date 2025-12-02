@@ -41,6 +41,9 @@ zpci_attr(segment1, "0x%02x\n", pfip[1]);
 zpci_attr(segment2, "0x%02x\n", pfip[2]);
 zpci_attr(segment3, "0x%02x\n", pfip[3]);
 
+#define ZPCI_FW_ATTR_RO(_name)						\
+	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
+
 static ssize_t mio_enabled_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -164,6 +167,13 @@ static ssize_t uid_is_unique_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(uid_is_unique);
 
+static ssize_t uid_checking_show(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%d\n", zpci_unique_uid ? 1 : 0);
+}
+ZPCI_FW_ATTR_RO(uid_checking);
+
 /* analogous to smbios index */
 static ssize_t index_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
@@ -233,3 +243,18 @@ const struct attribute_group pfip_attr_group = {
 	.name = "pfip",
 	.attrs = pfip_attrs,
 };
+
+static struct attribute *clp_fw_attrs[] = {
+	&uid_checking_attr.attr,
+	NULL,
+};
+
+static struct attribute_group clp_fw_attr_group = {
+	.name = "clp",
+	.attrs = clp_fw_attrs,
+};
+
+int __init __zpci_fw_sysfs_init(void)
+{
+	return sysfs_create_group(firmware_kobj, &clp_fw_attr_group);
+}

@@ -66,6 +66,7 @@ static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 	struct p9_fid *fid;
 	struct inode *inode;
 	struct v9fs_inode *v9inode;
+	unsigned int cached;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -75,13 +76,22 @@ static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_valid;
 
 	v9inode = V9FS_I(inode);
-	if (v9inode->cache_validity & V9FS_INO_INVALID_ATTR) {
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
+
+	cached = v9ses->cache & (CACHE_META | CACHE_LOOSE);
+
+	if (!cached || v9inode->cache_validity & V9FS_INO_INVALID_ATTR) {
 		int retval;
 		struct v9fs_session_info *v9ses;
 
 		fid = v9fs_fid_lookup(dentry);
-		if (IS_ERR(fid))
+		if (IS_ERR(fid)) {
+			p9_debug(
+				P9_DEBUG_VFS,
+				"v9fs_fid_lookup: dentry = %pd (%p), got error %pe\n",
+				dentry, dentry, fid);
 			return PTR_ERR(fid);
+		}
 
 		v9ses = v9fs_inode2v9ses(inode);
 		if (v9fs_proto_dotl(v9ses))
@@ -90,12 +100,25 @@ static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 			retval = v9fs_refresh_inode(fid, inode);
 		p9_fid_put(fid);
 
-		if (retval == -ENOENT)
+		if (retval == -ENOENT) {
+			p9_debug(P9_DEBUG_VFS, "dentry: %pd (%p) invalidated due to ENOENT\n",
+				 dentry, dentry);
 			return 0;
-		if (retval < 0)
+		}
+		if (v9inode->cache_validity & V9FS_INO_INVALID_ATTR) {
+			p9_debug(P9_DEBUG_VFS, "dentry: %pd (%p) invalidated due to type change\n",
+				 dentry, dentry);
+			return 0;
+		}
+		if (retval < 0) {
+			p9_debug(P9_DEBUG_VFS,
+				"refresh inode: dentry = %pd (%p), got error %pe\n",
+				dentry, dentry, ERR_PTR(retval));
 			return retval;
+		}
 	}
 out_valid:
+	p9_debug(P9_DEBUG_VFS, "dentry: %pd (%p) is valid\n", dentry, dentry);
 	return 1;
 }
 
@@ -127,6 +150,8 @@ const struct dentry_operations v9fs_cached_dentry_operations = {
 };
 
 const struct dentry_operations v9fs_dentry_operations = {
+	.d_revalidate = v9fs_lookup_revalidate,
+	.d_weak_revalidate = __v9fs_lookup_revalidate,
 	.d_release = v9fs_dentry_release,
 	.d_unalias_trylock = v9fs_dentry_unalias_trylock,
 	.d_unalias_unlock = v9fs_dentry_unalias_unlock,

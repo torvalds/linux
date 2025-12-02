@@ -1,3 +1,5 @@
+.. |tool| replace:: timerlat hist
+
 =====================
 rtla-timerlat-hist
 =====================

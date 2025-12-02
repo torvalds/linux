@@ -223,9 +223,11 @@ KBUILD_USERCFLAGS	+= -Werror
 KBUILD_USERLDFLAGS	+= -Wl,--fatal-warnings
 KBUILD_RUSTFLAGS	+= -Dwarnings
 
-endif
-
-# Hostprog flags are used during build bootstrapping and can not rely on CONFIG_ symbols.
+# While hostprog flags are used during build bootstrapping (thus should not
+# depend on CONFIG_ symbols), -Werror is disruptive and should be opted into.
+# Only apply -Werror to hostprogs built after the initial Kconfig stage.
 KBUILD_HOSTCFLAGS	+= -Werror
 KBUILD_HOSTLDFLAGS	+= -Wl,--fatal-warnings
 KBUILD_HOSTRUSTFLAGS	+= -Dwarnings
+
+endif

@@ -269,7 +269,6 @@ static struct platform_driver dm816x_usb_phy_driver = {
 
 module_platform_driver(dm816x_usb_phy_driver);
 
-MODULE_ALIAS("platform:dm816x_usb");
 MODULE_AUTHOR("Tony Lindgren <tony@atomide.com>");
 MODULE_DESCRIPTION("dm816x usb phy driver");
 MODULE_LICENSE("GPL v2");

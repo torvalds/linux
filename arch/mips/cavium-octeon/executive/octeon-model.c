@@ -25,6 +25,7 @@
  * Contact Cavium Networks for more information
  ***********************license end**************************************/
 
+#include <linux/string.h>
 #include <asm/octeon/octeon.h>
 
 enum octeon_feature_bits __octeon_feature_bits __read_mostly;
@@ -208,16 +209,16 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		 */
 		switch (chip_id & 0xf) {
 		case 0:
-			strcpy(pass, "1.X");
+			strscpy(pass, "1.X");
 			break;
 		case 1:
-			strcpy(pass, "2.X");
+			strscpy(pass, "2.X");
 			break;
 		case 3:
-			strcpy(pass, "3.X");
+			strscpy(pass, "3.X");
 			break;
 		default:
-			strcpy(pass, "X.X");
+			strscpy(pass, "X.X");
 			break;
 		}
 		break;
@@ -232,13 +233,13 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		 */
 		switch (chip_id & 0xf) {
 		case 0:
-			strcpy(pass, "1.0");
+			strscpy(pass, "1.0");
 			break;
 		case 2:
-			strcpy(pass, "1.1");
+			strscpy(pass, "1.1");
 			break;
 		default:
-			strcpy(pass, "X.X");
+			strscpy(pass, "X.X");
 			break;
 		}
 		break;
@@ -253,13 +254,13 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		 */
 		switch (chip_id & 0xf) {
 		case 0:
-			strcpy(pass, "1.0");
+			strscpy(pass, "1.0");
 			break;
 		case 2:
-			strcpy(pass, "1.1");
+			strscpy(pass, "1.1");
 			break;
 		default:
-			strcpy(pass, "X.X");
+			strscpy(pass, "X.X");
 			break;
 		}
 		break;
@@ -273,16 +274,16 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		if ((chip_id & 0xFF) < 0x8) {
 			switch (chip_id & 0x3) {
 			case 0:
-				strcpy(pass, "1.0");
+				strscpy(pass, "1.0");
 				break;
 			case 1:
-				strcpy(pass, "1.1");
+				strscpy(pass, "1.1");
 				break;
 			case 3:
-				strcpy(pass, "1.2");
+				strscpy(pass, "1.2");
 				break;
 			default:
-				strcpy(pass, "1.X");
+				strscpy(pass, "1.X");
 				break;
 			}
 		}
@@ -447,7 +448,7 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 	default:
 		family = "XX";
 		core_model = "XX";
-		strcpy(pass, "X.X");
+		strscpy(pass, "X.X");
 		suffix = "XXX";
 		break;
 	}

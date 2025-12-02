@@ -118,7 +118,6 @@ static int visconti_wdt_probe(struct platform_device *pdev)
 	struct visconti_wdt_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct clk *clk;
-	int ret;
 	unsigned long clk_freq;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -153,9 +152,7 @@ static int visconti_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_unregister(wdev);
 
 	/* This overrides the default timeout only if DT configuration was found */
-	ret = watchdog_init_timeout(wdev, 0, dev);
-	if (ret)
-		dev_warn(dev, "Specified timeout value invalid, using default\n");
+	watchdog_init_timeout(wdev, 0, dev);
 
 	return devm_watchdog_register_device(dev, wdev);
 }

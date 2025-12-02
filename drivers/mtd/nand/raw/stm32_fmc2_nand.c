@@ -2158,7 +2158,6 @@ static struct platform_driver stm32_fmc2_nfc_driver = {
 };
 module_platform_driver(stm32_fmc2_nfc_driver);
 
-MODULE_ALIAS("platform:stm32_fmc2_nfc");
 MODULE_AUTHOR("Christophe Kerello <christophe.kerello@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics STM32 FMC2 NFC driver");
 MODULE_LICENSE("GPL v2");

@@ -255,10 +255,8 @@ static int bma220_probe(struct spi_device *spi)
 	struct bma220_data *data;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*data));
-	if (!indio_dev) {
-		dev_err(&spi->dev, "iio allocation failed!\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	data = iio_priv(indio_dev);
 	data->spi_device = spi;

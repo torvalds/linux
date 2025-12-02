@@ -872,10 +872,10 @@ static void amd_pstate_update_limits(struct cpufreq_policy *policy)
  */
 static u32 amd_pstate_get_transition_delay_us(unsigned int cpu)
 {
-	u32 transition_delay_ns;
+	int transition_delay_ns;
 
 	transition_delay_ns = cppc_get_transition_latency(cpu);
-	if (transition_delay_ns == CPUFREQ_ETERNAL) {
+	if (transition_delay_ns < 0) {
 		if (cpu_feature_enabled(X86_FEATURE_AMD_FAST_CPPC))
 			return AMD_PSTATE_FAST_CPPC_TRANSITION_DELAY;
 		else
@@ -891,10 +891,10 @@ static u32 amd_pstate_get_transition_delay_us(unsigned int cpu)
  */
 static u32 amd_pstate_get_transition_latency(unsigned int cpu)
 {
-	u32 transition_latency;
+	int transition_latency;
 
 	transition_latency = cppc_get_transition_latency(cpu);
-	if (transition_latency  == CPUFREQ_ETERNAL)
+	if (transition_latency < 0)
 		return AMD_PSTATE_TRANSITION_LATENCY;
 
 	return transition_latency;

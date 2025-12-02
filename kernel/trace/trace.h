@@ -380,8 +380,8 @@ struct trace_array {
 #ifdef CONFIG_FTRACE_SYSCALLS
 	int			sys_refcount_enter;
 	int			sys_refcount_exit;
-	struct trace_event_file __rcu *enter_syscall_files[NR_syscalls];
-	struct trace_event_file __rcu *exit_syscall_files[NR_syscalls];
+	struct trace_event_file	*enter_syscall_files[NR_syscalls];
+	struct trace_event_file	*exit_syscall_files[NR_syscalls];
 #endif
 	int			stop_count;
 	int			clock_id;

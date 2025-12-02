@@ -1302,7 +1302,7 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 
 			dbg("found io_node(base, length) = %x, %x\n",
 					io_node->base, io_node->length);
-			dbg("populated slot =%d \n", populated_slot);
+			dbg("populated slot = %d\n", populated_slot);
 			if (!populated_slot) {
 				io_node->next = ctrl->io_head;
 				ctrl->io_head = io_node;
@@ -1325,7 +1325,7 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 
 			dbg("found mem_node(base, length) = %x, %x\n",
 					mem_node->base, mem_node->length);
-			dbg("populated slot =%d \n", populated_slot);
+			dbg("populated slot = %d\n", populated_slot);
 			if (!populated_slot) {
 				mem_node->next = ctrl->mem_head;
 				ctrl->mem_head = mem_node;
@@ -1349,7 +1349,7 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 			p_mem_node->length = pre_mem_length << 16;
 			dbg("found p_mem_node(base, length) = %x, %x\n",
 					p_mem_node->base, p_mem_node->length);
-			dbg("populated slot =%d \n", populated_slot);
+			dbg("populated slot = %d\n", populated_slot);
 
 			if (!populated_slot) {
 				p_mem_node->next = ctrl->p_mem_head;
@@ -1373,7 +1373,7 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 			bus_node->length = max_bus - secondary_bus + 1;
 			dbg("found bus_node(base, length) = %x, %x\n",
 					bus_node->base, bus_node->length);
-			dbg("populated slot =%d \n", populated_slot);
+			dbg("populated slot = %d\n", populated_slot);
 			if (!populated_slot) {
 				bus_node->next = ctrl->bus_head;
 				ctrl->bus_head = bus_node;

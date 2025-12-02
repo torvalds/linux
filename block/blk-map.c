@@ -283,7 +283,11 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 	bio = blk_rq_map_bio_alloc(rq, nr_vecs, gfp_mask);
 	if (!bio)
 		return -ENOMEM;
-	ret = bio_iov_iter_get_pages(bio, iter);
+	/*
+	 * No alignment requirements on our part to support arbitrary
+	 * passthrough commands.
+	 */
+	ret = bio_iov_iter_get_pages(bio, iter, 0);
 	if (ret)
 		goto out_put;
 	ret = blk_rq_append_bio(rq, bio);

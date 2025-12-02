@@ -28,15 +28,11 @@ fn find_supply_name_exact(dev: &Device, name: &str) -> Option<CString> {
 /// Finds supply name for the CPU from DT.
 fn find_supply_names(dev: &Device, cpu: cpu::CpuId) -> Option<KVec<CString>> {
     // Try "cpu0" for older DTs, fallback to "cpu".
-    let name = (cpu.as_u32() == 0)
+    (cpu.as_u32() == 0)
         .then(|| find_supply_name_exact(dev, "cpu0"))
         .flatten()
-        .or_else(|| find_supply_name_exact(dev, "cpu"))?;
-
-    let mut list = KVec::with_capacity(1, GFP_KERNEL).ok()?;
-    list.push(name, GFP_KERNEL).ok()?;
-
-    Some(list)
+        .or_else(|| find_supply_name_exact(dev, "cpu"))
+        .and_then(|name| kernel::kvec![name].ok())
 }
 
 /// Represents the cpufreq dt device.
@@ -123,7 +119,7 @@ impl cpufreq::Driver for CPUFreqDTDriver {
 
         let mut transition_latency = opp_table.max_transition_latency_ns() as u32;
         if transition_latency == 0 {
-            transition_latency = cpufreq::ETERNAL_LATENCY_NS;
+            transition_latency = cpufreq::DEFAULT_TRANSITION_LATENCY_NS;
         }
 
         policy

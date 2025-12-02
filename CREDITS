@@ -1890,6 +1890,11 @@ S: Reading
 S: RG6 2NU
 S: United Kingdom
 
+N: Michael Jamet
+E: michael.jamet@intel.com
+D: Thunderbolt/USB4 driver maintainer
+D: Thunderbolt/USB4 networking driver maintainer
+
 N: Dave Jeffery
 E: dhjeffery@gmail.com
 D: SCSI hacks and IBM ServeRAID RAID driver maintenance

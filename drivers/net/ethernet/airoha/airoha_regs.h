@@ -151,6 +151,9 @@
 #define LPBK_LEN_MASK			GENMASK(23, 10)
 #define LPBK_CHAN_MASK			GENMASK(8, 4)
 #define LPBK_MODE_MASK			GENMASK(3, 1)
+#define LBK_GAP_MODE_MASK		BIT(3)
+#define LBK_LEN_MODE_MASK		BIT(2)
+#define LBK_CHAN_MODE_MASK		BIT(1)
 #define LPBK_EN_MASK			BIT(0)
 
 #define REG_GDM_TXCHN_EN(_n)		(GDM_BASE(_n) + 0x24)

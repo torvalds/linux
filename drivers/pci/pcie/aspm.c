@@ -15,6 +15,7 @@
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/errno.h>
@@ -235,13 +236,15 @@ struct pcie_link_state {
 	u32 aspm_support:7;		/* Supported ASPM state */
 	u32 aspm_enabled:7;		/* Enabled ASPM state */
 	u32 aspm_capable:7;		/* Capable ASPM state with latency */
-	u32 aspm_default:7;		/* Default ASPM state by BIOS */
+	u32 aspm_default:7;		/* Default ASPM state by BIOS or
+					   override */
 	u32 aspm_disable:7;		/* Disabled ASPM state */
 
 	/* Clock PM state */
 	u32 clkpm_capable:1;		/* Clock PM capable? */
 	u32 clkpm_enabled:1;		/* Current Clock PM state */
-	u32 clkpm_default:1;		/* Default Clock PM state by BIOS */
+	u32 clkpm_default:1;		/* Default Clock PM state by BIOS or
+					   override */
 	u32 clkpm_disable:1;		/* Clock PM disabled */
 };
 
@@ -373,6 +376,18 @@ static void pcie_set_clkpm(struct pcie_link_state *link, int enable)
 	pcie_set_clkpm_nocheck(link, enable);
 }
 
+static void pcie_clkpm_override_default_link_state(struct pcie_link_state *link,
+						   int enabled)
+{
+	struct pci_dev *pdev = link->downstream;
+
+	/* For devicetree platforms, enable ClockPM by default */
+	if (of_have_populated_dt() && !enabled) {
+		link->clkpm_default = 1;
+		pci_info(pdev, "ASPM: DT platform, enabling ClockPM\n");
+	}
+}
+
 static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
 {
 	int capable = 1, enabled = 1;
@@ -395,6 +410,7 @@ static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
 	}
 	link->clkpm_enabled = enabled;
 	link->clkpm_default = enabled;
+	pcie_clkpm_override_default_link_state(link, enabled);
 	link->clkpm_capable = capable;
 	link->clkpm_disable = blacklist ? 1 : 0;
 }
@@ -788,6 +804,29 @@ static void aspm_l1ss_init(struct pcie_link_state *link)
 		aspm_calc_l12_info(link, parent_l1ss_cap, child_l1ss_cap);
 }
 
+#define FLAG(x, y, d)	(((x) & (PCIE_LINK_STATE_##y)) ? d : "")
+
+static void pcie_aspm_override_default_link_state(struct pcie_link_state *link)
+{
+	struct pci_dev *pdev = link->downstream;
+	u32 override;
+
+	/* For devicetree platforms, enable all ASPM states by default */
+	if (of_have_populated_dt()) {
+		link->aspm_default = PCIE_LINK_STATE_ASPM_ALL;
+		override = link->aspm_default & ~link->aspm_enabled;
+		if (override)
+			pci_info(pdev, "ASPM: DT platform, enabling%s%s%s%s%s%s%s\n",
+				 FLAG(override, L0S_UP, " L0s-up"),
+				 FLAG(override, L0S_DW, " L0s-dw"),
+				 FLAG(override, L1, " L1"),
+				 FLAG(override, L1_1, " ASPM-L1.1"),
+				 FLAG(override, L1_2, " ASPM-L1.2"),
+				 FLAG(override, L1_1_PCIPM, " PCI-PM-L1.1"),
+				 FLAG(override, L1_2_PCIPM, " PCI-PM-L1.2"));
+	}
+}
+
 static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 {
 	struct pci_dev *child = link->downstream, *parent = link->pdev;
@@ -867,6 +906,8 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 
 	/* Save default state */
 	link->aspm_default = link->aspm_enabled;
+
+	pcie_aspm_override_default_link_state(link);
 
 	/* Setup initial capable state. Will be updated later */
 	link->aspm_capable = link->aspm_support;

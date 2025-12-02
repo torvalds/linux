@@ -147,7 +147,12 @@ static int kvm_handle_wfx(struct kvm_vcpu *vcpu)
 		if (esr & ESR_ELx_WFx_ISS_RV) {
 			u64 val, now;
 
-			now = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_TIMER_CNT);
+			now = kvm_phys_timer_read();
+			if (is_hyp_ctxt(vcpu) && vcpu_el2_e2h_is_set(vcpu))
+				now -= timer_get_offset(vcpu_hvtimer(vcpu));
+			else
+				now -= timer_get_offset(vcpu_vtimer(vcpu));
+
 			val = vcpu_get_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu));
 
 			if (now >= val)

@@ -185,13 +185,13 @@ static void fbnic_aggregate_vector_counters(struct fbnic_net *fbn,
 
 	for (i = 0; i < nv->txt_count; i++) {
 		fbnic_aggregate_ring_tx_counters(fbn, &nv->qt[i].sub0);
-		fbnic_aggregate_ring_tx_counters(fbn, &nv->qt[i].sub1);
+		fbnic_aggregate_ring_xdp_counters(fbn, &nv->qt[i].sub1);
 		fbnic_aggregate_ring_tx_counters(fbn, &nv->qt[i].cmpl);
 	}
 
 	for (j = 0; j < nv->rxt_count; j++, i++) {
-		fbnic_aggregate_ring_rx_counters(fbn, &nv->qt[i].sub0);
-		fbnic_aggregate_ring_rx_counters(fbn, &nv->qt[i].sub1);
+		fbnic_aggregate_ring_bdq_counters(fbn, &nv->qt[i].sub0);
+		fbnic_aggregate_ring_bdq_counters(fbn, &nv->qt[i].sub1);
 		fbnic_aggregate_ring_rx_counters(fbn, &nv->qt[i].cmpl);
 	}
 }

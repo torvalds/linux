@@ -85,7 +85,7 @@ properties:
         - for eMMC, the maximum supported frequency is 200MHz,
         - for SD/SDIO cards the SDR104 mode has a max supported
           frequency of 208MHz,
-        - some mmc host controllers do support a max frequency upto
+        - some mmc host controllers do support a max frequency up to
           384MHz.
       So, lets keep the maximum supported value here.
 

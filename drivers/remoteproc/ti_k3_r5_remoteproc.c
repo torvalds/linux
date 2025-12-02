@@ -1206,8 +1206,6 @@ static void k3_r5_cluster_rproc_exit(void *data)
 				return;
 			}
 		}
-
-		mbox_free_channel(kproc->mbox);
 	}
 }
 

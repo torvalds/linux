@@ -361,6 +361,10 @@ SYM_FUNC_END(vmread_error_trampoline)
 
 .section .text, "ax"
 
+#ifndef CONFIG_X86_FRED
+
 SYM_FUNC_START(vmx_do_interrupt_irqoff)
 	VMX_DO_EVENT_IRQOFF CALL_NOSPEC _ASM_ARG1
 SYM_FUNC_END(vmx_do_interrupt_irqoff)
+
+#endif

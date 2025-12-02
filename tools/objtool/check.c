@@ -2392,6 +2392,8 @@ static int __annotate_ifc(struct objtool_file *file, int type, struct instructio
 
 static int __annotate_late(struct objtool_file *file, int type, struct instruction *insn)
 {
+	struct symbol *sym;
+
 	switch (type) {
 	case ANNOTYPE_NOENDBR:
 		/* early */
@@ -2431,6 +2433,15 @@ static int __annotate_late(struct objtool_file *file, int type, struct instructi
 
 	case ANNOTYPE_REACHABLE:
 		insn->dead_end = false;
+		break;
+
+	case ANNOTYPE_NOCFI:
+		sym = insn->sym;
+		if (!sym) {
+			ERROR_INSN(insn, "dodgy NOCFI annotation");
+			return -1;
+		}
+		insn->sym->nocfi = 1;
 		break;
 
 	default:
@@ -3992,6 +4003,37 @@ static int validate_retpoline(struct objtool_file *file)
 		WARN_INSN(insn, "indirect %s found in MITIGATION_RETPOLINE build",
 			  insn->type == INSN_JUMP_DYNAMIC ? "jump" : "call");
 		warnings++;
+	}
+
+	if (!opts.cfi)
+		return warnings;
+
+	/*
+	 * kCFI call sites look like:
+	 *
+	 *     movl $(-0x12345678), %r10d
+	 *     addl -4(%r11), %r10d
+	 *     jz 1f
+	 *     ud2
+	 *  1: cs call __x86_indirect_thunk_r11
+	 *
+	 * Verify all indirect calls are kCFI adorned by checking for the
+	 * UD2. Notably, doing __nocfi calls to regular (cfi) functions is
+	 * broken.
+	 */
+	list_for_each_entry(insn, &file->retpoline_call_list, call_node) {
+		struct symbol *sym = insn->sym;
+
+		if (sym && (sym->type == STT_NOTYPE ||
+			    sym->type == STT_FUNC) && !sym->nocfi) {
+			struct instruction *prev =
+				prev_insn_same_sym(file, insn);
+
+			if (!prev || prev->type != INSN_BUG) {
+				WARN_INSN(insn, "no-cfi indirect call!");
+				warnings++;
+			}
+		}
 	}
 
 	return warnings;

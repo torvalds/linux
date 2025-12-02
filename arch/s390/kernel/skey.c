@@ -11,7 +11,7 @@ static inline unsigned long load_real_address(unsigned long address)
 	unsigned long real;
 
 	asm volatile(
-		"	lra	%[real],0(%[address])\n"
+		"	lra	%[real],0(%[address])"
 		: [real] "=d" (real)
 		: [address] "a" (address)
 		: "cc");

@@ -1162,8 +1162,55 @@ pinmux core.
 Pin control requests from drivers
 =================================
 
-When a device driver is about to probe the device core will automatically
-attempt to issue ``pinctrl_get_select_default()`` on these devices.
+When a device driver is about to probe, the device core attaches the
+standard states if they are defined in the device tree by calling
+``pinctrl_bind_pins()`` on these devices.
+Possible standard state names are: "default", "init", "sleep" and "idle".
+
+- if ``default`` is defined in the device tree, it is selected before
+  device probe.
+
+- if ``init`` and ``default`` are defined in the device tree, the "init"
+  state is selected before the driver probe and the "default" state is
+  selected after the driver probe.
+
+- the ``sleep`` and ``idle`` states are for power management and can only
+  be selected with the PM API bellow.
+
+PM interfaces
+=================
+PM runtime suspend/resume might need to execute the same init sequence as
+during probe. Since the predefined states are already attached to the
+device, the driver can activate these states explicitly with the
+following helper functions:
+
+- ``pinctrl_pm_select_default_state()``
+- ``pinctrl_pm_select_init_state()``
+- ``pinctrl_pm_select_sleep_state()``
+- ``pinctrl_pm_select_idle_state()``
+
+For example, if resuming the device depend on certain pinmux states
+
+.. code-block:: c
+
+	foo_suspend()
+	{
+		/* suspend device */
+		...
+
+		pinctrl_pm_select_sleep_state(dev);
+	}
+
+	foo_resume()
+	{
+		pinctrl_pm_select_init_state(dev);
+
+		/* resuming device */
+		...
+
+		pinctrl_pm_select_default_state(dev);
+	}
+
 This way driver writers do not need to add any of the boilerplate code
 of the type found below. However when doing fine-grained state selection
 and not using the "default" state, you may have to do some device driver
@@ -1184,6 +1231,12 @@ A typical case is if a driver needs to switch bias of pins from normal
 operation and going to sleep, moving from the ``PINCTRL_STATE_DEFAULT`` to
 ``PINCTRL_STATE_SLEEP`` at runtime, re-biasing or even re-muxing pins to save
 current in sleep mode.
+
+Another case is when the pinctrl needs to switch to a certain mode during
+probe and then revert to the default state at the end of probe. For example
+a PINMUX may need to be configured as a GPIO during probe. In this case, use
+``PINCTRL_STATE_INIT`` to switch state before probe, then move to
+``PINCTRL_STATE_DEFAULT`` at the end of probe for normal operation.
 
 A driver may request a certain control state to be activated, usually just the
 default state like this:

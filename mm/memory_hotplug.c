@@ -1477,7 +1477,7 @@ static int create_altmaps_and_memory_blocks(int nid, struct memory_group *group,
 		}
 
 		/* create memory block devices after memory was added */
-		ret = create_memory_block_devices(cur_start, memblock_size,
+		ret = create_memory_block_devices(cur_start, memblock_size, nid,
 						  params.altmap, group);
 		if (ret) {
 			arch_remove_memory(cur_start, memblock_size, NULL);
@@ -1539,8 +1539,16 @@ int add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 
 	ret = __try_online_node(nid, false);
 	if (ret < 0)
-		goto error;
-	new_node = ret;
+		goto error_memblock_remove;
+	if (ret) {
+		node_set_online(nid);
+		ret = register_one_node(nid);
+		if (WARN_ON(ret)) {
+			node_set_offline(nid);
+			goto error_memblock_remove;
+		}
+		new_node = true;
+	}
 
 	/*
 	 * Self hosted memmap array
@@ -1556,22 +1564,11 @@ int add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 			goto error;
 
 		/* create memory block devices after memory was added */
-		ret = create_memory_block_devices(start, size, NULL, group);
+		ret = create_memory_block_devices(start, size, nid, NULL, group);
 		if (ret) {
 			arch_remove_memory(start, size, params.altmap);
 			goto error;
 		}
-	}
-
-	if (new_node) {
-		/* If sysfs file of new node can't be created, cpu on the node
-		 * can't be hot-added. There is no rollback way now.
-		 * So, check by BUG_ON() to catch it reluctantly..
-		 * We online node here. We can't roll back from here.
-		 */
-		node_set_online(nid);
-		ret = register_one_node(nid);
-		BUG_ON(ret);
 	}
 
 	register_memory_blocks_under_node_hotplug(nid, PFN_DOWN(start),
@@ -1597,6 +1594,11 @@ int add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 
 	return ret;
 error:
+	if (new_node) {
+		node_set_offline(nid);
+		unregister_one_node(nid);
+	}
+error_memblock_remove:
 	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
 		memblock_remove(start, size);
 error_mem_hotplug_end:

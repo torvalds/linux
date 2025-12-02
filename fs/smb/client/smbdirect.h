@@ -60,7 +60,7 @@ int smbd_send(struct TCP_Server_Info *server,
 struct smbdirect_mr_io *smbd_register_mr(
 	struct smbd_connection *info, struct iov_iter *iter,
 	bool writing, bool need_invalidate);
-int smbd_deregister_mr(struct smbdirect_mr_io *mr);
+void smbd_deregister_mr(struct smbdirect_mr_io *mr);
 
 #else
 #define cifs_rdma_enabled(server)	0

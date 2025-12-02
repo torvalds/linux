@@ -1160,6 +1160,8 @@ struct rtsx_cr_option {
 	bool ocp_en;
 	u8 sd_400mA_ocp_thd;
 	u8 sd_800mA_ocp_thd;
+	u8 sd_cd_reverse_en;
+	u8 sd_wp_reverse_en;
 };
 
 /*

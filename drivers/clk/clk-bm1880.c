@@ -608,8 +608,8 @@ static unsigned long bm1880_clk_div_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static long bm1880_clk_div_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *prate)
+static int bm1880_clk_div_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
 {
 	struct bm1880_div_hw_clock *div_hw = to_bm1880_div_clk(hw);
 	struct bm1880_div_clock *div = &div_hw->div;
@@ -621,13 +621,18 @@ static long bm1880_clk_div_round_rate(struct clk_hw *hw, unsigned long rate,
 		val = readl(reg_addr) >> div->shift;
 		val &= clk_div_mask(div->width);
 
-		return divider_ro_round_rate(hw, rate, prate, div->table,
-					     div->width, div->flags,
-					     val);
+		req->rate = divider_ro_round_rate(hw, req->rate,
+						  &req->best_parent_rate,
+						  div->table,
+						  div->width, div->flags, val);
+
+		return 0;
 	}
 
-	return divider_round_rate(hw, rate, prate, div->table,
-				  div->width, div->flags);
+	req->rate = divider_round_rate(hw, req->rate, &req->best_parent_rate,
+				       div->table, div->width, div->flags);
+
+	return 0;
 }
 
 static int bm1880_clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -665,7 +670,7 @@ static int bm1880_clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops bm1880_clk_div_ops = {
 	.recalc_rate = bm1880_clk_div_recalc_rate,
-	.round_rate = bm1880_clk_div_round_rate,
+	.determine_rate = bm1880_clk_div_determine_rate,
 	.set_rate = bm1880_clk_div_set_rate,
 };
 
