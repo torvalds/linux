@@ -2,7 +2,7 @@
 
 #include <linux/property.h>
 
-void rust_helper_fwnode_handle_put(struct fwnode_handle *fwnode)
+__rust_helper void rust_helper_fwnode_handle_put(struct fwnode_handle *fwnode)
 {
 	fwnode_handle_put(fwnode);
 }
