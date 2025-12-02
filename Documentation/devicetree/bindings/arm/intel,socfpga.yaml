@@ -32,6 +32,7 @@ properties:
           - enum:
               - intel,socfpga-agilex5-socdk
               - intel,socfpga-agilex5-socdk-013b
+              - intel,socfpga-agilex5-socdk-modular
               - intel,socfpga-agilex5-socdk-nand
           - const: intel,socfpga-agilex5
 
