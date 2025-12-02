@@ -11,6 +11,7 @@
 
 #include <acpi/button.h>
 #include <linux/amd-pmf-io.h>
+#include <linux/cleanup.h>
 #include <linux/power_supply.h>
 #include <linux/units.h>
 #include "pmf.h"
@@ -132,31 +133,38 @@ static void amd_pmf_set_ta_custom_bios_input(struct ta_pmf_enact_table *in, int 
 	}
 }
 
-static void amd_pmf_update_bios_inputs(struct amd_pmf_dev *pdev, u32 pending_req,
+static void amd_pmf_update_bios_inputs(struct amd_pmf_dev *pdev, struct pmf_bios_input_entry *data,
 				       const struct amd_pmf_pb_bitmap *inputs,
-				       const u32 *custom_policy, struct ta_pmf_enact_table *in)
+				       struct ta_pmf_enact_table *in)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(custom_bios_inputs); i++) {
-		if (!(pending_req & inputs[i].bit_mask))
+		if (!(data->preq & inputs[i].bit_mask))
 			continue;
-		amd_pmf_set_ta_custom_bios_input(in, i, custom_policy[i]);
-		pdev->cb_prev.custom_bios_inputs[i] = custom_policy[i];
-		dev_dbg(pdev->dev, "Custom BIOS Input[%d]: %u\n", i, custom_policy[i]);
+		amd_pmf_set_ta_custom_bios_input(in, i, data->val[i]);
+		pdev->cb_prev.custom_bios_inputs[i] = data->val[i];
+		dev_dbg(pdev->dev, "Custom BIOS Input[%d]: %u\n", i, data->val[i]);
 	}
 }
 
 static void amd_pmf_get_custom_bios_inputs(struct amd_pmf_dev *pdev,
 					   struct ta_pmf_enact_table *in)
 {
+	struct pmf_cbi_ring_buffer *rb = &pdev->cbi_buf;
 	unsigned int i;
+
+	guard(mutex)(&pdev->cbi_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(custom_bios_inputs); i++)
 		amd_pmf_set_ta_custom_bios_input(in, i, pdev->cb_prev.custom_bios_inputs[i]);
 
-	if (!(pdev->req.pending_req || pdev->req1.pending_req))
+	if (CIRC_CNT(rb->head, rb->tail, CUSTOM_BIOS_INPUT_RING_ENTRIES) == 0)
 		return;
+
+	/* If no active custom BIOS input pending request, do not consume further work */
+	if (!rb->data[rb->tail].preq)
+		goto out_rbadvance;
 
 	if (!pdev->smart_pc_enabled)
 		return;
@@ -165,20 +173,17 @@ static void amd_pmf_get_custom_bios_inputs(struct amd_pmf_dev *pdev,
 	case PMF_IF_V1:
 		if (!is_apmf_bios_input_notifications_supported(pdev))
 			return;
-		amd_pmf_update_bios_inputs(pdev, pdev->req1.pending_req, custom_bios_inputs_v1,
-					   pdev->req1.custom_policy, in);
+		amd_pmf_update_bios_inputs(pdev, &rb->data[rb->tail], custom_bios_inputs_v1, in);
 		break;
 	case PMF_IF_V2:
-		amd_pmf_update_bios_inputs(pdev, pdev->req.pending_req, custom_bios_inputs,
-					   pdev->req.custom_policy, in);
+		amd_pmf_update_bios_inputs(pdev, &rb->data[rb->tail], custom_bios_inputs, in);
 		break;
 	default:
 		break;
 	}
 
-	/* Clear pending requests after handling */
-	memset(&pdev->req, 0, sizeof(pdev->req));
-	memset(&pdev->req1, 0, sizeof(pdev->req1));
+out_rbadvance:
+	rb->tail = (rb->tail + 1) & (CUSTOM_BIOS_INPUT_RING_ENTRIES - 1);
 }
 
 static void amd_pmf_get_c0_residency(u16 *core_res, size_t size, struct ta_pmf_enact_table *in)
