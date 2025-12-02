@@ -127,6 +127,19 @@ struct intel_fbc {
 	const char *no_fbc_reason;
 };
 
+static struct intel_fbc *intel_fbc_for_pipe(struct intel_display *display, enum pipe pipe)
+{
+	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
+	struct intel_plane *primary = NULL;
+
+	primary = to_intel_plane(crtc->base.primary);
+
+	if (drm_WARN_ON(display->drm, !primary))
+		return NULL;
+
+	return primary->fbc;
+}
+
 /* plane stride in pixels */
 static unsigned int intel_fbc_plane_stride(const struct intel_plane_state *plane_state)
 {
@@ -2122,6 +2135,37 @@ void intel_fbc_handle_fifo_underrun_irq(struct intel_display *display)
 
 	for_each_intel_fbc(display, fbc, fbc_id)
 		__intel_fbc_handle_fifo_underrun_irq(fbc);
+}
+
+/**
+ * intel_fbc_read_underrun_dbg_info - Read and log FBC-related FIFO underrun debug info
+ * @display: display device instance
+ * @pipe: the pipe possibly containing the FBC
+ * @log: log the info?
+ *
+ * If @pipe does not contain an FBC instance, this function bails early.
+ * Otherwise, FBC-related FIFO underrun is read and cleared, and then, if @log
+ * is true, printed with error level.
+ */
+void intel_fbc_read_underrun_dbg_info(struct intel_display *display,
+				      enum pipe pipe, bool log)
+{
+	struct intel_fbc *fbc = intel_fbc_for_pipe(display, pipe);
+	u32 val;
+
+	if (!fbc)
+		return;
+
+	val = intel_de_read(display, FBC_DEBUG_STATUS(fbc->id));
+	if (!(val & FBC_UNDERRUN_DECMPR))
+		return;
+
+	intel_de_write(display, FBC_DEBUG_STATUS(fbc->id), FBC_UNDERRUN_DECMPR);
+
+	if (log)
+		drm_err(display->drm,
+			"Pipe %c FIFO underrun info: FBC decompressing\n",
+			pipe_name(pipe));
 }
 
 /*

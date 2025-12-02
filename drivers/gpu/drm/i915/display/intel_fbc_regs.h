@@ -88,6 +88,8 @@
 #define DPFC_FENCE_YOFF			_MMIO(0x3218)
 #define ILK_DPFC_FENCE_YOFF(fbc_id)	_MMIO_PIPE((fbc_id), 0x43218, 0x43258)
 #define DPFC_CHICKEN			_MMIO(0x3224)
+#define FBC_DEBUG_STATUS(fbc_id)	_MMIO_PIPE((fbc_id), 0x43220, 0x43260)
+#define   FBC_UNDERRUN_DECMPR			REG_BIT(27)
 #define ILK_DPFC_CHICKEN(fbc_id)	_MMIO_PIPE((fbc_id), 0x43224, 0x43264)
 #define   DPFC_HT_MODIFY			REG_BIT(31) /* pre-ivb */
 #define   DPFC_NUKE_ON_ANY_MODIFICATION		REG_BIT(23) /* bdw+ */
