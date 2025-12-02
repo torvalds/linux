@@ -414,9 +414,6 @@ struct smu_table_context {
 	void                            *boot_overdrive_table;
 	void				*user_overdrive_table;
 
-	uint32_t			gpu_metrics_table_size;
-	void				*gpu_metrics_table;
-
 	struct smu_driver_table driver_tables[SMU_DRIVER_TABLE_COUNT];
 };
 

@@ -3659,12 +3659,23 @@ static int smu_get_dpm_clock_table(void *handle,
 static ssize_t smu_sys_get_gpu_metrics(void *handle, void **table)
 {
 	struct smu_context *smu = handle;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_driver_table *driver_tables = smu_table->driver_tables;
+	struct smu_driver_table *gpu_metrics_table;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	if (!smu->ppt_funcs->get_gpu_metrics)
 		return -EOPNOTSUPP;
+
+	gpu_metrics_table = &driver_tables[SMU_DRIVER_TABLE_GPU_METRICS];
+
+	/* If cached table is valid, return it */
+	if (smu_driver_table_is_valid(gpu_metrics_table)) {
+		*table = gpu_metrics_table->cache.buffer;
+		return gpu_metrics_table->cache.size;
+	}
 
 	return smu->ppt_funcs->get_gpu_metrics(smu, table);
 }
