@@ -730,22 +730,6 @@ static inline void msi_device_domain_free_wired(struct irq_domain *domain, unsig
 }
 #endif
 
-static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
-						     const struct irq_domain_ops *ops,
-						     void *host_data)
-{
-	struct irq_domain_info info = {
-		.fwnode		= of_fwnode_handle(of_node),
-		.hwirq_max	= ~0U,
-		.ops		= ops,
-		.host_data	= host_data,
-	};
-	struct irq_domain *d;
-
-	d = irq_domain_instantiate(&info);
-	return IS_ERR(d) ? NULL : d;
-}
-
 static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 						       unsigned int size,
 						       const struct irq_domain_ops *ops,
