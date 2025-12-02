@@ -1184,6 +1184,16 @@ void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags)
 		ret, errno, slot, flags);
 }
 
+void vm_mem_region_reload(struct kvm_vm *vm, uint32_t slot)
+{
+	struct userspace_mem_region *region = memslot2region(vm, slot);
+	struct kvm_userspace_memory_region2 tmp = region->region;
+
+	tmp.memory_size = 0;
+	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &tmp);
+	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &region->region);
+}
+
 /*
  * VM Memory Region Move
  *
@@ -2005,6 +2015,7 @@ static struct exit_reason {
 	KVM_EXIT_STRING(NOTIFY),
 	KVM_EXIT_STRING(LOONGARCH_IOCSR),
 	KVM_EXIT_STRING(MEMORY_FAULT),
+	KVM_EXIT_STRING(ARM_SEA),
 };
 
 /*

@@ -293,16 +293,35 @@ static void gicv3_enable_redist(volatile void *redist_base)
 	}
 }
 
+static void gicv3_set_group(uint32_t intid, bool grp)
+{
+	uint32_t cpu_or_dist;
+	uint32_t val;
+
+	cpu_or_dist = (get_intid_range(intid) == SPI_RANGE) ? DIST_BIT : guest_get_vcpuid();
+	val = gicv3_reg_readl(cpu_or_dist, GICD_IGROUPR + (intid / 32) * 4);
+	if (grp)
+		val |= BIT(intid % 32);
+	else
+		val &= ~BIT(intid % 32);
+	gicv3_reg_writel(cpu_or_dist, GICD_IGROUPR + (intid / 32) * 4, val);
+}
+
 static void gicv3_cpu_init(unsigned int cpu)
 {
 	volatile void *sgi_base;
 	unsigned int i;
 	volatile void *redist_base_cpu;
+	u64 typer;
 
 	GUEST_ASSERT(cpu < gicv3_data.nr_cpus);
 
 	redist_base_cpu = gicr_base_cpu(cpu);
 	sgi_base = sgi_base_from_redist(redist_base_cpu);
+
+	/* Verify assumption that GICR_TYPER.Processor_number == cpu */
+	typer = readq_relaxed(redist_base_cpu + GICR_TYPER);
+	GUEST_ASSERT_EQ(GICR_TYPER_CPU_NUMBER(typer), cpu);
 
 	gicv3_enable_redist(redist_base_cpu);
 
@@ -328,6 +347,8 @@ static void gicv3_cpu_init(unsigned int cpu)
 	/* Set a default priority threshold */
 	write_sysreg_s(ICC_PMR_DEF_PRIO, SYS_ICC_PMR_EL1);
 
+	/* Disable Group-0 interrupts */
+	write_sysreg_s(ICC_IGRPEN0_EL1_MASK, SYS_ICC_IGRPEN1_EL1);
 	/* Enable non-secure Group-1 interrupts */
 	write_sysreg_s(ICC_IGRPEN1_EL1_MASK, SYS_ICC_IGRPEN1_EL1);
 }
@@ -400,6 +421,7 @@ const struct gic_common_ops gicv3_ops = {
 	.gic_irq_clear_pending = gicv3_irq_clear_pending,
 	.gic_irq_get_pending = gicv3_irq_get_pending,
 	.gic_irq_set_config = gicv3_irq_set_config,
+	.gic_irq_set_group = gicv3_set_group,
 };
 
 void gic_rdist_enable_lpis(vm_paddr_t cfg_table, size_t cfg_table_size,
