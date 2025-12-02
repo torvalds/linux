@@ -2,7 +2,7 @@
 
 #include <linux/platform_device.h>
 
-bool rust_helper_dev_is_platform(const struct device *dev)
+__rust_helper bool rust_helper_dev_is_platform(const struct device *dev)
 {
 	return dev_is_platform(dev);
 }
