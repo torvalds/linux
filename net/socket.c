@@ -503,21 +503,12 @@ EXPORT_SYMBOL(sock_alloc_file);
 
 static int sock_map_fd(struct socket *sock, int flags)
 {
-	struct file *newfile;
-	int fd = get_unused_fd_flags(flags);
-	if (unlikely(fd < 0)) {
+	int fd;
+
+	fd = FD_ADD(flags, sock_alloc_file(sock, flags, NULL));
+	if (fd < 0)
 		sock_release(sock);
-		return fd;
-	}
-
-	newfile = sock_alloc_file(sock, flags, NULL);
-	if (!IS_ERR(newfile)) {
-		fd_install(fd, newfile);
-		return fd;
-	}
-
-	put_unused_fd(fd);
-	return PTR_ERR(newfile);
+	return fd;
 }
 
 /**
@@ -2012,8 +2003,6 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
 			      int __user *upeer_addrlen, int flags)
 {
 	struct proto_accept_arg arg = { };
-	struct file *newfile;
-	int newfd;
 
 	if (flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
 		return -EINVAL;
@@ -2021,18 +2010,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
 	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
-	newfd = get_unused_fd_flags(flags);
-	if (unlikely(newfd < 0))
-		return newfd;
-
-	newfile = do_accept(file, &arg, upeer_sockaddr, upeer_addrlen,
-			    flags);
-	if (IS_ERR(newfile)) {
-		put_unused_fd(newfd);
-		return PTR_ERR(newfile);
-	}
-	fd_install(newfd, newfile);
-	return newfd;
+	return FD_ADD(flags, do_accept(file, &arg, upeer_sockaddr, upeer_addrlen, flags));
 }
 
 /*

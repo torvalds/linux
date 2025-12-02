@@ -1380,28 +1380,25 @@ out_unlock:
  */
 int receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
 {
-	int new_fd;
 	int error;
 
 	error = security_file_receive(file);
 	if (error)
 		return error;
 
-	new_fd = get_unused_fd_flags(o_flags);
-	if (new_fd < 0)
-		return new_fd;
+	FD_PREPARE(fdf, o_flags, file);
+	if (fdf.err)
+		return fdf.err;
+	get_file(file);
 
 	if (ufd) {
-		error = put_user(new_fd, ufd);
-		if (error) {
-			put_unused_fd(new_fd);
+		error = put_user(fd_prepare_fd(fdf), ufd);
+		if (error)
 			return error;
-		}
 	}
 
-	fd_install(new_fd, get_file(file));
-	__receive_sock(file);
-	return new_fd;
+	__receive_sock(fd_prepare_file(fdf));
+	return fd_publish(fdf);
 }
 EXPORT_SYMBOL_GPL(receive_fd);
 

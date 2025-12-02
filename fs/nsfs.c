@@ -110,7 +110,6 @@ int ns_get_path(struct path *path, struct task_struct *task,
 int open_namespace(struct ns_common *ns)
 {
 	struct path path __free(path_put) = {};
-	struct file *f;
 	int err;
 
 	/* call first to consume reference */
@@ -118,16 +117,7 @@ int open_namespace(struct ns_common *ns)
 	if (err < 0)
 		return err;
 
-	CLASS(get_unused_fd, fd)(O_CLOEXEC);
-	if (fd < 0)
-		return fd;
-
-	f = dentry_open(&path, O_RDONLY, current_cred());
-	if (IS_ERR(f))
-		return PTR_ERR(f);
-
-	fd_install(fd, f);
-	return take_fd(fd);
+	return FD_ADD(O_CLOEXEC, dentry_open(&path, O_RDONLY, current_cred()));
 }
 
 int open_related_ns(struct ns_common *ns,
@@ -313,7 +303,6 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		struct mnt_ns_info kinfo = {};
 		struct mnt_ns_info __user *uinfo = (struct mnt_ns_info __user *)arg;
 		struct path path __free(path_put) = {};
-		struct file *f __free(fput) = NULL;
 		size_t usize = _IOC_SIZE(ioctl);
 
 		if (ns->ns_type != CLONE_NEWNS)
@@ -332,28 +321,18 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		if (ret)
 			return ret;
 
-		CLASS(get_unused_fd, fd)(O_CLOEXEC);
-		if (fd < 0)
-			return fd;
-
-		f = dentry_open(&path, O_RDONLY, current_cred());
-		if (IS_ERR(f))
-			return PTR_ERR(f);
-
-		if (uinfo) {
-			/*
-			 * If @uinfo is passed return all information about the
-			 * mount namespace as well.
-			 */
-			ret = copy_ns_info_to_user(to_mnt_ns(ns), uinfo, usize, &kinfo);
-			if (ret)
-				return ret;
-		}
-
-		/* Transfer reference of @f to caller's fdtable. */
-		fd_install(fd, no_free_ptr(f));
-		/* File descriptor is live so hand it off to the caller. */
-		return take_fd(fd);
+		FD_PREPARE(fdf, O_CLOEXEC, dentry_open(&path, O_RDONLY, current_cred()));
+		if (fdf.err)
+			return fdf.err;
+		/*
+		 * If @uinfo is passed return all information about the
+		 * mount namespace as well.
+		 */
+		ret = copy_ns_info_to_user(to_mnt_ns(ns), uinfo, usize, &kinfo);
+		if (ret)
+			return ret;
+		ret = fd_publish(fdf);
+		break;
 	}
 	default:
 		ret = -ENOTTY;

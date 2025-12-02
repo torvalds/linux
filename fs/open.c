@@ -1416,8 +1416,8 @@ static int do_sys_openat2(int dfd, const char __user *filename,
 			  struct open_how *how)
 {
 	struct open_flags op;
-	struct filename *tmp;
-	int err, fd;
+	struct filename *tmp __free(putname) = NULL;
+	int err;
 
 	err = build_open_flags(how, &op);
 	if (unlikely(err))
@@ -1427,18 +1427,7 @@ static int do_sys_openat2(int dfd, const char __user *filename,
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
-	fd = get_unused_fd_flags(how->flags);
-	if (likely(fd >= 0)) {
-		struct file *f = do_filp_open(dfd, tmp, &op);
-		if (IS_ERR(f)) {
-			put_unused_fd(fd);
-			fd = PTR_ERR(f);
-		} else {
-			fd_install(fd, f);
-		}
-	}
-	putname(tmp);
-	return fd;
+	return FD_ADD(how->flags, do_filp_open(dfd, tmp, &op));
 }
 
 int do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)

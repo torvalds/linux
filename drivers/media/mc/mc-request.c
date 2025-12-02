@@ -282,8 +282,6 @@ EXPORT_SYMBOL_GPL(media_request_get_by_fd);
 int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 {
 	struct media_request *req;
-	struct file *filp;
-	int fd;
 	int ret;
 
 	/* Either both are NULL or both are non-NULL */
@@ -297,19 +295,6 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 	if (!req)
 		return -ENOMEM;
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0) {
-		ret = fd;
-		goto err_free_req;
-	}
-
-	filp = anon_inode_getfile("request", &request_fops, NULL, O_CLOEXEC);
-	if (IS_ERR(filp)) {
-		ret = PTR_ERR(filp);
-		goto err_put_fd;
-	}
-
-	filp->private_data = req;
 	req->mdev = mdev;
 	req->state = MEDIA_REQUEST_STATE_IDLE;
 	req->num_incomplete_objects = 0;
@@ -320,18 +305,23 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 	req->updating_count = 0;
 	req->access_count = 0;
 
-	*alloc_fd = fd;
+	FD_PREPARE(fdf, O_CLOEXEC,
+		   anon_inode_getfile("request", &request_fops, NULL,
+				      O_CLOEXEC));
+	if (fdf.err) {
+		ret = fdf.err;
+		goto err_free_req;
+	}
+
+	fd_prepare_file(fdf)->private_data = req;
+
+	*alloc_fd = fd_publish(fdf);
 
 	snprintf(req->debug_str, sizeof(req->debug_str), "%u:%d",
-		 atomic_inc_return(&mdev->request_id), fd);
+		 atomic_inc_return(&mdev->request_id), *alloc_fd);
 	dev_dbg(mdev->dev, "request: allocated %s\n", req->debug_str);
 
-	fd_install(fd, filp);
-
 	return 0;
-
-err_put_fd:
-	put_unused_fd(fd);
 
 err_free_req:
 	if (mdev->ops->req_free)
