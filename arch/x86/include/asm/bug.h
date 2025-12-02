@@ -70,7 +70,7 @@ extern void __WARN_trap(struct bug_entry *bug, ...);
 
 #define _BUG_FLAGS_ASM(format, file, line, flags, size, extra)		\
 	".pushsection __bug_table,\"aw\"\n\t"				\
-	ANNOTATE_DATA_SPECIAL						\
+	ANNOTATE_DATA_SPECIAL "\n\t"					\
 	"2:\n\t"							\
 	__BUG_ENTRY(format, file, line, flags)				\
 	"\t.org 2b + " size "\n"					\

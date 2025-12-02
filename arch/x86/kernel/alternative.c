@@ -2229,7 +2229,7 @@ asm (
 "	.pushsection	.init.text, \"ax\", @progbits\n"
 "	.type		int3_selftest_asm, @function\n"
 "int3_selftest_asm:\n"
-	ANNOTATE_NOENDBR
+	ANNOTATE_NOENDBR "\n"
 	/*
 	 * INT3 padded with NOP to CALL_INSN_SIZE. The INT3 triggers an
 	 * exception, then the int3_exception_nb notifier emulates a call to
@@ -2247,7 +2247,7 @@ asm (
 "	.pushsection	.init.text, \"ax\", @progbits\n"
 "	.type		int3_selftest_callee, @function\n"
 "int3_selftest_callee:\n"
-	ANNOTATE_NOENDBR
+	ANNOTATE_NOENDBR "\n"
 "	movl	$0x1234, (%" _ASM_ARG1 ")\n"
 	ASM_RET
 "	.size		int3_selftest_callee, . - int3_selftest_callee\n"

@@ -208,7 +208,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 
 #define ALTINSTR_REPLACEMENT(newinstr)		/* replacement */	\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
-	ANNOTATE_DATA_SPECIAL						\
+	ANNOTATE_DATA_SPECIAL "\n"					\
 	"# ALT: replacement\n"						\
 	"774:\n\t" newinstr "\n775:\n"					\
 	".popsection\n"

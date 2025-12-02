@@ -15,15 +15,15 @@
 #ifndef __ASSEMBLY__
 
 #define ASM_ANNOTATE_LABEL(label, type)					\
-	__stringify(__ASM_ANNOTATE(".discard.annotate_insn", label, type)) "\n\t"
+	__stringify(__ASM_ANNOTATE(".discard.annotate_insn", label, type))
 
 #define ASM_ANNOTATE(type)						\
 	"911: "								\
-	__stringify(__ASM_ANNOTATE(".discard.annotate_insn", 911b, type)) "\n\t"
+	__stringify(__ASM_ANNOTATE(".discard.annotate_insn", 911b, type))
 
 #define ASM_ANNOTATE_DATA(type)						\
 	"912: "								\
-	__stringify(__ASM_ANNOTATE(".discard.annotate_data", 912b, type)) "\n\t"
+	__stringify(__ASM_ANNOTATE(".discard.annotate_data", 912b, type))
 
 #else /* __ASSEMBLY__ */
 
