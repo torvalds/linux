@@ -116,6 +116,7 @@ properties:
           - const: atmel,24c02
       - items:
           - enum:
+              - belling,bl24c04a
               - giantec,gt24c04a
               - onnn,cat24c04
               - onnn,cat24c05
@@ -124,6 +125,7 @@ properties:
       - items:
           - enum:
               - belling,bl24c16a
+              - belling,bl24c16f
               - renesas,r1ex24016
           - const: atmel,24c16
       - items:
