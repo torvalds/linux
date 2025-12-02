@@ -10,6 +10,15 @@
         "Unit": "CHACMS"
     },
     {
+        "BriefDescription": "UNC_CHACMS_DISTRESS_ASSERTED",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHACMS_DISTRESS_ASSERTED",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "Unit": "CHACMS"
+    },
+    {
         "BriefDescription": "Counts the number of cycles FAST trigger is received from the global FAST distress wire.",
         "Counter": "0,1,2,3",
         "EventCode": "0x34",
