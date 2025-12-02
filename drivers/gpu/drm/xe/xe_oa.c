@@ -2032,6 +2032,10 @@ int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *f
 		return ret;
 
 	if (param.exec_queue_id > 0) {
+		/* An exec_queue is only needed for OAR/OAC functionality on OAG */
+		if (XE_IOCTL_DBG(oa->xe, param.oa_unit->type != DRM_XE_OA_UNIT_TYPE_OAG))
+			return -EINVAL;
+
 		param.exec_q = xe_exec_queue_lookup(xef, param.exec_queue_id);
 		if (XE_IOCTL_DBG(oa->xe, !param.exec_q))
 			return -ENOENT;
