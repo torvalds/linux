@@ -584,20 +584,22 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 	if (!driver_pptable)
 		return -ENOMEM;
 
-	ret = smu_table_cache_init(smu, SMU_TABLE_SMU_METRICS,
-				   sizeof(struct smu_v13_0_6_gpu_metrics), 1);
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPU_METRICS,
+				    sizeof(struct smu_v13_0_6_gpu_metrics),
+				    SMU_GPU_METRICS_CACHE_INTERVAL);
 	if (ret)
 		return ret;
 
-	gpu_metrics = (struct smu_v13_0_6_gpu_metrics
-			       *)(tables[SMU_TABLE_SMU_METRICS].cache.buffer);
+	gpu_metrics = (struct smu_v13_0_6_gpu_metrics *)smu_driver_table_ptr(
+		smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	smu_v13_0_6_gpu_metrics_init(gpu_metrics, 1, 9);
 	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) ==
 	    IP_VERSION(13, 0, 12)) {
 		ret = smu_v13_0_12_tables_init(smu);
 		if (ret) {
-			smu_table_cache_fini(smu, SMU_TABLE_SMU_METRICS);
+			smu_driver_table_fini(smu,
+					      SMU_DRIVER_TABLE_GPU_METRICS);
 			return ret;
 		}
 	}
@@ -737,7 +739,6 @@ static int smu_v13_0_6_fini_smc_tables(struct smu_context *smu)
 {
 	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12))
 		smu_v13_0_12_tables_fini(smu);
-	smu_table_cache_fini(smu, SMU_TABLE_SMU_METRICS);
 	return smu_v13_0_fini_smc_tables(smu);
 }
 
@@ -2673,8 +2674,6 @@ static ssize_t smu_v13_0_6_get_xcp_metrics(struct smu_context *smu, int xcp_id,
 
 static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *tables = smu_table->tables;
 	struct smu_v13_0_6_gpu_metrics *gpu_metrics;
 	int version = smu_v13_0_6_get_metrics_version(smu);
 	MetricsTableV0_t *metrics_v0 __free(kfree) = NULL;
@@ -2692,8 +2691,8 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		return ret;
 
 	metrics_v2 = (MetricsTableV2_t *)metrics_v0;
-	gpu_metrics = (struct smu_v13_0_6_gpu_metrics
-			       *)(tables[SMU_TABLE_SMU_METRICS].cache.buffer);
+	gpu_metrics = (struct smu_v13_0_6_gpu_metrics *)smu_driver_table_ptr(
+		smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12) &&
 	    smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS))) {
@@ -2878,7 +2877,9 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->firmware_timestamp = GET_METRIC_FIELD(Timestamp, version);
 
 fill:
-	*table = tables[SMU_TABLE_SMU_METRICS].cache.buffer;
+	*table = gpu_metrics;
+
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	return sizeof(*gpu_metrics);
 }
