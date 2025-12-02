@@ -1051,18 +1051,6 @@ group_is_idle(struct panthor_group *group)
 	return hweight32(inactive_queues) == group->queue_count;
 }
 
-static void
-queue_reset_timeout_locked(struct panthor_queue *queue)
-{
-	lockdep_assert_held(&queue->fence_ctx.lock);
-
-	if (queue->timeout.remaining != MAX_SCHEDULE_TIMEOUT) {
-		mod_delayed_work(queue->scheduler.timeout_wq,
-				 &queue->timeout.work,
-				 msecs_to_jiffies(JOB_TIMEOUT_MS));
-	}
-}
-
 static bool
 group_can_run(struct panthor_group *group)
 {
@@ -1077,6 +1065,18 @@ queue_timeout_is_suspended(struct panthor_queue *queue)
 {
 	/* When running, the remaining time is set to MAX_SCHEDULE_TIMEOUT. */
 	return queue->timeout.remaining != MAX_SCHEDULE_TIMEOUT;
+}
+
+static void
+queue_reset_timeout_locked(struct panthor_queue *queue)
+{
+	lockdep_assert_held(&queue->fence_ctx.lock);
+
+	if (!queue_timeout_is_suspended(queue)) {
+		mod_delayed_work(queue->scheduler.timeout_wq,
+				 &queue->timeout.work,
+				 msecs_to_jiffies(JOB_TIMEOUT_MS));
+	}
 }
 
 static void
