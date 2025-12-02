@@ -1354,19 +1354,28 @@ int attr_load_runs_range(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	CLST vcn;
 	CLST vcn_last = (to - 1) >> cluster_bits;
 	CLST lcn, clen;
-	int err;
+	int err = 0;
+	int retry = 0;
 
 	for (vcn = from >> cluster_bits; vcn <= vcn_last; vcn += clen) {
 		if (!run_lookup_entry(run, vcn, &lcn, &clen, NULL)) {
+			if (retry != 0) { /* Next run_lookup_entry(vcn) also failed. */
+				err = -EINVAL;
+				break;
+			}
 			err = attr_load_runs_vcn(ni, type, name, name_len, run,
 						 vcn);
 			if (err)
-				return err;
+				break;
+
 			clen = 0; /* Next run_lookup_entry(vcn) must be success. */
+			retry++;
 		}
+		else
+			retry = 0;
 	}
 
-	return 0;
+	return err;
 }
 
 #ifdef CONFIG_NTFS3_LZX_XPRESS
