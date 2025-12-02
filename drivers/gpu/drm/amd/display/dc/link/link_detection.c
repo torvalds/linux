@@ -1365,7 +1365,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 }
 
 /**
- * link_detect_analog() - Determines if an analog sink is connected.
+ * link_detect_connection_type_analog() - Determines if an analog sink is connected.
  *
  * @link: DC link to evaluate (must support analog signalling).
  * @type: Updated with the detected connection type:
@@ -1375,7 +1375,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
  *
  * Return: true if detection completed.
  */
-static bool link_detect_analog(struct dc_link *link, enum dc_connection_type *type)
+static bool link_detect_connection_type_analog(struct dc_link *link, enum dc_connection_type *type)
 {
 	/* Don't care about connectors that don't support an analog signal. */
 	ASSERT(dc_connector_supports_analog(link->link_id.id));
@@ -1417,7 +1417,7 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 	 *   (So it's high even when no display is connected.)
 	 */
 	if (dc_connector_supports_analog(link->link_id.id))
-		return link_detect_analog(link, type);
+		return link_detect_connection_type_analog(link, type);
 
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
 		/*in case it is not on*/
