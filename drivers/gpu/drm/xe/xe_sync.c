@@ -311,8 +311,11 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 		struct xe_tile *tile;
 		u8 id;
 
-		for_each_tile(tile, vm->xe, id)
-			num_fence += (1 + XE_MAX_GT_PER_TILE);
+		for_each_tile(tile, vm->xe, id) {
+			num_fence++;
+			for_each_tlb_inval(i)
+				num_fence++;
+		}
 
 		fences = kmalloc_array(num_fence, sizeof(*fences),
 				       GFP_KERNEL);
