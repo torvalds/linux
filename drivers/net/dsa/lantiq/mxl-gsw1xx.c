@@ -255,9 +255,15 @@ static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv)
 	      FIELD_PREP(GSW1XX_SGMII_PHY_RX0_CFG2_FILT_CNT,
 			 GSW1XX_SGMII_PHY_RX0_CFG2_FILT_CNT_DEF);
 
-	/* TODO: Take care of inverted RX pair once generic property is
+	/* RX lane seems to be inverted internally, so bit
+	 * GSW1XX_SGMII_PHY_RX0_CFG2_INVERT needs to be set for normal
+	 * (ie. non-inverted) operation.
+	 *
+	 * TODO: Take care of inverted RX pair once generic property is
 	 *       available
 	 */
+
+	val |= GSW1XX_SGMII_PHY_RX0_CFG2_INVERT;
 
 	ret = regmap_write(priv->sgmii, GSW1XX_SGMII_PHY_RX0_CFG2, val);
 	if (ret < 0)
