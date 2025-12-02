@@ -443,13 +443,11 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       necessary to execute the subsystem-level resume callback for the device
       to satisfy that request, otherwise 0 is returned
 
-  `int pm_runtime_barrier(struct device *dev);`
+  `void pm_runtime_barrier(struct device *dev);`
     - check if there's a resume request pending for the device and resume it
       (synchronously) in that case, cancel any other pending runtime PM requests
       regarding it and wait for all runtime PM operations on it in progress to
-      complete; returns 1 if there was a resume request pending and it was
-      necessary to execute the subsystem-level resume callback for the device to
-      satisfy that request, otherwise 0 is returned
+      complete
 
   `void pm_suspend_ignore_children(struct device *dev, bool enable);`
     - set/unset the power.ignore_children flag of the device

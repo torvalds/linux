@@ -1467,30 +1467,20 @@ static void __pm_runtime_barrier(struct device *dev)
  * Next, make sure that all pending requests for the device have been flushed
  * from pm_wq and wait for all runtime PM operations involving the device in
  * progress to complete.
- *
- * Return value:
- * 1, if there was a resume request pending and the device had to be woken up,
- * 0, otherwise
  */
-int pm_runtime_barrier(struct device *dev)
+void pm_runtime_barrier(struct device *dev)
 {
-	int retval = 0;
-
 	pm_runtime_get_noresume(dev);
 	spin_lock_irq(&dev->power.lock);
 
 	if (dev->power.request_pending
-	    && dev->power.request == RPM_REQ_RESUME) {
+	    && dev->power.request == RPM_REQ_RESUME)
 		rpm_resume(dev, 0);
-		retval = 1;
-	}
 
 	__pm_runtime_barrier(dev);
 
 	spin_unlock_irq(&dev->power.lock);
 	pm_runtime_put_noidle(dev);
-
-	return retval;
 }
 EXPORT_SYMBOL_GPL(pm_runtime_barrier);
 
