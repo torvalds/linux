@@ -6490,6 +6490,13 @@ EXPORT_SYMBOL_GPL(ata_platform_remove_one);
 	{ "no" #name,	.quirk_on	= (flag) },	\
 	{ #name,	.quirk_off	= (flag) }
 
+/*
+ * If the ata_force_param struct member 'name' ends with '=', then the value
+ * after the equal sign will be parsed as an u64, and will be saved in the
+ * ata_force_param struct member 'value'. This works because each libata.force
+ * entry (struct ata_force_ent) is separated by commas, so each entry represents
+ * a single quirk, and can thus only have a single value.
+ */
 static const struct ata_force_param force_tbl[] __initconst = {
 	force_cbl(40c,			ATA_CBL_PATA40),
 	force_cbl(80c,			ATA_CBL_PATA80),
@@ -6577,8 +6584,9 @@ static int __init ata_parse_force_one(char **cur,
 				      const char **reason)
 {
 	char *start = *cur, *p = *cur;
-	char *id, *val, *endp;
+	char *id, *val, *endp, *equalsign, *char_after_equalsign;
 	const struct ata_force_param *match_fp = NULL;
+	u64 val_after_equalsign;
 	int nr_matches = 0, i;
 
 	/* find where this param ends and update *cur */
@@ -6621,10 +6629,36 @@ static int __init ata_parse_force_one(char **cur,
 	}
 
  parse_val:
-	/* parse val, allow shortcuts so that both 1.5 and 1.5Gbps work */
+	equalsign = strchr(val, '=');
+	if (equalsign) {
+		char_after_equalsign = equalsign + 1;
+		if (!strlen(char_after_equalsign) ||
+		    kstrtoull(char_after_equalsign, 10, &val_after_equalsign)) {
+			*reason = "invalid value after equal sign";
+			return -EINVAL;
+		}
+	}
+
+	/* Parse the parameter value. */
 	for (i = 0; i < ARRAY_SIZE(force_tbl); i++) {
 		const struct ata_force_param *fp = &force_tbl[i];
 
+		/*
+		 * If val contains equal sign, match has to be exact, i.e.
+		 * shortcuts are not supported.
+		 */
+		if (equalsign &&
+		    (strncasecmp(val, fp->name,
+				 char_after_equalsign - val) == 0)) {
+			force_ent->param = *fp;
+			force_ent->param.value = val_after_equalsign;
+			return 0;
+		}
+
+		/*
+		 * If val does not contain equal sign, allow shortcuts so that
+		 * both 1.5 and 1.5Gbps work.
+		 */
 		if (strncasecmp(val, fp->name, strlen(val)))
 			continue;
 
