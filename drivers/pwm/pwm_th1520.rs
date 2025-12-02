@@ -372,7 +372,7 @@ impl platform::Driver for Th1520PwmPlatformDriver {
             }),
         )?;
 
-        pwm::Registration::register(dev, chip)?;
+        chip.register()?;
 
         Ok(Th1520PwmPlatformDriver)
     }
