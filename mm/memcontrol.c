@@ -281,7 +281,7 @@ ino_t page_cgroup_ino(struct page *page)
 	/* page_folio() is racy here, but the entire function is racy anyway */
 	memcg = folio_memcg_check(page_folio(page));
 
-	while (memcg && !(memcg->css.flags & CSS_ONLINE))
+	while (memcg && !css_is_online(&memcg->css))
 		memcg = parent_mem_cgroup(memcg);
 	if (memcg)
 		ino = cgroup_ino(memcg->css.cgroup);

@@ -981,7 +981,7 @@ void wbc_account_cgroup_owner(struct writeback_control *wbc, struct folio *folio
 
 	css = mem_cgroup_css_from_folio(folio);
 	/* dead cgroups shouldn't contribute to inode ownership arbitration */
-	if (!(css->flags & CSS_ONLINE))
+	if (!css_is_online(css))
 		return;
 
 	id = css->id;
