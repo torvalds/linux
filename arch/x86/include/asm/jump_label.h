@@ -15,6 +15,7 @@
 #define JUMP_TABLE_ENTRY(key, label)			\
 	".pushsection __jump_table,  \"aw\" \n\t"	\
 	_ASM_ALIGN "\n\t"				\
+	ANNOTATE_DATA_SPECIAL				\
 	".long 1b - . \n\t"				\
 	".long " label " - . \n\t"			\
 	_ASM_PTR " " key " - . \n\t"			\

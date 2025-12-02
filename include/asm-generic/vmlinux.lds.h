@@ -87,39 +87,56 @@
 #define ALIGN_FUNCTION()  . = ALIGN(CONFIG_FUNCTION_ALIGNMENT)
 
 /*
- * LD_DEAD_CODE_DATA_ELIMINATION option enables -fdata-sections, which
- * generates .data.identifier sections, which need to be pulled in with
- * .data. We don't want to pull in .data..other sections, which Linux
- * has defined. Same for text and bss.
+ * Support -ffunction-sections by matching .text and .text.*,
+ * but exclude '.text..*', .text.startup[.*], and .text.exit[.*].
  *
- * With LTO_CLANG, the linker also splits sections by default, so we need
- * these macros to combine the sections during the final link.
+ * .text.startup and .text.startup.* are matched later by INIT_TEXT, and
+ * .text.exit and .text.exit.* are matched later by EXIT_TEXT, so they must be
+ * explicitly excluded here.
  *
- * With AUTOFDO_CLANG and PROPELLER_CLANG, by default, the linker splits
- * text sections and regroups functions into subsections.
+ * Other .text.* sections that are typically grouped separately, such as
+ * .text.unlikely or .text.hot, must be matched explicitly before using
+ * TEXT_MAIN.
  *
- * RODATA_MAIN is not used because existing code already defines .rodata.x
- * sections to be brought in with rodata.
+ * NOTE: builds *with* and *without* -ffunction-sections are both supported by
+ * this single macro.  Even with -ffunction-sections, there may be some objects
+ * NOT compiled with the flag due to the use of a specific Makefile override
+ * like cflags-y or AUTOFDO_PROFILE_foo.o.  So this single catchall rule is
+ * needed to support mixed object builds.
+ *
+ * One implication is that functions named startup(), exit(), split(),
+ * unlikely(), hot(), and unknown() are not allowed in the kernel due to the
+ * ambiguity of their section names with -ffunction-sections.  For example,
+ * .text.startup could be __attribute__((constructor)) code in a *non*
+ * ffunction-sections object, which should be placed in .init.text; or it could
+ * be an actual function named startup() in an ffunction-sections object, which
+ * should be placed in .text.  The build will detect and complain about any such
+ * ambiguously named functions.
  */
-#if defined(CONFIG_LD_DEAD_CODE_DATA_ELIMINATION) || defined(CONFIG_LTO_CLANG) || \
-defined(CONFIG_AUTOFDO_CLANG) || defined(CONFIG_PROPELLER_CLANG)
-#define TEXT_MAIN .text .text.[0-9a-zA-Z_]*
-#else
-#define TEXT_MAIN .text
-#endif
-#if defined(CONFIG_LD_DEAD_CODE_DATA_ELIMINATION) || defined(CONFIG_LTO_CLANG)
+#define TEXT_MAIN							\
+	.text								\
+	.text.[_0-9A-Za-df-rt-z]*					\
+	.text.s[_0-9A-Za-su-z]*		.text.s		.text.s.*	\
+	.text.st[_0-9A-Zb-z]*		.text.st	.text.st.*	\
+	.text.sta[_0-9A-Za-qs-z]*	.text.sta	.text.sta.*	\
+	.text.star[_0-9A-Za-su-z]*	.text.star	.text.star.*	\
+	.text.start[_0-9A-Za-tv-z]*	.text.start	.text.start.*	\
+	.text.startu[_0-9A-Za-oq-z]*	.text.startu	.text.startu.*	\
+	.text.startup[_0-9A-Za-z]*					\
+	.text.e[_0-9A-Za-wy-z]*		.text.e		.text.e.*	\
+	.text.ex[_0-9A-Za-hj-z]*	.text.ex	.text.ex.*	\
+	.text.exi[_0-9A-Za-su-z]*	.text.exi	.text.exi.*	\
+	.text.exit[_0-9A-Za-z]*
+
+/*
+ * Support -fdata-sections by matching .data, .data.*, and others,
+ * but exclude '.data..*'.
+ */
 #define DATA_MAIN .data .data.[0-9a-zA-Z_]* .data.rel.* .data..L* .data..compoundliteral* .data.$__unnamed_* .data.$L*
 #define SDATA_MAIN .sdata .sdata.[0-9a-zA-Z_]*
 #define RODATA_MAIN .rodata .rodata.[0-9a-zA-Z_]* .rodata..L*
 #define BSS_MAIN .bss .bss.[0-9a-zA-Z_]* .bss..L* .bss..compoundliteral*
 #define SBSS_MAIN .sbss .sbss.[0-9a-zA-Z_]*
-#else
-#define DATA_MAIN .data .data.rel .data.rel.local
-#define SDATA_MAIN .sdata
-#define RODATA_MAIN .rodata
-#define BSS_MAIN .bss
-#define SBSS_MAIN .sbss
-#endif
 
 /*
  * GCC 4.5 and later have a 32 bytes section alignment for structures.
@@ -581,9 +598,8 @@ defined(CONFIG_AUTOFDO_CLANG) || defined(CONFIG_PROPELLER_CLANG)
  * during second ld run in second ld pass when generating System.map
  *
  * TEXT_MAIN here will match symbols with a fixed pattern (for example,
- * .text.hot or .text.unlikely) if dead code elimination or
- * function-section is enabled. Match these symbols first before
- * TEXT_MAIN to ensure they are grouped together.
+ * .text.hot or .text.unlikely).  Match those before TEXT_MAIN to ensure
+ * they get grouped together.
  *
  * Also placing .text.hot section at the beginning of a page, this
  * would help the TLB performance.
@@ -729,16 +745,16 @@ defined(CONFIG_AUTOFDO_CLANG) || defined(CONFIG_PROPELLER_CLANG)
 
 #define INIT_TEXT							\
 	*(.init.text .init.text.*)					\
-	*(.text.startup)
+	*(.text.startup .text.startup.*)
 
 #define EXIT_DATA							\
 	*(.exit.data .exit.data.*)					\
 	*(.fini_array .fini_array.*)					\
-	*(.dtors .dtors.*)						\
+	*(.dtors .dtors.*)
 
 #define EXIT_TEXT							\
 	*(.exit.text)							\
-	*(.text.exit)							\
+	*(.text.exit .text.exit.*)
 
 #define EXIT_CALL							\
 	*(.exitcall.exit)

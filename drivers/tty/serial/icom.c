@@ -760,7 +760,7 @@ static void load_code(struct icom_port *icom_port)
 		dma_free_coherent(&dev->dev, 4096, new_page, temp_pci);
 }
 
-static int startup(struct icom_port *icom_port)
+static int icom_startup(struct icom_port *icom_port)
 {
 	unsigned long temp;
 	unsigned char cable_id, raw_cable_id;
@@ -832,7 +832,7 @@ unlock:
 	return 0;
 }
 
-static void shutdown(struct icom_port *icom_port)
+static void icom_shutdown(struct icom_port *icom_port)
 {
 	unsigned long temp;
 	unsigned char cmdReg;
@@ -1311,7 +1311,7 @@ static int icom_open(struct uart_port *port)
 	int retval;
 
 	kref_get(&icom_port->adapter->kref);
-	retval = startup(icom_port);
+	retval = icom_startup(icom_port);
 
 	if (retval) {
 		kref_put(&icom_port->adapter->kref, icom_kref_release);
@@ -1333,7 +1333,7 @@ static void icom_close(struct uart_port *port)
 	cmdReg = readb(&icom_port->dram->CmdReg);
 	writeb(cmdReg & ~CMD_RCV_ENABLE, &icom_port->dram->CmdReg);
 
-	shutdown(icom_port);
+	icom_shutdown(icom_port);
 
 	kref_put(&icom_port->adapter->kref, icom_kref_release);
 }

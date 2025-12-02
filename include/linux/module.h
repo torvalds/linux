@@ -251,10 +251,11 @@ struct module_kobject *lookup_or_create_module_kobject(const char *name);
  */
 #define __mod_device_table(type, name)	\
 	__PASTE(__mod_device_table__,	\
+	__PASTE(kmod_,			\
 	__PASTE(__KBUILD_MODNAME,	\
 	__PASTE(__,			\
 	__PASTE(type,			\
-	__PASTE(__, name)))))
+	__PASTE(__, name))))))
 
 /* Creates an alias so file2alias.c can find device table. */
 #define MODULE_DEVICE_TABLE(type, name)					\

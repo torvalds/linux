@@ -198,6 +198,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 
 #define ALTINSTR_ENTRY(ft_flags)					      \
 	".pushsection .altinstructions,\"a\"\n"				      \
+	ANNOTATE_DATA_SPECIAL						      \
 	" .long 771b - .\n"				/* label           */ \
 	" .long 774f - .\n"				/* new instruction */ \
 	" .4byte " __stringify(ft_flags) "\n"		/* feature + flags */ \
@@ -207,6 +208,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 
 #define ALTINSTR_REPLACEMENT(newinstr)		/* replacement */	\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
+	ANNOTATE_DATA_SPECIAL						\
 	"# ALT: replacement\n"						\
 	"774:\n\t" newinstr "\n775:\n"					\
 	".popsection\n"
@@ -337,6 +339,7 @@ void nop_func(void);
  * instruction. See apply_alternatives().
  */
 .macro altinstr_entry orig alt ft_flags orig_len alt_len
+	ANNOTATE_DATA_SPECIAL
 	.long \orig - .
 	.long \alt - .
 	.4byte \ft_flags
@@ -365,6 +368,7 @@ void nop_func(void);
 	.popsection ;							\
 	.pushsection .altinstr_replacement,"ax"	;			\
 743:									\
+	ANNOTATE_DATA_SPECIAL ;						\
 	newinst	;							\
 744:									\
 	.popsection ;
