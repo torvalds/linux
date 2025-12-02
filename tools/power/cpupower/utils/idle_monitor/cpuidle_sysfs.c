@@ -70,7 +70,7 @@ static int cpuidle_stop(void)
 			current_count[cpu][state] =
 				cpuidle_state_time(cpu, state);
 			dprint("CPU %d - State: %d - Val: %llu\n",
-			       cpu, state, previous_count[cpu][state]);
+			       cpu, state, current_count[cpu][state]);
 		}
 	}
 	return 0;
