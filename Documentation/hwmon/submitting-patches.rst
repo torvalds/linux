@@ -82,7 +82,10 @@ increase the chances of your change being accepted.
 * Avoid calculations in macros and macro-generated functions. While such macros
   may save a line or so in the source, it obfuscates the code and makes code
   review more difficult. It may also result in code which is more complicated
-  than necessary. Use inline functions or just regular functions instead.
+  than necessary. Such macros may also evaluate their arguments multiple times.
+  This leads to Time-of-Check to Time-of-Use (TOCTOU) race conditions when
+  accessing shared data without locking, for example when calculating values in
+  sysfs show functions. Use inline functions or just regular functions instead.
 
 * Limit the number of kernel log messages. In general, your driver should not
   generate an error message just because a runtime operation failed. Report
