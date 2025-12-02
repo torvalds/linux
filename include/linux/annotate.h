@@ -6,41 +6,35 @@
 
 #ifdef CONFIG_OBJTOOL
 
+#define __ASM_ANNOTATE(section, label, type)				\
+	.pushsection section, "M", @progbits, 8;			\
+	.long label - .;						\
+	.long type;							\
+	.popsection
+
 #ifndef __ASSEMBLY__
 
-#define __ASM_ANNOTATE(section, label, type)				\
-	".pushsection " section ",\"M\", @progbits, 8\n\t"		\
-	".long " __stringify(label) " - .\n\t"				\
-	".long " __stringify(type) "\n\t"				\
-	".popsection\n\t"
-
 #define ASM_ANNOTATE_LABEL(label, type)					\
-	__ASM_ANNOTATE(".discard.annotate_insn", label, type)
+	__stringify(__ASM_ANNOTATE(".discard.annotate_insn", label, type)) "\n\t"
 
 #define ASM_ANNOTATE(type)						\
-	"911:\n\t"							\
-	ASM_ANNOTATE_LABEL(911b, type)
+	"911: "								\
+	__stringify(__ASM_ANNOTATE(".discard.annotate_insn", 911b, type)) "\n\t"
 
 #define ASM_ANNOTATE_DATA(type)						\
-	"912:\n\t"							\
-	__ASM_ANNOTATE(".discard.annotate_data", 912b, type)
+	"912: "								\
+	__stringify(__ASM_ANNOTATE(".discard.annotate_data", 912b, type)) "\n\t"
 
 #else /* __ASSEMBLY__ */
 
-.macro __ANNOTATE section, type
-.Lhere_\@:
-	.pushsection \section, "M", @progbits, 8
-	.long	.Lhere_\@ - .
-	.long	\type
-	.popsection
-.endm
-
 .macro ANNOTATE type
-	__ANNOTATE ".discard.annotate_insn", \type
+.Lhere_\@:
+	__ASM_ANNOTATE(".discard.annotate_insn", .Lhere_\@, \type)
 .endm
 
 .macro ANNOTATE_DATA type
-	__ANNOTATE ".discard.annotate_data", \type
+.Lhere_\@:
+	__ASM_ANNOTATE(".discard.annotate_data", .Lhere_\@, \type)
 .endm
 
 #endif /* __ASSEMBLY__ */
