@@ -312,6 +312,7 @@
 			clock-names = "nf_clk";
 			cdns,board-delay-ps = <4830>;
 			iommus = <&smmu 4>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -339,6 +340,7 @@
 			snps,priority = <0 1 2 3>;
 			snps,axi-max-burst-len = <8>;
 			iommus = <&smmu 8>;
+			dma-coherent;
 		};
 
 		dmac1: dma-controller@10dc0000 {
@@ -357,6 +359,7 @@
 			snps,priority = <0 1 2 3>;
 			snps,axi-max-burst-len = <8>;
 			iommus = <&smmu 9>;
+			dma-coherent;
 		};
 
 		rst: rstmgr@10d11000 {
