@@ -495,8 +495,8 @@ static int navi10_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
-	struct smu_table *dummy_read_1_table =
-			&smu_table->dummy_read_1_table;
+	struct smu_table *dummy_read_1_table = &smu_table->dummy_read_1_table;
+	int ret;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -526,9 +526,10 @@ static int navi10_tables_init(struct smu_context *smu)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_3);
-	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
-	if (!smu_table->gpu_metrics_table)
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPU_METRICS,
+				    sizeof(struct gpu_metrics_v1_3),
+				    SMU_GPU_METRICS_CACHE_INTERVAL);
+	if (ret)
 		goto err1_out;
 
 	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
@@ -545,7 +546,7 @@ static int navi10_tables_init(struct smu_context *smu)
 err3_out:
 	kfree(smu_table->watermarks_table);
 err2_out:
-	kfree(smu_table->gpu_metrics_table);
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 err1_out:
 	kfree(smu_table->metrics_table);
 err0_out:
@@ -2713,7 +2714,8 @@ static ssize_t navi10_get_legacy_gpu_metrics(struct smu_context *smu,
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_3 *gpu_metrics =
-		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v1_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_legacy_t metrics;
 	int ret = 0;
 
@@ -2774,6 +2776,8 @@ static ssize_t navi10_get_legacy_gpu_metrics(struct smu_context *smu,
 			(155000 - 625 * metrics.CurrSocVoltageOffset) / 100;
 
 	*table = (void *)gpu_metrics;
+
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	return sizeof(struct gpu_metrics_v1_3);
 }
@@ -2921,7 +2925,8 @@ static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_3 *gpu_metrics =
-		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v1_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_t metrics;
 	int ret = 0;
 
@@ -2985,6 +2990,8 @@ static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
 
 	*table = (void *)gpu_metrics;
 
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
+
 	return sizeof(struct gpu_metrics_v1_3);
 }
 
@@ -2993,7 +3000,8 @@ static ssize_t navi12_get_legacy_gpu_metrics(struct smu_context *smu,
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_3 *gpu_metrics =
-		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v1_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_NV12_legacy_t metrics;
 	int ret = 0;
 
@@ -3060,6 +3068,8 @@ static ssize_t navi12_get_legacy_gpu_metrics(struct smu_context *smu,
 
 	*table = (void *)gpu_metrics;
 
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
+
 	return sizeof(struct gpu_metrics_v1_3);
 }
 
@@ -3068,7 +3078,8 @@ static ssize_t navi12_get_gpu_metrics(struct smu_context *smu,
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_3 *gpu_metrics =
-		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v1_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_NV12_t metrics;
 	int ret = 0;
 
@@ -3136,6 +3147,8 @@ static ssize_t navi12_get_gpu_metrics(struct smu_context *smu,
 			(155000 - 625 * metrics.CurrSocVoltageOffset) / 100;
 
 	*table = (void *)gpu_metrics;
+
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	return sizeof(struct gpu_metrics_v1_3);
 }

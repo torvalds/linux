@@ -88,6 +88,7 @@ static int cyan_skillfish_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
+	int ret;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS,
 				sizeof(SmuMetrics_t),
@@ -98,9 +99,10 @@ static int cyan_skillfish_tables_init(struct smu_context *smu)
 	if (!smu_table->metrics_table)
 		goto err0_out;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_2);
-	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
-	if (!smu_table->gpu_metrics_table)
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPU_METRICS,
+				    sizeof(struct gpu_metrics_v2_2),
+				    SMU_GPU_METRICS_CACHE_INTERVAL);
+	if (ret)
 		goto err1_out;
 
 	smu_table->metrics_time = 0;
@@ -108,7 +110,6 @@ static int cyan_skillfish_tables_init(struct smu_context *smu)
 	return 0;
 
 err1_out:
-	smu_table->gpu_metrics_table_size = 0;
 	kfree(smu_table->metrics_table);
 err0_out:
 	return -ENOMEM;
@@ -383,9 +384,9 @@ static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
 static ssize_t cyan_skillfish_get_gpu_metrics(struct smu_context *smu,
 						void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v2_2 *gpu_metrics =
-		(struct gpu_metrics_v2_2 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v2_2 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_t metrics;
 	int i, ret = 0;
 
@@ -431,6 +432,8 @@ static ssize_t cyan_skillfish_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
 	*table = (void *)gpu_metrics;
+
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	return sizeof(struct gpu_metrics_v2_2);
 }

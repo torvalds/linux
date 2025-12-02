@@ -41,6 +41,8 @@
 #define SMU_CUSTOM_FAN_SPEED_RPM     (1 << 1)
 #define SMU_CUSTOM_FAN_SPEED_PWM     (1 << 2)
 
+#define SMU_GPU_METRICS_CACHE_INTERVAL 5
+
 // Power Throttlers
 #define SMU_THROTTLER_PPT0_BIT			0
 #define SMU_THROTTLER_PPT1_BIT			1
