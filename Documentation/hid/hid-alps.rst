@@ -69,6 +69,7 @@ To read/write to RAM, need to send a command to the device.
 The command format is as below.
 
 DataByte(SET_REPORT)
+~~~~~~~~~~~~~~~~~~~~
 
 =====	======================
 Byte1	Command Byte
@@ -89,6 +90,7 @@ Value Byte is writing data when you send the write commands.
 When you read RAM, there is no meaning.
 
 DataByte(GET_REPORT)
+~~~~~~~~~~~~~~~~~~~~
 
 =====	======================
 Byte1	Response Byte
@@ -104,8 +106,10 @@ Read value is stored in Value Byte.
 
 
 Packet Format
+-------------
+
 Touchpad data byte
-------------------
+~~~~~~~~~~~~~~~~~~
 
 
 ======= ======= ======= ======= ======= ======= ======= ======= =====
@@ -156,7 +160,7 @@ Zsn_6-0(7bit):
 
 
 StickPointer data byte
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 ======= ======= ======= ======= ======= ======= ======= ======= =====
 -	b7	b6	b5	b4	b3	b2	b1	b0
