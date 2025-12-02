@@ -308,12 +308,13 @@ static void test_getcpu(int cpu)
 #ifdef __x86_64__
 
 static jmp_buf jmpbuf;
-static volatile unsigned long segv_err;
+static volatile unsigned long segv_err, segv_trapno;
 
 static void sigsegv(int sig, siginfo_t *info, void *ctx_void)
 {
 	ucontext_t *ctx = (ucontext_t *)ctx_void;
 
+	segv_trapno = ctx->uc_mcontext.gregs[REG_TRAPNO];
 	segv_err =  ctx->uc_mcontext.gregs[REG_ERR];
 	siglongjmp(jmpbuf, 1);
 }
@@ -336,7 +337,8 @@ static void test_vsys_r(void)
 	else if (can_read)
 		ksft_test_result_pass("We have read access\n");
 	else
-		ksft_test_result_pass("We do not have read access: #PF(0x%lx)\n", segv_err);
+		ksft_test_result_pass("We do not have read access (trap=%ld, error=0x%lx)\n",
+				      segv_trapno, segv_err);
 }
 
 static void test_vsys_x(void)
@@ -347,7 +349,7 @@ static void test_vsys_x(void)
 		return;
 	}
 
-	ksft_print_msg("Make sure that vsyscalls really page fault\n");
+	ksft_print_msg("Make sure that vsyscalls really cause a fault\n");
 
 	bool can_exec;
 	if (sigsetjmp(jmpbuf, 1) == 0) {
@@ -358,13 +360,14 @@ static void test_vsys_x(void)
 	}
 
 	if (can_exec)
-		ksft_test_result_fail("Executing the vsyscall did not page fault\n");
-	else if (segv_err & (1 << 4)) /* INSTR */
-		ksft_test_result_pass("Executing the vsyscall page failed: #PF(0x%lx)\n",
-				      segv_err);
+		ksft_test_result_fail("Executing the vsyscall did not fault\n");
+	/* #GP or #PF (with X86_PF_INSTR) */
+	else if ((segv_trapno == 13) || ((segv_trapno == 14) && (segv_err & (1 << 4))))
+		ksft_test_result_pass("Executing the vsyscall page failed (trap=%ld, error=0x%lx)\n",
+				      segv_trapno, segv_err);
 	else
-		ksft_test_result_fail("Execution failed with the wrong error: #PF(0x%lx)\n",
-				      segv_err);
+		ksft_test_result_fail("Execution failed with the wrong error (trap=%ld, error=0x%lx)\n",
+				      segv_trapno, segv_err);
 }
 
 /*
