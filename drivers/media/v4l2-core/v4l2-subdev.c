@@ -2608,7 +2608,7 @@ EXPORT_SYMBOL_GPL(v4l2_subdev_is_streaming);
 int v4l2_subdev_get_privacy_led(struct v4l2_subdev *sd)
 {
 #if IS_REACHABLE(CONFIG_LEDS_CLASS)
-	sd->privacy_led = led_get(sd->dev, "privacy-led");
+	sd->privacy_led = led_get(sd->dev, "privacy");
 	if (IS_ERR(sd->privacy_led) && PTR_ERR(sd->privacy_led) != -ENOENT)
 		return dev_err_probe(sd->dev, PTR_ERR(sd->privacy_led),
 				     "getting privacy LED\n");

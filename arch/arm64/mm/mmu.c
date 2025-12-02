@@ -708,6 +708,30 @@ out:
 	return ret;
 }
 
+static inline bool force_pte_mapping(void)
+{
+	const bool bbml2 = system_capabilities_finalized() ?
+		system_supports_bbml2_noabort() : cpu_supports_bbml2_noabort();
+
+	if (debug_pagealloc_enabled())
+		return true;
+	if (bbml2)
+		return false;
+	return rodata_full || arm64_kfence_can_set_direct_map() || is_realm_world();
+}
+
+static inline bool split_leaf_mapping_possible(void)
+{
+	/*
+	 * !BBML2_NOABORT systems should never run into scenarios where we would
+	 * have to split. So exit early and let calling code detect it and raise
+	 * a warning.
+	 */
+	if (!system_supports_bbml2_noabort())
+		return false;
+	return !force_pte_mapping();
+}
+
 static DEFINE_MUTEX(pgtable_split_lock);
 
 int split_kernel_leaf_mapping(unsigned long start, unsigned long end)
@@ -715,12 +739,11 @@ int split_kernel_leaf_mapping(unsigned long start, unsigned long end)
 	int ret;
 
 	/*
-	 * !BBML2_NOABORT systems should not be trying to change permissions on
-	 * anything that is not pte-mapped in the first place. Just return early
-	 * and let the permission change code raise a warning if not already
-	 * pte-mapped.
+	 * Exit early if the region is within a pte-mapped area or if we can't
+	 * split. For the latter case, the permission change code will raise a
+	 * warning if not already pte-mapped.
 	 */
-	if (!system_supports_bbml2_noabort())
+	if (!split_leaf_mapping_possible() || is_kfence_address((void *)start))
 		return 0;
 
 	/*
@@ -758,30 +781,30 @@ int split_kernel_leaf_mapping(unsigned long start, unsigned long end)
 	return ret;
 }
 
-static int __init split_to_ptes_pud_entry(pud_t *pudp, unsigned long addr,
-					  unsigned long next,
-					  struct mm_walk *walk)
+static int split_to_ptes_pud_entry(pud_t *pudp, unsigned long addr,
+				   unsigned long next, struct mm_walk *walk)
 {
+	gfp_t gfp = *(gfp_t *)walk->private;
 	pud_t pud = pudp_get(pudp);
 	int ret = 0;
 
 	if (pud_leaf(pud))
-		ret = split_pud(pudp, pud, GFP_ATOMIC, false);
+		ret = split_pud(pudp, pud, gfp, false);
 
 	return ret;
 }
 
-static int __init split_to_ptes_pmd_entry(pmd_t *pmdp, unsigned long addr,
-					  unsigned long next,
-					  struct mm_walk *walk)
+static int split_to_ptes_pmd_entry(pmd_t *pmdp, unsigned long addr,
+				   unsigned long next, struct mm_walk *walk)
 {
+	gfp_t gfp = *(gfp_t *)walk->private;
 	pmd_t pmd = pmdp_get(pmdp);
 	int ret = 0;
 
 	if (pmd_leaf(pmd)) {
 		if (pmd_cont(pmd))
 			split_contpmd(pmdp);
-		ret = split_pmd(pmdp, pmd, GFP_ATOMIC, false);
+		ret = split_pmd(pmdp, pmd, gfp, false);
 
 		/*
 		 * We have split the pmd directly to ptes so there is no need to
@@ -793,9 +816,8 @@ static int __init split_to_ptes_pmd_entry(pmd_t *pmdp, unsigned long addr,
 	return ret;
 }
 
-static int __init split_to_ptes_pte_entry(pte_t *ptep, unsigned long addr,
-					  unsigned long next,
-					  struct mm_walk *walk)
+static int split_to_ptes_pte_entry(pte_t *ptep, unsigned long addr,
+				   unsigned long next, struct mm_walk *walk)
 {
 	pte_t pte = __ptep_get(ptep);
 
@@ -805,11 +827,23 @@ static int __init split_to_ptes_pte_entry(pte_t *ptep, unsigned long addr,
 	return 0;
 }
 
-static const struct mm_walk_ops split_to_ptes_ops __initconst = {
+static const struct mm_walk_ops split_to_ptes_ops = {
 	.pud_entry	= split_to_ptes_pud_entry,
 	.pmd_entry	= split_to_ptes_pmd_entry,
 	.pte_entry	= split_to_ptes_pte_entry,
 };
+
+static int range_split_to_ptes(unsigned long start, unsigned long end, gfp_t gfp)
+{
+	int ret;
+
+	arch_enter_lazy_mmu_mode();
+	ret = walk_kernel_page_table_range_lockless(start, end,
+					&split_to_ptes_ops, NULL, &gfp);
+	arch_leave_lazy_mmu_mode();
+
+	return ret;
+}
 
 static bool linear_map_requires_bbml2 __initdata;
 
@@ -847,11 +881,9 @@ static int __init linear_map_split_to_ptes(void *__unused)
 		 * PTE. The kernel alias remains static throughout runtime so
 		 * can continue to be safely mapped with large mappings.
 		 */
-		ret = walk_kernel_page_table_range_lockless(lstart, kstart,
-						&split_to_ptes_ops, NULL, NULL);
+		ret = range_split_to_ptes(lstart, kstart, GFP_ATOMIC);
 		if (!ret)
-			ret = walk_kernel_page_table_range_lockless(kend, lend,
-						&split_to_ptes_ops, NULL, NULL);
+			ret = range_split_to_ptes(kend, lend, GFP_ATOMIC);
 		if (ret)
 			panic("Failed to split linear map\n");
 		flush_tlb_kernel_range(lstart, lend);
@@ -1002,22 +1034,39 @@ static void __init arm64_kfence_map_pool(phys_addr_t kfence_pool, pgd_t *pgdp)
 	memblock_clear_nomap(kfence_pool, KFENCE_POOL_SIZE);
 	__kfence_pool = phys_to_virt(kfence_pool);
 }
+
+bool arch_kfence_init_pool(void)
+{
+	unsigned long start = (unsigned long)__kfence_pool;
+	unsigned long end = start + KFENCE_POOL_SIZE;
+	int ret;
+
+	/* Exit early if we know the linear map is already pte-mapped. */
+	if (!split_leaf_mapping_possible())
+		return true;
+
+	/* Kfence pool is already pte-mapped for the early init case. */
+	if (kfence_early_init)
+		return true;
+
+	mutex_lock(&pgtable_split_lock);
+	ret = range_split_to_ptes(start, end, GFP_PGTABLE_KERNEL);
+	mutex_unlock(&pgtable_split_lock);
+
+	/*
+	 * Since the system supports bbml2_noabort, tlb invalidation is not
+	 * required here; the pgtable mappings have been split to pte but larger
+	 * entries may safely linger in the TLB.
+	 */
+
+	return !ret;
+}
 #else /* CONFIG_KFENCE */
 
 static inline phys_addr_t arm64_kfence_alloc_pool(void) { return 0; }
 static inline void arm64_kfence_map_pool(phys_addr_t kfence_pool, pgd_t *pgdp) { }
 
 #endif /* CONFIG_KFENCE */
-
-static inline bool force_pte_mapping(void)
-{
-	bool bbml2 = system_capabilities_finalized() ?
-		system_supports_bbml2_noabort() : cpu_supports_bbml2_noabort();
-
-	return (!bbml2 && (rodata_full || arm64_kfence_can_set_direct_map() ||
-			   is_realm_world())) ||
-		debug_pagealloc_enabled();
-}
 
 static void __init map_mem(pgd_t *pgdp)
 {

@@ -280,6 +280,8 @@ int isp_kernel_buffer_alloc(struct device *dev, u64 size,
 	if (ret)
 		return ret;
 
+	/* Ensure *bo is NULL so a new BO will be created */
+	*bo = NULL;
 	ret = amdgpu_bo_create_kernel(adev,
 				      size,
 				      ISP_MC_ADDR_ALIGN,

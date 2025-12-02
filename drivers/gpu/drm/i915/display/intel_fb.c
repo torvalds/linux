@@ -2117,6 +2117,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 
+	kfree(intel_fb->panic);
 	kfree(intel_fb);
 }
 
@@ -2215,16 +2216,22 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	struct intel_display *display = to_intel_display(obj->dev);
 	struct drm_framebuffer *fb = &intel_fb->base;
 	u32 max_stride;
-	int ret = -EINVAL;
+	int ret;
 	int i;
+
+	intel_fb->panic = intel_panic_alloc();
+	if (!intel_fb->panic)
+		return -ENOMEM;
 
 	/*
 	 * intel_frontbuffer_get() must be done before
 	 * intel_fb_bo_framebuffer_init() to avoid set_tiling vs. addfb race.
 	 */
 	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
-	if (!intel_fb->frontbuffer)
-		return -ENOMEM;
+	if (!intel_fb->frontbuffer) {
+		ret = -ENOMEM;
+		goto err_free_panic;
+	}
 
 	ret = intel_fb_bo_framebuffer_init(fb, obj, mode_cmd);
 	if (ret)
@@ -2323,6 +2330,9 @@ err_bo_framebuffer_fini:
 	intel_fb_bo_framebuffer_fini(obj);
 err_frontbuffer_put:
 	intel_frontbuffer_put(intel_fb->frontbuffer);
+err_free_panic:
+	kfree(intel_fb->panic);
+
 	return ret;
 }
 
@@ -2349,19 +2359,10 @@ intel_user_framebuffer_create(struct drm_device *dev,
 struct intel_framebuffer *intel_framebuffer_alloc(void)
 {
 	struct intel_framebuffer *intel_fb;
-	struct intel_panic *panic;
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb)
 		return NULL;
-
-	panic = intel_panic_alloc();
-	if (!panic) {
-		kfree(intel_fb);
-		return NULL;
-	}
-
-	intel_fb->panic = panic;
 
 	return intel_fb;
 }

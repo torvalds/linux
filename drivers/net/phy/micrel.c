@@ -466,6 +466,12 @@ struct lan8842_priv {
 	u16 rev;
 };
 
+struct lanphy_reg_data {
+	int page;
+	u16 addr;
+	u16 val;
+};
+
 static const struct kszphy_type lan8814_type = {
 	.led_mode_reg		= ~LAN8814_LED_CTRL_1,
 	.cable_diag_reg		= LAN8814_CABLE_DIAG,
@@ -2836,6 +2842,13 @@ static int ksz886x_cable_test_get_status(struct phy_device *phydev,
 #define LAN8814_PAGE_PCS_DIGITAL 2
 
 /**
+ * LAN8814_PAGE_EEE - Selects Extended Page 3.
+ *
+ * This page contains EEE registers
+ */
+#define LAN8814_PAGE_EEE 3
+
+/**
  * LAN8814_PAGE_COMMON_REGS - Selects Extended Page 4.
  *
  * This page contains device-common registers that affect the entire chip.
@@ -2852,6 +2865,13 @@ static int ksz886x_cable_test_get_status(struct phy_device *phydev,
  * rate adaptation FIFOs, and the per-port 1588 TSU block.
  */
 #define LAN8814_PAGE_PORT_REGS 5
+
+/**
+ * LAN8814_PAGE_POWER_REGS - Selects Extended Page 28.
+ *
+ * This page contains analog control registers and power mode registers.
+ */
+#define LAN8814_PAGE_POWER_REGS 28
 
 /**
  * LAN8814_PAGE_SYSTEM_CTRL - Selects Extended Page 31.
@@ -4262,6 +4282,8 @@ static int __lan8814_ptp_probe_once(struct phy_device *phydev, char *pin_name,
 {
 	struct lan8814_shared_priv *shared = phy_package_get_priv(phydev);
 
+	shared->phydev = phydev;
+
 	/* Initialise shared lock for clock*/
 	mutex_init(&shared->shared_lock);
 
@@ -4317,8 +4339,6 @@ static int __lan8814_ptp_probe_once(struct phy_device *phydev, char *pin_name,
 
 	phydev_dbg(phydev, "successfully registered ptp clock\n");
 
-	shared->phydev = phydev;
-
 	/* The EP.4 is shared between all the PHYs in the package and also it
 	 * can be accessed by any of the PHYs
 	 */
@@ -4359,12 +4379,6 @@ static void lan8814_setup_led(struct phy_device *phydev, int val)
 static int lan8814_config_init(struct phy_device *phydev)
 {
 	struct kszphy_priv *lan8814 = phydev->priv;
-
-	/* Reset the PHY */
-	lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
-			       LAN8814_QSGMII_SOFT_RESET,
-			       LAN8814_QSGMII_SOFT_RESET_BIT,
-			       LAN8814_QSGMII_SOFT_RESET_BIT);
 
 	/* Disable ANEG with QSGMII PCS Host side */
 	lanphy_modify_page_reg(phydev, LAN8814_PAGE_PORT_REGS,
@@ -4451,6 +4465,12 @@ static int lan8814_probe(struct phy_device *phydev)
 			      addr, sizeof(struct lan8814_shared_priv));
 
 	if (phy_package_init_once(phydev)) {
+		/* Reset the PHY */
+		lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+				       LAN8814_QSGMII_SOFT_RESET,
+				       LAN8814_QSGMII_SOFT_RESET_BIT,
+				       LAN8814_QSGMII_SOFT_RESET_BIT);
+
 		err = lan8814_release_coma_mode(phydev);
 		if (err)
 			return err;
@@ -5884,6 +5904,144 @@ static int lan8842_probe(struct phy_device *phydev)
 	return 0;
 }
 
+#define LAN8814_POWER_MGMT_MODE_3_ANEG_MDI		0x13
+#define LAN8814_POWER_MGMT_MODE_4_ANEG_MDIX		0x14
+#define LAN8814_POWER_MGMT_MODE_5_10BT_MDI		0x15
+#define LAN8814_POWER_MGMT_MODE_6_10BT_MDIX		0x16
+#define LAN8814_POWER_MGMT_MODE_7_100BT_TRAIN		0x17
+#define LAN8814_POWER_MGMT_MODE_8_100BT_MDI		0x18
+#define LAN8814_POWER_MGMT_MODE_9_100BT_EEE_MDI_TX	0x19
+#define LAN8814_POWER_MGMT_MODE_10_100BT_EEE_MDI_RX	0x1a
+#define LAN8814_POWER_MGMT_MODE_11_100BT_MDIX		0x1b
+#define LAN8814_POWER_MGMT_MODE_12_100BT_EEE_MDIX_TX	0x1c
+#define LAN8814_POWER_MGMT_MODE_13_100BT_EEE_MDIX_RX	0x1d
+#define LAN8814_POWER_MGMT_MODE_14_100BTX_EEE_TX_RX	0x1e
+
+#define LAN8814_POWER_MGMT_DLLPD_D			BIT(0)
+#define LAN8814_POWER_MGMT_ADCPD_D			BIT(1)
+#define LAN8814_POWER_MGMT_PGAPD_D			BIT(2)
+#define LAN8814_POWER_MGMT_TXPD_D			BIT(3)
+#define LAN8814_POWER_MGMT_DLLPD_C			BIT(4)
+#define LAN8814_POWER_MGMT_ADCPD_C			BIT(5)
+#define LAN8814_POWER_MGMT_PGAPD_C			BIT(6)
+#define LAN8814_POWER_MGMT_TXPD_C			BIT(7)
+#define LAN8814_POWER_MGMT_DLLPD_B			BIT(8)
+#define LAN8814_POWER_MGMT_ADCPD_B			BIT(9)
+#define LAN8814_POWER_MGMT_PGAPD_B			BIT(10)
+#define LAN8814_POWER_MGMT_TXPD_B			BIT(11)
+#define LAN8814_POWER_MGMT_DLLPD_A			BIT(12)
+#define LAN8814_POWER_MGMT_ADCPD_A			BIT(13)
+#define LAN8814_POWER_MGMT_PGAPD_A			BIT(14)
+#define LAN8814_POWER_MGMT_TXPD_A			BIT(15)
+
+#define LAN8814_POWER_MGMT_C_D		(LAN8814_POWER_MGMT_DLLPD_D | \
+					 LAN8814_POWER_MGMT_ADCPD_D | \
+					 LAN8814_POWER_MGMT_PGAPD_D | \
+					 LAN8814_POWER_MGMT_DLLPD_C | \
+					 LAN8814_POWER_MGMT_ADCPD_C | \
+					 LAN8814_POWER_MGMT_PGAPD_C)
+
+#define LAN8814_POWER_MGMT_B_C_D	(LAN8814_POWER_MGMT_C_D | \
+					 LAN8814_POWER_MGMT_DLLPD_B | \
+					 LAN8814_POWER_MGMT_ADCPD_B | \
+					 LAN8814_POWER_MGMT_PGAPD_B)
+
+#define LAN8814_POWER_MGMT_VAL1		(LAN8814_POWER_MGMT_C_D | \
+					 LAN8814_POWER_MGMT_ADCPD_B | \
+					 LAN8814_POWER_MGMT_PGAPD_B | \
+					 LAN8814_POWER_MGMT_ADCPD_A | \
+					 LAN8814_POWER_MGMT_PGAPD_A)
+
+#define LAN8814_POWER_MGMT_VAL2		LAN8814_POWER_MGMT_C_D
+
+#define LAN8814_POWER_MGMT_VAL3		(LAN8814_POWER_MGMT_C_D | \
+					 LAN8814_POWER_MGMT_DLLPD_B | \
+					 LAN8814_POWER_MGMT_ADCPD_B | \
+					 LAN8814_POWER_MGMT_PGAPD_A)
+
+#define LAN8814_POWER_MGMT_VAL4		(LAN8814_POWER_MGMT_B_C_D | \
+					 LAN8814_POWER_MGMT_ADCPD_A | \
+					 LAN8814_POWER_MGMT_PGAPD_A)
+
+#define LAN8814_POWER_MGMT_VAL5		LAN8814_POWER_MGMT_B_C_D
+
+#define LAN8814_EEE_WAKE_TX_TIMER			0x0e
+#define LAN8814_EEE_WAKE_TX_TIMER_MAX_VAL		0x1f
+
+static const struct lanphy_reg_data short_center_tap_errata[] = {
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_3_ANEG_MDI,
+	  LAN8814_POWER_MGMT_VAL1 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_4_ANEG_MDIX,
+	  LAN8814_POWER_MGMT_VAL1 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_5_10BT_MDI,
+	  LAN8814_POWER_MGMT_VAL1 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_6_10BT_MDIX,
+	  LAN8814_POWER_MGMT_VAL1 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_7_100BT_TRAIN,
+	  LAN8814_POWER_MGMT_VAL2 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_8_100BT_MDI,
+	  LAN8814_POWER_MGMT_VAL3 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_9_100BT_EEE_MDI_TX,
+	  LAN8814_POWER_MGMT_VAL3 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_10_100BT_EEE_MDI_RX,
+	  LAN8814_POWER_MGMT_VAL4 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_11_100BT_MDIX,
+	  LAN8814_POWER_MGMT_VAL5 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_12_100BT_EEE_MDIX_TX,
+	  LAN8814_POWER_MGMT_VAL5 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_13_100BT_EEE_MDIX_RX,
+	  LAN8814_POWER_MGMT_VAL4 },
+	{ LAN8814_PAGE_POWER_REGS,
+	  LAN8814_POWER_MGMT_MODE_14_100BTX_EEE_TX_RX,
+	  LAN8814_POWER_MGMT_VAL4 },
+};
+
+static const struct lanphy_reg_data waketx_timer_errata[] = {
+	{ LAN8814_PAGE_EEE,
+	  LAN8814_EEE_WAKE_TX_TIMER,
+	  LAN8814_EEE_WAKE_TX_TIMER_MAX_VAL },
+};
+
+static int lanphy_write_reg_data(struct phy_device *phydev,
+				 const struct lanphy_reg_data *data,
+				 size_t num)
+{
+	int ret = 0;
+
+	while (num--) {
+		ret = lanphy_write_page_reg(phydev, data->page, data->addr,
+					    data->val);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int lan8842_erratas(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = lanphy_write_reg_data(phydev, short_center_tap_errata,
+				    ARRAY_SIZE(short_center_tap_errata));
+	if (ret)
+		return ret;
+
+	return lanphy_write_reg_data(phydev, waketx_timer_errata,
+				     ARRAY_SIZE(waketx_timer_errata));
+}
+
 static int lan8842_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -5893,6 +6051,11 @@ static int lan8842_config_init(struct phy_device *phydev)
 				     LAN8814_QSGMII_SOFT_RESET,
 				     LAN8814_QSGMII_SOFT_RESET_BIT,
 				     LAN8814_QSGMII_SOFT_RESET_BIT);
+	if (ret < 0)
+		return ret;
+
+	/* Apply the erratas for this device */
+	ret = lan8842_erratas(phydev);
 	if (ret < 0)
 		return ret;
 

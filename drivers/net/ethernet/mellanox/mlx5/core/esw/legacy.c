@@ -66,7 +66,6 @@ static void esw_destroy_legacy_fdb_table(struct mlx5_eswitch *esw)
 	esw->fdb_table.legacy.addr_grp = NULL;
 	esw->fdb_table.legacy.allmulti_grp = NULL;
 	esw->fdb_table.legacy.promisc_grp = NULL;
-	atomic64_set(&esw->user_count, 0);
 }
 
 static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw)

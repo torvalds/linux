@@ -32,7 +32,7 @@ properties:
 
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
-    maxItems: 2
+    maxItems: 4
     items:
       enum: [1, 2, 3, 4]
 
@@ -48,7 +48,7 @@ properties:
 
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
-    maxItems: 2
+    maxItems: 5
     items:
       enum: [1, 2, 3, 4, 5]
 

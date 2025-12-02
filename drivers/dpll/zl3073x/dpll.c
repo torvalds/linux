@@ -1904,7 +1904,7 @@ zl3073x_dpll_pin_is_registrable(struct zl3073x_dpll *zldpll,
 		}
 
 		is_diff = zl3073x_out_is_diff(zldev, out);
-		is_enabled = zl3073x_out_is_enabled(zldev, out);
+		is_enabled = zl3073x_output_pin_is_enabled(zldev, index);
 	}
 
 	/* Skip N-pin if the corresponding input/output is differential */

@@ -25,7 +25,7 @@ static struct scx_sched __rcu *scx_root;
  * guarantee system safety. Maintain a dedicated task list which contains every
  * task between its fork and eventual free.
  */
-static DEFINE_SPINLOCK(scx_tasks_lock);
+static DEFINE_RAW_SPINLOCK(scx_tasks_lock);
 static LIST_HEAD(scx_tasks);
 
 /* ops enable/disable */
@@ -67,8 +67,19 @@ static unsigned long scx_watchdog_timestamp = INITIAL_JIFFIES;
 
 static struct delayed_work scx_watchdog_work;
 
-/* for %SCX_KICK_WAIT */
-static unsigned long __percpu *scx_kick_cpus_pnt_seqs;
+/*
+ * For %SCX_KICK_WAIT: Each CPU has a pointer to an array of pick_task sequence
+ * numbers. The arrays are allocated with kvzalloc() as size can exceed percpu
+ * allocator limits on large machines. O(nr_cpu_ids^2) allocation, allocated
+ * lazily when enabling and freed when disabling to avoid waste when sched_ext
+ * isn't active.
+ */
+struct scx_kick_pseqs {
+	struct rcu_head		rcu;
+	unsigned long		seqs[];
+};
+
+static DEFINE_PER_CPU(struct scx_kick_pseqs __rcu *, scx_kick_pseqs);
 
 /*
  * Direct dispatch marker.
@@ -465,7 +476,7 @@ static void scx_task_iter_start(struct scx_task_iter *iter)
 	BUILD_BUG_ON(__SCX_DSQ_ITER_ALL_FLAGS &
 		     ((1U << __SCX_DSQ_LNODE_PRIV_SHIFT) - 1));
 
-	spin_lock_irq(&scx_tasks_lock);
+	raw_spin_lock_irq(&scx_tasks_lock);
 
 	iter->cursor = (struct sched_ext_entity){ .flags = SCX_TASK_CURSOR };
 	list_add(&iter->cursor.tasks_node, &scx_tasks);
@@ -496,14 +507,14 @@ static void scx_task_iter_unlock(struct scx_task_iter *iter)
 	__scx_task_iter_rq_unlock(iter);
 	if (iter->list_locked) {
 		iter->list_locked = false;
-		spin_unlock_irq(&scx_tasks_lock);
+		raw_spin_unlock_irq(&scx_tasks_lock);
 	}
 }
 
 static void __scx_task_iter_maybe_relock(struct scx_task_iter *iter)
 {
 	if (!iter->list_locked) {
-		spin_lock_irq(&scx_tasks_lock);
+		raw_spin_lock_irq(&scx_tasks_lock);
 		iter->list_locked = true;
 	}
 }
@@ -780,13 +791,23 @@ static void schedule_deferred(struct rq *rq)
 	if (rq->scx.flags & SCX_RQ_IN_WAKEUP)
 		return;
 
+	/* Don't do anything if there already is a deferred operation. */
+	if (rq->scx.flags & SCX_RQ_BAL_CB_PENDING)
+		return;
+
 	/*
 	 * If in balance, the balance callbacks will be called before rq lock is
 	 * released. Schedule one.
+	 *
+	 *
+	 * We can't directly insert the callback into the
+	 * rq's list: The call can drop its lock and make the pending balance
+	 * callback visible to unrelated code paths that call rq_pin_lock().
+	 *
+	 * Just let balance_one() know that it must do it itself.
 	 */
 	if (rq->scx.flags & SCX_RQ_IN_BALANCE) {
-		queue_balance_callback(rq, &rq->scx.deferred_bal_cb,
-				       deferred_bal_cb_workfn);
+		rq->scx.flags |= SCX_RQ_BAL_CB_PENDING;
 		return;
 	}
 
@@ -2003,6 +2024,19 @@ static void flush_dispatch_buf(struct scx_sched *sch, struct rq *rq)
 	dspc->cursor = 0;
 }
 
+static inline void maybe_queue_balance_callback(struct rq *rq)
+{
+	lockdep_assert_rq_held(rq);
+
+	if (!(rq->scx.flags & SCX_RQ_BAL_CB_PENDING))
+		return;
+
+	queue_balance_callback(rq, &rq->scx.deferred_bal_cb,
+				deferred_bal_cb_workfn);
+
+	rq->scx.flags &= ~SCX_RQ_BAL_CB_PENDING;
+}
+
 static int balance_one(struct rq *rq, struct task_struct *prev)
 {
 	struct scx_sched *sch = scx_root;
@@ -2149,6 +2183,8 @@ static int balance_scx(struct rq *rq, struct task_struct *prev,
 	}
 #endif
 	rq_repin_lock(rq, rf);
+
+	maybe_queue_balance_callback(rq);
 
 	return ret;
 }
@@ -2904,9 +2940,9 @@ void scx_post_fork(struct task_struct *p)
 		}
 	}
 
-	spin_lock_irq(&scx_tasks_lock);
+	raw_spin_lock_irq(&scx_tasks_lock);
 	list_add_tail(&p->scx.tasks_node, &scx_tasks);
-	spin_unlock_irq(&scx_tasks_lock);
+	raw_spin_unlock_irq(&scx_tasks_lock);
 
 	percpu_up_read(&scx_fork_rwsem);
 }
@@ -2930,9 +2966,9 @@ void sched_ext_free(struct task_struct *p)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&scx_tasks_lock, flags);
+	raw_spin_lock_irqsave(&scx_tasks_lock, flags);
 	list_del_init(&p->scx.tasks_node);
-	spin_unlock_irqrestore(&scx_tasks_lock, flags);
+	raw_spin_unlock_irqrestore(&scx_tasks_lock, flags);
 
 	/*
 	 * @p is off scx_tasks and wholly ours. scx_enable()'s READY -> ENABLED
@@ -3471,7 +3507,9 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	struct scx_dispatch_q *dsq;
 	int node;
 
+	irq_work_sync(&sch->error_irq_work);
 	kthread_stop(sch->helper->task);
+
 	free_percpu(sch->pcpu);
 
 	for_each_node_state(node, N_POSSIBLE)
@@ -3850,6 +3888,27 @@ static const char *scx_exit_reason(enum scx_exit_kind kind)
 	}
 }
 
+static void free_kick_pseqs_rcu(struct rcu_head *rcu)
+{
+	struct scx_kick_pseqs *pseqs = container_of(rcu, struct scx_kick_pseqs, rcu);
+
+	kvfree(pseqs);
+}
+
+static void free_kick_pseqs(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct scx_kick_pseqs **pseqs = per_cpu_ptr(&scx_kick_pseqs, cpu);
+		struct scx_kick_pseqs *to_free;
+
+		to_free = rcu_replace_pointer(*pseqs, NULL, true);
+		if (to_free)
+			call_rcu(&to_free->rcu, free_kick_pseqs_rcu);
+	}
+}
+
 static void scx_disable_workfn(struct kthread_work *work)
 {
 	struct scx_sched *sch = container_of(work, struct scx_sched, disable_work);
@@ -3986,6 +4045,7 @@ static void scx_disable_workfn(struct kthread_work *work)
 	free_percpu(scx_dsp_ctx);
 	scx_dsp_ctx = NULL;
 	scx_dsp_max_batch = 0;
+	free_kick_pseqs();
 
 	mutex_unlock(&scx_enable_mutex);
 
@@ -4216,7 +4276,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 		size_t avail, used;
 		bool idle;
 
-		rq_lock(rq, &rf);
+		rq_lock_irqsave(rq, &rf);
 
 		idle = list_empty(&rq->scx.runnable_list) &&
 			rq->curr->sched_class == &idle_sched_class;
@@ -4285,7 +4345,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 		list_for_each_entry(p, &rq->scx.runnable_list, scx.runnable_node)
 			scx_dump_task(&s, &dctx, p, ' ');
 	next:
-		rq_unlock(rq, &rf);
+		rq_unlock_irqrestore(rq, &rf);
 	}
 
 	dump_newline(&s);
@@ -4346,6 +4406,33 @@ static void scx_vexit(struct scx_sched *sch,
 	ei->reason = scx_exit_reason(ei->kind);
 
 	irq_work_queue(&sch->error_irq_work);
+}
+
+static int alloc_kick_pseqs(void)
+{
+	int cpu;
+
+	/*
+	 * Allocate per-CPU arrays sized by nr_cpu_ids. Use kvzalloc as size
+	 * can exceed percpu allocator limits on large machines.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct scx_kick_pseqs **pseqs = per_cpu_ptr(&scx_kick_pseqs, cpu);
+		struct scx_kick_pseqs *new_pseqs;
+
+		WARN_ON_ONCE(rcu_access_pointer(*pseqs));
+
+		new_pseqs = kvzalloc_node(struct_size(new_pseqs, seqs, nr_cpu_ids),
+					  GFP_KERNEL, cpu_to_node(cpu));
+		if (!new_pseqs) {
+			free_kick_pseqs();
+			return -ENOMEM;
+		}
+
+		rcu_assign_pointer(*pseqs, new_pseqs);
+	}
+
+	return 0;
 }
 
 static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
@@ -4495,10 +4582,14 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		goto err_unlock;
 	}
 
+	ret = alloc_kick_pseqs();
+	if (ret)
+		goto err_unlock;
+
 	sch = scx_alloc_and_add_sched(ops);
 	if (IS_ERR(sch)) {
 		ret = PTR_ERR(sch);
-		goto err_unlock;
+		goto err_free_pseqs;
 	}
 
 	/*
@@ -4701,6 +4792,8 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 	return 0;
 
+err_free_pseqs:
+	free_kick_pseqs();
 err_unlock:
 	mutex_unlock(&scx_enable_mutex);
 	return ret;
@@ -5082,9 +5175,17 @@ static void kick_cpus_irq_workfn(struct irq_work *irq_work)
 {
 	struct rq *this_rq = this_rq();
 	struct scx_rq *this_scx = &this_rq->scx;
-	unsigned long *pseqs = this_cpu_ptr(scx_kick_cpus_pnt_seqs);
+	struct scx_kick_pseqs __rcu *pseqs_pcpu = __this_cpu_read(scx_kick_pseqs);
 	bool should_wait = false;
+	unsigned long *pseqs;
 	s32 cpu;
+
+	if (unlikely(!pseqs_pcpu)) {
+		pr_warn_once("kick_cpus_irq_workfn() called with NULL scx_kick_pseqs");
+		return;
+	}
+
+	pseqs = rcu_dereference_bh(pseqs_pcpu)->seqs;
 
 	for_each_cpu(cpu, this_scx->cpus_to_kick) {
 		should_wait |= kick_one_cpu(cpu, this_rq, pseqs);
@@ -5208,11 +5309,6 @@ void __init init_sched_ext_class(void)
 
 	scx_idle_init_masks();
 
-	scx_kick_cpus_pnt_seqs =
-		__alloc_percpu(sizeof(scx_kick_cpus_pnt_seqs[0]) * nr_cpu_ids,
-			       __alignof__(scx_kick_cpus_pnt_seqs[0]));
-	BUG_ON(!scx_kick_cpus_pnt_seqs);
-
 	for_each_possible_cpu(cpu) {
 		struct rq *rq = cpu_rq(cpu);
 		int  n = cpu_to_node(cpu);
@@ -5225,8 +5321,8 @@ void __init init_sched_ext_class(void)
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_kick_if_idle, GFP_KERNEL, n));
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_preempt, GFP_KERNEL, n));
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_wait, GFP_KERNEL, n));
-		init_irq_work(&rq->scx.deferred_irq_work, deferred_irq_workfn);
-		init_irq_work(&rq->scx.kick_cpus_irq_work, kick_cpus_irq_workfn);
+		rq->scx.deferred_irq_work = IRQ_WORK_INIT_HARD(deferred_irq_workfn);
+		rq->scx.kick_cpus_irq_work = IRQ_WORK_INIT_HARD(kick_cpus_irq_workfn);
 
 		if (cpu_online(cpu))
 			cpu_rq(cpu)->scx.flags |= SCX_RQ_ONLINE;
@@ -5688,8 +5784,8 @@ BTF_KFUNCS_START(scx_kfunc_ids_dispatch)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_nr_slots)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_cancel)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_to_local)
-BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice)
-BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_vtime, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_dispatch)
@@ -5820,8 +5916,8 @@ __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_unlocked)
 BTF_ID_FLAGS(func, scx_bpf_create_dsq, KF_SLEEPABLE)
-BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice)
-BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_vtime, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_unlocked)
@@ -6305,7 +6401,7 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
 
 	guard(rcu)();
 
-	sch = rcu_dereference(sch);
+	sch = rcu_dereference(scx_root);
 	if (unlikely(!sch))
 		return;
 

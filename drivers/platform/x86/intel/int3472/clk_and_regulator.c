@@ -245,15 +245,12 @@ int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
 	if (IS_ERR(regulator->rdev))
 		return PTR_ERR(regulator->rdev);
 
-	int3472->regulators[int3472->n_regulator_gpios].ena_gpio = gpio;
 	int3472->n_regulator_gpios++;
 	return 0;
 }
 
 void skl_int3472_unregister_regulator(struct int3472_discrete_device *int3472)
 {
-	for (int i = 0; i < int3472->n_regulator_gpios; i++) {
+	for (int i = 0; i < int3472->n_regulator_gpios; i++)
 		regulator_unregister(int3472->regulators[i].rdev);
-		gpiod_put(int3472->regulators[i].ena_gpio);
-	}
 }

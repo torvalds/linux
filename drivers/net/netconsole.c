@@ -886,8 +886,11 @@ static ssize_t userdatum_value_show(struct config_item *item, char *buf)
 
 static void update_userdata(struct netconsole_target *nt)
 {
-	int complete_idx = 0, child_count = 0;
 	struct list_head *entry;
+	int child_count = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&target_list_lock, flags);
 
 	/* Clear the current string in case the last userdatum was deleted */
 	nt->userdata_length = 0;
@@ -897,8 +900,11 @@ static void update_userdata(struct netconsole_target *nt)
 		struct userdatum *udm_item;
 		struct config_item *item;
 
-		if (WARN_ON_ONCE(child_count >= MAX_EXTRADATA_ITEMS))
-			break;
+		if (child_count >= MAX_EXTRADATA_ITEMS) {
+			spin_unlock_irqrestore(&target_list_lock, flags);
+			WARN_ON_ONCE(1);
+			return;
+		}
 		child_count++;
 
 		item = container_of(entry, struct config_item, ci_entry);
@@ -912,12 +918,11 @@ static void update_userdata(struct netconsole_target *nt)
 		 * one entry length (1/MAX_EXTRADATA_ITEMS long), entry count is
 		 * checked to not exceed MAX items with child_count above
 		 */
-		complete_idx += scnprintf(&nt->extradata_complete[complete_idx],
-					  MAX_EXTRADATA_ENTRY_LEN, " %s=%s\n",
-					  item->ci_name, udm_item->value);
+		nt->userdata_length += scnprintf(&nt->extradata_complete[nt->userdata_length],
+						 MAX_EXTRADATA_ENTRY_LEN, " %s=%s\n",
+						 item->ci_name, udm_item->value);
 	}
-	nt->userdata_length = strnlen(nt->extradata_complete,
-				      sizeof(nt->extradata_complete));
+	spin_unlock_irqrestore(&target_list_lock, flags);
 }
 
 static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
@@ -931,6 +936,7 @@ static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
 	if (count > MAX_EXTRADATA_VALUE_LEN)
 		return -EMSGSIZE;
 
+	mutex_lock(&netconsole_subsys.su_mutex);
 	mutex_lock(&dynamic_netconsole_mutex);
 
 	ret = strscpy(udm->value, buf, sizeof(udm->value));
@@ -944,6 +950,7 @@ static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
 	ret = count;
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
+	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
 
@@ -969,6 +976,7 @@ static ssize_t sysdata_msgid_enabled_store(struct config_item *item,
 	if (ret)
 		return ret;
 
+	mutex_lock(&netconsole_subsys.su_mutex);
 	mutex_lock(&dynamic_netconsole_mutex);
 	curr = !!(nt->sysdata_fields & SYSDATA_MSGID);
 	if (msgid_enabled == curr)
@@ -989,6 +997,7 @@ unlock_ok:
 	ret = strnlen(buf, count);
 unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
+	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
 
@@ -1003,6 +1012,7 @@ static ssize_t sysdata_release_enabled_store(struct config_item *item,
 	if (ret)
 		return ret;
 
+	mutex_lock(&netconsole_subsys.su_mutex);
 	mutex_lock(&dynamic_netconsole_mutex);
 	curr = !!(nt->sysdata_fields & SYSDATA_RELEASE);
 	if (release_enabled == curr)
@@ -1023,6 +1033,7 @@ unlock_ok:
 	ret = strnlen(buf, count);
 unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
+	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
 
@@ -1037,6 +1048,7 @@ static ssize_t sysdata_taskname_enabled_store(struct config_item *item,
 	if (ret)
 		return ret;
 
+	mutex_lock(&netconsole_subsys.su_mutex);
 	mutex_lock(&dynamic_netconsole_mutex);
 	curr = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
 	if (taskname_enabled == curr)
@@ -1057,6 +1069,7 @@ unlock_ok:
 	ret = strnlen(buf, count);
 unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
+	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
 
@@ -1072,6 +1085,7 @@ static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 	if (ret)
 		return ret;
 
+	mutex_lock(&netconsole_subsys.su_mutex);
 	mutex_lock(&dynamic_netconsole_mutex);
 	curr = !!(nt->sysdata_fields & SYSDATA_CPU_NR);
 	if (cpu_nr_enabled == curr)
@@ -1100,6 +1114,7 @@ unlock_ok:
 	ret = strnlen(buf, count);
 unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
+	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
 
