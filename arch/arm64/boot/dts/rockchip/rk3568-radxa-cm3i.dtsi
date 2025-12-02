@@ -321,7 +321,7 @@
 				};
 			};
 
-			vcc_3v3: SWITCH_REG1 {
+			gpio_vref: vcc_3v3: SWITCH_REG1 {
 				regulator-name = "vcc_3v3";
 				regulator-always-on;
 				regulator-boot-on;
@@ -339,6 +339,14 @@
 				};
 			};
 		};
+	};
+
+	eeprom@50 {
+		compatible = "belling,bl24c16a", "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+		read-only;
+		vcc-supply = <&gpio_vref>;
 	};
 };
 
