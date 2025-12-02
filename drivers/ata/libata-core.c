@@ -6569,6 +6569,7 @@ static const struct ata_force_param force_tbl[] __initconst = {
 
 	force_quirk_val(max_sec_128,	ATA_QUIRK_MAX_SEC,	128),
 	force_quirk_val(max_sec_1024,	ATA_QUIRK_MAX_SEC,	1024),
+	force_quirk_on(max_sec=,	ATA_QUIRK_MAX_SEC),
 	force_quirk_on(max_sec_lba48,	ATA_QUIRK_MAX_SEC_LBA48),
 
 	force_quirk_onoff(lpm,		ATA_QUIRK_NOLPM),
