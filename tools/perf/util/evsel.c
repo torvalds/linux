@@ -538,6 +538,7 @@ struct evsel *evsel__clone(struct evsel *dest, struct evsel *orig)
 #endif
 	evsel->handler = orig->handler;
 	evsel->core.leader = orig->core.leader;
+	evsel->metric_leader = orig->metric_leader;
 
 	evsel->max_events = orig->max_events;
 	zfree(&evsel->unit);
