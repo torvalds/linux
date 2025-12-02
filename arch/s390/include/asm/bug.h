@@ -4,6 +4,8 @@
 
 #include <linux/stringify.h>
 
+#ifdef CONFIG_BUG
+
 #ifndef CONFIG_DEBUG_BUGVERBOSE
 #define _BUGVERBOSE_LOCATION(file, line)
 #else
@@ -51,6 +53,8 @@ do {								\
 } while (0)
 
 #define HAVE_ARCH_BUG
+
+#endif /* CONFIG_BUG */
 
 #include <asm-generic/bug.h>
 
