@@ -4709,8 +4709,10 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 	 * If pause-on-trace is enabled, then stop the trace while
 	 * dumping, unless this is the "snapshot" file
 	 */
-	if (!iter->snapshot && (tr->trace_flags & TRACE_ITER(PAUSE_ON_TRACE)))
+	if (!iter->snapshot && (tr->trace_flags & TRACE_ITER(PAUSE_ON_TRACE))) {
+		iter->iter_flags |= TRACE_FILE_PAUSE;
 		tracing_stop_tr(tr);
+	}
 
 	if (iter->cpu_file == RING_BUFFER_ALL_CPUS) {
 		for_each_tracing_cpu(cpu) {
@@ -4842,7 +4844,7 @@ static int tracing_release(struct inode *inode, struct file *file)
 	if (iter->trace && iter->trace->close)
 		iter->trace->close(iter);
 
-	if (!iter->snapshot && tr->stop_count)
+	if (iter->iter_flags & TRACE_FILE_PAUSE)
 		/* reenable tracing if it was previously enabled */
 		tracing_start_tr(tr);
 
