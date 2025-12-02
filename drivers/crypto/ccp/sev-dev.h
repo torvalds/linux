@@ -66,6 +66,8 @@ struct sev_device {
 int sev_dev_init(struct psp_device *psp);
 void sev_dev_destroy(struct psp_device *psp);
 
+int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret);
+
 void sev_pci_init(void);
 void sev_pci_exit(void);
 
