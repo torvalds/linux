@@ -671,3 +671,18 @@ int amdgpu_ras_mgr_post_reset(struct amdgpu_device *adev)
 	amdgpu_ras_process_post_reset(adev);
 	return 0;
 }
+
+int amdgpu_ras_mgr_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
+		uint64_t addr, uint64_t *nps_page_addr, uint32_t max_page_count)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+
+	if (!amdgpu_ras_mgr_is_ready(adev))
+		return -EPERM;
+
+	if (!nps_page_addr || !max_page_count)
+		return -EINVAL;
+
+	return ras_core_convert_soc_pa_to_cur_nps_pages(ras_mgr->ras_core,
+			addr, nps_page_addr, max_page_count);
+}

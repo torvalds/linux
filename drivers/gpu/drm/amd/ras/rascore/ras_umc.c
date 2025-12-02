@@ -154,22 +154,36 @@ int ras_umc_clear_logged_ecc(struct ras_core_context *ras_core)
 	return 0;
 }
 
+int ras_umc_convert_record_to_nps_pages(struct ras_core_context *ras_core,
+		struct eeprom_umc_record *record, uint32_t nps,
+		uint64_t *page_pfn, uint32_t max_pages)
+{
+	int count = 0;
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+
+	if (!page_pfn || !max_pages)
+		return -EINVAL;
+
+	if (ras_umc->ip_func && ras_umc->ip_func->eeprom_record_to_nps_pages)
+		count = ras_umc->ip_func->eeprom_record_to_nps_pages(ras_core,
+					record, nps, page_pfn, max_pages);
+
+	return count;
+}
+
 static void ras_umc_reserve_eeprom_record(struct ras_core_context *ras_core,
 				struct eeprom_umc_record *record)
 {
-	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	uint64_t page_pfn[16];
 	int count = 0, i;
 
 	memset(page_pfn, 0, sizeof(page_pfn));
-	if (ras_umc->ip_func && ras_umc->ip_func->eeprom_record_to_nps_pages) {
-		count = ras_umc->ip_func->eeprom_record_to_nps_pages(ras_core,
+	count = ras_umc_convert_record_to_nps_pages(ras_core,
 					record, record->cur_nps, page_pfn, ARRAY_SIZE(page_pfn));
-		if (count <= 0) {
-			RAS_DEV_ERR(ras_core->dev,
-				"Fail to convert error address! count:%d\n", count);
-			return;
-		}
+	if (count <= 0) {
+		RAS_DEV_ERR(ras_core->dev,
+			"Fail to convert error address! count:%d\n", count);
+		return;
 	}
 
 	/* Reserve memory */
@@ -367,10 +381,8 @@ static int ras_umc_update_eeprom_ram_data(struct ras_core_context *ras_core,
 	}
 
 	memset(page_pfn, 0, sizeof(page_pfn));
-	if (ras_umc->ip_func && ras_umc->ip_func->eeprom_record_to_nps_pages)
-		count = ras_umc->ip_func->eeprom_record_to_nps_pages(ras_core,
+	count = ras_umc_convert_record_to_nps_pages(ras_core,
 					bps, bps->cur_nps, page_pfn, ARRAY_SIZE(page_pfn));
-
 	if (count > 0) {
 		for (j = 0; j < count; j++) {
 			bps->cur_nps_retired_row_pfn = page_pfn[j];

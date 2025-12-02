@@ -81,4 +81,6 @@ int amdgpu_ras_mgr_handle_ras_cmd(struct amdgpu_device *adev,
 		void *output, uint32_t out_size);
 int amdgpu_ras_mgr_pre_reset(struct amdgpu_device *adev);
 int amdgpu_ras_mgr_post_reset(struct amdgpu_device *adev);
+int amdgpu_ras_mgr_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
+		uint64_t addr, uint64_t *nps_page_addr, uint32_t max_page_count);
 #endif
