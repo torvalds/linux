@@ -524,14 +524,14 @@ static int pcie_port_bus_match(struct device *dev, const struct device_driver *d
 }
 
 /**
- * pcie_port_probe_service - probe driver for given PCI Express port service
+ * pcie_port_bus_probe - probe driver for given PCI Express port service
  * @dev: PCI Express port service device to probe against
  *
  * If PCI Express port service driver is registered with
  * pcie_port_service_register(), this function will be called by the driver core
  * whenever match is found between the driver and a port service device.
  */
-static int pcie_port_probe_service(struct device *dev)
+static int pcie_port_bus_probe(struct device *dev)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;
@@ -551,7 +551,7 @@ static int pcie_port_probe_service(struct device *dev)
 }
 
 /**
- * pcie_port_remove_service - detach driver from given PCI Express port service
+ * pcie_port_bus_remove - detach driver from given PCI Express port service
  * @dev: PCI Express port service device to handle
  *
  * If PCI Express port service driver is registered with
@@ -559,7 +559,7 @@ static int pcie_port_probe_service(struct device *dev)
  * when device_unregister() is called for the port service device associated
  * with the driver.
  */
-static int pcie_port_remove_service(struct device *dev)
+static void pcie_port_bus_remove(struct device *dev)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;
@@ -570,12 +570,13 @@ static int pcie_port_remove_service(struct device *dev)
 		driver->remove(pciedev);
 
 	put_device(dev);
-	return 0;
 }
 
 const struct bus_type pcie_port_bus_type = {
 	.name = "pci_express",
 	.match = pcie_port_bus_match,
+	.probe = pcie_port_bus_probe,
+	.remove = pcie_port_bus_remove,
 };
 
 /**
@@ -589,8 +590,6 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 
 	new->driver.name = new->name;
 	new->driver.bus = &pcie_port_bus_type;
-	new->driver.probe = pcie_port_probe_service;
-	new->driver.remove = pcie_port_remove_service;
 
 	return driver_register(&new->driver);
 }
