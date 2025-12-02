@@ -1,0 +1,298 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+---
+name: wireguard
+protocol: genetlink-legacy
+
+doc: |
+  **Netlink protocol to control WireGuard network devices.**
+
+  The below enums and macros are for interfacing with WireGuard, using generic
+  netlink, with family ``WG_GENL_NAME`` and version ``WG_GENL_VERSION``. It
+  defines two commands: get and set. Note that while they share many common
+  attributes, these two commands actually accept a slightly different set of
+  inputs and outputs. These differences are noted under the individual
+  attributes.
+c-family-name: wg-genl-name
+c-version-name: wg-genl-version
+max-by-define: true
+
+definitions:
+  -
+    name-prefix: wg-
+    name: key-len
+    type: const
+    value: 32
+  -
+    name: --kernel-timespec
+    type: struct
+    header: linux/time_types.h
+    members:
+      -
+        name: sec
+        type: u64
+        doc: Number of seconds, since UNIX epoch.
+      -
+        name: nsec
+        type: u64
+        doc: Number of nanoseconds, after the second began.
+  -
+    name: wgdevice-flags
+    name-prefix: wgdevice-f-
+    enum-name: wgdevice-flag
+    type: flags
+    entries:
+      - replace-peers
+  -
+    name: wgpeer-flags
+    name-prefix: wgpeer-f-
+    enum-name: wgpeer-flag
+    type: flags
+    entries:
+      - remove-me
+      - replace-allowedips
+      - update-only
+  -
+    name: wgallowedip-flags
+    name-prefix: wgallowedip-f-
+    enum-name: wgallowedip-flag
+    type: flags
+    entries:
+      - remove-me
+
+attribute-sets:
+  -
+    name: wgdevice
+    enum-name: wgdevice-attribute
+    name-prefix: wgdevice-a-
+    attr-cnt-name: --wgdevice-a-last
+    attributes:
+      -
+        name: unspec
+        type: unused
+        value: 0
+      -
+        name: ifindex
+        type: u32
+      -
+        name: ifname
+        type: string
+        checks:
+          max-len: 15
+      -
+        name: private-key
+        type: binary
+        doc: Set to all zeros to remove.
+        display-hint: hex
+        checks:
+          exact-len: wg-key-len
+      -
+        name: public-key
+        type: binary
+        display-hint: hex
+        checks:
+          exact-len: wg-key-len
+      -
+        name: flags
+        type: u32
+        doc: |
+          ``0`` or ``WGDEVICE_F_REPLACE_PEERS`` if all current peers should be
+          removed prior to adding the list below.
+        enum: wgdevice-flags
+      -
+        name: listen-port
+        type: u16
+        doc: Set as ``0`` to choose randomly.
+      -
+        name: fwmark
+        type: u32
+        doc: Set as ``0`` to disable.
+      -
+        name: peers
+        type: indexed-array
+        sub-type: nest
+        nested-attributes: wgpeer
+        doc: |
+          The index/type parameter is unused on ``SET_DEVICE`` operations and is
+          zero on ``GET_DEVICE`` operations.
+  -
+    name: wgpeer
+    enum-name: wgpeer-attribute
+    name-prefix: wgpeer-a-
+    attr-cnt-name: --wgpeer-a-last
+    attributes:
+      -
+        name: unspec
+        type: unused
+        value: 0
+      -
+        name: public-key
+        type: binary
+        display-hint: hex
+        checks:
+          exact-len: wg-key-len
+      -
+        name: preshared-key
+        type: binary
+        doc: Set as all zeros to remove.
+        display-hint: hex
+        checks:
+          exact-len: wg-key-len
+      -
+        name: flags
+        type: u32
+        doc: |
+          ``0`` and/or ``WGPEER_F_REMOVE_ME`` if the specified peer should not
+          exist at the end of the operation, rather than added/updated and/or
+          ``WGPEER_F_REPLACE_ALLOWEDIPS`` if all current allowed IPs of this
+          peer should be removed prior to adding the list below and/or
+          ``WGPEER_F_UPDATE_ONLY`` if the peer should only be set if it already
+          exists.
+        enum: wgpeer-flags
+      -
+        name: endpoint
+        type: binary
+        doc: struct sockaddr_in or struct sockaddr_in6
+        checks:
+          min-len: 16
+      -
+        name: persistent-keepalive-interval
+        type: u16
+        doc: Set as ``0`` to disable.
+      -
+        name: last-handshake-time
+        type: binary
+        struct: --kernel-timespec
+        checks:
+          exact-len: 16
+      -
+        name: rx-bytes
+        type: u64
+      -
+        name: tx-bytes
+        type: u64
+      -
+        name: allowedips
+        type: indexed-array
+        sub-type: nest
+        nested-attributes: wgallowedip
+        doc: |
+          The index/type parameter is unused on ``SET_DEVICE`` operations and is
+          zero on ``GET_DEVICE`` operations.
+      -
+        name: protocol-version
+        type: u32
+        doc: |
+          Should not be set or used at all by most users of this API, as the
+          most recent protocol will be used when this is unset. Otherwise,
+          must be set to ``1``.
+  -
+    name: wgallowedip
+    enum-name: wgallowedip-attribute
+    name-prefix: wgallowedip-a-
+    attr-cnt-name: --wgallowedip-a-last
+    attributes:
+      -
+        name: unspec
+        type: unused
+        value: 0
+      -
+        name: family
+        type: u16
+        doc: IP family, either ``AF_INET`` or ``AF_INET6``.
+      -
+        name: ipaddr
+        type: binary
+        doc: Either ``struct in_addr`` or ``struct in6_addr``.
+        display-hint: ipv4-or-v6
+        checks:
+          min-len: 4
+      -
+        name: cidr-mask
+        type: u8
+      -
+        name: flags
+        type: u32
+        doc: |
+          ``WGALLOWEDIP_F_REMOVE_ME`` if the specified IP should be removed;
+          otherwise, this IP will be added if it is not already present.
+        enum: wgallowedip-flags
+
+operations:
+  enum-name: wg-cmd
+  name-prefix: wg-cmd-
+  list:
+    -
+      name: get-device
+      value: 0
+      doc: |
+        Retrieve WireGuard device
+        ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        The command should be called with one but not both of:
+
+        - ``WGDEVICE_A_IFINDEX``
+        - ``WGDEVICE_A_IFNAME``
+
+        The kernel will then return several messages (``NLM_F_MULTI``). It is
+        possible that all of the allowed IPs of a single peer will not fit
+        within a single netlink message. In that case, the same peer will be
+        written in the following message, except it will only contain
+        ``WGPEER_A_PUBLIC_KEY`` and ``WGPEER_A_ALLOWEDIPS``. This may occur
+        several times in a row for the same peer. It is then up to the receiver
+        to coalesce adjacent peers. Likewise, it is possible that all peers will
+        not fit within a single message. So, subsequent peers will be sent in
+        following messages, except those will only contain ``WGDEVICE_A_IFNAME``
+        and ``WGDEVICE_A_PEERS``. It is then up to the receiver to coalesce
+        these messages to form the complete list of peers.
+
+        Since this is an ``NLA_F_DUMP`` command, the final message will always
+        be ``NLMSG_DONE``, even if an error occurs. However, this ``NLMSG_DONE``
+        message contains an integer error code. It is either zero or a negative
+        error code corresponding to the errno.
+      attribute-set: wgdevice
+      flags: [uns-admin-perm]
+
+      dump:
+        pre: wg-get-device-start
+        post: wg-get-device-done
+        request:
+          attributes:
+            - ifindex
+            - ifname
+        reply: &all-attrs
+          attributes:
+            - ifindex
+            - ifname
+            - private-key
+            - public-key
+            - flags
+            - listen-port
+            - fwmark
+            - peers
+    -
+      name: set-device
+      value: 1
+      doc: |
+        Set WireGuard device
+        ~~~~~~~~~~~~~~~~~~~~
+
+        This command should be called with a wgdevice set, containing one but
+        not both of ``WGDEVICE_A_IFINDEX`` and ``WGDEVICE_A_IFNAME``.
+
+        It is possible that the amount of configuration data exceeds that of the
+        maximum message length accepted by the kernel. In that case, several
+        messages should be sent one after another, with each successive one
+        filling in information not contained in the prior. Note that if
+        ``WGDEVICE_F_REPLACE_PEERS`` is specified in the first message, it
+        probably should not be specified in fragments that come after, so that
+        the list of peers is only cleared the first time but appended after.
+        Likewise for peers, if ``WGPEER_F_REPLACE_ALLOWEDIPS`` is specified in
+        the first message of a peer, it likely should not be specified in
+        subsequent fragments.
+
+        If an error occurs, ``NLMSG_ERROR`` will reply containing an errno.
+      attribute-set: wgdevice
+      flags: [uns-admin-perm]
+
+      do:
+        request: *all-attrs
