@@ -442,14 +442,7 @@ static int fsl_mc_driver_probe(struct device *dev)
 
 	mc_drv = to_fsl_mc_driver(dev->driver);
 
-	error = mc_drv->probe(mc_dev);
-	if (error < 0) {
-		if (error != -EPROBE_DEFER)
-			dev_err(dev, "%s failed: %d\n", __func__, error);
-		return error;
-	}
-
-	return 0;
+	return mc_drv->probe(mc_dev);
 }
 
 static int fsl_mc_driver_remove(struct device *dev)
