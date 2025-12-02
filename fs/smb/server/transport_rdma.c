@@ -758,7 +758,6 @@ static int smb_direct_post_recv(struct smbdirect_socket *sc,
 		return ret;
 	recvmsg->sge.length = sp->max_recv_size;
 	recvmsg->sge.lkey = sc->ib.pd->local_dma_lkey;
-	recvmsg->cqe.done = recv_done;
 
 	wr.wr_cqe = &recvmsg->cqe;
 	wr.next = NULL;
@@ -2339,6 +2338,7 @@ respond:
 
 static int smb_direct_connect(struct smbdirect_socket *sc)
 {
+	struct smbdirect_recv_io *recv_io;
 	int ret;
 
 	ret = smb_direct_init_params(sc);
@@ -2352,6 +2352,9 @@ static int smb_direct_connect(struct smbdirect_socket *sc)
 		pr_err("Can't init RDMA pool: %d\n", ret);
 		return ret;
 	}
+
+	list_for_each_entry(recv_io, &sc->recv_io.free.list, list)
+		recv_io->cqe.done = recv_done;
 
 	ret = smb_direct_create_qpair(sc);
 	if (ret) {
