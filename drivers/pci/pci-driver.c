@@ -1701,28 +1701,6 @@ const struct bus_type pci_bus_type = {
 };
 EXPORT_SYMBOL(pci_bus_type);
 
-#ifdef CONFIG_PCIEPORTBUS
-static int pcie_port_bus_match(struct device *dev, const struct device_driver *drv)
-{
-	struct pcie_device *pciedev = to_pcie_device(dev);
-	const struct pcie_port_service_driver *driver = to_service_driver(drv);
-
-	if (driver->service != pciedev->service)
-		return 0;
-
-	if (driver->port_type != PCIE_ANY_PORT &&
-	    driver->port_type != pci_pcie_type(pciedev->port))
-		return 0;
-
-	return 1;
-}
-
-const struct bus_type pcie_port_bus_type = {
-	.name		= "pci_express",
-	.match		= pcie_port_bus_match,
-};
-#endif
-
 static int __init pci_driver_init(void)
 {
 	int ret;

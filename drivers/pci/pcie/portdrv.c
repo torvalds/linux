@@ -508,6 +508,21 @@ static void pcie_port_device_remove(struct pci_dev *dev)
 	pci_free_irq_vectors(dev);
 }
 
+static int pcie_port_bus_match(struct device *dev, const struct device_driver *drv)
+{
+	struct pcie_device *pciedev = to_pcie_device(dev);
+	const struct pcie_port_service_driver *driver = to_service_driver(drv);
+
+	if (driver->service != pciedev->service)
+		return 0;
+
+	if (driver->port_type != PCIE_ANY_PORT &&
+	    driver->port_type != pci_pcie_type(pciedev->port))
+		return 0;
+
+	return 1;
+}
+
 /**
  * pcie_port_probe_service - probe driver for given PCI Express port service
  * @dev: PCI Express port service device to probe against
@@ -563,6 +578,11 @@ static int pcie_port_remove_service(struct device *dev)
 	put_device(dev);
 	return 0;
 }
+
+const struct bus_type pcie_port_bus_type = {
+	.name = "pci_express",
+	.match = pcie_port_bus_match,
+};
 
 /**
  * pcie_port_service_register - register PCI Express port service driver
