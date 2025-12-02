@@ -72,15 +72,6 @@ static const struct constant_table p9_versions[] = {
 	{}
 };
 
-static const struct constant_table p9_cache_mode[] = {
-	{ "loose",	CACHE_SC_LOOSE },
-	{ "fscache",	CACHE_SC_FSCACHE },
-	{ "mmap",	CACHE_SC_MMAP },
-	{ "readahead",	CACHE_SC_READAHEAD },
-	{ "none",	CACHE_SC_NONE },
-	{}
-};
-
 /*
  * This structure contains all parameters used for the core code,
  * the client, and all the transports.
@@ -97,7 +88,7 @@ const struct fs_parameter_spec v9fs_param_spec[] = {
 	fsparam_flag	("noxattr",	Opt_noxattr),
 	fsparam_flag	("directio",	Opt_directio),
 	fsparam_flag	("ignoreqv",	Opt_ignoreqv),
-	fsparam_enum	("cache",	Opt_cache, p9_cache_mode),
+	fsparam_string	("cache",	Opt_cache),
 	fsparam_string	("cachetag",	Opt_cachetag),
 	fsparam_string	("access",	Opt_access),
 	fsparam_flag	("posixacl",	Opt_posixacl),
@@ -123,6 +114,33 @@ const struct fs_parameter_spec v9fs_param_spec[] = {
 	fsparam_flag	("privport",	Opt_privport),
 	{}
 };
+
+/* Interpret mount options for cache mode */
+static int get_cache_mode(char *s)
+{
+	int version = -EINVAL;
+
+	if (!strcmp(s, "loose")) {
+		version = CACHE_SC_LOOSE;
+		p9_debug(P9_DEBUG_9P, "Cache mode: loose\n");
+	} else if (!strcmp(s, "fscache")) {
+		version = CACHE_SC_FSCACHE;
+		p9_debug(P9_DEBUG_9P, "Cache mode: fscache\n");
+	} else if (!strcmp(s, "mmap")) {
+		version = CACHE_SC_MMAP;
+		p9_debug(P9_DEBUG_9P, "Cache mode: mmap\n");
+	} else if (!strcmp(s, "readahead")) {
+		version = CACHE_SC_READAHEAD;
+		p9_debug(P9_DEBUG_9P, "Cache mode: readahead\n");
+	} else if (!strcmp(s, "none")) {
+		version = CACHE_SC_NONE;
+		p9_debug(P9_DEBUG_9P, "Cache mode: none\n");
+	} else if (kstrtoint(s, 0, &version) != 0) {
+		version = -EINVAL;
+		pr_info("Unknown Cache mode or invalid value %s\n", s);
+	}
+	return version;
+}
 
 /*
  * Display the mount options in /proc/mounts.
@@ -269,8 +287,10 @@ int v9fs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 #endif
 		break;
 	case Opt_cache:
-		session_opts->cache = result.uint_32;
-		p9_debug(P9_DEBUG_9P, "Cache mode: %s\n", param->string);
+		r = get_cache_mode(param->string);
+		if (r < 0)
+			return r;
+		session_opts->cache = r;
 		break;
 	case Opt_access:
 		s = param->string;
