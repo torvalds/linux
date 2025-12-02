@@ -5,17 +5,18 @@
 
 #ifdef CONFIG_DRM
 
-void rust_helper_drm_gem_object_get(struct drm_gem_object *obj)
+__rust_helper void rust_helper_drm_gem_object_get(struct drm_gem_object *obj)
 {
 	drm_gem_object_get(obj);
 }
 
-void rust_helper_drm_gem_object_put(struct drm_gem_object *obj)
+__rust_helper void rust_helper_drm_gem_object_put(struct drm_gem_object *obj)
 {
 	drm_gem_object_put(obj);
 }
 
-__u64 rust_helper_drm_vma_node_offset_addr(struct drm_vma_offset_node *node)
+__rust_helper __u64
+rust_helper_drm_vma_node_offset_addr(struct drm_vma_offset_node *node)
 {
 	return drm_vma_node_offset_addr(node);
 }
