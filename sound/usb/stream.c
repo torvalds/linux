@@ -684,43 +684,13 @@ snd_usb_find_output_terminal_descriptor(struct usb_host_interface *ctrl_iface,
 	return NULL;
 }
 
-static unsigned int
-snd_usb_max_bytes_per_interval(struct snd_usb_audio *chip,
-					struct usb_host_interface *alts)
-{
-	struct usb_host_endpoint *ep = &alts->endpoint[0];
-	unsigned int max_bytes = usb_endpoint_maxp(&ep->desc);
-
-	/* SuperSpeed isoc endpoints have up to 16 bursts of up to 3 packets each */
-	if (snd_usb_get_speed(chip->dev) >= USB_SPEED_SUPER) {
-		int burst = 1 + ep->ss_ep_comp.bMaxBurst;
-		int mult = USB_SS_MULT(ep->ss_ep_comp.bmAttributes);
-		max_bytes *= burst;
-		max_bytes *= mult;
-	}
-
-	if (snd_usb_get_speed(chip->dev) == USB_SPEED_SUPER_PLUS &&
-		USB_SS_SSP_ISOC_COMP(ep->ss_ep_comp.bmAttributes)) {
-		max_bytes = le32_to_cpu(ep->ssp_isoc_ep_comp.dwBytesPerInterval);
-	}
-
-	/* High speed, 1-3 packets/uframe, max 6 for eUSB2 double bw */
-	if (snd_usb_get_speed(chip->dev) == USB_SPEED_HIGH) {
-		if (usb_endpoint_is_hs_isoc_double(chip->dev, ep))
-			max_bytes = le32_to_cpu(ep->eusb2_isoc_ep_comp.dwBytesPerInterval);
-		else
-			max_bytes *= usb_endpoint_maxp_mult(&ep->desc);
-	}
-
-	return max_bytes;
-}
-
 static struct audioformat *
 audio_format_alloc_init(struct snd_usb_audio *chip,
 		       struct usb_host_interface *alts,
 		       int protocol, int iface_no, int altset_idx,
 		       int altno, int num_channels, int clock)
 {
+	struct usb_host_endpoint *ep = &alts->endpoint[0];
 	struct audioformat *fp;
 
 	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
@@ -734,7 +704,7 @@ audio_format_alloc_init(struct snd_usb_audio *chip,
 	fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
 	fp->datainterval = snd_usb_parse_datainterval(chip, alts);
 	fp->protocol = protocol;
-	fp->maxpacksize = snd_usb_max_bytes_per_interval(chip, alts);
+	fp->maxpacksize = usb_endpoint_max_periodic_payload(chip->dev, ep);
 	fp->channels = num_channels;
 	fp->clock = clock;
 	INIT_LIST_HEAD(&fp->list);
