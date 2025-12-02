@@ -35,7 +35,7 @@
 static struct vfsmount *debugfs_mount;
 static int debugfs_mount_count;
 static bool debugfs_registered;
-static bool debugfs_enabled __ro_after_init = IS_ENABLED(DEBUG_FS_ALLOW_ALL);
+static bool debugfs_enabled __ro_after_init = IS_ENABLED(CONFIG_DEBUG_FS_ALLOW_ALL);
 
 /*
  * Don't allow access attributes to be changed whilst the kernel is locked down
