@@ -6092,8 +6092,8 @@ static int smb2_create_link(struct ksmbd_work *work,
 	}
 
 	ksmbd_debug(SMB, "target name is %s\n", target_name);
-	rc = ksmbd_vfs_kern_path_locked(work, link_name, LOOKUP_NO_SYMLINKS,
-					&path, 0);
+	rc = ksmbd_vfs_kern_path_start_removing(work, link_name, LOOKUP_NO_SYMLINKS,
+						&path, 0);
 	if (rc) {
 		if (rc != -ENOENT)
 			goto out;
@@ -6111,7 +6111,7 @@ static int smb2_create_link(struct ksmbd_work *work,
 			ksmbd_debug(SMB, "link already exists\n");
 			goto out;
 		}
-		ksmbd_vfs_kern_path_unlock(&path);
+		ksmbd_vfs_kern_path_end_removing(&path);
 	}
 	rc = ksmbd_vfs_link(work, target_name, link_name);
 	if (rc)

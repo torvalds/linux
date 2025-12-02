@@ -506,6 +506,7 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 {
 	int ret = 0;
 	struct dentry *tmp_parent, *tmp_bool_dir, *tmp_class_dir;
+	struct renamedata rd = {};
 	unsigned int bool_num = 0;
 	char **bool_names = NULL;
 	int *bool_values = NULL;
@@ -539,9 +540,14 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 	if (ret)
 		goto out;
 
-	lock_rename(tmp_parent, fsi->sb->s_root);
+	rd.old_parent = tmp_parent;
+	rd.new_parent = fsi->sb->s_root;
 
 	/* booleans */
+	ret = start_renaming_two_dentries(&rd, tmp_bool_dir, fsi->bool_dir);
+	if (ret)
+		goto out;
+
 	d_exchange(tmp_bool_dir, fsi->bool_dir);
 
 	swap(fsi->bool_num, bool_num);
@@ -549,12 +555,17 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 	swap(fsi->bool_pending_values, bool_values);
 
 	fsi->bool_dir = tmp_bool_dir;
+	end_renaming(&rd);
 
 	/* classes */
+	ret = start_renaming_two_dentries(&rd, tmp_class_dir, fsi->class_dir);
+	if (ret)
+		goto out;
+
 	d_exchange(tmp_class_dir, fsi->class_dir);
 	fsi->class_dir = tmp_class_dir;
 
-	unlock_rename(tmp_parent, fsi->sb->s_root);
+	end_renaming(&rd);
 
 out:
 	sel_remove_old_bool_data(bool_num, bool_names, bool_values);
