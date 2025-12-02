@@ -4,6 +4,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/kvm_types.h>
 #include <linux/linkage.h>
 #include <linux/objtool.h>
 #include <asm/msr-index.h>
@@ -29,8 +30,7 @@ SYM_FUNC_START(write_ibpb)
 	FILL_RETURN_BUFFER %rax, RSB_CLEAR_LOOPS, X86_BUG_IBPB_NO_RET
 	RET
 SYM_FUNC_END(write_ibpb)
-/* For KVM */
-EXPORT_SYMBOL_GPL(write_ibpb);
+EXPORT_SYMBOL_FOR_KVM(write_ibpb);
 
 SYM_FUNC_START(__WARN_trap)
 	ANNOTATE_NOENDBR
@@ -56,8 +56,7 @@ SYM_CODE_START_NOALIGN(x86_verw_sel)
 	.word __KERNEL_DS
 .align L1_CACHE_BYTES, 0xcc
 SYM_CODE_END(x86_verw_sel);
-/* For KVM */
-EXPORT_SYMBOL_GPL(x86_verw_sel);
+EXPORT_SYMBOL_FOR_KVM(x86_verw_sel);
 
 .popsection
 

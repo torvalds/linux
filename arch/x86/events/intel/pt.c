@@ -17,6 +17,7 @@
 #include <linux/limits.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/kvm_types.h>
 
 #include <asm/cpuid/api.h>
 #include <asm/perf_event.h>
@@ -82,13 +83,13 @@ u32 intel_pt_validate_cap(u32 *caps, enum pt_capabilities capability)
 
 	return (c & cd->mask) >> shift;
 }
-EXPORT_SYMBOL_GPL(intel_pt_validate_cap);
+EXPORT_SYMBOL_FOR_KVM(intel_pt_validate_cap);
 
 u32 intel_pt_validate_hw_cap(enum pt_capabilities cap)
 {
 	return intel_pt_validate_cap(pt_pmu.caps, cap);
 }
-EXPORT_SYMBOL_GPL(intel_pt_validate_hw_cap);
+EXPORT_SYMBOL_FOR_KVM(intel_pt_validate_hw_cap);
 
 static ssize_t pt_cap_show(struct device *cdev,
 			   struct device_attribute *attr,
@@ -1590,7 +1591,7 @@ void intel_pt_handle_vmx(int on)
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(intel_pt_handle_vmx);
+EXPORT_SYMBOL_FOR_KVM(intel_pt_handle_vmx);
 
 /*
  * PMU callbacks

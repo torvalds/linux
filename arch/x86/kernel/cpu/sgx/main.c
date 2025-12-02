@@ -5,6 +5,7 @@
 #include <linux/freezer.h>
 #include <linux/highmem.h>
 #include <linux/kthread.h>
+#include <linux/kvm_types.h>
 #include <linux/miscdevice.h>
 #include <linux/node.h>
 #include <linux/pagemap.h>
@@ -916,7 +917,7 @@ int sgx_set_attribute(unsigned long *allowed_attributes,
 	*allowed_attributes |= SGX_ATTR_PROVISIONKEY;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sgx_set_attribute);
+EXPORT_SYMBOL_FOR_KVM(sgx_set_attribute);
 
 /* Counter to count the active SGX users */
 static int sgx_usage_count;
