@@ -137,6 +137,35 @@ static int fsl_mc_bus_uevent(const struct device *dev, struct kobj_uevent_env *e
 	return 0;
 }
 
+static int fsl_mc_probe(struct device *dev)
+{
+	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	if (mc_drv->probe)
+		return mc_drv->probe(mc_dev);
+
+	return 0;
+}
+
+static void fsl_mc_remove(struct device *dev)
+{
+	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	if (mc_drv->remove)
+		mc_drv->remove(mc_dev);
+}
+
+static void fsl_mc_shutdown(struct device *dev)
+{
+	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	if (dev->driver && mc_drv->shutdown)
+		mc_drv->shutdown(mc_dev);
+}
+
 static int fsl_mc_dma_configure(struct device *dev)
 {
 	const struct device_driver *drv = READ_ONCE(dev->driver);
@@ -314,6 +343,9 @@ const struct bus_type fsl_mc_bus_type = {
 	.name = "fsl-mc",
 	.match = fsl_mc_bus_match,
 	.uevent = fsl_mc_bus_uevent,
+	.probe = fsl_mc_probe,
+	.remove = fsl_mc_remove,
+	.shutdown = fsl_mc_shutdown,
 	.dma_configure  = fsl_mc_dma_configure,
 	.dma_cleanup = fsl_mc_dma_cleanup,
 	.dev_groups = fsl_mc_dev_groups,
@@ -434,35 +466,6 @@ static const struct device_type *fsl_mc_get_device_type(const char *type)
 	return NULL;
 }
 
-static int fsl_mc_driver_probe(struct device *dev)
-{
-	struct fsl_mc_driver *mc_drv;
-	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
-	int error;
-
-	mc_drv = to_fsl_mc_driver(dev->driver);
-
-	return mc_drv->probe(mc_dev);
-}
-
-static int fsl_mc_driver_remove(struct device *dev)
-{
-	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
-	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
-
-	mc_drv->remove(mc_dev);
-
-	return 0;
-}
-
-static void fsl_mc_driver_shutdown(struct device *dev)
-{
-	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
-	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
-
-	mc_drv->shutdown(mc_dev);
-}
-
 /*
  * __fsl_mc_driver_register - registers a child device driver with the
  * MC bus
@@ -478,15 +481,6 @@ int __fsl_mc_driver_register(struct fsl_mc_driver *mc_driver,
 
 	mc_driver->driver.owner = owner;
 	mc_driver->driver.bus = &fsl_mc_bus_type;
-
-	if (mc_driver->probe)
-		mc_driver->driver.probe = fsl_mc_driver_probe;
-
-	if (mc_driver->remove)
-		mc_driver->driver.remove = fsl_mc_driver_remove;
-
-	if (mc_driver->shutdown)
-		mc_driver->driver.shutdown = fsl_mc_driver_shutdown;
 
 	error = driver_register(&mc_driver->driver);
 	if (error < 0) {
