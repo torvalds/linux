@@ -456,6 +456,14 @@
 			regulator-off-in-suspend;
 		};
 	};
+
+	eeprom: eeprom@50 {
+		compatible = "belling,bl24c04a", "atmel,24c04";
+		reg = <0x50>;
+		pagesize = <16>;
+		read-only;
+		vcc-supply = <&vcc_3v0>;
+	};
 };
 
 &i2c1 {

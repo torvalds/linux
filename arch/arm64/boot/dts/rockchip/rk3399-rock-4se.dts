@@ -8,12 +8,24 @@
 #include "rk3399-t.dtsi"
 #include "rk3399-rock-pi-4.dtsi"
 
+/delete-node/ &eeprom;
+
 / {
 	model = "Radxa ROCK 4SE";
 	compatible = "radxa,rock-4se", "rockchip,rk3399";
 
 	aliases {
 		mmc2 = &sdio0;
+	};
+};
+
+&i2c0 {
+	eeprom@50 {
+		compatible = "belling,bl24c16a", "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+		read-only;
+		vcc-supply = <&vcc_3v0>;
 	};
 };
 
