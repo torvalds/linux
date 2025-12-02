@@ -1704,14 +1704,8 @@ EXPORT_SYMBOL(pci_bus_type);
 #ifdef CONFIG_PCIEPORTBUS
 static int pcie_port_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct pcie_device *pciedev;
-	const struct pcie_port_service_driver *driver;
-
-	if (drv->bus != &pcie_port_bus_type || dev->bus != &pcie_port_bus_type)
-		return 0;
-
-	pciedev = to_pcie_device(dev);
-	driver = to_service_driver(drv);
+	struct pcie_device *pciedev = to_pcie_device(dev);
+	const struct pcie_port_service_driver *driver = to_service_driver(drv);
 
 	if (driver->service != pciedev->service)
 		return 0;
