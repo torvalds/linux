@@ -1379,6 +1379,48 @@ static void amdgpu_discovery_sysfs_fini(struct amdgpu_device *adev)
 	kobject_put(&ip_top->kobj);
 }
 
+/* devcoredump support */
+void amdgpu_discovery_dump(struct amdgpu_device *adev, struct drm_printer *p)
+{
+	struct ip_discovery_top *ip_top = adev->discovery.ip_top;
+	struct ip_die_entry *ip_die_entry;
+	struct list_head *el_die, *el_hw_id, *el_hw_inst;
+	struct ip_hw_id *hw_id;
+	struct kset *die_kset;
+	struct ip_hw_instance *ip_inst;
+	int i = 0, j;
+
+	die_kset = &ip_top->die_kset;
+
+	drm_printf(p, "\nHW IP Discovery\n");
+	spin_lock(&die_kset->list_lock);
+	list_for_each(el_die, &die_kset->list) {
+		drm_printf(p, "die %d\n", i++);
+		ip_die_entry = to_ip_die_entry(list_to_kobj(el_die));
+
+		list_for_each(el_hw_id, &ip_die_entry->ip_kset.list) {
+			hw_id = to_ip_hw_id(list_to_kobj(el_hw_id));
+			drm_printf(p, "hw_id %d %s\n", hw_id->hw_id, hw_id_names[hw_id->hw_id]);
+
+			list_for_each(el_hw_inst, &hw_id->hw_id_kset.list) {
+				ip_inst = to_ip_hw_instance(list_to_kobj(el_hw_inst));
+				drm_printf(p, "\tinstance %d\n", ip_inst->num_instance);
+				drm_printf(p, "\tmajor %d\n", ip_inst->major);
+				drm_printf(p, "\tminor %d\n", ip_inst->minor);
+				drm_printf(p, "\trevision %d\n", ip_inst->revision);
+				drm_printf(p, "\tharvest 0x%01X\n", ip_inst->harvest);
+				drm_printf(p, "\tnum_base_addresses %d\n",
+					   ip_inst->num_base_addresses);
+				for (j = 0; j < ip_inst->num_base_addresses; j++)
+					drm_printf(p, "\tbase_addr[%d] 0x%08X\n",
+						   j, ip_inst->base_addr[j]);
+			}
+		}
+	}
+	spin_unlock(&die_kset->list_lock);
+}
+
+
 /* ================================================== */
 
 static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)

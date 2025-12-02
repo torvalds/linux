@@ -261,6 +261,8 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 		}
 	}
 
+	amdgpu_discovery_dump(coredump->adev, &p);
+
 	/* IP firmware information */
 	drm_printf(&p, "\nIP Firmwares\n");
 	amdgpu_devcoredump_fw_info(coredump->adev, &p);
