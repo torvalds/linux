@@ -685,7 +685,9 @@ static int query_oa_units(struct xe_device *xe,
 			du->capabilities = DRM_XE_OA_CAPS_BASE | DRM_XE_OA_CAPS_SYNCS |
 					   DRM_XE_OA_CAPS_OA_BUFFER_SIZE |
 					   DRM_XE_OA_CAPS_WAIT_NUM_REPORTS |
-					   DRM_XE_OA_CAPS_OAM;
+					   DRM_XE_OA_CAPS_OAM |
+					   DRM_XE_OA_CAPS_OA_UNIT_GT_ID;
+			du->gt_id = u->gt->info.id;
 			j = 0;
 			for_each_hw_engine(hwe, gt, hwe_id) {
 				if (!xe_hw_engine_is_reserved(hwe) &&
