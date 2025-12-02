@@ -607,7 +607,7 @@ static int sdma_v7_1_gfx_resume_instance(struct amdgpu_device *adev, int i, bool
  * sdma_v7_1_inst_gfx_resume - setup and start the async dma engines
  *
  * @adev: amdgpu_device pointer
- * inst_mask: mask of dma engine instances to be enabled
+ * @inst_mask: mask of dma engine instances to be enabled
  *
  * Set up the gfx DMA ring buffers and enable them.
  * Returns 0 for success, error for failure.
