@@ -22,9 +22,7 @@ static int reset_gpio_assert(struct reset_controller_dev *rc, unsigned long id)
 {
 	struct reset_gpio_priv *priv = rc_to_reset_gpio(rc);
 
-	gpiod_set_value_cansleep(priv->reset, 1);
-
-	return 0;
+	return gpiod_set_value_cansleep(priv->reset, 1);
 }
 
 static int reset_gpio_deassert(struct reset_controller_dev *rc,
@@ -32,9 +30,7 @@ static int reset_gpio_deassert(struct reset_controller_dev *rc,
 {
 	struct reset_gpio_priv *priv = rc_to_reset_gpio(rc);
 
-	gpiod_set_value_cansleep(priv->reset, 0);
-
-	return 0;
+	return gpiod_set_value_cansleep(priv->reset, 0);
 }
 
 static int reset_gpio_status(struct reset_controller_dev *rc, unsigned long id)
