@@ -214,17 +214,6 @@ static bool soc_v1_0_need_full_reset(struct amdgpu_device *adev)
 
 static bool soc_v1_0_need_reset_on_init(struct amdgpu_device *adev)
 {
-	u32 sol_reg;
-
-	if (adev->flags & AMD_IS_APU)
-		return false;
-
-	/* Check sOS sign of life register to confirm sys driver and sOS
-	 * are already been loaded.
-	 */
-	sol_reg = RREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_81);
-	if (sol_reg)
-		return true;
 
 	return false;
 }
