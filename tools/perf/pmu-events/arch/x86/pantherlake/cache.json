@@ -384,6 +384,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which missed all the caches, a snoop was required, and hits in other core or module on same die.  Another core provides the data with a fwd, no fwd, or hitM.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_MISS_OTHERMOD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts all retired load instructions.",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
@@ -728,6 +737,16 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and modified data was forwarded.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd4",
+        "EventName": "MEM_LOAD_UOPS_MISC_RETIRED.L3_HIT_SNOOP_HITM",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and modified data was forwarded. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of load ops retired that hit the L1 data cache.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xd1",
@@ -829,6 +848,16 @@
         "EventName": "MEM_STORE_RETIRED.MEMSIDE_CACHE",
         "SampleAfterValue": "100021",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST).",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.ALL",
+        "PublicDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST). Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x83",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of load ops retired.",
@@ -1371,5 +1400,14 @@
         "SampleAfterValue": "100003",
         "UMask": "0x4",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to an icache miss",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x71",
+        "EventName": "TOPDOWN_FE_BOUND.ICACHE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x20",
+        "Unit": "cpu_atom"
     }
 ]
