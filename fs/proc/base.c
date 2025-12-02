@@ -3043,21 +3043,14 @@ static int do_io_accounting(struct task_struct *task, struct seq_file *m, int wh
 	if (whole) {
 		struct signal_struct *sig = task->signal;
 		struct task_struct *t;
-		unsigned int seq = 1;
-		unsigned long flags;
 
-		rcu_read_lock();
-		do {
-			seq++; /* 2 on the 1st/lockless path, otherwise odd */
-			flags = read_seqbegin_or_lock_irqsave(&sig->stats_lock, &seq);
-
+		guard(rcu)();
+		scoped_seqlock_read (&sig->stats_lock, ss_lock_irqsave) {
 			acct = sig->ioac;
 			__for_each_thread(sig, t)
 				task_io_accounting_add(&acct, &t->ioac);
 
-		} while (need_seqretry(&sig->stats_lock, seq));
-		done_seqretry_irqrestore(&sig->stats_lock, seq, flags);
-		rcu_read_unlock();
+		}
 	} else {
 		acct = task->ioac;
 	}

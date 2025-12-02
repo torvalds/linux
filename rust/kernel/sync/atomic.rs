@@ -22,9 +22,10 @@ mod predefine;
 
 pub use internal::AtomicImpl;
 pub use ordering::{Acquire, Full, Relaxed, Release};
+pub(crate) use internal::{AtomicArithmeticOps, AtomicBasicOps, AtomicExchangeOps};
 
 use crate::build_error;
-use internal::{AtomicArithmeticOps, AtomicBasicOps, AtomicExchangeOps, AtomicRepr};
+use internal::AtomicRepr;
 use ordering::OrderingType;
 
 /// A memory location which can be safely modified from multiple execution contexts.
@@ -303,6 +304,15 @@ where
             OrderingType::Release => T::Repr::atomic_set_release(&self.0, v),
             _ => build_error!("Wrong ordering"),
         }
+    }
+}
+
+impl<T: AtomicType + core::fmt::Debug> core::fmt::Debug for Atomic<T>
+where
+    T::Repr: AtomicBasicOps,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.load(Relaxed), f)
     }
 }
 

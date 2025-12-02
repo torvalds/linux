@@ -6,9 +6,9 @@
 //! `Scope::dir` to create a variety of files without the need to separately
 //! track them all.
 
-use core::sync::atomic::AtomicUsize;
 use kernel::debugfs::{Dir, Scope};
 use kernel::prelude::*;
+use kernel::sync::atomic::Atomic;
 use kernel::sync::Mutex;
 use kernel::{c_str, new_mutex, str::CString};
 
@@ -62,7 +62,7 @@ fn create_file_write(
     let file_name = CString::try_from_fmt(fmt!("{name_str}"))?;
     for sub in items {
         nums.push(
-            AtomicUsize::new(sub.parse().map_err(|_| EINVAL)?),
+            Atomic::<usize>::new(sub.parse().map_err(|_| EINVAL)?),
             GFP_KERNEL,
         )?;
     }
@@ -109,7 +109,7 @@ impl ModuleData {
 
 struct DeviceData {
     name: CString,
-    nums: KVec<AtomicUsize>,
+    nums: KVec<Atomic<usize>>,
 }
 
 fn init_control(base_dir: &Dir, dyn_dirs: Dir) -> impl PinInit<Scope<ModuleData>> + '_ {
