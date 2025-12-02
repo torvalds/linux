@@ -497,7 +497,7 @@ unsigned int summary_only;
 unsigned int list_header_only;
 unsigned int dump_only;
 unsigned int force_load;
-unsigned int has_aperf;
+unsigned int cpuid_has_aperf_mperf;
 unsigned int has_aperf_access;
 unsigned int has_epb;
 unsigned int has_turbo;
@@ -8404,7 +8404,7 @@ void linux_perf_init(void)
 	if (access("/proc/sys/kernel/perf_event_paranoid", F_OK))
 		return;
 
-	if (BIC_IS_ENABLED(BIC_IPC) && has_aperf) {
+	if (BIC_IS_ENABLED(BIC_IPC) && cpuid_has_aperf_mperf) {
 		fd_instr_count_percpu = calloc(topo.max_cpu_num + 1, sizeof(int));
 		if (fd_instr_count_percpu == NULL)
 			err(-1, "calloc fd_instr_count_percpu");
@@ -8524,7 +8524,7 @@ void rapl_perf_init(void)
 /* Assumes msr_counter_info is populated */
 static int has_amperf_access(void)
 {
-	return msr_counter_arch_infos[MSR_ARCH_INFO_APERF_INDEX].present &&
+	return cpuid_has_aperf_mperf && msr_counter_arch_infos[MSR_ARCH_INFO_APERF_INDEX].present &&
 	    msr_counter_arch_infos[MSR_ARCH_INFO_MPERF_INDEX].present;
 }
 
@@ -8936,7 +8936,7 @@ void process_cpuid()
 	 */
 
 	__cpuid(0x6, eax, ebx, ecx, edx);
-	has_aperf = ecx & (1 << 0);
+	cpuid_has_aperf_mperf = ecx & (1 << 0);
 	do_dts = eax & (1 << 0);
 	if (do_dts)
 		BIC_PRESENT(BIC_CoreTmp);
@@ -8954,7 +8954,7 @@ void process_cpuid()
 	if (!quiet)
 		fprintf(outf, "CPUID(6): %sAPERF, %sTURBO, %sDTS, %sPTM, %sHWP, "
 			"%sHWPnotify, %sHWPwindow, %sHWPepp, %sHWPpkg, %sEPB\n",
-			has_aperf ? "" : "No-",
+			cpuid_has_aperf_mperf ? "" : "No-",
 			has_turbo ? "" : "No-",
 			do_dts ? "" : "No-",
 			do_ptm ? "" : "No-",
@@ -9032,7 +9032,7 @@ void process_cpuid()
 				base_mhz, max_mhz, bus_mhz);
 	}
 
-	if (has_aperf)
+	if (cpuid_has_aperf_mperf)
 		aperf_mperf_multiplier = platform->need_perf_multiplier ? 1024 : 1;
 
 	BIC_PRESENT(BIC_IRQ);
@@ -10231,7 +10231,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2025.12.01 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2025.12.02 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
