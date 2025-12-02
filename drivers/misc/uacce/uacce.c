@@ -382,6 +382,9 @@ static ssize_t isolate_strategy_show(struct device *dev, struct device_attribute
 	struct uacce_device *uacce = to_uacce_device(dev);
 	u32 val;
 
+	if (!uacce->ops->isolate_err_threshold_read)
+		return -ENOENT;
+
 	val = uacce->ops->isolate_err_threshold_read(uacce);
 
 	return sysfs_emit(buf, "%u\n", val);
@@ -393,6 +396,9 @@ static ssize_t isolate_strategy_store(struct device *dev, struct device_attribut
 	struct uacce_device *uacce = to_uacce_device(dev);
 	unsigned long val;
 	int ret;
+
+	if (!uacce->ops->isolate_err_threshold_write)
+		return -ENOENT;
 
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
