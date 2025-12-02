@@ -13,9 +13,18 @@
 #define BUGFLAG_ONCE		(1 << 1)
 #define BUGFLAG_DONE		(1 << 2)
 #define BUGFLAG_NO_CUT_HERE	(1 << 3)	/* CUT_HERE already sent */
+#define BUGFLAG_ARGS		(1 << 4)
 #define BUGFLAG_TAINT(taint)	((taint) << 8)
 #define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
 #endif
+
+#ifndef WARN_CONDITION_STR
+#ifdef CONFIG_DEBUG_BUGVERBOSE_DETAILED
+# define WARN_CONDITION_STR(cond_str) "[" cond_str "] "
+#else
+# define WARN_CONDITION_STR(cond_str)
+#endif
+#endif /* WARN_CONDITION_STR */
 
 #ifndef __ASSEMBLY__
 #include <linux/panic.h>
@@ -29,19 +38,20 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 
 #ifdef CONFIG_BUG
 
+#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
+#define BUG_REL(type, name) type name
+#else
+#define BUG_REL(type, name) signed int name##_disp
+#endif
+
 #ifdef CONFIG_GENERIC_BUG
 struct bug_entry {
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	unsigned long	bug_addr;
-#else
-	signed int	bug_addr_disp;
+	BUG_REL(unsigned long, bug_addr);
+#ifdef HAVE_ARCH_BUG_FORMAT
+	BUG_REL(const char *, format);
 #endif
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	const char	*file;
-#else
-	signed int	file_disp;
-#endif
+	BUG_REL(const char *, file);
 	unsigned short	line;
 #endif
 	unsigned short	flags;
@@ -92,28 +102,50 @@ void warn_slowpath_fmt(const char *file, const int line, unsigned taint,
 		       const char *fmt, ...);
 extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 
-#ifndef __WARN_FLAGS
-#define __WARN()		__WARN_printf(TAINT_WARN, NULL)
+#ifdef __WARN_FLAGS
+#define __WARN()		__WARN_FLAGS("", BUGFLAG_TAINT(TAINT_WARN))
+
+#ifndef WARN_ON
+#define WARN_ON(condition) ({						\
+	int __ret_warn_on = !!(condition);				\
+	if (unlikely(__ret_warn_on))					\
+		__WARN_FLAGS(#condition,				\
+			     BUGFLAG_TAINT(TAINT_WARN));		\
+	unlikely(__ret_warn_on);					\
+})
+#endif
+
+#ifndef WARN_ON_ONCE
+#define WARN_ON_ONCE(condition) ({					\
+	int __ret_warn_on = !!(condition);				\
+	if (unlikely(__ret_warn_on))					\
+		__WARN_FLAGS(#condition,				\
+			     BUGFLAG_ONCE |				\
+			     BUGFLAG_TAINT(TAINT_WARN));		\
+	unlikely(__ret_warn_on);					\
+})
+#endif
+#endif /* __WARN_FLAGS */
+
+#if defined(__WARN_FLAGS) && !defined(__WARN_printf)
+#define __WARN_printf(taint, arg...) do {				\
+		instrumentation_begin();				\
+		__warn_printk(arg);					\
+		__WARN_FLAGS("", BUGFLAG_NO_CUT_HERE | BUGFLAG_TAINT(taint));\
+		instrumentation_end();					\
+	} while (0)
+#endif
+
+#ifndef __WARN_printf
 #define __WARN_printf(taint, arg...) do {				\
 		instrumentation_begin();				\
 		warn_slowpath_fmt(__FILE__, __LINE__, taint, arg);	\
 		instrumentation_end();					\
 	} while (0)
-#else
-#define __WARN()		__WARN_FLAGS(BUGFLAG_TAINT(TAINT_WARN))
-#define __WARN_printf(taint, arg...) do {				\
-		instrumentation_begin();				\
-		__warn_printk(arg);					\
-		__WARN_FLAGS(BUGFLAG_NO_CUT_HERE | BUGFLAG_TAINT(taint));\
-		instrumentation_end();					\
-	} while (0)
-#define WARN_ON_ONCE(condition) ({				\
-	int __ret_warn_on = !!(condition);			\
-	if (unlikely(__ret_warn_on))				\
-		__WARN_FLAGS(BUGFLAG_ONCE |			\
-			     BUGFLAG_TAINT(TAINT_WARN));	\
-	unlikely(__ret_warn_on);				\
-})
+#endif
+
+#ifndef __WARN
+#define __WARN()		__WARN_printf(TAINT_WARN, NULL)
 #endif
 
 /* used internally by panic.c */
@@ -148,8 +180,10 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 	DO_ONCE_LITE_IF(condition, WARN_ON, 1)
 #endif
 
+#ifndef WARN_ONCE
 #define WARN_ONCE(condition, format...)				\
 	DO_ONCE_LITE_IF(condition, WARN, 1, format)
+#endif
 
 #define WARN_TAINT_ONCE(condition, taint, format...)		\
 	DO_ONCE_LITE_IF(condition, WARN_TAINT, 1, taint, format)

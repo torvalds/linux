@@ -2,69 +2,55 @@
 #ifndef _ASM_S390_BUG_H
 #define _ASM_S390_BUG_H
 
-#include <linux/compiler.h>
+#include <linux/stringify.h>
 
-#ifdef CONFIG_BUG
+#ifndef CONFIG_DEBUG_BUGVERBOSE
+#define _BUGVERBOSE_LOCATION(file, line)
+#else
+#define __BUGVERBOSE_LOCATION(file, line)			\
+		.pushsection .rodata.str, "aMS", @progbits, 1;	\
+	10002:	.ascii file "\0";				\
+		.popsection;					\
+								\
+		.long 10002b - .;				\
+		.short line;
+#define _BUGVERBOSE_LOCATION(file, line) __BUGVERBOSE_LOCATION(file, line)
+#endif
 
-#ifdef CONFIG_DEBUG_BUGVERBOSE
+#ifndef CONFIG_GENERIC_BUG
+#define __BUG_ENTRY(cond_str, flags)
+#else
+#define __BUG_ENTRY(cond_str, flags)				\
+		.pushsection __bug_table, "aw";			\
+		.align 4;					\
+	10000:	.long 10001f - .;				\
+		_BUGVERBOSE_LOCATION(WARN_CONDITION_STR(cond_str) __FILE__, __LINE__) \
+		.short flags;					\
+		.popsection;					\
+	10001:
+#endif
 
-#define __EMIT_BUG(x) do {					\
-	asm_inline volatile(					\
-		"0:	mc	0,0\n"				\
-		".section .rodata.str,\"aMS\",@progbits,1\n"	\
-		"1:	.asciz	\""__FILE__"\"\n"		\
-		".previous\n"					\
-		".section __bug_table,\"aw\"\n"			\
-		"2:	.long	0b-.\n"				\
-		"	.long	1b-.\n"				\
-		"	.short	%0,%1\n"			\
-		"	.org	2b+%2\n"			\
-		".previous\n"					\
-		: : "i" (__LINE__),				\
-		    "i" (x),					\
-		    "i" (sizeof(struct bug_entry)));		\
+#define ASM_BUG_FLAGS(cond_str, flags)				\
+	__BUG_ENTRY(cond_str, flags)				\
+	mc		0,0
+
+#define ASM_BUG()	ASM_BUG_FLAGS("", 0)
+
+#define __BUG_FLAGS(cond_str, flags)				\
+	asm_inline volatile(__stringify(ASM_BUG_FLAGS(cond_str, flags)));
+
+#define __WARN_FLAGS(cond_str, flags)				\
+do {								\
+	__BUG_FLAGS(cond_str, BUGFLAG_WARNING|(flags));		\
 } while (0)
 
-#else /* CONFIG_DEBUG_BUGVERBOSE */
-
-#define __EMIT_BUG(x) do {					\
-	asm_inline volatile(					\
-		"0:	mc	0,0\n"				\
-		".section __bug_table,\"aw\"\n"			\
-		"1:	.long	0b-.\n"				\
-		"	.short	%0\n"				\
-		"	.org	1b+%1\n"			\
-		".previous\n"					\
-		: : "i" (x),					\
-		    "i" (sizeof(struct bug_entry)));		\
+#define BUG()							\
+do {								\
+	__BUG_FLAGS("", 0);					\
+	unreachable();						\
 } while (0)
-
-#endif /* CONFIG_DEBUG_BUGVERBOSE */
-
-#define BUG() do {					\
-	__EMIT_BUG(0);					\
-	unreachable();					\
-} while (0)
-
-#define __WARN_FLAGS(flags) do {			\
-	__EMIT_BUG(BUGFLAG_WARNING|(flags));		\
-} while (0)
-
-#define WARN_ON(x) ({					\
-	int __ret_warn_on = !!(x);			\
-	if (__builtin_constant_p(__ret_warn_on)) {	\
-		if (__ret_warn_on)			\
-			__WARN();			\
-	} else {					\
-		if (unlikely(__ret_warn_on))		\
-			__WARN();			\
-	}						\
-	unlikely(__ret_warn_on);			\
-})
 
 #define HAVE_ARCH_BUG
-#define HAVE_ARCH_WARN_ON
-#endif /* CONFIG_BUG */
 
 #include <asm-generic/bug.h>
 

@@ -873,13 +873,15 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 
 	disable_trace_on_warning();
 
-	if (file)
-		pr_warn("WARNING: CPU: %d PID: %d at %s:%d %pS\n",
-			raw_smp_processor_id(), current->pid, file, line,
-			caller);
-	else
-		pr_warn("WARNING: CPU: %d PID: %d at %pS\n",
-			raw_smp_processor_id(), current->pid, caller);
+	if (file) {
+		pr_warn("WARNING: %s:%d at %pS, CPU#%d: %s/%d\n",
+			file, line, caller,
+			raw_smp_processor_id(), current->comm, current->pid);
+	} else {
+		pr_warn("WARNING: at %pS, CPU#%d: %s/%d\n",
+			caller,
+			raw_smp_processor_id(), current->comm, current->pid);
+	}
 
 #pragma GCC diagnostic push
 #ifndef __clang__

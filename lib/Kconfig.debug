@@ -206,6 +206,16 @@ config DEBUG_BUGVERBOSE
 	  of the BUG call as well as the EIP and oops trace.  This aids
 	  debugging but costs about 70-100K of memory.
 
+config DEBUG_BUGVERBOSE_DETAILED
+	bool "Verbose WARN_ON_ONCE() reporting (adds 100K)" if DEBUG_BUGVERBOSE
+	help
+	  Say Y here to make WARN_ON_ONCE() output the condition string of the
+	  warning, in addition to the file name and line number.
+	  This helps debugging, but costs about 100K of memory.
+
+	  Say N if unsure.
+
+
 endmenu # "printk and dmesg options"
 
 config DEBUG_KERNEL
