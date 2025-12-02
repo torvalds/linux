@@ -45,6 +45,10 @@ struct vkms_frame_info {
 	unsigned int rotation;
 };
 
+struct pixel_argb_s32 {
+	s32 a, r, g, b;
+};
+
 /**
  * struct pixel_argb_u16 - Internal representation of a pixel color.
  * @a: Alpha component value, stored in 16 bits, without padding, using
@@ -225,6 +229,7 @@ struct vkms_output {
 };
 
 struct vkms_config;
+struct vkms_config_plane;
 
 /**
  * struct vkms_device - Description of a VKMS device
@@ -298,10 +303,10 @@ int vkms_output_init(struct vkms_device *vkmsdev);
  * vkms_plane_init() - Initialize a plane
  *
  * @vkmsdev: VKMS device containing the plane
- * @type: type of plane to initialize
+ * @plane_cfg: plane configuration
  */
 struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
-				   enum drm_plane_type type);
+				   struct vkms_config_plane *plane_cfg);
 
 /* CRC Support */
 const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,
@@ -317,5 +322,8 @@ void vkms_writeback_row(struct vkms_writeback_job *wb, const struct line_buffer 
 
 /* Writeback */
 int vkms_enable_writeback_connector(struct vkms_device *vkmsdev, struct vkms_output *vkms_out);
+
+/* Colorops */
+int vkms_initialize_colorops(struct drm_plane *plane);
 
 #endif /* _VKMS_DRV_H_ */

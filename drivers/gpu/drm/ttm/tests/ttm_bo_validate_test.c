@@ -652,7 +652,7 @@ static void ttm_bo_validate_move_fence_signaled(struct kunit *test)
 	int err;
 
 	man = ttm_manager_type(priv->ttm_dev, mem_type);
-	man->move = dma_fence_get_stub();
+	man->eviction_fences[0] = dma_fence_get_stub();
 
 	bo = ttm_bo_kunit_init(test, test->priv, size, NULL);
 	bo->type = bo_type;
@@ -669,7 +669,7 @@ static void ttm_bo_validate_move_fence_signaled(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ctx.bytes_moved, size);
 
 	ttm_bo_fini(bo);
-	dma_fence_put(man->move);
+	dma_fence_put(man->eviction_fences[0]);
 }
 
 static const struct ttm_bo_validate_test_case ttm_bo_validate_wait_cases[] = {
@@ -733,9 +733,9 @@ static void ttm_bo_validate_move_fence_not_signaled(struct kunit *test)
 
 	spin_lock_init(&fence_lock);
 	man = ttm_manager_type(priv->ttm_dev, fst_mem);
-	man->move = alloc_mock_fence(test);
+	man->eviction_fences[0] = alloc_mock_fence(test);
 
-	task = kthread_create(threaded_fence_signal, man->move, "move-fence-signal");
+	task = kthread_create(threaded_fence_signal, man->eviction_fences[0], "move-fence-signal");
 	if (IS_ERR(task))
 		KUNIT_FAIL(test, "Couldn't create move fence signal task\n");
 
@@ -743,7 +743,8 @@ static void ttm_bo_validate_move_fence_not_signaled(struct kunit *test)
 	err = ttm_bo_validate(bo, placement_val, &ctx_val);
 	dma_resv_unlock(bo->base.resv);
 
-	dma_fence_wait_timeout(man->move, false, MAX_SCHEDULE_TIMEOUT);
+	dma_fence_wait_timeout(man->eviction_fences[0], false, MAX_SCHEDULE_TIMEOUT);
+	man->eviction_fences[0] = NULL;
 
 	KUNIT_EXPECT_EQ(test, err, 0);
 	KUNIT_EXPECT_EQ(test, ctx_val.bytes_moved, size);

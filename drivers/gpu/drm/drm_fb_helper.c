@@ -32,7 +32,6 @@
 #include <linux/console.h>
 #include <linux/export.h>
 #include <linux/pci.h>
-#include <linux/sysrq.h>
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_atomic.h>
@@ -255,6 +254,7 @@ __drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper,
 /**
  * drm_fb_helper_restore_fbdev_mode_unlocked - restore fbdev configuration
  * @fb_helper: driver-allocated fbdev helper, can be NULL
+ * @force: ignore present DRM master
  *
  * This helper should be called from fbdev emulation's &drm_client_funcs.restore
  * callback. It ensures that the user isn't greeted with a black screen when the
@@ -263,47 +263,11 @@ __drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper,
  * Returns:
  * 0 on success, or a negative errno code otherwise.
  */
-int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
+int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper, bool force)
 {
-	return __drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper, false);
+	return __drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper, force);
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
-
-#ifdef CONFIG_MAGIC_SYSRQ
-/* emergency restore, don't bother with error reporting */
-static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
-{
-	struct drm_fb_helper *helper;
-
-	mutex_lock(&kernel_fb_helper_lock);
-	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
-		struct drm_device *dev = helper->dev;
-
-		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-			continue;
-
-		mutex_lock(&helper->lock);
-		drm_client_modeset_commit_locked(&helper->client);
-		mutex_unlock(&helper->lock);
-	}
-	mutex_unlock(&kernel_fb_helper_lock);
-}
-
-static DECLARE_WORK(drm_fb_helper_restore_work, drm_fb_helper_restore_work_fn);
-
-static void drm_fb_helper_sysrq(u8 dummy1)
-{
-	schedule_work(&drm_fb_helper_restore_work);
-}
-
-static const struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
-	.handler = drm_fb_helper_sysrq,
-	.help_msg = "force-fb(v)",
-	.action_msg = "Restore framebuffer console",
-};
-#else
-static const struct sysrq_key_op sysrq_drm_fb_helper_restore_op = { };
-#endif
 
 static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 {
@@ -495,20 +459,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_fb_helper_init);
 
-/**
- * drm_fb_helper_alloc_info - allocate fb_info and some of its members
- * @fb_helper: driver-allocated fbdev helper
- *
- * A helper to alloc fb_info and the member cmap. Called by the driver
- * within the struct &drm_driver.fbdev_probe callback function. Drivers do
- * not need to release the allocated fb_info structure themselves, this is
- * automatically done when calling drm_fb_helper_fini().
- *
- * RETURNS:
- * fb_info pointer if things went okay, pointer containing error code
- * otherwise
- */
-struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
+static struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
 {
 	struct device *dev = fb_helper->dev->dev;
 	struct fb_info *info;
@@ -535,17 +486,8 @@ err_release:
 	framebuffer_release(info);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL(drm_fb_helper_alloc_info);
 
-/**
- * drm_fb_helper_release_info - release fb_info and its members
- * @fb_helper: driver-allocated fbdev helper
- *
- * A helper to release fb_info and the member cmap.  Drivers do not
- * need to release the allocated fb_info structure themselves, this is
- * automatically done when calling drm_fb_helper_fini().
- */
-void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper)
+static void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper)
 {
 	struct fb_info *info = fb_helper->info;
 
@@ -558,7 +500,6 @@ void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper)
 		fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }
-EXPORT_SYMBOL(drm_fb_helper_release_info);
 
 /**
  * drm_fb_helper_unregister_info - unregister fb_info framebuffer device
@@ -601,11 +542,8 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	drm_fb_helper_release_info(fb_helper);
 
 	mutex_lock(&kernel_fb_helper_lock);
-	if (!list_empty(&fb_helper->kernel_fb_list)) {
+	if (!list_empty(&fb_helper->kernel_fb_list))
 		list_del(&fb_helper->kernel_fb_list);
-		if (list_empty(&kernel_fb_helper_list))
-			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
-	}
 	mutex_unlock(&kernel_fb_helper_lock);
 
 	if (!fb_helper->client.funcs)
@@ -1328,9 +1266,9 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	 * the KDSET IOCTL with KD_TEXT, and only after that drops the master
 	 * status when exiting.
 	 *
-	 * In the past this was caught by drm_fb_helper_lastclose(), but on
-	 * modern systems where logind always keeps a drm fd open to orchestrate
-	 * the vt switching, this doesn't work.
+	 * In the past this was caught by drm_fb_helper_restore_fbdev_mode_unlocked(),
+	 * but on modern systems where logind always keeps a drm fd open to
+	 * orchestrate the vt switching, this doesn't work.
 	 *
 	 * To not break the userspace ABI we have this special case here, which
 	 * is only used for the above case. Everything else uses the normal
@@ -1809,6 +1747,11 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 	height = dev->mode_config.max_height;
 
 	drm_client_modeset_probe(&fb_helper->client, width, height);
+
+	info = drm_fb_helper_alloc_info(fb_helper);
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
 	ret = drm_fb_helper_single_fb_probe(fb_helper);
 	if (ret < 0) {
 		if (ret == -EAGAIN) {
@@ -1817,13 +1760,12 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 		}
 		mutex_unlock(&fb_helper->lock);
 
-		return ret;
+		goto err_drm_fb_helper_release_info;
 	}
 	drm_setup_crtcs_fb(fb_helper);
 
 	fb_helper->deferred_setup = false;
 
-	info = fb_helper->info;
 	info->var.pixclock = 0;
 
 	/* Need to drop locks to avoid recursive deadlock in
@@ -1839,13 +1781,14 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 		 info->node, info->fix.id);
 
 	mutex_lock(&kernel_fb_helper_lock);
-	if (list_empty(&kernel_fb_helper_list))
-		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
-
 	list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
 	mutex_unlock(&kernel_fb_helper_lock);
 
 	return 0;
+
+err_drm_fb_helper_release_info:
+	drm_fb_helper_release_info(fb_helper);
+	return ret;
 }
 
 /**
@@ -1955,16 +1898,3 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
-
-/**
- * drm_fb_helper_lastclose - DRM driver lastclose helper for fbdev emulation
- * @dev: DRM device
- *
- * This function is obsolete. Call drm_fb_helper_restore_fbdev_mode_unlocked()
- * instead.
- */
-void drm_fb_helper_lastclose(struct drm_device *dev)
-{
-	drm_fb_helper_restore_fbdev_mode_unlocked(dev->fb_helper);
-}
-EXPORT_SYMBOL(drm_fb_helper_lastclose);
