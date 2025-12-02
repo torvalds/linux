@@ -2601,11 +2601,10 @@ static struct xe_oa_regs __oag_regs(void)
 
 static void __xe_oa_init_oa_units(struct xe_gt *gt)
 {
-	/* Actual address is MEDIA_GT_GSI_OFFSET + oam_base_addr[i] */
 	const u32 oam_base_addr[] = {
-		[XE_OAM_UNIT_SAG]    = 0x13000,
-		[XE_OAM_UNIT_SCMI_0] = 0x14000,
-		[XE_OAM_UNIT_SCMI_1] = 0x14800,
+		[XE_OAM_UNIT_SAG]    = XE_OAM_SAG_BASE,
+		[XE_OAM_UNIT_SCMI_0] = XE_OAM_SCMI_0_BASE,
+		[XE_OAM_UNIT_SCMI_1] = XE_OAM_SCMI_1_BASE,
 	};
 	int i, num_units = gt->oa.num_oa_units;
 
