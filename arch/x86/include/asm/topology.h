@@ -325,4 +325,6 @@ static inline void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled
 extern void arch_scale_freq_tick(void);
 #define arch_scale_freq_tick arch_scale_freq_tick
 
+extern int arch_sched_node_distance(int from, int to);
+
 #endif /* _ASM_X86_TOPOLOGY_H */

@@ -515,6 +515,76 @@ static void __init build_sched_topology(void)
 	set_sched_topology(topology);
 }
 
+#ifdef CONFIG_NUMA
+static int sched_avg_remote_distance;
+static int avg_remote_numa_distance(void)
+{
+	int i, j;
+	int distance, nr_remote, total_distance;
+
+	if (sched_avg_remote_distance > 0)
+		return sched_avg_remote_distance;
+
+	nr_remote = 0;
+	total_distance = 0;
+	for_each_node_state(i, N_CPU) {
+		for_each_node_state(j, N_CPU) {
+			distance = node_distance(i, j);
+
+			if (distance >= REMOTE_DISTANCE) {
+				nr_remote++;
+				total_distance += distance;
+			}
+		}
+	}
+	if (nr_remote)
+		sched_avg_remote_distance = total_distance / nr_remote;
+	else
+		sched_avg_remote_distance = REMOTE_DISTANCE;
+
+	return sched_avg_remote_distance;
+}
+
+int arch_sched_node_distance(int from, int to)
+{
+	int d = node_distance(from, to);
+
+	switch (boot_cpu_data.x86_vfm) {
+	case INTEL_GRANITERAPIDS_X:
+	case INTEL_ATOM_DARKMONT_X:
+
+		if (!x86_has_numa_in_package || topology_max_packages() == 1 ||
+		    d < REMOTE_DISTANCE)
+			return d;
+
+		/*
+		 * With SNC enabled, there could be too many levels of remote
+		 * NUMA node distances, creating NUMA domain levels
+		 * including local nodes and partial remote nodes.
+		 *
+		 * Trim finer distance tuning for NUMA nodes in remote package
+		 * for the purpose of building sched domains. Group NUMA nodes
+		 * in the remote package in the same sched group.
+		 * Simplify NUMA domains and avoid extra NUMA levels including
+		 * different remote NUMA nodes and local nodes.
+		 *
+		 * GNR and CWF don't expect systems with more than 2 packages
+		 * and more than 2 hops between packages. Single average remote
+		 * distance won't be appropriate if there are more than 2
+		 * packages as average distance to different remote packages
+		 * could be different.
+		 */
+		WARN_ONCE(topology_max_packages() > 2,
+			  "sched: Expect only up to 2 packages for GNR or CWF, "
+			  "but saw %d packages when building sched domains.",
+			  topology_max_packages());
+
+		d = avg_remote_numa_distance();
+	}
+	return d;
+}
+#endif /* CONFIG_NUMA */
+
 void set_cpu_sibling_map(int cpu)
 {
 	bool has_smt = __max_threads_per_core > 1;
