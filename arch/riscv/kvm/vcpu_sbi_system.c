@@ -47,9 +47,7 @@ static int kvm_sbi_ext_susp_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		kvm_riscv_vcpu_sbi_request_reset(vcpu, cp->a1, cp->a2);
 
 		/* userspace provides the suspend implementation */
-		kvm_riscv_vcpu_sbi_forward(vcpu, run);
-		retdata->uexit = true;
-		break;
+		return kvm_riscv_vcpu_sbi_forward_handler(vcpu, run, retdata);
 	default:
 		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
 		break;
