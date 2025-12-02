@@ -724,33 +724,32 @@ static int ovl_copy_up_metadata(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	return err;
 }
 
-struct ovl_cu_creds {
-	const struct cred *old;
-	struct cred *new;
-};
-
-static int ovl_prep_cu_creds(struct dentry *dentry, struct ovl_cu_creds *cc)
+static const struct cred *ovl_prepare_copy_up_creds(struct dentry *dentry)
 {
+	struct cred *copy_up_cred = NULL;
 	int err;
 
-	cc->old = cc->new = NULL;
-	err = security_inode_copy_up(dentry, &cc->new);
+	err = security_inode_copy_up(dentry, &copy_up_cred);
 	if (err < 0)
-		return err;
+		return ERR_PTR(err);
 
-	if (cc->new)
-		cc->old = override_creds(cc->new);
+	if (!copy_up_cred)
+		return NULL;
 
-	return 0;
+	return override_creds(copy_up_cred);
 }
 
-static void ovl_revert_cu_creds(struct ovl_cu_creds *cc)
+static void ovl_revert_copy_up_creds(const struct cred *orig_cred)
 {
-	if (cc->new) {
-		revert_creds(cc->old);
-		put_cred(cc->new);
-	}
+	const struct cred *copy_up_cred;
+
+	copy_up_cred = revert_creds(orig_cred);
+	put_cred(copy_up_cred);
 }
+
+DEFINE_CLASS(copy_up_creds, const struct cred *,
+	     if (!IS_ERR_OR_NULL(_T)) ovl_revert_copy_up_creds(_T),
+	     ovl_prepare_copy_up_creds(dentry), struct dentry *dentry)
 
 /*
  * Copyup using workdir to prepare temp file.  Used when copying up directories,
@@ -763,7 +762,6 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	struct path path = { .mnt = ovl_upper_mnt(ofs) };
 	struct renamedata rd = {};
 	struct dentry *temp;
-	struct ovl_cu_creds cc;
 	int err;
 	struct ovl_cattr cattr = {
 		/* Can't properly set mode on creation because of the umask */
@@ -772,14 +770,14 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 		.link = c->link
 	};
 
-	err = ovl_prep_cu_creds(c->dentry, &cc);
-	if (err)
-		return err;
+	scoped_class(copy_up_creds, copy_up_creds, c->dentry) {
+		if (IS_ERR(copy_up_creds))
+			return PTR_ERR(copy_up_creds);
 
-	ovl_start_write(c->dentry);
-	temp = ovl_create_temp(ofs, c->workdir, &cattr);
-	ovl_end_write(c->dentry);
-	ovl_revert_cu_creds(&cc);
+		ovl_start_write(c->dentry);
+		temp = ovl_create_temp(ofs, c->workdir, &cattr);
+		ovl_end_write(c->dentry);
+	}
 
 	if (IS_ERR(temp))
 		return PTR_ERR(temp);
@@ -857,17 +855,17 @@ static int ovl_copy_up_tmpfile(struct ovl_copy_up_ctx *c)
 	struct inode *udir = d_inode(c->destdir);
 	struct dentry *temp, *upper;
 	struct file *tmpfile;
-	struct ovl_cu_creds cc;
 	int err;
 
-	err = ovl_prep_cu_creds(c->dentry, &cc);
-	if (err)
-		return err;
+	scoped_class(copy_up_creds, copy_up_creds, c->dentry) {
+		if (IS_ERR(copy_up_creds))
+			return PTR_ERR(copy_up_creds);
 
-	ovl_start_write(c->dentry);
-	tmpfile = ovl_do_tmpfile(ofs, c->workdir, c->stat.mode);
-	ovl_end_write(c->dentry);
-	ovl_revert_cu_creds(&cc);
+		ovl_start_write(c->dentry);
+		tmpfile = ovl_do_tmpfile(ofs, c->workdir, c->stat.mode);
+		ovl_end_write(c->dentry);
+	}
+
 	if (IS_ERR(tmpfile))
 		return PTR_ERR(tmpfile);
 
@@ -1203,7 +1201,6 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 static int ovl_copy_up_flags(struct dentry *dentry, int flags)
 {
 	int err = 0;
-	const struct cred *old_cred;
 	bool disconnected = (dentry->d_flags & DCACHE_DISCONNECTED);
 
 	/*
@@ -1223,7 +1220,6 @@ static int ovl_copy_up_flags(struct dentry *dentry, int flags)
 	if (err)
 		return err;
 
-	old_cred = ovl_override_creds(dentry->d_sb);
 	while (!err) {
 		struct dentry *next;
 		struct dentry *parent = NULL;
@@ -1243,12 +1239,12 @@ static int ovl_copy_up_flags(struct dentry *dentry, int flags)
 			next = parent;
 		}
 
-		err = ovl_copy_up_one(parent, next, flags);
+		with_ovl_creds(dentry->d_sb)
+			err = ovl_copy_up_one(parent, next, flags);
 
 		dput(parent);
 		dput(next);
 	}
-	ovl_revert_creds(old_cred);
 
 	return err;
 }
