@@ -565,17 +565,6 @@ static int pcie_port_remove_service(struct device *dev)
 }
 
 /**
- * pcie_port_shutdown_service - shut down given PCI Express port service
- * @dev: PCI Express port service device to handle
- *
- * If PCI Express port service driver is registered with
- * pcie_port_service_register(), this function will be called by the driver core
- * when device_shutdown() is called for the port service device associated
- * with the driver.
- */
-static void pcie_port_shutdown_service(struct device *dev) {}
-
-/**
  * pcie_port_service_register - register PCI Express port service driver
  * @new: PCI Express port service driver to register
  */
@@ -588,7 +577,6 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 	new->driver.bus = &pcie_port_bus_type;
 	new->driver.probe = pcie_port_probe_service;
 	new->driver.remove = pcie_port_remove_service;
-	new->driver.shutdown = pcie_port_shutdown_service;
 
 	return driver_register(&new->driver);
 }
