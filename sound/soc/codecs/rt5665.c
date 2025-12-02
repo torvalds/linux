@@ -993,7 +993,7 @@ static const struct snd_kcontrol_new rt5665_if3_adc_swap_mux =
 static int rt5665_hp_vol_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 	if (snd_soc_component_read(component, RT5665_STO_NG2_CTRL_1) & RT5665_NG2_EN) {
@@ -1009,7 +1009,7 @@ static int rt5665_hp_vol_put(struct snd_kcontrol *kcontrol,
 static int rt5665_mono_vol_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 	if (snd_soc_component_read(component, RT5665_MONO_NG2_CTRL_1) & RT5665_NG2_EN) {
@@ -1067,7 +1067,7 @@ static void rt5665_enable_push_button_irq(struct snd_soc_component *component,
 static int rt5665_headset_detect(struct snd_soc_component *component, int jack_insert)
 {
 	struct rt5665_priv *rt5665 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	unsigned int sar_hs_type, val;
 
 	if (jack_insert) {

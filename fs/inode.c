@@ -1967,6 +1967,18 @@ retry:
 }
 EXPORT_SYMBOL(iput);
 
+/**
+ *	iput_not_last	- put an inode assuming this is not the last reference
+ *	@inode: inode to put
+ */
+void iput_not_last(struct inode *inode)
+{
+	VFS_BUG_ON_INODE(atomic_read(&inode->i_count) < 2, inode);
+
+	WARN_ON(atomic_sub_return(1, &inode->i_count) == 0);
+}
+EXPORT_SYMBOL(iput_not_last);
+
 #ifdef CONFIG_BLOCK
 /**
  *	bmap	- find a block number in a file

@@ -159,7 +159,7 @@ static struct snd_soc_jack_gpio headset_button_gpio[] = {
 static int aries_spk_cfg(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_card *card = w->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
 	int ret = 0;
@@ -194,7 +194,7 @@ static int aries_spk_cfg(struct snd_soc_dapm_widget *w,
 static int aries_main_bias(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_card *card = w->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct aries_wm8994_data *priv = snd_soc_card_get_drvdata(card);
 	int ret = 0;
 
@@ -213,7 +213,7 @@ static int aries_main_bias(struct snd_soc_dapm_widget *w,
 static int aries_headset_bias(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_card *card = w->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct aries_wm8994_data *priv = snd_soc_card_get_drvdata(card);
 	int ret = 0;
 

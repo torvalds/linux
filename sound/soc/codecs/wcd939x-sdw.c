@@ -1400,12 +1400,18 @@ static int wcd9390_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
 
 	ret = component_add(dev, &wcd_sdw_component_ops);
 	if (ret)
-		return ret;
+		goto err_free_regmap;
 
 	/* Set suspended until aggregate device is bind */
 	pm_runtime_set_suspended(dev);
 
 	return 0;
+
+err_free_regmap:
+	if (wcd->regmap)
+		regmap_exit(wcd->regmap);
+
+	return ret;
 }
 
 static int wcd9390_remove(struct sdw_slave *pdev)

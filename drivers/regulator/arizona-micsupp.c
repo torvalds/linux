@@ -48,7 +48,6 @@ static void arizona_micsupp_check_cp(struct work_struct *work)
 	struct arizona_micsupp *micsupp =
 		container_of(work, struct arizona_micsupp, check_cp_work);
 	struct snd_soc_dapm_context *dapm = *micsupp->dapm;
-	struct snd_soc_component *component;
 	const struct regulator_desc *desc = micsupp->desc;
 	unsigned int val;
 	int ret;
@@ -61,14 +60,11 @@ static void arizona_micsupp_check_cp(struct work_struct *work)
 	}
 
 	if (dapm) {
-		component = snd_soc_dapm_to_component(dapm);
-
 		if ((val & (desc->enable_mask | desc->bypass_mask)) ==
 		    desc->enable_mask)
-			snd_soc_component_force_enable_pin(component,
-							   "MICSUPP");
+			snd_soc_dapm_force_enable_pin(dapm, "MICSUPP");
 		else
-			snd_soc_component_disable_pin(component, "MICSUPP");
+			snd_soc_dapm_disable_pin(dapm, "MICSUPP");
 
 		snd_soc_dapm_sync(dapm);
 	}

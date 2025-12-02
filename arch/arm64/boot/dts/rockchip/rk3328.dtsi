@@ -598,7 +598,6 @@
 		pinctrl-2 = <&otp_pin>;
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
-		rockchip,grf = <&grf>;
 		rockchip,hw-tshut-temp = <100000>;
 		#thermal-sensor-cells = <1>;
 		status = "disabled";

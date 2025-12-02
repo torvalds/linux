@@ -738,7 +738,7 @@ static int wsa881x_component_probe(struct snd_soc_component *comp)
 static int wsa881x_put_pa_gain(struct snd_kcontrol *kc,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kc);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kc);
 	struct soc_mixer_control *mc =
 			(struct soc_mixer_control *)kc->private_value;
 	int max = mc->max;
@@ -783,7 +783,7 @@ static int wsa881x_put_pa_gain(struct snd_kcontrol *kc,
 static int wsa881x_get_port(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct wsa881x_priv *data = snd_soc_component_get_drvdata(comp);
 	struct soc_mixer_control *mixer =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -815,7 +815,7 @@ static int wsa881x_boost_ctrl(struct snd_soc_component *comp, bool enable)
 static int wsa881x_set_port(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct wsa881x_priv *data = snd_soc_component_get_drvdata(comp);
 	struct soc_mixer_control *mixer =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -1112,8 +1112,7 @@ static int wsa881x_probe(struct sdw_slave *pdev,
 	if (!wsa881x)
 		return -ENOMEM;
 
-	wsa881x->sd_n = devm_gpiod_get_optional(dev, "powerdown",
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	wsa881x->sd_n = devm_gpiod_get_optional(dev, "powerdown", 0);
 	if (IS_ERR(wsa881x->sd_n))
 		return dev_err_probe(dev, PTR_ERR(wsa881x->sd_n),
 				     "Shutdown Control GPIO not found\n");

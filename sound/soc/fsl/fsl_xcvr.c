@@ -1548,28 +1548,24 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 	xcvr->soc_data = of_device_get_match_data(&pdev->dev);
 
 	xcvr->ipg_clk = devm_clk_get(dev, "ipg");
-	if (IS_ERR(xcvr->ipg_clk)) {
-		dev_err(dev, "failed to get ipg clock\n");
-		return PTR_ERR(xcvr->ipg_clk);
-	}
+	if (IS_ERR(xcvr->ipg_clk))
+		return dev_err_probe(dev, PTR_ERR(xcvr->ipg_clk),
+				     "failed to get ipg clock\n");
 
 	xcvr->phy_clk = devm_clk_get(dev, "phy");
-	if (IS_ERR(xcvr->phy_clk)) {
-		dev_err(dev, "failed to get phy clock\n");
-		return PTR_ERR(xcvr->phy_clk);
-	}
+	if (IS_ERR(xcvr->phy_clk))
+		return dev_err_probe(dev, PTR_ERR(xcvr->phy_clk),
+				     "failed to get phy clock\n");
 
 	xcvr->spba_clk = devm_clk_get(dev, "spba");
-	if (IS_ERR(xcvr->spba_clk)) {
-		dev_err(dev, "failed to get spba clock\n");
-		return PTR_ERR(xcvr->spba_clk);
-	}
+	if (IS_ERR(xcvr->spba_clk))
+		return dev_err_probe(dev, PTR_ERR(xcvr->spba_clk),
+				     "failed to get spba clock\n");
 
 	xcvr->pll_ipg_clk = devm_clk_get(dev, "pll_ipg");
-	if (IS_ERR(xcvr->pll_ipg_clk)) {
-		dev_err(dev, "failed to get pll_ipg clock\n");
-		return PTR_ERR(xcvr->pll_ipg_clk);
-	}
+	if (IS_ERR(xcvr->pll_ipg_clk))
+		return dev_err_probe(dev, PTR_ERR(xcvr->pll_ipg_clk),
+				     "failed to get pll_ipg clock\n");
 
 	fsl_asoc_get_pll_clocks(dev, &xcvr->pll8k_clk,
 				&xcvr->pll11k_clk);
@@ -1593,51 +1589,42 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 
 	xcvr->regmap = devm_regmap_init_mmio_clk(dev, NULL, regs,
 						 &fsl_xcvr_regmap_cfg);
-	if (IS_ERR(xcvr->regmap)) {
-		dev_err(dev, "failed to init XCVR regmap: %ld\n",
-			PTR_ERR(xcvr->regmap));
-		return PTR_ERR(xcvr->regmap);
-	}
+	if (IS_ERR(xcvr->regmap))
+		return dev_err_probe(dev, PTR_ERR(xcvr->regmap), "failed to init XCVR regmap\n");
 
 	if (xcvr->soc_data->use_phy) {
 		xcvr->regmap_phy = devm_regmap_init(dev, NULL, xcvr,
 						    &fsl_xcvr_regmap_phy_cfg);
-		if (IS_ERR(xcvr->regmap_phy)) {
-			dev_err(dev, "failed to init XCVR PHY regmap: %ld\n",
-				PTR_ERR(xcvr->regmap_phy));
-			return PTR_ERR(xcvr->regmap_phy);
-		}
+		if (IS_ERR(xcvr->regmap_phy))
+			return dev_err_probe(dev, PTR_ERR(xcvr->regmap_phy),
+					     "failed to init XCVR PHY regmap\n");
 
 		switch (xcvr->soc_data->pll_ver) {
 		case PLL_MX8MP:
 			xcvr->regmap_pll = devm_regmap_init(dev, NULL, xcvr,
 							    &fsl_xcvr_regmap_pllv0_cfg);
-			if (IS_ERR(xcvr->regmap_pll)) {
-				dev_err(dev, "failed to init XCVR PLL regmap: %ld\n",
-					PTR_ERR(xcvr->regmap_pll));
-				return PTR_ERR(xcvr->regmap_pll);
-			}
+			if (IS_ERR(xcvr->regmap_pll))
+				return dev_err_probe(dev, PTR_ERR(xcvr->regmap_pll),
+						     "failed to init XCVR PLL regmap\n");
 			break;
 		case PLL_MX95:
 			xcvr->regmap_pll = devm_regmap_init(dev, NULL, xcvr,
 							    &fsl_xcvr_regmap_pllv1_cfg);
-			if (IS_ERR(xcvr->regmap_pll)) {
-				dev_err(dev, "failed to init XCVR PLL regmap: %ld\n",
-					PTR_ERR(xcvr->regmap_pll));
-				return PTR_ERR(xcvr->regmap_pll);
-			}
+			if (IS_ERR(xcvr->regmap_pll))
+				return dev_err_probe(dev, PTR_ERR(xcvr->regmap_pll),
+						     "failed to init XCVR PLL regmap\n");
 			break;
 		default:
-			dev_err(dev, "Error for PLL version %d\n", xcvr->soc_data->pll_ver);
-			return -EINVAL;
+			return dev_err_probe(dev, -EINVAL,
+					     "Error for PLL version %d\n",
+					     xcvr->soc_data->pll_ver);
 		}
 	}
 
 	xcvr->reset = devm_reset_control_get_optional_exclusive(dev, NULL);
-	if (IS_ERR(xcvr->reset)) {
-		dev_err(dev, "failed to get XCVR reset control\n");
-		return PTR_ERR(xcvr->reset);
-	}
+	if (IS_ERR(xcvr->reset))
+		return dev_err_probe(dev, PTR_ERR(xcvr->reset),
+				     "failed to get XCVR reset control\n");
 
 	/* get IRQs */
 	irq = platform_get_irq(pdev, 0);
@@ -1645,17 +1632,13 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_irq(dev, irq, irq0_isr, 0, pdev->name, xcvr);
-	if (ret) {
-		dev_err(dev, "failed to claim IRQ0: %i\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to claim IRQ0\n");
 
 	rx_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rxfifo");
 	tx_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "txfifo");
-	if (!rx_res || !tx_res) {
-		dev_err(dev, "could not find rxfifo or txfifo resource\n");
-		return -EINVAL;
-	}
+	if (!rx_res || !tx_res)
+		return dev_err_probe(dev, -EINVAL, "could not find rxfifo or txfifo resource\n");
 	xcvr->dma_prms_rx.chan_name = "rx";
 	xcvr->dma_prms_tx.chan_name = "tx";
 	xcvr->dma_prms_rx.addr = rx_res->start;
@@ -1678,8 +1661,7 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 	ret = devm_snd_dmaengine_pcm_register(dev, NULL, 0);
 	if (ret) {
 		pm_runtime_disable(dev);
-		dev_err(dev, "failed to pcm register\n");
-		return ret;
+		return dev_err_probe(dev, ret, "failed to pcm register\n");
 	}
 
 	ret = devm_snd_soc_register_component(dev, &fsl_xcvr_comp,

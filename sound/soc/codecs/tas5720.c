@@ -564,7 +564,7 @@ static DECLARE_TLV_DB_SCALE(tas5722_dac_tlv, -10350, 25, 0);
 static int tas5722_volume_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 
 	val = snd_soc_component_read(component, TAS5720_VOLUME_CTRL_REG);
@@ -579,7 +579,7 @@ static int tas5722_volume_get(struct snd_kcontrol *kcontrol,
 static int tas5722_volume_set(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	unsigned int sel = ucontrol->value.integer.value[0];
 
 	snd_soc_component_write(component, TAS5720_VOLUME_CTRL_REG, sel >> 1);

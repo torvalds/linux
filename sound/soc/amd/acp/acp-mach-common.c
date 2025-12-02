@@ -116,6 +116,7 @@ static const struct snd_soc_dapm_route rt5682_map[] = {
 static int acp_card_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
@@ -129,7 +130,7 @@ static int acp_card_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 	drvdata->wclk = clk_get(component->dev, "rt5682-dai-wclk");
 	drvdata->bclk = clk_get(component->dev, "rt5682-dai-bclk");
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt5682_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, rt5682_widgets,
 					ARRAY_SIZE(rt5682_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
@@ -166,7 +167,7 @@ static int acp_card_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return snd_soc_dapm_add_routes(&rtd->card->dapm, rt5682_map, ARRAY_SIZE(rt5682_map));
+	return snd_soc_dapm_add_routes(dapm, rt5682_map, ARRAY_SIZE(rt5682_map));
 }
 
 static int acp_card_hs_startup(struct snd_pcm_substream *substream)
@@ -357,6 +358,7 @@ static const struct snd_soc_dapm_route rt5682s_map[] = {
 static int acp_card_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
@@ -372,7 +374,7 @@ static int acp_card_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 		drvdata->bclk = clk_get(component->dev, "rt5682-dai-bclk");
 	}
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt5682s_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, rt5682s_widgets,
 					ARRAY_SIZE(rt5682s_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
@@ -409,7 +411,7 @@ static int acp_card_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return snd_soc_dapm_add_routes(&rtd->card->dapm, rt5682s_map, ARRAY_SIZE(rt5682s_map));
+	return snd_soc_dapm_add_routes(dapm, rt5682s_map, ARRAY_SIZE(rt5682s_map));
 }
 
 static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
@@ -581,13 +583,14 @@ static struct snd_soc_codec_conf rt1019_conf[] = {
 static int acp_card_rt1019_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	int ret;
 
 	if (drvdata->amp_codec_id != RT1019)
 		return -EINVAL;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt1019_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, rt1019_widgets,
 					ARRAY_SIZE(rt1019_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
@@ -601,7 +604,7 @@ static int acp_card_rt1019_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return snd_soc_dapm_add_routes(&rtd->card->dapm, rt1019_map_lr,
+	return snd_soc_dapm_add_routes(dapm, rt1019_map_lr,
 				       ARRAY_SIZE(rt1019_map_lr));
 }
 
@@ -746,13 +749,14 @@ static const struct snd_soc_dapm_route max98360a_map[] = {
 static int acp_card_maxim_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	int ret;
 
 	if (drvdata->amp_codec_id != MAX98360A)
 		return -EINVAL;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, max98360a_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, max98360a_widgets,
 					ARRAY_SIZE(max98360a_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
@@ -766,7 +770,7 @@ static int acp_card_maxim_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return snd_soc_dapm_add_routes(&rtd->card->dapm, max98360a_map,
+	return snd_soc_dapm_add_routes(dapm, max98360a_map,
 				       ARRAY_SIZE(max98360a_map));
 }
 
@@ -882,13 +886,14 @@ static int acp_card_max98388_startup(struct snd_pcm_substream *substream)
 static int acp_card_max98388_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	int ret;
 
 	if (drvdata->amp_codec_id != MAX98388)
 		return -EINVAL;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, max98388_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, max98388_widgets,
 					ARRAY_SIZE(max98388_widgets));
 
 	if (ret) {
@@ -904,7 +909,7 @@ static int acp_card_max98388_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return snd_soc_dapm_add_routes(&rtd->card->dapm, max98388_map,
+	return snd_soc_dapm_add_routes(dapm, max98388_map,
 				       ARRAY_SIZE(max98388_map));
 }
 
@@ -966,6 +971,7 @@ static const struct snd_soc_dapm_route nau8825_map[] = {
 static int acp_card_nau8825_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
@@ -976,7 +982,7 @@ static int acp_card_nau8825_init(struct snd_soc_pcm_runtime *rtd)
 	if (drvdata->hs_codec_id != NAU8825)
 		return -EINVAL;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, nau8825_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, nau8825_widgets,
 					ARRAY_SIZE(nau8825_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
@@ -1013,7 +1019,7 @@ static int acp_card_nau8825_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	return snd_soc_dapm_add_routes(&rtd->card->dapm, nau8825_map, ARRAY_SIZE(nau8825_map));
+	return snd_soc_dapm_add_routes(dapm, nau8825_map, ARRAY_SIZE(nau8825_map));
 }
 
 static int acp_nau8825_hw_params(struct snd_pcm_substream *substream,
@@ -1102,8 +1108,7 @@ static const struct snd_soc_ops acp_card_nau8825_ops = {
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *k, int  event)
 {
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct snd_soc_dai *codec_dai;
 	int ret = 0;
 
@@ -1181,13 +1186,14 @@ static struct snd_pcm_hw_constraint_list constraints_sample_bits = {
 static int acp_8821_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
 	int ret;
 
 	dev_info(rtd->dev, "codec dai name = %s\n", codec_dai->name);
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, nau8821_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, nau8821_widgets,
 					ARRAY_SIZE(nau8821_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
@@ -1221,7 +1227,7 @@ static int acp_8821_init(struct snd_soc_pcm_runtime *rtd)
 
 	nau8821_enable_jack_detect(component, &nau8821_jack);
 
-	return snd_soc_dapm_add_routes(&rtd->card->dapm, nau8821_audio_route,
+	return snd_soc_dapm_add_routes(dapm, nau8821_audio_route,
 				       ARRAY_SIZE(nau8821_audio_route));
 }
 
@@ -1340,7 +1346,7 @@ static int acp_rtk_set_bias_level(struct snd_soc_card *card,
 				  struct snd_soc_dapm_context *dapm,
 				  enum snd_soc_bias_level level)
 {
-	struct snd_soc_component *component = dapm->component;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	int ret = 0;
 

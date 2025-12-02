@@ -335,7 +335,7 @@ static SOC_ENUM_SINGLE_DECL(speaker_mode, WM9081_ANALOGUE_SPEAKER_2, 6,
 static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	unsigned int reg;
 
 	reg = snd_soc_component_read(component, WM9081_ANALOGUE_SPEAKER_2);
@@ -356,7 +356,7 @@ static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 static int speaker_mode_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	unsigned int reg_pwr = snd_soc_component_read(component, WM9081_POWER_MANAGEMENT);
 	unsigned int reg2 = snd_soc_component_read(component, WM9081_ANALOGUE_SPEAKER_2);
 
@@ -816,6 +816,7 @@ static int wm9081_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct wm9081_priv *wm9081 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -833,7 +834,7 @@ static int wm9081_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Initial cold start */
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			regcache_cache_only(wm9081->regmap, false);
 			regcache_sync(wm9081->regmap);
 

@@ -297,8 +297,7 @@ enum {
 enum {
 	WSA_MACRO_RX0 = 0,
 	WSA_MACRO_RX1,
-	WSA_MACRO_RX_MIX,
-	WSA_MACRO_RX_MIX0 = WSA_MACRO_RX_MIX,
+	WSA_MACRO_RX_MIX0,
 	WSA_MACRO_RX_MIX1,
 	WSA_MACRO_RX_MAX,
 };
@@ -1168,12 +1167,6 @@ static int wsa_macro_set_prim_interpolator_rate(struct snd_soc_dai *dai,
 
 	for_each_set_bit(port, &wsa->active_ch_mask[dai->id], WSA_MACRO_RX_MAX) {
 		int_1_mix1_inp = port;
-		if ((int_1_mix1_inp < WSA_MACRO_RX0) || (int_1_mix1_inp > WSA_MACRO_RX_MIX1)) {
-			dev_err(component->dev,	"%s: Invalid RX port, Dai ID is %d\n",
-				__func__, dai->id);
-			return -EINVAL;
-		}
-
 		int_mux_cfg0 = CDC_WSA_RX_INP_MUX_RX_INT0_CFG0;
 
 		/*
@@ -1220,11 +1213,6 @@ static int wsa_macro_set_mix_interpolator_rate(struct snd_soc_dai *dai,
 
 	for_each_set_bit(port, &wsa->active_ch_mask[dai->id], WSA_MACRO_RX_MAX) {
 		int_2_inp = port;
-		if ((int_2_inp < WSA_MACRO_RX0) || (int_2_inp > WSA_MACRO_RX_MIX1)) {
-			dev_err(component->dev,	"%s: Invalid RX port, Dai ID is %d\n",
-				__func__, dai->id);
-			return -EINVAL;
-		}
 
 		int_mux_cfg1 = CDC_WSA_RX_INP_MUX_RX_INT0_CFG1;
 		for (j = 0; j < NUM_INTERPOLATORS; j++) {
@@ -1574,41 +1562,6 @@ static int wsa_macro_enable_vi_feedback(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int wsa_macro_enable_mix_path(struct snd_soc_dapm_widget *w,
-				     struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	u16 path_reg, gain_reg;
-	int val;
-
-	switch (w->shift) {
-	case WSA_MACRO_RX_MIX0:
-		path_reg = CDC_WSA_RX0_RX_PATH_MIX_CTL;
-		gain_reg = CDC_WSA_RX0_RX_VOL_MIX_CTL;
-		break;
-	case WSA_MACRO_RX_MIX1:
-		path_reg = CDC_WSA_RX1_RX_PATH_MIX_CTL;
-		gain_reg = CDC_WSA_RX1_RX_VOL_MIX_CTL;
-		break;
-	default:
-		return 0;
-	}
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		val = snd_soc_component_read(component, gain_reg);
-		snd_soc_component_write(component, gain_reg, val);
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_component_update_bits(component, path_reg,
-					      CDC_WSA_RX_PATH_MIX_CLK_EN_MASK,
-					      CDC_WSA_RX_PATH_MIX_CLK_DISABLE);
-		break;
-	}
-
-	return 0;
-}
-
 static void wsa_macro_hd2_control(struct snd_soc_component *component,
 				  u16 reg, int event)
 {
@@ -1772,59 +1725,6 @@ static int wsa_macro_config_softclip(struct snd_soc_component *component,
 	return 0;
 }
 
-static bool wsa_macro_adie_lb(struct snd_soc_component *component,
-			      int interp_idx)
-{
-	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
-	u16 int_mux_cfg0,  int_mux_cfg1;
-	u8 int_n_inp0, int_n_inp1, int_n_inp2;
-
-	int_mux_cfg0 = CDC_WSA_RX_INP_MUX_RX_INT0_CFG0 + interp_idx * 8;
-	int_mux_cfg1 = int_mux_cfg0 + 4;
-
-	int_n_inp0 = snd_soc_component_read_field(component, int_mux_cfg0,
-						  wsa->reg_layout->rx_intx_1_mix_inp0_sel_mask);
-	if (int_n_inp0 == INTn_1_INP_SEL_DEC0 ||
-		int_n_inp0 == INTn_1_INP_SEL_DEC1)
-		return true;
-
-	int_n_inp1 = snd_soc_component_read_field(component, int_mux_cfg0,
-						  wsa->reg_layout->rx_intx_1_mix_inp1_sel_mask);
-	if (int_n_inp1 == INTn_1_INP_SEL_DEC0 ||
-		int_n_inp1 == INTn_1_INP_SEL_DEC1)
-		return true;
-
-	int_n_inp2 = snd_soc_component_read_field(component, int_mux_cfg1,
-						  wsa->reg_layout->rx_intx_1_mix_inp2_sel_mask);
-	if (int_n_inp2 == INTn_1_INP_SEL_DEC0 ||
-		int_n_inp2 == INTn_1_INP_SEL_DEC1)
-		return true;
-
-	return false;
-}
-
-static int wsa_macro_enable_main_path(struct snd_soc_dapm_widget *w,
-				      struct snd_kcontrol *kcontrol,
-				      int event)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	u16 reg;
-
-	reg = CDC_WSA_RX0_RX_PATH_CTL + WSA_MACRO_RX_PATH_OFFSET * w->shift;
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		if (wsa_macro_adie_lb(component, w->shift)) {
-			snd_soc_component_update_bits(component, reg,
-					     CDC_WSA_RX_PATH_CLK_EN_MASK,
-					     CDC_WSA_RX_PATH_CLK_ENABLE);
-		}
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
 static int wsa_macro_interp_get_primary_reg(u16 reg, u16 *ind)
 {
 	u16 prim_int_reg = 0;
@@ -1942,7 +1842,6 @@ static int wsa_macro_enable_interpolator(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	u16 gain_reg;
 	u16 reg;
-	int val;
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
 
 	if (w->shift == WSA_MACRO_COMP1) {
@@ -1982,8 +1881,6 @@ static int wsa_macro_enable_interpolator(struct snd_soc_dapm_widget *w,
 					CDC_WSA_RX_PGA_HALF_DB_MASK,
 					CDC_WSA_RX_PGA_HALF_DB_ENABLE);
 		}
-		val = snd_soc_component_read(component, gain_reg);
-		snd_soc_component_write(component, gain_reg, val);
 		wsa_macro_config_ear_spkr_gain(component, wsa,
 						event, gain_reg);
 		break;
@@ -2114,7 +2011,7 @@ static int wsa_macro_get_ec_hq(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int ec_tx = ((struct soc_mixer_control *) kcontrol->private_value)->shift;
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
 
@@ -2126,7 +2023,7 @@ static int wsa_macro_get_ec_hq(struct snd_kcontrol *kcontrol,
 static int wsa_macro_set_ec_hq(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int ec_tx = ((struct soc_mixer_control *) kcontrol->private_value)->shift;
 	int value = ucontrol->value.integer.value[0];
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
@@ -2140,7 +2037,7 @@ static int wsa_macro_get_compander(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int comp = ((struct soc_mixer_control *) kcontrol->private_value)->shift;
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
 
@@ -2151,7 +2048,7 @@ static int wsa_macro_get_compander(struct snd_kcontrol *kcontrol,
 static int wsa_macro_set_compander(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int comp = ((struct soc_mixer_control *) kcontrol->private_value)->shift;
 	int value = ucontrol->value.integer.value[0];
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
@@ -2164,7 +2061,7 @@ static int wsa_macro_set_compander(struct snd_kcontrol *kcontrol,
 static int wsa_macro_ear_spkr_pa_gain_get(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = wsa->ear_spkr_gain;
@@ -2175,7 +2072,7 @@ static int wsa_macro_ear_spkr_pa_gain_get(struct snd_kcontrol *kcontrol,
 static int wsa_macro_ear_spkr_pa_gain_put(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
 
 	wsa->ear_spkr_gain =  ucontrol->value.integer.value[0];
@@ -2186,8 +2083,7 @@ static int wsa_macro_ear_spkr_pa_gain_put(struct snd_kcontrol *kcontrol,
 static int wsa_macro_rx_mux_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget =
-		snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *component =
 				snd_soc_dapm_to_component(widget->dapm);
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
@@ -2200,8 +2096,7 @@ static int wsa_macro_rx_mux_get(struct snd_kcontrol *kcontrol,
 static int wsa_macro_rx_mux_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget =
-		snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *component =
 				snd_soc_dapm_to_component(widget->dapm);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
@@ -2259,7 +2154,7 @@ static int wsa_macro_rx_mux_put(struct snd_kcontrol *kcontrol,
 static int wsa_macro_soft_clip_enable_get(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
 	int path = ((struct soc_mixer_control *)kcontrol->private_value)->shift;
 
@@ -2271,7 +2166,7 @@ static int wsa_macro_soft_clip_enable_get(struct snd_kcontrol *kcontrol,
 static int wsa_macro_soft_clip_enable_put(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
 	int path = ((struct soc_mixer_control *) kcontrol->private_value)->shift;
 
@@ -2296,6 +2191,10 @@ static const struct snd_kcontrol_new wsa_macro_snd_controls[] = {
 	SOC_SINGLE_S8_TLV("WSA_RX0 Digital Volume", CDC_WSA_RX0_RX_VOL_CTL,
 			  -84, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("WSA_RX1 Digital Volume", CDC_WSA_RX1_RX_VOL_CTL,
+			  -84, 40, digital_gain),
+	SOC_SINGLE_S8_TLV("WSA_RX0_MIX Digital Volume", CDC_WSA_RX0_RX_VOL_MIX_CTL,
+			  -84, 40, digital_gain),
+	SOC_SINGLE_S8_TLV("WSA_RX1_MIX Digital Volume", CDC_WSA_RX1_RX_VOL_MIX_CTL,
 			  -84, 40, digital_gain),
 
 	SOC_SINGLE("WSA_RX0 Digital Mute", CDC_WSA_RX0_RX_PATH_CTL, 4, 1, 0),
@@ -2331,7 +2230,7 @@ static const struct snd_kcontrol_new rx_mux[WSA_MACRO_RX_MAX] = {
 static int wsa_macro_vi_feed_mixer_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
 	struct soc_mixer_control *mixer = (struct soc_mixer_control *)kcontrol->private_value;
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
@@ -2349,7 +2248,7 @@ static int wsa_macro_vi_feed_mixer_get(struct snd_kcontrol *kcontrol,
 static int wsa_macro_vi_feed_mixer_put(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *widget = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
 	struct soc_mixer_control *mixer = (struct soc_mixer_control *)kcontrol->private_value;
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(component);
@@ -2440,10 +2339,8 @@ static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("WSA RX_MIX0", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("WSA RX_MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT0 MIX", SND_SOC_NOPM, 0, 0, NULL, 0,
-			     wsa_macro_enable_main_path, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_MIXER_E("WSA_RX INT1 MIX", SND_SOC_NOPM, 1, 0, NULL, 0,
-			     wsa_macro_enable_main_path, SND_SOC_DAPM_PRE_PMU),
+	SND_SOC_DAPM_MIXER("WSA_RX INT0 MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("WSA_RX INT1 MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MIXER("WSA_RX INT0 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("WSA_RX INT1 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -2494,30 +2391,22 @@ static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets_v2_1[] = {
 	SND_SOC_DAPM_MUX("WSA_RX0 INP0", SND_SOC_NOPM, 0, 0, &rx0_prim_inp0_mux_v2_1),
 	SND_SOC_DAPM_MUX("WSA_RX0 INP1", SND_SOC_NOPM, 0, 0, &rx0_prim_inp1_mux_v2_1),
 	SND_SOC_DAPM_MUX("WSA_RX0 INP2", SND_SOC_NOPM, 0, 0, &rx0_prim_inp2_mux_v2_1),
-	SND_SOC_DAPM_MUX_E("WSA_RX0 MIX INP", SND_SOC_NOPM, WSA_MACRO_RX_MIX0,
-			   0, &rx0_mix_mux_v2_1, wsa_macro_enable_mix_path,
-			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX("WSA_RX0 MIX INP", SND_SOC_NOPM, 0, 0, &rx0_mix_mux_v2_1),
 	SND_SOC_DAPM_MUX("WSA_RX1 INP0", SND_SOC_NOPM, 0, 0, &rx1_prim_inp0_mux_v2_1),
 	SND_SOC_DAPM_MUX("WSA_RX1 INP1", SND_SOC_NOPM, 0, 0, &rx1_prim_inp1_mux_v2_1),
 	SND_SOC_DAPM_MUX("WSA_RX1 INP2", SND_SOC_NOPM, 0, 0, &rx1_prim_inp2_mux_v2_1),
-	SND_SOC_DAPM_MUX_E("WSA_RX1 MIX INP", SND_SOC_NOPM, WSA_MACRO_RX_MIX1,
-			   0, &rx1_mix_mux_v2_1, wsa_macro_enable_mix_path,
-			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX("WSA_RX1 MIX INP", SND_SOC_NOPM, 0, 0, &rx1_mix_mux_v2_1),
 };
 
 static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets_v2_5[] = {
 	SND_SOC_DAPM_MUX("WSA_RX0 INP0", SND_SOC_NOPM, 0, 0, &rx0_prim_inp0_mux_v2_5),
 	SND_SOC_DAPM_MUX("WSA_RX0 INP1", SND_SOC_NOPM, 0, 0, &rx0_prim_inp1_mux_v2_5),
 	SND_SOC_DAPM_MUX("WSA_RX0 INP2", SND_SOC_NOPM, 0, 0, &rx0_prim_inp2_mux_v2_5),
-	SND_SOC_DAPM_MUX_E("WSA_RX0 MIX INP", SND_SOC_NOPM, WSA_MACRO_RX_MIX0,
-			   0, &rx0_mix_mux_v2_5, wsa_macro_enable_mix_path,
-			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX("WSA_RX0 MIX INP", SND_SOC_NOPM, 0, 0, &rx0_mix_mux_v2_5),
 	SND_SOC_DAPM_MUX("WSA_RX1 INP0", SND_SOC_NOPM, 0, 0, &rx1_prim_inp0_mux_v2_5),
 	SND_SOC_DAPM_MUX("WSA_RX1 INP1", SND_SOC_NOPM, 0, 0, &rx1_prim_inp1_mux_v2_5),
 	SND_SOC_DAPM_MUX("WSA_RX1 INP2", SND_SOC_NOPM, 0, 0, &rx1_prim_inp2_mux_v2_5),
-	SND_SOC_DAPM_MUX_E("WSA_RX1 MIX INP", SND_SOC_NOPM, WSA_MACRO_RX_MIX1,
-			   0, &rx1_mix_mux_v2_5, wsa_macro_enable_mix_path,
-			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX("WSA_RX1 MIX INP", SND_SOC_NOPM, 0, 0, &rx1_mix_mux_v2_5),
 };
 
 static const struct snd_soc_dapm_route wsa_audio_map[] = {
@@ -2553,10 +2442,8 @@ static const struct snd_soc_dapm_route wsa_audio_map[] = {
 	{"WSA RX_MIX0", NULL, "WSA RX_MIX0 MUX"},
 	{"WSA RX_MIX1", NULL, "WSA RX_MIX1 MUX"},
 
-	{"WSA RX0", NULL, "WSA_RX0_CLK"},
-	{"WSA RX1", NULL, "WSA_RX1_CLK"},
-	{"WSA RX_MIX0", NULL, "WSA_RX_MIX0_CLK"},
-	{"WSA RX_MIX1", NULL, "WSA_RX_MIX1_CLK"},
+	{"WSA_RX INT0 MIX", NULL, "WSA_RX0_CLK"},
+	{"WSA_RX INT1 MIX", NULL, "WSA_RX1_CLK"},
 
 	{"WSA_RX0 INP0", "RX0", "WSA RX0"},
 	{"WSA_RX0 INP0", "RX1", "WSA RX1"},
@@ -2586,6 +2473,8 @@ static const struct snd_soc_dapm_route wsa_audio_map[] = {
 	{"WSA_RX0 MIX INP", "RX1", "WSA RX1"},
 	{"WSA_RX0 MIX INP", "RX_MIX0", "WSA RX_MIX0"},
 	{"WSA_RX0 MIX INP", "RX_MIX1", "WSA RX_MIX1"},
+	{"WSA_RX0 MIX INP", NULL, "WSA_RX0_CLK"},
+	{"WSA_RX0 MIX INP", NULL, "WSA_RX_MIX0_CLK"},
 	{"WSA_RX INT0 SEC MIX", NULL, "WSA_RX0 MIX INP"},
 
 	{"WSA_RX INT0 SEC MIX", NULL, "WSA_RX INT0 MIX"},
@@ -2625,6 +2514,8 @@ static const struct snd_soc_dapm_route wsa_audio_map[] = {
 	{"WSA_RX1 MIX INP", "RX1", "WSA RX1"},
 	{"WSA_RX1 MIX INP", "RX_MIX0", "WSA RX_MIX0"},
 	{"WSA_RX1 MIX INP", "RX_MIX1", "WSA RX_MIX1"},
+	{"WSA_RX1 MIX INP", NULL, "WSA_RX1_CLK"},
+	{"WSA_RX1 MIX INP", NULL, "WSA_RX_MIX1_CLK"},
 	{"WSA_RX INT1 SEC MIX", NULL, "WSA_RX1 MIX INP"},
 
 	{"WSA_RX INT1 SEC MIX", NULL, "WSA_RX INT1 MIX"},
@@ -2665,7 +2556,7 @@ static int wsa_swrm_clock(struct wsa_macro *wsa, bool enable)
 
 static int wsa_macro_component_probe(struct snd_soc_component *comp)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(comp);
 	struct wsa_macro *wsa = snd_soc_component_get_drvdata(comp);
 	const struct snd_soc_dapm_widget *widgets;
 	unsigned int num_widgets;

@@ -224,7 +224,7 @@ static const unsigned int wm9713_mixer_mute_regs[] = {
 static int wm9713_hp_mixer_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct wm9713_priv *wm9713 = snd_soc_component_get_drvdata(component);
 	unsigned int val = ucontrol->value.integer.value[0];
@@ -268,7 +268,7 @@ static int wm9713_hp_mixer_put(struct snd_kcontrol *kcontrol,
 static int wm9713_hp_mixer_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct wm9713_priv *wm9713 = snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *mc =
@@ -1176,6 +1176,7 @@ static int wm9713_soc_suspend(struct snd_soc_component *component)
 static int wm9713_soc_resume(struct snd_soc_component *component)
 {
 	struct wm9713_priv *wm9713 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	ret = snd_ac97_reset(wm9713->ac97, true, WM9713_VENDOR_ID,
@@ -1183,7 +1184,7 @@ static int wm9713_soc_resume(struct snd_soc_component *component)
 	if (ret < 0)
 		return ret;
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	/* do we need to re-start the PLL ? */
 	if (wm9713->pll_in)

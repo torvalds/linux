@@ -15,6 +15,7 @@
 
 struct regmap_mbq_context {
 	struct device *dev;
+	struct sdw_slave *sdw;
 
 	struct regmap_sdw_mbq_cfg cfg;
 
@@ -46,7 +47,7 @@ static bool regmap_sdw_mbq_deferrable(struct regmap_mbq_context *ctx, unsigned i
 static int regmap_sdw_mbq_poll_busy(struct sdw_slave *slave, unsigned int reg,
 				    struct regmap_mbq_context *ctx)
 {
-	struct device *dev = &slave->dev;
+	struct device *dev = ctx->dev;
 	int val, ret = 0;
 
 	dev_dbg(dev, "Deferring transaction for 0x%x\n", reg);
@@ -96,8 +97,7 @@ static int regmap_sdw_mbq_write_impl(struct sdw_slave *slave,
 static int regmap_sdw_mbq_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct regmap_mbq_context *ctx = context;
-	struct device *dev = ctx->dev;
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+	struct sdw_slave *slave = ctx->sdw;
 	bool deferrable = regmap_sdw_mbq_deferrable(ctx, reg);
 	int mbq_size = regmap_sdw_mbq_size(ctx, reg);
 	int ret;
@@ -156,8 +156,7 @@ static int regmap_sdw_mbq_read_impl(struct sdw_slave *slave,
 static int regmap_sdw_mbq_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct regmap_mbq_context *ctx = context;
-	struct device *dev = ctx->dev;
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+	struct sdw_slave *slave = ctx->sdw;
 	bool deferrable = regmap_sdw_mbq_deferrable(ctx, reg);
 	int mbq_size = regmap_sdw_mbq_size(ctx, reg);
 	int ret;
@@ -208,6 +207,7 @@ static int regmap_sdw_mbq_config_check(const struct regmap_config *config)
 
 static struct regmap_mbq_context *
 regmap_sdw_mbq_gen_context(struct device *dev,
+			   struct sdw_slave *sdw,
 			   const struct regmap_config *config,
 			   const struct regmap_sdw_mbq_cfg *mbq_config)
 {
@@ -218,6 +218,7 @@ regmap_sdw_mbq_gen_context(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	ctx->dev = dev;
+	ctx->sdw = sdw;
 
 	if (mbq_config)
 		ctx->cfg = *mbq_config;
@@ -228,7 +229,7 @@ regmap_sdw_mbq_gen_context(struct device *dev,
 	return ctx;
 }
 
-struct regmap *__regmap_init_sdw_mbq(struct sdw_slave *sdw,
+struct regmap *__regmap_init_sdw_mbq(struct device *dev, struct sdw_slave *sdw,
 				     const struct regmap_config *config,
 				     const struct regmap_sdw_mbq_cfg *mbq_config,
 				     struct lock_class_key *lock_key,
@@ -241,16 +242,16 @@ struct regmap *__regmap_init_sdw_mbq(struct sdw_slave *sdw,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ctx = regmap_sdw_mbq_gen_context(&sdw->dev, config, mbq_config);
+	ctx = regmap_sdw_mbq_gen_context(dev, sdw, config, mbq_config);
 	if (IS_ERR(ctx))
 		return ERR_CAST(ctx);
 
-	return __regmap_init(&sdw->dev, &regmap_sdw_mbq, ctx,
+	return __regmap_init(dev, &regmap_sdw_mbq, ctx,
 			     config, lock_key, lock_name);
 }
 EXPORT_SYMBOL_GPL(__regmap_init_sdw_mbq);
 
-struct regmap *__devm_regmap_init_sdw_mbq(struct sdw_slave *sdw,
+struct regmap *__devm_regmap_init_sdw_mbq(struct device *dev, struct sdw_slave *sdw,
 					  const struct regmap_config *config,
 					  const struct regmap_sdw_mbq_cfg *mbq_config,
 					  struct lock_class_key *lock_key,
@@ -263,11 +264,11 @@ struct regmap *__devm_regmap_init_sdw_mbq(struct sdw_slave *sdw,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ctx = regmap_sdw_mbq_gen_context(&sdw->dev, config, mbq_config);
+	ctx = regmap_sdw_mbq_gen_context(dev, sdw, config, mbq_config);
 	if (IS_ERR(ctx))
 		return ERR_CAST(ctx);
 
-	return __devm_regmap_init(&sdw->dev, &regmap_sdw_mbq, ctx,
+	return __devm_regmap_init(dev, &regmap_sdw_mbq, ctx,
 				  config, lock_key, lock_name);
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_sdw_mbq);

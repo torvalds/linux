@@ -27,8 +27,8 @@ DECLARE_EVENT_CLASS(snd_soc_dapm,
 	TP_ARGS(dapm, val),
 
 	TP_STRUCT__entry(
-		__string(	card_name,	dapm->card->name)
-		__string(	comp_name,	dapm->component ? dapm->component->name : "(none)")
+		__string(	card_name,	snd_soc_dapm_to_card(dapm)->name)
+		__string(	comp_name,	snd_soc_dapm_to_component(dapm) ? snd_soc_dapm_to_component(dapm)->name : "(none)")
 		__field(	int,		val)
 	),
 

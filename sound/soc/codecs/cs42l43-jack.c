@@ -300,7 +300,7 @@ irqreturn_t cs42l43_bias_detect_clamp(int irq, void *data)
 {
 	struct cs42l43_codec *priv = data;
 
-	queue_delayed_work(system_wq, &priv->bias_sense_timeout,
+	queue_delayed_work(system_dfl_wq, &priv->bias_sense_timeout,
 			   msecs_to_jiffies(1000));
 
 	return IRQ_HANDLED;
@@ -502,7 +502,7 @@ static void cs42l43_start_load_detect(struct cs42l43_codec *priv)
 
 	dev_dbg(priv->dev, "Start load detect\n");
 
-	snd_soc_dapm_mutex_lock(snd_soc_component_get_dapm(priv->component));
+	snd_soc_dapm_mutex_lock(snd_soc_component_to_dapm(priv->component));
 
 	priv->load_detect_running = true;
 
@@ -539,7 +539,7 @@ static void cs42l43_start_load_detect(struct cs42l43_codec *priv)
 			   CS42L43_HPLOAD_DET_EN_MASK,
 			   CS42L43_HPLOAD_DET_EN_MASK);
 
-	snd_soc_dapm_mutex_unlock(snd_soc_component_get_dapm(priv->component));
+	snd_soc_dapm_mutex_unlock(snd_soc_component_to_dapm(priv->component));
 }
 
 static void cs42l43_stop_load_detect(struct cs42l43_codec *priv)
@@ -548,7 +548,7 @@ static void cs42l43_stop_load_detect(struct cs42l43_codec *priv)
 
 	dev_dbg(priv->dev, "Stop load detect\n");
 
-	snd_soc_dapm_mutex_lock(snd_soc_component_get_dapm(priv->component));
+	snd_soc_dapm_mutex_lock(snd_soc_component_to_dapm(priv->component));
 
 	regmap_update_bits(cs42l43->regmap, CS42L43_LOADDETENA,
 			   CS42L43_HPLOAD_DET_EN_MASK, 0);
@@ -587,7 +587,7 @@ static void cs42l43_stop_load_detect(struct cs42l43_codec *priv)
 
 	priv->load_detect_running = false;
 
-	snd_soc_dapm_mutex_unlock(snd_soc_component_get_dapm(priv->component));
+	snd_soc_dapm_mutex_unlock(snd_soc_component_to_dapm(priv->component));
 }
 
 static int cs42l43_run_load_detect(struct cs42l43_codec *priv, bool mic)
@@ -866,7 +866,7 @@ SOC_ENUM_SINGLE_VIRT_DECL(cs42l43_jack_enum, cs42l43_jack_text);
 
 int cs42l43_jack_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs42l43_codec *priv = snd_soc_component_get_drvdata(component);
 
 	mutex_lock(&priv->jack_lock);
@@ -878,7 +878,7 @@ int cs42l43_jack_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *u
 
 int cs42l43_jack_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs42l43_codec *priv = snd_soc_component_get_drvdata(component);
 	struct cs42l43 *cs42l43 = priv->core;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;

@@ -4,6 +4,7 @@ menu "SoundWire (SDCA)"
 config SND_SOC_SDCA
 	tristate
 	depends on ACPI
+	select AUXILIARY_BUS
 	help
 	  This option enables support for the MIPI SoundWire Device
 	  Class for Audio (SDCA).
@@ -25,7 +26,34 @@ config SND_SOC_SDCA_IRQ
 	help
 	  This option enables support for SDCA IRQs.
 
+config SND_SOC_SDCA_FDL
+	bool "SDCA FDL (File DownLoad) support"
+	depends on SND_SOC_SDCA
+	default y
+	help
+	  This option enables support for the File Download using UMP,
+	  typically used for downloading firmware to devices.
+
 config SND_SOC_SDCA_OPTIONAL
 	def_tristate SND_SOC_SDCA || !SND_SOC_SDCA
+
+config SND_SOC_SDCA_CLASS
+	tristate "SDCA Class Driver"
+	depends on SOUNDWIRE
+	depends on HID=y || HID=SND_SOC_SDCA
+	depends on SND_SOC_SDCA
+	select SND_SOC_SDCA_CLASS_FUNCTION
+	select SND_SOC_SDCA_FDL
+	select SND_SOC_SDCA_HID
+	select SND_SOC_SDCA_IRQ
+	help
+	  This option enables support for the SDCA Class driver which should
+	  support any class compliant SDCA part.
+
+config SND_SOC_SDCA_CLASS_FUNCTION
+	tristate
+	help
+	  This option enables support for the SDCA Class Function drivers,
+	  these implement the individual functions of the SDCA Class driver.
 
 endmenu

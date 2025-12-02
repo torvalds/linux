@@ -422,7 +422,7 @@ static int nau8325_clksrc_choose(struct nau8325 *nau8325,
 				*n1_sel = i;
 				*mult_sel = j;
 				ratio_sel = ratio;
-					goto proc_done;
+				goto proc_done;
 			}
 		}
 	}
@@ -829,8 +829,7 @@ static int nau8325_read_device_properties(struct device *dev,
 	return 0;
 }
 
-static int nau8325_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int nau8325_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct nau8325 *nau8325 = dev_get_platdata(dev);

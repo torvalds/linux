@@ -132,7 +132,7 @@ properties:
     $ref: /schemas/gpio/qcom,wcd934x-gpio.yaml#
 
 patternProperties:
-  "^.*@[0-9a-f]+$":
+  "@[0-9a-f]+$":
     type: object
     additionalProperties: true
     description: |

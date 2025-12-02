@@ -319,7 +319,7 @@ static int tegra210_i2s_set_tdm_slot(struct snd_soc_dai *dai,
 static int tegra210_i2s_get_loopback(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = i2s->loopback;
@@ -330,7 +330,7 @@ static int tegra210_i2s_get_loopback(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_put_loopback(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 	int value = ucontrol->value.integer.value[0];
 
@@ -348,7 +348,7 @@ static int tegra210_i2s_put_loopback(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_get_fsync_width(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = i2s->fsync_width;
@@ -359,7 +359,7 @@ static int tegra210_i2s_get_fsync_width(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_put_fsync_width(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 	int value = ucontrol->value.integer.value[0];
 
@@ -386,7 +386,7 @@ static int tegra210_i2s_put_fsync_width(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_cget_stereo_to_mono(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.enumerated.item[0] = i2s->stereo_to_mono[I2S_TX_PATH];
@@ -397,7 +397,7 @@ static int tegra210_i2s_cget_stereo_to_mono(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_cput_stereo_to_mono(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
@@ -412,7 +412,7 @@ static int tegra210_i2s_cput_stereo_to_mono(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_cget_mono_to_stereo(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.enumerated.item[0] = i2s->mono_to_stereo[I2S_TX_PATH];
@@ -423,7 +423,7 @@ static int tegra210_i2s_cget_mono_to_stereo(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_cput_mono_to_stereo(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
@@ -438,7 +438,7 @@ static int tegra210_i2s_cput_mono_to_stereo(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_pget_stereo_to_mono(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.enumerated.item[0] = i2s->stereo_to_mono[I2S_RX_PATH];
@@ -449,7 +449,7 @@ static int tegra210_i2s_pget_stereo_to_mono(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_pput_stereo_to_mono(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
@@ -464,7 +464,7 @@ static int tegra210_i2s_pput_stereo_to_mono(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_pget_mono_to_stereo(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.enumerated.item[0] = i2s->mono_to_stereo[I2S_RX_PATH];
@@ -475,7 +475,7 @@ static int tegra210_i2s_pget_mono_to_stereo(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_pput_mono_to_stereo(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
@@ -490,7 +490,7 @@ static int tegra210_i2s_pput_mono_to_stereo(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_pget_fifo_th(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = i2s->rx_fifo_th;
@@ -501,7 +501,7 @@ static int tegra210_i2s_pget_fifo_th(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_pput_fifo_th(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 	int value = ucontrol->value.integer.value[0];
 
@@ -516,7 +516,7 @@ static int tegra210_i2s_pput_fifo_th(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_get_bclk_ratio(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = i2s->bclk_ratio;
@@ -527,7 +527,7 @@ static int tegra210_i2s_get_bclk_ratio(struct snd_kcontrol *kcontrol,
 static int tegra210_i2s_put_bclk_ratio(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *compnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_i2s *i2s = snd_soc_component_get_drvdata(compnt);
 	int value = ucontrol->value.integer.value[0];
 
