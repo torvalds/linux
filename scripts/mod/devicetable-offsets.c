@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define COMPILE_OFFSETS
 #include <linux/kbuild.h>
 #include <linux/mod_devicetable.h>
 

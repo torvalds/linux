@@ -126,4 +126,5 @@ static void __used common(void)
 
 	BLANK();
 	DEFINE(ALT_INSTR_SIZE,	sizeof(struct alt_instr));
+	DEFINE(EXTABLE_SIZE,	sizeof(struct exception_table_entry));
 }
