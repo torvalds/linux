@@ -951,7 +951,8 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 				pos->end -= delta;
 			}
 
-			if (count == 0) {
+			if (map__start(initial_map) <= (pos->start + delta) &&
+			    (pos->start + delta) < map__end(initial_map)) {
 				map__zput(curr_map);
 				curr_map = map__get(initial_map);
 				goto add_symbol;
