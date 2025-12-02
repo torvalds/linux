@@ -2,6 +2,7 @@
 #ifndef __LINUX_UACCESS_H__
 #define __LINUX_UACCESS_H__
 
+#include <linux/cleanup.h>
 #include <linux/fault-inject-usercopy.h>
 #include <linux/instrumented.h>
 #include <linux/minmax.h>
@@ -35,9 +36,17 @@
 
 #ifdef masked_user_access_begin
  #define can_do_masked_user_access() 1
+# ifndef masked_user_write_access_begin
+#  define masked_user_write_access_begin masked_user_access_begin
+# endif
+# ifndef masked_user_read_access_begin
+#  define masked_user_read_access_begin masked_user_access_begin
+#endif
 #else
  #define can_do_masked_user_access() 0
  #define masked_user_access_begin(src) NULL
+ #define masked_user_read_access_begin(src) NULL
+ #define masked_user_write_access_begin(src) NULL
  #define mask_user_address(src) (src)
 #endif
 
@@ -518,7 +527,34 @@ long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
 		long count);
 long strnlen_user_nofault(const void __user *unsafe_addr, long count);
 
-#ifndef __get_kernel_nofault
+#ifdef arch_get_kernel_nofault
+/*
+ * Wrap the architecture implementation so that @label can be outside of a
+ * cleanup() scope. A regular C goto works correctly, but ASM goto does
+ * not. Clang rejects such an attempt, but GCC silently emits buggy code.
+ */
+#define __get_kernel_nofault(dst, src, type, label)		\
+do {								\
+	__label__ local_label;					\
+	arch_get_kernel_nofault(dst, src, type, local_label);	\
+	if (0) {						\
+	local_label:						\
+		goto label;					\
+	}							\
+} while (0)
+
+#define __put_kernel_nofault(dst, src, type, label)		\
+do {								\
+	__label__ local_label;					\
+	arch_put_kernel_nofault(dst, src, type, local_label);	\
+	if (0) {						\
+	local_label:						\
+		goto label;					\
+	}							\
+} while (0)
+
+#elif !defined(__get_kernel_nofault) /* arch_get_kernel_nofault */
+
 #define __get_kernel_nofault(dst, src, type, label)	\
 do {							\
 	type __user *p = (type __force __user *)(src);	\
@@ -535,7 +571,8 @@ do {							\
 	if (__put_user(data, p))			\
 		goto label;				\
 } while (0)
-#endif
+
+#endif  /* !__get_kernel_nofault */
 
 /**
  * get_kernel_nofault(): safely attempt to read from a location
@@ -549,7 +586,42 @@ do {							\
 	copy_from_kernel_nofault(&(val), __gk_ptr, sizeof(val));\
 })
 
-#ifndef user_access_begin
+#ifdef user_access_begin
+
+#ifdef arch_unsafe_get_user
+/*
+ * Wrap the architecture implementation so that @label can be outside of a
+ * cleanup() scope. A regular C goto works correctly, but ASM goto does
+ * not. Clang rejects such an attempt, but GCC silently emits buggy code.
+ *
+ * Some architectures use internal local labels already, but this extra
+ * indirection here is harmless because the compiler optimizes it out
+ * completely in any case. This construct just ensures that the ASM GOTO
+ * target is always in the local scope. The C goto 'label' works correctly
+ * when leaving a cleanup() scope.
+ */
+#define unsafe_get_user(x, ptr, label)			\
+do {							\
+	__label__ local_label;				\
+	arch_unsafe_get_user(x, ptr, local_label);	\
+	if (0) {					\
+	local_label:					\
+		goto label;				\
+	}						\
+} while (0)
+
+#define unsafe_put_user(x, ptr, label)			\
+do {							\
+	__label__ local_label;				\
+	arch_unsafe_put_user(x, ptr, local_label);	\
+	if (0) {					\
+	local_label:					\
+		goto label;				\
+	}						\
+} while (0)
+#endif /* arch_unsafe_get_user */
+
+#else /* user_access_begin */
 #define user_access_begin(ptr,len) access_ok(ptr, len)
 #define user_access_end() do { } while (0)
 #define unsafe_op_wrap(op, err) do { if (unlikely(op)) goto err; } while (0)
@@ -559,7 +631,8 @@ do {							\
 #define unsafe_copy_from_user(d,s,l,e) unsafe_op_wrap(__copy_from_user(d,s,l),e)
 static inline unsigned long user_access_save(void) { return 0UL; }
 static inline void user_access_restore(unsigned long flags) { }
-#endif
+#endif /* !user_access_begin */
+
 #ifndef user_write_access_begin
 #define user_write_access_begin user_access_begin
 #define user_write_access_end user_access_end
@@ -568,6 +641,239 @@ static inline void user_access_restore(unsigned long flags) { }
 #define user_read_access_begin user_access_begin
 #define user_read_access_end user_access_end
 #endif
+
+/* Define RW variant so the below _mode macro expansion works */
+#define masked_user_rw_access_begin(u)	masked_user_access_begin(u)
+#define user_rw_access_begin(u, s)	user_access_begin(u, s)
+#define user_rw_access_end()		user_access_end()
+
+/* Scoped user access */
+#define USER_ACCESS_GUARD(_mode)				\
+static __always_inline void __user *				\
+class_user_##_mode##_begin(void __user *ptr)			\
+{								\
+	return ptr;						\
+}								\
+								\
+static __always_inline void					\
+class_user_##_mode##_end(void __user *ptr)			\
+{								\
+	user_##_mode##_access_end();				\
+}								\
+								\
+DEFINE_CLASS(user_ ##_mode## _access, void __user *,		\
+	     class_user_##_mode##_end(_T),			\
+	     class_user_##_mode##_begin(ptr), void __user *ptr)	\
+								\
+static __always_inline class_user_##_mode##_access_t		\
+class_user_##_mode##_access_ptr(void __user *scope)		\
+{								\
+	return scope;						\
+}
+
+USER_ACCESS_GUARD(read)
+USER_ACCESS_GUARD(write)
+USER_ACCESS_GUARD(rw)
+#undef USER_ACCESS_GUARD
+
+/**
+ * __scoped_user_access_begin - Start a scoped user access
+ * @mode:	The mode of the access class (read, write, rw)
+ * @uptr:	The pointer to access user space memory
+ * @size:	Size of the access
+ * @elbl:	Error label to goto when the access region is rejected
+ *
+ * Internal helper for __scoped_user_access(). Don't use directly.
+ */
+#define __scoped_user_access_begin(mode, uptr, size, elbl)		\
+({									\
+	typeof(uptr) __retptr;						\
+									\
+	if (can_do_masked_user_access()) {				\
+		__retptr = masked_user_##mode##_access_begin(uptr);	\
+	} else {							\
+		__retptr = uptr;					\
+		if (!user_##mode##_access_begin(uptr, size))		\
+			goto elbl;					\
+	}								\
+	__retptr;							\
+})
+
+/**
+ * __scoped_user_access - Open a scope for user access
+ * @mode:	The mode of the access class (read, write, rw)
+ * @uptr:	The pointer to access user space memory
+ * @size:	Size of the access
+ * @elbl:	Error label to goto when the access region is rejected. It
+ *		must be placed outside the scope
+ *
+ * If the user access function inside the scope requires a fault label, it
+ * can use @elbl or a different label outside the scope, which requires
+ * that user access which is implemented with ASM GOTO has been properly
+ * wrapped. See unsafe_get_user() for reference.
+ *
+ *	scoped_user_rw_access(ptr, efault) {
+ *		unsafe_get_user(rval, &ptr->rval, efault);
+ *		unsafe_put_user(wval, &ptr->wval, efault);
+ *	}
+ *	return 0;
+ *  efault:
+ *	return -EFAULT;
+ *
+ * The scope is internally implemented as a autoterminating nested for()
+ * loop, which can be left with 'return', 'break' and 'goto' at any
+ * point.
+ *
+ * When the scope is left user_##@_mode##_access_end() is automatically
+ * invoked.
+ *
+ * When the architecture supports masked user access and the access region
+ * which is determined by @uptr and @size is not a valid user space
+ * address, i.e. < TASK_SIZE, the scope sets the pointer to a faulting user
+ * space address and does not terminate early. This optimizes for the good
+ * case and lets the performance uncritical bad case go through the fault.
+ *
+ * The eventual modification of the pointer is limited to the scope.
+ * Outside of the scope the original pointer value is unmodified, so that
+ * the original pointer value is available for diagnostic purposes in an
+ * out of scope fault path.
+ *
+ * Nesting scoped user access into a user access scope is invalid and fails
+ * the build. Nesting into other guards, e.g. pagefault is safe.
+ *
+ * The masked variant does not check the size of the access and relies on a
+ * mapping hole (e.g. guard page) to catch an out of range pointer, the
+ * first access to user memory inside the scope has to be within
+ * @uptr ... @uptr + PAGE_SIZE - 1
+ *
+ * Don't use directly. Use scoped_masked_user_$MODE_access() instead.
+ */
+#define __scoped_user_access(mode, uptr, size, elbl)					\
+for (bool done = false; !done; done = true)						\
+	for (void __user *_tmpptr = __scoped_user_access_begin(mode, uptr, size, elbl); \
+	     !done; done = true)							\
+		for (CLASS(user_##mode##_access, scope)(_tmpptr); !done; done = true)	\
+			/* Force modified pointer usage within the scope */		\
+			for (const typeof(uptr) uptr = _tmpptr; !done; done = true)
+
+/**
+ * scoped_user_read_access_size - Start a scoped user read access with given size
+ * @usrc:	Pointer to the user space address to read from
+ * @size:	Size of the access starting from @usrc
+ * @elbl:	Error label to goto when the access region is rejected
+ *
+ * For further information see __scoped_user_access() above.
+ */
+#define scoped_user_read_access_size(usrc, size, elbl)		\
+	__scoped_user_access(read, usrc, size, elbl)
+
+/**
+ * scoped_user_read_access - Start a scoped user read access
+ * @usrc:	Pointer to the user space address to read from
+ * @elbl:	Error label to goto when the access region is rejected
+ *
+ * The size of the access starting from @usrc is determined via sizeof(*@usrc)).
+ *
+ * For further information see __scoped_user_access() above.
+ */
+#define scoped_user_read_access(usrc, elbl)				\
+	scoped_user_read_access_size(usrc, sizeof(*(usrc)), elbl)
+
+/**
+ * scoped_user_write_access_size - Start a scoped user write access with given size
+ * @udst:	Pointer to the user space address to write to
+ * @size:	Size of the access starting from @udst
+ * @elbl:	Error label to goto when the access region is rejected
+ *
+ * For further information see __scoped_user_access() above.
+ */
+#define scoped_user_write_access_size(udst, size, elbl)			\
+	__scoped_user_access(write, udst, size, elbl)
+
+/**
+ * scoped_user_write_access - Start a scoped user write access
+ * @udst:	Pointer to the user space address to write to
+ * @elbl:	Error label to goto when the access region is rejected
+ *
+ * The size of the access starting from @udst is determined via sizeof(*@udst)).
+ *
+ * For further information see __scoped_user_access() above.
+ */
+#define scoped_user_write_access(udst, elbl)				\
+	scoped_user_write_access_size(udst, sizeof(*(udst)), elbl)
+
+/**
+ * scoped_user_rw_access_size - Start a scoped user read/write access with given size
+ * @uptr	Pointer to the user space address to read from and write to
+ * @size:	Size of the access starting from @uptr
+ * @elbl:	Error label to goto when the access region is rejected
+ *
+ * For further information see __scoped_user_access() above.
+ */
+#define scoped_user_rw_access_size(uptr, size, elbl)			\
+	__scoped_user_access(rw, uptr, size, elbl)
+
+/**
+ * scoped_user_rw_access - Start a scoped user read/write access
+ * @uptr	Pointer to the user space address to read from and write to
+ * @elbl:	Error label to goto when the access region is rejected
+ *
+ * The size of the access starting from @uptr is determined via sizeof(*@uptr)).
+ *
+ * For further information see __scoped_user_access() above.
+ */
+#define scoped_user_rw_access(uptr, elbl)				\
+	scoped_user_rw_access_size(uptr, sizeof(*(uptr)), elbl)
+
+/**
+ * get_user_inline - Read user data inlined
+ * @val:	The variable to store the value read from user memory
+ * @usrc:	Pointer to the user space memory to read from
+ *
+ * Return: 0 if successful, -EFAULT when faulted
+ *
+ * Inlined variant of get_user(). Only use when there is a demonstrable
+ * performance reason.
+ */
+#define get_user_inline(val, usrc)				\
+({								\
+	__label__ efault;					\
+	typeof(usrc) _tmpsrc = usrc;				\
+	int _ret = 0;						\
+								\
+	scoped_user_read_access(_tmpsrc, efault)		\
+		unsafe_get_user(val, _tmpsrc, efault);		\
+	if (0) {						\
+	efault:							\
+		_ret = -EFAULT;					\
+	}							\
+	_ret;							\
+})
+
+/**
+ * put_user_inline - Write to user memory inlined
+ * @val:	The value to write
+ * @udst:	Pointer to the user space memory to write to
+ *
+ * Return: 0 if successful, -EFAULT when faulted
+ *
+ * Inlined variant of put_user(). Only use when there is a demonstrable
+ * performance reason.
+ */
+#define put_user_inline(val, udst)				\
+({								\
+	__label__ efault;					\
+	typeof(udst) _tmpdst = udst;				\
+	int _ret = 0;						\
+								\
+	scoped_user_write_access(_tmpdst, efault)		\
+		unsafe_put_user(val, _tmpdst, efault);		\
+	if (0) {						\
+	efault:							\
+		_ret = -EFAULT;					\
+	}							\
+	_ret;							\
+})
 
 #ifdef CONFIG_HARDENED_USERCOPY
 void __noreturn usercopy_abort(const char *name, const char *detail,
