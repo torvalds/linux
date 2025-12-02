@@ -2002,6 +2002,7 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 	char sbuild_id[SBUILD_ID_SIZE];
 	bool is_host = false;
 	char path[PATH_MAX];
+	struct maps *kmaps = map__kmaps(map);
 
 	if (!dso__has_build_id(dso)) {
 		/*
@@ -2038,8 +2039,13 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 		return strdup(path);
 
 	/* Use current /proc/kallsyms if possible */
-	if (is_host) {
 proc_kallsyms:
+	if (kmaps) {
+		struct machine *machine = maps__machine(kmaps);
+
+		scnprintf(path, sizeof(path), "%s/proc/kallsyms", machine->root_dir);
+		return strdup(path);
+	} else if (is_host) {
 		return strdup("/proc/kallsyms");
 	}
 
