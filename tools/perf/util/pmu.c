@@ -645,6 +645,8 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 			pr_err("Failed to read alias %s\n", name);
 			return ret;
 		}
+		if (line_len >= 1 && alias->terms[line_len - 1] == '\n')
+			alias->terms[line_len - 1] = '\0';
 	}
 	alias->name = strdup(name);
 	alias->desc = desc ? strdup(desc) : NULL;
