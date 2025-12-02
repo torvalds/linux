@@ -2864,7 +2864,7 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	ioapic = mp_irqdomain_ioapic_idx(domain);
 	pin = info->ioapic.pin;
-	if (irq_find_mapping(domain, (irq_hw_number_t)pin) > 0)
+	if (irq_resolve_mapping(domain, (irq_hw_number_t)pin))
 		return -EEXIST;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
