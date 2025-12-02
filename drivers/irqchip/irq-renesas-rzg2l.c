@@ -8,7 +8,6 @@
  */
 
 #include <linux/bitfield.h>
-#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -528,17 +527,14 @@ static int rzg2l_irqc_parse_interrupts(struct rzg2l_irqc_priv *priv,
 	return 0;
 }
 
-static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *parent,
-				  const struct irq_chip *irq_chip)
+static int rzg2l_irqc_common_probe(struct platform_device *pdev, struct device_node *parent,
+				   const struct irq_chip *irq_chip)
 {
-	struct platform_device *pdev = of_find_device_by_node(node);
-	struct device *dev __free(put_device) = pdev ? &pdev->dev : NULL;
 	struct irq_domain *irq_domain, *parent_domain;
+	struct device_node *node = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct reset_control *resetn;
 	int ret;
-
-	if (!pdev)
-		return -ENODEV;
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain)
@@ -583,35 +579,22 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 
 	register_syscore_ops(&rzg2l_irqc_syscore_ops);
 
-	/*
-	 * Prevent the cleanup function from invoking put_device by assigning
-	 * NULL to dev.
-	 *
-	 * make coccicheck will complain about missing put_device calls, but
-	 * those are false positives, as dev will be automatically "put" via
-	 * __free_put_device on the failing path.
-	 * On the successful path we don't actually want to "put" dev.
-	 */
-	dev = NULL;
-
 	return 0;
 }
 
-static int __init rzg2l_irqc_init(struct device_node *node,
-				  struct device_node *parent)
+static int rzg2l_irqc_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	return rzg2l_irqc_common_init(node, parent, &rzg2l_irqc_chip);
+	return rzg2l_irqc_common_probe(pdev, parent, &rzg2l_irqc_chip);
 }
 
-static int __init rzfive_irqc_init(struct device_node *node,
-				   struct device_node *parent)
+static int rzfive_irqc_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	return rzg2l_irqc_common_init(node, parent, &rzfive_irqc_chip);
+	return rzg2l_irqc_common_probe(pdev, parent, &rzfive_irqc_chip);
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(rzg2l_irqc)
-IRQCHIP_MATCH("renesas,rzg2l-irqc", rzg2l_irqc_init)
-IRQCHIP_MATCH("renesas,r9a07g043f-irqc", rzfive_irqc_init)
+IRQCHIP_MATCH("renesas,rzg2l-irqc", rzg2l_irqc_probe)
+IRQCHIP_MATCH("renesas,r9a07g043f-irqc", rzfive_irqc_probe)
 IRQCHIP_PLATFORM_DRIVER_END(rzg2l_irqc)
 MODULE_AUTHOR("Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>");
 MODULE_DESCRIPTION("Renesas RZ/G2L IRQC Driver");

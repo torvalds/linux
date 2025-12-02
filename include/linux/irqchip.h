@@ -17,11 +17,17 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
+typedef int (*platform_irq_probe_t)(struct platform_device *, struct device_node *);
+
 /* Undefined on purpose */
 extern of_irq_init_cb_t typecheck_irq_init_cb;
+extern platform_irq_probe_t typecheck_irq_probe;
 
 #define typecheck_irq_init_cb(fn)					\
 	(__typecheck(typecheck_irq_init_cb, &fn) ? fn : fn)
+
+#define typecheck_irq_probe(fn)						\
+	(__typecheck(typecheck_irq_probe, &fn) ? fn : fn)
 
 /*
  * This macro must be used by the different irqchip drivers to declare
@@ -42,7 +48,7 @@ extern int platform_irqchip_probe(struct platform_device *pdev);
 static const struct of_device_id drv_name##_irqchip_match_table[] = {
 
 #define IRQCHIP_MATCH(compat, fn) { .compatible = compat,		\
-				    .data = typecheck_irq_init_cb(fn), },
+				    .data = typecheck_irq_probe(fn), },
 
 
 #define IRQCHIP_PLATFORM_DRIVER_END(drv_name, ...)			\

@@ -82,12 +82,6 @@ static inline unsigned int reg_status(struct bcm7038_l1_chip *intc,
 	return (0 * intc->n_words + word) * sizeof(u32);
 }
 
-static inline unsigned int reg_mask_status(struct bcm7038_l1_chip *intc,
-					   unsigned int word)
-{
-	return (1 * intc->n_words + word) * sizeof(u32);
-}
-
 static inline unsigned int reg_mask_set(struct bcm7038_l1_chip *intc,
 					unsigned int word)
 {
@@ -219,9 +213,8 @@ static int bcm7038_l1_set_affinity(struct irq_data *d,
 }
 #endif
 
-static int __init bcm7038_l1_init_one(struct device_node *dn,
-				      unsigned int idx,
-				      struct bcm7038_l1_chip *intc)
+static int bcm7038_l1_init_one(struct device_node *dn, unsigned int idx,
+			       struct bcm7038_l1_chip *intc)
 {
 	struct resource res;
 	resource_size_t sz;
@@ -395,9 +388,9 @@ static const struct irq_domain_ops bcm7038_l1_domain_ops = {
 	.map			= bcm7038_l1_map,
 };
 
-static int __init bcm7038_l1_of_init(struct device_node *dn,
-			      struct device_node *parent)
+static int bcm7038_l1_probe(struct platform_device *pdev, struct device_node *parent)
 {
+	struct device_node *dn = pdev->dev.of_node;
 	struct bcm7038_l1_chip *intc;
 	int idx, ret;
 
@@ -455,7 +448,7 @@ out_free:
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(bcm7038_l1)
-IRQCHIP_MATCH("brcm,bcm7038-l1-intc", bcm7038_l1_of_init)
+IRQCHIP_MATCH("brcm,bcm7038-l1-intc", bcm7038_l1_probe)
 IRQCHIP_PLATFORM_DRIVER_END(bcm7038_l1)
 MODULE_DESCRIPTION("Broadcom STB 7038-style L1/L2 interrupt controller");
 MODULE_LICENSE("GPL v2");
