@@ -955,10 +955,8 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 #endif
 
 #ifdef CONFIG_SCHED_MM_CID
-	tsk->mm_cid = -1;
-	tsk->last_mm_cid = -1;
-	tsk->mm_cid_active = 0;
-	tsk->migrate_from_cpu = -1;
+	tsk->mm_cid.cid = MM_CID_UNSET;
+	tsk->mm_cid.active = 0;
 #endif
 	return tsk;
 
@@ -2456,6 +2454,7 @@ bad_fork_cleanup_namespaces:
 	exit_nsproxy_namespaces(p);
 bad_fork_cleanup_mm:
 	if (p->mm) {
+		sched_mm_cid_exit(p);
 		mm_clear_owner(p->mm, p);
 		mmput(p->mm);
 	}

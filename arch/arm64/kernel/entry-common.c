@@ -100,7 +100,7 @@ static __always_inline void arm64_enter_from_user_mode(struct pt_regs *regs)
 static __always_inline void arm64_exit_to_user_mode(struct pt_regs *regs)
 {
 	local_irq_disable();
-	exit_to_user_mode_prepare(regs);
+	exit_to_user_mode_prepare_legacy(regs);
 	local_daif_mask();
 	mte_check_tfsr_exit();
 	exit_to_user_mode();
