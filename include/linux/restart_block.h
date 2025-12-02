@@ -43,7 +43,7 @@ struct restart_block {
 				struct __kernel_timespec __user *rmtp;
 				struct old_timespec32 __user *compat_rmtp;
 			};
-			u64 expires;
+			ktime_t expires;
 		} nanosleep;
 		/* For poll */
 		struct {
