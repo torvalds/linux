@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/**
+/*
  * Copyright(c) 2016-20 Intel Corporation.
  *
  * Intel Software Guard Extensions (SGX) support.
@@ -28,21 +28,22 @@
 #define SGX_CPUID_EPC_MASK	GENMASK(3, 0)
 
 enum sgx_encls_function {
-	ECREATE	= 0x00,
-	EADD	= 0x01,
-	EINIT	= 0x02,
-	EREMOVE	= 0x03,
-	EDGBRD	= 0x04,
-	EDGBWR	= 0x05,
-	EEXTEND	= 0x06,
-	ELDU	= 0x08,
-	EBLOCK	= 0x09,
-	EPA	= 0x0A,
-	EWB	= 0x0B,
-	ETRACK	= 0x0C,
-	EAUG	= 0x0D,
-	EMODPR	= 0x0E,
-	EMODT	= 0x0F,
+	ECREATE		= 0x00,
+	EADD		= 0x01,
+	EINIT		= 0x02,
+	EREMOVE		= 0x03,
+	EDGBRD		= 0x04,
+	EDGBWR		= 0x05,
+	EEXTEND		= 0x06,
+	ELDU		= 0x08,
+	EBLOCK		= 0x09,
+	EPA		= 0x0A,
+	EWB		= 0x0B,
+	ETRACK		= 0x0C,
+	EAUG		= 0x0D,
+	EMODPR		= 0x0E,
+	EMODT		= 0x0F,
+	EUPDATESVN	= 0x18,
 };
 
 /**
@@ -65,15 +66,19 @@ enum sgx_encls_function {
 
 /**
  * enum sgx_return_code - The return code type for ENCLS, ENCLU and ENCLV
- * %SGX_EPC_PAGE_CONFLICT:	Page is being written by other ENCLS function.
- * %SGX_NOT_TRACKED:		Previous ETRACK's shootdown sequence has not
+ * @SGX_EPC_PAGE_CONFLICT:	Page is being written by other ENCLS function.
+ * @SGX_NOT_TRACKED:		Previous ETRACK's shootdown sequence has not
  *				been completed yet.
- * %SGX_CHILD_PRESENT		SECS has child pages present in the EPC.
- * %SGX_INVALID_EINITTOKEN:	EINITTOKEN is invalid and enclave signer's
+ * @SGX_CHILD_PRESENT:		SECS has child pages present in the EPC.
+ * @SGX_INVALID_EINITTOKEN:	EINITTOKEN is invalid and enclave signer's
  *				public key does not match IA32_SGXLEPUBKEYHASH.
- * %SGX_PAGE_NOT_MODIFIABLE:	The EPC page cannot be modified because it
+ * @SGX_PAGE_NOT_MODIFIABLE:	The EPC page cannot be modified because it
  *				is in the PENDING or MODIFIED state.
- * %SGX_UNMASKED_EVENT:		An unmasked event, e.g. INTR, was received
+ * @SGX_INSUFFICIENT_ENTROPY:	Insufficient entropy in RNG.
+ * @SGX_NO_UPDATE:		EUPDATESVN could not update the CPUSVN because the
+ *				current SVN was not newer than CPUSVN. This is the most
+ *				common error code returned by EUPDATESVN.
+ * @SGX_UNMASKED_EVENT:		An unmasked event, e.g. INTR, was received
  */
 enum sgx_return_code {
 	SGX_EPC_PAGE_CONFLICT		= 7,
@@ -81,6 +86,8 @@ enum sgx_return_code {
 	SGX_CHILD_PRESENT		= 13,
 	SGX_INVALID_EINITTOKEN		= 16,
 	SGX_PAGE_NOT_MODIFIABLE		= 20,
+	SGX_INSUFFICIENT_ENTROPY	= 29,
+	SGX_NO_UPDATE			= 31,
 	SGX_UNMASKED_EVENT		= 128,
 };
 
@@ -89,7 +96,7 @@ enum sgx_return_code {
 
 /**
  * enum sgx_miscselect - additional information to an SSA frame
- * %SGX_MISC_EXINFO:	Report #PF or #GP to the SSA frame.
+ * @SGX_MISC_EXINFO:	Report #PF or #GP to the SSA frame.
  *
  * Save State Area (SSA) is a stack inside the enclave used to store processor
  * state when an exception or interrupt occurs. This enum defines additional
@@ -105,17 +112,17 @@ enum sgx_miscselect {
 #define SGX_SSA_MISC_EXINFO_SIZE	16
 
 /**
- * enum sgx_attributes - the attributes field in &struct sgx_secs
- * %SGX_ATTR_INIT:		Enclave can be entered (is initialized).
- * %SGX_ATTR_DEBUG:		Allow ENCLS(EDBGRD) and ENCLS(EDBGWR).
- * %SGX_ATTR_MODE64BIT:		Tell that this a 64-bit enclave.
- * %SGX_ATTR_PROVISIONKEY:      Allow to use provisioning keys for remote
+ * enum sgx_attribute - the attributes field in &struct sgx_secs
+ * @SGX_ATTR_INIT:		Enclave can be entered (is initialized).
+ * @SGX_ATTR_DEBUG:		Allow ENCLS(EDBGRD) and ENCLS(EDBGWR).
+ * @SGX_ATTR_MODE64BIT:		Tell that this a 64-bit enclave.
+ * @SGX_ATTR_PROVISIONKEY:      Allow to use provisioning keys for remote
  *				attestation.
- * %SGX_ATTR_KSS:		Allow to use key separation and sharing (KSS).
- * %SGX_ATTR_EINITTOKENKEY:	Allow to use token signing key that is used to
+ * @SGX_ATTR_KSS:		Allow to use key separation and sharing (KSS).
+ * @SGX_ATTR_EINITTOKENKEY:	Allow to use token signing key that is used to
  *				sign cryptographic tokens that can be passed to
  *				EINIT as an authorization to run an enclave.
- * %SGX_ATTR_ASYNC_EXIT_NOTIFY:	Allow enclaves to be notified after an
+ * @SGX_ATTR_ASYNC_EXIT_NOTIFY:	Allow enclaves to be notified after an
  *				asynchronous exit has occurred.
  */
 enum sgx_attribute {
@@ -188,7 +195,7 @@ struct sgx_secs {
 
 /**
  * enum sgx_tcs_flags - execution flags for TCS
- * %SGX_TCS_DBGOPTIN:	If enabled allows single-stepping and breakpoints
+ * @SGX_TCS_DBGOPTIN:	If enabled allows single-stepping and breakpoints
  *			inside an enclave. It is cleared by EADD but can
  *			be set later with EDBGWR.
  */
@@ -253,11 +260,11 @@ struct sgx_pageinfo {
 
 /**
  * enum sgx_page_type - bits in the SECINFO flags defining the page type
- * %SGX_PAGE_TYPE_SECS:	a SECS page
- * %SGX_PAGE_TYPE_TCS:	a TCS page
- * %SGX_PAGE_TYPE_REG:	a regular page
- * %SGX_PAGE_TYPE_VA:	a VA page
- * %SGX_PAGE_TYPE_TRIM:	a page in trimmed state
+ * @SGX_PAGE_TYPE_SECS:	a SECS page
+ * @SGX_PAGE_TYPE_TCS:	a TCS page
+ * @SGX_PAGE_TYPE_REG:	a regular page
+ * @SGX_PAGE_TYPE_VA:	a VA page
+ * @SGX_PAGE_TYPE_TRIM:	a page in trimmed state
  *
  * Make sure when making changes to this enum that its values can still fit
  * in the bitfield within &struct sgx_encl_page
@@ -275,14 +282,14 @@ enum sgx_page_type {
 
 /**
  * enum sgx_secinfo_flags - the flags field in &struct sgx_secinfo
- * %SGX_SECINFO_R:	allow read
- * %SGX_SECINFO_W:	allow write
- * %SGX_SECINFO_X:	allow execution
- * %SGX_SECINFO_SECS:	a SECS page
- * %SGX_SECINFO_TCS:	a TCS page
- * %SGX_SECINFO_REG:	a regular page
- * %SGX_SECINFO_VA:	a VA page
- * %SGX_SECINFO_TRIM:	a page in trimmed state
+ * @SGX_SECINFO_R:	allow read
+ * @SGX_SECINFO_W:	allow write
+ * @SGX_SECINFO_X:	allow execution
+ * @SGX_SECINFO_SECS:	a SECS page
+ * @SGX_SECINFO_TCS:	a TCS page
+ * @SGX_SECINFO_REG:	a regular page
+ * @SGX_SECINFO_VA:	a VA page
+ * @SGX_SECINFO_TRIM:	a page in trimmed state
  */
 enum sgx_secinfo_flags {
 	SGX_SECINFO_R			= BIT(0),
