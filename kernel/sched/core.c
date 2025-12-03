@@ -5143,6 +5143,8 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 		if (prev->sched_class->task_dead)
 			prev->sched_class->task_dead(prev);
 
+		cgroup_task_dead(prev);
+
 		/* Task is done with its stack. */
 		put_task_stack(prev);
 

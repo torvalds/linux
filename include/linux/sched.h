@@ -1324,7 +1324,10 @@ struct task_struct {
 	struct css_set __rcu		*cgroups;
 	/* cg_list protected by css_set_lock and tsk->alloc_lock: */
 	struct list_head		cg_list;
-#endif
+#ifdef CONFIG_PREEMPT_RT
+	struct llist_node		cg_dead_lnode;
+#endif	/* CONFIG_PREEMPT_RT */
+#endif	/* CONFIG_CGROUPS */
 #ifdef CONFIG_X86_CPU_RESCTRL
 	u32				closid;
 	u32				rmid;
