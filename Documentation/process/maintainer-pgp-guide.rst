@@ -405,8 +405,8 @@ geographical region, and open/proprietary hardware considerations.
 
 .. note::
 
-    If you are listed in MAINTAINERS or have an account at kernel.org,
-    you `qualify for a free Nitrokey Start`_ courtesy of The Linux
+    If you are listed in an `M:` entry in MAINTAINERS or have an account at
+    kernel.org, you `qualify for a free Nitrokey Start`_ courtesy of The Linux
     Foundation.
 
 .. _`Nitrokey Start`: https://www.nitrokey.com/products/nitrokeys
