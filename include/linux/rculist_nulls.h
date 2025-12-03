@@ -138,7 +138,7 @@ static inline void hlist_nulls_add_tail_rcu(struct hlist_nulls_node *n,
 
 	if (last) {
 		WRITE_ONCE(n->next, last->next);
-		n->pprev = &last->next;
+		WRITE_ONCE(n->pprev, &last->next);
 		rcu_assign_pointer(hlist_nulls_next_rcu(last), n);
 	} else {
 		hlist_nulls_add_head_rcu(n, h);
@@ -148,8 +148,8 @@ static inline void hlist_nulls_add_tail_rcu(struct hlist_nulls_node *n,
 /* after that hlist_nulls_del will work */
 static inline void hlist_nulls_add_fake(struct hlist_nulls_node *n)
 {
-	n->pprev = &n->next;
-	n->next = (struct hlist_nulls_node *)NULLS_MARKER(NULL);
+	WRITE_ONCE(n->pprev, &n->next);
+	WRITE_ONCE(n->next, (struct hlist_nulls_node *)NULLS_MARKER(NULL));
 }
 
 /**
