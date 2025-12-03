@@ -4977,13 +4977,18 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
  * @nr_pages: The number of pages desired in the array
  * @page_array: Array to store the pages
  *
- * This is a batched version of the page allocator that attempts to
- * allocate nr_pages quickly. Pages are added to the page_array.
+ * This is a batched version of the page allocator that attempts to allocate
+ * @nr_pages quickly.  Pages are added to @page_array.
  *
- * Note that only NULL elements are populated with pages and nr_pages
- * is the maximum number of pages that will be stored in the array.
+ * Note that only the elements in @page_array that were cleared to %NULL on
+ * entry are populated with newly allocated pages. @nr_pages is the maximum
+ * number of pages that will be stored in the array.
  *
- * Returns the number of pages in the array.
+ * Returns the number of pages in @page_array, including ones already
+ * allocated on entry.  This can be less than the number requested in @nr_pages,
+ * but all empty slots are filled from the beginning.  I.e., if all slots in
+ * @page_array were set to %NULL on entry, the slots from 0 to the return value
+ * - 1 will be filled.
  */
 unsigned long alloc_pages_bulk_noprof(gfp_t gfp, int preferred_nid,
 			nodemask_t *nodemask, int nr_pages,

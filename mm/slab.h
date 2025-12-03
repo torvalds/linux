@@ -40,13 +40,29 @@ typedef u64 freelist_full_t;
  * Freelist pointer and counter to cmpxchg together, avoids the typical ABA
  * problems with cmpxchg of just a pointer.
  */
-typedef union {
-	struct {
-		void *freelist;
-		unsigned long counter;
+struct freelist_counters {
+	union {
+		struct {
+			void *freelist;
+			union {
+				unsigned long counters;
+				struct {
+					unsigned inuse:16;
+					unsigned objects:15;
+					/*
+					 * If slab debugging is enabled then the
+					 * frozen bit can be reused to indicate
+					 * that the slab was corrupted
+					 */
+					unsigned frozen:1;
+				};
+			};
+		};
+#ifdef system_has_freelist_aba
+		freelist_full_t freelist_counters;
+#endif
 	};
-	freelist_full_t full;
-} freelist_aba_t;
+};
 
 /* Reuses the bits in struct page */
 struct slab {
@@ -69,27 +85,7 @@ struct slab {
 #endif
 			};
 			/* Double-word boundary */
-			union {
-				struct {
-					void *freelist;		/* first free object */
-					union {
-						unsigned long counters;
-						struct {
-							unsigned inuse:16;
-							unsigned objects:15;
-							/*
-							 * If slab debugging is enabled then the
-							 * frozen bit can be reused to indicate
-							 * that the slab was corrupted
-							 */
-							unsigned frozen:1;
-						};
-					};
-				};
-#ifdef system_has_freelist_aba
-				freelist_aba_t freelist_counter;
-#endif
-			};
+			struct freelist_counters;
 		};
 		struct rcu_head rcu_head;
 	};
@@ -114,21 +110,8 @@ SLAB_MATCH(_unused_slab_obj_exts, obj_exts);
 #undef SLAB_MATCH
 static_assert(sizeof(struct slab) <= sizeof(struct page));
 #if defined(system_has_freelist_aba)
-static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)));
+static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(struct freelist_counters)));
 #endif
-
-/**
- * folio_slab - Converts from folio to slab.
- * @folio: The folio.
- *
- * Currently struct slab is a different representation of a folio where
- * folio_test_slab() is true.
- *
- * Return: The slab which contains this folio.
- */
-#define folio_slab(folio)	(_Generic((folio),			\
-	const struct folio *:	(const struct slab *)(folio),		\
-	struct folio *:		(struct slab *)(folio)))
 
 /**
  * slab_folio - The folio allocated for a slab
@@ -146,20 +129,24 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
 	struct slab *:		(struct folio *)s))
 
 /**
- * page_slab - Converts from first struct page to slab.
- * @p: The first (either head of compound or single) page of slab.
+ * page_slab - Converts from struct page to its slab.
+ * @page: A page which may or may not belong to a slab.
  *
- * A temporary wrapper to convert struct page to struct slab in situations where
- * we know the page is the compound head, or single order-0 page.
- *
- * Long-term ideally everything would work with struct slab directly or go
- * through folio to struct slab.
- *
- * Return: The slab which contains this page
+ * Return: The slab which contains this page or NULL if the page does
+ * not belong to a slab.  This includes pages returned from large kmalloc.
  */
-#define page_slab(p)		(_Generic((p),				\
-	const struct page *:	(const struct slab *)(p),		\
-	struct page *:		(struct slab *)(p)))
+static inline struct slab *page_slab(const struct page *page)
+{
+	unsigned long head;
+
+	head = READ_ONCE(page->compound_head);
+	if (head & 1)
+		page = (struct page *)(head - 1);
+	if (data_race(page->page_type >> 24) != PGTY_slab)
+		page = NULL;
+
+	return (struct slab *)page;
+}
 
 /**
  * slab_page - The first struct page allocated for a slab
@@ -188,12 +175,7 @@ static inline pg_data_t *slab_pgdat(const struct slab *slab)
 
 static inline struct slab *virt_to_slab(const void *addr)
 {
-	struct folio *folio = virt_to_folio(addr);
-
-	if (!folio_test_slab(folio))
-		return NULL;
-
-	return folio_slab(folio);
+	return page_slab(virt_to_page(addr));
 }
 
 static inline int slab_order(const struct slab *slab)
@@ -236,10 +218,8 @@ struct kmem_cache_order_objects {
  * Slab cache management.
  */
 struct kmem_cache {
-#ifndef CONFIG_SLUB_TINY
 	struct kmem_cache_cpu __percpu *cpu_slab;
 	struct lock_class_key lock_key;
-#endif
 	struct slub_percpu_sheaves __percpu *cpu_sheaves;
 	/* Used for retrieving partial slabs, etc. */
 	slab_flags_t flags;
@@ -599,6 +579,16 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
 	 * Else we can use all the padding etc for the allocation
 	 */
 	return s->size;
+}
+
+static inline unsigned int large_kmalloc_order(const struct page *page)
+{
+	return page[1].flags.f & 0xff;
+}
+
+static inline size_t large_kmalloc_size(const struct page *page)
+{
+	return PAGE_SIZE << large_kmalloc_order(page);
 }
 
 #ifdef CONFIG_SLUB_DEBUG
