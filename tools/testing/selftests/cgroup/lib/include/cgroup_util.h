@@ -17,6 +17,8 @@
 #define CG_NAMED_NAME "selftest"
 #define CG_PATH_FORMAT (!cg_test_v1_named ? "0::%s" : (":name=" CG_NAMED_NAME ":%s"))
 
+#define DEFAULT_WAIT_INTERVAL_US (100 * 1000) /* 100 ms */
+
 /*
  * Checks if two given values differ by less than err% of their sum.
  */
@@ -64,6 +66,9 @@ extern int cg_read_strstr(const char *cgroup, const char *control,
 extern long cg_read_long(const char *cgroup, const char *control);
 extern long cg_read_long_fd(int fd);
 long cg_read_key_long(const char *cgroup, const char *control, const char *key);
+long cg_read_key_long_poll(const char *cgroup, const char *control,
+			   const char *key, long expected, int retries,
+			   useconds_t wait_interval_us);
 extern long cg_read_lc(const char *cgroup, const char *control);
 extern int cg_write(const char *cgroup, const char *control, char *buf);
 extern int cg_open(const char *cgroup, const char *control, int flags);
