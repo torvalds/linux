@@ -186,7 +186,7 @@ enum c3_isp_params_block_type {
 #define C3_ISP_PARAMS_BLOCK_FL_ENABLE	V4L2_ISP_PARAMS_FL_BLOCK_ENABLE
 
 /**
- * struct c3_isp_params_block_header - C3 ISP parameter block header
+ * c3_isp_params_block_header - C3 ISP parameter block header
  *
  * This structure represents the common part of all the ISP configuration
  * blocks and is identical to :c:type:`v4l2_isp_params_block_header`.
