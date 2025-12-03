@@ -458,8 +458,73 @@ static int do_proc_uint_conv_minmax(ulong *u_ptr, uint *k_ptr, int dir,
 			      proc_uint_u2k_conv, proc_uint_k2u_conv);
 }
 
-static SYSCTL_USER_TO_KERN_INT_CONV(, SYSCTL_CONV_IDENTITY)
-static SYSCTL_KERN_TO_USER_INT_CONV(, SYSCTL_CONV_IDENTITY)
+/**
+ * proc_int_k2u_conv_kop - Assign kernel value to a user space pointer
+ * @u_ptr: pointer to user space variable
+ * @k_ptr: pointer to kernel variable
+ * @negp: assigned %TRUE if the converted kernel value is negative;
+ *        %FALSE otherweise
+ * @k_ptr_op: execute this function before assigning to u_ptr
+ *
+ * Uses READ_ONCE to get value from k_ptr. Executes k_ptr_op before assigning
+ * to u_ptr if not NULL. Does **not** check for overflow.
+ *
+ * Returns: 0 on success.
+ */
+int proc_int_k2u_conv_kop(ulong *u_ptr, const int *k_ptr, bool *negp,
+			  ulong (*k_ptr_op)(const ulong))
+{
+	int val = READ_ONCE(*k_ptr);
+
+	if (val < 0) {
+		*negp = true;
+		*u_ptr = k_ptr_op ? -k_ptr_op((ulong)val) : -(ulong)val;
+	} else {
+		*negp = false;
+		*u_ptr = k_ptr_op ? k_ptr_op((ulong)val) : (ulong) val;
+	}
+	return 0;
+}
+
+/**
+ * proc_int_u2k_conv_uop - Assign user value to a kernel pointer
+ * @u_ptr: pointer to user space variable
+ * @k_ptr: pointer to kernel variable
+ * @negp: If %TRUE, the converted user value is made negative.
+ * @u_ptr_op: execute this function before assigning to k_ptr
+ *
+ * Uses WRITE_ONCE to assign value to k_ptr. Executes u_ptr_op if
+ * not NULL. Check for overflow with UINT_MAX.
+ *
+ * Returns: 0 on success.
+ */
+int proc_int_u2k_conv_uop(const ulong *u_ptr, int *k_ptr, const bool *negp,
+			  ulong (*u_ptr_op)(const ulong))
+{
+	ulong u = u_ptr_op ? u_ptr_op(*u_ptr) : *u_ptr;
+
+	if (*negp) {
+		if (u > (ulong) INT_MAX + 1)
+			return -EINVAL;
+		WRITE_ONCE(*k_ptr, -u);
+	} else {
+		if (u > (ulong) INT_MAX)
+			return -EINVAL;
+		WRITE_ONCE(*k_ptr, u);
+	}
+	return 0;
+}
+
+static int sysctl_user_to_kern_int_conv(const bool *negp, const ulong *u_ptr,
+					int *k_ptr)
+{
+	return proc_int_u2k_conv_uop(u_ptr, k_ptr, negp, NULL);
+}
+
+static int sysctl_kern_to_user_int_conv(bool *negp, ulong *u_ptr, const int *k_ptr)
+{
+	return proc_int_k2u_conv_kop(u_ptr, k_ptr, negp, NULL);
+}
 
 static SYSCTL_INT_CONV_CUSTOM(, sysctl_user_to_kern_int_conv,
 			      sysctl_kern_to_user_int_conv, false)
