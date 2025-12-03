@@ -20007,6 +20007,14 @@ S:	Maintained
 F:	drivers/pci/controller/dwc/pcie-qcom-common.c
 F:	drivers/pci/controller/dwc/pcie-qcom.c
 
+PCIE DRIVER FOR RENESAS RZ/G3S SERIES
+M:	Claudiu Beznea <claudiu.beznea.uj@bp.renesas.com>
+L:	linux-pci@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/pci/renesas,r9a08g045-pcie.yaml
+F:	drivers/pci/controller/pcie-rzg3s-host.c
+
 PCIE DRIVER FOR ROCKCHIP
 M:	Shawn Lin <shawn.lin@rock-chips.com>
 L:	linux-pci@vger.kernel.org
