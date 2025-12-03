@@ -88,7 +88,6 @@ struct rockchip_pcie {
 	unsigned int clk_cnt;
 	struct reset_control *rst;
 	struct gpio_desc *rst_gpio;
-	struct regulator *vpcie3v3;
 	struct irq_domain *irq_domain;
 	const struct rockchip_pcie_of_data *data;
 	bool supports_clkreq;
@@ -692,22 +691,15 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		return ret;
 
 	/* DON'T MOVE ME: must be enable before PHY init */
-	rockchip->vpcie3v3 = devm_regulator_get_optional(dev, "vpcie3v3");
-	if (IS_ERR(rockchip->vpcie3v3)) {
-		if (PTR_ERR(rockchip->vpcie3v3) != -ENODEV)
-			return dev_err_probe(dev, PTR_ERR(rockchip->vpcie3v3),
-					"failed to get vpcie3v3 regulator\n");
-		rockchip->vpcie3v3 = NULL;
-	} else {
-		ret = regulator_enable(rockchip->vpcie3v3);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "failed to enable vpcie3v3 regulator\n");
-	}
+	ret = devm_regulator_get_enable_optional(dev, "vpcie3v3");
+	if (ret < 0 && ret != -ENODEV)
+		return dev_err_probe(dev, ret,
+				     "failed to enable vpcie3v3 regulator\n");
 
 	ret = rockchip_pcie_phy_init(rockchip);
 	if (ret)
-		goto disable_regulator;
+		return dev_err_probe(dev, ret,
+				     "failed to initialize the phy\n");
 
 	ret = reset_control_deassert(rockchip->rst);
 	if (ret)
@@ -740,9 +732,6 @@ deinit_clk:
 	clk_bulk_disable_unprepare(rockchip->clk_cnt, rockchip->clks);
 deinit_phy:
 	rockchip_pcie_phy_deinit(rockchip);
-disable_regulator:
-	if (rockchip->vpcie3v3)
-		regulator_disable(rockchip->vpcie3v3);
 
 	return ret;
 }
