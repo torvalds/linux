@@ -276,6 +276,20 @@ struct smk_audit_info {
 };
 
 /*
+ * Initialization
+ */
+#if defined(CONFIG_SECURITY_SMACK_NETFILTER)
+int smack_nf_ip_init(void);
+#else
+static inline int smack_nf_ip_init(void)
+{
+	return 0;
+}
+#endif
+int init_smk_fs(void);
+int smack_initcall(void);
+
+/*
  * These functions are in smack_access.c
  */
 int smk_access_entry(char *, char *, struct list_head *);
