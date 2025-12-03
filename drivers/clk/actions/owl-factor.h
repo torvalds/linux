@@ -57,7 +57,7 @@ struct owl_factor {
 
 #define div_mask(d) ((1 << ((d)->width)) - 1)
 
-static inline struct owl_factor *hw_to_owl_factor(const struct clk_hw *hw)
+static inline struct owl_factor *hw_to_owl_factor(struct clk_hw *hw)
 {
 	struct owl_clk_common *common = hw_to_owl_clk_common(hw);
 
