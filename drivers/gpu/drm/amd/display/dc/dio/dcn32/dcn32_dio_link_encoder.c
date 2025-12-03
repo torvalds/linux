@@ -188,9 +188,18 @@ void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	if (!query_dp_alt_from_dmub(enc, &cmd))
 		return;
 
-	if (cmd.query_dp_alt.data.is_usb &&
-			cmd.query_dp_alt.data.is_dp4 == 0)
-		link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
+	/*
+	 * USB-C DisplayPort Alt Mode lane count limitation logic:
+	 * When USB and DP share the same USB-C connector, hardware must allocate
+	 * some lanes for USB data, limiting DP to maximum 2 lanes instead of 4.
+	 * This ensures USB functionality remains available while DP is active.
+	 */
+	if (cmd.query_dp_alt.data.is_dp_alt_disable == 0 &&
+		cmd.query_dp_alt.data.is_usb &&
+		cmd.query_dp_alt.data.is_dp4 == 0) {
+		link_settings->lane_count =
+			MIN(LANE_COUNT_TWO, link_settings->lane_count);
+	}
 }
 
 
