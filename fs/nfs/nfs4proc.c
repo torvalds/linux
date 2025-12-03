@@ -4533,12 +4533,17 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 	status = nfs4_do_call_sync(server->client, server, &msg,
 				   &args.seq_args, &res.seq_res, task_flags);
 	if (args.get_dir_deleg) {
-		if (status == -EOPNOTSUPP) {
+		switch (status) {
+		case 0:
+			if (gdd_res.status != GDD4_OK)
+				break;
+			status = nfs_inode_set_delegation(
+				inode, current_cred(), FMODE_READ,
+				&gdd_res.deleg, 0, NFS4_OPEN_DELEGATE_READ);
+			break;
+		case -ENOTSUPP:
+		case -EOPNOTSUPP:
 			server->caps &= ~NFS_CAP_DIR_DELEG;
-		} else if (status == 0 && gdd_res.status == GDD4_OK) {
-			status = nfs_inode_set_delegation(inode, current_cred(),
-							  FMODE_READ, &gdd_res.deleg,
-							  0, NFS4_OPEN_DELEGATE_READ);
 		}
 	}
 	return status;
@@ -4554,10 +4559,14 @@ int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 	do {
 		err = _nfs4_proc_getattr(server, fhandle, fattr, inode);
 		trace_nfs4_getattr(server, fhandle, fattr, err);
-		if (err == -EOPNOTSUPP)
-			exception.retry = true;
-		else
+		switch (err) {
+		default:
 			err = nfs4_handle_exception(server, err, &exception);
+			break;
+		case -ENOTSUPP:
+		case -EOPNOTSUPP:
+			exception.retry = true;
+		}
 	} while (exception.retry);
 	return err;
 }
