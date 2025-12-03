@@ -107,6 +107,18 @@ struct crypto_queue {
 	unsigned int max_qlen;
 };
 
+struct scatter_walk {
+	/* Must be the first member, see struct skcipher_walk. */
+	union {
+		void *const addr;
+
+		/* Private API field, do not touch. */
+		union crypto_no_such_thing *__addr;
+	};
+	struct scatterlist *sg;
+	unsigned int offset;
+};
+
 struct crypto_attr_alg {
 	char name[CRYPTO_MAX_ALG_NAME];
 };

@@ -1754,10 +1754,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret = min(ret, tcrypt_test("hmac(streebog512)"));
 		break;
 
-	case 150:
-		ret = min(ret, tcrypt_test("ansi_cprng"));
-		break;
-
 	case 151:
 		ret = min(ret, tcrypt_test("rfc4106(gcm(aes))"));
 		break;
@@ -2262,10 +2258,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		fallthrough;
 	case 319:
 		test_hash_speed("crc32c", sec, generic_hash_speed_template);
-		if (mode > 300 && mode < 400) break;
-		fallthrough;
-	case 321:
-		test_hash_speed("poly1305", sec, poly1305_speed_template);
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
 	case 322:

@@ -693,8 +693,7 @@ ctr_crypt(struct skcipher_request *req,
 			 * operation into two at the point where the overflow
 			 * will occur.  After the first part, add the carry bit.
 			 */
-			p1_nbytes = min_t(unsigned int, nbytes,
-					  (nblocks - ctr64) * AES_BLOCK_SIZE);
+			p1_nbytes = min(nbytes, (nblocks - ctr64) * AES_BLOCK_SIZE);
 			(*ctr64_func)(key, walk.src.virt.addr,
 				      walk.dst.virt.addr, p1_nbytes, le_ctr);
 			le_ctr[0] = 0;

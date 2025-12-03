@@ -21,6 +21,9 @@ properties:
 
   dma-coherent: true
 
+  iommus:
+    maxItems: 4
+
 required:
   - compatible
   - reg

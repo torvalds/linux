@@ -47,36 +47,13 @@
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/slab.h>
+#include <crypto/internal/drbg.h>
 #include <crypto/internal/rng.h>
 #include <crypto/rng.h>
 #include <linux/fips.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/workqueue.h>
-
-/*
- * Concatenation Helper and string operation helper
- *
- * SP800-90A requires the concatenation of different data. To avoid copying
- * buffers around or allocate additional memory, the following data structure
- * is used to point to the original memory with its size. In addition, it
- * is used to build a linked list. The linked list defines the concatenation
- * of individual buffers. The order of memory block referenced in that
- * linked list determines the order of concatenation.
- */
-struct drbg_string {
-	const unsigned char *buf;
-	size_t len;
-	struct list_head list;
-};
-
-static inline void drbg_string_fill(struct drbg_string *string,
-				    const unsigned char *buf, size_t len)
-{
-	string->buf = buf;
-	string->len = len;
-	INIT_LIST_HEAD(&string->list);
-}
 
 struct drbg_state;
 typedef uint32_t drbg_flag_t;
