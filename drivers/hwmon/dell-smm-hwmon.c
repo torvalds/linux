@@ -861,9 +861,9 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 			if (auto_fan) {
 				/*
 				 * The setting affects all fans, so only create a
-				 * single attribute.
+				 * single attribute for the first fan channel.
 				 */
-				if (channel != 1)
+				if (channel != 0)
 					return 0;
 
 				/*
