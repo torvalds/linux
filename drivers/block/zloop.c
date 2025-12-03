@@ -394,7 +394,7 @@ static void zloop_rw(struct zloop_cmd *cmd)
 	struct bio_vec tmp;
 	unsigned long flags;
 	sector_t zone_end;
-	int nr_bvec = 0;
+	unsigned int nr_bvec;
 	int ret;
 
 	atomic_set(&cmd->ref, 2);
@@ -487,8 +487,7 @@ static void zloop_rw(struct zloop_cmd *cmd)
 		spin_unlock_irqrestore(&zone->wp_lock, flags);
 	}
 
-	rq_for_each_bvec(tmp, rq, rq_iter)
-		nr_bvec++;
+	nr_bvec = blk_rq_nr_bvec(rq);
 
 	if (rq->bio != rq->biotail) {
 		struct bio_vec *bvec;
