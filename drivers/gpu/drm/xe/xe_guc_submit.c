@@ -2264,10 +2264,11 @@ static void guc_exec_queue_unpause_prepare(struct xe_guc *guc,
 					   struct xe_exec_queue *q)
 {
 	struct xe_gpu_scheduler *sched = &q->guc->sched;
-	struct xe_sched_job *job = NULL;
+	struct xe_sched_job *job = NULL, *__job;
 	bool restore_replay = false;
 
-	list_for_each_entry(job, &sched->base.pending_list, drm.list) {
+	list_for_each_entry(__job, &sched->base.pending_list, drm.list) {
+		job = __job;
 		restore_replay |= job->restore_replay;
 		if (restore_replay) {
 			xe_gt_dbg(guc_to_gt(guc), "Replay JOB - guc_id=%d, seqno=%d",
