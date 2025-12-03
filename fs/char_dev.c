@@ -343,7 +343,7 @@ void __unregister_chrdev(unsigned int major, unsigned int baseminor,
 	kfree(cd);
 }
 
-static DEFINE_SPINLOCK(cdev_lock);
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(cdev_lock);
 
 static struct kobject *cdev_get(struct cdev *p)
 {
