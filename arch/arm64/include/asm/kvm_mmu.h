@@ -49,7 +49,7 @@
  * mappings, and none of this applies in that case.
  */
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #include <asm/alternative.h>
 
@@ -396,5 +396,5 @@ void kvm_s2_ptdump_create_debugfs(struct kvm *kvm);
 static inline void kvm_s2_ptdump_create_debugfs(struct kvm *kvm) {}
 #endif /* CONFIG_PTDUMP_STAGE2_DEBUGFS */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ARM64_KVM_MMU_H__ */

@@ -10,7 +10,7 @@
 
 #include <asm/page-def.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/personality.h> /* for READ_IMPLIES_EXEC */
 #include <linux/types.h> /* for gfp_t */
@@ -45,7 +45,7 @@ int pfn_is_map_memory(unsigned long pfn);
 
 #include <asm/memory.h>
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_DATA_FLAGS_TSK_EXEC | VM_MTE_ALLOWED)
 

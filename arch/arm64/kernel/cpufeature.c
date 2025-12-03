@@ -1003,7 +1003,7 @@ static void __init sort_ftr_regs(void)
 
 /*
  * Initialise the CPU feature register from Boot CPU values.
- * Also initiliases the strict_mask for the register.
+ * Also initialises the strict_mask for the register.
  * Any bits that are not covered by an arm64_ftr_bits entry are considered
  * RES0 for the system-wide value, and must strictly match.
  */
@@ -1970,7 +1970,7 @@ static struct cpumask dbm_cpus __read_mostly;
 
 static inline void __cpu_enable_hw_dbm(void)
 {
-	u64 tcr = read_sysreg(tcr_el1) | TCR_HD;
+	u64 tcr = read_sysreg(tcr_el1) | TCR_EL1_HD;
 
 	write_sysreg(tcr, tcr_el1);
 	isb();
@@ -2256,7 +2256,7 @@ static bool has_generic_auth(const struct arm64_cpu_capabilities *entry,
 static void cpu_enable_e0pd(struct arm64_cpu_capabilities const *cap)
 {
 	if (this_cpu_has_cap(ARM64_HAS_E0PD))
-		sysreg_clear_set(tcr_el1, 0, TCR_E0PD1);
+		sysreg_clear_set(tcr_el1, 0, TCR_EL1_E0PD1);
 }
 #endif /* CONFIG_ARM64_E0PD */
 

@@ -276,7 +276,7 @@ function barf
 	bl	putdec
 	puts	", iteration="
 	mov	x0, x22
-	bl	putdec
+	bl	putdecn
 	puts	"\tExpected ["
 	mov	x0, x10
 	mov	x1, x12

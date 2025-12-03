@@ -5,7 +5,7 @@
  * Copyright (C) 1996-2000 Russell King
  * Copyright (C) 2012 ARM Ltd.
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #error "Only include this from assembly code"
 #endif
 
@@ -325,14 +325,14 @@ alternative_cb_end
  * tcr_set_t0sz - update TCR.T0SZ so that we can load the ID map
  */
 	.macro	tcr_set_t0sz, valreg, t0sz
-	bfi	\valreg, \t0sz, #TCR_T0SZ_OFFSET, #TCR_TxSZ_WIDTH
+	bfi	\valreg, \t0sz, #TCR_EL1_T0SZ_SHIFT, #TCR_EL1_T0SZ_WIDTH
 	.endm
 
 /*
  * tcr_set_t1sz - update TCR.T1SZ
  */
 	.macro	tcr_set_t1sz, valreg, t1sz
-	bfi	\valreg, \t1sz, #TCR_T1SZ_OFFSET, #TCR_TxSZ_WIDTH
+	bfi	\valreg, \t1sz, #TCR_EL1_T1SZ_SHIFT, #TCR_EL1_T1SZ_WIDTH
 	.endm
 
 /*
@@ -371,7 +371,7 @@ alternative_endif
  * [start, end) with dcache line size explicitly provided.
  *
  * 	op:		operation passed to dc instruction
- * 	domain:		domain used in dsb instruciton
+ * 	domain:		domain used in dsb instruction
  * 	start:          starting virtual address of the region
  * 	end:            end virtual address of the region
  *	linesz:		dcache line size
@@ -412,7 +412,7 @@ alternative_endif
  * [start, end)
  *
  * 	op:		operation passed to dc instruction
- * 	domain:		domain used in dsb instruciton
+ * 	domain:		domain used in dsb instruction
  * 	start:          starting virtual address of the region
  * 	end:            end virtual address of the region
  * 	fixup:		optional label to branch to on user fault
@@ -589,7 +589,7 @@ alternative_endif
 	.macro	offset_ttbr1, ttbr, tmp
 #if defined(CONFIG_ARM64_VA_BITS_52) && !defined(CONFIG_ARM64_LPA2)
 	mrs	\tmp, tcr_el1
-	and	\tmp, \tmp, #TCR_T1SZ_MASK
+	and	\tmp, \tmp, #TCR_EL1_T1SZ_MASK
 	cmp	\tmp, #TCR_T1SZ(VA_BITS_MIN)
 	orr	\tmp, \ttbr, #TTBR1_BADDR_4852_OFFSET
 	csel	\ttbr, \tmp, \ttbr, eq

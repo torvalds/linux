@@ -4,7 +4,7 @@
 
 #include <asm/alternative-macros.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/init.h>
 #include <linux/types.h>
@@ -37,5 +37,5 @@ static inline int apply_alternatives_module(void *start, size_t length)
 void alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
 		       __le32 *updptr, int nr_inst);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_ALTERNATIVE_H */

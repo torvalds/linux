@@ -25,7 +25,7 @@
 
 #define MTE_CTRL_STORE_ONLY		(1UL << 19)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/build_bug.h>
 #include <linux/cache.h>
@@ -437,5 +437,5 @@ int set_tsc_mode(unsigned int val);
 #define GET_TSC_CTL(adr)        get_tsc_mode((adr))
 #define SET_TSC_CTL(val)        set_tsc_mode((val))
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_PROCESSOR_H */

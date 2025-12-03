@@ -928,6 +928,12 @@ int armpmu_register(struct arm_pmu *pmu)
 	if (ret)
 		return ret;
 
+	/*
+	 * By this stage we know our supported CPUs on either DT/ACPI platforms,
+	 * detect the SMT implementation.
+	 */
+	pmu->has_smt = topology_core_has_smt(cpumask_first(&pmu->supported_cpus));
+
 	if (!pmu->set_event_filter)
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
 

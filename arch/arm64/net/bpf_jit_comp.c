@@ -3054,7 +3054,7 @@ bool bpf_jit_supports_exceptions(void)
 	/* We unwind through both kernel frames starting from within bpf_throw
 	 * call and BPF frames. Therefore we require FP unwinder to be enabled
 	 * to walk kernel frames and reach BPF frames in the stack trace.
-	 * ARM64 kernel is aways compiled with CONFIG_FRAME_POINTER=y
+	 * ARM64 kernel is always compiled with CONFIG_FRAME_POINTER=y
 	 */
 	return true;
 }

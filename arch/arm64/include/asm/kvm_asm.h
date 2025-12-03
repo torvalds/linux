@@ -46,7 +46,7 @@
 
 #define __KVM_HOST_SMCCC_FUNC___kvm_hyp_init			0
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/mm.h>
 
@@ -303,7 +303,7 @@ void kvm_compute_final_ctr_el0(struct alt_instr *alt,
 void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr, u64 elr_virt,
 	u64 elr_phys, u64 par, uintptr_t vcpu, u64 far, u64 hpfar);
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 .macro get_host_ctxt reg, tmp
 	adr_this_cpu \reg, kvm_host_data, \tmp
