@@ -47,28 +47,30 @@
  * It allows fast adding of path elements on the right side (normal path) and
  * fast adding to the left side (reversed path). A reversed path can also be
  * unreversed if needed.
+ *
+ * The definition of struct fs_path relies on -fms-extensions to allow
+ * including a tagged struct as an anonymous member.
  */
-struct fs_path {
-	union {
-		struct {
-			char *start;
-			char *end;
+struct __fs_path {
+	char *start;
+	char *end;
 
-			char *buf;
-			unsigned short buf_len:15;
-			unsigned short reversed:1;
-			char inline_buf[];
-		};
-		/*
-		 * Average path length does not exceed 200 bytes, we'll have
-		 * better packing in the slab and higher chance to satisfy
-		 * an allocation later during send.
-		 */
-		char pad[256];
-	};
+	char *buf;
+	unsigned short buf_len:15;
+	unsigned short reversed:1;
+};
+static_assert(sizeof(struct __fs_path) < 256);
+struct fs_path {
+	struct __fs_path;
+	/*
+	 * Average path length does not exceed 200 bytes, we'll have
+	 * better packing in the slab and higher chance to satisfy
+	 * an allocation later during send.
+	 */
+	char inline_buf[256 - sizeof(struct __fs_path)];
 };
 #define FS_PATH_INLINE_SIZE \
-	(sizeof(struct fs_path) - offsetof(struct fs_path, inline_buf))
+	sizeof_field(struct fs_path, inline_buf)
 
 
 /* reused for each extent */
@@ -305,7 +307,6 @@ struct send_ctx {
 	struct btrfs_lru_cache dir_created_cache;
 	struct btrfs_lru_cache dir_utimes_cache;
 
-	/* Must be last as it ends in a flexible-array member. */
 	struct fs_path cur_inode_path;
 };
 
