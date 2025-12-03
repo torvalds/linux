@@ -893,9 +893,8 @@ static void group_free_queue(struct panthor_group *group, struct panthor_queue *
 	if (IS_ERR_OR_NULL(queue))
 		return;
 
-	/* This should have been disabled before that point. */
-	drm_WARN_ON(&group->ptdev->base,
-		    disable_delayed_work_sync(&queue->timeout.work));
+	/* Disable the timeout before tearing down drm_sched components. */
+	disable_delayed_work_sync(&queue->timeout.work);
 
 	if (queue->entity.fence_context)
 		drm_sched_entity_destroy(&queue->entity);
