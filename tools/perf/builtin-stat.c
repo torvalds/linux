@@ -923,7 +923,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 			goto err_out;
 		}
 	}
-	if (!has_supported_counters) {
+	if (!has_supported_counters && !stat_config.null_run) {
 		evsel__open_strerror(evlist__first(evsel_list), &target, open_err,
 				     msg, sizeof(msg));
 		ui__error("No supported events found.\n%s\n", msg);
