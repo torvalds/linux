@@ -93,6 +93,10 @@ struct intel_color_funcs {
 	/* Plane CSC*/
 	void (*load_plane_csc_matrix)(struct intel_dsb *dsb,
 				      const struct intel_plane_state *plane_state);
+
+	/* Plane Pre/Post CSC */
+	void (*load_plane_luts)(struct intel_dsb *dsb,
+				const struct intel_plane_state *plane_state);
 };
 
 #define CTM_COEFF_SIGN	(1ULL << 63)
@@ -4077,11 +4081,23 @@ intel_color_load_plane_csc_matrix(struct intel_dsb *dsb,
 		display->funcs.color->load_plane_csc_matrix(dsb, plane_state);
 }
 
+static void
+intel_color_load_plane_luts(struct intel_dsb *dsb,
+			    const struct intel_plane_state *plane_state)
+{
+	struct intel_display *display = to_intel_display(plane_state);
+
+	if (display->funcs.color->load_plane_luts)
+		display->funcs.color->load_plane_luts(dsb, plane_state);
+}
+
 void intel_color_plane_program_pipeline(struct intel_dsb *dsb,
 					const struct intel_plane_state *plane_state)
 {
 	if (plane_state->hw.ctm)
 		intel_color_load_plane_csc_matrix(dsb, plane_state);
+	if (plane_state->hw.degamma_lut || plane_state->hw.gamma_lut)
+		intel_color_load_plane_luts(dsb, plane_state);
 }
 
 void intel_color_crtc_init(struct intel_crtc *crtc)
