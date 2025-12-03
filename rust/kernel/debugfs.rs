@@ -207,20 +207,25 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use core::sync::atomic::{AtomicU32, Ordering};
-    /// # use kernel::debugfs::Dir;
-    /// # use kernel::prelude::*;
+    /// # use kernel::{
+    /// #     debugfs::Dir,
+    /// #     prelude::*,
+    /// #     sync::atomic::{
+    /// #         Atomic,
+    /// #         Relaxed,
+    /// #     },
+    /// # };
     /// # let dir = Dir::new(c"foo");
     /// let file = KBox::pin_init(
     ///     dir.read_callback_file(c"bar",
-    ///     AtomicU32::new(3),
+    ///     Atomic::<u32>::new(3),
     ///     &|val, f| {
-    ///       let out = val.load(Ordering::Relaxed);
+    ///       let out = val.load(Relaxed);
     ///       writeln!(f, "{out:#010x}")
     ///     }),
     ///     GFP_KERNEL)?;
     /// // Reading "foo/bar" will show "0x00000003".
-    /// file.store(10, Ordering::Relaxed);
+    /// file.store(10, Relaxed);
     /// // Reading "foo/bar" will now show "0x0000000a".
     /// # Ok::<(), Error>(())
     /// ```
