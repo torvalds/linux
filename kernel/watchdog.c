@@ -196,6 +196,15 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 #ifdef CONFIG_SYSFS
 		++hardlockup_count;
 #endif
+		/*
+		 * A poorly behaving BPF scheduler can trigger hard lockup by
+		 * e.g. putting numerous affinitized tasks in a single queue and
+		 * directing all CPUs at it. The following call can return true
+		 * only once when sched_ext is enabled and will immediately
+		 * abort the BPF scheduler and print out a warning message.
+		 */
+		if (scx_hardlockup(cpu))
+			return;
 
 		/* Only print hardlockups once. */
 		if (per_cpu(watchdog_hardlockup_warned, cpu))

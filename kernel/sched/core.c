@@ -5143,6 +5143,12 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 		if (prev->sched_class->task_dead)
 			prev->sched_class->task_dead(prev);
 
+		/*
+		 * sched_ext_dead() must come before cgroup_task_dead() to
+		 * prevent cgroups from being removed while its member tasks are
+		 * visible to SCX schedulers.
+		 */
+		sched_ext_dead(prev);
 		cgroup_task_dead(prev);
 
 		/* Task is done with its stack. */
