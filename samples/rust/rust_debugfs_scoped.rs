@@ -38,7 +38,7 @@ fn remove_file_write(
     mod_data
         .devices
         .lock()
-        .retain(|device| device.name.as_bytes() != to_remove.as_bytes());
+        .retain(|device| device.name.to_bytes() != to_remove.to_bytes());
     Ok(())
 }
 

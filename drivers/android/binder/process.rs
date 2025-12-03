@@ -623,7 +623,7 @@ impl Process {
                     "  ref {}: desc {} {}node {debug_id} s {strong} w {weak}",
                     r.debug_id,
                     r.handle,
-                    if dead { "dead " } else { "" },
+                    if dead { "dead " } else { "" }
                 );
             }
         }
@@ -1320,7 +1320,7 @@ impl Process {
         {
             while let Some(node) = {
                 let mut lock = self.inner.lock();
-                lock.nodes.cursor_front().map(|c| c.remove_current().1)
+                lock.nodes.cursor_front_mut().map(|c| c.remove_current().1)
             } {
                 node.to_key_value().1.release();
             }

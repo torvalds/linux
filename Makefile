@@ -1830,10 +1830,17 @@ rusttest: prepare
 	$(Q)$(MAKE) $(build)=rust $@
 
 # Formatting targets
+#
+# Generated files as well as vendored crates are skipped.
 PHONY += rustfmt rustfmtcheck
 
 rustfmt:
 	$(Q)find $(srctree) $(RCS_FIND_IGNORE) \
+		\( \
+			-path $(srctree)/rust/proc-macro2 \
+			-o -path $(srctree)/rust/quote \
+			-o -path $(srctree)/rust/syn \
+		\) -prune -o \
 		-type f -a -name '*.rs' -a ! -name '*generated*' -print \
 		| xargs $(RUSTFMT) $(rustfmt_flags)
 
