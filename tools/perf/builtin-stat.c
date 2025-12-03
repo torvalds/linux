@@ -1007,10 +1007,20 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 			goto err_out;
 		}
 
-		if (WIFSIGNALED(status))
+		if (WIFSIGNALED(status)) {
+			/*
+			 * We want to indicate failure to stop a repeat run,
+			 * hence negative. We want the value to be the exit code
+			 * of perf, which for termination by a signal is 128
+			 * plus the signal number.
+			 */
+			err = 0 - (128 + WTERMSIG(status));
 			psignal(WTERMSIG(status), argv[0]);
+		} else {
+			err = WEXITSTATUS(status);
+		}
 	} else {
-		status = dispatch_events(forks, timeout, interval, &times);
+		err = dispatch_events(forks, timeout, interval, &times);
 	}
 
 	disable_counters();
@@ -1050,7 +1060,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	if (!STAT_RECORD)
 		evlist__close(evsel_list);
 
-	return WEXITSTATUS(status);
+	return err;
 
 err_out:
 	if (forks)
@@ -2969,7 +2979,7 @@ int cmd_stat(int argc, const char **argv)
 			evlist__reset_prev_raw_counts(evsel_list);
 
 		status = run_perf_stat(argc, argv, run_idx);
-		if (status == -1)
+		if (status < 0)
 			break;
 
 		if (forever && !interval) {
@@ -3039,5 +3049,6 @@ out:
 
 	evlist__close_control(stat_config.ctl_fd, stat_config.ctl_fd_ack, &stat_config.ctl_fd_close);
 
-	return status;
+	/* Only the low byte of status becomes the exit code. */
+	return abs(status);
 }
