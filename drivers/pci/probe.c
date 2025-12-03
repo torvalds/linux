@@ -3174,8 +3174,7 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 	 * bus number if there is room.
 	 */
 	if (bus->self && bus->self->is_hotplug_bridge) {
-		used_buses = max_t(unsigned int, available_buses,
-				   pci_hotplug_bus_size - 1);
+		used_buses = max(available_buses, pci_hotplug_bus_size - 1);
 		if (max - start < used_buses) {
 			max = start + used_buses;
 
