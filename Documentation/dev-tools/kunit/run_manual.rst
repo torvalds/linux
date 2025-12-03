@@ -35,6 +35,12 @@ or be built into the kernel.
 	a good way of quickly testing everything applicable to the current
 	config.
 
+	KUnit can be enabled or disabled at boot time, and this behavior is
+	controlled by the kunit.enable kernel parameter.
+	By default, kunit.enable is set to 1 because KUNIT_DEFAULT_ENABLED is
+	enabled by default. To ensure that tests are executed as expected,
+	verify that kunit.enable=1 at boot time.
+
 Once we have built our kernel (and/or modules), it is simple to run
 the tests. If the tests are built-in, they will run automatically on the
 kernel boot. The results will be written to the kernel log (``dmesg``)
