@@ -1059,117 +1059,6 @@ static void mshv_async_hvcall_handler(void *data, u64 *status)
 	*status = partition->async_hypercall_status;
 }
 
-static int
-mshv_partition_region_share(struct mshv_mem_region *region)
-{
-	u32 flags = HV_MODIFY_SPA_PAGE_HOST_ACCESS_MAKE_SHARED;
-
-	if (region->flags.large_pages)
-		flags |= HV_MODIFY_SPA_PAGE_HOST_ACCESS_LARGE_PAGE;
-
-	return hv_call_modify_spa_host_access(region->partition->pt_id,
-			region->pages, region->nr_pages,
-			HV_MAP_GPA_READABLE | HV_MAP_GPA_WRITABLE,
-			flags, true);
-}
-
-static int
-mshv_partition_region_unshare(struct mshv_mem_region *region)
-{
-	u32 flags = HV_MODIFY_SPA_PAGE_HOST_ACCESS_MAKE_EXCLUSIVE;
-
-	if (region->flags.large_pages)
-		flags |= HV_MODIFY_SPA_PAGE_HOST_ACCESS_LARGE_PAGE;
-
-	return hv_call_modify_spa_host_access(region->partition->pt_id,
-			region->pages, region->nr_pages,
-			0,
-			flags, false);
-}
-
-static int
-mshv_region_remap_pages(struct mshv_mem_region *region, u32 map_flags,
-			u64 page_offset, u64 page_count)
-{
-	if (page_offset + page_count > region->nr_pages)
-		return -EINVAL;
-
-	if (region->flags.large_pages)
-		map_flags |= HV_MAP_GPA_LARGE_PAGE;
-
-	/* ask the hypervisor to map guest ram */
-	return hv_call_map_gpa_pages(region->partition->pt_id,
-				     region->start_gfn + page_offset,
-				     page_count, map_flags,
-				     region->pages + page_offset);
-}
-
-static int
-mshv_region_map(struct mshv_mem_region *region)
-{
-	u32 map_flags = region->hv_map_flags;
-
-	return mshv_region_remap_pages(region, map_flags,
-				       0, region->nr_pages);
-}
-
-static void
-mshv_region_invalidate_pages(struct mshv_mem_region *region,
-			     u64 page_offset, u64 page_count)
-{
-	if (region->flags.range_pinned)
-		unpin_user_pages(region->pages + page_offset, page_count);
-
-	memset(region->pages + page_offset, 0,
-	       page_count * sizeof(struct page *));
-}
-
-static void
-mshv_region_invalidate(struct mshv_mem_region *region)
-{
-	mshv_region_invalidate_pages(region, 0, region->nr_pages);
-}
-
-static int
-mshv_region_pin(struct mshv_mem_region *region)
-{
-	u64 done_count, nr_pages;
-	struct page **pages;
-	__u64 userspace_addr;
-	int ret;
-
-	for (done_count = 0; done_count < region->nr_pages; done_count += ret) {
-		pages = region->pages + done_count;
-		userspace_addr = region->start_uaddr +
-				 done_count * HV_HYP_PAGE_SIZE;
-		nr_pages = min(region->nr_pages - done_count,
-			       MSHV_PIN_PAGES_BATCH_SIZE);
-
-		/*
-		 * Pinning assuming 4k pages works for large pages too.
-		 * All page structs within the large page are returned.
-		 *
-		 * Pin requests are batched because pin_user_pages_fast
-		 * with the FOLL_LONGTERM flag does a large temporary
-		 * allocation of contiguous memory.
-		 */
-		ret = pin_user_pages_fast(userspace_addr, nr_pages,
-					  FOLL_WRITE | FOLL_LONGTERM,
-					  pages);
-		if (ret < 0)
-			goto release_pages;
-	}
-
-	if (PageHuge(region->pages[0]))
-		region->flags.large_pages = true;
-
-	return 0;
-
-release_pages:
-	mshv_region_invalidate_pages(region, 0, done_count);
-	return ret;
-}
-
 static struct mshv_mem_region *
 mshv_partition_region_by_gfn(struct mshv_partition *partition, u64 gfn)
 {
@@ -1193,7 +1082,7 @@ static int mshv_partition_create_region(struct mshv_partition *partition,
 					struct mshv_mem_region **regionpp,
 					bool is_mmio)
 {
-	struct mshv_mem_region *region, *rg;
+	struct mshv_mem_region *rg;
 	u64 nr_pages = HVPFN_DOWN(mem->size);
 
 	/* Reject overlapping regions */
@@ -1205,26 +1094,15 @@ static int mshv_partition_create_region(struct mshv_partition *partition,
 		return -EEXIST;
 	}
 
-	region = vzalloc(sizeof(*region) + sizeof(struct page *) * nr_pages);
-	if (!region)
-		return -ENOMEM;
+	rg = mshv_region_create(mem->guest_pfn, nr_pages,
+				mem->userspace_addr, mem->flags,
+				is_mmio);
+	if (IS_ERR(rg))
+		return PTR_ERR(rg);
 
-	region->nr_pages = nr_pages;
-	region->start_gfn = mem->guest_pfn;
-	region->start_uaddr = mem->userspace_addr;
-	region->hv_map_flags = HV_MAP_GPA_READABLE | HV_MAP_GPA_ADJUSTABLE;
-	if (mem->flags & BIT(MSHV_SET_MEM_BIT_WRITABLE))
-		region->hv_map_flags |= HV_MAP_GPA_WRITABLE;
-	if (mem->flags & BIT(MSHV_SET_MEM_BIT_EXECUTABLE))
-		region->hv_map_flags |= HV_MAP_GPA_EXECUTABLE;
+	rg->partition = partition;
 
-	/* Note: large_pages flag populated when we pin the pages */
-	if (!is_mmio)
-		region->flags.range_pinned = true;
-
-	region->partition = partition;
-
-	*regionpp = region;
+	*regionpp = rg;
 
 	return 0;
 }
@@ -1262,7 +1140,7 @@ static int mshv_prepare_pinned_region(struct mshv_mem_region *region)
 	 * access to guest memory regions.
 	 */
 	if (mshv_partition_encrypted(partition)) {
-		ret = mshv_partition_region_unshare(region);
+		ret = mshv_region_unshare(region);
 		if (ret) {
 			pt_err(partition,
 			       "Failed to unshare memory region (guest_pfn: %llu): %d\n",
@@ -1275,7 +1153,7 @@ static int mshv_prepare_pinned_region(struct mshv_mem_region *region)
 	if (ret && mshv_partition_encrypted(partition)) {
 		int shrc;
 
-		shrc = mshv_partition_region_share(region);
+		shrc = mshv_region_share(region);
 		if (!shrc)
 			goto invalidate_region;
 
@@ -1356,36 +1234,6 @@ errout:
 	return ret;
 }
 
-static void mshv_partition_destroy_region(struct mshv_mem_region *region)
-{
-	struct mshv_partition *partition = region->partition;
-	u32 unmap_flags = 0;
-	int ret;
-
-	hlist_del(&region->hnode);
-
-	if (mshv_partition_encrypted(partition)) {
-		ret = mshv_partition_region_share(region);
-		if (ret) {
-			pt_err(partition,
-			       "Failed to regain access to memory, unpinning user pages will fail and crash the host error: %d\n",
-			       ret);
-			return;
-		}
-	}
-
-	if (region->flags.large_pages)
-		unmap_flags |= HV_UNMAP_GPA_LARGE_PAGE;
-
-	/* ignore unmap failures and continue as process may be exiting */
-	hv_call_unmap_gpa_pages(partition->pt_id, region->start_gfn,
-				region->nr_pages, unmap_flags);
-
-	mshv_region_invalidate(region);
-
-	vfree(region);
-}
-
 /* Called for unmapping both the guest ram and the mmio space */
 static long
 mshv_unmap_user_memory(struct mshv_partition *partition,
@@ -1406,7 +1254,7 @@ mshv_unmap_user_memory(struct mshv_partition *partition,
 	    region->nr_pages != HVPFN_DOWN(mem.size))
 		return -EINVAL;
 
-	mshv_partition_destroy_region(region);
+	mshv_region_destroy(region);
 
 	return 0;
 }
@@ -1810,7 +1658,7 @@ static void destroy_partition(struct mshv_partition *partition)
 
 	hlist_for_each_entry_safe(region, n, &partition->pt_mem_regions,
 				  hnode)
-		mshv_partition_destroy_region(region);
+		mshv_region_destroy(region);
 
 	/* Withdraw and free all pages we deposited */
 	hv_call_withdraw_memory(U64_MAX, NUMA_NO_NODE, partition->pt_id);
