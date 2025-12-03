@@ -107,6 +107,17 @@ Once all the desired output has been extracted, zeroize the context::
 	void shake_zeroize_ctx(struct shake_ctx *ctx);
 
 
+Testing
+=======
+
+To test the SHA-3 code, use sha3_kunit (CONFIG_CRYPTO_LIB_SHA3_KUNIT_TEST).
+
+Since the SHA-3 algorithms are FIPS-approved, when the kernel is booted in FIPS
+mode the SHA-3 library also performs a simple self-test.  This is purely to meet
+a FIPS requirement.  Normal testing done by kernel developers and integrators
+should use the much more comprehensive KUnit test suite instead.
+
+
 References
 ==========
 
