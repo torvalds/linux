@@ -2,6 +2,7 @@
 /*
  * Copyright © 2025 Intel Corporation
  */
+#include "intel_color.h"
 #include "intel_colorop.h"
 #include "intel_color_pipeline.h"
 #include "intel_de.h"
@@ -13,12 +14,14 @@
 #define PLANE_GAMMA_SIZE 32
 
 static
-int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_enum_list *list)
+int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_enum_list *list,
+				     enum pipe pipe)
 {
-	struct intel_colorop *colorop;
 	struct drm_device *dev = plane->dev;
-	int ret;
+	struct intel_display *display = to_intel_display(dev);
 	struct drm_colorop *prev_op;
+	struct intel_colorop *colorop;
+	int ret;
 
 	colorop = intel_colorop_create(INTEL_PLANE_CB_PRE_CSC_LUT);
 
@@ -35,6 +38,22 @@ int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_en
 
 	/* TODO: handle failures and clean up */
 	prev_op = &colorop->base;
+
+	if (DISPLAY_VER(display) >= 35 &&
+	    intel_color_crtc_has_3dlut(display, pipe) &&
+	    plane->type == DRM_PLANE_TYPE_PRIMARY) {
+		colorop = intel_colorop_create(INTEL_PLANE_CB_3DLUT);
+
+		ret = drm_plane_colorop_3dlut_init(dev, &colorop->base, plane, 17,
+						   DRM_COLOROP_LUT3D_INTERPOLATION_TETRAHEDRAL,
+						   true);
+		if (ret)
+			return ret;
+
+		drm_colorop_set_next_property(prev_op, &colorop->base);
+
+		prev_op = &colorop->base;
+	}
 
 	colorop = intel_colorop_create(INTEL_PLANE_CB_CSC);
 	ret = drm_plane_colorop_ctm_3x4_init(dev, &colorop->base, plane,
@@ -58,7 +77,7 @@ int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_en
 	return 0;
 }
 
-int intel_color_pipeline_plane_init(struct drm_plane *plane)
+int intel_color_pipeline_plane_init(struct drm_plane *plane, enum pipe pipe)
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_display *display = to_intel_display(dev);
@@ -71,7 +90,7 @@ int intel_color_pipeline_plane_init(struct drm_plane *plane)
 		return 0;
 
 	/* Add pipeline consisting of transfer functions */
-	ret = _intel_color_pipeline_plane_init(plane, &pipelines[len]);
+	ret = _intel_color_pipeline_plane_init(plane, &pipelines[len], pipe);
 	if (ret)
 		return ret;
 	len++;
