@@ -13,6 +13,7 @@ to override that default to use either DONTCACHE or DIRECT IO modes.
 
 Experimental NFSD debugfs interfaces are available to allow the NFSD IO
 mode used for READ and WRITE to be configured independently. See both:
+
 - /sys/kernel/debug/nfsd/io_cache_read
 - /sys/kernel/debug/nfsd/io_cache_write
 
@@ -20,6 +21,7 @@ The default value for both io_cache_read and io_cache_write reflects
 NFSD's default IO mode (which is NFSD_IO_BUFFERED=0).
 
 Based on the configured settings, NFSD's IO will either be:
+
 - cached using page cache (NFSD_IO_BUFFERED=0)
 - cached but removed from page cache on completion (NFSD_IO_DONTCACHE=1)
 - not cached stable_how=NFS_UNSTABLE (NFSD_IO_DIRECT=2)
@@ -56,6 +58,7 @@ because the page cache will eventually become a bottleneck to servicing
 new IO requests.
 
 For more context on DONTCACHE, please see these Linux commit headers:
+
 - Overview:  9ad6344568cc3 ("mm/filemap: change filemap_create_folio()
   to take a struct kiocb")
 - for READ:  8026e49bff9b1 ("mm/filemap: add read support for
@@ -87,7 +90,9 @@ be made.
 The performance win associated with using NFSD DIRECT was previously
 discussed on linux-nfs, see:
 https://lore.kernel.org/linux-nfs/aEslwqa9iMeZjjlV@kernel.org/
+
 But in summary:
+
 - NFSD DIRECT can significantly reduce memory requirements
 - NFSD DIRECT can reduce CPU load by avoiding costly page reclaim work
 - NFSD DIRECT can offer more deterministic IO performance
