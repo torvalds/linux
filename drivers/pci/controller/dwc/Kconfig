@@ -426,6 +426,19 @@ config PCIE_SOPHGO_DW
 	  Say Y here if you want PCIe host controller support on
 	  Sophgo SoCs.
 
+config PCIE_SPACEMIT_K1
+	tristate "SpacemiT K1 PCIe controller (host mode)"
+	depends on ARCH_SPACEMIT || COMPILE_TEST
+	depends on HAS_IOMEM
+	select PCIE_DW_HOST
+	select PCI_PWRCTRL_SLOT
+	default ARCH_SPACEMIT
+	help
+	  Enables support for the DesignWare based PCIe controller in
+	  the SpacemiT K1 SoC operating in host mode.  Three controllers
+	  are available on the K1 SoC; the first of these shares a PHY
+	  with a USB 3.0 host controller (one or the other can be used).
+
 config PCIE_SPEAR13XX
 	bool "STMicroelectronics SPEAr PCIe controller"
 	depends on ARCH_SPEAR13XX || COMPILE_TEST
