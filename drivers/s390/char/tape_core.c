@@ -11,8 +11,7 @@
  *		 Stefan Bader <shbader@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "tape"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "tape: " fmt
 
 #include <linux/export.h>
 #include <linux/module.h>
@@ -726,6 +725,36 @@ tape_free_request (struct tape_request * request)
 	kfree(request);
 }
 
+int
+tape_check_idalbuffer(struct tape_device *device, size_t size)
+{
+	struct idal_buffer **new;
+	size_t old_size = 0;
+
+	old_size = idal_buffer_array_datasize(device->char_data.ibs);
+	if (old_size == size)
+		return 0;
+
+	if (size > MAX_BLOCKSIZE) {
+		DBF_EVENT(3, "Invalid blocksize (%zd > %d)\n",
+			  size, MAX_BLOCKSIZE);
+		return -EINVAL;
+	}
+
+	/* The current idal buffer is not correct. Allocate a new one. */
+	new = idal_buffer_array_alloc(size, 0);
+	if (IS_ERR(new))
+		return -ENOMEM;
+
+	/* Free old idal buffer array */
+	if (device->char_data.ibs)
+		idal_buffer_array_free(&device->char_data.ibs);
+
+	device->char_data.ibs = new;
+
+	return 0;
+}
+
 static int
 __tape_start_io(struct tape_device *device, struct tape_request *request)
 {
@@ -1099,9 +1128,10 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	}
 
 	/* May be an unsolicited irq */
-	if(request != NULL)
+	if (request != NULL) {
 		request->rescnt = irb->scsw.cmd.count;
-	else if ((irb->scsw.cmd.dstat == 0x85 || irb->scsw.cmd.dstat == 0x80) &&
+		memcpy(&request->irb, irb, sizeof(*irb));
+	} else if ((irb->scsw.cmd.dstat == 0x85 || irb->scsw.cmd.dstat == 0x80) &&
 		 !list_empty(&device->req_queue)) {
 		/* Not Ready to Ready after long busy ? */
 		struct tape_request *req;

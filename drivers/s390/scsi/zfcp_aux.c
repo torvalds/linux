@@ -28,8 +28,7 @@
  *	      Benjamin Block
  */
 
-#define KMSG_COMPONENT "zfcp"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "zfcp: " fmt
 
 #include <linux/seq_file.h>
 #include <linux/slab.h>

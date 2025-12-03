@@ -21,6 +21,9 @@ int main(void)
 	OFFSET(__TASK_stack, task_struct, stack);
 	OFFSET(__TASK_thread, task_struct, thread);
 	OFFSET(__TASK_pid, task_struct, pid);
+#ifdef CONFIG_STACKPROTECTOR
+	OFFSET(__TASK_stack_canary, task_struct, stack_canary);
+#endif
 	BLANK();
 	/* thread struct offsets */
 	OFFSET(__THREAD_ksp, thread_struct, ksp);
@@ -139,6 +142,7 @@ int main(void)
 	OFFSET(__LC_CURRENT_PID, lowcore, current_pid);
 	OFFSET(__LC_LAST_BREAK, lowcore, last_break);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
+	OFFSET(__LC_STACK_CANARY, lowcore, stack_canary);
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);
 	OFFSET(__LC_VMCORE_INFO, lowcore, vmcore_info);
 	OFFSET(__LC_OS_INFO, lowcore, os_info);

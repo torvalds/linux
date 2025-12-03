@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ARCH_S390_KERNEL_VDSO64_VDSO_H
-#define __ARCH_S390_KERNEL_VDSO64_VDSO_H
+#ifndef __ARCH_S390_KERNEL_VDSO_VDSO_H
+#define __ARCH_S390_KERNEL_VDSO_VDSO_H
 
 #include <vdso/datapage.h>
 
@@ -12,4 +12,4 @@ int __s390_vdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts);
 int __s390_vdso_clock_getres(clockid_t clock, struct __kernel_timespec *ts);
 ssize_t __kernel_getrandom(void *buffer, size_t len, unsigned int flags, void *opaque_state, size_t opaque_len);
 
-#endif /* __ARCH_S390_KERNEL_VDSO64_VDSO_H */
+#endif /* __ARCH_S390_KERNEL_VDSO_VDSO_H */

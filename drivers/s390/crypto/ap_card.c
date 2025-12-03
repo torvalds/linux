@@ -6,8 +6,7 @@
  * Adjunct processor bus, card related code.
  */
 
-#define KMSG_COMPONENT "ap"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "ap: " fmt
 
 #include <linux/init.h>
 #include <linux/slab.h>

@@ -7,8 +7,7 @@
  *
  */
 
-#define KMSG_COMPONENT "zpci"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "zpci: " fmt
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -45,8 +44,10 @@ static int zpci_bus_prepare_device(struct zpci_dev *zdev)
 
 	if (!zdev_enabled(zdev)) {
 		rc = zpci_enable_device(zdev);
-		if (rc)
+		if (rc) {
+			pr_err("Enabling PCI function %08x failed\n", zdev->fid);
 			return rc;
+		}
 	}
 
 	if (!zdev->has_resources) {

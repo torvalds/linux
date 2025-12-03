@@ -28,8 +28,6 @@ do {									\
 	RSEQ_WRITE_ONCE(*(p), v);					\
 } while (0)
 
-#ifdef __s390x__
-
 #define LONG_L			"lg"
 #define LONG_S			"stg"
 #define LONG_LT_R		"ltgr"
@@ -62,43 +60,6 @@ do {									\
 		".pushsection __rseq_exit_point_array, \"aw\"\n\t"	\
 		".quad " __rseq_str(start_ip) ", " __rseq_str(exit_ip) "\n\t" \
 		".popsection\n\t"
-
-#elif __s390__
-
-#define __RSEQ_ASM_DEFINE_TABLE(label, version, flags,			\
-				start_ip, post_commit_offset, abort_ip)	\
-		".pushsection __rseq_cs, \"aw\"\n\t"			\
-		".balign 32\n\t"					\
-		__rseq_str(label) ":\n\t"				\
-		".long " __rseq_str(version) ", " __rseq_str(flags) "\n\t" \
-		".long 0x0, " __rseq_str(start_ip) ", 0x0, " __rseq_str(post_commit_offset) ", 0x0, " __rseq_str(abort_ip) "\n\t" \
-		".popsection\n\t"					\
-		".pushsection __rseq_cs_ptr_array, \"aw\"\n\t"		\
-		".long 0x0, " __rseq_str(label) "b\n\t"			\
-		".popsection\n\t"
-
-/*
- * Exit points of a rseq critical section consist of all instructions outside
- * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
- * useful to assist debuggers stepping over the critical section.
- */
-#define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)			\
-		".pushsection __rseq_exit_point_array, \"aw\"\n\t"	\
-		".long 0x0, " __rseq_str(start_ip) ", 0x0, " __rseq_str(exit_ip) "\n\t" \
-		".popsection\n\t"
-
-#define LONG_L			"l"
-#define LONG_S			"st"
-#define LONG_LT_R		"ltr"
-#define LONG_CMP		"c"
-#define LONG_CMP_R		"cr"
-#define LONG_ADDI		"ahi"
-#define LONG_ADD_R		"ar"
-
-#endif
 
 #define RSEQ_ASM_DEFINE_TABLE(label, start_ip, post_commit_ip, abort_ip) \
 	__RSEQ_ASM_DEFINE_TABLE(label, 0x0, 0x0, start_ip,		\

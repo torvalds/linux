@@ -52,7 +52,7 @@
 	__section(".discard") __attribute__((unused))
 
 /*
- * s390 and alpha modules require percpu variables to be defined as
+ * alpha modules require percpu variables to be defined as
  * weak to force the compiler to generate GOT based external
  * references for them.  This is necessary because percpu sections
  * will be located outside of the usually addressable area.

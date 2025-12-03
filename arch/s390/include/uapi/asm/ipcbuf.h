@@ -24,9 +24,6 @@ struct ipc64_perm
 	__kernel_mode_t		mode;
 	unsigned short		__pad1;
 	unsigned short		seq;
-#ifndef __s390x__
-	unsigned short		__pad2;
-#endif /* ! __s390x__ */
 	unsigned long		__unused1;
 	unsigned long		__unused2;
 };

@@ -162,17 +162,12 @@ enum {
  * ELF register definitions..
  */
 
-#include <linux/compat.h>
-
 #include <asm/ptrace.h>
 #include <asm/syscall.h>
 #include <asm/user.h>
 
 typedef s390_fp_regs elf_fpregset_t;
 typedef s390_regs elf_gregset_t;
-
-typedef s390_fp_regs compat_elf_fpregset_t;
-typedef s390_compat_regs compat_elf_gregset_t;
 
 #include <linux/sched/mm.h>	/* for task_struct */
 #include <asm/mmu_context.h>
@@ -183,10 +178,6 @@ typedef s390_compat_regs compat_elf_gregset_t;
 #define elf_check_arch(x) \
 	(((x)->e_machine == EM_S390 || (x)->e_machine == EM_S390_OLD) \
          && (x)->e_ident[EI_CLASS] == ELF_CLASS) 
-#define compat_elf_check_arch(x) \
-	(((x)->e_machine == EM_S390 || (x)->e_machine == EM_S390_OLD) \
-	 && (x)->e_ident[EI_CLASS] == ELF_CLASS)
-#define compat_start_thread	start_thread31
 
 /* For SVR4/S390 the function pointer to be registered with `atexit` is
    passed in R14. */
@@ -203,9 +194,7 @@ typedef s390_compat_regs compat_elf_gregset_t;
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk. 64-bit
    tasks are aligned to 4GB. */
-#define ELF_ET_DYN_BASE (is_compat_task() ? \
-				(STACK_TOP / 3 * 2) : \
-				(STACK_TOP / 3 * 2) & ~((1UL << 32) - 1))
+#define ELF_ET_DYN_BASE ((STACK_TOP / 3 * 2) & ~((1UL << 32) - 1))
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports. */
@@ -224,43 +213,21 @@ extern unsigned long elf_hwcap;
 extern char elf_platform[];
 #define ELF_PLATFORM (elf_platform)
 
-#ifndef CONFIG_COMPAT
 #define SET_PERSONALITY(ex) \
 do {								\
 	set_personality(PER_LINUX |				\
 		(current->personality & (~PER_MASK)));		\
-	current->thread.sys_call_table = sys_call_table;	\
 } while (0)
-#else /* CONFIG_COMPAT */
-#define SET_PERSONALITY(ex)					\
-do {								\
-	if (personality(current->personality) != PER_LINUX32)	\
-		set_personality(PER_LINUX |			\
-			(current->personality & ~PER_MASK));	\
-	if ((ex).e_ident[EI_CLASS] == ELFCLASS32) {		\
-		set_thread_flag(TIF_31BIT);			\
-		current->thread.sys_call_table =		\
-			sys_call_table_emu;			\
-	} else {						\
-		clear_thread_flag(TIF_31BIT);			\
-		current->thread.sys_call_table =		\
-			sys_call_table;				\
-	}							\
-} while (0)
-#endif /* CONFIG_COMPAT */
 
 /*
  * Cache aliasing on the latest machines calls for a mapping granularity
- * of 512KB for the anonymous mapping base. For 64-bit processes use a
- * 512KB alignment and a randomization of up to 1GB. For 31-bit processes
- * the virtual address space is limited, use no alignment and limit the
- * randomization to 8MB.
- * For the additional randomization of the program break use 32MB for
- * 64-bit and 8MB for 31-bit.
+ * of 512KB for the anonymous mapping base. Use a 512KB alignment and a
+ * randomization of up to 1GB.
+ * For the additional randomization of the program break use 32MB.
  */
-#define BRK_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x1fffUL)
-#define MMAP_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x3ff80UL)
-#define MMAP_ALIGN_MASK	(is_compat_task() ? 0 : 0x7fUL)
+#define BRK_RND_MASK	(0x1fffUL)
+#define MMAP_RND_MASK	(0x3ff80UL)
+#define MMAP_ALIGN_MASK	(0x7fUL)
 #define STACK_RND_MASK	MMAP_RND_MASK
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */

@@ -9,8 +9,7 @@
  *	    Frank Munzert <munzert@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "vmur"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "vmur: " fmt
 
 #include <linux/cdev.h>
 #include <linux/slab.h>

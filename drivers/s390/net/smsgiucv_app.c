@@ -10,8 +10,7 @@
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  *
  */
-#define KMSG_COMPONENT		"smsgiucv_app"
-#define pr_fmt(fmt)		KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "smsgiucv_app: " fmt
 
 #include <linux/ctype.h>
 #include <linux/err.h>
@@ -161,7 +160,7 @@ static int __init smsgiucv_app_init(void)
 	if (!smsgiucv_drv)
 		return -ENODEV;
 
-	smsg_app_dev = iucv_alloc_device(NULL, smsgiucv_drv, NULL, KMSG_COMPONENT);
+	smsg_app_dev = iucv_alloc_device(NULL, smsgiucv_drv, NULL, "smsgiucv_app");
 	if (!smsg_app_dev)
 		return -ENOMEM;
 

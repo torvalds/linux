@@ -2,7 +2,7 @@
 /*
  * Tracepoint definitions for the s390 zcrypt device driver
  *
- * Copyright IBM Corp. 2016
+ * Copyright IBM Corp. 2016,2025
  * Author(s): Harald Freudenberger <freude@de.ibm.com>
  *
  * Currently there are two tracepoint events defined here.
@@ -73,14 +73,15 @@ TRACE_EVENT(s390_zcrypt_req,
 
 /**
  * trace_s390_zcrypt_rep - zcrypt reply tracepoint function
- * @ptr:  Address of the local buffer where the request from userspace
- *	  is stored. Can be used as a unique id to match together
- *	  request and reply.
- * @fc:   Function code.
- * @rc:   The bare returncode as returned by the device driver ioctl
- *	  function.
- * @dev:  The adapter nr where this request was actually processed.
- * @dom:  Domain id of the device where this request was processed.
+ * @ptr:   Address of the local buffer where the request from userspace
+ *	   is stored. Can be used as a unique id to match together
+ *	   request and reply.
+ * @fc:    Function code.
+ * @rc:    The bare returncode as returned by the device driver ioctl
+ *	   function.
+ * @card:  The adapter nr where this request was actually processed.
+ * @dom:   Domain id of the device where this request was processed.
+ * @psmid: Unique id identifying this request/reply.
  *
  * Called upon recognising the reply from the crypto adapter. This
  * message may act as the exit timestamp for the request but also
@@ -88,26 +89,29 @@ TRACE_EVENT(s390_zcrypt_req,
  * and the returncode from the device driver.
  */
 TRACE_EVENT(s390_zcrypt_rep,
-	    TP_PROTO(void *ptr, u32 fc, u32 rc, u16 dev, u16 dom),
-	    TP_ARGS(ptr, fc, rc, dev, dom),
+	    TP_PROTO(void *ptr, u32 fc, u32 rc, u16 card, u16 dom, u64 psmid),
+	    TP_ARGS(ptr, fc, rc, card, dom, psmid),
 	    TP_STRUCT__entry(
 		    __field(void *, ptr)
 		    __field(u32, fc)
 		    __field(u32, rc)
-		    __field(u16, device)
-		    __field(u16, domain)),
+		    __field(u16, card)
+		    __field(u16, dom)
+		    __field(u64, psmid)),
 	    TP_fast_assign(
 		    __entry->ptr = ptr;
 		    __entry->fc = fc;
 		    __entry->rc = rc;
-		    __entry->device = dev;
-		    __entry->domain = dom;),
-	    TP_printk("ptr=%p fc=0x%04x rc=%d dev=0x%02hx domain=0x%04hx",
+		    __entry->card = card;
+		    __entry->dom = dom;
+		    __entry->psmid = psmid;),
+	    TP_printk("ptr=%p fc=0x%04x rc=%d card=%u dom=%u psmid=0x%016lx",
 		      __entry->ptr,
-		      (unsigned int) __entry->fc,
-		      (int) __entry->rc,
-		      (unsigned short) __entry->device,
-		      (unsigned short) __entry->domain)
+		      (unsigned int)__entry->fc,
+		      (int)__entry->rc,
+		      (unsigned short)__entry->card,
+		      (unsigned short)__entry->dom,
+		      (unsigned long)__entry->psmid)
 );
 
 #endif /* _TRACE_S390_ZCRYPT_H */
