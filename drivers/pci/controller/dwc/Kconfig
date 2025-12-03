@@ -482,15 +482,21 @@ config PCI_DRA7XX_EP
 	  to enable device-specific features PCI_DRA7XX_EP must be selected.
 	  This uses the DesignWare core.
 
+# ARM32 platforms use hook_fault_code() and cannot support loadable module.
 config PCI_KEYSTONE
 	bool
 
+# On non-ARM32 platforms, loadable module can be supported.
+config PCI_KEYSTONE_TRISTATE
+	tristate
+
 config PCI_KEYSTONE_HOST
-	bool "TI Keystone PCIe controller (host mode)"
+	tristate "TI Keystone PCIe controller (host mode)"
 	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
-	select PCI_KEYSTONE
+	select PCI_KEYSTONE if ARM
+	select PCI_KEYSTONE_TRISTATE if !ARM
 	help
 	  Enables support for the PCIe controller in the Keystone SoC to
 	  work in host mode. The PCI controller on Keystone is based on
@@ -498,11 +504,12 @@ config PCI_KEYSTONE_HOST
 	  DesignWare core functions to implement the driver.
 
 config PCI_KEYSTONE_EP
-	bool "TI Keystone PCIe controller (endpoint mode)"
+	tristate "TI Keystone PCIe controller (endpoint mode)"
 	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
-	select PCI_KEYSTONE
+	select PCI_KEYSTONE if ARM
+	select PCI_KEYSTONE_TRISTATE if !ARM
 	help
 	  Enables support for the PCIe controller in the Keystone SoC to
 	  work in endpoint mode. The PCI controller on Keystone is based
