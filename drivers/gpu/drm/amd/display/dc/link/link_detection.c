@@ -623,6 +623,9 @@ static bool detect_dp(struct dc_link *link,
 
 static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
 {
+	if (old_edid == NULL || new_edid == NULL)
+		return false;
+
 	if (old_edid->length != new_edid->length)
 		return false;
 
