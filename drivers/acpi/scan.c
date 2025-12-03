@@ -2711,7 +2711,6 @@ void __init acpi_scan_init(void)
 	acpi_watchdog_init();
 	acpi_pnp_init();
 	acpi_power_resources_init();
-	acpi_int340x_thermal_init();
 	acpi_init_lpit();
 
 	acpi_scan_add_handler(&generic_device_handler);
