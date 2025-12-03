@@ -92,18 +92,18 @@ There are two functions for dealing with the script:
 
     void assoc_array_apply_edit(struct assoc_array_edit *edit);
 
-This will perform the edit functions, interpolating various write barriers
-to permit accesses under the RCU read lock to continue.  The edit script
-will then be passed to ``call_rcu()`` to free it and any dead stuff it points
-to.
+   This will perform the edit functions, interpolating various write barriers
+   to permit accesses under the RCU read lock to continue.  The edit script
+   will then be passed to ``call_rcu()`` to free it and any dead stuff it
+   points to.
 
 2. Cancel an edit script::
 
     void assoc_array_cancel_edit(struct assoc_array_edit *edit);
 
-This frees the edit script and all preallocated memory immediately. If
-this was for insertion, the new object is _not_ released by this function,
-but must rather be released by the caller.
+   This frees the edit script and all preallocated memory immediately. If
+   this was for insertion, the new object is *not* released by this function,
+   but must rather be released by the caller.
 
 These functions are guaranteed not to fail.
 
@@ -123,43 +123,43 @@ This points to a number of methods, all of which need to be provided:
 
     unsigned long (*get_key_chunk)(const void *index_key, int level);
 
-This should return a chunk of caller-supplied index key starting at the
-*bit* position given by the level argument.  The level argument will be a
-multiple of ``ASSOC_ARRAY_KEY_CHUNK_SIZE`` and the function should return
-``ASSOC_ARRAY_KEY_CHUNK_SIZE bits``.  No error is possible.
+   This should return a chunk of caller-supplied index key starting at the
+   *bit* position given by the level argument.  The level argument will be a
+   multiple of ``ASSOC_ARRAY_KEY_CHUNK_SIZE`` and the function should return
+   ``ASSOC_ARRAY_KEY_CHUNK_SIZE bits``.  No error is possible.
 
 
 2. Get a chunk of an object's index key::
 
     unsigned long (*get_object_key_chunk)(const void *object, int level);
 
-As the previous function, but gets its data from an object in the array
-rather than from a caller-supplied index key.
+   As the previous function, but gets its data from an object in the array
+   rather than from a caller-supplied index key.
 
 
 3. See if this is the object we're looking for::
 
     bool (*compare_object)(const void *object, const void *index_key);
 
-Compare the object against an index key and return ``true`` if it matches and
-``false`` if it doesn't.
+   Compare the object against an index key and return ``true`` if it matches
+   and ``false`` if it doesn't.
 
 
 4. Diff the index keys of two objects::
 
     int (*diff_objects)(const void *object, const void *index_key);
 
-Return the bit position at which the index key of the specified object
-differs from the given index key or -1 if they are the same.
+   Return the bit position at which the index key of the specified object
+   differs from the given index key or -1 if they are the same.
 
 
 5. Free an object::
 
     void (*free_object)(void *object);
 
-Free the specified object.  Note that this may be called an RCU grace period
-after ``assoc_array_apply_edit()`` was called, so ``synchronize_rcu()`` may be
-necessary on module unloading.
+   Free the specified object.  Note that this may be called an RCU grace period
+   after ``assoc_array_apply_edit()`` was called, so ``synchronize_rcu()`` may
+   be necessary on module unloading.
 
 
 Manipulation Functions
@@ -171,7 +171,7 @@ There are a number of functions for manipulating an associative array:
 
     void assoc_array_init(struct assoc_array *array);
 
-This initialises the base structure for an associative array.  It can't fail.
+   This initialises the base structure for an associative array.  It can't fail.
 
 
 2. Insert/replace an object in an associative array::
@@ -182,21 +182,21 @@ This initialises the base structure for an associative array.  It can't fail.
                        const void *index_key,
                        void *object);
 
-This inserts the given object into the array.  Note that the least
-significant bit of the pointer must be zero as it's used to type-mark
-pointers internally.
+   This inserts the given object into the array.  Note that the least
+   significant bit of the pointer must be zero as it's used to type-mark
+   pointers internally.
 
-If an object already exists for that key then it will be replaced with the
-new object and the old one will be freed automatically.
+   If an object already exists for that key then it will be replaced with the
+   new object and the old one will be freed automatically.
 
-The ``index_key`` argument should hold index key information and is
-passed to the methods in the ops table when they are called.
+   The ``index_key`` argument should hold index key information and is
+   passed to the methods in the ops table when they are called.
 
-This function makes no alteration to the array itself, but rather returns
-an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
-an out-of-memory error.
+   This function makes no alteration to the array itself, but rather returns
+   an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
+   an out-of-memory error.
 
-The caller should lock exclusively against other modifiers of the array.
+   The caller should lock exclusively against other modifiers of the array.
 
 
 3. Delete an object from an associative array::
@@ -206,15 +206,15 @@ The caller should lock exclusively against other modifiers of the array.
                        const struct assoc_array_ops *ops,
                        const void *index_key);
 
-This deletes an object that matches the specified data from the array.
+   This deletes an object that matches the specified data from the array.
 
-The ``index_key`` argument should hold index key information and is
-passed to the methods in the ops table when they are called.
+   The ``index_key`` argument should hold index key information and is
+   passed to the methods in the ops table when they are called.
 
-This function makes no alteration to the array itself, but rather returns
-an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
-an out-of-memory error.  ``NULL`` will be returned if the specified object is
-not found within the array.
+   This function makes no alteration to the array itself, but rather returns
+   an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
+   an out-of-memory error.  ``NULL`` will be returned if the specified object
+   is not found within the array.
 
 The caller should lock exclusively against other modifiers of the array.
 
@@ -225,14 +225,14 @@ The caller should lock exclusively against other modifiers of the array.
     assoc_array_clear(struct assoc_array *array,
                       const struct assoc_array_ops *ops);
 
-This deletes all the objects from an associative array and leaves it
-completely empty.
+   This deletes all the objects from an associative array and leaves it
+   completely empty.
 
-This function makes no alteration to the array itself, but rather returns
-an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
-an out-of-memory error.
+   This function makes no alteration to the array itself, but rather returns
+   an edit script that must be applied.  ``-ENOMEM`` is returned in the case of
+   an out-of-memory error.
 
-The caller should lock exclusively against other modifiers of the array.
+   The caller should lock exclusively against other modifiers of the array.
 
 
 5. Destroy an associative array, deleting all objects::
@@ -240,14 +240,14 @@ The caller should lock exclusively against other modifiers of the array.
     void assoc_array_destroy(struct assoc_array *array,
                              const struct assoc_array_ops *ops);
 
-This destroys the contents of the associative array and leaves it
-completely empty.  It is not permitted for another thread to be traversing
-the array under the RCU read lock at the same time as this function is
-destroying it as no RCU deferral is performed on memory release -
-something that would require memory to be allocated.
+   This destroys the contents of the associative array and leaves it
+   completely empty.  It is not permitted for another thread to be traversing
+   the array under the RCU read lock at the same time as this function is
+   destroying it as no RCU deferral is performed on memory release -
+   something that would require memory to be allocated.
 
-The caller should lock exclusively against other modifiers and accessors
-of the array.
+   The caller should lock exclusively against other modifiers and accessors
+   of the array.
 
 
 6. Garbage collect an associative array::
@@ -257,24 +257,24 @@ of the array.
                        bool (*iterator)(void *object, void *iterator_data),
                        void *iterator_data);
 
-This iterates over the objects in an associative array and passes each one to
-``iterator()``.  If ``iterator()`` returns ``true``, the object is kept.  If it
-returns ``false``, the object will be freed.  If the ``iterator()`` function
-returns ``true``, it must perform any appropriate refcount incrementing on the
-object before returning.
+   This iterates over the objects in an associative array and passes each one
+   to ``iterator()``.  If ``iterator()`` returns ``true``, the object is kept.
+   If it returns ``false``, the object will be freed.  If the ``iterator()``
+   function returns ``true``, it must perform any appropriate refcount
+   incrementing on the object before returning.
 
-The internal tree will be packed down if possible as part of the iteration
-to reduce the number of nodes in it.
+   The internal tree will be packed down if possible as part of the iteration
+   to reduce the number of nodes in it.
 
-The ``iterator_data`` is passed directly to ``iterator()`` and is otherwise
-ignored by the function.
+   The ``iterator_data`` is passed directly to ``iterator()`` and is otherwise
+   ignored by the function.
 
-The function will return ``0`` if successful and ``-ENOMEM`` if there wasn't
-enough memory.
+   The function will return ``0`` if successful and ``-ENOMEM`` if there wasn't
+   enough memory.
 
-It is possible for other threads to iterate over or search the array under
-the RCU read lock while this function is in progress.  The caller should
-lock exclusively against other modifiers of the array.
+   It is possible for other threads to iterate over or search the array under
+   the RCU read lock while this function is in progress.  The caller should
+   lock exclusively against other modifiers of the array.
 
 
 Access Functions
@@ -289,19 +289,19 @@ There are two functions for accessing an associative array:
                                             void *iterator_data),
                             void *iterator_data);
 
-This passes each object in the array to the iterator callback function.
-``iterator_data`` is private data for that function.
+   This passes each object in the array to the iterator callback function.
+   ``iterator_data`` is private data for that function.
 
-This may be used on an array at the same time as the array is being
-modified, provided the RCU read lock is held.  Under such circumstances,
-it is possible for the iteration function to see some objects twice.  If
-this is a problem, then modification should be locked against.  The
-iteration algorithm should not, however, miss any objects.
+   This may be used on an array at the same time as the array is being
+   modified, provided the RCU read lock is held.  Under such circumstances,
+   it is possible for the iteration function to see some objects twice.  If
+   this is a problem, then modification should be locked against.  The
+   iteration algorithm should not, however, miss any objects.
 
-The function will return ``0`` if no objects were in the array or else it will
-return the result of the last iterator function called.  Iteration stops
-immediately if any call to the iteration function results in a non-zero
-return.
+   The function will return ``0`` if no objects were in the array or else it
+   will return the result of the last iterator function called.  Iteration
+   stops immediately if any call to the iteration function results in a
+   non-zero return.
 
 
 2. Find an object in an associative array::
@@ -310,14 +310,14 @@ return.
                            const struct assoc_array_ops *ops,
                            const void *index_key);
 
-This walks through the array's internal tree directly to the object
-specified by the index key..
+   This walks through the array's internal tree directly to the object
+   specified by the index key.
 
-This may be used on an array at the same time as the array is being
-modified, provided the RCU read lock is held.
+   This may be used on an array at the same time as the array is being
+   modified, provided the RCU read lock is held.
 
-The function will return the object if found (and set ``*_type`` to the object
-type) or will return ``NULL`` if the object was not found.
+   The function will return the object if found (and set ``*_type`` to the
+   object type) or will return ``NULL`` if the object was not found.
 
 
 Index Key Form
@@ -399,10 +399,11 @@ fixed levels.  For example::
 
 In the above example, there are 7 nodes (A-G), each with 16 slots (0-f).
 Assuming no other meta data nodes in the tree, the key space is divided
-thusly::
+thusly:
 
+    ===========     ====
     KEY PREFIX      NODE
-    ==========      ====
+    ===========     ====
     137*            D
     138*            E
     13[0-69-f]*     C
@@ -410,10 +411,12 @@ thusly::
     e6*             G
     e[0-57-f]*      F
     [02-df]*        A
+    ===========     ====
 
 So, for instance, keys with the following example index keys will be found in
-the appropriate nodes::
+the appropriate nodes:
 
+    =============== ======= ====
     INDEX KEY       PREFIX  NODE
     =============== ======= ====
     13694892892489  13      C
@@ -422,12 +425,13 @@ the appropriate nodes::
     138bbb89003093  138     E
     1394879524789   12      C
     1458952489      1       B
-    9431809de993ba  -       A
-    b4542910809cd   -       A
+    9431809de993ba  \-      A
+    b4542910809cd   \-      A
     e5284310def98   e       F
     e68428974237    e6      G
     e7fffcbd443     e       F
-    f3842239082     -       A
+    f3842239082     \-      A
+    =============== ======= ====
 
 To save memory, if a node can hold all the leaves in its portion of keyspace,
 then the node will have all those leaves in it and will not have any metadata
@@ -441,8 +445,9 @@ metadata pointer.  If the metadata pointer is there, any leaf whose key matches
 the metadata key prefix must be in the subtree that the metadata pointer points
 to.
 
-In the above example list of index keys, node A will contain::
+In the above example list of index keys, node A will contain:
 
+    ====    =============== ==================
     SLOT    CONTENT         INDEX KEY (PREFIX)
     ====    =============== ==================
     1       PTR TO NODE B   1*
@@ -450,11 +455,16 @@ In the above example list of index keys, node A will contain::
     any     LEAF            b4542910809cd
     e       PTR TO NODE F   e*
     any     LEAF            f3842239082
+    ====    =============== ==================
 
-and node B::
+and node B:
 
-    3	PTR TO NODE C	13*
-    any	LEAF		1458952489
+    ====    =============== ==================
+    SLOT    CONTENT         INDEX KEY (PREFIX)
+    ====    =============== ==================
+    3       PTR TO NODE C   13*
+    any     LEAF            1458952489
+    ====    =============== ==================
 
 
 Shortcuts

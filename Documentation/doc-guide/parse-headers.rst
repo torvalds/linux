@@ -5,173 +5,168 @@ Including uAPI header files
 Sometimes, it is useful to include header files and C example codes in
 order to describe the userspace API and to generate cross-references
 between the code and the documentation. Adding cross-references for
-userspace API files has an additional vantage: Sphinx will generate warnings
+userspace API files has an additional advantage: Sphinx will generate warnings
 if a symbol is not found at the documentation. That helps to keep the
 uAPI documentation in sync with the Kernel changes.
-The :ref:`parse_headers.pl <parse_headers>` provide a way to generate such
+The :ref:`parse_headers.py <parse_headers>` provides a way to generate such
 cross-references. It has to be called via Makefile, while building the
 documentation. Please see ``Documentation/userspace-api/media/Makefile`` for an example
 about how to use it inside the Kernel tree.
 
 .. _parse_headers:
 
-parse_headers.pl
-^^^^^^^^^^^^^^^^
+tools/docs/parse_headers.py
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 NAME
 ****
 
-
-parse_headers.pl - parse a C file, in order to identify functions, structs,
+parse_headers.py - parse a C file, in order to identify functions, structs,
 enums and defines and create cross-references to a Sphinx book.
 
+USAGE
+*****
+
+parse-headers.py [-h] [-d] [-t] ``FILE_IN`` ``FILE_OUT`` ``FILE_RULES``
 
 SYNOPSIS
 ********
 
+Converts a C header or source file ``FILE_IN`` into a ReStructured Text
+included via ..parsed-literal block with cross-references for the
+documentation files that describe the API. It accepts an optional
+``FILE_RULES`` file to describe what elements will be either ignored or
+be pointed to a non-default reference type/name.
 
-\ **parse_headers.pl**\  [<options>] <C_FILE> <OUT_FILE> [<EXCEPTIONS_FILE>]
+The output is written at ``FILE_OUT``.
 
-Where <options> can be: --debug, --help or --usage.
+It is capable of identifying ``define``, ``struct``, ``typedef``, ``enum``
+and enum ``symbol``, creating cross-references for all of them.
 
+It is also capable of distinguishing ``#define`` used for specifying
+Linux-specific macros used to define ``ioctl``.
+
+The optional ``FILE_RULES`` contains a set of rules like::
+
+    ignore ioctl VIDIOC_ENUM_FMT
+    replace ioctl VIDIOC_DQBUF vidioc_qbuf
+    replace define V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ :c:type:`v4l2_event_motion_det`
+
+POSITIONAL ARGUMENTS
+********************
+
+  ``FILE_IN``
+      Input C file
+
+  ``FILE_OUT``
+      Output RST file
+
+  ``FILE_RULES``
+      Exceptions file (optional)
 
 OPTIONS
 *******
 
-
-
-\ **--debug**\
-
- Put the script in verbose mode, useful for debugging.
-
-
-
-\ **--usage**\
-
- Prints a brief help message and exits.
-
-
-
-\ **--help**\
-
- Prints a more detailed help message and exits.
+  ``-h``, ``--help``
+      show a help message and exit
+  ``-d``, ``--debug``
+      Increase debug level. Can be used multiple times
+  ``-t``, ``--toc``
+      instead of a literal block, outputs a TOC table at the RST file
 
 
 DESCRIPTION
 ***********
 
+Creates an enriched version of a Kernel header file with cross-links
+to each C data structure type, from ``FILE_IN``, formatting it with
+reStructuredText notation, either as-is or as a table of contents.
 
-Convert a C header or source file (C_FILE), into a reStructuredText
-included via ..parsed-literal block with cross-references for the
-documentation files that describe the API. It accepts an optional
-EXCEPTIONS_FILE with describes what elements will be either ignored or
-be pointed to a non-default reference.
+It accepts an optional ``FILE_RULES`` which describes what elements will be
+either ignored or be pointed to a non-default reference, and optionally
+defines the C namespace to be used.
 
-The output is written at the (OUT_FILE).
+It is meant to allow having more comprehensive documentation, where
+uAPI headers will create cross-reference links to the code.
 
-It is capable of identifying defines, functions, structs, typedefs,
-enums and enum symbols and create cross-references for all of them.
-It is also capable of distinguish #define used for specifying a Linux
-ioctl.
+The output is written at the ``FILE_OUT``.
 
-The EXCEPTIONS_FILE contain two types of statements: \ **ignore**\  or \ **replace**\ .
+The ``FILE_RULES`` may contain contain three types of statements:
+**ignore**, **replace** and **namespace**.
 
-The syntax for the ignore tag is:
+By default, it create rules for all symbols and defines, but it also
+allows parsing an exception file. Such file contains a set of rules
+using the syntax below:
 
+1. Ignore rules:
 
-ignore \ **type**\  \ **name**\
+    ignore *type* *symbol*
 
-The \ **ignore**\  means that it won't generate cross references for a
-\ **name**\  symbol of type \ **type**\ .
+Removes the symbol from reference generation.
 
-The syntax for the replace tag is:
+2. Replace rules:
 
+    replace *type* *old_symbol* *new_reference*
 
-replace \ **type**\  \ **name**\  \ **new_value**\
+    Replaces *old_symbol* with a *new_reference*.
+    The *new_reference* can be:
 
-The \ **replace**\  means that it will generate cross references for a
-\ **name**\  symbol of type \ **type**\ , but, instead of using the default
-replacement rule, it will use \ **new_value**\ .
+    - A simple symbol name;
+    - A full Sphinx reference.
 
-For both statements, \ **type**\  can be either one of the following:
+3. Namespace rules
 
+    namespace *namespace*
 
-\ **ioctl**\
+    Sets C *namespace* to be used during cross-reference generation. Can
+    be overridden by replace rules.
 
- The ignore or replace statement will apply to ioctl definitions like:
+On ignore and replace rules, *type* can be:
 
- #define	VIDIOC_DBG_S_REGISTER 	 _IOW('V', 79, struct v4l2_dbg_register)
+    - ioctl:
+        for defines of the form ``_IO*``, e.g., ioctl definitions
 
+    - define:
+        for other defines
 
+    - symbol:
+        for symbols defined within enums;
 
-\ **define**\
+    - typedef:
+        for typedefs;
 
- The ignore or replace statement will apply to any other #define found
- at C_FILE.
+    - enum:
+        for the name of a non-anonymous enum;
 
-
-
-\ **typedef**\
-
- The ignore or replace statement will apply to typedef statements at C_FILE.
-
-
-
-\ **struct**\
-
- The ignore or replace statement will apply to the name of struct statements
- at C_FILE.
-
-
-
-\ **enum**\
-
- The ignore or replace statement will apply to the name of enum statements
- at C_FILE.
-
-
-
-\ **symbol**\
-
- The ignore or replace statement will apply to the name of enum value
- at C_FILE.
-
- For replace statements, \ **new_value**\  will automatically use :c:type:
- references for \ **typedef**\ , \ **enum**\  and \ **struct**\  types. It will use :ref:
- for \ **ioctl**\ , \ **define**\  and \ **symbol**\  types. The type of reference can
- also be explicitly defined at the replace statement.
-
+    - struct:
+        for structs.
 
 
 EXAMPLES
 ********
 
+- Ignore a define ``_VIDEODEV2_H`` at ``FILE_IN``::
 
-ignore define _VIDEODEV2_H
+    ignore define _VIDEODEV2_H
+
+- On an data structure like this enum::
+
+    enum foo { BAR1, BAR2, PRIVATE };
+
+  It won't generate cross-references for ``PRIVATE``::
+
+    ignore symbol PRIVATE
+
+  At the same struct, instead of creating one cross reference per symbol,
+  make them all point to the ``enum foo`` C type::
+
+    replace symbol BAR1 :c:type:\`foo\`
+    replace symbol BAR2 :c:type:\`foo\`
 
 
-Ignore a #define _VIDEODEV2_H at the C_FILE.
+- Use C namespace ``MC`` for all symbols at ``FILE_IN``::
 
-ignore symbol PRIVATE
-
-
-On a struct like:
-
-enum foo { BAR1, BAR2, PRIVATE };
-
-It won't generate cross-references for \ **PRIVATE**\ .
-
-replace symbol BAR1 :c:type:\`foo\`
-replace symbol BAR2 :c:type:\`foo\`
-
-
-On a struct like:
-
-enum foo { BAR1, BAR2, PRIVATE };
-
-It will make the BAR1 and BAR2 enum symbols to cross reference the foo
-symbol at the C domain.
-
+    namespace MC
 
 BUGS
 ****
@@ -184,7 +179,7 @@ COPYRIGHT
 *********
 
 
-Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
+Copyright (c) 2016, 2025 by Mauro Carvalho Chehab <mchehab+huawei@kernel.org>.
 
 License GPLv2: GNU GPL version 2 <https://gnu.org/licenses/gpl.html>.
 

@@ -406,7 +406,7 @@ The possible values in this file are:
 
   - Single threaded indirect branch prediction (STIBP) status for protection
     between different hyper threads. This feature can be controlled through
-    prctl per process, or through kernel command line options. This is x86
+    prctl per process, or through kernel command line options. This is an x86
     only feature. For more details see below.
 
   ====================  ========================================================

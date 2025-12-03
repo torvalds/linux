@@ -249,7 +249,7 @@ sharing and lock acquisition rules as the regular filesystem.
 This means that scrub cannot take *any* shortcuts to save time, because doing
 so could lead to concurrency problems.
 In other words, online fsck is not a complete replacement for offline fsck, and
-a complete run of online fsck may take longer than online fsck.
+a complete run of online fsck may take longer than offline fsck.
 However, both of these limitations are acceptable tradeoffs to satisfy the
 different motivations of online fsck, which are to **minimize system downtime**
 and to **increase predictability of operation**.
