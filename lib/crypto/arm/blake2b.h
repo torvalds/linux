@@ -24,9 +24,8 @@ static void blake2b_compress(struct blake2b_ctx *ctx,
 		const size_t blocks = min_t(size_t, nblocks,
 					    SZ_4K / BLAKE2B_BLOCK_SIZE);
 
-		kernel_neon_begin();
-		blake2b_compress_neon(ctx, data, blocks, inc);
-		kernel_neon_end();
+		scoped_ksimd()
+			blake2b_compress_neon(ctx, data, blocks, inc);
 
 		data += blocks * BLAKE2B_BLOCK_SIZE;
 		nblocks -= blocks;

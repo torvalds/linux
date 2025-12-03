@@ -4,7 +4,6 @@
  *
  * Copyright 2025 Google LLC
  */
-#include <asm/neon.h>
 #include <asm/simd.h>
 #include <linux/cpufeature.h>
 
@@ -24,13 +23,14 @@ static void polyval_preparekey_arch(struct polyval_key *key,
 	static_assert(ARRAY_SIZE(key->h_powers) == NUM_H_POWERS);
 	memcpy(&key->h_powers[NUM_H_POWERS - 1], raw_key, POLYVAL_BLOCK_SIZE);
 	if (static_branch_likely(&have_pmull) && may_use_simd()) {
-		kernel_neon_begin();
-		for (int i = NUM_H_POWERS - 2; i >= 0; i--) {
-			key->h_powers[i] = key->h_powers[i + 1];
-			polyval_mul_pmull(&key->h_powers[i],
-					  &key->h_powers[NUM_H_POWERS - 1]);
+		scoped_ksimd() {
+			for (int i = NUM_H_POWERS - 2; i >= 0; i--) {
+				key->h_powers[i] = key->h_powers[i + 1];
+				polyval_mul_pmull(
+					&key->h_powers[i],
+					&key->h_powers[NUM_H_POWERS - 1]);
+			}
 		}
-		kernel_neon_end();
 	} else {
 		for (int i = NUM_H_POWERS - 2; i >= 0; i--) {
 			key->h_powers[i] = key->h_powers[i + 1];
@@ -44,9 +44,8 @@ static void polyval_mul_arch(struct polyval_elem *acc,
 			     const struct polyval_key *key)
 {
 	if (static_branch_likely(&have_pmull) && may_use_simd()) {
-		kernel_neon_begin();
-		polyval_mul_pmull(acc, &key->h_powers[NUM_H_POWERS - 1]);
-		kernel_neon_end();
+		scoped_ksimd()
+			polyval_mul_pmull(acc, &key->h_powers[NUM_H_POWERS - 1]);
 	} else {
 		polyval_mul_generic(acc, &key->h_powers[NUM_H_POWERS - 1]);
 	}
@@ -62,9 +61,8 @@ static void polyval_blocks_arch(struct polyval_elem *acc,
 			size_t n = min_t(size_t, nblocks,
 					 4096 / POLYVAL_BLOCK_SIZE);
 
-			kernel_neon_begin();
-			polyval_blocks_pmull(acc, key, data, n);
-			kernel_neon_end();
+			scoped_ksimd()
+				polyval_blocks_pmull(acc, key, data, n);
 			data += n * POLYVAL_BLOCK_SIZE;
 			nblocks -= n;
 		} while (nblocks);
