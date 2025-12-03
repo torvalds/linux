@@ -27,6 +27,32 @@ test_null_stat() {
   echo "Null stat command test [Success]"
 }
 
+find_offline_cpu() {
+  for i in $(seq 1 4096)
+  do
+    if [[ ! -f /sys/devices/system/cpu/cpu$i/online || \
+          $(cat /sys/devices/system/cpu/cpu$i/online) == "0" ]]
+    then
+      echo $i
+      return
+    fi
+  done
+  echo "Failed to find offline CPU"
+  exit 1
+}
+
+test_offline_cpu_stat() {
+  cpu=$(find_offline_cpu)
+  echo "Offline CPU stat command test (cpu $cpu)"
+  if ! perf stat "-C$cpu" -e cycles true 2>&1 | grep -E -q "No supported events found."
+  then
+    echo "Offline CPU stat command test [Failed]"
+    err=1
+    return
+  fi
+  echo "Offline CPU stat command test [Success]"
+}
+
 test_stat_record_report() {
   echo "stat record and report test"
   if ! perf stat record -e task-clock -o - true | perf stat report -i - 2>&1 | \
@@ -224,6 +250,7 @@ test_hybrid() {
 
 test_default_stat
 test_null_stat
+test_offline_cpu_stat
 test_stat_record_report
 test_stat_record_script
 test_stat_repeat_weak_groups
