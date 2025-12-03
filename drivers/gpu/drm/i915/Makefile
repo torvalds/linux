@@ -240,6 +240,7 @@ i915-y += \
 	display/intel_cmtg.o \
 	display/intel_color.o \
 	display/intel_colorop.o \
+	display/intel_color_pipeline.o \
 	display/intel_combo_phy.o \
 	display/intel_connector.o \
 	display/intel_crtc.o \
