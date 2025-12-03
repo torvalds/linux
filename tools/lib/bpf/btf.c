@@ -4431,11 +4431,14 @@ static bool btf_dedup_identical_types(struct btf_dedup *d, __u32 id1, __u32 id2,
 	struct btf_type *t1, *t2;
 	int k1, k2;
 recur:
-	if (depth <= 0)
-		return false;
-
 	t1 = btf_type_by_id(d->btf, id1);
 	t2 = btf_type_by_id(d->btf, id2);
+	if (depth <= 0) {
+		pr_debug("Reached depth limit for identical type comparison for '%s'/'%s'\n",
+			 btf__name_by_offset(d->btf, t1->name_off),
+			 btf__name_by_offset(d->btf, t2->name_off));
+		return false;
+	}
 
 	k1 = btf_kind(t1);
 	k2 = btf_kind(t2);
@@ -4497,8 +4500,16 @@ recur:
 		for (i = 0, n = btf_vlen(t1); i < n; i++, m1++, m2++) {
 			if (m1->type == m2->type)
 				continue;
-			if (!btf_dedup_identical_types(d, m1->type, m2->type, depth - 1))
+			if (!btf_dedup_identical_types(d, m1->type, m2->type, depth - 1)) {
+				if (t1->name_off) {
+					pr_debug("%s '%s' size=%d vlen=%d id1[%u] id2[%u] shallow-equal but not identical for field#%d '%s'\n",
+						 k1 == BTF_KIND_STRUCT ? "STRUCT" : "UNION",
+						 btf__name_by_offset(d->btf, t1->name_off),
+						 t1->size, btf_vlen(t1), id1, id2, i,
+						 btf__name_by_offset(d->btf, m1->name_off));
+				}
 				return false;
+			}
 		}
 		return true;
 	}
@@ -4739,8 +4750,16 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 		canon_m = btf_members(canon_type);
 		for (i = 0; i < vlen; i++) {
 			eq = btf_dedup_is_equiv(d, cand_m->type, canon_m->type);
-			if (eq <= 0)
+			if (eq <= 0) {
+				if (cand_type->name_off) {
+					pr_debug("%s '%s' size=%d vlen=%d cand_id[%u] canon_id[%u] shallow-equal but not equiv for field#%d '%s': %d\n",
+						 cand_kind == BTF_KIND_STRUCT ? "STRUCT" : "UNION",
+						 btf__name_by_offset(d->btf, cand_type->name_off),
+						 cand_type->size, vlen, cand_id, canon_id, i,
+						 btf__name_by_offset(d->btf, cand_m->name_off), eq);
+				}
 				return eq;
+			}
 			cand_m++;
 			canon_m++;
 		}
