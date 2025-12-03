@@ -231,7 +231,7 @@ static int gpio_mmio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long mask = gpio_mmio_line2mask(gc, gpio);
 
-	guard(raw_spinlock)(&chip->lock);
+	guard(raw_spinlock_irqsave)(&chip->lock);
 
 	if (val)
 		chip->sdata |= mask;
@@ -262,7 +262,7 @@ static int gpio_mmio_set_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long mask = gpio_mmio_line2mask(gc, gpio);
 
-	guard(raw_spinlock)(&chip->lock);
+	guard(raw_spinlock_irqsave)(&chip->lock);
 
 	if (val)
 		chip->sdata |= mask;
@@ -302,7 +302,7 @@ static void gpio_mmio_set_multiple_single_reg(struct gpio_chip *gc,
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long set_mask, clear_mask;
 
-	guard(raw_spinlock)(&chip->lock);
+	guard(raw_spinlock_irqsave)(&chip->lock);
 
 	gpio_mmio_multiple_get_masks(gc, mask, bits, &set_mask, &clear_mask);
 
@@ -391,7 +391,7 @@ static int gpio_mmio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 
-	scoped_guard(raw_spinlock, &chip->lock) {
+	scoped_guard(raw_spinlock_irqsave, &chip->lock) {
 		chip->sdir &= ~gpio_mmio_line2mask(gc, gpio);
 
 		if (chip->reg_dir_in)
@@ -431,7 +431,7 @@ static void gpio_mmio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 
-	guard(raw_spinlock)(&chip->lock);
+	guard(raw_spinlock_irqsave)(&chip->lock);
 
 	chip->sdir |= gpio_mmio_line2mask(gc, gpio);
 
