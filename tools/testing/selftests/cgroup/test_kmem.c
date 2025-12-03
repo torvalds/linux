@@ -26,6 +26,7 @@
  */
 #define MAX_VMSTAT_ERROR (4096 * 64 * get_nprocs())
 
+#define KMEM_DEAD_WAIT_RETRIES        80
 
 static int alloc_dcache(const char *cgroup, void *arg)
 {
@@ -306,9 +307,7 @@ static int test_kmem_dead_cgroups(const char *root)
 {
 	int ret = KSFT_FAIL;
 	char *parent;
-	long dead;
-	int i;
-	int max_time = 20;
+	long dead = -1;
 
 	parent = cg_name(root, "kmem_dead_cgroups_test");
 	if (!parent)
@@ -323,21 +322,19 @@ static int test_kmem_dead_cgroups(const char *root)
 	if (cg_run_in_subcgroups(parent, alloc_dcache, (void *)100, 30))
 		goto cleanup;
 
-	for (i = 0; i < max_time; i++) {
-		dead = cg_read_key_long(parent, "cgroup.stat",
-					"nr_dying_descendants ");
-		if (dead == 0) {
-			ret = KSFT_PASS;
-			break;
-		}
-		/*
-		 * Reclaiming cgroups might take some time,
-		 * let's wait a bit and repeat.
-		 */
-		sleep(1);
-		if (i > 5)
-			printf("Waiting time longer than 5s; wait: %ds (dead: %ld)\n", i, dead);
-	}
+	/*
+	 * Allow up to ~8s for reclaim of dying descendants to complete.
+	 * This is a generous upper bound derived from stress testing, not
+	 * from a specific kernel constant, and can be adjusted if reclaim
+	 * behavior changes in the future.
+	 */
+	dead = cg_read_key_long_poll(parent, "cgroup.stat",
+					"nr_dying_descendants ", 0, KMEM_DEAD_WAIT_RETRIES,
+					DEFAULT_WAIT_INTERVAL_US);
+	if (dead)
+		goto cleanup;
+
+	ret = KSFT_PASS;
 
 cleanup:
 	cg_destroy(parent);
