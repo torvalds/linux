@@ -3696,48 +3696,6 @@ static int hv_send_resources_released(struct hv_device *hdev)
 	return 0;
 }
 
-#define HVPCI_DOM_MAP_SIZE (64 * 1024)
-static DECLARE_BITMAP(hvpci_dom_map, HVPCI_DOM_MAP_SIZE);
-
-/*
- * PCI domain number 0 is used by emulated devices on Gen1 VMs, so define 0
- * as invalid for passthrough PCI devices of this driver.
- */
-#define HVPCI_DOM_INVALID 0
-
-/**
- * hv_get_dom_num() - Get a valid PCI domain number
- * Check if the PCI domain number is in use, and return another number if
- * it is in use.
- *
- * @dom: Requested domain number
- *
- * return: domain number on success, HVPCI_DOM_INVALID on failure
- */
-static u16 hv_get_dom_num(u16 dom)
-{
-	unsigned int i;
-
-	if (test_and_set_bit(dom, hvpci_dom_map) == 0)
-		return dom;
-
-	for_each_clear_bit(i, hvpci_dom_map, HVPCI_DOM_MAP_SIZE) {
-		if (test_and_set_bit(i, hvpci_dom_map) == 0)
-			return i;
-	}
-
-	return HVPCI_DOM_INVALID;
-}
-
-/**
- * hv_put_dom_num() - Mark the PCI domain number as free
- * @dom: Domain number to be freed
- */
-static void hv_put_dom_num(u16 dom)
-{
-	clear_bit(dom, hvpci_dom_map);
-}
-
 /**
  * hv_pci_probe() - New VMBus channel probe, for a root PCI bus
  * @hdev:	VMBus's tracking struct for this root PCI bus
@@ -3750,9 +3708,9 @@ static int hv_pci_probe(struct hv_device *hdev,
 {
 	struct pci_host_bridge *bridge;
 	struct hv_pcibus_device *hbus;
-	u16 dom_req, dom;
+	int ret, dom;
+	u16 dom_req;
 	char *name;
-	int ret;
 
 	bridge = devm_pci_alloc_host_bridge(&hdev->device, 0);
 	if (!bridge)
@@ -3779,11 +3737,14 @@ static int hv_pci_probe(struct hv_device *hdev,
 	 * PCI bus (which is actually emulated by the hypervisor) is domain 0.
 	 * (2) There will be no overlap between domains (after fixing possible
 	 * collisions) in the same VM.
+	 *
+	 * Because Gen1 VMs use domain 0, don't allow picking domain 0 here,
+	 * even if bytes 4 and 5 of the instance GUID are both zero. For wider
+	 * userspace compatibility, limit the domain ID to a 16-bit value.
 	 */
 	dom_req = hdev->dev_instance.b[5] << 8 | hdev->dev_instance.b[4];
-	dom = hv_get_dom_num(dom_req);
-
-	if (dom == HVPCI_DOM_INVALID) {
+	dom = pci_bus_find_emul_domain_nr(dom_req, 1, U16_MAX);
+	if (dom < 0) {
 		dev_err(&hdev->device,
 			"Unable to use dom# 0x%x or other numbers", dom_req);
 		ret = -EINVAL;
@@ -3917,7 +3878,7 @@ close:
 destroy_wq:
 	destroy_workqueue(hbus->wq);
 free_dom:
-	hv_put_dom_num(hbus->bridge->domain_nr);
+	pci_bus_release_emul_domain_nr(hbus->bridge->domain_nr);
 free_bus:
 	kfree(hbus);
 	return ret;
@@ -4041,8 +4002,6 @@ static void hv_pci_remove(struct hv_device *hdev)
 	hv_pci_free_bridge_windows(hbus);
 	irq_domain_remove(hbus->irq_domain);
 	irq_domain_free_fwnode(hbus->fwnode);
-
-	hv_put_dom_num(hbus->bridge->domain_nr);
 
 	kfree(hbus);
 }
@@ -4216,9 +4175,6 @@ static int __init init_hv_pci_drv(void)
 	ret = hv_pci_irqchip_init();
 	if (ret)
 		return ret;
-
-	/* Set the invalid domain number's bit, so it will not be used */
-	set_bit(HVPCI_DOM_INVALID, hvpci_dom_map);
 
 	/* Initialize PCI block r/w interface */
 	hvpci_block_ops.read_block = hv_read_config_block;
