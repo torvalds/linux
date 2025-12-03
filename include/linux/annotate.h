@@ -8,33 +8,32 @@
 
 #define __ASM_ANNOTATE(section, label, type)				\
 	.pushsection section, "M", @progbits, 8;			\
-	.long label - .;						\
-	.long type;							\
+	.long label - ., type;						\
 	.popsection
 
 #ifndef __ASSEMBLY__
 
 #define ASM_ANNOTATE_LABEL(label, type)					\
-	__stringify(__ASM_ANNOTATE(".discard.annotate_insn", label, type))
+	__stringify(__ASM_ANNOTATE(.discard.annotate_insn, label, type))
 
 #define ASM_ANNOTATE(type)						\
 	"911: "								\
-	__stringify(__ASM_ANNOTATE(".discard.annotate_insn", 911b, type))
+	__stringify(__ASM_ANNOTATE(.discard.annotate_insn, 911b, type))
 
 #define ASM_ANNOTATE_DATA(type)						\
 	"912: "								\
-	__stringify(__ASM_ANNOTATE(".discard.annotate_data", 912b, type))
+	__stringify(__ASM_ANNOTATE(.discard.annotate_data, 912b, type))
 
 #else /* __ASSEMBLY__ */
 
 .macro ANNOTATE type
 .Lhere_\@:
-	__ASM_ANNOTATE(".discard.annotate_insn", .Lhere_\@, \type)
+	__ASM_ANNOTATE(.discard.annotate_insn, .Lhere_\@, \type)
 .endm
 
 .macro ANNOTATE_DATA type
 .Lhere_\@:
-	__ASM_ANNOTATE(".discard.annotate_data", .Lhere_\@, \type)
+	__ASM_ANNOTATE(.discard.annotate_data, .Lhere_\@, \type)
 .endm
 
 #endif /* __ASSEMBLY__ */
