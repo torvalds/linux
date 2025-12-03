@@ -14,6 +14,124 @@
 
 #include "mshv_root.h"
 
+/**
+ * mshv_region_process_chunk - Processes a contiguous chunk of memory pages
+ *                             in a region.
+ * @region     : Pointer to the memory region structure.
+ * @flags      : Flags to pass to the handler.
+ * @page_offset: Offset into the region's pages array to start processing.
+ * @page_count : Number of pages to process.
+ * @handler    : Callback function to handle the chunk.
+ *
+ * This function scans the region's pages starting from @page_offset,
+ * checking for contiguous present pages of the same size (normal or huge).
+ * It invokes @handler for the chunk of contiguous pages found. Returns the
+ * number of pages handled, or a negative error code if the first page is
+ * not present or the handler fails.
+ *
+ * Note: The @handler callback must be able to handle both normal and huge
+ * pages.
+ *
+ * Return: Number of pages handled, or negative error code.
+ */
+static long mshv_region_process_chunk(struct mshv_mem_region *region,
+				      u32 flags,
+				      u64 page_offset, u64 page_count,
+				      int (*handler)(struct mshv_mem_region *region,
+						     u32 flags,
+						     u64 page_offset,
+						     u64 page_count))
+{
+	u64 count, stride;
+	unsigned int page_order;
+	struct page *page;
+	int ret;
+
+	page = region->pages[page_offset];
+	if (!page)
+		return -EINVAL;
+
+	page_order = folio_order(page_folio(page));
+	/* The hypervisor only supports 4K and 2M page sizes */
+	if (page_order && page_order != HPAGE_PMD_ORDER)
+		return -EINVAL;
+
+	stride = 1 << page_order;
+
+	/* Start at stride since the first page is validated */
+	for (count = stride; count < page_count; count += stride) {
+		page = region->pages[page_offset + count];
+
+		/* Break if current page is not present */
+		if (!page)
+			break;
+
+		/* Break if page size changes */
+		if (page_order != folio_order(page_folio(page)))
+			break;
+	}
+
+	ret = handler(region, flags, page_offset, count);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+/**
+ * mshv_region_process_range - Processes a range of memory pages in a
+ *                             region.
+ * @region     : Pointer to the memory region structure.
+ * @flags      : Flags to pass to the handler.
+ * @page_offset: Offset into the region's pages array to start processing.
+ * @page_count : Number of pages to process.
+ * @handler    : Callback function to handle each chunk of contiguous
+ *               pages.
+ *
+ * Iterates over the specified range of pages in @region, skipping
+ * non-present pages. For each contiguous chunk of present pages, invokes
+ * @handler via mshv_region_process_chunk.
+ *
+ * Note: The @handler callback must be able to handle both normal and huge
+ * pages.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
+static int mshv_region_process_range(struct mshv_mem_region *region,
+				     u32 flags,
+				     u64 page_offset, u64 page_count,
+				     int (*handler)(struct mshv_mem_region *region,
+						    u32 flags,
+						    u64 page_offset,
+						    u64 page_count))
+{
+	long ret;
+
+	if (page_offset + page_count > region->nr_pages)
+		return -EINVAL;
+
+	while (page_count) {
+		/* Skip non-present pages */
+		if (!region->pages[page_offset]) {
+			page_offset++;
+			page_count--;
+			continue;
+		}
+
+		ret = mshv_region_process_chunk(region, flags,
+						page_offset,
+						page_count,
+						handler);
+		if (ret < 0)
+			return ret;
+
+		page_offset += ret;
+		page_count -= ret;
+	}
+
+	return 0;
+}
+
 struct mshv_mem_region *mshv_region_create(u64 guest_pfn, u64 nr_pages,
 					   u64 uaddr, u32 flags,
 					   bool is_mmio)
@@ -33,53 +151,84 @@ struct mshv_mem_region *mshv_region_create(u64 guest_pfn, u64 nr_pages,
 	if (flags & BIT(MSHV_SET_MEM_BIT_EXECUTABLE))
 		region->hv_map_flags |= HV_MAP_GPA_EXECUTABLE;
 
-	/* Note: large_pages flag populated when we pin the pages */
 	if (!is_mmio)
 		region->flags.range_pinned = true;
 
 	return region;
 }
 
+static int mshv_region_chunk_share(struct mshv_mem_region *region,
+				   u32 flags,
+				   u64 page_offset, u64 page_count)
+{
+	struct page *page = region->pages[page_offset];
+
+	if (PageHuge(page) || PageTransCompound(page))
+		flags |= HV_MODIFY_SPA_PAGE_HOST_ACCESS_LARGE_PAGE;
+
+	return hv_call_modify_spa_host_access(region->partition->pt_id,
+					      region->pages + page_offset,
+					      page_count,
+					      HV_MAP_GPA_READABLE |
+					      HV_MAP_GPA_WRITABLE,
+					      flags, true);
+}
+
 int mshv_region_share(struct mshv_mem_region *region)
 {
 	u32 flags = HV_MODIFY_SPA_PAGE_HOST_ACCESS_MAKE_SHARED;
 
-	if (region->flags.large_pages)
+	return mshv_region_process_range(region, flags,
+					 0, region->nr_pages,
+					 mshv_region_chunk_share);
+}
+
+static int mshv_region_chunk_unshare(struct mshv_mem_region *region,
+				     u32 flags,
+				     u64 page_offset, u64 page_count)
+{
+	struct page *page = region->pages[page_offset];
+
+	if (PageHuge(page) || PageTransCompound(page))
 		flags |= HV_MODIFY_SPA_PAGE_HOST_ACCESS_LARGE_PAGE;
 
 	return hv_call_modify_spa_host_access(region->partition->pt_id,
-			region->pages, region->nr_pages,
-			HV_MAP_GPA_READABLE | HV_MAP_GPA_WRITABLE,
-			flags, true);
+					      region->pages + page_offset,
+					      page_count, 0,
+					      flags, false);
 }
 
 int mshv_region_unshare(struct mshv_mem_region *region)
 {
 	u32 flags = HV_MODIFY_SPA_PAGE_HOST_ACCESS_MAKE_EXCLUSIVE;
 
-	if (region->flags.large_pages)
-		flags |= HV_MODIFY_SPA_PAGE_HOST_ACCESS_LARGE_PAGE;
+	return mshv_region_process_range(region, flags,
+					 0, region->nr_pages,
+					 mshv_region_chunk_unshare);
+}
 
-	return hv_call_modify_spa_host_access(region->partition->pt_id,
-			region->pages, region->nr_pages,
-			0,
-			flags, false);
+static int mshv_region_chunk_remap(struct mshv_mem_region *region,
+				   u32 flags,
+				   u64 page_offset, u64 page_count)
+{
+	struct page *page = region->pages[page_offset];
+
+	if (PageHuge(page) || PageTransCompound(page))
+		flags |= HV_MAP_GPA_LARGE_PAGE;
+
+	return hv_call_map_gpa_pages(region->partition->pt_id,
+				     region->start_gfn + page_offset,
+				     page_count, flags,
+				     region->pages + page_offset);
 }
 
 static int mshv_region_remap_pages(struct mshv_mem_region *region,
 				   u32 map_flags,
 				   u64 page_offset, u64 page_count)
 {
-	if (page_offset + page_count > region->nr_pages)
-		return -EINVAL;
-
-	if (region->flags.large_pages)
-		map_flags |= HV_MAP_GPA_LARGE_PAGE;
-
-	return hv_call_map_gpa_pages(region->partition->pt_id,
-				     region->start_gfn + page_offset,
-				     page_count, map_flags,
-				     region->pages + page_offset);
+	return mshv_region_process_range(region, map_flags,
+					 page_offset, page_count,
+					 mshv_region_chunk_remap);
 }
 
 int mshv_region_map(struct mshv_mem_region *region)
@@ -134,9 +283,6 @@ int mshv_region_pin(struct mshv_mem_region *region)
 			goto release_pages;
 	}
 
-	if (PageHuge(region->pages[0]))
-		region->flags.large_pages = true;
-
 	return 0;
 
 release_pages:
@@ -144,10 +290,30 @@ release_pages:
 	return ret;
 }
 
+static int mshv_region_chunk_unmap(struct mshv_mem_region *region,
+				   u32 flags,
+				   u64 page_offset, u64 page_count)
+{
+	struct page *page = region->pages[page_offset];
+
+	if (PageHuge(page) || PageTransCompound(page))
+		flags |= HV_UNMAP_GPA_LARGE_PAGE;
+
+	return hv_call_unmap_gpa_pages(region->partition->pt_id,
+				       region->start_gfn + page_offset,
+				       page_count, flags);
+}
+
+static int mshv_region_unmap(struct mshv_mem_region *region)
+{
+	return mshv_region_process_range(region, 0,
+					 0, region->nr_pages,
+					 mshv_region_chunk_unmap);
+}
+
 void mshv_region_destroy(struct mshv_mem_region *region)
 {
 	struct mshv_partition *partition = region->partition;
-	u32 unmap_flags = 0;
 	int ret;
 
 	hlist_del(&region->hnode);
@@ -162,12 +328,7 @@ void mshv_region_destroy(struct mshv_mem_region *region)
 		}
 	}
 
-	if (region->flags.large_pages)
-		unmap_flags |= HV_UNMAP_GPA_LARGE_PAGE;
-
-	/* ignore unmap failures and continue as process may be exiting */
-	hv_call_unmap_gpa_pages(partition->pt_id, region->start_gfn,
-				region->nr_pages, unmap_flags);
+	mshv_region_unmap(region);
 
 	mshv_region_invalidate(region);
 
