@@ -232,6 +232,7 @@ static int setup_dma_buffers(struct thc_device *dev,
 		return 0;
 
 	memset(config->sgls, 0, sizeof(config->sgls));
+	memset(config->sgls_nent_pages, 0, sizeof(config->sgls_nent_pages));
 	memset(config->sgls_nent, 0, sizeof(config->sgls_nent));
 
 	cpu_addr = dma_alloc_coherent(dev->dev, prd_tbls_size,
@@ -254,6 +255,7 @@ static int setup_dma_buffers(struct thc_device *dev,
 		}
 		count = dma_map_sg(dev->dev, config->sgls[i], nent, dir);
 
+		config->sgls_nent_pages[i] = nent;
 		config->sgls_nent[i] = count;
 	}
 
@@ -299,7 +301,7 @@ static void release_dma_buffers(struct thc_device *dev,
 			continue;
 
 		dma_unmap_sg(dev->dev, config->sgls[i],
-			     config->sgls_nent[i],
+			     config->sgls_nent_pages[i],
 			     config->dir);
 
 		sgl_free(config->sgls[i]);
