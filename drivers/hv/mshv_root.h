@@ -15,6 +15,7 @@
 #include <linux/hashtable.h>
 #include <linux/dev_printk.h>
 #include <linux/build_bug.h>
+#include <linux/mmu_notifier.h>
 #include <uapi/linux/mshv.h>
 
 /*
@@ -70,6 +71,12 @@ do { \
 #define vp_info(v, fmt, ...)	vp_devprintk(info, v, fmt, ##__VA_ARGS__)
 #define vp_dbg(v, fmt, ...)	vp_devprintk(dbg, v, fmt, ##__VA_ARGS__)
 
+enum mshv_region_type {
+	MSHV_REGION_TYPE_MEM_PINNED,
+	MSHV_REGION_TYPE_MEM_MOVABLE,
+	MSHV_REGION_TYPE_MMIO
+};
+
 struct mshv_mem_region {
 	struct hlist_node hnode;
 	struct kref refcount;
@@ -77,11 +84,10 @@ struct mshv_mem_region {
 	u64 start_gfn;
 	u64 start_uaddr;
 	u32 hv_map_flags;
-	struct {
-		u64 range_pinned: 1;
-		u64 reserved:	 63;
-	} flags;
 	struct mshv_partition *partition;
+	enum mshv_region_type type;
+	struct mmu_interval_notifier mni;
+	struct mutex mutex;	/* protects region pages remapping */
 	struct page *pages[];
 };
 
@@ -315,8 +321,7 @@ extern enum hv_scheduler_type hv_scheduler_type;
 extern u8 * __percpu *hv_synic_eventring_tail;
 
 struct mshv_mem_region *mshv_region_create(u64 guest_pfn, u64 nr_pages,
-					   u64 uaddr, u32 flags,
-					   bool is_mmio);
+					   u64 uaddr, u32 flags);
 int mshv_region_share(struct mshv_mem_region *region);
 int mshv_region_unshare(struct mshv_mem_region *region);
 int mshv_region_map(struct mshv_mem_region *region);
@@ -324,5 +329,8 @@ void mshv_region_invalidate(struct mshv_mem_region *region);
 int mshv_region_pin(struct mshv_mem_region *region);
 void mshv_region_put(struct mshv_mem_region *region);
 int mshv_region_get(struct mshv_mem_region *region);
+bool mshv_region_handle_gfn_fault(struct mshv_mem_region *region, u64 gfn);
+void mshv_region_movable_fini(struct mshv_mem_region *region);
+bool mshv_region_movable_init(struct mshv_mem_region *region);
 
 #endif /* _MSHV_ROOT_H_ */

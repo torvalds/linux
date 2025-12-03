@@ -76,6 +76,8 @@ config MSHV_ROOT
 	depends on PAGE_SIZE_4KB
 	select EVENTFD
 	select VIRT_XFER_TO_GUEST_WORK
+	select HMM_MIRROR
+	select MMU_NOTIFIER
 	default n
 	help
 	  Select this option to enable support for booting and running as root

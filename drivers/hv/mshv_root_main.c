@@ -594,14 +594,98 @@ static long mshv_run_vp_with_root_scheduler(struct mshv_vp *vp)
 static_assert(sizeof(struct hv_message) <= MSHV_RUN_VP_BUF_SZ,
 	      "sizeof(struct hv_message) must not exceed MSHV_RUN_VP_BUF_SZ");
 
+static struct mshv_mem_region *
+mshv_partition_region_by_gfn(struct mshv_partition *partition, u64 gfn)
+{
+	struct mshv_mem_region *region;
+
+	hlist_for_each_entry(region, &partition->pt_mem_regions, hnode) {
+		if (gfn >= region->start_gfn &&
+		    gfn < region->start_gfn + region->nr_pages)
+			return region;
+	}
+
+	return NULL;
+}
+
+#ifdef CONFIG_X86_64
+static struct mshv_mem_region *
+mshv_partition_region_by_gfn_get(struct mshv_partition *p, u64 gfn)
+{
+	struct mshv_mem_region *region;
+
+	spin_lock(&p->pt_mem_regions_lock);
+	region = mshv_partition_region_by_gfn(p, gfn);
+	if (!region || !mshv_region_get(region)) {
+		spin_unlock(&p->pt_mem_regions_lock);
+		return NULL;
+	}
+	spin_unlock(&p->pt_mem_regions_lock);
+
+	return region;
+}
+
+/**
+ * mshv_handle_gpa_intercept - Handle GPA (Guest Physical Address) intercepts.
+ * @vp: Pointer to the virtual processor structure.
+ *
+ * This function processes GPA intercepts by identifying the memory region
+ * corresponding to the intercepted GPA, aligning the page offset, and
+ * mapping the required pages. It ensures that the region is valid and
+ * handles faults efficiently by mapping multiple pages at once.
+ *
+ * Return: true if the intercept was handled successfully, false otherwise.
+ */
+static bool mshv_handle_gpa_intercept(struct mshv_vp *vp)
+{
+	struct mshv_partition *p = vp->vp_partition;
+	struct mshv_mem_region *region;
+	struct hv_x64_memory_intercept_message *msg;
+	bool ret;
+	u64 gfn;
+
+	msg = (struct hv_x64_memory_intercept_message *)
+		vp->vp_intercept_msg_page->u.payload;
+
+	gfn = HVPFN_DOWN(msg->guest_physical_address);
+
+	region = mshv_partition_region_by_gfn_get(p, gfn);
+	if (!region)
+		return false;
+
+	/* Only movable memory ranges are supported for GPA intercepts */
+	if (region->type == MSHV_REGION_TYPE_MEM_MOVABLE)
+		ret = mshv_region_handle_gfn_fault(region, gfn);
+	else
+		ret = false;
+
+	mshv_region_put(region);
+
+	return ret;
+}
+#else  /* CONFIG_X86_64 */
+static bool mshv_handle_gpa_intercept(struct mshv_vp *vp) { return false; }
+#endif /* CONFIG_X86_64 */
+
+static bool mshv_vp_handle_intercept(struct mshv_vp *vp)
+{
+	switch (vp->vp_intercept_msg_page->header.message_type) {
+	case HVMSG_GPA_INTERCEPT:
+		return mshv_handle_gpa_intercept(vp);
+	}
+	return false;
+}
+
 static long mshv_vp_ioctl_run_vp(struct mshv_vp *vp, void __user *ret_msg)
 {
 	long rc;
 
-	if (hv_scheduler_type == HV_SCHEDULER_TYPE_ROOT)
-		rc = mshv_run_vp_with_root_scheduler(vp);
-	else
-		rc = mshv_run_vp_with_hyp_scheduler(vp);
+	do {
+		if (hv_scheduler_type == HV_SCHEDULER_TYPE_ROOT)
+			rc = mshv_run_vp_with_root_scheduler(vp);
+		else
+			rc = mshv_run_vp_with_hyp_scheduler(vp);
+	} while (rc == 0 && mshv_vp_handle_intercept(vp));
 
 	if (rc)
 		return rc;
@@ -1059,20 +1143,6 @@ static void mshv_async_hvcall_handler(void *data, u64 *status)
 	*status = partition->async_hypercall_status;
 }
 
-static struct mshv_mem_region *
-mshv_partition_region_by_gfn(struct mshv_partition *partition, u64 gfn)
-{
-	struct mshv_mem_region *region;
-
-	hlist_for_each_entry(region, &partition->pt_mem_regions, hnode) {
-		if (gfn >= region->start_gfn &&
-		    gfn < region->start_gfn + region->nr_pages)
-			return region;
-	}
-
-	return NULL;
-}
-
 /*
  * NB: caller checks and makes sure mem->size is page aligned
  * Returns: 0 with regionpp updated on success, or -errno
@@ -1097,10 +1167,17 @@ static int mshv_partition_create_region(struct mshv_partition *partition,
 	spin_unlock(&partition->pt_mem_regions_lock);
 
 	rg = mshv_region_create(mem->guest_pfn, nr_pages,
-				mem->userspace_addr, mem->flags,
-				is_mmio);
+				mem->userspace_addr, mem->flags);
 	if (IS_ERR(rg))
 		return PTR_ERR(rg);
+
+	if (is_mmio)
+		rg->type = MSHV_REGION_TYPE_MMIO;
+	else if (mshv_partition_encrypted(partition) ||
+		 !mshv_region_movable_init(rg))
+		rg->type = MSHV_REGION_TYPE_MEM_PINNED;
+	else
+		rg->type = MSHV_REGION_TYPE_MEM_MOVABLE;
 
 	rg->partition = partition;
 
@@ -1217,11 +1294,28 @@ mshv_map_user_memory(struct mshv_partition *partition,
 	if (ret)
 		return ret;
 
-	if (is_mmio)
-		ret = hv_call_map_mmio_pages(partition->pt_id, mem.guest_pfn,
-					     mmio_pfn, HVPFN_DOWN(mem.size));
-	else
+	switch (region->type) {
+	case MSHV_REGION_TYPE_MEM_PINNED:
 		ret = mshv_prepare_pinned_region(region);
+		break;
+	case MSHV_REGION_TYPE_MEM_MOVABLE:
+		/*
+		 * For movable memory regions, remap with no access to let
+		 * the hypervisor track dirty pages, enabling pre-copy live
+		 * migration.
+		 */
+		ret = hv_call_map_gpa_pages(partition->pt_id,
+					    region->start_gfn,
+					    region->nr_pages,
+					    HV_MAP_GPA_NO_ACCESS, NULL);
+		break;
+	case MSHV_REGION_TYPE_MMIO:
+		ret = hv_call_map_mmio_pages(partition->pt_id,
+					     region->start_gfn,
+					     mmio_pfn,
+					     region->nr_pages);
+		break;
+	}
 
 	if (ret)
 		goto errout;

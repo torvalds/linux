@@ -7,6 +7,8 @@
  * Authors: Microsoft Linux virtualization team
  */
 
+#include <linux/hmm.h>
+#include <linux/hyperv.h>
 #include <linux/kref.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -14,6 +16,8 @@
 #include <asm/mshyperv.h>
 
 #include "mshv_root.h"
+
+#define MSHV_MAP_FAULT_IN_PAGES				PTRS_PER_PMD
 
 /**
  * mshv_region_process_chunk - Processes a contiguous chunk of memory pages
@@ -134,8 +138,7 @@ static int mshv_region_process_range(struct mshv_mem_region *region,
 }
 
 struct mshv_mem_region *mshv_region_create(u64 guest_pfn, u64 nr_pages,
-					   u64 uaddr, u32 flags,
-					   bool is_mmio)
+					   u64 uaddr, u32 flags)
 {
 	struct mshv_mem_region *region;
 
@@ -151,9 +154,6 @@ struct mshv_mem_region *mshv_region_create(u64 guest_pfn, u64 nr_pages,
 		region->hv_map_flags |= HV_MAP_GPA_WRITABLE;
 	if (flags & BIT(MSHV_SET_MEM_BIT_EXECUTABLE))
 		region->hv_map_flags |= HV_MAP_GPA_EXECUTABLE;
-
-	if (!is_mmio)
-		region->flags.range_pinned = true;
 
 	kref_init(&region->refcount);
 
@@ -245,7 +245,7 @@ int mshv_region_map(struct mshv_mem_region *region)
 static void mshv_region_invalidate_pages(struct mshv_mem_region *region,
 					 u64 page_offset, u64 page_count)
 {
-	if (region->flags.range_pinned)
+	if (region->type == MSHV_REGION_TYPE_MEM_PINNED)
 		unpin_user_pages(region->pages + page_offset, page_count);
 
 	memset(region->pages + page_offset, 0,
@@ -321,6 +321,9 @@ static void mshv_region_destroy(struct kref *ref)
 	struct mshv_partition *partition = region->partition;
 	int ret;
 
+	if (region->type == MSHV_REGION_TYPE_MEM_MOVABLE)
+		mshv_region_movable_fini(region);
+
 	if (mshv_partition_encrypted(partition)) {
 		ret = mshv_region_share(region);
 		if (ret) {
@@ -346,4 +349,207 @@ void mshv_region_put(struct mshv_mem_region *region)
 int mshv_region_get(struct mshv_mem_region *region)
 {
 	return kref_get_unless_zero(&region->refcount);
+}
+
+/**
+ * mshv_region_hmm_fault_and_lock - Handle HMM faults and lock the memory region
+ * @region: Pointer to the memory region structure
+ * @range: Pointer to the HMM range structure
+ *
+ * This function performs the following steps:
+ * 1. Reads the notifier sequence for the HMM range.
+ * 2. Acquires a read lock on the memory map.
+ * 3. Handles HMM faults for the specified range.
+ * 4. Releases the read lock on the memory map.
+ * 5. If successful, locks the memory region mutex.
+ * 6. Verifies if the notifier sequence has changed during the operation.
+ *    If it has, releases the mutex and returns -EBUSY to match with
+ *    hmm_range_fault() return code for repeating.
+ *
+ * Return: 0 on success, a negative error code otherwise.
+ */
+static int mshv_region_hmm_fault_and_lock(struct mshv_mem_region *region,
+					  struct hmm_range *range)
+{
+	int ret;
+
+	range->notifier_seq = mmu_interval_read_begin(range->notifier);
+	mmap_read_lock(region->mni.mm);
+	ret = hmm_range_fault(range);
+	mmap_read_unlock(region->mni.mm);
+	if (ret)
+		return ret;
+
+	mutex_lock(&region->mutex);
+
+	if (mmu_interval_read_retry(range->notifier, range->notifier_seq)) {
+		mutex_unlock(&region->mutex);
+		cond_resched();
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+/**
+ * mshv_region_range_fault - Handle memory range faults for a given region.
+ * @region: Pointer to the memory region structure.
+ * @page_offset: Offset of the page within the region.
+ * @page_count: Number of pages to handle.
+ *
+ * This function resolves memory faults for a specified range of pages
+ * within a memory region. It uses HMM (Heterogeneous Memory Management)
+ * to fault in the required pages and updates the region's page array.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+static int mshv_region_range_fault(struct mshv_mem_region *region,
+				   u64 page_offset, u64 page_count)
+{
+	struct hmm_range range = {
+		.notifier = &region->mni,
+		.default_flags = HMM_PFN_REQ_FAULT | HMM_PFN_REQ_WRITE,
+	};
+	unsigned long *pfns;
+	int ret;
+	u64 i;
+
+	pfns = kmalloc_array(page_count, sizeof(*pfns), GFP_KERNEL);
+	if (!pfns)
+		return -ENOMEM;
+
+	range.hmm_pfns = pfns;
+	range.start = region->start_uaddr + page_offset * HV_HYP_PAGE_SIZE;
+	range.end = range.start + page_count * HV_HYP_PAGE_SIZE;
+
+	do {
+		ret = mshv_region_hmm_fault_and_lock(region, &range);
+	} while (ret == -EBUSY);
+
+	if (ret)
+		goto out;
+
+	for (i = 0; i < page_count; i++)
+		region->pages[page_offset + i] = hmm_pfn_to_page(pfns[i]);
+
+	ret = mshv_region_remap_pages(region, region->hv_map_flags,
+				      page_offset, page_count);
+
+	mutex_unlock(&region->mutex);
+out:
+	kfree(pfns);
+	return ret;
+}
+
+bool mshv_region_handle_gfn_fault(struct mshv_mem_region *region, u64 gfn)
+{
+	u64 page_offset, page_count;
+	int ret;
+
+	/* Align the page offset to the nearest MSHV_MAP_FAULT_IN_PAGES. */
+	page_offset = ALIGN_DOWN(gfn - region->start_gfn,
+				 MSHV_MAP_FAULT_IN_PAGES);
+
+	/* Map more pages than requested to reduce the number of faults. */
+	page_count = min(region->nr_pages - page_offset,
+			 MSHV_MAP_FAULT_IN_PAGES);
+
+	ret = mshv_region_range_fault(region, page_offset, page_count);
+
+	WARN_ONCE(ret,
+		  "p%llu: GPA intercept failed: region %#llx-%#llx, gfn %#llx, page_offset %llu, page_count %llu\n",
+		  region->partition->pt_id, region->start_uaddr,
+		  region->start_uaddr + (region->nr_pages << HV_HYP_PAGE_SHIFT),
+		  gfn, page_offset, page_count);
+
+	return !ret;
+}
+
+/**
+ * mshv_region_interval_invalidate - Invalidate a range of memory region
+ * @mni: Pointer to the mmu_interval_notifier structure
+ * @range: Pointer to the mmu_notifier_range structure
+ * @cur_seq: Current sequence number for the interval notifier
+ *
+ * This function invalidates a memory region by remapping its pages with
+ * no access permissions. It locks the region's mutex to ensure thread safety
+ * and updates the sequence number for the interval notifier. If the range
+ * is blockable, it uses a blocking lock; otherwise, it attempts a non-blocking
+ * lock and returns false if unsuccessful.
+ *
+ * NOTE: Failure to invalidate a region is a serious error, as the pages will
+ * be considered freed while they are still mapped by the hypervisor.
+ * Any attempt to access such pages will likely crash the system.
+ *
+ * Return: true if the region was successfully invalidated, false otherwise.
+ */
+static bool mshv_region_interval_invalidate(struct mmu_interval_notifier *mni,
+					    const struct mmu_notifier_range *range,
+					    unsigned long cur_seq)
+{
+	struct mshv_mem_region *region = container_of(mni,
+						      struct mshv_mem_region,
+						      mni);
+	u64 page_offset, page_count;
+	unsigned long mstart, mend;
+	int ret = -EPERM;
+
+	if (mmu_notifier_range_blockable(range))
+		mutex_lock(&region->mutex);
+	else if (!mutex_trylock(&region->mutex))
+		goto out_fail;
+
+	mmu_interval_set_seq(mni, cur_seq);
+
+	mstart = max(range->start, region->start_uaddr);
+	mend = min(range->end, region->start_uaddr +
+		   (region->nr_pages << HV_HYP_PAGE_SHIFT));
+
+	page_offset = HVPFN_DOWN(mstart - region->start_uaddr);
+	page_count = HVPFN_DOWN(mend - mstart);
+
+	ret = mshv_region_remap_pages(region, HV_MAP_GPA_NO_ACCESS,
+				      page_offset, page_count);
+	if (ret)
+		goto out_fail;
+
+	mshv_region_invalidate_pages(region, page_offset, page_count);
+
+	mutex_unlock(&region->mutex);
+
+	return true;
+
+out_fail:
+	WARN_ONCE(ret,
+		  "Failed to invalidate region %#llx-%#llx (range %#lx-%#lx, event: %u, pages %#llx-%#llx, mm: %#llx): %d\n",
+		  region->start_uaddr,
+		  region->start_uaddr + (region->nr_pages << HV_HYP_PAGE_SHIFT),
+		  range->start, range->end, range->event,
+		  page_offset, page_offset + page_count - 1, (u64)range->mm, ret);
+	return false;
+}
+
+static const struct mmu_interval_notifier_ops mshv_region_mni_ops = {
+	.invalidate = mshv_region_interval_invalidate,
+};
+
+void mshv_region_movable_fini(struct mshv_mem_region *region)
+{
+	mmu_interval_notifier_remove(&region->mni);
+}
+
+bool mshv_region_movable_init(struct mshv_mem_region *region)
+{
+	int ret;
+
+	ret = mmu_interval_notifier_insert(&region->mni, current->mm,
+					   region->start_uaddr,
+					   region->nr_pages << HV_HYP_PAGE_SHIFT,
+					   &mshv_region_mni_ops);
+	if (ret)
+		return false;
+
+	mutex_init(&region->mutex);
+
+	return true;
 }
