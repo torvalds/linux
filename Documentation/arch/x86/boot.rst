@@ -416,7 +416,7 @@ Offset/size:	0x210/1
 Protocol:	2.00+
 ============	==================
 
-  If your boot loader has an assigned id (see table below), enter
+  If your boot loader has an assigned ID (see table below), enter
   0xTV here, where T is an identifier for the boot loader and V is
   a version number.  Otherwise, enter 0xFF here.
 
@@ -431,7 +431,7 @@ Protocol:	2.00+
    ext_loader_type <- 0x05
    ext_loader_ver  <- 0x23
 
-  Assigned boot loader ids (hexadecimal):
+  Assigned boot loader IDs (hexadecimal):
 
 	== =======================================
 	0  LILO
