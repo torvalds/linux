@@ -104,9 +104,12 @@ headers_standalone: headers
 	$(Q)$(MAKE) -C $(srctree) headers
 	$(Q)$(MAKE) -C $(srctree) headers_install INSTALL_HDR_PATH=$(OUTPUT)sysroot
 
+CFLAGS_s390 := -m64
+CFLAGS := $(CFLAGS_$(ARCH))
+
 headers_check: headers_standalone
 	$(Q)for header in $(filter-out crt.h std.h,$(all_files)); do \
-		$(CC) $(CLANG_CROSS_FLAGS) -Wall -Werror -nostdinc -fsyntax-only -x c /dev/null \
+		$(CC) $(CFLAGS) $(CLANG_CROSS_FLAGS) -Wall -Werror -nostdinc -fsyntax-only -x c /dev/null \
 			-I$(or $(objtree),$(srctree))/usr/include -include $$header -include $$header || exit 1; \
 	done
 
