@@ -67,12 +67,13 @@ FILES=                                          \
          test-libopencsd.bin			\
          test-clang.bin				\
          test-llvm.bin				\
-         test-llvm-perf.bin   \
+         test-llvm-perf.bin   			\
          test-libaio.bin			\
          test-libzstd.bin			\
          test-clang-bpf-co-re.bin		\
          test-file-handle.bin			\
-         test-libpfm4.bin
+         test-libpfm4.bin			\
+         test-libopenssl.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -380,6 +381,9 @@ $(OUTPUT)test-file-handle.bin:
 
 $(OUTPUT)test-libpfm4.bin:
 	$(BUILD) -lpfm
+
+$(OUTPUT)test-libopenssl.bin:
+	$(BUILD) -lssl
 
 $(OUTPUT)test-bpftool-skeletons.bin:
 	$(SYSTEM_BPFTOOL) version | grep '^features:.*skeletons' \
