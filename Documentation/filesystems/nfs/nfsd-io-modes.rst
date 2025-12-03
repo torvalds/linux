@@ -25,12 +25,14 @@ Based on the configured settings, NFSD's IO will either be:
 - not cached stable_how=NFS_UNSTABLE (NFSD_IO_DIRECT=2)
 
 To set an NFSD IO mode, write a supported value (0 - 2) to the
-corresponding IO operation's debugfs interface, e.g.:
+corresponding IO operation's debugfs interface, e.g.::
+
   echo 2 > /sys/kernel/debug/nfsd/io_cache_read
   echo 2 > /sys/kernel/debug/nfsd/io_cache_write
 
 To check which IO mode NFSD is using for READ or WRITE, simply read the
-corresponding IO operation's debugfs interface, e.g.:
+corresponding IO operation's debugfs interface, e.g.::
+
   cat /sys/kernel/debug/nfsd/io_cache_read
   cat /sys/kernel/debug/nfsd/io_cache_write
 
@@ -128,17 +130,19 @@ Tracing:
     misaligned READ to the next DIO-aligned block (on either end of the
     original READ, as needed).
 
-    This combination of trace events is useful for READs:
-    echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_read_vector/enable
-    echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_read_direct/enable
-    echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_read_io_done/enable
-    echo 1 > /sys/kernel/tracing/events/xfs/xfs_file_direct_read/enable
+    This combination of trace events is useful for READs::
+
+      echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_read_vector/enable
+      echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_read_direct/enable
+      echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_read_io_done/enable
+      echo 1 > /sys/kernel/tracing/events/xfs/xfs_file_direct_read/enable
 
     The nfsd_write_direct trace event shows how NFSD splits a given
     misaligned WRITE into a DIO-aligned middle segment.
 
-    This combination of trace events is useful for WRITEs:
-    echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_write_opened/enable
-    echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_write_direct/enable
-    echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_write_io_done/enable
-    echo 1 > /sys/kernel/tracing/events/xfs/xfs_file_direct_write/enable
+    This combination of trace events is useful for WRITEs::
+
+      echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_write_opened/enable
+      echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_write_direct/enable
+      echo 1 > /sys/kernel/tracing/events/nfsd/nfsd_write_io_done/enable
+      echo 1 > /sys/kernel/tracing/events/xfs/xfs_file_direct_write/enable
