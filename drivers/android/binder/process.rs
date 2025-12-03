@@ -418,6 +418,13 @@ impl ProcessNodeRefs {
     }
 }
 
+use core::mem::offset_of;
+use kernel::bindings::rb_process_layout;
+pub(crate) const PROCESS_LAYOUT: rb_process_layout = rb_process_layout {
+    arc_offset: Arc::<Process>::DATA_OFFSET,
+    task: offset_of!(Process, task),
+};
+
 /// A process using binder.
 ///
 /// Strictly speaking, there can be multiple of these per process. There is one for each binder fd

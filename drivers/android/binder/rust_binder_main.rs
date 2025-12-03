@@ -89,6 +89,14 @@ module! {
     license: "GPL",
 }
 
+use kernel::bindings::rust_binder_layout;
+#[no_mangle]
+static RUST_BINDER_LAYOUT: rust_binder_layout = rust_binder_layout {
+    t: transaction::TRANSACTION_LAYOUT,
+    p: process::PROCESS_LAYOUT,
+    n: node::NODE_LAYOUT,
+};
+
 fn next_debug_id() -> usize {
     static NEXT_DEBUG_ID: AtomicUsize = AtomicUsize::new(0);
 
