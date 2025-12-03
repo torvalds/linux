@@ -225,6 +225,7 @@ CFLAGS_mipsn32le = -EL -mabi=n32 -fPIC -march=mips64r2
 CFLAGS_mipsn32be = -EB -mabi=n32 -march=mips64r6
 CFLAGS_mips64le = -EL -mabi=64 -march=mips64r6
 CFLAGS_mips64be = -EB -mabi=64 -march=mips64r2
+CFLAGS_loongarch = $(if $(LLVM),-fuse-ld=lld)
 CFLAGS_sparc32 = $(call cc-option,-m32)
 CFLAGS_sh4 = -ml -m4
 ifeq ($(origin XARCH),command line)

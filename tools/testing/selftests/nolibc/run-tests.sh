@@ -169,7 +169,7 @@ test_arch() {
 	cross_compile=$(realpath "${download_location}gcc-${crosstool_version}-nolibc/${ct_arch}-${ct_abi}/bin/${ct_arch}-${ct_abi}-")
 	build_dir="${build_location}/${arch}"
 	if [ "$werror" -ne 0 ]; then
-		CFLAGS_EXTRA="$CFLAGS_EXTRA -Werror"
+		CFLAGS_EXTRA="$CFLAGS_EXTRA -Werror -Wl,--fatal-warnings"
 	fi
 	MAKE=(make -f Makefile.nolibc -j"${nproc}" XARCH="${arch}" CROSS_COMPILE="${cross_compile}" LLVM="${llvm}" O="${build_dir}")
 
