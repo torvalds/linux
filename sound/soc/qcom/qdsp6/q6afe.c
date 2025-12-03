@@ -931,13 +931,11 @@ static void q6afe_port_free(struct kref *ref)
 {
 	struct q6afe_port *port;
 	struct q6afe *afe;
-	unsigned long flags;
 
 	port = container_of(ref, struct q6afe_port, refcount);
 	afe = port->afe;
-	spin_lock_irqsave(&afe->port_list_lock, flags);
-	list_del(&port->node);
-	spin_unlock_irqrestore(&afe->port_list_lock, flags);
+	scoped_guard(spinlock_irqsave, &afe->port_list_lock)
+		list_del(&port->node);
 	kfree(port->scfg);
 	kfree(port);
 }
@@ -1807,8 +1805,8 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	port->cfg_type = cfg_type;
 	kref_init(&port->refcount);
 
-	guard(spinlock_irqsave)(&afe->port_list_lock);
-	list_add_tail(&port->node, &afe->port_list);
+	scoped_guard(spinlock_irqsave, &afe->port_list_lock)
+		list_add_tail(&port->node, &afe->port_list);
 
 	return port;
 
