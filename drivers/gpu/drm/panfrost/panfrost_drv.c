@@ -1077,7 +1077,7 @@ static const struct panfrost_compatible default_data = {
 	.pm_domain_names = NULL,
 };
 
-static const struct panfrost_compatible allwinner_h616_data = {
+static const struct panfrost_compatible default_pm_rt_data = {
 	.num_supplies = ARRAY_SIZE(default_supplies) - 1,
 	.supply_names = default_supplies,
 	.num_pm_domains = 1,
@@ -1157,6 +1157,7 @@ static const struct of_device_id dt_match[] = {
 	  .data = &amlogic_data, },
 	{ .compatible = "amlogic,meson-g12a-mali",
 	  .data = &amlogic_data, },
+	{ .compatible = "renesas,r9a09g047-mali", .data = &default_pm_rt_data },
 	{ .compatible = "arm,mali-t604", .data = &default_data, },
 	{ .compatible = "arm,mali-t624", .data = &default_data, },
 	{ .compatible = "arm,mali-t628", .data = &default_data, },
@@ -1174,7 +1175,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "mediatek,mt8188-mali", .data = &mediatek_mt8188_data },
 	{ .compatible = "mediatek,mt8192-mali", .data = &mediatek_mt8192_data },
 	{ .compatible = "mediatek,mt8370-mali", .data = &mediatek_mt8370_data },
-	{ .compatible = "allwinner,sun50i-h616-mali", .data = &allwinner_h616_data },
+	{ .compatible = "allwinner,sun50i-h616-mali", .data = &default_pm_rt_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
