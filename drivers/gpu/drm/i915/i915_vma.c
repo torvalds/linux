@@ -24,7 +24,9 @@
 
 #include <linux/sched/mm.h>
 #include <linux/dma-fence-array.h>
+
 #include <drm/drm_gem.h>
+#include <drm/drm_print.h>
 
 #include "display/intel_fb.h"
 #include "display/intel_frontbuffer.h"
@@ -1595,8 +1597,20 @@ err_unlock:
 err_vma_res:
 	i915_vma_resource_free(vma_res);
 err_fence:
-	if (work)
-		dma_fence_work_commit_imm(&work->base);
+	if (work) {
+		/*
+		 * When pinning VMA to GGTT on CHV or BXT with VTD enabled,
+		 * commit VMA binding asynchronously to avoid risk of lock
+		 * inversion among reservation_ww locks held here and
+		 * cpu_hotplug_lock acquired from stop_machine(), which we
+		 * wrap around GGTT updates when running in those environments.
+		 */
+		if (i915_vma_is_ggtt(vma) &&
+		    intel_vm_no_concurrent_access_wa(vma->vm->i915))
+			dma_fence_work_commit(&work->base);
+		else
+			dma_fence_work_commit_imm(&work->base);
+	}
 err_rpm:
 	intel_runtime_pm_put(&vma->vm->i915->runtime_pm, wakeref);
 
@@ -1990,13 +2004,13 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 	}
 
 	if (flags & EXEC_OBJECT_WRITE) {
-		struct intel_frontbuffer *front;
+		struct i915_frontbuffer *front;
 
-		front = i915_gem_object_get_frontbuffer(obj);
+		front = i915_gem_object_frontbuffer_lookup(obj);
 		if (unlikely(front)) {
-			if (intel_frontbuffer_invalidate(front, ORIGIN_CS))
+			if (intel_frontbuffer_invalidate(&front->base, ORIGIN_CS))
 				i915_active_add_request(&front->write, rq);
-			intel_frontbuffer_put(front);
+			i915_gem_object_frontbuffer_put(front);
 		}
 	}
 

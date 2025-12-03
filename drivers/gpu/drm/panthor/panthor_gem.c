@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
+#include <drm/drm_print.h>
 #include <drm/panthor_drm.h>
 
 #include "panthor_device.h"
@@ -86,7 +87,6 @@ static void panthor_gem_free_object(struct drm_gem_object *obj)
 void panthor_kernel_bo_destroy(struct panthor_kernel_bo *bo)
 {
 	struct panthor_vm *vm;
-	int ret;
 
 	if (IS_ERR_OR_NULL(bo))
 		return;
@@ -94,18 +94,11 @@ void panthor_kernel_bo_destroy(struct panthor_kernel_bo *bo)
 	vm = bo->vm;
 	panthor_kernel_bo_vunmap(bo);
 
-	if (drm_WARN_ON(bo->obj->dev,
-			to_panthor_bo(bo->obj)->exclusive_vm_root_gem != panthor_vm_root_gem(vm)))
-		goto out_free_bo;
-
-	ret = panthor_vm_unmap_range(vm, bo->va_node.start, bo->va_node.size);
-	if (ret)
-		goto out_free_bo;
-
+	drm_WARN_ON(bo->obj->dev,
+		    to_panthor_bo(bo->obj)->exclusive_vm_root_gem != panthor_vm_root_gem(vm));
+	panthor_vm_unmap_range(vm, bo->va_node.start, bo->va_node.size);
 	panthor_vm_free_va(vm, &bo->va_node);
 	drm_gem_object_put(bo->obj);
-
-out_free_bo:
 	panthor_vm_put(vm);
 	kfree(bo);
 }
@@ -152,6 +145,9 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 	bo = to_panthor_bo(&obj->base);
 	kbo->obj = &obj->base;
 	bo->flags = bo_flags;
+	bo->exclusive_vm_root_gem = panthor_vm_root_gem(vm);
+	drm_gem_object_get(bo->exclusive_vm_root_gem);
+	bo->base.base.resv = bo->exclusive_vm_root_gem->resv;
 
 	if (vm == panthor_fw_vm(ptdev))
 		debug_flags |= PANTHOR_DEBUGFS_GEM_USAGE_FLAG_FW_MAPPED;
@@ -175,9 +171,6 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 		goto err_free_va;
 
 	kbo->vm = panthor_vm_get(vm);
-	bo->exclusive_vm_root_gem = panthor_vm_root_gem(vm);
-	drm_gem_object_get(bo->exclusive_vm_root_gem);
-	bo->base.base.resv = bo->exclusive_vm_root_gem->resv;
 	return kbo;
 
 err_free_va:
@@ -288,6 +281,23 @@ panthor_gem_create_with_handle(struct drm_file *file,
 
 	panthor_gem_debugfs_set_usage_flags(bo, 0);
 
+	/* If this is a write-combine mapping, we query the sgt to force a CPU
+	 * cache flush (dma_map_sgtable() is called when the sgt is created).
+	 * This ensures the zero-ing is visible to any uncached mapping created
+	 * by vmap/mmap.
+	 * FIXME: Ideally this should be done when pages are allocated, not at
+	 * BO creation time.
+	 */
+	if (shmem->map_wc) {
+		struct sg_table *sgt;
+
+		sgt = drm_gem_shmem_get_pages_sgt(shmem);
+		if (IS_ERR(sgt)) {
+			ret = PTR_ERR(sgt);
+			goto out_put_gem;
+		}
+	}
+
 	/*
 	 * Allocate an id of idr table where the obj is registered
 	 * and handle has the id what user can see.
@@ -296,6 +306,7 @@ panthor_gem_create_with_handle(struct drm_file *file,
 	if (!ret)
 		*size = bo->base.base.size;
 
+out_put_gem:
 	/* drop reference from allocate - handle holds it now. */
 	drm_gem_object_put(&shmem->base);
 

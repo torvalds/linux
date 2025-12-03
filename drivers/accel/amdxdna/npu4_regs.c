@@ -63,10 +63,14 @@
 
 const struct rt_config npu4_default_rt_cfg[] = {
 	{ 5, 1, AIE2_RT_CFG_INIT }, /* PDI APP LOAD MODE */
+	{ 10, 1, AIE2_RT_CFG_INIT }, /* DEBUG BUF */
+	{ 14, 0, AIE2_RT_CFG_INIT, BIT_U64(AIE2_PREEMPT) }, /* Frame boundary preemption */
 	{ 1, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
 	{ 2, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
 	{ 3, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
 	{ 4, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
+	{ 13, 0, AIE2_RT_CFG_FORCE_PREEMPT },
+	{ 14, 0, AIE2_RT_CFG_FRAME_BOUNDARY_PREEMPT },
 	{ 0 },
 };
 
@@ -82,16 +86,24 @@ const struct dpm_clk_freq npu4_dpm_clk_table[] = {
 	{ 0 }
 };
 
+const struct aie2_fw_feature_tbl npu4_fw_feature_table[] = {
+	{ .feature = AIE2_NPU_COMMAND, .min_minor = 15 },
+	{ .feature = AIE2_PREEMPT, .min_minor = 12 },
+	{ 0 }
+};
+
 static const struct amdxdna_dev_priv npu4_dev_priv = {
 	.fw_path        = "amdnpu/17f0_10/npu.sbin",
 	.protocol_major = 0x6,
 	.protocol_minor = 12,
 	.rt_config	= npu4_default_rt_cfg,
 	.dpm_clk_tbl	= npu4_dpm_clk_table,
+	.fw_feature_tbl = npu4_fw_feature_table,
 	.col_align	= COL_ALIGN_NATURE,
 	.mbox_dev_addr  = NPU4_MBOX_BAR_BASE,
 	.mbox_size      = 0, /* Use BAR size */
 	.sram_dev_addr  = NPU4_SRAM_BAR_BASE,
+	.hwctx_limit    = 16,
 	.sram_offs      = {
 		DEFINE_BAR_OFFSET(MBOX_CHANN_OFF, NPU4_SRAM, MPNPU_SRAM_X2I_MAILBOX_0),
 		DEFINE_BAR_OFFSET(FW_ALIVE_OFF,   NPU4_SRAM, MPNPU_SRAM_X2I_MAILBOX_15),

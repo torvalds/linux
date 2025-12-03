@@ -249,6 +249,8 @@ test_binding_toggle_off_when_upper_down()
 	do_test_binding_off : "on->off when upper down"
 }
 
+require_command jq
+
 trap defer_scopes_cleanup EXIT
 setup_prepare
 tests_run

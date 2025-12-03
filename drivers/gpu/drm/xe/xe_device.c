@@ -436,7 +436,7 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	err = ttm_device_init(&xe->ttm, &xe_ttm_funcs, xe->drm.dev,
 			      xe->drm.anon_inode->i_mapping,
-			      xe->drm.vma_offset_manager, false, false);
+			      xe->drm.vma_offset_manager, 0);
 	if (WARN_ON(err))
 		goto err;
 

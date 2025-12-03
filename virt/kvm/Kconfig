@@ -113,6 +113,7 @@ config KVM_GENERIC_MEMORY_ATTRIBUTES
        bool
 
 config KVM_GUEST_MEMFD
+       depends on KVM_GENERIC_MMU_NOTIFIER
        select XARRAY_MULTI
        bool
 

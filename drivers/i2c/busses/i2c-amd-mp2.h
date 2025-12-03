@@ -207,7 +207,6 @@ static inline void amd_mp2_pm_runtime_get(struct amd_mp2_dev *mp2_dev)
 
 static inline void amd_mp2_pm_runtime_put(struct amd_mp2_dev *mp2_dev)
 {
-	pm_runtime_mark_last_busy(&mp2_dev->pci_dev->dev);
 	pm_runtime_put_autosuspend(&mp2_dev->pci_dev->dev);
 }
 

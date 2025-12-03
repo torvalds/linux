@@ -694,7 +694,7 @@ static void *scrub_stripe_get_kaddr(struct scrub_stripe *stripe, int sector_nr)
 
 	/* stripe->folios[] is allocated by us and no highmem is allowed. */
 	ASSERT(folio);
-	ASSERT(!folio_test_partial_kmap(folio));
+	ASSERT(!folio_test_highmem(folio));
 	return folio_address(folio) + offset_in_folio(folio, offset);
 }
 
@@ -707,7 +707,7 @@ static phys_addr_t scrub_stripe_get_paddr(struct scrub_stripe *stripe, int secto
 
 	/* stripe->folios[] is allocated by us and no highmem is allowed. */
 	ASSERT(folio);
-	ASSERT(!folio_test_partial_kmap(folio));
+	ASSERT(!folio_test_highmem(folio));
 	/* And the range must be contained inside the folio. */
 	ASSERT(offset_in_folio(folio, offset) + fs_info->sectorsize <= folio_size(folio));
 	return page_to_phys(folio_page(folio, 0)) + offset_in_folio(folio, offset);
@@ -2203,6 +2203,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, full_stripe_start,
 			      &length, &bioc, NULL, NULL);
 	if (ret < 0) {
+		bio_put(bio);
 		btrfs_put_bioc(bioc);
 		btrfs_bio_counter_dec(fs_info);
 		goto out;
@@ -2212,6 +2213,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	btrfs_put_bioc(bioc);
 	if (!rbio) {
 		ret = -ENOMEM;
+		bio_put(bio);
 		btrfs_bio_counter_dec(fs_info);
 		goto out;
 	}

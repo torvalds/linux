@@ -16,6 +16,7 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
+#include <drm/drm_print.h>
 #include <drm/drm_rect.h>
 
 #include <drm/ttm/ttm_execbuf_util.h>

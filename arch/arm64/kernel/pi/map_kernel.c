@@ -104,7 +104,7 @@ static void __init map_kernel(u64 kaslr_offset, u64 va_offset, int root_level)
 
 		if (enable_scs) {
 			scs_patch(__eh_frame_start + va_offset,
-				  __eh_frame_end - __eh_frame_start);
+				  __eh_frame_end - __eh_frame_start, false);
 			asm("ic ialluis");
 
 			dynamic_scs_is_enabled = true;

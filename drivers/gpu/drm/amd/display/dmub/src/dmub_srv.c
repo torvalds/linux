@@ -66,7 +66,7 @@
 #define DMUB_SCRATCH_MEM_SIZE (1024)
 
 /* Default indirect buffer size. */
-#define DMUB_IB_MEM_SIZE (1280)
+#define DMUB_IB_MEM_SIZE (2560)
 
 /* Default LSDMA ring buffer size. */
 #define DMUB_LSDMA_RB_SIZE (64 * 1024)
@@ -359,6 +359,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 			funcs->get_current_time = dmub_dcn35_get_current_time;
 			funcs->get_diagnostic_data = dmub_dcn35_get_diagnostic_data;
+			funcs->get_preos_fw_info = dmub_dcn35_get_preos_fw_info;
 
 			funcs->init_reg_offsets = dmub_srv_dcn35_regs_init;
 			if (asic == DMUB_ASIC_DCN351)
@@ -564,10 +565,11 @@ enum dmub_status
 	window_sizes[DMUB_WINDOW_4_MAILBOX] = DMUB_MAILBOX_SIZE;
 	window_sizes[DMUB_WINDOW_5_TRACEBUFF] = trace_buffer_size;
 	window_sizes[DMUB_WINDOW_6_FW_STATE] = fw_state_size;
-	window_sizes[DMUB_WINDOW_7_SCRATCH_MEM] = DMUB_SCRATCH_MEM_SIZE;
+	window_sizes[DMUB_WINDOW_7_SCRATCH_MEM] = dmub_align(DMUB_SCRATCH_MEM_SIZE, 64);
 	window_sizes[DMUB_WINDOW_IB_MEM] = DMUB_IB_MEM_SIZE;
 	window_sizes[DMUB_WINDOW_SHARED_STATE] = max(DMUB_FW_HEADER_SHARED_STATE_SIZE, shared_state_size);
 	window_sizes[DMUB_WINDOW_LSDMA_BUFFER] = DMUB_LSDMA_RB_SIZE;
+	window_sizes[DMUB_WINDOW_CURSOR_OFFLOAD] = dmub_align(sizeof(struct dmub_cursor_offload_v1), 64);
 
 	out->fb_size =
 		dmub_srv_calc_regions_for_memory_type(params, out, window_sizes, DMUB_WINDOW_MEMORY_TYPE_FB);
@@ -652,21 +654,22 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	struct dmub_fb *mail_fb = params->fb[DMUB_WINDOW_4_MAILBOX];
 	struct dmub_fb *tracebuff_fb = params->fb[DMUB_WINDOW_5_TRACEBUFF];
 	struct dmub_fb *fw_state_fb = params->fb[DMUB_WINDOW_6_FW_STATE];
-	struct dmub_fb *scratch_mem_fb = params->fb[DMUB_WINDOW_7_SCRATCH_MEM];
-	struct dmub_fb *ib_mem_gart = params->fb[DMUB_WINDOW_IB_MEM];
 	struct dmub_fb *shared_state_fb = params->fb[DMUB_WINDOW_SHARED_STATE];
 
 	struct dmub_rb_init_params rb_params, outbox0_rb_params;
 	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5, cw6, region6;
 	struct dmub_region inbox1, outbox1, outbox0;
 
+	uint32_t i;
+
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
 
-	if (!inst_fb || !stack_fb || !data_fb || !bios_fb || !mail_fb ||
-		!tracebuff_fb || !fw_state_fb || !scratch_mem_fb || !ib_mem_gart) {
-		ASSERT(0);
-		return DMUB_STATUS_INVALID;
+	for (i = 0; i < DMUB_WINDOW_TOTAL; ++i) {
+		if (!params->fb[i]) {
+			ASSERT(0);
+			return DMUB_STATUS_INVALID;
+		}
 	}
 
 	dmub->fb_base = params->fb_base;
@@ -748,9 +751,11 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 
 	dmub->shared_state = shared_state_fb->cpu_addr;
 
-	dmub->scratch_mem_fb = *scratch_mem_fb;
+	dmub->scratch_mem_fb = *params->fb[DMUB_WINDOW_7_SCRATCH_MEM];
+	dmub->ib_mem_gart = *params->fb[DMUB_WINDOW_IB_MEM];
 
-	dmub->ib_mem_gart = *ib_mem_gart;
+	dmub->cursor_offload_fb = *params->fb[DMUB_WINDOW_CURSOR_OFFLOAD];
+	dmub->cursor_offload_v1 = (struct dmub_cursor_offload_v1 *)dmub->cursor_offload_fb.cpu_addr;
 
 	if (dmub->hw_funcs.setup_windows)
 		dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4, &cw5, &cw6, &region6);
@@ -1367,4 +1372,12 @@ enum dmub_status dmub_srv_update_inbox_status(struct dmub_srv *dmub)
 	dmub_srv_update_reg_inbox0_status(dmub);
 
 	return DMUB_STATUS_OK;
+}
+
+bool dmub_srv_get_preos_info(struct dmub_srv *dmub)
+{
+	if (!dmub || !dmub->hw_funcs.get_preos_fw_info)
+		return false;
+
+	return dmub->hw_funcs.get_preos_fw_info(dmub);
 }

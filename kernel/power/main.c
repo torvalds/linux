@@ -31,23 +31,35 @@
  * held, unless the suspend/hibernate code is guaranteed not to run in parallel
  * with that modification).
  */
+static unsigned int saved_gfp_count;
 static gfp_t saved_gfp_mask;
 
 void pm_restore_gfp_mask(void)
 {
 	WARN_ON(!mutex_is_locked(&system_transition_mutex));
-	if (saved_gfp_mask) {
-		gfp_allowed_mask = saved_gfp_mask;
-		saved_gfp_mask = 0;
-	}
+
+	if (WARN_ON(!saved_gfp_count) || --saved_gfp_count)
+		return;
+
+	gfp_allowed_mask = saved_gfp_mask;
+	saved_gfp_mask = 0;
+
+	pm_pr_dbg("GFP mask restored\n");
 }
 
 void pm_restrict_gfp_mask(void)
 {
 	WARN_ON(!mutex_is_locked(&system_transition_mutex));
-	WARN_ON(saved_gfp_mask);
+
+	if (saved_gfp_count++) {
+		WARN_ON((saved_gfp_mask & ~(__GFP_IO | __GFP_FS)) != gfp_allowed_mask);
+		return;
+	}
+
 	saved_gfp_mask = gfp_allowed_mask;
 	gfp_allowed_mask &= ~(__GFP_IO | __GFP_FS);
+
+	pm_pr_dbg("GFP mask restricted\n");
 }
 
 unsigned int lock_system_sleep(void)

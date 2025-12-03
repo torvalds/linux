@@ -4,6 +4,7 @@
 #include <linux/iosys-map.h>
 #include <linux/rwsem.h>
 
+#include <drm/drm_print.h>
 #include <drm/panthor_drm.h>
 
 #include "panthor_device.h"

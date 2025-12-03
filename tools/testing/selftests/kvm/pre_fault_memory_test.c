@@ -10,6 +10,7 @@
 #include <test_util.h>
 #include <kvm_util.h>
 #include <processor.h>
+#include <pthread.h>
 
 /* Arbitrarily chosen values */
 #define TEST_SIZE		(SZ_2M + PAGE_SIZE)
@@ -30,18 +31,66 @@ static void guest_code(uint64_t base_gpa)
 	GUEST_DONE();
 }
 
-static void pre_fault_memory(struct kvm_vcpu *vcpu, u64 gpa, u64 size,
-			     u64 left)
+struct slot_worker_data {
+	struct kvm_vm *vm;
+	u64 gpa;
+	uint32_t flags;
+	bool worker_ready;
+	bool prefault_ready;
+	bool recreate_slot;
+};
+
+static void *delete_slot_worker(void *__data)
+{
+	struct slot_worker_data *data = __data;
+	struct kvm_vm *vm = data->vm;
+
+	WRITE_ONCE(data->worker_ready, true);
+
+	while (!READ_ONCE(data->prefault_ready))
+		cpu_relax();
+
+	vm_mem_region_delete(vm, TEST_SLOT);
+
+	while (!READ_ONCE(data->recreate_slot))
+		cpu_relax();
+
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, data->gpa,
+				    TEST_SLOT, TEST_NPAGES, data->flags);
+
+	return NULL;
+}
+
+static void pre_fault_memory(struct kvm_vcpu *vcpu, u64 base_gpa, u64 offset,
+			     u64 size, u64 expected_left, bool private)
 {
 	struct kvm_pre_fault_memory range = {
-		.gpa = gpa,
+		.gpa = base_gpa + offset,
 		.size = size,
 		.flags = 0,
 	};
-	u64 prev;
+	struct slot_worker_data data = {
+		.vm = vcpu->vm,
+		.gpa = base_gpa,
+		.flags = private ? KVM_MEM_GUEST_MEMFD : 0,
+	};
+	bool slot_recreated = false;
+	pthread_t slot_worker;
 	int ret, save_errno;
+	u64 prev;
 
-	do {
+	/*
+	 * Concurrently delete (and recreate) the slot to test KVM's handling
+	 * of a racing memslot deletion with prefaulting.
+	 */
+	pthread_create(&slot_worker, NULL, delete_slot_worker, &data);
+
+	while (!READ_ONCE(data.worker_ready))
+		cpu_relax();
+
+	WRITE_ONCE(data.prefault_ready, true);
+
+	for (;;) {
 		prev = range.size;
 		ret = __vcpu_ioctl(vcpu, KVM_PRE_FAULT_MEMORY, &range);
 		save_errno = errno;
@@ -49,18 +98,65 @@ static void pre_fault_memory(struct kvm_vcpu *vcpu, u64 gpa, u64 size,
 			    "%sexpecting range.size to change on %s",
 			    ret < 0 ? "not " : "",
 			    ret < 0 ? "failure" : "success");
-	} while (ret >= 0 ? range.size : save_errno == EINTR);
 
-	TEST_ASSERT(range.size == left,
-		    "Completed with %lld bytes left, expected %" PRId64,
-		    range.size, left);
+		/*
+		 * Immediately retry prefaulting if KVM was interrupted by an
+		 * unrelated signal/event.
+		 */
+		if (ret < 0 && save_errno == EINTR)
+			continue;
 
-	if (left == 0)
-		__TEST_ASSERT_VM_VCPU_IOCTL(!ret, "KVM_PRE_FAULT_MEMORY", ret, vcpu->vm);
+		/*
+		 * Tell the worker to recreate the slot in order to complete
+		 * prefaulting (if prefault didn't already succeed before the
+		 * slot was deleted) and/or to prepare for the next testcase.
+		 * Wait for the worker to exit so that the next invocation of
+		 * prefaulting is guaranteed to complete (assuming no KVM bugs).
+		 */
+		if (!slot_recreated) {
+			WRITE_ONCE(data.recreate_slot, true);
+			pthread_join(slot_worker, NULL);
+			slot_recreated = true;
+
+			/*
+			 * Retry prefaulting to get a stable result, i.e. to
+			 * avoid seeing random EAGAIN failures.  Don't retry if
+			 * prefaulting already succeeded, as KVM disallows
+			 * prefaulting with size=0, i.e. blindly retrying would
+			 * result in test failures due to EINVAL.  KVM should
+			 * always return success if all bytes are prefaulted,
+			 * i.e. there is no need to guard against EAGAIN being
+			 * returned.
+			 */
+			if (range.size)
+				continue;
+		}
+
+		/*
+		 * All done if there are no remaining bytes to prefault, or if
+		 * prefaulting failed (EINTR was handled above, and EAGAIN due
+		 * to prefaulting a memslot that's being actively deleted should
+		 * be impossible since the memslot has already been recreated).
+		 */
+		if (!range.size || ret < 0)
+			break;
+	}
+
+	TEST_ASSERT(range.size == expected_left,
+		    "Completed with %llu bytes left, expected %lu",
+		    range.size, expected_left);
+
+	/*
+	 * Assert success if prefaulting the entire range should succeed, i.e.
+	 * complete with no bytes remaining.  Otherwise prefaulting should have
+	 * failed due to ENOENT (due to RET_PF_EMULATE for emulated MMIO when
+	 * no memslot exists).
+	 */
+	if (!expected_left)
+		TEST_ASSERT_VM_VCPU_IOCTL(!ret, KVM_PRE_FAULT_MEMORY, ret, vcpu->vm);
 	else
-		/* No memory slot causes RET_PF_EMULATE. it results in -ENOENT. */
-		__TEST_ASSERT_VM_VCPU_IOCTL(ret && save_errno == ENOENT,
-					    "KVM_PRE_FAULT_MEMORY", ret, vcpu->vm);
+		TEST_ASSERT_VM_VCPU_IOCTL(ret && save_errno == ENOENT,
+					  KVM_PRE_FAULT_MEMORY, ret, vcpu->vm);
 }
 
 static void __test_pre_fault_memory(unsigned long vm_type, bool private)
@@ -97,9 +193,10 @@ static void __test_pre_fault_memory(unsigned long vm_type, bool private)
 
 	if (private)
 		vm_mem_set_private(vm, guest_test_phys_mem, TEST_SIZE);
-	pre_fault_memory(vcpu, guest_test_phys_mem, SZ_2M, 0);
-	pre_fault_memory(vcpu, guest_test_phys_mem + SZ_2M, PAGE_SIZE * 2, PAGE_SIZE);
-	pre_fault_memory(vcpu, guest_test_phys_mem + TEST_SIZE, PAGE_SIZE, PAGE_SIZE);
+
+	pre_fault_memory(vcpu, guest_test_phys_mem, 0, SZ_2M, 0, private);
+	pre_fault_memory(vcpu, guest_test_phys_mem, SZ_2M, PAGE_SIZE * 2, PAGE_SIZE, private);
+	pre_fault_memory(vcpu, guest_test_phys_mem, TEST_SIZE, PAGE_SIZE, PAGE_SIZE, private);
 
 	vcpu_args_set(vcpu, 1, guest_test_virt_mem);
 	vcpu_run(vcpu);

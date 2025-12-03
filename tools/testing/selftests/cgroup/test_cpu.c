@@ -219,7 +219,7 @@ static int test_cpucg_stats(const char *root)
 	if (user_usec <= 0)
 		goto cleanup;
 
-	if (!values_close(usage_usec, expected_usage_usec, 1))
+	if (!values_close_report(usage_usec, expected_usage_usec, 1))
 		goto cleanup;
 
 	ret = KSFT_PASS;
@@ -291,7 +291,7 @@ static int test_cpucg_nice(const char *root)
 
 		user_usec = cg_read_key_long(cpucg, "cpu.stat", "user_usec");
 		nice_usec = cg_read_key_long(cpucg, "cpu.stat", "nice_usec");
-		if (!values_close(nice_usec, expected_nice_usec, 1))
+		if (!values_close_report(nice_usec, expected_nice_usec, 1))
 			goto cleanup;
 
 		ret = KSFT_PASS;
@@ -404,7 +404,7 @@ overprovision_validate(const struct cpu_hogger *children, int num_children)
 			goto cleanup;
 
 		delta = children[i + 1].usage - children[i].usage;
-		if (!values_close(delta, children[0].usage, 35))
+		if (!values_close_report(delta, children[0].usage, 35))
 			goto cleanup;
 	}
 
@@ -444,7 +444,7 @@ underprovision_validate(const struct cpu_hogger *children, int num_children)
 	int ret = KSFT_FAIL, i;
 
 	for (i = 0; i < num_children - 1; i++) {
-		if (!values_close(children[i + 1].usage, children[0].usage, 15))
+		if (!values_close_report(children[i + 1].usage, children[0].usage, 15))
 			goto cleanup;
 	}
 
@@ -573,16 +573,16 @@ run_cpucg_nested_weight_test(const char *root, bool overprovisioned)
 
 	nested_leaf_usage = leaf[1].usage + leaf[2].usage;
 	if (overprovisioned) {
-		if (!values_close(leaf[0].usage, nested_leaf_usage, 15))
+		if (!values_close_report(leaf[0].usage, nested_leaf_usage, 15))
 			goto cleanup;
-	} else if (!values_close(leaf[0].usage * 2, nested_leaf_usage, 15))
+	} else if (!values_close_report(leaf[0].usage * 2, nested_leaf_usage, 15))
 		goto cleanup;
 
 
 	child_usage = cg_read_key_long(child, "cpu.stat", "usage_usec");
 	if (child_usage <= 0)
 		goto cleanup;
-	if (!values_close(child_usage, nested_leaf_usage, 1))
+	if (!values_close_report(child_usage, nested_leaf_usage, 1))
 		goto cleanup;
 
 	ret = KSFT_PASS;
@@ -691,7 +691,7 @@ static int test_cpucg_max(const char *root)
 	expected_usage_usec
 		= n_periods * quota_usec + MIN(remainder_usec, quota_usec);
 
-	if (!values_close(usage_usec, expected_usage_usec, 10))
+	if (!values_close_report(usage_usec, expected_usage_usec, 10))
 		goto cleanup;
 
 	ret = KSFT_PASS;
@@ -762,7 +762,7 @@ static int test_cpucg_max_nested(const char *root)
 	expected_usage_usec
 		= n_periods * quota_usec + MIN(remainder_usec, quota_usec);
 
-	if (!values_close(usage_usec, expected_usage_usec, 10))
+	if (!values_close_report(usage_usec, expected_usage_usec, 10))
 		goto cleanup;
 
 	ret = KSFT_PASS;

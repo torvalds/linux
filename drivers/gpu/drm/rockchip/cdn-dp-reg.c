@@ -11,6 +11,8 @@
 #include <linux/iopoll.h>
 #include <linux/reset.h>
 
+#include <drm/drm_print.h>
+
 #include "cdn-dp-core.h"
 #include "cdn-dp-reg.h"
 

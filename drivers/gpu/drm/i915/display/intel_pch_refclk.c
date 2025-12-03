@@ -6,10 +6,10 @@
 #include <drm/drm_print.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_panel.h"
 #include "intel_pch_refclk.h"
 #include "intel_sbi.h"
@@ -21,17 +21,15 @@ static void lpt_fdi_reset_mphy(struct intel_display *display)
 
 	intel_de_rmw(display, SOUTH_CHICKEN2, 0, FDI_MPHY_IOSFSB_RESET_CTL);
 
-	ret = intel_de_wait_custom(display, SOUTH_CHICKEN2,
-				   FDI_MPHY_IOSFSB_RESET_STATUS, FDI_MPHY_IOSFSB_RESET_STATUS,
-				   100, 0, NULL);
+	ret = intel_de_wait_for_set_us(display, SOUTH_CHICKEN2,
+				       FDI_MPHY_IOSFSB_RESET_STATUS, 100);
 	if (ret)
 		drm_err(display->drm, "FDI mPHY reset assert timeout\n");
 
 	intel_de_rmw(display, SOUTH_CHICKEN2, FDI_MPHY_IOSFSB_RESET_CTL, 0);
 
-	ret = intel_de_wait_custom(display, SOUTH_CHICKEN2,
-				   FDI_MPHY_IOSFSB_RESET_STATUS, 0,
-				   100, 0, NULL);
+	ret = intel_de_wait_for_clear_us(display, SOUTH_CHICKEN2,
+					 FDI_MPHY_IOSFSB_RESET_STATUS, 100);
 	if (ret)
 		drm_err(display->drm, "FDI mPHY reset de-assert timeout\n");
 }

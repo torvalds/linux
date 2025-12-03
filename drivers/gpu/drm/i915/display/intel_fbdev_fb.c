@@ -3,40 +3,24 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include <drm/drm_fb_helper.h>
+#include <linux/fb.h>
+
+#include <drm/drm_print.h>
 
 #include "gem/i915_gem_lmem.h"
 
 #include "i915_drv.h"
-#include "intel_display_core.h"
-#include "intel_display_types.h"
-#include "intel_fb.h"
 #include "intel_fbdev_fb.h"
 
-struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
-					       struct drm_fb_helper_surface_size *sizes)
+u32 intel_fbdev_fb_pitch_align(u32 stride)
 {
-	struct intel_display *display = to_intel_display(helper->dev);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd2 mode_cmd = {};
+	return ALIGN(stride, 64);
+}
+
+struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size)
+{
+	struct drm_i915_private *dev_priv = to_i915(drm);
 	struct drm_i915_gem_object *obj;
-	int size;
-
-	/* we don't do packed 24bpp */
-	if (sizes->surface_bpp == 24)
-		sizes->surface_bpp = 32;
-
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-
-	mode_cmd.pitches[0] = ALIGN(mode_cmd.width *
-				    DIV_ROUND_UP(sizes->surface_bpp, 8), 64);
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
-							  sizes->surface_depth);
-
-	size = mode_cmd.pitches[0] * mode_cmd.height;
-	size = PAGE_ALIGN(size);
 
 	obj = ERR_PTR(-ENODEV);
 	if (HAS_LMEM(dev_priv)) {
@@ -51,31 +35,29 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 		 *
 		 * Also skip stolen on MTL as Wa_22018444074 mitigation.
 		 */
-		if (!display->platform.meteorlake && size * 2 < dev_priv->dsm.usable_size)
+		if (!IS_METEORLAKE(dev_priv) && size * 2 < dev_priv->dsm.usable_size)
 			obj = i915_gem_object_create_stolen(dev_priv, size);
 		if (IS_ERR(obj))
 			obj = i915_gem_object_create_shmem(dev_priv, size);
 	}
 
 	if (IS_ERR(obj)) {
-		drm_err(display->drm, "failed to allocate framebuffer (%pe)\n", obj);
+		drm_err(drm, "failed to allocate framebuffer (%pe)\n", obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	fb = intel_framebuffer_create(intel_bo_to_drm_bo(obj),
-				      drm_get_format_info(display->drm,
-							  mode_cmd.pixel_format,
-							  mode_cmd.modifier[0]),
-				      &mode_cmd);
-	i915_gem_object_put(obj);
-
-	return to_intel_framebuffer(fb);
+	return &obj->base;
 }
 
-int intel_fbdev_fb_fill_info(struct intel_display *display, struct fb_info *info,
+void intel_fbdev_fb_bo_destroy(struct drm_gem_object *obj)
+{
+	drm_gem_object_put(obj);
+}
+
+int intel_fbdev_fb_fill_info(struct drm_device *drm, struct fb_info *info,
 			     struct drm_gem_object *_obj, struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
 	struct i915_gem_ww_ctx ww;
 	void __iomem *vaddr;
@@ -107,7 +89,7 @@ int intel_fbdev_fb_fill_info(struct intel_display *display, struct fb_info *info
 
 		vaddr = i915_vma_pin_iomap(vma);
 		if (IS_ERR(vaddr)) {
-			drm_err(display->drm,
+			drm_err(drm,
 				"Failed to remap framebuffer into virtual memory (%pe)\n", vaddr);
 			ret = PTR_ERR(vaddr);
 			continue;

@@ -1317,6 +1317,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 	if (!btrfs_dev_is_sequential(device, info->physical)) {
 		up_read(&dev_replace->rwsem);
 		info->alloc_offset = WP_CONVENTIONAL;
+		info->capacity = device->zone_info->zone_size;
 		return 0;
 	}
 
@@ -1522,6 +1523,8 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 					u64 last_alloc)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
+	u64 stripe_nr = 0, stripe_offset = 0;
+	u32 stripe_index = 0;
 
 	if ((map->type & BTRFS_BLOCK_GROUP_DATA) && !fs_info->stripe_root) {
 		btrfs_err(fs_info, "zoned: data %s needs raid-stripe-tree",
@@ -1529,28 +1532,26 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 		return -EINVAL;
 	}
 
+	if (last_alloc) {
+		u32 factor = map->num_stripes;
+
+		stripe_nr = last_alloc >> BTRFS_STRIPE_LEN_SHIFT;
+		stripe_offset = last_alloc & BTRFS_STRIPE_LEN_MASK;
+		stripe_nr = div_u64_rem(stripe_nr, factor, &stripe_index);
+	}
+
 	for (int i = 0; i < map->num_stripes; i++) {
 		if (zone_info[i].alloc_offset == WP_MISSING_DEV)
 			continue;
 
 		if (zone_info[i].alloc_offset == WP_CONVENTIONAL) {
-			u64 stripe_nr, full_stripe_nr;
-			u64 stripe_offset;
-			int stripe_index;
 
-			stripe_nr = div64_u64(last_alloc, map->stripe_size);
-			stripe_offset = stripe_nr * map->stripe_size;
-			full_stripe_nr = div_u64(stripe_nr, map->num_stripes);
-			div_u64_rem(stripe_nr, map->num_stripes, &stripe_index);
-
-			zone_info[i].alloc_offset =
-				full_stripe_nr * map->stripe_size;
+			zone_info[i].alloc_offset = btrfs_stripe_nr_to_offset(stripe_nr);
 
 			if (stripe_index > i)
-				zone_info[i].alloc_offset += map->stripe_size;
+				zone_info[i].alloc_offset += BTRFS_STRIPE_LEN;
 			else if (stripe_index == i)
-				zone_info[i].alloc_offset +=
-					(last_alloc - stripe_offset);
+				zone_info[i].alloc_offset += stripe_offset;
 		}
 
 		if (test_bit(0, active) != test_bit(i, active)) {
@@ -1574,11 +1575,21 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 					 u64 last_alloc)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
+	u64 stripe_nr = 0, stripe_offset = 0;
+	u32 stripe_index = 0;
 
 	if ((map->type & BTRFS_BLOCK_GROUP_DATA) && !fs_info->stripe_root) {
 		btrfs_err(fs_info, "zoned: data %s needs raid-stripe-tree",
 			  btrfs_bg_type_to_raid_name(map->type));
 		return -EINVAL;
+	}
+
+	if (last_alloc) {
+		u32 factor = map->num_stripes / map->sub_stripes;
+
+		stripe_nr = last_alloc >> BTRFS_STRIPE_LEN_SHIFT;
+		stripe_offset = last_alloc & BTRFS_STRIPE_LEN_MASK;
+		stripe_nr = div_u64_rem(stripe_nr, factor, &stripe_index);
 	}
 
 	for (int i = 0; i < map->num_stripes; i++) {
@@ -1594,26 +1605,12 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 		}
 
 		if (zone_info[i].alloc_offset == WP_CONVENTIONAL) {
-			u64 stripe_nr, full_stripe_nr;
-			u64 stripe_offset;
-			int stripe_index;
-
-			stripe_nr = div64_u64(last_alloc, map->stripe_size);
-			stripe_offset = stripe_nr * map->stripe_size;
-			full_stripe_nr = div_u64(stripe_nr,
-					 map->num_stripes / map->sub_stripes);
-			div_u64_rem(stripe_nr,
-				    (map->num_stripes / map->sub_stripes),
-				    &stripe_index);
-
-			zone_info[i].alloc_offset =
-				full_stripe_nr * map->stripe_size;
+			zone_info[i].alloc_offset = btrfs_stripe_nr_to_offset(stripe_nr);
 
 			if (stripe_index > (i / map->sub_stripes))
-				zone_info[i].alloc_offset += map->stripe_size;
+				zone_info[i].alloc_offset += BTRFS_STRIPE_LEN;
 			else if (stripe_index == (i / map->sub_stripes))
-				zone_info[i].alloc_offset +=
-					(last_alloc - stripe_offset);
+				zone_info[i].alloc_offset += stripe_offset;
 		}
 
 		if ((i % map->sub_stripes) == 0) {
@@ -1683,8 +1680,6 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		set_bit(BLOCK_GROUP_FLAG_SEQUENTIAL_ZONE, &cache->runtime_flags);
 
 	if (num_conventional > 0) {
-		/* Zone capacity is always zone size in emulation */
-		cache->zone_capacity = cache->length;
 		ret = calculate_alloc_pointer(cache, &last_alloc, new);
 		if (ret) {
 			btrfs_err(fs_info,
@@ -1693,6 +1688,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			goto out;
 		} else if (map->num_stripes == num_conventional) {
 			cache->alloc_offset = last_alloc;
+			cache->zone_capacity = cache->length;
 			set_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &cache->runtime_flags);
 			goto out;
 		}
@@ -1753,7 +1749,7 @@ out:
 	    !fs_info->stripe_root) {
 		btrfs_err(fs_info, "zoned: data %s needs raid-stripe-tree",
 			  btrfs_bg_type_to_raid_name(map->type));
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
 	if (unlikely(cache->alloc_offset > cache->zone_capacity)) {

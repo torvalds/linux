@@ -28,6 +28,7 @@
 #include <drm/gpu_scheduler.h>
 #include <drm/ttm/ttm_placement.h>
 #include "amdgpu_vram_mgr.h"
+#include "amdgpu_hmm.h"
 
 #define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
 #define AMDGPU_PL_GWS		(TTM_PL_PRIV + 1)
@@ -82,9 +83,6 @@ struct amdgpu_mman {
 	uint64_t		stolen_reserved_offset;
 	uint64_t		stolen_reserved_size;
 
-	/* discovery */
-	uint8_t				*discovery_bin;
-	uint32_t			discovery_tmr_size;
 	/* fw reserved memory */
 	struct amdgpu_bo		*fw_reserved_memory;
 	struct amdgpu_bo		*fw_reserved_memory_extend;
@@ -170,12 +168,6 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       struct dma_resv *resv,
 		       struct dma_fence **fence, bool direct_submit,
 		       bool vm_needs_flush, uint32_t copy_flags);
-int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
-			       const struct amdgpu_copy_mem *src,
-			       const struct amdgpu_copy_mem *dst,
-			       uint64_t size, bool tmz,
-			       struct dma_resv *resv,
-			       struct dma_fence **f);
 int amdgpu_ttm_clear_buffer(struct amdgpu_bo *bo,
 			    struct dma_resv *resv,
 			    struct dma_fence **fence);
@@ -192,29 +184,16 @@ uint64_t amdgpu_ttm_domain_start(struct amdgpu_device *adev, uint32_t type);
 
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
 int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
-				 struct hmm_range **range);
-void amdgpu_ttm_tt_discard_user_pages(struct ttm_tt *ttm,
-				      struct hmm_range *range);
-bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
-				       struct hmm_range *range);
+				 struct amdgpu_hmm_range *range);
 #else
 static inline int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
-					       struct hmm_range **range)
+					       struct amdgpu_hmm_range *range)
 {
 	return -EPERM;
 }
-static inline void amdgpu_ttm_tt_discard_user_pages(struct ttm_tt *ttm,
-						    struct hmm_range *range)
-{
-}
-static inline bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
-						     struct hmm_range *range)
-{
-	return false;
-}
 #endif
 
-void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct hmm_range *range);
+void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct amdgpu_hmm_range *range);
 int amdgpu_ttm_tt_get_userptr(const struct ttm_buffer_object *tbo,
 			      uint64_t *user_addr);
 int amdgpu_ttm_tt_set_userptr(struct ttm_buffer_object *bo,

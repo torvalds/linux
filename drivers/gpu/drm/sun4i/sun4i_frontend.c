@@ -19,6 +19,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_plane.h>
+#include <drm/drm_print.h>
 
 #include "sun4i_drv.h"
 #include "sun4i_frontend.h"

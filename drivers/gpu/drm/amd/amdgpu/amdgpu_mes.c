@@ -105,8 +105,8 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 		spin_lock_init(&adev->mes.ring_lock[i]);
 
 	adev->mes.total_max_queue = AMDGPU_FENCE_MES_QUEUE_ID_MASK;
-	adev->mes.vmid_mask_mmhub = 0xffffff00;
-	adev->mes.vmid_mask_gfxhub = adev->gfx.disable_kq ? 0xfffffffe : 0xffffff00;
+	adev->mes.vmid_mask_mmhub = 0xFF00;
+	adev->mes.vmid_mask_gfxhub = adev->gfx.disable_kq ? 0xFFFE : 0xFF00;
 
 	num_pipes = adev->gfx.me.num_pipe_per_me * adev->gfx.me.num_me;
 	if (num_pipes > AMDGPU_MES_MAX_GFX_PIPES)
@@ -409,7 +409,7 @@ int amdgpu_mes_detect_and_reset_hung_queues(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	/* Clear the doorbell array before detection */
-	memset(adev->mes.hung_queue_db_array_cpu_addr, 0,
+	memset(adev->mes.hung_queue_db_array_cpu_addr, AMDGPU_MES_INVALID_DB_OFFSET,
 		adev->mes.hung_queue_db_array_size * sizeof(u32));
 	input.queue_type = queue_type;
 	input.detect_only = detect_only;
@@ -420,12 +420,17 @@ int amdgpu_mes_detect_and_reset_hung_queues(struct amdgpu_device *adev,
 		dev_err(adev->dev, "failed to detect and reset\n");
 	} else {
 		*hung_db_num = 0;
-		for (i = 0; i < adev->mes.hung_queue_db_array_size; i++) {
+		for (i = 0; i < adev->mes.hung_queue_hqd_info_offset; i++) {
 			if (db_array[i] != AMDGPU_MES_INVALID_DB_OFFSET) {
 				hung_db_array[i] = db_array[i];
 				*hung_db_num += 1;
 			}
 		}
+
+		/*
+		 * TODO: return HQD info for MES scheduled user compute queue reset cases
+		 * stored in hung_db_array hqd info offset to full array size
+		 */
 	}
 
 	return r;
@@ -521,6 +526,18 @@ int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
 
 error:
 	return r;
+}
+
+int amdgpu_mes_hdp_flush(struct amdgpu_device *adev)
+{
+	uint32_t hdp_flush_req_offset, hdp_flush_done_offset, ref_and_mask;
+
+	hdp_flush_req_offset = adev->nbio.funcs->get_hdp_flush_req_offset(adev);
+	hdp_flush_done_offset = adev->nbio.funcs->get_hdp_flush_done_offset(adev);
+	ref_and_mask = adev->nbio.hdp_flush_reg->ref_and_mask_cp0;
+
+	return amdgpu_mes_reg_write_reg_wait(adev, hdp_flush_req_offset, hdp_flush_done_offset,
+					     ref_and_mask, ref_and_mask);
 }
 
 int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
@@ -686,14 +703,11 @@ out:
 bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev)
 {
 	uint32_t mes_rev = adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
-	bool is_supported = false;
 
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0) &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0) &&
-	    mes_rev >= 0x63)
-		is_supported = true;
-
-	return is_supported;
+	return ((amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0) &&
+		 amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0) &&
+		 mes_rev >= 0x63) ||
+		amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 0, 0));
 }
 
 /* Fix me -- node_id is used to identify the correct MES instances in the future */

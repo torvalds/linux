@@ -333,13 +333,14 @@ static void bnxt_fill_drv_seg_record(struct bnxt *bp,
 	u32 offset = 0;
 	int rc = 0;
 
+	record->max_entries = cpu_to_le32(ctxm->max_entries);
+	record->entry_size = cpu_to_le32(ctxm->entry_size);
+
 	rc = bnxt_dbg_hwrm_log_buffer_flush(bp, type, 0, &offset);
 	if (rc)
 		return;
 
 	bnxt_bs_trace_check_wrap(bs_trace, offset);
-	record->max_entries = cpu_to_le32(ctxm->max_entries);
-	record->entry_size = cpu_to_le32(ctxm->entry_size);
 	record->offset = cpu_to_le32(bs_trace->last_offset);
 	record->wrapped = bs_trace->wrapped;
 }

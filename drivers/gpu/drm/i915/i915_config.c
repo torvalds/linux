@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 
 #include "i915_config.h"
-#include "i915_utils.h"
+#include "i915_jiffies.h"
 
 unsigned long
 i915_fence_context_timeout(const struct drm_i915_private *i915, u64 context)

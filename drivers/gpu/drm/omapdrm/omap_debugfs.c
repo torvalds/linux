@@ -11,6 +11,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_print.h>
 
 #include "omap_drv.h"
 #include "omap_dmm_tiler.h"

@@ -9,13 +9,13 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_print.h>
 
-#include "i915_drv.h"
-#include "i915_utils.h"
 #include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
@@ -547,8 +547,6 @@ static bool plane_has_modifier(struct intel_display *display,
 			       u8 plane_caps,
 			       const struct intel_modifier_desc *md)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (!IS_DISPLAY_VER(display, md->display_ver.from, md->display_ver.until))
 		return false;
 
@@ -560,15 +558,15 @@ static bool plane_has_modifier(struct intel_display *display,
 	 * where supported.
 	 */
 	if (intel_fb_is_ccs_modifier(md->modifier) &&
-	    HAS_FLAT_CCS(i915) != !md->ccs.packed_aux_planes)
+	    HAS_AUX_CCS(display) != !!md->ccs.packed_aux_planes)
 		return false;
 
 	if (md->modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS &&
-	    (GRAPHICS_VER(i915) < 20 || !display->platform.dgfx))
+	    (DISPLAY_VER(display) < 14 || !display->platform.dgfx))
 		return false;
 
 	if (md->modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS &&
-	    (GRAPHICS_VER(i915) < 20 || display->platform.dgfx))
+	    (DISPLAY_VER(display) < 20 || display->platform.dgfx))
 		return false;
 
 	return true;
@@ -777,7 +775,6 @@ unsigned int
 intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 {
 	struct intel_display *display = to_intel_display(fb->dev);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int cpp = fb->format->cpp[color_plane];
 
 	switch (fb->modifier) {
@@ -814,7 +811,7 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 			return 64;
 		fallthrough;
 	case I915_FORMAT_MOD_Y_TILED:
-		if (DISPLAY_VER(display) == 2 || HAS_128_BYTE_Y_TILING(i915))
+		if (HAS_128B_Y_TILING(display))
 			return 128;
 		else
 			return 512;
@@ -1329,7 +1326,7 @@ static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 	 * unclear in Bspec, for now no checking.
 	 */
 	stride = intel_fb_pitch(fb, 0, rotation);
-	max_stride = plane->max_stride(plane, fb->base.format->format,
+	max_stride = plane->max_stride(plane, fb->base.format,
 				       fb->base.modifier, rotation);
 
 	return stride > max_stride;
@@ -1975,7 +1972,8 @@ void intel_add_fb_offsets(int *x, int *y,
 
 static
 u32 intel_fb_max_stride(struct intel_display *display,
-			u32 pixel_format, u64 modifier)
+			const struct drm_format_info *info,
+			u64 modifier)
 {
 	/*
 	 * Arbitrary limit for gen4+ chosen to match the
@@ -1985,7 +1983,7 @@ u32 intel_fb_max_stride(struct intel_display *display,
 	 */
 	if (DISPLAY_VER(display) < 4 || intel_fb_is_ccs_modifier(modifier) ||
 	    intel_fb_modifier_uses_dpt(display, modifier))
-		return intel_plane_fb_max_stride(display->drm, pixel_format, modifier);
+		return intel_plane_fb_max_stride(display, info, modifier);
 	else if (DISPLAY_VER(display) >= 7)
 		return 256 * 1024;
 	else
@@ -1999,8 +1997,8 @@ intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 	unsigned int tile_width;
 
 	if (is_surface_linear(fb, color_plane)) {
-		unsigned int max_stride = intel_plane_fb_max_stride(display->drm,
-								    fb->format->format,
+		unsigned int max_stride = intel_plane_fb_max_stride(display,
+								    fb->format,
 								    fb->modifier);
 
 		/*
@@ -2058,7 +2056,7 @@ static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 
 	/* FIXME other color planes? */
 	stride = plane_state->view.color_plane[0].mapping_stride;
-	max_stride = plane->max_stride(plane, fb->format->format,
+	max_stride = plane->max_stride(plane, fb->format,
 				       fb->modifier, rotation);
 
 	if (stride > max_stride) {
@@ -2113,10 +2111,11 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	if (intel_fb_uses_dpt(fb))
 		intel_dpt_destroy(intel_fb->dpt_vm);
 
-	intel_frontbuffer_put(intel_fb->frontbuffer);
-
 	intel_fb_bo_framebuffer_fini(intel_fb_bo(fb));
 
+	intel_frontbuffer_put(intel_fb->frontbuffer);
+
+	kfree(intel_fb->panic);
 	kfree(intel_fb);
 }
 
@@ -2196,7 +2195,6 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	return ret;
 
 flush:
-	intel_bo_flush_if_display(obj);
 	intel_frontbuffer_flush(front, ORIGIN_DIRTYFB);
 	return ret;
 }
@@ -2215,38 +2213,46 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	struct intel_display *display = to_intel_display(obj->dev);
 	struct drm_framebuffer *fb = &intel_fb->base;
 	u32 max_stride;
-	int ret = -EINVAL;
+	int ret;
 	int i;
 
-	ret = intel_fb_bo_framebuffer_init(fb, obj, mode_cmd);
-	if (ret)
-		return ret;
+	intel_fb->panic = intel_panic_alloc();
+	if (!intel_fb->panic)
+		return -ENOMEM;
 
+	/*
+	 * intel_frontbuffer_get() must be done before
+	 * intel_fb_bo_framebuffer_init() to avoid set_tiling vs. addfb race.
+	 */
 	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
 	if (!intel_fb->frontbuffer) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_free_panic;
 	}
 
-	ret = -EINVAL;
+	ret = intel_fb_bo_framebuffer_init(obj, mode_cmd);
+	if (ret)
+		goto err_frontbuffer_put;
+
 	if (!drm_any_plane_has_format(display->drm,
 				      mode_cmd->pixel_format,
 				      mode_cmd->modifier[0])) {
 		drm_dbg_kms(display->drm,
 			    "unsupported pixel format %p4cc / modifier 0x%llx\n",
 			    &mode_cmd->pixel_format, mode_cmd->modifier[0]);
-		goto err_frontbuffer_put;
+		ret = -EINVAL;
+		goto err_bo_framebuffer_fini;
 	}
 
-	max_stride = intel_fb_max_stride(display, mode_cmd->pixel_format,
-					 mode_cmd->modifier[0]);
+	max_stride = intel_fb_max_stride(display, info, mode_cmd->modifier[0]);
 	if (mode_cmd->pitches[0] > max_stride) {
 		drm_dbg_kms(display->drm,
 			    "%s pitch (%u) must be at most %d\n",
 			    mode_cmd->modifier[0] != DRM_FORMAT_MOD_LINEAR ?
 			    "tiled" : "linear",
 			    mode_cmd->pitches[0], max_stride);
-		goto err_frontbuffer_put;
+		ret = -EINVAL;
+		goto err_bo_framebuffer_fini;
 	}
 
 	/* FIXME need to adjust LINOFF/TILEOFF accordingly. */
@@ -2254,7 +2260,8 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		drm_dbg_kms(display->drm,
 			    "plane 0 offset (0x%08x) must be 0\n",
 			    mode_cmd->offsets[0]);
-		goto err_frontbuffer_put;
+		ret = -EINVAL;
+		goto err_bo_framebuffer_fini;
 	}
 
 	drm_helper_mode_fill_fb_struct(display->drm, fb, info, mode_cmd);
@@ -2264,7 +2271,8 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 		if (mode_cmd->handles[i] != mode_cmd->handles[0]) {
 			drm_dbg_kms(display->drm, "bad plane %d handle\n", i);
-			goto err_frontbuffer_put;
+			ret = -EINVAL;
+			goto err_bo_framebuffer_fini;
 		}
 
 		stride_alignment = intel_fb_stride_alignment(fb, i);
@@ -2272,7 +2280,8 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			drm_dbg_kms(display->drm,
 				    "plane %d pitch (%d) must be at least %u byte aligned\n",
 				    i, fb->pitches[i], stride_alignment);
-			goto err_frontbuffer_put;
+			ret = -EINVAL;
+			goto err_bo_framebuffer_fini;
 		}
 
 		if (intel_fb_is_gen12_ccs_aux_plane(fb, i)) {
@@ -2282,7 +2291,8 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 				drm_dbg_kms(display->drm,
 					    "ccs aux plane %d pitch (%d) must be %d\n",
 					    i, fb->pitches[i], ccs_aux_stride);
-				goto err_frontbuffer_put;
+				ret = -EINVAL;
+				goto err_bo_framebuffer_fini;
 			}
 		}
 
@@ -2291,7 +2301,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 	ret = intel_fill_fb_info(display, intel_fb);
 	if (ret)
-		goto err_frontbuffer_put;
+		goto err_bo_framebuffer_fini;
 
 	if (intel_fb_uses_dpt(fb)) {
 		struct i915_address_space *vm;
@@ -2317,10 +2327,13 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 err_free_dpt:
 	if (intel_fb_uses_dpt(fb))
 		intel_dpt_destroy(intel_fb->dpt_vm);
+err_bo_framebuffer_fini:
+	intel_fb_bo_framebuffer_fini(obj);
 err_frontbuffer_put:
 	intel_frontbuffer_put(intel_fb->frontbuffer);
-err:
-	intel_fb_bo_framebuffer_fini(obj);
+err_free_panic:
+	kfree(intel_fb->panic);
+
 	return ret;
 }
 
@@ -2347,19 +2360,10 @@ intel_user_framebuffer_create(struct drm_device *dev,
 struct intel_framebuffer *intel_framebuffer_alloc(void)
 {
 	struct intel_framebuffer *intel_fb;
-	struct intel_panic *panic;
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb)
 		return NULL;
-
-	panic = intel_panic_alloc();
-	if (!panic) {
-		kfree(intel_fb);
-		return NULL;
-	}
-
-	intel_fb->panic = panic;
 
 	return intel_fb;
 }

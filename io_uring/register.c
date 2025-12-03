@@ -421,13 +421,6 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	if (unlikely(ret))
 		return ret;
 
-	/* nothing to do, but copy params back */
-	if (p.sq_entries == ctx->sq_entries && p.cq_entries == ctx->cq_entries) {
-		if (copy_to_user(arg, &p, sizeof(p)))
-			return -EFAULT;
-		return 0;
-	}
-
 	size = rings_size(p.flags, p.sq_entries, p.cq_entries,
 				&sq_array_offset);
 	if (size == SIZE_MAX)
@@ -613,6 +606,7 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	if (ret)
 		return ret;
 	if (copy_to_user(rd_uptr, &rd, sizeof(rd))) {
+		guard(mutex)(&ctx->mmap_lock);
 		io_free_region(ctx, &ctx->param_region);
 		return -EFAULT;
 	}
@@ -832,9 +826,6 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		break;
 	case IORING_REGISTER_QUERY:
 		ret = io_query(ctx, arg, nr_args);
-		break;
-	case IORING_REGISTER_ZCRX_REFILL:
-		ret = io_zcrx_return_bufs(ctx, arg, nr_args);
 		break;
 	default:
 		ret = -EINVAL;

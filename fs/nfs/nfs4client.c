@@ -11,6 +11,7 @@
 #include <linux/sunrpc/xprt.h>
 #include <linux/sunrpc/bc_xprt.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <net/handshake.h>
 #include "internal.h"
 #include "callback.h"
 #include "delegation.h"
@@ -222,6 +223,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
 	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
 	clp->cl_mig_gen = 1;
+	clp->cl_last_renewal = jiffies;
 #if IS_ENABLED(CONFIG_NFS_V4_1)
 	init_waitqueue_head(&clp->cl_lock_waitq);
 #endif
@@ -982,7 +984,11 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 		.net = mds_clp->cl_net,
 		.timeparms = &ds_timeout,
 		.cred = mds_srv->cred,
-		.xprtsec = mds_srv->nfs_client->cl_xprtsec,
+		.xprtsec = {
+			.policy = RPC_XPRTSEC_NONE,
+			.cert_serial = TLS_NO_CERT,
+			.privkey_serial = TLS_NO_PRIVKEY,
+		},
 	};
 	char buf[INET6_ADDRSTRLEN + 1];
 
@@ -991,9 +997,14 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 	cl_init.hostname = buf;
 
 	switch (ds_proto) {
+	case XPRT_TRANSPORT_TCP_TLS:
+		if (mds_srv->nfs_client->cl_xprtsec.policy != RPC_XPRTSEC_NONE)
+			cl_init.xprtsec = mds_srv->nfs_client->cl_xprtsec;
+		else
+			ds_proto = XPRT_TRANSPORT_TCP;
+		fallthrough;
 	case XPRT_TRANSPORT_RDMA:
 	case XPRT_TRANSPORT_TCP:
-	case XPRT_TRANSPORT_TCP_TLS:
 		if (mds_clp->cl_nconnect > 1) {
 			cl_init.nconnect = mds_clp->cl_nconnect;
 			cl_init.max_connect = NFS_MAX_TRANSPORTS;

@@ -27,11 +27,11 @@
 #include <drm/drm_print.h>
 
 #include "bxt_dpio_phy_regs.h"
-#include "i915_utils.h"
 #include "intel_cx0_phy.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dkl_phy.h"
 #include "intel_dkl_phy_regs.h"
 #include "intel_dpio_phy.h"
@@ -1395,7 +1395,7 @@ static void skl_ddi_pll_enable(struct intel_display *display,
 	/* the enable bit is always bit 31 */
 	intel_de_rmw(display, regs[id].ctl, 0, LCPLL_PLL_ENABLE);
 
-	if (intel_de_wait_for_set(display, DPLL_STATUS, DPLL_LOCK(id), 5))
+	if (intel_de_wait_for_set_ms(display, DPLL_STATUS, DPLL_LOCK(id), 5))
 		drm_err(display->drm, "DPLL %d not locked\n", id);
 }
 
@@ -2057,9 +2057,9 @@ static void bxt_ddi_pll_enable(struct intel_display *display,
 		intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port),
 			     0, PORT_PLL_POWER_ENABLE);
 
-		ret = intel_de_wait_custom(display, BXT_PORT_PLL_ENABLE(port),
-					   PORT_PLL_POWER_STATE, PORT_PLL_POWER_STATE,
-					   200, 0, NULL);
+		ret = intel_de_wait_for_set_us(display,
+					       BXT_PORT_PLL_ENABLE(port),
+					       PORT_PLL_POWER_STATE, 200);
 		if (ret)
 			drm_err(display->drm,
 				"Power state not set for PLL:%d\n", port);
@@ -2122,9 +2122,8 @@ static void bxt_ddi_pll_enable(struct intel_display *display,
 	intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port), 0, PORT_PLL_ENABLE);
 	intel_de_posting_read(display, BXT_PORT_PLL_ENABLE(port));
 
-	ret = intel_de_wait_custom(display, BXT_PORT_PLL_ENABLE(port),
-				   PORT_PLL_LOCK, PORT_PLL_LOCK,
-				   200, 0, NULL);
+	ret = intel_de_wait_for_set_us(display, BXT_PORT_PLL_ENABLE(port),
+				       PORT_PLL_LOCK, 200);
 	if (ret)
 		drm_err(display->drm, "PLL %d not locked\n", port);
 
@@ -2158,9 +2157,9 @@ static void bxt_ddi_pll_disable(struct intel_display *display,
 		intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port),
 			     PORT_PLL_POWER_ENABLE, 0);
 
-		ret = intel_de_wait_custom(display, BXT_PORT_PLL_ENABLE(port),
-					   PORT_PLL_POWER_STATE, 0,
-					   200, 0, NULL);
+		ret = intel_de_wait_for_clear_us(display,
+						 BXT_PORT_PLL_ENABLE(port),
+						 PORT_PLL_POWER_STATE, 200);
 		if (ret)
 			drm_err(display->drm,
 				"Power state not reset for PLL:%d\n", port);
@@ -3921,7 +3920,7 @@ static void icl_pll_power_enable(struct intel_display *display,
 	 * The spec says we need to "wait" but it also says it should be
 	 * immediate.
 	 */
-	if (intel_de_wait_for_set(display, enable_reg, PLL_POWER_STATE, 1))
+	if (intel_de_wait_for_set_ms(display, enable_reg, PLL_POWER_STATE, 1))
 		drm_err(display->drm, "PLL %d Power not enabled\n",
 			pll->info->id);
 }
@@ -3933,7 +3932,7 @@ static void icl_pll_enable(struct intel_display *display,
 	intel_de_rmw(display, enable_reg, 0, PLL_ENABLE);
 
 	/* Timeout is actually 600us. */
-	if (intel_de_wait_for_set(display, enable_reg, PLL_LOCK, 1))
+	if (intel_de_wait_for_set_ms(display, enable_reg, PLL_LOCK, 1))
 		drm_err(display->drm, "PLL %d not locked\n", pll->info->id);
 }
 
@@ -4046,7 +4045,7 @@ static void icl_pll_disable(struct intel_display *display,
 	intel_de_rmw(display, enable_reg, PLL_ENABLE, 0);
 
 	/* Timeout is actually 1us. */
-	if (intel_de_wait_for_clear(display, enable_reg, PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display, enable_reg, PLL_LOCK, 1))
 		drm_err(display->drm, "PLL %d locked\n", pll->info->id);
 
 	/* DVFS post sequence would be here. See the comment above. */
@@ -4057,7 +4056,7 @@ static void icl_pll_disable(struct intel_display *display,
 	 * The spec says we need to "wait" but it also says it should be
 	 * immediate.
 	 */
-	if (intel_de_wait_for_clear(display, enable_reg, PLL_POWER_STATE, 1))
+	if (intel_de_wait_for_clear_ms(display, enable_reg, PLL_POWER_STATE, 1))
 		drm_err(display->drm, "PLL %d Power not disabled\n",
 			pll->info->id);
 }

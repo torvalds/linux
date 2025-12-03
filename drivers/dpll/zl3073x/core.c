@@ -1038,7 +1038,28 @@ zl3073x_dev_phase_meas_setup(struct zl3073x_dev *zldev)
 int zl3073x_dev_start(struct zl3073x_dev *zldev, bool full)
 {
 	struct zl3073x_dpll *zldpll;
+	u8 info;
 	int rc;
+
+	rc = zl3073x_read_u8(zldev, ZL_REG_INFO, &info);
+	if (rc) {
+		dev_err(zldev->dev, "Failed to read device status info\n");
+		return rc;
+	}
+
+	if (!FIELD_GET(ZL_INFO_READY, info)) {
+		/* The ready bit indicates that the firmware was successfully
+		 * configured and is ready for normal operation. If it is
+		 * cleared then the configuration stored in flash is wrong
+		 * or missing. In this situation the driver will expose
+		 * only devlink interface to give an opportunity to flash
+		 * the correct config.
+		 */
+		dev_info(zldev->dev,
+			 "FW not fully ready - missing or corrupted config\n");
+
+		return 0;
+	}
 
 	if (full) {
 		/* Fetch device state */

@@ -78,6 +78,7 @@ static void dp_retrain_link_dp_test(struct dc_link *link,
 	struct audio_output audio_output[MAX_PIPES];
 	struct dc_stream_state *streams_on_link[MAX_PIPES];
 	int num_streams_on_link = 0;
+	struct dc *dc = (struct dc *)link->dc;
 
 	needs_divider_update = (link->dc->link_srv->dp_get_encoding_format(link_setting) !=
 	link->dc->link_srv->dp_get_encoding_format((const struct dc_link_settings *) &link->cur_link_settings));
@@ -150,7 +151,7 @@ static void dp_retrain_link_dp_test(struct dc_link *link,
 		if (streams_on_link[i] && streams_on_link[i]->link && streams_on_link[i]->link == link) {
 			stream_update.stream = streams_on_link[i];
 			stream_update.dpms_off = &dpms_off;
-			dc_update_planes_and_stream(state->clk_mgr->ctx->dc, NULL, 0, streams_on_link[i], &stream_update);
+			dc_update_planes_and_stream(dc, NULL, 0, streams_on_link[i], &stream_update);
 		}
 	}
 }
@@ -876,7 +877,7 @@ bool dp_set_test_pattern(
 			return false;
 
 		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable) {
-			if (should_use_dmub_lock(pipe_ctx->stream->link)) {
+			if (should_use_dmub_inbox1_lock(pipe_ctx->stream->link->dc, pipe_ctx->stream->link)) {
 				union dmub_hw_lock_flags hw_locks = { 0 };
 				struct dmub_hw_lock_inst_flags inst_flags = { 0 };
 
@@ -924,7 +925,7 @@ bool dp_set_test_pattern(
 				CRTC_STATE_VACTIVE);
 
 		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable) {
-			if (should_use_dmub_lock(pipe_ctx->stream->link)) {
+			if (should_use_dmub_inbox1_lock(pipe_ctx->stream->link->dc, pipe_ctx->stream->link)) {
 				union dmub_hw_lock_flags hw_locks = { 0 };
 				struct dmub_hw_lock_inst_flags inst_flags = { 0 };
 

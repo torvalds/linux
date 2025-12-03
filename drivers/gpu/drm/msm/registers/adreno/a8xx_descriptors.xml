@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns="http://nouveau.freedesktop.org/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
+<import file="freedreno_copyright.xml"/>
+<import file="adreno/adreno_common.xml"/>
+<import file="adreno/adreno_pm4.xml"/>
+<import file="adreno/a6xx_enums.xml"/>
+<import file="adreno/a8xx_enums.xml"/>
+
+<domain name="A8XX_TEX_SAMP" width="32">
+	<doc>Texture sampler dwords</doc>
+	<reg32 offset="0" name="0">
+		<bitfield name="MIPFILTER_LINEAR_NEAR" pos="0" type="boolean"/>
+		<bitfield name="MIPMAPING_DIS" pos="1" type="boolean"/>
+		<bitfield name="XY_MAG" low="2" high="3" type="a6xx_tex_filter"/>
+		<bitfield name="XY_MIN" low="4" high="5" type="a6xx_tex_filter"/>
+		<bitfield name="WRAP_S" low="6" high="8" type="a6xx_tex_clamp"/>
+		<bitfield name="WRAP_T" low="9" high="11" type="a6xx_tex_clamp"/>
+		<bitfield name="WRAP_R" low="12" high="14" type="a6xx_tex_clamp"/>
+		<bitfield name="MSAA_BOX_FILTERING" pos="15" type="boolean"/>
+		<bitfield name="LOD_BIAS" low="16" high="28" type="fixed" radix="8"/>
+		<bitfield name="ANISO" low="29" high="31" type="a6xx_tex_aniso"/>
+	</reg32>
+	<reg32 offset="1" name="1">
+		<bitfield name="MAX_LOD" low="0" high="11" type="ufixed" radix="8"/>
+		<bitfield name="MIN_LOD" low="12" high="23" type="ufixed" radix="8"/>
+		<bitfield name="REDUCTION_MODE" low="24" high="25" type="a6xx_reduction_mode"/>
+		<bitfield name="COMPARE_FUNC" low="26" high="28" type="adreno_compare_func"/>
+		<bitfield name="CHROMA_LINEAR" pos="29" type="boolean"/>
+		<bitfield name="CUBEMAPSEAMLESSFILTOFF" pos="30" type="boolean"/>
+		<bitfield name="UNNORM_COORDS" pos="31" type="boolean"/>
+	</reg32>
+	<reg32 offset="2" name="2">
+		<bitfield name="FASTBORDERCOLOREN" pos="0" type="boolean"/>
+		<bitfield name="FASTBORDERCOLOR" low="1" high="2" type="a6xx_fast_border_color"/>
+		<bitfield name="BCOLOR" low="7" high="31"/>
+	</reg32>
+	<reg32 offset="3" name="3"/>
+</domain>
+
+<domain name="A8XX_TEX_MEMOBJ" width="32" varset="chip">
+	<doc>Texture memobj dwords</doc>
+	<reg32 offset="0" name="0">
+		<bitfield name="BASE_LO" low="6" high="31" shr="6"/>
+	</reg32>
+	<reg32 offset="1" name="1">
+		<bitfield name="BASE_HI" low="0" high="16"/>
+		<bitfield name="TYPE" low="17" high="19" type="a6xx_tex_type"/>
+		<bitfield name="DEPTH" low="20" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="2" name="2">
+		<bitfield name="WIDTH" low="0" high="14" type="uint"/>
+		<bitfield name="HEIGHT" low="15" high="29" type="uint"/>
+		<bitfield name="SAMPLES" low="30" high="31" type="a3xx_msaa_samples"/>
+	</reg32>
+	<reg32 offset="3" name="3">
+		<bitfield name="FMT" low="0" high="7" type="a6xx_format"/>
+		<bitfield name="SWAP" low="8" high="9" type="a3xx_color_swap"/>
+		<bitfield name="SWIZ_X" low="10" high="12" type="a8xx_tex_swiz"/>
+		<bitfield name="SWIZ_Y" low="13" high="15" type="a8xx_tex_swiz"/>
+		<bitfield name="SWIZ_Z" low="16" high="18" type="a8xx_tex_swiz"/>
+		<bitfield name="SWIZ_W" low="19" high="21" type="a8xx_tex_swiz"/>
+	</reg32>
+	<reg32 offset="4" name="4">
+		<bitfield name="TILE_MODE" low="0" high="1" type="a6xx_tile_mode"/>
+		<bitfield name="FLAG" pos="2" type="boolean"/>
+		<bitfield name="PRT_EN" pos="3" type="boolean"/>
+		<bitfield name="TILE_ALL" pos="4" type="boolean"/>
+		<bitfield name="SRGB" pos="5" type="boolean"/>
+		<bitfield name="FLAG_LO" low="6" high="31" shr="6"/>
+		<!-- For multiplanar: -->
+		<bitfield name="BASE_U_LO" low="6" high="31" shr="6"/>
+	</reg32>
+	<reg32 offset="5" name="5">
+		<bitfield name="FLAG_HI" low="0" high="16"/>
+		<!-- For multiplanar: -->
+		<bitfield name="BASE_U_HI" low="0" high="16"/>
+		<bitfield name="FLAG_BUFFER_PITCH" low="17" high="24" shr="6" type="uint"/>
+		<bitfield name="ALL_SAMPLES_CENTER" pos="29" type="boolean"/>
+		<bitfield name="MUTABLEEN" pos="31" type="boolean"/>
+	</reg32>
+	<reg32 offset="6" name="6">
+		<bitfield name="TEX_LINE_OFFSET" low="0" high="23" type="uint"/> <!-- PITCH -->
+		<bitfield name="MIN_LINE_OFFSET" low="24" high="27" type="uint"/> <!-- PITCHALIGN -->
+		<bitfield name="MIPLVLS" low="28" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="7" name="7">
+		<bitfield name="ARRAY_SLICE_OFFSET" low="0" high="22" shr="12" type="uint"/> <!-- ARRAY_PITCH -->
+		<bitfield name="ASO_UNIT" pos="23"/> <!-- 4KB or 32B ? -->
+		<bitfield name="MIN_ARRAY_SLIZE_OFFSET" low="24" high="27" shr="12"/> <!-- MIN_LAYERSZ -->
+		<bitfield name="GMEM_TILING_FALLBACK_EN" pos="28" type="boolean"/>
+		<bitfield name="CORNER_BASED_EN" pos="30" type="boolean"/>
+		<bitfield name="GMEM_FULL_SURF" pos="31" type="boolean"/>
+		<!-- For multiplanar.  This overlaps other single-planar fields: -->
+		<bitfield name="UV_OFFSET_H" low="24" high="25" type="ufixed" radix="2"/> <!-- CHROMA_MIDPOINT_X -->
+		<bitfield name="UV_OFFSET_V" low="26" high="27" type="ufixed" radix="2"/> <!-- CHROMA_MIDPOINT_Y -->
+	</reg32>
+	<reg32 offset="8" name="8">
+		<bitfield name="FLAG_ARRAY_PITCH" low="0" high="14" shr="12" type="uint"/> <!-- FLAG_BUFFER_ARRAY_PITCH -->
+		<!-- log2 size of the first level, required for mipmapping -->
+		<bitfield name="FLAG_BUFFER_LOGW" low="24" high="27" type="uint"/>
+		<bitfield name="FLAG_BUFFER_LOGH" low="28" high="31" type="uint"/>
+		<!-- For multiplanar.  This overlaps other single-planar fields: -->
+		<bitfield name="BASE_V_LO" low="6" high="31" shr="6"/>
+	</reg32>
+	<reg32 offset="9" name="9">
+		<bitfield name="MIN_LOD_CLAMP" low="19" high="30" type="ufixed" radix="8"/>
+		<!-- For multiplanar, this overlaps other fields: -->
+		<bitfield name="BASE_V_HI" low="0" high="16"/>
+		<bitfield name="UV_PITCH" low="17" high="26"/> <!-- PLANE_PITCH -->
+	</reg32>
+	<reg32 offset="10" name="10"/>
+	<reg32 offset="11" name="11"/>
+	<reg32 offset="12" name="12"/>
+	<reg32 offset="13" name="13"/>
+	<reg32 offset="14" name="14"/>
+	<reg32 offset="15" name="15"/>
+</domain>
+
+</database>

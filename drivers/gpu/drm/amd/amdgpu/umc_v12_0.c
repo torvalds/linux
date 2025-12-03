@@ -711,6 +711,19 @@ static uint32_t umc_v12_0_get_die_id(struct amdgpu_device *adev,
 	return die;
 }
 
+static void umc_v12_0_mca_ipid_parse(struct amdgpu_device *adev, uint64_t ipid,
+		uint32_t *did, uint32_t *ch, uint32_t *umc_inst, uint32_t *sid)
+{
+	if (did)
+		*did = MCA_IPID_2_DIE_ID(ipid);
+	if (ch)
+		*ch = MCA_IPID_2_UMC_CH(ipid);
+	if (umc_inst)
+		*umc_inst = MCA_IPID_2_UMC_INST(ipid);
+	if (sid)
+		*sid = MCA_IPID_2_SOCKET_ID(ipid);
+}
+
 struct amdgpu_umc_ras umc_v12_0_ras = {
 	.ras_block = {
 		.hw_ops = &umc_v12_0_ras_hw_ops,
@@ -724,5 +737,6 @@ struct amdgpu_umc_ras umc_v12_0_ras = {
 	.convert_ras_err_addr = umc_v12_0_convert_error_address,
 	.get_die_id_from_pa = umc_v12_0_get_die_id,
 	.get_retire_flip_bits = umc_v12_0_get_retire_flip_bits,
+	.mca_ipid_parse = umc_v12_0_mca_ipid_parse,
 };
 

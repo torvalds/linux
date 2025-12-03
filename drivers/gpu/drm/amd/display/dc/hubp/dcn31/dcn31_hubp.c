@@ -110,9 +110,7 @@ static struct hubp_funcs dcn31_hubp_funcs = {
 	.hubp_in_blank = hubp1_in_blank,
 	.program_extended_blank = hubp31_program_extended_blank,
 	.hubp_clear_tiling = hubp3_clear_tiling,
-	.hubp_get_underflow_status = hubp3_get_underflow_status,
-	.hubp_get_current_read_line = hubp3_get_current_read_line,
-	.hubp_get_det_config_error = hubp31_get_det_config_error,
+	.hubp_read_reg_state = hubp3_read_reg_state,
 };
 
 bool hubp31_construct(

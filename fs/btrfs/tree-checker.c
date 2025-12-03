@@ -1797,7 +1797,7 @@ static int check_inode_extref(struct extent_buffer *leaf,
 		struct btrfs_inode_extref *extref = (struct btrfs_inode_extref *)ptr;
 		u16 namelen;
 
-		if (unlikely(ptr + sizeof(*extref)) > end) {
+		if (unlikely(ptr + sizeof(*extref) > end)) {
 			inode_ref_err(leaf, slot,
 			"inode extref overflow, ptr %lu end %lu inode_extref size %zu",
 				      ptr, end, sizeof(*extref));

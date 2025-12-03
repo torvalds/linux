@@ -1406,13 +1406,18 @@ static struct vmbus_channel *get_og_chn(struct storvsc_device *stor_device,
 	}
 
 	/*
-	 * Our channel array is sparsley populated and we
+	 * Our channel array could be sparsley populated and we
 	 * initiated I/O on a processor/hw-q that does not
 	 * currently have a designated channel. Fix this.
 	 * The strategy is simple:
-	 * I. Ensure NUMA locality
-	 * II. Distribute evenly (best effort)
+	 * I. Prefer the channel associated with the current CPU
+	 * II. Ensure NUMA locality
+	 * III. Distribute evenly (best effort)
 	 */
+
+	/* Prefer the channel on the I/O issuing processor/hw-q */
+	if (cpumask_test_cpu(q_num, &stor_device->alloced_cpus))
+		return stor_device->stor_chns[q_num];
 
 	node_mask = cpumask_of_node(cpu_to_node(q_num));
 
@@ -1469,59 +1474,48 @@ static int storvsc_do_io(struct hv_device *device,
 	/* See storvsc_change_target_cpu(). */
 	outgoing_channel = READ_ONCE(stor_device->stor_chns[q_num]);
 	if (outgoing_channel != NULL) {
-		if (outgoing_channel->target_cpu == q_num) {
-			/*
-			 * Ideally, we want to pick a different channel if
-			 * available on the same NUMA node.
-			 */
-			node_mask = cpumask_of_node(cpu_to_node(q_num));
-			for_each_cpu_wrap(tgt_cpu,
-				 &stor_device->alloced_cpus, q_num + 1) {
-				if (!cpumask_test_cpu(tgt_cpu, node_mask))
-					continue;
-				if (tgt_cpu == q_num)
-					continue;
-				channel = READ_ONCE(
-					stor_device->stor_chns[tgt_cpu]);
-				if (channel == NULL)
-					continue;
-				if (hv_get_avail_to_write_percent(
-							&channel->outbound)
-						> ring_avail_percent_lowater) {
-					outgoing_channel = channel;
-					goto found_channel;
-				}
-			}
+		if (hv_get_avail_to_write_percent(&outgoing_channel->outbound)
+				> ring_avail_percent_lowater)
+			goto found_channel;
 
-			/*
-			 * All the other channels on the same NUMA node are
-			 * busy. Try to use the channel on the current CPU
-			 */
-			if (hv_get_avail_to_write_percent(
-						&outgoing_channel->outbound)
-					> ring_avail_percent_lowater)
+		/*
+		 * Channel is busy, try to find a channel on the same NUMA node
+		 */
+		node_mask = cpumask_of_node(cpu_to_node(q_num));
+		for_each_cpu_wrap(tgt_cpu, &stor_device->alloced_cpus,
+				  q_num + 1) {
+			if (!cpumask_test_cpu(tgt_cpu, node_mask))
+				continue;
+			channel = READ_ONCE(stor_device->stor_chns[tgt_cpu]);
+			if (!channel)
+				continue;
+			if (hv_get_avail_to_write_percent(&channel->outbound)
+					> ring_avail_percent_lowater) {
+				outgoing_channel = channel;
 				goto found_channel;
-
-			/*
-			 * If we reach here, all the channels on the current
-			 * NUMA node are busy. Try to find a channel in
-			 * other NUMA nodes
-			 */
-			for_each_cpu(tgt_cpu, &stor_device->alloced_cpus) {
-				if (cpumask_test_cpu(tgt_cpu, node_mask))
-					continue;
-				channel = READ_ONCE(
-					stor_device->stor_chns[tgt_cpu]);
-				if (channel == NULL)
-					continue;
-				if (hv_get_avail_to_write_percent(
-							&channel->outbound)
-						> ring_avail_percent_lowater) {
-					outgoing_channel = channel;
-					goto found_channel;
-				}
 			}
 		}
+
+		/*
+		 * If we reach here, all the channels on the current
+		 * NUMA node are busy. Try to find a channel in
+		 * all NUMA nodes
+		 */
+		for_each_cpu_wrap(tgt_cpu, &stor_device->alloced_cpus,
+				  q_num + 1) {
+			channel = READ_ONCE(stor_device->stor_chns[tgt_cpu]);
+			if (!channel)
+				continue;
+			if (hv_get_avail_to_write_percent(&channel->outbound)
+					> ring_avail_percent_lowater) {
+				outgoing_channel = channel;
+				goto found_channel;
+			}
+		}
+		/*
+		 * If we reach here, all the channels are busy. Use the
+		 * original channel found.
+		 */
 	} else {
 		spin_lock_irqsave(&stor_device->lock, flags);
 		outgoing_channel = stor_device->stor_chns[q_num];

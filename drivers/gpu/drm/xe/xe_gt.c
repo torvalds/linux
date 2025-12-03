@@ -853,7 +853,6 @@ err_out:
 err_fail:
 	xe_gt_err(gt, "reset failed (%pe)\n", ERR_PTR(err));
 	xe_device_declare_wedged(gt_to_xe(gt));
-
 err_pm_put:
 	xe_pm_runtime_put(gt_to_xe(gt));
 }

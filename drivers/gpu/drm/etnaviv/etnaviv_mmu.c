@@ -6,6 +6,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 
+#include <drm/drm_print.h>
+
 #include "common.xml.h"
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"

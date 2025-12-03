@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/iopoll.h>
 
+#include <drm/drm_print.h>
 #include <drm/display/drm_hdcp_helper.h>
 
 #include "i915_drv.h"
@@ -448,7 +449,7 @@ gmbus_wait_idle(struct intel_display *display)
 	add_wait_queue(&display->gmbus.wait_queue, &wait);
 	intel_de_write_fw(display, GMBUS4(display), irq_enable);
 
-	ret = intel_de_wait_fw(display, GMBUS2(display), GMBUS_ACTIVE, 0, 10, NULL);
+	ret = intel_de_wait_fw_ms(display, GMBUS2(display), GMBUS_ACTIVE, 0, 10, NULL);
 
 	intel_de_write_fw(display, GMBUS4(display), 0);
 	remove_wait_queue(&display->gmbus.wait_queue, &wait);

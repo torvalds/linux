@@ -1455,10 +1455,10 @@ static void joycon_parse_imu_report(struct joycon_ctlr *ctlr,
 				ctlr->imu_avg_delta_ms;
 		ctlr->imu_timestamp_us += 1000 * ctlr->imu_avg_delta_ms;
 		if (dropped_pkts > JC_IMU_DROPPED_PKT_WARNING) {
-			hid_warn(ctlr->hdev,
+			hid_warn_ratelimited(ctlr->hdev,
 				 "compensating for %u dropped IMU reports\n",
 				 dropped_pkts);
-			hid_warn(ctlr->hdev,
+			hid_warn_ratelimited(ctlr->hdev,
 				 "delta=%u avg_delta=%u\n",
 				 delta, ctlr->imu_avg_delta_ms);
 		}
@@ -2420,7 +2420,7 @@ static int joycon_read_info(struct joycon_ctlr *ctlr)
 	struct joycon_input_report *report;
 
 	req.subcmd_id = JC_SUBCMD_REQ_DEV_INFO;
-	ret = joycon_send_subcmd(ctlr, &req, 0, HZ);
+	ret = joycon_send_subcmd(ctlr, &req, 0, 2 * HZ);
 	if (ret) {
 		hid_err(ctlr->hdev, "Failed to get joycon info; ret=%d\n", ret);
 		return ret;

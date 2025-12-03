@@ -2523,7 +2523,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
 		{ 0x85, 0x0088, "iDeviceName" },
 		{ 0x85, 0x0089, "iDeviceChemistry" },
 		{ 0x85, 0x008a, "ManufacturerData" },
-		{ 0x85, 0x008b, "Rechargable" },
+		{ 0x85, 0x008b, "Rechargeable" },
 		{ 0x85, 0x008c, "WarningCapacityLimit" },
 		{ 0x85, 0x008d, "CapacityGranularity1" },
 		{ 0x85, 0x008e, "CapacityGranularity2" },

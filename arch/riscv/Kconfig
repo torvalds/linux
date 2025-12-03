@@ -29,7 +29,7 @@ config RISCV
 	select ARCH_HAS_DEBUG_VIRTUAL if MMU
 	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DEBUG_WX
-	select ARCH_HAS_ELF_CORE_EFLAGS
+	select ARCH_HAS_ELF_CORE_EFLAGS if BINFMT_ELF && ELF_CORE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
@@ -367,7 +367,7 @@ config RISCV_NONSTANDARD_CACHE_OPS
 	  systems to handle cache management.
 
 config AS_HAS_INSN
-	def_bool $(as-instr,.insn r 51$(comma) 0$(comma) 0$(comma) t0$(comma) t0$(comma) zero)
+	def_bool $(as-instr,.insn 0x100000f)
 
 config AS_HAS_OPTION_ARCH
 	# https://github.com/llvm/llvm-project/commit/9e8ed3403c191ab9c4903e8eeb8f732ff8a43cb4

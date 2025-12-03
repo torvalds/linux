@@ -2036,6 +2036,10 @@ S: Botanicka' 68a
 S: 602 00 Brno
 S: Czech Republic
 
+N: Karsten Keil
+E: isdn@linux-pingi.de
+D: ISDN subsystem maintainer
+
 N: Jakob Kemi
 E: jakob.kemi@telia.com
 D: V4L W9966 Webcam driver

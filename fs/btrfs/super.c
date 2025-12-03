@@ -1900,8 +1900,6 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 		return PTR_ERR(sb);
 	}
 
-	set_device_specific_options(fs_info);
-
 	if (sb->s_root) {
 		/*
 		 * Not the first mount of the fs thus got an existing super block.
@@ -1946,6 +1944,7 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 			deactivate_locked_super(sb);
 			return -EACCES;
 		}
+		set_device_specific_options(fs_info);
 		bdev = fs_devices->latest_dev->bdev;
 		snprintf(sb->s_id, sizeof(sb->s_id), "%pg", bdev);
 		shrinker_debugfs_rename(sb->s_shrink, "sb-btrfs:%s", sb->s_id);
@@ -2069,7 +2068,13 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	if (!fs_info->super_copy || !fs_info->super_for_commit) {
-		btrfs_free_fs_info(fs_info);
+		/*
+		 * Dont call btrfs_free_fs_info() to free it as it's still
+		 * initialized partially.
+		 */
+		kfree(fs_info->super_copy);
+		kfree(fs_info->super_for_commit);
+		kvfree(fs_info);
 		return -ENOMEM;
 	}
 	btrfs_init_fs_info(fs_info);

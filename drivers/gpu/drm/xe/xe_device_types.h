@@ -233,6 +233,11 @@ struct xe_device {
 	/** @drm: drm device */
 	struct drm_device drm;
 
+#if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)
+	/** @display: display device data, must be placed after drm device member */
+	struct intel_display *display;
+#endif
+
 	/** @devcoredump: device coredump */
 	struct xe_devcoredump devcoredump;
 
@@ -651,8 +656,6 @@ struct xe_device {
 	 * drm_i915_private during build. After cleanup these should go away,
 	 * migrating to the right sub-structs
 	 */
-	struct intel_display *display;
-
 	const struct dram_info *dram_info;
 
 	/*
@@ -661,21 +664,9 @@ struct xe_device {
 	 */
 	u32 edram_size_mb;
 
-	/* To shut up runtime pm macros.. */
-	struct xe_runtime_pm {} runtime_pm;
-
-	/* only to allow build, not used functionally */
-	u32 irq_mask;
-
 	struct intel_uncore {
 		spinlock_t lock;
 	} uncore;
-
-	/* only to allow build, not used functionally */
-	struct {
-		unsigned int hpll_freq;
-		unsigned int czclk_freq;
-	};
 #endif
 };
 

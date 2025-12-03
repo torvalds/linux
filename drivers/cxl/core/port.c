@@ -1182,6 +1182,20 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 	if (rc)
 		return ERR_PTR(rc);
 
+	/*
+	 * Setup port register if this is the first dport showed up. Having
+	 * a dport also means that there is at least 1 active link.
+	 */
+	if (port->nr_dports == 1 &&
+	    port->component_reg_phys != CXL_RESOURCE_NONE) {
+		rc = cxl_port_setup_regs(port, port->component_reg_phys);
+		if (rc) {
+			xa_erase(&port->dports, (unsigned long)dport->dport_dev);
+			return ERR_PTR(rc);
+		}
+		port->component_reg_phys = CXL_RESOURCE_NONE;
+	}
+
 	get_device(dport_dev);
 	rc = devm_add_action_or_reset(host, cxl_dport_remove, dport);
 	if (rc)
@@ -1199,18 +1213,6 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 		dport->link_latency = cxl_pci_get_latency(to_pci_dev(dport_dev));
 
 	cxl_debugfs_create_dport_dir(dport);
-
-	/*
-	 * Setup port register if this is the first dport showed up. Having
-	 * a dport also means that there is at least 1 active link.
-	 */
-	if (port->nr_dports == 1 &&
-	    port->component_reg_phys != CXL_RESOURCE_NONE) {
-		rc = cxl_port_setup_regs(port, port->component_reg_phys);
-		if (rc)
-			return ERR_PTR(rc);
-		port->component_reg_phys = CXL_RESOURCE_NONE;
-	}
 
 	return dport;
 }

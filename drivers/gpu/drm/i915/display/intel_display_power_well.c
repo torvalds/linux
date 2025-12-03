@@ -5,6 +5,8 @@
 
 #include <linux/iopoll.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -291,8 +293,8 @@ static void hsw_wait_for_power_well_enable(struct intel_display *display,
 	}
 
 	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
-	if (intel_de_wait_for_set(display, regs->driver,
-				  HSW_PWR_WELL_CTL_STATE(pw_idx), timeout)) {
+	if (intel_de_wait_for_set_ms(display, regs->driver,
+				     HSW_PWR_WELL_CTL_STATE(pw_idx), timeout)) {
 		drm_dbg_kms(display->drm, "%s power well enable timeout\n",
 			    intel_power_well_name(power_well));
 
@@ -336,9 +338,9 @@ static void hsw_wait_for_power_well_disable(struct intel_display *display,
 	 */
 	reqs = hsw_power_well_requesters(display, regs, pw_idx);
 
-	ret = intel_de_wait_for_clear(display, regs->driver,
-				      HSW_PWR_WELL_CTL_STATE(pw_idx),
-				      reqs ? 0 : 1);
+	ret = intel_de_wait_for_clear_ms(display, regs->driver,
+					 HSW_PWR_WELL_CTL_STATE(pw_idx),
+					 reqs ? 0 : 1);
 	if (!ret)
 		return;
 
@@ -357,8 +359,8 @@ static void gen9_wait_for_power_well_fuses(struct intel_display *display,
 {
 	/* Timeout 5us for PG#0, for other PGs 1us */
 	drm_WARN_ON(display->drm,
-		    intel_de_wait_for_set(display, SKL_FUSE_STATUS,
-					  SKL_FUSE_PG_DIST_STATUS(pg), 1));
+		    intel_de_wait_for_set_ms(display, SKL_FUSE_STATUS,
+					     SKL_FUSE_PG_DIST_STATUS(pg), 1));
 }
 
 static void hsw_power_well_enable(struct intel_display *display,
@@ -1356,6 +1358,7 @@ static void assert_chv_phy_status(struct intel_display *display)
 	u32 phy_control = display->power.chv_phy_control;
 	u32 phy_status = 0;
 	u32 phy_status_mask = 0xffffffff;
+	u32 val;
 
 	/*
 	 * The BIOS can leave the PHY is some weird state
@@ -1443,12 +1446,11 @@ static void assert_chv_phy_status(struct intel_display *display)
 	 * The PHY may be busy with some initial calibration and whatnot,
 	 * so the power state can take a while to actually change.
 	 */
-	if (intel_de_wait(display, DISPLAY_PHY_STATUS,
-			  phy_status_mask, phy_status, 10))
+	if (intel_de_wait_ms(display, DISPLAY_PHY_STATUS,
+			     phy_status_mask, phy_status, 10, &val))
 		drm_err(display->drm,
 			"Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
-			intel_de_read(display, DISPLAY_PHY_STATUS) & phy_status_mask,
-			phy_status, display->power.chv_phy_control);
+			val & phy_status_mask, phy_status, display->power.chv_phy_control);
 }
 
 #undef BITS_SET
@@ -1474,8 +1476,8 @@ static void chv_dpio_cmn_power_well_enable(struct intel_display *display,
 	vlv_set_power_well(display, power_well, true);
 
 	/* Poll for phypwrgood signal */
-	if (intel_de_wait_for_set(display, DISPLAY_PHY_STATUS,
-				  PHY_POWERGOOD(phy), 1))
+	if (intel_de_wait_for_set_ms(display, DISPLAY_PHY_STATUS,
+				     PHY_POWERGOOD(phy), 1))
 		drm_err(display->drm, "Display PHY %d is not power up\n",
 			phy);
 
@@ -1864,18 +1866,36 @@ static void xelpdp_aux_power_well_enable(struct intel_display *display,
 	 * expected to just wait a fixed 600us after raising the request
 	 * bit.
 	 */
-	usleep_range(600, 1200);
+	if (DISPLAY_VER(display) >= 35) {
+		if (intel_de_wait_for_set_ms(display, XELPDP_DP_AUX_CH_CTL(display, aux_ch),
+					     XELPDP_DP_AUX_CH_CTL_POWER_STATUS, 2))
+			drm_warn(display->drm,
+				 "Timeout waiting for PHY %c AUX channel power to be up\n",
+				 phy_name(phy));
+	} else {
+		usleep_range(600, 1200);
+	}
 }
 
 static void xelpdp_aux_power_well_disable(struct intel_display *display,
 					  struct i915_power_well *power_well)
 {
 	enum aux_ch aux_ch = i915_power_well_instance(power_well)->xelpdp.aux_ch;
+	enum phy phy = icl_aux_pw_to_phy(display, power_well);
 
 	intel_de_rmw(display, XELPDP_DP_AUX_CH_CTL(display, aux_ch),
 		     XELPDP_DP_AUX_CH_CTL_POWER_REQUEST,
 		     0);
-	usleep_range(10, 30);
+
+	if (DISPLAY_VER(display) >= 35) {
+		if (intel_de_wait_for_clear_ms(display, XELPDP_DP_AUX_CH_CTL(display, aux_ch),
+					       XELPDP_DP_AUX_CH_CTL_POWER_STATUS, 1))
+			drm_warn(display->drm,
+				 "Timeout waiting for PHY %c AUX channel to powerdown\n",
+				 phy_name(phy));
+	} else {
+		usleep_range(10, 30);
+	}
 }
 
 static bool xelpdp_aux_power_well_enabled(struct intel_display *display,
@@ -1893,8 +1913,8 @@ static void xe2lpd_pica_power_well_enable(struct intel_display *display,
 	intel_de_write(display, XE2LPD_PICA_PW_CTL,
 		       XE2LPD_PICA_CTL_POWER_REQUEST);
 
-	if (intel_de_wait_for_set(display, XE2LPD_PICA_PW_CTL,
-				  XE2LPD_PICA_CTL_POWER_STATUS, 1)) {
+	if (intel_de_wait_for_set_ms(display, XE2LPD_PICA_PW_CTL,
+				     XE2LPD_PICA_CTL_POWER_STATUS, 1)) {
 		drm_dbg_kms(display->drm, "pica power well enable timeout\n");
 
 		drm_WARN(display->drm, 1, "Power well PICA timeout when enabled");
@@ -1906,8 +1926,8 @@ static void xe2lpd_pica_power_well_disable(struct intel_display *display,
 {
 	intel_de_write(display, XE2LPD_PICA_PW_CTL, 0);
 
-	if (intel_de_wait_for_clear(display, XE2LPD_PICA_PW_CTL,
-				    XE2LPD_PICA_CTL_POWER_STATUS, 1)) {
+	if (intel_de_wait_for_clear_ms(display, XE2LPD_PICA_PW_CTL,
+				       XE2LPD_PICA_CTL_POWER_STATUS, 1)) {
 		drm_dbg_kms(display->drm, "pica power well disable timeout\n");
 
 		drm_WARN(display->drm, 1, "Power well PICA timeout when disabled");

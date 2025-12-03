@@ -21,7 +21,7 @@
 
 int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	unsigned int scan_align = info->pixmap.scan_align - 1;
 	unsigned int buf_align = info->pixmap.buf_align - 1;
 	unsigned int i, size, dsize, s_pitch, d_pitch;
@@ -34,19 +34,19 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	s_pitch = (cursor->image.width + 7) >> 3;
 	dsize = s_pitch * cursor->image.height;
 
-	if (dsize + sizeof(struct fb_image) != ops->cursor_size) {
-		kfree(ops->cursor_src);
-		ops->cursor_size = dsize + sizeof(struct fb_image);
+	if (dsize + sizeof(struct fb_image) != par->cursor_size) {
+		kfree(par->cursor_src);
+		par->cursor_size = dsize + sizeof(struct fb_image);
 
-		ops->cursor_src = kmalloc(ops->cursor_size, GFP_ATOMIC);
-		if (!ops->cursor_src) {
-			ops->cursor_size = 0;
+		par->cursor_src = kmalloc(par->cursor_size, GFP_ATOMIC);
+		if (!par->cursor_src) {
+			par->cursor_size = 0;
 			return -ENOMEM;
 		}
 	}
 
-	src = ops->cursor_src + sizeof(struct fb_image);
-	image = (struct fb_image *)ops->cursor_src;
+	src = par->cursor_src + sizeof(struct fb_image);
+	image = (struct fb_image *)par->cursor_src;
 	*image = cursor->image;
 	d_pitch = (s_pitch + scan_align) & ~scan_align;
 

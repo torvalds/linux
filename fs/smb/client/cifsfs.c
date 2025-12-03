@@ -173,7 +173,7 @@ module_param(enable_oplocks, bool, 0644);
 MODULE_PARM_DESC(enable_oplocks, "Enable or disable oplocks. Default: y/Y/1");
 
 module_param(enable_gcm_256, bool, 0644);
-MODULE_PARM_DESC(enable_gcm_256, "Enable requesting strongest (256 bit) GCM encryption. Default: y/Y/0");
+MODULE_PARM_DESC(enable_gcm_256, "Enable requesting strongest (256 bit) GCM encryption. Default: y/Y/1");
 
 module_param(require_gcm_256, bool, 0644);
 MODULE_PARM_DESC(require_gcm_256, "Require strongest (256 bit) GCM encryption. Default: n/N/0");
@@ -2139,13 +2139,9 @@ MODULE_DESCRIPTION
 	"also older servers complying with the SNIA CIFS Specification)");
 MODULE_VERSION(CIFS_VERSION);
 MODULE_SOFTDEP("ecb");
-MODULE_SOFTDEP("hmac");
-MODULE_SOFTDEP("md5");
 MODULE_SOFTDEP("nls");
 MODULE_SOFTDEP("aes");
 MODULE_SOFTDEP("cmac");
-MODULE_SOFTDEP("sha256");
-MODULE_SOFTDEP("sha512");
 MODULE_SOFTDEP("aead2");
 MODULE_SOFTDEP("ccm");
 MODULE_SOFTDEP("gcm");

@@ -267,6 +267,16 @@ struct intel_cx0pll_state {
 	bool tbt_mode;
 };
 
+struct intel_lt_phy_pll_state {
+	u32 clock; /* in kHz */
+	u8 addr_msb[13];
+	u8 addr_lsb[13];
+	u8 data[13][4];
+	u8 config[3];
+	bool ssc_enabled;
+	bool tbt_mode;
+};
+
 struct intel_dpll_hw_state {
 	union {
 		struct i9xx_dpll_hw_state i9xx;
@@ -276,6 +286,7 @@ struct intel_dpll_hw_state {
 		struct icl_dpll_hw_state icl;
 		struct intel_mpllb_state mpllb;
 		struct intel_cx0pll_state cx0pll;
+		struct intel_lt_phy_pll_state ltpll;
 	};
 };
 

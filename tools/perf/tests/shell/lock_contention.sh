@@ -13,15 +13,18 @@ cleanup() {
 	rm -f ${perfdata}
 	rm -f ${result}
 	rm -f ${errout}
-	trap - EXIT TERM INT
+	trap - EXIT TERM INT ERR
 }
 
 trap_cleanup() {
+	if (( $? == 139 )); then #SIGSEGV
+		err=1
+	fi
 	echo "Unexpected signal in ${FUNCNAME[1]}"
 	cleanup
 	exit ${err}
 }
-trap trap_cleanup EXIT TERM INT
+trap trap_cleanup EXIT TERM INT ERR
 
 check() {
 	if [ "$(id -u)" != 0 ]; then
@@ -145,7 +148,7 @@ test_aggr_cgroup()
 	fi
 
 	# the perf lock contention output goes to the stderr
-	perf lock con -a -b -g -E 1 -q -- perf bench sched messaging -p > /dev/null 2> ${result}
+	perf lock con -a -b --lock-cgroup -E 1 -q -- perf bench sched messaging -p > /dev/null 2> ${result}
 	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
 		echo "[Fail] BPF result count is not 1:" "$(cat "${result}" | wc -l)"
 		err=1
@@ -271,7 +274,7 @@ test_cgroup_filter()
 		return
 	fi
 
-	perf lock con -a -b -g -E 1 -F wait_total -q -- perf bench sched messaging -p > /dev/null 2> ${result}
+	perf lock con -a -b --lock-cgroup -E 1 -F wait_total -q -- perf bench sched messaging -p > /dev/null 2> ${result}
 	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
 		echo "[Fail] BPF result should have a cgroup result:" "$(cat "${result}")"
 		err=1
@@ -279,7 +282,7 @@ test_cgroup_filter()
 	fi
 
 	cgroup=$(cat "${result}" | awk '{ print $3 }')
-	perf lock con -a -b -g -E 1 -G "${cgroup}" -q -- perf bench sched messaging -p > /dev/null 2> ${result}
+	perf lock con -a -b --lock-cgroup -E 1 -G "${cgroup}" -q -- perf bench sched messaging -p > /dev/null 2> ${result}
 	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
 		echo "[Fail] BPF result should have a result with cgroup filter:" "$(cat "${cgroup}")"
 		err=1
@@ -338,4 +341,5 @@ test_aggr_task_stack_filter
 test_cgroup_filter
 test_csv_output
 
+cleanup
 exit ${err}

@@ -26,6 +26,7 @@ static const struct dsc_funcs dcn401_dsc_funcs = {
 	.dsc_disconnect = dsc401_disconnect,
 	.dsc_wait_disconnect_pending_clear = dsc401_wait_disconnect_pending_clear,
 	.dsc_get_single_enc_caps = dsc401_get_single_enc_caps,
+	.dsc_read_reg_state = dsc2_read_reg_state
 };
 
 /* Macro definitios for REG_SET macros*/

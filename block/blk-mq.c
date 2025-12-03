@@ -4941,7 +4941,7 @@ struct elevator_tags *blk_mq_update_nr_requests(struct request_queue *q,
 		 * tags can't grow, see blk_mq_alloc_sched_tags().
 		 */
 		if (q->elevator)
-			blk_mq_tag_update_sched_shared_tags(q);
+			blk_mq_tag_update_sched_shared_tags(q, nr);
 		else
 			blk_mq_tag_resize_shared_tags(set, nr);
 	} else if (!q->elevator) {

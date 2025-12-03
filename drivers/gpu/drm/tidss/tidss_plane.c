@@ -42,8 +42,6 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 	u32 hw_videoport;
 	int ret;
 
-	dev_dbg(ddev->dev, "%s\n", __func__);
-
 	if (!new_plane_state->crtc) {
 		/*
 		 * The visible field is not reset by the DRM core but only
@@ -124,8 +122,6 @@ static void tidss_plane_atomic_update(struct drm_plane *plane,
 									   plane);
 	u32 hw_videoport;
 
-	dev_dbg(ddev->dev, "%s\n", __func__);
-
 	if (!new_state->visible) {
 		dispc_plane_enable(tidss->dispc, tplane->hw_plane_id, false);
 		return;
@@ -143,8 +139,6 @@ static void tidss_plane_atomic_enable(struct drm_plane *plane,
 	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_plane *tplane = to_tidss_plane(plane);
 
-	dev_dbg(ddev->dev, "%s\n", __func__);
-
 	dispc_plane_enable(tidss->dispc, tplane->hw_plane_id, true);
 }
 
@@ -154,8 +148,6 @@ static void tidss_plane_atomic_disable(struct drm_plane *plane,
 	struct drm_device *ddev = plane->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_plane *tplane = to_tidss_plane(plane);
-
-	dev_dbg(ddev->dev, "%s\n", __func__);
 
 	dispc_plane_enable(tidss->dispc, tplane->hw_plane_id, false);
 }

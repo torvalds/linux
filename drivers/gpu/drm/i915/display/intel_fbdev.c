@@ -146,8 +146,6 @@ static void intel_fbdev_fb_destroy(struct fb_info *info)
 	drm_framebuffer_remove(fb_helper->fb);
 
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 __diag_push();
@@ -207,14 +205,70 @@ static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.fb_set_suspend = intelfb_set_suspend,
 };
 
+static void intel_fbdev_fill_mode_cmd(struct drm_fb_helper_surface_size *sizes,
+				      struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	/* we don't do packed 24bpp */
+	if (sizes->surface_bpp == 24)
+		sizes->surface_bpp = 32;
+
+	mode_cmd->flags = DRM_MODE_FB_MODIFIERS;
+	mode_cmd->width = sizes->surface_width;
+	mode_cmd->height = sizes->surface_height;
+
+	mode_cmd->pitches[0] = intel_fbdev_fb_pitch_align(mode_cmd->width * DIV_ROUND_UP(sizes->surface_bpp, 8));
+	mode_cmd->pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
+							   sizes->surface_depth);
+	mode_cmd->modifier[0] = DRM_FORMAT_MOD_LINEAR;
+}
+
+static struct intel_framebuffer *
+__intel_fbdev_fb_alloc(struct intel_display *display,
+		       struct drm_fb_helper_surface_size *sizes)
+{
+	struct drm_mode_fb_cmd2 mode_cmd = {};
+	struct drm_framebuffer *fb;
+	struct drm_gem_object *obj;
+	int size;
+
+	intel_fbdev_fill_mode_cmd(sizes, &mode_cmd);
+
+	size = mode_cmd.pitches[0] * mode_cmd.height;
+	size = PAGE_ALIGN(size);
+
+	obj = intel_fbdev_fb_bo_create(display->drm, size);
+	if (IS_ERR(obj)) {
+		fb = ERR_CAST(obj);
+		goto err;
+	}
+
+	fb = intel_framebuffer_create(obj,
+				      drm_get_format_info(display->drm,
+							  mode_cmd.pixel_format,
+							  mode_cmd.modifier[0]),
+				      &mode_cmd);
+	if (IS_ERR(fb)) {
+		intel_fbdev_fb_bo_destroy(obj);
+		goto err;
+	}
+
+	drm_gem_object_put(obj);
+
+	return to_intel_framebuffer(fb);
+
+err:
+	return ERR_CAST(fb);
+
+}
+
 int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 				   struct drm_fb_helper_surface_size *sizes)
 {
 	struct intel_display *display = to_intel_display(helper->dev);
 	struct intel_fbdev *ifbdev = to_intel_fbdev(helper);
 	struct intel_framebuffer *fb = ifbdev->fb;
+	struct fb_info *info = helper->info;
 	struct ref_tracker *wakeref;
-	struct fb_info *info;
 	struct i915_vma *vma;
 	unsigned long flags = 0;
 	bool prealloc = false;
@@ -237,7 +291,8 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	if (!fb || drm_WARN_ON(display->drm, !intel_fb_bo(&fb->base))) {
 		drm_dbg_kms(display->drm,
 			    "no BIOS fb, allocating a new one\n");
-		fb = intel_fbdev_fb_alloc(helper, sizes);
+
+		fb = __intel_fbdev_fb_alloc(display, sizes);
 		if (IS_ERR(fb))
 			return PTR_ERR(fb);
 	} else {
@@ -263,13 +318,6 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 		goto out_unlock;
 	}
 
-	info = drm_fb_helper_alloc_info(helper);
-	if (IS_ERR(info)) {
-		drm_err(display->drm, "Failed to allocate fb_info (%pe)\n", info);
-		ret = PTR_ERR(info);
-		goto out_unpin;
-	}
-
 	helper->funcs = &intel_fb_helper_funcs;
 	helper->fb = &fb->base;
 
@@ -277,7 +325,7 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 
 	obj = intel_fb_bo(&fb->base);
 
-	ret = intel_fbdev_fb_fill_info(display, info, obj, vma);
+	ret = intel_fbdev_fb_fill_info(display->drm, info, obj, vma);
 	if (ret)
 		goto out_unpin;
 

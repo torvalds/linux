@@ -8,11 +8,13 @@
 struct gro_cell {
 	struct sk_buff_head	napi_skbs;
 	struct napi_struct	napi;
+	local_lock_t		bh_lock;
 };
 
 int gro_cells_receive(struct gro_cells *gcells, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
+	bool have_bh_lock = false;
 	struct gro_cell *cell;
 	int res;
 
@@ -25,6 +27,8 @@ int gro_cells_receive(struct gro_cells *gcells, struct sk_buff *skb)
 		goto unlock;
 	}
 
+	local_lock_nested_bh(&gcells->cells->bh_lock);
+	have_bh_lock = true;
 	cell = this_cpu_ptr(gcells->cells);
 
 	if (skb_queue_len(&cell->napi_skbs) > READ_ONCE(net_hotdata.max_backlog)) {
@@ -42,6 +46,8 @@ drop:
 	res = NET_RX_SUCCESS;
 
 unlock:
+	if (have_bh_lock)
+		local_unlock_nested_bh(&gcells->cells->bh_lock);
 	rcu_read_unlock();
 	return res;
 }
@@ -55,7 +61,9 @@ static int gro_cell_poll(struct napi_struct *napi, int budget)
 	int work_done = 0;
 
 	while (work_done < budget) {
+		__local_lock_nested_bh(&cell->bh_lock);
 		skb = __skb_dequeue(&cell->napi_skbs);
+		__local_unlock_nested_bh(&cell->bh_lock);
 		if (!skb)
 			break;
 		napi_gro_receive(napi, skb);
@@ -79,6 +87,7 @@ int gro_cells_init(struct gro_cells *gcells, struct net_device *dev)
 		struct gro_cell *cell = per_cpu_ptr(gcells->cells, i);
 
 		__skb_queue_head_init(&cell->napi_skbs);
+		local_lock_init(&cell->bh_lock);
 
 		set_bit(NAPI_STATE_NO_BUSY_POLL, &cell->napi.state);
 

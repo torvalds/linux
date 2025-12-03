@@ -85,11 +85,8 @@ static int dwc3_generic_probe(struct platform_device *pdev)
 static void dwc3_generic_remove(struct platform_device *pdev)
 {
 	struct dwc3 *dwc = platform_get_drvdata(pdev);
-	struct dwc3_generic *dwc3g = to_dwc3_generic(dwc);
 
 	dwc3_core_remove(dwc);
-
-	clk_bulk_disable_unprepare(dwc3g->num_clocks, dwc3g->clks);
 }
 
 static int dwc3_generic_suspend(struct device *dev)

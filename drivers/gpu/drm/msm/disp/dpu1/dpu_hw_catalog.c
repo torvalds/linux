@@ -267,8 +267,8 @@ static const u32 wb2_formats_rgb_yuv[] = {
 		.base = 0x200, .len = 0xa0,}, \
 	.csc_blk = {.name = "csc", \
 		.base = 0x320, .len = 0x100,}, \
-	.format_list = plane_formats_yuv, \
-	.num_formats = ARRAY_SIZE(plane_formats_yuv), \
+	.format_list = plane_formats, \
+	.num_formats = ARRAY_SIZE(plane_formats), \
 	.rotation_cfg = NULL, \
 	}
 
@@ -726,3 +726,4 @@ static const struct dpu_qos_lut_entry sc7180_qos_nrt[] = {
 
 #include "catalog/dpu_10_0_sm8650.h"
 #include "catalog/dpu_12_0_sm8750.h"
+#include "catalog/dpu_12_2_glymur.h"

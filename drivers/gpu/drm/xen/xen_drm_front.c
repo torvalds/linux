@@ -18,6 +18,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_print.h>
 
 #include <xen/platform_pci.h>
 #include <xen/xen.h>

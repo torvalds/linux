@@ -550,6 +550,7 @@ void hubp_reset(struct hubp *hubp)
 {
 	memset(&hubp->pos, 0, sizeof(hubp->pos));
 	memset(&hubp->att, 0, sizeof(hubp->att));
+	hubp->cursor_offload = false;
 }
 
 void hubp1_program_surface_config(

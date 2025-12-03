@@ -2046,15 +2046,19 @@ static inline void mark_objexts_empty(struct slabobj_ext *obj_exts)
 	if (slab_exts) {
 		unsigned int offs = obj_to_index(obj_exts_slab->slab_cache,
 						 obj_exts_slab, obj_exts);
-		/* codetag should be NULL */
+
+		if (unlikely(is_codetag_empty(&slab_exts[offs].ref)))
+			return;
+
+		/* codetag should be NULL here */
 		WARN_ON(slab_exts[offs].ref.ct);
 		set_codetag_empty(&slab_exts[offs].ref);
 	}
 }
 
-static inline void mark_failed_objexts_alloc(struct slab *slab)
+static inline bool mark_failed_objexts_alloc(struct slab *slab)
 {
-	slab->obj_exts = OBJEXTS_ALLOC_FAIL;
+	return cmpxchg(&slab->obj_exts, 0, OBJEXTS_ALLOC_FAIL) == 0;
 }
 
 static inline void handle_failed_objexts_alloc(unsigned long obj_exts,
@@ -2076,7 +2080,7 @@ static inline void handle_failed_objexts_alloc(unsigned long obj_exts,
 #else /* CONFIG_MEM_ALLOC_PROFILING_DEBUG */
 
 static inline void mark_objexts_empty(struct slabobj_ext *obj_exts) {}
-static inline void mark_failed_objexts_alloc(struct slab *slab) {}
+static inline bool mark_failed_objexts_alloc(struct slab *slab) { return false; }
 static inline void handle_failed_objexts_alloc(unsigned long obj_exts,
 			struct slabobj_ext *vec, unsigned int objects) {}
 
@@ -2124,8 +2128,14 @@ int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
 				   slab_nid(slab));
 	}
 	if (!vec) {
-		/* Mark vectors which failed to allocate */
-		mark_failed_objexts_alloc(slab);
+		/*
+		 * Try to mark vectors which failed to allocate.
+		 * If this operation fails, there may be a racing process
+		 * that has already completed the allocation.
+		 */
+		if (!mark_failed_objexts_alloc(slab) &&
+		    slab_obj_exts(slab))
+			return 0;
 
 		return -ENOMEM;
 	}
@@ -2136,6 +2146,7 @@ int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
 #ifdef CONFIG_MEMCG
 	new_exts |= MEMCG_DATA_OBJEXTS;
 #endif
+retry:
 	old_exts = READ_ONCE(slab->obj_exts);
 	handle_failed_objexts_alloc(old_exts, vec, objects);
 	if (new_slab) {
@@ -2145,8 +2156,7 @@ int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
 		 * be simply assigned.
 		 */
 		slab->obj_exts = new_exts;
-	} else if ((old_exts & ~OBJEXTS_FLAGS_MASK) ||
-		   cmpxchg(&slab->obj_exts, old_exts, new_exts) != old_exts) {
+	} else if (old_exts & ~OBJEXTS_FLAGS_MASK) {
 		/*
 		 * If the slab is already in use, somebody can allocate and
 		 * assign slabobj_exts in parallel. In this case the existing
@@ -2158,6 +2168,9 @@ int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
 		else
 			kfree(vec);
 		return 0;
+	} else if (cmpxchg(&slab->obj_exts, old_exts, new_exts) != old_exts) {
+		/* Retry if a racing thread changed slab->obj_exts from under us. */
+		goto retry;
 	}
 
 	if (allow_spin)
@@ -2170,8 +2183,15 @@ static inline void free_slab_obj_exts(struct slab *slab)
 	struct slabobj_ext *obj_exts;
 
 	obj_exts = slab_obj_exts(slab);
-	if (!obj_exts)
+	if (!obj_exts) {
+		/*
+		 * If obj_exts allocation failed, slab->obj_exts is set to
+		 * OBJEXTS_ALLOC_FAIL. In this case, we end up here and should
+		 * clear the flag.
+		 */
+		slab->obj_exts = 0;
 		return;
+	}
 
 	/*
 	 * obj_exts was created with __GFP_NO_OBJ_EXT flag, therefore its
@@ -3412,7 +3432,6 @@ static void *alloc_single_from_new_slab(struct kmem_cache *s, struct slab *slab,
 
 	if (!allow_spin && !spin_trylock_irqsave(&n->list_lock, flags)) {
 		/* Unlucky, discard newly allocated slab */
-		slab->frozen = 1;
 		defer_deactivate_slab(slab, NULL);
 		return NULL;
 	}
@@ -4651,8 +4670,12 @@ new_objects:
 	if (kmem_cache_debug(s)) {
 		freelist = alloc_single_from_new_slab(s, slab, orig_size, gfpflags);
 
-		if (unlikely(!freelist))
+		if (unlikely(!freelist)) {
+			/* This could cause an endless loop. Fail instead. */
+			if (!allow_spin)
+				return NULL;
 			goto new_objects;
+		}
 
 		if (s->flags & SLAB_STORE_USER)
 			set_track(s, freelist, TRACK_ALLOC, addr,
@@ -6313,8 +6336,6 @@ next_remote_batch:
 
 		if (unlikely(!slab_free_hook(s, p[i], init, false))) {
 			p[i] = p[--size];
-			if (!size)
-				goto flush_remote;
 			continue;
 		}
 
@@ -6328,6 +6349,9 @@ next_remote_batch:
 
 		i++;
 	}
+
+	if (!size)
+		goto flush_remote;
 
 next_batch:
 	if (!local_trylock(&s->cpu_sheaves->lock))
@@ -6382,6 +6406,9 @@ do_free:
 		size -= batch;
 		goto next_batch;
 	}
+
+	if (remote_nr)
+		goto flush_remote;
 
 	return;
 
@@ -6443,15 +6470,16 @@ static void free_deferred_objects(struct irq_work *work)
 		slab = virt_to_slab(x);
 		s = slab->slab_cache;
 
+		/* Point 'x' back to the beginning of allocated object */
+		x -= s->offset;
+
 		/*
 		 * We used freepointer in 'x' to link 'x' into df->objects.
 		 * Clear it to NULL to avoid false positive detection
 		 * of "Freepointer corruption".
 		 */
-		*(void **)x = NULL;
+		set_freepointer(s, x, NULL);
 
-		/* Point 'x' back to the beginning of allocated object */
-		x -= s->offset;
 		__slab_free(s, slab, x, x, 1, _THIS_IP_);
 	}
 
@@ -6460,9 +6488,12 @@ static void free_deferred_objects(struct irq_work *work)
 		struct slab *slab = container_of(pos, struct slab, llnode);
 
 #ifdef CONFIG_SLUB_TINY
-		discard_slab(slab->slab_cache, slab);
+		free_slab(slab->slab_cache, slab);
 #else
-		deactivate_slab(slab->slab_cache, slab, slab->flush_freelist);
+		if (slab->frozen)
+			deactivate_slab(slab->slab_cache, slab, slab->flush_freelist);
+		else
+			free_slab(slab->slab_cache, slab);
 #endif
 	}
 }

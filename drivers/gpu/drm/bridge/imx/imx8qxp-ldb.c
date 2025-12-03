@@ -683,11 +683,6 @@ static void imx8qxp_ldb_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int imx8qxp_ldb_runtime_suspend(struct device *dev)
-{
-	return 0;
-}
-
 static int imx8qxp_ldb_runtime_resume(struct device *dev)
 {
 	struct imx8qxp_ldb *imx8qxp_ldb = dev_get_drvdata(dev);
@@ -700,7 +695,7 @@ static int imx8qxp_ldb_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops imx8qxp_ldb_pm_ops = {
-	RUNTIME_PM_OPS(imx8qxp_ldb_runtime_suspend, imx8qxp_ldb_runtime_resume, NULL)
+	RUNTIME_PM_OPS(NULL, imx8qxp_ldb_runtime_resume, NULL)
 };
 
 static const struct of_device_id imx8qxp_ldb_dt_ids[] = {

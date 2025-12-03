@@ -270,19 +270,31 @@ ff_layout_remove_mirror(struct nfs4_ff_layout_mirror *mirror)
 	mirror->layout = NULL;
 }
 
-static struct nfs4_ff_layout_mirror *ff_layout_alloc_mirror(gfp_t gfp_flags)
+static struct nfs4_ff_layout_mirror *ff_layout_alloc_mirror(u32 dss_count,
+							    gfp_t gfp_flags)
 {
 	struct nfs4_ff_layout_mirror *mirror;
-	u32 dss_id;
 
 	mirror = kzalloc(sizeof(*mirror), gfp_flags);
-	if (mirror != NULL) {
-		spin_lock_init(&mirror->lock);
-		refcount_set(&mirror->ref, 1);
-		INIT_LIST_HEAD(&mirror->mirrors);
-		for (dss_id = 0; dss_id < mirror->dss_count; dss_id++)
-			nfs_localio_file_init(&mirror->dss[dss_id].nfl);
+	if (mirror == NULL)
+		return NULL;
+
+	spin_lock_init(&mirror->lock);
+	refcount_set(&mirror->ref, 1);
+	INIT_LIST_HEAD(&mirror->mirrors);
+
+	mirror->dss_count = dss_count;
+	mirror->dss =
+		kcalloc(dss_count, sizeof(struct nfs4_ff_layout_ds_stripe),
+			gfp_flags);
+	if (mirror->dss == NULL) {
+		kfree(mirror);
+		return NULL;
 	}
+
+	for (u32 dss_id = 0; dss_id < mirror->dss_count; dss_id++)
+		nfs_localio_file_init(&mirror->dss[dss_id].nfl);
+
 	return mirror;
 }
 
@@ -507,16 +519,11 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		if (dss_count > 1 && stripe_unit == 0)
 			goto out_err_free;
 
-		fls->mirror_array[i] = ff_layout_alloc_mirror(gfp_flags);
+		fls->mirror_array[i] = ff_layout_alloc_mirror(dss_count, gfp_flags);
 		if (fls->mirror_array[i] == NULL) {
 			rc = -ENOMEM;
 			goto out_err_free;
 		}
-
-		fls->mirror_array[i]->dss_count = dss_count;
-		fls->mirror_array[i]->dss =
-		    kcalloc(dss_count, sizeof(struct nfs4_ff_layout_ds_stripe),
-			    gfp_flags);
 
 		for (dss_id = 0; dss_id < dss_count; dss_id++) {
 			dss_info = &fls->mirror_array[i]->dss[dss_id];

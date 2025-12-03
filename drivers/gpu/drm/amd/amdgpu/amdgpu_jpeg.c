@@ -371,7 +371,7 @@ static int amdgpu_debugfs_jpeg_sched_mask_set(void *data, u64 val)
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
 			ring = &adev->jpeg.inst[i].ring_dec[j];
-			if (val & (BIT_ULL(1) << ((i * adev->jpeg.num_jpeg_rings) + j)))
+			if (val & (BIT_ULL((i * adev->jpeg.num_jpeg_rings) + j)))
 				ring->sched.ready = true;
 			else
 				ring->sched.ready = false;

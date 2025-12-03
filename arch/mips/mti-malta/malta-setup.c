@@ -47,7 +47,7 @@ static struct resource standard_io_resources[] = {
 		.name = "keyboard",
 		.start = 0x60,
 		.end = 0x6f,
-		.flags = IORESOURCE_IO | IORESOURCE_BUSY
+		.flags = IORESOURCE_IO
 	},
 	{
 		.name = "dma page reg",
@@ -213,7 +213,7 @@ void __init plat_mem_setup(void)
 
 	/* Request I/O space for devices used on the Malta board. */
 	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
-		request_resource(&ioport_resource, standard_io_resources+i);
+		insert_resource(&ioport_resource, standard_io_resources + i);
 
 	/*
 	 * Enable DMA channel 4 (cascade channel) in the PIIX4 south bridge.

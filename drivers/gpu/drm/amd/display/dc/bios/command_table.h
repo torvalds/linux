@@ -52,6 +52,9 @@ struct cmd_tbl {
 	enum bp_result (*adjust_display_pll)(
 		struct bios_parser *bp,
 		struct bp_adjust_pixel_clock_parameters *bp_params);
+	enum bp_result (*select_crtc_source)(
+		struct bios_parser *bp,
+		struct bp_crtc_source_select *bp_params);
 	enum bp_result (*dac1_encoder_control)(
 		struct bios_parser *bp,
 		bool enable,
@@ -68,6 +71,9 @@ struct cmd_tbl {
 	enum bp_result (*dac2_output_control)(
 		struct bios_parser *bp,
 		bool enable);
+	enum bp_result (*dac_load_detection)(
+		struct bios_parser *bp,
+		struct bp_load_detection_parameters *bp_params);
 	enum bp_result (*set_crtc_timing)(
 		struct bios_parser *bp,
 		struct bp_hw_crtc_timing_parameters *bp_params);

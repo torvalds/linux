@@ -725,3 +725,8 @@ void kvm_arch_vm_release(struct kvm_vm *vm)
 	if (vm->arch.has_gic)
 		close(vm->arch.gic_fd);
 }
+
+bool kvm_arch_has_default_irqchip(void)
+{
+	return request_vgic && kvm_supports_vgic_v3();
+}

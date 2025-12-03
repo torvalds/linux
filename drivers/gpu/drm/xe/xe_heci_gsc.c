@@ -8,6 +8,8 @@
 #include <linux/pci.h>
 #include <linux/sizes.h>
 
+#include <drm/drm_print.h>
+
 #include "xe_device_types.h"
 #include "xe_drv.h"
 #include "xe_heci_gsc.h"

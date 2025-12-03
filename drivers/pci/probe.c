@@ -538,14 +538,10 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 	}
 	if (io) {
 		bridge->io_window = 1;
-		pci_read_bridge_io(bridge,
-				   pci_resource_n(bridge, PCI_BRIDGE_IO_WINDOW),
-				   true);
+		pci_read_bridge_io(bridge, &res, true);
 	}
 
-	pci_read_bridge_mmio(bridge,
-			     pci_resource_n(bridge, PCI_BRIDGE_MEM_WINDOW),
-			     true);
+	pci_read_bridge_mmio(bridge, &res, true);
 
 	/*
 	 * DECchip 21050 pass 2 errata: the bridge may miss an address
@@ -583,10 +579,7 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 			bridge->pref_64_window = 1;
 	}
 
-	pci_read_bridge_mmio_pref(bridge,
-				  pci_resource_n(bridge,
-						 PCI_BRIDGE_PREF_MEM_WINDOW),
-				  true);
+	pci_read_bridge_mmio_pref(bridge, &res, true);
 }
 
 void pci_read_bridge_bases(struct pci_bus *child)
@@ -1662,6 +1655,13 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &reg32);
 	if (reg32 & PCI_EXP_LNKCAP_DLLLARC)
 		pdev->link_active_reporting = 1;
+
+#ifdef CONFIG_PCIEASPM
+	if (reg32 & PCI_EXP_LNKCAP_ASPM_L0S)
+		pdev->aspm_l0s_support = 1;
+	if (reg32 & PCI_EXP_LNKCAP_ASPM_L1)
+		pdev->aspm_l1_support = 1;
+#endif
 
 	parent = pci_upstream_bridge(pdev);
 	if (!parent)

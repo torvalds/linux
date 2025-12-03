@@ -91,12 +91,7 @@ early_param("nospectre_v2", parse_spectre_v2_param);
 
 static bool spectre_v2_mitigations_off(void)
 {
-	bool ret = __nospectre_v2 || cpu_mitigations_off();
-
-	if (ret)
-		pr_info_once("spectre-v2 mitigation disabled by command line option\n");
-
-	return ret;
+	return __nospectre_v2 || cpu_mitigations_off();
 }
 
 static const char *get_bhb_affected_string(enum mitigation_state bhb_state)
@@ -421,13 +416,8 @@ early_param("ssbd", parse_spectre_v4_param);
  */
 static bool spectre_v4_mitigations_off(void)
 {
-	bool ret = cpu_mitigations_off() ||
-		   __spectre_v4_policy == SPECTRE_V4_POLICY_MITIGATION_DISABLED;
-
-	if (ret)
-		pr_info_once("spectre-v4 mitigation disabled by command-line option\n");
-
-	return ret;
+	return cpu_mitigations_off() ||
+	       __spectre_v4_policy == SPECTRE_V4_POLICY_MITIGATION_DISABLED;
 }
 
 /* Do we need to toggle the mitigation state on entry to/exit from the kernel? */
@@ -1042,10 +1032,6 @@ void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 
 	if (arm64_get_spectre_v2_state() == SPECTRE_VULNERABLE) {
 		/* No point mitigating Spectre-BHB alone. */
-	} else if (!IS_ENABLED(CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY)) {
-		pr_info_once("spectre-bhb mitigation disabled by compile time option\n");
-	} else if (cpu_mitigations_off() || __nospectre_bhb) {
-		pr_info_once("spectre-bhb mitigation disabled by command line option\n");
 	} else if (supports_ecbhb(SCOPE_LOCAL_CPU)) {
 		state = SPECTRE_MITIGATED;
 		set_bit(BHB_HW, &system_bhb_mitigations);
@@ -1199,3 +1185,18 @@ void unpriv_ebpf_notify(int new_state)
 		pr_err("WARNING: %s", EBPF_WARN);
 }
 #endif
+
+void spectre_print_disabled_mitigations(void)
+{
+	/* Keep a single copy of the common message suffix to avoid duplication. */
+	const char *spectre_disabled_suffix = "mitigation disabled by command-line option\n";
+
+	if (spectre_v2_mitigations_off())
+		pr_info("spectre-v2 %s", spectre_disabled_suffix);
+
+	if (spectre_v4_mitigations_off())
+		pr_info("spectre-v4 %s", spectre_disabled_suffix);
+
+	if (__nospectre_bhb || cpu_mitigations_off())
+		pr_info("spectre-bhb %s", spectre_disabled_suffix);
+}

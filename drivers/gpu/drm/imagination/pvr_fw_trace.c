@@ -9,6 +9,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_print.h>
 
 #include <linux/build_bug.h>
 #include <linux/dcache.h>

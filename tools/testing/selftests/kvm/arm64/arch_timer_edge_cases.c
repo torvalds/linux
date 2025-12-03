@@ -1020,7 +1020,7 @@ static void set_counter_defaults(void)
 {
 	const uint64_t MIN_ROLLOVER_SECS = 40ULL * 365 * 24 * 3600;
 	uint64_t freq = read_sysreg(CNTFRQ_EL0);
-	uint64_t width = ilog2(MIN_ROLLOVER_SECS * freq);
+	int width = ilog2(MIN_ROLLOVER_SECS * freq);
 
 	width = clamp(width, 56, 64);
 	CVAL_MAX = GENMASK_ULL(width - 1, 0);

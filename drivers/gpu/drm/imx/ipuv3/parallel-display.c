@@ -25,19 +25,18 @@
 
 struct imx_parallel_display_encoder {
 	struct drm_encoder encoder;
-	struct drm_bridge bridge;
-	struct imx_parallel_display *pd;
 };
 
 struct imx_parallel_display {
 	struct device *dev;
 	u32 bus_format;
 	struct drm_bridge *next_bridge;
+	struct drm_bridge bridge;
 };
 
 static inline struct imx_parallel_display *bridge_to_imxpd(struct drm_bridge *b)
 {
-	return container_of(b, struct imx_parallel_display_encoder, bridge)->pd;
+	return container_of(b, struct imx_parallel_display, bridge);
 }
 
 static const u32 imx_pd_bus_fmts[] = {
@@ -134,10 +133,10 @@ static int imx_pd_bridge_atomic_check(struct drm_bridge *bridge,
 	struct imx_crtc_state *imx_crtc_state = to_imx_crtc_state(crtc_state);
 	struct drm_display_info *di = &conn_state->connector->display_info;
 	struct drm_bridge_state *next_bridge_state = NULL;
-	struct drm_bridge *next_bridge;
 	u32 bus_flags, bus_fmt;
 
-	next_bridge = drm_bridge_get_next_bridge(bridge);
+	struct drm_bridge *next_bridge __free(drm_bridge_put) = drm_bridge_get_next_bridge(bridge);
+
 	if (next_bridge)
 		next_bridge_state = drm_atomic_get_new_bridge_state(crtc_state->state,
 								    next_bridge);
@@ -195,15 +194,13 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(imxpd_encoder))
 		return PTR_ERR(imxpd_encoder);
 
-	imxpd_encoder->pd = imxpd;
 	encoder = &imxpd_encoder->encoder;
-	bridge = &imxpd_encoder->bridge;
+	bridge = &imxpd->bridge;
 
 	ret = imx_drm_encoder_parse_of(drm, encoder, imxpd->dev->of_node);
 	if (ret)
 		return ret;
 
-	bridge->funcs = &imx_pd_bridge_funcs;
 	drm_bridge_attach(encoder, bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 
 	connector = drm_bridge_connector_init(drm, encoder);
@@ -228,9 +225,10 @@ static int imx_pd_probe(struct platform_device *pdev)
 	u32 bus_format = 0;
 	const char *fmt;
 
-	imxpd = devm_kzalloc(dev, sizeof(*imxpd), GFP_KERNEL);
-	if (!imxpd)
-		return -ENOMEM;
+	imxpd = devm_drm_bridge_alloc(dev, struct imx_parallel_display, bridge,
+				      &imx_pd_bridge_funcs);
+	if (IS_ERR(imxpd))
+		return PTR_ERR(imxpd);
 
 	/* port@1 is the output port */
 	imxpd->next_bridge = devm_drm_of_get_bridge(dev, np, 1, 0);
@@ -257,6 +255,8 @@ static int imx_pd_probe(struct platform_device *pdev)
 	imxpd->dev = dev;
 
 	platform_set_drvdata(pdev, imxpd);
+
+	devm_drm_bridge_add(dev, &imxpd->bridge);
 
 	return component_add(dev, &imx_pd_ops);
 }
@@ -286,4 +286,3 @@ module_platform_driver(imx_pd_driver);
 MODULE_DESCRIPTION("i.MX parallel display driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:imx-parallel-display");

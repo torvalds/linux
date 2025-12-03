@@ -1698,7 +1698,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 	start = map_start << PAGE_SHIFT;
 	end = (map_last + 1) << PAGE_SHIFT;
 	for (addr = start; !r && addr < end; ) {
-		struct hmm_range *hmm_range = NULL;
+		struct amdgpu_hmm_range *range = NULL;
 		unsigned long map_start_vma;
 		unsigned long map_last_vma;
 		struct vm_area_struct *vma;
@@ -1737,9 +1737,12 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 			}
 
 			WRITE_ONCE(p->svms.faulting_task, current);
-			r = amdgpu_hmm_range_get_pages(&prange->notifier, addr, npages,
-						       readonly, owner,
-						       &hmm_range);
+			range = amdgpu_hmm_range_alloc(NULL);
+			if (likely(range))
+				r = amdgpu_hmm_range_get_pages(&prange->notifier, addr, npages,
+							       readonly, owner, range);
+			else
+				r = -ENOMEM;
 			WRITE_ONCE(p->svms.faulting_task, NULL);
 			if (r)
 				pr_debug("failed %d to get svm range pages\n", r);
@@ -1750,7 +1753,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		if (!r) {
 			offset = (addr >> PAGE_SHIFT) - prange->start;
 			r = svm_range_dma_map(prange, ctx->bitmap, offset, npages,
-					      hmm_range->hmm_pfns);
+					      range->hmm_range.hmm_pfns);
 			if (r)
 				pr_debug("failed %d to dma map range\n", r);
 		}
@@ -1758,13 +1761,16 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		svm_range_lock(prange);
 
 		/* Free backing memory of hmm_range if it was initialized
-		 * Overrride return value to TRY AGAIN only if prior returns
+		 * Override return value to TRY AGAIN only if prior returns
 		 * were successful
 		 */
-		if (hmm_range && amdgpu_hmm_range_get_pages_done(hmm_range) && !r) {
+		if (range && !amdgpu_hmm_range_valid(range) && !r) {
 			pr_debug("hmm update the range, need validate again\n");
 			r = -EAGAIN;
 		}
+
+		/* Free the hmm range */
+		amdgpu_hmm_range_free(range);
 
 		if (!r && !list_empty(&prange->child_list)) {
 			pr_debug("range split by unmap in parallel, validate again\n");
@@ -3687,6 +3693,8 @@ svm_range_set_attr(struct kfd_process *p, struct mm_struct *mm,
 		svm_range_apply_attrs(p, prange, nattr, attrs, &update_mapping);
 		/* TODO: unmap ranges from GPU that lost access */
 	}
+	update_mapping |= !p->xnack_enabled && !list_empty(&remap_list);
+
 	list_for_each_entry_safe(prange, next, &remove_list, update_list) {
 		pr_debug("unlink old 0x%p prange 0x%p [0x%lx 0x%lx]\n",
 			 prange->svms, prange, prange->start,

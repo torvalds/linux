@@ -57,7 +57,7 @@ nouveau_bo(struct ttm_buffer_object *bo)
 static inline void
 nouveau_bo_fini(struct nouveau_bo *bo)
 {
-	ttm_bo_put(&bo->bo);
+	ttm_bo_fini(&bo->bo);
 }
 
 extern struct ttm_device_funcs nouveau_bo_driver;

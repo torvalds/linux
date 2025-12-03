@@ -1580,7 +1580,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 			cpu, irq);
 #endif
 		raw_spin_lock(&desc->lock);
-		xd = irq_desc_get_handler_data(desc);
+		xd = irq_desc_get_chip_data(desc);
 
 		/*
 		 * Clear saved_p to indicate that it's no longer pending

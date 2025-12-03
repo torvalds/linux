@@ -32,6 +32,7 @@
 #include <linux/virtio_ring.h>
 
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 
 #include "virtgpu_drv.h"
 #include "virtgpu_trace.h"

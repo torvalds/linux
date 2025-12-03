@@ -32,6 +32,7 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_debugfs.h>
+#include <drm/drm_print.h>
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_gt.h"

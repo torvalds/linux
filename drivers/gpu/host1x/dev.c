@@ -71,6 +71,15 @@ u32 host1x_sync_readl(struct host1x *host1x, u32 r)
 	return readl(sync_regs + r);
 }
 
+#ifdef CONFIG_64BIT
+u64 host1x_sync_readq(struct host1x *host1x, u32 r)
+{
+	void __iomem *sync_regs = host1x->regs + host1x->info->sync_offset;
+
+	return readq(sync_regs + r);
+}
+#endif
+
 void host1x_ch_writel(struct host1x_channel *ch, u32 v, u32 r)
 {
 	writel(v, ch->regs + r);
@@ -585,14 +594,8 @@ static int host1x_probe(struct platform_device *pdev)
 	}
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(host->clk)) {
-		err = PTR_ERR(host->clk);
-
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get clock: %d\n", err);
-
-		return err;
-	}
+	if (IS_ERR(host->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(host->clk), "failed to get clock\n");
 
 	err = host1x_get_resets(host);
 	if (err)
@@ -821,6 +824,7 @@ u64 host1x_get_dma_mask(struct host1x *host1x)
 }
 EXPORT_SYMBOL(host1x_get_dma_mask);
 
+MODULE_SOFTDEP("post: tegra-drm");
 MODULE_AUTHOR("Thierry Reding <thierry.reding@avionic-design.de>");
 MODULE_AUTHOR("Terje Bergstrom <tbergstrom@nvidia.com>");
 MODULE_DESCRIPTION("Host1x driver for Tegra products");

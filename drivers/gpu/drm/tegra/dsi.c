@@ -22,6 +22,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "dc.h"
@@ -545,11 +546,18 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 		/* horizontal back porch */
 		hbp = (mode->htotal - mode->hsync_end) * mul / div;
 
-		if ((dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) == 0)
-			hbp += hsw;
-
 		/* horizontal front porch */
 		hfp = (mode->hsync_start - mode->hdisplay) * mul / div;
+
+		if (dsi->master || dsi->slave) {
+			hact /= 2;
+			hsw /= 2;
+			hbp /= 2;
+			hfp /= 2;
+		}
+
+		if ((dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) == 0)
+			hbp += hsw;
 
 		/* subtract packet overhead */
 		hsw -= 10;
@@ -560,11 +568,6 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 		tegra_dsi_writel(dsi, hact << 16 | hbp, DSI_PKT_LEN_2_3);
 		tegra_dsi_writel(dsi, hfp, DSI_PKT_LEN_4_5);
 		tegra_dsi_writel(dsi, 0x0f0f << 16, DSI_PKT_LEN_6_7);
-
-		/* set SOL delay (for non-burst mode only) */
-		tegra_dsi_writel(dsi, 8 * mul / div, DSI_SOL_DELAY);
-
-		/* TODO: implement ganged mode */
 	} else {
 		u16 bytes;
 
@@ -586,28 +589,27 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 		value = MIPI_DCS_WRITE_MEMORY_START << 8 |
 			MIPI_DCS_WRITE_MEMORY_CONTINUE;
 		tegra_dsi_writel(dsi, value, DSI_DCS_CMDS);
-
-		/* set SOL delay */
-		if (dsi->master || dsi->slave) {
-			unsigned long delay, bclk, bclk_ganged;
-			unsigned int lanes = state->lanes;
-
-			/* SOL to valid, valid to FIFO and FIFO write delay */
-			delay = 4 + 4 + 2;
-			delay = DIV_ROUND_UP(delay * mul, div * lanes);
-			/* FIFO read delay */
-			delay = delay + 6;
-
-			bclk = DIV_ROUND_UP(mode->htotal * mul, div * lanes);
-			bclk_ganged = DIV_ROUND_UP(bclk * lanes / 2, lanes);
-			value = bclk - bclk_ganged + delay + 20;
-		} else {
-			/* TODO: revisit for non-ganged mode */
-			value = 8 * mul / div;
-		}
-
-		tegra_dsi_writel(dsi, value, DSI_SOL_DELAY);
 	}
+
+	/* set SOL delay */
+	if (dsi->master || dsi->slave) {
+		unsigned long delay, bclk, bclk_ganged;
+		unsigned int lanes = state->lanes;
+
+		/* SOL to valid, valid to FIFO and FIFO write delay */
+		delay = 4 + 4 + 2;
+		delay = DIV_ROUND_UP(delay * mul, div * lanes);
+		/* FIFO read delay */
+		delay = delay + 6;
+
+		bclk = DIV_ROUND_UP(mode->htotal * mul, div * lanes);
+		bclk_ganged = DIV_ROUND_UP(bclk * lanes / 2, lanes);
+		value = bclk - bclk_ganged + delay + 20;
+	} else {
+		value = 8 * mul / div;
+	}
+
+	tegra_dsi_writel(dsi, value, DSI_SOL_DELAY);
 
 	if (dsi->slave) {
 		tegra_dsi_configure(dsi->slave, pipe, mode);

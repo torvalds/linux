@@ -1567,3 +1567,17 @@ void dce110_stream_encoder_construct(
 	enc110->se_shift = se_shift;
 	enc110->se_mask = se_mask;
 }
+
+static const struct stream_encoder_funcs dce110_an_str_enc_funcs = {};
+
+void dce110_analog_stream_encoder_construct(
+	struct dce110_stream_encoder *enc110,
+	struct dc_context *ctx,
+	struct dc_bios *bp,
+	enum engine_id eng_id)
+{
+	enc110->base.funcs = &dce110_an_str_enc_funcs;
+	enc110->base.ctx = ctx;
+	enc110->base.id = eng_id;
+	enc110->base.bp = bp;
+}

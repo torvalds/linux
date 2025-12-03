@@ -117,6 +117,7 @@ void spectre_bhb_patch_wa3(struct alt_instr *alt,
 			   __le32 *origptr, __le32 *updptr, int nr_inst);
 void spectre_bhb_patch_clearbhb(struct alt_instr *alt,
 				__le32 *origptr, __le32 *updptr, int nr_inst);
+void spectre_print_disabled_mitigations(void);
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* __ASM_SPECTRE_H */

@@ -105,23 +105,21 @@
 #define PPSMC_MSG_UpdatePccWaitDecMaxStr            0x4C
 #define PPSMC_MSG_ResetSDMA                         0x4D
 #define PPSMC_MSG_GetRasTableVersion                0x4E
-#define PPSMC_MSG_GetRmaStatus                      0x4F
-#define PPSMC_MSG_GetErrorCount                     0x50
-#define PPSMC_MSG_GetBadPageCount                   0x51
-#define PPSMC_MSG_GetBadPageInfo                    0x52
-#define PPSMC_MSG_GetBadPagePaAddrLoHi              0x53
-#define PPSMC_MSG_SetTimestampLoHi                  0x54
-#define PPSMC_MSG_GetTimestampLoHi                  0x55
-#define PPSMC_MSG_GetRasPolicy                      0x56
-#define PPSMC_MSG_DumpErrorRecord                   0x57
+#define PPSMC_MSG_GetBadPageCount                   0x50
+#define PPSMC_MSG_GetBadPageMcaAddress              0x51
+#define PPSMC_MSG_SetTimestamp                      0x53
+#define PPSMC_MSG_SetTimestampHi                    0x54
+#define PPSMC_MSG_GetTimestamp                      0x55
+#define PPSMC_MSG_GetBadPageIpIdLoHi                0x57
 #define PPSMC_MSG_EraseRasTable                     0x58
 #define PPSMC_MSG_GetStaticMetricsTable             0x59
 #define PPSMC_MSG_ResetVfArbitersByIndex            0x5A
-#define PPSMC_MSG_GetBadPageSeverity                0x5B
 #define PPSMC_MSG_GetSystemMetricsTable             0x5C
 #define PPSMC_MSG_GetSystemMetricsVersion           0x5D
 #define PPSMC_MSG_ResetVCN                          0x5E
-#define PPSMC_Message_Count                         0x5F
+#define PPSMC_MSG_SetFastPptLimit                   0x5F
+#define PPSMC_MSG_GetFastPptLimit                   0x60
+#define PPSMC_Message_Count                         0x61
 
 //PPSMC Reset Types for driver msg argument
 #define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET        0x1

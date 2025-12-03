@@ -476,6 +476,126 @@ void hubp3_read_state(struct hubp *hubp)
 
 }
 
+void hubp3_read_reg_state(struct hubp *hubp, struct dcn_hubp_reg_state *reg_state)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	reg_state->hubp_cntl = REG_READ(DCHUBP_CNTL);
+	reg_state->mall_config = REG_READ(DCHUBP_MALL_CONFIG);
+	reg_state->mall_sub_vp = REG_READ(DCHUBP_MALL_SUB_VP);
+	reg_state->hubp_req_size_config = REG_READ(DCHUBP_REQ_SIZE_CONFIG);
+	reg_state->hubp_req_size_config_c = REG_READ(DCHUBP_REQ_SIZE_CONFIG_C);
+	reg_state->vmpg_config = REG_READ(DCHUBP_VMPG_CONFIG);
+	reg_state->addr_config = REG_READ(DCSURF_ADDR_CONFIG);
+	reg_state->pri_viewport_dimension = REG_READ(DCSURF_PRI_VIEWPORT_DIMENSION);
+	reg_state->pri_viewport_dimension_c = REG_READ(DCSURF_PRI_VIEWPORT_DIMENSION_C);
+	reg_state->pri_viewport_start = REG_READ(DCSURF_PRI_VIEWPORT_START);
+	reg_state->pri_viewport_start_c = REG_READ(DCSURF_PRI_VIEWPORT_START_C);
+	reg_state->sec_viewport_dimension = REG_READ(DCSURF_SEC_VIEWPORT_DIMENSION);
+	reg_state->sec_viewport_dimension_c = REG_READ(DCSURF_SEC_VIEWPORT_DIMENSION_C);
+	reg_state->sec_viewport_start = REG_READ(DCSURF_SEC_VIEWPORT_START);
+	reg_state->sec_viewport_start_c = REG_READ(DCSURF_SEC_VIEWPORT_START_C);
+	reg_state->surface_config = REG_READ(DCSURF_SURFACE_CONFIG);
+	reg_state->tiling_config = REG_READ(DCSURF_TILING_CONFIG);
+	reg_state->clk_cntl = REG_READ(HUBP_CLK_CNTL);
+	reg_state->mall_status = REG_READ(HUBP_MALL_STATUS);
+	reg_state->measure_win_ctrl_dcfclk = REG_READ(HUBP_MEASURE_WIN_CTRL_DCFCLK);
+	reg_state->measure_win_ctrl_dppclk = REG_READ(HUBP_MEASURE_WIN_CTRL_DPPCLK);
+
+	reg_state->blank_offset_0 = REG_READ(BLANK_OFFSET_0);
+	reg_state->blank_offset_1 = REG_READ(BLANK_OFFSET_1);
+	reg_state->cursor_settings = REG_READ(CURSOR_SETTINGS);
+	reg_state->dcn_cur0_ttu_cntl0 = REG_READ(DCN_CUR0_TTU_CNTL0);
+	reg_state->dcn_cur0_ttu_cntl1 = REG_READ(DCN_CUR0_TTU_CNTL1);
+	reg_state->dcn_cur1_ttu_cntl0 = REG_READ(DCN_CUR1_TTU_CNTL0);
+	reg_state->dcn_cur1_ttu_cntl1 = REG_READ(DCN_CUR1_TTU_CNTL1);
+	reg_state->dcn_dmdat_vm_cntl = REG_READ(DCN_DMDATA_VM_CNTL);
+	reg_state->dcn_expansion_mode = REG_READ(DCN_EXPANSION_MODE);
+	reg_state->dcn_global_ttu_cntl = REG_READ(DCN_GLOBAL_TTU_CNTL);
+	reg_state->dcn_surf0_ttu_cntl0 = REG_READ(DCN_SURF0_TTU_CNTL0);
+	reg_state->dcn_surf0_ttu_cntl1 = REG_READ(DCN_SURF0_TTU_CNTL1);
+	reg_state->dcn_surf1_ttu_cntl0 = REG_READ(DCN_SURF1_TTU_CNTL0);
+	reg_state->dcn_surf1_ttu_cntl1 = REG_READ(DCN_SURF1_TTU_CNTL1);
+	reg_state->dcn_ttu_qos_wm = REG_READ(DCN_TTU_QOS_WM);
+	reg_state->dcn_vm_mx_l1_tlb_cntl = REG_READ(DCN_VM_MX_L1_TLB_CNTL);
+	reg_state->dcn_vm_system_aperture_high_addr = REG_READ(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR);
+	reg_state->dcn_vm_system_aperture_low_addr = REG_READ(DCN_VM_SYSTEM_APERTURE_LOW_ADDR);
+	reg_state->dcsurf_flip_control = REG_READ(DCSURF_FLIP_CONTROL);
+	reg_state->dcsurf_flip_control2 = REG_READ(DCSURF_FLIP_CONTROL2);
+	reg_state->dcsurf_primary_meta_surface_address = REG_READ(DCSURF_PRIMARY_META_SURFACE_ADDRESS);
+	reg_state->dcsurf_primary_meta_surface_address_c = REG_READ(DCSURF_PRIMARY_META_SURFACE_ADDRESS_C);
+	reg_state->dcsurf_primary_meta_surface_address_high = REG_READ(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH);
+	reg_state->dcsurf_primary_meta_surface_address_high_c = REG_READ(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C);
+	reg_state->dcsurf_primary_surface_address = REG_READ(DCSURF_PRIMARY_SURFACE_ADDRESS);
+	reg_state->dcsurf_primary_surface_address_c = REG_READ(DCSURF_PRIMARY_SURFACE_ADDRESS_C);
+	reg_state->dcsurf_primary_surface_address_high = REG_READ(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH);
+	reg_state->dcsurf_primary_surface_address_high_c = REG_READ(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C);
+	reg_state->dcsurf_secondary_meta_surface_address = REG_READ(DCSURF_SECONDARY_META_SURFACE_ADDRESS);
+	reg_state->dcsurf_secondary_meta_surface_address_c = REG_READ(DCSURF_SECONDARY_META_SURFACE_ADDRESS_C);
+	reg_state->dcsurf_secondary_meta_surface_address_high = REG_READ(DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH);
+	reg_state->dcsurf_secondary_meta_surface_address_high_c = REG_READ(DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH_C);
+	reg_state->dcsurf_secondary_surface_address = REG_READ(DCSURF_SECONDARY_SURFACE_ADDRESS);
+	reg_state->dcsurf_secondary_surface_address_c = REG_READ(DCSURF_SECONDARY_SURFACE_ADDRESS_C);
+	reg_state->dcsurf_secondary_surface_address_high = REG_READ(DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH);
+	reg_state->dcsurf_secondary_surface_address_high_c = REG_READ(DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH_C);
+	reg_state->dcsurf_surface_control = REG_READ(DCSURF_SURFACE_CONTROL);
+	reg_state->dcsurf_surface_earliest_inuse = REG_READ(DCSURF_SURFACE_EARLIEST_INUSE);
+	reg_state->dcsurf_surface_earliest_inuse_c = REG_READ(DCSURF_SURFACE_EARLIEST_INUSE_C);
+	reg_state->dcsurf_surface_earliest_inuse_high = REG_READ(DCSURF_SURFACE_EARLIEST_INUSE_HIGH);
+	reg_state->dcsurf_surface_earliest_inuse_high_c = REG_READ(DCSURF_SURFACE_EARLIEST_INUSE_HIGH_C);
+	reg_state->dcsurf_surface_flip_interrupt = REG_READ(DCSURF_SURFACE_FLIP_INTERRUPT);
+	reg_state->dcsurf_surface_inuse = REG_READ(DCSURF_SURFACE_INUSE);
+	reg_state->dcsurf_surface_inuse_c = REG_READ(DCSURF_SURFACE_INUSE_C);
+	reg_state->dcsurf_surface_inuse_high = REG_READ(DCSURF_SURFACE_INUSE_HIGH);
+	reg_state->dcsurf_surface_inuse_high_c = REG_READ(DCSURF_SURFACE_INUSE_HIGH_C);
+	reg_state->dcsurf_surface_pitch = REG_READ(DCSURF_SURFACE_PITCH);
+	reg_state->dcsurf_surface_pitch_c = REG_READ(DCSURF_SURFACE_PITCH_C);
+	reg_state->dst_after_scaler = REG_READ(DST_AFTER_SCALER);
+	reg_state->dst_dimensions = REG_READ(DST_DIMENSIONS);
+	reg_state->dst_y_delta_drq_limit = REG_READ(DST_Y_DELTA_DRQ_LIMIT);
+	reg_state->flip_parameters_0 = REG_READ(FLIP_PARAMETERS_0);
+	reg_state->flip_parameters_1 = REG_READ(FLIP_PARAMETERS_1);
+	reg_state->flip_parameters_2 = REG_READ(FLIP_PARAMETERS_2);
+	reg_state->flip_parameters_3 = REG_READ(FLIP_PARAMETERS_3);
+	reg_state->flip_parameters_4 = REG_READ(FLIP_PARAMETERS_4);
+	reg_state->flip_parameters_5 = REG_READ(FLIP_PARAMETERS_5);
+	reg_state->flip_parameters_6 = REG_READ(FLIP_PARAMETERS_6);
+	reg_state->hubpreq_mem_pwr_ctrl = REG_READ(HUBPREQ_MEM_PWR_CTRL);
+	reg_state->hubpreq_mem_pwr_status = REG_READ(HUBPREQ_MEM_PWR_STATUS);
+	reg_state->nom_parameters_0 = REG_READ(NOM_PARAMETERS_0);
+	reg_state->nom_parameters_1 = REG_READ(NOM_PARAMETERS_1);
+	reg_state->nom_parameters_2 = REG_READ(NOM_PARAMETERS_2);
+	reg_state->nom_parameters_3 = REG_READ(NOM_PARAMETERS_3);
+	reg_state->nom_parameters_4 = REG_READ(NOM_PARAMETERS_4);
+	reg_state->nom_parameters_5 = REG_READ(NOM_PARAMETERS_5);
+	reg_state->nom_parameters_6 = REG_READ(NOM_PARAMETERS_6);
+	reg_state->nom_parameters_7 = REG_READ(NOM_PARAMETERS_7);
+	reg_state->per_line_delivery = REG_READ(PER_LINE_DELIVERY);
+	reg_state->per_line_delivery_pre = REG_READ(PER_LINE_DELIVERY_PRE);
+	reg_state->prefetch_settings = REG_READ(PREFETCH_SETTINGS);
+	reg_state->prefetch_settings_c = REG_READ(PREFETCH_SETTINGS_C);
+	reg_state->ref_freq_to_pix_freq = REG_READ(REF_FREQ_TO_PIX_FREQ);
+	reg_state->uclk_pstate_force = REG_READ(UCLK_PSTATE_FORCE);
+	reg_state->vblank_parameters_0 = REG_READ(VBLANK_PARAMETERS_0);
+	reg_state->vblank_parameters_1 = REG_READ(VBLANK_PARAMETERS_1);
+	reg_state->vblank_parameters_2 = REG_READ(VBLANK_PARAMETERS_2);
+	reg_state->vblank_parameters_3 = REG_READ(VBLANK_PARAMETERS_3);
+	reg_state->vblank_parameters_4 = REG_READ(VBLANK_PARAMETERS_4);
+	reg_state->vblank_parameters_5 = REG_READ(VBLANK_PARAMETERS_5);
+	reg_state->vblank_parameters_6 = REG_READ(VBLANK_PARAMETERS_6);
+	reg_state->vmid_settings_0 = REG_READ(VMID_SETTINGS_0);
+	reg_state->hubpret_control = REG_READ(HUBPRET_CONTROL);
+	reg_state->hubpret_interrupt = REG_READ(HUBPRET_INTERRUPT);
+	reg_state->hubpret_mem_pwr_ctrl = REG_READ(HUBPRET_MEM_PWR_CTRL);
+	reg_state->hubpret_mem_pwr_status = REG_READ(HUBPRET_MEM_PWR_STATUS);
+	reg_state->hubpret_read_line_ctrl0 = REG_READ(HUBPRET_READ_LINE_CTRL0);
+	reg_state->hubpret_read_line_ctrl1 = REG_READ(HUBPRET_READ_LINE_CTRL1);
+	reg_state->hubpret_read_line_status = REG_READ(HUBPRET_READ_LINE_STATUS);
+	reg_state->hubpret_read_line_value = REG_READ(HUBPRET_READ_LINE_VALUE);
+	reg_state->hubpret_read_line0 = REG_READ(HUBPRET_READ_LINE0);
+	reg_state->hubpret_read_line1 = REG_READ(HUBPRET_READ_LINE1);
+}
+
 void hubp3_setup(
 		struct hubp *hubp,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
@@ -503,30 +623,6 @@ void hubp3_init(struct hubp *hubp)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_TTU_DISABLE, 0);
 
 	hubp_reset(hubp);
-}
-
-uint32_t hubp3_get_current_read_line(struct hubp *hubp)
-{
-	uint32_t read_line = 0;
-	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
-
-	REG_GET(HUBPRET_READ_LINE_VALUE,
-		PIPE_READ_LINE,
-		&read_line);
-
-	return read_line;
-}
-
-unsigned int hubp3_get_underflow_status(struct hubp *hubp)
-{
-	uint32_t hubp_underflow = 0;
-	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
-
-	REG_GET(DCHUBP_CNTL,
-		HUBP_UNDERFLOW_STATUS,
-		&hubp_underflow);
-
-	return hubp_underflow;
 }
 
 static struct hubp_funcs dcn30_hubp_funcs = {
@@ -558,8 +654,7 @@ static struct hubp_funcs dcn30_hubp_funcs = {
 	.hubp_soft_reset = hubp1_soft_reset,
 	.hubp_set_flip_int = hubp1_set_flip_int,
 	.hubp_clear_tiling = hubp3_clear_tiling,
-	.hubp_get_underflow_status = hubp3_get_underflow_status,
-	.hubp_get_current_read_line = hubp3_get_current_read_line,
+	.hubp_read_reg_state = hubp3_read_reg_state
 };
 
 bool hubp3_construct(

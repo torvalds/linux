@@ -1057,7 +1057,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 	struct amdkfd_process_info *process_info = mem->process_info;
 	struct amdgpu_bo *bo = mem->bo;
 	struct ttm_operation_ctx ctx = { true, false };
-	struct hmm_range *range;
+	struct amdgpu_hmm_range *range;
 	int ret = 0;
 
 	mutex_lock(&process_info->lock);
@@ -1089,8 +1089,15 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		return 0;
 	}
 
-	ret = amdgpu_ttm_tt_get_user_pages(bo, &range);
+	range = amdgpu_hmm_range_alloc(NULL);
+	if (unlikely(!range)) {
+		ret = -ENOMEM;
+		goto unregister_out;
+	}
+
+	ret = amdgpu_ttm_tt_get_user_pages(bo, range);
 	if (ret) {
+		amdgpu_hmm_range_free(range);
 		if (ret == -EAGAIN)
 			pr_debug("Failed to get user pages, try again\n");
 		else
@@ -1113,7 +1120,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 	amdgpu_bo_unreserve(bo);
 
 release_out:
-	amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm, range);
+	amdgpu_hmm_range_free(range);
 unregister_out:
 	if (ret)
 		amdgpu_hmm_unregister(bo);
@@ -1266,6 +1273,10 @@ static int unmap_bo_from_gpuvm(struct kgd_mem *mem,
 	}
 
 	(void)amdgpu_vm_bo_unmap(adev, bo_va, entry->va);
+
+	/* VM entity stopped if process killed, don't clear freed pt bo */
+	if (!amdgpu_vm_ready(vm))
+		return 0;
 
 	(void)amdgpu_vm_clear_freed(adev, vm, &bo_va->last_pt_update);
 
@@ -1916,7 +1927,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	if (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm)) {
 		amdgpu_hmm_unregister(mem->bo);
 		mutex_lock(&process_info->notifier_lock);
-		amdgpu_ttm_tt_discard_user_pages(mem->bo->tbo.ttm, mem->range);
+		amdgpu_hmm_range_free(mem->range);
 		mutex_unlock(&process_info->notifier_lock);
 	}
 
@@ -1954,9 +1965,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	 */
 	if (size) {
 		if (!is_imported &&
-		   (mem->bo->preferred_domains == AMDGPU_GEM_DOMAIN_VRAM ||
-		   (adev->apu_prefer_gtt &&
-		    mem->bo->preferred_domains == AMDGPU_GEM_DOMAIN_GTT)))
+		   mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)
 			*size = bo_size;
 		else
 			*size = 0;
@@ -2329,10 +2338,9 @@ void amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(struct kgd_mem *mem)
 int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct amdgpu_device *adev,
 					  struct kfd_vm_fault_info *mem)
 {
-	if (atomic_read(&adev->gmc.vm_fault_info_updated) == 1) {
+	if (atomic_read_acquire(&adev->gmc.vm_fault_info_updated) == 1) {
 		*mem = *adev->gmc.vm_fault_info;
-		mb(); /* make sure read happened */
-		atomic_set(&adev->gmc.vm_fault_info_updated, 0);
+		atomic_set_release(&adev->gmc.vm_fault_info_updated, 0);
 	}
 	return 0;
 }
@@ -2543,7 +2551,7 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 
 		bo = mem->bo;
 
-		amdgpu_ttm_tt_discard_user_pages(bo->tbo.ttm, mem->range);
+		amdgpu_hmm_range_free(mem->range);
 		mem->range = NULL;
 
 		/* BO reservations and getting user pages (hmm_range_fault)
@@ -2567,9 +2575,14 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			}
 		}
 
+		mem->range = amdgpu_hmm_range_alloc(NULL);
+		if (unlikely(!mem->range))
+			return -ENOMEM;
 		/* Get updated user pages */
-		ret = amdgpu_ttm_tt_get_user_pages(bo, &mem->range);
+		ret = amdgpu_ttm_tt_get_user_pages(bo, mem->range);
 		if (ret) {
+			amdgpu_hmm_range_free(mem->range);
+			mem->range = NULL;
 			pr_debug("Failed %d to get user pages\n", ret);
 
 			/* Return -EFAULT bad address error as success. It will
@@ -2742,8 +2755,8 @@ static int confirm_valid_user_pages_locked(struct amdkfd_process_info *process_i
 			continue;
 
 		/* Only check mem with hmm range associated */
-		valid = amdgpu_ttm_tt_get_user_pages_done(
-					mem->bo->tbo.ttm, mem->range);
+		valid = amdgpu_hmm_range_valid(mem->range);
+		amdgpu_hmm_range_free(mem->range);
 
 		mem->range = NULL;
 		if (!valid) {

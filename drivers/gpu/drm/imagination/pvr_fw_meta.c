@@ -16,6 +16,8 @@
 #include <linux/ktime.h>
 #include <linux/types.h>
 
+#include <drm/drm_print.h>
+
 #define ROGUE_FW_HEAP_META_SHIFT 25 /* 32 MB */
 
 #define POLL_TIMEOUT_USEC 1000000

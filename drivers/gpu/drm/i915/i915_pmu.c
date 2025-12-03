@@ -6,6 +6,8 @@
 
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_print.h>
+
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_regs.h"
@@ -895,7 +897,7 @@ static ssize_t i915_pmu_format_show(struct device *dev,
 	struct i915_str_attribute *eattr;
 
 	eattr = container_of(attr, struct i915_str_attribute, attr);
-	return sprintf(buf, "%s\n", eattr->str);
+	return sysfs_emit(buf, "%s\n", eattr->str);
 }
 
 #define I915_PMU_FORMAT_ATTR(_name, _config) \
@@ -925,7 +927,7 @@ static ssize_t i915_pmu_event_show(struct device *dev,
 	struct i915_ext_attribute *eattr;
 
 	eattr = container_of(attr, struct i915_ext_attribute, attr);
-	return sprintf(buf, "config=0x%lx\n", eattr->val);
+	return sysfs_emit(buf, "config=0x%lx\n", eattr->val);
 }
 
 #define __event(__counter, __name, __unit) \

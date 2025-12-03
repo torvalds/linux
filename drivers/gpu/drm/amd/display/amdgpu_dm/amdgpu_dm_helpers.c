@@ -83,6 +83,7 @@ static void apply_edid_quirks(struct drm_device *dev, struct edid *edid, struct 
 		edid_caps->panel_patch.remove_sink_ext_caps = true;
 		break;
 	case drm_edid_encode_panel_id('S', 'D', 'C', 0x4154):
+	case drm_edid_encode_panel_id('S', 'D', 'C', 0x4171):
 		drm_dbg_driver(dev, "Disabling VSC on monitor with panel id %X\n", panel_id);
 		edid_caps->panel_patch.disable_colorimetry = true;
 		break;
@@ -130,6 +131,7 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 	edid_caps->serial_number = edid_buf->serial;
 	edid_caps->manufacture_week = edid_buf->mfg_week;
 	edid_caps->manufacture_year = edid_buf->mfg_year;
+	edid_caps->analog = !(edid_buf->input & DRM_EDID_INPUT_DIGITAL);
 
 	drm_edid_get_monitor_name(edid_buf,
 				  edid_caps->display_name,
@@ -996,8 +998,8 @@ enum dc_edid_status dm_helpers_read_local_edid(
 	struct amdgpu_dm_connector *aconnector = link->priv;
 	struct drm_connector *connector = &aconnector->base;
 	struct i2c_adapter *ddc;
-	int retry = 3;
-	enum dc_edid_status edid_status;
+	int retry = 25;
+	enum dc_edid_status edid_status = EDID_NO_RESPONSE;
 	const struct drm_edid *drm_edid;
 	const struct edid *edid;
 
@@ -1027,7 +1029,7 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		}
 
 		if (!drm_edid)
-			return EDID_NO_RESPONSE;
+			continue;
 
 		edid = drm_edid_raw(drm_edid); // FIXME: Get rid of drm_edid_raw()
 		if (!edid ||
@@ -1045,7 +1047,7 @@ enum dc_edid_status dm_helpers_read_local_edid(
 						&sink->dc_edid,
 						&sink->edid_caps);
 
-	} while (edid_status == EDID_BAD_CHECKSUM && --retry > 0);
+	} while ((edid_status == EDID_BAD_CHECKSUM || edid_status == EDID_NO_RESPONSE) && --retry > 0);
 
 	if (edid_status != EDID_OK)
 		DRM_ERROR("EDID err: %d, on connector: %s",

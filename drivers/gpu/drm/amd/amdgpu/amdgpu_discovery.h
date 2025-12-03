@@ -24,8 +24,20 @@
 #ifndef __AMDGPU_DISCOVERY__
 #define __AMDGPU_DISCOVERY__
 
+#include <linux/debugfs.h>
+
 #define DISCOVERY_TMR_SIZE      (10 << 10)
 #define DISCOVERY_TMR_OFFSET    (64 << 10)
+
+struct ip_discovery_top;
+
+struct amdgpu_discovery_info {
+	struct debugfs_blob_wrapper debugfs_blob;
+	struct ip_discovery_top *ip_top;
+	uint32_t size;
+	uint8_t *bin;
+	bool reserve_tmr;
+};
 
 void amdgpu_discovery_fini(struct amdgpu_device *adev);
 int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev);

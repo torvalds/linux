@@ -1132,22 +1132,19 @@ static int jadard_dsi_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = desc->lanes;
 
 	jadard->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(jadard->reset)) {
-		DRM_DEV_ERROR(&dsi->dev, "failed to get our reset GPIO\n");
-		return PTR_ERR(jadard->reset);
-	}
+	if (IS_ERR(jadard->reset))
+		return dev_err_probe(&dsi->dev, PTR_ERR(jadard->reset),
+				"failed to get our reset GPIO\n");
 
 	jadard->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(jadard->vdd)) {
-		DRM_DEV_ERROR(&dsi->dev, "failed to get vdd regulator\n");
-		return PTR_ERR(jadard->vdd);
-	}
+	if (IS_ERR(jadard->vdd))
+		return dev_err_probe(&dsi->dev, PTR_ERR(jadard->vdd),
+				"failed to get vdd regulator\n");
 
 	jadard->vccio = devm_regulator_get(dev, "vccio");
-	if (IS_ERR(jadard->vccio)) {
-		DRM_DEV_ERROR(&dsi->dev, "failed to get vccio regulator\n");
-		return PTR_ERR(jadard->vccio);
-	}
+	if (IS_ERR(jadard->vccio))
+		return dev_err_probe(&dsi->dev, PTR_ERR(jadard->vccio),
+				"failed to get vccio regulator\n");
 
 	ret = of_drm_get_panel_orientation(dev->of_node, &jadard->orientation);
 	if (ret < 0)

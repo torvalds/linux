@@ -3,6 +3,8 @@
  * Copyright © 2017-2019 Intel Corporation
  */
 
+#include <drm/drm_print.h>
+
 #include "intel_wopcm.h"
 #include "i915_drv.h"
 

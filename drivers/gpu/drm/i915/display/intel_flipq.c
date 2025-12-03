@@ -7,16 +7,16 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
-#include "intel_step.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_core.h"
 #include "intel_display_types.h"
-#include "intel_flipq.h"
+#include "intel_display_utils.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
 #include "intel_dsb.h"
+#include "intel_flipq.h"
+#include "intel_step.h"
 #include "intel_vblank.h"
 #include "intel_vrr.h"
 
@@ -163,10 +163,10 @@ static void intel_flipq_preempt(struct intel_crtc *crtc, bool preempt)
 		     PIPEDMC_FQ_CTRL_PREEMPT, preempt ? PIPEDMC_FQ_CTRL_PREEMPT : 0);
 
 	if (preempt &&
-	    intel_de_wait_for_clear(display,
-				    PIPEDMC_FQ_STATUS(crtc->pipe),
-				    PIPEDMC_FQ_STATUS_BUSY,
-				    intel_flipq_preempt_timeout_ms(display)))
+	    intel_de_wait_for_clear_ms(display,
+				       PIPEDMC_FQ_STATUS(crtc->pipe),
+				       PIPEDMC_FQ_STATUS_BUSY,
+				       intel_flipq_preempt_timeout_ms(display)))
 		drm_err(display->drm, "[CRTC:%d:%s] flip queue preempt timeout\n",
 			crtc->base.base.id, crtc->base.name);
 }

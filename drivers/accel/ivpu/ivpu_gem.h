@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 #ifndef __IVPU_GEM_H__
 #define __IVPU_GEM_H__
@@ -24,19 +24,22 @@ struct ivpu_bo {
 	bool mmu_mapped;
 };
 
-int ivpu_bo_pin(struct ivpu_bo *bo);
+int ivpu_bo_bind(struct ivpu_bo *bo);
 void ivpu_bo_unbind_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);
 
 struct drm_gem_object *ivpu_gem_create_object(struct drm_device *dev, size_t size);
 struct drm_gem_object *ivpu_gem_prime_import(struct drm_device *dev, struct dma_buf *dma_buf);
 struct ivpu_bo *ivpu_bo_create(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 			       struct ivpu_addr_range *range, u64 size, u32 flags);
+struct ivpu_bo *ivpu_bo_create_runtime(struct ivpu_device *vdev, u64 addr, u64 size, u32 flags);
 struct ivpu_bo *ivpu_bo_create_global(struct ivpu_device *vdev, u64 size, u32 flags);
 void ivpu_bo_free(struct ivpu_bo *bo);
 
 int ivpu_bo_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 int ivpu_bo_info_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 int ivpu_bo_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int ivpu_bo_create_from_userptr_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file);
 
 void ivpu_bo_list(struct drm_device *dev, struct drm_printer *p);
 void ivpu_bo_list_print(struct drm_device *dev);
@@ -74,6 +77,16 @@ static inline bool ivpu_bo_is_snooped(struct ivpu_bo *bo)
 	return ivpu_bo_cache_mode(bo) == DRM_IVPU_BO_CACHED;
 }
 
+static inline bool ivpu_bo_is_read_only(struct ivpu_bo *bo)
+{
+	return bo->flags & DRM_IVPU_BO_READ_ONLY;
+}
+
+static inline bool ivpu_bo_is_resident(struct ivpu_bo *bo)
+{
+	return !!bo->base.pages;
+}
+
 static inline void *ivpu_to_cpu_addr(struct ivpu_bo *bo, u32 vpu_addr)
 {
 	if (vpu_addr < bo->vpu_addr)
@@ -94,6 +107,11 @@ static inline u32 cpu_to_vpu_addr(struct ivpu_bo *bo, void *cpu_addr)
 		return 0;
 
 	return bo->vpu_addr + (cpu_addr - ivpu_bo_vaddr(bo));
+}
+
+static inline bool ivpu_bo_is_mappable(struct ivpu_bo *bo)
+{
+	return bo->flags & DRM_IVPU_BO_MAPPABLE;
 }
 
 #endif /* __IVPU_GEM_H__ */

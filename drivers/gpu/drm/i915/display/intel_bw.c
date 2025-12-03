@@ -4,31 +4,25 @@
  */
 
 #include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_print.h>
 
 #include "soc/intel_dram.h"
 
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "i915_utils.h"
-#include "intel_atomic.h"
 #include "intel_bw.h"
-#include "intel_cdclk.h"
+#include "intel_crtc.h"
 #include "intel_display_core.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 #include "intel_uncore.h"
 #include "skl_watermark.h"
 
-struct intel_dbuf_bw {
-	unsigned int max_bw[I915_MAX_DBUF_SLICES];
-	u8 active_planes[I915_MAX_DBUF_SLICES];
-};
-
 struct intel_bw_state {
 	struct intel_global_state base;
-	struct intel_dbuf_bw dbuf_bw[I915_MAX_PIPES];
 
 	/*
 	 * Contains a bit mask, used to determine, whether correspondent
@@ -811,72 +805,40 @@ void intel_bw_init_hw(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return;
 
-	if (DISPLAY_VERx100(display) >= 3002)
-		tgl_get_bw_info(display, dram_info, &xe3lpd_3002_sa_info);
-	else if (DISPLAY_VER(display) >= 30)
-		tgl_get_bw_info(display, dram_info, &xe3lpd_sa_info);
-	else if (DISPLAY_VERx100(display) >= 1401 && display->platform.dgfx &&
-		 dram_info->type == INTEL_DRAM_GDDR_ECC)
-		xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_ecc_sa_info);
-	else if (DISPLAY_VERx100(display) >= 1401 && display->platform.dgfx)
-		xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_sa_info);
-	else if (DISPLAY_VER(display) >= 14)
-		tgl_get_bw_info(display, dram_info, &mtl_sa_info);
-	else if (display->platform.dg2)
-		dg2_get_bw_info(display);
-	else if (display->platform.alderlake_p)
-		tgl_get_bw_info(display, dram_info, &adlp_sa_info);
-	else if (display->platform.alderlake_s)
-		tgl_get_bw_info(display, dram_info, &adls_sa_info);
-	else if (display->platform.rocketlake)
-		tgl_get_bw_info(display, dram_info, &rkl_sa_info);
-	else if (DISPLAY_VER(display) == 12)
-		tgl_get_bw_info(display, dram_info, &tgl_sa_info);
-	else if (DISPLAY_VER(display) == 11)
-		icl_get_bw_info(display, dram_info, &icl_sa_info);
-}
-
-static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_state *crtc_state)
-{
 	/*
-	 * We assume cursors are small enough
-	 * to not not cause bandwidth problems.
+	 * Starting with Xe3p_LPD, the hardware tells us whether memory has ECC
+	 * enabled that would impact display bandwidth.  However, so far there
+	 * are no instructions in Bspec on how to handle that case.  Let's
+	 * complain if we ever find such a scenario.
 	 */
-	return hweight8(crtc_state->active_planes & ~BIT(PLANE_CURSOR));
-}
+	if (DISPLAY_VER(display) >= 35)
+		drm_WARN_ON(display->drm, dram_info->ecc_impacting_de_bw);
 
-static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	unsigned int data_rate = 0;
-	enum plane_id plane_id;
-
-	for_each_plane_id_on_crtc(crtc, plane_id) {
-		/*
-		 * We assume cursors are small enough
-		 * to not not cause bandwidth problems.
-		 */
-		if (plane_id == PLANE_CURSOR)
-			continue;
-
-		data_rate += crtc_state->data_rate[plane_id];
-
-		if (DISPLAY_VER(display) < 11)
-			data_rate += crtc_state->data_rate_y[plane_id];
+	if (DISPLAY_VER(display) >= 30) {
+		if (DISPLAY_VERx100(display) == 3002)
+			tgl_get_bw_info(display, dram_info, &xe3lpd_3002_sa_info);
+		else
+			tgl_get_bw_info(display, dram_info, &xe3lpd_sa_info);
+	} else if (DISPLAY_VERx100(display) >= 1401 && display->platform.dgfx) {
+		if (dram_info->type == INTEL_DRAM_GDDR_ECC)
+			xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_ecc_sa_info);
+		else
+			xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_sa_info);
+	} else if (DISPLAY_VER(display) >= 14) {
+		tgl_get_bw_info(display, dram_info, &mtl_sa_info);
+	} else if (display->platform.dg2) {
+		dg2_get_bw_info(display);
+	} else if (display->platform.alderlake_p) {
+		tgl_get_bw_info(display, dram_info, &adlp_sa_info);
+	} else if (display->platform.alderlake_s) {
+		tgl_get_bw_info(display, dram_info, &adls_sa_info);
+	} else if (display->platform.rocketlake) {
+		tgl_get_bw_info(display, dram_info, &rkl_sa_info);
+	} else if (DISPLAY_VER(display) == 12) {
+		tgl_get_bw_info(display, dram_info, &tgl_sa_info);
+	} else if (DISPLAY_VER(display) == 11) {
+		icl_get_bw_info(display, dram_info, &icl_sa_info);
 	}
-
-	return data_rate;
-}
-
-/* "Maximum Pipe Read Bandwidth" */
-static int intel_bw_crtc_min_cdclk(struct intel_display *display,
-				   unsigned int data_rate)
-{
-	if (DISPLAY_VER(display) < 12)
-		return 0;
-
-	return DIV_ROUND_UP_ULL(mul_u32_u32(data_rate, 10), 512);
 }
 
 static unsigned int intel_bw_num_active_planes(struct intel_display *display,
@@ -894,14 +856,13 @@ static unsigned int intel_bw_num_active_planes(struct intel_display *display,
 static unsigned int intel_bw_data_rate(struct intel_display *display,
 				       const struct intel_bw_state *bw_state)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int data_rate = 0;
 	enum pipe pipe;
 
 	for_each_pipe(display, pipe)
 		data_rate += bw_state->data_rate[pipe];
 
-	if (DISPLAY_VER(display) >= 13 && i915_vtd_active(i915))
+	if (DISPLAY_VER(display) >= 13 && intel_display_vtd_active(display))
 		data_rate = DIV_ROUND_UP(data_rate * 105, 100);
 
 	return data_rate;
@@ -1262,223 +1223,6 @@ static int intel_bw_check_qgv_points(struct intel_display *display,
 					   old_bw_state, new_bw_state);
 }
 
-static bool intel_dbuf_bw_changed(struct intel_display *display,
-				  const struct intel_dbuf_bw *old_dbuf_bw,
-				  const struct intel_dbuf_bw *new_dbuf_bw)
-{
-	enum dbuf_slice slice;
-
-	for_each_dbuf_slice(display, slice) {
-		if (old_dbuf_bw->max_bw[slice] != new_dbuf_bw->max_bw[slice] ||
-		    old_dbuf_bw->active_planes[slice] != new_dbuf_bw->active_planes[slice])
-			return true;
-	}
-
-	return false;
-}
-
-static bool intel_bw_state_changed(struct intel_display *display,
-				   const struct intel_bw_state *old_bw_state,
-				   const struct intel_bw_state *new_bw_state)
-{
-	enum pipe pipe;
-
-	for_each_pipe(display, pipe) {
-		const struct intel_dbuf_bw *old_dbuf_bw =
-			&old_bw_state->dbuf_bw[pipe];
-		const struct intel_dbuf_bw *new_dbuf_bw =
-			&new_bw_state->dbuf_bw[pipe];
-
-		if (intel_dbuf_bw_changed(display, old_dbuf_bw, new_dbuf_bw))
-			return true;
-
-		if (intel_bw_crtc_min_cdclk(display, old_bw_state->data_rate[pipe]) !=
-		    intel_bw_crtc_min_cdclk(display, new_bw_state->data_rate[pipe]))
-			return true;
-	}
-
-	return false;
-}
-
-static void skl_plane_calc_dbuf_bw(struct intel_dbuf_bw *dbuf_bw,
-				   struct intel_crtc *crtc,
-				   enum plane_id plane_id,
-				   const struct skl_ddb_entry *ddb,
-				   unsigned int data_rate)
-{
-	struct intel_display *display = to_intel_display(crtc);
-	unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(display, ddb);
-	enum dbuf_slice slice;
-
-	/*
-	 * The arbiter can only really guarantee an
-	 * equal share of the total bw to each plane.
-	 */
-	for_each_dbuf_slice_in_mask(display, slice, dbuf_mask) {
-		dbuf_bw->max_bw[slice] = max(dbuf_bw->max_bw[slice], data_rate);
-		dbuf_bw->active_planes[slice] |= BIT(plane_id);
-	}
-}
-
-static void skl_crtc_calc_dbuf_bw(struct intel_dbuf_bw *dbuf_bw,
-				  const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	enum plane_id plane_id;
-
-	memset(dbuf_bw, 0, sizeof(*dbuf_bw));
-
-	if (!crtc_state->hw.active)
-		return;
-
-	for_each_plane_id_on_crtc(crtc, plane_id) {
-		/*
-		 * We assume cursors are small enough
-		 * to not cause bandwidth problems.
-		 */
-		if (plane_id == PLANE_CURSOR)
-			continue;
-
-		skl_plane_calc_dbuf_bw(dbuf_bw, crtc, plane_id,
-				       &crtc_state->wm.skl.plane_ddb[plane_id],
-				       crtc_state->data_rate[plane_id]);
-
-		if (DISPLAY_VER(display) < 11)
-			skl_plane_calc_dbuf_bw(dbuf_bw, crtc, plane_id,
-					       &crtc_state->wm.skl.plane_ddb_y[plane_id],
-					       crtc_state->data_rate[plane_id]);
-	}
-}
-
-/* "Maximum Data Buffer Bandwidth" */
-static int
-intel_bw_dbuf_min_cdclk(struct intel_display *display,
-			const struct intel_bw_state *bw_state)
-{
-	unsigned int total_max_bw = 0;
-	enum dbuf_slice slice;
-
-	for_each_dbuf_slice(display, slice) {
-		int num_active_planes = 0;
-		unsigned int max_bw = 0;
-		enum pipe pipe;
-
-		/*
-		 * The arbiter can only really guarantee an
-		 * equal share of the total bw to each plane.
-		 */
-		for_each_pipe(display, pipe) {
-			const struct intel_dbuf_bw *dbuf_bw = &bw_state->dbuf_bw[pipe];
-
-			max_bw = max(dbuf_bw->max_bw[slice], max_bw);
-			num_active_planes += hweight8(dbuf_bw->active_planes[slice]);
-		}
-		max_bw *= num_active_planes;
-
-		total_max_bw = max(total_max_bw, max_bw);
-	}
-
-	return DIV_ROUND_UP(total_max_bw, 64);
-}
-
-int intel_bw_min_cdclk(struct intel_display *display,
-		       const struct intel_bw_state *bw_state)
-{
-	enum pipe pipe;
-	int min_cdclk;
-
-	min_cdclk = intel_bw_dbuf_min_cdclk(display, bw_state);
-
-	for_each_pipe(display, pipe)
-		min_cdclk = max(min_cdclk,
-				intel_bw_crtc_min_cdclk(display,
-							bw_state->data_rate[pipe]));
-
-	return min_cdclk;
-}
-
-int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
-			    bool *need_cdclk_calc)
-{
-	struct intel_display *display = to_intel_display(state);
-	struct intel_bw_state *new_bw_state = NULL;
-	const struct intel_bw_state *old_bw_state = NULL;
-	const struct intel_cdclk_state *cdclk_state;
-	const struct intel_crtc_state *old_crtc_state;
-	const struct intel_crtc_state *new_crtc_state;
-	int old_min_cdclk, new_min_cdclk;
-	struct intel_crtc *crtc;
-	int i;
-
-	if (DISPLAY_VER(display) < 9)
-		return 0;
-
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
-		struct intel_dbuf_bw old_dbuf_bw, new_dbuf_bw;
-
-		skl_crtc_calc_dbuf_bw(&old_dbuf_bw, old_crtc_state);
-		skl_crtc_calc_dbuf_bw(&new_dbuf_bw, new_crtc_state);
-
-		if (!intel_dbuf_bw_changed(display, &old_dbuf_bw, &new_dbuf_bw))
-			continue;
-
-		new_bw_state = intel_atomic_get_bw_state(state);
-		if (IS_ERR(new_bw_state))
-			return PTR_ERR(new_bw_state);
-
-		old_bw_state = intel_atomic_get_old_bw_state(state);
-
-		new_bw_state->dbuf_bw[crtc->pipe] = new_dbuf_bw;
-	}
-
-	if (!old_bw_state)
-		return 0;
-
-	if (intel_bw_state_changed(display, old_bw_state, new_bw_state)) {
-		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
-		if (ret)
-			return ret;
-	}
-
-	old_min_cdclk = intel_bw_min_cdclk(display, old_bw_state);
-	new_min_cdclk = intel_bw_min_cdclk(display, new_bw_state);
-
-	/*
-	 * No need to check against the cdclk state if
-	 * the min cdclk doesn't increase.
-	 *
-	 * Ie. we only ever increase the cdclk due to bandwidth
-	 * requirements. This can reduce back and forth
-	 * display blinking due to constant cdclk changes.
-	 */
-	if (new_min_cdclk <= old_min_cdclk)
-		return 0;
-
-	cdclk_state = intel_atomic_get_cdclk_state(state);
-	if (IS_ERR(cdclk_state))
-		return PTR_ERR(cdclk_state);
-
-	/*
-	 * No need to recalculate the cdclk state if
-	 * the min cdclk doesn't increase.
-	 *
-	 * Ie. we only ever increase the cdclk due to bandwidth
-	 * requirements. This can reduce back and forth
-	 * display blinking due to constant cdclk changes.
-	 */
-	if (new_min_cdclk <= intel_cdclk_bw_min_cdclk(cdclk_state))
-		return 0;
-
-	drm_dbg_kms(display->drm,
-		    "new bandwidth min cdclk (%d kHz) > old min cdclk (%d kHz)\n",
-		    new_min_cdclk, intel_cdclk_bw_min_cdclk(cdclk_state));
-	*need_cdclk_calc = true;
-
-	return 0;
-}
-
 static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *changed)
 {
 	struct intel_display *display = to_intel_display(state);
@@ -1489,13 +1233,13 @@ static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *chan
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		unsigned int old_data_rate =
-			intel_bw_crtc_data_rate(old_crtc_state);
+			intel_crtc_bw_data_rate(old_crtc_state);
 		unsigned int new_data_rate =
-			intel_bw_crtc_data_rate(new_crtc_state);
+			intel_crtc_bw_data_rate(new_crtc_state);
 		unsigned int old_active_planes =
-			intel_bw_crtc_num_active_planes(old_crtc_state);
+			intel_crtc_bw_num_active_planes(old_crtc_state);
 		unsigned int new_active_planes =
-			intel_bw_crtc_num_active_planes(new_crtc_state);
+			intel_crtc_bw_num_active_planes(new_crtc_state);
 		struct intel_bw_state *new_bw_state;
 
 		/*
@@ -1527,11 +1271,11 @@ static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *chan
 
 static int intel_bw_modeset_checks(struct intel_atomic_state *state)
 {
-	struct intel_display *display = to_intel_display(state);
 	const struct intel_bw_state *old_bw_state;
 	struct intel_bw_state *new_bw_state;
+	int ret;
 
-	if (DISPLAY_VER(display) < 9)
+	if (!intel_any_crtc_active_changed(state))
 		return 0;
 
 	new_bw_state = intel_atomic_get_bw_state(state);
@@ -1543,13 +1287,9 @@ static int intel_bw_modeset_checks(struct intel_atomic_state *state)
 	new_bw_state->active_pipes =
 		intel_calc_active_pipes(state, old_bw_state->active_pipes);
 
-	if (new_bw_state->active_pipes != old_bw_state->active_pipes) {
-		int ret;
-
-		ret = intel_atomic_lock_global_state(&new_bw_state->base);
-		if (ret)
-			return ret;
-	}
+	ret = intel_atomic_lock_global_state(&new_bw_state->base);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1599,7 +1339,7 @@ static int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
 	return 0;
 }
 
-int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms)
+int intel_bw_atomic_check(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
 	bool changed = false;
@@ -1610,11 +1350,9 @@ int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms)
 	if (DISPLAY_VER(display) < 9)
 		return 0;
 
-	if (any_ms) {
-		ret = intel_bw_modeset_checks(state);
-		if (ret)
-			return ret;
-	}
+	ret = intel_bw_modeset_checks(state);
+	if (ret)
+		return ret;
 
 	ret = intel_bw_check_sagv_mask(state);
 	if (ret)
@@ -1657,9 +1395,9 @@ static void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	bw_state->data_rate[crtc->pipe] =
-		intel_bw_crtc_data_rate(crtc_state);
+		intel_crtc_bw_data_rate(crtc_state);
 	bw_state->num_active_planes[crtc->pipe] =
-		intel_bw_crtc_num_active_planes(crtc_state);
+		intel_crtc_bw_num_active_planes(crtc_state);
 
 	drm_dbg_kms(display->drm, "pipe %c data rate %u num active planes %u\n",
 		    pipe_name(crtc->pipe),
@@ -1690,8 +1428,6 @@ void intel_bw_update_hw_state(struct intel_display *display)
 		if (DISPLAY_VER(display) >= 11)
 			intel_bw_crtc_update(bw_state, crtc_state);
 
-		skl_crtc_calc_dbuf_bw(&bw_state->dbuf_bw[pipe], crtc_state);
-
 		/* initially SAGV has been forced off */
 		bw_state->pipe_sagv_reject |= BIT(pipe);
 	}
@@ -1709,7 +1445,6 @@ void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc)
 
 	bw_state->data_rate[pipe] = 0;
 	bw_state->num_active_planes[pipe] = 0;
-	memset(&bw_state->dbuf_bw[pipe], 0, sizeof(bw_state->dbuf_bw[pipe]));
 }
 
 static struct intel_global_state *

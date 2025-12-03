@@ -9,6 +9,7 @@
 #include <linux/uaccess.h>
 
 #include <drm/drm_auth.h>
+#include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
 
 #include "gem/i915_gem_ioctls.h"
@@ -142,7 +143,7 @@ enum {
  * we want to leave the object where it is and for all the existing relocations
  * to match. If the object is given a new address, or if userspace thinks the
  * object is elsewhere, we have to parse all the relocation entries and update
- * the addresses. Userspace can set the I915_EXEC_NORELOC flag to hint that
+ * the addresses. Userspace can set the I915_EXEC_NO_RELOC flag to hint that
  * all the target addresses in all of its objects match the value in the
  * relocation entries and that they all match the presumed offsets given by the
  * list of execbuffer objects. Using this knowledge, we know that if we haven't
