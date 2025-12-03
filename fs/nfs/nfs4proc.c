@@ -8141,32 +8141,11 @@ static int nfs4_xattr_get_nfs4_label(const struct xattr_handler *handler,
 	return -EOPNOTSUPP;
 }
 
-static ssize_t
-nfs4_listxattr_nfs4_label(struct inode *inode, char *list, size_t list_len)
-{
-	int len = 0;
-
-	if (nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL)) {
-		len = security_inode_listsecurity(inode, list, list_len);
-		if (len >= 0 && list_len && len > list_len)
-			return -ERANGE;
-	}
-	return len;
-}
-
 static const struct xattr_handler nfs4_xattr_nfs4_label_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get	= nfs4_xattr_get_nfs4_label,
 	.set	= nfs4_xattr_set_nfs4_label,
 };
-
-#else
-
-static ssize_t
-nfs4_listxattr_nfs4_label(struct inode *inode, char *list, size_t list_len)
-{
-	return 0;
-}
 
 #endif
 
@@ -10964,7 +10943,7 @@ const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
 
 static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 {
-	ssize_t error, error2, error3, error4 = 0;
+	ssize_t error, error2, error3;
 	size_t left = size;
 
 	error = generic_listxattr(dentry, list, left);
@@ -10975,10 +10954,9 @@ static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 		left -= error;
 	}
 
-	error2 = nfs4_listxattr_nfs4_label(d_inode(dentry), list, left);
+	error2 = security_inode_listsecurity(d_inode(dentry), list, left);
 	if (error2 < 0)
 		return error2;
-
 	if (list) {
 		list += error2;
 		left -= error2;
@@ -10987,18 +10965,8 @@ static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 	error3 = nfs4_listxattr_nfs4_user(d_inode(dentry), list, left);
 	if (error3 < 0)
 		return error3;
-	if (list) {
-		list += error3;
-		left -= error3;
-	}
 
-	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_SECURITY_LABEL)) {
-		error4 = security_inode_listsecurity(d_inode(dentry), list, left);
-		if (error4 < 0)
-			return error4;
-	}
-
-	error += error2 + error3 + error4;
+	error += error2 + error3;
 	if (size && error > size)
 		return -ERANGE;
 	return error;
