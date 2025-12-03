@@ -11,24 +11,22 @@
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 
-asmlinkage void blake2s_compress_ssse3(struct blake2s_state *state,
-				       const u8 *block, const size_t nblocks,
-				       const u32 inc);
-asmlinkage void blake2s_compress_avx512(struct blake2s_state *state,
-					const u8 *block, const size_t nblocks,
-					const u32 inc);
+asmlinkage void blake2s_compress_ssse3(struct blake2s_ctx *ctx,
+				       const u8 *data, size_t nblocks, u32 inc);
+asmlinkage void blake2s_compress_avx512(struct blake2s_ctx *ctx,
+					const u8 *data, size_t nblocks, u32 inc);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(blake2s_use_ssse3);
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(blake2s_use_avx512);
 
-static void blake2s_compress(struct blake2s_state *state, const u8 *block,
-			     size_t nblocks, const u32 inc)
+static void blake2s_compress(struct blake2s_ctx *ctx,
+			     const u8 *data, size_t nblocks, u32 inc)
 {
 	/* SIMD disables preemption, so relax after processing each page. */
 	BUILD_BUG_ON(SZ_4K / BLAKE2S_BLOCK_SIZE < 8);
 
 	if (!static_branch_likely(&blake2s_use_ssse3) || !may_use_simd()) {
-		blake2s_compress_generic(state, block, nblocks, inc);
+		blake2s_compress_generic(ctx, data, nblocks, inc);
 		return;
 	}
 
@@ -38,13 +36,13 @@ static void blake2s_compress(struct blake2s_state *state, const u8 *block,
 
 		kernel_fpu_begin();
 		if (static_branch_likely(&blake2s_use_avx512))
-			blake2s_compress_avx512(state, block, blocks, inc);
+			blake2s_compress_avx512(ctx, data, blocks, inc);
 		else
-			blake2s_compress_ssse3(state, block, blocks, inc);
+			blake2s_compress_ssse3(ctx, data, blocks, inc);
 		kernel_fpu_end();
 
+		data += blocks * BLAKE2S_BLOCK_SIZE;
 		nblocks -= blocks;
-		block += blocks * BLAKE2S_BLOCK_SIZE;
 	} while (nblocks);
 }
 

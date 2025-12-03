@@ -696,7 +696,7 @@ config CRYPTO_ECB
 config CRYPTO_HCTR2
 	tristate "HCTR2"
 	select CRYPTO_XCTR
-	select CRYPTO_POLYVAL
+	select CRYPTO_LIB_POLYVAL
 	select CRYPTO_MANAGER
 	help
 	  HCTR2 length-preserving encryption mode
@@ -881,6 +881,7 @@ menu "Hashes, digests, and MACs"
 config CRYPTO_BLAKE2B
 	tristate "BLAKE2b"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_BLAKE2B
 	help
 	  BLAKE2b cryptographic hash function (RFC 7693)
 
@@ -947,16 +948,6 @@ config CRYPTO_MICHAEL_MIC
 	  This algorithm is required for TKIP, but it should not be used for
 	  other purposes because of the weakness of the algorithm.
 
-config CRYPTO_POLYVAL
-	tristate
-	select CRYPTO_HASH
-	select CRYPTO_LIB_GF128MUL
-	help
-	  POLYVAL hash function for HCTR2
-
-	  This is used in HCTR2.  It is not a general-purpose
-	  cryptographic hash function.
-
 config CRYPTO_RMD160
 	tristate "RIPEMD-160"
 	select CRYPTO_HASH
@@ -1005,6 +996,7 @@ config CRYPTO_SHA512
 config CRYPTO_SHA3
 	tristate "SHA-3"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA3
 	help
 	  SHA-3 secure hash algorithms (FIPS 202, ISO/IEC 10118-3)
 

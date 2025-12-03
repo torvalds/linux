@@ -636,7 +636,7 @@ enum {
 };
 
 static struct {
-	struct blake2s_state hash;
+	struct blake2s_ctx hash;
 	spinlock_t lock;
 	unsigned int init_bits;
 } input_pool = {
@@ -701,7 +701,7 @@ static void extract_entropy(void *buf, size_t len)
 
 	/* next_key = HASHPRF(seed, RDSEED || 0) */
 	block.counter = 0;
-	blake2s(next_key, (u8 *)&block, seed, sizeof(next_key), sizeof(block), sizeof(seed));
+	blake2s(seed, sizeof(seed), (const u8 *)&block, sizeof(block), next_key, sizeof(next_key));
 	blake2s_init_key(&input_pool.hash, BLAKE2S_HASH_SIZE, next_key, sizeof(next_key));
 
 	spin_unlock_irqrestore(&input_pool.lock, flags);
@@ -711,7 +711,7 @@ static void extract_entropy(void *buf, size_t len)
 		i = min_t(size_t, len, BLAKE2S_HASH_SIZE);
 		/* output = HASHPRF(seed, RDSEED || ++counter) */
 		++block.counter;
-		blake2s(buf, (u8 *)&block, seed, i, sizeof(block), sizeof(seed));
+		blake2s(seed, sizeof(seed), (const u8 *)&block, sizeof(block), buf, i);
 		len -= i;
 		buf += i;
 	}

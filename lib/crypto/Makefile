@@ -31,6 +31,16 @@ obj-$(CONFIG_CRYPTO_LIB_GF128MUL)		+= gf128mul.o
 
 ################################################################################
 
+obj-$(CONFIG_CRYPTO_LIB_BLAKE2B) += libblake2b.o
+libblake2b-y := blake2b.o
+CFLAGS_blake2b.o := -Wframe-larger-than=4096 #  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105930
+ifeq ($(CONFIG_CRYPTO_LIB_BLAKE2B_ARCH),y)
+CFLAGS_blake2b.o += -I$(src)/$(SRCARCH)
+libblake2b-$(CONFIG_ARM) += arm/blake2b-neon-core.o
+endif # CONFIG_CRYPTO_LIB_BLAKE2B_ARCH
+
+################################################################################
+
 # blake2s is used by the /dev/random driver which is always builtin
 obj-y += blake2s.o
 ifeq ($(CONFIG_CRYPTO_LIB_BLAKE2S_ARCH),y)
@@ -188,6 +198,16 @@ clean-files += arm/poly1305-core.S \
 
 ################################################################################
 
+obj-$(CONFIG_CRYPTO_LIB_POLYVAL) += libpolyval.o
+libpolyval-y := polyval.o
+ifeq ($(CONFIG_CRYPTO_LIB_POLYVAL_ARCH),y)
+CFLAGS_polyval.o += -I$(src)/$(SRCARCH)
+libpolyval-$(CONFIG_ARM64) += arm64/polyval-ce-core.o
+libpolyval-$(CONFIG_X86) += x86/polyval-pclmul-avx.o
+endif
+
+################################################################################
+
 obj-$(CONFIG_CRYPTO_LIB_SHA1) += libsha1.o
 libsha1-y := sha1.o
 ifeq ($(CONFIG_CRYPTO_LIB_SHA1_ARCH),y)
@@ -265,6 +285,16 @@ libsha512-$(CONFIG_X86) += x86/sha512-ssse3-asm.o \
 			   x86/sha512-avx-asm.o \
 			   x86/sha512-avx2-asm.o
 endif # CONFIG_CRYPTO_LIB_SHA512_ARCH
+
+################################################################################
+
+obj-$(CONFIG_CRYPTO_LIB_SHA3) += libsha3.o
+libsha3-y := sha3.o
+
+ifeq ($(CONFIG_CRYPTO_LIB_SHA3_ARCH),y)
+CFLAGS_sha3.o += -I$(src)/$(SRCARCH)
+libsha3-$(CONFIG_ARM64) += arm64/sha3-ce-core.o
+endif # CONFIG_CRYPTO_LIB_SHA3_ARCH
 
 ################################################################################
 

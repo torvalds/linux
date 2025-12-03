@@ -27,3 +27,4 @@ for cryptographic use cases, as well as programming examples.
    descore-readme
    device_drivers/index
    krb5
+   sha3

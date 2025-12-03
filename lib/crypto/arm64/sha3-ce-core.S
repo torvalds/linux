@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * sha3-ce-core.S - core SHA-3 transform using v8.2 Crypto Extensions
+ * Core SHA-3 transform using v8.2 Crypto Extensions
  *
  * Copyright (C) 2018 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
@@ -37,7 +37,11 @@
 	.endm
 
 	/*
-	 * int sha3_ce_transform(u64 *st, const u8 *data, int blocks, int dg_size)
+	 * size_t sha3_ce_transform(struct sha3_state *state, const u8 *data,
+	 *			    size_t nblocks, size_t block_size)
+	 *
+	 * block_size is assumed to be one of 72 (SHA3-512), 104 (SHA3-384), 136
+	 * (SHA3-256 and SHAKE256), 144 (SHA3-224), or 168 (SHAKE128).
 	 */
 	.text
 SYM_FUNC_START(sha3_ce_transform)
@@ -51,58 +55,55 @@ SYM_FUNC_START(sha3_ce_transform)
 	ld1	{v20.1d-v23.1d}, [x8], #32
 	ld1	{v24.1d}, [x8]
 
-0:	sub	w2, w2, #1
+0:	sub	x2, x2, #1
 	mov	w8, #24
 	adr_l	x9, .Lsha3_rcon
 
 	/* load input */
 	ld1	{v25.8b-v28.8b}, [x1], #32
-	ld1	{v29.8b-v31.8b}, [x1], #24
+	ld1	{v29.8b}, [x1], #8
 	eor	v0.8b, v0.8b, v25.8b
 	eor	v1.8b, v1.8b, v26.8b
 	eor	v2.8b, v2.8b, v27.8b
 	eor	v3.8b, v3.8b, v28.8b
 	eor	v4.8b, v4.8b, v29.8b
-	eor	v5.8b, v5.8b, v30.8b
-	eor	v6.8b, v6.8b, v31.8b
-
-	tbnz	x3, #6, 2f		// SHA3-512
 
 	ld1	{v25.8b-v28.8b}, [x1], #32
-	ld1	{v29.8b-v30.8b}, [x1], #16
-	eor	 v7.8b,  v7.8b, v25.8b
-	eor	 v8.8b,  v8.8b, v26.8b
-	eor	 v9.8b,  v9.8b, v27.8b
-	eor	v10.8b, v10.8b, v28.8b
-	eor	v11.8b, v11.8b, v29.8b
-	eor	v12.8b, v12.8b, v30.8b
+	eor	v5.8b, v5.8b, v25.8b
+	eor	v6.8b, v6.8b, v26.8b
+	eor	v7.8b, v7.8b, v27.8b
+	eor	v8.8b, v8.8b, v28.8b
+	cmp	x3, #72
+	b.eq	3f	/* SHA3-512 (block_size=72)? */
 
-	tbnz	x3, #4, 1f		// SHA3-384 or SHA3-224
+	ld1	{v25.8b-v28.8b}, [x1], #32
+	eor	v9.8b, v9.8b, v25.8b
+	eor	v10.8b, v10.8b, v26.8b
+	eor	v11.8b, v11.8b, v27.8b
+	eor	v12.8b, v12.8b, v28.8b
+	cmp	x3, #104
+	b.eq	3f	/* SHA3-384 (block_size=104)? */
 
-	// SHA3-256
 	ld1	{v25.8b-v28.8b}, [x1], #32
 	eor	v13.8b, v13.8b, v25.8b
 	eor	v14.8b, v14.8b, v26.8b
 	eor	v15.8b, v15.8b, v27.8b
 	eor	v16.8b, v16.8b, v28.8b
-	b	3f
+	cmp	x3, #144
+	b.lt	3f	/* SHA3-256 or SHAKE256 (block_size=136)? */
+	b.eq	2f	/* SHA3-224 (block_size=144)? */
 
-1:	tbz	x3, #2, 3f		// bit 2 cleared? SHA-384
-
-	// SHA3-224
+	/* SHAKE128 (block_size=168) */
 	ld1	{v25.8b-v28.8b}, [x1], #32
-	ld1	{v29.8b}, [x1], #8
-	eor	v13.8b, v13.8b, v25.8b
-	eor	v14.8b, v14.8b, v26.8b
-	eor	v15.8b, v15.8b, v27.8b
-	eor	v16.8b, v16.8b, v28.8b
-	eor	v17.8b, v17.8b, v29.8b
+	eor	v17.8b, v17.8b, v25.8b
+	eor	v18.8b, v18.8b, v26.8b
+	eor	v19.8b, v19.8b, v27.8b
+	eor	v20.8b, v20.8b, v28.8b
 	b	3f
-
-	// SHA3-512
-2:	ld1	{v25.8b-v26.8b}, [x1], #16
-	eor	 v7.8b,  v7.8b, v25.8b
-	eor	 v8.8b,  v8.8b, v26.8b
+2:
+	/* SHA3-224 (block_size=144) */
+	ld1	{v25.8b}, [x1], #8
+	eor	v17.8b, v17.8b, v25.8b
 
 3:	sub	w8, w8, #1
 
@@ -185,7 +186,7 @@ SYM_FUNC_START(sha3_ce_transform)
 
 	cbnz	w8, 3b
 	cond_yield 4f, x8, x9
-	cbnz	w2, 0b
+	cbnz	x2, 0b
 
 	/* save state */
 4:	st1	{ v0.1d- v3.1d}, [x0], #32
@@ -195,7 +196,7 @@ SYM_FUNC_START(sha3_ce_transform)
 	st1	{v16.1d-v19.1d}, [x0], #32
 	st1	{v20.1d-v23.1d}, [x0], #32
 	st1	{v24.1d}, [x0]
-	mov	w0, w2
+	mov	x0, x2
 	ret
 SYM_FUNC_END(sha3_ce_transform)
 

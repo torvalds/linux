@@ -36,10 +36,10 @@
 #define MI %xmm14
 #define SUM %xmm15
 
-#define KEY_POWERS %rdi
-#define MSG %rsi
-#define BLOCKS_LEFT %rdx
-#define ACCUMULATOR %rcx
+#define ACCUMULATOR %rdi
+#define KEY_POWERS %rsi
+#define MSG %rdx
+#define BLOCKS_LEFT %rcx
 #define TMP %rax
 
 .section    .rodata.cst16.gstar, "aM", @progbits, 16
@@ -234,7 +234,7 @@
 
 	movups (MSG), %xmm0
 	pxor SUM, %xmm0
-	movaps (KEY_POWERS), %xmm1
+	movups (KEY_POWERS), %xmm1
 	schoolbook1_noload
 	dec BLOCKS_LEFT
 	addq $16, MSG
@@ -261,15 +261,12 @@
 .endm
 
 /*
- * Perform montgomery multiplication in GF(2^128) and store result in op1.
+ * Computes a = a * b * x^{-128} mod x^128 + x^127 + x^126 + x^121 + 1.
  *
- * Computes op1*op2*x^{-128} mod x^128 + x^127 + x^126 + x^121 + 1
- * If op1, op2 are in montgomery form, this computes the montgomery
- * form of op1*op2.
- *
- * void clmul_polyval_mul(u8 *op1, const u8 *op2);
+ * void polyval_mul_pclmul_avx(struct polyval_elem *a,
+ *			       const struct polyval_elem *b);
  */
-SYM_FUNC_START(clmul_polyval_mul)
+SYM_FUNC_START(polyval_mul_pclmul_avx)
 	FRAME_BEGIN
 	vmovdqa .Lgstar(%rip), GSTAR
 	movups (%rdi), %xmm0
@@ -280,22 +277,23 @@ SYM_FUNC_START(clmul_polyval_mul)
 	movups SUM, (%rdi)
 	FRAME_END
 	RET
-SYM_FUNC_END(clmul_polyval_mul)
+SYM_FUNC_END(polyval_mul_pclmul_avx)
 
 /*
  * Perform polynomial evaluation as specified by POLYVAL.  This computes:
  *	h^n * accumulator + h^n * m_0 + ... + h^1 * m_{n-1}
  * where n=nblocks, h is the hash key, and m_i are the message blocks.
  *
- * rdi - pointer to precomputed key powers h^8 ... h^1
- * rsi - pointer to message blocks
- * rdx - number of blocks to hash
- * rcx - pointer to the accumulator
+ * rdi - pointer to the accumulator
+ * rsi - pointer to precomputed key powers h^8 ... h^1
+ * rdx - pointer to message blocks
+ * rcx - number of blocks to hash
  *
- * void clmul_polyval_update(const struct polyval_tfm_ctx *keys,
- *	const u8 *in, size_t nblocks, u8 *accumulator);
+ * void polyval_blocks_pclmul_avx(struct polyval_elem *acc,
+ *				  const struct polyval_key *key,
+ *				  const u8 *data, size_t nblocks);
  */
-SYM_FUNC_START(clmul_polyval_update)
+SYM_FUNC_START(polyval_blocks_pclmul_avx)
 	FRAME_BEGIN
 	vmovdqa .Lgstar(%rip), GSTAR
 	movups (ACCUMULATOR), SUM
@@ -318,4 +316,4 @@ SYM_FUNC_START(clmul_polyval_update)
 	movups SUM, (ACCUMULATOR)
 	FRAME_END
 	RET
-SYM_FUNC_END(clmul_polyval_update)
+SYM_FUNC_END(polyval_blocks_pclmul_avx)

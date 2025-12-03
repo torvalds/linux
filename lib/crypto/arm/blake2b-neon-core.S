@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * BLAKE2b digest algorithm, NEON accelerated
+ * BLAKE2b digest algorithm optimized with ARM NEON instructions.  On ARM
+ * processors that have NEON support but not the ARMv8 Crypto Extensions,
+ * typically this BLAKE2b implementation is much faster than the SHA-2 family
+ * and slightly faster than SHA-1.
  *
  * Copyright 2020 Google LLC
  *
@@ -13,8 +16,8 @@
 	.fpu		neon
 
 	// The arguments to blake2b_compress_neon()
-	STATE		.req	r0
-	BLOCK		.req	r1
+	CTX		.req	r0
+	DATA		.req	r1
 	NBLOCKS		.req	r2
 	INC		.req	r3
 
@@ -234,10 +237,10 @@
 .endm
 
 //
-// void blake2b_compress_neon(struct blake2b_state *state,
-//			      const u8 *block, size_t nblocks, u32 inc);
+// void blake2b_compress_neon(struct blake2b_ctx *ctx,
+//			      const u8 *data, size_t nblocks, u32 inc);
 //
-// Only the first three fields of struct blake2b_state are used:
+// Only the first three fields of struct blake2b_ctx are used:
 //	u64 h[8];	(inout)
 //	u64 t[2];	(inout)
 //	u64 f[2];	(in)
@@ -255,7 +258,7 @@ ENTRY(blake2b_compress_neon)
 	adr		ROR24_TABLE, .Lror24_table
 	adr		ROR16_TABLE, .Lror16_table
 
-	mov		ip, STATE
+	mov		ip, CTX
 	vld1.64		{q0-q1}, [ip]!		// Load h[0..3]
 	vld1.64		{q2-q3}, [ip]!		// Load h[4..7]
 .Lnext_block:
@@ -281,14 +284,14 @@ ENTRY(blake2b_compress_neon)
 	// (q8-q9) in an aligned buffer on the stack so that they can be
 	// reloaded when needed.  (We could just reload directly from the
 	// message buffer, but it's faster to use aligned loads.)
-	vld1.8		{q8-q9}, [BLOCK]!
+	vld1.8		{q8-q9}, [DATA]!
 	  veor		q6, q6, q14	// v[12..13] = IV[4..5] ^ t[0..1]
-	vld1.8		{q10-q11}, [BLOCK]!
+	vld1.8		{q10-q11}, [DATA]!
 	  veor		q7, q7, q15	// v[14..15] = IV[6..7] ^ f[0..1]
-	vld1.8		{q12-q13}, [BLOCK]!
+	vld1.8		{q12-q13}, [DATA]!
 	vst1.8		{q8-q9}, [sp, :256]
-	  mov		ip, STATE
-	vld1.8		{q14-q15}, [BLOCK]!
+	  mov		ip, CTX
+	vld1.8		{q14-q15}, [DATA]!
 
 	// Execute the rounds.  Each round is provided the order in which it
 	// needs to use the message words.
@@ -319,7 +322,7 @@ ENTRY(blake2b_compress_neon)
 	veor		q3, q3, q7		// v[6..7] ^= v[14..15]
 	veor		q0, q0, q8		// v[0..1] ^= h[0..1]
 	veor		q1, q1, q9		// v[2..3] ^= h[2..3]
-	  mov		ip, STATE
+	  mov		ip, CTX
 	  subs		NBLOCKS, NBLOCKS, #1	// nblocks--
 	  vst1.64	{q0-q1}, [ip]!		// Store new h[0..3]
 	veor		q2, q2, q10		// v[4..5] ^= h[4..5]

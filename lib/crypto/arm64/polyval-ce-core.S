@@ -27,10 +27,10 @@
 #include <linux/linkage.h>
 #define STRIDE_BLOCKS 8
 
-KEY_POWERS	.req	x0
-MSG		.req	x1
-BLOCKS_LEFT	.req	x2
-ACCUMULATOR	.req	x3
+ACCUMULATOR	.req	x0
+KEY_POWERS	.req	x1
+MSG		.req	x2
+BLOCKS_LEFT	.req	x3
 KEY_START	.req	x10
 EXTRA_BYTES	.req	x11
 TMP	.req	x13
@@ -300,15 +300,12 @@ GSTAR	.req	v24
 .endm
 
 /*
- * Perform montgomery multiplication in GF(2^128) and store result in op1.
+ * Computes a = a * b * x^{-128} mod x^128 + x^127 + x^126 + x^121 + 1.
  *
- * Computes op1*op2*x^{-128} mod x^128 + x^127 + x^126 + x^121 + 1
- * If op1, op2 are in montgomery form, this computes the montgomery
- * form of op1*op2.
- *
- * void pmull_polyval_mul(u8 *op1, const u8 *op2);
+ * void polyval_mul_pmull(struct polyval_elem *a,
+ *			  const struct polyval_elem *b);
  */
-SYM_FUNC_START(pmull_polyval_mul)
+SYM_FUNC_START(polyval_mul_pmull)
 	adr	TMP, .Lgstar
 	ld1	{GSTAR.2d}, [TMP]
 	ld1	{v0.16b}, [x0]
@@ -318,22 +315,23 @@ SYM_FUNC_START(pmull_polyval_mul)
 	montgomery_reduction SUM
 	st1	{SUM.16b}, [x0]
 	ret
-SYM_FUNC_END(pmull_polyval_mul)
+SYM_FUNC_END(polyval_mul_pmull)
 
 /*
  * Perform polynomial evaluation as specified by POLYVAL.  This computes:
  *	h^n * accumulator + h^n * m_0 + ... + h^1 * m_{n-1}
  * where n=nblocks, h is the hash key, and m_i are the message blocks.
  *
- * x0 - pointer to precomputed key powers h^8 ... h^1
- * x1 - pointer to message blocks
- * x2 - number of blocks to hash
- * x3 - pointer to accumulator
+ * x0 - pointer to accumulator
+ * x1 - pointer to precomputed key powers h^8 ... h^1
+ * x2 - pointer to message blocks
+ * x3 - number of blocks to hash
  *
- * void pmull_polyval_update(const struct polyval_ctx *ctx, const u8 *in,
- *			     size_t nblocks, u8 *accumulator);
+ * void polyval_blocks_pmull(struct polyval_elem *acc,
+ *			     const struct polyval_key *key,
+ *			     const u8 *data, size_t nblocks);
  */
-SYM_FUNC_START(pmull_polyval_update)
+SYM_FUNC_START(polyval_blocks_pmull)
 	adr	TMP, .Lgstar
 	mov	KEY_START, KEY_POWERS
 	ld1	{GSTAR.2d}, [TMP]
@@ -358,4 +356,4 @@ SYM_FUNC_START(pmull_polyval_update)
 .LskipPartial:
 	st1	{SUM.16b}, [ACCUMULATOR]
 	ret
-SYM_FUNC_END(pmull_polyval_update)
+SYM_FUNC_END(polyval_blocks_pmull)
