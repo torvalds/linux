@@ -365,9 +365,9 @@ static int adi_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	return 0;
 }
 
-static int adi_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
-				     struct i3c_priv_xfer *xfers,
-				     int nxfers)
+static int adi_i3c_master_i3c_xfers(struct i3c_dev_desc *dev,
+				    struct i3c_xfer *xfers,
+				    int nxfers, enum i3c_xfer_mode mode)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct adi_i3c_master *master = to_adi_i3c_master(m);
@@ -919,7 +919,7 @@ static const struct i3c_master_controller_ops adi_i3c_master_ops = {
 	.do_daa = adi_i3c_master_do_daa,
 	.supports_ccc_cmd = adi_i3c_master_supports_ccc_cmd,
 	.send_ccc_cmd = adi_i3c_master_send_ccc_cmd,
-	.priv_xfers = adi_i3c_master_priv_xfers,
+	.i3c_xfers = adi_i3c_master_i3c_xfers,
 	.i2c_xfers = adi_i3c_master_i2c_xfers,
 	.request_ibi = adi_i3c_master_request_ibi,
 	.enable_ibi = adi_i3c_master_enable_ibi,
