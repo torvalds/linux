@@ -16,6 +16,17 @@ test_default_stat() {
   echo "Basic stat command test [Success]"
 }
 
+test_null_stat() {
+  echo "Null stat command test"
+  if ! perf stat --null true 2>&1 | grep -E -q "Performance counter stats for 'true':"
+  then
+    echo "Null stat command test [Failed]"
+    err=1
+    return
+  fi
+  echo "Null stat command test [Success]"
+}
+
 test_stat_record_report() {
   echo "stat record and report test"
   if ! perf stat record -e task-clock -o - true | perf stat report -i - 2>&1 | \
@@ -212,6 +223,7 @@ test_hybrid() {
 }
 
 test_default_stat
+test_null_stat
 test_stat_record_report
 test_stat_record_script
 test_stat_repeat_weak_groups
