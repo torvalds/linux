@@ -90,7 +90,7 @@ static void update_pm_runtime_accounting(struct device *dev)
 	/*
 	 * Because ktime_get_mono_fast_ns() is not monotonic during
 	 * timekeeping updates, ensure that 'now' is after the last saved
-	 * timesptamp.
+	 * timestamp.
 	 */
 	if (now < last)
 		return;
@@ -217,7 +217,7 @@ static int dev_memalloc_noio(struct device *dev, void *data)
  *     resume/suspend callback of any one of its ancestors(or the
  *     block device itself), the deadlock may be triggered inside the
  *     memory allocation since it might not complete until the block
- *     device becomes active and the involed page I/O finishes. The
+ *     device becomes active and the involved page I/O finishes. The
  *     situation is pointed out first by Alan Stern. Network device
  *     are involved in iSCSI kind of situation.
  *
@@ -1210,7 +1210,7 @@ EXPORT_SYMBOL_GPL(__pm_runtime_resume);
  *
  * Otherwise, if its runtime PM status is %RPM_ACTIVE and (1) @ign_usage_count
  * is set, or (2) @dev is not ignoring children and its active child count is
- * nonero, or (3) the runtime PM usage counter of @dev is not zero, increment
+ * nonzero, or (3) the runtime PM usage counter of @dev is not zero, increment
  * the usage counter of @dev and return 1.
  *
  * Otherwise, return 0 without changing the usage counter.
@@ -1664,9 +1664,12 @@ EXPORT_SYMBOL_GPL(devm_pm_runtime_get_noresume);
  * pm_runtime_forbid - Block runtime PM of a device.
  * @dev: Device to handle.
  *
- * Increase the device's usage count and clear its power.runtime_auto flag,
- * so that it cannot be suspended at run time until pm_runtime_allow() is called
- * for it.
+ * Resume @dev if already suspended and block runtime suspend of @dev in such
+ * a way that it can be unblocked via the /sys/devices/.../power/control
+ * interface, or otherwise by calling pm_runtime_allow().
+ *
+ * Calling this function many times in a row has the same effect as calling it
+ * once.
  */
 void pm_runtime_forbid(struct device *dev)
 {
@@ -1687,7 +1690,13 @@ EXPORT_SYMBOL_GPL(pm_runtime_forbid);
  * pm_runtime_allow - Unblock runtime PM of a device.
  * @dev: Device to handle.
  *
- * Decrease the device's usage count and set its power.runtime_auto flag.
+ * Unblock runtime suspend of @dev after it has been blocked by
+ * pm_runtime_forbid() (for instance, if it has been blocked via the
+ * /sys/devices/.../power/control interface), check if @dev can be
+ * suspended and suspend it in that case.
+ *
+ * Calling this function many times in a row has the same effect as calling it
+ * once.
  */
 void pm_runtime_allow(struct device *dev)
 {

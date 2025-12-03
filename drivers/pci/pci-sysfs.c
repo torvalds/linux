@@ -1517,8 +1517,8 @@ static ssize_t reset_method_store(struct device *dev,
 		return count;
 	}
 
-	ACQUIRE(pm_runtime_active_try, pm)(dev);
-	if (ACQUIRE_ERR(pm_runtime_active_try, &pm))
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
 		return -ENXIO;
 
 	if (sysfs_streq(buf, "default")) {

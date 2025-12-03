@@ -4,9 +4,13 @@
  */
 
 #include <linux/cpuidle.h>
+#include <linux/export.h>
+#include <linux/irqflags.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/idle.h>
+#include <linux/sprintf.h>
+#include <linux/types.h>
 
 #define POLL_IDLE_RELAX_COUNT	200
 
