@@ -588,13 +588,23 @@ static int panthor_mmu_as_enable(struct panthor_device *ptdev, u32 as_nr,
 static int panthor_mmu_as_disable(struct panthor_device *ptdev, u32 as_nr,
 				  bool recycle_slot)
 {
+	struct panthor_vm *vm = ptdev->mmu->as.slots[as_nr].vm;
 	int ret;
+
+	lockdep_assert_held(&ptdev->mmu->as.slots_lock);
 
 	/* Flush+invalidate RW caches, invalidate RO ones. */
 	ret = panthor_gpu_flush_caches(ptdev, CACHE_CLEAN | CACHE_INV,
 				       CACHE_CLEAN | CACHE_INV, CACHE_INV);
 	if (ret)
 		return ret;
+
+	if (vm && vm->locked_region.size) {
+		/* Unlock the region if there's a lock pending. */
+		ret = as_send_cmd_and_wait(ptdev, vm->as.id, AS_COMMAND_UNLOCK);
+		if (ret)
+			return ret;
+	}
 
 	/* If the slot is going to be used immediately, don't bother changing
 	 * the config.
