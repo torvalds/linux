@@ -77,6 +77,10 @@ gpio_shared_find_entry(struct fwnode_handle *controller_node,
 /* Handle all special nodes that we should ignore. */
 static bool gpio_shared_of_node_ignore(struct device_node *node)
 {
+	/* Ignore disabled devices. */
+	if (!of_device_is_available(node))
+		return true;
+
 	/*
 	 * __symbols__ is a special, internal node and should not be considered
 	 * when scanning for shared GPIOs.
