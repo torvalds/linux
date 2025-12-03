@@ -72,6 +72,7 @@ do { \
 
 struct mshv_mem_region {
 	struct hlist_node hnode;
+	struct kref refcount;
 	u64 nr_pages;
 	u64 start_gfn;
 	u64 start_uaddr;
@@ -97,6 +98,8 @@ struct mshv_partition {
 	u64 pt_id;
 	refcount_t pt_ref_count;
 	struct mutex pt_mutex;
+
+	spinlock_t pt_mem_regions_lock;
 	struct hlist_head pt_mem_regions; // not ordered
 
 	u32 pt_vp_count;
@@ -319,6 +322,7 @@ int mshv_region_unshare(struct mshv_mem_region *region);
 int mshv_region_map(struct mshv_mem_region *region);
 void mshv_region_invalidate(struct mshv_mem_region *region);
 int mshv_region_pin(struct mshv_mem_region *region);
-void mshv_region_destroy(struct mshv_mem_region *region);
+void mshv_region_put(struct mshv_mem_region *region);
+int mshv_region_get(struct mshv_mem_region *region);
 
 #endif /* _MSHV_ROOT_H_ */

@@ -7,6 +7,7 @@
  * Authors: Microsoft Linux virtualization team
  */
 
+#include <linux/kref.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 
@@ -153,6 +154,8 @@ struct mshv_mem_region *mshv_region_create(u64 guest_pfn, u64 nr_pages,
 
 	if (!is_mmio)
 		region->flags.range_pinned = true;
+
+	kref_init(&region->refcount);
 
 	return region;
 }
@@ -311,12 +314,12 @@ static int mshv_region_unmap(struct mshv_mem_region *region)
 					 mshv_region_chunk_unmap);
 }
 
-void mshv_region_destroy(struct mshv_mem_region *region)
+static void mshv_region_destroy(struct kref *ref)
 {
+	struct mshv_mem_region *region =
+		container_of(ref, struct mshv_mem_region, refcount);
 	struct mshv_partition *partition = region->partition;
 	int ret;
-
-	hlist_del(&region->hnode);
 
 	if (mshv_partition_encrypted(partition)) {
 		ret = mshv_region_share(region);
@@ -333,4 +336,14 @@ void mshv_region_destroy(struct mshv_mem_region *region)
 	mshv_region_invalidate(region);
 
 	vfree(region);
+}
+
+void mshv_region_put(struct mshv_mem_region *region)
+{
+	kref_put(&region->refcount, mshv_region_destroy);
+}
+
+int mshv_region_get(struct mshv_mem_region *region)
+{
+	return kref_get_unless_zero(&region->refcount);
 }
