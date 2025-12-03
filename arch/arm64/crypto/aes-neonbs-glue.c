@@ -312,13 +312,13 @@ static int __xts_crypt(struct skcipher_request *req, bool encrypt,
 	if (err)
 		return err;
 
-	while (walk.nbytes >= AES_BLOCK_SIZE) {
-		int blocks = (walk.nbytes / AES_BLOCK_SIZE) & ~7;
-		out = walk.dst.virt.addr;
-		in = walk.src.virt.addr;
-		nbytes = walk.nbytes;
+	scoped_ksimd() {
+		while (walk.nbytes >= AES_BLOCK_SIZE) {
+			int blocks = (walk.nbytes / AES_BLOCK_SIZE) & ~7;
+			out = walk.dst.virt.addr;
+			in = walk.src.virt.addr;
+			nbytes = walk.nbytes;
 
-		scoped_ksimd() {
 			if (blocks >= 8) {
 				if (first == 1)
 					neon_aes_ecb_encrypt(walk.iv, walk.iv,
@@ -344,30 +344,28 @@ static int __xts_crypt(struct skcipher_request *req, bool encrypt,
 							     ctx->twkey, walk.iv, first);
 				nbytes = first = 0;
 			}
+			err = skcipher_walk_done(&walk, nbytes);
 		}
-		err = skcipher_walk_done(&walk, nbytes);
-	}
 
-	if (err || likely(!tail))
-		return err;
+		if (err || likely(!tail))
+			return err;
 
-	/* handle ciphertext stealing */
-	dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
-	if (req->dst != req->src)
-		dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
+		/* handle ciphertext stealing */
+		dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
+		if (req->dst != req->src)
+			dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
 
-	skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
-				   req->iv);
+		skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+					   req->iv);
 
-	err = skcipher_walk_virt(&walk, req, false);
-	if (err)
-		return err;
+		err = skcipher_walk_virt(&walk, req, false);
+		if (err)
+			return err;
 
-	out = walk.dst.virt.addr;
-	in = walk.src.virt.addr;
-	nbytes = walk.nbytes;
+		out = walk.dst.virt.addr;
+		in = walk.src.virt.addr;
+		nbytes = walk.nbytes;
 
-	scoped_ksimd() {
 		if (encrypt)
 			neon_aes_xts_encrypt(out, in, ctx->cts.key_enc,
 					     ctx->key.rounds, nbytes, ctx->twkey,
