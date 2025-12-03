@@ -32,6 +32,8 @@
 #include "intel_display_utils.h"
 #include "intel_dsb.h"
 #include "intel_vrr.h"
+#include "skl_universal_plane.h"
+#include "skl_universal_plane_regs.h"
 
 struct intel_color_funcs {
 	int (*color_check)(struct intel_atomic_state *state,
@@ -3842,6 +3844,101 @@ static void icl_read_luts(struct intel_crtc_state *crtc_state)
 	}
 }
 
+static void
+xelpd_load_plane_csc_matrix(struct intel_dsb *dsb,
+			    const struct intel_plane_state *plane_state)
+{
+	struct intel_display *display = to_intel_display(plane_state);
+	const struct drm_plane_state *state = &plane_state->uapi;
+	enum pipe pipe = to_intel_plane(state->plane)->pipe;
+	enum plane_id plane = to_intel_plane(state->plane)->id;
+	const struct drm_property_blob *blob = plane_state->hw.ctm;
+	struct drm_color_ctm_3x4 *ctm;
+	const u64 *input;
+	u16 coeffs[9] = {};
+	int i, j;
+
+	if (!icl_is_hdr_plane(display, plane) || !blob)
+		return;
+
+	ctm = blob->data;
+	input = ctm->matrix;
+
+	/*
+	 * Convert fixed point S31.32 input to format supported by the
+	 * hardware.
+	 */
+	for (i = 0, j = 0; i < ARRAY_SIZE(coeffs); i++) {
+		u64 abs_coeff = ((1ULL << 63) - 1) & input[j];
+
+		/*
+		 * Clamp input value to min/max supported by
+		 * hardware.
+		 */
+		abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_4_0 - 1);
+
+		/* sign bit */
+		if (CTM_COEFF_NEGATIVE(input[j]))
+			coeffs[i] |= 1 << 15;
+
+		if (abs_coeff < CTM_COEFF_0_125)
+			coeffs[i] |= (3 << 12) |
+				      ILK_CSC_COEFF_FP(abs_coeff, 12);
+		else if (abs_coeff < CTM_COEFF_0_25)
+			coeffs[i] |= (2 << 12) |
+				      ILK_CSC_COEFF_FP(abs_coeff, 11);
+		else if (abs_coeff < CTM_COEFF_0_5)
+			coeffs[i] |= (1 << 12) |
+				      ILK_CSC_COEFF_FP(abs_coeff, 10);
+		else if (abs_coeff < CTM_COEFF_1_0)
+			coeffs[i] |= ILK_CSC_COEFF_FP(abs_coeff, 9);
+		else if (abs_coeff < CTM_COEFF_2_0)
+			coeffs[i] |= (7 << 12) |
+				      ILK_CSC_COEFF_FP(abs_coeff, 8);
+		else
+			coeffs[i] |= (6 << 12) |
+				      ILK_CSC_COEFF_FP(abs_coeff, 7);
+
+		/* Skip postoffs */
+		if (!((j + 2) % 4))
+			j += 2;
+		else
+			j++;
+	}
+
+	intel_de_write_dsb(display, dsb, PLANE_CSC_COEFF(pipe, plane, 0),
+			   coeffs[0] << 16 | coeffs[1]);
+	intel_de_write_dsb(display, dsb, PLANE_CSC_COEFF(pipe, plane, 1),
+			   coeffs[2] << 16);
+
+	intel_de_write_dsb(display, dsb, PLANE_CSC_COEFF(pipe, plane, 2),
+			   coeffs[3] << 16 | coeffs[4]);
+	intel_de_write_dsb(display, dsb, PLANE_CSC_COEFF(pipe, plane, 3),
+			   coeffs[5] << 16);
+
+	intel_de_write_dsb(display, dsb, PLANE_CSC_COEFF(pipe, plane, 4),
+			   coeffs[6] << 16 | coeffs[7]);
+	intel_de_write_dsb(display, dsb, PLANE_CSC_COEFF(pipe, plane, 5),
+			   coeffs[8] << 16);
+
+	intel_de_write_dsb(display, dsb, PLANE_CSC_PREOFF(pipe, plane, 0), 0);
+	intel_de_write_dsb(display, dsb, PLANE_CSC_PREOFF(pipe, plane, 1), 0);
+	intel_de_write_dsb(display, dsb, PLANE_CSC_PREOFF(pipe, plane, 2), 0);
+
+	/*
+	 * Conversion from S31.32 to S0.12. BIT[12] is the signed bit
+	 */
+	intel_de_write_dsb(display, dsb,
+			   PLANE_CSC_POSTOFF(pipe, plane, 0),
+			   ctm_to_twos_complement(input[3], 0, 12));
+	intel_de_write_dsb(display, dsb,
+			   PLANE_CSC_POSTOFF(pipe, plane, 1),
+			   ctm_to_twos_complement(input[7], 0, 12));
+	intel_de_write_dsb(display, dsb,
+			   PLANE_CSC_POSTOFF(pipe, plane, 2),
+			   ctm_to_twos_complement(input[11], 0, 12));
+}
+
 static const struct intel_color_funcs chv_color_funcs = {
 	.color_check = chv_color_check,
 	.color_commit_arm = i9xx_color_commit_arm,
@@ -3889,6 +3986,7 @@ static const struct intel_color_funcs tgl_color_funcs = {
 	.lut_equal = icl_lut_equal,
 	.read_csc = icl_read_csc,
 	.get_config = skl_get_config,
+	.load_plane_csc_matrix = xelpd_load_plane_csc_matrix,
 };
 
 static const struct intel_color_funcs icl_color_funcs = {
