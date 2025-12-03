@@ -132,7 +132,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	audio_codec: wm8962@1a {
+	wm8962: audio-codec@1a {
 		compatible = "wlf,wm8962";
 		reg = <0x1a>;
 		clocks = <&clk IMX93_CLK_SAI3_GATE>;
