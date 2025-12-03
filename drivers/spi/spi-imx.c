@@ -1445,6 +1445,7 @@ static int spi_imx_dma_submit(struct spi_imx_data *spi_imx,
 	struct dma_async_tx_descriptor *desc_tx, *desc_rx;
 	unsigned long transfer_timeout;
 	unsigned long time_left;
+	dma_cookie_t cookie;
 
 	/*
 	 * The TX DMA setup starts the transfer, so make sure RX is configured
@@ -1460,21 +1461,29 @@ static int spi_imx_dma_submit(struct spi_imx_data *spi_imx,
 
 	desc_rx->callback = spi_imx_dma_rx_callback;
 	desc_rx->callback_param = (void *)spi_imx;
-	dmaengine_submit(desc_rx);
+	cookie = dmaengine_submit(desc_rx);
+	if (dma_submit_error(cookie)) {
+		dev_err(spi_imx->dev, "submitting DMA RX failed\n");
+		transfer->error |= SPI_TRANS_FAIL_NO_START;
+		goto dmaengine_terminate_rx;
+	}
+
 	reinit_completion(&spi_imx->dma_rx_completion);
 	dma_async_issue_pending(controller->dma_rx);
 
 	desc_tx = dmaengine_prep_slave_sg(controller->dma_tx,
 					  tx->sgl, tx->nents, DMA_MEM_TO_DEV,
 					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc_tx) {
-		dmaengine_terminate_all(controller->dma_rx);
-		return -EINVAL;
-	}
+	if (!desc_tx)
+		goto dmaengine_terminate_rx;
 
 	desc_tx->callback = spi_imx_dma_tx_callback;
 	desc_tx->callback_param = (void *)spi_imx;
-	dmaengine_submit(desc_tx);
+	cookie = dmaengine_submit(desc_tx);
+	if (dma_submit_error(cookie)) {
+		dev_err(spi_imx->dev, "submitting DMA TX failed\n");
+		goto dmaengine_terminate_tx;
+	}
 	reinit_completion(&spi_imx->dma_tx_completion);
 	dma_async_issue_pending(controller->dma_tx);
 
@@ -1502,6 +1511,13 @@ static int spi_imx_dma_submit(struct spi_imx_data *spi_imx,
 	}
 
 	return 0;
+
+dmaengine_terminate_tx:
+	dmaengine_terminate_all(controller->dma_tx);
+dmaengine_terminate_rx:
+	dmaengine_terminate_all(controller->dma_rx);
+
+	return -EINVAL;
 }
 
 static void spi_imx_dma_max_wml_find(struct spi_imx_data *spi_imx,
