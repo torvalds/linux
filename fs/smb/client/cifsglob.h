@@ -745,6 +745,7 @@ struct TCP_Server_Info {
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	unsigned long neg_start; /* when negotiate started (jiffies) */
+	unsigned long reconn_delay; /* when resched session and tcon reconnect */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
 #define	CIFS_NEGFLAVOR_UNENCAP	1	/* wct == 17, but no ext_sec */
 #define	CIFS_NEGFLAVOR_EXTENDED	2	/* wct == 17, ext_sec bit set */
@@ -2291,5 +2292,25 @@ struct cifs_calc_sig_ctx {
 	struct hmac_sha256_ctx *hmac;
 	struct shash_desc *shash;
 };
+
+#define CIFS_RECONN_DELAY_SECS	30
+#define CIFS_MAX_RECONN_DELAY	(4 * CIFS_RECONN_DELAY_SECS)
+
+static inline void cifs_queue_server_reconn(struct TCP_Server_Info *server)
+{
+	if (!delayed_work_pending(&server->reconnect)) {
+		WRITE_ONCE(server->reconn_delay, 0);
+		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
+	}
+}
+
+static inline void cifs_requeue_server_reconn(struct TCP_Server_Info *server)
+{
+	unsigned long delay = READ_ONCE(server->reconn_delay);
+
+	delay = umin(delay + CIFS_RECONN_DELAY_SECS, CIFS_MAX_RECONN_DELAY);
+	WRITE_ONCE(server->reconn_delay, delay);
+	queue_delayed_work(cifsiod_wq, &server->reconnect, delay * HZ);
+}
 
 #endif	/* _CIFS_GLOB_H */
