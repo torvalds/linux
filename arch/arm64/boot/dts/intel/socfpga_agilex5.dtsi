@@ -568,6 +568,7 @@
 			snps,tso;
 			altr,sysmgr-syscon = <&sysmgr 0x44 0>;
 			snps,clk-csr = <0>;
+			iommus = <&smmu 1>;
 			status = "disabled";
 
 			stmmac_axi_emac0_setup: stmmac-axi-config {
@@ -680,6 +681,7 @@
 			snps,tso;
 			altr,sysmgr-syscon = <&sysmgr 0x48 0>;
 			snps,clk-csr = <0>;
+			iommus = <&smmu 2>;
 			status = "disabled";
 
 			stmmac_axi_emac1_setup: stmmac-axi-config {
@@ -792,6 +794,7 @@
 			snps,tso;
 			altr,sysmgr-syscon = <&sysmgr 0x4c 0>;
 			snps,clk-csr = <0>;
+			iommus = <&smmu 3>;
 			status = "disabled";
 
 			stmmac_axi_emac2_setup: stmmac-axi-config {
