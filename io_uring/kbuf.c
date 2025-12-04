@@ -44,7 +44,7 @@ static bool io_kbuf_inc_commit(struct io_buffer_list *bl, int len)
 		buf_len -= this_len;
 		/* Stop looping for invalid buffer length of 0 */
 		if (buf_len || !this_len) {
-			buf->addr += this_len;
+			buf->addr = READ_ONCE(buf->addr) + this_len;
 			buf->len = buf_len;
 			return false;
 		}
@@ -198,9 +198,9 @@ static struct io_br_sel io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 	if (*len == 0 || *len > buf_len)
 		*len = buf_len;
 	req->flags |= REQ_F_BUFFER_RING | REQ_F_BUFFERS_COMMIT;
-	req->buf_index = buf->bid;
+	req->buf_index = READ_ONCE(buf->bid);
 	sel.buf_list = bl;
-	sel.addr = u64_to_user_ptr(buf->addr);
+	sel.addr = u64_to_user_ptr(READ_ONCE(buf->addr));
 
 	if (io_should_commit(req, issue_flags)) {
 		io_kbuf_commit(req, sel.buf_list, *len, 1);
@@ -280,7 +280,7 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 	if (!arg->max_len)
 		arg->max_len = INT_MAX;
 
-	req->buf_index = buf->bid;
+	req->buf_index = READ_ONCE(buf->bid);
 	do {
 		u32 len = READ_ONCE(buf->len);
 
@@ -295,7 +295,7 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 			}
 		}
 
-		iov->iov_base = u64_to_user_ptr(buf->addr);
+		iov->iov_base = u64_to_user_ptr(READ_ONCE(buf->addr));
 		iov->iov_len = len;
 		iov++;
 
