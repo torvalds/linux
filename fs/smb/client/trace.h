@@ -1692,6 +1692,49 @@ DEFINE_SMB3_CREDIT_EVENT(waitff_credits);
 DEFINE_SMB3_CREDIT_EVENT(overflow_credits);
 DEFINE_SMB3_CREDIT_EVENT(set_credits);
 
+TRACE_EVENT(smb3_kerberos_auth,
+		TP_PROTO(struct TCP_Server_Info *server,
+			 struct cifs_ses *ses,
+			 int rc),
+		TP_ARGS(server, ses, rc),
+		TP_STRUCT__entry(
+			__field(pid_t, pid)
+			__field(uid_t, uid)
+			__field(uid_t, cruid)
+			__string(host, server->hostname)
+			__string(user, ses->user_name)
+			__array(__u8, addr, sizeof(struct sockaddr_storage))
+			__array(char, sec, sizeof("ntlmsspi"))
+			__array(char, upcall_target, sizeof("mount"))
+			__field(int, rc)
+		),
+		TP_fast_assign(
+			__entry->pid = current->pid;
+			__entry->uid = from_kuid_munged(&init_user_ns, ses->linux_uid);
+			__entry->cruid = from_kuid_munged(&init_user_ns, ses->cred_uid);
+			__assign_str(host);
+			__assign_str(user);
+			memcpy(__entry->addr, &server->dstaddr, sizeof(__entry->addr));
+
+			if (server->sec_kerberos)
+				memcpy(__entry->sec, "krb5", sizeof("krb5"));
+			else if (server->sec_mskerberos)
+				memcpy(__entry->sec, "mskrb5", sizeof("mskrb5"));
+			else if (server->sec_iakerb)
+				memcpy(__entry->sec, "iakerb", sizeof("iakerb"));
+			else
+				memcpy(__entry->sec, "krb5", sizeof("krb5"));
+
+			if (ses->upcall_target == UPTARGET_MOUNT)
+				memcpy(__entry->upcall_target, "mount", sizeof("mount"));
+			else
+				memcpy(__entry->upcall_target, "app", sizeof("app"));
+			__entry->rc = rc;
+		),
+		TP_printk("vers=%d host=%s ip=%pISpsfc sec=%s uid=%d cruid=%d user=%s pid=%d upcall_target=%s err=%d",
+			  CIFS_SPNEGO_UPCALL_VERSION, __get_str(host), __entry->addr,
+			  __entry->sec, __entry->uid, __entry->cruid, __get_str(user),
+			  __entry->pid, __entry->upcall_target, __entry->rc))
 
 TRACE_EVENT(smb3_tcon_ref,
 	    TP_PROTO(unsigned int tcon_debug_id, int ref,
