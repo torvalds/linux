@@ -6048,7 +6048,15 @@ intel_dp_detect(struct drm_connector *_connector,
 
 	if (status == connector_status_disconnected) {
 		intel_dp_test_reset(intel_dp);
+		/*
+		 * FIXME: Resetting these caps here cause
+		 * state computation fail if the connector need to be
+		 * modeset after sink disconnect. Move resetting them
+		 * to where new sink is connected.
+		 */
 		memset(connector->dp.dsc_dpcd, 0, sizeof(connector->dp.dsc_dpcd));
+		memset(connector->dp.panel_replay_caps.dpcd, 0,
+		       sizeof(connector->dp.panel_replay_caps.dpcd));
 		intel_dp->psr.sink_panel_replay_support = false;
 		intel_dp->psr.sink_panel_replay_su_support = false;
 		intel_dp->psr.sink_panel_replay_dsc_support =
