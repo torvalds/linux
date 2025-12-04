@@ -995,6 +995,8 @@ patternProperties:
     description: Mustek Limited
   "^mediatek,.*":
     description: MediaTek Inc.
+  "^medion,.*":
+    description: Medion AG
   "^megachips,.*":
     description: MegaChips
   "^mele,.*":
