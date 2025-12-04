@@ -4307,7 +4307,7 @@ F:	Documentation/filesystems/befs.rst
 F:	fs/befs/
 
 BFQ I/O SCHEDULER
-M:	Yu Kuai <yukuai3@huawei.com>
+M:	Yu Kuai <yukuai@fnnas.com>
 L:	linux-block@vger.kernel.org
 S:	Odd Fixes
 F:	Documentation/block/bfq-iosched.rst
@@ -4407,6 +4407,8 @@ F:	block/
 F:	drivers/block/
 F:	include/linux/bio.h
 F:	include/linux/blk*
+F:	include/uapi/linux/blk*
+F:	include/uapi/linux/ioprio.h
 F:	kernel/trace/blktrace.c
 F:	lib/sbitmap.c
 
@@ -23908,7 +23910,7 @@ F:	include/linux/property.h
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
 M:	Song Liu <song@kernel.org>
-M:	Yu Kuai <yukuai3@huawei.com>
+M:	Yu Kuai <yukuai@fnnas.com>
 L:	linux-raid@vger.kernel.org
 S:	Supported
 Q:	https://patchwork.kernel.org/project/linux-raid/list/
@@ -28370,6 +28372,13 @@ M:	Tony W Wang-oc <TonyWWang-oc@zhaoxin.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	arch/x86/kernel/cpu/zhaoxin.c
+
+ZONED BLOCK DEVICE (BLOCK LAYER)
+M:	Damien Le Moal <dlemoal@kernel.org>
+L:	linux-block@vger.kernel.org
+S:	Maintained
+F:	block/blk-zoned.c
+F:	include/uapi/linux/blkzoned.h
 
 ZONED LOOP DEVICE
 M:	Damien Le Moal <dlemoal@kernel.org>

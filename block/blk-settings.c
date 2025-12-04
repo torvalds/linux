@@ -123,6 +123,19 @@ static int blk_validate_zoned_limits(struct queue_limits *lim)
 	return 0;
 }
 
+/*
+ * Maximum size of I/O that needs a block layer integrity buffer.  Limited
+ * by the number of intervals for which we can fit the integrity buffer into
+ * the buffer size.  Because the buffer is a single segment it is also limited
+ * by the maximum segment size.
+ */
+static inline unsigned int max_integrity_io_size(struct queue_limits *lim)
+{
+	return min_t(unsigned int, lim->max_segment_size,
+		(BLK_INTEGRITY_MAX_SIZE / lim->integrity.metadata_size) <<
+			lim->integrity.interval_exp);
+}
+
 static int blk_validate_integrity_limits(struct queue_limits *lim)
 {
 	struct blk_integrity *bi = &lim->integrity;
@@ -193,6 +206,14 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 		lim->dma_alignment = max(lim->dma_alignment,
 					(1U << bi->interval_exp) - 1);
 	}
+
+	/*
+	 * The block layer automatically adds integrity data for bios that don't
+	 * already have it.  Limit the I/O size so that a single maximum size
+	 * metadata segment can cover the integrity data for the entire I/O.
+	 */
+	lim->max_sectors = min(lim->max_sectors,
+		max_integrity_io_size(lim) >> SECTOR_SHIFT);
 
 	return 0;
 }
@@ -467,12 +488,12 @@ int blk_validate_limits(struct queue_limits *lim)
 			return -EINVAL;
 	}
 
-	/* setup min segment size for building new segment in fast path */
+	/* setup max segment size for building new segment in fast path */
 	if (lim->seg_boundary_mask > lim->max_segment_size - 1)
 		seg_size = lim->max_segment_size;
 	else
 		seg_size = lim->seg_boundary_mask + 1;
-	lim->min_segment_size = min_t(unsigned int, seg_size, PAGE_SIZE);
+	lim->max_fast_segment_size = min_t(unsigned int, seg_size, PAGE_SIZE);
 
 	/*
 	 * We require drivers to at least do logical block aligned I/O, but
@@ -534,6 +555,8 @@ int queue_limits_commit_update(struct request_queue *q,
 		struct queue_limits *lim)
 {
 	int error;
+
+	lockdep_assert_held(&q->limits_lock);
 
 	error = blk_validate_limits(lim);
 	if (error)

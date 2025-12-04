@@ -152,6 +152,14 @@ struct request {
 	unsigned short nr_phys_segments;
 	unsigned short nr_integrity_segments;
 
+	/*
+	 * The lowest set bit for address gaps between physical segments. This
+	 * provides information necessary for dma optimization opprotunities,
+	 * like for testing if the segments can be coalesced against the
+	 * device's iommu granule.
+	 */
+	unsigned char phys_gap_bit;
+
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 	struct bio_crypt_ctx *crypt_ctx;
 	struct blk_crypto_keyslot *crypt_keyslot;
@@ -207,6 +215,14 @@ struct request {
 	rq_end_io_fn *end_io;
 	void *end_io_data;
 };
+
+/*
+ * Returns a mask with all bits starting at req->phys_gap_bit set to 1.
+ */
+static inline unsigned long req_phys_gap_mask(const struct request *req)
+{
+	return ~(((1 << req->phys_gap_bit) >> 1) - 1);
+}
 
 static inline enum req_op req_op(const struct request *req)
 {
@@ -999,8 +1015,20 @@ static inline void *blk_mq_rq_to_pdu(struct request *rq)
 	return rq + 1;
 }
 
+static inline struct blk_mq_hw_ctx *queue_hctx(struct request_queue *q, int id)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	rcu_read_lock();
+	hctx = rcu_dereference(q->queue_hw_ctx)[id];
+	rcu_read_unlock();
+
+	return hctx;
+}
+
 #define queue_for_each_hw_ctx(q, hctx, i)				\
-	xa_for_each(&(q)->hctx_table, (i), (hctx))
+	for ((i) = 0; (i) < (q)->nr_hw_queues &&			\
+	     ({ hctx = queue_hctx((q), i); 1; }); (i)++)
 
 #define hctx_for_each_ctx(hctx, ctx, i)					\
 	for ((i) = 0; (i) < (hctx)->nr_ctx &&				\

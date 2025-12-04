@@ -17,8 +17,7 @@ The latest bcache kernel code can be found from mainline Linux kernel:
 It's designed around the performance characteristics of SSDs - it only allocates
 in erase block sized buckets, and it uses a hybrid btree/log to track cached
 extents (which can be anywhere from a single sector to the bucket size). It's
-designed to avoid random writes at all costs; it fills up an erase block
-sequentially, then issues a discard before reusing it.
+designed to avoid random writes at all costs.
 
 Both writethrough and writeback caching are supported. Writeback defaults to
 off, but can be switched on and off arbitrarily at runtime. Bcache goes to
@@ -618,19 +617,11 @@ bucket_size
 cache_replacement_policy
   One of either lru, fifo or random.
 
-discard
-  Boolean; if on a discard/TRIM will be issued to each bucket before it is
-  reused. Defaults to off, since SATA TRIM is an unqueued command (and thus
-  slow).
-
 freelist_percent
   Size of the freelist as a percentage of nbuckets. Can be written to to
   increase the number of buckets kept on the freelist, which lets you
   artificially reduce the size of the cache at runtime. Mostly for testing
-  purposes (i.e. testing how different size caches affect your hit rate), but
-  since buckets are discarded when they move on to the freelist will also make
-  the SSD's garbage collection easier by effectively giving it more reserved
-  space.
+  purposes (i.e. testing how different size caches affect your hit rate).
 
 io_errors
   Number of errors that have occurred, decayed by io_error_halflife.

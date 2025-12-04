@@ -2865,6 +2865,7 @@ static const struct nvme_ctrl_ops nvme_tcp_ctrl_ops = {
 	.delete_ctrl		= nvme_tcp_delete_ctrl,
 	.get_address		= nvme_tcp_get_address,
 	.stop_ctrl		= nvme_tcp_stop_ctrl,
+	.get_virt_boundary	= nvmf_get_virt_boundary,
 };
 
 static bool

@@ -253,6 +253,7 @@ void bio_init(struct bio *bio, struct block_device *bdev, struct bio_vec *table,
 	bio->bi_write_hint = 0;
 	bio->bi_write_stream = 0;
 	bio->bi_status = 0;
+	bio->bi_bvec_gap_bit = 0;
 	bio->bi_iter.bi_sector = 0;
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_idx = 0;

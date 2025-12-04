@@ -207,19 +207,6 @@ static int dasd_state_known_to_new(struct dasd_device *device)
 	return 0;
 }
 
-static struct dentry *dasd_debugfs_setup(const char *name,
-					 struct dentry *base_dentry)
-{
-	struct dentry *pde;
-
-	if (!base_dentry)
-		return NULL;
-	pde = debugfs_create_dir(name, base_dentry);
-	if (!pde || IS_ERR(pde))
-		return NULL;
-	return pde;
-}
-
 /*
  * Request the irq line for the device.
  */
@@ -234,14 +221,14 @@ static int dasd_state_known_to_basic(struct dasd_device *device)
 		if (rc)
 			return rc;
 		block->debugfs_dentry =
-			dasd_debugfs_setup(block->gdp->disk_name,
+			debugfs_create_dir(block->gdp->disk_name,
 					   dasd_debugfs_root_entry);
 		dasd_profile_init(&block->profile, block->debugfs_dentry);
 		if (dasd_global_profile_level == DASD_PROFILE_ON)
 			dasd_profile_on(&device->block->profile);
 	}
 	device->debugfs_dentry =
-		dasd_debugfs_setup(dev_name(&device->cdev->dev),
+		debugfs_create_dir(dev_name(&device->cdev->dev),
 				   dasd_debugfs_root_entry);
 	dasd_profile_init(&device->profile, device->debugfs_dentry);
 	dasd_hosts_init(device->debugfs_dentry, device);
@@ -1057,19 +1044,9 @@ static const struct file_operations dasd_stats_raw_fops = {
 static void dasd_profile_init(struct dasd_profile *profile,
 			      struct dentry *base_dentry)
 {
-	umode_t mode;
-	struct dentry *pde;
-
-	if (!base_dentry)
-		return;
-	profile->dentry = NULL;
 	profile->data = NULL;
-	mode = (S_IRUSR | S_IWUSR | S_IFREG);
-	pde = debugfs_create_file("statistics", mode, base_dentry,
-				  profile, &dasd_stats_raw_fops);
-	if (pde && !IS_ERR(pde))
-		profile->dentry = pde;
-	return;
+	profile->dentry = debugfs_create_file("statistics", 0600, base_dentry,
+					      profile, &dasd_stats_raw_fops);
 }
 
 static void dasd_profile_exit(struct dasd_profile *profile)
@@ -1089,25 +1066,9 @@ static void dasd_statistics_removeroot(void)
 
 static void dasd_statistics_createroot(void)
 {
-	struct dentry *pde;
-
-	dasd_debugfs_root_entry = NULL;
-	pde = debugfs_create_dir("dasd", NULL);
-	if (!pde || IS_ERR(pde))
-		goto error;
-	dasd_debugfs_root_entry = pde;
-	pde = debugfs_create_dir("global", dasd_debugfs_root_entry);
-	if (!pde || IS_ERR(pde))
-		goto error;
-	dasd_debugfs_global_entry = pde;
+	dasd_debugfs_root_entry = debugfs_create_dir("dasd", NULL);
+	dasd_debugfs_global_entry = debugfs_create_dir("global", dasd_debugfs_root_entry);
 	dasd_profile_init(&dasd_global_profile, dasd_debugfs_global_entry);
-	return;
-
-error:
-	DBF_EVENT(DBF_ERR, "%s",
-		  "Creation of the dasd debugfs interface failed");
-	dasd_statistics_removeroot();
-	return;
 }
 
 #else
@@ -1168,17 +1129,8 @@ static void dasd_hosts_exit(struct dasd_device *device)
 static void dasd_hosts_init(struct dentry *base_dentry,
 			    struct dasd_device *device)
 {
-	struct dentry *pde;
-	umode_t mode;
-
-	if (!base_dentry)
-		return;
-
-	mode = S_IRUSR | S_IFREG;
-	pde = debugfs_create_file("host_access_list", mode, base_dentry,
-				  device, &dasd_hosts_fops);
-	if (pde && !IS_ERR(pde))
-		device->hosts_dentry = pde;
+	device->hosts_dentry = debugfs_create_file("host_access_list", 0400, base_dentry,
+						   device, &dasd_hosts_fops);
 }
 
 struct dasd_ccw_req *dasd_smalloc_request(int magic, int cplength, int datasize,

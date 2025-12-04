@@ -79,8 +79,7 @@ static bool blk_map_iter_next(struct request *req, struct blk_map_iter *iter,
 static inline bool blk_can_dma_map_iova(struct request *req,
 		struct device *dma_dev)
 {
-	return !((queue_virt_boundary(req->q) + 1) &
-		dma_get_merge_boundary(dma_dev));
+	return !(req_phys_gap_mask(req) & dma_get_merge_boundary(dma_dev));
 }
 
 static bool blk_dma_map_bus(struct blk_dma_iter *iter, struct phys_vec *vec)
@@ -93,8 +92,13 @@ static bool blk_dma_map_bus(struct blk_dma_iter *iter, struct phys_vec *vec)
 static bool blk_dma_map_direct(struct request *req, struct device *dma_dev,
 		struct blk_dma_iter *iter, struct phys_vec *vec)
 {
-	iter->addr = dma_map_page(dma_dev, phys_to_page(vec->paddr),
-			offset_in_page(vec->paddr), vec->len, rq_dma_dir(req));
+	unsigned int attrs = 0;
+
+	if (iter->p2pdma.map == PCI_P2PDMA_MAP_THRU_HOST_BRIDGE)
+		attrs |= DMA_ATTR_MMIO;
+
+	iter->addr = dma_map_phys(dma_dev, vec->paddr, vec->len,
+			rq_dma_dir(req), attrs);
 	if (dma_mapping_error(dma_dev, iter->addr)) {
 		iter->status = BLK_STS_RESOURCE;
 		return false;
@@ -109,14 +113,18 @@ static bool blk_rq_dma_map_iova(struct request *req, struct device *dma_dev,
 {
 	enum dma_data_direction dir = rq_dma_dir(req);
 	unsigned int mapped = 0;
+	unsigned int attrs = 0;
 	int error;
 
 	iter->addr = state->addr;
 	iter->len = dma_iova_size(state);
 
+	if (iter->p2pdma.map == PCI_P2PDMA_MAP_THRU_HOST_BRIDGE)
+		attrs |= DMA_ATTR_MMIO;
+
 	do {
 		error = dma_iova_link(dma_dev, state, vec->paddr, mapped,
-				vec->len, dir, 0);
+				vec->len, dir, attrs);
 		if (error)
 			break;
 		mapped += vec->len;
@@ -143,7 +151,7 @@ static inline void blk_rq_map_iter_init(struct request *rq,
 				.bi_size = rq->special_vec.bv_len,
 			}
 		};
-       } else if (bio) {
+	} else if (bio) {
 		*iter = (struct blk_map_iter) {
 			.bio = bio,
 			.bvecs = bio->bi_io_vec,
@@ -151,7 +159,7 @@ static inline void blk_rq_map_iter_init(struct request *rq,
 		};
 	} else {
 		/* the internal flush request may not have bio attached */
-	        *iter = (struct blk_map_iter) {};
+		*iter = (struct blk_map_iter) {};
 	}
 }
 
@@ -163,6 +171,7 @@ static bool blk_dma_map_iter_start(struct request *req, struct device *dma_dev,
 
 	memset(&iter->p2pdma, 0, sizeof(iter->p2pdma));
 	iter->status = BLK_STS_OK;
+	iter->p2pdma.map = PCI_P2PDMA_MAP_NONE;
 
 	/*
 	 * Grab the first segment ASAP because we'll need it to check for P2P
@@ -174,10 +183,6 @@ static bool blk_dma_map_iter_start(struct request *req, struct device *dma_dev,
 	switch (pci_p2pdma_state(&iter->p2pdma, dma_dev,
 				 phys_to_page(vec.paddr))) {
 	case PCI_P2PDMA_MAP_BUS_ADDR:
-		if (iter->iter.is_integrity)
-			bio_integrity(req->bio)->bip_flags |= BIP_P2P_DMA;
-		else
-			req->cmd_flags |= REQ_P2PDMA;
 		return blk_dma_map_bus(iter, &vec);
 	case PCI_P2PDMA_MAP_THRU_HOST_BRIDGE:
 		/*
@@ -352,7 +357,7 @@ bool blk_rq_integrity_dma_map_iter_start(struct request *req,
 EXPORT_SYMBOL_GPL(blk_rq_integrity_dma_map_iter_start);
 
 /**
- * blk_rq_integrity_dma_map_iter_start - map the next integrity DMA segment for
+ * blk_rq_integrity_dma_map_iter_next - map the next integrity DMA segment for
  * 					 a request
  * @req:	request to map
  * @dma_dev:	device to map to

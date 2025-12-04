@@ -24,21 +24,18 @@
  * Since the gens and priorities are all stored contiguously on disk, we can
  * batch this up: We fill up the free_inc list with freshly invalidated buckets,
  * call prio_write(), and when prio_write() finishes we pull buckets off the
- * free_inc list and optionally discard them.
+ * free_inc list.
  *
  * free_inc isn't the only freelist - if it was, we'd often to sleep while
  * priorities and gens were being written before we could allocate. c->free is a
  * smaller freelist, and buckets on that list are always ready to be used.
- *
- * If we've got discards enabled, that happens when a bucket moves from the
- * free_inc list to the free list.
  *
  * There is another freelist, because sometimes we have buckets that we know
  * have nothing pointing into them - these we can reuse without waiting for
  * priorities to be rewritten. These come from freed btree nodes and buckets
  * that garbage collection discovered no longer had valid keys pointing into
  * them (because they were overwritten). That's the unused list - buckets on the
- * unused list move to the free list, optionally being discarded in the process.
+ * unused list move to the free list.
  *
  * It's also important to ensure that gens don't wrap around - with respect to
  * either the oldest gen in the btree or the gen on disk. This is quite
@@ -118,8 +115,7 @@ void bch_rescale_priorities(struct cache_set *c, int sectors)
 /*
  * Background allocation thread: scans for buckets to be invalidated,
  * invalidates them, rewrites prios/gens (marking them as invalidated on disk),
- * then optionally issues discard commands to the newly free buckets, then puts
- * them on the various freelists.
+ * then puts them on the various freelists.
  */
 
 static inline bool can_inc_bucket_gen(struct bucket *b)
@@ -321,22 +317,13 @@ static int bch_allocator_thread(void *arg)
 	while (1) {
 		/*
 		 * First, we pull buckets off of the unused and free_inc lists,
-		 * possibly issue discards to them, then we add the bucket to
-		 * the free list:
+		 * then we add the bucket to the free list:
 		 */
 		while (1) {
 			long bucket;
 
 			if (!fifo_pop(&ca->free_inc, bucket))
 				break;
-
-			if (ca->discard) {
-				mutex_unlock(&ca->set->bucket_lock);
-				blkdev_issue_discard(ca->bdev,
-					bucket_to_sector(ca->set, bucket),
-					ca->sb.bucket_size, GFP_KERNEL);
-				mutex_lock(&ca->set->bucket_lock);
-			}
 
 			allocator_wait(ca, bch_allocator_push(ca, bucket));
 			wake_up(&ca->set->btree_cache_wait);
@@ -412,7 +399,11 @@ long bch_bucket_alloc(struct cache *ca, unsigned int reserve, bool wait)
 				TASK_UNINTERRUPTIBLE);
 
 		mutex_unlock(&ca->set->bucket_lock);
+
+		atomic_inc(&ca->set->bucket_wait_cnt);
 		schedule();
+		atomic_dec(&ca->set->bucket_wait_cnt);
+
 		mutex_lock(&ca->set->bucket_lock);
 	} while (!fifo_pop(&ca->free[RESERVE_NONE], r) &&
 		 !fifo_pop(&ca->free[reserve], r));

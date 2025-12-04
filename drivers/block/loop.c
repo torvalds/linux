@@ -1908,6 +1908,10 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 		goto failed;
 	}
 
+	/* We can block in this context, so ignore REQ_NOWAIT. */
+	if (rq->cmd_flags & REQ_NOWAIT)
+		rq->cmd_flags &= ~REQ_NOWAIT;
+
 	if (cmd_blkcg_css)
 		kthread_associate_blkcg(cmd_blkcg_css);
 	if (cmd_memcg_css)
