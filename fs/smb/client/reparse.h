@@ -93,7 +93,7 @@ static inline bool reparse_inode_match(struct inode *inode,
 	if (cinode->reparse_tag != IO_REPARSE_TAG_INTERNAL &&
 	    cinode->reparse_tag != fattr->cf_cifstag)
 		return false;
-	return (cinode->cifsAttrs & ATTR_REPARSE) &&
+	return (cinode->cifsAttrs & ATTR_REPARSE_POINT) &&
 		timespec64_equal(&ctime, &fattr->cf_ctime);
 }
 
@@ -107,7 +107,7 @@ static inline bool cifs_open_data_reparse(struct cifs_open_info_data *data)
 
 		attrs = le32_to_cpu(fi->DosAttributes);
 		if (data->reparse_point) {
-			attrs |= ATTR_REPARSE;
+			attrs |= ATTR_REPARSE_POINT;
 			fi->DosAttributes = cpu_to_le32(attrs);
 		}
 
@@ -116,12 +116,12 @@ static inline bool cifs_open_data_reparse(struct cifs_open_info_data *data)
 
 		attrs = le32_to_cpu(fi->Attributes);
 		if (data->reparse_point) {
-			attrs |= ATTR_REPARSE;
+			attrs |= ATTR_REPARSE_POINT;
 			fi->Attributes = cpu_to_le32(attrs);
 		}
 	}
 
-	ret = attrs & ATTR_REPARSE;
+	ret = attrs & ATTR_REPARSE_POINT;
 
 	return ret;
 }

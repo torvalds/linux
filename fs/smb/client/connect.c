@@ -1295,7 +1295,7 @@ cifs_demultiplex_thread(void *p)
 		 * The right amount was read from socket - 4 bytes,
 		 * so we can now interpret the length field.
 		 */
-		pdu_length = get_rfc1002_length(buf);
+		pdu_length = get_rfc1002_len(buf);
 
 		cifs_dbg(FYI, "RFC1002 header 0x%x\n", pdu_length);
 		if (!is_smb_response(server, buf[0]))
@@ -2312,8 +2312,8 @@ out_err:
 }
 #else /* ! CONFIG_KEYS */
 static inline int
-cifs_set_cifscreds(struct smb3_fs_context *ctx __attribute__((unused)),
-		   struct cifs_ses *ses __attribute__((unused)))
+cifs_set_cifscreds(struct smb3_fs_context *ctx __maybe_unused,
+		   struct cifs_ses *ses __maybe_unused)
 {
 	return -ENOSYS;
 }

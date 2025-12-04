@@ -361,7 +361,7 @@ vt2_err:
 }
 
 static int
-decode_ext_sec_blob(struct cifs_ses *ses, NEGOTIATE_RSP *pSMBr)
+decode_ext_sec_blob(struct cifs_ses *ses, SMB_NEGOTIATE_RSP *pSMBr)
 {
 	int	rc = 0;
 	u16	count;
@@ -419,8 +419,8 @@ CIFSSMBNegotiate(const unsigned int xid,
 		 struct cifs_ses *ses,
 		 struct TCP_Server_Info *server)
 {
-	NEGOTIATE_REQ *pSMB;
-	NEGOTIATE_RSP *pSMBr;
+	SMB_NEGOTIATE_REQ *pSMB;
+	SMB_NEGOTIATE_RSP *pSMBr;
 	int rc = 0;
 	int bytes_returned;
 	int i;
@@ -614,7 +614,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 
 	iov[0].iov_len = 4;
 	iov[0].iov_base = smb;
-	iov[1].iov_len = get_rfc1002_length(smb);
+	iov[1].iov_len = get_rfc1002_len(smb);
 	iov[1].iov_base = (char *)smb + 4;
 
 	rc = cifs_call_async(server, &rqst, NULL, cifs_echo_callback, NULL,
@@ -1458,7 +1458,7 @@ cifs_async_readv(struct cifs_io_subrequest *rdata)
 	rdata->iov[0].iov_base = smb;
 	rdata->iov[0].iov_len = 4;
 	rdata->iov[1].iov_base = (char *)smb + 4;
-	rdata->iov[1].iov_len = get_rfc1002_length(smb);
+	rdata->iov[1].iov_len = get_rfc1002_len(smb);
 
 	trace_smb3_read_enter(rdata->rreq->debug_id,
 			      rdata->subreq.debug_index,
@@ -1830,7 +1830,7 @@ cifs_async_writev(struct cifs_io_subrequest *wdata)
 	/* 4 for RFC1001 length + 1 for BCC */
 	iov[0].iov_len = 4;
 	iov[0].iov_base = smb;
-	iov[1].iov_len = get_rfc1002_length(smb) + 1;
+	iov[1].iov_len = get_rfc1002_len(smb) + 1;
 	iov[1].iov_base = (char *)smb + 4;
 
 	rqst.rq_iov = iov;
@@ -4746,7 +4746,7 @@ CIFSSMBQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
 /* level 0x103 SMB_QUERY_FILE_SYSTEM_INFO */
 	TRANSACTION2_QFSI_REQ *pSMB = NULL;
 	TRANSACTION2_QFSI_RSP *pSMBr = NULL;
-	FILE_SYSTEM_INFO *response_data;
+	FILE_SYSTEM_SIZE_INFO *response_data;
 	int rc = 0;
 	int bytes_returned = 0;
 	__u16 params, byte_count;
@@ -4794,7 +4794,7 @@ QFSInfoRetry:
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 
 			response_data =
-			    (FILE_SYSTEM_INFO
+			    (FILE_SYSTEM_SIZE_INFO
 			     *) (((char *) &pSMBr->hdr.Protocol) +
 				 data_offset);
 			FSData->f_bsize =
@@ -4811,7 +4811,7 @@ QFSInfoRetry:
 			FSData->f_blocks =
 			    le64_to_cpu(response_data->TotalAllocationUnits);
 			FSData->f_bfree = FSData->f_bavail =
-			    le64_to_cpu(response_data->FreeAllocationUnits);
+			    le64_to_cpu(response_data->AvailableAllocationUnits);
 			cifs_dbg(FYI, "Blocks: %lld  Free: %lld Block size %ld\n",
 				 (unsigned long long)FSData->f_blocks,
 				 (unsigned long long)FSData->f_bfree,
