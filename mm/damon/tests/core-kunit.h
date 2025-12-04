@@ -924,7 +924,7 @@ static void damos_test_commit_for(struct kunit *test, struct damos *dst,
 	}
 }
 
-static void damos_test_commit(struct kunit *test)
+static void damos_test_commit_pageout(struct kunit *test)
 {
 	damos_test_commit_for(test,
 			&(struct damos){
@@ -945,6 +945,10 @@ static void damos_test_commit(struct kunit *test)
 					DAMOS_WMARK_FREE_MEM_RATE,
 					800, 50, 30},
 			});
+}
+
+static void damos_test_commit_migrate_hot(struct kunit *test)
+{
 	damos_test_commit_for(test,
 			&(struct damos){
 				.pattern = (struct damos_access_pattern){
@@ -1230,7 +1234,8 @@ static struct kunit_case damon_test_cases[] = {
 	KUNIT_CASE(damos_test_commit_quota),
 	KUNIT_CASE(damos_test_commit_dests),
 	KUNIT_CASE(damos_test_commit_filter),
-	KUNIT_CASE(damos_test_commit),
+	KUNIT_CASE(damos_test_commit_pageout),
+	KUNIT_CASE(damos_test_commit_migrate_hot),
 	KUNIT_CASE(damon_test_commit_target_regions),
 	KUNIT_CASE(damos_test_filter_out),
 	KUNIT_CASE(damon_test_feed_loop_next_input),
