@@ -361,7 +361,7 @@ void *__kasan_unpoison_vmalloc(const void *start, unsigned long size,
 		return (void *)start;
 	}
 
-	tag = kasan_random_tag();
+	tag = (flags & KASAN_VMALLOC_KEEP_TAG) ? get_tag(start) : kasan_random_tag();
 	start = set_tag(start, tag);
 
 	/* Unpoison and initialize memory up to size. */
