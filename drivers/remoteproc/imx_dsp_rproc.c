@@ -1251,6 +1251,12 @@ static int imx_dsp_suspend(struct device *dev)
 		goto out;
 	}
 
+	/* No fw confirmation expected, so trigger PM runtime suspend */
+	if (!(priv->flags & WAIT_FW_CONFIRMATION)) {
+		dev_dbg(dev, "No FW_CONFIRMATION needed, suspend directly.\n");
+		goto out;
+	}
+
 	reinit_completion(&priv->pm_comp);
 
 	/* Tell DSP that suspend is happening */
