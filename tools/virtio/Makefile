@@ -38,8 +38,9 @@ OOT_CONFIGS=\
 	CONFIG_VHOST_NET=n \
 	CONFIG_VHOST_SCSI=n \
 	CONFIG_VHOST_VSOCK=n \
-	CONFIG_VHOST_RING=n
-OOT_BUILD=KCFLAGS="-I "${OOT_VHOST} ${MAKE} -C ${OOT_KSRC} V=${V}
+	CONFIG_VHOST_RING=n \
+	CONFIG_VHOST_VDPA=n
+OOT_BUILD=KCFLAGS="-include "`pwd`"/oot-stubs.h -I "${OOT_VHOST} ${MAKE} -C ${OOT_KSRC} V=${V}
 oot-build:
 	echo "UNSUPPORTED! Don't use the resulting modules in production!"
 	${OOT_BUILD} M=`pwd`/vhost_test
