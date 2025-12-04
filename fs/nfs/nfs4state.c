@@ -259,8 +259,6 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	return nfs4_drain_slot_tbl(&ses->fc_slot_table);
 }
 
-#if defined(CONFIG_NFS_V4_1)
-
 static void nfs41_finish_session_reset(struct nfs_client *clp)
 {
 	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
@@ -338,8 +336,6 @@ int nfs41_discover_server_trunking(struct nfs_client *clp,
 		nfs_put_client(clp);
 	return status;
 }
-
-#endif /* CONFIG_NFS_V4_1 */
 
 /**
  * nfs4_get_clid_cred - Acquire credential for a setclientid operation
@@ -2310,7 +2306,6 @@ out_unlock:
 	return status;
 }
 
-#ifdef CONFIG_NFS_V4_1
 void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 {
 	struct nfs_client *clp = session->clp;
@@ -2517,18 +2512,6 @@ static void nfs4_layoutreturn_any_run(struct nfs_client *clp)
 		set_bit(NFS4CLNT_RUN_MANAGER, &clp->cl_state);
 	}
 }
-#else /* CONFIG_NFS_V4_1 */
-static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
-
-static int nfs4_bind_conn_to_session(struct nfs_client *clp)
-{
-	return 0;
-}
-
-static void nfs4_layoutreturn_any_run(struct nfs_client *clp)
-{
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 static void nfs4_state_manager(struct nfs_client *clp)
 {

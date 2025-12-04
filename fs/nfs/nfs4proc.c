@@ -99,7 +99,6 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 static int nfs4_do_setattr(struct inode *inode, const struct cred *cred,
 			    struct nfs_fattr *fattr, struct iattr *sattr,
 			    struct nfs_open_context *ctx, struct nfs4_label *ilabel);
-#ifdef CONFIG_NFS_V4_1
 static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp,
 		const struct cred *cred,
 		struct nfs4_slot *slot,
@@ -108,7 +107,6 @@ static int nfs41_test_stateid(struct nfs_server *, const nfs4_stateid *,
 			      const struct cred *);
 static int nfs41_free_stateid(struct nfs_server *, nfs4_stateid *,
 			      const struct cred *, bool);
-#endif
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 static inline struct nfs4_label *
@@ -569,7 +567,6 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 		case -NFS4ERR_LEASE_MOVED:
 			nfs4_schedule_lease_moved_recovery(clp);
 			goto wait_on_recovery;
-#if defined(CONFIG_NFS_V4_1)
 		case -NFS4ERR_BADSESSION:
 		case -NFS4ERR_BADSLOT:
 		case -NFS4ERR_BAD_HIGH_SLOT:
@@ -579,7 +576,6 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 		case -NFS4ERR_SEQ_MISORDERED:
 			/* Handled in nfs41_sequence_process() */
 			goto wait_on_recovery;
-#endif /* defined(CONFIG_NFS_V4_1) */
 		case -NFS4ERR_FILE_OPEN:
 			if (exception->timeout > HZ) {
 				/* We have retried a decent amount, time to
@@ -782,8 +778,6 @@ void nfs4_init_sequence(struct nfs_client *clp,
 	res->sr_slot = NULL;
 	res->sr_slot_ops = clp->cl_mvops->sequence_slot_ops;
 }
-
-#if defined(CONFIG_NFS_V4_1)
 
 static void nfs41_release_slot(struct nfs4_slot *slot)
 {
@@ -1021,8 +1015,6 @@ static const struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
-
-#endif	/* !CONFIG_NFS_V4_1 */
 
 static void nfs41_sequence_res_init(struct nfs4_sequence_res *res)
 {
@@ -1589,7 +1581,6 @@ static void update_open_stateflags(struct nfs4_state *state, fmode_t fmode)
 	nfs4_state_set_mode_locked(state, state->state | fmode);
 }
 
-#ifdef CONFIG_NFS_V4_1
 static bool nfs_open_stateid_recover_openmode(struct nfs4_state *state)
 {
 	if (state->n_rdonly && !test_bit(NFS_O_RDONLY_STATE, &state->flags))
@@ -1600,7 +1591,6 @@ static bool nfs_open_stateid_recover_openmode(struct nfs4_state *state)
 		return true;
 	return false;
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 static void nfs_state_log_update_open_stateid(struct nfs4_state *state)
 {
@@ -2837,7 +2827,6 @@ void nfs_finish_clear_delegation_stateid(struct nfs4_state *state,
 	nfs_state_clear_delegation(state);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 static int nfs41_test_and_free_expired_stateid(struct nfs_server *server,
 					       nfs4_stateid *stateid, const struct cred *cred)
 {
@@ -3022,7 +3011,6 @@ static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
 		status = nfs4_open_expired(sp, state);
 	return status;
 }
-#endif
 
 /*
  * on an EXCLUSIVE create, the server should send back a bitmask with FATTR4-*
@@ -4384,7 +4372,6 @@ out:
 	return status;
 }
 
-#if IS_ENABLED(CONFIG_NFS_V4_1)
 static bool should_request_dir_deleg(struct inode *inode)
 {
 	if (!directory_delegations)
@@ -4401,12 +4388,6 @@ static bool should_request_dir_deleg(struct inode *inode)
 		return false;
 	return true;
 }
-#else
-static bool should_request_dir_deleg(struct inode *inode)
-{
-	return false;
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 static void nfs4_call_getattr_prepare(struct rpc_task *task, void *calldata)
 {
@@ -7552,7 +7533,6 @@ out:
 	return err;
 }
 
-#if defined(CONFIG_NFS_V4_1)
 static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *request)
 {
 	struct nfs4_lock_state *lsp;
@@ -7567,7 +7547,6 @@ static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *reques
 		return 0;
 	return nfs4_lock_expired(state, request);
 }
-#endif
 
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
@@ -7641,7 +7620,6 @@ nfs4_retry_setlk_simple(struct nfs4_state *state, int cmd,
 	return status;
 }
 
-#ifdef CONFIG_NFS_V4_1
 struct nfs4_lock_waiter {
 	struct inode		*inode;
 	struct nfs_lowner	owner;
@@ -7709,13 +7687,6 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 
 	return status;
 }
-#else /* !CONFIG_NFS_V4_1 */
-static inline int
-nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
-{
-	return nfs4_retry_setlk_simple(state, cmd, request);
-}
-#endif
 
 static int
 nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
@@ -7848,7 +7819,6 @@ static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
 	return nfs4_server_supports_acls(NFS_SB(dentry->d_sb), NFS4ACL_ACL);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 #define XATTR_NAME_NFSV4_DACL "system.nfs4_dacl"
 
 static int nfs4_xattr_set_nfs4_dacl(const struct xattr_handler *handler,
@@ -7894,8 +7864,6 @@ static bool nfs4_xattr_list_nfs4_sacl(struct dentry *dentry)
 {
 	return nfs4_server_supports_acls(NFS_SB(dentry->d_sb), NFS4ACL_SACL);
 }
-
-#endif
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 
@@ -8156,8 +8124,6 @@ int nfs4_proc_fs_locations(struct rpc_clnt *client, struct inode *dir,
 	return err;
 }
 
-#ifdef CONFIG_NFS_V4_1
-
 /*
  * This operation also signals the server that this client is
  * performing migration recovery.  The server can stop asserting
@@ -8220,8 +8186,6 @@ static int _nfs41_proc_get_locations(struct nfs_server *server,
 	return status;
 }
 
-#endif	/* CONFIG_NFS_V4_1 */
-
 /**
  * nfs4_proc_get_locations - discover locations for a migrated FSID
  * @server: pointer to nfs_server to process
@@ -8269,8 +8233,6 @@ int nfs4_proc_get_locations(struct nfs_server *server,
 	return status;
 }
 
-#ifdef CONFIG_NFS_V4_1
-
 /*
  * This operation also signals the server that this client is
  * performing "lease moved" recovery.  The server can stop asserting
@@ -8308,8 +8270,6 @@ static int _nfs41_proc_fsid_present(struct inode *inode, const struct cred *cred
 		status = -NFS4ERR_LEASE_MOVED;
 	return status;
 }
-
-#endif	/* CONFIG_NFS_V4_1 */
 
 /**
  * nfs4_proc_fsid_present - Is this FSID present or absent on server?
@@ -8439,7 +8399,6 @@ int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name,
 	return err;
 }
 
-#ifdef CONFIG_NFS_V4_1
 /*
  * Check the exchange flags returned by the server for invalid flags, having
  * both PNFS and NON_PNFS flags set, and not having one of NON_PNFS, PNFS, or
@@ -9052,8 +9011,6 @@ out:
 	return ret;
 }
 
-#endif /* CONFIG_NFS_V4_1 */
-
 struct nfs4_get_lease_time_data {
 	struct nfs4_get_lease_time_args *args;
 	struct nfs4_get_lease_time_res *res;
@@ -9129,8 +9086,6 @@ int nfs4_proc_get_lease_time(struct nfs_client *clp, struct nfs_fsinfo *fsinfo)
 	nfs4_init_sequence(clp, &args.la_seq_args, &res.lr_seq_res, 0, 1);
 	return nfs4_call_sync_custom(&task_setup);
 }
-
-#ifdef CONFIG_NFS_V4_1
 
 /*
  * Initialize the values to be used by the client in CREATE_SESSION
@@ -10470,8 +10425,6 @@ static bool nfs41_match_stateid(const nfs4_stateid *s1,
 	return s1->seqid == 0 || s2->seqid == 0;
 }
 
-#endif /* CONFIG_NFS_V4_1 */
-
 bool nfs4_match_stateid(const nfs4_stateid *s1,
 		const nfs4_stateid *s2)
 {
@@ -10481,7 +10434,6 @@ bool nfs4_match_stateid(const nfs4_stateid *s1,
 }
 
 
-#if defined(CONFIG_NFS_V4_1)
 static const struct nfs4_sequence_slot_ops nfs41_sequence_slot_ops = {
 	.process = nfs41_sequence_process,
 	.done = nfs41_sequence_done,
@@ -10548,7 +10500,6 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.state_renewal_ops = &nfs41_state_renewal_ops,
 	.mig_recovery_ops = &nfs41_mig_recovery_ops,
 };
-#endif
 
 #if defined(CONFIG_NFS_V4_2)
 static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
@@ -10594,9 +10545,7 @@ const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
 #if defined(CONFIG_NFS_V4_0)
 	[0] = &nfs_v4_0_minor_ops,
 #endif /* CONFIG_NFS_V4_0 */
-#if defined(CONFIG_NFS_V4_1)
 	[1] = &nfs_v4_1_minor_ops,
-#endif
 #if defined(CONFIG_NFS_V4_2)
 	[2] = &nfs_v4_2_minor_ops,
 #endif
@@ -10775,7 +10724,6 @@ static const struct xattr_handler nfs4_xattr_nfs4_acl_handler = {
 	.set	= nfs4_xattr_set_nfs4_acl,
 };
 
-#if defined(CONFIG_NFS_V4_1)
 static const struct xattr_handler nfs4_xattr_nfs4_dacl_handler = {
 	.name	= XATTR_NAME_NFSV4_DACL,
 	.list	= nfs4_xattr_list_nfs4_dacl,
@@ -10789,7 +10737,6 @@ static const struct xattr_handler nfs4_xattr_nfs4_sacl_handler = {
 	.get	= nfs4_xattr_get_nfs4_sacl,
 	.set	= nfs4_xattr_set_nfs4_sacl,
 };
-#endif
 
 #ifdef CONFIG_NFS_V4_2
 static const struct xattr_handler nfs4_xattr_nfs4_user_handler = {
@@ -10801,10 +10748,8 @@ static const struct xattr_handler nfs4_xattr_nfs4_user_handler = {
 
 const struct xattr_handler * const nfs4_xattr_handlers[] = {
 	&nfs4_xattr_nfs4_acl_handler,
-#if defined(CONFIG_NFS_V4_1)
 	&nfs4_xattr_nfs4_dacl_handler,
 	&nfs4_xattr_nfs4_sacl_handler,
-#endif
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 	&nfs4_xattr_nfs4_label_handler,
 #endif

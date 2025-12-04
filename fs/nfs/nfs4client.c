@@ -44,7 +44,6 @@ static int nfs_get_cb_ident_idr(struct nfs_client *clp, int minorversion)
 	return ret < 0 ? ret : 0;
 }
 
-#ifdef CONFIG_NFS_V4_1
 /*
  * Per auth flavor data server rpc clients
  */
@@ -187,7 +186,6 @@ void nfs41_shutdown_client(struct nfs_client *clp)
 	}
 
 }
-#endif	/* CONFIG_NFS_V4_1 */
 
 struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 {
@@ -217,9 +215,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
 	clp->cl_mig_gen = 1;
 	clp->cl_last_renewal = jiffies;
-#if IS_ENABLED(CONFIG_NFS_V4_1)
 	init_waitqueue_head(&clp->cl_lock_waitq);
-#endif
 	INIT_LIST_HEAD(&clp->pending_cb_stateids);
 
 	if (cl_init->minorversion != 0)
@@ -332,8 +328,6 @@ static int nfs4_init_callback(struct nfs_client *clp)
 	return 0;
 }
 
-#if defined(CONFIG_NFS_V4_1)
-
 /**
  * nfs41_init_client - nfs_client initialization tasks for NFSv4.1+
  * @clp: nfs_client to initialize
@@ -364,8 +358,6 @@ int nfs41_init_client(struct nfs_client *clp)
 	nfs_mark_client_ready(clp, NFS_CS_SESSION_INITING);
 	return 0;
 }
-
-#endif	/* CONFIG_NFS_V4_1 */
 
 /*
  * Initialize the minor version specific parts of an NFS4 client record
@@ -508,7 +500,6 @@ int nfs4_match_client(struct nfs_client  *pos,  struct nfs_client *new,
 	return 0;
 }
 
-#ifdef CONFIG_NFS_V4_1
 /*
  * Returns true if the server major ids match
  */
@@ -637,7 +628,6 @@ out:
 	nfs_put_client(prev);
 	return status;
 }
-#endif	/* CONFIG_NFS_V4_1 */
 
 static void nfs4_destroy_server(struct nfs_server *server)
 {
@@ -669,7 +659,6 @@ nfs4_find_client_ident(struct net *net, int cb_ident)
 	return clp;
 }
 
-#if defined(CONFIG_NFS_V4_1)
 /* Common match routine for v4.0 and v4.1 callback services */
 static bool nfs4_cb_match_client(const struct sockaddr *addr,
 		struct nfs_client *clp, u32 minorversion)
@@ -726,16 +715,6 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 	spin_unlock(&nn->nfs_client_lock);
 	return NULL;
 }
-
-#else /* CONFIG_NFS_V4_1 */
-
-struct nfs_client *
-nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid, u32 minorversion)
-{
-	return NULL;
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 /*
  * Set up an NFS4 client
@@ -878,7 +857,6 @@ EXPORT_SYMBOL_GPL(nfs4_set_ds_client);
  */
 static void nfs4_session_limit_rwsize(struct nfs_server *server)
 {
-#ifdef CONFIG_NFS_V4_1
 	struct nfs4_session *sess;
 	u32 server_resp_sz;
 	u32 server_rqst_sz;
@@ -895,7 +873,6 @@ static void nfs4_session_limit_rwsize(struct nfs_server *server)
 		server->rsize = server_resp_sz;
 	if (server->wsize > server_rqst_sz)
 		server->wsize = server_rqst_sz;
-#endif /* CONFIG_NFS_V4_1 */
 }
 
 /*

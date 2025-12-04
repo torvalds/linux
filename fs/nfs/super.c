@@ -589,18 +589,13 @@ static void show_lease(struct seq_file *m, struct nfs_server *server)
 	seq_printf(m, ",lease_expired=%ld",
 		   time_after(expire, jiffies) ?  0 : (jiffies - expire) / HZ);
 }
-#ifdef CONFIG_NFS_V4_1
+
 static void show_sessions(struct seq_file *m, struct nfs_server *server)
 {
 	if (nfs4_has_session(server->nfs_client))
 		seq_puts(m, ",sessions");
 }
-#else
-static void show_sessions(struct seq_file *m, struct nfs_server *server) {}
-#endif
-#endif
 
-#ifdef CONFIG_NFS_V4_1
 static void show_pnfs(struct seq_file *m, struct nfs_server *server)
 {
 	seq_printf(m, ",pnfs=");
@@ -620,16 +615,11 @@ static void show_implementation_id(struct seq_file *m, struct nfs_server *nfss)
 			   impl_id->date.seconds, impl_id->date.nseconds);
 	}
 }
-#else
-#if IS_ENABLED(CONFIG_NFS_V4)
-static void show_pnfs(struct seq_file *m, struct nfs_server *server)
-{
-}
-#endif
+#else /* CONFIG_NFS_V4 */
 static void show_implementation_id(struct seq_file *m, struct nfs_server *nfss)
 {
 }
-#endif
+#endif /* CONFIG_NFS_V4 */
 
 int nfs_show_devname(struct seq_file *m, struct dentry *root)
 {

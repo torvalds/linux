@@ -126,8 +126,6 @@ out:
 	return res;
 }
 
-#if defined(CONFIG_NFS_V4_1)
-
 /*
  * Lookup a layout inode by stateid
  *
@@ -698,7 +696,6 @@ __be32 nfs4_callback_notify_lock(void *argp, void *resp,
 
 	return htonl(NFS4_OK);
 }
-#endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 static void nfs4_copy_cb_args(struct nfs4_copy_state *cp_state,
 				struct cb_offloadargs *args)

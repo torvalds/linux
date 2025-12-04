@@ -18,10 +18,8 @@
 
 #if defined(CONFIG_NFS_V4_2)
 #define NFS4_MAX_MINOR_VERSION 2
-#elif defined(CONFIG_NFS_V4_1)
-#define NFS4_MAX_MINOR_VERSION 1
 #else
-#define NFS4_MAX_MINOR_VERSION 0
+#define NFS4_MAX_MINOR_VERSION 1
 #endif
 
 #if IS_ENABLED(CONFIG_NFS_V4)
@@ -383,7 +381,6 @@ extern bool nfs4_match_stateid(const nfs4_stateid *s1, const nfs4_stateid *s2);
 extern int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fattr *fattr);
 
-#if defined(CONFIG_NFS_V4_1)
 extern int nfs41_sequence_done(struct rpc_task *, struct nfs4_sequence_res *);
 extern int nfs4_proc_create_session(struct nfs_client *, const struct cred *);
 extern int nfs4_proc_destroy_session(struct nfs4_session *, const struct cred *);
@@ -461,31 +458,6 @@ nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
 	    !test_bit(NFS_SP4_MACH_CRED_COMMIT, &clp->cl_sp4_flags))
 		hdr->args.stable = NFS_FILE_SYNC;
 }
-#else /* CONFIG_NFS_v4_1 */
-static inline bool
-is_ds_only_client(struct nfs_client *clp)
-{
-	return false;
-}
-
-static inline bool
-is_ds_client(struct nfs_client *clp)
-{
-	return false;
-}
-
-static inline void
-nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_flags,
-		   struct rpc_clnt **clntp, struct rpc_message *msg)
-{
-}
-
-static inline void
-nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_pgio_header *hdr)
-{
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 extern const struct nfs4_minor_version_ops *nfs_v4_minor_ops[];
 
@@ -518,18 +490,12 @@ int nfs4_discover_server_trunking(struct nfs_client *clp,
 			struct nfs_client **);
 int nfs40_discover_server_trunking(struct nfs_client *clp,
 			struct nfs_client **, const struct cred *);
-#if defined(CONFIG_NFS_V4_1)
 int nfs41_discover_server_trunking(struct nfs_client *clp,
 			struct nfs_client **, const struct cred *);
 extern void nfs4_schedule_session_recovery(struct nfs4_session *, int);
 extern void nfs41_notify_server(struct nfs_client *);
 bool nfs4_check_serverowner_major_id(struct nfs41_server_owner *o1,
 			struct nfs41_server_owner *o2);
-#else
-static inline void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
-{
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 extern struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *, const struct cred *, gfp_t);
 extern void nfs4_put_state_owner(struct nfs4_state_owner *);

@@ -308,7 +308,6 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 #define encode_secinfo_maxsz	(op_encode_hdr_maxsz + nfs4_name_maxsz)
 #define decode_secinfo_maxsz	(op_decode_hdr_maxsz + 1 + ((NFS_MAX_SECFLAVORS * (16 + GSS_OID_MAX_LEN)) / 4))
 
-#if defined(CONFIG_NFS_V4_1)
 #define NFS4_MAX_MACHINE_NAME_LEN (64)
 #define IMPL_NAME_LIMIT (sizeof(utsname()->sysname) + sizeof(utsname()->release) + \
 			 sizeof(utsname()->version) + sizeof(utsname()->machine) + 8)
@@ -455,16 +454,6 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 #define encode_free_stateid_maxsz	(op_encode_hdr_maxsz + 1 + \
 					 XDR_QUADLEN(NFS4_STATEID_SIZE))
 #define decode_free_stateid_maxsz	(op_decode_hdr_maxsz)
-#else /* CONFIG_NFS_V4_1 */
-#define encode_sequence_maxsz	0
-#define decode_sequence_maxsz	0
-#define encode_get_dir_deleg_maxsz 0
-#define decode_get_dir_deleg_maxsz 0
-#define encode_layoutreturn_maxsz 0
-#define decode_layoutreturn_maxsz 0
-#define encode_layoutget_maxsz	0
-#define decode_layoutget_maxsz	0
-#endif /* CONFIG_NFS_V4_1 */
 
 #define NFS4_enc_compound_sz	(1024)  /* XXX: large enough? */
 #define NFS4_dec_compound_sz	(1024)  /* XXX: large enough? */
@@ -838,7 +827,6 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 				 decode_putfh_maxsz + \
 				 decode_getfh_maxsz + \
 				 decode_renew_maxsz)
-#if defined(CONFIG_NFS_V4_1)
 #define NFS4_enc_bind_conn_to_session_sz \
 				(compound_encode_hdr_maxsz + \
 				 encode_bind_conn_to_session_maxsz)
@@ -871,7 +859,6 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 #define NFS4_dec_sequence_sz \
 				(compound_decode_hdr_maxsz + \
 				 decode_sequence_maxsz)
-#endif
 #define NFS4_enc_get_lease_time_sz	(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_putrootfh_maxsz + \
@@ -880,7 +867,6 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 					 decode_sequence_maxsz + \
 					 decode_putrootfh_maxsz + \
 					 decode_fsinfo_maxsz)
-#if defined(CONFIG_NFS_V4_1)
 #define NFS4_enc_reclaim_complete_sz	(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_reclaim_complete_maxsz)
@@ -958,7 +944,6 @@ const u32 nfs41_maxgetdevinfo_overhead = ((RPC_MAX_REPHEADER_WITH_AUTH +
 					   decode_sequence_maxsz) *
 					  XDR_UNIT);
 EXPORT_SYMBOL_GPL(nfs41_maxgetdevinfo_overhead);
-#endif /* CONFIG_NFS_V4_1 */
 
 static const umode_t nfs_type2fmt[] = {
 	[NF4BAD] = 0,
@@ -1834,7 +1819,6 @@ static void encode_secinfo(struct xdr_stream *xdr, const struct qstr *name, stru
 	encode_string(xdr, name->len, name->name);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 /* NFSv4.1 operations */
 static void encode_bind_conn_to_session(struct xdr_stream *xdr,
 				   const struct nfs41_bind_conn_to_session_args *args,
@@ -1986,13 +1970,11 @@ static void encode_reclaim_complete(struct xdr_stream *xdr,
 	encode_op_hdr(xdr, OP_RECLAIM_COMPLETE, decode_reclaim_complete_maxsz, hdr);
 	encode_uint32(xdr, args->one_fs);
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 static void encode_sequence(struct xdr_stream *xdr,
 			    const struct nfs4_sequence_args *args,
 			    struct compound_hdr *hdr)
 {
-#if defined(CONFIG_NFS_V4_1)
 	struct nfs4_session *session;
 	struct nfs4_slot_table *tp;
 	struct nfs4_slot *slot = args->sa_slot;
@@ -2023,10 +2005,8 @@ static void encode_sequence(struct xdr_stream *xdr,
 	*p++ = cpu_to_be32(slot->slot_nr);
 	*p++ = cpu_to_be32(tp->highest_used_slotid);
 	*p = cpu_to_be32(args->sa_cache_this);
-#endif /* CONFIG_NFS_V4_1 */
 }
 
-#ifdef CONFIG_NFS_V4_1
 static void
 encode_get_dir_delegation(struct xdr_stream *xdr, struct compound_hdr *hdr)
 {
@@ -2188,26 +2168,6 @@ static void encode_free_stateid(struct xdr_stream *xdr,
 	encode_op_hdr(xdr, OP_FREE_STATEID, decode_free_stateid_maxsz, hdr);
 	encode_nfs4_stateid(xdr, &args->stateid);
 }
-#else
-static inline void
-encode_get_dir_delegation(struct xdr_stream *xdr, struct compound_hdr *hdr)
-{
-}
-
-static inline void
-encode_layoutreturn(struct xdr_stream *xdr,
-		    const struct nfs4_layoutreturn_args *args,
-		    struct compound_hdr *hdr)
-{
-}
-
-static void
-encode_layoutget(struct xdr_stream *xdr,
-		      const struct nfs4_layoutget_args *args,
-		      struct compound_hdr *hdr)
-{
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 /*
  * END OF "GENERIC" ENCODE ROUTINES.
@@ -2215,11 +2175,9 @@ encode_layoutget(struct xdr_stream *xdr,
 
 static u32 nfs4_xdr_minorversion(const struct nfs4_sequence_args *args)
 {
-#if defined(CONFIG_NFS_V4_1)
 	struct nfs4_session *session = args->sa_slot->table->session;
 	if (session)
 		return session->clp->cl_mvops->minor_version;
-#endif /* CONFIG_NFS_V4_1 */
 	return 0;
 }
 
@@ -2977,7 +2935,6 @@ static void nfs4_xdr_enc_fsid_present(struct rpc_rqst *req,
 	encode_nops(&hdr);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 /*
  * BIND_CONN_TO_SESSION request
  */
@@ -3079,8 +3036,6 @@ static void nfs4_xdr_enc_sequence(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_nops(&hdr);
 }
 
-#endif
-
 /*
  * a GET_LEASE_TIME request
  */
@@ -3100,8 +3055,6 @@ static void nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req,
 	encode_fsinfo(xdr, lease_bitmap, &hdr);
 	encode_nops(&hdr);
 }
-
-#ifdef CONFIG_NFS_V4_1
 
 /*
  * a RECLAIM_COMPLETE request
@@ -3265,7 +3218,6 @@ static void nfs4_xdr_enc_free_stateid(struct rpc_rqst *req,
 	encode_free_stateid(xdr, args, &hdr);
 	encode_nops(&hdr);
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 static int decode_opaque_inline(struct xdr_stream *xdr, unsigned int *len, char **string)
 {
@@ -5764,7 +5716,6 @@ static int decode_secinfo(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 	return decode_secinfo_common(xdr, res);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 static int decode_secinfo_no_name(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 {
 	int status = decode_op_hdr(xdr, OP_SECINFO_NO_NAME);
@@ -5976,13 +5927,11 @@ static int decode_reclaim_complete(struct xdr_stream *xdr, void *dummy)
 {
 	return decode_op_hdr(xdr, OP_RECLAIM_COMPLETE);
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 static int decode_sequence(struct xdr_stream *xdr,
 			   struct nfs4_sequence_res *res,
 			   struct rpc_rqst *rqstp)
 {
-#if defined(CONFIG_NFS_V4_1)
 	struct nfs4_session *session;
 	struct nfs4_sessionid id;
 	u32 dummy;
@@ -6042,12 +5991,8 @@ out_err:
 out_overflow:
 	status = -EIO;
 	goto out_err;
-#else  /* CONFIG_NFS_V4_1 */
-	return 0;
-#endif /* CONFIG_NFS_V4_1 */
 }
 
-#if defined(CONFIG_NFS_V4_1)
 static int decode_layout_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 {
 	stateid->type = NFS4_LAYOUT_STATEID_TYPE;
@@ -6310,27 +6255,6 @@ static int decode_free_stateid(struct xdr_stream *xdr,
 	res->status = decode_op_hdr(xdr, OP_FREE_STATEID);
 	return res->status;
 }
-#else
-static int decode_get_dir_delegation(struct xdr_stream *xdr,
-				     struct nfs4_getattr_res *res)
-{
-	return 0;
-}
-
-static inline
-int decode_layoutreturn(struct xdr_stream *xdr,
-			       struct nfs4_layoutreturn_res *res)
-{
-	return 0;
-}
-
-static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
-			    struct nfs4_layoutget_res *res)
-{
-	return 0;
-}
-
-#endif /* CONFIG_NFS_V4_1 */
 
 /*
  * END OF "GENERIC" DECODE ROUTINES.
@@ -7359,7 +7283,6 @@ out:
 	return status;
 }
 
-#if defined(CONFIG_NFS_V4_1)
 /*
  * Decode BIND_CONN_TO_SESSION response
  */
@@ -7456,8 +7379,6 @@ static int nfs4_xdr_dec_sequence(struct rpc_rqst *rqstp,
 	return status;
 }
 
-#endif
-
 /*
  * Decode GET_LEASE_TIME response
  */
@@ -7478,8 +7399,6 @@ static int nfs4_xdr_dec_get_lease_time(struct rpc_rqst *rqstp,
 		status = decode_fsinfo(xdr, res->lr_fsinfo);
 	return status;
 }
-
-#ifdef CONFIG_NFS_V4_1
 
 /*
  * Decode RECLAIM_COMPLETE response
@@ -7668,7 +7587,6 @@ static int nfs4_xdr_dec_free_stateid(struct rpc_rqst *rqstp,
 out:
 	return status;
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 /**
  * nfs4_decode_dirent - Decode a single NFSv4 directory entry stored in
@@ -7774,13 +7692,8 @@ int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	STUB(proc)
 #endif /* CONFIG_NFS_V4_0 */
 
-#if defined(CONFIG_NFS_V4_1)
 #define PROC41(proc, argtype, restype)				\
 	PROC(proc, argtype, restype)
-#else
-#define PROC41(proc, argtype, restype)				\
-	STUB(proc)
-#endif
 
 #if defined(CONFIG_NFS_V4_2)
 #define PROC42(proc, argtype, restype)				\

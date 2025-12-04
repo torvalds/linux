@@ -1324,10 +1324,6 @@ struct nfs4_fsid_present_res {
 	unsigned char			renew:1;
 };
 
-#endif /* CONFIG_NFS_V4 */
-
-#ifdef CONFIG_NFS_V4_1
-
 struct pnfs_commit_bucket {
 	struct list_head written;
 	struct list_head committing;
@@ -1467,7 +1463,7 @@ struct nfs41_free_stateid_res {
 struct pnfs_ds_commit_info {
 };
 
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_V4_2
 struct nfs42_falloc_args {
