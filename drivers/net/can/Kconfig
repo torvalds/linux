@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 menuconfig CAN_DEV
-	tristate "CAN Device Drivers"
+	bool "CAN Device Drivers"
 	default y
 	depends on CAN
 	help
@@ -16,9 +16,6 @@ menuconfig CAN_DEV
 	  This section contains all the CAN(-FD) device drivers including the
 	  virtual ones. If you own such devices or plan to use the virtual CAN
 	  interfaces to develop applications, say Y here.
-
-	  To compile as a module, choose M here: the module will be called
-	  can-dev.
 
 if CAN_DEV
 
