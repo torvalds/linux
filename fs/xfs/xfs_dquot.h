@@ -71,7 +71,7 @@ struct xfs_dquot {
 	xfs_dqtype_t		q_type;
 	uint16_t		q_flags;
 	xfs_dqid_t		q_id;
-	uint			q_nrefs;
+	struct lockref		q_lockref;
 	int			q_bufoffset;
 	xfs_daddr_t		q_blkno;
 	xfs_fileoff_t		q_fileoffset;
@@ -119,21 +119,6 @@ static inline bool xfs_dqflock_nowait(struct xfs_dquot *dqp)
 static inline void xfs_dqfunlock(struct xfs_dquot *dqp)
 {
 	complete(&dqp->q_flush);
-}
-
-static inline int xfs_dqlock_nowait(struct xfs_dquot *dqp)
-{
-	return mutex_trylock(&dqp->q_qlock);
-}
-
-static inline void xfs_dqlock(struct xfs_dquot *dqp)
-{
-	mutex_lock(&dqp->q_qlock);
-}
-
-static inline void xfs_dqunlock(struct xfs_dquot *dqp)
-{
-	mutex_unlock(&dqp->q_qlock);
 }
 
 static inline int
@@ -233,7 +218,6 @@ int		xfs_qm_dqget_next(struct xfs_mount *mp, xfs_dqid_t id,
 int		xfs_qm_dqget_uncached(struct xfs_mount *mp,
 				xfs_dqid_t id, xfs_dqtype_t type,
 				struct xfs_dquot **dqpp);
-void		xfs_qm_dqput(struct xfs_dquot *dqp);
 
 void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);
 void		xfs_dqlockn(struct xfs_dqtrx *q);
@@ -246,9 +230,7 @@ void xfs_dquot_detach_buf(struct xfs_dquot *dqp);
 
 static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
 {
-	xfs_dqlock(dqp);
-	dqp->q_nrefs++;
-	xfs_dqunlock(dqp);
+	lockref_get(&dqp->q_lockref);
 	return dqp;
 }
 

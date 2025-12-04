@@ -113,6 +113,7 @@ struct xfs_open_zone *xfs_open_zone(struct xfs_mount *mp,
 
 int xfs_zone_gc_reset_sync(struct xfs_rtgroup *rtg);
 bool xfs_zoned_need_gc(struct xfs_mount *mp);
+bool xfs_zoned_have_reclaimable(struct xfs_zone_info *zi);
 int xfs_zone_gc_mount(struct xfs_mount *mp);
 void xfs_zone_gc_unmount(struct xfs_mount *mp);
 
