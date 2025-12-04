@@ -435,7 +435,8 @@ config SPI_FSL_LPSPI
 
 config SPI_FSL_QUADSPI
 	tristate "Freescale QSPI controller"
-	depends on ARCH_MXC || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
+	depends on ARCH_MXC || SOC_LS1021A || ARCH_LAYERSCAPE || \
+		   ARCH_SPACEMIT || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This enables support for the Quad SPI controller in master mode.
@@ -706,15 +707,6 @@ config SPI_MESON_SPIFC
 	  This enables master mode support for the SPIFC (SPI flash
 	  controller) available in Amlogic Meson SoCs.
 
-config SPI_MICROCHIP_CORE
-	tristate "Microchip FPGA SPI controllers"
-	depends on SPI_MASTER
-	help
-	  This enables the SPI driver for Microchip FPGA SPI controllers.
-	  Say Y or M here if you want to use the "hard" controllers on
-	  PolarFire SoC.
-	  If built as a module, it will be called spi-microchip-core.
-
 config SPI_MICROCHIP_CORE_QSPI
 	tristate "Microchip FPGA QSPI controllers"
 	depends on SPI_MASTER
@@ -723,6 +715,15 @@ config SPI_MICROCHIP_CORE_QSPI
 	  Say Y or M here if you want to use the QSPI controllers on
 	  PolarFire SoC.
 	  If built as a module, it will be called spi-microchip-core-qspi.
+
+config SPI_MICROCHIP_CORE_SPI
+	tristate "Microchip FPGA CoreSPI controller"
+	depends on SPI_MASTER
+	help
+	  This enables the SPI driver for Microchip FPGA CoreSPI controller.
+	  Say Y or M here if you want to use the "soft" controllers on
+	  PolarFire SoC.
+	  If built as a module, it will be called spi-microchip-core-spi.
 
 config SPI_MT65XX
 	tristate "MediaTek SPI controller"
@@ -870,6 +871,16 @@ config SPI_PL022
 	  This selects the ARM(R) AMBA(R) PrimeCell PL022 SSP
 	  controller. If you have an embedded system with an AMBA(R)
 	  bus and a PL022 controller, say Y or M here.
+
+config SPI_POLARFIRE_SOC
+	tristate "Microchip FPGA SPI controllers"
+	depends on SPI_MASTER
+	depends on ARCH_MICROCHIP || COMPILE_TEST
+	help
+	  This enables the SPI driver for Microchip FPGA SPI controllers.
+	  Say Y or M here if you want to use the "hard" controllers on
+	  PolarFire SoC.
+	  If built as a module, it will be called spi-mpfs.
 
 config SPI_PPC4xx
 	tristate "PPC4xx SPI Controller"

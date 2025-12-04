@@ -582,8 +582,8 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	host->auto_runtime_pm = true;
 	bs->msg_type_shift = bs->reg_offsets[SPI_MSG_TYPE_SHIFT];
 	bs->msg_ctl_width = bs->reg_offsets[SPI_MSG_CTL_WIDTH];
-	bs->tx_io = (u8 *)(bs->regs + bs->reg_offsets[SPI_MSG_DATA]);
-	bs->rx_io = (const u8 *)(bs->regs + bs->reg_offsets[SPI_RX_DATA]);
+	bs->tx_io = bs->regs + bs->reg_offsets[SPI_MSG_DATA];
+	bs->rx_io = bs->regs + bs->reg_offsets[SPI_RX_DATA];
 
 	/* Initialize hardware */
 	ret = clk_prepare_enable(bs->clk);
