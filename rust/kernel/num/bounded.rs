@@ -40,11 +40,11 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
     fits_within!(value, T, num_bits)
 }
 
-/// An integer value that requires only the `N` less significant bits of the wrapped type to be
+/// An integer value that requires only the `N` least significant bits of the wrapped type to be
 /// encoded.
 ///
 /// This limits the number of usable bits in the wrapped integer type, and thus the stored value to
-/// a narrower range, which provides guarantees that can be useful when working with in e.g.
+/// a narrower range, which provides guarantees that can be useful when working within e.g.
 /// bitfields.
 ///
 /// # Invariants
@@ -56,7 +56,7 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// # Examples
 ///
 /// The preferred way to create values is through constants and the [`Bounded::new`] family of
-/// constructors, as they trigger a build error if the type invariants cannot be withheld.
+/// constructors, as they trigger a build error if the type invariants cannot be upheld.
 ///
 /// ```
 /// use kernel::num::Bounded;
@@ -82,7 +82,7 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// ```
 /// use kernel::num::Bounded;
 ///
-/// //  This succeeds because `15` can be represented with 4 unsigned bits.
+/// // This succeeds because `15` can be represented with 4 unsigned bits.
 /// assert!(Bounded::<u8, 4>::try_new(15).is_some());
 ///
 /// // This fails because `16` cannot be represented with 4 unsigned bits.
@@ -221,7 +221,7 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// let v: Option<Bounded<u16, 8>> = 128u32.try_into_bounded();
 /// assert_eq!(v.as_deref().copied(), Some(128));
 ///
-/// // Fails because `128` doesn't fits into 6 bits.
+/// // Fails because `128` doesn't fit into 6 bits.
 /// let v: Option<Bounded<u16, 6>> = 128u32.try_into_bounded();
 /// assert_eq!(v, None);
 /// ```
@@ -501,7 +501,7 @@ where
 /// let v: Option<Bounded<u16, 8>> = 128u32.try_into_bounded();
 /// assert_eq!(v.as_deref().copied(), Some(128));
 ///
-/// // Fails because `128` doesn't fits into 6 bits.
+/// // Fails because `128` doesn't fit into 6 bits.
 /// let v: Option<Bounded<u16, 6>> = 128u32.try_into_bounded();
 /// assert_eq!(v, None);
 /// ```
