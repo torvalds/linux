@@ -2247,12 +2247,12 @@ int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filte
 	evlist__splice_list_tail(evlist, &parse_state.list);
 
 	if (ret2 && warn_if_reordered && !parse_state.wild_card_pmus) {
+		evlist__uniquify_evsel_names(evlist, &stat_config);
 		pr_warning("WARNING: events were regrouped to match PMUs\n");
 
 		if (verbose > 0) {
 			struct strbuf sb = STRBUF_INIT;
 
-			evlist__uniquify_evsel_names(evlist, &stat_config);
 			evlist__format_evsels(evlist, &sb, 2048);
 			pr_debug("evlist after sorting/fixing: '%s'\n", sb.buf);
 			strbuf_release(&sb);
