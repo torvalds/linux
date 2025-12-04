@@ -144,6 +144,13 @@ static inline bool is_vmalloc_addr(const void *x)
 	return false;
 }
 
+#define might_sleep() do { } while (0)
+
+static inline void synchronize_rcu(void)
+{
+	assert(0);
+}
+
 #define min(x, y) ({				\
 	typeof(x) _min1 = (x);			\
 	typeof(y) _min2 = (y);			\
