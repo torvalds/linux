@@ -38,15 +38,15 @@ MODULE_PARM_DESC(no_mailboxes,
 
 /* Flag indicating that the remote is up and running */
 #define REMOTE_IS_READY				BIT(0)
-/* Flag indicating that the host should wait for a firmware-ready response */
-#define WAIT_FW_READY				BIT(1)
+/* Flag indicating that the host should wait for a firmware-confirmation response */
+#define WAIT_FW_CONFIRMATION				BIT(1)
 #define REMOTE_READY_WAIT_MAX_RETRIES		500
 
 /*
  * This flag is set in the DSP resource table's features field to indicate
- * that the firmware requires the host NOT to wait for a FW_READY response.
+ * that the firmware requires the host NOT to wait for a FW_CONFIRMATION response.
  */
-#define FEATURE_DONT_WAIT_FW_READY		BIT(0)
+#define FEATURE_SKIP_FW_CONFIRMATION		BIT(0)
 
 /* att flags */
 /* DSP own area */
@@ -287,7 +287,7 @@ static int imx_dsp_rproc_ready(struct rproc *rproc)
  * @avail: available space in the resource table
  *
  * Parse the DSP-specific resource entry and update flags accordingly.
- * If the WAIT_FW_READY feature is set, the host must wait for the firmware
+ * If the WAIT_FW_CONFIRMATION feature is set, the host must wait for the firmware
  * to signal readiness before proceeding with execution.
  *
  * Return: RSC_HANDLED if processed successfully, RSC_IGNORED otherwise.
@@ -322,7 +322,7 @@ static int imx_dsp_rproc_handle_rsc(struct rproc *rproc, u32 rsc_type,
 
 	/*
 	 * For now, in struct fw_rsc_imx_dsp, version 0,
-	 * only FEATURE_DONT_WAIT_FW_READY is valid.
+	 * only FEATURE_SKIP_FW_CONFIRMATION is valid.
 	 *
 	 * When adding new features, please upgrade version.
 	 */
@@ -332,8 +332,8 @@ static int imx_dsp_rproc_handle_rsc(struct rproc *rproc, u32 rsc_type,
 		return RSC_IGNORED;
 	}
 
-	if (imx_dsp_rsc->features & FEATURE_DONT_WAIT_FW_READY)
-		priv->flags &= ~WAIT_FW_READY;
+	if (imx_dsp_rsc->features & FEATURE_SKIP_FW_CONFIRMATION)
+		priv->flags &= ~WAIT_FW_CONFIRMATION;
 
 	return RSC_HANDLED;
 }
@@ -385,7 +385,7 @@ static int imx_dsp_rproc_start(struct rproc *rproc)
 		return ret;
 	}
 
-	if (priv->flags & WAIT_FW_READY)
+	if (priv->flags & WAIT_FW_CONFIRMATION)
 		return imx_dsp_rproc_ready(rproc);
 
 	return 0;
@@ -1131,8 +1131,8 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 	priv = rproc->priv;
 	priv->rproc = rproc;
 	priv->dsp_dcfg = dsp_dcfg;
-	/* By default, host waits for fw_ready reply */
-	priv->flags |= WAIT_FW_READY;
+	/* By default, host waits for fw_confirmation reply */
+	priv->flags |= WAIT_FW_CONFIRMATION;
 
 	if (no_mailboxes)
 		imx_dsp_rproc_mbox_init = imx_dsp_rproc_mbox_no_alloc;
