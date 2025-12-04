@@ -20,8 +20,9 @@ CFLAGS += -g -O2 -Werror -Wno-maybe-uninitialized -Wall -I. -I../include/ -I ../
 CFLAGS += -pthread
 LDFLAGS += -pthread
 vpath %.c ../../drivers/virtio ../../drivers/vhost
+BUILD=KCFLAGS="-I "`pwd`/../../drivers/vhost ${MAKE} -C `pwd`/../.. V=${V}
 mod:
-	${MAKE} -C `pwd`/../.. M=`pwd`/vhost_test V=${V}
+	${BUILD} M=`pwd`/vhost_test
 
 #oot: build vhost as an out of tree module for a distro kernel
 #no effort is taken to make it actually build or work, but tends to mostly work
