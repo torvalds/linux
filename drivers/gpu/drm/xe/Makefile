@@ -185,8 +185,8 @@ xe-$(CONFIG_PCI_IOV) += \
 	xe_sriov_pf_sysfs.o \
 	xe_tile_sriov_pf_debugfs.o
 
-ifeq ($(CONFIG_PCI_IOV),y)
-	xe-$(CONFIG_XE_VFIO_PCI) += xe_sriov_vfio.o
+ifdef CONFIG_XE_VFIO_PCI
+	xe-$(CONFIG_PCI_IOV) += xe_sriov_vfio.o
 endif
 
 # include helpers for tests even when XE is built-in
