@@ -277,8 +277,10 @@ fan1_input_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	struct emc2103_data *data = emc2103_update_device(dev);
 	int rpm = 0;
+	mutex_lock(&data->update_lock);
 	if (data->fan_tach != 0)
 		rpm = (FAN_RPM_FACTOR * data->fan_multiplier) / data->fan_tach;
+	mutex_unlock(&data->update_lock);
 	return sprintf(buf, "%d\n", rpm);
 }
 
@@ -363,10 +365,12 @@ fan1_target_show(struct device *dev, struct device_attribute *da, char *buf)
 	struct emc2103_data *data = emc2103_update_device(dev);
 	int rpm = 0;
 
+	mutex_lock(&data->update_lock);
 	/* high byte of 0xff indicates disabled so return 0 */
 	if ((data->fan_target != 0) && ((data->fan_target & 0x1fe0) != 0x1fe0))
 		rpm = (FAN_RPM_FACTOR * data->fan_multiplier)
 			/ data->fan_target;
+	mutex_unlock(&data->update_lock);
 
 	return sprintf(buf, "%d\n", rpm);
 }

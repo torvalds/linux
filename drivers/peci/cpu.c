@@ -321,6 +321,10 @@ static const struct peci_device_id peci_cpu_device_ids[] = {
 		.x86_vfm = INTEL_SAPPHIRERAPIDS_X,
 		.data	= "spr",
 	},
+	{ /* Emerald Rapids Xeon */
+		.x86_vfm  = INTEL_EMERALDRAPIDS_X,
+		.data  = "emr",
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(peci, peci_cpu_device_ids);

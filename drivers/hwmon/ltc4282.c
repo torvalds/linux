@@ -12,13 +12,11 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/i2c.h>
 #include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/property.h>
 #include <linux/string.h>
@@ -132,8 +130,6 @@ struct ltc4282_cache {
 
 struct ltc4282_state {
 	struct regmap *map;
-	/* Protect against multiple accesses to the device registers */
-	struct mutex lock;
 	struct clk_hw clk_hw;
 	/*
 	 * Used to cache values for VDD/VSOURCE depending which will be used
@@ -282,14 +278,12 @@ static int __ltc4282_read_alarm(struct ltc4282_state *st, u32 reg, u32 mask,
 static int ltc4282_read_alarm(struct ltc4282_state *st, u32 reg, u32 mask,
 			      long *val)
 {
-	guard(mutex)(&st->lock);
 	return __ltc4282_read_alarm(st, reg, mask, val);
 }
 
 static int ltc4282_vdd_source_read_in(struct ltc4282_state *st, u32 channel,
 				      long *val)
 {
-	guard(mutex)(&st->lock);
 	if (!st->in0_1_cache[channel].en)
 		return -ENODATA;
 
@@ -301,7 +295,6 @@ static int ltc4282_vdd_source_read_hist(struct ltc4282_state *st, u32 reg,
 {
 	int ret;
 
-	guard(mutex)(&st->lock);
 	if (!st->in0_1_cache[channel].en) {
 		*val = *cached;
 		return 0;
@@ -318,7 +311,6 @@ static int ltc4282_vdd_source_read_hist(struct ltc4282_state *st, u32 reg,
 static int ltc4282_vdd_source_read_lim(struct ltc4282_state *st, u32 reg,
 				       u32 channel, u32 *cached, long *val)
 {
-	guard(mutex)(&st->lock);
 	if (!st->in0_1_cache[channel].en)
 		return ltc4282_read_voltage_byte_cached(st, reg, st->vfs_out,
 							val, cached);
@@ -329,7 +321,6 @@ static int ltc4282_vdd_source_read_lim(struct ltc4282_state *st, u32 reg,
 static int ltc4282_vdd_source_read_alm(struct ltc4282_state *st, u32 mask,
 				       u32 channel, long *val)
 {
-	guard(mutex)(&st->lock);
 	if (!st->in0_1_cache[channel].en) {
 		/*
 		 * Do this otherwise alarms can get confused because we clear
@@ -413,9 +404,7 @@ static int ltc4282_read_in(struct ltc4282_state *st, u32 attr, long *val,
 						   channel,
 						   &st->in0_1_cache[channel].in_min_raw, val);
 	case hwmon_in_enable:
-		scoped_guard(mutex, &st->lock) {
-			*val = st->in0_1_cache[channel].en;
-		}
+		*val = st->in0_1_cache[channel].en;
 		return 0;
 	case hwmon_in_fault:
 		/*
@@ -541,7 +530,7 @@ static int ltc4282_read_power_byte(const struct ltc4282_state *st, u32 reg,
 	return 0;
 }
 
-static int ltc4282_read_energy(const struct ltc4282_state *st, u64 *val)
+static int ltc4282_read_energy(const struct ltc4282_state *st, s64 *val)
 {
 	u64 temp, energy;
 	__be64 raw;
@@ -613,10 +602,12 @@ static int ltc4282_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_power:
 		return ltc4282_read_power(st, attr, val);
 	case hwmon_energy:
-		scoped_guard(mutex, &st->lock) {
-			*val = st->energy_en;
-		}
+		*val = st->energy_en;
 		return 0;
+	case hwmon_energy64:
+		if (st->energy_en)
+			return ltc4282_read_energy(st, (s64 *)val);
+		return -ENODATA;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -683,15 +674,12 @@ static int __ltc4282_in_write_history(const struct ltc4282_state *st, u32 reg,
 static int ltc4282_in_write_history(struct ltc4282_state *st, u32 reg,
 				    long lowest, long highest, u32 fs)
 {
-	guard(mutex)(&st->lock);
 	return __ltc4282_in_write_history(st, reg, lowest, highest, fs);
 }
 
 static int ltc4282_power_reset_hist(struct ltc4282_state *st)
 {
 	int ret;
-
-	guard(mutex)(&st->lock);
 
 	ret = ltc4282_write_power_word(st, LTC4282_POWER_LOWEST,
 				       st->power_max);
@@ -798,7 +786,6 @@ static int ltc4282_vdd_source_write_lim(struct ltc4282_state *st, u32 reg,
 {
 	int ret;
 
-	guard(mutex)(&st->lock);
 	if (st->in0_1_cache[channel].en)
 		ret = ltc4282_write_voltage_byte(st, reg, st->vfs_out, val);
 	else
@@ -816,7 +803,6 @@ static int ltc4282_vdd_source_reset_hist(struct ltc4282_state *st, int channel)
 	if (channel == LTC4282_CHAN_VDD)
 		lowest = st->vdd;
 
-	guard(mutex)(&st->lock);
 	if (st->in0_1_cache[channel].en) {
 		ret = __ltc4282_in_write_history(st, LTC4282_VSOURCE_LOWEST,
 						 lowest, 0, st->vfs_out);
@@ -856,7 +842,6 @@ static int ltc4282_vdd_source_enable(struct ltc4282_state *st, int channel,
 	int ret, other_chan = ~channel & 0x1;
 	u8 __val = val;
 
-	guard(mutex)(&st->lock);
 	if (st->in0_1_cache[channel].en == !!val)
 		return 0;
 
@@ -933,8 +918,6 @@ static int ltc4282_curr_reset_hist(struct ltc4282_state *st)
 {
 	int ret;
 
-	guard(mutex)(&st->lock);
-
 	ret = __ltc4282_in_write_history(st, LTC4282_VSENSE_LOWEST,
 					 st->vsense_max, 0, 40 * MILLI);
 	if (ret)
@@ -969,7 +952,6 @@ static int ltc4282_energy_enable_set(struct ltc4282_state *st, long val)
 {
 	int ret;
 
-	guard(mutex)(&st->lock);
 	/* setting the bit halts the meter */
 	ret = regmap_update_bits(st->map, LTC4282_ADC_CTRL,
 				 LTC4282_METER_HALT_MASK,
@@ -1078,6 +1060,9 @@ static umode_t ltc4282_is_visible(const void *data,
 	case hwmon_energy:
 		/* hwmon_energy_enable */
 		return 0644;
+	case hwmon_energy64:
+		/* hwmon_energy_input */
+		return 0444;
 	default:
 		return 0;
 	}
@@ -1104,24 +1089,6 @@ static int ltc4282_read_labels(struct device *dev,
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-static ssize_t ltc4282_energy_show(struct device *dev,
-				   struct device_attribute *da, char *buf)
-{
-	struct ltc4282_state *st = dev_get_drvdata(dev);
-	u64 energy;
-	int ret;
-
-	guard(mutex)(&st->lock);
-	if (!st->energy_en)
-		return -ENODATA;
-
-	ret = ltc4282_read_energy(st, &energy);
-	if (ret < 0)
-		return ret;
-
-	return sysfs_emit(buf, "%llu\n", energy);
 }
 
 static const struct clk_ops ltc4282_ops = {
@@ -1588,6 +1555,8 @@ static const struct hwmon_channel_info * const ltc4282_info[] = {
 			   HWMON_P_RESET_HISTORY | HWMON_P_LABEL),
 	HWMON_CHANNEL_INFO(energy,
 			   HWMON_E_ENABLE),
+	HWMON_CHANNEL_INFO(energy64,
+			   HWMON_E_INPUT),
 	NULL
 };
 
@@ -1602,15 +1571,6 @@ static const struct hwmon_chip_info ltc4282_chip_info = {
 	.ops = &ltc4282_hwmon_ops,
 	.info = ltc4282_info,
 };
-
-/* energy attributes are 6bytes wide so we need u64 */
-static SENSOR_DEVICE_ATTR_RO(energy1_input, ltc4282_energy, 0);
-
-static struct attribute *ltc4282_attrs[] = {
-	&sensor_dev_attr_energy1_input.dev_attr.attr,
-	NULL
-};
-ATTRIBUTE_GROUPS(ltc4282);
 
 static int ltc4282_show_fault_log(void *arg, u64 *val, u32 mask)
 {
@@ -1716,10 +1676,8 @@ static int ltc4282_probe(struct i2c_client *i2c)
 	if (ret)
 		return ret;
 
-	mutex_init(&st->lock);
 	hwmon = devm_hwmon_device_register_with_info(dev, "ltc4282", st,
-						     &ltc4282_chip_info,
-						     ltc4282_groups);
+						     &ltc4282_chip_info, NULL);
 	if (IS_ERR(hwmon))
 		return PTR_ERR(hwmon);
 
