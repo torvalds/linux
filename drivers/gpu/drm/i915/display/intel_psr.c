@@ -1708,14 +1708,25 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 	return true;
 }
 
-static bool
-_panel_replay_compute_config(struct intel_dp *intel_dp,
-			     struct intel_crtc_state *crtc_state,
-			     const struct drm_connector_state *conn_state)
+static inline bool compute_link_off_after_as_sdp_when_pr_active(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = to_intel_display(intel_dp);
+	return (intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)] &
+		DP_PANEL_REPLAY_LINK_OFF_SUPPORTED_IN_PR_AFTER_ADAPTIVE_SYNC_SDP);
+}
+
+static inline bool compute_disable_as_sdp_when_pr_active(struct intel_dp *intel_dp)
+{
+	return !(intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)] &
+		 DP_PANEL_REPLAY_ASYNC_VIDEO_TIMING_NOT_SUPPORTED_IN_PR);
+}
+
+static bool _panel_replay_compute_config(struct intel_crtc_state *crtc_state,
+					 const struct drm_connector_state *conn_state)
+{
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 
 	if (!CAN_PANEL_REPLAY(intel_dp))
@@ -1739,6 +1750,9 @@ _panel_replay_compute_config(struct intel_dp *intel_dp,
 			    "Panel Replay not enabled because it's not supported with DSC\n");
 		return false;
 	}
+
+	crtc_state->link_off_after_as_sdp_when_pr_active = compute_link_off_after_as_sdp_when_pr_active(intel_dp);
+	crtc_state->disable_as_sdp_when_pr_active = compute_disable_as_sdp_when_pr_active(intel_dp);
 
 	if (!intel_dp_is_edp(intel_dp))
 		return true;
@@ -1847,8 +1861,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 
 	/* Only used for state verification. */
 	crtc_state->panel_replay_dsc_support = intel_dp->psr.sink_panel_replay_dsc_support;
-	crtc_state->has_panel_replay = _panel_replay_compute_config(intel_dp,
-								    crtc_state,
+	crtc_state->has_panel_replay = _panel_replay_compute_config(crtc_state,
 								    conn_state);
 
 	crtc_state->has_psr = crtc_state->has_panel_replay ? true :

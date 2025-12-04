@@ -1162,6 +1162,8 @@ struct intel_crtc_state {
 	bool enable_psr2_su_region_et;
 	bool req_psr2_sdp_prior_scanline;
 	bool has_panel_replay;
+	bool link_off_after_as_sdp_when_pr_active;
+	bool disable_as_sdp_when_pr_active;
 	bool wm_level_disabled;
 	bool pkg_c_latency_used;
 	/* Only used for state verification. */
