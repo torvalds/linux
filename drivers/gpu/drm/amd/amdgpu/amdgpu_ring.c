@@ -520,9 +520,14 @@ static ssize_t amdgpu_ras_cper_debugfs_read(struct file *f, char __user *buf,
 		return -ENOMEM;
 
 	if (!(*offset)) {
+		/* Need at least 12 bytes for the header on the first read */
+		if (size < ring_header_size)
+			return -EINVAL;
+
 		if (copy_to_user(buf, ring_header, ring_header_size))
 			return -EFAULT;
 		buf += ring_header_size;
+		size -= ring_header_size;
 	}
 
 	r = amdgpu_ras_mgr_handle_ras_cmd(ring->adev,

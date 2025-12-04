@@ -1463,7 +1463,9 @@ static void __init retbleed_update_mitigation(void)
 			break;
 		default:
 			if (retbleed_mitigation != RETBLEED_MITIGATION_STUFF) {
-				pr_err(RETBLEED_INTEL_MSG);
+				if (retbleed_mitigation != RETBLEED_MITIGATION_NONE)
+					pr_err(RETBLEED_INTEL_MSG);
+
 				retbleed_mitigation = RETBLEED_MITIGATION_NONE;
 			}
 		}
@@ -1824,13 +1826,6 @@ void unpriv_ebpf_notify(int new_state)
 	}
 }
 #endif
-
-static inline bool match_option(const char *arg, int arglen, const char *opt)
-{
-	int len = strlen(opt);
-
-	return len == arglen && !strncmp(arg, opt, len);
-}
 
 /* The kernel command line selection for spectre v2 */
 enum spectre_v2_mitigation_cmd {

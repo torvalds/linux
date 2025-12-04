@@ -18,10 +18,9 @@ config SUNRPC_SWAP
 
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism"
-	depends on SUNRPC
+	depends on SUNRPC && CRYPTO
 	default y
 	select SUNRPC_GSS
-	select CRYPTO
 	select CRYPTO_SKCIPHER
 	select CRYPTO_HASH
 	help

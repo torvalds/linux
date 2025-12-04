@@ -891,18 +891,27 @@ static inline void tcp_rcv_rtt_measure_ts(struct sock *sk,
 	}
 }
 
-void tcp_rcvbuf_grow(struct sock *sk)
+void tcp_rcvbuf_grow(struct sock *sk, u32 newval)
 {
 	const struct net *net = sock_net(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	int rcvwin, rcvbuf, cap;
+	u32 rcvwin, rcvbuf, cap, oldval;
+	u64 grow;
+
+	oldval = tp->rcvq_space.space;
+	tp->rcvq_space.space = newval;
 
 	if (!READ_ONCE(net->ipv4.sysctl_tcp_moderate_rcvbuf) ||
 	    (sk->sk_userlocks & SOCK_RCVBUF_LOCK))
 		return;
 
+	/* DRS is always one RTT late. */
+	rcvwin = newval << 1;
+
 	/* slow start: allow the sender to double its rate. */
-	rcvwin = tp->rcvq_space.space << 1;
+	grow = (u64)rcvwin * (newval - oldval);
+	do_div(grow, oldval);
+	rcvwin += grow << 1;
 
 	if (!RB_EMPTY_ROOT(&tp->out_of_order_queue))
 		rcvwin += TCP_SKB_CB(tp->ooo_last_skb)->end_seq - tp->rcv_nxt;
@@ -943,9 +952,7 @@ void tcp_rcv_space_adjust(struct sock *sk)
 
 	trace_tcp_rcvbuf_grow(sk, time);
 
-	tp->rcvq_space.space = copied;
-
-	tcp_rcvbuf_grow(sk);
+	tcp_rcvbuf_grow(sk, copied);
 
 new_measure:
 	tp->rcvq_space.seq = tp->copied_seq;
@@ -5270,7 +5277,7 @@ end:
 	}
 	/* do not grow rcvbuf for not-yet-accepted or orphaned sockets. */
 	if (sk->sk_socket)
-		tcp_rcvbuf_grow(sk);
+		tcp_rcvbuf_grow(sk, tp->rcvq_space.space);
 }
 
 static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb,

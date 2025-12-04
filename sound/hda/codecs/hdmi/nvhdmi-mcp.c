@@ -350,8 +350,8 @@ static int nvhdmi_mcp_probe(struct hda_codec *codec,
 static const struct hda_codec_ops nvhdmi_mcp_codec_ops = {
 	.probe = nvhdmi_mcp_probe,
 	.remove = snd_hda_hdmi_simple_remove,
-	.build_controls = nvhdmi_mcp_build_pcms,
-	.build_pcms = nvhdmi_mcp_build_controls,
+	.build_pcms = nvhdmi_mcp_build_pcms,
+	.build_controls = nvhdmi_mcp_build_controls,
 	.init = nvhdmi_mcp_init,
 	.unsol_event = snd_hda_hdmi_simple_unsol_event,
 };

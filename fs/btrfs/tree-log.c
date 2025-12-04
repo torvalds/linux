@@ -7122,7 +7122,7 @@ log_extents:
 	 *    a power failure unless the log was synced as part of an fsync
 	 *    against any other unrelated inode.
 	 */
-	if (inode_only != LOG_INODE_EXISTS)
+	if (!ctx->logging_new_name && inode_only != LOG_INODE_EXISTS)
 		inode->last_log_commit = inode->last_sub_trans;
 	spin_unlock(&inode->lock);
 
@@ -7909,6 +7909,9 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	struct btrfs_log_ctx ctx;
 	bool log_pinned = false;
 	int ret;
+
+	/* The inode has a new name (ref/extref), so make sure we log it. */
+	set_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags);
 
 	btrfs_init_log_ctx(&ctx, inode);
 	ctx.logging_new_name = true;

@@ -36,6 +36,9 @@ struct io_uring_query_opcode {
 	__u64	enter_flags;
 	/* Bitmask of all supported IOSQE_* flags */
 	__u64	sqe_flags;
+	/* The number of available query opcodes */
+	__u32	nr_query_opcodes;
+	__u32	__pad;
 };
 
 #endif

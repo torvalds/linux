@@ -320,15 +320,16 @@ static inline bool exportfs_can_decode_fh(const struct export_operations *nop)
 static inline bool exportfs_can_encode_fh(const struct export_operations *nop,
 					  int fh_flags)
 {
-	if (!nop)
-		return false;
-
 	/*
 	 * If a non-decodeable file handle was requested, we only need to make
 	 * sure that filesystem did not opt-out of encoding fid.
 	 */
 	if (fh_flags & EXPORT_FH_FID)
 		return exportfs_can_encode_fid(nop);
+
+	/* Normal file handles cannot be created without export ops */
+	if (!nop)
+		return false;
 
 	/*
 	 * If a connectable file handle was requested, we need to make sure that

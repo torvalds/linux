@@ -17,7 +17,7 @@ static void check_err(const char *fn, int err)
 
 #define CHECK_ERR(err) check_err(__func__, err)
 
-static void __mutex_init(struct mutex *mtx, bool pshared)
+static void __mutex_init(struct mutex *mtx, bool pshared, bool recursive)
 {
 	pthread_mutexattr_t attr;
 
@@ -27,21 +27,27 @@ static void __mutex_init(struct mutex *mtx, bool pshared)
 	/* In normal builds enable error checking, such as recursive usage. */
 	CHECK_ERR(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK));
 #endif
+	if (recursive)
+		CHECK_ERR(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE));
 	if (pshared)
 		CHECK_ERR(pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED));
-
 	CHECK_ERR(pthread_mutex_init(&mtx->lock, &attr));
 	CHECK_ERR(pthread_mutexattr_destroy(&attr));
 }
 
 void mutex_init(struct mutex *mtx)
 {
-	__mutex_init(mtx, /*pshared=*/false);
+	__mutex_init(mtx, /*pshared=*/false, /*recursive=*/false);
 }
 
 void mutex_init_pshared(struct mutex *mtx)
 {
-	__mutex_init(mtx, /*pshared=*/true);
+	__mutex_init(mtx, /*pshared=*/true, /*recursive=*/false);
+}
+
+void mutex_init_recursive(struct mutex *mtx)
+{
+	__mutex_init(mtx, /*pshared=*/false, /*recursive=*/true);
 }
 
 void mutex_destroy(struct mutex *mtx)

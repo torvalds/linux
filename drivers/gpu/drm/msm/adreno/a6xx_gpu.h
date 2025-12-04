@@ -46,6 +46,9 @@ struct a6xx_info {
 	const struct adreno_protect *protect;
 	const struct adreno_reglist_list *pwrup_reglist;
 	const struct adreno_reglist_list *ifpc_reglist;
+	const struct adreno_reglist *gbif_cx;
+	const struct adreno_reglist_pipe *nonctxt_reglist;
+	u32 max_slices;
 	u32 gmu_chipid;
 	u32 gmu_cgc_mode;
 	u32 prim_fifo_threshold;
@@ -57,6 +60,8 @@ struct a6xx_gpu {
 
 	struct drm_gem_object *sqe_bo;
 	uint64_t sqe_iova;
+	struct drm_gem_object *aqe_bo;
+	uint64_t aqe_iova;
 
 	struct msm_ringbuffer *cur_ring;
 	struct msm_ringbuffer *next_ring;
@@ -101,6 +106,11 @@ struct a6xx_gpu {
 	void *htw_llc_slice;
 	bool have_mmu500;
 	bool hung;
+
+	u32 cached_aperture;
+	spinlock_t aperture_lock;
+
+	u32 slice_mask;
 };
 
 #define to_a6xx_gpu(x) container_of(x, struct a6xx_gpu, base)
@@ -216,6 +226,11 @@ struct a7xx_cp_smmu_info {
 #define A6XX_PROTECT_RDONLY(_reg, _len) \
 	((((_len) & 0x3FFF) << 18) | ((_reg) & 0x3FFFF))
 
+extern const struct adreno_gpu_funcs a6xx_gpu_funcs;
+extern const struct adreno_gpu_funcs a6xx_gmuwrapper_funcs;
+extern const struct adreno_gpu_funcs a7xx_gpu_funcs;
+extern const struct adreno_gpu_funcs a8xx_gpu_funcs;
+
 static inline bool a6xx_has_gbif(struct adreno_gpu *gpu)
 {
 	if(adreno_is_a630(gpu))
@@ -298,5 +313,19 @@ int a6xx_gpu_state_put(struct msm_gpu_state *state);
 void a6xx_bus_clear_pending_transactions(struct adreno_gpu *adreno_gpu, bool gx_off);
 void a6xx_gpu_sw_reset(struct msm_gpu *gpu, bool assert);
 int a6xx_fenced_write(struct a6xx_gpu *gpu, u32 offset, u64 value, u32 mask, bool is_64b);
+void a6xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
+int a6xx_zap_shader_init(struct msm_gpu *gpu);
 
+void a8xx_bus_clear_pending_transactions(struct adreno_gpu *adreno_gpu, bool gx_off);
+int a8xx_fault_handler(void *arg, unsigned long iova, int flags, void *data);
+void a8xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
+int a8xx_gmu_get_timestamp(struct msm_gpu *gpu, uint64_t *value);
+u64 a8xx_gpu_busy(struct msm_gpu *gpu, unsigned long *out_sample_rate);
+int a8xx_gpu_feature_probe(struct msm_gpu *gpu);
+void a8xx_gpu_get_slice_info(struct msm_gpu *gpu);
+int a8xx_hw_init(struct msm_gpu *gpu);
+irqreturn_t a8xx_irq(struct msm_gpu *gpu);
+void a8xx_llc_activate(struct a6xx_gpu *a6xx_gpu);
+bool a8xx_progress(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
+void a8xx_recover(struct msm_gpu *gpu);
 #endif /* __A6XX_GPU_H__ */

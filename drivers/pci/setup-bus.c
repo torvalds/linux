@@ -1604,7 +1604,7 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 		pbus_size_io(bus, realloc_head ? 0 : additional_io_size,
 			     additional_io_size, realloc_head);
 
-		if (pref) {
+		if (pref && (pref->flags & IORESOURCE_PREFETCH)) {
 			pbus_size_mem(bus,
 				      IORESOURCE_MEM | IORESOURCE_PREFETCH |
 				      (pref->flags & IORESOURCE_MEM_64),

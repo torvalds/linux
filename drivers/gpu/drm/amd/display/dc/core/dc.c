@@ -303,6 +303,7 @@ static bool create_links(
 		link->link_id.id = CONNECTOR_ID_VIRTUAL;
 		link->link_id.enum_id = ENUM_ID_1;
 		link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
+		link->replay_settings.config.replay_version = DC_REPLAY_VERSION_UNSUPPORTED;
 		link->link_enc = kzalloc(sizeof(*link->link_enc), GFP_KERNEL);
 
 		if (!link->link_enc) {
@@ -2146,6 +2147,14 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb)) {
 		disable_vbios_mode_if_required(dc, context);
 		dc->hwss.enable_accelerated_mode(dc, context);
+	} else if (get_seamless_boot_stream_count(dc->current_state) > 0) {
+		/* If the previous Stream still retains the apply seamless boot flag,
+		 * it means the OS has not actually performed a flip yet.
+		 * At this point, if we receive dc_commit_streams again, we should
+		 * once more check whether the actual HW timing matches what the OS
+		 * has provided
+		 */
+		disable_vbios_mode_if_required(dc, context);
 	}
 
 	if (dc->hwseq->funcs.wait_for_pipe_update_if_needed) {
@@ -6003,6 +6012,12 @@ bool dc_smart_power_oled_enable(const struct dc_link *link, bool enable, uint16_
 	if (pipe_ctx)
 		otg_inst = pipe_ctx->stream_res.tg->inst;
 
+	// before enable smart power OLED, we need to call set pipe for DMUB to set ABM config
+	if (enable) {
+		if (dc->hwss.set_pipe && pipe_ctx)
+			dc->hwss.set_pipe(pipe_ctx);
+	}
+
 	// fill in cmd
 	memset(&cmd, 0, sizeof(cmd));
 
@@ -6509,6 +6524,567 @@ void dc_get_power_feature_status(struct dc *dc, int primary_otg_inst,
 {
 	out_data->uclk_p_state = dc->current_state->clk_mgr->clks.p_state_change_support;
 	out_data->fams = dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
+}
+
+bool dc_capture_register_software_state(struct dc *dc, struct dc_register_software_state *state)
+{
+	struct dc_state *context;
+	struct resource_context *res_ctx;
+	int i;
+
+	if (!dc || !dc->current_state || !state) {
+		if (state)
+			state->state_valid = false;
+		return false;
+	}
+
+	/* Initialize the state structure */
+	memset(state, 0, sizeof(struct dc_register_software_state));
+
+	context = dc->current_state;
+	res_ctx = &context->res_ctx;
+
+	/* Count active pipes and streams */
+	state->active_pipe_count = 0;
+	state->active_stream_count = context->stream_count;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (res_ctx->pipe_ctx[i].stream)
+			state->active_pipe_count++;
+	}
+
+	/* Capture HUBP programming state for each pipe */
+	for (i = 0; i < MAX_PIPES && i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		state->hubp[i].valid_stream = false;
+		if (!pipe_ctx->stream)
+			continue;
+
+		state->hubp[i].valid_stream = true;
+
+		/* HUBP register programming variables */
+		if (pipe_ctx->stream_res.tg)
+			state->hubp[i].vtg_sel = pipe_ctx->stream_res.tg->inst;
+
+		state->hubp[i].hubp_clock_enable = (pipe_ctx->plane_res.hubp != NULL) ? 1 : 0;
+
+		state->hubp[i].valid_plane_state = false;
+		if (pipe_ctx->plane_state) {
+			state->hubp[i].valid_plane_state = true;
+			state->hubp[i].surface_pixel_format = pipe_ctx->plane_state->format;
+			state->hubp[i].rotation_angle = pipe_ctx->plane_state->rotation;
+			state->hubp[i].h_mirror_en = pipe_ctx->plane_state->horizontal_mirror ? 1 : 0;
+
+			/* Surface size */
+			if (pipe_ctx->plane_state->plane_size.surface_size.width > 0) {
+				state->hubp[i].surface_size_width = pipe_ctx->plane_state->plane_size.surface_size.width;
+				state->hubp[i].surface_size_height = pipe_ctx->plane_state->plane_size.surface_size.height;
+			}
+
+			/* Viewport dimensions from scaler data */
+			if (pipe_ctx->plane_state->src_rect.width > 0) {
+				state->hubp[i].pri_viewport_width = pipe_ctx->plane_state->src_rect.width;
+				state->hubp[i].pri_viewport_height = pipe_ctx->plane_state->src_rect.height;
+				state->hubp[i].pri_viewport_x_start = pipe_ctx->plane_state->src_rect.x;
+				state->hubp[i].pri_viewport_y_start = pipe_ctx->plane_state->src_rect.y;
+			}
+
+			/* DCC settings */
+			state->hubp[i].surface_dcc_en = (pipe_ctx->plane_state->dcc.enable) ? 1 : 0;
+			state->hubp[i].surface_dcc_ind_64b_blk = pipe_ctx->plane_state->dcc.independent_64b_blks;
+			state->hubp[i].surface_dcc_ind_128b_blk = pipe_ctx->plane_state->dcc.dcc_ind_blk;
+
+			/* Surface pitch */
+			state->hubp[i].surface_pitch = pipe_ctx->plane_state->plane_size.surface_pitch;
+			state->hubp[i].meta_pitch = pipe_ctx->plane_state->dcc.meta_pitch;
+			state->hubp[i].chroma_pitch = pipe_ctx->plane_state->plane_size.chroma_pitch;
+			state->hubp[i].meta_pitch_c = pipe_ctx->plane_state->dcc.meta_pitch_c;
+
+			/* Surface addresses - primary */
+			state->hubp[i].primary_surface_address_low = pipe_ctx->plane_state->address.grph.addr.low_part;
+			state->hubp[i].primary_surface_address_high = pipe_ctx->plane_state->address.grph.addr.high_part;
+			state->hubp[i].primary_meta_surface_address_low = pipe_ctx->plane_state->address.grph.meta_addr.low_part;
+			state->hubp[i].primary_meta_surface_address_high = pipe_ctx->plane_state->address.grph.meta_addr.high_part;
+
+			/* TMZ settings */
+			state->hubp[i].primary_surface_tmz = pipe_ctx->plane_state->address.tmz_surface;
+			state->hubp[i].primary_meta_surface_tmz = pipe_ctx->plane_state->address.tmz_surface;
+
+			/* Tiling configuration */
+			state->hubp[i].min_dc_gfx_version9 = false;
+			if (pipe_ctx->plane_state->tiling_info.gfxversion >= DcGfxVersion9) {
+				state->hubp[i].min_dc_gfx_version9 = true;
+				state->hubp[i].sw_mode = pipe_ctx->plane_state->tiling_info.gfx9.swizzle;
+				state->hubp[i].num_pipes = pipe_ctx->plane_state->tiling_info.gfx9.num_pipes;
+				state->hubp[i].num_banks = pipe_ctx->plane_state->tiling_info.gfx9.num_banks;
+				state->hubp[i].pipe_interleave = pipe_ctx->plane_state->tiling_info.gfx9.pipe_interleave;
+				state->hubp[i].num_shader_engines = pipe_ctx->plane_state->tiling_info.gfx9.num_shader_engines;
+				state->hubp[i].num_rb_per_se = pipe_ctx->plane_state->tiling_info.gfx9.num_rb_per_se;
+				state->hubp[i].num_pkrs = pipe_ctx->plane_state->tiling_info.gfx9.num_pkrs;
+			}
+		}
+
+		/* DML Request Size Configuration */
+		if (pipe_ctx->rq_regs.rq_regs_l.chunk_size > 0) {
+			state->hubp[i].rq_chunk_size = pipe_ctx->rq_regs.rq_regs_l.chunk_size;
+			state->hubp[i].rq_min_chunk_size = pipe_ctx->rq_regs.rq_regs_l.min_chunk_size;
+			state->hubp[i].rq_meta_chunk_size = pipe_ctx->rq_regs.rq_regs_l.meta_chunk_size;
+			state->hubp[i].rq_min_meta_chunk_size = pipe_ctx->rq_regs.rq_regs_l.min_meta_chunk_size;
+			state->hubp[i].rq_dpte_group_size = pipe_ctx->rq_regs.rq_regs_l.dpte_group_size;
+			state->hubp[i].rq_mpte_group_size = pipe_ctx->rq_regs.rq_regs_l.mpte_group_size;
+			state->hubp[i].rq_swath_height_l = pipe_ctx->rq_regs.rq_regs_l.swath_height;
+			state->hubp[i].rq_pte_row_height_l = pipe_ctx->rq_regs.rq_regs_l.pte_row_height_linear;
+		}
+
+		/* Chroma request size configuration */
+		if (pipe_ctx->rq_regs.rq_regs_c.chunk_size > 0) {
+			state->hubp[i].rq_chunk_size_c = pipe_ctx->rq_regs.rq_regs_c.chunk_size;
+			state->hubp[i].rq_min_chunk_size_c = pipe_ctx->rq_regs.rq_regs_c.min_chunk_size;
+			state->hubp[i].rq_meta_chunk_size_c = pipe_ctx->rq_regs.rq_regs_c.meta_chunk_size;
+			state->hubp[i].rq_min_meta_chunk_size_c = pipe_ctx->rq_regs.rq_regs_c.min_meta_chunk_size;
+			state->hubp[i].rq_dpte_group_size_c = pipe_ctx->rq_regs.rq_regs_c.dpte_group_size;
+			state->hubp[i].rq_mpte_group_size_c = pipe_ctx->rq_regs.rq_regs_c.mpte_group_size;
+			state->hubp[i].rq_swath_height_c = pipe_ctx->rq_regs.rq_regs_c.swath_height;
+			state->hubp[i].rq_pte_row_height_c = pipe_ctx->rq_regs.rq_regs_c.pte_row_height_linear;
+		}
+
+		/* DML expansion modes */
+		state->hubp[i].drq_expansion_mode = pipe_ctx->rq_regs.drq_expansion_mode;
+		state->hubp[i].prq_expansion_mode = pipe_ctx->rq_regs.prq_expansion_mode;
+		state->hubp[i].mrq_expansion_mode = pipe_ctx->rq_regs.mrq_expansion_mode;
+		state->hubp[i].crq_expansion_mode = pipe_ctx->rq_regs.crq_expansion_mode;
+
+		/* DML DLG parameters - nominal */
+		state->hubp[i].dst_y_per_vm_vblank = pipe_ctx->dlg_regs.dst_y_per_vm_vblank;
+		state->hubp[i].dst_y_per_row_vblank = pipe_ctx->dlg_regs.dst_y_per_row_vblank;
+		state->hubp[i].dst_y_per_vm_flip = pipe_ctx->dlg_regs.dst_y_per_vm_flip;
+		state->hubp[i].dst_y_per_row_flip = pipe_ctx->dlg_regs.dst_y_per_row_flip;
+
+		/* DML prefetch settings */
+		state->hubp[i].dst_y_prefetch = pipe_ctx->dlg_regs.dst_y_prefetch;
+		state->hubp[i].vratio_prefetch = pipe_ctx->dlg_regs.vratio_prefetch;
+		state->hubp[i].vratio_prefetch_c = pipe_ctx->dlg_regs.vratio_prefetch_c;
+
+		/* TTU parameters */
+		state->hubp[i].qos_level_low_wm = pipe_ctx->ttu_regs.qos_level_low_wm;
+		state->hubp[i].qos_level_high_wm = pipe_ctx->ttu_regs.qos_level_high_wm;
+		state->hubp[i].qos_level_flip = pipe_ctx->ttu_regs.qos_level_flip;
+		state->hubp[i].min_ttu_vblank = pipe_ctx->ttu_regs.min_ttu_vblank;
+	}
+
+	/* Capture HUBBUB programming state */
+	if (dc->res_pool->hubbub) {
+		/* Individual DET buffer sizes - software state variables that program DET registers */
+		for (i = 0; i < 4 && i < dc->res_pool->pipe_count; i++) {
+			uint32_t det_size = res_ctx->pipe_ctx[i].det_buffer_size_kb;
+			switch (i) {
+			case 0:
+				state->hubbub.det0_size = det_size;
+				break;
+			case 1:
+				state->hubbub.det1_size = det_size;
+				break;
+			case 2:
+				state->hubbub.det2_size = det_size;
+				break;
+			case 3:
+				state->hubbub.det3_size = det_size;
+				break;
+			}
+		}
+
+		/* Compression buffer configuration - software state that programs COMPBUF_SIZE register */
+		// TODO: Handle logic for legacy DCN pre-DCN401
+		state->hubbub.compbuf_size = context->bw_ctx.bw.dcn.arb_regs.compbuf_size;
+	}
+
+	/* Capture DPP programming state for each pipe */
+	for (i = 0; i < MAX_PIPES && i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (!pipe_ctx->stream)
+			continue;
+
+		state->dpp[i].dpp_clock_enable = (pipe_ctx->plane_res.dpp != NULL) ? 1 : 0;
+
+		if (pipe_ctx->plane_state && pipe_ctx->plane_res.scl_data.recout.width > 0) {
+			/* Access dscl_prog_data directly - this contains the actual software state used for register programming */
+			struct dscl_prog_data *dscl_data = &pipe_ctx->plane_res.scl_data.dscl_prog_data;
+
+			/* Recout (Rectangle of Interest) configuration - software state that programs RECOUT registers */
+			state->dpp[i].recout_start_x = dscl_data->recout.x;
+			state->dpp[i].recout_start_y = dscl_data->recout.y;
+			state->dpp[i].recout_width = dscl_data->recout.width;
+			state->dpp[i].recout_height = dscl_data->recout.height;
+
+			/* MPC (Multiple Pipe/Plane Combiner) size - software state that programs MPC_SIZE registers */
+			state->dpp[i].mpc_width = dscl_data->mpc_size.width;
+			state->dpp[i].mpc_height = dscl_data->mpc_size.height;
+
+			/* DSCL mode - software state that programs SCL_MODE registers */
+			state->dpp[i].dscl_mode = dscl_data->dscl_mode;
+
+			/* Scaler ratios - software state that programs scale ratio registers (use actual programmed ratios) */
+			state->dpp[i].horz_ratio_int = dscl_data->ratios.h_scale_ratio >> 19; // Extract integer part from programmed ratio
+			state->dpp[i].vert_ratio_int = dscl_data->ratios.v_scale_ratio >> 19; // Extract integer part from programmed ratio
+
+			/* Basic scaler taps - software state that programs tap control registers (use actual programmed taps) */
+			state->dpp[i].h_taps = dscl_data->taps.h_taps + 1; // dscl_prog_data.taps stores (taps - 1), so add 1 back
+			state->dpp[i].v_taps = dscl_data->taps.v_taps + 1; // dscl_prog_data.taps stores (taps - 1), so add 1 back
+		}
+	}
+
+	/* Capture essential clock state for underflow analysis */
+	if (dc->clk_mgr && dc->clk_mgr->clks.dispclk_khz > 0) {
+		/* Core display clocks affecting bandwidth and timing */
+		state->dccg.dispclk_khz = dc->clk_mgr->clks.dispclk_khz;
+
+		/* Per-pipe clock configuration - only capture what's essential */
+		for (i = 0; i < MAX_PIPES && i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+			if (pipe_ctx->stream) {
+				/* Essential clocks that directly affect underflow risk */
+				state->dccg.dppclk_khz[i] = dc->clk_mgr->clks.dppclk_khz;
+				state->dccg.pixclk_khz[i] = pipe_ctx->stream->timing.pix_clk_100hz / 10;
+				state->dccg.dppclk_enable[i] = 1;
+
+				/* DP stream clock only for DP signals */
+				if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
+						pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+					state->dccg.dpstreamclk_enable[i] = 1;
+				} else {
+					state->dccg.dpstreamclk_enable[i] = 0;
+				}
+			} else {
+				/* Inactive pipe - no clocks */
+				state->dccg.dppclk_khz[i] = 0;
+				state->dccg.pixclk_khz[i] = 0;
+				state->dccg.dppclk_enable[i] = 0;
+				if (i < 4) {
+					state->dccg.dpstreamclk_enable[i] = 0;
+				}
+			}
+		}
+
+		/* DSC clock state - only when actually using DSC */
+		for (i = 0; i < MAX_PIPES; i++) {
+			struct pipe_ctx *pipe_ctx = (i < dc->res_pool->pipe_count) ? &res_ctx->pipe_ctx[i] : NULL;
+			if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->timing.dsc_cfg.num_slices_h > 0) {
+				state->dccg.dscclk_khz[i] = 400000; /* Typical DSC clock frequency */
+			} else {
+				state->dccg.dscclk_khz[i] = 0;
+			}
+		}
+
+		/* SYMCLK32 LE Control - only the essential HPO state for underflow analysis */
+		for (i = 0; i < 2; i++) {
+			state->dccg.symclk32_le_enable[i] = 0; /* Default: disabled */
+		}
+
+	}
+
+	/* Capture essential DSC configuration for underflow analysis */
+	for (i = 0; i < MAX_PIPES && i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (pipe_ctx->stream && pipe_ctx->stream->timing.dsc_cfg.num_slices_h > 0) {
+			/* DSC is enabled - capture essential configuration */
+			state->dsc[i].dsc_clock_enable = 1;
+
+			/* DSC configuration affecting bandwidth and timing */
+			struct dc_dsc_config *dsc_cfg = &pipe_ctx->stream->timing.dsc_cfg;
+			state->dsc[i].dsc_num_slices_h = dsc_cfg->num_slices_h;
+			state->dsc[i].dsc_num_slices_v = dsc_cfg->num_slices_v;
+			state->dsc[i].dsc_bits_per_pixel = dsc_cfg->bits_per_pixel;
+
+			/* OPP pipe source for DSC forwarding */
+			if (pipe_ctx->stream_res.opp) {
+				state->dsc[i].dscrm_dsc_forward_enable = 1;
+				state->dsc[i].dscrm_dsc_opp_pipe_source = pipe_ctx->stream_res.opp->inst;
+			} else {
+				state->dsc[i].dscrm_dsc_forward_enable = 0;
+				state->dsc[i].dscrm_dsc_opp_pipe_source = 0;
+			}
+		} else {
+			/* DSC not enabled - clear all fields */
+			memset(&state->dsc[i], 0, sizeof(state->dsc[i]));
+		}
+	}
+
+	/* Capture MPC programming state - comprehensive register field coverage */
+	for (i = 0; i < MAX_PIPES && i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (pipe_ctx->plane_state && pipe_ctx->stream) {
+			struct dc_plane_state *plane_state = pipe_ctx->plane_state;
+
+			/* MPCC blending tree and mode control - capture actual blend configuration */
+			state->mpc.mpcc_mode[i] = (plane_state->blend_tf.type != TF_TYPE_BYPASS) ? 1 : 0;
+			state->mpc.mpcc_alpha_blend_mode[i] = plane_state->per_pixel_alpha ? 1 : 0;
+			state->mpc.mpcc_alpha_multiplied_mode[i] = plane_state->pre_multiplied_alpha ? 1 : 0;
+			state->mpc.mpcc_blnd_active_overlap_only[i] = 0; /* Default - no overlap restriction */
+			state->mpc.mpcc_global_alpha[i] = plane_state->global_alpha_value;
+			state->mpc.mpcc_global_gain[i] = plane_state->global_alpha ? 255 : 0;
+			state->mpc.mpcc_bg_bpc[i] = 8; /* Standard 8-bit background */
+			state->mpc.mpcc_bot_gain_mode[i] = 0; /* Standard gain mode */
+
+			/* MPCC blending tree connections - capture tree topology */
+			if (pipe_ctx->bottom_pipe) {
+				state->mpc.mpcc_bot_sel[i] = pipe_ctx->bottom_pipe->pipe_idx;
+			} else {
+				state->mpc.mpcc_bot_sel[i] = 0xF; /* No bottom connection */
+			}
+			state->mpc.mpcc_top_sel[i] = pipe_ctx->pipe_idx; /* This pipe's DPP ID */
+
+			/* MPCC output gamma control - capture gamma programming */
+			if (plane_state->gamma_correction.type != GAMMA_CS_TFM_1D && plane_state->gamma_correction.num_entries > 0) {
+				state->mpc.mpcc_ogam_mode[i] = 1; /* Gamma enabled */
+				state->mpc.mpcc_ogam_select[i] = 0; /* Bank A selection */
+				state->mpc.mpcc_ogam_pwl_disable[i] = 0; /* PWL enabled */
+			} else {
+				state->mpc.mpcc_ogam_mode[i] = 0; /* Bypass mode */
+				state->mpc.mpcc_ogam_select[i] = 0;
+				state->mpc.mpcc_ogam_pwl_disable[i] = 1; /* PWL disabled */
+			}
+
+			/* MPCC pipe assignment and operational status */
+			if (pipe_ctx->stream_res.opp) {
+				state->mpc.mpcc_opp_id[i] = pipe_ctx->stream_res.opp->inst;
+			} else {
+				state->mpc.mpcc_opp_id[i] = 0xF; /* No OPP assignment */
+			}
+
+			/* MPCC status indicators - active pipe state */
+			state->mpc.mpcc_idle[i] = 0; /* Active pipe - not idle */
+			state->mpc.mpcc_busy[i] = 1; /* Active pipe - busy processing */
+
+		} else {
+			/* Pipe not active - set disabled/idle state for all fields */
+			state->mpc.mpcc_mode[i] = 0;
+			state->mpc.mpcc_alpha_blend_mode[i] = 0;
+			state->mpc.mpcc_alpha_multiplied_mode[i] = 0;
+			state->mpc.mpcc_blnd_active_overlap_only[i] = 0;
+			state->mpc.mpcc_global_alpha[i] = 0;
+			state->mpc.mpcc_global_gain[i] = 0;
+			state->mpc.mpcc_bg_bpc[i] = 0;
+			state->mpc.mpcc_bot_gain_mode[i] = 0;
+			state->mpc.mpcc_bot_sel[i] = 0xF; /* No bottom connection */
+			state->mpc.mpcc_top_sel[i] = 0xF; /* No top connection */
+			state->mpc.mpcc_ogam_mode[i] = 0; /* Bypass */
+			state->mpc.mpcc_ogam_select[i] = 0;
+			state->mpc.mpcc_ogam_pwl_disable[i] = 1; /* PWL disabled */
+			state->mpc.mpcc_opp_id[i] = 0xF; /* No OPP assignment */
+			state->mpc.mpcc_idle[i] = 1; /* Idle */
+			state->mpc.mpcc_busy[i] = 0; /* Not busy */
+		}
+	}
+
+	/* Capture OPP programming state for each pipe - comprehensive register field coverage */
+	for (i = 0; i < MAX_PIPES && i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (!pipe_ctx->stream)
+			continue;
+
+		if (pipe_ctx->stream_res.opp) {
+			struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+
+			/* OPP Pipe Control */
+			state->opp[i].opp_pipe_clock_enable = 1; /* Active pipe has clock enabled */
+
+			/* Display Pattern Generator (DPG) Control - 19 fields */
+			if (pipe_ctx->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE) {
+				state->opp[i].dpg_enable = 1;
+			} else {
+				/* Video mode - DPG disabled */
+				state->opp[i].dpg_enable = 0;
+			}
+
+			/* Format Control (FMT) - 18 fields */
+			state->opp[i].fmt_pixel_encoding = timing->pixel_encoding;
+
+			/* Chroma subsampling mode based on pixel encoding */
+			if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+				state->opp[i].fmt_subsampling_mode = 1; /* 4:2:0 subsampling */
+			} else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+				state->opp[i].fmt_subsampling_mode = 2; /* 4:2:2 subsampling */
+			} else {
+				state->opp[i].fmt_subsampling_mode = 0; /* No subsampling (4:4:4) */
+			}
+
+			state->opp[i].fmt_cbcr_bit_reduction_bypass = (timing->pixel_encoding == PIXEL_ENCODING_RGB) ? 1 : 0;
+			state->opp[i].fmt_stereosync_override = (timing->timing_3d_format != TIMING_3D_FORMAT_NONE) ? 1 : 0;
+
+			/* Dithering control based on bit depth */
+			if (timing->display_color_depth < COLOR_DEPTH_121212) {
+				state->opp[i].fmt_spatial_dither_frame_counter_max = 15; /* Typical frame counter max */
+				state->opp[i].fmt_spatial_dither_frame_counter_bit_swap = 0; /* No bit swapping */
+				state->opp[i].fmt_spatial_dither_enable = 1;
+				state->opp[i].fmt_spatial_dither_mode = 0; /* Spatial dithering mode */
+				state->opp[i].fmt_spatial_dither_depth = timing->display_color_depth;
+				state->opp[i].fmt_temporal_dither_enable = 0; /* Spatial dithering preferred */
+			} else {
+				state->opp[i].fmt_spatial_dither_frame_counter_max = 0;
+				state->opp[i].fmt_spatial_dither_frame_counter_bit_swap = 0;
+				state->opp[i].fmt_spatial_dither_enable = 0;
+				state->opp[i].fmt_spatial_dither_mode = 0;
+				state->opp[i].fmt_spatial_dither_depth = 0;
+				state->opp[i].fmt_temporal_dither_enable = 0;
+			}
+
+			/* Truncation control for bit depth reduction */
+			if (timing->display_color_depth < COLOR_DEPTH_121212) {
+				state->opp[i].fmt_truncate_enable = 1;
+				state->opp[i].fmt_truncate_depth = timing->display_color_depth;
+				state->opp[i].fmt_truncate_mode = 0; /* Round mode */
+			} else {
+				state->opp[i].fmt_truncate_enable = 0;
+				state->opp[i].fmt_truncate_depth = 0;
+				state->opp[i].fmt_truncate_mode = 0;
+			}
+
+			/* Data clamping control */
+			state->opp[i].fmt_clamp_data_enable = 1; /* Clamping typically enabled */
+			state->opp[i].fmt_clamp_color_format = timing->pixel_encoding;
+
+			/* Dynamic expansion for limited range content */
+			if (timing->pixel_encoding != PIXEL_ENCODING_RGB) {
+				state->opp[i].fmt_dynamic_exp_enable = 1; /* YCbCr typically needs expansion */
+				state->opp[i].fmt_dynamic_exp_mode = 0; /* Standard expansion */
+			} else {
+				state->opp[i].fmt_dynamic_exp_enable = 0; /* RGB typically full range */
+				state->opp[i].fmt_dynamic_exp_mode = 0;
+			}
+
+			/* Legacy field for compatibility */
+			state->opp[i].fmt_bit_depth_control = timing->display_color_depth;
+
+			/* Output Buffer (OPPBUF) Control - 6 fields */
+			state->opp[i].oppbuf_active_width = timing->h_addressable;
+			state->opp[i].oppbuf_pixel_repetition = 0; /* No pixel repetition by default */
+
+			/* Multi-Stream Output (MSO) / ODM segmentation */
+			if (pipe_ctx->next_odm_pipe) {
+				state->opp[i].oppbuf_display_segmentation = 1; /* Segmented display */
+				state->opp[i].oppbuf_overlap_pixel_num = 0; /* ODM overlap pixels */
+			} else {
+				state->opp[i].oppbuf_display_segmentation = 0; /* Single segment */
+				state->opp[i].oppbuf_overlap_pixel_num = 0;
+			}
+
+			/* 3D/Stereo control */
+			if (timing->timing_3d_format != TIMING_3D_FORMAT_NONE) {
+				state->opp[i].oppbuf_3d_vact_space1_size = 30; /* Typical stereo blanking */
+				state->opp[i].oppbuf_3d_vact_space2_size = 30;
+			} else {
+				state->opp[i].oppbuf_3d_vact_space1_size = 0;
+				state->opp[i].oppbuf_3d_vact_space2_size = 0;
+			}
+
+			/* DSC Forward Config - 3 fields */
+			if (timing->dsc_cfg.num_slices_h > 0) {
+				state->opp[i].dscrm_dsc_forward_enable = 1;
+				state->opp[i].dscrm_dsc_opp_pipe_source = pipe_ctx->stream_res.opp->inst;
+				state->opp[i].dscrm_dsc_forward_enable_status = 1; /* Status follows enable */
+			} else {
+				state->opp[i].dscrm_dsc_forward_enable = 0;
+				state->opp[i].dscrm_dsc_opp_pipe_source = 0;
+				state->opp[i].dscrm_dsc_forward_enable_status = 0;
+			}
+		} else {
+			/* No OPP resource - set all fields to disabled state */
+			memset(&state->opp[i], 0, sizeof(state->opp[i]));
+		}
+	}
+
+	/* Capture OPTC programming state for each pipe - comprehensive register field coverage */
+	for (i = 0; i < MAX_PIPES && i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (!pipe_ctx->stream)
+			continue;
+
+		if (pipe_ctx->stream_res.tg) {
+			struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+
+			state->optc[i].otg_master_inst = pipe_ctx->stream_res.tg->inst;
+
+			/* OTG_CONTROL register - 5 fields */
+			state->optc[i].otg_master_enable = 1; /* Active stream */
+			state->optc[i].otg_disable_point_cntl = 0; /* Normal operation */
+			state->optc[i].otg_start_point_cntl = 0; /* Normal start */
+			state->optc[i].otg_field_number_cntl = (timing->flags.INTERLACE) ? 1 : 0;
+			state->optc[i].otg_out_mux = 0; /* Direct output */
+
+			/* OTG Horizontal Timing - 7 fields */
+			state->optc[i].otg_h_total = timing->h_total;
+			state->optc[i].otg_h_blank_start = timing->h_addressable;
+			state->optc[i].otg_h_blank_end = timing->h_total - timing->h_front_porch;
+			state->optc[i].otg_h_sync_start = timing->h_addressable + timing->h_front_porch;
+			state->optc[i].otg_h_sync_end = timing->h_addressable + timing->h_front_porch + timing->h_sync_width;
+			state->optc[i].otg_h_sync_polarity = timing->flags.HSYNC_POSITIVE_POLARITY ? 0 : 1;
+			state->optc[i].otg_h_timing_div_mode = (pipe_ctx->next_odm_pipe) ? 1 : 0; /* ODM divide mode */
+
+			/* OTG Vertical Timing - 7 fields */
+			state->optc[i].otg_v_total = timing->v_total;
+			state->optc[i].otg_v_blank_start = timing->v_addressable;
+			state->optc[i].otg_v_blank_end = timing->v_total - timing->v_front_porch;
+			state->optc[i].otg_v_sync_start = timing->v_addressable + timing->v_front_porch;
+			state->optc[i].otg_v_sync_end = timing->v_addressable + timing->v_front_porch + timing->v_sync_width;
+			state->optc[i].otg_v_sync_polarity = timing->flags.VSYNC_POSITIVE_POLARITY ? 0 : 1;
+			state->optc[i].otg_v_sync_mode = 0; /* Normal sync mode */
+
+			/* Initialize remaining core fields with appropriate defaults */
+			// TODO: Update logic for accurate vtotal min/max
+			state->optc[i].otg_v_total_max = timing->v_total + 100; /* Typical DRR range */
+			state->optc[i].otg_v_total_min = timing->v_total - 50;
+			state->optc[i].otg_v_total_mid = timing->v_total;
+
+			/* ODM configuration */
+			// TODO: Update logic to have complete ODM mappings (e.g. 3:1 and 4:1) stored in single pipe
+			if (pipe_ctx->next_odm_pipe) {
+				state->optc[i].optc_seg0_src_sel = pipe_ctx->stream_res.opp ? pipe_ctx->stream_res.opp->inst : 0;
+				state->optc[i].optc_seg1_src_sel = pipe_ctx->next_odm_pipe->stream_res.opp ? pipe_ctx->next_odm_pipe->stream_res.opp->inst : 0;
+				state->optc[i].optc_num_of_input_segment = 1; /* 2 segments - 1 */
+			} else {
+				state->optc[i].optc_seg0_src_sel = pipe_ctx->stream_res.opp ? pipe_ctx->stream_res.opp->inst : 0;
+				state->optc[i].optc_seg1_src_sel = 0;
+				state->optc[i].optc_num_of_input_segment = 0; /* Single segment */
+			}
+
+			/* DSC configuration */
+			if (timing->dsc_cfg.num_slices_h > 0) {
+				state->optc[i].optc_dsc_mode = 1; /* DSC enabled */
+				state->optc[i].optc_dsc_bytes_per_pixel = timing->dsc_cfg.bits_per_pixel / 16; /* Convert to bytes */
+				state->optc[i].optc_dsc_slice_width = timing->h_addressable / timing->dsc_cfg.num_slices_h;
+			} else {
+				state->optc[i].optc_dsc_mode = 0;
+				state->optc[i].optc_dsc_bytes_per_pixel = 0;
+				state->optc[i].optc_dsc_slice_width = 0;
+			}
+
+			/* Essential control fields */
+			state->optc[i].otg_stereo_enable = (timing->timing_3d_format != TIMING_3D_FORMAT_NONE) ? 1 : 0;
+			state->optc[i].otg_interlace_enable = timing->flags.INTERLACE ? 1 : 0;
+			state->optc[i].otg_clock_enable = 1; /* OTG clock enabled */
+			state->optc[i].vtg0_enable = 1; /* VTG enabled for timing generation */
+
+			/* Initialize other key fields to defaults */
+			state->optc[i].optc_input_pix_clk_en = 1;
+			state->optc[i].optc_segment_width = (pipe_ctx->next_odm_pipe) ? (timing->h_addressable / 2) : timing->h_addressable;
+			state->optc[i].otg_vready_offset = 1;
+			state->optc[i].otg_vstartup_start = timing->v_addressable + 10;
+			state->optc[i].otg_vupdate_offset = 0;
+			state->optc[i].otg_vupdate_width = 5;
+		} else {
+			/* No timing generator resource - initialize all fields to 0 */
+			memset(&state->optc[i], 0, sizeof(state->optc[i]));
+		}
+	}
+
+	state->state_valid = true;
+	return true;
 }
 
 void dc_log_preos_dmcub_info(const struct dc *dc)

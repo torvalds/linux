@@ -34,12 +34,18 @@ static int hsr_newlink(struct net_device *dev,
 		       struct netlink_ext_ack *extack)
 {
 	struct net *link_net = rtnl_newlink_link_net(params);
+	struct net_device *link[2], *interlink = NULL;
 	struct nlattr **data = params->data;
 	enum hsr_version proto_version;
 	unsigned char multicast_spec;
 	u8 proto = HSR_PROTOCOL_HSR;
 
-	struct net_device *link[2], *interlink = NULL;
+	if (!net_eq(link_net, dev_net(dev))) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "HSR slaves/interlink must be on the same net namespace than HSR link");
+		return -EINVAL;
+	}
+
 	if (!data) {
 		NL_SET_ERR_MSG_MOD(extack, "No slave devices specified");
 		return -EINVAL;

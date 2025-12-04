@@ -58,17 +58,10 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 				   struct drm_fb_helper_surface_size *sizes,
 				   struct exynos_drm_gem *exynos_gem)
 {
-	struct fb_info *fbi;
+	struct fb_info *fbi = helper->info;
 	struct drm_framebuffer *fb = helper->fb;
 	unsigned int size = fb->width * fb->height * fb->format->cpp[0];
 	unsigned long offset;
-
-	fbi = drm_fb_helper_alloc_info(helper);
-	if (IS_ERR(fbi)) {
-		DRM_DEV_ERROR(to_dma_dev(helper->dev),
-			      "failed to allocate fb info.\n");
-		return PTR_ERR(fbi);
-	}
 
 	fbi->fbops = &exynos_drm_fb_ops;
 

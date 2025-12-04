@@ -269,7 +269,7 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 }
 
 static int allocate_tlabel(struct fw_card *card)
-__must_hold(&card->transactions_lock)
+__must_hold(&card->transactions.lock)
 {
 	int tlabel;
 

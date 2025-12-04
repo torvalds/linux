@@ -687,7 +687,7 @@ impl Node {
             );
         }
         if inner.freeze_list.is_empty() {
-            _unused_capacity = mem::replace(&mut inner.freeze_list, KVVec::new());
+            _unused_capacity = mem::take(&mut inner.freeze_list);
         }
     }
 

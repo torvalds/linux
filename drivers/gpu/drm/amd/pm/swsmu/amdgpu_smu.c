@@ -634,7 +634,7 @@ static int smu_sys_get_pp_table(void *handle,
 		return -EOPNOTSUPP;
 
 	if (!smu_table->power_play_table && !smu_table->hardcode_pptable)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (smu_table->hardcode_pptable)
 		*table = smu_table->hardcode_pptable;
@@ -1669,9 +1669,12 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		if (adev->in_suspend && smu_is_dpm_running(smu)) {
 			dev_info(adev->dev, "dpm has been enabled\n");
 			ret = smu_system_features_control(smu, true);
-			if (ret)
+			if (ret) {
 				dev_err(adev->dev, "Failed system features control!\n");
-			return ret;
+				return ret;
+			}
+
+			return smu_enable_thermal_alert(smu);
 		}
 		break;
 	default:

@@ -492,7 +492,7 @@ struct ethtool_pause_stats {
 };
 
 #define ETHTOOL_MAX_LANES	8
-/**
+/*
  * IEEE 802.3ck/df defines 16 bins for FEC histogram plus one more for
  * the end-of-list marker, total 17 items
  */
