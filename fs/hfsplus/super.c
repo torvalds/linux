@@ -187,39 +187,14 @@ static void hfsplus_evict_inode(struct inode *inode)
 	}
 }
 
-static int hfsplus_sync_fs(struct super_block *sb, int wait)
+int hfsplus_commit_superblock(struct super_block *sb)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	struct hfsplus_vh *vhdr = sbi->s_vhdr;
 	int write_backup = 0;
-	int error, error2;
-
-	if (!wait)
-		return 0;
+	int error = 0, error2;
 
 	hfs_dbg("starting...\n");
-
-	/*
-	 * Explicitly write out the special metadata inodes.
-	 *
-	 * While these special inodes are marked as hashed and written
-	 * out peridocically by the flusher threads we redirty them
-	 * during writeout of normal inodes, and thus the life lock
-	 * prevents us from getting the latest state to disk.
-	 */
-	error = filemap_write_and_wait(sbi->cat_tree->inode->i_mapping);
-	error2 = filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
-	if (!error)
-		error = error2;
-	if (sbi->attr_tree) {
-		error2 =
-		    filemap_write_and_wait(sbi->attr_tree->inode->i_mapping);
-		if (!error)
-			error = error2;
-	}
-	error2 = filemap_write_and_wait(sbi->alloc_file->i_mapping);
-	if (!error)
-		error = error2;
 
 	mutex_lock(&sbi->vh_mutex);
 	mutex_lock(&sbi->alloc_mutex);
@@ -249,10 +224,51 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
 				  sbi->part_start + sbi->sect_count - 2,
 				  sbi->s_backup_vhdr_buf, NULL, REQ_OP_WRITE);
 	if (!error)
-		error2 = error;
+		error = error2;
 out:
 	mutex_unlock(&sbi->alloc_mutex);
 	mutex_unlock(&sbi->vh_mutex);
+
+	hfs_dbg("finished: err %d\n", error);
+
+	return error;
+}
+
+static int hfsplus_sync_fs(struct super_block *sb, int wait)
+{
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
+	int error, error2;
+
+	if (!wait)
+		return 0;
+
+	hfs_dbg("starting...\n");
+
+	/*
+	 * Explicitly write out the special metadata inodes.
+	 *
+	 * While these special inodes are marked as hashed and written
+	 * out peridocically by the flusher threads we redirty them
+	 * during writeout of normal inodes, and thus the life lock
+	 * prevents us from getting the latest state to disk.
+	 */
+	error = filemap_write_and_wait(sbi->cat_tree->inode->i_mapping);
+	error2 = filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
+	if (!error)
+		error = error2;
+	if (sbi->attr_tree) {
+		error2 =
+		    filemap_write_and_wait(sbi->attr_tree->inode->i_mapping);
+		if (!error)
+			error = error2;
+	}
+	error2 = filemap_write_and_wait(sbi->alloc_file->i_mapping);
+	if (!error)
+		error = error2;
+
+	error2 = hfsplus_commit_superblock(sb);
+	if (!error)
+		error = error2;
 
 	if (!test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
 		blkdev_issue_flush(sb->s_bdev);
@@ -394,6 +410,15 @@ static const struct super_operations hfsplus_sops = {
 	.statfs		= hfsplus_statfs,
 	.show_options	= hfsplus_show_options,
 };
+
+void hfsplus_prepare_volume_header_for_commit(struct hfsplus_vh *vhdr)
+{
+	vhdr->last_mount_vers = cpu_to_be32(HFSP_MOUNT_VERSION);
+	vhdr->modify_date = hfsp_now2mt();
+	be32_add_cpu(&vhdr->write_count, 1);
+	vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_UNMNT);
+	vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
+}
 
 static int hfsplus_fill_super(struct super_block *sb, struct fs_context *fc)
 {
@@ -562,11 +587,7 @@ static int hfsplus_fill_super(struct super_block *sb, struct fs_context *fc)
 		 * H+LX == hfsplusutils, H+Lx == this driver, H+lx is unused
 		 * all three are registered with Apple for our use
 		 */
-		vhdr->last_mount_vers = cpu_to_be32(HFSP_MOUNT_VERSION);
-		vhdr->modify_date = hfsp_now2mt();
-		be32_add_cpu(&vhdr->write_count, 1);
-		vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_UNMNT);
-		vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
+		hfsplus_prepare_volume_header_for_commit(vhdr);
 		hfsplus_sync_fs(sb, 1);
 
 		if (!sbi->hidden_dir) {
