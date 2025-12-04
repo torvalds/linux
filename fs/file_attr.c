@@ -374,7 +374,6 @@ SYSCALL_DEFINE5(file_getattr, int, dfd, const char __user *, filename,
 		unsigned int, at_flags)
 {
 	struct path filepath __free(path_put) = {};
-	struct filename *name __free(putname) = NULL;
 	unsigned int lookup_flags = 0;
 	struct file_attr fattr;
 	struct file_kattr fa;
@@ -395,7 +394,7 @@ SYSCALL_DEFINE5(file_getattr, int, dfd, const char __user *, filename,
 	if (usize < FILE_ATTR_SIZE_VER0)
 		return -EINVAL;
 
-	name = getname_maybe_null(filename, at_flags);
+	CLASS(filename_maybe_null, name)(filename, at_flags);
 	if (!name && dfd >= 0) {
 		CLASS(fd, f)(dfd);
 		if (fd_empty(f))
@@ -428,7 +427,6 @@ SYSCALL_DEFINE5(file_setattr, int, dfd, const char __user *, filename,
 		unsigned int, at_flags)
 {
 	struct path filepath __free(path_put) = {};
-	struct filename *name __free(putname) = NULL;
 	unsigned int lookup_flags = 0;
 	struct file_attr fattr;
 	struct file_kattr fa;
@@ -458,7 +456,7 @@ SYSCALL_DEFINE5(file_setattr, int, dfd, const char __user *, filename,
 	if (error)
 		return error;
 
-	name = getname_maybe_null(filename, at_flags);
+	CLASS(filename_maybe_null, name)(filename, at_flags);
 	if (!name && dfd >= 0) {
 		CLASS(fd, f)(dfd);
 		if (fd_empty(f))
