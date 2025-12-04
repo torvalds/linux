@@ -41,6 +41,7 @@
 	(to_camss_index(ptr_module, index)->dev)
 
 #define CAMSS_RES_MAX 17
+#define CAMSS_INIT_BUF_COUNT 2
 
 struct camss_subdev_resources {
 	char *regulators[CAMSS_RES_MAX];
@@ -81,6 +82,7 @@ enum camss_version {
 	CAMSS_2290,
 	CAMSS_7280,
 	CAMSS_8x16,
+	CAMSS_8x39,
 	CAMSS_8x53,
 	CAMSS_8x96,
 	CAMSS_8250,
@@ -88,6 +90,7 @@ enum camss_version {
 	CAMSS_8300,
 	CAMSS_845,
 	CAMSS_8550,
+	CAMSS_8650,
 	CAMSS_8775P,
 	CAMSS_X1E80100,
 };

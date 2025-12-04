@@ -627,7 +627,7 @@ static inline bool media_entity_enum_intersects(
  * @gobj: Pointer to the struct &media_gobj graph object
  */
 #define gobj_to_entity(gobj) \
-		container_of(gobj, struct media_entity, graph_obj)
+		container_of_const(gobj, struct media_entity, graph_obj)
 
 /**
  * gobj_to_pad - returns the struct &media_pad pointer from the
@@ -636,7 +636,7 @@ static inline bool media_entity_enum_intersects(
  * @gobj: Pointer to the struct &media_gobj graph object
  */
 #define gobj_to_pad(gobj) \
-		container_of(gobj, struct media_pad, graph_obj)
+		container_of_const(gobj, struct media_pad, graph_obj)
 
 /**
  * gobj_to_link - returns the struct &media_link pointer from the
@@ -645,7 +645,7 @@ static inline bool media_entity_enum_intersects(
  * @gobj: Pointer to the struct &media_gobj graph object
  */
 #define gobj_to_link(gobj) \
-		container_of(gobj, struct media_link, graph_obj)
+		container_of_const(gobj, struct media_link, graph_obj)
 
 /**
  * gobj_to_intf - returns the struct &media_interface pointer from the
@@ -654,7 +654,7 @@ static inline bool media_entity_enum_intersects(
  * @gobj: Pointer to the struct &media_gobj graph object
  */
 #define gobj_to_intf(gobj) \
-		container_of(gobj, struct media_interface, graph_obj)
+		container_of_const(gobj, struct media_interface, graph_obj)
 
 /**
  * intf_to_devnode - returns the struct media_intf_devnode pointer from the
@@ -663,7 +663,7 @@ static inline bool media_entity_enum_intersects(
  * @intf: Pointer to struct &media_intf_devnode
  */
 #define intf_to_devnode(intf) \
-		container_of(intf, struct media_intf_devnode, intf)
+		container_of_const(intf, struct media_intf_devnode, intf)
 
 /**
  *  media_gobj_create - Initialize a graph object

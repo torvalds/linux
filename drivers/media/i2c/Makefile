@@ -46,6 +46,7 @@ obj-$(CONFIG_VIDEO_HI556) += hi556.o
 obj-$(CONFIG_VIDEO_HI846) += hi846.o
 obj-$(CONFIG_VIDEO_HI847) += hi847.o
 obj-$(CONFIG_VIDEO_I2C) += video-i2c.o
+obj-$(CONFIG_VIDEO_IMX111) += imx111.o
 obj-$(CONFIG_VIDEO_IMX208) += imx208.o
 obj-$(CONFIG_VIDEO_IMX214) += imx214.o
 obj-$(CONFIG_VIDEO_IMX219) += imx219.o
