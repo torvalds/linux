@@ -113,7 +113,10 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 		pr_config_1.bits.PANEL_REPLAY_EARLY_TRANSPORT_ENABLE = 1;
 
 		pr_config_2.bits.SINK_REFRESH_RATE_UNLOCK_GRANTED = 0;
-		pr_config_2.bits.SU_Y_GRANULARITY_EXT_VALUE_ENABLED = 0;
+
+		if (link->dpcd_caps.vesa_replay_caps.bits.SU_Y_GRANULARITY_EXT_CAP_SUPPORTED)
+			pr_config_2.bits.SU_Y_GRANULARITY_EXT_VALUE_ENABLED = 1;
+
 		pr_config_2.bits.SU_REGION_SCAN_LINE_CAPTURE_INDICATION = 0;
 
 		dm_helpers_dp_write_dpcd(link->ctx, link,
@@ -230,6 +233,17 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 	cmd.pr_copy_settings.data.flags.bitfields.fec_enable_status = (link->fec_state == dc_link_fec_enabled);
 	cmd.pr_copy_settings.data.flags.bitfields.dsc_enable_status = (pipe_ctx->stream->timing.flags.DSC == 1);
 	cmd.pr_copy_settings.data.debug.u32All = link->replay_settings.config.debug_flags;
+
+	cmd.pr_copy_settings.data.su_granularity_needed = link->dpcd_caps.vesa_replay_caps.bits.PR_SU_GRANULARITY_NEEDED;
+	cmd.pr_copy_settings.data.su_x_granularity = link->dpcd_caps.vesa_replay_su_info.pr_su_x_granularity;
+	cmd.pr_copy_settings.data.su_y_granularity = link->dpcd_caps.vesa_replay_su_info.pr_su_y_granularity;
+	cmd.pr_copy_settings.data.su_y_granularity_extended_caps =
+		link->dpcd_caps.vesa_replay_su_info.pr_su_y_granularity_extended_caps;
+
+	if (pipe_ctx->stream->timing.dsc_cfg.num_slices_v > 0)
+		cmd.pr_copy_settings.data.dsc_slice_height = (pipe_ctx->stream->timing.v_addressable +
+			pipe_ctx->stream->timing.v_border_top + pipe_ctx->stream->timing.v_border_bottom) /
+			pipe_ctx->stream->timing.dsc_cfg.num_slices_v;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;

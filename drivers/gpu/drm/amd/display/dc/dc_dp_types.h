@@ -1167,6 +1167,25 @@ union dpcd_panel_replay_capability_supported {
 	unsigned char raw;
 };
 
+union dpcd_panel_replay_capability {
+	struct {
+		unsigned char RESERVED								:2;
+		unsigned char DSC_DECODE_NOT_SUPPORTED				:1;
+		unsigned char ASYNC_VIDEO_TIMING_NOT_SUPPORTED		:1;
+		unsigned char DSC_CRC_OF_MULTI_SU_SUPPORTED			:1;
+		unsigned char PR_SU_GRANULARITY_NEEDED				:1;
+		unsigned char SU_Y_GRANULARITY_EXT_CAP_SUPPORTED	:1;
+		unsigned char LINK_OFF_SUPPORTED_IN_PR_ACTIVE		:1;
+	} bits;
+	unsigned char raw;
+};
+
+struct dpcd_panel_replay_selective_update_info {
+	uint16_t pr_su_x_granularity;
+	uint8_t pr_su_y_granularity;
+	uint16_t pr_su_y_granularity_extended_caps;
+};
+
 enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_8BPC = 0,
 	DOWN_STREAM_MAX_10BPC,
@@ -1290,7 +1309,9 @@ struct dpcd_caps {
 	struct edp_psr_info psr_info;
 
 	struct replay_info pr_info;
-	union dpcd_panel_replay_capability_supported pr_caps_supported;
+	union dpcd_panel_replay_capability_supported vesa_replay_caps_supported;
+	union dpcd_panel_replay_capability vesa_replay_caps;
+	struct dpcd_panel_replay_selective_update_info vesa_replay_su_info;
 	uint16_t edp_oled_emission_rate;
 	union dp_receive_port0_cap receive_port0_cap;
 	/* Indicates the number of SST links supported by MSO (Multi-Stream Output) */

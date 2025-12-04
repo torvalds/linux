@@ -37,6 +37,21 @@
 #ifndef DP_PANEL_REPLAY_CAPABILITY // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_PANEL_REPLAY_CAPABILITY 0x0b1
 #endif /* DP_PANEL_REPLAY_CAPABILITY */
+#ifndef DP_PR_SU_X_GRANULARITY_LOW         // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_X_GRANULARITY_LOW			0x0b2
+#endif /* DP_PR_SU_X_GRANULARITY_LOW */
+#ifndef DP_PR_SU_X_GRANULARITY_HIGH        // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_X_GRANULARITY_HIGH			0x0b3
+#endif /* DP_PR_SU_X_GRANULARITY_HIGH */
+#ifndef DP_PR_SU_Y_GRANULARITY             // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_Y_GRANULARITY				0x0b4
+#endif /* DP_PR_SU_Y_GRANULARITY */
+#ifndef DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_LOW // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_LOW		0x0b5
+#endif /* DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_LOW */
+#ifndef DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_HIGH // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_HIGH	0x0b6
+#endif /* DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_HIGH */
 #ifndef DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1  // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1  0x1b0
 #endif /* DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1 */
