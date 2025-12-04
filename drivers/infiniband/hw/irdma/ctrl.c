@@ -5788,8 +5788,7 @@ static int cfg_fpm_value_gen_3(struct irdma_sc_dev *dev,
 	bool is_mrte_loc_mem;
 
 	loc_mem_pages = hmc_fpm_misc->loc_mem_pages;
-	is_mrte_loc_mem = hmc_fpm_misc->loc_mem_pages == hmc_fpm_misc->max_sds ?
-			true : false;
+	is_mrte_loc_mem = hmc_fpm_misc->loc_mem_pages == hmc_fpm_misc->max_sds;
 
 	irdma_get_rsrc_mem_config(dev, is_mrte_loc_mem);
 	mrte_loc = hmc_info->hmc_obj[IRDMA_HMC_IW_MR].mem_loc;

@@ -1408,8 +1408,7 @@ exit:
 		 * from SW for all unprocessed WQEs. For GEN3 and beyond
 		 * FW will generate/flush these CQEs so move to the next CQE
 		 */
-			move_cq_head = qp->uk_attrs->hw_rev <= IRDMA_GEN_2 ?
-						false : true;
+			move_cq_head = qp->uk_attrs->hw_rev > IRDMA_GEN_2;
 	}
 
 	if (move_cq_head) {
