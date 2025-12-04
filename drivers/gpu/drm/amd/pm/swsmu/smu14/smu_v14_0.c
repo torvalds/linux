@@ -1930,6 +1930,11 @@ int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 			dev_err(smu->adev->dev, "Set soft max sclk failed!");
 			return ret;
 		}
+		if (smu->gfx_actual_hard_min_freq != smu->gfx_default_hard_min_freq ||
+		    smu->gfx_actual_soft_max_freq != smu->gfx_default_soft_max_freq)
+			smu->user_dpm_profile.user_od = true;
+		else
+			smu->user_dpm_profile.user_od = false;
 		break;
 	default:
 		return -ENOSYS;
