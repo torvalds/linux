@@ -45,7 +45,8 @@ config MFD_ALTERA_A10SR
 
 config MFD_ALTERA_SYSMGR
 	bool "Altera SOCFPGA System Manager"
-	depends on ARCH_INTEL_SOCFPGA && OF
+	depends on ARCH_INTEL_SOCFPGA || COMPILE_TEST
+	depends on OF
 	select MFD_SYSCON
 	help
 	  Select this to get System Manager support for all Altera branded
@@ -895,7 +896,7 @@ config MFD_88PM886_PMIC
 
 config MFD_MAX5970
 	tristate "Maxim 5970/5978 power switch and monitor"
-	depends on I2C && OF
+	depends on I2C
 	select MFD_SIMPLE_MFD_I2C
 	help
 	  This driver controls a Maxim 5970/5978 switch via I2C bus.
@@ -1274,7 +1275,6 @@ config MFD_SPACEMIT_P1
 	tristate "SpacemiT P1 PMIC"
 	depends on ARCH_SPACEMIT || COMPILE_TEST
 	depends on I2C
-	select I2C_K1
 	select MFD_SIMPLE_MFD_I2C
 	help
 	  This option supports the I2C-based SpacemiT P1 PMIC, which
@@ -2001,16 +2001,6 @@ config MENELAUS
 	  regulators, Dual slot memory card transceivers, real-time clock
 	  and other features that are often used in portable devices like
 	  cell phones and PDAs.
-
-config MFD_WL1273_CORE
-	tristate "TI WL1273 FM radio"
-	depends on I2C
-	select MFD_CORE
-	default n
-	help
-	  This is the core driver for the TI WL1273 FM radio. This MFD
-	  driver connects the radio-wl1273 V4L2 module and the wl1273
-	  audio codec.
 
 config MFD_LM3533
 	tristate "TI/National Semiconductor LM3533 Lighting Power chip"

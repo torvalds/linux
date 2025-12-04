@@ -325,11 +325,6 @@ static struct regmap *sec_pmic_acpm_regmap_init(struct device *dev,
 	return regmap;
 }
 
-static void sec_pmic_acpm_mask_common_irqs(void *regmap_common)
-{
-	regmap_write(regmap_common, S2MPG10_COMMON_INT_MASK, S2MPG10_COMMON_INT_SRC);
-}
-
 static int sec_pmic_acpm_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap_common, *regmap_pmic, *regmap;
@@ -360,14 +355,9 @@ static int sec_pmic_acpm_probe(struct platform_device *pdev)
 	shared_ctx->speedy_channel = pdata->speedy_channel;
 
 	regmap_common = sec_pmic_acpm_regmap_init(dev, shared_ctx, SEC_PMIC_ACPM_ACCESSTYPE_COMMON,
-						  pdata->regmap_cfg_common, false);
+						  pdata->regmap_cfg_common, true);
 	if (IS_ERR(regmap_common))
 		return PTR_ERR(regmap_common);
-
-	/* Mask all interrupts from 'common' block, until successful init */
-	ret = regmap_write(regmap_common, S2MPG10_COMMON_INT_MASK, S2MPG10_COMMON_INT_SRC);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to mask common block interrupts\n");
 
 	regmap_pmic = sec_pmic_acpm_regmap_init(dev, shared_ctx, SEC_PMIC_ACPM_ACCESSTYPE_PMIC,
 						pdata->regmap_cfg_pmic, false);
@@ -390,17 +380,6 @@ static int sec_pmic_acpm_probe(struct platform_device *pdev)
 
 	if (device_property_read_bool(dev, "wakeup-source"))
 		devm_device_init_wakeup(dev);
-
-	/* Unmask PMIC interrupt from 'common' block, now that everything is in place. */
-	ret = regmap_clear_bits(regmap_common, S2MPG10_COMMON_INT_MASK,
-				S2MPG10_COMMON_INT_SRC_PMIC);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to unmask PMIC interrupt\n");
-
-	/* Mask all interrupts from 'common' block on shutdown */
-	ret = devm_add_action_or_reset(dev, sec_pmic_acpm_mask_common_irqs, regmap_common);
-	if (ret)
-		return ret;
 
 	return 0;
 }
