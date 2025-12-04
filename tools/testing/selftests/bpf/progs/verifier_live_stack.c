@@ -292,3 +292,53 @@ __naked void syzbot_postorder_bug1(void)
 	"exit;"
 	::: __clobber_all);
 }
+
+struct {
+        __uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+        __uint(max_entries, 1);
+        __type(key, __u32);
+        __type(value, __u32);
+} map_array SEC(".maps");
+
+SEC("socket")
+__failure __msg("invalid read from stack R2 off=-1024 size=8")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked unsigned long caller_stack_write_tail_call(void)
+{
+        asm volatile (
+	"r6 = r1;"
+	"*(u64 *)(r10 - 8) = -8;"
+        "call %[bpf_get_prandom_u32];"
+        "if r0 != 42 goto 1f;"
+        "goto 2f;"
+  "1:"
+        "*(u64 *)(r10 - 8) = -1024;"
+  "2:"
+        "r1 = r6;"
+        "r2 = r10;"
+        "r2 += -8;"
+        "call write_tail_call;"
+        "r1 = *(u64 *)(r10 - 8);"
+        "r2 = r10;"
+        "r2 += r1;"
+        "r0 = *(u64 *)(r2 + 0);"
+        "exit;"
+        :: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+static __used __naked unsigned long write_tail_call(void)
+{
+        asm volatile (
+        "r6 = r2;"
+        "r2 = %[map_array] ll;"
+        "r3 = 0;"
+        "call %[bpf_tail_call];"
+        "*(u64 *)(r6 + 0) = -16;"
+        "r0 = 0;"
+        "exit;"
+	:
+	: __imm(bpf_tail_call),
+          __imm_addr(map_array)
+        : __clobber_all);
+}

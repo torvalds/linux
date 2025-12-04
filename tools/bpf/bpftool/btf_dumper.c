@@ -590,7 +590,7 @@ static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 	case BTF_KIND_DATASEC:
 		return btf_dumper_datasec(d, type_id, data);
 	default:
-		jsonw_printf(d->jw, "(unsupported-kind");
+		jsonw_printf(d->jw, "(unsupported-kind)");
 		return -EINVAL;
 	}
 }
