@@ -129,6 +129,17 @@ int cros_ec_sensorhub_ring_fifo_enable(struct cros_ec_sensorhub *sensorhub,
 	/* We expect to receive a payload of 4 bytes, ignore. */
 	if (ret > 0)
 		ret = 0;
+	/*
+	 * Some platforms (such as Smaug) don't support the FIFO_INT_ENABLE
+	 * command and the interrupt is always enabled.  In the case, it
+	 * returns -EINVAL.
+	 *
+	 * N.B: there is no danger of -EINVAL meaning any other invalid
+	 * parameter since fifo_int_enable.enable is a bool and can never
+	 * be in an invalid range.
+	 */
+	else if (ret == -EINVAL)
+		ret = 0;
 
 	return ret;
 }
