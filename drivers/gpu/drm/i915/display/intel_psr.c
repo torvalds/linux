@@ -643,13 +643,13 @@ static void _panel_replay_init_dpcd(struct intel_dp *intel_dp, struct intel_conn
 		_panel_replay_compute_su_granularity(connector);
 	}
 
-	intel_dp->psr.sink_panel_replay_dsc_support = compute_pr_dsc_support(connector);
+	connector->dp.panel_replay_caps.dsc_support = compute_pr_dsc_support(connector);
 
 	drm_dbg_kms(display->drm,
 		    "Panel replay %sis supported by panel (in DSC mode: %s)\n",
 		    intel_dp->psr.sink_panel_replay_su_support ?
 		    "selective_update " : "",
-		    panel_replay_dsc_support_str(intel_dp->psr.sink_panel_replay_dsc_support));
+		    panel_replay_dsc_support_str(connector->dp.panel_replay_caps.dsc_support));
 }
 
 static void _psr_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector)
@@ -1651,7 +1651,7 @@ static bool intel_sel_update_config_valid(struct intel_crtc_state *crtc_state,
 			goto unsupported;
 
 		if (intel_dsc_enabled_on_link(crtc_state) &&
-		    intel_dp->psr.sink_panel_replay_dsc_support !=
+		    connector->dp.panel_replay_caps.dsc_support !=
 		    INTEL_DP_PANEL_REPLAY_DSC_SELECTIVE_UPDATE) {
 			drm_dbg_kms(display->drm,
 				    "Selective update with Panel Replay not enabled because it's not supported with DSC\n");
@@ -1748,7 +1748,7 @@ static bool _panel_replay_compute_config(struct intel_crtc_state *crtc_state,
 	}
 
 	if (intel_dsc_enabled_on_link(crtc_state) &&
-	    intel_dp->psr.sink_panel_replay_dsc_support ==
+	    connector->dp.panel_replay_caps.dsc_support ==
 	    INTEL_DP_PANEL_REPLAY_DSC_NOT_SUPPORTED) {
 		drm_dbg_kms(display->drm,
 			    "Panel Replay not enabled because it's not supported with DSC\n");
@@ -1833,6 +1833,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 
 	if (!psr_global_enabled(intel_dp)) {
@@ -1864,9 +1865,8 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	}
 
 	/* Only used for state verification. */
-	crtc_state->panel_replay_dsc_support = intel_dp->psr.sink_panel_replay_dsc_support;
-	crtc_state->has_panel_replay = _panel_replay_compute_config(crtc_state,
-								    conn_state);
+	crtc_state->panel_replay_dsc_support = connector->dp.panel_replay_caps.dsc_support;
+	crtc_state->has_panel_replay = _panel_replay_compute_config(crtc_state, conn_state);
 
 	crtc_state->has_psr = crtc_state->has_panel_replay ? true :
 		_psr_compute_config(intel_dp, crtc_state, conn_state);
@@ -4134,7 +4134,7 @@ static void intel_psr_sink_capability(struct intel_dp *intel_dp,
 	seq_printf(m, ", Panel Replay Selective Update = %s",
 		   str_yes_no(psr->sink_panel_replay_su_support));
 	seq_printf(m, ", Panel Replay DSC support = %s",
-		   panel_replay_dsc_support_str(psr->sink_panel_replay_dsc_support));
+		   panel_replay_dsc_support_str(connector->dp.panel_replay_caps.dsc_support));
 	if (connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
 	    DP_PANEL_REPLAY_EARLY_TRANSPORT_SUPPORT)
 		seq_printf(m, " (Early Transport)");
