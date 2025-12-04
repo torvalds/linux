@@ -489,6 +489,7 @@ config PINCTRL_PIC32MZDA
 config PINCTRL_PIC64GX
 	bool "pic64gx gpio2 pinctrl driver"
 	depends on ARCH_MICROCHIP || COMPILE_TEST
+	depends on OF
 	select GENERIC_PINCONF
 	default y
 	help
@@ -508,6 +509,7 @@ config PINCTRL_PISTACHIO
 config PINCTRL_POLARFIRE_SOC
 	bool "Polarfire SoC pinctrl driver"
 	depends on ARCH_MICROCHIP || COMPILE_TEST
+	depends on OF
 	select GENERIC_PINCONF
 	default y
 	help
