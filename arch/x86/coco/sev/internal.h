@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __X86_COCO_SEV_INTERNAL_H__
+#define __X86_COCO_SEV_INTERNAL_H__
 
 #define DR7_RESET_VALUE        0x400
 
@@ -85,3 +87,4 @@ enum es_result sev_es_ghcb_handle_msr(struct ghcb *ghcb, struct es_em_ctxt *ctxt
 u64 get_hv_features(void);
 
 const struct snp_cpuid_table *snp_cpuid_get_table(void);
+#endif /* __X86_COCO_SEV_INTERNAL_H__ */
