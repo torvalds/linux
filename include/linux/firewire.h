@@ -170,6 +170,20 @@ struct fw_attribute_group {
 	struct attribute *attrs[13];
 };
 
+enum fw_device_quirk {
+	// See afa1282a35d3 ("firewire: core: check for 1394a compliant IRM, fix inaccessibility of Sony camcorder").
+	FW_DEVICE_QUIRK_IRM_IS_1394_1995_ONLY = BIT(0),
+
+	// See a509e43ff338 ("firewire: core: fix unstable I/O with Canon camcorder").
+	FW_DEVICE_QUIRK_IRM_IGNORES_BUS_MANAGER = BIT(1),
+
+	// MOTU Audio Express transfers acknowledge packet with 0x10 for pending state.
+	FW_DEVICE_QUIRK_ACK_PACKET_WITH_INVALID_PENDING_CODE = BIT(2),
+
+	// TASCAM FW-1082/FW-1804/FW-1884 often freezes when receiving S400 packets.
+	FW_DEVICE_QUIRK_UNSTABLE_AT_S400 = BIT(3),
+};
+
 enum fw_device_state {
 	FW_DEVICE_INITIALIZING,
 	FW_DEVICE_RUNNING,
@@ -202,6 +216,9 @@ struct fw_device {
 	unsigned max_speed;
 	struct fw_card *card;
 	struct device device;
+
+	// A set of enum fw_device_quirk.
+	int quirks;
 
 	struct mutex client_list_mutex;
 	struct list_head client_list;
