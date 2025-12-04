@@ -334,10 +334,15 @@ static int dwc3_imx8mp_pm_suspend(struct device *dev)
 
 	ret = dwc3_imx8mp_suspend(dwc3_imx, PMSG_SUSPEND);
 
-	if (device_may_wakeup(dwc3_imx->dev))
+	if (device_may_wakeup(dwc3_imx->dev)) {
 		enable_irq_wake(dwc3_imx->irq);
-	else
+
+		if (device_is_compatible(dev, "fsl,imx95-dwc3"))
+			device_set_out_band_wakeup(dev);
+
+	} else {
 		clk_disable_unprepare(dwc3_imx->suspend_clk);
+	}
 
 	clk_disable_unprepare(dwc3_imx->hsio_clk);
 	dev_dbg(dev, "dwc3 imx8mp pm suspend.\n");

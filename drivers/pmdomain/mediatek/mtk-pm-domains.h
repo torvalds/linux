@@ -16,7 +16,10 @@
 #define MTK_SCPD_SRAM_PDN_INVERTED	BIT(9)
 #define MTK_SCPD_MODEM_PWRSEQ		BIT(10)
 #define MTK_SCPD_SKIP_RESET_B		BIT(11)
-#define MTK_SCPD_CAPS(_scpd, _x)	((_scpd)->data->caps & (_x))
+#define MTK_SCPD_INFRA_PWR_CTL		BIT(12)
+#define MTK_SCPD_CAPS(_scpd, _x)	((_scpd)->data ?		\
+					 (_scpd)->data->caps & (_x) :	\
+					 (_scpd)->hwv_data->caps & (_x))
 
 #define SPM_VDE_PWR_CON			0x0210
 #define SPM_MFG_PWR_CON			0x0214
@@ -59,6 +62,7 @@ enum scpsys_bus_prot_block {
 	BUS_PROT_BLOCK_INFRA,
 	BUS_PROT_BLOCK_INFRA_NAO,
 	BUS_PROT_BLOCK_SMI,
+	BUS_PROT_BLOCK_SPM,
 	BUS_PROT_BLOCK_COUNT,
 };
 
@@ -125,9 +129,22 @@ enum scpsys_rtff_type {
 };
 
 /**
+ * enum scpsys_mtcmos_type - Type of power domain controller
+ * @SCPSYS_MTCMOS_TYPE_DIRECT_CTL: Power domains are controlled with direct access
+ * @SCPSYS_MTCMOS_TYPE_HW_VOTER:   Hardware-assisted voted power domain control
+ * @SCPSYS_MTCMOS_TYPE_MAX:        Number of supported power domain types
+ */
+enum scpsys_mtcmos_type {
+	SCPSYS_MTCMOS_TYPE_DIRECT_CTL = 0,
+	SCPSYS_MTCMOS_TYPE_HW_VOTER,
+	SCPSYS_MTCMOS_TYPE_MAX
+};
+
+/**
  * struct scpsys_domain_data - scp domain data for power on/off flow
  * @name: The name of the power domain.
  * @sta_mask: The mask for power on/off status bit.
+ * @sta2nd_mask: The mask for second power on/off status bit.
  * @ctl_offs: The offset for main power control register.
  * @sram_pdn_bits: The mask for sram power control bits.
  * @sram_pdn_ack_bits: The mask for sram power control acked bits.
@@ -140,6 +157,7 @@ enum scpsys_rtff_type {
 struct scpsys_domain_data {
 	const char *name;
 	u32 sta_mask;
+	u32 sta2nd_mask;
 	int ctl_offs;
 	u32 sram_pdn_bits;
 	u32 sram_pdn_ack_bits;
@@ -152,11 +170,40 @@ struct scpsys_domain_data {
 	int pwr_sta2nd_offs;
 };
 
+/**
+ * struct scpsys_hwv_domain_data - Hardware Voter power domain data
+ * @name:       Name of the power domain
+ * @set:        Offset of the HWV SET register
+ * @clr:        Offset of the HWV CLEAR register
+ * @done:       Offset of the HWV DONE register
+ * @en:         Offset of the HWV ENABLE register
+ * @set_sta:    Offset of the HWV SET STATUS register
+ * @clr_sta:    Offset of the HWV CLEAR STATUS register
+ * @setclr_bit: The SET/CLR bit to enable/disable the power domain
+ * @sta_bit:    The SET/CLR STA bit to check for on/off ACK
+ * @caps:       The flag for active wake-up action
+ */
+struct scpsys_hwv_domain_data {
+	const char *name;
+	u16 set;
+	u16 clr;
+	u16 done;
+	u16 en;
+	u16 set_sta;
+	u16 clr_sta;
+	u8 setclr_bit;
+	u8 sta_bit;
+	u16 caps;
+};
+
 struct scpsys_soc_data {
 	const struct scpsys_domain_data *domains_data;
 	int num_domains;
+	const struct scpsys_hwv_domain_data *hwv_domains_data;
+	int num_hwv_domains;
 	enum scpsys_bus_prot_block *bus_prot_blocks;
 	int num_bus_prot_blocks;
+	enum scpsys_mtcmos_type type;
 };
 
 #endif /* __SOC_MEDIATEK_MTK_PM_DOMAINS_H */
