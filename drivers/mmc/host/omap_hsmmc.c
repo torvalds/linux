@@ -746,7 +746,7 @@ omap_hsmmc_show_slot_name(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%s\n", mmc_pdata(host)->name);
 }
 
-static DEVICE_ATTR(slot_name, S_IRUGO, omap_hsmmc_show_slot_name, NULL);
+static DEVICE_ATTR(slot_name, 0444, omap_hsmmc_show_slot_name, NULL);
 
 /*
  * Configure the response type and send the cmd.
@@ -1672,7 +1672,7 @@ DEFINE_SHOW_ATTRIBUTE(mmc_regs);
 static void omap_hsmmc_debugfs(struct mmc_host *mmc)
 {
 	if (mmc->debugfs_root)
-		debugfs_create_file("regs", S_IRUSR, mmc->debugfs_root,
+		debugfs_create_file("regs", 0400, mmc->debugfs_root,
 			mmc, &mmc_regs_fops);
 }
 
