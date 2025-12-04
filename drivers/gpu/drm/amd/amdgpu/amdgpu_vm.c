@@ -484,15 +484,19 @@ int amdgpu_vm_lock_done_list(struct amdgpu_vm *vm, struct drm_exec *exec,
 	spin_lock(&vm->status_lock);
 	while (!list_is_head(prev->next, &vm->done)) {
 		bo_va = list_entry(prev->next, typeof(*bo_va), base.vm_status);
-		spin_unlock(&vm->status_lock);
 
 		bo = bo_va->base.bo;
 		if (bo) {
+			amdgpu_bo_ref(bo);
+			spin_unlock(&vm->status_lock);
+
 			ret = drm_exec_prepare_obj(exec, &bo->tbo.base, 1);
+			amdgpu_bo_unref(&bo);
 			if (unlikely(ret))
 				return ret;
+
+			spin_lock(&vm->status_lock);
 		}
-		spin_lock(&vm->status_lock);
 		prev = prev->next;
 	}
 	spin_unlock(&vm->status_lock);
@@ -779,7 +783,6 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	bool cleaner_shader_needed = false;
 	bool pasid_mapping_needed = false;
 	struct dma_fence *fence = NULL;
-	struct amdgpu_fence *af;
 	unsigned int patch;
 	int r;
 
@@ -842,12 +845,12 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	}
 
 	if (vm_flush_needed || pasid_mapping_needed || cleaner_shader_needed) {
-		r = amdgpu_fence_emit(ring, &fence, NULL, 0);
+		r = amdgpu_fence_emit(ring, job->hw_vm_fence, 0);
 		if (r)
 			return r;
-		/* this is part of the job's context */
-		af = container_of(fence, struct amdgpu_fence, base);
-		af->context = job->base.s_fence ? job->base.s_fence->finished.context : 0;
+		fence = &job->hw_vm_fence->base;
+		/* get a ref for the job */
+		dma_fence_get(fence);
 	}
 
 	if (vm_flush_needed) {
@@ -1952,6 +1955,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_vm *vm = bo_va->base.vm;
 	bool valid = true;
+	int r;
 
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 
@@ -1970,6 +1974,17 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 
 		if (&mapping->list == &bo_va->invalids)
 			return -ENOENT;
+	}
+
+	/* It's unlikely to happen that the mapping userq hasn't been idled
+	 * during user requests GEM unmap IOCTL except for forcing the unmap
+	 * from user space.
+	 */
+	if (unlikely(atomic_read(&bo_va->userq_va_mapped) > 0)) {
+		r = amdgpu_userq_gem_va_unmap_validate(adev, mapping, saddr);
+		if (unlikely(r == -EBUSY))
+			dev_warn_once(adev->dev,
+				      "Attempt to unmap an active userq buffer\n");
 	}
 
 	list_del(&mapping->list);
@@ -2828,8 +2843,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
  */
 void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 {
-	unsigned i;
-
 	/* Concurrent flushes are only possible starting with Vega10 and
 	 * are broken on Navi10 and Navi14.
 	 */
@@ -2837,11 +2850,6 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 					      adev->asic_type == CHIP_NAVI10 ||
 					      adev->asic_type == CHIP_NAVI14);
 	amdgpu_vmid_mgr_init(adev);
-
-	adev->vm_manager.fence_context =
-		dma_fence_context_alloc(AMDGPU_MAX_RINGS);
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		adev->vm_manager.seqno[i] = 0;
 
 	spin_lock_init(&adev->vm_manager.prt_lock);
 	atomic_set(&adev->vm_manager.num_prt_users, 0);
@@ -2908,8 +2916,7 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	switch (args->in.op) {
 	case AMDGPU_VM_OP_RESERVE_VMID:
 		/* We only have requirement to reserve vmid from gfxhub */
-		amdgpu_vmid_alloc_reserved(adev, vm, AMDGPU_GFXHUB(0));
-		break;
+		return amdgpu_vmid_alloc_reserved(adev, vm, AMDGPU_GFXHUB(0));
 	case AMDGPU_VM_OP_UNRESERVE_VMID:
 		amdgpu_vmid_free_reserved(adev, vm, AMDGPU_GFXHUB(0));
 		break;

@@ -5,6 +5,8 @@
 
 #include <linux/iopoll.h>
 
+#include <drm/drm_print.h>
+
 #include "soc/intel_dram.h"
 
 #include "i915_drv.h"
@@ -2295,12 +2297,11 @@ static void i9xx_update_wm(struct intel_display *display)
 
 	crtc = single_enabled_crtc(display);
 	if (display->platform.i915gm && crtc) {
-		struct drm_gem_object *obj;
-
-		obj = intel_fb_bo(crtc->base.primary->state->fb);
+		const struct drm_framebuffer *fb =
+			crtc->base.primary->state->fb;
 
 		/* self-refresh seems busted with untiled */
-		if (!intel_bo_is_tiled(obj))
+		if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
 			crtc = NULL;
 	}
 

@@ -3,8 +3,6 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include <linux/dma-fence-array.h>
-
 #include "xe_pt.h"
 
 #include "regs/xe_gtt_defs.h"
@@ -122,7 +120,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 		   XE_BO_FLAG_IGNORE_MIN_PAGE_SIZE |
 		   XE_BO_FLAG_NO_RESV_EVICT | XE_BO_FLAG_PAGETABLE;
 	if (vm->xef) /* userspace */
-		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE;
+		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE | XE_BO_FLAG_FORCE_USER_VRAM;
 
 	pt->level = level;
 
@@ -715,7 +713,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		.vm = vm,
 		.tile = tile,
 		.curs = &curs,
-		.va_curs_start = range ? range->base.itree.start :
+		.va_curs_start = range ? xe_svm_range_start(range) :
 			xe_vma_start(vma),
 		.vma = vma,
 		.wupd.entries = entries,
@@ -734,7 +732,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		}
 		if (xe_svm_range_has_dma_mapping(range)) {
 			xe_res_first_dma(range->base.pages.dma_addr, 0,
-					 range->base.itree.last + 1 - range->base.itree.start,
+					 xe_svm_range_size(range),
 					 &curs);
 			xe_svm_range_debug(range, "BIND PREPARE - MIXED");
 		} else {
@@ -778,8 +776,8 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 
 walk_pt:
 	ret = xe_pt_walk_range(&pt->base, pt->level,
-			       range ? range->base.itree.start : xe_vma_start(vma),
-			       range ? range->base.itree.last + 1 : xe_vma_end(vma),
+			       range ? xe_svm_range_start(range) : xe_vma_start(vma),
+			       range ? xe_svm_range_end(range) : xe_vma_end(vma),
 			       &xe_walk.base);
 
 	*num_entries = xe_walk.wupd.num_used_entries;
@@ -975,8 +973,8 @@ bool xe_pt_zap_ptes_range(struct xe_tile *tile, struct xe_vm *vm,
 	if (!(pt_mask & BIT(tile->id)))
 		return false;
 
-	(void)xe_pt_walk_shared(&pt->base, pt->level, range->base.itree.start,
-				range->base.itree.last + 1, &xe_walk.base);
+	(void)xe_pt_walk_shared(&pt->base, pt->level, xe_svm_range_start(range),
+				xe_svm_range_end(range), &xe_walk.base);
 
 	return xe_walk.needs_invalidate;
 }
@@ -1340,13 +1338,6 @@ static int xe_pt_vm_dependencies(struct xe_sched_job *job,
 			return err;
 	}
 
-	if (!(pt_update_ops->q->flags & EXEC_QUEUE_FLAG_KERNEL)) {
-		if (job)
-			err = xe_sched_job_last_fence_add_dep(job, vm);
-		else
-			err = xe_exec_queue_last_fence_test_dep(pt_update_ops->q, vm);
-	}
-
 	for (i = 0; job && !err && i < vops->num_syncs; i++)
 		err = xe_sync_entry_add_deps(&vops->syncs[i], job);
 
@@ -1661,8 +1652,8 @@ static unsigned int xe_pt_stage_unbind(struct xe_tile *tile,
 				       struct xe_svm_range *range,
 				       struct xe_vm_pgtable_update *entries)
 {
-	u64 start = range ? range->base.itree.start : xe_vma_start(vma);
-	u64 end = range ? range->base.itree.last + 1 : xe_vma_end(vma);
+	u64 start = range ? xe_svm_range_start(range) : xe_vma_start(vma);
+	u64 end = range ? xe_svm_range_end(range) : xe_vma_end(vma);
 	struct xe_pt_stage_unbind_walk xe_walk = {
 		.base = {
 			.ops = &xe_pt_stage_unbind_ops,
@@ -1872,7 +1863,7 @@ static int bind_range_prepare(struct xe_vm *vm, struct xe_tile *tile,
 
 	vm_dbg(&xe_vma_vm(vma)->xe->drm,
 	       "Preparing bind, with range [%lx...%lx)\n",
-	       range->base.itree.start, range->base.itree.last);
+	       xe_svm_range_start(range), xe_svm_range_end(range) - 1);
 
 	pt_op->vma = NULL;
 	pt_op->bind = true;
@@ -1887,8 +1878,8 @@ static int bind_range_prepare(struct xe_vm *vm, struct xe_tile *tile,
 					pt_op->num_entries, true);
 
 		xe_pt_update_ops_rfence_interval(pt_update_ops,
-						 range->base.itree.start,
-						 range->base.itree.last + 1);
+						 xe_svm_range_start(range),
+						 xe_svm_range_end(range));
 		++pt_update_ops->current_op;
 		pt_update_ops->needs_svm_lock = true;
 
@@ -1983,7 +1974,7 @@ static int unbind_range_prepare(struct xe_vm *vm,
 
 	vm_dbg(&vm->xe->drm,
 	       "Preparing unbind, with range [%lx...%lx)\n",
-	       range->base.itree.start, range->base.itree.last);
+	       xe_svm_range_start(range), xe_svm_range_end(range) - 1);
 
 	pt_op->vma = XE_INVALID_VMA;
 	pt_op->bind = false;
@@ -1994,8 +1985,8 @@ static int unbind_range_prepare(struct xe_vm *vm,
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), pt_op->entries,
 				pt_op->num_entries, false);
-	xe_pt_update_ops_rfence_interval(pt_update_ops, range->base.itree.start,
-					 range->base.itree.last + 1);
+	xe_pt_update_ops_rfence_interval(pt_update_ops, xe_svm_range_start(range),
+					 xe_svm_range_end(range));
 	++pt_update_ops->current_op;
 	pt_update_ops->needs_svm_lock = true;
 	pt_update_ops->needs_invalidation |= xe_vm_has_scratch(vm) ||
@@ -2359,10 +2350,9 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 	struct xe_vm *vm = vops->vm;
 	struct xe_vm_pgtable_update_ops *pt_update_ops =
 		&vops->pt_update_ops[tile->id];
-	struct dma_fence *fence, *ifence, *mfence;
+	struct xe_exec_queue *q = pt_update_ops->q;
+	struct dma_fence *fence, *ifence = NULL, *mfence = NULL;
 	struct xe_tlb_inval_job *ijob = NULL, *mjob = NULL;
-	struct dma_fence **fences = NULL;
-	struct dma_fence_array *cf = NULL;
 	struct xe_range_fence *rfence;
 	struct xe_vma_op *op;
 	int err = 0, i;
@@ -2390,15 +2380,14 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 #endif
 
 	if (pt_update_ops->needs_invalidation) {
-		struct xe_exec_queue *q = pt_update_ops->q;
 		struct xe_dep_scheduler *dep_scheduler =
 			to_dep_scheduler(q, tile->primary_gt);
 
 		ijob = xe_tlb_inval_job_create(q, &tile->primary_gt->tlb_inval,
-					       dep_scheduler,
+					       dep_scheduler, vm,
 					       pt_update_ops->start,
 					       pt_update_ops->last,
-					       vm->usm.asid);
+					       XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT);
 		if (IS_ERR(ijob)) {
 			err = PTR_ERR(ijob);
 			goto kill_vm_tile1;
@@ -2410,26 +2399,15 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 
 			mjob = xe_tlb_inval_job_create(q,
 						       &tile->media_gt->tlb_inval,
-						       dep_scheduler,
+						       dep_scheduler, vm,
 						       pt_update_ops->start,
 						       pt_update_ops->last,
-						       vm->usm.asid);
+						       XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT);
 			if (IS_ERR(mjob)) {
 				err = PTR_ERR(mjob);
 				goto free_ijob;
 			}
 			update.mjob = mjob;
-
-			fences = kmalloc_array(2, sizeof(*fences), GFP_KERNEL);
-			if (!fences) {
-				err = -ENOMEM;
-				goto free_ijob;
-			}
-			cf = dma_fence_array_alloc(2);
-			if (!cf) {
-				err = -ENOMEM;
-				goto free_ijob;
-			}
 		}
 	}
 
@@ -2460,31 +2438,12 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 				  pt_update_ops->last, fence))
 		dma_fence_wait(fence, false);
 
-	/* tlb invalidation must be done before signaling unbind/rebind */
-	if (ijob) {
-		struct dma_fence *__fence;
-
+	if (ijob)
 		ifence = xe_tlb_inval_job_push(ijob, tile->migrate, fence);
-		__fence = ifence;
+	if (mjob)
+		mfence = xe_tlb_inval_job_push(mjob, tile->migrate, fence);
 
-		if (mjob) {
-			fences[0] = ifence;
-			mfence = xe_tlb_inval_job_push(mjob, tile->migrate,
-						       fence);
-			fences[1] = mfence;
-
-			dma_fence_array_init(cf, 2, fences,
-					     vm->composite_fence_ctx,
-					     vm->composite_fence_seqno++,
-					     false);
-			__fence = &cf->base;
-		}
-
-		dma_fence_put(fence);
-		fence = __fence;
-	}
-
-	if (!mjob) {
+	if (!mjob && !ijob) {
 		dma_resv_add_fence(xe_vm_resv(vm), fence,
 				   pt_update_ops->wait_vm_bookkeep ?
 				   DMA_RESV_USAGE_KERNEL :
@@ -2492,6 +2451,14 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 
 		list_for_each_entry(op, &vops->list, link)
 			op_commit(vops->vm, tile, pt_update_ops, op, fence, NULL);
+	} else if (ijob && !mjob) {
+		dma_resv_add_fence(xe_vm_resv(vm), ifence,
+				   pt_update_ops->wait_vm_bookkeep ?
+				   DMA_RESV_USAGE_KERNEL :
+				   DMA_RESV_USAGE_BOOKKEEP);
+
+		list_for_each_entry(op, &vops->list, link)
+			op_commit(vops->vm, tile, pt_update_ops, op, ifence, NULL);
 	} else {
 		dma_resv_add_fence(xe_vm_resv(vm), ifence,
 				   pt_update_ops->wait_vm_bookkeep ?
@@ -2511,16 +2478,23 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 	if (pt_update_ops->needs_svm_lock)
 		xe_svm_notifier_unlock(vm);
 
+	/*
+	 * The last fence is only used for zero bind queue idling; migrate
+	 * queues are not exposed to user space.
+	 */
+	if (!(q->flags & EXEC_QUEUE_FLAG_MIGRATE))
+		xe_exec_queue_last_fence_set(q, vm, fence);
+
 	xe_tlb_inval_job_put(mjob);
 	xe_tlb_inval_job_put(ijob);
+	dma_fence_put(ifence);
+	dma_fence_put(mfence);
 
 	return fence;
 
 free_rfence:
 	kfree(rfence);
 free_ijob:
-	kfree(cf);
-	kfree(fences);
 	xe_tlb_inval_job_put(mjob);
 	xe_tlb_inval_job_put(ijob);
 kill_vm_tile1:

@@ -227,7 +227,8 @@ void dcn401_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
 #define LE_DCN401_REG_LIST_RI(id)                                            \
 	LE_DCN3_REG_LIST_RI(id), \
 	SRI_ARR(DP_DPHY_INTERNAL_CTRL, DP, id), \
-	SRI_ARR(DIG_BE_CLK_CNTL, DIG, id)
+	SRI_ARR(DIG_BE_CLK_CNTL, DIG, id),\
+	SR_ARR(DIO_CLK_CNTL, id)
 
 /* DPP */
 #define DPP_REG_LIST_DCN401_COMMON_RI(id)                                    \

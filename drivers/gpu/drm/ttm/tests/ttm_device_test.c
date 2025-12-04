@@ -7,11 +7,11 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include "ttm_kunit_helpers.h"
+#include "../ttm_pool_internal.h"
 
 struct ttm_device_test_case {
 	const char *description;
-	bool use_dma_alloc;
-	bool use_dma32;
+	unsigned int alloc_flags;
 	bool pools_init_expected;
 };
 
@@ -25,7 +25,7 @@ static void ttm_device_init_basic(struct kunit *test)
 	ttm_dev = kunit_kzalloc(test, sizeof(*ttm_dev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ttm_dev);
 
-	err = ttm_device_kunit_init(priv, ttm_dev, false, false);
+	err = ttm_device_kunit_init(priv, ttm_dev, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	KUNIT_EXPECT_PTR_EQ(test, ttm_dev->funcs, &ttm_dev_funcs);
@@ -55,7 +55,7 @@ static void ttm_device_init_multiple(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, ttm_devs);
 
 	for (i = 0; i < num_dev; i++) {
-		err = ttm_device_kunit_init(priv, &ttm_devs[i], false, false);
+		err = ttm_device_kunit_init(priv, &ttm_devs[i], 0);
 		KUNIT_ASSERT_EQ(test, err, 0);
 
 		KUNIT_EXPECT_PTR_EQ(test, ttm_devs[i].dev_mapping,
@@ -81,7 +81,7 @@ static void ttm_device_fini_basic(struct kunit *test)
 	ttm_dev = kunit_kzalloc(test, sizeof(*ttm_dev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ttm_dev);
 
-	err = ttm_device_kunit_init(priv, ttm_dev, false, false);
+	err = ttm_device_kunit_init(priv, ttm_dev, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	man = ttm_manager_type(ttm_dev, TTM_PL_SYSTEM);
@@ -109,7 +109,7 @@ static void ttm_device_init_no_vma_man(struct kunit *test)
 	vma_man = drm->vma_offset_manager;
 	drm->vma_offset_manager = NULL;
 
-	err = ttm_device_kunit_init(priv, ttm_dev, false, false);
+	err = ttm_device_kunit_init(priv, ttm_dev, 0);
 	KUNIT_EXPECT_EQ(test, err, -EINVAL);
 
 	/* Bring the manager back for a graceful cleanup */
@@ -119,26 +119,22 @@ static void ttm_device_init_no_vma_man(struct kunit *test)
 static const struct ttm_device_test_case ttm_device_cases[] = {
 	{
 		.description = "No DMA allocations, no DMA32 required",
-		.use_dma_alloc = false,
-		.use_dma32 = false,
 		.pools_init_expected = false,
 	},
 	{
 		.description = "DMA allocations, DMA32 required",
-		.use_dma_alloc = true,
-		.use_dma32 = true,
+		.alloc_flags = TTM_ALLOCATION_POOL_USE_DMA_ALLOC |
+			       TTM_ALLOCATION_POOL_USE_DMA32,
 		.pools_init_expected = true,
 	},
 	{
 		.description = "No DMA allocations, DMA32 required",
-		.use_dma_alloc = false,
-		.use_dma32 = true,
+		.alloc_flags = TTM_ALLOCATION_POOL_USE_DMA32,
 		.pools_init_expected = false,
 	},
 	{
 		.description = "DMA allocations, no DMA32 required",
-		.use_dma_alloc = true,
-		.use_dma32 = false,
+		.alloc_flags = TTM_ALLOCATION_POOL_USE_DMA_ALLOC,
 		.pools_init_expected = true,
 	},
 };
@@ -162,16 +158,13 @@ static void ttm_device_init_pools(struct kunit *test)
 	ttm_dev = kunit_kzalloc(test, sizeof(*ttm_dev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ttm_dev);
 
-	err = ttm_device_kunit_init(priv, ttm_dev,
-				    params->use_dma_alloc,
-				    params->use_dma32);
+	err = ttm_device_kunit_init(priv, ttm_dev, params->alloc_flags);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	pool = &ttm_dev->pool;
 	KUNIT_ASSERT_NOT_NULL(test, pool);
 	KUNIT_EXPECT_PTR_EQ(test, pool->dev, priv->dev);
-	KUNIT_EXPECT_EQ(test, pool->use_dma_alloc, params->use_dma_alloc);
-	KUNIT_EXPECT_EQ(test, pool->use_dma32, params->use_dma32);
+	KUNIT_EXPECT_EQ(test, pool->alloc_flags, params->alloc_flags);
 
 	if (params->pools_init_expected) {
 		for (int i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
@@ -181,7 +174,7 @@ static void ttm_device_init_pools(struct kunit *test)
 				KUNIT_EXPECT_EQ(test, pt.caching, i);
 				KUNIT_EXPECT_EQ(test, pt.order, j);
 
-				if (params->use_dma_alloc)
+				if (ttm_pool_uses_dma_alloc(pool))
 					KUNIT_ASSERT_FALSE(test,
 							   list_empty(&pt.pages));
 			}

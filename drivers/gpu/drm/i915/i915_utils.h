@@ -38,8 +38,10 @@
 
 struct drm_i915_private;
 
+#ifndef MISSING_CASE
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
+#endif
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 
@@ -65,11 +67,13 @@ bool i915_error_injected(void);
 		drm_err(&(i915)->drm, fmt, ##__VA_ARGS__); \
 })
 
+#ifndef fetch_and_zero
 #define fetch_and_zero(ptr) ({						\
 	typeof(*ptr) __T = *(ptr);					\
 	*(ptr) = (typeof(*ptr))0;					\
 	__T;								\
 })
+#endif
 
 /*
  * check_user_mbz: Check that a user value exists and is zero
@@ -99,43 +103,6 @@ static inline bool is_power_of_2_u64(u64 n)
 {
 	return (n != 0 && ((n & (n - 1)) == 0));
 }
-
-static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
-{
-	unsigned long j = msecs_to_jiffies(m);
-
-	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
-}
-
-/*
- * If you need to wait X milliseconds between events A and B, but event B
- * doesn't happen exactly after event A, you record the timestamp (jiffies) of
- * when event A happened, then just before event B you call this function and
- * pass the timestamp as the first argument, and X as the second argument.
- */
-static inline void
-wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
-{
-	unsigned long target_jiffies, tmp_jiffies, remaining_jiffies;
-
-	/*
-	 * Don't re-read the value of "jiffies" every time since it may change
-	 * behind our back and break the math.
-	 */
-	tmp_jiffies = jiffies;
-	target_jiffies = timestamp_jiffies +
-			 msecs_to_jiffies_timeout(to_wait_ms);
-
-	if (time_after(target_jiffies, tmp_jiffies)) {
-		remaining_jiffies = target_jiffies - tmp_jiffies;
-		while (remaining_jiffies)
-			remaining_jiffies =
-			    schedule_timeout_uninterruptible(remaining_jiffies);
-	}
-}
-
-#define KHz(x) (1000 * (x))
-#define MHz(x) KHz(1000 * (x))
 
 void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint);
 static inline void __add_taint_for_CI(unsigned int taint)

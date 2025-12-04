@@ -9,6 +9,8 @@
  * The V3D block provides 16 hardware counters which can count various events.
  */
 
+#include <drm/drm_print.h>
+
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 

@@ -12,7 +12,7 @@
 #include "xe_wopcm_types.h"
 
 /**
- * struct xe_uc - XE micro controllers
+ * struct xe_uc - Xe micro controllers
  */
 struct xe_uc {
 	/** @guc: Graphics micro controller */

@@ -19,9 +19,9 @@
 #include <drm/intel/i915_component.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_connector.h"
 #include "intel_de.h"
+#include "intel_display_jiffies.h"
 #include "intel_display_power.h"
 #include "intel_display_power_well.h"
 #include "intel_display_regs.h"
@@ -410,9 +410,8 @@ static int intel_hdcp_load_keys(struct intel_display *display)
 	}
 
 	/* Wait for the keys to load (500us) */
-	ret = intel_de_wait_custom(display, HDCP_KEY_STATUS,
-				   HDCP_KEY_LOAD_DONE, HDCP_KEY_LOAD_DONE,
-				   10, 1, &val);
+	ret = intel_de_wait_ms(display, HDCP_KEY_STATUS, HDCP_KEY_LOAD_DONE,
+			       HDCP_KEY_LOAD_DONE, 1, &val);
 	if (ret)
 		return ret;
 	else if (!(val & HDCP_KEY_LOAD_STATUS))
@@ -428,7 +427,7 @@ static int intel_hdcp_load_keys(struct intel_display *display)
 static int intel_write_sha_text(struct intel_display *display, u32 sha_text)
 {
 	intel_de_write(display, HDCP_SHA_TEXT, sha_text);
-	if (intel_de_wait_for_set(display, HDCP_REP_CTL, HDCP_SHA1_READY, 1)) {
+	if (intel_de_wait_for_set_ms(display, HDCP_REP_CTL, HDCP_SHA1_READY, 1)) {
 		drm_err(display->drm, "Timed out waiting for SHA1 ready\n");
 		return -ETIMEDOUT;
 	}
@@ -707,8 +706,8 @@ int intel_hdcp_validate_v_prime(struct intel_connector *connector,
 	/* Tell the HW we're done with the hash and wait for it to ACK */
 	intel_de_write(display, HDCP_REP_CTL,
 		       rep_ctl | HDCP_SHA1_COMPLETE_HASH);
-	if (intel_de_wait_for_set(display, HDCP_REP_CTL,
-				  HDCP_SHA1_COMPLETE, 1)) {
+	if (intel_de_wait_for_set_ms(display, HDCP_REP_CTL,
+				     HDCP_SHA1_COMPLETE, 1)) {
 		drm_err(display->drm, "Timed out waiting for SHA1 complete\n");
 		return -ETIMEDOUT;
 	}
@@ -856,9 +855,9 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 		       HDCP_CONF_CAPTURE_AN);
 
 	/* Wait for An to be acquired */
-	if (intel_de_wait_for_set(display,
-				  HDCP_STATUS(display, cpu_transcoder, port),
-				  HDCP_STATUS_AN_READY, 1)) {
+	if (intel_de_wait_for_set_ms(display,
+				     HDCP_STATUS(display, cpu_transcoder, port),
+				     HDCP_STATUS_AN_READY, 1)) {
 		drm_err(display->drm, "Timed out waiting for An\n");
 		return -ETIMEDOUT;
 	}
@@ -953,10 +952,10 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	}
 
 	/* Wait for encryption confirmation */
-	if (intel_de_wait_for_set(display,
-				  HDCP_STATUS(display, cpu_transcoder, port),
-				  HDCP_STATUS_ENC,
-				  HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
+	if (intel_de_wait_for_set_ms(display,
+				     HDCP_STATUS(display, cpu_transcoder, port),
+				     HDCP_STATUS_ENC,
+				     HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		drm_err(display->drm, "Timed out waiting for encryption\n");
 		return -ETIMEDOUT;
 	}
@@ -1013,9 +1012,9 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 
 	hdcp->hdcp_encrypted = false;
 	intel_de_write(display, HDCP_CONF(display, cpu_transcoder, port), 0);
-	if (intel_de_wait_for_clear(display,
-				    HDCP_STATUS(display, cpu_transcoder, port),
-				    ~0, HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
+	if (intel_de_wait_for_clear_ms(display,
+				       HDCP_STATUS(display, cpu_transcoder, port),
+				       ~0, HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		drm_err(display->drm,
 			"Failed to disable HDCP, timeout clearing status\n");
 		return -ETIMEDOUT;
@@ -1940,11 +1939,10 @@ static int hdcp2_enable_encryption(struct intel_connector *connector)
 		intel_de_rmw(display, HDCP2_CTL(display, cpu_transcoder, port),
 			     0, CTL_LINK_ENCRYPTION_REQ);
 
-	ret = intel_de_wait_for_set(display,
-				    HDCP2_STATUS(display, cpu_transcoder,
-						 port),
-				    LINK_ENCRYPTION_STATUS,
-				    HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS);
+	ret = intel_de_wait_for_set_ms(display,
+				       HDCP2_STATUS(display, cpu_transcoder, port),
+				       LINK_ENCRYPTION_STATUS,
+				       HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS);
 	dig_port->hdcp.auth_status = true;
 
 	return ret;
@@ -1966,11 +1964,10 @@ static int hdcp2_disable_encryption(struct intel_connector *connector)
 	intel_de_rmw(display, HDCP2_CTL(display, cpu_transcoder, port),
 		     CTL_LINK_ENCRYPTION_REQ, 0);
 
-	ret = intel_de_wait_for_clear(display,
-				      HDCP2_STATUS(display, cpu_transcoder,
-						   port),
-				      LINK_ENCRYPTION_STATUS,
-				      HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS);
+	ret = intel_de_wait_for_clear_ms(display,
+					 HDCP2_STATUS(display, cpu_transcoder, port),
+					 LINK_ENCRYPTION_STATUS,
+					 HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS);
 	if (ret == -ETIMEDOUT)
 		drm_dbg_kms(display->drm, "Disable Encryption Timedout");
 

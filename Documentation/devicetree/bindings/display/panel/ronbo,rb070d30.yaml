@@ -9,6 +9,9 @@ title: Ronbo RB070D30 DSI Display Panel
 maintainers:
   - Maxime Ripard <mripard@kernel.org>
 
+allOf:
+  - $ref: panel-common.yaml#
+
 properties:
   compatible:
     const: ronbo,rb070d30
@@ -18,10 +21,6 @@ properties:
 
   power-gpios:
     description: GPIO used for the power pin
-    maxItems: 1
-
-  reset-gpios:
-    description: GPIO used for the reset pin
     maxItems: 1
 
   shlr-gpios:
@@ -35,10 +34,6 @@ properties:
   vcc-lcd-supply:
     description: Power regulator
 
-  backlight:
-    description: Backlight used by the panel
-    $ref: /schemas/types.yaml#/definitions/phandle
-
 required:
   - compatible
   - power-gpios
@@ -47,5 +42,6 @@ required:
   - shlr-gpios
   - updn-gpios
   - vcc-lcd-supply
+  - port
 
-additionalProperties: false
+unevaluatedProperties: false

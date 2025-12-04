@@ -1,13 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 
 use kernel::{
-    auxiliary, c_str,
+    auxiliary,
+    c_str,
     device::Core,
+    dma::Device,
+    dma::DmaMask,
     pci,
-    pci::{Class, ClassMask, Vendor},
+    pci::{
+        Class,
+        ClassMask,
+        Vendor, //
+    },
     prelude::*,
     sizes::SZ_16M,
-    sync::Arc,
+    sync::Arc, //
 };
 
 use crate::gpu::Gpu;
@@ -20,6 +27,15 @@ pub(crate) struct NovaCore {
 }
 
 const BAR0_SIZE: usize = SZ_16M;
+
+// For now we only support Ampere which can use up to 47-bit DMA addresses.
+//
+// TODO: Add an abstraction for this to support newer GPUs which may support
+// larger DMA addresses. Limiting these GPUs to smaller address widths won't
+// have any adverse affects, unless installed on systems which require larger
+// DMA addresses. These systems should be quite rare.
+const GPU_DMA_BITS: u32 = 47;
+
 pub(crate) type Bar0 = pci::Bar<BAR0_SIZE>;
 
 kernel::pci_device_table!(
@@ -56,6 +72,11 @@ impl pci::Driver for NovaCore {
 
         pdev.enable_device_mem()?;
         pdev.set_master();
+
+        // SAFETY: No concurrent DMA allocations or mappings can be made because
+        // the device is still being probed and therefore isn't being used by
+        // other threads of execution.
+        unsafe { pdev.dma_set_mask_and_coherent(DmaMask::new::<GPU_DMA_BITS>())? };
 
         let devres_bar = Arc::pin_init(
             pdev.iomap_region_sized::<BAR0_SIZE>(0, c_str!("nova-core/bar0")),

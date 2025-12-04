@@ -41,19 +41,21 @@ static void nbio_v7_9_remap_hdp_registers(struct amdgpu_device *adev)
 
 static u32 nbio_v7_9_get_rev_id(struct amdgpu_device *adev)
 {
-	u32 tmp;
+	u32 rev_id;
 
-	tmp = IP_VERSION_SUBREV(amdgpu_ip_version_full(adev, NBIO_HWIP, 0));
-	/* If it is VF or subrevision holds a non-zero value, that should be used */
-	if (tmp || amdgpu_sriov_vf(adev))
-		return tmp;
+	/*
+	 * fetch the sub-revision field from the IP-discovery table
+	 * (returns zero if the table entry is not populated).
+	 */
+	if (amdgpu_sriov_vf(adev)) {
+		rev_id = IP_VERSION_SUBREV(amdgpu_ip_version_full(adev, NBIO_HWIP, 0));
+	} else {
+		rev_id = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0);
+		rev_id = REG_GET_FIELD(rev_id, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0,
+				STRAP_ATI_REV_ID_DEV0_F0);
+	}
 
-	/* If discovery subrev is not updated, use register version */
-	tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0);
-	tmp = REG_GET_FIELD(tmp, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0,
-			    STRAP_ATI_REV_ID_DEV0_F0);
-
-	return tmp;
+	return rev_id;
 }
 
 static void nbio_v7_9_mc_access_enable(struct amdgpu_device *adev, bool enable)

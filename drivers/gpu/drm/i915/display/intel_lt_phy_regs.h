@@ -1,0 +1,90 @@
+/* SPDX-License-Identifier: MIT
+ *
+ * Copyright © 2025 Intel Corporation
+ */
+
+#ifndef __INTEL_LT_PHY_REGS_H__
+#define __INTEL_LT_PHY_REGS_H__
+
+#define XE3PLPD_MSGBUS_TIMEOUT_FAST_US	500
+#define XE3PLPD_MACCLK_TURNON_LATENCY_MS	2
+#define XE3PLPD_MACCLK_TURNOFF_LATENCY_US	1
+#define XE3PLPD_RATE_CALIB_DONE_LATENCY_MS	1
+#define XE3PLPD_RESET_START_LATENCY_US	10
+#define XE3PLPD_PWRDN_TO_RDY_LATENCY_US	4
+#define XE3PLPD_RESET_END_LATENCY_MS		2
+
+/* LT Phy MAC Register */
+#define LT_PHY_MAC_VDR			_MMIO(0xC00)
+#define    LT_PHY_PCLKIN_GATE		REG_BIT8(0)
+
+/* LT Phy Pipe Spec Registers */
+#define LT_PHY_TXY_CTL8(idx)		(0x408 + (0x200 * (idx)))
+#define  LT_PHY_TX_SWING_LEVEL_MASK	REG_GENMASK8(7, 4)
+#define  LT_PHY_TX_SWING_LEVEL(val)	REG_FIELD_PREP8(LT_PHY_TX_SWING_LEVEL_MASK, val)
+#define  LT_PHY_TX_SWING_MASK		REG_BIT8(3)
+#define  LT_PHY_TX_SWING(val)		REG_FIELD_PREP8(LT_PHY_TX_SWING_MASK, val)
+
+#define LT_PHY_TXY_CTL2(idx)		(0x402 + (0x200 * (idx)))
+#define LT_PHY_TXY_CTL3(idx)		(0x403 + (0x200 * (idx)))
+#define LT_PHY_TXY_CTL4(idx)		(0x404 + (0x200 * (idx)))
+#define  LT_PHY_TX_CURSOR_MASK		REG_GENMASK8(5, 0)
+#define  LT_PHY_TX_CURSOR(val)		REG_FIELD_PREP8(LT_PHY_TX_CURSOR_MASK, val)
+
+#define LT_PHY_TXY_CTL10(idx)		(0x40A + (0x200 * (idx)))
+#define LT_PHY_TXY_CTL10_MAC(idx)	_MMIO(LT_PHY_TXY_CTL10(idx))
+#define  LT_PHY_TX_LANE_ENABLE		REG_BIT8(0)
+
+/* LT Phy Vendor Register */
+#define LT_PHY_VDR_0_CONFIG	0xC02
+#define  LT_PHY_VDR_DP_PLL_ENABLE	REG_BIT(7)
+#define LT_PHY_VDR_1_CONFIG	0xC03
+#define  LT_PHY_VDR_RATE_ENCODING_MASK	REG_GENMASK8(6, 3)
+#define  LT_PHY_VDR_MODE_ENCODING_MASK	REG_GENMASK8(2, 0)
+#define LT_PHY_VDR_2_CONFIG	0xCC3
+
+#define LT_PHY_VDR_X_ADDR_MSB(idx)	(0xC04 + 0x6 * (idx))
+#define LT_PHY_VDR_X_ADDR_LSB(idx)	(0xC05 + 0x6 * (idx))
+
+#define LT_PHY_VDR_X_DATAY(idx, y)	((0xC06 + (3 - (y))) + 0x6 * (idx))
+
+#define LT_PHY_RATE_UPDATE		0xCC4
+#define    LT_PHY_RATE_CONTROL_VDR_UPDATE	REG_BIT8(0)
+
+#define _XE3PLPD_PORT_BUF_CTL5(idx)	_MMIO(_PICK_EVEN_2RANGES(idx, PORT_TC1, \
+								 _XELPDP_PORT_BUF_CTL1_LN0_A, \
+								 _XELPDP_PORT_BUF_CTL1_LN0_B, \
+								 _XELPDP_PORT_BUF_CTL1_LN0_USBC1, \
+								 _XELPDP_PORT_BUF_CTL1_LN0_USBC2) \
+								+ 0x34)
+#define XE3PLPD_PORT_BUF_CTL5(port)	_XE3PLPD_PORT_BUF_CTL5(__xe2lpd_port_idx(port))
+#define  XE3PLPD_MACCLK_RESET_0		REG_BIT(11)
+#define  XE3PLPD_MACCLK_RATE_MASK	REG_GENMASK(4, 0)
+#define  XE3PLPD_MACCLK_RATE_DEF	REG_FIELD_PREP(XE3PLPD_MACCLK_RATE_MASK, 0x1F)
+
+#define _XE3PLPD_PORT_P2M_MSGBUS_STATUS_P2P(idx, lane)	_MMIO(_PICK_EVEN_2RANGES(idx, PORT_TC1, \
+										 _XELPDP_PORT_M2P_MSGBUS_CTL_LN0_A, \
+										 _XELPDP_PORT_M2P_MSGBUS_CTL_LN0_B, \
+										 _XELPDP_PORT_M2P_MSGBUS_CTL_LN0_USBC1, \
+										 _XELPDP_PORT_M2P_MSGBUS_CTL_LN0_USBC2) \
+										 + 0x60 + (lane) * 0x4)
+#define XE3PLPD_PORT_P2M_MSGBUS_STATUS_P2P(port, lane)	 _XE3PLPD_PORT_P2M_MSGBUS_STATUS_P2P(__xe2lpd_port_idx(port), \
+											    lane)
+#define   XE3LPD_PORT_P2M_ADDR_MASK			REG_GENMASK(11, 0)
+
+#define PLL_REG4_ADDR		0x8510
+#define PLL_REG3_ADDR		0x850C
+#define PLL_REG5_ADDR		0x8514
+#define PLL_REG57_ADDR		0x85E4
+#define PLL_LF_ADDR		0x860C
+#define PLL_TDC_ADDR		0x8610
+#define PLL_SSC_ADDR		0x8614
+#define PLL_BIAS2_ADDR		0x8618
+#define PLL_BIAS_TRIM_ADDR	0x8648
+#define PLL_DCO_MED_ADDR	0x8640
+#define PLL_DCO_FINE_ADDR	0x864C
+#define PLL_SSC_INJ_ADDR	0x8624
+#define PLL_SURV_BONUS_ADDR	0x8644
+#define PLL_TYPE_OFFSET		0x200
+#define PLL_REG_ADDR(base, pll_type)		((pll_type) ? (base) + PLL_TYPE_OFFSET : (base))
+#endif /* __INTEL_LT_PHY_REGS_H__ */

@@ -312,7 +312,7 @@ module_param_named(moverate, amdgpu_moverate, int, 0600);
  * DOC: audio (int)
  * Set HDMI/DPAudio. Only affects non-DC display handling. The default is -1 (Enabled), set 0 to disabled it.
  */
-MODULE_PARM_DESC(audio, "Audio enable (-1 = auto, 0 = disable, 1 = enable)");
+MODULE_PARM_DESC(audio, "HDMI/DP Audio enable for non DC displays (-1 = auto, 0 = disable, 1 = enable)");
 module_param_named(audio, amdgpu_audio, int, 0444);
 
 /**
@@ -354,22 +354,16 @@ module_param_named(svm_default_granularity, amdgpu_svm_default_granularity, uint
  * DOC: lockup_timeout (string)
  * Set GPU scheduler timeout value in ms.
  *
- * The format can be [Non-Compute] or [GFX,Compute,SDMA,Video]. That is there can be one or
- * multiple values specified. 0 and negative values are invalidated. They will be adjusted
- * to the default timeout.
+ * The format can be [single value] for setting all timeouts at once or
+ * [GFX,Compute,SDMA,Video] to set individual timeouts.
+ * Negative values mean infinity.
  *
- * - With one value specified, the setting will apply to all non-compute jobs.
- * - With multiple values specified, the first one will be for GFX.
- *   The second one is for Compute. The third and fourth ones are
- *   for SDMA and Video.
- *
- * By default(with no lockup_timeout settings), the timeout for all jobs is 10000.
+ * By default(with no lockup_timeout settings), the timeout for all queues is 2000.
  */
 MODULE_PARM_DESC(lockup_timeout,
-		 "GPU lockup timeout in ms (default: 10000 for all jobs. "
-		 "0: keep default value. negative: infinity timeout), format: for bare metal [Non-Compute] or [GFX,Compute,SDMA,Video]; "
-		 "for passthrough or sriov [all jobs] or [GFX,Compute,SDMA,Video].");
-module_param_string(lockup_timeout, amdgpu_lockup_timeout, sizeof(amdgpu_lockup_timeout), 0444);
+		 "GPU lockup timeout in ms (default: 2000. 0: keep default value. negative: infinity timeout), format: [single value for all] or [GFX,Compute,SDMA,Video].");
+module_param_string(lockup_timeout, amdgpu_lockup_timeout,
+		    sizeof(amdgpu_lockup_timeout), 0444);
 
 /**
  * DOC: dpm (int)
@@ -624,39 +618,39 @@ module_param_named(timeout_period, amdgpu_watchdog_timer.period, uint, 0644);
 
 /**
  * DOC: si_support (int)
- * Set SI support driver. This parameter works after set config CONFIG_DRM_AMDGPU_SI. For SI asic, when radeon driver is enabled,
- * set value 0 to use radeon driver, while set value 1 to use amdgpu driver. The default is using radeon driver when it available,
- * otherwise using amdgpu driver.
+ * 1 = enabled, 0 = disabled, -1 = default
+ *
+ * SI (Southern Islands) are first generation GCN GPUs, supported by both
+ * drivers: radeon (old) and amdgpu (new). This parameter controls whether
+ * amdgpu should support SI.
+ * By default, SI dedicated GPUs are supported by amdgpu.
+ * Only relevant when CONFIG_DRM_AMDGPU_SI is enabled to build SI support in amdgpu.
+ * See also radeon.si_support which should be disabled when amdgpu.si_support is
+ * enabled, and vice versa.
  */
+int amdgpu_si_support = -1;
 #ifdef CONFIG_DRM_AMDGPU_SI
-
-#if IS_ENABLED(CONFIG_DRM_RADEON) || IS_ENABLED(CONFIG_DRM_RADEON_MODULE)
-int amdgpu_si_support;
-MODULE_PARM_DESC(si_support, "SI support (1 = enabled, 0 = disabled (default))");
-#else
-int amdgpu_si_support = 1;
-MODULE_PARM_DESC(si_support, "SI support (1 = enabled (default), 0 = disabled)");
-#endif
-
+MODULE_PARM_DESC(si_support, "SI support (1 = enabled, 0 = disabled, -1 = default)");
 module_param_named(si_support, amdgpu_si_support, int, 0444);
 #endif
 
 /**
  * DOC: cik_support (int)
- * Set CIK support driver. This parameter works after set config CONFIG_DRM_AMDGPU_CIK. For CIK asic, when radeon driver is enabled,
- * set value 0 to use radeon driver, while set value 1 to use amdgpu driver. The default is using radeon driver when it available,
- * otherwise using amdgpu driver.
+ * 1 = enabled, 0 = disabled, -1 = default
+ *
+ * CIK (Sea Islands) are second generation GCN GPUs, supported by both
+ * drivers: radeon (old) and amdgpu (new). This parameter controls whether
+ * amdgpu should support CIK.
+ * By default:
+ * - CIK dedicated GPUs are supported by amdgpu.
+ * - CIK APUs are supported by radeon (except when radeon is not built).
+ * Only relevant when CONFIG_DRM_AMDGPU_CIK is enabled to build CIK support in amdgpu.
+ * See also radeon.cik_support which should be disabled when amdgpu.cik_support is
+ * enabled, and vice versa.
  */
+int amdgpu_cik_support = -1;
 #ifdef CONFIG_DRM_AMDGPU_CIK
-
-#if IS_ENABLED(CONFIG_DRM_RADEON) || IS_ENABLED(CONFIG_DRM_RADEON_MODULE)
-int amdgpu_cik_support;
-MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled, 0 = disabled (default))");
-#else
-int amdgpu_cik_support = 1;
-MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled (default), 0 = disabled)");
-#endif
-
+MODULE_PARM_DESC(cik_support, "CIK support  (1 = enabled, 0 = disabled, -1 = default)");
 module_param_named(cik_support, amdgpu_cik_support, int, 0444);
 #endif
 
@@ -2234,7 +2228,6 @@ static void amdgpu_get_secondary_funcs(struct amdgpu_device *adev)
 						adev->pdev->bus->number, i);
 		if (p) {
 			pm_runtime_get_sync(&p->dev);
-			pm_runtime_mark_last_busy(&p->dev);
 			pm_runtime_put_autosuspend(&p->dev);
 			pci_dev_put(p);
 		}
@@ -2313,6 +2306,72 @@ static unsigned long amdgpu_fix_asic_type(struct pci_dev *pdev, unsigned long fl
 	return flags;
 }
 
+static bool amdgpu_support_enabled(struct device *dev,
+				   const enum amd_asic_type family)
+{
+	const char *gen;
+	const char *param;
+	int module_param = -1;
+	bool radeon_support_built = IS_ENABLED(CONFIG_DRM_RADEON);
+	bool amdgpu_support_built = false;
+	bool support_by_default = false;
+
+	switch (family) {
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+	case CHIP_OLAND:
+	case CHIP_HAINAN:
+		gen = "SI";
+		param = "si_support";
+		module_param = amdgpu_si_support;
+		amdgpu_support_built = IS_ENABLED(CONFIG_DRM_AMDGPU_SI);
+		support_by_default = true;
+		break;
+
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+		support_by_default = true;
+		fallthrough;
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+		gen = "CIK";
+		param = "cik_support";
+		module_param = amdgpu_cik_support;
+		amdgpu_support_built = IS_ENABLED(CONFIG_DRM_AMDGPU_CIK);
+		break;
+
+	default:
+		/* All other chips are supported by amdgpu only */
+		return true;
+	}
+
+	if (!amdgpu_support_built) {
+		dev_info(dev, "amdgpu built without %s support\n", gen);
+		return false;
+	}
+
+	if ((module_param == -1 && (support_by_default || !radeon_support_built)) ||
+	    module_param == 1) {
+		if (radeon_support_built)
+			dev_info(dev, "%s support provided by amdgpu.\n"
+				 "Use radeon.%s=1 amdgpu.%s=0 to override.\n",
+				 gen, param, param);
+
+		return true;
+	}
+
+	if (radeon_support_built)
+		dev_info(dev, "%s support provided by radeon.\n"
+			 "Use radeon.%s=0 amdgpu.%s=1 to override.\n",
+			 gen, param, param);
+	else if (module_param == 0)
+		dev_info(dev, "%s support disabled by module param\n", gen);
+
+	return false;
+}
+
 static int amdgpu_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
@@ -2360,48 +2419,8 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 		return -ENOTSUPP;
 	}
 
-	switch (flags & AMD_ASIC_MASK) {
-	case CHIP_TAHITI:
-	case CHIP_PITCAIRN:
-	case CHIP_VERDE:
-	case CHIP_OLAND:
-	case CHIP_HAINAN:
-#ifdef CONFIG_DRM_AMDGPU_SI
-		if (!amdgpu_si_support) {
-			dev_info(&pdev->dev,
-				 "SI support provided by radeon.\n");
-			dev_info(&pdev->dev,
-				 "Use radeon.si_support=0 amdgpu.si_support=1 to override.\n"
-				);
-			return -ENODEV;
-		}
-		break;
-#else
-		dev_info(&pdev->dev, "amdgpu is built without SI support.\n");
+	if (!amdgpu_support_enabled(&pdev->dev, flags & AMD_ASIC_MASK))
 		return -ENODEV;
-#endif
-	case CHIP_KAVERI:
-	case CHIP_BONAIRE:
-	case CHIP_HAWAII:
-	case CHIP_KABINI:
-	case CHIP_MULLINS:
-#ifdef CONFIG_DRM_AMDGPU_CIK
-		if (!amdgpu_cik_support) {
-			dev_info(&pdev->dev,
-				 "CIK support provided by radeon.\n");
-			dev_info(&pdev->dev,
-				 "Use radeon.cik_support=0 amdgpu.cik_support=1 to override.\n"
-				);
-			return -ENODEV;
-		}
-		break;
-#else
-		dev_info(&pdev->dev, "amdgpu is built without CIK support.\n");
-		return -ENODEV;
-#endif
-	default:
-		break;
-	}
 
 	adev = devm_drm_dev_alloc(&pdev->dev, &amdgpu_kms_driver, typeof(*adev), ddev);
 	if (IS_ERR(adev))
@@ -2480,7 +2499,6 @@ retry_init:
 
 		pm_runtime_allow(ddev->dev);
 
-		pm_runtime_mark_last_busy(ddev->dev);
 		pm_runtime_put_autosuspend(ddev->dev);
 
 		pci_wake_from_d3(pdev, TRUE);
@@ -2564,7 +2582,8 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 	 */
 	if (!amdgpu_passthrough(adev))
 		adev->mp1_state = PP_MP1_STATE_UNLOAD;
-	amdgpu_device_ip_suspend(adev);
+	amdgpu_device_prepare(dev);
+	amdgpu_device_suspend(dev, true);
 	adev->mp1_state = PP_MP1_STATE_NONE;
 }
 
@@ -2782,22 +2801,8 @@ static int amdgpu_runtime_idle_check_userq(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
-	struct amdgpu_usermode_queue *queue;
-	struct amdgpu_userq_mgr *uqm, *tmp;
-	int queue_id;
-	int ret = 0;
 
-	mutex_lock(&adev->userq_mutex);
-	list_for_each_entry_safe(uqm, tmp, &adev->userq_mgr_list, list) {
-		idr_for_each_entry(&uqm->userq_idr, queue, queue_id) {
-			ret = -EBUSY;
-			goto done;
-		}
-	}
-done:
-	mutex_unlock(&adev->userq_mutex);
-
-	return ret;
+	return xa_empty(&adev->userq_doorbell_xa) ? 0 : -EBUSY;
 }
 
 static int amdgpu_pmops_runtime_suspend(struct device *dev)
@@ -2944,7 +2949,6 @@ static int amdgpu_pmops_runtime_idle(struct device *dev)
 
 	ret = amdgpu_runtime_idle_check_userq(dev);
 done:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_autosuspend(dev);
 	return ret;
 }
@@ -2980,7 +2984,6 @@ long amdgpu_drm_ioctl(struct file *filp,
 
 	ret = drm_ioctl(filp, cmd, arg);
 
-	pm_runtime_mark_last_busy(dev->dev);
 out:
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;

@@ -13,6 +13,11 @@ subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 # drivers. Define I915 when building i915.
 subdir-ccflags-y += -DI915
 
+# FIXME: Disable tracepoints on i915 for PREEMPT_RT, unfortunately
+# it's an all or nothing flag. You cannot selectively disable
+# only some tracepoints.
+subdir-ccflags-$(CONFIG_PREEMPT_RT) += -DNOTRACE
+
 subdir-ccflags-y += -I$(src)
 
 # Please keep these build lists sorted!
@@ -26,6 +31,7 @@ i915-y += \
 	i915_ioctl.o \
 	i915_irq.o \
 	i915_mitigations.o \
+	i915_mmio_range.o \
 	i915_module.o \
 	i915_params.o \
 	i915_pci.o \
@@ -150,6 +156,7 @@ gem-y += \
 	gem/i915_gem_lmem.o \
 	gem/i915_gem_mman.o \
 	gem/i915_gem_object.o \
+	gem/i915_gem_object_frontbuffer.o \
 	gem/i915_gem_pages.o \
 	gem/i915_gem_phys.o \
 	gem/i915_gem_pm.o \
@@ -228,6 +235,7 @@ i915-y += \
 	display/intel_bios.o \
 	display/intel_bo.o \
 	display/intel_bw.o \
+	display/intel_casf.o \
 	display/intel_cdclk.o \
 	display/intel_cmtg.o \
 	display/intel_color.o \
@@ -236,6 +244,7 @@ i915-y += \
 	display/intel_crtc.o \
 	display/intel_crtc_state_dump.o \
 	display/intel_cursor.o \
+	display/intel_dbuf_bw.o \
 	display/intel_display.o \
 	display/intel_display_conversion.o \
 	display/intel_display_driver.o \
@@ -248,6 +257,7 @@ i915-y += \
 	display/intel_display_rpm.o \
 	display/intel_display_rps.o \
 	display/intel_display_snapshot.o \
+	display/intel_display_utils.o \
 	display/intel_display_wa.o \
 	display/intel_dmc.o \
 	display/intel_dmc_wl.o \
@@ -297,9 +307,11 @@ i915-y += \
 	display/intel_vblank.o \
 	display/intel_vga.o \
 	display/intel_wm.o \
+	display/skl_prefill.o \
 	display/skl_scaler.o \
 	display/skl_universal_plane.o \
 	display/skl_watermark.o \
+	display/vlv_clock.o \
 	display/vlv_sideband.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
@@ -346,6 +358,7 @@ i915-y += \
 	display/intel_gmbus.o \
 	display/intel_hdmi.o \
 	display/intel_lspcon.o \
+	display/intel_lt_phy.o \
 	display/intel_lvds.o \
 	display/intel_panel.o \
 	display/intel_pfit.o \

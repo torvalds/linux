@@ -27,6 +27,9 @@
  */
 
 #include <linux/delay.h>
+#include <linux/pci.h>
+
+#include <drm/drm_drv.h>
 
 #include "ast_drv.h"
 #include "ast_post.h"
@@ -146,4 +149,109 @@ int ast_2000_post(struct ast_device *ast)
 	}
 
 	return 0;
+}
+
+/*
+ * Mode setting
+ */
+
+const struct ast_vbios_dclk_info ast_2000_dclk_table[] = {
+	{0x2c, 0xe7, 0x03},			/* 00: VCLK25_175	*/
+	{0x95, 0x62, 0x03},			/* 01: VCLK28_322	*/
+	{0x67, 0x63, 0x01},			/* 02: VCLK31_5		*/
+	{0x76, 0x63, 0x01},			/* 03: VCLK36		*/
+	{0xee, 0x67, 0x01},			/* 04: VCLK40		*/
+	{0x82, 0x62, 0x01},			/* 05: VCLK49_5		*/
+	{0xc6, 0x64, 0x01},			/* 06: VCLK50		*/
+	{0x94, 0x62, 0x01},			/* 07: VCLK56_25	*/
+	{0x80, 0x64, 0x00},			/* 08: VCLK65		*/
+	{0x7b, 0x63, 0x00},			/* 09: VCLK75		*/
+	{0x67, 0x62, 0x00},			/* 0a: VCLK78_75	*/
+	{0x7c, 0x62, 0x00},			/* 0b: VCLK94_5		*/
+	{0x8e, 0x62, 0x00},			/* 0c: VCLK108		*/
+	{0x85, 0x24, 0x00},			/* 0d: VCLK135		*/
+	{0x67, 0x22, 0x00},			/* 0e: VCLK157_5	*/
+	{0x6a, 0x22, 0x00},			/* 0f: VCLK162		*/
+	{0x4d, 0x4c, 0x80},			/* 10: VCLK154		*/
+	{0x68, 0x6f, 0x80},			/* 11: VCLK83.5		*/
+	{0x28, 0x49, 0x80},			/* 12: VCLK106.5	*/
+	{0x37, 0x49, 0x80},			/* 13: VCLK146.25	*/
+	{0x1f, 0x45, 0x80},			/* 14: VCLK148.5	*/
+	{0x47, 0x6c, 0x80},			/* 15: VCLK71		*/
+	{0x25, 0x65, 0x80},			/* 16: VCLK88.75	*/
+	{0x77, 0x58, 0x80},			/* 17: VCLK119		*/
+	{0x32, 0x67, 0x80},			/* 18: VCLK85_5		*/
+	{0x6a, 0x6d, 0x80},			/* 19: VCLK97_75	*/
+	{0x3b, 0x2c, 0x81},			/* 1a: VCLK118_25	*/
+};
+
+/*
+ * Device initialization
+ */
+
+void ast_2000_detect_tx_chip(struct ast_device *ast, bool need_post)
+{
+	enum ast_tx_chip tx_chip = AST_TX_NONE;
+	u8 vgacra3;
+
+	/*
+	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
+	 * enabled, in that case, assume we have a SIL164 TMDS transmitter
+	 *
+	 * Don't make that assumption if we the chip wasn't enabled and
+	 * is at power-on reset, otherwise we'll incorrectly "detect" a
+	 * SIL164 when there is none.
+	 */
+	if (!need_post) {
+		vgacra3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
+		if (vgacra3 & AST_IO_VGACRA3_DVO_ENABLED)
+			tx_chip = AST_TX_SIL164;
+	}
+
+	__ast_device_set_tx_chip(ast, tx_chip);
+}
+
+static const struct ast_device_quirks ast_2000_device_quirks = {
+	.crtc_mem_req_threshold_low = 31,
+	.crtc_mem_req_threshold_high = 47,
+};
+
+struct drm_device *ast_2000_device_create(struct pci_dev *pdev,
+					  const struct drm_driver *drv,
+					  enum ast_chip chip,
+					  enum ast_config_mode config_mode,
+					  void __iomem *regs,
+					  void __iomem *ioregs,
+					  bool need_post)
+{
+	struct drm_device *dev;
+	struct ast_device *ast;
+	int ret;
+
+	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_device, base);
+	if (IS_ERR(ast))
+		return ERR_CAST(ast);
+	dev = &ast->base;
+
+	ast_device_init(ast, chip, config_mode, regs, ioregs, &ast_2000_device_quirks);
+
+	ast->dclk_table = ast_2000_dclk_table;
+
+	ast_2000_detect_tx_chip(ast, need_post);
+
+	if (need_post) {
+		ret = ast_post_gpu(ast);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	ret = ast_mm_init(ast);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = ast_mode_config_init(ast);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return dev;
 }

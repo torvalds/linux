@@ -24,8 +24,6 @@ static void tidss_atomic_commit_tail(struct drm_atomic_state *old_state)
 	struct drm_device *ddev = old_state->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
 
-	dev_dbg(ddev->dev, "%s\n", __func__);
-
 	tidss_runtime_get(tidss);
 
 	drm_atomic_helper_commit_modeset_disables(ddev, old_state);
@@ -244,8 +242,6 @@ int tidss_modeset_init(struct tidss_device *tidss)
 {
 	struct drm_device *ddev = &tidss->ddev;
 	int ret;
-
-	dev_dbg(tidss->dev, "%s\n", __func__);
 
 	ret = drmm_mode_config_init(ddev);
 	if (ret)

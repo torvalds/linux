@@ -2,16 +2,30 @@
 
 use core::mem::size_of_val;
 
-use kernel::device;
-use kernel::dma::{DataDirection, DmaAddress};
-use kernel::kvec;
-use kernel::prelude::*;
-use kernel::scatterlist::{Owned, SGTable};
+use kernel::{
+    device,
+    dma::{
+        DataDirection,
+        DmaAddress, //
+    },
+    kvec,
+    prelude::*,
+    scatterlist::{
+        Owned,
+        SGTable, //
+    },
+};
 
-use crate::dma::DmaObject;
-use crate::firmware::riscv::RiscvFirmware;
-use crate::gpu::{Architecture, Chipset};
-use crate::gsp::GSP_PAGE_SIZE;
+use crate::{
+    dma::DmaObject,
+    firmware::riscv::RiscvFirmware,
+    gpu::{
+        Architecture,
+        Chipset, //
+    },
+    gsp::GSP_PAGE_SIZE,
+    num::FromSafeCast,
+};
 
 /// Ad-hoc and temporary module to extract sections from ELF images.
 ///
@@ -129,11 +143,11 @@ pub(crate) struct GspFirmware {
     /// Level 0 page table (single 4KB page) with one entry: DMA address of first level 1 page.
     level0: DmaObject,
     /// Size in bytes of the firmware contained in [`Self::fw`].
-    size: usize,
+    pub(crate) size: usize,
     /// Device-mapped GSP signatures matching the GPU's [`Chipset`].
-    signatures: DmaObject,
+    pub(crate) signatures: DmaObject,
     /// GSP bootloader, verifies the GSP firmware before loading and running it.
-    bootloader: RiscvFirmware,
+    pub(crate) bootloader: RiscvFirmware,
 }
 
 impl GspFirmware {
@@ -150,6 +164,7 @@ impl GspFirmware {
 
         let sigs_section = match chipset.arch() {
             Architecture::Ampere => ".fwsignature_ga10x",
+            Architecture::Ada => ".fwsignature_ad10x",
             _ => return Err(ENOTSUPP),
         };
         let signatures = elf::elf64_section(fw.data(), sigs_section)
@@ -202,10 +217,10 @@ impl GspFirmware {
                 let mut level0_data = kvec![0u8; GSP_PAGE_SIZE]?;
 
                 // Fill level 1 page entry.
-                #[allow(clippy::useless_conversion)]
-                let level1_entry = u64::from(level1.iter().next().unwrap().dma_address());
-                let dst = &mut level0_data[..size_of_val(&level1_entry)];
-                dst.copy_from_slice(&level1_entry.to_le_bytes());
+                let level1_entry = level1.iter().next().ok_or(EINVAL)?;
+                let level1_entry_addr = level1_entry.dma_address();
+                let dst = &mut level0_data[..size_of_val(&level1_entry_addr)];
+                dst.copy_from_slice(&level1_entry_addr.to_le_bytes());
 
                 // Turn the level0 page table into a [`DmaObject`].
                 DmaObject::from_data(dev, &level0_data)?
@@ -216,7 +231,6 @@ impl GspFirmware {
         }))
     }
 
-    #[expect(unused)]
     /// Returns the DMA handle of the radix3 level 0 page table.
     pub(crate) fn radix3_dma_handle(&self) -> DmaAddress {
         self.level0.dma_handle()
@@ -231,10 +245,11 @@ impl GspFirmware {
 fn map_into_lvl(sg_table: &SGTable<Owned<VVec<u8>>>, mut dst: VVec<u8>) -> Result<VVec<u8>> {
     for sg_entry in sg_table.iter() {
         // Number of pages we need to map.
-        let num_pages = (sg_entry.dma_len() as usize).div_ceil(GSP_PAGE_SIZE);
+        let num_pages = usize::from_safe_cast(sg_entry.dma_len()).div_ceil(GSP_PAGE_SIZE);
 
         for i in 0..num_pages {
-            let entry = sg_entry.dma_address() + (i as u64 * GSP_PAGE_SIZE as u64);
+            let entry = sg_entry.dma_address()
+                + (u64::from_safe_cast(i) * u64::from_safe_cast(GSP_PAGE_SIZE));
             dst.extend_from_slice(&entry.to_le_bytes(), GFP_KERNEL)?;
         }
     }

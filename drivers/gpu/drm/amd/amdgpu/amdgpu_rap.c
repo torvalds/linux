@@ -101,7 +101,6 @@ static ssize_t amdgpu_rap_debugfs_write(struct file *f, const char __user *buf,
 	}
 
 	amdgpu_gfx_off_ctrl(adev, true);
-	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
 	return size;

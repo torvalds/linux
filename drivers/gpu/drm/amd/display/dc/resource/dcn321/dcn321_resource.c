@@ -731,9 +731,12 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_subvp_high_refresh = false,
 	.fpo_vactive_min_active_margin_us = 200,
 	.fpo_vactive_max_blank_us = 1000,
-	.enable_legacy_fast_update = false,
 	.disable_dc_mode_overwrite = true,
 	.using_dml2 = false,
+};
+
+static const struct dc_check_config config_defaults = {
+	.enable_legacy_fast_update = false,
 };
 
 static struct dce_aux *dcn321_aux_engine_create(
@@ -1797,6 +1800,7 @@ static bool dcn321_resource_construct(
 			dc->caps.vbios_lttpr_aware = true;
 		}
 	}
+	dc->check_config = config_defaults;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

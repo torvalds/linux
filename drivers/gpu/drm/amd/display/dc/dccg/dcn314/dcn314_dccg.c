@@ -377,7 +377,8 @@ static const struct dccg_funcs dccg314_funcs = {
 	.get_pixel_rate_div = dccg314_get_pixel_rate_div,
 	.trigger_dio_fifo_resync = dccg314_trigger_dio_fifo_resync,
 	.set_valid_pixel_rate = dccg314_set_valid_pixel_rate,
-	.set_dtbclk_p_src = dccg314_set_dtbclk_p_src
+	.set_dtbclk_p_src = dccg314_set_dtbclk_p_src,
+	.dccg_read_reg_state = dccg31_read_reg_state
 };
 
 struct dccg *dccg314_create(

@@ -783,21 +783,23 @@ void hubp401_cursor_set_position(
 		if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
 			hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
 
-		REG_UPDATE(CURSOR_CONTROL,
-			CURSOR_ENABLE, cur_en);
+		if (!hubp->cursor_offload)
+			REG_UPDATE(CURSOR_CONTROL,
+				CURSOR_ENABLE, cur_en);
 	}
 
-	REG_SET_2(CURSOR_POSITION, 0,
-		CURSOR_X_POSITION, x_pos,
-		CURSOR_Y_POSITION, y_pos);
+	if (!hubp->cursor_offload) {
+		REG_SET_2(CURSOR_POSITION, 0,
+			CURSOR_X_POSITION, x_pos,
+			CURSOR_Y_POSITION, y_pos);
 
-	REG_SET_2(CURSOR_HOT_SPOT, 0,
-		CURSOR_HOT_SPOT_X, pos->x_hotspot,
-		CURSOR_HOT_SPOT_Y, pos->y_hotspot);
+		REG_SET_2(CURSOR_HOT_SPOT, 0,
+			CURSOR_HOT_SPOT_X, pos->x_hotspot,
+			CURSOR_HOT_SPOT_Y, pos->y_hotspot);
 
-	REG_SET(CURSOR_DST_OFFSET, 0,
-		CURSOR_DST_X_OFFSET, dst_x_offset);
-
+		REG_SET(CURSOR_DST_OFFSET, 0,
+			CURSOR_DST_X_OFFSET, dst_x_offset);
+	}
 	/* Cursor Position Register Config */
 	hubp->pos.cur_ctl.bits.cur_enable = cur_en;
 	hubp->pos.position.bits.x_pos = pos->x;
@@ -1071,9 +1073,7 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.hubp_get_3dlut_fl_done = hubp401_get_3dlut_fl_done,
 	.hubp_clear_tiling = hubp401_clear_tiling,
 	.hubp_program_3dlut_fl_config = hubp401_program_3dlut_fl_config,
-	.hubp_get_underflow_status = hubp3_get_underflow_status,
-	.hubp_get_current_read_line = hubp3_get_current_read_line,
-	.hubp_get_det_config_error = hubp31_get_det_config_error,
+	.hubp_read_reg_state = hubp3_read_reg_state
 };
 
 bool hubp401_construct(

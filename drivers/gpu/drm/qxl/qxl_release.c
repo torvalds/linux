@@ -22,6 +22,8 @@
 
 #include <linux/delay.h>
 
+#include <drm/drm_print.h>
+
 #include <trace/events/dma_fence.h>
 
 #include "qxl_drv.h"

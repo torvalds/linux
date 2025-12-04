@@ -24,12 +24,12 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
 #include "i9xx_plane_regs.h"
 #include "intel_color.h"
 #include "intel_color_regs.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dsb.h"
 #include "intel_vrr.h"
 
@@ -1090,18 +1090,19 @@ static void skl_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	u32 tmp;
 
 	crtc_state->gamma_mode = hsw_read_gamma_mode(crtc);
 	crtc_state->csc_mode = ilk_read_csc_mode(crtc);
 
-	tmp = intel_de_read(display, SKL_BOTTOM_COLOR(crtc->pipe));
+	if (DISPLAY_VER(display) < 35) {
+		u32 tmp = intel_de_read(display, SKL_BOTTOM_COLOR(crtc->pipe));
 
-	if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
-		crtc_state->gamma_enable = true;
+		if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
+			crtc_state->gamma_enable = true;
 
-	if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
-		crtc_state->csc_enable = true;
+		if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
+			crtc_state->csc_enable = true;
+	}
 }
 
 static void skl_color_commit_arm(struct intel_dsb *dsb,
@@ -2013,7 +2014,7 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 
 	if (crtc_state->use_dsb && intel_color_uses_chained_dsb(crtc_state)) {
 		intel_vrr_send_push(crtc_state->dsb_color, crtc_state);
-		intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color);
+		intel_dsb_wait_for_delayed_vblank(state, crtc_state->dsb_color);
 		intel_vrr_check_push_sent(crtc_state->dsb_color, crtc_state);
 		intel_dsb_interrupt(crtc_state->dsb_color);
 	}

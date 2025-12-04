@@ -176,6 +176,8 @@ patternProperties:
     description: All Sensors Corporation
   "^asix,.*":
     description: ASIX Electronics Corporation
+  "^asl-tek,.*":
+    description: ASL Xiamen Technology Co., Ltd.
   "^aspeed,.*":
     description: ASPEED Technology Inc.
   "^asrock,.*":
@@ -835,6 +837,8 @@ patternProperties:
     description: JOZ BV
   "^jty,.*":
     description: JTY
+  "^jutouch,.*":
+    description: JuTouch Technology Co., Ltd.
   "^kam,.*":
     description: Kamstrup A/S
   "^karo,.*":
@@ -1323,6 +1327,8 @@ patternProperties:
     description: Raumfeld GmbH
   "^raydium,.*":
     description: Raydium Semiconductor Corp.
+  "^raystar,.*":
+    description: Raystar Optronics, Inc.
   "^rda,.*":
     description: Unisoc Communications, Inc.
   "^realtek,.*":

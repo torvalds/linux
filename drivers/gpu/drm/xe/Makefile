@@ -58,7 +58,6 @@ xe-y += xe_bb.o \
 	xe_gt_freq.o \
 	xe_gt_idle.o \
 	xe_gt_mcr.o \
-	xe_gt_pagefault.o \
 	xe_gt_sysfs.o \
 	xe_gt_throttle.o \
 	xe_gt_topology.o \
@@ -73,6 +72,7 @@ xe-y += xe_bb.o \
 	xe_guc_id_mgr.o \
 	xe_guc_klv_helpers.o \
 	xe_guc_log.o \
+	xe_guc_pagefault.o \
 	xe_guc_pc.o \
 	xe_guc_submit.o \
 	xe_guc_tlb_inval.o \
@@ -94,6 +94,7 @@ xe-y += xe_bb.o \
 	xe_nvm.o \
 	xe_oa.o \
 	xe_observation.o \
+	xe_pagefault.o \
 	xe_pat.o \
 	xe_pci.o \
 	xe_pcode.o \
@@ -173,8 +174,15 @@ xe-$(CONFIG_PCI_IOV) += \
 	xe_lmtt_2l.o \
 	xe_lmtt_ml.o \
 	xe_pci_sriov.o \
+	xe_sriov_packet.o \
 	xe_sriov_pf.o \
-	xe_sriov_pf_service.o
+	xe_sriov_pf_control.o \
+	xe_sriov_pf_debugfs.o \
+	xe_sriov_pf_migration.o \
+	xe_sriov_pf_provision.o \
+	xe_sriov_pf_service.o \
+	xe_sriov_pf_sysfs.o \
+	xe_tile_sriov_pf_debugfs.o
 
 # include helpers for tests even when XE is built-in
 ifdef CONFIG_DRM_XE_KUNIT_TEST
@@ -201,7 +209,6 @@ $(obj)/i915-display/%.o: $(srctree)/drivers/gpu/drm/i915/display/%.c FORCE
 # Display code specific to xe
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/ext/i915_irq.o \
-	display/ext/i915_utils.o \
 	display/intel_bo.o \
 	display/intel_fb_bo.o \
 	display/intel_fbdev_fb.o \
@@ -214,6 +221,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/xe_hdcp_gsc.o \
 	display/xe_panic.o \
 	display/xe_plane_initial.o \
+	display/xe_stolen.o \
 	display/xe_tdf.o
 
 # SOC code shared with i915
@@ -230,6 +238,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_backlight.o \
 	i915-display/intel_bios.o \
 	i915-display/intel_bw.o \
+	i915-display/intel_casf.o \
 	i915-display/intel_cdclk.o \
 	i915-display/intel_cmtg.o \
 	i915-display/intel_color.o \
@@ -239,6 +248,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_crtc_state_dump.o \
 	i915-display/intel_cursor.o \
 	i915-display/intel_cx0_phy.o \
+	i915-display/intel_dbuf_bw.o \
 	i915-display/intel_ddi.o \
 	i915-display/intel_ddi_buf_trans.o \
 	i915-display/intel_display.o \
@@ -250,7 +260,9 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_display_power.o \
 	i915-display/intel_display_power_map.o \
 	i915-display/intel_display_power_well.o \
+	i915-display/intel_display_rpm.o \
 	i915-display/intel_display_trace.o \
+	i915-display/intel_display_utils.o \
 	i915-display/intel_display_wa.o \
 	i915-display/intel_dkl_phy.o \
 	i915-display/intel_dmc.o \
@@ -287,6 +299,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_hti.o \
 	i915-display/intel_link_bw.o \
 	i915-display/intel_lspcon.o \
+	i915-display/intel_lt_phy.o \
 	i915-display/intel_modeset_lock.o \
 	i915-display/intel_modeset_setup.o \
 	i915-display/intel_modeset_verify.o \
@@ -307,6 +320,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_vga.o \
 	i915-display/intel_vrr.o \
 	i915-display/intel_wm.o \
+	i915-display/skl_prefill.o \
 	i915-display/skl_scaler.o \
 	i915-display/skl_universal_plane.o \
 	i915-display/skl_watermark.o

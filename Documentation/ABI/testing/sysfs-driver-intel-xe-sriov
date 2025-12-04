@@ -1,0 +1,159 @@
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/
+Date:		October 2025
+KernelVersion:	6.19
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		This directory appears for the particular Intel Xe device when:
+
+		 - device supports SR-IOV, and
+		 - device is a Physical Function (PF), and
+		 - driver support for the SR-IOV PF is enabled on given device.
+
+		This directory is used as a root for all attributes required to
+		manage both Physical Function (PF) and Virtual Functions (VFs).
+
+
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/pf/
+Date:		October 2025
+KernelVersion:	6.19
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		This directory holds attributes related to the SR-IOV Physical
+		Function (PF).
+
+
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf1/
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf2/
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf<N>/
+Date:		October 2025
+KernelVersion:	6.19
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		These directories hold attributes related to the SR-IOV Virtual
+		Functions (VFs).
+
+		Note that the VF number <N> is 1-based as described in PCI SR-IOV
+		specification as the Xe driver follows that naming schema.
+
+		There could be "vf1", "vf2" and so on, up to "vf<N>", where <N>
+		matches the value of the "sriov_totalvfs" attribute.
+
+
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/pf/profile/exec_quantum_ms
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/pf/profile/preempt_timeout_us
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/pf/profile/sched_priority
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf<n>/profile/exec_quantum_ms
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf<n>/profile/preempt_timeout_us
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf<n>/profile/sched_priority
+Date:		October 2025
+KernelVersion:	6.19
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		These files expose scheduling parameters for the PF and its VFs, and
+		are visible only on Intel Xe platforms that use time-sliced GPU sharing.
+		They can be changed even if VFs are enabled and running and reflect the
+		settings of all tiles/GTs assigned to the given function.
+
+		exec_quantum_ms: (RW) unsigned integer
+			The GT execution quantum (EQ) in [ms] for the given function.
+			Actual quantum value might be aligned per HW/FW requirements.
+
+			Default is 0 (unlimited).
+
+		preempt_timeout_us: (RW) unsigned integer
+			The GT preemption timeout in [us] of the given function.
+			Actual timeout value might be aligned per HW/FW requirements.
+
+			Default is 0 (unlimited).
+
+		sched_priority: (RW/RO) string
+			The GT scheduling priority of the given function.
+
+			"low" - function will be scheduled on the GPU for its EQ/PT
+				only if function has any work already submitted.
+
+			"normal" - functions will be scheduled on the GPU for its EQ/PT
+				irrespective of whether it has submitted a work or not.
+
+			"high" - function will be scheduled on the GPU for its EQ/PT
+				in the next time-slice after the current one completes
+				and function has a work submitted.
+
+			Default is "low".
+
+			When read, this file will display the current and available
+			scheduling priorities. The currently active priority level will
+			be enclosed in square brackets, like:
+
+				[low] normal high
+
+			This file can be read-only if changing the priority is not
+			supported.
+
+		Writes to these attributes may fail with errors like:
+			-EINVAL if provided input is malformed or not recognized,
+			-EPERM if change is not applicable on given HW/FW,
+			-EIO if FW refuses to change the provisioning.
+
+		Reads from these attributes may fail with:
+			-EUCLEAN if value is not consistent across all tiles/GTs.
+
+
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/.bulk_profile/exec_quantum_ms
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/.bulk_profile/preempt_timeout_us
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/.bulk_profile/sched_priority
+Date:		October 2025
+KernelVersion:	6.19
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		These files allows bulk reconfiguration of the scheduling parameters
+		of the PF or VFs and are available only for Intel Xe platforms with
+		GPU sharing based on the time-slice basis. These scheduling parameters
+		can be changed even if VFs are enabled and running.
+
+		exec_quantum_ms: (WO) unsigned integer
+			The GT execution quantum (EQ) in [ms] to be applied to all functions.
+			See sriov_admin/{pf,vf<N>}/profile/exec_quantum_ms for more details.
+
+		preempt_timeout_us: (WO) unsigned integer
+			The GT preemption timeout (PT) in [us] to be applied to all functions.
+			See sriov_admin/{pf,vf<N>}/profile/preempt_timeout_us for more details.
+
+		sched_priority: (RW/RO) string
+			The GT scheduling priority to be applied for all functions.
+			See sriov_admin/{pf,vf<N>}/profile/sched_priority for more details.
+
+		Writes to these attributes may fail with errors like:
+			-EINVAL if provided input is malformed or not recognized,
+			-EPERM if change is not applicable on given HW/FW,
+			-EIO if FW refuses to change the provisioning.
+
+
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf<n>/stop
+Date:		October 2025
+KernelVersion:	6.19
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		This file allows to control scheduling of the VF on the Intel Xe GPU
+		platforms. It allows to implement custom policy mechanism in case VFs
+		are misbehaving or triggering adverse events above defined thresholds.
+
+		stop: (WO) bool
+			All GT executions of given function shall be immediately stopped.
+			To allow scheduling this VF again, the VF FLR must be triggered.
+
+		Writes to this attribute may fail with errors like:
+			-EINVAL if provided input is malformed or not recognized,
+			-EPERM if change is not applicable on given HW/FW,
+			-EIO if FW refuses to change the scheduling.
+
+
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/pf/device
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf<n>/device
+Date:		October 2025
+KernelVersion:	6.19
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		These are symlinks to the underlying PCI device entry representing
+		given Xe SR-IOV function. For the PF, this link is always present.
+		For VFs, this link is present only for currently enabled VFs.

@@ -17,68 +17,18 @@
 #include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_pf_control.h"
 #include "xe_sriov_pf_helpers.h"
+#include "xe_sriov_pf_provision.h"
+#include "xe_sriov_pf_sysfs.h"
 #include "xe_sriov_printk.h"
 
-static int pf_needs_provisioning(struct xe_gt *gt, unsigned int num_vfs)
+static void pf_reset_vfs(struct xe_device *xe, unsigned int num_vfs)
 {
 	unsigned int n;
 
 	for (n = 1; n <= num_vfs; n++)
-		if (!xe_gt_sriov_pf_config_is_empty(gt, n))
-			return false;
-
-	return true;
-}
-
-static int pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
-{
-	struct xe_gt *gt;
-	unsigned int id;
-	int result = 0, err;
-
-	for_each_gt(gt, xe, id) {
-		if (!pf_needs_provisioning(gt, num_vfs))
-			continue;
-		err = xe_gt_sriov_pf_config_set_fair(gt, VFID(1), num_vfs);
-		result = result ?: err;
-	}
-
-	return result;
-}
-
-static void pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs)
-{
-	struct xe_gt *gt;
-	unsigned int id;
-	unsigned int n;
-
-	for_each_gt(gt, xe, id)
-		for (n = 1; n <= num_vfs; n++)
-			xe_gt_sriov_pf_config_release(gt, n, true);
-}
-
-static void pf_reset_vfs(struct xe_device *xe, unsigned int num_vfs)
-{
-	struct xe_gt *gt;
-	unsigned int id;
-	unsigned int n;
-
-	for_each_gt(gt, xe, id)
-		for (n = 1; n <= num_vfs; n++)
-			xe_gt_sriov_pf_control_trigger_flr(gt, n);
-}
-
-static struct pci_dev *xe_pci_pf_get_vf_dev(struct xe_device *xe, unsigned int vf_id)
-{
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-
-	xe_assert(xe, IS_SRIOV_PF(xe));
-
-	/* caller must use pci_dev_put() */
-	return pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
-			pdev->bus->number,
-			pci_iov_virtfn_devfn(pdev, vf_id));
+		xe_sriov_pf_control_reset_vf(xe, n);
 }
 
 static void pf_link_vfs(struct xe_device *xe, int num_vfs)
@@ -99,7 +49,7 @@ static void pf_link_vfs(struct xe_device *xe, int num_vfs)
 	 * enforce correct resume order.
 	 */
 	for (n = 1; n <= num_vfs; n++) {
-		pdev_vf = xe_pci_pf_get_vf_dev(xe, n - 1);
+		pdev_vf = xe_pci_sriov_get_vf_pdev(pdev_pf, n);
 
 		/* unlikely, something weird is happening, abort */
 		if (!pdev_vf) {
@@ -144,6 +94,20 @@ static int resize_vf_vram_bar(struct xe_device *xe, int num_vfs)
 	return pci_iov_vf_bar_set_size(pdev, VF_LMEM_BAR, __fls(sizes));
 }
 
+static int pf_prepare_vfs_enabling(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+	/* make sure we are not locked-down by other components */
+	return xe_sriov_pf_arm_guard(xe, &xe->sriov.pf.guard_vfs_enabling, false, NULL);
+}
+
+static void pf_finish_vfs_enabling(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+	/* allow other components to lockdown VFs enabling */
+	xe_sriov_pf_disarm_guard(xe, &xe->sriov.pf.guard_vfs_enabling, false, NULL);
+}
+
 static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -159,6 +123,10 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 	if (err)
 		goto out;
 
+	err = pf_prepare_vfs_enabling(xe);
+	if (err)
+		goto out;
+
 	/*
 	 * We must hold additional reference to the runtime PM to keep PF in D0
 	 * during VFs lifetime, as our VFs do not implement the PM capability.
@@ -170,7 +138,7 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 	 */
 	xe_pm_runtime_get_noresume(xe);
 
-	err = pf_provision_vfs(xe, num_vfs);
+	err = xe_sriov_pf_provision_vfs(xe, num_vfs);
 	if (err < 0)
 		goto failed;
 
@@ -189,13 +157,16 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 	xe_sriov_info(xe, "Enabled %u of %u VF%s\n",
 		      num_vfs, total_vfs, str_plural(total_vfs));
 
+	xe_sriov_pf_sysfs_link_vfs(xe, num_vfs);
+
 	pf_engine_activity_stats(xe, num_vfs, true);
 
 	return num_vfs;
 
 failed:
-	pf_unprovision_vfs(xe, num_vfs);
+	xe_sriov_pf_unprovision_vfs(xe, num_vfs);
 	xe_pm_runtime_put(xe);
+	pf_finish_vfs_enabling(xe);
 out:
 	xe_sriov_notice(xe, "Failed to enable %u VF%s (%pe)\n",
 			num_vfs, str_plural(num_vfs), ERR_PTR(err));
@@ -216,14 +187,18 @@ static int pf_disable_vfs(struct xe_device *xe)
 
 	pf_engine_activity_stats(xe, num_vfs, false);
 
+	xe_sriov_pf_sysfs_unlink_vfs(xe, num_vfs);
+
 	pci_disable_sriov(pdev);
 
 	pf_reset_vfs(xe, num_vfs);
 
-	pf_unprovision_vfs(xe, num_vfs);
+	xe_sriov_pf_unprovision_vfs(xe, num_vfs);
 
 	/* not needed anymore - see pf_enable_vfs() */
 	xe_pm_runtime_put(xe);
+
+	pf_finish_vfs_enabling(xe);
 
 	xe_sriov_info(xe, "Disabled %u VF%s\n", num_vfs, str_plural(num_vfs));
 	return 0;
@@ -266,4 +241,26 @@ int xe_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	xe_pm_runtime_put(xe);
 
 	return ret;
+}
+
+/**
+ * xe_pci_sriov_get_vf_pdev() - Lookup the VF's PCI device using the VF identifier.
+ * @pdev: the PF's &pci_dev
+ * @vfid: VF identifier (1-based)
+ *
+ * The caller must decrement the reference count by calling pci_dev_put().
+ *
+ * Return: the VF's &pci_dev or NULL if the VF device was not found.
+ */
+struct pci_dev *xe_pci_sriov_get_vf_pdev(struct pci_dev *pdev, unsigned int vfid)
+{
+	struct xe_device *xe = pdev_to_xe_device(pdev);
+
+	xe_assert(xe, dev_is_pf(&pdev->dev));
+	xe_assert(xe, vfid);
+	xe_assert(xe, vfid <= pci_sriov_get_totalvfs(pdev));
+
+	return pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
+					   pdev->bus->number,
+					   pci_iov_virtfn_devfn(pdev, vfid - 1));
 }

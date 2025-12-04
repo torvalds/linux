@@ -101,19 +101,6 @@ void xe_sched_submission_stop(struct xe_gpu_scheduler *sched)
 	cancel_work_sync(&sched->work_process_msg);
 }
 
-/**
- * xe_sched_submission_stop_async - Stop further runs of submission tasks on a scheduler.
- * @sched: the &xe_gpu_scheduler struct instance
- *
- * This call disables further runs of scheduling work queue. It does not wait
- * for any in-progress runs to finish, only makes sure no further runs happen
- * afterwards.
- */
-void xe_sched_submission_stop_async(struct xe_gpu_scheduler *sched)
-{
-	drm_sched_wqueue_stop(&sched->base);
-}
-
 void xe_sched_submission_resume_tdr(struct xe_gpu_scheduler *sched)
 {
 	drm_sched_resume_timeout(&sched->base, sched->base.timeout);
@@ -133,5 +120,19 @@ void xe_sched_add_msg_locked(struct xe_gpu_scheduler *sched,
 	lockdep_assert_held(&sched->base.job_list_lock);
 
 	list_add_tail(&msg->link, &sched->msgs);
+	xe_sched_process_msg_queue(sched);
+}
+
+/**
+ * xe_sched_add_msg_head() - Xe GPU scheduler add message to head of list
+ * @sched: Xe GPU scheduler
+ * @msg: Message to add
+ */
+void xe_sched_add_msg_head(struct xe_gpu_scheduler *sched,
+			   struct xe_sched_msg *msg)
+{
+	lockdep_assert_held(&sched->base.job_list_lock);
+
+	list_add(&msg->link, &sched->msgs);
 	xe_sched_process_msg_queue(sched);
 }

@@ -93,13 +93,6 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value value="4" name="A7XX_HLSQ_DP_STR"/>
 </enum>
 
-<enum name="a7xx_pipe">
-	<value value="0" name="A7XX_PIPE_NONE"/>
-	<value value="1" name="A7XX_PIPE_BR"/>
-	<value value="2" name="A7XX_PIPE_BV"/>
-	<value value="3" name="A7XX_PIPE_LPAC"/>
-</enum>
-
 <enum name="a7xx_cluster">
 	<value value="0" name="A7XX_CLUSTER_NONE"/>
 	<value value="1" name="A7XX_CLUSTER_FE"/>

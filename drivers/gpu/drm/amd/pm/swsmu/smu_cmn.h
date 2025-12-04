@@ -202,5 +202,72 @@ void smu_cmn_get_backend_workload_mask(struct smu_context *smu,
 				       u32 workload_mask,
 				       u32 *backend_workload_mask);
 
+/*SMU gpu metrics */
+
+/* Attribute ID mapping */
+#define SMU_MATTR(X) AMDGPU_METRICS_ATTR_ID_##X
+/* Type ID mapping */
+#define SMU_MTYPE(X) AMDGPU_METRICS_TYPE_##X
+/* Unit ID mapping */
+#define SMU_MUNIT(X) AMDGPU_METRICS_UNIT_##X
+
+/* Map TYPEID to C type */
+#define SMU_CTYPE(TYPEID) SMU_CTYPE_##TYPEID
+
+#define SMU_CTYPE_AMDGPU_METRICS_TYPE_U8 u8
+#define SMU_CTYPE_AMDGPU_METRICS_TYPE_S8 s8
+#define SMU_CTYPE_AMDGPU_METRICS_TYPE_U16 u16
+#define SMU_CTYPE_AMDGPU_METRICS_TYPE_S16 s16
+#define SMU_CTYPE_AMDGPU_METRICS_TYPE_U32 u32
+#define SMU_CTYPE_AMDGPU_METRICS_TYPE_S32 s32
+#define SMU_CTYPE_AMDGPU_METRICS_TYPE_U64 u64
+#define SMU_CTYPE_AMDGPU_METRICS_TYPE_S64 s64
+
+/* struct members */
+#define SMU_METRICS_SCALAR(ID, UNIT, TYPEID, NAME) \
+	u64 NAME##_ftype;                          \
+	SMU_CTYPE(TYPEID) NAME
+
+#define SMU_METRICS_ARRAY(ID, UNIT, TYPEID, NAME, SIZE) \
+	u64 NAME##_ftype;                               \
+	SMU_CTYPE(TYPEID) NAME[SIZE]
+
+/* Init functions for scalar/array fields - init to 0xFFs */
+#define SMU_METRICS_INIT_SCALAR(ID, UNIT, TYPEID, NAME)               \
+	do {                                                          \
+		obj->NAME##_ftype =                                   \
+			AMDGPU_METRICS_ENC_ATTR(UNIT, TYPEID, ID, 1); \
+		obj->NAME = (SMU_CTYPE(TYPEID)) ~0;                   \
+		count++;                                              \
+	} while (0)
+
+#define SMU_METRICS_INIT_ARRAY(ID, UNIT, TYPEID, NAME, SIZE)             \
+	do {                                                             \
+		obj->NAME##_ftype =                                      \
+			AMDGPU_METRICS_ENC_ATTR(UNIT, TYPEID, ID, SIZE); \
+		memset(obj->NAME, 0xFF, sizeof(obj->NAME));              \
+		count++;                                                 \
+	} while (0)
+
+/* Declare Metrics Class and Template object */
+#define DECLARE_SMU_METRICS_CLASS(CLASSNAME, SMU_METRICS_FIELD_LIST)           \
+	struct __packed CLASSNAME {                                            \
+		struct metrics_table_header header;                            \
+		int attr_count;                                                \
+		SMU_METRICS_FIELD_LIST(SMU_METRICS_SCALAR, SMU_METRICS_ARRAY); \
+	};                                                                     \
+	static inline void CLASSNAME##_init(struct CLASSNAME *obj,             \
+					    uint8_t frev, uint8_t crev)        \
+	{                                                                      \
+		int count = 0;                                                 \
+		memset(obj, 0xFF, sizeof(*obj));                               \
+		obj->header.format_revision = frev;                            \
+		obj->header.content_revision = crev;                           \
+		obj->header.structure_size = sizeof(*obj);                     \
+		SMU_METRICS_FIELD_LIST(SMU_METRICS_INIT_SCALAR,                \
+				       SMU_METRICS_INIT_ARRAY)                 \
+		obj->attr_count = count;                                       \
+	}
+
 #endif
 #endif

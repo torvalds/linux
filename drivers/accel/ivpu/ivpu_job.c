@@ -34,22 +34,20 @@ static void ivpu_cmdq_ring_db(struct ivpu_device *vdev, struct ivpu_cmdq *cmdq)
 static int ivpu_preemption_buffers_create(struct ivpu_device *vdev,
 					  struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
-	u64 primary_size = ALIGN(vdev->fw->primary_preempt_buf_size, PAGE_SIZE);
-	u64 secondary_size = ALIGN(vdev->fw->secondary_preempt_buf_size, PAGE_SIZE);
-
-	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW ||
-	    ivpu_test_mode & IVPU_TEST_MODE_MIP_DISABLE)
+	if (ivpu_fw_preempt_buf_size(vdev) == 0)
 		return 0;
 
 	cmdq->primary_preempt_buf = ivpu_bo_create(vdev, &file_priv->ctx, &vdev->hw->ranges.user,
-						   primary_size, DRM_IVPU_BO_WC);
+						   vdev->fw->primary_preempt_buf_size,
+						   DRM_IVPU_BO_WC);
 	if (!cmdq->primary_preempt_buf) {
 		ivpu_err(vdev, "Failed to create primary preemption buffer\n");
 		return -ENOMEM;
 	}
 
 	cmdq->secondary_preempt_buf = ivpu_bo_create(vdev, &file_priv->ctx, &vdev->hw->ranges.dma,
-						     secondary_size, DRM_IVPU_BO_WC);
+						     vdev->fw->secondary_preempt_buf_size,
+						     DRM_IVPU_BO_WC);
 	if (!cmdq->secondary_preempt_buf) {
 		ivpu_err(vdev, "Failed to create secondary preemption buffer\n");
 		goto err_free_primary;
@@ -66,20 +64,39 @@ err_free_primary:
 static void ivpu_preemption_buffers_free(struct ivpu_device *vdev,
 					 struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
-	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW)
-		return;
-
 	if (cmdq->primary_preempt_buf)
 		ivpu_bo_free(cmdq->primary_preempt_buf);
 	if (cmdq->secondary_preempt_buf)
 		ivpu_bo_free(cmdq->secondary_preempt_buf);
 }
 
+static int ivpu_preemption_job_init(struct ivpu_device *vdev, struct ivpu_file_priv *file_priv,
+				    struct ivpu_cmdq *cmdq, struct ivpu_job *job)
+{
+	int ret;
+
+	/* Use preemption buffer provided by the user space */
+	if (job->primary_preempt_buf)
+		return 0;
+
+	if (!cmdq->primary_preempt_buf) {
+		/* Allocate per command queue preemption buffers */
+		ret = ivpu_preemption_buffers_create(vdev, file_priv, cmdq);
+		if (ret)
+			return ret;
+	}
+
+	/* Use preemption buffers allocated by the kernel */
+	job->primary_preempt_buf = cmdq->primary_preempt_buf;
+	job->secondary_preempt_buf = cmdq->secondary_preempt_buf;
+
+	return 0;
+}
+
 static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_cmdq *cmdq;
-	int ret;
 
 	cmdq = kzalloc(sizeof(*cmdq), GFP_KERNEL);
 	if (!cmdq)
@@ -88,10 +105,6 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv)
 	cmdq->mem = ivpu_bo_create_global(vdev, SZ_4K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!cmdq->mem)
 		goto err_free_cmdq;
-
-	ret = ivpu_preemption_buffers_create(vdev, file_priv, cmdq);
-	if (ret)
-		ivpu_warn(vdev, "Failed to allocate preemption buffers, preemption limited\n");
 
 	return cmdq;
 
@@ -219,11 +232,13 @@ static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *
 		ret = ivpu_jsm_register_db(vdev, file_priv->ctx.id, cmdq->db_id,
 					   cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
 
-	if (!ret)
+	if (!ret) {
 		ivpu_dbg(vdev, JOB, "DB %d registered to cmdq %d ctx %d priority %d\n",
 			 cmdq->db_id, cmdq->id, file_priv->ctx.id, cmdq->priority);
-	else
+	} else {
 		xa_erase(&vdev->db_xa, cmdq->db_id);
+		cmdq->db_id = 0;
+	}
 
 	return ret;
 }
@@ -333,7 +348,7 @@ static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u32
 
 	cmdq = xa_load(&file_priv->cmdq_xa, cmdq_id);
 	if (!cmdq) {
-		ivpu_warn_ratelimited(vdev, "Failed to find command queue with ID: %u\n", cmdq_id);
+		ivpu_dbg(vdev, IOCTL, "Failed to find command queue with ID: %u\n", cmdq_id);
 		return NULL;
 	}
 
@@ -427,17 +442,14 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 	if (unlikely(ivpu_test_mode & IVPU_TEST_MODE_NULL_SUBMISSION))
 		entry->flags = VPU_JOB_FLAGS_NULL_SUBMISSION_MASK;
 
-	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW) {
-		if (cmdq->primary_preempt_buf) {
-			entry->primary_preempt_buf_addr = cmdq->primary_preempt_buf->vpu_addr;
-			entry->primary_preempt_buf_size = ivpu_bo_size(cmdq->primary_preempt_buf);
-		}
+	if (job->primary_preempt_buf) {
+		entry->primary_preempt_buf_addr = job->primary_preempt_buf->vpu_addr;
+		entry->primary_preempt_buf_size = ivpu_bo_size(job->primary_preempt_buf);
+	}
 
-		if (cmdq->secondary_preempt_buf) {
-			entry->secondary_preempt_buf_addr = cmdq->secondary_preempt_buf->vpu_addr;
-			entry->secondary_preempt_buf_size =
-				ivpu_bo_size(cmdq->secondary_preempt_buf);
-		}
+	if (job->secondary_preempt_buf) {
+		entry->secondary_preempt_buf_addr = job->secondary_preempt_buf->vpu_addr;
+		entry->secondary_preempt_buf_size = ivpu_bo_size(job->secondary_preempt_buf);
 	}
 
 	wmb(); /* Ensure that tail is updated after filling entry */
@@ -522,7 +534,7 @@ ivpu_job_create(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
 	job->bo_count = bo_count;
 	job->done_fence = ivpu_fence_create(vdev);
 	if (!job->done_fence) {
-		ivpu_warn_ratelimited(vdev, "Failed to create a fence\n");
+		ivpu_err(vdev, "Failed to create a fence\n");
 		goto err_free_job;
 	}
 
@@ -552,6 +564,44 @@ static struct ivpu_job *ivpu_job_remove_from_submitted_jobs(struct ivpu_device *
 	return job;
 }
 
+bool ivpu_job_handle_engine_error(struct ivpu_device *vdev, u32 job_id, u32 job_status)
+{
+	lockdep_assert_held(&vdev->submitted_jobs_lock);
+
+	switch (job_status) {
+	case VPU_JSM_STATUS_PROCESSING_ERR:
+	case VPU_JSM_STATUS_ENGINE_RESET_REQUIRED_MIN ... VPU_JSM_STATUS_ENGINE_RESET_REQUIRED_MAX:
+	{
+		struct ivpu_job *job = xa_load(&vdev->submitted_jobs_xa, job_id);
+
+		if (!job)
+			return false;
+
+		/* Trigger an engine reset */
+		guard(mutex)(&job->file_priv->lock);
+
+		job->job_status = job_status;
+
+		if (job->file_priv->has_mmu_faults)
+			return false;
+
+		/*
+		 * Mark context as faulty and defer destruction of the job to jobs abort thread
+		 * handler to synchronize between both faults and jobs returning context violation
+		 * status and ensure both are handled in the same way
+		 */
+		job->file_priv->has_mmu_faults = true;
+		queue_work(system_percpu_wq, &vdev->context_abort_work);
+		return true;
+	}
+	default:
+		/* Complete job with error status, engine reset not required */
+		break;
+	}
+
+	return false;
+}
+
 static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32 job_status)
 {
 	struct ivpu_job *job;
@@ -562,35 +612,22 @@ static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32
 	if (!job)
 		return -ENOENT;
 
-	if (job_status == VPU_JSM_STATUS_MVNCI_CONTEXT_VIOLATION_HW) {
-		guard(mutex)(&job->file_priv->lock);
+	ivpu_job_remove_from_submitted_jobs(vdev, job_id);
 
+	if (job->job_status == VPU_JSM_STATUS_SUCCESS) {
 		if (job->file_priv->has_mmu_faults)
-			return 0;
-
-		/*
-		 * Mark context as faulty and defer destruction of the job to jobs abort thread
-		 * handler to synchronize between both faults and jobs returning context violation
-		 * status and ensure both are handled in the same way
-		 */
-		job->file_priv->has_mmu_faults = true;
-		queue_work(system_wq, &vdev->context_abort_work);
-		return 0;
+			job->job_status = DRM_IVPU_JOB_STATUS_ABORTED;
+		else
+			job->job_status = job_status;
 	}
 
-	job = ivpu_job_remove_from_submitted_jobs(vdev, job_id);
-	if (!job)
-		return -ENOENT;
-
-	if (job->file_priv->has_mmu_faults)
-		job_status = DRM_IVPU_JOB_STATUS_ABORTED;
-
-	job->bos[CMD_BUF_IDX]->job_status = job_status;
+	job->bos[CMD_BUF_IDX]->job_status = job->job_status;
 	dma_fence_signal(job->done_fence);
 
 	trace_job("done", job);
 	ivpu_dbg(vdev, JOB, "Job complete:  id %3u ctx %2d cmdq_id %u engine %d status 0x%x\n",
-		 job->job_id, job->file_priv->ctx.id, job->cmdq_id, job->engine_idx, job_status);
+		 job->job_id, job->file_priv->ctx.id, job->cmdq_id, job->engine_idx,
+		 job->job_status);
 
 	ivpu_job_destroy(job);
 	ivpu_stop_job_timeout_detection(vdev);
@@ -650,7 +687,6 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority, u32 cmdq_id)
 	else
 		cmdq = ivpu_cmdq_acquire(file_priv, cmdq_id);
 	if (!cmdq) {
-		ivpu_warn_ratelimited(vdev, "Failed to get job queue, ctx %d\n", file_priv->ctx.id);
 		ret = -EINVAL;
 		goto err_unlock;
 	}
@@ -658,6 +694,13 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority, u32 cmdq_id)
 	ret = ivpu_cmdq_register(file_priv, cmdq);
 	if (ret) {
 		ivpu_err(vdev, "Failed to register command queue: %d\n", ret);
+		goto err_unlock;
+	}
+
+	ret = ivpu_preemption_job_init(vdev, file_priv, cmdq, job);
+	if (ret) {
+		ivpu_err(vdev, "Failed to initialize preemption buffers for job %d: %d\n",
+			 job->job_id, ret);
 		goto err_unlock;
 	}
 
@@ -714,7 +757,7 @@ err_unlock:
 
 static int
 ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32 *buf_handles,
-				u32 buf_count, u32 commands_offset)
+				u32 buf_count, u32 commands_offset, u32 preempt_buffer_index)
 {
 	struct ivpu_file_priv *file_priv = job->file_priv;
 	struct ivpu_device *vdev = file_priv->vdev;
@@ -727,40 +770,58 @@ ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32
 	for (i = 0; i < buf_count; i++) {
 		struct drm_gem_object *obj = drm_gem_object_lookup(file, buf_handles[i]);
 
-		if (!obj)
+		if (!obj) {
+			ivpu_dbg(vdev, IOCTL, "Failed to lookup GEM object with handle %u\n",
+				 buf_handles[i]);
 			return -ENOENT;
+		}
 
 		job->bos[i] = to_ivpu_bo(obj);
 
-		ret = ivpu_bo_pin(job->bos[i]);
+		ret = ivpu_bo_bind(job->bos[i]);
 		if (ret)
 			return ret;
 	}
 
 	bo = job->bos[CMD_BUF_IDX];
 	if (!dma_resv_test_signaled(bo->base.base.resv, DMA_RESV_USAGE_READ)) {
-		ivpu_warn(vdev, "Buffer is already in use\n");
+		ivpu_dbg(vdev, IOCTL, "Buffer is already in use by another job\n");
 		return -EBUSY;
 	}
 
 	if (commands_offset >= ivpu_bo_size(bo)) {
-		ivpu_warn(vdev, "Invalid command buffer offset %u\n", commands_offset);
+		ivpu_dbg(vdev, IOCTL, "Invalid commands offset %u for buffer size %zu\n",
+			 commands_offset, ivpu_bo_size(bo));
 		return -EINVAL;
 	}
 
 	job->cmd_buf_vpu_addr = bo->vpu_addr + commands_offset;
 
+	if (preempt_buffer_index) {
+		struct ivpu_bo *preempt_bo = job->bos[preempt_buffer_index];
+
+		if (ivpu_bo_size(preempt_bo) < ivpu_fw_preempt_buf_size(vdev)) {
+			ivpu_dbg(vdev, IOCTL, "Preemption buffer is too small\n");
+			return -EINVAL;
+		}
+		if (ivpu_bo_is_mappable(preempt_bo)) {
+			ivpu_dbg(vdev, IOCTL, "Preemption buffer cannot be mappable\n");
+			return -EINVAL;
+		}
+		job->primary_preempt_buf = preempt_bo;
+	}
+
 	ret = drm_gem_lock_reservations((struct drm_gem_object **)job->bos, buf_count,
 					&acquire_ctx);
 	if (ret) {
-		ivpu_warn(vdev, "Failed to lock reservations: %d\n", ret);
+		ivpu_warn_ratelimited(vdev, "Failed to lock reservations: %d\n", ret);
 		return ret;
 	}
 
 	for (i = 0; i < buf_count; i++) {
 		ret = dma_resv_reserve_fences(job->bos[i]->base.base.resv, 1);
 		if (ret) {
-			ivpu_warn(vdev, "Failed to reserve fences: %d\n", ret);
+			ivpu_warn_ratelimited(vdev, "Failed to reserve fences: %d\n", ret);
 			goto unlock_reservations;
 		}
 	}
@@ -780,7 +841,7 @@ unlock_reservations:
 
 static int ivpu_submit(struct drm_file *file, struct ivpu_file_priv *file_priv, u32 cmdq_id,
 		       u32 buffer_count, u32 engine, void __user *buffers_ptr, u32 cmds_offset,
-		       u8 priority)
+		       u32 preempt_buffer_index, u8 priority)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_job *job;
@@ -807,16 +868,14 @@ static int ivpu_submit(struct drm_file *file, struct ivpu_file_priv *file_priv, 
 
 	job = ivpu_job_create(file_priv, engine, buffer_count);
 	if (!job) {
-		ivpu_err(vdev, "Failed to create job\n");
 		ret = -ENOMEM;
 		goto err_exit_dev;
 	}
 
-	ret = ivpu_job_prepare_bos_for_submit(file, job, buf_handles, buffer_count, cmds_offset);
-	if (ret) {
-		ivpu_err(vdev, "Failed to prepare job: %d\n", ret);
+	ret = ivpu_job_prepare_bos_for_submit(file, job, buf_handles, buffer_count, cmds_offset,
+					      preempt_buffer_index);
+	if (ret)
 		goto err_destroy_job;
-	}
 
 	down_read(&vdev->pm->reset_lock);
 	ret = ivpu_job_submit(job, priority, cmdq_id);
@@ -842,58 +901,91 @@ err_free_handles:
 int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct ivpu_device *vdev = file_priv->vdev;
 	struct drm_ivpu_submit *args = data;
 	u8 priority;
 
-	if (args->engine != DRM_IVPU_ENGINE_COMPUTE)
+	if (args->engine != DRM_IVPU_ENGINE_COMPUTE) {
+		ivpu_dbg(vdev, IOCTL, "Invalid engine %d\n", args->engine);
 		return -EINVAL;
+	}
 
-	if (args->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
+	if (args->priority > DRM_IVPU_JOB_PRIORITY_REALTIME) {
+		ivpu_dbg(vdev, IOCTL, "Invalid priority %d\n", args->priority);
 		return -EINVAL;
+	}
 
-	if (args->buffer_count == 0 || args->buffer_count > JOB_MAX_BUFFER_COUNT)
+	if (args->buffer_count == 0 || args->buffer_count > JOB_MAX_BUFFER_COUNT) {
+		ivpu_dbg(vdev, IOCTL, "Invalid buffer count %u\n", args->buffer_count);
 		return -EINVAL;
+	}
 
-	if (!IS_ALIGNED(args->commands_offset, 8))
+	if (!IS_ALIGNED(args->commands_offset, 8)) {
+		ivpu_dbg(vdev, IOCTL, "Invalid commands offset %u\n", args->commands_offset);
 		return -EINVAL;
+	}
 
-	if (!file_priv->ctx.id)
+	if (!file_priv->ctx.id) {
+		ivpu_dbg(vdev, IOCTL, "Context not initialized\n");
 		return -EINVAL;
+	}
 
-	if (file_priv->has_mmu_faults)
+	if (file_priv->has_mmu_faults) {
+		ivpu_dbg(vdev, IOCTL, "Context %u has MMU faults\n", file_priv->ctx.id);
 		return -EBADFD;
+	}
 
 	priority = ivpu_job_to_jsm_priority(args->priority);
 
 	return ivpu_submit(file, file_priv, 0, args->buffer_count, args->engine,
-			   (void __user *)args->buffers_ptr, args->commands_offset, priority);
+			   (void __user *)args->buffers_ptr, args->commands_offset, 0, priority);
 }
 
 int ivpu_cmdq_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct ivpu_device *vdev = file_priv->vdev;
 	struct drm_ivpu_cmdq_submit *args = data;
 
-	if (!ivpu_is_capable(file_priv->vdev, DRM_IVPU_CAP_MANAGE_CMDQ))
+	if (!ivpu_is_capable(file_priv->vdev, DRM_IVPU_CAP_MANAGE_CMDQ)) {
+		ivpu_dbg(vdev, IOCTL, "Command queue management not supported\n");
 		return -ENODEV;
+	}
 
-	if (args->cmdq_id < IVPU_CMDQ_MIN_ID || args->cmdq_id > IVPU_CMDQ_MAX_ID)
+	if (args->cmdq_id < IVPU_CMDQ_MIN_ID || args->cmdq_id > IVPU_CMDQ_MAX_ID) {
+		ivpu_dbg(vdev, IOCTL, "Invalid command queue ID %u\n", args->cmdq_id);
 		return -EINVAL;
+	}
 
-	if (args->buffer_count == 0 || args->buffer_count > JOB_MAX_BUFFER_COUNT)
+	if (args->buffer_count == 0 || args->buffer_count > JOB_MAX_BUFFER_COUNT) {
+		ivpu_dbg(vdev, IOCTL, "Invalid buffer count %u\n", args->buffer_count);
 		return -EINVAL;
+	}
 
-	if (!IS_ALIGNED(args->commands_offset, 8))
+	if (args->preempt_buffer_index >= args->buffer_count) {
+		ivpu_dbg(vdev, IOCTL, "Invalid preemption buffer index %u\n",
+			 args->preempt_buffer_index);
 		return -EINVAL;
+	}
 
-	if (!file_priv->ctx.id)
+	if (!IS_ALIGNED(args->commands_offset, 8)) {
+		ivpu_dbg(vdev, IOCTL, "Invalid commands offset %u\n", args->commands_offset);
 		return -EINVAL;
+	}
 
-	if (file_priv->has_mmu_faults)
+	if (!file_priv->ctx.id) {
+		ivpu_dbg(vdev, IOCTL, "Context not initialized\n");
+		return -EINVAL;
+	}
+
+	if (file_priv->has_mmu_faults) {
+		ivpu_dbg(vdev, IOCTL, "Context %u has MMU faults\n", file_priv->ctx.id);
 		return -EBADFD;
+	}
 
 	return ivpu_submit(file, file_priv, args->cmdq_id, args->buffer_count, VPU_ENGINE_COMPUTE,
-			   (void __user *)args->buffers_ptr, args->commands_offset, 0);
+			   (void __user *)args->buffers_ptr, args->commands_offset,
+			   args->preempt_buffer_index, 0);
 }
 
 int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -904,11 +996,15 @@ int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *
 	struct ivpu_cmdq *cmdq;
 	int ret;
 
-	if (!ivpu_is_capable(vdev, DRM_IVPU_CAP_MANAGE_CMDQ))
+	if (!ivpu_is_capable(vdev, DRM_IVPU_CAP_MANAGE_CMDQ)) {
+		ivpu_dbg(vdev, IOCTL, "Command queue management not supported\n");
 		return -ENODEV;
+	}
 
-	if (args->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
+	if (args->priority > DRM_IVPU_JOB_PRIORITY_REALTIME) {
+		ivpu_dbg(vdev, IOCTL, "Invalid priority %d\n", args->priority);
 		return -EINVAL;
+	}
 
 	ret = ivpu_rpm_get(vdev);
 	if (ret < 0)
@@ -936,8 +1032,10 @@ int ivpu_cmdq_destroy_ioctl(struct drm_device *dev, void *data, struct drm_file 
 	u32 cmdq_id = 0;
 	int ret;
 
-	if (!ivpu_is_capable(vdev, DRM_IVPU_CAP_MANAGE_CMDQ))
+	if (!ivpu_is_capable(vdev, DRM_IVPU_CAP_MANAGE_CMDQ)) {
+		ivpu_dbg(vdev, IOCTL, "Command queue management not supported\n");
 		return -ENODEV;
+	}
 
 	ret = ivpu_rpm_get(vdev);
 	if (ret < 0)
@@ -984,7 +1082,9 @@ ivpu_job_done_callback(struct ivpu_device *vdev, struct ivpu_ipc_hdr *ipc_hdr,
 	payload = (struct vpu_ipc_msg_payload_job_done *)&jsm_msg->payload;
 
 	mutex_lock(&vdev->submitted_jobs_lock);
-	ivpu_job_signal_and_destroy(vdev, payload->job_id, payload->job_status);
+	if (!ivpu_job_handle_engine_error(vdev, payload->job_id, payload->job_status))
+		/* No engine error, complete the job normally */
+		ivpu_job_signal_and_destroy(vdev, payload->job_id, payload->job_status);
 	mutex_unlock(&vdev->submitted_jobs_lock);
 }
 
@@ -1012,7 +1112,7 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
 		if (ivpu_jsm_reset_engine(vdev, 0))
-			return;
+			goto runtime_put;
 
 	mutex_lock(&vdev->context_list_lock);
 	xa_for_each(&vdev->context_xa, ctx_id, file_priv) {
@@ -1036,7 +1136,7 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 		goto runtime_put;
 
 	if (ivpu_jsm_hws_resume_engine(vdev, 0))
-		return;
+		goto runtime_put;
 	/*
 	 * In hardware scheduling mode NPU already has stopped processing jobs
 	 * and won't send us any further notifications, thus we have to free job related resources
@@ -1049,6 +1149,5 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 	mutex_unlock(&vdev->submitted_jobs_lock);
 
 runtime_put:
-	pm_runtime_mark_last_busy(vdev->drm.dev);
 	pm_runtime_put_autosuspend(vdev->drm.dev);
 }

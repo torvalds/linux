@@ -30,13 +30,13 @@
 #include <drm/drm_print.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_power_well.h"
 #include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
 #include "intel_flipq.h"
@@ -127,6 +127,9 @@ static bool dmc_firmware_param_disabled(struct intel_display *display)
 #define DISPLAY_VER13_DMC_MAX_FW_SIZE	0x20000
 #define DISPLAY_VER12_DMC_MAX_FW_SIZE	ICL_DMC_MAX_FW_SIZE
 
+#define XE3P_LPD_DMC_PATH		DMC_PATH(xe3p_lpd)
+MODULE_FIRMWARE(XE3P_LPD_DMC_PATH);
+
 #define XE3LPD_3002_DMC_PATH		DMC_PATH(xe3lpd_3002)
 MODULE_FIRMWARE(XE3LPD_3002_DMC_PATH);
 
@@ -186,7 +189,11 @@ static const char *dmc_firmware_default(struct intel_display *display, u32 *size
 {
 	const char *fw_path = NULL;
 	u32 max_fw_size = 0;
-	if (DISPLAY_VERx100(display) == 3002) {
+
+	if (DISPLAY_VERx100(display) == 3500) {
+		fw_path = XE3P_LPD_DMC_PATH;
+		max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
+	} else if (DISPLAY_VERx100(display) == 3002) {
 		fw_path = XE3LPD_3002_DMC_PATH;
 		max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VERx100(display) == 3000) {
@@ -513,10 +520,16 @@ static u32 pipedmc_interrupt_mask(struct intel_display *display)
 		PIPEDMC_ATS_FAULT;
 }
 
-static u32 dmc_evt_ctl_disable(void)
+static u32 dmc_evt_ctl_disable(u32 dmc_evt_ctl)
 {
-	return REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
-			      DMC_EVT_CTL_TYPE_EDGE_0_1) |
+	/*
+	 * DMC_EVT_CTL_ENABLE cannot be cleared once set. Always
+	 * configure it based on the original event definition to
+	 * avoid mismatches in assert_dmc_loaded().
+	 */
+	return (dmc_evt_ctl & DMC_EVT_CTL_ENABLE) |
+		REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+			       DMC_EVT_CTL_TYPE_EDGE_0_1) |
 		REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
 			       DMC_EVENT_FALSE);
 }
@@ -577,6 +590,21 @@ static bool fixup_dmc_evt(struct intel_display *display,
 		return true;
 	}
 
+	/*
+	 * TGL/ADL-S DMC firmware incorrectly uses the undelayed vblank
+	 * event for the HRR handler, when it should be using the delayed
+	 * vblank event instead. Fixed firmware was never released
+	 * so the Windows driver just hacks around it by overriding
+	 * the event ID. Do the same.
+	 */
+	if ((display->platform.tigerlake || display->platform.alderlake_s) &&
+	    is_event_handler(display, dmc_id, MAINDMC_EVENT_VBLANK_A, reg_ctl, *data_ctl)) {
+		*data_ctl &= ~DMC_EVT_CTL_EVENT_ID_MASK;
+		*data_ctl |=  REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+					     MAINDMC_EVENT_VBLANK_DELAYED_A);
+		return true;
+	}
+
 	return false;
 }
 
@@ -598,7 +626,7 @@ static bool disable_dmc_evt(struct intel_display *display,
 
 	/* also disable the HRR event on the main DMC on TGL/ADLS */
 	if ((display->platform.tigerlake || display->platform.alderlake_s) &&
-	    is_event_handler(display, dmc_id, MAINDMC_EVENT_VBLANK_A, reg, data))
+	    is_event_handler(display, dmc_id, MAINDMC_EVENT_VBLANK_DELAYED_A, reg, data))
 		return true;
 
 	return false;
@@ -611,7 +639,7 @@ static u32 dmc_mmiodata(struct intel_display *display,
 	if (disable_dmc_evt(display, dmc_id,
 			    dmc->dmc_info[dmc_id].mmioaddr[i],
 			    dmc->dmc_info[dmc_id].mmiodata[i]))
-		return dmc_evt_ctl_disable();
+		return dmc_evt_ctl_disable(dmc->dmc_info[dmc_id].mmiodata[i]);
 	else
 		return dmc->dmc_info[dmc_id].mmiodata[i];
 }
@@ -670,12 +698,6 @@ static void assert_dmc_loaded(struct intel_display *display,
 		found = intel_de_read(display, reg);
 		expected = dmc_mmiodata(display, dmc, dmc_id, i);
 
-		/* once set DMC_EVT_CTL_ENABLE can't be cleared :/ */
-		if (is_dmc_evt_ctl_reg(display, dmc_id, reg)) {
-			found &= ~DMC_EVT_CTL_ENABLE;
-			expected &= ~DMC_EVT_CTL_ENABLE;
-		}
-
 		drm_WARN(display->drm, found != expected,
 			 "DMC %d mmio[%d]/0x%x incorrect (expected 0x%x, current 0x%x)\n",
 			 dmc_id, i, i915_mmio_reg_offset(reg), expected, found);
@@ -696,11 +718,11 @@ static bool need_pipedmc_load_program(struct intel_display *display)
 static bool need_pipedmc_load_mmio(struct intel_display *display, enum pipe pipe)
 {
 	/*
-	 * PTL:
+	 * Xe3_LPD/Xe3p_LPD:
 	 * - pipe A/B DMC doesn't need save/restore
 	 * - pipe C/D DMC is in PG0, needs manual save/restore
 	 */
-	if (DISPLAY_VER(display) == 30)
+	if (IS_DISPLAY_VER(display, 30, 35))
 		return pipe >= PIPE_C;
 
 	/*
@@ -828,7 +850,7 @@ static void dmc_configure_event(struct intel_display *display,
 		if (!is_event_handler(display, dmc_id, event_id, reg, data))
 			continue;
 
-		intel_de_write(display, reg, enable ? data : dmc_evt_ctl_disable());
+		intel_de_write(display, reg, enable ? data : dmc_evt_ctl_disable(data));
 		num_handlers++;
 	}
 
@@ -1198,7 +1220,7 @@ parse_dmc_fw_package(struct intel_dmc *dmc,
 	}
 
 	num_entries = package_header->num_entries;
-	if (WARN_ON(package_header->num_entries > max_entries))
+	if (WARN_ON(num_entries > max_entries))
 		num_entries = max_entries;
 
 	fw_info = (const struct intel_fw_info *)
@@ -1697,14 +1719,14 @@ void intel_pipedmc_irq_handler(struct intel_display *display, enum pipe pipe)
 			drm_err_ratelimited(display->drm, "[CRTC:%d:%s] PIPEDMC GTT fault\n",
 					    crtc->base.base.id, crtc->base.name);
 		if (tmp & PIPEDMC_ERROR)
-			drm_err(display->drm, "[CRTC:%d:%s]] PIPEDMC error\n",
+			drm_err(display->drm, "[CRTC:%d:%s] PIPEDMC error\n",
 				crtc->base.base.id, crtc->base.name);
 	}
 
 	int_vector = intel_de_read(display, PIPEDMC_STATUS(pipe)) & PIPEDMC_INT_VECTOR_MASK;
 	if (tmp == 0 && int_vector != 0)
-		drm_err(display->drm, "[CRTC:%d:%s]] PIPEDMC interrupt vector 0x%x\n",
-			crtc->base.base.id, crtc->base.name, tmp);
+		drm_err(display->drm, "[CRTC:%d:%s] PIPEDMC interrupt vector 0x%x\n",
+			crtc->base.base.id, crtc->base.name, int_vector);
 }
 
 void intel_pipedmc_enable_event(struct intel_crtc *crtc,

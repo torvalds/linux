@@ -10,6 +10,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_print.h>
 
 /*
  * struct fb_ops
@@ -55,10 +56,8 @@ static void drm_fbdev_dma_fb_destroy(struct fb_info *info)
 	drm_fb_helper_fini(fb_helper);
 
 	drm_client_buffer_vunmap(fb_helper->buffer);
-	drm_client_framebuffer_delete(fb_helper->buffer);
+	drm_client_buffer_delete(fb_helper->buffer);
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 static const struct fb_ops drm_fbdev_dma_fb_ops = {
@@ -90,10 +89,8 @@ static void drm_fbdev_dma_shadowed_fb_destroy(struct fb_info *info)
 	vfree(shadow);
 
 	drm_client_buffer_vunmap(fb_helper->buffer);
-	drm_client_framebuffer_delete(fb_helper->buffer);
+	drm_client_buffer_delete(fb_helper->buffer);
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 static const struct fb_ops drm_fbdev_dma_shadowed_fb_ops = {
@@ -272,9 +269,9 @@ int drm_fbdev_dma_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_device *dev = fb_helper->dev;
+	struct fb_info *info = fb_helper->info;
 	struct drm_client_buffer *buffer;
 	struct drm_framebuffer *fb;
-	struct fb_info *info;
 	u32 format;
 	struct iosys_map map;
 	int ret;
@@ -285,7 +282,7 @@ int drm_fbdev_dma_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 
 	format = drm_driver_legacy_fb_format(dev, sizes->surface_bpp,
 					     sizes->surface_depth);
-	buffer = drm_client_framebuffer_create(client, sizes->surface_width,
+	buffer = drm_client_buffer_create_dumb(client, sizes->surface_width,
 					       sizes->surface_height, format);
 	if (IS_ERR(buffer))
 		return PTR_ERR(buffer);
@@ -304,12 +301,6 @@ int drm_fbdev_dma_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	fb_helper->buffer = buffer;
 	fb_helper->fb = fb;
 
-	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info)) {
-		ret = PTR_ERR(info);
-		goto err_drm_client_buffer_vunmap;
-	}
-
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
 	if (fb->funcs->dirty)
@@ -317,18 +308,16 @@ int drm_fbdev_dma_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	else
 		ret = drm_fbdev_dma_driver_fbdev_probe_tail(fb_helper, sizes);
 	if (ret)
-		goto err_drm_fb_helper_release_info;
+		goto err_drm_client_buffer_vunmap;
 
 	return 0;
 
-err_drm_fb_helper_release_info:
-	drm_fb_helper_release_info(fb_helper);
 err_drm_client_buffer_vunmap:
 	fb_helper->fb = NULL;
 	fb_helper->buffer = NULL;
 	drm_client_buffer_vunmap(buffer);
 err_drm_client_buffer_delete:
-	drm_client_framebuffer_delete(buffer);
+	drm_client_buffer_delete(buffer);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fbdev_dma_driver_fbdev_probe);

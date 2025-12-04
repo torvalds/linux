@@ -12,6 +12,7 @@
  */
 
 #include <drm/drm.h>
+#include <drm/drm_print.h>
 
 #include "mid_bios.h"
 #include "psb_drv.h"

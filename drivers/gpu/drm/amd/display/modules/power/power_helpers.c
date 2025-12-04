@@ -975,6 +975,34 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 	return true;
 }
 
+void set_replay_frame_skip_number(struct dc_link *link,
+	enum replay_coasting_vtotal_type type,
+	uint32_t coasting_vtotal_refresh_rate_mhz,
+	uint32_t flicker_free_refresh_rate_mhz,
+	bool is_defer)
+{
+	uint32_t *frame_skip_number_array = NULL;
+	uint32_t frame_skip_number = 0;
+
+	if (link == NULL || flicker_free_refresh_rate_mhz == 0 || coasting_vtotal_refresh_rate_mhz == 0)
+		return;
+
+	if (is_defer)
+		frame_skip_number_array = link->replay_settings.defer_frame_skip_number_table;
+	else
+		frame_skip_number_array = link->replay_settings.frame_skip_number_table;
+
+	if (frame_skip_number_array == NULL)
+		return;
+
+	frame_skip_number = coasting_vtotal_refresh_rate_mhz / flicker_free_refresh_rate_mhz;
+
+	if (frame_skip_number >= 1)
+		frame_skip_number_array[type] = frame_skip_number - 1;
+	else
+		frame_skip_number_array[type] = 0;
+}
+
 void set_replay_defer_update_coasting_vtotal(struct dc_link *link,
 	enum replay_coasting_vtotal_type type,
 	uint32_t vtotal)
@@ -987,6 +1015,8 @@ void update_replay_coasting_vtotal_from_defer(struct dc_link *link,
 {
 	link->replay_settings.coasting_vtotal_table[type] =
 		link->replay_settings.defer_update_coasting_vtotal_table[type];
+	link->replay_settings.frame_skip_number_table[type] =
+		link->replay_settings.defer_frame_skip_number_table[type];
 }
 
 void set_replay_coasting_vtotal(struct dc_link *link,
@@ -1006,6 +1036,9 @@ void calculate_replay_link_off_frame_count(struct dc_link *link,
 {
 	uint8_t max_link_off_frame_count = 0;
 	uint16_t max_deviation_line = 0,  pixel_deviation_per_line = 0;
+
+	if (!link || link->replay_settings.config.replay_version != DC_FREESYNC_REPLAY)
+		return;
 
 	max_deviation_line = link->dpcd_caps.pr_info.max_deviation_line;
 	pixel_deviation_per_line = link->dpcd_caps.pr_info.pixel_deviation_per_line;

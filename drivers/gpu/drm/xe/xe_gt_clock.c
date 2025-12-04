@@ -55,29 +55,10 @@ static void read_crystal_clock(struct xe_gt *gt, u32 rpm_config_reg, u32 *freq,
 	}
 }
 
-static void check_ctc_mode(struct xe_gt *gt)
-{
-	/*
-	 * CTC_MODE[0] = 1 is definitely not supported for Xe2 and later
-	 * platforms.  In theory it could be a valid setting for pre-Xe2
-	 * platforms, but there's no documentation on how to properly handle
-	 * this case.  Reading TIMESTAMP_OVERRIDE, as the driver attempted in
-	 * the past has been confirmed as incorrect by the hardware architects.
-	 *
-	 * For now just warn if we ever encounter hardware in the wild that
-	 * has this setting and move on as if it hadn't been set.
-	 */
-	if (xe_mmio_read32(&gt->mmio, CTC_MODE) & CTC_SOURCE_DIVIDE_LOGIC)
-		xe_gt_warn(gt, "CTC_MODE[0] is set; this is unexpected and undocumented\n");
-}
-
 int xe_gt_clock_init(struct xe_gt *gt)
 {
 	u32 freq;
 	u32 c0;
-
-	if (!IS_SRIOV_VF(gt_to_xe(gt)))
-		check_ctc_mode(gt);
 
 	c0 = xe_mmio_read32(&gt->mmio, RPM_CONFIG0);
 	read_crystal_clock(gt, c0, &freq, &gt->info.timestamp_base);

@@ -380,6 +380,7 @@ void dmub_dcn31_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.override_hbr3_pll_vco = params->override_hbr3_pll_vco;
 
 	boot_options.bits.sel_mux_phy_c_d_phy_f_g = (dmub->asic == DMUB_ASIC_DCN31B) ? 1 : 0;
+	boot_options.bits.disable_dpia_bw_allocation = params->disable_dpia_bw_allocation;
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
 }

@@ -34,7 +34,9 @@
 #define DPU_MAX_PLANES			4
 #endif
 
+#define STAGES_PER_PLANE		2
 #define PIPES_PER_STAGE			2
+#define PIPES_PER_PLANE			(PIPES_PER_STAGE * STAGES_PER_PLANE)
 #ifndef DPU_MAX_DE_CURVES
 #define DPU_MAX_DE_CURVES		3
 #endif
@@ -149,6 +151,10 @@ enum dpu_dspp {
 	DSPP_1,
 	DSPP_2,
 	DSPP_3,
+	DSPP_4,
+	DSPP_5,
+	DSPP_6,
+	DSPP_7,
 	DSPP_MAX
 };
 
@@ -159,6 +165,8 @@ enum dpu_ctl {
 	CTL_3,
 	CTL_4,
 	CTL_5,
+	CTL_6,
+	CTL_7,
 	CTL_MAX
 };
 

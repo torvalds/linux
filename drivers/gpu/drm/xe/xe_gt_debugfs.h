@@ -11,5 +11,6 @@ struct xe_gt;
 
 void xe_gt_debugfs_register(struct xe_gt *gt);
 int xe_gt_debugfs_simple_show(struct seq_file *m, void *data);
+int xe_gt_debugfs_show_with_rpm(struct seq_file *m, void *data);
 
 #endif

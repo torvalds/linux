@@ -12,6 +12,7 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 
 #include "armada_crtc.h"
 #include "armada_drm.h"

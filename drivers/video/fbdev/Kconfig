@@ -816,11 +816,11 @@ config FB_I810_I2C
 config FB_MATROX
 	tristate "Matrox acceleration"
 	depends on FB && PCI
+	depends on FB_TILEBLITTING
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select FB_TILEBLITTING
 	select FB_MACMODES if PPC_PMAC
 	help
 	  Say Y here if you have a Matrox Millennium, Matrox Millennium II,
@@ -1050,11 +1050,11 @@ config FB_ATY_BACKLIGHT
 config FB_S3
 	tristate "S3 Trio/Virge support"
 	depends on FB && PCI && HAS_IOPORT
+	depends on FB_TILEBLITTING
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select FB_TILEBLITTING
 	select FB_SVGALIB
 	select VGASTATE
 	select FB_CFB_REV_PIXELS_IN_BYTE
@@ -1256,11 +1256,11 @@ config FB_VOODOO1
 config FB_VT8623
 	tristate "VIA VT8623 support"
 	depends on FB && PCI && HAS_IOPORT
+	depends on FB_TILEBLITTING
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select FB_TILEBLITTING
 	select FB_SVGALIB
 	select VGASTATE
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
@@ -1294,11 +1294,11 @@ config FB_TRIDENT
 config FB_ARK
 	tristate "ARK 2000PV support"
 	depends on FB && PCI && HAS_IOPORT
+	depends on FB_TILEBLITTING
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_IOMEM_FOPS
-	select FB_TILEBLITTING
 	select FB_SVGALIB
 	select VGASTATE
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE

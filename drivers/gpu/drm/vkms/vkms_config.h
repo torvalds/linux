@@ -7,6 +7,8 @@
 #include <linux/types.h>
 #include <linux/xarray.h>
 
+#include <drm/drm_connector.h>
+
 #include "vkms_drv.h"
 
 /**
@@ -47,6 +49,7 @@ struct vkms_config_plane {
 
 	enum drm_plane_type type;
 	struct xarray possible_crtcs;
+	bool default_pipeline;
 
 	/* Internal usage */
 	struct vkms_plane *plane;
@@ -99,6 +102,7 @@ struct vkms_config_encoder {
  *
  * @link: Link to the others connector in vkms_config
  * @config: The vkms_config this connector belongs to
+ * @status: Status (connected, disconnected...) of the connector
  * @possible_encoders: Array of encoders that can be used with this connector
  * @connector: Internal usage. This pointer should never be considered as valid.
  *             It can be used to store a temporary reference to a VKMS connector
@@ -109,6 +113,7 @@ struct vkms_config_connector {
 	struct list_head link;
 	struct vkms_config *config;
 
+	enum drm_connector_status status;
 	struct xarray possible_encoders;
 
 	/* Internal usage */
@@ -199,7 +204,8 @@ struct vkms_config *vkms_config_create(const char *dev_name);
  */
 struct vkms_config *vkms_config_default_create(bool enable_cursor,
 					       bool enable_writeback,
-					       bool enable_overlay);
+					       bool enable_overlay,
+					       bool enable_plane_pipeline);
 
 /**
  * vkms_config_destroy() - Free a VKMS configuration
@@ -282,6 +288,30 @@ vkms_config_plane_set_type(struct vkms_config_plane *plane_cfg,
 			   enum drm_plane_type type)
 {
 	plane_cfg->type = type;
+}
+
+/**
+ * vkms_config_plane_get_default_pipeline() - Return if the plane will
+ * be created with the default pipeline
+ * @plane_cfg: Plane to get the information from
+ */
+static inline bool
+vkms_config_plane_get_default_pipeline(struct vkms_config_plane *plane_cfg)
+{
+	return plane_cfg->default_pipeline;
+}
+
+/**
+ * vkms_config_plane_set_default_pipeline() - Set if the plane will
+ * be created with the default pipeline
+ * @plane_cfg: Plane to configure the pipeline
+ * @default_pipeline: New default pipeline value
+ */
+static inline void
+vkms_config_plane_set_default_pipeline(struct vkms_config_plane *plane_cfg,
+				       bool default_pipeline)
+{
+	plane_cfg->default_pipeline = default_pipeline;
 }
 
 /**
@@ -433,5 +463,27 @@ int __must_check vkms_config_connector_attach_encoder(struct vkms_config_connect
  */
 void vkms_config_connector_detach_encoder(struct vkms_config_connector *connector_cfg,
 					  struct vkms_config_encoder *encoder_cfg);
+
+/**
+ * vkms_config_connector_get_status() - Return the status of the connector
+ * @connector_cfg: Connector to get the status from
+ */
+static inline enum drm_connector_status
+vkms_config_connector_get_status(struct vkms_config_connector *connector_cfg)
+{
+	return connector_cfg->status;
+}
+
+/**
+ * vkms_config_connector_set_status() - Set the status of the connector
+ * @connector_cfg: Connector to set the status to
+ * @status: New connector status
+ */
+static inline void
+vkms_config_connector_set_status(struct vkms_config_connector *connector_cfg,
+				 enum drm_connector_status status)
+{
+	connector_cfg->status = status;
+}
 
 #endif /* _VKMS_CONFIG_H_ */

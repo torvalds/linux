@@ -14,9 +14,9 @@
  * DOC: Map layer
  *
  * All access to any memory shared with a device (both sysmem and vram) in the
- * XE driver should go through this layer (xe_map). This layer is built on top
+ * Xe driver should go through this layer (xe_map). This layer is built on top
  * of :ref:`driver-api/device-io:Generalizing Access to System and I/O Memory`
- * and with extra hooks into the XE driver that allows adding asserts to memory
+ * and with extra hooks into the Xe driver that allows adding asserts to memory
  * accesses (e.g. for blocking runtime_pm D3Cold on Discrete Graphics).
  */
 
@@ -77,24 +77,6 @@ static inline void xe_map_write32(struct xe_device *xe, struct iosys_map *map,
 	xe_device_assert_mem_access(__xe);				\
 	iosys_map_wr(map__, offset__, type__, val__);			\
 })
-
-#define xe_map_rd_array(xe__, map__, index__, type__) \
-	xe_map_rd(xe__, map__, (index__) * sizeof(type__), type__)
-
-#define xe_map_wr_array(xe__, map__, index__, type__, val__) \
-	xe_map_wr(xe__, map__, (index__) * sizeof(type__), type__, val__)
-
-#define xe_map_rd_array_u32(xe__, map__, index__) \
-	xe_map_rd_array(xe__, map__, index__, u32)
-
-#define xe_map_wr_array_u32(xe__, map__, index__, val__) \
-	xe_map_wr_array(xe__, map__, index__, u32, val__)
-
-#define xe_map_rd_ring_u32(xe__, map__, index__, size__) \
-	xe_map_rd_array_u32(xe__, map__, (index__) % (size__))
-
-#define xe_map_wr_ring_u32(xe__, map__, index__, size__, val__) \
-	xe_map_wr_array_u32(xe__, map__, (index__) % (size__), val__)
 
 #define xe_map_rd_field(xe__, map__, struct_offset__, struct_type__, field__) ({	\
 	struct xe_device *__xe = xe__;					\

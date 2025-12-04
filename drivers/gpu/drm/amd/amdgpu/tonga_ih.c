@@ -159,6 +159,9 @@ static int tonga_ih_irq_init(struct amdgpu_device *adev)
 	/* enable interrupts */
 	tonga_ih_enable_interrupts(adev);
 
+	if (adev->irq.ih_soft.ring_size)
+		adev->irq.ih_soft.enabled = true;
+
 	return 0;
 }
 
@@ -195,6 +198,9 @@ static u32 tonga_ih_get_wptr(struct amdgpu_device *adev,
 	u32 wptr, tmp;
 
 	wptr = le32_to_cpu(*ih->wptr_cpu);
+
+	if (ih == &adev->irq.ih_soft)
+		goto out;
 
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
 		goto out;
@@ -303,6 +309,10 @@ static int tonga_ih_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, true);
+	if (r)
+		return r;
+
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, IH_SW_RING_SIZE, true);
 	if (r)
 		return r;
 

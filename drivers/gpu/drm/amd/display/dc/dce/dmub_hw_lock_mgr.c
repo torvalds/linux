@@ -61,10 +61,9 @@ void dmub_hw_lock_mgr_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
 	dc_dmub_srv_wait_for_inbox0_ack(dmub_srv);
 }
 
-bool should_use_dmub_lock(struct dc_link *link)
+bool dmub_hw_lock_mgr_does_link_require_lock(const struct dc *dc, const struct dc_link *link)
 {
-	/* ASIC doesn't support DMUB */
-	if (!link->ctx->dmub_srv)
+	if (!link)
 		return false;
 
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
@@ -73,16 +72,38 @@ bool should_use_dmub_lock(struct dc_link *link)
 	if (link->replay_settings.replay_feature_enabled)
 		return true;
 
-	/* only use HW lock for PSR1 on single eDP */
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_1) {
 		struct dc_link *edp_links[MAX_NUM_EDP];
 		int edp_num;
 
-		dc_get_edp_links(link->dc, edp_links, &edp_num);
-
+		dc_get_edp_links(dc, edp_links, &edp_num);
 		if (edp_num == 1)
 			return true;
 	}
-
 	return false;
+}
+
+bool dmub_hw_lock_mgr_does_context_require_lock(const struct dc *dc, const struct dc_state *context)
+{
+	if (!context)
+		return false;
+	for (int i = 0; i < context->stream_count; i++) {
+		const struct dc_link *link = context->streams[i]->link;
+
+		if (dmub_hw_lock_mgr_does_link_require_lock(dc, link))
+			return true;
+	}
+	return false;
+}
+
+bool should_use_dmub_inbox1_lock(const struct dc *dc, const struct dc_link *link)
+{
+	/* ASIC doesn't support DMUB */
+	if (!dc->ctx->dmub_srv)
+		return false;
+
+	if (dc->ctx->dce_version >= DCN_VERSION_4_01)
+		return false;
+
+	return dmub_hw_lock_mgr_does_link_require_lock(dc, link);
 }

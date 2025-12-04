@@ -50,6 +50,22 @@ static inline u32 drm_color_lut_extract(u32 user_input, int bit_precision)
 					 (1 << 16) - 1);
 }
 
+/**
+ * drm_color_lut32_extract - clamp and round LUT entries
+ * @user_input: input value
+ * @bit_precision: number of bits the hw LUT supports
+ *
+ * Extract U0.bit_precision from a U0.32 LUT value.
+ *
+ */
+static inline u32 drm_color_lut32_extract(u32 user_input, int bit_precision)
+{
+	u64 max = (bit_precision >= 64) ? ~0ULL : (1ULL << bit_precision) - 1;
+
+	return DIV_ROUND_CLOSEST_ULL((u64)user_input * max,
+				     (1ULL << 32) - 1);
+}
+
 u64 drm_color_ctm_s31_32_to_qm_n(u64 user_input, u32 m, u32 n);
 
 void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
@@ -70,6 +86,18 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 static inline int drm_color_lut_size(const struct drm_property_blob *blob)
 {
 	return blob->length / sizeof(struct drm_color_lut);
+}
+
+/**
+ * drm_color_lut32_size - calculate the number of entries in the extended LUT
+ * @blob: blob containing the LUT
+ *
+ * Returns:
+ * The number of entries in the color LUT stored in @blob.
+ */
+static inline int drm_color_lut32_size(const struct drm_property_blob *blob)
+{
+	return blob->length / sizeof(struct drm_color_lut32);
 }
 
 enum drm_color_encoding {
@@ -146,4 +174,5 @@ void drm_crtc_load_palette_8(struct drm_crtc *crtc, const struct drm_color_lut *
 void drm_crtc_fill_palette_332(struct drm_crtc *crtc, drm_crtc_set_lut_func set_palette);
 void drm_crtc_fill_palette_8(struct drm_crtc *crtc, drm_crtc_set_lut_func set_palette);
 
+int drm_color_lut32_check(const struct drm_property_blob *lut, u32 tests);
 #endif

@@ -346,17 +346,26 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 	xe_hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
 }
 
-static bool xe_hw_engine_match_fixed_cslice_mode(const struct xe_gt *gt,
+static bool xe_hw_engine_match_fixed_cslice_mode(const struct xe_device *xe,
+						 const struct xe_gt *gt,
 						 const struct xe_hw_engine *hwe)
 {
+	/*
+	 * Xe3p no longer supports load balance mode, so "fixed cslice" mode
+	 * is automatic and no RCU_MODE programming is required.
+	 */
+	if (GRAPHICS_VER(gt_to_xe(gt)) >= 35)
+		return false;
+
 	return xe_gt_ccs_mode_enabled(gt) &&
-	       xe_rtp_match_first_render_or_compute(gt, hwe);
+	       xe_rtp_match_first_render_or_compute(xe, gt, hwe);
 }
 
-static bool xe_rtp_cfeg_wmtp_disabled(const struct xe_gt *gt,
+static bool xe_rtp_cfeg_wmtp_disabled(const struct xe_device *xe,
+				      const struct xe_gt *gt,
 				      const struct xe_hw_engine *hwe)
 {
-	if (GRAPHICS_VER(gt_to_xe(gt)) < 20)
+	if (GRAPHICS_VER(xe) < 20)
 		return false;
 
 	if (hwe->class != XE_ENGINE_CLASS_COMPUTE &&
@@ -709,27 +718,52 @@ static void read_media_fuses(struct xe_gt *gt)
 	}
 }
 
+static u32 infer_svccopy_from_meml3(struct xe_gt *gt)
+{
+	u32 meml3 = REG_FIELD_GET(MEML3_EN_MASK,
+				  xe_mmio_read32(&gt->mmio, MIRROR_FUSE3));
+	u32 svccopy_mask = 0;
+
+	/*
+	 * Each of the four meml3 bits determines the fusing of two service
+	 * copy engines.
+	 */
+	for (int i = 0; i < 4; i++)
+		svccopy_mask |= (meml3 & BIT(i)) ? 0b11 << 2 * i : 0;
+
+	return svccopy_mask;
+}
+
+static u32 read_svccopy_fuses(struct xe_gt *gt)
+{
+	return REG_FIELD_GET(FUSE_SERVICE_COPY_ENABLE_MASK,
+			     xe_mmio_read32(&gt->mmio, SERVICE_COPY_ENABLE));
+}
+
 static void read_copy_fuses(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 bcs_mask;
 
-	if (GRAPHICS_VERx100(xe) < 1260 || GRAPHICS_VERx100(xe) >= 1270)
-		return;
-
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	bcs_mask = xe_mmio_read32(&gt->mmio, MIRROR_FUSE3);
-	bcs_mask = REG_FIELD_GET(MEML3_EN_MASK, bcs_mask);
+	if (GRAPHICS_VER(xe) >= 35)
+		bcs_mask = read_svccopy_fuses(gt);
+	else if (GRAPHICS_VERx100(xe) == 1260)
+		bcs_mask = infer_svccopy_from_meml3(gt);
+	else
+		return;
 
-	/* BCS0 is always present; only BCS1-BCS8 may be fused off */
-	for (int i = XE_HW_ENGINE_BCS1, j = 0; i <= XE_HW_ENGINE_BCS8; ++i, ++j) {
+	/* Only BCS1-BCS8 may be fused off */
+	bcs_mask <<= XE_HW_ENGINE_BCS1;
+	for (int i = XE_HW_ENGINE_BCS1; i <= XE_HW_ENGINE_BCS8; ++i) {
 		if (!(gt->info.engine_mask & BIT(i)))
 			continue;
 
-		if (!(BIT(j / 2) & bcs_mask)) {
+		if (!(bcs_mask & BIT(i))) {
 			gt->info.engine_mask &= ~BIT(i);
-			xe_gt_info(gt, "bcs%u fused off\n", j);
+			xe_gt_info(gt, "bcs%u fused off\n",
+				   i - XE_HW_ENGINE_BCS0);
 		}
 	}
 }
@@ -870,7 +904,7 @@ void xe_hw_engine_handle_irq(struct xe_hw_engine *hwe, u16 intr_vec)
 	if (hwe->irq_handler)
 		hwe->irq_handler(hwe, intr_vec);
 
-	if (intr_vec & GT_RENDER_USER_INTERRUPT)
+	if (intr_vec & GT_MI_USER_INTERRUPT)
 		xe_hw_fence_irq_run(hwe->fence_irq);
 }
 

@@ -118,6 +118,18 @@ static inline bool dc_is_dvi_signal(enum signal_type signal)
 	}
 }
 
+/**
+ * dc_is_rgb_signal() - Whether the signal is analog RGB.
+ *
+ * Returns whether the given signal type is an analog RGB signal
+ * that is used with a DAC on VGA or DVI-I connectors.
+ * Not to be confused with other uses of "RGB", such as RGB color space.
+ */
+static inline bool dc_is_rgb_signal(enum signal_type signal)
+{
+	return (signal == SIGNAL_TYPE_RGB);
+}
+
 static inline bool dc_is_tmds_signal(enum signal_type signal)
 {
 	switch (signal) {

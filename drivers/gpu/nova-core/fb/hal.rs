@@ -2,8 +2,10 @@
 
 use kernel::prelude::*;
 
-use crate::driver::Bar0;
-use crate::gpu::Chipset;
+use crate::{
+    driver::Bar0,
+    gpu::Chipset, //
+};
 
 mod ga100;
 mod ga102;

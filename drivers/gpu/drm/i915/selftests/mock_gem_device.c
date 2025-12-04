@@ -33,6 +33,7 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
 #include "gt/mock_engine.h"
+#include "i915_driver.h"
 #include "intel_memory_region.h"
 #include "intel_region_ttm.h"
 
@@ -183,7 +184,8 @@ struct drm_i915_private *mock_gem_device(void)
 	/* Set up device info and initial runtime info. */
 	intel_device_info_driver_create(i915, pdev->device, &mock_info);
 
-	display = intel_display_device_probe(pdev);
+	/* FIXME: Can we run selftests using a mock device without display? */
+	display = intel_display_device_probe(pdev, i915_driver_parent_interface());
 	if (IS_ERR(display))
 		goto err_device;
 

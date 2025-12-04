@@ -43,6 +43,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_panic.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "ast_drv.h"
@@ -241,16 +242,15 @@ static void ast_set_std_reg(struct ast_device *ast,
 		ast_set_index_reg(ast, AST_IO_VGAGRI, i, stdtable->gr[i]);
 }
 
-static void ast_set_crtc_reg(struct ast_device *ast,
-			     struct drm_display_mode *mode,
+static void ast_set_crtc_reg(struct ast_device *ast, struct drm_display_mode *mode,
 			     const struct ast_vbios_enhtable *vmode)
 {
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
-	u16 temp, precache = 0;
+	u16 temp;
+	unsigned char crtc_hsync_precatch = 0;
 
-	if ((IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) &&
-	    (vmode->flags & AST2500PreCatchCRT))
-		precache = 40;
+	if (ast->quirks->crtc_hsync_precatch_needed && (vmode->flags & AST2500PreCatchCRT))
+		crtc_hsync_precatch = 40;
 
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x11, 0x7f, 0x00);
 
@@ -276,12 +276,12 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 		jregAD |= 0x01;  /* HBE D[5] */
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x03, 0xE0, (temp & 0x1f));
 
-	temp = ((mode->crtc_hsync_start-precache) >> 3) - 1;
+	temp = ((mode->crtc_hsync_start - crtc_hsync_precatch) >> 3) - 1;
 	if (temp & 0x100)
 		jregAC |= 0x40; /* HRS D[5] */
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x04, 0x00, temp);
 
-	temp = (((mode->crtc_hsync_end-precache) >> 3) - 1) & 0x3f;
+	temp = (((mode->crtc_hsync_end - crtc_hsync_precatch) >> 3) - 1) & 0x3f;
 	if (temp & 0x20)
 		jregAD |= 0x04; /* HRE D[5] */
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x05, 0x60, (u8)((temp & 0x1f) | jreg05));
@@ -289,8 +289,7 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAC, 0x00, jregAC);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAD, 0x00, jregAD);
 
-	// Workaround for HSync Time non octave pixels (1920x1080@60Hz HSync 44 pixels);
-	if (IS_AST_GEN7(ast) && (mode->crtc_vdisplay == 1080))
+	if (ast->quirks->crtc_hsync_add4_needed && mode->crtc_vdisplay == 1080)
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xFC, 0xFD, 0x02);
 	else
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xFC, 0xFD, 0x00);
@@ -348,7 +347,7 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x09, 0xdf, jreg09);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAE, 0x00, (jregAE | 0x80));
 
-	if (precache)
+	if (crtc_hsync_precatch)
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0x3f, 0x80);
 	else
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0x3f, 0x00);
@@ -370,12 +369,7 @@ static void ast_set_dclk_reg(struct ast_device *ast,
 			     struct drm_display_mode *mode,
 			     const struct ast_vbios_enhtable *vmode)
 {
-	const struct ast_vbios_dclk_info *clk_info;
-
-	if (IS_AST_GEN6(ast) || IS_AST_GEN7(ast))
-		clk_info = &dclk_table_ast2500[vmode->dclk_index];
-	else
-		clk_info = &dclk_table[vmode->dclk_index];
+	const struct ast_vbios_dclk_info *clk_info = &ast->dclk_table[vmode->dclk_index];
 
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xc0, 0x00, clk_info->param1);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xc1, 0x00, clk_info->param2);
@@ -415,20 +409,11 @@ static void ast_set_color_reg(struct ast_device *ast,
 
 static void ast_set_crtthd_reg(struct ast_device *ast)
 {
-	/* Set Threshold */
-	if (IS_AST_GEN7(ast)) {
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0xe0);
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0xa0);
-	} else if (IS_AST_GEN6(ast) || IS_AST_GEN5(ast) || IS_AST_GEN4(ast)) {
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x78);
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x60);
-	} else if (IS_AST_GEN3(ast) || IS_AST_GEN2(ast)) {
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x3f);
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x2f);
-	} else {
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x2f);
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x1f);
-	}
+	u8 vgacra6 = ast->quirks->crtc_mem_req_threshold_low;
+	u8 vgacra7 = ast->quirks->crtc_mem_req_threshold_high;
+
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, vgacra7);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, vgacra6);
 }
 
 static void ast_set_sync_reg(struct ast_device *ast,
@@ -572,9 +557,14 @@ static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 		ast_set_vbios_color_reg(ast, fb->format, ast_crtc_state->vmode);
 	}
 
-	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
-	drm_atomic_for_each_plane_damage(&iter, &damage) {
-		ast_handle_damage(ast_plane, shadow_plane_state->data, fb, &damage);
+	/* if the buffer comes from another device */
+	if (drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE) == 0) {
+		drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
+		drm_atomic_for_each_plane_damage(&iter, &damage) {
+			ast_handle_damage(ast_plane, shadow_plane_state->data, fb, &damage);
+		}
+
+		drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 	}
 
 	/*

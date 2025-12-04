@@ -9,6 +9,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_print.h>
 
 #include "komeda_framebuffer.h"
 #include "komeda_dev.h"

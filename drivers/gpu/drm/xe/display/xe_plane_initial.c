@@ -25,7 +25,7 @@
 #include "xe_vram_types.h"
 #include "xe_wa.h"
 
-#include <generated/xe_wa_oob.h>
+#include <generated/xe_device_wa_oob.h>
 
 void intel_plane_initial_vblank_wait(struct intel_crtc *crtc)
 {
@@ -123,7 +123,7 @@ initial_plane_bo(struct xe_device *xe,
 		phys_base = base;
 		flags |= XE_BO_FLAG_STOLEN;
 
-		if (XE_GT_WA(xe_root_mmio_gt(xe), 22019338487_display))
+		if (XE_DEVICE_WA(xe, 22019338487_display))
 			return NULL;
 
 		/*
