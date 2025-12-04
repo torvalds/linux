@@ -82,7 +82,11 @@ static int gpio_regmap_get(struct gpio_chip *chip, unsigned int offset)
 	if (ret)
 		return ret;
 
-	ret = regmap_read(gpio->regmap, reg, &val);
+	/* ensure we don't spoil any register cache with pin input values */
+	if (gpio->reg_dat_base == gpio->reg_set_base)
+		ret = regmap_read_bypassed(gpio->regmap, reg, &val);
+	else
+		ret = regmap_read(gpio->regmap, reg, &val);
 	if (ret)
 		return ret;
 
@@ -94,7 +98,7 @@ static int gpio_regmap_set(struct gpio_chip *chip, unsigned int offset,
 {
 	struct gpio_regmap *gpio = gpiochip_get_data(chip);
 	unsigned int base = gpio_regmap_addr(gpio->reg_set_base);
-	unsigned int reg, mask;
+	unsigned int reg, mask, mask_val;
 	int ret;
 
 	ret = gpio->reg_mask_xlate(gpio, base, offset, &reg, &mask);
@@ -102,9 +106,15 @@ static int gpio_regmap_set(struct gpio_chip *chip, unsigned int offset,
 		return ret;
 
 	if (val)
-		ret = regmap_update_bits(gpio->regmap, reg, mask, mask);
+		mask_val = mask;
 	else
-		ret = regmap_update_bits(gpio->regmap, reg, mask, 0);
+		mask_val = 0;
+
+	/* ignore input values which shadow the old output value */
+	if (gpio->reg_dat_base == gpio->reg_set_base)
+		ret = regmap_write_bits(gpio->regmap, reg, mask, mask_val);
+	else
+		ret = regmap_update_bits(gpio->regmap, reg, mask, mask_val);
 
 	return ret;
 }
