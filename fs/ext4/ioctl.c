@@ -1394,6 +1394,10 @@ static int ext4_ioctl_set_tune_sb(struct file *filp,
 	if (copy_from_user(&params, in, sizeof(params)))
 		return -EFAULT;
 
+	if (strnlen(params.mount_opts, sizeof(params.mount_opts)) ==
+	    sizeof(params.mount_opts))
+		return -E2BIG;
+
 	if ((params.set_flags & ~TUNE_OPS_SUPPORTED) != 0)
 		return -EOPNOTSUPP;
 
@@ -1640,16 +1644,6 @@ group_extend_out:
 
 		if (!(fd_file(donor)->f_mode & FMODE_WRITE))
 			return -EBADF;
-
-		if (ext4_has_feature_bigalloc(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Online defrag not supported with bigalloc");
-			return -EOPNOTSUPP;
-		} else if (IS_DAX(inode)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Online defrag not supported with DAX");
-			return -EOPNOTSUPP;
-		}
 
 		err = mnt_want_write_file(filp);
 		if (err)
