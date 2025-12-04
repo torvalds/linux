@@ -974,7 +974,7 @@ F:	drivers/edac/al_mc_edac.c
 AMAZON ANNAPURNA LABS THERMAL MMIO DRIVER
 M:	Talel Shenhar <talel@amazon.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/thermal/amazon,al-thermal.txt
+F:	Documentation/devicetree/bindings/thermal/amazon,al-thermal.yaml
 F:	drivers/thermal/thermal_mmio.c
 
 AMAZON ETHERNET DRIVERS
@@ -2294,7 +2294,7 @@ F:	Documentation/devicetree/bindings/interrupt-controller/actions,owl-sirq.yaml
 F:	Documentation/devicetree/bindings/mmc/owl-mmc.yaml
 F:	Documentation/devicetree/bindings/net/actions,owl-emac.yaml
 F:	Documentation/devicetree/bindings/pinctrl/actions,*
-F:	Documentation/devicetree/bindings/power/actions,owl-sps.txt
+F:	Documentation/devicetree/bindings/power/actions,s500-sps.yaml
 F:	Documentation/devicetree/bindings/timer/actions,owl-timer.yaml
 F:	arch/arm/boot/dts/actions/
 F:	arch/arm/mach-actions/
@@ -2688,7 +2688,7 @@ F:	Documentation/ABI/testing/debugfs-moxtet
 F:	Documentation/ABI/testing/sysfs-bus-i2c-devices-turris-omnia-mcu
 F:	Documentation/ABI/testing/sysfs-bus-moxtet-devices
 F:	Documentation/ABI/testing/sysfs-firmware-turris-mox-rwtm
-F:	Documentation/devicetree/bindings/bus/moxtet.txt
+F:	Documentation/devicetree/bindings/bus/cznic,moxtet.yaml
 F:	Documentation/devicetree/bindings/firmware/cznic,turris-mox-rwtm.txt
 F:	Documentation/devicetree/bindings/firmware/cznic,turris-omnia-mcu.yaml
 F:	Documentation/devicetree/bindings/interrupt-controller/marvell,mpic.yaml
@@ -3435,7 +3435,7 @@ S:	Maintained
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-socfpga.c
 
 ARM/SOCFPGA EDAC BINDINGS
-M:	Matthew Gerlach <matthew.gerlach@altera.com>
+M:	Niravkumar L Rabara <niravkumarlaxmidas.rabara@altera.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/edac/altr,socfpga-ecc-manager.yaml
 

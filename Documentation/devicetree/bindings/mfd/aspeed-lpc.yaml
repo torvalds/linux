@@ -48,16 +48,16 @@ properties:
   reg:
     maxItems: 1
 
-  "#address-cells":
+  '#address-cells':
     const: 1
 
-  "#size-cells":
+  '#size-cells':
     const: 1
 
   ranges: true
 
 patternProperties:
-  "^lpc-ctrl@[0-9a-f]+$":
+  '^lpc-ctrl@[0-9a-f]+$':
     type: object
     additionalProperties: false
 
@@ -92,7 +92,7 @@ patternProperties:
       - compatible
       - clocks
 
-  "^reset-controller@[0-9a-f]+$":
+  '^reset-controller@[0-9a-f]+$':
     type: object
     additionalProperties: false
 
@@ -118,7 +118,7 @@ patternProperties:
       - compatible
       - '#reset-cells'
 
-  "^lpc-snoop@[0-9a-f]+$":
+  '^lpc-snoop@[0-9a-f]+$':
     type: object
     additionalProperties: false
 
@@ -152,15 +152,15 @@ patternProperties:
       - interrupts
       - snoop-ports
 
-  "^uart-routing@[0-9a-f]+$":
+  '^uart-routing@[0-9a-f]+$':
     $ref: /schemas/soc/aspeed/uart-routing.yaml#
     description: The UART routing control under LPC register space
 
 required:
   - compatible
   - reg
-  - "#address-cells"
-  - "#size-cells"
+  - '#address-cells'
+  - '#size-cells'
   - ranges
 
 additionalProperties:

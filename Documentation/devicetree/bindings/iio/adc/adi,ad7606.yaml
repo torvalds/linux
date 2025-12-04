@@ -166,7 +166,6 @@ properties:
       An example of backend can be found at
       http://analogdevicesinc.github.io/hdl/library/axi_ad7606x/index.html
 
-
 patternProperties:
   "^channel@[1-8]$":
     type: object

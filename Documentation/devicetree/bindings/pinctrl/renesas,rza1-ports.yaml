@@ -65,7 +65,6 @@ patternProperties:
       - '#gpio-cells'
       - gpio-ranges
 
-
 additionalProperties:
   anyOf:
     - type: object
@@ -118,7 +117,7 @@ additionalProperties:
 
     - type: object
       additionalProperties:
-        $ref: "#/additionalProperties/anyOf/0"
+        $ref: '#/additionalProperties/anyOf/0'
 
 examples:
   - |
@@ -150,7 +149,6 @@ examples:
                     pinmux = <RZA1_PINMUX(3, 0, 6)>, <RZA1_PINMUX(3, 2, 4)>;
             };
 
-
             /*
              * I2c master: both SDA and SCL pins need bi-directional operations
              * Pin #4 on port #1 is configured as alternate function #1.
@@ -161,7 +159,6 @@ examples:
             i2c2_pins: i2c2 {
                     pinmux = <RZA1_PINMUX(1, 4, 1)>, <RZA1_PINMUX(1, 5, 1)>;
             };
-
 
             /*
              * Multi-function timer input and output compare pins.

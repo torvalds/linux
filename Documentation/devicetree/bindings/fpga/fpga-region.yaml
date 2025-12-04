@@ -18,7 +18,6 @@ description: |
    - Supported Use Models
    - Constraints
 
-
   Introduction
   ============
 
@@ -30,7 +29,6 @@ description: |
   attempts to include terminology used by both major FPGA manufacturers.  This
   document isn't a replacement for any manufacturers specifications for FPGA
   usage.
-
 
   Terminology
   ===========
@@ -108,7 +106,6 @@ description: |
   a soft logic bridge (Bridge0-2) in the FPGA.  The contents of each PRR can be
   reprogrammed independently while the rest of the system continues to function.
 
-
   Sequence
   ========
 
@@ -123,7 +120,6 @@ description: |
 
   When the overlay is removed, the child nodes will be removed and the FPGA Region
   will disable the bridges.
-
 
   FPGA Region
   ===========
@@ -169,7 +165,6 @@ description: |
   region is getting reconfigured (see Figure 1 above).  During PR, the FPGA's
   hardware bridges remain enabled.  The PR regions' bridges will be FPGA bridges
   within the static image of the FPGA.
-
 
   Supported Use Models
   ====================

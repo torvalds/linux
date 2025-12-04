@@ -121,7 +121,6 @@ allOf:
             - const: dma2
             - const: dma3
 
-
 unevaluatedProperties: false
 
 examples:

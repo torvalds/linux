@@ -66,7 +66,6 @@ $defs:
           Specify the alternative function to be configured for the specified
           pins.
 
-
 allOf:
   - $ref: qcom,lpass-lpi-common.yaml#
 

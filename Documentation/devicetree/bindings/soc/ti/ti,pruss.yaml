@@ -11,7 +11,6 @@ maintainers:
   - Suman Anna <s-anna@ti.com>
 
 description: |+
-
   The Programmable Real-Time Unit and Industrial Communication Subsystem
   (PRU-ICSS a.k.a. PRUSS) is present on various TI SoCs such as AM335x, AM437x,
   Keystone 66AK2G, OMAP-L138/DA850 etc. A PRUSS consists of dual 32-bit RISC
@@ -44,7 +43,6 @@ description: |+
   integration within the IP and the SoC. These nodes are described in the
   following sections.
 
-
   PRU-ICSS Node
   ==============
   Each PRU-ICSS instance is represented as its own node with the individual PRU
@@ -53,7 +51,6 @@ description: |+
   corresponding interconnect bus nodes or target-module nodes.
 
   See ../../mfd/syscon.yaml for generic SysCon binding details.
-
 
 properties:
   $nodename:

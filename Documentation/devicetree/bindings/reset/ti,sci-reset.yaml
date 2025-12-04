@@ -40,7 +40,6 @@ properties:
       Please see https://software-dl.ti.com/tisci/esd/latest/index.html for
       protocol documentation for the values to be used for different devices.
 
-
 additionalProperties: false
 
 examples:

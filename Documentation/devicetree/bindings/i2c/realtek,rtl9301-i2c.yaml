@@ -64,7 +64,6 @@ patternProperties:
     required:
       - reg
 
-
 allOf:
   - if:
       properties:

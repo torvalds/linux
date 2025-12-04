@@ -50,7 +50,6 @@ properties:
       Points to the node of the regulator that powers/enable the wl12xx/wl18xx
       chip.  This is required when connected via SPI.
 
-
   ref-clock-frequency:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Reference clock frequency.

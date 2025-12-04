@@ -60,7 +60,7 @@ properties:
       Contains the firewall ID associated to the peripheral.
 
 patternProperties:
-  "^.*@[0-9a-f]+$":
+  "@[0-9a-f]+$":
     description: Peripherals
     type: object
 

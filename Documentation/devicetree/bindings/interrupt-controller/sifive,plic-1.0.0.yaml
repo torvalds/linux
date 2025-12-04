@@ -61,6 +61,7 @@ properties:
               - anlogic,dr1v90-plic
               - canaan,k210-plic
               - eswin,eic7700-plic
+              - microchip,pic64gx-plic
               - sifive,fu540-c000-plic
               - spacemit,k1-plic
               - starfive,jh7100-plic
