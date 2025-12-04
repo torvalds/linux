@@ -769,14 +769,16 @@ struct blk_iou_cmd {
 	bool nowait;
 };
 
-static void blk_cmd_complete(struct io_uring_cmd *cmd, unsigned int issue_flags)
+static void blk_cmd_complete(struct io_tw_req tw_req, io_tw_token_t tw)
 {
+	struct io_uring_cmd *cmd = io_uring_cmd_from_tw(tw_req);
 	struct blk_iou_cmd *bic = io_uring_cmd_to_pdu(cmd, struct blk_iou_cmd);
 
 	if (bic->res == -EAGAIN && bic->nowait)
 		io_uring_cmd_issue_blocking(cmd);
 	else
-		io_uring_cmd_done(cmd, bic->res, issue_flags);
+		io_uring_cmd_done(cmd, bic->res,
+				  IO_URING_CMD_TASK_WORK_ISSUE_FLAGS);
 }
 
 static void bio_cmd_bio_end_io(struct bio *bio)

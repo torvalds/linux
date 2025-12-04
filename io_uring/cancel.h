@@ -23,14 +23,20 @@ int io_try_cancel(struct io_uring_task *tctx, struct io_cancel_data *cd,
 
 int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg);
 bool io_cancel_req_match(struct io_kiocb *req, struct io_cancel_data *cd);
+bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
+			bool cancel_all);
 
 bool io_cancel_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			  struct hlist_head *list, bool cancel_all,
 			  bool (*cancel)(struct io_kiocb *));
-
 int io_cancel_remove(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		     unsigned int issue_flags, struct hlist_head *list,
 		     bool (*cancel)(struct io_kiocb *));
+__cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
+					 struct io_uring_task *tctx,
+					 bool cancel_all, bool is_sqpoll_thread);
+__cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
+__cold bool io_cancel_ctx_cb(struct io_wq_work *work, void *data);
 
 static inline bool io_cancel_match_sequence(struct io_kiocb *req, int sequence)
 {

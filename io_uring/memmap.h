@@ -16,15 +16,10 @@ unsigned long io_uring_get_unmapped_area(struct file *file, unsigned long addr,
 					 unsigned long flags);
 int io_uring_mmap(struct file *file, struct vm_area_struct *vma);
 
-void io_free_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr);
+void io_free_region(struct user_struct *user, struct io_mapped_region *mr);
 int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 		     struct io_uring_region_desc *reg,
 		     unsigned long mmap_offset);
-
-int io_create_region_mmap_safe(struct io_ring_ctx *ctx,
-				struct io_mapped_region *mr,
-				struct io_uring_region_desc *reg,
-				unsigned long mmap_offset);
 
 static inline void *io_region_get_ptr(struct io_mapped_region *mr)
 {
@@ -34,6 +29,23 @@ static inline void *io_region_get_ptr(struct io_mapped_region *mr)
 static inline bool io_region_is_set(struct io_mapped_region *mr)
 {
 	return !!mr->nr_pages;
+}
+
+static inline void io_region_publish(struct io_ring_ctx *ctx,
+				     struct io_mapped_region *src_region,
+				     struct io_mapped_region *dst_region)
+{
+	/*
+	 * Once published mmap can find it without holding only the ->mmap_lock
+	 * and not ->uring_lock.
+	 */
+	guard(mutex)(&ctx->mmap_lock);
+	*dst_region = *src_region;
+}
+
+static inline size_t io_region_size(struct io_mapped_region *mr)
+{
+	return (size_t) mr->nr_pages << PAGE_SHIFT;
 }
 
 #endif
