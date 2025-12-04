@@ -34,7 +34,7 @@ static SOC_ENUM_SINGLE_EXT_DECL(simple_mux_enum, simple_mux_texts);
 static int simple_mux_control_get(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
 	struct snd_soc_component *c = snd_soc_dapm_to_component(dapm);
 	struct simple_mux *priv = snd_soc_component_get_drvdata(c);
 
@@ -46,7 +46,7 @@ static int simple_mux_control_get(struct snd_kcontrol *kcontrol,
 static int simple_mux_control_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct snd_soc_component *c = snd_soc_dapm_to_component(dapm);
 	struct simple_mux *priv = snd_soc_component_get_drvdata(c);
@@ -59,7 +59,8 @@ static int simple_mux_control_put(struct snd_kcontrol *kcontrol,
 
 	priv->mux = ucontrol->value.enumerated.item[0];
 
-	if (priv->idle_state != MUX_IDLE_AS_IS && dapm->bias_level < SND_SOC_BIAS_PREPARE)
+	if (priv->idle_state != MUX_IDLE_AS_IS &&
+	    snd_soc_dapm_get_bias_level(dapm) < SND_SOC_BIAS_PREPARE)
 		return 0;
 
 	gpiod_set_value_cansleep(priv->gpiod_mux, priv->mux);

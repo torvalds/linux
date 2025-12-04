@@ -33,6 +33,7 @@ static const char * const bridge_cs35l56_name_prefixes[] = {
 static int asoc_sdw_bridge_cs35l56_asp_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int i, ret;
 	unsigned int rx_mask = 3; // ASP RX1, RX2
 	unsigned int tx_mask = 3; // ASP TX1, TX2
@@ -45,14 +46,14 @@ static int asoc_sdw_bridge_cs35l56_asp_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, bridge_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, bridge_widgets,
 					ARRAY_SIZE(bridge_widgets));
 	if (ret) {
 		dev_err(card->dev, "widgets addition failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, bridge_map, ARRAY_SIZE(bridge_map));
+	ret = snd_soc_dapm_add_routes(dapm, bridge_map, ARRAY_SIZE(bridge_map));
 	if (ret) {
 		dev_err(card->dev, "map addition failed: %d\n", ret);
 		return ret;

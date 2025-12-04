@@ -1031,7 +1031,7 @@ static int daio_mgr_dsb_dao(void *blk, unsigned int idx)
 	return 0;
 }
 
-static int daio_mgr_dao_init(void *blk, unsigned int idx, unsigned int conf)
+static int daio_mgr_dao_init(struct hw *hw __maybe_unused, void *blk, unsigned int idx, unsigned int conf)
 {
 	struct daio_mgr_ctrl_blk *ctl = blk;
 
@@ -1775,6 +1775,7 @@ static struct capabilities hw_capabilities(struct hw *hw)
 	/* SB073x and Vista compatible cards have no digit IO switch */
 	cap.digit_io_switch = !(hw->model == CTSB073X || hw->model == CTUAA);
 	cap.dedicated_mic = 0;
+	cap.dedicated_rca = 0;
 	cap.output_switch = 0;
 	cap.mic_source_switch = 0;
 

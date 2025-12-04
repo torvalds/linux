@@ -118,4 +118,5 @@ const struct sof_intel_dsp_desc apl_chip_info = {
 	.power_down_dsp = hda_power_down_dsp,
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_1_5_PLUS,
+	.platform = "apl",
 };

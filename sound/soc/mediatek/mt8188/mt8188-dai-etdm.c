@@ -1061,8 +1061,7 @@ static int mt8188_etdm_clk_src_sel_put(struct snd_kcontrol *kcontrol,
 static int mt8188_etdm_clk_src_sel_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	unsigned int value;
 	unsigned int reg;

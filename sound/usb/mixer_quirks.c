@@ -2277,7 +2277,8 @@ static int realtek_resume_jack(struct usb_mixer_elem_list *list)
 }
 
 static int realtek_add_jack(struct usb_mixer_interface *mixer,
-			    char *name, u32 val)
+			    char *name, u32 val, int unitid,
+			    const struct snd_kcontrol_new *kctl_new)
 {
 	struct usb_mixer_elem_info *cval;
 	struct snd_kcontrol *kctl;
@@ -2285,14 +2286,13 @@ static int realtek_add_jack(struct usb_mixer_interface *mixer,
 	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
 	if (!cval)
 		return -ENOMEM;
-	snd_usb_mixer_elem_init_std(&cval->head, mixer,
-				    REALTEK_JACK_INTERRUPT_NODE);
+	snd_usb_mixer_elem_init_std(&cval->head, mixer, unitid);
 	cval->head.resume = realtek_resume_jack;
 	cval->val_type = USB_MIXER_BOOLEAN;
 	cval->channels = 1;
 	cval->min = 0;
 	cval->max = 1;
-	kctl = snd_ctl_new1(&realtek_connector_ctl_ro, cval);
+	kctl = snd_ctl_new1(kctl_new, cval);
 	if (!kctl) {
 		kfree(cval);
 		return -ENOMEM;
@@ -2322,14 +2322,20 @@ static int dell_dock_mixer_create(struct usb_mixer_interface *mixer)
 			USB_RECIP_DEVICE | USB_TYPE_VENDOR | USB_DIR_OUT,
 			0, 0, NULL, 0);
 
-	err = realtek_add_jack(mixer, "Line Out Jack", REALTEK_LINE1);
+	err = realtek_add_jack(mixer, "Line Out Jack", REALTEK_LINE1,
+			       REALTEK_JACK_INTERRUPT_NODE,
+			       &realtek_connector_ctl_ro);
 	if (err < 0)
 		return err;
-	err = realtek_add_jack(mixer, "Headphone Jack", REALTEK_HP_OUT);
+	err = realtek_add_jack(mixer, "Headphone Jack", REALTEK_HP_OUT,
+			       REALTEK_JACK_INTERRUPT_NODE,
+			       &realtek_connector_ctl_ro);
 	if (err < 0)
 		return err;
 	err = realtek_add_jack(mixer, "Headset Mic Jack",
-			       REALTEK_HP_OUT | REALTEK_MIC_FLAG);
+			       REALTEK_HP_OUT | REALTEK_MIC_FLAG,
+			       REALTEK_JACK_INTERRUPT_NODE,
+			       &realtek_connector_ctl_ro);
 	if (err < 0)
 		return err;
 	return 0;
@@ -2356,6 +2362,105 @@ static int dell_dock_mixer_init(struct usb_mixer_interface *mixer)
 	dell_dock_init_vol(mixer, 2, 19);
 	return 0;
 }
+
+/*
+ * HP Thunderbolt Dock G2 jack detection
+ *
+ * Similar to the Dell WD15/WD19, but with different commands.
+ */
+
+#define HP_DOCK_JACK_INTERRUPT_NODE	7
+
+#define HP_DOCK_GET			37
+
+#define HP_DOCK_JACK_PRESENCE		0xffb8
+#define HP_DOCK_JACK_PRESENCE_BIT	BIT(2)
+
+#define HP_DOCK_MIC_SENSE		0xf753
+#define HP_DOCK_MIC_SENSE_COMPLETE_BIT	BIT(4)
+
+#define HP_DOCK_MIC_SENSE_MASK		(BIT(2) | BIT(1) | BIT(0))
+/* #define HP_DOCK_MIC_SENSE_PRESENT	0x2 */
+#define HP_DOCK_MIC_SENSE_NOT_PRESENT	0x4
+
+static int hp_dock_ctl_connector_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *cval = snd_kcontrol_chip(kcontrol);
+	struct snd_usb_audio *chip = cval->head.mixer->chip;
+	u32 pv = kcontrol->private_value;
+	bool presence;
+	int err;
+	u8 buf;
+
+	CLASS(snd_usb_lock, pm)(chip);
+	if (pm.err < 0)
+		return pm.err;
+
+	err = snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0),
+		       HP_DOCK_GET,
+		       USB_RECIP_DEVICE | USB_TYPE_VENDOR | USB_DIR_IN,
+		       0, HP_DOCK_JACK_PRESENCE, &buf, sizeof(buf));
+	if (err < 0)
+		return err;
+
+	presence = !(buf & HP_DOCK_JACK_PRESENCE_BIT);
+
+	if (pv && presence) {
+		for (int i = 0; i < 20; i++) {
+			err = snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0),
+			       HP_DOCK_GET,
+			       USB_RECIP_DEVICE | USB_TYPE_VENDOR | USB_DIR_IN,
+			       0, HP_DOCK_MIC_SENSE, &buf, sizeof(buf));
+			if (err < 0)
+				return err;
+
+			/* Mic sense is complete, we have a result. */
+			if (buf & HP_DOCK_MIC_SENSE_COMPLETE_BIT)
+				break;
+
+			msleep(100);
+		}
+
+		/*
+		 * If we reach the retry limit without mic sense having
+		 * completed, buf will contain HP_DOCK_MIC_SENSE_PRESENT,
+		 * thus presence remains true even when detection fails.
+		 */
+		if ((buf & HP_DOCK_MIC_SENSE_MASK) == HP_DOCK_MIC_SENSE_NOT_PRESENT)
+			presence = false;
+	}
+	ucontrol->value.integer.value[0] = presence;
+	return 0;
+}
+
+static const struct snd_kcontrol_new hp_dock_connector_ctl_ro = {
+	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
+	.name = "", /* will be filled later manually */
+	.access = SNDRV_CTL_ELEM_ACCESS_READ,
+	.info = snd_ctl_boolean_mono_info,
+	.get = hp_dock_ctl_connector_get,
+};
+
+static int hp_dock_mixer_create(struct usb_mixer_interface *mixer)
+{
+	int err;
+
+	err = realtek_add_jack(mixer, "Headsets Playback Jack", 0,
+			       HP_DOCK_JACK_INTERRUPT_NODE,
+			       &hp_dock_connector_ctl_ro);
+	if (err < 0)
+		return err;
+
+	err = realtek_add_jack(mixer, "Headset Capture Jack", 1,
+			       HP_DOCK_JACK_INTERRUPT_NODE,
+			       &hp_dock_connector_ctl_ro);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 
 /* RME Class Compliant device quirks */
 
@@ -4407,6 +4512,9 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		break;
 	case USB_ID(0x2b73, 0x0034): /* Pioneer DJ DJM-V10 */
 		err = snd_djm_controls_create(mixer, SND_DJM_V10_IDX);
+		break;
+	case USB_ID(0x03f0, 0x0269): /* HP TB Dock G2 */
+		err = hp_dock_mixer_create(mixer);
 		break;
 	}
 

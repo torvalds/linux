@@ -70,8 +70,9 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 static int lowland_wm9081_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(rtd->card);
 
-	snd_soc_dapm_nc_pin(&rtd->card->dapm, "LINEOUT");
+	snd_soc_dapm_disable_pin(dapm, "LINEOUT");
 
 	/* At any time the WM9081 is active it will have this clock */
 	return snd_soc_component_set_sysclk(component, WM9081_SYSCLK_MCLK, 0,

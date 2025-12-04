@@ -15,7 +15,7 @@
 
 /*
  * Search card topology and return PCM device number
- * matching Nth HDMI device (zero-based index).
+ * matching Nth playback HDMI device (zero-based index).
  */
 static struct snd_pcm *hda_dsp_hdmi_pcm_handle(struct snd_soc_card *card,
 					       int hdmi_idx)
@@ -25,8 +25,17 @@ static struct snd_pcm *hda_dsp_hdmi_pcm_handle(struct snd_soc_card *card,
 	int i = 0;
 
 	for_each_card_rtds(card, rtd) {
-		spcm = rtd->pcm ?
-			rtd->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].pcm : NULL;
+		/* ignore BE PCMs */
+		if (rtd->dai_link && rtd->dai_link->no_pcm)
+			continue;
+
+		spcm = rtd->pcm;
+
+		/* ignore PCMs with no playback streams */
+		if (!spcm || !spcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)
+			continue;
+
+		/* look for FE PCMs with name "HDMI x" */
 		if (spcm && strstr(spcm->id, "HDMI")) {
 			if (i == hdmi_idx)
 				return rtd->pcm;

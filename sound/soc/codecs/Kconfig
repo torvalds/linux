@@ -106,6 +106,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS48L32
 	imply SND_SOC_CS53L30
 	imply SND_SOC_CS530X_I2C
+	imply SND_SOC_CS530X_SPI
 	imply SND_SOC_CX20442
 	imply SND_SOC_CX2072X
 	imply SND_SOC_DA7210
@@ -170,6 +171,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MT6359
 	imply SND_SOC_MT6660
 	imply SND_SOC_NAU8315
+	imply SND_SOC_NAU8325
 	imply SND_SOC_NAU8540
 	imply SND_SOC_NAU8810
 	imply SND_SOC_NAU8821
@@ -896,6 +898,38 @@ config SND_SOC_CS35L56_SDW
 	help
 	  Enable support for Cirrus Logic CS35L56 boosted amplifier with SoundWire control
 
+config SND_SOC_CS35L56_CAL_DEBUGFS_COMMON
+	bool
+
+menu "CS35L56 driver options"
+	depends on SND_SOC_CS35L56
+
+config SND_SOC_CS35L56_CAL_DEBUGFS
+	bool "CS35L56 create debugfs for factory calibration"
+	default N
+	depends on DEBUG_FS
+	select SND_SOC_CS35L56_CAL_DEBUGFS_COMMON
+	help
+	  Create debugfs entries used during factory-line manufacture
+	  for factory calibration.
+
+	  If unsure select "N".
+
+config SND_SOC_CS35L56_CAL_SET_CTRL
+	bool "CS35L56 ALSA control to restore factory calibration"
+	default N
+	select SND_SOC_CS35L56_CAL_SYSFS_COMMON
+	help
+	  Allow restoring factory calibration data through an ALSA
+	  control. This is only needed on platforms without UEFI or
+	  some other method of non-volatile storage that the driver
+	  can access directly.
+
+	  On most platforms this is not needed.
+
+	  If unsure select "N".
+endmenu
+
 config SND_SOC_CS40L50
 	tristate "Cirrus Logic CS40L50 CODEC"
 	depends on MFD_CS40L50_CORE
@@ -1081,6 +1115,15 @@ config SND_SOC_CS530X_I2C
 	help
 	  Enable support for Cirrus Logic CS530X ADCs
 	  with I2C control.
+
+config SND_SOC_CS530X_SPI
+	tristate "Cirrus Logic CS530x ADCs (SPI)"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	select SND_SOC_CS530X
+	help
+	  Enable support for Cirrus Logic CS530X ADCs
+	  with SPI control.
 
 config SND_SOC_CX20442
 	tristate
@@ -1567,6 +1610,7 @@ config SND_SOC_PEB2466
 
 config SND_SOC_PM4125
 	depends on SND_SOC_PM4125_SDW
+	select SND_SOC_WCD_COMMON
 	tristate
 	depends on SOUNDWIRE || !SOUNDWIRE
 
@@ -1575,6 +1619,7 @@ config SND_SOC_PM4125_SDW
 	select SND_SOC_PM4125
 	select SND_SOC_WCD_MBHC
 	select REGMAP_IRQ
+	select SND_SOC_WCD_COMMON
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 	help
@@ -2310,6 +2355,7 @@ config SND_SOC_WCD934X
 	tristate "WCD9340/WCD9341 Codec"
 	depends on COMMON_CLK
 	depends on SLIMBUS
+	depends on SOUNDWIRE || !SOUNDWIRE
 	select REGMAP_IRQ
 	select REGMAP_SLIMBUS
 	select SND_SOC_WCD_CLASSH
@@ -2714,6 +2760,10 @@ config SND_SOC_MT6660
 
 config SND_SOC_NAU8315
 	tristate "Nuvoton Technology Corporation NAU8315 CODEC"
+
+config SND_SOC_NAU8325
+	tristate "Nuvoton Technology Corporation NAU8325 CODEC"
+	depends on I2C
 
 config SND_SOC_NAU8540
 	tristate "Nuvoton Technology Corporation NAU85L40 CODEC"

@@ -31,7 +31,8 @@ struct rk_drvdata {
 static int rk_hp_power(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *k, int event)
 {
-	struct rk_drvdata *machine = snd_soc_card_get_drvdata(w->dapm->card);
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
+	struct rk_drvdata *machine = snd_soc_card_get_drvdata(card);
 
 	gpiod_set_value_cansleep(machine->gpio_hp_en,
 				 SND_SOC_DAPM_EVENT_ON(event));

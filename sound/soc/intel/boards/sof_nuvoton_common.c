@@ -34,9 +34,10 @@ static struct snd_soc_dai_link_component nau8318_components[] = {
 static int nau8318_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, nau8318_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, nau8318_widgets,
 					ARRAY_SIZE(nau8318_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "fail to add nau8318 widgets, ret %d\n", ret);
@@ -50,7 +51,7 @@ static int nau8318_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, nau8318_routes,
+	ret = snd_soc_dapm_add_routes(dapm, nau8318_routes,
 				      ARRAY_SIZE(nau8318_routes));
 
 	if (ret) {
