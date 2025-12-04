@@ -1,0 +1,90 @@
+What:		/sys/.../message
+Date:		October 2021
+KernelVersion:	5.16
+Description:
+		Controls the text message displayed on character line displays.
+
+		Reading returns the current message with a trailing newline.
+		Writing updates the displayed message. Messages longer than the
+		display width will automatically scroll. Trailing newlines in
+		input are automatically trimmed.
+
+		Writing an empty string clears the display.
+
+		Example:
+		  echo "Hello World" > message
+		  cat message			# Returns "Hello World\n"
+
+What:		/sys/.../num_chars
+Date:		November 2025
+KernelVersion:	6.18
+Contact:	Jean-François Lessard <jefflessard3@gmail.com>
+Description:
+		Read-only attribute showing the character width capacity of
+		the line display device. Messages longer than this will scroll.
+
+		Example:
+		  cat num_chars		# Returns "16\n" for 16-char display
+
+What:		/sys/.../scroll_step_ms
+Date:		October 2021
+KernelVersion:	5.16
+Description:
+		Controls the scrolling speed for messages longer than the display
+		width, specified in milliseconds per scroll step.
+
+		Setting to 0 disables scrolling. Default is 500ms.
+
+		Example:
+		  echo "250" > scroll_step_ms	# 4Hz scrolling
+		  cat scroll_step_ms		# Returns "250\n"
+
+What:		/sys/.../map_seg7
+Date:		January 2024
+KernelVersion:	6.9
+Description:
+		Read/write binary blob representing the ASCII-to-7-segment
+		display conversion table used by the linedisp driver, as defined
+		by struct seg7_conversion_map in <linux/map_to_7segment.h>.
+
+		Only visible on displays with 7-segment capability.
+
+		This attribute is not human-readable. Writes must match the
+		struct size exactly, else -EINVAL is returned; reads return the
+		entire mapping as a binary blob.
+
+		This interface and its implementation match existing conventions
+		used in segment-mapped display drivers since 2005.
+
+		ABI note: This style of binary sysfs attribute *is an exception*
+		to current "one value per file, text only" sysfs rules, for
+		historical compatibility and driver uniformity. New drivers are
+		discouraged from introducing additional binary sysfs ABIs.
+
+		Reference interface guidance:
+		- include/uapi/linux/map_to_7segment.h
+
+What:		/sys/.../map_seg14
+Date:		January 2024
+KernelVersion:	6.9
+Description:
+		Read/write binary blob representing the ASCII-to-14-segment
+		display conversion table used by the linedisp driver, as defined
+		by struct seg14_conversion_map in <linux/map_to_14segment.h>.
+
+		Only visible on displays with 14-segment capability.
+
+		This attribute is not human-readable. Writes must match the
+		struct size exactly, else -EINVAL is returned; reads return the
+		entire mapping as a binary blob.
+
+		This interface and its implementation match existing conventions
+		used by segment-mapped display drivers since 2005.
+
+		ABI note: This style of binary sysfs attribute *is an exception*
+		to current "one value per file, text only" sysfs rules, for
+		historical compatibility and driver uniformity. New drivers are
+		discouraged from introducing additional binary sysfs ABIs.
+
+		Reference interface guidance:
+		- include/uapi/linux/map_to_14segment.h
