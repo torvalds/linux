@@ -722,21 +722,23 @@ static int wq_wait_for_space(struct xe_exec_queue *q, u32 wqi_size)
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
 	struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
-	unsigned int sleep_period_ms = 1;
+	unsigned int sleep_period_ms = 1, sleep_total_ms = 0;
 
 #define AVAILABLE_SPACE \
 	CIRC_SPACE(q->guc->wqi_tail, q->guc->wqi_head, WQ_SIZE)
 	if (wqi_size > AVAILABLE_SPACE && !vf_recovery(guc)) {
 try_again:
 		q->guc->wqi_head = parallel_read(xe, map, wq_desc.head);
-		if (wqi_size > AVAILABLE_SPACE) {
-			if (sleep_period_ms == 1024) {
+		if (wqi_size > AVAILABLE_SPACE && !vf_recovery(guc)) {
+			if (sleep_total_ms > 2000) {
 				xe_gt_reset_async(q->gt);
 				return -ENODEV;
 			}
 
 			msleep(sleep_period_ms);
-			sleep_period_ms <<= 1;
+			sleep_total_ms += sleep_period_ms;
+			if (sleep_period_ms < 64)
+				sleep_period_ms <<= 1;
 			goto try_again;
 		}
 	}
