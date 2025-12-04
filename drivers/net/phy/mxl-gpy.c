@@ -30,6 +30,9 @@
 #define PHY_ID_GPY241B		0x67C9DE40
 #define PHY_ID_GPY241BM		0x67C9DE80
 #define PHY_ID_GPY245B		0x67C9DEC0
+#define PHY_ID_MXL86211C	0xC1335400
+#define PHY_ID_MXL86252		0xC1335520
+#define PHY_ID_MXL86282		0xC1335500
 
 #define PHY_CTL1		0x13
 #define PHY_CTL1_MDICD		BIT(3)
@@ -199,6 +202,29 @@ static int gpy_hwmon_read(struct device *dev,
 	return 0;
 }
 
+static int mxl862x2_hwmon_read(struct device *dev,
+			       enum hwmon_sensor_types type,
+			       u32 attr, int channel, long *value)
+{
+	struct phy_device *phydev = dev_get_drvdata(dev);
+	long tmp;
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_TEMP_STA);
+	if (ret < 0)
+		return ret;
+	if (!ret)
+		return -ENODATA;
+
+	tmp = (s16)ret;
+	tmp *= 78125;
+	tmp /= 10000;
+
+	*value = tmp;
+
+	return 0;
+}
+
 static umode_t gpy_hwmon_is_visible(const void *data,
 				    enum hwmon_sensor_types type,
 				    u32 attr, int channel)
@@ -216,19 +242,35 @@ static const struct hwmon_ops gpy_hwmon_hwmon_ops = {
 	.read		= gpy_hwmon_read,
 };
 
+static const struct hwmon_ops mxl862x2_hwmon_hwmon_ops = {
+	.is_visible	= gpy_hwmon_is_visible,
+	.read		= mxl862x2_hwmon_read,
+};
+
 static const struct hwmon_chip_info gpy_hwmon_chip_info = {
 	.ops		= &gpy_hwmon_hwmon_ops,
+	.info		= gpy_hwmon_info,
+};
+
+static const struct hwmon_chip_info mxl862x2_hwmon_chip_info = {
+	.ops		= &mxl862x2_hwmon_hwmon_ops,
 	.info		= gpy_hwmon_info,
 };
 
 static int gpy_hwmon_register(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
+	const struct hwmon_chip_info *info;
 	struct device *hwmon_dev;
 
+	if (phy_id_compare_model(phydev->phy_id, PHY_ID_MXL86252) ||
+	    phy_id_compare_model(phydev->phy_id, PHY_ID_MXL86282))
+		info = &mxl862x2_hwmon_chip_info;
+	else
+		info = &gpy_hwmon_chip_info;
+
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, NULL, phydev,
-							 &gpy_hwmon_chip_info,
-							 NULL);
+							 info, NULL);
 
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
@@ -1272,6 +1314,72 @@ static struct phy_driver gpy_drivers[] = {
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy_loopback,
 	},
+	{
+		PHY_ID_MATCH_MODEL(PHY_ID_MXL86211C),
+		.name		= "Maxlinear Ethernet MxL86211C",
+		.get_features	= genphy_c45_pma_read_abilities,
+		.config_init	= gpy_config_init,
+		.probe		= gpy_probe,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.config_aneg	= gpy_config_aneg,
+		.aneg_done	= genphy_c45_aneg_done,
+		.read_status	= gpy_read_status,
+		.config_intr	= gpy_config_intr,
+		.handle_interrupt = gpy_handle_interrupt,
+		.set_wol	= gpy_set_wol,
+		.get_wol	= gpy_get_wol,
+		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
+	},
+	{
+		PHY_ID_MATCH_MODEL(PHY_ID_MXL86252),
+		.name		= "MaxLinear Ethernet MxL86252",
+		.get_features	= genphy_c45_pma_read_abilities,
+		.config_init	= gpy_config_init,
+		.probe		= gpy_probe,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.config_aneg	= gpy_config_aneg,
+		.aneg_done	= genphy_c45_aneg_done,
+		.read_status	= gpy_read_status,
+		.config_intr	= gpy_config_intr,
+		.handle_interrupt = gpy_handle_interrupt,
+		.set_wol	= gpy_set_wol,
+		.get_wol	= gpy_get_wol,
+		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
+	},
+	{
+		PHY_ID_MATCH_MODEL(PHY_ID_MXL86282),
+		.name		= "MaxLinear Ethernet MxL86282",
+		.get_features	= genphy_c45_pma_read_abilities,
+		.config_init	= gpy_config_init,
+		.probe		= gpy_probe,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.config_aneg	= gpy_config_aneg,
+		.aneg_done	= genphy_c45_aneg_done,
+		.read_status	= gpy_read_status,
+		.config_intr	= gpy_config_intr,
+		.handle_interrupt = gpy_handle_interrupt,
+		.set_wol	= gpy_set_wol,
+		.get_wol	= gpy_get_wol,
+		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
+	},
 };
 module_phy_driver(gpy_drivers);
 
@@ -1288,6 +1396,9 @@ static const struct mdio_device_id __maybe_unused gpy_tbl[] = {
 	{PHY_ID_MATCH_MODEL(PHY_ID_GPY241B)},
 	{PHY_ID_MATCH_MODEL(PHY_ID_GPY241BM)},
 	{PHY_ID_MATCH_MODEL(PHY_ID_GPY245B)},
+	{PHY_ID_MATCH_MODEL(PHY_ID_MXL86211C)},
+	{PHY_ID_MATCH_MODEL(PHY_ID_MXL86252)},
+	{PHY_ID_MATCH_MODEL(PHY_ID_MXL86282)},
 	{ }
 };
 MODULE_DEVICE_TABLE(mdio, gpy_tbl);

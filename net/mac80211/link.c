@@ -23,9 +23,6 @@ static void ieee80211_update_apvlan_links(struct ieee80211_sub_if_data *sdata)
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 		int link_id;
 
-		if (!vlan)
-			continue;
-
 		/* No support for 4addr with MLO yet */
 		if (vlan->wdev.use_4addr)
 			return;
@@ -119,8 +116,6 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 			ieee80211_color_change_finalize_work);
 	wiphy_delayed_work_init(&link->color_collision_detect_work,
 				ieee80211_color_collision_detection_work);
-	INIT_LIST_HEAD(&link->assigned_chanctx_list);
-	INIT_LIST_HEAD(&link->reserved_chanctx_list);
 	wiphy_delayed_work_init(&link->dfs_cac_timer_work,
 				ieee80211_dfs_cac_timer_work);
 

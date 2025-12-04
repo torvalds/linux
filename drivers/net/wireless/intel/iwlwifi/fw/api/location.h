@@ -1092,7 +1092,7 @@ struct iwl_tof_range_req_ap_entry {
 } __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_9 */
 
 /**
- * enum iwl_tof_response_mode
+ * enum iwl_tof_response_mode - TOF response mode
  * @IWL_MVM_TOF_RESPONSE_ASAP: report each AP measurement separately as soon as
  *			       possible (not supported for this release)
  * @IWL_MVM_TOF_RESPONSE_TIMEOUT: report all AP measurements as a batch upon
@@ -1108,7 +1108,7 @@ enum iwl_tof_response_mode {
 };
 
 /**
- * enum iwl_tof_initiator_flags
+ * enum iwl_tof_initiator_flags - TOF initiator flags
  *
  * @IWL_TOF_INITIATOR_FLAGS_FAST_ALGO_DISABLED: disable fast algo, meaning run
  *	the algo on ant A+B, instead of only one of them.
@@ -1409,7 +1409,7 @@ enum iwl_tof_range_request_status {
 };
 
 /**
- * enum iwl_tof_entry_status
+ * enum iwl_tof_entry_status - TOF entry status
  *
  * @IWL_TOF_ENTRY_SUCCESS: successful measurement.
  * @IWL_TOF_ENTRY_GENERAL_FAILURE: General failure.
@@ -1856,7 +1856,7 @@ struct iwl_tof_mcsi_notif {
 } __packed;
 
 /**
- * struct iwl_tof_range_abort_cmd
+ * struct iwl_tof_range_abort_cmd - TOF range abort command
  * @request_id: corresponds to a range request
  * @reserved: reserved
  */

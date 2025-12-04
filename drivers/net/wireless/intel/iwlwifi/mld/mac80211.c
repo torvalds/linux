@@ -23,6 +23,7 @@
 #include "roc.h"
 #include "mlo.h"
 #include "stats.h"
+#include "iwl-nvm-parse.h"
 #include "ftm-initiator.h"
 #include "low_latency.h"
 #include "fw/api/scan.h"
@@ -75,13 +76,12 @@ iwl_mld_iface_combinations[] = {
 	},
 };
 
-static const u8 if_types_ext_capa_sta[] = {
-	 [0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
-	 [2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
-	 [7] = WLAN_EXT_CAPA8_OPMODE_NOTIF |
-	       WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB,
-	 [8] = WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB,
-	 [9] = WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT,
+static const u8 ext_capa_base[IWL_MLD_STA_EXT_CAPA_SIZE] = {
+	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
+	[2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
+	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF |
+	      WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB,
+	[8] = WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB,
 };
 
 #define IWL_MLD_EMLSR_CAPA	(IEEE80211_EML_CAP_EMLSR_SUPP | \
@@ -93,18 +93,6 @@ static const u8 if_types_ext_capa_sta[] = {
 			IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP, \
 			IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_SAME) | \
 			IEEE80211_MLD_CAP_OP_LINK_RECONF_SUPPORT)
-
-static const struct wiphy_iftype_ext_capab iftypes_ext_capa[] = {
-	{
-		.iftype = NL80211_IFTYPE_STATION,
-		.extended_capabilities = if_types_ext_capa_sta,
-		.extended_capabilities_mask = if_types_ext_capa_sta,
-		.extended_capabilities_len = sizeof(if_types_ext_capa_sta),
-		/* relevant only if EHT is supported */
-		.eml_capabilities = IWL_MLD_EMLSR_CAPA,
-		.mld_capa_and_ops = IWL_MLD_CAPA_OPS,
-	},
-};
 
 static void iwl_mld_hw_set_addresses(struct iwl_mld *mld)
 {
@@ -335,21 +323,37 @@ static void iwl_mac_hw_set_wiphy(struct iwl_mld *mld)
 	if (fw_has_capa(ucode_capa, IWL_UCODE_TLV_CAPA_PROTECTED_TWT))
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_PROTECTED_TWT);
 
-	wiphy->iftype_ext_capab = NULL;
-	wiphy->num_iftype_ext_capab = 0;
-
-	if (!iwlwifi_mod_params.disable_11ax) {
-		wiphy->iftype_ext_capab = iftypes_ext_capa;
-		wiphy->num_iftype_ext_capab = ARRAY_SIZE(iftypes_ext_capa);
-
-		ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
-		ieee80211_hw_set(hw, SUPPORTS_ONLY_HE_MULTI_BSSID);
-	}
-
 	if (iwlmld_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
 		wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
 	else
 		wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+
+	/* We are done for non-HE */
+	if (iwlwifi_mod_params.disable_11ax)
+		return;
+
+	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+	ieee80211_hw_set(hw, SUPPORTS_ONLY_HE_MULTI_BSSID);
+
+	wiphy->iftype_ext_capab = mld->ext_capab;
+	wiphy->num_iftype_ext_capab = ARRAY_SIZE(mld->ext_capab);
+
+	BUILD_BUG_ON(sizeof(mld->sta_ext_capab) < sizeof(ext_capa_base));
+
+	memcpy(mld->sta_ext_capab, ext_capa_base, sizeof(ext_capa_base));
+
+	mld->ext_capab[0].iftype = NL80211_IFTYPE_STATION;
+	mld->ext_capab[0].extended_capabilities = mld->sta_ext_capab;
+	mld->ext_capab[0].extended_capabilities_mask = mld->sta_ext_capab;
+	mld->ext_capab[0].extended_capabilities_len = sizeof(mld->sta_ext_capab);
+
+	if (!mld->nvm_data->sku_cap_11be_enable ||
+	    iwlwifi_mod_params.disable_11be)
+		return;
+
+	mld->ext_capab[0].eml_capabilities = IWL_MLD_EMLSR_CAPA;
+	mld->ext_capab[0].mld_capa_and_ops = IWL_MLD_CAPA_OPS;
+
 }
 
 static void iwl_mac_hw_set_misc(struct iwl_mld *mld)
@@ -393,11 +397,9 @@ static int iwl_mld_hw_verify_preconditions(struct iwl_mld *mld)
 					 TLC_MNG_UPDATE_NOTIF, 0) >= 4) +
 		(iwl_fw_lookup_notif_ver(mld->fw, LEGACY_GROUP,
 					 REPLY_RX_MPDU_CMD, 0) >= 6) +
-		(iwl_fw_lookup_notif_ver(mld->fw, DATA_PATH_GROUP,
-					 RX_NO_DATA_NOTIF, 0) >= 4) +
 		(iwl_fw_lookup_notif_ver(mld->fw, LONG_GROUP, TX_CMD, 0) >= 9);
 
-	if (ratecheck != 0 && ratecheck != 5) {
+	if (ratecheck != 0 && ratecheck != 4) {
 		IWL_ERR(mld, "Firmware has inconsistent rates\n");
 		return -EINVAL;
 	}
@@ -680,6 +682,8 @@ void iwl_mld_mac80211_remove_interface(struct ieee80211_hw *hw,
 #endif
 
 	iwl_mld_rm_vif(mld, vif);
+
+	mld->monitor.phy.valid = false;
 }
 
 struct iwl_mld_mc_iter_data {
@@ -2591,11 +2595,44 @@ iwl_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return NEG_TTLM_RES_ACCEPT;
 }
 
+static int iwl_mld_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+			       u32 *tx_ant, u32 *rx_ant)
+{
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+
+	*tx_ant = iwl_mld_get_valid_tx_ant(mld);
+	*rx_ant = iwl_mld_get_valid_rx_ant(mld);
+
+	return 0;
+}
+
+static int iwl_mld_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+			       u32 tx_ant, u32 rx_ant)
+{
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+
+	if (WARN_ON(!mld->nvm_data))
+		return -EBUSY;
+
+	/* mac80211 ensures the device is not started,
+	 * so the firmware cannot be running
+	 */
+
+	mld->set_tx_ant = tx_ant;
+	mld->set_rx_ant = rx_ant;
+
+	iwl_reinit_cab(mld->trans, mld->nvm_data, tx_ant, rx_ant, mld->fw);
+
+	return 0;
+}
+
 const struct ieee80211_ops iwl_mld_hw_ops = {
 	.tx = iwl_mld_mac80211_tx,
 	.start = iwl_mld_mac80211_start,
 	.stop = iwl_mld_mac80211_stop,
 	.config = iwl_mld_mac80211_config,
+	.get_antenna = iwl_mld_get_antenna,
+	.set_antenna = iwl_mld_set_antenna,
 	.add_interface = iwl_mld_mac80211_add_interface,
 	.remove_interface = iwl_mld_mac80211_remove_interface,
 	.conf_tx = iwl_mld_mac80211_conf_tx,

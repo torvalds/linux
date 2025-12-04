@@ -642,7 +642,9 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud
 		snprintf(postfix, sizeof(postfix), "-%4.4x-%4.4x", vid, pid);
 	}
 
-	fw_name = kmalloc(BCM_FW_NAME_COUNT_MAX * BCM_FW_NAME_LEN, GFP_KERNEL);
+	fw_name = kmalloc_array(BCM_FW_NAME_COUNT_MAX,
+		sizeof(*fw_name),
+		GFP_KERNEL);
 	if (!fw_name)
 		return -ENOMEM;
 

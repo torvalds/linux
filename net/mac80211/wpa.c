@@ -828,12 +828,14 @@ static inline void bip_ipn_swap(u8 *d, const u8 *s)
 
 
 ieee80211_tx_result
-ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
+ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx,
+				  unsigned int mic_len)
 {
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_key *key = tx->key;
-	struct ieee80211_mmie *mmie;
+	struct ieee80211_mmie_var *mmie;
+	size_t mmie_len;
 	u8 aad[20];
 	u64 pn64;
 
@@ -848,12 +850,14 @@ ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
 	    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIE))
 		return TX_CONTINUE;
 
-	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
+	mmie_len = sizeof(*mmie) + mic_len;
+
+	if (WARN_ON(skb_tailroom(skb) < mmie_len))
 		return TX_DROP;
 
-	mmie = skb_put(skb, sizeof(*mmie));
+	mmie = skb_put(skb, mmie_len);
 	mmie->element_id = WLAN_EID_MMIE;
-	mmie->length = sizeof(*mmie) - 2;
+	mmie->length = mmie_len - 2;
 	mmie->key_id = cpu_to_le16(key->conf.keyidx);
 
 	/* PN = PN + 1 */
@@ -866,84 +870,40 @@ ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
 
 	bip_aad(skb, aad);
 
-	/*
-	 * MIC = AES-128-CMAC(IGTK, AAD || Management Frame Body || MMIE, 64)
-	 */
-	ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
-			   skb->data + 24, skb->len - 24, mmie->mic);
-
-	return TX_CONTINUE;
-}
-
-ieee80211_tx_result
-ieee80211_crypto_aes_cmac_256_encrypt(struct ieee80211_tx_data *tx)
-{
-	struct sk_buff *skb;
-	struct ieee80211_tx_info *info;
-	struct ieee80211_key *key = tx->key;
-	struct ieee80211_mmie_16 *mmie;
-	u8 aad[20];
-	u64 pn64;
-
-	if (WARN_ON(skb_queue_len(&tx->skbs) != 1))
+	if (ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
+			       skb->data + 24, skb->len - 24,
+			       mmie->mic, mic_len))
 		return TX_DROP;
-
-	skb = skb_peek(&tx->skbs);
-
-	info = IEEE80211_SKB_CB(skb);
-
-	if (info->control.hw_key &&
-	    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIE))
-		return TX_CONTINUE;
-
-	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
-		return TX_DROP;
-
-	mmie = skb_put(skb, sizeof(*mmie));
-	mmie->element_id = WLAN_EID_MMIE;
-	mmie->length = sizeof(*mmie) - 2;
-	mmie->key_id = cpu_to_le16(key->conf.keyidx);
-
-	/* PN = PN + 1 */
-	pn64 = atomic64_inc_return(&key->conf.tx_pn);
-
-	bip_ipn_set64(mmie->sequence_number, pn64);
-
-	if (info->control.hw_key)
-		return TX_CONTINUE;
-
-	bip_aad(skb, aad);
-
-	/* MIC = AES-256-CMAC(IGTK, AAD || Management Frame Body || MMIE, 128)
-	 */
-	ieee80211_aes_cmac_256(key->u.aes_cmac.tfm, aad,
-			       skb->data + 24, skb->len - 24, mmie->mic);
 
 	return TX_CONTINUE;
 }
 
 ieee80211_rx_result
-ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
+ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx,
+				  unsigned int mic_len)
 {
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_key *key = rx->key;
-	struct ieee80211_mmie *mmie;
-	u8 aad[20], mic[8], ipn[6];
+	struct ieee80211_mmie_var *mmie;
+	size_t mmie_len;
+	u8 aad[20], mic[IEEE80211_CMAC_256_MIC_LEN], ipn[6];
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
 	if (!ieee80211_is_mgmt(hdr->frame_control))
 		return RX_CONTINUE;
 
+	mmie_len = sizeof(*mmie) + mic_len;
+
 	/* management frames are already linear */
 
-	if (skb->len < 24 + sizeof(*mmie))
-		return RX_DROP_U_SHORT_CMAC;
+	if (skb->len < 24 + mmie_len)
+		return mic_len == IEEE80211_CMAC_128_MIC_LEN ?
+			RX_DROP_U_SHORT_CMAC : RX_DROP_U_SHORT_CMAC256;
 
-	mmie = (struct ieee80211_mmie *)
-		(skb->data + skb->len - sizeof(*mmie));
+	mmie = (struct ieee80211_mmie_var *)(skb->data + skb->len - mmie_len);
 	if (mmie->element_id != WLAN_EID_MMIE ||
-	    mmie->length != sizeof(*mmie) - 2)
+	    mmie->length != mmie_len - 2)
 		return RX_DROP_U_BAD_MMIE; /* Invalid MMIE */
 
 	bip_ipn_swap(ipn, mmie->sequence_number);
@@ -956,9 +916,11 @@ ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
 		/* hardware didn't decrypt/verify MIC */
 		bip_aad(skb, aad);
-		ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
-				   skb->data + 24, skb->len - 24, mic);
-		if (crypto_memneq(mic, mmie->mic, sizeof(mmie->mic))) {
+		if (ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
+				       skb->data + 24, skb->len - 24,
+				       mic, mic_len))
+			return RX_DROP_U_DECRYPT_FAIL;
+		if (crypto_memneq(mic, mmie->mic, mic_len)) {
 			key->u.aes_cmac.icverrors++;
 			return RX_DROP_U_MIC_FAIL;
 		}
@@ -967,57 +929,7 @@ ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
 	memcpy(key->u.aes_cmac.rx_pn, ipn, 6);
 
 	/* Remove MMIE */
-	skb_trim(skb, skb->len - sizeof(*mmie));
-
-	return RX_CONTINUE;
-}
-
-ieee80211_rx_result
-ieee80211_crypto_aes_cmac_256_decrypt(struct ieee80211_rx_data *rx)
-{
-	struct sk_buff *skb = rx->skb;
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_key *key = rx->key;
-	struct ieee80211_mmie_16 *mmie;
-	u8 aad[20], mic[16], ipn[6];
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-
-	if (!ieee80211_is_mgmt(hdr->frame_control))
-		return RX_CONTINUE;
-
-	/* management frames are already linear */
-
-	if (skb->len < 24 + sizeof(*mmie))
-		return RX_DROP_U_SHORT_CMAC256;
-
-	mmie = (struct ieee80211_mmie_16 *)
-		(skb->data + skb->len - sizeof(*mmie));
-	if (mmie->element_id != WLAN_EID_MMIE ||
-	    mmie->length != sizeof(*mmie) - 2)
-		return RX_DROP_U_BAD_MMIE; /* Invalid MMIE */
-
-	bip_ipn_swap(ipn, mmie->sequence_number);
-
-	if (memcmp(ipn, key->u.aes_cmac.rx_pn, 6) <= 0) {
-		key->u.aes_cmac.replays++;
-		return RX_DROP_U_REPLAY;
-	}
-
-	if (!(status->flag & RX_FLAG_DECRYPTED)) {
-		/* hardware didn't decrypt/verify MIC */
-		bip_aad(skb, aad);
-		ieee80211_aes_cmac_256(key->u.aes_cmac.tfm, aad,
-				       skb->data + 24, skb->len - 24, mic);
-		if (crypto_memneq(mic, mmie->mic, sizeof(mmie->mic))) {
-			key->u.aes_cmac.icverrors++;
-			return RX_DROP_U_MIC_FAIL;
-		}
-	}
-
-	memcpy(key->u.aes_cmac.rx_pn, ipn, 6);
-
-	/* Remove MMIE */
-	skb_trim(skb, skb->len - sizeof(*mmie));
+	skb_trim(skb, skb->len - mmie_len);
 
 	return RX_CONTINUE;
 }
@@ -1113,7 +1025,7 @@ ieee80211_crypto_aes_gmac_decrypt(struct ieee80211_rx_data *rx)
 		memcpy(nonce, hdr->addr2, ETH_ALEN);
 		memcpy(nonce + ETH_ALEN, ipn, 6);
 
-		mic = kmalloc(GMAC_MIC_LEN, GFP_ATOMIC);
+		mic = kmalloc(IEEE80211_GMAC_MIC_LEN, GFP_ATOMIC);
 		if (!mic)
 			return RX_DROP_U_OOM;
 		if (ieee80211_aes_gmac(key->u.aes_gmac.tfm, aad, nonce,

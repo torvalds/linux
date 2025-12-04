@@ -878,11 +878,11 @@ msg_err:
  * @fbd: FBNIC device structure
  * @cmpl_data: Completion struct to store coredump
  * @offset: Offset into coredump requested
- * @length: Length of section of cordeump to fetch
+ * @length: Length of section of coredump to fetch
  *
  * Return: zero on success, negative errno on failure
  *
- * Asks the firmware to provide a section of the cordeump back in a message.
+ * Asks the firmware to provide a section of the coredump back in a message.
  * The response will have an offset and size matching the values provided.
  */
 int fbnic_fw_xmit_coredump_read_msg(struct fbnic_dev *fbd,
@@ -1868,7 +1868,7 @@ int fbnic_fw_xmit_rpc_macda_sync(struct fbnic_dev *fbd)
 	if (err)
 		goto free_message;
 
-	/* Send message of to FW notifying it of current RPC config */
+	/* Send message off to FW notifying it of current RPC config */
 	err = fbnic_mbx_map_tlv_msg(fbd, msg);
 	if (err)
 		goto free_message;

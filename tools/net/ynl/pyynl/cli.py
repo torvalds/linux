@@ -7,9 +7,10 @@ import os
 import pathlib
 import pprint
 import sys
+import textwrap
 
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
-from lib import YnlFamily, Netlink, NlError
+from lib import YnlFamily, Netlink, NlError, SpecFamily
 
 sys_schema_dir='/usr/share/ynl'
 relative_schema_dir='../../../../Documentation/netlink'
@@ -37,6 +38,60 @@ class YnlEncoder(json.JSONEncoder):
         if isinstance(obj, set):
             return list(obj)
         return json.JSONEncoder.default(self, obj)
+
+
+def print_attr_list(ynl, attr_names, attr_set, indent=2):
+    """Print a list of attributes with their types and documentation."""
+    prefix = ' ' * indent
+    for attr_name in attr_names:
+        if attr_name in attr_set.attrs:
+            attr = attr_set.attrs[attr_name]
+            attr_info = f'{prefix}- {attr_name}: {attr.type}'
+            if 'enum' in attr.yaml:
+                enum_name = attr.yaml['enum']
+                attr_info += f" (enum: {enum_name})"
+                # Print enum values if available
+                if enum_name in ynl.consts:
+                    const = ynl.consts[enum_name]
+                    enum_values = list(const.entries.keys())
+                    attr_info += f"\n{prefix}  {const.type.capitalize()}: {', '.join(enum_values)}"
+
+            # Show nested attributes reference and recursively display them
+            nested_set_name = None
+            if attr.type == 'nest' and 'nested-attributes' in attr.yaml:
+                nested_set_name = attr.yaml['nested-attributes']
+                attr_info += f" -> {nested_set_name}"
+
+            if attr.yaml.get('doc'):
+                doc_text = textwrap.indent(attr.yaml['doc'], prefix + '  ')
+                attr_info += f"\n{doc_text}"
+            print(attr_info)
+
+            # Recursively show nested attributes
+            if nested_set_name in ynl.attr_sets:
+                nested_set = ynl.attr_sets[nested_set_name]
+                # Filter out 'unspec' and other unused attrs
+                nested_names = [n for n in nested_set.attrs.keys()
+                                if nested_set.attrs[n].type != 'unused']
+                if nested_names:
+                    print_attr_list(ynl, nested_names, nested_set, indent + 4)
+
+
+def print_mode_attrs(ynl, mode, mode_spec, attr_set, print_request=True):
+    """Print a given mode (do/dump/event/notify)."""
+    mode_title = mode.capitalize()
+
+    if print_request and 'request' in mode_spec and 'attributes' in mode_spec['request']:
+        print(f'\n{mode_title} request attributes:')
+        print_attr_list(ynl, mode_spec['request']['attributes'], attr_set)
+
+    if 'reply' in mode_spec and 'attributes' in mode_spec['reply']:
+        print(f'\n{mode_title} reply attributes:')
+        print_attr_list(ynl, mode_spec['reply']['attributes'], attr_set)
+
+    if 'attributes' in mode_spec:
+        print(f'\n{mode_title} attributes:')
+        print_attr_list(ynl, mode_spec['attributes'], attr_set)
 
 
 def main():
@@ -70,6 +125,9 @@ def main():
     group.add_argument('--dump', dest='dump', metavar='DUMP-OPERATION', type=str)
     group.add_argument('--list-ops', action='store_true')
     group.add_argument('--list-msgs', action='store_true')
+    group.add_argument('--list-attrs', dest='list_attrs', metavar='OPERATION', type=str,
+                       help='List attributes for an operation')
+    group.add_argument('--validate', action='store_true')
 
     parser.add_argument('--duration', dest='duration', type=int,
                         help='when subscribed, watch for DURATION seconds')
@@ -111,14 +169,24 @@ def main():
 
     if args.family:
         spec = f"{spec_dir()}/{args.family}.yaml"
-        if args.schema is None and spec.startswith(sys_schema_dir):
-            args.schema = '' # disable schema validation when installed
-        if args.process_unknown is None:
-            args.process_unknown = True
     else:
         spec = args.spec
     if not os.path.isfile(spec):
         raise Exception(f"Spec file {spec} does not exist")
+
+    if args.validate:
+        try:
+            SpecFamily(spec, args.schema)
+        except Exception as error:
+            print(error)
+            exit(1)
+        return
+
+    if args.family: # set behaviour when using installed specs
+        if args.schema is None and spec.startswith(sys_schema_dir):
+            args.schema = '' # disable schema validation when installed
+        if args.process_unknown is None:
+            args.process_unknown = True
 
     ynl = YnlFamily(spec, args.schema, args.process_unknown,
                     recv_size=args.dbg_small_recv)
@@ -134,6 +202,28 @@ def main():
     if args.list_msgs:
         for op_name, op in ynl.msgs.items():
             print(op_name, " [", ", ".join(op.modes), "]")
+
+    if args.list_attrs:
+        op = ynl.msgs.get(args.list_attrs)
+        if not op:
+            print(f'Operation {args.list_attrs} not found')
+            exit(1)
+
+        print(f'Operation: {op.name}')
+        print(op.yaml['doc'])
+
+        for mode in ['do', 'dump', 'event']:
+            if mode in op.yaml:
+                print_mode_attrs(ynl, mode, op.yaml[mode], op.attr_set, True)
+
+        if 'notify' in op.yaml:
+            mode_spec = op.yaml['notify']
+            ref_spec = ynl.msgs.get(mode_spec).yaml.get('do')
+            if ref_spec:
+                print_mode_attrs(ynl, 'notify', ref_spec, op.attr_set, False)
+
+        if 'mcgrp' in op.yaml:
+            print(f"\nMulticast group: {op.yaml['mcgrp']}")
 
     try:
         if args.do:

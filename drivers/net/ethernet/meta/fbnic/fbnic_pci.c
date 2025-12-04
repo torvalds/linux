@@ -185,7 +185,7 @@ static void fbnic_health_check(struct fbnic_dev *fbd)
 {
 	struct fbnic_fw_mbx *tx_mbx = &fbd->mbx[FBNIC_IPC_MBX_TX_IDX];
 
-	/* As long as the heart is beating the FW is healty */
+	/* As long as the heart is beating the FW is healthy */
 	if (fbd->fw_heartbeat_enabled)
 		return;
 
@@ -196,7 +196,7 @@ static void fbnic_health_check(struct fbnic_dev *fbd)
 	if (tx_mbx->head != tx_mbx->tail)
 		return;
 
-	fbnic_devlink_fw_report(fbd, "Firmware crashed detected!");
+	fbnic_devlink_fw_report(fbd, "Firmware crash detected!");
 	fbnic_devlink_otp_check(fbd, "error detected after firmware recovery");
 
 	if (fbnic_fw_config_after_crash(fbd))
@@ -207,6 +207,10 @@ static void fbnic_service_task(struct work_struct *work)
 {
 	struct fbnic_dev *fbd = container_of(to_delayed_work(work),
 					     struct fbnic_dev, service_task);
+	struct net_device *netdev = fbd->netdev;
+
+	if (netif_running(netdev))
+		fbnic_phylink_pmd_training_complete_notify(netdev);
 
 	rtnl_lock();
 
@@ -224,7 +228,7 @@ static void fbnic_service_task(struct work_struct *work)
 		netdev_unlock(fbd->netdev);
 	}
 
-	if (netif_running(fbd->netdev))
+	if (netif_running(netdev))
 		schedule_delayed_work(&fbd->service_task, HZ);
 
 	rtnl_unlock();
@@ -335,6 +339,9 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_failure_mode;
 	}
 
+	if (fbnic_mdiobus_create(fbd))
+		goto init_failure_mode;
+
 	netdev = fbnic_netdev_alloc(fbd);
 	if (!netdev) {
 		dev_err(&pdev->dev, "Netdev allocation failed\n");
@@ -378,7 +385,7 @@ free_fbd:
  * @pdev: PCI device information struct
  *
  * Called by the PCI subsystem to alert the driver that it should release
- * a PCI device.  The could be caused by a Hot-Plug event, or because the
+ * a PCI device.  This could be caused by a Hot-Plug event, or because the
  * driver is going to be removed from memory.
  **/
 static void fbnic_remove(struct pci_dev *pdev)

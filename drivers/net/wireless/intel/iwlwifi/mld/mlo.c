@@ -31,11 +31,9 @@ static void iwl_mld_print_emlsr_blocked(struct iwl_mld *mld, u32 mask)
 {
 #define NAME_FMT(x) "%s"
 #define NAME_PR(x) (mask & IWL_MLD_EMLSR_BLOCKED_##x) ? "[" #x "]" : "",
-	IWL_DEBUG_INFO(mld,
-		       "EMLSR blocked = " HANDLE_EMLSR_BLOCKED_REASONS(NAME_FMT)
-		       " (0x%x)\n",
-		       HANDLE_EMLSR_BLOCKED_REASONS(NAME_PR)
-		       mask);
+	IWL_DEBUG_EHT(mld,
+		      "EMLSR blocked = " HANDLE_EMLSR_BLOCKED_REASONS(NAME_FMT)
+		      " (0x%x)\n", HANDLE_EMLSR_BLOCKED_REASONS(NAME_PR) mask);
 #undef NAME_FMT
 #undef NAME_PR
 }
@@ -72,11 +70,9 @@ static void iwl_mld_print_emlsr_exit(struct iwl_mld *mld, u32 mask)
 {
 #define NAME_FMT(x) "%s"
 #define NAME_PR(x) (mask & IWL_MLD_EMLSR_EXIT_##x) ? "[" #x "]" : "",
-	IWL_DEBUG_INFO(mld,
-		       "EMLSR exit = " HANDLE_EMLSR_EXIT_REASONS(NAME_FMT)
-		       " (0x%x)\n",
-		       HANDLE_EMLSR_EXIT_REASONS(NAME_PR)
-		       mask);
+	IWL_DEBUG_EHT(mld,
+		      "EMLSR exit = " HANDLE_EMLSR_EXIT_REASONS(NAME_FMT)
+		      " (0x%x)\n", HANDLE_EMLSR_EXIT_REASONS(NAME_PR) mask);
 #undef NAME_FMT
 #undef NAME_PR
 }
@@ -170,10 +166,10 @@ static void iwl_mld_check_emlsr_prevention(struct iwl_mld *mld,
 		WARN_ON(mld_vif->emlsr.exit_repeat_count > 3);
 	}
 
-	IWL_DEBUG_INFO(mld,
-		       "Preventing EMLSR for %ld seconds due to %u exits with the reason = %s (0x%x)\n",
-		       delay / HZ, mld_vif->emlsr.exit_repeat_count,
-		       iwl_mld_get_emlsr_exit_string(reason), reason);
+	IWL_DEBUG_EHT(mld,
+		      "Preventing EMLSR for %ld seconds due to %u exits with the reason = %s (0x%x)\n",
+		      delay / HZ, mld_vif->emlsr.exit_repeat_count,
+		      iwl_mld_get_emlsr_exit_string(reason), reason);
 
 	wiphy_delayed_work_queue(mld->wiphy,
 				 &mld_vif->emlsr.prevent_done_wk, delay);
@@ -217,10 +213,10 @@ static int _iwl_mld_exit_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif,
 		link_to_keep = __ffs(vif->active_links);
 
 	new_active_links = BIT(link_to_keep);
-	IWL_DEBUG_INFO(mld,
-		       "Exiting EMLSR. reason = %s (0x%x). Current active links=0x%x, new active links = 0x%x\n",
-		       iwl_mld_get_emlsr_exit_string(exit), exit,
-		       vif->active_links, new_active_links);
+	IWL_DEBUG_EHT(mld,
+		      "Exiting EMLSR. reason = %s (0x%x). Current active links=0x%x, new active links = 0x%x\n",
+		      iwl_mld_get_emlsr_exit_string(exit), exit,
+		      vif->active_links, new_active_links);
 
 	if (sync)
 		ret = ieee80211_set_active_links(vif, new_active_links);
@@ -262,9 +258,8 @@ static int _iwl_mld_emlsr_block(struct iwl_mld *mld, struct ieee80211_vif *vif,
 
 	mld_vif->emlsr.blocked_reasons |= reason;
 
-	IWL_DEBUG_INFO(mld,
-		       "Blocking EMLSR mode. reason = %s (0x%x)\n",
-		       iwl_mld_get_emlsr_blocked_string(reason), reason);
+	IWL_DEBUG_EHT(mld, "Blocking EMLSR mode. reason = %s (0x%x)\n",
+		      iwl_mld_get_emlsr_blocked_string(reason), reason);
 	iwl_mld_print_emlsr_blocked(mld, mld_vif->emlsr.blocked_reasons);
 
 	if (reason == IWL_MLD_EMLSR_BLOCKED_TPT)
@@ -335,9 +330,8 @@ void iwl_mld_unblock_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif,
 
 	mld_vif->emlsr.blocked_reasons &= ~reason;
 
-	IWL_DEBUG_INFO(mld,
-		       "Unblocking EMLSR mode. reason = %s (0x%x)\n",
-		       iwl_mld_get_emlsr_blocked_string(reason), reason);
+	IWL_DEBUG_EHT(mld, "Unblocking EMLSR mode. reason = %s (0x%x)\n",
+		      iwl_mld_get_emlsr_blocked_string(reason), reason);
 	iwl_mld_print_emlsr_blocked(mld, mld_vif->emlsr.blocked_reasons);
 
 	if (reason == IWL_MLD_EMLSR_BLOCKED_TPT)
@@ -348,7 +342,7 @@ void iwl_mld_unblock_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif,
 	if (mld_vif->emlsr.blocked_reasons)
 		return;
 
-	IWL_DEBUG_INFO(mld, "EMLSR is unblocked\n");
+	IWL_DEBUG_EHT(mld, "EMLSR is unblocked\n");
 	iwl_mld_int_mlo_scan(mld, vif);
 }
 
@@ -365,18 +359,17 @@ iwl_mld_vif_iter_emlsr_mode_notif(void *data, u8 *mac,
 
 	switch (action) {
 	case ESR_RECOMMEND_LEAVE:
-		IWL_DEBUG_INFO(mld_vif->mld,
-			       "FW recommend leave reason = 0x%x\n",
-			       le32_to_cpu(notif->leave_reason_mask));
+		IWL_DEBUG_EHT(mld_vif->mld,
+			      "FW recommend leave reason = 0x%x\n",
+			      le32_to_cpu(notif->leave_reason_mask));
 
 		iwl_mld_exit_emlsr(mld_vif->mld, vif,
 				   IWL_MLD_EMLSR_EXIT_FW_REQUEST,
 				   iwl_mld_get_primary_link(vif));
 		break;
 	case ESR_FORCE_LEAVE:
-		IWL_DEBUG_INFO(mld_vif->mld,
-			       "FW force leave reason = 0x%x\n",
-			       le32_to_cpu(notif->leave_reason_mask));
+		IWL_DEBUG_EHT(mld_vif->mld, "FW force leave reason = 0x%x\n",
+			      le32_to_cpu(notif->leave_reason_mask));
 		fallthrough;
 	case ESR_RECOMMEND_ENTER:
 	default:
@@ -412,11 +405,12 @@ void iwl_mld_handle_emlsr_trans_fail_notif(struct iwl_mld *mld,
 	struct ieee80211_bss_conf *bss_conf =
 		iwl_mld_fw_id_to_link_conf(mld, fw_link_id);
 
-	IWL_DEBUG_INFO(mld, "Failed to %s EMLSR on link %d (FW: %d), reason %d\n",
-		       le32_to_cpu(notif->activation) ? "enter" : "exit",
-		       bss_conf ? bss_conf->link_id : -1,
-		       le32_to_cpu(notif->link_id),
-		       le32_to_cpu(notif->err_code));
+	IWL_DEBUG_EHT(mld,
+		      "Failed to %s EMLSR on link %d (FW: %d), reason %d\n",
+		      le32_to_cpu(notif->activation) ? "enter" : "exit",
+		      bss_conf ? bss_conf->link_id : -1,
+		      le32_to_cpu(notif->link_id),
+		      le32_to_cpu(notif->err_code));
 
 	if (IWL_FW_CHECK(mld, !bss_conf,
 			 "FW reported failure to %sactivate EMLSR on a non-existing link: %d\n",
@@ -590,8 +584,8 @@ void iwl_mld_emlsr_check_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
 		spin_unlock_bh(&queue_counter->lock);
 	}
 
-	IWL_DEBUG_INFO(mld, "total Tx MPDUs: %ld. total Rx MPDUs: %ld\n",
-		       total_tx, total_rx);
+	IWL_DEBUG_EHT(mld, "total Tx MPDUs: %ld. total Rx MPDUs: %ld\n",
+		      total_tx, total_rx);
 
 	/* If we don't have enough MPDUs - exit EMLSR */
 	if (total_tx < IWL_MLD_ENTER_EMLSR_TPT_THRESH &&
@@ -603,10 +597,10 @@ void iwl_mld_emlsr_check_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
 
 	/* EMLSR is not active */
 	if (sec_link_id == -1)
-		return;
+		goto schedule;
 
-	IWL_DEBUG_INFO(mld, "Secondary Link %d: Tx MPDUs: %ld. Rx MPDUs: %ld\n",
-		       sec_link_id, sec_link_tx, sec_link_rx);
+	IWL_DEBUG_EHT(mld, "Secondary Link %d: Tx MPDUs: %ld. Rx MPDUs: %ld\n",
+		      sec_link_id, sec_link_tx, sec_link_rx);
 
 	/* Calculate the percentage of the secondary link TX/RX */
 	sec_link_tx_perc = total_tx ? sec_link_tx * 100 / total_tx : 0;
@@ -625,6 +619,7 @@ void iwl_mld_emlsr_check_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
 		return;
 	}
 
+schedule:
 	/* Check again when the next window ends  */
 	wiphy_delayed_work_queue(mld_vif->mld->wiphy,
 				 &mld_vif->emlsr.check_tpt_wk,
@@ -702,10 +697,8 @@ iwl_mld_emlsr_disallowed_with_link(struct iwl_mld *mld,
 		ret |= IWL_MLD_EMLSR_EXIT_CSA;
 
 	if (ret) {
-		IWL_DEBUG_INFO(mld,
-			       "Link %d is not allowed for EMLSR as %s\n",
-			       link->link_id,
-			       primary ? "primary" : "secondary");
+		IWL_DEBUG_EHT(mld, "Link %d is not allowed for EMLSR as %s\n",
+			      link->link_id, primary ? "primary" : "secondary");
 		iwl_mld_print_emlsr_exit(mld, ret);
 	}
 
@@ -869,13 +862,12 @@ iwl_mld_emlsr_pair_state(struct ieee80211_vif *vif,
 		reason_mask |= IWL_MLD_EMLSR_EXIT_CHAN_LOAD;
 
 	if (reason_mask) {
-		IWL_DEBUG_INFO(mld,
-			       "Links %d and %d are not a valid pair for EMLSR\n",
-			       a->link_id, b->link_id);
-		IWL_DEBUG_INFO(mld,
-			       "Links bandwidth are: %d and %d\n",
-			       nl80211_chan_width_to_mhz(a->chandef->width),
-			       nl80211_chan_width_to_mhz(b->chandef->width));
+		IWL_DEBUG_EHT(mld,
+			      "Links %d and %d are not a valid pair for EMLSR\n",
+			      a->link_id, b->link_id);
+		IWL_DEBUG_EHT(mld, "Links bandwidth are: %d and %d\n",
+			      nl80211_chan_width_to_mhz(a->chandef->width),
+			      nl80211_chan_width_to_mhz(b->chandef->width));
 		iwl_mld_print_emlsr_exit(mld, reason_mask);
 	}
 
@@ -993,8 +985,8 @@ static void _iwl_mld_select_links(struct iwl_mld *mld,
 	}
 
 set_active:
-	IWL_DEBUG_INFO(mld, "Link selection result: 0x%x. Primary = %d\n",
-		       new_active, new_primary);
+	IWL_DEBUG_EHT(mld, "Link selection result: 0x%x. Primary = %d\n",
+		      new_active, new_primary);
 
 	mld_vif->emlsr.selected_primary = new_primary;
 	mld_vif->emlsr.selected_links = new_active;

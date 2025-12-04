@@ -32,7 +32,7 @@ class cmd:
     Use bkg() instead to run a command in the background.
     """
     def __init__(self, comm, shell=None, fail=True, ns=None, background=False,
-                 host=None, timeout=5, ksft_wait=None):
+                 host=None, timeout=5, ksft_ready=None, ksft_wait=None):
         if ns:
             comm = f'ip netns exec {ns} ' + comm
 
@@ -52,21 +52,25 @@ class cmd:
             # ksft_wait lets us wait for the background process to fully start,
             # we pass an FD to the child process, and wait for it to write back.
             # Similarly term_fd tells child it's time to exit.
-            pass_fds = ()
+            pass_fds = []
             env = os.environ.copy()
             if ksft_wait is not None:
-                rfd, ready_fd = os.pipe()
                 wait_fd, self.ksft_term_fd = os.pipe()
-                pass_fds = (ready_fd, wait_fd, )
-                env["KSFT_READY_FD"] = str(ready_fd)
+                pass_fds.append(wait_fd)
                 env["KSFT_WAIT_FD"]  = str(wait_fd)
+                ksft_ready = True  # ksft_wait implies ready
+            if ksft_ready is not None:
+                rfd, ready_fd = os.pipe()
+                pass_fds.append(ready_fd)
+                env["KSFT_READY_FD"] = str(ready_fd)
 
             self.proc = subprocess.Popen(comm, shell=shell, stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE, pass_fds=pass_fds,
                                          env=env)
             if ksft_wait is not None:
-                os.close(ready_fd)
                 os.close(wait_fd)
+            if ksft_ready is not None:
+                os.close(ready_fd)
                 msg = fd_read_timeout(rfd, ksft_wait)
                 os.close(rfd)
                 if not msg:
@@ -116,10 +120,10 @@ class bkg(cmd):
         with bkg("my_binary", ksft_wait=5):
     """
     def __init__(self, comm, shell=None, fail=None, ns=None, host=None,
-                 exit_wait=False, ksft_wait=None):
+                 exit_wait=False, ksft_ready=None, ksft_wait=None):
         super().__init__(comm, background=True,
                          shell=shell, fail=fail, ns=ns, host=host,
-                         ksft_wait=ksft_wait)
+                         ksft_ready=ksft_ready, ksft_wait=ksft_wait)
         self.terminate = not exit_wait and not ksft_wait
         self._exit_wait = exit_wait
         self.check_fail = fail

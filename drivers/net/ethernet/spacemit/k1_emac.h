@@ -363,7 +363,7 @@ struct emac_desc {
 /* Keep stats in this order, index used for accessing hardware */
 
 union emac_hw_tx_stats {
-	struct {
+	struct individual_tx_stats {
 		u64 tx_ok_pkts;
 		u64 tx_total_pkts;
 		u64 tx_ok_bytes;
@@ -378,11 +378,11 @@ union emac_hw_tx_stats {
 		u64 tx_pause_pkts;
 	} stats;
 
-	DECLARE_FLEX_ARRAY(u64, array);
+	u64 array[sizeof(struct individual_tx_stats) / sizeof(u64)];
 };
 
 union emac_hw_rx_stats {
-	struct {
+	struct individual_rx_stats {
 		u64 rx_ok_pkts;
 		u64 rx_total_pkts;
 		u64 rx_crc_err_pkts;
@@ -410,7 +410,7 @@ union emac_hw_rx_stats {
 		u64 rx_truncate_fifo_full_pkts;
 	} stats;
 
-	DECLARE_FLEX_ARRAY(u64, array);
+	u64 array[sizeof(struct individual_rx_stats) / sizeof(u64)];
 };
 
 #endif /* _K1_EMAC_H_ */

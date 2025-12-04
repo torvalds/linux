@@ -94,7 +94,7 @@ kernels may lead to a compilation error because the interface to a kernel
 function has been changed in the 2.1.8x kernels.
 
 How to turn on 6pack support:
-=============================
+-----------------------------
 
 - In the linux kernel configuration program, select the code maturity level
   options menu and turn on the prompting for development drivers.

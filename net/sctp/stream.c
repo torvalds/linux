@@ -54,7 +54,7 @@ static void sctp_stream_shrink_out(struct sctp_stream *stream, __u16 outcnt)
 
 static void sctp_stream_free_ext(struct sctp_stream *stream, __u16 sid)
 {
-	struct sctp_sched_ops *sched;
+	const struct sctp_sched_ops *sched;
 
 	if (!SCTP_SO(stream, sid)->ext)
 		return;
@@ -130,7 +130,7 @@ out:
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp)
 {
-	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+	const struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
 	int i, ret = 0;
 
 	gfp |= __GFP_NOWARN;
@@ -182,7 +182,7 @@ int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid)
 
 void sctp_stream_free(struct sctp_stream *stream)
 {
-	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+	const struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
 	int i;
 
 	sched->unsched_all(stream);
@@ -207,7 +207,7 @@ void sctp_stream_clear(struct sctp_stream *stream)
 
 void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new)
 {
-	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+	const struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
 
 	sched->unsched_all(stream);
 	sctp_stream_outq_migrate(stream, new, new->outcnt);

@@ -16,8 +16,7 @@
  *              based on prototype from Frank Blaschka
  */
 
-#define KMSG_COMPONENT "smc"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "smc: " fmt
 
 #include <linux/module.h>
 #include <linux/socket.h>
@@ -58,6 +57,7 @@
 #include "smc_tracepoint.h"
 #include "smc_sysctl.h"
 #include "smc_inet.h"
+#include "smc_hs_bpf.h"
 
 static DEFINE_MUTEX(smc_server_lgr_pending);	/* serialize link group
 						 * creation on server
@@ -421,7 +421,7 @@ static struct sock *smc_sock_alloc(struct net *net, struct socket *sock,
 	return sk;
 }
 
-int smc_bind(struct socket *sock, struct sockaddr *uaddr,
+int smc_bind(struct socket *sock, struct sockaddr_unsized *uaddr,
 	     int addr_len)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *)uaddr;
@@ -1642,7 +1642,7 @@ out:
 	release_sock(&smc->sk);
 }
 
-int smc_connect(struct socket *sock, struct sockaddr *addr,
+int smc_connect(struct socket *sock, struct sockaddr_unsized *addr,
 		int alen, int flags)
 {
 	struct sock *sk = sock->sk;
@@ -1694,7 +1694,7 @@ int smc_connect(struct socket *sock, struct sockaddr *addr,
 		rc = -EALREADY;
 		goto out;
 	}
-	rc = kernel_connect(smc->clcsock, addr, alen, flags);
+	rc = kernel_connect(smc->clcsock, (struct sockaddr_unsized *)addr, alen, flags);
 	if (rc && rc != -EINPROGRESS)
 		goto out;
 
@@ -2140,7 +2140,7 @@ static void smc_check_ism_v2_match(struct smc_init_info *ini,
 	}
 }
 
-static void smc_find_ism_store_rc(u32 rc, struct smc_init_info *ini)
+static void smc_init_info_store_rc(u32 rc, struct smc_init_info *ini)
 {
 	if (!ini->rc)
 		ini->rc = rc;
@@ -2203,7 +2203,7 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	mutex_unlock(&smcd_dev_list.mutex);
 
 	if (!ini->ism_dev[0]) {
-		smc_find_ism_store_rc(SMC_CLC_DECL_NOSMCD2DEV, ini);
+		smc_init_info_store_rc(SMC_CLC_DECL_NOSMCD2DEV, ini);
 		goto not_found;
 	}
 
@@ -2220,7 +2220,7 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 		ini->ism_selected = i;
 		rc = smc_listen_ism_init(new_smc, ini);
 		if (rc) {
-			smc_find_ism_store_rc(rc, ini);
+			smc_init_info_store_rc(rc, ini);
 			/* try next active ISM device */
 			continue;
 		}
@@ -2260,7 +2260,7 @@ static void smc_find_ism_v1_device_serv(struct smc_sock *new_smc,
 		return;		/* V1 ISM device found */
 
 not_found:
-	smc_find_ism_store_rc(rc, ini);
+	smc_init_info_store_rc(rc, ini);
 	ini->smcd_version &= ~SMC_V1;
 	ini->ism_dev[0] = NULL;
 	ini->is_smcd = false;
@@ -2311,7 +2311,7 @@ static void smc_find_rdma_v2_device_serv(struct smc_sock *new_smc,
 	ini->smcrv2.daddr = smc_ib_gid_to_ipv4(smc_v2_ext->roce);
 	rc = smc_find_rdma_device(new_smc, ini);
 	if (rc) {
-		smc_find_ism_store_rc(rc, ini);
+		smc_init_info_store_rc(rc, ini);
 		goto not_found;
 	}
 	if (!ini->smcrv2.uses_gateway)
@@ -2328,7 +2328,7 @@ static void smc_find_rdma_v2_device_serv(struct smc_sock *new_smc,
 	if (!rc)
 		return;
 	ini->smcr_version = smcr_version;
-	smc_find_ism_store_rc(rc, ini);
+	smc_init_info_store_rc(rc, ini);
 
 not_found:
 	ini->smcr_version &= ~SMC_V2;
@@ -2375,7 +2375,7 @@ static int smc_listen_find_device(struct smc_sock *new_smc,
 	/* check for matching IP prefix and subnet length (V1) */
 	prfx_rc = smc_listen_prfx_check(new_smc, pclc);
 	if (prfx_rc)
-		smc_find_ism_store_rc(prfx_rc, ini);
+		smc_init_info_store_rc(prfx_rc, ini);
 
 	/* get vlan id from IP device */
 	if (smc_vlan_by_tcpsk(new_smc->clcsock, ini))
@@ -2402,7 +2402,7 @@ static int smc_listen_find_device(struct smc_sock *new_smc,
 		int rc;
 
 		rc = smc_find_rdma_v1_device_serv(new_smc, pclc, ini);
-		smc_find_ism_store_rc(rc, ini);
+		smc_init_info_store_rc(rc, ini);
 		return (!rc) ? 0 : ini->rc;
 	}
 	return prfx_rc;
@@ -3600,8 +3600,16 @@ static int __init smc_init(void)
 		pr_err("%s: smc_inet_init fails with %d\n", __func__, rc);
 		goto out_ulp;
 	}
+	rc = bpf_smc_hs_ctrl_init();
+	if (rc) {
+		pr_err("%s: bpf_smc_hs_ctrl_init fails with %d\n", __func__,
+		       rc);
+		goto out_inet;
+	}
 	static_branch_enable(&tcp_have_smc);
 	return 0;
+out_inet:
+	smc_inet_exit();
 out_ulp:
 	tcp_unregister_ulp(&smc_ulp_ops);
 out_ib:

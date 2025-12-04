@@ -3544,6 +3544,9 @@ static int _nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 	}
 
+	if (cfg80211_chandef_is_s1g(chandef))
+		chandef->width = NL80211_CHAN_WIDTH_1;
+
 	if (attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
 		enum nl80211_channel_type chantype;
 
@@ -4174,6 +4177,9 @@ int nl80211_send_chandef(struct sk_buff *msg, const struct cfg80211_chan_def *ch
 		return -ENOBUFS;
 	if (chandef->punctured &&
 	    nla_put_u32(msg, NL80211_ATTR_PUNCT_BITMAP, chandef->punctured))
+		return -ENOBUFS;
+	if (chandef->s1g_primary_2mhz &&
+	    nla_put_flag(msg, NL80211_ATTR_S1G_PRIMARY_2MHZ))
 		return -ENOBUFS;
 
 	return 0;
@@ -6745,7 +6751,7 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	beacon_check.relax = true;
 	beacon_check.reg_power =
 		cfg80211_get_6ghz_power_type(params->beacon.tail,
-					     params->beacon.tail_len);
+					     params->beacon.tail_len, 0);
 	if (!cfg80211_reg_check_beaconing(&rdev->wiphy, &params->chandef,
 					  &beacon_check)) {
 		err = -EINVAL;
@@ -6924,7 +6930,7 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 	beacon_check.relax = true;
 	beacon_check.reg_power =
 		cfg80211_get_6ghz_power_type(params->beacon.tail,
-					     params->beacon.tail_len);
+					     params->beacon.tail_len, 0);
 	if (!cfg80211_reg_check_beaconing(&rdev->wiphy,
 					  &wdev->links[link_id].ap.chandef,
 					  &beacon_check)) {

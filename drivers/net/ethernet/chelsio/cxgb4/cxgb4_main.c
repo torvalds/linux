@@ -3042,12 +3042,87 @@ static void cxgb_get_stats(struct net_device *dev,
 		ns->rx_length_errors + stats.rx_len_err + ns->rx_fifo_errors;
 }
 
+static int cxgb_hwtstamp_get(struct net_device *dev,
+			     struct kernel_hwtstamp_config *config)
+{
+	struct port_info *pi = netdev_priv(dev);
+
+	*config = pi->tstamp_config;
+	return 0;
+}
+
+static int cxgb_hwtstamp_set(struct net_device *dev,
+			     struct kernel_hwtstamp_config *config,
+			     struct netlink_ext_ack *extack)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
+
+	if (is_t4(adapter->params.chip)) {
+		/* For T4 Adapters */
+		switch (config->rx_filter) {
+		case HWTSTAMP_FILTER_NONE:
+			pi->rxtstamp = false;
+			break;
+		case HWTSTAMP_FILTER_ALL:
+			pi->rxtstamp = true;
+			break;
+		default:
+			return -ERANGE;
+		}
+		pi->tstamp_config = *config;
+		return 0;
+	}
+
+	switch (config->tx_type) {
+	case HWTSTAMP_TX_OFF:
+	case HWTSTAMP_TX_ON:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (config->rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		pi->rxtstamp = false;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+		cxgb4_ptprx_timestamping(pi, pi->port_id, PTP_TS_L4);
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		cxgb4_ptprx_timestamping(pi, pi->port_id, PTP_TS_L2_L4);
+		break;
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		pi->rxtstamp = true;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	if (config->tx_type == HWTSTAMP_TX_OFF &&
+	    config->rx_filter == HWTSTAMP_FILTER_NONE) {
+		if (cxgb4_ptp_txtype(adapter, pi->port_id) >= 0)
+			pi->ptp_enable = false;
+	}
+
+	if (config->rx_filter != HWTSTAMP_FILTER_NONE) {
+		if (cxgb4_ptp_redirect_rx_packet(adapter, pi) >= 0)
+			pi->ptp_enable = true;
+	}
+	pi->tstamp_config = *config;
+	return 0;
+}
+
 static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
 	unsigned int mbox;
 	int ret = 0, prtad, devad;
 	struct port_info *pi = netdev_priv(dev);
-	struct adapter *adapter = pi->adapter;
 	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&req->ifr_data;
 
 	switch (cmd) {
@@ -3076,81 +3151,6 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 			ret = t4_mdio_wr(pi->adapter, mbox, prtad, devad,
 					 data->reg_num, data->val_in);
 		break;
-	case SIOCGHWTSTAMP:
-		return copy_to_user(req->ifr_data, &pi->tstamp_config,
-				    sizeof(pi->tstamp_config)) ?
-			-EFAULT : 0;
-	case SIOCSHWTSTAMP:
-		if (copy_from_user(&pi->tstamp_config, req->ifr_data,
-				   sizeof(pi->tstamp_config)))
-			return -EFAULT;
-
-		if (!is_t4(adapter->params.chip)) {
-			switch (pi->tstamp_config.tx_type) {
-			case HWTSTAMP_TX_OFF:
-			case HWTSTAMP_TX_ON:
-				break;
-			default:
-				return -ERANGE;
-			}
-
-			switch (pi->tstamp_config.rx_filter) {
-			case HWTSTAMP_FILTER_NONE:
-				pi->rxtstamp = false;
-				break;
-			case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
-			case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
-				cxgb4_ptprx_timestamping(pi, pi->port_id,
-							 PTP_TS_L4);
-				break;
-			case HWTSTAMP_FILTER_PTP_V2_EVENT:
-				cxgb4_ptprx_timestamping(pi, pi->port_id,
-							 PTP_TS_L2_L4);
-				break;
-			case HWTSTAMP_FILTER_ALL:
-			case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
-			case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-			case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
-			case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
-				pi->rxtstamp = true;
-				break;
-			default:
-				pi->tstamp_config.rx_filter =
-					HWTSTAMP_FILTER_NONE;
-				return -ERANGE;
-			}
-
-			if ((pi->tstamp_config.tx_type == HWTSTAMP_TX_OFF) &&
-			    (pi->tstamp_config.rx_filter ==
-				HWTSTAMP_FILTER_NONE)) {
-				if (cxgb4_ptp_txtype(adapter, pi->port_id) >= 0)
-					pi->ptp_enable = false;
-			}
-
-			if (pi->tstamp_config.rx_filter !=
-				HWTSTAMP_FILTER_NONE) {
-				if (cxgb4_ptp_redirect_rx_packet(adapter,
-								 pi) >= 0)
-					pi->ptp_enable = true;
-			}
-		} else {
-			/* For T4 Adapters */
-			switch (pi->tstamp_config.rx_filter) {
-			case HWTSTAMP_FILTER_NONE:
-			pi->rxtstamp = false;
-			break;
-			case HWTSTAMP_FILTER_ALL:
-			pi->rxtstamp = true;
-			break;
-			default:
-			pi->tstamp_config.rx_filter =
-			HWTSTAMP_FILTER_NONE;
-			return -ERANGE;
-			}
-		}
-		return copy_to_user(req->ifr_data, &pi->tstamp_config,
-				    sizeof(pi->tstamp_config)) ?
-			-EFAULT : 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3485,7 +3485,7 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	struct adapter *adap = pi->adapter;
 	struct ch_sched_queue qe = { 0 };
 	struct ch_sched_params p = { 0 };
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	u32 req_rate;
 	int err = 0;
 
@@ -3875,6 +3875,8 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_setup_tc         = cxgb_setup_tc,
 	.ndo_features_check   = cxgb_features_check,
 	.ndo_fix_features     = cxgb_fix_features,
+	.ndo_hwtstamp_get     = cxgb_hwtstamp_get,
+	.ndo_hwtstamp_set     = cxgb_hwtstamp_set,
 };
 
 #ifdef CONFIG_PCI_IOV

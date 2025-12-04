@@ -1781,6 +1781,62 @@ static int netcp_ndo_stop(struct net_device *ndev)
 	return 0;
 }
 
+static int netcp_ndo_hwtstamp_get(struct net_device *ndev,
+				  struct kernel_hwtstamp_config *config)
+{
+	struct netcp_intf *netcp = netdev_priv(ndev);
+	struct netcp_intf_modpriv *intf_modpriv;
+	struct netcp_module *module;
+	int err = -EOPNOTSUPP;
+
+	if (!netif_running(ndev))
+		return -EINVAL;
+
+	for_each_module(netcp, intf_modpriv) {
+		module = intf_modpriv->netcp_module;
+		if (!module->hwtstamp_get)
+			continue;
+
+		err = module->hwtstamp_get(intf_modpriv->module_priv, config);
+		break;
+	}
+
+	return err;
+}
+
+static int netcp_ndo_hwtstamp_set(struct net_device *ndev,
+				  struct kernel_hwtstamp_config *config,
+				  struct netlink_ext_ack *extack)
+{
+	struct netcp_intf *netcp = netdev_priv(ndev);
+	struct netcp_intf_modpriv *intf_modpriv;
+	struct netcp_module *module;
+	int ret = -1, err = -EOPNOTSUPP;
+
+	if (!netif_running(ndev))
+		return -EINVAL;
+
+	for_each_module(netcp, intf_modpriv) {
+		module = intf_modpriv->netcp_module;
+		if (!module->hwtstamp_set)
+			continue;
+
+		err = module->hwtstamp_set(intf_modpriv->module_priv, config,
+					   extack);
+		if ((err < 0) && (err != -EOPNOTSUPP)) {
+			NL_SET_ERR_MSG_WEAK_MOD(extack,
+						"At least one module failed to setup HW timestamps");
+			ret = err;
+			goto out;
+		}
+		if (err == 0)
+			ret = err;
+	}
+
+out:
+	return (ret == 0) ? 0 : err;
+}
+
 static int netcp_ndo_ioctl(struct net_device *ndev,
 			   struct ifreq *req, int cmd)
 {
@@ -1952,6 +2008,8 @@ static const struct net_device_ops netcp_netdev_ops = {
 	.ndo_tx_timeout		= netcp_ndo_tx_timeout,
 	.ndo_select_queue	= dev_pick_tx_zero,
 	.ndo_setup_tc		= netcp_setup_tc,
+	.ndo_hwtstamp_get	= netcp_ndo_hwtstamp_get,
+	.ndo_hwtstamp_set	= netcp_ndo_hwtstamp_set,
 };
 
 static int netcp_create_interface(struct netcp_device *netcp_device,

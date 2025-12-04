@@ -71,6 +71,8 @@ static int mlx5e_rx_res_rss_init_def(struct mlx5e_rx_res *res,
 	rss_params = (struct mlx5e_rss_params) {
 		.inner_ft_support = inner_ft_support,
 		.drop_rqn = res->drop_rqn,
+		.self_lb_blk =
+			res->features & MLX5E_RX_RES_FEATURE_SELF_LB_BLOCK,
 	};
 
 	rss = mlx5e_rss_init(res->mdev, &rss_params, &init_params);
@@ -104,6 +106,8 @@ int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 rss_idx, unsigned int in
 	rss_params = (struct mlx5e_rss_params) {
 		.inner_ft_support = inner_ft_support,
 		.drop_rqn = res->drop_rqn,
+		.self_lb_blk =
+			res->features & MLX5E_RX_RES_FEATURE_SELF_LB_BLOCK,
 	};
 
 	rss = mlx5e_rss_init(res->mdev, &rss_params, &init_params);
@@ -346,6 +350,7 @@ static struct mlx5e_rx_res *mlx5e_rx_res_alloc(struct mlx5_core_dev *mdev, unsig
 static int mlx5e_rx_res_channels_init(struct mlx5e_rx_res *res)
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
+	bool self_lb_blk = res->features & MLX5E_RX_RES_FEATURE_SELF_LB_BLOCK;
 	struct mlx5e_tir_builder *builder;
 	int err = 0;
 	int ix;
@@ -376,6 +381,8 @@ static int mlx5e_rx_res_channels_init(struct mlx5e_rx_res *res)
 					    mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt),
 					    inner_ft_support);
 		mlx5e_tir_builder_build_packet_merge(builder, &res->pkt_merge_param);
+		mlx5e_tir_builder_build_self_lb_block(builder, self_lb_blk,
+						      self_lb_blk);
 		mlx5e_tir_builder_build_direct(builder);
 
 		err = mlx5e_tir_init(&res->channels[ix].direct_tir, builder, res->mdev, true);

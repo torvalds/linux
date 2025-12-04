@@ -6,6 +6,7 @@
 #ifndef AIROHA_OFFLOAD_H
 #define AIROHA_OFFLOAD_H
 
+#include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 

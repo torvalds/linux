@@ -155,7 +155,16 @@ static u8 get_st_modes(struct pci_dev *pdev)
 	return reg;
 }
 
-static u32 get_st_table_loc(struct pci_dev *pdev)
+/**
+ * pcie_tph_get_st_table_loc - Return the device's ST table location
+ * @pdev: PCI device to query
+ *
+ * Return:
+ *  PCI_TPH_LOC_NONE - Not present
+ *  PCI_TPH_LOC_CAP  - Located in the TPH Requester Extended Capability
+ *  PCI_TPH_LOC_MSIX - Located in the MSI-X Table
+ */
+u32 pcie_tph_get_st_table_loc(struct pci_dev *pdev)
 {
 	u32 reg;
 
@@ -163,6 +172,7 @@ static u32 get_st_table_loc(struct pci_dev *pdev)
 
 	return FIELD_GET(PCI_TPH_CAP_LOC_MASK, reg);
 }
+EXPORT_SYMBOL(pcie_tph_get_st_table_loc);
 
 /*
  * Return the size of ST table. If ST table is not in TPH Requester Extended
@@ -174,7 +184,7 @@ u16 pcie_tph_get_st_table_size(struct pci_dev *pdev)
 	u32 loc;
 
 	/* Check ST table location first */
-	loc = get_st_table_loc(pdev);
+	loc = pcie_tph_get_st_table_loc(pdev);
 
 	/* Convert loc to match with PCI_TPH_LOC_* defined in pci_regs.h */
 	loc = FIELD_PREP(PCI_TPH_CAP_LOC_MASK, loc);
@@ -299,7 +309,7 @@ int pcie_tph_set_st_entry(struct pci_dev *pdev, unsigned int index, u16 tag)
 	 */
 	set_ctrl_reg_req_en(pdev, PCI_TPH_REQ_DISABLE);
 
-	loc = get_st_table_loc(pdev);
+	loc = pcie_tph_get_st_table_loc(pdev);
 	/* Convert loc to match with PCI_TPH_LOC_* */
 	loc = FIELD_PREP(PCI_TPH_CAP_LOC_MASK, loc);
 

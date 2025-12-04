@@ -714,7 +714,7 @@ int qrtr_ns_init(void)
 	sq.sq_port = QRTR_PORT_CTRL;
 	qrtr_ns.local_node = sq.sq_node;
 
-	ret = kernel_bind(qrtr_ns.sock, (struct sockaddr *)&sq, sizeof(sq));
+	ret = kernel_bind(qrtr_ns.sock, (struct sockaddr_unsized *)&sq, sizeof(sq));
 	if (ret < 0) {
 		pr_err("failed to bind to socket\n");
 		goto err_wq;

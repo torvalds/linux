@@ -881,6 +881,13 @@ static void ctcm_chx_rxiniterr(fsm_instance *fi, int event, void *arg)
 			fsm_newstate(fi, CTC_STATE_RXERR);
 			fsm_event(priv->fsm, DEV_EVENT_RXDOWN, dev);
 		}
+	} else if (event == CTC_EVENT_UC_RCRESET) {
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+			       "%s(%s): %s in %s", CTCM_FUNTAIL, ch->id,
+			       ctc_ch_event_names[event], fsm_getstate_str(fi));
+
+		dev_info(&dev->dev,
+			 "Init handshake not received, peer not ready yet\n");
 	} else {
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
 			"%s(%s): %s in %s", CTCM_FUNTAIL, ch->id,
@@ -966,6 +973,13 @@ static void ctcm_chx_txiniterr(fsm_instance *fi, int event, void *arg)
 			fsm_newstate(fi, CTC_STATE_TXERR);
 			fsm_event(priv->fsm, DEV_EVENT_TXDOWN, dev);
 		}
+	} else if (event == CTC_EVENT_UC_RCRESET) {
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+			       "%s(%s): %s in %s", CTCM_FUNTAIL, ch->id,
+			       ctc_ch_event_names[event], fsm_getstate_str(fi));
+
+		dev_info(&dev->dev,
+			 "Init handshake not sent, peer not ready yet\n");
 	} else {
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
 			"%s(%s): %s in %s", CTCM_FUNTAIL, ch->id,

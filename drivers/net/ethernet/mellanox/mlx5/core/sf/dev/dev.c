@@ -16,7 +16,6 @@ struct mlx5_sf_dev_table {
 	struct xarray devices;
 	phys_addr_t base_address;
 	u64 sf_bar_length;
-	struct notifier_block nb;
 	struct workqueue_struct *active_wq;
 	struct work_struct work;
 	u8 stop_active_wq:1;
@@ -156,18 +155,23 @@ static void mlx5_sf_dev_del(struct mlx5_core_dev *dev, struct mlx5_sf_dev *sf_de
 static int
 mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_code, void *data)
 {
-	struct mlx5_sf_dev_table *table = container_of(nb, struct mlx5_sf_dev_table, nb);
+	struct mlx5_core_dev *dev = container_of(nb, struct mlx5_core_dev,
+						 priv.sf_dev_nb);
+	struct mlx5_sf_dev_table *table = dev->priv.sf_dev_table;
 	const struct mlx5_vhca_state_event *event = data;
 	struct mlx5_sf_dev *sf_dev;
 	u16 max_functions;
 	u16 sf_index;
 	u16 base_id;
 
-	max_functions = mlx5_sf_max_functions(table->dev);
+	if (!table)
+		return 0;
+
+	max_functions = mlx5_sf_max_functions(dev);
 	if (!max_functions)
 		return 0;
 
-	base_id = mlx5_sf_start_function_id(table->dev);
+	base_id = mlx5_sf_start_function_id(dev);
 	if (event->function_id < base_id || event->function_id >= (base_id + max_functions))
 		return 0;
 
@@ -177,19 +181,19 @@ mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_
 	case MLX5_VHCA_STATE_INVALID:
 	case MLX5_VHCA_STATE_ALLOCATED:
 		if (sf_dev)
-			mlx5_sf_dev_del(table->dev, sf_dev, sf_index);
+			mlx5_sf_dev_del(dev, sf_dev, sf_index);
 		break;
 	case MLX5_VHCA_STATE_TEARDOWN_REQUEST:
 		if (sf_dev)
-			mlx5_sf_dev_del(table->dev, sf_dev, sf_index);
+			mlx5_sf_dev_del(dev, sf_dev, sf_index);
 		else
-			mlx5_core_err(table->dev,
+			mlx5_core_err(dev,
 				      "SF DEV: teardown state for invalid dev index=%d sfnum=0x%x\n",
 				      sf_index, event->sw_function_id);
 		break;
 	case MLX5_VHCA_STATE_ACTIVE:
 		if (!sf_dev)
-			mlx5_sf_dev_add(table->dev, sf_index, event->function_id,
+			mlx5_sf_dev_add(dev, sf_index, event->function_id,
 					event->sw_function_id);
 		break;
 	default:
@@ -315,6 +319,15 @@ static void mlx5_sf_dev_destroy_active_works(struct mlx5_sf_dev_table *table)
 	}
 }
 
+int mlx5_sf_dev_notifier_init(struct mlx5_core_dev *dev)
+{
+	if (mlx5_core_is_sf(dev))
+		return 0;
+
+	dev->priv.sf_dev_nb.notifier_call = mlx5_sf_dev_state_change_handler;
+	return mlx5_vhca_event_notifier_register(dev, &dev->priv.sf_dev_nb);
+}
+
 void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_dev_table *table;
@@ -329,16 +342,11 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 		goto table_err;
 	}
 
-	table->nb.notifier_call = mlx5_sf_dev_state_change_handler;
 	table->dev = dev;
 	table->sf_bar_length = 1 << (MLX5_CAP_GEN(dev, log_min_sf_size) + 12);
 	table->base_address = pci_resource_start(dev->pdev, 2);
 	xa_init(&table->devices);
 	dev->priv.sf_dev_table = table;
-
-	err = mlx5_vhca_event_notifier_register(dev, &table->nb);
-	if (err)
-		goto vhca_err;
 
 	err = mlx5_sf_dev_create_active_works(table);
 	if (err)
@@ -351,10 +359,8 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 
 arm_err:
 	mlx5_sf_dev_destroy_active_works(table);
-add_active_err:
-	mlx5_vhca_event_notifier_unregister(dev, &table->nb);
 	mlx5_vhca_event_work_queues_flush(dev);
-vhca_err:
+add_active_err:
 	kfree(table);
 	dev->priv.sf_dev_table = NULL;
 table_err:
@@ -372,6 +378,14 @@ static void mlx5_sf_dev_destroy_all(struct mlx5_sf_dev_table *table)
 	}
 }
 
+void mlx5_sf_dev_notifier_cleanup(struct mlx5_core_dev *dev)
+{
+	if (mlx5_core_is_sf(dev))
+		return;
+
+	mlx5_vhca_event_notifier_unregister(dev, &dev->priv.sf_dev_nb);
+}
+
 void mlx5_sf_dev_table_destroy(struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_dev_table *table = dev->priv.sf_dev_table;
@@ -380,8 +394,6 @@ void mlx5_sf_dev_table_destroy(struct mlx5_core_dev *dev)
 		return;
 
 	mlx5_sf_dev_destroy_active_works(table);
-	mlx5_vhca_event_notifier_unregister(dev, &table->nb);
-	mlx5_vhca_event_work_queues_flush(dev);
 
 	/* Now that event handler is not running, it is safe to destroy
 	 * the sf device without race.

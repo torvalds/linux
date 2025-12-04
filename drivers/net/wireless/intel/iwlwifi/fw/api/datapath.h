@@ -124,6 +124,11 @@ enum iwl_data_path_subcmd_ids {
 	BEACON_FILTER_IN_NOTIF = 0xF8,
 
 	/**
+	 * @PHY_AIR_SNIFFER_NOTIF: &struct iwl_rx_phy_air_sniffer_ntfy
+	 */
+	PHY_AIR_SNIFFER_NOTIF = 0xF9,
+
+	/**
 	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
 	 */
 	STA_PM_NOTIF = 0xFD,

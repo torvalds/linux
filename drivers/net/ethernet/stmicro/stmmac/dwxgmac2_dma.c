@@ -84,7 +84,6 @@ static void dwxgmac2_dma_init_tx_chan(struct stmmac_priv *priv,
 static void dwxgmac2_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 {
 	u32 value = readl(ioaddr + XGMAC_DMA_SYSBUS_MODE);
-	int i;
 
 	if (axi->axi_lpi_en)
 		value |= XGMAC_EN_LPI;
@@ -102,32 +101,12 @@ static void dwxgmac2_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	if (!axi->axi_fb)
 		value |= XGMAC_UNDEF;
 
-	value &= ~XGMAC_BLEN;
-	for (i = 0; i < AXI_BLEN; i++) {
-		switch (axi->axi_blen[i]) {
-		case 256:
-			value |= XGMAC_BLEN256;
-			break;
-		case 128:
-			value |= XGMAC_BLEN128;
-			break;
-		case 64:
-			value |= XGMAC_BLEN64;
-			break;
-		case 32:
-			value |= XGMAC_BLEN32;
-			break;
-		case 16:
-			value |= XGMAC_BLEN16;
-			break;
-		case 8:
-			value |= XGMAC_BLEN8;
-			break;
-		case 4:
-			value |= XGMAC_BLEN4;
-			break;
-		}
-	}
+	/* Depending on the UNDEF bit the Master AXI will perform any burst
+	 * length according to the BLEN programmed (by default all BLEN are
+	 * set). Note that the UNDEF bit is readonly, and is the inverse of
+	 * Bus Mode bit 16.
+	 */
+	value = (value & ~DMA_AXI_BLEN_MASK) | axi->axi_blen_regval;
 
 	writel(value, ioaddr + XGMAC_DMA_SYSBUS_MODE);
 	writel(XGMAC_TDPS, ioaddr + XGMAC_TX_EDMA_CTRL);

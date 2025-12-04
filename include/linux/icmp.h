@@ -40,4 +40,36 @@ void ip_icmp_error_rfc4884(const struct sk_buff *skb,
 			   struct sock_ee_data_rfc4884 *out,
 			   int thlen, int off);
 
+/* RFC 4884 */
+#define ICMP_EXT_ORIG_DGRAM_MIN_LEN	128
+#define ICMP_EXT_VERSION_2		2
+
+/* ICMP Extension Object Classes */
+#define ICMP_EXT_OBJ_CLASS_IIO		2	/* RFC 5837 */
+
+/* Interface Information Object - RFC 5837 */
+enum {
+	ICMP_EXT_CTYPE_IIO_ROLE_IIF,
+};
+
+#define ICMP_EXT_CTYPE_IIO_ROLE(ROLE)	((ROLE) << 6)
+#define ICMP_EXT_CTYPE_IIO_MTU		BIT(0)
+#define ICMP_EXT_CTYPE_IIO_NAME		BIT(1)
+#define ICMP_EXT_CTYPE_IIO_IPADDR	BIT(2)
+#define ICMP_EXT_CTYPE_IIO_IFINDEX	BIT(3)
+
+struct icmp_ext_iio_name_subobj {
+	u8 len;
+	char name[IFNAMSIZ];
+};
+
+enum {
+	/* RFC 5837 - Incoming IP Interface Role */
+	ICMP_ERR_EXT_IIO_IIF,
+	/* Add new constants above. Used by "icmp_errors_extension_mask"
+	 * sysctl.
+	 */
+	ICMP_ERR_EXT_COUNT,
+};
+
 #endif	/* _LINUX_ICMP_H */

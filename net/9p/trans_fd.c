@@ -966,7 +966,7 @@ static int p9_bind_privport(struct socket *sock)
 			((struct sockaddr_in *)&stor)->sin_port = htons((ushort)port);
 		else
 			((struct sockaddr_in6 *)&stor)->sin6_port = htons((ushort)port);
-		err = kernel_bind(sock, (struct sockaddr *)&stor, sizeof(stor));
+		err = kernel_bind(sock, (struct sockaddr_unsized *)&stor, sizeof(stor));
 		if (err != -EADDRINUSE)
 			break;
 	}
@@ -1018,7 +1018,7 @@ p9_fd_create_tcp(struct p9_client *client, const char *addr, char *args)
 	}
 
 	err = READ_ONCE(csocket->ops)->connect(csocket,
-					       (struct sockaddr *)&stor,
+					       (struct sockaddr_unsized *)&stor,
 					       sizeof(stor), 0);
 	if (err < 0) {
 		pr_err("%s (%d): problem connecting socket to %s\n",
@@ -1058,8 +1058,8 @@ p9_fd_create_unix(struct p9_client *client, const char *addr, char *args)
 
 		return err;
 	}
-	err = READ_ONCE(csocket->ops)->connect(csocket, (struct sockaddr *)&sun_server,
-			sizeof(struct sockaddr_un) - 1, 0);
+	err = READ_ONCE(csocket->ops)->connect(csocket, (struct sockaddr_unsized *)&sun_server,
+					       sizeof(struct sockaddr_un) - 1, 0);
 	if (err < 0) {
 		pr_err("%s (%d): problem connecting socket: %s: %d\n",
 		       __func__, task_pid_nr(current), addr, err);

@@ -1815,6 +1815,8 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.port_fast_age = rtl8366rb_port_fast_age,
 	.port_change_mtu = rtl8366rb_change_mtu,
 	.port_max_mtu = rtl8366rb_max_mtu,
+	.port_hsr_join = dsa_port_simple_hsr_join,
+	.port_hsr_leave = dsa_port_simple_hsr_leave,
 };
 
 static const struct realtek_ops rtl8366rb_ops = {

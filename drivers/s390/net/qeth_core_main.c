@@ -759,7 +759,7 @@ static void qeth_issue_ipa_msg(struct qeth_ipa_cmd *cmd, int rc,
 	if (rc)
 		QETH_DBF_MESSAGE(2, "IPA: %s(%#x) for device %x returned %#x \"%s\"\n",
 				 ipa_name, com, CARD_DEVID(card), rc,
-				 qeth_get_ipa_msg(rc));
+				 qeth_get_ipa_msg(com, rc));
 	else
 		QETH_DBF_MESSAGE(5, "IPA: %s(%#x) for device %x succeeded\n",
 				 ipa_name, com, CARD_DEVID(card));

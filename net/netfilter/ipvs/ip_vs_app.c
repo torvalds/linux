@@ -13,8 +13,7 @@
  * Author:	Juan Jose Ciarlante, <jjciarla@raiz.uncu.edu.ar>
  */
 
-#define KMSG_COMPONENT "IPVS"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "IPVS: " fmt
 
 #include <linux/module.h>
 #include <linux/kernel.h>

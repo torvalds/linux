@@ -270,7 +270,7 @@ enum _pcs_reg {
 	PCS_ESR = 15,
 };
 
-/* IEEE Extened Status Register */
+/* IEEE Extended Status Register */
 enum _mii_esr {
 	MII_ESR_1000BX_FD = 0x8000,
 	MII_ESR_1000BX_HD = 0x4000,

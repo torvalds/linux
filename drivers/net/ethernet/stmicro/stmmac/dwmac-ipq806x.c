@@ -473,7 +473,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	plat_dat->has_gmac = true;
+	plat_dat->core_type = DWMAC_CORE_GMAC;
 	plat_dat->bsp_priv = gmac;
 	plat_dat->set_clk_tx_rate = ipq806x_gmac_set_clk_tx_rate;
 	plat_dat->multicast_filter_bins = 0;

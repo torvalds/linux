@@ -71,3 +71,43 @@ smcr_max_conns_per_lgr - INTEGER
 	acceptable value ranges from 16 to 255. Only for SMC-R v2.1 and later.
 
 	Default: 255
+
+smcr_max_send_wr - INTEGER
+	So-called work request buffers are SMCR link (and RDMA queue pair) level
+	resources necessary for performing RDMA operations. Since up to 255
+	connections can share a link group and thus also a link and the number
+	of the work request buffers is decided when the link is allocated,
+	depending on the workload it can be a bottleneck in a sense that threads
+	have to wait for work request buffers to become available. Before the
+	introduction of this control the maximal number of work request buffers
+	available on the send path used to be hard coded to 16. With this control
+	it becomes configurable. The acceptable range is between 2 and 2048.
+
+	Please be aware that all the buffers need to be allocated as a physically
+	continuous array in which each element is a single buffer and has the size
+	of SMC_WR_BUF_SIZE (48) bytes. If the allocation fails, we keep retrying
+	with half of the buffer count until it is ether successful or (unlikely)
+	we dip below the old hard coded value which is 16 where we give up much
+	like before having this control.
+
+	Default: 16
+
+smcr_max_recv_wr - INTEGER
+	So-called work request buffers are SMCR link (and RDMA queue pair) level
+	resources necessary for performing RDMA operations. Since up to 255
+	connections can share a link group and thus also a link and the number
+	of the work request buffers is decided when the link is allocated,
+	depending on the workload it can be a bottleneck in a sense that threads
+	have to wait for work request buffers to become available. Before the
+	introduction of this control the maximal number of work request buffers
+	available on the receive path used to be hard coded to 16. With this control
+	it becomes configurable. The acceptable range is between 2 and 2048.
+
+	Please be aware that all the buffers need to be allocated as a physically
+	continuous array in which each element is a single buffer and has the size
+	of SMC_WR_BUF_SIZE (48) bytes. If the allocation fails, we keep retrying
+	with half of the buffer count until it is ether successful or (unlikely)
+	we dip below the old hard coded value which is 16 where we give up much
+	like before having this control.
+
+	Default: 48

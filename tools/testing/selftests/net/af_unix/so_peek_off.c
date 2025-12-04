@@ -36,8 +36,8 @@ FIXTURE_VARIANT_ADD(so_peek_off, seqpacket)
 FIXTURE_SETUP(so_peek_off)
 {
 	struct timeval timeout = {
-		.tv_sec = 0,
-		.tv_usec = 3000,
+		.tv_sec = 5,
+		.tv_usec = 0,
 	};
 	int ret;
 

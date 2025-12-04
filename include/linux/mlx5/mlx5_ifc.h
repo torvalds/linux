@@ -5251,13 +5251,15 @@ struct mlx5_ifc_set_fte_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         other_eswitch[0x1];
+	u8         reserved_at_42[0xe];
 	u8         vport_number[0x10];
 
 	u8         reserved_at_60[0x20];
 
 	u8         table_type[0x8];
-	u8         reserved_at_88[0x18];
+	u8         reserved_at_88[0x8];
+	u8         eswitch_owner_vhca_id[0x10];
 
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
@@ -8809,13 +8811,15 @@ struct mlx5_ifc_destroy_flow_table_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         other_eswitch[0x1];
+	u8         reserved_at_42[0xe];
 	u8         vport_number[0x10];
 
 	u8         reserved_at_60[0x20];
 
 	u8         table_type[0x8];
-	u8         reserved_at_88[0x18];
+	u8         reserved_at_88[0x8];
+	u8         eswitch_owner_vhca_id[0x10];
 
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
@@ -8840,13 +8844,15 @@ struct mlx5_ifc_destroy_flow_group_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         other_eswitch[0x1];
+	u8         reserved_at_42[0xe];
 	u8         vport_number[0x10];
 
 	u8         reserved_at_60[0x20];
 
 	u8         table_type[0x8];
-	u8         reserved_at_88[0x18];
+	u8         reserved_at_88[0x8];
+	u8         eswitch_owner_vhca_id[0x10];
 
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
@@ -8985,13 +8991,15 @@ struct mlx5_ifc_delete_fte_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         other_eswitch[0x1];
+	u8         reserved_at_42[0xe];
 	u8         vport_number[0x10];
 
 	u8         reserved_at_60[0x20];
 
 	u8         table_type[0x8];
-	u8         reserved_at_88[0x18];
+	u8         reserved_at_88[0x8];
+	u8         eswitch_owner_vhca_id[0x10];
 
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
@@ -9535,13 +9543,15 @@ struct mlx5_ifc_create_flow_table_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         other_eswitch[0x1];
+	u8         reserved_at_42[0xe];
 	u8         vport_number[0x10];
 
 	u8         reserved_at_60[0x20];
 
 	u8         table_type[0x8];
-	u8         reserved_at_88[0x18];
+	u8         reserved_at_88[0x8];
+	u8         eswitch_owner_vhca_id[0x10];
 
 	u8         reserved_at_a0[0x20];
 
@@ -9580,7 +9590,8 @@ struct mlx5_ifc_create_flow_group_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         other_eswitch[0x1];
+	u8         reserved_at_42[0xe];
 	u8         vport_number[0x10];
 
 	u8         reserved_at_60[0x20];
@@ -9588,7 +9599,7 @@ struct mlx5_ifc_create_flow_group_in_bits {
 	u8         table_type[0x8];
 	u8         reserved_at_88[0x4];
 	u8         group_type[0x4];
-	u8         reserved_at_90[0x10];
+	u8         eswitch_owner_vhca_id[0x10];
 
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
@@ -11878,10 +11889,12 @@ struct mlx5_ifc_set_flow_table_root_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         other_eswitch[0x1];
+	u8         reserved_at_42[0xe];
 	u8         vport_number[0x10];
 
-	u8         reserved_at_60[0x20];
+	u8         reserved_at_60[0x10];
+	u8         eswitch_owner_vhca_id[0x10];
 
 	u8         table_type[0x8];
 	u8         reserved_at_88[0x7];
@@ -11921,14 +11934,16 @@ struct mlx5_ifc_modify_flow_table_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         other_eswitch[0x1];
+	u8         reserved_at_42[0xe];
 	u8         vport_number[0x10];
 
 	u8         reserved_at_60[0x10];
 	u8         modify_field_select[0x10];
 
 	u8         table_type[0x8];
-	u8         reserved_at_88[0x18];
+	u8         reserved_at_88[0x8];
+	u8         eswitch_owner_vhca_id[0x10];
 
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];

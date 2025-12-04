@@ -243,7 +243,7 @@
 
 #define pr_fmt(fmt) "TCP: " fmt
 
-#include <crypto/hash.h>
+#include <crypto/md5.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -253,7 +253,6 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/skbuff.h>
-#include <linux/scatterlist.h>
 #include <linux/splice.h>
 #include <linux/net.h>
 #include <linux/socket.h>
@@ -425,7 +424,6 @@ void tcp_md5_destruct_sock(struct sock *sk)
 		tcp_clear_md5_list(sk);
 		kfree(rcu_replace_pointer(tp->md5sig_info, NULL, 1));
 		static_branch_slow_dec_deferred(&tcp_md5_needed);
-		tcp_md5_release_sigpool();
 	}
 }
 EXPORT_IPV6_MOD_GPL(tcp_md5_destruct_sock);
@@ -928,7 +926,8 @@ struct sk_buff *tcp_stream_alloc_skb(struct sock *sk, gfp_t gfp,
 		}
 		__kfree_skb(skb);
 	} else {
-		sk->sk_prot->enter_memory_pressure(sk);
+		if (!sk->sk_bypass_prot_mem)
+			tcp_enter_memory_pressure(sk);
 		sk_stream_moderate_sndbuf(sk);
 	}
 	return NULL;
@@ -1062,7 +1061,7 @@ int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *copied,
 		}
 	}
 	flags = (msg->msg_flags & MSG_DONTWAIT) ? O_NONBLOCK : 0;
-	err = __inet_stream_connect(sk->sk_socket, uaddr,
+	err = __inet_stream_connect(sk->sk_socket, (struct sockaddr_unsized *)uaddr,
 				    msg->msg_namelen, flags, 1);
 	/* fastopen_req could already be freed in __inet_stream_connect
 	 * if the connection times out or gets rst
@@ -1557,8 +1556,10 @@ void __tcp_cleanup_rbuf(struct sock *sk, int copied)
 				time_to_ack = true;
 		}
 	}
-	if (time_to_ack)
+	if (time_to_ack) {
+		tcp_mstamp_refresh(tp);
 		tcp_send_ack(sk);
+	}
 }
 
 void tcp_cleanup_rbuf(struct sock *sk, int copied)
@@ -2586,7 +2587,7 @@ static int tcp_recvmsg_dmabuf(struct sock *sk, const struct sk_buff *skb,
 				if (err)
 					goto out;
 
-				atomic_long_inc(&niov->pp_ref_count);
+				atomic_long_inc(&niov->desc.pp_ref_count);
 				tcp_xa_pool.netmems[tcp_xa_pool.idx++] = skb_frag_netmem(frag);
 
 				sent += copy;
@@ -3583,15 +3584,34 @@ static int tcp_repair_options_est(struct sock *sk, sockptr_t optbuf,
 DEFINE_STATIC_KEY_FALSE(tcp_tx_delay_enabled);
 EXPORT_IPV6_MOD(tcp_tx_delay_enabled);
 
-static void tcp_enable_tx_delay(void)
+static void tcp_enable_tx_delay(struct sock *sk, int val)
 {
-	if (!static_branch_unlikely(&tcp_tx_delay_enabled)) {
+	struct tcp_sock *tp = tcp_sk(sk);
+	s32 delta = (val - tp->tcp_tx_delay) << 3;
+
+	if (val && !static_branch_unlikely(&tcp_tx_delay_enabled)) {
 		static int __tcp_tx_delay_enabled = 0;
 
 		if (cmpxchg(&__tcp_tx_delay_enabled, 0, 1) == 0) {
 			static_branch_enable(&tcp_tx_delay_enabled);
 			pr_info("TCP_TX_DELAY enabled\n");
 		}
+	}
+	/* If we change tcp_tx_delay on a live flow, adjust tp->srtt_us,
+	 * tp->rtt_min, icsk_rto and sk->sk_pacing_rate.
+	 * This is best effort.
+	 */
+	if (delta && sk->sk_state == TCP_ESTABLISHED) {
+		s64 srtt = (s64)tp->srtt_us + delta;
+
+		tp->srtt_us = clamp_t(s64, srtt, 1, ~0U);
+
+		/* Note: does not deal with non zero icsk_backoff */
+		tcp_set_rto(sk);
+
+		minmax_reset(&tp->rtt_min, tcp_jiffies32, ~0U);
+
+		tcp_update_pacing_rate(sk);
 	}
 }
 
@@ -4119,8 +4139,12 @@ ao_parse:
 			tp->recvmsg_inq = val;
 		break;
 	case TCP_TX_DELAY:
-		if (val)
-			tcp_enable_tx_delay();
+		/* tp->srtt_us is u32, and is shifted by 3 */
+		if (val < 0 || val >= (1U << (31 - 3))) {
+			err = -EINVAL;
+			break;
+		}
+		tcp_enable_tx_delay(sk, val);
 		WRITE_ONCE(tp->tcp_tx_delay, val);
 		break;
 	default:
@@ -4815,52 +4839,45 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 EXPORT_IPV6_MOD(tcp_getsockopt);
 
 #ifdef CONFIG_TCP_MD5SIG
-int tcp_md5_sigpool_id = -1;
-EXPORT_IPV6_MOD_GPL(tcp_md5_sigpool_id);
-
-int tcp_md5_alloc_sigpool(void)
+void tcp_md5_hash_skb_data(struct md5_ctx *ctx, const struct sk_buff *skb,
+			   unsigned int header_len)
 {
-	size_t scratch_size;
-	int ret;
+	const unsigned int head_data_len = skb_headlen(skb) > header_len ?
+					   skb_headlen(skb) - header_len : 0;
+	const struct skb_shared_info *shi = skb_shinfo(skb);
+	struct sk_buff *frag_iter;
+	unsigned int i;
 
-	scratch_size = sizeof(union tcp_md5sum_block) + sizeof(struct tcphdr);
-	ret = tcp_sigpool_alloc_ahash("md5", scratch_size);
-	if (ret >= 0) {
-		/* As long as any md5 sigpool was allocated, the return
-		 * id would stay the same. Re-write the id only for the case
-		 * when previously all MD5 keys were deleted and this call
-		 * allocates the first MD5 key, which may return a different
-		 * sigpool id than was used previously.
-		 */
-		WRITE_ONCE(tcp_md5_sigpool_id, ret); /* Avoids the compiler potentially being smart here */
-		return 0;
+	md5_update(ctx, (const u8 *)tcp_hdr(skb) + header_len, head_data_len);
+
+	for (i = 0; i < shi->nr_frags; ++i) {
+		const skb_frag_t *f = &shi->frags[i];
+		u32 p_off, p_len, copied;
+		const void *vaddr;
+		struct page *p;
+
+		skb_frag_foreach_page(f, skb_frag_off(f), skb_frag_size(f),
+				      p, p_off, p_len, copied) {
+			vaddr = kmap_local_page(p);
+			md5_update(ctx, vaddr + p_off, p_len);
+			kunmap_local(vaddr);
+		}
 	}
-	return ret;
-}
 
-void tcp_md5_release_sigpool(void)
-{
-	tcp_sigpool_release(READ_ONCE(tcp_md5_sigpool_id));
+	skb_walk_frags(skb, frag_iter)
+		tcp_md5_hash_skb_data(ctx, frag_iter, 0);
 }
+EXPORT_IPV6_MOD(tcp_md5_hash_skb_data);
 
-void tcp_md5_add_sigpool(void)
-{
-	tcp_sigpool_get(READ_ONCE(tcp_md5_sigpool_id));
-}
-
-int tcp_md5_hash_key(struct tcp_sigpool *hp,
-		     const struct tcp_md5sig_key *key)
+void tcp_md5_hash_key(struct md5_ctx *ctx,
+		      const struct tcp_md5sig_key *key)
 {
 	u8 keylen = READ_ONCE(key->keylen); /* paired with WRITE_ONCE() in tcp_md5_do_add */
-	struct scatterlist sg;
-
-	sg_init_one(&sg, key->key, keylen);
-	ahash_request_set_crypt(hp->req, &sg, NULL, keylen);
 
 	/* We use data_race() because tcp_md5_do_add() might change
 	 * key->key under us
 	 */
-	return data_race(crypto_ahash_update(hp->req));
+	data_race(({ md5_update(ctx, key->key, keylen), 0; }));
 }
 EXPORT_IPV6_MOD(tcp_md5_hash_key);
 
@@ -4871,19 +4888,16 @@ tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
 		     int family, int l3index, const __u8 *hash_location)
 {
 	/* This gets called for each TCP segment that has TCP-MD5 option.
-	 * We have 3 drop cases:
-	 * o No MD5 hash and one expected.
-	 * o MD5 hash and we're not expecting one.
-	 * o MD5 hash and its wrong.
+	 * We have 2 drop cases:
+	 * o An MD5 signature is present, but we're not expecting one.
+	 * o The MD5 signature is wrong.
 	 */
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_key *key;
 	u8 newhash[16];
-	int genhash;
 
 	key = tcp_md5_do_lookup(sk, l3index, saddr, family);
-
-	if (!key && hash_location) {
+	if (!key) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
 		trace_tcp_hash_md5_unexpected(sk, skb);
 		return SKB_DROP_REASON_TCP_MD5UNEXPECTED;
@@ -4894,11 +4908,10 @@ tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
 	 * IPv4-mapped case.
 	 */
 	if (family == AF_INET)
-		genhash = tcp_v4_md5_hash_skb(newhash, key, NULL, skb);
+		tcp_v4_md5_hash_skb(newhash, key, NULL, skb);
 	else
-		genhash = tp->af_specific->calc_md5_hash(newhash, key,
-							 NULL, skb);
-	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
+		tp->af_specific->calc_md5_hash(newhash, key, NULL, skb);
+	if (memcmp(hash_location, newhash, 16) != 0) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5FAILURE);
 		trace_tcp_hash_md5_mismatch(sk, skb);
 		return SKB_DROP_REASON_TCP_MD5FAILURE;

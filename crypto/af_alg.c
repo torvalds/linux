@@ -145,7 +145,7 @@ void af_alg_release_parent(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(af_alg_release_parent);
 
-static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+static int alg_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	const u32 allowed = CRYPTO_ALG_KERN_DRIVER_ONLY;
 	struct sock *sk = sock->sk;
