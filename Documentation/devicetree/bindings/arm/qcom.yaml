@@ -1069,6 +1069,7 @@ properties:
 
       - items:
           - enum:
+              - medion,sprchrgd14s1
               - tuxedo,elite14gen1
           - const: qcom,x1e78100
           - const: qcom,x1e80100
