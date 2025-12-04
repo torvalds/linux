@@ -394,9 +394,6 @@ void xe_exec_queue_destroy(struct kref *ref)
 	if (q->ufence_syncobj)
 		drm_syncobj_put(q->ufence_syncobj);
 
-	if (q->ufence_syncobj)
-		drm_syncobj_put(q->ufence_syncobj);
-
 	if (xe_exec_queue_uses_pxp(q))
 		xe_pxp_exec_queue_remove(gt_to_xe(q->gt)->pxp, q);
 
