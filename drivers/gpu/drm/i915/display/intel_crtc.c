@@ -308,7 +308,7 @@ static const struct drm_crtc_funcs i8xx_crtc_funcs = {
 	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
 };
 
-int intel_crtc_init(struct intel_display *display, enum pipe pipe)
+static int __intel_crtc_init(struct intel_display *display, enum pipe pipe)
 {
 	struct intel_plane *primary, *cursor;
 	const struct drm_crtc_funcs *funcs;
@@ -404,6 +404,23 @@ fail:
 	intel_crtc_free(crtc);
 
 	return ret;
+}
+
+int intel_crtc_init(struct intel_display *display)
+{
+	enum pipe pipe;
+	int ret;
+
+	drm_dbg_kms(display->drm, "%d display pipe%s available.\n",
+		    INTEL_NUM_PIPES(display), str_plural(INTEL_NUM_PIPES(display)));
+
+	for_each_pipe(display, pipe) {
+		ret = __intel_crtc_init(display, pipe);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 int intel_crtc_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
