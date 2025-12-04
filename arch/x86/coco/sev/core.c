@@ -31,7 +31,6 @@
 #include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
 #include <asm/sev.h>
-#include <asm/sev-internal.h>
 #include <asm/insn-eval.h>
 #include <asm/fpu/xcr.h>
 #include <asm/processor.h>
@@ -45,6 +44,8 @@
 #include <asm/cpuid/api.h>
 #include <asm/cmdline.h>
 #include <asm/msr.h>
+
+#include "internal.h"
 
 /* Bitmap of SEV features supported by the hypervisor */
 u64 sev_hv_features __ro_after_init;
