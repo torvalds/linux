@@ -135,8 +135,8 @@ static int z_erofs_load_zstd_config(struct super_block *sb,
 	return strm ? -ENOMEM : 0;
 }
 
-static int z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,
-				   struct page **pgpl)
+static const char *z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,
+					   struct page **pgpl)
 {
 	struct super_block *sb = rq->sb;
 	struct z_erofs_stream_dctx dctx = { .rq = rq, .no = -1, .ni = 0 };
@@ -144,15 +144,16 @@ static int z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,
 	zstd_out_buffer out_buf = { NULL, 0, 0 };
 	struct z_erofs_zstd *strm;
 	zstd_dstream *stream;
-	int zerr, err;
+	const char *reason;
+	int zerr;
 
 	/* 1. get the exact compressed size */
 	dctx.kin = kmap_local_page(*rq->in);
-	err = z_erofs_fixup_insize(rq, dctx.kin + rq->pageofs_in,
+	reason = z_erofs_fixup_insize(rq, dctx.kin + rq->pageofs_in,
 			min(rq->inputsize, sb->s_blocksize - rq->pageofs_in));
-	if (err) {
+	if (reason) {
 		kunmap_local(dctx.kin);
-		return err;
+		return reason;
 	}
 
 	/* 2. get an available ZSTD context */
@@ -161,7 +162,7 @@ static int z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,
 	/* 3. multi-call decompress */
 	stream = zstd_init_dstream(z_erofs_zstd_max_dictsize, strm->wksp, strm->wkspsz);
 	if (!stream) {
-		err = -EIO;
+		reason = ERR_PTR(-ENOMEM);
 		goto failed_zinit;
 	}
 
@@ -174,9 +175,9 @@ static int z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,
 	do {
 		dctx.inbuf_sz = in_buf.size;
 		dctx.inbuf_pos = in_buf.pos;
-		err = z_erofs_stream_switch_bufs(&dctx, &out_buf.dst,
+		reason = z_erofs_stream_switch_bufs(&dctx, &out_buf.dst,
 						 (void **)&in_buf.src, pgpl);
-		if (err)
+		if (reason)
 			break;
 
 		if (out_buf.size == out_buf.pos) {
@@ -191,11 +192,8 @@ static int z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,
 		if (zstd_is_error(zerr) ||
 		    ((rq->outputsize + dctx.avail_out) && (!zerr || (zerr > 0 &&
 				!(rq->inputsize + in_buf.size - in_buf.pos))))) {
-			erofs_err(sb, "failed to decompress in[%u] out[%u]: %s",
-				  rq->inputsize, rq->outputsize,
-				  zstd_is_error(zerr) ? zstd_get_error_name(zerr) :
-					"unexpected end of stream");
-			err = -EFSCORRUPTED;
+			reason = zstd_is_error(zerr) ? zstd_get_error_name(zerr) :
+					"unexpected end of stream";
 			break;
 		}
 	} while (rq->outputsize + dctx.avail_out);
@@ -210,7 +208,7 @@ failed_zinit:
 	z_erofs_zstd_head = strm;
 	spin_unlock(&z_erofs_zstd_lock);
 	wake_up(&z_erofs_zstd_wq);
-	return err;
+	return reason;
 }
 
 const struct z_erofs_decompressor z_erofs_zstd_decomp = {
