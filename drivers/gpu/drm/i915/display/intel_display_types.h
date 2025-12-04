@@ -563,11 +563,16 @@ struct intel_connector {
 		} dsc_branch_caps;
 
 		struct {
+			u8 dpcd[DP_PANEL_REPLAY_CAP_SIZE];
+#define INTEL_PR_DPCD_INDEX(pr_dpcd_register)	((pr_dpcd_register) - DP_PANEL_REPLAY_CAP_SUPPORT)
+
 			u16 su_w_granularity;
 			u16 su_y_granularity;
 		} panel_replay_caps;
 
 		struct {
+			u8 dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
+
 			u16 su_w_granularity;
 			u16 su_y_granularity;
 		} psr_caps;
@@ -1772,9 +1777,6 @@ struct intel_dp {
 	bool needs_modeset_retry;
 	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
-	u8 psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
-	u8 pr_dpcd[DP_PANEL_REPLAY_CAP_SIZE];
-#define INTEL_PR_DPCD_INDEX(pr_dpcd_register)	((pr_dpcd_register) - DP_PANEL_REPLAY_CAP_SUPPORT)
 
 	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
