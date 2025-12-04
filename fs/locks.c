@@ -369,10 +369,19 @@ locks_dispose_list(struct list_head *dispose)
 	while (!list_empty(dispose)) {
 		flc = list_first_entry(dispose, struct file_lock_core, flc_list);
 		list_del_init(&flc->flc_list);
-		if (flc->flc_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT))
-			locks_free_lease(file_lease(flc));
-		else
-			locks_free_lock(file_lock(flc));
+		locks_free_lock(file_lock(flc));
+	}
+}
+
+static void
+lease_dispose_list(struct list_head *dispose)
+{
+	struct file_lock_core *flc;
+
+	while (!list_empty(dispose)) {
+		flc = list_first_entry(dispose, struct file_lock_core, flc_list);
+		list_del_init(&flc->flc_list);
+		locks_free_lease(file_lease(flc));
 	}
 }
 
@@ -1620,7 +1629,7 @@ restart:
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
 
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 	error = wait_event_interruptible_timeout(new_fl->c.flc_wait,
 						 list_empty(&new_fl->c.flc_blocked_member),
 						 break_time);
@@ -1643,7 +1652,7 @@ restart:
 out:
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 free_lock:
 	locks_free_lease(new_fl);
 	return error;
@@ -1727,7 +1736,7 @@ static int __fcntl_getlease(struct file *filp, unsigned int flavor)
 		spin_unlock(&ctx->flc_lock);
 		percpu_up_read(&file_rwsem);
 
-		locks_dispose_list(&dispose);
+		lease_dispose_list(&dispose);
 	}
 	return type;
 }
@@ -1896,7 +1905,7 @@ out_setup:
 out:
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 	if (is_deleg)
 		inode_unlock(inode);
 	if (!error && !my_fl)
@@ -1932,7 +1941,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 		error = fl->fl_lmops->lm_change(victim, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 	return error;
 }
 
@@ -2727,7 +2736,7 @@ locks_remove_lease(struct file *filp, struct file_lock_context *ctx)
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
 
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 }
 
 /*
