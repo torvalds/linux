@@ -72,7 +72,6 @@ static int quicki2c_hid_raw_request(struct hid_device *hid,
 		break;
 	}
 
-	pm_runtime_mark_last_busy(qcdev->dev);
 	pm_runtime_put_autosuspend(qcdev->dev);
 
 	return ret;

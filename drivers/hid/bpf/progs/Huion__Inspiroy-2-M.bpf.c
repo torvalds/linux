@@ -9,10 +9,10 @@
 #include <bpf/bpf_tracing.h>
 
 #define VID_HUION 0x256C
-#define PID_INSPIROY_2_S 0x0066
+#define PID_INSPIROY_2_M 0x0067
 
 HID_BPF_CONFIG(
-	HID_DEVICE(BUS_USB, HID_GROUP_GENERIC, VID_HUION, PID_INSPIROY_2_S),
+	HID_DEVICE(BUS_USB, HID_GROUP_GENERIC, VID_HUION, PID_INSPIROY_2_M),
 );
 
 /* Filled in by udev-hid-bpf */
@@ -21,7 +21,7 @@ char UDEV_PROP_HUION_FIRMWARE_ID[64];
 /* The prefix of the firmware ID we expect for this device. The full firmware
  * string has a date suffix, e.g. HUION_T21j_221221
  */
-char EXPECTED_FIRMWARE_ID[] = "HUION_T21j_";
+char EXPECTED_FIRMWARE_ID[] = "HUION_T21k_";
 
 /* How this BPF program works: the tablet has two modes, firmware mode and
  * tablet mode. In firmware mode (out of the box) the tablet sends button events
@@ -151,9 +151,9 @@ char EXPECTED_FIRMWARE_ID[] = "HUION_T21j_";
  * N: HUION Huion Tablet_H641P
  */
 
-#define PAD_REPORT_DESCRIPTOR_LENGTH 65
+#define PAD_REPORT_DESCRIPTOR_LENGTH 133
 #define PEN_REPORT_DESCRIPTOR_LENGTH 93
-#define VENDOR_REPORT_DESCRIPTOR_LENGTH 18
+#define VENDOR_REPORT_DESCRIPTOR_LENGTH 36
 #define PAD_REPORT_ID 3
 #define PEN_REPORT_ID 10
 #define VENDOR_REPORT_ID 8
@@ -162,10 +162,7 @@ char EXPECTED_FIRMWARE_ID[] = "HUION_T21j_";
 #define VENDOR_REPORT_LENGTH 12
 
 
-__u8 last_button_state;
-__u8 last_tip_state;
-__u8 last_sec_barrel_state;
-__u8 force_tip_down_count;
+__u16 last_button_state;
 
 static const __u8 fixed_rdesc_pad[] = {
 	UsagePage_GenericDesktop
@@ -202,9 +199,9 @@ static const __u8 fixed_rdesc_pad[] = {
 			// Byte 5 is the button state
 			UsagePage_Button
 			UsageMinimum_i8(0x1)
-			UsageMaximum_i8(0x6)
+			UsageMaximum_i8(0x8)
 			LogicalMinimum_i8(0x1)
-			LogicalMaximum_i8(0x6)
+			LogicalMaximum_i8(0x8)
 			ReportCount(1)
 			ReportSize(8)
 			Input(Arr|Abs)
@@ -345,18 +342,21 @@ static const __u8 fixed_rdesc_vendor[] = {
 			ReportCount(2)
 			ReportSize(8)
 			Input(Var|Abs)
-			// Byte 4 is the button state
+			// Bytes 4 and 5 are the button state
 			UsagePage_Button
 			UsageMinimum_i8(0x1)
-			UsageMaximum_i8(0x6)
+			UsageMaximum_i8(0xa)
 			LogicalMinimum_i8(0x0)
 			LogicalMaximum_i8(0x1)
-			ReportCount(6)
+			ReportCount(10)
 			ReportSize(1)
 			Input(Var|Abs)
-			ReportCount(2)
+			Usage_i8(0x31) // maps to BTN_SOUTH
+			ReportCount(1)
+			Input(Var|Abs)
+			ReportCount(5)
 			Input(Const)
-			// Byte 5 is the wheel
+			// Byte 6 is the wheel
 			UsagePage_GenericDesktop
 			Usage_GD_Wheel
 			LogicalMinimum_i8(-1)
@@ -419,7 +419,6 @@ int BPF_PROG(hid_fix_rdesc, struct hid_bpf_ctx *hctx)
 	if (rdesc_size == VENDOR_REPORT_DESCRIPTOR_LENGTH) {
 		__builtin_memcpy(data, fixed_rdesc_vendor, sizeof(fixed_rdesc_vendor));
 		return sizeof(fixed_rdesc_vendor);
-
 	}
 	return 0;
 }
@@ -438,11 +437,13 @@ int BPF_PROG(inspiroy_2_fix_events, struct hid_bpf_ctx *hctx)
 		 * the reports are easy to match. Buttons numbered from the top
 		 *   Button released: 03 00 00 00 00 00 00 00
 		 *   Button 1: 03 00 05 00 00 00 00 00 -> b
-		 *   Button 2: 03 00 0c 00 00 00 00 00 -> i
+		 *   Button 2: 03 07 11 00 00 00 00 00 -> Ctrl Shift N
 		 *   Button 3: 03 00 08 00 00 00 00 00 -> e
-		 *   Button 4: 03 01 16 00 00 00 00 00 -> Ctrl S
+		 *   Button 4: 03 00 0c 00 00 00 00 00 -> i
 		 *   Button 5: 03 00 2c 00 00 00 00 00 -> space
-		 *   Button 6: 03 05 1d 00 00 00 00 00 -> Ctrl Alt Z
+		 *   Button 6: 03 01 08 00 00 00 00 00 -> Ctrl E
+		 *   Button 7: 03 01 16 00 00 00 00 00 -> Ctrl S
+		 *   Button 8: 03 05 1d 00 00 00 00 00 -> Ctrl Alt Z
 		 *
 		 *   Wheel down: 03 01 2d 00 00 00 00 00 -> Ctrl -
 		 *   Wheel up:   03 01 2e 00 00 00 00 00 -> Ctrl =
@@ -456,20 +457,26 @@ int BPF_PROG(inspiroy_2_fix_events, struct hid_bpf_ctx *hctx)
 		case 0x0005:
 			button = 1;
 			break;
-		case 0x000c:
+		case 0x0711:
 			button = 2;
 			break;
 		case 0x0008:
 			button = 3;
 			break;
-		case 0x0116:
+		case 0x000c:
 			button = 4;
 			break;
 		case 0x002c:
 			button = 5;
 			break;
-		case 0x051d:
+		case 0x0108:
 			button = 6;
+			break;
+		case 0x0116:
+			button = 7;
+			break;
+		case 0x051d:
+			button = 8;
 			break;
 		case 0x012d:
 			wheel = -1;
@@ -477,7 +484,6 @@ int BPF_PROG(inspiroy_2_fix_events, struct hid_bpf_ctx *hctx)
 		case 0x012e:
 			wheel = 1;
 			break;
-
 		}
 
 		__u8 report[6] = {PAD_REPORT_ID, 0x0, 0x0, 0x0, wheel, button};
@@ -498,7 +504,7 @@ int BPF_PROG(inspiroy_2_fix_events, struct hid_bpf_ctx *hctx)
 				__u8 btn_stylus;
 				__u8 x;
 				__u8 y;
-				__u8 buttons;
+				__u16 buttons;
 				__u8 wheel;
 			} __attribute__((packed)) *pad_report;
 			__u8 wheel = 0;
@@ -510,8 +516,8 @@ int BPF_PROG(inspiroy_2_fix_events, struct hid_bpf_ctx *hctx)
 				else
 					wheel = data[5];
 			} else {
-				/* data[4] are the buttons, mapped correctly */
-				last_button_state = data[4];
+				/* data[4] and data[5] are the buttons, mapped correctly */
+				last_button_state = data[4] | (data[5] << 8);
 				wheel = 0; // wheel
 			}
 
@@ -525,31 +531,9 @@ int BPF_PROG(inspiroy_2_fix_events, struct hid_bpf_ctx *hctx)
 			pad_report->wheel = wheel;
 
 			return sizeof(struct pad_report);
-		} else if (data[1] & 0x80) { /* Pen reports with InRange 1 */
-			__u8 tip_state = data[1] & 0x1;
-			__u8 sec_barrel_state = data[1] & 0x4;
-
-			if (force_tip_down_count > 0) {
-				data[1] |= 0x1;
-				--force_tip_down_count;
-				if (tip_state)
-					force_tip_down_count = 0;
-			}
-
-			/* Tip was down and we just pressed or released the
-			 * secondary barrel switch (the physical eraser
-			 * button). The device will send up to 4
-			 * reports with Tip Switch 0 and sometimes
-			 * this report has Tip Switch 0.
-			 */
-			if (last_tip_state &&
-			    last_sec_barrel_state != sec_barrel_state) {
-				force_tip_down_count = 4;
-				data[1] |= 0x1;
-			}
-			last_tip_state = tip_state;
-			last_sec_barrel_state = sec_barrel_state;
 		}
+
+		/* Pen reports need nothing done */
 	}
 
 	return 0;
