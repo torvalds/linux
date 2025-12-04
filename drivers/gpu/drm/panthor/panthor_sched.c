@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/rcupdate.h>
 
 #include "panthor_devfreq.h"
 #include "panthor_device.h"
@@ -942,6 +943,9 @@ static void group_release_work(struct work_struct *work)
 						   struct panthor_group,
 						   release_work);
 	u32 i;
+
+	/* dma-fences may still be accessing group->queues under rcu lock. */
+	synchronize_rcu();
 
 	for (i = 0; i < group->queue_count; i++)
 		group_free_queue(group, group->queues[i]);
