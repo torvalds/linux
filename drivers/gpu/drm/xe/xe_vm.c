@@ -3501,6 +3501,10 @@ static int xe_vm_bind_ioctl_validate_bo(struct xe_device *xe, struct xe_bo *bo,
 {
 	u16 coh_mode;
 
+	if (XE_IOCTL_DBG(xe, (bo->flags & XE_BO_FLAG_NO_COMPRESSION) &&
+			 xe_pat_index_get_comp_en(xe, pat_index)))
+		return -EINVAL;
+
 	if (XE_IOCTL_DBG(xe, range > xe_bo_size(bo)) ||
 	    XE_IOCTL_DBG(xe, obj_offset >
 			 xe_bo_size(bo) - range)) {

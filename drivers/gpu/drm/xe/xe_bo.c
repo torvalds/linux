@@ -3178,7 +3178,8 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_DBG(xe, args->flags &
 			 ~(DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING |
 			   DRM_XE_GEM_CREATE_FLAG_SCANOUT |
-			   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM)))
+			   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM |
+			   DRM_XE_GEM_CREATE_FLAG_NO_COMPRESSION)))
 		return -EINVAL;
 
 	if (XE_IOCTL_DBG(xe, args->handle))
@@ -3199,6 +3200,12 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_SCANOUT)
 		bo_flags |= XE_BO_FLAG_SCANOUT;
+
+	if (args->flags & DRM_XE_GEM_CREATE_FLAG_NO_COMPRESSION) {
+		if (XE_IOCTL_DBG(xe, GRAPHICS_VER(xe) < 20))
+			return -EOPNOTSUPP;
+		bo_flags |= XE_BO_FLAG_NO_COMPRESSION;
+	}
 
 	bo_flags |= args->placement << (ffs(XE_BO_FLAG_SYSTEM) - 1);
 
@@ -3521,8 +3528,12 @@ bool xe_bo_needs_ccs_pages(struct xe_bo *bo)
 	 * Compression implies coh_none, therefore we know for sure that WB
 	 * memory can't currently use compression, which is likely one of the
 	 * common cases.
+	 * Additionally, userspace may explicitly request no compression via the
+	 * DRM_XE_GEM_CREATE_FLAG_NO_COMPRESSION flag, which should also disable
+	 * CCS usage.
 	 */
-	if (bo->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB)
+	if (bo->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB ||
+	    bo->flags & XE_BO_FLAG_NO_COMPRESSION)
 		return false;
 
 	return true;
