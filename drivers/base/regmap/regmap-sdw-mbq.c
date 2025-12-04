@@ -17,10 +17,11 @@ struct regmap_mbq_context {
 	struct device *dev;
 	struct sdw_slave *sdw;
 
+	bool (*readable_reg)(struct device *dev, unsigned int reg);
+
 	struct regmap_sdw_mbq_cfg cfg;
 
 	int val_size;
-	bool (*readable_reg)(struct device *dev, unsigned int reg);
 };
 
 static int regmap_sdw_mbq_size(struct regmap_mbq_context *ctx, unsigned int reg)

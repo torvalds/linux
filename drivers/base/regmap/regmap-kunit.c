@@ -54,6 +54,8 @@ static const char *regcache_type_name(enum regcache_type type)
 		return "none";
 	case REGCACHE_FLAT:
 		return "flat";
+	case REGCACHE_FLAT_S:
+		return "flat-sparse";
 	case REGCACHE_RBTREE:
 		return "rbtree";
 	case REGCACHE_MAPLE:
@@ -93,6 +95,8 @@ static const struct regmap_test_param regcache_types_list[] = {
 	{ .cache = REGCACHE_NONE, .fast_io = true },
 	{ .cache = REGCACHE_FLAT },
 	{ .cache = REGCACHE_FLAT, .fast_io = true },
+	{ .cache = REGCACHE_FLAT_S },
+	{ .cache = REGCACHE_FLAT_S, .fast_io = true },
 	{ .cache = REGCACHE_RBTREE },
 	{ .cache = REGCACHE_RBTREE, .fast_io = true },
 	{ .cache = REGCACHE_MAPLE },
@@ -104,6 +108,8 @@ KUNIT_ARRAY_PARAM(regcache_types, regcache_types_list, param_to_desc);
 static const struct regmap_test_param real_cache_types_only_list[] = {
 	{ .cache = REGCACHE_FLAT },
 	{ .cache = REGCACHE_FLAT, .fast_io = true },
+	{ .cache = REGCACHE_FLAT_S },
+	{ .cache = REGCACHE_FLAT_S, .fast_io = true },
 	{ .cache = REGCACHE_RBTREE },
 	{ .cache = REGCACHE_RBTREE, .fast_io = true },
 	{ .cache = REGCACHE_MAPLE },
@@ -119,6 +125,12 @@ static const struct regmap_test_param real_cache_types_list[] = {
 	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2002 },
 	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2003 },
 	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2004 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0, .fast_io = true },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0x2001 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0x2002 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0x2003 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0x2004 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0, .fast_io = true },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2001 },
@@ -136,6 +148,12 @@ static const struct regmap_test_param real_cache_types_list[] = {
 KUNIT_ARRAY_PARAM(real_cache_types, real_cache_types_list, param_to_desc);
 
 static const struct regmap_test_param sparse_cache_types_list[] = {
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0, .fast_io = true },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0x2001 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0x2002 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0x2003 },
+	{ .cache = REGCACHE_FLAT_S, .from_reg = 0x2004 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0, .fast_io = true },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2001 },
@@ -1597,6 +1615,8 @@ static const struct regmap_test_param raw_types_list[] = {
 	{ .cache = REGCACHE_NONE,   .val_endian = REGMAP_ENDIAN_BIG },
 	{ .cache = REGCACHE_FLAT,   .val_endian = REGMAP_ENDIAN_LITTLE },
 	{ .cache = REGCACHE_FLAT,   .val_endian = REGMAP_ENDIAN_BIG },
+	{ .cache = REGCACHE_FLAT_S, .val_endian = REGMAP_ENDIAN_LITTLE },
+	{ .cache = REGCACHE_FLAT_S, .val_endian = REGMAP_ENDIAN_BIG },
 	{ .cache = REGCACHE_RBTREE, .val_endian = REGMAP_ENDIAN_LITTLE },
 	{ .cache = REGCACHE_RBTREE, .val_endian = REGMAP_ENDIAN_BIG },
 	{ .cache = REGCACHE_MAPLE,  .val_endian = REGMAP_ENDIAN_LITTLE },
@@ -1608,6 +1628,8 @@ KUNIT_ARRAY_PARAM(raw_test_types, raw_types_list, param_to_desc);
 static const struct regmap_test_param raw_cache_types_list[] = {
 	{ .cache = REGCACHE_FLAT,   .val_endian = REGMAP_ENDIAN_LITTLE },
 	{ .cache = REGCACHE_FLAT,   .val_endian = REGMAP_ENDIAN_BIG },
+	{ .cache = REGCACHE_FLAT_S, .val_endian = REGMAP_ENDIAN_LITTLE },
+	{ .cache = REGCACHE_FLAT_S, .val_endian = REGMAP_ENDIAN_BIG },
 	{ .cache = REGCACHE_RBTREE, .val_endian = REGMAP_ENDIAN_LITTLE },
 	{ .cache = REGCACHE_RBTREE, .val_endian = REGMAP_ENDIAN_BIG },
 	{ .cache = REGCACHE_MAPLE,  .val_endian = REGMAP_ENDIAN_LITTLE },
