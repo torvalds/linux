@@ -43,6 +43,7 @@
 #include "poll.c"
 #include "processor.c"
 #include "property.c"
+#include "pwm.c"
 #include "rbtree.c"
 #include "rcu.c"
 #include "refcount.c"
