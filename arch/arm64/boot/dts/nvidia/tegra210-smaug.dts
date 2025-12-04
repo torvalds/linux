@@ -1855,6 +1855,17 @@
 		status = "okay";
 	};
 
+	usb@700d0000 {
+		phys = <&{/padctl@7009f000/pads/usb2/lanes/usb2-0}>,
+		       <&{/padctl@7009f000/pads/pcie/lanes/pcie-6}>;
+		phy-names = "usb2-0", "usb3-0";
+
+		avddio-usb-supply = <&avddio_1v05>;
+		hvdd-usb-supply = <&pp3300>;
+
+		status = "okay";
+	};
+
 	clock@70110000 {
 		status = "okay";
 		nvidia,cf = <6>;
