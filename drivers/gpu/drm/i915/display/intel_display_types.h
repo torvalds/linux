@@ -588,6 +588,8 @@ struct intel_connector {
 
 			u16 su_w_granularity;
 			u16 su_y_granularity;
+
+			u8 sync_latency;
 		} psr_caps;
 	} dp;
 
@@ -1746,7 +1748,6 @@ struct intel_psr {
 	bool psr2_sel_fetch_cff_enabled;
 	bool su_region_et_enabled;
 	bool req_psr2_sdp_prior_scanline;
-	u8 sink_sync_latency;
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
 	bool sink_not_reliable;

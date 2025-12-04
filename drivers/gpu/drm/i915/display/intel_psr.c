@@ -684,8 +684,7 @@ static void _psr_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *co
 	connector->dp.psr_caps.support = true;
 	intel_dp->psr.sink_support = true;
 
-	intel_dp->psr.sink_sync_latency =
-		intel_dp_get_sink_sync_latency(intel_dp);
+	connector->dp.psr_caps.sync_latency = intel_dp_get_sink_sync_latency(intel_dp);
 
 	if (DISPLAY_VER(display) >= 9 &&
 	    connector->dp.psr_caps.dpcd[0] >= DP_PSR2_WITH_Y_COORD_IS_SUPPORTED) {
@@ -910,7 +909,7 @@ static u8 psr_compute_idle_frames(struct intel_dp *intel_dp)
 	 * off-by-one issue that HW has in some cases.
 	 */
 	idle_frames = max(6, connector->panel.vbt.psr.idle_frames);
-	idle_frames = max(idle_frames, intel_dp->psr.sink_sync_latency + 1);
+	idle_frames = max(idle_frames, connector->dp.psr_caps.sync_latency + 1);
 
 	if (drm_WARN_ON(display->drm, idle_frames > 0xf))
 		idle_frames = 0xf;
@@ -1005,10 +1004,11 @@ static int psr2_block_count(struct intel_dp *intel_dp)
 
 static u8 frames_before_su_entry(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	u8 frames_before_su_entry;
 
 	frames_before_su_entry = max_t(u8,
-				       intel_dp->psr.sink_sync_latency + 1,
+				       connector->dp.psr_caps.sync_latency + 1,
 				       2);
 
 	/* Entry setup frames must be at least 1 less than frames before SU entry */
