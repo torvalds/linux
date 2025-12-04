@@ -561,6 +561,16 @@ struct intel_connector {
 			} overall_throughput;
 			int max_line_width;
 		} dsc_branch_caps;
+
+		struct {
+			u16 su_w_granularity;
+			u16 su_y_granularity;
+		} panel_replay_caps;
+
+		struct {
+			u16 su_w_granularity;
+			u16 su_y_granularity;
+		} psr_caps;
 	} dp;
 
 	struct {
