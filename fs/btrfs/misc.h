@@ -14,6 +14,13 @@
 #include <linux/bio.h>
 
 /*
+ * Convenience macros to define a pointer with the __free(kfree) and
+ * __free(kvfree) cleanup attributes and initialized to NULL.
+ */
+#define AUTO_KFREE(name)       *name __free(kfree) = NULL
+#define AUTO_KVFREE(name)      *name __free(kvfree) = NULL
+
+/*
  * Enumerate bits using enum autoincrement. Define the @name as the n-th bit.
  */
 #define ENUM_BIT(name)                                  \

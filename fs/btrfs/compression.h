@@ -14,14 +14,12 @@
 #include <linux/pagemap.h>
 #include "bio.h"
 #include "fs.h"
-#include "messages.h"
+#include "btrfs_inode.h"
 
 struct address_space;
-struct page;
 struct inode;
 struct btrfs_inode;
 struct btrfs_ordered_extent;
-struct btrfs_bio;
 
 /*
  * We want to make sure that amount of RAM required to uncompress an extent is
@@ -65,11 +63,8 @@ struct compressed_bio {
 	/* Whether this is a write for writeback. */
 	bool writeback;
 
-	union {
-		/* For reads, this is the bio we are copying the data into */
-		struct btrfs_bio *orig_bbio;
-		struct work_struct write_end_work;
-	};
+	/* For reads, this is the bio we are copying the data into. */
+	struct btrfs_bio *orig_bbio;
 
 	/* Must be last. */
 	struct btrfs_bio bbio;
@@ -77,7 +72,7 @@ struct compressed_bio {
 
 static inline struct btrfs_fs_info *cb_to_fs_info(const struct compressed_bio *cb)
 {
-	return cb->bbio.fs_info;
+	return cb->bbio.inode->root->fs_info;
 }
 
 /* @range_end must be exclusive. */
@@ -100,7 +95,7 @@ int btrfs_compress_folios(unsigned int type, int level, struct btrfs_inode *inod
 			  u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out);
 int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
-		     unsigned long start_byte, size_t srclen, size_t destlen);
+		     unsigned long dest_pgoff, size_t srclen, size_t destlen);
 int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 			      struct compressed_bio *cb, u32 decompressed);
 
