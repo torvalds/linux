@@ -13,5 +13,4 @@ config TSM_REPORTS
 config TSM_MEASUREMENTS
 	select TSM_GUEST
 	select CRYPTO_HASH_INFO
-	select CRYPTO
 	bool
