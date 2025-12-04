@@ -156,17 +156,36 @@ static int sysctl_k2u_int_conv_ms(bool *negp, ulong *u_ptr, const int *k_ptr)
 	return proc_int_k2u_conv_kop(u_ptr, k_ptr, negp, sysctl_jiffies_to_msecs);
 }
 
+static int do_proc_int_conv_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,
+				    int dir, const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_u2k_int_conv_hz, sysctl_k2u_int_conv_hz);
+}
 
-static SYSCTL_INT_CONV_CUSTOM(_jiffies, sysctl_u2k_int_conv_hz,
-			      sysctl_k2u_int_conv_hz, false)
-static SYSCTL_INT_CONV_CUSTOM(_userhz_jiffies,
-			      sysctl_u2k_int_conv_userhz,
-			      sysctl_k2u_int_conv_userhz, false)
-static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies, sysctl_u2k_int_conv_ms,
-			      sysctl_k2u_int_conv_ms, false)
-static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies_minmax,
-			      sysctl_u2k_int_conv_ms,
-			      sysctl_k2u_int_conv_ms, true)
+static int do_proc_int_conv_userhz_jiffies(bool *negp, ulong *u_ptr,
+					   int *k_ptr, int dir,
+					   const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_u2k_int_conv_userhz,
+			     sysctl_k2u_int_conv_userhz);
+}
+
+static int do_proc_int_conv_ms_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,
+				       int dir, const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_u2k_int_conv_ms, sysctl_k2u_int_conv_ms);
+}
+
+static int do_proc_int_conv_ms_jiffies_minmax(bool *negp, ulong *u_ptr,
+					      int *k_ptr, int dir,
+					      const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_u2k_int_conv_ms, sysctl_k2u_int_conv_ms);
+}
 
 #else // CONFIG_PROC_SYSCTL
 static int do_proc_int_conv_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,

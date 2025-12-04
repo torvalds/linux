@@ -515,6 +515,33 @@ int proc_int_u2k_conv_uop(const ulong *u_ptr, int *k_ptr, const bool *negp,
 	return 0;
 }
 
+int proc_int_conv(bool *negp, ulong *u_ptr, int *k_ptr, int dir,
+		  const struct ctl_table *tbl, bool k_ptr_range_check,
+		  int (*user_to_kern)(const bool *negp, const ulong *u_ptr, int *k_ptr),
+		  int (*kern_to_user)(bool *negp, ulong *u_ptr, const int *k_ptr))
+{
+	if (SYSCTL_KERN_TO_USER(dir))
+		return kern_to_user(negp, u_ptr, k_ptr);
+
+	if (k_ptr_range_check) {
+		int tmp_k, ret;
+
+		if (!tbl)
+			return -EINVAL;
+		ret = user_to_kern(negp, u_ptr, &tmp_k);
+		if (ret)
+			return ret;
+		if ((tbl->extra1 && *(int *)tbl->extra1 > tmp_k) ||
+		    (tbl->extra2 && *(int *)tbl->extra2 < tmp_k))
+			return -EINVAL;
+		WRITE_ONCE(*k_ptr, tmp_k);
+	} else
+		return user_to_kern(negp, u_ptr, k_ptr);
+	return 0;
+}
+
+
+
 static int sysctl_user_to_kern_int_conv(const bool *negp, const ulong *u_ptr,
 					int *k_ptr)
 {
@@ -526,10 +553,22 @@ static int sysctl_kern_to_user_int_conv(bool *negp, ulong *u_ptr, const int *k_p
 	return proc_int_k2u_conv_kop(u_ptr, k_ptr, negp, NULL);
 }
 
-static SYSCTL_INT_CONV_CUSTOM(, sysctl_user_to_kern_int_conv,
-			      sysctl_kern_to_user_int_conv, false)
-static SYSCTL_INT_CONV_CUSTOM(_minmax, sysctl_user_to_kern_int_conv,
-			      sysctl_kern_to_user_int_conv, true)
+static int do_proc_int_conv(bool *negp, unsigned long *u_ptr, int *k_ptr,
+			    int dir, const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_user_to_kern_int_conv,
+			     sysctl_kern_to_user_int_conv);
+
+}
+
+static int do_proc_int_conv_minmax(bool *negp, unsigned long *u_ptr, int *k_ptr,
+				   int dir, const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, true,
+			     sysctl_user_to_kern_int_conv,
+			     sysctl_kern_to_user_int_conv);
+}
 
 static const char proc_wspace_sep[] = { ' ', '\t', '\n' };
 
