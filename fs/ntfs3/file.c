@@ -19,6 +19,12 @@
 #include "ntfs.h"
 #include "ntfs_fs.h"
 
+/*
+ * cifx, btrfs, exfat, ext4, f2fs use this constant.
+ * Hope this value will become common to all fs.
+ */
+#define NTFS3_IOC_SHUTDOWN _IOR('X', 125, __u32)
+
 static int ntfs_ioctl_fitrim(struct ntfs_sb_info *sbi, unsigned long arg)
 {
 	struct fstrim_range __user *user_range;
@@ -59,7 +65,7 @@ static int ntfs_ioctl_get_volume_label(struct ntfs_sb_info *sbi, u8 __user *buf)
 
 static int ntfs_ioctl_set_volume_label(struct ntfs_sb_info *sbi, u8 __user *buf)
 {
-	u8 user[FSLABEL_MAX] = {0};
+	u8 user[FSLABEL_MAX] = { 0 };
 	int len;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -74,12 +80,46 @@ static int ntfs_ioctl_set_volume_label(struct ntfs_sb_info *sbi, u8 __user *buf)
 }
 
 /*
+ * ntfs_force_shutdown - helper function. Called from ioctl
+ */
+static int ntfs_force_shutdown(struct super_block *sb, u32 flags)
+{
+	int err;
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
+
+	if (unlikely(ntfs3_forced_shutdown(sb)))
+		return 0;
+
+	/* No additional options yet (flags). */
+	err = bdev_freeze(sb->s_bdev);
+	if (err)
+		return err;
+	set_bit(NTFS_FLAGS_SHUTDOWN_BIT, &sbi->flags);
+	bdev_thaw(sb->s_bdev);
+	return 0;
+}
+
+static int ntfs_ioctl_shutdown(struct super_block *sb, unsigned long arg)
+{
+	u32 flags;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (get_user(flags, (__u32 __user *)arg))
+		return -EFAULT;
+
+	return ntfs_force_shutdown(sb, flags);
+}
+
+/*
  * ntfs_ioctl - file_operations::unlocked_ioctl
  */
 long ntfs_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
-	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
+	struct super_block *sb = inode->i_sb;
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
 
 	/* Avoid any operation if inode is bad. */
 	if (unlikely(is_bad_ni(ntfs_i(inode))))
@@ -92,6 +132,8 @@ long ntfs_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 		return ntfs_ioctl_get_volume_label(sbi, (u8 __user *)arg);
 	case FS_IOC_SETFSLABEL:
 		return ntfs_ioctl_set_volume_label(sbi, (u8 __user *)arg);
+	case NTFS3_IOC_SHUTDOWN:
+		return ntfs_ioctl_shutdown(sb, arg);
 	}
 	return -ENOTTY; /* Inappropriate ioctl for device. */
 }
@@ -325,9 +367,14 @@ static int ntfs_file_mmap_prepare(struct vm_area_desc *desc)
 		return -EOPNOTSUPP;
 	}
 
-	if (is_compressed(ni) && rw) {
-		ntfs_inode_warn(inode, "mmap(write) compressed not supported");
-		return -EOPNOTSUPP;
+	if (is_compressed(ni)) {
+		if (rw) {
+			ntfs_inode_warn(inode,
+					"mmap(write) compressed not supported");
+			return -EOPNOTSUPP;
+		}
+		/* Turn off readahead for compressed files. */
+		file->f_ra.ra_pages = 0;
 	}
 
 	if (rw) {
@@ -502,8 +549,6 @@ static int ntfs_truncate(struct inode *inode, loff_t new_size)
 
 	if (dirty)
 		mark_inode_dirty(inode);
-
-	/*ntfs_flush_inodes(inode->i_sb, inode, NULL);*/
 
 	return 0;
 }
@@ -886,9 +931,24 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (err)
 		return err;
 
-	if (is_compressed(ni) && (iocb->ki_flags & IOCB_DIRECT)) {
-		ntfs_inode_warn(inode, "direct i/o + compressed not supported");
-		return -EOPNOTSUPP;
+	if (is_compressed(ni)) {
+		if (iocb->ki_flags & IOCB_DIRECT) {
+			ntfs_inode_warn(
+				inode, "direct i/o + compressed not supported");
+			return -EOPNOTSUPP;
+		}
+		/* Turn off readahead for compressed files. */
+		file->f_ra.ra_pages = 0;
+	}
+
+	/* Check minimum alignment for dio. */
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		struct super_block *sb = inode->i_sb;
+		struct ntfs_sb_info *sbi = sb->s_fs_info;
+		if ((iocb->ki_pos | iov_iter_alignment(iter)) &
+		    sbi->bdev_blocksize_mask) {
+			iocb->ki_flags &= ~IOCB_DIRECT;
+		}
 	}
 
 	return generic_file_read_iter(iocb, iter);
@@ -907,6 +967,11 @@ static ssize_t ntfs_file_splice_read(struct file *in, loff_t *ppos,
 	err = check_read_restriction(inode);
 	if (err)
 		return err;
+
+	if (is_compressed(ntfs_i(inode))) {
+		/* Turn off readahead for compressed files. */
+		in->f_ra.ra_pages = 0;
+	}
 
 	return filemap_splice_read(in, ppos, pipe, len, flags);
 }
@@ -1026,7 +1091,7 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 
 		if (!frame_uptodate && off) {
 			err = ni_read_frame(ni, frame_vbo, pages,
-					    pages_per_frame);
+					    pages_per_frame, 0);
 			if (err) {
 				for (ip = 0; ip < pages_per_frame; ip++) {
 					folio = page_folio(pages[ip]);
@@ -1091,7 +1156,7 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 
 			if (off || (to < i_size && (to & (frame_size - 1)))) {
 				err = ni_read_frame(ni, frame_vbo, pages,
-						    pages_per_frame);
+						    pages_per_frame, 0);
 				if (err) {
 					for (ip = 0; ip < pages_per_frame;
 					     ip++) {
@@ -1114,8 +1179,8 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 			size_t cp, tail = PAGE_SIZE - off;
 
 			folio = page_folio(pages[ip]);
-			cp = copy_folio_from_iter_atomic(folio, off,
-							min(tail, bytes), from);
+			cp = copy_folio_from_iter_atomic(
+				folio, off, min(tail, bytes), from);
 			flush_dcache_folio(folio);
 
 			copied += cp;
@@ -1312,7 +1377,7 @@ static int ntfs_file_release(struct inode *inode, struct file *file)
 	if (sbi->options->prealloc &&
 	    ((file->f_mode & FMODE_WRITE) &&
 	     atomic_read(&inode->i_writecount) == 1)
-	   /*
+	    /*
 	    * The only file when inode->i_fop = &ntfs_file_operations and
 	    * init_rwsem(&ni->file.run_lock) is not called explicitly is MFT.
 	    *
@@ -1375,6 +1440,18 @@ static ssize_t ntfs_file_splice_write(struct pipe_inode_info *pipe,
 	return iter_file_splice_write(pipe, file, ppos, len, flags);
 }
 
+/*
+ * ntfs_file_fsync - file_operations::fsync
+ */
+static int ntfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+{
+	struct inode *inode = file_inode(file);
+	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
+		return -EIO;
+
+	return generic_file_fsync(file, start, end, datasync);
+}
+
 // clang-format off
 const struct inode_operations ntfs_file_inode_operations = {
 	.getattr	= ntfs_getattr,
@@ -1397,7 +1474,7 @@ const struct file_operations ntfs_file_operations = {
 	.splice_write	= ntfs_file_splice_write,
 	.mmap_prepare	= ntfs_file_mmap_prepare,
 	.open		= ntfs_file_open,
-	.fsync		= generic_file_fsync,
+	.fsync		= ntfs_file_fsync,
 	.fallocate	= ntfs_fallocate,
 	.release	= ntfs_file_release,
 };
