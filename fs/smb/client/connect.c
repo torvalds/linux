@@ -4238,8 +4238,10 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&pserver->dstaddr;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&pserver->dstaddr;
 	bool is_binding = false;
+	bool new_ses;
 
 	spin_lock(&ses->ses_lock);
+	new_ses = ses->ses_status == SES_NEW;
 	cifs_dbg(FYI, "%s: channel connect bitmap: 0x%lx\n",
 		 __func__, ses->chans_need_reconnect);
 
@@ -4325,7 +4327,10 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	if (rc) {
-		cifs_server_dbg(VFS, "Send error in SessSetup = %d\n", rc);
+		if (new_ses) {
+			cifs_server_dbg(VFS, "failed to create a new SMB session with %s: %d\n",
+					get_security_type_str(ses->sectype), rc);
+		}
 		spin_lock(&ses->ses_lock);
 		if (ses->ses_status == SES_IN_SETUP)
 			ses->ses_status = SES_NEED_RECON;
