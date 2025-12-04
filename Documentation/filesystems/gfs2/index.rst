@@ -4,6 +4,9 @@
 Global File System 2
 ====================
 
+Overview
+========
+
 GFS2 is a cluster file system. It allows a cluster of computers to
 simultaneously use a block device that is shared between them (with FC,
 iSCSI, NBD, etc).  GFS2 reads and writes to the block device like a local
@@ -50,3 +53,12 @@ The following man pages are available from gfs2-utils:
   gfs2_convert		to convert a gfs filesystem to GFS2 in-place
   mkfs.gfs2		to make a filesystem
   ============		=============================================
+
+Implementation Notes
+====================
+
+.. toctree::
+   :maxdepth: 1
+
+   glocks
+   uevents

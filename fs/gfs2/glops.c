@@ -30,8 +30,6 @@
 
 struct workqueue_struct *gfs2_freeze_wq;
 
-extern struct workqueue_struct *gfs2_control_wq;
-
 static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
@@ -45,7 +43,7 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 	       gl->gl_name.ln_type, gl->gl_name.ln_number,
 	       gfs2_glock2aspace(gl));
 	gfs2_lm(sdp, "AIL error\n");
-	gfs2_withdraw_delayed(sdp);
+	gfs2_withdraw(sdp);
 }
 
 /**
@@ -83,9 +81,6 @@ static void __gfs2_ail_flush(struct gfs2_glock *gl, bool fsync,
 	GLOCK_BUG_ON(gl, !fsync && atomic_read(&gl->gl_ail_count));
 	spin_unlock(&sdp->sd_ail_lock);
 	gfs2_log_unlock(sdp);
-
-	if (gfs2_withdrawing(sdp))
-		gfs2_withdraw(sdp);
 }
 
 
@@ -178,7 +173,7 @@ static int gfs2_rgrp_metasync(struct gfs2_glock *gl)
 
 	filemap_fdatawrite_range(metamapping, start, end);
 	error = filemap_fdatawait_range(metamapping, start, end);
-	WARN_ON_ONCE(error && !gfs2_withdrawing_or_withdrawn(sdp));
+	WARN_ON_ONCE(error && !gfs2_withdrawn(sdp));
 	mapping_set_error(metamapping, error);
 	if (error)
 		gfs2_io_error(sdp);
@@ -237,6 +232,7 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 	end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
 	gfs2_rgrp_brelse(rgd);
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
+	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
 	truncate_inode_pages_range(mapping, start, end);
 }
 
@@ -362,6 +358,8 @@ out:
 static void inode_go_inval(struct gfs2_glock *gl, int flags)
 {
 	struct gfs2_inode *ip = gfs2_glock2inode(gl);
+
+	gfs2_assert_withdraw(gl->gl_name.ln_sbd, !atomic_read(&gl->gl_ail_count));
 
 	if (flags & DIO_METADATA) {
 		struct address_space *mapping = gfs2_glock2aspace(gl);
@@ -608,10 +606,10 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl)
 		j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 
 		error = gfs2_find_jhead(sdp->sd_jdesc, &head);
-		if (gfs2_assert_withdraw_delayed(sdp, !error))
+		if (gfs2_assert_withdraw(sdp, !error))
 			return error;
-		if (gfs2_assert_withdraw_delayed(sdp, head.lh_flags &
-						 GFS2_LOG_HEAD_UNMOUNT))
+		if (gfs2_assert_withdraw(sdp, head.lh_flags &
+					 GFS2_LOG_HEAD_UNMOUNT))
 			return -EIO;
 		gfs2_log_pointers_init(sdp, &head);
 	}
@@ -630,8 +628,7 @@ static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 	struct gfs2_inode *ip = gl->gl_object;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (!remote || sb_rdonly(sdp->sd_vfs) ||
-	    test_bit(SDF_KILL, &sdp->sd_flags))
+	if (!remote || test_bit(SDF_KILL, &sdp->sd_flags))
 		return;
 
 	if (gl->gl_demote_state == LM_ST_UNLOCKED &&
@@ -642,76 +639,8 @@ static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 	}
 }
 
-/**
- * inode_go_unlocked - wake up anyone waiting for dlm's unlock ast
- * @gl: glock being unlocked
- *
- * For now, this is only used for the journal inode glock. In withdraw
- * situations, we need to wait for the glock to be unlocked so that we know
- * other nodes may proceed with recovery / journal replay.
- */
-static void inode_go_unlocked(struct gfs2_glock *gl)
-{
-	/* Note that we cannot reference gl_object because it's already set
-	 * to NULL by this point in its lifecycle. */
-	if (!test_bit(GLF_UNLOCKED, &gl->gl_flags))
-		return;
-	clear_bit_unlock(GLF_UNLOCKED, &gl->gl_flags);
-	wake_up_bit(&gl->gl_flags, GLF_UNLOCKED);
-}
-
-/**
- * nondisk_go_callback - used to signal when a node did a withdraw
- * @gl: the nondisk glock
- * @remote: true if this came from a different cluster node
- *
- */
-static void nondisk_go_callback(struct gfs2_glock *gl, bool remote)
-{
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-
-	/* Ignore the callback unless it's from another node, and it's the
-	   live lock. */
-	if (!remote || gl->gl_name.ln_number != GFS2_LIVE_LOCK)
-		return;
-
-	/* First order of business is to cancel the demote request. We don't
-	 * really want to demote a nondisk glock. At best it's just to inform
-	 * us of another node's withdraw. We'll keep it in SH mode. */
-	clear_bit(GLF_DEMOTE, &gl->gl_flags);
-	clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
-
-	/* Ignore the unlock if we're withdrawn, unmounting, or in recovery. */
-	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags) ||
-	    test_bit(SDF_WITHDRAWN, &sdp->sd_flags) ||
-	    test_bit(SDF_REMOTE_WITHDRAW, &sdp->sd_flags))
-		return;
-
-	/* We only care when a node wants us to unlock, because that means
-	 * they want a journal recovered. */
-	if (gl->gl_demote_state != LM_ST_UNLOCKED)
-		return;
-
-	if (sdp->sd_args.ar_spectator) {
-		fs_warn(sdp, "Spectator node cannot recover journals.\n");
-		return;
-	}
-
-	fs_warn(sdp, "Some node has withdrawn; checking for recovery.\n");
-	set_bit(SDF_REMOTE_WITHDRAW, &sdp->sd_flags);
-	/*
-	 * We can't call remote_withdraw directly here or gfs2_recover_journal
-	 * because this is called from the glock unlock function and the
-	 * remote_withdraw needs to enqueue and dequeue the same "live" glock
-	 * we were called from. So we queue it to the control work queue in
-	 * lock_dlm.
-	 */
-	queue_delayed_work(gfs2_control_wq, &sdp->sd_control_work, 0);
-}
-
 const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_type = LM_TYPE_META,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_inode_glops = {
@@ -722,7 +651,6 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_dump = inode_go_dump,
 	.go_type = LM_TYPE_INODE,
 	.go_flags = GLOF_ASPACE | GLOF_LVB,
-	.go_unlocked = inode_go_unlocked,
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
@@ -738,36 +666,30 @@ const struct gfs2_glock_operations gfs2_freeze_glops = {
 	.go_xmote_bh = freeze_go_xmote_bh,
 	.go_callback = freeze_go_callback,
 	.go_type = LM_TYPE_NONDISK,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_type = LM_TYPE_IOPEN,
 	.go_callback = iopen_go_callback,
 	.go_dump = inode_go_dump,
-	.go_flags = GLOF_NONDISK,
 	.go_subclass = 1,
 };
 
 const struct gfs2_glock_operations gfs2_flock_glops = {
 	.go_type = LM_TYPE_FLOCK,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_nondisk_glops = {
 	.go_type = LM_TYPE_NONDISK,
-	.go_flags = GLOF_NONDISK,
-	.go_callback = nondisk_go_callback,
 };
 
 const struct gfs2_glock_operations gfs2_quota_glops = {
 	.go_type = LM_TYPE_QUOTA,
-	.go_flags = GLOF_LVB | GLOF_NONDISK,
+	.go_flags = GLOF_LVB,
 };
 
 const struct gfs2_glock_operations gfs2_journal_glops = {
 	.go_type = LM_TYPE_JOURNAL,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations *gfs2_glops_list[] = {
