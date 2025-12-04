@@ -893,7 +893,7 @@ static int prepare_open(struct dentry *dentry, int oflag, int ro,
 }
 
 static struct file *mqueue_file_open(struct filename *name,
-				     struct vfsmount *mnt, int oflag, bool ro,
+				     struct vfsmount *mnt, int oflag, int ro,
 				     umode_t mode, struct mq_attr *attr)
 {
 	struct dentry *dentry;
