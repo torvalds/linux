@@ -759,7 +759,7 @@ static ssize_t extended_linear_cache_size_show(struct device *dev,
 	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
 	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
 		return rc;
-	return sysfs_emit(buf, "%#llx\n", p->cache_size);
+	return sysfs_emit(buf, "%pap\n", &p->cache_size);
 }
 static DEVICE_ATTR_RO(extended_linear_cache_size);
 
