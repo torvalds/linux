@@ -241,7 +241,8 @@ static void amdgpu_atif_parse_functions(struct amdgpu_atif_functions *f, u32 mas
  * (all asics).
  * returns 0 on success, error on failure.
  */
-static int amdgpu_atif_verify_interface(struct amdgpu_atif *atif)
+static noinline_for_stack
+int amdgpu_atif_verify_interface(struct amdgpu_atif *atif)
 {
 	union acpi_object *info;
 	struct atif_verify_interface output;
@@ -286,7 +287,8 @@ out:
  * where n is specified in the result if a notifier is used.
  * Returns 0 on success, error on failure.
  */
-static int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
+static noinline_for_stack
+int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
 {
 	union acpi_object *info;
 	struct amdgpu_atif_notification_cfg *n = &atif->notification_cfg;
@@ -354,7 +356,8 @@ out:
  *
  * Returns 0 on success, error on failure.
  */
-static int amdgpu_atif_query_backlight_caps(struct amdgpu_atif *atif)
+static noinline_for_stack
+int amdgpu_atif_query_backlight_caps(struct amdgpu_atif *atif)
 {
 	union acpi_object *info;
 	struct atif_qbtc_output characteristics;
@@ -600,7 +603,8 @@ static void amdgpu_atcs_parse_functions(struct amdgpu_atcs_functions *f, u32 mas
  * (all asics).
  * returns 0 on success, error on failure.
  */
-static int amdgpu_atcs_verify_interface(struct amdgpu_atcs *atcs)
+static noinline_for_stack
+int amdgpu_atcs_verify_interface(struct amdgpu_atcs *atcs)
 {
 	union acpi_object *info;
 	struct atcs_verify_interface output;
@@ -1089,7 +1093,8 @@ out:
 	return ret;
 }
 
-static int amdgpu_acpi_enumerate_xcc(void)
+static noinline_for_stack
+int amdgpu_acpi_enumerate_xcc(void)
 {
 	struct amdgpu_acpi_dev_info *dev_info = NULL;
 	struct amdgpu_acpi_xcc_info *xcc_info;
