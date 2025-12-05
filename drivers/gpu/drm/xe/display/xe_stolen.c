@@ -43,14 +43,6 @@ static int xe_stolen_insert_node_in_range(struct intel_stolen_node *node, u64 si
 	return err;
 }
 
-static int xe_stolen_insert_node(struct intel_stolen_node *node, u64 size, unsigned int align)
-{
-	/* Not used on xe */
-	WARN_ON(1);
-
-	return -ENODEV;
-}
-
 static void xe_stolen_remove_node(struct intel_stolen_node *node)
 {
 	xe_bo_unpin_map_no_vm(node->bo);
@@ -75,22 +67,6 @@ static u64 xe_stolen_node_offset(const struct intel_stolen_node *node)
 
 	xe_res_first(node->bo->ttm.resource, 0, 4096, &res);
 	return res.start;
-}
-
-/* Used for < gen4. These are not supported by Xe */
-static u64 xe_stolen_area_address(struct drm_device *drm)
-{
-	WARN_ON(1);
-
-	return 0;
-}
-
-/* Used for gen9 specific WA. Gen9 is not supported by Xe */
-static u64 xe_stolen_area_size(struct drm_device *drm)
-{
-	WARN_ON(1);
-
-	return 0;
 }
 
 static u64 xe_stolen_node_address(const struct intel_stolen_node *node)
@@ -126,13 +102,10 @@ static void xe_stolen_node_free(const struct intel_stolen_node *node)
 
 const struct intel_display_stolen_interface xe_display_stolen_interface = {
 	.insert_node_in_range = xe_stolen_insert_node_in_range,
-	.insert_node = xe_stolen_insert_node,
 	.remove_node = xe_stolen_remove_node,
 	.initialized = xe_stolen_initialized,
 	.node_allocated = xe_stolen_node_allocated,
 	.node_offset = xe_stolen_node_offset,
-	.area_address = xe_stolen_area_address,
-	.area_size = xe_stolen_area_size,
 	.node_address = xe_stolen_node_address,
 	.node_size = xe_stolen_node_size,
 	.node_alloc = xe_stolen_node_alloc,

@@ -51,13 +51,13 @@ struct intel_display_rps_interface {
 struct intel_display_stolen_interface {
 	int (*insert_node_in_range)(struct intel_stolen_node *node, u64 size,
 				    unsigned int align, u64 start, u64 end);
-	int (*insert_node)(struct intel_stolen_node *node, u64 size, unsigned int align);
+	int (*insert_node)(struct intel_stolen_node *node, u64 size, unsigned int align); /* Optional */
 	void (*remove_node)(struct intel_stolen_node *node);
 	bool (*initialized)(struct drm_device *drm);
 	bool (*node_allocated)(const struct intel_stolen_node *node);
 	u64 (*node_offset)(const struct intel_stolen_node *node);
-	u64 (*area_address)(struct drm_device *drm);
-	u64 (*area_size)(struct drm_device *drm);
+	u64 (*area_address)(struct drm_device *drm); /* Optional */
+	u64 (*area_size)(struct drm_device *drm); /* Optional */
 	u64 (*node_address)(const struct intel_stolen_node *node);
 	u64 (*node_size)(const struct intel_stolen_node *node);
 	struct intel_stolen_node *(*node_alloc)(struct drm_device *drm);

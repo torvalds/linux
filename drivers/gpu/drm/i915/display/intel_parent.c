@@ -17,6 +17,7 @@
  * function pointer interface.
  */
 
+#include <drm/drm_print.h>
 #include <drm/intel/display_parent_interface.h>
 
 #include "intel_display_core.h"
@@ -89,6 +90,9 @@ int intel_parent_stolen_insert_node_in_range(struct intel_display *display,
 int intel_parent_stolen_insert_node(struct intel_display *display, struct intel_stolen_node *node, u64 size,
 				    unsigned int align)
 {
+	if (drm_WARN_ON_ONCE(display->drm, !display->parent->stolen->insert_node))
+		return -ENODEV;
+
 	return display->parent->stolen->insert_node(node, size, align);
 }
 
@@ -116,11 +120,17 @@ u32 intel_parent_stolen_node_offset(struct intel_display *display, struct intel_
 
 u64 intel_parent_stolen_area_address(struct intel_display *display)
 {
+	if (drm_WARN_ON_ONCE(display->drm, !display->parent->stolen->area_address))
+		return 0;
+
 	return display->parent->stolen->area_address(display->drm);
 }
 
 u64 intel_parent_stolen_area_size(struct intel_display *display)
 {
+	if (drm_WARN_ON_ONCE(display->drm, !display->parent->stolen->area_size))
+		return 0;
+
 	return display->parent->stolen->area_size(display->drm);
 }
 
