@@ -1254,6 +1254,9 @@ static int xe_oa_set_no_preempt(struct xe_oa *oa, u64 value,
 static int xe_oa_set_prop_num_syncs(struct xe_oa *oa, u64 value,
 				    struct xe_oa_open_param *param)
 {
+	if (XE_IOCTL_DBG(oa->xe, value > DRM_XE_MAX_SYNCS))
+		return -EINVAL;
+
 	param->num_syncs = value;
 	return 0;
 }
