@@ -31,7 +31,9 @@ void soc_v1_0_grbm_select(struct amdgpu_device *adev,
 			  int xcc_id);
 int soc_v1_0_init_soc_config(struct amdgpu_device *adev);
 bool soc_v1_0_normalize_xcc_reg_range(uint32_t reg);
+bool soc_v1_0_mid1_reg_range(uint32_t reg);
 uint32_t soc_v1_0_normalize_xcc_reg_offset(uint32_t reg);
+uint32_t soc_v1_0_normalize_reg_offset(uint32_t reg);
 u64 soc_v1_0_encode_ext_smn_addressing(int ext_id);
 
 #endif

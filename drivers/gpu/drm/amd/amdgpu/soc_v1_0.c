@@ -41,6 +41,11 @@
 #define NORMALIZE_XCC_REG_OFFSET(offset) \
 	(offset & 0xFFFF)
 
+#define MID1_REG_RANGE_0_LOW  0x40000
+#define MID1_REG_RANGE_0_HIGH 0x80000
+#define NORMALIZE_MID_REG_OFFSET(offset) \
+		(offset & 0x3FFFF)
+
 /* Initialized doorbells for amdgpu including multimedia
  * KFD can use all the rest in 2M doorbell bar */
 static void soc_v1_0_doorbell_index_init(struct amdgpu_device *adev)
@@ -870,3 +875,31 @@ uint32_t soc_v1_0_normalize_xcc_reg_offset(uint32_t reg)
 	else
 		return reg;
 }
+
+bool soc_v1_0_mid1_reg_range(uint32_t reg)
+{
+	uint32_t normalized_reg = soc_v1_0_normalize_xcc_reg_offset(reg);
+
+	if (soc_v1_0_normalize_xcc_reg_range(normalized_reg))
+		return false;
+
+	if ((reg >= MID1_REG_RANGE_0_LOW) && (reg < MID1_REG_RANGE_0_HIGH))
+		return true;
+	else
+		return false;
+}
+
+uint32_t soc_v1_0_normalize_reg_offset(uint32_t reg)
+{
+	uint32_t normalized_reg = soc_v1_0_normalize_xcc_reg_offset(reg);
+
+	if (soc_v1_0_normalize_xcc_reg_range(normalized_reg))
+		return soc_v1_0_normalize_xcc_reg_offset(reg);
+
+	/* check if the reg offset is inside MID1. */
+	if (soc_v1_0_mid1_reg_range(reg))
+		return NORMALIZE_MID_REG_OFFSET(reg);
+
+	return reg;
+}
+
