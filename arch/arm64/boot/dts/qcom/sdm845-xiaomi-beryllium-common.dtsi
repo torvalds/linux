@@ -227,6 +227,12 @@
 	};
 };
 
+&cci_i2c0 {
+	status = "okay";
+
+	/* IMX363 @ 10 */
+};
+
 &cdsp_pas {
 	status = "okay";
 	firmware-name = "qcom/sdm845/Xiaomi/beryllium/cdsp.mbn";
@@ -259,6 +265,22 @@
 	regulator-pull-down;
 	regulator-soft-start;
 	qcom,discharge-resistor-kohms = <300>;
+};
+
+&ipa {
+	qcom,gsi-loader = "self";
+	memory-region = <&ipa_fw_mem>;
+	firmware-name = "qcom/sdm845/beryllium/ipa_fws.mbn";
+
+	status = "okay";
+};
+
+&i2c5 {
+	clock-frequency = <400000>;
+
+	status = "okay";
+
+	/* TAS2559 @ 4C */
 };
 
 &lab {
@@ -310,13 +332,6 @@
 	status = "okay";
 	firmware-name = "qcom/sdm845/Xiaomi/beryllium/mba.mbn",
 	"qcom/sdm845/Xiaomi/beryllium/modem.mbn";
-};
-
-&ipa {
-	qcom,gsi-loader = "self";
-	memory-region = <&ipa_fw_mem>;
-	firmware-name = "qcom/sdm845/Xiaomi/beryllium/ipa_fws.mbn";
-	status = "okay";
 };
 
 &pm8998_gpios {
