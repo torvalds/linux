@@ -11,6 +11,8 @@
 
 #include "pxp/intel_pxp.h"
 #include "intel_bo.h"
+#include "intel_color.h"
+#include "intel_color_pipeline.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_regs.h"
@@ -1275,6 +1277,18 @@ static u32 glk_plane_color_ctl(const struct intel_plane_state *plane_state)
 	if (plane_state->force_black)
 		plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
 
+	if (plane_state->hw.degamma_lut)
+		plane_color_ctl |= PLANE_COLOR_PRE_CSC_GAMMA_ENABLE;
+
+	if (plane_state->hw.ctm)
+		plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
+
+	if (plane_state->hw.gamma_lut) {
+		plane_color_ctl &= ~PLANE_COLOR_PLANE_GAMMA_DISABLE;
+		if (drm_color_lut32_size(plane_state->hw.gamma_lut) != 32)
+			plane_color_ctl |= PLANE_COLOR_POST_CSC_GAMMA_MULTSEG_ENABLE;
+	}
+
 	return plane_color_ctl;
 }
 
@@ -1556,6 +1570,8 @@ icl_plane_update_noarm(struct intel_dsb *dsb,
 	plane_color_ctl = plane_state->color_ctl |
 		glk_plane_color_ctl_crtc(crtc_state);
 
+	intel_color_plane_program_pipeline(dsb, plane_state);
+
 	/* The scaler will handle the output position */
 	if (plane_state->scaler_id >= 0) {
 		crtc_x = 0;
@@ -1656,6 +1672,8 @@ icl_plane_update_arm(struct intel_dsb *dsb,
 		skl_program_plane_scaler(dsb, plane, crtc_state, plane_state);
 
 	icl_plane_update_sel_fetch_arm(dsb, plane, crtc_state, plane_state);
+
+	intel_color_plane_commit_arm(dsb, plane_state);
 
 	/*
 	 * In order to have FBC for fp16 formats pixel normalizer block must be
@@ -3000,6 +3018,9 @@ skl_universal_plane_create(struct intel_display *display,
 					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
 					  DRM_COLOR_YCBCR_BT709,
 					  DRM_COLOR_YCBCR_LIMITED_RANGE);
+
+	if (DISPLAY_VER(display) >= 12)
+		intel_color_pipeline_plane_init(&plane->base, pipe);
 
 	drm_plane_create_alpha_property(&plane->base);
 	drm_plane_create_blend_mode_property(&plane->base,
