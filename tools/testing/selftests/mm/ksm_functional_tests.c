@@ -38,6 +38,8 @@ enum ksm_merge_mode {
 };
 
 static int mem_fd;
+static int pages_to_scan_fd;
+static int sleep_millisecs_fd;
 static int pagemap_fd;
 static size_t pagesize;
 
@@ -493,12 +495,55 @@ static void test_prctl_fork(void)
 	ksft_test_result_pass("PR_SET_MEMORY_MERGE value is inherited\n");
 }
 
+static int start_ksmd_and_set_frequency(char *pages_to_scan, char *sleep_ms)
+{
+	int ksm_fd;
+
+	ksm_fd = open("/sys/kernel/mm/ksm/run", O_RDWR);
+	if (ksm_fd < 0)
+		return -errno;
+
+	if (write(ksm_fd, "1", 1) != 1)
+		return -errno;
+
+	if (write(pages_to_scan_fd, pages_to_scan, strlen(pages_to_scan)) <= 0)
+		return -errno;
+
+	if (write(sleep_millisecs_fd, sleep_ms, strlen(sleep_ms)) <= 0)
+		return -errno;
+
+	return 0;
+}
+
+static int stop_ksmd_and_restore_frequency(void)
+{
+	int ksm_fd;
+
+	ksm_fd = open("/sys/kernel/mm/ksm/run", O_RDWR);
+	if (ksm_fd < 0)
+		return -errno;
+
+	if (write(ksm_fd, "2", 1) != 1)
+		return -errno;
+
+	if (write(pages_to_scan_fd, "100", 3) <= 0)
+		return -errno;
+
+	if (write(sleep_millisecs_fd, "20", 2) <= 0)
+		return -errno;
+
+	return 0;
+}
+
 static void test_prctl_fork_exec(void)
 {
 	int ret, status;
 	pid_t child_pid;
 
 	ksft_print_msg("[RUN] %s\n", __func__);
+
+	if (start_ksmd_and_set_frequency("2000", "0"))
+		ksft_test_result_fail("set ksmd's scanning frequency failed\n");
 
 	ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
 	if (ret < 0 && errno == EINVAL) {
@@ -539,6 +584,11 @@ static void test_prctl_fork_exec(void)
 
 	if (prctl(PR_SET_MEMORY_MERGE, 0, 0, 0, 0)) {
 		ksft_test_result_fail("PR_SET_MEMORY_MERGE=0 failed\n");
+		return;
+	}
+
+	if (stop_ksmd_and_restore_frequency()) {
+		ksft_test_result_fail("restore ksmd frequency failed\n");
 		return;
 	}
 
@@ -656,6 +706,13 @@ static void init_global_file_handles(void)
 		ksft_exit_skip("open(\"/proc/self/pagemap\") failed\n");
 	if (ksm_get_self_merging_pages() < 0)
 		ksft_exit_skip("accessing \"/proc/self/ksm_merging_pages\") failed\n");
+
+	pages_to_scan_fd = open("/sys/kernel/mm/ksm/pages_to_scan", O_RDWR);
+	if (pages_to_scan_fd < 0)
+		ksft_exit_fail_msg("opening /sys/kernel/mm/ksm/pages_to_scan failed\n");
+	sleep_millisecs_fd = open("/sys/kernel/mm/ksm/sleep_millisecs", O_RDWR);
+	if (sleep_millisecs_fd < 0)
+		ksft_exit_fail_msg("opening /sys/kernel/mm/ksm/sleep_millisecs failed\n");
 }
 
 int main(int argc, char **argv)

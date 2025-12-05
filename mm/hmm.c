@@ -18,7 +18,7 @@
 #include <linux/sched.h>
 #include <linux/mmzone.h>
 #include <linux/pagemap.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/hugetlb.h>
 #include <linux/memremap.h>
 #include <linux/sched/mm.h>
@@ -244,7 +244,12 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 	uint64_t pfn_req_flags = *hmm_pfn;
 	uint64_t new_pfn_flags = 0;
 
-	if (pte_none_mostly(pte)) {
+	/*
+	 * Any other marker than a UFFD WP marker will result in a fault error
+	 * that will be correctly handled, so we need only check for UFFD WP
+	 * here.
+	 */
+	if (pte_none(pte) || pte_is_uffd_wp_marker(pte)) {
 		required_fault =
 			hmm_pte_need_fault(hmm_vma_walk, pfn_req_flags, 0);
 		if (required_fault)
@@ -253,19 +258,19 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 	}
 
 	if (!pte_present(pte)) {
-		swp_entry_t entry = pte_to_swp_entry(pte);
+		const softleaf_t entry = softleaf_from_pte(pte);
 
 		/*
 		 * Don't fault in device private pages owned by the caller,
 		 * just report the PFN.
 		 */
-		if (is_device_private_entry(entry) &&
-		    page_pgmap(pfn_swap_entry_to_page(entry))->owner ==
+		if (softleaf_is_device_private(entry) &&
+		    page_pgmap(softleaf_to_page(entry))->owner ==
 		    range->dev_private_owner) {
 			cpu_flags = HMM_PFN_VALID;
-			if (is_writable_device_private_entry(entry))
+			if (softleaf_is_device_private_write(entry))
 				cpu_flags |= HMM_PFN_WRITE;
-			new_pfn_flags = swp_offset_pfn(entry) | cpu_flags;
+			new_pfn_flags = softleaf_to_pfn(entry) | cpu_flags;
 			goto out;
 		}
 
@@ -274,16 +279,16 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 		if (!required_fault)
 			goto out;
 
-		if (!non_swap_entry(entry))
+		if (softleaf_is_swap(entry))
 			goto fault;
 
-		if (is_device_private_entry(entry))
+		if (softleaf_is_device_private(entry))
 			goto fault;
 
-		if (is_device_exclusive_entry(entry))
+		if (softleaf_is_device_exclusive(entry))
 			goto fault;
 
-		if (is_migration_entry(entry)) {
+		if (softleaf_is_migration(entry)) {
 			pte_unmap(ptep);
 			hmm_vma_walk->last = addr;
 			migration_entry_wait(walk->mm, pmdp, addr);
@@ -334,19 +339,19 @@ static int hmm_vma_handle_absent_pmd(struct mm_walk *walk, unsigned long start,
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
 	unsigned long npages = (end - start) >> PAGE_SHIFT;
+	const softleaf_t entry = softleaf_from_pmd(pmd);
 	unsigned long addr = start;
-	swp_entry_t entry = pmd_to_swp_entry(pmd);
 	unsigned int required_fault;
 
-	if (is_device_private_entry(entry) &&
-	    pfn_swap_entry_folio(entry)->pgmap->owner ==
+	if (softleaf_is_device_private(entry) &&
+	    softleaf_to_folio(entry)->pgmap->owner ==
 	    range->dev_private_owner) {
 		unsigned long cpu_flags = HMM_PFN_VALID |
 			hmm_pfn_flags_order(PMD_SHIFT - PAGE_SHIFT);
-		unsigned long pfn = swp_offset_pfn(entry);
+		unsigned long pfn = softleaf_to_pfn(entry);
 		unsigned long i;
 
-		if (is_writable_device_private_entry(entry))
+		if (softleaf_is_device_private_write(entry))
 			cpu_flags |= HMM_PFN_WRITE;
 
 		/*
@@ -365,7 +370,7 @@ static int hmm_vma_handle_absent_pmd(struct mm_walk *walk, unsigned long start,
 	required_fault = hmm_range_need_fault(hmm_vma_walk, hmm_pfns,
 					      npages, 0);
 	if (required_fault) {
-		if (is_device_private_entry(entry))
+		if (softleaf_is_device_private(entry))
 			return hmm_vma_fault(addr, end, required_fault, walk);
 		else
 			return -EFAULT;
@@ -407,7 +412,7 @@ again:
 	if (pmd_none(pmd))
 		return hmm_vma_walk_hole(start, end, -1, walk);
 
-	if (thp_migration_supported() && is_pmd_migration_entry(pmd)) {
+	if (thp_migration_supported() && pmd_is_migration_entry(pmd)) {
 		if (hmm_range_need_fault(hmm_vma_walk, hmm_pfns, npages, 0)) {
 			hmm_vma_walk->last = addr;
 			pmd_migration_entry_wait(walk->mm, pmdp);
@@ -491,7 +496,7 @@ static int hmm_vma_walk_pud(pud_t *pudp, unsigned long start, unsigned long end,
 	/* Normally we don't want to split the huge page */
 	walk->action = ACTION_CONTINUE;
 
-	pud = READ_ONCE(*pudp);
+	pud = pudp_get(pudp);
 	if (!pud_present(pud)) {
 		spin_unlock(ptl);
 		return hmm_vma_walk_hole(start, end, -1, walk);

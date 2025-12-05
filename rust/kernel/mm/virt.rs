@@ -250,7 +250,7 @@ impl VmaNew {
         // SAFETY: This is not a data race: the vma is undergoing initial setup, so it's not yet
         // shared. Additionally, `VmaNew` is `!Sync`, so it cannot be used to write in parallel.
         // The caller promises that this does not set the flags to an invalid value.
-        unsafe { (*self.as_ptr()).__bindgen_anon_2.__vm_flags = flags };
+        unsafe { (*self.as_ptr()).__bindgen_anon_2.vm_flags = flags };
     }
 
     /// Set the `VM_MIXEDMAP` flag on this vma.

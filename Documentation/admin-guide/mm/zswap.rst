@@ -59,11 +59,11 @@ returned by the allocation routine and that handle must be mapped before being
 accessed.  The compressed memory pool grows on demand and shrinks as compressed
 pages are freed.  The pool is not preallocated.
 
-When a swap page is passed from swapout to zswap, zswap maintains a mapping
-of the swap entry, a combination of the swap type and swap offset, to the
-zsmalloc handle that references that compressed swap page.  This mapping is
-achieved with a red-black tree per swap type.  The swap offset is the search
-key for the tree nodes.
+When a swap page is passed from swapout to zswap, zswap maintains a mapping of
+the swap entry, a combination of the swap type and swap offset, to the zsmalloc
+handle that references that compressed swap page.  This mapping is achieved
+with an xarray per swap type.  The swap offset is the search key for the xarray
+nodes.
 
 During a page fault on a PTE that is a swap entry, the swapin code calls the
 zswap load function to decompress the page into the page allocated by the page

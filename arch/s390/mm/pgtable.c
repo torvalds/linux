@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/sysctl.h>
 #include <linux/ksm.h>
 #include <linux/mman.h>
@@ -673,12 +673,12 @@ void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep)
 	pgste_set_unlock(ptep, pgste);
 }
 
-static void ptep_zap_swap_entry(struct mm_struct *mm, swp_entry_t entry)
+static void ptep_zap_softleaf_entry(struct mm_struct *mm, softleaf_t entry)
 {
-	if (!non_swap_entry(entry))
+	if (softleaf_is_swap(entry))
 		dec_mm_counter(mm, MM_SWAPENTS);
-	else if (is_migration_entry(entry)) {
-		struct folio *folio = pfn_swap_entry_folio(entry);
+	else if (softleaf_is_migration(entry)) {
+		struct folio *folio = softleaf_to_folio(entry);
 
 		dec_mm_counter(mm, mm_counter(folio));
 	}
@@ -700,7 +700,7 @@ void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 	if (!reset && pte_swap(pte) &&
 	    ((pgstev & _PGSTE_GPS_USAGE_MASK) == _PGSTE_GPS_USAGE_UNUSED ||
 	     (pgstev & _PGSTE_GPS_ZERO))) {
-		ptep_zap_swap_entry(mm, pte_to_swp_entry(pte));
+		ptep_zap_softleaf_entry(mm, softleaf_from_pte(pte));
 		pte_clear(mm, addr, ptep);
 	}
 	if (reset)

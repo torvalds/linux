@@ -443,7 +443,7 @@ pde_get_unmapped_area(struct proc_dir_entry *pde, struct file *file, unsigned lo
 		return pde->proc_ops->proc_get_unmapped_area(file, orig_addr, len, pgoff, flags);
 
 #ifdef CONFIG_MMU
-	return mm_get_unmapped_area(current->mm, file, orig_addr, len, pgoff, flags);
+	return mm_get_unmapped_area(file, orig_addr, len, pgoff, flags);
 #endif
 
 	return orig_addr;

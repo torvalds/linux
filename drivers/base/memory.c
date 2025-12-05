@@ -198,15 +198,15 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		WARN_ON(1);
-		return sysfs_emit(buf, "ERROR-UNKNOWN-%ld\n", mem->state);
+		return sysfs_emit(buf, "ERROR-UNKNOWN-%d\n", mem->state);
 	}
 
 	return sysfs_emit(buf, "%s\n", output);
 }
 
-int memory_notify(unsigned long val, void *v)
+int memory_notify(enum memory_block_state state, void *v)
 {
-	return blocking_notifier_call_chain(&memory_chain, val, v);
+	return blocking_notifier_call_chain(&memory_chain, state, v);
 }
 
 #if defined(CONFIG_MEMORY_FAILURE) && defined(CONFIG_MEMORY_HOTPLUG)

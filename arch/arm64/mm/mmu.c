@@ -49,8 +49,6 @@
 #define NO_CONT_MAPPINGS	BIT(1)
 #define NO_EXEC_MAPPINGS	BIT(2)	/* assumes FEAT_HPDS is not used */
 
-#define INVALID_PHYS_ADDR	(-1ULL)
-
 DEFINE_STATIC_KEY_FALSE(arm64_ptdump_lock_key);
 
 u64 kimage_voffset __ro_after_init;
