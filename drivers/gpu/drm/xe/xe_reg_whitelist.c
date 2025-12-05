@@ -9,6 +9,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_oa_regs.h"
 #include "regs/xe_regs.h"
+#include "xe_device.h"
 #include "xe_gt_types.h"
 #include "xe_gt_printk.h"
 #include "xe_platform_types.h"
@@ -24,6 +25,13 @@ static bool match_not_render(const struct xe_device *xe,
 			     const struct xe_hw_engine *hwe)
 {
 	return hwe->class != XE_ENGINE_CLASS_RENDER;
+}
+
+static bool match_has_mert(const struct xe_device *xe,
+			   const struct xe_gt *gt,
+			   const struct xe_hw_engine *hwe)
+{
+	return xe_device_has_mert((struct xe_device *)xe);
 }
 
 static const struct xe_rtp_entry_sr register_whitelist[] = {
@@ -94,6 +102,9 @@ static const struct xe_rtp_entry_sr register_whitelist[] = {
 			      OAM_STATUS(XE_OAM_SCMI_1_BASE_ADJ), \
 			      OAM_HEAD_POINTER(XE_OAM_SCMI_1_BASE_ADJ))
 
+#define WHITELIST_OA_MERT_MMIO_TRG \
+	WHITELIST_OA_MMIO_TRG(OAMERT_MMIO_TRG, OAMERT_STATUS, OAMERT_HEAD_POINTER)
+
 	{ XE_RTP_NAME("oag_mmio_trg_rcs"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, XE_RTP_END_VERSION_UNDEFINED),
 		       ENGINE_CLASS(RENDER)),
@@ -113,6 +124,14 @@ static const struct xe_rtp_entry_sr register_whitelist[] = {
 	  XE_RTP_RULES(MEDIA_VERSION_RANGE(1300, XE_RTP_END_VERSION_UNDEFINED),
 		       ENGINE_CLASS(VIDEO_ENHANCE)),
 	  XE_RTP_ACTIONS(WHITELIST_OAM_MMIO_TRG)
+	},
+	{ XE_RTP_NAME("oa_mert_mmio_trg_ccs"),
+	  XE_RTP_RULES(FUNC(match_has_mert), ENGINE_CLASS(COMPUTE)),
+	  XE_RTP_ACTIONS(WHITELIST_OA_MERT_MMIO_TRG)
+	},
+	{ XE_RTP_NAME("oa_mert_mmio_trg_bcs"),
+	  XE_RTP_RULES(FUNC(match_has_mert), ENGINE_CLASS(COPY)),
+	  XE_RTP_ACTIONS(WHITELIST_OA_MERT_MMIO_TRG)
 	},
 };
 
