@@ -1215,8 +1215,10 @@ static int iommufd_test_md_check_pa(struct iommufd_ucmd *ucmd,
 	page_size = 1 << __ffs(mock->domain.pgsize_bitmap);
 	if (iova % page_size || length % page_size ||
 	    (uintptr_t)uptr % page_size ||
-	    check_add_overflow((uintptr_t)uptr, (uintptr_t)length, &end))
-		return -EINVAL;
+	    check_add_overflow((uintptr_t)uptr, (uintptr_t)length, &end)) {
+		rc = -EINVAL;
+		goto out_put;
+	}
 
 	for (; length; length -= page_size) {
 		struct page *pages[1];
