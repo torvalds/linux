@@ -636,17 +636,29 @@ union pr_debug_flags {
 
 		/**
 		 * 0x10 (bit 4)
-		 * @skip_crtc_disabled: CRTC disable skipped
-		 */
-		uint32_t skip_crtc_disabled : 1;
-
-		/*
-		 * 0x20 (bit 5)
 		 * @visual_confirm_rate_control: Enable Visual Confirm rate control detection
 		 */
 		uint32_t visual_confirm_rate_control : 1;
 
-		uint32_t reserved : 26;
+		/**
+		 * 0x20 (bit 5)
+		 * @force_full_frame_update: Force all selective updates to be full frame updates
+		 */
+		uint32_t force_full_frame_update : 1;
+
+		/**
+		 * 0x40 (bit 6)
+		 * @force_dpg_on: Force DPG on
+		 */
+		uint32_t force_dpg_on : 1;
+
+		/**
+		 * 0x80 (bit 7)
+		 * @force_hubp_on: Force Hubp on
+		 */
+		uint32_t force_hubp_on : 1;
+
+		uint32_t reserved : 24;
 	} bitfields;
 
 	uint32_t u32All;
@@ -669,19 +681,12 @@ union pr_hw_flags {
 		 * @fec_enable_status: receive fec enable/disable status from driver
 		 */
 		uint32_t fec_enable_status : 1;
-
 		/*
 		 * @smu_optimizations_en: SMU power optimization.
 		 * Only when active display is Replay capable and display enters Replay.
 		 * Trigger interrupt to SMU to powerup/down.
 		 */
 		uint32_t smu_optimizations_en : 1;
-
-		/**
-		 * @phy_power_state: Indicates current phy power state
-		 */
-		uint32_t phy_power_state : 1;
-
 		/**
 		 * @link_power_state: Indicates current link power state
 		 */
@@ -698,6 +703,7 @@ union pr_hw_flags {
 		 * @alpm_mode: Indicates ALPM mode selected
 		 */
 		uint32_t alpm_mode : 2;
+		uint32_t reserved : 23;
 	} bitfields;
 
 	uint32_t u32All;
@@ -4279,7 +4285,7 @@ enum pr_state {
 	// Active and Pending Power Up
 	PR_STATE_2_PENDING_POWER_UP					= 0x33,
 	// Active and Powered Up, Pending DPG latch
-	PR_STATE_2_PENDING_LOCK_FOR_DPG_POWER_ON	= 0x34,
+	PR_STATE_2_PENDING_LOCK	= 0x34,
 	// Active and Powered Up, Pending SDP and Unlock
 	PR_STATE_2_PENDING_SDP_AND_UNLOCK			= 0x35,
 	// Pending transmission of AS SDP for timing sync, but no rfb update
@@ -6606,10 +6612,6 @@ struct dmub_cmd_pr_copy_settings_data {
 	 */
 	uint8_t panel_inst;
 	/**
-	 * Length of each horizontal line in ns.
-	 */
-	uint32_t line_time_in_ns;
-	/**
 	 * PHY instance.
 	 */
 	uint8_t dpphy_inst;
@@ -6617,10 +6619,10 @@ struct dmub_cmd_pr_copy_settings_data {
 	 * Determines if SMU optimzations are enabled/disabled.
 	 */
 	uint8_t smu_optimizations_en;
-	/*
-	 * Use FSM state for Replay power up/down
+	/**
+	 * Length of each horizontal line in ns.
 	 */
-	uint8_t use_phy_fsm;
+	uint32_t line_time_in_ns;
 	/*
 	 * Use FSFT afftet pixel clk
 	 */
@@ -6634,6 +6636,14 @@ struct dmub_cmd_pr_copy_settings_data {
 	 */
 	struct dmub_alpm_auxless_data auxless_alpm_data;
 	/**
+	 * DSC Slice height.
+	 */
+	uint16_t dsc_slice_height;
+	/*
+	 * Use FSM state for Replay power up/down
+	 */
+	uint8_t use_phy_fsm;
+	/**
 	 * @hpo_stream_enc_inst: HPO stream encoder instance
 	 */
 	uint8_t hpo_stream_enc_inst;
@@ -6641,10 +6651,26 @@ struct dmub_cmd_pr_copy_settings_data {
 	 * @hpo_link_enc_inst: HPO link encoder instance
 	 */
 	uint8_t hpo_link_enc_inst;
+	/*
+	 * Selective Update granularity needed.
+	 */
+	uint8_t su_granularity_needed;
+	/*
+	 * Horizontal granularity for Selective Update.
+	 */
+	uint16_t su_x_granularity;
+	/*
+	 * Extended caps of vertical granularity for Selective Update.
+	 */
+	uint16_t su_y_granularity_extended_caps;
+	/*
+	 * Vertical granularity for Selective Update.
+	 */
+	uint8_t su_y_granularity;
 	/**
 	 * @pad: Align structure to 4 byte boundary.
 	 */
-	uint8_t pad[2];
+	uint8_t pad;
 };
 
 /**
