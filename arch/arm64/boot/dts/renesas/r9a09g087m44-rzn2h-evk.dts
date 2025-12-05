@@ -7,6 +7,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
+
 #include "r9a09g087m44.dtsi"
 
 /*
@@ -76,6 +78,34 @@
 / {
 	model = "Renesas RZ/N2H EVK Board based on r9a09g087m44";
 	compatible = "renesas,rzn2h-evk", "renesas,r9a09g087m44", "renesas,r9a09g087";
+
+	keys {
+		compatible = "gpio-keys";
+
+		key-1 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(18, 2) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_1>;
+			label = "SW2";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+
+		key-2 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(0, 4) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_2>;
+			label = "SW3";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+
+		key-3 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(18, 7) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_3>;
+			label = "SW4";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+	};
 
 	leds {
 		compatible = "gpio-leds";
