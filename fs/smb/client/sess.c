@@ -265,12 +265,16 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 }
 
 /*
- * called when multichannel is disabled by the server.
- * this always gets called from smb2_reconnect
- * and cannot get called in parallel threads.
+ * cifs_decrease_secondary_channels - Reduce the number of active secondary channels
+ * @ses: pointer to the CIFS session structure
+ * @disable_mchan: if true, reduce to a single channel; if false, reduce to chan_max
+ *
+ * This function disables and cleans up extra secondary channels for a CIFS session.
+ * If called during reconfiguration, it reduces the channel count to the new maximum (chan_max).
+ * Otherwise, it disables all but the primary channel.
  */
 void
-cifs_disable_secondary_channels(struct cifs_ses *ses)
+cifs_decrease_secondary_channels(struct cifs_ses *ses, bool disable_mchan)
 {
 	int i, chan_count;
 	struct TCP_Server_Info *server;
@@ -281,12 +285,16 @@ cifs_disable_secondary_channels(struct cifs_ses *ses)
 	if (chan_count == 1)
 		goto done;
 
-	ses->chan_count = 1;
+	/* Update the chan_count to the new maximum */
+	if (disable_mchan) {
+		cifs_dbg(FYI, "server does not support multichannel anymore.\n");
+		ses->chan_count = 1;
+	} else {
+		ses->chan_count = ses->chan_max;
+	}
 
-	/* for all secondary channels reset the need reconnect bit */
-	ses->chans_need_reconnect &= 1;
-
-	for (i = 1; i < chan_count; i++) {
+	/* Disable all secondary channels beyond the new chan_count */
+	for (i = ses->chan_count ; i < chan_count; i++) {
 		iface = ses->chans[i].iface;
 		server = ses->chans[i].server;
 
@@ -316,6 +324,15 @@ cifs_disable_secondary_channels(struct cifs_ses *ses)
 		}
 
 		spin_lock(&ses->chan_lock);
+	}
+
+	/* For extra secondary channels, reset the need reconnect bit */
+	if (ses->chan_count == 1) {
+		cifs_dbg(VFS, "Disable all secondary channels\n");
+		ses->chans_need_reconnect &= 1;
+	} else {
+		cifs_dbg(VFS, "Disable extra secondary channels\n");
+		ses->chans_need_reconnect &= ((1UL << ses->chan_max) - 1);
 	}
 
 done:

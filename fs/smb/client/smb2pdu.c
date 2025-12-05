@@ -168,7 +168,7 @@ out:
 static int
 cifs_chan_skip_or_disable(struct cifs_ses *ses,
 			  struct TCP_Server_Info *server,
-			  bool from_reconnect)
+			  bool from_reconnect, bool disable_mchan)
 {
 	struct TCP_Server_Info *pserver;
 	unsigned int chan_index;
@@ -206,12 +206,44 @@ skip_terminate:
 		return -EHOSTDOWN;
 	}
 
-	cifs_server_dbg(VFS,
-		"server does not support multichannel anymore. Disable all other channels\n");
-	cifs_disable_secondary_channels(ses);
-
+	cifs_decrease_secondary_channels(ses, disable_mchan);
 
 	return 0;
+}
+
+/*
+ * smb3_update_ses_channels - Synchronize session channels with new configuration
+ * @ses: pointer to the CIFS session structure
+ * @server: pointer to the TCP server info structure
+ * @from_reconnect: indicates if called from reconnect context
+ * @disable_mchan: indicates if called from reconnect to disable multichannel
+ *
+ * Returns 0 on success or error code on failure.
+ *
+ * Outside of reconfigure, this function is called from cifs_mount() during mount
+ * and from reconnect scenarios to adjust channel count when the
+ * server's multichannel support changes.
+ */
+int smb3_update_ses_channels(struct cifs_ses *ses, struct TCP_Server_Info *server,
+			bool from_reconnect, bool disable_mchan)
+{
+	int rc = 0;
+	/*
+	 * Manage session channels based on current count vs max:
+	 * - If disable requested, skip or disable the channel
+	 * - If below max channels, attempt to add more
+	 * - If above max channels, skip or disable excess channels
+	 */
+	if (disable_mchan)
+		rc = cifs_chan_skip_or_disable(ses, server, from_reconnect, disable_mchan);
+	else {
+		if (ses->chan_count < ses->chan_max)
+			rc = cifs_try_adding_channels(ses);
+		else if (ses->chan_count > ses->chan_max)
+			rc = cifs_chan_skip_or_disable(ses, server, from_reconnect, disable_mchan);
+	}
+
+	return rc;
 }
 
 static int
@@ -355,8 +387,8 @@ again:
 	 */
 	if (ses->chan_count > 1 &&
 	    !(server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
-		rc = cifs_chan_skip_or_disable(ses, server,
-					       from_reconnect);
+		rc = smb3_update_ses_channels(ses, server,
+					       from_reconnect, true /* disable_mchan */);
 		if (rc) {
 			mutex_unlock(&ses->session_mutex);
 			goto out;
@@ -438,8 +470,9 @@ skip_sess_setup:
 			 * treat this as server not supporting multichannel
 			 */
 
-			rc = cifs_chan_skip_or_disable(ses, server,
-						       from_reconnect);
+			rc = smb3_update_ses_channels(ses, server,
+						       from_reconnect,
+						       true /* disable_mchan */);
 			goto skip_add_channels;
 		} else if (rc)
 			cifs_tcon_dbg(FYI, "%s: failed to query server interfaces: %d\n",
@@ -451,7 +484,8 @@ skip_sess_setup:
 			if (ses->chan_count == 1)
 				cifs_server_dbg(VFS, "supports multichannel now\n");
 
-			cifs_try_adding_channels(ses);
+			smb3_update_ses_channels(ses, server, from_reconnect,
+						  false /* disable_mchan */);
 		}
 	} else {
 		mutex_unlock(&ses->session_mutex);
@@ -1105,8 +1139,7 @@ SMB2_negotiate(const unsigned int xid,
 		req->SecurityMode = 0;
 
 	req->Capabilities = cpu_to_le32(server->vals->req_capabilities);
-	if (ses->chan_max > 1)
-		req->Capabilities |= cpu_to_le32(SMB2_GLOBAL_CAP_MULTI_CHANNEL);
+	req->Capabilities |= cpu_to_le32(SMB2_GLOBAL_CAP_MULTI_CHANNEL);
 
 	/* ClientGUID must be zero for SMB2.02 dialect */
 	if (server->vals->protocol_id == SMB20_PROT_ID)
@@ -1332,8 +1365,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 
 	pneg_inbuf->Capabilities =
 			cpu_to_le32(server->vals->req_capabilities);
-	if (tcon->ses->chan_max > 1)
-		pneg_inbuf->Capabilities |= cpu_to_le32(SMB2_GLOBAL_CAP_MULTI_CHANNEL);
+	pneg_inbuf->Capabilities |= cpu_to_le32(SMB2_GLOBAL_CAP_MULTI_CHANNEL);
 
 	memcpy(pneg_inbuf->Guid, server->client_guid,
 					SMB2_CLIENT_GUID_SIZE);
