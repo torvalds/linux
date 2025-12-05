@@ -29,6 +29,7 @@ struct vfio_pci_core_device;
 struct vfio_pci_region;
 struct p2pdma_provider;
 struct dma_buf_phys_vec;
+struct dma_buf_attachment;
 
 struct vfio_pci_eventfd {
 	struct eventfd_ctx	*ctx;
@@ -225,5 +226,8 @@ static inline bool is_aligned_for_order(struct vm_area_struct *vma,
 			   addr + (PAGE_SIZE << order) > vma->vm_end ||
 			   !IS_ALIGNED(pfn, 1 << order)));
 }
+
+int vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
+				 struct dma_buf_phys_vec *phys);
 
 #endif /* VFIO_PCI_CORE_H */
