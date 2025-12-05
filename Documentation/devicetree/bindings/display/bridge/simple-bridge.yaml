@@ -27,7 +27,9 @@ properties:
           - const: adi,adv7123
       - enum:
           - adi,adv7123
+          - asl-tek,cs5263
           - dumb-vga-dac
+          - parade,ps185hdm
           - radxa,ra620
           - realtek,rtd2171
           - ti,opa362

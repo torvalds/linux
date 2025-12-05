@@ -272,7 +272,8 @@ int __init init_numa_memory(void)
 		node_mem_init(node);
 		node_set_online(node);
 	}
-	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
+	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	max_low_pfn = min(PFN_DOWN(HIGHMEM_START), max_pfn);
 
 	setup_nr_node_ids();
 	loongson_sysconf.nr_nodes = nr_node_ids;
@@ -282,26 +283,6 @@ int __init init_numa_memory(void)
 }
 
 #endif
-
-void __init paging_init(void)
-{
-	unsigned int node;
-	unsigned long zones_size[MAX_NR_ZONES] = {0, };
-
-	for_each_online_node(node) {
-		unsigned long start_pfn, end_pfn;
-
-		get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
-
-		if (end_pfn > max_low_pfn)
-			max_low_pfn = end_pfn;
-	}
-#ifdef CONFIG_ZONE_DMA32
-	zones_size[ZONE_DMA32] = MAX_DMA32_PFN;
-#endif
-	zones_size[ZONE_NORMAL] = max_low_pfn;
-	free_area_init(zones_size);
-}
 
 int pcibus_to_node(struct pci_bus *bus)
 {

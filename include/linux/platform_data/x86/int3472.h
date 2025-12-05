@@ -100,7 +100,6 @@ struct int3472_gpio_regulator {
 	struct regulator_consumer_supply supply_map[GPIO_REGULATOR_SUPPLY_MAP_COUNT * 2];
 	char supply_name_upper[GPIO_SUPPLY_NAME_LENGTH];
 	char regulator_name[GPIO_REGULATOR_NAME_LENGTH];
-	struct gpio_desc *ena_gpio;
 	struct regulator_dev *rdev;
 	struct regulator_desc rdesc;
 };

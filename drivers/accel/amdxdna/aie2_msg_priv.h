@@ -176,6 +176,8 @@ struct exec_dpu_req {
 enum exec_npu_type {
 	EXEC_NPU_TYPE_NON_ELF		= 0x1,
 	EXEC_NPU_TYPE_PARTIAL_ELF	= 0x2,
+	EXEC_NPU_TYPE_PREEMPT		= 0x3,
+	EXEC_NPU_TYPE_ELF		= 0x4,
 };
 
 union exec_req {
@@ -372,6 +374,7 @@ struct cmd_chain_slot_dpu {
 };
 
 #define MAX_NPU_ARGS_SIZE (26 * sizeof(__u32))
+#define AIE2_EXEC_BUFFER_KERNEL_OP_TXN	3
 struct cmd_chain_slot_npu {
 	enum exec_npu_type type;
 	u64 inst_buf_addr;

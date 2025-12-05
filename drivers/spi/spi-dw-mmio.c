@@ -358,7 +358,9 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	if (IS_ERR(dwsmmio->rstc))
 		return PTR_ERR(dwsmmio->rstc);
 
-	reset_control_deassert(dwsmmio->rstc);
+	ret = reset_control_deassert(dwsmmio->rstc);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to deassert resets\n");
 
 	dws->bus_num = pdev->id;
 

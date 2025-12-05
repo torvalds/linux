@@ -101,7 +101,6 @@
 
 #define XE2_LMEM_CFG				XE_REG(0x48b0)
 
-#define XEHP_TILE_ADDR_RANGE(_idx)		XE_REG_MCR(0x4900 + (_idx) * 4)
 #define XEHP_FLAT_CCS_BASE_ADDR			XE_REG_MCR(0x4910)
 #define XEHP_FLAT_CCS_PTR			REG_GENMASK(31, 8)
 
@@ -590,6 +589,7 @@
 #define GT_GFX_RC6				XE_REG(0x138108)
 
 #define GT0_PERF_LIMIT_REASONS			XE_REG(0x1381a8)
+/* Common performance limit reason bits - available on all platforms */
 #define   GT0_PERF_LIMIT_REASONS_MASK		0xde3
 #define   PROCHOT_MASK				REG_BIT(0)
 #define   THERMAL_LIMIT_MASK			REG_BIT(1)
@@ -599,6 +599,18 @@
 #define   POWER_LIMIT_4_MASK			REG_BIT(8)
 #define   POWER_LIMIT_1_MASK			REG_BIT(10)
 #define   POWER_LIMIT_2_MASK			REG_BIT(11)
+/* Platform-specific performance limit reason bits - for Crescent Island */
+#define   CRI_PERF_LIMIT_REASONS_MASK		0xfdff
+#define   SOC_THERMAL_LIMIT_MASK		REG_BIT(1)
+#define   MEM_THERMAL_MASK			REG_BIT(2)
+#define   VR_THERMAL_MASK			REG_BIT(3)
+#define   ICCMAX_MASK				REG_BIT(4)
+#define   SOC_AVG_THERMAL_MASK			REG_BIT(6)
+#define   FASTVMODE_MASK			REG_BIT(7)
+#define   PSYS_PL1_MASK				REG_BIT(12)
+#define   PSYS_PL2_MASK				REG_BIT(13)
+#define   P0_FREQ_MASK				REG_BIT(14)
+#define   PSYS_CRIT_MASK			REG_BIT(15)
 
 #define GT_PERF_STATUS				XE_REG(0x1381b4)
 #define   VOLTAGE_MASK				REG_GENMASK(10, 0)

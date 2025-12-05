@@ -142,6 +142,7 @@ static int dgfx_pkg_residencies_show(struct seq_file *m, void *data)
 	} residencies[] = {
 		{BMG_G2_RESIDENCY_OFFSET, "Package G2"},
 		{BMG_G6_RESIDENCY_OFFSET, "Package G6"},
+		{BMG_G7_RESIDENCY_OFFSET, "Package G7"},
 		{BMG_G8_RESIDENCY_OFFSET, "Package G8"},
 		{BMG_G10_RESIDENCY_OFFSET, "Package G10"},
 		{BMG_MODS_RESIDENCY_OFFSET, "Package ModS"}

@@ -256,7 +256,7 @@ mlx5e_tx_wqe_inline_mode(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	u8 mode;
 
 #ifdef CONFIG_MLX5_EN_TLS
-	if (accel && accel->tls.tls_tisn)
+	if (accel->tls.tls_tisn)
 		return MLX5_INLINE_MODE_TCP_UDP;
 #endif
 
@@ -982,6 +982,7 @@ void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5e_tx_attr attr;
 	struct mlx5i_tx_wqe *wqe;
 
+	struct mlx5e_accel_tx_state accel = {};
 	struct mlx5_wqe_datagram_seg *datagram;
 	struct mlx5_wqe_ctrl_seg *cseg;
 	struct mlx5_wqe_eth_seg  *eseg;
@@ -992,7 +993,7 @@ void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	int num_dma;
 	u16 pi;
 
-	mlx5e_sq_xmit_prepare(sq, skb, NULL, &attr);
+	mlx5e_sq_xmit_prepare(sq, skb, &accel, &attr);
 	mlx5i_sq_calc_wqe_attr(skb, &attr, &wqe_attr);
 
 	pi = mlx5e_txqsq_get_next_pi(sq, wqe_attr.num_wqebbs);
@@ -1009,7 +1010,7 @@ void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	mlx5i_txwqe_build_datagram(av, dqpn, dqkey, datagram);
 
-	mlx5e_txwqe_build_eseg_csum(sq, skb, NULL, eseg);
+	mlx5e_txwqe_build_eseg_csum(sq, skb, &accel, eseg);
 
 	eseg->mss = attr.mss;
 

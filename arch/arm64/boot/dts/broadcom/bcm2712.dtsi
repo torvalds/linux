@@ -326,6 +326,8 @@
 			      <0x7fffe000 0x2000>;
 			interrupt-controller;
 			#address-cells = <0>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) |
+					IRQ_TYPE_LEVEL_HIGH)>;
 			#interrupt-cells = <3>;
 		};
 

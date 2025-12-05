@@ -64,10 +64,13 @@
 const struct rt_config npu4_default_rt_cfg[] = {
 	{ 5, 1, AIE2_RT_CFG_INIT }, /* PDI APP LOAD MODE */
 	{ 10, 1, AIE2_RT_CFG_INIT }, /* DEBUG BUF */
+	{ 14, 0, AIE2_RT_CFG_INIT, BIT_U64(AIE2_PREEMPT) }, /* Frame boundary preemption */
 	{ 1, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
 	{ 2, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
 	{ 3, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
 	{ 4, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
+	{ 13, 0, AIE2_RT_CFG_FORCE_PREEMPT },
+	{ 14, 0, AIE2_RT_CFG_FRAME_BOUNDARY_PREEMPT },
 	{ 0 },
 };
 
@@ -85,6 +88,7 @@ const struct dpm_clk_freq npu4_dpm_clk_table[] = {
 
 const struct aie2_fw_feature_tbl npu4_fw_feature_table[] = {
 	{ .feature = AIE2_NPU_COMMAND, .min_minor = 15 },
+	{ .feature = AIE2_PREEMPT, .min_minor = 12 },
 	{ 0 }
 };
 

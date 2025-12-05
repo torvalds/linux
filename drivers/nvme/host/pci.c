@@ -1042,7 +1042,7 @@ static blk_status_t nvme_map_data(struct request *req)
 	return nvme_pci_setup_data_prp(req, &iter);
 }
 
-static blk_status_t nvme_pci_setup_meta_sgls(struct request *req)
+static blk_status_t nvme_pci_setup_meta_iter(struct request *req)
 {
 	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
 	unsigned int entries = req->nr_integrity_segments;
@@ -1072,8 +1072,12 @@ static blk_status_t nvme_pci_setup_meta_sgls(struct request *req)
 	 * descriptor provides an explicit length, so we're relying on that
 	 * mechanism to catch any misunderstandings between the application and
 	 * device.
+	 *
+	 * P2P DMA also needs to use the blk_dma_iter method, so mptr setup
+	 * leverages this routine when that happens.
 	 */
-	if (entries == 1 && !(nvme_req(req)->flags & NVME_REQ_USERCMD)) {
+	if (!nvme_ctrl_meta_sgl_supported(&dev->ctrl) ||
+	    (entries == 1 && !(nvme_req(req)->flags & NVME_REQ_USERCMD))) {
 		iod->cmd.common.metadata = cpu_to_le64(iter.addr);
 		iod->meta_total_len = iter.len;
 		iod->meta_dma = iter.addr;
@@ -1114,6 +1118,9 @@ static blk_status_t nvme_pci_setup_meta_mptr(struct request *req)
 	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
 	struct bio_vec bv = rq_integrity_vec(req);
 
+	if (is_pci_p2pdma_page(bv.bv_page))
+		return nvme_pci_setup_meta_iter(req);
+
 	iod->meta_dma = dma_map_bvec(nvmeq->dev->dev, &bv, rq_dma_dir(req), 0);
 	if (dma_mapping_error(nvmeq->dev->dev, iod->meta_dma))
 		return BLK_STS_IOERR;
@@ -1128,7 +1135,7 @@ static blk_status_t nvme_map_metadata(struct request *req)
 
 	if ((iod->cmd.common.flags & NVME_CMD_SGL_METABUF) &&
 	    nvme_pci_metadata_use_sgls(req))
-		return nvme_pci_setup_meta_sgls(req);
+		return nvme_pci_setup_meta_iter(req);
 	return nvme_pci_setup_meta_mptr(req);
 }
 

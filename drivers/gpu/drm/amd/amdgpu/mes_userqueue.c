@@ -208,6 +208,7 @@ static int mes_userq_detect_and_reset(struct amdgpu_device *adev,
 	unsigned int hung_db_num = 0;
 	unsigned long queue_id;
 	u32 db_array[8];
+	bool found_hung_queue = false;
 	int r, i;
 
 	if (db_array_size > 8) {
@@ -232,6 +233,7 @@ static int mes_userq_detect_and_reset(struct amdgpu_device *adev,
 				for (i = 0; i < hung_db_num; i++) {
 					if (queue->doorbell_index == db_array[i]) {
 						queue->state = AMDGPU_USERQ_STATE_HUNG;
+						found_hung_queue = true;
 						atomic_inc(&adev->gpu_reset_counter);
 						amdgpu_userq_fence_driver_force_completion(queue);
 						drm_dev_wedged_event(adev_to_drm(adev), DRM_WEDGE_RECOVERY_NONE, NULL);
@@ -239,6 +241,11 @@ static int mes_userq_detect_and_reset(struct amdgpu_device *adev,
 				}
 			}
 		}
+	}
+
+	if (found_hung_queue) {
+		/* Resume scheduling after hang recovery */
+		r = amdgpu_mes_resume(adev);
 	}
 
 	return r;

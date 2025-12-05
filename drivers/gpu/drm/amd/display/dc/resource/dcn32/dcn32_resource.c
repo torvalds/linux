@@ -1847,7 +1847,7 @@ enum dc_status dcn32_validate_bandwidth(struct dc *dc,
 				dc_state_set_stream_cursor_subvp_limit(stream, context, true);
 				status = DC_FAIL_HW_CURSOR_SUPPORT;
 			}
-		};
+		}
 	}
 
 	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING && status == DC_FAIL_HW_CURSOR_SUPPORT) {
@@ -2200,7 +2200,8 @@ static bool dcn32_resource_construct(
 	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a applied by default*/
 	/* TODO: Bring max_cursor_size back to 256 after subvp cursor corruption is fixed*/
 	dc->caps.max_cursor_size = 64;
-	dc->caps.max_buffered_cursor_size = 64; // sqrt(16 * 1024 / 4)
+	/* floor(sqrt(buf_size_bytes / bpp ) * bpp, fixed_req_size) / bpp = max_width */
+	dc->caps.max_buffered_cursor_size = 64; // floor(sqrt(16 * 1024 / 4) * 4, 256) / 4 = 64
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 	dc->caps.mall_size_per_mem_channel = 4;

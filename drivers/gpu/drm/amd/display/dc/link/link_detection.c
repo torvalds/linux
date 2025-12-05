@@ -868,6 +868,11 @@ static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
  * Evaluates an 8-byte EDID header to check if it's good enough
  * for the purpose of determining whether a display is connected
  * without reading the full EDID.
+ *
+ * @edid_header: The first 8 bytes of the EDID read from DDC.
+ *
+ * Return: true if the header looks valid (>= 6 of 8 bytes match the
+ *         expected 00/FF pattern), false otherwise.
  */
 static bool link_detect_evaluate_edid_header(uint8_t edid_header[8])
 {
@@ -886,6 +891,11 @@ static bool link_detect_evaluate_edid_header(uint8_t edid_header[8])
  * Detect whether a display is connected to DDC without reading full EDID.
  * Reads only the EDID header (the first 8 bytes of EDID) from DDC and
  * evaluates whether that matches.
+ *
+ * @link: DC link whose DDC/I2C is probed for the EDID header.
+ *
+ * Return: true if the EDID header was read and passes validation,
+ *         false otherwise.
  */
 static bool link_detect_ddc_probe(struct dc_link *link)
 {
@@ -910,6 +920,11 @@ static bool link_detect_ddc_probe(struct dc_link *link)
  * Load detection can be used to detect the presence of an
  * analog display when we can't read DDC. This causes a visible
  * visual glitch so it should be used sparingly.
+ *
+ * @link: DC link to test using the DAC load-detect path.
+ *
+ * Return: true if the VBIOS load-detect call reports OK, false
+ *         otherwise.
  */
 static bool link_detect_dac_load_detect(struct dc_link *link)
 {
@@ -1209,8 +1224,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			break;
 		}
 
-		sink->edid_caps.analog &= dc_connector_supports_analog(link->link_id.id);
-
 		// Check if edid is the same
 		if ((prev_sink) &&
 		    (edid_status == EDID_THE_SAME || edid_status == EDID_OK))
@@ -1257,6 +1270,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		    !sink->edid_caps.edid_hdmi)
 			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		else if (dc_is_dvi_signal(sink->sink_signal) &&
+			 dc_is_dvi_signal(link->connector_signal) &&
 			 aud_support->hdmi_audio_native &&
 			 sink->edid_caps.edid_hdmi)
 			sink->sink_signal = SIGNAL_TYPE_HDMI_TYPE_A;
@@ -1350,6 +1364,14 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 
 /**
  * link_detect_analog() - Determines if an analog sink is connected.
+ *
+ * @link: DC link to evaluate (must support analog signalling).
+ * @type: Updated with the detected connection type:
+ *        dc_connection_single (analog via DDC),
+ *        dc_connection_dac_load (via load-detect),
+ *        or dc_connection_none.
+ *
+ * Return: true if detection completed.
  */
 static bool link_detect_analog(struct dc_link *link, enum dc_connection_type *type)
 {

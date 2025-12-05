@@ -6,11 +6,13 @@
 #include <netinet/in.h>
 #include <test_progs.h>
 #include <unistd.h>
+#include <errno.h>
 #include "cgroup_helpers.h"
 #include "network_helpers.h"
 #include "mptcp_sock.skel.h"
 #include "mptcpify.skel.h"
 #include "mptcp_subflow.skel.h"
+#include "mptcp_sockmap.skel.h"
 
 #define NS_TEST "mptcp_ns"
 #define ADDR_1	"10.0.1.1"
@@ -436,6 +438,142 @@ close_cgroup:
 	close(cgroup_fd);
 }
 
+/* Test sockmap on MPTCP server handling non-mp-capable clients. */
+static void test_sockmap_with_mptcp_fallback(struct mptcp_sockmap *skel)
+{
+	int listen_fd = -1, client_fd1 = -1, client_fd2 = -1;
+	int server_fd1 = -1, server_fd2 = -1, sent, recvd;
+	char snd[9] = "123456789";
+	char rcv[10];
+
+	/* start server with MPTCP enabled */
+	listen_fd = start_mptcp_server(AF_INET, NULL, 0, 0);
+	if (!ASSERT_OK_FD(listen_fd, "sockmap-fb:start_mptcp_server"))
+		return;
+
+	skel->bss->trace_port = ntohs(get_socket_local_port(listen_fd));
+	skel->bss->sk_index = 0;
+	/* create client without MPTCP enabled */
+	client_fd1 = connect_to_fd_opts(listen_fd, NULL);
+	if (!ASSERT_OK_FD(client_fd1, "sockmap-fb:connect_to_fd"))
+		goto end;
+
+	server_fd1 = accept(listen_fd, NULL, 0);
+	skel->bss->sk_index = 1;
+	client_fd2 = connect_to_fd_opts(listen_fd, NULL);
+	if (!ASSERT_OK_FD(client_fd2, "sockmap-fb:connect_to_fd"))
+		goto end;
+
+	server_fd2 = accept(listen_fd, NULL, 0);
+	/* test normal redirect behavior: data sent by client_fd1 can be
+	 * received by client_fd2
+	 */
+	skel->bss->redirect_idx = 1;
+	sent = send(client_fd1, snd, sizeof(snd), 0);
+	if (!ASSERT_EQ(sent, sizeof(snd), "sockmap-fb:send(client_fd1)"))
+		goto end;
+
+	/* try to recv more bytes to avoid truncation check */
+	recvd = recv(client_fd2, rcv, sizeof(rcv), 0);
+	if (!ASSERT_EQ(recvd, sizeof(snd), "sockmap-fb:recv(client_fd2)"))
+		goto end;
+
+end:
+	if (client_fd1 >= 0)
+		close(client_fd1);
+	if (client_fd2 >= 0)
+		close(client_fd2);
+	if (server_fd1 >= 0)
+		close(server_fd1);
+	if (server_fd2 >= 0)
+		close(server_fd2);
+	close(listen_fd);
+}
+
+/* Test sockmap rejection of MPTCP sockets - both server and client sides. */
+static void test_sockmap_reject_mptcp(struct mptcp_sockmap *skel)
+{
+	int listen_fd = -1, server_fd = -1, client_fd1 = -1;
+	int err, zero = 0;
+
+	/* start server with MPTCP enabled */
+	listen_fd = start_mptcp_server(AF_INET, NULL, 0, 0);
+	if (!ASSERT_OK_FD(listen_fd, "start_mptcp_server"))
+		return;
+
+	skel->bss->trace_port = ntohs(get_socket_local_port(listen_fd));
+	skel->bss->sk_index = 0;
+	/* create client with MPTCP enabled */
+	client_fd1 = connect_to_fd(listen_fd, 0);
+	if (!ASSERT_OK_FD(client_fd1, "connect_to_fd client_fd1"))
+		goto end;
+
+	/* bpf_sock_map_update() called from sockops should reject MPTCP sk */
+	if (!ASSERT_EQ(skel->bss->helper_ret, -EOPNOTSUPP, "should reject"))
+		goto end;
+
+	server_fd = accept(listen_fd, NULL, 0);
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.sock_map),
+				  &zero, &server_fd, BPF_NOEXIST);
+	if (!ASSERT_EQ(err, -EOPNOTSUPP, "server should be disallowed"))
+		goto end;
+
+	/* MPTCP client should also be disallowed */
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.sock_map),
+				  &zero, &client_fd1, BPF_NOEXIST);
+	if (!ASSERT_EQ(err, -EOPNOTSUPP, "client should be disallowed"))
+		goto end;
+end:
+	if (client_fd1 >= 0)
+		close(client_fd1);
+	if (server_fd >= 0)
+		close(server_fd);
+	close(listen_fd);
+}
+
+static void test_mptcp_sockmap(void)
+{
+	struct mptcp_sockmap *skel;
+	struct netns_obj *netns;
+	int cgroup_fd, err;
+
+	cgroup_fd = test__join_cgroup("/mptcp_sockmap");
+	if (!ASSERT_OK_FD(cgroup_fd, "join_cgroup: mptcp_sockmap"))
+		return;
+
+	skel = mptcp_sockmap__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_load: mptcp_sockmap"))
+		goto close_cgroup;
+
+	skel->links.mptcp_sockmap_inject =
+		bpf_program__attach_cgroup(skel->progs.mptcp_sockmap_inject, cgroup_fd);
+	if (!ASSERT_OK_PTR(skel->links.mptcp_sockmap_inject, "attach sockmap"))
+		goto skel_destroy;
+
+	err = bpf_prog_attach(bpf_program__fd(skel->progs.mptcp_sockmap_redirect),
+			      bpf_map__fd(skel->maps.sock_map),
+			      BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (!ASSERT_OK(err, "bpf_prog_attach stream verdict"))
+		goto skel_destroy;
+
+	netns = netns_new(NS_TEST, true);
+	if (!ASSERT_OK_PTR(netns, "netns_new: mptcp_sockmap"))
+		goto skel_destroy;
+
+	if (endpoint_init("subflow") < 0)
+		goto close_netns;
+
+	test_sockmap_with_mptcp_fallback(skel);
+	test_sockmap_reject_mptcp(skel);
+
+close_netns:
+	netns_free(netns);
+skel_destroy:
+	mptcp_sockmap__destroy(skel);
+close_cgroup:
+	close(cgroup_fd);
+}
+
 void test_mptcp(void)
 {
 	if (test__start_subtest("base"))
@@ -444,4 +582,6 @@ void test_mptcp(void)
 		test_mptcpify();
 	if (test__start_subtest("subflow"))
 		test_subflow();
+	if (test__start_subtest("sockmap"))
+		test_mptcp_sockmap();
 }

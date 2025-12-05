@@ -42,7 +42,7 @@ static void *efi_kexec_load(struct kimage *image,
 {
 	int ret;
 	unsigned long text_offset, kernel_segment_number;
-	struct kexec_buf kbuf;
+	struct kexec_buf kbuf = {};
 	struct kexec_segment *kernel_segment;
 	struct loongarch_image_header *h;
 

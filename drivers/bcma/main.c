@@ -294,6 +294,8 @@ static int bcma_register_devices(struct bcma_bus *bus)
 	int err;
 
 	list_for_each_entry(core, &bus->cores, list) {
+		struct device_node *np;
+
 		/* We support that core ourselves */
 		switch (core->id.id) {
 		case BCMA_CORE_4706_CHIPCOMMON:
@@ -309,6 +311,10 @@ static int bcma_register_devices(struct bcma_bus *bus)
 
 		/* Early cores were already registered */
 		if (bcma_is_core_needed_early(core->id.id))
+			continue;
+
+		np = core->dev.of_node;
+		if (np && !of_device_is_available(np))
 			continue;
 
 		/* Only first GMAC core on BCM4706 is connected and working */

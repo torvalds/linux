@@ -183,11 +183,16 @@ static int determine_lmem_bar_size(struct xe_device *xe, struct xe_vram_region *
 	return 0;
 }
 
-static inline u64 get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size)
+static int get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size, u64 *poffset)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	unsigned int fw_ref;
 	u64 offset;
 	u32 reg;
+
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref)
+		return -ETIMEDOUT;
 
 	if (GRAPHICS_VER(xe) >= 20) {
 		u64 ccs_size = tile_size / 512;
@@ -218,7 +223,10 @@ static inline u64 get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size)
 		offset = (u64)REG_FIELD_GET(XEHP_FLAT_CCS_PTR, reg) * SZ_64K;
 	}
 
-	return offset;
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+	*poffset = offset;
+
+	return 0;
 }
 
 /*
@@ -245,7 +253,6 @@ static int tile_vram_size(struct xe_tile *tile, u64 *vram_size,
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_gt *gt = tile->primary_gt;
-	unsigned int fw_ref;
 	u64 offset;
 	u32 reg;
 
@@ -265,31 +272,28 @@ static int tile_vram_size(struct xe_tile *tile, u64 *vram_size,
 		return 0;
 	}
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
-		return -ETIMEDOUT;
-
 	/* actual size */
 	if (unlikely(xe->info.platform == XE_DG1)) {
 		*tile_size = pci_resource_len(to_pci_dev(xe->drm.dev), LMEM_BAR);
 		*tile_offset = 0;
 	} else {
-		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_TILE_ADDR_RANGE(gt->info.id));
+		reg = xe_mmio_read32(&tile->mmio, SG_TILE_ADDR_RANGE(tile->id));
 		*tile_size = (u64)REG_FIELD_GET(GENMASK(14, 8), reg) * SZ_1G;
 		*tile_offset = (u64)REG_FIELD_GET(GENMASK(7, 1), reg) * SZ_1G;
 	}
 
 	/* minus device usage */
 	if (xe->info.has_flat_ccs) {
-		offset = get_flat_ccs_offset(gt, *tile_size);
+		int ret = get_flat_ccs_offset(gt, *tile_size, &offset);
+
+		if (ret)
+			return ret;
 	} else {
 		offset = xe_mmio_read64_2x32(&tile->mmio, GSMBASE);
 	}
 
 	/* remove the tile offset so we have just the available size */
 	*vram_size = offset - *tile_offset;
-
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return 0;
 }

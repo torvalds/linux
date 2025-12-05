@@ -961,5 +961,49 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY root"
         ]
+    },
+    {
+        "id": "4989",
+        "name": "Try to add an fq child to an ingress qdisc",
+        "category": [
+            "qdisc",
+            "ingress"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle ffff:0 ingress"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY parent ffff:0 handle ffe0:0 fq",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -j qdisc ls dev $DUMMY handle ffe0:",
+        "matchJSON": [],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "c2b0",
+        "name": "Try to add an fq child to a clsact qdisc",
+        "category": [
+            "qdisc",
+            "ingress"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle ffff:0 clsact"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY parent ffff:0 handle ffe0:0 fq",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -j qdisc ls dev $DUMMY handle ffe0:",
+        "matchJSON": [],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY clsact"
+        ]
     }
 ]

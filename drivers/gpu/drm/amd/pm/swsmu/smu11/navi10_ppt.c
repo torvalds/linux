@@ -2889,7 +2889,7 @@ static int navi10_set_dummy_pstates_table_location(struct smu_context *smu)
 		dummy_table += 0x1000;
 	}
 
-	amdgpu_asic_flush_hdp(smu->adev, NULL);
+	amdgpu_hdp_flush(smu->adev, NULL);
 
 	ret = smu_cmn_send_smc_msg_with_param(smu,
 					      SMU_MSG_SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_HIGH,

@@ -319,7 +319,7 @@ enum {
 #define FB_VBLANK_HAVE_VCOUNT	0x020	/* the vcount field is valid */
 #define FB_VBLANK_HAVE_HCOUNT	0x040	/* the hcount field is valid */
 #define FB_VBLANK_VSYNCING	0x080	/* currently in a vsync */
-#define FB_VBLANK_HAVE_VSYNC	0x100	/* verical syncs can be detected */
+#define FB_VBLANK_HAVE_VSYNC	0x100	/* vertical syncs can be detected */
 
 struct fb_vblank {
 	__u32 flags;			/* FB_VBLANK flags */

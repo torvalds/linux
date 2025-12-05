@@ -144,7 +144,6 @@ static int imx_drm_dumb_create(struct drm_file *file_priv,
 			       struct drm_mode_create_dumb *args)
 {
 	u32 fourcc;
-	const struct drm_format_info *info;
 	u64 pitch_align;
 	int ret;
 
@@ -156,12 +155,15 @@ static int imx_drm_dumb_create(struct drm_file *file_priv,
 	 * the allocated buffer.
 	 */
 	fourcc = drm_driver_color_mode_format(drm, args->bpp);
-	if (fourcc == DRM_FORMAT_INVALID)
-		return -EINVAL;
-	info = drm_format_info(fourcc);
-	if (!info)
-		return -EINVAL;
-	pitch_align = drm_format_info_min_pitch(info, 0, SZ_8);
+	if (fourcc != DRM_FORMAT_INVALID) {
+		const struct drm_format_info *info = drm_format_info(fourcc);
+
+		if (!info)
+			return -EINVAL;
+		pitch_align = drm_format_info_min_pitch(info, 0, 8);
+	} else {
+		pitch_align = DIV_ROUND_UP(args->bpp, SZ_8) * 8;
+	}
 	if (!pitch_align || pitch_align > U32_MAX)
 		return -EINVAL;
 	ret = drm_mode_size_dumb(drm, args, pitch_align, 0);

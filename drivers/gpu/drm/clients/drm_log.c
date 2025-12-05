@@ -315,6 +315,18 @@ static void drm_log_client_unregister(struct drm_client_dev *client)
 	drm_client_release(client);
 }
 
+static int drm_log_client_restore(struct drm_client_dev *client, bool force)
+{
+	int ret;
+
+	if (force)
+		ret = drm_client_modeset_commit_locked(client);
+	else
+		ret = drm_client_modeset_commit(client);
+
+	return ret;
+}
+
 static int drm_log_client_hotplug(struct drm_client_dev *client)
 {
 	struct drm_log *dlog = client_to_drm_log(client);
@@ -348,6 +360,7 @@ static const struct drm_client_funcs drm_log_client_funcs = {
 	.owner		= THIS_MODULE,
 	.free		= drm_log_client_free,
 	.unregister	= drm_log_client_unregister,
+	.restore	= drm_log_client_restore,
 	.hotplug	= drm_log_client_hotplug,
 	.suspend	= drm_log_client_suspend,
 	.resume		= drm_log_client_resume,

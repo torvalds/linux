@@ -1,0 +1,19 @@
+What:		/sys/bus/pci/drivers/qaic/XXXX:XX:XX.X/accel/accel<minor_nr>/dbc<N>_state
+Date:		October 2025
+KernelVersion:	6.19
+Contact:	Jeff Hugo <jeff.hugo@oss.qualcomm.com>
+Description:	Represents the current state of DMA Bridge channel (DBC). Below are the possible
+		states:
+
+		===================	==========================================================
+		IDLE (0)		DBC is free and can be activated
+		ASSIGNED (1)		DBC is activated and a workload is running on device
+		BEFORE_SHUTDOWN (2)	Sub-system associated with this workload has crashed and
+					it will shutdown soon
+		AFTER_SHUTDOWN (3)	Sub-system associated with this workload has crashed and
+					it has shutdown
+		BEFORE_POWER_UP (4)	Sub-system associated with this workload is shutdown and
+					it will be powered up soon
+		AFTER_POWER_UP (5)	Sub-system associated with this workload is now powered up
+		===================	==========================================================
+Users:		Any userspace application or clients interested in DBC state.

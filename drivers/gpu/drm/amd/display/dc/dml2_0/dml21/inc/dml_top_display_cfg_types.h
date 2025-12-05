@@ -87,6 +87,15 @@ enum dml2_output_link_dp_rate {
 	dml2_dp_rate_uhbr20 = 6
 };
 
+enum dml2_pstate_type {
+	dml2_pstate_type_uclk = 0,
+	dml2_pstate_type_fclk = 1,
+	dml2_pstate_type_ppt = 2,
+	dml2_pstate_type_temp_read = 3,
+	dml2_pstate_type_dummy_pstate = 4,
+	dml2_pstate_type_count = 5
+};
+
 enum dml2_uclk_pstate_change_strategy {
 	dml2_uclk_pstate_change_strategy_auto = 0,
 	dml2_uclk_pstate_change_strategy_force_vactive = 1,
@@ -393,8 +402,7 @@ struct dml2_plane_parameters {
 		// reserved_vblank_time_ns is the minimum time to reserve in vblank for Twait
 		// The actual reserved vblank time used for the corresponding stream in mode_programming would be at least as much as this per-plane override.
 		long reserved_vblank_time_ns;
-		unsigned int max_vactive_det_fill_delay_us; // 0 = no reserved time, +ve = explicit max delay
-		unsigned int vactive_latency_to_hide_for_pstate_admissibility_us;
+		unsigned int max_vactive_det_fill_delay_us[dml2_pstate_type_count]; // 0 = no reserved time, +ve = explicit max delay
 		unsigned int gpuvm_min_page_size_kbytes;
 		unsigned int hostvm_min_page_size_kbytes;
 
@@ -423,7 +431,6 @@ struct dml2_stream_parameters {
 		bool disable_dynamic_odm;
 		bool disable_subvp;
 		int minimum_vblank_idle_requirement_us;
-		bool minimize_active_latency_hiding;
 
 		struct {
 			struct {
@@ -489,7 +496,6 @@ struct dml2_display_cfg {
 		bool synchronize_ddr_displays_for_uclk_pstate_change;
 		bool max_outstanding_when_urgent_expected_disable;
 		bool enable_subvp_implicit_pmo; //enables PMO to switch pipe uclk strategy to subvp, and generate phantom programming
-		unsigned int best_effort_min_active_latency_hiding_us;
 		bool all_streams_blanked;
 	} overrides;
 };

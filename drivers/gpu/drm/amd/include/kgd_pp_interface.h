@@ -1820,4 +1820,10 @@ struct amdgpu_partition_metrics_v1_0 {
 	uint64_t gfx_below_host_limit_total_acc[MAX_XCC];
 };
 
+struct amdgpu_partition_metrics_v1_1 {
+	struct metrics_table_header common_header;
+	int attr_count;
+	struct gpu_metrics_attr metrics_attrs[];
+};
+
 #endif

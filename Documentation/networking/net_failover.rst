@@ -96,9 +96,8 @@ needed to these network configuration daemons to make sure that an IP is
 received only on the 'failover' device.
 
 Below is the patch snippet used with 'cloud-ifupdown-helper' script found on
-Debian cloud images:
+Debian cloud images::
 
-::
   @@ -27,6 +27,8 @@ do_setup() {
        local working="$cfgdir/.$INTERFACE"
        local final="$cfgdir/$INTERFACE"
@@ -172,9 +171,8 @@ appropriate FDB entry is added.
 
 The following script is executed on the destination hypervisor once migration
 completes, and it reattaches the VF to the VM and brings down the virtio-net
-interface.
+interface::
 
-::
   # reattach-vf.sh
   #!/bin/bash
 

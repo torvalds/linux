@@ -758,6 +758,6 @@ enum mod_hdcp_status mod_hdcp_write_poll_read_lc_fw(struct mod_hdcp *hdcp)
 {
 	const bool success = (is_dp_hdcp(hdcp) ? write_stall_read_lc_fw_aux : write_poll_read_lc_fw_i2c)(hdcp);
 
-	return success ? MOD_HDCP_STATUS_SUCCESS : MOD_HDCP_STATUS_DDC_FAILURE;
+	return success ? MOD_HDCP_STATUS_SUCCESS : MOD_HDCP_STATUS_HDCP2_LOCALITY_COMBO_READ_FAILURE;
 }
 

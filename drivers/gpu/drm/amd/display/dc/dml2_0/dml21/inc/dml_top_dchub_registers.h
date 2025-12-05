@@ -121,6 +121,8 @@ struct dml2_display_rq_regs {
 	uint32_t crq_expansion_mode;
 	uint32_t plane1_base_address;
 	uint32_t unbounded_request_enabled;
+	bool pte_buffer_mode;
+	bool force_one_row_for_frame;
 
 	// MRQ
 	uint32_t mrq_expansion_mode;

@@ -71,6 +71,7 @@ static const struct ras_umc_ip_func *ras_umc_get_ip_func(
 {
 	switch (ip_version) {
 	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 5, 0):
 		return &ras_umc_func_v12_0;
 	default:
 		RAS_DEV_ERR(ras_core->dev,

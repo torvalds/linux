@@ -706,7 +706,6 @@ static void power_down(void)
 
 #ifdef CONFIG_SUSPEND
 	if (hibernation_mode == HIBERNATION_SUSPEND) {
-		pm_restore_gfp_mask();
 		error = suspend_devices_and_enter(mem_sleep_current);
 		if (!error)
 			goto exit;
@@ -746,9 +745,6 @@ static void power_down(void)
 		cpu_relax();
 
 exit:
-	/* Match the pm_restore_gfp_mask() call in hibernate(). */
-	pm_restrict_gfp_mask();
-
 	/* Restore swap signature. */
 	error = swsusp_unmark();
 	if (error)

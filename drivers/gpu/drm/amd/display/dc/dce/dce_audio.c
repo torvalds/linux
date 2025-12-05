@@ -1143,7 +1143,8 @@ void dce_aud_wall_dto_setup(
 		REG_UPDATE(DCCG_AUDIO_DTO1_PHASE,
 				DCCG_AUDIO_DTO1_PHASE, clock_info.audio_dto_phase);
 
-		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
+		if (aud->masks->DCCG_AUDIO_DTO2_USE_512FBR_DTO)
+			REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
 				DCCG_AUDIO_DTO2_USE_512FBR_DTO, 1);
 
 	}

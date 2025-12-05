@@ -249,7 +249,7 @@ impl Transaction {
 
         if oneway {
             if let Some(target_node) = self.target_node.clone() {
-                if process_inner.is_frozen {
+                if process_inner.is_frozen.is_frozen() {
                     process_inner.async_recv = true;
                     if self.flags & TF_UPDATE_TXN != 0 {
                         if let Some(t_outdated) =
@@ -270,7 +270,7 @@ impl Transaction {
                     }
                 }
 
-                if process_inner.is_frozen {
+                if process_inner.is_frozen.is_frozen() {
                     return Err(BinderError::new_frozen_oneway());
                 } else {
                     return Ok(());
@@ -280,7 +280,7 @@ impl Transaction {
             }
         }
 
-        if process_inner.is_frozen {
+        if process_inner.is_frozen.is_frozen() {
             process_inner.sync_recv = true;
             return Err(BinderError::new_frozen());
         }

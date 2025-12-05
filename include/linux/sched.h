@@ -2407,12 +2407,12 @@ static inline void __migrate_enable(void) { }
  * be defined in kernel/sched/core.c.
  */
 #ifndef INSTANTIATE_EXPORTED_MIGRATE_DISABLE
-static inline void migrate_disable(void)
+static __always_inline void migrate_disable(void)
 {
 	__migrate_disable();
 }
 
-static inline void migrate_enable(void)
+static __always_inline void migrate_enable(void)
 {
 	__migrate_enable();
 }

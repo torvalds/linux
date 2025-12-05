@@ -333,6 +333,17 @@ static void ivpu_gem_bo_free(struct drm_gem_object *obj)
 	drm_gem_shmem_free(&bo->base);
 }
 
+static enum drm_gem_object_status ivpu_gem_status(struct drm_gem_object *obj)
+{
+	struct ivpu_bo *bo = to_ivpu_bo(obj);
+	enum drm_gem_object_status status = 0;
+
+	if (ivpu_bo_is_resident(bo))
+		status |= DRM_GEM_OBJECT_RESIDENT;
+
+	return status;
+}
+
 static const struct drm_gem_object_funcs ivpu_gem_funcs = {
 	.free = ivpu_gem_bo_free,
 	.open = ivpu_gem_bo_open,
@@ -343,6 +354,7 @@ static const struct drm_gem_object_funcs ivpu_gem_funcs = {
 	.vmap = drm_gem_shmem_object_vmap,
 	.vunmap = drm_gem_shmem_object_vunmap,
 	.mmap = drm_gem_shmem_object_mmap,
+	.status = ivpu_gem_status,
 	.vm_ops = &drm_gem_shmem_vm_ops,
 };
 

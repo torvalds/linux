@@ -1613,6 +1613,8 @@ static int setup_feedback_loop(struct device *dev, struct device_node *np,
 				step /= r1;
 
 				new[j].min = min;
+				new[j].min_sel = desc->linear_ranges[j].min_sel;
+				new[j].max_sel = desc->linear_ranges[j].max_sel;
 				new[j].step = step;
 
 				dev_dbg(dev, "%s: old range min %d, step %d\n",

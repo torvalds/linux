@@ -264,8 +264,11 @@ struct dml2_core_internal_mode_support_info {
 	bool DCCMetaBufferSizeNotExceeded;
 	enum dml2_pstate_change_support DRAMClockChangeSupport[DML2_MAX_PLANES];
 	enum dml2_pstate_change_support FCLKChangeSupport[DML2_MAX_PLANES];
+	enum dml2_pstate_change_support temp_read_or_ppt_support[DML2_MAX_PLANES];
+	bool global_dram_clock_change_support_required;
 	bool global_dram_clock_change_supported;
 	bool global_fclk_change_supported;
+	bool global_temp_read_or_ppt_supported;
 	bool USRRetrainingSupport;
 	bool AvgBandwidthSupport;
 	bool UrgVactiveBandwidthSupport;
@@ -336,7 +339,6 @@ struct dml2_core_internal_mode_support_info {
 	bool incorrect_imall_usage;
 
 	bool g6_temp_read_support;
-	bool temp_read_or_ppt_support;
 
 	struct dml2_core_internal_watermarks watermarks;
 	bool dcfclk_support;
@@ -591,7 +593,7 @@ struct dml2_core_internal_mode_support {
 	double VActiveLatencyHidingMargin[DML2_MAX_PLANES];
 	double VActiveLatencyHidingUs[DML2_MAX_PLANES];
 	unsigned int MaxVStartupLines[DML2_MAX_PLANES];
-	double dram_change_vactive_det_fill_delay_us[DML2_MAX_PLANES];
+	double pstate_vactive_det_fill_delay_us[dml2_pstate_type_count][DML2_MAX_PLANES];
 
 	unsigned int num_mcaches_l[DML2_MAX_PLANES];
 	unsigned int mcache_row_bytes_l[DML2_MAX_PLANES];
@@ -621,8 +623,8 @@ struct dml2_core_internal_mode_support {
 	unsigned int dpte_row_bytes_per_row_l[DML2_MAX_PLANES];
 	unsigned int dpte_row_bytes_per_row_c[DML2_MAX_PLANES];
 
-	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
-	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_l[dml2_pstate_type_count][DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[dml2_pstate_type_count][DML2_MAX_PLANES];
 	unsigned int cursor_bytes_per_chunk[DML2_MAX_PLANES];
 	unsigned int cursor_bytes_per_line[DML2_MAX_PLANES];
 
@@ -646,7 +648,7 @@ struct dml2_core_internal_mode_support {
 	unsigned int DSTYAfterScaler[DML2_MAX_PLANES];
 	unsigned int DSTXAfterScaler[DML2_MAX_PLANES];
 
-	enum dml2_pstate_method pstate_switch_modes[DML2_MAX_PLANES];
+	enum dml2_pstate_method uclk_pstate_switch_modes[DML2_MAX_PLANES];
 };
 
 /// @brief A mega structure that houses various info for model programming step.
@@ -837,6 +839,7 @@ struct dml2_core_internal_mode_program {
 	double max_urgent_latency_us;
 	double df_response_time_us;
 
+	enum dml2_pstate_method uclk_pstate_switch_modes[DML2_MAX_PLANES];
 	// -------------------
 	// Output
 	// -------------------
@@ -963,11 +966,12 @@ struct dml2_core_internal_mode_program {
 	double MaxActiveFCLKChangeLatencySupported;
 	bool USRRetrainingSupport;
 	bool g6_temp_read_support;
-	bool temp_read_or_ppt_support;
 	enum dml2_pstate_change_support FCLKChangeSupport[DML2_MAX_PLANES];
 	enum dml2_pstate_change_support DRAMClockChangeSupport[DML2_MAX_PLANES];
+	enum dml2_pstate_change_support temp_read_or_ppt_support[DML2_MAX_PLANES];
 	bool global_dram_clock_change_supported;
 	bool global_fclk_change_supported;
+	bool global_temp_read_or_ppt_supported;
 	double MaxActiveDRAMClockChangeLatencySupported[DML2_MAX_PLANES];
 	double WritebackAllowFCLKChangeEndPosition[DML2_MAX_PLANES];
 	double WritebackAllowDRAMClockChangeEndPosition[DML2_MAX_PLANES];
@@ -1134,8 +1138,8 @@ struct dml2_core_calcs_mode_support_locals {
 	unsigned int cursor_bytes[DML2_MAX_PLANES];
 	bool stream_visited[DML2_MAX_PLANES];
 
-	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
-	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_l[dml2_pstate_type_count][DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[dml2_pstate_type_count][DML2_MAX_PLANES];
 
 	double prefetch_sw_bytes[DML2_MAX_PLANES];
 	double Tpre_rounded[DML2_MAX_PLANES];
@@ -1226,8 +1230,8 @@ struct dml2_core_calcs_mode_programming_locals {
 	double Tr0_trips_flip_rounded[DML2_MAX_PLANES];
 	unsigned int per_pipe_flip_bytes[DML2_MAX_PLANES];
 
-	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
-	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_l[dml2_pstate_type_count][DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[dml2_pstate_type_count][DML2_MAX_PLANES];
 
 	double prefetch_sw_bytes[DML2_MAX_PLANES];
 	double Tpre_rounded[DML2_MAX_PLANES];
@@ -1313,7 +1317,7 @@ struct dml2_core_calcs_CalculateVMRowAndSwath_params {
 	unsigned int HostVMMinPageSize;
 	unsigned int DCCMetaBufferSizeBytes;
 	bool mrq_present;
-	enum dml2_pstate_method *pstate_switch_modes;
+	enum dml2_pstate_method *uclk_pstate_switch_modes;
 
 	// Output
 	bool *PTEBufferSizeNotExceeded;
@@ -1740,10 +1744,12 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_param
 	unsigned int max_request_size_bytes;
 	unsigned int *meta_row_height_l;
 	unsigned int *meta_row_height_c;
+	enum dml2_pstate_method *uclk_pstate_switch_modes;
 
 	// Output
 	struct dml2_core_internal_watermarks *Watermark;
 	enum dml2_pstate_change_support *DRAMClockChangeSupport;
+	bool *global_dram_clock_change_support_required;
 	bool *global_dram_clock_change_supported;
 	double *MaxActiveDRAMClockChangeLatencySupported;
 	unsigned int *SubViewportLinesNeededInMALL;
@@ -1754,9 +1760,9 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_param
 	double *VActiveLatencyHidingMargin;
 	double *VActiveLatencyHidingUs;
 	bool *g6_temp_read_support;
-	bool *temp_read_or_ppt_support;
+	enum dml2_pstate_change_support *temp_read_or_ppt_support;
+	bool *global_temp_read_or_ppt_supported;
 };
-
 
 struct dml2_core_calcs_CalculateSwathAndDETConfiguration_params {
 	const struct dml2_display_cfg *display_cfg;
@@ -2247,7 +2253,7 @@ struct dml2_core_calcs_calculate_bytes_to_fetch_required_to_hide_latency_params 
 	unsigned int *swath_width_c;
 	unsigned int *swath_height_l;
 	unsigned int *swath_height_c;
-	double latency_to_hide_us;
+	double latency_to_hide_us[DML2_MAX_PLANES];
 
 	/* outputs */
 	unsigned int *bytes_required_l;

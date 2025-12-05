@@ -52,6 +52,9 @@ struct amdgpu_ras_mgr {
 	struct ras_event_manager ras_event_mgr;
 	uint64_t last_poison_consumption_seqno;
 	bool ras_is_ready;
+
+	bool is_paused;
+	struct completion ras_event_done;
 };
 
 extern const struct amdgpu_ip_block_version ras_v1_0_ip_block;
@@ -75,4 +78,6 @@ bool amdgpu_ras_mgr_is_rma(struct amdgpu_device *adev);
 int amdgpu_ras_mgr_handle_ras_cmd(struct amdgpu_device *adev,
 		uint32_t cmd_id, void *input, uint32_t input_size,
 		void *output, uint32_t out_size);
+int amdgpu_ras_mgr_pre_reset(struct amdgpu_device *adev);
+int amdgpu_ras_mgr_post_reset(struct amdgpu_device *adev);
 #endif

@@ -262,6 +262,16 @@ static const struct of_device_id simple_bridge_match[] = {
 			.connector_type = DRM_MODE_CONNECTOR_VGA,
 		},
 	}, {
+		.compatible = "asl-tek,cs5263",
+		.data = &(const struct simple_bridge_info) {
+			.connector_type = DRM_MODE_CONNECTOR_HDMIA,
+		},
+	}, {
+		.compatible = "parade,ps185hdm",
+		.data = &(const struct simple_bridge_info) {
+			.connector_type = DRM_MODE_CONNECTOR_HDMIA,
+		},
+	}, {
 		.compatible = "radxa,ra620",
 		.data = &(const struct simple_bridge_info) {
 			.connector_type = DRM_MODE_CONNECTOR_HDMIA,

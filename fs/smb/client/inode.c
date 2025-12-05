@@ -2484,11 +2484,8 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	}
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 do_rename_exit:
-	if (rc == 0) {
+	if (rc == 0)
 		d_move(from_dentry, to_dentry);
-		/* Force a new lookup */
-		d_drop(from_dentry);
-	}
 	cifs_put_tlink(tlink);
 	return rc;
 }

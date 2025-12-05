@@ -173,13 +173,17 @@ static void xgpu_nv_mailbox_trans_msg (struct amdgpu_device *adev,
 static int xgpu_nv_send_access_requests_with_param(struct amdgpu_device *adev,
 			enum idh_request req, u32 data1, u32 data2, u32 data3)
 {
-	int r, retry = 1;
+	struct amdgpu_virt *virt = &adev->virt;
+	int r = 0, retry = 1;
 	enum idh_event event = -1;
 
+	mutex_lock(&virt->access_req_mutex);
 send_request:
 
-	if (amdgpu_ras_is_rma(adev))
-		return -ENODEV;
+	if (amdgpu_ras_is_rma(adev)) {
+		r = -ENODEV;
+		goto out;
+	}
 
 	xgpu_nv_mailbox_trans_msg(adev, req, data1, data2, data3);
 
@@ -217,7 +221,7 @@ send_request:
 
 			if (req != IDH_REQ_GPU_INIT_DATA) {
 				dev_err(adev->dev, "Doesn't get msg:%d from pf, error=%d\n", event, r);
-				return r;
+				goto out;
 			} else /* host doesn't support REQ_GPU_INIT_DATA handshake */
 				adev->virt.req_init_data_ver = 0;
 		} else {
@@ -246,7 +250,10 @@ send_request:
 		}
 	}
 
-	return 0;
+out:
+	mutex_unlock(&virt->access_req_mutex);
+
+	return r;
 }
 
 static int xgpu_nv_send_access_requests(struct amdgpu_device *adev,

@@ -14,7 +14,7 @@
 #include <asm/pgtable-bits.h>
 #include <asm/string.h>
 
-extern void __init __iomem *early_ioremap(u64 phys_addr, unsigned long size);
+extern void __init __iomem *early_ioremap(phys_addr_t phys_addr, unsigned long size);
 extern void __init early_iounmap(void __iomem *addr, unsigned long size);
 
 #define early_memremap early_ioremap
@@ -25,6 +25,9 @@ extern void __init early_iounmap(void __iomem *addr, unsigned long size);
 static inline void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
 					 pgprot_t prot)
 {
+	if (offset > TO_PHYS_MASK)
+		return NULL;
+
 	switch (pgprot_val(prot) & _CACHE_MASK) {
 	case _CACHE_CC:
 		return (void __iomem *)(unsigned long)(CACHE_BASE + offset);

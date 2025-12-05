@@ -221,11 +221,6 @@ struct xe_vm {
 #define XE_VM_FLAG_GSC			BIT(8)
 	unsigned long flags;
 
-	/** @composite_fence_ctx: context composite fence */
-	u64 composite_fence_ctx;
-	/** @composite_fence_seqno: seqno for composite fence */
-	u32 composite_fence_seqno;
-
 	/**
 	 * @lock: outer most lock, protects objects of anything attached to this
 	 * VM
@@ -471,6 +466,7 @@ struct xe_vma_ops {
 #define XE_VMA_OPS_FLAG_HAS_SVM_PREFETCH BIT(0)
 #define XE_VMA_OPS_FLAG_MADVISE          BIT(1)
 #define XE_VMA_OPS_ARRAY_OF_BINDS	 BIT(2)
+#define XE_VMA_OPS_FLAG_SKIP_TLB_WAIT	 BIT(3)
 	u32 flags;
 #ifdef TEST_VM_OPS_ERROR
 	/** @inject_error: inject error to test error handling */
