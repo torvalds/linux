@@ -18,7 +18,7 @@
 #include <rdma/ib.h>
 
 #define RNBD_PROTO_VER_MAJOR 2
-#define RNBD_PROTO_VER_MINOR 0
+#define RNBD_PROTO_VER_MINOR 1
 
 /* The default port number the RTRS server is listening on. */
 #define RTRS_PORT 1234
@@ -197,6 +197,7 @@ struct rnbd_msg_io {
  *
  * @RNBD_F_SYNC:	     request is sync (sync write or read)
  * @RNBD_F_FUA:             forced unit access
+ * @RNBD_F_PREFLUSH:	    request for cache flush
  */
 enum rnbd_io_flags {
 
@@ -211,6 +212,7 @@ enum rnbd_io_flags {
 	/* Flags */
 	RNBD_F_SYNC  = 1<<(RNBD_OP_BITS + 0),
 	RNBD_F_FUA   = 1<<(RNBD_OP_BITS + 1),
+	RNBD_F_PREFLUSH = 1<<(RNBD_OP_BITS + 2)
 };
 
 static inline u32 rnbd_op(u32 flags)
@@ -258,6 +260,9 @@ static inline blk_opf_t rnbd_to_bio_flags(u32 rnbd_opf)
 	if (rnbd_opf & RNBD_F_FUA)
 		bio_opf |= REQ_FUA;
 
+	if (rnbd_opf & RNBD_F_PREFLUSH)
+		bio_opf |= REQ_PREFLUSH;
+
 	return bio_opf;
 }
 
@@ -296,6 +301,9 @@ static inline u32 rq_to_rnbd_flags(struct request *rq)
 
 	if (op_is_flush(rq->cmd_flags))
 		rnbd_opf |= RNBD_F_FUA;
+
+	if (rq->cmd_flags & REQ_PREFLUSH)
+		rnbd_opf |= RNBD_F_PREFLUSH;
 
 	return rnbd_opf;
 }
