@@ -226,7 +226,7 @@ void xe_sriov_vf_init_early(struct xe_device *xe)
 	vf_migration_init_early(xe);
 }
 
-static bool vf_migration_init_late(struct xe_device *xe)
+static int vf_migration_init_late(struct xe_device *xe)
 {
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
 	struct xe_uc_fw_version guc_version;
