@@ -136,7 +136,7 @@
 
 &adsp_pas {
 	status = "okay";
-	firmware-name = "qcom/sdm845/beryllium/adsp.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/beryllium/adsp.mbn";
 };
 
 &apps_rsc {
@@ -229,7 +229,7 @@
 
 &cdsp_pas {
 	status = "okay";
-	firmware-name = "qcom/sdm845/beryllium/cdsp.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/beryllium/cdsp.mbn";
 };
 
 &gcc {
@@ -249,7 +249,7 @@
 };
 
 &gpu_zap_shader {
-	firmware-name = "qcom/sdm845/beryllium/a630_zap.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/beryllium/a630_zap.mbn";
 };
 
 &ibb {
@@ -308,13 +308,14 @@
 
 &mss_pil {
 	status = "okay";
-	firmware-name = "qcom/sdm845/beryllium/mba.mbn", "qcom/sdm845/beryllium/modem.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/beryllium/mba.mbn",
+	"qcom/sdm845/Xiaomi/beryllium/modem.mbn";
 };
 
 &ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
-	firmware-name = "qcom/sdm845/beryllium/ipa_fws.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/beryllium/ipa_fws.mbn";
 	status = "okay";
 };
 
@@ -618,7 +619,7 @@
 
 &venus {
 	status = "okay";
-	firmware-name = "qcom/sdm845/beryllium/venus.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/beryllium/venus.mbn";
 };
 
 &wcd9340 {
