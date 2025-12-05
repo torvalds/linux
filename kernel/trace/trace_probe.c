@@ -156,7 +156,7 @@ fail:
 static struct trace_probe_log trace_probe_log;
 extern struct mutex dyn_event_ops_mutex;
 
-void trace_probe_log_init(const char *subsystem, int argc, const char **argv)
+const char *trace_probe_log_init(const char *subsystem, int argc, const char **argv)
 {
 	lockdep_assert_held(&dyn_event_ops_mutex);
 
@@ -164,6 +164,7 @@ void trace_probe_log_init(const char *subsystem, int argc, const char **argv)
 	trace_probe_log.argc = argc;
 	trace_probe_log.argv = argv;
 	trace_probe_log.index = 0;
+	return subsystem;
 }
 
 void trace_probe_log_clear(void)
@@ -214,7 +215,7 @@ void __trace_probe_log_err(int offset, int err_type)
 	p = command;
 	for (i = 0; i < trace_probe_log.argc; i++) {
 		len = strlen(trace_probe_log.argv[i]);
-		strcpy(p, trace_probe_log.argv[i]);
+		memcpy(p, trace_probe_log.argv[i], len);
 		p[len] = ' ';
 		p += len + 1;
 	}
