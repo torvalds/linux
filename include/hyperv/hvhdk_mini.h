@@ -140,6 +140,7 @@ enum hv_snp_status {
 
 enum hv_system_property {
 	/* Add more values when needed */
+	HV_SYSTEM_PROPERTY_SLEEP_STATE = 3,
 	HV_SYSTEM_PROPERTY_SCHEDULER_TYPE = 15,
 	HV_DYNAMIC_PROCESSOR_FEATURE_PROPERTY = 21,
 	HV_SYSTEM_PROPERTY_CRASHDUMPAREA = 47,
@@ -153,6 +154,19 @@ union hv_pfn_range {            /* HV_SPA_PAGE_RANGE */
 		u64 base_pfn : 64 - HV_PFN_RANGE_PGBITS;
 		u64 add_pfns : HV_PFN_RANGE_PGBITS;
 	} __packed;
+};
+
+enum hv_sleep_state {
+	HV_SLEEP_STATE_S1 = 1,
+	HV_SLEEP_STATE_S2 = 2,
+	HV_SLEEP_STATE_S3 = 3,
+	HV_SLEEP_STATE_S4 = 4,
+	HV_SLEEP_STATE_S5 = 5,
+	/*
+	 * After hypervisor has received this, any follow up sleep
+	 * state registration requests will be rejected.
+	 */
+	HV_SLEEP_STATE_LOCK = 6
 };
 
 enum hv_dynamic_processor_feature_property {
@@ -182,6 +196,32 @@ struct hv_output_get_system_property {
 		union hv_pfn_range hv_cda_info; /* CrashdumpAreaAddress */
 		u64 hv_tramp_pa;                /* CrashdumpTrampolineAddress */
 	};
+} __packed;
+
+struct hv_sleep_state_info {
+	u32 sleep_state; /* enum hv_sleep_state */
+	u8 pm1a_slp_typ;
+	u8 pm1b_slp_typ;
+} __packed;
+
+struct hv_input_set_system_property {
+	u32 property_id; /* enum hv_system_property */
+	u32 reserved;
+	union {
+		/* More fields to be filled in when needed */
+		struct hv_sleep_state_info set_sleep_state_info;
+
+		/*
+		 * Add a reserved field to ensure the union is 8-byte aligned as
+		 * existing members may not be. This is a temporary measure
+		 * until all remaining members are added.
+		 */
+		 u64 reserved0[8];
+	};
+} __packed;
+
+struct hv_input_enter_sleep_state {     /* HV_INPUT_ENTER_SLEEP_STATE */
+	u32 sleep_state;        /* enum hv_sleep_state */
 } __packed;
 
 struct hv_input_map_stats_page {
