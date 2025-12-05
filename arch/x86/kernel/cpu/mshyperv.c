@@ -621,6 +621,8 @@ static void __init ms_hyperv_init_platform(void)
 #endif
 
 #if IS_ENABLED(CONFIG_HYPERV)
+	if (hv_root_partition())
+		machine_ops.power_off = hv_machine_power_off;
 #if defined(CONFIG_KEXEC_CORE)
 	machine_ops.shutdown = hv_machine_shutdown;
 #endif

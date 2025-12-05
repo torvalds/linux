@@ -216,3 +216,24 @@ void hv_sleep_notifiers_register(void)
 		pr_err("%s: cannot register reboot notifier %d\n", __func__,
 		       ret);
 }
+
+/*
+ * Power off the machine by entering S5 sleep state via Hyper-V hypercall.
+ * This call does not return if successful.
+ */
+void hv_machine_power_off(void)
+{
+	unsigned long flags;
+	struct hv_input_enter_sleep_state *in;
+
+	local_irq_save(flags);
+	in = *this_cpu_ptr(hyperv_pcpu_input_arg);
+	in->sleep_state = HV_SLEEP_STATE_S5;
+
+	(void)hv_do_hypercall(HVCALL_ENTER_SLEEP_STATE, in, NULL);
+	local_irq_restore(flags);
+
+	/* should never reach here */
+	BUG();
+
+}
