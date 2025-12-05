@@ -1162,11 +1162,6 @@ struct ftrace_func_command {
 					char *params, int enable);
 };
 extern bool ftrace_filter_param __initdata;
-static inline int ftrace_trace_task(struct trace_array *tr)
-{
-	return this_cpu_read(tr->array_buffer.data->ftrace_ignore_pid) !=
-		FTRACE_PID_IGNORE;
-}
 extern int ftrace_is_dead(void);
 int ftrace_create_function_files(struct trace_array *tr,
 				 struct dentry *parent);
@@ -1184,10 +1179,6 @@ void ftrace_clear_pids(struct trace_array *tr);
 int init_function_trace(void);
 void ftrace_pid_follow_fork(struct trace_array *tr, bool enable);
 #else
-static inline int ftrace_trace_task(struct trace_array *tr)
-{
-	return 1;
-}
 static inline int ftrace_is_dead(void) { return 0; }
 static inline int
 ftrace_create_function_files(struct trace_array *tr,
