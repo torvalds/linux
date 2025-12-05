@@ -44,24 +44,6 @@ DEFINE_EVENT(rnbd_srv_link_class, name, \
 DEFINE_LINK_EVENT(create_sess);
 DEFINE_LINK_EVENT(destroy_sess);
 
-TRACE_DEFINE_ENUM(RNBD_OP_READ);
-TRACE_DEFINE_ENUM(RNBD_OP_WRITE);
-TRACE_DEFINE_ENUM(RNBD_OP_FLUSH);
-TRACE_DEFINE_ENUM(RNBD_OP_DISCARD);
-TRACE_DEFINE_ENUM(RNBD_OP_SECURE_ERASE);
-TRACE_DEFINE_ENUM(RNBD_F_SYNC);
-TRACE_DEFINE_ENUM(RNBD_F_FUA);
-
-#define show_rnbd_rw_flags(x) \
-	__print_flags(x, "|", \
-		{ RNBD_OP_READ,		"READ" }, \
-		{ RNBD_OP_WRITE,	"WRITE" }, \
-		{ RNBD_OP_FLUSH,	"FLUSH" }, \
-		{ RNBD_OP_DISCARD,	"DISCARD" }, \
-		{ RNBD_OP_SECURE_ERASE,	"SECURE_ERASE" }, \
-		{ RNBD_F_SYNC,		"SYNC" }, \
-		{ RNBD_F_FUA,		"FUA" })
-
 TRACE_EVENT(process_rdma,
 	TP_PROTO(struct rnbd_srv_session *srv,
 		 const struct rnbd_msg_io *msg,
@@ -97,7 +79,7 @@ TRACE_EVENT(process_rdma,
 		__entry->usrlen = usrlen;
 	),
 
-	TP_printk("I/O req: sess: %s, type: %s, ver: %d, devid: %u, sector: %llu, bsize: %u, flags: %s, ioprio: %d, datalen: %u, usrlen: %zu",
+	TP_printk("I/O req: sess: %s, type: %s, ver: %d, devid: %u, sector: %llu, bsize: %u, flags: %u, ioprio: %d, datalen: %u, usrlen: %zu",
 		   __get_str(sessname),
 		   __print_symbolic(__entry->dir,
 			 { READ,  "READ" },
@@ -106,7 +88,7 @@ TRACE_EVENT(process_rdma,
 		   __entry->device_id,
 		   __entry->sector,
 		   __entry->bi_size,
-		   show_rnbd_rw_flags(__entry->flags),
+		   __entry->flags,
 		   __entry->ioprio,
 		   __entry->datalen,
 		   __entry->usrlen
