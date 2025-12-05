@@ -25,6 +25,7 @@
 #include <linux/math64.h>
 #include <linux/bitmap.h>
 #include <linux/gpio/driver.h>
+#include <linux/property.h>
 
 #include <sound/asoundef.h>
 #include <sound/core.h>
@@ -1875,11 +1876,7 @@ err1:
 
 static bool davinci_mcasp_have_gpiochip(struct davinci_mcasp *mcasp)
 {
-#ifdef CONFIG_OF_GPIO
-	return of_property_read_bool(mcasp->dev->of_node, "gpio-controller");
-#else
-	return false;
-#endif
+	return device_property_present(mcasp->dev, "gpio-controller");
 }
 
 static int davinci_mcasp_get_config(struct davinci_mcasp *mcasp,
