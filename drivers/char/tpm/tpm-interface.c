@@ -313,9 +313,12 @@ int tpm_is_tpm2(struct tpm_chip *chip)
 {
 	int rc;
 
-	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
+
+	rc = tpm_try_get_ops(chip);
+	if (rc)
+		return rc;
 
 	rc = (chip->flags & TPM_CHIP_FLAG_TPM2) != 0;
 
@@ -338,9 +341,12 @@ int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx,
 {
 	int rc;
 
-	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
+
+	rc = tpm_try_get_ops(chip);
+	if (rc)
+		return rc;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		rc = tpm2_pcr_read(chip, pcr_idx, digest, NULL);
@@ -369,9 +375,12 @@ int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx,
 	int rc;
 	int i;
 
-	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
+
+	rc = tpm_try_get_ops(chip);
+	if (rc)
+		return rc;
 
 	for (i = 0; i < chip->nr_allocated_banks; i++) {
 		if (digests[i].alg_id != chip->allocated_banks[i].alg_id) {
@@ -492,9 +501,12 @@ int tpm_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 	if (!out || max > TPM_MAX_RNG_DATA)
 		return -EINVAL;
 
-	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
+
+	rc = tpm_try_get_ops(chip);
+	if (rc)
+		return rc;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		rc = tpm2_get_random(chip, out, max);
