@@ -358,23 +358,33 @@ int cap_inode_killpriv(struct mnt_idmap *idmap, struct dentry *dentry)
 	return error;
 }
 
-static bool rootid_owns_currentns(vfsuid_t rootvfsuid)
+/**
+ * kuid_root_in_ns - check whether the given kuid is root in the given ns
+ * @kuid: the kuid to be tested
+ * @ns: the user namespace to test against
+ *
+ * Returns true if @kuid represents the root user in @ns, false otherwise.
+ */
+static bool kuid_root_in_ns(kuid_t kuid, struct user_namespace *ns)
 {
-	struct user_namespace *ns;
-	kuid_t kroot;
-
-	if (!vfsuid_valid(rootvfsuid))
-		return false;
-
-	kroot = vfsuid_into_kuid(rootvfsuid);
-	for (ns = current_user_ns();; ns = ns->parent) {
-		if (from_kuid(ns, kroot) == 0)
+	for (;; ns = ns->parent) {
+		if (from_kuid(ns, kuid) == 0)
 			return true;
 		if (ns == &init_user_ns)
 			break;
 	}
 
 	return false;
+}
+
+static bool vfsuid_root_in_currentns(vfsuid_t vfsuid)
+{
+	kuid_t kuid;
+
+	if (!vfsuid_valid(vfsuid))
+		return false;
+	kuid = vfsuid_into_kuid(vfsuid);
+	return kuid_root_in_ns(kuid, current_user_ns());
 }
 
 static __u32 sansflags(__u32 m)
@@ -481,7 +491,7 @@ int cap_inode_getsecurity(struct mnt_idmap *idmap,
 		goto out_free;
 	}
 
-	if (!rootid_owns_currentns(vfsroot)) {
+	if (!vfsuid_root_in_currentns(vfsroot)) {
 		size = -EOVERFLOW;
 		goto out_free;
 	}
@@ -722,7 +732,7 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 	/* Limit the caps to the mounter of the filesystem
 	 * or the more limited uid specified in the xattr.
 	 */
-	if (!rootid_owns_currentns(rootvfsuid))
+	if (!vfsuid_root_in_currentns(rootvfsuid))
 		return -ENODATA;
 
 	cpu_caps->permitted.val = le32_to_cpu(caps->data[0].permitted);
