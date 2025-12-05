@@ -217,7 +217,7 @@ static unsigned int _intel_fbc_cfb_stride(struct intel_display *display,
 
 static unsigned int intel_fbc_cfb_stride(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 	unsigned int stride = intel_fbc_plane_cfb_stride(plane_state);
 	unsigned int width = drm_rect_width(&plane_state->uapi.src) >> 16;
 	unsigned int cpp = intel_fbc_cfb_cpp(plane_state);
@@ -248,7 +248,7 @@ static unsigned int _intel_fbc_cfb_size(struct intel_display *display,
 
 static unsigned int intel_fbc_cfb_size(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 	unsigned int height = drm_rect_height(&plane_state->uapi.src) >> 16;
 
 	return _intel_fbc_cfb_size(display, height, intel_fbc_cfb_stride(plane_state));
@@ -256,7 +256,7 @@ static unsigned int intel_fbc_cfb_size(const struct intel_plane_state *plane_sta
 
 static u16 intel_fbc_override_cfb_stride(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 	unsigned int stride_aligned = intel_fbc_cfb_stride(plane_state);
 	unsigned int stride = intel_fbc_plane_cfb_stride(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -1098,7 +1098,7 @@ static bool icl_fbc_stride_is_valid(const struct intel_plane_state *plane_state)
 
 static bool stride_is_valid(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 
 	if (DISPLAY_VER(display) >= 11)
 		return icl_fbc_stride_is_valid(plane_state);
@@ -1114,7 +1114,7 @@ static bool stride_is_valid(const struct intel_plane_state *plane_state)
 
 static bool i8xx_fbc_pixel_format_is_valid(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 
 	switch (fb->format->format) {
@@ -1134,7 +1134,7 @@ static bool i8xx_fbc_pixel_format_is_valid(const struct intel_plane_state *plane
 
 static bool g4x_fbc_pixel_format_is_valid(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 
 	switch (fb->format->format) {
@@ -1213,7 +1213,7 @@ intel_fbc_is_enable_pixel_normalizer(const struct intel_plane_state *plane_state
 
 static bool pixel_format_is_valid(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 
 	if (DISPLAY_VER(display) >= 35)
 		return xe3p_lpd_fbc_pixel_format_is_valid(plane_state);
@@ -1249,7 +1249,7 @@ static bool skl_fbc_rotation_is_valid(const struct intel_plane_state *plane_stat
 
 static bool rotation_is_valid(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 
 	if (DISPLAY_VER(display) >= 9)
 		return skl_fbc_rotation_is_valid(plane_state);
@@ -1288,7 +1288,7 @@ static void intel_fbc_max_surface_size(struct intel_display *display,
  */
 static bool intel_fbc_surface_size_ok(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 	unsigned int effective_w, effective_h, max_w, max_h;
 
 	intel_fbc_max_surface_size(display, &max_w, &max_h);
@@ -1321,7 +1321,7 @@ static void intel_fbc_max_plane_size(struct intel_display *display,
 
 static bool intel_fbc_plane_size_valid(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 	unsigned int w, h, max_w, max_h;
 
 	intel_fbc_max_plane_size(display, &max_w, &max_h);
@@ -1346,7 +1346,7 @@ static bool skl_fbc_tiling_valid(const struct intel_plane_state *plane_state)
 
 static bool tiling_is_valid(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 
 	if (DISPLAY_VER(display) >= 9)
 		return skl_fbc_tiling_valid(plane_state);
@@ -1426,7 +1426,7 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc,
 				   struct intel_plane *plane)
 {
-	struct intel_display *display = to_intel_display(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_plane_state *plane_state =
@@ -1459,7 +1459,7 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 
 static bool intel_fbc_is_fence_ok(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	struct intel_display *display = to_intel_display(plane_state);
 
 	/*
 	 * The use of a CPU fence is one of two ways to detect writes by the
@@ -1566,7 +1566,7 @@ static int _intel_fbc_min_cdclk(const struct intel_crtc_state *crtc_state)
 static int intel_fbc_check_plane(struct intel_atomic_state *state,
 				 struct intel_plane *plane)
 {
-	struct intel_display *display = to_intel_display(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -1793,7 +1793,7 @@ static bool __intel_fbc_pre_update(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc,
 				   struct intel_plane *plane)
 {
-	struct intel_display *display = to_intel_display(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	struct intel_fbc *fbc = plane->fbc;
 	bool need_vblank_wait = false;
 
@@ -2008,7 +2008,7 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc,
 			       struct intel_plane *plane)
 {
-	struct intel_display *display = to_intel_display(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_fbc *fbc = plane->fbc;
@@ -2072,7 +2072,7 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
  */
 void intel_fbc_disable(struct intel_crtc *crtc)
 {
-	struct intel_display *display = to_intel_display(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	struct intel_plane *plane;
 
 	for_each_intel_plane(display->drm, plane) {
