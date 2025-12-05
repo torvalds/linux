@@ -5,7 +5,7 @@
 #include <linux/sizes.h>
 #include <linux/vfio.h>
 
-#include <vfio_util.h>
+#include <libvfio.h>
 
 #include "../kselftest_harness.h"
 
@@ -18,9 +18,9 @@ static const char *device_bdf;
 	ASSERT_EQ(EAGAIN, errno);			\
 } while (0)
 
-static void region_setup(struct vfio_pci_device *device,
+static void region_setup(struct iommu *iommu,
 			 struct iova_allocator *iova_allocator,
-			 struct vfio_dma_region *region, u64 size)
+			 struct dma_region *region, u64 size)
 {
 	const int flags = MAP_SHARED | MAP_ANONYMOUS;
 	const int prot = PROT_READ | PROT_WRITE;
@@ -33,20 +33,20 @@ static void region_setup(struct vfio_pci_device *device,
 	region->iova = iova_allocator_alloc(iova_allocator, size);
 	region->size = size;
 
-	vfio_pci_dma_map(device, region);
+	iommu_map(iommu, region);
 }
 
-static void region_teardown(struct vfio_pci_device *device,
-			    struct vfio_dma_region *region)
+static void region_teardown(struct iommu *iommu, struct dma_region *region)
 {
-	vfio_pci_dma_unmap(device, region);
+	iommu_unmap(iommu, region);
 	VFIO_ASSERT_EQ(munmap(region->vaddr, region->size), 0);
 }
 
 FIXTURE(vfio_pci_driver_test) {
+	struct iommu *iommu;
 	struct vfio_pci_device *device;
 	struct iova_allocator *iova_allocator;
-	struct vfio_dma_region memcpy_region;
+	struct dma_region memcpy_region;
 	void *vaddr;
 	int msi_fd;
 
@@ -73,13 +73,14 @@ FIXTURE_SETUP(vfio_pci_driver_test)
 {
 	struct vfio_pci_driver *driver;
 
-	self->device = vfio_pci_device_init(device_bdf, variant->iommu_mode);
-	self->iova_allocator = iova_allocator_init(self->device);
+	self->iommu = iommu_init(variant->iommu_mode);
+	self->device = vfio_pci_device_init(device_bdf, self->iommu);
+	self->iova_allocator = iova_allocator_init(self->iommu);
 
 	driver = &self->device->driver;
 
-	region_setup(self->device, self->iova_allocator, &self->memcpy_region, SZ_1G);
-	region_setup(self->device, self->iova_allocator, &driver->region, SZ_2M);
+	region_setup(self->iommu, self->iova_allocator, &self->memcpy_region, SZ_1G);
+	region_setup(self->iommu, self->iova_allocator, &driver->region, SZ_2M);
 
 	/* Any IOVA that doesn't overlap memcpy_region and driver->region. */
 	self->unmapped_iova = iova_allocator_alloc(self->iova_allocator, SZ_1G);
@@ -108,11 +109,12 @@ FIXTURE_TEARDOWN(vfio_pci_driver_test)
 
 	vfio_pci_driver_remove(self->device);
 
-	region_teardown(self->device, &self->memcpy_region);
-	region_teardown(self->device, &driver->region);
+	region_teardown(self->iommu, &self->memcpy_region);
+	region_teardown(self->iommu, &driver->region);
 
 	iova_allocator_cleanup(self->iova_allocator);
 	vfio_pci_device_cleanup(self->device);
+	iommu_cleanup(self->iommu);
 }
 
 TEST_F(vfio_pci_driver_test, init_remove)
@@ -231,18 +233,31 @@ TEST_F_TIMEOUT(vfio_pci_driver_test, memcpy_storm, 60)
 	ASSERT_NO_MSI(self->msi_fd);
 }
 
-int main(int argc, char *argv[])
+static bool device_has_selftests_driver(const char *bdf)
 {
 	struct vfio_pci_device *device;
+	struct iommu *iommu;
+	bool has_driver;
 
+	iommu = iommu_init(default_iommu_mode);
+	device = vfio_pci_device_init(device_bdf, iommu);
+
+	has_driver = !!device->driver.ops;
+
+	vfio_pci_device_cleanup(device);
+	iommu_cleanup(iommu);
+
+	return has_driver;
+}
+
+int main(int argc, char *argv[])
+{
 	device_bdf = vfio_selftests_get_bdf(&argc, argv);
 
-	device = vfio_pci_device_init(device_bdf, default_iommu_mode);
-	if (!device->driver.ops) {
+	if (!device_has_selftests_driver(device_bdf)) {
 		fprintf(stderr, "No driver found for device %s\n", device_bdf);
 		return KSFT_SKIP;
 	}
-	vfio_pci_device_cleanup(device);
 
 	return test_harness_run(argc, argv);
 }
