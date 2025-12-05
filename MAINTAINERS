@@ -21802,8 +21802,12 @@ F:	tools/testing/selftests/rtc/
 
 Real-time Linux Analysis (RTLA) tools
 M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Tomas Glozar <tglozar@redhat.com>
 L:	linux-trace-kernel@vger.kernel.org
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
+Q:	https://patchwork.kernel.org/project/linux-trace-kernel/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/trace/linux-trace.git
 F:	Documentation/tools/rtla/
 F:	tools/tracing/rtla/
 
