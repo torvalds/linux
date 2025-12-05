@@ -1148,6 +1148,7 @@ static void zpci_add_devices(struct list_head *scan_list)
 
 int zpci_scan_devices(void)
 {
+	struct zpci_bus *zbus;
 	LIST_HEAD(scan_list);
 	int rc;
 
@@ -1156,7 +1157,10 @@ int zpci_scan_devices(void)
 		return rc;
 
 	zpci_add_devices(&scan_list);
-	zpci_bus_scan_busses();
+	zpci_bus_for_each(zbus) {
+		zpci_bus_scan_bus(zbus);
+		cond_resched();
+	}
 	return 0;
 }
 
