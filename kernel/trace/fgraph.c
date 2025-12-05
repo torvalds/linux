@@ -498,9 +498,6 @@ found:
 	return get_data_type_data(current, offset);
 }
 
-/* Both enabled by default (can be cleared by function_graph tracer flags */
-bool fgraph_sleep_time = true;
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 /*
  * archs can override this function if they must do something
@@ -1023,11 +1020,6 @@ void fgraph_init_ops(struct ftrace_ops *dst_ops,
 #endif
 }
 
-void ftrace_graph_sleep_time_control(bool enable)
-{
-	fgraph_sleep_time = enable;
-}
-
 /*
  * Simply points to ftrace_stub, but with the proper protocol.
  * Defined by the linker script in linux/vmlinux.lds.h
@@ -1098,7 +1090,7 @@ ftrace_graph_probe_sched_switch(void *ignore, bool preempt,
 	 * Does the user want to count the time a function was asleep.
 	 * If so, do not update the time stamps.
 	 */
-	if (fgraph_sleep_time)
+	if (!fgraph_no_sleep_time)
 		return;
 
 	timestamp = trace_clock_local();

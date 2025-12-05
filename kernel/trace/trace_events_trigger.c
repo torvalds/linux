@@ -6,6 +6,7 @@
  */
 
 #include <linux/security.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/mutex.h>
@@ -17,15 +18,77 @@
 static LIST_HEAD(trigger_commands);
 static DEFINE_MUTEX(trigger_cmd_mutex);
 
+static struct task_struct *trigger_kthread;
+static struct llist_head trigger_data_free_list;
+static DEFINE_MUTEX(trigger_data_kthread_mutex);
+
+/* Bulk garbage collection of event_trigger_data elements */
+static int trigger_kthread_fn(void *ignore)
+{
+	struct event_trigger_data *data, *tmp;
+	struct llist_node *llnodes;
+
+	/* Once this task starts, it lives forever */
+	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (llist_empty(&trigger_data_free_list))
+			schedule();
+
+		__set_current_state(TASK_RUNNING);
+
+		llnodes = llist_del_all(&trigger_data_free_list);
+
+		/* make sure current triggers exit before free */
+		tracepoint_synchronize_unregister();
+
+		llist_for_each_entry_safe(data, tmp, llnodes, llist)
+			kfree(data);
+	}
+
+	return 0;
+}
+
 void trigger_data_free(struct event_trigger_data *data)
 {
 	if (data->cmd_ops->set_filter)
 		data->cmd_ops->set_filter(NULL, data, NULL);
 
-	/* make sure current triggers exit before free */
-	tracepoint_synchronize_unregister();
+	if (unlikely(!trigger_kthread)) {
+		guard(mutex)(&trigger_data_kthread_mutex);
+		/* Check again after taking mutex */
+		if (!trigger_kthread) {
+			struct task_struct *kthread;
 
-	kfree(data);
+			kthread = kthread_create(trigger_kthread_fn, NULL,
+						 "trigger_data_free");
+			if (!IS_ERR(kthread))
+				WRITE_ONCE(trigger_kthread, kthread);
+		}
+	}
+
+	if (!trigger_kthread) {
+		/* Do it the slow way */
+		tracepoint_synchronize_unregister();
+		kfree(data);
+		return;
+	}
+
+	llist_add(&data->llist, &trigger_data_free_list);
+	wake_up_process(trigger_kthread);
+}
+
+static inline void data_ops_trigger(struct event_trigger_data *data,
+				    struct trace_buffer *buffer,  void *rec,
+				    struct ring_buffer_event *event)
+{
+	const struct event_command *cmd_ops = data->cmd_ops;
+
+	if (data->flags & EVENT_TRIGGER_FL_COUNT) {
+		if (!cmd_ops->count_func(data, buffer, rec, event))
+			return;
+	}
+
+	cmd_ops->trigger(data, buffer, rec, event);
 }
 
 /**
@@ -70,7 +133,7 @@ event_triggers_call(struct trace_event_file *file,
 		if (data->paused)
 			continue;
 		if (!rec) {
-			data->ops->trigger(data, buffer, rec, event);
+			data_ops_trigger(data, buffer, rec, event);
 			continue;
 		}
 		filter = rcu_dereference_sched(data->filter);
@@ -80,7 +143,7 @@ event_triggers_call(struct trace_event_file *file,
 			tt |= data->cmd_ops->trigger_type;
 			continue;
 		}
-		data->ops->trigger(data, buffer, rec, event);
+		data_ops_trigger(data, buffer, rec, event);
 	}
 	return tt;
 }
@@ -122,7 +185,7 @@ event_triggers_post_call(struct trace_event_file *file,
 		if (data->paused)
 			continue;
 		if (data->cmd_ops->trigger_type & tt)
-			data->ops->trigger(data, NULL, NULL, NULL);
+			data_ops_trigger(data, NULL, NULL, NULL);
 	}
 }
 EXPORT_SYMBOL_GPL(event_triggers_post_call);
@@ -191,7 +254,7 @@ static int trigger_show(struct seq_file *m, void *v)
 	}
 
 	data = list_entry(v, struct event_trigger_data, list);
-	data->ops->print(m, data);
+	data->cmd_ops->print(m, data);
 
 	return 0;
 }
@@ -245,7 +308,8 @@ int trigger_process_regex(struct trace_event_file *file, char *buff)
 	char *command, *next;
 	struct event_command *p;
 
-	next = buff = skip_spaces(buff);
+	next = buff = strim(buff);
+
 	command = strsep(&next, ": \t");
 	if (next) {
 		next = skip_spaces(next);
@@ -282,8 +346,6 @@ static ssize_t event_trigger_regex_write(struct file *file,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	strim(buf);
-
 	guard(mutex)(&event_mutex);
 
 	event_file = event_file_file(file);
@@ -300,12 +362,8 @@ static ssize_t event_trigger_regex_write(struct file *file,
 
 static int event_trigger_regex_release(struct inode *inode, struct file *file)
 {
-	mutex_lock(&event_mutex);
-
 	if (file->f_mode & FMODE_READ)
 		seq_release(inode, file);
-
-	mutex_unlock(&event_mutex);
 
 	return 0;
 }
@@ -378,7 +436,37 @@ __init int unregister_event_command(struct event_command *cmd)
 }
 
 /**
- * event_trigger_print - Generic event_trigger_ops @print implementation
+ * event_trigger_count - Optional count function for event triggers
+ * @data: Trigger-specific data
+ * @buffer: The ring buffer that the event is being written to
+ * @rec: The trace entry for the event, NULL for unconditional invocation
+ * @event: The event meta data in the ring buffer
+ *
+ * For triggers that can take a count parameter that doesn't do anything
+ * special, they can use this function to assign to their .count_func
+ * field.
+ *
+ * This simply does a count down of the @data->count field.
+ *
+ * If the @data->count is greater than zero, it will decrement it.
+ *
+ * Returns false if @data->count is zero, otherwise true.
+ */
+bool event_trigger_count(struct event_trigger_data *data,
+			 struct trace_buffer *buffer,  void *rec,
+			 struct ring_buffer_event *event)
+{
+	if (!data->count)
+		return false;
+
+	if (data->count != -1)
+		(data->count)--;
+
+	return true;
+}
+
+/**
+ * event_trigger_print - Generic event_command @print implementation
  * @name: The name of the event trigger
  * @m: The seq_file being printed to
  * @data: Trigger-specific data
@@ -413,7 +501,7 @@ event_trigger_print(const char *name, struct seq_file *m,
 }
 
 /**
- * event_trigger_init - Generic event_trigger_ops @init implementation
+ * event_trigger_init - Generic event_command @init implementation
  * @data: Trigger-specific data
  *
  * Common implementation of event trigger initialization.
@@ -430,7 +518,7 @@ int event_trigger_init(struct event_trigger_data *data)
 }
 
 /**
- * event_trigger_free - Generic event_trigger_ops @free implementation
+ * event_trigger_free - Generic event_command @free implementation
  * @data: Trigger-specific data
  *
  * Common implementation of event trigger de-initialization.
@@ -492,8 +580,8 @@ clear_event_triggers(struct trace_array *tr)
 		list_for_each_entry_safe(data, n, &file->triggers, list) {
 			trace_event_trigger_enable_disable(file, 0);
 			list_del_rcu(&data->list);
-			if (data->ops->free)
-				data->ops->free(data);
+			if (data->cmd_ops->free)
+				data->cmd_ops->free(data);
 		}
 	}
 }
@@ -556,8 +644,8 @@ static int register_trigger(char *glob,
 			return -EEXIST;
 	}
 
-	if (data->ops->init) {
-		ret = data->ops->init(data);
+	if (data->cmd_ops->init) {
+		ret = data->cmd_ops->init(data);
 		if (ret < 0)
 			return ret;
 	}
@@ -595,8 +683,8 @@ static bool try_unregister_trigger(char *glob,
 	}
 
 	if (data) {
-		if (data->ops->free)
-			data->ops->free(data);
+		if (data->cmd_ops->free)
+			data->cmd_ops->free(data);
 
 		return true;
 	}
@@ -807,9 +895,13 @@ int event_trigger_separate_filter(char *param_and_filter, char **param,
  * @private_data: User data to associate with the event trigger
  *
  * Allocate an event_trigger_data instance and initialize it.  The
- * @cmd_ops are used along with the @cmd and @param to get the
- * trigger_ops to assign to the event_trigger_data.  @private_data can
- * also be passed in and associated with the event_trigger_data.
+ * @cmd_ops defines how the trigger will operate. If @param is set,
+ * and @cmd_ops->trigger_ops->count_func is non NULL, then the
+ * data->count is set to @param and before the trigger is executed, the
+ * @cmd_ops->trigger_ops->count_func() is called. If that function returns
+ * false, the @cmd_ops->trigger_ops->trigger() function will not be called.
+ * @private_data can also be passed in and associated with the
+ * event_trigger_data.
  *
  * Use trigger_data_free() to free an event_trigger_data object.
  *
@@ -821,18 +913,16 @@ struct event_trigger_data *trigger_data_alloc(struct event_command *cmd_ops,
 					      void *private_data)
 {
 	struct event_trigger_data *trigger_data;
-	const struct event_trigger_ops *trigger_ops;
-
-	trigger_ops = cmd_ops->get_trigger_ops(cmd, param);
 
 	trigger_data = kzalloc(sizeof(*trigger_data), GFP_KERNEL);
 	if (!trigger_data)
 		return NULL;
 
 	trigger_data->count = -1;
-	trigger_data->ops = trigger_ops;
 	trigger_data->cmd_ops = cmd_ops;
 	trigger_data->private_data = private_data;
+	if (param && cmd_ops->count_func)
+		trigger_data->flags |= EVENT_TRIGGER_FL_COUNT;
 
 	INIT_LIST_HEAD(&trigger_data->list);
 	INIT_LIST_HEAD(&trigger_data->named_list);
@@ -1271,31 +1361,28 @@ traceon_trigger(struct event_trigger_data *data,
 	tracing_on();
 }
 
-static void
-traceon_count_trigger(struct event_trigger_data *data,
-		      struct trace_buffer *buffer, void *rec,
-		      struct ring_buffer_event *event)
+static bool
+traceon_count_func(struct event_trigger_data *data,
+		   struct trace_buffer *buffer, void *rec,
+		   struct ring_buffer_event *event)
 {
 	struct trace_event_file *file = data->private_data;
 
 	if (file) {
 		if (tracer_tracing_is_on(file->tr))
-			return;
+			return false;
 	} else {
 		if (tracing_is_on())
-			return;
+			return false;
 	}
 
 	if (!data->count)
-		return;
+		return false;
 
 	if (data->count != -1)
 		(data->count)--;
 
-	if (file)
-		tracer_tracing_on(file->tr);
-	else
-		tracing_on();
+	return true;
 }
 
 static void
@@ -1319,31 +1406,28 @@ traceoff_trigger(struct event_trigger_data *data,
 	tracing_off();
 }
 
-static void
-traceoff_count_trigger(struct event_trigger_data *data,
-		       struct trace_buffer *buffer, void *rec,
-		       struct ring_buffer_event *event)
+static bool
+traceoff_count_func(struct event_trigger_data *data,
+		    struct trace_buffer *buffer, void *rec,
+		    struct ring_buffer_event *event)
 {
 	struct trace_event_file *file = data->private_data;
 
 	if (file) {
 		if (!tracer_tracing_is_on(file->tr))
-			return;
+			return false;
 	} else {
 		if (!tracing_is_on())
-			return;
+			return false;
 	}
 
 	if (!data->count)
-		return;
+		return false;
 
 	if (data->count != -1)
 		(data->count)--;
 
-	if (file)
-		tracer_tracing_off(file->tr);
-	else
-		tracing_off();
+	return true;
 }
 
 static int
@@ -1360,58 +1444,18 @@ traceoff_trigger_print(struct seq_file *m, struct event_trigger_data *data)
 				   data->filter_str);
 }
 
-static const struct event_trigger_ops traceon_trigger_ops = {
-	.trigger		= traceon_trigger,
-	.print			= traceon_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_trigger_free,
-};
-
-static const struct event_trigger_ops traceon_count_trigger_ops = {
-	.trigger		= traceon_count_trigger,
-	.print			= traceon_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_trigger_free,
-};
-
-static const struct event_trigger_ops traceoff_trigger_ops = {
-	.trigger		= traceoff_trigger,
-	.print			= traceoff_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_trigger_free,
-};
-
-static const struct event_trigger_ops traceoff_count_trigger_ops = {
-	.trigger		= traceoff_count_trigger,
-	.print			= traceoff_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_trigger_free,
-};
-
-static const struct event_trigger_ops *
-onoff_get_trigger_ops(char *cmd, char *param)
-{
-	const struct event_trigger_ops *ops;
-
-	/* we register both traceon and traceoff to this callback */
-	if (strcmp(cmd, "traceon") == 0)
-		ops = param ? &traceon_count_trigger_ops :
-			&traceon_trigger_ops;
-	else
-		ops = param ? &traceoff_count_trigger_ops :
-			&traceoff_trigger_ops;
-
-	return ops;
-}
-
 static struct event_command trigger_traceon_cmd = {
 	.name			= "traceon",
 	.trigger_type		= ETT_TRACE_ONOFF,
 	.parse			= event_trigger_parse,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,
-	.get_trigger_ops	= onoff_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
+	.trigger		= traceon_trigger,
+	.count_func		= traceon_count_func,
+	.print			= traceon_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_trigger_free,
 };
 
 static struct event_command trigger_traceoff_cmd = {
@@ -1421,8 +1465,12 @@ static struct event_command trigger_traceoff_cmd = {
 	.parse			= event_trigger_parse,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,
-	.get_trigger_ops	= onoff_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
+	.trigger		= traceoff_trigger,
+	.count_func		= traceoff_count_func,
+	.print			= traceoff_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_trigger_free,
 };
 
 #ifdef CONFIG_TRACER_SNAPSHOT
@@ -1437,20 +1485,6 @@ snapshot_trigger(struct event_trigger_data *data,
 		tracing_snapshot_instance(file->tr);
 	else
 		tracing_snapshot();
-}
-
-static void
-snapshot_count_trigger(struct event_trigger_data *data,
-		       struct trace_buffer *buffer, void *rec,
-		       struct ring_buffer_event *event)
-{
-	if (!data->count)
-		return;
-
-	if (data->count != -1)
-		(data->count)--;
-
-	snapshot_trigger(data, buffer, rec, event);
 }
 
 static int
@@ -1484,34 +1518,18 @@ snapshot_trigger_print(struct seq_file *m, struct event_trigger_data *data)
 				   data->filter_str);
 }
 
-static const struct event_trigger_ops snapshot_trigger_ops = {
-	.trigger		= snapshot_trigger,
-	.print			= snapshot_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_trigger_free,
-};
-
-static const struct event_trigger_ops snapshot_count_trigger_ops = {
-	.trigger		= snapshot_count_trigger,
-	.print			= snapshot_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_trigger_free,
-};
-
-static const struct event_trigger_ops *
-snapshot_get_trigger_ops(char *cmd, char *param)
-{
-	return param ? &snapshot_count_trigger_ops : &snapshot_trigger_ops;
-}
-
 static struct event_command trigger_snapshot_cmd = {
 	.name			= "snapshot",
 	.trigger_type		= ETT_SNAPSHOT,
 	.parse			= event_trigger_parse,
 	.reg			= register_snapshot_trigger,
 	.unreg			= unregister_snapshot_trigger,
-	.get_trigger_ops	= snapshot_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
+	.trigger		= snapshot_trigger,
+	.count_func		= event_trigger_count,
+	.print			= snapshot_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_trigger_free,
 };
 
 static __init int register_trigger_snapshot_cmd(void)
@@ -1558,45 +1576,11 @@ stacktrace_trigger(struct event_trigger_data *data,
 		trace_dump_stack(STACK_SKIP);
 }
 
-static void
-stacktrace_count_trigger(struct event_trigger_data *data,
-			 struct trace_buffer *buffer, void *rec,
-			 struct ring_buffer_event *event)
-{
-	if (!data->count)
-		return;
-
-	if (data->count != -1)
-		(data->count)--;
-
-	stacktrace_trigger(data, buffer, rec, event);
-}
-
 static int
 stacktrace_trigger_print(struct seq_file *m, struct event_trigger_data *data)
 {
 	return event_trigger_print("stacktrace", m, (void *)data->count,
 				   data->filter_str);
-}
-
-static const struct event_trigger_ops stacktrace_trigger_ops = {
-	.trigger		= stacktrace_trigger,
-	.print			= stacktrace_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_trigger_free,
-};
-
-static const struct event_trigger_ops stacktrace_count_trigger_ops = {
-	.trigger		= stacktrace_count_trigger,
-	.print			= stacktrace_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_trigger_free,
-};
-
-static const struct event_trigger_ops *
-stacktrace_get_trigger_ops(char *cmd, char *param)
-{
-	return param ? &stacktrace_count_trigger_ops : &stacktrace_trigger_ops;
 }
 
 static struct event_command trigger_stacktrace_cmd = {
@@ -1606,8 +1590,12 @@ static struct event_command trigger_stacktrace_cmd = {
 	.parse			= event_trigger_parse,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,
-	.get_trigger_ops	= stacktrace_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
+	.trigger		= stacktrace_trigger,
+	.count_func		= event_trigger_count,
+	.print			= stacktrace_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_trigger_free,
 };
 
 static __init int register_trigger_stacktrace_cmd(void)
@@ -1642,24 +1630,24 @@ event_enable_trigger(struct event_trigger_data *data,
 		set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &enable_data->file->flags);
 }
 
-static void
-event_enable_count_trigger(struct event_trigger_data *data,
-			   struct trace_buffer *buffer,  void *rec,
-			   struct ring_buffer_event *event)
+static bool
+event_enable_count_func(struct event_trigger_data *data,
+			struct trace_buffer *buffer,  void *rec,
+			struct ring_buffer_event *event)
 {
 	struct enable_trigger_data *enable_data = data->private_data;
 
 	if (!data->count)
-		return;
+		return false;
 
 	/* Skip if the event is in a state we want to switch to */
 	if (enable_data->enable == !(enable_data->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
-		return;
+		return false;
 
 	if (data->count != -1)
 		(data->count)--;
 
-	event_enable_trigger(data, buffer, rec, event);
+	return true;
 }
 
 int event_enable_trigger_print(struct seq_file *m,
@@ -1703,34 +1691,6 @@ void event_enable_trigger_free(struct event_trigger_data *data)
 		kfree(enable_data);
 	}
 }
-
-static const struct event_trigger_ops event_enable_trigger_ops = {
-	.trigger		= event_enable_trigger,
-	.print			= event_enable_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_enable_trigger_free,
-};
-
-static const struct event_trigger_ops event_enable_count_trigger_ops = {
-	.trigger		= event_enable_count_trigger,
-	.print			= event_enable_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_enable_trigger_free,
-};
-
-static const struct event_trigger_ops event_disable_trigger_ops = {
-	.trigger		= event_enable_trigger,
-	.print			= event_enable_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_enable_trigger_free,
-};
-
-static const struct event_trigger_ops event_disable_count_trigger_ops = {
-	.trigger		= event_enable_count_trigger,
-	.print			= event_enable_trigger_print,
-	.init			= event_trigger_init,
-	.free			= event_enable_trigger_free,
-};
 
 int event_enable_trigger_parse(struct event_command *cmd_ops,
 			       struct trace_event_file *file,
@@ -1861,8 +1821,8 @@ int event_enable_register_trigger(char *glob,
 		}
 	}
 
-	if (data->ops->init) {
-		ret = data->ops->init(data);
+	if (data->cmd_ops->init) {
+		ret = data->cmd_ops->init(data);
 		if (ret < 0)
 			return ret;
 	}
@@ -1902,30 +1862,8 @@ void event_enable_unregister_trigger(char *glob,
 		}
 	}
 
-	if (data && data->ops->free)
-		data->ops->free(data);
-}
-
-static const struct event_trigger_ops *
-event_enable_get_trigger_ops(char *cmd, char *param)
-{
-	const struct event_trigger_ops *ops;
-	bool enable;
-
-#ifdef CONFIG_HIST_TRIGGERS
-	enable = ((strcmp(cmd, ENABLE_EVENT_STR) == 0) ||
-		  (strcmp(cmd, ENABLE_HIST_STR) == 0));
-#else
-	enable = strcmp(cmd, ENABLE_EVENT_STR) == 0;
-#endif
-	if (enable)
-		ops = param ? &event_enable_count_trigger_ops :
-			&event_enable_trigger_ops;
-	else
-		ops = param ? &event_disable_count_trigger_ops :
-			&event_disable_trigger_ops;
-
-	return ops;
+	if (data && data->cmd_ops->free)
+		data->cmd_ops->free(data);
 }
 
 static struct event_command trigger_enable_cmd = {
@@ -1934,8 +1872,12 @@ static struct event_command trigger_enable_cmd = {
 	.parse			= event_enable_trigger_parse,
 	.reg			= event_enable_register_trigger,
 	.unreg			= event_enable_unregister_trigger,
-	.get_trigger_ops	= event_enable_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
+	.trigger		= event_enable_trigger,
+	.count_func		= event_enable_count_func,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
 };
 
 static struct event_command trigger_disable_cmd = {
@@ -1944,8 +1886,12 @@ static struct event_command trigger_disable_cmd = {
 	.parse			= event_enable_trigger_parse,
 	.reg			= event_enable_register_trigger,
 	.unreg			= event_enable_unregister_trigger,
-	.get_trigger_ops	= event_enable_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
+	.trigger		= event_enable_trigger,
+	.count_func		= event_enable_count_func,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
 };
 
 static __init void unregister_trigger_enable_disable_cmds(void)

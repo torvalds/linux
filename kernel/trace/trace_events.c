@@ -845,13 +845,13 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 			if (soft_disable)
 				set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 
-			if (tr->trace_flags & TRACE_ITER_RECORD_CMD) {
+			if (tr->trace_flags & TRACE_ITER(RECORD_CMD)) {
 				cmd = true;
 				tracing_start_cmdline_record();
 				set_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 			}
 
-			if (tr->trace_flags & TRACE_ITER_RECORD_TGID) {
+			if (tr->trace_flags & TRACE_ITER(RECORD_TGID)) {
 				tgid = true;
 				tracing_start_tgid_record();
 				set_bit(EVENT_FILE_FL_RECORDED_TGID_BIT, &file->flags);

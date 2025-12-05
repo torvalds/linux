@@ -342,6 +342,20 @@ config DYNAMIC_FTRACE_WITH_JMP
 	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	depends on HAVE_DYNAMIC_FTRACE_WITH_JMP
 
+config FUNCTION_SELF_TRACING
+	bool "Function trace tracing code"
+	depends on FUNCTION_TRACER
+	help
+	  Normally all the tracing code is set to notrace, where the function
+	  tracer will ignore all the tracing functions. Sometimes it is useful
+	  for debugging to trace some of the tracing infratructure itself.
+	  Enable this to allow some of the tracing infrastructure to be traced
+	  by the function tracer. Note, this will likely add noise to function
+	  tracing if events and other tracing features are enabled along with
+	  function tracing.
+
+	  If unsure, say N.
+
 config FPROBE
 	bool "Kernel Function Probe (fprobe)"
 	depends on HAVE_FUNCTION_GRAPH_FREGS && HAVE_FTRACE_GRAPH_FUNC
@@ -586,6 +600,20 @@ config FTRACE_SYSCALLS
 	select KALLSYMS
 	help
 	  Basic tracer to catch the syscall entry and exit events.
+
+config TRACE_SYSCALL_BUF_SIZE_DEFAULT
+	int "System call user read max size"
+	range 0 165
+	default 63
+	depends on FTRACE_SYSCALLS
+	help
+	 Some system call trace events will record the data from a user
+	 space address that one of the parameters point to. The amount of
+	 data per event is limited. That limit is set by this config and
+	 this config also affects how much user space data perf can read.
+
+	 For a tracing instance, this size may be changed by writing into
+	 its syscall_user_buf_size file.
 
 config TRACER_SNAPSHOT
 	bool "Create a snapshot trace buffer"
