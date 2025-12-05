@@ -22700,6 +22700,7 @@ F:	Documentation/trace/rv/
 F:	include/linux/rv.h
 F:	include/rv/
 F:	kernel/trace/rv/
+F:	tools/testing/selftests/verification/
 F:	tools/verification/
 
 RUST
