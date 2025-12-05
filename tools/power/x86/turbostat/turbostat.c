@@ -8826,15 +8826,15 @@ void process_cpuid()
 		fputc('\n', outf);
 
 		fprintf(outf, "CPUID(0x80000000): max_extended_levels: 0x%x\n", max_extended_level);
-		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s %s\n",
-			ecx_flags & (1 << 0) ? "SSE3" : "-",
-			ecx_flags & (1 << 3) ? "MONITOR" : "-",
-			ecx_flags & (1 << 6) ? "SMX" : "-",
-			ecx_flags & (1 << 7) ? "EIST" : "-",
-			ecx_flags & (1 << 8) ? "TM2" : "-",
-			edx_flags & (1 << 4) ? "TSC" : "-",
-			edx_flags & (1 << 5) ? "MSR" : "-",
-			edx_flags & (1 << 22) ? "ACPI-TM" : "-", edx_flags & (1 << 28) ? "HT" : "-", edx_flags & (1 << 29) ? "TM" : "-");
+		fprintf(outf, "CPUID(1): %sSSE3 %sMONITOR %sSMX %sEIST %sTM2 %sTSC %sMSR %sACPI-TM %sHT %sTM\n",
+			ecx_flags & (1 << 0) ? "" : "No-",
+			ecx_flags & (1 << 3) ? "" : "No-",
+			ecx_flags & (1 << 6) ? "" : "No-",
+			ecx_flags & (1 << 7) ? "" : "No-",
+			ecx_flags & (1 << 8) ? "" : "No-",
+			edx_flags & (1 << 4) ? "" : "No-",
+			edx_flags & (1 << 5) ? "" : "No-",
+			edx_flags & (1 << 22) ? "" : "No-", edx_flags & (1 << 28) ? "" : "No-", edx_flags & (1 << 29) ? "" : "No-");
 	}
 
 	probe_platform_features(family, model);
