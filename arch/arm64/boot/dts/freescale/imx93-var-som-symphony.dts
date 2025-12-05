@@ -276,6 +276,13 @@
 	status = "okay";
 };
 
+&lpspi6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpspi6>;
+	cs-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
 /* J18.7, J18.9 */
 &lpuart6 {
 	pinctrl-names = "default";
@@ -381,6 +388,15 @@
 		fsl,pins = <
 			MX93_PAD_GPIO_IO23__GPIO2_IO23			0x31e
 			MX93_PAD_GPIO_IO22__GPIO2_IO22			0x31e
+		>;
+	};
+
+	 pinctrl_lpspi6: lpspi6grp {
+		fsl,pins = <
+			MX93_PAD_GPIO_IO00__GPIO2_IO00                  0x31e
+			MX93_PAD_GPIO_IO01__LPSPI6_SIN                  0x31e
+			MX93_PAD_GPIO_IO02__LPSPI6_SOUT                 0x31e
+			MX93_PAD_GPIO_IO03__LPSPI6_SCK                  0x31e
 		>;
 	};
 
