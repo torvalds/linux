@@ -3,7 +3,6 @@
  * Copyright (C) 2007 Oracle.  All rights reserved.
  */
 
-#include <crypto/hash.h>
 #include <linux/kernel.h>
 #include <linux/bio.h>
 #include <linux/blk-cgroup.h>
@@ -3417,20 +3416,19 @@ void btrfs_calculate_block_csum_pages(struct btrfs_fs_info *fs_info,
 	const u32 blocksize = fs_info->sectorsize;
 	const u32 step = min(blocksize, PAGE_SIZE);
 	const u32 nr_steps = blocksize / step;
-	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
+	struct btrfs_csum_ctx csum;
 
-	shash->tfm = fs_info->csum_shash;
-	crypto_shash_init(shash);
+	btrfs_csum_init(&csum, fs_info->csum_type);
 	for (int i = 0; i < nr_steps; i++) {
 		const phys_addr_t paddr = paddrs[i];
 		void *kaddr;
 
 		ASSERT(offset_in_page(paddr) + step <= PAGE_SIZE);
 		kaddr = kmap_local_page(phys_to_page(paddr)) + offset_in_page(paddr);
-		crypto_shash_update(shash, kaddr, step);
+		btrfs_csum_update(&csum, kaddr, step);
 		kunmap_local(kaddr);
 	}
-	crypto_shash_final(shash, dest);
+	btrfs_csum_final(&csum, dest);
 }
 
 /*
