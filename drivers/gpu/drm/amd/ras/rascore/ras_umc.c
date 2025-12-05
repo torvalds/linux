@@ -497,27 +497,40 @@ exit:
 
 int ras_umc_handle_bad_pages(struct ras_core_context *ras_core, void *data)
 {
-	struct eeprom_umc_record records[MAX_ECC_NUM_PER_RETIREMENT];
+	struct eeprom_umc_record *records;
 	int count, ret;
 
-	memset(records, 0, sizeof(records));
-	count = ras_umc_get_new_records(ras_core, records, ARRAY_SIZE(records));
-	if (count <= 0)
-		return -ENODATA;
+	records = kcalloc(MAX_ECC_NUM_PER_RETIREMENT,
+			  sizeof(*records), GFP_KERNEL);
+	if (!records)
+		return -ENOMEM;
+
+	count = ras_umc_get_new_records(ras_core, records,
+					MAX_ECC_NUM_PER_RETIREMENT);
+	if (count <= 0) {
+		ret = -ENODATA;
+		goto out;
+	}
 
 	ret = ras_umc_add_bad_pages(ras_core, records, count, false);
 	if (ret) {
 		RAS_DEV_ERR(ras_core->dev, "Failed to add ras bad page!\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	ret = ras_umc_save_bad_pages(ras_core);
 	if (ret) {
 		RAS_DEV_ERR(ras_core->dev, "Failed to save ras bad page\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
-	return 0;
+	ret = 0;
+
+out:
+	kfree(records);
+	return ret;
 }
 
 int ras_umc_sw_init(struct ras_core_context *ras_core)
