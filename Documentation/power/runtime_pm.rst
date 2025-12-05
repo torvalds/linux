@@ -712,10 +712,9 @@ out the following operations:
   * During system suspend pm_runtime_get_noresume() is called for every device
     right before executing the subsystem-level .prepare() callback for it and
     pm_runtime_barrier() is called for every device right before executing the
-    subsystem-level .suspend() callback for it.  In addition to that the PM core
-    calls __pm_runtime_disable() with 'false' as the second argument for every
-    device right before executing the subsystem-level .suspend_late() callback
-    for it.
+    subsystem-level .suspend() callback for it.  In addition to that, the PM
+    core disables runtime PM for every device right before executing the
+    subsystem-level .suspend_late() callback for it.
 
   * During system resume pm_runtime_enable() and pm_runtime_put() are called for
     every device right after executing the subsystem-level .resume_early()
