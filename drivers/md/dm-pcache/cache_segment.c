@@ -26,11 +26,11 @@ static void cache_seg_info_write(struct pcache_cache_segment *cache_seg)
 	seg_info->header.seq++;
 	seg_info->header.crc = pcache_meta_crc(&seg_info->header, sizeof(struct pcache_segment_info));
 
+	cache_seg->info_index = (cache_seg->info_index + 1) % PCACHE_META_INDEX_MAX;
+
 	seg_info_addr = get_seg_info_addr(cache_seg);
 	memcpy_flushcache(seg_info_addr, seg_info, sizeof(struct pcache_segment_info));
 	pmem_wmb();
-
-	cache_seg->info_index = (cache_seg->info_index + 1) % PCACHE_META_INDEX_MAX;
 	mutex_unlock(&cache_seg->info_lock);
 }
 
@@ -129,10 +129,10 @@ static void cache_seg_ctrl_write(struct pcache_cache_segment *cache_seg)
 	cache_seg_gen.header.crc = pcache_meta_crc(&cache_seg_gen.header,
 						 sizeof(struct pcache_cache_seg_gen));
 
+	cache_seg->gen_index = (cache_seg->gen_index + 1) % PCACHE_META_INDEX_MAX;
+
 	memcpy_flushcache(get_cache_seg_gen_addr(cache_seg), &cache_seg_gen, sizeof(struct pcache_cache_seg_gen));
 	pmem_wmb();
-
-	cache_seg->gen_index = (cache_seg->gen_index + 1) % PCACHE_META_INDEX_MAX;
 }
 
 static void cache_seg_ctrl_init(struct pcache_cache_segment *cache_seg)

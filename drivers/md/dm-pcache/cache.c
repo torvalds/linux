@@ -21,10 +21,10 @@ static void cache_info_write(struct pcache_cache *cache)
 	cache_info->header.crc = pcache_meta_crc(&cache_info->header,
 						sizeof(struct pcache_cache_info));
 
+	cache->info_index = (cache->info_index + 1) % PCACHE_META_INDEX_MAX;
 	memcpy_flushcache(get_cache_info_addr(cache), cache_info,
 			sizeof(struct pcache_cache_info));
-
-	cache->info_index = (cache->info_index + 1) % PCACHE_META_INDEX_MAX;
+	pmem_wmb();
 }
 
 static void cache_info_init_default(struct pcache_cache *cache);
@@ -93,10 +93,10 @@ void cache_pos_encode(struct pcache_cache *cache,
 	pos_onmedia.header.seq = seq;
 	pos_onmedia.header.crc = cache_pos_onmedia_crc(&pos_onmedia);
 
+	*index = (*index + 1) % PCACHE_META_INDEX_MAX;
+
 	memcpy_flushcache(pos_onmedia_addr, &pos_onmedia, sizeof(struct pcache_cache_pos_onmedia));
 	pmem_wmb();
-
-	*index = (*index + 1) % PCACHE_META_INDEX_MAX;
 }
 
 int cache_pos_decode(struct pcache_cache *cache,
