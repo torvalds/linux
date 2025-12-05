@@ -96,6 +96,11 @@ static int mtk_ddc_wr_one(struct mtk_hdmi_ddc *ddc, u16 addr_id,
 				       !(val & DDC_I2C_IN_PROG), 500, 1000);
 	if (ret) {
 		dev_err(ddc->dev, "DDC I2C write timeout\n");
+
+		/* Abort transfer if it is still in progress */
+		regmap_update_bits(ddc->regs, DDC_CTRL, DDC_CTRL_CMD,
+				   FIELD_PREP(DDC_CTRL_CMD, DDC_CMD_ABORT_XFER));
+
 		return ret;
 	}
 
@@ -179,6 +184,11 @@ static int mtk_ddcm_read_hdmi(struct mtk_hdmi_ddc *ddc, u16 uc_dev,
 					       500 * (temp_length + 5));
 		if (ret) {
 			dev_err(ddc->dev, "Timeout waiting for DDC I2C\n");
+
+			/* Abort transfer if it is still in progress */
+			regmap_update_bits(ddc->regs, DDC_CTRL, DDC_CTRL_CMD,
+					   FIELD_PREP(DDC_CTRL_CMD, DDC_CMD_ABORT_XFER));
+
 			return ret;
 		}
 
