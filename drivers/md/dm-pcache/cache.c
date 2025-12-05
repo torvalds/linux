@@ -10,7 +10,8 @@ struct kmem_cache *key_cache;
 
 static inline struct pcache_cache_info *get_cache_info_addr(struct pcache_cache *cache)
 {
-	return cache->cache_info_addr + cache->info_index;
+	return (struct pcache_cache_info *)((char *)cache->cache_info_addr +
+						(size_t)cache->info_index * PCACHE_CACHE_INFO_SIZE);
 }
 
 static void cache_info_write(struct pcache_cache *cache)
@@ -48,6 +49,8 @@ static int cache_info_init(struct pcache_cache *cache, struct pcache_cache_optio
 					cache->cache_info.flags & PCACHE_CACHE_FLAGS_DATA_CRC ? "true" : "false");
 			return -EINVAL;
 		}
+
+		cache->info_index = ((char *)cache_info_addr - (char *)cache->cache_info_addr) / PCACHE_CACHE_INFO_SIZE;
 
 		return 0;
 	}
