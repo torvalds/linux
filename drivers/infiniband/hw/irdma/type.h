@@ -492,9 +492,6 @@ struct irdma_sc_ceq {
 	u32 first_pm_pbl_idx;
 	u8 polarity;
 	u16 vsi_idx;
-	struct irdma_sc_cq **reg_cq;
-	u32 reg_cq_size;
-	spinlock_t req_cq_lock; /* protect access to reg_cq array */
 	bool virtual_map:1;
 	bool tph_en:1;
 	bool itr_no_expire:1;
@@ -894,8 +891,6 @@ struct irdma_ceq_init_info {
 	u8 tph_val;
 	u16 vsi_idx;
 	u32 first_pm_pbl_idx;
-	struct irdma_sc_cq **reg_cq;
-	u32 reg_cq_idx;
 };
 
 struct irdma_aeq_init_info {
