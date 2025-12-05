@@ -1327,3 +1327,10 @@ When vfs_mkdir() returns an error, and so both dputs() the original
 dentry and doesn't provide a replacement, it also unlocks the parent.
 Consequently the return value from vfs_mkdir() can be passed to
 end_creating() and the parent will be unlocked precisely when necessary.
+
+---
+
+**mandatory**
+
+kill_litter_super() is gone; convert to DCACHE_PERSISTENT use (as all
+in-tree filesystems have done).
