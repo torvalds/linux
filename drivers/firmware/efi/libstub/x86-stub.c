@@ -203,6 +203,104 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 	}
 }
 
+struct smbios_entry_point {
+	u8	anchor[4];
+	u8	ep_checksum;
+	u8	ep_length;
+	u8	major_version;
+	u8	minor_version;
+	u16	max_size_entry;
+	u8	ep_rev;
+	u8	reserved[5];
+
+	struct __packed {
+		u8	anchor[5];
+		u8	checksum;
+		u16	st_length;
+		u32	st_address;
+		u16	number_of_entries;
+		u8	bcd_rev;
+	} intm;
+};
+
+static bool verify_ep_checksum(const void *ptr, int length)
+{
+	u8 sum = 0;
+
+	for (int i = 0; i < length; i++)
+		sum += ((u8 *)ptr)[i];
+
+	return sum == 0;
+}
+
+static bool verify_ep_integrity(const struct smbios_entry_point *ep)
+{
+	if (memcmp(ep->anchor, "_SM_", sizeof(ep->anchor)) != 0)
+		return false;
+
+	if (memcmp(ep->intm.anchor, "_DMI_", sizeof(ep->intm.anchor)) != 0)
+		return false;
+
+	if (!verify_ep_checksum(ep, ep->ep_length) ||
+	    !verify_ep_checksum(&ep->intm, sizeof(ep->intm)))
+		return false;
+
+	return true;
+}
+
+static const struct efi_smbios_record *search_record(void *table, u32 length,
+						     u8 type)
+{
+	const u8 *p, *end;
+
+	p = (u8 *)table;
+	end = p + length;
+
+	while (p + sizeof(struct efi_smbios_record) < end) {
+		const struct efi_smbios_record *hdr =
+			(struct efi_smbios_record *)p;
+		const u8 *next;
+
+		if (hdr->type == type)
+			return hdr;
+
+		/* Type 127 = End-of-Table */
+		if (hdr->type == 0x7F)
+			return NULL;
+
+		/* Jumping to the unformed section */
+		next = p + hdr->length;
+
+		/* Unformed section ends with 0000h */
+		while ((next[0] != 0 || next[1] != 0) && next + 1 < end)
+			next++;
+
+		next += 2;
+		p = next;
+	}
+
+	return NULL;
+}
+
+static const struct efi_smbios_record *get_table_record(u8 type)
+{
+	const struct smbios_entry_point *ep;
+
+	/*
+	 * Locate the legacy 32-bit SMBIOS entrypoint in memory, and parse it
+	 * directly. Needed by some Macs that do not implement the EFI protocol.
+	 */
+	ep = get_efi_config_table(SMBIOS_TABLE_GUID);
+	if (!ep)
+		return NULL;
+
+	if (!verify_ep_integrity(ep))
+		return NULL;
+
+	return search_record((void *)(unsigned long)ep->intm.st_address,
+			     ep->intm.st_length, type);
+}
+
 static bool apple_match_product_name(void)
 {
 	static const char type1_product_matches[][15] = {
@@ -218,7 +316,8 @@ static bool apple_match_product_name(void)
 	const struct efi_smbios_type1_record *record;
 	const u8 *product;
 
-	record = (struct efi_smbios_type1_record *)efi_get_smbios_record(1);
+	record = (struct efi_smbios_type1_record *)
+			(efi_get_smbios_record(1) ?: get_table_record(1));
 	if (!record)
 		return false;
 
@@ -388,8 +487,9 @@ static void setup_quirks(struct boot_params *boot_params)
 static void setup_graphics(struct boot_params *boot_params)
 {
 	struct screen_info *si = memset(&boot_params->screen_info, 0, sizeof(*si));
+	struct edid_info *edid = memset(&boot_params->edid_info, 0, sizeof(*edid));
 
-	efi_setup_gop(si);
+	efi_setup_graphics(si, edid);
 }
 
 static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
