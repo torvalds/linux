@@ -18,6 +18,7 @@
 #include "panthor_devfreq.h"
 #include "panthor_device.h"
 #include "panthor_fw.h"
+#include "panthor_gem.h"
 #include "panthor_gpu.h"
 #include "panthor_hw.h"
 #include "panthor_mmu.h"
@@ -293,6 +294,8 @@ int panthor_device_init(struct panthor_device *ptdev)
 	ret = panthor_sched_init(ptdev);
 	if (ret)
 		goto err_unplug_fw;
+
+	panthor_gem_init(ptdev);
 
 	/* ~3 frames */
 	pm_runtime_set_autosuspend_delay(ptdev->base.dev, 50);
