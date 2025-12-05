@@ -177,6 +177,7 @@ int hyperv_flush_guest_mapping_range(u64 as,
 int hyperv_fill_flush_guest_mapping_list(
 		struct hv_guest_mapping_flush_list *flush,
 		u64 start_gfn, u64 end_gfn);
+void hv_sleep_notifiers_register(void);
 
 #ifdef CONFIG_X86_64
 void hv_apic_init(void);
