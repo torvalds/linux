@@ -23,13 +23,13 @@ bool i915_gem_stolen_initialized(struct drm_device *drm);
 
 bool i915_gem_stolen_node_allocated(const struct intel_stolen_node *node);
 
-u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node);
+u64 i915_gem_stolen_node_offset(const struct intel_stolen_node *node);
 
 u64 i915_gem_stolen_area_address(struct drm_device *drm);
 
 u64 i915_gem_stolen_area_size(struct drm_device *drm);
 
-u64 i915_gem_stolen_node_address(struct intel_stolen_node *node);
+u64 i915_gem_stolen_node_address(const struct intel_stolen_node *node);
 
 u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node);
 

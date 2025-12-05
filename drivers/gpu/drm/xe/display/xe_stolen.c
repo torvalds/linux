@@ -67,7 +67,7 @@ bool i915_gem_stolen_node_allocated(const struct intel_stolen_node *node)
 	return node->bo;
 }
 
-u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node)
+u64 i915_gem_stolen_node_offset(const struct intel_stolen_node *node)
 {
 	struct xe_res_cursor res;
 
@@ -91,7 +91,7 @@ u64 i915_gem_stolen_area_size(struct drm_device *drm)
 	return 0;
 }
 
-u64 i915_gem_stolen_node_address(struct intel_stolen_node *node)
+u64 i915_gem_stolen_node_address(const struct intel_stolen_node *node)
 {
 	struct xe_device *xe = node->xe;
 
