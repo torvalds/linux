@@ -45,9 +45,10 @@
  * - 1.17 - Add SDMA queue creation with target SDMA engine ID
  * - 1.18 - Rename pad in set_memory_policy_args to misc_process_flag
  * - 1.19 - Add a new ioctl to craete secondary kfd processes
+ * - 1.20 - Trap handler support for expert scheduling mode available
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 19
+#define KFD_IOCTL_MINOR_VERSION 20
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
