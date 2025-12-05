@@ -46,6 +46,7 @@
 #include "smu_v13_0_7_ppt.h"
 #include "smu_v14_0_0_ppt.h"
 #include "smu_v14_0_2_ppt.h"
+#include "smu_v15_0_0_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -795,6 +796,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 3):
 		smu_v14_0_2_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(15, 0, 0):
+		smu_v15_0_0_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
@@ -2801,6 +2805,14 @@ const struct amdgpu_ip_block_version smu_v13_0_ip_block = {
 const struct amdgpu_ip_block_version smu_v14_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 14,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &smu_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version smu_v15_0_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 15,
 	.minor = 0,
 	.rev = 0,
 	.funcs = &smu_ip_funcs,
