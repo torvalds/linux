@@ -245,6 +245,9 @@ static void cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 	struct cxl_region_params *p = &cxlr->params;
 	int i;
 
+	if (test_bit(CXL_REGION_F_LOCK, &cxlr->flags))
+		return;
+
 	/*
 	 * Before region teardown attempt to flush, evict any data cached for
 	 * this region, or scream loudly about missing arch / platform support
@@ -419,6 +422,9 @@ static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
 		return len;
 	}
 
+	if (test_bit(CXL_REGION_F_LOCK, &cxlr->flags))
+		return -EPERM;
+
 	rc = queue_reset(cxlr);
 	if (rc)
 		return rc;
@@ -460,21 +466,6 @@ static ssize_t commit_show(struct device *dev, struct device_attribute *attr,
 	return sysfs_emit(buf, "%d\n", p->state >= CXL_CONFIG_COMMIT);
 }
 static DEVICE_ATTR_RW(commit);
-
-static umode_t cxl_region_visible(struct kobject *kobj, struct attribute *a,
-				  int n)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct cxl_region *cxlr = to_cxl_region(dev);
-
-	/*
-	 * Support tooling that expects to find a 'uuid' attribute for all
-	 * regions regardless of mode.
-	 */
-	if (a == &dev_attr_uuid.attr && cxlr->mode != CXL_PARTMODE_PMEM)
-		return 0444;
-	return a->mode;
-}
 
 static ssize_t interleave_ways_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -754,6 +745,21 @@ static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(size);
 
+static ssize_t extended_linear_cache_size_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	ssize_t rc;
+
+	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
+		return rc;
+	return sysfs_emit(buf, "%#llx\n", p->cache_size);
+}
+static DEVICE_ATTR_RO(extended_linear_cache_size);
+
 static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_uuid.attr,
 	&dev_attr_commit.attr,
@@ -762,8 +768,33 @@ static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_resource.attr,
 	&dev_attr_size.attr,
 	&dev_attr_mode.attr,
+	&dev_attr_extended_linear_cache_size.attr,
 	NULL,
 };
+
+static umode_t cxl_region_visible(struct kobject *kobj, struct attribute *a,
+				  int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_region *cxlr = to_cxl_region(dev);
+
+	/*
+	 * Support tooling that expects to find a 'uuid' attribute for all
+	 * regions regardless of mode.
+	 */
+	if (a == &dev_attr_uuid.attr && cxlr->mode != CXL_PARTMODE_PMEM)
+		return 0444;
+
+	/*
+	 * Don't display extended linear cache attribute if there is no
+	 * extended linear cache.
+	 */
+	if (a == &dev_attr_extended_linear_cache_size.attr &&
+	    cxlr->params.cache_size == 0)
+		return 0;
+
+	return a->mode;
+}
 
 static const struct attribute_group cxl_region_group = {
 	.attrs = cxl_region_attrs,
@@ -838,16 +869,16 @@ static int match_free_decoder(struct device *dev, const void *data)
 	return 1;
 }
 
-static bool region_res_match_cxl_range(const struct cxl_region_params *p,
-				       const struct range *range)
+static bool spa_maps_hpa(const struct cxl_region_params *p,
+			 const struct range *range)
 {
 	if (!p->res)
 		return false;
 
 	/*
-	 * If an extended linear cache region then the CXL range is assumed
-	 * to be fronted by the DRAM range in current known implementation.
-	 * This assumption will be made until a variant implementation exists.
+	 * The extended linear cache region is constructed by a 1:1 ratio
+	 * where the SPA maps equal amounts of DRAM and CXL HPA capacity with
+	 * CXL decoders at the high end of the SPA range.
 	 */
 	return p->res->start + p->cache_size == range->start &&
 		p->res->end == range->end;
@@ -865,7 +896,7 @@ static int match_auto_decoder(struct device *dev, const void *data)
 	cxld = to_cxl_decoder(dev);
 	r = &cxld->hpa_range;
 
-	if (region_res_match_cxl_range(p, r))
+	if (spa_maps_hpa(p, r))
 		return 1;
 
 	return 0;
@@ -1059,6 +1090,16 @@ static int cxl_rr_assign_decoder(struct cxl_port *port, struct cxl_region *cxlr,
 	return 0;
 }
 
+static void cxl_region_set_lock(struct cxl_region *cxlr,
+				struct cxl_decoder *cxld)
+{
+	if (!test_bit(CXL_DECODER_F_LOCK, &cxld->flags))
+		return;
+
+	set_bit(CXL_REGION_F_LOCK, &cxlr->flags);
+	clear_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
+}
+
 /**
  * cxl_port_attach_region() - track a region's interest in a port by endpoint
  * @port: port to add a new region reference 'struct cxl_region_ref'
@@ -1169,6 +1210,8 @@ static int cxl_port_attach_region(struct cxl_port *port,
 			goto out_erase;
 		}
 	}
+
+	cxl_region_set_lock(cxlr, cxld);
 
 	rc = cxl_rr_ep_add(cxl_rr, cxled);
 	if (rc) {
@@ -1328,7 +1371,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 				  struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
-	int parent_iw, parent_ig, ig, iw, rc, inc = 0, pos = cxled->pos;
+	int parent_iw, parent_ig, ig, iw, rc, pos = cxled->pos;
 	struct cxl_port *parent_port = to_cxl_port(port->dev.parent);
 	struct cxl_region_ref *cxl_rr = cxl_rr_load(port, cxlr);
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
@@ -1465,7 +1508,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 	if (test_bit(CXL_REGION_F_AUTO, &cxlr->flags)) {
 		if (cxld->interleave_ways != iw ||
 		    (iw > 1 && cxld->interleave_granularity != ig) ||
-		    !region_res_match_cxl_range(p, &cxld->hpa_range) ||
+		    !spa_maps_hpa(p, &cxld->hpa_range) ||
 		    ((cxld->flags & CXL_DECODER_F_ENABLE) == 0)) {
 			dev_err(&cxlr->dev,
 				"%s:%s %s expected iw: %d ig: %d %pr\n",
@@ -1520,9 +1563,8 @@ add_target:
 		cxlsd->target[cxl_rr->nr_targets_set] = ep->dport;
 		cxlsd->cxld.target_map[cxl_rr->nr_targets_set] = ep->dport->port_id;
 	}
-	inc = 1;
+	cxl_rr->nr_targets_set++;
 out_target_set:
-	cxl_rr->nr_targets_set += inc;
 	dev_dbg(&cxlr->dev, "%s:%s target[%d] = %s for %s:%s @ %d\n",
 		dev_name(port->uport_dev), dev_name(&port->dev),
 		cxl_rr->nr_targets_set - 1, dev_name(ep->dport->dport_dev),
@@ -2439,6 +2481,7 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_region_type;
 	cxlr->id = id;
+	cxl_region_set_lock(cxlr, &cxlrd->cxlsd.cxld);
 
 	return cxlr;
 }
@@ -2924,38 +2967,119 @@ static bool cxl_is_hpa_in_chunk(u64 hpa, struct cxl_region *cxlr, int pos)
 	return false;
 }
 
-static bool has_hpa_to_spa(struct cxl_root_decoder *cxlrd)
+#define CXL_POS_ZERO 0
+/**
+ * cxl_validate_translation_params
+ * @eiw: encoded interleave ways
+ * @eig: encoded interleave granularity
+ * @pos: position in interleave
+ *
+ * Callers pass CXL_POS_ZERO when no position parameter needs validating.
+ *
+ * Returns: 0 on success, -EINVAL on first invalid parameter
+ */
+int cxl_validate_translation_params(u8 eiw, u16 eig, int pos)
 {
-	return cxlrd->ops && cxlrd->ops->hpa_to_spa;
-}
+	int ways, gran;
 
-static bool has_spa_to_hpa(struct cxl_root_decoder *cxlrd)
-{
-	return cxlrd->ops && cxlrd->ops->spa_to_hpa;
-}
-
-u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
-		   u64 dpa)
-{
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
-	u64 dpa_offset, hpa_offset, bits_upper, mask_upper, hpa;
-	struct cxl_region_params *p = &cxlr->params;
-	struct cxl_endpoint_decoder *cxled = NULL;
-	u16 eig = 0;
-	u8 eiw = 0;
-	int pos;
-
-	for (int i = 0; i < p->nr_targets; i++) {
-		cxled = p->targets[i];
-		if (cxlmd == cxled_to_memdev(cxled))
-			break;
+	if (eiw_to_ways(eiw, &ways)) {
+		pr_debug("%s: invalid eiw=%u\n", __func__, eiw);
+		return -EINVAL;
 	}
-	if (!cxled || cxlmd != cxled_to_memdev(cxled))
+	if (eig_to_granularity(eig, &gran)) {
+		pr_debug("%s: invalid eig=%u\n", __func__, eig);
+		return -EINVAL;
+	}
+	if (pos < 0 || pos >= ways) {
+		pr_debug("%s: invalid pos=%d for ways=%u\n", __func__, pos,
+			 ways);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_FOR_MODULES(cxl_validate_translation_params, "cxl_translate");
+
+u64 cxl_calculate_dpa_offset(u64 hpa_offset, u8 eiw, u16 eig)
+{
+	u64 dpa_offset, bits_lower, bits_upper, temp;
+	int ret;
+
+	ret = cxl_validate_translation_params(eiw, eig, CXL_POS_ZERO);
+	if (ret)
 		return ULLONG_MAX;
 
-	pos = cxled->pos;
-	ways_to_eiw(p->interleave_ways, &eiw);
-	granularity_to_eig(p->interleave_granularity, &eig);
+	/*
+	 * DPA offset: CXL Spec 3.2 Section 8.2.4.20.13
+	 * Lower bits [IG+7:0] pass through unchanged
+	 * (eiw < 8)
+	 *	Per spec: DPAOffset[51:IG+8] = (HPAOffset[51:IG+IW+8] >> IW)
+	 *	Clear the position bits to isolate upper section, then
+	 *	reverse the left shift by eiw that occurred during DPA->HPA
+	 * (eiw >= 8)
+	 *	Per spec: DPAOffset[51:IG+8] = HPAOffset[51:IG+IW] / 3
+	 *	Extract upper bits from the correct bit range and divide by 3
+	 *	to recover the original DPA upper bits
+	 */
+	bits_lower = hpa_offset & GENMASK_ULL(eig + 7, 0);
+	if (eiw < 8) {
+		temp = hpa_offset &= ~GENMASK_ULL(eig + eiw + 8 - 1, 0);
+		dpa_offset = temp >> eiw;
+	} else {
+		bits_upper = div64_u64(hpa_offset >> (eig + eiw), 3);
+		dpa_offset = bits_upper << (eig + 8);
+	}
+	dpa_offset |= bits_lower;
+
+	return dpa_offset;
+}
+EXPORT_SYMBOL_FOR_MODULES(cxl_calculate_dpa_offset, "cxl_translate");
+
+int cxl_calculate_position(u64 hpa_offset, u8 eiw, u16 eig)
+{
+	unsigned int ways = 0;
+	u64 shifted, rem;
+	int pos, ret;
+
+	ret = cxl_validate_translation_params(eiw, eig, CXL_POS_ZERO);
+	if (ret)
+		return ret;
+
+	if (!eiw)
+		/* position is 0 if no interleaving */
+		return 0;
+
+	/*
+	 * Interleave position: CXL Spec 3.2 Section 8.2.4.20.13
+	 * eiw < 8
+	 *	Position is in the IW bits at HPA_OFFSET[IG+8+IW-1:IG+8].
+	 *	Per spec "remove IW bits starting with bit position IG+8"
+	 * eiw >= 8
+	 *	Position is not explicitly stored in HPA_OFFSET bits. It is
+	 *	derived from the modulo operation of the upper bits using
+	 *	the total number of interleave ways.
+	 */
+	if (eiw < 8) {
+		pos = (hpa_offset >> (eig + 8)) & GENMASK(eiw - 1, 0);
+	} else {
+		shifted = hpa_offset >> (eig + 8);
+		eiw_to_ways(eiw, &ways);
+		div64_u64_rem(shifted, ways, &rem);
+		pos = rem;
+	}
+
+	return pos;
+}
+EXPORT_SYMBOL_FOR_MODULES(cxl_calculate_position, "cxl_translate");
+
+u64 cxl_calculate_hpa_offset(u64 dpa_offset, int pos, u8 eiw, u16 eig)
+{
+	u64 mask_upper, hpa_offset, bits_upper;
+	int ret;
+
+	ret = cxl_validate_translation_params(eiw, eig, pos);
+	if (ret)
+		return ULLONG_MAX;
 
 	/*
 	 * The device position in the region interleave set was removed
@@ -2966,9 +3090,6 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	 * ways and granularity and is defined in the CXL Spec 3.0 Section
 	 * 8.2.4.19.13 Implementation Note: Device Decode Logic
 	 */
-
-	/* Remove the dpa base */
-	dpa_offset = dpa - cxl_dpa_resource_start(cxled);
 
 	mask_upper = GENMASK_ULL(51, eig + 8);
 
@@ -2984,12 +3105,43 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	/* The lower bits remain unchanged */
 	hpa_offset |= dpa_offset & GENMASK_ULL(eig + 7, 0);
 
+	return hpa_offset;
+}
+EXPORT_SYMBOL_FOR_MODULES(cxl_calculate_hpa_offset, "cxl_translate");
+
+u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
+		   u64 dpa)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_region_params *p = &cxlr->params;
+	struct cxl_endpoint_decoder *cxled = NULL;
+	u64 dpa_offset, hpa_offset, hpa;
+	u16 eig = 0;
+	u8 eiw = 0;
+	int pos;
+
+	for (int i = 0; i < p->nr_targets; i++) {
+		if (cxlmd == cxled_to_memdev(p->targets[i])) {
+			cxled = p->targets[i];
+			break;
+		}
+	}
+	if (!cxled)
+		return ULLONG_MAX;
+
+	pos = cxled->pos;
+	ways_to_eiw(p->interleave_ways, &eiw);
+	granularity_to_eig(p->interleave_granularity, &eig);
+
+	dpa_offset = dpa - cxl_dpa_resource_start(cxled);
+	hpa_offset = cxl_calculate_hpa_offset(dpa_offset, pos, eiw, eig);
+
 	/* Apply the hpa_offset to the region base address */
 	hpa = hpa_offset + p->res->start + p->cache_size;
 
 	/* Root decoder translation overrides typical modulo decode */
-	if (has_hpa_to_spa(cxlrd))
-		hpa = cxlrd->ops->hpa_to_spa(cxlrd, hpa);
+	if (cxlrd->ops.hpa_to_spa)
+		hpa = cxlrd->ops.hpa_to_spa(cxlrd, hpa);
 
 	if (!cxl_resource_contains_addr(p->res, hpa)) {
 		dev_dbg(&cxlr->dev,
@@ -2998,7 +3150,7 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	}
 
 	/* Simple chunk check, by pos & gran, only applies to modulo decodes */
-	if (!has_hpa_to_spa(cxlrd) && (!cxl_is_hpa_in_chunk(hpa, cxlr, pos)))
+	if (!cxlrd->ops.hpa_to_spa && !cxl_is_hpa_in_chunk(hpa, cxlr, pos))
 		return ULLONG_MAX;
 
 	return hpa;
@@ -3016,8 +3168,6 @@ static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
 	struct cxl_endpoint_decoder *cxled;
 	u64 hpa, hpa_offset, dpa_offset;
-	u64 bits_upper, bits_lower;
-	u64 shifted, rem, temp;
 	u16 eig = 0;
 	u8 eiw = 0;
 	int pos;
@@ -3033,56 +3183,21 @@ static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 	 * If the root decoder has SPA to CXL HPA callback, use it. Otherwise
 	 * CXL HPA is assumed to equal SPA.
 	 */
-	if (has_spa_to_hpa(cxlrd)) {
-		hpa = cxlrd->ops->spa_to_hpa(cxlrd, p->res->start + offset);
+	if (cxlrd->ops.spa_to_hpa) {
+		hpa = cxlrd->ops.spa_to_hpa(cxlrd, p->res->start + offset);
 		hpa_offset = hpa - p->res->start;
 	} else {
 		hpa_offset = offset;
 	}
-	/*
-	 * Interleave position: CXL Spec 3.2 Section 8.2.4.20.13
-	 * eiw < 8
-	 *	Position is in the IW bits at HPA_OFFSET[IG+8+IW-1:IG+8].
-	 *	Per spec "remove IW bits starting with bit position IG+8"
-	 * eiw >= 8
-	 *	Position is not explicitly stored in HPA_OFFSET bits. It is
-	 *	derived from the modulo operation of the upper bits using
-	 *	the total number of interleave ways.
-	 */
-	if (eiw < 8) {
-		pos = (hpa_offset >> (eig + 8)) & GENMASK(eiw - 1, 0);
-	} else {
-		shifted = hpa_offset >> (eig + 8);
-		div64_u64_rem(shifted, p->interleave_ways, &rem);
-		pos = rem;
-	}
+
+	pos = cxl_calculate_position(hpa_offset, eiw, eig);
 	if (pos < 0 || pos >= p->nr_targets) {
 		dev_dbg(&cxlr->dev, "Invalid position %d for %d targets\n",
 			pos, p->nr_targets);
 		return -ENXIO;
 	}
 
-	/*
-	 * DPA offset: CXL Spec 3.2 Section 8.2.4.20.13
-	 * Lower bits [IG+7:0] pass through unchanged
-	 * (eiw < 8)
-	 *	Per spec: DPAOffset[51:IG+8] = (HPAOffset[51:IG+IW+8] >> IW)
-	 *	Clear the position bits to isolate upper section, then
-	 *	reverse the left shift by eiw that occurred during DPA->HPA
-	 * (eiw >= 8)
-	 *	Per spec: DPAOffset[51:IG+8] = HPAOffset[51:IG+IW] / 3
-	 *	Extract upper bits from the correct bit range and divide by 3
-	 *	to recover the original DPA upper bits
-	 */
-	bits_lower = hpa_offset & GENMASK_ULL(eig + 7, 0);
-	if (eiw < 8) {
-		temp = hpa_offset &= ~((u64)GENMASK(eig + eiw + 8 - 1, 0));
-		dpa_offset = temp >> eiw;
-	} else {
-		bits_upper = div64_u64(hpa_offset >> (eig + eiw), 3);
-		dpa_offset = bits_upper << (eig + 8);
-	}
-	dpa_offset |= bits_lower;
+	dpa_offset = cxl_calculate_dpa_offset(hpa_offset, eiw, eig);
 
 	/* Look-up and return the result: a memdev and a DPA */
 	for (int i = 0; i < p->nr_targets; i++) {
@@ -3398,7 +3513,7 @@ static int match_region_by_range(struct device *dev, const void *data)
 	p = &cxlr->params;
 
 	guard(rwsem_read)(&cxl_rwsem.region);
-	return region_res_match_cxl_range(p, r);
+	return spa_maps_hpa(p, r);
 }
 
 static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
@@ -3478,6 +3593,10 @@ static int __construct_region(struct cxl_region *cxlr,
 		dev_warn(cxlmd->dev.parent,
 			 "Extended linear cache calculation failed rc:%d\n", rc);
 	}
+
+	rc = sysfs_update_group(&cxlr->dev.kobj, &cxl_region_group);
+	if (rc)
+		return rc;
 
 	rc = insert_resource(cxlrd->res, res);
 	if (rc) {
