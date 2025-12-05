@@ -819,6 +819,7 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 		if (tbl) {
 			phys_initrd_start = tbl->base;
 			phys_initrd_size = tbl->size;
+			tbl->base = tbl->size = 0;
 			early_memunmap(tbl, sizeof(*tbl));
 		}
 	}
