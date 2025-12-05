@@ -124,6 +124,7 @@ TEST_GEN_PROGS_x86 += x86/vmx_set_nested_state_test
 TEST_GEN_PROGS_x86 += x86/apic_bus_clock_test
 TEST_GEN_PROGS_x86 += x86/xapic_ipi_test
 TEST_GEN_PROGS_x86 += x86/xapic_state_test
+TEST_GEN_PROGS_x86 += x86/xapic_tpr_test
 TEST_GEN_PROGS_x86 += x86/xcr0_cpuid_test
 TEST_GEN_PROGS_x86 += x86/xss_msr_test
 TEST_GEN_PROGS_x86 += x86/debug_regs
