@@ -12298,7 +12298,6 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 		adapter->hw.hw_addr = adapter->io_addr;
 		pci_set_master(pdev);
 		pci_restore_state(pdev);
-		pci_save_state(pdev);
 
 		pci_wake_from_d3(pdev, false);
 

@@ -7886,11 +7886,6 @@ qla2xxx_pci_slot_reset(struct pci_dev *pdev)
 
 	pci_restore_state(pdev);
 
-	/* pci_restore_state() clears the saved_state flag of the device
-	 * save restored state which resets saved_state flag
-	 */
-	pci_save_state(pdev);
-
 	if (ha->mem_only)
 		rc = pci_enable_device_mem(pdev);
 	else
