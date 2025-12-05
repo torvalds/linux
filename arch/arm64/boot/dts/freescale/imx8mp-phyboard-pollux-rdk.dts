@@ -31,6 +31,7 @@
 		compatible = "gpio-fan";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_fan>;
+		fan-supply = <&reg_vcc_5v_sw>;
 		gpio-fan,speed-map = <0     0
 				      13000 1>;
 		gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
