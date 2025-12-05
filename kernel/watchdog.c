@@ -1240,14 +1240,11 @@ static const struct ctl_table watchdog_sysctls[] = {
 	},
 #endif /* CONFIG_SMP */
 #endif
-};
-
-static struct ctl_table watchdog_hardlockup_sysctl[] = {
 	{
 		.procname       = "nmi_watchdog",
 		.data		= &watchdog_hardlockup_user_enabled,
 		.maxlen		= sizeof(int),
-		.mode		= 0444,
+		.mode		= 0644,
 		.proc_handler   = proc_nmi_watchdog,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
@@ -1257,10 +1254,6 @@ static struct ctl_table watchdog_hardlockup_sysctl[] = {
 static void __init watchdog_sysctl_init(void)
 {
 	register_sysctl_init("kernel", watchdog_sysctls);
-
-	if (watchdog_hardlockup_available)
-		watchdog_hardlockup_sysctl[0].mode = 0644;
-	register_sysctl_init("kernel", watchdog_hardlockup_sysctl);
 }
 
 #else
