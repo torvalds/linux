@@ -9,6 +9,7 @@
 struct dma_fence;
 struct drm_device;
 struct intel_hdcp_gsc_context;
+struct intel_stolen_node;
 struct ref_tracker;
 
 struct intel_display_rpm_interface {
@@ -47,6 +48,22 @@ struct intel_display_rps_interface {
 	void (*ilk_irq_handler)(struct drm_device *drm);
 };
 
+struct intel_display_stolen_interface {
+	int (*insert_node_in_range)(struct intel_stolen_node *node, u64 size,
+				    unsigned int align, u64 start, u64 end);
+	int (*insert_node)(struct intel_stolen_node *node, u64 size, unsigned int align);
+	void (*remove_node)(struct intel_stolen_node *node);
+	bool (*initialized)(struct drm_device *drm);
+	bool (*node_allocated)(const struct intel_stolen_node *node);
+	u64 (*node_offset)(const struct intel_stolen_node *node);
+	u64 (*area_address)(struct drm_device *drm);
+	u64 (*area_size)(struct drm_device *drm);
+	u64 (*node_address)(const struct intel_stolen_node *node);
+	u64 (*node_size)(const struct intel_stolen_node *node);
+	struct intel_stolen_node *(*node_alloc)(struct drm_device *drm);
+	void (*node_free)(const struct intel_stolen_node *node);
+};
+
 /**
  * struct intel_display_parent_interface - services parent driver provides to display
  *
@@ -71,6 +88,9 @@ struct intel_display_parent_interface {
 
 	/** @rpm: RPS interface. Optional. */
 	const struct intel_display_rps_interface *rps;
+
+	/** @stolen: Stolen memory. */
+	const struct intel_display_stolen_interface *stolen;
 
 	/** @vgpu_active: Is vGPU active? Optional. */
 	bool (*vgpu_active)(struct drm_device *drm);

@@ -9,6 +9,7 @@
 struct dma_fence;
 struct intel_display;
 struct intel_hdcp_gsc_context;
+struct intel_stolen_node;
 
 ssize_t intel_parent_hdcp_gsc_msg_send(struct intel_display *display,
 				       struct intel_hdcp_gsc_context *gsc_context,
@@ -26,6 +27,24 @@ bool intel_parent_rps_available(struct intel_display *display);
 void intel_parent_rps_boost_if_not_started(struct intel_display *display, struct dma_fence *fence);
 void intel_parent_rps_mark_interactive(struct intel_display *display, bool interactive);
 void intel_parent_rps_ilk_irq_handler(struct intel_display *display);
+
+int intel_parent_stolen_insert_node_in_range(struct intel_display *display,
+					     struct intel_stolen_node *node, u64 size,
+					     unsigned int align, u64 start, u64 end);
+int intel_parent_stolen_insert_node(struct intel_display *display, struct intel_stolen_node *node, u64 size,
+				    unsigned int align);
+void intel_parent_stolen_remove_node(struct intel_display *display,
+				     struct intel_stolen_node *node);
+bool intel_parent_stolen_initialized(struct intel_display *display);
+bool intel_parent_stolen_node_allocated(struct intel_display *display,
+					const struct intel_stolen_node *node);
+u32 intel_parent_stolen_node_offset(struct intel_display *display, struct intel_stolen_node *node);
+u64 intel_parent_stolen_area_address(struct intel_display *display);
+u64 intel_parent_stolen_area_size(struct intel_display *display);
+u64 intel_parent_stolen_node_address(struct intel_display *display, struct intel_stolen_node *node);
+u64 intel_parent_stolen_node_size(struct intel_display *display, const struct intel_stolen_node *node);
+struct intel_stolen_node *intel_parent_stolen_node_alloc(struct intel_display *display);
+void intel_parent_stolen_node_free(struct intel_display *display, const struct intel_stolen_node *node);
 
 bool intel_parent_vgpu_active(struct intel_display *display);
 

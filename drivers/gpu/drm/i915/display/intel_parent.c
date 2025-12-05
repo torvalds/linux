@@ -79,6 +79,72 @@ void intel_parent_rps_ilk_irq_handler(struct intel_display *display)
 		display->parent->rps->ilk_irq_handler(display->drm);
 }
 
+int intel_parent_stolen_insert_node_in_range(struct intel_display *display,
+					     struct intel_stolen_node *node, u64 size,
+					     unsigned int align, u64 start, u64 end)
+{
+	return display->parent->stolen->insert_node_in_range(node, size, align, start, end);
+}
+
+int intel_parent_stolen_insert_node(struct intel_display *display, struct intel_stolen_node *node, u64 size,
+				    unsigned int align)
+{
+	return display->parent->stolen->insert_node(node, size, align);
+}
+
+void intel_parent_stolen_remove_node(struct intel_display *display,
+				     struct intel_stolen_node *node)
+{
+	display->parent->stolen->remove_node(node);
+}
+
+bool intel_parent_stolen_initialized(struct intel_display *display)
+{
+	return display->parent->stolen->initialized(display->drm);
+}
+
+bool intel_parent_stolen_node_allocated(struct intel_display *display,
+					const struct intel_stolen_node *node)
+{
+	return display->parent->stolen->node_allocated(node);
+}
+
+u32 intel_parent_stolen_node_offset(struct intel_display *display, struct intel_stolen_node *node)
+{
+	return display->parent->stolen->node_offset(node);
+}
+
+u64 intel_parent_stolen_area_address(struct intel_display *display)
+{
+	return display->parent->stolen->area_address(display->drm);
+}
+
+u64 intel_parent_stolen_area_size(struct intel_display *display)
+{
+	return display->parent->stolen->area_size(display->drm);
+}
+
+u64 intel_parent_stolen_node_address(struct intel_display *display, struct intel_stolen_node *node)
+{
+	return display->parent->stolen->node_address(node);
+}
+
+u64 intel_parent_stolen_node_size(struct intel_display *display, const struct intel_stolen_node *node)
+{
+	return display->parent->stolen->node_size(node);
+}
+
+struct intel_stolen_node *intel_parent_stolen_node_alloc(struct intel_display *display)
+{
+	return display->parent->stolen->node_alloc(display->drm);
+}
+
+void intel_parent_stolen_node_free(struct intel_display *display, const struct intel_stolen_node *node)
+{
+	display->parent->stolen->node_free(node);
+}
+
+
 bool intel_parent_vgpu_active(struct intel_display *display)
 {
 	return display->parent->vgpu_active && display->parent->vgpu_active(display->drm);
