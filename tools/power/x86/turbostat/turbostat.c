@@ -8772,6 +8772,27 @@ void probe_pstates(void)
 	for_all_cpus(print_epb, ODD_COUNTERS);
 	for_all_cpus(print_perf_limit, ODD_COUNTERS);
 }
+void dump_word_chars(unsigned int word)
+{
+	int i;
+
+	for (i = 0; i < 4; ++i)
+		fprintf(outf, "%c", (word >> (i * 8)) & 0xFF);
+}
+void dump_cpuid_hypervisor(void)
+{
+	unsigned int ebx = 0;
+	unsigned int ecx = 0;
+	unsigned int edx = 0;
+
+	__cpuid(0x40000000, max_extended_level, ebx, ecx, edx);
+
+	fprintf(outf, "Hypervisor: ");
+	dump_word_chars(ebx);
+	dump_word_chars(ecx);
+	dump_word_chars(edx);
+	fprintf(outf, "\n");
+}
 
 void process_cpuid()
 {
@@ -8839,6 +8860,8 @@ void process_cpuid()
 			edx_flags & (1 << 5) ? "" : "No-",
 			edx_flags & (1 << 22) ? "" : "No-", edx_flags & (1 << 28) ? "" : "No-", edx_flags & (1 << 29) ? "" : "No-");
 	}
+	if (!quiet && cpuid_has_hv)
+		dump_cpuid_hypervisor();
 
 	probe_platform_features(family, model);
 
