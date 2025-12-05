@@ -961,6 +961,7 @@ void zpci_device_reserved(struct zpci_dev *zdev)
 }
 
 void zpci_release_device(struct kref *kref)
+	__releases(&zpci_list_lock)
 {
 	struct zpci_dev *zdev = container_of(kref, struct zpci_dev, kref);
 
