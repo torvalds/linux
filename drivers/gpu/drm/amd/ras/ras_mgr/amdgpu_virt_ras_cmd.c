@@ -183,7 +183,7 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 		(struct ras_cmd_cper_record_rsp *)cmd->output_buff_raw;
 	struct ras_log_batch_overview *overview = &virt_ras->batch_mgr.batch_overview;
 	struct ras_cmd_batch_trace_record_rsp *rsp_cache = &virt_ras->batch_mgr.batch_trace;
-	struct ras_log_info *trace[MAX_RECORD_PER_BATCH] = {0};
+	struct ras_log_info **trace;
 	uint32_t offset = 0, real_data_len = 0;
 	uint64_t batch_id;
 	uint8_t *out_buf;
@@ -195,9 +195,15 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 	if (!req->buf_size || !req->buf_ptr || !req->cper_num)
 		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
 
-	out_buf = kzalloc(req->buf_size, GFP_KERNEL);
-	if (!out_buf)
+	trace = kcalloc(MAX_RECORD_PER_BATCH, sizeof(*trace), GFP_KERNEL);
+	if (!trace)
 		return RAS_CMD__ERROR_GENERIC;
+
+	out_buf = kzalloc(req->buf_size, GFP_KERNEL);
+	if (!out_buf) {
+		kfree(trace);
+		return RAS_CMD__ERROR_GENERIC;
+	}
 
 	memset(out_buf, 0, req->buf_size);
 
@@ -205,8 +211,9 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 		batch_id = req->cper_start_id + i;
 		if (batch_id >= overview->last_batch_id)
 			break;
-		count = amdgpu_virt_ras_get_batch_records(ras_core, batch_id, trace,
-					ARRAY_SIZE(trace), rsp_cache);
+		count = amdgpu_virt_ras_get_batch_records(ras_core, batch_id,
+							  trace, MAX_RECORD_PER_BATCH,
+							  rsp_cache);
 		if (count > 0) {
 			ret = ras_cper_generate_cper(ras_core, trace, count,
 					&out_buf[offset], req->buf_size - offset, &real_data_len);
@@ -220,6 +227,7 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 	if ((ret && (ret != -ENOMEM)) ||
 	    copy_to_user(u64_to_user_ptr(req->buf_ptr), out_buf, offset)) {
 		kfree(out_buf);
+		kfree(trace);
 		return RAS_CMD__ERROR_GENERIC;
 	}
 
@@ -231,6 +239,7 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 	cmd->output_size = sizeof(struct ras_cmd_cper_record_rsp);
 
 	kfree(out_buf);
+	kfree(trace);
 
 	return RAS_CMD__SUCCESS;
 }
