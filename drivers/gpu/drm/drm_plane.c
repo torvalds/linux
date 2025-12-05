@@ -425,7 +425,7 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 
 	plane->modifier_count = format_modifier_count;
 	plane->modifiers = kmalloc_array(format_modifier_count,
-					 sizeof(format_modifiers[0]),
+					 sizeof(*plane->modifiers),
 					 GFP_KERNEL);
 
 	if (format_modifier_count && !plane->modifiers) {
