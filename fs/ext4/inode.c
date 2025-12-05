@@ -1757,8 +1757,22 @@ static void mpage_release_unused_pages(struct mpage_da_data *mpd,
 			BUG_ON(!folio_test_locked(folio));
 			BUG_ON(folio_test_writeback(folio));
 			if (invalidate) {
-				if (folio_mapped(folio))
+				if (folio_mapped(folio)) {
 					folio_clear_dirty_for_io(folio);
+					/*
+					 * Unmap folio from page
+					 * tables to prevent
+					 * subsequent accesses through
+					 * stale PTEs. This ensures
+					 * future accesses trigger new
+					 * page faults rather than
+					 * reusing the invalidated
+					 * folio.
+					 */
+					unmap_mapping_pages(folio->mapping,
+						folio->index,
+						folio_nr_pages(folio), false);
+				}
 				block_invalidate_folio(folio, 0,
 						folio_size(folio));
 				folio_clear_uptodate(folio);
