@@ -73,6 +73,7 @@ extern const int sysctl_vals[];
 #define SYSCTL_USER_TO_KERN(dir) (!!(dir))
 #define SYSCTL_KERN_TO_USER(dir) (!dir)
 
+#ifdef CONFIG_PROC_SYSCTL
 #define SYSCTL_USER_TO_KERN_INT_CONV(name, u_ptr_op)		\
 int sysctl_user_to_kern_int_conv##name(const bool *negp,	\
 				       const unsigned long *u_ptr,\
@@ -172,6 +173,48 @@ int do_proc_uint_conv##name(unsigned long *u_ptr, unsigned int *k_ptr,	\
 		return user_to_kern(u_ptr, k_ptr);			\
 	return 0;							\
 }
+
+#else // CONFIG_PROC_SYSCTL
+#define SYSCTL_USER_TO_KERN_INT_CONV(name, u_ptr_op)		\
+int sysctl_user_to_kern_int_conv##name(const bool *negp,	\
+				       const unsigned long *u_ptr,\
+				       int *k_ptr)		\
+{								\
+	return -ENOSYS;						\
+}
+
+#define SYSCTL_KERN_TO_USER_INT_CONV(name, k_ptr_op)		\
+int sysctl_kern_to_user_int_conv##name(bool *negp,		\
+				       unsigned long *u_ptr,	\
+				       const int *k_ptr)	\
+{								\
+	return -ENOSYS;						\
+}
+
+#define SYSCTL_INT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
+			       k_ptr_range_check)			\
+int do_proc_int_conv##name(bool *negp, unsigned long *u_ptr, int *k_ptr,\
+			   int dir, const struct ctl_table *tbl)	\
+{									\
+	return -ENOSYS;							\
+}
+
+#define SYSCTL_USER_TO_KERN_UINT_CONV(name, u_ptr_op)		\
+int sysctl_user_to_kern_uint_conv##name(const unsigned long *u_ptr,\
+					unsigned int *k_ptr)	\
+{								\
+	return -ENOSYS;						\
+}
+
+#define SYSCTL_UINT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
+				k_ptr_range_check)			\
+int do_proc_uint_conv##name(unsigned long *u_ptr, unsigned int *k_ptr,	\
+			   int dir, const struct ctl_table *tbl)	\
+{									\
+	return -ENOSYS;							\
+}
+
+#endif // CONFIG_PROC_SYSCTL
 
 
 extern const unsigned long sysctl_long_vals[];
