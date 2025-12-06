@@ -491,10 +491,13 @@ void gpio_device_teardown_shared(struct gpio_device *gdev)
 			continue;
 
 		list_for_each_entry(ref, &entry->refs, list) {
-			gpiod_remove_lookup_table(ref->lookup);
-			kfree(ref->lookup->table[0].key);
-			kfree(ref->lookup);
-			ref->lookup = NULL;
+			if (ref->lookup) {
+				gpiod_remove_lookup_table(ref->lookup);
+				kfree(ref->lookup->table[0].key);
+				kfree(ref->lookup);
+				ref->lookup = NULL;
+			}
+
 			gpio_shared_remove_adev(&ref->adev);
 		}
 	}
