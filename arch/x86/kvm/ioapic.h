@@ -36,7 +36,9 @@ struct kvm_vcpu;
 
 #define RTC_GSI 8
 
-struct dest_map {
+struct rtc_status {
+	int pending_eoi;
+
 	/* vcpu bitmap where IRQ has been sent */
 	DECLARE_BITMAP(map, KVM_MAX_VCPU_IDS);
 
@@ -45,12 +47,6 @@ struct dest_map {
 	 * the vcpu's bit in map is set
 	 */
 	u8 vectors[KVM_MAX_VCPU_IDS];
-};
-
-
-struct rtc_status {
-	int pending_eoi;
-	struct dest_map dest_map;
 };
 
 union kvm_ioapic_redirect_entry {

@@ -784,15 +784,15 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_lapic_find_highest_irr);
 
 static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			     int vector, int level, int trig_mode,
-			     struct dest_map *dest_map);
+			     struct rtc_status *rtc_status);
 
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
-		     struct dest_map *dest_map)
+		     struct rtc_status *rtc_status)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	return __apic_accept_irq(apic, irq->delivery_mode, irq->vector,
-			irq->level, irq->trig_mode, dest_map);
+				 irq->level, irq->trig_mode, rtc_status);
 }
 
 static int __pv_send_ipi(unsigned long *ipi_bitmap, struct kvm_apic_map *map,
@@ -1177,7 +1177,7 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm,
 
 static bool __kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 					    struct kvm_lapic_irq *irq, int *r,
-					    struct dest_map *dest_map)
+					    struct rtc_status *rtc_status)
 {
 	struct kvm_apic_map *map;
 	unsigned long bitmap;
@@ -1192,7 +1192,7 @@ static bool __kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *s
 			*r = 0;
 			return true;
 		}
-		*r = kvm_apic_set_irq(src->vcpu, irq, dest_map);
+		*r = kvm_apic_set_irq(src->vcpu, irq, rtc_status);
 		return true;
 	}
 
@@ -1205,7 +1205,7 @@ static bool __kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *s
 		for_each_set_bit(i, &bitmap, 16) {
 			if (!dst[i])
 				continue;
-			*r += kvm_apic_set_irq(dst[i]->vcpu, irq, dest_map);
+			*r += kvm_apic_set_irq(dst[i]->vcpu, irq, rtc_status);
 		}
 	}
 
@@ -1293,14 +1293,14 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_intr_is_single_vcpu);
 
 int __kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 			       struct kvm_lapic_irq *irq,
-			       struct dest_map *dest_map)
+			       struct rtc_status *rtc_status)
 {
 	int r = -1;
 	struct kvm_vcpu *vcpu, *lowest = NULL;
 	unsigned long i, dest_vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)];
 	unsigned int dest_vcpus = 0;
 
-	if (__kvm_irq_delivery_to_apic_fast(kvm, src, irq, &r, dest_map))
+	if (__kvm_irq_delivery_to_apic_fast(kvm, src, irq, &r, rtc_status))
 		return r;
 
 	if (irq->dest_mode == APIC_DEST_PHYSICAL &&
@@ -1322,7 +1322,7 @@ int __kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		if (!kvm_lowest_prio_delivery(irq)) {
 			if (r < 0)
 				r = 0;
-			r += kvm_apic_set_irq(vcpu, irq, dest_map);
+			r += kvm_apic_set_irq(vcpu, irq, rtc_status);
 		} else if (kvm_apic_sw_enabled(vcpu->arch.apic)) {
 			if (!vector_hashing_enabled) {
 				if (!lowest)
@@ -1344,7 +1344,7 @@ int __kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	}
 
 	if (lowest)
-		r = kvm_apic_set_irq(lowest, irq, dest_map);
+		r = kvm_apic_set_irq(lowest, irq, rtc_status);
 
 	return r;
 }
@@ -1355,7 +1355,7 @@ int __kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
  */
 static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			     int vector, int level, int trig_mode,
-			     struct dest_map *dest_map)
+			     struct rtc_status *rtc_status)
 {
 	int result = 0;
 	struct kvm_vcpu *vcpu = apic->vcpu;
@@ -1376,9 +1376,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		result = 1;
 
-		if (dest_map) {
-			__set_bit(vcpu->vcpu_id, dest_map->map);
-			dest_map->vectors[vcpu->vcpu_id] = vector;
+		if (rtc_status) {
+			__set_bit(vcpu->vcpu_id, rtc_status->map);
+			rtc_status->vectors[vcpu->vcpu_id] = vector;
 		}
 
 		if (apic_test_vector(vector, apic->regs + APIC_TMR) != !!trig_mode) {
