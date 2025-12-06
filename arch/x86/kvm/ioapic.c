@@ -485,11 +485,11 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 		 * if rtc_irq_check_coalesced returns false).
 		 */
 		BUG_ON(ioapic->rtc_status.pending_eoi != 0);
-		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe,
-					       &ioapic->rtc_status.dest_map);
+		ret = __kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe,
+						 &ioapic->rtc_status.dest_map);
 		ioapic->rtc_status.pending_eoi = (ret < 0 ? 0 : ret);
 	} else
-		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe, NULL);
+		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe);
 
 	if (ret && irqe.trig_mode == IOAPIC_LEVEL_TRIG)
 		entry->fields.remote_irr = 1;
