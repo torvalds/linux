@@ -160,7 +160,7 @@ obj-$(CONFIG_RPMSG)		+= rpmsg/
 obj-$(CONFIG_SOUNDWIRE)		+= soundwire/
 
 # Virtualization drivers
-obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
+obj-y				+= virt/
 obj-$(CONFIG_HYPERV)		+= hv/
 
 obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/

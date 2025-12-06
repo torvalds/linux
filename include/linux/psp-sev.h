@@ -142,6 +142,13 @@ enum sev_cmd {
 	SEV_CMD_SNP_VLEK_LOAD		= 0x0CD,
 	SEV_CMD_SNP_FEATURE_INFO	= 0x0CE,
 
+	/* SEV-TIO commands */
+	SEV_CMD_TIO_STATUS		= 0x0D0,
+	SEV_CMD_TIO_INIT		= 0x0D1,
+	SEV_CMD_TIO_DEV_CREATE		= 0x0D2,
+	SEV_CMD_TIO_DEV_RECLAIM		= 0x0D3,
+	SEV_CMD_TIO_DEV_CONNECT		= 0x0D4,
+	SEV_CMD_TIO_DEV_DISCONNECT	= 0x0D5,
 	SEV_CMD_MAX,
 };
 
@@ -783,7 +790,8 @@ struct sev_data_snp_init_ex {
 	u32 list_paddr_en:1;
 	u32 rapl_dis:1;
 	u32 ciphertext_hiding_en:1;
-	u32 rsvd:28;
+	u32 tio_en:1;
+	u32 rsvd:27;
 	u32 rsvd1;
 	u64 list_paddr;
 	u16 max_snp_asid;
@@ -882,10 +890,14 @@ struct snp_feature_info {
 	u32 edx;
 } __packed;
 
+/* Feature bits in ECX */
 #define SNP_RAPL_DISABLE_SUPPORTED		BIT(2)
 #define SNP_CIPHER_TEXT_HIDING_SUPPORTED	BIT(3)
 #define SNP_AES_256_XTS_POLICY_SUPPORTED	BIT(4)
 #define SNP_CXL_ALLOW_POLICY_SUPPORTED		BIT(5)
+
+/* Feature bits in EBX */
+#define SNP_SEV_TIO_SUPPORTED			BIT(1)
 
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
 
@@ -1028,6 +1040,7 @@ int sev_do_cmd(int cmd, void *data, int *psp_ret);
 
 void *psp_copy_user_blob(u64 uaddr, u32 len);
 void *snp_alloc_firmware_page(gfp_t mask);
+int snp_reclaim_pages(unsigned long paddr, unsigned int npages, bool locked);
 void snp_free_firmware_page(void *addr);
 void sev_platform_shutdown(void);
 bool sev_is_snp_ciphertext_hiding_supported(void);
@@ -1062,6 +1075,11 @@ static inline void *psp_copy_user_blob(u64 __user uaddr, u32 len) { return ERR_P
 static inline void *snp_alloc_firmware_page(gfp_t mask)
 {
 	return NULL;
+}
+
+static inline int snp_reclaim_pages(unsigned long paddr, unsigned int npages, bool locked)
+{
+	return -ENODEV;
 }
 
 static inline void snp_free_firmware_page(void *addr) { }
