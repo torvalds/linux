@@ -1376,10 +1376,12 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		result = 1;
 
+#ifdef CONFIG_KVM_IOAPIC
 		if (rtc_status) {
 			__set_bit(vcpu->vcpu_id, rtc_status->map);
 			rtc_status->vectors[vcpu->vcpu_id] = vector;
 		}
+#endif
 
 		if (apic_test_vector(vector, apic->regs + APIC_TMR) != !!trig_mode) {
 			if (trig_mode)

@@ -6,6 +6,8 @@
 #include <kvm/iodev.h>
 #include "irq.h"
 
+#ifdef CONFIG_KVM_IOAPIC
+
 struct kvm;
 struct kvm_vcpu;
 
@@ -99,11 +101,6 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 			     bool mask);
 
-static inline int ioapic_in_kernel(struct kvm *kvm)
-{
-	return irqchip_full(kvm);
-}
-
 void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);
 void kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu, int vector,
 			int trigger_mode);
@@ -116,6 +113,13 @@ void kvm_get_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
 void kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
 void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu,
 			   ulong *ioapic_handled_vectors);
+#endif /* CONFIG_KVM_IOAPIC */
+
+static inline int ioapic_in_kernel(struct kvm *kvm)
+{
+	return irqchip_full(kvm);
+}
+
 void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 			    ulong *ioapic_handled_vectors);
 void kvm_scan_ioapic_irq(struct kvm_vcpu *vcpu, u32 dest_id, u16 dest_mode,
