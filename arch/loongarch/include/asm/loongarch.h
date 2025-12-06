@@ -182,6 +182,16 @@
 #define csr_xchg32(val, mask, reg) __csrxchg_w(val, mask, reg)
 #define csr_xchg64(val, mask, reg) __csrxchg_d(val, mask, reg)
 
+#ifdef CONFIG_32BIT
+#define csr_read(reg) csr_read32(reg)
+#define csr_write(val, reg) csr_write32(val, reg)
+#define csr_xchg(val, mask, reg) csr_xchg32(val, mask, reg)
+#else
+#define csr_read(reg) csr_read64(reg)
+#define csr_write(val, reg) csr_write64(val, reg)
+#define csr_xchg(val, mask, reg) csr_xchg64(val, mask, reg)
+#endif
+
 /* IOCSR */
 #define iocsr_read32(reg) __iocsrrd_w(reg)
 #define iocsr_read64(reg) __iocsrrd_d(reg)
@@ -1223,6 +1233,7 @@ static inline unsigned int get_csr_cpuid(void)
 	return csr_read32(LOONGARCH_CSR_CPUID);
 }
 
+#ifdef CONFIG_64BIT
 static inline void csr_any_send(unsigned int addr, unsigned int data,
 				unsigned int data_mask, unsigned int cpu)
 {
@@ -1234,6 +1245,7 @@ static inline void csr_any_send(unsigned int addr, unsigned int data,
 	val |= ((uint64_t)data << IOCSR_ANY_SEND_BUF_SHIFT);
 	iocsr_write64(val, LOONGARCH_IOCSR_ANY_SEND);
 }
+#endif
 
 static inline unsigned int read_csr_excode(void)
 {
@@ -1257,22 +1269,22 @@ static inline void write_csr_pagesize(unsigned int size)
 
 static inline unsigned int read_csr_tlbrefill_pagesize(void)
 {
-	return (csr_read64(LOONGARCH_CSR_TLBREHI) & CSR_TLBREHI_PS) >> CSR_TLBREHI_PS_SHIFT;
+	return (csr_read(LOONGARCH_CSR_TLBREHI) & CSR_TLBREHI_PS) >> CSR_TLBREHI_PS_SHIFT;
 }
 
 static inline void write_csr_tlbrefill_pagesize(unsigned int size)
 {
-	csr_xchg64(size << CSR_TLBREHI_PS_SHIFT, CSR_TLBREHI_PS, LOONGARCH_CSR_TLBREHI);
+	csr_xchg(size << CSR_TLBREHI_PS_SHIFT, CSR_TLBREHI_PS, LOONGARCH_CSR_TLBREHI);
 }
 
 #define read_csr_asid()			csr_read32(LOONGARCH_CSR_ASID)
 #define write_csr_asid(val)		csr_write32(val, LOONGARCH_CSR_ASID)
-#define read_csr_entryhi()		csr_read64(LOONGARCH_CSR_TLBEHI)
-#define write_csr_entryhi(val)		csr_write64(val, LOONGARCH_CSR_TLBEHI)
-#define read_csr_entrylo0()		csr_read64(LOONGARCH_CSR_TLBELO0)
-#define write_csr_entrylo0(val)		csr_write64(val, LOONGARCH_CSR_TLBELO0)
-#define read_csr_entrylo1()		csr_read64(LOONGARCH_CSR_TLBELO1)
-#define write_csr_entrylo1(val)		csr_write64(val, LOONGARCH_CSR_TLBELO1)
+#define read_csr_entryhi()		csr_read(LOONGARCH_CSR_TLBEHI)
+#define write_csr_entryhi(val)		csr_write(val, LOONGARCH_CSR_TLBEHI)
+#define read_csr_entrylo0()		csr_read(LOONGARCH_CSR_TLBELO0)
+#define write_csr_entrylo0(val)		csr_write(val, LOONGARCH_CSR_TLBELO0)
+#define read_csr_entrylo1()		csr_read(LOONGARCH_CSR_TLBELO1)
+#define write_csr_entrylo1(val)		csr_write(val, LOONGARCH_CSR_TLBELO1)
 #define read_csr_ecfg()			csr_read32(LOONGARCH_CSR_ECFG)
 #define write_csr_ecfg(val)		csr_write32(val, LOONGARCH_CSR_ECFG)
 #define read_csr_estat()		csr_read32(LOONGARCH_CSR_ESTAT)
@@ -1282,20 +1294,20 @@ static inline void write_csr_tlbrefill_pagesize(unsigned int size)
 #define read_csr_euen()			csr_read32(LOONGARCH_CSR_EUEN)
 #define write_csr_euen(val)		csr_write32(val, LOONGARCH_CSR_EUEN)
 #define read_csr_cpuid()		csr_read32(LOONGARCH_CSR_CPUID)
-#define read_csr_prcfg1()		csr_read64(LOONGARCH_CSR_PRCFG1)
-#define write_csr_prcfg1(val)		csr_write64(val, LOONGARCH_CSR_PRCFG1)
-#define read_csr_prcfg2()		csr_read64(LOONGARCH_CSR_PRCFG2)
-#define write_csr_prcfg2(val)		csr_write64(val, LOONGARCH_CSR_PRCFG2)
-#define read_csr_prcfg3()		csr_read64(LOONGARCH_CSR_PRCFG3)
-#define write_csr_prcfg3(val)		csr_write64(val, LOONGARCH_CSR_PRCFG3)
+#define read_csr_prcfg1()		csr_read(LOONGARCH_CSR_PRCFG1)
+#define write_csr_prcfg1(val)		csr_write(val, LOONGARCH_CSR_PRCFG1)
+#define read_csr_prcfg2()		csr_read(LOONGARCH_CSR_PRCFG2)
+#define write_csr_prcfg2(val)		csr_write(val, LOONGARCH_CSR_PRCFG2)
+#define read_csr_prcfg3()		csr_read(LOONGARCH_CSR_PRCFG3)
+#define write_csr_prcfg3(val)		csr_write(val, LOONGARCH_CSR_PRCFG3)
 #define read_csr_stlbpgsize()		csr_read32(LOONGARCH_CSR_STLBPGSIZE)
 #define write_csr_stlbpgsize(val)	csr_write32(val, LOONGARCH_CSR_STLBPGSIZE)
 #define read_csr_rvacfg()		csr_read32(LOONGARCH_CSR_RVACFG)
 #define write_csr_rvacfg(val)		csr_write32(val, LOONGARCH_CSR_RVACFG)
 #define write_csr_tintclear(val)	csr_write32(val, LOONGARCH_CSR_TINTCLR)
-#define read_csr_impctl1()		csr_read64(LOONGARCH_CSR_IMPCTL1)
-#define write_csr_impctl1(val)		csr_write64(val, LOONGARCH_CSR_IMPCTL1)
-#define write_csr_impctl2(val)		csr_write64(val, LOONGARCH_CSR_IMPCTL2)
+#define read_csr_impctl1()		csr_read(LOONGARCH_CSR_IMPCTL1)
+#define write_csr_impctl1(val)		csr_write(val, LOONGARCH_CSR_IMPCTL1)
+#define write_csr_impctl2(val)		csr_write(val, LOONGARCH_CSR_IMPCTL2)
 
 #define read_csr_perfctrl0()		csr_read64(LOONGARCH_CSR_PERFCTRL0)
 #define read_csr_perfcntr0()		csr_read64(LOONGARCH_CSR_PERFCNTR0)

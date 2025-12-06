@@ -27,7 +27,7 @@ register unsigned long __my_cpu_offset __asm__("$r21");
 static inline void set_my_cpu_offset(unsigned long off)
 {
 	__my_cpu_offset = off;
-	csr_write64(off, PERCPU_BASE_KS);
+	csr_write(off, PERCPU_BASE_KS);
 }
 
 #define __my_cpu_offset					\

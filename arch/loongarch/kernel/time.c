@@ -50,10 +50,10 @@ static int constant_set_state_oneshot(struct clock_event_device *evt)
 
 	raw_spin_lock(&state_lock);
 
-	timer_config = csr_read64(LOONGARCH_CSR_TCFG);
+	timer_config = csr_read(LOONGARCH_CSR_TCFG);
 	timer_config |= CSR_TCFG_EN;
 	timer_config &= ~CSR_TCFG_PERIOD;
-	csr_write64(timer_config, LOONGARCH_CSR_TCFG);
+	csr_write(timer_config, LOONGARCH_CSR_TCFG);
 
 	raw_spin_unlock(&state_lock);
 
@@ -70,7 +70,7 @@ static int constant_set_state_periodic(struct clock_event_device *evt)
 	period = const_clock_freq / HZ;
 	timer_config = period & CSR_TCFG_VAL;
 	timer_config |= (CSR_TCFG_PERIOD | CSR_TCFG_EN);
-	csr_write64(timer_config, LOONGARCH_CSR_TCFG);
+	csr_write(timer_config, LOONGARCH_CSR_TCFG);
 
 	raw_spin_unlock(&state_lock);
 
@@ -83,9 +83,9 @@ static int constant_set_state_shutdown(struct clock_event_device *evt)
 
 	raw_spin_lock(&state_lock);
 
-	timer_config = csr_read64(LOONGARCH_CSR_TCFG);
+	timer_config = csr_read(LOONGARCH_CSR_TCFG);
 	timer_config &= ~CSR_TCFG_EN;
-	csr_write64(timer_config, LOONGARCH_CSR_TCFG);
+	csr_write(timer_config, LOONGARCH_CSR_TCFG);
 
 	raw_spin_unlock(&state_lock);
 
@@ -98,7 +98,7 @@ static int constant_timer_next_event(unsigned long delta, struct clock_event_dev
 
 	delta &= CSR_TCFG_VAL;
 	timer_config = delta | CSR_TCFG_EN;
-	csr_write64(timer_config, LOONGARCH_CSR_TCFG);
+	csr_write(timer_config, LOONGARCH_CSR_TCFG);
 
 	return 0;
 }
@@ -137,7 +137,7 @@ void save_counter(void)
 void sync_counter(void)
 {
 	/* Ensure counter begin at 0 */
-	csr_write64(init_offset, LOONGARCH_CSR_CNTC);
+	csr_write(init_offset, LOONGARCH_CSR_CNTC);
 }
 
 int constant_clockevent_init(void)
@@ -235,7 +235,7 @@ void __init time_init(void)
 	else
 		const_clock_freq = calc_const_freq();
 
-	init_offset = -(drdtime() - csr_read64(LOONGARCH_CSR_CNTC));
+	init_offset = -(drdtime() - csr_read(LOONGARCH_CSR_CNTC));
 
 	constant_clockevent_init();
 	constant_clocksource_init();

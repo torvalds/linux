@@ -625,7 +625,7 @@ asmlinkage void noinstr do_bce(struct pt_regs *regs)
 	bool user = user_mode(regs);
 	bool pie = regs_irqs_disabled(regs);
 	unsigned long era = exception_era(regs);
-	u64 badv = 0, lower = 0, upper = ULONG_MAX;
+	unsigned long badv = 0, lower = 0, upper = ULONG_MAX;
 	union loongarch_instruction insn;
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -1070,10 +1070,13 @@ asmlinkage void noinstr do_reserved(struct pt_regs *regs)
 
 asmlinkage void cache_parity_error(void)
 {
+	u32 merrctl = csr_read32(LOONGARCH_CSR_MERRCTL);
+	unsigned long merrera = csr_read(LOONGARCH_CSR_MERRERA);
+
 	/* For the moment, report the problem and hang. */
 	pr_err("Cache error exception:\n");
-	pr_err("csr_merrctl == %08x\n", csr_read32(LOONGARCH_CSR_MERRCTL));
-	pr_err("csr_merrera == %016lx\n", csr_read64(LOONGARCH_CSR_MERRERA));
+	pr_err("csr_merrctl == %08x\n", merrctl);
+	pr_err("csr_merrera == %016lx\n", merrera);
 	panic("Can't handle the cache error!");
 }
 
@@ -1130,9 +1133,9 @@ static void configure_exception_vector(void)
 	eentry    = (unsigned long)exception_handlers;
 	tlbrentry = (unsigned long)exception_handlers + 80*VECSIZE;
 
-	csr_write64(eentry, LOONGARCH_CSR_EENTRY);
-	csr_write64(__pa(eentry), LOONGARCH_CSR_MERRENTRY);
-	csr_write64(__pa(tlbrentry), LOONGARCH_CSR_TLBRENTRY);
+	csr_write(eentry, LOONGARCH_CSR_EENTRY);
+	csr_write(__pa(eentry), LOONGARCH_CSR_MERRENTRY);
+	csr_write(__pa(tlbrentry), LOONGARCH_CSR_TLBRENTRY);
 }
 
 void per_cpu_trap_init(int cpu)
