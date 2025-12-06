@@ -184,7 +184,7 @@
 
 &gmac2phy {
 	assigned-clock-parents = <&cru SCLK_MAC2PHY_SRC>;
-	assigned-clock-rate = <50000000>;
+	assigned-clock-rates = <50000000>;
 	assigned-clocks = <&cru SCLK_MAC2PHY>;
 	status = "okay";
 };

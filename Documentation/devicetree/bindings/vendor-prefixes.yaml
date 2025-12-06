@@ -30,6 +30,8 @@ patternProperties:
     description: 70mai Co., Ltd.
   "^8dev,.*":
     description: 8devices, UAB
+  "^9tripod,.*":
+    description: Shenzhen 9Tripod Innovation and Development CO., LTD.
   "^abb,.*":
     description: ABB
   "^abilis,.*":
@@ -913,6 +915,8 @@ patternProperties:
     description: Lincoln Technology Solutions
   "^lineartechnology,.*":
     description: Linear Technology
+  "^linkease,.*":
+    description: Shenzhen LinkEase Network Technology Co., Ltd.
   "^linksprite,.*":
     description: LinkSprite Technologies, Inc.
   "^linksys,.*":

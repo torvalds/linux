@@ -236,9 +236,12 @@
 		vcc-supply = <&sw2_reg>;
 		vio-supply = <&sw2_reg>;
 
-		stmpe_gpio1: stmpe_gpio {
+		stmpe_gpio1: gpio {
 			#gpio-cells = <2>;
 			compatible = "st,stmpe-gpio";
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
 		};
 	};
 
@@ -250,9 +253,12 @@
 		vcc-supply = <&sw2_reg>;
 		vio-supply = <&sw2_reg>;
 
-		stmpe_gpio2: stmpe_gpio {
+		stmpe_gpio2: gpio {
 			#gpio-cells = <2>;
 			compatible = "st,stmpe-gpio";
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
 		};
 	};
 

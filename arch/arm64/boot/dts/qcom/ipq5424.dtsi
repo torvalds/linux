@@ -3,7 +3,7 @@
  * IPQ5424 device tree source
  *
  * Copyright (c) 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -13,6 +13,7 @@
 #include <dt-bindings/reset/qcom,ipq5424-gcc.h>
 #include <dt-bindings/interconnect/qcom,ipq5424.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	#address-cells = <2>;
@@ -57,6 +58,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			interconnects = <&apss_clk MASTER_CPU &apss_clk SLAVE_L3>;
+			#cooling-cells = <2>;
 
 			l2_0: l2-cache {
 				compatible = "cache";
@@ -82,6 +84,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			interconnects = <&apss_clk MASTER_CPU &apss_clk SLAVE_L3>;
+			#cooling-cells = <2>;
 
 			l2_100: l2-cache {
 				compatible = "cache";
@@ -101,6 +104,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			interconnects = <&apss_clk MASTER_CPU &apss_clk SLAVE_L3>;
+			#cooling-cells = <2>;
 
 			l2_200: l2-cache {
 				compatible = "cache";
@@ -120,6 +124,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			interconnects = <&apss_clk MASTER_CPU &apss_clk SLAVE_L3>;
+			#cooling-cells = <2>;
 
 			l2_300: l2-cache {
 				compatible = "cache";
@@ -213,7 +218,7 @@
 		};
 
 		tfa@8a832000 {
-			reg = <0x0 0x8a832000 0x0 0x7d000>;
+			reg = <0x0 0x8a832000 0x0 0x80000>;
 			no-map;
 			status = "disabled";
 		};
@@ -815,6 +820,36 @@
 			#interconnect-cells = <1>;
 		};
 
+		clock-controller@39b00000 {
+			compatible = "qcom,ipq5424-nsscc";
+			reg = <0 0x39b00000 0 0x100000>;
+			clocks = <&cmn_pll IPQ5424_XO_24MHZ_CLK>,
+				 <&cmn_pll IPQ5424_NSS_300MHZ_CLK>,
+				 <&cmn_pll IPQ5424_PPE_375MHZ_CLK>,
+				 <&gcc GPLL0_OUT_AUX>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <0>,
+				 <&gcc GCC_NSSCC_CLK>;
+			clock-names = "xo",
+				      "nss",
+				      "ppe",
+				      "gpll0_out",
+				      "uniphy0_rx",
+				      "uniphy0_tx",
+				      "uniphy1_rx",
+				      "uniphy1_tx",
+				      "uniphy2_rx",
+				      "uniphy2_tx",
+				      "bus";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#interconnect-cells = <1>;
+		};
+
 		pcie3: pcie@40000000 {
 			compatible = "qcom,pcie-ipq5424", "qcom,pcie-ipq9574";
 			reg = <0x0 0x40000000 0x0 0xf1c>,
@@ -1235,16 +1270,26 @@
 			thermal-sensors = <&tsens 14>;
 
 			trips {
-				cpu-critical {
+				cpu0_crit: cpu-critical {
 					temperature = <120000>;
 					hysteresis = <9000>;
 					type = "critical";
 				};
 
-				cpu-passive {
+				cpu0_alert: cpu-passive {
 					temperature = <110000>;
 					hysteresis = <9000>;
 					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu0_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1254,16 +1299,26 @@
 			thermal-sensors = <&tsens 12>;
 
 			trips {
-				cpu-critical {
+				cpu1_crit: cpu-critical {
 					temperature = <120000>;
 					hysteresis = <9000>;
 					type = "critical";
 				};
 
-				cpu-passive {
+				cpu1_alert: cpu-passive {
 					temperature = <110000>;
 					hysteresis = <9000>;
 					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu1_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1273,16 +1328,26 @@
 			thermal-sensors = <&tsens 11>;
 
 			trips {
-				cpu-critical {
+				cpu2_crit: cpu-critical {
 					temperature = <120000>;
 					hysteresis = <9000>;
 					type = "critical";
 				};
 
-				cpu-passive {
+				cpu2_alert: cpu-passive {
 					temperature = <110000>;
 					hysteresis = <9000>;
 					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu2_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1292,16 +1357,26 @@
 			thermal-sensors = <&tsens 13>;
 
 			trips {
-				cpu-critical {
+				cpu3_crit: cpu-critical {
 					temperature = <120000>;
 					hysteresis = <9000>;
 					type = "critical";
 				};
 
-				cpu-passive {
+				cpu3_alert: cpu-passive {
 					temperature = <110000>;
 					hysteresis = <9000>;
 					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu3_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};

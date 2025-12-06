@@ -356,11 +356,10 @@
 };
 
 &gpu {
-	status = "okay";
-	zap-shader {
-		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/sdm850/LENOVO/81JL/qcdxkmsuc850.mbn";
-	};
+	status = "okay";};
+
+&gpu_zap_shader {
+	firmware-name = "qcom/sdm850/LENOVO/81JL/qcdxkmsuc850.mbn";
 };
 
 &i2c1 {

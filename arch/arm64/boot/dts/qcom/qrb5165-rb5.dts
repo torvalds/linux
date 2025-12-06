@@ -594,11 +594,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/sm8250/a650_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sm8250/a650_zap.mbn";
 };
 
 /* LS-I2C0 */

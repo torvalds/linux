@@ -109,6 +109,13 @@
 		system-power-controller;
 		wakeup-source;
 
+		clocks {
+			compatible = "samsung,s2mpg10-clk";
+			#clock-cells = <1>;
+			clock-output-names = "rtc32k_ap", "peri32k1",
+					     "peri32k2";
+		};
+
 		regulators {
 		};
 	};

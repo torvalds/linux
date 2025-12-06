@@ -47,6 +47,16 @@
 		gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
 	};
 
+	fan1 {
+		compatible = "pwm-fan";
+		pwms = <&pwm1 2 7812500 0>;
+	};
+
+	fan2 {
+		compatible = "pwm-fan";
+		pwms = <&pwm1 3 7812500 0>;
+	};
+
 	led-controller-1 {
 		compatible = "pwm-leds";
 

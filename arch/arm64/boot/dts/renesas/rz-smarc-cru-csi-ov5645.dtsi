@@ -64,7 +64,6 @@
 		compatible = "ovti,ov5645";
 		reg = <0x3c>;
 		clocks = <&ov5645_fixed_clk>;
-		clock-frequency = <24000000>;
 		vdddo-supply = <&ov5645_vdddo_1v8>;
 		vdda-supply = <&ov5645_vdda_2v8>;
 		vddd-supply = <&ov5645_vddd_1v5>;
