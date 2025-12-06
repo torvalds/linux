@@ -302,11 +302,18 @@ struct apple_mbox *apple_mbox_get(struct device *dev, int index)
 		return ERR_PTR(-EPROBE_DEFER);
 
 	mbox = platform_get_drvdata(pdev);
-	if (!mbox)
-		return ERR_PTR(-EPROBE_DEFER);
+	if (!mbox) {
+		mbox = ERR_PTR(-EPROBE_DEFER);
+		goto out_put_pdev;
+	}
 
-	if (!device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_CONSUMER))
-		return ERR_PTR(-ENODEV);
+	if (!device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_CONSUMER)) {
+		mbox = ERR_PTR(-ENODEV);
+		goto out_put_pdev;
+	}
+
+out_put_pdev:
+	put_device(&pdev->dev);
 
 	return mbox;
 }
