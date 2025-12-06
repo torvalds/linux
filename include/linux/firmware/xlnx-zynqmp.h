@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 #include <linux/err.h>
+#include <linux/firmware/xlnx-zynqmp-ufs.h>
 
 #define ZYNQMP_PM_VERSION_MAJOR	1
 #define ZYNQMP_PM_VERSION_MINOR	0
@@ -236,6 +237,7 @@ enum pm_ioctl_id {
 	IOCTL_GET_FEATURE_CONFIG = 27,
 	/* IOCTL for Secure Read/Write Interface */
 	IOCTL_READ_REG = 28,
+	IOCTL_MASK_WRITE_REG = 29,
 	/* Dynamic SD/GEM configuration */
 	IOCTL_SET_SD_CONFIG = 30,
 	IOCTL_SET_GEM_CONFIG = 31,
@@ -614,6 +616,9 @@ int zynqmp_pm_feature(const u32 api_id);
 int zynqmp_pm_is_function_supported(const u32 api_id, const u32 id);
 int zynqmp_pm_set_feature_config(enum pm_feature_config_id id, u32 value);
 int zynqmp_pm_get_feature_config(enum pm_feature_config_id id, u32 *payload);
+int zynqmp_pm_sec_read_reg(u32 node_id, u32 offset, u32 *ret_value);
+int zynqmp_pm_sec_mask_write_reg(const u32 node_id, const u32 offset,
+				 u32 mask, u32 value);
 int zynqmp_pm_register_sgi(u32 sgi_num, u32 reset);
 int zynqmp_pm_force_pwrdwn(const u32 target,
 			   const enum zynqmp_pm_request_ack ack);
@@ -909,6 +914,17 @@ static inline int zynqmp_pm_request_wake(const u32 node,
 					 const bool set_addr,
 					 const u64 address,
 					 const enum zynqmp_pm_request_ack ack)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_sec_read_reg(u32 node_id, u32 offset, u32 *ret_value)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_sec_mask_write_reg(const u32 node_id, const u32 offset,
+					       u32 mask, u32 value)
 {
 	return -ENODEV;
 }

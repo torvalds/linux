@@ -126,12 +126,12 @@ int init_se_kmem_caches(void)
 	}
 
 	target_completion_wq = alloc_workqueue("target_completion",
-					       WQ_MEM_RECLAIM, 0);
+					       WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (!target_completion_wq)
 		goto out_free_lba_map_mem_cache;
 
 	target_submission_wq = alloc_workqueue("target_submission",
-					       WQ_MEM_RECLAIM, 0);
+					       WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (!target_submission_wq)
 		goto out_free_completion_wq;
 
@@ -1571,7 +1571,12 @@ target_cmd_parse_cdb(struct se_cmd *cmd)
 		return ret;
 
 	cmd->se_cmd_flags |= SCF_SUPPORTED_SAM_OPCODE;
-	atomic_long_inc(&cmd->se_lun->lun_stats.cmd_pdus);
+	/*
+	 * If this is the xcopy_lun then we won't have lun_stats since we
+	 * can't export them.
+	 */
+	if (cmd->se_lun->lun_stats)
+		this_cpu_inc(cmd->se_lun->lun_stats->cmd_pdus);
 	return 0;
 }
 EXPORT_SYMBOL(target_cmd_parse_cdb);
@@ -2597,8 +2602,9 @@ queue_rsp:
 		    !(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL))
 			goto queue_status;
 
-		atomic_long_add(cmd->data_length,
-				&cmd->se_lun->lun_stats.tx_data_octets);
+		if (cmd->se_lun->lun_stats)
+			this_cpu_add(cmd->se_lun->lun_stats->tx_data_octets,
+				     cmd->data_length);
 		/*
 		 * Perform READ_STRIP of PI using software emulation when
 		 * backend had PI enabled, if the transport will not be
@@ -2621,14 +2627,16 @@ queue_rsp:
 			goto queue_full;
 		break;
 	case DMA_TO_DEVICE:
-		atomic_long_add(cmd->data_length,
-				&cmd->se_lun->lun_stats.rx_data_octets);
+		if (cmd->se_lun->lun_stats)
+			this_cpu_add(cmd->se_lun->lun_stats->rx_data_octets,
+				     cmd->data_length);
 		/*
 		 * Check if we need to send READ payload for BIDI-COMMAND
 		 */
 		if (cmd->se_cmd_flags & SCF_BIDI) {
-			atomic_long_add(cmd->data_length,
-					&cmd->se_lun->lun_stats.tx_data_octets);
+			if (cmd->se_lun->lun_stats)
+				this_cpu_add(cmd->se_lun->lun_stats->tx_data_octets,
+					     cmd->data_length);
 			ret = cmd->se_tfo->queue_data_in(cmd);
 			if (ret)
 				goto queue_full;

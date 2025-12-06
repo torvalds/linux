@@ -42,7 +42,6 @@
 #define UFS_CMD_TRACE_STRINGS					\
 	EM(UFS_CMD_SEND,	"send_req")			\
 	EM(UFS_CMD_COMP,	"complete_rsp")			\
-	EM(UFS_DEV_COMP,	"dev_complete")			\
 	EM(UFS_QUERY_SEND,	"query_send")			\
 	EM(UFS_QUERY_COMP,	"query_complete")		\
 	EM(UFS_QUERY_ERR,	"query_complete_err")		\

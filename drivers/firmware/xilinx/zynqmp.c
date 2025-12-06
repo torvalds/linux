@@ -1654,6 +1654,52 @@ int zynqmp_pm_get_feature_config(enum pm_feature_config_id id,
 }
 
 /**
+ * zynqmp_pm_sec_read_reg - PM call to securely read from given offset
+ *		of the node
+ * @node_id:	Node Id of the device
+ * @offset:	Offset to be used (20-bit)
+ * @ret_value:	Output data read from the given offset after
+ *		firmware access policy is successfully enforced
+ *
+ * Return:	Returns 0 on success or error value on failure
+ */
+int zynqmp_pm_sec_read_reg(u32 node_id, u32 offset, u32 *ret_value)
+{
+	u32 ret_payload[PAYLOAD_ARG_CNT];
+	u32 count = 1;
+	int ret;
+
+	if (!ret_value)
+		return -EINVAL;
+
+	ret = zynqmp_pm_invoke_fn(PM_IOCTL, ret_payload, 4, node_id, IOCTL_READ_REG,
+				  offset, count);
+
+	*ret_value = ret_payload[1];
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_sec_read_reg);
+
+/**
+ * zynqmp_pm_sec_mask_write_reg - PM call to securely write to given offset
+ *		of the node
+ * @node_id:	Node Id of the device
+ * @offset:	Offset to be used (20-bit)
+ * @mask:	Mask to be used
+ * @value:	Value to be written
+ *
+ * Return:	Returns 0 on success or error value on failure
+ */
+int zynqmp_pm_sec_mask_write_reg(const u32 node_id, const u32 offset, u32 mask,
+				 u32 value)
+{
+	return zynqmp_pm_invoke_fn(PM_IOCTL, NULL, 5, node_id, IOCTL_MASK_WRITE_REG,
+				   offset, mask, value);
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_sec_mask_write_reg);
+
+/**
  * zynqmp_pm_set_sd_config - PM call to set value of SD config registers
  * @node:	SD node ID
  * @config:	The config type of SD registers
