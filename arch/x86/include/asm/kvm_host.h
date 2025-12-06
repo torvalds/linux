@@ -1222,7 +1222,9 @@ struct kvm_xen {
 
 enum kvm_irqchip_mode {
 	KVM_IRQCHIP_NONE,
+#ifdef CONFIG_KVM_IOAPIC
 	KVM_IRQCHIP_KERNEL,       /* created with KVM_CREATE_IRQCHIP */
+#endif
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
 };
 
