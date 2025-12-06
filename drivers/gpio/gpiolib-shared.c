@@ -415,8 +415,8 @@ static void gpio_shared_remove_adev(struct auxiliary_device *adev)
 {
 	lockdep_assert_held(&gpio_shared_lock);
 
-	auxiliary_device_uninit(adev);
 	auxiliary_device_delete(adev);
+	auxiliary_device_uninit(adev);
 }
 
 int gpio_device_setup_shared(struct gpio_device *gdev)
