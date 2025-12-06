@@ -4432,6 +4432,7 @@ F:	arch/*/lib/bitops.c
 F:	include/asm-generic/bitops
 F:	include/asm-generic/bitops.h
 F:	include/linux/bitops.h
+F:	lib/hweight.c
 F:	lib/test_bitops.c
 F:	tools/*/bitops*
 
