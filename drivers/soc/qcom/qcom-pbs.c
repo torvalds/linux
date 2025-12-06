@@ -173,6 +173,8 @@ struct pbs_dev *get_pbs_client_device(struct device *dev)
 		return ERR_PTR(-EINVAL);
 	}
 
+	platform_device_put(pdev);
+
 	return pbs;
 }
 EXPORT_SYMBOL_GPL(get_pbs_client_device);

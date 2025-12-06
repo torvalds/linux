@@ -726,7 +726,7 @@ static inline void crash_register_spus(struct list_head *list)
 }
 #endif
 
-static void spu_shutdown(void)
+static void spu_shutdown(void *data)
 {
 	struct spu *spu;
 
@@ -738,8 +738,12 @@ static void spu_shutdown(void)
 	mutex_unlock(&spu_full_list_mutex);
 }
 
-static struct syscore_ops spu_syscore_ops = {
+static const struct syscore_ops spu_syscore_ops = {
 	.shutdown = spu_shutdown,
+};
+
+static struct syscore spu_syscore = {
+	.ops = &spu_syscore_ops,
 };
 
 static int __init init_spu_base(void)
@@ -774,7 +778,7 @@ static int __init init_spu_base(void)
 	crash_register_spus(&spu_full_list);
 	mutex_unlock(&spu_full_list_mutex);
 	spu_add_dev_attr(&dev_attr_stat);
-	register_syscore_ops(&spu_syscore_ops);
+	register_syscore(&spu_syscore);
 
 	spu_init_affinity();
 

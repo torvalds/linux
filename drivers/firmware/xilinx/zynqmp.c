@@ -3,7 +3,7 @@
  * Xilinx Zynq MPSoC Firmware layer
  *
  *  Copyright (C) 2014-2022 Xilinx, Inc.
- *  Copyright (C) 2022 - 2024, Advanced Micro Devices, Inc.
+ *  Copyright (C) 2022 - 2025 Advanced Micro Devices, Inc.
  *
  *  Michal Simek <michal.simek@amd.com>
  *  Davorin Mista <davorin.mista@aggios.com>
@@ -71,6 +71,15 @@ struct pm_api_feature_data {
 	int feature_status;
 	struct hlist_node hentry;
 };
+
+struct platform_fw_data {
+	/*
+	 * Family code for platform.
+	 */
+	const u32 family_code;
+};
+
+static struct platform_fw_data *active_platform_fw_data;
 
 static const struct mfd_cell firmware_devs[] = {
 	{
@@ -464,8 +473,6 @@ int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 *ret_payload, u32 num_args, ...)
 
 static u32 pm_api_version;
 static u32 pm_tz_version;
-static u32 pm_family_code;
-static u32 pm_sub_family_code;
 
 int zynqmp_pm_register_sgi(u32 sgi_num, u32 reset)
 {
@@ -532,32 +539,18 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_get_chipid);
 /**
  * zynqmp_pm_get_family_info() - Get family info of platform
  * @family:	Returned family code value
- * @subfamily:	Returned sub-family code value
  *
  * Return: Returns status, either success or error+reason
  */
-int zynqmp_pm_get_family_info(u32 *family, u32 *subfamily)
+int zynqmp_pm_get_family_info(u32 *family)
 {
-	u32 ret_payload[PAYLOAD_ARG_CNT];
-	u32 idcode;
-	int ret;
+	if (!active_platform_fw_data)
+		return -ENODEV;
 
-	/* Check is family or sub-family code already received */
-	if (pm_family_code && pm_sub_family_code) {
-		*family = pm_family_code;
-		*subfamily = pm_sub_family_code;
-		return 0;
-	}
+	if (!family)
+		return -EINVAL;
 
-	ret = zynqmp_pm_invoke_fn(PM_GET_CHIPID, ret_payload, 0);
-	if (ret < 0)
-		return ret;
-
-	idcode = ret_payload[1];
-	pm_family_code = FIELD_GET(FAMILY_CODE_MASK, idcode);
-	pm_sub_family_code = FIELD_GET(SUB_FAMILY_CODE_MASK, idcode);
-	*family = pm_family_code;
-	*subfamily = pm_sub_family_code;
+	*family = active_platform_fw_data->family_code;
 
 	return 0;
 }
@@ -1238,8 +1231,13 @@ int zynqmp_pm_pinctrl_set_config(const u32 pin, const u32 param,
 				 u32 value)
 {
 	int ret;
+	u32 pm_family_code;
 
-	if (pm_family_code == ZYNQMP_FAMILY_CODE &&
+	ret = zynqmp_pm_get_family_info(&pm_family_code);
+	if (ret)
+		return ret;
+
+	if (pm_family_code == PM_ZYNQMP_FAMILY_CODE &&
 	    param == PM_PINCTRL_CONFIG_TRI_STATE) {
 		ret = zynqmp_pm_feature(PM_PINCTRL_CONFIG_PARAM_SET);
 		if (ret < PM_PINCTRL_PARAM_SET_VERSION) {
@@ -1412,6 +1410,45 @@ int zynqmp_pm_set_tcm_config(u32 node_id, enum rpu_tcm_comb tcm_mode)
 				   (u32)tcm_mode);
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_set_tcm_config);
+
+/**
+ * zynqmp_pm_get_node_status - PM call to request a node's current power state
+ * @node:		ID of the component or sub-system in question
+ * @status:		Current operating state of the requested node
+ * @requirements:	Current requirements asserted on the node,
+ *			used for slave nodes only.
+ * @usage:		Usage information, used for slave nodes only:
+ *			PM_USAGE_NO_MASTER	- No master is currently using
+ *						  the node
+ *			PM_USAGE_CURRENT_MASTER	- Only requesting master is
+ *						  currently using the node
+ *			PM_USAGE_OTHER_MASTER	- Only other masters are
+ *						  currently using the node
+ *			PM_USAGE_BOTH_MASTERS	- Both the current and at least
+ *						  one other master is currently
+ *						  using the node
+ *
+ * Return:		Returns status, either success or error+reason
+ */
+int zynqmp_pm_get_node_status(const u32 node, u32 *const status,
+			      u32 *const requirements, u32 *const usage)
+{
+	u32 ret_payload[PAYLOAD_ARG_CNT];
+	int ret;
+
+	if (!status || !requirements || !usage)
+		return -EINVAL;
+
+	ret = zynqmp_pm_invoke_fn(PM_GET_NODE_STATUS, ret_payload, 1, node);
+	if (ret_payload[0] == XST_PM_SUCCESS) {
+		*status = ret_payload[1];
+		*requirements = ret_payload[2];
+		*usage = ret_payload[3];
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_get_node_status);
 
 /**
  * zynqmp_pm_force_pwrdwn - PM call to request for another PU or subsystem to
@@ -2007,11 +2044,17 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct zynqmp_devinfo *devinfo;
+	u32 pm_family_code;
 	int ret;
 
 	ret = get_set_conduit_method(dev->of_node);
 	if (ret)
 		return ret;
+
+	/* Get platform-specific firmware data from device tree match */
+	active_platform_fw_data = (struct platform_fw_data *)device_get_match_data(dev);
+	if (!active_platform_fw_data)
+		return -EINVAL;
 
 	/* Get SiP SVC version number */
 	ret = zynqmp_pm_get_sip_svc_version(&sip_svc_version);
@@ -2045,8 +2088,8 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	pr_info("%s Platform Management API v%d.%d\n", __func__,
 		pm_api_version >> 16, pm_api_version & 0xFFFF);
 
-	/* Get the Family code and sub family code of platform */
-	ret = zynqmp_pm_get_family_info(&pm_family_code, &pm_sub_family_code);
+	/* Get the Family code of platform */
+	ret = zynqmp_pm_get_family_info(&pm_family_code);
 	if (ret < 0)
 		return ret;
 
@@ -2073,7 +2116,7 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 
 	zynqmp_pm_api_debugfs_init();
 
-	if (pm_family_code == VERSAL_FAMILY_CODE) {
+	if (pm_family_code != PM_ZYNQMP_FAMILY_CODE) {
 		em_dev = platform_device_register_data(&pdev->dev, "xlnx_event_manager",
 						       -1, NULL, 0);
 		if (IS_ERR(em_dev))
@@ -2113,9 +2156,22 @@ static void zynqmp_firmware_sync_state(struct device *dev)
 		dev_warn(dev, "failed to release power management to firmware\n");
 }
 
+static const struct platform_fw_data platform_fw_data_versal = {
+	.family_code = PM_VERSAL_FAMILY_CODE,
+};
+
+static const struct platform_fw_data platform_fw_data_versal_net = {
+	.family_code = PM_VERSAL_NET_FAMILY_CODE,
+};
+
+static const struct platform_fw_data platform_fw_data_zynqmp = {
+	.family_code = PM_ZYNQMP_FAMILY_CODE,
+};
+
 static const struct of_device_id zynqmp_firmware_of_match[] = {
-	{.compatible = "xlnx,zynqmp-firmware"},
-	{.compatible = "xlnx,versal-firmware"},
+	{.compatible = "xlnx,zynqmp-firmware", .data = &platform_fw_data_zynqmp},
+	{.compatible = "xlnx,versal-firmware", .data = &platform_fw_data_versal},
+	{.compatible = "xlnx,versal-net-firmware", .data = &platform_fw_data_versal_net},
 	{},
 };
 MODULE_DEVICE_TABLE(of, zynqmp_firmware_of_match);

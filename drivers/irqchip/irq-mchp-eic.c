@@ -109,7 +109,7 @@ static int mchp_eic_irq_set_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
-static int mchp_eic_irq_suspend(void)
+static int mchp_eic_irq_suspend(void *data)
 {
 	unsigned int hwirq;
 
@@ -123,7 +123,7 @@ static int mchp_eic_irq_suspend(void)
 	return 0;
 }
 
-static void mchp_eic_irq_resume(void)
+static void mchp_eic_irq_resume(void *data)
 {
 	unsigned int hwirq;
 
@@ -135,9 +135,13 @@ static void mchp_eic_irq_resume(void)
 			       MCHP_EIC_SCFG(hwirq));
 }
 
-static struct syscore_ops mchp_eic_syscore_ops = {
+static const struct syscore_ops mchp_eic_syscore_ops = {
 	.suspend = mchp_eic_irq_suspend,
 	.resume = mchp_eic_irq_resume,
+};
+
+static struct syscore mchp_eic_syscore = {
+	.ops = &mchp_eic_syscore_ops,
 };
 
 static struct irq_chip mchp_eic_chip = {
@@ -258,7 +262,7 @@ static int mchp_eic_probe(struct platform_device *pdev, struct device_node *pare
 		goto clk_unprepare;
 	}
 
-	register_syscore_ops(&mchp_eic_syscore_ops);
+	register_syscore(&mchp_eic_syscore);
 
 	pr_info("%pOF: EIC registered, nr_irqs %u\n", node, MCHP_EIC_NIRQ);
 

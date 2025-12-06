@@ -120,7 +120,7 @@ static void resume_one_vic(struct vic_device *vic)
 	writel(~vic->soft_int, base + VIC_INT_SOFT_CLEAR);
 }
 
-static void vic_resume(void)
+static void vic_resume(void *data)
 {
 	int id;
 
@@ -146,7 +146,7 @@ static void suspend_one_vic(struct vic_device *vic)
 	writel(~vic->resume_irqs, base + VIC_INT_ENABLE_CLEAR);
 }
 
-static int vic_suspend(void)
+static int vic_suspend(void *data)
 {
 	int id;
 
@@ -156,9 +156,13 @@ static int vic_suspend(void)
 	return 0;
 }
 
-static struct syscore_ops vic_syscore_ops = {
+static const struct syscore_ops vic_syscore_ops = {
 	.suspend	= vic_suspend,
 	.resume		= vic_resume,
+};
+
+static struct syscore vic_syscore = {
+	.ops = &vic_syscore_ops,
 };
 
 /**
@@ -171,7 +175,7 @@ static struct syscore_ops vic_syscore_ops = {
 static int __init vic_pm_init(void)
 {
 	if (vic_id > 0)
-		register_syscore_ops(&vic_syscore_ops);
+		register_syscore(&vic_syscore);
 
 	return 0;
 }
