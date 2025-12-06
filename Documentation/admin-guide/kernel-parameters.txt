@@ -1111,7 +1111,7 @@ Kernel parameters
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
 	crashkernel=size[KMG],cma
-			[KNL, X86] Reserve additional crash kernel memory from
+			[KNL, X86, ppc] Reserve additional crash kernel memory from
 			CMA. This reservation is usable by the first system's
 			userspace memory and kernel movable allocations (memory
 			balloon, zswap). Pages allocated from this memory range
@@ -7303,6 +7303,9 @@ Kernel parameters
 			Limits the number of kernel SLB entries, and flushes
 			them frequently to increase the rate of SLB faults
 			on kernel addresses.
+
+	no_slb_preload	[PPC,EARLY]
+			Disables slb preloading for userspace.
 
 	sunrpc.min_resvport=
 	sunrpc.max_resvport=
