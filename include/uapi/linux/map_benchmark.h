@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
- * Copyright (C) 2022 HiSilicon Limited.
+ * Copyright (C) 2022-2025 HiSilicon Limited.
  */
 
-#ifndef _KERNEL_DMA_BENCHMARK_H
-#define _KERNEL_DMA_BENCHMARK_H
+#ifndef _UAPI_DMA_BENCHMARK_H
+#define _UAPI_DMA_BENCHMARK_H
+
+#include <linux/types.h>
 
 #define DMA_MAP_BENCHMARK       _IOWR('d', 1, struct map_benchmark)
 #define DMA_MAP_MAX_THREADS     1024
@@ -29,4 +31,5 @@ struct map_benchmark {
 	__u32 granule;  /* how many PAGE_SIZE will do map/unmap once a time */
 	__u8 expansion[76]; /* For future use */
 };
-#endif /* _KERNEL_DMA_BENCHMARK_H */
+
+#endif /* _UAPI_DMA_BENCHMARK_H */
