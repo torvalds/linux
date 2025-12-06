@@ -163,7 +163,7 @@ enum {
 #define RET_STACK(t, offset) ((struct ftrace_ret_stack *)(&(t)->ret_stack[offset]))
 
 /*
- * Each fgraph_ops has a reservered unsigned long at the end (top) of the
+ * Each fgraph_ops has a reserved unsigned long at the end (top) of the
  * ret_stack to store task specific state.
  */
 #define SHADOW_STACK_TASK_VARS(ret_stack) \

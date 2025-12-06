@@ -517,7 +517,7 @@ static void clear_btf_context(struct traceprobe_parse_context *ctx)
 	}
 }
 
-/* Return 1 if the field separater is arrow operator ('->') */
+/* Return 1 if the field separator is arrow operator ('->') */
 static int split_next_field(char *varname, char **next_field,
 			    struct traceprobe_parse_context *ctx)
 {

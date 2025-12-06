@@ -1770,7 +1770,7 @@ static bool rb_meta_init(struct trace_buffer *buffer, int scratch_size)
 	bmeta->total_size = total_size;
 	bmeta->buffers_offset = (void *)ptr - (void *)bmeta;
 
-	/* Zero out the scatch pad */
+	/* Zero out the scratch pad */
 	memset((void *)bmeta + sizeof(*bmeta), 0, bmeta->buffers_offset - sizeof(*bmeta));
 
 	return false;
@@ -6089,7 +6089,7 @@ static void rb_clear_buffer_page(struct buffer_page *page)
  * id field, and updated via this function.
  *
  * But for a fixed memory mapped buffer, the id is already assigned for
- * fixed memory ording in the memory layout and can not be used. Instead
+ * fixed memory ordering in the memory layout and can not be used. Instead
  * the index of where the page lies in the memory layout is used.
  *
  * For the normal pages, set the buffer page id with the passed in @id
@@ -7669,7 +7669,7 @@ static __init int test_ringbuffer(void)
 	/*
 	 * Show buffer is enabled before setting rb_test_started.
 	 * Yes there's a small race window where events could be
-	 * dropped and the thread wont catch it. But when a ring
+	 * dropped and the thread won't catch it. But when a ring
 	 * buffer gets enabled, there will always be some kind of
 	 * delay before other CPUs see it. Thus, we don't care about
 	 * those dropped events. We care about events dropped after

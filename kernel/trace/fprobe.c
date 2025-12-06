@@ -30,7 +30,7 @@
  * fprobe_table: hold 'fprobe_hlist::hlist' for checking the fprobe still
  *   exists. The key is the address of fprobe instance.
  * fprobe_ip_table: hold 'fprobe_hlist::array[*]' for searching the fprobe
- *   instance related to the funciton address. The key is the ftrace IP
+ *   instance related to the function address. The key is the ftrace IP
  *   address.
  *
  * When unregistering the fprobe, fprobe_hlist::fp and fprobe_hlist::array[*].fp

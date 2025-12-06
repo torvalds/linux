@@ -125,7 +125,7 @@ cpumask_var_t __read_mostly	tracing_buffer_mask;
  * If there is an oops (or kernel panic) and the ftrace_dump_on_oops
  * is set, then ftrace_dump is called. This will output the contents
  * of the ftrace buffers to the console.  This is very useful for
- * capturing traces that lead to crashes and outputing it to a
+ * capturing traces that lead to crashes and outputting it to a
  * serial console.
  *
  * It is default off, but you can enable it with either specifying
@@ -134,7 +134,7 @@ cpumask_var_t __read_mostly	tracing_buffer_mask;
  * Set 1 if you want to dump buffers of all CPUs
  * Set 2 if you want to dump the buffer of the CPU that triggered oops
  * Set instance name if you want to dump the specific trace instance
- * Multiple instance dump is also supported, and instances are seperated
+ * Multiple instance dump is also supported, and instances are separated
  * by commas.
  */
 /* Set to string format zero to disable by default */
@@ -4709,8 +4709,10 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 	 * If pause-on-trace is enabled, then stop the trace while
 	 * dumping, unless this is the "snapshot" file
 	 */
-	if (!iter->snapshot && (tr->trace_flags & TRACE_ITER(PAUSE_ON_TRACE)))
+	if (!iter->snapshot && (tr->trace_flags & TRACE_ITER(PAUSE_ON_TRACE))) {
+		iter->iter_flags |= TRACE_FILE_PAUSE;
 		tracing_stop_tr(tr);
+	}
 
 	if (iter->cpu_file == RING_BUFFER_ALL_CPUS) {
 		for_each_tracing_cpu(cpu) {
@@ -4842,7 +4844,7 @@ static int tracing_release(struct inode *inode, struct file *file)
 	if (iter->trace && iter->trace->close)
 		iter->trace->close(iter);
 
-	if (!iter->snapshot && tr->stop_count)
+	if (iter->iter_flags & TRACE_FILE_PAUSE)
 		/* reenable tracing if it was previously enabled */
 		tracing_start_tr(tr);
 
@@ -5276,7 +5278,7 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 				return -EINVAL;
 			/*
 			 * An instance must always have it set.
-			 * by default, that's the global_trace instane.
+			 * by default, that's the global_trace instance.
 			 */
 			if (printk_trace == tr)
 				update_printk_trace(&global_trace);
@@ -7554,7 +7556,7 @@ char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
 		migrate_disable();
 
 		/*
-		 * Now preemption is being enabed and another task can come in
+		 * Now preemption is being enabled and another task can come in
 		 * and use the same buffer and corrupt our data.
 		 */
 		preempt_enable_notrace();
@@ -11329,7 +11331,7 @@ __init static void do_allocate_snapshot(const char *name)
 	/*
 	 * When allocate_snapshot is set, the next call to
 	 * allocate_trace_buffers() (called by trace_array_get_by_name())
-	 * will allocate the snapshot buffer. That will alse clear
+	 * will allocate the snapshot buffer. That will also clear
 	 * this flag.
 	 */
 	allocate_snapshot = true;

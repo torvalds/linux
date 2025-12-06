@@ -5283,7 +5283,7 @@ hist_trigger_actions(struct hist_trigger_data *hist_data,
  * on the stack, so when the histogram trigger is initialized
  * a percpu array of 4 hist_pad structures is allocated.
  * This will cover every context from normal, softirq, irq and NMI
- * in the very unlikely event that a tigger happens at each of
+ * in the very unlikely event that a trigger happens at each of
  * these contexts and interrupts a currently active trigger.
  */
 struct hist_pad {
