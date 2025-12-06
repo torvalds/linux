@@ -15,7 +15,14 @@ use crate::{
     types::{AlwaysRefCounted, Opaque},
     ThisModule,
 };
-use core::{marker::PhantomData, mem::MaybeUninit, ptr::NonNull};
+use core::{
+    marker::PhantomData,
+    mem::{
+        offset_of,
+        MaybeUninit, //
+    },
+    ptr::NonNull,
+};
 
 /// An adapter for the registration of USB drivers.
 pub struct Adapter<T: Driver>(T);
@@ -67,10 +74,10 @@ impl<T: Driver + 'static> Adapter<T> {
             let id = unsafe { &*id.cast::<DeviceId>() };
 
             let info = T::ID_TABLE.info(id.index());
-            let data = T::probe(intf, id, info)?;
+            let data = T::probe(intf, id, info);
 
             let dev: &device::Device<device::CoreInternal> = intf.as_ref();
-            dev.set_drvdata(data);
+            dev.set_drvdata(data)?;
             Ok(0)
         })
     }
@@ -87,7 +94,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: `disconnect_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
         // and stored a `Pin<KBox<T>>`.
-        let data = unsafe { dev.drvdata_obtain::<Pin<KBox<T>>>() };
+        let data = unsafe { dev.drvdata_obtain::<T>() };
 
         T::disconnect(intf, data.as_ref());
     }
@@ -270,7 +277,7 @@ macro_rules! usb_device_table {
 ///         _interface: &usb::Interface<Core>,
 ///         _id: &usb::DeviceId,
 ///         _info: &Self::IdInfo,
-///     ) -> Result<Pin<KBox<Self>>> {
+///     ) -> impl PinInit<Self, Error> {
 ///         Err(ENODEV)
 ///     }
 ///
@@ -292,7 +299,7 @@ pub trait Driver {
         interface: &Interface<device::Core>,
         id: &DeviceId,
         id_info: &Self::IdInfo,
-    ) -> Result<Pin<KBox<Self>>>;
+    ) -> impl PinInit<Self, Error>;
 
     /// USB driver disconnect.
     ///
@@ -322,6 +329,12 @@ impl<Ctx: device::DeviceContext> Interface<Ctx> {
     fn as_raw(&self) -> *mut bindings::usb_interface {
         self.0.get()
     }
+}
+
+// SAFETY: `usb::Interface` is a transparent wrapper of `struct usb_interface`.
+// The offset is guaranteed to point to a valid device field inside `usb::Interface`.
+unsafe impl<Ctx: device::DeviceContext> device::AsBusDevice<Ctx> for Interface<Ctx> {
+    const OFFSET: usize = offset_of!(bindings::usb_interface, dev);
 }
 
 // SAFETY: `Interface` is a transparent wrapper of a type that doesn't depend on

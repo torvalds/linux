@@ -1211,12 +1211,8 @@ Kernel parameters
 
 	debugfs=    	[KNL,EARLY] This parameter enables what is exposed to
 			userspace and debugfs internal clients.
-			Format: { on, no-mount, off }
+			Format: { on, off }
 			on: 	All functions are enabled.
-			no-mount:
-				Filesystem is not registered but kernel clients can
-			        access APIs and a crashkernel can be used to read
-				its content. There is nothing to mount.
 			off: 	Filesystem is not registered and clients
 			        get a -EPERM as result when trying to register files
 				or directories within debugfs.

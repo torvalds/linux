@@ -84,6 +84,29 @@ config SAMPLE_RUST_DEBUGFS_SCOPED
 
 	  If unsure, say N.
 
+config SAMPLE_RUST_DRIVER_I2C
+	tristate "I2C Driver"
+	depends on I2C=y
+	help
+	  This option builds the Rust I2C driver sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_driver_i2c.
+
+	  If unsure, say N.
+
+config SAMPLE_RUST_I2C_CLIENT
+	tristate "I2C Client Registration"
+	depends on I2C=y
+	help
+	  This option builds the Rust I2C client manual creation
+	  sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_i2c_client.
+
+	  If unsure, say N.
+
 config SAMPLE_RUST_DRIVER_PCI
 	tristate "PCI Driver"
 	depends on PCI
@@ -91,7 +114,7 @@ config SAMPLE_RUST_DRIVER_PCI
 	  This option builds the Rust PCI driver sample.
 
 	  To compile this as a module, choose M here:
-	  the module will be called driver_pci.
+	  the module will be called rust_driver_pci.
 
 	  If unsure, say N.
 

@@ -1392,6 +1392,93 @@ where
     unsafe { pin_init_from_closure(init) }
 }
 
+/// Construct an initializer in a closure and run it.
+///
+/// Returns an initializer that first runs the closure and then the initializer returned by it.
+///
+/// See also [`init_scope`].
+///
+/// # Examples
+///
+/// ```
+/// # use pin_init::*;
+/// # #[pin_data]
+/// # struct Foo { a: u64, b: isize }
+/// # struct Bar { a: u32, b: isize }
+/// # fn lookup_bar() -> Result<Bar, Error> { todo!() }
+/// # struct Error;
+/// fn init_foo() -> impl PinInit<Foo, Error> {
+///     pin_init_scope(|| {
+///         let bar = lookup_bar()?;
+///         Ok(try_pin_init!(Foo { a: bar.a.into(), b: bar.b }? Error))
+///     })
+/// }
+/// ```
+///
+/// This initializer will first execute `lookup_bar()`, match on it, if it returned an error, the
+/// initializer itself will fail with that error. If it returned `Ok`, then it will run the
+/// initializer returned by the [`try_pin_init!`] invocation.
+pub fn pin_init_scope<T, E, F, I>(make_init: F) -> impl PinInit<T, E>
+where
+    F: FnOnce() -> Result<I, E>,
+    I: PinInit<T, E>,
+{
+    // SAFETY:
+    // - If `make_init` returns `Err`, `Err` is returned and `slot` is completely uninitialized,
+    // - If `make_init` returns `Ok`, safety requirement are fulfilled by `init.__pinned_init`.
+    // - The safety requirements of `init.__pinned_init` are fulfilled, since it's being called
+    //   from an initializer.
+    unsafe {
+        pin_init_from_closure(move |slot: *mut T| -> Result<(), E> {
+            let init = make_init()?;
+            init.__pinned_init(slot)
+        })
+    }
+}
+
+/// Construct an initializer in a closure and run it.
+///
+/// Returns an initializer that first runs the closure and then the initializer returned by it.
+///
+/// See also [`pin_init_scope`].
+///
+/// # Examples
+///
+/// ```
+/// # use pin_init::*;
+/// # struct Foo { a: u64, b: isize }
+/// # struct Bar { a: u32, b: isize }
+/// # fn lookup_bar() -> Result<Bar, Error> { todo!() }
+/// # struct Error;
+/// fn init_foo() -> impl Init<Foo, Error> {
+///     init_scope(|| {
+///         let bar = lookup_bar()?;
+///         Ok(try_init!(Foo { a: bar.a.into(), b: bar.b }? Error))
+///     })
+/// }
+/// ```
+///
+/// This initializer will first execute `lookup_bar()`, match on it, if it returned an error, the
+/// initializer itself will fail with that error. If it returned `Ok`, then it will run the
+/// initializer returned by the [`try_init!`] invocation.
+pub fn init_scope<T, E, F, I>(make_init: F) -> impl Init<T, E>
+where
+    F: FnOnce() -> Result<I, E>,
+    I: Init<T, E>,
+{
+    // SAFETY:
+    // - If `make_init` returns `Err`, `Err` is returned and `slot` is completely uninitialized,
+    // - If `make_init` returns `Ok`, safety requirement are fulfilled by `init.__init`.
+    // - The safety requirements of `init.__init` are fulfilled, since it's being called from an
+    //   initializer.
+    unsafe {
+        init_from_closure(move |slot: *mut T| -> Result<(), E> {
+            let init = make_init()?;
+            init.__init(slot)
+        })
+    }
+}
+
 // SAFETY: the `__init` function always returns `Ok(())` and initializes every field of `slot`.
 unsafe impl<T> Init<T> for T {
     unsafe fn __init(self, slot: *mut T) -> Result<(), Infallible> {

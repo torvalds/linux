@@ -8,6 +8,7 @@
 
 use kernel::debugfs::{Dir, Scope};
 use kernel::prelude::*;
+use kernel::sizes::*;
 use kernel::sync::atomic::Atomic;
 use kernel::sync::Mutex;
 use kernel::{c_str, new_mutex, str::CString};
@@ -66,18 +67,22 @@ fn create_file_write(
             GFP_KERNEL,
         )?;
     }
+    let blob = KBox::pin_init(new_mutex!([0x42; SZ_4K]), GFP_KERNEL)?;
 
     let scope = KBox::pin_init(
-        mod_data
-            .device_dir
-            .scope(DeviceData { name, nums }, &file_name, |dev_data, dir| {
+        mod_data.device_dir.scope(
+            DeviceData { name, nums, blob },
+            &file_name,
+            |dev_data, dir| {
                 for (idx, val) in dev_data.nums.iter().enumerate() {
                     let Ok(name) = CString::try_from_fmt(fmt!("{idx}")) else {
                         return;
                     };
                     dir.read_write_file(&name, val);
                 }
-            }),
+                dir.read_write_binary_file(c_str!("blob"), &dev_data.blob);
+            },
+        ),
         GFP_KERNEL,
     )?;
     (*mod_data.devices.lock()).push(scope, GFP_KERNEL)?;
@@ -110,6 +115,7 @@ impl ModuleData {
 struct DeviceData {
     name: CString,
     nums: KVec<Atomic<usize>>,
+    blob: Pin<KBox<Mutex<[u8; SZ_4K]>>>,
 }
 
 fn init_control(base_dir: &Dir, dyn_dirs: Dir) -> impl PinInit<Scope<ModuleData>> + '_ {

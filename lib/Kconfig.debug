@@ -688,7 +688,7 @@ choice
 	help
 	  This selects the default access restrictions for debugfs.
 	  It can be overridden with kernel command line option
-	  debugfs=[on,no-mount,off]. The restrictions apply for API access
+	  debugfs=[on,off]. The restrictions apply for API access
 	  and filesystem registration.
 
 config DEBUG_FS_ALLOW_ALL
@@ -696,13 +696,6 @@ config DEBUG_FS_ALLOW_ALL
 	help
 	  No restrictions apply. Both API and filesystem registration
 	  is on. This is the normal default operation.
-
-config DEBUG_FS_DISALLOW_MOUNT
-	bool "Do not register debugfs as filesystem"
-	help
-	  The API is open but filesystem is not loaded. Clients can still do
-	  their work and read with debug tools that do not need
-	  debugfs filesystem.
 
 config DEBUG_FS_ALLOW_NONE
 	bool "No access"
