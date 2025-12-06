@@ -568,6 +568,10 @@ config ARCH_STRICT_ALIGN
 	  to run kernel only on systems with h/w unaligned access support in
 	  order to optimise for performance.
 
+config CPU_HAS_AMO
+	bool
+	default 64BIT
+
 config CPU_HAS_FPU
 	bool
 	default y
