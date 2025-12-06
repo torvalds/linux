@@ -399,7 +399,8 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, unsigned long lflags)
 			lookup->table[0] = GPIO_LOOKUP(no_free_ptr(key), 0,
 						       ref->con_id, lflags);
 
-			gpiod_add_lookup_table(no_free_ptr(lookup));
+			ref->lookup = no_free_ptr(lookup);
+			gpiod_add_lookup_table(ref->lookup);
 
 			return 0;
 		}
