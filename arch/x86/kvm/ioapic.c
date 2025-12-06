@@ -37,11 +37,6 @@
 static int ioapic_service(struct kvm_ioapic *vioapic, int irq,
 		bool line_status);
 
-static void kvm_ioapic_update_eoi_one(struct kvm_vcpu *vcpu,
-				      struct kvm_ioapic *ioapic,
-				      int trigger_mode,
-				      int pin);
-
 static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic)
 {
 	unsigned long result = 0;
@@ -564,7 +559,6 @@ static void kvm_ioapic_update_eoi_one(struct kvm_vcpu *vcpu,
 	    kvm_lapic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)
 		return;
 
-	ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
 	ent->fields.remote_irr = 0;
 	if (!ent->fields.mask && (ioapic->irr & (1 << pin))) {
 		++ioapic->irq_eoi[pin];
