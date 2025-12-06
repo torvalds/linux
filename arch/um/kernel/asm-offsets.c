@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #include <asm/mman.h>
 #include <asm/seccomp.h>
+#include <asm/extable.h>
 
 /* workaround for a warning with -Wmissing-prototypes */
 void foo(void);
@@ -42,4 +43,7 @@ void foo(void)
 	DEFINE(HOSTFS_ATTR_CTIME, ATTR_CTIME);
 	DEFINE(HOSTFS_ATTR_ATIME_SET, ATTR_ATIME_SET);
 	DEFINE(HOSTFS_ATTR_MTIME_SET, ATTR_MTIME_SET);
+
+	DEFINE(ALT_INSTR_SIZE, sizeof(struct alt_instr));
+	DEFINE(EXTABLE_SIZE,   sizeof(struct exception_table_entry));
 }

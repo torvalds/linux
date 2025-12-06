@@ -466,7 +466,7 @@ static inline void call_depth_return_thunk(void) {}
  */
 # define CALL_NOSPEC						\
 	ALTERNATIVE_2(						\
-	ANNOTATE_RETPOLINE_SAFE					\
+	ANNOTATE_RETPOLINE_SAFE "\n"				\
 	"call *%[thunk_target]\n",				\
 	"       jmp    904f;\n"					\
 	"       .align 16\n"					\
@@ -482,7 +482,7 @@ static inline void call_depth_return_thunk(void) {}
 	"904:	call   901b;\n",				\
 	X86_FEATURE_RETPOLINE,					\
 	"lfence;\n"						\
-	ANNOTATE_RETPOLINE_SAFE					\
+	ANNOTATE_RETPOLINE_SAFE "\n"				\
 	"call *%[thunk_target]\n",				\
 	X86_FEATURE_RETPOLINE_LFENCE)
 
