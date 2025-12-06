@@ -1075,11 +1075,88 @@ __be32 nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
 
+/*
+ * The byte range of the client's READ request is expanded on both ends
+ * until it meets the underlying file system's direct I/O alignment
+ * requirements. After the internal read is complete, the byte range of
+ * the NFS READ payload is reduced to the byte range that was originally
+ * requested.
+ *
+ * Note that a direct read can be done only when the xdr_buf containing
+ * the NFS READ reply does not already have contents in its .pages array.
+ * This is due to potentially restrictive alignment requirements on the
+ * read buffer. When .page_len and @base are zero, the .pages array is
+ * guaranteed to be page-aligned.
+ */
+static noinline_for_stack __be32
+nfsd_direct_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		 struct nfsd_file *nf, loff_t offset, unsigned long *count,
+		 u32 *eof)
+{
+	u64 dio_start, dio_end;
+	unsigned long v, total;
+	struct iov_iter iter;
+	struct kiocb kiocb;
+	ssize_t host_err;
+	size_t len;
+
+	init_sync_kiocb(&kiocb, nf->nf_file);
+	kiocb.ki_flags |= IOCB_DIRECT;
+
+	/* Read a properly-aligned region of bytes into rq_bvec */
+	dio_start = round_down(offset, nf->nf_dio_read_offset_align);
+	dio_end = round_up((u64)offset + *count, nf->nf_dio_read_offset_align);
+
+	kiocb.ki_pos = dio_start;
+
+	v = 0;
+	total = dio_end - dio_start;
+	while (total && v < rqstp->rq_maxpages &&
+	       rqstp->rq_next_page < rqstp->rq_page_end) {
+		len = min_t(size_t, total, PAGE_SIZE);
+		bvec_set_page(&rqstp->rq_bvec[v], *rqstp->rq_next_page,
+			      len, 0);
+
+		total -= len;
+		++rqstp->rq_next_page;
+		++v;
+	}
+
+	trace_nfsd_read_direct(rqstp, fhp, offset, *count - total);
+	iov_iter_bvec(&iter, ITER_DEST, rqstp->rq_bvec, v,
+		      dio_end - dio_start - total);
+
+	host_err = vfs_iocb_iter_read(nf->nf_file, &kiocb, &iter);
+	if (host_err >= 0) {
+		unsigned int pad = offset - dio_start;
+
+		/* The returned payload starts after the pad */
+		rqstp->rq_res.page_base = pad;
+
+		/* Compute the count of bytes to be returned */
+		if (host_err > pad + *count)
+			host_err = *count;
+		else if (host_err > pad)
+			host_err -= pad;
+		else
+			host_err = 0;
+	} else if (unlikely(host_err == -EINVAL)) {
+		struct inode *inode = d_inode(fhp->fh_dentry);
+
+		pr_info_ratelimited("nfsd: Direct I/O alignment failure on %s/%ld\n",
+				    inode->i_sb->s_id, inode->i_ino);
+		host_err = -ESERVERFAULT;
+	}
+
+	return nfsd_finish_read(rqstp, fhp, nf->nf_file, offset, count,
+				eof, host_err);
+}
+
 /**
  * nfsd_iter_read - Perform a VFS read using an iterator
  * @rqstp: RPC transaction context
  * @fhp: file handle of file to be read
- * @file: opened struct file of file to be read
+ * @nf: opened struct nfsd_file of file to be read
  * @offset: starting byte offset
  * @count: IN: requested number of bytes; OUT: number of bytes read
  * @base: offset in first page of read buffer
@@ -1092,9 +1169,10 @@ __be32 nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
  * returned.
  */
 __be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		      struct file *file, loff_t offset, unsigned long *count,
+		      struct nfsd_file *nf, loff_t offset, unsigned long *count,
 		      unsigned int base, u32 *eof)
 {
+	struct file *file = nf->nf_file;
 	unsigned long v, total;
 	struct iov_iter iter;
 	struct kiocb kiocb;
@@ -1106,6 +1184,12 @@ __be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	switch (nfsd_io_cache_read) {
 	case NFSD_IO_BUFFERED:
 		break;
+	case NFSD_IO_DIRECT:
+		/* When dio_read_offset_align is zero, dio is not supported */
+		if (nf->nf_dio_read_offset_align && !rqstp->rq_res.page_len)
+			return nfsd_direct_read(rqstp, fhp, nf, offset,
+						count, eof);
+		fallthrough;
 	case NFSD_IO_DONTCACHE:
 		if (file->f_op->fop_flags & FOP_DONTCACHE)
 			kiocb.ki_flags = IOCB_DONTCACHE;
@@ -1116,18 +1200,20 @@ __be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	v = 0;
 	total = *count;
-	while (total) {
+	while (total && v < rqstp->rq_maxpages &&
+	       rqstp->rq_next_page < rqstp->rq_page_end) {
 		len = min_t(size_t, total, PAGE_SIZE - base);
-		bvec_set_page(&rqstp->rq_bvec[v], *(rqstp->rq_next_page++),
+		bvec_set_page(&rqstp->rq_bvec[v], *rqstp->rq_next_page,
 			      len, base);
+
 		total -= len;
+		++rqstp->rq_next_page;
 		++v;
 		base = 0;
 	}
-	WARN_ON_ONCE(v > rqstp->rq_maxpages);
 
-	trace_nfsd_read_vector(rqstp, fhp, offset, *count);
-	iov_iter_bvec(&iter, ITER_DEST, rqstp->rq_bvec, v, *count);
+	trace_nfsd_read_vector(rqstp, fhp, offset, *count - total);
+	iov_iter_bvec(&iter, ITER_DEST, rqstp->rq_bvec, v, *count - total);
 	host_err = vfs_iocb_iter_read(file, &kiocb, &iter);
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
@@ -1167,6 +1253,136 @@ static int wait_for_concurrent_writes(struct file *file)
 	last_ino = inode->i_ino;
 	last_dev = inode->i_sb->s_dev;
 	return err;
+}
+
+struct nfsd_write_dio_seg {
+	struct iov_iter			iter;
+	int				flags;
+};
+
+static unsigned long
+iov_iter_bvec_offset(const struct iov_iter *iter)
+{
+	return (unsigned long)(iter->bvec->bv_offset + iter->iov_offset);
+}
+
+static void
+nfsd_write_dio_seg_init(struct nfsd_write_dio_seg *segment,
+			struct bio_vec *bvec, unsigned int nvecs,
+			unsigned long total, size_t start, size_t len,
+			struct kiocb *iocb)
+{
+	iov_iter_bvec(&segment->iter, ITER_SOURCE, bvec, nvecs, total);
+	if (start)
+		iov_iter_advance(&segment->iter, start);
+	iov_iter_truncate(&segment->iter, len);
+	segment->flags = iocb->ki_flags;
+}
+
+static unsigned int
+nfsd_write_dio_iters_init(struct nfsd_file *nf, struct bio_vec *bvec,
+			  unsigned int nvecs, struct kiocb *iocb,
+			  unsigned long total,
+			  struct nfsd_write_dio_seg segments[3])
+{
+	u32 offset_align = nf->nf_dio_offset_align;
+	loff_t prefix_end, orig_end, middle_end;
+	u32 mem_align = nf->nf_dio_mem_align;
+	size_t prefix, middle, suffix;
+	loff_t offset = iocb->ki_pos;
+	unsigned int nsegs = 0;
+
+	/*
+	 * Check if direct I/O is feasible for this write request.
+	 * If alignments are not available, the write is too small,
+	 * or no alignment can be found, fall back to buffered I/O.
+	 */
+	if (unlikely(!mem_align || !offset_align) ||
+	    unlikely(total < max(offset_align, mem_align)))
+		goto no_dio;
+
+	prefix_end = round_up(offset, offset_align);
+	orig_end = offset + total;
+	middle_end = round_down(orig_end, offset_align);
+
+	prefix = prefix_end - offset;
+	middle = middle_end - prefix_end;
+	suffix = orig_end - middle_end;
+
+	if (!middle)
+		goto no_dio;
+
+	if (prefix)
+		nfsd_write_dio_seg_init(&segments[nsegs++], bvec,
+					nvecs, total, 0, prefix, iocb);
+
+	nfsd_write_dio_seg_init(&segments[nsegs], bvec, nvecs,
+				total, prefix, middle, iocb);
+
+	/*
+	 * Check if the bvec iterator is aligned for direct I/O.
+	 *
+	 * bvecs generated from RPC receive buffers are contiguous: After
+	 * the first bvec, all subsequent bvecs start at bv_offset zero
+	 * (page-aligned). Therefore, only the first bvec is checked.
+	 */
+	if (iov_iter_bvec_offset(&segments[nsegs].iter) & (mem_align - 1))
+		goto no_dio;
+	segments[nsegs].flags |= IOCB_DIRECT;
+	nsegs++;
+
+	if (suffix)
+		nfsd_write_dio_seg_init(&segments[nsegs++], bvec, nvecs, total,
+					prefix + middle, suffix, iocb);
+
+	return nsegs;
+
+no_dio:
+	/* No DIO alignment possible - pack into single non-DIO segment. */
+	nfsd_write_dio_seg_init(&segments[0], bvec, nvecs, total, 0,
+				total, iocb);
+	return 1;
+}
+
+static noinline_for_stack int
+nfsd_direct_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		  struct nfsd_file *nf, unsigned int nvecs,
+		  unsigned long *cnt, struct kiocb *kiocb)
+{
+	struct nfsd_write_dio_seg segments[3];
+	struct file *file = nf->nf_file;
+	unsigned int nsegs, i;
+	ssize_t host_err;
+
+	nsegs = nfsd_write_dio_iters_init(nf, rqstp->rq_bvec, nvecs,
+					  kiocb, *cnt, segments);
+
+	*cnt = 0;
+	for (i = 0; i < nsegs; i++) {
+		kiocb->ki_flags = segments[i].flags;
+		if (kiocb->ki_flags & IOCB_DIRECT)
+			trace_nfsd_write_direct(rqstp, fhp, kiocb->ki_pos,
+						segments[i].iter.count);
+		else {
+			trace_nfsd_write_vector(rqstp, fhp, kiocb->ki_pos,
+						segments[i].iter.count);
+			/*
+			 * Mark the I/O buffer as evict-able to reduce
+			 * memory contention.
+			 */
+			if (nf->nf_file->f_op->fop_flags & FOP_DONTCACHE)
+				kiocb->ki_flags |= IOCB_DONTCACHE;
+		}
+
+		host_err = vfs_iocb_iter_write(file, kiocb, &segments[i].iter);
+		if (host_err < 0)
+			return host_err;
+		*cnt += host_err;
+		if (host_err < segments[i].iter.count)
+			break;	/* partial write */
+	}
+
+	return 0;
 }
 
 /**
@@ -1229,29 +1445,46 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		stable = NFS_UNSTABLE;
 	init_sync_kiocb(&kiocb, file);
 	kiocb.ki_pos = offset;
-	if (stable && !fhp->fh_use_wgather)
-		kiocb.ki_flags |= IOCB_DSYNC;
+	if (likely(!fhp->fh_use_wgather)) {
+		switch (stable) {
+		case NFS_FILE_SYNC:
+			/* persist data and timestamps */
+			kiocb.ki_flags |= IOCB_DSYNC | IOCB_SYNC;
+			break;
+		case NFS_DATA_SYNC:
+			/* persist data only */
+			kiocb.ki_flags |= IOCB_DSYNC;
+			break;
+		}
+	}
 
 	nvecs = xdr_buf_to_bvec(rqstp->rq_bvec, rqstp->rq_maxpages, payload);
-	iov_iter_bvec(&iter, ITER_SOURCE, rqstp->rq_bvec, nvecs, *cnt);
+
 	since = READ_ONCE(file->f_wb_err);
 	if (verf)
 		nfsd_copy_write_verifier(verf, nn);
 
 	switch (nfsd_io_cache_write) {
-	case NFSD_IO_BUFFERED:
+	case NFSD_IO_DIRECT:
+		host_err = nfsd_direct_write(rqstp, fhp, nf, nvecs,
+					     cnt, &kiocb);
 		break;
 	case NFSD_IO_DONTCACHE:
 		if (file->f_op->fop_flags & FOP_DONTCACHE)
 			kiocb.ki_flags |= IOCB_DONTCACHE;
+		fallthrough;
+	case NFSD_IO_BUFFERED:
+		iov_iter_bvec(&iter, ITER_SOURCE, rqstp->rq_bvec, nvecs, *cnt);
+		host_err = vfs_iocb_iter_write(file, &kiocb, &iter);
+		if (host_err < 0)
+			break;
+		*cnt = host_err;
 		break;
 	}
-	host_err = vfs_iocb_iter_write(file, &kiocb, &iter);
 	if (host_err < 0) {
 		commit_reset_write_verifier(nn, rqstp, host_err);
 		goto out_nfserr;
 	}
-	*cnt = host_err;
 	nfsd_stats_io_write_add(nn, exp, *cnt);
 	fsnotify_modify(file);
 	host_err = filemap_check_wb_err(file->f_mapping, since);
@@ -1335,7 +1568,7 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (file->f_op->splice_read && nfsd_read_splice_ok(rqstp))
 		err = nfsd_splice_read(rqstp, fhp, file, offset, count, eof);
 	else
-		err = nfsd_iter_read(rqstp, fhp, file, offset, count, 0, eof);
+		err = nfsd_iter_read(rqstp, fhp, nf, offset, count, 0, eof);
 
 	nfsd_file_put(nf);
 	trace_nfsd_read_done(rqstp, fhp, offset, *count);
