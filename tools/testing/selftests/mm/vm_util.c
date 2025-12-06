@@ -9,7 +9,7 @@
 #include <linux/fs.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "vm_util.h"
 
 #define PMD_SIZE_FILE_PATH "/sys/kernel/mm/transparent_hugepage/hpage_pmd_size"

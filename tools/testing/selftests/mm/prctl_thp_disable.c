@@ -13,7 +13,7 @@
 #include <sys/prctl.h>
 #include <sys/wait.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "thp_settings.h"
 #include "vm_util.h"
 

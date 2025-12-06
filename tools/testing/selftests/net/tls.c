@@ -21,7 +21,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define TLS_PAYLOAD_MAX_LEN 16384
 #define SOL_TLS 282

@@ -19,7 +19,7 @@
 #include <linux/types.h>
 #include <linux/vfio.h>
 
-#include "../../../kselftest.h"
+#include "kselftest.h"
 #include <libvfio.h>
 
 #define PCI_SYSFS_PATH	"/sys/bus/pci/devices"

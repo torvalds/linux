@@ -16,7 +16,7 @@
 #include <sys/socket.h>
 #include <linux/nfc.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define GENLMSG_DATA(glh)	((void *)(NLMSG_DATA(glh) + GENL_HDRLEN))
 #define GENLMSG_PAYLOAD(glh)	(NLMSG_PAYLOAD(glh, 0) - GENL_HDRLEN)

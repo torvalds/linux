@@ -11,7 +11,7 @@
 #include <sys/signalfd.h>
 #include <sys/socket.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define BUF_SZ	32
 

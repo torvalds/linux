@@ -18,7 +18,7 @@
 
 #include "futextest.h"
 #include "futex2test.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define MAX_THREADS	64
 

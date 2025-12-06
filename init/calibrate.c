@@ -5,19 +5,22 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/timex.h>
-#include <linux/smp.h>
+#include <linux/jiffies.h>
+#include <linux/kstrtox.h>
 #include <linux/percpu.h>
+#include <linux/printk.h>
+#include <linux/smp.h>
+#include <linux/stddef.h>
+#include <linux/timex.h>
 
 unsigned long lpj_fine;
 unsigned long preset_lpj;
+
 static int __init lpj_setup(char *str)
 {
-	preset_lpj = simple_strtoul(str,NULL,0);
-	return 1;
+	return kstrtoul(str, 0, &preset_lpj) == 0;
 }
 
 __setup("lpj=", lpj_setup);

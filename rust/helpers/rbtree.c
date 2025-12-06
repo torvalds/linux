@@ -7,3 +7,13 @@ void rust_helper_rb_link_node(struct rb_node *node, struct rb_node *parent,
 {
 	rb_link_node(node, parent, rb_link);
 }
+
+struct rb_node *rust_helper_rb_first(const struct rb_root *root)
+{
+	return rb_first(root);
+}
+
+struct rb_node *rust_helper_rb_last(const struct rb_root *root)
+{
+	return rb_last(root);
+}

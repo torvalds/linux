@@ -16,7 +16,7 @@
 #include <sys/time.h>
 #endif
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "parse_vdso.h"
 #include "vdso_config.h"
 #include "vdso_call.h"

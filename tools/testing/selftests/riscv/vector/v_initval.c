@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "v_helpers.h"
 
 #define NEXT_PROGRAM "./v_exec_initval_nolibc"

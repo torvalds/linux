@@ -7,7 +7,7 @@
 #include <sys/msg.h>
 #include <fcntl.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define MAX_MSG_SIZE		32
 

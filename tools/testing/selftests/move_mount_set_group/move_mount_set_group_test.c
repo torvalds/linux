@@ -15,7 +15,7 @@
 #include <stdarg.h>
 #include <sys/syscall.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #ifndef CLONE_NEWNS
 #define CLONE_NEWNS 0x00020000

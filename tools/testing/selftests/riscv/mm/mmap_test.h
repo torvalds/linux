@@ -5,7 +5,7 @@
 #include <sys/resource.h>
 #include <stddef.h>
 #include <strings.h>
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define TOP_DOWN 0
 #define BOTTOM_UP 1

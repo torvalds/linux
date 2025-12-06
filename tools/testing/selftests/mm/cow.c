@@ -27,7 +27,7 @@
 #endif /* LOCAL_CONFIG_HAVE_LIBURING */
 
 #include "../../../../mm/gup_test.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "vm_util.h"
 #include "thp_settings.h"
 

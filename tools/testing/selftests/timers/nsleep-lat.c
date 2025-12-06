@@ -25,7 +25,7 @@
 #include <string.h>
 #include <signal.h>
 #include <include/vdso/time64.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define UNRESONABLE_LATENCY 40000000 /* 40ms in nanosecs */
 

@@ -11,7 +11,7 @@
 #include <syscall.h>
 #include <sys/wait.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "../pidfd/pidfd.h"
 
 /*

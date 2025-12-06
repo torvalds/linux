@@ -28,7 +28,7 @@
 #include <signal.h>
 
 #include "futextest.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define PAGE_SZ 4096
 

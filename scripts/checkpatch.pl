@@ -860,6 +860,10 @@ our %deprecated_apis = (
 	"kunmap"				=> "kunmap_local",
 	"kmap_atomic"				=> "kmap_local_page",
 	"kunmap_atomic"				=> "kunmap_local",
+	#These should be enough to drive away new IDR users
+	"DEFINE_IDR"				=> "DEFINE_XARRAY",
+	"idr_init"				=> "xa_init",
+	"idr_init_base"				=> "xa_init_flags"
 );
 
 #Create a search pattern for all these strings to speed up a loop below
@@ -3343,6 +3347,13 @@ sub process {
 			    $fix) {
 				$fixed[$fixlinenr] =~ s/^/ /;
 			}
+		}
+
+# Check for auto-generated unhandled placeholder text (mostly for cover letters)
+		if (($in_commit_log || $in_header_lines) &&
+		    $rawline =~ /(?:SUBJECT|BLURB) HERE/) {
+			ERROR("PLACEHOLDER_USE",
+			      "Placeholder text detected\n" . $herecurr);
 		}
 
 # Check for git id commit length and improperly formed commit descriptions

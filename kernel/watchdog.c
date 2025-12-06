@@ -25,6 +25,7 @@
 #include <linux/stop_machine.h>
 #include <linux/sysctl.h>
 #include <linux/tick.h>
+#include <linux/sys_info.h>
 
 #include <linux/sched/clock.h>
 #include <linux/sched/debug.h>
@@ -64,6 +65,13 @@ int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
  */
 unsigned int __read_mostly hardlockup_panic =
 			IS_ENABLED(CONFIG_BOOTPARAM_HARDLOCKUP_PANIC);
+
+/*
+ * bitmasks to control what kinds of system info to be printed when
+ * hard lockup is detected, it could be task, memory, lock etc.
+ * Refer include/linux/sys_info.h for detailed bit definition.
+ */
+static unsigned long hardlockup_si_mask;
 
 #ifdef CONFIG_SYSFS
 
@@ -178,11 +186,15 @@ static void watchdog_hardlockup_kick(void)
 
 void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 {
+	int hardlockup_all_cpu_backtrace;
+
 	if (per_cpu(watchdog_hardlockup_touched, cpu)) {
 		per_cpu(watchdog_hardlockup_touched, cpu) = false;
 		return;
 	}
 
+	hardlockup_all_cpu_backtrace = (hardlockup_si_mask & SYS_INFO_ALL_BT) ?
+					1 : sysctl_hardlockup_all_cpu_backtrace;
 	/*
 	 * Check for a hardlockup by making sure the CPU's timer
 	 * interrupt is incrementing. The timer interrupt should have
@@ -214,7 +226,7 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 		 * Prevent multiple hard-lockup reports if one cpu is already
 		 * engaged in dumping all cpu back traces.
 		 */
-		if (sysctl_hardlockup_all_cpu_backtrace) {
+		if (hardlockup_all_cpu_backtrace) {
 			if (test_and_set_bit_lock(0, &hard_lockup_nmi_warn))
 				return;
 		}
@@ -243,12 +255,13 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 			trigger_single_cpu_backtrace(cpu);
 		}
 
-		if (sysctl_hardlockup_all_cpu_backtrace) {
+		if (hardlockup_all_cpu_backtrace) {
 			trigger_allbutcpu_cpu_backtrace(cpu);
 			if (!hardlockup_panic)
 				clear_bit_unlock(0, &hard_lockup_nmi_warn);
 		}
 
+		sys_info(hardlockup_si_mask & ~SYS_INFO_ALL_BT);
 		if (hardlockup_panic)
 			nmi_panic(regs, "Hard LOCKUP");
 
@@ -338,6 +351,13 @@ static void lockup_detector_update_enable(void)
 #ifdef CONFIG_SMP
 int __read_mostly sysctl_softlockup_all_cpu_backtrace;
 #endif
+
+/*
+ * bitmasks to control what kinds of system info to be printed when
+ * soft lockup is detected, it could be task, memory, lock etc.
+ * Refer include/linux/sys_info.h for detailed bit definition.
+ */
+static unsigned long softlockup_si_mask;
 
 static struct cpumask watchdog_allowed_mask __read_mostly;
 
@@ -755,7 +775,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	unsigned long touch_ts, period_ts, now;
 	struct pt_regs *regs = get_irq_regs();
 	int duration;
-	int softlockup_all_cpu_backtrace = sysctl_softlockup_all_cpu_backtrace;
+	int softlockup_all_cpu_backtrace;
 	unsigned long flags;
 
 	if (!watchdog_enabled)
@@ -766,6 +786,9 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	 */
 	if (panic_in_progress())
 		return HRTIMER_NORESTART;
+
+	softlockup_all_cpu_backtrace = (softlockup_si_mask & SYS_INFO_ALL_BT) ?
+					1 : sysctl_softlockup_all_cpu_backtrace;
 
 	watchdog_hardlockup_kick();
 
@@ -855,6 +878,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		}
 
 		add_taint(TAINT_SOFTLOCKUP, LOCKDEP_STILL_OK);
+		sys_info(softlockup_si_mask & ~SYS_INFO_ALL_BT);
 		if (softlockup_panic)
 			panic("softlockup: hung tasks");
 	}
@@ -1206,6 +1230,13 @@ static const struct ctl_table watchdog_sysctls[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
+	{
+		.procname	= "softlockup_sys_info",
+		.data		= &softlockup_si_mask,
+		.maxlen         = sizeof(softlockup_si_mask),
+		.mode		= 0644,
+		.proc_handler	= sysctl_sys_info_handler,
+	},
 #ifdef CONFIG_SMP
 	{
 		.procname	= "softlockup_all_cpu_backtrace",
@@ -1227,6 +1258,13 @@ static const struct ctl_table watchdog_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
+	},
+	{
+		.procname	= "hardlockup_sys_info",
+		.data		= &hardlockup_si_mask,
+		.maxlen         = sizeof(hardlockup_si_mask),
+		.mode		= 0644,
+		.proc_handler	= sysctl_sys_info_handler,
 	},
 #ifdef CONFIG_SMP
 	{

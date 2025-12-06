@@ -11659,7 +11659,7 @@ T:	git git://linuxtv.org/media.git
 F:	drivers/media/i2c/hi556.c
 
 HYNIX HI846 SENSOR DRIVER
-M:	Martin Kepplinger <martin.kepplinger@puri.sm>
+M:	Martin Kepplinger-Novakovic <martink@posteo.de>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/hi846.c
@@ -11744,6 +11744,7 @@ HUNG TASK DETECTOR
 M:	Andrew Morton <akpm@linux-foundation.org>
 R:	Lance Yang <lance.yang@linux.dev>
 R:	Masami Hiramatsu <mhiramat@kernel.org>
+R:	Petr Mladek <pmladek@suse.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	include/linux/hung_task.h
@@ -13891,14 +13892,15 @@ F:	kernel/kexec*
 KEXEC HANDOVER (KHO)
 M:	Alexander Graf <graf@amazon.com>
 M:	Mike Rapoport <rppt@kernel.org>
-M:	Changyuan Lyu <changyuanl@google.com>
+M:	Pasha Tatashin <pasha.tatashin@soleen.com>
+R:	Pratyush Yadav <pratyush@kernel.org>
 L:	kexec@lists.infradead.org
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	Documentation/admin-guide/mm/kho.rst
 F:	Documentation/core-api/kho/*
 F:	include/linux/kexec_handover.h
-F:	kernel/kexec_handover.c
+F:	kernel/liveupdate/kexec_handover*
 F:	lib/test_kho.c
 F:	tools/testing/selftests/kho/
 
@@ -14566,6 +14568,22 @@ F:	kernel/module/livepatch.c
 F:	samples/livepatch/
 F:	scripts/livepatch/
 F:	tools/testing/selftests/livepatch/
+
+LIVE UPDATE
+M:	Pasha Tatashin <pasha.tatashin@soleen.com>
+M:	Mike Rapoport <rppt@kernel.org>
+R:	Pratyush Yadav <pratyush@kernel.org>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	Documentation/core-api/liveupdate.rst
+F:	Documentation/mm/memfd_preservation.rst
+F:	Documentation/userspace-api/liveupdate.rst
+F:	include/linux/liveupdate.h
+F:	include/linux/liveupdate/
+F:	include/uapi/linux/liveupdate.h
+F:	kernel/liveupdate/
+F:	mm/memfd_luo.c
+F:	tools/testing/selftests/liveupdate/
 
 LLC (802.2)
 L:	netdev@vger.kernel.org
@@ -15668,7 +15686,7 @@ F:	include/media/imx.h
 MEDIA DRIVERS FOR FREESCALE IMX7/8
 M:	Rui Miguel Silva <rmfrfs@gmail.com>
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-M:	Martin Kepplinger <martin.kepplinger@puri.sm>
+M:	Martin Kepplinger-Novakovic <martink@posteo.de>
 R:	Purism Kernel Team <kernel@puri.sm>
 R:	Frank Li <Frank.Li@nxp.com>
 L:	imx@lists.linux.dev
@@ -18420,10 +18438,11 @@ F:	net/sunrpc/
 
 NILFS2 FILESYSTEM
 M:	Ryusuke Konishi <konishi.ryusuke@gmail.com>
+M:	Viacheslav Dubeyko <slava@dubeyko.com>
 L:	linux-nilfs@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	https://nilfs.sourceforge.io/
-T:	git https://github.com/konis/nilfs2.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vdubeyko/nilfs2.git
 F:	Documentation/filesystems/nilfs2.rst
 F:	fs/nilfs2/
 F:	include/trace/events/nilfs2.h
@@ -25103,7 +25122,6 @@ F:	drivers/regulator/sy8106a-regulator.c
 
 SYNC FILE FRAMEWORK
 M:	Sumit Semwal <sumit.semwal@linaro.org>
-R:	Gustavo Padovan <gustavo@padovan.org>
 L:	linux-media@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
@@ -26308,7 +26326,7 @@ M:	Jarkko Sakkinen <jarkko@kernel.org>
 R:	Jason Gunthorpe <jgg@ziepe.ca>
 L:	linux-integrity@vger.kernel.org
 S:	Maintained
-W:	https://codeberg.org/jarkko/linux-tpmdd-test
+W:	https://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-tpmdd-test.git/about/
 Q:	https://patchwork.kernel.org/project/linux-integrity/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-tpmdd.git
 F:	Documentation/devicetree/bindings/tpm/

@@ -21,7 +21,7 @@
 #include <sys/wait.h>
 #include <linux/userfaultfd.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "vm_util.h"
 
 #define KiB 1024u

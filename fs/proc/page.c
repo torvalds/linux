@@ -20,7 +20,6 @@
 
 #define KPMSIZE sizeof(u64)
 #define KPMMASK (KPMSIZE - 1)
-#define KPMBITS (KPMSIZE * BITS_PER_BYTE)
 
 enum kpage_operation {
 	KPAGE_FLAGS,

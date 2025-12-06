@@ -2056,16 +2056,15 @@ S: Korte Heul 95
 S: 1403 ND  BUSSUM
 S: The Netherlands
 
-N: Martin Kepplinger
+N: Martin Kepplinger-Novakovic
 E: martink@posteo.de
-E: martin.kepplinger@puri.sm
-W: http://www.martinkepplinger.com
 P: 4096R/5AB387D3 F208 2B88 0F9E 4239 3468  6E3F 5003 98DF 5AB3 87D3
 D: mma8452 accelerators iio driver
 D: pegasus_notetaker input driver
+D: imx8m media and hi846 sensor driver
 D: Kernel fixes and cleanups
-S: Garnisonstraße 26
-S: 4020 Linz
+S: Keplerstr. 6
+S: 4050 Traun
 S: Austria
 
 N: Karl Keyte

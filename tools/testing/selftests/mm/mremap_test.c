@@ -16,7 +16,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define EXPECT_SUCCESS 0
 #define EXPECT_FAILURE 1

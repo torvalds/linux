@@ -11,7 +11,7 @@
 #include <string.h>
 #include <linux/nsfs.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 struct ns_info {
 	const char *name;

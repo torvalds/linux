@@ -97,6 +97,7 @@ Subsystem-specific APIs
    gpio/index
    hsi
    hte/index
+   hw-recoverable-errors
    i2c
    iio/index
    infiniband

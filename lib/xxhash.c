@@ -73,21 +73,6 @@ static const uint64_t PRIME64_3 =  1609587929392839161ULL;
 static const uint64_t PRIME64_4 =  9650029242287828579ULL;
 static const uint64_t PRIME64_5 =  2870177450012600261ULL;
 
-/*-**************************
- *  Utils
- ***************************/
-void xxh32_copy_state(struct xxh32_state *dst, const struct xxh32_state *src)
-{
-	memcpy(dst, src, sizeof(*dst));
-}
-EXPORT_SYMBOL(xxh32_copy_state);
-
-void xxh64_copy_state(struct xxh64_state *dst, const struct xxh64_state *src)
-{
-	memcpy(dst, src, sizeof(*dst));
-}
-EXPORT_SYMBOL(xxh64_copy_state);
-
 /*-***************************
  * Simple Hash Functions
  ****************************/
@@ -239,20 +224,6 @@ EXPORT_SYMBOL(xxh64);
 /*-**************************************************
  * Advanced Hash Functions
  ***************************************************/
-void xxh32_reset(struct xxh32_state *statePtr, const uint32_t seed)
-{
-	/* use a local state for memcpy() to avoid strict-aliasing warnings */
-	struct xxh32_state state;
-
-	memset(&state, 0, sizeof(state));
-	state.v1 = seed + PRIME32_1 + PRIME32_2;
-	state.v2 = seed + PRIME32_2;
-	state.v3 = seed + 0;
-	state.v4 = seed - PRIME32_1;
-	memcpy(statePtr, &state, sizeof(state));
-}
-EXPORT_SYMBOL(xxh32_reset);
-
 void xxh64_reset(struct xxh64_state *statePtr, const uint64_t seed)
 {
 	/* use a local state for memcpy() to avoid strict-aliasing warnings */

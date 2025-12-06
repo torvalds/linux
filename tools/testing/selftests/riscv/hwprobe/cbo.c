@@ -18,7 +18,7 @@
 #include <getopt.h>
 
 #include "hwprobe.h"
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #define MK_CBO(fn) le32_bswap((uint32_t)(fn) << 20 | 10 << 15 | 2 << 12 | 0 << 7 | 15)
 #define MK_PREFETCH(fn) \

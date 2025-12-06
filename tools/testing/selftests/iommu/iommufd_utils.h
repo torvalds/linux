@@ -11,7 +11,7 @@
 #include <assert.h>
 #include <poll.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "../../../../drivers/iommu/iommufd/iommufd_test.h"
 
 /* Hack to make assertions more readable */
