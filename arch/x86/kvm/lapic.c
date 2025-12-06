@@ -666,8 +666,6 @@ static inline int apic_search_irr(struct kvm_lapic *apic)
 
 static inline int apic_find_highest_irr(struct kvm_lapic *apic)
 {
-	int result;
-
 	/*
 	 * Note that irr_pending is just a hint. It will be always
 	 * true with virtual interrupt delivery enabled.
@@ -675,10 +673,7 @@ static inline int apic_find_highest_irr(struct kvm_lapic *apic)
 	if (!apic->irr_pending)
 		return -1;
 
-	result = apic_search_irr(apic);
-	ASSERT(result == -1 || result >= 16);
-
-	return result;
+	return apic_search_irr(apic);
 }
 
 static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
@@ -731,8 +726,6 @@ static inline void apic_set_isr(int vec, struct kvm_lapic *apic)
 
 static inline int apic_find_highest_isr(struct kvm_lapic *apic)
 {
-	int result;
-
 	/*
 	 * Note that isr_count is always 1, and highest_isr_cache
 	 * is always -1, with APIC virtualization enabled.
@@ -742,10 +735,7 @@ static inline int apic_find_highest_isr(struct kvm_lapic *apic)
 	if (likely(apic->highest_isr_cache != -1))
 		return apic->highest_isr_cache;
 
-	result = apic_find_highest_vector(apic->regs + APIC_ISR);
-	ASSERT(result == -1 || result >= 16);
-
-	return result;
+	return apic_find_highest_vector(apic->regs + APIC_ISR);
 }
 
 static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
