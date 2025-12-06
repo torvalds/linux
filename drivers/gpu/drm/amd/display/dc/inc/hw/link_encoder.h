@@ -48,6 +48,7 @@ struct encoder_init_data {
 	enum hpd_source_id hpd_source;
 	/* TODO: in DAL2, here was pointer to EventManagerInterface */
 	struct graphics_object_id encoder;
+	struct graphics_object_id analog_encoder;
 	enum engine_id analog_engine;
 	struct dc_context *ctx;
 	enum transmitter transmitter;
@@ -82,6 +83,7 @@ struct link_encoder {
 	int32_t aux_channel_offset;
 	struct dc_context *ctx;
 	struct graphics_object_id id;
+	struct graphics_object_id analog_id;
 	struct graphics_object_id connector;
 	uint32_t output_signals;
 	enum engine_id preferred_engine;

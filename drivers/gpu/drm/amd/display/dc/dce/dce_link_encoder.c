@@ -852,6 +852,7 @@ void dce110_link_encoder_construct(
 	enc110->base.funcs = &dce110_lnk_enc_funcs;
 	enc110->base.ctx = init_data->ctx;
 	enc110->base.id = init_data->encoder;
+	enc110->base.analog_id = init_data->analog_encoder;
 
 	enc110->base.hpd_gpio = init_data->hpd_gpio;
 	enc110->base.hpd_source = init_data->hpd_source;
@@ -1837,6 +1838,7 @@ void dce60_link_encoder_construct(
 	enc110->base.funcs = &dce60_lnk_enc_funcs;
 	enc110->base.ctx = init_data->ctx;
 	enc110->base.id = init_data->encoder;
+	enc110->base.analog_id = init_data->analog_encoder;
 
 	enc110->base.hpd_gpio = init_data->hpd_gpio;
 	enc110->base.hpd_source = init_data->hpd_source;

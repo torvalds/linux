@@ -431,20 +431,19 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	return channel;
 }
 
-static enum engine_id find_analog_engine(struct dc_link *link)
+static enum engine_id find_analog_engine(struct dc_link *link, struct graphics_object_id *enc)
 {
 	struct dc_bios *bp = link->ctx->dc_bios;
-	struct graphics_object_id encoder = {0};
 	enum bp_result bp_result = BP_RESULT_OK;
 	int i;
 
 	for (i = 0; i < 3; i++) {
-		bp_result = bp->funcs->get_src_obj(bp, link->link_id, i, &encoder);
+		bp_result = bp->funcs->get_src_obj(bp, link->link_id, i, enc);
 
 		if (bp_result != BP_RESULT_OK)
 			return ENGINE_ID_UNKNOWN;
 
-		switch (encoder.id) {
+		switch (enc->id) {
 		case ENCODER_ID_INTERNAL_DAC1:
 		case ENCODER_ID_INTERNAL_KLDSCP_DAC1:
 			return ENGINE_ID_DACA;
@@ -454,6 +453,7 @@ static enum engine_id find_analog_engine(struct dc_link *link)
 		}
 	}
 
+	memset(enc, 0, sizeof(*enc));
 	return ENGINE_ID_UNKNOWN;
 }
 
@@ -506,7 +506,7 @@ static bool construct_phy(struct dc_link *link,
 	 */
 	bp_funcs->get_src_obj(bios, link->link_id, 0, &link_encoder);
 	transmitter_from_encoder = translate_encoder_to_transmitter(link_encoder);
-	link_analog_engine = find_analog_engine(link);
+	link_analog_engine = find_analog_engine(link, &enc_init_data.analog_encoder);
 
 	if (transmitter_from_encoder == TRANSMITTER_UNKNOWN &&
 	    !analog_engine_supported(link_analog_engine)) {
@@ -552,6 +552,7 @@ static bool construct_phy(struct dc_link *link,
 	enc_init_data.connector = link->link_id;
 	enc_init_data.channel = get_ddc_line(link);
 	enc_init_data.transmitter = transmitter_from_encoder;
+	enc_init_data.analog_engine = find_analog_engine(link, &enc_init_data.analog_encoder);
 	enc_init_data.encoder = link_encoder;
 	enc_init_data.analog_engine = link_analog_engine;
 	enc_init_data.hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
