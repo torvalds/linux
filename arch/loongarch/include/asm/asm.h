@@ -72,11 +72,11 @@
 #define INT_SUB		sub.w
 #define INT_L		ld.w
 #define INT_S		st.w
-#define INT_SLL		slli.w
+#define INT_SLLI	slli.w
 #define INT_SLLV	sll.w
-#define INT_SRL		srli.w
+#define INT_SRLI	srli.w
 #define INT_SRLV	srl.w
-#define INT_SRA		srai.w
+#define INT_SRAI	srai.w
 #define INT_SRAV	sra.w
 #endif
 
@@ -86,11 +86,11 @@
 #define INT_SUB		sub.d
 #define INT_L		ld.d
 #define INT_S		st.d
-#define INT_SLL		slli.d
+#define INT_SLLI	slli.d
 #define INT_SLLV	sll.d
-#define INT_SRL		srli.d
+#define INT_SRLI	srli.d
 #define INT_SRLV	srl.d
-#define INT_SRA		srai.d
+#define INT_SRAI	srai.d
 #define INT_SRAV	sra.d
 #endif
 
@@ -100,15 +100,23 @@
 #if (__SIZEOF_LONG__ == 4)
 #define LONG_ADD	add.w
 #define LONG_ADDI	addi.w
+#define LONG_ALSL	alsl.w
+#define LONG_BSTRINS	bstrins.w
+#define LONG_BSTRPICK	bstrpick.w
 #define LONG_SUB	sub.w
 #define LONG_L		ld.w
+#define LONG_LI		li.w
+#define LONG_LPTR	ld.w
 #define LONG_S		st.w
-#define LONG_SLL	slli.w
+#define LONG_SPTR	st.w
+#define LONG_SLLI	slli.w
 #define LONG_SLLV	sll.w
-#define LONG_SRL	srli.w
+#define LONG_SRLI	srli.w
 #define LONG_SRLV	srl.w
-#define LONG_SRA	srai.w
+#define LONG_SRAI	srai.w
 #define LONG_SRAV	sra.w
+#define LONG_ROTR	rotr.w
+#define LONG_ROTRI	rotri.w
 
 #ifdef __ASSEMBLER__
 #define LONG		.word
@@ -121,15 +129,23 @@
 #if (__SIZEOF_LONG__ == 8)
 #define LONG_ADD	add.d
 #define LONG_ADDI	addi.d
+#define LONG_ALSL	alsl.d
+#define LONG_BSTRINS	bstrins.d
+#define LONG_BSTRPICK	bstrpick.d
 #define LONG_SUB	sub.d
 #define LONG_L		ld.d
+#define LONG_LI		li.d
+#define LONG_LPTR	ldptr.d
 #define LONG_S		st.d
-#define LONG_SLL	slli.d
+#define LONG_SPTR	stptr.d
+#define LONG_SLLI	slli.d
 #define LONG_SLLV	sll.d
-#define LONG_SRL	srli.d
+#define LONG_SRLI	srli.d
 #define LONG_SRLV	srl.d
-#define LONG_SRA	srai.d
+#define LONG_SRAI	srai.d
 #define LONG_SRAV	sra.d
+#define LONG_ROTR	rotr.d
+#define LONG_ROTRI	rotri.d
 
 #ifdef __ASSEMBLER__
 #define LONG		.dword
@@ -145,16 +161,23 @@
 #if (__SIZEOF_POINTER__ == 4)
 #define PTR_ADD		add.w
 #define PTR_ADDI	addi.w
+#define PTR_ALSL	alsl.w
+#define PTR_BSTRINS	bstrins.w
+#define PTR_BSTRPICK	bstrpick.w
 #define PTR_SUB		sub.w
 #define PTR_L		ld.w
-#define PTR_S		st.w
 #define PTR_LI		li.w
-#define PTR_SLL		slli.w
+#define PTR_LPTR	ld.w
+#define PTR_S		st.w
+#define PTR_SPTR	st.w
+#define PTR_SLLI	slli.w
 #define PTR_SLLV	sll.w
-#define PTR_SRL		srli.w
+#define PTR_SRLI	srli.w
 #define PTR_SRLV	srl.w
-#define PTR_SRA		srai.w
+#define PTR_SRAI	srai.w
 #define PTR_SRAV	sra.w
+#define PTR_ROTR	rotr.w
+#define PTR_ROTRI	rotri.w
 
 #define PTR_SCALESHIFT	2
 
@@ -168,16 +191,23 @@
 #if (__SIZEOF_POINTER__ == 8)
 #define PTR_ADD		add.d
 #define PTR_ADDI	addi.d
+#define PTR_ALSL	alsl.d
+#define PTR_BSTRINS	bstrins.d
+#define PTR_BSTRPICK	bstrpick.d
 #define PTR_SUB		sub.d
 #define PTR_L		ld.d
-#define PTR_S		st.d
 #define PTR_LI		li.d
-#define PTR_SLL		slli.d
+#define PTR_LPTR	ldptr.d
+#define PTR_S		st.d
+#define PTR_SPTR	stptr.d
+#define PTR_SLLI	slli.d
 #define PTR_SLLV	sll.d
-#define PTR_SRL		srli.d
+#define PTR_SRLI	srli.d
 #define PTR_SRLV	srl.d
-#define PTR_SRA		srai.d
+#define PTR_SRAI	srai.d
 #define PTR_SRAV	sra.d
+#define PTR_ROTR	rotr.d
+#define PTR_ROTRI	rotri.d
 
 #define PTR_SCALESHIFT	3
 
@@ -190,10 +220,17 @@
 
 /* Annotate a function as being unsuitable for kprobes. */
 #ifdef CONFIG_KPROBES
+#ifdef CONFIG_32BIT
+#define _ASM_NOKPROBE(name)				\
+	.pushsection "_kprobe_blacklist", "aw";		\
+	.long	name;					\
+	.popsection
+#else
 #define _ASM_NOKPROBE(name)				\
 	.pushsection "_kprobe_blacklist", "aw";		\
 	.quad	name;					\
 	.popsection
+#endif
 #else
 #define _ASM_NOKPROBE(name)
 #endif
