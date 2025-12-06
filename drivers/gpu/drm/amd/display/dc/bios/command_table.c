@@ -1797,7 +1797,30 @@ static enum bp_result select_crtc_source_v3(
 		&params.ucEncodeMode))
 		return BP_RESULT_BADINPUT;
 
-	params.ucDstBpc = bp_params->bit_depth;
+	switch (bp_params->color_depth) {
+	case COLOR_DEPTH_UNDEFINED:
+		params.ucDstBpc = PANEL_BPC_UNDEFINE;
+		break;
+	case COLOR_DEPTH_666:
+		params.ucDstBpc = PANEL_6BIT_PER_COLOR;
+		break;
+	default:
+	case COLOR_DEPTH_888:
+		params.ucDstBpc = PANEL_8BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_101010:
+		params.ucDstBpc = PANEL_10BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_121212:
+		params.ucDstBpc = PANEL_12BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_141414:
+		dm_error("14-bit color not supported by SelectCRTC_Source v3\n");
+		break;
+	case COLOR_DEPTH_161616:
+		params.ucDstBpc = PANEL_16BIT_PER_COLOR;
+		break;
+	}
 
 	if (EXEC_BIOS_CMD_TABLE(SelectCRTC_Source, params))
 		result = BP_RESULT_OK;
