@@ -1838,12 +1838,12 @@ static enum bp_result select_crtc_source_v3(
 
 static enum bp_result dac1_encoder_control_v1(
 	struct bios_parser *bp,
-	bool enable,
+	enum bp_encoder_control_action action,
 	uint32_t pixel_clock,
 	uint8_t dac_standard);
 static enum bp_result dac2_encoder_control_v1(
 	struct bios_parser *bp,
-	bool enable,
+	enum bp_encoder_control_action action,
 	uint32_t pixel_clock,
 	uint8_t dac_standard);
 
@@ -1869,12 +1869,15 @@ static void init_dac_encoder_control(struct bios_parser *bp)
 
 static void dac_encoder_control_prepare_params(
 	DAC_ENCODER_CONTROL_PS_ALLOCATION *params,
-	bool enable,
+	enum bp_encoder_control_action action,
 	uint32_t pixel_clock,
 	uint8_t dac_standard)
 {
 	params->ucDacStandard = dac_standard;
-	if (enable)
+	if (action == ENCODER_CONTROL_SETUP ||
+	    action == ENCODER_CONTROL_INIT)
+		params->ucAction = ATOM_ENCODER_INIT;
+	else if (action == ENCODER_CONTROL_ENABLE)
 		params->ucAction = ATOM_ENABLE;
 	else
 		params->ucAction = ATOM_DISABLE;
@@ -1887,7 +1890,7 @@ static void dac_encoder_control_prepare_params(
 
 static enum bp_result dac1_encoder_control_v1(
 	struct bios_parser *bp,
-	bool enable,
+	enum bp_encoder_control_action action,
 	uint32_t pixel_clock,
 	uint8_t dac_standard)
 {
@@ -1896,7 +1899,7 @@ static enum bp_result dac1_encoder_control_v1(
 
 	dac_encoder_control_prepare_params(
 		&params,
-		enable,
+		action,
 		pixel_clock,
 		dac_standard);
 
@@ -1908,7 +1911,7 @@ static enum bp_result dac1_encoder_control_v1(
 
 static enum bp_result dac2_encoder_control_v1(
 	struct bios_parser *bp,
-	bool enable,
+	enum bp_encoder_control_action action,
 	uint32_t pixel_clock,
 	uint8_t dac_standard)
 {
@@ -1917,7 +1920,7 @@ static enum bp_result dac2_encoder_control_v1(
 
 	dac_encoder_control_prepare_params(
 		&params,
-		enable,
+		action,
 		pixel_clock,
 		dac_standard);
 
