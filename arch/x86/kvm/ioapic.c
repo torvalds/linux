@@ -618,8 +618,6 @@ static int ioapic_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 	if (!ioapic_in_range(ioapic, addr))
 		return -EOPNOTSUPP;
 
-	ASSERT(!(addr & 0xf));	/* check alignment */
-
 	addr &= 0xff;
 	spin_lock(&ioapic->lock);
 	switch (addr) {
@@ -659,8 +657,6 @@ static int ioapic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 	u32 data;
 	if (!ioapic_in_range(ioapic, addr))
 		return -EOPNOTSUPP;
-
-	ASSERT(!(addr & 0xf));	/* check alignment */
 
 	switch (len) {
 	case 8:
