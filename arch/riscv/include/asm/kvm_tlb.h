@@ -49,6 +49,7 @@ void kvm_riscv_local_hfence_vvma_gva(unsigned long vmid,
 				     unsigned long gva, unsigned long gvsz,
 				     unsigned long order);
 void kvm_riscv_local_hfence_vvma_all(unsigned long vmid);
+void kvm_riscv_local_tlb_sanitize(struct kvm_vcpu *vcpu);
 
 void kvm_riscv_tlb_flush_process(struct kvm_vcpu *vcpu);
 

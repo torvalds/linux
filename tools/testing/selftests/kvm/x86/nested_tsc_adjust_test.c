@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * vmx_tsc_adjust_test
- *
  * Copyright (C) 2018, Google LLC.
  *
  * IA32_TSC_ADJUST test
@@ -22,6 +20,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "vmx.h"
+#include "svm_util.h"
 
 #include <string.h>
 #include <sys/ioctl.h>
@@ -34,6 +33,8 @@
 
 #define TSC_ADJUST_VALUE (1ll << 32)
 #define TSC_OFFSET_VALUE -(1ll << 48)
+
+#define L2_GUEST_STACK_SIZE 64
 
 enum {
 	PORT_ABORT = 0x1000,
@@ -72,42 +73,47 @@ static void l2_guest_code(void)
 	__asm__ __volatile__("vmcall");
 }
 
-static void l1_guest_code(struct vmx_pages *vmx_pages)
+static void l1_guest_code(void *data)
 {
-#define L2_GUEST_STACK_SIZE 64
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
-	uint32_t control;
-	uintptr_t save_cr3;
 
+	/* Set TSC from L1 and make sure TSC_ADJUST is updated correctly */
 	GUEST_ASSERT(rdtsc() < TSC_ADJUST_VALUE);
 	wrmsr(MSR_IA32_TSC, rdtsc() - TSC_ADJUST_VALUE);
 	check_ia32_tsc_adjust(-1 * TSC_ADJUST_VALUE);
 
-	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
-	GUEST_ASSERT(load_vmcs(vmx_pages));
+	/*
+	 * Run L2 with TSC_OFFSET. L2 will write to TSC, and L1 is not
+	 * intercepting the write so it should update L1's TSC_ADJUST.
+	 */
+	if (this_cpu_has(X86_FEATURE_VMX)) {
+		struct vmx_pages *vmx_pages = data;
+		uint32_t control;
 
-	/* Prepare the VMCS for L2 execution. */
-	prepare_vmcs(vmx_pages, l2_guest_code,
-		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
-	control = vmreadz(CPU_BASED_VM_EXEC_CONTROL);
-	control |= CPU_BASED_USE_MSR_BITMAPS | CPU_BASED_USE_TSC_OFFSETTING;
-	vmwrite(CPU_BASED_VM_EXEC_CONTROL, control);
-	vmwrite(TSC_OFFSET, TSC_OFFSET_VALUE);
+		GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
+		GUEST_ASSERT(load_vmcs(vmx_pages));
 
-	/* Jump into L2.  First, test failure to load guest CR3.  */
-	save_cr3 = vmreadz(GUEST_CR3);
-	vmwrite(GUEST_CR3, -1ull);
-	GUEST_ASSERT(!vmlaunch());
-	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) ==
-		     (EXIT_REASON_FAILED_VMENTRY | EXIT_REASON_INVALID_STATE));
-	check_ia32_tsc_adjust(-1 * TSC_ADJUST_VALUE);
-	vmwrite(GUEST_CR3, save_cr3);
+		prepare_vmcs(vmx_pages, l2_guest_code,
+			     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+		control = vmreadz(CPU_BASED_VM_EXEC_CONTROL);
+		control |= CPU_BASED_USE_MSR_BITMAPS | CPU_BASED_USE_TSC_OFFSETTING;
+		vmwrite(CPU_BASED_VM_EXEC_CONTROL, control);
+		vmwrite(TSC_OFFSET, TSC_OFFSET_VALUE);
 
-	GUEST_ASSERT(!vmlaunch());
-	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+		GUEST_ASSERT(!vmlaunch());
+		GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+	} else {
+		struct svm_test_data *svm = data;
+
+		generic_svm_setup(svm, l2_guest_code,
+				  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+
+		svm->vmcb->control.tsc_offset = TSC_OFFSET_VALUE;
+		run_guest(svm->vmcb, svm->vmcb_gpa);
+		GUEST_ASSERT(svm->vmcb->control.exit_code == SVM_EXIT_VMMCALL);
+	}
 
 	check_ia32_tsc_adjust(-2 * TSC_ADJUST_VALUE);
-
 	GUEST_DONE();
 }
 
@@ -119,16 +125,19 @@ static void report(int64_t val)
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t vmx_pages_gva;
+	vm_vaddr_t nested_gva;
 	struct kvm_vcpu *vcpu;
 
-	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX) ||
+		     kvm_cpu_has(X86_FEATURE_SVM));
 
-	vm = vm_create_with_one_vcpu(&vcpu, (void *) l1_guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
+	if (kvm_cpu_has(X86_FEATURE_VMX))
+		vcpu_alloc_vmx(vm, &nested_gva);
+	else
+		vcpu_alloc_svm(vm, &nested_gva);
 
-	/* Allocate VMX pages and shared descriptors (vmx_pages). */
-	vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	vcpu_args_set(vcpu, 1, vmx_pages_gva);
+	vcpu_args_set(vcpu, 1, nested_gva);
 
 	for (;;) {
 		struct ucall uc;
