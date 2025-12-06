@@ -40,6 +40,10 @@
 	compatible = "samsung,sofef00";
 };
 
+&framebuffer {
+	height = <2280>;
+};
+
 &i2c4 {
 	status = "okay";
 
