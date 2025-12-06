@@ -130,6 +130,11 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 
 	preempt_enable();
 
+	if (IS_ENABLED(CONFIG_RANDSTRUCT)) {
+		memcpy(dst, src, sizeof(struct task_struct));
+		return 0;
+	}
+
 	if (!used_math())
 		memcpy(dst, src, offsetof(struct task_struct, thread.fpu.fpr));
 	else
