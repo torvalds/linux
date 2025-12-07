@@ -218,6 +218,41 @@ static int __init inet_frag_wq_init(void)
 
 pure_initcall(inet_frag_wq_init);
 
+void fqdir_pre_exit(struct fqdir *fqdir)
+{
+	struct inet_frag_queue *fq;
+	struct rhashtable_iter hti;
+
+	/* Prevent creation of new frags.
+	 * Pairs with READ_ONCE() in inet_frag_find().
+	 */
+	WRITE_ONCE(fqdir->high_thresh, 0);
+
+	/* Pairs with READ_ONCE() in inet_frag_kill(), ip_expire()
+	 * and ip6frag_expire_frag_queue().
+	 */
+	WRITE_ONCE(fqdir->dead, true);
+
+	rhashtable_walk_enter(&fqdir->rhashtable, &hti);
+	rhashtable_walk_start(&hti);
+
+	while ((fq = rhashtable_walk_next(&hti))) {
+		if (IS_ERR(fq)) {
+			if (PTR_ERR(fq) != -EAGAIN)
+				break;
+			continue;
+		}
+		spin_lock_bh(&fq->lock);
+		if (!(fq->flags & INET_FRAG_COMPLETE))
+			inet_frag_queue_flush(fq, 0);
+		spin_unlock_bh(&fq->lock);
+	}
+
+	rhashtable_walk_stop(&hti);
+	rhashtable_walk_exit(&hti);
+}
+EXPORT_SYMBOL(fqdir_pre_exit);
+
 void fqdir_exit(struct fqdir *fqdir)
 {
 	INIT_WORK(&fqdir->destroy_work, fqdir_work_fn);
@@ -290,6 +325,7 @@ void inet_frag_queue_flush(struct inet_frag_queue *q,
 {
 	unsigned int sum;
 
+	reason = reason ?: SKB_DROP_REASON_FRAG_REASM_TIMEOUT;
 	sum = inet_frag_rbtree_purge(&q->rb_fragments, reason);
 	sub_frag_mem_limit(q->fqdir, sum);
 }
