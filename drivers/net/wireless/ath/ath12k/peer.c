@@ -241,11 +241,13 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 
 	spin_unlock_bh(&dp->dp_lock);
 
-	ret = ath12k_dp_link_peer_assign(ath12k_ab_to_dp(ar->ab),
-					 &(ath12k_ar_to_ah(ar)->dp_hw),
-					 arvif->vdev_id, sta,
-					 (u8 *)arg->peer_addr, link_id,
-					 ar->hw_link_id);
+	if (arvif->link_id < IEEE80211_MLD_MAX_NUM_LINKS) {
+		ret = ath12k_dp_link_peer_assign(ath12k_ab_to_dp(ar->ab),
+						 &(ath12k_ar_to_ah(ar)->dp_hw),
+						 arvif->vdev_id, sta,
+						 (u8 *)arg->peer_addr, link_id,
+						 ar->hw_link_id);
+	}
 
 	return ret;
 }

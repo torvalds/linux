@@ -1229,7 +1229,8 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 
 	/* Delete all the self dp_peers on asserted radio */
 	list_for_each_entry_safe_reverse(arvif, tmp_vif, &ar->arvifs, list) {
-		if (arvif->ahvif->vdev_type == WMI_VDEV_TYPE_AP) {
+		if ((arvif->ahvif->vdev_type == WMI_VDEV_TYPE_AP) &&
+		    (arvif->link_id < IEEE80211_MLD_MAX_NUM_LINKS)) {
 			ath12k_dp_peer_delete(dp_hw, arvif->bssid, NULL);
 			arvif->num_stations = 0;
 		}
@@ -4031,7 +4032,8 @@ static void ath12k_mac_remove_link_interface(struct ieee80211_hw *hw,
 			ath12k_warn(ar->ab, "failed to submit AP self-peer removal on vdev %d link id %d: %d",
 				    arvif->vdev_id, arvif->link_id, ret);
 
-		ath12k_dp_peer_delete(&ah->dp_hw, arvif->bssid, NULL);
+		if (arvif->link_id < IEEE80211_MLD_MAX_NUM_LINKS)
+			ath12k_dp_peer_delete(&ah->dp_hw, arvif->bssid, NULL);
 	}
 	ath12k_mac_vdev_delete(ar, arvif);
 }
@@ -9720,6 +9722,7 @@ int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 	u8 link_id;
 	struct ath12k_dp_link_vif *dp_link_vif = NULL;
 	struct ath12k_dp_peer_create_params params = {};
+	bool dp_peer_created = false;
 
 	lockdep_assert_wiphy(hw->wiphy);
 
@@ -9805,11 +9808,14 @@ int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 	case WMI_VDEV_TYPE_AP:
 		params.ucast_ra_only = true;
 
-		ret = ath12k_dp_peer_create(&ah->dp_hw, arvif->bssid, &params);
-		if (ret) {
-			ath12k_warn(ab, "failed to vdev %d create dp_peer for AP: %d\n",
-				    arvif->vdev_id, ret);
-			goto err_vdev_del;
+		if (arvif->link_id < IEEE80211_MLD_MAX_NUM_LINKS) {
+			ret = ath12k_dp_peer_create(&ah->dp_hw, arvif->bssid, &params);
+			if (ret) {
+				ath12k_warn(ab, "failed to vdev %d create dp_peer for AP: %d\n",
+					    arvif->vdev_id, ret);
+				goto err_vdev_del;
+			}
+			dp_peer_created = true;
 		}
 
 		peer_param.vdev_id = arvif->vdev_id;
@@ -9925,7 +9931,7 @@ err_peer_del:
 	}
 
 err_dp_peer_del:
-	if (ahvif->vdev_type == WMI_VDEV_TYPE_AP)
+	if (dp_peer_created)
 		ath12k_dp_peer_delete(&ah->dp_hw, arvif->bssid, NULL);
 
 err_vdev_del:
