@@ -4,6 +4,7 @@
  */
 
 #include <linux/string.h>
+#include <errno.h>
 #include <inttypes.h>
 #include "color.h"
 #include "evlist.h"
@@ -656,9 +657,7 @@ powerpc_vpadtl_synth_events(struct powerpc_vpadtl *vpa, struct perf_session *ses
 	attr.config = PERF_SYNTH_POWERPC_VPA_DTL;
 
 	/* create new id val to be a fixed offset from evsel id */
-	id = evsel->core.id[0] + 1000000000;
-	if (!id)
-		id = 1;
+	id = auxtrace_synth_id_range_start(evsel);
 
 	err = perf_session__deliver_synth_attr_event(session, &attr, id);
 	if (err)

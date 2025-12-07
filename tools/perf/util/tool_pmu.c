@@ -2,16 +2,19 @@
 #include "cgroup.h"
 #include "counts.h"
 #include "cputopo.h"
+#include "debug.h"
 #include "evsel.h"
 #include "pmu.h"
 #include "print-events.h"
 #include "smt.h"
+#include "stat.h"
 #include "time-utils.h"
 #include "tool_pmu.h"
 #include "tsc.h"
 #include <api/fs/fs.h>
 #include <api/io.h>
 #include <internal/threadmap.h>
+#include <perf/cpumap.h>
 #include <perf/threadmap.h>
 #include <fcntl.h>
 #include <strings.h>
@@ -30,6 +33,8 @@ static const char *const tool_pmu__event_names[TOOL_PMU__EVENT_MAX] = {
 	"slots",
 	"smt_on",
 	"system_tsc_freq",
+	"core_wide",
+	"target_cpu",
 };
 
 bool tool_pmu__skip_event(const char *name __maybe_unused)
@@ -104,6 +109,23 @@ enum tool_pmu_event evsel__tool_event(const struct evsel *evsel)
 const char *evsel__tool_pmu_event_name(const struct evsel *evsel)
 {
 	return tool_pmu__event_to_str(evsel->core.attr.config);
+}
+
+struct perf_cpu_map *tool_pmu__cpus(struct perf_event_attr *attr)
+{
+	static struct perf_cpu_map *cpu0_map;
+	enum tool_pmu_event event = (enum tool_pmu_event)attr->config;
+
+	if (event <= TOOL_PMU__EVENT_NONE || event >= TOOL_PMU__EVENT_MAX) {
+		pr_err("Invalid tool PMU event config %llx\n", attr->config);
+		return NULL;
+	}
+	if (event == TOOL_PMU__EVENT_USER_TIME || event == TOOL_PMU__EVENT_SYSTEM_TIME)
+		return cpu_map__online();
+
+	if (!cpu0_map)
+		cpu0_map = perf_cpu_map__new_int(0);
+	return perf_cpu_map__get(cpu0_map);
 }
 
 static bool read_until_char(struct io *io, char e)
@@ -329,7 +351,11 @@ static bool has_pmem(void)
 	return has_pmem;
 }
 
-bool tool_pmu__read_event(enum tool_pmu_event ev, struct evsel *evsel, u64 *result)
+bool tool_pmu__read_event(enum tool_pmu_event ev,
+			  struct evsel *evsel,
+			  bool system_wide,
+			  const char *user_requested_cpu_list,
+			  u64 *result)
 {
 	const struct cpu_topology *topology;
 
@@ -421,6 +447,14 @@ bool tool_pmu__read_event(enum tool_pmu_event ev, struct evsel *evsel, u64 *resu
 		*result = arch_get_tsc_freq();
 		return true;
 
+	case TOOL_PMU__EVENT_CORE_WIDE:
+		*result = core_wide(system_wide, user_requested_cpu_list) ? 1 : 0;
+		return true;
+
+	case TOOL_PMU__EVENT_TARGET_CPU:
+		*result = system_wide || (user_requested_cpu_list != NULL) ? 1 : 0;
+		return true;
+
 	case TOOL_PMU__EVENT_NONE:
 	case TOOL_PMU__EVENT_DURATION_TIME:
 	case TOOL_PMU__EVENT_USER_TIME:
@@ -431,16 +465,39 @@ bool tool_pmu__read_event(enum tool_pmu_event ev, struct evsel *evsel, u64 *resu
 	}
 }
 
+static void perf_counts__update(struct perf_counts_values *count,
+				const struct perf_counts_values *old_count,
+				bool raw, u64 val)
+{
+	/*
+	 * The values of enabled and running must make a ratio of 100%. The
+	 * exact values don't matter as long as they are non-zero to avoid
+	 * issues with evsel__count_has_error.
+	 */
+	if (old_count) {
+		count->val = raw ? val : old_count->val + val;
+		count->run = old_count->run + 1;
+		count->ena = old_count->ena + 1;
+		count->lost = old_count->lost;
+	} else {
+		count->val = val;
+		count->run++;
+		count->ena++;
+		count->lost = 0;
+	}
+}
+
 int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 {
 	__u64 *start_time, cur_time, delta_start;
-	u64 val;
-	int fd, err = 0;
+	int err = 0;
 	struct perf_counts_values *count, *old_count = NULL;
 	bool adjust = false;
 	enum tool_pmu_event ev = evsel__tool_event(evsel);
 
 	count = perf_counts(evsel->counts, cpu_map_idx, thread);
+	if (evsel->prev_raw_counts)
+		old_count = perf_counts(evsel->prev_raw_counts, cpu_map_idx, thread);
 
 	switch (ev) {
 	case TOOL_PMU__EVENT_HAS_PMEM:
@@ -451,26 +508,23 @@ int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 	case TOOL_PMU__EVENT_NUM_PACKAGES:
 	case TOOL_PMU__EVENT_SLOTS:
 	case TOOL_PMU__EVENT_SMT_ON:
-	case TOOL_PMU__EVENT_SYSTEM_TSC_FREQ:
-		if (evsel->prev_raw_counts)
-			old_count = perf_counts(evsel->prev_raw_counts, cpu_map_idx, thread);
-		val = 0;
+	case TOOL_PMU__EVENT_CORE_WIDE:
+	case TOOL_PMU__EVENT_TARGET_CPU:
+	case TOOL_PMU__EVENT_SYSTEM_TSC_FREQ: {
+		u64 val = 0;
+
 		if (cpu_map_idx == 0 && thread == 0) {
-			if (!tool_pmu__read_event(ev, evsel, &val)) {
+			if (!tool_pmu__read_event(ev, evsel,
+						  stat_config.system_wide,
+						  stat_config.user_requested_cpu_list,
+						  &val)) {
 				count->lost++;
 				val = 0;
 			}
 		}
-		if (old_count) {
-			count->val = old_count->val + val;
-			count->run = old_count->run + 1;
-			count->ena = old_count->ena + 1;
-		} else {
-			count->val = val;
-			count->run++;
-			count->ena++;
-		}
+		perf_counts__update(count, old_count, /*raw=*/false, val);
 		return 0;
+	}
 	case TOOL_PMU__EVENT_DURATION_TIME:
 		/*
 		 * Pretend duration_time is only on the first CPU and thread, or
@@ -486,9 +540,9 @@ int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 	case TOOL_PMU__EVENT_USER_TIME:
 	case TOOL_PMU__EVENT_SYSTEM_TIME: {
 		bool system = evsel__tool_event(evsel) == TOOL_PMU__EVENT_SYSTEM_TIME;
+		int fd = FD(evsel, cpu_map_idx, thread);
 
 		start_time = xyarray__entry(evsel->start_times, cpu_map_idx, thread);
-		fd = FD(evsel, cpu_map_idx, thread);
 		lseek(fd, SEEK_SET, 0);
 		if (evsel->pid_stat) {
 			/* The event exists solely on 1 CPU. */
@@ -522,17 +576,9 @@ int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 	if (adjust) {
 		__u64 ticks_per_sec = sysconf(_SC_CLK_TCK);
 
-		delta_start *= 1000000000 / ticks_per_sec;
+		delta_start *= 1e9 / ticks_per_sec;
 	}
-	count->val    = delta_start;
-	count->lost   = 0;
-	/*
-	 * The values of enabled and running must make a ratio of 100%. The
-	 * exact values don't matter as long as they are non-zero to avoid
-	 * issues with evsel__count_has_error.
-	 */
-	count->ena++;
-	count->run++;
+	perf_counts__update(count, old_count, /*raw=*/true, delta_start);
 	return 0;
 }
 

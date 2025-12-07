@@ -777,9 +777,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 	attr.sample_id_all = evsel->core.attr.sample_id_all;
 	attr.read_format = evsel->core.attr.read_format;
 
-	id = evsel->core.id[0] + 1000000000;
-	if (!id)
-		id = 1;
+	id = auxtrace_synth_id_range_start(evsel);
 
 	if (bts->synth_opts.branches) {
 		attr.config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS;

@@ -10,6 +10,7 @@
 #include <api/io.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <linux/unistd.h>
@@ -119,7 +120,7 @@ static struct drm_pmu *add_drm_pmu(struct list_head *pmus, char *line, size_t li
 		return NULL;
 	}
 
-	drm->pmu.cpus = perf_cpu_map__new("0");
+	drm->pmu.cpus = perf_cpu_map__new_int(0);
 	if (!drm->pmu.cpus) {
 		perf_pmu__delete(&drm->pmu);
 		return NULL;

@@ -684,8 +684,13 @@ size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 	unsigned char *bitmap;
 	struct perf_cpu c, last_cpu = perf_cpu_map__max(map);
 
-	if (buf == NULL)
+	if (buf == NULL || size == 0)
 		return 0;
+
+	if (last_cpu.cpu < 0) {
+		buf[0] = '\0';
+		return 0;
+	}
 
 	bitmap = zalloc(last_cpu.cpu / 8 + 1);
 	if (bitmap == NULL) {
@@ -693,7 +698,7 @@ size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 		return 0;
 	}
 
-	perf_cpu_map__for_each_cpu(c, idx, map)
+	perf_cpu_map__for_each_cpu_skip_any(c, idx, map)
 		bitmap[c.cpu / 8] |= 1 << (c.cpu % 8);
 
 	for (int cpu = last_cpu.cpu / 4 * 4; cpu >= 0; cpu -= 4) {

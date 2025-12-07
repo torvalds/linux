@@ -2014,7 +2014,7 @@ static int __cmd_record(const char *file_name, int argc, const char **argv)
 	for (j = 1; j < argc; j++, i++)
 		rec_argv[i] = STRDUP_FAIL_EXIT(argv[j]);
 
-	BUG_ON(i != rec_argc);
+	BUG_ON(i + 2 != rec_argc);
 
 	ret = kvm_add_default_arch_event(&i, rec_argv);
 	if (ret)

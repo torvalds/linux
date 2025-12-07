@@ -98,6 +98,7 @@ extern bool dwarf_callchain_users;
 
 struct callchain_param {
 	bool			enabled;
+	bool			defer;
 	enum perf_call_graph_mode record_mode;
 	u32			dump_size;
 	enum chain_mode 	mode;
@@ -316,5 +317,8 @@ typedef int (*callchain_iter_fn)(struct callchain_cursor_node *node, void *data)
 int sample__for_each_callchain_node(struct thread *thread, struct evsel *evsel,
 				    struct perf_sample *sample, int max_stack,
 				    bool symbols, callchain_iter_fn cb, void *data);
+
+int sample__merge_deferred_callchain(struct perf_sample *sample_orig,
+				     struct perf_sample *sample_callchain);
 
 #endif	/* __PERF_CALLCHAIN_H */
