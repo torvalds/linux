@@ -560,6 +560,64 @@ static int ar933x_uart_verify_port(struct uart_port *port,
 	return 0;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+static int ar933x_poll_get_char(struct uart_port *port)
+{
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
+	unsigned int rdata;
+	unsigned char ch;
+	u32 imr;
+
+	/* Disable all interrupts */
+	imr = ar933x_uart_read(up, AR933X_UART_INT_EN_REG);
+	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, 0);
+
+	rdata = ar933x_uart_read(up, AR933X_UART_DATA_REG);
+	if ((rdata & AR933X_UART_DATA_RX_CSR) == 0) {
+		/* Enable interrupts */
+		ar933x_uart_write(up, AR933X_UART_INT_EN_REG, imr);
+		return NO_POLL_CHAR;
+	}
+
+	/* remove the character from the FIFO */
+	ar933x_uart_write(up, AR933X_UART_DATA_REG,
+			  AR933X_UART_DATA_RX_CSR);
+
+	ch = rdata & AR933X_UART_DATA_TX_RX_MASK;
+
+	/* Enable interrupts */
+	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, imr);
+
+	return ch;
+}
+
+static void ar933x_poll_put_char(struct uart_port *port, unsigned char c)
+{
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
+	u32 imr;
+
+	/* Disable all interrupts */
+	imr = ar933x_uart_read(up, AR933X_UART_INT_EN_REG);
+	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, 0);
+
+	/* Wait until FIFO is empty */
+	while (!(ar933x_uart_read(up, AR933X_UART_DATA_REG) & AR933X_UART_DATA_TX_CSR))
+		cpu_relax();
+
+	/* Write a character */
+	ar933x_uart_putc(up, c);
+
+	/* Wait until FIFO is empty */
+	while (!(ar933x_uart_read(up, AR933X_UART_DATA_REG) & AR933X_UART_DATA_TX_CSR))
+		cpu_relax();
+
+	/* Enable interrupts */
+	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, imr);
+}
+#endif
+
 static const struct uart_ops ar933x_uart_ops = {
 	.tx_empty	= ar933x_uart_tx_empty,
 	.set_mctrl	= ar933x_uart_set_mctrl,
@@ -576,6 +634,10 @@ static const struct uart_ops ar933x_uart_ops = {
 	.request_port	= ar933x_uart_request_port,
 	.config_port	= ar933x_uart_config_port,
 	.verify_port	= ar933x_uart_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	= ar933x_poll_get_char,
+	.poll_put_char	= ar933x_poll_put_char,
+#endif
 };
 
 static int ar933x_config_rs485(struct uart_port *port, struct ktermios *termios,
