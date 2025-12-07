@@ -327,7 +327,9 @@ static struct inet_frag_queue *inet_frag_alloc(struct fqdir *fqdir,
 
 	timer_setup(&q->timer, f->frag_expire, 0);
 	spin_lock_init(&q->lock);
-	/* One reference for the timer, one for the hash table. */
+	/* One reference for the timer, one for the hash table.
+	 * We never take any extra references, only decrement this field.
+	 */
 	refcount_set(&q->refcnt, 2);
 
 	return q;

@@ -242,10 +242,8 @@ static int ip_frag_reinit(struct ipq *qp)
 {
 	unsigned int sum_truesize = 0;
 
-	if (!mod_timer(&qp->q.timer, jiffies + qp->q.fqdir->timeout)) {
-		refcount_inc(&qp->q.refcnt);
+	if (!mod_timer_pending(&qp->q.timer, jiffies + qp->q.fqdir->timeout))
 		return -ETIMEDOUT;
-	}
 
 	sum_truesize = inet_frag_rbtree_purge(&qp->q.rb_fragments,
 					      SKB_DROP_REASON_FRAG_TOO_FAR);
