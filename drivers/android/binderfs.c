@@ -211,6 +211,9 @@ err:
 
 /**
  * binder_ctl_ioctl - handle binder device node allocation requests
+ * @file: The file pointer for the binder-control device node.
+ * @cmd: The ioctl command.
+ * @arg: The ioctl argument.
  *
  * The request handler for the binder-control device. All requests operate on
  * the binderfs mount the binder-control device resides in:

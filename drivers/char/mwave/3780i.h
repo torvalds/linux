@@ -261,7 +261,7 @@ typedef struct {
 * the only values maintained by the 3780i support layer are the saved UART
 * registers.
 */
-typedef struct _DSP_3780I_CONFIG_SETTINGS {
+struct dsp_3780i_config_settings {
 
 	/* Location of base configuration register */
 	unsigned short usBaseConfigIO;
@@ -313,16 +313,16 @@ typedef struct _DSP_3780I_CONFIG_SETTINGS {
 	unsigned char ucSCR;	/* Scratch register */
 	unsigned char ucDLL;	/* Divisor latch, low byte */
 	unsigned char ucDLM;	/* Divisor latch, high byte */
-} DSP_3780I_CONFIG_SETTINGS;
+};
 
 
 /* 3780i support functions */
-int dsp3780I_EnableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings,
+int dsp3780I_EnableDSP(struct dsp_3780i_config_settings *pSettings,
                        unsigned short *pIrqMap,
                        unsigned short *pDmaMap);
-int dsp3780I_DisableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings);
-int dsp3780I_Reset(DSP_3780I_CONFIG_SETTINGS * pSettings);
-int dsp3780I_Run(DSP_3780I_CONFIG_SETTINGS * pSettings);
+int dsp3780I_DisableDSP(struct dsp_3780i_config_settings *pSettings);
+int dsp3780I_Reset(struct dsp_3780i_config_settings *pSettings);
+int dsp3780I_Run(struct dsp_3780i_config_settings *pSettings);
 int dsp3780I_ReadDStore(unsigned short usDspBaseIO, void __user *pvBuffer,
                         unsigned uCount, unsigned long ulDSPAddr);
 int dsp3780I_ReadAndClearDStore(unsigned short usDspBaseIO,

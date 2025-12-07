@@ -77,19 +77,17 @@ static int dev_8255_attach(struct comedi_device *dev,
 		 * base address of the chip.
 		 */
 		ret = __comedi_request_region(dev, iobase, I8255_SIZE);
+		if (ret)
+			return ret;
+		ret = subdev_8255_io_init(dev, s, iobase);
 		if (ret) {
+			/*
+			 * Release the I/O port region here, as the
+			 * "detach" handler cannot find it.
+			 */
+			release_region(iobase, I8255_SIZE);
 			s->type = COMEDI_SUBD_UNUSED;
-		} else {
-			ret = subdev_8255_io_init(dev, s, iobase);
-			if (ret) {
-				/*
-				 * Release the I/O port region here, as the
-				 * "detach" handler cannot find it.
-				 */
-				release_region(iobase, I8255_SIZE);
-				s->type = COMEDI_SUBD_UNUSED;
-				return ret;
-			}
+			return ret;
 		}
 	}
 

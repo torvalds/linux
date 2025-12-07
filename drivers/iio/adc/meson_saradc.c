@@ -1181,12 +1181,12 @@ static int read_label(struct iio_dev *indio_dev,
 		      char *label)
 {
 	if (chan->type == IIO_TEMP)
-		return sprintf(label, "temp-sensor\n");
+		return sysfs_emit(label, "temp-sensor\n");
 	if (chan->type == IIO_VOLTAGE && chan->channel >= NUM_MUX_0_VSS)
-		return sprintf(label, "%s\n",
+		return sysfs_emit(label, "%s\n",
 			       chan7_mux_names[chan->channel - NUM_MUX_0_VSS]);
 	if (chan->type == IIO_VOLTAGE)
-		return sprintf(label, "channel-%d\n", chan->channel);
+		return sysfs_emit(label, "channel-%d\n", chan->channel);
 	return 0;
 }
 

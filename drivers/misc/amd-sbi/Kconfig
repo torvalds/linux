@@ -4,8 +4,10 @@ config AMD_SBRMI_I2C
 	depends on I2C
 	depends on ARM || ARM64 || COMPILE_TEST
 	select REGMAP_I2C
+	depends on I3C || !I3C
+	select REGMAP_I3C if I3C
 	help
-	  Side band RMI over I2C support for AMD out of band management.
+	  Side band RMI over I2C/I3C support for AMD out of band management.
 	  This driver is intended to run on the BMC, not the managed node.
 
 	  This driver can also be built as a module. If so, the module will

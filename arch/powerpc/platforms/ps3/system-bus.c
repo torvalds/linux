@@ -465,7 +465,7 @@ static struct attribute *ps3_system_bus_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ps3_system_bus_dev);
 
-static struct bus_type ps3_system_bus_type = {
+static const struct bus_type ps3_system_bus_type = {
 	.name = "ps3_system_bus",
 	.match = ps3_system_bus_match,
 	.uevent = ps3_system_bus_uevent,

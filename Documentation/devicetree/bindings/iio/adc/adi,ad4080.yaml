@@ -26,6 +26,11 @@ properties:
   compatible:
     enum:
       - adi,ad4080
+      - adi,ad4081
+      - adi,ad4083
+      - adi,ad4084
+      - adi,ad4086
+      - adi,ad4087
 
   reg:
     maxItems: 1

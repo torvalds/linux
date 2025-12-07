@@ -12,10 +12,14 @@ struct adxl380_chip_info {
 	const char *name;
 	const int scale_tbl[3][2];
 	const int samp_freq_tbl[3];
+	const struct iio_info *info;
 	const int temp_offset;
 	const u16 chip_id;
+	const bool has_low_power;
 };
 
+extern const struct adxl380_chip_info adxl318_chip_info;
+extern const struct adxl380_chip_info adxl319_chip_info;
 extern const struct adxl380_chip_info adxl380_chip_info;
 extern const struct adxl380_chip_info adxl382_chip_info;
 

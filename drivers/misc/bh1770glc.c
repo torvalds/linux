@@ -640,7 +640,9 @@ static ssize_t bh1770_power_state_store(struct device *dev,
 
 	mutex_lock(&chip->mutex);
 	if (value) {
-		pm_runtime_get_sync(dev);
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0)
+			goto leave;
 
 		ret = bh1770_lux_rate(chip, chip->lux_rate_index);
 		if (ret < 0) {

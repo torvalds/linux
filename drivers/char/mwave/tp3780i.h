@@ -75,27 +75,27 @@
 #define TP_CFG_PllBypass        0	/* don't bypass */
 #define TP_CFG_ChipletEnable 0xFFFF	/* Enable all chiplets */
 
-typedef struct {
+struct thinkpad_bd_data {
 	int bDSPEnabled;
 	int bShareDspIrq;
 	int bShareUartIrq;
-	DSP_3780I_CONFIG_SETTINGS rDspSettings;
-} THINKPAD_BD_DATA;
+	struct dsp_3780i_config_settings rDspSettings;
+};
 
-int tp3780I_InitializeBoardData(THINKPAD_BD_DATA * pBDData);
-int tp3780I_CalcResources(THINKPAD_BD_DATA * pBDData);
-int tp3780I_ClaimResources(THINKPAD_BD_DATA * pBDData);
-int tp3780I_ReleaseResources(THINKPAD_BD_DATA * pBDData);
-int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData);
-int tp3780I_DisableDSP(THINKPAD_BD_DATA * pBDData);
-int tp3780I_ResetDSP(THINKPAD_BD_DATA * pBDData);
-int tp3780I_StartDSP(THINKPAD_BD_DATA * pBDData);
-int tp3780I_QueryAbilities(THINKPAD_BD_DATA * pBDData, MW_ABILITIES * pAbilities);
-void tp3780I_Cleanup(THINKPAD_BD_DATA *pBDData);
-int tp3780I_ReadWriteDspDStore(THINKPAD_BD_DATA * pBDData, unsigned int uOpcode,
+int tp3780I_InitializeBoardData(struct thinkpad_bd_data *pBDData);
+int tp3780I_CalcResources(struct thinkpad_bd_data *pBDData);
+int tp3780I_ClaimResources(struct thinkpad_bd_data *pBDData);
+int tp3780I_ReleaseResources(struct thinkpad_bd_data *pBDData);
+int tp3780I_EnableDSP(struct thinkpad_bd_data *pBDData);
+int tp3780I_DisableDSP(struct thinkpad_bd_data *pBDData);
+int tp3780I_ResetDSP(struct thinkpad_bd_data *pBDData);
+int tp3780I_StartDSP(struct thinkpad_bd_data *pBDData);
+int tp3780I_QueryAbilities(struct thinkpad_bd_data *pBDData, struct mw_abilities *pAbilities);
+void tp3780I_Cleanup(struct thinkpad_bd_data *pBDData);
+int tp3780I_ReadWriteDspDStore(struct thinkpad_bd_data *pBDData, unsigned int uOpcode,
                                void __user *pvBuffer, unsigned int uCount,
                                unsigned long ulDSPAddr);
-int tp3780I_ReadWriteDspIStore(THINKPAD_BD_DATA * pBDData, unsigned int uOpcode,
+int tp3780I_ReadWriteDspIStore(struct thinkpad_bd_data *pBDData, unsigned int uOpcode,
                                void __user *pvBuffer, unsigned int uCount,
                                unsigned long ulDSPAddr);
 

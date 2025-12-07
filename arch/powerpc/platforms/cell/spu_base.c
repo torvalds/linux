@@ -464,7 +464,7 @@ void spu_init_channels(struct spu *spu)
 }
 EXPORT_SYMBOL_GPL(spu_init_channels);
 
-static struct bus_type spu_subsys = {
+static const struct bus_type spu_subsys = {
 	.name = "spu",
 	.dev_name = "spu",
 };

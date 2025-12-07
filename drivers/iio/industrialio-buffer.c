@@ -1563,9 +1563,7 @@ static void iio_buffer_dmabuf_release(struct kref *ref)
 	struct iio_buffer *buffer = priv->buffer;
 	struct dma_buf *dmabuf = attach->dmabuf;
 
-	dma_resv_lock(dmabuf->resv, NULL);
-	dma_buf_unmap_attachment(attach, priv->sgt, priv->dir);
-	dma_resv_unlock(dmabuf->resv);
+	dma_buf_unmap_attachment_unlocked(attach, priv->sgt, priv->dir);
 
 	buffer->access->detach_dmabuf(buffer, priv->block);
 
@@ -2383,6 +2381,9 @@ static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
  * iio_push_to_buffers() - push to a registered buffer.
  * @indio_dev:		iio_dev structure for device.
  * @data:		Full scan.
+ *
+ * Context: Any context.
+ * Return: 0 on success, negative error code on failure.
  */
 int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data)
 {
@@ -2412,6 +2413,9 @@ EXPORT_SYMBOL_GPL(iio_push_to_buffers);
  * not require space for the timestamp, or 8 byte alignment of data.
  * It does however require an allocation on first call and additional
  * copies on all calls, so should be avoided if possible.
+ *
+ * Context: May sleep.
+ * Return: 0 on success, negative error code on failure.
  */
 int iio_push_to_buffers_with_ts_unaligned(struct iio_dev *indio_dev,
 					  const void *data,
@@ -2419,6 +2423,8 @@ int iio_push_to_buffers_with_ts_unaligned(struct iio_dev *indio_dev,
 					  int64_t timestamp)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	might_sleep();
 
 	/*
 	 * Conservative estimate - we can always safely copy the minimum
