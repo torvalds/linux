@@ -10974,10 +10974,9 @@ sched_balance_find_dst_group(struct sched_domain *sd, struct task_struct *p, int
 			 * take care of it.
 			 */
 			if (p->nr_cpus_allowed != NR_CPUS) {
-				struct cpumask *cpus = this_cpu_cpumask_var_ptr(select_rq_mask);
-
-				cpumask_and(cpus, sched_group_span(local), p->cpus_ptr);
-				imb_numa_nr = min(cpumask_weight(cpus), sd->imb_numa_nr);
+				unsigned int w = cpumask_weight_and(p->cpus_ptr,
+								sched_group_span(local));
+				imb_numa_nr = min(w, sd->imb_numa_nr);
 			}
 
 			imbalance = abs(local_sgs.idle_cpus - idlest_sgs.idle_cpus);
