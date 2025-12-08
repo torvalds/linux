@@ -1506,6 +1506,12 @@ ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/boot/dts/),)
 dtstree := arch/$(SRCARCH)/boot/dts
 endif
 
+dtbindingtree := Documentation/devicetree/bindings
+
+%.yaml: dtbs_prepare
+	$(Q)$(MAKE) $(build)=$(dtbindingtree) \
+		    $(dtbindingtree)/$(patsubst %.yaml,%.example.dtb,$@) dt_binding_check_one
+
 ifneq ($(dtstree),)
 
 %.dtb: dtbs_prepare
@@ -1523,7 +1529,7 @@ dtbs: dtbs_prepare
 # dtbs_install depend on it as dtbs_install may run as root.
 dtbs_prepare: include/config/kernel.release scripts_dtc
 
-ifneq ($(filter dtbs_check, $(MAKECMDGOALS)),)
+ifneq ($(filter dtbs_check %.yaml, $(MAKECMDGOALS)),)
 export CHECK_DTBS=y
 endif
 
@@ -1556,14 +1562,14 @@ endif
 
 PHONY += dt_binding_check dt_binding_schemas
 dt_binding_check: dt_binding_schemas scripts_dtc
-	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings $@
+	$(Q)$(MAKE) $(build)=$(dtbindingtree) $@
 
 dt_binding_schemas:
-	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings
+	$(Q)$(MAKE) $(build)=$(dtbindingtree)
 
 PHONY += dt_compatible_check
 dt_compatible_check: dt_binding_schemas
-	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings $@
+	$(Q)$(MAKE) $(build)=$(dtbindingtree) $@
 
 # ---------------------------------------------------------------------------
 # Modules
