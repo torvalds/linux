@@ -1066,7 +1066,7 @@ static void kgdbts_run_tests(void)
 	configured = 0;
 }
 
-static int kgdbts_option_setup(char *opt)
+static int __init kgdbts_option_setup(char *opt)
 {
 	if (strlen(opt) >= MAX_CONFIG_LEN) {
 		printk(KERN_ERR "kgdbts: config string too long\n");
