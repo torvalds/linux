@@ -624,10 +624,17 @@ static const struct amdgpu_irq_src_funcs gmc_v12_1_irq_funcs = {
 	.process = gmc_v12_1_process_interrupt,
 };
 
+static const struct amdgpu_irq_src_funcs gmc_v12_1_ecc_funcs = {
+	.process = amdgpu_umc_uniras_process_ecc_irq,
+};
+
 void gmc_v12_1_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->gmc.vm_fault.num_types = 1;
 	adev->gmc.vm_fault.funcs = &gmc_v12_1_irq_funcs;
+
+	adev->gmc.ecc_irq.num_types = 1;
+	adev->gmc.ecc_irq.funcs = &gmc_v12_1_ecc_funcs;
 }
 
 void gmc_v12_1_init_vram_info(struct amdgpu_device *adev)

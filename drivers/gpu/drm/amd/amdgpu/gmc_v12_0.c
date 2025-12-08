@@ -893,11 +893,15 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	if ((amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(12, 1, 0)) &&
-	    !amdgpu_sriov_vf(adev)) {
+	if (!amdgpu_sriov_vf(adev)) {
 		/* interrupt sent to DF. */
-		r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_DF, 0,
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 0, 0))
+			r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_DF, 0,
 				      &adev->gmc.ecc_irq);
+		else
+			r = amdgpu_irq_add_id(adev, SOC_V1_0_IH_CLIENTID_DF, 0,
+				      &adev->gmc.ecc_irq);
+
 		if (r)
 			return r;
 	}
