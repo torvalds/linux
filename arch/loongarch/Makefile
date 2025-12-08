@@ -5,7 +5,12 @@
 
 boot	:= arch/loongarch/boot
 
-KBUILD_DEFCONFIG := loongson3_defconfig
+ifeq ($(shell uname -m),loongarch32)
+KBUILD_DEFCONFIG := loongson32_defconfig
+else
+KBUILD_DEFCONFIG := loongson64_defconfig
+endif
+
 KBUILD_DTBS      := dtbs
 
 image-name-y			:= vmlinux
