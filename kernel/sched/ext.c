@@ -3575,7 +3575,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	int node;
 
 	irq_work_sync(&sch->error_irq_work);
-	kthread_stop(sch->helper->task);
+	kthread_destroy_worker(sch->helper);
 
 	free_percpu(sch->pcpu);
 
@@ -4786,7 +4786,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
 	return sch;
 
 err_stop_helper:
-	kthread_stop(sch->helper->task);
+	kthread_destroy_worker(sch->helper);
 err_free_pcpu:
 	free_percpu(sch->pcpu);
 err_free_gdsqs:
