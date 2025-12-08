@@ -10547,7 +10547,7 @@ F:	include/uapi/asm-generic/
 
 GENERIC PHY FRAMEWORK
 M:	Vinod Koul <vkoul@kernel.org>
-M:	Kishon Vijay Abraham I <kishon@kernel.org>
+R:	Neil Armstrong <neil.armstrong@linaro.org>
 L:	linux-phy@lists.infradead.org
 S:	Supported
 Q:	https://patchwork.kernel.org/project/linux-phy/list/
