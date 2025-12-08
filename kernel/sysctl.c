@@ -1071,6 +1071,14 @@ int proc_douintvec_minmax(const struct ctl_table *table, int dir,
 	return -ENOSYS;
 }
 
+int proc_douintvec_conv(const struct ctl_table *table, int write, void *buffer,
+			size_t *lenp, loff_t *ppos,
+			int (*conv)(unsigned long *lvalp, unsigned int *valp,
+				    int write, const struct ctl_table *table))
+{
+	return -ENOSYS;
+}
+
 int proc_dou8vec_minmax(const struct ctl_table *table, int dir,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
