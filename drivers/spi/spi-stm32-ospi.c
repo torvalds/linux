@@ -34,8 +34,6 @@
 #define CR_ABORT		BIT(1)
 #define CR_DMAEN		BIT(2)
 #define CR_FTHRES_SHIFT		8
-#define CR_TEIE			BIT(16)
-#define CR_TCIE			BIT(17)
 #define CR_SMIE			BIT(19)
 #define CR_APMS			BIT(22)
 #define CR_CSSEL		BIT(24)
@@ -106,7 +104,7 @@
 #define STM32_ABT_TIMEOUT_US		100000
 #define STM32_COMP_TIMEOUT_MS		5000
 #define STM32_BUSY_TIMEOUT_US		100000
-
+#define STM32_WAIT_CMD_TIMEOUT_US	5000
 
 #define STM32_AUTOSUSPEND_DELAY -1
 
@@ -116,7 +114,6 @@ struct stm32_ospi {
 	struct clk *clk;
 	struct reset_control *rstc;
 
-	struct completion data_completion;
 	struct completion match_completion;
 
 	struct dma_chan *dma_chtx;
@@ -240,22 +237,16 @@ static int stm32_ospi_wait_nobusy(struct stm32_ospi *ospi)
 static int stm32_ospi_wait_cmd(struct stm32_ospi *ospi)
 {
 	void __iomem *regs_base = ospi->regs_base;
-	u32 cr, sr;
+	u32 sr;
 	int err = 0;
 
-	if ((readl_relaxed(regs_base + OSPI_SR) & SR_TCF) ||
-	    ospi->fmode == CR_FMODE_APM)
+	if (ospi->fmode == CR_FMODE_APM)
 		goto out;
 
-	reinit_completion(&ospi->data_completion);
-	cr = readl_relaxed(regs_base + OSPI_CR);
-	writel_relaxed(cr | CR_TCIE | CR_TEIE, regs_base + OSPI_CR);
+	err = readl_relaxed_poll_timeout_atomic(ospi->regs_base + OSPI_SR, sr,
+						(sr & (SR_TEF | SR_TCF)), 1,
+						STM32_WAIT_CMD_TIMEOUT_US);
 
-	if (!wait_for_completion_timeout(&ospi->data_completion,
-				msecs_to_jiffies(STM32_COMP_TIMEOUT_MS)))
-		err = -ETIMEDOUT;
-
-	sr = readl_relaxed(regs_base + OSPI_SR);
 	if (sr & SR_TCF)
 		/* avoid false timeout */
 		err = 0;
@@ -293,15 +284,6 @@ static irqreturn_t stm32_ospi_irq(int irq, void *dev_id)
 		cr &= ~CR_SMIE;
 		writel_relaxed(cr, regs_base + OSPI_CR);
 		complete(&ospi->match_completion);
-
-		return IRQ_HANDLED;
-	}
-
-	if (sr & (SR_TEF | SR_TCF)) {
-		/* disable irq */
-		cr &= ~CR_TCIE & ~CR_TEIE;
-		writel_relaxed(cr, regs_base + OSPI_CR);
-		complete(&ospi->data_completion);
 	}
 
 	return IRQ_HANDLED;
@@ -884,7 +866,6 @@ static int stm32_ospi_get_resources(struct platform_device *pdev)
 		dev_info(dev, "No memory-map region found\n");
 	}
 
-	init_completion(&ospi->data_completion);
 	init_completion(&ospi->match_completion);
 
 	return 0;
