@@ -54,6 +54,10 @@ void amdgpu_reg_access_init(struct amdgpu_device *adev)
 	spin_lock_init(&adev->reg.se_cac.lock);
 	adev->reg.se_cac.rreg = NULL;
 	adev->reg.se_cac.wreg = NULL;
+
+	spin_lock_init(&adev->reg.audio_endpt.lock);
+	adev->reg.audio_endpt.rreg = NULL;
+	adev->reg.audio_endpt.wreg = NULL;
 }
 
 uint32_t amdgpu_reg_smc_rd32(struct amdgpu_device *adev, uint32_t reg)
@@ -151,6 +155,28 @@ void amdgpu_reg_se_cac_wr32(struct amdgpu_device *adev, uint32_t reg,
 		return;
 	}
 	adev->reg.se_cac.wreg(adev, reg, v);
+}
+
+uint32_t amdgpu_reg_audio_endpt_rd32(struct amdgpu_device *adev, uint32_t block,
+				     uint32_t reg)
+{
+	if (!adev->reg.audio_endpt.rreg) {
+		dev_err_once(adev->dev,
+			     "AUDIO_ENDPT register read not supported\n");
+		return 0;
+	}
+	return adev->reg.audio_endpt.rreg(adev, block, reg);
+}
+
+void amdgpu_reg_audio_endpt_wr32(struct amdgpu_device *adev, uint32_t block,
+				 uint32_t reg, uint32_t v)
+{
+	if (!adev->reg.audio_endpt.wreg) {
+		dev_err_once(adev->dev,
+			     "AUDIO_ENDPT register write not supported\n");
+		return;
+	}
+	adev->reg.audio_endpt.wreg(adev, block, reg, v);
 }
 
 /*

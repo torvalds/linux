@@ -5968,8 +5968,8 @@ static int dm_early_init(struct amdgpu_ip_block *ip_block)
 		adev->mode_info.funcs = &dm_display_funcs;
 
 	/*
-	 * Note: Do NOT change adev->audio_endpt_rreg and
-	 * adev->audio_endpt_wreg because they are initialised in
+	 * Note: Do NOT change adev->reg.audio_endpt.rreg and
+	 * adev->reg.audio_endpt.wreg because they are initialised in
 	 * amdgpu_device_init()
 	 */
 #if defined(CONFIG_DEBUG_KERNEL_DC)

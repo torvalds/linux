@@ -959,48 +959,6 @@ static void amdgpu_invalid_wreg64_ext(struct amdgpu_device *adev, uint64_t reg, 
 	BUG();
 }
 
-/**
- * amdgpu_block_invalid_rreg - dummy reg read function
- *
- * @adev: amdgpu_device pointer
- * @block: offset of instance
- * @reg: offset of register
- *
- * Dummy register read function.  Used for register blocks
- * that certain asics don't have (all asics).
- * Returns the value in the register.
- */
-static uint32_t amdgpu_block_invalid_rreg(struct amdgpu_device *adev,
-					  uint32_t block, uint32_t reg)
-{
-	dev_err(adev->dev,
-		"Invalid callback to read register 0x%04X in block 0x%04X\n",
-		reg, block);
-	BUG();
-	return 0;
-}
-
-/**
- * amdgpu_block_invalid_wreg - dummy reg write function
- *
- * @adev: amdgpu_device pointer
- * @block: offset of instance
- * @reg: offset of register
- * @v: value to write to the register
- *
- * Dummy register read function.  Used for register blocks
- * that certain asics don't have (all asics).
- */
-static void amdgpu_block_invalid_wreg(struct amdgpu_device *adev,
-				      uint32_t block,
-				      uint32_t reg, uint32_t v)
-{
-	dev_err(adev->dev,
-		"Invalid block callback to write register 0x%04X in block 0x%04X with 0x%08X\n",
-		reg, block, v);
-	BUG();
-}
-
 static uint32_t amdgpu_device_get_vbios_flags(struct amdgpu_device *adev)
 {
 	if (hweight32(adev->aid_mask) && (adev->flags & AMD_IS_APU))
@@ -3842,8 +3800,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->pcie_wreg64 = &amdgpu_invalid_wreg64;
 	adev->pcie_rreg64_ext = &amdgpu_invalid_rreg64_ext;
 	adev->pcie_wreg64_ext = &amdgpu_invalid_wreg64_ext;
-	adev->audio_endpt_rreg = &amdgpu_block_invalid_rreg;
-	adev->audio_endpt_wreg = &amdgpu_block_invalid_wreg;
 
 	dev_info(
 		adev->dev,
@@ -3889,7 +3845,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	spin_lock_init(&adev->mmio_idx_lock);
 	spin_lock_init(&adev->pcie_idx_lock);
-	spin_lock_init(&adev->audio_endpt_idx_lock);
 	spin_lock_init(&adev->mm_stats.lock);
 	spin_lock_init(&adev->virt.rlcg_reg_lock);
 	spin_lock_init(&adev->wb.lock);

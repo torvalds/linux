@@ -32,10 +32,21 @@ struct amdgpu_device;
 typedef uint32_t (*amdgpu_rreg_t)(struct amdgpu_device *, uint32_t);
 typedef void (*amdgpu_wreg_t)(struct amdgpu_device *, uint32_t, uint32_t);
 
+typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device *, uint32_t,
+					uint32_t);
+typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device *, uint32_t, uint32_t,
+				    uint32_t);
+
 struct amdgpu_reg_ind {
 	spinlock_t lock;
 	amdgpu_rreg_t rreg;
 	amdgpu_wreg_t wreg;
+};
+
+struct amdgpu_reg_ind_blk {
+	spinlock_t lock;
+	amdgpu_block_rreg_t rreg;
+	amdgpu_block_wreg_t wreg;
 };
 
 struct amdgpu_reg_access {
@@ -44,6 +55,7 @@ struct amdgpu_reg_access {
 	struct amdgpu_reg_ind didt;
 	struct amdgpu_reg_ind gc_cac;
 	struct amdgpu_reg_ind se_cac;
+	struct amdgpu_reg_ind_blk audio_endpt;
 };
 
 void amdgpu_reg_access_init(struct amdgpu_device *adev);
@@ -59,6 +71,10 @@ void amdgpu_reg_gc_cac_wr32(struct amdgpu_device *adev, uint32_t reg,
 uint32_t amdgpu_reg_se_cac_rd32(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_reg_se_cac_wr32(struct amdgpu_device *adev, uint32_t reg,
 			    uint32_t v);
+uint32_t amdgpu_reg_audio_endpt_rd32(struct amdgpu_device *adev, uint32_t block,
+				     uint32_t reg);
+void amdgpu_reg_audio_endpt_wr32(struct amdgpu_device *adev, uint32_t block,
+				 uint32_t reg, uint32_t v);
 
 typedef uint32_t (*amdgpu_rreg_ext_t)(struct amdgpu_device *, uint64_t);
 typedef void (*amdgpu_wreg_ext_t)(struct amdgpu_device *, uint64_t, uint32_t);
@@ -68,11 +84,6 @@ typedef void (*amdgpu_wreg64_t)(struct amdgpu_device *, uint32_t, uint64_t);
 
 typedef uint64_t (*amdgpu_rreg64_ext_t)(struct amdgpu_device *, uint64_t);
 typedef void (*amdgpu_wreg64_ext_t)(struct amdgpu_device *, uint64_t, uint64_t);
-
-typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device *, uint32_t,
-					uint32_t);
-typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device *, uint32_t, uint32_t,
-				    uint32_t);
 
 uint32_t amdgpu_device_rreg(struct amdgpu_device *adev, uint32_t reg,
 			    uint32_t acc_flags);
