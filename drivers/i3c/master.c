@@ -1742,11 +1742,10 @@ EXPORT_SYMBOL_GPL(i3c_master_do_daa);
 struct i3c_dma *i3c_master_dma_map_single(struct device *dev, void *buf,
 	size_t len, bool force_bounce, enum dma_data_direction dir)
 {
-	struct i3c_dma *dma_xfer __free(kfree) = NULL;
 	void *bounce __free(kfree) = NULL;
 	void *dma_buf = buf;
 
-	dma_xfer = kzalloc(sizeof(*dma_xfer), GFP_KERNEL);
+	struct i3c_dma *dma_xfer __free(kfree) = kzalloc(sizeof(*dma_xfer), GFP_KERNEL);
 	if (!dma_xfer)
 		return NULL;
 
