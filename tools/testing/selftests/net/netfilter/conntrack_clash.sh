@@ -116,7 +116,7 @@ run_one_clash_test()
 	# not a failure: clash resolution logic did not trigger.
 	# With right timing, xmit completed sequentially and
 	# no parallel insertion occurs.
-	return $ksft_skip
+	return $ksft_xfail
 }
 
 run_clash_test()
@@ -133,12 +133,12 @@ run_clash_test()
 		if [ $rv -eq 0 ];then
 			echo "PASS: clash resolution test for $daddr:$dport on attempt $i"
 			return 0
-		elif [ $rv -eq $ksft_skip ]; then
+		elif [ $rv -eq $ksft_xfail ]; then
 			softerr=1
 		fi
 	done
 
-	[ $softerr -eq 1 ] && echo "SKIP: clash resolution for $daddr:$dport did not trigger"
+	[ $softerr -eq 1 ] && echo "XFAIL: clash resolution for $daddr:$dport did not trigger"
 }
 
 ip link add veth0 netns "$nsclient1" type veth peer name veth0 netns "$nsrouter"
@@ -167,8 +167,7 @@ load_simple_ruleset "$nsclient2"
 run_clash_test "$nsclient2" "$nsclient2" 127.0.0.1 9001
 
 if [ $clash_resolution_active -eq 0 ];then
-	[ "$ret" -eq 0 ] && ret=$ksft_skip
-	echo "SKIP: Clash resolution did not trigger"
+	[ "$ret" -eq 0 ] && ret=$ksft_xfail
 fi
 
 exit $ret
