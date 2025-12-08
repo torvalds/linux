@@ -1305,7 +1305,8 @@ static int emit_atomic_rmw(u8 **pprog, u32 atomic_op,
 {
 	u8 *prog = *pprog;
 
-	EMIT1(0xF0); /* lock prefix */
+	if (atomic_op != BPF_XCHG)
+		EMIT1(0xF0); /* lock prefix */
 
 	maybe_emit_mod(&prog, dst_reg, src_reg, bpf_size == BPF_DW);
 
@@ -1347,7 +1348,9 @@ static int emit_atomic_rmw_index(u8 **pprog, u32 atomic_op, u32 size,
 {
 	u8 *prog = *pprog;
 
-	EMIT1(0xF0); /* lock prefix */
+	if (atomic_op != BPF_XCHG)
+		EMIT1(0xF0); /* lock prefix */
+
 	switch (size) {
 	case BPF_W:
 		EMIT1(add_3mod(0x40, dst_reg, src_reg, index_reg));
