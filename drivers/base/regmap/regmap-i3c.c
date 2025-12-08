@@ -11,7 +11,7 @@ static int regmap_i3c_write(void *context, const void *data, size_t count)
 {
 	struct device *dev = context;
 	struct i3c_device *i3c = dev_to_i3cdev(dev);
-	struct i3c_priv_xfer xfers[] = {
+	struct i3c_xfer xfers[] = {
 		{
 			.rnw = false,
 			.len = count,
@@ -19,7 +19,7 @@ static int regmap_i3c_write(void *context, const void *data, size_t count)
 		},
 	};
 
-	return i3c_device_do_priv_xfers(i3c, xfers, ARRAY_SIZE(xfers));
+	return i3c_device_do_xfers(i3c, xfers, ARRAY_SIZE(xfers), I3C_SDR);
 }
 
 static int regmap_i3c_read(void *context,
@@ -28,7 +28,7 @@ static int regmap_i3c_read(void *context,
 {
 	struct device *dev = context;
 	struct i3c_device *i3c = dev_to_i3cdev(dev);
-	struct i3c_priv_xfer xfers[2];
+	struct i3c_xfer xfers[2];
 
 	xfers[0].rnw = false;
 	xfers[0].len = reg_size;
@@ -38,7 +38,7 @@ static int regmap_i3c_read(void *context,
 	xfers[1].len = val_size;
 	xfers[1].data.in = val;
 
-	return i3c_device_do_priv_xfers(i3c, xfers, ARRAY_SIZE(xfers));
+	return i3c_device_do_xfers(i3c, xfers, ARRAY_SIZE(xfers), I3C_SDR);
 }
 
 static const struct regmap_bus regmap_i3c = {

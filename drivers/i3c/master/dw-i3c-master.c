@@ -228,6 +228,7 @@
 
 /* List of quirks */
 #define AMD_I3C_OD_PP_TIMING		BIT(1)
+#define DW_I3C_DISABLE_RUNTIME_PM_QUIRK	BIT(2)
 
 struct dw_i3c_cmd {
 	u32 cmd_lo;
@@ -250,6 +251,10 @@ struct dw_i3c_xfer {
 struct dw_i3c_i2c_dev_data {
 	u8 index;
 	struct i3c_generic_ibi_pool *ibi_pool;
+};
+
+struct dw_i3c_drvdata {
+	u32 flags;
 };
 
 static bool dw_i3c_master_supports_ccc_cmd(struct i3c_master_controller *m,
@@ -1535,6 +1540,8 @@ int dw_i3c_common_probe(struct dw_i3c_master *master,
 			struct platform_device *pdev)
 {
 	int ret, irq;
+	const struct dw_i3c_drvdata *drvdata;
+	unsigned long quirks = 0;
 
 	if (!master->platform_ops)
 		master->platform_ops = &dw_i3c_platform_ops_default;
@@ -1590,7 +1597,18 @@ int dw_i3c_common_probe(struct dw_i3c_master *master,
 	master->maxdevs = ret >> 16;
 	master->free_pos = GENMASK(master->maxdevs - 1, 0);
 
-	master->quirks = (unsigned long)device_get_match_data(&pdev->dev);
+	if (has_acpi_companion(&pdev->dev)) {
+		quirks = (unsigned long)device_get_match_data(&pdev->dev);
+	} else if (pdev->dev.of_node) {
+		drvdata = device_get_match_data(&pdev->dev);
+		if (drvdata)
+			quirks = drvdata->flags;
+	}
+	master->quirks = quirks;
+
+	/* Keep controller enabled by preventing runtime suspend */
+	if (master->quirks & DW_I3C_DISABLE_RUNTIME_PM_QUIRK)
+		pm_runtime_get_noresume(&pdev->dev);
 
 	INIT_WORK(&master->hj_work, dw_i3c_hj_work);
 	ret = i3c_master_register(&master->base, &pdev->dev,
@@ -1616,6 +1634,10 @@ void dw_i3c_common_remove(struct dw_i3c_master *master)
 {
 	cancel_work_sync(&master->hj_work);
 	i3c_master_unregister(&master->base);
+
+	/* Balance pm_runtime_get_noresume() from probe() */
+	if (master->quirks & DW_I3C_DISABLE_RUNTIME_PM_QUIRK)
+		pm_runtime_put_noidle(master->dev);
 
 	pm_runtime_disable(master->dev);
 	pm_runtime_set_suspended(master->dev);
@@ -1759,8 +1781,15 @@ static void dw_i3c_shutdown(struct platform_device *pdev)
 	pm_runtime_put_autosuspend(master->dev);
 }
 
+static const struct dw_i3c_drvdata altr_agilex5_drvdata = {
+	.flags = DW_I3C_DISABLE_RUNTIME_PM_QUIRK,
+};
+
 static const struct of_device_id dw_i3c_master_of_match[] = {
 	{ .compatible = "snps,dw-i3c-master-1.00a", },
+	{ .compatible = "altr,agilex5-dw-i3c-master",
+	  .data = &altr_agilex5_drvdata,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_i3c_master_of_match);
