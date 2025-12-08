@@ -254,7 +254,7 @@ int amdgpu_device_ip_block_add(
 /**
  * amdgpu_device_ip_set_clockgating_state - set the CG state
  *
- * @dev: amdgpu_device pointer
+ * @adev: amdgpu_device pointer
  * @block_type: Type of hardware IP (SMU, GFX, UVD, etc.)
  * @state: clockgating state (gate or ungate)
  *
@@ -262,11 +262,10 @@ int amdgpu_device_ip_block_add(
  * the hardware IP specified.
  * Returns the error code from the last instance.
  */
-int amdgpu_device_ip_set_clockgating_state(void *dev,
+int amdgpu_device_ip_set_clockgating_state(struct amdgpu_device *adev,
 					   enum amd_ip_block_type block_type,
 					   enum amd_clockgating_state state)
 {
-	struct amdgpu_device *adev = dev;
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
@@ -289,7 +288,7 @@ int amdgpu_device_ip_set_clockgating_state(void *dev,
 /**
  * amdgpu_device_ip_set_powergating_state - set the PG state
  *
- * @dev: amdgpu_device pointer
+ * @adev: amdgpu_device pointer
  * @block_type: Type of hardware IP (SMU, GFX, UVD, etc.)
  * @state: powergating state (gate or ungate)
  *
@@ -297,11 +296,10 @@ int amdgpu_device_ip_set_clockgating_state(void *dev,
  * the hardware IP specified.
  * Returns the error code from the last instance.
  */
-int amdgpu_device_ip_set_powergating_state(void *dev,
+int amdgpu_device_ip_set_powergating_state(struct amdgpu_device *adev,
 					   enum amd_ip_block_type block_type,
 					   enum amd_powergating_state state)
 {
-	struct amdgpu_device *adev = dev;
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {

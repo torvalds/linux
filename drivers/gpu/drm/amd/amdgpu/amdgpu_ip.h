@@ -136,10 +136,10 @@ int amdgpu_device_ip_block_add(
 	struct amdgpu_device *adev,
 	const struct amdgpu_ip_block_version *ip_block_version);
 
-int amdgpu_device_ip_set_clockgating_state(void *dev,
+int amdgpu_device_ip_set_clockgating_state(struct amdgpu_device *adev,
 					   enum amd_ip_block_type block_type,
 					   enum amd_clockgating_state state);
-int amdgpu_device_ip_set_powergating_state(void *dev,
+int amdgpu_device_ip_set_powergating_state(struct amdgpu_device *adev,
 					   enum amd_ip_block_type block_type,
 					   enum amd_powergating_state state);
 void amdgpu_device_ip_get_clockgating_state(struct amdgpu_device *adev,
