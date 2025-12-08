@@ -45,6 +45,7 @@
 #include "v12_structs.h"
 #include "gfx_v12_1.h"
 #include "mes_v12_1.h"
+#include "amdgpu_ras_mgr.h"
 
 #define GFX12_MEC_HPD_SIZE	2048
 #define NUM_SIMD_PER_CU_GFX12_1	4
@@ -1181,6 +1182,13 @@ static int gfx_v12_1_sw_init(struct amdgpu_ip_block *ip_block)
 	r = amdgpu_irq_add_id(adev, SOC_V1_0_IH_CLIENTID_GRBM_CP,
 			      GFX_12_1_0__SRCID__CP_PRIV_INSTR_FAULT,
 			      &adev->gfx.priv_inst_irq);
+	if (r)
+		return r;
+
+	/* RLC POISON Error */
+	r = amdgpu_irq_add_id(adev, SOC_V1_0_IH_CLIENTID_RLC,
+				GFX_12_1_0__SRCID__RLC_POISON_INTERRUPT,
+				&adev->gfx.rlc_poison_irq);
 	if (r)
 		return r;
 
@@ -3778,6 +3786,35 @@ static int gfx_v12_1_priv_inst_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int gfx_v12_1_rlc_poison_irq(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  struct amdgpu_iv_entry *entry)
+{
+	uint32_t rlc_fed_status = 0;
+	uint32_t ras_blk = RAS_BLOCK_ID__GFX;
+	struct ras_ih_info ih_info = {0};
+	int i, num_xcc;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++)
+		rlc_fed_status |= RREG32(SOC15_REG_OFFSET(GC,
+					GET_INST(GC, i), regRLC_RLCS_FED_STATUS));
+
+	if (!rlc_fed_status)
+		return 0;
+
+	if (REG_GET_FIELD(rlc_fed_status, RLC_RLCS_FED_STATUS, SDMA0_FED_ERR) ||
+	    REG_GET_FIELD(rlc_fed_status, RLC_RLCS_FED_STATUS, SDMA1_FED_ERR))
+		ras_blk = RAS_BLOCK_ID__SDMA;
+
+	dev_warn(adev->dev, "RLC %d FED IRQ\n", ras_blk);
+
+	ih_info.block = ras_blk;
+	ih_info.reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+	amdgpu_ras_mgr_dispatch_interrupt(adev, &ih_info);
+	return 0;
+}
+
 static void gfx_v12_1_emit_mem_sync(struct amdgpu_ring *ring)
 {
 	const unsigned int gcr_cntl =
@@ -3902,6 +3939,10 @@ static const struct amdgpu_irq_src_funcs gfx_v12_1_priv_inst_irq_funcs = {
 	.process = gfx_v12_1_priv_inst_irq,
 };
 
+static const struct amdgpu_irq_src_funcs gfx_v12_1_rlc_poison_irq_funcs = {
+	.process = gfx_v12_1_rlc_poison_irq,
+};
+
 static void gfx_v12_1_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->gfx.eop_irq.num_types = AMDGPU_CP_IRQ_LAST;
@@ -3912,6 +3953,9 @@ static void gfx_v12_1_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->gfx.priv_inst_irq.num_types = 1;
 	adev->gfx.priv_inst_irq.funcs = &gfx_v12_1_priv_inst_irq_funcs;
+
+	adev->gfx.rlc_poison_irq.num_types = 1;
+	adev->gfx.rlc_poison_irq.funcs = &gfx_v12_1_rlc_poison_irq_funcs;
 }
 
 static void gfx_v12_1_set_imu_funcs(struct amdgpu_device *adev)

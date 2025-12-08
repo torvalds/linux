@@ -28,6 +28,7 @@
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 #include "kfd_smi_events.h"
 #include "kfd_debug.h"
+#include "amdgpu_ras_mgr.h"
 
 /*
  * GFX12.1 SQ Interrupts
@@ -185,6 +186,7 @@ static void event_interrupt_poison_consumption_v12_1(struct kfd_node *node,
 	enum amdgpu_ras_block block = 0;
 	int ret = -EINVAL;
 	uint32_t reset = 0;
+	u64 event_id = RAS_EVENT_INVALID_ID;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid, NULL);
 
 	if (!p)
@@ -220,7 +222,15 @@ static void event_interrupt_poison_consumption_v12_1(struct kfd_node *node,
 	 * resetting queue passes, do page retirement without gpu reset
 	 * resetting queue fails, fallback to gpu reset solution
 	 */
-	amdgpu_amdkfd_ras_poison_consumption_handler(node->adev, block, reset);
+	if (amdgpu_uniras_enabled(node->adev))
+		event_id = amdgpu_ras_mgr_gen_ras_event_seqno(node->adev,
+					RAS_SEQNO_TYPE_POISON_CONSUMPTION);
+
+	RAS_EVENT_LOG(node->adev, event_id,
+		      "poison is consumed by source %d, kick off gpu reset flow\n", source_id);
+
+	amdgpu_amdkfd_ras_pasid_poison_consumption_handler(node->adev,
+				block, pasid, NULL, NULL, reset);
 }
 
 static bool event_interrupt_isr_v12_1(struct kfd_node *node,
