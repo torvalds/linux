@@ -104,7 +104,7 @@ static int nfs4_setup_state_renewal(struct nfs_client *clp)
 
 	status = nfs4_proc_get_lease_time(clp, &fsinfo);
 	if (status == 0) {
-		nfs4_set_lease_period(clp, fsinfo.lease_time * HZ);
+		nfs4_set_lease_period(clp, fsinfo.lease_time);
 		nfs4_schedule_state_renewal(clp);
 	}
 

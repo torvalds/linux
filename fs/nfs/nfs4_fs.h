@@ -477,8 +477,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *);
 extern void nfs4_schedule_state_renewal(struct nfs_client *);
 extern void nfs4_kill_renewd(struct nfs_client *);
 extern void nfs4_renew_state(struct work_struct *);
-extern void nfs4_set_lease_period(struct nfs_client *clp, unsigned long lease);
-
+extern void nfs4_set_lease_period(struct nfs_client *clp, u32 period);
 
 /* nfs4state.c */
 extern const nfs4_stateid current_stateid;

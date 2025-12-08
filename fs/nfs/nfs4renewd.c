@@ -137,11 +137,12 @@ nfs4_kill_renewd(struct nfs_client *clp)
  * nfs4_set_lease_period - Sets the lease period on a nfs_client
  *
  * @clp: pointer to nfs_client
- * @lease: new value for lease period
+ * @period: new value for lease period (in seconds)
  */
-void nfs4_set_lease_period(struct nfs_client *clp,
-		unsigned long lease)
+void nfs4_set_lease_period(struct nfs_client *clp, u32 period)
 {
+	unsigned long lease = period * HZ;
+
 	spin_lock(&clp->cl_lock);
 	clp->cl_lease_time = lease;
 	spin_unlock(&clp->cl_lock);
