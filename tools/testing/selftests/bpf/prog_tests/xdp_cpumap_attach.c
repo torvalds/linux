@@ -18,7 +18,7 @@ static void test_xdp_with_cpumap_helpers(void)
 	struct bpf_cpumap_val val = {
 		.qsize = 192,
 	};
-	int err, prog_fd, prog_redir_fd, map_fd;
+	int err, prog_fd, prog_redir_fd, map_fd, bad_fd;
 	struct nstoken *nstoken = NULL;
 	__u32 idx = 0;
 
@@ -79,7 +79,22 @@ static void test_xdp_with_cpumap_helpers(void)
 	val.qsize = 192;
 	val.bpf_prog.fd = bpf_program__fd(skel->progs.xdp_dummy_prog);
 	err = bpf_map_update_elem(map_fd, &idx, &val, 0);
-	ASSERT_NEQ(err, 0, "Add non-BPF_XDP_CPUMAP program to cpumap entry");
+	ASSERT_EQ(err, -EINVAL, "Add non-BPF_XDP_CPUMAP program to cpumap entry");
+
+	/* Try to attach non-BPF file descriptor */
+	bad_fd = open("/dev/null", O_RDONLY);
+	ASSERT_GE(bad_fd, 0, "Open /dev/null for non-BPF fd");
+
+	val.bpf_prog.fd = bad_fd;
+	err = bpf_map_update_elem(map_fd, &idx, &val, 0);
+	ASSERT_EQ(err, -EINVAL, "Add non-BPF fd to cpumap entry");
+
+	/* Try to attach nonexistent file descriptor */
+	err = close(bad_fd);
+	ASSERT_EQ(err, 0, "Close non-BPF fd for nonexistent fd");
+
+	err = bpf_map_update_elem(map_fd, &idx, &val, 0);
+	ASSERT_EQ(err, -EBADF, "Add nonexistent fd to cpumap entry");
 
 	/* Try to attach BPF_XDP program with frags to cpumap when we have
 	 * already loaded a BPF_XDP program on the map
