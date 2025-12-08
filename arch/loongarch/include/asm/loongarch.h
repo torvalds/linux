@@ -912,6 +912,26 @@
 #define LOONGARCH_CSR_DMWIN3		0x183	/* 64 direct map win3: MEM */
 
 /* Direct Map window 0/1/2/3 */
+
+#ifdef CONFIG_32BIT
+
+#define CSR_DMW0_PLV0		(1 << 0)
+#define CSR_DMW0_VSEG		(0x4)
+#define CSR_DMW0_BASE		(CSR_DMW0_VSEG << DMW_PABITS)
+#define CSR_DMW0_INIT		(CSR_DMW0_BASE | CSR_DMW0_PLV0)
+
+#define CSR_DMW1_PLV0		(1 << 0)
+#define CSR_DMW1_MAT		(1 << 4)
+#define CSR_DMW1_VSEG		(0x5)
+#define CSR_DMW1_BASE		(CSR_DMW1_VSEG << DMW_PABITS)
+#define CSR_DMW1_INIT		(CSR_DMW1_BASE | CSR_DMW1_MAT | CSR_DMW1_PLV0)
+
+#define CSR_DMW2_INIT		0x0
+
+#define CSR_DMW3_INIT		0x0
+
+#else
+
 #define CSR_DMW0_PLV0		_CONST64_(1 << 0)
 #define CSR_DMW0_VSEG		_CONST64_(0x8000)
 #define CSR_DMW0_BASE		(CSR_DMW0_VSEG << DMW_PABITS)
@@ -930,6 +950,8 @@
 #define CSR_DMW2_INIT		(CSR_DMW2_BASE | CSR_DMW2_MAT | CSR_DMW2_PLV0)
 
 #define CSR_DMW3_INIT		0x0
+
+#endif
 
 /* Performance Counter registers */
 #define LOONGARCH_CSR_PERFCTRL0		0x200	/* 32 perf event 0 config */
@@ -1388,8 +1410,10 @@ __BUILD_CSR_OP(tlbidx)
 #define ENTRYLO_C_SHIFT		4
 #define ENTRYLO_C		(_ULCAST_(3) << ENTRYLO_C_SHIFT)
 #define ENTRYLO_G		(_ULCAST_(1) << 6)
+#ifdef CONFIG_64BIT
 #define ENTRYLO_NR		(_ULCAST_(1) << 61)
 #define ENTRYLO_NX		(_ULCAST_(1) << 62)
+#endif
 
 /* Values for PageSize register */
 #define PS_4K		0x0000000c

@@ -106,7 +106,11 @@ EXPORT_SYMBOL(vm_map_base);
 
 static void cpu_probe_addrbits(struct cpuinfo_loongarch *c)
 {
-#ifdef __NEED_ADDRBITS_PROBE
+#ifdef CONFIG_32BIT
+	c->pabits = cpu_pabits;
+	c->vabits = cpu_vabits;
+	vm_map_base = KVRANGE;
+#else
 	c->pabits = (read_cpucfg(LOONGARCH_CPUCFG1) & CPUCFG1_PABITS) >> 4;
 	c->vabits = (read_cpucfg(LOONGARCH_CPUCFG1) & CPUCFG1_VABITS) >> 12;
 	vm_map_base = 0UL - (1UL << c->vabits);
