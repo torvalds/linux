@@ -126,6 +126,10 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 	return 0;
 }
 
+#define PANFROST_BO_FLAGS	(PANFROST_BO_NOEXEC | \
+				 PANFROST_BO_HEAP | \
+				 PANFROST_BO_WB_MMAP)
+
 static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
@@ -135,8 +139,7 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 	struct panfrost_gem_mapping *mapping;
 	int ret;
 
-	if (!args->size || args->pad ||
-	    (args->flags & ~(PANFROST_BO_NOEXEC | PANFROST_BO_HEAP)))
+	if (!args->size || args->pad || (args->flags & ~PANFROST_BO_FLAGS))
 		return -EINVAL;
 
 	/* Heaps should never be executable */
@@ -656,6 +659,9 @@ static int panfrost_ioctl_query_bo_info(struct drm_device *dev, void *data,
 
 		if (bo->is_heap)
 			args->create_flags |= PANFROST_BO_HEAP;
+
+		if (!bo->base.map_wc)
+			args->create_flags |= PANFROST_BO_WB_MMAP;
 	}
 
 	drm_gem_object_put(gem_obj);

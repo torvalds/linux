@@ -444,11 +444,41 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 	return &obj->base.base;
 }
 
+static bool
+should_map_wc(struct panfrost_gem_object *bo)
+{
+	struct panfrost_device *pfdev = to_panfrost_device(bo->base.base.dev);
+
+	/* We can't do uncached mappings if the device is coherent,
+	 * because the zeroing done by the shmem layer at page allocation
+	 * time happens on a cached mapping which isn't CPU-flushed (at least
+	 * not on Arm64 where the flush is deferred to PTE setup time, and
+	 * only done conditionally based on the mapping permissions). We can't
+	 * rely on dma_map_sgtable()/dma_sync_sgtable_for_xxx() either to flush
+	 * those, because they are NOPed if dma_dev_coherent() returns true.
+	 */
+	if (pfdev->coherent)
+		return false;
+
+	/* Cached mappings are explicitly requested, so no write-combine. */
+	if (bo->wb_mmap)
+		return false;
+
+	/* The default is write-combine. */
+	return true;
+}
+
 struct panfrost_gem_object *
 panfrost_gem_create(struct drm_device *dev, size_t size, u32 flags)
 {
 	struct drm_gem_shmem_object *shmem;
 	struct panfrost_gem_object *bo;
+
+	/* The heap buffer is not supposed to be CPU-visible, so don't allow
+	 * WB_MMAP on those.
+	 */
+	if ((flags & PANFROST_BO_HEAP) && (flags & PANFROST_BO_WB_MMAP))
+		return ERR_PTR(-EINVAL);
 
 	/* Round up heap allocations to 2MB to keep fault handling simple */
 	if (flags & PANFROST_BO_HEAP)
@@ -461,6 +491,8 @@ panfrost_gem_create(struct drm_device *dev, size_t size, u32 flags)
 	bo = to_panfrost_bo(&shmem->base);
 	bo->noexec = !!(flags & PANFROST_BO_NOEXEC);
 	bo->is_heap = !!(flags & PANFROST_BO_HEAP);
+	bo->wb_mmap = !!(flags & PANFROST_BO_WB_MMAP);
+	bo->base.map_wc = should_map_wc(bo);
 
 	return bo;
 }

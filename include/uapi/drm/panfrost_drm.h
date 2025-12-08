@@ -124,9 +124,12 @@ struct drm_panfrost_wait_bo {
 	__s64 timeout_ns;
 };
 
-/* Valid flags to pass to drm_panfrost_create_bo */
+/* Valid flags to pass to drm_panfrost_create_bo.
+ * PANFROST_BO_WB_MMAP can't be set if PANFROST_BO_HEAP is.
+ */
 #define PANFROST_BO_NOEXEC	1
 #define PANFROST_BO_HEAP	2
+#define PANFROST_BO_WB_MMAP	4
 
 /**
  * struct drm_panfrost_create_bo - ioctl argument for creating Panfrost BOs.
