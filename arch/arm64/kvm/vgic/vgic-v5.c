@@ -48,5 +48,7 @@ int vgic_v5_probe(const struct gic_kvm_info *info)
 	static_branch_enable(&kvm_vgic_global_state.gicv3_cpuif);
 	kvm_info("GCIE legacy system register CPU interface\n");
 
+	vgic_v3_enable_cpuif_traps();
+
 	return 0;
 }
