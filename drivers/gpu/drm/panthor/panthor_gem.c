@@ -77,6 +77,39 @@ static void panthor_gem_debugfs_set_usage_flags(struct panthor_gem_object *bo, u
 static void panthor_gem_debugfs_bo_init(struct panthor_gem_object *bo) {}
 #endif
 
+static bool
+should_map_wc(struct panthor_gem_object *bo, struct panthor_vm *exclusive_vm)
+{
+	struct panthor_device *ptdev = container_of(bo->base.base.dev, struct panthor_device, base);
+
+	/* We can't do uncached mappings if the device is coherent,
+	 * because the zeroing done by the shmem layer at page allocation
+	 * time happens on a cached mapping which isn't CPU-flushed (at least
+	 * not on Arm64 where the flush is deferred to PTE setup time, and
+	 * only done conditionally based on the mapping permissions). We can't
+	 * rely on dma_map_sgtable()/dma_sync_sgtable_for_xxx() either to flush
+	 * those, because they are NOPed if dma_dev_coherent() returns true.
+	 *
+	 * FIXME: Note that this problem is going to pop up again when we
+	 * decide to support mapping buffers with the NO_MMAP flag as
+	 * non-shareable (AKA buffers accessed only by the GPU), because we
+	 * need the same CPU flush to happen after page allocation, otherwise
+	 * there's a risk of data leak or late corruption caused by a dirty
+	 * cacheline being evicted. At this point we'll need a way to force
+	 * CPU cache maintenance regardless of whether the device is coherent
+	 * or not.
+	 */
+	if (ptdev->coherent)
+		return false;
+
+	/* Cached mappings are explicitly requested, so no write-combine. */
+	if (bo->flags & DRM_PANTHOR_BO_WB_MMAP)
+		return false;
+
+	/* The default is write-combine. */
+	return true;
+}
+
 static void panthor_gem_free_object(struct drm_gem_object *obj)
 {
 	struct panthor_gem_object *bo = to_panthor_bo(obj);
@@ -163,6 +196,7 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 	bo = to_panthor_bo(&obj->base);
 	kbo->obj = &obj->base;
 	bo->flags = bo_flags;
+	bo->base.map_wc = should_map_wc(bo, vm);
 	bo->exclusive_vm_root_gem = panthor_vm_root_gem(vm);
 	drm_gem_object_get(bo->exclusive_vm_root_gem);
 	bo->base.base.resv = bo->exclusive_vm_root_gem->resv;
@@ -363,7 +397,6 @@ static const struct drm_gem_object_funcs panthor_gem_funcs = {
  */
 struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t size)
 {
-	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
 	struct panthor_gem_object *obj;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
@@ -371,7 +404,6 @@ struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t
 		return ERR_PTR(-ENOMEM);
 
 	obj->base.base.funcs = &panthor_gem_funcs;
-	obj->base.map_wc = !ptdev->coherent;
 	mutex_init(&obj->label.lock);
 
 	panthor_gem_debugfs_bo_init(obj);
@@ -406,6 +438,7 @@ panthor_gem_create_with_handle(struct drm_file *file,
 
 	bo = to_panthor_bo(&shmem->base);
 	bo->flags = flags;
+	bo->base.map_wc = should_map_wc(bo, exclusive_vm);
 
 	if (exclusive_vm) {
 		bo->exclusive_vm_root_gem = panthor_vm_root_gem(exclusive_vm);

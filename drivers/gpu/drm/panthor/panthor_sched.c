@@ -863,8 +863,11 @@ panthor_queue_get_syncwait_obj(struct panthor_group *group, struct panthor_queue
 	struct iosys_map map;
 	int ret;
 
-	if (queue->syncwait.kmap)
-		return queue->syncwait.kmap + queue->syncwait.offset;
+	if (queue->syncwait.kmap) {
+		bo = container_of(queue->syncwait.obj,
+				  struct panthor_gem_object, base.base);
+		goto out_sync;
+	}
 
 	bo = panthor_vm_get_bo_for_va(group->vm,
 				      queue->syncwait.gpu_va,
@@ -880,6 +883,17 @@ panthor_queue_get_syncwait_obj(struct panthor_group *group, struct panthor_queue
 	queue->syncwait.kmap = map.vaddr;
 	if (drm_WARN_ON(&ptdev->base, !queue->syncwait.kmap))
 		goto err_put_syncwait_obj;
+
+out_sync:
+	/* Make sure the CPU caches are invalidated before the seqno is read.
+	 * drm_gem_shmem_sync() is a NOP if map_wc=true, so no need to check
+	 * it here.
+	 */
+	panthor_gem_sync(&bo->base.base, queue->syncwait.offset,
+			 queue->syncwait.sync64 ?
+			 sizeof(struct panthor_syncobj_64b) :
+			 sizeof(struct panthor_syncobj_32b),
+			 DRM_PANTHOR_BO_SYNC_CPU_CACHE_FLUSH_AND_INVALIDATE);
 
 	return queue->syncwait.kmap + queue->syncwait.offset;
 
