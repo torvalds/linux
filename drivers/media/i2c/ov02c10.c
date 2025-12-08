@@ -170,7 +170,7 @@ static const struct reg_sequence sensor_1928x1092_30fps_setting[] = {
 	{0x3816, 0x01},
 	{0x3817, 0x01},
 
-	{0x3820, 0xa0},
+	{0x3820, 0xa8},
 	{0x3821, 0x00},
 	{0x3822, 0x80},
 	{0x3823, 0x08},
@@ -462,9 +462,9 @@ static int ov02c10_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_HFLIP:
 		cci_write(ov02c10->regmap, OV02C10_ISP_X_WIN_CONTROL,
-			  ctrl->val ? 1 : 2, &ret);
+			  ctrl->val ? 2 : 1, &ret);
 		cci_update_bits(ov02c10->regmap, OV02C10_ROTATE_CONTROL,
-				BIT(3), ov02c10->hflip->val << 3, &ret);
+				BIT(3), ctrl->val ? 0 : BIT(3), &ret);
 		break;
 
 	case V4L2_CID_VFLIP:
