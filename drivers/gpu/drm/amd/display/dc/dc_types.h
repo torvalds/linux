@@ -1185,6 +1185,8 @@ struct replay_config {
 	bool os_request_force_ffu;
 	/* Replay optimization */
 	union replay_optimization replay_optimization;
+	/* Replay sub feature Frame Skipping is supported */
+	bool frame_skip_supported;
 };
 
 /* Replay feature flags*/

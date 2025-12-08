@@ -984,6 +984,9 @@ void set_replay_frame_skip_number(struct dc_link *link,
 	uint32_t *frame_skip_number_array = NULL;
 	uint32_t frame_skip_number = 0;
 
+	if (false == link->replay_settings.config.frame_skip_supported)
+		return;
+
 	if (link == NULL || flicker_free_refresh_rate_mhz == 0 || coasting_vtotal_refresh_rate_mhz == 0)
 		return;
 
