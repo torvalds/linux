@@ -20,11 +20,14 @@ struct typec_port;
 struct typec_altmode_ops;
 struct typec_cable_ops;
 
+struct bus_type;
 struct fwnode_handle;
 struct device;
 
 struct usb_power_delivery;
 struct usb_power_delivery_desc;
+
+extern const struct bus_type typec_bus;
 
 enum typec_port_type {
 	TYPEC_PORT_SRC,
