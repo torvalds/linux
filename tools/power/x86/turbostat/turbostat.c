@@ -11536,18 +11536,20 @@ void cmdline(int argc, char **argv)
 			/* Parsed earlier */
 			break;
 		case 'n':
-			num_iterations = strtod(optarg, NULL);
+			num_iterations = strtoul(optarg, NULL, 0);
+			errno = 0;
 
-			if (num_iterations <= 0) {
-				fprintf(outf, "iterations %d should be positive number\n", num_iterations);
+			if (errno || num_iterations == 0) {
+				fprintf(outf, "invalid iteration count: %s\n", optarg);
 				exit(2);
 			}
 			break;
 		case 'N':
-			header_iterations = strtod(optarg, NULL);
+			header_iterations = strtoul(optarg, NULL, 0);
+			errno = 0;
 
-			if (header_iterations <= 0) {
-				fprintf(outf, "iterations %d should be positive number\n", header_iterations);
+			if (errno || header_iterations == 0) {
+				fprintf(outf, "invalid header iteration count: %s\n", optarg);
 				exit(2);
 			}
 			break;
