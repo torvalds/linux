@@ -153,34 +153,53 @@ static irqreturn_t stm32_qspi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void stm32_qspi_read_fifo(u8 *val, void __iomem *addr)
+static void stm32_qspi_read_fifo(void *val, void __iomem *addr, u8 len)
 {
-	*val = readb_relaxed(addr);
+	switch (len) {
+	case sizeof(u32):
+		*((u32 *)val) = readl_relaxed(addr);
+		break;
+	case sizeof(u16):
+		*((u16 *)val) = readw_relaxed(addr);
+		break;
+	case sizeof(u8):
+		*((u8 *)val) = readb_relaxed(addr);
+	};
 }
 
-static void stm32_qspi_write_fifo(u8 *val, void __iomem *addr)
+static void stm32_qspi_write_fifo(void *val, void __iomem *addr, u8 len)
 {
-	writeb_relaxed(*val, addr);
+	switch (len) {
+	case sizeof(u32):
+		writel_relaxed(*((u32 *)val), addr);
+		break;
+	case sizeof(u16):
+		writew_relaxed(*((u16 *)val), addr);
+		break;
+	case sizeof(u8):
+		writeb_relaxed(*((u8 *)val), addr);
+	};
 }
 
 static int stm32_qspi_tx_poll(struct stm32_qspi *qspi,
 			      const struct spi_mem_op *op)
 {
-	void (*tx_fifo)(u8 *val, void __iomem *addr);
+	void (*fifo)(void *val, void __iomem *addr, u8 len);
 	u32 len = op->data.nbytes, sr;
-	u8 *buf;
+	void *buf;
 	int ret;
+	u8 step;
 
 	if (op->data.dir == SPI_MEM_DATA_IN) {
-		tx_fifo = stm32_qspi_read_fifo;
+		fifo = stm32_qspi_read_fifo;
 		buf = op->data.buf.in;
 
 	} else {
-		tx_fifo = stm32_qspi_write_fifo;
-		buf = (u8 *)op->data.buf.out;
+		fifo = stm32_qspi_write_fifo;
+		buf = (void *)op->data.buf.out;
 	}
 
-	while (len--) {
+	while (len) {
 		ret = readl_relaxed_poll_timeout_atomic(qspi->io_base + QSPI_SR,
 							sr, (sr & SR_FTF), 1,
 							STM32_FIFO_TIMEOUT_US);
@@ -189,7 +208,17 @@ static int stm32_qspi_tx_poll(struct stm32_qspi *qspi,
 				len, sr);
 			return ret;
 		}
-		tx_fifo(buf++, qspi->io_base + QSPI_DR);
+
+		if (len >= sizeof(u32))
+			step = sizeof(u32);
+		else if (len >= sizeof(u16))
+			step = sizeof(u16);
+		else
+			step = sizeof(u8);
+
+		fifo(buf, qspi->io_base + QSPI_DR, step);
+		len -= step;
+		buf += step;
 	}
 
 	return 0;
