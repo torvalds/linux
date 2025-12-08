@@ -357,8 +357,11 @@ __init void sysfb_apply_efi_quirks(void)
 
 	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI &&
 	    dmi_check_system(efifb_dmi_swap_width_height)) {
+		u32 bpp = __screen_info_lfb_bits_per_pixel(&screen_info);
+
 		swap(screen_info.lfb_width, screen_info.lfb_height);
-		screen_info.lfb_linelength = 4 * screen_info.lfb_width;
+		screen_info.lfb_linelength = bpp * screen_info.lfb_width /
+					     BITS_PER_BYTE;
 	}
 }
 
