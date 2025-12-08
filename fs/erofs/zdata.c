@@ -1324,8 +1324,8 @@ static int z_erofs_decompress_pcluster(struct z_erofs_backend *be, bool eio)
 						GFP_NOWAIT | __GFP_NORETRY
 				 }, be->pagepool);
 		if (IS_ERR(reason)) {
-			erofs_err(be->sb, "failed to decompress (%s) %ld @ pa %llu size %u => %u",
-				  alg->name, PTR_ERR(reason), pcl->pos,
+			erofs_err(be->sb, "failed to decompress (%s) %pe @ pa %llu size %u => %u",
+				  alg->name, reason, pcl->pos,
 				  pcl->pclustersize, pcl->length);
 			err = PTR_ERR(reason);
 		} else if (unlikely(reason)) {
