@@ -44,6 +44,12 @@ struct xe_survivability {
 
 	/** @type: survivability type */
 	enum xe_survivability_type type;
+
+	/** @fdo_mode: indicates if FDO mode is enabled */
+	bool fdo_mode;
+
+	/** @version: breadcrumb version of survivability mode  */
+	u8 version;
 };
 
 #endif /* _XE_SURVIVABILITY_MODE_TYPES_H_ */
