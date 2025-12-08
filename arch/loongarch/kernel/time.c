@@ -18,6 +18,7 @@
 #include <asm/loongarch.h>
 #include <asm/paravirt.h>
 #include <asm/time.h>
+#include <asm/timex.h>
 
 u64 cpu_clock_freq;
 EXPORT_SYMBOL(cpu_clock_freq);
@@ -62,12 +63,12 @@ static int constant_set_state_oneshot(struct clock_event_device *evt)
 
 static int constant_set_state_periodic(struct clock_event_device *evt)
 {
-	unsigned long period;
 	unsigned long timer_config;
+	u64 period = const_clock_freq;
 
 	raw_spin_lock(&state_lock);
 
-	period = const_clock_freq / HZ;
+	do_div(period, HZ);
 	timer_config = period & CSR_TCFG_VAL;
 	timer_config |= (CSR_TCFG_PERIOD | CSR_TCFG_EN);
 	csr_write(timer_config, LOONGARCH_CSR_TCFG);
@@ -120,7 +121,7 @@ static int arch_timer_dying(unsigned int cpu)
 
 static unsigned long get_loops_per_jiffy(void)
 {
-	unsigned long lpj = (unsigned long)const_clock_freq;
+	u64 lpj = const_clock_freq;
 
 	do_div(lpj, HZ);
 
@@ -131,7 +132,7 @@ static long init_offset;
 
 void save_counter(void)
 {
-	init_offset = drdtime();
+	init_offset = get_cycles();
 }
 
 void sync_counter(void)
@@ -197,12 +198,12 @@ int constant_clockevent_init(void)
 
 static u64 read_const_counter(struct clocksource *clk)
 {
-	return drdtime();
+	return get_cycles64();
 }
 
 static noinstr u64 sched_clock_read(void)
 {
-	return drdtime();
+	return get_cycles64();
 }
 
 static struct clocksource clocksource_const = {
@@ -235,7 +236,7 @@ void __init time_init(void)
 	else
 		const_clock_freq = calc_const_freq();
 
-	init_offset = -(drdtime() - csr_read(LOONGARCH_CSR_CNTC));
+	init_offset = -(get_cycles() - csr_read(LOONGARCH_CSR_CNTC));
 
 	constant_clockevent_init();
 	constant_clocksource_init();

@@ -75,7 +75,7 @@ void noinstr __no_stack_protector do_syscall(struct pt_regs *regs)
 	 *
 	 * The resulting 6 bits of entropy is seen in SP[9:4].
 	 */
-	choose_random_kstack_offset(drdtime());
+	choose_random_kstack_offset(get_cycles());
 
 	syscall_exit_to_user_mode(regs);
 }

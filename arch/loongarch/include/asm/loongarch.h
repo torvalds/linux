@@ -1238,7 +1238,35 @@
 
 #ifndef __ASSEMBLER__
 
-static __always_inline u64 drdtime(void)
+#ifdef CONFIG_32BIT
+
+static __always_inline u32 rdtime_h(void)
+{
+	u32 val = 0;
+
+	__asm__ __volatile__(
+		"rdtimeh.w %0, $zero\n\t"
+		: "=r"(val)
+		:
+		);
+	return val;
+}
+
+static __always_inline u32 rdtime_l(void)
+{
+	u32 val = 0;
+
+	__asm__ __volatile__(
+		"rdtimel.w %0, $zero\n\t"
+		: "=r"(val)
+		:
+		);
+	return val;
+}
+
+#else
+
+static __always_inline u64 rdtime_d(void)
 {
 	u64 val = 0;
 
@@ -1249,6 +1277,8 @@ static __always_inline u64 drdtime(void)
 		);
 	return val;
 }
+
+#endif
 
 static inline unsigned int get_csr_cpuid(void)
 {
