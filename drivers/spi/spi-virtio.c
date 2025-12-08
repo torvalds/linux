@@ -150,7 +150,6 @@ static int virtio_spi_transfer_one(struct spi_controller *ctrl,
 				   struct spi_transfer *xfer)
 {
 	struct virtio_spi_priv *priv = spi_controller_get_devdata(ctrl);
-	struct virtio_spi_req *spi_req __free(kfree) = NULL;
 	struct spi_transfer_head *th;
 	struct scatterlist sg_out_head, sg_out_payload;
 	struct scatterlist sg_in_result, sg_in_payload;
@@ -159,7 +158,8 @@ static int virtio_spi_transfer_one(struct spi_controller *ctrl,
 	unsigned int incnt = 0;
 	int ret;
 
-	spi_req = kzalloc(sizeof(*spi_req), GFP_KERNEL);
+	struct virtio_spi_req *spi_req __free(kfree) = kzalloc(sizeof(*spi_req),
+							       GFP_KERNEL);
 	if (!spi_req)
 		return -ENOMEM;
 
