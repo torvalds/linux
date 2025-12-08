@@ -18,11 +18,26 @@
 
 struct smbdirect_module_state {
 	struct mutex mutex;
+
+	struct {
+		rwlock_t lock;
+		struct list_head list;
+	} devices;
 };
 
 extern struct smbdirect_module_state smbdirect_globals;
 
 #include "smbdirect_socket.h"
+
+struct smbdirect_device {
+	struct list_head list;
+	struct ib_device *ib_dev;
+	/*
+	 * copy of ib_dev->name,
+	 * in order to print renames
+	 */
+	char ib_name[IB_DEVICE_NAME_MAX];
+};
 
 #ifdef SMBDIRECT_USE_INLINE_C_FILES
 /* this is temporary while this file is included in others */
@@ -142,5 +157,8 @@ __SMBDIRECT_PRIVATE__
 void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc);
 
 void smbdirect_accept_negotiate_finish(struct smbdirect_socket *sc, u32 ntstatus);
+
+__init int smbdirect_devices_init(void);
+__exit void smbdirect_devices_exit(void);
 
 #endif /* __FS_SMB_COMMON_SMBDIRECT_INTERNAL_H__ */

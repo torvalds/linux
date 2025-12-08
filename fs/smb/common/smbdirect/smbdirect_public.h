@@ -25,6 +25,9 @@ struct smbdirect_mr_io;
 #include <rdma/rw.h>
 
 __SMBDIRECT_PUBLIC__
+u8 smbdirect_netdev_rdma_capable_node_type(struct net_device *netdev);
+
+__SMBDIRECT_PUBLIC__
 bool smbdirect_frwr_is_supported(const struct ib_device_attr *attrs);
 
 __SMBDIRECT_PUBLIC__

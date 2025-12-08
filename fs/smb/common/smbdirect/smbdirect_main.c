@@ -12,14 +12,24 @@ struct smbdirect_module_state smbdirect_globals = {
 
 static __init int smbdirect_module_init(void)
 {
+	int ret;
+
 	pr_notice("subsystem loading...\n");
 	mutex_lock(&smbdirect_globals.mutex);
 
-	/* TODO... */
+	ret = smbdirect_devices_init();
+	if (ret)
+		goto devices_init_failed;
 
 	mutex_unlock(&smbdirect_globals.mutex);
 	pr_notice("subsystem loaded\n");
 	return 0;
+
+devices_init_failed:
+	mutex_unlock(&smbdirect_globals.mutex);
+	pr_crit("failed to loaded: %d (%1pe)\n",
+		ret, SMBDIRECT_DEBUG_ERR_PTR(ret));
+	return ret;
 }
 
 static __exit void smbdirect_module_exit(void)
@@ -27,7 +37,7 @@ static __exit void smbdirect_module_exit(void)
 	pr_notice("subsystem unloading...\n");
 	mutex_lock(&smbdirect_globals.mutex);
 
-	/* TODO... */
+	smbdirect_devices_exit();
 
 	mutex_unlock(&smbdirect_globals.mutex);
 	pr_notice("subsystem unloaded\n");
