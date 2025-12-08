@@ -7430,7 +7430,7 @@ amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force)
 	 *
 	 * Only allow to poll such a connector again when forcing.
 	 */
-	if (!force && link->local_sink && link->type == dc_connection_dac_load)
+	if (!force && link->local_sink && link->type == dc_connection_analog_load)
 		return connector->status;
 
 	mutex_lock(&aconnector->hpd_lock);
