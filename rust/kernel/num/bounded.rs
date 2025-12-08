@@ -367,6 +367,7 @@ where
     /// assert_eq!(Bounded::<u8, 1>::from_expr(1).get(), 1);
     /// assert_eq!(Bounded::<u16, 8>::from_expr(0xff).get(), 0xff);
     /// ```
+    // Always inline to optimize out error path of `build_assert`.
     #[inline(always)]
     pub fn from_expr(expr: T) -> Self {
         crate::build_assert!(
