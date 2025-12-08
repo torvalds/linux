@@ -487,8 +487,8 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		}
 
-		err = indx_read(&ni->dir, ni, bit << ni->dir.idx2vbn_bits,
-				&node);
+		err = indx_read_ra(&ni->dir, ni, bit << ni->dir.idx2vbn_bits,
+				   &node, &file->f_ra);
 		if (err)
 			goto out;
 

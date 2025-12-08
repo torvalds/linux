@@ -625,11 +625,27 @@ int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 		      u64 vbo, const void *buf, size_t bytes, int sync);
 struct buffer_head *ntfs_bread_run(struct ntfs_sb_info *sbi,
 				   const struct runs_tree *run, u64 vbo);
-int ntfs_read_run_nb(struct ntfs_sb_info *sbi, const struct runs_tree *run,
-		     u64 vbo, void *buf, u32 bytes, struct ntfs_buffers *nb);
-int ntfs_read_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
-		 struct NTFS_RECORD_HEADER *rhdr, u32 bytes,
-		 struct ntfs_buffers *nb);
+int ntfs_read_run_nb_ra(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+			u64 vbo, void *buf, u32 bytes, struct ntfs_buffers *nb,
+			struct file_ra_state *ra);
+static inline int ntfs_read_run_nb(struct ntfs_sb_info *sbi,
+				   const struct runs_tree *run, u64 vbo,
+				   void *buf, u32 bytes,
+				   struct ntfs_buffers *nb)
+{
+	return ntfs_read_run_nb_ra(sbi, run, vbo, buf, bytes, nb, NULL);
+}
+int ntfs_read_bh_ra(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+		    u64 vbo, struct NTFS_RECORD_HEADER *rhdr, u32 bytes,
+		    struct ntfs_buffers *nb, struct file_ra_state *ra);
+static inline int ntfs_read_bh(struct ntfs_sb_info *sbi,
+			       const struct runs_tree *run, u64 vbo,
+			       struct NTFS_RECORD_HEADER *rhdr, u32 bytes,
+			       struct ntfs_buffers *nb)
+{
+	return ntfs_read_bh_ra(sbi, run, vbo, rhdr, bytes, nb, NULL);
+}
+
 int ntfs_get_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
 		u32 bytes, struct ntfs_buffers *nb);
 int ntfs_write_bh(struct ntfs_sb_info *sbi, struct NTFS_RECORD_HEADER *rhdr,
@@ -695,8 +711,13 @@ int indx_init(struct ntfs_index *indx, struct ntfs_sb_info *sbi,
 	      const struct ATTRIB *attr, enum index_mutex_classed type);
 struct INDEX_ROOT *indx_get_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 				 struct ATTRIB **attr, struct mft_inode **mi);
-int indx_read(struct ntfs_index *idx, struct ntfs_inode *ni, CLST vbn,
-	      struct indx_node **node);
+int indx_read_ra(struct ntfs_index *idx, struct ntfs_inode *ni, CLST vbn,
+		 struct indx_node **node, struct file_ra_state *ra);
+static inline int indx_read(struct ntfs_index *idx, struct ntfs_inode *ni,
+			    CLST vbn, struct indx_node **node)
+{
+	return indx_read_ra(idx, ni, vbn, node, NULL);
+}
 int indx_find(struct ntfs_index *indx, struct ntfs_inode *dir,
 	      const struct INDEX_ROOT *root, const void *Key, size_t KeyLen,
 	      const void *param, int *diff, struct NTFS_DE **entry,

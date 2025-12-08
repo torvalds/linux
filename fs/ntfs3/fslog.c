@@ -1074,6 +1074,8 @@ struct ntfs_log {
 	u32 client_undo_commit;
 
 	struct restart_info rst_info, rst_info2;
+
+	struct file_ra_state read_ahead;
 };
 
 static inline u32 lsn_to_vbo(struct ntfs_log *log, const u64 lsn)
@@ -1164,8 +1166,8 @@ static int read_log_page(struct ntfs_log *log, u32 vbo,
 
 	page_buf = page_off ? log->one_page_buf : *buffer;
 
-	err = ntfs_read_run_nb(ni->mi.sbi, &ni->file.run, page_vbo, page_buf,
-			       log->page_size, NULL);
+	err = ntfs_read_run_nb_ra(ni->mi.sbi, &ni->file.run, page_vbo, page_buf,
+				  log->page_size, NULL, &log->read_ahead);
 	if (err)
 		goto out;
 

@@ -1164,11 +1164,13 @@ struct buffer_head *ntfs_bread_run(struct ntfs_sb_info *sbi,
 	return ntfs_bread(sb, lbo >> sb->s_blocksize_bits);
 }
 
-int ntfs_read_run_nb(struct ntfs_sb_info *sbi, const struct runs_tree *run,
-		     u64 vbo, void *buf, u32 bytes, struct ntfs_buffers *nb)
+int ntfs_read_run_nb_ra(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+			u64 vbo, void *buf, u32 bytes, struct ntfs_buffers *nb,
+			struct file_ra_state *ra)
 {
 	int err;
 	struct super_block *sb = sbi->sb;
+	struct address_space *mapping = sb->s_bdev->bd_mapping;
 	u32 blocksize = sb->s_blocksize;
 	u8 cluster_bits = sbi->cluster_bits;
 	u32 off = vbo & sbi->cluster_mask;
@@ -1208,9 +1210,21 @@ int ntfs_read_run_nb(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 		nb->bytes = bytes;
 	}
 
+	if (ra && !ra->ra_pages)
+		file_ra_state_init(ra, mapping);
+
 	for (;;) {
 		u32 len32 = len >= bytes ? bytes : len;
 		sector_t block = lbo >> sb->s_blocksize_bits;
+
+		if (ra) {
+			pgoff_t index = lbo >> PAGE_SHIFT;
+			if (!ra_has_index(ra, index)) {
+				page_cache_sync_readahead(mapping, ra, NULL,
+							  index, 1);
+				ra->prev_pos = (loff_t)index << PAGE_SHIFT;
+			}
+		}
 
 		do {
 			u32 op = blocksize - off;
@@ -1282,11 +1296,11 @@ out:
  *
  * Return: < 0 if error, 0 if ok, -E_NTFS_FIXUP if need to update fixups.
  */
-int ntfs_read_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
-		 struct NTFS_RECORD_HEADER *rhdr, u32 bytes,
-		 struct ntfs_buffers *nb)
+int ntfs_read_bh_ra(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+		    u64 vbo, struct NTFS_RECORD_HEADER *rhdr, u32 bytes,
+		    struct ntfs_buffers *nb, struct file_ra_state *ra)
 {
-	int err = ntfs_read_run_nb(sbi, run, vbo, rhdr, bytes, nb);
+	int err = ntfs_read_run_nb_ra(sbi, run, vbo, rhdr, bytes, nb, ra);
 
 	if (err)
 		return err;
@@ -1347,8 +1361,7 @@ int ntfs_get_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
 				wait_on_buffer(bh);
 
 				lock_buffer(bh);
-				if (!buffer_uptodate(bh))
-				{
+				if (!buffer_uptodate(bh)) {
 					memset(bh->b_data, 0, blocksize);
 					set_buffer_uptodate(bh);
 				}
