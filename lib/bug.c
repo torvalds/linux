@@ -262,7 +262,7 @@ enum bug_trap_type report_bug_entry(struct bug_entry *bug, struct pt_regs *regs)
 	bool rcu = false;
 
 	rcu = warn_rcu_enter();
-	ret = __report_bug(bug, 0, regs);
+	ret = __report_bug(bug, bug_addr(bug), regs);
 	warn_rcu_exit(rcu);
 
 	return ret;
