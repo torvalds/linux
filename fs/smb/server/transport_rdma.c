@@ -2707,6 +2707,7 @@ int ksmbd_rdma_init(void)
 {
 	int ret;
 
+	smb_direct_port = SMB_DIRECT_PORT_INFINIBAND;
 	smb_direct_listener.cm_id = NULL;
 
 	ret = ib_register_client(&smb_direct_ib_client);
