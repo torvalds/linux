@@ -741,6 +741,7 @@ void hwss_build_fast_sequence(struct dc *dc,
 	struct dce_hwseq *hws = dc->hwseq;
 	struct pipe_ctx *current_pipe = NULL;
 	struct pipe_ctx *current_mpc_pipe = NULL;
+	bool is_dmub_lock_required = false;
 	unsigned int i = 0;
 
 	*num_steps = 0; // Initialize to 0
@@ -763,11 +764,12 @@ void hwss_build_fast_sequence(struct dc *dc,
 		(*num_steps)++;
 	}
 	if (dc->hwss.dmub_hw_control_lock_fast) {
+		is_dmub_lock_required = dc_state_is_fams2_in_use(dc, context) ||
+					dmub_hw_lock_mgr_does_link_require_lock(dc, stream->link);
+
 		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.dc = dc;
 		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.lock = true;
-		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.is_required =
-			dc_state_is_fams2_in_use(dc, context) ||
-			dmub_hw_lock_mgr_does_link_require_lock(dc, stream->link);
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.is_required = is_dmub_lock_required;
 		block_sequence[*num_steps].func = DMUB_HW_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
@@ -906,7 +908,7 @@ void hwss_build_fast_sequence(struct dc *dc,
 	if (dc->hwss.dmub_hw_control_lock_fast) {
 		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.dc = dc;
 		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.lock = false;
-		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.is_required = dc_state_is_fams2_in_use(dc, context);
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.is_required = is_dmub_lock_required;
 		block_sequence[*num_steps].func = DMUB_HW_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
