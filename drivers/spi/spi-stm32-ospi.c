@@ -142,14 +142,32 @@ struct stm32_ospi {
 	struct mutex lock;
 };
 
-static void stm32_ospi_read_fifo(u8 *val, void __iomem *addr)
+static void stm32_ospi_read_fifo(void *val, void __iomem *addr, u8 len)
 {
-	*val = readb_relaxed(addr);
+	switch (len) {
+	case sizeof(u32):
+		*((u32 *)val) = readl_relaxed(addr);
+		break;
+	case sizeof(u16):
+		*((u16 *)val) = readw_relaxed(addr);
+		break;
+	case sizeof(u8):
+		*((u8 *)val) = readb_relaxed(addr);
+	};
 }
 
-static void stm32_ospi_write_fifo(u8 *val, void __iomem *addr)
+static void stm32_ospi_write_fifo(void *val, void __iomem *addr, u8 len)
 {
-	writeb_relaxed(*val, addr);
+	switch (len) {
+	case sizeof(u32):
+		writel_relaxed(*((u32 *)val), addr);
+		break;
+	case sizeof(u16):
+		writew_relaxed(*((u16 *)val), addr);
+		break;
+	case sizeof(u8):
+		writeb_relaxed(*((u8 *)val), addr);
+	};
 }
 
 static int stm32_ospi_abort(struct stm32_ospi *ospi)
@@ -172,19 +190,20 @@ static int stm32_ospi_abort(struct stm32_ospi *ospi)
 	return timeout;
 }
 
-static int stm32_ospi_poll(struct stm32_ospi *ospi, u8 *buf, u32 len, bool read)
+static int stm32_ospi_poll(struct stm32_ospi *ospi, void *buf, u32 len, bool read)
 {
 	void __iomem *regs_base = ospi->regs_base;
-	void (*fifo)(u8 *val, void __iomem *addr);
+	void (*fifo)(void *val, void __iomem *addr, u8 len);
 	u32 sr;
 	int ret;
+	u8 step;
 
 	if (read)
 		fifo = stm32_ospi_read_fifo;
 	else
 		fifo = stm32_ospi_write_fifo;
 
-	while (len--) {
+	while (len) {
 		ret = readl_relaxed_poll_timeout_atomic(regs_base + OSPI_SR,
 							sr, sr & SR_FTF, 1,
 							STM32_FIFO_TIMEOUT_US);
@@ -193,7 +212,17 @@ static int stm32_ospi_poll(struct stm32_ospi *ospi, u8 *buf, u32 len, bool read)
 				len, sr);
 			return ret;
 		}
-		fifo(buf++, regs_base + OSPI_DR);
+
+		if (len >= sizeof(u32))
+			step = sizeof(u32);
+		else if (len >= sizeof(u16))
+			step = sizeof(u16);
+		else
+			step = sizeof(u8);
+
+		fifo(buf, regs_base + OSPI_DR, step);
+		len -= step;
+		buf += step;
 	}
 
 	return 0;
@@ -408,7 +437,7 @@ static int stm32_ospi_xfer(struct stm32_ospi *ospi, const struct spi_mem_op *op)
 	if (op->data.dir == SPI_MEM_DATA_IN)
 		buf = op->data.buf.in;
 	else
-		buf = (u8 *)op->data.buf.out;
+		buf = (void *)op->data.buf.out;
 
 	return stm32_ospi_poll(ospi, buf, op->data.nbytes,
 			       op->data.dir == SPI_MEM_DATA_IN);
