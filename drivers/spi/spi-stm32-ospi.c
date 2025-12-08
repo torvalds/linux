@@ -278,10 +278,19 @@ static irqreturn_t stm32_ospi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void stm32_ospi_dma_setup(struct stm32_ospi *ospi,
-			 struct dma_slave_config *dma_cfg)
+static int stm32_ospi_dma_setup(struct stm32_ospi *ospi,
+				struct dma_slave_config *dma_cfg)
 {
+	struct dma_slave_caps caps;
+	int ret = 0;
+
 	if (dma_cfg && ospi->dma_chrx) {
+		ret = dma_get_slave_caps(ospi->dma_chrx, &caps);
+		if (ret)
+			return ret;
+
+		dma_cfg->src_maxburst = caps.max_burst / dma_cfg->src_addr_width;
+
 		if (dmaengine_slave_config(ospi->dma_chrx, dma_cfg)) {
 			dev_err(ospi->dev, "dma rx config failed\n");
 			dma_release_channel(ospi->dma_chrx);
@@ -290,6 +299,12 @@ static void stm32_ospi_dma_setup(struct stm32_ospi *ospi,
 	}
 
 	if (dma_cfg && ospi->dma_chtx) {
+		ret = dma_get_slave_caps(ospi->dma_chtx, &caps);
+		if (ret)
+			return ret;
+
+		dma_cfg->dst_maxburst = caps.max_burst / dma_cfg->dst_addr_width;
+
 		if (dmaengine_slave_config(ospi->dma_chtx, dma_cfg)) {
 			dev_err(ospi->dev, "dma tx config failed\n");
 			dma_release_channel(ospi->dma_chtx);
@@ -298,6 +313,8 @@ static void stm32_ospi_dma_setup(struct stm32_ospi *ospi,
 	}
 
 	init_completion(&ospi->dma_completion);
+
+	return ret;
 }
 
 static int stm32_ospi_tx_mm(struct stm32_ospi *ospi,
@@ -899,9 +916,9 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 	dma_cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	dma_cfg.src_addr = ospi->regs_phys_base + OSPI_DR;
 	dma_cfg.dst_addr = ospi->regs_phys_base + OSPI_DR;
-	dma_cfg.src_maxburst = 4;
-	dma_cfg.dst_maxburst = 4;
-	stm32_ospi_dma_setup(ospi, &dma_cfg);
+	ret = stm32_ospi_dma_setup(ospi, &dma_cfg);
+	if (ret)
+		return ret;
 
 	mutex_init(&ospi->lock);
 
