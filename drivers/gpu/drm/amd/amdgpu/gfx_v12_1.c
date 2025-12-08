@@ -692,6 +692,12 @@ static void gfx_v12_1_select_me_pipe_q(struct amdgpu_device *adev,
 	soc_v1_0_grbm_select(adev, me, pipe, q, vm, GET_INST(GC, xcc_id));
 }
 
+static int gfx_v12_1_get_xccs_per_xcp(struct amdgpu_device *adev)
+{
+	/* Fill this in when the interface is ready */
+	return 1;
+}
+
 static const struct amdgpu_gfx_funcs gfx_v12_1_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v12_1_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v12_1_xcc_select_se_sh,
@@ -700,6 +706,7 @@ static const struct amdgpu_gfx_funcs gfx_v12_1_gfx_funcs = {
 	.read_wave_vgprs = &gfx_v12_1_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v12_1_select_me_pipe_q,
 	.update_perfmon_mgcg = &gfx_v12_1_update_perf_clk,
+	.get_xccs_per_xcp = &gfx_v12_1_get_xccs_per_xcp,
 };
 
 static int gfx_v12_1_gpu_early_init(struct amdgpu_device *adev)
