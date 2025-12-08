@@ -202,10 +202,28 @@ static int ucsi_psy_get_current_max(struct ucsi_connector *con,
 static int ucsi_psy_get_current_now(struct ucsi_connector *con,
 				    union power_supply_propval *val)
 {
-	if (UCSI_CONSTAT(con, PWR_OPMODE) == UCSI_CONSTAT_PWR_OPMODE_PD)
-		val->intval = rdo_op_current(con->rdo) * 1000;
-	else
+	if (!UCSI_CONSTAT(con, CONNECTED)) {
 		val->intval = 0;
+		return 0;
+	}
+
+	switch (UCSI_CONSTAT(con, PWR_OPMODE)) {
+	case UCSI_CONSTAT_PWR_OPMODE_PD:
+		val->intval = rdo_op_current(con->rdo) * 1000;
+		break;
+	case UCSI_CONSTAT_PWR_OPMODE_TYPEC1_5:
+		val->intval = UCSI_TYPEC_1_5_CURRENT * 1000;
+		break;
+	case UCSI_CONSTAT_PWR_OPMODE_TYPEC3_0:
+		val->intval = UCSI_TYPEC_3_0_CURRENT * 1000;
+		break;
+	case UCSI_CONSTAT_PWR_OPMODE_BC:
+	case UCSI_CONSTAT_PWR_OPMODE_DEFAULT:
+	/* UCSI can't tell b/w DCP/CDP or USB2/3x1/3x2 SDP chargers */
+	default:
+		val->intval = UCSI_TYPEC_DEFAULT_CURRENT * 1000;
+		break;
+	}
 	return 0;
 }
 
