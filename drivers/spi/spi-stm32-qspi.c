@@ -689,6 +689,7 @@ static int stm32_qspi_dma_setup(struct stm32_qspi *qspi)
 {
 	struct dma_slave_config dma_cfg;
 	struct device *dev = qspi->dev;
+	struct dma_slave_caps caps;
 	int ret = 0;
 
 	memset(&dma_cfg, 0, sizeof(dma_cfg));
@@ -697,8 +698,6 @@ static int stm32_qspi_dma_setup(struct stm32_qspi *qspi)
 	dma_cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	dma_cfg.src_addr = qspi->phys_base + QSPI_DR;
 	dma_cfg.dst_addr = qspi->phys_base + QSPI_DR;
-	dma_cfg.src_maxburst = 4;
-	dma_cfg.dst_maxburst = 4;
 
 	qspi->dma_chrx = dma_request_chan(dev, "rx");
 	if (IS_ERR(qspi->dma_chrx)) {
@@ -707,6 +706,11 @@ static int stm32_qspi_dma_setup(struct stm32_qspi *qspi)
 		if (ret == -EPROBE_DEFER)
 			goto out;
 	} else {
+		ret = dma_get_slave_caps(qspi->dma_chrx, &caps);
+		if (ret)
+			return ret;
+
+		dma_cfg.src_maxburst = caps.max_burst / dma_cfg.src_addr_width;
 		if (dmaengine_slave_config(qspi->dma_chrx, &dma_cfg)) {
 			dev_err(dev, "dma rx config failed\n");
 			dma_release_channel(qspi->dma_chrx);
@@ -719,6 +723,11 @@ static int stm32_qspi_dma_setup(struct stm32_qspi *qspi)
 		ret = PTR_ERR(qspi->dma_chtx);
 		qspi->dma_chtx = NULL;
 	} else {
+		ret = dma_get_slave_caps(qspi->dma_chtx, &caps);
+		if (ret)
+			return ret;
+
+		dma_cfg.dst_maxburst = caps.max_burst / dma_cfg.dst_addr_width;
 		if (dmaengine_slave_config(qspi->dma_chtx, &dma_cfg)) {
 			dev_err(dev, "dma tx config failed\n");
 			dma_release_channel(qspi->dma_chtx);
