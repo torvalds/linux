@@ -1,0 +1,85 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright 2025 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#ifndef __AMDGPU_REG_ACCESS_H__
+#define __AMDGPU_REG_ACCESS_H__
+
+#include <linux/types.h>
+
+struct amdgpu_device;
+
+/*
+ * Registers read & write functions.
+ */
+typedef uint32_t (*amdgpu_rreg_t)(struct amdgpu_device *, uint32_t);
+typedef void (*amdgpu_wreg_t)(struct amdgpu_device *, uint32_t, uint32_t);
+
+typedef uint32_t (*amdgpu_rreg_ext_t)(struct amdgpu_device *, uint64_t);
+typedef void (*amdgpu_wreg_ext_t)(struct amdgpu_device *, uint64_t, uint32_t);
+
+typedef uint64_t (*amdgpu_rreg64_t)(struct amdgpu_device *, uint32_t);
+typedef void (*amdgpu_wreg64_t)(struct amdgpu_device *, uint32_t, uint64_t);
+
+typedef uint64_t (*amdgpu_rreg64_ext_t)(struct amdgpu_device *, uint64_t);
+typedef void (*amdgpu_wreg64_ext_t)(struct amdgpu_device *, uint64_t, uint64_t);
+
+typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device *, uint32_t,
+					uint32_t);
+typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device *, uint32_t, uint32_t,
+				    uint32_t);
+
+uint32_t amdgpu_device_rreg(struct amdgpu_device *adev, uint32_t reg,
+			    uint32_t acc_flags);
+uint32_t amdgpu_device_xcc_rreg(struct amdgpu_device *adev, uint32_t reg,
+				uint32_t acc_flags, uint32_t xcc_id);
+void amdgpu_device_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
+			uint32_t acc_flags);
+void amdgpu_device_xcc_wreg(struct amdgpu_device *adev, uint32_t reg,
+			    uint32_t v, uint32_t acc_flags, uint32_t xcc_id);
+void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev, uint32_t reg,
+			     uint32_t v, uint32_t xcc_id);
+void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset,
+		     uint8_t value);
+uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
+
+u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev, u32 reg_addr);
+u32 amdgpu_device_indirect_rreg_ext(struct amdgpu_device *adev, u64 reg_addr);
+u64 amdgpu_device_indirect_rreg64(struct amdgpu_device *adev, u32 reg_addr);
+u64 amdgpu_device_indirect_rreg64_ext(struct amdgpu_device *adev, u64 reg_addr);
+void amdgpu_device_indirect_wreg(struct amdgpu_device *adev, u32 reg_addr,
+				 u32 reg_data);
+void amdgpu_device_indirect_wreg_ext(struct amdgpu_device *adev, u64 reg_addr,
+				     u32 reg_data);
+void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev, u32 reg_addr,
+				   u64 reg_data);
+void amdgpu_device_indirect_wreg64_ext(struct amdgpu_device *adev, u64 reg_addr,
+				       u64 reg_data);
+
+u32 amdgpu_device_pcie_port_rreg(struct amdgpu_device *adev, u32 reg);
+void amdgpu_device_pcie_port_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
+
+uint32_t amdgpu_device_wait_on_rreg(struct amdgpu_device *adev, uint32_t inst,
+				    uint32_t reg_addr, char reg_name[],
+				    uint32_t expected_value, uint32_t mask);
+
+#endif /* __AMDGPU_REG_ACCESS_H__ */

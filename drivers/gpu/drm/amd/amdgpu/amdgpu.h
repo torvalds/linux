@@ -81,6 +81,7 @@
 #include "amdgpu_sdma.h"
 #include "amdgpu_lsdma.h"
 #include "amdgpu_nbio.h"
+#include "amdgpu_reg_access.h"
 #include "amdgpu_hdp.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_virt.h"
@@ -678,21 +679,6 @@ void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device);
 /*
  * Core structure, functions and helpers.
  */
-typedef uint32_t (*amdgpu_rreg_t)(struct amdgpu_device*, uint32_t);
-typedef void (*amdgpu_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
-
-typedef uint32_t (*amdgpu_rreg_ext_t)(struct amdgpu_device*, uint64_t);
-typedef void (*amdgpu_wreg_ext_t)(struct amdgpu_device*, uint64_t, uint32_t);
-
-typedef uint64_t (*amdgpu_rreg64_t)(struct amdgpu_device*, uint32_t);
-typedef void (*amdgpu_wreg64_t)(struct amdgpu_device*, uint32_t, uint64_t);
-
-typedef uint64_t (*amdgpu_rreg64_ext_t)(struct amdgpu_device*, uint64_t);
-typedef void (*amdgpu_wreg64_ext_t)(struct amdgpu_device*, uint64_t, uint64_t);
-
-typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
-typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, uint32_t);
-
 struct amdgpu_mmio_remap {
 	u32 reg_offset;
 	resource_size_t bus_addr;
@@ -1305,42 +1291,6 @@ size_t amdgpu_device_aper_access(struct amdgpu_device *adev, loff_t pos,
 
 void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 			       void *buf, size_t size, bool write);
-uint32_t amdgpu_device_wait_on_rreg(struct amdgpu_device *adev,
-			    uint32_t inst, uint32_t reg_addr, char reg_name[],
-			    uint32_t expected_value, uint32_t mask);
-uint32_t amdgpu_device_rreg(struct amdgpu_device *adev,
-			    uint32_t reg, uint32_t acc_flags);
-u32 amdgpu_device_indirect_rreg_ext(struct amdgpu_device *adev,
-				    u64 reg_addr);
-uint32_t amdgpu_device_xcc_rreg(struct amdgpu_device *adev,
-				uint32_t reg, uint32_t acc_flags,
-				uint32_t xcc_id);
-void amdgpu_device_wreg(struct amdgpu_device *adev,
-			uint32_t reg, uint32_t v,
-			uint32_t acc_flags);
-void amdgpu_device_indirect_wreg_ext(struct amdgpu_device *adev,
-				     u64 reg_addr, u32 reg_data);
-void amdgpu_device_xcc_wreg(struct amdgpu_device *adev,
-			    uint32_t reg, uint32_t v,
-			    uint32_t acc_flags,
-			    uint32_t xcc_id);
-void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
-			     uint32_t reg, uint32_t v, uint32_t xcc_id);
-void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value);
-uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
-
-u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
-				u32 reg_addr);
-u64 amdgpu_device_indirect_rreg64(struct amdgpu_device *adev,
-				  u32 reg_addr);
-u64 amdgpu_device_indirect_rreg64_ext(struct amdgpu_device *adev,
-				  u64 reg_addr);
-void amdgpu_device_indirect_wreg(struct amdgpu_device *adev,
-				 u32 reg_addr, u32 reg_data);
-void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev,
-				   u32 reg_addr, u64 reg_data);
-void amdgpu_device_indirect_wreg64_ext(struct amdgpu_device *adev,
-				   u64 reg_addr, u64 reg_data);
 u32 amdgpu_device_get_rev_id(struct amdgpu_device *adev);
 bool amdgpu_device_asic_has_dc_support(struct pci_dev *pdev,
 				       enum amd_asic_type asic_type);
@@ -1531,10 +1481,6 @@ void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
 		struct amdgpu_ring *ring);
 
 void amdgpu_device_halt(struct amdgpu_device *adev);
-u32 amdgpu_device_pcie_port_rreg(struct amdgpu_device *adev,
-				u32 reg);
-void amdgpu_device_pcie_port_wreg(struct amdgpu_device *adev,
-				u32 reg, u32 v);
 struct dma_fence *amdgpu_device_get_gang(struct amdgpu_device *adev);
 struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 					    struct dma_fence *gang);
