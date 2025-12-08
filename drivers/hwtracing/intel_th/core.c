@@ -815,14 +815,14 @@ static int intel_th_output_open(struct inode *inode, struct file *file)
 
 	if (!dev->driver) {
 		err = -ENODEV;
-		goto out_put_device;
+		goto err_put_dev;
 	}
 
 	thdrv = to_intel_th_driver(dev->driver);
 	fops = fops_get(thdrv->fops);
 	if (!fops) {
 		err = -ENODEV;
-		goto out_put_device;
+		goto err_put_dev;
 	}
 
 	replace_fops(file, fops);
@@ -832,12 +832,12 @@ static int intel_th_output_open(struct inode *inode, struct file *file)
 	if (file->f_op->open) {
 		err = file->f_op->open(inode, file);
 		if (err)
-			goto out_put_device;
+			goto err_put_dev;
 	}
 
 	return 0;
 
-out_put_device:
+err_put_dev:
 	put_device(dev);
 
 	return err;
