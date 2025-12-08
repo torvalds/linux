@@ -1760,9 +1760,12 @@ bool nbcon_alloc(struct console *con)
 	/* Synchronize the kthread start. */
 	lockdep_assert_console_list_lock_held();
 
-	/* The write_thread() callback is mandatory. */
-	if (WARN_ON(!con->write_thread))
+	/* Check for mandatory nbcon callbacks. */
+	if (WARN_ON(!con->write_thread ||
+		    !con->device_lock ||
+		    !con->device_unlock)) {
 		return false;
+	}
 
 	rcuwait_init(&con->rcuwait);
 	init_irq_work(&con->irq_work, nbcon_irq_work);
