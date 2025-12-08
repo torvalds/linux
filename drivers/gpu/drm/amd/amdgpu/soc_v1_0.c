@@ -260,8 +260,6 @@ static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
 	adev->pciep_wreg = amdgpu_device_pcie_port_wreg;
 	adev->pcie_rreg64_ext = &amdgpu_device_indirect_rreg64_ext;
 	adev->pcie_wreg64_ext = &amdgpu_device_indirect_wreg64_ext;
-	adev->uvd_ctx_rreg = NULL;
-	adev->uvd_ctx_wreg = NULL;
 	adev->didt_rreg = NULL;
 	adev->didt_wreg = NULL;
 

@@ -201,10 +201,10 @@ static u32 cik_uvd_ctx_rreg(struct amdgpu_device *adev, u32 reg)
 	unsigned long flags;
 	u32 r;
 
-	spin_lock_irqsave(&adev->uvd_ctx_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.uvd_ctx.lock, flags);
 	WREG32(mmUVD_CTX_INDEX, ((reg) & 0x1ff));
 	r = RREG32(mmUVD_CTX_DATA);
-	spin_unlock_irqrestore(&adev->uvd_ctx_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.uvd_ctx.lock, flags);
 	return r;
 }
 
@@ -212,10 +212,10 @@ static void cik_uvd_ctx_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&adev->uvd_ctx_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.uvd_ctx.lock, flags);
 	WREG32(mmUVD_CTX_INDEX, ((reg) & 0x1ff));
 	WREG32(mmUVD_CTX_DATA, (v));
-	spin_unlock_irqrestore(&adev->uvd_ctx_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.uvd_ctx.lock, flags);
 }
 
 static u32 cik_didt_rreg(struct amdgpu_device *adev, u32 reg)
@@ -1988,8 +1988,8 @@ static int cik_common_early_init(struct amdgpu_ip_block *ip_block)
 	adev->reg.smc.wreg = cik_smc_wreg;
 	adev->pcie_rreg = &cik_pcie_rreg;
 	adev->pcie_wreg = &cik_pcie_wreg;
-	adev->uvd_ctx_rreg = &cik_uvd_ctx_rreg;
-	adev->uvd_ctx_wreg = &cik_uvd_ctx_wreg;
+	adev->reg.uvd_ctx.rreg = &cik_uvd_ctx_rreg;
+	adev->reg.uvd_ctx.wreg = &cik_uvd_ctx_wreg;
 	adev->didt_rreg = &cik_didt_rreg;
 	adev->didt_wreg = &cik_didt_wreg;
 

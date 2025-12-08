@@ -642,10 +642,6 @@ static int nv_common_early_init(struct amdgpu_ip_block *ip_block)
 	adev->pciep_rreg = amdgpu_device_pcie_port_rreg;
 	adev->pciep_wreg = amdgpu_device_pcie_port_wreg;
 
-	/* TODO: will add them during VCN v2 implementation */
-	adev->uvd_ctx_rreg = NULL;
-	adev->uvd_ctx_wreg = NULL;
-
 	adev->didt_rreg = &nv_didt_rreg;
 	adev->didt_wreg = &nv_didt_wreg;
 

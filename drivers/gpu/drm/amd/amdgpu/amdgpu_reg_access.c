@@ -38,6 +38,10 @@ void amdgpu_reg_access_init(struct amdgpu_device *adev)
 	spin_lock_init(&adev->reg.smc.lock);
 	adev->reg.smc.rreg = NULL;
 	adev->reg.smc.wreg = NULL;
+
+	spin_lock_init(&adev->reg.uvd_ctx.lock);
+	adev->reg.uvd_ctx.rreg = NULL;
+	adev->reg.uvd_ctx.wreg = NULL;
 }
 
 uint32_t amdgpu_reg_smc_rd32(struct amdgpu_device *adev, uint32_t reg)
@@ -56,6 +60,27 @@ void amdgpu_reg_smc_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 		return;
 	}
 	adev->reg.smc.wreg(adev, reg, v);
+}
+
+uint32_t amdgpu_reg_uvd_ctx_rd32(struct amdgpu_device *adev, uint32_t reg)
+{
+	if (!adev->reg.uvd_ctx.rreg) {
+		dev_err_once(adev->dev,
+			     "UVD_CTX register read not supported\n");
+		return 0;
+	}
+	return adev->reg.uvd_ctx.rreg(adev, reg);
+}
+
+void amdgpu_reg_uvd_ctx_wr32(struct amdgpu_device *adev, uint32_t reg,
+			     uint32_t v)
+{
+	if (!adev->reg.uvd_ctx.wreg) {
+		dev_err_once(adev->dev,
+			     "UVD_CTX register write not supported\n");
+		return;
+	}
+	adev->reg.uvd_ctx.wreg(adev, reg, v);
 }
 
 /*
