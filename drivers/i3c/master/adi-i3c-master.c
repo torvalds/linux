@@ -332,10 +332,9 @@ static int adi_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 				       struct i3c_ccc_cmd *cmd)
 {
 	struct adi_i3c_master *master = to_adi_i3c_master(m);
-	struct adi_i3c_xfer *xfer __free(kfree) = NULL;
 	struct adi_i3c_cmd *ccmd;
 
-	xfer = adi_i3c_master_alloc_xfer(master, 1);
+	struct adi_i3c_xfer *xfer __free(kfree) = adi_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -371,13 +370,12 @@ static int adi_i3c_master_i3c_xfers(struct i3c_dev_desc *dev,
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct adi_i3c_master *master = to_adi_i3c_master(m);
-	struct adi_i3c_xfer *xfer __free(kfree) = NULL;
 	int i, ret;
 
 	if (!nxfers)
 		return 0;
 
-	xfer = adi_i3c_master_alloc_xfer(master, nxfers);
+	struct adi_i3c_xfer *xfer __free(kfree) = adi_i3c_master_alloc_xfer(master, nxfers);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -777,7 +775,6 @@ static int adi_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 {
 	struct i3c_master_controller *m = i2c_dev_get_master(dev);
 	struct adi_i3c_master *master = to_adi_i3c_master(m);
-	struct adi_i3c_xfer *xfer __free(kfree) = NULL;
 	int i;
 
 	if (!nxfers)
@@ -786,7 +783,8 @@ static int adi_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 		if (xfers[i].flags & I2C_M_TEN)
 			return -EOPNOTSUPP;
 	}
-	xfer = adi_i3c_master_alloc_xfer(master, nxfers);
+
+	struct adi_i3c_xfer *xfer __free(kfree) = adi_i3c_master_alloc_xfer(master, nxfers);
 	if (!xfer)
 		return -ENOMEM;
 
