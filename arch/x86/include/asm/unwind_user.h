@@ -12,11 +12,7 @@ static inline int unwind_user_word_size(struct pt_regs *regs)
 	/* We can't unwind VM86 stacks */
 	if (regs->flags & X86_VM_MASK)
 		return 0;
-#ifdef CONFIG_X86_64
-	if (!user_64bit_mode(regs))
-		return sizeof(int);
-#endif
-	return sizeof(long);
+	return user_64bit_mode(regs) ? 8 : 4;
 }
 
 #endif /* CONFIG_UNWIND_USER */
