@@ -42,7 +42,7 @@ extern unsigned long vm_map_base;
 #endif
 
 #define DMW_PABITS	48
-#define TO_PHYS_MASK	((1ULL << DMW_PABITS) - 1)
+#define TO_PHYS_MASK	((_ULL(1) << _ULL(DMW_PABITS)) - 1)
 
 /*
  * Memory above this physical address will be considered highmem.

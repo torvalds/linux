@@ -68,18 +68,25 @@ static inline void __init relocate_absolute(long random_offset)
 
 	for (p = begin; (void *)p < end; p++) {
 		long v = p->symvalue;
-		uint32_t lu12iw, ori, lu32id, lu52id;
+		uint32_t lu12iw, ori;
+#ifdef CONFIG_64BIT
+		uint32_t lu32id, lu52id;
+#endif
 		union loongarch_instruction *insn = (void *)p->pc;
 
 		lu12iw = (v >> 12) & 0xfffff;
 		ori    = v & 0xfff;
+#ifdef CONFIG_64BIT
 		lu32id = (v >> 32) & 0xfffff;
 		lu52id = v >> 52;
+#endif
 
 		insn[0].reg1i20_format.immediate = lu12iw;
 		insn[1].reg2i12_format.immediate = ori;
+#ifdef CONFIG_64BIT
 		insn[2].reg1i20_format.immediate = lu32id;
 		insn[3].reg2i12_format.immediate = lu52id;
+#endif
 	}
 }
 

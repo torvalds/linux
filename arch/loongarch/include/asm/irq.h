@@ -60,7 +60,12 @@ void spurious_interrupt(void);
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 void arch_trigger_cpumask_backtrace(const struct cpumask *mask, int exclude_cpu);
 
+#ifdef CONFIG_32BIT
+#define MAX_IO_PICS 1
+#else
 #define MAX_IO_PICS 8
+#endif
+
 #define NR_IRQS	(64 + NR_VECTORS * (NR_CPUS + MAX_IO_PICS))
 
 struct acpi_vector_group {
