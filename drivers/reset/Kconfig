@@ -211,6 +211,7 @@ config RESET_PISTACHIO
 config RESET_POLARFIRE_SOC
 	bool "Microchip PolarFire SoC (MPFS) Reset Driver"
 	depends on MCHP_CLK_MPFS
+	depends on MFD_SYSCON
 	select AUXILIARY_BUS
 	default MCHP_CLK_MPFS
 	help

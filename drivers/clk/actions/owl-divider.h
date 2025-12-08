@@ -49,7 +49,7 @@ struct owl_divider {
 		},							\
 	}
 
-static inline struct owl_divider *hw_to_owl_divider(const struct clk_hw *hw)
+static inline struct owl_divider *hw_to_owl_divider(struct clk_hw *hw)
 {
 	struct owl_clk_common *common = hw_to_owl_clk_common(hw);
 

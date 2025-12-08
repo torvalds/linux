@@ -257,7 +257,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 }
 
 /*
- * Z0 Clock & Z1 Clock
+ * Z0, Z1 and ZG Clock
  */
 #define CPG_FRQCRB			0x00000804
 #define CPG_FRQCRB_KICK			BIT(31)
@@ -386,9 +386,14 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 
 	if (offset < 32) {
 		zclk->reg = reg + CPG_FRQCRC0;
-	} else {
+	} else if (offset < 64) {
 		zclk->reg = reg + CPG_FRQCRC1;
 		offset -= 32;
+	} else if (offset < 96) {
+		zclk->reg = reg + CPG_FRQCRB;
+		offset -= 64;
+	} else {
+		return ERR_PTR(-EINVAL);
 	}
 	zclk->kick_reg = reg + CPG_FRQCRB;
 	zclk->hw.init = &init;
