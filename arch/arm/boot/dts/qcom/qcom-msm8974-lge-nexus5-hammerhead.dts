@@ -7,7 +7,7 @@
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
-	model = "LGE MSM 8974 HAMMERHEAD";
+	model = "LG Nexus 5";
 	compatible = "lge,hammerhead", "qcom,msm8974";
 	chassis-type = "handset";
 
