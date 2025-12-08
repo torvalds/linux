@@ -1184,7 +1184,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 					return false;
 				}
 
-				DC_LOG_INFO("%s detected analog display without EDID\n", __func__);
+				LINK_INFO("link=%d, analog display detected without EDID\n",
+					   link->link_index);
+
 				link->type = dc_connection_analog_load;
 				sink->edid_caps.analog = true;
 				break;
