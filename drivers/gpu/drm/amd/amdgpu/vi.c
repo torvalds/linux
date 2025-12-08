@@ -394,10 +394,10 @@ static u32 vi_didt_rreg(struct amdgpu_device *adev, u32 reg)
 	unsigned long flags;
 	u32 r;
 
-	spin_lock_irqsave(&adev->didt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.didt.lock, flags);
 	WREG32(mmDIDT_IND_INDEX, (reg));
 	r = RREG32(mmDIDT_IND_DATA);
-	spin_unlock_irqrestore(&adev->didt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.didt.lock, flags);
 	return r;
 }
 
@@ -405,10 +405,10 @@ static void vi_didt_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&adev->didt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.didt.lock, flags);
 	WREG32(mmDIDT_IND_INDEX, (reg));
 	WREG32(mmDIDT_IND_DATA, (v));
-	spin_unlock_irqrestore(&adev->didt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.didt.lock, flags);
 }
 
 static u32 vi_gc_cac_rreg(struct amdgpu_device *adev, u32 reg)
@@ -1464,8 +1464,8 @@ static int vi_common_early_init(struct amdgpu_ip_block *ip_block)
 	adev->pcie_wreg = &vi_pcie_wreg;
 	adev->reg.uvd_ctx.rreg = &vi_uvd_ctx_rreg;
 	adev->reg.uvd_ctx.wreg = &vi_uvd_ctx_wreg;
-	adev->didt_rreg = &vi_didt_rreg;
-	adev->didt_wreg = &vi_didt_wreg;
+	adev->reg.didt.rreg = &vi_didt_rreg;
+	adev->reg.didt.wreg = &vi_didt_wreg;
 	adev->gc_cac_rreg = &vi_gc_cac_rreg;
 	adev->gc_cac_wreg = &vi_gc_cac_wreg;
 

@@ -223,10 +223,10 @@ static u32 cik_didt_rreg(struct amdgpu_device *adev, u32 reg)
 	unsigned long flags;
 	u32 r;
 
-	spin_lock_irqsave(&adev->didt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.didt.lock, flags);
 	WREG32(mmDIDT_IND_INDEX, (reg));
 	r = RREG32(mmDIDT_IND_DATA);
-	spin_unlock_irqrestore(&adev->didt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.didt.lock, flags);
 	return r;
 }
 
@@ -234,10 +234,10 @@ static void cik_didt_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&adev->didt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.didt.lock, flags);
 	WREG32(mmDIDT_IND_INDEX, (reg));
 	WREG32(mmDIDT_IND_DATA, (v));
-	spin_unlock_irqrestore(&adev->didt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.didt.lock, flags);
 }
 
 static const u32 bonaire_golden_spm_registers[] =
@@ -1990,8 +1990,8 @@ static int cik_common_early_init(struct amdgpu_ip_block *ip_block)
 	adev->pcie_wreg = &cik_pcie_wreg;
 	adev->reg.uvd_ctx.rreg = &cik_uvd_ctx_rreg;
 	adev->reg.uvd_ctx.wreg = &cik_uvd_ctx_wreg;
-	adev->didt_rreg = &cik_didt_rreg;
-	adev->didt_wreg = &cik_didt_wreg;
+	adev->reg.didt.rreg = &cik_didt_rreg;
+	adev->reg.didt.wreg = &cik_didt_wreg;
 
 	adev->asic_funcs = &cik_asic_funcs;
 

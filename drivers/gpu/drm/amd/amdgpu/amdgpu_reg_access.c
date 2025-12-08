@@ -42,6 +42,10 @@ void amdgpu_reg_access_init(struct amdgpu_device *adev)
 	spin_lock_init(&adev->reg.uvd_ctx.lock);
 	adev->reg.uvd_ctx.rreg = NULL;
 	adev->reg.uvd_ctx.wreg = NULL;
+
+	spin_lock_init(&adev->reg.didt.lock);
+	adev->reg.didt.rreg = NULL;
+	adev->reg.didt.wreg = NULL;
 }
 
 uint32_t amdgpu_reg_smc_rd32(struct amdgpu_device *adev, uint32_t reg)
@@ -81,6 +85,24 @@ void amdgpu_reg_uvd_ctx_wr32(struct amdgpu_device *adev, uint32_t reg,
 		return;
 	}
 	adev->reg.uvd_ctx.wreg(adev, reg, v);
+}
+
+uint32_t amdgpu_reg_didt_rd32(struct amdgpu_device *adev, uint32_t reg)
+{
+	if (!adev->reg.didt.rreg) {
+		dev_err_once(adev->dev, "DIDT register read not supported\n");
+		return 0;
+	}
+	return adev->reg.didt.rreg(adev, reg);
+}
+
+void amdgpu_reg_didt_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
+{
+	if (!adev->reg.didt.wreg) {
+		dev_err_once(adev->dev, "DIDT register write not supported\n");
+		return;
+	}
+	adev->reg.didt.wreg(adev, reg, v);
 }
 
 /*

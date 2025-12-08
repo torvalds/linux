@@ -914,10 +914,6 @@ struct amdgpu_device {
 	amdgpu_wreg64_t			pcie_wreg64;
 	amdgpu_rreg64_ext_t			pcie_rreg64_ext;
 	amdgpu_wreg64_ext_t pcie_wreg64_ext;
-	/* protects concurrent DIDT register access */
-	spinlock_t didt_idx_lock;
-	amdgpu_rreg_t			didt_rreg;
-	amdgpu_wreg_t			didt_wreg;
 	/* protects concurrent gc_cac register access */
 	spinlock_t gc_cac_idx_lock;
 	amdgpu_rreg_t			gc_cac_rreg;
@@ -1338,8 +1334,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define WREG32_SMC(reg, v) amdgpu_reg_smc_wr32(adev, (reg), (v))
 #define RREG32_UVD_CTX(reg) amdgpu_reg_uvd_ctx_rd32(adev, (reg))
 #define WREG32_UVD_CTX(reg, v) amdgpu_reg_uvd_ctx_wr32(adev, (reg), (v))
-#define RREG32_DIDT(reg) adev->didt_rreg(adev, (reg))
-#define WREG32_DIDT(reg, v) adev->didt_wreg(adev, (reg), (v))
+#define RREG32_DIDT(reg) amdgpu_reg_didt_rd32(adev, (reg))
+#define WREG32_DIDT(reg, v) amdgpu_reg_didt_wr32(adev, (reg), (v))
 #define RREG32_GC_CAC(reg) adev->gc_cac_rreg(adev, (reg))
 #define WREG32_GC_CAC(reg, v) adev->gc_cac_wreg(adev, (reg), (v))
 #define RREG32_SE_CAC(reg) adev->se_cac_rreg(adev, (reg))

@@ -229,10 +229,10 @@ static u32 soc21_didt_rreg(struct amdgpu_device *adev, u32 reg)
 	address = SOC15_REG_OFFSET(GC, 0, regDIDT_IND_INDEX);
 	data = SOC15_REG_OFFSET(GC, 0, regDIDT_IND_DATA);
 
-	spin_lock_irqsave(&adev->didt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.didt.lock, flags);
 	WREG32(address, (reg));
 	r = RREG32(data);
-	spin_unlock_irqrestore(&adev->didt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.didt.lock, flags);
 	return r;
 }
 
@@ -243,10 +243,10 @@ static void soc21_didt_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	address = SOC15_REG_OFFSET(GC, 0, regDIDT_IND_INDEX);
 	data = SOC15_REG_OFFSET(GC, 0, regDIDT_IND_DATA);
 
-	spin_lock_irqsave(&adev->didt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.didt.lock, flags);
 	WREG32(address, (reg));
 	WREG32(data, (v));
-	spin_unlock_irqrestore(&adev->didt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.didt.lock, flags);
 }
 
 static u32 soc21_get_config_memsize(struct amdgpu_device *adev)
@@ -596,8 +596,8 @@ static int soc21_common_early_init(struct amdgpu_ip_block *ip_block)
 	adev->pciep_rreg = amdgpu_device_pcie_port_rreg;
 	adev->pciep_wreg = amdgpu_device_pcie_port_wreg;
 
-	adev->didt_rreg = &soc21_didt_rreg;
-	adev->didt_wreg = &soc21_didt_wreg;
+	adev->reg.didt.rreg = &soc21_didt_rreg;
+	adev->reg.didt.wreg = &soc21_didt_wreg;
 
 	adev->asic_funcs = &soc21_asic_funcs;
 
