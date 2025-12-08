@@ -326,7 +326,7 @@ void mt76_roc_complete(struct mt76_phy *phy)
 		mlink->mvif->roc_phy = NULL;
 	if (phy->main_chandef.chan &&
 	    !test_bit(MT76_MCU_RESET, &dev->phy.state))
-		mt76_set_channel(phy, &phy->main_chandef, false);
+		__mt76_set_channel(phy, &phy->main_chandef, false);
 	mt76_put_vif_phy_link(phy, phy->roc_vif, phy->roc_link);
 	phy->roc_vif = NULL;
 	phy->roc_link = NULL;
@@ -370,6 +370,8 @@ int mt76_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (!phy)
 		return -EINVAL;
 
+	cancel_delayed_work_sync(&phy->mac_work);
+
 	mutex_lock(&dev->mutex);
 
 	if (phy->roc_vif || dev->scan.phy == phy ||
@@ -388,7 +390,14 @@ int mt76_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	phy->roc_vif = vif;
 	phy->roc_link = mlink;
 	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_HT20);
-	mt76_set_channel(phy, &chandef, true);
+	ret = __mt76_set_channel(phy, &chandef, true);
+	if (ret) {
+		mlink->mvif->roc_phy = NULL;
+		phy->roc_vif = NULL;
+		phy->roc_link = NULL;
+		mt76_put_vif_phy_link(phy, vif, mlink);
+		goto out;
+	}
 	ieee80211_ready_on_channel(hw);
 	ieee80211_queue_delayed_work(phy->hw, &phy->roc_work,
 				     msecs_to_jiffies(duration));
