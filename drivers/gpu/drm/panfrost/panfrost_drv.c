@@ -95,6 +95,7 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 		PANFROST_FEATURE_ARRAY(JS_FEATURES, js_features, 15);
 		PANFROST_FEATURE(NR_CORE_GROUPS, nr_core_groups);
 		PANFROST_FEATURE(THREAD_TLS_ALLOC, thread_tls_alloc);
+		PANFROST_FEATURE(SELECTED_COHERENCY, selected_coherency);
 
 	case DRM_PANFROST_PARAM_SYSTEM_TIMESTAMP:
 		ret = panfrost_ioctl_query_timestamp(pfdev, &param->value);
