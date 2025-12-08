@@ -358,22 +358,15 @@ void amdgpu_device_ip_get_clockgating_state(struct amdgpu_device *adev,
 int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
 				   enum amd_ip_block_type block_type)
 {
-	int i, r;
+	struct amdgpu_ip_block *ip_block;
 
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.valid)
-			continue;
-		if (adev->ip_blocks[i].version->type == block_type) {
-			if (adev->ip_blocks[i].version->funcs->wait_for_idle) {
-				r = adev->ip_blocks[i]
-					    .version->funcs->wait_for_idle(
-						    &adev->ip_blocks[i]);
-				if (r)
-					return r;
-			}
-			break;
-		}
-	}
+	ip_block = amdgpu_device_ip_get_ip_block(adev, block_type);
+	if (!ip_block || !ip_block->status.valid)
+		return 0;
+
+	if (ip_block->version->funcs->wait_for_idle)
+		return ip_block->version->funcs->wait_for_idle(ip_block);
+
 	return 0;
 }
 
@@ -389,12 +382,12 @@ int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
 bool amdgpu_device_ip_is_hw(struct amdgpu_device *adev,
 			    enum amd_ip_block_type block_type)
 {
-	int i;
+	struct amdgpu_ip_block *ip_block;
 
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (adev->ip_blocks[i].version->type == block_type)
-			return adev->ip_blocks[i].status.hw;
-	}
+	ip_block = amdgpu_device_ip_get_ip_block(adev, block_type);
+	if (ip_block)
+		return ip_block->status.hw;
+
 	return false;
 }
 
@@ -410,11 +403,11 @@ bool amdgpu_device_ip_is_hw(struct amdgpu_device *adev,
 bool amdgpu_device_ip_is_valid(struct amdgpu_device *adev,
 			       enum amd_ip_block_type block_type)
 {
-	int i;
+	struct amdgpu_ip_block *ip_block;
 
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (adev->ip_blocks[i].version->type == block_type)
-			return adev->ip_blocks[i].status.valid;
-	}
+	ip_block = amdgpu_device_ip_get_ip_block(adev, block_type);
+	if (ip_block)
+		return ip_block->status.valid;
+
 	return false;
 }
