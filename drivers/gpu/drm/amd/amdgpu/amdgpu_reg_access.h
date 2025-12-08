@@ -25,14 +25,26 @@
 #define __AMDGPU_REG_ACCESS_H__
 
 #include <linux/types.h>
+#include <linux/spinlock.h>
 
 struct amdgpu_device;
 
-/*
- * Registers read & write functions.
- */
 typedef uint32_t (*amdgpu_rreg_t)(struct amdgpu_device *, uint32_t);
 typedef void (*amdgpu_wreg_t)(struct amdgpu_device *, uint32_t, uint32_t);
+
+struct amdgpu_reg_ind {
+	spinlock_t lock;
+	amdgpu_rreg_t rreg;
+	amdgpu_wreg_t wreg;
+};
+
+struct amdgpu_reg_access {
+	struct amdgpu_reg_ind smc;
+};
+
+void amdgpu_reg_access_init(struct amdgpu_device *adev);
+uint32_t amdgpu_reg_smc_rd32(struct amdgpu_device *adev, uint32_t reg);
+void amdgpu_reg_smc_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
 
 typedef uint32_t (*amdgpu_rreg_ext_t)(struct amdgpu_device *, uint64_t);
 typedef void (*amdgpu_wreg_ext_t)(struct amdgpu_device *, uint64_t, uint32_t);

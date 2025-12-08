@@ -900,10 +900,8 @@ struct amdgpu_device {
 	/* protects concurrent MM_INDEX/DATA based register access */
 	spinlock_t mmio_idx_lock;
 	struct amdgpu_mmio_remap        rmmio_remap;
-	/* protects concurrent SMC based register access */
-	spinlock_t smc_idx_lock;
-	amdgpu_rreg_t			smc_rreg;
-	amdgpu_wreg_t			smc_wreg;
+	/* Indirect register access blocks */
+	struct amdgpu_reg_access reg;
 	/* protects concurrent PCIE register access */
 	spinlock_t pcie_idx_lock;
 	amdgpu_rreg_t			pcie_rreg;
@@ -1340,8 +1338,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define WREG64_PCIE(reg, v) adev->pcie_wreg64(adev, (reg), (v))
 #define RREG64_PCIE_EXT(reg) adev->pcie_rreg64_ext(adev, (reg))
 #define WREG64_PCIE_EXT(reg, v) adev->pcie_wreg64_ext(adev, (reg), (v))
-#define RREG32_SMC(reg) adev->smc_rreg(adev, (reg))
-#define WREG32_SMC(reg, v) adev->smc_wreg(adev, (reg), (v))
+#define RREG32_SMC(reg) amdgpu_reg_smc_rd32(adev, (reg))
+#define WREG32_SMC(reg, v) amdgpu_reg_smc_wr32(adev, (reg), (v))
 #define RREG32_UVD_CTX(reg) adev->uvd_ctx_rreg(adev, (reg))
 #define WREG32_UVD_CTX(reg, v) adev->uvd_ctx_wreg(adev, (reg), (v))
 #define RREG32_DIDT(reg) adev->didt_rreg(adev, (reg))

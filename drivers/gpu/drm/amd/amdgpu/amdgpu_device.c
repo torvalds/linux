@@ -3830,8 +3830,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->fence_context = dma_fence_context_alloc(AMDGPU_MAX_RINGS);
 	bitmap_zero(adev->gfx.pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
-	adev->smc_rreg = &amdgpu_invalid_rreg;
-	adev->smc_wreg = &amdgpu_invalid_wreg;
+	amdgpu_reg_access_init(adev);
+
 	adev->pcie_rreg = &amdgpu_invalid_rreg;
 	adev->pcie_wreg = &amdgpu_invalid_wreg;
 	adev->pcie_rreg_ext = &amdgpu_invalid_rreg_ext;
@@ -3894,7 +3894,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 
 	spin_lock_init(&adev->mmio_idx_lock);
-	spin_lock_init(&adev->smc_idx_lock);
 	spin_lock_init(&adev->pcie_idx_lock);
 	spin_lock_init(&adev->uvd_ctx_idx_lock);
 	spin_lock_init(&adev->didt_idx_lock);

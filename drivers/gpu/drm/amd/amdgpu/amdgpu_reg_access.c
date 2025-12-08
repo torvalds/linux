@@ -33,6 +33,31 @@
 #define AMDGPU_PCIE_INDEX_HI_FALLBACK (0x44 >> 2)
 #define AMDGPU_PCIE_DATA_FALLBACK (0x3C >> 2)
 
+void amdgpu_reg_access_init(struct amdgpu_device *adev)
+{
+	spin_lock_init(&adev->reg.smc.lock);
+	adev->reg.smc.rreg = NULL;
+	adev->reg.smc.wreg = NULL;
+}
+
+uint32_t amdgpu_reg_smc_rd32(struct amdgpu_device *adev, uint32_t reg)
+{
+	if (!adev->reg.smc.rreg) {
+		dev_err_once(adev->dev, "SMC register read not supported\n");
+		return 0;
+	}
+	return adev->reg.smc.rreg(adev, reg);
+}
+
+void amdgpu_reg_smc_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
+{
+	if (!adev->reg.smc.wreg) {
+		dev_err_once(adev->dev, "SMC register write not supported\n");
+		return;
+	}
+	adev->reg.smc.wreg(adev, reg, v);
+}
+
 /*
  * register access helper functions.
  */

@@ -362,8 +362,6 @@ static int soc24_common_early_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->nbio.funcs->set_reg_remap(adev);
-	adev->smc_rreg = NULL;
-	adev->smc_wreg = NULL;
 	adev->pcie_rreg = &amdgpu_device_indirect_rreg;
 	adev->pcie_wreg = &amdgpu_device_indirect_wreg;
 	adev->pcie_rreg64 = &amdgpu_device_indirect_rreg64;

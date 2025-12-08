@@ -752,7 +752,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 	ssize_t result = 0;
 	int r;
 
-	if (!adev->smc_rreg)
+	if (!adev->reg.smc.rreg)
 		return -EOPNOTSUPP;
 
 	if (size & 0x3 || *pos & 0x3)
@@ -810,7 +810,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 	ssize_t result = 0;
 	int r;
 
-	if (!adev->smc_wreg)
+	if (!adev->reg.smc.wreg)
 		return -EOPNOTSUPP;
 
 	if (size & 0x3 || *pos & 0x3)
