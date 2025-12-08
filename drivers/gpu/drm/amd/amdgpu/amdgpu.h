@@ -914,10 +914,6 @@ struct amdgpu_device {
 	amdgpu_wreg64_t			pcie_wreg64;
 	amdgpu_rreg64_ext_t			pcie_rreg64_ext;
 	amdgpu_wreg64_ext_t pcie_wreg64_ext;
-	/* protects concurrent se_cac register access */
-	spinlock_t se_cac_idx_lock;
-	amdgpu_rreg_t			se_cac_rreg;
-	amdgpu_wreg_t			se_cac_wreg;
 	/* protects concurrent ENDPOINT (audio) register access */
 	spinlock_t audio_endpt_idx_lock;
 	amdgpu_block_rreg_t		audio_endpt_rreg;
@@ -1334,8 +1330,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define WREG32_DIDT(reg, v) amdgpu_reg_didt_wr32(adev, (reg), (v))
 #define RREG32_GC_CAC(reg) amdgpu_reg_gc_cac_rd32(adev, (reg))
 #define WREG32_GC_CAC(reg, v) amdgpu_reg_gc_cac_wr32(adev, (reg), (v))
-#define RREG32_SE_CAC(reg) adev->se_cac_rreg(adev, (reg))
-#define WREG32_SE_CAC(reg, v) adev->se_cac_wreg(adev, (reg), (v))
+#define RREG32_SE_CAC(reg) amdgpu_reg_se_cac_rd32(adev, (reg))
+#define WREG32_SE_CAC(reg, v) amdgpu_reg_se_cac_wr32(adev, (reg), (v))
 #define RREG32_AUDIO_ENDPT(block, reg) adev->audio_endpt_rreg(adev, (block), (reg))
 #define WREG32_AUDIO_ENDPT(block, reg, v) adev->audio_endpt_wreg(adev, (block), (reg), (v))
 #define WREG32_P(reg, val, mask)				\

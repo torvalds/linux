@@ -50,6 +50,10 @@ void amdgpu_reg_access_init(struct amdgpu_device *adev)
 	spin_lock_init(&adev->reg.gc_cac.lock);
 	adev->reg.gc_cac.rreg = NULL;
 	adev->reg.gc_cac.wreg = NULL;
+
+	spin_lock_init(&adev->reg.se_cac.lock);
+	adev->reg.se_cac.rreg = NULL;
+	adev->reg.se_cac.wreg = NULL;
 }
 
 uint32_t amdgpu_reg_smc_rd32(struct amdgpu_device *adev, uint32_t reg)
@@ -127,6 +131,26 @@ void amdgpu_reg_gc_cac_wr32(struct amdgpu_device *adev, uint32_t reg,
 		return;
 	}
 	adev->reg.gc_cac.wreg(adev, reg, v);
+}
+
+uint32_t amdgpu_reg_se_cac_rd32(struct amdgpu_device *adev, uint32_t reg)
+{
+	if (!adev->reg.se_cac.rreg) {
+		dev_err_once(adev->dev, "SE_CAC register read not supported\n");
+		return 0;
+	}
+	return adev->reg.se_cac.rreg(adev, reg);
+}
+
+void amdgpu_reg_se_cac_wr32(struct amdgpu_device *adev, uint32_t reg,
+			    uint32_t v)
+{
+	if (!adev->reg.se_cac.wreg) {
+		dev_err_once(adev->dev,
+			     "SE_CAC register write not supported\n");
+		return;
+	}
+	adev->reg.se_cac.wreg(adev, reg, v);
 }
 
 /*

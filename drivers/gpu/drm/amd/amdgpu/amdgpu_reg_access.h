@@ -43,6 +43,7 @@ struct amdgpu_reg_access {
 	struct amdgpu_reg_ind uvd_ctx;
 	struct amdgpu_reg_ind didt;
 	struct amdgpu_reg_ind gc_cac;
+	struct amdgpu_reg_ind se_cac;
 };
 
 void amdgpu_reg_access_init(struct amdgpu_device *adev);
@@ -54,6 +55,9 @@ uint32_t amdgpu_reg_didt_rd32(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_reg_didt_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
 uint32_t amdgpu_reg_gc_cac_rd32(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_reg_gc_cac_wr32(struct amdgpu_device *adev, uint32_t reg,
+			    uint32_t v);
+uint32_t amdgpu_reg_se_cac_rd32(struct amdgpu_device *adev, uint32_t reg);
+void amdgpu_reg_se_cac_wr32(struct amdgpu_device *adev, uint32_t reg,
 			    uint32_t v);
 
 typedef uint32_t (*amdgpu_rreg_ext_t)(struct amdgpu_device *, uint64_t);

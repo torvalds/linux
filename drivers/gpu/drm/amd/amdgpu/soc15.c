@@ -320,10 +320,10 @@ static u32 soc15_se_cac_rreg(struct amdgpu_device *adev, u32 reg)
 	unsigned long flags;
 	u32 r;
 
-	spin_lock_irqsave(&adev->se_cac_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.se_cac.lock, flags);
 	WREG32_SOC15(GC, 0, mmSE_CAC_IND_INDEX, (reg));
 	r = RREG32_SOC15(GC, 0, mmSE_CAC_IND_DATA);
-	spin_unlock_irqrestore(&adev->se_cac_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.se_cac.lock, flags);
 	return r;
 }
 
@@ -331,10 +331,10 @@ static void soc15_se_cac_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&adev->se_cac_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.se_cac.lock, flags);
 	WREG32_SOC15(GC, 0, mmSE_CAC_IND_INDEX, (reg));
 	WREG32_SOC15(GC, 0, mmSE_CAC_IND_DATA, (v));
-	spin_unlock_irqrestore(&adev->se_cac_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.se_cac.lock, flags);
 }
 
 static u32 soc15_get_config_memsize(struct amdgpu_device *adev)
@@ -975,8 +975,8 @@ static int soc15_common_early_init(struct amdgpu_ip_block *ip_block)
 	adev->reg.didt.wreg = &soc15_didt_wreg;
 	adev->reg.gc_cac.rreg = &soc15_gc_cac_rreg;
 	adev->reg.gc_cac.wreg = &soc15_gc_cac_wreg;
-	adev->se_cac_rreg = &soc15_se_cac_rreg;
-	adev->se_cac_wreg = &soc15_se_cac_wreg;
+	adev->reg.se_cac.rreg = &soc15_se_cac_rreg;
+	adev->reg.se_cac.wreg = &soc15_se_cac_wreg;
 
 	adev->rev_id = amdgpu_device_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
