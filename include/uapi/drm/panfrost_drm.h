@@ -25,6 +25,7 @@ extern "C" {
 #define DRM_PANFROST_JM_CTX_CREATE		0x0a
 #define DRM_PANFROST_JM_CTX_DESTROY		0x0b
 #define DRM_PANFROST_SYNC_BO			0x0c
+#define DRM_PANFROST_QUERY_BO_INFO		0x0d
 
 #define DRM_IOCTL_PANFROST_SUBMIT		DRM_IOW(DRM_COMMAND_BASE + DRM_PANFROST_SUBMIT, struct drm_panfrost_submit)
 #define DRM_IOCTL_PANFROST_WAIT_BO		DRM_IOW(DRM_COMMAND_BASE + DRM_PANFROST_WAIT_BO, struct drm_panfrost_wait_bo)
@@ -37,6 +38,7 @@ extern "C" {
 #define DRM_IOCTL_PANFROST_JM_CTX_CREATE	DRM_IOWR(DRM_COMMAND_BASE + DRM_PANFROST_JM_CTX_CREATE, struct drm_panfrost_jm_ctx_create)
 #define DRM_IOCTL_PANFROST_JM_CTX_DESTROY	DRM_IOWR(DRM_COMMAND_BASE + DRM_PANFROST_JM_CTX_DESTROY, struct drm_panfrost_jm_ctx_destroy)
 #define DRM_IOCTL_PANFROST_SYNC_BO		DRM_IOWR(DRM_COMMAND_BASE + DRM_PANFROST_SYNC_BO, struct drm_panfrost_sync_bo)
+#define DRM_IOCTL_PANFROST_QUERY_BO_INFO	DRM_IOWR(DRM_COMMAND_BASE + DRM_PANFROST_QUERY_BO_INFO, struct drm_panfrost_query_bo_info)
 
 /*
  * Unstable ioctl(s): only exposed when the unsafe unstable_ioctls module
@@ -350,6 +352,23 @@ struct drm_panfrost_sync_bo {
 	/** Number of BO sync ops */
 	__u32 op_count;
 
+	__u32 pad;
+};
+
+/** BO comes from a different subsystem. */
+#define DRM_PANFROST_BO_IS_IMPORTED (1 << 0)
+
+struct drm_panfrost_query_bo_info {
+	/** Handle of the object being queried. */
+	__u32 handle;
+
+	/** Extra flags that are not coming from the BO_CREATE ioctl(). */
+	__u32 extra_flags;
+
+	/** Flags passed at creation time. */
+	__u32 create_flags;
+
+	/** Will be zero on return. */
 	__u32 pad;
 };
 
