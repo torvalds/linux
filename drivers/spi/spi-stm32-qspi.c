@@ -31,8 +31,6 @@
 #define CR_DFM			BIT(6)
 #define CR_FSEL			BIT(7)
 #define CR_FTHRES_SHIFT		8
-#define CR_TEIE			BIT(16)
-#define CR_TCIE			BIT(17)
 #define CR_FTIE			BIT(18)
 #define CR_SMIE			BIT(19)
 #define CR_TOIE			BIT(20)
@@ -86,11 +84,12 @@
 #define STM32_QSPI_MAX_MMAP_SZ	SZ_256M
 #define STM32_QSPI_MAX_NORCHIP	2
 
-#define STM32_FIFO_TIMEOUT_US 30000
-#define STM32_BUSY_TIMEOUT_US 100000
-#define STM32_ABT_TIMEOUT_US 100000
-#define STM32_COMP_TIMEOUT_MS 1000
-#define STM32_AUTOSUSPEND_DELAY -1
+#define STM32_FIFO_TIMEOUT_US		30000
+#define STM32_BUSY_TIMEOUT_US		100000
+#define STM32_ABT_TIMEOUT_US		100000
+#define STM32_WAIT_CMD_TIMEOUT_US	5000
+#define STM32_COMP_TIMEOUT_MS		1000
+#define STM32_AUTOSUSPEND_DELAY		-1
 
 struct stm32_qspi_flash {
 	u32 cs;
@@ -107,7 +106,6 @@ struct stm32_qspi {
 	struct clk *clk;
 	u32 clk_rate;
 	struct stm32_qspi_flash flash[STM32_QSPI_MAX_NORCHIP];
-	struct completion data_completion;
 	struct completion match_completion;
 	u32 fmode;
 
@@ -139,15 +137,6 @@ static irqreturn_t stm32_qspi_irq(int irq, void *dev_id)
 		cr &= ~CR_SMIE;
 		writel_relaxed(cr, qspi->io_base + QSPI_CR);
 		complete(&qspi->match_completion);
-
-		return IRQ_HANDLED;
-	}
-
-	if (sr & (SR_TEF | SR_TCF)) {
-		/* disable irq */
-		cr &= ~CR_TCIE & ~CR_TEIE;
-		writel_relaxed(cr, qspi->io_base + QSPI_CR);
-		complete(&qspi->data_completion);
 	}
 
 	return IRQ_HANDLED;
@@ -330,25 +319,18 @@ static int stm32_qspi_wait_nobusy(struct stm32_qspi *qspi)
 
 static int stm32_qspi_wait_cmd(struct stm32_qspi *qspi)
 {
-	u32 cr, sr;
+	u32 sr;
 	int err = 0;
 
-	if ((readl_relaxed(qspi->io_base + QSPI_SR) & SR_TCF) ||
-	    qspi->fmode == CCR_FMODE_APM)
+	if (qspi->fmode == CCR_FMODE_APM)
 		goto out;
 
-	reinit_completion(&qspi->data_completion);
-	cr = readl_relaxed(qspi->io_base + QSPI_CR);
-	writel_relaxed(cr | CR_TCIE | CR_TEIE, qspi->io_base + QSPI_CR);
+	err = readl_relaxed_poll_timeout_atomic(qspi->io_base + QSPI_SR, sr,
+						(sr & (SR_TEF | SR_TCF)), 1,
+						STM32_WAIT_CMD_TIMEOUT_US);
 
-	if (!wait_for_completion_timeout(&qspi->data_completion,
-				msecs_to_jiffies(STM32_COMP_TIMEOUT_MS))) {
-		err = -ETIMEDOUT;
-	} else {
-		sr = readl_relaxed(qspi->io_base + QSPI_SR);
-		if (sr & SR_TEF)
-			err = -EIO;
-	}
+	if (sr & SR_TEF)
+		err = -EIO;
 
 out:
 	/* clear flags */
@@ -835,7 +817,6 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	init_completion(&qspi->data_completion);
 	init_completion(&qspi->match_completion);
 
 	qspi->clk = devm_clk_get(dev, NULL);
