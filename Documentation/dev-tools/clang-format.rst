@@ -88,7 +88,7 @@ Reformatting blocks of code
 
 By using an integration with your text editor, you can reformat arbitrary
 blocks (selections) of code with a single keystroke. This is specially
-useful when moving code around, for complex code that is deeply intended,
+useful when moving code around, for complex code that is deeply indented,
 for multi-line macros (and aligning their backslashes), etc.
 
 Remember that you can always tweak the changes afterwards in those cases
