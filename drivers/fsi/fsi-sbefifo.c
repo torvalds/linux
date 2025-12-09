@@ -1139,18 +1139,7 @@ static struct fsi_driver sbefifo_drv = {
 	}
 };
 
-static int sbefifo_init(void)
-{
-	return fsi_driver_register(&sbefifo_drv);
-}
-
-static void sbefifo_exit(void)
-{
-	fsi_driver_unregister(&sbefifo_drv);
-}
-
-module_init(sbefifo_init);
-module_exit(sbefifo_exit);
+module_fsi_driver(sbefifo_drv);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Brad Bishop <bradleyb@fuzziesquirrel.com>");
 MODULE_AUTHOR("Eddie James <eajames@linux.vnet.ibm.com>");

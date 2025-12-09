@@ -613,17 +613,6 @@ static struct fsi_driver scom_drv = {
 	}
 };
 
-static int scom_init(void)
-{
-	return fsi_driver_register(&scom_drv);
-}
-
-static void scom_exit(void)
-{
-	fsi_driver_unregister(&scom_drv);
-}
-
-module_init(scom_init);
-module_exit(scom_exit);
+module_fsi_driver(scom_drv);
 MODULE_DESCRIPTION("SCOM FSI Client device driver");
 MODULE_LICENSE("GPL");
