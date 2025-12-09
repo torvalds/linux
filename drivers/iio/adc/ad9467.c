@@ -8,25 +8,23 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
+#include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/gpio/consumer.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/device.h>
-#include <linux/kernel.h>
+#include <linux/of.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/seq_file.h>
-#include <linux/err.h>
-#include <linux/delay.h>
-#include <linux/gpio/consumer.h>
-#include <linux/of.h>
-
 
 #include <linux/iio/backend.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-
-#include <linux/clk.h>
 
 /*
  * ADI High-Speed ADC common spi interface registers
