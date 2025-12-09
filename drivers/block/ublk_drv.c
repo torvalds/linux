@@ -926,6 +926,7 @@ static size_t ublk_copy_user_pages(const struct request *req,
 	size_t done = 0;
 
 	rq_for_each_segment(bv, req, iter) {
+		unsigned len;
 		void *bv_buf;
 		size_t copied;
 
@@ -934,18 +935,17 @@ static size_t ublk_copy_user_pages(const struct request *req,
 			continue;
 		}
 
-		bv.bv_offset += offset;
-		bv.bv_len -= offset;
-		bv_buf = bvec_kmap_local(&bv);
+		len = bv.bv_len - offset;
+		bv_buf = kmap_local_page(bv.bv_page) + bv.bv_offset + offset;
 		if (dir == ITER_DEST)
-			copied = copy_to_iter(bv_buf, bv.bv_len, uiter);
+			copied = copy_to_iter(bv_buf, len, uiter);
 		else
-			copied = copy_from_iter(bv_buf, bv.bv_len, uiter);
+			copied = copy_from_iter(bv_buf, len, uiter);
 
 		kunmap_local(bv_buf);
 
 		done += copied;
-		if (copied < bv.bv_len)
+		if (copied < len)
 			break;
 
 		offset = 0;
