@@ -59,11 +59,12 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 	static struct option long_options[] = {
 		{"cpus",                required_argument,      0, 'c'},
 		{"cgroup",              optional_argument,      0, 'C'},
+		{"debug",               no_argument,            0, 'D'},
 		{0, 0, 0, 0}
 	};
 
 	opterr = 0;
-	c = getopt_long(argc, argv, "c:C::", long_options, NULL);
+	c = getopt_long(argc, argv, "c:C::D", long_options, NULL);
 	opterr = 1;
 
 	switch (c) {
@@ -75,6 +76,9 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 	case 'C':
 		common->cgroup = 1;
 		common->cgroup_name = parse_optional_arg(argc, argv);
+		break;
+	case 'D':
+		config_debug = 1;
 		break;
 	default:
 		optind = saved_state;
