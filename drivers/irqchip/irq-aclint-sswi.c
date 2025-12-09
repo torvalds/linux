@@ -109,7 +109,7 @@ static int __init aclint_sswi_probe(struct fwnode_handle *fwnode)
 	if (!is_of_node(fwnode))
 		return -EINVAL;
 
-	reg = of_iomap(to_of_node(fwnode), 0);
+	reg = of_io_request_and_map(to_of_node(fwnode), 0, NULL);
 	if (!reg)
 		return -ENOMEM;
 
