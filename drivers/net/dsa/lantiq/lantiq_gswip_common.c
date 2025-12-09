@@ -752,6 +752,13 @@ static int gswip_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+static void gswip_teardown(struct dsa_switch *ds)
+{
+	struct gswip_priv *priv = ds->priv;
+
+	regmap_clear_bits(priv->mdio, GSWIP_MDIO_GLOB, GSWIP_MDIO_GLOB_ENABLE);
+}
+
 static enum dsa_tag_protocol gswip_get_tag_protocol(struct dsa_switch *ds,
 						    int port,
 						    enum dsa_tag_protocol mp)
@@ -1629,6 +1636,7 @@ static const struct phylink_mac_ops gswip_phylink_mac_ops = {
 static const struct dsa_switch_ops gswip_switch_ops = {
 	.get_tag_protocol	= gswip_get_tag_protocol,
 	.setup			= gswip_setup,
+	.teardown		= gswip_teardown,
 	.port_setup		= gswip_port_setup,
 	.port_enable		= gswip_port_enable,
 	.port_disable		= gswip_port_disable,
@@ -1718,15 +1726,14 @@ int gswip_probe_common(struct gswip_priv *priv, u32 version)
 
 	err = gswip_validate_cpu_port(priv->ds);
 	if (err)
-		goto disable_switch;
+		goto unregister_switch;
 
 	dev_info(priv->dev, "probed GSWIP version %lx mod %lx\n",
 		 GSWIP_VERSION_REV(version), GSWIP_VERSION_MOD(version));
 
 	return 0;
 
-disable_switch:
-	gswip_disable_switch(priv);
+unregister_switch:
 	dsa_unregister_switch(priv->ds);
 
 	return err;
