@@ -161,7 +161,7 @@ bool amdgpu_dm_replay_enable(struct dc_stream_state *stream, bool wait)
 	link = stream->link;
 
 	if (link) {
-		link->dc->link_srv->edp_setup_replay(link, stream);
+		link->dc->link_srv->dp_setup_replay(link, stream);
 		link->dc->link_srv->edp_set_coasting_vtotal(link, stream->timing.v_total, 0);
 		DRM_DEBUG_DRIVER("Enabling replay...\n");
 		link->dc->link_srv->edp_set_replay_allow_active(link, &replay_active, wait, false, NULL);

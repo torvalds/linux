@@ -41,6 +41,7 @@
 #include "protocols/link_dp_phy.h"
 #include "protocols/link_dp_training.h"
 #include "protocols/link_edp_panel_control.h"
+#include "protocols/link_dp_panel_replay.h"
 #include "protocols/link_hpd.h"
 #include "gpio_service_interface.h"
 #include "atomfirmware.h"
@@ -214,7 +215,6 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 
 	link_srv->edp_get_replay_state = edp_get_replay_state;
 	link_srv->edp_set_replay_allow_active = edp_set_replay_allow_active;
-	link_srv->edp_setup_replay = edp_setup_replay;
 	link_srv->edp_send_replay_cmd = edp_send_replay_cmd;
 	link_srv->edp_set_coasting_vtotal = edp_set_coasting_vtotal;
 	link_srv->edp_replay_residency = edp_replay_residency;
@@ -228,11 +228,18 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_receiver_ready_T9 = edp_receiver_ready_T9;
 	link_srv->edp_receiver_ready_T7 = edp_receiver_ready_T7;
 	link_srv->edp_power_alpm_dpcd_enable = edp_power_alpm_dpcd_enable;
-	link_srv->edp_pr_enable = edp_pr_enable;
-	link_srv->edp_pr_update_state = edp_pr_update_state;
-	link_srv->edp_pr_set_general_cmd = edp_pr_set_general_cmd;
-	link_srv->edp_pr_get_state = edp_pr_get_state;
 	link_srv->edp_set_panel_power = edp_set_panel_power;
+}
+
+/* link dp panel replay implements DP panel replay functionality.
+ */
+static void construct_link_service_dp_panel_replay(struct link_service *link_srv)
+{
+	link_srv->dp_setup_replay = dp_setup_replay;
+	link_srv->dp_pr_enable = dp_pr_enable;
+	link_srv->dp_pr_update_state = dp_pr_update_state;
+	link_srv->dp_pr_set_general_cmd = dp_pr_set_general_cmd;
+	link_srv->dp_pr_get_state = dp_pr_get_state;
 }
 
 /* link dp cts implements dp compliance test automation protocols and manual
@@ -287,6 +294,7 @@ static void construct_link_service(struct link_service *link_srv)
 	construct_link_service_dp_phy_or_dpia(link_srv);
 	construct_link_service_dp_irq_handler(link_srv);
 	construct_link_service_edp_panel_control(link_srv);
+	construct_link_service_dp_panel_replay(link_srv);
 	construct_link_service_dp_cts(link_srv);
 	construct_link_service_dp_trace(link_srv);
 }
