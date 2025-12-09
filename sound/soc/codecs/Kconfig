@@ -917,7 +917,7 @@ config SND_SOC_CS35L56_CAL_DEBUGFS
 config SND_SOC_CS35L56_CAL_SET_CTRL
 	bool "CS35L56 ALSA control to restore factory calibration"
 	default N
-	select SND_SOC_CS35L56_CAL_SYSFS_COMMON
+	select SND_SOC_CS35L56_CAL_DEBUGFS_COMMON
 	help
 	  Allow restoring factory calibration data through an ALSA
 	  control. This is only needed on platforms without UEFI or
