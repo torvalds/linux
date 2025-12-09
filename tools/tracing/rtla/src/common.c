@@ -60,11 +60,12 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		{"cpus",                required_argument,      0, 'c'},
 		{"cgroup",              optional_argument,      0, 'C'},
 		{"debug",               no_argument,            0, 'D'},
+		{"duration",            required_argument,      0, 'd'},
 		{0, 0, 0, 0}
 	};
 
 	opterr = 0;
-	c = getopt_long(argc, argv, "c:C::D", long_options, NULL);
+	c = getopt_long(argc, argv, "c:C::Dd:", long_options, NULL);
 	opterr = 1;
 
 	switch (c) {
@@ -79,6 +80,11 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		break;
 	case 'D':
 		config_debug = 1;
+		break;
+	case 'd':
+		common->duration = parse_seconds_duration(optarg);
+		if (!common->duration)
+			fatal("Invalid -d duration");
 		break;
 	default:
 		optind = saved_state;
