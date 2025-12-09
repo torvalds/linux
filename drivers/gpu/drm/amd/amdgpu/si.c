@@ -2039,8 +2039,8 @@ static int si_common_early_init(struct amdgpu_ip_block *ip_block)
 
 	adev->reg.smc.rreg = si_smc_rreg;
 	adev->reg.smc.wreg = si_smc_wreg;
-	adev->pcie_rreg = &si_pcie_rreg;
-	adev->pcie_wreg = &si_pcie_wreg;
+	adev->reg.pcie.rreg = &si_pcie_rreg;
+	adev->reg.pcie.wreg = &si_pcie_wreg;
 	adev->reg.pcie.port_rreg = &si_pciep_rreg;
 	adev->reg.pcie.port_wreg = &si_pciep_wreg;
 	adev->reg.uvd_ctx.rreg = &si_uvd_ctx_rreg;

@@ -59,6 +59,8 @@ void amdgpu_reg_access_init(struct amdgpu_device *adev)
 	adev->reg.audio_endpt.rreg = NULL;
 	adev->reg.audio_endpt.wreg = NULL;
 
+	adev->reg.pcie.rreg = NULL;
+	adev->reg.pcie.wreg = NULL;
 	adev->reg.pcie.port_rreg = NULL;
 	adev->reg.pcie.port_wreg = NULL;
 }
@@ -182,6 +184,24 @@ void amdgpu_reg_audio_endpt_wr32(struct amdgpu_device *adev, uint32_t block,
 	adev->reg.audio_endpt.wreg(adev, block, reg, v);
 }
 
+uint32_t amdgpu_reg_pcie_rd32(struct amdgpu_device *adev, uint32_t reg)
+{
+	if (!adev->reg.pcie.rreg) {
+		dev_err_once(adev->dev, "PCIE register read not supported\n");
+		return 0;
+	}
+	return adev->reg.pcie.rreg(adev, reg);
+}
+
+void amdgpu_reg_pcie_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
+{
+	if (!adev->reg.pcie.wreg) {
+		dev_err_once(adev->dev, "PCIE register write not supported\n");
+		return;
+	}
+	adev->reg.pcie.wreg(adev, reg, v);
+}
+
 uint32_t amdgpu_reg_pciep_rd32(struct amdgpu_device *adev, uint32_t reg)
 {
 	if (!adev->reg.pcie.port_rreg) {
@@ -231,7 +251,7 @@ uint32_t amdgpu_device_rreg(struct amdgpu_device *adev, uint32_t reg,
 			ret = readl(((void __iomem *)adev->rmmio) + (reg * 4));
 		}
 	} else {
-		ret = adev->pcie_rreg(adev, reg * 4);
+		ret = amdgpu_reg_pcie_rd32(adev, reg * 4);
 	}
 
 	trace_amdgpu_device_rreg(adev->pdev->device, reg, ret);
@@ -296,7 +316,7 @@ uint32_t amdgpu_device_xcc_rreg(struct amdgpu_device *adev, uint32_t reg,
 			ret = readl(((void __iomem *)adev->rmmio) + (reg * 4));
 		}
 	} else {
-		ret = adev->pcie_rreg(adev, reg * 4);
+		ret = amdgpu_reg_pcie_rd32(adev, reg * 4);
 	}
 
 	return ret;
@@ -354,7 +374,7 @@ void amdgpu_device_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 			writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
 		}
 	} else {
-		adev->pcie_wreg(adev, reg * 4, v);
+		amdgpu_reg_pcie_wr32(adev, reg * 4, v);
 	}
 
 	trace_amdgpu_device_wreg(adev->pdev->device, reg, v);
@@ -381,7 +401,7 @@ void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev, uint32_t reg,
 		if (adev->gfx.rlc.funcs->is_rlcg_access_range(adev, reg))
 			return amdgpu_sriov_wreg(adev, reg, v, 0, 0, xcc_id);
 	} else if ((reg * 4) >= adev->rmmio_size) {
-		adev->pcie_wreg(adev, reg * 4, v);
+		amdgpu_reg_pcie_wr32(adev, reg * 4, v);
 	} else {
 		writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
 	}
@@ -422,7 +442,7 @@ void amdgpu_device_xcc_wreg(struct amdgpu_device *adev, uint32_t reg,
 			writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
 		}
 	} else {
-		adev->pcie_wreg(adev, reg * 4, v);
+		amdgpu_reg_pcie_wr32(adev, reg * 4, v);
 	}
 }
 

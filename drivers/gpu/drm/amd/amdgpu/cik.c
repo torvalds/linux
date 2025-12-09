@@ -1986,8 +1986,8 @@ static int cik_common_early_init(struct amdgpu_ip_block *ip_block)
 
 	adev->reg.smc.rreg = cik_smc_rreg;
 	adev->reg.smc.wreg = cik_smc_wreg;
-	adev->pcie_rreg = &cik_pcie_rreg;
-	adev->pcie_wreg = &cik_pcie_wreg;
+	adev->reg.pcie.rreg = &cik_pcie_rreg;
+	adev->reg.pcie.wreg = &cik_pcie_wreg;
 	adev->reg.uvd_ctx.rreg = &cik_uvd_ctx_rreg;
 	adev->reg.uvd_ctx.wreg = &cik_uvd_ctx_wreg;
 	adev->reg.didt.rreg = &cik_didt_rreg;

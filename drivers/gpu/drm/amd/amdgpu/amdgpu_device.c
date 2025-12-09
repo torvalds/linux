@@ -858,46 +858,11 @@ u32 amdgpu_device_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio.funcs->get_rev_id(adev);
 }
 
-/**
- * amdgpu_invalid_rreg - dummy reg read function
- *
- * @adev: amdgpu_device pointer
- * @reg: offset of register
- *
- * Dummy register read function.  Used for register blocks
- * that certain asics don't have (all asics).
- * Returns the value in the register.
- */
-static uint32_t amdgpu_invalid_rreg(struct amdgpu_device *adev, uint32_t reg)
-{
-	dev_err(adev->dev, "Invalid callback to read register 0x%04X\n", reg);
-	BUG();
-	return 0;
-}
-
 static uint32_t amdgpu_invalid_rreg_ext(struct amdgpu_device *adev, uint64_t reg)
 {
 	dev_err(adev->dev, "Invalid callback to read register 0x%llX\n", reg);
 	BUG();
 	return 0;
-}
-
-/**
- * amdgpu_invalid_wreg - dummy reg write function
- *
- * @adev: amdgpu_device pointer
- * @reg: offset of register
- * @v: value to write to the register
- *
- * Dummy register read function.  Used for register blocks
- * that certain asics don't have (all asics).
- */
-static void amdgpu_invalid_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
-{
-	dev_err(adev->dev,
-		"Invalid callback to write register 0x%04X with 0x%08X\n", reg,
-		v);
-	BUG();
 }
 
 static void amdgpu_invalid_wreg_ext(struct amdgpu_device *adev, uint64_t reg, uint32_t v)
@@ -3790,8 +3755,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	amdgpu_reg_access_init(adev);
 
-	adev->pcie_rreg = &amdgpu_invalid_rreg;
-	adev->pcie_wreg = &amdgpu_invalid_wreg;
 	adev->pcie_rreg_ext = &amdgpu_invalid_rreg_ext;
 	adev->pcie_wreg_ext = &amdgpu_invalid_wreg_ext;
 	adev->pcie_rreg64 = &amdgpu_invalid_rreg64;

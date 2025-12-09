@@ -1460,8 +1460,8 @@ static int vi_common_early_init(struct amdgpu_ip_block *ip_block)
 		adev->reg.smc.rreg = vi_smc_rreg;
 		adev->reg.smc.wreg = vi_smc_wreg;
 	}
-	adev->pcie_rreg = &vi_pcie_rreg;
-	adev->pcie_wreg = &vi_pcie_wreg;
+	adev->reg.pcie.rreg = &vi_pcie_rreg;
+	adev->reg.pcie.wreg = &vi_pcie_wreg;
 	adev->reg.uvd_ctx.rreg = &vi_uvd_ctx_rreg;
 	adev->reg.uvd_ctx.wreg = &vi_uvd_ctx_wreg;
 	adev->reg.didt.rreg = &vi_didt_rreg;
