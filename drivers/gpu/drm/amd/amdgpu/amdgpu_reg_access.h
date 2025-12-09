@@ -49,6 +49,11 @@ struct amdgpu_reg_ind_blk {
 	amdgpu_block_wreg_t wreg;
 };
 
+struct amdgpu_reg_pcie_ind {
+	amdgpu_rreg_t port_rreg;
+	amdgpu_wreg_t port_wreg;
+};
+
 struct amdgpu_reg_access {
 	struct amdgpu_reg_ind smc;
 	struct amdgpu_reg_ind uvd_ctx;
@@ -56,6 +61,7 @@ struct amdgpu_reg_access {
 	struct amdgpu_reg_ind gc_cac;
 	struct amdgpu_reg_ind se_cac;
 	struct amdgpu_reg_ind_blk audio_endpt;
+	struct amdgpu_reg_pcie_ind pcie;
 };
 
 void amdgpu_reg_access_init(struct amdgpu_device *adev);
@@ -75,6 +81,9 @@ uint32_t amdgpu_reg_audio_endpt_rd32(struct amdgpu_device *adev, uint32_t block,
 				     uint32_t reg);
 void amdgpu_reg_audio_endpt_wr32(struct amdgpu_device *adev, uint32_t block,
 				 uint32_t reg, uint32_t v);
+uint32_t amdgpu_reg_pciep_rd32(struct amdgpu_device *adev, uint32_t reg);
+void amdgpu_reg_pciep_wr32(struct amdgpu_device *adev, uint32_t reg,
+			   uint32_t v);
 
 typedef uint32_t (*amdgpu_rreg_ext_t)(struct amdgpu_device *, uint64_t);
 typedef void (*amdgpu_wreg_ext_t)(struct amdgpu_device *, uint64_t, uint32_t);

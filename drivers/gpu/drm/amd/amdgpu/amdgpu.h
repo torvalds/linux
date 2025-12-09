@@ -906,8 +906,6 @@ struct amdgpu_device {
 	spinlock_t pcie_idx_lock;
 	amdgpu_rreg_t			pcie_rreg;
 	amdgpu_wreg_t			pcie_wreg;
-	amdgpu_rreg_t			pciep_rreg;
-	amdgpu_wreg_t			pciep_wreg;
 	amdgpu_rreg_ext_t		pcie_rreg_ext;
 	amdgpu_wreg_ext_t		pcie_wreg_ext;
 	amdgpu_rreg64_t			pcie_rreg64;
@@ -1310,8 +1308,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define WREG32_XCC(reg, v, inst) amdgpu_device_xcc_wreg(adev, (reg), (v), 0, inst)
 #define RREG32_PCIE(reg) adev->pcie_rreg(adev, (reg))
 #define WREG32_PCIE(reg, v) adev->pcie_wreg(adev, (reg), (v))
-#define RREG32_PCIE_PORT(reg) adev->pciep_rreg(adev, (reg))
-#define WREG32_PCIE_PORT(reg, v) adev->pciep_wreg(adev, (reg), (v))
+#define RREG32_PCIE_PORT(reg) amdgpu_reg_pciep_rd32(adev, (reg))
+#define WREG32_PCIE_PORT(reg, v) amdgpu_reg_pciep_wr32(adev, (reg), (v))
 #define RREG32_PCIE_EXT(reg) adev->pcie_rreg_ext(adev, (reg))
 #define WREG32_PCIE_EXT(reg, v) adev->pcie_wreg_ext(adev, (reg), (v))
 #define RREG64_PCIE(reg) adev->pcie_rreg64(adev, (reg))

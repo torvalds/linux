@@ -58,6 +58,9 @@ void amdgpu_reg_access_init(struct amdgpu_device *adev)
 	spin_lock_init(&adev->reg.audio_endpt.lock);
 	adev->reg.audio_endpt.rreg = NULL;
 	adev->reg.audio_endpt.wreg = NULL;
+
+	adev->reg.pcie.port_rreg = NULL;
+	adev->reg.pcie.port_wreg = NULL;
 }
 
 uint32_t amdgpu_reg_smc_rd32(struct amdgpu_device *adev, uint32_t reg)
@@ -177,6 +180,24 @@ void amdgpu_reg_audio_endpt_wr32(struct amdgpu_device *adev, uint32_t block,
 		return;
 	}
 	adev->reg.audio_endpt.wreg(adev, block, reg, v);
+}
+
+uint32_t amdgpu_reg_pciep_rd32(struct amdgpu_device *adev, uint32_t reg)
+{
+	if (!adev->reg.pcie.port_rreg) {
+		dev_err_once(adev->dev, "PCIEP register read not supported\n");
+		return 0;
+	}
+	return adev->reg.pcie.port_rreg(adev, reg);
+}
+
+void amdgpu_reg_pciep_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
+{
+	if (!adev->reg.pcie.port_wreg) {
+		dev_err_once(adev->dev, "PCIEP register write not supported\n");
+		return;
+	}
+	adev->reg.pcie.port_wreg(adev, reg, v);
 }
 
 /*

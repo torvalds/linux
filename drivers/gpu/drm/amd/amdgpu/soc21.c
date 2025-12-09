@@ -593,8 +593,8 @@ static int soc21_common_early_init(struct amdgpu_ip_block *ip_block)
 	adev->pcie_wreg = &amdgpu_device_indirect_wreg;
 	adev->pcie_rreg64 = &amdgpu_device_indirect_rreg64;
 	adev->pcie_wreg64 = &amdgpu_device_indirect_wreg64;
-	adev->pciep_rreg = amdgpu_device_pcie_port_rreg;
-	adev->pciep_wreg = amdgpu_device_pcie_port_wreg;
+	adev->reg.pcie.port_rreg = &amdgpu_device_pcie_port_rreg;
+	adev->reg.pcie.port_wreg = &amdgpu_device_pcie_port_wreg;
 
 	adev->reg.didt.rreg = &soc21_didt_rreg;
 	adev->reg.didt.wreg = &soc21_didt_wreg;

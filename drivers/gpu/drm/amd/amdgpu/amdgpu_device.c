@@ -3794,8 +3794,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->pcie_wreg = &amdgpu_invalid_wreg;
 	adev->pcie_rreg_ext = &amdgpu_invalid_rreg_ext;
 	adev->pcie_wreg_ext = &amdgpu_invalid_wreg_ext;
-	adev->pciep_rreg = &amdgpu_invalid_rreg;
-	adev->pciep_wreg = &amdgpu_invalid_wreg;
 	adev->pcie_rreg64 = &amdgpu_invalid_rreg64;
 	adev->pcie_wreg64 = &amdgpu_invalid_wreg64;
 	adev->pcie_rreg64_ext = &amdgpu_invalid_rreg64_ext;
