@@ -19,6 +19,16 @@ struct fsi_device {
 	uint32_t		size;
 };
 
+static inline void *fsi_get_drvdata(struct fsi_device *fsi_dev)
+{
+	return dev_get_drvdata(&fsi_dev->dev);
+}
+
+static inline void fsi_set_drvdata(struct fsi_device *fsi_dev, void *data)
+{
+	dev_set_drvdata(&fsi_dev->dev, data);
+}
+
 extern int fsi_device_read(struct fsi_device *dev, uint32_t addr,
 		void *val, size_t size);
 extern int fsi_device_write(struct fsi_device *dev, uint32_t addr,
