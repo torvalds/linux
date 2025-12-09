@@ -1133,7 +1133,6 @@ static struct fsi_driver sbefifo_drv = {
 	.id_table = sbefifo_ids,
 	.drv = {
 		.name = DEVICE_NAME,
-		.bus = &fsi_bus_type,
 		.probe = sbefifo_probe,
 		.remove = sbefifo_remove,
 	}

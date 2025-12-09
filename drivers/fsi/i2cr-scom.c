@@ -140,7 +140,6 @@ static struct fsi_driver i2cr_scom_driver = {
 	.id_table = i2cr_scom_ids,
 	.drv = {
 		.name = "i2cr_scom",
-		.bus = &fsi_bus_type,
 		.of_match_table = i2cr_scom_of_ids,
 		.probe = i2cr_scom_probe,
 		.remove = i2cr_scom_remove,

@@ -288,7 +288,6 @@ static struct fsi_driver hub_master_driver = {
 	.id_table = hub_master_ids,
 	.drv = {
 		.name = "fsi-master-hub",
-		.bus = &fsi_bus_type,
 		.probe = hub_master_probe,
 		.remove = hub_master_remove,
 	}

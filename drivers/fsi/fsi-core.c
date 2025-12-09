@@ -1394,6 +1394,8 @@ int fsi_driver_register(struct fsi_driver *fsi_drv)
 	if (!fsi_drv->id_table)
 		return -EINVAL;
 
+	fsi_drv->drv.bus = &fsi_bus_type;
+
 	return driver_register(&fsi_drv->drv);
 }
 EXPORT_SYMBOL_GPL(fsi_driver_register);

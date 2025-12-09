@@ -606,7 +606,6 @@ static struct fsi_driver scom_drv = {
 	.id_table = scom_ids,
 	.drv = {
 		.name = "scom",
-		.bus = &fsi_bus_type,
 		.of_match_table = scom_of_ids,
 		.probe = scom_probe,
 		.remove = scom_remove,
