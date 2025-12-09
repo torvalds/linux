@@ -1284,31 +1284,45 @@ static int glocks_pending(unsigned int num_gh, struct gfs2_holder *ghs)
  * gfs2_glock_async_wait - wait on multiple asynchronous glock acquisitions
  * @num_gh: the number of holders in the array
  * @ghs: the glock holder array
+ * @retries: number of retries attempted so far
  *
  * Returns: 0 on success, meaning all glocks have been granted and are held.
  *          -ESTALE if the request timed out, meaning all glocks were released,
  *          and the caller should retry the operation.
  */
 
-int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs)
+int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs,
+			  unsigned int retries)
 {
 	struct gfs2_sbd *sdp = ghs[0].gh_gl->gl_name.ln_sbd;
-	int i, ret = 0, timeout = 0;
 	unsigned long start_time = jiffies;
+	int i, ret = 0;
+	long timeout;
 
 	might_sleep();
-	/*
-	 * Total up the (minimum hold time * 2) of all glocks and use that to
-	 * determine the max amount of time we should wait.
-	 */
-	for (i = 0; i < num_gh; i++)
-		timeout += ghs[i].gh_gl->gl_hold_time << 1;
 
-	if (!wait_event_timeout(sdp->sd_async_glock_wait,
+	timeout = GL_GLOCK_MIN_HOLD;
+	if (retries) {
+		unsigned int max_shift;
+		long incr;
+
+		/* Add a random delay and increase the timeout exponentially. */
+		max_shift = BITS_PER_LONG - 2 - __fls(GL_GLOCK_HOLD_INCR);
+		incr = min(GL_GLOCK_HOLD_INCR << min(retries - 1, max_shift),
+			   10 * HZ - GL_GLOCK_MIN_HOLD);
+		schedule_timeout_interruptible(get_random_long() % (incr / 3));
+		if (signal_pending(current))
+			goto interrupted;
+		timeout += (incr / 3) + get_random_long() % (incr / 3);
+	}
+
+	if (!wait_event_interruptible_timeout(sdp->sd_async_glock_wait,
 				!glocks_pending(num_gh, ghs), timeout)) {
 		ret = -ESTALE; /* request timed out. */
 		goto out;
 	}
+	if (signal_pending(current))
+		goto interrupted;
 
 	for (i = 0; i < num_gh; i++) {
 		struct gfs2_holder *gh = &ghs[i];
@@ -1332,6 +1346,10 @@ out:
 		}
 	}
 	return ret;
+
+interrupted:
+	ret = -EINTR;
+	goto out;
 }
 
 /**
