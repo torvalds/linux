@@ -1525,9 +1525,7 @@ int btrfs_remove_block_group_free_space(struct btrfs_trans_handle *trans,
 		btrfs_release_path(path);
 	}
 
-	ret = 0;
-
-	return ret;
+	return 0;
 }
 
 static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,

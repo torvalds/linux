@@ -175,7 +175,6 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 	const u32 step = min(fs_info->nodesize, PAGE_SIZE);
 	const u32 nr_steps = eb->len / step;
 	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
-	int ret = 0;
 
 	if (sb_rdonly(fs_info->sb))
 		return -EROFS;
@@ -197,9 +196,8 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 		paddrs[i] = page_to_phys(&folio->page) + offset_in_page(eb->start);
 	}
 
-	ret = btrfs_repair_io_failure(fs_info, 0, eb->start, eb->len, eb->start,
-				      paddrs, step, mirror_num);
-	return ret;
+	return btrfs_repair_io_failure(fs_info, 0, eb->start, eb->len,
+				       eb->start, paddrs, step, mirror_num);
 }
 
 /*
@@ -2145,11 +2143,10 @@ static int load_global_roots(struct btrfs_root *tree_root)
 		return ret;
 	if (!btrfs_fs_compat_ro(tree_root->fs_info, FREE_SPACE_TREE))
 		return ret;
-	ret = load_global_roots_objectid(tree_root, path,
-					 BTRFS_FREE_SPACE_TREE_OBJECTID,
-					 "free space");
 
-	return ret;
+	return load_global_roots_objectid(tree_root, path,
+					  BTRFS_FREE_SPACE_TREE_OBJECTID,
+					  "free space");
 }
 
 static int btrfs_read_roots(struct btrfs_fs_info *fs_info)

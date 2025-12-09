@@ -4002,8 +4002,7 @@ int btrfs_split_item(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	ret = split_item(trans, path, new_key, split_offset);
-	return ret;
+	return split_item(trans, path, new_key, split_offset);
 }
 
 /*
