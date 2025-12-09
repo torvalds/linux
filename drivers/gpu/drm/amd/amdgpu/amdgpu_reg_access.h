@@ -27,6 +27,8 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 
+#include "amdgpu_ip.h"
+
 struct amdgpu_device;
 
 typedef uint32_t (*amdgpu_rreg_t)(struct amdgpu_device *, uint32_t);
@@ -42,6 +44,9 @@ typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device *, uint32_t,
 					uint32_t);
 typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device *, uint32_t, uint32_t,
 				    uint32_t);
+typedef uint64_t (*amdgpu_reg_get_smn_base64_t)(struct amdgpu_device *adev,
+					 enum amd_hw_ip_block_type block,
+					 int die_inst);
 
 struct amdgpu_reg_ind {
 	spinlock_t lock;
@@ -69,6 +74,10 @@ struct amdgpu_reg_pcie_ind {
 	amdgpu_wreg_t port_wreg;
 };
 
+struct amdgpu_reg_smn_ext {
+	amdgpu_reg_get_smn_base64_t get_smn_base;
+};
+
 struct amdgpu_reg_access {
 	struct amdgpu_reg_ind smc;
 	struct amdgpu_reg_ind uvd_ctx;
@@ -77,6 +86,7 @@ struct amdgpu_reg_access {
 	struct amdgpu_reg_ind se_cac;
 	struct amdgpu_reg_ind_blk audio_endpt;
 	struct amdgpu_reg_pcie_ind pcie;
+	struct amdgpu_reg_smn_ext smn;
 };
 
 void amdgpu_reg_access_init(struct amdgpu_device *adev);
@@ -109,6 +119,9 @@ void amdgpu_reg_pcie_ext_wr64(struct amdgpu_device *adev, uint64_t reg,
 uint32_t amdgpu_reg_pciep_rd32(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_reg_pciep_wr32(struct amdgpu_device *adev, uint32_t reg,
 			   uint32_t v);
+uint64_t amdgpu_reg_get_smn_base64(struct amdgpu_device *adev,
+				   enum amd_hw_ip_block_type block,
+				   int die_inst);
 
 uint32_t amdgpu_device_rreg(struct amdgpu_device *adev, uint32_t reg,
 			    uint32_t acc_flags);

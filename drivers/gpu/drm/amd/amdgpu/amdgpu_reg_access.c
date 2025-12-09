@@ -283,6 +283,17 @@ void amdgpu_reg_pciep_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 	adev->reg.pcie.port_wreg(adev, reg, v);
 }
 
+uint64_t amdgpu_reg_get_smn_base64(struct amdgpu_device *adev,
+				   enum amd_hw_ip_block_type block,
+				   int die_inst)
+{
+	if (!adev->reg.smn.get_smn_base) {
+		dev_err_once(adev->dev, "SMN base address callback not set\n");
+		return 0;
+	}
+	return adev->reg.smn.get_smn_base(adev, block, die_inst);
+}
+
 /*
  * register access helper functions.
  */
