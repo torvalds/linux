@@ -394,7 +394,7 @@ static int _cdns_mhdp_hdcp_disable(struct cdns_mhdp_device *mhdp)
 	int ret;
 
 	dev_dbg(mhdp->dev, "[%s:%d] HDCP is being disabled...\n",
-		mhdp->connector_ptr->name, mhdp->connector_ptr->base.id);
+		mhdp->connector->name, mhdp->connector->base.id);
 
 	ret = cdns_mhdp_hdcp_set_config(mhdp, 0, false);
 
@@ -437,7 +437,7 @@ static int cdns_mhdp_hdcp_check_link(struct cdns_mhdp_device *mhdp)
 
 	mutex_lock(&mhdp->hdcp.mutex);
 
-	if (!mhdp->connector_ptr)
+	if (!mhdp->connector)
 		goto out;
 
 	if (mhdp->hdcp.value == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
@@ -449,7 +449,7 @@ static int cdns_mhdp_hdcp_check_link(struct cdns_mhdp_device *mhdp)
 
 	dev_err(mhdp->dev,
 		"[%s:%d] HDCP link failed, retrying authentication\n",
-		mhdp->connector_ptr->name, mhdp->connector_ptr->base.id);
+		mhdp->connector->name, mhdp->connector->base.id);
 
 	ret = _cdns_mhdp_hdcp_disable(mhdp);
 	if (ret) {
@@ -494,8 +494,8 @@ static void cdns_mhdp_hdcp_prop_work(struct work_struct *work)
 	struct drm_device *dev = NULL;
 	struct drm_connector_state *state;
 
-	if (mhdp->connector_ptr)
-		dev = mhdp->connector_ptr->dev;
+	if (mhdp->connector)
+		dev = mhdp->connector->dev;
 
 	if (!dev)
 		return;
@@ -503,7 +503,7 @@ static void cdns_mhdp_hdcp_prop_work(struct work_struct *work)
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	mutex_lock(&mhdp->hdcp.mutex);
 	if (mhdp->hdcp.value != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
-		state = mhdp->connector_ptr->state;
+		state = mhdp->connector->state;
 		state->content_protection = mhdp->hdcp.value;
 	}
 	mutex_unlock(&mhdp->hdcp.mutex);
