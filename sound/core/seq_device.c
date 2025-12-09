@@ -49,9 +49,31 @@ static int snd_seq_bus_match(struct device *dev, const struct device_driver *drv
 		sdrv->argsize == sdev->argsize;
 }
 
+static int snd_seq_bus_probe(struct device *dev)
+{
+	struct snd_seq_device *sdev = to_seq_dev(dev);
+	const struct snd_seq_driver *sdrv = to_seq_drv(dev->driver);
+
+	if (sdrv->probe)
+		return sdrv->probe(sdev);
+	else
+		return 0;
+}
+
+static void snd_seq_bus_remove(struct device *dev)
+{
+	struct snd_seq_device *sdev = to_seq_dev(dev);
+	const struct snd_seq_driver *sdrv = to_seq_drv(dev->driver);
+
+	if (sdrv->remove)
+		sdrv->remove(sdev);
+}
+
 static const struct bus_type snd_seq_bus_type = {
 	.name = "snd_seq",
 	.match = snd_seq_bus_match,
+	.probe = snd_seq_bus_probe,
+	.remove = snd_seq_bus_remove,
 };
 
 /*
@@ -242,6 +264,25 @@ int snd_seq_device_new(struct snd_card *card, int device, const char *id,
 }
 EXPORT_SYMBOL(snd_seq_device_new);
 
+static int snd_seq_driver_legacy_probe(struct snd_seq_device *sdev)
+{
+	struct device *dev = &sdev->dev;
+	struct device_driver *driver = dev->driver;
+
+	return driver->probe(dev);
+}
+
+static void snd_seq_driver_legacy_remove(struct snd_seq_device *sdev)
+{
+	struct device *dev = &sdev->dev;
+	struct device_driver *driver = dev->driver;
+	int ret;
+
+	ret = driver->remove(dev);
+	if (unlikely(ret))
+		dev_warn(dev, "Ignoring return value of remove callback (%pe)\n", ERR_PTR(ret));
+}
+
 /*
  * driver registration
  */
@@ -251,6 +292,12 @@ int __snd_seq_driver_register(struct snd_seq_driver *drv, struct module *mod)
 		return -EINVAL;
 	drv->driver.bus = &snd_seq_bus_type;
 	drv->driver.owner = mod;
+
+	if (!drv->probe && drv->driver.probe)
+		drv->probe = snd_seq_driver_legacy_probe;
+	if (!drv->remove && drv->driver.remove)
+		drv->remove = snd_seq_driver_legacy_remove;
+
 	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(__snd_seq_driver_register);
