@@ -120,7 +120,6 @@ static inline void verify_assert_printk_format(const char *fmt, ...) {
  */
 #define __REST_ARGS(_, ... ) __VA_OPT__(,) __VA_ARGS__
 
-#if defined(CONFIG_CC_IS_CLANG) || GCC_VERSION >= 80000
 /*
  * Assertion with optional printk() format.
  *
@@ -157,22 +156,6 @@ do {										\
 		BUG();								\
 	}									\
 } while(0)
-
-#else
-
-/* For GCC < 8.x only the simple output. */
-
-#define ASSERT(cond, args...)							\
-do {										\
-	verify_assert_printk_format("check the format string" args);		\
-	if (!likely(cond)) {							\
-		pr_err("assertion failed: %s :: %ld, in %s:%d\n",		\
-			#cond, (long)(cond), __FILE__, __LINE__);		\
-		BUG();								\
-	}									\
-} while(0)
-
-#endif
 
 #else
 /* Compile check the @cond expression but don't generate any code. */
