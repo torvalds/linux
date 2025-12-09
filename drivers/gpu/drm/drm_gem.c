@@ -1267,6 +1267,7 @@ drm_gem_object_lookup_at_offset(struct file *filp, unsigned long start,
 	return obj;
 }
 
+#ifdef CONFIG_MMU
 /**
  * drm_gem_get_unmapped_area - get memory mapping region routine for GEM objects
  * @filp: DRM file pointer
@@ -1309,6 +1310,7 @@ unsigned long drm_gem_get_unmapped_area(struct file *filp, unsigned long uaddr,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(drm_gem_get_unmapped_area);
+#endif
 
 /**
  * drm_gem_mmap - memory map routine for GEM objects

@@ -537,9 +537,14 @@ void drm_gem_vm_close(struct vm_area_struct *vma);
 int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 		     struct vm_area_struct *vma);
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
+
+#ifdef CONFIG_MMU
 unsigned long drm_gem_get_unmapped_area(struct file *filp, unsigned long uaddr,
 					unsigned long len, unsigned long pgoff,
 					unsigned long flags);
+#else
+#define drm_gem_get_unmapped_area NULL
+#endif
 
 /**
  * drm_gem_object_get - acquire a GEM buffer object reference
