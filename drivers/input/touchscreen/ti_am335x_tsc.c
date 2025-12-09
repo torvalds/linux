@@ -389,6 +389,10 @@ static int titsc_parse_dt(struct platform_device *pdev,
 		dev_warn(&pdev->dev,
 			 "invalid co-ordinate readouts, resetting it to 5\n");
 		ts_dev->coordinate_readouts = 5;
+	} else if (ts_dev->coordinate_readouts > 6) {
+		dev_warn(&pdev->dev,
+			 "co-ordinate readouts too large, limiting to 6\n");
+		ts_dev->coordinate_readouts = 6;
 	}
 
 	err = of_property_read_u32(node, "ti,charge-delay",
