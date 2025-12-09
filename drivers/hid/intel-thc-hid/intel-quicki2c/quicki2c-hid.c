@@ -82,6 +82,13 @@ static int quicki2c_hid_power(struct hid_device *hid, int lvl)
 	return 0;
 }
 
+static int quicki2c_hid_output_report(struct hid_device *hid, u8 *buf, size_t count)
+{
+	struct quicki2c_device *qcdev = hid->driver_data;
+
+	return quicki2c_output_report(qcdev, buf, count);
+}
+
 static struct hid_ll_driver quicki2c_hid_ll_driver = {
 	.parse = quicki2c_hid_parse,
 	.start = quicki2c_hid_start,
@@ -90,6 +97,7 @@ static struct hid_ll_driver quicki2c_hid_ll_driver = {
 	.close = quicki2c_hid_close,
 	.power = quicki2c_hid_power,
 	.raw_request = quicki2c_hid_raw_request,
+	.output_report = quicki2c_hid_output_report,
 };
 
 /**

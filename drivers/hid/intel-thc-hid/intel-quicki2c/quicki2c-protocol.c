@@ -195,6 +195,25 @@ int quicki2c_set_report(struct quicki2c_device *qcdev, u8 report_type,
 	return buf_len;
 }
 
+int quicki2c_output_report(struct quicki2c_device *qcdev, void *buf, size_t buf_len)
+{
+	ssize_t len;
+	int ret;
+
+	len = quicki2c_init_write_buf(qcdev, 0, 0, false, buf, buf_len,
+				      qcdev->report_buf, qcdev->report_len);
+	if (len < 0)
+		return -EINVAL;
+
+	ret = thc_dma_write(qcdev->thc_hw, qcdev->report_buf, len);
+	if (ret) {
+		dev_err(qcdev->dev, "Output Report failed, ret %d\n", ret);
+		return ret;
+	}
+
+	return buf_len;
+}
+
 #define HIDI2C_RESET_TIMEOUT		5
 
 int quicki2c_reset(struct quicki2c_device *qcdev)
