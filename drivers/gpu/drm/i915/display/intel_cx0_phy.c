@@ -2278,11 +2278,13 @@ static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 	pll_state->clock = intel_c10pll_calc_port_clock(encoder, pll_state);
 
 	cx0pll_state->ssc_enabled = readout_ssc_state(encoder, true);
-	drm_WARN(display->drm,
-		 cx0pll_state->ssc_enabled != intel_c10pll_ssc_enabled(pll_state),
-		 "PHY %c: SSC enabled state (%s), doesn't match PLL configuration (%s)\n",
-		 phy_name(phy), str_yes_no(cx0pll_state->ssc_enabled),
-		 intel_c10pll_ssc_enabled(pll_state) ? "SSC-enabled" : "SSC-disabled");
+
+	if (cx0pll_state->ssc_enabled != intel_c10pll_ssc_enabled(pll_state))
+		drm_dbg_kms(display->drm,
+			    "PHY %c: SSC state mismatch: port SSC is %s, PLL SSC is %s\n",
+			    phy_name(phy),
+			    str_enabled_disabled(cx0pll_state->ssc_enabled),
+			    str_enabled_disabled(intel_c10pll_ssc_enabled(pll_state)));
 }
 
 static void intel_c10_pll_program(struct intel_display *display,
