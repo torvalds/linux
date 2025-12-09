@@ -49,6 +49,8 @@ struct fsi_device_id {
 	.engine_type = (t), .version = (v),
 
 struct fsi_driver {
+	int (*probe)(struct fsi_device *fsidev);
+	void (*remove)(struct fsi_device *fsidev);
 	struct device_driver		drv;
 	const struct fsi_device_id	*id_table;
 };

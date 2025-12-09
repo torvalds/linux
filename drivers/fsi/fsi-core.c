@@ -128,9 +128,31 @@ static int fsi_bus_match(struct device *dev, const struct device_driver *drv)
 	return 0;
 }
 
+static int fsi_probe(struct device *dev)
+{
+	struct fsi_device *fsidev = to_fsi_dev(dev);
+	struct fsi_driver *fsidrv = to_fsi_drv(dev->driver);
+
+	if (fsidrv->probe)
+		return fsidrv->probe(fsidev);
+	else
+		return 0;
+}
+
+static void fsi_remove(struct device *dev)
+{
+	struct fsi_device *fsidev = to_fsi_dev(dev);
+	struct fsi_driver *fsidrv = to_fsi_drv(dev->driver);
+
+	if (fsidrv->remove)
+		fsidrv->remove(fsidev);
+}
+
 static const struct bus_type fsi_bus_type = {
 	.name = "fsi",
 	.match = fsi_bus_match,
+	.probe = fsi_probe,
+	.remove = fsi_remove,
 };
 
 /*
@@ -1392,6 +1414,25 @@ void fsi_master_unregister(struct fsi_master *master)
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
 
+static int fsi_legacy_probe(struct fsi_device *fsidev)
+{
+	struct device *dev = &fsidev->dev;
+	struct device_driver *driver = dev->driver;
+
+	return driver->probe(dev);
+}
+
+static void fsi_legacy_remove(struct fsi_device *fsidev)
+{
+	struct device *dev = &fsidev->dev;
+	struct device_driver *driver = dev->driver;
+	int ret;
+
+	ret = driver->remove(dev);
+	if (unlikely(ret))
+		dev_warn(dev, "Ignoring return value of remove callback (%pe)\n", ERR_PTR(ret));
+}
+
 int fsi_driver_register(struct fsi_driver *fsi_drv)
 {
 	if (!fsi_drv)
@@ -1400,6 +1441,15 @@ int fsi_driver_register(struct fsi_driver *fsi_drv)
 		return -EINVAL;
 
 	fsi_drv->drv.bus = &fsi_bus_type;
+
+	/*
+	 * This driver needs updating. Note that driver_register() warns about
+	 * this, so we're not adding another warning here.
+	 */
+	if (!fsi_drv->probe && fsi_drv->drv.probe)
+		fsi_drv->probe = fsi_legacy_probe;
+	if (!fsi_drv->remove && fsi_drv->drv.remove)
+		fsi_drv->remove = fsi_legacy_remove;
 
 	return driver_register(&fsi_drv->drv);
 }
