@@ -904,8 +904,6 @@ struct amdgpu_device {
 	struct amdgpu_reg_access reg;
 	/* protects concurrent PCIE register access */
 	spinlock_t pcie_idx_lock;
-	amdgpu_rreg64_t			pcie_rreg64;
-	amdgpu_wreg64_t			pcie_wreg64;
 	amdgpu_rreg64_ext_t			pcie_rreg64_ext;
 	amdgpu_wreg64_ext_t pcie_wreg64_ext;
 	struct amdgpu_doorbell		doorbell;
@@ -1308,8 +1306,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define WREG32_PCIE_PORT(reg, v) amdgpu_reg_pciep_wr32(adev, (reg), (v))
 #define RREG32_PCIE_EXT(reg) amdgpu_reg_pcie_ext_rd32(adev, (reg))
 #define WREG32_PCIE_EXT(reg, v) amdgpu_reg_pcie_ext_wr32(adev, (reg), (v))
-#define RREG64_PCIE(reg) adev->pcie_rreg64(adev, (reg))
-#define WREG64_PCIE(reg, v) adev->pcie_wreg64(adev, (reg), (v))
+#define RREG64_PCIE(reg) amdgpu_reg_pcie_rd64(adev, (reg))
+#define WREG64_PCIE(reg, v) amdgpu_reg_pcie_wr64(adev, (reg), (v))
 #define RREG64_PCIE_EXT(reg) adev->pcie_rreg64_ext(adev, (reg))
 #define WREG64_PCIE_EXT(reg, v) adev->pcie_wreg64_ext(adev, (reg), (v))
 #define RREG32_SMC(reg) amdgpu_reg_smc_rd32(adev, (reg))
