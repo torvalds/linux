@@ -51,7 +51,7 @@ static uint64_t df_v3_6_get_fica(struct amdgpu_device *adev,
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.pcie.lock, flags);
 	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessAddress3);
 	WREG32(data, ficaa_val);
 
@@ -61,7 +61,7 @@ static uint64_t df_v3_6_get_fica(struct amdgpu_device *adev,
 	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessDataHi3);
 	ficadh_val = RREG32(data);
 
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.pcie.lock, flags);
 
 	return (((ficadh_val & 0xFFFFFFFFFFFFFFFF) << 32) | ficadl_val);
 }
@@ -74,7 +74,7 @@ static void df_v3_6_set_fica(struct amdgpu_device *adev, uint32_t ficaa_val,
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.pcie.lock, flags);
 	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessAddress3);
 	WREG32(data, ficaa_val);
 
@@ -84,7 +84,7 @@ static void df_v3_6_set_fica(struct amdgpu_device *adev, uint32_t ficaa_val,
 	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessDataHi3);
 	WREG32(data, ficadh_val);
 
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.pcie.lock, flags);
 }
 
 /*
@@ -102,12 +102,12 @@ static void df_v3_6_perfmon_rreg(struct amdgpu_device *adev,
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.pcie.lock, flags);
 	WREG32(address, lo_addr);
 	*lo_val = RREG32(data);
 	WREG32(address, hi_addr);
 	*hi_val = RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.pcie.lock, flags);
 }
 
 /*
@@ -124,12 +124,12 @@ static void df_v3_6_perfmon_wreg(struct amdgpu_device *adev, uint32_t lo_addr,
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.pcie.lock, flags);
 	WREG32(address, lo_addr);
 	WREG32(data, lo_val);
 	WREG32(address, hi_addr);
 	WREG32(data, hi_val);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.pcie.lock, flags);
 }
 
 /* same as perfmon_wreg but return status on write value check */
@@ -143,7 +143,7 @@ static int df_v3_6_perfmon_arm_with_status(struct amdgpu_device *adev,
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.pcie.lock, flags);
 	WREG32(address, lo_addr);
 	WREG32(data, lo_val);
 	WREG32(address, hi_addr);
@@ -153,7 +153,7 @@ static int df_v3_6_perfmon_arm_with_status(struct amdgpu_device *adev,
 	lo_val_rb = RREG32(data);
 	WREG32(address, hi_addr);
 	hi_val_rb = RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.pcie.lock, flags);
 
 	if (!(lo_val == lo_val_rb && hi_val == hi_val_rb))
 		return -EBUSY;

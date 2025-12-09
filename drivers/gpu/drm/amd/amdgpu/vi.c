@@ -299,11 +299,11 @@ static u32 vi_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 	unsigned long flags;
 	u32 r;
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.pcie.lock, flags);
 	WREG32_NO_KIQ(mmPCIE_INDEX, reg);
 	(void)RREG32_NO_KIQ(mmPCIE_INDEX);
 	r = RREG32_NO_KIQ(mmPCIE_DATA);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.pcie.lock, flags);
 	return r;
 }
 
@@ -311,12 +311,12 @@ static void vi_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.pcie.lock, flags);
 	WREG32_NO_KIQ(mmPCIE_INDEX, reg);
 	(void)RREG32_NO_KIQ(mmPCIE_INDEX);
 	WREG32_NO_KIQ(mmPCIE_DATA, v);
 	(void)RREG32_NO_KIQ(mmPCIE_DATA);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.pcie.lock, flags);
 }
 
 static u32 vi_smc_rreg(struct amdgpu_device *adev, u32 reg)

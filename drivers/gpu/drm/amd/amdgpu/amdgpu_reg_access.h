@@ -56,6 +56,7 @@ struct amdgpu_reg_ind_blk {
 };
 
 struct amdgpu_reg_pcie_ind {
+	spinlock_t lock;
 	amdgpu_rreg_t rreg;
 	amdgpu_wreg_t wreg;
 	amdgpu_rreg_ext_t rreg_ext;

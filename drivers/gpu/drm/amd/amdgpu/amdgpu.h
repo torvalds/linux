@@ -902,8 +902,6 @@ struct amdgpu_device {
 	struct amdgpu_mmio_remap        rmmio_remap;
 	/* Indirect register access blocks */
 	struct amdgpu_reg_access reg;
-	/* protects concurrent PCIE register access */
-	spinlock_t pcie_idx_lock;
 	struct amdgpu_doorbell		doorbell;
 
 	/* clock/pll info */
