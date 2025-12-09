@@ -269,7 +269,8 @@ static int cros_ec_keyb_work(struct notifier_block *nb,
 
 		if (ckdev->ec->event_size != ckdev->cols) {
 			dev_err(ckdev->dev,
-				"Discarded incomplete key matrix event.\n");
+				"Discarded key matrix event, unexpected length: %d != %d\n",
+				ckdev->ec->event_size, ckdev->cols);
 			return NOTIFY_OK;
 		}
 
