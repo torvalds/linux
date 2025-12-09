@@ -48,6 +48,13 @@ DEFINE_LOCK_GUARD_1(ksimd,
 		    kernel_neon_begin(_T->lock),
 		    kernel_neon_end(_T->lock))
 
-#define scoped_ksimd()	scoped_guard(ksimd, &(struct user_fpsimd_state){})
+#define __scoped_ksimd(_label)					\
+	for (struct user_fpsimd_state __uninitialized __st;	\
+	     true; ({ goto _label; }))				\
+		if (0) {					\
+_label:			break;					\
+		} else scoped_guard(ksimd, &__st)
+
+#define scoped_ksimd()	__scoped_ksimd(__UNIQUE_ID(label))
 
 #endif
