@@ -66,7 +66,7 @@
 #define DMUB_SCRATCH_MEM_SIZE (1024)
 
 /* Default indirect buffer size. */
-#define DMUB_IB_MEM_SIZE (2560)
+#define DMUB_IB_MEM_SIZE (sizeof(struct dmub_fams2_config_v2))
 
 /* Default LSDMA ring buffer size. */
 #define DMUB_LSDMA_RB_SIZE (64 * 1024)
@@ -603,7 +603,7 @@ enum dmub_status
 	window_sizes[DMUB_WINDOW_5_TRACEBUFF] = trace_buffer_size;
 	window_sizes[DMUB_WINDOW_6_FW_STATE] = fw_state_size;
 	window_sizes[DMUB_WINDOW_7_SCRATCH_MEM] = dmub_align(DMUB_SCRATCH_MEM_SIZE, 64);
-	window_sizes[DMUB_WINDOW_IB_MEM] = DMUB_IB_MEM_SIZE;
+	window_sizes[DMUB_WINDOW_IB_MEM] = dmub_align(DMUB_IB_MEM_SIZE, 64);
 	window_sizes[DMUB_WINDOW_SHARED_STATE] = max(DMUB_FW_HEADER_SHARED_STATE_SIZE, shared_state_size);
 	window_sizes[DMUB_WINDOW_LSDMA_BUFFER] = DMUB_LSDMA_RB_SIZE;
 	window_sizes[DMUB_WINDOW_CURSOR_OFFLOAD] = dmub_align(sizeof(struct dmub_cursor_offload_v1), 64);
