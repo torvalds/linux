@@ -17,11 +17,16 @@
 #define VMADDR_CID_LOCAL 1
 #endif
 
+/* include/linux/compiler_types.h */
+#if __STDC_VERSION__ < 202311L && !defined(auto)
+# define auto __auto_type
+#endif
+
 /* include/linux/cleanup.h */
 #define __get_and_null(p, nullvalue)                                           \
 	({                                                                     \
-		__auto_type __ptr = &(p);                                      \
-		__auto_type __val = *__ptr;                                    \
+		auto __ptr = &(p);					       \
+		auto __val = *__ptr;                                           \
 		*__ptr = nullvalue;                                            \
 		__val;                                                         \
 	})

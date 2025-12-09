@@ -190,7 +190,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #define data_race(expr)							\
 ({									\
 	__kcsan_disable_current();					\
-	__auto_type __v = (expr);					\
+	auto __v = (expr);						\
 	__kcsan_enable_current();					\
 	__v;								\
 })
