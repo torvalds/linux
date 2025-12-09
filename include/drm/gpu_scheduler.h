@@ -645,6 +645,7 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad);
 void drm_sched_start(struct drm_gpu_scheduler *sched, int errno);
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
 void drm_sched_fault(struct drm_gpu_scheduler *sched);
+bool drm_sched_is_stopped(struct drm_gpu_scheduler *sched);
 
 struct drm_gpu_scheduler *
 drm_sched_pick_best(struct drm_gpu_scheduler **sched_list,
@@ -674,6 +675,7 @@ bool drm_sched_job_has_dependency(struct drm_sched_job *job,
 				  struct dma_fence *fence);
 void drm_sched_job_cleanup(struct drm_sched_job *job);
 void drm_sched_increase_karma(struct drm_sched_job *bad);
+bool drm_sched_job_is_signaled(struct drm_sched_job *job);
 
 static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
 					    int threshold)
