@@ -58,11 +58,12 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 
 	static struct option long_options[] = {
 		{"cpus",                required_argument,      0, 'c'},
+		{"cgroup",              optional_argument,      0, 'C'},
 		{0, 0, 0, 0}
 	};
 
 	opterr = 0;
-	c = getopt_long(argc, argv, "c:", long_options, NULL);
+	c = getopt_long(argc, argv, "c:C::", long_options, NULL);
 	opterr = 1;
 
 	switch (c) {
@@ -70,6 +71,10 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		if (parse_cpu_set(optarg, &common->monitored_cpus))
 			fatal("Invalid -c cpu list");
 		common->cpus = optarg;
+		break;
+	case 'C':
+		common->cgroup = 1;
+		common->cgroup_name = parse_optional_arg(argc, argv);
 		break;
 	default:
 		optind = saved_state;
