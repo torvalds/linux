@@ -173,11 +173,21 @@ int cdns_pcie_host_dma_ranges_cmp(void *priv, const struct list_head *a,
 				  const struct list_head *b)
 {
 	struct resource_entry *entry1, *entry2;
+	u64 size1, size2;
 
 	entry1 = container_of(a, struct resource_entry, node);
 	entry2 = container_of(b, struct resource_entry, node);
 
-	return resource_size(entry2->res) - resource_size(entry1->res);
+	size1 = resource_size(entry1->res);
+	size2 = resource_size(entry2->res);
+
+	if (size1 > size2)
+		return -1;
+
+	if (size1 < size2)
+		return 1;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(cdns_pcie_host_dma_ranges_cmp);
 
