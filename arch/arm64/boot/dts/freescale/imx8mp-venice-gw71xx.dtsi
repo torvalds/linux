@@ -101,6 +101,15 @@
 		interrupt-parent = <&gpio4>;
 		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
 	};
+
+	magnetometer@1e {
+		compatible = "st,lis2mdl";
+		reg = <0x1e>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mag>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <25 IRQ_TYPE_LEVEL_LOW>;
+	};
 };
 
 &pcie_phy {
@@ -195,6 +204,12 @@
 	pinctrl_accel: accelgrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_SAI2_RXFS__GPIO4_IO21	0x150	/* IRQ */
+		>;
+	};
+
+	pinctrl_mag: maggrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI2_TXC__GPIO4_IO25	0x150	/* IRQ */
 		>;
 	};
 
