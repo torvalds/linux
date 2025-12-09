@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <getopt.h>
 #include "common.h"
 
 struct trace_instance *trace_inst;
@@ -36,6 +37,40 @@ static void set_signals(struct common_params *params)
 		signal(SIGALRM, stop_trace);
 		alarm(params->duration);
 	}
+}
+
+/*
+ * common_parse_options - parse common command line options
+ *
+ * @argc: argument count
+ * @argv: argument vector
+ * @common: common parameters structure
+ *
+ * Parse command line options that are common to all rtla tools.
+ *
+ * Returns: non zero if a common option was parsed, or 0
+ * if the option should be handled by tool-specific parsing.
+ */
+int common_parse_options(int argc, char **argv, struct common_params *common)
+{
+	int saved_state = optind;
+	int c;
+
+	static struct option long_options[] = {
+		{0, 0, 0, 0}
+	};
+
+	opterr = 0;
+	c = getopt_long(argc, argv, "", long_options, NULL);
+	opterr = 1;
+
+	switch (c) {
+	default:
+		optind = saved_state;
+		return 0;
+	}
+
+	return c;
 }
 
 /*

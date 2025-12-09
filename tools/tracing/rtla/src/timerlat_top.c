@@ -594,6 +594,9 @@ static struct common_params
 			{0, 0, 0, 0}
 		};
 
+		if (common_parse_options(argc, argv, &params->common))
+			continue;
+
 		c = getopt_long(argc, argv, "a:c:C::d:De:hH:i:knp:P:qs:t::T:uU0:1:2:345:6:7:",
 				 long_options, NULL);
 
