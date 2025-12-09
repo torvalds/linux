@@ -18,8 +18,8 @@
 #include <dwarf.h>
 #endif
 
+#include "blake2s.h"
 #include "genelf.h"
-#include "sha1.h"
 #include "../util/jitdump.h"
 #include <linux/compiler.h>
 
@@ -51,7 +51,7 @@ static char shd_string_table[] = {
 static struct buildid_note {
 	Elf_Note desc;		/* descsz: size of build-id, must be multiple of 4 */
 	char	 name[4];	/* GNU\0 */
-	u8	 build_id[SHA1_DIGEST_SIZE];
+	u8	 build_id[20];
 } bnote;
 
 static Elf_Sym symtab[]={
@@ -152,9 +152,28 @@ jit_add_eh_frame_info(Elf *e, void* unwinding, uint64_t unwinding_header_size,
 	return 0;
 }
 
+enum {
+	TAG_CODE = 0,
+	TAG_SYMTAB = 1,
+	TAG_STRSYM = 2,
+};
+
+/*
+ * Update the hash using the given data, also prepending a (tag, len) prefix to
+ * ensure that distinct input tuples reliably result in distinct hashes.
+ */
+static void blake2s_update_tagged(struct blake2s_ctx *ctx, int tag,
+				  const void *data, size_t len)
+{
+	u64 prefix = ((u64)tag << 56) | len;
+
+	blake2s_update(ctx, (const u8 *)&prefix, sizeof(prefix));
+	blake2s_update(ctx, data, len);
+}
+
 /*
  * fd: file descriptor open for writing for the output file
- * load_addr: code load address (could be zero, just used for buildid)
+ * load_addr: code load address (could be zero)
  * sym: function name (for native code - used as the symbol)
  * code: the native code
  * csize: the code size in bytes
@@ -173,8 +192,7 @@ jit_write_elf(int fd, uint64_t load_addr __maybe_unused, const char *sym,
 	Elf_Shdr *shdr;
 	uint64_t eh_frame_base_offset;
 	char *strsym = NULL;
-	void *build_id_data = NULL, *tmp;
-	int build_id_data_len;
+	struct blake2s_ctx ctx;
 	int symlen;
 	int retval = -1;
 
@@ -253,13 +271,8 @@ jit_write_elf(int fd, uint64_t load_addr __maybe_unused, const char *sym,
 	shdr->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
 	shdr->sh_entsize = 0;
 
-	build_id_data = malloc(csize);
-	if (build_id_data == NULL) {
-		warnx("cannot allocate build-id data");
-		goto error;
-	}
-	memcpy(build_id_data, code, csize);
-	build_id_data_len = csize;
+	blake2s_init(&ctx, sizeof(bnote.build_id));
+	blake2s_update_tagged(&ctx, TAG_CODE, code, csize);
 
 	/*
 	 * Setup .eh_frame_hdr and .eh_frame
@@ -344,14 +357,7 @@ jit_write_elf(int fd, uint64_t load_addr __maybe_unused, const char *sym,
 	shdr->sh_entsize = sizeof(Elf_Sym);
 	shdr->sh_link = unwinding ? 6 : 4; /* index of .strtab section */
 
-	tmp = realloc(build_id_data, build_id_data_len + sizeof(symtab));
-	if (tmp == NULL) {
-		warnx("cannot allocate build-id data");
-		goto error;
-	}
-	memcpy(tmp + build_id_data_len, symtab, sizeof(symtab));
-	build_id_data = tmp;
-	build_id_data_len += sizeof(symtab);
+	blake2s_update_tagged(&ctx, TAG_SYMTAB, symtab, sizeof(symtab));
 
 	/*
 	 * setup symbols string table
@@ -395,14 +401,7 @@ jit_write_elf(int fd, uint64_t load_addr __maybe_unused, const char *sym,
 	shdr->sh_flags = 0;
 	shdr->sh_entsize = 0;
 
-	tmp = realloc(build_id_data, build_id_data_len + symlen);
-	if (tmp == NULL) {
-		warnx("cannot allocate build-id data");
-		goto error;
-	}
-	memcpy(tmp + build_id_data_len, strsym, symlen);
-	build_id_data = tmp;
-	build_id_data_len += symlen;
+	blake2s_update_tagged(&ctx, TAG_STRSYM, strsym, symlen);
 
 	/*
 	 * setup build-id section
@@ -422,7 +421,7 @@ jit_write_elf(int fd, uint64_t load_addr __maybe_unused, const char *sym,
 	/*
 	 * build-id generation
 	 */
-	sha1(build_id_data, build_id_data_len, bnote.build_id);
+	blake2s_final(&ctx, bnote.build_id);
 	bnote.desc.namesz = sizeof(bnote.name); /* must include 0 termination */
 	bnote.desc.descsz = sizeof(bnote.build_id);
 	bnote.desc.type   = NT_GNU_BUILD_ID;
@@ -467,7 +466,6 @@ error:
 	(void)elf_end(e);
 
 	free(strsym);
-	free(build_id_data);
 
 	return retval;
 }
