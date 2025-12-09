@@ -1664,12 +1664,6 @@ static const struct dsa_switch_ops gswip_switch_ops = {
 	.port_hsr_leave		= dsa_port_simple_hsr_leave,
 };
 
-void gswip_disable_switch(struct gswip_priv *priv)
-{
-	regmap_clear_bits(priv->mdio, GSWIP_MDIO_GLOB, GSWIP_MDIO_GLOB_ENABLE);
-}
-EXPORT_SYMBOL_GPL(gswip_disable_switch);
-
 static int gswip_validate_cpu_port(struct dsa_switch *ds)
 {
 	struct gswip_priv *priv = ds->priv;

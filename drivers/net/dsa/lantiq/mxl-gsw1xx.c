@@ -662,9 +662,9 @@ static void gsw1xx_shutdown(struct mdio_device *mdiodev)
 	if (!priv)
 		return;
 
-	dev_set_drvdata(&mdiodev->dev, NULL);
+	dsa_switch_shutdown(priv->ds);
 
-	gswip_disable_switch(priv);
+	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static const struct gswip_hw_info gsw12x_data = {
