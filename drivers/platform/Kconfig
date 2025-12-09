@@ -20,3 +20,5 @@ source "drivers/platform/x86/Kconfig"
 source "drivers/platform/arm64/Kconfig"
 
 source "drivers/platform/raspberrypi/Kconfig"
+
+source "drivers/platform/wmi/Kconfig"

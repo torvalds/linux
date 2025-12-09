@@ -12,7 +12,6 @@
 
 #include <linux/acpi.h>
 #include <linux/cpu.h>
-#include <linux/cpumask.h>
 #include <linux/debugfs.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
@@ -95,7 +94,6 @@ struct amd_hfi_classes {
  * struct amd_hfi_cpuinfo - HFI workload class info per CPU
  * @cpu:		CPU index
  * @apic_id:		APIC id of the current CPU
- * @cpus:		mask of CPUs associated with amd_hfi_cpuinfo
  * @class_index:	workload class ID index
  * @nr_class:		max number of workload class supported
  * @ipcc_scores:	ipcc scores for each class
@@ -106,7 +104,6 @@ struct amd_hfi_classes {
 struct amd_hfi_cpuinfo {
 	int		cpu;
 	u32		apic_id;
-	cpumask_var_t	cpus;
 	s16		class_index;
 	u8		nr_class;
 	int		*ipcc_scores;
@@ -295,11 +292,6 @@ static int amd_hfi_online(unsigned int cpu)
 
 	guard(mutex)(&hfi_cpuinfo_lock);
 
-	if (!zalloc_cpumask_var(&hfi_info->cpus, GFP_KERNEL))
-		return -ENOMEM;
-
-	cpumask_set_cpu(cpu, hfi_info->cpus);
-
 	ret = amd_hfi_set_state(cpu, true);
 	if (ret)
 		pr_err("WCT enable failed for CPU %u\n", cpu);
@@ -328,8 +320,6 @@ static int amd_hfi_offline(unsigned int cpu)
 	ret = amd_hfi_set_state(cpu, false);
 	if (ret)
 		pr_err("WCT disable failed for CPU %u\n", cpu);
-
-	free_cpumask_var(hfi_info->cpus);
 
 	return ret;
 }
@@ -515,7 +505,6 @@ static int amd_hfi_probe(struct platform_device *pdev)
 static struct platform_driver amd_hfi_driver = {
 	.driver = {
 		.name = AMD_HFI_DRIVER,
-		.owner = THIS_MODULE,
 		.pm = &amd_hfi_pm_ops,
 		.acpi_match_table = ACPI_PTR(amd_hfi_platform_match),
 	},
