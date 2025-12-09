@@ -77,14 +77,6 @@ static int smb_direct_max_receive_size = 1364;
 
 static int smb_direct_max_read_write_size = SMBD_DEFAULT_IOSIZE;
 
-static LIST_HEAD(smb_direct_device_list);
-static DEFINE_RWLOCK(smb_direct_device_lock);
-
-struct smb_direct_device {
-	struct ib_device	*ib_dev;
-	struct list_head	list;
-};
-
 static struct smb_direct_listener {
 	int			port;
 
@@ -500,48 +492,6 @@ err:
 	return ret;
 }
 
-static int smb_direct_ib_client_add(struct ib_device *ib_dev)
-{
-	struct smb_direct_device *smb_dev;
-
-	if (!smbdirect_frwr_is_supported(&ib_dev->attrs))
-		return 0;
-
-	smb_dev = kzalloc_obj(*smb_dev, KSMBD_DEFAULT_GFP);
-	if (!smb_dev)
-		return -ENOMEM;
-	smb_dev->ib_dev = ib_dev;
-
-	write_lock(&smb_direct_device_lock);
-	list_add(&smb_dev->list, &smb_direct_device_list);
-	write_unlock(&smb_direct_device_lock);
-
-	ksmbd_debug(RDMA, "ib device added: name %s\n", ib_dev->name);
-	return 0;
-}
-
-static void smb_direct_ib_client_remove(struct ib_device *ib_dev,
-					void *client_data)
-{
-	struct smb_direct_device *smb_dev, *tmp;
-
-	write_lock(&smb_direct_device_lock);
-	list_for_each_entry_safe(smb_dev, tmp, &smb_direct_device_list, list) {
-		if (smb_dev->ib_dev == ib_dev) {
-			list_del(&smb_dev->list);
-			kfree(smb_dev);
-			break;
-		}
-	}
-	write_unlock(&smb_direct_device_lock);
-}
-
-static struct ib_client smb_direct_ib_client = {
-	.name	= "ksmbd_smb_direct_ib",
-	.add	= smb_direct_ib_client_add,
-	.remove	= smb_direct_ib_client_remove,
-};
-
 int ksmbd_rdma_init(void)
 {
 	int ret;
@@ -549,12 +499,6 @@ int ksmbd_rdma_init(void)
 	smb_direct_ib_listener = smb_direct_iw_listener = (struct smb_direct_listener) {
 		.socket = NULL,
 	};
-
-	ret = ib_register_client(&smb_direct_ib_client);
-	if (ret) {
-		pr_err("failed to ib_register_client\n");
-		return ret;
-	}
 
 	/* When a client is running out of send credits, the credits are
 	 * granted by the server's sending a packet using this queue.
@@ -598,11 +542,6 @@ err:
 
 void ksmbd_rdma_stop_listening(void)
 {
-	if (!smb_direct_ib_listener.socket && !smb_direct_iw_listener.socket)
-		return;
-
-	ib_unregister_client(&smb_direct_ib_client);
-
 	smb_direct_listener_destroy(&smb_direct_ib_listener);
 	smb_direct_listener_destroy(&smb_direct_iw_listener);
 }
@@ -615,68 +554,11 @@ void ksmbd_rdma_destroy(void)
 	}
 }
 
-static bool ksmbd_find_rdma_capable_netdev(struct net_device *netdev)
-{
-	struct smb_direct_device *smb_dev;
-	int i;
-	bool rdma_capable = false;
-
-	read_lock(&smb_direct_device_lock);
-	list_for_each_entry(smb_dev, &smb_direct_device_list, list) {
-		for (i = 0; i < smb_dev->ib_dev->phys_port_cnt; i++) {
-			struct net_device *ndev;
-
-			ndev = ib_device_get_netdev(smb_dev->ib_dev, i + 1);
-			if (!ndev)
-				continue;
-
-			if (ndev == netdev) {
-				dev_put(ndev);
-				rdma_capable = true;
-				goto out;
-			}
-			dev_put(ndev);
-		}
-	}
-out:
-	read_unlock(&smb_direct_device_lock);
-
-	if (rdma_capable == false) {
-		struct ib_device *ibdev;
-
-		ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_UNKNOWN);
-		if (ibdev) {
-			rdma_capable = smbdirect_frwr_is_supported(&ibdev->attrs);
-			ib_device_put(ibdev);
-		}
-	}
-
-	ksmbd_debug(RDMA, "netdev(%s) rdma capable : %s\n",
-		    netdev->name, str_true_false(rdma_capable));
-
-	return rdma_capable;
-}
-
 bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
 {
-	struct net_device *lower_dev;
-	struct list_head *iter;
+	u8 node_type = smbdirect_netdev_rdma_capable_node_type(netdev);
 
-	if (ksmbd_find_rdma_capable_netdev(netdev))
-		return true;
-
-	/* check if netdev is bridge or VLAN */
-	if (netif_is_bridge_master(netdev) ||
-	    netdev->priv_flags & IFF_802_1Q_VLAN)
-		netdev_for_each_lower_dev(netdev, lower_dev, iter)
-			if (ksmbd_find_rdma_capable_netdev(lower_dev))
-				return true;
-
-	/* check if netdev is IPoIB safely without layer violation */
-	if (netdev->type == ARPHRD_INFINIBAND)
-		return true;
-
-	return false;
+	return node_type != RDMA_NODE_UNSPECIFIED;
 }
 
 static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
