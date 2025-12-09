@@ -37,7 +37,6 @@ ret@p = \(pm_runtime_idle\|
 	pm_runtime_put_sync_autosuspend\|
 	pm_runtime_set_active\|
 	pm_schedule_suspend\|
-	pm_runtime_barrier\|
 	pm_generic_runtime_suspend\|
 	pm_generic_runtime_resume\)(...);
 ...
