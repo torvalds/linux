@@ -80,9 +80,8 @@ snd_seq_oss_synth_init(void)
  * registration of the synth device
  */
 int
-snd_seq_oss_synth_probe(struct device *_dev)
+snd_seq_oss_synth_probe(struct snd_seq_device *dev)
 {
-	struct snd_seq_device *dev = to_seq_dev(_dev);
 	int i;
 	struct seq_oss_synth *rec;
 	struct snd_seq_oss_reg *reg = SNDRV_SEQ_DEVICE_ARGPTR(dev);
@@ -128,10 +127,9 @@ snd_seq_oss_synth_probe(struct device *_dev)
 }
 
 
-int
-snd_seq_oss_synth_remove(struct device *_dev)
+void
+snd_seq_oss_synth_remove(struct snd_seq_device *dev)
 {
-	struct snd_seq_device *dev = to_seq_dev(_dev);
 	int index;
 	struct seq_oss_synth *rec = dev->driver_data;
 
@@ -142,7 +140,7 @@ snd_seq_oss_synth_remove(struct device *_dev)
 		}
 		if (index >= max_synth_devs) {
 			pr_err("ALSA: seq_oss: can't unregister synth\n");
-			return -EINVAL;
+			return;
 		}
 		synth_devs[index] = NULL;
 		if (index == max_synth_devs - 1) {
@@ -160,8 +158,6 @@ snd_seq_oss_synth_remove(struct device *_dev)
 
 	snd_use_lock_sync(&rec->use_lock);
 	kfree(rec);
-
-	return 0;
 }
 
 
