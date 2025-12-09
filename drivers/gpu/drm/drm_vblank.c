@@ -1293,8 +1293,10 @@ EXPORT_SYMBOL(drm_crtc_vblank_put);
  * This waits for one vblank to pass on @crtc, using the irq driver interfaces.
  * It is a failure to call this when the vblank irq for @crtc is disabled, e.g.
  * due to lack of driver support or because the crtc is off.
+ *
+ * Returns: 0 on success, negative error on failures.
  */
-void drm_crtc_wait_one_vblank(struct drm_crtc *crtc)
+int drm_crtc_wait_one_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	int pipe = drm_crtc_index(crtc);
@@ -1305,7 +1307,7 @@ void drm_crtc_wait_one_vblank(struct drm_crtc *crtc)
 	ret = drm_vblank_get(dev, pipe);
 	if (drm_WARN(dev, ret, "vblank not available on crtc %i, ret=%i\n",
 		     pipe, ret))
-		return;
+		return ret;
 
 	last = drm_vblank_count(dev, pipe);
 
@@ -1316,6 +1318,8 @@ void drm_crtc_wait_one_vblank(struct drm_crtc *crtc)
 	drm_WARN(dev, ret == 0, "vblank wait timed out on crtc %i\n", pipe);
 
 	drm_vblank_put(dev, pipe);
+
+	return ret ? 0 : -ETIMEDOUT;
 }
 EXPORT_SYMBOL(drm_crtc_wait_one_vblank);
 
