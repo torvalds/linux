@@ -41,9 +41,7 @@ static ssize_t quicki2c_init_write_buf(struct quicki2c_device *qcdev, u32 cmd, s
 	}
 
 	if (data && data_len) {
-		__le16 len = cpu_to_le16(data_len + HIDI2C_LENGTH_LEN);
-
-		memcpy(write_buf + offset, &len, HIDI2C_LENGTH_LEN);
+		put_unaligned_le16(data_len + HIDI2C_LENGTH_LEN, write_buf + offset);
 		offset += HIDI2C_LENGTH_LEN;
 		memcpy(write_buf + offset, data, data_len);
 	}
