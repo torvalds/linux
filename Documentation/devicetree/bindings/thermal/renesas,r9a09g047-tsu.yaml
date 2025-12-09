@@ -19,7 +19,9 @@ properties:
     oneOf:
       - const: renesas,r9a09g047-tsu # RZ/G3E
       - items:
-          - const: renesas,r9a09g057-tsu # RZ/V2H
+          - enum:
+              - renesas,r9a09g056-tsu # RZ/V2N
+              - renesas,r9a09g057-tsu # RZ/V2H
           - const: renesas,r9a09g047-tsu # RZ/G3E
 
   reg:
