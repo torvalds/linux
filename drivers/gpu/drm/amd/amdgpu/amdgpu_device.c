@@ -858,21 +858,6 @@ u32 amdgpu_device_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio.funcs->get_rev_id(adev);
 }
 
-static uint64_t amdgpu_invalid_rreg64_ext(struct amdgpu_device *adev, uint64_t reg)
-{
-	dev_err(adev->dev, "Invalid callback to read register 0x%llX\n", reg);
-	BUG();
-	return 0;
-}
-
-static void amdgpu_invalid_wreg64_ext(struct amdgpu_device *adev, uint64_t reg, uint64_t v)
-{
-	dev_err(adev->dev,
-		"Invalid callback to write 64 bit register 0x%llX with 0x%08llX\n",
-		reg, v);
-	BUG();
-}
-
 static uint32_t amdgpu_device_get_vbios_flags(struct amdgpu_device *adev)
 {
 	if (hweight32(adev->aid_mask) && (adev->flags & AMD_IS_APU))
@@ -3703,9 +3688,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	bitmap_zero(adev->gfx.pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
 	amdgpu_reg_access_init(adev);
-
-	adev->pcie_rreg64_ext = &amdgpu_invalid_rreg64_ext;
-	adev->pcie_wreg64_ext = &amdgpu_invalid_wreg64_ext;
 
 	dev_info(
 		adev->dev,
