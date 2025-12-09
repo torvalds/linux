@@ -63,11 +63,12 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		{"debug",               no_argument,            0, 'D'},
 		{"duration",            required_argument,      0, 'd'},
 		{"event",               required_argument,      0, 'e'},
+		{"priority",            required_argument,      0, 'P'},
 		{0, 0, 0, 0}
 	};
 
 	opterr = 0;
-	c = getopt_long(argc, argv, "c:C::Dd:e:", long_options, NULL);
+	c = getopt_long(argc, argv, "c:C::Dd:e:P:", long_options, NULL);
 	opterr = 1;
 
 	switch (c) {
@@ -96,6 +97,11 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		if (common->events)
 			tevent->next = common->events;
 		common->events = tevent;
+		break;
+	case 'P':
+		if (parse_prio(optarg, &common->sched_param) == -1)
+			fatal("Invalid -P priority");
+		common->set_sched = 1;
 		break;
 	default:
 		optind = saved_state;
