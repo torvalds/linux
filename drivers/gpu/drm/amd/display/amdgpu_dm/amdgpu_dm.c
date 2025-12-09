@@ -1336,8 +1336,8 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 
 	/* Initialize hardware. */
 	memset(&hw_params, 0, sizeof(hw_params));
-	hw_params.fb_base = adev->gmc.fb_start;
-	hw_params.fb_offset = adev->vm_manager.vram_base_offset;
+	hw_params.soc_fb_info.fb_base = adev->gmc.fb_start;
+	hw_params.soc_fb_info.fb_offset = adev->vm_manager.vram_base_offset;
 
 	/* backdoor load firmware and trigger dmub running */
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)

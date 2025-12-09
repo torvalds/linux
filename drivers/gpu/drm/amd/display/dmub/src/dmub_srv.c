@@ -709,8 +709,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		}
 	}
 
-	dmub->fb_base = params->fb_base;
-	dmub->fb_offset = params->fb_offset;
+	memcpy(&dmub->soc_fb_info, &params->soc_fb_info, sizeof(params->soc_fb_info));
 	dmub->psp_version = params->psp_version;
 
 	if (dmub->hw_funcs.reset)
