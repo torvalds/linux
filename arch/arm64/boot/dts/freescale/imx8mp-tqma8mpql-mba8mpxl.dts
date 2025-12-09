@@ -248,6 +248,13 @@
 			"Line Out Jack", "LOR";
 	};
 
+	sound-hdmi {
+		compatible = "fsl,imx-audio-hdmi";
+		model = "audio-hdmi";
+		audio-cpu = <&aud2htx>;
+		hdmi-out;
+	};
+
 	thermal-zones {
 		soc-thermal {
 			trips {
@@ -288,6 +295,10 @@
 			};
 		};
 	};
+};
+
+&aud2htx {
+	status = "okay";
 };
 
 &ecspi1 {
@@ -484,6 +495,10 @@
 			  "", "", "", "",
 			  "", "ECSPI3_SS0", "SWITCH_A", "SWITCH_B",
 			  "", "", "", "";
+};
+
+&hdmi_pai {
+	status = "okay";
 };
 
 &hdmi_pvi {
