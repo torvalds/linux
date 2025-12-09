@@ -170,3 +170,8 @@ void intel_parent_fence_priority_display(struct intel_display *display, struct d
 	if (display->parent->fence_priority_display)
 		display->parent->fence_priority_display(fence);
 }
+
+bool intel_parent_has_auxccs(struct intel_display *display)
+{
+	return display->parent->has_auxccs && display->parent->has_auxccs(display->drm);
+}

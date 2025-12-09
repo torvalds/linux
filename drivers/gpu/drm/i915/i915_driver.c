@@ -757,6 +757,15 @@ static void fence_priority_display(struct dma_fence *fence)
 		i915_gem_fence_wait_priority_display(fence);
 }
 
+static bool has_auxccs(struct drm_device *drm)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	return IS_GRAPHICS_VER(i915, 9, 12) ||
+	       IS_ALDERLAKE_P(i915) ||
+	       IS_METEORLAKE(i915);
+}
+
 static const struct intel_display_parent_interface parent = {
 	.hdcp = &i915_display_hdcp_interface,
 	.rpm = &i915_display_rpm_interface,
@@ -766,6 +775,7 @@ static const struct intel_display_parent_interface parent = {
 	.vgpu_active = vgpu_active,
 	.has_fenced_regions = has_fenced_regions,
 	.fence_priority_display = fence_priority_display,
+	.has_auxccs = has_auxccs,
 };
 
 const struct intel_display_parent_interface *i915_driver_parent_interface(void)

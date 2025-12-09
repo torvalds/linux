@@ -22,6 +22,7 @@
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
 #include "intel_panic.h"
+#include "intel_parent.h"
 #include "intel_plane.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
@@ -1602,7 +1603,7 @@ icl_plane_update_noarm(struct intel_dsb *dsb,
 	}
 
 	/* FLAT CCS doesn't need to program AUX_DIST */
-	if (HAS_AUX_CCS(display))
+	if (HAS_AUX_DIST(display))
 		intel_de_write_dsb(display, dsb, PLANE_AUX_DIST(pipe, plane_id),
 				   skl_plane_aux_dist(plane_state, color_plane));
 
@@ -2971,12 +2972,6 @@ skl_universal_plane_create(struct intel_display *display,
 		caps = glk_plane_caps(display, pipe, plane_id);
 	else
 		caps = skl_plane_caps(display, pipe, plane_id);
-
-	/* FIXME: xe has problems with AUX */
-	if (!IS_ENABLED(I915) && HAS_AUX_CCS(display))
-		caps &= ~(INTEL_PLANE_CAP_CCS_RC |
-			  INTEL_PLANE_CAP_CCS_RC_CC |
-			  INTEL_PLANE_CAP_CCS_MC);
 
 	modifiers = intel_fb_plane_get_modifiers(display, caps);
 
