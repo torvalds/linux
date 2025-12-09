@@ -96,7 +96,8 @@ err_release:
 /**
  * drm_gem_shmem_init - Initialize an allocated object.
  * @dev: DRM device
- * @obj: The allocated shmem GEM object.
+ * @shmem: The allocated shmem GEM object.
+ * @size: Buffer size in bytes
  *
  * Returns:
  * 0 on success, or a negative error code on failure.
