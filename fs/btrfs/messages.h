@@ -23,9 +23,6 @@ void btrfs_no_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 
 #ifdef CONFIG_PRINTK
 
-#define btrfs_printk(fs_info, fmt, args...)				\
-	_btrfs_printk(fs_info, fmt, ##args)
-
 __printf(2, 3)
 __cold
 void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
@@ -34,6 +31,13 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 
 #define btrfs_printk(fs_info, fmt, args...) \
 	btrfs_no_printk(fs_info, fmt, ##args)
+
+#define btrfs_printk_in_rcu(fs_info, fmt, args...)			\
+	btrfs_no_printk(fs_info, fmt, ##args)
+
+#define btrfs_printk_rl_in_rcu(fs_info, fmt, args...)			\
+	btrfs_no_printk(fs_info, fmt, ##args)
+
 #endif
 
 /*
@@ -78,10 +82,12 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 #define btrfs_debug_rl(fs_info, fmt, args...)	do { (void)(fs_info); } while(0)
 #endif
 
+#ifdef CONFIG_PRINTK
+
 #define btrfs_printk_in_rcu(fs_info, fmt, args...)	\
 do {							\
 	rcu_read_lock();				\
-	btrfs_printk(fs_info, fmt, ##args);		\
+	_btrfs_printk(fs_info, fmt, ##args);		\
 	rcu_read_unlock();				\
 } while (0)
 
@@ -93,9 +99,11 @@ do {								\
 								\
 	rcu_read_lock();					\
 	if (__ratelimit(&_rs))					\
-		btrfs_printk(fs_info, fmt, ##args);		\
+		_btrfs_printk(fs_info, fmt, ##args);		\
 	rcu_read_unlock();					\
 } while (0)
+
+#endif
 
 #ifdef CONFIG_BTRFS_ASSERT
 
