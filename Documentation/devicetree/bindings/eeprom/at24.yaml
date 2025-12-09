@@ -131,6 +131,7 @@ properties:
           - const: atmel,24c32
       - items:
           - enum:
+              - belling,bl24s64
               - onnn,n24s64b
               - puya,p24c64f
           - const: atmel,24c64
