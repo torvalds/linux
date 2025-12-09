@@ -53,6 +53,7 @@ static void set_signals(struct common_params *params)
  */
 int common_parse_options(int argc, char **argv, struct common_params *common)
 {
+	struct trace_events *tevent;
 	int saved_state = optind;
 	int c;
 
@@ -61,11 +62,12 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		{"cgroup",              optional_argument,      0, 'C'},
 		{"debug",               no_argument,            0, 'D'},
 		{"duration",            required_argument,      0, 'd'},
+		{"event",               required_argument,      0, 'e'},
 		{0, 0, 0, 0}
 	};
 
 	opterr = 0;
-	c = getopt_long(argc, argv, "c:C::Dd:", long_options, NULL);
+	c = getopt_long(argc, argv, "c:C::Dd:e:", long_options, NULL);
 	opterr = 1;
 
 	switch (c) {
@@ -85,6 +87,15 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		common->duration = parse_seconds_duration(optarg);
 		if (!common->duration)
 			fatal("Invalid -d duration");
+		break;
+	case 'e':
+		tevent = trace_event_alloc(optarg);
+		if (!tevent)
+			fatal("Error alloc trace event");
+
+		if (common->events)
+			tevent->next = common->events;
+		common->events = tevent;
 		break;
 	default:
 		optind = saved_state;
