@@ -595,7 +595,6 @@ static struct fsi_driver fsi_spi_driver = {
 	.id_table = fsi_spi_ids,
 	.drv = {
 		.name = "spi-fsi",
-		.bus = &fsi_bus_type,
 		.probe = fsi_spi_probe,
 	},
 };
