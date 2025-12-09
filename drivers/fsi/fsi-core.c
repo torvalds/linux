@@ -100,6 +100,39 @@ static int fsi_master_write(struct fsi_master *master, int link,
 		uint8_t slave_id, uint32_t addr, const void *val, size_t size);
 static int fsi_master_break(struct fsi_master *master, int link);
 
+/* FSI core & Linux bus type definitions */
+
+static int fsi_bus_match(struct device *dev, const struct device_driver *drv)
+{
+	struct fsi_device *fsi_dev = to_fsi_dev(dev);
+	const struct fsi_driver *fsi_drv = to_fsi_drv(drv);
+	const struct fsi_device_id *id;
+
+	if (!fsi_drv->id_table)
+		return 0;
+
+	for (id = fsi_drv->id_table; id->engine_type; id++) {
+		if (id->engine_type != fsi_dev->engine_type)
+			continue;
+		if (id->version == FSI_VERSION_ANY ||
+		    id->version == fsi_dev->version) {
+			if (drv->of_match_table) {
+				if (of_driver_match_device(dev, drv))
+					return 1;
+			} else {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static const struct bus_type fsi_bus_type = {
+	.name = "fsi",
+	.match = fsi_bus_match,
+};
+
 /*
  * fsi_device_read() / fsi_device_write() / fsi_device_peek()
  *
@@ -1359,34 +1392,6 @@ void fsi_master_unregister(struct fsi_master *master)
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
 
-/* FSI core & Linux bus type definitions */
-
-static int fsi_bus_match(struct device *dev, const struct device_driver *drv)
-{
-	struct fsi_device *fsi_dev = to_fsi_dev(dev);
-	const struct fsi_driver *fsi_drv = to_fsi_drv(drv);
-	const struct fsi_device_id *id;
-
-	if (!fsi_drv->id_table)
-		return 0;
-
-	for (id = fsi_drv->id_table; id->engine_type; id++) {
-		if (id->engine_type != fsi_dev->engine_type)
-			continue;
-		if (id->version == FSI_VERSION_ANY ||
-		    id->version == fsi_dev->version) {
-			if (drv->of_match_table) {
-				if (of_driver_match_device(dev, drv))
-					return 1;
-			} else {
-				return 1;
-			}
-		}
-	}
-
-	return 0;
-}
-
 int fsi_driver_register(struct fsi_driver *fsi_drv)
 {
 	if (!fsi_drv)
@@ -1405,12 +1410,6 @@ void fsi_driver_unregister(struct fsi_driver *fsi_drv)
 	driver_unregister(&fsi_drv->drv);
 }
 EXPORT_SYMBOL_GPL(fsi_driver_unregister);
-
-const struct bus_type fsi_bus_type = {
-	.name		= "fsi",
-	.match		= fsi_bus_match,
-};
-EXPORT_SYMBOL_GPL(fsi_bus_type);
 
 static int __init fsi_init(void)
 {
