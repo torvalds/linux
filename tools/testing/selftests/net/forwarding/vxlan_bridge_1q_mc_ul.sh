@@ -138,13 +138,18 @@ install_capture()
 	defer tc qdisc del dev "$dev" clsact
 
 	tc filter add dev "$dev" ingress proto ip pref 104 \
-	   flower skip_hw ip_proto udp dst_port "$VXPORT" \
-	   action pass
+	   u32 match ip protocol 0x11 0xff \
+	       match u16 "$VXPORT" 0xffff at 0x16 \
+	       match u16 0x0800 0xffff at 0x30 \
+	       action pass
 	defer tc filter del dev "$dev" ingress proto ip pref 104
 
 	tc filter add dev "$dev" ingress proto ipv6 pref 106 \
-	   flower skip_hw ip_proto udp dst_port "$VXPORT" \
-	   action pass
+	   u32 match ip6 protocol 0x11 0xff \
+	       match u16 "$VXPORT" 0xffff at 0x2a \
+	       match u16 0x86dd 0xffff at 0x44 \
+	       match u8 0x11 0xff at 0x4c \
+	       action pass
 	defer tc filter del dev "$dev" ingress proto ipv6 pref 106
 }
 
