@@ -58,7 +58,7 @@ static long mshv_region_process_chunk(struct mshv_mem_region *region,
 
 	page_order = folio_order(page_folio(page));
 	/* The hypervisor only supports 4K and 2M page sizes */
-	if (page_order && page_order != HPAGE_PMD_ORDER)
+	if (page_order && page_order != PMD_ORDER)
 		return -EINVAL;
 
 	stride = 1 << page_order;
