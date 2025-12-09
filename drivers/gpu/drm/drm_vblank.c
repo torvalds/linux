@@ -710,7 +710,6 @@ drm_crtc_vblank_helper_get_vblank_timestamp_internal(
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	struct timespec64 ts_etime, ts_vblank_time;
 	ktime_t stime, etime;
 	bool vbl_status;
@@ -729,10 +728,13 @@ drm_crtc_vblank_helper_get_vblank_timestamp_internal(
 		return false;
 	}
 
-	if (drm_drv_uses_atomic_modeset(dev))
+	if (drm_drv_uses_atomic_modeset(dev)) {
+		struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+
 		mode = &vblank->hwmode;
-	else
+	} else {
 		mode = &crtc->hwmode;
+	}
 
 	/* If mode timing undefined, just return as no-op:
 	 * Happens during initial modesetting of a crtc.
