@@ -100,6 +100,7 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_ROG_NKEY_KEYBOARD		BIT(11)
 #define QUIRK_ROG_CLAYMORE_II_KEYBOARD BIT(12)
 #define QUIRK_ROG_ALLY_XPAD		BIT(13)
+#define QUIRK_HID_FN_LOCK		BIT(14)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
 						 QUIRK_NO_INIT_REPORTS | \
@@ -143,6 +144,8 @@ struct asus_drvdata {
 	int battery_stat;
 	bool battery_in_query;
 	unsigned long battery_next_query;
+	struct work_struct fn_lock_sync_work;
+	bool fn_lock;
 };
 
 static int asus_report_battery(struct asus_drvdata *, u8 *, int);
@@ -350,11 +353,19 @@ static int asus_wmi_send_event(struct asus_drvdata *drvdata, u8 code)
 static int asus_event(struct hid_device *hdev, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value)
 {
+	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
+	
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_ASUSVENDOR &&
 	    (usage->hid & HID_USAGE) != 0x00 &&
 	    (usage->hid & HID_USAGE) != 0xff && !usage->type) {
 		hid_warn(hdev, "Unmapped Asus vendor usagepage code 0x%02x\n",
 			 usage->hid & HID_USAGE);
+	}
+
+	if (drvdata->quirks & QUIRK_HID_FN_LOCK &&
+		usage->type == EV_KEY && usage->code == KEY_FN_ESC && value == 1) {
+		drvdata->fn_lock = !drvdata->fn_lock;
+		schedule_work(&drvdata->fn_lock_sync_work);
 	}
 
 	return 0;
@@ -526,6 +537,21 @@ static int asus_kbd_disable_oobe(struct hid_device *hdev)
 
 	hid_info(hdev, "Disabled OOBE for keyboard\n");
 	return 0;
+}
+
+static int asus_kbd_set_fn_lock(struct hid_device *hdev, bool enabled)
+{
+	u8 buf[] = { FEATURE_KBD_REPORT_ID, 0xd0, 0x4e, !!enabled };
+
+	return asus_kbd_set_report(hdev, buf, sizeof(buf));
+}
+
+static void asus_sync_fn_lock(struct work_struct *work)
+{
+	struct asus_drvdata *drvdata =
+	container_of(work, struct asus_drvdata, fn_lock_sync_work);
+
+	asus_kbd_set_fn_lock(drvdata->hdev, drvdata->fn_lock);
 }
 
 static void asus_schedule_work(struct asus_kbd_leds *led)
@@ -999,6 +1025,12 @@ static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	    asus_kbd_register_leds(hdev))
 		hid_warn(hdev, "Failed to initialize backlight.\n");
 
+	if (drvdata->quirks & QUIRK_HID_FN_LOCK) {
+		drvdata->fn_lock = true;
+		INIT_WORK(&drvdata->fn_lock_sync_work, asus_sync_fn_lock);
+		asus_kbd_set_fn_lock(hdev, true);
+	}
+
 	return 0;
 }
 
@@ -1330,6 +1362,9 @@ static void asus_remove(struct hid_device *hdev)
 		cancel_work_sync(&drvdata->kbd_backlight->work);
 	}
 
+	if (drvdata->quirks & QUIRK_HID_FN_LOCK)
+		cancel_work_sync(&drvdata->fn_lock_sync_work);
+
 	hid_hw_stop(hdev);
 }
 
@@ -1457,7 +1492,7 @@ static const struct hid_device_id asus_devices[] = {
 	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 	    USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2),
-	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
+	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD | QUIRK_HID_FN_LOCK },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 	    USB_DEVICE_ID_ASUSTEK_ROG_Z13_LIGHTBAR),
 	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
