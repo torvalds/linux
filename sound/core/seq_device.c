@@ -264,39 +264,16 @@ int snd_seq_device_new(struct snd_card *card, int device, const char *id,
 }
 EXPORT_SYMBOL(snd_seq_device_new);
 
-static int snd_seq_driver_legacy_probe(struct snd_seq_device *sdev)
-{
-	struct device *dev = &sdev->dev;
-	struct device_driver *driver = dev->driver;
-
-	return driver->probe(dev);
-}
-
-static void snd_seq_driver_legacy_remove(struct snd_seq_device *sdev)
-{
-	struct device *dev = &sdev->dev;
-	struct device_driver *driver = dev->driver;
-	int ret;
-
-	ret = driver->remove(dev);
-	if (unlikely(ret))
-		dev_warn(dev, "Ignoring return value of remove callback (%pe)\n", ERR_PTR(ret));
-}
-
 /*
  * driver registration
  */
 int __snd_seq_driver_register(struct snd_seq_driver *drv, struct module *mod)
 {
-	if (WARN_ON(!drv->driver.name || !drv->id))
+	if (WARN_ON(!drv->driver.name || !drv->id || drv->driver.probe || drv->driver.remove))
 		return -EINVAL;
+
 	drv->driver.bus = &snd_seq_bus_type;
 	drv->driver.owner = mod;
-
-	if (!drv->probe && drv->driver.probe)
-		drv->probe = snd_seq_driver_legacy_probe;
-	if (!drv->remove && drv->driver.remove)
-		drv->remove = snd_seq_driver_legacy_remove;
 
 	return driver_register(&drv->driver);
 }
