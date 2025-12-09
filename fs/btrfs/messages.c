@@ -211,33 +211,19 @@ static struct ratelimit_state printk_limits[] = {
 	RATELIMIT_STATE_INIT(printk_limits[7], DEFAULT_RATELIMIT_INTERVAL, 100),
 };
 
-void __cold _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
+__printf(3, 4) __cold
+void _btrfs_printk(const struct btrfs_fs_info *fs_info, unsigned int level, const char *fmt, ...)
 {
-	char lvl[PRINTK_MAX_SINGLE_HEADER_LEN + 1] = "\0";
 	struct va_format vaf;
 	va_list args;
-	int kern_level;
-	const char *type = logtypes[4];
-	struct ratelimit_state *ratelimit = &printk_limits[4];
+	const char *type = logtypes[level];
+	struct ratelimit_state *ratelimit = &printk_limits[level];
 
 #ifdef CONFIG_PRINTK_INDEX
 	printk_index_subsys_emit("%sBTRFS %s (device %s): ", NULL, fmt);
 #endif
 
 	va_start(args, fmt);
-
-	while ((kern_level = printk_get_level(fmt)) != 0) {
-		size_t size = printk_skip_level(fmt) - fmt;
-
-		if (kern_level >= '0' && kern_level <= '7') {
-			memcpy(lvl, fmt,  size);
-			lvl[size] = '\0';
-			type = logtypes[kern_level - '0'];
-			ratelimit = &printk_limits[kern_level - '0'];
-		}
-		fmt += size;
-	}
-
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
@@ -247,10 +233,10 @@ void __cold _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, 
 			char statestr[STATE_STRING_BUF_LEN];
 
 			btrfs_state_to_string(fs_info, statestr);
-			_printk("%sBTRFS %s (device %s%s): %pV\n", lvl, type,
+			_printk(KERN_SOH "%dBTRFS %s (device %s%s): %pV\n", level, type,
 				fs_info->sb->s_id, statestr, &vaf);
 		} else {
-			_printk("%sBTRFS %s: %pV\n", lvl, type, &vaf);
+			_printk(KERN_SOH "%dBTRFS %s: %pV\n", level, type, &vaf);
 		}
 	}
 
