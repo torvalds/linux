@@ -652,8 +652,6 @@ static void gsw1xx_remove(struct mdio_device *mdiodev)
 	if (!priv)
 		return;
 
-	gswip_disable_switch(priv);
-
 	dsa_unregister_switch(priv->ds);
 }
 
