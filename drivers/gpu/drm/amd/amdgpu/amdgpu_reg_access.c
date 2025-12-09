@@ -61,6 +61,8 @@ void amdgpu_reg_access_init(struct amdgpu_device *adev)
 
 	adev->reg.pcie.rreg = NULL;
 	adev->reg.pcie.wreg = NULL;
+	adev->reg.pcie.rreg_ext = NULL;
+	adev->reg.pcie.wreg_ext = NULL;
 	adev->reg.pcie.port_rreg = NULL;
 	adev->reg.pcie.port_wreg = NULL;
 }
@@ -200,6 +202,25 @@ void amdgpu_reg_pcie_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 		return;
 	}
 	adev->reg.pcie.wreg(adev, reg, v);
+}
+
+uint32_t amdgpu_reg_pcie_ext_rd32(struct amdgpu_device *adev, uint64_t reg)
+{
+	if (!adev->reg.pcie.rreg_ext) {
+		dev_err_once(adev->dev, "PCIE EXT register read not supported\n");
+		return 0;
+	}
+	return adev->reg.pcie.rreg_ext(adev, reg);
+}
+
+void amdgpu_reg_pcie_ext_wr32(struct amdgpu_device *adev, uint64_t reg,
+			      uint32_t v)
+{
+	if (!adev->reg.pcie.wreg_ext) {
+		dev_err_once(adev->dev, "PCIE EXT register write not supported\n");
+		return;
+	}
+	adev->reg.pcie.wreg_ext(adev, reg, v);
 }
 
 uint32_t amdgpu_reg_pciep_rd32(struct amdgpu_device *adev, uint32_t reg)
