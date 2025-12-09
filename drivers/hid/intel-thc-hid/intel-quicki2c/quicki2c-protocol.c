@@ -30,13 +30,18 @@ static ssize_t quicki2c_init_write_buf(struct quicki2c_device *qcdev, u32 cmd, s
 	if (buf_len > write_buf_len)
 		return -EINVAL;
 
-	memcpy(write_buf, &qcdev->dev_desc.cmd_reg, HIDI2C_REG_LEN);
-	offset += HIDI2C_REG_LEN;
-	memcpy(write_buf + offset, &cmd, cmd_len);
-	offset += cmd_len;
+	if (cmd_len) {
+		memcpy(write_buf, &qcdev->dev_desc.cmd_reg, HIDI2C_REG_LEN);
+		offset += HIDI2C_REG_LEN;
+		memcpy(write_buf + offset, &cmd, cmd_len);
+		offset += cmd_len;
 
-	if (append_data_reg) {
-		memcpy(write_buf + offset, &qcdev->dev_desc.data_reg, HIDI2C_REG_LEN);
+		if (append_data_reg) {
+			memcpy(write_buf + offset, &qcdev->dev_desc.data_reg, HIDI2C_REG_LEN);
+			offset += HIDI2C_REG_LEN;
+		}
+	} else {
+		memcpy(write_buf, &qcdev->dev_desc.output_reg, HIDI2C_REG_LEN);
 		offset += HIDI2C_REG_LEN;
 	}
 
