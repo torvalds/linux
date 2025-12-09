@@ -191,6 +191,7 @@ struct ntfs_index {
 	struct runs_tree alloc_run;
 	/* read/write access to 'bitmap_run'/'alloc_run' while ntfs_readdir */
 	struct rw_semaphore run_lock;
+	size_t version; /* increment each change */
 
 	/*TODO: Remove 'cmp'. */
 	NTFS_CMP_FUNC cmp;

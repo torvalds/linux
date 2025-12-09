@@ -392,33 +392,77 @@ static int ntfs_read_hdr(struct ntfs_sb_info *sbi, struct ntfs_inode *ni,
  * ntfs_readdir - file_operations::iterate_shared
  *
  * Use non sorted enumeration.
- * We have an example of broken volume where sorted enumeration
- * counts each name twice.
+ * Sorted enumeration may result infinite loop if names tree contains loop.
  */
 static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	const struct INDEX_ROOT *root;
-	u64 vbo;
 	size_t bit;
-	loff_t eod;
 	int err = 0;
 	struct inode *dir = file_inode(file);
 	struct ntfs_inode *ni = ntfs_i(dir);
 	struct super_block *sb = dir->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	loff_t i_size = i_size_read(dir);
-	u32 pos = ctx->pos;
+	u64 pos = ctx->pos;
 	u8 *name = NULL;
 	struct indx_node *node = NULL;
 	u8 index_bits = ni->dir.index_bits;
+	size_t max_bit = i_size >> ni->dir.index_bits;
+	loff_t eod = i_size + sbi->record_size;
 
 	/* Name is a buffer of PATH_MAX length. */
 	static_assert(NTFS_NAME_LEN * 4 < PATH_MAX);
 
-	eod = i_size + sbi->record_size;
+	if (!pos) {
+		/*
+		 * ni->dir.version increments each directory change.
+		 * Save the initial value of ni->dir.version.
+		 */
+		file->private_data = (void *)ni->dir.version;
+	}
 
-	if (pos >= eod)
-		return 0;
+	if (pos >= eod) {
+		if (file->private_data == (void *)ni->dir.version) {
+			/* No changes since first readdir. */
+			return 0;
+		}
+
+		/*
+		 * Handle directories that changed after the initial readdir().
+		 *
+		 * Some user space code implements recursive removal like this instead
+		 * of calling rmdir(2) directly:
+		 *
+		 *      fd = opendir(path);
+		 *      while ((dent = readdir(fd)))
+		 *              unlinkat(dirfd(fd), dent->d_name, 0);
+		 *      closedir(fd);
+		 *
+		 * POSIX leaves unspecified what readdir() should return once the
+		 * directory has been modified after opendir()/rewinddir(), so this
+		 * pattern is not guaranteed to work on all filesystems or platforms.
+		 *
+		 * In ntfs3 the internal name tree may be reshaped while entries are
+		 * being removed, so there is no stable anchor for continuing a
+		 * single-pass walk based on the original readdir() order.
+		 *
+		 * In practice some widely used tools (for example certain rm(1)
+		 * implementations) have used this readdir()/unlink() loop, and some
+		 * filesystems behave in a way that effectively makes it work in the
+		 * common case.
+		 *
+		 * The code below follows that practice and tries to provide
+		 * "rmdir-like" behaviour for such callers on ntfs3, even though the
+		 * situation is not strictly defined by the APIs.
+		 *
+		 * Apple documents the same readdir()/unlink() issue and a workaround
+		 * for HFS file systems in:
+		 * https://web.archive.org/web/20220122122948/https:/support.apple.com/kb/TA21420?locale=en_US
+		 */
+		ctx->pos = pos = 3;
+		file->private_data = (void *)ni->dir.version;
+	}
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
@@ -454,35 +498,31 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 	if (pos >= sbi->record_size) {
 		bit = (pos - sbi->record_size) >> index_bits;
 	} else {
+		/*
+		 * Add each name from root in 'ctx'.
+		 */
 		err = ntfs_read_hdr(sbi, ni, &root->ihdr, 0, pos, name, ctx);
 		if (err)
 			goto out;
 		bit = 0;
 	}
 
-	if (!i_size) {
-		ctx->pos = eod;
-		goto out;
-	}
-
-	for (;;) {
-		vbo = (u64)bit << index_bits;
-		if (vbo >= i_size) {
-			ctx->pos = eod;
-			goto out;
-		}
-
+	/*
+	 * Enumerate indexes until the end of dir.
+	 */
+	for (; bit < max_bit; bit += 1) {
+		/* Get the next used index. */
 		err = indx_used_bit(&ni->dir, ni, &bit);
 		if (err)
 			goto out;
 
 		if (bit == MINUS_ONE_T) {
-			ctx->pos = eod;
-			goto out;
+			/* no more used indexes. end of dir. */
+			break;
 		}
 
-		vbo = (u64)bit << index_bits;
-		if (vbo >= i_size) {
+		if (bit >= max_bit) {
+			/* Corrupted directory. */
 			err = -EINVAL;
 			goto out;
 		}
@@ -492,20 +532,24 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 		if (err)
 			goto out;
 
+		/*
+		 * Add each name from index in 'ctx'.
+		 */
 		err = ntfs_read_hdr(sbi, ni, &node->index->ihdr,
-				    vbo + sbi->record_size, pos, name, ctx);
+				    ((u64)bit << index_bits) + sbi->record_size,
+				    pos, name, ctx);
 		if (err)
 			goto out;
-
-		bit += 1;
 	}
 
 out:
-
 	__putname(name);
 	put_indx_node(node);
 
-	if (err == 1) {
+	if (!err) {
+		/* End of directory. */
+		ctx->pos = eod;
+	} else if (err == 1) {
 		/* 'ctx' is full. */
 		err = 0;
 	} else if (err == -ENOENT) {
