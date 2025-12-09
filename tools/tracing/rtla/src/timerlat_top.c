@@ -561,7 +561,6 @@ static struct common_params
 		static struct option long_options[] = {
 			{"auto",		required_argument,	0, 'a'},
 			{"help",		no_argument,		0, 'h'},
-			{"house-keeping",	required_argument,	0, 'H'},
 			{"irq",			required_argument,	0, 'i'},
 			{"nano",		no_argument,		0, 'n'},
 			{"period",		required_argument,	0, 'p'},
@@ -590,7 +589,7 @@ static struct common_params
 		if (common_parse_options(argc, argv, &params->common))
 			continue;
 
-		c = getopt_long(argc, argv, "a:hH:i:knp:qs:t::T:uU0:1:2:345:6:7:",
+		c = getopt_long(argc, argv, "a:hi:knp:qs:t::T:uU0:1:2:345:6:7:",
 				 long_options, NULL);
 
 		/* detect the end of the options. */
@@ -630,12 +629,6 @@ static struct common_params
 		case 'h':
 		case '?':
 			timerlat_top_usage();
-			break;
-		case 'H':
-			params->common.hk_cpus = 1;
-			retval = parse_cpu_set(optarg, &params->common.hk_cpu_set);
-			if (retval)
-				fatal("Error parsing house keeping CPUs");
 			break;
 		case 'i':
 			params->common.stop_us = get_llong_from_str(optarg);

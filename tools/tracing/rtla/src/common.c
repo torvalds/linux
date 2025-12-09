@@ -63,12 +63,13 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		{"debug",               no_argument,            0, 'D'},
 		{"duration",            required_argument,      0, 'd'},
 		{"event",               required_argument,      0, 'e'},
+		{"house-keeping",       required_argument,      0, 'H'},
 		{"priority",            required_argument,      0, 'P'},
 		{0, 0, 0, 0}
 	};
 
 	opterr = 0;
-	c = getopt_long(argc, argv, "c:C::Dd:e:P:", long_options, NULL);
+	c = getopt_long(argc, argv, "c:C::Dd:e:H:P:", long_options, NULL);
 	opterr = 1;
 
 	switch (c) {
@@ -97,6 +98,11 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 		if (common->events)
 			tevent->next = common->events;
 		common->events = tevent;
+		break;
+	case 'H':
+		common->hk_cpus = 1;
+		if (parse_cpu_set(optarg, &common->hk_cpu_set))
+			fatal("Error parsing house keeping CPUs");
 		break;
 	case 'P':
 		if (parse_prio(optarg, &common->sched_param) == -1)

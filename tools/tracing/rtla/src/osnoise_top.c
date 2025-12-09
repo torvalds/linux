@@ -338,7 +338,6 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 	while (1) {
 		static struct option long_options[] = {
 			{"auto",		required_argument,	0, 'a'},
-			{"house-keeping",	required_argument,	0, 'H'},
 			{"help",		no_argument,		0, 'h'},
 			{"period",		required_argument,	0, 'p'},
 			{"quiet",		no_argument,		0, 'q'},
@@ -359,7 +358,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 		if (common_parse_options(argc, argv, &params->common))
 			continue;
 
-		c = getopt_long(argc, argv, "a:hH:p:qr:s:S:t::T:0:1:2:3:",
+		c = getopt_long(argc, argv, "a:hp:qr:s:S:t::T:0:1:2:3:",
 				 long_options, NULL);
 
 		/* Detect the end of the options. */
@@ -382,12 +381,6 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 		case 'h':
 		case '?':
 			osnoise_top_usage(params);
-			break;
-		case 'H':
-			params->common.hk_cpus = 1;
-			retval = parse_cpu_set(optarg, &params->common.hk_cpu_set);
-			if (retval)
-				fatal("Error parsing house keeping CPUs");
 			break;
 		case 'p':
 			params->period = get_llong_from_str(optarg);
