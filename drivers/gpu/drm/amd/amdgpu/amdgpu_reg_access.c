@@ -283,15 +283,69 @@ void amdgpu_reg_pciep_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 	adev->reg.pcie.port_wreg(adev, reg, v);
 }
 
+static int amdgpu_reg_get_smn_base_version(struct amdgpu_device *adev)
+{
+	struct pci_dev *pdev = adev->pdev;
+	int id;
+
+	if (amdgpu_sriov_vf(adev))
+		return -EOPNOTSUPP;
+
+	id = (pdev->device >> 4) & 0xFFFF;
+	if (id == 0x74A || id == 0x74B || id == 0x75A || id == 0x75B)
+		return 1;
+
+	return -EOPNOTSUPP;
+}
+
 uint64_t amdgpu_reg_get_smn_base64(struct amdgpu_device *adev,
 				   enum amd_hw_ip_block_type block,
 				   int die_inst)
 {
 	if (!adev->reg.smn.get_smn_base) {
-		dev_err_once(adev->dev, "SMN base address callback not set\n");
+		int version = amdgpu_reg_get_smn_base_version(adev);
+		switch (version) {
+		case 1:
+			return amdgpu_reg_smn_v1_0_get_base(adev, block,
+							    die_inst);
+		default:
+			dev_err_once(
+				adev->dev,
+				"SMN base address query not supported for this device\n");
+			return 0;
+		}
 		return 0;
 	}
 	return adev->reg.smn.get_smn_base(adev, block, die_inst);
+}
+
+uint64_t amdgpu_reg_smn_v1_0_get_base(struct amdgpu_device *adev,
+				      enum amd_hw_ip_block_type block,
+				      int die_inst)
+{
+	uint64_t smn_base;
+
+	if (die_inst == 0)
+		return 0;
+
+	switch (block) {
+	case XGMI_HWIP:
+	case NBIO_HWIP:
+	case MP0_HWIP:
+	case UMC_HWIP:
+	case DF_HWIP:
+		smn_base = ((uint64_t)(die_inst & 0x3) << 32) | (1ULL << 34);
+		break;
+	default:
+		dev_warn_once(
+			adev->dev,
+			"SMN base address query not supported for this block %d\n",
+			block);
+		smn_base = 0;
+		break;
+	}
+
+	return smn_base;
 }
 
 /*

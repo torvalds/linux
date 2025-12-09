@@ -952,7 +952,6 @@ static const struct amdgpu_asic_funcs aqua_vanjaram_asic_funcs =
 	.get_pcie_replay_count = &amdgpu_nbio_get_pcie_replay_count,
 	.supports_baco = &soc15_supports_baco,
 	.query_video_codecs = &soc15_query_video_codecs,
-	.encode_ext_smn_addressing = &aqua_vanjaram_encode_ext_smn_addressing,
 	.get_reg_state = &aqua_vanjaram_get_reg_state,
 };
 
@@ -1198,6 +1197,7 @@ static int soc15_common_early_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(9, 4, 4):
 	case IP_VERSION(9, 5, 0):
 		adev->asic_funcs = &aqua_vanjaram_asic_funcs;
+		adev->reg.smn.get_smn_base = &amdgpu_reg_smn_v1_0_get_base;
 		adev->cg_flags =
 			AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_CGCG |
 			AMD_CG_SUPPORT_GFX_CGLS | AMD_CG_SUPPORT_SDMA_MGCG |
