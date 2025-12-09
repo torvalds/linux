@@ -159,6 +159,17 @@
 			"Headphone Jack", "HPL",
 			"Headphone Jack", "HPR";
 	};
+
+	sound-hdmi {
+		compatible = "fsl,imx-audio-hdmi";
+		model = "audio-hdmi";
+		audio-cpu = <&aud2htx>;
+		hdmi-out;
+	};
+};
+
+&aud2htx {
+	status = "okay";
 };
 
 &ecspi3 {
@@ -333,6 +344,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpt3>;
 	status = "disabled";
+};
+
+&hdmi_pai {
+	status = "okay";
 };
 
 &hdmi_pvi {
