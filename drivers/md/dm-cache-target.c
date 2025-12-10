@@ -2099,7 +2099,6 @@ static int parse_cache_dev(struct cache_args *ca, struct dm_arg_set *as,
 static int parse_origin_dev(struct cache_args *ca, struct dm_arg_set *as,
 			    char **error)
 {
-	sector_t origin_sectors;
 	int r;
 
 	if (!at_least_one_arg(as, error))
@@ -2110,12 +2109,6 @@ static int parse_origin_dev(struct cache_args *ca, struct dm_arg_set *as,
 	if (r) {
 		*error = "Error opening origin device";
 		return r;
-	}
-
-	origin_sectors = get_dev_size(ca->origin_dev);
-	if (ca->ti->len > origin_sectors) {
-		*error = "Device size larger than cached device";
-		return -EINVAL;
 	}
 
 	return 0;
