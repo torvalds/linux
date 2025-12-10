@@ -26455,6 +26455,7 @@ F:	include/trace/
 F:	kernel/trace/
 F:	kernel/tracepoint.c
 F:	scripts/tracing/
+F:	scripts/tracepoint-update.c
 F:	tools/testing/selftests/ftrace/
 
 TRACING MMIO ACCESSES (MMIOTRACE)
