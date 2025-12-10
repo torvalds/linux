@@ -210,6 +210,9 @@ static int process_tracepoints(bool mod, void *addr, const char *fname)
 	}
 
 	if (!tracepoint_data_sec) {
+		/* A module may reference only exported tracepoints */
+		if (mod)
+			return 0;
 		fprintf(stderr,	"no __tracepoint_strings in file: %s\n", fname);
 		return -1;
 	}
