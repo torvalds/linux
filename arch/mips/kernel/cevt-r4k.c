@@ -159,17 +159,6 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-struct irqaction c0_compare_irqaction = {
-	.handler = c0_compare_interrupt,
-	/*
-	 * IRQF_SHARED: The timer interrupt may be shared with other interrupts
-	 * such as perf counter and FDC interrupts.
-	 */
-	.flags = IRQF_PERCPU | IRQF_TIMER | IRQF_SHARED,
-	.name = "timer",
-};
-
-
 void mips_event_handler(struct clock_event_device *dev)
 {
 }
