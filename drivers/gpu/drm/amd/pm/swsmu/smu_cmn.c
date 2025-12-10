@@ -1317,3 +1317,53 @@ int smu_cmn_print_pcie_levels(struct smu_context *smu,
 
 	return 0;
 }
+
+int smu_cmn_dpm_pcie_gen_idx(int gen)
+{
+	int ret;
+
+	switch (gen) {
+	case 1 ... 5:
+		ret = gen - 1;
+		break;
+	default:
+		ret = -1;
+		break;
+	}
+
+	return ret;
+}
+
+int smu_cmn_dpm_pcie_width_idx(int width)
+{
+	int ret;
+
+	switch (width) {
+	case 1:
+		ret = 1;
+		break;
+	case 2:
+		ret = 2;
+		break;
+	case 4:
+		ret = 3;
+		break;
+	case 8:
+		ret = 4;
+		break;
+	case 12:
+		ret = 5;
+		break;
+	case 16:
+		ret = 6;
+		break;
+	case 32:
+		ret = 7;
+		break;
+	default:
+		ret = -1;
+		break;
+	}
+
+	return ret;
+}

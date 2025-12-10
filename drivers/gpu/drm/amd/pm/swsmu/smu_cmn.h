@@ -93,6 +93,9 @@
 		header->structure_size = sizeof(*tmp);                          \
 	} while (0)
 
+#define SMU_DPM_PCIE_GEN_IDX(gen)	smu_cmn_dpm_pcie_gen_idx((gen))
+#define SMU_DPM_PCIE_WIDTH_IDX(width)	smu_cmn_dpm_pcie_width_idx((width))
+
 extern const int link_speed[];
 
 /* Helper to Convert from PCIE Gen 1/2/3/4/5/6 to 0.1 GT/s speed units */
@@ -211,6 +214,9 @@ int smu_cmn_print_pcie_levels(struct smu_context *smu,
 			       struct smu_pcie_table *pcie_table,
 			       uint32_t cur_gen, uint32_t cur_lane,
 			       char *buf, int *offset);
+
+int smu_cmn_dpm_pcie_gen_idx(int gen);
+int smu_cmn_dpm_pcie_width_idx(int width);
 
 /*SMU gpu metrics */
 
