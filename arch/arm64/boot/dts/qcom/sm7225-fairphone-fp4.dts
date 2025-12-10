@@ -246,6 +246,46 @@
 			};
 		};
 	};
+
+	vreg_32m_cam_dvdd_1p05: regulator-32m-cam-dvdd-1p05 {
+		compatible = "regulator-fixed";
+		regulator-name = "32M_CAM_DVDD_1P05";
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1050000>;
+		gpio = <&pm6150l_gpios 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vreg_s8e>;
+	};
+
+	vreg_48m_ois_avdd0_1p8: regulator-48m-ois-avdd0-1p8 {
+		compatible = "regulator-fixed";
+		regulator-name = "48M_OIS_AVDD0_1P8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&pm6150l_gpios 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vreg_bob>;
+	};
+
+	vreg_48m_uw_avdd0_1p8: regulator-48m-uw-avdd0-1p8 {
+		compatible = "regulator-fixed";
+		regulator-name = "48M_UW_AVDD0_1P8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&pm6150l_gpios 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vreg_bob>;
+	};
+
+	vreg_ois_2p8: regulator-ois-2p8 {
+		compatible = "regulator-fixed";
+		regulator-name = "OIS_2P8";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vreg_bob>;
+	};
 };
 
 &adsp {
