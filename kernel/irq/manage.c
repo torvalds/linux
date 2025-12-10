@@ -2448,36 +2448,6 @@ void free_percpu_nmi(unsigned int irq, void __percpu *dev_id)
 	kfree(__free_percpu_irq(irq, dev_id));
 }
 
-/**
- * setup_percpu_irq - setup a per-cpu interrupt
- * @irq:	Interrupt line to setup
- * @act:	irqaction for the interrupt
- *
- * Used to statically setup per-cpu interrupts in the early boot process.
- */
-int setup_percpu_irq(unsigned int irq, struct irqaction *act)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	int retval;
-
-	if (!desc || !irq_settings_is_per_cpu_devid(desc))
-		return -EINVAL;
-
-	retval = irq_chip_pm_get(&desc->irq_data);
-	if (retval < 0)
-		return retval;
-
-	if (!act->affinity)
-		act->affinity = cpu_online_mask;
-
-	retval = __setup_irq(irq, desc, act);
-
-	if (retval)
-		irq_chip_pm_put(&desc->irq_data);
-
-	return retval;
-}
-
 static
 struct irqaction *create_percpu_irqaction(irq_handler_t handler, unsigned long flags,
 					  const char *devname, const cpumask_t *affinity,
