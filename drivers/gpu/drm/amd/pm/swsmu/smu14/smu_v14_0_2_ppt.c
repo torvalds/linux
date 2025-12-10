@@ -1095,8 +1095,10 @@ static int smu_v14_0_2_emit_clk_levels(struct smu_context *smu,
 			return ret;
 
 		pcie_table = &(dpm_context->dpm_tables.pcie_table);
-		return smu_cmn_print_pcie_levels(smu, pcie_table, gen_speed,
-						 lane_width, buf, offset);
+		return smu_cmn_print_pcie_levels(smu, pcie_table,
+						 SMU_DPM_PCIE_GEN_IDX(gen_speed),
+						 SMU_DPM_PCIE_WIDTH_IDX(lane_width),
+						 buf, offset);
 
 	case SMU_OD_SCLK:
 		if (!smu_v14_0_2_is_od_feature_supported(smu,
