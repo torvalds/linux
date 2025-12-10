@@ -2265,7 +2265,7 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 	return 0;
 }
 
-static struct btrfs_block_group *btrfs_create_block_group_cache(
+static struct btrfs_block_group *btrfs_create_block_group(
 		struct btrfs_fs_info *fs_info, u64 start)
 {
 	struct btrfs_block_group *cache;
@@ -2369,7 +2369,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 
 	ASSERT(key->type == BTRFS_BLOCK_GROUP_ITEM_KEY);
 
-	cache = btrfs_create_block_group_cache(info, key->objectid);
+	cache = btrfs_create_block_group(info, key->objectid);
 	if (!cache)
 		return -ENOMEM;
 
@@ -2490,7 +2490,7 @@ static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 		struct btrfs_block_group *bg;
 
 		map = rb_entry(node, struct btrfs_chunk_map, rb_node);
-		bg = btrfs_create_block_group_cache(fs_info, map->start);
+		bg = btrfs_create_block_group(fs_info, map->start);
 		if (!bg) {
 			ret = -ENOMEM;
 			break;
@@ -2885,7 +2885,7 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 
 	btrfs_set_log_full_commit(trans);
 
-	cache = btrfs_create_block_group_cache(fs_info, chunk_offset);
+	cache = btrfs_create_block_group(fs_info, chunk_offset);
 	if (!cache)
 		return ERR_PTR(-ENOMEM);
 
