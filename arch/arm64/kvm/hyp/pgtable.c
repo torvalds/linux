@@ -583,8 +583,8 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 	u64 vtcr = VTCR_EL2_FLAGS;
 	s8 lvls;
 
-	vtcr |= kvm_get_parange(mmfr0) << VTCR_EL2_PS_SHIFT;
-	vtcr |= VTCR_EL2_T0SZ(phys_shift);
+	vtcr |= FIELD_PREP(VTCR_EL2_PS, kvm_get_parange(mmfr0));
+	vtcr |= FIELD_PREP(VTCR_EL2_T0SZ, (UL(64) - phys_shift));
 	/*
 	 * Use a minimum 2 level page table to prevent splitting
 	 * host PMD huge pages at stage2.
@@ -624,9 +624,7 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 		vtcr |= VTCR_EL2_DS;
 
 	/* Set the vmid bits */
-	vtcr |= (get_vmid_bits(mmfr1) == 16) ?
-		VTCR_EL2_VS_16BIT :
-		VTCR_EL2_VS_8BIT;
+	vtcr |= (get_vmid_bits(mmfr1) == 16) ? VTCR_EL2_VS : 0;
 
 	return vtcr;
 }
