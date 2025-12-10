@@ -35,8 +35,8 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd0>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd0>, <&scmi_dvfs 0>;
+			power-domain-names = "psci", "perf";
 
 			l2_0: l2-cache {
 				compatible = "cache";
@@ -51,8 +51,8 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd1>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd1>, <&scmi_dvfs 0>;
+			power-domain-names = "psci", "perf";
 		};
 
 		cpu2: cpu@200 {
@@ -61,8 +61,8 @@
 			reg = <0x0 0x200>;
 			enable-method = "psci";
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd2>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd2>, <&scmi_dvfs 0>;
+			power-domain-names = "psci", "perf";
 		};
 
 		cpu3: cpu@300 {
@@ -71,8 +71,8 @@
 			reg = <0x0 0x300>;
 			enable-method = "psci";
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd3>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd3>, <&scmi_dvfs 0>;
+			power-domain-names = "psci", "perf";
 		};
 
 		cpu4: cpu@400 {
@@ -81,8 +81,8 @@
 			reg = <0x0 0x400>;
 			enable-method = "psci";
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd4>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd4>, <&scmi_dvfs 0>;
+			power-domain-names = "psci", "perf";
 		};
 
 		cpu5: cpu@500 {
@@ -91,8 +91,8 @@
 			reg = <0x0 0x500>;
 			enable-method = "psci";
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd5>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd5>, <&scmi_dvfs 0>;
+			power-domain-names = "psci", "perf";
 		};
 
 		cpu6: cpu@10000 {
@@ -101,8 +101,8 @@
 			reg = <0x0 0x10000>;
 			enable-method = "psci";
 			next-level-cache = <&l2_1>;
-			power-domains = <&cpu_pd6>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd6>, <&scmi_dvfs 1>;
+			power-domain-names = "psci", "perf";
 
 			l2_1: l2-cache {
 				compatible = "cache";
@@ -117,8 +117,8 @@
 			reg = <0x0 0x10100>;
 			enable-method = "psci";
 			next-level-cache = <&l2_1>;
-			power-domains = <&cpu_pd7>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd7>, <&scmi_dvfs 1>;
+			power-domain-names = "psci", "perf";
 		};
 
 		cpu-map {
@@ -205,6 +205,21 @@
 			compatible = "qcom,scm-sm8750", "qcom,scm";
 			interconnects = <&aggre2_noc MASTER_CRYPTO QCOM_ICC_TAG_ALWAYS
 					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+		};
+
+		scmi {
+			compatible = "arm,scmi";
+			mboxes = <&cpucp_mbox 0>, <&cpucp_mbox 2>;
+			mbox-names = "tx", "rx";
+			shmem = <&cpu_scp_lpri0>, <&cpu_scp_lpri1>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_dvfs: protocol@13 {
+				reg = <0x13>;
+				#power-domain-cells = <1>;
+			};
 		};
 	};
 
@@ -3743,6 +3758,13 @@
 			};
 		};
 
+		cpucp_mbox: mailbox@16430000 {
+			compatible = "qcom,sm8750-cpucp-mbox", "qcom,x1e80100-cpucp-mbox";
+			reg = <0x0 0x16430000 0x0 0x8000>, <0x0 0x17830000 0x0 0x8000>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+		};
+
 		apps_rsc: rsc@16500000 {
 			compatible = "qcom,rpmh-rsc";
 			reg = <0x0 0x16500000 0x0 0x10000>,
@@ -3951,6 +3973,25 @@
 				frame-number = <6>;
 
 				status = "disabled";
+			};
+		};
+
+		sram: sram@17b4e000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x17b4e000 0x0 0x400>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x17b4e000 0x400>;
+
+			cpu_scp_lpri0: scp-sram-section@0 {
+				compatible = "arm,scmi-shmem";
+				reg = <0x0 0x200>;
+			};
+
+			cpu_scp_lpri1: scp-sram-section@200 {
+				compatible = "arm,scmi-shmem";
+				reg = <0x200 0x200>;
 			};
 		};
 
