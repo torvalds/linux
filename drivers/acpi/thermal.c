@@ -911,37 +911,26 @@ static void acpi_thermal_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int acpi_thermal_suspend(struct device *dev)
+static int acpi_thermal_prepare(struct device *dev)
 {
 	/* Make sure the previously queued thermal check work has been done */
 	flush_workqueue(acpi_thermal_pm_queue);
 	return 0;
 }
 
-static int acpi_thermal_resume(struct device *dev)
+static void acpi_thermal_complete(struct device *dev)
 {
-	struct acpi_thermal *tz = dev_get_drvdata(dev);
-	int i, j;
-
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		struct acpi_thermal_trip *acpi_trip = &tz->trips.active[i].trip;
-
-		if (!acpi_thermal_trip_valid(acpi_trip))
-			break;
-
-		for (j = 0; j < acpi_trip->devices.count; j++)
-			acpi_bus_update_power(acpi_trip->devices.handles[j], NULL);
-	}
-
-	acpi_queue_thermal_check(tz);
-
-	return AE_OK;
+	acpi_queue_thermal_check(dev_get_drvdata(dev));
 }
-#else
-#define acpi_thermal_suspend	NULL
-#define acpi_thermal_resume	NULL
-#endif
-static SIMPLE_DEV_PM_OPS(acpi_thermal_pm, acpi_thermal_suspend, acpi_thermal_resume);
+
+static const struct dev_pm_ops acpi_thermal_pm_ops = {
+	.prepare = acpi_thermal_prepare,
+	.complete = acpi_thermal_complete,
+};
+#define ACPI_THERMAL_PM	&acpi_thermal_pm_ops
+#else /* !CONFIG_PM_SLEEP */
+#define ACPI_THERMAL_PM	NULL
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct acpi_device_id  thermal_device_ids[] = {
 	{ACPI_THERMAL_HID, 0},
@@ -955,7 +944,7 @@ static struct platform_driver acpi_thermal_driver = {
 	.driver = {
 		.name = "acpi-thermal",
 		.acpi_match_table = thermal_device_ids,
-		.pm = &acpi_thermal_pm,
+		.pm = ACPI_THERMAL_PM,
 	},
 };
 
