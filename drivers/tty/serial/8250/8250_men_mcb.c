@@ -28,8 +28,6 @@
 #define MEN_UART3_MASK	0x04
 #define MEN_UART4_MASK	0x08
 
-#define MEN_Z125_UARTS_AVAILABLE	0x01
-
 #define MEN_Z025_MAX_UARTS		4
 #define MEN_UART_MEM_SIZE		0x10
 #define MEM_UART_REGISTER_SIZE		0x01
@@ -42,12 +40,10 @@
 
 #define MEN_READ_REGISTER(addr)	readb(addr)
 
-#define MAX_PORTS	4
-
 struct serial_8250_men_mcb_data {
 	int num_ports;
-	int line[MAX_PORTS];
-	unsigned int offset[MAX_PORTS];
+	int line[MEN_Z025_MAX_UARTS];
+	unsigned int offset[MEN_Z025_MAX_UARTS];
 };
 
 /*
@@ -126,7 +122,7 @@ static int read_serial_data(struct mcb_device *mdev,
 	if (res < 0)
 		return res;
 
-	for (i = 0; i < MAX_PORTS; i++) {
+	for (i = 0; i < MEN_Z025_MAX_UARTS; i++) {
 		mask = 0x1 << i;
 		switch (uarts_available & mask) {
 		case MEN_UART1_MASK:
@@ -150,7 +146,7 @@ static int read_serial_data(struct mcb_device *mdev,
 		}
 	}
 
-	if (count <= 0 || count > MAX_PORTS) {
+	if (count <= 0 || count > MEN_Z025_MAX_UARTS) {
 		dev_err(&mdev->dev, "unexpected number of ports: %u\n",
 			count);
 		return -ENODEV;
