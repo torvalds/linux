@@ -620,7 +620,7 @@ static int rtw89_usb_init_rx(struct rtw89_dev *rtwdev)
 	struct sk_buff *rx_skb;
 	int i;
 
-	rtwusb->rxwq = alloc_workqueue("rtw89_usb: rx wq", WQ_BH, 0);
+	rtwusb->rxwq = alloc_workqueue("rtw89_usb: rx wq", WQ_BH | WQ_PERCPU, 0);
 	if (!rtwusb->rxwq) {
 		rtw89_err(rtwdev, "failed to create RX work queue\n");
 		return -ENOMEM;
