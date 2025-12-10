@@ -126,7 +126,7 @@ enum {
 
 #define GL_GLOCK_MAX_HOLD        (long)(HZ / 5)
 #define GL_GLOCK_DFT_HOLD        (long)(HZ / 5)
-#define GL_GLOCK_MIN_HOLD        (long)(10)
+#define GL_GLOCK_MIN_HOLD        (long)(HZ / 100)
 #define GL_GLOCK_HOLD_INCR       (long)(HZ / 20)
 #define GL_GLOCK_HOLD_DECR       (long)(HZ / 40)
 
