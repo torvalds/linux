@@ -1450,6 +1450,7 @@ bool edp_pr_get_state(const struct dc_link *link, uint64_t *state)
 	const struct dc  *dc = link->ctx->dc;
 	unsigned int panel_inst = 0;
 	uint32_t retry_count = 0;
+	uint32_t replay_state = 0;
 
 	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
@@ -1457,10 +1458,12 @@ bool edp_pr_get_state(const struct dc_link *link, uint64_t *state)
 	do {
 		// Send gpint command and wait for ack
 		if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__GET_REPLAY_STATE, panel_inst,
-					       (uint32_t *)state, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
+					       &replay_state, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
 			// Return invalid state when GPINT times out
-			*state = PR_STATE_INVALID;
+			replay_state = PR_STATE_INVALID;
 		}
+		/* Copy 32-bit result into 64-bit output */
+		*state = replay_state;
 	} while (++retry_count <= 1000 && *state == PR_STATE_INVALID);
 
 	// Assert if max retry hit
