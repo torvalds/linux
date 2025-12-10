@@ -692,6 +692,44 @@ static int waveform_ao_insn_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
+static int waveform_dio_insn_bits(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	u32 driven_low;
+	u16 wires;
+
+	/* Update the channel outputs. */
+	comedi_dio_update_state(s, data);
+	/*
+	 * We are modelling the outputs as NPN open collector (0 = driven low,
+	 * 1 = high impedance), with the lower 16 channels wired to the upper
+	 * 16 channels in pairs (0 to 16, 1 to 17, ..., 15 to 31), with a
+	 * pull-up resistor on each wire.  When reading back each channel, we
+	 * read back the state of the wire to which it is connected.
+	 *
+	 * The state of each wire and the value read back from both channels
+	 * connected to it will be logic 1 unless either channel connected to
+	 * the wire is configured as an output in the logic 0 state.
+	 */
+	driven_low = s->io_bits & ~s->state;
+	wires = 0xFFFF & ~driven_low & ~(driven_low >> 16);
+	/* Read back the state of the wires for each pair of channels. */
+	data[1] = wires | (wires << 16);
+
+	return insn->n;
+}
+
+static int waveform_dio_insn_config(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	/* configure each channel as input or output individually */
+	return comedi_dio_insn_config(dev, s, insn, data, 0);
+}
+
 static int waveform_common_attach(struct comedi_device *dev,
 				  int amplitude, int period)
 {
@@ -707,7 +745,7 @@ static int waveform_common_attach(struct comedi_device *dev,
 	devpriv->wf_amplitude = amplitude;
 	devpriv->wf_period = period;
 
-	ret = comedi_alloc_subdevices(dev, 2);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
@@ -745,6 +783,16 @@ static int waveform_common_attach(struct comedi_device *dev,
 	/* Our default loopback value is just a 0V flatline */
 	for (i = 0; i < s->n_chan; i++)
 		devpriv->ao_loopbacks[i] = s->maxdata / 2;
+
+	s = &dev->subdevices[2];
+	/* digital input/output subdevice */
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 32;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = waveform_dio_insn_bits;
+	s->insn_config = waveform_dio_insn_config;
 
 	devpriv->dev = dev;
 	timer_setup(&devpriv->ai_timer, waveform_ai_timer, 0);
