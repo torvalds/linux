@@ -5368,7 +5368,7 @@ struct edif_sa_index_entry {
 	struct list_head next;
 };
 
-/* Refer to SNIA SFF 8247 */
+/* Refer to SNIA SFF 8472 */
 struct sff_8247_a0 {
 	u8 txid;	/* transceiver id */
 	u8 ext_txid;
@@ -5412,6 +5412,7 @@ struct sff_8247_a0 {
 #define FC_SP_32 BIT_3
 #define FC_SP_2  BIT_2
 #define FC_SP_1  BIT_0
+#define FC_SPEED_2	BIT_1
 	u8 fc_sp_cc10;
 	u8 encode;
 	u8 bitrate;
@@ -5430,7 +5431,8 @@ struct sff_8247_a0 {
 	u8 vendor_pn[SFF_PART_NAME_LEN];	/* part number */
 	u8 vendor_rev[4];
 	u8 wavelength[2];
-	u8 resv;
+#define FC_SP_64	BIT_0
+	u8 fiber_channel_speed2;
 	u8 cc_base;
 	u8 options[2];	/* offset 64 */
 	u8 br_max;
