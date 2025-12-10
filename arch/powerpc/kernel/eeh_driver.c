@@ -846,7 +846,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	pci_lock_rescan_remove();
 
-	bus = eeh_pe_bus_get(pe);
+	bus = eeh_pe_bus_get_nolock(pe);
 	if (!bus) {
 		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
@@ -886,14 +886,15 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	/* Log the event */
 	if (pe->type & EEH_PE_PHB) {
 		pr_err("EEH: Recovering PHB#%x, location: %s\n",
-			pe->phb->global_number, eeh_pe_loc_get(pe));
+			pe->phb->global_number, eeh_pe_loc_get_bus(bus));
 	} else {
 		struct eeh_pe *phb_pe = eeh_phb_pe_get(pe->phb);
 
 		pr_err("EEH: Recovering PHB#%x-PE#%x\n",
 		       pe->phb->global_number, pe->addr);
 		pr_err("EEH: PE location: %s, PHB location: %s\n",
-		       eeh_pe_loc_get(pe), eeh_pe_loc_get(phb_pe));
+		       eeh_pe_loc_get_bus(bus),
+		       eeh_pe_loc_get_bus(eeh_pe_bus_get_nolock(phb_pe)));
 	}
 
 #ifdef CONFIG_STACKTRACE
@@ -1098,7 +1099,7 @@ recover_failed:
 		eeh_pe_state_clear(pe, EEH_PE_PRI_BUS, true);
 		eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
 
-		bus = eeh_pe_bus_get(pe);
+		bus = eeh_pe_bus_get_nolock(pe);
 		if (bus)
 			pci_hp_remove_devices(bus);
 		else
@@ -1222,7 +1223,7 @@ void eeh_handle_special_event(void)
 				    (phb_pe->state & EEH_PE_RECOVERING))
 					continue;
 
-				bus = eeh_pe_bus_get(phb_pe);
+				bus = eeh_pe_bus_get_nolock(phb_pe);
 				if (!bus) {
 					pr_err("%s: Cannot find PCI bus for "
 					       "PHB#%x-PE#%x\n",

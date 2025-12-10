@@ -812,6 +812,24 @@ void eeh_pe_restore_bars(struct eeh_pe *pe)
 const char *eeh_pe_loc_get(struct eeh_pe *pe)
 {
 	struct pci_bus *bus = eeh_pe_bus_get(pe);
+	return eeh_pe_loc_get_bus(bus);
+}
+
+/**
+ * eeh_pe_loc_get_bus - Retrieve location code binding to the given PCI bus
+ * @bus: PCI bus
+ *
+ * Retrieve the location code associated with the given PCI bus. If the bus
+ * is a root bus, the location code is fetched from the PHB device tree node
+ * or root port. Otherwise, the location code is obtained from the device
+ * tree node of the upstream bridge of the bus. The function walks up the
+ * bus hierarchy if necessary, checking each node for the appropriate
+ * location code property ("ibm,io-base-loc-code" for root buses,
+ * "ibm,slot-location-code" for others). If no location code is found,
+ * returns "N/A".
+ */
+const char *eeh_pe_loc_get_bus(struct pci_bus *bus)
+{
 	struct device_node *dn;
 	const char *loc = NULL;
 
@@ -838,8 +856,9 @@ const char *eeh_pe_loc_get(struct eeh_pe *pe)
 }
 
 /**
- * eeh_pe_bus_get - Retrieve PCI bus according to the given PE
+ * _eeh_pe_bus_get - Retrieve PCI bus according to the given PE
  * @pe: EEH PE
+ * @do_lock: Is the caller already held the pci_lock_rescan_remove?
  *
  * Retrieve the PCI bus according to the given PE. Basically,
  * there're 3 types of PEs: PHB/Bus/Device. For PHB PE, the
@@ -847,7 +866,7 @@ const char *eeh_pe_loc_get(struct eeh_pe *pe)
  * returned for BUS PE. However, we don't have associated PCI
  * bus for DEVICE PE.
  */
-struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
+static struct pci_bus *_eeh_pe_bus_get(struct eeh_pe *pe, bool do_lock)
 {
 	struct eeh_dev *edev;
 	struct pci_dev *pdev;
@@ -862,11 +881,58 @@ struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
 
 	/* Retrieve the parent PCI bus of first (top) PCI device */
 	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, entry);
-	pci_lock_rescan_remove();
+	if (do_lock)
+		pci_lock_rescan_remove();
 	pdev = eeh_dev_to_pci_dev(edev);
 	if (pdev)
 		bus = pdev->bus;
-	pci_unlock_rescan_remove();
+	if (do_lock)
+		pci_unlock_rescan_remove();
 
 	return bus;
+}
+
+/**
+ * eeh_pe_bus_get - Retrieve PCI bus associated with the given EEH PE, locking
+ * if needed
+ * @pe: Pointer to the EEH PE
+ *
+ * This function is a wrapper around _eeh_pe_bus_get(), which retrieves the PCI
+ * bus associated with the provided EEH PE structure. It acquires the PCI
+ * rescans lock to ensure safe access to shared data during the retrieval
+ * process. This function should be used when the caller requires the PCI bus
+ * while holding the rescan/remove lock, typically during operations that modify
+ * or inspect PCIe device state in a safe manner.
+ *
+ * RETURNS:
+ * A pointer to the PCI bus associated with the EEH PE, or NULL if none found.
+ */
+
+struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
+{
+	return _eeh_pe_bus_get(pe, true);
+}
+
+/**
+ * eeh_pe_bus_get_nolock - Retrieve PCI bus associated with the given EEH PE
+ * without locking
+ * @pe: Pointer to the EEH PE
+ *
+ * This function is a variant of _eeh_pe_bus_get() that retrieves the PCI bus
+ * associated with the specified EEH PE without acquiring the
+ * pci_lock_rescan_remove lock. It should only be used when the caller can
+ * guarantee safe access to PE structures without the need for that lock,
+ * typically in contexts where the lock is already held locking is otherwise
+ * managed.
+ *
+ * RETURNS:
+ * pointer to the PCI bus associated with the EEH PE, or NULL if none is found.
+ *
+ * NOTE:
+ * Use this function carefully to avoid race conditions and data corruption.
+ */
+
+struct pci_bus *eeh_pe_bus_get_nolock(struct eeh_pe *pe)
+{
+	return _eeh_pe_bus_get(pe, false);
 }
