@@ -512,11 +512,28 @@
 };
 
 &cci0_i2c0 {
-	/* IMX582 @ 0x1a */
+	/* Main cam (Sony IMX582) @ 0x1a */
+	/* VCM driver (Onsemi LC898219XI) @ 0x28 */
+	/* OIS driver (CML CM401) @ 0x30 */
+
+	eeprom@50 {
+		compatible = "giantec,gt24p128e", "atmel,24c128";
+		reg = <0x50>;
+		vcc-supply = <&vreg_l6p>;
+		read-only;
+	};
 };
 
 &cci0_i2c1 {
-	/* IMX582 @ 0x1a */
+	/* VCM driver (Dongwoon DW9800W) @ 0xc */
+	/* Ultra-wide cam (Sony IMX582) @ 0x1a */
+
+	eeprom@50 {
+		compatible = "giantec,gt24p64a", "atmel,24c64";
+		reg = <0x50>;
+		vcc-supply = <&vreg_l6p>;
+		read-only;
+	};
 };
 
 &cci1 {
@@ -524,7 +541,14 @@
 };
 
 &cci1_i2c0 {
-	/* IMX576 @ 0x10 */
+	/* Front cam (Sony IMX576) @ 0x10 */
+
+	eeprom@50 {
+		compatible = "giantec,gt24p64a", "atmel,24c64";
+		reg = <0x50>;
+		vcc-supply = <&vreg_l6p>;
+		read-only;
+	};
 };
 
 &cdsp {
