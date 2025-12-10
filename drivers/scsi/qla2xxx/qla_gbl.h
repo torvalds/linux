@@ -345,6 +345,9 @@ extern int
 qla2x00_execute_fw(scsi_qla_host_t *, uint32_t);
 
 extern int
+qla28xx_load_flash_firmware(scsi_qla_host_t *vha);
+
+extern int
 qla2x00_get_fw_version(scsi_qla_host_t *);
 
 extern int
