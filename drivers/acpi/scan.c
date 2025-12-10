@@ -1469,6 +1469,7 @@ static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
 		break;
 	case ACPI_BUS_TYPE_THERMAL:
 		acpi_add_id(pnp, ACPI_THERMAL_HID);
+		pnp->type.platform_id = 1;
 		break;
 	case ACPI_BUS_TYPE_POWER_BUTTON:
 		acpi_add_id(pnp, ACPI_BUTTON_HID_POWERF);
