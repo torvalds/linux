@@ -66,6 +66,10 @@ static const char *const stat_description[__XE_GT_STATS_NUM_IDS] = {
 	DEF_STAT_STR(SVM_4K_BIND_US, "svm_4K_bind_us"),
 	DEF_STAT_STR(SVM_64K_BIND_US, "svm_64K_bind_us"),
 	DEF_STAT_STR(SVM_2M_BIND_US, "svm_2M_bind_us"),
+	DEF_STAT_STR(HW_ENGINE_GROUP_SUSPEND_LR_QUEUE_COUNT,
+		     "hw_engine_group_suspend_lr_queue_count"),
+	DEF_STAT_STR(HW_ENGINE_GROUP_WAIT_DMA_QUEUE_COUNT,
+		     "hw_engine_group_wait_dma_queue_count"),
 };
 
 /**
