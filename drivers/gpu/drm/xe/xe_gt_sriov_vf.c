@@ -1171,10 +1171,6 @@ static bool vf_post_migration_shutdown(struct xe_gt *gt)
 			return true;
 	}
 
-	spin_lock_irq(&gt->sriov.vf.migration.lock);
-	gt->sriov.vf.migration.recovery_queued = false;
-	spin_unlock_irq(&gt->sriov.vf.migration.lock);
-
 	xe_guc_ct_flush_and_stop(&gt->uc.guc.ct);
 	xe_guc_submit_pause_vf(&gt->uc.guc);
 	xe_tlb_inval_reset(&gt->tlb_inval);
@@ -1258,7 +1254,14 @@ static int vf_post_migration_resfix_done(struct xe_gt *gt, u16 marker)
 
 static int vf_post_migration_resfix_start(struct xe_gt *gt, u16 marker)
 {
-	return vf_resfix_start(gt, marker);
+	int err;
+
+	err = vf_resfix_start(gt, marker);
+
+	guard(spinlock_irq) (&gt->sriov.vf.migration.lock);
+	gt->sriov.vf.migration.recovery_queued = false;
+
+	return err;
 }
 
 static u16 vf_post_migration_next_resfix_marker(struct xe_gt *gt)
