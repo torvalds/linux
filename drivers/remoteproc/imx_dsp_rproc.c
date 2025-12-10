@@ -644,6 +644,32 @@ static void imx_dsp_rproc_free_mbox(struct imx_dsp_rproc *priv)
 	mbox_free_channel(priv->rxdb_ch);
 }
 
+static int imx_dsp_rproc_mem_alloc(struct rproc *rproc,
+				   struct rproc_mem_entry *mem)
+{
+	struct device *dev = rproc->dev.parent;
+	void *va;
+
+	va = ioremap_wc(mem->dma, mem->len);
+	if (!va) {
+		dev_err(dev, "Unable to map memory region: %pa+%zx\n",
+			&mem->dma, mem->len);
+		return -ENOMEM;
+	}
+
+	mem->va = va;
+
+	return 0;
+}
+
+static int imx_dsp_rproc_mem_release(struct rproc *rproc,
+				     struct rproc_mem_entry *mem)
+{
+	iounmap(mem->va);
+
+	return 0;
+}
+
 /**
  * imx_dsp_rproc_add_carveout() - request mailbox channels
  * @priv: private data pointer
@@ -659,7 +685,6 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 	struct device *dev = rproc->dev.parent;
 	struct device_node *np = dev->of_node;
 	struct rproc_mem_entry *mem;
-	void __iomem *cpu_addr;
 	int a, i = 0;
 	u64 da;
 
@@ -673,15 +698,10 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		if (imx_dsp_rproc_sys_to_da(priv, att->sa, att->size, &da))
 			return -EINVAL;
 
-		cpu_addr = devm_ioremap_wc(dev, att->sa, att->size);
-		if (!cpu_addr) {
-			dev_err(dev, "failed to map memory %p\n", &att->sa);
-			return -ENOMEM;
-		}
-
 		/* Register memory region */
-		mem = rproc_mem_entry_init(dev, (void __force *)cpu_addr, (dma_addr_t)att->sa,
-					   att->size, da, NULL, NULL, "dsp_mem");
+		mem = rproc_mem_entry_init(dev, NULL, (dma_addr_t)att->sa,
+					   att->size, da, imx_dsp_rproc_mem_alloc,
+					   imx_dsp_rproc_mem_release, "dsp_mem");
 
 		if (mem)
 			rproc_coredump_add_segment(rproc, da, att->size);
@@ -709,15 +729,11 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		if (imx_dsp_rproc_sys_to_da(priv, res.start, resource_size(&res), &da))
 			return -EINVAL;
 
-		cpu_addr = devm_ioremap_resource_wc(dev, &res);
-		if (IS_ERR(cpu_addr)) {
-			dev_err(dev, "failed to map memory %pR\n", &res);
-			return PTR_ERR(cpu_addr);
-		}
-
 		/* Register memory region */
-		mem = rproc_mem_entry_init(dev, (void __force *)cpu_addr, (dma_addr_t)res.start,
-					   resource_size(&res), da, NULL, NULL,
+		mem = rproc_mem_entry_init(dev, NULL, (dma_addr_t)res.start,
+					   resource_size(&res), da,
+					    imx_dsp_rproc_mem_alloc,
+					    imx_dsp_rproc_mem_release,
 					   "%.*s", strchrnul(res.name, '@') - res.name, res.name);
 		if (!mem)
 			return -ENOMEM;
