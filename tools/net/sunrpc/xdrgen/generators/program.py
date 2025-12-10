@@ -127,6 +127,9 @@ class XdrProgramGenerator(SourceGenerator):
         for version in node.versions:
             emit_version_definitions(self.environment, program, version)
 
+        template = self.environment.get_template("definition/program.j2")
+        print(template.render(name=raw_name, value=node.number))
+
     def emit_declaration(self, node: _RpcProgram) -> None:
         """Emit a declaration pair for each of an RPC programs's procedures"""
         raw_name = node.name
