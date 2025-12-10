@@ -7205,3 +7205,43 @@ int qla_mailbox_passthru(scsi_qla_host_t *vha,
 
 	return rval;
 }
+
+int qla_mpipt_validate_fw(scsi_qla_host_t *vha, u16 img_idx, uint16_t *state)
+{
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	int rval;
+
+	if (!IS_QLA28XX(ha)) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s %d\n", __func__, __LINE__);
+		return QLA_FUNCTION_FAILED;
+	}
+
+	if (img_idx > 1) {
+		ql_log(ql_log_info, vha, 0xffff,
+				"%s %d Invalid flash image index [%d]\n",
+				__func__, __LINE__, img_idx);
+		return QLA_INVALID_COMMAND;
+	}
+
+	memset(&mc, 0, sizeof(mc));
+	mcp->mb[0] = MBC_MPI_PASSTHROUGH;
+	mcp->mb[1] = MPIPT_SUBCMD_VALIDATE_FW;
+	mcp->mb[2] = img_idx;
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+
+	/* send mb via iocb */
+	rval = qla24xx_send_mb_cmd(vha, &mc);
+	if (rval) {
+		ql_log(ql_log_info, vha, 0xffff, "%s:Failed %x (mb=%x,%x)\n",
+				__func__, rval, mcp->mb[0], mcp->mb[1]);
+		*state = mcp->mb[1];
+	} else {
+		ql_log(ql_log_info, vha, 0xffff, "%s: mb=%x,%x,%x\n", __func__,
+				mcp->mb[0], mcp->mb[1], mcp->mb[2]);
+	}
+
+	return rval;
+}

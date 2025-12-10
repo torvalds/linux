@@ -1386,6 +1386,26 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define HCS_WRITE_SERDES		0x3
 #define HCS_READ_SERDES			0x4
 
+/*
+ * ISP2[7|8]xx mailbox commands.
+ */
+#define MBC_MPI_PASSTHROUGH            0x200
+
+/* MBC_MPI_PASSTHROUGH */
+#define MPIPT_REQ_V1 1
+enum {
+       MPIPT_SUBCMD_GET_SUP_CMD = 0x10,
+       MPIPT_SUBCMD_GET_SUP_FEATURE,
+       MPIPT_SUBCMD_GET_STATUS,
+       MPIPT_SUBCMD_VALIDATE_FW,
+};
+
+enum {
+       MPIPT_MPI_STATUS = 1,
+       MPIPT_FCORE_STATUS,
+       MPIPT_LOCKDOWN_STATUS,
+};
+
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
 
