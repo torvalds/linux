@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
+#include <linux/irqdomain.h>
 #include <linux/jump_label.h>
 #include <linux/pci.h>
 #include <linux/printk.h>
@@ -198,19 +199,27 @@ static int zpci_bus_create_pci_bus(struct zpci_bus *zbus, struct zpci_dev *fr, s
 	zbus->multifunction = zpci_bus_is_multifunction_root(fr);
 	zbus->max_bus_speed = fr->max_bus_speed;
 
+	if (zpci_create_parent_msi_domain(zbus))
+		goto out_free_domain;
+
 	/*
 	 * Note that the zbus->resources are taken over and zbus->resources
 	 * is empty after a successful call
 	 */
 	bus = pci_create_root_bus(NULL, ZPCI_BUS_NR, ops, zbus, &zbus->resources);
-	if (!bus) {
-		zpci_free_domain(zbus->domain_nr);
-		return -EFAULT;
-	}
+	if (!bus)
+		goto out_remove_msi_domain;
 
 	zbus->bus = bus;
+	dev_set_msi_domain(&zbus->bus->dev, zbus->msi_parent_domain);
 
 	return 0;
+
+out_remove_msi_domain:
+	zpci_remove_parent_msi_domain(zbus);
+out_free_domain:
+	zpci_free_domain(zbus->domain_nr);
+	return -ENOMEM;
 }
 
 static void zpci_bus_release(struct kref *kref)
@@ -231,6 +240,7 @@ static void zpci_bus_release(struct kref *kref)
 	mutex_lock(&zbus_list_lock);
 	list_del(&zbus->bus_next);
 	mutex_unlock(&zbus_list_lock);
+	zpci_remove_parent_msi_domain(zbus);
 	kfree(zbus);
 }
 

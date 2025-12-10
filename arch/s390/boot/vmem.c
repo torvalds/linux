@@ -244,22 +244,10 @@ static void *boot_crst_alloc(unsigned long val)
 
 static pte_t *boot_pte_alloc(void)
 {
-	static void *pte_leftover;
 	pte_t *pte;
 
-	/*
-	 * handling pte_leftovers this way helps to avoid memory fragmentation
-	 * during POPULATE_KASAN_MAP_SHADOW when EDAT is off
-	 */
-	if (!pte_leftover) {
-		pte_leftover = (void *)physmem_alloc_or_die(RR_VMEM, PAGE_SIZE, PAGE_SIZE);
-		pte = pte_leftover + _PAGE_TABLE_SIZE;
-		__arch_set_page_dat(pte, 1);
-	} else {
-		pte = pte_leftover;
-		pte_leftover = NULL;
-	}
-
+	pte = (void *)physmem_alloc_or_die(RR_VMEM, PAGE_SIZE, PAGE_SIZE);
+	__arch_set_page_dat(pte, 1);
 	memset64((u64 *)pte, _PAGE_INVALID, PTRS_PER_PTE);
 	return pte;
 }

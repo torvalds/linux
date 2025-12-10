@@ -708,6 +708,12 @@ int zpci_reenable_device(struct zpci_dev *zdev)
 	if (rc)
 		return rc;
 
+	if (zdev->msi_nr_irqs > 0) {
+		rc = zpci_set_irq(zdev);
+		if (rc)
+			return rc;
+	}
+
 	rc = zpci_iommu_register_ioat(zdev, &status);
 	if (rc)
 		zpci_disable_device(zdev);
