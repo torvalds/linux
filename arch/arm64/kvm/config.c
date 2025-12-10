@@ -141,6 +141,7 @@ struct reg_feat_map_desc {
 #define FEAT_AA64EL1		ID_AA64PFR0_EL1, EL1, IMP
 #define FEAT_AA64EL2		ID_AA64PFR0_EL1, EL2, IMP
 #define FEAT_AA64EL3		ID_AA64PFR0_EL1, EL3, IMP
+#define FEAT_SEL2		ID_AA64PFR0_EL1, SEL2, IMP
 #define FEAT_AIE		ID_AA64MMFR3_EL1, AIE, IMP
 #define FEAT_S2POE		ID_AA64MMFR3_EL1, S2POE, IMP
 #define FEAT_S1POE		ID_AA64MMFR3_EL1, S1POE, IMP
@@ -202,6 +203,8 @@ struct reg_feat_map_desc {
 #define FEAT_ASID2		ID_AA64MMFR4_EL1, ASID2, IMP
 #define FEAT_MEC		ID_AA64MMFR3_EL1, MEC, IMP
 #define FEAT_HAFT		ID_AA64MMFR1_EL1, HAFDBS, HAFT
+#define FEAT_HDBSS		ID_AA64MMFR1_EL1, HAFDBS, HDBSS
+#define FEAT_HPDS2		ID_AA64MMFR1_EL1, HPDS, HPDS2
 #define FEAT_BTI		ID_AA64PFR1_EL1, BT, IMP
 #define FEAT_ExS		ID_AA64MMFR0_EL1, EXS, IMP
 #define FEAT_IESB		ID_AA64MMFR2_EL1, IESB, IMP
@@ -219,6 +222,7 @@ struct reg_feat_map_desc {
 #define FEAT_FGT2		ID_AA64MMFR0_EL1, FGT, FGT2
 #define FEAT_MTPMU		ID_AA64DFR0_EL1, MTPMU, IMP
 #define FEAT_HCX		ID_AA64MMFR1_EL1, HCX, IMP
+#define FEAT_S2PIE		ID_AA64MMFR3_EL1, S2PIE, IMP
 
 static bool not_feat_aa64el3(struct kvm *kvm)
 {
@@ -360,6 +364,28 @@ static bool feat_pmuv3p7(struct kvm *kvm)
 static bool feat_pmuv3p9(struct kvm *kvm)
 {
 	return check_pmu_revision(kvm, V3P9);
+}
+
+#define has_feat_s2tgran(k, s)						\
+  ((kvm_has_feat_enum(kvm, ID_AA64MMFR0_EL1, TGRAN##s##_2, TGRAN##s) && \
+    kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN##s, IMP))		     ||	\
+   kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN##s##_2, IMP))
+
+static bool feat_lpa2(struct kvm *kvm)
+{
+	return ((kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN4, 52_BIT)    ||
+		 !kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN4, IMP))	&&
+		(kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN16, 52_BIT)   ||
+		 !kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN16, IMP))	&&
+		(kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN4_2, 52_BIT)  ||
+		 !has_feat_s2tgran(kvm, 4))				&&
+		(kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN16_2, 52_BIT) ||
+		 !has_feat_s2tgran(kvm, 16)));
+}
+
+static bool feat_vmid16(struct kvm *kvm)
+{
+	return kvm_has_feat_enum(kvm, ID_AA64MMFR1_EL1, VMIDBits, 16);
 }
 
 static bool compute_hcr_rw(struct kvm *kvm, u64 *bits)
@@ -1168,6 +1194,44 @@ static const struct reg_bits_to_feat_map mdcr_el2_feat_map[] = {
 static const DECLARE_FEAT_MAP(mdcr_el2_desc, MDCR_EL2,
 			      mdcr_el2_feat_map, FEAT_AA64EL2);
 
+static const struct reg_bits_to_feat_map vtcr_el2_feat_map[] = {
+	NEEDS_FEAT(VTCR_EL2_HDBSS, FEAT_HDBSS),
+	NEEDS_FEAT(VTCR_EL2_HAFT, FEAT_HAFT),
+	NEEDS_FEAT(VTCR_EL2_TL0		|
+		   VTCR_EL2_TL1		|
+		   VTCR_EL2_AssuredOnly	|
+		   VTCR_EL2_GCSH,
+		   FEAT_THE),
+	NEEDS_FEAT(VTCR_EL2_D128, FEAT_D128),
+	NEEDS_FEAT(VTCR_EL2_S2POE, FEAT_S2POE),
+	NEEDS_FEAT(VTCR_EL2_S2PIE, FEAT_S2PIE),
+	NEEDS_FEAT(VTCR_EL2_SL2		|
+		   VTCR_EL2_DS,
+		   feat_lpa2),
+	NEEDS_FEAT(VTCR_EL2_NSA		|
+		   VTCR_EL2_NSW,
+		   FEAT_SEL2),
+	NEEDS_FEAT(VTCR_EL2_HWU62	|
+		   VTCR_EL2_HWU61	|
+		   VTCR_EL2_HWU60	|
+		   VTCR_EL2_HWU59,
+		   FEAT_HPDS2),
+	NEEDS_FEAT(VTCR_EL2_HD, ID_AA64MMFR1_EL1, HAFDBS, DBM),
+	NEEDS_FEAT(VTCR_EL2_HA, ID_AA64MMFR1_EL1, HAFDBS, AF),
+	NEEDS_FEAT(VTCR_EL2_VS, feat_vmid16),
+	NEEDS_FEAT(VTCR_EL2_PS		|
+		   VTCR_EL2_TG0		|
+		   VTCR_EL2_SH0		|
+		   VTCR_EL2_ORGN0	|
+		   VTCR_EL2_IRGN0	|
+		   VTCR_EL2_SL0		|
+		   VTCR_EL2_T0SZ,
+		   FEAT_AA64EL1),
+};
+
+static const DECLARE_FEAT_MAP(vtcr_el2_desc, VTCR_EL2,
+			      vtcr_el2_feat_map, FEAT_AA64EL2);
+
 static void __init check_feat_map(const struct reg_bits_to_feat_map *map,
 				  int map_size, u64 resx, const char *str)
 {
@@ -1211,6 +1275,7 @@ void __init check_feature_map(void)
 	check_reg_desc(&tcr2_el2_desc);
 	check_reg_desc(&sctlr_el1_desc);
 	check_reg_desc(&mdcr_el2_desc);
+	check_reg_desc(&vtcr_el2_desc);
 }
 
 static bool idreg_feat_match(struct kvm *kvm, const struct reg_bits_to_feat_map *map)
@@ -1424,6 +1489,10 @@ void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *r
 	case MDCR_EL2:
 		*res0 = compute_reg_res0_bits(kvm, &mdcr_el2_desc, 0, 0);
 		*res1 = MDCR_EL2_RES1;
+		break;
+	case VTCR_EL2:
+		*res0 = compute_reg_res0_bits(kvm, &vtcr_el2_desc, 0, 0);
+		*res1 = VTCR_EL2_RES1;
 		break;
 	default:
 		WARN_ON_ONCE(1);

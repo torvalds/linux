@@ -1719,8 +1719,7 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 	set_sysreg_masks(kvm, VTTBR_EL2, res0, res1);
 
 	/* VTCR_EL2 */
-	res0 = GENMASK(63, 32) | GENMASK(30, 20);
-	res1 = BIT(31);
+	get_reg_fixed_bits(kvm, VTCR_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, VTCR_EL2, res0, res1);
 
 	/* VMPIDR_EL2 */
