@@ -1723,7 +1723,7 @@ static inline int memcg_kmem_id(struct mem_cgroup *memcg)
 	return memcg ? memcg->kmemcg_id : -1;
 }
 
-struct mem_cgroup *mem_cgroup_from_slab_obj(void *p);
+struct mem_cgroup *mem_cgroup_from_virt(void *p);
 
 static inline void count_objcg_events(struct obj_cgroup *objcg,
 				      enum vm_event_item idx,
@@ -1795,7 +1795,7 @@ static inline int memcg_kmem_id(struct mem_cgroup *memcg)
 	return -1;
 }
 
-static inline struct mem_cgroup *mem_cgroup_from_slab_obj(void *p)
+static inline struct mem_cgroup *mem_cgroup_from_virt(void *p)
 {
 	return NULL;
 }

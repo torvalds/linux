@@ -806,7 +806,7 @@ void mod_lruvec_kmem_state(void *p, enum node_stat_item idx, int val)
 	struct lruvec *lruvec;
 
 	rcu_read_lock();
-	memcg = mem_cgroup_from_slab_obj(p);
+	memcg = mem_cgroup_from_virt(p);
 
 	/*
 	 * Untracked pages have no memcg, no lruvec. Update only the
@@ -2614,7 +2614,7 @@ struct mem_cgroup *mem_cgroup_from_obj_slab(struct slab *slab, void *p)
  * The caller must ensure the memcg lifetime, e.g. by taking rcu_read_lock(),
  * cgroup_mutex, etc.
  */
-struct mem_cgroup *mem_cgroup_from_slab_obj(void *p)
+struct mem_cgroup *mem_cgroup_from_virt(void *p)
 {
 	struct slab *slab;
 
