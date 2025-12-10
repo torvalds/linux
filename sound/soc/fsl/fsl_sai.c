@@ -917,8 +917,14 @@ static int fsl_sai_startup(struct snd_pcm_substream *substream,
 					   tx ? sai->dma_params_tx.maxburst :
 					   sai->dma_params_rx.maxburst);
 
-	ret = snd_pcm_hw_constraint_list(substream->runtime, 0,
-					 SNDRV_PCM_HW_PARAM_RATE, &sai->constraint_rates);
+	if (sai->is_consumer_mode[tx])
+		ret = snd_pcm_hw_constraint_list(substream->runtime, 0,
+						 SNDRV_PCM_HW_PARAM_RATE,
+						 &fsl_sai_rate_constraints);
+	else
+		ret = snd_pcm_hw_constraint_list(substream->runtime, 0,
+						 SNDRV_PCM_HW_PARAM_RATE,
+						 &sai->constraint_rates);
 
 	return ret;
 }
