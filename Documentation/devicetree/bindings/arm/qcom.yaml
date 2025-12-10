@@ -63,6 +63,11 @@ properties:
 
       - items:
           - enum:
+              - fairphone,fp6
+          - const: qcom,milos
+
+      - items:
+          - enum:
               - microsoft,dempsey
               - microsoft,makepeace
               - microsoft,moneypenny
