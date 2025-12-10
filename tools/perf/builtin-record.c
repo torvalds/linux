@@ -1881,7 +1881,7 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 						 process_synthesized_event,
 						 &rec->session->machines.host,
 						 needs_mmap,
-						 rec->opts.sample_address);
+						 rec->opts.record_data_mmap);
 	perf_thread_map__put(thread_map);
 	return err;
 }
@@ -2191,7 +2191,7 @@ static int record__synthesize(struct record *rec, bool tail)
 
 		err = __machine__synthesize_threads(machine, tool, &opts->target,
 						    rec->evlist->core.threads,
-						    f, needs_mmap, opts->sample_address,
+						    f, needs_mmap, opts->record_data_mmap,
 						    rec->opts.nr_threads_synthesize);
 	}
 
@@ -3006,8 +3006,9 @@ int record_opts__parse_callchain(struct record_opts *record,
 	ret = parse_callchain_record_opt(arg, callchain);
 	if (!ret) {
 		/* Enable data address sampling for DWARF unwind. */
-		if (callchain->record_mode == CALLCHAIN_DWARF)
-			record->sample_address = true;
+		if (callchain->record_mode == CALLCHAIN_DWARF &&
+		    !record->record_data_mmap_set)
+			record->record_data_mmap = true;
 		callchain_debug(callchain);
 	}
 
@@ -3686,6 +3687,9 @@ static struct option __record_options[] = {
 	OPT_CALLBACK(0, "off-cpu-thresh", &record.opts, "ms",
 		     "Dump off-cpu samples if off-cpu time exceeds this threshold (in milliseconds). (Default: 500ms)",
 		     record__parse_off_cpu_thresh),
+	OPT_BOOLEAN_SET(0, "data-mmap", &record.opts.record_data_mmap,
+			&record.opts.record_data_mmap_set,
+			"Record mmap events for non-executable mappings"),
 	OPT_END()
 };
 
@@ -4249,9 +4253,12 @@ int cmd_record(int argc, const char **argv)
 		goto out_opts;
 	}
 
-	/* For backward compatibility, -d implies --mem-info */
-	if (rec->opts.sample_address)
+	/* For backward compatibility, -d implies --mem-info and --data-mmap */
+	if (rec->opts.sample_address) {
 		rec->opts.sample_data_src = true;
+		if (!rec->opts.record_data_mmap_set)
+			rec->opts.record_data_mmap = true;
+	}
 
 	/*
 	 * Allow aliases to facilitate the lookup of symbols for address
