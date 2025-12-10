@@ -670,8 +670,7 @@ static void acpi_thermal_unregister_thermal_zone(struct acpi_thermal *tz)
 
 static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_device *device = data;
-	struct acpi_thermal *tz = acpi_driver_data(device);
+	struct acpi_thermal *tz = data;
 
 	if (!tz)
 		return;
@@ -685,8 +684,8 @@ static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 		acpi_thermal_trips_update(tz, event);
 		break;
 	default:
-		acpi_handle_debug(device->handle, "Unsupported event [0x%x]\n",
-				  event);
+		acpi_handle_debug(tz->device->handle,
+				  "Unsupported event [0x%x]\n", event);
 		break;
 	}
 }
@@ -881,7 +880,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 		acpi_device_bid(device), deci_kelvin_to_celsius(tz->temp_dk));
 
 	result = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
-						 acpi_thermal_notify, device);
+						 acpi_thermal_notify, tz);
 	if (result)
 		goto flush_wq;
 
