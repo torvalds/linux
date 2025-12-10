@@ -3585,6 +3585,9 @@ static int __sort_dimension__add_output(struct perf_hpp_list *list,
 	if (__sort_dimension__add_hpp_output(sd, list, level) < 0)
 		return -1;
 
+	if (sd->entry->se_collapse)
+		list->need_collapse = 1;
+
 	sd->taken = 1;
 	return 0;
 }
