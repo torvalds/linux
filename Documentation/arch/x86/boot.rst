@@ -433,7 +433,7 @@ Protocol:	2.00+
 
   Assigned boot loader IDs:
 
-	== =======================================
+	==== =======================================
 	0x0  LILO
 	     (0x00 reserved for pre-2.00 bootloader)
 	0x1  Loadlin
@@ -456,7 +456,7 @@ Protocol:	2.00+
 	     <http://sebastian-plotz.blogspot.de>
 	0x12 OVMF UEFI virtualization stack
 	0x13 barebox
-	== =======================================
+	==== =======================================
 
   Please contact <hpa@zytor.com> if you need a bootloader ID value assigned.
 
