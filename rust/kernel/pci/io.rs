@@ -18,6 +18,9 @@ use core::ops::Deref;
 
 /// A PCI BAR to perform I/O-Operations on.
 ///
+/// I/O backend assumes that the device is little-endian and will automatically
+/// convert from little-endian to CPU endianness.
+///
 /// # Invariants
 ///
 /// `Bar` always holds an `IoRaw` inststance that holds a valid pointer to the start of the I/O
