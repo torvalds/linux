@@ -1727,7 +1727,8 @@ repeat:
 			sort_order = NULL;
 	}
 
-	if (sort_order && strstr(sort_order, "type")) {
+	if ((sort_order && strstr(sort_order, "type")) ||
+	    (field_order && strstr(field_order, "type"))) {
 		report.data_type = true;
 		annotate_opts.annotate_src = false;
 
