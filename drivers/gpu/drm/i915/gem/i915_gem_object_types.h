@@ -363,6 +363,7 @@ struct drm_i915_gem_object {
 			     I915_BO_ALLOC_PM_EARLY | \
 			     I915_BO_ALLOC_GPU_ONLY | \
 			     I915_BO_ALLOC_CCS_AUX | \
+			     I915_BO_ALLOC_NOTHP | \
 			     I915_BO_PREALLOC)
 #define I915_BO_READONLY          BIT(10)
 #define I915_TILING_QUIRK_BIT     11 /* unknown swizzling; do not release! */
