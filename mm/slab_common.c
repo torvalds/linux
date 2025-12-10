@@ -492,7 +492,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
 		return;
 
 	/* in-flight kfree_rcu()'s may include objects from our cache */
-	kvfree_rcu_barrier();
+	kvfree_rcu_barrier_on_cache(s);
 
 	if (IS_ENABLED(CONFIG_SLUB_RCU_DEBUG) &&
 	    (s->flags & SLAB_TYPESAFE_BY_RCU)) {
@@ -2038,24 +2038,12 @@ unlock_return:
 }
 EXPORT_SYMBOL_GPL(kvfree_call_rcu);
 
-/**
- * kvfree_rcu_barrier - Wait until all in-flight kvfree_rcu() complete.
- *
- * Note that a single argument of kvfree_rcu() call has a slow path that
- * triggers synchronize_rcu() following by freeing a pointer. It is done
- * before the return from the function. Therefore for any single-argument
- * call that will result in a kfree() to a cache that is to be destroyed
- * during module exit, it is developer's responsibility to ensure that all
- * such calls have returned before the call to kmem_cache_destroy().
- */
-void kvfree_rcu_barrier(void)
+static inline void __kvfree_rcu_barrier(void)
 {
 	struct kfree_rcu_cpu_work *krwp;
 	struct kfree_rcu_cpu *krcp;
 	bool queued;
 	int i, cpu;
-
-	flush_all_rcu_sheaves();
 
 	/*
 	 * Firstly we detach objects and queue them over an RCU-batch
@@ -2118,7 +2106,42 @@ void kvfree_rcu_barrier(void)
 		}
 	}
 }
+
+/**
+ * kvfree_rcu_barrier - Wait until all in-flight kvfree_rcu() complete.
+ *
+ * Note that a single argument of kvfree_rcu() call has a slow path that
+ * triggers synchronize_rcu() following by freeing a pointer. It is done
+ * before the return from the function. Therefore for any single-argument
+ * call that will result in a kfree() to a cache that is to be destroyed
+ * during module exit, it is developer's responsibility to ensure that all
+ * such calls have returned before the call to kmem_cache_destroy().
+ */
+void kvfree_rcu_barrier(void)
+{
+	flush_all_rcu_sheaves();
+	__kvfree_rcu_barrier();
+}
 EXPORT_SYMBOL_GPL(kvfree_rcu_barrier);
+
+/**
+ * kvfree_rcu_barrier_on_cache - Wait for in-flight kvfree_rcu() calls on a
+ *                               specific slab cache.
+ * @s: slab cache to wait for
+ *
+ * See the description of kvfree_rcu_barrier() for details.
+ */
+void kvfree_rcu_barrier_on_cache(struct kmem_cache *s)
+{
+	if (s->cpu_sheaves)
+		flush_rcu_sheaves_on_cache(s);
+	/*
+	 * TODO: Introduce a version of __kvfree_rcu_barrier() that works
+	 * on a specific slab cache.
+	 */
+	__kvfree_rcu_barrier();
+}
+EXPORT_SYMBOL_GPL(kvfree_rcu_barrier_on_cache);
 
 static unsigned long
 kfree_rcu_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
@@ -2215,4 +2238,3 @@ void __init kvfree_rcu_init(void)
 }
 
 #endif /* CONFIG_KVFREE_RCU_BATCHED */
-
