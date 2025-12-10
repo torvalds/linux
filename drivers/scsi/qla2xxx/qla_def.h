@@ -4150,6 +4150,7 @@ struct qla_hw_data {
 		uint32_t	eeh_flush:2;
 #define EEH_FLUSH_RDY  1
 #define EEH_FLUSH_DONE 2
+		uint32_t	secure_mcu:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -4414,6 +4415,8 @@ struct qla_hw_data {
 #define IS_ZIO_THRESHOLD_CAPABLE(ha) \
 	((IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&\
 	 (ha->zio_mode == QLA_ZIO_MODE_6))
+
+#define IS_QLA28XX_SECURED(ha)	(IS_QLA28XX(ha) && ha->flags.secure_mcu)
 
 	/* HBA serial number */
 	uint8_t		serial0;

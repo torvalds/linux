@@ -9059,7 +9059,7 @@ qla81xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	qla27xx_get_active_image(vha, &active_regions);
 
 	/* For 28XXX, always load the flash firmware using rom mbx */
-	if (IS_QLA28XX(ha)) {
+	if (IS_QLA28XX_SECURED(ha)) {
 		rval = qla28xx_load_flash_firmware(vha);
 		if (rval != QLA_SUCCESS) {
 			ql_log(ql_log_fatal, vha, 0x019e,
