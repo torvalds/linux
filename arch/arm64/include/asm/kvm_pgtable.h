@@ -87,15 +87,9 @@ typedef u64 kvm_pte_t;
 
 #define KVM_PTE_LEAF_ATTR_HI_SW		GENMASK(58, 55)
 
-#define __KVM_PTE_LEAF_ATTR_HI_S1_XN	BIT(54)
-#define __KVM_PTE_LEAF_ATTR_HI_S1_UXN	BIT(54)
-#define __KVM_PTE_LEAF_ATTR_HI_S1_PXN	BIT(53)
-
-#define KVM_PTE_LEAF_ATTR_HI_S1_XN					\
-	({ cpus_have_final_cap(ARM64_KVM_HVHE) ?			\
-			(__KVM_PTE_LEAF_ATTR_HI_S1_UXN |		\
-			 __KVM_PTE_LEAF_ATTR_HI_S1_PXN) :		\
-			__KVM_PTE_LEAF_ATTR_HI_S1_XN; })
+#define KVM_PTE_LEAF_ATTR_HI_S1_XN	BIT(54)
+#define KVM_PTE_LEAF_ATTR_HI_S1_UXN	BIT(54)
+#define KVM_PTE_LEAF_ATTR_HI_S1_PXN	BIT(53)
 
 #define KVM_PTE_LEAF_ATTR_HI_S2_XN	GENMASK(54, 53)
 
