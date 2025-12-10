@@ -111,6 +111,8 @@ The column name "all" can be used to enable all disabled-by-default built-in cou
 .PP
 \fB--no-perf\fP Disable all the uses of the perf API.
 .PP
+\fB--force\fPForce turbostat to run on an unsupported platform (minimal defaults).
+.PP
 \fB--interval seconds\fP overrides the default 5.0 second measurement interval.
 .PP
 \fB--num_iterations num\fP number of the measurement iterations.
@@ -165,9 +167,9 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBC1, C2, C3...\fP The number times Linux requested the C1, C2, C3 idle state during the measurement interval.  The system summary line shows the sum for all CPUs.  These are C-state names as exported in /sys/devices/system/cpu/cpu*/cpuidle/state*/name.  While their names are generic, their attributes are processor specific. They the system description section of output shows what MWAIT sub-states they are mapped to on each system.  These counters are in the "cpuidle" group, which is disabled, by default.
 .PP
-\fBC1+, C2+, C3+...\fP The idle governor idle state misprediction statistics. Inidcates the number times Linux requested the C1, C2, C3 idle state during the measurement interval, but should have requested a deeper idle state (if it exists and enabled). These statistics come from the /sys/devices/system/cpu/cpu*/cpuidle/state*/below file.  These counters are in the "cpuidle" group, which is disabled, by default.
+\fBC1+, C2+, C3+...\fP The idle governor idle state misprediction statistics. Indicates the number times Linux requested the C1, C2, C3 idle state during the measurement interval, but should have requested a deeper idle state (if it exists and enabled). These statistics come from the /sys/devices/system/cpu/cpu*/cpuidle/state*/below file.  These counters are in the "cpuidle" group, which is disabled, by default.
 .PP
-\fBC1-, C2-, C3-...\fP The idle governor idle state misprediction statistics. Inidcates the number times Linux requested the C1, C2, C3 idle state during the measurement interval, but should have requested a shallower idle state (if it exists and enabled). These statistics come from the /sys/devices/system/cpu/cpu*/cpuidle/state*/above file.  These counters are in the "cpuidle" group, which is disabled, by default.
+\fBC1-, C2-, C3-...\fP The idle governor idle state misprediction statistics. Indicates the number times Linux requested the C1, C2, C3 idle state during the measurement interval, but should have requested a shallower idle state (if it exists and enabled). These statistics come from the /sys/devices/system/cpu/cpu*/cpuidle/state*/above file.  These counters are in the "cpuidle" group, which is disabled, by default.
 .PP
 \fBC1%, C2%, C3%\fP The residency percentage that Linux requested C1, C2, C3....  The system summary is the average of all CPUs in the system.  Note that these are software, reflecting what was requested.  The hardware counters reflect what was actually achieved.  These counters are in the "pct_idle" group, which is enabled by default.
 .PP
@@ -197,7 +199,7 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBGFX%C0\fP Percentage of time that at least one GFX compute engine is busy.
 .PP
-\fBCPUGFX%\fP Percentage of time that at least one CPU is busy at the same time as at least one Graphics compute enginer is busy.
+\fBCPUGFX%\fP Percentage of time that at least one CPU is busy at the same time as at least one Graphics compute engine is busy.
 .PP
 \fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.  These numbers are from hardware residency counters.
 .PP
@@ -559,6 +561,8 @@ If the upstream version isn't new enough, the development tree can be found here
 If the development tree doesn't work, please contact the author via chat,
 or via email with the word "turbostat" on the Subject line.
 
+An old turbostat binary may run on unknown hardware by using "--force",
+but results are unsupported.
 .SH FILES
 .ta
 .nf
