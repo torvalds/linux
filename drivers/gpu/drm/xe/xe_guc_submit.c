@@ -664,6 +664,63 @@ static void set_exec_queue_group_banned(struct xe_exec_queue *q)
 	xe_map_wr_field(xe_, &map_, 0, struct guc_submit_parallel_scratch, \
 			field_, val_)
 
+/**
+ * DOC: Multi Queue Group GuC interface
+ *
+ * The multi queue group coordination between KMD and GuC is through a software
+ * construct called Context Group Page (CGP). The CGP is a KMD managed 4KB page
+ * allocated in the global GTT.
+ *
+ * CGP format:
+ *
+ * +-----------+---------------------------+---------------------------------------------+
+ * | DWORD     | Name                      | Description                                 |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 0         | Version                   | Bits [15:8]=Major ver, [7:0]=Minor ver      |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 1..15     | RESERVED                  | MBZ                                         |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 16        | KMD_QUEUE_UPDATE_MASK_DW0 | KMD queue mask for queues 31..0             |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 17        | KMD_QUEUE_UPDATE_MASK_DW1 | KMD queue mask for queues 63..32            |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 18..31    | RESERVED                  | MBZ                                         |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 32        | Q0CD_DW0                  | Queue 0 context LRC descriptor lower DWORD  |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 33        | Q0ContextIndex            | Context ID for Queue 0                      |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 34        | Q1CD_DW0                  | Queue 1 context LRC descriptor lower DWORD  |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 35        | Q1ContextIndex            | Context ID for Queue 1                      |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | ...       |...                        | ...                                         |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 158       | Q63CD_DW0                 | Queue 63 context LRC descriptor lower DWORD |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 159       | Q63ContextIndex           | Context ID for Queue 63                     |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 160..1024 | RESERVED                  | MBZ                                         |
+ * +-----------+---------------------------+---------------------------------------------+
+ *
+ * While registering Q0 with GuC, CGP is updated with Q0 entry and GuC is notified
+ * through XE_GUC_ACTION_REGISTER_CONTEXT_MULTI_QUEUE H2G message which specifies
+ * the CGP address. When the secondary queues are added to the group, the CGP is
+ * updated with entry for that queue and GuC is notified through the H2G interface
+ * XE_GUC_ACTION_MULTI_QUEUE_CONTEXT_CGP_SYNC. GuC responds to these H2G messages
+ * with a XE_GUC_ACTION_NOTIFY_MULTIQ_CONTEXT_CGP_SYNC_DONE G2H message. GuC also
+ * sends a XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CGP_CONTEXT_ERROR notification for any
+ * error in the CGP. Only one of these CGP update messages can be outstanding
+ * (waiting for GuC response) at any time. The bits in KMD_QUEUE_UPDATE_MASK_DW*
+ * fields indicate which queue entry is being updated in the CGP.
+ *
+ * The primary queue (Q0) represents the multi queue group context in GuC and
+ * submission on any queue of the group must be through Q0 GuC interface only.
+ *
+ * As it is not required to register secondary queues with GuC, the secondary queue
+ * context ids in the CGP are populated with Q0 context id.
+ */
+
 #define CGP_VERSION_MAJOR_SHIFT	8
 
 static void xe_guc_exec_queue_group_cgp_update(struct xe_device *xe,

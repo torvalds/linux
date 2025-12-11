@@ -97,6 +97,9 @@
  * When GuC reports an error on any of the queues of a multi queue group,
  * the queue cleanup mechanism is invoked for all the queues of the group
  * as hardware cannot make progress on the multi queue context.
+ *
+ * Refer :ref:`multi-queue-group-guc-interface` for multi queue group GuC
+ * interface.
  */
 
 enum xe_exec_queue_sched_prop {
