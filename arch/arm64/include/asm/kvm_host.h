@@ -1655,4 +1655,6 @@ static __always_inline enum fgt_group_id __fgt_reg_to_group_id(enum vcpu_sysreg 
 		p;							\
 	})
 
+long kvm_get_cap_for_kvm_ioctl(unsigned int ioctl, long *ext);
+
 #endif /* __ARM64_KVM_HOST_H__ */
