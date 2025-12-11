@@ -229,7 +229,7 @@ static void gfs2_end_log_write(struct bio *bio)
 }
 
 /**
- * gfs2_log_submit_bio - Submit any pending log bio
+ * gfs2_log_submit_write - Submit a pending log write bio
  * @biop: Address of the bio pointer
  * @opf: REQ_OP | op_flags
  *
@@ -237,7 +237,7 @@ static void gfs2_end_log_write(struct bio *bio)
  * there is no pending bio, then this is a no-op.
  */
 
-void gfs2_log_submit_bio(struct bio **biop, blk_opf_t opf)
+void gfs2_log_submit_write(struct bio **biop, blk_opf_t opf)
 {
 	struct bio *bio = *biop;
 	if (bio) {
@@ -303,7 +303,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno,
 		nblk >>= sdp->sd_fsb2bb_shift;
 		if (blkno == nblk && !flush)
 			return bio;
-		gfs2_log_submit_bio(biop, op);
+		gfs2_log_submit_write(biop, op);
 	}
 
 	*biop = gfs2_log_alloc_bio(sdp, blkno, end_io);
