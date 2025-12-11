@@ -2216,8 +2216,8 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 									pptable->PcieLaneCount[i] > pcie_width_cap ?
 									pcie_width_cap : pptable->PcieLaneCount[i];
 			smu_pcie_arg = i << 16;
-			smu_pcie_arg |= pcie_gen_cap << 8;
-			smu_pcie_arg |= pcie_width_cap;
+			smu_pcie_arg |= dpm_context->dpm_tables.pcie_table.pcie_gen[i] << 8;
+			smu_pcie_arg |= dpm_context->dpm_tables.pcie_table.pcie_lane[i];
 			ret = smu_cmn_send_smc_msg_with_param(smu,
 							SMU_MSG_OverridePcieParameters,
 							smu_pcie_arg,
