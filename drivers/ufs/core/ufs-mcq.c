@@ -431,8 +431,7 @@ void ufshcd_mcq_disable(struct ufs_hba *hba)
 
 void ufshcd_mcq_enable_esi(struct ufs_hba *hba)
 {
-	ufshcd_writel(hba, ufshcd_readl(hba, REG_UFS_MEM_CFG) | 0x2,
-		      REG_UFS_MEM_CFG);
+	ufshcd_rmwl(hba, ESI_ENABLE, ESI_ENABLE, REG_UFS_MEM_CFG);
 }
 EXPORT_SYMBOL_GPL(ufshcd_mcq_enable_esi);
 
