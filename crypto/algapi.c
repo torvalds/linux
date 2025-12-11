@@ -511,17 +511,13 @@ int crypto_register_algs(struct crypto_alg *algs, int count)
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_register_alg(&algs[i]);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_unregister_algs(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	for (--i; i >= 0; --i)
-		crypto_unregister_alg(&algs[i]);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_register_algs);
 
@@ -529,7 +525,7 @@ void crypto_unregister_algs(struct crypto_alg *algs, int count)
 {
 	int i;
 
-	for (i = 0; i < count; i++)
+	for (i = count - 1; i >= 0; --i)
 		crypto_unregister_alg(&algs[i]);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_algs);
