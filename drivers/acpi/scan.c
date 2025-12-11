@@ -2755,9 +2755,7 @@ int acpi_bus_register_early_device(int type)
 		return result;
 
 	acpi_default_enumeration(device);
-
-	device->flags.match_driver = true;
-	return device_attach(&device->dev);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_register_early_device);
 

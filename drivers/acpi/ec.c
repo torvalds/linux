@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/platform_device.h>
 #include <linux/printk.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -1674,8 +1675,9 @@ static int acpi_ec_setup(struct acpi_ec *ec, struct acpi_device *device, bool ca
 	return ret;
 }
 
-static int acpi_ec_add(struct acpi_device *device)
+static int acpi_ec_probe(struct platform_device *pdev)
 {
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_ec *ec;
 	int ret;
 
@@ -1730,6 +1732,8 @@ static int acpi_ec_add(struct acpi_device *device)
 	acpi_handle_info(ec->handle,
 			 "EC: Used to handle transactions and events\n");
 
+	platform_set_drvdata(pdev, ec);
+	/* This is needed for the SMBUS HC driver to work. */
 	device->driver_data = ec;
 
 	ret = !!request_region(ec->data_addr, 1, "EC data");
@@ -1750,14 +1754,11 @@ err:
 	return ret;
 }
 
-static void acpi_ec_remove(struct acpi_device *device)
+static void acpi_ec_remove(struct platform_device *pdev)
 {
-	struct acpi_ec *ec;
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_ec *ec = platform_get_drvdata(pdev);
 
-	if (!device)
-		return;
-
-	ec = acpi_driver_data(device);
 	release_region(ec->data_addr, 1);
 	release_region(ec->command_addr, 1);
 	device->driver_data = NULL;
@@ -2095,8 +2096,7 @@ out:
 #ifdef CONFIG_PM_SLEEP
 static int acpi_ec_suspend(struct device *dev)
 {
-	struct acpi_ec *ec =
-		acpi_driver_data(to_acpi_device(dev));
+	struct acpi_ec *ec = dev_get_drvdata(dev);
 
 	if (!pm_suspend_no_platform() && ec_freeze_events)
 		acpi_ec_disable_event(ec);
@@ -2105,7 +2105,7 @@ static int acpi_ec_suspend(struct device *dev)
 
 static int acpi_ec_suspend_noirq(struct device *dev)
 {
-	struct acpi_ec *ec = acpi_driver_data(to_acpi_device(dev));
+	struct acpi_ec *ec = dev_get_drvdata(dev);
 
 	/*
 	 * The SCI handler doesn't run at this point, so the GPE can be
@@ -2122,7 +2122,7 @@ static int acpi_ec_suspend_noirq(struct device *dev)
 
 static int acpi_ec_resume_noirq(struct device *dev)
 {
-	struct acpi_ec *ec = acpi_driver_data(to_acpi_device(dev));
+	struct acpi_ec *ec = dev_get_drvdata(dev);
 
 	acpi_ec_leave_noirq(ec);
 
@@ -2135,8 +2135,7 @@ static int acpi_ec_resume_noirq(struct device *dev)
 
 static int acpi_ec_resume(struct device *dev)
 {
-	struct acpi_ec *ec =
-		acpi_driver_data(to_acpi_device(dev));
+	struct acpi_ec *ec = dev_get_drvdata(dev);
 
 	acpi_ec_enable_event(ec);
 	return 0;
@@ -2265,15 +2264,14 @@ module_param_call(ec_event_clearing, param_set_event_clearing, param_get_event_c
 		  NULL, 0644);
 MODULE_PARM_DESC(ec_event_clearing, "Assumed SCI_EVT clearing timing");
 
-static struct acpi_driver acpi_ec_driver = {
-	.name = "ec",
-	.class = ACPI_EC_CLASS,
-	.ids = ec_device_ids,
-	.ops = {
-		.add = acpi_ec_add,
-		.remove = acpi_ec_remove,
-		},
-	.drv.pm = &acpi_ec_pm,
+static struct platform_driver acpi_ec_driver = {
+	.probe = acpi_ec_probe,
+	.remove = acpi_ec_remove,
+	.driver = {
+		.name = "acpi-ec",
+		.acpi_match_table = ec_device_ids,
+		.pm = &acpi_ec_pm,
+	},
 };
 
 static void acpi_ec_destroy_workqueues(void)
@@ -2378,17 +2376,7 @@ void __init acpi_ec_init(void)
 	}
 
 	/* Driver must be registered after acpi_ec_init_workqueues(). */
-	acpi_bus_register_driver(&acpi_ec_driver);
+	platform_driver_register(&acpi_ec_driver);
 
 	acpi_ec_ecdt_start();
 }
-
-/* EC driver currently not unloadable */
-#if 0
-static void __exit acpi_ec_exit(void)
-{
-
-	acpi_bus_unregister_driver(&acpi_ec_driver);
-	acpi_ec_destroy_workqueues();
-}
-#endif	/* 0 */
