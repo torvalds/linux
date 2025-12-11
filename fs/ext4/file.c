@@ -858,7 +858,6 @@ static int ext4_sample_last_mounted(struct super_block *sb,
 	 * when trying to sort through large numbers of block
 	 * devices or filesystem images.
 	 */
-	memset(buf, 0, sizeof(buf));
 	path.mnt = mnt;
 	path.dentry = mnt->mnt_root;
 	cp = d_path(&path, buf, sizeof(buf));
