@@ -369,26 +369,23 @@ static void nhpoly1305_final(struct nhpoly1305_ctx *ctx,
  * property; NH is used for performance since it's much faster than Poly1305.
  */
 static void adiantum_hash_message(struct skcipher_request *req,
-				  struct scatterlist *sgl, unsigned int nents,
-				  le128 *out)
+				  struct scatterlist *sgl, le128 *out)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	const struct adiantum_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
-	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
-	struct sg_mapping_iter miter;
-	unsigned int i, n;
+	unsigned int len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
+	struct scatter_walk walk;
 
 	nhpoly1305_init(&rctx->u.hash_ctx);
+	scatterwalk_start(&walk, sgl);
+	while (len) {
+		unsigned int n = scatterwalk_next(&walk, len);
 
-	sg_miter_start(&miter, sgl, nents, SG_MITER_FROM_SG | SG_MITER_ATOMIC);
-	for (i = 0; i < bulk_len; i += n) {
-		sg_miter_next(&miter);
-		n = min_t(unsigned int, miter.length, bulk_len - i);
-		nhpoly1305_update(&rctx->u.hash_ctx, tctx, miter.addr, n);
+		nhpoly1305_update(&rctx->u.hash_ctx, tctx, walk.addr, n);
+		scatterwalk_done_src(&walk, n);
+		len -= n;
 	}
-	sg_miter_stop(&miter);
-
 	nhpoly1305_final(&rctx->u.hash_ctx, tctx, out);
 }
 
@@ -400,7 +397,6 @@ static int adiantum_finish(struct skcipher_request *req)
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
 	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
 	struct scatterlist *dst = req->dst;
-	const unsigned int dst_nents = sg_nents(dst);
 	le128 digest;
 
 	/* If decrypting, decrypt C_M with the block cipher to get P_M */
@@ -414,7 +410,8 @@ static int adiantum_finish(struct skcipher_request *req)
 	 *	dec: P_R = P_M - H_{K_H}(T, P_L)
 	 */
 	le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &rctx->header_hash);
-	if (dst_nents == 1 && dst->offset + req->cryptlen <= PAGE_SIZE) {
+	if (dst->length >= req->cryptlen &&
+	    dst->offset + req->cryptlen <= PAGE_SIZE) {
 		/* Fast path for single-page destination */
 		struct page *page = sg_page(dst);
 		void *virt = kmap_local_page(page) + dst->offset;
@@ -428,7 +425,7 @@ static int adiantum_finish(struct skcipher_request *req)
 		kunmap_local(virt);
 	} else {
 		/* Slow path that works for any destination scatterlist */
-		adiantum_hash_message(req, dst, dst_nents, &digest);
+		adiantum_hash_message(req, dst, &digest);
 		le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
 		scatterwalk_map_and_copy(&rctx->rbuf.bignum, dst,
 					 bulk_len, sizeof(le128), 1);
@@ -453,7 +450,6 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
 	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
 	struct scatterlist *src = req->src;
-	const unsigned int src_nents = sg_nents(src);
 	unsigned int stream_len;
 	le128 digest;
 
@@ -468,7 +464,8 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 	 *	dec: C_M = C_R + H_{K_H}(T, C_L)
 	 */
 	adiantum_hash_header(req);
-	if (src_nents == 1 && src->offset + req->cryptlen <= PAGE_SIZE) {
+	if (src->length >= req->cryptlen &&
+	    src->offset + req->cryptlen <= PAGE_SIZE) {
 		/* Fast path for single-page source */
 		void *virt = kmap_local_page(sg_page(src)) + src->offset;
 
@@ -479,7 +476,7 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 		kunmap_local(virt);
 	} else {
 		/* Slow path that works for any source scatterlist */
-		adiantum_hash_message(req, src, src_nents, &digest);
+		adiantum_hash_message(req, src, &digest);
 		scatterwalk_map_and_copy(&rctx->rbuf.bignum, src,
 					 bulk_len, sizeof(le128), 0);
 	}
