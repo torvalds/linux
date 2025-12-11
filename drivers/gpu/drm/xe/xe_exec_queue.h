@@ -66,6 +66,53 @@ static inline bool xe_exec_queue_uses_pxp(struct xe_exec_queue *q)
 	return q->pxp.type;
 }
 
+/**
+ * xe_exec_queue_is_multi_queue() - Whether an exec_queue is part of a queue group.
+ * @q: The exec_queue
+ *
+ * Return: True if the exec_queue is part of a queue group, false otherwise.
+ */
+static inline bool xe_exec_queue_is_multi_queue(struct xe_exec_queue *q)
+{
+	return q->multi_queue.valid;
+}
+
+/**
+ * xe_exec_queue_is_multi_queue_primary() - Whether an exec_queue is primary queue
+ * of a multi queue group.
+ * @q: The exec_queue
+ *
+ * Return: True if @q is primary queue of a queue group, false otherwise.
+ */
+static inline bool xe_exec_queue_is_multi_queue_primary(struct xe_exec_queue *q)
+{
+	return q->multi_queue.is_primary;
+}
+
+/**
+ * xe_exec_queue_is_multi_queue_secondary() - Whether an exec_queue is secondary queue
+ * of a multi queue group.
+ * @q: The exec_queue
+ *
+ * Return: True if @q is secondary queue of a queue group, false otherwise.
+ */
+static inline bool xe_exec_queue_is_multi_queue_secondary(struct xe_exec_queue *q)
+{
+	return xe_exec_queue_is_multi_queue(q) && !xe_exec_queue_is_multi_queue_primary(q);
+}
+
+/**
+ * xe_exec_queue_multi_queue_primary() - Get multi queue group's primary queue
+ * @q: The exec_queue
+ *
+ * If @q belongs to a multi queue group, then the primary queue of the group will
+ * be returned. Otherwise, @q will be returned.
+ */
+static inline struct xe_exec_queue *xe_exec_queue_multi_queue_primary(struct xe_exec_queue *q)
+{
+	return xe_exec_queue_is_multi_queue(q) ? q->multi_queue.group->primary : q;
+}
+
 bool xe_exec_queue_is_lr(struct xe_exec_queue *q);
 
 bool xe_exec_queue_is_idle(struct xe_exec_queue *q);

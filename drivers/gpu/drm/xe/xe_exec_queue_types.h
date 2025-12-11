@@ -33,6 +33,20 @@ enum xe_exec_queue_priority {
 };
 
 /**
+ * struct xe_exec_queue_group - Execution multi queue group
+ *
+ * Contains multi queue group information.
+ */
+struct xe_exec_queue_group {
+	/** @primary: Primary queue of this group */
+	struct xe_exec_queue *primary;
+	/** @cgp_bo: BO for the Context Group Page */
+	struct xe_bo *cgp_bo;
+	/** @xa: xarray to store LRCs */
+	struct xarray xa;
+};
+
+/**
  * struct xe_exec_queue - Execution queue
  *
  * Contains all state necessary for submissions. Can either be a user object or
@@ -110,6 +124,18 @@ struct xe_exec_queue {
 		/** @guc: GuC backend specific state for exec queue */
 		struct xe_guc_exec_queue *guc;
 	};
+
+	/** @multi_queue: Multi queue information */
+	struct {
+		/** @multi_queue.group: Queue group information */
+		struct xe_exec_queue_group *group;
+		/** @multi_queue.pos: Position of queue within the multi-queue group */
+		u8 pos;
+		/** @multi_queue.valid: Queue belongs to a multi queue group */
+		u8 valid:1;
+		/** @multi_queue.is_primary: Is primary queue (Q0) of the group */
+		u8 is_primary:1;
+	} multi_queue;
 
 	/** @sched_props: scheduling properties */
 	struct {

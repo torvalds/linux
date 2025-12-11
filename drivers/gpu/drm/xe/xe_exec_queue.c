@@ -13,6 +13,7 @@
 #include <drm/drm_syncobj.h>
 #include <uapi/drm/xe_drm.h>
 
+#include "xe_bo.h"
 #include "xe_dep_scheduler.h"
 #include "xe_device.h"
 #include "xe_gt.h"
@@ -63,6 +64,33 @@ enum xe_exec_queue_sched_prop {
 static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue *q,
 				      u64 extensions, int ext_number);
 
+static void xe_exec_queue_group_cleanup(struct xe_exec_queue *q)
+{
+	struct xe_exec_queue_group *group = q->multi_queue.group;
+	struct xe_lrc *lrc;
+	unsigned long idx;
+
+	if (xe_exec_queue_is_multi_queue_secondary(q)) {
+		/*
+		 * Put pairs with get from xe_exec_queue_lookup() call
+		 * in xe_exec_queue_group_validate().
+		 */
+		xe_exec_queue_put(xe_exec_queue_multi_queue_primary(q));
+		return;
+	}
+
+	if (!group)
+		return;
+
+	/* Primary queue cleanup */
+	xa_for_each(&group->xa, idx, lrc)
+		xe_lrc_put(lrc);
+
+	xa_destroy(&group->xa);
+	xe_bo_unpin_map_no_vm(group->cgp_bo);
+	kfree(group);
+}
+
 static void __xe_exec_queue_free(struct xe_exec_queue *q)
 {
 	int i;
@@ -73,6 +101,10 @@ static void __xe_exec_queue_free(struct xe_exec_queue *q)
 
 	if (xe_exec_queue_uses_pxp(q))
 		xe_pxp_exec_queue_remove(gt_to_xe(q->gt)->pxp, q);
+
+	if (xe_exec_queue_is_multi_queue(q))
+		xe_exec_queue_group_cleanup(q);
+
 	if (q->vm)
 		xe_vm_put(q->vm);
 
@@ -588,6 +620,150 @@ static int exec_queue_set_hang_replay_state(struct xe_device *xe,
 	return 0;
 }
 
+static int xe_exec_queue_group_init(struct xe_device *xe, struct xe_exec_queue *q)
+{
+	struct xe_tile *tile = gt_to_tile(q->gt);
+	struct xe_exec_queue_group *group;
+	struct xe_bo *bo;
+
+	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	if (!group)
+		return -ENOMEM;
+
+	bo = xe_bo_create_pin_map_novm(xe, tile, SZ_4K, ttm_bo_type_kernel,
+				       XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+				       XE_BO_FLAG_PINNED_LATE_RESTORE |
+				       XE_BO_FLAG_FORCE_USER_VRAM |
+				       XE_BO_FLAG_GGTT_INVALIDATE |
+				       XE_BO_FLAG_GGTT, false);
+	if (IS_ERR(bo)) {
+		drm_err(&xe->drm, "CGP bo allocation for queue group failed: %ld\n",
+			PTR_ERR(bo));
+		kfree(group);
+		return PTR_ERR(bo);
+	}
+
+	xe_map_memset(xe, &bo->vmap, 0, 0, SZ_4K);
+
+	group->primary = q;
+	group->cgp_bo = bo;
+	xa_init_flags(&group->xa, XA_FLAGS_ALLOC1);
+	q->multi_queue.group = group;
+
+	return 0;
+}
+
+static inline bool xe_exec_queue_supports_multi_queue(struct xe_exec_queue *q)
+{
+	return q->gt->info.multi_queue_engine_class_mask & BIT(q->class);
+}
+
+static int xe_exec_queue_group_validate(struct xe_device *xe, struct xe_exec_queue *q,
+					u32 primary_id)
+{
+	struct xe_exec_queue_group *group;
+	struct xe_exec_queue *primary;
+	int ret;
+
+	/*
+	 * Get from below xe_exec_queue_lookup() pairs with put
+	 * in xe_exec_queue_group_cleanup().
+	 */
+	primary = xe_exec_queue_lookup(q->vm->xef, primary_id);
+	if (XE_IOCTL_DBG(xe, !primary))
+		return -ENOENT;
+
+	if (XE_IOCTL_DBG(xe, !xe_exec_queue_is_multi_queue_primary(primary)) ||
+	    XE_IOCTL_DBG(xe, q->vm != primary->vm) ||
+	    XE_IOCTL_DBG(xe, q->logical_mask != primary->logical_mask)) {
+		ret = -EINVAL;
+		goto put_primary;
+	}
+
+	group = primary->multi_queue.group;
+	q->multi_queue.valid = true;
+	q->multi_queue.group = group;
+
+	return 0;
+put_primary:
+	xe_exec_queue_put(primary);
+	return ret;
+}
+
+#define XE_MAX_GROUP_SIZE	64
+static int xe_exec_queue_group_add(struct xe_device *xe, struct xe_exec_queue *q)
+{
+	struct xe_exec_queue_group *group = q->multi_queue.group;
+	u32 pos;
+	int err;
+
+	xe_assert(xe, xe_exec_queue_is_multi_queue_secondary(q));
+
+	/* Primary queue holds a reference to LRCs of all secondary queues */
+	err = xa_alloc(&group->xa, &pos, xe_lrc_get(q->lrc[0]),
+		       XA_LIMIT(1, XE_MAX_GROUP_SIZE - 1), GFP_KERNEL);
+	if (XE_IOCTL_DBG(xe, err)) {
+		xe_lrc_put(q->lrc[0]);
+
+		/* It is invalid if queue group limit is exceeded */
+		if (err == -EBUSY)
+			err = -EINVAL;
+
+		return err;
+	}
+
+	q->multi_queue.pos = pos;
+
+	return 0;
+}
+
+static void xe_exec_queue_group_delete(struct xe_device *xe, struct xe_exec_queue *q)
+{
+	struct xe_exec_queue_group *group = q->multi_queue.group;
+	struct xe_lrc *lrc;
+
+	xe_assert(xe, xe_exec_queue_is_multi_queue_secondary(q));
+
+	lrc = xa_erase(&group->xa, q->multi_queue.pos);
+	xe_assert(xe, lrc);
+	xe_lrc_put(lrc);
+}
+
+static int exec_queue_set_multi_group(struct xe_device *xe, struct xe_exec_queue *q,
+				      u64 value)
+{
+	if (XE_IOCTL_DBG(xe, !xe_exec_queue_supports_multi_queue(q)))
+		return -ENODEV;
+
+	if (XE_IOCTL_DBG(xe, !xe_device_uc_enabled(xe)))
+		return -EOPNOTSUPP;
+
+	if (XE_IOCTL_DBG(xe, !q->vm->xef))
+		return -EINVAL;
+
+	if (XE_IOCTL_DBG(xe, xe_exec_queue_is_parallel(q)))
+		return -EINVAL;
+
+	if (XE_IOCTL_DBG(xe, xe_exec_queue_is_multi_queue(q)))
+		return -EINVAL;
+
+	if (value & DRM_XE_MULTI_GROUP_CREATE) {
+		if (XE_IOCTL_DBG(xe, value & ~DRM_XE_MULTI_GROUP_CREATE))
+			return -EINVAL;
+
+		q->multi_queue.valid = true;
+		q->multi_queue.is_primary = true;
+		q->multi_queue.pos = 0;
+		return 0;
+	}
+
+	/* While adding secondary queues, the upper 32 bits must be 0 */
+	if (XE_IOCTL_DBG(xe, value & (~0ull << 32)))
+		return -EINVAL;
+
+	return xe_exec_queue_group_validate(xe, q, value);
+}
+
 typedef int (*xe_exec_queue_set_property_fn)(struct xe_device *xe,
 					     struct xe_exec_queue *q,
 					     u64 value);
@@ -597,6 +773,7 @@ static const xe_exec_queue_set_property_fn exec_queue_set_property_funcs[] = {
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE] = exec_queue_set_timeslice,
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PXP_TYPE] = exec_queue_set_pxp_type,
 	[DRM_XE_EXEC_QUEUE_SET_HANG_REPLAY_STATE] = exec_queue_set_hang_replay_state,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_MULTI_GROUP] = exec_queue_set_multi_group,
 };
 
 static int exec_queue_user_ext_set_property(struct xe_device *xe,
@@ -618,7 +795,8 @@ static int exec_queue_user_ext_set_property(struct xe_device *xe,
 	    XE_IOCTL_DBG(xe, ext.property != DRM_XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY &&
 			 ext.property != DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE &&
 			 ext.property != DRM_XE_EXEC_QUEUE_SET_PROPERTY_PXP_TYPE &&
-			 ext.property != DRM_XE_EXEC_QUEUE_SET_HANG_REPLAY_STATE))
+			 ext.property != DRM_XE_EXEC_QUEUE_SET_HANG_REPLAY_STATE &&
+			 ext.property != DRM_XE_EXEC_QUEUE_SET_PROPERTY_MULTI_GROUP))
 		return -EINVAL;
 
 	idx = array_index_nospec(ext.property, ARRAY_SIZE(exec_queue_set_property_funcs));
@@ -666,6 +844,12 @@ static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue
 	if (ext.next_extension)
 		return exec_queue_user_extensions(xe, q, ext.next_extension,
 						  ++ext_number);
+
+	if (xe_exec_queue_is_multi_queue_primary(q)) {
+		err = xe_exec_queue_group_init(xe, q);
+		if (XE_IOCTL_DBG(xe, err))
+			return err;
+	}
 
 	return 0;
 }
@@ -821,12 +1005,18 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 		if (IS_ERR(q))
 			return PTR_ERR(q);
 
+		if (xe_exec_queue_is_multi_queue_secondary(q)) {
+			err = xe_exec_queue_group_add(xe, q);
+			if (XE_IOCTL_DBG(xe, err))
+				goto put_exec_queue;
+		}
+
 		if (xe_vm_in_preempt_fence_mode(vm)) {
 			q->lr.context = dma_fence_context_alloc(1);
 
 			err = xe_vm_add_compute_exec_queue(vm, q);
 			if (XE_IOCTL_DBG(xe, err))
-				goto put_exec_queue;
+				goto delete_queue_group;
 		}
 
 		if (q->vm && q->hwe->hw_engine_group) {
@@ -849,6 +1039,9 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 
 kill_exec_queue:
 	xe_exec_queue_kill(q);
+delete_queue_group:
+	if (xe_exec_queue_is_multi_queue_secondary(q))
+		xe_exec_queue_group_delete(xe, q);
 put_exec_queue:
 	xe_exec_queue_put(q);
 	return err;
