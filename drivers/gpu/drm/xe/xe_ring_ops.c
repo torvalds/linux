@@ -12,7 +12,7 @@
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
-#include "xe_exec_queue_types.h"
+#include "xe_exec_queue.h"
 #include "xe_gt.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
@@ -135,12 +135,11 @@ emit_pipe_control(u32 *dw, int i, u32 bit_group_0, u32 bit_group_1, u32 offset, 
 	return i;
 }
 
-static int emit_pipe_invalidate(u32 mask_flags, bool invalidate_tlb, u32 *dw,
-				int i)
+static int emit_pipe_invalidate(struct xe_exec_queue *q, u32 mask_flags,
+				bool invalidate_tlb, u32 *dw, int i)
 {
 	u32 flags0 = 0;
-	u32 flags1 = PIPE_CONTROL_CS_STALL |
-		PIPE_CONTROL_COMMAND_CACHE_INVALIDATE |
+	u32 flags1 = PIPE_CONTROL_COMMAND_CACHE_INVALIDATE |
 		PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE |
 		PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
 		PIPE_CONTROL_VF_CACHE_INVALIDATE |
@@ -151,6 +150,11 @@ static int emit_pipe_invalidate(u32 mask_flags, bool invalidate_tlb, u32 *dw,
 
 	if (invalidate_tlb)
 		flags1 |= PIPE_CONTROL_TLB_INVALIDATE;
+
+	if (xe_exec_queue_is_multi_queue(q))
+		flags0 |= PIPE_CONTROL0_QUEUE_DRAIN_MODE;
+	else
+		flags1 |= PIPE_CONTROL_CS_STALL;
 
 	flags1 &= ~mask_flags;
 
@@ -175,36 +179,46 @@ static int emit_store_imm_ppgtt_posted(u64 addr, u64 value,
 
 static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
 {
-	struct xe_gt *gt = job->q->gt;
+	struct xe_exec_queue *q = job->q;
+	struct xe_gt *gt = q->gt;
 	bool lacks_render = !(gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK);
-	u32 flags;
+	u32 flags0, flags1;
 
 	if (XE_GT_WA(gt, 14016712196))
 		i = emit_pipe_control(dw, i, 0, PIPE_CONTROL_DEPTH_CACHE_FLUSH,
 				      LRC_PPHWSP_FLUSH_INVAL_SCRATCH_ADDR, 0);
 
-	flags = (PIPE_CONTROL_CS_STALL |
-		 PIPE_CONTROL_TILE_CACHE_FLUSH |
+	flags0 = PIPE_CONTROL0_HDC_PIPELINE_FLUSH;
+	flags1 = (PIPE_CONTROL_TILE_CACHE_FLUSH |
 		 PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
 		 PIPE_CONTROL_DEPTH_CACHE_FLUSH |
 		 PIPE_CONTROL_DC_FLUSH_ENABLE |
 		 PIPE_CONTROL_FLUSH_ENABLE);
 
 	if (XE_GT_WA(gt, 1409600907))
-		flags |= PIPE_CONTROL_DEPTH_STALL;
+		flags1 |= PIPE_CONTROL_DEPTH_STALL;
 
 	if (lacks_render)
-		flags &= ~PIPE_CONTROL_3D_ARCH_FLAGS;
+		flags1 &= ~PIPE_CONTROL_3D_ARCH_FLAGS;
 	else if (job->q->class == XE_ENGINE_CLASS_COMPUTE)
-		flags &= ~PIPE_CONTROL_3D_ENGINE_FLAGS;
+		flags1 &= ~PIPE_CONTROL_3D_ENGINE_FLAGS;
 
-	return emit_pipe_control(dw, i, PIPE_CONTROL0_HDC_PIPELINE_FLUSH, flags, 0, 0);
+	if (xe_exec_queue_is_multi_queue(q))
+		flags0 |= PIPE_CONTROL0_QUEUE_DRAIN_MODE;
+	else
+		flags1 |= PIPE_CONTROL_CS_STALL;
+
+	return emit_pipe_control(dw, i, flags0, flags1, 0, 0);
 }
 
-static int emit_pipe_control_to_ring_end(struct xe_hw_engine *hwe, u32 *dw, int i)
+static int emit_pipe_control_to_ring_end(struct xe_exec_queue *q, u32 *dw, int i)
 {
+	struct xe_hw_engine *hwe = q->hwe;
+
 	if (hwe->class != XE_ENGINE_CLASS_RENDER)
 		return i;
+
+	xe_gt_assert(q->gt, !xe_exec_queue_is_multi_queue(q));
 
 	if (XE_GT_WA(hwe->gt, 16020292621))
 		i = emit_pipe_control(dw, i, 0, PIPE_CONTROL_LRI_POST_SYNC,
@@ -213,16 +227,20 @@ static int emit_pipe_control_to_ring_end(struct xe_hw_engine *hwe, u32 *dw, int 
 	return i;
 }
 
-static int emit_pipe_imm_ggtt(u32 addr, u32 value, bool stall_only, u32 *dw,
-			      int i)
+static int emit_pipe_imm_ggtt(struct xe_exec_queue *q, u32 addr, u32 value,
+			      bool stall_only, u32 *dw, int i)
 {
-	u32 flags = PIPE_CONTROL_CS_STALL | PIPE_CONTROL_GLOBAL_GTT_IVB |
-		    PIPE_CONTROL_QW_WRITE;
+	u32 flags0 = 0, flags1 = PIPE_CONTROL_GLOBAL_GTT_IVB | PIPE_CONTROL_QW_WRITE;
 
 	if (!stall_only)
-		flags |= PIPE_CONTROL_FLUSH_ENABLE;
+		flags1 |= PIPE_CONTROL_FLUSH_ENABLE;
 
-	return emit_pipe_control(dw, i, 0, flags, addr, value);
+	if (xe_exec_queue_is_multi_queue(q))
+		flags0 |= PIPE_CONTROL0_QUEUE_DRAIN_MODE;
+	else
+		flags1 |= PIPE_CONTROL_CS_STALL;
+
+	return emit_pipe_control(dw, i, flags0, flags1, addr, value);
 }
 
 static u32 get_ppgtt_flag(struct xe_sched_job *job)
@@ -371,7 +389,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 		mask_flags = PIPE_CONTROL_3D_ENGINE_FLAGS;
 
 	/* See __xe_pt_bind_vma() for a discussion on TLB invalidations. */
-	i = emit_pipe_invalidate(mask_flags, job->ring_ops_flush_tlb, dw, i);
+	i = emit_pipe_invalidate(job->q, mask_flags, job->ring_ops_flush_tlb, dw, i);
 
 	/* hsdes: 1809175790 */
 	if (has_aux_ccs(xe))
@@ -391,11 +409,11 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 						job->user_fence.value,
 						dw, i);
 
-	i = emit_pipe_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, lacks_render, dw, i);
+	i = emit_pipe_imm_ggtt(job->q, xe_lrc_seqno_ggtt_addr(lrc), seqno, lacks_render, dw, i);
 
 	i = emit_user_interrupt(dw, i);
 
-	i = emit_pipe_control_to_ring_end(job->q->hwe, dw, i);
+	i = emit_pipe_control_to_ring_end(job->q, dw, i);
 
 	xe_gt_assert(gt, i <= MAX_JOB_SIZE_DW);
 
