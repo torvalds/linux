@@ -94,8 +94,28 @@ mes_userq_create_wptr_mapping(struct amdgpu_device *adev,
 		return ret;
 	}
 
-	queue->wptr_obj.gpu_addr = amdgpu_bo_gpu_offset_no_check(wptr_obj->obj);
+	ret = amdgpu_bo_reserve(wptr_obj->obj, true);
+	if (ret) {
+		DRM_ERROR("Failed to reserve wptr bo\n");
+		return ret;
+	}
+
+	/* TODO use eviction fence instead of pinning. */
+	ret = amdgpu_bo_pin(wptr_obj->obj, AMDGPU_GEM_DOMAIN_GTT);
+	if (ret) {
+		drm_file_err(uq_mgr->file, "[Usermode queues] Failed to pin wptr bo\n");
+		goto unresv_bo;
+	}
+
+	queue->wptr_obj.gpu_addr = amdgpu_bo_gpu_offset(wptr_obj->obj);
+	amdgpu_bo_unreserve(wptr_obj->obj);
+
 	return 0;
+
+unresv_bo:
+	amdgpu_bo_unreserve(wptr_obj->obj);
+	return ret;
+
 }
 
 static int convert_to_mes_priority(int priority)
