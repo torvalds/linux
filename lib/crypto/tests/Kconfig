@@ -47,6 +47,14 @@ config CRYPTO_LIB_MLDSA_KUNIT_TEST
 	help
 	  KUnit tests for the ML-DSA digital signature algorithm.
 
+config CRYPTO_LIB_NH_KUNIT_TEST
+	tristate "KUnit tests for NH" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_NH
+	help
+	  KUnit tests for the NH almost-universal hash function.
+
 config CRYPTO_LIB_POLY1305_KUNIT_TEST
 	tristate "KUnit tests for Poly1305" if !KUNIT_ALL_TESTS
 	depends on KUNIT
