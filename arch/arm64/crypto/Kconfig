@@ -15,16 +15,6 @@ config CRYPTO_GHASH_ARM64_CE
 	  Architecture: arm64 using:
 	  - ARMv8 Crypto Extensions
 
-config CRYPTO_NHPOLY1305_NEON
-	tristate "Hash functions: NHPoly1305 (NEON)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_NHPOLY1305
-	help
-	  NHPoly1305 hash function (Adiantum)
-
-	  Architecture: arm64 using:
-	  - NEON (Advanced SIMD) extensions
-
 config CRYPTO_SM3_NEON
 	tristate "Hash functions: SM3 (NEON)"
 	depends on KERNEL_MODE_NEON
