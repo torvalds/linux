@@ -316,7 +316,7 @@ struct io_ring_ctx {
 		 * manipulate the list, hence no extra locking is needed there.
 		 */
 		bool			poll_multi_queue;
-		struct io_wq_work_list	iopoll_list;
+		struct list_head	iopoll_list;
 
 		struct io_file_table	file_table;
 		struct io_rsrc_data	buf_table;
@@ -708,7 +708,16 @@ struct io_kiocb {
 
 	atomic_t			refs;
 	bool				cancel_seq_set;
-	struct io_task_work		io_task_work;
+
+	/*
+	 * IOPOLL doesn't use task_work, so use the ->iopoll_node list
+	 * entry to manage pending iopoll requests.
+	 */
+	union {
+		struct io_task_work	io_task_work;
+		struct list_head	iopoll_node;
+	};
+
 	union {
 		/*
 		 * for polled requests, i.e. IORING_OP_POLL_ADD and async armed

@@ -1315,9 +1315,9 @@ static int io_uring_hybrid_poll(struct io_kiocb *req,
 
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
-	struct io_wq_work_node *pos, *start, *prev;
 	unsigned int poll_flags = 0;
 	DEFINE_IO_COMP_BATCH(iob);
+	struct io_kiocb *req, *tmp;
 	int nr_events = 0;
 
 	/*
@@ -1327,8 +1327,7 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 	if (ctx->poll_multi_queue || force_nonspin)
 		poll_flags |= BLK_POLL_ONESHOT;
 
-	wq_list_for_each(pos, start, &ctx->iopoll_list) {
-		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
+	list_for_each_entry(req, &ctx->iopoll_list, iopoll_node) {
 		int ret;
 
 		/*
@@ -1357,31 +1356,20 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 
 	if (!rq_list_empty(&iob.req_list))
 		iob.complete(&iob);
-	else if (!pos)
-		return 0;
 
-	prev = start;
-	wq_list_for_each_resume(pos, prev) {
-		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
-
+	list_for_each_entry_safe(req, tmp, &ctx->iopoll_list, iopoll_node) {
 		/* order with io_complete_rw_iopoll(), e.g. ->result updates */
 		if (!smp_load_acquire(&req->iopoll_completed))
-			break;
+			continue;
+		list_del(&req->iopoll_node);
+		wq_list_add_tail(&req->comp_list, &ctx->submit_state.compl_reqs);
 		nr_events++;
 		req->cqe.flags = io_put_kbuf(req, req->cqe.res, NULL);
 		if (req->opcode != IORING_OP_URING_CMD)
 			io_req_rw_cleanup(req, 0);
 	}
-	if (unlikely(!nr_events))
-		return 0;
-
-	pos = start ? start->next : ctx->iopoll_list.first;
-	wq_list_cut(&ctx->iopoll_list, prev, start);
-
-	if (WARN_ON_ONCE(!wq_list_empty(&ctx->submit_state.compl_reqs)))
-		return 0;
-	ctx->submit_state.compl_reqs.first = pos;
-	__io_submit_flush_completions(ctx);
+	if (nr_events)
+		__io_submit_flush_completions(ctx);
 	return nr_events;
 }
 
