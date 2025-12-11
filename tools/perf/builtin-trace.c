@@ -5173,14 +5173,18 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 				      int unset __maybe_unused)
 {
 	struct trace *trace = (struct trace *)opt->value;
-	const char *s = str;
-	char *sep = NULL, *lists[2] = { NULL, NULL, };
+	const char *s;
+	char *strd, *sep = NULL, *lists[2] = { NULL, NULL, };
 	int len = strlen(str) + 1, err = -1, list, idx;
 	char *strace_groups_dir = system_path(STRACE_GROUPS_DIR);
 	char group_name[PATH_MAX];
 	const struct syscall_fmt *fmt;
 
 	if (strace_groups_dir == NULL)
+		return -1;
+
+	s = strd = strdup(str);
+	if (strd == NULL)
 		return -1;
 
 	if (*s == '!') {
@@ -5257,8 +5261,7 @@ out:
 	free(strace_groups_dir);
 	free(lists[0]);
 	free(lists[1]);
-	if (sep)
-		*sep = ',';
+	free(strd);
 
 	return err;
 }
