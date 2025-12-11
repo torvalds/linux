@@ -50,7 +50,7 @@ MODULE_DESCRIPTION("Cryptographic Coprocessor interface, " \
 MODULE_LICENSE("GPL");
 
 unsigned int zcrypt_mempool_threshold = 5;
-module_param_named(mempool_threshold, zcrypt_mempool_threshold, uint, 0440);
+module_param_named(mempool_threshold, zcrypt_mempool_threshold, uint, 0400);
 MODULE_PARM_DESC(mempool_threshold, "CCA and EP11 request/reply mempool minimal items (min: 1)");
 
 /*
