@@ -194,7 +194,7 @@
 
 		/* DSI1 shares the OPP table with DSI0 */
 		operating-points-v2 = <&dsi_opp_table>;
-		power-domains = <&rpmpd SDM660_VDDCX>;
+		power-domains = <&rpmpd RPMPD_VDDCX>;
 
 		interrupt-parent = <&mdss>;
 		interrupts = <5>;
