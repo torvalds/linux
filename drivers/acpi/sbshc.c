@@ -265,8 +265,6 @@ static int acpi_smbus_hc_probe(struct platform_device *pdev)
 	hc->ec = dev_get_drvdata(pdev->dev.parent);
 	hc->offset = (val >> 8) & 0xff;
 	hc->query_bit = val & 0xff;
-	/* This is needed for the SBS driver to work. */
-	device->driver_data = hc;
 
 	acpi_ec_add_query_handler(hc->ec, hc->query_bit, NULL, smbus_alarm, hc);
 	dev_info(&device->dev, "SBS HC: offset = 0x%0x, query_bit = 0x%0x\n",
