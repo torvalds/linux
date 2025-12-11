@@ -602,6 +602,8 @@ static void xe_guc_exec_queue_group_trigger_cleanup(struct xe_exec_queue *q)
 	xe_gt_assert(guc_to_gt(exec_queue_to_guc(q)),
 		     xe_exec_queue_is_multi_queue(q));
 
+	/* Group banned, skip timeout check in TDR */
+	WRITE_ONCE(group->banned, true);
 	xe_guc_exec_queue_trigger_cleanup(primary);
 
 	mutex_lock(&group->list_lock);
@@ -616,6 +618,9 @@ static void xe_guc_exec_queue_reset_trigger_cleanup(struct xe_exec_queue *q)
 		struct xe_exec_queue *primary = xe_exec_queue_multi_queue_primary(q);
 		struct xe_exec_queue_group *group = q->multi_queue.group;
 		struct xe_exec_queue *eq;
+
+		/* Group banned, skip timeout check in TDR */
+		WRITE_ONCE(group->banned, true);
 
 		set_exec_queue_reset(primary);
 		if (!exec_queue_banned(primary) && !exec_queue_check_timeout(primary))
@@ -1487,6 +1492,19 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 		exec_queue_killed_or_banned_or_wedged(q) ||
 		exec_queue_destroyed(q);
 
+	/* Skip timeout check if multi-queue group is banned */
+	if (xe_exec_queue_is_multi_queue(q) &&
+	    READ_ONCE(q->multi_queue.group->banned))
+		skip_timeout_check = true;
+
+	/*
+	 * FIXME: In multi-queue scenario, the TDR must ensure that the whole
+	 * multi-queue group is off the HW before signaling the fences to avoid
+	 * possible memory corruptions. This means disabling scheduling on the
+	 * primary queue before or during the secondary queue's TDR. Need to
+	 * implement this in least obtrusive way.
+	 */
+
 	/*
 	 * If devcoredump not captured and GuC capture for the job is not ready
 	 * do manual capture first and decide later if we need to use it
@@ -1639,7 +1657,10 @@ trigger_reset:
 	xe_sched_add_pending_job(sched, job);
 	xe_sched_submission_start(sched);
 
-	xe_guc_exec_queue_trigger_cleanup(q);
+	if (xe_exec_queue_is_multi_queue(q))
+		xe_guc_exec_queue_group_trigger_cleanup(q);
+	else
+		xe_guc_exec_queue_trigger_cleanup(q);
 
 	/* Mark all outstanding jobs as bad, thus completing them */
 	spin_lock(&sched->base.job_list_lock);

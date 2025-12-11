@@ -64,6 +64,8 @@ struct xe_exec_queue_group {
 	struct mutex list_lock;
 	/** @sync_pending: CGP_SYNC_DONE g2h response pending */
 	bool sync_pending;
+	/** @banned: Group banned */
+	bool banned;
 };
 
 /**
