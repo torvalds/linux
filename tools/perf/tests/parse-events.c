@@ -2609,8 +2609,8 @@ static int test_events(const struct evlist_test *events, int cnt)
 	for (int i = 0; i < cnt; i++) {
 		struct evlist_test e = events[i];
 		int test_ret;
-		const char *pos = e.name;
-		char buf[1024], *buf_pos = buf, *end;
+		const char *pos = e.name, *end;
+		char buf[1024], *buf_pos = buf;
 
 		while ((end = strstr(pos, "default_core"))) {
 			size_t len = end - pos;

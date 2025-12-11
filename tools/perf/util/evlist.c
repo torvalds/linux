@@ -1945,7 +1945,8 @@ out_free:
 
 int evlist__parse_control(const char *str, int *ctl_fd, int *ctl_fd_ack, bool *ctl_fd_close)
 {
-	char *comma = NULL, *endptr = NULL;
+	const char *comma = NULL;
+	char *endptr = NULL;
 
 	*ctl_fd_close = false;
 
