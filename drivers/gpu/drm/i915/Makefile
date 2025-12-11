@@ -76,7 +76,8 @@ i915-$(CONFIG_PERF_EVENTS) += \
 
 # core display adaptation
 i915-y += \
-	i915_hdcp_gsc.o
+	i915_hdcp_gsc.o \
+	i915_panic.o
 
 # "Graphics Technology" (aka we talk to the gpu)
 gt-y += \
@@ -294,7 +295,6 @@ i915-y += \
 	display/intel_modeset_setup.o \
 	display/intel_modeset_verify.o \
 	display/intel_overlay.o \
-	display/intel_panic.o \
 	display/intel_parent.o \
 	display/intel_pch.o \
 	display/intel_pch_display.o \

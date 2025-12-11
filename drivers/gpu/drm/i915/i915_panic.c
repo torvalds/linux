@@ -3,10 +3,10 @@
 
 #include <drm/drm_panic.h>
 
+#include "display/intel_display_types.h"
+#include "display/intel_fb.h"
+#include "display/intel_panic.h"
 #include "gem/i915_gem_object.h"
-#include "intel_display_types.h"
-#include "intel_fb.h"
-#include "intel_panic.h"
 
 struct intel_panic *intel_panic_alloc(void)
 {
