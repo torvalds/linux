@@ -387,6 +387,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_controller(dev, host);
 	if (ret) {
+		mchp_corespi_disable_ints(spi);
 		mchp_corespi_disable(spi);
 		return dev_err_probe(dev, ret, "unable to register host for CoreSPI controller\n");
 	}
