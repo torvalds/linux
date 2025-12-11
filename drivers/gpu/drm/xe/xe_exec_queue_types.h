@@ -44,6 +44,8 @@ struct xe_exec_queue_group {
 	struct xe_bo *cgp_bo;
 	/** @xa: xarray to store LRCs */
 	struct xarray xa;
+	/** @sync_pending: CGP_SYNC_DONE g2h response pending */
+	bool sync_pending;
 };
 
 /**

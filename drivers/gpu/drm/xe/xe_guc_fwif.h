@@ -16,6 +16,7 @@
 #define G2H_LEN_DW_DEREGISTER_CONTEXT		3
 #define G2H_LEN_DW_TLB_INVALIDATE		3
 #define G2H_LEN_DW_G2G_NOTIFY_MIN		3
+#define G2H_LEN_DW_MULTI_QUEUE_CONTEXT		3
 
 #define GUC_ID_MAX			65535
 #define GUC_ID_UNKNOWN			0xffffffff
@@ -62,6 +63,8 @@ struct guc_ctxt_registration_info {
 	u32 wq_base_lo;
 	u32 wq_base_hi;
 	u32 wq_size;
+	u32 cgp_lo;
+	u32 cgp_hi;
 	u32 hwlrca_lo;
 	u32 hwlrca_hi;
 };

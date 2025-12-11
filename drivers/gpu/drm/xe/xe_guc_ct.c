@@ -1401,6 +1401,7 @@ static int parse_g2h_event(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	lockdep_assert_held(&ct->lock);
 
 	switch (action) {
+	case XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CONTEXT_CGP_SYNC_DONE:
 	case XE_GUC_ACTION_SCHED_CONTEXT_MODE_DONE:
 	case XE_GUC_ACTION_DEREGISTER_CONTEXT_DONE:
 	case XE_GUC_ACTION_SCHED_ENGINE_MODE_DONE:
@@ -1614,6 +1615,9 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_g2g_test_notification(guc, payload, adj_len);
 		break;
 #endif
+	case XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CONTEXT_CGP_SYNC_DONE:
+		ret = xe_guc_exec_queue_cgp_sync_done_handler(guc, payload, adj_len);
+		break;
 	default:
 		xe_gt_err(gt, "unexpected G2H action 0x%04x\n", action);
 	}
