@@ -872,6 +872,13 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				 ndlp->nlp_rpi);
 		len += scnprintf(buf+len, size-len, "flag:x%08lx ",
 				 ndlp->nlp_flag);
+		if (ndlp->nlp_enc_info.status) {
+			len += scnprintf(buf + len,
+					 size - len, "ENCRYPTED");
+			len += scnprintf(buf + len, size - len,
+					 ndlp->nlp_enc_info.level
+					 ? "(CNSA2.0) " : "(CNSA1.0) ");
+		}
 		if (!ndlp->nlp_type)
 			len += scnprintf(buf+len, size-len, "UNKNOWN_TYPE ");
 		if (ndlp->nlp_type & NLP_FC_NODE)
