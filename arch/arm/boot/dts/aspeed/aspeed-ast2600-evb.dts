@@ -314,7 +314,6 @@
 	status = "okay";
 	bus-width = <4>;
 	max-frequency = <100000000>;
-	sdhci-drive-type = /bits/ 8 <3>;
 	sdhci-caps-mask = <0x7 0x0>;
 	sdhci,wp-inverted;
 	vmmc-supply = <&vcc_sdhci0>;
@@ -326,7 +325,6 @@
 	status = "okay";
 	bus-width = <4>;
 	max-frequency = <100000000>;
-	sdhci-drive-type = /bits/ 8 <3>;
 	sdhci-caps-mask = <0x7 0x0>;
 	sdhci,wp-inverted;
 	vmmc-supply = <&vcc_sdhci1>;
