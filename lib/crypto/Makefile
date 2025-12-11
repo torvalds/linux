@@ -135,6 +135,7 @@ obj-$(CONFIG_CRYPTO_LIB_NH) += libnh.o
 libnh-y := nh.o
 ifeq ($(CONFIG_CRYPTO_LIB_NH_ARCH),y)
 CFLAGS_nh.o += -I$(src)/$(SRCARCH)
+libnh-$(CONFIG_ARM) += arm/nh-neon-core.o
 endif
 
 ################################################################################
