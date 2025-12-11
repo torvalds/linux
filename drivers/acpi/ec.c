@@ -1733,8 +1733,6 @@ static int acpi_ec_probe(struct platform_device *pdev)
 			 "EC: Used to handle transactions and events\n");
 
 	platform_set_drvdata(pdev, ec);
-	/* This is needed for the SMBUS HC driver to work. */
-	device->driver_data = ec;
 
 	ret = !!request_region(ec->data_addr, 1, "EC data");
 	WARN(!ret, "Could not request EC data io port 0x%lx", ec->data_addr);
