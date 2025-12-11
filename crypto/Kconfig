@@ -601,9 +601,9 @@ menu "Length-preserving ciphers and modes"
 config CRYPTO_ADIANTUM
 	tristate "Adiantum"
 	select CRYPTO_CHACHA20
+	select CRYPTO_LIB_NH
 	select CRYPTO_LIB_POLY1305
 	select CRYPTO_LIB_POLY1305_GENERIC
-	select CRYPTO_NHPOLY1305
 	select CRYPTO_MANAGER
 	help
 	  Adiantum tweakable, length-preserving encryption mode
