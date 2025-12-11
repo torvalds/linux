@@ -9,6 +9,7 @@
 #include <linux/arm_ffa.h>
 #include <linux/memblock.h>
 #include <linux/scatterlist.h>
+#include <asm/kvm_host.h>
 #include <asm/kvm_pgtable.h>
 
 /* Maximum number of VMs that can co-exist under pKVM. */
@@ -49,6 +50,25 @@ static inline bool kvm_pkvm_ext_allowed(struct kvm *kvm, long ext)
 	default:
 		return !kvm || !kvm_vm_is_protected(kvm);
 	}
+}
+
+/*
+ * Check whether the KVM VM IOCTL is allowed in pKVM.
+ *
+ * Certain features are allowed only for non-protected VMs in pKVM, which is why
+ * this takes the VM (kvm) as a parameter.
+ */
+static inline bool kvm_pkvm_ioctl_allowed(struct kvm *kvm, unsigned int ioctl)
+{
+	long ext;
+	int r;
+
+	r = kvm_get_cap_for_kvm_ioctl(ioctl, &ext);
+
+	if (WARN_ON_ONCE(r < 0))
+		return false;
+
+	return kvm_pkvm_ext_allowed(kvm, ext);
 }
 
 extern struct memblock_region kvm_nvhe_sym(hyp_memory)[];
