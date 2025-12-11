@@ -1293,10 +1293,6 @@
 	use-ncsi;
 };
 
-&udma {
-	status = "okay";
-};
-
 &uart1 {
 	status = "okay";
 };
