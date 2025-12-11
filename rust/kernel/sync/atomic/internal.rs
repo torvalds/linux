@@ -13,23 +13,36 @@ mod private {
     pub trait Sealed {}
 }
 
-// `i32` and `i64` are only supported atomic implementations.
+// The C side supports atomic primitives only for `i32` and `i64` (`atomic_t` and `atomic64_t`),
+// while the Rust side also layers provides atomic support for `i8` and `i16`
+// on top of lower-level C primitives.
+impl private::Sealed for i8 {}
+impl private::Sealed for i16 {}
 impl private::Sealed for i32 {}
 impl private::Sealed for i64 {}
 
 /// A marker trait for types that implement atomic operations with C side primitives.
 ///
-/// This trait is sealed, and only types that have directly mapping to the C side atomics should
-/// impl this:
+/// This trait is sealed, and only types that map directly to the C side atomics
+/// or can be implemented with lower-level C primitives are allowed to implement this:
 ///
-/// - `i32` maps to `atomic_t`.
-/// - `i64` maps to `atomic64_t`.
+/// - `i8` and `i16` are implemented with lower-level C primitives.
+/// - `i32` map to `atomic_t`
+/// - `i64` map to `atomic64_t`
 pub trait AtomicImpl: Sized + Send + Copy + private::Sealed {
     /// The type of the delta in arithmetic or logical operations.
     ///
     /// For example, in `atomic_add(ptr, v)`, it's the type of `v`. Usually it's the same type of
     /// [`Self`], but it may be different for the atomic pointer type.
     type Delta;
+}
+
+impl AtomicImpl for i8 {
+    type Delta = Self;
+}
+
+impl AtomicImpl for i16 {
+    type Delta = Self;
 }
 
 // `atomic_t` implements atomic operations on `i32`.
@@ -243,7 +256,7 @@ macro_rules! declare_and_impl_atomic_methods {
 }
 
 declare_and_impl_atomic_methods!(
-    [ i32 => atomic, i64 => atomic64 ]
+    [ i8 => atomic_i8, i16 => atomic_i16, i32 => atomic, i64 => atomic64 ]
     /// Basic atomic operations
     pub trait AtomicBasicOps {
         /// Atomic read (load).
