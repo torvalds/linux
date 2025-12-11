@@ -759,12 +759,6 @@ config CRYPTO_XTS
 	  implementation currently can't handle a sectorsize which is not a
 	  multiple of 16 bytes.
 
-config CRYPTO_NHPOLY1305
-	tristate
-	select CRYPTO_HASH
-	select CRYPTO_LIB_POLY1305
-	select CRYPTO_LIB_POLY1305_GENERIC
-
 endmenu
 
 menu "AEAD (authenticated encryption with associated data) ciphers"
