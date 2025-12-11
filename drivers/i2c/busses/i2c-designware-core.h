@@ -42,6 +42,19 @@
 #define DW_IC_DATA_CMD_FIRST_DATA_BYTE		BIT(11)
 
 /*
+ * Register access parameters
+ */
+#define DW_IC_REG_STEP_BYTES			2
+#define DW_IC_REG_WORD_SHIFT			16
+
+/*
+ * FIFO depth configuration
+ */
+#define DW_IC_FIFO_TX_FIELD			GENMASK(23, 16)
+#define DW_IC_FIFO_RX_FIELD			GENMASK(15, 8)
+#define DW_IC_FIFO_MIN_DEPTH			2
+
+/*
  * Registers offset
  */
 #define DW_IC_CON				0x00
