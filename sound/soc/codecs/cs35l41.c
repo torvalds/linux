@@ -1188,13 +1188,14 @@ static int cs35l41_get_system_name(struct cs35l41_private *cs35l41)
 		}
 	}
 
-err:
 	if (sub) {
 		cs35l41->dsp.system_name = sub;
 		dev_info(cs35l41->dev, "Subsystem ID: %s\n", cs35l41->dsp.system_name);
-	} else
-		dev_warn(cs35l41->dev, "Subsystem ID not found\n");
+		return 0;
+	}
 
+err:
+	dev_warn(cs35l41->dev, "Subsystem ID not found\n");
 	return ret;
 }
 

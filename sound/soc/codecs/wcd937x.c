@@ -2866,7 +2866,7 @@ static int wcd937x_add_slave_components(struct wcd937x_priv *wcd937x,
 		dev_err(dev, "Couldn't parse phandle to qcom,rx-device!\n");
 		return -ENODEV;
 	}
-	of_node_get(wcd937x->rxnode);
+
 	component_match_add_release(dev, matchptr, component_release_of,
 				    component_compare_of, wcd937x->rxnode);
 
@@ -2875,7 +2875,7 @@ static int wcd937x_add_slave_components(struct wcd937x_priv *wcd937x,
 		dev_err(dev, "Couldn't parse phandle to qcom,tx-device\n");
 			return -ENODEV;
 	}
-	of_node_get(wcd937x->txnode);
+
 	component_match_add_release(dev, matchptr, component_release_of,
 				    component_compare_of, wcd937x->txnode);
 

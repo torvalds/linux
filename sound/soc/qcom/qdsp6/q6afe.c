@@ -947,7 +947,7 @@ static struct q6afe_port *q6afe_find_port(struct q6afe *afe, int token)
 	struct q6afe_port *p;
 	struct q6afe_port *ret = NULL;
 
-	guard(spinlock)(&afe->port_list_lock);
+	guard(spinlock_irqsave)(&afe->port_list_lock);
 	list_for_each_entry(p, &afe->port_list, node)
 		if (p->token == token) {
 			ret = p;
@@ -1807,7 +1807,7 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	port->cfg_type = cfg_type;
 	kref_init(&port->refcount);
 
-	guard(spinlock)(&afe->port_list_lock);
+	guard(spinlock_irqsave)(&afe->port_list_lock);
 	list_add_tail(&port->node, &afe->port_list);
 
 	return port;
