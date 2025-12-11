@@ -407,10 +407,10 @@ static int cix_ipbloq_hda_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops cix_ipbloq_hda_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(cix_ipbloq_hda_suspend,
-				cix_ipbloq_hda_resume)
-	SET_RUNTIME_PM_OPS(cix_ipbloq_hda_runtime_suspend,
-			   cix_ipbloq_hda_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(cix_ipbloq_hda_suspend,
+			    cix_ipbloq_hda_resume)
+	RUNTIME_PM_OPS(cix_ipbloq_hda_runtime_suspend,
+		       cix_ipbloq_hda_runtime_resume, NULL)
 };
 
 static const struct of_device_id cix_ipbloq_hda_match[] = {
@@ -422,7 +422,7 @@ MODULE_DEVICE_TABLE(of, cix_ipbloq_hda_match);
 static struct platform_driver cix_ipbloq_hda_driver = {
 	.driver = {
 		.name = "cix-ipbloq-hda",
-		.pm = &cix_ipbloq_hda_pm,
+		.pm = pm_ptr(&cix_ipbloq_hda_pm),
 		.of_match_table = cix_ipbloq_hda_match,
 	},
 	.probe = cix_ipbloq_hda_probe,
