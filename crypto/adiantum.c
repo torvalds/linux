@@ -427,8 +427,8 @@ static int adiantum_finish(struct skcipher_request *req)
 		/* Slow path that works for any destination scatterlist */
 		adiantum_hash_message(req, dst, &digest);
 		le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
-		scatterwalk_map_and_copy(&rctx->rbuf.bignum, dst,
-					 bulk_len, sizeof(le128), 1);
+		memcpy_to_sglist(dst, bulk_len, &rctx->rbuf.bignum,
+				 sizeof(le128));
 	}
 	return 0;
 }
@@ -477,8 +477,8 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 	} else {
 		/* Slow path that works for any source scatterlist */
 		adiantum_hash_message(req, src, &digest);
-		scatterwalk_map_and_copy(&rctx->rbuf.bignum, src,
-					 bulk_len, sizeof(le128), 0);
+		memcpy_from_sglist(&rctx->rbuf.bignum, src, bulk_len,
+				   sizeof(le128));
 	}
 	le128_add(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &rctx->header_hash);
 	le128_add(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
