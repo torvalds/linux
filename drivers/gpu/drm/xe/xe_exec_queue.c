@@ -87,6 +87,7 @@ static void xe_exec_queue_group_cleanup(struct xe_exec_queue *q)
 		xe_lrc_put(lrc);
 
 	xa_destroy(&group->xa);
+	mutex_destroy(&group->list_lock);
 	xe_bo_unpin_map_no_vm(group->cgp_bo);
 	kfree(group);
 }
@@ -648,8 +649,17 @@ static int xe_exec_queue_group_init(struct xe_device *xe, struct xe_exec_queue *
 
 	group->primary = q;
 	group->cgp_bo = bo;
+	INIT_LIST_HEAD(&group->list);
 	xa_init_flags(&group->xa, XA_FLAGS_ALLOC1);
+	mutex_init(&group->list_lock);
 	q->multi_queue.group = group;
+
+	/* group->list_lock is used in submission backend */
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		fs_reclaim_acquire(GFP_KERNEL);
+		might_lock(&group->list_lock);
+		fs_reclaim_release(GFP_KERNEL);
+	}
 
 	return 0;
 }
