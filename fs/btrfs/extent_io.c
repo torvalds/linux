@@ -998,10 +998,16 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 	u64 start = folio_pos(folio);
 	const u64 end = start + folio_size(folio) - 1;
 	u64 extent_offset;
+	u64 locked_end;
 	u64 last_byte = i_size_read(inode);
 	struct extent_map *em;
 	int ret = 0;
 	const size_t blocksize = fs_info->sectorsize;
+
+	if (bio_ctrl->ractl)
+		locked_end = readahead_pos(bio_ctrl->ractl) + readahead_length(bio_ctrl->ractl) - 1;
+	else
+		locked_end = end;
 
 	ret = set_folio_extent_mapped(folio);
 	if (ret < 0) {
@@ -1036,7 +1042,14 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 			end_folio_read(folio, true, cur, blocksize);
 			continue;
 		}
-		em = get_extent_map(BTRFS_I(inode), folio, cur, end - cur + 1, em_cached);
+		/*
+		 * Search extent map for the whole locked range.
+		 * This will allow btrfs_get_extent() to return a larger hole
+		 * when possible.
+		 * This can reduce duplicated btrfs_get_extent() calls for large
+		 * holes.
+		 */
+		em = get_extent_map(BTRFS_I(inode), folio, cur, locked_end - cur + 1, em_cached);
 		if (IS_ERR(em)) {
 			end_folio_read(folio, false, cur, end + 1 - cur);
 			return PTR_ERR(em);
