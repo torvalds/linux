@@ -2024,7 +2024,10 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 		mutex_unlock(&group->list_lock);
 	}
 
-	trace_xe_exec_queue_create(q);
+	if (xe_exec_queue_is_multi_queue(q))
+		trace_xe_exec_queue_create_multi_queue(q);
+	else
+		trace_xe_exec_queue_create(q);
 
 	return 0;
 
