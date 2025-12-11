@@ -8,7 +8,9 @@
 
 struct dma_fence;
 struct drm_device;
+struct drm_scanout_buffer;
 struct intel_hdcp_gsc_context;
+struct intel_panic;
 struct intel_stolen_node;
 struct ref_tracker;
 
@@ -40,6 +42,12 @@ struct intel_display_hdcp_interface {
 struct intel_display_irq_interface {
 	bool (*enabled)(struct drm_device *drm);
 	void (*synchronize)(struct drm_device *drm);
+};
+
+struct intel_display_panic_interface {
+	struct intel_panic *(*alloc)(void);
+	int (*setup)(struct intel_panic *panic, struct drm_scanout_buffer *sb);
+	void (*finish)(struct intel_panic *panic);
 };
 
 struct intel_display_rps_interface {
@@ -85,6 +93,9 @@ struct intel_display_parent_interface {
 
 	/** @irq: IRQ interface */
 	const struct intel_display_irq_interface *irq;
+
+	/** @panic: Panic interface */
+	const struct intel_display_panic_interface *panic;
 
 	/** @rpm: RPS interface. Optional. */
 	const struct intel_display_rps_interface *rps;

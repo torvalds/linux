@@ -38,6 +38,7 @@
 #include "xe_display_rpm.h"
 #include "xe_hdcp_gsc.h"
 #include "xe_module.h"
+#include "xe_panic.h"
 #include "xe_stolen.h"
 
 /* Ensure drm and display members are placed properly. */
@@ -537,6 +538,7 @@ static const struct intel_display_irq_interface xe_display_irq_interface = {
 
 static const struct intel_display_parent_interface parent = {
 	.hdcp = &xe_display_hdcp_interface,
+	.panic = &xe_display_panic_interface,
 	.rpm = &xe_display_rpm_interface,
 	.irq = &xe_display_irq_interface,
 	.stolen = &xe_display_stolen_interface,

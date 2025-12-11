@@ -21,7 +21,6 @@
 #include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
-#include "intel_panic.h"
 #include "intel_parent.h"
 #include "intel_plane.h"
 #include "intel_psr.h"

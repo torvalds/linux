@@ -20,7 +20,6 @@
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
 #include "intel_frontbuffer.h"
-#include "intel_panic.h"
 #include "intel_parent.h"
 #include "intel_plane.h"
 
@@ -2217,7 +2216,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	int ret;
 	int i;
 
-	intel_fb->panic = intel_panic_alloc();
+	intel_fb->panic = intel_parent_panic_alloc(display);
 	if (!intel_fb->panic)
 		return -ENOMEM;
 

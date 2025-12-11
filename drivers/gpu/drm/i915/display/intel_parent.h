@@ -7,8 +7,10 @@
 #include <linux/types.h>
 
 struct dma_fence;
+struct drm_scanout_buffer;
 struct intel_display;
 struct intel_hdcp_gsc_context;
+struct intel_panic;
 struct intel_stolen_node;
 
 ssize_t intel_parent_hdcp_gsc_msg_send(struct intel_display *display,
@@ -22,6 +24,10 @@ void intel_parent_hdcp_gsc_context_free(struct intel_display *display,
 
 bool intel_parent_irq_enabled(struct intel_display *display);
 void intel_parent_irq_synchronize(struct intel_display *display);
+
+struct intel_panic *intel_parent_panic_alloc(struct intel_display *display);
+int intel_parent_panic_setup(struct intel_display *display, struct intel_panic *panic, struct drm_scanout_buffer *sb);
+void intel_parent_panic_finish(struct intel_display *display, struct intel_panic *panic);
 
 bool intel_parent_rps_available(struct intel_display *display);
 void intel_parent_rps_boost_if_not_started(struct intel_display *display, struct dma_fence *fence);

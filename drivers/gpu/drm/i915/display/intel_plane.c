@@ -55,7 +55,6 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_fbdev.h"
-#include "intel_panic.h"
 #include "intel_parent.h"
 #include "intel_plane.h"
 #include "intel_psr.h"
@@ -1344,7 +1343,7 @@ static void intel_panic_flush(struct drm_plane *_plane)
 	const struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
 	const struct intel_framebuffer *fb = to_intel_framebuffer(plane_state->hw.fb);
 
-	intel_panic_finish(fb->panic);
+	intel_parent_panic_finish(display, fb->panic);
 
 	if (crtc_state->enable_psr2_sel_fetch) {
 		/* Force a full update for psr2 */
@@ -1425,7 +1424,7 @@ static int intel_get_scanout_buffer(struct drm_plane *plane,
 				return -EOPNOTSUPP;
 		}
 		sb->private = fb;
-		ret = intel_panic_setup(fb->panic, sb);
+		ret = intel_parent_panic_setup(display, fb->panic, sb);
 		if (ret)
 			return ret;
 	}

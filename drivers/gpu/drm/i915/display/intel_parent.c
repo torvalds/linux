@@ -47,6 +47,21 @@ void intel_parent_hdcp_gsc_context_free(struct intel_display *display,
 	display->parent->hdcp->gsc_context_free(gsc_context);
 }
 
+struct intel_panic *intel_parent_panic_alloc(struct intel_display *display)
+{
+	return display->parent->panic->alloc();
+}
+
+int intel_parent_panic_setup(struct intel_display *display, struct intel_panic *panic, struct drm_scanout_buffer *sb)
+{
+	return display->parent->panic->setup(panic, sb);
+}
+
+void intel_parent_panic_finish(struct intel_display *display, struct intel_panic *panic)
+{
+	display->parent->panic->finish(panic);
+}
+
 bool intel_parent_irq_enabled(struct intel_display *display)
 {
 	return display->parent->irq->enabled(display->drm);
