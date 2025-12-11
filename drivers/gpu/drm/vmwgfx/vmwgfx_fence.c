@@ -515,12 +515,12 @@ int vmw_fence_obj_unref_ioctl(struct drm_device *dev, void *data,
 /**
  * vmw_event_fence_action_seq_passed
  *
- * @action: The struct vmw_fence_action embedded in a struct
- * vmw_event_fence_action.
+ * @f: The struct dma_fence which provides timestamp for the action event
+ * @cb: The struct dma_fence_cb callback for the action event.
  *
- * This function is called when the seqno of the fence where @action is
- * attached has passed. It queues the event on the submitter's event list.
- * This function is always called from atomic context.
+ * This function is called when the seqno of the fence has passed
+ * and it is always called from atomic context.
+ * It queues the event on the submitter's event list.
  */
 static void vmw_event_fence_action_seq_passed(struct dma_fence *f,
 					      struct dma_fence_cb *cb)
