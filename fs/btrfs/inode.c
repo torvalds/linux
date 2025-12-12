@@ -690,8 +690,8 @@ out:
 	/*
 	 * Don't forget to free the reserved space, as for inlined extent
 	 * it won't count as data extent, free them directly here.
-	 * And at reserve time, it's always aligned to page size, so
-	 * just free one page here.
+	 * And at reserve time, it's always aligned to sector size, so
+	 * just free one sector here.
 	 *
 	 * If we fallback to non-inline (ret == 1) due to -ENOSPC, then we need
 	 * to keep the data reservation.
