@@ -1967,10 +1967,6 @@ static int xe_oa_assign_hwe(struct xe_oa *oa, struct xe_oa_open_param *param)
 	enum xe_hw_engine_id id;
 	int ret = 0;
 
-	/* If not provided, OA unit defaults to OA unit 0 as per uapi */
-	if (!param->oa_unit)
-		param->oa_unit = &xe_root_mmio_gt(oa->xe)->oa.oa_unit[0];
-
 	/* When we have an exec_q, get hwe from the exec_q */
 	if (param->exec_q) {
 		param->hwe = xe_gt_hw_engine(param->exec_q->gt, param->exec_q->class,
@@ -2035,6 +2031,10 @@ int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *f
 	ret = xe_oa_user_extensions(oa, XE_OA_USER_EXTN_FROM_OPEN, data, 0, &param);
 	if (ret)
 		return ret;
+
+	/* If not provided, OA unit defaults to OA unit 0 as per uapi */
+	if (!param.oa_unit)
+		param.oa_unit = &xe_root_mmio_gt(oa->xe)->oa.oa_unit[0];
 
 	if (param.exec_queue_id > 0) {
 		/* An exec_queue is only needed for OAR/OAC functionality on OAG */
