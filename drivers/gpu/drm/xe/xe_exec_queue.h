@@ -162,4 +162,21 @@ int xe_exec_queue_contexts_hwsp_rebase(struct xe_exec_queue *q, void *scratch);
 
 struct xe_lrc *xe_exec_queue_lrc(struct xe_exec_queue *q);
 
+/**
+ * xe_exec_queue_idle_skip_suspend() - Can exec queue skip suspend
+ * @q: The exec_queue
+ *
+ * If an exec queue is not parallel and is idle, the suspend steps can be
+ * skipped in the submission backend immediatley signaling the suspend fence.
+ * Parallel queues cannot skip this step due to limitations in the submission
+ * backend.
+ *
+ * Return: True if exec queue is idle and can skip suspend steps, False
+ * otherwise
+ */
+static inline bool xe_exec_queue_idle_skip_suspend(struct xe_exec_queue *q)
+{
+	return !xe_exec_queue_is_parallel(q) && xe_exec_queue_is_idle(q);
+}
+
 #endif

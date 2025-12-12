@@ -205,7 +205,7 @@ static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group
 			continue;
 
 		xe_gt_stats_incr(q->gt, XE_GT_STATS_ID_HW_ENGINE_GROUP_SUSPEND_LR_QUEUE_COUNT, 1);
-		need_resume = true;
+		need_resume |= !xe_exec_queue_idle_skip_suspend(q);
 		q->ops->suspend(q);
 	}
 
