@@ -742,16 +742,6 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 			 "DRM_I915_DEBUG_RUNTIME_PM enabled\n");
 }
 
-static bool vgpu_active(struct drm_device *drm)
-{
-	return intel_vgpu_active(to_i915(drm));
-}
-
-static bool has_fenced_regions(struct drm_device *drm)
-{
-	return intel_gt_support_legacy_fencing(to_gt(to_i915(drm)));
-}
-
 static void fence_priority_display(struct dma_fence *fence)
 {
 	if (dma_fence_is_i915(fence))
@@ -767,17 +757,28 @@ static bool has_auxccs(struct drm_device *drm)
 	       IS_METEORLAKE(i915);
 }
 
+static bool has_fenced_regions(struct drm_device *drm)
+{
+	return intel_gt_support_legacy_fencing(to_gt(to_i915(drm)));
+}
+
+static bool vgpu_active(struct drm_device *drm)
+{
+	return intel_vgpu_active(to_i915(drm));
+}
+
 static const struct intel_display_parent_interface parent = {
 	.hdcp = &i915_display_hdcp_interface,
+	.irq = &i915_display_irq_interface,
 	.panic = &i915_display_panic_interface,
 	.rpm = &i915_display_rpm_interface,
-	.irq = &i915_display_irq_interface,
 	.rps = &i915_display_rps_interface,
 	.stolen = &i915_display_stolen_interface,
-	.vgpu_active = vgpu_active,
-	.has_fenced_regions = has_fenced_regions,
+
 	.fence_priority_display = fence_priority_display,
 	.has_auxccs = has_auxccs,
+	.has_fenced_regions = has_fenced_regions,
+	.vgpu_active = vgpu_active,
 };
 
 const struct intel_display_parent_interface *i915_driver_parent_interface(void)
