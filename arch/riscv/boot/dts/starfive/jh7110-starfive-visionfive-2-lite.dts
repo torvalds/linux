@@ -9,7 +9,7 @@
 
 / {
 	model = "StarFive VisionFive 2 Lite";
-	compatible = "starfive,visionfive-2-lite", "starfive,jh7110s";
+	compatible = "starfive,visionfive-2-lite", "starfive,jh7110s", "starfive,jh7110";
 };
 
 &mmc0 {
