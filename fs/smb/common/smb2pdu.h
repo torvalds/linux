@@ -991,6 +991,7 @@ struct smb2_set_info_rsp {
 /* notify completion filter flags. See MS-FSCC 2.6 and MS-SMB2 2.2.35 */
 #define FILE_NOTIFY_CHANGE_FILE_NAME		0x00000001
 #define FILE_NOTIFY_CHANGE_DIR_NAME		0x00000002
+#define FILE_NOTIFY_CHANGE_NAME			0x00000003
 #define FILE_NOTIFY_CHANGE_ATTRIBUTES		0x00000004
 #define FILE_NOTIFY_CHANGE_SIZE			0x00000008
 #define FILE_NOTIFY_CHANGE_LAST_WRITE		0x00000010
@@ -1002,7 +1003,10 @@ struct smb2_set_info_rsp {
 #define FILE_NOTIFY_CHANGE_STREAM_SIZE		0x00000400
 #define FILE_NOTIFY_CHANGE_STREAM_WRITE		0x00000800
 
-/* SMB2 Notify Action Flags */
+/*
+ * SMB2 Notify Action Flags
+ * See MS-FSCC 2.7.1
+ */
 #define FILE_ACTION_ADDED                       0x00000001
 #define FILE_ACTION_REMOVED                     0x00000002
 #define FILE_ACTION_MODIFIED                    0x00000003
@@ -1012,7 +1016,10 @@ struct smb2_set_info_rsp {
 #define FILE_ACTION_REMOVED_STREAM              0x00000007
 #define FILE_ACTION_MODIFIED_STREAM             0x00000008
 #define FILE_ACTION_REMOVED_BY_DELETE           0x00000009
+#define FILE_ACTION_ID_NOT_TUNNELLED            0x0000000A
+#define FILE_ACTION_TUNNELLED_ID_COLLISION      0x0000000B
 
+/* See MS-SMB2 2.2.35 */
 struct smb2_change_notify_req {
 	struct smb2_hdr hdr;
 	__le16	StructureSize;
@@ -1024,6 +1031,7 @@ struct smb2_change_notify_req {
 	__u32	Reserved;
 } __packed;
 
+/* See MS-SMB2 2.2.36 */
 struct smb2_change_notify_rsp {
 	struct smb2_hdr hdr;
 	__le16	StructureSize;  /* Must be 9 */
@@ -1063,41 +1071,6 @@ struct smb2_server_client_notification {
 #define IL_IDENTIFICATION	cpu_to_le32(0x00000001)
 #define IL_IMPERSONATION	cpu_to_le32(0x00000002)
 #define IL_DELEGATE		cpu_to_le32(0x00000003)
-
-/* File Attributes */
-#define FILE_ATTRIBUTE_READONLY			0x00000001
-#define FILE_ATTRIBUTE_HIDDEN			0x00000002
-#define FILE_ATTRIBUTE_SYSTEM			0x00000004
-#define FILE_ATTRIBUTE_DIRECTORY		0x00000010
-#define FILE_ATTRIBUTE_ARCHIVE			0x00000020
-#define FILE_ATTRIBUTE_NORMAL			0x00000080
-#define FILE_ATTRIBUTE_TEMPORARY		0x00000100
-#define FILE_ATTRIBUTE_SPARSE_FILE		0x00000200
-#define FILE_ATTRIBUTE_REPARSE_POINT		0x00000400
-#define FILE_ATTRIBUTE_COMPRESSED		0x00000800
-#define FILE_ATTRIBUTE_OFFLINE			0x00001000
-#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED	0x00002000
-#define FILE_ATTRIBUTE_ENCRYPTED		0x00004000
-#define FILE_ATTRIBUTE_INTEGRITY_STREAM		0x00008000
-#define FILE_ATTRIBUTE_NO_SCRUB_DATA		0x00020000
-#define FILE_ATTRIBUTE__MASK			0x00007FB7
-
-#define FILE_ATTRIBUTE_READONLY_LE              cpu_to_le32(0x00000001)
-#define FILE_ATTRIBUTE_HIDDEN_LE		cpu_to_le32(0x00000002)
-#define FILE_ATTRIBUTE_SYSTEM_LE		cpu_to_le32(0x00000004)
-#define FILE_ATTRIBUTE_DIRECTORY_LE		cpu_to_le32(0x00000010)
-#define FILE_ATTRIBUTE_ARCHIVE_LE		cpu_to_le32(0x00000020)
-#define FILE_ATTRIBUTE_NORMAL_LE		cpu_to_le32(0x00000080)
-#define FILE_ATTRIBUTE_TEMPORARY_LE		cpu_to_le32(0x00000100)
-#define FILE_ATTRIBUTE_SPARSE_FILE_LE		cpu_to_le32(0x00000200)
-#define FILE_ATTRIBUTE_REPARSE_POINT_LE		cpu_to_le32(0x00000400)
-#define FILE_ATTRIBUTE_COMPRESSED_LE		cpu_to_le32(0x00000800)
-#define FILE_ATTRIBUTE_OFFLINE_LE		cpu_to_le32(0x00001000)
-#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED_LE	cpu_to_le32(0x00002000)
-#define FILE_ATTRIBUTE_ENCRYPTED_LE		cpu_to_le32(0x00004000)
-#define FILE_ATTRIBUTE_INTEGRITY_STREAM_LE	cpu_to_le32(0x00008000)
-#define FILE_ATTRIBUTE_NO_SCRUB_DATA_LE		cpu_to_le32(0x00020000)
-#define FILE_ATTRIBUTE_MASK_LE			cpu_to_le32(0x00007FB7)
 
 /* Desired Access Flags */
 #define FILE_READ_DATA_LE		cpu_to_le32(0x00000001)
@@ -1537,9 +1510,10 @@ struct duplicate_extents_to_file {
 	__le64 ByteCount;  /* Bytes to be copied */
 } __packed;
 
-/* See MS-FSCC 2.3.8 */
+/* See MS-FSCC 2.3.9 */
 #define DUPLICATE_EXTENTS_DATA_EX_SOURCE_ATOMIC	0x00000001
 struct duplicate_extents_to_file_ex {
+	__le64 StructureSize; /* MUST be set to 0x30 */
 	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
 	__u64 VolatileFileHandle;
 	__le64 SourceFileOffset;

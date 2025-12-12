@@ -1357,37 +1357,6 @@ typedef struct smb_com_transaction_change_notify_rsp {
 	__u16 ByteCount;
 	/* __u8 Pad[3]; */
 } __packed TRANSACT_CHANGE_NOTIFY_RSP;
-/* Completion Filter flags for Notify */
-#define FILE_NOTIFY_CHANGE_FILE_NAME    0x00000001
-#define FILE_NOTIFY_CHANGE_DIR_NAME     0x00000002
-#define FILE_NOTIFY_CHANGE_NAME         0x00000003
-#define FILE_NOTIFY_CHANGE_ATTRIBUTES   0x00000004
-#define FILE_NOTIFY_CHANGE_SIZE         0x00000008
-#define FILE_NOTIFY_CHANGE_LAST_WRITE   0x00000010
-#define FILE_NOTIFY_CHANGE_LAST_ACCESS  0x00000020
-#define FILE_NOTIFY_CHANGE_CREATION     0x00000040
-#define FILE_NOTIFY_CHANGE_EA           0x00000080
-#define FILE_NOTIFY_CHANGE_SECURITY     0x00000100
-#define FILE_NOTIFY_CHANGE_STREAM_NAME  0x00000200
-#define FILE_NOTIFY_CHANGE_STREAM_SIZE  0x00000400
-#define FILE_NOTIFY_CHANGE_STREAM_WRITE 0x00000800
-
-#define FILE_ACTION_ADDED		0x00000001
-#define FILE_ACTION_REMOVED		0x00000002
-#define FILE_ACTION_MODIFIED		0x00000003
-#define FILE_ACTION_RENAMED_OLD_NAME	0x00000004
-#define FILE_ACTION_RENAMED_NEW_NAME	0x00000005
-#define FILE_ACTION_ADDED_STREAM	0x00000006
-#define FILE_ACTION_REMOVED_STREAM	0x00000007
-#define FILE_ACTION_MODIFIED_STREAM	0x00000008
-
-/* response contains array of the following structures */
-struct file_notify_information {
-	__le32 NextEntryOffset;
-	__le32 Action;
-	__le32 FileNameLength;
-	__u8  FileName[];
-} __packed;
 
 struct cifs_quota_data {
 	__u32	rsrvd1;  /* 0 */
@@ -2033,40 +2002,6 @@ typedef struct {
 
 
 #define CIFS_POSIX_EXTENSIONS           0x00000010 /* support for new QFSInfo */
-
-/* DeviceType Flags */
-#define FILE_DEVICE_CD_ROM              0x00000002
-#define FILE_DEVICE_CD_ROM_FILE_SYSTEM  0x00000003
-#define FILE_DEVICE_DFS                 0x00000006
-#define FILE_DEVICE_DISK                0x00000007
-#define FILE_DEVICE_DISK_FILE_SYSTEM    0x00000008
-#define FILE_DEVICE_FILE_SYSTEM         0x00000009
-#define FILE_DEVICE_NAMED_PIPE          0x00000011
-#define FILE_DEVICE_NETWORK             0x00000012
-#define FILE_DEVICE_NETWORK_FILE_SYSTEM 0x00000014
-#define FILE_DEVICE_NULL                0x00000015
-#define FILE_DEVICE_PARALLEL_PORT       0x00000016
-#define FILE_DEVICE_PRINTER             0x00000018
-#define FILE_DEVICE_SERIAL_PORT         0x0000001b
-#define FILE_DEVICE_STREAMS             0x0000001e
-#define FILE_DEVICE_TAPE                0x0000001f
-#define FILE_DEVICE_TAPE_FILE_SYSTEM    0x00000020
-#define FILE_DEVICE_VIRTUAL_DISK        0x00000024
-#define FILE_DEVICE_NETWORK_REDIRECTOR  0x00000028
-
-/* Device Characteristics */
-#define FILE_REMOVABLE_MEDIA			0x00000001
-#define FILE_READ_ONLY_DEVICE			0x00000002
-#define FILE_FLOPPY_DISKETTE			0x00000004
-#define FILE_WRITE_ONCE_MEDIA			0x00000008
-#define FILE_REMOTE_DEVICE			0x00000010
-#define FILE_DEVICE_IS_MOUNTED			0x00000020
-#define FILE_VIRTUAL_VOLUME			0x00000040
-#define FILE_DEVICE_SECURE_OPEN			0x00000100
-#define FILE_CHARACTERISTIC_TS_DEVICE		0x00001000
-#define FILE_CHARACTERISTIC_WEBDAV_DEVICE	0x00002000
-#define FILE_PORTABLE_DEVICE			0x00004000
-#define FILE_DEVICE_ALLOW_APPCONTAINER_TRAVERSAL 0x00020000
 
 /******************************************************************************/
 /* QueryFileInfo/QueryPathinfo (also for SetPath/SetFile) data buffer formats */
