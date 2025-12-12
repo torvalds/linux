@@ -24,6 +24,8 @@ struct xe_tlb_inval_job {
 	struct xe_exec_queue *q;
 	/** @vm: VM which TLB invalidation is being issued for */
 	struct xe_vm *vm;
+	/** @prl: Embedded copy of page reclaim list */
+	struct xe_page_reclaim_list prl;
 	/** @refcount: ref count of this job */
 	struct kref refcount;
 	/**
@@ -47,6 +49,13 @@ static struct dma_fence *xe_tlb_inval_job_run(struct xe_dep_job *dep_job)
 		container_of(dep_job, typeof(*job), dep);
 	struct xe_tlb_inval_fence *ifence =
 		container_of(job->fence, typeof(*ifence), base);
+	struct drm_suballoc *prl_sa = NULL;
+
+	if (xe_page_reclaim_list_valid(&job->prl)) {
+		prl_sa = xe_page_reclaim_create_prl_bo(job->tlb_inval, &job->prl, ifence);
+		if (IS_ERR(prl_sa))
+			prl_sa = NULL; /* Indicate fall back PPC flush with NULL */
+	}
 
 	xe_tlb_inval_range(job->tlb_inval, ifence, job->start,
 			   job->end, job->vm->usm.asid);

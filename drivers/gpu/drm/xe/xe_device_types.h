@@ -185,6 +185,13 @@ struct xe_tile {
 		 * Media GT shares a pool with its primary GT.
 		 */
 		struct xe_sa_manager *kernel_bb_pool;
+
+		/**
+		 * @mem.reclaim_pool: Pool for PRLs allocated.
+		 *
+		 * Only main GT has page reclaim list allocations.
+		 */
+		struct xe_sa_manager *reclaim_pool;
 	} mem;
 
 	/** @sriov: tile level virtualization data */

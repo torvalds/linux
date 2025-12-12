@@ -209,6 +209,11 @@ int xe_tile_init(struct xe_tile *tile)
 	if (IS_ERR(tile->mem.kernel_bb_pool))
 		return PTR_ERR(tile->mem.kernel_bb_pool);
 
+	/* Optimistically anticipate at most 256 TLB fences with PRL */
+	tile->mem.reclaim_pool = xe_sa_bo_manager_init(tile, SZ_1M, XE_PAGE_RECLAIM_LIST_MAX_SIZE);
+	if (IS_ERR(tile->mem.reclaim_pool))
+		return PTR_ERR(tile->mem.reclaim_pool);
+
 	return 0;
 }
 void xe_tile_migrate_wait(struct xe_tile *tile)

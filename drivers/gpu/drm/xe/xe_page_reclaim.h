@@ -16,6 +16,9 @@
 #define XE_PAGE_RECLAIM_MAX_ENTRIES	512
 #define XE_PAGE_RECLAIM_LIST_MAX_SIZE	SZ_4K
 
+struct xe_tlb_inval;
+struct xe_tlb_inval_fence;
+
 struct xe_guc_page_reclaim_entry {
 	u64 qw;
 /* valid reclaim entry bit */
@@ -65,6 +68,9 @@ static inline bool xe_page_reclaim_list_valid(struct xe_page_reclaim_list *prl)
 	       prl->num_entries != XE_PAGE_RECLAIM_INVALID_LIST;
 }
 
+struct drm_suballoc *xe_page_reclaim_create_prl_bo(struct xe_tlb_inval *tlb_inval,
+						   struct xe_page_reclaim_list *prl,
+						   struct xe_tlb_inval_fence *fence);
 void xe_page_reclaim_list_invalidate(struct xe_page_reclaim_list *prl);
 void xe_page_reclaim_list_init(struct xe_page_reclaim_list *prl);
 int xe_page_reclaim_list_alloc_entries(struct xe_page_reclaim_list *prl);

@@ -13,6 +13,45 @@
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
 #include "xe_macros.h"
+#include "xe_sa.h"
+#include "xe_tlb_inval_types.h"
+
+/**
+ * xe_page_reclaim_create_prl_bo() - Back a PRL with a suballocated GGTT BO
+ * @tlb_inval: TLB invalidation frontend associated with the request
+ * @prl: page reclaim list data that bo will copy from
+ * @fence: tlb invalidation fence that page reclaim action is paired to
+ *
+ * Suballocates a 4K BO out of the tile reclaim pool, copies the PRL CPU
+ * copy into the BO and queues the buffer for release when @fence signals.
+ *
+ * Return: struct drm_suballoc pointer on success or ERR_PTR on failure.
+ */
+struct drm_suballoc *xe_page_reclaim_create_prl_bo(struct xe_tlb_inval *tlb_inval,
+						   struct xe_page_reclaim_list *prl,
+						   struct xe_tlb_inval_fence *fence)
+{
+	struct xe_gt *gt = container_of(tlb_inval, struct xe_gt, tlb_inval);
+	struct xe_tile *tile = gt_to_tile(gt);
+	/* (+1) for NULL page_reclaim_entry to indicate end of list */
+	int prl_size = min(prl->num_entries + 1, XE_PAGE_RECLAIM_MAX_ENTRIES) *
+		sizeof(struct xe_guc_page_reclaim_entry);
+	struct drm_suballoc *prl_sa;
+
+	/* Maximum size of PRL is 1 4K-page */
+	prl_sa = __xe_sa_bo_new(tile->mem.reclaim_pool,
+				prl_size, GFP_ATOMIC);
+	if (IS_ERR(prl_sa))
+		return prl_sa;
+
+	memcpy(xe_sa_bo_cpu_addr(prl_sa), prl->entries,
+	       prl_size);
+	xe_sa_bo_flush_write(prl_sa);
+	/* Queue up sa_bo_free on tlb invalidation fence signal */
+	xe_sa_bo_free(prl_sa, &fence->base);
+
+	return prl_sa;
+}
 
 /**
  * xe_page_reclaim_list_invalidate() - Mark a PRL as invalid
