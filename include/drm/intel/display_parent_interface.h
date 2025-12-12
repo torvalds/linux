@@ -14,21 +14,7 @@ struct intel_panic;
 struct intel_stolen_node;
 struct ref_tracker;
 
-struct intel_display_rpm_interface {
-	struct ref_tracker *(*get)(const struct drm_device *drm);
-	struct ref_tracker *(*get_raw)(const struct drm_device *drm);
-	struct ref_tracker *(*get_if_in_use)(const struct drm_device *drm);
-	struct ref_tracker *(*get_noresume)(const struct drm_device *drm);
-
-	void (*put)(const struct drm_device *drm, struct ref_tracker *wakeref);
-	void (*put_raw)(const struct drm_device *drm, struct ref_tracker *wakeref);
-	void (*put_unchecked)(const struct drm_device *drm);
-
-	bool (*suspended)(const struct drm_device *drm);
-	void (*assert_held)(const struct drm_device *drm);
-	void (*assert_block)(const struct drm_device *drm);
-	void (*assert_unblock)(const struct drm_device *drm);
-};
+/* Keep struct definitions sorted */
 
 struct intel_display_hdcp_interface {
 	ssize_t (*gsc_msg_send)(struct intel_hdcp_gsc_context *gsc_context,
@@ -48,6 +34,22 @@ struct intel_display_panic_interface {
 	struct intel_panic *(*alloc)(void);
 	int (*setup)(struct intel_panic *panic, struct drm_scanout_buffer *sb);
 	void (*finish)(struct intel_panic *panic);
+};
+
+struct intel_display_rpm_interface {
+	struct ref_tracker *(*get)(const struct drm_device *drm);
+	struct ref_tracker *(*get_raw)(const struct drm_device *drm);
+	struct ref_tracker *(*get_if_in_use)(const struct drm_device *drm);
+	struct ref_tracker *(*get_noresume)(const struct drm_device *drm);
+
+	void (*put)(const struct drm_device *drm, struct ref_tracker *wakeref);
+	void (*put_raw)(const struct drm_device *drm, struct ref_tracker *wakeref);
+	void (*put_unchecked)(const struct drm_device *drm);
+
+	bool (*suspended)(const struct drm_device *drm);
+	void (*assert_held)(const struct drm_device *drm);
+	void (*assert_block)(const struct drm_device *drm);
+	void (*assert_unblock)(const struct drm_device *drm);
 };
 
 struct intel_display_rps_interface {
@@ -88,14 +90,14 @@ struct intel_display_parent_interface {
 	/** @hdcp: HDCP GSC interface */
 	const struct intel_display_hdcp_interface *hdcp;
 
-	/** @rpm: Runtime PM functions */
-	const struct intel_display_rpm_interface *rpm;
-
 	/** @irq: IRQ interface */
 	const struct intel_display_irq_interface *irq;
 
 	/** @panic: Panic interface */
 	const struct intel_display_panic_interface *panic;
+
+	/** @rpm: Runtime PM functions */
+	const struct intel_display_rpm_interface *rpm;
 
 	/** @rps: RPS interface. Optional. */
 	const struct intel_display_rps_interface *rps;
@@ -105,17 +107,17 @@ struct intel_display_parent_interface {
 
 	/* Generic independent functions */
 	struct {
-		/** @vgpu_active: Is vGPU active? Optional. */
-		bool (*vgpu_active)(struct drm_device *drm);
-
-		/** @has_fenced_regions: Support legacy fencing? Optional. */
-		bool (*has_fenced_regions)(struct drm_device *drm);
-
 		/** @fence_priority_display: Set display priority. Optional. */
 		void (*fence_priority_display)(struct dma_fence *fence);
 
 		/** @has_auxccs: Are AuxCCS formats supported by the parent. Optional. */
 		bool (*has_auxccs)(struct drm_device *drm);
+
+		/** @has_fenced_regions: Support legacy fencing? Optional. */
+		bool (*has_fenced_regions)(struct drm_device *drm);
+
+		/** @vgpu_active: Is vGPU active? Optional. */
+		bool (*vgpu_active)(struct drm_device *drm);
 	};
 };
 
