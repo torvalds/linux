@@ -208,6 +208,12 @@ static inline int ublk_io_auto_zc_fallback(const struct ublksrv_io_desc *iod)
 	return !!(iod->op_flags & UBLK_IO_F_NEED_REG_BUF);
 }
 
+static inline __u64 ublk_user_copy_offset(unsigned q_id, unsigned tag)
+{
+	return UBLKSRV_IO_BUF_OFFSET +
+	       ((__u64)q_id << UBLK_QID_OFF | (__u64)tag << UBLK_TAG_OFF);
+}
+
 static inline int is_target_io(__u64 user_data)
 {
 	return (user_data & (1ULL << 63)) != 0;
@@ -403,6 +409,11 @@ static inline bool ublk_queue_use_auto_zc(const struct ublk_queue *q)
 static inline bool ublk_queue_auto_zc_fallback(const struct ublk_queue *q)
 {
 	return !!(q->flags & UBLKS_Q_AUTO_BUF_REG_FALLBACK);
+}
+
+static inline bool ublk_queue_use_user_copy(const struct ublk_queue *q)
+{
+	return !!(q->flags & UBLK_F_USER_COPY);
 }
 
 static inline int ublk_queue_no_buf(const struct ublk_queue *q)
