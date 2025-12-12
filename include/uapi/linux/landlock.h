@@ -195,11 +195,13 @@ struct landlock_net_port_attr {
 	 * It should be noted that port 0 passed to :manpage:`bind(2)` will bind
 	 * to an available port from the ephemeral port range.  This can be
 	 * configured with the ``/proc/sys/net/ipv4/ip_local_port_range`` sysctl
-	 * (also used for IPv6).
+	 * (also used for IPv6), and within that range, on a per-socket basis
+	 * with ``setsockopt(IP_LOCAL_PORT_RANGE)``.
 	 *
-	 * A Landlock rule with port 0 and the ``LANDLOCK_ACCESS_NET_BIND_TCP``
+	 * A Landlock rule with port 0 and the %LANDLOCK_ACCESS_NET_BIND_TCP
 	 * right means that requesting to bind on port 0 is allowed and it will
-	 * automatically translate to binding on the related port range.
+	 * automatically translate to binding on a kernel-assigned ephemeral
+	 * port.
 	 */
 	__u64 port;
 };
@@ -342,13 +344,12 @@ struct landlock_net_port_attr {
  * These flags enable to restrict a sandboxed process to a set of network
  * actions.
  *
- * This is supported since Landlock ABI version 4.
- *
  * The following access rights apply to TCP port numbers:
  *
- * - %LANDLOCK_ACCESS_NET_BIND_TCP: Bind a TCP socket to a local port.
- * - %LANDLOCK_ACCESS_NET_CONNECT_TCP: Connect an active TCP socket to
- *   a remote port.
+ * - %LANDLOCK_ACCESS_NET_BIND_TCP: Bind TCP sockets to the given local
+ *   port. Support added in Landlock ABI version 4.
+ * - %LANDLOCK_ACCESS_NET_CONNECT_TCP: Connect TCP sockets to the given
+ *   remote port. Support added in Landlock ABI version 4.
  */
 /* clang-format off */
 #define LANDLOCK_ACCESS_NET_BIND_TCP			(1ULL << 0)
