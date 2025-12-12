@@ -523,10 +523,15 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 	int i, r = 0, rewind_count = 0;
 
 	for (i = 0; i < target->n_pdds; i++) {
+		uint32_t caps;
+		uint32_t caps2;
 		struct kfd_topology_device *topo_dev =
-				kfd_topology_device_by_id(target->pdds[i]->dev->id);
-		uint32_t caps = topo_dev->node_props.capability;
-		uint32_t caps2 = topo_dev->node_props.capability2;
+			kfd_topology_device_by_id(target->pdds[i]->dev->id);
+		if (!topo_dev)
+			return -EINVAL;
+
+		caps = topo_dev->node_props.capability;
+		caps2 = topo_dev->node_props.capability2;
 
 		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED) &&
 			(*flags & KFD_DBG_TRAP_FLAG_SINGLE_MEM_OP)) {
@@ -1086,6 +1091,10 @@ int kfd_dbg_trap_device_snapshot(struct kfd_process *target,
 	for (i = 0; i < tmp_num_devices; i++) {
 		struct kfd_process_device *pdd = target->pdds[i];
 		struct kfd_topology_device *topo_dev = kfd_topology_device_by_id(pdd->dev->id);
+		if (!topo_dev) {
+			r = -EINVAL;
+			break;
+		}
 
 		device_info.gpu_id = pdd->dev->id;
 		device_info.exception_status = pdd->exception_status;
