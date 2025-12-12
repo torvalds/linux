@@ -166,7 +166,7 @@ static const u8 tbl_tw2865_pal_template[] = {
 	0x64, 0x51, 0x40, 0xaf, 0xFF, 0xF0, 0x00, 0xC0,
 };
 
-#define is_tw286x(__solo, __id) (!(__solo->tw2815 & (1 << __id)))
+#define is_tw286x(__solo, __id) (!((__solo)->tw2815 & (1U << (__id))))
 
 static u8 tw_readbyte(struct solo_dev *solo_dev, int chip_id, u8 tw6x_off,
 		      u8 tw_off)
@@ -686,6 +686,9 @@ int tw28_set_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch,
 	chip_num = ch / 4;
 	ch %= 4;
 
+	if (chip_num >= TW_NUM_CHIP)
+		return -EINVAL;
+
 	if (val > 255 || val < 0)
 		return -ERANGE;
 
@@ -757,6 +760,9 @@ int tw28_get_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch,
 	/* Get the right chip and on-chip channel */
 	chip_num = ch / 4;
 	ch %= 4;
+
+	if (chip_num >= TW_NUM_CHIP)
+		return -EINVAL;
 
 	switch (ctrl) {
 	case V4L2_CID_SHARPNESS:
