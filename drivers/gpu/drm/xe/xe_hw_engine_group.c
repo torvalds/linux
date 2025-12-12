@@ -200,7 +200,9 @@ static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group
 {
 	int err;
 	struct xe_exec_queue *q;
+	struct xe_gt *gt = NULL;
 	bool need_resume = false;
+	ktime_t start = xe_gt_stats_ktime_get();
 
 	lockdep_assert_held_write(&group->mode_sem);
 
@@ -215,9 +217,13 @@ static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group
 			return -EAGAIN;
 
 		xe_gt_stats_incr(q->gt, XE_GT_STATS_ID_HW_ENGINE_GROUP_SUSPEND_LR_QUEUE_COUNT, 1);
+		if (idle_skip_suspend)
+			xe_gt_stats_incr(q->gt,
+					 XE_GT_STATS_ID_HW_ENGINE_GROUP_SKIP_LR_QUEUE_COUNT, 1);
 
 		need_resume |= !idle_skip_suspend;
 		q->ops->suspend(q);
+		gt = q->gt;
 	}
 
 	list_for_each_entry(q, &group->exec_queue_list, hw_engine_group_link) {
@@ -227,6 +233,12 @@ static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group
 		err = q->ops->suspend_wait(q);
 		if (err)
 			return err;
+	}
+
+	if (gt) {
+		xe_gt_stats_incr(gt,
+				 XE_GT_STATS_ID_HW_ENGINE_GROUP_SUSPEND_LR_QUEUE_US,
+				 xe_gt_stats_ktime_us_delta(start));
 	}
 
 	if (need_resume)
@@ -249,7 +261,9 @@ static int xe_hw_engine_group_wait_for_dma_fence_jobs(struct xe_hw_engine_group 
 {
 	long timeout;
 	struct xe_exec_queue *q;
+	struct xe_gt *gt = NULL;
 	struct dma_fence *fence;
+	ktime_t start = xe_gt_stats_ktime_get();
 
 	lockdep_assert_held_write(&group->mode_sem);
 
@@ -261,9 +275,16 @@ static int xe_hw_engine_group_wait_for_dma_fence_jobs(struct xe_hw_engine_group 
 		fence = xe_exec_queue_last_fence_get_for_resume(q, q->vm);
 		timeout = dma_fence_wait(fence, false);
 		dma_fence_put(fence);
+		gt = q->gt;
 
 		if (timeout < 0)
 			return -ETIME;
+	}
+
+	if (gt) {
+		xe_gt_stats_incr(gt,
+				 XE_GT_STATS_ID_HW_ENGINE_GROUP_WAIT_DMA_QUEUE_US,
+				 xe_gt_stats_ktime_us_delta(start));
 	}
 
 	return 0;
