@@ -361,6 +361,74 @@ static const struct file_operations atomic_svm_timeslice_ms_fops = {
 	.write = atomic_svm_timeslice_ms_set,
 };
 
+static ssize_t min_run_period_lr_ms_show(struct file *f, char __user *ubuf,
+					 size_t size, loff_t *pos)
+{
+	struct xe_device *xe = file_inode(f)->i_private;
+	char buf[32];
+	int len = 0;
+
+	len = scnprintf(buf, sizeof(buf), "%d\n", xe->min_run_period_lr_ms);
+
+	return simple_read_from_buffer(ubuf, size, pos, buf, len);
+}
+
+static ssize_t min_run_period_lr_ms_set(struct file *f, const char __user *ubuf,
+					size_t size, loff_t *pos)
+{
+	struct xe_device *xe = file_inode(f)->i_private;
+	u32 min_run_period_lr_ms;
+	ssize_t ret;
+
+	ret = kstrtouint_from_user(ubuf, size, 0, &min_run_period_lr_ms);
+	if (ret)
+		return ret;
+
+	xe->min_run_period_lr_ms = min_run_period_lr_ms;
+
+	return size;
+}
+
+static const struct file_operations min_run_period_lr_ms_fops = {
+	.owner = THIS_MODULE,
+	.read = min_run_period_lr_ms_show,
+	.write = min_run_period_lr_ms_set,
+};
+
+static ssize_t min_run_period_pf_ms_show(struct file *f, char __user *ubuf,
+					 size_t size, loff_t *pos)
+{
+	struct xe_device *xe = file_inode(f)->i_private;
+	char buf[32];
+	int len = 0;
+
+	len = scnprintf(buf, sizeof(buf), "%d\n", xe->min_run_period_pf_ms);
+
+	return simple_read_from_buffer(ubuf, size, pos, buf, len);
+}
+
+static ssize_t min_run_period_pf_ms_set(struct file *f, const char __user *ubuf,
+					size_t size, loff_t *pos)
+{
+	struct xe_device *xe = file_inode(f)->i_private;
+	u32 min_run_period_pf_ms;
+	ssize_t ret;
+
+	ret = kstrtouint_from_user(ubuf, size, 0, &min_run_period_pf_ms);
+	if (ret)
+		return ret;
+
+	xe->min_run_period_pf_ms = min_run_period_pf_ms;
+
+	return size;
+}
+
+static const struct file_operations min_run_period_pf_ms_fops = {
+	.owner = THIS_MODULE,
+	.read = min_run_period_pf_ms_show,
+	.write = min_run_period_pf_ms_set,
+};
+
 static ssize_t disable_late_binding_show(struct file *f, char __user *ubuf,
 					 size_t size, loff_t *pos)
 {
@@ -427,6 +495,12 @@ void xe_debugfs_register(struct xe_device *xe)
 
 	debugfs_create_file("atomic_svm_timeslice_ms", 0600, root, xe,
 			    &atomic_svm_timeslice_ms_fops);
+
+	debugfs_create_file("min_run_period_lr_ms", 0600, root, xe,
+			    &min_run_period_lr_ms_fops);
+
+	debugfs_create_file("min_run_period_pf_ms", 0600, root, xe,
+			    &min_run_period_pf_ms_fops);
 
 	debugfs_create_file("disable_late_binding", 0600, root, xe,
 			    &disable_late_binding_fops);

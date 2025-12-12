@@ -1509,9 +1509,9 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 
 	INIT_LIST_HEAD(&vm->preempt.exec_queues);
 	if (flags & XE_VM_FLAG_FAULT_MODE)
-		vm->preempt.min_run_period_ms = 0;
+		vm->preempt.min_run_period_ms = xe->min_run_period_pf_ms;
 	else
-		vm->preempt.min_run_period_ms = 5;
+		vm->preempt.min_run_period_ms = xe->min_run_period_lr_ms;
 
 	for_each_tile(tile, xe, id)
 		xe_range_fence_tree_init(&vm->rftree[id]);

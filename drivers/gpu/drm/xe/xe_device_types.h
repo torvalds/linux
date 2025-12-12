@@ -627,6 +627,12 @@ struct xe_device {
 	/** @atomic_svm_timeslice_ms: Atomic SVM fault timeslice MS */
 	u32 atomic_svm_timeslice_ms;
 
+	/** @min_run_period_lr_ms: LR VM (preempt fence mode) timeslice */
+	u32 min_run_period_lr_ms;
+
+	/** @min_run_period_pf_ms: LR VM (page fault mode) timeslice */
+	u32 min_run_period_pf_ms;
+
 #ifdef TEST_VM_OPS_ERROR
 	/**
 	 * @vm_inject_error_position: inject errors at different places in VM
