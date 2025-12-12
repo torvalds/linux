@@ -97,7 +97,7 @@ struct intel_display_parent_interface {
 	/** @panic: Panic interface */
 	const struct intel_display_panic_interface *panic;
 
-	/** @rpm: RPS interface. Optional. */
+	/** @rps: RPS interface. Optional. */
 	const struct intel_display_rps_interface *rps;
 
 	/** @stolen: Stolen memory. */
@@ -112,7 +112,7 @@ struct intel_display_parent_interface {
 	/** @fence_priority_display: Set display priority. Optional. */
 	void (*fence_priority_display)(struct dma_fence *fence);
 
-	/** @has_auxcss: Are AuxCCS formats supported by the parent. Optional. */
+	/** @has_auxccs: Are AuxCCS formats supported by the parent. Optional. */
 	bool (*has_auxccs)(struct drm_device *drm);
 };
 
