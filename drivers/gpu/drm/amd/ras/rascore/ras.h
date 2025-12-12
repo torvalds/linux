@@ -49,6 +49,10 @@
 #define GPU_RESET_CAUSE_FATAL   (RAS_CORE_RESET_GPU | 0x0002)
 #define GPU_RESET_CAUSE_RMA     (RAS_CORE_RESET_GPU | 0x0004)
 
+enum ras_core_fw_feature_flags {
+	RAS_CORE_FW_FEATURE_BIT__RAS_EEPROM = BIT_ULL(0),
+};
+
 enum ras_block_id {
 	RAS_BLOCK_ID__UMC = 0,
 	RAS_BLOCK_ID__SDMA,
@@ -127,6 +131,16 @@ enum ras_gpu_status {
 	RAS_GPU_STATUS__IS_VF = 0x8,
 };
 
+enum ras_fw_eeprom_cmd {
+	RAS_SMU_GetRASTableVersion = 0,
+	RAS_SMU_GetBadPageCount,
+	RAS_SMU_SetTimestamp,
+	RAS_SMU_GetTimestamp,
+	RAS_SMU_GetBadPageIpid,
+	RAS_SMU_EraseRasTable,
+	RAS_SMU_GetBadPageMcaAddr,
+};
+
 struct ras_core_context;
 struct ras_bank_ecc;
 struct ras_umc;
@@ -141,6 +155,10 @@ struct ras_mp1_sys_func {
 			u32 msg, u32 *count);
 	int (*mp1_dump_valid_bank)(struct ras_core_context *ras_core,
 			u32 msg, u32 idx, u32 reg_idx, u64 *val);
+	int (*mp1_send_eeprom_msg)(struct ras_core_context *ras_core,
+			enum ras_fw_eeprom_cmd index, uint32_t param, uint32_t *read_arg);
+	int (*mp1_get_ras_enabled_mask)(struct ras_core_context *ras_core,
+			uint64_t *enabled_mask);
 };
 
 struct ras_eeprom_sys_func {
