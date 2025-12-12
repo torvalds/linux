@@ -24,6 +24,22 @@
 #ifndef __RAS_EEPROM_FW_H__
 #define __RAS_EEPROM_FW_H__
 
+
 void ras_fw_init_feature_flags(struct ras_core_context *ras_core);
+bool ras_fw_eeprom_supported(struct ras_core_context *ras_core);
+int ras_fw_get_table_version(struct ras_core_context *ras_core,
+				     uint32_t *table_version);
+int ras_fw_get_badpage_count(struct ras_core_context *ras_core,
+				     uint32_t *count, uint32_t timeout);
+int ras_fw_get_badpage_mca_addr(struct ras_core_context *ras_core,
+					uint16_t index, uint64_t *mca_addr);
+int ras_fw_set_timestamp(struct ras_core_context *ras_core,
+				 uint64_t timestamp);
+int ras_fw_get_timestamp(struct ras_core_context *ras_core,
+				 uint16_t index, uint64_t *timestamp);
+int ras_fw_get_badpage_ipid(struct ras_core_context *ras_core,
+				    uint16_t index, uint64_t *ipid);
+int ras_fw_erase_ras_table(struct ras_core_context *ras_core,
+				   uint32_t *result);
 
 #endif
