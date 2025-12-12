@@ -62,9 +62,6 @@ static int current_check_access_socket(struct socket *const sock,
 	if (!subject)
 		return 0;
 
-	if (!sk_is_tcp(sock->sk))
-		return 0;
-
 	/* Checks for minimal header length to safely read sa_family. */
 	if (addrlen < offsetofend(typeof(*address), sa_family))
 		return -EINVAL;
@@ -214,16 +211,30 @@ static int current_check_access_socket(struct socket *const sock,
 static int hook_socket_bind(struct socket *const sock,
 			    struct sockaddr *const address, const int addrlen)
 {
+	access_mask_t access_request;
+
+	if (sk_is_tcp(sock->sk))
+		access_request = LANDLOCK_ACCESS_NET_BIND_TCP;
+	else
+		return 0;
+
 	return current_check_access_socket(sock, address, addrlen,
-					   LANDLOCK_ACCESS_NET_BIND_TCP);
+					   access_request);
 }
 
 static int hook_socket_connect(struct socket *const sock,
 			       struct sockaddr *const address,
 			       const int addrlen)
 {
+	access_mask_t access_request;
+
+	if (sk_is_tcp(sock->sk))
+		access_request = LANDLOCK_ACCESS_NET_CONNECT_TCP;
+	else
+		return 0;
+
 	return current_check_access_socket(sock, address, addrlen,
-					   LANDLOCK_ACCESS_NET_CONNECT_TCP);
+					   access_request);
 }
 
 static struct security_hook_list landlock_hooks[] __ro_after_init = {
