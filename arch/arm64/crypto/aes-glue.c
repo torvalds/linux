@@ -549,38 +549,37 @@ static int __maybe_unused xts_encrypt(struct skcipher_request *req)
 		tail = 0;
 	}
 
-	for (first = 1; walk.nbytes >= AES_BLOCK_SIZE; first = 0) {
-		int nbytes = walk.nbytes;
+	scoped_ksimd() {
+		for (first = 1; walk.nbytes >= AES_BLOCK_SIZE; first = 0) {
+			int nbytes = walk.nbytes;
 
-		if (walk.nbytes < walk.total)
-			nbytes &= ~(AES_BLOCK_SIZE - 1);
+			if (walk.nbytes < walk.total)
+				nbytes &= ~(AES_BLOCK_SIZE - 1);
 
-		scoped_ksimd()
 			aes_xts_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 					ctx->key1.key_enc, rounds, nbytes,
 					ctx->key2.key_enc, walk.iv, first);
-		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
-	}
+			err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		}
 
-	if (err || likely(!tail))
-		return err;
+		if (err || likely(!tail))
+			return err;
 
-	dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
-	if (req->dst != req->src)
-		dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
+		dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
+		if (req->dst != req->src)
+			dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
 
-	skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
-				   req->iv);
+		skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+					   req->iv);
 
-	err = skcipher_walk_virt(&walk, &subreq, false);
-	if (err)
-		return err;
+		err = skcipher_walk_virt(&walk, &subreq, false);
+		if (err)
+			return err;
 
-	scoped_ksimd()
 		aes_xts_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				ctx->key1.key_enc, rounds, walk.nbytes,
 				ctx->key2.key_enc, walk.iv, first);
-
+	}
 	return skcipher_walk_done(&walk, 0);
 }
 
@@ -619,39 +618,37 @@ static int __maybe_unused xts_decrypt(struct skcipher_request *req)
 		tail = 0;
 	}
 
-	for (first = 1; walk.nbytes >= AES_BLOCK_SIZE; first = 0) {
-		int nbytes = walk.nbytes;
+	scoped_ksimd() {
+		for (first = 1; walk.nbytes >= AES_BLOCK_SIZE; first = 0) {
+			int nbytes = walk.nbytes;
 
-		if (walk.nbytes < walk.total)
-			nbytes &= ~(AES_BLOCK_SIZE - 1);
+			if (walk.nbytes < walk.total)
+				nbytes &= ~(AES_BLOCK_SIZE - 1);
 
-		scoped_ksimd()
 			aes_xts_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
 					ctx->key1.key_dec, rounds, nbytes,
 					ctx->key2.key_enc, walk.iv, first);
-		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
-	}
+			err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		}
 
-	if (err || likely(!tail))
-		return err;
+		if (err || likely(!tail))
+			return err;
 
-	dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
-	if (req->dst != req->src)
-		dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
+		dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
+		if (req->dst != req->src)
+			dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
 
-	skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
-				   req->iv);
+		skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+					   req->iv);
 
-	err = skcipher_walk_virt(&walk, &subreq, false);
-	if (err)
-		return err;
+		err = skcipher_walk_virt(&walk, &subreq, false);
+		if (err)
+			return err;
 
-
-	scoped_ksimd()
 		aes_xts_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				ctx->key1.key_dec, rounds, walk.nbytes,
 				ctx->key2.key_enc, walk.iv, first);
-
+	}
 	return skcipher_walk_done(&walk, 0);
 }
 
