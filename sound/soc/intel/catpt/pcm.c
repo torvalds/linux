@@ -114,14 +114,10 @@ catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id)
 	return result;
 }
 
-static u32 catpt_stream_read_position(struct catpt_dev *cdev,
-				      struct catpt_stream_runtime *stream)
+static void catpt_stream_read_position(struct catpt_dev *cdev,
+				       struct catpt_stream_runtime *stream, u32 *pos)
 {
-	u32 pos;
-
-	memcpy_fromio(&pos, cdev->lpe_ba + stream->info.read_pos_regaddr,
-		      sizeof(pos));
-	return pos;
+	memcpy_fromio(pos, cdev->lpe_ba + stream->info.read_pos_regaddr, sizeof(*pos));
 }
 
 static u32 catpt_stream_volume(struct catpt_dev *cdev,
@@ -615,7 +611,7 @@ catpt_component_pointer(struct snd_soc_component *component,
 		return 0;
 
 	stream = snd_soc_dai_get_dma_data(cpu_dai, substream);
-	pos = catpt_stream_read_position(cdev, stream);
+	catpt_stream_read_position(cdev, stream, &pos);
 
 	return bytes_to_frames(substream->runtime, pos);
 }
