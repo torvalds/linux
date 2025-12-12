@@ -1845,6 +1845,13 @@ static const struct dmi_system_id uniwill_dmi_table[] __initconst = {
 		},
 	},
 	{
+		.ident = "TUXEDO Book BA15 Gen10 AMD",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TUXEDO"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "PF5PU1G"),
+		},
+	},
+	{
 		.ident = "TUXEDO Pulse 14 Gen1 AMD",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TUXEDO"),
