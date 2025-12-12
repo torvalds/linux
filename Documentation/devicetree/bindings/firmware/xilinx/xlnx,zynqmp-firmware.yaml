@@ -115,6 +115,7 @@ examples:
     #include <dt-bindings/power/xlnx-zynqmp-power.h>
     firmware {
       zynqmp_firmware: zynqmp-firmware {
+        compatible = "xlnx,zynqmp-firmware";
         #power-domain-cells = <1>;
         soc-nvmem {
           compatible = "xlnx,zynqmp-nvmem-fw";
