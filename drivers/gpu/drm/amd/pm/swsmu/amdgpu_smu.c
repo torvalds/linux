@@ -628,6 +628,18 @@ int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type ms
 	return ret;
 }
 
+int amdgpu_smu_ras_feature_is_enabled(struct amdgpu_device *adev,
+						enum smu_feature_mask mask)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = 0;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->feature_is_enabled)
+		ret = smu->ppt_funcs->feature_is_enabled(smu, mask);
+
+	return ret;
+}
+
 static int smu_sys_get_pp_table(void *handle,
 				char **table)
 {
