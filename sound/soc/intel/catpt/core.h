@@ -62,6 +62,7 @@ struct catpt_module_type {
 struct catpt_spec {
 	struct snd_soc_acpi_mach *machines;
 	u8 core_id;
+	const char *fw_name;
 	u32 host_dram_offset;
 	u32 host_iram_offset;
 	u32 host_shim_offset;
