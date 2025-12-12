@@ -327,6 +327,8 @@ struct xe_device {
 		u8 has_mert:1;
 		/** @info.has_page_reclaim_hw_assist: Device supports page reclamation feature */
 		u8 has_page_reclaim_hw_assist:1;
+		/** @info.has_pre_prod_wa: Pre-production workarounds still present in driver */
+		u8 has_pre_prod_wa:1;
 		/** @info.has_pxp: Device has PXP support */
 		u8 has_pxp:1;
 		/** @info.has_range_tlb_inval: Has range based TLB invalidations */
