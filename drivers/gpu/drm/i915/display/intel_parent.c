@@ -23,6 +23,7 @@
 #include "intel_display_core.h"
 #include "intel_parent.h"
 
+/* hdcp */
 ssize_t intel_parent_hdcp_gsc_msg_send(struct intel_display *display,
 				       struct intel_hdcp_gsc_context *gsc_context,
 				       void *msg_in, size_t msg_in_len,
@@ -47,6 +48,18 @@ void intel_parent_hdcp_gsc_context_free(struct intel_display *display,
 	display->parent->hdcp->gsc_context_free(gsc_context);
 }
 
+/* irq */
+bool intel_parent_irq_enabled(struct intel_display *display)
+{
+	return display->parent->irq->enabled(display->drm);
+}
+
+void intel_parent_irq_synchronize(struct intel_display *display)
+{
+	display->parent->irq->synchronize(display->drm);
+}
+
+/* panic */
 struct intel_panic *intel_parent_panic_alloc(struct intel_display *display)
 {
 	return display->parent->panic->alloc();
@@ -62,16 +75,7 @@ void intel_parent_panic_finish(struct intel_display *display, struct intel_panic
 	display->parent->panic->finish(panic);
 }
 
-bool intel_parent_irq_enabled(struct intel_display *display)
-{
-	return display->parent->irq->enabled(display->drm);
-}
-
-void intel_parent_irq_synchronize(struct intel_display *display)
-{
-	display->parent->irq->synchronize(display->drm);
-}
-
+/* rps */
 bool intel_parent_rps_available(struct intel_display *display)
 {
 	return display->parent->rps;
@@ -95,6 +99,7 @@ void intel_parent_rps_ilk_irq_handler(struct intel_display *display)
 		display->parent->rps->ilk_irq_handler(display->drm);
 }
 
+/* stolen */
 int intel_parent_stolen_insert_node_in_range(struct intel_display *display,
 					     struct intel_stolen_node *node, u64 size,
 					     unsigned int align, u64 start, u64 end)
@@ -169,17 +174,7 @@ void intel_parent_stolen_node_free(struct intel_display *display, const struct i
 	display->parent->stolen->node_free(node);
 }
 
-
-bool intel_parent_vgpu_active(struct intel_display *display)
-{
-	return display->parent->vgpu_active && display->parent->vgpu_active(display->drm);
-}
-
-bool intel_parent_has_fenced_regions(struct intel_display *display)
-{
-	return display->parent->has_fenced_regions && display->parent->has_fenced_regions(display->drm);
-}
-
+/* generic */
 void intel_parent_fence_priority_display(struct intel_display *display, struct dma_fence *fence)
 {
 	if (display->parent->fence_priority_display)
@@ -189,4 +184,14 @@ void intel_parent_fence_priority_display(struct intel_display *display, struct d
 bool intel_parent_has_auxccs(struct intel_display *display)
 {
 	return display->parent->has_auxccs && display->parent->has_auxccs(display->drm);
+}
+
+bool intel_parent_has_fenced_regions(struct intel_display *display)
+{
+	return display->parent->has_fenced_regions && display->parent->has_fenced_regions(display->drm);
+}
+
+bool intel_parent_vgpu_active(struct intel_display *display)
+{
+	return display->parent->vgpu_active && display->parent->vgpu_active(display->drm);
 }
