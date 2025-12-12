@@ -1508,7 +1508,10 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 	INIT_WORK(&vm->destroy_work, vm_destroy_work_func);
 
 	INIT_LIST_HEAD(&vm->preempt.exec_queues);
-	vm->preempt.min_run_period_ms = 10;	/* FIXME: Wire up to uAPI */
+	if (flags & XE_VM_FLAG_FAULT_MODE)
+		vm->preempt.min_run_period_ms = 0;
+	else
+		vm->preempt.min_run_period_ms = 5;
 
 	for_each_tile(tile, xe, id)
 		xe_range_fence_tree_init(&vm->rftree[id]);
