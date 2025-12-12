@@ -154,7 +154,7 @@ static const struct config_entry config_table[] = {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
 	{
 		.flags = FLAG_SOF,
-		.device = PCI_DEVICE_ID_INTEL_HDA_GML,
+		.device = PCI_DEVICE_ID_INTEL_HDA_GLK,
 		.dmi_table = (const struct dmi_system_id []) {
 			{
 				.ident = "Google Chromebooks",
@@ -167,7 +167,7 @@ static const struct config_entry config_table[] = {
 	},
 	{
 		.flags = FLAG_SOF,
-		.device = PCI_DEVICE_ID_INTEL_HDA_GML,
+		.device = PCI_DEVICE_ID_INTEL_HDA_GLK,
 		.codec_hid =  &essx_83x6,
 	},
 #endif
