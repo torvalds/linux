@@ -382,6 +382,24 @@ static const struct attribute_group amdgpu_board_attrs_group = {
 	.is_visible = amdgpu_board_attrs_is_visible
 };
 
+/**
+ * DOC: uma/carveout_options
+ *
+ * This is a read-only file that lists all available UMA allocation
+ * options and their corresponding indices. Example output::
+ *
+ *     $ cat uma/carveout_options
+ *     0: Minimum (512 MB)
+ *     1:  (1 GB)
+ *     2:  (2 GB)
+ *     3:  (4 GB)
+ *     4:  (6 GB)
+ *     5:  (8 GB)
+ *     6:  (12 GB)
+ *     7: Medium (16 GB)
+ *     8:  (24 GB)
+ *     9: High (32 GB)
+ */
 static ssize_t carveout_options_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
@@ -414,6 +432,17 @@ static ssize_t carveout_options_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(carveout_options);
 
+/**
+ * DOC: uma/carveout
+ *
+ * This file is both readable and writable. When read, it shows the
+ * index of the current setting. Writing a valid index to this file
+ * allows users to change the UMA carveout size to the selected option
+ * on the next boot.
+ *
+ * The available options and their corresponding indices can be read
+ * from the uma/carveout_options file.
+ */
 static ssize_t carveout_show(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf)
