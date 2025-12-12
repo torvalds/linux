@@ -2000,7 +2000,7 @@ retry:
 		goto stop;
 	}
 
-	__get_secs_required(sbi, NULL, &upper_secs, NULL);
+	upper_secs = __get_secs_required(sbi);
 
 	/*
 	 * Write checkpoint to reclaim prefree segments.
