@@ -2512,6 +2512,17 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 			goto kill_vm_tile1;
 		}
 		update.ijob = ijob;
+		/*
+		 * Only add page reclaim for the primary GT. Media GT does not have
+		 * any PPC to flush, so enabling the PPC flush bit for media is
+		 * effectively a NOP and provides no performance benefit nor
+		 * interfere with primary GT.
+		 */
+		if (xe_page_reclaim_list_valid(&pt_update_ops->prl)) {
+			xe_tlb_inval_job_add_page_reclaim(ijob, &pt_update_ops->prl);
+			/* Release ref from alloc, job will now handle it */
+			xe_page_reclaim_list_invalidate(&pt_update_ops->prl);
+		}
 
 		if (tile->media_gt) {
 			dep_scheduler = to_dep_scheduler(q, tile->media_gt);
