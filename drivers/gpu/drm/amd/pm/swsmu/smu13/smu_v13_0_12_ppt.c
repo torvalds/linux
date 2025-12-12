@@ -693,30 +693,21 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 	u32 idx, sensors;
 	ssize_t size;
 
-	if (type == SMU_TEMP_METRIC_BASEBOARD) {
-		/* Initialize base board temperature metrics */
-		table_id = SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS;
-		baseboard_temp_metrics =
-			(struct amdgpu_baseboard_temp_metrics_v1_0 *)
-				smu_driver_table_ptr(smu, table_id);
-		size = sizeof(*baseboard_temp_metrics);
-	} else {
-		table_id = SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS;
-		gpuboard_temp_metrics =
-			(struct amdgpu_gpuboard_temp_metrics_v1_0 *)
-				smu_driver_table_ptr(smu, table_id);
-		size = sizeof(*baseboard_temp_metrics);
-	}
-
 	ret = smu_v13_0_12_get_system_metrics_table(smu);
 	if (ret)
 		return ret;
 
 	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
 	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
-	smu_driver_table_update_cache_time(smu, table_id);
 
-	if (type == SMU_TEMP_METRIC_GPUBOARD) {
+	switch (type) {
+	case SMU_TEMP_METRIC_GPUBOARD:
+		table_id = SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS;
+		gpuboard_temp_metrics =
+			(struct amdgpu_gpuboard_temp_metrics_v1_0 *)
+				smu_driver_table_ptr(smu, table_id);
+		size = sizeof(*gpuboard_temp_metrics);
+
 		gpuboard_temp_metrics->accumulation_counter = metrics->AccumulationCounter;
 		gpuboard_temp_metrics->label_version = metrics->LabelVersion;
 		gpuboard_temp_metrics->node_id = metrics->NodeIdentifier;
@@ -743,7 +734,15 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 				idx++;
 			}
 		}
-	} else if (type == SMU_TEMP_METRIC_BASEBOARD) {
+		memcpy(table, gpuboard_temp_metrics, size);
+		break;
+	case SMU_TEMP_METRIC_BASEBOARD:
+		table_id = SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS;
+		baseboard_temp_metrics =
+			(struct amdgpu_baseboard_temp_metrics_v1_0 *)
+				smu_driver_table_ptr(smu, table_id);
+		size = sizeof(*baseboard_temp_metrics);
+
 		baseboard_temp_metrics->accumulation_counter = metrics->AccumulationCounter;
 		baseboard_temp_metrics->label_version = metrics->LabelVersion;
 		baseboard_temp_metrics->node_id = metrics->NodeIdentifier;
@@ -758,12 +757,12 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 				idx++;
 			}
 		}
-	}
-
-	if (type == SMU_TEMP_METRIC_BASEBOARD)
 		memcpy(table, baseboard_temp_metrics, size);
-	else
-		memcpy(table, gpuboard_temp_metrics, size);
+		break;
+	default:
+		return -EINVAL;
+	}
+	smu_driver_table_update_cache_time(smu, table_id);
 
 	return size;
 }
