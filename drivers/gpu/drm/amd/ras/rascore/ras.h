@@ -36,6 +36,7 @@
 #include "ras_mp1.h"
 #include "ras_psp.h"
 #include "ras_log_ring.h"
+#include "ras_eeprom_fw.h"
 
 #define RAS_HW_ERR		"[Hardware Error]: "
 
@@ -335,6 +336,8 @@ struct ras_core_context {
 	spinlock_t seqno_lock;
 
 	bool ras_core_enabled;
+
+	u64 ras_fw_features;
 };
 
 struct ras_core_context *ras_core_create(struct ras_core_config *init_config);

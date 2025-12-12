@@ -384,6 +384,8 @@ int ras_core_hw_init(struct ras_core_context *ras_core)
 	if (ret)
 		goto init_err5;
 
+	ras_fw_init_feature_flags(ras_core);
+
 	ret = ras_eeprom_hw_init(ras_core);
 	if (ret)
 		goto init_err6;
