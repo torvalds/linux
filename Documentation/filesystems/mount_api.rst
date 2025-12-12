@@ -299,8 +299,6 @@ manage the filesystem context.  They are as follows:
      On success it should return 0.  In the case of an error, it should return
      a negative error code.
 
-     .. Note:: reconfigure is intended as a replacement for remount_fs.
-
 
 Filesystem context Security
 ===========================

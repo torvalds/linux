@@ -448,11 +448,8 @@ a file off.
 
 **mandatory**
 
-->get_sb() is gone.  Switch to use of ->mount().  Typically it's just
-a matter of switching from calling ``get_sb_``... to ``mount_``... and changing
-the function type.  If you were doing it manually, just switch from setting
-->mnt_root to some pointer to returning that pointer.  On errors return
-ERR_PTR(...).
+->get_sb() and ->mount() are gone. Switch to using the new mount API. See
+Documentation/filesystems/mount_api.rst for more details.
 
 ---
 

@@ -96,7 +96,6 @@ struct super_operations {
 			  const void *owner);
 	int (*unfreeze_fs)(struct super_block *sb);
 	int (*statfs)(struct dentry *dentry, struct kstatfs *kstatfs);
-	int (*remount_fs) (struct super_block *, int *, char *);
 	void (*umount_begin)(struct super_block *sb);
 
 	int (*show_options)(struct seq_file *seq, struct dentry *dentry);
