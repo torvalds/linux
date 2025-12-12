@@ -456,7 +456,7 @@ static void stripe_io_hints(struct dm_target *ti,
 			    struct queue_limits *limits)
 {
 	struct stripe_c *sc = ti->private;
-	unsigned int io_min, io_opt;
+	unsigned int io_min, io_opt, max_hw_discard_sectors = limits->max_hw_discard_sectors;
 
 	limits->chunk_sectors = sc->chunk_size;
 
@@ -464,6 +464,14 @@ static void stripe_io_hints(struct dm_target *ti,
 	    !check_mul_overflow(io_min, sc->stripes, &io_opt)) {
 		limits->io_min = io_min;
 		limits->io_opt = io_opt;
+	}
+	if (max_hw_discard_sectors >= sc->chunk_size) {
+		if (!check_mul_overflow(max_hw_discard_sectors, sc->stripes, &max_hw_discard_sectors)) {
+			max_hw_discard_sectors = rounddown(max_hw_discard_sectors,
+					sc->chunk_size * sc->stripes);
+			limits->max_hw_discard_sectors = max_hw_discard_sectors;
+		} else
+			limits->max_hw_discard_sectors = UINT_MAX >> SECTOR_SHIFT;
 	}
 }
 
