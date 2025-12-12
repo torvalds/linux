@@ -22,72 +22,89 @@
 #include <asm/inst.h>
 #include <asm/unwind.h>
 
-static int rela_stack_push(s64 stack_value, s64 *rela_stack, size_t *rela_stack_top)
+/*
+ * reloc_rela_handler() - Apply a particular relocation to a module
+ * @mod: the module to apply the reloc to
+ * @location: the address at which the reloc is to be applied
+ * @v: the value of the reloc, with addend for RELA-style
+ * @rela_stack: the stack used for store relocation info, LOCAL to THIS module
+ * @rela_stac_top: where the stack operation(pop/push) applies to
+ *
+ * Return: 0 upon success, else -ERRNO
+ */
+typedef int (*reloc_rela_handler)(struct module *mod, u32 *location, Elf_Addr v,
+			long *rela_stack, size_t *rela_stack_top, unsigned int type);
+
+static int rela_stack_push(long stack_value, long *rela_stack, size_t *rela_stack_top)
 {
 	if (*rela_stack_top >= RELA_STACK_DEPTH)
 		return -ENOEXEC;
 
 	rela_stack[(*rela_stack_top)++] = stack_value;
-	pr_debug("%s stack_value = 0x%llx\n", __func__, stack_value);
+	pr_debug("%s stack_value = 0x%lx\n", __func__, stack_value);
 
 	return 0;
 }
 
-static int rela_stack_pop(s64 *stack_value, s64 *rela_stack, size_t *rela_stack_top)
+static int rela_stack_pop(long *stack_value, long *rela_stack, size_t *rela_stack_top)
 {
 	if (*rela_stack_top == 0)
 		return -ENOEXEC;
 
 	*stack_value = rela_stack[--(*rela_stack_top)];
-	pr_debug("%s stack_value = 0x%llx\n", __func__, *stack_value);
+	pr_debug("%s stack_value = 0x%lx\n", __func__, *stack_value);
 
 	return 0;
 }
 
 static int apply_r_larch_none(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	return 0;
 }
 
 static int apply_r_larch_error(struct module *me, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	pr_err("%s: Unsupport relocation type %u, please add its support.\n", me->name, type);
 	return -EINVAL;
 }
 
 static int apply_r_larch_32(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	*location = v;
 	return 0;
 }
 
+#ifdef CONFIG_32BIT
+#define apply_r_larch_64 apply_r_larch_error
+#else
 static int apply_r_larch_64(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	*(Elf_Addr *)location = v;
 	return 0;
 }
+#endif
 
 static int apply_r_larch_sop_push_pcrel(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
-	return rela_stack_push(v - (u64)location, rela_stack, rela_stack_top);
+	return rela_stack_push(v - (unsigned long)location, rela_stack, rela_stack_top);
 }
 
 static int apply_r_larch_sop_push_absolute(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	return rela_stack_push(v, rela_stack, rela_stack_top);
 }
 
 static int apply_r_larch_sop_push_dup(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	int err = 0;
-	s64 opr1;
+	long opr1;
 
 	err = rela_stack_pop(&opr1, rela_stack, rela_stack_top);
 	if (err)
@@ -104,7 +121,7 @@ static int apply_r_larch_sop_push_dup(struct module *mod, u32 *location, Elf_Add
 
 static int apply_r_larch_sop_push_plt_pcrel(struct module *mod,
 			Elf_Shdr *sechdrs, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	ptrdiff_t offset = (void *)v - (void *)location;
 
@@ -118,10 +135,10 @@ static int apply_r_larch_sop_push_plt_pcrel(struct module *mod,
 }
 
 static int apply_r_larch_sop(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	int err = 0;
-	s64 opr1, opr2, opr3;
+	long opr1, opr2, opr3;
 
 	if (type == R_LARCH_SOP_IF_ELSE) {
 		err = rela_stack_pop(&opr3, rela_stack, rela_stack_top);
@@ -164,10 +181,10 @@ static int apply_r_larch_sop(struct module *mod, u32 *location, Elf_Addr v,
 }
 
 static int apply_r_larch_sop_imm_field(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	int err = 0;
-	s64 opr1;
+	long opr1;
 	union loongarch_instruction *insn = (union loongarch_instruction *)location;
 
 	err = rela_stack_pop(&opr1, rela_stack, rela_stack_top);
@@ -244,31 +261,33 @@ static int apply_r_larch_sop_imm_field(struct module *mod, u32 *location, Elf_Ad
 	}
 
 overflow:
-	pr_err("module %s: opr1 = 0x%llx overflow! dangerous %s (%u) relocation\n",
+	pr_err("module %s: opr1 = 0x%lx overflow! dangerous %s (%u) relocation\n",
 		mod->name, opr1, __func__, type);
 	return -ENOEXEC;
 
 unaligned:
-	pr_err("module %s: opr1 = 0x%llx unaligned! dangerous %s (%u) relocation\n",
+	pr_err("module %s: opr1 = 0x%lx unaligned! dangerous %s (%u) relocation\n",
 		mod->name, opr1, __func__, type);
 	return -ENOEXEC;
 }
 
 static int apply_r_larch_add_sub(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	switch (type) {
 	case R_LARCH_ADD32:
 		*(s32 *)location += v;
 		return 0;
-	case R_LARCH_ADD64:
-		*(s64 *)location += v;
-		return 0;
 	case R_LARCH_SUB32:
 		*(s32 *)location -= v;
 		return 0;
+#ifdef CONFIG_64BIT
+	case R_LARCH_ADD64:
+		*(s64 *)location += v;
+		return 0;
 	case R_LARCH_SUB64:
 		*(s64 *)location -= v;
+#endif
 		return 0;
 	default:
 		pr_err("%s: Unsupport relocation type %u\n", mod->name, type);
@@ -278,7 +297,7 @@ static int apply_r_larch_add_sub(struct module *mod, u32 *location, Elf_Addr v,
 
 static int apply_r_larch_b26(struct module *mod,
 			Elf_Shdr *sechdrs, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	ptrdiff_t offset = (void *)v - (void *)location;
 	union loongarch_instruction *insn = (union loongarch_instruction *)location;
@@ -310,15 +329,40 @@ static int apply_r_larch_b26(struct module *mod,
 	return 0;
 }
 
+static int apply_r_larch_pcadd(struct module *mod, u32 *location, Elf_Addr v,
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
+{
+	union loongarch_instruction *insn = (union loongarch_instruction *)location;
+	/* Use s32 for a sign-extension deliberately. */
+	s32 offset_hi20 = (void *)((v + 0x800)) - (void *)((Elf_Addr)location);
+
+	switch (type) {
+	case R_LARCH_PCADD_LO12:
+		insn->reg2i12_format.immediate = v & 0xfff;
+		break;
+	case R_LARCH_PCADD_HI20:
+		v = offset_hi20 >> 12;
+		insn->reg1i20_format.immediate = v & 0xfffff;
+		break;
+	default:
+		pr_err("%s: Unsupport relocation type %u\n", mod->name, type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int apply_r_larch_pcala(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	union loongarch_instruction *insn = (union loongarch_instruction *)location;
 	/* Use s32 for a sign-extension deliberately. */
 	s32 offset_hi20 = (void *)((v + 0x800) & ~0xfff) -
 			  (void *)((Elf_Addr)location & ~0xfff);
+#ifdef CONFIG_64BIT
 	Elf_Addr anchor = (((Elf_Addr)location) & ~0xfff) + offset_hi20;
 	ptrdiff_t offset_rem = (void *)v - (void *)anchor;
+#endif
 
 	switch (type) {
 	case R_LARCH_PCALA_LO12:
@@ -328,6 +372,7 @@ static int apply_r_larch_pcala(struct module *mod, u32 *location, Elf_Addr v,
 		v = offset_hi20 >> 12;
 		insn->reg1i20_format.immediate = v & 0xfffff;
 		break;
+#ifdef CONFIG_64BIT
 	case R_LARCH_PCALA64_LO20:
 		v = offset_rem >> 32;
 		insn->reg1i20_format.immediate = v & 0xfffff;
@@ -336,6 +381,7 @@ static int apply_r_larch_pcala(struct module *mod, u32 *location, Elf_Addr v,
 		v = offset_rem >> 52;
 		insn->reg2i12_format.immediate = v & 0xfff;
 		break;
+#endif
 	default:
 		pr_err("%s: Unsupport relocation type %u\n", mod->name, type);
 		return -EINVAL;
@@ -346,30 +392,43 @@ static int apply_r_larch_pcala(struct module *mod, u32 *location, Elf_Addr v,
 
 static int apply_r_larch_got_pc(struct module *mod,
 			Elf_Shdr *sechdrs, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
-	Elf_Addr got = module_emit_got_entry(mod, sechdrs, v);
+	reloc_rela_handler got_handler;
 
-	if (!got)
-		return -EINVAL;
+	if (type != R_LARCH_GOT_PCADD_LO12) {
+		v = module_emit_got_entry(mod, sechdrs, v);
+		if (!v)
+			return -EINVAL;
+	}
 
 	switch (type) {
 	case R_LARCH_GOT_PC_LO12:
 		type = R_LARCH_PCALA_LO12;
+		got_handler = apply_r_larch_pcala;
 		break;
 	case R_LARCH_GOT_PC_HI20:
 		type = R_LARCH_PCALA_HI20;
+		got_handler = apply_r_larch_pcala;
+		break;
+	case R_LARCH_GOT_PCADD_LO12:
+		type = R_LARCH_PCADD_LO12;
+		got_handler = apply_r_larch_pcadd;
+		break;
+	case R_LARCH_GOT_PCADD_HI20:
+		type = R_LARCH_PCADD_HI20;
+		got_handler = apply_r_larch_pcadd;
 		break;
 	default:
 		pr_err("%s: Unsupport relocation type %u\n", mod->name, type);
 		return -EINVAL;
 	}
 
-	return apply_r_larch_pcala(mod, location, got, rela_stack, rela_stack_top, type);
+	return got_handler(mod, location, v, rela_stack, rela_stack_top, type);
 }
 
 static int apply_r_larch_32_pcrel(struct module *mod, u32 *location, Elf_Addr v,
-				  s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+				  long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	ptrdiff_t offset = (void *)v - (void *)location;
 
@@ -377,31 +436,22 @@ static int apply_r_larch_32_pcrel(struct module *mod, u32 *location, Elf_Addr v,
 	return 0;
 }
 
+#ifdef CONFIG_32BIT
+#define apply_r_larch_64_pcrel apply_r_larch_error
+#else
 static int apply_r_larch_64_pcrel(struct module *mod, u32 *location, Elf_Addr v,
-				  s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+				  long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	ptrdiff_t offset = (void *)v - (void *)location;
 
 	*(u64 *)location = offset;
 	return 0;
 }
-
-/*
- * reloc_handlers_rela() - Apply a particular relocation to a module
- * @mod: the module to apply the reloc to
- * @location: the address at which the reloc is to be applied
- * @v: the value of the reloc, with addend for RELA-style
- * @rela_stack: the stack used for store relocation info, LOCAL to THIS module
- * @rela_stac_top: where the stack operation(pop/push) applies to
- *
- * Return: 0 upon success, else -ERRNO
- */
-typedef int (*reloc_rela_handler)(struct module *mod, u32 *location, Elf_Addr v,
-			s64 *rela_stack, size_t *rela_stack_top, unsigned int type);
+#endif
 
 /* The handlers for known reloc types */
 static reloc_rela_handler reloc_rela_handlers[] = {
-	[R_LARCH_NONE ... R_LARCH_64_PCREL]		     = apply_r_larch_error,
+	[R_LARCH_NONE ... R_LARCH_TLS_DESC_PCADD_LO12]	     = apply_r_larch_error,
 
 	[R_LARCH_NONE]					     = apply_r_larch_none,
 	[R_LARCH_32]					     = apply_r_larch_32,
@@ -414,7 +464,8 @@ static reloc_rela_handler reloc_rela_handlers[] = {
 	[R_LARCH_SOP_SUB ... R_LARCH_SOP_IF_ELSE] 	     = apply_r_larch_sop,
 	[R_LARCH_SOP_POP_32_S_10_5 ... R_LARCH_SOP_POP_32_U] = apply_r_larch_sop_imm_field,
 	[R_LARCH_ADD32 ... R_LARCH_SUB64]		     = apply_r_larch_add_sub,
-	[R_LARCH_PCALA_HI20...R_LARCH_PCALA64_HI12]	     = apply_r_larch_pcala,
+	[R_LARCH_PCADD_HI20 ... R_LARCH_PCADD_LO12]	     = apply_r_larch_pcadd,
+	[R_LARCH_PCALA_HI20 ... R_LARCH_PCALA64_HI12]	     = apply_r_larch_pcala,
 	[R_LARCH_32_PCREL]				     = apply_r_larch_32_pcrel,
 	[R_LARCH_64_PCREL]				     = apply_r_larch_64_pcrel,
 };
@@ -423,9 +474,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		       unsigned int symindex, unsigned int relsec,
 		       struct module *mod)
 {
-	int i, err;
-	unsigned int type;
-	s64 rela_stack[RELA_STACK_DEPTH];
+	int err;
+	unsigned int i, idx, type;
+	unsigned int num_relocations;
+	long rela_stack[RELA_STACK_DEPTH];
 	size_t rela_stack_top = 0;
 	reloc_rela_handler handler;
 	void *location;
@@ -436,8 +488,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 	pr_debug("%s: Applying relocate section %u to %u\n", __func__, relsec,
 	       sechdrs[relsec].sh_info);
 
+	idx = 0;
 	rela_stack_top = 0;
-	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
+	num_relocations = sechdrs[relsec].sh_size / sizeof(*rel);
+	for (i = 0; i < num_relocations; i++) {
 		/* This is where to make the change */
 		location = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr + rel[i].r_offset;
 		/* This is the symbol it is referring to */
@@ -462,17 +516,59 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			return -EINVAL;
 		}
 
-		pr_debug("type %d st_value %llx r_addend %llx loc %llx\n",
+		pr_debug("type %d st_value %lx r_addend %lx loc %lx\n",
 		       (int)ELF_R_TYPE(rel[i].r_info),
-		       sym->st_value, rel[i].r_addend, (u64)location);
+		       (unsigned long)sym->st_value, (unsigned long)rel[i].r_addend, (unsigned long)location);
 
 		v = sym->st_value + rel[i].r_addend;
+
+		if (type == R_LARCH_PCADD_LO12 || type == R_LARCH_GOT_PCADD_LO12) {
+			bool found = false;
+			unsigned int j = idx;
+
+			do {
+				u32 hi20_type = ELF_R_TYPE(rel[j].r_info);
+				unsigned long hi20_location =
+					sechdrs[sechdrs[relsec].sh_info].sh_addr + rel[j].r_offset;
+
+				/* Find the corresponding HI20 relocation entry */
+				if ((hi20_location == sym->st_value) && (hi20_type == type - 1)) {
+					s32 hi20, lo12;
+					Elf_Sym *hi20_sym =
+						(Elf_Sym *)sechdrs[symindex].sh_addr + ELF_R_SYM(rel[j].r_info);
+					unsigned long hi20_sym_val = hi20_sym->st_value + rel[j].r_addend;
+
+					/* Calculate LO12 offset */
+					size_t offset = hi20_sym_val - hi20_location;
+					if (hi20_type == R_LARCH_GOT_PCADD_HI20) {
+						offset = module_emit_got_entry(mod, sechdrs, hi20_sym_val);
+						offset = offset - hi20_location;
+					}
+					hi20 = (offset + 0x800) & 0xfffff000;
+					v = lo12 = offset - hi20;
+					found = true;
+					break;
+				}
+
+				j = (j + 1) % num_relocations;
+
+			} while (idx != j);
+
+			if (!found) {
+				pr_err("%s: Can not find HI20 relocation information\n", mod->name);
+				return -EINVAL;
+			}
+
+			idx = j; /* Record the previous j-loop end index */
+		}
+
 		switch (type) {
 		case R_LARCH_B26:
 			err = apply_r_larch_b26(mod, sechdrs, location,
 						     v, rela_stack, &rela_stack_top, type);
 			break;
 		case R_LARCH_GOT_PC_HI20...R_LARCH_GOT_PC_LO12:
+		case R_LARCH_GOT_PCADD_HI20...R_LARCH_GOT_PCADD_LO12:
 			err = apply_r_larch_got_pc(mod, sechdrs, location,
 						     v, rela_stack, &rela_stack_top, type);
 			break;

@@ -20,16 +20,13 @@
 #define cpu_has_loongarch64		(cpu_data[0].isa_level & LOONGARCH_CPU_ISA_64BIT)
 
 #ifdef CONFIG_32BIT
-# define cpu_has_64bits			(cpu_data[0].isa_level & LOONGARCH_CPU_ISA_64BIT)
 # define cpu_vabits			31
 # define cpu_pabits			31
 #endif
 
 #ifdef CONFIG_64BIT
-# define cpu_has_64bits			1
 # define cpu_vabits			cpu_data[0].vabits
 # define cpu_pabits			cpu_data[0].pabits
-# define __NEED_ADDRBITS_PROBE
 #endif
 
 /*

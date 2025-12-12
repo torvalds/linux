@@ -7,8 +7,6 @@
 #include <generated/asm-offsets.h>
 #include <vdso/datapage.h>
 
-OUTPUT_FORMAT("elf64-loongarch", "elf64-loongarch", "elf64-loongarch")
-
 OUTPUT_ARCH(loongarch)
 
 SECTIONS
@@ -63,9 +61,11 @@ VERSION
 	LINUX_5.10 {
 	global:
 		__vdso_getcpu;
+#ifdef CONFIG_GENERIC_GETTIMEOFDAY
 		__vdso_clock_getres;
 		__vdso_clock_gettime;
 		__vdso_gettimeofday;
+#endif
 		__vdso_getrandom;
 		__vdso_rt_sigreturn;
 	local: *;

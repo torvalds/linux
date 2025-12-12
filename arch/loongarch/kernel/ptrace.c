@@ -650,8 +650,13 @@ static int ptrace_hbp_set_addr(unsigned int note_type,
 	struct perf_event_attr attr;
 
 	/* Kernel-space address cannot be monitored by user-space */
+#ifdef CONFIG_32BIT
+	if ((unsigned long)addr >= KPRANGE0)
+		return -EINVAL;
+#else
 	if ((unsigned long)addr >= XKPRANGE)
 		return -EINVAL;
+#endif
 
 	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
 	if (IS_ERR(bp))
