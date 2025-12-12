@@ -38,6 +38,9 @@ properties:
   reg:
     maxItems: 1
 
+  "#address-cells":
+    const: 0
+
   interrupts:
     maxItems: 1
 
