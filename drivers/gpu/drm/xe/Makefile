@@ -95,6 +95,7 @@ xe-y += xe_bb.o \
 	xe_oa.o \
 	xe_observation.o \
 	xe_pagefault.o \
+	xe_page_reclaim.o \
 	xe_pat.o \
 	xe_pci.o \
 	xe_pcode.o \
