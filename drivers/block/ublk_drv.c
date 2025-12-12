@@ -926,6 +926,7 @@ static size_t ublk_copy_user_pages(const struct request *req,
 	size_t done = 0;
 
 	rq_for_each_segment(bv, req, iter) {
+		unsigned len;
 		void *bv_buf;
 		size_t copied;
 
@@ -934,18 +935,17 @@ static size_t ublk_copy_user_pages(const struct request *req,
 			continue;
 		}
 
-		bv.bv_offset += offset;
-		bv.bv_len -= offset;
-		bv_buf = bvec_kmap_local(&bv);
+		len = bv.bv_len - offset;
+		bv_buf = kmap_local_page(bv.bv_page) + bv.bv_offset + offset;
 		if (dir == ITER_DEST)
-			copied = copy_to_iter(bv_buf, bv.bv_len, uiter);
+			copied = copy_to_iter(bv_buf, len, uiter);
 		else
-			copied = copy_from_iter(bv_buf, bv.bv_len, uiter);
+			copied = copy_from_iter(bv_buf, len, uiter);
 
 		kunmap_local(bv_buf);
 
 		done += copied;
-		if (copied < bv.bv_len)
+		if (copied < len)
 			break;
 
 		offset = 0;
@@ -3673,6 +3673,19 @@ exit:
 	return ret;
 }
 
+static bool ublk_ctrl_uring_cmd_may_sleep(u32 cmd_op)
+{
+	switch (_IOC_NR(cmd_op)) {
+	case UBLK_CMD_GET_QUEUE_AFFINITY:
+	case UBLK_CMD_GET_DEV_INFO:
+	case UBLK_CMD_GET_DEV_INFO2:
+	case _IOC_NR(UBLK_U_CMD_GET_FEATURES):
+		return false;
+	default:
+		return true;
+	}
+}
+
 static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 		unsigned int issue_flags)
 {
@@ -3681,7 +3694,8 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 	u32 cmd_op = cmd->cmd_op;
 	int ret = -EINVAL;
 
-	if (issue_flags & IO_URING_F_NONBLOCK)
+	if (ublk_ctrl_uring_cmd_may_sleep(cmd_op) &&
+	    issue_flags & IO_URING_F_NONBLOCK)
 		return -EAGAIN;
 
 	ublk_ctrl_cmd_dump(cmd);

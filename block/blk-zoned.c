@@ -2100,7 +2100,7 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	 * we have a zone write plug for such zone if the device has a zone
 	 * write plug hash table.
 	 */
-	if (!queue_emulates_zone_append(disk->queue) || !disk->zone_wplugs_hash)
+	if (!disk->zone_wplugs_hash)
 		return 0;
 
 	wp_offset = disk_zone_wplug_sync_wp_offset(disk, zone);
