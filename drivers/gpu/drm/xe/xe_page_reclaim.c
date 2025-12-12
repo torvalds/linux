@@ -13,8 +13,40 @@
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
 #include "xe_macros.h"
+#include "xe_mmio.h"
+#include "xe_pat.h"
 #include "xe_sa.h"
 #include "xe_tlb_inval_types.h"
+#include "xe_vm.h"
+
+/**
+ * xe_page_reclaim_skip() - Decide whether PRL should be skipped for a VMA
+ * @tile: Tile owning the VMA
+ * @vma: VMA under consideration
+ *
+ * PPC flushing may be handled by HW for specific PAT encodings.
+ * Skip PPC flushing/Page Reclaim for scenarios below due to redundant
+ * flushes.
+ * - pat_index is transient display (1)
+ *
+ * Return: true when page reclamation is unnecessary, false otherwise.
+ */
+bool xe_page_reclaim_skip(struct xe_tile *tile, struct xe_vma *vma)
+{
+	u8 l3_policy;
+
+	l3_policy = xe_pat_index_get_l3_policy(tile->xe, vma->attr.pat_index);
+
+	/*
+	 *   - l3_policy:   0=WB, 1=XD ("WB - Transient Display"), 3=UC
+	 * Transient display flushes is taken care by HW, l3_policy = 1.
+	 *
+	 * HW will sequence these transient flushes at various sync points so
+	 * any event of page reclamation will hit these sync points before
+	 * page reclamation could execute.
+	 */
+	return (l3_policy == XE_L3_POLICY_XD);
+}
 
 /**
  * xe_page_reclaim_create_prl_bo() - Back a PRL with a suballocated GGTT BO

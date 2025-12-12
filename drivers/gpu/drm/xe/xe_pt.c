@@ -2030,7 +2030,8 @@ static int unbind_op_prepare(struct xe_tile *tile,
 		xe_page_reclaim_list_alloc_entries(&pt_update_ops->prl);
 
 	/* Page reclaim may not be needed due to other features, so skip the corresponding VMA */
-	pt_op->prl = (xe_page_reclaim_list_valid(&pt_update_ops->prl)) ? &pt_update_ops->prl : NULL;
+	pt_op->prl = (xe_page_reclaim_list_valid(&pt_update_ops->prl) &&
+		     !xe_page_reclaim_skip(tile, vma)) ? &pt_update_ops->prl : NULL;
 
 	err = vma_reserve_fences(tile_to_xe(tile), vma);
 	if (err)

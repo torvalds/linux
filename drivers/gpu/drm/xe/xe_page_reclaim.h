@@ -18,6 +18,8 @@
 
 struct xe_tlb_inval;
 struct xe_tlb_inval_fence;
+struct xe_tile;
+struct xe_vma;
 
 struct xe_guc_page_reclaim_entry {
 	u64 qw;
@@ -68,6 +70,7 @@ static inline bool xe_page_reclaim_list_valid(struct xe_page_reclaim_list *prl)
 	       prl->num_entries != XE_PAGE_RECLAIM_INVALID_LIST;
 }
 
+bool xe_page_reclaim_skip(struct xe_tile *tile, struct xe_vma *vma);
 struct drm_suballoc *xe_page_reclaim_create_prl_bo(struct xe_tlb_inval *tlb_inval,
 						   struct xe_page_reclaim_list *prl,
 						   struct xe_tlb_inval_fence *fence);
