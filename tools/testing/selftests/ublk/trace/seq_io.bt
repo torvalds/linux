@@ -17,7 +17,6 @@ tracepoint:block:block_rq_complete
 		}
 		@last_rw[$dev, str($2)] = (args.sector + args.nr_sector);
 	}
-	@ios = count();
 }
 
 END {
