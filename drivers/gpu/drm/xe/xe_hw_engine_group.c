@@ -11,6 +11,7 @@
 #include "xe_gt.h"
 #include "xe_gt_stats.h"
 #include "xe_hw_engine_group.h"
+#include "xe_sync.h"
 #include "xe_vm.h"
 
 static void
@@ -21,7 +22,8 @@ hw_engine_group_resume_lr_jobs_func(struct work_struct *w)
 	int err;
 	enum xe_hw_engine_group_execution_mode previous_mode;
 
-	err = xe_hw_engine_group_get_mode(group, EXEC_MODE_LR, &previous_mode);
+	err = xe_hw_engine_group_get_mode(group, EXEC_MODE_LR, &previous_mode,
+					  NULL, 0);
 	if (err)
 		return;
 
@@ -189,10 +191,12 @@ void xe_hw_engine_group_resume_faulting_lr_jobs(struct xe_hw_engine_group *group
 /**
  * xe_hw_engine_group_suspend_faulting_lr_jobs() - Suspend the faulting LR jobs of this group
  * @group: The hw engine group
+ * @has_deps: dma-fence job triggering suspend has dependencies
  *
  * Return: 0 on success, negative error code on error.
  */
-static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group *group)
+static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group *group,
+						       bool has_deps)
 {
 	int err;
 	struct xe_exec_queue *q;
@@ -201,11 +205,18 @@ static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group
 	lockdep_assert_held_write(&group->mode_sem);
 
 	list_for_each_entry(q, &group->exec_queue_list, hw_engine_group_link) {
+		bool idle_skip_suspend;
+
 		if (!xe_vm_in_fault_mode(q->vm))
 			continue;
 
+		idle_skip_suspend = xe_exec_queue_idle_skip_suspend(q);
+		if (!idle_skip_suspend && has_deps)
+			return -EAGAIN;
+
 		xe_gt_stats_incr(q->gt, XE_GT_STATS_ID_HW_ENGINE_GROUP_SUSPEND_LR_QUEUE_COUNT, 1);
-		need_resume |= !xe_exec_queue_idle_skip_suspend(q);
+
+		need_resume |= !idle_skip_suspend;
 		q->ops->suspend(q);
 	}
 
@@ -258,7 +269,7 @@ static int xe_hw_engine_group_wait_for_dma_fence_jobs(struct xe_hw_engine_group 
 	return 0;
 }
 
-static int switch_mode(struct xe_hw_engine_group *group)
+static int switch_mode(struct xe_hw_engine_group *group, bool has_deps)
 {
 	int err = 0;
 	enum xe_hw_engine_group_execution_mode new_mode;
@@ -268,7 +279,8 @@ static int switch_mode(struct xe_hw_engine_group *group)
 	switch (group->cur_mode) {
 	case EXEC_MODE_LR:
 		new_mode = EXEC_MODE_DMA_FENCE;
-		err = xe_hw_engine_group_suspend_faulting_lr_jobs(group);
+		err = xe_hw_engine_group_suspend_faulting_lr_jobs(group,
+								  has_deps);
 		break;
 	case EXEC_MODE_DMA_FENCE:
 		new_mode = EXEC_MODE_LR;
@@ -284,19 +296,36 @@ static int switch_mode(struct xe_hw_engine_group *group)
 	return 0;
 }
 
+static int wait_syncs(struct xe_sync_entry *syncs, int num_syncs)
+{
+	int err, i;
+
+	for (i = 0; i < num_syncs; ++i) {
+		err = xe_sync_entry_wait(syncs + i);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 /**
  * xe_hw_engine_group_get_mode() - Get the group to execute in the new mode
  * @group: The hw engine group
  * @new_mode: The new execution mode
  * @previous_mode: Pointer to the previous mode provided for use by caller
+ * @syncs: Syncs from exec IOCTL
+ * @num_syncs: Number of syncs from exec IOCTL
  *
  * Return: 0 if successful, -EINTR if locking failed.
  */
 int xe_hw_engine_group_get_mode(struct xe_hw_engine_group *group,
 				enum xe_hw_engine_group_execution_mode new_mode,
-				enum xe_hw_engine_group_execution_mode *previous_mode)
+				enum xe_hw_engine_group_execution_mode *previous_mode,
+				struct xe_sync_entry *syncs, int num_syncs)
 __acquires(&group->mode_sem)
 {
+	bool has_deps = !!num_syncs;
 	int err = down_read_interruptible(&group->mode_sem);
 
 	if (err)
@@ -306,15 +335,25 @@ __acquires(&group->mode_sem)
 
 	if (new_mode != group->cur_mode) {
 		up_read(&group->mode_sem);
+retry:
 		err = down_write_killable(&group->mode_sem);
 		if (err)
 			return err;
 
 		if (new_mode != group->cur_mode) {
-			err = switch_mode(group);
+			err = switch_mode(group, has_deps);
 			if (err) {
 				up_write(&group->mode_sem);
-				return err;
+
+				if (err != -EAGAIN)
+					return err;
+
+				err = wait_syncs(syncs, num_syncs);
+				if (err)
+					return err;
+
+				has_deps = false;
+				goto retry;
 			}
 		}
 		downgrade_write(&group->mode_sem);
