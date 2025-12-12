@@ -656,7 +656,7 @@ int catpt_first_boot_firmware(struct catpt_dev *cdev)
 
 	ret = catpt_ipc_get_mixer_stream_info(cdev, &cdev->mixer);
 	if (ret)
-		return CATPT_IPC_ERROR(ret);
+		return CATPT_IPC_RET(ret);
 
 	ret = catpt_arm_stream_templates(cdev);
 	if (ret) {

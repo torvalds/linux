@@ -365,9 +365,7 @@ static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
 	if (stream->template->type != CATPT_STRM_TYPE_LOOPBACK)
 		return catpt_set_dspvol(cdev, id, (long *)pos->private_value);
 	ret = catpt_ipc_mute_loopback(cdev, id, *(bool *)pos->private_value);
-	if (ret)
-		return CATPT_IPC_ERROR(ret);
-	return 0;
+	return CATPT_IPC_RET(ret);
 }
 
 static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
@@ -414,7 +412,7 @@ static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
 				     cdev->scratch,
 				     &stream->info);
 	if (ret)
-		return CATPT_IPC_ERROR(ret);
+		return CATPT_IPC_RET(ret);
 
 	ret = catpt_dai_apply_usettings(dai, stream);
 	if (ret) {
@@ -456,11 +454,11 @@ static int catpt_dai_prepare(struct snd_pcm_substream *substream,
 
 	ret = catpt_ipc_reset_stream(cdev, stream->info.stream_hw_id);
 	if (ret)
-		return CATPT_IPC_ERROR(ret);
+		return CATPT_IPC_RET(ret);
 
 	ret = catpt_ipc_pause_stream(cdev, stream->info.stream_hw_id);
 	if (ret)
-		return CATPT_IPC_ERROR(ret);
+		return CATPT_IPC_RET(ret);
 
 	stream->prepared = true;
 	return 0;
@@ -491,7 +489,7 @@ static int catpt_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = catpt_ipc_set_write_pos(cdev, stream->info.stream_hw_id,
 					      pos, false, false);
 		if (ret)
-			return CATPT_IPC_ERROR(ret);
+			return CATPT_IPC_RET(ret);
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -499,7 +497,7 @@ static int catpt_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		catpt_dsp_update_lpclock(cdev);
 		ret = catpt_ipc_resume_stream(cdev, stream->info.stream_hw_id);
 		if (ret)
-			return CATPT_IPC_ERROR(ret);
+			return CATPT_IPC_RET(ret);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -510,7 +508,7 @@ static int catpt_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = catpt_ipc_pause_stream(cdev, stream->info.stream_hw_id);
 		catpt_dsp_update_lpclock(cdev);
 		if (ret)
-			return CATPT_IPC_ERROR(ret);
+			return CATPT_IPC_RET(ret);
 		break;
 
 	default:
@@ -679,7 +677,7 @@ static int catpt_dai_pcm_new(struct snd_soc_pcm_runtime *rtm,
 	pm_runtime_put_autosuspend(cdev->dev);
 
 	if (ret)
-		return CATPT_IPC_ERROR(ret);
+		return CATPT_IPC_RET(ret);
 
 	/* store device format set for given SSP */
 	memcpy(&cdev->devfmt[devfmt.iface], &devfmt, sizeof(devfmt));
@@ -849,9 +847,7 @@ static int catpt_set_dspvol(struct catpt_dev *cdev, u8 stream_id, long *ctlvol)
 		}
 	}
 
-	if (ret)
-		return CATPT_IPC_ERROR(ret);
-	return 0;
+	return CATPT_IPC_RET(ret);
 }
 
 static int catpt_volume_info(struct snd_kcontrol *kcontrol,
@@ -1041,7 +1037,7 @@ static int catpt_loopback_switch_put(struct snd_kcontrol *kcontrol,
 	pm_runtime_put_autosuspend(cdev->dev);
 
 	if (ret)
-		return CATPT_IPC_ERROR(ret);
+		return CATPT_IPC_RET(ret);
 
 	*(bool *)kcontrol->private_value = mute;
 	return 0;

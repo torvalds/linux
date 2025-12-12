@@ -41,7 +41,7 @@ static int catpt_do_suspend(struct device *dev)
 	memset(&cdev->dx_ctx, 0, sizeof(cdev->dx_ctx));
 	ret = catpt_ipc_enter_dxstate(cdev, CATPT_DX_STATE_D3, &cdev->dx_ctx);
 	if (ret) {
-		ret = CATPT_IPC_ERROR(ret);
+		ret = CATPT_IPC_RET(ret);
 		goto release_dma_chan;
 	}
 
@@ -107,7 +107,7 @@ static int catpt_resume(struct device *dev)
 
 		ret = catpt_ipc_set_device_format(cdev, &cdev->devfmt[i]);
 		if (ret)
-			return CATPT_IPC_ERROR(ret);
+			return CATPT_IPC_RET(ret);
 	}
 
 	return 0;

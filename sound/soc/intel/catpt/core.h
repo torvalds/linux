@@ -129,7 +129,7 @@ irqreturn_t catpt_dsp_irq_thread(int irq, void *dev_id);
  * HOST <-> DSP communication yet failure to process specific request.
  * Use below macro to convert returned non-zero values appropriately
  */
-#define CATPT_IPC_ERROR(err) (((err) < 0) ? (err) : -EREMOTEIO)
+#define CATPT_IPC_RET(ret)	(((ret) <= 0) ? (ret) : -EREMOTEIO)
 
 int catpt_dsp_send_msg_timeout(struct catpt_dev *cdev,
 			       struct catpt_ipc_msg request,
