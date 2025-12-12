@@ -103,17 +103,20 @@ struct intel_display_parent_interface {
 	/** @stolen: Stolen memory. */
 	const struct intel_display_stolen_interface *stolen;
 
-	/** @vgpu_active: Is vGPU active? Optional. */
-	bool (*vgpu_active)(struct drm_device *drm);
+	/* Generic independent functions */
+	struct {
+		/** @vgpu_active: Is vGPU active? Optional. */
+		bool (*vgpu_active)(struct drm_device *drm);
 
-	/** @has_fenced_regions: Support legacy fencing? Optional. */
-	bool (*has_fenced_regions)(struct drm_device *drm);
+		/** @has_fenced_regions: Support legacy fencing? Optional. */
+		bool (*has_fenced_regions)(struct drm_device *drm);
 
-	/** @fence_priority_display: Set display priority. Optional. */
-	void (*fence_priority_display)(struct dma_fence *fence);
+		/** @fence_priority_display: Set display priority. Optional. */
+		void (*fence_priority_display)(struct dma_fence *fence);
 
-	/** @has_auxccs: Are AuxCCS formats supported by the parent. Optional. */
-	bool (*has_auxccs)(struct drm_device *drm);
+		/** @has_auxccs: Are AuxCCS formats supported by the parent. Optional. */
+		bool (*has_auxccs)(struct drm_device *drm);
+	};
 };
 
 #endif
