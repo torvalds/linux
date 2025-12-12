@@ -133,9 +133,9 @@ irqreturn_t catpt_dsp_irq_thread(int irq, void *dev_id);
 
 int catpt_dsp_send_msg_timeout(struct catpt_dev *cdev,
 			       struct catpt_ipc_msg request,
-			       struct catpt_ipc_msg *reply, int timeout);
+			       struct catpt_ipc_msg *reply, int timeout, const char *name);
 int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
-		       struct catpt_ipc_msg *reply);
+		       struct catpt_ipc_msg *reply, const char *name);
 
 int catpt_first_boot_firmware(struct catpt_dev *cdev);
 int catpt_boot_firmware(struct catpt_dev *cdev, bool restore);
