@@ -656,6 +656,22 @@ static int do_proc_douintvec(const struct ctl_table *table, int dir,
 	return do_proc_douintvec_r(table, buffer, lenp, ppos, conv);
 }
 
+/**
+ * proc_douintvec_conv - read a vector of unsigned ints with a custom converter
+ *
+ * @table: the sysctl table
+ * @dir: %TRUE if this is a write to the sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ * @conv: Custom converter call back
+ *
+ * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
+ * values from/to the user buffer, treated as an ASCII string. Negative
+ * strings are not allowed.
+ *
+ * Returns 0 on success
+ */
 int proc_douintvec_conv(const struct ctl_table *table, int dir, void *buffer,
 			size_t *lenp, loff_t *ppos,
 			int (*conv)(unsigned long *u_ptr, unsigned int *k_ptr,
