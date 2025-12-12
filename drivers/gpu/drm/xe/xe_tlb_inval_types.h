@@ -9,6 +9,7 @@
 #include <linux/workqueue.h>
 #include <linux/dma-fence.h>
 
+struct drm_suballoc;
 struct xe_tlb_inval;
 
 /** struct xe_tlb_inval_ops - TLB invalidation ops (backend) */
@@ -40,12 +41,13 @@ struct xe_tlb_inval_ops {
 	 * @start: Start address
 	 * @end: End address
 	 * @asid: Address space ID
+	 * @prl_sa: Suballocation for page reclaim list
 	 *
 	 * Return 0 on success, -ECANCELED if backend is mid-reset, error on
 	 * failure
 	 */
 	int (*ppgtt)(struct xe_tlb_inval *tlb_inval, u32 seqno, u64 start,
-		     u64 end, u32 asid);
+		     u64 end, u32 asid, struct drm_suballoc *prl_sa);
 
 	/**
 	 * @initialized: Backend is initialized

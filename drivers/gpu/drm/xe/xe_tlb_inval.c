@@ -313,6 +313,7 @@ int xe_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval)
  * @start: start address
  * @end: end address
  * @asid: address space id
+ * @prl_sa: suballocation of page reclaim list if used, NULL indicates PPC flush
  *
  * Issue a range based TLB invalidation if supported, if not fallback to a full
  * TLB invalidation. Completion of TLB is asynchronous and caller can use
@@ -322,10 +323,10 @@ int xe_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval)
  */
 int xe_tlb_inval_range(struct xe_tlb_inval *tlb_inval,
 		       struct xe_tlb_inval_fence *fence, u64 start, u64 end,
-		       u32 asid)
+		       u32 asid, struct drm_suballoc *prl_sa)
 {
 	return xe_tlb_inval_issue(tlb_inval, fence, tlb_inval->ops->ppgtt,
-				  start, end, asid);
+				  start, end, asid, prl_sa);
 }
 
 /**
@@ -341,7 +342,7 @@ void xe_tlb_inval_vm(struct xe_tlb_inval *tlb_inval, struct xe_vm *vm)
 	u64 range = 1ull << vm->xe->info.va_bits;
 
 	xe_tlb_inval_fence_init(tlb_inval, &fence, true);
-	xe_tlb_inval_range(tlb_inval, &fence, 0, range, vm->usm.asid);
+	xe_tlb_inval_range(tlb_inval, &fence, 0, range, vm->usm.asid, NULL);
 	xe_tlb_inval_fence_wait(&fence);
 }
 

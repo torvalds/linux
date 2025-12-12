@@ -60,7 +60,7 @@ static struct dma_fence *xe_tlb_inval_job_run(struct xe_dep_job *dep_job)
 	}
 
 	xe_tlb_inval_range(job->tlb_inval, ifence, job->start,
-			   job->end, job->vm->usm.asid);
+			   job->end, job->vm->usm.asid, prl_sa);
 
 	return job->fence;
 }

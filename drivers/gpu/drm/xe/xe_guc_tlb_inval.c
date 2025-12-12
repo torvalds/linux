@@ -13,6 +13,7 @@
 #include "xe_guc_tlb_inval.h"
 #include "xe_force_wake.h"
 #include "xe_mmio.h"
+#include "xe_sa.h"
 #include "xe_tlb_inval.h"
 
 #include "regs/xe_guc_regs.h"
@@ -93,6 +94,20 @@ static int send_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval, u32 seqno)
 	return -ECANCELED;
 }
 
+static int send_page_reclaim(struct xe_guc *guc, u32 seqno,
+			     u64 gpu_addr)
+{
+	u32 action[] = {
+		XE_GUC_ACTION_PAGE_RECLAMATION,
+		seqno,
+		lower_32_bits(gpu_addr),
+		upper_32_bits(gpu_addr),
+	};
+
+	return xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
+			      G2H_LEN_DW_PAGE_RECLAMATION, 1);
+}
+
 /*
  * Ensure that roundup_pow_of_two(length) doesn't overflow.
  * Note that roundup_pow_of_two() operates on unsigned long,
@@ -101,20 +116,21 @@ static int send_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval, u32 seqno)
 #define MAX_RANGE_TLB_INVALIDATION_LENGTH (rounddown_pow_of_two(ULONG_MAX))
 
 static int send_tlb_inval_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
-				u64 start, u64 end, u32 asid)
+				u64 start, u64 end, u32 asid,
+				struct drm_suballoc *prl_sa)
 {
 #define MAX_TLB_INVALIDATION_LEN	7
 	struct xe_guc *guc = tlb_inval->private;
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 action[MAX_TLB_INVALIDATION_LEN];
 	u64 length = end - start;
-	int len = 0;
+	int len = 0, err;
 
 	if (guc_to_xe(guc)->info.force_execlist)
 		return -ECANCELED;
 
 	action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
-	action[len++] = seqno;
+	action[len++] = !prl_sa ? seqno : TLB_INVALIDATION_SEQNO_INVALID;
 	if (!gt_to_xe(gt)->info.has_range_tlb_inval ||
 	    length > MAX_RANGE_TLB_INVALIDATION_LENGTH) {
 		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_FULL);
@@ -155,7 +171,8 @@ static int send_tlb_inval_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
 						    ilog2(SZ_2M) + 1)));
 		xe_gt_assert(gt, IS_ALIGNED(start, length));
 
-		action[len++] = MAKE_INVAL_OP_FLUSH(XE_GUC_TLB_INVAL_PAGE_SELECTIVE, true);
+		/* Flush on NULL case, Media is not required to modify flush due to no PPC so NOP */
+		action[len++] = MAKE_INVAL_OP_FLUSH(XE_GUC_TLB_INVAL_PAGE_SELECTIVE, !prl_sa);
 		action[len++] = asid;
 		action[len++] = lower_32_bits(start);
 		action[len++] = upper_32_bits(start);
@@ -164,7 +181,10 @@ static int send_tlb_inval_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
 
 	xe_gt_assert(gt, len <= MAX_TLB_INVALIDATION_LEN);
 
-	return send_tlb_inval(guc, action, len);
+	err = send_tlb_inval(guc, action, len);
+	if (!err && prl_sa)
+		err = send_page_reclaim(guc, seqno, xe_sa_bo_gpu_addr(prl_sa));
+	return err;
 }
 
 static bool tlb_inval_initialized(struct xe_tlb_inval *tlb_inval)
