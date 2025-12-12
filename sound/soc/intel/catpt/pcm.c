@@ -687,7 +687,7 @@ static const struct snd_soc_dai_ops catpt_dai_ops = {
 static struct snd_soc_dai_driver dai_drivers[] = {
 /* FE DAIs */
 {
-	.name  = "System Pin",
+	.name = "System Pin",
 	.id = CATPT_STRM_TYPE_SYSTEM,
 	.ops = &catpt_fe_dai_ops,
 	.playback = {
@@ -710,7 +710,7 @@ static struct snd_soc_dai_driver dai_drivers[] = {
 	},
 },
 {
-	.name  = "Offload0 Pin",
+	.name = "Offload0 Pin",
 	.id = CATPT_STRM_TYPE_RENDER,
 	.ops = &catpt_fe_dai_ops,
 	.playback = {
@@ -724,7 +724,7 @@ static struct snd_soc_dai_driver dai_drivers[] = {
 	},
 },
 {
-	.name  = "Offload1 Pin",
+	.name = "Offload1 Pin",
 	.id = CATPT_STRM_TYPE_RENDER,
 	.ops = &catpt_fe_dai_ops,
 	.playback = {
@@ -738,7 +738,7 @@ static struct snd_soc_dai_driver dai_drivers[] = {
 	},
 },
 {
-	.name  = "Loopback Pin",
+	.name = "Loopback Pin",
 	.id = CATPT_STRM_TYPE_LOOPBACK,
 	.ops = &catpt_fe_dai_ops,
 	.capture = {
@@ -752,7 +752,7 @@ static struct snd_soc_dai_driver dai_drivers[] = {
 	},
 },
 {
-	.name  = "Bluetooth Pin",
+	.name = "Bluetooth Pin",
 	.id = CATPT_STRM_TYPE_BLUETOOTH_RENDER,
 	.ops = &catpt_fe_dai_ops,
 	.playback = {
