@@ -211,22 +211,6 @@ static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
 	return emit_pipe_control(dw, i, flags0, flags1, 0, 0);
 }
 
-static int emit_pipe_control_to_ring_end(struct xe_exec_queue *q, u32 *dw, int i)
-{
-	struct xe_hw_engine *hwe = q->hwe;
-
-	if (hwe->class != XE_ENGINE_CLASS_RENDER)
-		return i;
-
-	xe_gt_assert(q->gt, !xe_exec_queue_is_multi_queue(q));
-
-	if (XE_GT_WA(hwe->gt, 16020292621))
-		i = emit_pipe_control(dw, i, 0, PIPE_CONTROL_LRI_POST_SYNC,
-				      RING_NOPID(hwe->mmio_base).addr, 0);
-
-	return i;
-}
-
 static int emit_pipe_imm_ggtt(struct xe_exec_queue *q, u32 addr, u32 value,
 			      bool stall_only, u32 *dw, int i)
 {
@@ -412,8 +396,6 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	i = emit_pipe_imm_ggtt(job->q, xe_lrc_seqno_ggtt_addr(lrc), seqno, lacks_render, dw, i);
 
 	i = emit_user_interrupt(dw, i);
-
-	i = emit_pipe_control_to_ring_end(job->q, dw, i);
 
 	xe_gt_assert(gt, i <= MAX_JOB_SIZE_DW);
 
