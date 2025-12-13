@@ -849,7 +849,7 @@ static inline void nfsd4_revoke_states(struct net *net, struct super_block *sb)
 #endif
 
 /* grace period management */
-void nfsd4_end_grace(struct nfsd_net *nn);
+bool nfsd4_force_end_grace(struct nfsd_net *nn);
 
 /* nfs4recover operations */
 extern int nfsd4_client_tracking_init(struct net *net);
