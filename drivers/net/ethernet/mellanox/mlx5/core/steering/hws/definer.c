@@ -1280,7 +1280,7 @@ hws_definer_conv_misc2(struct mlx5hws_definer_conv_data *cd,
 	struct mlx5hws_definer_fc *fc = cd->fc;
 	struct mlx5hws_definer_fc *curr_fc;
 
-	if (HWS_IS_FLD_SET_SZ(match_param, misc_parameters_2.reserved_at_1a0, 0x8) ||
+	if (HWS_IS_FLD_SET_SZ(match_param, misc_parameters_2.psp_syndrome, 0x8) ||
 	    HWS_IS_FLD_SET_SZ(match_param,
 			      misc_parameters_2.ipsec_next_header, 0x8) ||
 	    HWS_IS_FLD_SET_SZ(match_param, misc_parameters_2.reserved_at_1c0, 0x40) ||
@@ -1831,80 +1831,6 @@ err_free_fc:
 	return ret;
 }
 
-struct mlx5hws_definer_fc *
-mlx5hws_definer_conv_match_params_to_compressed_fc(struct mlx5hws_context *ctx,
-						   u8 match_criteria_enable,
-						   u32 *match_param,
-						   int *fc_sz)
-{
-	struct mlx5hws_definer_fc *compressed_fc = NULL;
-	struct mlx5hws_definer_conv_data cd = {0};
-	struct mlx5hws_definer_fc *fc;
-	int ret;
-
-	fc = hws_definer_alloc_fc(ctx, MLX5HWS_DEFINER_FNAME_MAX);
-	if (!fc)
-		return NULL;
-
-	cd.fc = fc;
-	cd.ctx = ctx;
-
-	if (match_criteria_enable & MLX5HWS_DEFINER_MATCH_CRITERIA_OUTER) {
-		ret = hws_definer_conv_outer(&cd, match_param);
-		if (ret)
-			goto err_free_fc;
-	}
-
-	if (match_criteria_enable & MLX5HWS_DEFINER_MATCH_CRITERIA_INNER) {
-		ret = hws_definer_conv_inner(&cd, match_param);
-		if (ret)
-			goto err_free_fc;
-	}
-
-	if (match_criteria_enable & MLX5HWS_DEFINER_MATCH_CRITERIA_MISC) {
-		ret = hws_definer_conv_misc(&cd, match_param);
-		if (ret)
-			goto err_free_fc;
-	}
-
-	if (match_criteria_enable & MLX5HWS_DEFINER_MATCH_CRITERIA_MISC2) {
-		ret = hws_definer_conv_misc2(&cd, match_param);
-		if (ret)
-			goto err_free_fc;
-	}
-
-	if (match_criteria_enable & MLX5HWS_DEFINER_MATCH_CRITERIA_MISC3) {
-		ret = hws_definer_conv_misc3(&cd, match_param);
-		if (ret)
-			goto err_free_fc;
-	}
-
-	if (match_criteria_enable & MLX5HWS_DEFINER_MATCH_CRITERIA_MISC4) {
-		ret = hws_definer_conv_misc4(&cd, match_param);
-		if (ret)
-			goto err_free_fc;
-	}
-
-	if (match_criteria_enable & MLX5HWS_DEFINER_MATCH_CRITERIA_MISC5) {
-		ret = hws_definer_conv_misc5(&cd, match_param);
-		if (ret)
-			goto err_free_fc;
-	}
-
-	/* Allocate fc array on mt */
-	compressed_fc = hws_definer_alloc_compressed_fc(fc);
-	if (!compressed_fc) {
-		mlx5hws_err(ctx,
-			    "Convert to compressed fc: failed to set field copy to match template\n");
-		goto err_free_fc;
-	}
-	*fc_sz = hws_definer_get_fc_size(fc);
-
-err_free_fc:
-	kfree(fc);
-	return compressed_fc;
-}
-
 static int
 hws_definer_find_byte_in_tag(struct mlx5hws_definer *definer,
 			     u32 hl_byte_off,
@@ -2067,7 +1993,7 @@ hws_definer_copy_sel_ctrl(struct mlx5hws_definer_sel_ctrl *ctrl,
 static int
 hws_definer_find_best_match_fit(struct mlx5hws_context *ctx,
 				struct mlx5hws_definer *definer,
-				u8 *hl)
+				u8 *hl, bool allow_jumbo)
 {
 	struct mlx5hws_definer_sel_ctrl ctrl = {0};
 	bool found;
@@ -2083,6 +2009,9 @@ hws_definer_find_best_match_fit(struct mlx5hws_context *ctx,
 		definer->type = MLX5HWS_DEFINER_TYPE_MATCH;
 		return 0;
 	}
+
+	if (!allow_jumbo)
+		return -E2BIG;
 
 	/* Try to create a full/limited jumbo definer */
 	ctrl.allowed_full_dw = ctx->caps->full_dw_jumbo_support ? DW_SELECTORS :
@@ -2160,7 +2089,8 @@ int mlx5hws_definer_compare(struct mlx5hws_definer *definer_a,
 int
 mlx5hws_definer_calc_layout(struct mlx5hws_context *ctx,
 			    struct mlx5hws_match_template *mt,
-			    struct mlx5hws_definer *match_definer)
+			    struct mlx5hws_definer *match_definer,
+			    bool allow_jumbo)
 {
 	u8 *match_hl;
 	int ret;
@@ -2182,7 +2112,8 @@ mlx5hws_definer_calc_layout(struct mlx5hws_context *ctx,
 	}
 
 	/* Find the match definer layout for header layout match union */
-	ret = hws_definer_find_best_match_fit(ctx, match_definer, match_hl);
+	ret = hws_definer_find_best_match_fit(ctx, match_definer, match_hl,
+					      allow_jumbo);
 	if (ret) {
 		if (ret == -E2BIG)
 			mlx5hws_dbg(ctx,
@@ -2370,7 +2301,7 @@ int mlx5hws_definer_mt_init(struct mlx5hws_context *ctx,
 	struct mlx5hws_definer match_layout = {0};
 	int ret;
 
-	ret = mlx5hws_definer_calc_layout(ctx, mt, &match_layout);
+	ret = mlx5hws_definer_calc_layout(ctx, mt, &match_layout, true);
 	if (ret) {
 		mlx5hws_err(ctx, "Failed to calculate matcher definer layout\n");
 		return ret;

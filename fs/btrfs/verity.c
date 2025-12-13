@@ -487,12 +487,12 @@ static int rollback_verity(struct btrfs_inode *inode)
 	inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
 	btrfs_sync_inode_flags_to_i_flags(inode);
 	ret = btrfs_update_inode(trans, inode);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 	ret = del_orphan(trans, inode);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -676,11 +676,11 @@ int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size)
 	if (ret < 0)
 		return ret;
 
-	if (item.reserved[0] != 0 || item.reserved[1] != 0)
+	if (unlikely(item.reserved[0] != 0 || item.reserved[1] != 0))
 		return -EUCLEAN;
 
 	true_size = btrfs_stack_verity_descriptor_size(&item);
-	if (true_size > INT_MAX)
+	if (unlikely(true_size > INT_MAX))
 		return -EUCLEAN;
 
 	if (buf_size == 0)
@@ -802,6 +802,8 @@ static int btrfs_write_merkle_tree_block(struct inode *inode, const void *buf,
 }
 
 const struct fsverity_operations btrfs_verityops = {
+	.inode_info_offs         = (int)offsetof(struct btrfs_inode, i_verity_info) -
+				   (int)offsetof(struct btrfs_inode, vfs_inode),
 	.begin_enable_verity     = btrfs_begin_enable_verity,
 	.end_enable_verity       = btrfs_end_enable_verity,
 	.get_verity_descriptor   = btrfs_get_verity_descriptor,

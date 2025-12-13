@@ -7,12 +7,25 @@
 #include <asm/kvm_ipi.h>
 #include <asm/kvm_vcpu.h>
 
+static void ipi_set(struct kvm_vcpu *vcpu, uint32_t data)
+{
+	uint32_t status;
+	struct kvm_interrupt irq;
+
+	spin_lock(&vcpu->arch.ipi_state.lock);
+	status = vcpu->arch.ipi_state.status;
+	vcpu->arch.ipi_state.status |= data;
+	spin_unlock(&vcpu->arch.ipi_state.lock);
+	if ((status == 0) && data) {
+		irq.irq = LARCH_INT_IPI;
+		kvm_vcpu_ioctl_interrupt(vcpu, &irq);
+	}
+}
+
 static void ipi_send(struct kvm *kvm, uint64_t data)
 {
-	int cpu, action;
-	uint32_t status;
+	int cpu;
 	struct kvm_vcpu *vcpu;
-	struct kvm_interrupt irq;
 
 	cpu = ((data & 0xffffffff) >> 16) & 0x3ff;
 	vcpu = kvm_get_vcpu_by_cpuid(kvm, cpu);
@@ -21,15 +34,7 @@ static void ipi_send(struct kvm *kvm, uint64_t data)
 		return;
 	}
 
-	action = BIT(data & 0x1f);
-	spin_lock(&vcpu->arch.ipi_state.lock);
-	status = vcpu->arch.ipi_state.status;
-	vcpu->arch.ipi_state.status |= action;
-	spin_unlock(&vcpu->arch.ipi_state.lock);
-	if (status == 0) {
-		irq.irq = LARCH_INT_IPI;
-		kvm_vcpu_ioctl_interrupt(vcpu, &irq);
-	}
+	ipi_set(vcpu, BIT(data & 0x1f));
 }
 
 static void ipi_clear(struct kvm_vcpu *vcpu, uint64_t data)
@@ -96,10 +101,38 @@ static void write_mailbox(struct kvm_vcpu *vcpu, int offset, uint64_t data, int 
 	spin_unlock(&vcpu->arch.ipi_state.lock);
 }
 
+static int mail_send(struct kvm *kvm, uint64_t data)
+{
+	int i, cpu, mailbox, offset;
+	uint32_t val = 0, mask = 0;
+	struct kvm_vcpu *vcpu;
+
+	cpu = ((data & 0xffffffff) >> 16) & 0x3ff;
+	vcpu = kvm_get_vcpu_by_cpuid(kvm, cpu);
+	if (unlikely(vcpu == NULL)) {
+		kvm_err("%s: invalid target cpu: %d\n", __func__, cpu);
+		return -EINVAL;
+	}
+	mailbox = ((data & 0xffffffff) >> 2) & 0x7;
+	offset = IOCSR_IPI_BUF_20 + mailbox * 4;
+	if ((data >> 27) & 0xf) {
+		val = read_mailbox(vcpu, offset, 4);
+		for (i = 0; i < 4; i++)
+			if (data & (BIT(27 + i)))
+				mask |= (0xff << (i * 8));
+		val &= mask;
+	}
+
+	val |= ((uint32_t)(data >> 32) & ~mask);
+	write_mailbox(vcpu, offset, val, 4);
+
+	return 0;
+}
+
 static int send_ipi_data(struct kvm_vcpu *vcpu, gpa_t addr, uint64_t data)
 {
 	int i, idx, ret;
-	uint32_t val = 0, mask = 0;
+	uint64_t val = 0, mask = 0;
 
 	/*
 	 * Bit 27-30 is mask for byte writing.
@@ -108,7 +141,7 @@ static int send_ipi_data(struct kvm_vcpu *vcpu, gpa_t addr, uint64_t data)
 	if ((data >> 27) & 0xf) {
 		/* Read the old val */
 		idx = srcu_read_lock(&vcpu->kvm->srcu);
-		ret = kvm_io_bus_read(vcpu, KVM_IOCSR_BUS, addr, sizeof(val), &val);
+		ret = kvm_io_bus_read(vcpu, KVM_IOCSR_BUS, addr, 4, &val);
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		if (unlikely(ret)) {
 			kvm_err("%s: : read data from addr %llx failed\n", __func__, addr);
@@ -124,29 +157,12 @@ static int send_ipi_data(struct kvm_vcpu *vcpu, gpa_t addr, uint64_t data)
 	}
 	val |= ((uint32_t)(data >> 32) & ~mask);
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	ret = kvm_io_bus_write(vcpu, KVM_IOCSR_BUS, addr, sizeof(val), &val);
+	ret = kvm_io_bus_write(vcpu, KVM_IOCSR_BUS, addr, 4, &val);
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	if (unlikely(ret))
 		kvm_err("%s: : write data to addr %llx failed\n", __func__, addr);
 
 	return ret;
-}
-
-static int mail_send(struct kvm *kvm, uint64_t data)
-{
-	int cpu, mailbox, offset;
-	struct kvm_vcpu *vcpu;
-
-	cpu = ((data & 0xffffffff) >> 16) & 0x3ff;
-	vcpu = kvm_get_vcpu_by_cpuid(kvm, cpu);
-	if (unlikely(vcpu == NULL)) {
-		kvm_err("%s: invalid target cpu: %d\n", __func__, cpu);
-		return -EINVAL;
-	}
-	mailbox = ((data & 0xffffffff) >> 2) & 0x7;
-	offset = IOCSR_IPI_BASE + IOCSR_IPI_BUF_20 + mailbox * 4;
-
-	return send_ipi_data(vcpu, offset, data);
 }
 
 static int any_send(struct kvm *kvm, uint64_t data)
@@ -231,7 +247,7 @@ static int loongarch_ipi_writel(struct kvm_vcpu *vcpu, gpa_t addr, int len, cons
 		spin_unlock(&vcpu->arch.ipi_state.lock);
 		break;
 	case IOCSR_IPI_SET:
-		ret = -EINVAL;
+		ipi_set(vcpu, data);
 		break;
 	case IOCSR_IPI_CLEAR:
 		/* Just clear the status of the current vcpu */
@@ -250,10 +266,10 @@ static int loongarch_ipi_writel(struct kvm_vcpu *vcpu, gpa_t addr, int len, cons
 		ipi_send(vcpu->kvm, data);
 		break;
 	case IOCSR_MAIL_SEND:
-		ret = mail_send(vcpu->kvm, *(uint64_t *)val);
+		ret = mail_send(vcpu->kvm, data);
 		break;
 	case IOCSR_ANY_SEND:
-		ret = any_send(vcpu->kvm, *(uint64_t *)val);
+		ret = any_send(vcpu->kvm, data);
 		break;
 	default:
 		kvm_err("%s: unknown addr: %llx\n", __func__, addr);
@@ -298,7 +314,7 @@ static int kvm_ipi_regs_access(struct kvm_device *dev,
 	cpu = (attr->attr >> 16) & 0x3ff;
 	addr = attr->attr & 0xff;
 
-	vcpu = kvm_get_vcpu(dev->kvm, cpu);
+	vcpu = kvm_get_vcpu_by_id(dev->kvm, cpu);
 	if (unlikely(vcpu == NULL)) {
 		kvm_err("%s: invalid target cpu: %d\n", __func__, cpu);
 		return -EINVAL;

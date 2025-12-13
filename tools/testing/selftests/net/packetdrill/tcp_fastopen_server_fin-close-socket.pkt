@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Send a FIN pkt with the ACK bit to a TFO socket.
+// The socket will go to TCP_CLOSE_WAIT state and data can be
+// read until the socket is closed, at which time a FIN will be sent.
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 0:10(10) win 32792 <mss 1460,sackOK,nop,nop,FO TFO_COOKIE,nop,nop>
+   +0 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK>
+
+// FIN is acked and the socket goes to TCP_CLOSE_WAIT state
+// in tcp_fin() called from tcp_data_queue().
+   +0 < F. 11:11(0) ack 1 win 32792
+   +0 > . 1:1(0) ack 12
+
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) != 0, tcpi_options }%
+   +0 %{ assert tcpi_state == TCP_CLOSE_WAIT, tcpi_state }%
+
+   +0 read(4, ..., 512) = 10
+   +0 close(4) = 0
+   +0 > F. 1:1(0) ack 12
+    * > F. 1:1(0) ack 12

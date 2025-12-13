@@ -11,11 +11,6 @@
 #define NR_CHUNKS	100
 #define MSG_LEN		256
 
-struct scm_inq {
-	struct cmsghdr cmsghdr;
-	int inq;
-};
-
 FIXTURE(scm_inq)
 {
 	int fd[2];
@@ -70,35 +65,38 @@ static void send_chunks(struct __test_metadata *_metadata,
 static void recv_chunks(struct __test_metadata *_metadata,
 			FIXTURE_DATA(scm_inq) *self)
 {
+	char cmsg_buf[CMSG_SPACE(sizeof(int))];
 	struct msghdr msg = {};
 	struct iovec iov = {};
-	struct scm_inq cmsg;
+	struct cmsghdr *cmsg;
 	char buf[MSG_LEN];
 	int i, ret;
 	int inq;
 
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-	msg.msg_control = &cmsg;
-	msg.msg_controllen = CMSG_SPACE(sizeof(cmsg.inq));
+	msg.msg_control = cmsg_buf;
+	msg.msg_controllen = sizeof(cmsg_buf);
 
 	iov.iov_base = buf;
 	iov.iov_len = sizeof(buf);
 
 	for (i = 0; i < NR_CHUNKS; i++) {
 		memset(buf, 0, sizeof(buf));
-		memset(&cmsg, 0, sizeof(cmsg));
+		memset(cmsg_buf, 0, sizeof(cmsg_buf));
 
 		ret = recvmsg(self->fd[1], &msg, 0);
 		ASSERT_EQ(MSG_LEN, ret);
-		ASSERT_NE(NULL, CMSG_FIRSTHDR(&msg));
-		ASSERT_EQ(CMSG_LEN(sizeof(cmsg.inq)), cmsg.cmsghdr.cmsg_len);
-		ASSERT_EQ(SOL_SOCKET, cmsg.cmsghdr.cmsg_level);
-		ASSERT_EQ(SCM_INQ, cmsg.cmsghdr.cmsg_type);
+
+		cmsg = CMSG_FIRSTHDR(&msg);
+		ASSERT_NE(NULL, cmsg);
+		ASSERT_EQ(CMSG_LEN(sizeof(int)), cmsg->cmsg_len);
+		ASSERT_EQ(SOL_SOCKET, cmsg->cmsg_level);
+		ASSERT_EQ(SCM_INQ, cmsg->cmsg_type);
 
 		ret = ioctl(self->fd[1], SIOCINQ, &inq);
 		ASSERT_EQ(0, ret);
-		ASSERT_EQ(cmsg.inq, inq);
+		ASSERT_EQ(*(int *)CMSG_DATA(cmsg), inq);
 	}
 }
 

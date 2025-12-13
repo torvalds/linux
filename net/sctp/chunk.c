@@ -184,7 +184,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	 * DATA.
 	 */
 	if (sctp_auth_send_cid(SCTP_CID_DATA, asoc)) {
-		struct sctp_hmac *hmac_desc = sctp_auth_asoc_get_hmac(asoc);
+		const struct sctp_hmac *hmac_desc =
+			sctp_auth_asoc_get_hmac(asoc);
 
 		if (hmac_desc)
 			max_data -= SCTP_PAD4(sizeof(struct sctp_auth_chunk) +

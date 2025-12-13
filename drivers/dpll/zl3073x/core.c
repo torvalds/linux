@@ -95,9 +95,9 @@ EXPORT_SYMBOL_NS_GPL(zl30735_chip_info, "ZL3073X");
 
 #define ZL_RANGE_OFFSET		0x80
 #define ZL_PAGE_SIZE		0x80
-#define ZL_NUM_PAGES		15
+#define ZL_NUM_PAGES		256
 #define ZL_PAGE_SEL		0x7F
-#define ZL_PAGE_SEL_MASK	GENMASK(3, 0)
+#define ZL_PAGE_SEL_MASK	GENMASK(7, 0)
 #define ZL_NUM_REGS		(ZL_NUM_PAGES * ZL_PAGE_SIZE)
 
 /* Regmap range configuration */
@@ -174,9 +174,10 @@ static bool
 zl3073x_check_reg(struct zl3073x_dev *zldev, unsigned int reg, size_t size)
 {
 	/* Check that multiop lock is held when accessing registers
-	 * from page 10 and above.
+	 * from page 10 and above except the page 255 that does not
+	 * need this protection.
 	 */
-	if (ZL_REG_PAGE(reg) >= 10)
+	if (ZL_REG_PAGE(reg) >= 10 && ZL_REG_PAGE(reg) < 255)
 		lockdep_assert_held(&zldev->multiop_lock);
 
 	/* Check the index is in valid range for indexed register */
@@ -444,6 +445,152 @@ int zl3073x_mb_op(struct zl3073x_dev *zldev, unsigned int op_reg, u8 op_val,
 
 	/* Wait for the operation to actually finish */
 	return zl3073x_poll_zero_u8(zldev, op_reg, op_val);
+}
+
+/**
+ * zl3073x_do_hwreg_op - Perform HW register read/write operation
+ * @zldev: zl3073x device pointer
+ * @op: operation to perform
+ *
+ * Performs requested operation and waits for its completion.
+ *
+ * Return: 0 on success, <0 on error
+ */
+static int
+zl3073x_do_hwreg_op(struct zl3073x_dev *zldev, u8 op)
+{
+	int rc;
+
+	/* Set requested operation and set pending bit */
+	rc = zl3073x_write_u8(zldev, ZL_REG_HWREG_OP, op | ZL_HWREG_OP_PENDING);
+	if (rc)
+		return rc;
+
+	/* Poll for completion - pending bit cleared */
+	return zl3073x_poll_zero_u8(zldev, ZL_REG_HWREG_OP,
+				    ZL_HWREG_OP_PENDING);
+}
+
+/**
+ * zl3073x_read_hwreg - Read HW register
+ * @zldev: zl3073x device pointer
+ * @addr: HW register address
+ * @value: Value of the HW register
+ *
+ * Reads HW register value and stores it into @value.
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_read_hwreg(struct zl3073x_dev *zldev, u32 addr, u32 *value)
+{
+	int rc;
+
+	/* Set address to read data from */
+	rc = zl3073x_write_u32(zldev, ZL_REG_HWREG_ADDR, addr);
+	if (rc)
+		return rc;
+
+	/* Perform the read operation */
+	rc = zl3073x_do_hwreg_op(zldev, ZL_HWREG_OP_READ);
+	if (rc)
+		return rc;
+
+	/* Read the received data */
+	return zl3073x_read_u32(zldev, ZL_REG_HWREG_READ_DATA, value);
+}
+
+/**
+ * zl3073x_write_hwreg - Write value to HW register
+ * @zldev: zl3073x device pointer
+ * @addr: HW registers address
+ * @value: Value to be written to HW register
+ *
+ * Stores the requested value into HW register.
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_write_hwreg(struct zl3073x_dev *zldev, u32 addr, u32 value)
+{
+	int rc;
+
+	/* Set address to write data to */
+	rc = zl3073x_write_u32(zldev, ZL_REG_HWREG_ADDR, addr);
+	if (rc)
+		return rc;
+
+	/* Set data to be written */
+	rc = zl3073x_write_u32(zldev, ZL_REG_HWREG_WRITE_DATA, value);
+	if (rc)
+		return rc;
+
+	/* Perform the write operation */
+	return zl3073x_do_hwreg_op(zldev, ZL_HWREG_OP_WRITE);
+}
+
+/**
+ * zl3073x_update_hwreg - Update certain bits in HW register
+ * @zldev: zl3073x device pointer
+ * @addr: HW register address
+ * @value: Value to be written into HW register
+ * @mask: Bitmask indicating bits to be updated
+ *
+ * Reads given HW register, updates requested bits specified by value and
+ * mask and writes result back to HW register.
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_update_hwreg(struct zl3073x_dev *zldev, u32 addr, u32 value,
+			 u32 mask)
+{
+	u32 tmp;
+	int rc;
+
+	rc = zl3073x_read_hwreg(zldev, addr, &tmp);
+	if (rc)
+		return rc;
+
+	tmp &= ~mask;
+	tmp |= value & mask;
+
+	return zl3073x_write_hwreg(zldev, addr, tmp);
+}
+
+/**
+ * zl3073x_write_hwreg_seq - Write HW registers sequence
+ * @zldev: pointer to device structure
+ * @seq: pointer to first sequence item
+ * @num_items: number of items in sequence
+ *
+ * Writes given HW registers sequence.
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_write_hwreg_seq(struct zl3073x_dev *zldev,
+			    const struct zl3073x_hwreg_seq_item *seq,
+			    size_t num_items)
+{
+	int i, rc = 0;
+
+	for (i = 0; i < num_items; i++) {
+		dev_dbg(zldev->dev, "Write 0x%0x [0x%0x] to 0x%0x",
+			seq[i].value, seq[i].mask, seq[i].addr);
+
+		if (seq[i].mask == U32_MAX)
+			/* Write value directly */
+			rc = zl3073x_write_hwreg(zldev, seq[i].addr,
+						 seq[i].value);
+		else
+			/* Update only bits specified by the mask */
+			rc = zl3073x_update_hwreg(zldev, seq[i].addr,
+						  seq[i].value, seq[i].mask);
+		if (rc)
+			return rc;
+
+		if (seq->wait)
+			msleep(seq->wait);
+	}
+
+	return rc;
 }
 
 /**
@@ -809,21 +956,190 @@ zl3073x_dev_periodic_work(struct kthread_work *work)
 				   msecs_to_jiffies(500));
 }
 
+int zl3073x_dev_phase_avg_factor_set(struct zl3073x_dev *zldev, u8 factor)
+{
+	u8 dpll_meas_ctrl, value;
+	int rc;
+
+	/* Read DPLL phase measurement control register */
+	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, &dpll_meas_ctrl);
+	if (rc)
+		return rc;
+
+	/* Convert requested factor to register value */
+	value = (factor + 1) & 0x0f;
+
+	/* Update phase measurement control register */
+	dpll_meas_ctrl &= ~ZL_DPLL_MEAS_CTRL_AVG_FACTOR;
+	dpll_meas_ctrl |= FIELD_PREP(ZL_DPLL_MEAS_CTRL_AVG_FACTOR, value);
+	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, dpll_meas_ctrl);
+	if (rc)
+		return rc;
+
+	/* Save the new factor */
+	zldev->phase_avg_factor = factor;
+
+	return 0;
+}
+
+/**
+ * zl3073x_dev_phase_meas_setup - setup phase offset measurement
+ * @zldev: pointer to zl3073x_dev structure
+ *
+ * Enable phase offset measurement block, set measurement averaging factor
+ * and enable DPLL-to-its-ref phase measurement for all DPLLs.
+ *
+ * Returns: 0 on success, <0 on error
+ */
+static int
+zl3073x_dev_phase_meas_setup(struct zl3073x_dev *zldev)
+{
+	struct zl3073x_dpll *zldpll;
+	u8 dpll_meas_ctrl, mask = 0;
+	int rc;
+
+	/* Setup phase measurement averaging factor */
+	rc = zl3073x_dev_phase_avg_factor_set(zldev, zldev->phase_avg_factor);
+	if (rc)
+		return rc;
+
+	/* Read DPLL phase measurement control register */
+	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, &dpll_meas_ctrl);
+	if (rc)
+		return rc;
+
+	/* Enable DPLL measurement block */
+	dpll_meas_ctrl |= ZL_DPLL_MEAS_CTRL_EN;
+
+	/* Update phase measurement control register */
+	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, dpll_meas_ctrl);
+	if (rc)
+		return rc;
+
+	/* Enable DPLL-to-connected-ref measurement for each channel */
+	list_for_each_entry(zldpll, &zldev->dplls, list)
+		mask |= BIT(zldpll->id);
+
+	return zl3073x_write_u8(zldev, ZL_REG_DPLL_PHASE_ERR_READ_MASK, mask);
+}
+
+/**
+ * zl3073x_dev_start - Start normal operation
+ * @zldev: zl3073x device pointer
+ * @full: perform full initialization
+ *
+ * The function starts normal operation, which means registering all DPLLs and
+ * their pins, and starting monitoring. If full initialization is requested,
+ * the function additionally initializes the phase offset measurement block and
+ * fetches hardware-invariant parameters.
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_dev_start(struct zl3073x_dev *zldev, bool full)
+{
+	struct zl3073x_dpll *zldpll;
+	u8 info;
+	int rc;
+
+	rc = zl3073x_read_u8(zldev, ZL_REG_INFO, &info);
+	if (rc) {
+		dev_err(zldev->dev, "Failed to read device status info\n");
+		return rc;
+	}
+
+	if (!FIELD_GET(ZL_INFO_READY, info)) {
+		/* The ready bit indicates that the firmware was successfully
+		 * configured and is ready for normal operation. If it is
+		 * cleared then the configuration stored in flash is wrong
+		 * or missing. In this situation the driver will expose
+		 * only devlink interface to give an opportunity to flash
+		 * the correct config.
+		 */
+		dev_info(zldev->dev,
+			 "FW not fully ready - missing or corrupted config\n");
+
+		return 0;
+	}
+
+	if (full) {
+		/* Fetch device state */
+		rc = zl3073x_dev_state_fetch(zldev);
+		if (rc)
+			return rc;
+
+		/* Setup phase offset measurement block */
+		rc = zl3073x_dev_phase_meas_setup(zldev);
+		if (rc) {
+			dev_err(zldev->dev,
+				"Failed to setup phase measurement\n");
+			return rc;
+		}
+	}
+
+	/* Register all DPLLs */
+	list_for_each_entry(zldpll, &zldev->dplls, list) {
+		rc = zl3073x_dpll_register(zldpll);
+		if (rc) {
+			dev_err_probe(zldev->dev, rc,
+				      "Failed to register DPLL%u\n",
+				      zldpll->id);
+			return rc;
+		}
+	}
+
+	/* Perform initial firmware fine phase correction */
+	rc = zl3073x_dpll_init_fine_phase_adjust(zldev);
+	if (rc) {
+		dev_err_probe(zldev->dev, rc,
+			      "Failed to init fine phase correction\n");
+		return rc;
+	}
+
+	/* Start monitoring */
+	kthread_queue_delayed_work(zldev->kworker, &zldev->work, 0);
+
+	return 0;
+}
+
+/**
+ * zl3073x_dev_stop - Stop normal operation
+ * @zldev: zl3073x device pointer
+ *
+ * The function stops the normal operation that mean deregistration of all
+ * DPLLs and their pins and stop monitoring.
+ *
+ * Return: 0 on success, <0 on error
+ */
+void zl3073x_dev_stop(struct zl3073x_dev *zldev)
+{
+	struct zl3073x_dpll *zldpll;
+
+	/* Stop monitoring */
+	kthread_cancel_delayed_work_sync(&zldev->work);
+
+	/* Unregister all DPLLs */
+	list_for_each_entry(zldpll, &zldev->dplls, list) {
+		if (zldpll->dpll_dev)
+			zl3073x_dpll_unregister(zldpll);
+	}
+}
+
 static void zl3073x_dev_dpll_fini(void *ptr)
 {
 	struct zl3073x_dpll *zldpll, *next;
 	struct zl3073x_dev *zldev = ptr;
 
-	/* Stop monitoring thread */
+	/* Stop monitoring and unregister DPLLs */
+	zl3073x_dev_stop(zldev);
+
+	/* Destroy monitoring thread */
 	if (zldev->kworker) {
-		kthread_cancel_delayed_work_sync(&zldev->work);
 		kthread_destroy_worker(zldev->kworker);
 		zldev->kworker = NULL;
 	}
 
-	/* Release DPLLs */
+	/* Free all DPLLs */
 	list_for_each_entry_safe(zldpll, next, &zldev->dplls, list) {
-		zl3073x_dpll_unregister(zldpll);
 		list_del(&zldpll->list);
 		zl3073x_dpll_free(zldpll);
 	}
@@ -839,7 +1155,7 @@ zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
 
 	INIT_LIST_HEAD(&zldev->dplls);
 
-	/* Initialize all DPLLs */
+	/* Allocate all DPLLs */
 	for (i = 0; i < num_dplls; i++) {
 		zldpll = zl3073x_dpll_alloc(zldev, i);
 		if (IS_ERR(zldpll)) {
@@ -849,23 +1165,7 @@ zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
 			goto error;
 		}
 
-		rc = zl3073x_dpll_register(zldpll);
-		if (rc) {
-			dev_err_probe(zldev->dev, rc,
-				      "Failed to register DPLL%u\n", i);
-			zl3073x_dpll_free(zldpll);
-			goto error;
-		}
-
 		list_add_tail(&zldpll->list, &zldev->dplls);
-	}
-
-	/* Perform initial firmware fine phase correction */
-	rc = zl3073x_dpll_init_fine_phase_adjust(zldev);
-	if (rc) {
-		dev_err_probe(zldev->dev, rc,
-			      "Failed to init fine phase correction\n");
-		goto error;
 	}
 
 	/* Initialize monitoring thread */
@@ -875,9 +1175,14 @@ zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
 		rc = PTR_ERR(kworker);
 		goto error;
 	}
-
 	zldev->kworker = kworker;
-	kthread_queue_delayed_work(zldev->kworker, &zldev->work, 0);
+
+	/* Start normal operation */
+	rc = zl3073x_dev_start(zldev, true);
+	if (rc) {
+		dev_err_probe(zldev->dev, rc, "Failed to start device\n");
+		goto error;
+	}
 
 	/* Add devres action to release DPLL related resources */
 	rc = devm_add_action_or_reset(zldev->dev, zl3073x_dev_dpll_fini, zldev);
@@ -890,46 +1195,6 @@ error:
 	zl3073x_dev_dpll_fini(zldev);
 
 	return rc;
-}
-
-/**
- * zl3073x_dev_phase_meas_setup - setup phase offset measurement
- * @zldev: pointer to zl3073x_dev structure
- * @num_channels: number of DPLL channels
- *
- * Enable phase offset measurement block, set measurement averaging factor
- * and enable DPLL-to-its-ref phase measurement for all DPLLs.
- *
- * Returns: 0 on success, <0 on error
- */
-static int
-zl3073x_dev_phase_meas_setup(struct zl3073x_dev *zldev, int num_channels)
-{
-	u8 dpll_meas_ctrl, mask;
-	int i, rc;
-
-	/* Read DPLL phase measurement control register */
-	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, &dpll_meas_ctrl);
-	if (rc)
-		return rc;
-
-	/* Setup phase measurement averaging factor */
-	dpll_meas_ctrl &= ~ZL_DPLL_MEAS_CTRL_AVG_FACTOR;
-	dpll_meas_ctrl |= FIELD_PREP(ZL_DPLL_MEAS_CTRL_AVG_FACTOR, 3);
-
-	/* Enable DPLL measurement block */
-	dpll_meas_ctrl |= ZL_DPLL_MEAS_CTRL_EN;
-
-	/* Update phase measurement control register */
-	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, dpll_meas_ctrl);
-	if (rc)
-		return rc;
-
-	/* Enable DPLL-to-connected-ref measurement for each channel */
-	for (i = 0, mask = 0; i < num_channels; i++)
-		mask |= BIT(i);
-
-	return zl3073x_write_u8(zldev, ZL_REG_DPLL_PHASE_ERR_READ_MASK, mask);
 }
 
 /**
@@ -991,6 +1256,9 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 	 */
 	zldev->clock_id = get_random_u64();
 
+	/* Default phase offset averaging factor */
+	zldev->phase_avg_factor = 2;
+
 	/* Initialize mutex for operations where multiple reads, writes
 	 * and/or polls are required to be done atomically.
 	 */
@@ -998,17 +1266,6 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 	if (rc)
 		return dev_err_probe(zldev->dev, rc,
 				     "Failed to initialize mutex\n");
-
-	/* Fetch device state */
-	rc = zl3073x_dev_state_fetch(zldev);
-	if (rc)
-		return rc;
-
-	/* Setup phase offset measurement block */
-	rc = zl3073x_dev_phase_meas_setup(zldev, chip_info->num_channels);
-	if (rc)
-		return dev_err_probe(zldev->dev, rc,
-				     "Failed to setup phase measurement\n");
 
 	/* Register DPLL channels */
 	rc = zl3073x_devm_dpll_init(zldev, chip_info->num_channels);

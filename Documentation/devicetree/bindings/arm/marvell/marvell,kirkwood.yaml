@@ -1,0 +1,266 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/marvell/marvell,kirkwood.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Kirkwood SoC Family
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - qnap,ts219
+              - qnap,ts419
+              - synology,ds110
+              - synology,ds111
+              - synology,ds209
+              - synology,ds409slim
+              - synology,ds411j
+              - synology,ds411slim
+              - synology,rs212
+              - synology,rs409
+          - const: marvell,kirkwood
+
+      - items:
+          - const: synology,ds109
+          - const: synology,ds110jv20
+          - const: synology,ds110
+          - const: marvell,kirkwood
+
+      - items:
+          - const: synology,ds110jv10
+          - const: synology,ds110jv30
+          - const: marvell,kirkwood
+
+      - items:
+          - const: synology,ds210jv10
+          - const: synology,ds210jv20
+          - const: synology,ds210jv30
+          - const: synology,ds211j
+          - const: marvell,kirkwood
+
+      - items:
+          - const: synology,ds212jv10
+          - const: synology,ds212jv20
+          - const: marvell,kirkwood
+
+      - items:
+          - const: synology,ds212
+          - const: synology,ds212pv10
+          - const: synology,ds212pv10
+          - const: synology,ds212pv20
+          - const: synology,ds213airv10
+          - const: synology,ds213v10
+          - const: marvell,kirkwood
+
+      - items:
+          - const: synology,ds409
+          - const: synology,ds410j
+          - const: marvell,kirkwood
+
+      - items:
+          - const: synology,ds411
+          - const: synology,ds413jv10
+          - const: marvell,kirkwood
+
+      - items:
+          - const: synology,rs411
+          - const: synology,rs812
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - cloudengines,pogoplugv4
+              - lacie,laplug
+              - lacie,netspace_lite_v2
+              - lacie,netspace_mini_v2
+              - marvell,rd88f6192
+              - seagate,blackarmor-nas220
+          - enum:
+              - marvell,kirkwood-88f6192
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - buffalo,lswsxl
+              - buffalo,lswxl
+              - checkpoint,l-50
+              - cloudengines,pogoe02
+              - ctera,c200-v1
+              - dlink,dir-665
+              - endian,4i-edge-200
+              - excito,b3
+              - globalscale,sheevaplug
+              - hp,t5325
+              - iom,ix2-200
+              - lacie,inetspace_v2
+              - lacie,netspace_v2
+              - lacie,netspace_max_v2
+              - marvell,db-88f6281-bp
+              - marvell,mv88f6281gtw-ge
+              - seagate,dockstar
+              - seagate,goflexnet
+              - zyxel,nsa310
+              - zyxel,nsa320
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - buffalo,lschlv2
+              - buffalo,lsxhl
+          - const: buffalo,lsxl
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: dlink,dns-320-a1
+          - const: dlink,dns-320
+          - const: dlink,dns-kirkwood
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: dlink,dns-325-a1
+          - const: dlink,dns-325
+          - const: dlink,dns-kirkwood
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: globalscale,dreamplug-003-ds2001
+          - const: globalscale,dreamplug
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: globalscale,guruplug-server-plus
+          - const: globalscale,guruplug
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: globalscale,sheevaplug-esata-rev13
+          - const: globalscale,sheevaplug-esata
+          - const: globalscale,sheevaplug
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: iom,iconnect-1.1
+          - const: iom,iconnect
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: lacie,d2net_v2
+          - const: lacie,netxbig
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+      - items:
+          - enum:
+              - lacie,net2big_v2
+              - lacie,net5big_v2
+          - const: lacie,netxbig
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - marvell,openrd-base
+              - marvell,openrd-client
+              - marvell,openrd-ultimate
+          - const: marvell,openrd
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - marvell,rd88f6281-a
+              - marvell,rd88f6281-z0
+          - const: marvell,rd88f6281
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: mpl,cec4-10
+          - const: mpl,cec4
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: raidsonic,ib-nas6210-b
+          - const: raidsonic,ib-nas6220-b
+          - const: raidsonic,ib-nas6210
+          - const: raidsonic,ib-nas6220
+          - const: raidsonic,ib-nas62x0
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - const: zyxel,nsa310a
+          - const: zyxel,nsa310
+          - const: marvell,kirkwood-88f6281
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - buffalo,lsqvl
+              - buffalo,lsvl
+              - buffalo,lswvl
+              - linksys,viper
+              - marvell,db-88f6282-bp
+              - zyxel,nsa325
+          - const: marvell,kirkwood-88f6282
+          - const: marvell,kirkwood
+
+      - items:
+          - const: lacie,nas2big
+          - const: lacie,netxbig
+          - const: marvell,kirkwood-88f6282
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - netgear,readynas-duo-v2
+              - netgear,readynas-nv+-v2
+          - const: netgear,readynas
+          - const: marvell,kirkwood-88f6282
+          - const: marvell,kirkwood
+
+      - items:
+          - const: usi,topkick-1281P2
+          - const: usi,topkick
+          - const: marvell,kirkwood-88f6282
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - plathome,openblocks-a6
+              - plathome,openblocks-a7
+          - const: marvell,kirkwood-88f6283
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - lacie,cloudbox
+              - zyxel,nsa310s
+          - const: marvell,kirkwood-88f6702
+          - const: marvell,kirkwood
+
+      - items:
+          - enum:
+              - keymile,km_fixedeth
+              - keymile,km_kirkwood
+          - const: marvell,kirkwood-98DX4122
+          - const: marvell,kirkwood
+
+additionalProperties: true

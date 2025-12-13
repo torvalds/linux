@@ -1391,7 +1391,6 @@ static int ov8858_s_stream(struct v4l2_subdev *sd, int on)
 		}
 	} else {
 		ov8858_stop_stream(ov8858);
-		pm_runtime_mark_last_busy(&client->dev);
 		pm_runtime_put_autosuspend(&client->dev);
 	}
 
@@ -1877,7 +1876,7 @@ static int ov8858_probe(struct i2c_client *client)
 	if (!ov8858)
 		return -ENOMEM;
 
-	ov8858->xvclk = devm_clk_get(dev, "xvclk");
+	ov8858->xvclk = devm_v4l2_sensor_clk_get(dev, "xvclk");
 	if (IS_ERR(ov8858->xvclk))
 		return dev_err_probe(dev, PTR_ERR(ov8858->xvclk),
 				     "Failed to get xvclk\n");
@@ -1945,7 +1944,6 @@ static int ov8858_probe(struct i2c_client *client)
 		goto err_power_off;
 	}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;

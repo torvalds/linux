@@ -622,7 +622,7 @@ static void bcm2835_spi_dma_rx_done(void *data)
 	/* reset fifo and HW */
 	bcm2835_spi_reset_hw(bs);
 
-	/* and mark as completed */;
+	/* and mark as completed */
 	spi_finalize_current_transfer(ctlr);
 }
 

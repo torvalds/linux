@@ -8,6 +8,7 @@
 #include <net/devlink.h>
 
 #include "fbnic.h"
+#include "fbnic_fw.h"
 #include "fbnic_tlv.h"
 
 #define FBNIC_SN_STR_LEN	24
@@ -368,6 +369,254 @@ static const struct devlink_ops fbnic_devlink_ops = {
 	.info_get	= fbnic_devlink_info_get,
 	.flash_update	= fbnic_devlink_flash_update,
 };
+
+static int fbnic_fw_reporter_dump(struct devlink_health_reporter *reporter,
+				  struct devlink_fmsg *fmsg, void *priv_ctx,
+				  struct netlink_ext_ack *extack)
+{
+	struct fbnic_dev *fbd = devlink_health_reporter_priv(reporter);
+	u32 offset, index, index_count, length, size;
+	struct fbnic_fw_completion *fw_cmpl;
+	u8 *dump_data, **data;
+	int err;
+
+	fw_cmpl = fbnic_fw_alloc_cmpl(FBNIC_TLV_MSG_ID_COREDUMP_GET_INFO_RESP);
+	if (!fw_cmpl)
+		return -ENOMEM;
+
+	err = fbnic_fw_xmit_coredump_info_msg(fbd, fw_cmpl, true);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Failed to transmit core dump info msg");
+		goto cmpl_free;
+	}
+	if (!wait_for_completion_timeout(&fw_cmpl->done, 2 * HZ)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Timed out waiting on core dump info");
+		err = -ETIMEDOUT;
+		goto cmpl_cleanup;
+	}
+
+	size = fw_cmpl->u.coredump_info.size;
+	err = fw_cmpl->result;
+
+	fbnic_mbx_clear_cmpl(fbd, fw_cmpl);
+	fbnic_fw_put_cmpl(fw_cmpl);
+
+	/* Handle error returned by firmware */
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Firmware core dump returned error");
+		return err;
+	}
+	if (!size) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Firmware core dump returned size 0");
+		return -EIO;
+	}
+
+	/* Read the dump, we can only transfer TLV_MAX_DATA at a time */
+	index_count = DIV_ROUND_UP(size, TLV_MAX_DATA);
+
+	fw_cmpl = __fbnic_fw_alloc_cmpl(FBNIC_TLV_MSG_ID_COREDUMP_READ_RESP,
+					sizeof(void *) * index_count + size);
+	if (!fw_cmpl)
+		return -ENOMEM;
+
+	/* Populate pointer table w/ pointer offsets */
+	dump_data = (void *)&fw_cmpl->u.coredump.data[index_count];
+	data = fw_cmpl->u.coredump.data;
+	fw_cmpl->u.coredump.size = size;
+	fw_cmpl->u.coredump.stride = TLV_MAX_DATA;
+
+	for (index = 0; index < index_count; index++) {
+		/* First iteration installs completion */
+		struct fbnic_fw_completion *cmpl_arg = index ? NULL : fw_cmpl;
+
+		offset = index * TLV_MAX_DATA;
+		length = min(size - offset, TLV_MAX_DATA);
+
+		data[index] = dump_data + offset;
+		err = fbnic_fw_xmit_coredump_read_msg(fbd, cmpl_arg,
+						      offset, length);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Failed to transmit core dump msg");
+			if (cmpl_arg)
+				goto cmpl_free;
+			else
+				goto cmpl_cleanup;
+		}
+
+		if (wait_for_completion_timeout(&fw_cmpl->done, 2 * HZ)) {
+			reinit_completion(&fw_cmpl->done);
+		} else {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Timed out waiting on core dump (%d/%d)",
+					       index + 1, index_count);
+			err = -ETIMEDOUT;
+			goto cmpl_cleanup;
+		}
+
+		/* If we didn't see the reply record as incomplete */
+		if (fw_cmpl->u.coredump.data[index]) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "No data for core dump chunk (%d/%d)",
+					       index + 1, index_count);
+			err = -EIO;
+			goto cmpl_cleanup;
+		}
+	}
+
+	devlink_fmsg_binary_pair_nest_start(fmsg, "FW coredump");
+
+	for (offset = 0; offset < size; offset += length) {
+		length = min_t(u32, size - offset, TLV_MAX_DATA);
+
+		devlink_fmsg_binary_put(fmsg, dump_data + offset, length);
+	}
+
+	devlink_fmsg_binary_pair_nest_end(fmsg);
+
+cmpl_cleanup:
+	fbnic_mbx_clear_cmpl(fbd, fw_cmpl);
+cmpl_free:
+	fbnic_fw_put_cmpl(fw_cmpl);
+
+	return err;
+}
+
+static int
+fbnic_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
+			   struct devlink_fmsg *fmsg,
+			   struct netlink_ext_ack *extack)
+{
+	struct fbnic_dev *fbd = devlink_health_reporter_priv(reporter);
+	u32 sec, msec;
+
+	/* Device is most likely down, we're not exchanging heartbeats */
+	if (!fbd->prev_firmware_time)
+		return 0;
+
+	sec = div_u64_rem(fbd->firmware_time, MSEC_PER_SEC, &msec);
+
+	devlink_fmsg_pair_nest_start(fmsg, "last_heartbeat");
+	devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_pair_nest_start(fmsg, "fw_uptime");
+	devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_u32_pair_put(fmsg, "sec", sec);
+	devlink_fmsg_u32_pair_put(fmsg, "msec", msec);
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
+
+	return 0;
+}
+
+void __printf(2, 3)
+fbnic_devlink_fw_report(struct fbnic_dev *fbd, const char *format, ...)
+{
+	char msg[FBNIC_FW_LOG_MAX_SIZE];
+	va_list args;
+
+	va_start(args, format);
+	vsnprintf(msg, FBNIC_FW_LOG_MAX_SIZE, format, args);
+	va_end(args);
+
+	devlink_health_report(fbd->fw_reporter, msg, fbd);
+	if (fbnic_fw_log_ready(fbd))
+		fbnic_fw_log_write(fbd, 0, fbd->firmware_time, msg);
+}
+
+static const struct devlink_health_reporter_ops fbnic_fw_ops = {
+	.name = "fw",
+	.dump = fbnic_fw_reporter_dump,
+	.diagnose = fbnic_fw_reporter_diagnose,
+};
+
+static u32 fbnic_read_otp_status(struct fbnic_dev *fbd)
+{
+	return fbnic_fw_rd32(fbd, FBNIC_NS_OTP_STATUS);
+}
+
+static int
+fbnic_otp_reporter_dump(struct devlink_health_reporter *reporter,
+			struct devlink_fmsg *fmsg, void *priv_ctx,
+			struct netlink_ext_ack *extack)
+{
+	struct fbnic_dev *fbd = devlink_health_reporter_priv(reporter);
+	u32 otp_status, otp_write_status, m;
+
+	otp_status = fbnic_read_otp_status(fbd);
+	otp_write_status = fbnic_fw_rd32(fbd, FBNIC_NS_OTP_WRITE_STATUS);
+
+	/* Dump OTP status */
+	devlink_fmsg_pair_nest_start(fmsg, "OTP");
+	devlink_fmsg_obj_nest_start(fmsg);
+
+	devlink_fmsg_u32_pair_put(fmsg, "Status", otp_status);
+
+	/* Extract OTP Write Data status */
+	m = FBNIC_NS_OTP_WRITE_DATA_STATUS_MASK;
+	devlink_fmsg_u32_pair_put(fmsg, "Data",
+				  FIELD_GET(m, otp_write_status));
+
+	/* Extract OTP Write ECC status */
+	m = FBNIC_NS_OTP_WRITE_ECC_STATUS_MASK;
+	devlink_fmsg_u32_pair_put(fmsg, "ECC",
+				  FIELD_GET(m, otp_write_status));
+
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
+
+	return 0;
+}
+
+void fbnic_devlink_otp_check(struct fbnic_dev *fbd, const char *msg)
+{
+	/* Check if there is anything to report */
+	if (!fbnic_read_otp_status(fbd))
+		return;
+
+	devlink_health_report(fbd->otp_reporter, msg, fbd);
+	if (fbnic_fw_log_ready(fbd))
+		fbnic_fw_log_write(fbd, 0, fbd->firmware_time, msg);
+}
+
+static const struct devlink_health_reporter_ops fbnic_otp_ops = {
+	.name = "otp",
+	.dump = fbnic_otp_reporter_dump,
+};
+
+int fbnic_devlink_health_create(struct fbnic_dev *fbd)
+{
+	fbd->fw_reporter = devlink_health_reporter_create(priv_to_devlink(fbd),
+							  &fbnic_fw_ops, fbd);
+	if (IS_ERR(fbd->fw_reporter)) {
+		dev_warn(fbd->dev,
+			 "Failed to create FW fault reporter: %pe\n",
+			 fbd->fw_reporter);
+		return PTR_ERR(fbd->fw_reporter);
+	}
+
+	fbd->otp_reporter = devlink_health_reporter_create(priv_to_devlink(fbd),
+							   &fbnic_otp_ops, fbd);
+	if (IS_ERR(fbd->otp_reporter)) {
+		devlink_health_reporter_destroy(fbd->fw_reporter);
+		dev_warn(fbd->dev,
+			 "Failed to create OTP fault reporter: %pe\n",
+			 fbd->otp_reporter);
+		return PTR_ERR(fbd->otp_reporter);
+	}
+
+	return 0;
+}
+
+void fbnic_devlink_health_destroy(struct fbnic_dev *fbd)
+{
+	devlink_health_reporter_destroy(fbd->otp_reporter);
+	devlink_health_reporter_destroy(fbd->fw_reporter);
+}
 
 void fbnic_devlink_free(struct fbnic_dev *fbd)
 {

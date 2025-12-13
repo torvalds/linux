@@ -46,6 +46,11 @@ static inline struct vpu_instance *wave5_to_vpu_inst(struct v4l2_fh *vfh)
 	return container_of(vfh, struct vpu_instance, v4l2_fh);
 }
 
+static inline struct vpu_instance *file_to_vpu_inst(struct file *filp)
+{
+	return wave5_to_vpu_inst(file_to_v4l2_fh(filp));
+}
+
 static inline struct vpu_instance *wave5_ctrl_to_vpu_inst(struct v4l2_ctrl *vctrl)
 {
 	return container_of(vctrl->handler, struct vpu_instance, v4l2_ctrl_hdl);

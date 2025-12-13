@@ -904,7 +904,7 @@ unlock:
 	watchpoint_single_step_handler(addr);
 }
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_CFI
 static void hw_breakpoint_cfi_handler(struct pt_regs *regs)
 {
 	/*

@@ -34,6 +34,7 @@
 #include "stream_encoder.h"
 
 #include "resource.h"
+#include "clk_mgr.h"
 #include "include/irq_service_interface.h"
 #include "irq/dce60/irq_service_dce60.h"
 #include "dce110/dce110_timing_generator.h"
@@ -403,13 +404,13 @@ static const struct dc_plane_cap plane_cap = {
 	},
 
 	.max_upscale_factor = {
-			.argb8888 = 16000,
+			.argb8888 = 1,
 			.nv12 = 1,
 			.fp16 = 1
 	},
 
 	.max_downscale_factor = {
-			.argb8888 = 250,
+			.argb8888 = 1,
 			.nv12 = 1,
 			.fp16 = 1
 	}
@@ -863,61 +864,6 @@ static void dce60_resource_destruct(struct dce110_resource_pool *pool)
 	}
 }
 
-static enum dc_status dce60_validate_bandwidth(
-	struct dc *dc,
-	struct dc_state *context,
-	enum dc_validate_mode validate_mode)
-{
-	int i;
-	bool at_least_one_pipe = false;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		if (context->res_ctx.pipe_ctx[i].stream)
-			at_least_one_pipe = true;
-	}
-
-	if (at_least_one_pipe) {
-		/* TODO implement when needed but for now hardcode max value*/
-		context->bw_ctx.bw.dce.dispclk_khz = 681000;
-		context->bw_ctx.bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
-	} else {
-		context->bw_ctx.bw.dce.dispclk_khz = 0;
-		context->bw_ctx.bw.dce.yclk_khz = 0;
-	}
-
-	return DC_OK;
-}
-
-static bool dce60_validate_surface_sets(
-		struct dc_state *context)
-{
-	int i;
-
-	for (i = 0; i < context->stream_count; i++) {
-		if (context->stream_status[i].plane_count == 0)
-			continue;
-
-		if (context->stream_status[i].plane_count > 1)
-			return false;
-
-		if (context->stream_status[i].plane_states[0]->format
-				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
-			return false;
-	}
-
-	return true;
-}
-
-static enum dc_status dce60_validate_global(
-		struct dc *dc,
-		struct dc_state *context)
-{
-	if (!dce60_validate_surface_sets(context))
-		return DC_FAIL_SURFACE_VALIDATE;
-
-	return DC_OK;
-}
-
 static void dce60_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
@@ -931,10 +877,10 @@ static const struct resource_funcs dce60_res_pool_funcs = {
 	.destroy = dce60_destroy_resource_pool,
 	.link_enc_create = dce60_link_encoder_create,
 	.panel_cntl_create = dce60_panel_cntl_create,
-	.validate_bandwidth = dce60_validate_bandwidth,
+	.validate_bandwidth = dce100_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,
-	.validate_global = dce60_validate_global,
+	.validate_global = dce100_validate_global,
 	.find_first_free_match_stream_enc_for_link = dce100_find_first_free_match_stream_enc_for_link
 };
 

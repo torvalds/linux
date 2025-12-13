@@ -2,7 +2,7 @@
 /*
     tvp5150.h - definition for tvp5150 inputs
 
-    Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+    Copyright (C) 2006 Hans Verkuil (hverkuil@kernel.org)
 
 */
 

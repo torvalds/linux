@@ -847,16 +847,15 @@ static void fw_schedule_device_work(struct fw_device *device,
  */
 
 #define MAX_RETRIES	10
-#define RETRY_DELAY	(3 * HZ)
-#define INITIAL_DELAY	(HZ / 2)
-#define SHUTDOWN_DELAY	(2 * HZ)
+#define RETRY_DELAY	secs_to_jiffies(3)
+#define INITIAL_DELAY	msecs_to_jiffies(500)
+#define SHUTDOWN_DELAY	secs_to_jiffies(2)
 
 static void fw_device_shutdown(struct work_struct *work)
 {
 	struct fw_device *device = from_work(device, work, work.work);
 
-	if (time_before64(get_jiffies_64(),
-			  device->card->reset_jiffies + SHUTDOWN_DELAY)
+	if (time_is_after_jiffies64(device->card->reset_jiffies + SHUTDOWN_DELAY)
 	    && !list_empty(&device->card->link)) {
 		fw_schedule_device_work(device, SHUTDOWN_DELAY);
 		return;
@@ -887,7 +886,7 @@ static void fw_device_release(struct device *dev)
 	 * bus manager work looks at this node.
 	 */
 	scoped_guard(spinlock_irqsave, &card->lock)
-		device->node->data = NULL;
+		fw_node_set_device(device->node, NULL);
 
 	fw_node_put(device->node);
 	kfree(device->config_rom);
@@ -1007,7 +1006,7 @@ static void fw_device_init(struct work_struct *work)
 	int ret;
 
 	/*
-	 * All failure paths here set node->data to NULL, so that we
+	 * All failure paths here call fw_node_set_device(node, NULL), so that we
 	 * don't try to do device_for_each_child() on a kfree()'d
 	 * device.
 	 */
@@ -1051,9 +1050,9 @@ static void fw_device_init(struct work_struct *work)
 				struct fw_node *obsolete_node = reused->node;
 
 				device->node = obsolete_node;
-				device->node->data = device;
+				fw_node_set_device(device->node, device);
 				reused->node = current_node;
-				reused->node->data = reused;
+				fw_node_set_device(reused->node, reused);
 
 				reused->max_speed = device->max_speed;
 				reused->node_id = current_node->node_id;
@@ -1292,7 +1291,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * FW_NODE_UPDATED callbacks can update the node_id
 		 * and generation for the device.
 		 */
-		node->data = device;
+		fw_node_set_device(node, device);
 
 		/*
 		 * Many devices are slow to respond after bus resets,
@@ -1307,7 +1306,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 
 	case FW_NODE_INITIATED_RESET:
 	case FW_NODE_LINK_ON:
-		device = node->data;
+		device = fw_node_get_device(node);
 		if (device == NULL)
 			goto create;
 
@@ -1324,7 +1323,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		break;
 
 	case FW_NODE_UPDATED:
-		device = node->data;
+		device = fw_node_get_device(node);
 		if (device == NULL)
 			break;
 
@@ -1339,7 +1338,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 
 	case FW_NODE_DESTROYED:
 	case FW_NODE_LINK_OFF:
-		if (!node->data)
+		if (!fw_node_get_device(node))
 			break;
 
 		/*
@@ -1354,7 +1353,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * the device in shutdown state to have that code fail
 		 * to create the device.
 		 */
-		device = node->data;
+		device = fw_node_get_device(node);
 		if (atomic_xchg(&device->state,
 				FW_DEVICE_GONE) == FW_DEVICE_RUNNING) {
 			device->workfn = fw_device_shutdown;

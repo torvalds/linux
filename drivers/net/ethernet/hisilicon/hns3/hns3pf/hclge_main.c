@@ -2182,8 +2182,8 @@ static bool hclge_drop_pfc_buf_till_fit(struct hclge_dev *hdev,
 	return hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all);
 }
 
-static int hclge_only_alloc_priv_buff(struct hclge_dev *hdev,
-				      struct hclge_pkt_buf_alloc *buf_alloc)
+static bool hclge_only_alloc_priv_buff(struct hclge_dev *hdev,
+				       struct hclge_pkt_buf_alloc *buf_alloc)
 {
 #define COMPENSATE_BUFFER	0x3C00
 #define COMPENSATE_HALF_MPS_NUM	5
@@ -9429,8 +9429,7 @@ static int hclge_mii_ioctl(struct hclge_dev *hdev, struct ifreq *ifr, int cmd)
 		/* this command reads phy id and register at the same time */
 		fallthrough;
 	case SIOCGMIIREG:
-		data->val_out = hclge_read_phy_reg(hdev, data->reg_num);
-		return 0;
+		return hclge_read_phy_reg(hdev, data->reg_num, &data->val_out);
 
 	case SIOCSMIIREG:
 		return hclge_write_phy_reg(hdev, data->reg_num, data->val_in);
@@ -12912,7 +12911,8 @@ static int __init hclge_init(void)
 {
 	pr_debug("%s is initializing\n", HCLGE_NAME);
 
-	hclge_wq = alloc_workqueue("%s", WQ_UNBOUND, 0, HCLGE_NAME);
+	hclge_wq = alloc_workqueue("%s", WQ_UNBOUND, 0,
+				   HCLGE_NAME);
 	if (!hclge_wq) {
 		pr_err("%s: failed to create workqueue\n", HCLGE_NAME);
 		return -ENOMEM;

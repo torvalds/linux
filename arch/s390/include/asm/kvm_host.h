@@ -356,7 +356,7 @@ struct kvm_s390_float_interrupt {
 	int counters[FIRQ_MAX_COUNT];
 	struct kvm_s390_mchk_info mchk;
 	struct kvm_s390_ext_info srv_signal;
-	int next_rr_cpu;
+	int last_sleep_cpu;
 	struct mutex ais_lock;
 	u8 simm;
 	u8 nimm;
@@ -721,6 +721,8 @@ extern int kvm_s390_enter_exit_sie(struct kvm_s390_sie_block *scb,
 
 extern int kvm_s390_gisc_register(struct kvm *kvm, u32 gisc);
 extern int kvm_s390_gisc_unregister(struct kvm *kvm, u32 gisc);
+
+bool kvm_s390_is_gpa_in_memslot(struct kvm *kvm, gpa_t gpa);
 
 static inline void kvm_arch_free_memslot(struct kvm *kvm,
 					 struct kvm_memory_slot *slot) {}

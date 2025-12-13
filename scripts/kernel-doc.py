@@ -2,8 +2,17 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright(c) 2025: Mauro Carvalho Chehab <mchehab@kernel.org>.
 #
-# pylint: disable=C0103,R0915
-#
+# pylint: disable=C0103,R0912,R0914,R0915
+
+# NOTE: While kernel-doc requires at least version 3.6 to run, the
+#       command line should work with Python 3.2+ (tested with 3.4).
+#       The rationale is that it shall fail gracefully during Kernel
+#       compilation with older Kernel versions. Due to that:
+#       - encoding line is needed here;
+#       - no f-strings can be used on this file.
+#       - the libraries that require newer versions can only be included
+#         after Python version is checked.
+
 # Converted from the kernel-doc script originally written in Perl
 # under GPLv2, copyrighted since 1998 by the following authors:
 #
@@ -106,9 +115,6 @@ LIB_DIR = "lib/kdoc"
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR))
-
-from kdoc_files import KernelFiles                      # pylint: disable=C0413
-from kdoc_output import RestFormat, ManFormat           # pylint: disable=C0413
 
 DESC = """
 Read C language source or header FILEs, extract embedded documentation comments,
@@ -273,13 +279,21 @@ def main():
 
     python_ver = sys.version_info[:2]
     if python_ver < (3,6):
-        logger.warning("Python 3.6 or later is required by kernel-doc")
+        # Depending on Kernel configuration, kernel-doc --none is called at
+        # build time. As we don't want to break compilation due to the
+        # usage of an old Python version, return 0 here.
+        if args.none:
+            logger.error("Python 3.6 or later is required by kernel-doc. skipping checks")
+            sys.exit(0)
 
-        # Return 0 here to avoid breaking compilation
-        sys.exit(0)
+        sys.exit("Python 3.6 or later is required by kernel-doc. Aborting.")
 
     if python_ver < (3,7):
         logger.warning("Python 3.7 or later is required for correct results")
+
+    # Import kernel-doc libraries only after checking Python version
+    from kdoc_files import KernelFiles                  # pylint: disable=C0415
+    from kdoc_output import RestFormat, ManFormat       # pylint: disable=C0415
 
     if args.man:
         out_style = ManFormat(modulename=args.modulename)
@@ -308,11 +322,11 @@ def main():
         sys.exit(0)
 
     if args.werror:
-        print(f"{error_count} warnings as errors")
+        print("%s warnings as errors" % error_count)    # pylint: disable=C0209
         sys.exit(error_count)
 
     if args.verbose:
-        print(f"{error_count} errors")
+        print("%s errors" % error_count)                # pylint: disable=C0209
 
     if args.none:
         sys.exit(0)

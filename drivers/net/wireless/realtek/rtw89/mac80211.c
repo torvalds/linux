@@ -1837,6 +1837,40 @@ static void rtw89_set_rekey_data(struct ieee80211_hw *hw,
 }
 #endif
 
+static int rtw89_ops_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct ieee80211_conf *conf = &hw->conf;
+	struct rtw89_dev *rtwdev = hw->priv;
+	struct rtw89_bb_ctx *bb;
+
+	if (idx == 0) {
+		survey->channel = conf->chandef.chan;
+		survey->filled = SURVEY_INFO_NOISE_DBM;
+		survey->noise = RTW89_NOISE_DEFAULT;
+
+		return 0;
+	}
+
+	rtw89_for_each_active_bb(rtwdev, bb) {
+		struct rtw89_env_monitor_info *env = &bb->env_monitor;
+		struct rtw89_nhm_report *rpt;
+
+		rpt = list_first_entry_or_null(&env->nhm_rpt_list, typeof(*rpt), list);
+		if (!rpt)
+			continue;
+
+		survey->filled = SURVEY_INFO_NOISE_DBM;
+		survey->noise = rpt->noise - MAX_RSSI;
+		survey->channel = rpt->channel;
+		list_del_init(&rpt->list);
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static void rtw89_ops_rfkill_poll(struct ieee80211_hw *hw)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
@@ -1869,6 +1903,7 @@ const struct ieee80211_ops rtw89_ops = {
 	.sta_state		= rtw89_ops_sta_state,
 	.set_key		= rtw89_ops_set_key,
 	.ampdu_action		= rtw89_ops_ampdu_action,
+	.get_survey		= rtw89_ops_get_survey,
 	.set_rts_threshold	= rtw89_ops_set_rts_threshold,
 	.sta_statistics		= rtw89_ops_sta_statistics,
 	.flush			= rtw89_ops_flush,

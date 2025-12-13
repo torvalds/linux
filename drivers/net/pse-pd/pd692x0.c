@@ -1041,6 +1041,10 @@ pd692x0_configure_managers(struct pd692x0_priv *priv, int nmanagers)
 		int pw_budget;
 
 		pw_budget = regulator_get_unclaimed_power_budget(supply);
+		if (!pw_budget)
+			/* Do nothing if no power budget */
+			continue;
+
 		/* Max power budget per manager */
 		if (pw_budget > 6000000)
 			pw_budget = 6000000;
@@ -1162,12 +1166,44 @@ pd692x0_write_ports_matrix(struct pd692x0_priv *priv,
 	return 0;
 }
 
+static void pd692x0_of_put_managers(struct pd692x0_priv *priv,
+				    struct pd692x0_manager *manager,
+				    int nmanagers)
+{
+	int i, j;
+
+	for (i = 0; i < nmanagers; i++) {
+		for (j = 0; j < manager[i].nports; j++)
+			of_node_put(manager[i].port_node[j]);
+		of_node_put(manager[i].node);
+	}
+}
+
+static void pd692x0_managers_free_pw_budget(struct pd692x0_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < PD692X0_MAX_MANAGERS; i++) {
+		struct regulator *supply;
+
+		if (!priv->manager_reg[i] || !priv->manager_pw_budget[i])
+			continue;
+
+		supply = priv->manager_reg[i]->supply;
+		if (!supply)
+			continue;
+
+		regulator_free_power_budget(supply,
+					    priv->manager_pw_budget[i]);
+	}
+}
+
 static int pd692x0_setup_pi_matrix(struct pse_controller_dev *pcdev)
 {
 	struct pd692x0_manager *manager __free(kfree) = NULL;
 	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
 	struct pd692x0_matrix port_matrix[PD692X0_MAX_PIS];
-	int ret, i, j, nmanagers;
+	int ret, nmanagers;
 
 	/* Should we flash the port matrix */
 	if (priv->fw_state != PD692X0_FW_OK &&
@@ -1185,31 +1221,27 @@ static int pd692x0_setup_pi_matrix(struct pse_controller_dev *pcdev)
 	nmanagers = ret;
 	ret = pd692x0_register_managers_regulator(priv, manager, nmanagers);
 	if (ret)
-		goto out;
+		goto err_of_managers;
 
 	ret = pd692x0_configure_managers(priv, nmanagers);
 	if (ret)
-		goto out;
+		goto err_of_managers;
 
 	ret = pd692x0_set_ports_matrix(priv, manager, nmanagers, port_matrix);
 	if (ret)
-		goto out;
+		goto err_managers_req_pw;
 
 	ret = pd692x0_write_ports_matrix(priv, port_matrix);
 	if (ret)
-		goto out;
+		goto err_managers_req_pw;
 
-out:
-	for (i = 0; i < nmanagers; i++) {
-		struct regulator *supply = priv->manager_reg[i]->supply;
+	pd692x0_of_put_managers(priv, manager, nmanagers);
+	return 0;
 
-		regulator_free_power_budget(supply,
-					    priv->manager_pw_budget[i]);
-
-		for (j = 0; j < manager[i].nports; j++)
-			of_node_put(manager[i].port_node[j]);
-		of_node_put(manager[i].node);
-	}
+err_managers_req_pw:
+	pd692x0_managers_free_pw_budget(priv);
+err_of_managers:
+	pd692x0_of_put_managers(priv, manager, nmanagers);
 	return ret;
 }
 
@@ -1748,6 +1780,7 @@ static void pd692x0_i2c_remove(struct i2c_client *client)
 {
 	struct pd692x0_priv *priv = i2c_get_clientdata(client);
 
+	pd692x0_managers_free_pw_budget(priv);
 	firmware_upload_unregister(priv->fwl);
 }
 

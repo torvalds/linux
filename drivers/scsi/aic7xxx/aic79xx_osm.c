@@ -720,7 +720,7 @@ ahd_linux_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
  * Return the disk geometry for the given SCSI device.
  */
 static int
-ahd_linux_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+ahd_linux_biosparam(struct scsi_device *sdev, struct gendisk *disk,
 		    sector_t capacity, int geom[])
 {
 	int	 heads;
@@ -731,7 +731,7 @@ ahd_linux_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 
 	ahd = *((struct ahd_softc **)sdev->host->hostdata);
 
-	if (scsi_partsize(bdev, capacity, geom))
+	if (scsi_partsize(disk, capacity, geom))
 		return 0;
 
 	heads = 64;

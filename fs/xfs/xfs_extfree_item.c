@@ -202,7 +202,7 @@ xfs_efi_copy_format(
 			       sizeof(struct xfs_extent));
 		return 0;
 	} else if (buf->iov_len == len32) {
-		xfs_efi_log_format_32_t *src_efi_fmt_32 = buf->iov_base;
+		struct xfs_efi_log_format_32 *src_efi_fmt_32 = buf->iov_base;
 
 		dst_efi_fmt->efi_type     = src_efi_fmt_32->efi_type;
 		dst_efi_fmt->efi_size     = src_efi_fmt_32->efi_size;
@@ -216,7 +216,7 @@ xfs_efi_copy_format(
 		}
 		return 0;
 	} else if (buf->iov_len == len64) {
-		xfs_efi_log_format_64_t *src_efi_fmt_64 = buf->iov_base;
+		struct xfs_efi_log_format_64 *src_efi_fmt_64 = buf->iov_base;
 
 		dst_efi_fmt->efi_type     = src_efi_fmt_64->efi_type;
 		dst_efi_fmt->efi_size     = src_efi_fmt_64->efi_size;

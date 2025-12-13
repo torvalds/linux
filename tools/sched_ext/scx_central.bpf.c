@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * A central FIFO sched_ext scheduler which demonstrates the followings:
+ * A central FIFO sched_ext scheduler which demonstrates the following:
  *
  * a. Making all scheduling decisions from one CPU:
  *

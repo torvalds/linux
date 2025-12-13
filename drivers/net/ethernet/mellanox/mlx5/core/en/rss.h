@@ -13,19 +13,31 @@ enum mlx5e_rss_init_type {
 	MLX5E_RSS_INIT_TIRS
 };
 
+struct mlx5e_rss_init_params {
+	enum mlx5e_rss_init_type type;
+	const struct mlx5e_packet_merge_param *pkt_merge_param;
+	unsigned int nch;
+	unsigned int max_nch;
+};
+
+struct mlx5e_rss_params {
+	bool inner_ft_support;
+	u32 drop_rqn;
+};
+
 struct mlx5e_rss_params_traffic_type
 mlx5e_rss_get_default_tt_config(enum mlx5_traffic_types tt);
 
 struct mlx5e_rss;
 
-int mlx5e_rss_params_indir_init(struct mlx5e_rss_params_indir *indir, struct mlx5_core_dev *mdev,
+int mlx5e_rss_params_indir_init(struct mlx5e_rss_params_indir *indir,
 				u32 actual_table_size, u32 max_table_size);
 void mlx5e_rss_params_indir_cleanup(struct mlx5e_rss_params_indir *indir);
 void mlx5e_rss_params_indir_modify_actual_size(struct mlx5e_rss *rss, u32 num_channels);
-struct mlx5e_rss *mlx5e_rss_init(struct mlx5_core_dev *mdev, bool inner_ft_support, u32 drop_rqn,
-				 const struct mlx5e_packet_merge_param *init_pkt_merge_param,
-				 enum mlx5e_rss_init_type type, unsigned int nch,
-				 unsigned int max_nch);
+struct mlx5e_rss *
+mlx5e_rss_init(struct mlx5_core_dev *mdev,
+	       const struct mlx5e_rss_params *params,
+	       const struct mlx5e_rss_init_params *init_params);
 int mlx5e_rss_cleanup(struct mlx5e_rss *rss);
 
 void mlx5e_rss_refcnt_inc(struct mlx5e_rss *rss);
@@ -37,10 +49,10 @@ u32 mlx5e_rss_get_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 		       bool inner);
 bool mlx5e_rss_valid_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types tt, bool inner);
 u32 mlx5e_rss_get_rqtn(struct mlx5e_rss *rss);
-int mlx5e_rss_obtain_tirn(struct mlx5e_rss *rss,
-			  enum mlx5_traffic_types tt,
-			  const struct mlx5e_packet_merge_param *init_pkt_merge_param,
-			  bool inner, u32 *tirn);
+int
+mlx5e_rss_obtain_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
+		      const struct mlx5e_packet_merge_param *pkt_merge_param,
+		      bool inner, u32 *tirn);
 
 void mlx5e_rss_enable(struct mlx5e_rss *rss, u32 *rqns, u32 *vhca_ids, unsigned int num_rqns);
 void mlx5e_rss_disable(struct mlx5e_rss *rss);

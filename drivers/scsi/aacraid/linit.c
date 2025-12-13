@@ -273,7 +273,7 @@ struct aac_driver_ident* aac_get_driver_ident(int devtype)
 /**
  *	aac_biosparm	-	return BIOS parameters for disk
  *	@sdev: The scsi device corresponding to the disk
- *	@bdev: the block device corresponding to the disk
+ *	@disk: the gendisk corresponding to the disk
  *	@capacity: the sector capacity of the disk
  *	@geom: geometry block to fill in
  *
@@ -292,7 +292,7 @@ struct aac_driver_ident* aac_get_driver_ident(int devtype)
  *	be displayed.
  */
 
-static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
+static int aac_biosparm(struct scsi_device *sdev, struct gendisk *disk,
 			sector_t capacity, int *geom)
 {
 	struct diskparm *param = (struct diskparm *)geom;
@@ -324,7 +324,7 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 	 *	entry whose end_head matches one of the standard geometry
 	 *	translations ( 64/32, 128/32, 255/63 ).
 	 */
-	buf = scsi_bios_ptable(bdev);
+	buf = scsi_bios_ptable(disk);
 	if (!buf)
 		return 0;
 	if (*(__le16 *)(buf + 0x40) == cpu_to_le16(MSDOS_LABEL_MAGIC)) {

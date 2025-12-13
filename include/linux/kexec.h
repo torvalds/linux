@@ -395,6 +395,9 @@ struct kimage {
 
 	/* Information for loading purgatory */
 	struct purgatory_info purgatory_info;
+
+	/* Force carrying over the DTB from the current boot */
+	bool force_dtb;
 #endif
 
 #ifdef CONFIG_CRASH_HOTPLUG
@@ -460,7 +463,8 @@ bool kexec_load_permitted(int kexec_image_type);
 
 /* List of defined/legal kexec file flags */
 #define KEXEC_FILE_FLAGS	(KEXEC_FILE_UNLOAD | KEXEC_FILE_ON_CRASH | \
-				 KEXEC_FILE_NO_INITRAMFS | KEXEC_FILE_DEBUG)
+				 KEXEC_FILE_NO_INITRAMFS | KEXEC_FILE_DEBUG | \
+				 KEXEC_FILE_NO_CMA | KEXEC_FILE_FORCE_DTB)
 
 /* flag to track if kexec reboot is in progress */
 extern bool kexec_in_progress;

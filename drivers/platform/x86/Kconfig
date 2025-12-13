@@ -118,6 +118,18 @@ config XIAOMI_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called xiaomi-wmi.
 
+config REDMI_WMI
+	tristate "Redmibook WMI key driver"
+	depends on ACPI_WMI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  Say Y here if you want support for WMI-based hotkey events on
+	  Xiaomi Redmibook devices.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called redmi-wmi.
+
 config GIGABYTE_WMI
 	tristate "Gigabyte WMI temperature driver"
 	depends on ACPI_WMI
@@ -420,7 +432,7 @@ config WIRELESS_HOTKEY
 	depends on INPUT
 	help
 	 This driver provides supports for the wireless buttons found on some AMD,
-	 HP, & Xioami laptops.
+	 HP, & Xiaomi laptops.
 	 On such systems the driver should load automatically (via ACPI alias).
 
 	 To compile this driver as a module, choose M here: the module will
@@ -533,6 +545,7 @@ config MSI_WMI
 config MSI_WMI_PLATFORM
 	tristate "MSI WMI Platform features"
 	depends on ACPI_WMI
+	depends on DMI
 	depends on HWMON
 	help
 	  Say Y here if you want to have support for WMI-based platform features

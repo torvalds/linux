@@ -781,14 +781,17 @@ void ldom_set_var(const char *var, const char *value)
 		} pkt;
 		char  *base, *p;
 		int msg_len, loops;
+		size_t var_len, value_len;
 
-		if (strlen(var) + strlen(value) + 2 >
-		    sizeof(pkt) - sizeof(pkt.header)) {
-			printk(KERN_ERR PFX
-				"contents length: %zu, which more than max: %lu,"
-				"so could not set (%s) variable to (%s).\n",
-				strlen(var) + strlen(value) + 2,
-				sizeof(pkt) - sizeof(pkt.header), var, value);
+		var_len = strlen(var) + 1;
+		value_len = strlen(value) + 1;
+
+		if (var_len + value_len > sizeof(pkt) - sizeof(pkt.header)) {
+			pr_err(PFX
+			       "contents length: %zu, which more than max: %lu,"
+			       "so could not set (%s) variable to (%s).\n",
+			       var_len + value_len,
+			       sizeof(pkt) - sizeof(pkt.header), var, value);
 			return;
 		}
 
@@ -797,10 +800,10 @@ void ldom_set_var(const char *var, const char *value)
 		pkt.header.data.handle = cp->handle;
 		pkt.header.msg.hdr.type = DS_VAR_SET_REQ;
 		base = p = &pkt.header.msg.name_and_value[0];
-		strcpy(p, var);
-		p += strlen(var) + 1;
-		strcpy(p, value);
-		p += strlen(value) + 1;
+		strscpy(p, var, var_len);
+		p += var_len;
+		strscpy(p, value, value_len);
+		p += value_len;
 
 		msg_len = (sizeof(struct ds_data) +
 			   sizeof(struct ds_var_set_msg) +
@@ -910,7 +913,7 @@ static int register_services(struct ds_info *dp)
 		pbuf.req.handle = cp->handle;
 		pbuf.req.major = 1;
 		pbuf.req.minor = 0;
-		strcpy(pbuf.id_buf, cp->service_id);
+		strscpy(pbuf.id_buf, cp->service_id);
 
 		err = __ds_send(lp, &pbuf, msg_len);
 		if (err > 0)

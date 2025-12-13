@@ -170,8 +170,7 @@ void mlxsw_sp_counter_pool_fini(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
 	mlxsw_sp_counter_sub_pools_fini(mlxsw_sp);
-	WARN_ON(find_first_bit(pool->usage, pool->pool_size) !=
-			       pool->pool_size);
+	WARN_ON(!bitmap_empty(pool->usage, pool->pool_size));
 	WARN_ON(atomic_read(&pool->active_entries_count));
 	bitmap_free(pool->usage);
 	devl_resource_occ_get_unregister(devlink,

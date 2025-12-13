@@ -5,7 +5,7 @@
 #include <asm/nospec-branch.h>
 
 /*
- * Notably, the FineIBT preamble calling these will have ZF set and r10 zero.
+ * Notably, the FineIBT preamble calling these will have ZF set and eax zero.
  *
  * The very last element is in fact larger than 32 bytes, but since its the
  * last element, this does not matter,
@@ -36,7 +36,7 @@ SYM_INNER_LABEL(__bhi_args_1, SYM_L_LOCAL)
 	ANNOTATE_NOENDBR
 	UNWIND_HINT_FUNC
 	jne .Lud_1
-	cmovne %r10, %rdi
+	cmovne %rax, %rdi
 	ANNOTATE_UNRET_SAFE
 	ret
 	int3
@@ -53,8 +53,8 @@ SYM_INNER_LABEL(__bhi_args_2, SYM_L_LOCAL)
 	ANNOTATE_NOENDBR
 	UNWIND_HINT_FUNC
 	jne .Lud_1
-	cmovne %r10, %rdi
-	cmovne %r10, %rsi
+	cmovne %rax, %rdi
+	cmovne %rax, %rsi
 	ANNOTATE_UNRET_SAFE
 	ret
 	int3
@@ -64,9 +64,9 @@ SYM_INNER_LABEL(__bhi_args_3, SYM_L_LOCAL)
 	ANNOTATE_NOENDBR
 	UNWIND_HINT_FUNC
 	jne .Lud_1
-	cmovne %r10, %rdi
-	cmovne %r10, %rsi
-	cmovne %r10, %rdx
+	cmovne %rax, %rdi
+	cmovne %rax, %rsi
+	cmovne %rax, %rdx
 	ANNOTATE_UNRET_SAFE
 	ret
 	int3
@@ -76,10 +76,10 @@ SYM_INNER_LABEL(__bhi_args_4, SYM_L_LOCAL)
 	ANNOTATE_NOENDBR
 	UNWIND_HINT_FUNC
 	jne .Lud_2
-	cmovne %r10, %rdi
-	cmovne %r10, %rsi
-	cmovne %r10, %rdx
-	cmovne %r10, %rcx
+	cmovne %rax, %rdi
+	cmovne %rax, %rsi
+	cmovne %rax, %rdx
+	cmovne %rax, %rcx
 	ANNOTATE_UNRET_SAFE
 	ret
 	int3
@@ -89,11 +89,11 @@ SYM_INNER_LABEL(__bhi_args_5, SYM_L_LOCAL)
 	ANNOTATE_NOENDBR
 	UNWIND_HINT_FUNC
 	jne .Lud_2
-	cmovne %r10, %rdi
-	cmovne %r10, %rsi
-	cmovne %r10, %rdx
-	cmovne %r10, %rcx
-	cmovne %r10, %r8
+	cmovne %rax, %rdi
+	cmovne %rax, %rsi
+	cmovne %rax, %rdx
+	cmovne %rax, %rcx
+	cmovne %rax, %r8
 	ANNOTATE_UNRET_SAFE
 	ret
 	int3
@@ -110,12 +110,12 @@ SYM_INNER_LABEL(__bhi_args_6, SYM_L_LOCAL)
 	ANNOTATE_NOENDBR
 	UNWIND_HINT_FUNC
 	jne .Lud_2
-	cmovne %r10, %rdi
-	cmovne %r10, %rsi
-	cmovne %r10, %rdx
-	cmovne %r10, %rcx
-	cmovne %r10, %r8
-	cmovne %r10, %r9
+	cmovne %rax, %rdi
+	cmovne %rax, %rsi
+	cmovne %rax, %rdx
+	cmovne %rax, %rcx
+	cmovne %rax, %r8
+	cmovne %rax, %r9
 	ANNOTATE_UNRET_SAFE
 	ret
 	int3
@@ -125,13 +125,13 @@ SYM_INNER_LABEL(__bhi_args_7, SYM_L_LOCAL)
 	ANNOTATE_NOENDBR
 	UNWIND_HINT_FUNC
 	jne .Lud_2
-	cmovne %r10, %rdi
-	cmovne %r10, %rsi
-	cmovne %r10, %rdx
-	cmovne %r10, %rcx
-	cmovne %r10, %r8
-	cmovne %r10, %r9
-	cmovne %r10, %rsp
+	cmovne %rax, %rdi
+	cmovne %rax, %rsi
+	cmovne %rax, %rdx
+	cmovne %rax, %rcx
+	cmovne %rax, %r8
+	cmovne %rax, %r9
+	cmovne %rax, %rsp
 	ANNOTATE_UNRET_SAFE
 	ret
 	int3

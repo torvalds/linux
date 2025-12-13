@@ -138,11 +138,14 @@ static bool sc_node_equal(long key1, long key2, void *ctx __maybe_unused)
 	return key1 == key2;
 }
 
-static int print_common_stats(struct syscall_data *data, FILE *fp)
+static int print_common_stats(struct syscall_data *data, int max_summary, FILE *fp)
 {
 	int printed = 0;
 
-	for (int i = 0; i < data->nr_nodes; i++) {
+	if (max_summary == 0 || max_summary > data->nr_nodes)
+		max_summary = data->nr_nodes;
+
+	for (int i = 0; i < max_summary; i++) {
 		struct syscall_node *node = &data->nodes[i];
 		struct syscall_stats *stat = &node->stats;
 		double total = (double)(stat->total_time) / NSEC_PER_MSEC;
@@ -200,7 +203,7 @@ static int update_thread_stats(struct hashmap *hash, struct syscall_key *map_key
 	return 0;
 }
 
-static int print_thread_stat(struct syscall_data *data, FILE *fp)
+static int print_thread_stat(struct syscall_data *data, int max_summary, FILE *fp)
 {
 	int printed = 0;
 
@@ -213,18 +216,18 @@ static int print_thread_stat(struct syscall_data *data, FILE *fp)
 	printed += fprintf(fp, "                                     (msec)    (msec)    (msec)    (msec)        (%%)\n");
 	printed += fprintf(fp, "   --------------- --------  ------ -------- --------- --------- ---------     ------\n");
 
-	printed += print_common_stats(data, fp);
+	printed += print_common_stats(data, max_summary, fp);
 	printed += fprintf(fp, "\n\n");
 
 	return printed;
 }
 
-static int print_thread_stats(struct syscall_data **data, int nr_data, FILE *fp)
+static int print_thread_stats(struct syscall_data **data, int nr_data, int max_summary, FILE *fp)
 {
 	int printed = 0;
 
 	for (int i = 0; i < nr_data; i++)
-		printed += print_thread_stat(data[i], fp);
+		printed += print_thread_stat(data[i], max_summary, fp);
 
 	return printed;
 }
@@ -277,7 +280,7 @@ static int update_total_stats(struct hashmap *hash, struct syscall_key *map_key,
 	return 0;
 }
 
-static int print_total_stats(struct syscall_data **data, int nr_data, FILE *fp)
+static int print_total_stats(struct syscall_data **data, int nr_data, int max_summary, FILE *fp)
 {
 	int printed = 0;
 	int nr_events = 0;
@@ -291,8 +294,11 @@ static int print_total_stats(struct syscall_data **data, int nr_data, FILE *fp)
 	printed += fprintf(fp, "                                     (msec)    (msec)    (msec)    (msec)        (%%)\n");
 	printed += fprintf(fp, "   --------------- --------  ------ -------- --------- --------- ---------     ------\n");
 
-	for (int i = 0; i < nr_data; i++)
-		printed += print_common_stats(data[i], fp);
+	if (max_summary == 0 || max_summary > nr_data)
+		max_summary = nr_data;
+
+	for (int i = 0; i < max_summary; i++)
+		printed += print_common_stats(data[i], max_summary, fp);
 
 	printed += fprintf(fp, "\n\n");
 	return printed;
@@ -333,7 +339,7 @@ static int update_cgroup_stats(struct hashmap *hash, struct syscall_key *map_key
 	return 0;
 }
 
-static int print_cgroup_stat(struct syscall_data *data, FILE *fp)
+static int print_cgroup_stat(struct syscall_data *data, int max_summary, FILE *fp)
 {
 	int printed = 0;
 	struct cgroup *cgrp = __cgroup__find(&cgroups, data->key);
@@ -351,23 +357,23 @@ static int print_cgroup_stat(struct syscall_data *data, FILE *fp)
 	printed += fprintf(fp, "                                     (msec)    (msec)    (msec)    (msec)        (%%)\n");
 	printed += fprintf(fp, "   --------------- --------  ------ -------- --------- --------- ---------     ------\n");
 
-	printed += print_common_stats(data, fp);
+	printed += print_common_stats(data, max_summary, fp);
 	printed += fprintf(fp, "\n\n");
 
 	return printed;
 }
 
-static int print_cgroup_stats(struct syscall_data **data, int nr_data, FILE *fp)
+static int print_cgroup_stats(struct syscall_data **data, int nr_data, int max_summary, FILE *fp)
 {
 	int printed = 0;
 
 	for (int i = 0; i < nr_data; i++)
-		printed += print_cgroup_stat(data[i], fp);
+		printed += print_cgroup_stat(data[i], max_summary, fp);
 
 	return printed;
 }
 
-int trace_print_bpf_summary(FILE *fp)
+int trace_print_bpf_summary(FILE *fp, int max_summary)
 {
 	struct bpf_map *map = skel->maps.syscall_stats_map;
 	struct syscall_key *prev_key, key;
@@ -420,13 +426,13 @@ int trace_print_bpf_summary(FILE *fp)
 
 	switch (skel->rodata->aggr_mode) {
 	case SYSCALL_AGGR_THREAD:
-		printed += print_thread_stats(data, nr_data, fp);
+		printed += print_thread_stats(data, nr_data, max_summary, fp);
 		break;
 	case SYSCALL_AGGR_CPU:
-		printed += print_total_stats(data, nr_data, fp);
+		printed += print_total_stats(data, nr_data, max_summary, fp);
 		break;
 	case SYSCALL_AGGR_CGROUP:
-		printed += print_cgroup_stats(data, nr_data, fp);
+		printed += print_cgroup_stats(data, nr_data, max_summary, fp);
 		break;
 	default:
 		break;

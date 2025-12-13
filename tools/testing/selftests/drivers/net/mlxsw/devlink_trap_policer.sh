@@ -44,8 +44,7 @@ source $lib_dir/devlink_lib.sh
 
 h1_create()
 {
-	simple_if_init $h1 192.0.2.1/24
-	defer simple_if_fini $h1 192.0.2.1/24
+	adf_simple_if_init $h1 192.0.2.1/24
 
 	mtu_set $h1 10000
 	defer mtu_restore $h1
@@ -56,8 +55,7 @@ h1_create()
 
 h2_create()
 {
-	simple_if_init $h2 198.51.100.1/24
-	defer simple_if_fini $h2 198.51.100.1/24
+	adf_simple_if_init $h2 198.51.100.1/24
 
 	mtu_set $h2 10000
 	defer mtu_restore $h2
@@ -106,8 +104,7 @@ setup_prepare()
 	# Reload to ensure devlink-trap settings are back to default.
 	defer devlink_reload
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	h1_create
 	h2_create

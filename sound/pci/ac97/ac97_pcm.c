@@ -192,7 +192,7 @@ static int set_spdif_rate(struct snd_ac97 *ac97, unsigned short rate)
 		mask = AC97_SC_SPSR_MASK;
 	}
 
-	mutex_lock(&ac97->reg_mutex);
+	guard(mutex)(&ac97->reg_mutex);
 	old = snd_ac97_read(ac97, reg) & mask;
 	if (old != bits) {
 		snd_ac97_update_bits_nolock(ac97, AC97_EXTENDED_STATUS, AC97_EA_SPDIF, 0);
@@ -217,7 +217,6 @@ static int set_spdif_rate(struct snd_ac97 *ac97, unsigned short rate)
 		ac97->spdif_status = sbits;
 	}
 	snd_ac97_update_bits_nolock(ac97, AC97_EXTENDED_STATUS, AC97_EA_SPDIF, AC97_EA_SPDIF);
-	mutex_unlock(&ac97->reg_mutex);
 	return 0;
 }
 
@@ -571,33 +570,31 @@ int snd_ac97_pcm_open(struct ac97_pcm *pcm, unsigned int rate,
 					return err;
 			}
 	}
-	spin_lock_irq(&pcm->bus->bus_lock);
-	for (i = 3; i < 12; i++) {
-		if (!(slots & (1 << i)))
-			continue;
-		ok_flag = 0;
-		for (cidx = 0; cidx < 4; cidx++) {
-			if (bus->used_slots[pcm->stream][cidx] & (1 << i)) {
-				spin_unlock_irq(&pcm->bus->bus_lock);
-				err = -EBUSY;
+	scoped_guard(spinlock_irq, &pcm->bus->bus_lock) {
+		for (i = 3; i < 12; i++) {
+			if (!(slots & (1 << i)))
+				continue;
+			ok_flag = 0;
+			for (cidx = 0; cidx < 4; cidx++) {
+				if (bus->used_slots[pcm->stream][cidx] & (1 << i)) {
+					err = -EBUSY;
+					goto error;
+				}
+				if (pcm->r[r].rslots[cidx] & (1 << i)) {
+					bus->used_slots[pcm->stream][cidx] |= (1 << i);
+					ok_flag++;
+				}
+			}
+			if (!ok_flag) {
+				dev_err(bus->card->dev,
+					"cannot find configuration for AC97 slot %i\n",
+					i);
+				err = -EAGAIN;
 				goto error;
 			}
-			if (pcm->r[r].rslots[cidx] & (1 << i)) {
-				bus->used_slots[pcm->stream][cidx] |= (1 << i);
-				ok_flag++;
-			}
 		}
-		if (!ok_flag) {
-			spin_unlock_irq(&pcm->bus->bus_lock);
-			dev_err(bus->card->dev,
-				"cannot find configuration for AC97 slot %i\n",
-				i);
-			err = -EAGAIN;
-			goto error;
-		}
+		pcm->cur_dbl = r;
 	}
-	pcm->cur_dbl = r;
-	spin_unlock_irq(&pcm->bus->bus_lock);
 	for (i = 3; i < 12; i++) {
 		if (!(slots & (1 << i)))
 			continue;
@@ -665,7 +662,7 @@ int snd_ac97_pcm_close(struct ac97_pcm *pcm)
 #endif
 
 	bus = pcm->bus;
-	spin_lock_irq(&pcm->bus->bus_lock);
+	guard(spinlock_irq)(&pcm->bus->bus_lock);
 	for (i = 3; i < 12; i++) {
 		if (!(slots & (1 << i)))
 			continue;
@@ -674,7 +671,6 @@ int snd_ac97_pcm_close(struct ac97_pcm *pcm)
 	}
 	pcm->aslots = 0;
 	pcm->cur_dbl = 0;
-	spin_unlock_irq(&pcm->bus->bus_lock);
 	return 0;
 }
 

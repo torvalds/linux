@@ -294,7 +294,6 @@ ForEachMacros:
   - 'for_each_fib6_node_rt_rcu'
   - 'for_each_fib6_walker_rt'
   - 'for_each_file_lock'
-  - 'for_each_free_mem_pfn_range_in_zone_from'
   - 'for_each_free_mem_range'
   - 'for_each_free_mem_range_reverse'
   - 'for_each_func_rsrc'

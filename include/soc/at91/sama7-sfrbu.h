@@ -18,13 +18,6 @@
 #define		AT91_SFRBU_PSWBU_SOFTSWITCH	(1 << 1)	/* Power switch BU source selection */
 #define		AT91_SFRBU_PSWBU_CTRL		(1 << 0)	/* Power switch BU control */
 
-#define AT91_SFRBU_25LDOCR			(0x0C)		/* SFRBU 2.5V LDO Control Register */
-#define		AT91_SFRBU_25LDOCR_LDOANAKEY	(0x3B6E18 << 8)	/* Specific value mandatory to allow writing of other register bits. */
-#define		AT91_SFRBU_25LDOCR_STATE	(1 << 3)	/* LDOANA Switch On/Off Control */
-#define		AT91_SFRBU_25LDOCR_LP		(1 << 2)	/* LDOANA Low-Power Mode Control */
-#define		AT91_SFRBU_PD_VALUE_MSK		(0x3)
-#define		AT91_SFRBU_25LDOCR_PD_VALUE(v)	((v) & AT91_SFRBU_PD_VALUE_MSK)	/* LDOANA Pull-down value */
-
 #define AT91_FRBU_DDRPWR			(0x10)		/* SFRBU DDR Power Control Register */
 #define		AT91_FRBU_DDRPWR_STATE		(1 << 0)	/* DDR Power Mode State */
 

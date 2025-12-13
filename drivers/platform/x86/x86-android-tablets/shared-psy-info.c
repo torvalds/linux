@@ -5,16 +5,18 @@
  * devices typically have a bunch of things hardcoded, rather than specified
  * in their DSDT.
  *
- * Copyright (C) 2021-2023 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2021-2023 Hans de Goede <hansg@kernel.org>
  */
 
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/platform_device.h>
 #include <linux/power/bq24190_charger.h>
 #include <linux/property.h>
 #include <linux/regulator/machine.h>
 
 #include "shared-psy-info.h"
+#include "x86-android-tablets.h"
 
 /* Generic / shared charger / battery settings */
 const char * const tusb1211_chg_det_psy[] = { "tusb1211-charger-detect" };
@@ -111,6 +113,11 @@ const struct software_node generic_lipo_4v2_battery_node = {
 	.properties = generic_lipo_4v2_battery_props,
 };
 
+const struct software_node *generic_lipo_4v2_battery_swnodes[] = {
+	&generic_lipo_4v2_battery_node,
+	NULL
+};
+
 /* LiPo HighVoltage (max 4.35V) settings used by most devs with a HV battery */
 static const struct property_entry generic_lipo_hv_4v35_battery_props[] = {
 	PROPERTY_ENTRY_STRING("compatible", "simple-battery"),
@@ -129,6 +136,11 @@ static const struct property_entry generic_lipo_hv_4v35_battery_props[] = {
 
 const struct software_node generic_lipo_hv_4v35_battery_node = {
 	.properties = generic_lipo_hv_4v35_battery_props,
+};
+
+const struct software_node *generic_lipo_hv_4v35_battery_swnodes[] = {
+	&generic_lipo_hv_4v35_battery_node,
+	NULL
 };
 
 /* For enabling the bq24190 5V boost based on id-pin */
@@ -156,21 +168,19 @@ const char * const bq24190_modules[] __initconst = {
 	NULL
 };
 
-/* Generic platform device array and GPIO lookup table for micro USB ID pin handling */
+static const struct property_entry int3496_reference_props[] __initconst = {
+	PROPERTY_ENTRY_GPIO("vbus-gpios", &baytrail_gpiochip_nodes[1], 15, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mux-gpios", &baytrail_gpiochip_nodes[2], 1, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("id-gpios", &baytrail_gpiochip_nodes[2], 18, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+/* Generic pdevs array and gpio-lookups for micro USB ID pin handling */
 const struct platform_device_info int3496_pdevs[] __initconst = {
 	{
 		/* For micro USB ID pin handling */
 		.name = "intel-int3496",
 		.id = PLATFORM_DEVID_NONE,
-	},
-};
-
-struct gpiod_lookup_table int3496_reference_gpios = {
-	.dev_id = "intel-int3496",
-	.table = {
-		GPIO_LOOKUP("INT33FC:01", 15, "vbus", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:02", 1, "mux", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:02", 18, "id", GPIO_ACTIVE_HIGH),
-		{ }
+		.properties = int3496_reference_props,
 	},
 };

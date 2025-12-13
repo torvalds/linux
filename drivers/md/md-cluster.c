@@ -630,7 +630,7 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		if (le64_to_cpu(msg->high) != mddev->pers->size(mddev, 0, 0))
 			ret = mddev->bitmap_ops->resize(mddev,
 							le64_to_cpu(msg->high),
-							0, false);
+							0);
 		break;
 	default:
 		ret = -1;
@@ -979,7 +979,7 @@ err:
 	lockres_free(cinfo->resync_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	if (cinfo->lockspace)
-		dlm_release_lockspace(cinfo->lockspace, 2);
+		dlm_release_lockspace(cinfo->lockspace, DLM_RELEASE_NORMAL);
 	mddev->cluster_info = NULL;
 	kfree(cinfo);
 	return ret;
@@ -1042,7 +1042,7 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->resync_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	unlock_all_bitmaps(mddev);
-	dlm_release_lockspace(cinfo->lockspace, 2);
+	dlm_release_lockspace(cinfo->lockspace, DLM_RELEASE_NORMAL);
 	kfree(cinfo);
 	return 0;
 }

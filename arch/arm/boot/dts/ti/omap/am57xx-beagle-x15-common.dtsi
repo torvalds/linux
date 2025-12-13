@@ -149,7 +149,7 @@
 	gpio_fan: gpio_fan {
 		/* Based on 5v 500mA AFB02505HHB */
 		compatible = "gpio-fan";
-		gpios =  <&tps659038_gpio 2 GPIO_ACTIVE_HIGH>;
+		gpios = <&tps659038_gpio 2 GPIO_ACTIVE_HIGH>;
 		gpio-fan,speed-map = <0     0>,
 				     <13000 1>;
 		#cooling-cells = <2>;

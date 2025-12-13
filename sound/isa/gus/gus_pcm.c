@@ -89,7 +89,6 @@ static void snd_gf1_pcm_trigger_up(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct gus_pcm_private *pcmp = runtime->private_data;
 	struct snd_gus_card * gus = pcmp->gus;
-	unsigned long flags;
 	unsigned char voice_ctrl, ramp_ctrl;
 	unsigned short rate;
 	unsigned int curr, begin, end;
@@ -97,14 +96,12 @@ static void snd_gf1_pcm_trigger_up(struct snd_pcm_substream *substream)
 	unsigned char pan;
 	unsigned int voice;
 
-	spin_lock_irqsave(&pcmp->lock, flags);
-	if (pcmp->flags & SNDRV_GF1_PCM_PFLG_ACTIVE) {
-		spin_unlock_irqrestore(&pcmp->lock, flags);
-		return;
+	scoped_guard(spinlock_irqsave, &pcmp->lock) {
+		if (pcmp->flags & SNDRV_GF1_PCM_PFLG_ACTIVE)
+			return;
+		pcmp->flags |= SNDRV_GF1_PCM_PFLG_ACTIVE;
+		pcmp->final_volume = 0;
 	}
-	pcmp->flags |= SNDRV_GF1_PCM_PFLG_ACTIVE;
-	pcmp->final_volume = 0;
-	spin_unlock_irqrestore(&pcmp->lock, flags);
 	rate = snd_gf1_translate_freq(gus, runtime->rate << 4);
 	/* enable WAVE IRQ */
 	voice_ctrl = snd_pcm_format_width(runtime->format) == 16 ? 0x24 : 0x20;
@@ -121,7 +118,7 @@ static void snd_gf1_pcm_trigger_up(struct snd_pcm_substream *substream)
 		end -= snd_pcm_format_width(runtime->format) == 16 ? 2 : 1;
 		pan = runtime->channels == 2 ? (!voice ? 1 : 14) : 8;
 		vol = !voice ? gus->gf1.pcm_volume_level_left : gus->gf1.pcm_volume_level_right;
-		spin_lock_irqsave(&gus->reg_lock, flags);
+		guard(spinlock_irqsave)(&gus->reg_lock);
 		snd_gf1_select_voice(gus, pcmp->pvoices[voice]->number);
 		snd_gf1_write8(gus, SNDRV_GF1_VB_PAN, pan);
 		snd_gf1_write16(gus, SNDRV_GF1_VW_FREQUENCY, rate);
@@ -137,9 +134,9 @@ static void snd_gf1_pcm_trigger_up(struct snd_pcm_substream *substream)
 			snd_gf1_delay(gus);
 			snd_gf1_write8(gus, SNDRV_GF1_VB_VOLUME_CONTROL, ramp_ctrl);
 		}
-		spin_unlock_irqrestore(&gus->reg_lock, flags);
 	}
-	spin_lock_irqsave(&gus->reg_lock, flags);
+
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	for (voice = 0; voice < pcmp->voices; voice++) {
 		snd_gf1_select_voice(gus, pcmp->pvoices[voice]->number);
 		if (gus->gf1.enh_mode)
@@ -156,7 +153,6 @@ static void snd_gf1_pcm_trigger_up(struct snd_pcm_substream *substream)
 			voice_ctrl &= ~0x20;	/* disable IRQ for next voice */
 		}
 	}
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 static void snd_gf1_pcm_interrupt_wave(struct snd_gus_card * gus,
@@ -182,52 +178,52 @@ static void snd_gf1_pcm_interrupt_wave(struct snd_gus_card * gus,
 	gus = pcmp->gus;
 	runtime = pcmp->substream->runtime;
 
-	spin_lock(&gus->reg_lock);
-	snd_gf1_select_voice(gus, pvoice->number);
-	voice_ctrl = snd_gf1_read8(gus, SNDRV_GF1_VB_ADDRESS_CONTROL) & ~0x8b;
-	ramp_ctrl = (snd_gf1_read8(gus, SNDRV_GF1_VB_VOLUME_CONTROL) & ~0xa4) | 0x03;
+	scoped_guard(spinlock, &gus->reg_lock) {
+		snd_gf1_select_voice(gus, pvoice->number);
+		voice_ctrl = snd_gf1_read8(gus, SNDRV_GF1_VB_ADDRESS_CONTROL) & ~0x8b;
+		ramp_ctrl = (snd_gf1_read8(gus, SNDRV_GF1_VB_VOLUME_CONTROL) & ~0xa4) | 0x03;
 #if 0
-	snd_gf1_select_voice(gus, pvoice->number);
-	dev_dbg(gus->card->dev, "position = 0x%x\n",
-		(snd_gf1_read_addr(gus, SNDRV_GF1_VA_CURRENT, voice_ctrl & 4) >> 4));
-	snd_gf1_select_voice(gus, pcmp->pvoices[1]->number);
-	dev_dbg(gus->card->dev, "position = 0x%x\n",
-		(snd_gf1_read_addr(gus, SNDRV_GF1_VA_CURRENT, voice_ctrl & 4) >> 4));
-	snd_gf1_select_voice(gus, pvoice->number);
+		snd_gf1_select_voice(gus, pvoice->number);
+		dev_dbg(gus->card->dev, "position = 0x%x\n",
+			(snd_gf1_read_addr(gus, SNDRV_GF1_VA_CURRENT, voice_ctrl & 4) >> 4));
+		snd_gf1_select_voice(gus, pcmp->pvoices[1]->number);
+		dev_dbg(gus->card->dev, "position = 0x%x\n",
+			(snd_gf1_read_addr(gus, SNDRV_GF1_VA_CURRENT, voice_ctrl & 4) >> 4));
+		snd_gf1_select_voice(gus, pvoice->number);
 #endif
-	pcmp->bpos++;
-	pcmp->bpos %= pcmp->blocks;
-	if (pcmp->bpos + 1 >= pcmp->blocks) {	/* last block? */
-		voice_ctrl |= 0x08;	/* enable loop */
-	} else {
-		ramp_ctrl |= 0x04;	/* enable rollover */
-	}
-	end = pcmp->memory + (((pcmp->bpos + 1) * pcmp->block_size) / runtime->channels);
-	end -= voice_ctrl & 4 ? 2 : 1;
-	step = pcmp->dma_size / runtime->channels;
-	voice_ctrl |= 0x20;
-	if (!pcmp->final_volume) {
-		ramp_ctrl |= 0x20;
-		ramp_ctrl &= ~0x03;
-	}
-	for (idx = 0; idx < pcmp->voices; idx++, end += step) {
-		snd_gf1_select_voice(gus, pcmp->pvoices[idx]->number);
-		snd_gf1_write_addr(gus, SNDRV_GF1_VA_END, end << 4, voice_ctrl & 4);
-		snd_gf1_write8(gus, SNDRV_GF1_VB_ADDRESS_CONTROL, voice_ctrl);
-		snd_gf1_write8(gus, SNDRV_GF1_VB_VOLUME_CONTROL, ramp_ctrl);
-		voice_ctrl &= ~0x20;
-	}
-	if (!gus->gf1.enh_mode) {
-		snd_gf1_delay(gus);
+		pcmp->bpos++;
+		pcmp->bpos %= pcmp->blocks;
+		if (pcmp->bpos + 1 >= pcmp->blocks) {	/* last block? */
+			voice_ctrl |= 0x08;	/* enable loop */
+		} else {
+			ramp_ctrl |= 0x04;	/* enable rollover */
+		}
+		end = pcmp->memory + (((pcmp->bpos + 1) * pcmp->block_size) / runtime->channels);
+		end -= voice_ctrl & 4 ? 2 : 1;
+		step = pcmp->dma_size / runtime->channels;
 		voice_ctrl |= 0x20;
-		for (idx = 0; idx < pcmp->voices; idx++) {
+		if (!pcmp->final_volume) {
+			ramp_ctrl |= 0x20;
+			ramp_ctrl &= ~0x03;
+		}
+		for (idx = 0; idx < pcmp->voices; idx++, end += step) {
 			snd_gf1_select_voice(gus, pcmp->pvoices[idx]->number);
+			snd_gf1_write_addr(gus, SNDRV_GF1_VA_END, end << 4, voice_ctrl & 4);
 			snd_gf1_write8(gus, SNDRV_GF1_VB_ADDRESS_CONTROL, voice_ctrl);
 			snd_gf1_write8(gus, SNDRV_GF1_VB_VOLUME_CONTROL, ramp_ctrl);
 			voice_ctrl &= ~0x20;
 		}
+		if (!gus->gf1.enh_mode) {
+			snd_gf1_delay(gus);
+			voice_ctrl |= 0x20;
+			for (idx = 0; idx < pcmp->voices; idx++) {
+				snd_gf1_select_voice(gus, pcmp->pvoices[idx]->number);
+				snd_gf1_write8(gus, SNDRV_GF1_VB_ADDRESS_CONTROL, voice_ctrl);
+				snd_gf1_write8(gus, SNDRV_GF1_VB_VOLUME_CONTROL, ramp_ctrl);
+				voice_ctrl &= ~0x20;
+			}
+		}
 	}
-	spin_unlock(&gus->reg_lock);
 
 	snd_pcm_period_elapsed(pcmp->substream);
 #if 0
@@ -252,10 +248,10 @@ static void snd_gf1_pcm_interrupt_volume(struct snd_gus_card * gus,
 	struct gus_pcm_private *pcmp = pvoice->private_data;
 
 	/* stop ramp, but leave rollover bit untouched */
-	spin_lock(&gus->reg_lock);
-	snd_gf1_select_voice(gus, pvoice->number);
-	snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);
-	spin_unlock(&gus->reg_lock);
+	scoped_guard(spinlock, &gus->reg_lock) {
+		snd_gf1_select_voice(gus, pvoice->number);
+		snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);
+	}
 	if (pcmp == NULL)
 		return;
 	/* are we active? */
@@ -266,11 +262,10 @@ static void snd_gf1_pcm_interrupt_volume(struct snd_gus_card * gus,
 	if (pcmp->substream == NULL)
 		return;
 	vol = !cvoice ? gus->gf1.pcm_volume_level_left : gus->gf1.pcm_volume_level_right;
-	spin_lock(&gus->reg_lock);
+	guard(spinlock)(&gus->reg_lock);
 	snd_gf1_select_voice(gus, pvoice->number);
 	snd_gf1_write16(gus, SNDRV_GF1_VW_VOLUME, vol);
 	pcmp->final_volume = 1;
-	spin_unlock(&gus->reg_lock);
 }
 
 static void snd_gf1_pcm_volume_change(struct snd_gus_card * gus)
@@ -282,7 +277,6 @@ static int snd_gf1_pcm_poke_block(struct snd_gus_card *gus, unsigned char *buf,
 				  int w16, int invert)
 {
 	unsigned int len;
-	unsigned long flags;
 
 	while (count > 0) {
 		len = count;
@@ -290,7 +284,7 @@ static int snd_gf1_pcm_poke_block(struct snd_gus_card *gus, unsigned char *buf,
 			len = 512;
 		count -= len;
 		if (gus->interwave) {
-			spin_lock_irqsave(&gus->reg_lock, flags);
+			guard(spinlock_irqsave)(&gus->reg_lock);
 			snd_gf1_write8(gus, SNDRV_GF1_GB_MEMORY_CONTROL, 0x01 | (invert ? 0x08 : 0x00));
 			snd_gf1_dram_addr(gus, pos);
 			if (w16) {
@@ -299,7 +293,6 @@ static int snd_gf1_pcm_poke_block(struct snd_gus_card *gus, unsigned char *buf,
 			} else {
 				outsb(GUSP(gus, DRAM), buf, len);
 			}
-			spin_unlock_irqrestore(&gus->reg_lock, flags);
 			buf += 512;
 			pos += 512;
 		} else {
@@ -479,9 +472,9 @@ static int snd_gf1_pcm_playback_trigger(struct snd_pcm_substream *substream,
 	if (cmd == SNDRV_PCM_TRIGGER_START) {
 		snd_gf1_pcm_trigger_up(substream);
 	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
-		spin_lock(&pcmp->lock);
-		pcmp->flags &= ~SNDRV_GF1_PCM_PFLG_ACTIVE;
-		spin_unlock(&pcmp->lock);
+		scoped_guard(spinlock, &pcmp->lock) {
+			pcmp->flags &= ~SNDRV_GF1_PCM_PFLG_ACTIVE;
+		}
 		voice = pcmp->pvoices[0]->number;
 		snd_gf1_stop_voices(gus, voice, voice);
 		if (pcmp->pvoices[1]) {
@@ -503,7 +496,7 @@ static snd_pcm_uframes_t snd_gf1_pcm_playback_pointer(struct snd_pcm_substream *
 	unsigned char voice_ctrl;
 
 	pos = 0;
-	spin_lock(&gus->reg_lock);
+	guard(spinlock)(&gus->reg_lock);
 	if (pcmp->flags & SNDRV_GF1_PCM_PFLG_ACTIVE) {
 		snd_gf1_select_voice(gus, pcmp->pvoices[0]->number);
 		voice_ctrl = snd_gf1_read8(gus, SNDRV_GF1_VB_ADDRESS_CONTROL);
@@ -512,7 +505,6 @@ static snd_pcm_uframes_t snd_gf1_pcm_playback_pointer(struct snd_pcm_substream *
 			pos <<= 1;
 		pos = bytes_to_frames(runtime, pos);
 	}
-	spin_unlock(&gus->reg_lock);
 	return pos;
 }
 
@@ -572,10 +564,9 @@ static int snd_gf1_pcm_capture_trigger(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	spin_lock(&gus->reg_lock);
+	guard(spinlock)(&gus->reg_lock);
 	snd_gf1_write8(gus, SNDRV_GF1_GB_REC_DMA_CONTROL, val);
 	snd_gf1_look8(gus, SNDRV_GF1_GB_REC_DMA_CONTROL);
-	spin_unlock(&gus->reg_lock);
 	return 0;
 }
 
@@ -724,19 +715,16 @@ static int snd_gf1_pcm_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl
 static int snd_gf1_pcm_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_gus_card *gus = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	
-	spin_lock_irqsave(&gus->pcm_volume_level_lock, flags);
+	guard(spinlock_irqsave)(&gus->pcm_volume_level_lock);
 	ucontrol->value.integer.value[0] = gus->gf1.pcm_volume_level_left1;
 	ucontrol->value.integer.value[1] = gus->gf1.pcm_volume_level_right1;
-	spin_unlock_irqrestore(&gus->pcm_volume_level_lock, flags);
 	return 0;
 }
 
 static int snd_gf1_pcm_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_gus_card *gus = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int change;
 	unsigned int idx;
 	unsigned short val1, val2, vol;
@@ -745,33 +733,32 @@ static int snd_gf1_pcm_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	
 	val1 = ucontrol->value.integer.value[0] & 127;
 	val2 = ucontrol->value.integer.value[1] & 127;
-	spin_lock_irqsave(&gus->pcm_volume_level_lock, flags);
-	change = val1 != gus->gf1.pcm_volume_level_left1 ||
-	         val2 != gus->gf1.pcm_volume_level_right1;
-	gus->gf1.pcm_volume_level_left1 = val1;
-	gus->gf1.pcm_volume_level_right1 = val2;
-	gus->gf1.pcm_volume_level_left = snd_gf1_lvol_to_gvol_raw(val1 << 9) << 4;
-	gus->gf1.pcm_volume_level_right = snd_gf1_lvol_to_gvol_raw(val2 << 9) << 4;
-	spin_unlock_irqrestore(&gus->pcm_volume_level_lock, flags);
-	/* are we active? */
-	spin_lock_irqsave(&gus->voice_alloc, flags);
-	for (idx = 0; idx < 32; idx++) {
-		pvoice = &gus->gf1.voices[idx];
-		if (!pvoice->pcm)
-			continue;
-		pcmp = pvoice->private_data;
-		if (!(pcmp->flags & SNDRV_GF1_PCM_PFLG_ACTIVE))
-			continue;
-		/* load real volume - better precision */
-		spin_lock(&gus->reg_lock);
-		snd_gf1_select_voice(gus, pvoice->number);
-		snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);
-		vol = pvoice == pcmp->pvoices[0] ? gus->gf1.pcm_volume_level_left : gus->gf1.pcm_volume_level_right;
-		snd_gf1_write16(gus, SNDRV_GF1_VW_VOLUME, vol);
-		pcmp->final_volume = 1;
-		spin_unlock(&gus->reg_lock);
+	scoped_guard(spinlock_irqsave, &gus->pcm_volume_level_lock) {
+		change = val1 != gus->gf1.pcm_volume_level_left1 ||
+			val2 != gus->gf1.pcm_volume_level_right1;
+		gus->gf1.pcm_volume_level_left1 = val1;
+		gus->gf1.pcm_volume_level_right1 = val2;
+		gus->gf1.pcm_volume_level_left = snd_gf1_lvol_to_gvol_raw(val1 << 9) << 4;
+		gus->gf1.pcm_volume_level_right = snd_gf1_lvol_to_gvol_raw(val2 << 9) << 4;
 	}
-	spin_unlock_irqrestore(&gus->voice_alloc, flags);
+	/* are we active? */
+	scoped_guard(spinlock_irqsave, &gus->voice_alloc) {
+		for (idx = 0; idx < 32; idx++) {
+			pvoice = &gus->gf1.voices[idx];
+			if (!pvoice->pcm)
+				continue;
+			pcmp = pvoice->private_data;
+			if (!(pcmp->flags & SNDRV_GF1_PCM_PFLG_ACTIVE))
+				continue;
+			/* load real volume - better precision */
+			guard(spinlock)(&gus->reg_lock);
+			snd_gf1_select_voice(gus, pvoice->number);
+			snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);
+			vol = pvoice == pcmp->pvoices[0] ? gus->gf1.pcm_volume_level_left : gus->gf1.pcm_volume_level_right;
+			snd_gf1_write16(gus, SNDRV_GF1_VW_VOLUME, vol);
+			pcmp->final_volume = 1;
+		}
+	}
 	return change;
 }
 

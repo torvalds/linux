@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <linux/bitops.h>
 #include "build-id.h"
+#include "debuginfo.h"
 #include "mutex.h"
 #include <internal/rc_check.h>
 
@@ -299,6 +300,7 @@ DECLARE_RC_STRUCT(dso) {
 	u8		 hit:1;
 	u8		 annotate_warned:1;
 	u8		 auxtrace_warned:1;
+	u8		 debuginfo_warned:1;
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
 	u8		 is_64_bit:1;
@@ -360,6 +362,16 @@ static inline bool dso__annotate_warned(const struct dso *dso)
 static inline void dso__set_annotate_warned(struct dso *dso)
 {
 	RC_CHK_ACCESS(dso)->annotate_warned = 1;
+}
+
+static inline bool dso__debuginfo_warned(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->debuginfo_warned;
+}
+
+static inline void dso__set_debuginfo_warned(struct dso *dso)
+{
+	RC_CHK_ACCESS(dso)->debuginfo_warned = 1;
 }
 
 static inline bool dso__auxtrace_warned(const struct dso *dso)
@@ -902,5 +914,18 @@ u64 dso__findnew_global_type(struct dso *dso, u64 addr, u64 offset);
 /* Check if dso name is of format "/tmp/perf-%d.map" */
 bool perf_pid_map_tid(const char *dso_name, int *tid);
 bool is_perf_pid_map_name(const char *dso_name);
+
+/*
+ * In the future, we may get debuginfo using build-ID (w/o path).
+ * Add this helper is for the smooth conversion.
+ */
+static inline struct debuginfo *dso__debuginfo(struct dso *dso)
+{
+	return debuginfo__new(dso__long_name(dso));
+}
+
+const u8 *dso__read_symbol(struct dso *dso, const char *symfs_filename,
+			   const struct map *map, const struct symbol *sym,
+			   u8 **out_buf, u64 *out_buf_len, bool *is_64bit);
 
 #endif /* __PERF_DSO */

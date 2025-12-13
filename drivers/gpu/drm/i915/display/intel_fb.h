@@ -104,6 +104,9 @@ int intel_framebuffer_init(struct intel_framebuffer *ifb,
 			   struct drm_gem_object *obj,
 			   const struct drm_format_info *info,
 			   struct drm_mode_fb_cmd2 *mode_cmd);
+
+struct intel_framebuffer *intel_framebuffer_alloc(void);
+
 struct drm_framebuffer *
 intel_framebuffer_create(struct drm_gem_object *obj,
 			 const struct drm_format_info *info,

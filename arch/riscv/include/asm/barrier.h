@@ -10,7 +10,7 @@
 #ifndef _ASM_RISCV_BARRIER_H
 #define _ASM_RISCV_BARRIER_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/cmpxchg.h>
 #include <asm/fence.h>
 
@@ -82,6 +82,6 @@ do {									\
 
 #include <asm-generic/barrier.h>
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_RISCV_BARRIER_H */

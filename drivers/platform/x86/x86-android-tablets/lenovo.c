@@ -5,13 +5,15 @@
  * devices typically have a bunch of things hardcoded, rather than specified
  * in their DSDT.
  *
- * Copyright (C) 2021-2023 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2021-2023 Hans de Goede <hansg@kernel.org>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/efi.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
+#include <linux/input-event-codes.h>
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
 #include <linux/mfd/intel_soc_pmic.h>
@@ -59,11 +61,30 @@ static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
 	.initial_brightness = 128,
 };
 
+static const struct software_node arizona_gpiochip_node = {
+	.name = "arizona",
+};
+
+static const struct software_node crystalcove_gpiochip_node = {
+	.name = "gpio_crystalcove",
+};
+
 /* Lenovo Yoga Book X90F / X90L's Android factory image has everything hardcoded */
+
+static const struct property_entry lenovo_yb1_x90_goodix_props[] = {
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[1], 53, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("irq-gpios", &cherryview_gpiochip_nodes[1], 56, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node lenovo_yb1_x90_goodix_node = {
+	.properties = lenovo_yb1_x90_goodix_props,
+};
 
 static const struct property_entry lenovo_yb1_x90_wacom_props[] = {
 	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0001),
 	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 150),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[0], 82, GPIO_ACTIVE_LOW),
 	{ }
 };
 
@@ -85,6 +106,7 @@ static const struct property_entry lenovo_yb1_x90_hideep_ts_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1920),
 	PROPERTY_ENTRY_U32("touchscreen-max-pressure", 16384),
 	PROPERTY_ENTRY_BOOL("hideep,force-native-protocol"),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[0], 7, GPIO_ACTIVE_LOW),
 	{ }
 };
 
@@ -108,6 +130,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.type = "GDIX1001:00",
 			.addr = 0x14,
 			.dev_name = "goodix_ts",
+			.swnode = &lenovo_yb1_x90_goodix_node,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C2",
 		.irq_data = {
@@ -185,48 +208,33 @@ static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
 	},
 };
 
-static const struct x86_gpio_button lenovo_yb1_x90_lid __initconst = {
-	.button = {
-		.code = SW_LID,
-		.active_low = true,
-		.desc = "lid_sw",
-		.type = EV_SW,
-		.wakeup = true,
-		.debounce_interval = 50,
-	},
-	.chip = "INT33FF:02",
-	.pin = 19,
+/*
+ * Software node attached to gpio-keys device representing the LID and
+ * serving as a parent to software nodes representing individual keys/buttons
+ * as required by the device tree binding.
+ */
+static const struct software_node lenovo_lid_gpio_keys_node = {
+	.name = "lid_sw",
 };
 
-static struct gpiod_lookup_table lenovo_yb1_x90_goodix_gpios = {
-	.dev_id = "i2c-goodix_ts",
-	.table = {
-		GPIO_LOOKUP("INT33FF:01", 53, "reset", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FF:01", 56, "irq", GPIO_ACTIVE_HIGH),
-		{ }
-	},
+static const struct property_entry lenovo_yb1_x90_lid_props[] = {
+	PROPERTY_ENTRY_U32("linux,input-type", EV_SW),
+	PROPERTY_ENTRY_U32("linux,code", SW_LID),
+	PROPERTY_ENTRY_STRING("label", "lid_sw"),
+	PROPERTY_ENTRY_GPIO("gpios", &cherryview_gpiochip_nodes[2], 19, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
 };
 
-static struct gpiod_lookup_table lenovo_yb1_x90_hideep_gpios = {
-	.dev_id = "i2c-hideep_ts",
-	.table = {
-		GPIO_LOOKUP("INT33FF:00", 7, "reset", GPIO_ACTIVE_LOW),
-		{ }
-	},
+static const struct software_node lenovo_yb1_x90_lid_node = {
+	.parent = &lenovo_lid_gpio_keys_node,
+	.properties = lenovo_yb1_x90_lid_props,
 };
 
-static struct gpiod_lookup_table lenovo_yb1_x90_wacom_gpios = {
-	.dev_id = "i2c-wacom",
-	.table = {
-		GPIO_LOOKUP("INT33FF:00", 82, "reset", GPIO_ACTIVE_LOW),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table * const lenovo_yb1_x90_gpios[] = {
-	&lenovo_yb1_x90_hideep_gpios,
-	&lenovo_yb1_x90_goodix_gpios,
-	&lenovo_yb1_x90_wacom_gpios,
+static const struct software_node *lenovo_yb1_x90_lid_swnodes[] = {
+	&lenovo_lid_gpio_keys_node,
+	&lenovo_yb1_x90_lid_node,
 	NULL
 };
 
@@ -256,9 +264,8 @@ const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
 	.pdev_count = ARRAY_SIZE(lenovo_yb1_x90_pdevs),
 	.serdev_info = lenovo_yb1_x90_serdevs,
 	.serdev_count = ARRAY_SIZE(lenovo_yb1_x90_serdevs),
-	.gpio_button = &lenovo_yb1_x90_lid,
-	.gpio_button_count = 1,
-	.gpiod_lookup_tables = lenovo_yb1_x90_gpios,
+	.gpio_button_swnodes = lenovo_yb1_x90_lid_swnodes,
+	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yb1_x90_init,
 };
 
@@ -294,17 +301,25 @@ static const struct software_node lenovo_yoga_tab2_830_1050_bq24190_node = {
 	.properties = lenovo_yoga_tab2_830_1050_bq24190_props,
 };
 
-static const struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid __initconst = {
-	.button = {
-		.code = SW_LID,
-		.active_low = true,
-		.desc = "lid_sw",
-		.type = EV_SW,
-		.wakeup = true,
-		.debounce_interval = 50,
-	},
-	.chip = "INT33FC:02",
-	.pin = 26,
+static const struct property_entry lenovo_yoga_tab2_830_1050_lid_props[] = {
+	PROPERTY_ENTRY_U32("linux,input-type", EV_SW),
+	PROPERTY_ENTRY_U32("linux,code", SW_LID),
+	PROPERTY_ENTRY_STRING("label", "lid_sw"),
+	PROPERTY_ENTRY_GPIO("gpios", &baytrail_gpiochip_nodes[2], 26, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
+};
+
+static const struct software_node lenovo_yoga_tab2_830_1050_lid_node = {
+	.parent = &lenovo_lid_gpio_keys_node,
+	.properties = lenovo_yoga_tab2_830_1050_lid_props,
+};
+
+static const struct software_node *lenovo_yoga_tab2_830_1050_lid_swnodes[] = {
+	&lenovo_lid_gpio_keys_node,
+	&lenovo_yoga_tab2_830_1050_lid_node,
+	NULL
 };
 
 /* This gets filled by lenovo_yoga_tab2_830_1050_init() */
@@ -384,47 +399,65 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 	},
 };
 
-static struct gpiod_lookup_table lenovo_yoga_tab2_830_1050_int3496_gpios = {
-	.dev_id = "intel-int3496",
-	.table = {
-		GPIO_LOOKUP("INT33FC:02", 1, "mux", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("INT33FC:02", 24, "id", GPIO_ACTIVE_HIGH),
-		{ }
+static const struct property_entry lenovo_yoga_tab2_830_1050_int3496_props[] __initconst = {
+	PROPERTY_ENTRY_GPIO("mux-gpios", &baytrail_gpiochip_nodes[2], 1, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_GPIO("id-gpios", &baytrail_gpiochip_nodes[2], 24, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct platform_device_info lenovo_yoga_tab2_830_1050_pdevs[] __initconst = {
+	{
+		/* For micro USB ID pin handling */
+		.name = "intel-int3496",
+		.id = PLATFORM_DEVID_NONE,
+		.properties = lenovo_yoga_tab2_830_1050_int3496_props,
 	},
 };
 
 #define LENOVO_YOGA_TAB2_830_1050_CODEC_NAME "spi-10WM5102:00"
 
-static struct gpiod_lookup_table lenovo_yoga_tab2_830_1050_codec_gpios = {
-	.dev_id = LENOVO_YOGA_TAB2_830_1050_CODEC_NAME,
-	.table = {
-		GPIO_LOOKUP("gpio_crystalcove", 3, "reset", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:01", 23, "wlf,ldoena", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("arizona", 2, "wlf,spkvdd-ena", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("arizona", 4, "wlf,micd-pol", GPIO_ACTIVE_LOW),
-		{ }
-	},
+static const struct property_entry lenovo_yoga_tab2_830_1050_wm1502_props[] = {
+	PROPERTY_ENTRY_GPIO("reset-gpios",
+			    &crystalcove_gpiochip_node, 3, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,ldoena-gpios",
+			    &baytrail_gpiochip_nodes[1], 23, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,spkvdd-ena-gpios",
+			    &arizona_gpiochip_node, 2, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios",
+			    &arizona_gpiochip_node, 4, GPIO_ACTIVE_LOW),
+	{ }
 };
 
-static struct gpiod_lookup_table * const lenovo_yoga_tab2_830_1050_gpios[] = {
-	&lenovo_yoga_tab2_830_1050_int3496_gpios,
-	&lenovo_yoga_tab2_830_1050_codec_gpios,
+static const struct software_node lenovo_yoga_tab2_830_1050_wm5102 = {
+	.properties = lenovo_yoga_tab2_830_1050_wm1502_props,
+};
+
+static const struct software_node *lenovo_yoga_tab2_830_1050_swnodes[] = {
+	&crystalcove_gpiochip_node,
+	&arizona_gpiochip_node,
+	&lenovo_yoga_tab2_830_1050_wm5102,
+	&generic_lipo_hv_4v35_battery_node,
 	NULL
 };
 
 static int __init lenovo_yoga_tab2_830_1050_init(struct device *dev);
 static void lenovo_yoga_tab2_830_1050_exit(void);
 
+static const char * const lenovo_yoga_tab2_modules[] __initconst = {
+	"spi_pxa2xx_platform",	/* For the SPI codec device */
+	"bq24190_charger",	/* For the Vbus regulator for int3496/lc824206xa */
+	NULL
+};
+
 const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.i2c_client_info = lenovo_yoga_tab2_830_1050_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_i2c_clients),
-	.pdev_info = int3496_pdevs,
-	.pdev_count = 1,
-	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
-	.gpio_button_count = 1,
-	.gpiod_lookup_tables = lenovo_yoga_tab2_830_1050_gpios,
-	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
-	.modules = bq24190_modules,
+	.pdev_info = lenovo_yoga_tab2_830_1050_pdevs,
+	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_pdevs),
+	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
+	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
+	.modules = lenovo_yoga_tab2_modules,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_830_1050_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
 };
@@ -481,6 +514,7 @@ static const struct pinctrl_map lenovo_yoga_tab2_830_1050_codec_pinctrl_map =
 	PIN_MAP_MUX_GROUP(LENOVO_YOGA_TAB2_830_1050_CODEC_NAME, "codec_32khz_clk",
 			  "INT33FC:02", "pmu_clk2_grp", "pmu_clk");
 
+static struct device *lenovo_yoga_tab2_830_1050_codec_dev;
 static struct pinctrl *lenovo_yoga_tab2_830_1050_codec_pinctrl;
 static struct sys_off_handler *lenovo_yoga_tab2_830_1050_sys_off_handler;
 
@@ -507,12 +541,18 @@ static int __init lenovo_yoga_tab2_830_1050_init_codec(void)
 		goto err_unregister_mappings;
 	}
 
-	/* We're done with the codec_dev now */
-	put_device(codec_dev);
+	ret = device_add_software_node(codec_dev, &lenovo_yoga_tab2_830_1050_wm5102);
+	if (ret) {
+		ret = dev_err_probe(codec_dev, ret, "adding software node\n");
+		goto err_put_pinctrl;
+	}
 
+	lenovo_yoga_tab2_830_1050_codec_dev = codec_dev;
 	lenovo_yoga_tab2_830_1050_codec_pinctrl = pinctrl;
 	return 0;
 
+err_put_pinctrl:
+	pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
 err_unregister_mappings:
 	pinctrl_unregister_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map);
 err_put_device:
@@ -560,10 +600,10 @@ static void lenovo_yoga_tab2_830_1050_exit(void)
 {
 	unregister_sys_off_handler(lenovo_yoga_tab2_830_1050_sys_off_handler);
 
-	if (lenovo_yoga_tab2_830_1050_codec_pinctrl) {
-		pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
-		pinctrl_unregister_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map);
-	}
+	device_remove_software_node(lenovo_yoga_tab2_830_1050_codec_dev);
+	pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
+	pinctrl_unregister_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map);
+	put_device(lenovo_yoga_tab2_830_1050_codec_dev);
 }
 
 /*
@@ -718,17 +758,19 @@ static const struct x86_i2c_client_info lenovo_yoga_tab2_1380_i2c_clients[] __in
 	}
 };
 
+static const struct property_entry lenovo_yoga_tab2_1380_fc_props[] __initconst = {
+	PROPERTY_ENTRY_GPIO("uart3_txd-gpios", &baytrail_gpiochip_nodes[0], 57, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("uart3_rxd-gpios", &baytrail_gpiochip_nodes[0], 61, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
 static const struct platform_device_info lenovo_yoga_tab2_1380_pdevs[] __initconst = {
 	{
 		/* For the Tablet 2 Pro 1380's custom fast charging driver */
 		.name = "lenovo-yoga-tab2-pro-1380-fastcharger",
 		.id = PLATFORM_DEVID_NONE,
+		.properties = lenovo_yoga_tab2_1380_fc_props,
 	},
-};
-
-static const char * const lenovo_yoga_tab2_1380_modules[] __initconst = {
-	"bq24190_charger",            /* For the Vbus regulator for lc824206xa */
-	NULL
 };
 
 static int __init lenovo_yoga_tab2_1380_init(struct device *dev)
@@ -752,31 +794,15 @@ static int __init lenovo_yoga_tab2_1380_init(struct device *dev)
 	return 0;
 }
 
-static struct gpiod_lookup_table lenovo_yoga_tab2_1380_fc_gpios = {
-	.dev_id = "serial0-0",
-	.table = {
-		GPIO_LOOKUP("INT33FC:00", 57, "uart3_txd", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:00", 61, "uart3_rxd", GPIO_ACTIVE_HIGH),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table * const lenovo_yoga_tab2_1380_gpios[] = {
-	&lenovo_yoga_tab2_830_1050_codec_gpios,
-	&lenovo_yoga_tab2_1380_fc_gpios,
-	NULL
-};
-
 const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.i2c_client_info = lenovo_yoga_tab2_1380_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_i2c_clients),
 	.pdev_info = lenovo_yoga_tab2_1380_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_pdevs),
-	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
-	.gpio_button_count = 1,
-	.gpiod_lookup_tables = lenovo_yoga_tab2_1380_gpios,
-	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
-	.modules = lenovo_yoga_tab2_1380_modules,
+	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
+	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
+	.modules = lenovo_yoga_tab2_modules,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_1380_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
 };
@@ -824,6 +850,7 @@ static const struct property_entry lenovo_yt3_hideep_ts_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1600),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 2560),
 	PROPERTY_ENTRY_U32("touchscreen-max-pressure", 255),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[0], 7, GPIO_ACTIVE_LOW),
 	{ }
 };
 
@@ -958,12 +985,34 @@ static struct arizona_pdata lenovo_yt3_wm5102_pdata = {
 	},
 };
 
+static const struct property_entry lenovo_yt3_wm1502_props[] = {
+	PROPERTY_ENTRY_GPIO("wlf,spkvdd-ena-gpios",
+			    &cherryview_gpiochip_nodes[0], 75, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,ldoena-gpios",
+			    &cherryview_gpiochip_nodes[0], 81, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[0], 82, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios", &arizona_gpiochip_node, 2, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node lenovo_yt3_wm5102 = {
+	.properties = lenovo_yt3_wm1502_props,
+	.name = "wm5102",
+};
+
+static const struct software_node *lenovo_yt3_swnodes[] = {
+	&arizona_gpiochip_node,
+	&lenovo_yt3_wm5102,
+	NULL
+};
+
 static const struct x86_spi_dev_info lenovo_yt3_spi_devs[] __initconst = {
 	{
 		/* WM5102 codec */
 		.board_info = {
 			.modalias = "wm5102",
 			.platform_data = &lenovo_yt3_wm5102_pdata,
+			.swnode = &lenovo_yt3_wm5102,
 			.max_speed_hz = 5000000,
 		},
 		.ctrl_path = "\\_SB_.PCI0.SPI1",
@@ -1013,28 +1062,8 @@ static int __init lenovo_yt3_init(struct device *dev)
 	return 0;
 }
 
-static struct gpiod_lookup_table lenovo_yt3_hideep_gpios = {
-	.dev_id = "i2c-hideep_ts",
-	.table = {
-		GPIO_LOOKUP("INT33FF:00", 7, "reset", GPIO_ACTIVE_LOW),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table lenovo_yt3_wm5102_gpios = {
-	.dev_id = "spi1.0",
-	.table = {
-		GPIO_LOOKUP("INT33FF:00", 75, "wlf,spkvdd-ena", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FF:00", 81, "wlf,ldoena", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FF:00", 82, "reset", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("arizona", 2, "wlf,micd-pol", GPIO_ACTIVE_HIGH),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table * const lenovo_yt3_gpios[] = {
-	&lenovo_yt3_hideep_gpios,
-	&lenovo_yt3_wm5102_gpios,
+static const char * const lenovo_yt3_modules[] __initconst = {
+	"spi_pxa2xx_platform",	/* For the SPI codec device */
 	NULL
 };
 
@@ -1043,6 +1072,8 @@ const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
 	.spi_dev_info = lenovo_yt3_spi_devs,
 	.spi_dev_count = ARRAY_SIZE(lenovo_yt3_spi_devs),
-	.gpiod_lookup_tables = lenovo_yt3_gpios,
+	.swnode_group = lenovo_yt3_swnodes,
+	.modules = lenovo_yt3_modules,
+	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yt3_init,
 };

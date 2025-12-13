@@ -365,8 +365,6 @@ static int __mt9v111_power_on(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
-	clk_set_rate(mt9v111->clk, mt9v111->sysclk);
-
 	gpiod_set_value(mt9v111->standby, 0);
 	usleep_range(500, 1000);
 
@@ -532,8 +530,8 @@ static int mt9v111_calc_frame_rate(struct mt9v111_dev *mt9v111,
 static int mt9v111_hw_config(struct mt9v111_dev *mt9v111)
 {
 	struct i2c_client *c = mt9v111->client;
-	unsigned int ret;
 	u16 outfmtctrl2;
+	int ret;
 
 	/* Force device reset. */
 	ret = __mt9v111_hw_reset(mt9v111);
@@ -1129,9 +1127,10 @@ static int mt9v111_probe(struct i2c_client *client)
 	mt9v111->dev = &client->dev;
 	mt9v111->client = client;
 
-	mt9v111->clk = devm_clk_get(&client->dev, NULL);
+	mt9v111->clk = devm_v4l2_sensor_clk_get(&client->dev, NULL);
 	if (IS_ERR(mt9v111->clk))
-		return PTR_ERR(mt9v111->clk);
+		return dev_err_probe(&client->dev, PTR_ERR(mt9v111->clk),
+				     "failed to get the clock\n");
 
 	mt9v111->sysclk = clk_get_rate(mt9v111->clk);
 	if (mt9v111->sysclk > MT9V111_MAX_CLKIN)

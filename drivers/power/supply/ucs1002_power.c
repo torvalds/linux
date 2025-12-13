@@ -493,7 +493,7 @@ static irqreturn_t ucs1002_alert_irq(int irq, void *data)
 {
 	struct ucs1002_info *info = data;
 
-	mod_delayed_work(system_wq, &info->health_poll, 0);
+	mod_delayed_work(system_percpu_wq, &info->health_poll, 0);
 
 	return IRQ_HANDLED;
 }

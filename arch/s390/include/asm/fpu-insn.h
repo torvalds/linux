@@ -38,7 +38,7 @@ asm(".include \"asm/fpu-insn-asm.h\"\n");
 
 static __always_inline void fpu_cefbr(u8 f1, s32 val)
 {
-	asm volatile("cefbr	%[f1],%[val]\n"
+	asm volatile("cefbr	%[f1],%[val]"
 		     :
 		     : [f1] "I" (f1), [val] "d" (val)
 		     : "memory");
@@ -48,7 +48,7 @@ static __always_inline unsigned long fpu_cgebr(u8 f2, u8 mode)
 {
 	unsigned long val;
 
-	asm volatile("cgebr	%[val],%[mode],%[f2]\n"
+	asm volatile("cgebr	%[val],%[mode],%[f2]"
 		     : [val] "=d" (val)
 		     : [f2] "I" (f2), [mode] "I" (mode)
 		     : "memory");
@@ -57,7 +57,7 @@ static __always_inline unsigned long fpu_cgebr(u8 f2, u8 mode)
 
 static __always_inline void fpu_debr(u8 f1, u8 f2)
 {
-	asm volatile("debr	%[f1],%[f2]\n"
+	asm volatile("debr	%[f1],%[f2]"
 		     :
 		     : [f1] "I" (f1), [f2] "I" (f2)
 		     : "memory");
@@ -66,7 +66,7 @@ static __always_inline void fpu_debr(u8 f1, u8 f2)
 static __always_inline void fpu_ld(unsigned short fpr, freg_t *reg)
 {
 	instrument_read(reg, sizeof(*reg));
-	asm volatile("ld	 %[fpr],%[reg]\n"
+	asm volatile("ld	 %[fpr],%[reg]"
 		     :
 		     : [fpr] "I" (fpr), [reg] "Q" (reg->ui)
 		     : "memory");
@@ -74,7 +74,7 @@ static __always_inline void fpu_ld(unsigned short fpr, freg_t *reg)
 
 static __always_inline void fpu_ldgr(u8 f1, u32 val)
 {
-	asm volatile("ldgr	%[f1],%[val]\n"
+	asm volatile("ldgr	%[f1],%[val]"
 		     :
 		     : [f1] "I" (f1), [val] "d" (val)
 		     : "memory");
@@ -113,7 +113,7 @@ static inline void fpu_lfpc_safe(unsigned int *fpc)
 static __always_inline void fpu_std(unsigned short fpr, freg_t *reg)
 {
 	instrument_write(reg, sizeof(*reg));
-	asm volatile("std	 %[fpr],%[reg]\n"
+	asm volatile("std	 %[fpr],%[reg]"
 		     : [reg] "=Q" (reg->ui)
 		     : [fpr] "I" (fpr)
 		     : "memory");
@@ -181,7 +181,7 @@ static __always_inline void fpu_vgfmg(u8 v1, u8 v2, u8 v3)
 static __always_inline void fpu_vl(u8 v1, const void *vxr)
 {
 	instrument_read(vxr, sizeof(__vector128));
-	asm volatile("VL	%[v1],%O[vxr],,%R[vxr]\n"
+	asm volatile("VL	%[v1],%O[vxr],,%R[vxr]"
 		     :
 		     : [vxr] "Q" (*(__vector128 *)vxr),
 		       [v1] "I" (v1)
@@ -195,7 +195,7 @@ static __always_inline void fpu_vl(u8 v1, const void *vxr)
 	instrument_read(vxr, sizeof(__vector128));
 	asm volatile(
 		"	la	1,%[vxr]\n"
-		"	VL	%[v1],0,,1\n"
+		"	VL	%[v1],0,,1"
 		:
 		: [vxr] "R" (*(__vector128 *)vxr),
 		  [v1] "I" (v1)
@@ -239,7 +239,7 @@ static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 
 	size = min(index + 1, sizeof(__vector128));
 	instrument_read(vxr, size);
-	asm volatile("VLL	%[v1],%[index],%O[vxr],%R[vxr]\n"
+	asm volatile("VLL	%[v1],%[index],%O[vxr],%R[vxr]"
 		     :
 		     : [vxr] "Q" (*(u8 *)vxr),
 		       [index] "d" (index),
@@ -257,7 +257,7 @@ static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 	instrument_read(vxr, size);
 	asm volatile(
 		"	la	1,%[vxr]\n"
-		"	VLL	%[v1],%[index],0,1\n"
+		"	VLL	%[v1],%[index],0,1"
 		:
 		: [vxr] "R" (*(u8 *)vxr),
 		  [index] "d" (index),
@@ -277,7 +277,7 @@ static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 	} *_v = (void *)(_vxrs);					\
 									\
 	instrument_read(_v, size);					\
-	asm volatile("VLM	%[v1],%[v3],%O[vxrs],%R[vxrs]\n"	\
+	asm volatile("VLM	%[v1],%[v3],%O[vxrs],%R[vxrs]"		\
 		     :							\
 		     : [vxrs] "Q" (*_v),				\
 		       [v1] "I" (_v1), [v3] "I" (_v3)			\
@@ -297,7 +297,7 @@ static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 	instrument_read(_v, size);					\
 	asm volatile(							\
 		"	la	1,%[vxrs]\n"				\
-		"	VLM	%[v1],%[v3],0,1\n"			\
+		"	VLM	%[v1],%[v3],0,1"			\
 		:							\
 		: [vxrs] "R" (*_v),					\
 		  [v1] "I" (_v1), [v3] "I" (_v3)			\
@@ -360,7 +360,7 @@ static __always_inline void fpu_vsrlb(u8 v1, u8 v2, u8 v3)
 static __always_inline void fpu_vst(u8 v1, const void *vxr)
 {
 	instrument_write(vxr, sizeof(__vector128));
-	asm volatile("VST	%[v1],%O[vxr],,%R[vxr]\n"
+	asm volatile("VST	%[v1],%O[vxr],,%R[vxr]"
 		     : [vxr] "=Q" (*(__vector128 *)vxr)
 		     : [v1] "I" (v1)
 		     : "memory");
@@ -373,7 +373,7 @@ static __always_inline void fpu_vst(u8 v1, const void *vxr)
 	instrument_write(vxr, sizeof(__vector128));
 	asm volatile(
 		"	la	1,%[vxr]\n"
-		"	VST	%[v1],0,,1\n"
+		"	VST	%[v1],0,,1"
 		: [vxr] "=R" (*(__vector128 *)vxr)
 		: [v1] "I" (v1)
 		: "memory", "1");
@@ -389,7 +389,7 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 
 	size = min(index + 1, sizeof(__vector128));
 	instrument_write(vxr, size);
-	asm volatile("VSTL	%[v1],%[index],%O[vxr],%R[vxr]\n"
+	asm volatile("VSTL	%[v1],%[index],%O[vxr],%R[vxr]"
 		     : [vxr] "=Q" (*(u8 *)vxr)
 		     : [index] "d" (index), [v1] "I" (v1)
 		     : "memory");
@@ -405,7 +405,7 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 	instrument_write(vxr, size);
 	asm volatile(
 		"	la	1,%[vxr]\n"
-		"	VSTL	%[v1],%[index],0,1\n"
+		"	VSTL	%[v1],%[index],0,1"
 		: [vxr] "=R" (*(u8 *)vxr)
 		: [index] "d" (index), [v1] "I" (v1)
 		: "memory", "1");
@@ -423,7 +423,7 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 	} *_v = (void *)(_vxrs);					\
 									\
 	instrument_write(_v, size);					\
-	asm volatile("VSTM	%[v1],%[v3],%O[vxrs],%R[vxrs]\n"	\
+	asm volatile("VSTM	%[v1],%[v3],%O[vxrs],%R[vxrs]"		\
 		     : [vxrs] "=Q" (*_v)				\
 		     : [v1] "I" (_v1), [v3] "I" (_v3)			\
 		     : "memory");					\
@@ -442,7 +442,7 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 	instrument_write(_v, size);					\
 	asm volatile(							\
 		"	la	1,%[vxrs]\n"				\
-		"	VSTM	%[v1],%[v3],0,1\n"			\
+		"	VSTM	%[v1],%[v3],0,1"			\
 		: [vxrs] "=R" (*_v)					\
 		: [v1] "I" (_v1), [v3] "I" (_v3)			\
 		: "memory", "1");					\

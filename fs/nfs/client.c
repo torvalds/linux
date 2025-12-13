@@ -338,6 +338,14 @@ again:
 		/* Match the xprt security policy */
 		if (clp->cl_xprtsec.policy != data->xprtsec.policy)
 			continue;
+		if (clp->cl_xprtsec.policy == RPC_XPRTSEC_TLS_X509) {
+			if (clp->cl_xprtsec.cert_serial !=
+			    data->xprtsec.cert_serial)
+				continue;
+			if (clp->cl_xprtsec.privkey_serial !=
+			    data->xprtsec.privkey_serial)
+				continue;
+		}
 
 		refcount_inc(&clp->cl_count);
 		return clp;
@@ -888,6 +896,8 @@ static void nfs_server_set_fsinfo(struct nfs_server *server,
 
 	if (fsinfo->xattr_support)
 		server->caps |= NFS_CAP_XATTR;
+	else
+		server->caps &= ~NFS_CAP_XATTR;
 #endif
 }
 

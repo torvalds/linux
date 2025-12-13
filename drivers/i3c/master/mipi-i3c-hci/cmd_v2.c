@@ -261,7 +261,7 @@ static int hci_cmd_v2_daa(struct i3c_hci *hci)
 		if (ret < 0)
 			break;
 		next_addr = ret;
-		DBG("next_addr = 0x%02x", next_addr);
+		dev_dbg(&hci->master.dev, "next_addr = 0x%02x", next_addr);
 		xfer[0].cmd_tid = hci_get_tid();
 		xfer[0].cmd_desc[0] =
 			CMD_0_ATTR_A |
@@ -293,8 +293,9 @@ static int hci_cmd_v2_daa(struct i3c_hci *hci)
 		pid = (pid << 32) | device_id[0];
 		bcr = FIELD_GET(W1_MASK(55, 48), device_id[1]);
 		dcr = FIELD_GET(W1_MASK(63, 56), device_id[1]);
-		DBG("assigned address %#x to device PID=0x%llx DCR=%#x BCR=%#x",
-		    next_addr, pid, dcr, bcr);
+		dev_dbg(&hci->master.dev,
+			"assigned address %#x to device PID=0x%llx DCR=%#x BCR=%#x",
+			next_addr, pid, dcr, bcr);
 		/*
 		 * TODO: Extend the subsystem layer to allow for registering
 		 * new device and provide BCR/DCR/PID at the same time.

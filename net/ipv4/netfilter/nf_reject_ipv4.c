@@ -12,6 +12,15 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_bridge.h>
 
+static struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
+					 const struct sk_buff *oldskb,
+					 __u8 protocol, int ttl);
+static void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
+				    const struct tcphdr *oth);
+static const struct tcphdr *
+nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
+			struct tcphdr *_oth, int hook);
+
 static int nf_reject_iphdr_validate(struct sk_buff *skb)
 {
 	struct iphdr *iph;
@@ -71,6 +80,27 @@ struct sk_buff *nf_reject_skb_v4_tcp_reset(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_reject_skb_v4_tcp_reset);
 
+static bool nf_skb_is_icmp_unreach(const struct sk_buff *skb)
+{
+	const struct iphdr *iph = ip_hdr(skb);
+	u8 *tp, _type;
+	int thoff;
+
+	if (iph->protocol != IPPROTO_ICMP)
+		return false;
+
+	thoff = skb_network_offset(skb) + sizeof(*iph);
+
+	tp = skb_header_pointer(skb,
+				thoff + offsetof(struct icmphdr, type),
+				sizeof(_type), &_type);
+
+	if (!tp)
+		return false;
+
+	return *tp == ICMP_DEST_UNREACH;
+}
+
 struct sk_buff *nf_reject_skb_v4_unreach(struct net *net,
 					 struct sk_buff *oldskb,
 					 const struct net_device *dev,
@@ -89,6 +119,10 @@ struct sk_buff *nf_reject_skb_v4_unreach(struct net *net,
 
 	/* IP header checks: fragment. */
 	if (ip_hdr(oldskb)->frag_off & htons(IP_OFFSET))
+		return NULL;
+
+	/* don't reply to ICMP_DEST_UNREACH with ICMP_DEST_UNREACH. */
+	if (nf_skb_is_icmp_unreach(oldskb))
 		return NULL;
 
 	/* RFC says return as much as we can without exceeding 576 bytes. */
@@ -136,8 +170,9 @@ struct sk_buff *nf_reject_skb_v4_unreach(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_reject_skb_v4_unreach);
 
-const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
-					     struct tcphdr *_oth, int hook)
+static const struct tcphdr *
+nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
+			struct tcphdr *_oth, int hook)
 {
 	const struct tcphdr *oth;
 
@@ -163,11 +198,10 @@ const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
 
 	return oth;
 }
-EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_get);
 
-struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
-				  const struct sk_buff *oldskb,
-				  __u8 protocol, int ttl)
+static struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
+					 const struct sk_buff *oldskb,
+					 __u8 protocol, int ttl)
 {
 	struct iphdr *niph, *oiph = ip_hdr(oldskb);
 
@@ -188,10 +222,9 @@ struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
 
 	return niph;
 }
-EXPORT_SYMBOL_GPL(nf_reject_iphdr_put);
 
-void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
-			  const struct tcphdr *oth)
+static void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
+				    const struct tcphdr *oth)
 {
 	struct iphdr *niph = ip_hdr(nskb);
 	struct tcphdr *tcph;
@@ -218,7 +251,6 @@ void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
 	nskb->csum_start = (unsigned char *)tcph - nskb->head;
 	nskb->csum_offset = offsetof(struct tcphdr, check);
 }
-EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_put);
 
 static int nf_reject_fill_skb_dst(struct sk_buff *skb_in)
 {
@@ -247,8 +279,7 @@ void nf_send_reset(struct net *net, struct sock *sk, struct sk_buff *oldskb,
 	if (!oth)
 		return;
 
-	if ((hook == NF_INET_PRE_ROUTING || hook == NF_INET_INGRESS) &&
-	    nf_reject_fill_skb_dst(oldskb) < 0)
+	if (!skb_dst(oldskb) && nf_reject_fill_skb_dst(oldskb) < 0)
 		return;
 
 	if (skb_rtable(oldskb)->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
@@ -321,8 +352,7 @@ void nf_send_unreach(struct sk_buff *skb_in, int code, int hook)
 	if (iph->frag_off & htons(IP_OFFSET))
 		return;
 
-	if ((hook == NF_INET_PRE_ROUTING || hook == NF_INET_INGRESS) &&
-	    nf_reject_fill_skb_dst(skb_in) < 0)
+	if (!skb_dst(skb_in) && nf_reject_fill_skb_dst(skb_in) < 0)
 		return;
 
 	if (skb_csum_unnecessary(skb_in) ||

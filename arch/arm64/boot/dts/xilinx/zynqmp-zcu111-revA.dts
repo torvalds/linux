@@ -129,6 +129,18 @@
 		#clock-cells = <0>;
 		clock-frequency = <48000000>;
 	};
+
+	dpcon {
+		compatible = "dp-connector";
+		label = "P11";
+		type = "full-size";
+
+		port {
+			dpcon_in: endpoint {
+				remote-endpoint = <&dpsub_dp_out>;
+			};
+		};
+	};
 };
 
 &dcc {
@@ -494,7 +506,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <5>;
-				sc18is603@2f { /* sc18is602 - u93 */
+				sc18is603: spi@2f { /* sc18is602 - u93 */
 					compatible = "nxp,sc18is603";
 					reg = <0x2f>;
 					/* 4 gpios for CS not handled by driver */
@@ -863,4 +875,10 @@
 	phy-names = "dp-phy0", "dp-phy1";
 	phys = <&psgtr 1 PHY_TYPE_DP 0 1>,
 	       <&psgtr 0 PHY_TYPE_DP 1 1>;
+};
+
+&out_dp {
+	dpsub_dp_out: endpoint {
+		remote-endpoint = <&dpcon_in>;
+	};
 };

@@ -12,7 +12,6 @@
 #include "pm8150.dtsi"
 #include "pm8150b.dtsi"
 #include "pm8150l.dtsi"
-#include "pm8009.dtsi"
 
 /*
  * Delete following upstream (sm8250.dtsi) reserved
@@ -50,18 +49,12 @@
 		};
 	};
 
-	battery_l: battery-l {
+	battery: battery {
 		compatible = "simple-battery";
-		voltage-min-design-microvolt = <3870000>;
-		energy-full-design-microwatt-hours = <16700000>;
-		charge-full-design-microamp-hours = <4420000>;
-	};
-
-	battery_r: battery-r {
-		compatible = "simple-battery";
-		voltage-min-design-microvolt = <3870000>;
-		energy-full-design-microwatt-hours = <16700000>;
-		charge-full-design-microamp-hours = <4420000>;
+		charge-full-design-microamp-hours = <8840000>;
+		energy-full-design-microwatt-hours = <34300000>;
+		voltage-min-design-microvolt = <3400000>;
+		voltage-max-design-microvolt = <4370000>;
 	};
 
 	bl_vddpos_5p5: bl-vddpos-regulator {
@@ -406,63 +399,6 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
-
-	regulators-2 {
-		compatible = "qcom,pm8009-rpmh-regulators";
-		qcom,pmic-id = "f";
-
-		vdd-s1-supply = <&vph_pwr>;
-		vdd-s2-supply = <&vreg_bob>;
-		vdd-l2-supply = <&vreg_s8c_1p35>;
-		vdd-l5-l6-supply = <&vreg_bob>;
-		vdd-l7-supply = <&vreg_s4a_1p8>;
-
-		vreg_s1f_1p2: smps1 {
-			regulator-name = "vreg_s1f_1p2";
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1300000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_s2f_0p5: smps2 {
-			regulator-name = "vreg_s2f_0p5";
-			regulator-min-microvolt = <512000>;
-			regulator-max-microvolt = <1100000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		/* L1 is unused. */
-
-		vreg_l2f_1p3: ldo2 {
-			regulator-name = "vreg_l2f_1p3";
-			regulator-min-microvolt = <1056000>;
-			regulator-max-microvolt = <1200000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		/* L3 & L4 are unused. */
-
-		vreg_l5f_2p8: ldo5 {
-			regulator-name = "vreg_l5f_2p85";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <3000000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l6f_2p8: ldo6 {
-			regulator-name = "vreg_l6f_2p8";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <3000000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l7f_1p8: ldo7 {
-			regulator-name = "vreg_l7f_1p8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-	};
 };
 
 &cdsp {
@@ -495,17 +431,6 @@
 	};
 };
 
-&i2c0 {
-	clock-frequency = <400000>;
-	status = "okay";
-
-	fuel-gauge@55 {
-		compatible = "ti,bq27z561";
-		reg = <0x55>;
-		monitored-battery = <&battery_r>;
-	};
-};
-
 &i2c11 {
 	clock-frequency = <400000>;
 	status = "okay";
@@ -520,17 +445,6 @@
 		kinetic,current-ramp-delay-ms = <128>;
 		kinetic,led-enable-ramp-delay-ms = <1>;
 		kinetic,enable-lcd-bias;
-	};
-};
-
-&i2c13 {
-	clock-frequency = <400000>;
-	status = "okay";
-
-	fuel-gauge@55 {
-		compatible = "ti,bq27z561";
-		reg = <0x55>;
-		monitored-battery = <&battery_l>;
 	};
 };
 

@@ -2,7 +2,7 @@
 /*
     Public ivtv API header
     Copyright (C) 2003-2004  Kevin Thayer <nufan_wfk at yahoo.com>
-    Copyright (C) 2004-2007  Hans Verkuil <hverkuil@xs4all.nl>
+    Copyright (C) 2004-2007  Hans Verkuil <hverkuil@kernel.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

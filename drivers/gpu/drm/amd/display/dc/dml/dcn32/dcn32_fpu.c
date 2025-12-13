@@ -31,7 +31,7 @@
 // We need this includes for WATERMARKS_* defines
 #include "clk_mgr/dcn32/dcn32_smu13_driver_if.h"
 #include "dcn30/dcn30_resource.h"
-#include "link.h"
+#include "link_service.h"
 #include "dc_state_priv.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -3229,7 +3229,7 @@ void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_pa
 			j = 0;
 			// create the final dcfclk and uclk table
 			while (i < num_dcfclk_sta_targets && j < num_uclk_states && num_states < DC__VOLTAGE_STATES) {
-				if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j] && i < num_dcfclk_sta_targets) {
+				if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j]) {
 					dcfclk_mhz[num_states] = dcfclk_sta_targets[i];
 					dram_speed_mts[num_states++] = optimal_uclk_for_dcfclk_sta_targets[i++];
 				} else {
@@ -3401,7 +3401,7 @@ bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe)
 		uint32_t height = subvp_active_margin_list.res[i].height;
 
 		refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
-			pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+			(uint64_t)pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
 		refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 		refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 

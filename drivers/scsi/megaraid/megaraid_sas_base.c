@@ -3137,12 +3137,12 @@ static int megasas_reset_target(struct scsi_cmnd *scmd)
 /**
  * megasas_bios_param - Returns disk geometry for a disk
  * @sdev:		device handle
- * @bdev:		block device
+ * @unused:		gendisk
  * @capacity:		drive capacity
  * @geom:		geometry parameters
  */
 static int
-megasas_bios_param(struct scsi_device *sdev, struct block_device *bdev,
+megasas_bios_param(struct scsi_device *sdev, struct gendisk *unused,
 		 sector_t capacity, int geom[])
 {
 	int heads;

@@ -50,6 +50,34 @@
 		};
 	};
 
+	i2c-touchkey {
+		compatible = "i2c-gpio";
+
+		sda-gpios = <&tlmm 95 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 96 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+
+		pinctrl-0 = <&i2c_touchkey_pins>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		touchkey@20 {
+			compatible = "cypress,midas-touchkey";
+			reg = <0x20>;
+
+			interrupts-extended = <&pm8941_gpios 29 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-0 = <&touchkey_pin>;
+			pinctrl-names = "default";
+
+			vcc-supply = <&pm8941_lvs3>;
+			vdd-supply = <&pm8941_l13>;
+
+			linux,keycodes = <KEY_APPSELECT KEY_BACK>;
+		};
+	};
+
 	touch_ldo: regulator-touch {
 		compatible = "regulator-fixed";
 		regulator-name = "touch-ldo";
@@ -148,6 +176,14 @@
 		output-high;
 		power-source = <PM8941_GPIO_S3>;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+	};
+
+	touchkey_pin: touchkey-int-state {
+		pins = "gpio29";
+		function = "normal";
+		bias-disable;
+		input-enable;
+		power-source = <PM8941_GPIO_S3>;
 	};
 };
 
@@ -332,6 +368,9 @@
 			regulator-min-microvolt = <3075000>;
 			regulator-max-microvolt = <3075000>;
 		};
+
+		pm8941_lvs1: lvs1 {};
+		pm8941_lvs3: lvs3 {};
 	};
 };
 
@@ -377,6 +416,12 @@
 		function = "sdc3";
 		drive-strength = <8>;
 		bias-disable;
+	};
+
+	i2c_touchkey_pins: i2c-touchkey-state {
+		pins = "gpio95", "gpio96";
+		function = "gpio";
+		bias-pull-up;
 	};
 };
 

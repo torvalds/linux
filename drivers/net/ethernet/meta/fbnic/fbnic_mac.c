@@ -83,7 +83,15 @@ static void fbnic_mac_init_axi(struct fbnic_dev *fbd)
 
 static void fbnic_mac_init_qm(struct fbnic_dev *fbd)
 {
+	u64 default_meta = FIELD_PREP(FBNIC_TWD_L2_HLEN_MASK, ETH_HLEN) |
+			   FBNIC_TWD_FLAG_REQ_COMPLETION;
 	u32 clock_freq;
+
+	/* Configure default TWQ Metadata descriptor */
+	wr32(fbd, FBNIC_QM_TWQ_DEFAULT_META_L,
+	     lower_32_bits(default_meta));
+	wr32(fbd, FBNIC_QM_TWQ_DEFAULT_META_H,
+	     upper_32_bits(default_meta));
 
 	/* Configure TSO behavior */
 	wr32(fbd, FBNIC_QM_TQS_CTL0,
@@ -632,6 +640,50 @@ static void fbnic_mac_link_up_asic(struct fbnic_dev *fbd,
 }
 
 static void
+fbnic_pcs_rsfec_stat_rd32(struct fbnic_dev *fbd, u32 reg, bool reset,
+			  struct fbnic_stat_counter *stat)
+{
+	u32 pcs_rsfec_stat;
+
+	/* The PCS/RFSEC registers are only 16b wide each. So what we will
+	 * have after the 64b read is 0x0000xxxx0000xxxx. To make it usable
+	 * as a full stat we will shift the upper bits into the lower set of
+	 * 0s and then mask off the math at 32b.
+	 *
+	 * Read ordering must be lower reg followed by upper reg.
+	 */
+	pcs_rsfec_stat = rd32(fbd, reg) & 0xffff;
+	pcs_rsfec_stat |= rd32(fbd, reg + 1) << 16;
+
+	/* RFSEC registers clear themselves upon being read so there is no
+	 * need to store the old_reg_value.
+	 */
+	if (!reset)
+		stat->value += pcs_rsfec_stat;
+}
+
+static void
+fbnic_mac_get_fec_stats(struct fbnic_dev *fbd, bool reset,
+			struct fbnic_fec_stats *s)
+{
+	fbnic_pcs_rsfec_stat_rd32(fbd, FBNIC_RSFEC_CCW_LO(0), reset,
+				  &s->corrected_blocks);
+	fbnic_pcs_rsfec_stat_rd32(fbd, FBNIC_RSFEC_NCCW_LO(0), reset,
+				  &s->uncorrectable_blocks);
+}
+
+static void
+fbnic_mac_get_pcs_stats(struct fbnic_dev *fbd, bool reset,
+			struct fbnic_pcs_stats *s)
+{
+	int i;
+
+	for (i = 0; i < FBNIC_PCS_MAX_LANES; i++)
+		fbnic_pcs_rsfec_stat_rd32(fbd, FBNIC_PCS_SYMBLERR_LO(i), reset,
+					  &s->SymbolErrorDuringCarrier.lanes[i]);
+}
+
+static void
 fbnic_mac_get_eth_mac_stats(struct fbnic_dev *fbd, bool reset,
 			    struct fbnic_eth_mac_stats *mac_stats)
 {
@@ -663,6 +715,16 @@ fbnic_mac_get_eth_mac_stats(struct fbnic_dev *fbd, bool reset,
 			    MAC_STAT_TX_MULTICAST);
 	fbnic_mac_stat_rd64(fbd, reset, mac_stats->BroadcastFramesXmittedOK,
 			    MAC_STAT_TX_BROADCAST);
+}
+
+static void
+fbnic_mac_get_pause_stats(struct fbnic_dev *fbd, bool reset,
+			  struct fbnic_pause_stats *pause_stats)
+{
+	fbnic_mac_stat_rd64(fbd, reset, pause_stats->tx_pause_frames,
+			    MAC_STAT_TX_XOFF_STB);
+	fbnic_mac_stat_rd64(fbd, reset, pause_stats->rx_pause_frames,
+			    MAC_STAT_RX_XOFF_STB);
 }
 
 static void
@@ -809,7 +871,10 @@ static const struct fbnic_mac fbnic_mac_asic = {
 	.pcs_disable = fbnic_pcs_disable_asic,
 	.pcs_get_link = fbnic_pcs_get_link_asic,
 	.pcs_get_link_event = fbnic_pcs_get_link_event_asic,
+	.get_fec_stats = fbnic_mac_get_fec_stats,
+	.get_pcs_stats = fbnic_mac_get_pcs_stats,
 	.get_eth_mac_stats = fbnic_mac_get_eth_mac_stats,
+	.get_pause_stats = fbnic_mac_get_pause_stats,
 	.get_eth_ctrl_stats = fbnic_mac_get_eth_ctrl_stats,
 	.get_rmon_stats = fbnic_mac_get_rmon_stats,
 	.link_down = fbnic_mac_link_down_asic,

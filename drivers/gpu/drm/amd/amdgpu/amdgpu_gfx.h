@@ -642,9 +642,9 @@ void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring);
 void amdgpu_gfx_profile_idle_work_handler(struct work_struct *work);
 void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring);
-u32 amdgpu_gfx_csb_preamble_start(volatile u32 *buffer);
-u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, volatile u32 *buffer, u32 count);
-void amdgpu_gfx_csb_preamble_end(volatile u32 *buffer, u32 count);
+u32 amdgpu_gfx_csb_preamble_start(u32 *buffer);
+u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, u32 *buffer, u32 count);
+void amdgpu_gfx_csb_preamble_end(u32 *buffer, u32 count);
 
 void amdgpu_debugfs_gfx_sched_mask_init(struct amdgpu_device *adev);
 void amdgpu_debugfs_compute_sched_mask_init(struct amdgpu_device *adev);

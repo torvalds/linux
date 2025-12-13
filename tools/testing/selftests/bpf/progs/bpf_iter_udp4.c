@@ -64,7 +64,8 @@ int dump_udp4(struct bpf_iter__udp *ctx)
 		       0, 0L, 0, ctx->uid, 0,
 		       sock_i_ino(&inet->sk),
 		       inet->sk.sk_refcnt.refs.counter, udp_sk,
-		       inet->sk.sk_drops.counter);
+		       udp_sk->drop_counters.drops0.counter +
+		       udp_sk->drop_counters.drops1.counter);
 
 	return 0;
 }

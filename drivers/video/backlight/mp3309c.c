@@ -222,7 +222,6 @@ static int mp3309c_parse_fwnode(struct mp3309c_chip *chip,
 		if (IS_ERR(chip->pwmd))
 			return dev_err_probe(dev, PTR_ERR(chip->pwmd), "error getting pwm data\n");
 		pdata->dimming_mode = DIMMING_PWM;
-		pwm_apply_args(chip->pwmd);
 	}
 
 	/*
@@ -353,12 +352,13 @@ static int mp3309c_probe(struct i2c_client *client)
 	chip->pdata = pdata;
 
 	/* Backlight properties */
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.brightness = pdata->default_brightness;
-	props.max_brightness = pdata->max_brightness;
-	props.scale = BACKLIGHT_SCALE_LINEAR;
-	props.type = BACKLIGHT_RAW;
-	props.power = BACKLIGHT_POWER_ON;
+	props = (typeof(props)){
+		.brightness = pdata->default_brightness,
+		.max_brightness = pdata->max_brightness,
+		.scale = BACKLIGHT_SCALE_LINEAR,
+		.type = BACKLIGHT_RAW,
+		.power = BACKLIGHT_POWER_ON,
+	};
 	chip->bl = devm_backlight_device_register(dev, "mp3309c", dev, chip,
 						  &mp3309c_bl_ops, &props);
 	if (IS_ERR(chip->bl))

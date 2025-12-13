@@ -454,9 +454,8 @@ static inline void iommufd_hw_pagetable_put(struct iommufd_ctx *ictx,
 	if (hwpt->obj.type == IOMMUFD_OBJ_HWPT_PAGING) {
 		struct iommufd_hwpt_paging *hwpt_paging = to_hwpt_paging(hwpt);
 
-		lockdep_assert_not_held(&hwpt_paging->ioas->mutex);
-
 		if (hwpt_paging->auto_domain) {
+			lockdep_assert_not_held(&hwpt_paging->ioas->mutex);
 			iommufd_object_put_and_try_destroy(ictx, &hwpt->obj);
 			return;
 		}
@@ -615,7 +614,6 @@ struct iommufd_veventq {
 	struct iommufd_eventq common;
 	struct iommufd_viommu *viommu;
 	struct list_head node; /* for iommufd_viommu::veventqs */
-	struct iommufd_vevent lost_events_header;
 
 	enum iommu_veventq_type type;
 	unsigned int depth;
@@ -623,6 +621,9 @@ struct iommufd_veventq {
 	/* Use common.lock for protection */
 	u32 num_events;
 	u32 sequence;
+
+	/* Must be last as it ends in a flexible-array member. */
+	struct iommufd_vevent lost_events_header;
 };
 
 static inline struct iommufd_veventq *

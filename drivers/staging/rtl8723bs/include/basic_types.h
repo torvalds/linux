@@ -22,11 +22,11 @@
 /*  TODO: Belows are Sync from SD7-Driver. It is necessary to check correctness */
 
 /*
- *Call endian free function when
+ * Call endian free function when
  *	1. Read/write packet content.
  *	2. Before write integer to IO.
  *	3. After read integer from IO.
-*/
+ */
 
 /*  */
 /*  Byte Swapping routine. */
@@ -68,7 +68,8 @@
 		(*((u32 *)(_ptr))) = EF2BYTE(_val);	\
 	} while (0)
 
-/* Create a bit mask
+/*
+ * Create a bit mask
  * Examples:
  * BIT_LEN_MASK_32(0) => 0x00000000
  * BIT_LEN_MASK_32(1) => 0x00000001
@@ -82,7 +83,8 @@
 #define BIT_LEN_MASK_8(__bitlen) \
 	(0xFF >> (8 - (__bitlen)))
 
-/* Create an offset bit mask
+/*
+ * Create an offset bit mask
  * Examples:
  * BIT_OFFSET_LEN_MASK_32(0, 2) => 0x00000003
  * BIT_OFFSET_LEN_MASK_32(16, 2) => 0x00030000
@@ -94,7 +96,8 @@
 #define BIT_OFFSET_LEN_MASK_8(__bitoffset, __bitlen) \
 	(BIT_LEN_MASK_8(__bitlen) << (__bitoffset))
 
-/*Description:
+/*
+ * Description:
  * Return 4-byte value in host byte ordering from
  * 4-byte pointer in little-endian system.
  */
@@ -105,11 +108,11 @@
 #define LE_P1BYTE_TO_HOST_1BYTE(__pstart) \
 	(EF1BYTE(*((u8 *)(__pstart))))
 
-/*  */
-/* 	Description: */
-/* 		Translate subfield (continuous bits in little-endian) of 4-byte value in litten byte to */
-/* 		4-byte value in host byte ordering. */
-/*  */
+/*
+ * Description:
+ * Translate subfield (continuous bits in little-endian) of 4-byte value in
+ * little byte to 4-byte value in host byte ordering.
+ */
 #define LE_BITS_TO_4BYTE(__pstart, __bitoffset, __bitlen) \
 	(\
 		(LE_P4BYTE_TO_HOST_4BYTE(__pstart) >> (__bitoffset))  & \
@@ -126,11 +129,11 @@
 		BIT_LEN_MASK_8(__bitlen) \
 	)
 
-/*  */
-/* 	Description: */
-/* 		Mask subfield (continuous bits in little-endian) of 4-byte value in litten byte oredering */
-/* 		and return the result in 4-byte value in host byte ordering. */
-/*  */
+/*
+ * Description:
+ * Mask subfield (continuous bits in little-endian) of 4-byte value in little
+ * byte ordering and return the result in 4-byte value in host byte ordering.
+ */
 #define LE_BITS_CLEARED_TO_4BYTE(__pstart, __bitoffset, __bitlen) \
 	(\
 		LE_P4BYTE_TO_HOST_4BYTE(__pstart)  & \
@@ -147,10 +150,10 @@
 		(~BIT_OFFSET_LEN_MASK_8(__bitoffset, __bitlen)) \
 	)
 
-/*  */
-/* 	Description: */
-/* 		Set subfield of little-endian 4-byte value to specified value. */
-/*  */
+/*
+ * Description:
+ * Set subfield of little-endian 4-byte value to specified value.
+ */
 #define SET_BITS_TO_LE_4BYTE(__pstart, __bitoffset, __bitlen, __val) \
 		*((u32 *)(__pstart)) =				\
 		(						\

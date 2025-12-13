@@ -50,6 +50,7 @@
 
 /* configurable via /proc/sys/fs/fanotify/ */
 static int fanotify_max_queued_events __read_mostly;
+static int perm_group_timeout __read_mostly;
 
 #ifdef CONFIG_SYSCTL
 
@@ -85,6 +86,14 @@ static const struct ctl_table fanotify_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO
 	},
+	{
+		.procname	= "watchdog_timeout",
+		.data		= &perm_group_timeout,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+	},
 };
 
 static void __init fanotify_sysctls_init(void)
@@ -94,6 +103,91 @@ static void __init fanotify_sysctls_init(void)
 #else
 #define fanotify_sysctls_init() do { } while (0)
 #endif /* CONFIG_SYSCTL */
+
+static LIST_HEAD(perm_group_list);
+static DEFINE_SPINLOCK(perm_group_lock);
+static void perm_group_watchdog(struct work_struct *work);
+static DECLARE_DELAYED_WORK(perm_group_work, perm_group_watchdog);
+
+static void perm_group_watchdog_schedule(void)
+{
+	schedule_delayed_work(&perm_group_work, secs_to_jiffies(perm_group_timeout));
+}
+
+static void perm_group_watchdog(struct work_struct *work)
+{
+	struct fsnotify_group *group;
+	struct fanotify_perm_event *event;
+	struct task_struct *task;
+	pid_t failed_pid = 0;
+
+	guard(spinlock)(&perm_group_lock);
+	if (list_empty(&perm_group_list))
+		return;
+
+	list_for_each_entry(group, &perm_group_list,
+			    fanotify_data.perm_grp_list) {
+		/*
+		 * Ok to test without lock, racing with an addition is
+		 * fine, will deal with it next round
+		 */
+		if (list_empty(&group->fanotify_data.access_list))
+			continue;
+
+		spin_lock(&group->notification_lock);
+		list_for_each_entry(event, &group->fanotify_data.access_list,
+				    fae.fse.list) {
+			if (likely(event->watchdog_cnt == 0)) {
+				event->watchdog_cnt = 1;
+			} else if (event->watchdog_cnt == 1) {
+				/* Report on event only once */
+				event->watchdog_cnt = 2;
+
+				/* Do not report same pid repeatedly */
+				if (event->recv_pid == failed_pid)
+					continue;
+
+				failed_pid = event->recv_pid;
+				rcu_read_lock();
+				task = find_task_by_pid_ns(event->recv_pid,
+							   &init_pid_ns);
+				pr_warn_ratelimited(
+					"PID %u (%s) failed to respond to fanotify queue for more than %d seconds\n",
+					event->recv_pid,
+					task ? task->comm : NULL,
+					perm_group_timeout);
+				rcu_read_unlock();
+			}
+		}
+		spin_unlock(&group->notification_lock);
+	}
+	perm_group_watchdog_schedule();
+}
+
+static void fanotify_perm_watchdog_group_remove(struct fsnotify_group *group)
+{
+	if (!list_empty(&group->fanotify_data.perm_grp_list)) {
+		/* Perm event watchdog can no longer scan this group. */
+		spin_lock(&perm_group_lock);
+		list_del_init(&group->fanotify_data.perm_grp_list);
+		spin_unlock(&perm_group_lock);
+	}
+}
+
+static void fanotify_perm_watchdog_group_add(struct fsnotify_group *group)
+{
+	if (!perm_group_timeout)
+		return;
+
+	spin_lock(&perm_group_lock);
+	if (list_empty(&group->fanotify_data.perm_grp_list)) {
+		/* Add to perm_group_list for monitoring by watchdog. */
+		if (list_empty(&perm_group_list))
+			perm_group_watchdog_schedule();
+		list_add_tail(&group->fanotify_data.perm_grp_list, &perm_group_list);
+	}
+	spin_unlock(&perm_group_lock);
+}
 
 /*
  * All flags that may be specified in parameter event_f_flags of fanotify_init.
@@ -953,6 +1047,7 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 				spin_lock(&group->notification_lock);
 				list_add_tail(&event->fse.list,
 					&group->fanotify_data.access_list);
+				FANOTIFY_PERM(event)->recv_pid = current->pid;
 				spin_unlock(&group->notification_lock);
 			}
 		}
@@ -1011,6 +1106,8 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	 * leave access_list by now either.
 	 */
 	fsnotify_group_stop_queueing(group);
+
+	fanotify_perm_watchdog_group_remove(group);
 
 	/*
 	 * Process all permission events on access_list and notification queue
@@ -1465,6 +1562,10 @@ out:
 	fsnotify_group_unlock(group);
 
 	fsnotify_put_mark(fsn_mark);
+
+	if (!ret && (mask & FANOTIFY_PERM_EVENTS))
+		fanotify_perm_watchdog_group_add(group);
+
 	return ret;
 }
 
@@ -1625,6 +1726,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->fanotify_data.f_flags = event_f_flags;
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
+	INIT_LIST_HEAD(&group->fanotify_data.perm_grp_list);
 	switch (class) {
 	case FAN_CLASS_NOTIF:
 		group->priority = FSNOTIFY_PRIO_NORMAL;
@@ -1999,7 +2101,10 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		user_ns = path.mnt->mnt_sb->s_user_ns;
 		obj = path.mnt->mnt_sb;
 	} else if (obj_type == FSNOTIFY_OBJ_TYPE_MNTNS) {
+		ret = -EINVAL;
 		mntns = mnt_ns_from_dentry(path.dentry);
+		if (!mntns)
+			goto path_put_and_out;
 		user_ns = mntns->user_ns;
 		obj = mntns;
 	}

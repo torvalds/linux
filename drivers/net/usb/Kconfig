@@ -116,6 +116,7 @@ config USB_LAN78XX
 	select PHYLINK
 	select MICROCHIP_PHY
 	select CRC32
+	imply NET_SELFTESTS
 	help
 	  This option adds support for Microchip LAN78XX based USB 2
 	  & USB 3 10/100/1000 Ethernet adapters.

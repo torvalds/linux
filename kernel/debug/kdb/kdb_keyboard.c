@@ -145,9 +145,6 @@ int kdb_get_kbd_char(void)
 		return CTRL('F');
 	}
 
-	if (scancode == 0xe0)
-		return -1;
-
 	/*
 	 * For Japanese 86/106 keyboards
 	 * 	See comment in drivers/char/pc_keyb.c.

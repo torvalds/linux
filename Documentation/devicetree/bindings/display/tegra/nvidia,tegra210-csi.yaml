@@ -37,6 +37,9 @@ properties:
       - const: cile
       - const: csi_tpg
 
+  avdd-dsi-csi-supply:
+    description: DSI/CSI power supply. Must supply 1.2 V.
+
   power-domains:
     maxItems: 1
 

@@ -56,6 +56,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Total eeprom size in bytes.
+      Also used for FRAMs without device ID where the size cannot be detected.
 
   address-width:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -145,5 +146,12 @@ examples:
             compatible = "cypress,fm25", "atmel,at25";
             reg = <1>;
             spi-max-frequency = <40000000>;
+        };
+
+        fram@2 {
+            compatible = "cypress,fm25", "atmel,at25";
+            reg = <2>;
+            spi-max-frequency = <20000000>;
+            size = <2048>;
         };
     };

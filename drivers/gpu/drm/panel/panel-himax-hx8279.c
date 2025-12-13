@@ -935,7 +935,7 @@ static int hx8279_check_dig_gamma(struct hx8279 *hx, struct device *dev, const u
 			j++;
 			x++;
 		} while (x < 4);
-	};
+	}
 
 	return 0;
 }

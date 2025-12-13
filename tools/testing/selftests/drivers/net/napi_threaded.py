@@ -24,7 +24,8 @@ def _assert_napi_threaded_disabled(nl, napi_id) -> None:
 
 
 def _set_threaded_state(cfg, threaded) -> None:
-    cmd(f"echo {threaded} > /sys/class/net/{cfg.ifname}/threaded")
+    with open(f"/sys/class/net/{cfg.ifname}/threaded", "wb") as fp:
+        fp.write(str(threaded).encode('utf-8'))
 
 
 def _setup_deferred_cleanup(cfg) -> None:
@@ -36,6 +37,34 @@ def _setup_deferred_cleanup(cfg) -> None:
     defer(_set_threaded_state, cfg, threaded)
 
     return combined
+
+
+def napi_init(cfg, nl) -> None:
+    """
+    Test that threaded state (in the persistent NAPI config) gets updated
+    even when NAPI with given ID is not allocated at the time.
+    """
+
+    qcnt = _setup_deferred_cleanup(cfg)
+
+    _set_threaded_state(cfg, 1)
+    cmd(f"ethtool -L {cfg.ifname} combined 1")
+    _set_threaded_state(cfg, 0)
+    cmd(f"ethtool -L {cfg.ifname} combined {qcnt}")
+
+    napis = nl.napi_get({'ifindex': cfg.ifindex}, dump=True)
+    for napi in napis:
+        ksft_eq(napi['threaded'], 'disabled')
+        ksft_eq(napi.get('pid'), None)
+
+    cmd(f"ethtool -L {cfg.ifname} combined 1")
+    _set_threaded_state(cfg, 1)
+    cmd(f"ethtool -L {cfg.ifname} combined {qcnt}")
+
+    napis = nl.napi_get({'ifindex': cfg.ifindex}, dump=True)
+    for napi in napis:
+        ksft_eq(napi['threaded'], 'enabled')
+        ksft_ne(napi.get('pid'), None)
 
 
 def enable_dev_threaded_disable_napi_threaded(cfg, nl) -> None:
@@ -103,7 +132,8 @@ def main() -> None:
     """ Ksft boiler plate main """
 
     with NetDrvEnv(__file__, queue_count=2) as cfg:
-        ksft_run([change_num_queues,
+        ksft_run([napi_init,
+                  change_num_queues,
                   enable_dev_threaded_disable_napi_threaded],
                  args=(cfg, NetdevFamily()))
     ksft_exit()

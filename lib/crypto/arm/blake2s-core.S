@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * BLAKE2s digest algorithm, ARM scalar implementation
+ * BLAKE2s digest algorithm, ARM scalar implementation.  This is faster
+ * than the generic implementations of BLAKE2s and BLAKE2b, but slower
+ * than the NEON implementation of BLAKE2b.  There is no NEON
+ * implementation of BLAKE2s, since NEON doesn't really help with it.
  *
  * Copyright 2020 Google LLC
  *

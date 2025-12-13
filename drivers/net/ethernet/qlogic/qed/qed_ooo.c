@@ -183,9 +183,6 @@ void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 						    struct qed_ooo_buffer,
 						    list_entry);
 
-			if (!p_buffer)
-				break;
-
 			list_move_tail(&p_buffer->list_entry,
 				       &p_ooo_info->free_buffers_list);
 		}
@@ -217,9 +214,6 @@ void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 				    list_first_entry(&p_isle->buffers_list,
 						     struct qed_ooo_buffer,
 						     list_entry);
-
-				if (!p_buffer)
-					break;
 
 				list_move_tail(&p_buffer->list_entry,
 					       &p_ooo_info->free_buffers_list);
@@ -254,9 +248,6 @@ void qed_ooo_free(struct qed_hwfn *p_hwfn)
 	while (!list_empty(&p_ooo_info->free_buffers_list)) {
 		p_buffer = list_first_entry(&p_ooo_info->free_buffers_list,
 					    struct qed_ooo_buffer, list_entry);
-
-		if (!p_buffer)
-			break;
 
 		list_del(&p_buffer->list_entry);
 		dma_free_coherent(&p_hwfn->cdev->pdev->dev,

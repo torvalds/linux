@@ -19,14 +19,6 @@
 #define LOCAL_PENDING_LIST_IDX	LOCAL_LIST_IDX(BPF_LRU_LOCAL_LIST_T_PENDING)
 #define IS_LOCAL_LIST_TYPE(t)	((t) >= BPF_LOCAL_LIST_T_OFFSET)
 
-static int get_next_cpu(int cpu)
-{
-	cpu = cpumask_next(cpu, cpu_possible_mask);
-	if (cpu >= nr_cpu_ids)
-		cpu = cpumask_first(cpu_possible_mask);
-	return cpu;
-}
-
 /* Local list helpers */
 static struct list_head *local_free_list(struct bpf_lru_locallist *loc_l)
 {
@@ -482,7 +474,7 @@ static struct bpf_lru_node *bpf_common_lru_pop_free(struct bpf_lru *lru,
 
 		raw_spin_unlock_irqrestore(&steal_loc_l->lock, flags);
 
-		steal = get_next_cpu(steal);
+		steal = cpumask_next_wrap(steal, cpu_possible_mask);
 	} while (!node && steal != first_steal);
 
 	loc_l->next_steal = steal;

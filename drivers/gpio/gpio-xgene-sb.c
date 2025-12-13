@@ -21,6 +21,7 @@
 #include <linux/types.h>
 
 #include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 
 #include "gpiolib-acpi.h"
 
@@ -40,7 +41,7 @@
 
 /**
  * struct xgene_gpio_sb - GPIO-Standby private data structure.
- * @gc:				memory-mapped GPIO controllers.
+ * @chip:			Generic GPIO chip data
  * @regs:			GPIO register base offset
  * @irq_domain:			GPIO interrupt domain
  * @irq_start:			GPIO pin that start support interrupt
@@ -48,7 +49,7 @@
  * @parent_irq_base:		Start parent HWIRQ
  */
 struct xgene_gpio_sb {
-	struct gpio_chip	gc;
+	struct gpio_generic_chip chip;
 	void __iomem		*regs;
 	struct irq_domain	*irq_domain;
 	u16			irq_start;
@@ -62,14 +63,15 @@ struct xgene_gpio_sb {
 static void xgene_gpio_set_bit(struct gpio_chip *gc,
 				void __iomem *reg, u32 gpio, int val)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	u32 data;
 
-	data = gc->read_reg(reg);
+	data = gpio_generic_read_reg(chip, reg);
 	if (val)
 		data |= GPIO_MASK(gpio);
 	else
 		data &= ~GPIO_MASK(gpio);
-	gc->write_reg(reg, data);
+	gpio_generic_write_reg(chip, reg, data);
 }
 
 static int xgene_gpio_sb_irq_set_type(struct irq_data *d, unsigned int type)
@@ -91,9 +93,9 @@ static int xgene_gpio_sb_irq_set_type(struct irq_data *d, unsigned int type)
 		break;
 	}
 
-	xgene_gpio_set_bit(&priv->gc, priv->regs + MPA_GPIO_SEL_LO,
+	xgene_gpio_set_bit(&priv->chip.gc, priv->regs + MPA_GPIO_SEL_LO,
 			gpio * 2, 1);
-	xgene_gpio_set_bit(&priv->gc, priv->regs + MPA_GPIO_INT_LVL,
+	xgene_gpio_set_bit(&priv->chip.gc, priv->regs + MPA_GPIO_INT_LVL,
 			d->hwirq, lvl_type);
 
 	/* Propagate IRQ type setting to parent */
@@ -109,14 +111,14 @@ static void xgene_gpio_sb_irq_mask(struct irq_data *d)
 
 	irq_chip_mask_parent(d);
 
-	gpiochip_disable_irq(&priv->gc, d->hwirq);
+	gpiochip_disable_irq(&priv->chip.gc, d->hwirq);
 }
 
 static void xgene_gpio_sb_irq_unmask(struct irq_data *d)
 {
 	struct xgene_gpio_sb *priv = irq_data_get_irq_chip_data(d);
 
-	gpiochip_enable_irq(&priv->gc, d->hwirq);
+	gpiochip_enable_irq(&priv->chip.gc, d->hwirq);
 
 	irq_chip_unmask_parent(d);
 }
@@ -155,15 +157,15 @@ static int xgene_gpio_sb_domain_activate(struct irq_domain *d,
 	u32 gpio = HWIRQ_TO_GPIO(priv, irq_data->hwirq);
 	int ret;
 
-	ret = gpiochip_lock_as_irq(&priv->gc, gpio);
+	ret = gpiochip_lock_as_irq(&priv->chip.gc, gpio);
 	if (ret) {
-		dev_err(priv->gc.parent,
+		dev_err(priv->chip.gc.parent,
 		"Unable to configure XGene GPIO standby pin %d as IRQ\n",
 				gpio);
 		return ret;
 	}
 
-	xgene_gpio_set_bit(&priv->gc, priv->regs + MPA_GPIO_SEL_LO,
+	xgene_gpio_set_bit(&priv->chip.gc, priv->regs + MPA_GPIO_SEL_LO,
 			gpio * 2, 1);
 	return 0;
 }
@@ -174,8 +176,8 @@ static void xgene_gpio_sb_domain_deactivate(struct irq_domain *d,
 	struct xgene_gpio_sb *priv = d->host_data;
 	u32 gpio = HWIRQ_TO_GPIO(priv, irq_data->hwirq);
 
-	gpiochip_unlock_as_irq(&priv->gc, gpio);
-	xgene_gpio_set_bit(&priv->gc, priv->regs + MPA_GPIO_SEL_LO,
+	gpiochip_unlock_as_irq(&priv->chip.gc, gpio);
+	xgene_gpio_set_bit(&priv->chip.gc, priv->regs + MPA_GPIO_SEL_LO,
 			gpio * 2, 0);
 }
 
@@ -237,6 +239,7 @@ static const struct irq_domain_ops xgene_gpio_sb_domain_ops = {
 
 static int xgene_gpio_sb_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
 	struct xgene_gpio_sb *priv;
 	int ret;
 	void __iomem *regs;
@@ -263,14 +266,19 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ret = bgpio_init(&priv->gc, &pdev->dev, 4,
-			regs + MPA_GPIO_IN_ADDR,
-			regs + MPA_GPIO_OUT_ADDR, NULL,
-			regs + MPA_GPIO_OE_ADDR, NULL, 0);
+	config = (struct gpio_generic_chip_config) {
+		.dev = &pdev->dev,
+		.sz = 4,
+		.dat = regs + MPA_GPIO_IN_ADDR,
+		.set = regs + MPA_GPIO_OUT_ADDR,
+		.dirout = regs + MPA_GPIO_OE_ADDR,
+	};
+
+	ret = gpio_generic_chip_init(&priv->chip, &config);
         if (ret)
                 return ret;
 
-	priv->gc.to_irq = xgene_gpio_sb_to_irq;
+	priv->chip.gc.to_irq = xgene_gpio_sb_to_irq;
 
 	/* Retrieve start irq pin, use default if property not found */
 	priv->irq_start = XGENE_DFLT_IRQ_START_PIN;
@@ -283,12 +291,12 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 		priv->nirq = val32;
 
 	/* Retrieve number gpio, use default if property not found */
-	priv->gc.ngpio = XGENE_DFLT_MAX_NGPIO;
+	priv->chip.gc.ngpio = XGENE_DFLT_MAX_NGPIO;
 	if (!device_property_read_u32(&pdev->dev, "apm,nr-gpios", &val32))
-		priv->gc.ngpio = val32;
+		priv->chip.gc.ngpio = val32;
 
 	dev_info(&pdev->dev, "Support %d gpios, %d irqs start from pin %d\n",
-			priv->gc.ngpio, priv->nirq, priv->irq_start);
+			priv->chip.gc.ngpio, priv->nirq, priv->irq_start);
 
 	platform_set_drvdata(pdev, priv);
 
@@ -298,9 +306,9 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 	if (!priv->irq_domain)
 		return -ENODEV;
 
-	priv->gc.irq.domain = priv->irq_domain;
+	priv->chip.gc.irq.domain = priv->irq_domain;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &priv->gc, priv);
+	ret = devm_gpiochip_add_data(&pdev->dev, &priv->chip.gc, priv);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"failed to register X-Gene GPIO Standby driver\n");
@@ -311,7 +319,7 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "X-Gene GPIO Standby driver registered\n");
 
 	/* Register interrupt handlers for GPIO signaled ACPI Events */
-	acpi_gpiochip_request_interrupts(&priv->gc);
+	acpi_gpiochip_request_interrupts(&priv->chip.gc);
 
 	return ret;
 }
@@ -320,7 +328,7 @@ static void xgene_gpio_sb_remove(struct platform_device *pdev)
 {
 	struct xgene_gpio_sb *priv = platform_get_drvdata(pdev);
 
-	acpi_gpiochip_free_interrupts(&priv->gc);
+	acpi_gpiochip_free_interrupts(&priv->chip.gc);
 
 	irq_domain_remove(priv->irq_domain);
 }

@@ -13,13 +13,13 @@
 
 #define HDEV_PARAM_U16(_param_name_) \
 	struct {\
-		struct mgmt_tlv entry; \
+		struct mgmt_tlv_hdr entry; \
 		__le16 value; \
 	} __packed _param_name_
 
 #define HDEV_PARAM_U8(_param_name_) \
 	struct {\
-		struct mgmt_tlv entry; \
+		struct mgmt_tlv_hdr entry; \
 		__u8 value; \
 	} __packed _param_name_
 

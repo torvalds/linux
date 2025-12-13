@@ -66,7 +66,7 @@ retry:
 	bpf_map_update_elem(control_map_fd, &key, &val, 0);
 
 	/* for every element in stackid_hmap, we can find a corresponding one
-	 * in stackmap, and vise versa.
+	 * in stackmap, and vice versa.
 	 */
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",

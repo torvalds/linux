@@ -48,8 +48,34 @@ properties:
 
 patternProperties:
   '^p2a-control@[0-9a-f]+$':
-    description: See Documentation/devicetree/bindings/misc/aspeed-p2a-ctrl.txt
+    description: >
+      PCI-to-AHB Bridge Control
+
+      The bridge is available on platforms with the VGA enabled on the Aspeed
+      device. In this case, the host has access to a 64KiB window into all of
+      the BMC's memory. The BMC can disable this bridge. If the bridge is
+      enabled, the host has read access to all the regions of memory, however
+      the host only has read and write access depending on a register
+      controlled by the BMC.
     type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - aspeed,ast2400-p2a-ctrl
+          - aspeed,ast2500-p2a-ctrl
+      reg:
+        maxItems: 1
+
+      memory-region:
+        maxItems: 1
+        description:
+          A reserved_memory region to be used for the PCI to AHB mapping
+
+    required:
+      - compatible
+      - reg
 
   '^pinctrl(@[0-9a-f]+)?$':
     type: object
@@ -75,6 +101,10 @@ patternProperties:
             - aspeed,ast2500-scu-ic
             - aspeed,ast2600-scu-ic0
             - aspeed,ast2600-scu-ic1
+            - aspeed,ast2700-scu-ic0
+            - aspeed,ast2700-scu-ic1
+            - aspeed,ast2700-scu-ic2
+            - aspeed,ast2700-scu-ic3
 
   '^silicon-id@[0-9a-f]+$':
     description: Unique hardware silicon identifiers within the SoC
@@ -122,6 +152,11 @@ examples:
         #address-cells = <1>;
         #size-cells = <1>;
         ranges = <0x0 0x1e6e2000 0x1000>;
+
+        p2a-control@2c {
+            compatible = "aspeed,ast2400-p2a-ctrl";
+            reg = <0x2c 0x4>;
+        };
 
         silicon-id@7c {
             compatible = "aspeed,ast2500-silicon-id", "aspeed,silicon-id";

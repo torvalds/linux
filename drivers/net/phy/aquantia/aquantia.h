@@ -55,6 +55,7 @@
 #define VEND1_GLOBAL_CFG_SERDES_MODE_SGMII	3
 #define VEND1_GLOBAL_CFG_SERDES_MODE_OCSGMII	4
 #define VEND1_GLOBAL_CFG_SERDES_MODE_XFI5G	6
+#define VEND1_GLOBAL_CFG_AUTONEG_ENA		BIT(3)
 #define VEND1_GLOBAL_CFG_RATE_ADAPT		GENMASK(8, 7)
 #define VEND1_GLOBAL_CFG_RATE_ADAPT_NONE	0
 #define VEND1_GLOBAL_CFG_RATE_ADAPT_USX		1
@@ -152,6 +153,28 @@
 
 #define AQR_MAX_LEDS				3
 
+/* Custom driver definitions for constructing a single variable out of
+ * aggregate firmware build information. These do not represent hardware
+ * fields.
+ */
+#define AQR_FW_FINGERPRINT_MAJOR		GENMASK_ULL(63, 56)
+#define AQR_FW_FINGERPRINT_MINOR		GENMASK_ULL(55, 48)
+#define AQR_FW_FINGERPRINT_BUILD_ID		GENMASK_ULL(47, 40)
+#define AQR_FW_FINGERPRINT_PROV_ID		GENMASK_ULL(39, 32)
+#define AQR_FW_FINGERPRINT_MISC_ID		GENMASK_ULL(31, 16)
+#define AQR_FW_FINGERPRINT_MISC_VER		GENMASK_ULL(15, 0)
+#define AQR_FW_FINGERPRINT(major, minor, build_id, prov_id, misc_id, misc_ver) \
+	(FIELD_PREP(AQR_FW_FINGERPRINT_MAJOR, major) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_MINOR, minor) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_BUILD_ID, build_id) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_PROV_ID, prov_id) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_MISC_ID, misc_id) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_MISC_VER, misc_ver))
+
+/* 10G-QXGMII firmware for NXP SPF-30841 riser board (AQR412C) */
+#define AQR_G3_V4_3_C_AQR_NXP_SPF_30841_MUSX_ID40019_VER1198 \
+	AQR_FW_FINGERPRINT(4, 3, 0xc, 1, 40019, 1198)
+
 struct aqr107_hw_stat {
 	const char *name;
 	int reg;
@@ -174,10 +197,39 @@ static const struct aqr107_hw_stat aqr107_hw_stats[] = {
 
 #define AQR107_SGMII_STAT_SZ ARRAY_SIZE(aqr107_hw_stats)
 
+static const struct {
+	int speed;
+	u16 reg;
+} aqr_global_cfg_regs[] = {
+	{ SPEED_10,	VEND1_GLOBAL_CFG_10M, },
+	{ SPEED_100,	VEND1_GLOBAL_CFG_100M, },
+	{ SPEED_1000,	VEND1_GLOBAL_CFG_1G, },
+	{ SPEED_2500,	VEND1_GLOBAL_CFG_2_5G, },
+	{ SPEED_5000,	VEND1_GLOBAL_CFG_5G, },
+	{ SPEED_10000,	VEND1_GLOBAL_CFG_10G, },
+};
+
+#define AQR_NUM_GLOBAL_CFG ARRAY_SIZE(aqr_global_cfg_regs)
+
+enum aqr_rate_adaptation {
+	AQR_RATE_ADAPT_NONE,
+	AQR_RATE_ADAPT_USX,
+	AQR_RATE_ADAPT_PAUSE,
+};
+
+struct aqr_global_syscfg {
+	int speed;
+	phy_interface_t interface;
+	enum aqr_rate_adaptation rate_adapt;
+};
+
 struct aqr107_priv {
 	u64 sgmii_stats[AQR107_SGMII_STAT_SZ];
+	u64 fingerprint;
 	unsigned long leds_active_low;
 	unsigned long leds_active_high;
+	bool wait_on_global_cfg;
+	struct aqr_global_syscfg global_cfg[AQR_NUM_GLOBAL_CFG];
 };
 
 #if IS_REACHABLE(CONFIG_HWMON)

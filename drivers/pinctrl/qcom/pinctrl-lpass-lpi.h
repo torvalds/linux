@@ -55,6 +55,22 @@ struct pinctrl_pin_desc;
 			LPI_MUX_##f4,			\
 		},					\
 		.nfuncs = 5,				\
+		.pin_offset = 0,			\
+	}
+
+#define LPI_PINGROUP_OFFSET(id, soff, f1, f2, f3, f4, poff)	\
+	{							\
+		.pin = id,					\
+		.slew_offset = soff,				\
+		.funcs = (int[]){				\
+			LPI_MUX_gpio,				\
+			LPI_MUX_##f1,				\
+			LPI_MUX_##f2,				\
+			LPI_MUX_##f3,				\
+			LPI_MUX_##f4,				\
+		},						\
+		.nfuncs = 5,					\
+		.pin_offset = poff,				\
 	}
 
 /*
@@ -62,6 +78,7 @@ struct pinctrl_pin_desc;
  * pin configuration.
  */
 #define LPI_FLAG_SLEW_RATE_SAME_REG			BIT(0)
+#define LPI_FLAG_USE_PREDEFINED_PIN_OFFSET		BIT(1)
 
 struct lpi_pingroup {
 	unsigned int pin;
@@ -69,6 +86,7 @@ struct lpi_pingroup {
 	int slew_offset;
 	unsigned int *funcs;
 	unsigned int nfuncs;
+	unsigned int pin_offset;
 };
 
 struct lpi_function {

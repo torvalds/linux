@@ -108,7 +108,11 @@ enum scx_kf_mask {
 	SCX_KF_UNLOCKED		= 0,	  /* sleepable and not rq locked */
 	/* ENQUEUE and DISPATCH may be nested inside CPU_RELEASE */
 	SCX_KF_CPU_RELEASE	= 1 << 0, /* ops.cpu_release() */
-	/* ops.dequeue (in REST) may be nested inside DISPATCH */
+	/*
+	 * ops.dispatch() may release rq lock temporarily and thus ENQUEUE and
+	 * SELECT_CPU may be nested inside. ops.dequeue (in REST) may also be
+	 * nested inside DISPATCH.
+	 */
 	SCX_KF_DISPATCH		= 1 << 1, /* ops.dispatch() */
 	SCX_KF_ENQUEUE		= 1 << 2, /* ops.enqueue() and ops.select_cpu() */
 	SCX_KF_SELECT_CPU	= 1 << 3, /* ops.select_cpu() */

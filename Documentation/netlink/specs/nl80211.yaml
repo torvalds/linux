@@ -3,7 +3,7 @@
 name: nl80211
 protocol: genetlink-legacy
 
-doc:
+doc: >-
   Netlink API for 802.11 wireless devices
 
 definitions:

@@ -41,6 +41,17 @@ enum save_mode {
 	TLMI_SAVE_SAVE,
 };
 
+/* GUIDs can differ between platforms */
+struct tlmi_cert_guids {
+	const char *thumbprint;
+	const char *set_bios_setting;
+	const char *save_bios_setting;
+	const char *cert_to_password;
+	const char *clear_bios_cert;
+	const char *update_bios_cert;
+	const char *set_bios_cert;
+};
+
 /* password configuration details */
 #define TLMI_PWDCFG_MODE_LEGACY    0
 #define TLMI_PWDCFG_MODE_PASSWORD  1
@@ -109,6 +120,7 @@ struct think_lmi {
 	enum save_mode save_mode;
 	bool save_required;
 	bool reboot_required;
+	bool thinkcenter_mode;
 
 	struct tlmi_attr_setting *setting[TLMI_SETTINGS_COUNT];
 	struct device *class_dev;
@@ -121,6 +133,8 @@ struct think_lmi {
 	struct tlmi_pwd_setting *pwd_system;
 	struct tlmi_pwd_setting *pwd_hdd;
 	struct tlmi_pwd_setting *pwd_nvme;
+
+	const struct tlmi_cert_guids *cert_guid;
 };
 
 #endif /* !_THINK_LMI_H_ */

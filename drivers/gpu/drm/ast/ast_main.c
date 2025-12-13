@@ -210,126 +210,6 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	drm_info(dev, "Using %s\n", info_str[ast->tx_chip]);
 }
 
-static int ast_get_dram_info(struct ast_device *ast)
-{
-	struct drm_device *dev = &ast->base;
-	struct device_node *np = dev->dev->of_node;
-	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
-	uint32_t denum, num, div, ref_pll, dsel;
-
-	switch (ast->config_mode) {
-	case ast_use_dt:
-		/*
-		 * If some properties are missing, use reasonable
-		 * defaults for GEN5
-		 */
-		if (of_property_read_u32(np, "aspeed,mcr-configuration",
-					 &mcr_cfg))
-			mcr_cfg = 0x00000577;
-		if (of_property_read_u32(np, "aspeed,mcr-scu-mpll",
-					 &mcr_scu_mpll))
-			mcr_scu_mpll = 0x000050C0;
-		if (of_property_read_u32(np, "aspeed,mcr-scu-strap",
-					 &mcr_scu_strap))
-			mcr_scu_strap = 0;
-		break;
-	case ast_use_p2a:
-		ast_write32(ast, 0xf004, 0x1e6e0000);
-		ast_write32(ast, 0xf000, 0x1);
-		mcr_cfg = ast_read32(ast, 0x10004);
-		mcr_scu_mpll = ast_read32(ast, 0x10120);
-		mcr_scu_strap = ast_read32(ast, 0x10170);
-		break;
-	case ast_use_defaults:
-	default:
-		ast->dram_bus_width = 16;
-		ast->dram_type = AST_DRAM_1Gx16;
-		if (IS_AST_GEN6(ast))
-			ast->mclk = 800;
-		else
-			ast->mclk = 396;
-		return 0;
-	}
-
-	if (mcr_cfg & 0x40)
-		ast->dram_bus_width = 16;
-	else
-		ast->dram_bus_width = 32;
-
-	if (IS_AST_GEN6(ast)) {
-		switch (mcr_cfg & 0x03) {
-		case 0:
-			ast->dram_type = AST_DRAM_1Gx16;
-			break;
-		default:
-		case 1:
-			ast->dram_type = AST_DRAM_2Gx16;
-			break;
-		case 2:
-			ast->dram_type = AST_DRAM_4Gx16;
-			break;
-		case 3:
-			ast->dram_type = AST_DRAM_8Gx16;
-			break;
-		}
-	} else if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast)) {
-		switch (mcr_cfg & 0x03) {
-		case 0:
-			ast->dram_type = AST_DRAM_512Mx16;
-			break;
-		default:
-		case 1:
-			ast->dram_type = AST_DRAM_1Gx16;
-			break;
-		case 2:
-			ast->dram_type = AST_DRAM_2Gx16;
-			break;
-		case 3:
-			ast->dram_type = AST_DRAM_4Gx16;
-			break;
-		}
-	} else {
-		switch (mcr_cfg & 0x0c) {
-		case 0:
-		case 4:
-			ast->dram_type = AST_DRAM_512Mx16;
-			break;
-		case 8:
-			if (mcr_cfg & 0x40)
-				ast->dram_type = AST_DRAM_1Gx16;
-			else
-				ast->dram_type = AST_DRAM_512Mx32;
-			break;
-		case 0xc:
-			ast->dram_type = AST_DRAM_1Gx32;
-			break;
-		}
-	}
-
-	if (mcr_scu_strap & 0x2000)
-		ref_pll = 14318;
-	else
-		ref_pll = 12000;
-
-	denum = mcr_scu_mpll & 0x1f;
-	num = (mcr_scu_mpll & 0x3fe0) >> 5;
-	dsel = (mcr_scu_mpll & 0xc000) >> 14;
-	switch (dsel) {
-	case 3:
-		div = 0x4;
-		break;
-	case 2:
-	case 1:
-		div = 0x2;
-		break;
-	default:
-		div = 0x1;
-		break;
-	}
-	ast->mclk = ref_pll * (num + 2) / ((denum + 2) * (div * 1000));
-	return 0;
-}
-
 struct drm_device *ast_device_create(struct pci_dev *pdev,
 				     const struct drm_driver *drv,
 				     enum ast_chip chip,
@@ -351,12 +231,6 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 	ast->config_mode = config_mode;
 	ast->regs = regs;
 	ast->ioregs = ioregs;
-
-	ret = ast_get_dram_info(ast);
-	if (ret)
-		return ERR_PTR(ret);
-	drm_info(dev, "dram MCLK=%u Mhz type=%d bus_width=%d\n",
-		 ast->mclk, ast->dram_type, ast->dram_bus_width);
 
 	ast_detect_tx_chip(ast, need_post);
 	switch (ast->tx_chip) {

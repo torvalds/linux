@@ -47,14 +47,14 @@ check_test_requirements()
 	fi
 }
 
-run_perfformance_check()
+run_performance_check()
 {
 	echo "Run performance tests to evaluate how fast vmalloc allocation is."
 	echo "It runs all test cases on one single CPU with sequential order."
 
 	modprobe $DRIVER $PERF_PARAM > /dev/null 2>&1
 	echo "Done."
-	echo "Ccheck the kernel message buffer to see the summary."
+	echo "Check the kernel message buffer to see the summary."
 }
 
 run_stability_check()
@@ -160,7 +160,7 @@ function run_test()
 		usage
 	else
 		if [[ "$1" = "performance" ]]; then
-			run_perfformance_check
+			run_performance_check
 		elif [[ "$1" = "stress" ]]; then
 			run_stability_check
 		elif [[ "$1" = "smoke" ]]; then

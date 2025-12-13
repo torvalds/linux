@@ -116,4 +116,10 @@ struct bpf_testmod_st_ops {
 	struct module *owner;
 };
 
+struct bpf_testmod_multi_st_ops {
+	int (*test_1)(struct st_ops_args *args);
+	struct hlist_node node;
+	int id;
+};
+
 #endif /* _BPF_TESTMOD_H */

@@ -13,9 +13,11 @@
 #include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_rps.h"
+
+#include "i915_drv.h"
+#include "i915_wait_util.h"
 #include "intel_guc_fw.h"
 #include "intel_guc_print.h"
-#include "i915_drv.h"
 
 static void guc_prepare_xfer(struct intel_gt *gt)
 {
@@ -46,6 +48,14 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 		/* allows for 5us (in 10ns units) before GT can go to RC6 */
 		intel_uncore_write(uncore, GUC_ARAT_C6DIS, 0x1FF);
 	}
+
+	/*
+	 * Starting from IP 12.50 we need to enable the mirroring of GuC
+	 * internal state to debug registers. This is always enabled on previous
+	 * IPs.
+	 */
+	if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 50))
+		intel_uncore_rmw(uncore, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 }
 
 static int guc_xfer_rsa_mmio(struct intel_uc_fw *guc_fw,

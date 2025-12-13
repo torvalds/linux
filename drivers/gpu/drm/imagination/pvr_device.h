@@ -37,6 +37,9 @@ struct clk;
 /* Forward declaration from <linux/firmware.h>. */
 struct firmware;
 
+/* Forward declaration from <linux/pwrseq/consumer.h> */
+struct pwrseq_desc;
+
 /**
  * struct pvr_gpu_id - Hardware GPU ID information for a PowerVR device
  * @b: Branch ID.
@@ -55,6 +58,14 @@ struct pvr_gpu_id {
  */
 struct pvr_fw_version {
 	u16 major, minor;
+};
+
+/**
+ * struct pvr_device_data - Platform specific data associated with a compatible string.
+ * @pwr_ops: Pointer to a structure with platform-specific power functions.
+ */
+struct pvr_device_data {
+	const struct pvr_power_sequence_ops *pwr_ops;
 };
 
 /**
@@ -98,6 +109,9 @@ struct pvr_device {
 	/** @fw_version: Firmware version detected at runtime. */
 	struct pvr_fw_version fw_version;
 
+	/** @device_data: Pointer to platform-specific data. */
+	const struct pvr_device_data *device_data;
+
 	/** @regs_resource: Resource representing device control registers. */
 	struct resource *regs_resource;
 
@@ -132,6 +146,14 @@ struct pvr_device {
 	 */
 	struct clk *mem_clk;
 
+	/**
+	 * @power: Optional power domain devices.
+	 *
+	 * On platforms with more than one power domain for the GPU, they are
+	 * stored here in @domain_devs, along with links between them in
+	 * @domain_links. The size of @domain_devs is given by @domain_count,
+	 * while the size of @domain_links is (2 * @domain_count) - 1.
+	 */
 	struct pvr_device_power {
 		struct device **domain_devs;
 		struct device_link **domain_links;
@@ -147,6 +169,9 @@ struct pvr_device {
 	 * procedure.
 	 */
 	struct reset_control *reset;
+
+	/** @pwrseq: Pointer to a power sequencer, if one is used. */
+	struct pwrseq_desc *pwrseq;
 
 	/** @irq: IRQ number. */
 	int irq;

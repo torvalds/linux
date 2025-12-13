@@ -9,6 +9,8 @@
 #include "core.h"
 #include "devlink.h"
 #include "dpll.h"
+#include "flash.h"
+#include "fw.h"
 #include "regs.h"
 
 /**
@@ -86,14 +88,12 @@ zl3073x_devlink_reload_down(struct devlink *devlink, bool netns_change,
 			    struct netlink_ext_ack *extack)
 {
 	struct zl3073x_dev *zldev = devlink_priv(devlink);
-	struct zl3073x_dpll *zldpll;
 
 	if (action != DEVLINK_RELOAD_ACTION_DRIVER_REINIT)
 		return -EOPNOTSUPP;
 
-	/* Unregister all DPLLs */
-	list_for_each_entry(zldpll, &zldev->dplls, list)
-		zl3073x_dpll_unregister(zldpll);
+	/* Stop normal operation */
+	zl3073x_dev_stop(zldev);
 
 	return 0;
 }
@@ -107,7 +107,6 @@ zl3073x_devlink_reload_up(struct devlink *devlink,
 {
 	struct zl3073x_dev *zldev = devlink_priv(devlink);
 	union devlink_param_value val;
-	struct zl3073x_dpll *zldpll;
 	int rc;
 
 	if (action != DEVLINK_RELOAD_ACTION_DRIVER_REINIT)
@@ -125,17 +124,148 @@ zl3073x_devlink_reload_up(struct devlink *devlink,
 		zldev->clock_id = val.vu64;
 	}
 
-	/* Re-register all DPLLs */
-	list_for_each_entry(zldpll, &zldev->dplls, list) {
-		rc = zl3073x_dpll_register(zldpll);
-		if (rc)
-			dev_warn(zldev->dev,
-				 "Failed to re-register DPLL%u\n", zldpll->id);
-	}
+	/* Restart normal operation */
+	rc = zl3073x_dev_start(zldev, false);
+	if (rc)
+		dev_warn(zldev->dev, "Failed to re-start normal operation\n");
 
 	*actions_performed = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
 
 	return 0;
+}
+
+void zl3073x_devlink_flash_notify(struct zl3073x_dev *zldev, const char *msg,
+				  const char *component, u32 done, u32 total)
+{
+	struct devlink *devlink = priv_to_devlink(zldev);
+
+	devlink_flash_update_status_notify(devlink, msg, component, done,
+					   total);
+}
+
+/**
+ * zl3073x_devlink_flash_prepare - Prepare and enter flash mode
+ * @zldev: zl3073x device pointer
+ * @zlfw: pointer to loaded firmware
+ * @extack: netlink extack pointer to report errors
+ *
+ * The function stops normal operation and switches the device to flash mode.
+ * If an error occurs the normal operation is resumed.
+ *
+ * Return: 0 on success, <0 on error
+ */
+static int
+zl3073x_devlink_flash_prepare(struct zl3073x_dev *zldev,
+			      struct zl3073x_fw *zlfw,
+			      struct netlink_ext_ack *extack)
+{
+	struct zl3073x_fw_component *util;
+	int rc;
+
+	util = zlfw->component[ZL_FW_COMPONENT_UTIL];
+	if (!util) {
+		zl3073x_devlink_flash_notify(zldev,
+					     "Utility is missing in firmware",
+					     NULL, 0, 0);
+		return -ENOEXEC;
+	}
+
+	/* Stop normal operation prior entering flash mode */
+	zl3073x_dev_stop(zldev);
+
+	rc = zl3073x_flash_mode_enter(zldev, util->data, util->size, extack);
+	if (rc) {
+		zl3073x_devlink_flash_notify(zldev,
+					     "Failed to enter flash mode",
+					     NULL, 0, 0);
+
+		/* Resume normal operation */
+		zl3073x_dev_start(zldev, true);
+
+		return rc;
+	}
+
+	return 0;
+}
+
+/**
+ * zl3073x_devlink_flash_finish - Leave flash mode and resume normal operation
+ * @zldev: zl3073x device pointer
+ * @extack: netlink extack pointer to report errors
+ *
+ * The function switches the device back to standard mode and resumes normal
+ * operation.
+ *
+ * Return: 0 on success, <0 on error
+ */
+static int
+zl3073x_devlink_flash_finish(struct zl3073x_dev *zldev,
+			     struct netlink_ext_ack *extack)
+{
+	int rc;
+
+	/* Reset device CPU to normal mode */
+	zl3073x_flash_mode_leave(zldev, extack);
+
+	/* Resume normal operation */
+	rc = zl3073x_dev_start(zldev, true);
+	if (rc)
+		zl3073x_devlink_flash_notify(zldev,
+					     "Failed to start normal operation",
+					     NULL, 0, 0);
+
+	return rc;
+}
+
+/**
+ * zl3073x_devlink_flash_update - Devlink flash update callback
+ * @devlink: devlink structure pointer
+ * @params: flashing parameters pointer
+ * @extack: netlink extack pointer to report errors
+ *
+ * Return: 0 on success, <0 on error
+ */
+static int
+zl3073x_devlink_flash_update(struct devlink *devlink,
+			     struct devlink_flash_update_params *params,
+			     struct netlink_ext_ack *extack)
+{
+	struct zl3073x_dev *zldev = devlink_priv(devlink);
+	struct zl3073x_fw *zlfw;
+	int rc = 0;
+
+	zlfw = zl3073x_fw_load(zldev, params->fw->data, params->fw->size,
+			       extack);
+	if (IS_ERR(zlfw)) {
+		zl3073x_devlink_flash_notify(zldev, "Failed to load firmware",
+					     NULL, 0, 0);
+		rc = PTR_ERR(zlfw);
+		goto finish;
+	}
+
+	/* Stop normal operation and enter flash mode */
+	rc = zl3073x_devlink_flash_prepare(zldev, zlfw, extack);
+	if (rc)
+		goto finish;
+
+	rc = zl3073x_fw_flash(zldev, zlfw, extack);
+	if (rc) {
+		zl3073x_devlink_flash_finish(zldev, extack);
+		goto finish;
+	}
+
+	/* Resume normal mode */
+	rc = zl3073x_devlink_flash_finish(zldev, extack);
+
+finish:
+	if (!IS_ERR(zlfw))
+		zl3073x_fw_free(zlfw);
+
+	zl3073x_devlink_flash_notify(zldev,
+				     rc ? "Flashing failed" : "Flashing done",
+				     NULL, 0, 0);
+
+	return rc;
 }
 
 static const struct devlink_ops zl3073x_devlink_ops = {
@@ -143,6 +273,7 @@ static const struct devlink_ops zl3073x_devlink_ops = {
 	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT),
 	.reload_down = zl3073x_devlink_reload_down,
 	.reload_up = zl3073x_devlink_reload_up,
+	.flash_update = zl3073x_devlink_flash_update,
 };
 
 static void

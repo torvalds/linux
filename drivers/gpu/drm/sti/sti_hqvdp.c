@@ -744,7 +744,7 @@ static bool sti_hqvdp_check_hw_scaling(struct sti_hqvdp *hqvdp,
 
 	inv_zy = DIV_ROUND_UP(src_h, dst_h);
 
-	return (inv_zy <= lfw) ? true : false;
+	return inv_zy <= lfw;
 }
 
 /**

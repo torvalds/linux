@@ -134,7 +134,7 @@
 			status = "disabled";
 		};
 
-		gmac0: eth@f0802000 {
+		gmac0: ethernet@f0802000 {
 			device_type = "network";
 			compatible = "snps,dwmac";
 			reg = <0xf0802000 0x2000>;

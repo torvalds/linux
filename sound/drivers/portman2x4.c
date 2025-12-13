@@ -496,29 +496,25 @@ static void snd_portman_midi_input_trigger(struct snd_rawmidi_substream *substre
 					   int up)
 {
 	struct portman *pm = substream->rmidi->private_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pm->reg_lock, flags);
+	guard(spinlock_irqsave)(&pm->reg_lock);
 	if (up)
 		pm->mode[substream->number] |= PORTMAN2X4_MODE_INPUT_TRIGGERED;
 	else
 		pm->mode[substream->number] &= ~PORTMAN2X4_MODE_INPUT_TRIGGERED;
-	spin_unlock_irqrestore(&pm->reg_lock, flags);
 }
 
 static void snd_portman_midi_output_trigger(struct snd_rawmidi_substream *substream,
 					    int up)
 {
 	struct portman *pm = substream->rmidi->private_data;
-	unsigned long flags;
 	unsigned char byte;
 
-	spin_lock_irqsave(&pm->reg_lock, flags);
+	guard(spinlock_irqsave)(&pm->reg_lock);
 	if (up) {
 		while ((snd_rawmidi_transmit(substream, &byte, 1) == 1))
 			portman_write_midi(pm, substream->number, byte);
 	}
-	spin_unlock_irqrestore(&pm->reg_lock, flags);
 }
 
 static const struct snd_rawmidi_ops snd_portman_midi_output = {
@@ -590,7 +586,7 @@ static void snd_portman_interrupt(void *userdata)
 	unsigned char midivalue = 0;
 	struct portman *pm = ((struct snd_card*)userdata)->private_data;
 
-	spin_lock(&pm->reg_lock);
+	guard(spinlock)(&pm->reg_lock);
 
 	/* While any input data is waiting */
 	while ((portman_read_status(pm) & INT_REQ) == INT_REQ) {
@@ -617,8 +613,6 @@ static void snd_portman_interrupt(void *userdata)
 		}
 
 	}
-
-	spin_unlock(&pm->reg_lock);
 }
 
 static void snd_portman_attach(struct parport *p)

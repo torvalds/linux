@@ -572,69 +572,6 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static int set_nsh(struct sk_buff *skb, struct sw_flow_key *flow_key,
-		   const struct nlattr *a)
-{
-	struct nshhdr *nh;
-	size_t length;
-	int err;
-	u8 flags;
-	u8 ttl;
-	int i;
-
-	struct ovs_key_nsh key;
-	struct ovs_key_nsh mask;
-
-	err = nsh_key_from_nlattr(a, &key, &mask);
-	if (err)
-		return err;
-
-	/* Make sure the NSH base header is there */
-	if (!pskb_may_pull(skb, skb_network_offset(skb) + NSH_BASE_HDR_LEN))
-		return -ENOMEM;
-
-	nh = nsh_hdr(skb);
-	length = nsh_hdr_len(nh);
-
-	/* Make sure the whole NSH header is there */
-	err = skb_ensure_writable(skb, skb_network_offset(skb) +
-				       length);
-	if (unlikely(err))
-		return err;
-
-	nh = nsh_hdr(skb);
-	skb_postpull_rcsum(skb, nh, length);
-	flags = nsh_get_flags(nh);
-	flags = OVS_MASKED(flags, key.base.flags, mask.base.flags);
-	flow_key->nsh.base.flags = flags;
-	ttl = nsh_get_ttl(nh);
-	ttl = OVS_MASKED(ttl, key.base.ttl, mask.base.ttl);
-	flow_key->nsh.base.ttl = ttl;
-	nsh_set_flags_and_ttl(nh, flags, ttl);
-	nh->path_hdr = OVS_MASKED(nh->path_hdr, key.base.path_hdr,
-				  mask.base.path_hdr);
-	flow_key->nsh.base.path_hdr = nh->path_hdr;
-	switch (nh->mdtype) {
-	case NSH_M_TYPE1:
-		for (i = 0; i < NSH_MD1_CONTEXT_SIZE; i++) {
-			nh->md1.context[i] =
-			    OVS_MASKED(nh->md1.context[i], key.context[i],
-				       mask.context[i]);
-		}
-		memcpy(flow_key->nsh.context, nh->md1.context,
-		       sizeof(nh->md1.context));
-		break;
-	case NSH_M_TYPE2:
-		memset(flow_key->nsh.context, 0,
-		       sizeof(flow_key->nsh.context));
-		break;
-	default:
-		return -EINVAL;
-	}
-	skb_postpush_rcsum(skb, nh, length);
-	return 0;
-}
-
 /* Must follow skb_ensure_writable() since that can move the skb data. */
 static void set_tp_port(struct sk_buff *skb, __be16 *port,
 			__be16 new_port, __sum16 *check)
@@ -1130,10 +1067,6 @@ static int execute_masked_set_action(struct sk_buff *skb,
 				   get_mask(a, struct ovs_key_ethernet *));
 		break;
 
-	case OVS_KEY_ATTR_NSH:
-		err = set_nsh(skb, flow_key, a);
-		break;
-
 	case OVS_KEY_ATTR_IPV4:
 		err = set_ipv4(skb, flow_key, nla_data(a),
 			       get_mask(a, struct ovs_key_ipv4 *));
@@ -1170,6 +1103,7 @@ static int execute_masked_set_action(struct sk_buff *skb,
 	case OVS_KEY_ATTR_CT_LABELS:
 	case OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV4:
 	case OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6:
+	case OVS_KEY_ATTR_NSH:
 		err = -EINVAL;
 		break;
 	}

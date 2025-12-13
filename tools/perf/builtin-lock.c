@@ -1867,6 +1867,7 @@ static int __cmd_report(bool display_info)
 	eops.sample		 = process_sample_event;
 	eops.comm		 = perf_event__process_comm;
 	eops.mmap		 = perf_event__process_mmap;
+	eops.mmap2		 = perf_event__process_mmap2;
 	eops.namespaces		 = perf_event__process_namespaces;
 	eops.tracing_data	 = perf_event__process_tracing_data;
 	session = perf_session__new(&data, &eops);
@@ -2009,6 +2010,7 @@ static int __cmd_contention(int argc, const char **argv)
 		.owner = show_lock_owner,
 		.cgroups = RB_ROOT,
 	};
+	struct perf_env host_env;
 
 	lockhash_table = calloc(LOCKHASH_SIZE, sizeof(*lockhash_table));
 	if (!lockhash_table)
@@ -2022,9 +2024,13 @@ static int __cmd_contention(int argc, const char **argv)
 	eops.sample		 = process_sample_event;
 	eops.comm		 = perf_event__process_comm;
 	eops.mmap		 = perf_event__process_mmap;
+	eops.mmap2		 = perf_event__process_mmap2;
 	eops.tracing_data	 = perf_event__process_tracing_data;
 
-	session = perf_session__new(use_bpf ? NULL : &data, &eops);
+	perf_env__init(&host_env);
+	session = __perf_session__new(use_bpf ? NULL : &data, &eops,
+				/*trace_event_repipe=*/false, &host_env);
+
 	if (IS_ERR(session)) {
 		pr_err("Initializing perf session failed\n");
 		err = PTR_ERR(session);
@@ -2142,6 +2148,7 @@ out_delete:
 	evlist__delete(con.evlist);
 	lock_contention_finish(&con);
 	perf_session__delete(session);
+	perf_env__exit(&host_env);
 	zfree(&lockhash_table);
 	return err;
 }

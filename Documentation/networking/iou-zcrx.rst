@@ -75,7 +75,7 @@ Create an io_uring instance with the following required setup flags::
 
   IORING_SETUP_SINGLE_ISSUER
   IORING_SETUP_DEFER_TASKRUN
-  IORING_SETUP_CQE32
+  IORING_SETUP_CQE32 or IORING_SETUP_CQE_MIXED
 
 Create memory area
 ------------------

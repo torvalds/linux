@@ -2808,6 +2808,7 @@
 			#size-cells = <0>;
 
 			cfam4_spi0: spi@0 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -2824,6 +2825,7 @@
 			};
 
 			cfam4_spi1: spi@20 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -2840,8 +2842,8 @@
 			};
 
 			cfam4_spi2: spi@40 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x40>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -2857,8 +2859,8 @@
 			};
 
 			cfam4_spi3: spi@60 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x60>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -3181,6 +3183,7 @@
 			#size-cells = <0>;
 
 			cfam5_spi0: spi@0 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -3197,6 +3200,7 @@
 			};
 
 			cfam5_spi1: spi@20 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -3213,8 +3217,8 @@
 			};
 
 			cfam5_spi2: spi@40 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x40>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -3230,8 +3234,8 @@
 			};
 
 			cfam5_spi3: spi@60 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x60>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -3554,6 +3558,7 @@
 			#size-cells = <0>;
 
 			cfam6_spi0: spi@0 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -3570,6 +3575,7 @@
 			};
 
 			cfam6_spi1: spi@20 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -3586,8 +3592,8 @@
 			};
 
 			cfam6_spi2: spi@40 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x40>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -3603,8 +3609,8 @@
 			};
 
 			cfam6_spi3: spi@60 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x60>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -3927,6 +3933,7 @@
 			#size-cells = <0>;
 
 			cfam7_spi0: spi@0 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -3943,6 +3950,7 @@
 			};
 
 			cfam7_spi1: spi@20 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -3959,8 +3967,8 @@
 			};
 
 			cfam7_spi2: spi@40 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x40>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -3976,8 +3984,8 @@
 			};
 
 			cfam7_spi3: spi@60 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x60>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 

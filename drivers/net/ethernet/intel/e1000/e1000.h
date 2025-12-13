@@ -116,7 +116,7 @@ struct e1000_adapter;
 #define E1000_MASTER_SLAVE	e1000_ms_hw_default
 #endif
 
-#define E1000_MNG_VLAN_NONE	(-1)
+#define E1000_MNG_VLAN_NONE	0xFFFF
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/marvell,armada-ap806-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada AP80x/CP110 thermal management
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+properties:
+  compatible:
+    enum:
+      - marvell,armada-ap806-thermal
+      - marvell,armada-ap807-thermal
+      - marvell,armada-cp110-thermal
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description:
+      Overheat interrupt. The interrupt is connected thru a System Error
+      Interrupt (SEI) controller.
+    maxItems: 1
+
+  '#thermal-sensor-cells':
+    description: Cell represents the channel ID. There is one sensor per
+      channel. O refers to the thermal IP internal channel.
+    const: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    thermal-sensor@80 {
+        compatible = "marvell,armada-ap806-thermal";
+        reg = <0x80 0x10>;
+        interrupts = <18>;
+        #thermal-sensor-cells = <1>;
+    };

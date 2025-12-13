@@ -96,14 +96,21 @@ static ssize_t vrm_ver_show(struct device *dev, struct device_attribute *attr, c
 	infineon_second_stage_third_instance =
 					(infineon_second_stage_version >> 16) & mask;
 
-	if (cpucp_info->infineon_second_stage_version)
+	if (cpucp_info->infineon_version && cpucp_info->infineon_second_stage_version)
 		return sprintf(buf, "%#04x %#04x:%#04x:%#04x\n",
 				le32_to_cpu(cpucp_info->infineon_version),
 				infineon_second_stage_first_instance,
 				infineon_second_stage_second_instance,
 				infineon_second_stage_third_instance);
-	else
+	else if (cpucp_info->infineon_second_stage_version)
+		return sprintf(buf, "%#04x:%#04x:%#04x\n",
+				infineon_second_stage_first_instance,
+				infineon_second_stage_second_instance,
+				infineon_second_stage_third_instance);
+	else if (cpucp_info->infineon_version)
 		return sprintf(buf, "%#04x\n", le32_to_cpu(cpucp_info->infineon_version));
+
+	return 0;
 }
 
 static DEVICE_ATTR_RO(vrm_ver);

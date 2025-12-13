@@ -1357,7 +1357,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM, "failed allocating iio device\n");
+		return -ENOMEM;
 
 	priv = iio_priv(indio_dev);
 	init_completion(&priv->done);

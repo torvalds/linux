@@ -42,7 +42,7 @@ struct xe_execlist_exec_queue {
 
 	bool has_run;
 
-	struct work_struct fini_async;
+	struct work_struct destroy_async;
 
 	enum xe_exec_queue_priority active_priority;
 	struct list_head active_link;

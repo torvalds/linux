@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 
 #include "libbpf_internal.h"
-#include "str_error.h"
 
 /* A SHT_GNU_versym section holds 16-bit words. This bit is set if
  * the symbol is hidden and can only be seen when referenced using an

@@ -11,8 +11,9 @@ import string
 from dataclasses import dataclass
 from enum import Enum
 
-from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_ne, ksft_pr
-from lib.py import KsftFailEx, NetDrvEpEnv, EthtoolFamily, NlError
+from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_ge, ksft_ne, ksft_pr
+from lib.py import KsftFailEx, NetDrvEpEnv
+from lib.py import EthtoolFamily, NetdevFamily, NlError
 from lib.py import bkg, cmd, rand_port, wait_port_listen
 from lib.py import ip, bpftool, defer
 
@@ -112,10 +113,10 @@ def _load_xdp_prog(cfg, bpf_info):
     defer(ip, f"link set dev {cfg.remote_ifname} mtu 1500", host=cfg.remote)
 
     cmd(
-    f"ip link set dev {cfg.ifname} mtu {bpf_info.mtu} xdp obj {abs_path} sec {bpf_info.xdp_sec}",
+    f"ip link set dev {cfg.ifname} mtu {bpf_info.mtu} xdpdrv obj {abs_path} sec {bpf_info.xdp_sec}",
     shell=True
     )
-    defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdp off")
+    defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdpdrv off")
 
     xdp_info = ip(f"-d link show dev {cfg.ifname}", json=True)[0]
     prog_info["id"] = xdp_info["xdp"]["prog"]["id"]
@@ -290,6 +291,65 @@ def test_xdp_native_drop_mb(cfg):
     _test_drop(cfg, bpf_info, 8000)
 
 
+def _test_xdp_native_tx(cfg, bpf_info, payload_lens):
+    """
+    Tests the XDP_TX action.
+
+    Args:
+        cfg: Configuration object containing network settings.
+        bpf_info: BPFProgInfo object containing the BPF program metadata.
+        payload_lens: Array of packet lengths to send.
+    """
+    cfg.require_cmd("socat", remote=True)
+    prog_info = _load_xdp_prog(cfg, bpf_info)
+    port = rand_port()
+
+    _set_xdp_map("map_xdp_setup", TestConfig.MODE.value, XDPAction.TX.value)
+    _set_xdp_map("map_xdp_setup", TestConfig.PORT.value, port)
+
+    expected_pkts = 0
+    for payload_len in payload_lens:
+        test_string = "".join(
+            random.choice(string.ascii_lowercase) for _ in range(payload_len)
+        )
+
+        rx_udp = f"socat -{cfg.addr_ipver} -T 2 " + \
+                 f"-u UDP-RECV:{port},reuseport STDOUT"
+
+        # Writing zero bytes to stdin gets ignored by socat,
+        # but with the shut-null flag socat generates a zero sized packet
+        # when the socket is closed.
+        tx_cmd_suffix = ",shut-null" if payload_len == 0 else ""
+        tx_udp = f"echo -n {test_string} | socat -t 2 " + \
+                 f"-u STDIN UDP:{cfg.baddr}:{port}{tx_cmd_suffix}"
+
+        with bkg(rx_udp, host=cfg.remote, exit_wait=True) as rnc:
+            wait_port_listen(port, proto="udp", host=cfg.remote)
+            cmd(tx_udp, host=cfg.remote, shell=True)
+
+        ksft_eq(rnc.stdout.strip(), test_string, "UDP packet exchange failed")
+
+        expected_pkts += 1
+        stats = _get_stats(prog_info["maps"]["map_xdp_stats"])
+        ksft_eq(stats[XDPStats.RX.value], expected_pkts, "RX stats mismatch")
+        ksft_eq(stats[XDPStats.TX.value], expected_pkts, "TX stats mismatch")
+
+
+def test_xdp_native_tx_sb(cfg):
+    """
+    Tests the XDP_TX action for a single-buff case.
+
+    Args:
+        cfg: Configuration object containing network settings.
+    """
+    bpf_info = BPFProgInfo("xdp_prog", "xdp_native.bpf.o", "xdp", 1500)
+
+    # Ensure there's enough room for an ETH / IP / UDP header
+    pkt_hdr_len = 42 if cfg.addr_ipver == "4" else 62
+
+    _test_xdp_native_tx(cfg, bpf_info, [0, 1500 // 2, 1500 - pkt_hdr_len])
+
+
 def test_xdp_native_tx_mb(cfg):
     """
     Tests the XDP_TX action for a multi-buff case.
@@ -297,27 +357,12 @@ def test_xdp_native_tx_mb(cfg):
     Args:
         cfg: Configuration object containing network settings.
     """
-    cfg.require_cmd("socat", remote=True)
-
-    bpf_info = BPFProgInfo("xdp_prog_frags", "xdp_native.bpf.o", "xdp.frags", 9000)
-    prog_info = _load_xdp_prog(cfg, bpf_info)
-    port = rand_port()
-
-    _set_xdp_map("map_xdp_setup", TestConfig.MODE.value, XDPAction.TX.value)
-    _set_xdp_map("map_xdp_setup", TestConfig.PORT.value, port)
-
-    test_string = ''.join(random.choice(string.ascii_lowercase) for _ in range(8000))
-    rx_udp = f"socat -{cfg.addr_ipver} -T 2 -u UDP-RECV:{port},reuseport STDOUT"
-    tx_udp = f"echo {test_string} | socat -t 2 -u STDIN UDP:{cfg.baddr}:{port}"
-
-    with bkg(rx_udp, host=cfg.remote, exit_wait=True) as rnc:
-        wait_port_listen(port, proto="udp", host=cfg.remote)
-        cmd(tx_udp, host=cfg.remote, shell=True)
-
-    stats = _get_stats(prog_info['maps']['map_xdp_stats'])
-
-    ksft_eq(rnc.stdout.strip(), test_string, "UDP packet exchange failed")
-    ksft_eq(stats[XDPStats.TX.value], 1, "TX stats mismatch")
+    bpf_info = BPFProgInfo("xdp_prog_frags", "xdp_native.bpf.o",
+                           "xdp.frags", 9000)
+    # The first packet ensures we exercise the fragmented code path.
+    # And the subsequent 0-sized packet ensures the driver
+    # reinitializes xdp_buff correctly.
+    _test_xdp_native_tx(cfg, bpf_info, [8000, 0])
 
 
 def _validate_res(res, offset_lst, pkt_sz_lst):
@@ -497,11 +542,11 @@ def get_hds_thresh(cfg):
         The HDS threshold value. If the threshold is not supported or an error occurs,
         a default value of 1500 is returned.
     """
-    netnl = cfg.netnl
+    ethnl = cfg.ethnl
     hds_thresh = 1500
 
     try:
-        rings = netnl.rings_get({'header': {'dev-index': cfg.ifindex}})
+        rings = ethnl.rings_get({'header': {'dev-index': cfg.ifindex}})
         if 'hds-thresh' not in rings:
             ksft_pr(f'hds-thresh not supported. Using default: {hds_thresh}')
             return hds_thresh
@@ -518,7 +563,7 @@ def _test_xdp_native_head_adjst(cfg, prog, pkt_sz_lst, offset_lst):
 
     Args:
         cfg: Configuration object containing network settings.
-        netnl: Network namespace or link object (not used in this function).
+        ethnl: Network namespace or link object (not used in this function).
 
     This function sets up the packet size and offset lists, then performs
     the head adjustment test by sending and receiving UDP packets.
@@ -627,6 +672,88 @@ def test_xdp_native_adjst_head_shrnk_data(cfg):
     _validate_res(res, offset_lst, pkt_sz_lst)
 
 
+def _test_xdp_native_ifc_stats(cfg, act):
+    cfg.require_cmd("socat")
+
+    bpf_info = BPFProgInfo("xdp_prog", "xdp_native.bpf.o", "xdp", 1500)
+    prog_info = _load_xdp_prog(cfg, bpf_info)
+    port = rand_port()
+
+    _set_xdp_map("map_xdp_setup", TestConfig.MODE.value, act.value)
+    _set_xdp_map("map_xdp_setup", TestConfig.PORT.value, port)
+
+    # Discard the input, but we need a listener to avoid ICMP errors
+    rx_udp = f"socat -{cfg.addr_ipver} -T 2 -u UDP-RECV:{port},reuseport " + \
+        "/dev/null"
+    # Listener runs on "remote" in case of XDP_TX
+    rx_host = cfg.remote if act == XDPAction.TX else None
+    # We want to spew 2000 packets quickly, bash seems to do a good enough job
+    tx_udp =  f"exec 5<>/dev/udp/{cfg.addr}/{port}; " \
+        "for i in `seq 2000`; do echo a >&5; done; exec 5>&-"
+
+    cfg.wait_hw_stats_settle()
+    # Qstats have more clearly defined semantics than rtnetlink.
+    # XDP is the "first layer of the stack" so XDP packets should be counted
+    # as received and sent as if the decision was made in the routing layer.
+    before = cfg.netnl.qstats_get({"ifindex": cfg.ifindex}, dump=True)[0]
+
+    with bkg(rx_udp, host=rx_host, exit_wait=True):
+        wait_port_listen(port, proto="udp", host=rx_host)
+        cmd(tx_udp, host=cfg.remote, shell=True)
+
+    cfg.wait_hw_stats_settle()
+    after = cfg.netnl.qstats_get({"ifindex": cfg.ifindex}, dump=True)[0]
+
+    ksft_ge(after['rx-packets'] - before['rx-packets'], 2000)
+    if act == XDPAction.TX:
+        ksft_ge(after['tx-packets'] - before['tx-packets'], 2000)
+
+    expected_pkts = 2000
+    stats = _get_stats(prog_info["maps"]["map_xdp_stats"])
+    ksft_eq(stats[XDPStats.RX.value], expected_pkts, "XDP RX stats mismatch")
+    if act == XDPAction.TX:
+        ksft_eq(stats[XDPStats.TX.value], expected_pkts, "XDP TX stats mismatch")
+
+    # Flip the ring count back and forth to make sure the stats from XDP rings
+    # don't get lost.
+    chans = cfg.ethnl.channels_get({'header': {'dev-index': cfg.ifindex}})
+    if chans.get('combined-count', 0) > 1:
+        cfg.ethnl.channels_set({'header': {'dev-index': cfg.ifindex},
+                                'combined-count': 1})
+        cfg.ethnl.channels_set({'header': {'dev-index': cfg.ifindex},
+                                'combined-count': chans['combined-count']})
+        before = after
+        after = cfg.netnl.qstats_get({"ifindex": cfg.ifindex}, dump=True)[0]
+
+        ksft_ge(after['rx-packets'], before['rx-packets'])
+        if act == XDPAction.TX:
+            ksft_ge(after['tx-packets'], before['tx-packets'])
+
+
+def test_xdp_native_qstats_pass(cfg):
+    """
+    Send 2000 messages, expect XDP_PASS, make sure the packets were counted
+    to interface level qstats (Rx).
+    """
+    _test_xdp_native_ifc_stats(cfg, XDPAction.PASS)
+
+
+def test_xdp_native_qstats_drop(cfg):
+    """
+    Send 2000 messages, expect XDP_DROP, make sure the packets were counted
+    to interface level qstats (Rx).
+    """
+    _test_xdp_native_ifc_stats(cfg, XDPAction.DROP)
+
+
+def test_xdp_native_qstats_tx(cfg):
+    """
+    Send 2000 messages, expect XDP_TX, make sure the packets were counted
+    to interface level qstats (Rx and Tx)
+    """
+    _test_xdp_native_ifc_stats(cfg, XDPAction.TX)
+
+
 def main():
     """
     Main function to execute the XDP tests.
@@ -637,18 +764,23 @@ def main():
     function to execute the tests.
     """
     with NetDrvEpEnv(__file__) as cfg:
-        cfg.netnl = EthtoolFamily()
+        cfg.ethnl = EthtoolFamily()
+        cfg.netnl = NetdevFamily()
         ksft_run(
             [
                 test_xdp_native_pass_sb,
                 test_xdp_native_pass_mb,
                 test_xdp_native_drop_sb,
                 test_xdp_native_drop_mb,
+                test_xdp_native_tx_sb,
                 test_xdp_native_tx_mb,
                 test_xdp_native_adjst_tail_grow_data,
                 test_xdp_native_adjst_tail_shrnk_data,
                 test_xdp_native_adjst_head_grow_data,
                 test_xdp_native_adjst_head_shrnk_data,
+                test_xdp_native_qstats_pass,
+                test_xdp_native_qstats_drop,
+                test_xdp_native_qstats_tx,
             ],
             args=(cfg,))
     ksft_exit()

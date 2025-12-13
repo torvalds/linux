@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Close a listener socket with pending TFO child.
+// This will trigger RST pkt to go out.
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 0:10(10) win 32792 <mss 1460,sackOK,nop,nop,FO TFO_COOKIE,nop,nop>
+   +0 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK>
+
+// RST pkt is generated for each not-yet-accepted TFO child.
+// inet_csk_listen_stop() -> inet_child_forget() -> tcp_disconnect()
+// -> tcp_need_reset() is true for SYN_RECV
+   +0 close(3) = 0
+   +0 > R. 1:1(0) ack 11

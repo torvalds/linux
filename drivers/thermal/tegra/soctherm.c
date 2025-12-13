@@ -31,6 +31,7 @@
 #include <linux/reset.h>
 #include <linux/thermal.h>
 
+#include <dt-bindings/thermal/tegra114-soctherm.h>
 #include <dt-bindings/thermal/tegra124-soctherm.h>
 
 #include "../thermal_core.h"
@@ -356,6 +357,12 @@ struct soctherm_oc_irq_chip_data {
 };
 
 static struct soctherm_oc_irq_chip_data soc_irq_cdata;
+
+/* Ensure that TEGRA114_* and TEGRA124_* counterparts are equal */
+static_assert(TEGRA114_SOCTHERM_SENSOR_CPU == TEGRA124_SOCTHERM_SENSOR_CPU);
+static_assert(TEGRA114_SOCTHERM_SENSOR_MEM == TEGRA124_SOCTHERM_SENSOR_MEM);
+static_assert(TEGRA114_SOCTHERM_SENSOR_GPU == TEGRA124_SOCTHERM_SENSOR_GPU);
+static_assert(TEGRA114_SOCTHERM_SENSOR_PLLX == TEGRA124_SOCTHERM_SENSOR_PLLX);
 
 /**
  * ccroc_writel() - writes a value to a CCROC register
@@ -2045,6 +2052,12 @@ static void soctherm_init(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra_soctherm_of_match[] = {
+#ifdef CONFIG_ARCH_TEGRA_114_SOC
+	{
+		.compatible = "nvidia,tegra114-soctherm",
+		.data = &tegra114_soctherm,
+	},
+#endif
 #ifdef CONFIG_ARCH_TEGRA_124_SOC
 	{
 		.compatible = "nvidia,tegra124-soctherm",

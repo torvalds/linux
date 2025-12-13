@@ -300,7 +300,7 @@ efi_status_t efi_adjust_memory_range_protection(unsigned long start,
 		return EFI_SUCCESS;
 
 	/*
-	 * Don't modify memory region attributes, they are
+	 * Don't modify memory region attributes, if they are
 	 * already suitable, to lower the possibility to
 	 * encounter firmware bugs.
 	 */
@@ -315,11 +315,13 @@ efi_status_t efi_adjust_memory_range_protection(unsigned long start,
 		next = desc.base_address + desc.length;
 
 		/*
-		 * Only system memory is suitable for trampoline/kernel image placement,
-		 * so only this type of memory needs its attributes to be modified.
+		 * Only system memory and more reliable memory are suitable for
+		 * trampoline/kernel image placement. So only those memory types
+		 * may need to have attributes modified.
 		 */
 
-		if (desc.gcd_memory_type != EfiGcdMemoryTypeSystemMemory ||
+		if ((desc.gcd_memory_type != EfiGcdMemoryTypeSystemMemory &&
+		     desc.gcd_memory_type != EfiGcdMemoryTypeMoreReliable) ||
 		    (desc.attributes & (EFI_MEMORY_RO | EFI_MEMORY_XP)) == 0)
 			continue;
 
@@ -788,7 +790,9 @@ static efi_status_t efi_decompress_kernel(unsigned long *kernel_entry,
 
 	*kernel_entry = addr + entry;
 
-	return efi_adjust_memory_range_protection(addr, kernel_text_size);
+	return efi_adjust_memory_range_protection(addr, kernel_text_size) ?:
+	       efi_adjust_memory_range_protection(addr + kernel_inittext_offset,
+						  kernel_inittext_size);
 }
 
 static void __noreturn enter_kernel(unsigned long kernel_addr,

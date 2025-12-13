@@ -1757,7 +1757,7 @@ or all of these tasks:
   to your bootloader's configuration.
 
 You have to take care of some or all of the tasks yourself, if your
-distribution lacks a installkernel script or does only handle part of them.
+distribution lacks an installkernel script or does only handle part of them.
 Consult the distribution's documentation for details. If in doubt, install the
 kernel manually::
 

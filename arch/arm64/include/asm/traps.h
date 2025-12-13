@@ -36,6 +36,7 @@ int kasan_brk_handler(struct pt_regs *regs, unsigned long esr);
 int ubsan_brk_handler(struct pt_regs *regs, unsigned long esr);
 
 int early_brk64(unsigned long addr, unsigned long esr, struct pt_regs *regs);
+void dump_kernel_instr(unsigned long kaddr);
 
 /*
  * Move regs->pc to next instruction and do necessary setup before it

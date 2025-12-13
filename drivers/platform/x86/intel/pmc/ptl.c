@@ -10,6 +10,17 @@
 
 #include "core.h"
 
+/* PMC SSRAM PMT Telemetry GUIDS */
+#define PCDP_LPM_REQ_GUID 0x47179370
+
+/*
+ * Die Mapping to Product.
+ * Product PCDDie
+ * PTL-H   PCD-H
+ * PTL-P   PCD-P
+ * PTL-U   PCD-P
+ */
+
 static const struct pmc_bit_map ptl_pcdp_pfear_map[] = {
 	{"PMC_0",               BIT(0)},
 	{"FUSE_OSSE",           BIT(1)},
@@ -162,7 +173,7 @@ static const struct pmc_bit_map ptl_pcdp_ltr_show_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map ptl_pcdp_clocksource_status_map[] = {
+const struct pmc_bit_map ptl_pcdp_clocksource_status_map[] = {
 	{"AON2_OFF_STS",                 BIT(0),	1},
 	{"AON3_OFF_STS",                 BIT(1),	0},
 	{"AON4_OFF_STS",                 BIT(2),	1},
@@ -382,7 +393,7 @@ static const struct pmc_bit_map ptl_pcdp_vnn_req_status_2_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map ptl_pcdp_vnn_req_status_3_map[] = {
+const struct pmc_bit_map ptl_pcdp_vnn_req_status_3_map[] = {
 	{"DTS0_VNN_REQ_STS",             BIT(7),	0},
 	{"GPIOCOM5_VNN_REQ_STS",         BIT(11),	1},
 	{}
@@ -421,7 +432,7 @@ static const struct pmc_bit_map ptl_pcdp_vnn_misc_status_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map ptl_pcdp_signal_status_map[] = {
+const struct pmc_bit_map ptl_pcdp_signal_status_map[] = {
 	{"LSX_Wake0_STS",		 BIT(0),	0},
 	{"LSX_Wake1_STS",		 BIT(1),	0},
 	{"LSX_Wake2_STS",		 BIT(2),	0},
@@ -515,6 +526,22 @@ static const struct pmc_reg_map ptl_pcdp_reg_map = {
 	.lpm_live_status_offset = MTL_LPM_LIVE_STATUS_OFFSET,
 	.s0ix_blocker_maps = ptl_pcdp_blk_maps,
 	.s0ix_blocker_offset = LNL_S0IX_BLOCKER_OFFSET,
+	.num_s0ix_blocker = PTL_NUM_S0IX_BLOCKER,
+	.blocker_req_offset = PTL_BLK_REQ_OFFSET,
+};
+
+static struct pmc_info ptl_pmc_info_list[] = {
+	{
+		.guid	= PCDP_LPM_REQ_GUID,
+		.devid	= PMC_DEVID_PTL_PCDH,
+		.map	= &ptl_pcdp_reg_map,
+	},
+	{
+		.guid   = PCDP_LPM_REQ_GUID,
+		.devid  = PMC_DEVID_PTL_PCDP,
+		.map    = &ptl_pcdp_reg_map,
+	},
+	{}
 };
 
 #define PTL_NPU_PCI_DEV                0xb03e
@@ -543,8 +570,12 @@ static int ptl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_in
 }
 
 struct pmc_dev_info ptl_pmc_dev = {
+	.pci_func = 2,
+	.regmap_list = ptl_pmc_info_list,
 	.map = &ptl_pcdp_reg_map,
+	.sub_req_show = &pmc_core_substate_blk_req_fops,
 	.suspend = cnl_suspend,
 	.resume = ptl_resume,
 	.init = ptl_core_init,
+	.sub_req = pmc_core_pmt_get_blk_sub_req,
 };

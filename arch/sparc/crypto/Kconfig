@@ -16,16 +16,6 @@ config CRYPTO_DES_SPARC64
 
 	  Architecture: sparc64
 
-config CRYPTO_MD5_SPARC64
-	tristate "Digests: MD5"
-	depends on SPARC64
-	select CRYPTO_MD5
-	select CRYPTO_HASH
-	help
-	  MD5 message digest algorithm (RFC1321)
-
-	  Architecture: sparc64 using crypto instructions, when available
-
 config CRYPTO_AES_SPARC64
 	tristate "Ciphers: AES, modes: ECB, CBC, CTR"
 	depends on SPARC64

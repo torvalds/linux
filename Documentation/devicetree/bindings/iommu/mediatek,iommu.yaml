@@ -52,7 +52,7 @@ description: |+
   As above, The Multimedia HW will go through SMI and M4U while it
   access EMI. SMI is a bridge between m4u and the Multimedia HW. It contain
   smi local arbiter and smi common. It will control whether the Multimedia
-  HW should go though the m4u for translation or bypass it and talk
+  HW should go through the m4u for translation or bypass it and talk
   directly with EMI. And also SMI help control the power domain and clocks for
   each local arbiter.
 

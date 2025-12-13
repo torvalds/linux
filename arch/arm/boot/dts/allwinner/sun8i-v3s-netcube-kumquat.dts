@@ -29,7 +29,7 @@
 	clk_can0: clock-can0 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency  = <40000000>;
+		clock-frequency = <40000000>;
 	};
 
 	gpio-keys {

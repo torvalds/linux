@@ -576,7 +576,7 @@
 
 #define TEN_THREAD(x)	(1 << (x))
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define mftmr(rn)	({unsigned long rval; \
 			asm volatile(MFTMR(rn, %0) : "=r" (rval)); rval;})
 #define mttmr(rn, v)	asm volatile(MTTMR(rn, %0) : \
@@ -585,7 +585,7 @@
 
 extern unsigned long global_dbcr0[];
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_POWERPC_REG_BOOKE_H__ */
 #endif /* __KERNEL__ */

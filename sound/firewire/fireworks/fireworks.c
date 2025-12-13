@@ -188,9 +188,9 @@ efw_card_free(struct snd_card *card)
 {
 	struct snd_efw *efw = card->private_data;
 
-	mutex_lock(&devices_mutex);
-	clear_bit(efw->card_index, devices_used);
-	mutex_unlock(&devices_mutex);
+	scoped_guard(mutex, &devices_mutex) {
+		clear_bit(efw->card_index, devices_used);
+	}
 
 	snd_efw_stream_destroy_duplex(efw);
 	snd_efw_transaction_remove_instance(efw);
@@ -207,25 +207,21 @@ static int efw_probe(struct fw_unit *unit, const struct ieee1394_device_id *entr
 	int err;
 
 	// check registered cards.
-	mutex_lock(&devices_mutex);
-	for (card_index = 0; card_index < SNDRV_CARDS; ++card_index) {
-		if (!test_bit(card_index, devices_used) && enable[card_index])
-			break;
-	}
-	if (card_index >= SNDRV_CARDS) {
-		mutex_unlock(&devices_mutex);
-		return -ENOENT;
-	}
+	scoped_guard(mutex, &devices_mutex) {
+		for (card_index = 0; card_index < SNDRV_CARDS; ++card_index) {
+			if (!test_bit(card_index, devices_used) && enable[card_index])
+				break;
+		}
+		if (card_index >= SNDRV_CARDS)
+			return -ENOENT;
 
-	err = snd_card_new(&unit->device, index[card_index], id[card_index], THIS_MODULE,
-			   sizeof(*efw), &card);
-	if (err < 0) {
-		mutex_unlock(&devices_mutex);
-		return err;
+		err = snd_card_new(&unit->device, index[card_index], id[card_index], THIS_MODULE,
+				   sizeof(*efw), &card);
+		if (err < 0)
+			return err;
+		card->private_free = efw_card_free;
+		set_bit(card_index, devices_used);
 	}
-	card->private_free = efw_card_free;
-	set_bit(card_index, devices_used);
-	mutex_unlock(&devices_mutex);
 
 	efw = card->private_data;
 	efw->unit = fw_unit_get(unit);
@@ -287,9 +283,8 @@ static void efw_update(struct fw_unit *unit)
 
 	snd_efw_transaction_bus_reset(efw->unit);
 
-	mutex_lock(&efw->mutex);
+	guard(mutex)(&efw->mutex);
 	snd_efw_stream_update_duplex(efw);
-	mutex_unlock(&efw->mutex);
 }
 
 static void efw_remove(struct fw_unit *unit)

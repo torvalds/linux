@@ -148,7 +148,8 @@ void intel_gmch_bar_teardown(struct drm_i915_private *i915)
 
 int intel_gmch_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
 {
-	unsigned int reg = DISPLAY_VER(i915) >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
+	struct intel_display *display = i915->display;
+	unsigned int reg = DISPLAY_VER(display) >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
 	u16 gmch_ctrl;
 
 	if (pci_read_config_word(i915->gmch.pdev, reg, &gmch_ctrl)) {

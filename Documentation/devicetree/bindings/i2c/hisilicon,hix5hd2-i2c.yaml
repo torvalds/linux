@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/hisilicon,hix5hd2-i2c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+title: I2C for HiSilicon hix5hd2 chipset platform
+
+maintainers:
+  - Wei Yan <sledge.yanwei@huawei.com>
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - hisilicon,hix5hd2-i2c
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency:
+    description: Desired I2C bus frequency in Hz
+    default: 100000
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/hix5hd2-clock.h>
+
+    i2c@f8b10000 {
+        compatible = "hisilicon,hix5hd2-i2c";
+        reg = <0xf8b10000 0x1000>;
+        interrupts = <0 38 4>;
+        clocks = <&clock HIX5HD2_I2C0_RST>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };

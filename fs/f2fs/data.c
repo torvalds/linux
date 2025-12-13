@@ -733,9 +733,11 @@ static bool page_is_mergeable(struct f2fs_sb_info *sbi, struct bio *bio,
 static bool io_type_is_mergeable(struct f2fs_bio_info *io,
 						struct f2fs_io_info *fio)
 {
+	blk_opf_t mask = ~(REQ_PREFLUSH | REQ_FUA);
+
 	if (io->fio.op != fio->op)
 		return false;
-	return io->fio.op_flags == fio->op_flags;
+	return (io->fio.op_flags & mask) == (fio->op_flags & mask);
 }
 
 static bool io_is_mergeable(struct f2fs_sb_info *sbi, struct bio *bio,
@@ -911,7 +913,7 @@ alloc_new:
 	if (fio->io_wbc)
 		wbc_account_cgroup_owner(fio->io_wbc, folio, folio_size(folio));
 
-	inc_page_count(fio->sbi, WB_DATA_TYPE(data_folio, false));
+	inc_page_count(fio->sbi, WB_DATA_TYPE(folio, false));
 
 	*fio->last_block = fio->new_blkaddr;
 	*fio->bio = bio;
@@ -1083,7 +1085,7 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 }
 
 /* This can handle encryption stuffs */
-static int f2fs_submit_page_read(struct inode *inode, struct folio *folio,
+static void f2fs_submit_page_read(struct inode *inode, struct folio *folio,
 				 block_t blkaddr, blk_opf_t op_flags,
 				 bool for_write)
 {
@@ -1092,23 +1094,16 @@ static int f2fs_submit_page_read(struct inode *inode, struct folio *folio,
 
 	bio = f2fs_grab_read_bio(inode, blkaddr, 1, op_flags,
 					folio->index, for_write);
-	if (IS_ERR(bio))
-		return PTR_ERR(bio);
 
 	/* wait for GCed page writeback via META_MAPPING */
 	f2fs_wait_on_block_writeback(inode, blkaddr);
 
-	if (!bio_add_folio(bio, folio, PAGE_SIZE, 0)) {
-		iostat_update_and_unbind_ctx(bio);
-		if (bio->bi_private)
-			mempool_free(bio->bi_private, bio_post_read_ctx_pool);
-		bio_put(bio);
-		return -EFAULT;
-	}
+	if (!bio_add_folio(bio, folio, PAGE_SIZE, 0))
+		f2fs_bug_on(sbi, 1);
+
 	inc_page_count(sbi, F2FS_RD_DATA);
 	f2fs_update_iostat(sbi, NULL, FS_DATA_READ_IO, F2FS_BLKSIZE);
 	f2fs_submit_read_bio(sbi, bio, DATA);
-	return 0;
 }
 
 static void __set_data_blkaddr(struct dnode_of_data *dn, block_t blkaddr)
@@ -1265,10 +1260,8 @@ got_it:
 		return folio;
 	}
 
-	err = f2fs_submit_page_read(inode, folio, dn.data_blkaddr,
+	f2fs_submit_page_read(inode, folio, dn.data_blkaddr,
 						op_flags, for_write);
-	if (err)
-		goto put_err;
 	return folio;
 
 put_err:
@@ -1504,8 +1497,8 @@ static bool f2fs_map_blocks_cached(struct inode *inode,
 		struct f2fs_dev_info *dev = &sbi->devs[bidx];
 
 		map->m_bdev = dev->bdev;
-		map->m_pblk -= dev->start_blk;
 		map->m_len = min(map->m_len, dev->end_blk + 1 - map->m_pblk);
+		map->m_pblk -= dev->start_blk;
 	} else {
 		map->m_bdev = inode->i_sb->s_bdev;
 	}
@@ -1571,6 +1564,9 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
 	/* it only supports block size == page size */
 	pgofs =	(pgoff_t)map->m_lblk;
 	end = pgofs + maxblocks;
+
+	if (flag == F2FS_GET_BLOCK_PRECACHE)
+		mode = LOOKUP_NODE_RA;
 
 next_dnode:
 	if (map->m_may_create) {
@@ -1778,12 +1774,13 @@ sync_out:
 		if (map->m_flags & F2FS_MAP_MAPPED) {
 			unsigned int ofs = start_pgofs - map->m_lblk;
 
-			f2fs_update_read_extent_cache_range(&dn,
-				start_pgofs, map->m_pblk + ofs,
-				map->m_len - ofs);
+			if (map->m_len > ofs)
+				f2fs_update_read_extent_cache_range(&dn,
+					start_pgofs, map->m_pblk + ofs,
+					map->m_len - ofs);
 		}
 		if (map->m_next_extent)
-			*map->m_next_extent = pgofs + 1;
+			*map->m_next_extent = is_hole ? pgofs + 1 : pgofs;
 	}
 	f2fs_put_dnode(&dn);
 unlock_out:
@@ -2145,16 +2142,10 @@ submit_and_realloc:
 		f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
 		bio = NULL;
 	}
-	if (bio == NULL) {
+	if (bio == NULL)
 		bio = f2fs_grab_read_bio(inode, block_nr, nr_pages,
 				f2fs_ra_op_flags(rac), index,
 				false);
-		if (IS_ERR(bio)) {
-			ret = PTR_ERR(bio);
-			bio = NULL;
-			goto out;
-		}
-	}
 
 	/*
 	 * If the page is under writeback, we need to wait for
@@ -2303,18 +2294,10 @@ submit_and_realloc:
 			bio = NULL;
 		}
 
-		if (!bio) {
+		if (!bio)
 			bio = f2fs_grab_read_bio(inode, blkaddr, nr_pages - i,
 					f2fs_ra_op_flags(rac),
 					folio->index, for_write);
-			if (IS_ERR(bio)) {
-				ret = PTR_ERR(bio);
-				f2fs_decompress_end_io(dic, ret, true);
-				f2fs_put_dnode(&dn);
-				*bio_ret = NULL;
-				return ret;
-			}
-		}
 
 		if (!bio_add_folio(bio, folio, blocksize, 0))
 			goto submit_and_realloc;
@@ -3639,11 +3622,9 @@ repeat:
 			err = -EFSCORRUPTED;
 			goto put_folio;
 		}
-		err = f2fs_submit_page_read(use_cow ?
+		f2fs_submit_page_read(use_cow ?
 				F2FS_I(inode)->cow_inode : inode,
 				folio, blkaddr, 0, true);
-		if (err)
-			goto put_folio;
 
 		folio_lock(folio);
 		if (unlikely(folio->mapping != mapping)) {

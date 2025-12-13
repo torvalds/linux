@@ -16,6 +16,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/highmem.h>
+#include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
@@ -241,6 +242,20 @@ static inline void sd_ctrl_read32_rep(struct tmio_mmc_host *host, int addr,
 {
 	ioread32_rep(host->ctl + (addr << host->bus_shift), buf, count);
 }
+
+#ifdef CONFIG_64BIT
+static inline void sd_ctrl_read64_rep(struct tmio_mmc_host *host, int addr,
+				      u64 *buf, int count)
+{
+	readsq(host->ctl + (addr << host->bus_shift), buf, count);
+}
+
+static inline void sd_ctrl_write64_rep(struct tmio_mmc_host *host, int addr,
+				       const u64 *buf, int count)
+{
+	writesq(host->ctl + (addr << host->bus_shift), buf, count);
+}
+#endif
 
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr,
 				   u16 val)

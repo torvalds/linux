@@ -2174,13 +2174,10 @@ static int ata_read_log_directory(struct ata_device *dev)
 	}
 
 	version = get_unaligned_le16(&dev->gp_log_dir[0]);
-	if (version != 0x0001) {
-		ata_dev_err(dev, "Invalid log directory version 0x%04x\n",
-			    version);
-		ata_clear_log_directory(dev);
-		dev->quirks |= ATA_QUIRK_NO_LOG_DIR;
-		return -EINVAL;
-	}
+	if (version != 0x0001)
+		ata_dev_warn_once(dev,
+				  "Invalid log directory version 0x%04x\n",
+				  version);
 
 	return 0;
 }
@@ -3009,6 +3006,16 @@ int ata_dev_configure(struct ata_device *dev)
 		}
 
 		dev->n_sectors = ata_id_n_sectors(id);
+		if (ata_id_is_locked(id)) {
+			/*
+			 * If Security locked, set capacity to zero to prevent
+			 * any I/O, e.g. partition scanning, as any I/O to a
+			 * locked drive will result in user visible errors.
+			 */
+			ata_dev_info(dev,
+				"Security locked, setting capacity to zero\n");
+			dev->n_sectors = 0;
+		}
 
 		/* get current R/W Multiple count setting */
 		if ((dev->id[47] >> 8) == 0x80 && (dev->id[59] & 0x100)) {

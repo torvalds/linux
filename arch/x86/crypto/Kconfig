@@ -2,19 +2,6 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (x86)"
 
-config CRYPTO_CURVE25519_X86
-	tristate
-	depends on 64BIT
-	select CRYPTO_KPP
-	select CRYPTO_LIB_CURVE25519_GENERIC
-	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
-	default CRYPTO_LIB_CURVE25519_INTERNAL
-	help
-	  Curve25519 algorithm
-
-	  Architecture: x86_64 using:
-	  - ADX (large integer arithmetic)
-
 config CRYPTO_AES_NI_INTEL
 	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XCTR, XTS, GCM (AES-NI/VAES)"
 	select CRYPTO_AEAD
@@ -319,7 +306,7 @@ config CRYPTO_ARIA_AESNI_AVX2_X86_64
 
 config CRYPTO_ARIA_GFNI_AVX512_X86_64
 	tristate "Ciphers: ARIA with modes: ECB, CTR (AVX512/GFNI)"
-	depends on 64BIT && AS_GFNI
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ALGAPI
 	select CRYPTO_ARIA

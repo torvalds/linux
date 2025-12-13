@@ -1228,9 +1228,8 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 		if (!ctx->dev) {
 			ctx->dev = c4iw_alloc(&ctx->lldi);
 			if (IS_ERR(ctx->dev)) {
-				pr_err("%s: initialization failed: %ld\n",
-				       pci_name(ctx->lldi.pdev),
-				       PTR_ERR(ctx->dev));
+				pr_err("%s: initialization failed: %pe\n",
+				       pci_name(ctx->lldi.pdev), ctx->dev);
 				ctx->dev = NULL;
 				break;
 			}

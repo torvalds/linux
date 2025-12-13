@@ -317,7 +317,7 @@ int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 	if (d) {
 		char buffer[128];
 
-		xive_irq_data_dump(irq_data_get_irq_handler_data(d),
+		xive_irq_data_dump(irq_data_get_irq_chip_data(d),
 				   buffer, sizeof(buffer));
 		xmon_printf("%s", buffer);
 	}
@@ -437,7 +437,7 @@ static void xive_do_source_eoi(struct xive_irq_data *xd)
 /* irq_chip eoi callback, called with irq descriptor lock held */
 static void xive_irq_eoi(struct irq_data *d)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
 
 	DBG_VERBOSE("eoi_irq: irq=%d [0x%lx] pending=%02x\n",
@@ -595,7 +595,7 @@ static int xive_pick_irq_target(struct irq_data *d,
 				const struct cpumask *affinity)
 {
 	static unsigned int fuzz;
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 	cpumask_var_t mask;
 	int cpu = -1;
 
@@ -628,7 +628,7 @@ static int xive_pick_irq_target(struct irq_data *d,
 
 static unsigned int xive_irq_startup(struct irq_data *d)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 	int target, rc;
 
@@ -673,7 +673,7 @@ static unsigned int xive_irq_startup(struct irq_data *d)
 /* called with irq descriptor lock held */
 static void xive_irq_shutdown(struct irq_data *d)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 
 	pr_debug("%s: irq %d [0x%x] data @%p\n", __func__, d->irq, hw_irq, d);
@@ -698,7 +698,7 @@ static void xive_irq_shutdown(struct irq_data *d)
 
 static void xive_irq_unmask(struct irq_data *d)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 
 	pr_debug("%s: irq %d data @%p\n", __func__, d->irq, xd);
 
@@ -707,7 +707,7 @@ static void xive_irq_unmask(struct irq_data *d)
 
 static void xive_irq_mask(struct irq_data *d)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 
 	pr_debug("%s: irq %d data @%p\n", __func__, d->irq, xd);
 
@@ -718,7 +718,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 				 const struct cpumask *cpumask,
 				 bool force)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 	u32 target, old_target;
 	int rc = 0;
@@ -776,7 +776,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 
 static int xive_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 
 	/*
 	 * We only support these. This has really no effect other than setting
@@ -815,7 +815,7 @@ static int xive_irq_set_type(struct irq_data *d, unsigned int flow_type)
 
 static int xive_irq_retrigger(struct irq_data *d)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 
 	/* This should be only for MSIs */
 	if (WARN_ON(xd->flags & XIVE_IRQ_FLAG_LSI))
@@ -837,7 +837,7 @@ static int xive_irq_retrigger(struct irq_data *d)
  */
 static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(d);
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 	int rc;
 	u8 pq;
@@ -951,7 +951,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 static int xive_get_irqchip_state(struct irq_data *data,
 				  enum irqchip_irq_state which, bool *state)
 {
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(data);
+	struct xive_irq_data *xd = irq_data_get_irq_chip_data(data);
 	u8 pq;
 
 	switch (which) {
@@ -1011,21 +1011,20 @@ void xive_cleanup_irq_data(struct xive_irq_data *xd)
 }
 EXPORT_SYMBOL_GPL(xive_cleanup_irq_data);
 
-static int xive_irq_alloc_data(unsigned int virq, irq_hw_number_t hw)
+static struct xive_irq_data *xive_irq_alloc_data(unsigned int virq, irq_hw_number_t hw)
 {
 	struct xive_irq_data *xd;
 	int rc;
 
 	xd = kzalloc(sizeof(struct xive_irq_data), GFP_KERNEL);
 	if (!xd)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	rc = xive_ops->populate_irq_data(hw, xd);
 	if (rc) {
 		kfree(xd);
-		return rc;
+		return ERR_PTR(rc);
 	}
 	xd->target = XIVE_INVALID_TARGET;
-	irq_set_handler_data(virq, xd);
 
 	/*
 	 * Turn OFF by default the interrupt being mapped. A side
@@ -1036,20 +1035,19 @@ static int xive_irq_alloc_data(unsigned int virq, irq_hw_number_t hw)
 	 */
 	xive_esb_read(xd, XIVE_ESB_SET_PQ_01);
 
-	return 0;
+	return xd;
 }
 
-void xive_irq_free_data(unsigned int virq)
+static void xive_irq_free_data(unsigned int virq)
 {
-	struct xive_irq_data *xd = irq_get_handler_data(virq);
+	struct xive_irq_data *xd = irq_get_chip_data(virq);
 
 	if (!xd)
 		return;
-	irq_set_handler_data(virq, NULL);
+	irq_set_chip_data(virq, NULL);
 	xive_cleanup_irq_data(xd);
 	kfree(xd);
 }
-EXPORT_SYMBOL_GPL(xive_irq_free_data);
 
 #ifdef CONFIG_SMP
 
@@ -1286,7 +1284,7 @@ void __init xive_smp_probe(void)
 static int xive_irq_domain_map(struct irq_domain *h, unsigned int virq,
 			       irq_hw_number_t hw)
 {
-	int rc;
+	struct xive_irq_data *xd;
 
 	/*
 	 * Mark interrupts as edge sensitive by default so that resend
@@ -1294,11 +1292,12 @@ static int xive_irq_domain_map(struct irq_domain *h, unsigned int virq,
 	 */
 	irq_clear_status_flags(virq, IRQ_LEVEL);
 
-	rc = xive_irq_alloc_data(virq, hw);
-	if (rc)
-		return rc;
+	xd = xive_irq_alloc_data(virq, hw);
+	if (IS_ERR(xd))
+		return PTR_ERR(xd);
 
 	irq_set_chip_and_handler(virq, &xive_irq_chip, handle_fasteoi_irq);
+	irq_set_chip_data(virq, xd);
 
 	return 0;
 }
@@ -1366,7 +1365,7 @@ static void xive_irq_domain_debug_show(struct seq_file *m, struct irq_domain *d,
 	seq_printf(m, "%*sXIVE:\n", ind, "");
 	ind++;
 
-	xd = irq_data_get_irq_handler_data(irqd);
+	xd = irq_data_get_irq_chip_data(irqd);
 	if (!xd) {
 		seq_printf(m, "%*snot assigned\n", ind, "");
 		return;
@@ -1403,6 +1402,7 @@ static int xive_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				 unsigned int nr_irqs, void *arg)
 {
 	struct irq_fwspec *fwspec = arg;
+	struct xive_irq_data *xd;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
 	int i, rc;
@@ -1423,12 +1423,11 @@ static int xive_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		irq_clear_status_flags(virq, IRQ_LEVEL);
 
 		/* allocates and sets handler data */
-		rc = xive_irq_alloc_data(virq + i, hwirq + i);
-		if (rc)
-			return rc;
+		xd = xive_irq_alloc_data(virq + i, hwirq + i);
+		if (IS_ERR(xd))
+			return PTR_ERR(xd);
 
-		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
-					      &xive_irq_chip, domain->host_data);
+		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i, &xive_irq_chip, xd);
 		irq_set_handler(virq + i, handle_fasteoi_irq);
 	}
 
@@ -1581,7 +1580,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 			cpu, irq);
 #endif
 		raw_spin_lock(&desc->lock);
-		xd = irq_desc_get_handler_data(desc);
+		xd = irq_desc_get_chip_data(desc);
 
 		/*
 		 * Clear saved_p to indicate that it's no longer pending
@@ -1764,7 +1763,7 @@ static void xive_debug_show_irq(struct seq_file *m, struct irq_data *d)
 	seq_printf(m, "IRQ 0x%08x : target=0x%x prio=%02x lirq=0x%x ",
 		   hw_irq, target, prio, lirq);
 
-	xive_irq_data_dump(irq_data_get_irq_handler_data(d), buffer, sizeof(buffer));
+	xive_irq_data_dump(irq_data_get_irq_chip_data(d), buffer, sizeof(buffer));
 	seq_puts(m, buffer);
 	seq_puts(m, "\n");
 }

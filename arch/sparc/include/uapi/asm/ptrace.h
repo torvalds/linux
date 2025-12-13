@@ -15,7 +15,7 @@
  */
 #define PT_REGS_MAGIC 0x57ac6c00
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 
@@ -88,7 +88,7 @@ struct sparc_trapf {
 	unsigned long _unused;
 	struct pt_regs *regs;
 };
-#endif /* (!__ASSEMBLY__) */
+#endif /* (!__ASSEMBLER__) */
 #else
 /* 32 bit sparc */
 
@@ -97,7 +97,7 @@ struct sparc_trapf {
 /* This struct defines the way the registers are stored on the
  * stack during a system call and basically all traps.
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 
@@ -125,11 +125,11 @@ struct sparc_stackf {
 	unsigned long xargs[6];
 	unsigned long xxargs[1];
 };
-#endif /* (!__ASSEMBLY__) */
+#endif /* (!__ASSEMBLER__) */
 
 #endif /* (defined(__sparc__) && defined(__arch64__))*/
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define TRACEREG_SZ	sizeof(struct pt_regs)
 #define STACKFRAME_SZ	sizeof(struct sparc_stackf)
@@ -137,7 +137,7 @@ struct sparc_stackf {
 #define TRACEREG32_SZ	sizeof(struct pt_regs32)
 #define STACKFRAME32_SZ	sizeof(struct sparc_stackf32)
 
-#endif /* (!__ASSEMBLY__) */
+#endif /* (!__ASSEMBLER__) */
 
 #define UREG_G0        0
 #define UREG_G1        1
@@ -161,30 +161,30 @@ struct sparc_stackf {
 #if defined(__sparc__) && defined(__arch64__)
 /* 64 bit sparc */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 /* For assembly code. */
 #define TRACEREG_SZ		0xa0
 #define STACKFRAME_SZ		0xc0
 
 #define TRACEREG32_SZ		0x50
 #define STACKFRAME32_SZ		0x60
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #else /* (defined(__sparc__) && defined(__arch64__)) */
 
 /* 32 bit sparc */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 
-#else /* (!__ASSEMBLY__) */
+#else /* (!__ASSEMBLER__) */
 /* For assembly code. */
 #define TRACEREG_SZ       0x50
 #define STACKFRAME_SZ     0x60
-#endif /* (!__ASSEMBLY__) */
+#endif /* (!__ASSEMBLER__) */
 
 #endif /* (defined(__sparc__) && defined(__arch64__)) */
 

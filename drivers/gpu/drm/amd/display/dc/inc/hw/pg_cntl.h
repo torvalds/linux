@@ -49,6 +49,7 @@ struct pg_cntl_funcs {
 	void (*mem_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
 	void (*dio_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
 	void (*init_pg_status)(struct pg_cntl *pg_cntl);
+	void (*print_pg_status)(struct pg_cntl *pg_cntl, const char *debug_func, const char *debug_log);
 };
 
 #endif //__DC_PG_CNTL_H__

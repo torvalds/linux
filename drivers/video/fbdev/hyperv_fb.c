@@ -1357,6 +1357,8 @@ static int __init hvfb_drv_init(void)
 {
 	int ret;
 
+	pr_warn("Deprecated: use Hyper-V DRM driver instead\n");
+
 	if (fb_modesetting_disabled("hyper_fb"))
 		return -ENODEV;
 

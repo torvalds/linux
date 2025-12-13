@@ -327,24 +327,15 @@ static int ecryptfs_i_size_read(struct dentry *dentry, struct inode *inode)
 static struct dentry *ecryptfs_lookup_interpose(struct dentry *dentry,
 				     struct dentry *lower_dentry)
 {
-	const struct path *path = ecryptfs_dentry_to_lower_path(dentry->d_parent);
+	struct dentry *lower_parent = ecryptfs_dentry_to_lower(dentry->d_parent);
 	struct inode *inode, *lower_inode;
-	struct ecryptfs_dentry_info *dentry_info;
 	int rc = 0;
 
-	dentry_info = kmem_cache_alloc(ecryptfs_dentry_info_cache, GFP_KERNEL);
-	if (!dentry_info) {
-		dput(lower_dentry);
-		return ERR_PTR(-ENOMEM);
-	}
-
 	fsstack_copy_attr_atime(d_inode(dentry->d_parent),
-				d_inode(path->dentry));
+				d_inode(lower_parent));
 	BUG_ON(!d_count(lower_dentry));
 
-	ecryptfs_set_dentry_private(dentry, dentry_info);
-	dentry_info->lower_path.mnt = mntget(path->mnt);
-	dentry_info->lower_path.dentry = lower_dentry;
+	ecryptfs_set_dentry_lower(dentry, lower_dentry);
 
 	/*
 	 * negative dentry can go positive under us here - its parent is not
@@ -634,10 +625,9 @@ ecryptfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		goto out_lock;
 	}
 
-	rd.old_mnt_idmap	= &nop_mnt_idmap;
+	rd.mnt_idmap		= &nop_mnt_idmap;
 	rd.old_parent		= lower_old_dir_dentry;
 	rd.old_dentry		= lower_old_dentry;
-	rd.new_mnt_idmap	= &nop_mnt_idmap;
 	rd.new_parent		= lower_new_dir_dentry;
 	rd.new_dentry		= lower_new_dentry;
 	rc = vfs_rename(&rd);
@@ -1022,10 +1012,10 @@ static int ecryptfs_getattr(struct mnt_idmap *idmap,
 {
 	struct dentry *dentry = path->dentry;
 	struct kstat lower_stat;
+	struct path lower_path = ecryptfs_lower_path(dentry);
 	int rc;
 
-	rc = vfs_getattr_nosec(ecryptfs_dentry_to_lower_path(dentry),
-			       &lower_stat, request_mask, flags);
+	rc = vfs_getattr_nosec(&lower_path, &lower_stat, request_mask, flags);
 	if (!rc) {
 		fsstack_copy_attr_all(d_inode(dentry),
 				      ecryptfs_inode_to_lower(d_inode(dentry)));

@@ -167,7 +167,7 @@ static inline void cmf_activate(void *area, unsigned int onoff)
 	asm volatile(
 		"	lgr	1,%[r1]\n"
 		"	lgr	2,%[mbo]\n"
-		"	schm\n"
+		"	schm"
 		:
 		: [r1] "d" ((unsigned long)onoff),
 		  [mbo] "d" (virt_to_phys(area))

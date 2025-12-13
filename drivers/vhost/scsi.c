@@ -2884,7 +2884,7 @@ vhost_scsi_make_tport(struct target_fabric_configfs *tf,
 check_len:
 	if (strlen(name) >= VHOST_SCSI_NAMELEN) {
 		pr_err("Emulated %s Address: %s, exceeds"
-			" max: %d\n", name, vhost_scsi_dump_proto_id(tport),
+			" max: %d\n", vhost_scsi_dump_proto_id(tport), name,
 			VHOST_SCSI_NAMELEN);
 		kfree(tport);
 		return ERR_PTR(-EINVAL);

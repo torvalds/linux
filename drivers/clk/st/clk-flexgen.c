@@ -303,16 +303,6 @@ static const struct clkgen_data clkgen_video = {
 	.mode = 1,
 };
 
-static const struct clkgen_clk_out clkgen_stih407_a0_clk_out[] = {
-	/* This clk needs to be on so that memory interface is accessible */
-	{ .name = "clk-ic-lmi0", .flags = CLK_IS_CRITICAL },
-};
-
-static const struct clkgen_data clkgen_stih407_a0 = {
-	.outputs = clkgen_stih407_a0_clk_out,
-	.outputs_nb = ARRAY_SIZE(clkgen_stih407_a0_clk_out),
-};
-
 static const struct clkgen_clk_out clkgen_stih410_a0_clk_out[] = {
 	/* Those clks need to be on so that memory interface is accessible */
 	{ .name = "clk-ic-lmi0", .flags = CLK_IS_CRITICAL },
@@ -322,51 +312,6 @@ static const struct clkgen_clk_out clkgen_stih410_a0_clk_out[] = {
 static const struct clkgen_data clkgen_stih410_a0 = {
 	.outputs = clkgen_stih410_a0_clk_out,
 	.outputs_nb = ARRAY_SIZE(clkgen_stih410_a0_clk_out),
-};
-
-static const struct clkgen_clk_out clkgen_stih407_c0_clk_out[] = {
-	{ .name = "clk-icn-gpu", },
-	{ .name = "clk-fdma", },
-	{ .name = "clk-nand", },
-	{ .name = "clk-hva", },
-	{ .name = "clk-proc-stfe", },
-	{ .name = "clk-proc-tp", },
-	{ .name = "clk-rx-icn-dmu", },
-	{ .name = "clk-rx-icn-hva", },
-	/* This clk needs to be on to keep bus interconnect alive */
-	{ .name = "clk-icn-cpu", .flags = CLK_IS_CRITICAL },
-	/* This clk needs to be on to keep bus interconnect alive */
-	{ .name = "clk-tx-icn-dmu", .flags = CLK_IS_CRITICAL },
-	{ .name = "clk-mmc-0", },
-	{ .name = "clk-mmc-1", },
-	{ .name = "clk-jpegdec", },
-	/* This clk needs to be on to keep A9 running */
-	{ .name = "clk-ext2fa9", .flags = CLK_IS_CRITICAL },
-	{ .name = "clk-ic-bdisp-0", },
-	{ .name = "clk-ic-bdisp-1", },
-	{ .name = "clk-pp-dmu", },
-	{ .name = "clk-vid-dmu", },
-	{ .name = "clk-dss-lpc", },
-	{ .name = "clk-st231-aud-0", },
-	{ .name = "clk-st231-gp-1", },
-	{ .name = "clk-st231-dmu", },
-	/* This clk needs to be on to keep bus interconnect alive */
-	{ .name = "clk-icn-lmi", .flags = CLK_IS_CRITICAL },
-	{ .name = "clk-tx-icn-disp-1", },
-	/* This clk needs to be on to keep bus interconnect alive */
-	{ .name = "clk-icn-sbc", .flags = CLK_IS_CRITICAL },
-	{ .name = "clk-stfe-frc2", },
-	{ .name = "clk-eth-phy", },
-	{ .name = "clk-eth-ref-phyclk", },
-	{ .name = "clk-flash-promip", },
-	{ .name = "clk-main-disp", },
-	{ .name = "clk-aux-disp", },
-	{ .name = "clk-compo-dvp", },
-};
-
-static const struct clkgen_data clkgen_stih407_c0 = {
-	.outputs = clkgen_stih407_c0_clk_out,
-	.outputs_nb = ARRAY_SIZE(clkgen_stih407_c0_clk_out),
 };
 
 static const struct clkgen_clk_out clkgen_stih410_c0_clk_out[] = {
@@ -482,19 +427,6 @@ static const struct clkgen_data clkgen_stih418_c0 = {
 	.outputs_nb = ARRAY_SIZE(clkgen_stih418_c0_clk_out),
 };
 
-static const struct clkgen_clk_out clkgen_stih407_d0_clk_out[] = {
-	{ .name = "clk-pcm-0", },
-	{ .name = "clk-pcm-1", },
-	{ .name = "clk-pcm-2", },
-	{ .name = "clk-spdiff", },
-};
-
-static const struct clkgen_data clkgen_stih407_d0 = {
-	.flags = CLK_SET_RATE_PARENT,
-	.outputs = clkgen_stih407_d0_clk_out,
-	.outputs_nb = ARRAY_SIZE(clkgen_stih407_d0_clk_out),
-};
-
 static const struct clkgen_clk_out clkgen_stih410_d0_clk_out[] = {
 	{ .name = "clk-pcm-0", },
 	{ .name = "clk-pcm-1", },
@@ -597,16 +529,8 @@ static const struct of_device_id flexgen_of_match[] = {
 		.data = &clkgen_video,
 	},
 	{
-		.compatible = "st,flexgen-stih407-a0",
-		.data = &clkgen_stih407_a0,
-	},
-	{
 		.compatible = "st,flexgen-stih410-a0",
 		.data = &clkgen_stih410_a0,
-	},
-	{
-		.compatible = "st,flexgen-stih407-c0",
-		.data = &clkgen_stih407_c0,
 	},
 	{
 		.compatible = "st,flexgen-stih410-c0",
@@ -615,10 +539,6 @@ static const struct of_device_id flexgen_of_match[] = {
 	{
 		.compatible = "st,flexgen-stih418-c0",
 		.data = &clkgen_stih418_c0,
-	},
-	{
-		.compatible = "st,flexgen-stih407-d0",
-		.data = &clkgen_stih407_d0,
 	},
 	{
 		.compatible = "st,flexgen-stih410-d0",

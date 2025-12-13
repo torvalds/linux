@@ -68,6 +68,11 @@ struct rga_ctx {
 	u32 fill_color;
 };
 
+static inline struct rga_ctx *file_to_rga_ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct rga_ctx, fh);
+}
+
 struct rockchip_rga {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_m2m_dev *m2m_dev;

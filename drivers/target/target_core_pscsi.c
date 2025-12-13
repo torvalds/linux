@@ -861,7 +861,7 @@ new_bio:
 				bio = bio_kmalloc(nr_vecs, GFP_KERNEL);
 				if (!bio)
 					goto fail;
-				bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs,
+				bio_init_inline(bio, NULL, nr_vecs,
 					 rw ? REQ_OP_WRITE : REQ_OP_READ);
 				bio->bi_end_io = pscsi_bi_endio;
 

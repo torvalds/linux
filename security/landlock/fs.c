@@ -1281,7 +1281,7 @@ static void hook_sb_delete(struct super_block *const sb)
 		struct landlock_object *object;
 
 		/* Only handles referenced inodes. */
-		if (!atomic_read(&inode->i_count))
+		if (!icount_read(inode))
 			continue;
 
 		/*
@@ -1335,11 +1335,10 @@ static void hook_sb_delete(struct super_block *const sb)
 			 * At this point, we own the ihold() reference that was
 			 * originally set up by get_inode_object() and the
 			 * __iget() reference that we just set in this loop
-			 * walk.  Therefore the following call to iput() will
-			 * not sleep nor drop the inode because there is now at
-			 * least two references to it.
+			 * walk.  Therefore there are at least two references
+			 * on the inode.
 			 */
-			iput(inode);
+			iput_not_last(inode);
 		} else {
 			spin_unlock(&object->lock);
 			rcu_read_unlock();

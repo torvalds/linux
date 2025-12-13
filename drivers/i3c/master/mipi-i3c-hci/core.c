@@ -121,8 +121,6 @@ static int i3c_hci_bus_init(struct i3c_master_controller *m)
 	struct i3c_device_info info;
 	int ret;
 
-	DBG("");
-
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1) {
 		ret = mipi_i3c_hci_dat_v1.init(hci);
 		if (ret)
@@ -149,7 +147,7 @@ static int i3c_hci_bus_init(struct i3c_master_controller *m)
 		amd_set_resp_buf_thld(hci);
 
 	reg_set(HC_CONTROL, HC_CONTROL_BUS_ENABLE);
-	DBG("HC_CONTROL = %#x", reg_read(HC_CONTROL));
+	dev_dbg(&hci->master.dev, "HC_CONTROL = %#x", reg_read(HC_CONTROL));
 
 	return 0;
 }
@@ -158,8 +156,6 @@ static void i3c_hci_bus_cleanup(struct i3c_master_controller *m)
 {
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct platform_device *pdev = to_platform_device(m->dev.parent);
-
-	DBG("");
 
 	reg_clear(HC_CONTROL, HC_CONTROL_BUS_ENABLE);
 	synchronize_irq(platform_get_irq(pdev, 0));
@@ -196,8 +192,8 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 	DECLARE_COMPLETION_ONSTACK(done);
 	int i, last, ret = 0;
 
-	DBG("cmd=%#x rnw=%d ndests=%d data[0].len=%d",
-	    ccc->id, ccc->rnw, ccc->ndests, ccc->dests[0].payload.len);
+	dev_dbg(&hci->master.dev, "cmd=%#x rnw=%d ndests=%d data[0].len=%d",
+		ccc->id, ccc->rnw, ccc->ndests, ccc->dests[0].payload.len);
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
@@ -255,8 +251,8 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 	}
 
 	if (ccc->rnw)
-		DBG("got: %*ph",
-		    ccc->dests[0].payload.len, ccc->dests[0].payload.data);
+		dev_dbg(&hci->master.dev, "got: %*ph",
+			ccc->dests[0].payload.len, ccc->dests[0].payload.data);
 
 out:
 	hci_free_xfer(xfer, nxfers);
@@ -267,37 +263,7 @@ static int i3c_hci_daa(struct i3c_master_controller *m)
 {
 	struct i3c_hci *hci = to_i3c_hci(m);
 
-	DBG("");
-
 	return hci->cmd->perform_daa(hci);
-}
-
-static int i3c_hci_alloc_safe_xfer_buf(struct i3c_hci *hci,
-				       struct hci_xfer *xfer)
-{
-	if (hci->io != &mipi_i3c_hci_dma ||
-	    xfer->data == NULL || !is_vmalloc_addr(xfer->data))
-		return 0;
-
-	if (xfer->rnw)
-		xfer->bounce_buf = kzalloc(xfer->data_len, GFP_KERNEL);
-	else
-		xfer->bounce_buf = kmemdup(xfer->data,
-					   xfer->data_len, GFP_KERNEL);
-
-	return xfer->bounce_buf == NULL ? -ENOMEM : 0;
-}
-
-static void i3c_hci_free_safe_xfer_buf(struct i3c_hci *hci,
-				       struct hci_xfer *xfer)
-{
-	if (hci->io != &mipi_i3c_hci_dma || xfer->bounce_buf == NULL)
-		return;
-
-	if (xfer->rnw)
-		memcpy(xfer->data, xfer->bounce_buf, xfer->data_len);
-
-	kfree(xfer->bounce_buf);
 }
 
 static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
@@ -311,7 +277,7 @@ static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
 	unsigned int size_limit;
 	int i, last, ret = 0;
 
-	DBG("nxfers = %d", nxfers);
+	dev_dbg(&hci->master.dev, "nxfers = %d", nxfers);
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
@@ -333,9 +299,6 @@ static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
 		}
 		hci->cmd->prep_i3c_xfer(hci, dev, &xfer[i]);
 		xfer[i].cmd_desc[0] |= CMD_0_ROC;
-		ret = i3c_hci_alloc_safe_xfer_buf(hci, &xfer[i]);
-		if (ret)
-			goto out;
 	}
 	last = i - 1;
 	xfer[last].cmd_desc[0] |= CMD_0_TOC;
@@ -359,9 +322,6 @@ static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
 	}
 
 out:
-	for (i = 0; i < nxfers; i++)
-		i3c_hci_free_safe_xfer_buf(hci, &xfer[i]);
-
 	hci_free_xfer(xfer, nxfers);
 	return ret;
 }
@@ -375,14 +335,14 @@ static int i3c_hci_i2c_xfers(struct i2c_dev_desc *dev,
 	DECLARE_COMPLETION_ONSTACK(done);
 	int i, last, ret = 0;
 
-	DBG("nxfers = %d", nxfers);
+	dev_dbg(&hci->master.dev, "nxfers = %d", nxfers);
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
 		return -ENOMEM;
 
 	for (i = 0; i < nxfers; i++) {
-		xfer[i].data = i2c_get_dma_safe_msg_buf(&i2c_xfers[i], 1);
+		xfer[i].data = i2c_xfers[i].buf;
 		xfer[i].data_len = i2c_xfers[i].len;
 		xfer[i].rnw = i2c_xfers[i].flags & I2C_M_RD;
 		hci->cmd->prep_i2c_xfer(hci, dev, &xfer[i]);
@@ -408,10 +368,6 @@ static int i3c_hci_i2c_xfers(struct i2c_dev_desc *dev,
 	}
 
 out:
-	for (i = 0; i < nxfers; i++)
-		i2c_put_dma_safe_msg_buf(xfer[i].data, &i2c_xfers[i],
-					 ret ? false : true);
-
 	hci_free_xfer(xfer, nxfers);
 	return ret;
 }
@@ -422,8 +378,6 @@ static int i3c_hci_attach_i3c_dev(struct i3c_dev_desc *dev)
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data;
 	int ret;
-
-	DBG("");
 
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
@@ -448,8 +402,6 @@ static int i3c_hci_reattach_i3c_dev(struct i3c_dev_desc *dev, u8 old_dyn_addr)
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
 
-	DBG("");
-
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1)
 		mipi_i3c_hci_dat_v1.set_dynamic_addr(hci, dev_data->dat_idx,
 					     dev->info.dyn_addr);
@@ -461,8 +413,6 @@ static void i3c_hci_detach_i3c_dev(struct i3c_dev_desc *dev)
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
-
-	DBG("");
 
 	i3c_dev_set_master_data(dev, NULL);
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1)
@@ -476,8 +426,6 @@ static int i3c_hci_attach_i2c_dev(struct i2c_dev_desc *dev)
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data;
 	int ret;
-
-	DBG("");
 
 	if (hci->cmd != &mipi_i3c_hci_cmd_v1)
 		return 0;
@@ -501,8 +449,6 @@ static void i3c_hci_detach_i2c_dev(struct i2c_dev_desc *dev)
 	struct i3c_master_controller *m = i2c_dev_get_master(dev);
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data = i2c_dev_get_master_data(dev);
-
-	DBG("");
 
 	if (dev_data) {
 		i2c_dev_set_master_data(dev, NULL);
@@ -591,7 +537,7 @@ static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 
 	val = reg_read(INTR_STATUS);
 	reg_write(INTR_STATUS, val);
-	DBG("INTR_STATUS = %#x", val);
+	dev_dbg(&hci->master.dev, "INTR_STATUS %#x", val);
 
 	if (val)
 		result = IRQ_HANDLED;
@@ -641,7 +587,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	}
 
 	hci->caps = reg_read(HC_CAPABILITIES);
-	DBG("caps = %#x", hci->caps);
+	dev_dbg(&hci->master.dev, "caps = %#x", hci->caps);
 
 	size_in_dwords = hci->version_major < 1 ||
 			 (hci->version_major == 1 && hci->version_minor < 1);

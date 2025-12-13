@@ -60,16 +60,17 @@ def run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso):
         sock_wait_drain(sock)
         qstat_new = cfg.netnl.qstats_get({"ifindex": cfg.ifindex}, dump=True)[0]
 
-        # No math behind the 10 here, but try to catch cases where
-        # TCP falls back to non-LSO.
-        ksft_lt(tcp_sock_get_retrans(sock), 10)
-        sock.close()
-
         # Check that at least 90% of the data was sent as LSO packets.
         # System noise may cause false negatives. Also header overheads
         # will add up to 5% of extra packes... The check is best effort.
         total_lso_wire  = len(buf) * 0.90 // cfg.dev["mtu"]
         total_lso_super = len(buf) * 0.90 // cfg.dev["tso_max_size"]
+
+        # Make sure we have order of magnitude more LSO packets than
+        # retransmits, in case TCP retransmitted all the LSO packets.
+        ksft_lt(tcp_sock_get_retrans(sock), total_lso_wire / 4)
+        sock.close()
+
         if should_lso:
             if cfg.have_stat_super_count:
                 ksft_ge(qstat_new['tx-hw-gso-packets'] -

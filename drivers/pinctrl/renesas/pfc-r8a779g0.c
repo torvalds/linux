@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * R8A779A0 processor support - PFC hardware block.
+ * R8A779G0 processor support - PFC hardware block.
  *
  * Copyright (C) 2021 Renesas Electronics Corp.
  *

@@ -1364,7 +1364,7 @@ static const struct pmc_info pmc_infos[] __initconst = {
 		.version = AT91_PMC_V1,
 	},
 	{
-		.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP,
+		.uhp_udp_mask = AT91SAM926x_PMC_UHP,
 		.mckr = 0x28,
 		.version = AT91_PMC_V2,
 	},

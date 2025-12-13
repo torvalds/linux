@@ -705,13 +705,11 @@ int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 		migrate_enable();
 		rcu_read_unlock_trace();
 	} else {
-		rcu_read_lock();
-		migrate_disable();
+		rcu_read_lock_dont_migrate();
 		old_run_ctx = bpf_set_run_ctx(&run_ctx);
 		ret = bpf_prog_run(prog, ctx);
 		bpf_reset_run_ctx(old_run_ctx);
-		migrate_enable();
-		rcu_read_unlock();
+		rcu_read_unlock_migrate();
 	}
 
 	/* bpf program can only return 0 or 1:

@@ -43,7 +43,7 @@
 #define SPU_DECR_STATUS_RUNNING 0x1
 #define SPU_DECR_STATUS_WRAPPED 0x2
 
-#ifndef  __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /**
  * spu_reg128 - generic 128-bit register definition.
  */
@@ -243,5 +243,5 @@ struct spu_state {
 
 #endif /* !__SPU__ */
 #endif /* __KERNEL__ */
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 #endif /* _SPU_CSA_H_ */

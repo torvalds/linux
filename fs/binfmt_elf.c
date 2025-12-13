@@ -103,6 +103,21 @@ static struct linux_binfmt elf_format = {
 
 #define BAD_ADDR(x) (unlikely((unsigned long)(x) >= TASK_SIZE))
 
+static inline void elf_coredump_set_mm_eflags(struct mm_struct *mm, u32 flags)
+{
+#ifdef CONFIG_ARCH_HAS_ELF_CORE_EFLAGS
+	mm->saved_e_flags = flags;
+#endif
+}
+
+static inline u32 elf_coredump_get_mm_eflags(struct mm_struct *mm, u32 flags)
+{
+#ifdef CONFIG_ARCH_HAS_ELF_CORE_EFLAGS
+	flags = mm->saved_e_flags;
+#endif
+	return flags;
+}
+
 /*
  * We need to explicitly zero any trailing portion of the page that follows
  * p_filesz when it ends before the page ends (e.g. bss), otherwise this
@@ -1290,6 +1305,8 @@ out_free_interp:
 	mm->end_data = end_data;
 	mm->start_stack = bprm->p;
 
+	elf_coredump_set_mm_eflags(mm, elf_ex->e_flags);
+
 	/**
 	 * DOC: "brk" handling
 	 *
@@ -1804,6 +1821,8 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	struct elf_thread_core_info *t;
 	struct elf_prpsinfo *psinfo;
 	struct core_thread *ct;
+	u16 machine;
+	u32 flags;
 
 	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
 	if (!psinfo)
@@ -1831,30 +1850,37 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 		return 0;
 	}
 
-	/*
-	 * Initialize the ELF file header.
-	 */
-	fill_elf_header(elf, phdrs,
-			view->e_machine, view->e_flags);
+	machine = view->e_machine;
+	flags = view->e_flags;
 #else
 	view = NULL;
 	info->thread_notes = 2;
-	fill_elf_header(elf, phdrs, ELF_ARCH, ELF_CORE_EFLAGS);
+	machine = ELF_ARCH;
+	flags = ELF_CORE_EFLAGS;
 #endif
+
+	/*
+	 * Override ELF e_flags with value taken from process,
+	 * if arch needs that.
+	 */
+	flags = elf_coredump_get_mm_eflags(dump_task->mm, flags);
+
+	/*
+	 * Initialize the ELF file header.
+	 */
+	fill_elf_header(elf, phdrs, machine, flags);
 
 	/*
 	 * Allocate a structure for each thread.
 	 */
-	info->thread = kzalloc(offsetof(struct elf_thread_core_info,
-				     notes[info->thread_notes]),
-			    GFP_KERNEL);
+	info->thread = kzalloc(struct_size(info->thread, notes, info->thread_notes),
+			       GFP_KERNEL);
 	if (unlikely(!info->thread))
 		return 0;
 
 	info->thread->task = dump_task;
 	for (ct = dump_task->signal->core_state->dumper.next; ct; ct = ct->next) {
-		t = kzalloc(offsetof(struct elf_thread_core_info,
-				     notes[info->thread_notes]),
+		t = kzalloc(struct_size(t, notes, info->thread_notes),
 			    GFP_KERNEL);
 		if (unlikely(!t))
 			return 0;

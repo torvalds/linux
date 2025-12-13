@@ -100,6 +100,7 @@
 		ti,mii-g-rt = <&icssg0_mii_g_rt>;
 		ti,mii-rt = <&icssg0_mii_rt>;
 		ti,iep = <&icssg0_iep0>, <&icssg0_iep1>;
+		ti,pa-stats = <&icssg0_pa_stats>;
 
 		ethernet-ports {
 			#address-cells = <1>;

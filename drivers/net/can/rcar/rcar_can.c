@@ -5,6 +5,8 @@
  * Copyright (C) 2013 Renesas Solutions Corp.
  */
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -16,6 +18,7 @@
 #include <linux/can/dev.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/pm_runtime.h>
 
 #define RCAR_CAN_DRV_NAME	"rcar_can"
 
@@ -92,7 +95,6 @@ struct rcar_can_priv {
 	struct net_device *ndev;
 	struct napi_struct napi;
 	struct rcar_can_regs __iomem *regs;
-	struct clk *clk;
 	struct clk *can_clk;
 	u32 tx_head;
 	u32 tx_tail;
@@ -113,100 +115,102 @@ static const struct can_bittiming_const rcar_can_bittiming_const = {
 };
 
 /* Control Register bits */
-#define RCAR_CAN_CTLR_BOM	(3 << 11) /* Bus-Off Recovery Mode Bits */
-#define RCAR_CAN_CTLR_BOM_ENT	(1 << 11) /* Entry to halt mode */
-					/* at bus-off entry */
-#define RCAR_CAN_CTLR_SLPM	(1 << 10)
-#define RCAR_CAN_CTLR_CANM	(3 << 8) /* Operating Mode Select Bit */
-#define RCAR_CAN_CTLR_CANM_HALT	(1 << 9)
-#define RCAR_CAN_CTLR_CANM_RESET (1 << 8)
-#define RCAR_CAN_CTLR_CANM_FORCE_RESET (3 << 8)
-#define RCAR_CAN_CTLR_MLM	(1 << 3) /* Message Lost Mode Select */
-#define RCAR_CAN_CTLR_IDFM	(3 << 1) /* ID Format Mode Select Bits */
-#define RCAR_CAN_CTLR_IDFM_MIXED (1 << 2) /* Mixed ID mode */
-#define RCAR_CAN_CTLR_MBM	(1 << 0) /* Mailbox Mode select */
+#define RCAR_CAN_CTLR_BOM	GENMASK(12, 11)	/* Bus-Off Recovery Mode Bits */
+#define RCAR_CAN_CTLR_BOM_ENT		1	/* Entry to halt mode */
+						/* at bus-off entry */
+#define RCAR_CAN_CTLR_SLPM	BIT(10)		/* Sleep Mode */
+#define RCAR_CAN_CTLR_CANM	GENMASK(9, 8)	/* Operating Mode Select Bit */
+#define RCAR_CAN_CTLR_CANM_OPER		0	/* Operation Mode */
+#define RCAR_CAN_CTLR_CANM_RESET	1	/* Reset Mode */
+#define RCAR_CAN_CTLR_CANM_HALT		2	/* Halt Mode */
+#define RCAR_CAN_CTLR_CANM_FORCE_RESET	3	/* Reset Mode (forcible) */
+#define RCAR_CAN_CTLR_MLM	BIT(3)		/* Message Lost Mode Select */
+#define RCAR_CAN_CTLR_IDFM	GENMASK(2, 1)	/* ID Format Mode Select Bits */
+#define RCAR_CAN_CTLR_IDFM_STD		0	/* Standard ID mode */
+#define RCAR_CAN_CTLR_IDFM_EXT		1	/* Extended ID mode */
+#define RCAR_CAN_CTLR_IDFM_MIXED	2	/* Mixed ID mode */
+#define RCAR_CAN_CTLR_MBM	BIT(0)		/* Mailbox Mode select */
 
 /* Status Register bits */
-#define RCAR_CAN_STR_RSTST	(1 << 8) /* Reset Status Bit */
+#define RCAR_CAN_STR_RSTST	BIT(8)		/* Reset Status Bit */
 
 /* FIFO Received ID Compare Registers 0 and 1 bits */
-#define RCAR_CAN_FIDCR_IDE	(1 << 31) /* ID Extension Bit */
-#define RCAR_CAN_FIDCR_RTR	(1 << 30) /* Remote Transmission Request Bit */
+#define RCAR_CAN_FIDCR_IDE	BIT(31)		/* ID Extension Bit */
+#define RCAR_CAN_FIDCR_RTR	BIT(30)		/* Remote Transmission Request Bit */
 
 /* Receive FIFO Control Register bits */
-#define RCAR_CAN_RFCR_RFEST	(1 << 7) /* Receive FIFO Empty Status Flag */
-#define RCAR_CAN_RFCR_RFE	(1 << 0) /* Receive FIFO Enable */
+#define RCAR_CAN_RFCR_RFEST	BIT(7)		/* Receive FIFO Empty Status Flag */
+#define RCAR_CAN_RFCR_RFE	BIT(0)		/* Receive FIFO Enable */
 
 /* Transmit FIFO Control Register bits */
-#define RCAR_CAN_TFCR_TFUST	(7 << 1) /* Transmit FIFO Unsent Message */
-					/* Number Status Bits */
-#define RCAR_CAN_TFCR_TFUST_SHIFT 1	/* Offset of Transmit FIFO Unsent */
-					/* Message Number Status Bits */
-#define RCAR_CAN_TFCR_TFE	(1 << 0) /* Transmit FIFO Enable */
+#define RCAR_CAN_TFCR_TFUST	GENMASK(3, 1)	/* Transmit FIFO Unsent Message */
+						/* Number Status Bits */
+#define RCAR_CAN_TFCR_TFE	BIT(0)		/* Transmit FIFO Enable */
 
-#define RCAR_CAN_N_RX_MKREGS1	2	/* Number of mask registers */
-					/* for Rx mailboxes 0-31 */
+#define RCAR_CAN_N_RX_MKREGS1	2		/* Number of mask registers */
+						/* for Rx mailboxes 0-31 */
 #define RCAR_CAN_N_RX_MKREGS2	8
 
 /* Bit Configuration Register settings */
-#define RCAR_CAN_BCR_TSEG1(x)	(((x) & 0x0f) << 20)
-#define RCAR_CAN_BCR_BPR(x)	(((x) & 0x3ff) << 8)
-#define RCAR_CAN_BCR_SJW(x)	(((x) & 0x3) << 4)
-#define RCAR_CAN_BCR_TSEG2(x)	((x) & 0x07)
+#define RCAR_CAN_BCR_TSEG1	GENMASK(23, 20)
+#define RCAR_CAN_BCR_BRP	GENMASK(17, 8)
+#define RCAR_CAN_BCR_SJW	GENMASK(5, 4)
+#define RCAR_CAN_BCR_TSEG2	GENMASK(2, 0)
 
 /* Mailbox and Mask Registers bits */
-#define RCAR_CAN_IDE		(1 << 31)
-#define RCAR_CAN_RTR		(1 << 30)
-#define RCAR_CAN_SID_SHIFT	18
+#define RCAR_CAN_IDE		BIT(31)		/* ID Extension */
+#define RCAR_CAN_RTR		BIT(30)		/* Remote Transmission Request */
+#define RCAR_CAN_SID		GENMASK(28, 18)	/* Standard ID */
+#define RCAR_CAN_EID		GENMASK(28, 0)	/* Extended ID */
 
 /* Mailbox Interrupt Enable Register 1 bits */
-#define RCAR_CAN_MIER1_RXFIE	(1 << 28) /* Receive  FIFO Interrupt Enable */
-#define RCAR_CAN_MIER1_TXFIE	(1 << 24) /* Transmit FIFO Interrupt Enable */
+#define RCAR_CAN_MIER1_RXFIE	BIT(28)		/* Receive  FIFO Interrupt Enable */
+#define RCAR_CAN_MIER1_TXFIE	BIT(24)		/* Transmit FIFO Interrupt Enable */
 
 /* Interrupt Enable Register bits */
-#define RCAR_CAN_IER_ERSIE	(1 << 5) /* Error (ERS) Interrupt Enable Bit */
-#define RCAR_CAN_IER_RXFIE	(1 << 4) /* Reception FIFO Interrupt */
-					/* Enable Bit */
-#define RCAR_CAN_IER_TXFIE	(1 << 3) /* Transmission FIFO Interrupt */
-					/* Enable Bit */
+#define RCAR_CAN_IER_ERSIE	BIT(5)		/* Error (ERS) Interrupt Enable Bit */
+#define RCAR_CAN_IER_RXFIE	BIT(4)		/* Reception FIFO Interrupt */
+						/* Enable Bit */
+#define RCAR_CAN_IER_TXFIE	BIT(3)		/* Transmission FIFO Interrupt */
+						/* Enable Bit */
 /* Interrupt Status Register bits */
-#define RCAR_CAN_ISR_ERSF	(1 << 5) /* Error (ERS) Interrupt Status Bit */
-#define RCAR_CAN_ISR_RXFF	(1 << 4) /* Reception FIFO Interrupt */
-					/* Status Bit */
-#define RCAR_CAN_ISR_TXFF	(1 << 3) /* Transmission FIFO Interrupt */
-					/* Status Bit */
+#define RCAR_CAN_ISR_ERSF	BIT(5)		/* Error (ERS) Interrupt Status Bit */
+#define RCAR_CAN_ISR_RXFF	BIT(4)		/* Reception FIFO Interrupt */
+						/* Status Bit */
+#define RCAR_CAN_ISR_TXFF	BIT(3)		/* Transmission FIFO Interrupt */
+						/* Status Bit */
 
 /* Error Interrupt Enable Register bits */
-#define RCAR_CAN_EIER_BLIE	(1 << 7) /* Bus Lock Interrupt Enable */
-#define RCAR_CAN_EIER_OLIE	(1 << 6) /* Overload Frame Transmit */
-					/* Interrupt Enable */
-#define RCAR_CAN_EIER_ORIE	(1 << 5) /* Receive Overrun  Interrupt Enable */
-#define RCAR_CAN_EIER_BORIE	(1 << 4) /* Bus-Off Recovery Interrupt Enable */
-#define RCAR_CAN_EIER_BOEIE	(1 << 3) /* Bus-Off Entry Interrupt Enable */
-#define RCAR_CAN_EIER_EPIE	(1 << 2) /* Error Passive Interrupt Enable */
-#define RCAR_CAN_EIER_EWIE	(1 << 1) /* Error Warning Interrupt Enable */
-#define RCAR_CAN_EIER_BEIE	(1 << 0) /* Bus Error Interrupt Enable */
+#define RCAR_CAN_EIER_BLIE	BIT(7)		/* Bus Lock Interrupt Enable */
+#define RCAR_CAN_EIER_OLIE	BIT(6)		/* Overload Frame Transmit */
+						/* Interrupt Enable */
+#define RCAR_CAN_EIER_ORIE	BIT(5)		/* Receive Overrun  Interrupt Enable */
+#define RCAR_CAN_EIER_BORIE	BIT(4)		/* Bus-Off Recovery Interrupt Enable */
+#define RCAR_CAN_EIER_BOEIE	BIT(3)		/* Bus-Off Entry Interrupt Enable */
+#define RCAR_CAN_EIER_EPIE	BIT(2)		/* Error Passive Interrupt Enable */
+#define RCAR_CAN_EIER_EWIE	BIT(1)		/* Error Warning Interrupt Enable */
+#define RCAR_CAN_EIER_BEIE	BIT(0)		/* Bus Error Interrupt Enable */
 
 /* Error Interrupt Factor Judge Register bits */
-#define RCAR_CAN_EIFR_BLIF	(1 << 7) /* Bus Lock Detect Flag */
-#define RCAR_CAN_EIFR_OLIF	(1 << 6) /* Overload Frame Transmission */
-					 /* Detect Flag */
-#define RCAR_CAN_EIFR_ORIF	(1 << 5) /* Receive Overrun Detect Flag */
-#define RCAR_CAN_EIFR_BORIF	(1 << 4) /* Bus-Off Recovery Detect Flag */
-#define RCAR_CAN_EIFR_BOEIF	(1 << 3) /* Bus-Off Entry Detect Flag */
-#define RCAR_CAN_EIFR_EPIF	(1 << 2) /* Error Passive Detect Flag */
-#define RCAR_CAN_EIFR_EWIF	(1 << 1) /* Error Warning Detect Flag */
-#define RCAR_CAN_EIFR_BEIF	(1 << 0) /* Bus Error Detect Flag */
+#define RCAR_CAN_EIFR_BLIF	BIT(7)		/* Bus Lock Detect Flag */
+#define RCAR_CAN_EIFR_OLIF	BIT(6)		/* Overload Frame Transmission */
+						/* Detect Flag */
+#define RCAR_CAN_EIFR_ORIF	BIT(5)		/* Receive Overrun Detect Flag */
+#define RCAR_CAN_EIFR_BORIF	BIT(4)		/* Bus-Off Recovery Detect Flag */
+#define RCAR_CAN_EIFR_BOEIF	BIT(3)		/* Bus-Off Entry Detect Flag */
+#define RCAR_CAN_EIFR_EPIF	BIT(2)		/* Error Passive Detect Flag */
+#define RCAR_CAN_EIFR_EWIF	BIT(1)		/* Error Warning Detect Flag */
+#define RCAR_CAN_EIFR_BEIF	BIT(0)		/* Bus Error Detect Flag */
 
 /* Error Code Store Register bits */
-#define RCAR_CAN_ECSR_EDPM	(1 << 7) /* Error Display Mode Select Bit */
-#define RCAR_CAN_ECSR_ADEF	(1 << 6) /* ACK Delimiter Error Flag */
-#define RCAR_CAN_ECSR_BE0F	(1 << 5) /* Bit Error (dominant) Flag */
-#define RCAR_CAN_ECSR_BE1F	(1 << 4) /* Bit Error (recessive) Flag */
-#define RCAR_CAN_ECSR_CEF	(1 << 3) /* CRC Error Flag */
-#define RCAR_CAN_ECSR_AEF	(1 << 2) /* ACK Error Flag */
-#define RCAR_CAN_ECSR_FEF	(1 << 1) /* Form Error Flag */
-#define RCAR_CAN_ECSR_SEF	(1 << 0) /* Stuff Error Flag */
+#define RCAR_CAN_ECSR_EDPM	BIT(7)		/* Error Display Mode Select Bit */
+#define RCAR_CAN_ECSR_ADEF	BIT(6)		/* ACK Delimiter Error Flag */
+#define RCAR_CAN_ECSR_BE0F	BIT(5)		/* Bit Error (dominant) Flag */
+#define RCAR_CAN_ECSR_BE1F	BIT(4)		/* Bit Error (recessive) Flag */
+#define RCAR_CAN_ECSR_CEF	BIT(3)		/* CRC Error Flag */
+#define RCAR_CAN_ECSR_AEF	BIT(2)		/* ACK Error Flag */
+#define RCAR_CAN_ECSR_FEF	BIT(1)		/* Form Error Flag */
+#define RCAR_CAN_ECSR_SEF	BIT(0)		/* Stuff Error Flag */
 
 #define RCAR_CAN_NAPI_WEIGHT	4
 #define MAX_STR_READS		0x100
@@ -248,35 +252,35 @@ static void rcar_can_error(struct net_device *ndev)
 		if (ecsr & RCAR_CAN_ECSR_ADEF) {
 			netdev_dbg(priv->ndev, "ACK Delimiter Error\n");
 			tx_errors++;
-			writeb(~RCAR_CAN_ECSR_ADEF, &priv->regs->ecsr);
+			writeb((u8)~RCAR_CAN_ECSR_ADEF, &priv->regs->ecsr);
 			if (skb)
 				cf->data[3] = CAN_ERR_PROT_LOC_ACK_DEL;
 		}
 		if (ecsr & RCAR_CAN_ECSR_BE0F) {
 			netdev_dbg(priv->ndev, "Bit Error (dominant)\n");
 			tx_errors++;
-			writeb(~RCAR_CAN_ECSR_BE0F, &priv->regs->ecsr);
+			writeb((u8)~RCAR_CAN_ECSR_BE0F, &priv->regs->ecsr);
 			if (skb)
 				cf->data[2] |= CAN_ERR_PROT_BIT0;
 		}
 		if (ecsr & RCAR_CAN_ECSR_BE1F) {
 			netdev_dbg(priv->ndev, "Bit Error (recessive)\n");
 			tx_errors++;
-			writeb(~RCAR_CAN_ECSR_BE1F, &priv->regs->ecsr);
+			writeb((u8)~RCAR_CAN_ECSR_BE1F, &priv->regs->ecsr);
 			if (skb)
 				cf->data[2] |= CAN_ERR_PROT_BIT1;
 		}
 		if (ecsr & RCAR_CAN_ECSR_CEF) {
 			netdev_dbg(priv->ndev, "CRC Error\n");
 			rx_errors++;
-			writeb(~RCAR_CAN_ECSR_CEF, &priv->regs->ecsr);
+			writeb((u8)~RCAR_CAN_ECSR_CEF, &priv->regs->ecsr);
 			if (skb)
 				cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
 		}
 		if (ecsr & RCAR_CAN_ECSR_AEF) {
 			netdev_dbg(priv->ndev, "ACK Error\n");
 			tx_errors++;
-			writeb(~RCAR_CAN_ECSR_AEF, &priv->regs->ecsr);
+			writeb((u8)~RCAR_CAN_ECSR_AEF, &priv->regs->ecsr);
 			if (skb) {
 				cf->can_id |= CAN_ERR_ACK;
 				cf->data[3] = CAN_ERR_PROT_LOC_ACK;
@@ -285,14 +289,14 @@ static void rcar_can_error(struct net_device *ndev)
 		if (ecsr & RCAR_CAN_ECSR_FEF) {
 			netdev_dbg(priv->ndev, "Form Error\n");
 			rx_errors++;
-			writeb(~RCAR_CAN_ECSR_FEF, &priv->regs->ecsr);
+			writeb((u8)~RCAR_CAN_ECSR_FEF, &priv->regs->ecsr);
 			if (skb)
 				cf->data[2] |= CAN_ERR_PROT_FORM;
 		}
 		if (ecsr & RCAR_CAN_ECSR_SEF) {
 			netdev_dbg(priv->ndev, "Stuff Error\n");
 			rx_errors++;
-			writeb(~RCAR_CAN_ECSR_SEF, &priv->regs->ecsr);
+			writeb((u8)~RCAR_CAN_ECSR_SEF, &priv->regs->ecsr);
 			if (skb)
 				cf->data[2] |= CAN_ERR_PROT_STUFF;
 		}
@@ -300,14 +304,14 @@ static void rcar_can_error(struct net_device *ndev)
 		priv->can.can_stats.bus_error++;
 		ndev->stats.rx_errors += rx_errors;
 		ndev->stats.tx_errors += tx_errors;
-		writeb(~RCAR_CAN_EIFR_BEIF, &priv->regs->eifr);
+		writeb((u8)~RCAR_CAN_EIFR_BEIF, &priv->regs->eifr);
 	}
 	if (eifr & RCAR_CAN_EIFR_EWIF) {
 		netdev_dbg(priv->ndev, "Error warning interrupt\n");
 		priv->can.state = CAN_STATE_ERROR_WARNING;
 		priv->can.can_stats.error_warning++;
 		/* Clear interrupt condition */
-		writeb(~RCAR_CAN_EIFR_EWIF, &priv->regs->eifr);
+		writeb((u8)~RCAR_CAN_EIFR_EWIF, &priv->regs->eifr);
 		if (skb)
 			cf->data[1] = txerr > rxerr ? CAN_ERR_CRTL_TX_WARNING :
 					      CAN_ERR_CRTL_RX_WARNING;
@@ -317,7 +321,7 @@ static void rcar_can_error(struct net_device *ndev)
 		priv->can.state = CAN_STATE_ERROR_PASSIVE;
 		priv->can.can_stats.error_passive++;
 		/* Clear interrupt condition */
-		writeb(~RCAR_CAN_EIFR_EPIF, &priv->regs->eifr);
+		writeb((u8)~RCAR_CAN_EIFR_EPIF, &priv->regs->eifr);
 		if (skb)
 			cf->data[1] = txerr > rxerr ? CAN_ERR_CRTL_TX_PASSIVE :
 					      CAN_ERR_CRTL_RX_PASSIVE;
@@ -329,7 +333,7 @@ static void rcar_can_error(struct net_device *ndev)
 		writeb(priv->ier, &priv->regs->ier);
 		priv->can.state = CAN_STATE_BUS_OFF;
 		/* Clear interrupt condition */
-		writeb(~RCAR_CAN_EIFR_BOEIF, &priv->regs->eifr);
+		writeb((u8)~RCAR_CAN_EIFR_BOEIF, &priv->regs->eifr);
 		priv->can.can_stats.bus_off++;
 		can_bus_off(ndev);
 		if (skb)
@@ -343,7 +347,7 @@ static void rcar_can_error(struct net_device *ndev)
 		netdev_dbg(priv->ndev, "Receive overrun error interrupt\n");
 		ndev->stats.rx_over_errors++;
 		ndev->stats.rx_errors++;
-		writeb(~RCAR_CAN_EIFR_ORIF, &priv->regs->eifr);
+		writeb((u8)~RCAR_CAN_EIFR_ORIF, &priv->regs->eifr);
 		if (skb) {
 			cf->can_id |= CAN_ERR_CRTL;
 			cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
@@ -354,7 +358,7 @@ static void rcar_can_error(struct net_device *ndev)
 			   "Overload Frame Transmission error interrupt\n");
 		ndev->stats.rx_over_errors++;
 		ndev->stats.rx_errors++;
-		writeb(~RCAR_CAN_EIFR_OLIF, &priv->regs->eifr);
+		writeb((u8)~RCAR_CAN_EIFR_OLIF, &priv->regs->eifr);
 		if (skb) {
 			cf->can_id |= CAN_ERR_PROT;
 			cf->data[2] |= CAN_ERR_PROT_OVERLOAD;
@@ -372,10 +376,9 @@ static void rcar_can_tx_done(struct net_device *ndev)
 	u8 isr;
 
 	while (1) {
-		u8 unsent = readb(&priv->regs->tfcr);
+		u8 unsent = FIELD_GET(RCAR_CAN_TFCR_TFUST,
+			    readb(&priv->regs->tfcr));
 
-		unsent = (unsent & RCAR_CAN_TFCR_TFUST) >>
-			  RCAR_CAN_TFCR_TFUST_SHIFT;
 		if (priv->tx_head - priv->tx_tail <= unsent)
 			break;
 		stats->tx_packets++;
@@ -420,15 +423,16 @@ static irqreturn_t rcar_can_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void rcar_can_set_bittiming(struct net_device *dev)
+static void rcar_can_set_bittiming(struct net_device *ndev)
 {
-	struct rcar_can_priv *priv = netdev_priv(dev);
+	struct rcar_can_priv *priv = netdev_priv(ndev);
 	struct can_bittiming *bt = &priv->can.bittiming;
 	u32 bcr;
 
-	bcr = RCAR_CAN_BCR_TSEG1(bt->phase_seg1 + bt->prop_seg - 1) |
-	      RCAR_CAN_BCR_BPR(bt->brp - 1) | RCAR_CAN_BCR_SJW(bt->sjw - 1) |
-	      RCAR_CAN_BCR_TSEG2(bt->phase_seg2 - 1);
+	bcr = FIELD_PREP(RCAR_CAN_BCR_TSEG1, bt->phase_seg1 + bt->prop_seg - 1) |
+	      FIELD_PREP(RCAR_CAN_BCR_BRP, bt->brp - 1) |
+	      FIELD_PREP(RCAR_CAN_BCR_SJW, bt->sjw - 1) |
+	      FIELD_PREP(RCAR_CAN_BCR_TSEG2, bt->phase_seg2 - 1);
 	/* Don't overwrite CLKR with 32-bit BCR access; CLKR has 8-bit access.
 	 * All the registers are big-endian but they get byte-swapped on 32-bit
 	 * read/write (but not on 8-bit, contrary to the manuals)...
@@ -452,16 +456,17 @@ static void rcar_can_start(struct net_device *ndev)
 	ctlr &= ~RCAR_CAN_CTLR_SLPM;
 	writew(ctlr, &priv->regs->ctlr);
 	/* Go to reset mode */
-	ctlr |= RCAR_CAN_CTLR_CANM_FORCE_RESET;
+	ctlr |= FIELD_PREP(RCAR_CAN_CTLR_CANM, RCAR_CAN_CTLR_CANM_FORCE_RESET);
 	writew(ctlr, &priv->regs->ctlr);
 	for (i = 0; i < MAX_STR_READS; i++) {
 		if (readw(&priv->regs->str) & RCAR_CAN_STR_RSTST)
 			break;
 	}
 	rcar_can_set_bittiming(ndev);
-	ctlr |= RCAR_CAN_CTLR_IDFM_MIXED; /* Select mixed ID mode */
-	ctlr |= RCAR_CAN_CTLR_BOM_ENT;	/* Entry to halt mode automatically */
-					/* at bus-off */
+	/* Select mixed ID mode */
+	ctlr |= FIELD_PREP(RCAR_CAN_CTLR_IDFM, RCAR_CAN_CTLR_IDFM_MIXED);
+	/* Entry to halt mode automatically at bus-off */
+	ctlr |= FIELD_PREP(RCAR_CAN_CTLR_BOM, RCAR_CAN_CTLR_BOM_ENT);
 	ctlr |= RCAR_CAN_CTLR_MBM;	/* Select FIFO mailbox mode */
 	ctlr |= RCAR_CAN_CTLR_MLM;	/* Overrun mode */
 	writew(ctlr, &priv->regs->ctlr);
@@ -491,7 +496,9 @@ static void rcar_can_start(struct net_device *ndev)
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	/* Go to operation mode */
-	writew(ctlr & ~RCAR_CAN_CTLR_CANM, &priv->regs->ctlr);
+	ctlr &= ~RCAR_CAN_CTLR_CANM;
+	ctlr |= FIELD_PREP(RCAR_CAN_CTLR_CANM, RCAR_CAN_CTLR_CANM_OPER);
+	writew(ctlr, &priv->regs->ctlr);
 	for (i = 0; i < MAX_STR_READS; i++) {
 		if (!(readw(&priv->regs->str) & RCAR_CAN_STR_RSTST))
 			break;
@@ -506,29 +513,28 @@ static int rcar_can_open(struct net_device *ndev)
 	struct rcar_can_priv *priv = netdev_priv(ndev);
 	int err;
 
-	err = clk_prepare_enable(priv->clk);
+	err = pm_runtime_resume_and_get(ndev->dev.parent);
 	if (err) {
-		netdev_err(ndev,
-			   "failed to enable peripheral clock, error %d\n",
-			   err);
+		netdev_err(ndev, "pm_runtime_resume_and_get() failed %pe\n",
+			   ERR_PTR(err));
 		goto out;
 	}
 	err = clk_prepare_enable(priv->can_clk);
 	if (err) {
-		netdev_err(ndev, "failed to enable CAN clock, error %d\n",
-			   err);
-		goto out_clock;
+		netdev_err(ndev, "failed to enable CAN clock: %pe\n",
+			   ERR_PTR(err));
+		goto out_rpm;
 	}
 	err = open_candev(ndev);
 	if (err) {
-		netdev_err(ndev, "open_candev() failed, error %d\n", err);
+		netdev_err(ndev, "open_candev() failed %pe\n", ERR_PTR(err));
 		goto out_can_clock;
 	}
 	napi_enable(&priv->napi);
 	err = request_irq(ndev->irq, rcar_can_interrupt, 0, ndev->name, ndev);
 	if (err) {
-		netdev_err(ndev, "request_irq(%d) failed, error %d\n",
-			   ndev->irq, err);
+		netdev_err(ndev, "request_irq(%d) failed %pe\n", ndev->irq,
+			   ERR_PTR(err));
 		goto out_close;
 	}
 	rcar_can_start(ndev);
@@ -539,8 +545,8 @@ out_close:
 	close_candev(ndev);
 out_can_clock:
 	clk_disable_unprepare(priv->can_clk);
-out_clock:
-	clk_disable_unprepare(priv->clk);
+out_rpm:
+	pm_runtime_put(ndev->dev.parent);
 out:
 	return err;
 }
@@ -553,7 +559,7 @@ static void rcar_can_stop(struct net_device *ndev)
 
 	/* Go to (force) reset mode */
 	ctlr = readw(&priv->regs->ctlr);
-	ctlr |= RCAR_CAN_CTLR_CANM_FORCE_RESET;
+	ctlr |= FIELD_PREP(RCAR_CAN_CTLR_CANM, RCAR_CAN_CTLR_CANM_FORCE_RESET);
 	writew(ctlr, &priv->regs->ctlr);
 	for (i = 0; i < MAX_STR_READS; i++) {
 		if (readw(&priv->regs->str) & RCAR_CAN_STR_RSTST)
@@ -578,7 +584,7 @@ static int rcar_can_close(struct net_device *ndev)
 	free_irq(ndev->irq, ndev);
 	napi_disable(&priv->napi);
 	clk_disable_unprepare(priv->can_clk);
-	clk_disable_unprepare(priv->clk);
+	pm_runtime_put(ndev->dev.parent);
 	close_candev(ndev);
 	return 0;
 }
@@ -594,9 +600,10 @@ static netdev_tx_t rcar_can_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 
 	if (cf->can_id & CAN_EFF_FLAG)	/* Extended frame format */
-		data = (cf->can_id & CAN_EFF_MASK) | RCAR_CAN_IDE;
+		data = FIELD_PREP(RCAR_CAN_EID, cf->can_id & CAN_EFF_MASK) |
+		       RCAR_CAN_IDE;
 	else				/* Standard frame format */
-		data = (cf->can_id & CAN_SFF_MASK) << RCAR_CAN_SID_SHIFT;
+		data = FIELD_PREP(RCAR_CAN_SID, cf->can_id & CAN_SFF_MASK);
 
 	if (cf->can_id & CAN_RTR_FLAG) { /* Remote transmission request */
 		data |= RCAR_CAN_RTR;
@@ -651,9 +658,9 @@ static void rcar_can_rx_pkt(struct rcar_can_priv *priv)
 
 	data = readl(&priv->regs->mb[RCAR_CAN_RX_FIFO_MBX].id);
 	if (data & RCAR_CAN_IDE)
-		cf->can_id = (data & CAN_EFF_MASK) | CAN_EFF_FLAG;
+		cf->can_id = FIELD_GET(RCAR_CAN_EID, data) | CAN_EFF_FLAG;
 	else
-		cf->can_id = (data >> RCAR_CAN_SID_SHIFT) & CAN_SFF_MASK;
+		cf->can_id = FIELD_GET(RCAR_CAN_SID, data);
 
 	dlc = readb(&priv->regs->mb[RCAR_CAN_RX_FIFO_MBX].dlc);
 	cf->len = can_cc_dlc2len(dlc);
@@ -715,18 +722,21 @@ static int rcar_can_do_set_mode(struct net_device *ndev, enum can_mode mode)
 	}
 }
 
-static int rcar_can_get_berr_counter(const struct net_device *dev,
+static int rcar_can_get_berr_counter(const struct net_device *ndev,
 				     struct can_berr_counter *bec)
 {
-	struct rcar_can_priv *priv = netdev_priv(dev);
+	struct rcar_can_priv *priv = netdev_priv(ndev);
 	int err;
 
-	err = clk_prepare_enable(priv->clk);
+	err = pm_runtime_resume_and_get(ndev->dev.parent);
 	if (err)
 		return err;
+
 	bec->txerr = readb(&priv->regs->tecr);
 	bec->rxerr = readb(&priv->regs->recr);
-	clk_disable_unprepare(priv->clk);
+
+	pm_runtime_put(ndev->dev.parent);
+
 	return 0;
 }
 
@@ -738,6 +748,7 @@ static const char * const clock_names[] = {
 
 static int rcar_can_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct rcar_can_priv *priv;
 	struct net_device *ndev;
 	void __iomem *addr;
@@ -745,7 +756,7 @@ static int rcar_can_probe(struct platform_device *pdev)
 	int err = -ENODEV;
 	int irq;
 
-	of_property_read_u32(pdev->dev.of_node, "renesas,can-clock-select",
+	of_property_read_u32(dev->of_node, "renesas,can-clock-select",
 			     &clock_select);
 
 	irq = platform_get_irq(pdev, 0);
@@ -762,30 +773,21 @@ static int rcar_can_probe(struct platform_device *pdev)
 
 	ndev = alloc_candev(sizeof(struct rcar_can_priv), RCAR_CAN_FIFO_DEPTH);
 	if (!ndev) {
-		dev_err(&pdev->dev, "alloc_candev() failed\n");
 		err = -ENOMEM;
 		goto fail;
 	}
 
 	priv = netdev_priv(ndev);
 
-	priv->clk = devm_clk_get(&pdev->dev, "clkp1");
-	if (IS_ERR(priv->clk)) {
-		err = PTR_ERR(priv->clk);
-		dev_err(&pdev->dev, "cannot get peripheral clock, error %d\n",
-			err);
-		goto fail_clk;
-	}
-
 	if (!(BIT(clock_select) & RCAR_SUPPORTED_CLOCKS)) {
 		err = -EINVAL;
-		dev_err(&pdev->dev, "invalid CAN clock selected\n");
+		dev_err(dev, "invalid CAN clock selected\n");
 		goto fail_clk;
 	}
-	priv->can_clk = devm_clk_get(&pdev->dev, clock_names[clock_select]);
+	priv->can_clk = devm_clk_get(dev, clock_names[clock_select]);
 	if (IS_ERR(priv->can_clk)) {
+		dev_err(dev, "cannot get CAN clock: %pe\n", priv->can_clk);
 		err = PTR_ERR(priv->can_clk);
-		dev_err(&pdev->dev, "cannot get CAN clock, error %d\n", err);
 		goto fail_clk;
 	}
 
@@ -802,21 +804,24 @@ static int rcar_can_probe(struct platform_device *pdev)
 	priv->can.do_get_berr_counter = rcar_can_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_BERR_REPORTING;
 	platform_set_drvdata(pdev, ndev);
-	SET_NETDEV_DEV(ndev, &pdev->dev);
+	SET_NETDEV_DEV(ndev, dev);
 
 	netif_napi_add_weight(ndev, &priv->napi, rcar_can_rx_poll,
 			      RCAR_CAN_NAPI_WEIGHT);
+
+	pm_runtime_enable(dev);
+
 	err = register_candev(ndev);
 	if (err) {
-		dev_err(&pdev->dev, "register_candev() failed, error %d\n",
-			err);
-		goto fail_candev;
+		dev_err(dev, "register_candev() failed %pe\n", ERR_PTR(err));
+		goto fail_rpm;
 	}
 
-	dev_info(&pdev->dev, "device registered (IRQ%d)\n", ndev->irq);
+	dev_info(dev, "device registered (IRQ%d)\n", ndev->irq);
 
 	return 0;
-fail_candev:
+fail_rpm:
+	pm_runtime_disable(dev);
 	netif_napi_del(&priv->napi);
 fail_clk:
 	free_candev(ndev);
@@ -830,6 +835,7 @@ static void rcar_can_remove(struct platform_device *pdev)
 	struct rcar_can_priv *priv = netdev_priv(ndev);
 
 	unregister_candev(ndev);
+	pm_runtime_disable(&pdev->dev);
 	netif_napi_del(&priv->napi);
 	free_candev(ndev);
 }
@@ -847,38 +853,32 @@ static int rcar_can_suspend(struct device *dev)
 	netif_device_detach(ndev);
 
 	ctlr = readw(&priv->regs->ctlr);
-	ctlr |= RCAR_CAN_CTLR_CANM_HALT;
+	ctlr |= FIELD_PREP(RCAR_CAN_CTLR_CANM, RCAR_CAN_CTLR_CANM_HALT);
 	writew(ctlr, &priv->regs->ctlr);
 	ctlr |= RCAR_CAN_CTLR_SLPM;
 	writew(ctlr, &priv->regs->ctlr);
 	priv->can.state = CAN_STATE_SLEEPING;
 
-	clk_disable(priv->clk);
+	pm_runtime_put(dev);
 	return 0;
 }
 
 static int rcar_can_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	struct rcar_can_priv *priv = netdev_priv(ndev);
-	u16 ctlr;
 	int err;
 
 	if (!netif_running(ndev))
 		return 0;
 
-	err = clk_enable(priv->clk);
+	err = pm_runtime_resume_and_get(dev);
 	if (err) {
-		netdev_err(ndev, "clk_enable() failed, error %d\n", err);
+		netdev_err(ndev, "pm_runtime_resume_and_get() failed %pe\n",
+			   ERR_PTR(err));
 		return err;
 	}
 
-	ctlr = readw(&priv->regs->ctlr);
-	ctlr &= ~RCAR_CAN_CTLR_SLPM;
-	writew(ctlr, &priv->regs->ctlr);
-	ctlr &= ~RCAR_CAN_CTLR_CANM;
-	writew(ctlr, &priv->regs->ctlr);
-	priv->can.state = CAN_STATE_ERROR_ACTIVE;
+	rcar_can_start(ndev);
 
 	netif_device_attach(ndev);
 	netif_start_queue(ndev);

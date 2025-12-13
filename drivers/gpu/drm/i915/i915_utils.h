@@ -25,7 +25,6 @@
 #ifndef __I915_UTILS_H
 #define __I915_UTILS_H
 
-#include <linux/list.h>
 #include <linux/overflow.h>
 #include <linux/sched.h>
 #include <linux/string_helpers.h>
@@ -38,7 +37,6 @@
 #endif
 
 struct drm_i915_private;
-struct timer_list;
 
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
@@ -67,87 +65,11 @@ bool i915_error_injected(void);
 		drm_err(&(i915)->drm, fmt, ##__VA_ARGS__); \
 })
 
-#define range_overflows(start, size, max) ({ \
-	typeof(start) start__ = (start); \
-	typeof(size) size__ = (size); \
-	typeof(max) max__ = (max); \
-	(void)(&start__ == &size__); \
-	(void)(&start__ == &max__); \
-	start__ >= max__ || size__ > max__ - start__; \
-})
-
-#define range_overflows_t(type, start, size, max) \
-	range_overflows((type)(start), (type)(size), (type)(max))
-
-#define range_overflows_end(start, size, max) ({ \
-	typeof(start) start__ = (start); \
-	typeof(size) size__ = (size); \
-	typeof(max) max__ = (max); \
-	(void)(&start__ == &size__); \
-	(void)(&start__ == &max__); \
-	start__ > max__ || size__ > max__ - start__; \
-})
-
-#define range_overflows_end_t(type, start, size, max) \
-	range_overflows_end((type)(start), (type)(size), (type)(max))
-
-#define ptr_mask_bits(ptr, n) ({					\
-	unsigned long __v = (unsigned long)(ptr);			\
-	(typeof(ptr))(__v & -BIT(n));					\
-})
-
-#define ptr_unmask_bits(ptr, n) ((unsigned long)(ptr) & (BIT(n) - 1))
-
-#define ptr_unpack_bits(ptr, bits, n) ({				\
-	unsigned long __v = (unsigned long)(ptr);			\
-	*(bits) = __v & (BIT(n) - 1);					\
-	(typeof(ptr))(__v & -BIT(n));					\
-})
-
-#define ptr_pack_bits(ptr, bits, n) ({					\
-	unsigned long __bits = (bits);					\
-	GEM_BUG_ON(__bits & -BIT(n));					\
-	((typeof(ptr))((unsigned long)(ptr) | __bits));			\
-})
-
-#define ptr_dec(ptr) ({							\
-	unsigned long __v = (unsigned long)(ptr);			\
-	(typeof(ptr))(__v - 1);						\
-})
-
-#define ptr_inc(ptr) ({							\
-	unsigned long __v = (unsigned long)(ptr);			\
-	(typeof(ptr))(__v + 1);						\
-})
-
-#define page_mask_bits(ptr) ptr_mask_bits(ptr, PAGE_SHIFT)
-#define page_unmask_bits(ptr) ptr_unmask_bits(ptr, PAGE_SHIFT)
-#define page_pack_bits(ptr, bits) ptr_pack_bits(ptr, bits, PAGE_SHIFT)
-#define page_unpack_bits(ptr, bits) ptr_unpack_bits(ptr, bits, PAGE_SHIFT)
-
 #define fetch_and_zero(ptr) ({						\
 	typeof(*ptr) __T = *(ptr);					\
 	*(ptr) = (typeof(*ptr))0;					\
 	__T;								\
 })
-
-static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
-{
-	return a - b;
-}
-
-/*
- * container_of_user: Extract the superclass from a pointer to a member.
- *
- * Exactly like container_of() with the exception that it plays nicely
- * with sparse for __user @ptr.
- */
-#define container_of_user(ptr, type, member) ({				\
-	void __user *__mptr = (void __user *)(ptr);			\
-	BUILD_BUG_ON_MSG(!__same_type(*(ptr), typeof_member(type, member)) && \
-			 !__same_type(*(ptr), void),			\
-			 "pointer type mismatch in container_of()");	\
-	((type __user *)(__mptr - offsetof(type, member))); })
 
 /*
  * check_user_mbz: Check that a user value exists and is zero
@@ -167,11 +89,6 @@ static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
 	get_user(mbz__, (U)) ? -EFAULT : mbz__ ? -EINVAL : 0;		\
 })
 
-#define u64_to_ptr(T, x) ({						\
-	typecheck(u64, x);						\
-	(T *)(uintptr_t)(x);						\
-})
-
 #define __mask_next_bit(mask) ({					\
 	int __idx = ffs(mask) - 1;					\
 	mask &= ~BIT(__idx);						\
@@ -181,19 +98,6 @@ static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
 static inline bool is_power_of_2_u64(u64 n)
 {
 	return (n != 0 && ((n & (n - 1)) == 0));
-}
-
-static inline void __list_del_many(struct list_head *head,
-				   struct list_head *first)
-{
-	first->prev = head;
-	WRITE_ONCE(head->next, first);
-}
-
-static inline int list_is_last_rcu(const struct list_head *list,
-				   const struct list_head *head)
-{
-	return READ_ONCE(list->next) == head;
 }
 
 static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
@@ -230,107 +134,6 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 	}
 }
 
-/*
- * __wait_for - magic wait macro
- *
- * Macro to help avoid open coding check/wait/timeout patterns. Note that it's
- * important that we check the condition again after having timed out, since the
- * timeout could be due to preemption or similar and we've never had a chance to
- * check the condition before the timeout.
- */
-#define __wait_for(OP, COND, US, Wmin, Wmax) ({ \
-	const ktime_t end__ = ktime_add_ns(ktime_get_raw(), 1000ll * (US)); \
-	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
-	int ret__;							\
-	might_sleep();							\
-	for (;;) {							\
-		const bool expired__ = ktime_after(ktime_get_raw(), end__); \
-		OP;							\
-		/* Guarantee COND check prior to timeout */		\
-		barrier();						\
-		if (COND) {						\
-			ret__ = 0;					\
-			break;						\
-		}							\
-		if (expired__) {					\
-			ret__ = -ETIMEDOUT;				\
-			break;						\
-		}							\
-		usleep_range(wait__, wait__ * 2);			\
-		if (wait__ < (Wmax))					\
-			wait__ <<= 1;					\
-	}								\
-	ret__;								\
-})
-
-#define _wait_for(COND, US, Wmin, Wmax)	__wait_for(, (COND), (US), (Wmin), \
-						   (Wmax))
-#define wait_for(COND, MS)		_wait_for((COND), (MS) * 1000, 10, 1000)
-
-/* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG) && IS_ENABLED(CONFIG_PREEMPT_COUNT)
-# define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) WARN_ON_ONCE((ATOMIC) && !in_atomic())
-#else
-# define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) do { } while (0)
-#endif
-
-#define _wait_for_atomic(COND, US, ATOMIC) \
-({ \
-	int cpu, ret, timeout = (US) * 1000; \
-	u64 base; \
-	_WAIT_FOR_ATOMIC_CHECK(ATOMIC); \
-	if (!(ATOMIC)) { \
-		preempt_disable(); \
-		cpu = smp_processor_id(); \
-	} \
-	base = local_clock(); \
-	for (;;) { \
-		u64 now = local_clock(); \
-		if (!(ATOMIC)) \
-			preempt_enable(); \
-		/* Guarantee COND check prior to timeout */ \
-		barrier(); \
-		if (COND) { \
-			ret = 0; \
-			break; \
-		} \
-		if (now - base >= timeout) { \
-			ret = -ETIMEDOUT; \
-			break; \
-		} \
-		cpu_relax(); \
-		if (!(ATOMIC)) { \
-			preempt_disable(); \
-			if (unlikely(cpu != smp_processor_id())) { \
-				timeout -= now - base; \
-				cpu = smp_processor_id(); \
-				base = local_clock(); \
-			} \
-		} \
-	} \
-	ret; \
-})
-
-#define wait_for_us(COND, US) \
-({ \
-	int ret__; \
-	BUILD_BUG_ON(!__builtin_constant_p(US)); \
-	if ((US) > 10) \
-		ret__ = _wait_for((COND), (US), 10, 10); \
-	else \
-		ret__ = _wait_for_atomic((COND), (US), 0); \
-	ret__; \
-})
-
-#define wait_for_atomic_us(COND, US) \
-({ \
-	BUILD_BUG_ON(!__builtin_constant_p(US)); \
-	BUILD_BUG_ON((US) > 50000); \
-	_wait_for_atomic((COND), (US), 1); \
-})
-
-#define wait_for_atomic(COND, MS) wait_for_atomic_us((COND), (MS) * 1000)
-
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
 
@@ -344,19 +147,6 @@ static inline void __add_taint_for_CI(unsigned int taint)
 	 * the machine if the kernel is tainted.
 	 */
 	add_taint(taint, LOCKDEP_STILL_OK);
-}
-
-void cancel_timer(struct timer_list *t);
-void set_timer_ms(struct timer_list *t, unsigned long timeout);
-
-static inline bool timer_active(const struct timer_list *t)
-{
-	return READ_ONCE(t->expires);
-}
-
-static inline bool timer_expired(const struct timer_list *t)
-{
-	return timer_active(t) && !timer_pending(t);
 }
 
 static inline bool i915_run_as_guest(void)

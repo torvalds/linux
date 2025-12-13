@@ -85,6 +85,8 @@ struct node_cache_attrs {
 void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
 void node_set_perf_attrs(unsigned int nid, struct access_coordinate *coord,
 			 enum access_coordinate_class access);
+void node_update_perf_attrs(unsigned int nid, struct access_coordinate *coord,
+			    enum access_coordinate_class access);
 #else
 static inline void node_add_cache(unsigned int nid,
 				  struct node_cache_attrs *cache_attrs)
@@ -94,6 +96,12 @@ static inline void node_add_cache(unsigned int nid,
 static inline void node_set_perf_attrs(unsigned int nid,
 				       struct access_coordinate *coord,
 				       enum access_coordinate_class access)
+{
+}
+
+static inline void node_update_perf_attrs(unsigned int nid,
+					  struct access_coordinate *coord,
+					  enum access_coordinate_class access)
 {
 }
 #endif

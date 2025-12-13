@@ -139,8 +139,8 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
             "exclude_dirs": [],
         }
 
-    append_crate_with_generated("bindings", ["core", "ffi"])
-    append_crate_with_generated("uapi", ["core", "ffi"])
+    append_crate_with_generated("bindings", ["core", "ffi", "pin_init"])
+    append_crate_with_generated("uapi", ["core", "ffi", "pin_init"])
     append_crate_with_generated("kernel", ["core", "macros", "build_error", "pin_init", "ffi", "bindings", "uapi"])
 
     def is_root_crate(build_file, target):

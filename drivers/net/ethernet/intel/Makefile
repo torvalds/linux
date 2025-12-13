@@ -4,7 +4,7 @@
 #
 
 obj-$(CONFIG_LIBETH) += libeth/
-obj-$(CONFIG_LIBIE) += libie/
+obj-y += libie/
 
 obj-$(CONFIG_E100) += e100.o
 obj-$(CONFIG_E1000) += e1000/

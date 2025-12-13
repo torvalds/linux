@@ -29,7 +29,9 @@
 #include "xe_pm.h"
 #include "xe_reg_sr.h"
 #include "xe_reg_whitelist.h"
+#include "xe_sa.h"
 #include "xe_sriov.h"
+#include "xe_sriov_vf_ccs.h"
 #include "xe_tuning.h"
 #include "xe_uc_debugfs.h"
 #include "xe_wa.h"
@@ -120,18 +122,6 @@ static int powergate_info(struct xe_gt *gt, struct drm_printer *p)
 	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return ret;
-}
-
-static int sa_info(struct xe_gt *gt, struct drm_printer *p)
-{
-	struct xe_tile *tile = gt_to_tile(gt);
-
-	xe_pm_runtime_get(gt_to_xe(gt));
-	drm_suballoc_dump_debug_info(&tile->mem.kernel_bb_pool->base, p,
-				     tile->mem.kernel_bb_pool->gpu_addr);
-	xe_pm_runtime_put(gt_to_xe(gt));
-
-	return 0;
 }
 
 static int topology(struct xe_gt *gt, struct drm_printer *p)
@@ -288,7 +278,6 @@ static int hwconfig(struct xe_gt *gt, struct drm_printer *p)
  * - without access to the PF specific data
  */
 static const struct drm_info_list vf_safe_debugfs_list[] = {
-	{"sa_info", .show = xe_gt_debugfs_simple_show, .data = sa_info},
 	{"topology", .show = xe_gt_debugfs_simple_show, .data = topology},
 	{"ggtt", .show = xe_gt_debugfs_simple_show, .data = ggtt},
 	{"register-save-restore", .show = xe_gt_debugfs_simple_show, .data = register_save_restore},
@@ -299,7 +288,6 @@ static const struct drm_info_list vf_safe_debugfs_list[] = {
 	{"default_lrc_bcs", .show = xe_gt_debugfs_simple_show, .data = bcs_default_lrc},
 	{"default_lrc_vcs", .show = xe_gt_debugfs_simple_show, .data = vcs_default_lrc},
 	{"default_lrc_vecs", .show = xe_gt_debugfs_simple_show, .data = vecs_default_lrc},
-	{"stats", .show = xe_gt_debugfs_simple_show, .data = xe_gt_stats_print_info},
 	{"hwconfig", .show = xe_gt_debugfs_simple_show, .data = hwconfig},
 };
 
@@ -327,6 +315,24 @@ static ssize_t write_to_gt_call(const char __user *userbuf, size_t count, loff_t
 		call(gt);
 	return count;
 }
+
+static ssize_t stats_write(struct file *file, const char __user *userbuf,
+			   size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct xe_gt *gt = s->private;
+
+	return write_to_gt_call(userbuf, count, ppos, xe_gt_stats_clear, gt);
+}
+
+static int stats_show(struct seq_file *s, void *unused)
+{
+	struct drm_printer p = drm_seq_file_printer(s);
+	struct xe_gt *gt = s->private;
+
+	return xe_gt_stats_print_info(gt, &p);
+}
+DEFINE_SHOW_STORE_ATTRIBUTE(stats);
 
 static void force_reset(struct xe_gt *gt)
 {
@@ -388,13 +394,18 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct drm_minor *minor = gt_to_xe(gt)->drm.primary;
+	struct dentry *parent = gt->tile->debugfs;
 	struct dentry *root;
+	char symlink[16];
 	char name[8];
 
 	xe_gt_assert(gt, minor->debugfs_root);
 
+	if (IS_ERR(parent))
+		return;
+
 	snprintf(name, sizeof(name), "gt%d", gt->info.id);
-	root = debugfs_create_dir(name, minor->debugfs_root);
+	root = debugfs_create_dir(name, parent);
 	if (IS_ERR(root)) {
 		drm_warn(&xe->drm, "Create GT directory failed");
 		return;
@@ -408,6 +419,7 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 	root->d_inode->i_private = gt;
 
 	/* VF safe */
+	debugfs_create_file("stats", 0600, root, gt, &stats_fops);
 	debugfs_create_file("force_reset", 0600, root, gt, &force_reset_fops);
 	debugfs_create_file("force_reset_sync", 0600, root, gt, &force_reset_sync_fops);
 
@@ -426,4 +438,11 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 		xe_gt_sriov_pf_debugfs_register(gt, root);
 	else if (IS_SRIOV_VF(xe))
 		xe_gt_sriov_vf_debugfs_register(gt, root);
+
+	/*
+	 * Backwards compatibility only: create a link for the legacy clients
+	 * who may expect gt/ directory at the root level, not the tile level.
+	 */
+	snprintf(symlink, sizeof(symlink), "tile%u/%s", gt->tile->id, name);
+	debugfs_create_symlink(name, minor->debugfs_root, symlink);
 }

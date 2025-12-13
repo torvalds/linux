@@ -3,8 +3,8 @@
  * CAN driver for PEAK System PCAN-USB adapter
  * Derived from the PCAN project file driver/src/pcan_usb.c
  *
- * Copyright (C) 2003-2010 PEAK System-Technik GmbH
- * Copyright (C) 2011-2012 Stephane Grosjean <s.grosjean@peak-system.com>
+ * Copyright (C) 2003-2025 PEAK System-Technik GmbH
+ * Author: Stéphane Grosjean <stephane.grosjean@hms-networks.com>
  *
  * Many thanks to Klaus Hitschler <klaus.hitschler@gmx.de>
  */
@@ -919,7 +919,7 @@ static int pcan_usb_init(struct peak_usb_device *dev)
 					    CAN_CTRLMODE_LOOPBACK;
 	} else {
 		dev_info(dev->netdev->dev.parent,
-			 "Firmware update available. Please contact support@peak-system.com\n");
+			 "Firmware update available. Please contact support.peak@hms-networks.com\n");
 	}
 
 	return 0;

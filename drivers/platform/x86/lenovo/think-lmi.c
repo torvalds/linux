@@ -119,6 +119,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * You must reboot the computer before the changes will take effect.
  */
 #define LENOVO_SET_BIOS_CERT_GUID    "26861C9F-47E9-44C4-BD8B-DFE7FA2610FE"
+#define LENOVO_TC_SET_BIOS_CERT_GUID "955aaf7d-8bc4-4f04-90aa-97469512f167"
 
 /*
  * Name: UpdateBiosCert
@@ -128,6 +129,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * You must reboot the computer before the changes will take effect.
  */
 #define LENOVO_UPDATE_BIOS_CERT_GUID "9AA3180A-9750-41F7-B9F7-D5D3B1BAC3CE"
+#define LENOVO_TC_UPDATE_BIOS_CERT_GUID "5f5bbbb2-c72f-4fb8-8129-228eef4fdbed"
 
 /*
  * Name: ClearBiosCert
@@ -137,6 +139,8 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * You must reboot the computer before the changes will take effect.
  */
 #define LENOVO_CLEAR_BIOS_CERT_GUID  "B2BC39A7-78DD-4D71-B059-A510DEC44890"
+#define LENOVO_TC_CLEAR_BIOS_CERT_GUID  "97849cb6-cb44-42d1-a750-26a596a9eec4"
+
 /*
  * Name: CertToPassword
  * Description: Switch from certificate to password authentication.
@@ -145,6 +149,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * You must reboot the computer before the changes will take effect.
  */
 #define LENOVO_CERT_TO_PASSWORD_GUID "0DE8590D-5510-4044-9621-77C227F5A70D"
+#define LENOVO_TC_CERT_TO_PASSWORD_GUID "ef65480d-38c9-420d-b700-ab3d6c8ebaca"
 
 /*
  * Name: SetBiosSettingCert
@@ -153,6 +158,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Format: "Item,Value,Signature"
  */
 #define LENOVO_SET_BIOS_SETTING_CERT_GUID  "34A008CC-D205-4B62-9E67-31DFA8B90003"
+#define LENOVO_TC_SET_BIOS_SETTING_CERT_GUID  "19ecba3b-b318-4192-a89b-43d94bc60cea"
 
 /*
  * Name: SaveBiosSettingCert
@@ -161,6 +167,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Format: "Signature"
  */
 #define LENOVO_SAVE_BIOS_SETTING_CERT_GUID "C050FB9D-DF5F-4606-B066-9EFC401B2551"
+#define LENOVO_TC_SAVE_BIOS_SETTING_CERT_GUID "0afaf46f-7cca-450a-b455-a826a0bf1af5"
 
 /*
  * Name: CertThumbprint
@@ -177,12 +184,43 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
 #define TLMI_CERT_SVC BIT(7) /* Admin Certificate Based */
 #define TLMI_CERT_SMC BIT(8) /* System Certificate Based */
 
+static const struct tlmi_cert_guids thinkpad_cert_guid = {
+	.thumbprint = LENOVO_CERT_THUMBPRINT_GUID,
+	.set_bios_setting = LENOVO_SET_BIOS_SETTING_CERT_GUID,
+	.save_bios_setting = LENOVO_SAVE_BIOS_SETTING_CERT_GUID,
+	.cert_to_password = LENOVO_CERT_TO_PASSWORD_GUID,
+	.clear_bios_cert = LENOVO_CLEAR_BIOS_CERT_GUID,
+	.update_bios_cert = LENOVO_UPDATE_BIOS_CERT_GUID,
+	.set_bios_cert = LENOVO_SET_BIOS_CERT_GUID,
+};
+
+static const struct tlmi_cert_guids thinkcenter_cert_guid = {
+	.thumbprint = NULL,
+	.set_bios_setting = LENOVO_TC_SET_BIOS_SETTING_CERT_GUID,
+	.save_bios_setting = LENOVO_TC_SAVE_BIOS_SETTING_CERT_GUID,
+	.cert_to_password = LENOVO_TC_CERT_TO_PASSWORD_GUID,
+	.clear_bios_cert = LENOVO_TC_CLEAR_BIOS_CERT_GUID,
+	.update_bios_cert = LENOVO_TC_UPDATE_BIOS_CERT_GUID,
+	.set_bios_cert = LENOVO_TC_SET_BIOS_CERT_GUID,
+};
+
 static const struct tlmi_err_codes tlmi_errs[] = {
 	{"Success", 0},
+	{"Set Certificate operation was successful.", 0},
 	{"Not Supported", -EOPNOTSUPP},
 	{"Invalid Parameter", -EINVAL},
 	{"Access Denied", -EACCES},
 	{"System Busy", -EBUSY},
+	{"Set Certificate operation failed with status:Invalid Parameter.", -EINVAL},
+	{"Set Certificate operation failed with status:Invalid certificate type.", -EINVAL},
+	{"Set Certificate operation failed with status:Invalid password format.", -EINVAL},
+	{"Set Certificate operation failed with status:Password retry count exceeded.", -EACCES},
+	{"Set Certificate operation failed with status:Password Invalid.", -EACCES},
+	{"Set Certificate operation failed with status:Operation aborted.", -EBUSY},
+	{"Set Certificate operation failed with status:No free slots to write.", -ENOSPC},
+	{"Set Certificate operation failed with status:Certificate not found.", -EEXIST},
+	{"Set Certificate operation failed with status:Internal error.", -EFAULT},
+	{"Set Certificate operation failed with status:Certificate too large.", -EFBIG},
 };
 
 static const char * const encoding_options[] = {
@@ -668,7 +706,10 @@ static ssize_t cert_thumbprint(char *buf, const char *arg, int count)
 	const union acpi_object *obj;
 	acpi_status status;
 
-	status = wmi_evaluate_method(LENOVO_CERT_THUMBPRINT_GUID, 0, 0, &input, &output);
+	if (!tlmi_priv.cert_guid->thumbprint)
+		return -EOPNOTSUPP;
+
+	status = wmi_evaluate_method(tlmi_priv.cert_guid->thumbprint, 0, 0, &input, &output);
 	if (ACPI_FAILURE(status)) {
 		kfree(output.pointer);
 		return -EIO;
@@ -751,7 +792,7 @@ static ssize_t cert_to_password_store(struct kobject *kobj,
 		kfree_sensitive(passwd);
 		return -ENOMEM;
 	}
-	ret = tlmi_simple_call(LENOVO_CERT_TO_PASSWORD_GUID, auth_str);
+	ret = tlmi_simple_call(tlmi_priv.cert_guid->cert_to_password, auth_str);
 	kfree(auth_str);
 	kfree_sensitive(passwd);
 
@@ -774,7 +815,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 	char *auth_str, *new_cert;
 	const char *serial;
 	char *signature;
-	char *guid;
+	const char *guid;
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -797,7 +838,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 		if (!auth_str)
 			return -ENOMEM;
 
-		ret = tlmi_simple_call(LENOVO_CLEAR_BIOS_CERT_GUID, auth_str);
+		ret = tlmi_simple_call(tlmi_priv.cert_guid->clear_bios_cert, auth_str);
 		kfree(auth_str);
 
 		return ret ?: count;
@@ -834,7 +875,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 			kfree(new_cert);
 			return -EACCES;
 		}
-		guid = LENOVO_UPDATE_BIOS_CERT_GUID;
+		guid = tlmi_priv.cert_guid->update_bios_cert;
 		/* Format: 'Certificate,Signature' */
 		auth_str = cert_command(setting, new_cert, signature);
 	} else {
@@ -845,9 +886,17 @@ static ssize_t certificate_store(struct kobject *kobj,
 			kfree(new_cert);
 			return -EACCES;
 		}
-		guid = LENOVO_SET_BIOS_CERT_GUID;
-		/* Format: 'Certificate, password' */
-		auth_str = cert_command(setting, new_cert, setting->password);
+		guid = tlmi_priv.cert_guid->set_bios_cert;
+		if (tlmi_priv.thinkcenter_mode) {
+			/* Format: 'Certificate, password, encoding, kbdlang' */
+			auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s,%s", new_cert,
+					     setting->password,
+					     encoding_options[setting->encoding],
+					     setting->kbdlang);
+		} else {
+			/* Format: 'Certificate, password' */
+			auth_str = cert_command(setting, new_cert, setting->password);
+		}
 	}
 	kfree(new_cert);
 	if (!auth_str)
@@ -1071,13 +1120,13 @@ static ssize_t current_value_store(struct kobject *kobj,
 			goto out;
 		}
 
-		ret = tlmi_simple_call(LENOVO_SET_BIOS_SETTING_CERT_GUID, set_str);
+		ret = tlmi_simple_call(tlmi_priv.cert_guid->set_bios_setting, set_str);
 		if (ret)
 			goto out;
 		if (tlmi_priv.save_mode == TLMI_SAVE_BULK)
 			tlmi_priv.save_required = true;
 		else
-			ret = tlmi_simple_call(LENOVO_SAVE_BIOS_SETTING_CERT_GUID,
+			ret = tlmi_simple_call(tlmi_priv.cert_guid->save_bios_setting,
 					       tlmi_priv.pwd_admin->save_signature);
 	} else if (tlmi_priv.opcode_support) {
 		/*
@@ -1282,7 +1331,7 @@ static ssize_t save_settings_store(struct kobject *kobj, struct kobj_attribute *
 				ret = -EINVAL;
 				goto out;
 			}
-			ret = tlmi_simple_call(LENOVO_SAVE_BIOS_SETTING_CERT_GUID,
+			ret = tlmi_simple_call(tlmi_priv.cert_guid->save_bios_setting,
 					       tlmi_priv.pwd_admin->save_signature);
 			if (ret)
 				goto out;
@@ -1583,6 +1632,15 @@ static int tlmi_analyze(struct wmi_device *wdev)
 		wmi_has_guid(LENOVO_SAVE_BIOS_SETTING_CERT_GUID))
 		tlmi_priv.certificate_support = true;
 
+	/* ThinkCenter uses different GUIDs for certificate support */
+	if (wmi_has_guid(LENOVO_TC_SET_BIOS_CERT_GUID) &&
+	    wmi_has_guid(LENOVO_TC_SET_BIOS_SETTING_CERT_GUID) &&
+	    wmi_has_guid(LENOVO_TC_SAVE_BIOS_SETTING_CERT_GUID)) {
+		tlmi_priv.certificate_support = true;
+		tlmi_priv.thinkcenter_mode = true;
+		pr_info("ThinkCenter modified support being used\n");
+	}
+
 	/*
 	 * Try to find the number of valid settings of this machine
 	 * and use it to create sysfs attributes.
@@ -1728,10 +1786,16 @@ static int tlmi_analyze(struct wmi_device *wdev)
 	}
 
 	if (tlmi_priv.certificate_support) {
-		tlmi_priv.pwd_admin->cert_installed =
-			tlmi_priv.pwdcfg.core.password_state & TLMI_CERT_SVC;
-		tlmi_priv.pwd_system->cert_installed =
-			tlmi_priv.pwdcfg.core.password_state & TLMI_CERT_SMC;
+		if (tlmi_priv.thinkcenter_mode) {
+			tlmi_priv.cert_guid = &thinkcenter_cert_guid;
+			tlmi_priv.pwd_admin->cert_installed = tlmi_priv.pwdcfg.core.password_mode;
+		} else {
+			tlmi_priv.cert_guid = &thinkpad_cert_guid;
+			tlmi_priv.pwd_admin->cert_installed =
+				tlmi_priv.pwdcfg.core.password_state & TLMI_CERT_SVC;
+			tlmi_priv.pwd_system->cert_installed =
+				tlmi_priv.pwdcfg.core.password_state & TLMI_CERT_SMC;
+		}
 	}
 	return 0;
 

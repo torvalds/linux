@@ -4409,7 +4409,6 @@ static struct regmap *qcom_llcc_init_mmio(struct platform_device *pdev, u8 index
 		.reg_bits = 32,
 		.reg_stride = 4,
 		.val_bits = 32,
-		.fast_io = true,
 	};
 
 	base = devm_platform_ioremap_resource(pdev, index);

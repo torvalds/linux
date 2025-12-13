@@ -123,7 +123,7 @@ config HID_SENSOR_MAGNETOMETER_3D
 	select IIO_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
-	tristate "HID Magenetometer 3D"
+	tristate "HID Magnetometer 3D"
 	help
 	  Say yes here to build support for the HID SENSOR
 	  Magnetometer 3D.
@@ -172,6 +172,19 @@ config IIO_ST_MAGN_SPI_3AXIS
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called st_magn_spi.
+
+config INFINEON_TLV493D
+	tristate "Infineon TLV493D Low-Power 3D Magnetic Sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to add support for the Infineon TLV493D-A1B6 Low-
+	  Power 3D Magnetic Sensor.
+
+	  This driver can also be compiled as a module.
+	  To compile this driver as a module, choose M here: the module
+	  will be called tlv493d.
 
 config SENSORS_HMC5843
 	tristate

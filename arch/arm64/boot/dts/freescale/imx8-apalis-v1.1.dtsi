@@ -256,7 +256,7 @@
 };
 
 &asrc0 {
-	fsl,asrc-rate  = <48000>;
+	fsl,asrc-rate = <48000>;
 };
 
 &adc0 {

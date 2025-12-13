@@ -10,14 +10,15 @@
 #ifndef _CRYPTO_ARCH_S390_SHA_H
 #define _CRYPTO_ARCH_S390_SHA_H
 
+#include <crypto/hash.h>
 #include <crypto/sha2.h>
 #include <crypto/sha3.h>
+#include <linux/build_bug.h>
 #include <linux/types.h>
 
 /* must be big enough for the largest SHA variant */
 #define CPACF_MAX_PARMBLOCK_SIZE	SHA3_STATE_SIZE
 #define SHA_MAX_BLOCK_SIZE		SHA3_224_BLOCK_SIZE
-#define S390_SHA_CTX_SIZE		sizeof(struct s390_sha_ctx)
 
 struct s390_sha_ctx {
 	u64 count;		/* message length in bytes */
@@ -41,5 +42,10 @@ int s390_sha_update_blocks(struct shash_desc *desc, const u8 *data,
 			   unsigned int len);
 int s390_sha_finup(struct shash_desc *desc, const u8 *src, unsigned int len,
 		   u8 *out);
+
+static inline void __check_s390_sha_ctx_size(void)
+{
+	BUILD_BUG_ON(S390_SHA_CTX_SIZE != sizeof(struct s390_sha_ctx));
+}
 
 #endif

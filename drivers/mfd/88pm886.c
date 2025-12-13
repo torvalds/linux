@@ -35,6 +35,7 @@ static const struct resource pm886_onkey_resources[] = {
 };
 
 static const struct mfd_cell pm886_devs[] = {
+	MFD_CELL_NAME("88pm886-gpadc"),
 	MFD_CELL_RES("88pm886-onkey", pm886_onkey_resources),
 	MFD_CELL_NAME("88pm886-regulator"),
 	MFD_CELL_NAME("88pm886-rtc"),

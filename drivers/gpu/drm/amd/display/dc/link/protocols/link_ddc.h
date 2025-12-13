@@ -26,7 +26,7 @@
 #ifndef __DAL_DDC_SERVICE_H__
 #define __DAL_DDC_SERVICE_H__
 
-#include "link.h"
+#include "link_service.h"
 
 #define AUX_POWER_UP_WA_DELAY 500
 #define I2C_OVER_AUX_DEFER_WA_DELAY 70

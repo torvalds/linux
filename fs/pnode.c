@@ -29,6 +29,7 @@ static inline struct mount *next_slave(struct mount *p)
 	return hlist_entry(p->mnt_slave.next, struct mount, mnt_slave);
 }
 
+/* locks: namespace_shared && is_mounted(mnt) */
 static struct mount *get_peer_under_root(struct mount *mnt,
 					 struct mnt_namespace *ns,
 					 const struct path *root)
@@ -50,7 +51,7 @@ static struct mount *get_peer_under_root(struct mount *mnt,
  * Get ID of closest dominating peer group having a representative
  * under the given root.
  *
- * Caller must hold namespace_sem
+ * locks: namespace_shared
  */
 int get_dominating_id(struct mount *mnt, const struct path *root)
 {
@@ -68,19 +69,6 @@ int get_dominating_id(struct mount *mnt, const struct path *root)
 static inline bool will_be_unmounted(struct mount *m)
 {
 	return m->mnt.mnt_flags & MNT_UMOUNT;
-}
-
-static struct mount *propagation_source(struct mount *mnt)
-{
-	do {
-		struct mount *m;
-		for (m = next_peer(mnt); m != mnt; m = next_peer(m)) {
-			if (!will_be_unmounted(m))
-				return m;
-		}
-		mnt = mnt->mnt_master;
-	} while (mnt && will_be_unmounted(mnt));
-	return mnt;
 }
 
 static void transfer_propagation(struct mount *mnt, struct mount *to)
@@ -111,10 +99,10 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		return;
 	}
 	if (IS_MNT_SHARED(mnt)) {
-		m = propagation_source(mnt);
 		if (list_empty(&mnt->mnt_share)) {
 			mnt_release_group_id(mnt);
 		} else {
+			m = next_peer(mnt);
 			list_del_init(&mnt->mnt_share);
 			mnt->mnt_group_id = 0;
 		}
@@ -132,6 +120,57 @@ void change_mnt_propagation(struct mount *mnt, int type)
 			mnt->mnt_t_flags |= T_UNBINDABLE;
 		else
 			mnt->mnt_t_flags &= ~T_UNBINDABLE;
+	}
+}
+
+static struct mount *trace_transfers(struct mount *m)
+{
+	while (1) {
+		struct mount *next = next_peer(m);
+
+		if (next != m) {
+			list_del_init(&m->mnt_share);
+			m->mnt_group_id = 0;
+			m->mnt_master = next;
+		} else {
+			if (IS_MNT_SHARED(m))
+				mnt_release_group_id(m);
+			next = m->mnt_master;
+		}
+		hlist_del_init(&m->mnt_slave);
+		CLEAR_MNT_SHARED(m);
+		SET_MNT_MARK(m);
+
+		if (!next || !will_be_unmounted(next))
+			return next;
+		if (IS_MNT_MARKED(next))
+			return next->mnt_master;
+		m = next;
+	}
+}
+
+static void set_destinations(struct mount *m, struct mount *master)
+{
+	struct mount *next;
+
+	while ((next = m->mnt_master) != master) {
+		m->mnt_master = master;
+		m = next;
+	}
+}
+
+void bulk_make_private(struct list_head *set)
+{
+	struct mount *m;
+
+	list_for_each_entry(m, set, mnt_list)
+		if (!IS_MNT_MARKED(m))
+			set_destinations(m, trace_transfers(m));
+
+	list_for_each_entry(m, set, mnt_list) {
+		transfer_propagation(m, m->mnt_master);
+		m->mnt_master = NULL;
+		CLEAR_MNT_MARK(m);
 	}
 }
 
@@ -303,9 +342,8 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 				err = PTR_ERR(this);
 				break;
 			}
-			read_seqlock_excl(&mount_lock);
-			mnt_set_mountpoint(n, dest_mp, this);
-			read_sequnlock_excl(&mount_lock);
+			scoped_guard(mount_locked_reader)
+				mnt_set_mountpoint(n, dest_mp, this);
 			if (n->mnt_master)
 				SET_MNT_MARK(n->mnt_master);
 			copy = this;
@@ -637,10 +675,11 @@ void propagate_umount(struct list_head *set)
 	}
 
 	// now to_umount consists of all acceptable candidates
-	// deal with reparenting of remaining overmounts on those
+	// deal with reparenting of surviving overmounts on those
 	list_for_each_entry(m, &to_umount, mnt_list) {
-		if (m->overmount)
-			reparent(m->overmount);
+		struct mount *over = m->overmount;
+		if (over && !will_be_unmounted(over))
+			reparent(over);
 	}
 
 	// and fold them into the set

@@ -3,6 +3,7 @@
 #include <test_progs.h>
 #include "timer.skel.h"
 #include "timer_failure.skel.h"
+#include "timer_interrupt.skel.h"
 
 #define NUM_THR 8
 
@@ -86,6 +87,10 @@ void serial_test_timer(void)
 	int err;
 
 	timer_skel = timer__open_and_load();
+	if (!timer_skel && errno == EOPNOTSUPP) {
+		test__skip();
+		return;
+	}
 	if (!ASSERT_OK_PTR(timer_skel, "timer_skel_load"))
 		return;
 
@@ -94,4 +99,37 @@ void serial_test_timer(void)
 	timer__destroy(timer_skel);
 
 	RUN_TESTS(timer_failure);
+}
+
+void test_timer_interrupt(void)
+{
+	struct timer_interrupt *skel = NULL;
+	int err, prog_fd;
+	LIBBPF_OPTS(bpf_test_run_opts, opts);
+
+	skel = timer_interrupt__open_and_load();
+	if (!skel && errno == EOPNOTSUPP) {
+		test__skip();
+		return;
+	}
+	if (!ASSERT_OK_PTR(skel, "timer_interrupt__open_and_load"))
+		return;
+
+	err = timer_interrupt__attach(skel);
+	if (!ASSERT_OK(err, "timer_interrupt__attach"))
+		goto out;
+
+	prog_fd = bpf_program__fd(skel->progs.test_timer_interrupt);
+	err = bpf_prog_test_run_opts(prog_fd, &opts);
+	if (!ASSERT_OK(err, "bpf_prog_test_run_opts"))
+		goto out;
+
+	usleep(50);
+
+	ASSERT_EQ(skel->bss->in_interrupt, 0, "in_interrupt");
+	if (skel->bss->preempt_count)
+		ASSERT_NEQ(skel->bss->in_interrupt_cb, 0, "in_interrupt_cb");
+
+out:
+	timer_interrupt__destroy(skel);
 }

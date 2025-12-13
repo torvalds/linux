@@ -73,6 +73,7 @@ counted. The following modifiers exist:
  e - group or event are exclusive and do not share the PMU
  b - use BPF aggregration (see perf stat --bpf-counters)
  R - retire latency value of the event
+ X - don't regroup the event to match PMUs
 
 The 'p' modifier can be used for specifying how precise the instruction
 address should be. The 'p' modifier can be specified multiple times:
@@ -391,6 +392,8 @@ Support raw format:
 . '--raw-dump', shows the raw-dump of all the events.
 . '--raw-dump [hw|sw|cache|tracepoint|pmu|event_glob]', shows the raw-dump of
   a certain kind of events.
+
+include::intel-acr.txt[]
 
 SEE ALSO
 --------

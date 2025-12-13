@@ -470,7 +470,7 @@ static int skeleton_querystd(struct file *file, void *priv, v4l2_std_id *std)
 	return 0;
 }
 
-static int skeleton_s_dv_timings(struct file *file, void *_fh,
+static int skeleton_s_dv_timings(struct file *file, void *priv,
 				 struct v4l2_dv_timings *timings)
 {
 	struct skeleton *skel = video_drvdata(file);
@@ -509,7 +509,7 @@ static int skeleton_s_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
-static int skeleton_g_dv_timings(struct file *file, void *_fh,
+static int skeleton_g_dv_timings(struct file *file, void *priv,
 				 struct v4l2_dv_timings *timings)
 {
 	struct skeleton *skel = video_drvdata(file);
@@ -522,7 +522,7 @@ static int skeleton_g_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
-static int skeleton_enum_dv_timings(struct file *file, void *_fh,
+static int skeleton_enum_dv_timings(struct file *file, void *priv,
 				    struct v4l2_enum_dv_timings *timings)
 {
 	struct skeleton *skel = video_drvdata(file);
@@ -544,7 +544,7 @@ static int skeleton_enum_dv_timings(struct file *file, void *_fh,
  * can lock but that the DMA engine it is connected to cannot handle
  * pixelclocks above a certain frequency), then -ERANGE is returned.
  */
-static int skeleton_query_dv_timings(struct file *file, void *_fh,
+static int skeleton_query_dv_timings(struct file *file, void *priv,
 				     struct v4l2_dv_timings *timings)
 {
 	struct skeleton *skel = video_drvdata(file);
@@ -573,7 +573,7 @@ static int skeleton_query_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
-static int skeleton_dv_timings_cap(struct file *file, void *fh,
+static int skeleton_dv_timings_cap(struct file *file, void *priv,
 				   struct v4l2_dv_timings_cap *cap)
 {
 	struct skeleton *skel = video_drvdata(file);

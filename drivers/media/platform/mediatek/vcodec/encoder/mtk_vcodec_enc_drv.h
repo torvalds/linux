@@ -217,9 +217,9 @@ struct mtk_vcodec_enc_dev {
 	struct mtk_vcodec_dbgfs dbgfs;
 };
 
-static inline struct mtk_vcodec_enc_ctx *fh_to_enc_ctx(struct v4l2_fh *fh)
+static inline struct mtk_vcodec_enc_ctx *file_to_enc_ctx(struct file *filp)
 {
-	return container_of(fh, struct mtk_vcodec_enc_ctx, fh);
+	return container_of(file_to_v4l2_fh(filp), struct mtk_vcodec_enc_ctx, fh);
 }
 
 static inline struct mtk_vcodec_enc_ctx *ctrl_to_enc_ctx(struct v4l2_ctrl *ctrl)

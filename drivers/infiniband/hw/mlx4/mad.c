@@ -1836,9 +1836,9 @@ static int create_pv_sqp(struct mlx4_ib_demux_pv_ctx *ctx,
 	tun_qp->qp = ib_create_qp(ctx->pd, &qp_init_attr.init_attr);
 	if (IS_ERR(tun_qp->qp)) {
 		ret = PTR_ERR(tun_qp->qp);
+		pr_err("Couldn't create %s QP (%pe)\n",
+		       create_tun ? "tunnel" : "special", tun_qp->qp);
 		tun_qp->qp = NULL;
-		pr_err("Couldn't create %s QP (%d)\n",
-		       create_tun ? "tunnel" : "special", ret);
 		return ret;
 	}
 
@@ -2017,14 +2017,14 @@ static int create_pv_resources(struct ib_device *ibdev, int slave, int port,
 			       NULL, ctx, &cq_attr);
 	if (IS_ERR(ctx->cq)) {
 		ret = PTR_ERR(ctx->cq);
-		pr_err("Couldn't create tunnel CQ (%d)\n", ret);
+		pr_err("Couldn't create tunnel CQ (%pe)\n", ctx->cq);
 		goto err_buf;
 	}
 
 	ctx->pd = ib_alloc_pd(ctx->ib_dev, 0);
 	if (IS_ERR(ctx->pd)) {
 		ret = PTR_ERR(ctx->pd);
-		pr_err("Couldn't create tunnel PD (%d)\n", ret);
+		pr_err("Couldn't create tunnel PD (%pe)\n", ctx->pd);
 		goto err_cq;
 	}
 

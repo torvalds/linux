@@ -58,7 +58,6 @@ static const struct regmap_config apcs_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = 0x1008,
-	.fast_io = true,
 };
 
 static int qcom_apcs_ipc_send_data(struct mbox_chan *chan, void *data)

@@ -53,8 +53,7 @@ struct stub_syscall {
 };
 
 struct stub_data {
-	unsigned long offset;
-	long err, child_err;
+	long err;
 
 	int syscall_data_len;
 	/* 128 leaves enough room for additional fields in the struct */

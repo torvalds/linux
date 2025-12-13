@@ -1568,7 +1568,6 @@ static void sh_mmcif_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sh_mmcif_suspend(struct device *dev)
 {
 	struct sh_mmcif_host *host = dev_get_drvdata(dev);
@@ -1580,15 +1579,7 @@ static int sh_mmcif_suspend(struct device *dev)
 	return 0;
 }
 
-static int sh_mmcif_resume(struct device *dev)
-{
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops sh_mmcif_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sh_mmcif_suspend, sh_mmcif_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(sh_mmcif_dev_pm_ops, sh_mmcif_suspend, NULL);
 
 static struct platform_driver sh_mmcif_driver = {
 	.probe		= sh_mmcif_probe,
@@ -1596,7 +1587,7 @@ static struct platform_driver sh_mmcif_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm	= &sh_mmcif_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&sh_mmcif_dev_pm_ops),
 		.of_match_table = sh_mmcif_of_match,
 	},
 };

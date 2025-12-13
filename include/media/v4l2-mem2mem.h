@@ -864,34 +864,34 @@ void v4l2_m2m_request_queue(struct media_request *req);
 /* v4l2 ioctl helpers */
 
 int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,
-				struct v4l2_requestbuffers *rb);
-int v4l2_m2m_ioctl_create_bufs(struct file *file, void *fh,
-				struct v4l2_create_buffers *create);
+			   struct v4l2_requestbuffers *rb);
+int v4l2_m2m_ioctl_create_bufs(struct file *file, void *priv,
+			       struct v4l2_create_buffers *create);
 int v4l2_m2m_ioctl_remove_bufs(struct file *file, void *priv,
 			       struct v4l2_remove_buffers *d);
-int v4l2_m2m_ioctl_querybuf(struct file *file, void *fh,
-				struct v4l2_buffer *buf);
-int v4l2_m2m_ioctl_expbuf(struct file *file, void *fh,
-				struct v4l2_exportbuffer *eb);
-int v4l2_m2m_ioctl_qbuf(struct file *file, void *fh,
-				struct v4l2_buffer *buf);
-int v4l2_m2m_ioctl_dqbuf(struct file *file, void *fh,
-				struct v4l2_buffer *buf);
-int v4l2_m2m_ioctl_prepare_buf(struct file *file, void *fh,
+int v4l2_m2m_ioctl_querybuf(struct file *file, void *priv,
+			    struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_expbuf(struct file *file, void *priv,
+			  struct v4l2_exportbuffer *eb);
+int v4l2_m2m_ioctl_qbuf(struct file *file, void *priv,
+			struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_dqbuf(struct file *file, void *priv,
+			 struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_prepare_buf(struct file *file, void *priv,
 			       struct v4l2_buffer *buf);
-int v4l2_m2m_ioctl_streamon(struct file *file, void *fh,
-				enum v4l2_buf_type type);
-int v4l2_m2m_ioctl_streamoff(struct file *file, void *fh,
-				enum v4l2_buf_type type);
-int v4l2_m2m_ioctl_encoder_cmd(struct file *file, void *fh,
+int v4l2_m2m_ioctl_streamon(struct file *file, void *priv,
+			    enum v4l2_buf_type type);
+int v4l2_m2m_ioctl_streamoff(struct file *file, void *priv,
+			     enum v4l2_buf_type type);
+int v4l2_m2m_ioctl_encoder_cmd(struct file *file, void *priv,
 			       struct v4l2_encoder_cmd *ec);
-int v4l2_m2m_ioctl_decoder_cmd(struct file *file, void *fh,
+int v4l2_m2m_ioctl_decoder_cmd(struct file *file, void *priv,
 			       struct v4l2_decoder_cmd *dc);
-int v4l2_m2m_ioctl_try_encoder_cmd(struct file *file, void *fh,
+int v4l2_m2m_ioctl_try_encoder_cmd(struct file *file, void *priv,
 				   struct v4l2_encoder_cmd *ec);
-int v4l2_m2m_ioctl_try_decoder_cmd(struct file *file, void *fh,
+int v4l2_m2m_ioctl_try_decoder_cmd(struct file *file, void *priv,
 				   struct v4l2_decoder_cmd *dc);
-int v4l2_m2m_ioctl_stateless_try_decoder_cmd(struct file *file, void *fh,
+int v4l2_m2m_ioctl_stateless_try_decoder_cmd(struct file *file, void *priv,
 					     struct v4l2_decoder_cmd *dc);
 int v4l2_m2m_ioctl_stateless_decoder_cmd(struct file *file, void *priv,
 					 struct v4l2_decoder_cmd *dc);

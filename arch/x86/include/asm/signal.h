@@ -83,8 +83,7 @@ static inline int __const_sigismember(sigset_t *set, int _sig)
 static inline int __gen_sigismember(sigset_t *set, int _sig)
 {
 	bool ret;
-	asm("btl %2,%1" CC_SET(c)
-	    : CC_OUT(c) (ret) : "m"(*set), "Ir"(_sig-1));
+	asm("btl %2,%1" : "=@ccc"(ret) : "m"(*set), "Ir"(_sig-1));
 	return ret;
 }
 

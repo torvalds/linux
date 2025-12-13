@@ -88,7 +88,7 @@
 		     <53>, <53>, <53>, <53>,
 		     <53>, <53>, <53>, <53>,
 		     <53>, <53>, <53>, <53>;
-	ngpios=<32>;
+	ngpios = <32>;
 	gpio-line-names = "P8_PIN3_USER_LED_0", "P8_PIN4_USER_LED_1", "P8_PIN5_USER_LED_2",
 			  "P8_PIN6_USER_LED_3", "P8_PIN7_USER_LED_4", "P8_PIN8_USER_LED_5",
 			  "P8_PIN9_USER_LED_6", "P8_PIN10_USER_LED_7", "P8_PIN11_USER_LED_8",

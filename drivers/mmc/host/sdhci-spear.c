@@ -130,7 +130,6 @@ static void sdhci_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sdhci->clk);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sdhci_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -161,9 +160,8 @@ static int sdhci_resume(struct device *dev)
 
 	return sdhci_resume_host(host);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(sdhci_pm_ops, sdhci_suspend, sdhci_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sdhci_pm_ops, sdhci_suspend, sdhci_resume);
 
 static const struct of_device_id sdhci_spear_id_table[] = {
 	{ .compatible = "st,spear300-sdhci" },
@@ -175,7 +173,7 @@ static struct platform_driver sdhci_driver = {
 	.driver = {
 		.name	= "sdhci",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm	= &sdhci_pm_ops,
+		.pm	= pm_sleep_ptr(&sdhci_pm_ops),
 		.of_match_table = sdhci_spear_id_table,
 	},
 	.probe		= sdhci_probe,

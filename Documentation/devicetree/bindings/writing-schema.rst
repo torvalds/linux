@@ -53,7 +53,7 @@ description
   The default without any indicators is flowed, plain scalar style where single
   line breaks and leading whitespace are stripped. Paragraphs are delimited by
   blank lines (i.e. double line break). This style cannot contain ": " in it as
-  it will be interpretted as a key. Any " #" sequence will be interpretted as
+  it will be interpreted as a key. Any " #" sequence will be interpreted as
   a comment. There's other restrictions on characters as well. Most
   restrictions are on what the first character can be.
 
@@ -164,6 +164,14 @@ number of entries in an 'items' list.
 The YAML Devicetree format also makes all string values an array and scalar
 values a matrix (in order to define groupings) even when only a single value
 is present. Single entries in schemas are fixed up to match this encoding.
+
+When bindings cover multiple similar devices that differ in some properties,
+those properties should be constrained for each device. This usually means:
+
+ * In top level 'properties' define the property with the broadest constraints.
+ * In 'if:then:' blocks, further narrow the constraints for those properties.
+ * Do not define the properties within an 'if:then:' block (note that
+   'additionalItems' also won't allow that).
 
 Coding style
 ------------

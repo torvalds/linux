@@ -118,7 +118,7 @@ def test_rss_key_indir(cfg):
 
     qcnt = len(_get_rx_cnts(cfg))
     if qcnt < 3:
-        KsftSkipEx("Device has fewer than 3 queues (or doesn't support queue stats)")
+        raise KsftSkipEx("Device has fewer than 3 queues (or doesn't support queue stats)")
 
     data = get_rss(cfg)
     want_keys = ['rss-hash-key', 'rss-hash-function', 'rss-indirection-table']
@@ -178,8 +178,13 @@ def test_rss_key_indir(cfg):
     cnts = _get_rx_cnts(cfg)
     GenerateTraffic(cfg).wait_pkts_and_stop(20000)
     cnts = _get_rx_cnts(cfg, prev=cnts)
-    # First two queues get less traffic than all the rest
-    ksft_lt(sum(cnts[:2]), sum(cnts[2:]), "traffic distributed: " + str(cnts))
+    if qcnt > 4:
+        # First two queues get less traffic than all the rest
+        ksft_lt(sum(cnts[:2]), sum(cnts[2:]),
+                "traffic distributed: " + str(cnts))
+    else:
+        # When queue count is low make sure third queue got significant pkts
+        ksft_ge(cnts[2], 3500, "traffic distributed: " + str(cnts))
 
 
 def test_rss_queue_reconfigure(cfg, main_ctx=True):
@@ -335,19 +340,20 @@ def test_hitless_key_update(cfg):
     data = get_rss(cfg)
     key_len = len(data['rss-hash-key'])
 
-    key = _rss_key_rand(key_len)
+    ethnl = EthtoolFamily()
+    key = random.randbytes(key_len)
 
     tgen = GenerateTraffic(cfg)
     try:
         errors0, carrier0 = get_drop_err_sum(cfg)
         t0 = datetime.datetime.now()
-        ethtool(f"-X {cfg.ifname} hkey " + _rss_key_str(key))
+        ethnl.rss_set({"header": {"dev-index": cfg.ifindex}, "hkey": key})
         t1 = datetime.datetime.now()
         errors1, carrier1 = get_drop_err_sum(cfg)
     finally:
         tgen.wait_pkts_and_stop(5000)
 
-    ksft_lt((t1 - t0).total_seconds(), 0.2)
+    ksft_lt((t1 - t0).total_seconds(), 0.15)
     ksft_eq(errors1 - errors1, 0)
     ksft_eq(carrier1 - carrier0, 0)
 

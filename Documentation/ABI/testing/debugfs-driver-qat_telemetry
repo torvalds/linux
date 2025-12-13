@@ -57,6 +57,7 @@ Description:	(RO) Reports device telemetry counters.
 		gp_lat_acc_avg		average get to put latency [ns]
 		bw_in			PCIe, write bandwidth [Mbps]
 		bw_out			PCIe, read bandwidth [Mbps]
+		re_acc_avg		average ring empty time [ns]
 		at_page_req_lat_avg	Address Translator(AT), average page
 					request latency [ns]
 		at_trans_lat_avg	AT, average page translation latency [ns]
@@ -85,6 +86,32 @@ Description:	(RO) Reports device telemetry counters.
 		exec_cph<N>		execution count of Cipher slice N
 		util_ath<N>		utilization of Authentication slice N [%]
 		exec_ath<N>		execution count of Authentication slice N
+		cmdq_wait_cnv<N>	wait time for cmdq N to get Compression and verify
+					slice ownership
+		cmdq_exec_cnv<N>	Compression and verify slice execution time while
+					owned by cmdq N
+		cmdq_drain_cnv<N>	time taken for cmdq N to release Compression and
+					verify slice ownership
+		cmdq_wait_dcprz<N>	wait time for cmdq N to get Decompression
+					slice N ownership
+		cmdq_exec_dcprz<N>	Decompression slice execution time while
+					owned by cmdq N
+		cmdq_drain_dcprz<N>	time taken for cmdq N to release Decompression
+					slice ownership
+		cmdq_wait_pke<N>	wait time for cmdq N to get PKE slice ownership
+		cmdq_exec_pke<N>	PKE slice execution time while owned by cmdq N
+		cmdq_drain_pke<N>	time taken for cmdq N to release PKE slice
+					ownership
+		cmdq_wait_ucs<N>	wait time for cmdq N to get UCS slice ownership
+		cmdq_exec_ucs<N>	UCS slice execution time while owned by cmdq N
+		cmdq_drain_ucs<N>	time taken for cmdq N to release UCS slice
+					ownership
+		cmdq_wait_ath<N>	wait time for cmdq N to get Authentication slice
+					ownership
+		cmdq_exec_ath<N>	Authentication slice execution time while owned
+					by cmdq N
+		cmdq_drain_ath<N>	time taken for cmdq N to release Authentication
+					slice ownership
 		=======================	========================================
 
 		The telemetry report file can be read with the following command::

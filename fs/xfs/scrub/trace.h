@@ -2000,6 +2000,51 @@ DEFINE_REPAIR_EXTENT_EVENT(xreap_agextent_binval);
 DEFINE_REPAIR_EXTENT_EVENT(xreap_bmapi_binval);
 DEFINE_REPAIR_EXTENT_EVENT(xrep_agfl_insert);
 
+DECLARE_EVENT_CLASS(xrep_reap_limits_class,
+	TP_PROTO(const struct xfs_trans *tp, unsigned int per_binval,
+		 unsigned int max_binval, unsigned int step_size,
+		 unsigned int per_intent,
+		 unsigned int max_deferred),
+	TP_ARGS(tp, per_binval, max_binval, step_size, per_intent, max_deferred),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, log_res)
+		__field(unsigned int, per_binval)
+		__field(unsigned int, max_binval)
+		__field(unsigned int, step_size)
+		__field(unsigned int, per_intent)
+		__field(unsigned int, max_deferred)
+	),
+	TP_fast_assign(
+		__entry->dev = tp->t_mountp->m_super->s_dev;
+		__entry->log_res = tp->t_log_res;
+		__entry->per_binval = per_binval;
+		__entry->max_binval = max_binval;
+		__entry->step_size = step_size;
+		__entry->per_intent = per_intent;
+		__entry->max_deferred = max_deferred;
+	),
+	TP_printk("dev %d:%d logres %u per_binval %u max_binval %u step_size %u per_intent %u max_deferred %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->log_res,
+		  __entry->per_binval,
+		  __entry->max_binval,
+		  __entry->step_size,
+		  __entry->per_intent,
+		  __entry->max_deferred)
+);
+#define DEFINE_REPAIR_REAP_LIMITS_EVENT(name) \
+DEFINE_EVENT(xrep_reap_limits_class, name, \
+	TP_PROTO(const struct xfs_trans *tp, unsigned int per_binval, \
+		 unsigned int max_binval, unsigned int step_size, \
+		 unsigned int per_intent, \
+		 unsigned int max_deferred), \
+	TP_ARGS(tp, per_binval, max_binval, step_size, per_intent, max_deferred))
+DEFINE_REPAIR_REAP_LIMITS_EVENT(xreap_agextent_limits);
+DEFINE_REPAIR_REAP_LIMITS_EVENT(xreap_agcow_limits);
+DEFINE_REPAIR_REAP_LIMITS_EVENT(xreap_rgcow_limits);
+DEFINE_REPAIR_REAP_LIMITS_EVENT(xreap_bmapi_limits);
+
 DECLARE_EVENT_CLASS(xrep_reap_find_class,
 	TP_PROTO(const struct xfs_group *xg, xfs_agblock_t agbno,
 		 xfs_extlen_t len, bool crosslinked),

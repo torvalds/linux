@@ -47,6 +47,7 @@ struct link_resource;
 struct dc_dmub_cmd;
 struct pg_block_update;
 struct drr_params;
+struct dc_underflow_debug_data;
 
 struct subvp_pipe_control_lock_fast_params {
 	struct dc *dc;
@@ -475,6 +476,9 @@ struct hw_sequencer_funcs {
 			struct dc_state *context);
 	void (*post_unlock_reset_opp)(struct dc *dc,
 			struct pipe_ctx *opp_head);
+	void (*get_underflow_debug_data)(const struct dc *dc,
+			struct timing_generator *tg,
+			struct dc_underflow_debug_data *out_data);
 };
 
 void color_space_to_black_color(

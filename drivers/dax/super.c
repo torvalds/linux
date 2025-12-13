@@ -388,7 +388,7 @@ static const struct super_operations dax_sops = {
 	.alloc_inode = dax_alloc_inode,
 	.destroy_inode = dax_destroy_inode,
 	.free_inode = dax_free_inode,
-	.drop_inode = generic_delete_inode,
+	.drop_inode = inode_just_drop,
 };
 
 static int dax_init_fs_context(struct fs_context *fc)

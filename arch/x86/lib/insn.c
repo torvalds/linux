@@ -200,12 +200,15 @@ found:
 	}
 	insn->rex_prefix.got = 1;
 
-	/* Decode VEX prefix */
+	/* Decode VEX/XOP prefix */
 	b = peek_next(insn_byte_t, insn);
-	attr = inat_get_opcode_attribute(b);
-	if (inat_is_vex_prefix(attr)) {
+	if (inat_is_vex_prefix(attr) || inat_is_xop_prefix(attr)) {
 		insn_byte_t b2 = peek_nbyte_next(insn_byte_t, insn, 1);
-		if (!insn->x86_64) {
+
+		if (inat_is_xop_prefix(attr) && X86_MODRM_REG(b2) == 0) {
+			/* Grp1A.0 is always POP Ev */
+			goto vex_end;
+		} else if (!insn->x86_64) {
 			/*
 			 * In 32-bits mode, if the [7:6] bits (mod bits of
 			 * ModRM) on the second byte are not 11b, it is
@@ -226,13 +229,13 @@ found:
 			if (insn->x86_64 && X86_VEX_W(b2))
 				/* VEX.W overrides opnd_size */
 				insn->opnd_bytes = 8;
-		} else if (inat_is_vex3_prefix(attr)) {
+		} else if (inat_is_vex3_prefix(attr) || inat_is_xop_prefix(attr)) {
 			b2 = peek_nbyte_next(insn_byte_t, insn, 2);
 			insn_set_byte(&insn->vex_prefix, 2, b2);
 			insn->vex_prefix.nbytes = 3;
 			insn->next_byte += 3;
 			if (insn->x86_64 && X86_VEX_W(b2))
-				/* VEX.W overrides opnd_size */
+				/* VEX.W/XOP.W overrides opnd_size */
 				insn->opnd_bytes = 8;
 		} else {
 			/*
@@ -288,9 +291,22 @@ int insn_get_opcode(struct insn *insn)
 	insn_set_byte(opcode, 0, op);
 	opcode->nbytes = 1;
 
-	/* Check if there is VEX prefix or not */
-	if (insn_is_avx(insn)) {
+	/* Check if there is VEX/XOP prefix or not */
+	if (insn_is_avx_or_xop(insn)) {
 		insn_byte_t m, p;
+
+		/* XOP prefix has different encoding */
+		if (unlikely(avx_insn_is_xop(insn))) {
+			m = insn_xop_map_bits(insn);
+			insn->attr = inat_get_xop_attribute(op, m);
+			if (!inat_accept_xop(insn->attr)) {
+				insn->attr = 0;
+				return -EINVAL;
+			}
+			/* XOP has only 1 byte for opcode */
+			goto end;
+		}
+
 		m = insn_vex_m_bits(insn);
 		p = insn_vex_p_bits(insn);
 		insn->attr = inat_get_avx_attribute(op, m, p);
@@ -383,7 +399,8 @@ int insn_get_modrm(struct insn *insn)
 			pfx_id = insn_last_prefix_id(insn);
 			insn->attr = inat_get_group_attribute(mod, pfx_id,
 							      insn->attr);
-			if (insn_is_avx(insn) && !inat_accept_vex(insn->attr)) {
+			if (insn_is_avx_or_xop(insn) && !inat_accept_vex(insn->attr) &&
+			    !inat_accept_xop(insn->attr)) {
 				/* Bad insn */
 				insn->attr = 0;
 				return -EINVAL;

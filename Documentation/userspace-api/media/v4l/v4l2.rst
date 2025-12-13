@@ -86,7 +86,7 @@ Authors, in alphabetical order:
 
   - Documented the fielded V4L2_MPEG_STREAM_VBI_FMT_IVTV MPEG stream embedded, sliced VBI data format in this specification.
 
-- Verkuil, Hans <hverkuil@xs4all.nl>
+- Verkuil, Hans <hverkuil@kernel.org>
 
   - Designed and documented the VIDIOC_LOG_STATUS ioctl, the extended control ioctls, major parts of the sliced VBI API, the MPEG encoder and decoder APIs and the DV Timings API.
 

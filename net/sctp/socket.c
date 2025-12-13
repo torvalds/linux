@@ -37,7 +37,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <crypto/hash.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/wait.h>
@@ -4987,7 +4986,7 @@ static int sctp_init_sock(struct sock *sk)
 	sp->default_rcv_context = 0;
 	sp->max_burst = net->sctp.max_burst;
 
-	sp->sctp_hmac_alg = net->sctp.sctp_hmac_alg;
+	sp->cookie_auth_enable = net->sctp.cookie_auth_enable;
 
 	/* Initialize default setup parameters. These parameters
 	 * can be modified with the SCTP_INITMSG socket option or
@@ -5079,8 +5078,6 @@ static int sctp_init_sock(struct sock *sk)
 	if (!sp->ep)
 		return -ENOMEM;
 
-	sp->hmac = NULL;
-
 	sk->sk_destruct = sctp_destruct_sock;
 
 	SCTP_DBG_OBJCNT_INC(sock);
@@ -5117,18 +5114,8 @@ static void sctp_destroy_sock(struct sock *sk)
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 }
 
-/* Triggered when there are no references on the socket anymore */
-static void sctp_destruct_common(struct sock *sk)
-{
-	struct sctp_sock *sp = sctp_sk(sk);
-
-	/* Free up the HMAC transform. */
-	crypto_free_shash(sp->hmac);
-}
-
 static void sctp_destruct_sock(struct sock *sk)
 {
-	sctp_destruct_common(sk);
 	inet_sock_destruct(sk);
 }
 
@@ -8530,21 +8517,7 @@ static int sctp_listen_start(struct sock *sk, int backlog)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
 	struct sctp_endpoint *ep = sp->ep;
-	struct crypto_shash *tfm = NULL;
-	char alg[32];
 	int err;
-
-	/* Allocate HMAC for generating cookie. */
-	if (!sp->hmac && sp->sctp_hmac_alg) {
-		sprintf(alg, "hmac(%s)", sp->sctp_hmac_alg);
-		tfm = crypto_alloc_shash(alg, 0, 0);
-		if (IS_ERR(tfm)) {
-			net_info_ratelimited("failed to load transform for %s: %ld\n",
-					     sp->sctp_hmac_alg, PTR_ERR(tfm));
-			return -ENOSYS;
-		}
-		sctp_sk(sk)->hmac = tfm;
-	}
 
 	/*
 	 * If a bind() or sctp_bindx() is not called prior to a listen()
@@ -9561,7 +9534,6 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	 * copy.
 	 */
 	newsp->ep = newep;
-	newsp->hmac = NULL;
 
 	/* Hook this new socket in to the bind_hash list. */
 	head = &sctp_port_hashtable[sctp_phashfn(sock_net(oldsk),
@@ -9580,16 +9552,6 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 				 &oldsp->ep->base.bind_addr, GFP_KERNEL);
 	if (err)
 		return err;
-
-	/* New ep's auth_hmacs should be set if old ep's is set, in case
-	 * that net->sctp.auth_enable has been changed to 0 by users and
-	 * new ep's auth_hmacs couldn't be set in sctp_endpoint_init().
-	 */
-	if (oldsp->ep->auth_hmacs) {
-		err = sctp_auth_init_hmacs(newsp->ep, GFP_KERNEL);
-		if (err)
-			return err;
-	}
 
 	sctp_auto_asconf_init(newsp);
 
@@ -9723,7 +9685,6 @@ struct proto sctp_prot = {
 
 static void sctp_v6_destruct_sock(struct sock *sk)
 {
-	sctp_destruct_common(sk);
 	inet6_sock_destruct(sk);
 }
 

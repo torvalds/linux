@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/ti/ti,keystone.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI Keystone Platforms
+
+maintainers:
+  - Nishanth Menon <nm@ti.com>
+  - Santosh Shilimkar <ssantosh@kernel.org>
+
+properties:
+  compatible:
+    oneOf:
+      - description: K2G
+        items:
+          - enum:
+              - ti,k2g-evm
+              - ti,k2g-ice
+          - const: ti,k2g
+          - const: ti,keystone
+      - description: Keystone 2 Edison
+        items:
+          - enum:
+              - ti,k2e-evm
+          - const: ti,k2e
+          - const: ti,keystone
+      - description: Keystone 2 Lamarr
+        items:
+          - enum:
+              - ti,k2l-evm
+          - const: ti,k2l
+          - const: ti,keystone
+      - description: Keystone 2 Hawking/Kepler
+        items:
+          - enum:
+              - ti,k2hk-evm
+          - const: ti,k2hk
+          - const: ti,keystone
+
+additionalProperties: true

@@ -293,7 +293,7 @@ static int statx_lookup_flags(int flags)
 	return lookup_flags;
 }
 
-static int vfs_statx_path(struct path *path, int flags, struct kstat *stat,
+static int vfs_statx_path(const struct path *path, int flags, struct kstat *stat,
 			  u32 request_mask)
 {
 	int error = vfs_getattr(path, stat, request_mask, flags);

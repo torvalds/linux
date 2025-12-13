@@ -4,6 +4,7 @@
 #ifndef _WX_VF_H_
 #define _WX_VF_H_
 
+/* Control registers */
 #define WX_VF_MAX_RING_NUMS      8
 #define WX_VX_PF_BME             0x4B8
 #define WX_VF_BME_ENABLE         BIT(0)
@@ -12,32 +13,38 @@
 #define WX_VXCTRL_RST            BIT(0)
 
 #define WX_VXMRQC                0x78
+#define WX_VXMRQC_PSR_L4HDR      BIT(0)
+#define WX_VXMRQC_PSR_L3HDR      BIT(1)
+#define WX_VXMRQC_PSR_L2HDR      BIT(2)
+#define WX_VXMRQC_PSR_TUNHDR     BIT(3)
+#define WX_VXMRQC_PSR_TUNMAC     BIT(4)
+#define WX_VXMRQC_PSR_MASK       GENMASK(5, 1)
+#define WX_VXMRQC_PSR(f)         FIELD_PREP(GENMASK(5, 1), f)
+#define WX_VXMRQC_RSS_HASH(f)    FIELD_PREP(GENMASK(15, 13), f)
+#define WX_VXMRQC_RSS_MASK       GENMASK(31, 16)
+#define WX_VXMRQC_RSS(f)         FIELD_PREP(GENMASK(31, 16), f)
+#define WX_VXMRQC_RSS_ALG_IPV4_TCP   BIT(0)
+#define WX_VXMRQC_RSS_ALG_IPV4       BIT(1)
+#define WX_VXMRQC_RSS_ALG_IPV6       BIT(4)
+#define WX_VXMRQC_RSS_ALG_IPV6_TCP   BIT(5)
+#define WX_VXMRQC_RSS_EN             BIT(8)
+
+#define WX_VXRSSRK(i)            (0x80 + ((i) * 4)) /* i=[0,9] */
+#define WX_VXRETA(i)             (0xC0 + ((i) * 4)) /* i=[0,15] */
+
+/* Interrupt registers */
 #define WX_VXICR                 0x100
 #define WX_VXIMS                 0x108
 #define WX_VXIMC                 0x10C
 #define WX_VF_IRQ_CLEAR_MASK     7
 #define WX_VF_MAX_TX_QUEUES      4
 #define WX_VF_MAX_RX_QUEUES      4
-#define WX_VXTXDCTL(r)           (0x3010 + (0x40 * (r)))
-#define WX_VXRXDCTL(r)           (0x1010 + (0x40 * (r)))
-#define WX_VXRXDCTL_ENABLE       BIT(0)
-#define WX_VXTXDCTL_FLUSH        BIT(26)
 
 #define WX_VXITR(i)              (0x200 + (4 * (i))) /* i=[0,1] */
 #define WX_VXITR_MASK            GENMASK(8, 0)
 #define WX_VXITR_CNT_WDIS        BIT(31)
 #define WX_VXIVAR_MISC           0x260
 #define WX_VXIVAR(i)             (0x240 + (4 * (i))) /* i=[0,3] */
-
-#define WX_VXRXDCTL_RSCMAX(f)    FIELD_PREP(GENMASK(24, 23), f)
-#define WX_VXRXDCTL_BUFLEN(f)    FIELD_PREP(GENMASK(6, 1), f)
-#define WX_VXRXDCTL_BUFSZ(f)     FIELD_PREP(GENMASK(11, 8), f)
-#define WX_VXRXDCTL_HDRSZ(f)     FIELD_PREP(GENMASK(15, 12), f)
-
-#define WX_VXRXDCTL_RSCMAX_MASK  GENMASK(24, 23)
-#define WX_VXRXDCTL_BUFLEN_MASK  GENMASK(6, 1)
-#define WX_VXRXDCTL_BUFSZ_MASK   GENMASK(11, 8)
-#define WX_VXRXDCTL_HDRSZ_MASK   GENMASK(15, 12)
 
 #define wx_conf_size(v, mwidth, uwidth) ({ \
 	typeof(v) _v = (v); \
@@ -59,44 +66,35 @@
 #define WX_VXRDBAH(r)            (0x1004 + (0x40 * (r)))
 #define WX_VXRDT(r)              (0x1008 + (0x40 * (r)))
 #define WX_VXRDH(r)              (0x100C + (0x40 * (r)))
-
+#define WX_VXRXDCTL(r)           (0x1010 + (0x40 * (r)))
+#define WX_VXRXDCTL_ENABLE       BIT(0)
+#define WX_VXRXDCTL_BUFLEN_MASK  GENMASK(6, 1)
+#define WX_VXRXDCTL_BUFLEN(f)    FIELD_PREP(GENMASK(6, 1), f)
+#define WX_VXRXDCTL_BUFSZ_MASK   GENMASK(11, 8)
+#define WX_VXRXDCTL_BUFSZ(f)     FIELD_PREP(GENMASK(11, 8), f)
+#define WX_VXRXDCTL_HDRSZ_MASK   GENMASK(15, 12)
+#define WX_VXRXDCTL_HDRSZ(f)     FIELD_PREP(GENMASK(15, 12), f)
+#define WX_VXRXDCTL_RSCMAX_MASK  GENMASK(24, 23)
+#define WX_VXRXDCTL_RSCMAX(f)    FIELD_PREP(GENMASK(24, 23), f)
 #define WX_VXRXDCTL_RSCEN        BIT(29)
 #define WX_VXRXDCTL_DROP         BIT(30)
 #define WX_VXRXDCTL_VLAN         BIT(31)
 
+/* Transimit Path */
 #define WX_VXTDBAL(r)            (0x3000 + (0x40 * (r)))
 #define WX_VXTDBAH(r)            (0x3004 + (0x40 * (r)))
 #define WX_VXTDT(r)              (0x3008 + (0x40 * (r)))
 #define WX_VXTDH(r)              (0x300C + (0x40 * (r)))
-
+#define WX_VXTXDCTL(r)           (0x3010 + (0x40 * (r)))
 #define WX_VXTXDCTL_ENABLE       BIT(0)
 #define WX_VXTXDCTL_BUFLEN(f)    FIELD_PREP(GENMASK(6, 1), f)
 #define WX_VXTXDCTL_PTHRESH(f)   FIELD_PREP(GENMASK(11, 8), f)
 #define WX_VXTXDCTL_WTHRESH(f)   FIELD_PREP(GENMASK(22, 16), f)
-
-#define WX_VXMRQC_PSR(f)         FIELD_PREP(GENMASK(5, 1), f)
-#define WX_VXMRQC_PSR_MASK       GENMASK(5, 1)
-#define WX_VXMRQC_PSR_L4HDR      BIT(0)
-#define WX_VXMRQC_PSR_L3HDR      BIT(1)
-#define WX_VXMRQC_PSR_L2HDR      BIT(2)
-#define WX_VXMRQC_PSR_TUNHDR     BIT(3)
-#define WX_VXMRQC_PSR_TUNMAC     BIT(4)
-
-#define WX_VXRSSRK(i)            (0x80 + ((i) * 4)) /* i=[0,9] */
-#define WX_VXRETA(i)             (0xC0 + ((i) * 4)) /* i=[0,15] */
-
-#define WX_VXMRQC_RSS(f)         FIELD_PREP(GENMASK(31, 16), f)
-#define WX_VXMRQC_RSS_MASK       GENMASK(31, 16)
-#define WX_VXMRQC_RSS_ALG_IPV4_TCP   BIT(0)
-#define WX_VXMRQC_RSS_ALG_IPV4       BIT(1)
-#define WX_VXMRQC_RSS_ALG_IPV6       BIT(4)
-#define WX_VXMRQC_RSS_ALG_IPV6_TCP   BIT(5)
-#define WX_VXMRQC_RSS_EN             BIT(8)
-#define WX_VXMRQC_RSS_HASH(f)    FIELD_PREP(GENMASK(15, 13), f)
+#define WX_VXTXDCTL_FLUSH        BIT(26)
 
 #define WX_PFLINK_STATUS(g)      FIELD_GET(BIT(0), g)
 #define WX_PFLINK_SPEED(g)       FIELD_GET(GENMASK(31, 1), g)
-#define WX_VXSTATUS_SPEED(g)      FIELD_GET(GENMASK(4, 1), g)
+#define WX_VXSTATUS_SPEED(g)     FIELD_GET(GENMASK(4, 1), g)
 
 struct wx_link_reg_fields {
 	u32 mac_type;

@@ -127,6 +127,8 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PTL_H, MEI_ME_PCH15_CFG)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PTL_P, MEI_ME_PCH15_CFG)},
 
+	{MEI_PCI_DEVICE(MEI_DEV_ID_WCL_P, MEI_ME_PCH15_CFG)},
+
 	/* required last entry */
 	{0, }
 };
@@ -143,7 +145,7 @@ static inline void mei_me_unset_pm_domain(struct mei_device *dev) {}
 
 static int mei_me_read_fws(const struct mei_device *dev, int where, u32 *val)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct pci_dev *pdev = to_pci_dev(dev->parent);
 
 	return pci_read_config_dword(pdev, where, val);
 }
@@ -221,6 +223,10 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
 	hw->read_fws = mei_me_read_fws;
 
+	err = mei_register(dev, &pdev->dev);
+	if (err)
+		goto end;
+
 	pci_enable_msi(pdev);
 
 	hw->irq = pdev->irq;
@@ -235,21 +241,17 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		dev_err(&pdev->dev, "request_threaded_irq failure. irq = %d\n",
 		       pdev->irq);
-		goto end;
+		goto deregister;
 	}
 
 	if (mei_start(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");
 		err = -ENODEV;
-		goto release_irq;
+		goto deregister;
 	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, MEI_ME_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
-
-	err = mei_register(dev, &pdev->dev);
-	if (err)
-		goto stop;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -280,12 +282,11 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-stop:
-	mei_stop(dev);
-release_irq:
+deregister:
 	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
 	free_irq(pdev->irq, dev);
+	mei_deregister(dev);
 end:
 	dev_err(&pdev->dev, "initialization failed.\n");
 	return err;
@@ -475,7 +476,7 @@ static int mei_me_pm_runtime_resume(struct device *device)
  */
 static inline void mei_me_set_pm_domain(struct mei_device *dev)
 {
-	struct pci_dev *pdev  = to_pci_dev(dev->dev);
+	struct pci_dev *pdev  = to_pci_dev(dev->parent);
 
 	if (pdev->dev.bus && pdev->dev.bus->pm) {
 		dev->pg_domain.ops = *pdev->dev.bus->pm;
@@ -496,7 +497,7 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev)
 static inline void mei_me_unset_pm_domain(struct mei_device *dev)
 {
 	/* stop using pm callbacks if any */
-	dev_pm_domain_set(dev->dev, NULL);
+	dev_pm_domain_set(dev->parent, NULL);
 }
 
 static const struct dev_pm_ops mei_me_pm_ops = {

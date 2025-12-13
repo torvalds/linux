@@ -46,7 +46,6 @@ util-linux             2.10o              mount --version
 kmod                   13                 depmod -V
 e2fsprogs              1.41.4             e2fsck -V
 jfsutils               1.1.3              fsck.jfs -V
-reiserfsprogs          3.6.3              reiserfsck -V
 xfsprogs               2.6.0              xfs_db -V
 squashfs-tools         4.0                mksquashfs -version
 btrfs-progs            0.18               btrfsck
@@ -260,14 +259,6 @@ Sono disponibili i seguenti strumenti:
 
 - sono disponibili altri strumenti per il file-system.
 
-Reiserfsprogs
--------------
-
-Il pacchetto reiserfsprogs dovrebbe essere usato con reiserfs-3.6.x (Linux
-kernel 2.4.x).  Questo è un pacchetto combinato che contiene versioni
-funzionanti di ``mkreiserfs``, ``resize_reiserfs``, ``debugreiserfs`` e
-``reiserfsck``.  Questi programmi funzionano sulle piattaforme i386 e alpha.
-
 Xfsprogs
 --------
 
@@ -478,11 +469,6 @@ JFSutils
 --------
 
 - <https://jfs.sourceforge.net/>
-
-Reiserfsprogs
--------------
-
-- <https://git.kernel.org/pub/scm/linux/kernel/git/jeffm/reiserfsprogs.git/>
 
 Xfsprogs
 --------

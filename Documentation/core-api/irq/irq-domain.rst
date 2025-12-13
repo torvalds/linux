@@ -18,8 +18,8 @@ handlers as irqchips. I.e. in effect cascading interrupt controllers.
 So in the past, IRQ numbers could be chosen so that they match the
 hardware IRQ line into the root interrupt controller (i.e. the
 component actually firing the interrupt line to the CPU). Nowadays,
-this number is just a number and the number loose all kind of
-correspondence to hardware interrupt numbers.
+this number is just a number and the number has no
+relationship to hardware interrupt numbers.
 
 For this reason, we need a mechanism to separate controller-local
 interrupt numbers, called hardware IRQs, from Linux IRQ numbers.
@@ -77,15 +77,15 @@ Once a mapping has been established, it can be retrieved or used via a
 variety of methods:
 
 - irq_resolve_mapping() returns a pointer to the irq_desc structure
-  for a given domain and hwirq number, and NULL if there was no
+  for a given domain and hwirq number, or NULL if there was no
   mapping.
 - irq_find_mapping() returns a Linux IRQ number for a given domain and
-  hwirq number, and 0 if there was no mapping
+  hwirq number, or 0 if there was no mapping
 - generic_handle_domain_irq() handles an interrupt described by a
   domain and a hwirq number
 
-Note that irq domain lookups must happen in contexts that are
-compatible with a RCU read-side critical section.
+Note that irq_domain lookups must happen in contexts that are
+compatible with an RCU read-side critical section.
 
 The irq_create_mapping() function must be called *at least once*
 before any call to irq_find_mapping(), lest the descriptor will not
@@ -100,7 +100,7 @@ Types of irq_domain Mappings
 ============================
 
 There are several mechanisms available for reverse mapping from hwirq
-to Linux irq, and each mechanism uses a different allocation function.
+to Linux IRQ, and each mechanism uses a different allocation function.
 Which reverse map type should be used depends on the use case.  Each
 of the reverse map types are described below:
 
@@ -111,13 +111,13 @@ Linear
 
 	irq_domain_create_linear()
 
-The linear reverse map maintains a fixed size table indexed by the
+The linear reverse map maintains a fixed-size table indexed by the
 hwirq number.  When a hwirq is mapped, an irq_desc is allocated for
 the hwirq, and the IRQ number is stored in the table.
 
 The Linear map is a good choice when the maximum number of hwirqs is
 fixed and a relatively small number (~ < 256).  The advantages of this
-map are fixed time lookup for IRQ numbers, and irq_descs are only
+map are fixed-time lookup for IRQ numbers, and irq_descs are only
 allocated for in-use IRQs.  The disadvantage is that the table must be
 as large as the largest possible hwirq number.
 
@@ -134,7 +134,7 @@ The irq_domain maintains a radix tree map from hwirq numbers to Linux
 IRQs.  When an hwirq is mapped, an irq_desc is allocated and the
 hwirq is used as the lookup key for the radix tree.
 
-The tree map is a good choice if the hwirq number can be very large
+The Tree map is a good choice if the hwirq number can be very large
 since it doesn't need to allocate a table as large as the largest
 hwirq number.  The disadvantage is that hwirq to IRQ number lookup is
 dependent on how many entries are in the table.
@@ -169,10 +169,10 @@ Legacy
 
 The Legacy mapping is a special case for drivers that already have a
 range of irq_descs allocated for the hwirqs.  It is used when the
-driver cannot be immediately converted to use the linear mapping.  For
+driver cannot be immediately converted to use the Linear mapping.  For
 example, many embedded system board support files use a set of #defines
 for IRQ numbers that are passed to struct device registrations.  In that
-case the Linux IRQ numbers cannot be dynamically assigned and the legacy
+case the Linux IRQ numbers cannot be dynamically assigned and the Legacy
 mapping should be used.
 
 As the name implies, the \*_legacy() functions are deprecated and only
@@ -180,15 +180,15 @@ exist to ease the support of ancient platforms. No new users should be
 added. Same goes for the \*_simple() functions when their use results
 in the legacy behaviour.
 
-The legacy map assumes a contiguous range of IRQ numbers has already
+The Legacy map assumes a contiguous range of IRQ numbers has already
 been allocated for the controller and that the IRQ number can be
 calculated by adding a fixed offset to the hwirq number, and
 visa-versa.  The disadvantage is that it requires the interrupt
 controller to manage IRQ allocations and it requires an irq_desc to be
 allocated for every hwirq, even if it is unused.
 
-The legacy map should only be used if fixed IRQ mappings must be
-supported.  For example, ISA controllers would use the legacy map for
+The Legacy map should only be used if fixed IRQ mappings must be
+supported.  For example, ISA controllers would use the Legacy map for
 mapping Linux IRQs 0-15 so that existing ISA drivers get the correct IRQ
 numbers.
 
@@ -197,7 +197,7 @@ which will use a legacy domain only if an IRQ range is supplied by the
 system and will otherwise use a linear domain mapping. The semantics of
 this call are such that if an IRQ range is specified then descriptors
 will be allocated on-the-fly for it, and if no range is specified it
-will fall through to irq_domain_create_linear() which means *no* irq
+will fall through to irq_domain_create_linear() which means *no* IRQ
 descriptors will be allocated.
 
 A typical use case for simple domains is where an irqchip provider
@@ -214,7 +214,7 @@ Hierarchy IRQ Domain
 
 On some architectures, there may be multiple interrupt controllers
 involved in delivering an interrupt from the device to the target CPU.
-Let's look at a typical interrupt delivering path on x86 platforms::
+Let's look at a typical interrupt delivery path on x86 platforms::
 
   Device --> IOAPIC -> Interrupt remapping Controller -> Local APIC -> CPU
 
@@ -227,8 +227,8 @@ There are three interrupt controllers involved:
 To support such a hardware topology and make software architecture match
 hardware architecture, an irq_domain data structure is built for each
 interrupt controller and those irq_domains are organized into hierarchy.
-When building irq_domain hierarchy, the irq_domain near to the device is
-child and the irq_domain near to CPU is parent. So a hierarchy structure
+When building irq_domain hierarchy, the irq_domain nearest the device is
+child and the irq_domain nearest the CPU is parent. So a hierarchy structure
 as below will be built for the example above::
 
 	CPU Vector irq_domain (root irq_domain to manage CPU vectors)

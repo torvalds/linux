@@ -11,7 +11,7 @@
 
 #include "xe_assert.h"
 #include "xe_bo.h"
-#include "xe_gt_tlb_invalidation.h"
+#include "xe_tlb_inval.h"
 #include "xe_lmtt.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
@@ -67,12 +67,12 @@ static struct xe_lmtt_pt *lmtt_pt_alloc(struct xe_lmtt *lmtt, unsigned int level
 		goto out;
 	}
 
-	bo = xe_bo_create_pin_map(lmtt_to_xe(lmtt), lmtt_to_tile(lmtt), NULL,
-				  PAGE_ALIGN(lmtt->ops->lmtt_pte_size(level) *
-					     lmtt->ops->lmtt_pte_num(level)),
-				  ttm_bo_type_kernel,
-				  XE_BO_FLAG_VRAM_IF_DGFX(lmtt_to_tile(lmtt)) |
-				  XE_BO_FLAG_NEEDS_64K);
+	bo = xe_bo_create_pin_map_novm(lmtt_to_xe(lmtt), lmtt_to_tile(lmtt),
+				       PAGE_ALIGN(lmtt->ops->lmtt_pte_size(level) *
+						  lmtt->ops->lmtt_pte_num(level)),
+				       ttm_bo_type_kernel,
+				       XE_BO_FLAG_VRAM_IF_DGFX(lmtt_to_tile(lmtt)) |
+				       XE_BO_FLAG_NEEDS_64K, false);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto out_free_pt;
@@ -195,14 +195,17 @@ static void lmtt_setup_dir_ptr(struct xe_lmtt *lmtt)
 	struct xe_tile *tile = lmtt_to_tile(lmtt);
 	struct xe_device *xe = tile_to_xe(tile);
 	dma_addr_t offset = xe_bo_main_addr(lmtt->pd->bo, XE_PAGE_SIZE);
+	struct xe_gt *gt;
+	u8 id;
 
 	lmtt_debug(lmtt, "DIR offset %pad\n", &offset);
 	lmtt_assert(lmtt, xe_bo_is_vram(lmtt->pd->bo));
 	lmtt_assert(lmtt, IS_ALIGNED(offset, SZ_64K));
 
-	xe_mmio_write32(&tile->mmio,
-			GRAPHICS_VER(xe) >= 20 ? XE2_LMEM_CFG : LMEM_CFG,
-			LMEM_EN | REG_FIELD_PREP(LMTT_DIR_PTR, offset / SZ_64K));
+	for_each_gt_on_tile(gt, tile, id)
+		xe_mmio_write32(&gt->mmio,
+				GRAPHICS_VER(xe) >= 20 ? XE2_LMEM_CFG : LMEM_CFG,
+				LMEM_EN | REG_FIELD_PREP(LMTT_DIR_PTR, offset / SZ_64K));
 }
 
 /**
@@ -225,8 +228,8 @@ void xe_lmtt_init_hw(struct xe_lmtt *lmtt)
 
 static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)
 {
-	struct xe_gt_tlb_invalidation_fence fences[XE_MAX_GT_PER_TILE];
-	struct xe_gt_tlb_invalidation_fence *fence = fences;
+	struct xe_tlb_inval_fence fences[XE_MAX_GT_PER_TILE];
+	struct xe_tlb_inval_fence *fence = fences;
 	struct xe_tile *tile = lmtt_to_tile(lmtt);
 	struct xe_gt *gt;
 	int result = 0;
@@ -234,8 +237,8 @@ static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)
 	u8 id;
 
 	for_each_gt_on_tile(gt, tile, id) {
-		xe_gt_tlb_invalidation_fence_init(gt, fence, true);
-		err = xe_gt_tlb_invalidation_all(gt, fence);
+		xe_tlb_inval_fence_init(&gt->tlb_inval, fence, true);
+		err = xe_tlb_inval_all(&gt->tlb_inval, fence);
 		result = result ?: err;
 		fence++;
 	}
@@ -249,7 +252,7 @@ static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)
 	 */
 	fence = fences;
 	for_each_gt_on_tile(gt, tile, id)
-		xe_gt_tlb_invalidation_fence_wait(fence++);
+		xe_tlb_inval_fence_wait(fence++);
 
 	return result;
 }

@@ -22,9 +22,9 @@
 
 #define HAVE_IP(x)      ((size_t)(ip_end - ip) >= (size_t)(x))
 #define HAVE_OP(x)      ((size_t)(op_end - op) >= (size_t)(x))
-#define NEED_IP(x)      if (!HAVE_IP(x)) goto input_overrun
-#define NEED_OP(x)      if (!HAVE_OP(x)) goto output_overrun
-#define TEST_LB(m_pos)  if ((m_pos) < out) goto lookbehind_overrun
+#define NEED_IP(x)      if (unlikely(!HAVE_IP(x))) goto input_overrun
+#define NEED_OP(x)      if (unlikely(!HAVE_OP(x))) goto output_overrun
+#define TEST_LB(m_pos)  if (unlikely((m_pos) < out)) goto lookbehind_overrun
 
 /* This MAX_255_COUNT is the maximum number of times we can add 255 to a base
  * count without overflowing an integer. The multiply will overflow when

@@ -1246,6 +1246,10 @@ static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index,
 	ectx.last_jump_jiffies = 0;
 	if (ws) {
 		ectx.ws = kcalloc(4, ws, GFP_KERNEL);
+		if (!ectx.ws) {
+			ret = -ENOMEM;
+			goto free;
+		}
 		ectx.ws_size = ws;
 	} else {
 		ectx.ws = NULL;
@@ -1494,6 +1498,28 @@ static void atom_get_vbios_version(struct atom_context *ctx)
 	}
 }
 
+static void atom_get_vbios_build(struct atom_context *ctx)
+{
+	unsigned char *atom_rom_hdr;
+	unsigned char *str;
+	uint16_t base, len;
+
+	base = CU16(ATOM_ROM_TABLE_PTR);
+	atom_rom_hdr = CSTR(base);
+
+	str = CSTR(CU16(base + ATOM_ROM_CFG_PTR));
+	/* Skip config string */
+	while (str < atom_rom_hdr && *str++)
+		;
+	/* Skip change list string */
+	while (str < atom_rom_hdr && *str++)
+		;
+
+	len = min(atom_rom_hdr - str, STRLEN_NORMAL);
+	if (len)
+		strscpy(ctx->build_num, str, len);
+}
+
 struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 {
 	int base;
@@ -1554,6 +1580,7 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 	atom_get_vbios_pn(ctx);
 	atom_get_vbios_date(ctx);
 	atom_get_vbios_version(ctx);
+	atom_get_vbios_build(ctx);
 
 	return ctx;
 }

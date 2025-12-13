@@ -74,7 +74,7 @@ enum btrfs_lock_nesting {
 	BTRFS_NESTING_NEW_ROOT,
 
 	/*
-	 * We are limited to MAX_LOCKDEP_SUBLCLASSES number of subclasses, so
+	 * We are limited to MAX_LOCKDEP_SUBCLASSES number of subclasses, so
 	 * add this in here and add a static_assert to keep us from going over
 	 * the limit.  As of this writing we're limited to 8, and we're
 	 * definitely using 8, hence this check to keep us from messing up in

@@ -476,6 +476,16 @@ static unsigned long _read_bw(struct dev_pm_opp *opp, int index)
 	return opp->bandwidth[index].peak;
 }
 
+static unsigned long _read_opp_key(struct dev_pm_opp *opp, int index,
+				   struct dev_pm_opp_key *key)
+{
+	key->bw = opp->bandwidth ? opp->bandwidth[index].peak : 0;
+	key->freq = opp->rates[index];
+	key->level = opp->level;
+
+	return true;
+}
+
 /* Generic comparison helpers */
 static bool _compare_exact(struct dev_pm_opp **opp, struct dev_pm_opp *temp_opp,
 			   unsigned long opp_key, unsigned long key)
@@ -509,6 +519,22 @@ static bool _compare_floor(struct dev_pm_opp **opp, struct dev_pm_opp *temp_opp,
 	return false;
 }
 
+static bool _compare_opp_key_exact(struct dev_pm_opp **opp,
+		struct dev_pm_opp *temp_opp, struct dev_pm_opp_key *opp_key,
+		struct dev_pm_opp_key *key)
+{
+	bool level_match = (key->level == OPP_LEVEL_UNSET || opp_key->level == key->level);
+	bool freq_match = (key->freq == 0 || opp_key->freq == key->freq);
+	bool bw_match = (key->bw == 0 || opp_key->bw == key->bw);
+
+	if (freq_match && level_match && bw_match) {
+		*opp = temp_opp;
+		return true;
+	}
+
+	return false;
+}
+
 /* Generic key finding helpers */
 static struct dev_pm_opp *_opp_table_find_key(struct opp_table *opp_table,
 		unsigned long *key, int index, bool available,
@@ -536,6 +562,37 @@ static struct dev_pm_opp *_opp_table_find_key(struct opp_table *opp_table,
 	if (!IS_ERR(opp)) {
 		*key = read(opp, index);
 		dev_pm_opp_get(opp);
+	}
+
+	return opp;
+}
+
+static struct dev_pm_opp *_opp_table_find_opp_key(struct opp_table *opp_table,
+		struct dev_pm_opp_key *key, bool available,
+		unsigned long (*read)(struct dev_pm_opp *opp, int index,
+				      struct dev_pm_opp_key *key),
+		bool (*compare)(struct dev_pm_opp **opp, struct dev_pm_opp *temp_opp,
+				struct dev_pm_opp_key *opp_key, struct dev_pm_opp_key *key),
+		bool (*assert)(struct opp_table *opp_table, unsigned int index))
+{
+	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+	struct dev_pm_opp_key temp_key;
+
+	/* Assert that the requirement is met */
+	if (!assert(opp_table, 0))
+		return ERR_PTR(-EINVAL);
+
+	guard(mutex)(&opp_table->lock);
+
+	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+		if (temp_opp->available == available) {
+			read(temp_opp, 0, &temp_key);
+			if (compare(&opp, temp_opp, &temp_key, key)) {
+				/* Increment the reference count of OPP */
+				dev_pm_opp_get(opp);
+				break;
+			}
+		}
 	}
 
 	return opp;
@@ -631,6 +688,48 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 			       assert_single_clk);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact);
+
+/**
+ * dev_pm_opp_find_key_exact() - Search for an OPP with exact key set
+ * @dev:		Device for which the OPP is being searched
+ * @key:		OPP key set to match
+ * @available:		true/false - match for available OPP
+ *
+ * Search for an exact match of the key set in the OPP table.
+ *
+ * Return: A matching opp on success, else ERR_PTR in case of error.
+ * Possible error values:
+ * EINVAL:	for bad pointers
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
+ *
+ * Note: 'available' is a modifier for the search. If 'available' == true,
+ * then the match is for exact matching key and is available in the stored
+ * OPP table. If false, the match is for exact key which is not available.
+ *
+ * This provides a mechanism to enable an OPP which is not available currently
+ * or the opposite as well.
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *dev_pm_opp_find_key_exact(struct device *dev,
+					     struct dev_pm_opp_key *key,
+					     bool available)
+{
+	struct opp_table *opp_table __free(put_opp_table) = _find_opp_table(dev);
+
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "%s: OPP table not found (%ld)\n", __func__,
+			PTR_ERR(opp_table));
+		return ERR_CAST(opp_table);
+	}
+
+	return _opp_table_find_opp_key(opp_table, key, available,
+				       _read_opp_key, _compare_opp_key_exact,
+				       assert_single_clk);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_find_key_exact);
 
 /**
  * dev_pm_opp_find_freq_exact_indexed() - Search for an exact freq for the

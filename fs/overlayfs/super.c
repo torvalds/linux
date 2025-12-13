@@ -161,6 +161,16 @@ static const struct dentry_operations ovl_dentry_operations = {
 	.d_weak_revalidate = ovl_dentry_weak_revalidate,
 };
 
+#if IS_ENABLED(CONFIG_UNICODE)
+static const struct dentry_operations ovl_dentry_ci_operations = {
+	.d_real = ovl_d_real,
+	.d_revalidate = ovl_dentry_revalidate,
+	.d_weak_revalidate = ovl_dentry_weak_revalidate,
+	.d_hash = generic_ci_d_hash,
+	.d_compare = generic_ci_d_compare,
+};
+#endif
+
 static struct kmem_cache *ovl_inode_cachep;
 
 static struct inode *ovl_alloc_inode(struct super_block *sb)
@@ -280,7 +290,7 @@ static const struct super_operations ovl_super_operations = {
 	.alloc_inode	= ovl_alloc_inode,
 	.free_inode	= ovl_free_inode,
 	.destroy_inode	= ovl_destroy_inode,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.put_super	= ovl_put_super,
 	.sync_fs	= ovl_sync_fs,
 	.statfs		= ovl_statfs,
@@ -394,7 +404,7 @@ static int ovl_check_namelen(const struct path *path, struct ovl_fs *ofs,
 	return err;
 }
 
-static int ovl_lower_dir(const char *name, struct path *path,
+static int ovl_lower_dir(const char *name, const struct path *path,
 			 struct ovl_fs *ofs, int *stack_depth)
 {
 	int fh_type;
@@ -991,6 +1001,25 @@ static int ovl_get_data_fsid(struct ovl_fs *ofs)
 	return ofs->numfs;
 }
 
+/*
+ * Set the ovl sb encoding as the same one used by the first layer
+ */
+static int ovl_set_encoding(struct super_block *sb, struct super_block *fs_sb)
+{
+	if (!sb_has_encoding(fs_sb))
+		return 0;
+
+#if IS_ENABLED(CONFIG_UNICODE)
+	if (sb_has_strict_encoding(fs_sb)) {
+		pr_err("strict encoding not supported\n");
+		return -EINVAL;
+	}
+
+	sb->s_encoding = fs_sb->s_encoding;
+	sb->s_encoding_flags = fs_sb->s_encoding_flags;
+#endif
+	return 0;
+}
 
 static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 			  struct ovl_fs_context *ctx, struct ovl_layer *layers)
@@ -1024,6 +1053,12 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	if (ovl_upper_mnt(ofs)) {
 		ofs->fs[0].sb = ovl_upper_mnt(ofs)->mnt_sb;
 		ofs->fs[0].is_lower = false;
+
+		if (ofs->casefold) {
+			err = ovl_set_encoding(sb, ofs->fs[0].sb);
+			if (err)
+				return err;
+		}
 	}
 
 	nr_merged_lower = ctx->nr - ctx->nr_data;
@@ -1083,6 +1118,19 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		l->name = NULL;
 		ofs->numlayer++;
 		ofs->fs[fsid].is_lower = true;
+
+		if (ofs->casefold) {
+			if (!ovl_upper_mnt(ofs) && !sb_has_encoding(sb)) {
+				err = ovl_set_encoding(sb, ofs->fs[fsid].sb);
+				if (err)
+					return err;
+			}
+
+			if (!sb_same_encoding(sb, mnt->mnt_sb)) {
+				pr_err("all layers must have the same encoding\n");
+				return -EINVAL;
+			}
+		}
 	}
 
 	/*
@@ -1300,11 +1348,25 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	ovl_dentry_set_flag(OVL_E_CONNECTED, root);
 	ovl_set_upperdata(d_inode(root));
 	ovl_inode_init(d_inode(root), &oip, ino, fsid);
+	WARN_ON(!!IS_CASEFOLDED(d_inode(root)) != ofs->casefold);
 	ovl_dentry_init_flags(root, upperdentry, oe, DCACHE_OP_WEAK_REVALIDATE);
 	/* root keeps a reference of upperdentry */
 	dget(upperdentry);
 
 	return root;
+}
+
+static void ovl_set_d_op(struct super_block *sb)
+{
+#if IS_ENABLED(CONFIG_UNICODE)
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	if (ofs->casefold) {
+		set_default_d_op(sb, &ovl_dentry_ci_operations);
+		return;
+	}
+#endif
+	set_default_d_op(sb, &ovl_dentry_operations);
 }
 
 int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
@@ -1322,7 +1384,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (WARN_ON(fc->user_ns != current_user_ns()))
 		goto out_err;
 
-	set_default_d_op(sb, &ovl_dentry_operations);
+	ovl_set_d_op(sb);
 
 	err = -ENOMEM;
 	if (!ofs->creator_cred)

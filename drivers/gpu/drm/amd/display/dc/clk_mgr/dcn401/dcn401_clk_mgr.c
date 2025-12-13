@@ -13,7 +13,7 @@
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
-#include "link.h"
+#include "link_service.h"
 #include "dc_state_priv.h"
 #include "atomfirmware.h"
 
@@ -162,7 +162,7 @@ static void dcn401_init_single_clock(struct clk_mgr_internal *clk_mgr, PPCLK_e c
 	unsigned int i;
 	char *entry_i = (char *)entry_0;
 
-	uint32_t ret = dcn30_smu_get_dpm_freq_by_index(clk_mgr, clk, 0xFF);
+	uint32_t ret = dcn401_smu_get_dpm_freq_by_index(clk_mgr, clk, 0xFF);
 
 	if (ret & (1 << 31))
 		/* fine-grained, only min and max */
@@ -174,7 +174,7 @@ static void dcn401_init_single_clock(struct clk_mgr_internal *clk_mgr, PPCLK_e c
 
 	/* if the initial message failed, num_levels will be 0 */
 	for (i = 0; i < *num_levels && i < ARRAY_SIZE(clk_mgr->base.bw_params->clk_table.entries); i++) {
-		*((unsigned int *)entry_i) = (dcn30_smu_get_dpm_freq_by_index(clk_mgr, clk, i) & 0xFFFF);
+		*((unsigned int *)entry_i) = (dcn401_smu_get_dpm_freq_by_index(clk_mgr, clk, i) & 0xFFFF);
 		entry_i += sizeof(clk_mgr->base.bw_params->clk_table.entries[0]);
 	}
 }
@@ -231,20 +231,20 @@ void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 	clk_mgr->smu_present = false;
 	clk_mgr->dpm_present = false;
 
-	if (!clk_mgr_base->force_smu_not_present && dcn30_smu_get_smu_version(clk_mgr, &clk_mgr->smu_ver))
+	if (!clk_mgr_base->force_smu_not_present && dcn401_smu_get_smu_version(clk_mgr, &clk_mgr->smu_ver))
 		clk_mgr->smu_present = true;
 
 	if (!clk_mgr->smu_present)
 		return;
 
-	dcn30_smu_check_driver_if_version(clk_mgr);
-	dcn30_smu_check_msg_header_version(clk_mgr);
+	dcn401_smu_check_driver_if_version(clk_mgr);
+	dcn401_smu_check_msg_header_version(clk_mgr);
 
 	/* DCFCLK */
 	dcn401_init_single_clock(clk_mgr, PPCLK_DCFCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
 			&num_entries_per_clk->num_dcfclk_levels);
-	clk_mgr_base->bw_params->dc_mode_limit.dcfclk_mhz = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_DCFCLK);
+	clk_mgr_base->bw_params->dc_mode_limit.dcfclk_mhz = dcn401_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_DCFCLK);
 	if (num_entries_per_clk->num_dcfclk_levels && clk_mgr_base->bw_params->dc_mode_limit.dcfclk_mhz ==
 			clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_dcfclk_levels - 1].dcfclk_mhz)
 		clk_mgr_base->bw_params->dc_mode_limit.dcfclk_mhz = 0;
@@ -253,7 +253,7 @@ void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn401_init_single_clock(clk_mgr, PPCLK_SOCCLK,
 					&clk_mgr_base->bw_params->clk_table.entries[0].socclk_mhz,
 					&num_entries_per_clk->num_socclk_levels);
-	clk_mgr_base->bw_params->dc_mode_limit.socclk_mhz = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_SOCCLK);
+	clk_mgr_base->bw_params->dc_mode_limit.socclk_mhz = dcn401_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_SOCCLK);
 	if (num_entries_per_clk->num_socclk_levels && clk_mgr_base->bw_params->dc_mode_limit.socclk_mhz ==
 			clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_socclk_levels - 1].socclk_mhz)
 		clk_mgr_base->bw_params->dc_mode_limit.socclk_mhz = 0;
@@ -263,7 +263,7 @@ void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 		dcn401_init_single_clock(clk_mgr, PPCLK_DTBCLK,
 				&clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz,
 				&num_entries_per_clk->num_dtbclk_levels);
-		clk_mgr_base->bw_params->dc_mode_limit.dtbclk_mhz = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_DTBCLK);
+		clk_mgr_base->bw_params->dc_mode_limit.dtbclk_mhz = dcn401_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_DTBCLK);
 		if (num_entries_per_clk->num_dtbclk_levels && clk_mgr_base->bw_params->dc_mode_limit.dtbclk_mhz ==
 				clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_dtbclk_levels - 1].dtbclk_mhz)
 			clk_mgr_base->bw_params->dc_mode_limit.dtbclk_mhz = 0;
@@ -273,7 +273,7 @@ void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn401_init_single_clock(clk_mgr, PPCLK_DISPCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dispclk_mhz,
 			&num_entries_per_clk->num_dispclk_levels);
-	clk_mgr_base->bw_params->dc_mode_limit.dispclk_mhz = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_DISPCLK);
+	clk_mgr_base->bw_params->dc_mode_limit.dispclk_mhz = dcn401_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_DISPCLK);
 	if (num_entries_per_clk->num_dispclk_levels && clk_mgr_base->bw_params->dc_mode_limit.dispclk_mhz ==
 			clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_dispclk_levels - 1].dispclk_mhz)
 		clk_mgr_base->bw_params->dc_mode_limit.dispclk_mhz = 0;
@@ -1318,8 +1318,8 @@ static void dcn401_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 			table->Watermarks.WatermarkRow[i].WmSetting = i;
 			table->Watermarks.WatermarkRow[i].Flags = clk_mgr->base.bw_params->wm_table.nv_entries[i].pmfw_breakdown.wm_type;
 		}
-	dcn30_smu_set_dram_addr_high(clk_mgr, clk_mgr->wm_range_table_addr >> 32);
-	dcn30_smu_set_dram_addr_low(clk_mgr, clk_mgr->wm_range_table_addr & 0xFFFFFFFF);
+	dcn401_smu_set_dram_addr_high(clk_mgr, clk_mgr->wm_range_table_addr >> 32);
+	dcn401_smu_set_dram_addr_low(clk_mgr, clk_mgr->wm_range_table_addr & 0xFFFFFFFF);
 	dcn401_smu_transfer_wm_table_dram_2_smu(clk_mgr);
 }
 
@@ -1390,7 +1390,7 @@ static void dcn401_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 				clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_memclk_levels - 1].memclk_mhz;
 	}
 
-	clk_mgr_base->bw_params->dc_mode_limit.memclk_mhz = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_UCLK);
+	clk_mgr_base->bw_params->dc_mode_limit.memclk_mhz = dcn401_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_UCLK);
 	if (num_entries_per_clk->num_memclk_levels && clk_mgr_base->bw_params->dc_mode_limit.memclk_mhz ==
 			clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_memclk_levels - 1].memclk_mhz)
 		clk_mgr_base->bw_params->dc_mode_limit.memclk_mhz = 0;
@@ -1399,16 +1399,12 @@ static void dcn401_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 	dcn401_init_single_clock(clk_mgr, PPCLK_FCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].fclk_mhz,
 			&num_entries_per_clk->num_fclk_levels);
-	clk_mgr_base->bw_params->dc_mode_limit.fclk_mhz = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_FCLK);
+	clk_mgr_base->bw_params->dc_mode_limit.fclk_mhz = dcn401_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_FCLK);
 	if (num_entries_per_clk->num_fclk_levels && clk_mgr_base->bw_params->dc_mode_limit.fclk_mhz ==
 			clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_fclk_levels - 1].fclk_mhz)
 		clk_mgr_base->bw_params->dc_mode_limit.fclk_mhz = 0;
 
-	if (num_entries_per_clk->num_memclk_levels >= num_entries_per_clk->num_fclk_levels) {
-		num_levels = num_entries_per_clk->num_memclk_levels;
-	} else {
-		num_levels = num_entries_per_clk->num_fclk_levels;
-	}
+	num_levels = max(num_entries_per_clk->num_memclk_levels, num_entries_per_clk->num_fclk_levels);
 
 	clk_mgr_base->bw_params->clk_table.num_entries = num_levels ? num_levels : 1;
 

@@ -7,7 +7,7 @@
 //
 
 /*
- * [NOTE]
+ * [NOTE-CLOCK-MODE]
  *
  * This driver doesn't support Clock/Frame Provider Mode
  *
@@ -24,12 +24,64 @@
  * Clock/Frame Consumer Mode.
  */
 
+/*
+ * [NOTE-RESET]
+ *
+ * MSIOF has TXRST/RXRST to reset FIFO, but it shouldn't be used during SYNC signal was asserted,
+ * because it will be cause of HW issue.
+ *
+ * When MSIOF is used as Sound driver, this driver is assuming it is used as clock consumer mode
+ * (= Codec is clock provider). This means, it can't control SYNC signal by itself.
+ *
+ * We need to use SW reset (= reset_control_xxx()) instead of TXRST/RXRST.
+ */
+
+/*
+ * [NOTE-BOTH-SETTING]
+ *
+ * SITMDRn / SIRMDRn and some other registers should not be updated during working even though it
+ * was not related the target direction (for example, do TX settings during RX is working),
+ * otherwise it cause a FSERR.
+ *
+ * Setup both direction (Playback/Capture) in the same time.
+ */
+
+/*
+ * [NOTE-R/L]
+ *
+ * The data of Captured might be R/L opposite.
+ *
+ * This driver is assuming MSIOF is used as Clock/Frame Consumer Mode, and there is a case that some
+ * Codec (= Clock/Frame Provider) might output Clock/Frame before setup MSIOF. It depends on Codec
+ * driver implementation.
+ *
+ * MSIOF will capture data without checking SYNC signal Hi/Low (= R/L).
+ *
+ * This means, if MSIOF RXE bit was set as 1 in case of SYNC signal was Hi (= R) timing, it will
+ * start capture data since next SYNC low singla (= L). Because Linux assumes sound data is lined
+ * up as R->L->R->L->..., the data R/L will be opposite.
+ *
+ * The only solution in this case is start CLK/SYNC *after* MSIOF settings, but it depends when and
+ * how Codec driver start it.
+ */
+
+/*
+ * [NOTE-FSERR]
+ *
+ * We can't remove all FSERR.
+ *
+ * Renesas have tried to minimize the occurrence of FSERR errors as much as possible, but
+ * unfortunately we cannot remove them completely, because MSIOF might setup its register during
+ * CLK/SYNC are inputed. It can be happen because MSIOF is working as Clock/Frame Consumer.
+ */
+
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/spi/sh_msiof.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/soc.h>
@@ -37,7 +89,6 @@
 /* SISTR */
 #define SISTR_ERR_TX	(SISTR_TFSERR | SISTR_TFOVF | SISTR_TFUDF)
 #define SISTR_ERR_RX	(SISTR_RFSERR | SISTR_RFOVF | SISTR_RFUDF)
-#define SISTR_ERR	(SISTR_ERR_TX | SISTR_ERR_RX)
 
 /*
  * The data on memory in 24bit case is located at <right> side
@@ -61,9 +112,12 @@
 struct msiof_priv {
 	struct device *dev;
 	struct snd_pcm_substream *substream[SNDRV_PCM_STREAM_LAST + 1];
+	struct reset_control *reset;
 	spinlock_t lock;
 	void __iomem *base;
 	resource_size_t phy_addr;
+
+	int count;
 
 	/* for error */
 	int err_syc[SNDRV_PCM_STREAM_LAST + 1];
@@ -80,15 +134,19 @@ struct msiof_priv {
 #define msiof_is_play(substream)	((substream)->stream == SNDRV_PCM_STREAM_PLAYBACK)
 #define msiof_read(priv, reg)		ioread32((priv)->base + reg)
 #define msiof_write(priv, reg, val)	iowrite32(val, (priv)->base + reg)
-#define msiof_status_clear(priv)	msiof_write(priv, SISTR, SISTR_ERR)
 
-static void msiof_update(struct msiof_priv *priv, u32 reg, u32 mask, u32 val)
+static int msiof_update(struct msiof_priv *priv, u32 reg, u32 mask, u32 val)
 {
 	u32 old = msiof_read(priv, reg);
 	u32 new = (old & ~mask) | (val & mask);
+	int updated = false;
 
-	if (old != new)
+	if (old != new) {
 		msiof_write(priv, reg, new);
+		updated = true;
+	}
+
+	return updated;
 }
 
 static void msiof_update_and_wait(struct msiof_priv *priv, u32 reg, u32 mask, u32 val, u32 expect)
@@ -96,7 +154,9 @@ static void msiof_update_and_wait(struct msiof_priv *priv, u32 reg, u32 mask, u3
 	u32 data;
 	int ret;
 
-	msiof_update(priv, reg, mask, val);
+	ret = msiof_update(priv, reg, mask, val);
+	if (!ret) /* no update */
+		return;
 
 	ret = readl_poll_timeout_atomic(priv->base + reg, data,
 					(data & mask) == expect, 1, 128);
@@ -116,7 +176,7 @@ static int msiof_hw_start(struct snd_soc_component *component,
 
 	/*
 	 * see
-	 *	[NOTE] on top of this driver
+	 *	[NOTE-CLOCK-MODE] on top of this driver
 	 */
 	/*
 	 * see
@@ -126,39 +186,63 @@ static int msiof_hw_start(struct snd_soc_component *component,
 	 *	RX: Fig 109.15
 	 */
 
-	/* reset errors */
-	priv->err_syc[substream->stream] =
+	/*
+	 * Use reset_control_xx() instead of TXRST/RXRST.
+	 * see
+	 *	[NOTE-RESET]
+	 */
+	if (!priv->count)
+		reset_control_deassert(priv->reset);
+
+	priv->count++;
+
+	/*
+	 * Reset errors. ignore 1st FSERR
+	 *
+	 * see
+	 *	[NOTE-FSERR]
+	 */
+	priv->err_syc[substream->stream] = -1;
 	priv->err_ovf[substream->stream] =
 	priv->err_udf[substream->stream] = 0;
 
+	/* Start DMAC */
+	snd_dmaengine_pcm_trigger(substream, cmd);
+
+	/*
+	 * setup both direction (Playback/Capture) in the same time.
+	 * see
+	 *	above [NOTE-BOTH-SETTING]
+	 */
+
 	/* SITMDRx */
-	if (is_play) {
-		val = SITMDR1_PCON |
-		      FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR) |
-		      SIMDR1_SYNCAC | SIMDR1_XXSTP;
-		if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
-			val |= FIELD_PREP(SIMDR1_DTDL, 1);
+	val = SITMDR1_PCON | SIMDR1_SYNCAC | SIMDR1_XXSTP |
+		FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR);
+	if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
+		val |= FIELD_PREP(SIMDR1_DTDL, 1);
 
-		msiof_write(priv, SITMDR1, val);
+	msiof_write(priv, SITMDR1, val);
 
-		val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
-		msiof_write(priv, SITMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
-		msiof_write(priv, SITMDR3, val);
+	val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
+	msiof_write(priv, SITMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
+	msiof_write(priv, SITMDR3, val);
 
-	}
 	/* SIRMDRx */
-	else {
-		val = FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR) |
-		      SIMDR1_SYNCAC;
-		if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
-			val |= FIELD_PREP(SIMDR1_DTDL, 1);
+	val = SIMDR1_SYNCAC |
+		FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR);
+	if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
+		val |= FIELD_PREP(SIMDR1_DTDL, 1);
 
-		msiof_write(priv, SIRMDR1, val);
+	msiof_write(priv, SIRMDR1, val);
 
-		val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
-		msiof_write(priv, SIRMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
-		msiof_write(priv, SIRMDR3, val);
-	}
+	val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
+	msiof_write(priv, SIRMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
+	msiof_write(priv, SIRMDR3, val);
+
+	/* SIFCTR */
+	msiof_write(priv, SIFCTR,
+		    FIELD_PREP(SIFCTR_TFWM, SIFCTR_TFWM_1) |
+		    FIELD_PREP(SIFCTR_RFWM, SIFCTR_RFWM_1));
 
 	/* SIIER */
 	if (is_play)
@@ -167,17 +251,20 @@ static int msiof_hw_start(struct snd_soc_component *component,
 		val = SIIER_RDREQE | SIIER_RDMAE | SISTR_ERR_RX;
 	msiof_update(priv, SIIER, val, val);
 
-	/* SICTR */
+	/* clear status */
 	if (is_play)
-		val = SICTR_TXE | SICTR_TEDG;
+		val = SISTR_ERR_TX;
 	else
-		val = SICTR_RXE | SICTR_REDG;
+		val = SISTR_ERR_RX;
+	msiof_update(priv, SISTR, val, val);
+
+	/* SICTR */
+	val = SICTR_TEDG | SICTR_REDG;
+	if (is_play)
+		val |= SICTR_TXE;
+	else
+		val |= SICTR_RXE;
 	msiof_update_and_wait(priv, SICTR, val, val, val);
-
-	msiof_status_clear(priv);
-
-	/* Start DMAC */
-	snd_dmaengine_pcm_trigger(substream, cmd);
 
 	return 0;
 }
@@ -197,9 +284,6 @@ static int msiof_hw_stop(struct snd_soc_component *component,
 		val = SIIER_RDREQE | SIIER_RDMAE | SISTR_ERR_RX;
 	msiof_update(priv, SIIER, val, 0);
 
-	/* Stop DMAC */
-	snd_dmaengine_pcm_trigger(substream, cmd);
-
 	/* SICTR */
 	if (is_play)
 		val = SICTR_TXE;
@@ -207,15 +291,32 @@ static int msiof_hw_stop(struct snd_soc_component *component,
 		val = SICTR_RXE;
 	msiof_update_and_wait(priv, SICTR, val, 0, 0);
 
+	/* Stop DMAC */
+	snd_dmaengine_pcm_trigger(substream, cmd);
+
+	/*
+	 * Ignore 1st FSERR
+	 *
+	 * see
+	 *	[NOTE-FSERR]
+	 */
+	if (priv->err_syc[substream->stream] < 0)
+		priv->err_syc[substream->stream] = 0;
+
 	/* indicate error status if exist */
 	if (priv->err_syc[substream->stream] ||
 	    priv->err_ovf[substream->stream] ||
 	    priv->err_udf[substream->stream])
-		dev_warn(dev, "FSERR(%s) = %d, FOVF = %d, FUDF = %d\n",
+		dev_warn(dev, "%s: FSERR = %d, FOVF = %d, FUDF = %d\n",
 			 snd_pcm_direction_name(substream->stream),
 			 priv->err_syc[substream->stream],
 			 priv->err_ovf[substream->stream],
 			 priv->err_udf[substream->stream]);
+
+	priv->count--;
+
+	if (!priv->count)
+		reset_control_assert(priv->reset);
 
 	return 0;
 }
@@ -292,6 +393,9 @@ static struct snd_soc_dai_driver msiof_dai_driver = {
 		.channels_max	= 2,
 	},
 	.ops = &msiof_dai_ops,
+	.symmetric_rate		= 1,
+	.symmetric_channels	= 1,
+	.symmetric_sample_bits	= 1,
 };
 
 static struct snd_pcm_hardware msiof_pcm_hardware = {
@@ -362,10 +466,9 @@ static int msiof_trigger(struct snd_soc_component *component,
 {
 	struct device *dev = component->dev;
 	struct msiof_priv *priv = dev_get_drvdata(dev);
-	unsigned long flags;
 	int ret = -EINVAL;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -382,8 +485,6 @@ static int msiof_trigger(struct snd_soc_component *component,
 		break;
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return ret;
 }
 
@@ -394,23 +495,18 @@ static int msiof_hw_params(struct snd_soc_component *component,
 	struct msiof_priv *priv = dev_get_drvdata(component->dev);
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct dma_slave_config cfg = {};
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 
 	ret = snd_hwparams_to_dma_slave_config(substream, params, &cfg);
 	if (ret < 0)
-		goto hw_params_out;
+		return ret;
 
 	cfg.dst_addr = priv->phy_addr + SITFDR;
 	cfg.src_addr = priv->phy_addr + SIRFDR;
 
-	ret = dmaengine_slave_config(chan, &cfg);
-hw_params_out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return ret;
+	return dmaengine_slave_config(chan, &cfg);
 }
 
 static const struct snd_soc_component_driver msiof_component_driver = {
@@ -429,12 +525,10 @@ static irqreturn_t msiof_interrupt(int irq, void *data)
 	struct snd_pcm_substream *substream;
 	u32 sistr;
 
-	spin_lock(&priv->lock);
-
-	sistr = msiof_read(priv, SISTR);
-	msiof_status_clear(priv);
-
-	spin_unlock(&priv->lock);
+	scoped_guard(spinlock, &priv->lock) {
+		sistr = msiof_read(priv, SISTR);
+		msiof_write(priv, SISTR, SISTR_ERR_TX | SISTR_ERR_RX);
+	}
 
 	/* overflow/underflow error */
 	substream = priv->substream[SNDRV_PCM_STREAM_PLAYBACK];
@@ -490,12 +584,19 @@ static int msiof_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
+	priv->reset = devm_reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(priv->reset))
+		return PTR_ERR(priv->reset);
+
+	reset_control_assert(priv->reset);
+
 	ret = devm_request_irq(dev, irq, msiof_interrupt, 0, dev_name(dev), priv);
 	if (ret)
 		return ret;
 
 	priv->dev	= dev;
 	priv->phy_addr	= res->start;
+	priv->count	= 0;
 
 	spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);

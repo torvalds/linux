@@ -2919,7 +2919,6 @@ static struct platform_driver cdns_sierra_driver = {
 };
 module_platform_driver(cdns_sierra_driver);
 
-MODULE_ALIAS("platform:cdns_sierra");
 MODULE_AUTHOR("Cadence Design Systems");
 MODULE_DESCRIPTION("CDNS sierra phy driver");
 MODULE_LICENSE("GPL v2");

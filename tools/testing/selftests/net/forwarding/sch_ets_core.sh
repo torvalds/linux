@@ -165,8 +165,7 @@ h1_create()
 {
 	local i;
 
-	simple_if_init $h1
-	defer simple_if_fini $h1
+	adf_simple_if_init $h1
 
 	mtu_set $h1 9900
 	defer mtu_restore $h1
@@ -182,8 +181,7 @@ h2_create()
 {
 	local i
 
-	simple_if_init $h2
-	defer simple_if_fini $h2
+	adf_simple_if_init $h2
 
 	mtu_set $h2 9900
 	defer mtu_restore $h2
@@ -251,8 +249,7 @@ setup_prepare()
 	put=$swp2
 	hut=$h2
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	h1_create
 	h2_create

@@ -122,7 +122,6 @@ struct crypto_aes_xts_ctx {
 struct crypto_aes_essiv_cbc_ctx {
 	struct crypto_aes_ctx key1;
 	struct crypto_aes_ctx __aligned(8) key2;
-	struct crypto_shash *hash;
 };
 
 struct mac_tfm_ctx {
@@ -171,7 +170,7 @@ static int __maybe_unused essiv_cbc_set_key(struct crypto_skcipher *tfm,
 	if (ret)
 		return ret;
 
-	crypto_shash_tfm_digest(ctx->hash, in_key, key_len, digest);
+	sha256(in_key, key_len, digest);
 
 	return aes_expandkey(&ctx->key2, digest, sizeof(digest));
 }
@@ -386,22 +385,6 @@ static int cts_cbc_decrypt(struct skcipher_request *req)
 	kernel_neon_end();
 
 	return skcipher_walk_done(&walk, 0);
-}
-
-static int __maybe_unused essiv_cbc_init_tfm(struct crypto_skcipher *tfm)
-{
-	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	ctx->hash = crypto_alloc_shash("sha256", 0, 0);
-
-	return PTR_ERR_OR_ZERO(ctx->hash);
-}
-
-static void __maybe_unused essiv_cbc_exit_tfm(struct crypto_skcipher *tfm)
-{
-	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	crypto_free_shash(ctx->hash);
 }
 
 static int __maybe_unused essiv_cbc_encrypt(struct skcipher_request *req)
@@ -793,8 +776,6 @@ static struct skcipher_alg aes_algs[] = { {
 	.setkey		= essiv_cbc_set_key,
 	.encrypt	= essiv_cbc_encrypt,
 	.decrypt	= essiv_cbc_decrypt,
-	.init		= essiv_cbc_init_tfm,
-	.exit		= essiv_cbc_exit_tfm,
 } };
 
 static int cbcmac_setkey(struct crypto_shash *tfm, const u8 *in_key,

@@ -282,7 +282,7 @@ static int pm8xxx_pin_config_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = 1;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		if (pin->mode & PM8XXX_GPIO_MODE_OUTPUT)
 			arg = pin->output_value;
 		else
@@ -364,7 +364,7 @@ static int pm8xxx_pin_config_set(struct pinctrl_dev *pctldev,
 			pin->mode = PM8XXX_GPIO_MODE_INPUT;
 			banks |= BIT(0) | BIT(1);
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			pin->mode = PM8XXX_GPIO_MODE_OUTPUT;
 			pin->output_value = !!arg;
 			banks |= BIT(0) | BIT(1);

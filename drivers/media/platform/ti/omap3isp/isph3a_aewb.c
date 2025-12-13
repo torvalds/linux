@@ -269,7 +269,7 @@ static const struct ispstat_ops h3a_aewb_ops = {
 static const struct v4l2_subdev_core_ops h3a_aewb_subdev_core_ops = {
 	.ioctl = h3a_aewb_ioctl,
 	.subscribe_event = omap3isp_stat_subscribe_event,
-	.unsubscribe_event = omap3isp_stat_unsubscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_video_ops h3a_aewb_subdev_video_ops = {

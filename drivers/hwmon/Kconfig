@@ -769,6 +769,16 @@ config SENSORS_GL520SM
 	  This driver can also be built as a module. If so, the module
 	  will be called gl520sm.
 
+config SENSORS_GPD
+	tristate "GPD handhelds"
+	depends on X86 && DMI && HAS_IOPORT
+	help
+	  If you say yes here you get support for fan readings and
+	  control over GPD handheld devices.
+
+	  Can also be built as a module. In that case it will be
+	  called gpd-fan.
+
 config SENSORS_G760A
 	tristate "GMT G760A"
 	depends on I2C
@@ -1698,6 +1708,16 @@ config SENSORS_NCT6683
 	  This driver can also be built as a module. If so, the module
 	  will be called nct6683.
 
+config SENSORS_NCT6694
+	tristate "Nuvoton NCT6694 Hardware Monitor support"
+	depends on MFD_NCT6694
+	help
+	  Say Y here to support Nuvoton NCT6694 hardware monitoring
+	  functionality.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct6694-hwmon.
+
 config SENSORS_NCT6775_CORE
 	tristate
 	select REGMAP
@@ -1895,6 +1915,16 @@ config SENSORS_RASPBERRYPI_HWMON
 	  This driver can also be built as a module. If so, the module
 	  will be called raspberrypi-hwmon.
 
+config SENSORS_SA67MCU
+	tristate "Kontron sa67mcu hardware monitoring driver"
+	depends on MFD_SL28CPLD || COMPILE_TEST
+	help
+	  If you say yes here you get support for the voltage and temperature
+	  monitor of the sa67 board management controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sa67mcu-hwmon.
+
 config SENSORS_SL28CPLD
 	tristate "Kontron sl28cpld hardware monitoring driver"
 	depends on MFD_SL28CPLD || COMPILE_TEST
@@ -1930,8 +1960,8 @@ config SENSORS_SHT21
 	tristate "Sensiron humidity and temperature sensors. SHT21 and compat."
 	depends on I2C
 	help
-	  If you say yes here you get support for the Sensiron SHT21, SHT25
-	  humidity and temperature sensors.
+	  If you say yes here you get support for the Sensiron SHT20, SHT21,
+	  SHT25 humidity and temperature sensors.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called sht21.
@@ -2252,13 +2282,14 @@ config SENSORS_INA2XX
 	  will be called ina2xx.
 
 config SENSORS_INA238
-	tristate "Texas Instruments INA238"
+	tristate "Texas Instruments INA238 and compatibles"
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  If you say yes here you get support for the INA238 power monitor
-	  chip. This driver supports voltage, current, power and temperature
-	  measurements as well as alarm configuration.
+	  If you say yes here you get support for INA228, INA237, INA238,
+	  INA700, INA780, and SQ52206 power monitor chips. This driver supports
+	  voltage, current, power, energy, and temperature measurements as well
+	  as alarm configuration.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called ina238.
@@ -2673,9 +2704,10 @@ config SENSORS_ASUS_EC
 	depends on ACPI_EC
 	help
 	  If you say yes here you get support for the ACPI embedded controller
-	  hardware monitoring interface found in ASUS motherboards. The driver
-	  currently supports B550/X570 boards, although other ASUS boards might
-	  provide this monitoring interface as well.
+	  hardware monitoring interface found in some ASUS motherboards. This is
+	  where such sensors as water flow and temperature, optional fans, and
+	  additional temperature sensors (T_Sensor, chipset temperatures)
+	  find themselves.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_ec_sensors.

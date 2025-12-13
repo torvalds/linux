@@ -182,6 +182,7 @@ bool einj_initialized __ro_after_init;
 
 static void __iomem *einj_param;
 static u32 v5param_size;
+static u32 v66param_size;
 static bool is_v2;
 
 static void einj_exec_ctx_init(struct apei_exec_context *ctx)
@@ -283,6 +284,24 @@ static void check_vendor_extension(u64 paddr,
 	acpi_os_unmap_iomem(p, sizeof(v));
 }
 
+static u32 einjv2_init(struct einjv2_extension_struct *e)
+{
+	if (e->revision != 1) {
+		pr_info("Unknown v2 extension revision %u\n", e->revision);
+		return 0;
+	}
+	if (e->length < sizeof(*e) || e->length > PAGE_SIZE) {
+		pr_info(FW_BUG "Bad1 v2 extension length %u\n", e->length);
+		return 0;
+	}
+	if ((e->length - sizeof(*e)) % sizeof(e->component_arr[0])) {
+		pr_info(FW_BUG "Bad2 v2 extension length %u\n", e->length);
+		return 0;
+	}
+
+	return (e->length - sizeof(*e)) / sizeof(e->component_arr[0]);
+}
+
 static void __iomem *einj_get_parameter_address(void)
 {
 	int i;
@@ -310,28 +329,21 @@ static void __iomem *einj_get_parameter_address(void)
 		v5param_size = sizeof(v5param);
 		p = acpi_os_map_iomem(pa_v5, sizeof(*p));
 		if (p) {
-			int offset, len;
-
 			memcpy_fromio(&v5param, p, v5param_size);
 			acpi5 = 1;
 			check_vendor_extension(pa_v5, &v5param);
 			if (available_error_type & ACPI65_EINJV2_SUPP) {
-				len = v5param.einjv2_struct.length;
-				offset = offsetof(struct einjv2_extension_struct, component_arr);
-				max_nr_components = (len - offset) /
-						sizeof(v5param.einjv2_struct.component_arr[0]);
-				/*
-				 * The first call to acpi_os_map_iomem above does not include the
-				 * component array, instead it is used to read and calculate maximum
-				 * number of components supported by the system. Below, the mapping
-				 * is expanded to include the component array.
-				 */
+				struct einjv2_extension_struct *e;
+
+				e = &v5param.einjv2_struct;
+				max_nr_components = einjv2_init(e);
+
+				/* remap including einjv2_extension_struct */
 				acpi_os_unmap_iomem(p, v5param_size);
-				offset = offsetof(struct set_error_type_with_address, einjv2_struct);
-				v5param_size = offset + struct_size(&v5param.einjv2_struct,
-					component_arr, max_nr_components);
-				p = acpi_os_map_iomem(pa_v5, v5param_size);
+				v66param_size = v5param_size - sizeof(*e) + e->length;
+				p = acpi_os_map_iomem(pa_v5, v66param_size);
 			}
+
 			return p;
 		}
 	}
@@ -527,6 +539,7 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 			       u64 param3, u64 param4)
 {
 	struct apei_exec_context ctx;
+	u32 param_size = is_v2 ? v66param_size : v5param_size;
 	u64 val, trigger_paddr, timeout = FIRMWARE_TIMEOUT;
 	int i, rc;
 
@@ -539,8 +552,11 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	if (acpi5) {
 		struct set_error_type_with_address *v5param;
 
-		v5param = kmalloc(v5param_size, GFP_KERNEL);
-		memcpy_fromio(v5param, einj_param, v5param_size);
+		v5param = kmalloc(param_size, GFP_KERNEL);
+		if (!v5param)
+			return -ENOMEM;
+
+		memcpy_fromio(v5param, einj_param, param_size);
 		v5param->type = type;
 		if (type & ACPI5_VENDOR_BIT) {
 			switch (vendor_flags) {
@@ -598,7 +614,7 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 				break;
 			}
 		}
-		memcpy_toio(einj_param, v5param, v5param_size);
+		memcpy_toio(einj_param, v5param, param_size);
 		kfree(v5param);
 	} else {
 		rc = apei_exec_run(&ctx, ACPI_EINJ_SET_ERROR_TYPE);
@@ -653,6 +669,43 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	return rc;
 }
 
+/* Allow almost all types of address except MMIO. */
+static bool is_allowed_range(u64 base_addr, u64 size)
+{
+	int i;
+	/*
+	 * MMIO region is usually claimed with IORESOURCE_MEM + IORES_DESC_NONE.
+	 * However, IORES_DESC_NONE is treated like a wildcard when we check if
+	 * region intersects with known resource. So do an allow list check for
+	 * IORES_DESCs that definitely or most likely not MMIO.
+	 */
+	int non_mmio_desc[] = {
+		IORES_DESC_CRASH_KERNEL,
+		IORES_DESC_ACPI_TABLES,
+		IORES_DESC_ACPI_NV_STORAGE,
+		IORES_DESC_PERSISTENT_MEMORY,
+		IORES_DESC_PERSISTENT_MEMORY_LEGACY,
+		/* Treat IORES_DESC_DEVICE_PRIVATE_MEMORY as MMIO. */
+		IORES_DESC_RESERVED,
+		IORES_DESC_SOFT_RESERVED,
+	};
+
+	if (region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
+			      == REGION_INTERSECTS)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(non_mmio_desc); ++i) {
+		if (region_intersects(base_addr, size, IORESOURCE_MEM, non_mmio_desc[i])
+				      == REGION_INTERSECTS)
+			return true;
+	}
+
+	if (arch_is_platform_page(base_addr))
+		return true;
+
+	return false;
+}
+
 /* Inject the specified hardware error */
 int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2, u64 param3,
 		      u64 param4)
@@ -699,19 +752,15 @@ int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2, u64 param3,
 	 * Disallow crazy address masks that give BIOS leeway to pick
 	 * injection address almost anywhere. Insist on page or
 	 * better granularity and that target address is normal RAM or
-	 * NVDIMM.
+	 * as long as is not MMIO.
 	 */
 	base_addr = param1 & param2;
 	size = ~param2 + 1;
 
-	if (((param2 & PAGE_MASK) != PAGE_MASK) ||
-	    ((region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
-				!= REGION_INTERSECTS) &&
-	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_PERSISTENT_MEMORY)
-				!= REGION_INTERSECTS) &&
-	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_SOFT_RESERVED)
-				!= REGION_INTERSECTS) &&
-	     !arch_is_platform_page(base_addr)))
+	if ((param2 & PAGE_MASK) != PAGE_MASK)
+		return -EINVAL;
+
+	if (!is_allowed_range(base_addr, size))
 		return -EINVAL;
 
 	if (is_zero_pfn(base_addr >> PAGE_SHIFT))
@@ -1091,14 +1140,19 @@ err_put_table:
 	return rc;
 }
 
-static void __exit einj_remove(struct faux_device *fdev)
+static void einj_remove(struct faux_device *fdev)
 {
 	struct apei_exec_context ctx;
 
 	if (einj_param) {
-		acpi_size size = (acpi5) ?
-			v5param_size :
-			sizeof(struct einj_parameter);
+		acpi_size size;
+
+		if (v66param_size)
+			size = v66param_size;
+		else if (acpi5)
+			size = v5param_size;
+		else
+			size = sizeof(struct einj_parameter);
 
 		acpi_os_unmap_iomem(einj_param, size);
 		if (vendor_errors.size)
@@ -1114,15 +1168,9 @@ static void __exit einj_remove(struct faux_device *fdev)
 }
 
 static struct faux_device *einj_dev;
-/*
- * einj_remove() lives in .exit.text. For drivers registered via
- * platform_driver_probe() this is ok because they cannot get unbound at
- * runtime. So mark the driver struct with __refdata to prevent modpost
- * triggering a section mismatch warning.
- */
-static struct faux_device_ops einj_device_ops __refdata = {
+static struct faux_device_ops einj_device_ops = {
 	.probe = einj_probe,
-	.remove = __exit_p(einj_remove),
+	.remove = einj_remove,
 };
 
 static int __init einj_init(void)

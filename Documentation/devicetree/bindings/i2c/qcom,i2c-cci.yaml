@@ -25,6 +25,8 @@ properties:
 
       - items:
           - enum:
+              - qcom,qcm2290-cci
+              - qcom,sa8775p-cci
               - qcom,sc7280-cci
               - qcom,sc8280xp-cci
               - qcom,sdm670-cci
@@ -44,11 +46,11 @@ properties:
     const: 0
 
   clocks:
-    minItems: 3
+    minItems: 2
     maxItems: 6
 
   clock-names:
-    minItems: 3
+    minItems: 2
     maxItems: 6
 
   interrupts:
@@ -113,11 +115,28 @@ allOf:
     then:
       properties:
         clocks:
+          minItems: 3
           maxItems: 3
         clock-names:
           items:
             - const: camss_top_ahb
             - const: cci_ahb
+            - const: cci
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcm2290-cci
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: ahb
             - const: cci
 
   - if:
@@ -223,6 +242,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,sa8775p-cci
               - qcom,sm8550-cci
               - qcom,sm8650-cci
               - qcom,x1e80100-cci
@@ -292,7 +312,8 @@ examples:
 
                 clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
                 clock-names = "xvclk";
-                clock-frequency = <19200000>;
+                assigned-clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
+                assigned-clock-rates = <19200000>;
 
                 dovdd-supply = <&vreg_lvs1a_1p8>;
                 avdd-supply = <&cam0_avdd_2v8>;
@@ -324,7 +345,8 @@ examples:
 
                 clocks = <&clock_camcc CAM_CC_MCLK3_CLK>;
                 clock-names = "xclk";
-                clock-frequency = <24000000>;
+                assigned-clocks = <&clock_camcc CAM_CC_MCLK3_CLK>;
+                assigned-clock-rates = <24000000>;
 
                 vdddo-supply = <&vreg_lvs1a_1p8>;
                 vdda-supply = <&cam3_avdd_2v8>;

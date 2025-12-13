@@ -113,7 +113,7 @@ static bool fail_nth_next(struct __test_metadata *_metadata,
 	 * necessarily mean a test failure, just that the limit has to be made
 	 * bigger.
 	 */
-	ASSERT_GT(400, nth_state->iteration);
+	ASSERT_GT(1000, nth_state->iteration);
 	if (nth_state->iteration != 0) {
 		ssize_t res;
 		ssize_t res2;

@@ -166,7 +166,7 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 	u32 value2;
 
 	if (emu->card_capabilities->emu_model) {
-		snd_emu1010_fpga_lock(emu);
+		guard(snd_emu1010_fpga_lock)(emu);
 
 		// This represents the S/PDIF lock status on 0404b, which is
 		// kinda weird and unhelpful, because monitoring it via IRQ is
@@ -200,8 +200,6 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "\nS/PDIF mode: %s%s\n",
 				    value & EMU_HANA_SPDIF_MODE_RX_PRO ? "professional" : "consumer",
 				    value & EMU_HANA_SPDIF_MODE_RX_NOCOPY ? ", no copy" : "");
-
-		snd_emu1010_fpga_unlock(emu);
 	} else {
 		snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
 		snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
@@ -464,7 +462,7 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 	u32 value;
 	int i;
 
-	snd_emu1010_fpga_lock(emu);
+	guard(snd_emu1010_fpga_lock)(emu);
 
 	snd_iprintf(buffer, "EMU1010 Registers:\n\n");
 
@@ -504,8 +502,6 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 			snd_emu_proc_emu1010_link_read(emu, buffer, 0x701);
 		}
 	}
-
-	snd_emu1010_fpga_unlock(emu);
 }
 
 static void snd_emu_proc_io_reg_read(struct snd_info_entry *entry,
@@ -541,15 +537,13 @@ static unsigned int snd_ptr_read(struct snd_emu10k1 * emu,
 				 unsigned int reg,
 				 unsigned int chn)
 {
-	unsigned int regptr, val;
+	unsigned int regptr;
 
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irq(&emu->emu_lock);
+	guard(spinlock_irq)(&emu->emu_lock);
 	outl(regptr, emu->port + iobase + PTR);
-	val = inl(emu->port + iobase + DATA);
-	spin_unlock_irq(&emu->emu_lock);
-	return val;
+	return inl(emu->port + iobase + DATA);
 }
 
 static void snd_ptr_write(struct snd_emu10k1 *emu,
@@ -562,10 +556,9 @@ static void snd_ptr_write(struct snd_emu10k1 *emu,
 
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irq(&emu->emu_lock);
+	guard(spinlock_irq)(&emu->emu_lock);
 	outl(regptr, emu->port + iobase + PTR);
 	outl(data, emu->port + iobase + DATA);
-	spin_unlock_irq(&emu->emu_lock);
 }
 
 

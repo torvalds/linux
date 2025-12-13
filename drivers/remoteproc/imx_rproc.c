@@ -285,123 +285,88 @@ static const struct imx_rproc_att imx_rproc_att_imx6sx[] = {
 	{ 0x80000000, 0x80000000, 0x60000000, 0 },
 };
 
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn_mmio = {
-	.src_reg	= IMX7D_SRC_SCR,
-	.src_mask	= IMX7D_M4_RST_MASK,
-	.src_start	= IMX7D_M4_START,
-	.src_stop	= IMX8M_M7_STOP,
-	.gpr_reg	= IMX8M_GPR22,
-	.gpr_wait	= IMX8M_GPR22_CM7_CPUWAIT,
-	.att		= imx_rproc_att_imx8mn,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mn),
-	.method		= IMX_RPROC_MMIO,
-};
+static int imx_rproc_arm_smc_start(struct rproc *rproc)
+{
+	struct arm_smccc_res res;
 
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn = {
-	.att		= imx_rproc_att_imx8mn,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mn),
-	.method		= IMX_RPROC_SMC,
-};
+	arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_START, 0, 0, 0, 0, 0, 0, &res);
 
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mq = {
-	.src_reg	= IMX7D_SRC_SCR,
-	.src_mask	= IMX7D_M4_RST_MASK,
-	.src_start	= IMX7D_M4_START,
-	.src_stop	= IMX7D_M4_STOP,
-	.att		= imx_rproc_att_imx8mq,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mq),
-	.method		= IMX_RPROC_MMIO,
-};
+	return res.a0;
+}
 
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx8qm = {
-	.att            = imx_rproc_att_imx8qm,
-	.att_size       = ARRAY_SIZE(imx_rproc_att_imx8qm),
-	.method         = IMX_RPROC_SCU_API,
-};
+static int imx_rproc_mmio_start(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx8qxp = {
-	.att		= imx_rproc_att_imx8qxp,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8qxp),
-	.method		= IMX_RPROC_SCU_API,
-};
+	if (priv->gpr)
+		return regmap_clear_bits(priv->gpr, dcfg->gpr_reg, dcfg->gpr_wait);
 
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx8ulp = {
-	.att		= imx_rproc_att_imx8ulp,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8ulp),
-	.method		= IMX_RPROC_NONE,
-};
+	return regmap_update_bits(priv->regmap, dcfg->src_reg, dcfg->src_mask, dcfg->src_start);
+}
 
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx7ulp = {
-	.att		= imx_rproc_att_imx7ulp,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx7ulp),
-	.method		= IMX_RPROC_NONE,
-	.flags		= IMX_RPROC_NEED_SYSTEM_OFF,
-};
+static int imx_rproc_scu_api_start(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
 
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx7d = {
-	.src_reg	= IMX7D_SRC_SCR,
-	.src_mask	= IMX7D_M4_RST_MASK,
-	.src_start	= IMX7D_M4_START,
-	.src_stop	= IMX7D_M4_STOP,
-	.att		= imx_rproc_att_imx7d,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx7d),
-	.method		= IMX_RPROC_MMIO,
-};
-
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx6sx = {
-	.src_reg	= IMX6SX_SRC_SCR,
-	.src_mask	= IMX6SX_M4_RST_MASK,
-	.src_start	= IMX6SX_M4_START,
-	.src_stop	= IMX6SX_M4_STOP,
-	.att		= imx_rproc_att_imx6sx,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx6sx),
-	.method		= IMX_RPROC_MMIO,
-};
-
-static const struct imx_rproc_dcfg imx_rproc_cfg_imx93 = {
-	.att		= imx_rproc_att_imx93,
-	.att_size	= ARRAY_SIZE(imx_rproc_att_imx93),
-	.method		= IMX_RPROC_SMC,
-};
+	return imx_sc_pm_cpu_start(priv->ipc_handle, priv->rsrc_id, true, priv->entry);
+}
 
 static int imx_rproc_start(struct rproc *rproc)
 {
 	struct imx_rproc *priv = rproc->priv;
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	struct device *dev = priv->dev;
-	struct arm_smccc_res res;
 	int ret;
 
 	ret = imx_rproc_xtr_mbox_init(rproc, true);
 	if (ret)
 		return ret;
 
-	switch (dcfg->method) {
-	case IMX_RPROC_MMIO:
-		if (priv->gpr) {
-			ret = regmap_clear_bits(priv->gpr, dcfg->gpr_reg,
-						dcfg->gpr_wait);
-		} else {
-			ret = regmap_update_bits(priv->regmap, dcfg->src_reg,
-						 dcfg->src_mask,
-						 dcfg->src_start);
-		}
-		break;
-	case IMX_RPROC_SMC:
-		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_START, 0, 0, 0, 0, 0, 0, &res);
-		ret = res.a0;
-		break;
-	case IMX_RPROC_SCU_API:
-		ret = imx_sc_pm_cpu_start(priv->ipc_handle, priv->rsrc_id, true, priv->entry);
-		break;
-	default:
+	if (!dcfg->ops || !dcfg->ops->start)
 		return -EOPNOTSUPP;
-	}
 
+	ret = dcfg->ops->start(rproc);
 	if (ret)
 		dev_err(dev, "Failed to enable remote core!\n");
 
 	return ret;
+}
+
+static int imx_rproc_arm_smc_stop(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a1)
+		dev_info(priv->dev, "Not in wfi, force stopped\n");
+
+	return res.a0;
+}
+
+static int imx_rproc_mmio_stop(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+	int ret;
+
+	if (priv->gpr) {
+		ret = regmap_set_bits(priv->gpr, dcfg->gpr_reg, dcfg->gpr_wait);
+		if (ret) {
+			dev_err(priv->dev, "Failed to quiescence M4 platform!\n");
+			return ret;
+		}
+	}
+
+	return regmap_update_bits(priv->regmap, dcfg->src_reg, dcfg->src_mask, dcfg->src_stop);
+}
+
+static int imx_rproc_scu_api_stop(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+
+	return imx_sc_pm_cpu_start(priv->ipc_handle, priv->rsrc_id, false, priv->entry);
 }
 
 static int imx_rproc_stop(struct rproc *rproc)
@@ -409,37 +374,12 @@ static int imx_rproc_stop(struct rproc *rproc)
 	struct imx_rproc *priv = rproc->priv;
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	struct device *dev = priv->dev;
-	struct arm_smccc_res res;
 	int ret;
 
-	switch (dcfg->method) {
-	case IMX_RPROC_MMIO:
-		if (priv->gpr) {
-			ret = regmap_set_bits(priv->gpr, dcfg->gpr_reg,
-					      dcfg->gpr_wait);
-			if (ret) {
-				dev_err(priv->dev,
-					"Failed to quiescence M4 platform!\n");
-				return ret;
-			}
-		}
-
-		ret = regmap_update_bits(priv->regmap, dcfg->src_reg, dcfg->src_mask,
-					 dcfg->src_stop);
-		break;
-	case IMX_RPROC_SMC:
-		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, 0, 0, 0, 0, 0, 0, &res);
-		ret = res.a0;
-		if (res.a1)
-			dev_info(dev, "Not in wfi, force stopped\n");
-		break;
-	case IMX_RPROC_SCU_API:
-		ret = imx_sc_pm_cpu_start(priv->ipc_handle, priv->rsrc_id, false, priv->entry);
-		break;
-	default:
+	if (!dcfg->ops || !dcfg->ops->stop)
 		return -EOPNOTSUPP;
-	}
 
+	ret = dcfg->ops->stop(rproc);
 	if (ret)
 		dev_err(dev, "Failed to stop remote core\n");
 	else
@@ -922,84 +862,27 @@ static int imx_rproc_attach_pd(struct imx_rproc *priv)
 	return 0;
 }
 
-static int imx_rproc_detect_mode(struct imx_rproc *priv)
+static int imx_rproc_arm_smc_detect_mode(struct rproc *rproc)
 {
-	struct regmap_config config = { .name = "imx-rproc" };
+	struct imx_rproc *priv = rproc->priv;
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STARTED, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a0)
+		priv->rproc->state = RPROC_DETACHED;
+
+	return 0;
+}
+
+static int imx_rproc_mmio_detect_mode(struct rproc *rproc)
+{
+	const struct regmap_config config = { .name = "imx-rproc" };
+	struct imx_rproc *priv = rproc->priv;
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	struct device *dev = priv->dev;
 	struct regmap *regmap;
-	struct arm_smccc_res res;
-	int ret;
 	u32 val;
-	u8 pt;
-
-	switch (dcfg->method) {
-	case IMX_RPROC_NONE:
-		priv->rproc->state = RPROC_DETACHED;
-		return 0;
-	case IMX_RPROC_SMC:
-		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STARTED, 0, 0, 0, 0, 0, 0, &res);
-		if (res.a0)
-			priv->rproc->state = RPROC_DETACHED;
-		return 0;
-	case IMX_RPROC_SCU_API:
-		ret = imx_scu_get_handle(&priv->ipc_handle);
-		if (ret)
-			return ret;
-		ret = of_property_read_u32(dev->of_node, "fsl,resource-id", &priv->rsrc_id);
-		if (ret) {
-			dev_err(dev, "No fsl,resource-id property\n");
-			return ret;
-		}
-
-		if (priv->rsrc_id == IMX_SC_R_M4_1_PID0)
-			priv->core_index = 1;
-		else
-			priv->core_index = 0;
-
-		/*
-		 * If Mcore resource is not owned by Acore partition, It is kicked by ROM,
-		 * and Linux could only do IPC with Mcore and nothing else.
-		 */
-		if (imx_sc_rm_is_resource_owned(priv->ipc_handle, priv->rsrc_id)) {
-			if (of_property_read_u32(dev->of_node, "fsl,entry-address", &priv->entry))
-				return -EINVAL;
-
-			return imx_rproc_attach_pd(priv);
-		}
-
-		priv->rproc->state = RPROC_DETACHED;
-		priv->rproc->recovery_disabled = false;
-		rproc_set_feature(priv->rproc, RPROC_FEAT_ATTACH_ON_RECOVERY);
-
-		/* Get partition id and enable irq in SCFW */
-		ret = imx_sc_rm_get_resource_owner(priv->ipc_handle, priv->rsrc_id, &pt);
-		if (ret) {
-			dev_err(dev, "not able to get resource owner\n");
-			return ret;
-		}
-
-		priv->rproc_pt = pt;
-		priv->rproc_nb.notifier_call = imx_rproc_partition_notify;
-
-		ret = imx_scu_irq_register_notifier(&priv->rproc_nb);
-		if (ret) {
-			dev_err(dev, "register scu notifier failed, %d\n", ret);
-			return ret;
-		}
-
-		ret = imx_scu_irq_group_enable(IMX_SC_IRQ_GROUP_REBOOTED, BIT(priv->rproc_pt),
-					       true);
-		if (ret) {
-			imx_scu_irq_unregister_notifier(&priv->rproc_nb);
-			dev_err(dev, "Enable irq failed, %d\n", ret);
-			return ret;
-		}
-
-		return 0;
-	default:
-		break;
-	}
+	int ret;
 
 	priv->gpr = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,iomuxc-gpr");
 	if (IS_ERR(priv->gpr))
@@ -1037,6 +920,85 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 		priv->rproc->state = RPROC_DETACHED;
 
 	return 0;
+}
+
+static int imx_rproc_scu_api_detect_mode(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	struct device *dev = priv->dev;
+	int ret;
+	u8 pt;
+
+	ret = imx_scu_get_handle(&priv->ipc_handle);
+	if (ret)
+		return ret;
+	ret = of_property_read_u32(dev->of_node, "fsl,resource-id", &priv->rsrc_id);
+	if (ret) {
+		dev_err(dev, "No fsl,resource-id property\n");
+		return ret;
+	}
+
+	if (priv->rsrc_id == IMX_SC_R_M4_1_PID0)
+		priv->core_index = 1;
+	else
+		priv->core_index = 0;
+
+	/*
+	 * If Mcore resource is not owned by Acore partition, It is kicked by ROM,
+	 * and Linux could only do IPC with Mcore and nothing else.
+	 */
+	if (imx_sc_rm_is_resource_owned(priv->ipc_handle, priv->rsrc_id)) {
+		if (of_property_read_u32(dev->of_node, "fsl,entry-address", &priv->entry))
+			return -EINVAL;
+
+		return imx_rproc_attach_pd(priv);
+	}
+
+	priv->rproc->state = RPROC_DETACHED;
+	priv->rproc->recovery_disabled = false;
+	rproc_set_feature(priv->rproc, RPROC_FEAT_ATTACH_ON_RECOVERY);
+
+	/* Get partition id and enable irq in SCFW */
+	ret = imx_sc_rm_get_resource_owner(priv->ipc_handle, priv->rsrc_id, &pt);
+	if (ret) {
+		dev_err(dev, "not able to get resource owner\n");
+		return ret;
+	}
+
+	priv->rproc_pt = pt;
+	priv->rproc_nb.notifier_call = imx_rproc_partition_notify;
+
+	ret = imx_scu_irq_register_notifier(&priv->rproc_nb);
+	if (ret) {
+		dev_err(dev, "register scu notifier failed, %d\n", ret);
+		return ret;
+	}
+
+	ret = imx_scu_irq_group_enable(IMX_SC_IRQ_GROUP_REBOOTED, BIT(priv->rproc_pt),
+				       true);
+	if (ret) {
+		imx_scu_irq_unregister_notifier(&priv->rproc_nb);
+		dev_err(dev, "Enable irq failed, %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int imx_rproc_detect_mode(struct imx_rproc *priv)
+{
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+
+	/*
+	 * To i.MX{7,8} ULP, Linux is under control of RTOS, no need
+	 * dcfg->ops or dcfg->ops->detect_mode, it is state RPROC_DETACHED.
+	 */
+	if (!dcfg->ops || !dcfg->ops->detect_mode) {
+		priv->rproc->state = RPROC_DETACHED;
+		return 0;
+	}
+
+	return dcfg->ops->detect_mode(priv->rproc);
 }
 
 static int imx_rproc_clk_enable(struct imx_rproc *priv)
@@ -1206,6 +1168,111 @@ static void imx_rproc_remove(struct platform_device *pdev)
 	imx_rproc_free_mbox(rproc);
 	destroy_workqueue(priv->workqueue);
 }
+
+static const struct imx_rproc_plat_ops imx_rproc_ops_arm_smc = {
+	.start		= imx_rproc_arm_smc_start,
+	.stop		= imx_rproc_arm_smc_stop,
+	.detect_mode	= imx_rproc_arm_smc_detect_mode,
+};
+
+static const struct imx_rproc_plat_ops imx_rproc_ops_mmio = {
+	.start		= imx_rproc_mmio_start,
+	.stop		= imx_rproc_mmio_stop,
+	.detect_mode	= imx_rproc_mmio_detect_mode,
+};
+
+static const struct imx_rproc_plat_ops imx_rproc_ops_scu_api = {
+	.start		= imx_rproc_scu_api_start,
+	.stop		= imx_rproc_scu_api_stop,
+	.detect_mode	= imx_rproc_scu_api_detect_mode,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn_mmio = {
+	.src_reg	= IMX7D_SRC_SCR,
+	.src_mask	= IMX7D_M4_RST_MASK,
+	.src_start	= IMX7D_M4_START,
+	.src_stop	= IMX8M_M7_STOP,
+	.gpr_reg	= IMX8M_GPR22,
+	.gpr_wait	= IMX8M_GPR22_CM7_CPUWAIT,
+	.att		= imx_rproc_att_imx8mn,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mn),
+	.method		= IMX_RPROC_MMIO,
+	.ops		= &imx_rproc_ops_mmio,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn = {
+	.att		= imx_rproc_att_imx8mn,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mn),
+	.method		= IMX_RPROC_SMC,
+	.ops		= &imx_rproc_ops_arm_smc,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mq = {
+	.src_reg	= IMX7D_SRC_SCR,
+	.src_mask	= IMX7D_M4_RST_MASK,
+	.src_start	= IMX7D_M4_START,
+	.src_stop	= IMX7D_M4_STOP,
+	.att		= imx_rproc_att_imx8mq,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mq),
+	.method		= IMX_RPROC_MMIO,
+	.ops		= &imx_rproc_ops_mmio,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx8qm = {
+	.att            = imx_rproc_att_imx8qm,
+	.att_size       = ARRAY_SIZE(imx_rproc_att_imx8qm),
+	.method         = IMX_RPROC_SCU_API,
+	.ops		= &imx_rproc_ops_scu_api,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx8qxp = {
+	.att		= imx_rproc_att_imx8qxp,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8qxp),
+	.method		= IMX_RPROC_SCU_API,
+	.ops		= &imx_rproc_ops_scu_api,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx8ulp = {
+	.att		= imx_rproc_att_imx8ulp,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8ulp),
+	.method		= IMX_RPROC_NONE,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx7ulp = {
+	.att		= imx_rproc_att_imx7ulp,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx7ulp),
+	.method		= IMX_RPROC_NONE,
+	.flags		= IMX_RPROC_NEED_SYSTEM_OFF,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx7d = {
+	.src_reg	= IMX7D_SRC_SCR,
+	.src_mask	= IMX7D_M4_RST_MASK,
+	.src_start	= IMX7D_M4_START,
+	.src_stop	= IMX7D_M4_STOP,
+	.att		= imx_rproc_att_imx7d,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx7d),
+	.method		= IMX_RPROC_MMIO,
+	.ops		= &imx_rproc_ops_mmio,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx6sx = {
+	.src_reg	= IMX6SX_SRC_SCR,
+	.src_mask	= IMX6SX_M4_RST_MASK,
+	.src_start	= IMX6SX_M4_START,
+	.src_stop	= IMX6SX_M4_STOP,
+	.att		= imx_rproc_att_imx6sx,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx6sx),
+	.method		= IMX_RPROC_MMIO,
+	.ops		= &imx_rproc_ops_mmio,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx93 = {
+	.att		= imx_rproc_att_imx93,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx93),
+	.method		= IMX_RPROC_SMC,
+	.ops		= &imx_rproc_ops_arm_smc,
+};
 
 static const struct of_device_id imx_rproc_of_match[] = {
 	{ .compatible = "fsl,imx7ulp-cm4", .data = &imx_rproc_cfg_imx7ulp },

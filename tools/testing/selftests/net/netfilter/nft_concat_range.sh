@@ -29,7 +29,7 @@ TYPES="net_port port_net net6_port port_proto net6_port_mac net6_port_mac_proto
        net6_port_net6_port net_port_mac_proto_net"
 
 # Reported bugs, also described by TYPE_ variables below
-BUGS="flush_remove_add reload net_port_proto_match avx2_mismatch"
+BUGS="flush_remove_add reload net_port_proto_match avx2_mismatch doublecreate"
 
 # List of possible paths to pktgen script from kernel tree for performance tests
 PKTGEN_SCRIPT_PATHS="
@@ -407,6 +407,18 @@ race_repeat	0
 perf_duration	0
 "
 
+
+TYPE_doublecreate="
+display		cannot create same element twice
+type_spec	ipv4_addr . ipv4_addr
+chain_spec	ip saddr . ip daddr
+dst		addr4
+proto		icmp
+
+race_repeat	0
+
+perf_duration	0
+"
 
 # Set template for all tests, types and rules are filled in depending on test
 set_template='
@@ -1898,6 +1910,48 @@ test_bug_avx2_mismatch()
 		err "False match for $a2"
 		return 1
 	fi
+}
+
+test_bug_doublecreate()
+{
+	local elements="1.2.3.4 . 1.2.4.1, 1.2.4.1 . 1.2.3.4"
+	local ret=1
+	local i
+
+	setup veth send_"${proto}" set || return ${ksft_skip}
+
+	add "{ $elements }" || return 1
+	# expected to work: 'add' on existing should be no-op.
+	add "{ $elements }" || return 1
+
+	# 'create' should return an error.
+	if nft create element inet filter test "{ $elements }" 2>/dev/null; then
+		err "Could create an existing element"
+		return 1
+	fi
+nft -f - <<EOF 2>/dev/null
+flush set inet filter test
+create element inet filter test { $elements }
+create element inet filter test { $elements }
+EOF
+	ret=$?
+	if [ $ret -eq 0 ]; then
+		err "Could create element twice in one transaction"
+		err "$(nft -a list ruleset)"
+		return 1
+	fi
+
+nft -f - <<EOF 2>/dev/null
+flush set inet filter test
+create element inet filter test { $elements }
+EOF
+	ret=$?
+	if [ $ret -ne 0 ]; then
+		err "Could not flush and re-create element in one transaction"
+		return 1
+	fi
+
+	return 0
 }
 
 test_reported_issues() {

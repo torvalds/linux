@@ -25,14 +25,14 @@
  *
  * The USB protocol has been reversed engineered using wireshark, initially
  * by Dinesh Ram <dinesh.ram@cern.ch> and finished by Hans Verkuil
- * <hverkuil@xs4all.nl>.
+ * <hverkuil@kernel.org>.
  *
  * Sadly the firmware used in this product hides lots of goodies since the
  * si4734 has more features than are supported by the firmware. Oh well...
  */
 
 /* driver and module definitions */
-MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
+MODULE_AUTHOR("Hans Verkuil <hverkuil@kernel.org>");
 MODULE_DESCRIPTION("Thanko's Raremono AM/FM/SW Receiver USB driver");
 MODULE_LICENSE("GPL v2");
 

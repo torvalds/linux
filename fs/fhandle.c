@@ -11,6 +11,7 @@
 #include <linux/personality.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
+#include <linux/nsfs.h>
 #include "internal.h"
 #include "mount.h"
 
@@ -189,6 +190,11 @@ static int get_path_anchor(int fd, struct path *root)
 		return 0;
 	}
 
+	if (fd == FD_NSFS_ROOT) {
+		nsfs_get_root(root);
+		return 0;
+	}
+
 	return -EBADF;
 }
 
@@ -206,6 +212,14 @@ static int vfs_dentry_acceptable(void *context, struct dentry *dentry)
 	/* Old permission model with global CAP_DAC_READ_SEARCH. */
 	if (!ctx->flags)
 		return 1;
+
+	/*
+	 * Verify that the decoded dentry itself has a valid id mapping.
+	 * In case the decoded dentry is the mountfd root itself, this
+	 * verifies that the mountfd inode itself has a valid id mapping.
+	 */
+	if (!privileged_wrt_inode_uidgid(user_ns, idmap, d_inode(dentry)))
+		return 0;
 
 	/*
 	 * It's racy as we're not taking rename_lock but we're able to ignore
@@ -402,7 +416,7 @@ static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
 	if (retval)
 		return retval;
 
-	CLASS(get_unused_fd, fd)(O_CLOEXEC);
+	CLASS(get_unused_fd, fd)(open_flag);
 	if (fd < 0)
 		return fd;
 

@@ -31,7 +31,7 @@ static inline struct sock *aa_unix_sk(struct unix_sock *u)
 }
 
 static int unix_fs_perm(const char *op, u32 mask, const struct cred *subj_cred,
-			struct aa_label *label, struct path *path)
+			struct aa_label *label, const struct path *path)
 {
 	AA_BUG(!label);
 	AA_BUG(!path);
@@ -224,7 +224,7 @@ static int profile_create_perm(struct aa_profile *profile, int family,
 
 static int profile_sk_perm(struct aa_profile *profile,
 			   struct apparmor_audit_data *ad,
-			   u32 request, struct sock *sk, struct path *path)
+			   u32 request, struct sock *sk, const struct path *path)
 {
 	struct aa_ruleset *rules = profile->label.rules[0];
 	struct aa_perms *p = NULL;
@@ -386,9 +386,9 @@ static int profile_opt_perm(struct aa_profile *profile, u32 request,
 
 /* null peer_label is allowed, in which case the peer_sk label is used */
 static int profile_peer_perm(struct aa_profile *profile, u32 request,
-			     struct sock *sk, struct path *path,
+			     struct sock *sk, const struct path *path,
 			     struct sockaddr_un *peer_addr,
-			     int peer_addrlen, struct path *peer_path,
+			     int peer_addrlen, const struct path *peer_path,
 			     struct aa_label *peer_label,
 			     struct apparmor_audit_data *ad)
 {
@@ -445,7 +445,7 @@ int aa_unix_create_perm(struct aa_label *label, int family, int type,
 static int aa_unix_label_sk_perm(const struct cred *subj_cred,
 				 struct aa_label *label,
 				 const char *op, u32 request, struct sock *sk,
-				 struct path *path)
+				 const struct path *path)
 {
 	if (!unconfined(label)) {
 		struct aa_profile *profile;
@@ -599,9 +599,9 @@ int aa_unix_opt_perm(const char *op, u32 request, struct socket *sock,
 
 static int unix_peer_perm(const struct cred *subj_cred,
 			  struct aa_label *label, const char *op, u32 request,
-			  struct sock *sk, struct path *path,
+			  struct sock *sk, const struct path *path,
 			  struct sockaddr_un *peer_addr, int peer_addrlen,
-			  struct path *peer_path, struct aa_label *peer_label)
+			  const struct path *peer_path, struct aa_label *peer_label)
 {
 	struct aa_profile *profile;
 	DEFINE_AUDIT_SK(ad, op, subj_cred, sk);

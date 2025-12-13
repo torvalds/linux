@@ -514,6 +514,7 @@ enum spectre_v2_user_mitigation {
 /* The Speculative Store Bypass disable variants */
 enum ssb_mitigation {
 	SPEC_STORE_BYPASS_NONE,
+	SPEC_STORE_BYPASS_AUTO,
 	SPEC_STORE_BYPASS_DISABLE,
 	SPEC_STORE_BYPASS_PRCTL,
 	SPEC_STORE_BYPASS_SECCOMP,
@@ -529,6 +530,8 @@ void alternative_msr_write(unsigned int msr, u64 val, unsigned int feature)
 		    [feature] "i" (feature)
 		: "memory");
 }
+
+DECLARE_PER_CPU(bool, x86_ibpb_exit_to_user);
 
 static inline void indirect_branch_prediction_barrier(void)
 {

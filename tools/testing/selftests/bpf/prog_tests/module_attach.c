@@ -90,7 +90,7 @@ void test_module_attach(void)
 
 	test_module_attach__detach(skel);
 
-	/* attach fentry/fexit and make sure it get's module reference */
+	/* attach fentry/fexit and make sure it gets module reference */
 	link = bpf_program__attach(skel->progs.handle_fentry);
 	if (!ASSERT_OK_PTR(link, "attach_fentry"))
 		goto cleanup;

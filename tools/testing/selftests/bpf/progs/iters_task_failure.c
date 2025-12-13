@@ -15,7 +15,7 @@ void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-__failure __msg("expected an RCU CS when using bpf_iter_task_next")
+__failure __msg("kernel func bpf_iter_task_new requires RCU critical section protection")
 int BPF_PROG(iter_tasks_without_lock)
 {
 	struct task_struct *pos;
@@ -27,7 +27,7 @@ int BPF_PROG(iter_tasks_without_lock)
 }
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-__failure __msg("expected an RCU CS when using bpf_iter_css_next")
+__failure __msg("kernel func bpf_iter_css_new requires RCU critical section protection")
 int BPF_PROG(iter_css_without_lock)
 {
 	u64 cg_id = bpf_get_current_cgroup_id();

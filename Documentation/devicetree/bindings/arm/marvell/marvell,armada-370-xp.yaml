@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+---
+$id: http://devicetree.org/schemas/arm/marvell/marvell,armada-370-xp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 370 and Armada XP platforms
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - ctera,c200-v2
+              - dlink,dns327l
+              - globalscale,mirabox
+              - netgear,readynas-102
+              - netgear,readynas-104
+              - marvell,a370-db
+              - marvell,a370-rd
+              - seagate,dart-2
+              - seagate,dart-4
+              - seagate,cumulus-max
+              - seagate,cumulus
+              - synology,ds213j
+          - const: marvell,armada370
+          - const: marvell,armada-370-xp
+
+      - items:
+          - enum:
+              - mikrotik,crs305-1g-4s
+              - mikrotik,crs326-24g-2s
+              - mikrotik,crs328-4c-20s-4s
+          - const: marvell,armadaxp-98dx3236
+          - const: marvell,armada-370-xp
+
+      - items:
+          - const: marvell,db-xc3-24g4xg
+          - const: marvell,armadaxp-98dx3336
+          - const: marvell,armada-370-xp
+
+      - items:
+          - const: marvell,db-dxbc2
+          - const: marvell,armadaxp-98dx4251
+          - const: marvell,armada-370-xp
+
+      - items:
+          - enum:
+              - lenovo,ix4-300d
+              - linksys,mamba
+              - marvell,rd-axpwifiap
+              - netgear,readynas-2120
+              - synology,ds414
+          - const: marvell,armadaxp-mv78230
+          - const: marvell,armadaxp
+          - const: marvell,armada-370-xp
+
+      - items:
+          - const: plathome,openblocks-ax3-4
+          - const: marvell,armadaxp-mv78260
+          - const: marvell,armadaxp
+          - const: marvell,armada-370-xp
+
+      - items:
+          - enum:
+              - marvell,axp-db
+              - marvell,axp-gp
+              - marvell,axp-matrix
+          - const: marvell,armadaxp-mv78460
+          - const: marvell,armadaxp
+          - const: marvell,armada-370-xp
+
+additionalProperties: true

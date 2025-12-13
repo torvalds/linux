@@ -131,6 +131,7 @@ int afs_abort_to_error(u32 abort_code)
 	case KRB5_PROG_KEYTYPE_NOSUPP:	return -ENOPKG;
 
 	case RXGEN_OPCODE:	return -ENOTSUPP;
+	case RX_INVALID_OPERATION:	return -ENOTSUPP;
 
 	default:		return -EREMOTEIO;
 	}

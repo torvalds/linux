@@ -2,7 +2,7 @@
 /*
  * upd6408x - NEC Electronics 3-Dimensional Y/C separation input defines
  *
- * 2006 by Hans Verkuil (hverkuil@xs4all.nl)
+ * 2006 by Hans Verkuil (hverkuil@kernel.org)
  */
 
 #ifndef _UPD64083_H_

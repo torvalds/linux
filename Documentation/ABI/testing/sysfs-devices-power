@@ -274,15 +274,15 @@ What:		/sys/devices/.../power/runtime_active_time
 Date:		Jul 2010
 Contact:	Arjan van de Ven <arjan@linux.intel.com>
 Description:
-		Reports the total time that the device has been active.
-		Used for runtime PM statistics.
+		Reports the total time that the device has been active, in
+		milliseconds. Used for runtime PM statistics.
 
 What:		/sys/devices/.../power/runtime_suspended_time
 Date:		Jul 2010
 Contact:	Arjan van de Ven <arjan@linux.intel.com>
 Description:
-		Reports total time that the device has been suspended.
-		Used for runtime PM statistics.
+		Reports total time that the device has been suspended, in
+		milliseconds. Used for runtime PM statistics.
 
 What:		/sys/devices/.../power/runtime_usage
 Date:		Apr 2010

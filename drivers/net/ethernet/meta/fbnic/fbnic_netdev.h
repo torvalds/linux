@@ -18,7 +18,9 @@
 #define FBNIC_TUN_GSO_FEATURES		NETIF_F_GSO_IPXIP6
 
 struct fbnic_net {
-	struct fbnic_ring *tx[FBNIC_MAX_TXQS];
+	struct bpf_prog *xdp_prog;
+
+	struct fbnic_ring *tx[FBNIC_MAX_TXQS + FBNIC_MAX_XDPQS];
 	struct fbnic_ring *rx[FBNIC_MAX_RXQS];
 
 	struct fbnic_napi_vector *napi[FBNIC_MAX_NAPI_VECTORS];
@@ -30,6 +32,8 @@ struct fbnic_net {
 	u32 hpq_size;
 	u32 ppq_size;
 	u32 rcq_size;
+
+	u32 hds_thresh;
 
 	u16 rx_usecs;
 	u16 tx_usecs;
@@ -64,6 +68,7 @@ struct fbnic_net {
 	/* Storage for stats after ring destruction */
 	struct fbnic_queue_stats tx_stats;
 	struct fbnic_queue_stats rx_stats;
+	struct fbnic_queue_stats bdq_stats;
 	u64 link_down_events;
 
 	/* Time stamping filter config */
@@ -90,8 +95,8 @@ void fbnic_time_init(struct fbnic_net *fbn);
 int fbnic_time_start(struct fbnic_net *fbn);
 void fbnic_time_stop(struct fbnic_net *fbn);
 
-void __fbnic_set_rx_mode(struct net_device *netdev);
-void fbnic_clear_rx_mode(struct net_device *netdev);
+void __fbnic_set_rx_mode(struct fbnic_dev *fbd);
+void fbnic_clear_rx_mode(struct fbnic_dev *fbd);
 
 void fbnic_phylink_get_pauseparam(struct net_device *netdev,
 				  struct ethtool_pauseparam *pause);
@@ -102,4 +107,7 @@ int fbnic_phylink_ethtool_ksettings_get(struct net_device *netdev,
 int fbnic_phylink_get_fecparam(struct net_device *netdev,
 			       struct ethtool_fecparam *fecparam);
 int fbnic_phylink_init(struct net_device *netdev);
+
+bool fbnic_check_split_frames(struct bpf_prog *prog,
+			      unsigned int mtu, u32 hds_threshold);
 #endif /* _FBNIC_NETDEV_H_ */

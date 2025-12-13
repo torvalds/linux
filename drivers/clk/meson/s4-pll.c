@@ -281,7 +281,7 @@ static const struct pll_mult_range s4_gp0_pll_mult_range = {
 /*
  * Internal gp0 pll emulation configuration parameters
  */
-static const struct reg_sequence s4_gp0_init_regs[] = {
+static const struct reg_sequence s4_gp0_pll_init_regs[] = {
 	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x00000000 },
 	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x48681c00 },
@@ -318,8 +318,8 @@ static struct clk_regmap s4_gp0_pll_dco = {
 			.width   = 1,
 		},
 		.range = &s4_gp0_pll_mult_range,
-		.init_regs = s4_gp0_init_regs,
-		.init_count = ARRAY_SIZE(s4_gp0_init_regs),
+		.init_regs = s4_gp0_pll_init_regs,
+		.init_count = ARRAY_SIZE(s4_gp0_pll_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll_dco",
@@ -353,7 +353,7 @@ static struct clk_regmap s4_gp0_pll = {
 /*
  * Internal hifi pll emulation configuration parameters
  */
-static const struct reg_sequence s4_hifi_init_regs[] = {
+static const struct reg_sequence s4_hifi_pll_init_regs[] = {
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
@@ -394,8 +394,8 @@ static struct clk_regmap s4_hifi_pll_dco = {
 			.width   = 1,
 		},
 		.range = &s4_gp0_pll_mult_range,
-		.init_regs = s4_hifi_init_regs,
-		.init_count = ARRAY_SIZE(s4_hifi_init_regs),
+		.init_regs = s4_hifi_pll_init_regs,
+		.init_count = ARRAY_SIZE(s4_hifi_pll_init_regs),
 		.frac_max = 100000,
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
 	},
@@ -794,76 +794,36 @@ static struct clk_hw *s4_pll_hw_clks[] = {
 	[CLKID_MPLL3]			= &s4_mpll3.hw,
 };
 
-static const struct reg_sequence s4_init_regs[] = {
+static const struct reg_sequence s4_pll_init_regs[] = {
 	{ .reg = ANACTRL_MPLL_CTRL0,	.def = 0x00000543 },
 };
 
-static const struct regmap_config clkc_regmap_config = {
-	.reg_bits       = 32,
-	.val_bits       = 32,
-	.reg_stride     = 4,
-	.max_register   = ANACTRL_HDMIPLL_CTRL0,
+static const struct meson_clkc_data s4_pll_clkc_data = {
+	.hw_clks = {
+		.hws = s4_pll_hw_clks,
+		.num = ARRAY_SIZE(s4_pll_hw_clks),
+	},
+	.init_regs = s4_pll_init_regs,
+	.init_count = ARRAY_SIZE(s4_pll_init_regs),
 };
 
-static struct meson_clk_hw_data s4_pll_clks = {
-	.hws = s4_pll_hw_clks,
-	.num = ARRAY_SIZE(s4_pll_hw_clks),
-};
-
-static int meson_s4_pll_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct regmap *regmap;
-	void __iomem *base;
-	int ret, i;
-
-	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return dev_err_probe(dev, PTR_ERR(base),
-				     "can't ioremap resource\n");
-
-	regmap = devm_regmap_init_mmio(dev, base, &clkc_regmap_config);
-	if (IS_ERR(regmap))
-		return dev_err_probe(dev, PTR_ERR(regmap),
-				     "can't init regmap mmio region\n");
-
-	ret = regmap_multi_reg_write(regmap, s4_init_regs, ARRAY_SIZE(s4_init_regs));
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to init registers\n");
-
-	/* Register clocks */
-	for (i = 0; i < s4_pll_clks.num; i++) {
-		/* array might be sparse */
-		if (!s4_pll_clks.hws[i])
-			continue;
-
-		ret = devm_clk_hw_register(dev, s4_pll_clks.hws[i]);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "clock[%d] registration failed\n", i);
-	}
-
-	return devm_of_clk_add_hw_provider(dev, meson_clk_hw_get,
-					   &s4_pll_clks);
-}
-
-static const struct of_device_id clkc_match_table[] = {
+static const struct of_device_id s4_pll_clkc_match_table[] = {
 	{
 		.compatible = "amlogic,s4-pll-clkc",
+		.data = &s4_pll_clkc_data,
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(of, clkc_match_table);
+MODULE_DEVICE_TABLE(of, s4_pll_clkc_match_table);
 
-static struct platform_driver s4_driver = {
-	.probe		= meson_s4_pll_probe,
+static struct platform_driver s4_pll_clkc_driver = {
+	.probe		= meson_clkc_mmio_probe,
 	.driver		= {
 		.name	= "s4-pll-clkc",
-		.of_match_table = clkc_match_table,
+		.of_match_table = s4_pll_clkc_match_table,
 	},
 };
-module_platform_driver(s4_driver);
+module_platform_driver(s4_pll_clkc_driver);
 
 MODULE_DESCRIPTION("Amlogic S4 PLL Clock Controller driver");
 MODULE_AUTHOR("Yu Tu <yu.tu@amlogic.com>");

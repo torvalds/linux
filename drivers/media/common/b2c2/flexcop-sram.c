@@ -352,7 +352,7 @@ static int flexcop_sram_detect(struct flexcop_device *fc)
 	sram_set_size(adapter, 0x10000);
 	sram_init(adapter);
 	write_reg_dw(adapter, 0x208, tmp);
-	dprintk("%s: SRAM detection failed. Set to 32K \n", __func__);
+	dprintk("%s: SRAM detection failed. Set to 32K\n", __func__);
 	return 0;
 }
 

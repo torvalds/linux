@@ -21,6 +21,7 @@
 	compatible = "winlink,e850-96", "samsung,exynos850";
 
 	aliases {
+		ethernet0 = &ethernet;
 		mmc0 = &mmc_0;
 		serial0 = &serial_0;
 	};
@@ -241,9 +242,23 @@
 };
 
 &usbdrd_dwc3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	dr_mode = "otg";
 	usb-role-switch;
 	role-switch-default-mode = "host";
+
+	hub@1 {
+		compatible = "usb424,9514";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethernet: ethernet@1 {
+			compatible = "usb424,ec00";
+			reg = <1>;
+		};
+	};
 
 	port {
 		usb1_drd_sw: endpoint {

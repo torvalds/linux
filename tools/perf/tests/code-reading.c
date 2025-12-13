@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
+#include <linux/rbtree.h>
 #include <linux/types.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -39,10 +40,63 @@
 #define BUFSZ	1024
 #define READLEN	128
 
-struct state {
-	u64 done[1024];
-	size_t done_cnt;
+struct tested_section {
+	struct rb_node rb_node;
+	u64 addr;
+	char path[PATH_MAX];
 };
+
+static bool tested_code_insert_or_exists(const char *path, u64 addr,
+					 struct rb_root *tested_sections)
+{
+	struct rb_node **node = &tested_sections->rb_node;
+	struct rb_node *parent = NULL;
+	struct tested_section *data;
+
+	while (*node) {
+		int cmp;
+
+		parent = *node;
+		data = rb_entry(*node, struct tested_section, rb_node);
+		cmp = strcmp(path, data->path);
+		if (!cmp) {
+			if (addr < data->addr)
+				cmp = -1;
+			else if (addr > data->addr)
+				cmp = 1;
+			else
+				return true; /* already tested */
+		}
+
+		if (cmp < 0)
+			node = &(*node)->rb_left;
+		else
+			node = &(*node)->rb_right;
+	}
+
+	data = zalloc(sizeof(*data));
+	if (!data)
+		return true;
+
+	data->addr = addr;
+	strlcpy(data->path, path, sizeof(data->path));
+	rb_link_node(&data->rb_node, parent, node);
+	rb_insert_color(&data->rb_node, tested_sections);
+	return false;
+}
+
+static void tested_sections__free(struct rb_root *root)
+{
+	while (!RB_EMPTY_ROOT(root)) {
+		struct rb_node *node = rb_first(root);
+		struct tested_section *ts = rb_entry(node,
+						     struct tested_section,
+						     rb_node);
+
+		rb_erase(node, root);
+		free(ts);
+	}
+}
 
 static size_t read_objdump_chunk(const char **line, unsigned char **buf,
 				 size_t *buf_len)
@@ -316,13 +370,15 @@ static void dump_buf(unsigned char *buf, size_t len)
 }
 
 static int read_object_code(u64 addr, size_t len, u8 cpumode,
-			    struct thread *thread, struct state *state)
+			    struct thread *thread,
+			    struct rb_root *tested_sections)
 {
 	struct addr_location al;
 	unsigned char buf1[BUFSZ] = {0};
 	unsigned char buf2[BUFSZ] = {0};
 	size_t ret_len;
 	u64 objdump_addr;
+	u64 skip_addr;
 	const char *objdump_name;
 	char decomp_name[KMOD_DECOMP_LEN];
 	bool decomp = false;
@@ -347,6 +403,18 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 
 	if (dso__symtab_type(dso) == DSO_BINARY_TYPE__KALLSYMS && !dso__is_kcore(dso)) {
 		pr_debug("Unexpected kernel address - skipping\n");
+		goto out;
+	}
+
+	/*
+	 * Don't retest the same addresses. objdump struggles with kcore - try
+	 * each map only once even if the address is different.
+	 */
+	skip_addr = dso__is_kcore(dso) ? map__start(al.map) : al.addr;
+	if (tested_code_insert_or_exists(dso__long_name(dso), skip_addr,
+					 tested_sections)) {
+		pr_debug("Already tested %s @ %#"PRIx64" - skipping\n",
+			 dso__long_name(dso), skip_addr);
 		goto out;
 	}
 
@@ -385,24 +453,6 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	if (map__load(al.map)) {
 		err = -1;
 		goto out;
-	}
-
-	/* objdump struggles with kcore - try each map only once */
-	if (dso__is_kcore(dso)) {
-		size_t d;
-
-		for (d = 0; d < state->done_cnt; d++) {
-			if (state->done[d] == map__start(al.map)) {
-				pr_debug("kcore map tested already");
-				pr_debug(" - skipping\n");
-				goto out;
-			}
-		}
-		if (state->done_cnt >= ARRAY_SIZE(state->done)) {
-			pr_debug("Too many kcore maps - skipping\n");
-			goto out;
-		}
-		state->done[state->done_cnt++] = map__start(al.map);
 	}
 
 	objdump_name = dso__long_name(dso);
@@ -471,9 +521,9 @@ out:
 	return err;
 }
 
-static int process_sample_event(struct machine *machine,
-				struct evlist *evlist,
-				union perf_event *event, struct state *state)
+static int process_sample_event(struct machine *machine, struct evlist *evlist,
+				union perf_event *event,
+				struct rb_root *tested_sections)
 {
 	struct perf_sample sample;
 	struct thread *thread;
@@ -494,7 +544,8 @@ static int process_sample_event(struct machine *machine,
 		goto out;
 	}
 
-	ret = read_object_code(sample.ip, READLEN, sample.cpumode, thread, state);
+	ret = read_object_code(sample.ip, READLEN, sample.cpumode, thread,
+			       tested_sections);
 	thread__put(thread);
 out:
 	perf_sample__exit(&sample);
@@ -502,10 +553,11 @@ out:
 }
 
 static int process_event(struct machine *machine, struct evlist *evlist,
-			 union perf_event *event, struct state *state)
+			 union perf_event *event, struct rb_root *tested_sections)
 {
 	if (event->header.type == PERF_RECORD_SAMPLE)
-		return process_sample_event(machine, evlist, event, state);
+		return process_sample_event(machine, evlist, event,
+					    tested_sections);
 
 	if (event->header.type == PERF_RECORD_THROTTLE ||
 	    event->header.type == PERF_RECORD_UNTHROTTLE)
@@ -525,7 +577,7 @@ static int process_event(struct machine *machine, struct evlist *evlist,
 }
 
 static int process_events(struct machine *machine, struct evlist *evlist,
-			  struct state *state)
+			  struct rb_root *tested_sections)
 {
 	union perf_event *event;
 	struct mmap *md;
@@ -537,7 +589,7 @@ static int process_events(struct machine *machine, struct evlist *evlist,
 			continue;
 
 		while ((event = perf_mmap__read_event(&md->core)) != NULL) {
-			ret = process_event(machine, evlist, event, state);
+			ret = process_event(machine, evlist, event, tested_sections);
 			perf_mmap__consume(&md->core);
 			if (ret < 0)
 				return ret;
@@ -637,9 +689,7 @@ static int do_test_code_reading(bool try_kcore)
 			.uses_mmap   = true,
 		},
 	};
-	struct state state = {
-		.done_cnt = 0,
-	};
+	struct rb_root tested_sections = RB_ROOT;
 	struct perf_thread_map *threads = NULL;
 	struct perf_cpu_map *cpus = NULL;
 	struct evlist *evlist = NULL;
@@ -773,7 +823,7 @@ static int do_test_code_reading(bool try_kcore)
 
 	evlist__disable(evlist);
 
-	ret = process_events(machine, evlist, &state);
+	ret = process_events(machine, evlist, &tested_sections);
 	if (ret < 0)
 		goto out_put;
 
@@ -793,6 +843,7 @@ out_err:
 	perf_thread_map__put(threads);
 	machine__delete(machine);
 	perf_env__exit(&host_env);
+	tested_sections__free(&tested_sections);
 
 	return err;
 }

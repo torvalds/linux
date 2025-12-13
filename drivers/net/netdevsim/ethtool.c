@@ -165,11 +165,34 @@ nsim_set_fecparam(struct net_device *dev, struct ethtool_fecparam *fecparam)
 	return 0;
 }
 
+static const struct ethtool_fec_hist_range netdevsim_fec_ranges[] = {
+	{ 0, 0},
+	{ 1, 3},
+	{ 4, 7},
+	{ 0, 0}
+};
+
 static void
-nsim_get_fec_stats(struct net_device *dev, struct ethtool_fec_stats *fec_stats)
+nsim_get_fec_stats(struct net_device *dev, struct ethtool_fec_stats *fec_stats,
+		   struct ethtool_fec_hist *hist)
 {
+	struct ethtool_fec_hist_value *values = hist->values;
+
+	hist->ranges = netdevsim_fec_ranges;
+
 	fec_stats->corrected_blocks.total = 123;
 	fec_stats->uncorrectable_blocks.total = 4;
+
+	values[0].per_lane[0] = 125;
+	values[0].per_lane[1] = 120;
+	values[0].per_lane[2] = 100;
+	values[0].per_lane[3] = 100;
+	values[1].sum = 12;
+	values[2].sum = 2;
+	values[2].per_lane[0] = 2;
+	values[2].per_lane[1] = 0;
+	values[2].per_lane[2] = 0;
+	values[2].per_lane[3] = 0;
 }
 
 static int nsim_get_ts_info(struct net_device *dev,

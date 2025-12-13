@@ -100,7 +100,7 @@
 #define PPC47x_TLB2_S_RW	(PPC47x_TLB2_SW | PPC47x_TLB2_SR)
 #define PPC47x_TLB2_IMG		(PPC47x_TLB2_I | PPC47x_TLB2_M | PPC47x_TLB2_G)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern unsigned int tlb_44x_hwater;
 extern unsigned int tlb_44x_index;
@@ -114,7 +114,7 @@ typedef struct {
 /* patch sites */
 extern s32 patch__tlb_44x_hwater_D, patch__tlb_44x_hwater_I;
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #ifndef CONFIG_PPC_EARLY_DEBUG_44x
 #define PPC44x_EARLY_TLBS	1

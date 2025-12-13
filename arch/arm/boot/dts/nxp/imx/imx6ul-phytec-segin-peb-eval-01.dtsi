@@ -8,12 +8,12 @@
 
 / {
 	gpio_keys: gpio-keys {
-		compatible = "gpio-key";
+		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 		status = "disabled";
 
-		power {
+		key-power {
 			label = "Power Button";
 			gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
@@ -29,13 +29,13 @@
 
 		user-led1 {
 			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 
 		user-led2 {
 			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 	};

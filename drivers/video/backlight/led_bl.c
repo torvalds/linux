@@ -9,6 +9,7 @@
 #include <linux/backlight.h>
 #include <linux/leds.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 struct led_bl_data {
@@ -89,7 +90,7 @@ static int led_bl_get_leds(struct device *dev,
 		return -EINVAL;
 	}
 
-	leds = devm_kzalloc(dev, sizeof(struct led_classdev *) * nb_leds,
+	leds = devm_kcalloc(dev, nb_leds, sizeof(struct led_classdev *),
 			    GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
@@ -137,7 +138,7 @@ static int led_bl_parse_levels(struct device *dev,
 		unsigned int db;
 		u32 *levels = NULL;
 
-		levels = devm_kzalloc(dev, sizeof(u32) * num_levels,
+		levels = devm_kcalloc(dev, num_levels, sizeof(u32),
 				      GFP_KERNEL);
 		if (!levels)
 			return -ENOMEM;

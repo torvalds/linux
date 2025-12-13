@@ -25,8 +25,6 @@ ifneq ($(CONFIG_FRAME_WARN),0)
 KBUILD_CFLAGS += -Wframe-larger-than=$(CONFIG_FRAME_WARN)
 endif
 
-KBUILD_CPPFLAGS-$(CONFIG_WERROR) += -Werror
-KBUILD_CPPFLAGS += $(KBUILD_CPPFLAGS-y)
 KBUILD_CFLAGS-$(CONFIG_CC_NO_ARRAY_BOUNDS) += -Wno-array-bounds
 
 ifdef CONFIG_CC_IS_CLANG
@@ -214,10 +212,22 @@ KBUILD_CFLAGS += -Wno-unused-parameter
 endif
 
 #
-# W=e - error out on warnings
+# W=e and CONFIG_WERROR - error out on warnings
 #
-ifneq ($(findstring e, $(KBUILD_EXTRA_WARN)),)
+ifneq ($(findstring e, $(KBUILD_EXTRA_WARN))$(CONFIG_WERROR),)
 
-KBUILD_CFLAGS += -Werror
+KBUILD_CPPFLAGS		+= -Werror
+KBUILD_AFLAGS		+= -Wa,--fatal-warnings
+KBUILD_LDFLAGS		+= --fatal-warnings
+KBUILD_USERCFLAGS	+= -Werror
+KBUILD_USERLDFLAGS	+= -Wl,--fatal-warnings
+KBUILD_RUSTFLAGS	+= -Dwarnings
+
+# While hostprog flags are used during build bootstrapping (thus should not
+# depend on CONFIG_ symbols), -Werror is disruptive and should be opted into.
+# Only apply -Werror to hostprogs built after the initial Kconfig stage.
+KBUILD_HOSTCFLAGS	+= -Werror
+KBUILD_HOSTLDFLAGS	+= -Wl,--fatal-warnings
+KBUILD_HOSTRUSTFLAGS	+= -Dwarnings
 
 endif

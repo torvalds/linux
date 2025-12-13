@@ -61,7 +61,7 @@ test_bpf_metadata() {
 		/perf_version/ {
 			if (entry) print $NF;
 		}
-	' | egrep "$VERS" > /dev/null
+	' | grep -qF "$VERS"
 	then
 		echo "Basic BPF metadata test [Failed invalid output]"
 		err=1

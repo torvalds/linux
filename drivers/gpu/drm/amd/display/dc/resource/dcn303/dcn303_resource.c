@@ -47,7 +47,7 @@
 
 #include "dcn10/dcn10_resource.h"
 
-#include "link.h"
+#include "link_service.h"
 
 #include "dce/dce_abm.h"
 #include "dce/dce_audio.h"

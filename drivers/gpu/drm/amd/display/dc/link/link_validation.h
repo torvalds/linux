@@ -24,7 +24,7 @@
  */
 #ifndef __LINK_VALIDATION_H__
 #define __LINK_VALIDATION_H__
-#include "link.h"
+#include "link_service.h"
 
 enum dc_status link_validate_mode_timing(
 		const struct dc_stream_state *stream,

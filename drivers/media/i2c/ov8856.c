@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Intel Corporation.
 
-#include <linux/unaligned.h>
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -10,6 +9,8 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/unaligned.h>
+
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -1414,6 +1415,8 @@ static const struct ov8856_reg_list bayer_offset_configs[] = {
 };
 
 struct ov8856 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -1668,7 +1671,6 @@ static int ov8856_write_reg(struct ov8856 *ov8856, u16 reg, u16 len, u32 val)
 static int ov8856_write_reg_list(struct ov8856 *ov8856,
 				 const struct ov8856_reg_list *r_list)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
 	unsigned int i;
 	int ret;
 
@@ -1676,7 +1678,7 @@ static int ov8856_write_reg_list(struct ov8856 *ov8856,
 		ret = ov8856_write_reg(ov8856, r_list->regs[i].address, 1,
 				       r_list->regs[i].val);
 		if (ret) {
-			dev_err_ratelimited(&client->dev,
+			dev_err_ratelimited(ov8856->dev,
 				    "failed to write reg 0x%4.4x. error = %d",
 				    r_list->regs[i].address, ret);
 			return ret;
@@ -1688,7 +1690,6 @@ static int ov8856_write_reg_list(struct ov8856 *ov8856,
 
 static int ov8856_identify_module(struct ov8856 *ov8856)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
 	int ret;
 	u32 val;
 
@@ -1701,7 +1702,7 @@ static int ov8856_identify_module(struct ov8856 *ov8856)
 		return ret;
 
 	if (val != OV8856_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+		dev_err(ov8856->dev, "chip id mismatch: %x!=%x",
 			OV8856_CHIP_ID, val);
 		return -ENXIO;
 	}
@@ -1818,7 +1819,6 @@ static int ov8856_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov8856 *ov8856 = container_of(ctrl->handler,
 					     struct ov8856, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
 	s64 exposure_max;
 	int ret = 0;
 
@@ -1834,7 +1834,7 @@ static int ov8856_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov8856->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -1876,7 +1876,7 @@ static int ov8856_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov8856->dev);
 
 	return ret;
 }
@@ -1979,7 +1979,6 @@ static void ov8856_update_pad_format(struct ov8856 *ov8856,
 
 static int ov8856_start_streaming(struct ov8856 *ov8856)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
 	const struct ov8856_reg_list *reg_list;
 	int link_freq_index, ret;
 
@@ -1992,21 +1991,21 @@ static int ov8856_start_streaming(struct ov8856 *ov8856)
 
 	ret = ov8856_write_reg_list(ov8856, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set plls");
+		dev_err(ov8856->dev, "failed to set plls");
 		return ret;
 	}
 
 	reg_list = &ov8856->cur_mode->reg_list;
 	ret = ov8856_write_reg_list(ov8856, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode");
+		dev_err(ov8856->dev, "failed to set mode");
 		return ret;
 	}
 
 	reg_list = &bayer_offset_configs[ov8856->cur_mbus_index];
 	ret = ov8856_write_reg_list(ov8856, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mbus format");
+		dev_err(ov8856->dev, "failed to set mbus format");
 		return ret;
 	}
 
@@ -2017,7 +2016,7 @@ static int ov8856_start_streaming(struct ov8856 *ov8856)
 	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
 			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STREAMING);
 	if (ret) {
-		dev_err(&client->dev, "failed to set stream");
+		dev_err(ov8856->dev, "failed to set stream");
 		return ret;
 	}
 
@@ -2026,22 +2025,19 @@ static int ov8856_start_streaming(struct ov8856 *ov8856)
 
 static void ov8856_stop_streaming(struct ov8856 *ov8856)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
-
 	if (ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
 			     OV8856_REG_VALUE_08BIT, OV8856_MODE_STANDBY))
-		dev_err(&client->dev, "failed to set stream");
+		dev_err(ov8856->dev, "failed to set stream");
 }
 
 static int ov8856_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov8856 *ov8856 = to_ov8856(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&ov8856->mutex);
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov8856->dev);
 		if (ret < 0) {
 			mutex_unlock(&ov8856->mutex);
 			return ret;
@@ -2051,11 +2047,11 @@ static int ov8856_set_stream(struct v4l2_subdev *sd, int enable)
 		if (ret) {
 			enable = 0;
 			ov8856_stop_streaming(ov8856);
-			pm_runtime_put(&client->dev);
+			pm_runtime_put(ov8856->dev);
 		}
 	} else {
 		ov8856_stop_streaming(ov8856);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov8856->dev);
 	}
 
 	mutex_unlock(&ov8856->mutex);
@@ -2255,8 +2251,9 @@ static const struct v4l2_subdev_internal_ops ov8856_internal_ops = {
 };
 
 
-static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
+static int ov8856_get_hwcfg(struct ov8856 *ov8856)
 {
+	struct device *dev = ov8856->dev;
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct v4l2_fwnode_endpoint bus_cfg = {
@@ -2269,21 +2266,17 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 	if (!fwnode)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &xvclk_rate);
-	if (ret)
-		return ret;
+	ov8856->xvclk = devm_v4l2_sensor_clk_get_legacy(dev, "xvclk", false, 0);
+	if (IS_ERR(ov8856->xvclk))
+		return dev_err_probe(dev, PTR_ERR(ov8856->xvclk),
+				     "could not get xvclk clock\n");
+
+	xvclk_rate = clk_get_rate(ov8856->xvclk);
+	if (xvclk_rate != OV8856_XVCLK_19_2)
+		dev_warn(dev, "external clock rate %u is unsupported",
+			 xvclk_rate);
 
 	if (!is_acpi_node(fwnode)) {
-		ov8856->xvclk = devm_clk_get(dev, "xvclk");
-		if (IS_ERR(ov8856->xvclk)) {
-			dev_err_probe(dev, PTR_ERR(ov8856->xvclk),
-				      "could not get xvclk clock\n");
-			return PTR_ERR(ov8856->xvclk);
-		}
-
-		clk_set_rate(ov8856->xvclk, xvclk_rate);
-		xvclk_rate = clk_get_rate(ov8856->xvclk);
-
 		ov8856->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 							     GPIOD_OUT_LOW);
 		if (IS_ERR(ov8856->reset_gpio))
@@ -2298,10 +2291,6 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 		if (ret)
 			return ret;
 	}
-
-	if (xvclk_rate != OV8856_XVCLK_19_2)
-		dev_warn(dev, "external clock rate %u is unsupported",
-			 xvclk_rate);
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -2365,10 +2354,10 @@ static void ov8856_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	pm_runtime_disable(&client->dev);
+	pm_runtime_disable(ov8856->dev);
 	mutex_destroy(&ov8856->mutex);
 
-	ov8856_power_off(&client->dev);
+	ov8856_power_off(ov8856->dev);
 }
 
 static int ov8856_probe(struct i2c_client *client)
@@ -2381,23 +2370,25 @@ static int ov8856_probe(struct i2c_client *client)
 	if (!ov8856)
 		return -ENOMEM;
 
-	ret = ov8856_get_hwcfg(ov8856, &client->dev);
+	ov8856->dev = &client->dev;
+
+	ret = ov8856_get_hwcfg(ov8856);
 	if (ret)
 		return ret;
 
 	v4l2_i2c_subdev_init(&ov8856->sd, client, &ov8856_subdev_ops);
 
-	full_power = acpi_dev_state_d0(&client->dev);
+	full_power = acpi_dev_state_d0(ov8856->dev);
 	if (full_power) {
-		ret = ov8856_power_on(&client->dev);
+		ret = ov8856_power_on(ov8856->dev);
 		if (ret) {
-			dev_err(&client->dev, "failed to power on\n");
+			dev_err(ov8856->dev, "failed to power on\n");
 			return ret;
 		}
 
 		ret = ov8856_identify_module(ov8856);
 		if (ret) {
-			dev_err(&client->dev, "failed to find sensor: %d", ret);
+			dev_err(ov8856->dev, "failed to find sensor: %d", ret);
 			goto probe_power_off;
 		}
 	}
@@ -2407,7 +2398,7 @@ static int ov8856_probe(struct i2c_client *client)
 	ov8856->cur_mbus_index = ov8856->cur_mode->default_mbus_index;
 	ret = ov8856_init_controls(ov8856);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
+		dev_err(ov8856->dev, "failed to init controls: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -2418,22 +2409,22 @@ static int ov8856_probe(struct i2c_client *client)
 	ov8856->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov8856->sd.entity, 1, &ov8856->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err(ov8856->dev, "failed to init entity pads: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
 	ret = v4l2_async_register_subdev_sensor(&ov8856->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
+		dev_err(ov8856->dev, "failed to register V4L2 subdev: %d",
 			ret);
 		goto probe_error_media_entity_cleanup;
 	}
 
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
-		pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+		pm_runtime_set_active(ov8856->dev);
+	pm_runtime_enable(ov8856->dev);
+	pm_runtime_idle(ov8856->dev);
 
 	return 0;
 
@@ -2445,7 +2436,7 @@ probe_error_v4l2_ctrl_handler_free:
 	mutex_destroy(&ov8856->mutex);
 
 probe_power_off:
-	ov8856_power_off(&client->dev);
+	ov8856_power_off(ov8856->dev);
 
 	return ret;
 }

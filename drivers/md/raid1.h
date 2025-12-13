@@ -178,7 +178,9 @@ enum r1bio_state {
  * any write was successful.  Otherwise we call when
  * any write-behind write succeeds, otherwise we call
  * with failure when last write completes (and all failed).
- * Record that bi_end_io was called with this flag...
+ *
+ * And for bio_split errors, record that bi_end_io was called
+ * with this flag...
  */
 	R1BIO_Returned,
 /* If a write for this request means we can clear some

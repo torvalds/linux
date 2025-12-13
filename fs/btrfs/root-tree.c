@@ -85,7 +85,7 @@ int btrfs_find_root(struct btrfs_root *root, const struct btrfs_key *search_key,
 		 * Key with offset -1 found, there would have to exist a root
 		 * with such id, but this is out of the valid range.
 		 */
-		if (ret == 0) {
+		if (unlikely(ret == 0)) {
 			ret = -EUCLEAN;
 			goto out;
 		}
@@ -130,7 +130,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *item)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *l;
 	int ret;
 	int slot;
@@ -143,15 +143,15 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	ret = btrfs_search_slot(trans, root, key, path, 0, 1);
 	if (ret < 0)
-		goto out;
+		return ret;
 
-	if (ret > 0) {
+	if (unlikely(ret > 0)) {
 		btrfs_crit(fs_info,
 			"unable to find root key (%llu %u %llu) in tree %llu",
 			key->objectid, key->type, key->offset, btrfs_root_id(root));
 		ret = -EUCLEAN;
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	l = path->nodes[0];
@@ -168,22 +168,22 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		btrfs_release_path(path);
 		ret = btrfs_search_slot(trans, root, key, path,
 				-1, 1);
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
-			goto out;
+			return ret;
 		}
 
 		ret = btrfs_del_item(trans, root, path);
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
-			goto out;
+			return ret;
 		}
 		btrfs_release_path(path);
 		ret = btrfs_insert_empty_item(trans, root, path,
 				key, sizeof(*item));
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
-			goto out;
+			return ret;
 		}
 		l = path->nodes[0];
 		slot = path->slots[0];
@@ -197,8 +197,6 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_root_generation_v2(item, btrfs_root_generation(item));
 
 	write_extent_buffer(l, item, ptr, sizeof(*item));
-out:
-	btrfs_free_path(path);
 	return ret;
 }
 
@@ -216,7 +214,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct extent_buffer *leaf;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	struct btrfs_root *root;
 	int err = 0;
@@ -309,7 +307,6 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 		btrfs_put_root(root);
 	}
 
-	btrfs_free_path(path);
 	return err;
 }
 
@@ -318,7 +315,7 @@ int btrfs_del_root(struct btrfs_trans_handle *trans,
 		   const struct btrfs_key *key)
 {
 	struct btrfs_root *root = trans->fs_info->tree_root;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	int ret;
 
 	path = btrfs_alloc_path();
@@ -326,17 +323,12 @@ int btrfs_del_root(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	ret = btrfs_search_slot(trans, root, key, path, -1, 1);
 	if (ret < 0)
-		goto out;
-	if (ret != 0) {
+		return ret;
+	if (unlikely(ret > 0))
 		/* The root must exist but we did not find it by the key. */
-		ret = -EUCLEAN;
-		goto out;
-	}
+		return -EUCLEAN;
 
-	ret = btrfs_del_item(trans, root, path);
-out:
-	btrfs_free_path(path);
-	return ret;
+	return btrfs_del_item(trans, root, path);
 }
 
 int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
@@ -344,7 +336,7 @@ int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
 		       const struct fscrypt_str *name)
 {
 	struct btrfs_root *tree_root = trans->fs_info->tree_root;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_root_ref *ref;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
@@ -361,7 +353,7 @@ int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
 again:
 	ret = btrfs_search_slot(trans, tree_root, &key, path, -1, 1);
 	if (ret < 0) {
-		goto out;
+		return ret;
 	} else if (ret == 0) {
 		leaf = path->nodes[0];
 		ref = btrfs_item_ptr(leaf, path->slots[0],
@@ -369,18 +361,16 @@ again:
 		ptr = (unsigned long)(ref + 1);
 		if ((btrfs_root_ref_dirid(leaf, ref) != dirid) ||
 		    (btrfs_root_ref_name_len(leaf, ref) != name->len) ||
-		    memcmp_extent_buffer(leaf, name->name, ptr, name->len)) {
-			ret = -ENOENT;
-			goto out;
-		}
+		    memcmp_extent_buffer(leaf, name->name, ptr, name->len))
+			return -ENOENT;
+
 		*sequence = btrfs_root_ref_sequence(leaf, ref);
 
 		ret = btrfs_del_item(trans, tree_root, path);
 		if (ret)
-			goto out;
+			return ret;
 	} else {
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 
 	if (key.type == BTRFS_ROOT_BACKREF_KEY) {
@@ -391,8 +381,6 @@ again:
 		goto again;
 	}
 
-out:
-	btrfs_free_path(path);
 	return ret;
 }
 
@@ -418,7 +406,7 @@ int btrfs_add_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
 	struct btrfs_root *tree_root = trans->fs_info->tree_root;
 	struct btrfs_key key;
 	int ret;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_root_ref *ref;
 	struct extent_buffer *leaf;
 	unsigned long ptr;
@@ -433,9 +421,8 @@ int btrfs_add_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
 again:
 	ret = btrfs_insert_empty_item(trans, tree_root, path, &key,
 				      sizeof(*ref) + name->len);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
-		btrfs_free_path(path);
 		return ret;
 	}
 
@@ -455,7 +442,6 @@ again:
 		goto again;
 	}
 
-	btrfs_free_path(path);
 	return 0;
 }
 

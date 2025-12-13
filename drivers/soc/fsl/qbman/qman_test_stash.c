@@ -103,7 +103,7 @@ static int on_all_cpus(int (*fn)(void))
 {
 	int cpu;
 
-	for_each_cpu(cpu, cpu_online_mask) {
+	for_each_online_cpu(cpu) {
 		struct bstrap bstrap = {
 			.fn = fn,
 			.started = ATOMIC_INIT(0)

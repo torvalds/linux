@@ -107,7 +107,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  */
 int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
-	unsigned long clone_flags = args->flags;
+	u64 clone_flags = args->flags;
 	unsigned long usp = args->stack;
 	unsigned long tls = args->tls;
 	struct thread_info *ti = task_thread_info(p);
@@ -692,7 +692,7 @@ unsigned long mips_stack_top(void)
 	/* Space for the VDSO, data page & GIC user page */
 	if (current->thread.abi) {
 		top -= PAGE_ALIGN(current->thread.abi->vdso->size);
-		top -= PAGE_SIZE;
+		top -= VDSO_NR_PAGES * PAGE_SIZE;
 		top -= mips_gic_present() ? PAGE_SIZE : 0;
 
 		/* Space to randomize the VDSO base */

@@ -60,7 +60,7 @@
 #include "link_encoder.h"
 #include "link_enc_cfg.h"
 
-#include "link.h"
+#include "link_service.h"
 #include "dm_helpers.h"
 #include "mem_input.h"
 
@@ -84,6 +84,7 @@
 
 #if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dml2/dml2_internal_types.h"
+#include "soc_and_ip_translator.h"
 #endif
 
 #include "dce/dmub_outbox.h"
@@ -217,10 +218,23 @@ static bool create_links(
 		connectors_num,
 		num_virtual_links);
 
-	// condition loop on link_count to allow skipping invalid indices
+	/* When getting the number of connectors, the VBIOS reports the number of valid indices,
+	 * but it doesn't say which indices are valid, and not every index has an actual connector.
+	 * So, if we don't find a connector on an index, that is not an error.
+	 *
+	 * - There is no guarantee that the first N indices will be valid
+	 * - VBIOS may report a higher amount of valid indices than there are actual connectors
+	 * - Some VBIOS have valid configurations for more connectors than there actually are
+	 *   on the card. This may be because the manufacturer used the same VBIOS for different
+	 *   variants of the same card.
+	 */
 	for (i = 0; dc->link_count < connectors_num && i < MAX_LINKS; i++) {
+		struct graphics_object_id connector_id = bios->funcs->get_connector_id(bios, i);
 		struct link_init_data link_init_params = {0};
 		struct dc_link *link;
+
+		if (connector_id.id == CONNECTOR_ID_UNKNOWN)
+			continue;
 
 		DC_LOG_DC("BIOS object table - printing link object info for connector number: %d, link_index: %d", i, dc->link_count);
 
@@ -446,7 +460,9 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	 * avoid conflicting with firmware updates.
 	 */
 	if (dc->ctx->dce_version > DCE_VERSION_MAX) {
-		if (dc->optimized_required || dc->wm_optimized_required) {
+		if (dc->optimized_required &&
+			(stream->adjust.v_total_max != adjust->v_total_max ||
+			stream->adjust.v_total_min != adjust->v_total_min)) {
 			stream->adjust.timing_adjust_pending = true;
 			return false;
 		}
@@ -934,7 +950,9 @@ static void dc_destruct(struct dc *dc)
 	}
 
 	dc_destroy_resource_pool(dc);
-
+#ifdef CONFIG_DRM_AMD_DC_FP
+	dc_destroy_soc_and_ip_translator(&dc->soc_and_ip_translator);
+#endif
 	if (dc->link_srv)
 		link_destroy_link_service(&dc->link_srv);
 
@@ -1138,6 +1156,9 @@ static bool dc_construct(struct dc *dc,
 		dc->res_pool->funcs->update_bw_bounding_box(dc, dc->clk_mgr->bw_params);
 		DC_FP_END();
 	}
+	dc->soc_and_ip_translator = dc_create_soc_and_ip_translator(dc_ctx->dce_version);
+	if (!dc->soc_and_ip_translator)
+		goto fail;
 #endif
 
 	if (!create_links(dc, init_params->num_virtual_links))
@@ -2398,6 +2419,18 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 		goto fail;
 	}
 
+	/*
+	 * If not already seamless, make transition seamless by inserting intermediate minimal transition
+	 */
+	if (dc->hwss.is_pipe_topology_transition_seamless &&
+			!dc->hwss.is_pipe_topology_transition_seamless(dc, dc->current_state, context)) {
+		res = commit_minimal_transition_state(dc, context);
+		if (res != DC_OK) {
+			BREAK_TO_DEBUGGER();
+			goto fail;
+		}
+	}
+
 	res = dc_commit_state_no_check(dc, context);
 
 	for (i = 0; i < params->stream_count; i++) {
@@ -2544,7 +2577,6 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 	}
 
 	dc->optimized_required = false;
-	dc->wm_optimized_required = false;
 }
 
 bool dc_set_generic_gpio_for_stereo(bool enable,
@@ -3023,8 +3055,6 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		} else if (memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0) {
 			dc->optimized_required = true;
 		}
-
-		dc->optimized_required |= dc->wm_optimized_required;
 	}
 
 	return type;
@@ -3280,6 +3310,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->adaptive_sync_infopacket)
 		stream->adaptive_sync_infopacket = *update->adaptive_sync_infopacket;
 
+	if (update->avi_infopacket)
+		stream->avi_infopacket = *update->avi_infopacket;
+
 	if (update->dither_option)
 		stream->dither_option = *update->dither_option;
 
@@ -3377,7 +3410,7 @@ static void update_seamless_boot_flags(struct dc *dc,
 		int surface_count,
 		struct dc_stream_state *stream)
 {
-	if (get_seamless_boot_stream_count(context) > 0 && surface_count > 0) {
+	if (get_seamless_boot_stream_count(context) > 0 && (surface_count > 0 || stream->dpms_off)) {
 		/* Optimize seamless boot flag keeps clocks and watermarks high until
 		 * first flip. After first flip, optimization is required to lower
 		 * bandwidth. Important to note that it is expected UEFI will
@@ -3574,7 +3607,8 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					stream_update->vsp_infopacket ||
 					stream_update->hfvsif_infopacket ||
 					stream_update->adaptive_sync_infopacket ||
-					stream_update->vtem_infopacket) {
+					stream_update->vtem_infopacket ||
+					stream_update->avi_infopacket) {
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);
 
@@ -4136,7 +4170,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	}
 
 	if (dc->hwseq->funcs.wait_for_pipe_update_if_needed)
-		dc->hwseq->funcs.wait_for_pipe_update_if_needed(dc, top_pipe_to_program, update_type == UPDATE_TYPE_FAST);
+		dc->hwseq->funcs.wait_for_pipe_update_if_needed(dc, top_pipe_to_program, update_type < UPDATE_TYPE_FULL);
 
 	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 		if (dc->hwss.subvp_pipe_control_lock)
@@ -5046,6 +5080,7 @@ static bool full_update_required(struct dc *dc,
 			stream_update->hfvsif_infopacket ||
 			stream_update->vtem_infopacket ||
 			stream_update->adaptive_sync_infopacket ||
+			stream_update->avi_infopacket ||
 			stream_update->dpms_off ||
 			stream_update->allow_freesync ||
 			stream_update->vrr_active_variable ||
@@ -5087,129 +5122,6 @@ static bool fast_update_only(struct dc *dc,
 {
 	return fast_updates_exist(fast_update, surface_count)
 			&& !full_update_required(dc, srf_updates, surface_count, stream_update, stream);
-}
-
-static bool update_planes_and_stream_v1(struct dc *dc,
-		struct dc_surface_update *srf_updates, int surface_count,
-		struct dc_stream_state *stream,
-		struct dc_stream_update *stream_update,
-		struct dc_state *state)
-{
-	const struct dc_stream_status *stream_status;
-	enum surface_update_type update_type;
-	struct dc_state *context;
-	struct dc_context *dc_ctx = dc->ctx;
-	int i, j;
-	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
-
-	dc_exit_ips_for_hw_access(dc);
-
-	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
-	stream_status = dc_stream_get_status(stream);
-	context = dc->current_state;
-
-	update_type = dc_check_update_surfaces_for_stream(
-				dc, srf_updates, surface_count, stream_update, stream_status);
-	/* It is possible to receive a flip for one plane while there are multiple flip_immediate planes in the same stream.
-	 * E.g. Desktop and MPO plane are flip_immediate but only the MPO plane received a flip
-	 * Force the other flip_immediate planes to flip so GSL doesn't wait for a flip that won't come.
-	 */
-	force_immediate_gsl_plane_flip(dc, srf_updates, surface_count);
-
-	if (update_type >= UPDATE_TYPE_FULL) {
-
-		/* initialize scratch memory for building context */
-		context = dc_state_create_copy(state);
-		if (context == NULL) {
-			DC_ERROR("Failed to allocate new validate context!\n");
-			return false;
-		}
-
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
-			struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-
-			if (new_pipe->plane_state && new_pipe->plane_state != old_pipe->plane_state)
-				new_pipe->plane_state->force_full_update = true;
-		}
-	} else if (update_type == UPDATE_TYPE_FAST) {
-		/*
-		 * Previous frame finished and HW is ready for optimization.
-		 */
-		dc_post_update_surfaces_to_stream(dc);
-	}
-
-	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *surface = srf_updates[i].surface;
-
-		copy_surface_update_to_plane(surface, &srf_updates[i]);
-
-		if (update_type >= UPDATE_TYPE_MED) {
-			for (j = 0; j < dc->res_pool->pipe_count; j++) {
-				struct pipe_ctx *pipe_ctx =
-					&context->res_ctx.pipe_ctx[j];
-
-				if (pipe_ctx->plane_state != surface)
-					continue;
-
-				resource_build_scaling_params(pipe_ctx);
-			}
-		}
-	}
-
-	copy_stream_update_to_stream(dc, context, stream, stream_update);
-
-	if (update_type >= UPDATE_TYPE_FULL) {
-		if (dc->res_pool->funcs->validate_bandwidth(dc, context, DC_VALIDATE_MODE_AND_PROGRAMMING) != DC_OK) {
-			DC_ERROR("Mode validation failed for stream update!\n");
-			dc_state_release(context);
-			return false;
-		}
-	}
-
-	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
-
-	if (fast_update_only(dc, fast_update, srf_updates, surface_count, stream_update, stream) &&
-			!dc->debug.enable_legacy_fast_update) {
-		commit_planes_for_stream_fast(dc,
-				srf_updates,
-				surface_count,
-				stream,
-				stream_update,
-				update_type,
-				context);
-	} else {
-		commit_planes_for_stream(
-				dc,
-				srf_updates,
-				surface_count,
-				stream,
-				stream_update,
-				update_type,
-				context);
-	}
-	/*update current_State*/
-	if (dc->current_state != context) {
-
-		struct dc_state *old = dc->current_state;
-
-		dc->current_state = context;
-		dc_state_release(old);
-
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-			if (pipe_ctx->plane_state && pipe_ctx->stream == stream)
-				pipe_ctx->plane_state->force_full_update = false;
-		}
-	}
-
-	/* Legacy optimization path for DCE. */
-	if (update_type >= UPDATE_TYPE_FULL && dc_ctx->dce_version < DCE_VERSION_MAX) {
-		dc_post_update_surfaces_to_stream(dc);
-		TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
-	}
-	return true;
 }
 
 static bool update_planes_and_stream_v2(struct dc *dc,
@@ -5469,12 +5381,10 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	if (dc->ctx->dce_version >= DCN_VERSION_4_01) {
 		ret = update_planes_and_stream_v3(dc, srf_updates, surface_count,
 				stream, stream_update);
-	} else if (dc->ctx->dce_version >= DCN_VERSION_3_2) {
+	} else {
 		ret = update_planes_and_stream_v2(dc, srf_updates, surface_count,
 				stream, stream_update);
-	} else
-		ret = update_planes_and_stream_v1(dc, srf_updates, surface_count, stream,
-				stream_update, state);
+	}
 
 	if (ret && dc->ctx->dce_version >= DCN_VERSION_3_2)
 		clear_update_flags(srf_updates, surface_count, stream);
@@ -5714,8 +5624,8 @@ void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const 
 			subvp_pipe_type[i] = dc_state_get_pipe_subvp_type(context, pipe);
 		}
 	}
-
-	DC_LOG_DC("%s: allow_idle=%d\n HardMinUClk_Khz=%d HardMinDramclk_Khz=%d\n Pipe_0=%d Pipe_1=%d Pipe_2=%d Pipe_3=%d Pipe_4=%d Pipe_5=%d (caller=%s)\n",
+	if (!dc->caps.is_apu)
+		DC_LOG_DC("%s: allow_idle=%d\n HardMinUClk_Khz=%d HardMinDramclk_Khz=%d\n Pipe_0=%d Pipe_1=%d Pipe_2=%d Pipe_3=%d Pipe_4=%d Pipe_5=%d (caller=%s)\n",
 			__func__, allow, idle_fclk_khz, idle_dramclk_khz, subvp_pipe_type[0], subvp_pipe_type[1], subvp_pipe_type[2],
 			subvp_pipe_type[3], subvp_pipe_type[4], subvp_pipe_type[5], caller_name);
 
@@ -6449,4 +6359,22 @@ bool dc_can_clear_cursor_limit(struct dc *dc)
 	}
 
 	return false;
+}
+
+void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst,
+				struct dc_underflow_debug_data *out_data)
+{
+	struct timing_generator *tg = NULL;
+
+	for (int i = 0; i < MAX_PIPES; i++) {
+		if (dc->res_pool->timing_generators[i] &&
+			dc->res_pool->timing_generators[i]->inst == primary_otg_inst) {
+				tg = dc->res_pool->timing_generators[i];
+				break;
+		}
+	}
+
+	dc_exit_ips_for_hw_access(dc);
+	if (dc->hwss.get_underflow_debug_data)
+		dc->hwss.get_underflow_debug_data(dc, tg, out_data);
 }

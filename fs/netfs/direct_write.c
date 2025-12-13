@@ -57,7 +57,7 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 			n = netfs_extract_user_iter(iter, len, &wreq->buffer.iter, 0);
 			if (n < 0) {
 				ret = n;
-				goto out;
+				goto error_put;
 			}
 			wreq->direct_bv = (struct bio_vec *)wreq->buffer.iter.bvec;
 			wreq->direct_bv_count = n;
@@ -100,6 +100,10 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 
 out:
 	netfs_put_request(wreq, netfs_rreq_trace_put_return);
+	return ret;
+
+error_put:
+	netfs_put_failed_request(wreq);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_unbuffered_write_iter_locked);

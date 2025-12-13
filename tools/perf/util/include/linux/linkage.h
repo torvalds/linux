@@ -120,7 +120,7 @@
 #endif
 
 // In the kernel sources (include/linux/cfi_types.h), this has a different
-// definition when CONFIG_CFI_CLANG is used, for tools/ just use the !clang
+// definition when CONFIG_CFI is used, for tools/ just use the !cfi
 // definition:
 #ifndef SYM_TYPED_START
 #define SYM_TYPED_START(name, linkage, align...)        \

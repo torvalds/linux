@@ -118,7 +118,7 @@ static int64_t smccc(uint32_t func, uint64_t arg)
 {
 	struct arm_smccc_res res;
 
-	smccc_hvc(func, arg, 0, 0, 0, 0, 0, 0, &res);
+	do_smccc(func, arg, 0, 0, 0, 0, 0, 0, &res);
 	return res.a0;
 }
 

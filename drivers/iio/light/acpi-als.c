@@ -49,20 +49,10 @@ static const struct iio_chan_spec acpi_als_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
-/*
- * The event buffer contains timestamp and all the data from
- * the ACPI0008 block. There are multiple, but so far we only
- * support _ALI (illuminance): One channel, padding and timestamp.
- */
-#define ACPI_ALS_EVT_BUFFER_SIZE		\
-	(sizeof(s32) + sizeof(s32) + sizeof(s64))
-
 struct acpi_als {
 	struct acpi_device	*device;
 	struct mutex		lock;
 	struct iio_trigger	*trig;
-
-	s32 evt_buffer[ACPI_ALS_EVT_BUFFER_SIZE / sizeof(s32)]  __aligned(8);
 };
 
 /*
@@ -152,7 +142,10 @@ static irqreturn_t acpi_als_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct acpi_als *als = iio_priv(indio_dev);
-	s32 *buffer = als->evt_buffer;
+	struct {
+		s32 light;
+		aligned_s64 ts;
+	} scan = { };
 	s32 val;
 	int ret;
 
@@ -161,7 +154,7 @@ static irqreturn_t acpi_als_trigger_handler(int irq, void *p)
 	ret = acpi_als_read_value(als, ACPI_ALS_ILLUMINANCE, &val);
 	if (ret < 0)
 		goto out;
-	*buffer = val;
+	scan.light = val;
 
 	/*
 	 * When coming from own trigger via polls, set polling function
@@ -174,7 +167,7 @@ static irqreturn_t acpi_als_trigger_handler(int irq, void *p)
 	if (!pf->timestamp)
 		pf->timestamp = iio_get_time_ns(indio_dev);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buffer, pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &scan, sizeof(scan), pf->timestamp);
 out:
 	mutex_unlock(&als->lock);
 	iio_trigger_notify_done(indio_dev->trig);

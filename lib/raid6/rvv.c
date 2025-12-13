@@ -9,11 +9,8 @@
  *	Copyright 2002-2004 H. Peter Anvin
  */
 
-#include <asm/simd.h>
 #include <asm/vector.h>
-#include <crypto/internal/simd.h>
 #include <linux/raid/pq.h>
-#include <linux/types.h>
 #include "rvv.h"
 
 #define NSIZE	(riscv_v_vsize / 32) /* NSIZE = vlenb */
@@ -47,7 +44,7 @@ static void raid6_rvv1_gen_syndrome_real(int disks, unsigned long bytes, void **
 		asm volatile (".option	push\n"
 			      ".option	arch,+v\n"
 			      "vle8.v	v0, (%[wp0])\n"
-			      "vle8.v	v1, (%[wp0])\n"
+			      "vmv.v.v	v1, v0\n"
 			      ".option	pop\n"
 			      : :
 			      [wp0]"r"(&dptr[z0][d + 0 * NSIZE])
@@ -120,7 +117,7 @@ static void raid6_rvv1_xor_syndrome_real(int disks, int start, int stop,
 		asm volatile (".option	push\n"
 			      ".option	arch,+v\n"
 			      "vle8.v	v0, (%[wp0])\n"
-			      "vle8.v	v1, (%[wp0])\n"
+			      "vmv.v.v	v1, v0\n"
 			      ".option	pop\n"
 			      : :
 			      [wp0]"r"(&dptr[z0][d + 0 * NSIZE])
@@ -221,9 +218,9 @@ static void raid6_rvv2_gen_syndrome_real(int disks, unsigned long bytes, void **
 		asm volatile (".option	push\n"
 			      ".option	arch,+v\n"
 			      "vle8.v	v0, (%[wp0])\n"
-			      "vle8.v	v1, (%[wp0])\n"
+			      "vmv.v.v	v1, v0\n"
 			      "vle8.v	v4, (%[wp1])\n"
-			      "vle8.v	v5, (%[wp1])\n"
+			      "vmv.v.v	v5, v4\n"
 			      ".option	pop\n"
 			      : :
 			      [wp0]"r"(&dptr[z0][d + 0 * NSIZE]),
@@ -313,9 +310,9 @@ static void raid6_rvv2_xor_syndrome_real(int disks, int start, int stop,
 		asm volatile (".option	push\n"
 			      ".option	arch,+v\n"
 			      "vle8.v	v0, (%[wp0])\n"
-			      "vle8.v	v1, (%[wp0])\n"
+			      "vmv.v.v	v1, v0\n"
 			      "vle8.v	v4, (%[wp1])\n"
-			      "vle8.v	v5, (%[wp1])\n"
+			      "vmv.v.v	v5, v4\n"
 			      ".option	pop\n"
 			      : :
 			      [wp0]"r"(&dptr[z0][d + 0 * NSIZE]),
@@ -443,13 +440,13 @@ static void raid6_rvv4_gen_syndrome_real(int disks, unsigned long bytes, void **
 		asm volatile (".option	push\n"
 			      ".option	arch,+v\n"
 			      "vle8.v	v0, (%[wp0])\n"
-			      "vle8.v	v1, (%[wp0])\n"
+			      "vmv.v.v	v1, v0\n"
 			      "vle8.v	v4, (%[wp1])\n"
-			      "vle8.v	v5, (%[wp1])\n"
+			      "vmv.v.v	v5, v4\n"
 			      "vle8.v	v8, (%[wp2])\n"
-			      "vle8.v	v9, (%[wp2])\n"
+			      "vmv.v.v	v9, v8\n"
 			      "vle8.v	v12, (%[wp3])\n"
-			      "vle8.v	v13, (%[wp3])\n"
+			      "vmv.v.v	v13, v12\n"
 			      ".option	pop\n"
 			      : :
 			      [wp0]"r"(&dptr[z0][d + 0 * NSIZE]),
@@ -569,13 +566,13 @@ static void raid6_rvv4_xor_syndrome_real(int disks, int start, int stop,
 		asm volatile (".option	push\n"
 			      ".option	arch,+v\n"
 			      "vle8.v	v0, (%[wp0])\n"
-			      "vle8.v	v1, (%[wp0])\n"
+			      "vmv.v.v	v1, v0\n"
 			      "vle8.v	v4, (%[wp1])\n"
-			      "vle8.v	v5, (%[wp1])\n"
+			      "vmv.v.v	v5, v4\n"
 			      "vle8.v	v8, (%[wp2])\n"
-			      "vle8.v	v9, (%[wp2])\n"
+			      "vmv.v.v	v9, v8\n"
 			      "vle8.v	v12, (%[wp3])\n"
-			      "vle8.v	v13, (%[wp3])\n"
+			      "vmv.v.v	v13, v12\n"
 			      ".option	pop\n"
 			      : :
 			      [wp0]"r"(&dptr[z0][d + 0 * NSIZE]),
@@ -757,21 +754,21 @@ static void raid6_rvv8_gen_syndrome_real(int disks, unsigned long bytes, void **
 		asm volatile (".option	push\n"
 			      ".option	arch,+v\n"
 			      "vle8.v	v0, (%[wp0])\n"
-			      "vle8.v	v1, (%[wp0])\n"
+			      "vmv.v.v	v1, v0\n"
 			      "vle8.v	v4, (%[wp1])\n"
-			      "vle8.v	v5, (%[wp1])\n"
+			      "vmv.v.v	v5, v4\n"
 			      "vle8.v	v8, (%[wp2])\n"
-			      "vle8.v	v9, (%[wp2])\n"
+			      "vmv.v.v	v9, v8\n"
 			      "vle8.v	v12, (%[wp3])\n"
-			      "vle8.v	v13, (%[wp3])\n"
+			      "vmv.v.v	v13, v12\n"
 			      "vle8.v	v16, (%[wp4])\n"
-			      "vle8.v	v17, (%[wp4])\n"
+			      "vmv.v.v	v17, v16\n"
 			      "vle8.v	v20, (%[wp5])\n"
-			      "vle8.v	v21, (%[wp5])\n"
+			      "vmv.v.v	v21, v20\n"
 			      "vle8.v	v24, (%[wp6])\n"
-			      "vle8.v	v25, (%[wp6])\n"
+			      "vmv.v.v	v25, v24\n"
 			      "vle8.v	v28, (%[wp7])\n"
-			      "vle8.v	v29, (%[wp7])\n"
+			      "vmv.v.v	v29, v28\n"
 			      ".option	pop\n"
 			      : :
 			      [wp0]"r"(&dptr[z0][d + 0 * NSIZE]),
@@ -951,21 +948,21 @@ static void raid6_rvv8_xor_syndrome_real(int disks, int start, int stop,
 		asm volatile (".option	push\n"
 			      ".option	arch,+v\n"
 			      "vle8.v	v0, (%[wp0])\n"
-			      "vle8.v	v1, (%[wp0])\n"
+			      "vmv.v.v	v1, v0\n"
 			      "vle8.v	v4, (%[wp1])\n"
-			      "vle8.v	v5, (%[wp1])\n"
+			      "vmv.v.v	v5, v4\n"
 			      "vle8.v	v8, (%[wp2])\n"
-			      "vle8.v	v9, (%[wp2])\n"
+			      "vmv.v.v	v9, v8\n"
 			      "vle8.v	v12, (%[wp3])\n"
-			      "vle8.v	v13, (%[wp3])\n"
+			      "vmv.v.v	v13, v12\n"
 			      "vle8.v	v16, (%[wp4])\n"
-			      "vle8.v	v17, (%[wp4])\n"
+			      "vmv.v.v	v17, v16\n"
 			      "vle8.v	v20, (%[wp5])\n"
-			      "vle8.v	v21, (%[wp5])\n"
+			      "vmv.v.v	v21, v20\n"
 			      "vle8.v	v24, (%[wp6])\n"
-			      "vle8.v	v25, (%[wp6])\n"
+			      "vmv.v.v	v25, v24\n"
 			      "vle8.v	v28, (%[wp7])\n"
-			      "vle8.v	v29, (%[wp7])\n"
+			      "vmv.v.v	v29, v28\n"
 			      ".option	pop\n"
 			      : :
 			      [wp0]"r"(&dptr[z0][d + 0 * NSIZE]),

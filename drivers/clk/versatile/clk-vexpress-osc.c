@@ -33,18 +33,18 @@ static unsigned long vexpress_osc_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static long vexpress_osc_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *parent_rate)
+static int vexpress_osc_determine_rate(struct clk_hw *hw,
+				       struct clk_rate_request *req)
 {
 	struct vexpress_osc *osc = to_vexpress_osc(hw);
 
-	if (osc->rate_min && rate < osc->rate_min)
-		rate = osc->rate_min;
+	if (osc->rate_min && req->rate < osc->rate_min)
+		req->rate = osc->rate_min;
 
-	if (osc->rate_max && rate > osc->rate_max)
-		rate = osc->rate_max;
+	if (osc->rate_max && req->rate > osc->rate_max)
+		req->rate = osc->rate_max;
 
-	return rate;
+	return 0;
 }
 
 static int vexpress_osc_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -57,7 +57,7 @@ static int vexpress_osc_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops vexpress_osc_ops = {
 	.recalc_rate = vexpress_osc_recalc_rate,
-	.round_rate = vexpress_osc_round_rate,
+	.determine_rate = vexpress_osc_determine_rate,
 	.set_rate = vexpress_osc_set_rate,
 };
 

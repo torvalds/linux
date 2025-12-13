@@ -81,7 +81,22 @@ class Conf:
                 # For interactive modes such as oldaskconfig, oldconfig,
                 # send 'Enter' key until the program finishes.
                 if interactive:
-                    ps.stdin.write(b'\n')
+                    try:
+                        ps.stdin.write(b'\n')
+                        ps.stdin.flush()
+                    except (BrokenPipeError, OSError):
+                        # Process has exited, stop sending input
+                        break
+
+            # Close stdin gracefully
+            try:
+                ps.stdin.close()
+            except (BrokenPipeError, OSError):
+                # Ignore broken pipe on close
+                pass
+
+            # Wait for process to complete
+            ps.wait()
 
             self.retcode = ps.returncode
             self.stdout = ps.stdout.read().decode()

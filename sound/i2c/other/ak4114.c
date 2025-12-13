@@ -132,9 +132,9 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 {
 	if (atomic_inc_return(&chip->wq_processing) == 1)
 		cancel_delayed_work_sync(&chip->work);
-	mutex_lock(&chip->reinit_mutex);
-	ak4114_init_regs(chip);
-	mutex_unlock(&chip->reinit_mutex);
+	scoped_guard(mutex, &chip->reinit_mutex) {
+		ak4114_init_regs(chip);
+	}
 	/* bring up statistics / event queing */
 	if (atomic_dec_and_test(&chip->wq_processing))
 		schedule_delayed_work(&chip->work, HZ / 10);
@@ -170,11 +170,10 @@ static int snd_ak4114_in_error_get(struct snd_kcontrol *kcontrol,
 {
 	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	ucontrol->value.integer.value[0] =
 		chip->errors[kcontrol->private_value];
 	chip->errors[kcontrol->private_value] = 0;
-	spin_unlock_irq(&chip->lock);
 	return 0;
 }
 
@@ -552,21 +551,21 @@ int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags)
 	if (flags & AK4114_CHECK_NO_STAT)
 		goto __rate;
 	rcs0 = reg_read(ak4114, AK4114_REG_RCS0);
-	spin_lock_irqsave(&ak4114->lock, _flags);
-	if (rcs0 & AK4114_PAR)
-		ak4114->errors[AK4114_PARITY_ERRORS]++;
-	if (rcs1 & AK4114_V)
-		ak4114->errors[AK4114_V_BIT_ERRORS]++;
-	if (rcs1 & AK4114_CCRC)
-		ak4114->errors[AK4114_CCRC_ERRORS]++;
-	if (rcs1 & AK4114_QCRC)
-		ak4114->errors[AK4114_QCRC_ERRORS]++;
-	c0 = (ak4114->rcs0 & (AK4114_QINT | AK4114_CINT | AK4114_PEM | AK4114_AUDION | AK4114_AUTO | AK4114_UNLCK)) ^
-                     (rcs0 & (AK4114_QINT | AK4114_CINT | AK4114_PEM | AK4114_AUDION | AK4114_AUTO | AK4114_UNLCK));
-	c1 = (ak4114->rcs1 & 0xf0) ^ (rcs1 & 0xf0);
-	ak4114->rcs0 = rcs0 & ~(AK4114_QINT | AK4114_CINT);
-	ak4114->rcs1 = rcs1;
-	spin_unlock_irqrestore(&ak4114->lock, _flags);
+	scoped_guard(spinlock_irqsave, &ak4114->lock) {
+		if (rcs0 & AK4114_PAR)
+			ak4114->errors[AK4114_PARITY_ERRORS]++;
+		if (rcs1 & AK4114_V)
+			ak4114->errors[AK4114_V_BIT_ERRORS]++;
+		if (rcs1 & AK4114_CCRC)
+			ak4114->errors[AK4114_CCRC_ERRORS]++;
+		if (rcs1 & AK4114_QCRC)
+			ak4114->errors[AK4114_QCRC_ERRORS]++;
+		c0 = (ak4114->rcs0 & (AK4114_QINT | AK4114_CINT | AK4114_PEM | AK4114_AUDION | AK4114_AUTO | AK4114_UNLCK)) ^
+			(rcs0 & (AK4114_QINT | AK4114_CINT | AK4114_PEM | AK4114_AUDION | AK4114_AUTO | AK4114_UNLCK));
+		c1 = (ak4114->rcs1 & 0xf0) ^ (rcs1 & 0xf0);
+		ak4114->rcs0 = rcs0 & ~(AK4114_QINT | AK4114_CINT);
+		ak4114->rcs1 = rcs1;
+	}
 
 	ak4114_notify(ak4114, rcs0, rcs1, c0, c1);
 	if (ak4114->change_callback && (c0 | c1) != 0)

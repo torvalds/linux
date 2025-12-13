@@ -18,43 +18,43 @@
 		return *(u64 *)num;					\
 	}
 
-__msg(": R0_w=0xffffffff80000000")
+__msg(": R0=0xffffffff80000000")
 check_assert(s64, ==, eq_int_min, INT_MIN);
-__msg(": R0_w=0x7fffffff")
+__msg(": R0=0x7fffffff")
 check_assert(s64, ==, eq_int_max, INT_MAX);
-__msg(": R0_w=0")
+__msg(": R0=0")
 check_assert(s64, ==, eq_zero, 0);
-__msg(": R0_w=0x8000000000000000 R1_w=0x8000000000000000")
+__msg(": R0=0x8000000000000000 R1=0x8000000000000000")
 check_assert(s64, ==, eq_llong_min, LLONG_MIN);
-__msg(": R0_w=0x7fffffffffffffff R1_w=0x7fffffffffffffff")
+__msg(": R0=0x7fffffffffffffff R1=0x7fffffffffffffff")
 check_assert(s64, ==, eq_llong_max, LLONG_MAX);
 
-__msg(": R0_w=scalar(id=1,smax=0x7ffffffe)")
+__msg(": R0=scalar(id=1,smax=0x7ffffffe)")
 check_assert(s64, <, lt_pos, INT_MAX);
-__msg(": R0_w=scalar(id=1,smax=-1,umin=0x8000000000000000,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
+__msg(": R0=scalar(id=1,smax=-1,umin=0x8000000000000000,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
 check_assert(s64, <, lt_zero, 0);
-__msg(": R0_w=scalar(id=1,smax=0xffffffff7fffffff")
+__msg(": R0=scalar(id=1,smax=0xffffffff7fffffff")
 check_assert(s64, <, lt_neg, INT_MIN);
 
-__msg(": R0_w=scalar(id=1,smax=0x7fffffff)")
+__msg(": R0=scalar(id=1,smax=0x7fffffff)")
 check_assert(s64, <=, le_pos, INT_MAX);
-__msg(": R0_w=scalar(id=1,smax=0)")
+__msg(": R0=scalar(id=1,smax=0)")
 check_assert(s64, <=, le_zero, 0);
-__msg(": R0_w=scalar(id=1,smax=0xffffffff80000000")
+__msg(": R0=scalar(id=1,smax=0xffffffff80000000")
 check_assert(s64, <=, le_neg, INT_MIN);
 
-__msg(": R0_w=scalar(id=1,smin=umin=0x80000000,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
+__msg(": R0=scalar(id=1,smin=umin=0x80000000,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
 check_assert(s64, >, gt_pos, INT_MAX);
-__msg(": R0_w=scalar(id=1,smin=umin=1,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
+__msg(": R0=scalar(id=1,smin=umin=1,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
 check_assert(s64, >, gt_zero, 0);
-__msg(": R0_w=scalar(id=1,smin=0xffffffff80000001")
+__msg(": R0=scalar(id=1,smin=0xffffffff80000001")
 check_assert(s64, >, gt_neg, INT_MIN);
 
-__msg(": R0_w=scalar(id=1,smin=umin=0x7fffffff,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
+__msg(": R0=scalar(id=1,smin=umin=0x7fffffff,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
 check_assert(s64, >=, ge_pos, INT_MAX);
-__msg(": R0_w=scalar(id=1,smin=0,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
+__msg(": R0=scalar(id=1,smin=0,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
 check_assert(s64, >=, ge_zero, 0);
-__msg(": R0_w=scalar(id=1,smin=0xffffffff80000000")
+__msg(": R0=scalar(id=1,smin=0xffffffff80000000")
 check_assert(s64, >=, ge_neg, INT_MIN);
 
 SEC("?tc")

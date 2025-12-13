@@ -921,6 +921,7 @@
 			 <0x78200000 0x00 0x78200000 0x08000>,
 			 <0x78300000 0x00 0x78300000 0x08000>;
 		power-domains = <&k3_pds 119 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 
 		main_r5fss0_core0: r5f@78000000 {
 			compatible = "ti,am64-r5f";
@@ -935,6 +936,7 @@
 			ti,atcm-enable = <1>;
 			ti,btcm-enable = <1>;
 			ti,loczrama = <1>;
+			status = "disabled";
 		};
 
 		main_r5fss0_core1: r5f@78200000 {
@@ -950,6 +952,7 @@
 			ti,atcm-enable = <1>;
 			ti,btcm-enable = <1>;
 			ti,loczrama = <1>;
+			status = "disabled";
 		};
 	};
 
@@ -963,6 +966,7 @@
 			 <0x78600000 0x00 0x78600000 0x08000>,
 			 <0x78700000 0x00 0x78700000 0x08000>;
 		power-domains = <&k3_pds 120 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 
 		main_r5fss1_core0: r5f@78400000 {
 			compatible = "ti,am64-r5f";
@@ -977,6 +981,7 @@
 			ti,atcm-enable = <1>;
 			ti,btcm-enable = <1>;
 			ti,loczrama = <1>;
+			status = "disabled";
 		};
 
 		main_r5fss1_core1: r5f@78600000 {
@@ -992,6 +997,7 @@
 			ti,atcm-enable = <1>;
 			ti,btcm-enable = <1>;
 			ti,loczrama = <1>;
+			status = "disabled";
 		};
 	};
 

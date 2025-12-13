@@ -180,20 +180,14 @@ static int mmc_test_set_blksize(struct mmc_test_card *test, unsigned size)
 	return mmc_set_blocklen(test->card, size);
 }
 
-static bool mmc_test_card_cmd23(struct mmc_card *card)
-{
-	return mmc_card_mmc(card) ||
-	       (mmc_card_sd(card) && card->scr.cmds & SD_SCR_CMD23_SUPPORT);
-}
-
 static void mmc_test_prepare_sbc(struct mmc_test_card *test,
 				 struct mmc_request *mrq, unsigned int blocks)
 {
 	struct mmc_card *card = test->card;
 
 	if (!mrq->sbc || !mmc_host_can_cmd23(card->host) ||
-	    !mmc_test_card_cmd23(card) || !mmc_op_multi(mrq->cmd->opcode) ||
-	    (card->quirks & MMC_QUIRK_BLK_NO_CMD23)) {
+	    !mmc_card_can_cmd23(card) || !mmc_op_multi(mrq->cmd->opcode) ||
+	    mmc_card_blk_no_cmd23(card)) {
 		mrq->sbc = NULL;
 		return;
 	}

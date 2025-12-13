@@ -125,6 +125,13 @@ static const struct of_device_id wkup_m3_rproc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wkup_m3_rproc_of_match);
 
+static void wkup_m3_rproc_pm_runtime_put(void *data)
+{
+	struct device *dev = data;
+
+	pm_runtime_put_sync(dev);
+}
+
 static int wkup_m3_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -148,19 +155,20 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pm_runtime_enable(&pdev->dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to enable runtime PM\n");
 	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
-		goto err;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "pm_runtime_get_sync() failed\n");
+	ret = devm_add_action_or_reset(dev, wkup_m3_rproc_pm_runtime_put, dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add disable pm devm action\n");
 
-	rproc = rproc_alloc(dev, "wkup_m3", &wkup_m3_rproc_ops,
-			    fw_name, sizeof(*wkupm3));
-	if (!rproc) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	rproc = devm_rproc_alloc(dev, "wkup_m3", &wkup_m3_rproc_ops,
+				 fw_name, sizeof(*wkupm3));
+	if (!rproc)
+		return -ENOMEM;
 
 	rproc->auto_boot = false;
 	rproc->sysfs_read_only = true;
@@ -175,9 +183,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	if (!wkupm3->rsts) {
 		if (!(pdata && pdata->deassert_reset && pdata->assert_reset &&
 		      pdata->reset_name)) {
-			dev_err(dev, "Platform data missing!\n");
-			ret = -ENODEV;
-			goto err_put_rproc;
+			return dev_err_probe(dev, -ENODEV, "Platform data missing!\n");
 		}
 	}
 
@@ -185,12 +191,9 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   mem_names[i]);
 		wkupm3->mem[i].cpu_addr = devm_ioremap_resource(dev, res);
-		if (IS_ERR(wkupm3->mem[i].cpu_addr)) {
-			dev_err(&pdev->dev, "devm_ioremap_resource failed for resource %d\n",
-				i);
-			ret = PTR_ERR(wkupm3->mem[i].cpu_addr);
-			goto err_put_rproc;
-		}
+		if (IS_ERR(wkupm3->mem[i].cpu_addr))
+			return dev_err_probe(dev, PTR_ERR(wkupm3->mem[i].cpu_addr),
+					     "devm_ioremap_resource failed for resource %d\n", i);
 		wkupm3->mem[i].bus_addr = res->start;
 		wkupm3->mem[i].size = resource_size(res);
 		addrp = of_get_address(dev->of_node, i, &size, NULL);
@@ -207,30 +210,11 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, rproc);
 
-	ret = rproc_add(rproc);
-	if (ret) {
-		dev_err(dev, "rproc_add failed\n");
-		goto err_put_rproc;
-	}
+	ret = devm_rproc_add(dev, rproc);
+	if (ret)
+		return dev_err_probe(dev, ret, "rproc_add failed\n");
 
 	return 0;
-
-err_put_rproc:
-	rproc_free(rproc);
-err:
-	pm_runtime_put_noidle(dev);
-	pm_runtime_disable(dev);
-	return ret;
-}
-
-static void wkup_m3_rproc_remove(struct platform_device *pdev)
-{
-	struct rproc *rproc = platform_get_drvdata(pdev);
-
-	rproc_del(rproc);
-	rproc_free(rproc);
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 }
 
 #ifdef CONFIG_PM
@@ -251,7 +235,6 @@ static const struct dev_pm_ops wkup_m3_rproc_pm_ops = {
 
 static struct platform_driver wkup_m3_rproc_driver = {
 	.probe = wkup_m3_rproc_probe,
-	.remove = wkup_m3_rproc_remove,
 	.driver = {
 		.name = "wkup_m3_rproc",
 		.of_match_table = wkup_m3_rproc_of_match,

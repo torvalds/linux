@@ -17,7 +17,19 @@
 #include <linux/dsa/loop.h>
 #include <net/dsa.h>
 
-#include "dsa_loop.h"
+#define DSA_LOOP_NUM_PORTS	6
+#define DSA_LOOP_CPU_PORT	(DSA_LOOP_NUM_PORTS - 1)
+#define NUM_FIXED_PHYS		(DSA_LOOP_NUM_PORTS - 2)
+
+struct dsa_loop_pdata {
+	/* Must be first, such that dsa_register_switch() can access this
+	 * without gory pointer manipulations
+	 */
+	struct dsa_chip_data cd;
+	const char *name;
+	unsigned int enabled_ports;
+	const char *netdev;
+};
 
 static struct dsa_loop_mib_entry dsa_loop_mibs[] = {
 	[DSA_LOOP_PHY_READ_OK]	= { "phy_read_ok", },
@@ -27,6 +39,7 @@ static struct dsa_loop_mib_entry dsa_loop_mibs[] = {
 };
 
 static struct phy_device *phydevs[PHY_MAX_ADDR];
+static struct mdio_device *switch_mdiodev;
 
 enum dsa_loop_devlink_resource_id {
 	DSA_LOOP_DEVLINK_PARAM_ID_VTU,
@@ -382,17 +395,48 @@ static struct mdio_driver dsa_loop_drv = {
 	.shutdown = dsa_loop_drv_shutdown,
 };
 
-#define NUM_FIXED_PHYS	(DSA_LOOP_NUM_PORTS - 2)
-
 static void dsa_loop_phydevs_unregister(void)
 {
-	unsigned int i;
-
-	for (i = 0; i < NUM_FIXED_PHYS; i++)
-		if (!IS_ERR(phydevs[i])) {
+	for (int i = 0; i < NUM_FIXED_PHYS; i++) {
+		if (!IS_ERR(phydevs[i]))
 			fixed_phy_unregister(phydevs[i]);
-			phy_device_free(phydevs[i]);
-		}
+	}
+}
+
+static int __init dsa_loop_create_switch_mdiodev(void)
+{
+	static struct dsa_loop_pdata dsa_loop_pdata = {
+		.cd = {
+			.port_names[0] = "lan1",
+			.port_names[1] = "lan2",
+			.port_names[2] = "lan3",
+			.port_names[3] = "lan4",
+			.port_names[DSA_LOOP_CPU_PORT] = "cpu",
+		},
+		.name = "DSA mockup driver",
+		.enabled_ports = 0x1f,
+		.netdev = "eth0",
+	};
+	struct mii_bus *bus;
+	int ret = -ENODEV;
+
+	bus = mdio_find_bus("fixed-0");
+	if (WARN_ON(!bus))
+		return ret;
+
+	switch_mdiodev = mdio_device_create(bus, 31);
+	if (IS_ERR(switch_mdiodev))
+		goto out;
+
+	strscpy(switch_mdiodev->modalias, "dsa-loop");
+	switch_mdiodev->dev.platform_data = &dsa_loop_pdata;
+
+	ret = mdio_device_register(switch_mdiodev);
+	if (ret)
+		mdio_device_free(switch_mdiodev);
+out:
+	put_device(&bus->dev);
+	return ret;
 }
 
 static int __init dsa_loop_init(void)
@@ -402,14 +446,22 @@ static int __init dsa_loop_init(void)
 		.speed = SPEED_100,
 		.duplex = DUPLEX_FULL,
 	};
-	unsigned int i, ret;
+	unsigned int i;
+	int ret;
+
+	ret = dsa_loop_create_switch_mdiodev();
+	if (ret)
+		return ret;
 
 	for (i = 0; i < NUM_FIXED_PHYS; i++)
 		phydevs[i] = fixed_phy_register(&status, NULL);
 
 	ret = mdio_driver_register(&dsa_loop_drv);
-	if (ret)
+	if (ret) {
 		dsa_loop_phydevs_unregister();
+		mdio_device_remove(switch_mdiodev);
+		mdio_device_free(switch_mdiodev);
+	}
 
 	return ret;
 }
@@ -419,10 +471,11 @@ static void __exit dsa_loop_exit(void)
 {
 	mdio_driver_unregister(&dsa_loop_drv);
 	dsa_loop_phydevs_unregister();
+	mdio_device_remove(switch_mdiodev);
+	mdio_device_free(switch_mdiodev);
 }
 module_exit(dsa_loop_exit);
 
-MODULE_SOFTDEP("pre: dsa_loop_bdinfo");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Florian Fainelli");
 MODULE_DESCRIPTION("DSA loopback driver");

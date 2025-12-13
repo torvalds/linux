@@ -4,7 +4,7 @@ name: nftables
 protocol: netlink-raw
 protonum: 12
 
-doc:
+doc: >-
   Netfilter nftables configuration over netlink.
 
 definitions:

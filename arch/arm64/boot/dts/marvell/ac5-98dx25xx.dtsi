@@ -322,7 +322,7 @@
 
 		nand: nand-controller@805b0000 {
 			compatible = "marvell,ac5-nand-controller";
-			reg =  <0x0 0x805b0000 0x0 0x00000054>;
+			reg = <0x0 0x805b0000 0x0 0x00000054>;
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;

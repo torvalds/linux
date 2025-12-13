@@ -414,18 +414,16 @@ get_src_rsc(struct src_mgr *mgr, const struct src_desc *desc, struct src **rsrc)
 	unsigned int idx = SRC_RESOURCE_NUM;
 	int err;
 	struct src *src;
-	unsigned long flags;
 
 	*rsrc = NULL;
 
 	/* Check whether there are sufficient src resources to meet request. */
-	spin_lock_irqsave(&mgr->mgr_lock, flags);
-	if (MEMRD == desc->mode)
-		err = mgr_get_resource(&mgr->mgr, desc->multi, &idx);
-	else
-		err = mgr_get_resource(&mgr->mgr, 1, &idx);
-
-	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
+	scoped_guard(spinlock_irqsave, &mgr->mgr_lock) {
+		if (MEMRD == desc->mode)
+			err = mgr_get_resource(&mgr->mgr, desc->multi, &idx);
+		else
+			err = mgr_get_resource(&mgr->mgr, 1, &idx);
+	}
 	if (err) {
 		dev_err(mgr->card->dev,
 			"Can't meet SRC resource request!\n");
@@ -454,29 +452,25 @@ get_src_rsc(struct src_mgr *mgr, const struct src_desc *desc, struct src **rsrc)
 error2:
 	kfree(src);
 error1:
-	spin_lock_irqsave(&mgr->mgr_lock, flags);
-	if (MEMRD == desc->mode)
-		mgr_put_resource(&mgr->mgr, desc->multi, idx);
-	else
-		mgr_put_resource(&mgr->mgr, 1, idx);
-
-	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
+	scoped_guard(spinlock_irqsave, &mgr->mgr_lock) {
+		if (MEMRD == desc->mode)
+			mgr_put_resource(&mgr->mgr, desc->multi, idx);
+		else
+			mgr_put_resource(&mgr->mgr, 1, idx);
+	}
 	return err;
 }
 
 static int put_src_rsc(struct src_mgr *mgr, struct src *src)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&mgr->mgr_lock, flags);
-	src->rsc.ops->master(&src->rsc);
-	if (MEMRD == src->mode)
-		mgr_put_resource(&mgr->mgr, src->multi,
-				 src->rsc.ops->index(&src->rsc));
-	else
-		mgr_put_resource(&mgr->mgr, 1, src->rsc.ops->index(&src->rsc));
-
-	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
+	scoped_guard(spinlock_irqsave, &mgr->mgr_lock) {
+		src->rsc.ops->master(&src->rsc);
+		if (MEMRD == src->mode)
+			mgr_put_resource(&mgr->mgr, src->multi,
+					 src->rsc.ops->index(&src->rsc));
+		else
+			mgr_put_resource(&mgr->mgr, 1, src->rsc.ops->index(&src->rsc));
+	}
 	src_rsc_uninit(src, mgr);
 	kfree(src);
 
@@ -714,7 +708,6 @@ static int get_srcimp_rsc(struct srcimp_mgr *mgr,
 	int err, i;
 	unsigned int idx;
 	struct srcimp *srcimp;
-	unsigned long flags;
 
 	*rsrcimp = NULL;
 
@@ -725,15 +718,15 @@ static int get_srcimp_rsc(struct srcimp_mgr *mgr,
 
 	/* Check whether there are sufficient SRCIMP resources. */
 	err = 0;
-	spin_lock_irqsave(&mgr->mgr_lock, flags);
-	for (i = 0; i < desc->msr; i++) {
-		err = mgr_get_resource(&mgr->mgr, 1, &idx);
-		if (err)
-			break;
+	scoped_guard(spinlock_irqsave, &mgr->mgr_lock) {
+		for (i = 0; i < desc->msr; i++) {
+			err = mgr_get_resource(&mgr->mgr, 1, &idx);
+			if (err)
+				break;
 
-		srcimp->idx[i] = idx;
+			srcimp->idx[i] = idx;
+		}
 	}
-	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
 	if (err) {
 		dev_err(mgr->card->dev,
 			"Can't meet SRCIMP resource request!\n");
@@ -749,25 +742,22 @@ static int get_srcimp_rsc(struct srcimp_mgr *mgr,
 	return 0;
 
 error1:
-	spin_lock_irqsave(&mgr->mgr_lock, flags);
-	for (i--; i >= 0; i--)
-		mgr_put_resource(&mgr->mgr, 1, srcimp->idx[i]);
-
-	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
+	scoped_guard(spinlock_irqsave, &mgr->mgr_lock) {
+		for (i--; i >= 0; i--)
+			mgr_put_resource(&mgr->mgr, 1, srcimp->idx[i]);
+	}
 	kfree(srcimp);
 	return err;
 }
 
 static int put_srcimp_rsc(struct srcimp_mgr *mgr, struct srcimp *srcimp)
 {
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&mgr->mgr_lock, flags);
-	for (i = 0; i < srcimp->rsc.msr; i++)
-		mgr_put_resource(&mgr->mgr, 1, srcimp->idx[i]);
-
-	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
+	scoped_guard(spinlock_irqsave, &mgr->mgr_lock) {
+		for (i = 0; i < srcimp->rsc.msr; i++)
+			mgr_put_resource(&mgr->mgr, 1, srcimp->idx[i]);
+	}
 	srcimp_rsc_uninit(srcimp);
 	kfree(srcimp);
 
@@ -790,34 +780,26 @@ static int srcimp_map_op(void *data, struct imapper *entry)
 
 static int srcimp_imap_add(struct srcimp_mgr *mgr, struct imapper *entry)
 {
-	unsigned long flags;
-	int err;
-
-	spin_lock_irqsave(&mgr->imap_lock, flags);
+	guard(spinlock_irqsave)(&mgr->imap_lock);
 	if ((0 == entry->addr) && (mgr->init_imap_added)) {
 		input_mapper_delete(&mgr->imappers,
 				    mgr->init_imap, srcimp_map_op, mgr);
 		mgr->init_imap_added = 0;
 	}
-	err = input_mapper_add(&mgr->imappers, entry, srcimp_map_op, mgr);
-	spin_unlock_irqrestore(&mgr->imap_lock, flags);
-
-	return err;
+	return input_mapper_add(&mgr->imappers, entry, srcimp_map_op, mgr);
 }
 
 static int srcimp_imap_delete(struct srcimp_mgr *mgr, struct imapper *entry)
 {
-	unsigned long flags;
 	int err;
 
-	spin_lock_irqsave(&mgr->imap_lock, flags);
+	guard(spinlock_irqsave)(&mgr->imap_lock);
 	err = input_mapper_delete(&mgr->imappers, entry, srcimp_map_op, mgr);
 	if (list_empty(&mgr->imappers)) {
 		input_mapper_add(&mgr->imappers, mgr->init_imap,
 				 srcimp_map_op, mgr);
 		mgr->init_imap_added = 1;
 	}
-	spin_unlock_irqrestore(&mgr->imap_lock, flags);
 
 	return err;
 }
@@ -870,12 +852,11 @@ error1:
 int srcimp_mgr_destroy(void *ptr)
 {
 	struct srcimp_mgr *srcimp_mgr = ptr;
-	unsigned long flags;
 
 	/* free src input mapper list */
-	spin_lock_irqsave(&srcimp_mgr->imap_lock, flags);
-	free_input_mapper_list(&srcimp_mgr->imappers);
-	spin_unlock_irqrestore(&srcimp_mgr->imap_lock, flags);
+	scoped_guard(spinlock_irqsave, &srcimp_mgr->imap_lock) {
+		free_input_mapper_list(&srcimp_mgr->imappers);
+	}
 
 	rsc_mgr_uninit(&srcimp_mgr->mgr);
 	kfree(srcimp_mgr);

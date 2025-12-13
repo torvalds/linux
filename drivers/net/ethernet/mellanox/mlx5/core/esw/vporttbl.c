@@ -45,8 +45,8 @@ esw_vport_tbl_create(struct mlx5_eswitch *esw, struct mlx5_flow_namespace *ns,
 	ft_attr.flags = vport_ns->flags;
 	fdb = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(fdb)) {
-		esw_warn(esw->dev, "Failed to create per vport FDB Table err %ld\n",
-			 PTR_ERR(fdb));
+		esw_warn(esw->dev, "Failed to create per vport FDB Table err %pe\n",
+			 fdb);
 	}
 
 	return fdb;

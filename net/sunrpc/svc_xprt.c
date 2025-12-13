@@ -1014,6 +1014,19 @@ static void svc_delete_xprt(struct svc_xprt *xprt)
 	struct svc_serv	*serv = xprt->xpt_server;
 	struct svc_deferred_req *dr;
 
+	/* unregister with rpcbind for when transport type is TCP or UDP.
+	 */
+	if (test_bit(XPT_RPCB_UNREG, &xprt->xpt_flags)) {
+		struct svc_sock *svsk = container_of(xprt, struct svc_sock,
+						     sk_xprt);
+		struct socket *sock = svsk->sk_sock;
+
+		if (svc_register(serv, xprt->xpt_net, sock->sk->sk_family,
+				 sock->sk->sk_protocol, 0) < 0)
+			pr_warn("failed to unregister %s with rpcbind\n",
+				xprt->xpt_class->xcl_name);
+	}
+
 	if (test_and_set_bit(XPT_DEAD, &xprt->xpt_flags))
 		return;
 
@@ -1102,6 +1115,7 @@ static void svc_clean_up_xprts(struct svc_serv *serv, struct net *net)
  * svc_xprt_destroy_all - Destroy transports associated with @serv
  * @serv: RPC service to be shut down
  * @net: target network namespace
+ * @unregister: true if it is OK to unregister the destroyed xprts
  *
  * Server threads may still be running (especially in the case where the
  * service is still running in other network namespaces).
@@ -1114,7 +1128,8 @@ static void svc_clean_up_xprts(struct svc_serv *serv, struct net *net)
  * threads, we may need to wait a little while and then check again to
  * see if they're done.
  */
-void svc_xprt_destroy_all(struct svc_serv *serv, struct net *net)
+void svc_xprt_destroy_all(struct svc_serv *serv, struct net *net,
+			  bool unregister)
 {
 	int delay = 0;
 
@@ -1124,6 +1139,9 @@ void svc_xprt_destroy_all(struct svc_serv *serv, struct net *net)
 		svc_clean_up_xprts(serv, net);
 		msleep(delay++);
 	}
+
+	if (unregister)
+		svc_rpcb_cleanup(serv, net);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_destroy_all);
 

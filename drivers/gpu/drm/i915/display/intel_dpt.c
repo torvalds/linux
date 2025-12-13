@@ -33,8 +33,6 @@ i915_vm_to_dpt(struct i915_address_space *vm)
 	return container_of(vm, struct i915_dpt, vm);
 }
 
-#define dpt_total_entries(dpt) ((dpt)->vm.total >> PAGE_SHIFT)
-
 static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
 {
 	writeq(pte, addr);
@@ -322,5 +320,5 @@ void intel_dpt_destroy(struct i915_address_space *vm)
 
 u64 intel_dpt_offset(struct i915_vma *dpt_vma)
 {
-	return dpt_vma->node.start;
+	return i915_vma_offset(dpt_vma);
 }

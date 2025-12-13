@@ -87,8 +87,8 @@ int esw_acl_egress_lgcy_setup(struct mlx5_eswitch *esw,
 		drop_counter = mlx5_fc_create(esw->dev, false);
 		if (IS_ERR(drop_counter)) {
 			esw_warn(esw->dev,
-				 "vport[%d] configure egress drop rule counter err(%ld)\n",
-				 vport->vport, PTR_ERR(drop_counter));
+				 "vport[%d] configure egress drop rule counter err(%pe)\n",
+				 vport->vport, drop_counter);
 			drop_counter = NULL;
 		}
 		vport->egress.legacy.drop_counter = drop_counter;

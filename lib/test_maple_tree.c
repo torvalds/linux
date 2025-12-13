@@ -2746,139 +2746,6 @@ static noinline void __init check_fuzzer(struct maple_tree *mt)
 	mtree_test_erase(mt, ULONG_MAX - 10);
 }
 
-/* duplicate the tree with a specific gap */
-static noinline void __init check_dup_gaps(struct maple_tree *mt,
-				    unsigned long nr_entries, bool zero_start,
-				    unsigned long gap)
-{
-	unsigned long i = 0;
-	struct maple_tree newmt;
-	int ret;
-	void *tmp;
-	MA_STATE(mas, mt, 0, 0);
-	MA_STATE(newmas, &newmt, 0, 0);
-	struct rw_semaphore newmt_lock;
-
-	init_rwsem(&newmt_lock);
-	mt_set_external_lock(&newmt, &newmt_lock);
-
-	if (!zero_start)
-		i = 1;
-
-	mt_zero_nr_tallocated();
-	for (; i <= nr_entries; i++)
-		mtree_store_range(mt, i*10, (i+1)*10 - gap,
-				  xa_mk_value(i), GFP_KERNEL);
-
-	mt_init_flags(&newmt, MT_FLAGS_ALLOC_RANGE | MT_FLAGS_LOCK_EXTERN);
-	mt_set_non_kernel(99999);
-	down_write(&newmt_lock);
-	ret = mas_expected_entries(&newmas, nr_entries);
-	mt_set_non_kernel(0);
-	MT_BUG_ON(mt, ret != 0);
-
-	rcu_read_lock();
-	mas_for_each(&mas, tmp, ULONG_MAX) {
-		newmas.index = mas.index;
-		newmas.last = mas.last;
-		mas_store(&newmas, tmp);
-	}
-	rcu_read_unlock();
-	mas_destroy(&newmas);
-
-	__mt_destroy(&newmt);
-	up_write(&newmt_lock);
-}
-
-/* Duplicate many sizes of trees.  Mainly to test expected entry values */
-static noinline void __init check_dup(struct maple_tree *mt)
-{
-	int i;
-	int big_start = 100010;
-
-	/* Check with a value at zero */
-	for (i = 10; i < 1000; i++) {
-		mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
-		check_dup_gaps(mt, i, true, 5);
-		mtree_destroy(mt);
-		rcu_barrier();
-	}
-
-	cond_resched();
-	mt_cache_shrink();
-	/* Check with a value at zero, no gap */
-	for (i = 1000; i < 2000; i++) {
-		mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
-		check_dup_gaps(mt, i, true, 0);
-		mtree_destroy(mt);
-		rcu_barrier();
-	}
-
-	cond_resched();
-	mt_cache_shrink();
-	/* Check with a value at zero and unreasonably large */
-	for (i = big_start; i < big_start + 10; i++) {
-		mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
-		check_dup_gaps(mt, i, true, 5);
-		mtree_destroy(mt);
-		rcu_barrier();
-	}
-
-	cond_resched();
-	mt_cache_shrink();
-	/* Small to medium size not starting at zero*/
-	for (i = 200; i < 1000; i++) {
-		mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
-		check_dup_gaps(mt, i, false, 5);
-		mtree_destroy(mt);
-		rcu_barrier();
-	}
-
-	cond_resched();
-	mt_cache_shrink();
-	/* Unreasonably large not starting at zero*/
-	for (i = big_start; i < big_start + 10; i++) {
-		mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
-		check_dup_gaps(mt, i, false, 5);
-		mtree_destroy(mt);
-		rcu_barrier();
-		cond_resched();
-		mt_cache_shrink();
-	}
-
-	/* Check non-allocation tree not starting at zero */
-	for (i = 1500; i < 3000; i++) {
-		mt_init_flags(mt, 0);
-		check_dup_gaps(mt, i, false, 5);
-		mtree_destroy(mt);
-		rcu_barrier();
-		cond_resched();
-		if (i % 2 == 0)
-			mt_cache_shrink();
-	}
-
-	mt_cache_shrink();
-	/* Check non-allocation tree starting at zero */
-	for (i = 200; i < 1000; i++) {
-		mt_init_flags(mt, 0);
-		check_dup_gaps(mt, i, true, 5);
-		mtree_destroy(mt);
-		rcu_barrier();
-		cond_resched();
-	}
-
-	mt_cache_shrink();
-	/* Unreasonably large */
-	for (i = big_start + 5; i < big_start + 10; i++) {
-		mt_init_flags(mt, 0);
-		check_dup_gaps(mt, i, true, 5);
-		mtree_destroy(mt);
-		rcu_barrier();
-		mt_cache_shrink();
-		cond_resched();
-	}
-}
-
 static noinline void __init check_bnode_min_spanning(struct maple_tree *mt)
 {
 	int i = 50;
@@ -3562,7 +3429,7 @@ static noinline void __init check_state_handling(struct maple_tree *mt)
 	MT_BUG_ON(mt, mas.last != 0x1500);
 	MT_BUG_ON(mt, !mas_is_active(&mas));
 
-	/* find: start ->active on value */;
+	/* find: start ->active on value */
 	mas_set(&mas, 1200);
 	entry = mas_find(&mas, ULONG_MAX);
 	MT_BUG_ON(mt, entry != ptr);
@@ -4075,10 +3942,6 @@ static int __init maple_tree_seed(void)
 
 	mt_init_flags(&tree, 0);
 	check_fuzzer(&tree);
-	mtree_destroy(&tree);
-
-	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
-	check_dup(&tree);
 	mtree_destroy(&tree);
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);

@@ -1110,7 +1110,7 @@ xrep_will_attempt(
 		return true;
 
 	/* Let debug users force us into the repair routines. */
-	if (XFS_TEST_ERROR(false, sc->mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR))
+	if (XFS_TEST_ERROR(sc->mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR))
 		return true;
 
 	/* Metadata is corrupt or failed cross-referencing. */

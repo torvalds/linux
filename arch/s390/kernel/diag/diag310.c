@@ -66,7 +66,7 @@ static inline unsigned long diag310(unsigned long subcode, unsigned long size, v
 	union register_pair rp = { .even = (unsigned long)addr, .odd = size };
 
 	diag_stat_inc(DIAG_STAT_X310);
-	asm volatile("diag	%[rp],%[subcode],0x310\n"
+	asm volatile("diag	%[rp],%[subcode],0x310"
 		     : [rp] "+d" (rp.pair)
 		     : [subcode] "d" (subcode)
 		     : "memory");

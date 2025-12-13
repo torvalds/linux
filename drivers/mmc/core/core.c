@@ -1398,6 +1398,29 @@ void mmc_power_cycle(struct mmc_host *host, u32 ocr)
 	mmc_power_up(host, ocr);
 }
 
+/**
+ * mmc_handle_undervoltage - Handle an undervoltage event on the MMC bus
+ * @host: The MMC host that detected the undervoltage condition
+ *
+ * This function is called when an undervoltage event is detected on one of
+ * the MMC regulators.
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+int mmc_handle_undervoltage(struct mmc_host *host)
+{
+	/* Stop the host to prevent races with card removal */
+	__mmc_stop_host(host);
+
+	if (!host->bus_ops || !host->bus_ops->handle_undervoltage)
+		return 0;
+
+	dev_warn(mmc_dev(host), "%s: Undervoltage detected, initiating emergency stop\n",
+		 mmc_hostname(host));
+
+	return host->bus_ops->handle_undervoltage(host);
+}
+
 /*
  * Assign a mmc bus handler to a host. Only one bus handler may control a
  * host at any given time.
@@ -1874,6 +1897,15 @@ bool mmc_card_can_secure_erase_trim(struct mmc_card *card)
 		!(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN));
 }
 EXPORT_SYMBOL(mmc_card_can_secure_erase_trim);
+
+bool mmc_card_can_cmd23(struct mmc_card *card)
+{
+	return ((mmc_card_mmc(card) &&
+		 card->csd.mmca_vsn >= CSD_SPEC_VER_3) ||
+		(mmc_card_sd(card) && !mmc_card_ult_capacity(card) &&
+		 card->scr.cmds & SD_SCR_CMD23_SUPPORT));
+}
+EXPORT_SYMBOL(mmc_card_can_cmd23);
 
 int mmc_erase_group_aligned(struct mmc_card *card, sector_t from,
 			    unsigned int nr)

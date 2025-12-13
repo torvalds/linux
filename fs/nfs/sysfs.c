@@ -189,6 +189,7 @@ static struct nfs_netns_client *nfs_netns_client_alloc(struct kobject *parent,
 			return p;
 
 		kobject_put(&p->kobject);
+		kobject_put(&p->nfs_net_kobj);
 	}
 	return NULL;
 }

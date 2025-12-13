@@ -77,7 +77,7 @@ void intel_connector_cancel_modeset_retry_work(struct intel_connector *connector
 		drm_connector_put(&connector->base);
 }
 
-int intel_connector_init(struct intel_connector *connector)
+static int intel_connector_init(struct intel_connector *connector)
 {
 	struct intel_digital_connector_state *conn_state;
 

@@ -3,9 +3,11 @@
 #include <string.h>
 #include "../../../util/kvm-stat.h"
 #include "../../../util/evsel.h"
+#include "../../../util/env.h"
 #include <asm/svm.h>
 #include <asm/vmx.h>
 #include <asm/kvm.h>
+#include <subcmd/parse-options.h>
 
 define_exit_reasons_table(vmx_exit_reasons, VMX_EXIT_REASONS);
 define_exit_reasons_table(svm_exit_reasons, SVM_EXIT_REASONS);
@@ -210,4 +212,53 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
 		return -ENOTSUP;
 
 	return 0;
+}
+
+/*
+ * After KVM supports PEBS for guest on Intel platforms
+ * (https://lore.kernel.org/all/20220411101946.20262-1-likexu@tencent.com/),
+ * host loses the capability to sample guest with PEBS since all PEBS related
+ * MSRs are switched to guest value after vm-entry, like IA32_DS_AREA MSR is
+ * switched to guest GVA at vm-entry. This would lead to "perf kvm record"
+ * fails to sample guest on Intel platforms since "cycles:P" event is used to
+ * sample guest by default.
+ *
+ * So, to avoid this issue explicitly use "cycles" instead of "cycles:P" event
+ * by default to sample guest on Intel platforms.
+ */
+int kvm_add_default_arch_event(int *argc, const char **argv)
+{
+	const char **tmp;
+	bool event = false;
+	int ret = 0, i, j = *argc;
+
+	const struct option event_options[] = {
+		OPT_BOOLEAN('e', "event", &event, NULL),
+		OPT_BOOLEAN(0, "pfm-events", &event, NULL),
+		OPT_END()
+	};
+
+	if (!x86__is_intel_cpu())
+		return 0;
+
+	tmp = calloc(j + 1, sizeof(char *));
+	if (!tmp)
+		return -ENOMEM;
+
+	for (i = 0; i < j; i++)
+		tmp[i] = argv[i];
+
+	parse_options(j, tmp, event_options, NULL, PARSE_OPT_KEEP_UNKNOWN);
+	if (!event) {
+		argv[j++] = STRDUP_FAIL_EXIT("-e");
+		argv[j++] = STRDUP_FAIL_EXIT("cycles");
+		*argc += 2;
+	}
+
+	free(tmp);
+	return 0;
+
+EXIT:
+	free(tmp);
+	return ret;
 }

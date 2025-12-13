@@ -9,9 +9,12 @@
 
 #include "display/intel_display.h"
 #include "display/intel_display_rps.h"
+#include "soc/intel_dram.h"
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
+#include "i915_wait_util.h"
 #include "intel_breadcrumbs.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
@@ -276,20 +279,24 @@ static void gen5_rps_init(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
+	unsigned int fsb_freq, mem_freq;
 	u8 fmax, fmin, fstart;
 	u32 rgvmodectl;
 	int c_m, i;
 
-	if (i915->fsb_freq <= 3200000)
+	fsb_freq = intel_fsb_freq(i915);
+	mem_freq = intel_mem_freq(i915);
+
+	if (fsb_freq <= 3200000)
 		c_m = 0;
-	else if (i915->fsb_freq <= 4800000)
+	else if (fsb_freq <= 4800000)
 		c_m = 1;
 	else
 		c_m = 2;
 
 	for (i = 0; i < ARRAY_SIZE(cparams); i++) {
 		if (cparams[i].i == c_m &&
-		    cparams[i].t == DIV_ROUND_CLOSEST(i915->mem_freq, 1000)) {
+		    cparams[i].t == DIV_ROUND_CLOSEST(mem_freq, 1000)) {
 			rps->ips.m = cparams[i].m;
 			rps->ips.c = cparams[i].c;
 			break;

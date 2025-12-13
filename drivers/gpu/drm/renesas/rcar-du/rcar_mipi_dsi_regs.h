@@ -12,6 +12,130 @@
 #define LINKSR_LPBUSY			(1 << 1)
 #define LINKSR_HSBUSY			(1 << 0)
 
+#define TXSETR				0x100
+#define TXSETR_LANECNT_MASK		(0x3 << 0)
+
+/*
+ * DSI Command Transfer Registers
+ */
+#define TXCMSETR			0x110
+#define TXCMSETR_SPDTYP			(1 << 8)	/* 0:HS 1:LP */
+#define TXCMSETR_LPPDACC		(1 << 0)
+#define TXCMCR				0x120
+#define TXCMCR_BTATYP			(1 << 2)
+#define TXCMCR_BTAREQ			(1 << 1)
+#define TXCMCR_TXREQ			(1 << 0)
+#define TXCMSR				0x130
+#define TXCMSR_CLSNERR			(1 << 18)
+#define TXCMSR_AXIERR			(1 << 16)
+#define TXCMSR_TXREQEND			(1 << 0)
+#define TXCMSCR				0x134
+#define TXCMSCR_CLSNERR			(1 << 18)
+#define TXCMSCR_AXIERR			(1 << 16)
+#define TXCMSCR_TXREQEND		(1 << 0)
+#define TXCMIER				0x138
+#define TXCMIER_CLSNERR			(1 << 18)
+#define TXCMIER_AXIERR			(1 << 16)
+#define TXCMIER_TXREQEND		(1 << 0)
+#define TXCMADDRSET0R			0x140
+#define TXCMPHDR			0x150
+#define TXCMPHDR_FMT			(1 << 24)	/* 0:SP 1:LP */
+#define TXCMPHDR_VC(n)			(((n) & 0x3) << 22)
+#define TXCMPHDR_DT(n)			(((n) & 0x3f) << 16)
+#define TXCMPHDR_DATA1(n)		(((n) & 0xff) << 8)
+#define TXCMPHDR_DATA0(n)		(((n) & 0xff) << 0)
+#define TXCMPPD0R			0x160
+#define TXCMPPD1R			0x164
+#define TXCMPPD2R			0x168
+#define TXCMPPD3R			0x16c
+
+#define RXSETR				0x200
+#define RXSETR_CRCEN			(((n) & 0xf) << 24)
+#define RXSETR_ECCEN			(((n) & 0xf) << 16)
+#define RXPSETR				0x210
+#define RXPSETR_LPPDACC			(1 << 0)
+#define RXPSR				0x220
+#define RXPSR_ECCERR1B			(1 << 28)
+#define RXPSR_UEXTRGERR			(1 << 25)
+#define RXPSR_RESPTOERR			(1 << 24)
+#define RXPSR_OVRERR			(1 << 23)
+#define RXPSR_AXIERR			(1 << 22)
+#define RXPSR_CRCERR			(1 << 21)
+#define RXPSR_WCERR			(1 << 20)
+#define RXPSR_UEXDTERR			(1 << 19)
+#define RXPSR_UEXPKTERR			(1 << 18)
+#define RXPSR_ECCERR			(1 << 17)
+#define RXPSR_MLFERR			(1 << 16)
+#define RXPSR_RCVACK			(1 << 14)
+#define RXPSR_RCVEOT			(1 << 10)
+#define RXPSR_RCVAKE			(1 << 9)
+#define RXPSR_RCVRESP			(1 << 8)
+#define RXPSR_BTAREQEND			(1 << 0)
+#define RXPSCR				0x224
+#define RXPSCR_ECCERR1B			(1 << 28)
+#define RXPSCR_UEXTRGERR		(1 << 25)
+#define RXPSCR_RESPTOERR		(1 << 24)
+#define RXPSCR_OVRERR			(1 << 23)
+#define RXPSCR_AXIERR			(1 << 22)
+#define RXPSCR_CRCERR			(1 << 21)
+#define RXPSCR_WCERR			(1 << 20)
+#define RXPSCR_UEXDTERR			(1 << 19)
+#define RXPSCR_UEXPKTERR		(1 << 18)
+#define RXPSCR_ECCERR			(1 << 17)
+#define RXPSCR_MLFERR			(1 << 16)
+#define RXPSCR_RCVACK			(1 << 14)
+#define RXPSCR_RCVEOT			(1 << 10)
+#define RXPSCR_RCVAKE			(1 << 9)
+#define RXPSCR_RCVRESP			(1 << 8)
+#define RXPSCR_BTAREQEND		(1 << 0)
+#define RXPIER				0x228
+#define RXPIER_ECCERR1B			(1 << 28)
+#define RXPIER_UEXTRGERR		(1 << 25)
+#define RXPIER_RESPTOERR		(1 << 24)
+#define RXPIER_OVRERR			(1 << 23)
+#define RXPIER_AXIERR			(1 << 22)
+#define RXPIER_CRCERR			(1 << 21)
+#define RXPIER_WCERR			(1 << 20)
+#define RXPIER_UEXDTERR			(1 << 19)
+#define RXPIER_UEXPKTERR		(1 << 18)
+#define RXPIER_ECCERR			(1 << 17)
+#define RXPIER_MLFERR			(1 << 16)
+#define RXPIER_RCVACK			(1 << 14)
+#define RXPIER_RCVEOT			(1 << 10)
+#define RXPIER_RCVAKE			(1 << 9)
+#define RXPIER_RCVRESP			(1 << 8)
+#define RXPIER_BTAREQEND		(1 << 0)
+#define RXPADDRSET0R			0x230
+#define RXPSIZESETR			0x238
+#define RXPSIZESETR_SIZE(n)		(((n) & 0xf) << 3)
+#define RXPHDR				0x240
+#define RXPHDR_FMT			(1 << 24)	/* 0:SP 1:LP */
+#define RXPHDR_VC(n)			(((n) & 0x3) << 22)
+#define RXPHDR_DT(n)			(((n) & 0x3f) << 16)
+#define RXPHDR_DATA1(n)			(((n) & 0xff) << 8)
+#define RXPHDR_DATA0(n)			(((n) & 0xff) << 0)
+#define RXPPD0R				0x250
+#define RXPPD1R				0x254
+#define RXPPD2R				0x258
+#define RXPPD3R				0x25c
+#define AKEPR				0x300
+#define AKEPR_VC(n)			(((n) & 0x3) << 22)
+#define AKEPR_DT(n)			(((n) & 0x3f) << 16)
+#define AKEPR_ERRRPT(n)			(((n) & 0xffff) << 0)
+#define RXRESPTOSETR			0x400
+#define TACR				0x500
+#define TASR				0x510
+#define TASCR				0x514
+#define TAIER				0x518
+#define TOSR				0x610
+#define TOSR_TATO			(1 << 2)
+#define TOSR_LRXHTO			(1 << 1)
+#define TOSR_HRXTO			(1 << 0)
+#define TOSCR				0x614
+#define TOSCR_TATO			(1 << 2)
+#define TOSCR_LRXHTO			(1 << 1)
+#define TOSCR_HRXTO			(1 << 0)
+
 /*
  * Video Mode Register
  */
@@ -80,10 +204,7 @@
  * PHY-Protocol Interface (PPI) Registers
  */
 #define PPISETR				0x700
-#define PPISETR_DLEN_0			(0x1 << 0)
-#define PPISETR_DLEN_1			(0x3 << 0)
-#define PPISETR_DLEN_2			(0x7 << 0)
-#define PPISETR_DLEN_3			(0xf << 0)
+#define PPISETR_DLEN_MASK		(0xf << 0)
 #define PPISETR_CLEN			(1 << 8)
 
 #define PPICLCR				0x710
@@ -99,6 +220,10 @@
 #define PPICLSCR			0x724
 #define PPICLSCR_HSTOLP			(1 << 27)
 #define PPICLSCR_TOHS			(1 << 26)
+
+#define PPIDL0SR			0x740
+#define PPIDL0SR_DIR			(1 << 10)
+#define PPIDL0SR_STPST			(1 << 6)
 
 #define PPIDLSR				0x760
 #define PPIDLSR_STPST			(0xf << 0)

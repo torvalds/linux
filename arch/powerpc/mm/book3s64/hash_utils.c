@@ -1562,11 +1562,11 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 	folio = page_folio(pte_page(pte));
 
 	/* page is dirty */
-	if (!test_bit(PG_dcache_clean, &folio->flags) &&
+	if (!test_bit(PG_dcache_clean, &folio->flags.f) &&
 	    !folio_test_reserved(folio)) {
 		if (trap == INTERRUPT_INST_STORAGE) {
 			flush_dcache_icache_folio(folio);
-			set_bit(PG_dcache_clean, &folio->flags);
+			set_bit(PG_dcache_clean, &folio->flags.f);
 		} else
 			pp |= HPTE_R_N;
 	}

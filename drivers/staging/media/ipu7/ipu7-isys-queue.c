@@ -442,14 +442,13 @@ static int ipu7_isys_link_fmt_validate(struct ipu7_isys_queue *aq)
 		media_pad_remote_pad_first(av->vdev.entity.pads);
 	struct v4l2_mbus_framefmt format;
 	struct v4l2_subdev *sd;
-	u32 r_stream, code;
+	u32 r_stream = 0, code;
 	int ret;
 
 	if (!remote_pad)
 		return -ENOTCONN;
 
 	sd = media_entity_to_v4l2_subdev(remote_pad->entity);
-	r_stream = ipu7_isys_get_src_stream_by_src_pad(sd, remote_pad->index);
 
 	ret = ipu7_isys_get_stream_pad_fmt(sd, remote_pad->index, r_stream,
 					   &format);

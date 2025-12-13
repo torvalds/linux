@@ -10,7 +10,7 @@
 
 #ifdef CONFIG_MMU
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #define __ASM_EXTABLE_RAW(insn, fixup, type, data)	\
 	.pushsection	__ex_table, "a";		\
@@ -25,7 +25,7 @@
 	__ASM_EXTABLE_RAW(\insn, \fixup, EX_TYPE_FIXUP, 0)
 	.endm
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 #include <linux/bits.h>
 #include <linux/stringify.h>
@@ -77,7 +77,7 @@
 			    EX_DATA_REG(ADDR, addr)				\
 			  ")")
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #else /* CONFIG_MMU */
 	#define _ASM_EXTABLE_UACCESS_ERR(insn, fixup, err)

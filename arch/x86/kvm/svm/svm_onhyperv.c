@@ -15,7 +15,7 @@
 #include "kvm_onhyperv.h"
 #include "svm_onhyperv.h"
 
-int svm_hv_enable_l2_tlb_flush(struct kvm_vcpu *vcpu)
+static int svm_hv_enable_l2_tlb_flush(struct kvm_vcpu *vcpu)
 {
 	struct hv_vmcb_enlightenments *hve;
 	hpa_t partition_assist_page = hv_get_partition_assist_page(vcpu);
@@ -35,3 +35,29 @@ int svm_hv_enable_l2_tlb_flush(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+__init void svm_hv_hardware_setup(void)
+{
+	if (npt_enabled &&
+	    ms_hyperv.nested_features & HV_X64_NESTED_ENLIGHTENED_TLB) {
+		pr_info(KBUILD_MODNAME ": Hyper-V enlightened NPT TLB flush enabled\n");
+		svm_x86_ops.flush_remote_tlbs = hv_flush_remote_tlbs;
+		svm_x86_ops.flush_remote_tlbs_range = hv_flush_remote_tlbs_range;
+	}
+
+	if (ms_hyperv.nested_features & HV_X64_NESTED_DIRECT_FLUSH) {
+		int cpu;
+
+		pr_info(KBUILD_MODNAME ": Hyper-V Direct TLB Flush enabled\n");
+		for_each_online_cpu(cpu) {
+			struct hv_vp_assist_page *vp_ap =
+				hv_get_vp_assist_page(cpu);
+
+			if (!vp_ap)
+				continue;
+
+			vp_ap->nested_control.features.directhypercall = 1;
+		}
+		svm_x86_ops.enable_l2_tlb_flush =
+				svm_hv_enable_l2_tlb_flush;
+	}
+}

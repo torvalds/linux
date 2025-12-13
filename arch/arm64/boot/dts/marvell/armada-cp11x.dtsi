@@ -202,6 +202,7 @@
 			CP11X_LABEL(icu_nsr): interrupt-controller@10 {
 				compatible = "marvell,cp110-icu-nsr";
 				reg = <0x10 0x20>;
+				#address-cells = <0>;
 				#interrupt-cells = <2>;
 				interrupt-controller;
 				msi-parent = <&gicp>;

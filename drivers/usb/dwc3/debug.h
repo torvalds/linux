@@ -14,6 +14,24 @@
 #include "core.h"
 
 /**
+ * dwc3_mode_string - returns mode name
+ * @mode: GCTL.PrtCapDir value
+ */
+static inline const char *dwc3_mode_string(u32 mode)
+{
+	switch (mode) {
+	case DWC3_GCTL_PRTCAP_HOST:
+		return "host";
+	case DWC3_GCTL_PRTCAP_DEVICE:
+		return "device";
+	case DWC3_GCTL_PRTCAP_OTG:
+		return "otg";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+/**
  * dwc3_gadget_ep_cmd_string - returns endpoint command string
  * @cmd: command code
  */

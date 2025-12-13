@@ -2,8 +2,6 @@
 #ifndef KUBLK_UTILS_H
 #define KUBLK_UTILS_H
 
-#define __maybe_unused __attribute__((unused))
-
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif

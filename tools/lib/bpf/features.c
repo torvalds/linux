@@ -6,7 +6,6 @@
 #include "libbpf.h"
 #include "libbpf_common.h"
 #include "libbpf_internal.h"
-#include "str_error.h"
 
 static inline __u64 ptr_to_u64(const void *ptr)
 {

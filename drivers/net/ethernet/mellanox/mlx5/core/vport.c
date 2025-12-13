@@ -36,6 +36,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/eswitch.h>
 #include "mlx5_core.h"
+#include "eswitch.h"
 #include "sf/sf.h"
 
 /* Mutex to hold while enabling or disabling RoCE */
@@ -1189,18 +1190,44 @@ u64 mlx5_query_nic_system_image_guid(struct mlx5_core_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mlx5_query_nic_system_image_guid);
 
+static bool mlx5_vport_use_vhca_id_as_func_id(struct mlx5_core_dev *dev,
+					      u16 vport_num, u16 *vhca_id)
+{
+	if (!MLX5_CAP_GEN_2(dev, function_id_type_vhca_id))
+		return false;
+
+	return mlx5_esw_vport_vhca_id(dev->priv.eswitch, vport_num, vhca_id);
+}
+
 int mlx5_vport_get_other_func_cap(struct mlx5_core_dev *dev, u16 vport, void *out,
 				  u16 opmod)
 {
-	bool ec_vf_func = mlx5_core_is_ec_vf_vport(dev, vport);
 	u8 in[MLX5_ST_SZ_BYTES(query_hca_cap_in)] = {};
+	u16 vhca_id = 0, function_id = 0;
+	bool ec_vf_func = false;
+
+	/* if this vport is referring to a vport on the ec PF (embedded cpu )
+	 * let the FW know which domain we are querying since vport numbers or
+	 * function_ids are not unique across the different PF domains,
+	 * unless we use vhca_id as the function_id below.
+	 */
+	ec_vf_func = mlx5_core_is_ec_vf_vport(dev, vport);
+	function_id = mlx5_vport_to_func_id(dev, vport, ec_vf_func);
+
+	if (mlx5_vport_use_vhca_id_as_func_id(dev, vport, &vhca_id)) {
+		MLX5_SET(query_hca_cap_in, in, function_id_type, 1);
+		function_id = vhca_id;
+		ec_vf_func = false;
+		mlx5_core_dbg(dev, "%s using vhca_id as function_id for vport %d vhca_id 0x%x\n",
+			      __func__, vport, vhca_id);
+	}
 
 	opmod = (opmod << 1) | (HCA_CAP_OPMOD_GET_MAX & 0x01);
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
-	MLX5_SET(query_hca_cap_in, in, function_id, mlx5_vport_to_func_id(dev, vport, ec_vf_func));
 	MLX5_SET(query_hca_cap_in, in, other_function, true);
 	MLX5_SET(query_hca_cap_in, in, ec_vf_function, ec_vf_func);
+	MLX5_SET(query_hca_cap_in, in, function_id, function_id);
 	return mlx5_cmd_exec_inout(dev, query_hca_cap, in, out);
 }
 EXPORT_SYMBOL_GPL(mlx5_vport_get_other_func_cap);
@@ -1212,7 +1239,9 @@ int mlx5_vport_get_vhca_id(struct mlx5_core_dev *dev, u16 vport, u16 *vhca_id)
 	void *hca_caps;
 	int err;
 
-	*vhca_id = 0;
+	/* try get vhca_id via eswitch */
+	if (mlx5_esw_vport_vhca_id(dev->priv.eswitch, vport, vhca_id))
+		return 0;
 
 	query_ctx = kzalloc(query_out_sz, GFP_KERNEL);
 	if (!query_ctx)
@@ -1229,12 +1258,14 @@ out_free:
 	kfree(query_ctx);
 	return err;
 }
+EXPORT_SYMBOL_GPL(mlx5_vport_get_vhca_id);
 
 int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap,
 				  u16 vport, u16 opmod)
 {
-	bool ec_vf_func = mlx5_core_is_ec_vf_vport(dev, vport);
 	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	u16 vhca_id = 0, function_id = 0;
+	bool ec_vf_func = false;
 	void *set_hca_cap;
 	void *set_ctx;
 	int ret;
@@ -1243,14 +1274,29 @@ int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap
 	if (!set_ctx)
 		return -ENOMEM;
 
+	/* if this vport is referring to a vport on the ec PF (embedded cpu )
+	 * let the FW know which domain we are querying since vport numbers or
+	 * function_ids are not unique across the different PF domains,
+	 * unless we use vhca_id as the function_id below.
+	 */
+	ec_vf_func = mlx5_core_is_ec_vf_vport(dev, vport);
+	function_id = mlx5_vport_to_func_id(dev, vport, ec_vf_func);
+
+	if (mlx5_vport_use_vhca_id_as_func_id(dev, vport, &vhca_id)) {
+		MLX5_SET(set_hca_cap_in, set_ctx, function_id_type, 1);
+		function_id = vhca_id;
+		ec_vf_func = false;
+		mlx5_core_dbg(dev, "%s using vhca_id as function_id for vport %d vhca_id 0x%x\n",
+			      __func__, vport, vhca_id);
+	}
+
 	MLX5_SET(set_hca_cap_in, set_ctx, opcode, MLX5_CMD_OP_SET_HCA_CAP);
 	MLX5_SET(set_hca_cap_in, set_ctx, op_mod, opmod << 1);
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
 	memcpy(set_hca_cap, hca_cap, MLX5_ST_SZ_BYTES(cmd_hca_cap));
-	MLX5_SET(set_hca_cap_in, set_ctx, function_id,
-		 mlx5_vport_to_func_id(dev, vport, ec_vf_func));
 	MLX5_SET(set_hca_cap_in, set_ctx, other_function, true);
 	MLX5_SET(set_hca_cap_in, set_ctx, ec_vf_function, ec_vf_func);
+	MLX5_SET(set_hca_cap_in, set_ctx, function_id, function_id);
 	ret = mlx5_cmd_exec_in(dev, set_hca_cap, set_ctx);
 
 	kfree(set_ctx);

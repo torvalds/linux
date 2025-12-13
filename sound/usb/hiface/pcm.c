@@ -305,7 +305,6 @@ static void hiface_pcm_out_urb_handler(struct urb *usb_urb)
 	struct pcm_runtime *rt = out_urb->chip->pcm;
 	struct pcm_substream *sub;
 	bool do_period_elapsed = false;
-	unsigned long flags;
 	int ret;
 
 	if (rt->panic || rt->stream_state == STREAM_STOPPING)
@@ -325,13 +324,12 @@ static void hiface_pcm_out_urb_handler(struct urb *usb_urb)
 
 	/* now send our playback data (if a free out urb was found) */
 	sub = &rt->playback;
-	spin_lock_irqsave(&sub->lock, flags);
-	if (sub->active)
-		do_period_elapsed = hiface_pcm_playback(sub, out_urb);
-	else
-		memset(out_urb->buffer, 0, PCM_PACKET_SIZE);
-
-	spin_unlock_irqrestore(&sub->lock, flags);
+	scoped_guard(spinlock_irqsave, &sub->lock) {
+		if (sub->active)
+			do_period_elapsed = hiface_pcm_playback(sub, out_urb);
+		else
+			memset(out_urb->buffer, 0, PCM_PACKET_SIZE);
+	}
 
 	if (do_period_elapsed)
 		snd_pcm_period_elapsed(sub->instance);
@@ -356,7 +354,7 @@ static int hiface_pcm_open(struct snd_pcm_substream *alsa_sub)
 	if (rt->panic)
 		return -EPIPE;
 
-	mutex_lock(&rt->stream_mutex);
+	guard(mutex)(&rt->stream_mutex);
 	alsa_rt->hw = pcm_hw;
 
 	if (alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -364,7 +362,6 @@ static int hiface_pcm_open(struct snd_pcm_substream *alsa_sub)
 
 	if (!sub) {
 		struct device *device = &rt->chip->dev->dev;
-		mutex_unlock(&rt->stream_mutex);
 		dev_err(device, "Invalid stream type\n");
 		return -EINVAL;
 	}
@@ -377,15 +374,12 @@ static int hiface_pcm_open(struct snd_pcm_substream *alsa_sub)
 		ret = snd_pcm_hw_constraint_list(alsa_sub->runtime, 0,
 						 SNDRV_PCM_HW_PARAM_RATE,
 						 &constraints_extra_rates);
-		if (ret < 0) {
-			mutex_unlock(&rt->stream_mutex);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	sub->instance = alsa_sub;
 	sub->active = false;
-	mutex_unlock(&rt->stream_mutex);
 	return 0;
 }
 
@@ -393,23 +387,19 @@ static int hiface_pcm_close(struct snd_pcm_substream *alsa_sub)
 {
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
 	struct pcm_substream *sub = hiface_pcm_get_substream(alsa_sub);
-	unsigned long flags;
 
 	if (rt->panic)
 		return 0;
 
-	mutex_lock(&rt->stream_mutex);
+	guard(mutex)(&rt->stream_mutex);
 	if (sub) {
 		hiface_pcm_stream_stop(rt);
 
 		/* deactivate substream */
-		spin_lock_irqsave(&sub->lock, flags);
+		guard(spinlock_irqsave)(&sub->lock);
 		sub->instance = NULL;
 		sub->active = false;
-		spin_unlock_irqrestore(&sub->lock, flags);
-
 	}
-	mutex_unlock(&rt->stream_mutex);
 	return 0;
 }
 
@@ -425,7 +415,7 @@ static int hiface_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	if (!sub)
 		return -ENODEV;
 
-	mutex_lock(&rt->stream_mutex);
+	guard(mutex)(&rt->stream_mutex);
 
 	hiface_pcm_stream_stop(rt);
 
@@ -435,17 +425,12 @@ static int hiface_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	if (rt->stream_state == STREAM_DISABLED) {
 
 		ret = hiface_pcm_set_rate(rt, alsa_rt->rate);
-		if (ret) {
-			mutex_unlock(&rt->stream_mutex);
+		if (ret)
 			return ret;
-		}
 		ret = hiface_pcm_stream_start(rt);
-		if (ret) {
-			mutex_unlock(&rt->stream_mutex);
+		if (ret)
 			return ret;
-		}
 	}
-	mutex_unlock(&rt->stream_mutex);
 	return 0;
 }
 
@@ -462,16 +447,16 @@ static int hiface_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		spin_lock_irq(&sub->lock);
-		sub->active = true;
-		spin_unlock_irq(&sub->lock);
+		scoped_guard(spinlock_irq, &sub->lock) {
+			sub->active = true;
+		}
 		return 0;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		spin_lock_irq(&sub->lock);
-		sub->active = false;
-		spin_unlock_irq(&sub->lock);
+		scoped_guard(spinlock_irq, &sub->lock) {
+			sub->active = false;
+		}
 		return 0;
 
 	default:
@@ -483,15 +468,13 @@ static snd_pcm_uframes_t hiface_pcm_pointer(struct snd_pcm_substream *alsa_sub)
 {
 	struct pcm_substream *sub = hiface_pcm_get_substream(alsa_sub);
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
-	unsigned long flags;
 	snd_pcm_uframes_t dma_offset;
 
 	if (rt->panic || !sub)
 		return SNDRV_PCM_POS_XRUN;
 
-	spin_lock_irqsave(&sub->lock, flags);
+	guard(spinlock_irqsave)(&sub->lock);
 	dma_offset = sub->dma_off;
-	spin_unlock_irqrestore(&sub->lock, flags);
 	return bytes_to_frames(alsa_sub->runtime, dma_offset);
 }
 
@@ -532,9 +515,8 @@ void hiface_pcm_abort(struct hiface_chip *chip)
 	if (rt) {
 		rt->panic = true;
 
-		mutex_lock(&rt->stream_mutex);
+		guard(mutex)(&rt->stream_mutex);
 		hiface_pcm_stream_stop(rt);
-		mutex_unlock(&rt->stream_mutex);
 	}
 }
 

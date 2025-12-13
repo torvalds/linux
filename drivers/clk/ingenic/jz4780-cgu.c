@@ -128,19 +128,19 @@ static unsigned long jz4780_otg_phy_recalc_rate(struct clk_hw *hw,
 	return parent_rate;
 }
 
-static long jz4780_otg_phy_round_rate(struct clk_hw *hw, unsigned long req_rate,
-				      unsigned long *parent_rate)
+static int jz4780_otg_phy_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
 {
-	if (req_rate < 15600000)
-		return 12000000;
+	if (req->rate < 15600000)
+		req->rate = 12000000;
+	else if (req->rate < 21600000)
+		req->rate = 19200000;
+	else if (req->rate < 36000000)
+		req->rate = 24000000;
+	else
+		req->rate = 48000000;
 
-	if (req_rate < 21600000)
-		return 19200000;
-
-	if (req_rate < 36000000)
-		return 24000000;
-
-	return 48000000;
+	return 0;
 }
 
 static int jz4780_otg_phy_set_rate(struct clk_hw *hw, unsigned long req_rate,
@@ -212,7 +212,7 @@ static int jz4780_otg_phy_is_enabled(struct clk_hw *hw)
 
 static const struct clk_ops jz4780_otg_phy_ops = {
 	.recalc_rate = jz4780_otg_phy_recalc_rate,
-	.round_rate = jz4780_otg_phy_round_rate,
+	.determine_rate = jz4780_otg_phy_determine_rate,
 	.set_rate = jz4780_otg_phy_set_rate,
 
 	.enable		= jz4780_otg_phy_enable,

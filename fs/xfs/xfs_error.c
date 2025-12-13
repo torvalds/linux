@@ -10,61 +10,17 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_sysfs.h"
 #include "xfs_inode.h"
 
 #ifdef DEBUG
 
-static unsigned int xfs_errortag_random_default[] = {
-	XFS_RANDOM_DEFAULT,
-	XFS_RANDOM_IFLUSH_1,
-	XFS_RANDOM_IFLUSH_2,
-	XFS_RANDOM_IFLUSH_3,
-	XFS_RANDOM_IFLUSH_4,
-	XFS_RANDOM_IFLUSH_5,
-	XFS_RANDOM_IFLUSH_6,
-	XFS_RANDOM_DA_READ_BUF,
-	XFS_RANDOM_BTREE_CHECK_LBLOCK,
-	XFS_RANDOM_BTREE_CHECK_SBLOCK,
-	XFS_RANDOM_ALLOC_READ_AGF,
-	XFS_RANDOM_IALLOC_READ_AGI,
-	XFS_RANDOM_ITOBP_INOTOBP,
-	XFS_RANDOM_IUNLINK,
-	XFS_RANDOM_IUNLINK_REMOVE,
-	XFS_RANDOM_DIR_INO_VALIDATE,
-	XFS_RANDOM_BULKSTAT_READ_CHUNK,
-	XFS_RANDOM_IODONE_IOERR,
-	XFS_RANDOM_STRATREAD_IOERR,
-	XFS_RANDOM_STRATCMPL_IOERR,
-	XFS_RANDOM_DIOWRITE_IOERR,
-	XFS_RANDOM_BMAPIFORMAT,
-	XFS_RANDOM_FREE_EXTENT,
-	XFS_RANDOM_RMAP_FINISH_ONE,
-	XFS_RANDOM_REFCOUNT_CONTINUE_UPDATE,
-	XFS_RANDOM_REFCOUNT_FINISH_ONE,
-	XFS_RANDOM_BMAP_FINISH_ONE,
-	XFS_RANDOM_AG_RESV_CRITICAL,
-	0, /* XFS_RANDOM_DROP_WRITES has been removed */
-	XFS_RANDOM_LOG_BAD_CRC,
-	XFS_RANDOM_LOG_ITEM_PIN,
-	XFS_RANDOM_BUF_LRU_REF,
-	XFS_RANDOM_FORCE_SCRUB_REPAIR,
-	XFS_RANDOM_FORCE_SUMMARY_RECALC,
-	XFS_RANDOM_IUNLINK_FALLBACK,
-	XFS_RANDOM_BUF_IOERROR,
-	XFS_RANDOM_REDUCE_MAX_IEXTENTS,
-	XFS_RANDOM_BMAP_ALLOC_MINLEN_EXTENT,
-	XFS_RANDOM_AG_RESV_FAIL,
-	XFS_RANDOM_LARP,
-	XFS_RANDOM_DA_LEAF_SPLIT,
-	XFS_RANDOM_ATTR_LEAF_TO_NODE,
-	XFS_RANDOM_WB_DELAY_MS,
-	XFS_RANDOM_WRITE_DELAY_MS,
-	XFS_RANDOM_EXCHMAPS_FINISH_ONE,
-	XFS_RANDOM_METAFILE_RESV_CRITICAL,
-};
+#define XFS_ERRTAG(_tag, _name, _default) \
+	[XFS_ERRTAG_##_tag]	= (_default),
+#include "xfs_errortag.h"
+static const unsigned int xfs_errortag_random_default[] = { XFS_ERRTAGS };
+#undef XFS_ERRTAG
 
 struct xfs_errortag_attr {
 	struct attribute	attr;
@@ -93,21 +49,18 @@ xfs_errortag_attr_store(
 	size_t			count)
 {
 	struct xfs_mount	*mp = to_mp(kobject);
-	struct xfs_errortag_attr *xfs_attr = to_attr(attr);
+	unsigned int		error_tag = to_attr(attr)->tag;
 	int			ret;
-	unsigned int		val;
 
 	if (strcmp(buf, "default") == 0) {
-		val = xfs_errortag_random_default[xfs_attr->tag];
+		mp->m_errortag[error_tag] =
+			xfs_errortag_random_default[error_tag];
 	} else {
-		ret = kstrtouint(buf, 0, &val);
+		ret = kstrtouint(buf, 0, &mp->m_errortag[error_tag]);
 		if (ret)
 			return ret;
 	}
 
-	ret = xfs_errortag_set(mp, xfs_attr->tag, val);
-	if (ret)
-		return ret;
 	return count;
 }
 
@@ -118,10 +71,9 @@ xfs_errortag_attr_show(
 	char			*buf)
 {
 	struct xfs_mount	*mp = to_mp(kobject);
-	struct xfs_errortag_attr *xfs_attr = to_attr(attr);
+	unsigned int		error_tag = to_attr(attr)->tag;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n",
-			xfs_errortag_get(mp, xfs_attr->tag));
+	return snprintf(buf, PAGE_SIZE, "%u\n", mp->m_errortag[error_tag]);
 }
 
 static const struct sysfs_ops xfs_errortag_sysfs_ops = {
@@ -129,110 +81,28 @@ static const struct sysfs_ops xfs_errortag_sysfs_ops = {
 	.store = xfs_errortag_attr_store,
 };
 
-#define XFS_ERRORTAG_ATTR_RW(_name, _tag) \
+#define XFS_ERRTAG(_tag, _name, _default)				\
 static struct xfs_errortag_attr xfs_errortag_attr_##_name = {		\
 	.attr = {.name = __stringify(_name),				\
 		 .mode = VERIFY_OCTAL_PERMISSIONS(S_IWUSR | S_IRUGO) },	\
-	.tag	= (_tag),						\
-}
+	.tag	= XFS_ERRTAG_##_tag,					\
+};
+#include "xfs_errortag.h"
+XFS_ERRTAGS
+#undef XFS_ERRTAG
 
-#define XFS_ERRORTAG_ATTR_LIST(_name) &xfs_errortag_attr_##_name.attr
-
-XFS_ERRORTAG_ATTR_RW(noerror,		XFS_ERRTAG_NOERROR);
-XFS_ERRORTAG_ATTR_RW(iflush1,		XFS_ERRTAG_IFLUSH_1);
-XFS_ERRORTAG_ATTR_RW(iflush2,		XFS_ERRTAG_IFLUSH_2);
-XFS_ERRORTAG_ATTR_RW(iflush3,		XFS_ERRTAG_IFLUSH_3);
-XFS_ERRORTAG_ATTR_RW(iflush4,		XFS_ERRTAG_IFLUSH_4);
-XFS_ERRORTAG_ATTR_RW(iflush5,		XFS_ERRTAG_IFLUSH_5);
-XFS_ERRORTAG_ATTR_RW(iflush6,		XFS_ERRTAG_IFLUSH_6);
-XFS_ERRORTAG_ATTR_RW(dareadbuf,		XFS_ERRTAG_DA_READ_BUF);
-XFS_ERRORTAG_ATTR_RW(btree_chk_lblk,	XFS_ERRTAG_BTREE_CHECK_LBLOCK);
-XFS_ERRORTAG_ATTR_RW(btree_chk_sblk,	XFS_ERRTAG_BTREE_CHECK_SBLOCK);
-XFS_ERRORTAG_ATTR_RW(readagf,		XFS_ERRTAG_ALLOC_READ_AGF);
-XFS_ERRORTAG_ATTR_RW(readagi,		XFS_ERRTAG_IALLOC_READ_AGI);
-XFS_ERRORTAG_ATTR_RW(itobp,		XFS_ERRTAG_ITOBP_INOTOBP);
-XFS_ERRORTAG_ATTR_RW(iunlink,		XFS_ERRTAG_IUNLINK);
-XFS_ERRORTAG_ATTR_RW(iunlinkrm,		XFS_ERRTAG_IUNLINK_REMOVE);
-XFS_ERRORTAG_ATTR_RW(dirinovalid,	XFS_ERRTAG_DIR_INO_VALIDATE);
-XFS_ERRORTAG_ATTR_RW(bulkstat,		XFS_ERRTAG_BULKSTAT_READ_CHUNK);
-XFS_ERRORTAG_ATTR_RW(logiodone,		XFS_ERRTAG_IODONE_IOERR);
-XFS_ERRORTAG_ATTR_RW(stratread,		XFS_ERRTAG_STRATREAD_IOERR);
-XFS_ERRORTAG_ATTR_RW(stratcmpl,		XFS_ERRTAG_STRATCMPL_IOERR);
-XFS_ERRORTAG_ATTR_RW(diowrite,		XFS_ERRTAG_DIOWRITE_IOERR);
-XFS_ERRORTAG_ATTR_RW(bmapifmt,		XFS_ERRTAG_BMAPIFORMAT);
-XFS_ERRORTAG_ATTR_RW(free_extent,	XFS_ERRTAG_FREE_EXTENT);
-XFS_ERRORTAG_ATTR_RW(rmap_finish_one,	XFS_ERRTAG_RMAP_FINISH_ONE);
-XFS_ERRORTAG_ATTR_RW(refcount_continue_update,	XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE);
-XFS_ERRORTAG_ATTR_RW(refcount_finish_one,	XFS_ERRTAG_REFCOUNT_FINISH_ONE);
-XFS_ERRORTAG_ATTR_RW(bmap_finish_one,	XFS_ERRTAG_BMAP_FINISH_ONE);
-XFS_ERRORTAG_ATTR_RW(ag_resv_critical,	XFS_ERRTAG_AG_RESV_CRITICAL);
-XFS_ERRORTAG_ATTR_RW(log_bad_crc,	XFS_ERRTAG_LOG_BAD_CRC);
-XFS_ERRORTAG_ATTR_RW(log_item_pin,	XFS_ERRTAG_LOG_ITEM_PIN);
-XFS_ERRORTAG_ATTR_RW(buf_lru_ref,	XFS_ERRTAG_BUF_LRU_REF);
-XFS_ERRORTAG_ATTR_RW(force_repair,	XFS_ERRTAG_FORCE_SCRUB_REPAIR);
-XFS_ERRORTAG_ATTR_RW(bad_summary,	XFS_ERRTAG_FORCE_SUMMARY_RECALC);
-XFS_ERRORTAG_ATTR_RW(iunlink_fallback,	XFS_ERRTAG_IUNLINK_FALLBACK);
-XFS_ERRORTAG_ATTR_RW(buf_ioerror,	XFS_ERRTAG_BUF_IOERROR);
-XFS_ERRORTAG_ATTR_RW(reduce_max_iextents,	XFS_ERRTAG_REDUCE_MAX_IEXTENTS);
-XFS_ERRORTAG_ATTR_RW(bmap_alloc_minlen_extent,	XFS_ERRTAG_BMAP_ALLOC_MINLEN_EXTENT);
-XFS_ERRORTAG_ATTR_RW(ag_resv_fail, XFS_ERRTAG_AG_RESV_FAIL);
-XFS_ERRORTAG_ATTR_RW(larp,		XFS_ERRTAG_LARP);
-XFS_ERRORTAG_ATTR_RW(da_leaf_split,	XFS_ERRTAG_DA_LEAF_SPLIT);
-XFS_ERRORTAG_ATTR_RW(attr_leaf_to_node,	XFS_ERRTAG_ATTR_LEAF_TO_NODE);
-XFS_ERRORTAG_ATTR_RW(wb_delay_ms,	XFS_ERRTAG_WB_DELAY_MS);
-XFS_ERRORTAG_ATTR_RW(write_delay_ms,	XFS_ERRTAG_WRITE_DELAY_MS);
-XFS_ERRORTAG_ATTR_RW(exchmaps_finish_one, XFS_ERRTAG_EXCHMAPS_FINISH_ONE);
-XFS_ERRORTAG_ATTR_RW(metafile_resv_crit, XFS_ERRTAG_METAFILE_RESV_CRITICAL);
-
+#define XFS_ERRTAG(_tag, _name, _default) \
+	&xfs_errortag_attr_##_name.attr,
+#include "xfs_errortag.h"
 static struct attribute *xfs_errortag_attrs[] = {
-	XFS_ERRORTAG_ATTR_LIST(noerror),
-	XFS_ERRORTAG_ATTR_LIST(iflush1),
-	XFS_ERRORTAG_ATTR_LIST(iflush2),
-	XFS_ERRORTAG_ATTR_LIST(iflush3),
-	XFS_ERRORTAG_ATTR_LIST(iflush4),
-	XFS_ERRORTAG_ATTR_LIST(iflush5),
-	XFS_ERRORTAG_ATTR_LIST(iflush6),
-	XFS_ERRORTAG_ATTR_LIST(dareadbuf),
-	XFS_ERRORTAG_ATTR_LIST(btree_chk_lblk),
-	XFS_ERRORTAG_ATTR_LIST(btree_chk_sblk),
-	XFS_ERRORTAG_ATTR_LIST(readagf),
-	XFS_ERRORTAG_ATTR_LIST(readagi),
-	XFS_ERRORTAG_ATTR_LIST(itobp),
-	XFS_ERRORTAG_ATTR_LIST(iunlink),
-	XFS_ERRORTAG_ATTR_LIST(iunlinkrm),
-	XFS_ERRORTAG_ATTR_LIST(dirinovalid),
-	XFS_ERRORTAG_ATTR_LIST(bulkstat),
-	XFS_ERRORTAG_ATTR_LIST(logiodone),
-	XFS_ERRORTAG_ATTR_LIST(stratread),
-	XFS_ERRORTAG_ATTR_LIST(stratcmpl),
-	XFS_ERRORTAG_ATTR_LIST(diowrite),
-	XFS_ERRORTAG_ATTR_LIST(bmapifmt),
-	XFS_ERRORTAG_ATTR_LIST(free_extent),
-	XFS_ERRORTAG_ATTR_LIST(rmap_finish_one),
-	XFS_ERRORTAG_ATTR_LIST(refcount_continue_update),
-	XFS_ERRORTAG_ATTR_LIST(refcount_finish_one),
-	XFS_ERRORTAG_ATTR_LIST(bmap_finish_one),
-	XFS_ERRORTAG_ATTR_LIST(ag_resv_critical),
-	XFS_ERRORTAG_ATTR_LIST(log_bad_crc),
-	XFS_ERRORTAG_ATTR_LIST(log_item_pin),
-	XFS_ERRORTAG_ATTR_LIST(buf_lru_ref),
-	XFS_ERRORTAG_ATTR_LIST(force_repair),
-	XFS_ERRORTAG_ATTR_LIST(bad_summary),
-	XFS_ERRORTAG_ATTR_LIST(iunlink_fallback),
-	XFS_ERRORTAG_ATTR_LIST(buf_ioerror),
-	XFS_ERRORTAG_ATTR_LIST(reduce_max_iextents),
-	XFS_ERRORTAG_ATTR_LIST(bmap_alloc_minlen_extent),
-	XFS_ERRORTAG_ATTR_LIST(ag_resv_fail),
-	XFS_ERRORTAG_ATTR_LIST(larp),
-	XFS_ERRORTAG_ATTR_LIST(da_leaf_split),
-	XFS_ERRORTAG_ATTR_LIST(attr_leaf_to_node),
-	XFS_ERRORTAG_ATTR_LIST(wb_delay_ms),
-	XFS_ERRORTAG_ATTR_LIST(write_delay_ms),
-	XFS_ERRORTAG_ATTR_LIST(exchmaps_finish_one),
-	XFS_ERRORTAG_ATTR_LIST(metafile_resv_crit),
-	NULL,
+	XFS_ERRTAGS
+	NULL
 };
 ATTRIBUTE_GROUPS(xfs_errortag);
+#undef XFS_ERRTAG
+
+/* -1 because XFS_ERRTAG_DROP_WRITES got removed, + 1 for NULL termination */
+static_assert(ARRAY_SIZE(xfs_errortag_attrs) == XFS_ERRTAG_MAX);
 
 static const struct kobj_type xfs_errortag_ktype = {
 	.release = xfs_sysfs_release,
@@ -295,7 +165,6 @@ xfs_errortag_enabled(
 bool
 xfs_errortag_test(
 	struct xfs_mount	*mp,
-	const char		*expression,
 	const char		*file,
 	int			line,
 	unsigned int		error_tag)
@@ -321,33 +190,9 @@ xfs_errortag_test(
 		return false;
 
 	xfs_warn_ratelimited(mp,
-"Injecting error (%s) at file %s, line %d, on filesystem \"%s\"",
-			expression, file, line, mp->m_super->s_id);
+"Injecting error at file %s, line %d, on filesystem \"%s\"",
+			file, line, mp->m_super->s_id);
 	return true;
-}
-
-int
-xfs_errortag_get(
-	struct xfs_mount	*mp,
-	unsigned int		error_tag)
-{
-	if (!xfs_errortag_valid(error_tag))
-		return -EINVAL;
-
-	return mp->m_errortag[error_tag];
-}
-
-int
-xfs_errortag_set(
-	struct xfs_mount	*mp,
-	unsigned int		error_tag,
-	unsigned int		tag_value)
-{
-	if (!xfs_errortag_valid(error_tag))
-		return -EINVAL;
-
-	mp->m_errortag[error_tag] = tag_value;
-	return 0;
 }
 
 int
@@ -359,9 +204,8 @@ xfs_errortag_add(
 
 	if (!xfs_errortag_valid(error_tag))
 		return -EINVAL;
-
-	return xfs_errortag_set(mp, error_tag,
-			xfs_errortag_random_default[error_tag]);
+	mp->m_errortag[error_tag] = xfs_errortag_random_default[error_tag];
+	return 0;
 }
 
 int

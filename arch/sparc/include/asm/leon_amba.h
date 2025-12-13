@@ -8,7 +8,7 @@
 #ifndef LEON_AMBA_H_INCLUDE
 #define LEON_AMBA_H_INCLUDE
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct amba_prom_registers {
 	unsigned int phys_addr;	/* The physical address of this register */
@@ -89,7 +89,7 @@ struct amba_prom_registers {
 #define LEON3_GPTIMER_CONFIG_NRTIMERS(c) ((c)->config & 0x7)
 #define LEON3_GPTIMER_CTRL_ISPENDING(r)  (((r)&LEON3_GPTIMER_CTRL_PENDING) ? 1 : 0)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct leon3_irqctrl_regs_map {
 	u32 ilevel;
@@ -189,7 +189,7 @@ extern int leon_debug_irqout;
 extern unsigned long leon3_gptimer_irq;
 extern unsigned int sparc_leon_eirq;
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define LEON3_IO_AREA 0xfff00000
 #define LEON3_CONF_AREA 0xff000

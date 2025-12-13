@@ -14,7 +14,7 @@
  *
  *  Refactored and updated to the latest v4l core frameworks:
  *
- *  Copyright (C) 2014 Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2014 Hans Verkuil <hverkuil@kernel.org>
  */
 
 #include "tw68.h"

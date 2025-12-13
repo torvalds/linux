@@ -6,6 +6,7 @@
  */
 #include <stdio.h>
 #include <signal.h>
+#include <assert.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <limits.h>
@@ -137,6 +138,7 @@ restart:
 	skel = SCX_OPS_OPEN(flatcg_ops, scx_flatcg);
 
 	skel->rodata->nr_cpus = libbpf_num_possible_cpus();
+	assert(skel->rodata->nr_cpus > 0);
 	skel->rodata->cgrp_slice_ns = __COMPAT_ENUM_OR_ZERO("scx_public_consts", "SCX_SLICE_DFL");
 
 	while ((opt = getopt(argc, argv, "s:i:dfvh")) != -1) {

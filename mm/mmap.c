@@ -225,7 +225,7 @@ static inline unsigned long round_hint_to_min(unsigned long hint)
 	return hint;
 }
 
-bool mlock_future_ok(struct mm_struct *mm, vm_flags_t vm_flags,
+bool mlock_future_ok(const struct mm_struct *mm, vm_flags_t vm_flags,
 			unsigned long bytes)
 {
 	unsigned long locked_pages, limit_pages;
@@ -802,7 +802,7 @@ unsigned long mm_get_unmapped_area_vmflags(struct mm_struct *mm, struct file *fi
 					   unsigned long pgoff, unsigned long flags,
 					   vm_flags_t vm_flags)
 {
-	if (test_bit(MMF_TOPDOWN, &mm->flags))
+	if (mm_flags_test(MMF_TOPDOWN, mm))
 		return arch_get_unmapped_area_topdown(filp, addr, len, pgoff,
 						      flags, vm_flags);
 	return arch_get_unmapped_area(filp, addr, len, pgoff, flags, vm_flags);
@@ -1284,7 +1284,7 @@ void exit_mmap(struct mm_struct *mm)
 	 * Set MMF_OOM_SKIP to hide this task from the oom killer/reaper
 	 * because the memory has been already freed.
 	 */
-	set_bit(MMF_OOM_SKIP, &mm->flags);
+	mm_flags_set(MMF_OOM_SKIP, mm);
 	mmap_write_lock(mm);
 	mt_clear_in_rcu(&mm->mm_mt);
 	vma_iter_set(&vmi, vma->vm_end);
@@ -1859,14 +1859,14 @@ loop_out:
 			mas_set_range(&vmi.mas, mpnt->vm_start, mpnt->vm_end - 1);
 			mas_store(&vmi.mas, XA_ZERO_ENTRY);
 			/* Avoid OOM iterating a broken tree */
-			set_bit(MMF_OOM_SKIP, &mm->flags);
+			mm_flags_set(MMF_OOM_SKIP, mm);
 		}
 		/*
 		 * The mm_struct is going to exit, but the locks will be dropped
 		 * first.  Set the mm_struct as unstable is advisable as it is
 		 * not fully initialised.
 		 */
-		set_bit(MMF_UNSTABLE, &mm->flags);
+		mm_flags_set(MMF_UNSTABLE, mm);
 	}
 out:
 	mmap_write_unlock(mm);

@@ -17,11 +17,7 @@ struct mnt_namespace {
 	};
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
-	u64			seq;	/* Sequence number to prevent loops */
-	union {
-		wait_queue_head_t	poll;
-		struct rcu_head		mnt_ns_rcu;
-	};
+	wait_queue_head_t	poll;
 	u64			seq_origin; /* Sequence number of origin mount namespace */
 	u64 event;
 #ifdef CONFIG_FSNOTIFY
@@ -30,8 +26,6 @@ struct mnt_namespace {
 #endif
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
-	struct rb_node		mnt_ns_tree_node; /* node in the mnt_ns_tree */
-	struct list_head	mnt_ns_list; /* entry in the sequential list of mounts namespace */
 	refcount_t		passive; /* number references not pinning @mounts */
 } __randomize_layout;
 
@@ -64,7 +58,10 @@ struct mount {
 #endif
 	struct list_head mnt_mounts;	/* list of children, anchored here */
 	struct list_head mnt_child;	/* and going through their mnt_child */
-	struct list_head mnt_instance;	/* mount instance on sb->s_mounts */
+	struct mount *mnt_next_for_sb;	/* the next two fields are hlist_node, */
+	struct mount * __aligned(1) *mnt_pprev_for_sb;
+					/* except that LSB of pprev is stolen */
+#define WRITE_HOLD 1			/* ... for use by mnt_hold_writers() */
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
@@ -149,10 +146,15 @@ static inline void detach_mounts(struct dentry *dentry)
 
 static inline void get_mnt_ns(struct mnt_namespace *ns)
 {
-	refcount_inc(&ns->ns.count);
+	ns_ref_inc(ns);
 }
 
 extern seqlock_t mount_lock;
+
+DEFINE_LOCK_GUARD_0(mount_writer, write_seqlock(&mount_lock),
+		    write_sequnlock(&mount_lock))
+DEFINE_LOCK_GUARD_0(mount_locked_reader, read_seqlock_excl(&mount_lock),
+		    read_sequnlock_excl(&mount_lock))
 
 struct proc_mounts {
 	struct mnt_namespace *ns;
@@ -173,7 +175,7 @@ static inline bool is_local_mountpoint(const struct dentry *dentry)
 
 static inline bool is_anon_ns(struct mnt_namespace *ns)
 {
-	return ns->seq == 0;
+	return ns->ns.ns_id == 0;
 }
 
 static inline bool anon_ns_root(const struct mount *m)
@@ -229,5 +231,34 @@ static inline void mnt_notify_add(struct mount *m)
 {
 }
 #endif
+
+static inline struct mount *topmost_overmount(struct mount *m)
+{
+	while (m->overmount)
+		m = m->overmount;
+	return m;
+}
+
+static inline bool __test_write_hold(struct mount * __aligned(1) *val)
+{
+	return (unsigned long)val & WRITE_HOLD;
+}
+
+static inline bool test_write_hold(const struct mount *m)
+{
+	return __test_write_hold(m->mnt_pprev_for_sb);
+}
+
+static inline void set_write_hold(struct mount *m)
+{
+	m->mnt_pprev_for_sb = (void *)((unsigned long)m->mnt_pprev_for_sb
+				       | WRITE_HOLD);
+}
+
+static inline void clear_write_hold(struct mount *m)
+{
+	m->mnt_pprev_for_sb = (void *)((unsigned long)m->mnt_pprev_for_sb
+				       & ~WRITE_HOLD);
+}
 
 struct mnt_namespace *mnt_ns_from_dentry(struct dentry *dentry);

@@ -72,7 +72,7 @@ use kernel::{
     of, platform,
     prelude::*,
     str::CString,
-    types::ARef,
+    sync::aref::ARef,
 };
 
 struct SampleDriver {

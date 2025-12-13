@@ -281,6 +281,7 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
+	int i, j;
 
 	hal->entity_pause = false;
 	bitmap_zero(hal->entity_map, NUM_OF_RTW89_CHANCTX);
@@ -288,6 +289,11 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 	atomic_set(&hal->roc_chanctx_idx, RTW89_CHANCTX_IDLE);
 
 	INIT_LIST_HEAD(&mgnt->active_list);
+
+	for (i = 0; i < RTW89_MAX_INTERFACE_NUM; i++) {
+		for (j = 0; j < __RTW89_MLD_MAX_LINK_NUM; j++)
+			mgnt->chanctx_tbl[i][j] = RTW89_CHANCTX_IDLE;
+	}
 
 	rtw89_config_default_chandef(rtwdev);
 }
@@ -353,7 +359,7 @@ static void rtw89_normalize_link_chanctx(struct rtw89_dev *rtwdev,
 
 const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 					       const char *caller_message,
-					       u8 link_index)
+					       u8 link_index, bool nullchk)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
@@ -400,6 +406,9 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 	return rtw89_chan_get(rtwdev, chanctx_idx);
 
 dflt:
+	if (unlikely(nullchk))
+		return NULL;
+
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "%s (%s): prefetch NULL on link index %u\n",
 		    __func__, caller_message ?: "", link_index);

@@ -107,7 +107,7 @@
 	#size-cells = <0>;
 	status = "okay";
 
-	touchscreen@5d {
+	gt911: touchscreen@5d {
 		compatible = "goodix,gt928";
 		reg = <0x5d>;
 		pinctrl-names = "default";
@@ -116,6 +116,17 @@
 		interrupts = <22 8>;
 		reset-gpios = <&gpio3 23 0>;
 		irq-gpios = <&gpio3 22 0>;
+	};
+
+	st1633: touchscreen@55 {
+		compatible = "sitronix,st1633";
+		reg = <0x55>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touch>;
+		interrupts = <22 8>;
+		interrupt-parent = <&gpio3>;
+		gpios = <&gpio3 22 0>;
+		status = "disabled";
 	};
 };
 

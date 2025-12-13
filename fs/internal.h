@@ -53,7 +53,7 @@ extern int finish_clean_context(struct fs_context *fc);
  * namei.c
  */
 extern int filename_lookup(int dfd, struct filename *name, unsigned flags,
-			   struct path *path, struct path *root);
+			   struct path *path, const struct path *root);
 int do_rmdir(int dfd, struct filename *name);
 int do_unlinkat(int dfd, struct filename *name);
 int may_linkat(struct mnt_idmap *idmap, const struct path *link);
@@ -84,9 +84,9 @@ void mnt_put_write_access_file(struct file *file);
 extern void dissolve_on_fput(struct vfsmount *);
 extern bool may_mount(void);
 
-int path_mount(const char *dev_name, struct path *path,
+int path_mount(const char *dev_name, const struct path *path,
 		const char *type_page, unsigned long flags, void *data_page);
-int path_umount(struct path *path, int flags);
+int path_umount(const struct path *path, int flags);
 
 int show_path(struct seq_file *m, struct dentry *root);
 
@@ -355,3 +355,4 @@ int anon_inode_getattr(struct mnt_idmap *idmap, const struct path *path,
 int anon_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
 void pidfs_get_root(struct path *path);
+void nsfs_get_root(struct path *path);

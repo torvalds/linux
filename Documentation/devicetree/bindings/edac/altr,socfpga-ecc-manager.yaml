@@ -53,6 +53,7 @@ properties:
     properties:
       compatible:
         enum:
+          - altr,sdram-edac
           - altr,sdram-edac-a10
           - altr,sdram-edac-s10
 

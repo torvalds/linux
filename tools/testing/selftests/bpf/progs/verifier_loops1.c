@@ -283,4 +283,25 @@ exit_%=:						\
 	: __clobber_all);
 }
 
+/*
+ * This test case triggered a bug in verifier.c:maybe_exit_scc().
+ * Speculative execution path reaches stack access instruction,
+ * stops and triggers maybe_exit_scc() w/o accompanying maybe_enter_scc() call.
+ */
+SEC("socket")
+__arch_x86_64
+__caps_unpriv(CAP_BPF)
+__naked void maybe_exit_scc_bug1(void)
+{
+	asm volatile (
+	"r0 = 100;"
+"1:"
+	/* Speculative execution path reaches and stops here. */
+	"*(u64 *)(r10 - 512) = r0;"
+	/* Condition is always false, but verifier speculatively executes the true branch. */
+	"if r0 <= 0x0 goto 1b;"
+	"exit;"
+	::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

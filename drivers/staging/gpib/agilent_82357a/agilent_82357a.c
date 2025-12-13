@@ -449,8 +449,8 @@ static int agilent_82357a_read(struct gpib_board *board, u8 *buffer, size_t leng
 	if (!out_data)
 		return -ENOMEM;
 	out_data[i++] = DATA_PIPE_CMD_READ;
-	out_data[i++] = 0;	//primary address when ARF_NO_ADDR is not set
-	out_data[i++] = 0;	//secondary address when ARF_NO_ADDR is not set
+	out_data[i++] = 0;	// primary address when ARF_NO_ADDR is not set
+	out_data[i++] = 0;	// secondary address when ARF_NO_ADDR is not set
 	out_data[i] = ARF_NO_ADDRESS | ARF_END_ON_EOI;
 	if (a_priv->eos_mode & REOS)
 		out_data[i] |= ARF_END_ON_EOS_CHAR;
@@ -532,7 +532,7 @@ static int agilent_82357a_read(struct gpib_board *board, u8 *buffer, size_t leng
 	 */
 	agilent_82357a_take_control_internal(board, 0);
 
-	//FIXME check trailing flags for error
+	// FIXME check trailing flags for error
 	return retval;
 }
 
@@ -966,7 +966,7 @@ static int agilent_82357a_parallel_poll(struct gpib_board *board, u8 *result)
 		dev_err(&usb_dev->dev, "write_registers() returned error\n");
 		return retval;
 	}
-	udelay(2);	//silly, since usb write will take way longer
+	udelay(2);	// silly, since usb write will take way longer
 	read.address = CPTR;
 	retval = agilent_82357a_read_registers(a_priv, &read, 1, 1);
 	if (retval) {
@@ -989,31 +989,31 @@ static int agilent_82357a_parallel_poll(struct gpib_board *board, u8 *result)
 
 static void agilent_82357a_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
-	//board can only be system controller
+	// board can only be system controller
 	return;// 0;
 }
 
 static void agilent_82357a_parallel_poll_response(struct gpib_board *board, int ist)
 {
-	//board can only be system controller
+	// board can only be system controller
 	return;// 0;
 }
 
 static void agilent_82357a_serial_poll_response(struct gpib_board *board, u8 status)
 {
-	//board can only be system controller
+	// board can only be system controller
 	return;// 0;
 }
 
 static u8 agilent_82357a_serial_poll_status(struct gpib_board *board)
 {
-	//board can only be system controller
+	// board can only be system controller
 	return 0;
 }
 
 static void agilent_82357a_return_to_local(struct gpib_board *board)
 {
-	//board can only be system controller
+	// board can only be system controller
 	return;// 0;
 }
 

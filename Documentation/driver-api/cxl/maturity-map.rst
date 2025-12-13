@@ -173,7 +173,7 @@ Accelerator
 User Flow Support
 -----------------
 
-* [0] Inject & clear poison by HPA
+* [2] Inject & clear poison by region offset
 
 Details
 =======

@@ -598,6 +598,11 @@ static void virtio_pcidev_virtio_remove(struct virtio_device *vdev)
 	kfree(dev);
 }
 
+static void virtio_pcidev_virtio_shutdown(struct virtio_device *vdev)
+{
+	/* nothing to do, we just don't want queue shutdown */
+}
+
 static struct virtio_device_id id_table[] = {
 	{ CONFIG_UML_PCI_OVER_VIRTIO_DEVICE_ID, VIRTIO_DEV_ANY_ID },
 	{ 0 },
@@ -609,6 +614,7 @@ static struct virtio_driver virtio_pcidev_virtio_driver = {
 	.id_table = id_table,
 	.probe = virtio_pcidev_virtio_probe,
 	.remove = virtio_pcidev_virtio_remove,
+	.shutdown = virtio_pcidev_virtio_shutdown,
 };
 
 static int __init virtio_pcidev_init(void)

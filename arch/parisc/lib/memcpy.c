@@ -41,7 +41,6 @@ unsigned long raw_copy_from_user(void *dst, const void __user *src,
 	mtsp(get_kernel_space(), SR_TEMP2);
 
 	/* Check region is user accessible */
-	if (start)
 	while (start < end) {
 		if (!prober_user(SR_TEMP1, start)) {
 			newlen = (start - (unsigned long) src);

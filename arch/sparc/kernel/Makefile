@@ -4,8 +4,6 @@
 # Makefile for the linux kernel.
 #
 
-asflags-y := -ansi
-
 # Undefine sparc when processing vmlinux.lds - it is used
 # And teach CPP we are doing $(BITS) builds (for this case)
 CPPFLAGS_vmlinux.lds := -Usparc -m$(BITS)

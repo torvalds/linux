@@ -144,7 +144,7 @@ static u64 mv88e6352_ptp_clock_read(struct cyclecounter *cc)
 	u16 phc_time[2];
 	int err;
 
-	err = mv88e6xxx_tai_read(chip, MV88E6XXX_TAI_TIME_LO, phc_time,
+	err = mv88e6xxx_tai_read(chip, MV88E6352_TAI_TIME_LO, phc_time,
 				 ARRAY_SIZE(phc_time));
 	if (err)
 		return 0;
@@ -158,7 +158,7 @@ static u64 mv88e6165_ptp_clock_read(struct cyclecounter *cc)
 	u16 phc_time[2];
 	int err;
 
-	err = mv88e6xxx_tai_read(chip, MV88E6XXX_PTP_GC_TIME_LO, phc_time,
+	err = mv88e6xxx_tai_read(chip, MV88E6165_PTP_GC_TIME_LO, phc_time,
 				 ARRAY_SIZE(phc_time));
 	if (err)
 		return 0;
@@ -167,42 +167,26 @@ static u64 mv88e6165_ptp_clock_read(struct cyclecounter *cc)
 }
 
 /* mv88e6352_config_eventcap - configure TAI event capture
- * @event: PTP_CLOCK_PPS (internal) or PTP_CLOCK_EXTTS (external)
  * @rising: zero for falling-edge trigger, else rising-edge trigger
  *
  * This will also reset the capture sequence counter.
  */
-static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int event,
-				     int rising)
+static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int rising)
 {
-	u16 global_config;
-	u16 cap_config;
+	u16 evcap_config;
 	int err;
 
-	chip->evcap_config = MV88E6XXX_TAI_CFG_CAP_OVERWRITE |
-			     MV88E6XXX_TAI_CFG_CAP_CTR_START;
+	evcap_config = MV88E6352_TAI_CFG_CAP_OVERWRITE |
+		       MV88E6352_TAI_CFG_CAP_CTR_START;
 	if (!rising)
-		chip->evcap_config |= MV88E6XXX_TAI_CFG_EVREQ_FALLING;
+		evcap_config |= MV88E6352_TAI_CFG_EVREQ_FALLING;
 
-	global_config = (chip->evcap_config | chip->trig_config);
-	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_CFG, global_config);
+	err = mv88e6xxx_tai_write(chip, MV88E6352_TAI_CFG, evcap_config);
 	if (err)
 		return err;
 
-	if (event == PTP_CLOCK_PPS) {
-		cap_config = MV88E6XXX_TAI_EVENT_STATUS_CAP_TRIG;
-	} else if (event == PTP_CLOCK_EXTTS) {
-		/* if STATUS_CAP_TRIG is unset we capture PTP_EVREQ events */
-		cap_config = 0;
-	} else {
-		return -EINVAL;
-	}
-
 	/* Write the capture config; this also clears the capture counter */
-	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS,
-				  cap_config);
-
-	return err;
+	return mv88e6xxx_tai_write(chip, MV88E6352_TAI_EVENT_STATUS, 0);
 }
 
 static void mv88e6352_tai_event_work(struct work_struct *ugly)
@@ -215,7 +199,7 @@ static void mv88e6352_tai_event_work(struct work_struct *ugly)
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_tai_read(chip, MV88E6XXX_TAI_EVENT_STATUS,
+	err = mv88e6xxx_tai_read(chip, MV88E6352_TAI_EVENT_STATUS,
 				 status, ARRAY_SIZE(status));
 	mv88e6xxx_reg_unlock(chip);
 
@@ -223,19 +207,19 @@ static void mv88e6352_tai_event_work(struct work_struct *ugly)
 		dev_err(chip->dev, "failed to read TAI status register\n");
 		return;
 	}
-	if (status[0] & MV88E6XXX_TAI_EVENT_STATUS_ERROR) {
+	if (status[0] & MV88E6352_TAI_EVENT_STATUS_ERROR) {
 		dev_warn(chip->dev, "missed event capture\n");
 		return;
 	}
-	if (!(status[0] & MV88E6XXX_TAI_EVENT_STATUS_VALID))
+	if (!(status[0] & MV88E6352_TAI_EVENT_STATUS_VALID))
 		goto out;
 
 	raw_ts = ((u32)status[2] << 16) | status[1];
 
 	/* Clear the valid bit so the next timestamp can come in */
-	status[0] &= ~MV88E6XXX_TAI_EVENT_STATUS_VALID;
+	status[0] &= ~MV88E6352_TAI_EVENT_STATUS_VALID;
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS, status[0]);
+	err = mv88e6xxx_tai_write(chip, MV88E6352_TAI_EVENT_STATUS, status[0]);
 	mv88e6xxx_reg_unlock(chip);
 	if (err) {
 		dev_err(chip->dev, "failed to write TAI status register\n");
@@ -355,7 +339,7 @@ static int mv88e6352_ptp_enable_extts(struct mv88e6xxx_chip *chip,
 		schedule_delayed_work(&chip->tai_event_work,
 				      TAI_EVENT_WORK_INTERVAL);
 
-		err = mv88e6352_config_eventcap(chip, PTP_CLOCK_EXTTS, rising);
+		err = mv88e6352_config_eventcap(chip, rising);
 	} else {
 		func = MV88E6352_G2_SCRATCH_GPIO_PCTL_GPIO;
 
@@ -405,29 +389,6 @@ const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {
 	.arr1_sts_reg = MV88E6165_PORT_PTP_ARR1_STS,
 	.dep_sts_reg = MV88E6165_PORT_PTP_DEP_STS,
 	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ),
-};
-
-const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops = {
-	.clock_read = mv88e6352_ptp_clock_read,
-	.ptp_enable = mv88e6352_ptp_enable,
-	.ptp_verify = mv88e6352_ptp_verify,
-	.event_work = mv88e6352_tai_event_work,
-	.port_enable = mv88e6352_hwtstamp_port_enable,
-	.port_disable = mv88e6352_hwtstamp_port_disable,
-	.n_ext_ts = 1,
-	.arr0_sts_reg = MV88E6XXX_PORT_PTP_ARR0_STS,
-	.arr1_sts_reg = MV88E6XXX_PORT_PTP_ARR1_STS,
-	.dep_sts_reg = MV88E6XXX_PORT_PTP_DEP_STS,
-	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
@@ -590,6 +551,7 @@ int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+/* This must never be called holding the register lock */
 void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 {
 	if (chip->ptp_clock) {

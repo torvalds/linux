@@ -259,13 +259,8 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 		goto put_mem;
 	}
 
-#ifdef _HAS_TYPE_ARG_IN_ACCESS_OK
-	if (!access_ok(VERIFY_WRITE, (void __user *)(uintptr_t)vma->vm_start,
-		       user_mem_size)) {
-#else
 	if (!access_ok((void __user *)(uintptr_t)vma->vm_start,
 		       user_mem_size)) {
-#endif
 		dev_err(mmg->dev, "%s: User pointer is invalid - 0x%lx\n",
 			buf->behavior->topic, vma->vm_start);
 

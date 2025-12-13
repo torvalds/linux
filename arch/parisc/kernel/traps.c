@@ -31,6 +31,7 @@
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
 #include <linux/kfence.h>
+#include <linux/perf_event.h>
 
 #include <asm/assembly.h>
 #include <asm/io.h>
@@ -633,6 +634,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		/* Assist Exception Trap, i.e. floating point exception. */
 		die_if_kernel("Floating point exception", regs, 0); /* quiet */
 		__inc_irq_stat(irq_fpassist_count);
+		perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 		handle_fpe(regs);
 		return;
 

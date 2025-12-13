@@ -1707,6 +1707,16 @@ static uint32_t reg_rule_to_chan_bw_flags(const struct ieee80211_regdomain *regd
 	if (reg_rule->flags & NL80211_RRF_AUTO_BW)
 		max_bandwidth_khz = reg_get_max_bandwidth(regd, reg_rule);
 
+	if (is_s1g) {
+		if (max_bandwidth_khz < MHZ_TO_KHZ(16))
+			bw_flags |= IEEE80211_CHAN_NO_16MHZ;
+		if (max_bandwidth_khz < MHZ_TO_KHZ(8))
+			bw_flags |= IEEE80211_CHAN_NO_8MHZ;
+		if (max_bandwidth_khz < MHZ_TO_KHZ(4))
+			bw_flags |= IEEE80211_CHAN_NO_4MHZ;
+		return bw_flags;
+	}
+
 	/* If we get a reg_rule we can assume that at least 5Mhz fit */
 	if (!cfg80211_does_bw_fit_range(freq_range,
 					center_freq_khz,
@@ -1717,59 +1727,19 @@ static uint32_t reg_rule_to_chan_bw_flags(const struct ieee80211_regdomain *regd
 					MHZ_TO_KHZ(20)))
 		bw_flags |= IEEE80211_CHAN_NO_20MHZ;
 
-	if (is_s1g) {
-		/* S1G is strict about non overlapping channels. We can
-		 * calculate which bandwidth is allowed per channel by finding
-		 * the largest bandwidth which cleanly divides the freq_range.
-		 */
-		int edge_offset;
-		int ch_bw = max_bandwidth_khz;
+	if (max_bandwidth_khz < MHZ_TO_KHZ(10))
+		bw_flags |= IEEE80211_CHAN_NO_10MHZ;
+	if (max_bandwidth_khz < MHZ_TO_KHZ(20))
+		bw_flags |= IEEE80211_CHAN_NO_20MHZ;
+	if (max_bandwidth_khz < MHZ_TO_KHZ(40))
+		bw_flags |= IEEE80211_CHAN_NO_HT40;
+	if (max_bandwidth_khz < MHZ_TO_KHZ(80))
+		bw_flags |= IEEE80211_CHAN_NO_80MHZ;
+	if (max_bandwidth_khz < MHZ_TO_KHZ(160))
+		bw_flags |= IEEE80211_CHAN_NO_160MHZ;
+	if (max_bandwidth_khz < MHZ_TO_KHZ(320))
+		bw_flags |= IEEE80211_CHAN_NO_320MHZ;
 
-		while (ch_bw) {
-			edge_offset = (center_freq_khz - ch_bw / 2) -
-				      freq_range->start_freq_khz;
-			if (edge_offset % ch_bw == 0) {
-				switch (KHZ_TO_MHZ(ch_bw)) {
-				case 1:
-					bw_flags |= IEEE80211_CHAN_1MHZ;
-					break;
-				case 2:
-					bw_flags |= IEEE80211_CHAN_2MHZ;
-					break;
-				case 4:
-					bw_flags |= IEEE80211_CHAN_4MHZ;
-					break;
-				case 8:
-					bw_flags |= IEEE80211_CHAN_8MHZ;
-					break;
-				case 16:
-					bw_flags |= IEEE80211_CHAN_16MHZ;
-					break;
-				default:
-					/* If we got here, no bandwidths fit on
-					 * this frequency, ie. band edge.
-					 */
-					bw_flags |= IEEE80211_CHAN_DISABLED;
-					break;
-				}
-				break;
-			}
-			ch_bw /= 2;
-		}
-	} else {
-		if (max_bandwidth_khz < MHZ_TO_KHZ(10))
-			bw_flags |= IEEE80211_CHAN_NO_10MHZ;
-		if (max_bandwidth_khz < MHZ_TO_KHZ(20))
-			bw_flags |= IEEE80211_CHAN_NO_20MHZ;
-		if (max_bandwidth_khz < MHZ_TO_KHZ(40))
-			bw_flags |= IEEE80211_CHAN_NO_HT40;
-		if (max_bandwidth_khz < MHZ_TO_KHZ(80))
-			bw_flags |= IEEE80211_CHAN_NO_80MHZ;
-		if (max_bandwidth_khz < MHZ_TO_KHZ(160))
-			bw_flags |= IEEE80211_CHAN_NO_160MHZ;
-		if (max_bandwidth_khz < MHZ_TO_KHZ(320))
-			bw_flags |= IEEE80211_CHAN_NO_320MHZ;
-	}
 	return bw_flags;
 }
 

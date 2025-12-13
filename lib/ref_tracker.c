@@ -75,7 +75,7 @@ ref_tracker_get_stats(struct ref_tracker_dir *dir, unsigned int limit)
 	struct ref_tracker *tracker;
 
 	stats = kmalloc(struct_size(stats, stacks, limit),
-			GFP_NOWAIT | __GFP_NOWARN);
+			GFP_NOWAIT);
 	if (!stats)
 		return ERR_PTR(-ENOMEM);
 	stats->total = 0;
@@ -159,7 +159,7 @@ __ref_tracker_dir_pr_ostream(struct ref_tracker_dir *dir,
 		return;
 	}
 
-	sbuf = kmalloc(STACK_BUF_SIZE, GFP_NOWAIT | __GFP_NOWARN);
+	sbuf = kmalloc(STACK_BUF_SIZE, GFP_NOWAIT);
 
 	for (i = 0, skipped = stats->total; i < stats->count; ++i) {
 		stack = stats->stacks[i].stack_handle;
@@ -306,7 +306,7 @@ int ref_tracker_free(struct ref_tracker_dir *dir,
 	}
 	nr_entries = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
 	stack_handle = stack_depot_save(entries, nr_entries,
-					GFP_NOWAIT | __GFP_NOWARN);
+					GFP_NOWAIT);
 
 	spin_lock_irqsave(&dir->lock, flags);
 	if (tracker->dead) {

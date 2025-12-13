@@ -77,6 +77,9 @@ static int test_pids_events(const char *root)
 	char *cg_parent = NULL, *cg_child = NULL;
 	int pid;
 
+	if (cgroup_feature("pids_localevents") <= 0)
+		return KSFT_SKIP;
+
 	cg_parent = cg_name(root, "pids_parent");
 	cg_child = cg_name(cg_parent, "pids_child");
 	if (!cg_parent || !cg_child)

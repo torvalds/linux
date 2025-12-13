@@ -43,8 +43,13 @@ static void fexit_test(void)
 	struct fexit_test_lskel *fexit_skel = NULL;
 	int err;
 
-	fexit_skel = fexit_test_lskel__open_and_load();
-	if (!ASSERT_OK_PTR(fexit_skel, "fexit_skel_load"))
+	fexit_skel = fexit_test_lskel__open();
+	if (!ASSERT_OK_PTR(fexit_skel, "fexit_skel_open"))
+		goto cleanup;
+
+	fexit_skel->keyring_id	= KEY_SPEC_SESSION_KEYRING;
+	err = fexit_test_lskel__load(fexit_skel);
+	if (!ASSERT_OK(err, "fexit_skel_load"))
 		goto cleanup;
 
 	err = fexit_test_common(fexit_skel);

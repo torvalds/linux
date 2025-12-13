@@ -1430,7 +1430,7 @@ static int spufs_mfc_open(struct inode *inode, struct file *file)
 	if (ctx->owner != current->mm)
 		return -EINVAL;
 
-	if (atomic_read(&inode->i_count) != 1)
+	if (icount_read(inode) != 1)
 		return -EBUSY;
 
 	mutex_lock(&ctx->mapping_lock);

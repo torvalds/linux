@@ -39,6 +39,22 @@ do
 	fi
 done
 
+# Uses global variables startsecs, startns, endsecs, endns, and limit.
+# Exit code is success for time not yet elapsed and failure otherwise.
+function timecheck {
+	local done=`awk -v limit=$limit \
+			-v startsecs=$startsecs \
+			-v startns=$startns \
+			-v endsecs=$endsecs \
+			-v endns=$endns < /dev/null '
+		BEGIN {
+			delta = (endsecs - startsecs) * 1000 * 1000;
+			delta += int((endns - startns) / 1000);
+			print delta >= limit;
+		}'`
+	return $done
+}
+
 while :
 do
 	# Check for done.
@@ -85,15 +101,20 @@ do
 	n=$(($n+1))
 	sleep .$sleeptime
 
-	# Spin a random duration
+	# Spin a random duration, but with rather coarse granularity.
 	limit=`awk -v me=$me -v n=$n -v spinmax=$spinmax 'BEGIN {
 		srand(n + me + systime());
 		printf("%06d", int(rand() * spinmax));
 	}' < /dev/null`
 	n=$(($n+1))
-	for i in {1..$limit}
+	startsecs=`date +%s`
+	startns=`date +%N`
+	endsecs=$startns
+	endns=$endns
+	while timecheck
 	do
-		echo > /dev/null
+		endsecs=`date +%s`
+		endns=`date +%N`
 	done
 done
 

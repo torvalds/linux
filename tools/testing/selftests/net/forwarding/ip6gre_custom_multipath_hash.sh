@@ -323,7 +323,7 @@ send_flowlabel()
 	# Generate 16384 echo requests, each with a random flow label.
 	ip vrf exec v$h1 sh -c \
 		"for _ in {1..16384}; do \
-			$PING6 2001:db8:2::2 -F 0 -c 1 -q >/dev/null 2>&1; \
+			$PING6 -F 0 -c 1 -q 2001:db8:2::2 >/dev/null 2>&1; \
 		done"
 }
 

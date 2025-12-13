@@ -3,6 +3,10 @@
  * ECAP PWM driver
  *
  * Copyright (C) 2012 Texas Instruments, Inc. - https://www.ti.com/
+ *
+ * Hardware properties:
+ * - On disable the PWM pin becomes an input, so the behaviour depends on
+ *   external wiring.
  */
 
 #include <linux/module.h>

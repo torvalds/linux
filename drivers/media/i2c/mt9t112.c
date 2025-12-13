@@ -1078,13 +1078,12 @@ static int mt9t112_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &mt9t112_subdev_ops);
 
-	priv->clk = devm_clk_get(&client->dev, "extclk");
-	if (PTR_ERR(priv->clk) == -ENOENT) {
+	priv->clk = devm_v4l2_sensor_clk_get(&client->dev, "extclk");
+	if (PTR_ERR(priv->clk) == -ENOENT)
 		priv->clk = NULL;
-	} else if (IS_ERR(priv->clk)) {
-		dev_err(&client->dev, "Unable to get clock \"extclk\"\n");
-		return PTR_ERR(priv->clk);
-	}
+	else if (IS_ERR(priv->clk))
+		return dev_err_probe(&client->dev, PTR_ERR(priv->clk),
+				     "Unable to get clock \"extclk\"\n");
 
 	priv->standby_gpio = devm_gpiod_get_optional(&client->dev, "standby",
 						     GPIOD_OUT_HIGH);

@@ -2011,7 +2011,7 @@ gadgetfs_create_file (struct super_block *sb, char const *name,
 
 static const struct super_operations gadget_fs_operations = {
 	.statfs =	simple_statfs,
-	.drop_inode =	generic_delete_inode,
+	.drop_inode =	inode_just_drop,
 };
 
 static int

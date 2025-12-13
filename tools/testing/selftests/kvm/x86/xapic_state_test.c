@@ -120,8 +120,8 @@ static void test_icr(struct xapic_vcpu *x)
 		__test_icr(x, icr | i);
 
 	/*
-	 * Send all flavors of IPIs to non-existent vCPUs.  TODO: use number of
-	 * vCPUs, not vcpu.id + 1.  Arbitrarily use vector 0xff.
+	 * Send all flavors of IPIs to non-existent vCPUs. Arbitrarily use
+	 * vector 0xff.
 	 */
 	icr = APIC_INT_ASSERT | 0xff;
 	for (i = 0; i < 0xff; i++) {

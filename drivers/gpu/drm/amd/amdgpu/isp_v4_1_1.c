@@ -29,6 +29,8 @@
 #include "amdgpu.h"
 #include "isp_v4_1_1.h"
 
+MODULE_FIRMWARE("amdgpu/isp_4_1_1.bin");
+
 #define ISP_PERFORMANCE_STATE_LOW 0
 #define ISP_PERFORMANCE_STATE_HIGH 1
 

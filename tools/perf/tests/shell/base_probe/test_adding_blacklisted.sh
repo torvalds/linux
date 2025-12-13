@@ -13,10 +13,11 @@
 #	they must be skipped.
 #
 
-# include working environment
-. ../common/init.sh
-
+DIR_PATH="$(dirname $0)"
 TEST_RESULT=0
+
+# include working environment
+. "$DIR_PATH/../common/init.sh"
 
 # skip if not supported
 BLACKFUNC_LIST=`head -n 5 /sys/kernel/debug/kprobes/blacklist 2> /dev/null | cut -f2`
@@ -53,7 +54,8 @@ for BLACKFUNC in $BLACKFUNC_LIST; do
 	PERF_EXIT_CODE=$?
 
 	# check for bad DWARF polluting the result
-	../common/check_all_patterns_found.pl "$REGEX_MISSING_DECL_LINE" >/dev/null < $LOGS_DIR/adding_blacklisted.err
+	"$DIR_PATH/../common/check_all_patterns_found.pl" \
+		"$REGEX_MISSING_DECL_LINE" >/dev/null < $LOGS_DIR/adding_blacklisted.err
 
 	if [ $? -eq 0 ]; then
 		SKIP_DWARF=1
@@ -73,7 +75,11 @@ for BLACKFUNC in $BLACKFUNC_LIST; do
 			fi
 		fi
 	else
-		../common/check_all_lines_matched.pl "$REGEX_SKIP_MESSAGE" "$REGEX_NOT_FOUND_MESSAGE" "$REGEX_ERROR_MESSAGE" "$REGEX_SCOPE_FAIL" "$REGEX_INVALID_ARGUMENT" "$REGEX_SYMBOL_FAIL" "$REGEX_OUT_SECTION" < $LOGS_DIR/adding_blacklisted.err
+		"$DIR_PATH/../common/check_all_lines_matched.pl" \
+			"$REGEX_SKIP_MESSAGE" "$REGEX_NOT_FOUND_MESSAGE" \
+			"$REGEX_ERROR_MESSAGE" "$REGEX_SCOPE_FAIL" \
+			"$REGEX_INVALID_ARGUMENT" "$REGEX_SYMBOL_FAIL" \
+			"$REGEX_OUT_SECTION" < $LOGS_DIR/adding_blacklisted.err
 		CHECK_EXIT_CODE=$?
 
 		SKIP_DWARF=0
@@ -94,7 +100,9 @@ fi
 $CMD_PERF list probe:\* > $LOGS_DIR/adding_blacklisted_list.log
 PERF_EXIT_CODE=$?
 
-../common/check_all_lines_matched.pl "$RE_LINE_EMPTY" "List of pre-defined events" "Metric Groups:" < $LOGS_DIR/adding_blacklisted_list.log
+"$DIR_PATH/../common/check_all_lines_matched.pl" \
+	"$RE_LINE_EMPTY" "List of pre-defined events" "Metric Groups:" \
+	< $LOGS_DIR/adding_blacklisted_list.log
 CHECK_EXIT_CODE=$?
 
 print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "listing blacklisted probe (should NOT be listed)"

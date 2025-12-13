@@ -99,13 +99,26 @@ static int rtw89_rx_pn_to_iv(struct rtw89_dev *rtwdev,
 
 	ieee80211_get_key_rx_seq(key, 0, &seq);
 
-	/* seq.ccmp.pn[] is BE order array */
-	pn = u64_encode_bits(seq.ccmp.pn[0], RTW89_KEY_PN_5) |
-	     u64_encode_bits(seq.ccmp.pn[1], RTW89_KEY_PN_4) |
-	     u64_encode_bits(seq.ccmp.pn[2], RTW89_KEY_PN_3) |
-	     u64_encode_bits(seq.ccmp.pn[3], RTW89_KEY_PN_2) |
-	     u64_encode_bits(seq.ccmp.pn[4], RTW89_KEY_PN_1) |
-	     u64_encode_bits(seq.ccmp.pn[5], RTW89_KEY_PN_0);
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		pn = u64_encode_bits(seq.tkip.iv32, RTW89_KEY_TKIP_PN_IV32) |
+		     u64_encode_bits(seq.tkip.iv16, RTW89_KEY_TKIP_PN_IV16);
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		/* seq.ccmp.pn[] is BE order array */
+		pn = u64_encode_bits(seq.ccmp.pn[0], RTW89_KEY_PN_5) |
+		     u64_encode_bits(seq.ccmp.pn[1], RTW89_KEY_PN_4) |
+		     u64_encode_bits(seq.ccmp.pn[2], RTW89_KEY_PN_3) |
+		     u64_encode_bits(seq.ccmp.pn[3], RTW89_KEY_PN_2) |
+		     u64_encode_bits(seq.ccmp.pn[4], RTW89_KEY_PN_1) |
+		     u64_encode_bits(seq.ccmp.pn[5], RTW89_KEY_PN_0);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	err = _pn_to_iv(rtwdev, key, iv, pn, key->keyidx);
 	if (err)
@@ -177,13 +190,26 @@ static int rtw89_rx_iv_to_pn(struct rtw89_dev *rtwdev,
 	if (err)
 		return err;
 
-	/* seq.ccmp.pn[] is BE order array */
-	seq.ccmp.pn[0] = u64_get_bits(pn, RTW89_KEY_PN_5);
-	seq.ccmp.pn[1] = u64_get_bits(pn, RTW89_KEY_PN_4);
-	seq.ccmp.pn[2] = u64_get_bits(pn, RTW89_KEY_PN_3);
-	seq.ccmp.pn[3] = u64_get_bits(pn, RTW89_KEY_PN_2);
-	seq.ccmp.pn[4] = u64_get_bits(pn, RTW89_KEY_PN_1);
-	seq.ccmp.pn[5] = u64_get_bits(pn, RTW89_KEY_PN_0);
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		seq.tkip.iv32 = u64_get_bits(pn, RTW89_KEY_TKIP_PN_IV32);
+		seq.tkip.iv16 = u64_get_bits(pn, RTW89_KEY_TKIP_PN_IV16);
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		/* seq.ccmp.pn[] is BE order array */
+		seq.ccmp.pn[0] = u64_get_bits(pn, RTW89_KEY_PN_5);
+		seq.ccmp.pn[1] = u64_get_bits(pn, RTW89_KEY_PN_4);
+		seq.ccmp.pn[2] = u64_get_bits(pn, RTW89_KEY_PN_3);
+		seq.ccmp.pn[3] = u64_get_bits(pn, RTW89_KEY_PN_2);
+		seq.ccmp.pn[4] = u64_get_bits(pn, RTW89_KEY_PN_1);
+		seq.ccmp.pn[5] = u64_get_bits(pn, RTW89_KEY_PN_0);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ieee80211_set_key_rx_seq(key, 0, &seq);
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d iv-%*ph to pn-%*ph\n",
@@ -285,6 +311,11 @@ static void rtw89_wow_get_key_info_iter(struct ieee80211_hw *hw,
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
+		if (sta)
+			memcpy(gtk_info->txmickey,
+			       key->key + NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY,
+			       sizeof(gtk_info->txmickey));
+		fallthrough;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
@@ -348,10 +379,27 @@ static void rtw89_wow_set_key_info_iter(struct ieee80211_hw *hw,
 	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
 	struct rtw89_set_key_info_iter_data *iter_data = data;
 	bool update_tx_key_info = iter_data->rx_ready;
+	u8 tmp[RTW89_MIC_KEY_LEN];
 	int ret;
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
+		/*
+		 * TX MIC KEY and RX MIC KEY is oppsite in FW,
+		 * need to swap it before sending to mac80211.
+		 */
+		if (!sta && update_tx_key_info && aoac_rpt->rekey_ok &&
+		    !iter_data->tkip_gtk_swapped) {
+			memcpy(tmp, &aoac_rpt->gtk[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
+			       RTW89_MIC_KEY_LEN);
+			memcpy(&aoac_rpt->gtk[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
+			       &aoac_rpt->gtk[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
+			       RTW89_MIC_KEY_LEN);
+			memcpy(&aoac_rpt->gtk[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
+			       tmp, RTW89_MIC_KEY_LEN);
+			iter_data->tkip_gtk_swapped = true;
+		}
+		fallthrough;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
@@ -642,7 +690,8 @@ static void rtw89_wow_update_key_info(struct rtw89_dev *rtwdev, bool rx_ready)
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
 	struct rtw89_set_key_info_iter_data data = {.error = false,
-						    .rx_ready = rx_ready};
+						    .rx_ready = rx_ready,
+						    .tkip_gtk_swapped = false};
 	struct ieee80211_bss_conf *bss_conf;
 	struct ieee80211_key_conf *key;
 

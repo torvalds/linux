@@ -89,7 +89,7 @@ void amdgpu_gfx_rlc_exit_safe_mode(struct amdgpu_device *adev, int xcc_id)
 int amdgpu_gfx_rlc_init_sr(struct amdgpu_device *adev, u32 dws)
 {
 	const u32 *src_ptr;
-	volatile u32 *dst_ptr;
+	u32 *dst_ptr;
 	u32 i;
 	int r;
 
@@ -189,7 +189,7 @@ int amdgpu_gfx_rlc_init_cpt(struct amdgpu_device *adev)
 void amdgpu_gfx_rlc_setup_cp_table(struct amdgpu_device *adev)
 {
 	const __le32 *fw_data;
-	volatile u32 *dst_ptr;
+	u32 *dst_ptr;
 	int me, i, max_me;
 	u32 bo_offset = 0;
 	u32 table_offset, table_size;

@@ -186,7 +186,7 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
  * wait for command completion. Maximum holding interval is 8 second.
  *
  * Returns:
- * -ETIMEOUT if command is not completed in specific time interval.
+ * -ETIMEDOUT if command is not completed in specific time interval.
  * 0 if command is completed by firmware.
  */
 static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
@@ -366,6 +366,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	wmb();
 	writel(cmdq_prod, cmdq->cmdq_mbox.prod);
 	writel(RCFW_CMDQ_TRIG_VAL, cmdq->cmdq_mbox.db);
+	print_hex_dump_bytes("req: ", DUMP_PREFIX_OFFSET, msg->req, msg->req_sz);
 	spin_unlock_bh(&hwq->lock);
 	/* Return the CREQ response pointer */
 	return 0;
@@ -381,7 +382,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
  * This function can not be called from non-sleepable context.
  *
  * Returns:
- * -ETIMEOUT if command is not completed in specific time interval.
+ * -ETIMEDOUT if command is not completed in specific time interval.
  * 0 if command is completed by firmware.
  */
 static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
@@ -631,6 +632,7 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 	int rc = 0;
 
 	pdev = rcfw->pdev;
+	print_hex_dump_bytes("event: ", DUMP_PREFIX_OFFSET, qp_event, sizeof(*qp_event));
 	switch (qp_event->event) {
 	case CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION:
 		err_event = (struct creq_qp_error_notification *)qp_event;
@@ -903,6 +905,10 @@ skip_ctx_setup:
 		flags |= CMDQ_INITIALIZE_FW_FLAGS_OPTIMIZE_MODIFY_QP_SUPPORTED;
 	if (rcfw->res->en_dev->flags & BNXT_EN_FLAG_ROCE_VF_RES_MGMT)
 		flags |= CMDQ_INITIALIZE_FW_FLAGS_L2_VF_RESOURCE_MGMT;
+	if (bnxt_qplib_roce_mirror_supported(rcfw->res->cctx)) {
+		flags |= CMDQ_INITIALIZE_FW_FLAGS_MIRROR_ON_ROCE_SUPPORTED;
+		rcfw->roce_mirror = true;
+	}
 	req.flags |= cpu_to_le16(flags);
 	req.stat_ctx_id = cpu_to_le32(ctx->stats.fw_id);
 	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req), sizeof(resp), 0);

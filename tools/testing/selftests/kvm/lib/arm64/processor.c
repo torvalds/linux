@@ -12,6 +12,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "ucall_common.h"
+#include "vgic.h"
 
 #include <linux/bitfield.h>
 #include <linux/sizes.h>
@@ -185,7 +186,7 @@ void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 	_virt_pg_map(vm, vaddr, paddr, attr_idx);
 }
 
-uint64_t *virt_get_pte_hva(struct kvm_vm *vm, vm_vaddr_t gva)
+uint64_t *virt_get_pte_hva_at_level(struct kvm_vm *vm, vm_vaddr_t gva, int level)
 {
 	uint64_t *ptep;
 
@@ -195,17 +196,23 @@ uint64_t *virt_get_pte_hva(struct kvm_vm *vm, vm_vaddr_t gva)
 	ptep = addr_gpa2hva(vm, vm->pgd) + pgd_index(vm, gva) * 8;
 	if (!ptep)
 		goto unmapped_gva;
+	if (level == 0)
+		return ptep;
 
 	switch (vm->pgtable_levels) {
 	case 4:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pud_index(vm, gva) * 8;
 		if (!ptep)
 			goto unmapped_gva;
+		if (level == 1)
+			break;
 		/* fall through */
 	case 3:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pmd_index(vm, gva) * 8;
 		if (!ptep)
 			goto unmapped_gva;
+		if (level == 2)
+			break;
 		/* fall through */
 	case 2:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pte_index(vm, gva) * 8;
@@ -221,6 +228,11 @@ uint64_t *virt_get_pte_hva(struct kvm_vm *vm, vm_vaddr_t gva)
 unmapped_gva:
 	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);
 	exit(EXIT_FAILURE);
+}
+
+uint64_t *virt_get_pte_hva(struct kvm_vm *vm, vm_vaddr_t gva)
+{
+	return virt_get_pte_hva_at_level(vm, gva, 3);
 }
 
 vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
@@ -266,31 +278,49 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	}
 }
 
+bool vm_supports_el2(struct kvm_vm *vm)
+{
+	const char *value = getenv("NV");
+
+	if (value && *value == '0')
+		return false;
+
+	return vm_check_cap(vm, KVM_CAP_ARM_EL2) && vm->arch.has_gic;
+}
+
+void kvm_get_default_vcpu_target(struct kvm_vm *vm, struct kvm_vcpu_init *init)
+{
+	struct kvm_vcpu_init preferred = {};
+
+	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &preferred);
+	if (vm_supports_el2(vm))
+		preferred.features[0] |= BIT(KVM_ARM_VCPU_HAS_EL2);
+
+	*init = preferred;
+}
+
 void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 {
 	struct kvm_vcpu_init default_init = { .target = -1, };
 	struct kvm_vm *vm = vcpu->vm;
 	uint64_t sctlr_el1, tcr_el1, ttbr0_el1;
 
-	if (!init)
+	if (!init) {
+		kvm_get_default_vcpu_target(vm, &default_init);
 		init = &default_init;
-
-	if (init->target == -1) {
-		struct kvm_vcpu_init preferred;
-		vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &preferred);
-		init->target = preferred.target;
 	}
 
 	vcpu_ioctl(vcpu, KVM_ARM_VCPU_INIT, init);
+	vcpu->init = *init;
 
 	/*
 	 * Enable FP/ASIMD to avoid trapping when accessing Q0-Q15
 	 * registers, which the variable argument list macros do.
 	 */
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CPACR_EL1), 3 << 20);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_CPACR_EL1), 3 << 20);
 
-	sctlr_el1 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1));
-	tcr_el1 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TCR_EL1));
+	sctlr_el1 = vcpu_get_reg(vcpu, ctxt_reg_alias(vcpu, SYS_SCTLR_EL1));
+	tcr_el1 = vcpu_get_reg(vcpu, ctxt_reg_alias(vcpu, SYS_TCR_EL1));
 
 	/* Configure base granule size */
 	switch (vm->mode) {
@@ -357,11 +387,17 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 	if (use_lpa2_pte_format(vm))
 		tcr_el1 |= TCR_DS;
 
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1), sctlr_el1);
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TCR_EL1), tcr_el1);
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MAIR_EL1), DEFAULT_MAIR_EL1);
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TTBR0_EL1), ttbr0_el1);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_SCTLR_EL1), sctlr_el1);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_TCR_EL1), tcr_el1);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_MAIR_EL1), DEFAULT_MAIR_EL1);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_TTBR0_EL1), ttbr0_el1);
 	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TPIDR_EL1), vcpu->id);
+
+	if (!vcpu_has_el2(vcpu))
+		return;
+
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_HCR_EL2),
+		     HCR_EL2_RW | HCR_EL2_TGE | HCR_EL2_E2H);
 }
 
 void vcpu_arch_dump(FILE *stream, struct kvm_vcpu *vcpu, uint8_t indent)
@@ -395,7 +431,7 @@ static struct kvm_vcpu *__aarch64_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 
 	aarch64_vcpu_setup(vcpu, init);
 
-	vcpu_set_reg(vcpu, ARM64_CORE_REG(sp_el1), stack_vaddr + stack_size);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_SP_EL1), stack_vaddr + stack_size);
 	return vcpu;
 }
 
@@ -465,7 +501,7 @@ void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu)
 {
 	extern char vectors;
 
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_VBAR_EL1), (uint64_t)&vectors);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_VBAR_EL1), (uint64_t)&vectors);
 }
 
 void route_exception(struct ex_regs *regs, int vector)
@@ -573,15 +609,15 @@ void aarch64_get_supported_page_sizes(uint32_t ipa, uint32_t *ipa4k,
 	err = ioctl(vcpu_fd, KVM_GET_ONE_REG, &reg);
 	TEST_ASSERT(err == 0, KVM_IOCTL_ERROR(KVM_GET_ONE_REG, vcpu_fd));
 
-	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN4), val);
+	gran = FIELD_GET(ID_AA64MMFR0_EL1_TGRAN4, val);
 	*ipa4k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN4_NI,
 					ID_AA64MMFR0_EL1_TGRAN4_52_BIT);
 
-	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN64), val);
+	gran = FIELD_GET(ID_AA64MMFR0_EL1_TGRAN64, val);
 	*ipa64k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN64_NI,
 					ID_AA64MMFR0_EL1_TGRAN64_IMP);
 
-	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN16), val);
+	gran = FIELD_GET(ID_AA64MMFR0_EL1_TGRAN16, val);
 	*ipa16k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN16_NI,
 					ID_AA64MMFR0_EL1_TGRAN16_52_BIT);
 
@@ -652,4 +688,45 @@ void vm_vaddr_populate_bitmap(struct kvm_vm *vm)
 void wfi(void)
 {
 	asm volatile("wfi");
+}
+
+static bool request_mte;
+static bool request_vgic = true;
+
+void test_wants_mte(void)
+{
+	request_mte = true;
+}
+
+void test_disable_default_vgic(void)
+{
+	request_vgic = false;
+}
+
+void kvm_arch_vm_post_create(struct kvm_vm *vm, unsigned int nr_vcpus)
+{
+	if (request_mte && vm_check_cap(vm, KVM_CAP_ARM_MTE))
+		vm_enable_cap(vm, KVM_CAP_ARM_MTE, 0);
+
+	if (request_vgic && kvm_supports_vgic_v3()) {
+		vm->arch.gic_fd = __vgic_v3_setup(vm, nr_vcpus, 64);
+		vm->arch.has_gic = true;
+	}
+}
+
+void kvm_arch_vm_finalize_vcpus(struct kvm_vm *vm)
+{
+	if (vm->arch.has_gic)
+		__vgic_v3_init(vm->arch.gic_fd);
+}
+
+void kvm_arch_vm_release(struct kvm_vm *vm)
+{
+	if (vm->arch.has_gic)
+		close(vm->arch.gic_fd);
+}
+
+bool kvm_arch_has_default_irqchip(void)
+{
+	return request_vgic && kvm_supports_vgic_v3();
 }

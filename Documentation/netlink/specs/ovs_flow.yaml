@@ -5,7 +5,7 @@ version: 1
 protocol: genetlink-legacy
 uapi-header: linux/openvswitch.h
 
-doc:
+doc: >-
   OVS flow configuration over generic netlink.
 
 definitions:

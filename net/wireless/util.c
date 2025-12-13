@@ -106,33 +106,6 @@ u32 ieee80211_channel_to_freq_khz(int chan, enum nl80211_band band)
 }
 EXPORT_SYMBOL(ieee80211_channel_to_freq_khz);
 
-enum nl80211_chan_width
-ieee80211_s1g_channel_width(const struct ieee80211_channel *chan)
-{
-	if (WARN_ON(!chan || chan->band != NL80211_BAND_S1GHZ))
-		return NL80211_CHAN_WIDTH_20_NOHT;
-
-	/*S1G defines a single allowed channel width per channel.
-	 * Extract that width here.
-	 */
-	if (chan->flags & IEEE80211_CHAN_1MHZ)
-		return NL80211_CHAN_WIDTH_1;
-	else if (chan->flags & IEEE80211_CHAN_2MHZ)
-		return NL80211_CHAN_WIDTH_2;
-	else if (chan->flags & IEEE80211_CHAN_4MHZ)
-		return NL80211_CHAN_WIDTH_4;
-	else if (chan->flags & IEEE80211_CHAN_8MHZ)
-		return NL80211_CHAN_WIDTH_8;
-	else if (chan->flags & IEEE80211_CHAN_16MHZ)
-		return NL80211_CHAN_WIDTH_16;
-
-	pr_err("unknown channel width for channel at %dKHz?\n",
-	       ieee80211_channel_to_khz(chan));
-
-	return NL80211_CHAN_WIDTH_1;
-}
-EXPORT_SYMBOL(ieee80211_s1g_channel_width);
-
 int ieee80211_freq_khz_to_channel(u32 freq)
 {
 	/* TODO: just handle MHz for now */
@@ -2584,7 +2557,7 @@ int cfg80211_get_radio_idx_by_chan(struct wiphy *wiphy,
 		}
 	}
 
-	return -ENOENT;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(cfg80211_get_radio_idx_by_chan);
 
@@ -2992,7 +2965,7 @@ bool cfg80211_radio_chandef_valid(const struct wiphy_radio *radio,
 	u32 freq, width;
 
 	freq = ieee80211_chandef_to_khz(chandef);
-	width = cfg80211_chandef_get_width(chandef);
+	width = MHZ_TO_KHZ(cfg80211_chandef_get_width(chandef));
 	if (!ieee80211_radio_freq_range_valid(radio, freq, width))
 		return false;
 

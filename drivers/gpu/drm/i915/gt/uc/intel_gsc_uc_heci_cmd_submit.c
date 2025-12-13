@@ -8,6 +8,8 @@
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_ring.h"
+
+#include "i915_wait_util.h"
 #include "intel_gsc_uc_heci_cmd_submit.h"
 
 struct gsc_heci_pkt {

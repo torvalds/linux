@@ -155,7 +155,7 @@ int main(int argc, char **argv)
 	}
 
 	if (!server) {
-		/* Only supports IPv4; see hints initiailization above. */
+		/* Only supports IPv4; see hints initialization above. */
 		if (getaddrinfo(argv[optind], NULL, &hints, &a) || !a) {
 			fprintf(stderr, "Could not resolve %s\n", argv[optind]);
 			return 1;

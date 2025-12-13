@@ -787,10 +787,8 @@ static int ccs_set_ctrl(struct v4l2_ctrl *ctrl)
 		rval = -EINVAL;
 	}
 
-	if (pm_status > 0) {
-		pm_runtime_mark_last_busy(&client->dev);
+	if (pm_status > 0)
 		pm_runtime_put_autosuspend(&client->dev);
-	}
 
 	return rval;
 }
@@ -1914,7 +1912,6 @@ static int ccs_set_stream(struct v4l2_subdev *subdev, int enable)
 	if (!enable) {
 		ccs_stop_streaming(sensor);
 		sensor->streaming = false;
-		pm_runtime_mark_last_busy(&client->dev);
 		pm_runtime_put_autosuspend(&client->dev);
 
 		return 0;
@@ -1929,7 +1926,6 @@ static int ccs_set_stream(struct v4l2_subdev *subdev, int enable)
 	rval = ccs_start_streaming(sensor);
 	if (rval < 0) {
 		sensor->streaming = false;
-		pm_runtime_mark_last_busy(&client->dev);
 		pm_runtime_put_autosuspend(&client->dev);
 	}
 
@@ -2677,7 +2673,6 @@ nvm_show(struct device *dev, struct device_attribute *attr, char *buf)
 		return -ENODEV;
 	}
 
-	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
 
 	/*

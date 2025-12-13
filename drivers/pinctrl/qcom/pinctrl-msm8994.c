@@ -1071,7 +1071,7 @@ static const struct pinfunction msm8994_functions[] = {
 	MSM_PIN_FUNCTION(uim2),
 	MSM_PIN_FUNCTION(uim3),
 	MSM_PIN_FUNCTION(uim4),
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 };
 
 static const struct msm_pingroup msm8994_groups[] = {

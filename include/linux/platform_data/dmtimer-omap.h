@@ -36,9 +36,13 @@ struct omap_dm_timer_ops {
 	int	(*set_pwm)(struct omap_dm_timer *timer, int def_on,
 			   int toggle, int trigger, int autoreload);
 	int	(*get_pwm_status)(struct omap_dm_timer *timer);
+	int	(*set_cap)(struct omap_dm_timer *timer,
+			   int autoreload, bool config_period);
+	int	(*get_cap_status)(struct omap_dm_timer *timer);
 	int	(*set_prescaler)(struct omap_dm_timer *timer, int prescaler);
 
 	unsigned int (*read_counter)(struct omap_dm_timer *timer);
+	unsigned int (*read_cap)(struct omap_dm_timer *timer, bool is_period);
 	int	(*write_counter)(struct omap_dm_timer *timer,
 				 unsigned int value);
 	unsigned int (*read_status)(struct omap_dm_timer *timer);

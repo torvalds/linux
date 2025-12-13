@@ -1199,15 +1199,11 @@ static int gc08a3_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(gc08a3->regmap),
 				     "failed to init CCI\n");
 
-	gc08a3->xclk = devm_clk_get(dev, NULL);
+	gc08a3->xclk = devm_v4l2_sensor_clk_get_legacy(dev, NULL, true,
+						       GC08A3_DEFAULT_CLK_FREQ);
 	if (IS_ERR(gc08a3->xclk))
 		return dev_err_probe(dev, PTR_ERR(gc08a3->xclk),
 				     "failed to get xclk\n");
-
-	ret = clk_set_rate(gc08a3->xclk, GC08A3_DEFAULT_CLK_FREQ);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to set xclk frequency\n");
 
 	ret = gc08a3_get_regulators(dev, gc08a3);
 	if (ret < 0)

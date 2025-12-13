@@ -10,7 +10,7 @@
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-static __always_inline unsigned int generic___fls(unsigned long word)
+static __always_inline __attribute_const__ unsigned int generic___fls(unsigned long word)
 {
 	unsigned int num = BITS_PER_LONG - 1;
 

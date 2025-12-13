@@ -55,7 +55,6 @@ struct netpoll_info {
 
 	struct delayed_work tx_work;
 
-	struct netpoll *netpoll;
 	struct rcu_head rcu;
 };
 

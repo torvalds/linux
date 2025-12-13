@@ -7,6 +7,7 @@
 #include <test_progs.h>
 
 #include "test_xdp_devmap_helpers.skel.h"
+#include "test_xdp_devmap_tailcall.skel.h"
 #include "test_xdp_with_devmap_frags_helpers.skel.h"
 #include "test_xdp_with_devmap_helpers.skel.h"
 
@@ -105,6 +106,29 @@ static void test_neg_xdp_devmap_helpers(void)
 		    "Load of XDP program accessing egress ifindex without attach type")) {
 		test_xdp_devmap_helpers__destroy(skel);
 	}
+}
+
+static void test_xdp_devmap_tailcall(enum bpf_attach_type prog_dev,
+				     enum bpf_attach_type prog_tail,
+				     bool expect_reject)
+{
+	struct test_xdp_devmap_tailcall *skel;
+	int err;
+
+	skel = test_xdp_devmap_tailcall__open();
+	if (!ASSERT_OK_PTR(skel, "test_xdp_devmap_tailcall__open"))
+		return;
+
+	bpf_program__set_expected_attach_type(skel->progs.xdp_devmap, prog_dev);
+	bpf_program__set_expected_attach_type(skel->progs.xdp_entry, prog_tail);
+
+	err = test_xdp_devmap_tailcall__load(skel);
+	if (expect_reject)
+		ASSERT_ERR(err, "test_xdp_devmap_tailcall__load");
+	else
+		ASSERT_OK(err, "test_xdp_devmap_tailcall__load");
+
+	test_xdp_devmap_tailcall__destroy(skel);
 }
 
 static void test_xdp_with_devmap_frags_helpers(void)
@@ -238,8 +262,13 @@ void serial_test_xdp_devmap_attach(void)
 	if (test__start_subtest("DEVMAP with frags programs in entries"))
 		test_xdp_with_devmap_frags_helpers();
 
-	if (test__start_subtest("Verifier check of DEVMAP programs"))
+	if (test__start_subtest("Verifier check of DEVMAP programs")) {
 		test_neg_xdp_devmap_helpers();
+		test_xdp_devmap_tailcall(BPF_XDP_DEVMAP, BPF_XDP_DEVMAP, false);
+		test_xdp_devmap_tailcall(0, 0, true);
+		test_xdp_devmap_tailcall(BPF_XDP_DEVMAP, 0, true);
+		test_xdp_devmap_tailcall(0, BPF_XDP_DEVMAP, true);
+	}
 
 	if (test__start_subtest("DEVMAP with programs in entries on veth"))
 		test_xdp_with_devmap_helpers_veth();

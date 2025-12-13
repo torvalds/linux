@@ -4,14 +4,15 @@
 $id: http://devicetree.org/schemas/net/pcs/renesas,rzn1-miic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Renesas RZ/N1 MII converter
+title: Renesas RZ/N1, RZ/N2H and RZ/T2H MII converter
 
 maintainers:
   - Clément Léger <clement.leger@bootlin.com>
+  - Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
 
 description: |
-  This MII converter is present on the Renesas RZ/N1 SoC family. It is
-  responsible to do MII passthrough or convert it to RMII/RGMII.
+  This MII converter is present on the Renesas RZ/N1, RZ/N2H and RZ/T2H SoC
+  families. It is responsible to do MII passthrough or convert it to RMII/RGMII.
 
 properties:
   '#address-cells':
@@ -21,10 +22,16 @@ properties:
     const: 0
 
   compatible:
-    items:
-      - enum:
-          - renesas,r9a06g032-miic
-      - const: renesas,rzn1-miic
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r9a06g032-miic
+          - const: renesas,rzn1-miic
+      - items:
+          - const: renesas,r9a09g077-miic # RZ/T2H
+      - items:
+          - const: renesas,r9a09g087-miic # RZ/N2H
+          - const: renesas,r9a09g077-miic
 
   reg:
     maxItems: 1
@@ -43,11 +50,22 @@ properties:
       - const: rmii_ref
       - const: hclk
 
+  resets:
+    items:
+      - description: Converter register reset
+      - description: Converter reset
+
+  reset-names:
+    items:
+      - const: rst
+      - const: crst
+
   renesas,miic-switch-portin:
     description: MII Switch PORTIN configuration. This value should use one of
-      the values defined in dt-bindings/net/pcs-rzn1-miic.h.
+      the values defined in dt-bindings/net/pcs-rzn1-miic.h for RZ/N1 SoC and
+      include/dt-bindings/net/renesas,r9a09g077-pcs-miic.h for RZ/N2H, RZ/T2H SoCs.
     $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [1, 2]
+    enum: [0, 1, 2]
 
   power-domains:
     maxItems: 1
@@ -60,11 +78,12 @@ patternProperties:
     properties:
       reg:
         description: MII Converter port number.
-        enum: [1, 2, 3, 4, 5]
+        enum: [0, 1, 2, 3, 4, 5]
 
       renesas,miic-input:
         description: Converter input port configuration. This value should use
-          one of the values defined in dt-bindings/net/pcs-rzn1-miic.h.
+          one of the values defined in dt-bindings/net/pcs-rzn1-miic.h for RZ/N1 SoC
+          and include/dt-bindings/net/renesas,r9a09g077-pcs-miic.h for RZ/N2H, RZ/T2H SoCs.
         $ref: /schemas/types.yaml#/definitions/uint32
 
     required:
@@ -73,47 +92,109 @@ patternProperties:
 
     additionalProperties: false
 
-    allOf:
-      - if:
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rzn1-miic
+    then:
+      properties:
+        renesas,miic-switch-portin:
+          enum: [1, 2]
+        resets: false
+        reset-names: false
+      patternProperties:
+        "^mii-conv@[0-5]$":
           properties:
             reg:
-              const: 1
-        then:
-          properties:
-            renesas,miic-input:
-              const: 0
-      - if:
+              enum: [1, 2, 3, 4, 5]
+          allOf:
+            - if:
+                properties:
+                  reg:
+                    const: 1
+              then:
+                properties:
+                  renesas,miic-input:
+                    const: 0
+            - if:
+                properties:
+                  reg:
+                    const: 2
+              then:
+                properties:
+                  renesas,miic-input:
+                    enum: [1, 11]
+            - if:
+                properties:
+                  reg:
+                    const: 3
+              then:
+                properties:
+                  renesas,miic-input:
+                    enum: [7, 10]
+            - if:
+                properties:
+                  reg:
+                    const: 4
+              then:
+                properties:
+                  renesas,miic-input:
+                    enum: [4, 6, 9, 13]
+            - if:
+                properties:
+                  reg:
+                    const: 5
+              then:
+                properties:
+                  renesas,miic-input:
+                    enum: [3, 5, 8, 12]
+    else:
+      properties:
+        renesas,miic-switch-portin:
+          const: 0
+      required:
+        - resets
+        - reset-names
+      patternProperties:
+        "^mii-conv@[0-5]$":
           properties:
             reg:
-              const: 2
-        then:
-          properties:
-            renesas,miic-input:
-              enum: [1, 11]
-      - if:
-          properties:
-            reg:
-              const: 3
-        then:
-          properties:
-            renesas,miic-input:
-              enum: [7, 10]
-      - if:
-          properties:
-            reg:
-              const: 4
-        then:
-          properties:
-            renesas,miic-input:
-              enum: [4, 6, 9, 13]
-      - if:
-          properties:
-            reg:
-              const: 5
-        then:
-          properties:
-            renesas,miic-input:
-              enum: [3, 5, 8, 12]
+              enum: [0, 1, 2, 3]
+          allOf:
+            - if:
+                properties:
+                  reg:
+                    const: 0
+              then:
+                properties:
+                  renesas,miic-input:
+                    enum: [0, 3, 6]
+            - if:
+                properties:
+                  reg:
+                    const: 1
+              then:
+                properties:
+                  renesas,miic-input:
+                    enum: [1, 4, 7]
+            - if:
+                properties:
+                  reg:
+                    const: 2
+              then:
+                properties:
+                  renesas,miic-input:
+                    enum: [2, 5, 8]
+            - if:
+                properties:
+                  reg:
+                    const: 3
+              then:
+                properties:
+                  renesas,miic-input:
+                    const: 1
 
 required:
   - '#address-cells'

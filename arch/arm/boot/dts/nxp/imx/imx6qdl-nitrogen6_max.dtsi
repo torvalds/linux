@@ -86,45 +86,45 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		power {
+		key-power {
 			label = "Power Button";
 			gpios = <&gpio2 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
 
-		menu {
+		key-menu {
 			label = "Menu";
 			gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_MENU>;
 		};
 
-		home {
+		key-home {
 			label = "Home";
 			gpios = <&gpio2 4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
 		};
 
-		back {
+		key-back {
 			label = "Back";
 			gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_BACK>;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio7 13 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 	};
 
-	i2c2mux {
+	i2c-mux-2 {
 		compatible = "i2c-mux-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2mux>;
@@ -148,7 +148,7 @@
 		};
 	};
 
-	i2c3mux {
+	i2c-mux-3 {
 		compatible = "i2c-mux-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3mux>;

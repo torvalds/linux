@@ -8,6 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/hw_bitfield.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -24,9 +25,6 @@
 
 static int enable_usb_uart;
 
-#define HIWORD_UPDATE(val, mask) \
-		((val) | (mask) << 16)
-
 #define UOC_CON0					0x00
 #define UOC_CON0_SIDDQ					BIT(13)
 #define UOC_CON0_DISABLE				BIT(4)
@@ -38,10 +36,10 @@ static int enable_usb_uart;
 #define UOC_CON3					0x0c
 /* bits present on rk3188 and rk3288 phys */
 #define UOC_CON3_UTMI_TERMSEL_FULLSPEED			BIT(5)
-#define UOC_CON3_UTMI_XCVRSEELCT_FSTRANSC		(1 << 3)
-#define UOC_CON3_UTMI_XCVRSEELCT_MASK			(3 << 3)
-#define UOC_CON3_UTMI_OPMODE_NODRIVING			(1 << 1)
-#define UOC_CON3_UTMI_OPMODE_MASK			(3 << 1)
+#define UOC_CON3_UTMI_XCVRSEELCT_FSTRANSC		1UL
+#define UOC_CON3_UTMI_XCVRSEELCT_MASK			GENMASK(4, 3)
+#define UOC_CON3_UTMI_OPMODE_NODRIVING			1UL
+#define UOC_CON3_UTMI_OPMODE_MASK			GENMASK(2, 1)
 #define UOC_CON3_UTMI_SUSPENDN				BIT(0)
 
 struct rockchip_usb_phys {
@@ -79,7 +77,7 @@ struct rockchip_usb_phy {
 static int rockchip_usb_phy_power(struct rockchip_usb_phy *phy,
 					   bool siddq)
 {
-	u32 val = HIWORD_UPDATE(siddq ? UOC_CON0_SIDDQ : 0, UOC_CON0_SIDDQ);
+	u32 val = FIELD_PREP_WM16(UOC_CON0_SIDDQ, siddq);
 
 	return regmap_write(phy->base->reg_base, phy->reg_offset, val);
 }
@@ -332,29 +330,24 @@ static int __init rockchip_init_usb_uart_common(struct regmap *grf,
 	 * but were not present in the original code.
 	 * Also disable the analog phy components to save power.
 	 */
-	val = HIWORD_UPDATE(UOC_CON0_COMMON_ON_N
-				| UOC_CON0_DISABLE
-				| UOC_CON0_SIDDQ,
-			    UOC_CON0_COMMON_ON_N
-				| UOC_CON0_DISABLE
-				| UOC_CON0_SIDDQ);
+	val = FIELD_PREP_WM16(UOC_CON0_COMMON_ON_N, 1) |
+	      FIELD_PREP_WM16(UOC_CON0_DISABLE, 1) |
+	      FIELD_PREP_WM16(UOC_CON0_SIDDQ, 1);
 	ret = regmap_write(grf, regoffs + UOC_CON0, val);
 	if (ret)
 		return ret;
 
-	val = HIWORD_UPDATE(UOC_CON2_SOFT_CON_SEL,
-			    UOC_CON2_SOFT_CON_SEL);
+	val = FIELD_PREP_WM16(UOC_CON2_SOFT_CON_SEL, 1);
 	ret = regmap_write(grf, regoffs + UOC_CON2, val);
 	if (ret)
 		return ret;
 
-	val = HIWORD_UPDATE(UOC_CON3_UTMI_OPMODE_NODRIVING
-				| UOC_CON3_UTMI_XCVRSEELCT_FSTRANSC
-				| UOC_CON3_UTMI_TERMSEL_FULLSPEED,
-			    UOC_CON3_UTMI_SUSPENDN
-				| UOC_CON3_UTMI_OPMODE_MASK
-				| UOC_CON3_UTMI_XCVRSEELCT_MASK
-				| UOC_CON3_UTMI_TERMSEL_FULLSPEED);
+	val = FIELD_PREP_WM16(UOC_CON3_UTMI_SUSPENDN, 0) |
+	      FIELD_PREP_WM16(UOC_CON3_UTMI_OPMODE_MASK,
+			   UOC_CON3_UTMI_OPMODE_NODRIVING) |
+	      FIELD_PREP_WM16(UOC_CON3_UTMI_XCVRSEELCT_MASK,
+			   UOC_CON3_UTMI_XCVRSEELCT_FSTRANSC) |
+	      FIELD_PREP_WM16(UOC_CON3_UTMI_TERMSEL_FULLSPEED, 1);
 	ret = regmap_write(grf, UOC_CON3, val);
 	if (ret)
 		return ret;
@@ -380,10 +373,8 @@ static int __init rk3188_init_usb_uart(struct regmap *grf,
 	if (ret)
 		return ret;
 
-	val = HIWORD_UPDATE(RK3188_UOC0_CON0_BYPASSSEL
-				| RK3188_UOC0_CON0_BYPASSDMEN,
-			    RK3188_UOC0_CON0_BYPASSSEL
-				| RK3188_UOC0_CON0_BYPASSDMEN);
+	val = FIELD_PREP_WM16(RK3188_UOC0_CON0_BYPASSSEL, 1) |
+	      FIELD_PREP_WM16(RK3188_UOC0_CON0_BYPASSDMEN, 1);
 	ret = regmap_write(grf, RK3188_UOC0_CON0, val);
 	if (ret)
 		return ret;
@@ -430,10 +421,8 @@ static int __init rk3288_init_usb_uart(struct regmap *grf,
 	if (ret)
 		return ret;
 
-	val = HIWORD_UPDATE(RK3288_UOC0_CON3_BYPASSSEL
-				| RK3288_UOC0_CON3_BYPASSDMEN,
-			    RK3288_UOC0_CON3_BYPASSSEL
-				| RK3288_UOC0_CON3_BYPASSDMEN);
+	val = FIELD_PREP_WM16(RK3288_UOC0_CON3_BYPASSSEL, 1) |
+	      FIELD_PREP_WM16(RK3288_UOC0_CON3_BYPASSDMEN, 1);
 	ret = regmap_write(grf, RK3288_UOC0_CON3, val);
 	if (ret)
 		return ret;

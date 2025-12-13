@@ -651,6 +651,7 @@ int snd_hdac_stream_set_lpib(struct hdac_stream *azx_dev, u32 value);
 #define snd_hdac_dsp_lock(dev)		mutex_lock(&(dev)->dsp_mutex)
 #define snd_hdac_dsp_unlock(dev)	mutex_unlock(&(dev)->dsp_mutex)
 #define snd_hdac_stream_is_locked(dev)	((dev)->locked)
+DEFINE_GUARD(snd_hdac_dsp_lock, struct hdac_stream *, snd_hdac_dsp_lock(_T), snd_hdac_dsp_unlock(_T))
 /* DSP loader helpers */
 int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 			 unsigned int byte_size, struct snd_dma_buffer *bufp);

@@ -8,12 +8,12 @@
  * Copyright (c) 2024, 2025 Tomasz Pakuła
  */
 
-#include <linux/device.h>
-#include <linux/hid.h>
-#include <linux/module.h>
-#include <linux/input-event-codes.h>
 #include "hid-ids.h"
 #include "usbhid/hid-pidff.h"
+#include <linux/device.h>
+#include <linux/hid.h>
+#include <linux/input-event-codes.h>
+#include <linux/module.h>
 
 #define JOY_RANGE (BTN_DEAD - BTN_JOYSTICK + 1)
 
@@ -21,8 +21,10 @@
  * Map buttons manually to extend the default joystick button limit
  */
 static int universal_pidff_input_mapping(struct hid_device *hdev,
-	struct hid_input *hi, struct hid_field *field, struct hid_usage *usage,
-	unsigned long **bit, int *max)
+					 struct hid_input *hi,
+					 struct hid_field *field,
+					 struct hid_usage *usage,
+					 unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_BUTTON)
 		return 0;
@@ -126,65 +128,64 @@ static int universal_pidff_input_configured(struct hid_device *hdev,
 		if (!test_bit(axis, input->absbit))
 			continue;
 
-		input_set_abs_params(input, axis,
-			input->absinfo[axis].minimum,
-			input->absinfo[axis].maximum,
-			axis == ABS_X ? 0 : 8, 0);
+		input_set_abs_params(input, axis, input->absinfo[axis].minimum,
+				     input->absinfo[axis].maximum,
+				     axis == ABS_X ? 0 : 8, 0);
 	}
 
 	/* Remove fuzz and deadzone from the second joystick axis */
 	if (hdev->vendor == USB_VENDOR_ID_FFBEAST &&
 	    hdev->product == USB_DEVICE_ID_FFBEAST_JOYSTICK)
 		input_set_abs_params(input, ABS_Y,
-			input->absinfo[ABS_Y].minimum,
-			input->absinfo[ABS_Y].maximum, 0, 0);
+				     input->absinfo[ABS_Y].minimum,
+				     input->absinfo[ABS_Y].maximum, 0, 0);
 
 	return 0;
 }
 
 static const struct hid_device_id universal_pidff_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R3),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R3_2),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R5),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R5_2),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R9),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R9_2),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R12),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R12_2),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R16_R21),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MOZA, USB_DEVICE_ID_MOZA_R16_R21_2),
-		.driver_data = HID_PIDFF_QUIRK_FIX_WHEEL_DIRECTION },
+	  .driver_data = HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CAMMUS, USB_DEVICE_ID_CAMMUS_C5) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CAMMUS, USB_DEVICE_ID_CAMMUS_C12) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_VRS, USB_DEVICE_ID_VRS_DFP),
-		.driver_data = HID_PIDFF_QUIRK_PERMISSIVE_CONTROL },
+	  .driver_data = HID_PIDFF_QUIRK_PERMISSIVE_CONTROL },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_FFBEAST, USB_DEVICE_ID_FFBEAST_JOYSTICK), },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_FFBEAST, USB_DEVICE_ID_FFBEAST_RUDDER), },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_FFBEAST, USB_DEVICE_ID_FFBEAST_WHEEL) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LITE_STAR, USB_DEVICE_ID_PXN_V10),
-		.driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
+	  .driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LITE_STAR, USB_DEVICE_ID_PXN_V12),
-		.driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
+	  .driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LITE_STAR, USB_DEVICE_ID_PXN_V12_LITE),
-		.driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
+	  .driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LITE_STAR, USB_DEVICE_ID_PXN_V12_LITE_2),
-		.driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
+	  .driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LITE_STAR, USB_DEVICE_ID_LITE_STAR_GT987),
-		.driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
+	  .driver_data = HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASETEK, USB_DEVICE_ID_ASETEK_INVICTA) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASETEK, USB_DEVICE_ID_ASETEK_FORTE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASETEK, USB_DEVICE_ID_ASETEK_LA_PRIMA) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASETEK, USB_DEVICE_ID_ASETEK_TONY_KANAAN) },
-	{ }
+	{}
 };
 MODULE_DEVICE_TABLE(hid, universal_pidff_devices);
 

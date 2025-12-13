@@ -45,11 +45,7 @@
 #define MLX5_SECTAG_HEADER_SIZE_WITHOUT_SCI 0x8
 #define MLX5_SECTAG_HEADER_SIZE_WITH_SCI (MLX5_SECTAG_HEADER_SIZE_WITHOUT_SCI + MACSEC_SCI_LEN)
 
-/* MACsec RX flow steering */
-#define MLX5_ETH_WQE_FT_META_MACSEC_MASK 0x3E
-
 /* MACsec fs_id handling for steering */
-#define macsec_fs_set_tx_fs_id(fs_id) (MLX5_ETH_WQE_FT_META_MACSEC | (fs_id) << 2)
 #define macsec_fs_set_rx_fs_id(fs_id) ((fs_id) | BIT(30))
 
 struct mlx5_sectag_header {
@@ -597,7 +593,7 @@ static int macsec_fs_tx_setup_fte(struct mlx5_macsec_fs *macsec_fs,
 	MLX5_SET(fte_match_param, spec->match_criteria, misc_parameters_2.metadata_reg_a,
 		 MLX5_ETH_WQE_FT_META_MACSEC_MASK);
 	MLX5_SET(fte_match_param, spec->match_value, misc_parameters_2.metadata_reg_a,
-		 macsec_fs_set_tx_fs_id(id));
+		 MLX5_MACSEC_TX_METADATA(id));
 
 	*fs_id = id;
 	flow_act->crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_MACSEC;
@@ -2219,9 +2215,11 @@ static int mlx5_macsec_fs_add_roce_rule_tx(struct mlx5_macsec_fs *macsec_fs, u32
 
 	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
 	MLX5_SET(set_action_in, action, field, MLX5_ACTION_IN_FIELD_METADATA_REG_A);
-	MLX5_SET(set_action_in, action, data, macsec_fs_set_tx_fs_id(fs_id));
-	MLX5_SET(set_action_in, action, offset, 0);
-	MLX5_SET(set_action_in, action, length, 32);
+	MLX5_SET(set_action_in, action, data,
+		 mlx5_macsec_fs_set_tx_fs_id(fs_id));
+	MLX5_SET(set_action_in, action, offset,
+		 MLX5_ETH_WQE_FT_META_MACSEC_SHIFT);
+	MLX5_SET(set_action_in, action, length, 8);
 
 	modify_hdr = mlx5_modify_header_alloc(mdev, MLX5_FLOW_NAMESPACE_RDMA_TX_MACSEC,
 					      1, action);

@@ -94,6 +94,7 @@ usage () {
 	echo "       --do-kvfree / --do-no-kvfree / --no-kvfree"
 	echo "       --do-locktorture / --do-no-locktorture / --no-locktorture"
 	echo "       --do-none"
+	echo "       --do-normal / --do-no-normal / --no-normal"
 	echo "       --do-rcuscale / --do-no-rcuscale / --no-rcuscale"
 	echo "       --do-rcutasksflavors / --do-no-rcutasksflavors / --no-rcutasksflavors"
 	echo "       --do-rcutorture / --do-no-rcutorture / --no-rcutorture"

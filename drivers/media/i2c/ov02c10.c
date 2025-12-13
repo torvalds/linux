@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
-#include <linux/version.h>
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -373,6 +372,8 @@ static const char * const ov02c10_supply_names[] = {
 };
 
 struct ov02c10 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -418,7 +419,6 @@ static int ov02c10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov02c10 *ov02c10 = container_of(ctrl->handler,
 					     struct ov02c10, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02c10->sd);
 	const u32 height = supported_modes[0].height;
 	s64 exposure_max;
 	int ret = 0;
@@ -434,7 +434,7 @@ static int ov02c10_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov02c10->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -467,7 +467,7 @@ static int ov02c10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov02c10->dev);
 
 	return ret;
 }
@@ -478,7 +478,6 @@ static const struct v4l2_ctrl_ops ov02c10_ctrl_ops = {
 
 static int ov02c10_init_controls(struct ov02c10 *ov02c10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02c10->sd);
 	struct v4l2_ctrl_handler *ctrl_hdlr = &ov02c10->ctrl_handler;
 	const struct ov02c10_mode *mode = &supported_modes[0];
 	u32 vblank_min, vblank_max, vblank_default, vts_def;
@@ -542,7 +541,7 @@ static int ov02c10_init_controls(struct ov02c10 *ov02c10)
 				     ARRAY_SIZE(ov02c10_test_pattern_menu) - 1,
 				     0, 0, ov02c10_test_pattern_menu);
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(ov02c10->dev, &props);
 	if (ret)
 		return ret;
 
@@ -570,12 +569,11 @@ static int ov02c10_enable_streams(struct v4l2_subdev *sd,
 				  u32 pad, u64 streams_mask)
 {
 	const struct ov02c10_mode *mode = &supported_modes[0];
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov02c10 *ov02c10 = to_ov02c10(sd);
 	const struct reg_sequence *reg_sequence;
 	int ret, sequence_length;
 
-	ret = pm_runtime_resume_and_get(&client->dev);
+	ret = pm_runtime_resume_and_get(ov02c10->dev);
 	if (ret)
 		return ret;
 
@@ -584,7 +582,7 @@ static int ov02c10_enable_streams(struct v4l2_subdev *sd,
 	ret = regmap_multi_reg_write(ov02c10->regmap,
 				     reg_sequence, sequence_length);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode\n");
+		dev_err(ov02c10->dev, "failed to set mode\n");
 		goto out;
 	}
 
@@ -593,7 +591,7 @@ static int ov02c10_enable_streams(struct v4l2_subdev *sd,
 	ret = regmap_multi_reg_write(ov02c10->regmap,
 				     reg_sequence, sequence_length);
 	if (ret) {
-		dev_err(&client->dev, "failed to write lane settings\n");
+		dev_err(ov02c10->dev, "failed to write lane settings\n");
 		goto out;
 	}
 
@@ -604,7 +602,7 @@ static int ov02c10_enable_streams(struct v4l2_subdev *sd,
 	ret = cci_write(ov02c10->regmap, OV02C10_REG_STREAM_CONTROL, 1, NULL);
 out:
 	if (ret)
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov02c10->dev);
 
 	return ret;
 }
@@ -613,11 +611,10 @@ static int ov02c10_disable_streams(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *state,
 				   u32 pad, u64 streams_mask)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov02c10 *ov02c10 = to_ov02c10(sd);
 
 	cci_write(ov02c10->regmap, OV02C10_REG_STREAM_CONTROL, 0, NULL);
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov02c10->dev);
 
 	return 0;
 }
@@ -778,7 +775,6 @@ static const struct v4l2_subdev_internal_ops ov02c10_internal_ops = {
 
 static int ov02c10_identify_module(struct ov02c10 *ov02c10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02c10->sd);
 	u64 chip_id;
 	int ret;
 
@@ -787,7 +783,7 @@ static int ov02c10_identify_module(struct ov02c10 *ov02c10)
 		return ret;
 
 	if (chip_id != OV02C10_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%llx",
+		dev_err(ov02c10->dev, "chip id mismatch: %x!=%llx",
 			OV02C10_CHIP_ID, chip_id);
 		return -ENXIO;
 	}
@@ -795,14 +791,14 @@ static int ov02c10_identify_module(struct ov02c10 *ov02c10)
 	return 0;
 }
 
-static int ov02c10_check_hwcfg(struct device *dev, struct ov02c10 *ov02c10)
+static int ov02c10_check_hwcfg(struct ov02c10 *ov02c10)
 {
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
+	struct device *dev = ov02c10->dev;
 	struct fwnode_handle *ep, *fwnode = dev_fwnode(dev);
 	unsigned long link_freq_bitmap;
-	u32 mclk;
 	int ret;
 
 	/*
@@ -813,31 +809,6 @@ static int ov02c10_check_hwcfg(struct device *dev, struct ov02c10 *ov02c10)
 	if (!ep)
 		return dev_err_probe(dev, -EPROBE_DEFER,
 				     "waiting for fwnode graph endpoint\n");
-
-	ov02c10->img_clk = devm_clk_get_optional(dev, NULL);
-	if (IS_ERR(ov02c10->img_clk)) {
-		fwnode_handle_put(ep);
-		return dev_err_probe(dev, PTR_ERR(ov02c10->img_clk),
-				     "failed to get imaging clock\n");
-	}
-
-	if (ov02c10->img_clk) {
-		mclk = clk_get_rate(ov02c10->img_clk);
-	} else {
-		ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
-		if (ret) {
-			fwnode_handle_put(ep);
-			return dev_err_probe(dev, ret,
-					     "reading clock-frequency property\n");
-		}
-	}
-
-	if (mclk != OV02C10_MCLK) {
-		fwnode_handle_put(ep);
-		return dev_err_probe(dev, -EINVAL,
-				     "external clock %u is not supported\n",
-				     mclk);
-	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
@@ -873,35 +844,50 @@ check_hwcfg_error:
 static void ov02c10_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov02c10 *ov02c10 = to_ov02c10(sd);
 
 	v4l2_async_unregister_subdev(sd);
 	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	pm_runtime_disable(&client->dev);
-	if (!pm_runtime_status_suspended(&client->dev)) {
-		ov02c10_power_off(&client->dev);
-		pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(ov02c10->dev);
+	if (!pm_runtime_status_suspended(ov02c10->dev)) {
+		ov02c10_power_off(ov02c10->dev);
+		pm_runtime_set_suspended(ov02c10->dev);
 	}
 }
 
 static int ov02c10_probe(struct i2c_client *client)
 {
 	struct ov02c10 *ov02c10;
+	unsigned long freq;
 	int ret;
 
 	ov02c10 = devm_kzalloc(&client->dev, sizeof(*ov02c10), GFP_KERNEL);
 	if (!ov02c10)
 		return -ENOMEM;
 
+	ov02c10->dev = &client->dev;
+
+	ov02c10->img_clk = devm_v4l2_sensor_clk_get(ov02c10->dev, NULL);
+	if (IS_ERR(ov02c10->img_clk))
+		return dev_err_probe(ov02c10->dev, PTR_ERR(ov02c10->img_clk),
+				     "failed to get imaging clock\n");
+
+	freq = clk_get_rate(ov02c10->img_clk);
+	if (freq != OV02C10_MCLK)
+		return dev_err_probe(ov02c10->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
+
 	v4l2_i2c_subdev_init(&ov02c10->sd, client, &ov02c10_subdev_ops);
 
 	/* Check HW config */
-	ret = ov02c10_check_hwcfg(&client->dev, ov02c10);
+	ret = ov02c10_check_hwcfg(ov02c10);
 	if (ret)
 		return ret;
 
-	ret = ov02c10_get_pm_resources(&client->dev);
+	ret = ov02c10_get_pm_resources(ov02c10->dev);
 	if (ret)
 		return ret;
 
@@ -909,21 +895,21 @@ static int ov02c10_probe(struct i2c_client *client)
 	if (IS_ERR(ov02c10->regmap))
 		return PTR_ERR(ov02c10->regmap);
 
-	ret = ov02c10_power_on(&client->dev);
+	ret = ov02c10_power_on(ov02c10->dev);
 	if (ret) {
-		dev_err_probe(&client->dev, ret, "failed to power on\n");
+		dev_err_probe(ov02c10->dev, ret, "failed to power on\n");
 		return ret;
 	}
 
 	ret = ov02c10_identify_module(ov02c10);
 	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
+		dev_err(ov02c10->dev, "failed to find sensor: %d", ret);
 		goto probe_error_power_off;
 	}
 
 	ret = ov02c10_init_controls(ov02c10);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
+		dev_err(ov02c10->dev, "failed to init controls: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -934,33 +920,33 @@ static int ov02c10_probe(struct i2c_client *client)
 	ov02c10->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov02c10->sd.entity, 1, &ov02c10->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err(ov02c10->dev, "failed to init entity pads: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
 	ov02c10->sd.state_lock = ov02c10->ctrl_handler.lock;
 	ret = v4l2_subdev_init_finalize(&ov02c10->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to init subdev: %d", ret);
+		dev_err(ov02c10->dev, "failed to init subdev: %d", ret);
 		goto probe_error_media_entity_cleanup;
 	}
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
+	pm_runtime_set_active(ov02c10->dev);
+	pm_runtime_enable(ov02c10->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&ov02c10->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
+		dev_err(ov02c10->dev, "failed to register V4L2 subdev: %d",
 			ret);
 		goto probe_error_v4l2_subdev_cleanup;
 	}
 
-	pm_runtime_idle(&client->dev);
+	pm_runtime_idle(ov02c10->dev);
 	return 0;
 
 probe_error_v4l2_subdev_cleanup:
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(ov02c10->dev);
+	pm_runtime_set_suspended(ov02c10->dev);
 	v4l2_subdev_cleanup(&ov02c10->sd);
 
 probe_error_media_entity_cleanup:
@@ -970,7 +956,7 @@ probe_error_v4l2_ctrl_handler_free:
 	v4l2_ctrl_handler_free(ov02c10->sd.ctrl_handler);
 
 probe_error_power_off:
-	ov02c10_power_off(&client->dev);
+	ov02c10_power_off(ov02c10->dev);
 
 	return ret;
 }

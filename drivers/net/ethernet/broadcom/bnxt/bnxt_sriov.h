@@ -38,7 +38,7 @@ bool bnxt_is_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf);
 int bnxt_set_vf_trust(struct net_device *dev, int vf_id, bool trust);
 int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs);
 int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset);
-void bnxt_sriov_disable(struct bnxt *);
+void __bnxt_sriov_disable(struct bnxt *bp);
 void bnxt_hwrm_exec_fwd_req(struct bnxt *);
 void bnxt_update_vf_mac(struct bnxt *);
 int bnxt_approve_mac(struct bnxt *, const u8 *, bool);

@@ -45,7 +45,7 @@
 #define VISExitHalfFast					\
 	wr		%o5, 0, %fprs;
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 static inline void save_and_clear_fpu(void) {
 	__asm__ __volatile__ (
 "		rd %%fprs, %%o5\n"

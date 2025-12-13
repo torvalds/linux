@@ -120,11 +120,14 @@ EXPORT_SYMBOL(of_find_in_proplist);
  */
 static int __init handle_nextprop_quirks(char *buf, const char *name)
 {
-	if (!name || strlen(name) == 0)
+	size_t name_len;
+
+	name_len = name ? strlen(name) : 0;
+	if (name_len == 0)
 		return -1;
 
 #ifdef CONFIG_SPARC32
-	strcpy(buf, name);
+	strscpy(buf, name, name_len + 1);
 #endif
 	return 0;
 }

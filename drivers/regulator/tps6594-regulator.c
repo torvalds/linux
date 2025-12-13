@@ -647,7 +647,7 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 	default:
 		dev_err(tps->dev, "unknown chip_id %lu\n", tps->chip_id);
 		return -EINVAL;
-	};
+	}
 
 	enum {
 		MULTI_BUCK12,

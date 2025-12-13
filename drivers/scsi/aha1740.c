@@ -510,7 +510,7 @@ static void aha1740_getconfig(unsigned int base, unsigned int *irq_level,
 }
 
 static int aha1740_biosparam(struct scsi_device *sdev,
-			     struct block_device *dev,
+			     struct gendisk *unused,
 			     sector_t capacity, int* ip)
 {
 	int size = capacity;

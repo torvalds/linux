@@ -570,7 +570,7 @@ int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip)
 	}
 
 	/* Set the ethertype of L2 PTP messages */
-	err = mv88e6xxx_ptp_write(chip, MV88E6XXX_PTP_GC_ETYPE, ETH_P_1588);
+	err = mv88e6xxx_ptp_write(chip, MV88E6XXX_PTP_ETHERTYPE, ETH_P_1588);
 	if (err)
 		return err;
 

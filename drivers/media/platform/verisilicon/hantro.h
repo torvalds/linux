@@ -382,9 +382,9 @@ extern int hantro_debug;
 	pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
 
 /* Structure access helpers. */
-static __always_inline struct hantro_ctx *fh_to_ctx(struct v4l2_fh *fh)
+static __always_inline struct hantro_ctx *file_to_ctx(struct file *filp)
 {
-	return container_of(fh, struct hantro_ctx, fh);
+	return container_of(file_to_v4l2_fh(filp), struct hantro_ctx, fh);
 }
 
 /* Register accessors. */

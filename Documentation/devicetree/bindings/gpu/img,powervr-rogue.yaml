@@ -23,6 +23,11 @@ properties:
           - const: img,img-rogue
       - items:
           - enum:
+              - thead,th1520-gpu
+          - const: img,img-bxm-4-64
+          - const: img,img-rogue
+      - items:
+          - enum:
               - ti,j721s2-gpu
           - const: img,img-bxs-4-64
           - const: img,img-rogue
@@ -77,18 +82,6 @@ required:
 additionalProperties: false
 
 allOf:
-  # Constraints added alongside the new compatible strings that would otherwise
-  # create an ABI break.
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: img,img-rogue
-    then:
-      required:
-        - power-domains
-        - power-domain-names
-
   - if:
       properties:
         compatible:
@@ -97,9 +90,32 @@ allOf:
     then:
       properties:
         power-domains:
-          maxItems: 1
+          items:
+            - description: Power domain A
         power-domain-names:
           maxItems: 1
+      required:
+        - power-domains
+        - power-domain-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: thead,th1520-gpu
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          minItems: 3
+        power-domains:
+          items:
+            - description: The single, unified power domain for the GPU on the
+                TH1520 SoC, integrating all internal IP power domains.
+        power-domain-names: false
+      required:
+        - power-domains
 
   - if:
       properties:
@@ -109,9 +125,14 @@ allOf:
     then:
       properties:
         power-domains:
-          minItems: 2
+          items:
+            - description: Power domain A
+            - description: Power domain B
         power-domain-names:
           minItems: 2
+      required:
+        - power-domains
+        - power-domain-names
 
   - if:
       properties:

@@ -2136,12 +2136,14 @@ static int amdgpu_pt_info_read(struct seq_file *m, void *unused)
 	struct drm_file *file;
 	struct amdgpu_fpriv *fpriv;
 	struct amdgpu_bo *root_bo;
+	struct amdgpu_device *adev;
 	int r;
 
 	file = m->private;
 	if (!file)
 		return -EINVAL;
 
+	adev = drm_to_adev(file->minor->dev);
 	fpriv = file->driver_priv;
 	if (!fpriv || !fpriv->vm.root.bo)
 		return -ENODEV;
@@ -2153,7 +2155,11 @@ static int amdgpu_pt_info_read(struct seq_file *m, void *unused)
 		return -EINVAL;
 	}
 
-	seq_printf(m, "gpu_address: 0x%llx\n", amdgpu_bo_gpu_offset(fpriv->vm.root.bo));
+	seq_printf(m, "pd_address: 0x%llx\n", amdgpu_gmc_pd_addr(fpriv->vm.root.bo));
+	seq_printf(m, "max_pfn: 0x%llx\n", adev->vm_manager.max_pfn);
+	seq_printf(m, "num_level: 0x%x\n", adev->vm_manager.num_level);
+	seq_printf(m, "block_size: 0x%x\n", adev->vm_manager.block_size);
+	seq_printf(m, "fragment_size: 0x%x\n", adev->vm_manager.fragment_size);
 
 	amdgpu_bo_unreserve(root_bo);
 	amdgpu_bo_unref(&root_bo);

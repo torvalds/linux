@@ -41,6 +41,44 @@ config HOTPLUG_SMT
 config SMT_NUM_THREADS_DYNAMIC
 	bool
 
+config ARCH_SUPPORTS_SCHED_SMT
+	bool
+
+config ARCH_SUPPORTS_SCHED_CLUSTER
+	bool
+
+config ARCH_SUPPORTS_SCHED_MC
+	bool
+
+config SCHED_SMT
+	bool "SMT (Hyperthreading) scheduler support"
+	depends on ARCH_SUPPORTS_SCHED_SMT
+	default y
+	help
+	  Improves the CPU scheduler's decision making when dealing with
+	  MultiThreading at a cost of slightly increased overhead in some
+	  places. If unsure say N here.
+
+config SCHED_CLUSTER
+	bool "Cluster scheduler support"
+	depends on ARCH_SUPPORTS_SCHED_CLUSTER
+	default y
+	help
+	  Cluster scheduler support improves the CPU scheduler's decision
+	  making when dealing with machines that have clusters of CPUs.
+	  Cluster usually means a couple of CPUs which are placed closely
+	  by sharing mid-level caches, last-level cache tags or internal
+	  busses.
+
+config SCHED_MC
+	bool "Multi-Core Cache (MC) scheduler support"
+	depends on ARCH_SUPPORTS_SCHED_MC
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
 # Selected by HOTPLUG_CORE_SYNC_DEAD or HOTPLUG_CORE_SYNC_FULL
 config HOTPLUG_CORE_SYNC
 	bool
@@ -867,22 +905,33 @@ config PROPELLER_CLANG
 
 	  If unsure, say N.
 
-config ARCH_SUPPORTS_CFI_CLANG
+config ARCH_SUPPORTS_CFI
 	bool
 	help
-	  An architecture should select this option if it can support Clang's
-	  Control-Flow Integrity (CFI) checking.
+	  An architecture should select this option if it can support Kernel
+	  Control-Flow Integrity (CFI) checking (-fsanitize=kcfi).
 
 config ARCH_USES_CFI_TRAPS
 	bool
+	help
+	  An architecture should select this option if it requires the
+	  .kcfi_traps section for KCFI trap handling.
 
-config CFI_CLANG
-	bool "Use Clang's Control Flow Integrity (CFI)"
-	depends on ARCH_SUPPORTS_CFI_CLANG
+config ARCH_USES_CFI_GENERIC_LLVM_PASS
+	bool
+	help
+	  An architecture should select this option if it uses the generic
+	  KCFIPass in LLVM to expand kCFI bundles instead of architecture-specific
+	  lowering.
+
+config CFI
+	bool "Use Kernel Control Flow Integrity (kCFI)"
+	default CFI_CLANG
+	depends on ARCH_SUPPORTS_CFI
 	depends on $(cc-option,-fsanitize=kcfi)
 	help
-	  This option enables Clang's forward-edge Control Flow Integrity
-	  (CFI) checking, where the compiler injects a runtime check to each
+	  This option enables forward-edge Control Flow Integrity (CFI)
+	  checking, where the compiler injects a runtime check to each
 	  indirect function call to ensure the target is a valid function with
 	  the correct static type. This restricts possible call targets and
 	  makes it more difficult for an attacker to exploit bugs that allow
@@ -891,10 +940,16 @@ config CFI_CLANG
 
 	    https://clang.llvm.org/docs/ControlFlowIntegrity.html
 
+config CFI_CLANG
+	bool
+	transitional
+	help
+	  Transitional config for CFI_CLANG to CFI migration.
+
 config CFI_ICALL_NORMALIZE_INTEGERS
 	bool "Normalize CFI tags for integers"
-	depends on CFI_CLANG
-	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	depends on CFI
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS
 	help
 	  This option normalizes the CFI tags for integer types so that all
 	  integer types of the same size and signedness receive the same CFI
@@ -907,7 +962,7 @@ config CFI_ICALL_NORMALIZE_INTEGERS
 
 	  This option is necessary for using CFI with Rust. If unsure, say N.
 
-config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+config HAVE_CFI_ICALL_NORMALIZE_INTEGERS
 	def_bool y
 	depends on $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
 	# With GCOV/KASAN we need this fix: https://github.com/llvm/llvm-project/pull/104826
@@ -915,15 +970,16 @@ config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
 
 config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
 	def_bool y
-	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS
 	depends on RUSTC_VERSION >= 107900
+	depends on ARM64 || X86_64
 	# With GCOV/KASAN we need this fix: https://github.com/rust-lang/rust/pull/129373
 	depends on (RUSTC_LLVM_VERSION >= 190103 && RUSTC_VERSION >= 108200) || \
 		(!GCOV_KERNEL && !KASAN_GENERIC && !KASAN_SW_TAGS)
 
 config CFI_PERMISSIVE
 	bool "Use CFI in permissive mode"
-	depends on CFI_CLANG
+	depends on CFI
 	help
 	  When selected, Control Flow Integrity (CFI) violations result in a
 	  warning instead of a kernel panic. This option should only be used
@@ -1475,7 +1531,6 @@ config RANDOMIZE_KSTACK_OFFSET
 	bool "Support for randomizing kernel stack offset on syscall entry" if EXPERT
 	default y
 	depends on HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
-	depends on INIT_STACK_NONE || !CC_IS_CLANG || CLANG_VERSION >= 140000
 	help
 	  The kernel stack offset can be randomized (after pt_regs) by
 	  roughly 5 bits of entropy, frustrating memory corruption
@@ -1609,7 +1664,7 @@ config HAVE_SPARSE_SYSCALL_NR
 	  related optimizations for a given architecture.
 
 config ARCH_HAS_VDSO_ARCH_DATA
-	depends on GENERIC_VDSO_DATA_STORE
+	depends on HAVE_GENERIC_VDSO
 	bool
 
 config ARCH_HAS_VDSO_TIME_DATA
@@ -1729,6 +1784,10 @@ config ARCH_VMLINUX_NEEDS_RELOCS
 	  Whether the architecture needs vmlinux to be built with static
 	  relocations preserved. This is used by some architectures to
 	  construct bespoke relocation tables for KASLR.
+
+# Select if architecture uses the common generic TIF bits
+config HAVE_GENERIC_TIF_BITS
+       bool
 
 source "kernel/gcov/Kconfig"
 

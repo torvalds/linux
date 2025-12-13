@@ -3,7 +3,7 @@
 # Key management configuration
 #
 
-config KEYS
+menuconfig KEYS
 	bool "Enable access key retention support"
 	select ASSOCIATIVE_ARRAY
 	help
@@ -21,9 +21,10 @@ config KEYS
 
 	  If you are unsure as to whether this is required, answer N.
 
+if KEYS
+
 config KEYS_REQUEST_CACHE
 	bool "Enable temporary caching of the last request_key() result"
-	depends on KEYS
 	help
 	  This option causes the result of the last successful request_key()
 	  call that didn't upcall to the kernel to be cached temporarily in the
@@ -41,7 +42,6 @@ config KEYS_REQUEST_CACHE
 
 config PERSISTENT_KEYRINGS
 	bool "Enable register of persistent per-UID keyrings"
-	depends on KEYS
 	help
 	  This option provides a register of persistent per-UID keyrings,
 	  primarily aimed at Kerberos key storage.  The keyrings are persistent
@@ -58,7 +58,6 @@ config PERSISTENT_KEYRINGS
 
 config BIG_KEYS
 	bool "Large payload keys"
-	depends on KEYS
 	depends on TMPFS
 	select CRYPTO_LIB_CHACHA20POLY1305
 	help
@@ -70,7 +69,6 @@ config BIG_KEYS
 
 config TRUSTED_KEYS
 	tristate "TRUSTED KEYS"
-	depends on KEYS
 	help
 	  This option provides support for creating, sealing, and unsealing
 	  keys in the kernel. Trusted keys are random number symmetric keys,
@@ -85,12 +83,10 @@ endif
 
 config ENCRYPTED_KEYS
 	tristate "ENCRYPTED KEYS"
-	depends on KEYS
 	select CRYPTO
-	select CRYPTO_HMAC
 	select CRYPTO_AES
 	select CRYPTO_CBC
-	select CRYPTO_SHA256
+	select CRYPTO_LIB_SHA256
 	select CRYPTO_RNG
 	help
 	  This option provides support for create/encrypting/decrypting keys
@@ -114,7 +110,6 @@ config USER_DECRYPTED_DATA
 
 config KEY_DH_OPERATIONS
        bool "Diffie-Hellman operations on retained keys"
-       depends on KEYS
        select CRYPTO
        select CRYPTO_KDF800108_CTR
        select CRYPTO_DH
@@ -127,9 +122,11 @@ config KEY_DH_OPERATIONS
 
 config KEY_NOTIFICATIONS
 	bool "Provide key/keyring change notifications"
-	depends on KEYS && WATCH_QUEUE
+	depends on WATCH_QUEUE
 	help
 	  This option provides support for getting change notifications
 	  on keys and keyrings on which the caller has View permission.
 	  This makes use of pipes to handle the notification buffer and
 	  provides KEYCTL_WATCH_KEY to enable/disable watches.
+
+endif # KEYS

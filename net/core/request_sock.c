@@ -77,9 +77,7 @@ void reqsk_queue_alloc(struct request_sock_queue *queue)
  * a simple spin lock - one must consider sock_owned_by_user() and arrange
  * to use sk_add_backlog() stuff. But what really makes it infeasible is the
  * locking hierarchy violation. E.g., inet_csk_listen_stop() may try to
- * acquire a child's lock while holding listener's socket lock. A corner
- * case might also exist in tcp_v4_hnd_req() that will trigger this locking
- * order.
+ * acquire a child's lock while holding listener's socket lock.
  *
  * This function also sets "treq->tfo_listener" to false.
  * treq->tfo_listener is used by the listener so it is protected by the

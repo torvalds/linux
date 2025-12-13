@@ -25,6 +25,8 @@ struct iris_inst;
  * @BUF_DPB: buffer to store display picture buffers for reference
  * @BUF_PERSIST: buffer to store session context data
  * @BUF_SCRATCH_1: buffer to store decoding/encoding context data for HW
+ * @BUF_SCRATCH_2: buffer to store encoding context data for HW
+ * @BUF_VPSS: buffer to store VPSS context data for HW
  * @BUF_TYPE_MAX: max buffer types
  */
 enum iris_buffer_type {
@@ -38,6 +40,8 @@ enum iris_buffer_type {
 	BUF_DPB,
 	BUF_PERSIST,
 	BUF_SCRATCH_1,
+	BUF_SCRATCH_2,
+	BUF_VPSS,
 	BUF_TYPE_MAX,
 };
 
@@ -105,10 +109,11 @@ int iris_get_buffer_size(struct iris_inst *inst, enum iris_buffer_type buffer_ty
 void iris_get_internal_buffers(struct iris_inst *inst, u32 plane);
 int iris_create_internal_buffers(struct iris_inst *inst, u32 plane);
 int iris_queue_internal_buffers(struct iris_inst *inst, u32 plane);
+int iris_queue_internal_deferred_buffers(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 int iris_destroy_internal_buffer(struct iris_inst *inst, struct iris_buffer *buffer);
 int iris_destroy_all_internal_buffers(struct iris_inst *inst, u32 plane);
 int iris_destroy_dequeued_internal_buffers(struct iris_inst *inst, u32 plane);
-int iris_alloc_and_queue_persist_bufs(struct iris_inst *inst);
+int iris_alloc_and_queue_persist_bufs(struct iris_inst *inst, enum iris_buffer_type buf_type);
 int iris_alloc_and_queue_input_int_bufs(struct iris_inst *inst);
 int iris_queue_buffer(struct iris_inst *inst, struct iris_buffer *buf);
 int iris_queue_deferred_buffers(struct iris_inst *inst, enum iris_buffer_type buf_type);

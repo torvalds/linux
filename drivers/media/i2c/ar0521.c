@@ -1077,11 +1077,10 @@ static int ar0521_probe(struct i2c_client *client)
 	}
 
 	/* Get master clock (extclk) */
-	sensor->extclk = devm_clk_get(dev, "extclk");
-	if (IS_ERR(sensor->extclk)) {
-		dev_err(dev, "failed to get extclk\n");
-		return PTR_ERR(sensor->extclk);
-	}
+	sensor->extclk = devm_v4l2_sensor_clk_get(dev, "extclk");
+	if (IS_ERR(sensor->extclk))
+		return dev_err_probe(dev, PTR_ERR(sensor->extclk),
+				     "failed to get extclk\n");
 
 	sensor->extclk_freq = clk_get_rate(sensor->extclk);
 

@@ -162,6 +162,8 @@ static bool optc35_disable_crtc(struct timing_generator *optc)
 	REG_WAIT(OTG_CLOCK_CONTROL,
 			OTG_BUSY, 0,
 			1, 100000);
+	REG_WAIT(OTG_CONTROL, OTG_CURRENT_MASTER_EN_STATE, 0, 1, 100000);
+
 	optc1_clear_optc_underflow(optc);
 
 	return true;
@@ -428,6 +430,21 @@ static void optc35_set_long_vtotal(
 	}
 }
 
+static void optc35_wait_otg_disable(struct timing_generator *optc)
+{
+	struct optc *optc1;
+	uint32_t is_master_en;
+
+	if (!optc || !optc->ctx)
+		return;
+
+	optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_GET(OTG_CONTROL, OTG_MASTER_EN, &is_master_en);
+	if (!is_master_en)
+		REG_WAIT(OTG_CLOCK_CONTROL, OTG_CURRENT_MASTER_EN_STATE, 0, 1, 100000);
+}
+
 static const struct timing_generator_funcs dcn35_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -479,6 +496,7 @@ static const struct timing_generator_funcs dcn35_tg_funcs = {
 		.set_odm_bypass = optc32_set_odm_bypass,
 		.set_odm_combine = optc35_set_odm_combine,
 		.get_optc_source = optc2_get_optc_source,
+		.wait_otg_disable = optc35_wait_otg_disable,
 		.set_h_timing_div_manual_mode = optc32_set_h_timing_div_manual_mode,
 		.set_out_mux = optc3_set_out_mux,
 		.set_drr_trigger_window = optc3_set_drr_trigger_window,

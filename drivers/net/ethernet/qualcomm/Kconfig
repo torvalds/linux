@@ -60,6 +60,21 @@ config QCOM_EMAC
 	  low power, Receive-Side Scaling (RSS), and IEEE 1588-2008
 	  Precision Clock Synchronization Protocol.
 
+config QCOM_PPE
+	tristate "Qualcomm Technologies, Inc. PPE Ethernet support"
+	depends on COMMON_CLK && HAS_IOMEM && OF
+	depends on ARCH_QCOM || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This driver supports the Qualcomm Technologies, Inc. packet
+	  process engine (PPE) available with IPQ SoC. The PPE includes
+	  the Ethernet MACs, Ethernet DMA (EDMA) and switch core that
+	  supports L3 flow offload, L2 switch function, RSS and tunnel
+	  offload.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called qcom-ppe.
+
 source "drivers/net/ethernet/qualcomm/rmnet/Kconfig"
 
 endif # NET_VENDOR_QUALCOMM

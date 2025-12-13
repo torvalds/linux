@@ -63,10 +63,11 @@ struct merkle_tree_params {
  * fsverity_info - cached verity metadata for an inode
  *
  * When a verity file is first opened, an instance of this struct is allocated
- * and stored in ->i_verity_info; it remains until the inode is evicted.  It
- * caches information about the Merkle tree that's needed to efficiently verify
- * data read from the file.  It also caches the file digest.  The Merkle tree
- * pages themselves are not cached here, but the filesystem may cache them.
+ * and a pointer to it is stored in the file's in-memory inode.  It remains
+ * until the inode is evicted.  It caches information about the Merkle tree
+ * that's needed to efficiently verify data read from the file.  It also caches
+ * the file digest.  The Merkle tree pages themselves are not cached here, but
+ * the filesystem may cache them.
  */
 struct fsverity_info {
 	struct merkle_tree_params tree_params;
@@ -89,7 +90,7 @@ union fsverity_hash_ctx *
 fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 			    const u8 *salt, size_t salt_size);
 void fsverity_hash_block(const struct merkle_tree_params *params,
-			 const struct inode *inode, const void *data, u8 *out);
+			 const void *data, u8 *out);
 void fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
 			  const void *data, size_t size, u8 *out);
 void __init fsverity_check_hash_algs(void);

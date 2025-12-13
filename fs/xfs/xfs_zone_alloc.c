@@ -26,14 +26,22 @@
 #include "xfs_trace.h"
 #include "xfs_mru_cache.h"
 
+static void
+xfs_open_zone_free_rcu(
+	struct callback_head	*cb)
+{
+	struct xfs_open_zone	*oz = container_of(cb, typeof(*oz), oz_rcu);
+
+	xfs_rtgroup_rele(oz->oz_rtg);
+	kfree(oz);
+}
+
 void
 xfs_open_zone_put(
 	struct xfs_open_zone	*oz)
 {
-	if (atomic_dec_and_test(&oz->oz_ref)) {
-		xfs_rtgroup_rele(oz->oz_rtg);
-		kfree(oz);
-	}
+	if (atomic_dec_and_test(&oz->oz_ref))
+		call_rcu(&oz->oz_rcu, xfs_open_zone_free_rcu);
 }
 
 static inline uint32_t
@@ -238,6 +246,14 @@ xfs_zoned_map_extent(
 	 * If a data write raced with this GC write, keep the existing data in
 	 * the data fork, mark our newly written GC extent as reclaimable, then
 	 * move on to the next extent.
+	 *
+	 * Note that this can also happen when racing with operations that do
+	 * not actually invalidate the data, but just move it to a different
+	 * inode (XFS_IOC_EXCHANGE_RANGE), or to a different offset inside the
+	 * inode (FALLOC_FL_COLLAPSE_RANGE / FALLOC_FL_INSERT_RANGE).  If the
+	 * data was just moved around, GC fails to free the zone, but the zone
+	 * becomes a GC candidate again as soon as all previous GC I/O has
+	 * finished and these blocks will be moved out eventually.
 	 */
 	if (old_startblock != NULLFSBLOCK &&
 	    old_startblock != data.br_startblock)
@@ -374,44 +390,6 @@ xfs_zone_free_blocks(
 	return 0;
 }
 
-/*
- * Check if the zone containing the data just before the offset we are
- * writing to is still open and has space.
- */
-static struct xfs_open_zone *
-xfs_last_used_zone(
-	struct iomap_ioend	*ioend)
-{
-	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSB(mp, ioend->io_offset);
-	struct xfs_rtgroup	*rtg = NULL;
-	struct xfs_open_zone	*oz = NULL;
-	struct xfs_iext_cursor	icur;
-	struct xfs_bmbt_irec	got;
-
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	if (!xfs_iext_lookup_extent_before(ip, &ip->i_df, &offset_fsb,
-				&icur, &got)) {
-		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-		return NULL;
-	}
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-
-	rtg = xfs_rtgroup_grab(mp, xfs_rtb_to_rgno(mp, got.br_startblock));
-	if (!rtg)
-		return NULL;
-
-	xfs_ilock(rtg_rmap(rtg), XFS_ILOCK_SHARED);
-	oz = READ_ONCE(rtg->rtg_open_zone);
-	if (oz && (oz->oz_is_gc || !atomic_inc_not_zero(&oz->oz_ref)))
-		oz = NULL;
-	xfs_iunlock(rtg_rmap(rtg), XFS_ILOCK_SHARED);
-
-	xfs_rtgroup_rele(rtg);
-	return oz;
-}
-
 static struct xfs_group *
 xfs_find_free_zone(
 	struct xfs_mount	*mp,
@@ -531,64 +509,58 @@ xfs_try_open_zone(
 	return oz;
 }
 
-/*
- * For data with short or medium lifetime, try to colocated it into an
- * already open zone with a matching temperature.
- */
-static bool
-xfs_colocate_eagerly(
-	enum rw_hint		file_hint)
-{
-	switch (file_hint) {
-	case WRITE_LIFE_MEDIUM:
-	case WRITE_LIFE_SHORT:
-	case WRITE_LIFE_NONE:
-		return true;
-	default:
-		return false;
-	}
-}
+enum xfs_zone_alloc_score {
+	/* Any open zone will do it, we're desperate */
+	XFS_ZONE_ALLOC_ANY	= 0,
 
-static bool
-xfs_good_hint_match(
-	struct xfs_open_zone	*oz,
-	enum rw_hint		file_hint)
-{
-	switch (oz->oz_write_hint) {
-	case WRITE_LIFE_LONG:
-	case WRITE_LIFE_EXTREME:
-		/* colocate long and extreme */
-		if (file_hint == WRITE_LIFE_LONG ||
-		    file_hint == WRITE_LIFE_EXTREME)
-			return true;
-		break;
-	case WRITE_LIFE_MEDIUM:
-		/* colocate medium with medium */
-		if (file_hint == WRITE_LIFE_MEDIUM)
-			return true;
-		break;
-	case WRITE_LIFE_SHORT:
-	case WRITE_LIFE_NONE:
-	case WRITE_LIFE_NOT_SET:
-		/* colocate short and none */
-		if (file_hint <= WRITE_LIFE_SHORT)
-			return true;
-		break;
-	}
-	return false;
-}
+	/* It better fit somehow */
+	XFS_ZONE_ALLOC_OK	= 1,
+
+	/* Only reuse a zone if it fits really well. */
+	XFS_ZONE_ALLOC_GOOD	= 2,
+};
+
+/*
+ * Life time hint co-location matrix.  Fields not set default to 0
+ * aka XFS_ZONE_ALLOC_ANY.
+ */
+static const unsigned int
+xfs_zoned_hint_score[WRITE_LIFE_HINT_NR][WRITE_LIFE_HINT_NR] = {
+	[WRITE_LIFE_NOT_SET]	= {
+		[WRITE_LIFE_NOT_SET]	= XFS_ZONE_ALLOC_OK,
+	},
+	[WRITE_LIFE_NONE]	= {
+		[WRITE_LIFE_NONE]	= XFS_ZONE_ALLOC_OK,
+	},
+	[WRITE_LIFE_SHORT]	= {
+		[WRITE_LIFE_SHORT]	= XFS_ZONE_ALLOC_GOOD,
+	},
+	[WRITE_LIFE_MEDIUM]	= {
+		[WRITE_LIFE_MEDIUM]	= XFS_ZONE_ALLOC_GOOD,
+	},
+	[WRITE_LIFE_LONG]	= {
+		[WRITE_LIFE_LONG]	= XFS_ZONE_ALLOC_OK,
+		[WRITE_LIFE_EXTREME]	= XFS_ZONE_ALLOC_OK,
+	},
+	[WRITE_LIFE_EXTREME]	= {
+		[WRITE_LIFE_LONG]	= XFS_ZONE_ALLOC_OK,
+		[WRITE_LIFE_EXTREME]	= XFS_ZONE_ALLOC_OK,
+	},
+};
 
 static bool
 xfs_try_use_zone(
 	struct xfs_zone_info	*zi,
 	enum rw_hint		file_hint,
 	struct xfs_open_zone	*oz,
-	bool			lowspace)
+	unsigned int		goodness)
 {
 	if (oz->oz_allocated == rtg_blocks(oz->oz_rtg))
 		return false;
-	if (!lowspace && !xfs_good_hint_match(oz, file_hint))
+
+	if (xfs_zoned_hint_score[oz->oz_write_hint][file_hint] < goodness)
 		return false;
+
 	if (!atomic_inc_not_zero(&oz->oz_ref))
 		return false;
 
@@ -619,14 +591,14 @@ static struct xfs_open_zone *
 xfs_select_open_zone_lru(
 	struct xfs_zone_info	*zi,
 	enum rw_hint		file_hint,
-	bool			lowspace)
+	unsigned int		goodness)
 {
 	struct xfs_open_zone	*oz;
 
 	lockdep_assert_held(&zi->zi_open_zones_lock);
 
 	list_for_each_entry(oz, &zi->zi_open_zones, oz_entry)
-		if (xfs_try_use_zone(zi, file_hint, oz, lowspace))
+		if (xfs_try_use_zone(zi, file_hint, oz, goodness))
 			return oz;
 
 	cond_resched_lock(&zi->zi_open_zones_lock);
@@ -643,7 +615,7 @@ xfs_select_open_zone_mru(
 	lockdep_assert_held(&zi->zi_open_zones_lock);
 
 	list_for_each_entry_reverse(oz, &zi->zi_open_zones, oz_entry)
-		if (xfs_try_use_zone(zi, file_hint, oz, false))
+		if (xfs_try_use_zone(zi, file_hint, oz, XFS_ZONE_ALLOC_OK))
 			return oz;
 
 	cond_resched_lock(&zi->zi_open_zones_lock);
@@ -658,14 +630,25 @@ static inline enum rw_hint xfs_inode_write_hint(struct xfs_inode *ip)
 }
 
 /*
- * Try to pack inodes that are written back after they were closed tight instead
- * of trying to open new zones for them or spread them to the least recently
- * used zone.  This optimizes the data layout for workloads that untar or copy
- * a lot of small files.  Right now this does not separate multiple such
+ * Try to tightly pack small files that are written back after they were closed
+ * instead of trying to open new zones for them or spread them to the least
+ * recently used zone. This optimizes the data layout for workloads that untar
+ * or copy a lot of small files. Right now this does not separate multiple such
  * streams.
  */
 static inline bool xfs_zoned_pack_tight(struct xfs_inode *ip)
 {
+	struct xfs_mount *mp = ip->i_mount;
+	size_t zone_capacity =
+		XFS_FSB_TO_B(mp, mp->m_groups[XG_TYPE_RTG].blocks);
+
+	/*
+	 * Do not pack write files that are already using a full zone to avoid
+	 * fragmentation.
+	 */
+	if (i_size_read(VFS_I(ip)) >= zone_capacity)
+		return false;
+
 	return !inode_is_open_for_write(VFS_I(ip)) &&
 		!(ip->i_diflags & XFS_DIFLAG_APPEND);
 }
@@ -689,9 +672,11 @@ xfs_select_zone_nowait(
 	 * data.
 	 */
 	spin_lock(&zi->zi_open_zones_lock);
-	if (xfs_colocate_eagerly(write_hint))
-		oz = xfs_select_open_zone_lru(zi, write_hint, false);
-	else if (pack_tight)
+	oz = xfs_select_open_zone_lru(zi, write_hint, XFS_ZONE_ALLOC_GOOD);
+	if (oz)
+		goto out_unlock;
+
+	if (pack_tight)
 		oz = xfs_select_open_zone_mru(zi, write_hint);
 	if (oz)
 		goto out_unlock;
@@ -705,16 +690,16 @@ xfs_select_zone_nowait(
 		goto out_unlock;
 
 	/*
-	 * Try to colocate cold data with other cold data if we failed to open a
-	 * new zone for it.
+	 * Try to find an zone that is an ok match to colocate data with.
 	 */
-	if (write_hint != WRITE_LIFE_NOT_SET &&
-	    !xfs_colocate_eagerly(write_hint))
-		oz = xfs_select_open_zone_lru(zi, write_hint, false);
-	if (!oz)
-		oz = xfs_select_open_zone_lru(zi, WRITE_LIFE_NOT_SET, false);
-	if (!oz)
-		oz = xfs_select_open_zone_lru(zi, WRITE_LIFE_NOT_SET, true);
+	oz = xfs_select_open_zone_lru(zi, write_hint, XFS_ZONE_ALLOC_OK);
+	if (oz)
+		goto out_unlock;
+
+	/*
+	 * Pick the least recently used zone, regardless of hint match
+	 */
+	oz = xfs_select_open_zone_lru(zi, write_hint, XFS_ZONE_ALLOC_ANY);
 out_unlock:
 	spin_unlock(&zi->zi_open_zones_lock);
 	return oz;
@@ -788,97 +773,54 @@ xfs_mark_rtg_boundary(
 }
 
 /*
- * Cache the last zone written to for an inode so that it is considered first
- * for subsequent writes.
- */
-struct xfs_zone_cache_item {
-	struct xfs_mru_cache_elem	mru;
-	struct xfs_open_zone		*oz;
-};
-
-static inline struct xfs_zone_cache_item *
-xfs_zone_cache_item(struct xfs_mru_cache_elem *mru)
-{
-	return container_of(mru, struct xfs_zone_cache_item, mru);
-}
-
-static void
-xfs_zone_cache_free_func(
-	void				*data,
-	struct xfs_mru_cache_elem	*mru)
-{
-	struct xfs_zone_cache_item	*item = xfs_zone_cache_item(mru);
-
-	xfs_open_zone_put(item->oz);
-	kfree(item);
-}
-
-/*
  * Check if we have a cached last open zone available for the inode and
  * if yes return a reference to it.
  */
 static struct xfs_open_zone *
-xfs_cached_zone(
-	struct xfs_mount		*mp,
-	struct xfs_inode		*ip)
+xfs_get_cached_zone(
+	struct xfs_inode	*ip)
 {
-	struct xfs_mru_cache_elem	*mru;
-	struct xfs_open_zone		*oz;
+	struct xfs_open_zone	*oz;
 
-	mru = xfs_mru_cache_lookup(mp->m_zone_cache, ip->i_ino);
-	if (!mru)
-		return NULL;
-	oz = xfs_zone_cache_item(mru)->oz;
+	rcu_read_lock();
+	oz = VFS_I(ip)->i_private;
 	if (oz) {
 		/*
 		 * GC only steals open zones at mount time, so no GC zones
 		 * should end up in the cache.
 		 */
 		ASSERT(!oz->oz_is_gc);
-		ASSERT(atomic_read(&oz->oz_ref) > 0);
-		atomic_inc(&oz->oz_ref);
+		if (!atomic_inc_not_zero(&oz->oz_ref))
+			oz = NULL;
 	}
-	xfs_mru_cache_done(mp->m_zone_cache);
+	rcu_read_unlock();
+
 	return oz;
 }
 
 /*
- * Update the last used zone cache for a given inode.
+ * Stash our zone in the inode so that is is reused for future allocations.
  *
- * The caller must have a reference on the open zone.
+ * The open_zone structure will be pinned until either the inode is freed or
+ * until the cached open zone is replaced with a different one because the
+ * current one was full when we tried to use it.  This means we keep any
+ * open zone around forever as long as any inode that used it for the last
+ * write is cached, which slightly increases the memory use of cached inodes
+ * that were every written to, but significantly simplifies the cached zone
+ * lookup.  Because the open_zone is clearly marked as full when all data
+ * in the underlying RTG was written, the caching is always safe.
  */
 static void
-xfs_zone_cache_create_association(
-	struct xfs_inode		*ip,
-	struct xfs_open_zone		*oz)
+xfs_set_cached_zone(
+	struct xfs_inode	*ip,
+	struct xfs_open_zone	*oz)
 {
-	struct xfs_mount		*mp = ip->i_mount;
-	struct xfs_zone_cache_item	*item = NULL;
-	struct xfs_mru_cache_elem	*mru;
+	struct xfs_open_zone	*old_oz;
 
-	ASSERT(atomic_read(&oz->oz_ref) > 0);
 	atomic_inc(&oz->oz_ref);
-
-	mru = xfs_mru_cache_lookup(mp->m_zone_cache, ip->i_ino);
-	if (mru) {
-		/*
-		 * If we have an association already, update it to point to the
-		 * new zone.
-		 */
-		item = xfs_zone_cache_item(mru);
-		xfs_open_zone_put(item->oz);
-		item->oz = oz;
-		xfs_mru_cache_done(mp->m_zone_cache);
-		return;
-	}
-
-	item = kmalloc(sizeof(*item), GFP_KERNEL);
-	if (!item) {
-		xfs_open_zone_put(oz);
-		return;
-	}
-	item->oz = oz;
-	xfs_mru_cache_insert(mp->m_zone_cache, ip->i_ino, &item->mru);
+	old_oz = xchg(&VFS_I(ip)->i_private, oz);
+	if (old_oz)
+		xfs_open_zone_put(old_oz);
 }
 
 static void
@@ -918,22 +860,18 @@ xfs_zone_alloc_and_submit(
 		goto out_error;
 
 	/*
-	 * If we don't have a cached zone in this write context, see if the
-	 * last extent before the one we are writing to points to an active
-	 * zone.  If so, just continue writing to it.
+	 * If we don't have a locally cached zone in this write context, see if
+	 * the inode is still associated with a zone and use that if so.
 	 */
-	if (!*oz && ioend->io_offset)
-		*oz = xfs_last_used_zone(ioend);
 	if (!*oz)
-		*oz = xfs_cached_zone(mp, ip);
+		*oz = xfs_get_cached_zone(ip);
 
 	if (!*oz) {
 select_zone:
 		*oz = xfs_select_zone(mp, write_hint, pack_tight);
 		if (!*oz)
 			goto out_error;
-
-		xfs_zone_cache_create_association(ip, *oz);
+		xfs_set_cached_zone(ip, *oz);
 	}
 
 	alloc_len = xfs_zone_alloc_blocks(*oz, XFS_B_TO_FSB(mp, ioend->io_size),
@@ -1011,6 +949,12 @@ xfs_free_open_zones(
 		xfs_open_zone_put(oz);
 	}
 	spin_unlock(&zi->zi_open_zones_lock);
+
+	/*
+	 * Wait for all open zones to be freed so that they drop the group
+	 * references:
+	 */
+	rcu_barrier();
 }
 
 struct xfs_init_zones {
@@ -1176,7 +1120,7 @@ xfs_calc_open_zones(
 		if (bdev_open_zones)
 			mp->m_max_open_zones = bdev_open_zones;
 		else
-			mp->m_max_open_zones = xfs_max_open_zones(mp);
+			mp->m_max_open_zones = XFS_DEFAULT_MAX_OPEN_ZONES;
 	}
 
 	if (mp->m_max_open_zones < XFS_MIN_OPEN_ZONES) {
@@ -1289,7 +1233,7 @@ xfs_mount_zones(
 	if (!mp->m_zone_info)
 		return -ENOMEM;
 
-	xfs_info(mp, "%u zones of %u blocks size (%u max open)",
+	xfs_info(mp, "%u zones of %u blocks (%u max open zones)",
 		 mp->m_sb.sb_rgcount, mp->m_groups[XG_TYPE_RTG].blocks,
 		 mp->m_max_open_zones);
 	trace_xfs_zones_mount(mp);
@@ -1305,8 +1249,10 @@ xfs_mount_zones(
 
 		while ((rtg = xfs_rtgroup_next(mp, rtg))) {
 			error = xfs_init_zone(&iz, rtg, NULL);
-			if (error)
+			if (error) {
+				xfs_rtgroup_rele(rtg);
 				goto out_free_zone_info;
+			}
 		}
 	}
 
@@ -1324,14 +1270,6 @@ xfs_mount_zones(
 	error = xfs_zone_gc_mount(mp);
 	if (error)
 		goto out_free_zone_info;
-
-	/*
-	 * Set up a mru cache to track inode to open zone for data placement
-	 * purposes. The magic values for group count and life time is the
-	 * same as the defaults for file streams, which seems sane enough.
-	 */
-	xfs_mru_cache_create(&mp->m_zone_cache, mp,
-			5000, 10, xfs_zone_cache_free_func);
 	return 0;
 
 out_free_zone_info:
@@ -1345,5 +1283,4 @@ xfs_unmount_zones(
 {
 	xfs_zone_gc_unmount(mp);
 	xfs_free_zone_info(mp->m_zone_info);
-	xfs_mru_cache_destroy(mp->m_zone_cache);
 }

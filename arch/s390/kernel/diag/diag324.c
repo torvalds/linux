@@ -101,7 +101,7 @@ static unsigned long diag324(unsigned long subcode, void *addr)
 	union register_pair rp = { .even = (unsigned long)addr };
 
 	diag_stat_inc(DIAG_STAT_X324);
-	asm volatile("diag	%[rp],%[subcode],0x324\n"
+	asm volatile("diag	%[rp],%[subcode],0x324"
 		     : [rp] "+d" (rp.pair)
 		     : [subcode] "d" (subcode)
 		     : "memory");
@@ -116,7 +116,7 @@ static void pibwork_handler(struct work_struct *work)
 	mutex_lock(&pibmutex);
 	timedout = ktime_add_ns(data->expire, PIBWORK_DELAY);
 	if (ktime_before(ktime_get(), timedout)) {
-		mod_delayed_work(system_wq, &pibwork, nsecs_to_jiffies(PIBWORK_DELAY));
+		mod_delayed_work(system_percpu_wq, &pibwork, nsecs_to_jiffies(PIBWORK_DELAY));
 		goto out;
 	}
 	vfree(data->pib);
@@ -174,7 +174,7 @@ long diag324_pibbuf(unsigned long arg)
 		pib_update(data);
 		data->sequence++;
 		data->expire = ktime_add_ns(ktime_get(), tod_to_ns(data->pib->intv));
-		mod_delayed_work(system_wq, &pibwork, nsecs_to_jiffies(PIBWORK_DELAY));
+		mod_delayed_work(system_percpu_wq, &pibwork, nsecs_to_jiffies(PIBWORK_DELAY));
 		first = false;
 	}
 	rc = data->rc;

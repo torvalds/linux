@@ -69,6 +69,10 @@ struct dma_chan *snd_dmaengine_pcm_get_chan(struct snd_pcm_substream *substream)
  * @peripheral_config: peripheral configuration for programming peripheral
  * for dmaengine transfer
  * @peripheral_size: peripheral configuration buffer size
+ * @port_window_size: The length of the register area in words the data need
+ * to be accessed on the device side. It is only used for devices which is using
+ * an area instead of a single register to send/receive the data. Typically the
+ * DMA loops in this area in order to transfer the data.
  */
 struct snd_dmaengine_dai_dma_data {
 	dma_addr_t addr;
@@ -80,6 +84,7 @@ struct snd_dmaengine_dai_dma_data {
 	unsigned int flags;
 	void *peripheral_config;
 	size_t peripheral_size;
+	u32 port_window_size;
 };
 
 void snd_dmaengine_pcm_set_config_from_dai_data(

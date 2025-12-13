@@ -121,6 +121,8 @@ static inline unsigned int tb_usable_credits(const struct tb_port *port)
  * @port: Lane adapter to check
  * @max_dp_streams: If non-%NULL stores maximum number of simultaneous DP
  *		    streams possible through this lane adapter
+ *
+ * Return: Number of available credits.
  */
 static unsigned int tb_available_credits(const struct tb_port *port,
 					 size_t *max_dp_streams)
@@ -415,8 +417,9 @@ static int tb_pci_init_path(struct tb_path *path)
  * @alloc_hopid: Allocate HopIDs from visited ports
  *
  * If @down adapter is active, follows the tunnel to the PCIe upstream
- * adapter and back. Returns the discovered tunnel or %NULL if there was
- * no tunnel.
+ * adapter and back.
+ *
+ * Return: Pointer to &struct tb_tunnel or %NULL if there was no tunnel.
  */
 struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down,
 					 bool alloc_hopid)
@@ -496,7 +499,7 @@ err_free:
  * Allocate a PCI tunnel. The ports must be of type TB_TYPE_PCIE_UP and
  * TB_TYPE_PCIE_DOWN.
  *
- * Return: Returns a tb_tunnel on success or NULL on failure.
+ * Return: Pointer to @struct tb_tunnel or %NULL on failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 				      struct tb_port *down)
@@ -543,9 +546,12 @@ err_free:
  *
  * Can be called to any connected lane 0 adapter to find out how much
  * bandwidth needs to be left in reserve for possible PCIe bulk traffic.
- * Returns true if there is something to be reserved and writes the
- * amount to @reserved_down/@reserved_up. Otherwise returns false and
- * does not touch the parameters.
+ *
+ * Return:
+ * * %true - If there is something to be reserved. Writes the amount to
+ *   @reserved_down/@reserved_up.
+ * * %false - Nothing to be reserved. Leaves @reserved_down/@reserved_up
+ *   unmodified.
  */
 bool tb_tunnel_reserved_pci(struct tb_port *port, int *reserved_up,
 			    int *reserved_down)
@@ -1073,6 +1079,7 @@ static void tb_dp_dprx_work(struct work_struct *work)
 
 	if (tunnel->callback)
 		tunnel->callback(tunnel, tunnel->callback_data);
+	tb_tunnel_put(tunnel);
 }
 
 static int tb_dp_dprx_start(struct tb_tunnel *tunnel)
@@ -1100,8 +1107,8 @@ static void tb_dp_dprx_stop(struct tb_tunnel *tunnel)
 	if (tunnel->dprx_started) {
 		tunnel->dprx_started = false;
 		tunnel->dprx_canceled = true;
-		cancel_delayed_work(&tunnel->dprx_work);
-		tb_tunnel_put(tunnel);
+		if (cancel_delayed_work(&tunnel->dprx_work))
+			tb_tunnel_put(tunnel);
 	}
 }
 
@@ -1151,7 +1158,8 @@ static int tb_dp_activate(struct tb_tunnel *tunnel, bool active)
  * @tunnel: DP tunnel to check
  * @max_bw_rounded: Maximum bandwidth in Mb/s rounded up to the next granularity
  *
- * Returns maximum possible bandwidth for this tunnel in Mb/s.
+ * Return: Maximum possible bandwidth for this tunnel in Mb/s, negative errno
+ * in case of failure.
  */
 static int tb_dp_bandwidth_mode_maximum_bandwidth(struct tb_tunnel *tunnel,
 						  int *max_bw_rounded)
@@ -1547,7 +1555,7 @@ static void tb_dp_dump(struct tb_tunnel *tunnel)
  * and back. Returns the discovered tunnel or %NULL if there was no
  * tunnel.
  *
- * Return: DP tunnel or %NULL if no tunnel found.
+ * Return: Pointer to &struct tb_tunnel or %NULL if no tunnel found.
  */
 struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in,
 					bool alloc_hopid)
@@ -1648,7 +1656,7 @@ err_free:
  * successful (or if it returns %false there was some sort of issue).
  * The @callback is called without @tb->lock held.
  *
- * Return: Returns a tb_tunnel on success or &NULL on failure.
+ * Return: Pointer to @struct tb_tunnel or %NULL in case of failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 				     struct tb_port *out, int link_nr,
@@ -1861,7 +1869,7 @@ static void tb_dma_destroy(struct tb_tunnel *tunnel)
  * @receive_ring: NHI ring number used to receive packets from the
  *		  other domain. Set to %-1 if RX path is not needed.
  *
- * Return: Returns a tb_tunnel on success or NULL on failure.
+ * Return: Pointer to @struct tb_tunnel or %NULL in case of failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 				      struct tb_port *dst, int transmit_path,
@@ -1938,7 +1946,8 @@ err_free:
  *
  * This function can be used to match specific DMA tunnel, if there are
  * multiple DMA tunnels going through the same XDomain connection.
- * Returns true if there is match and false otherwise.
+ *
+ * Return: %true if there is a match, %false otherwise.
  */
 bool tb_tunnel_match_dma(const struct tb_tunnel *tunnel, int transmit_path,
 			 int transmit_ring, int receive_path, int receive_ring)
@@ -2160,8 +2169,9 @@ static void tb_usb3_init_path(struct tb_path *path)
  * @alloc_hopid: Allocate HopIDs from visited ports
  *
  * If @down adapter is active, follows the tunnel to the USB3 upstream
- * adapter and back. Returns the discovered tunnel or %NULL if there was
- * no tunnel.
+ * adapter and back.
+ *
+ * Return: Pointer to &struct tb_tunnel or %NULL if there was no tunnel.
  */
 struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down,
 					  bool alloc_hopid)
@@ -2266,7 +2276,7 @@ err_free:
  * Allocate an USB3 tunnel. The ports must be of type @TB_TYPE_USB3_UP and
  * @TB_TYPE_USB3_DOWN.
  *
- * Return: Returns a tb_tunnel on success or %NULL on failure.
+ * Return: Pointer to @struct tb_tunnel or %NULL in case of failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 				       struct tb_port *down, int max_up,
@@ -2337,6 +2347,8 @@ err_free:
 /**
  * tb_tunnel_is_invalid - check whether an activated path is still valid
  * @tunnel: Tunnel to check
+ *
+ * Return: %true if path is valid, %false otherwise.
  */
 bool tb_tunnel_is_invalid(struct tb_tunnel *tunnel)
 {
@@ -2355,10 +2367,11 @@ bool tb_tunnel_is_invalid(struct tb_tunnel *tunnel)
  * tb_tunnel_activate() - activate a tunnel
  * @tunnel: Tunnel to activate
  *
- * Return: 0 on success and negative errno in case if failure.
- * Specifically returns %-EINPROGRESS if the tunnel activation is still
- * in progress (that's for DP tunnels to complete DPRX capabilities
- * read).
+ * Return:
+ * * %0 - On success.
+ * * %-EINPROGRESS - If the tunnel activation is still in progress (that's
+ *   for DP tunnels to complete DPRX capabilities read).
+ * * Negative errno - Another error occurred.
  */
 int tb_tunnel_activate(struct tb_tunnel *tunnel)
 {
@@ -2438,8 +2451,8 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel)
  * @tunnel: Tunnel to check
  * @port: Port to check
  *
- * Returns true if @tunnel goes through @port (direction does not matter),
- * false otherwise.
+ * Return: %true if @tunnel goes through @port (direction does not matter),
+ * %false otherwise.
  */
 bool tb_tunnel_port_on_path(const struct tb_tunnel *tunnel,
 			    const struct tb_port *port)
@@ -2469,9 +2482,11 @@ static bool tb_tunnel_is_activated(const struct tb_tunnel *tunnel)
  * @max_up: Maximum upstream bandwidth in Mb/s
  * @max_down: Maximum downstream bandwidth in Mb/s
  *
- * Returns maximum possible bandwidth this tunnel can go if not limited
- * by other bandwidth clients. If the tunnel does not support this
- * returns %-EOPNOTSUPP.
+ * Return:
+ * * Maximum possible bandwidth this tunnel can support if not
+ *   limited by other bandwidth clients.
+ * * %-EOPNOTSUPP - If the tunnel does not support this function.
+ * * %-ENOTCONN - If the tunnel is not active.
  */
 int tb_tunnel_maximum_bandwidth(struct tb_tunnel *tunnel, int *max_up,
 				int *max_down)
@@ -2491,8 +2506,12 @@ int tb_tunnel_maximum_bandwidth(struct tb_tunnel *tunnel, int *max_up,
  * @allocated_down: Currently allocated downstream bandwidth in Mb/s is
  *		    stored here
  *
- * Returns the bandwidth allocated for the tunnel. This may be higher
- * than what the tunnel actually consumes.
+ * Return:
+ * * Bandwidth allocated for the tunnel. This may be higher than what the
+ *   tunnel actually consumes.
+ * * %-EOPNOTSUPP - If the tunnel does not support this function.
+ * * %-ENOTCONN - If the tunnel is not active.
+ * * Negative errno - Another error occurred.
  */
 int tb_tunnel_allocated_bandwidth(struct tb_tunnel *tunnel, int *allocated_up,
 				  int *allocated_down)
@@ -2512,10 +2531,12 @@ int tb_tunnel_allocated_bandwidth(struct tb_tunnel *tunnel, int *allocated_up,
  * @alloc_up: New upstream bandwidth in Mb/s
  * @alloc_down: New downstream bandwidth in Mb/s
  *
- * Tries to change tunnel bandwidth allocation. If succeeds returns %0
- * and updates @alloc_up and @alloc_down to that was actually allocated
- * (it may not be the same as passed originally). Returns negative errno
- * in case of failure.
+ * Tries to change tunnel bandwidth allocation.
+ *
+ * Return:
+ * * %0 - On success. Updates @alloc_up and @alloc_down to values that were
+ *   actually allocated (it may not be the same as passed originally).
+ * * Negative errno - In case of failure.
  */
 int tb_tunnel_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
 			      int *alloc_down)
@@ -2546,8 +2567,9 @@ int tb_tunnel_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
  *		   Can be %NULL.
  *
  * Stores the amount of isochronous bandwidth @tunnel consumes in
- * @consumed_up and @consumed_down. In case of success returns %0,
- * negative errno otherwise.
+ * @consumed_up and @consumed_down.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 				 int *consumed_down)
@@ -2585,7 +2607,7 @@ int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
  * If tunnel supports dynamic bandwidth management (USB3 tunnels at the
  * moment) this function makes it to release all the unused bandwidth.
  *
- * Returns %0 in case of success and negative errno otherwise.
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_tunnel_release_unused_bandwidth(struct tb_tunnel *tunnel)
 {

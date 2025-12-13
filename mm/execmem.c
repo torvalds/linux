@@ -38,9 +38,6 @@ static void *execmem_vmalloc(struct execmem_range *range, size_t size,
 	if (kasan)
 		vm_flags |= VM_DEFER_KMEMLEAK;
 
-	if (vm_flags & VM_ALLOW_HUGE_VMAP)
-		align = PMD_SIZE;
-
 	p = __vmalloc_node_range(size, align, start, end, gfp_flags,
 				 pgprot, vm_flags, NUMA_NO_NODE,
 				 __builtin_return_address(0));

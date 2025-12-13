@@ -39,7 +39,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 
 static inline void arch_clear_hugetlb_flags(struct folio *folio)
 {
-	clear_bit(PG_arch_1, &folio->flags);
+	clear_bit(PG_arch_1, &folio->flags.f);
 }
 #define arch_clear_hugetlb_flags arch_clear_hugetlb_flags
 

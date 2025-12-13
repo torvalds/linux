@@ -40,6 +40,7 @@
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
 		serial0 = &lpuart1;
+		serial4 = &lpuart5;
 	};
 
 	bt_sco_codec: audio-codec-bt-sco {
@@ -80,17 +81,17 @@
 	flexcan1_phy: can-phy0 {
 		compatible = "nxp,tjr1443";
 		#phy-cells = <0>;
-		max-bitrate = <1000000>;
+		max-bitrate = <8000000>;
 		enable-gpios = <&i2c6_pcal6416 6 GPIO_ACTIVE_HIGH>;
-		standby-gpios = <&i2c6_pcal6416 5 GPIO_ACTIVE_HIGH>;
+		standby-gpios = <&i2c6_pcal6416 5 GPIO_ACTIVE_LOW>;
 	};
 
 	flexcan2_phy: can-phy1 {
 		compatible = "nxp,tjr1443";
 		#phy-cells = <0>;
-		max-bitrate = <1000000>;
-		enable-gpios = <&i2c6_pcal6416 4 GPIO_ACTIVE_HIGH>;
-		standby-gpios = <&i2c6_pcal6416 3 GPIO_ACTIVE_HIGH>;
+		max-bitrate = <8000000>;
+		enable-gpios = <&i2c4_gpio_expander_21 4 GPIO_ACTIVE_HIGH>;
+		standby-gpios = <&i2c4_gpio_expander_21 3 GPIO_ACTIVE_LOW>;
 	};
 
 	reg_vref_1v8: regulator-1p8v {
@@ -135,6 +136,13 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&i2c7_pcal6524 20 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		/*
+		 * M.2 device only can be enabled(W_DISABLE1#) after all Power
+		 * Rails reach their minimum operating voltage (PCI Express M.2
+		 * Specification r5.1 3.1.4 Power-up Timing).
+		 * Set a delay equal to the max value of Tsettle here.
+		 */
+		startup-delay-us = <5000>;
 	};
 
 	reg_pcie0: regulator-pcie {
@@ -216,7 +224,7 @@
 		model = "wm8962-audio";
 		audio-cpu = <&sai3>;
 		audio-codec = <&wm8962>;
-		hp-det-gpio = <&gpio2 11 GPIO_ACTIVE_HIGH>;
+		hp-det-gpios = <&gpio2 11 GPIO_ACTIVE_HIGH>;
 		audio-routing = "Headphone Jack", "HPOUTL",
 				"Headphone Jack", "HPOUTR",
 				"Ext Spk", "SPKOUTL",
@@ -301,6 +309,19 @@
 		gpio-controller;
 		reg = <0x20>;
 		vcc-supply = <&reg_3p3v>;
+	};
+
+	pca9632: pca9632@62 {
+		compatible = "nxp,pca9632";
+		reg = <0x62>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led_baclklight: led@0 {
+			reg = <0>;
+			label = "backlight";
+			linux,default-trigger = "none";
+		};
 	};
 };
 
@@ -622,6 +643,7 @@
 	fsl,phy-pcs-tx-swing-full-percent = <100>;
 	fsl,phy-tx-preemp-amp-tune-microamp = <600>;
 	fsl,phy-tx-vboost-level-microvolt = <1156>;
+	fsl,phy-tx-vref-tune-percent = <100>;
 	orientation-switch;
 	status = "okay";
 
@@ -671,7 +693,7 @@
 };
 
 &scmi_iomuxc {
-	pinctrl_emdio: emdiogrp{
+	pinctrl_emdio: emdiogrp {
 		fsl,pins = <
 			IMX95_PAD_ENET1_MDC__NETCMIX_TOP_NETC_MDC		0x50e
 			IMX95_PAD_ENET1_MDIO__NETCMIX_TOP_NETC_MDIO		0x90e
@@ -1034,6 +1056,79 @@
 			map3 {
 				trip = <&atrip4>;
 				cooling-device = <&fan0 2 3>;
+			};
+		};
+	};
+
+	pf09-thermal {
+		polling-delay = <2000>;
+		polling-delay-passive = <250>;
+		thermal-sensors = <&scmi_sensor 2>;
+
+		trips {
+			pf09_alert: trip0 {
+				hysteresis = <2000>;
+				temperature = <140000>;
+				type = "passive";
+			};
+
+			pf09_crit: trip1 {
+				hysteresis = <2000>;
+				temperature = <155000>;
+				type = "critical";
+			};
+		};
+	};
+
+	pf53arm-thermal {
+		polling-delay = <2000>;
+		polling-delay-passive = <250>;
+		thermal-sensors = <&scmi_sensor 4>;
+
+		cooling-maps {
+			map0 {
+				trip = <&pf5301_alert>;
+				cooling-device =
+					<&A55_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&A55_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&A55_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&A55_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&A55_4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&A55_5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			};
+		};
+
+		trips {
+			pf5301_alert: trip0 {
+				hysteresis = <2000>;
+				temperature = <140000>;
+				type = "passive";
+			};
+
+			pf5301_crit: trip1 {
+				hysteresis = <2000>;
+				temperature = <155000>;
+				type = "critical";
+			};
+		};
+	};
+
+	pf53soc-thermal {
+		polling-delay = <2000>;
+		polling-delay-passive = <250>;
+		thermal-sensors = <&scmi_sensor 3>;
+
+		trips {
+			pf5302_alert: trip0 {
+				hysteresis = <2000>;
+				temperature = <140000>;
+				type = "passive";
+			};
+
+			pf5302_crit: trip1 {
+				hysteresis = <2000>;
+				temperature = <155000>;
+				type = "critical";
 			};
 		};
 	};

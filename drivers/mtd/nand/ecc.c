@@ -552,7 +552,7 @@ void nand_ecc_tweak_req(struct nand_ecc_req_tweak_ctx *ctx,
 		memset(tweak->oobbuf.in, 0xFF, ctx->oob_buffer_size);
 	}
 
-	/* Copy the data that must be writen in the bounce buffers, if needed */
+	/* Copy the data that must be written in the bounce buffers, if needed */
 	if (orig->type == NAND_PAGE_WRITE) {
 		if (ctx->bounce_data)
 			memcpy((void *)tweak->databuf.out + orig->dataoffs,

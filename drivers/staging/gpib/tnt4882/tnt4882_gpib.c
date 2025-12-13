@@ -570,7 +570,7 @@ static irqreturn_t tnt4882_internal_interrupt(struct gpib_board *board)
 
 	if (isr0_bits & TNT_IFCI_BIT)
 		push_gpib_event(board, EVENT_IFC);
-	//XXX don't need this wakeup, one below should do?
+	// XXX don't need this wakeup, one below should do?
 //		wake_up_interruptible(&board->wait);
 
 	if (isr3_bits & HR_NFF)
@@ -730,7 +730,7 @@ static int tnt4882_parallel_poll(struct gpib_board *board, u8 *result)
 	if (tnt_priv->nec7210_priv.type != NEC7210) {
 		tnt_priv->auxg_bits |= RPP2_BIT;
 		write_byte(&tnt_priv->nec7210_priv, tnt_priv->auxg_bits, AUXMR);
-		udelay(2);	//FIXME use parallel poll timeout
+		udelay(2);	// FIXME use parallel poll timeout
 		*result = read_byte(&tnt_priv->nec7210_priv, CPTR);
 		tnt_priv->auxg_bits &= ~RPP2_BIT;
 		write_byte(&tnt_priv->nec7210_priv, tnt_priv->auxg_bits, AUXMR);
@@ -1522,7 +1522,6 @@ static void __exit tnt4882_exit_module(void)
 #include <linux/moduleparam.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
-#include <linux/ioport.h>
 #include <linux/io.h>
 
 #include <pcmcia/cistpl.h>

@@ -13,7 +13,7 @@ KSZ9021:
 
   All skew control options are specified in picoseconds. The minimum
   value is 0, the maximum value is 3000, and it can be specified in 200ps
-  steps, *but* these values are in not fact what you get because this chip's
+  steps, *but* these values are in no way what you get because this chip's
   skew values actually increase in 120ps steps, starting from -840ps. The
   incorrect values came from an error in the original KSZ9021 datasheet
   before it was corrected in revision 1.2 (Feb 2014), but it is too late to
@@ -153,7 +153,7 @@ KSZ9031:
     - micrel,force-master:
         Boolean, force phy to master mode. Only set this option if the phy
         reference clock provided at CLK125_NDO pin is used as MAC reference
-        clock because the clock jitter in slave mode is to high (errata#2).
+        clock because the clock jitter in slave mode is too high (errata#2).
         Attention: The link partner must be configurable as slave otherwise
         no link will be established.
 

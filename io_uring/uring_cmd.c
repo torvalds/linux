@@ -11,6 +11,7 @@
 #include "io_uring.h"
 #include "alloc_cache.h"
 #include "rsrc.h"
+#include "kbuf.h"
 #include "uring_cmd.h"
 #include "poll.h"
 
@@ -36,8 +37,7 @@ static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (io_alloc_cache_put(&req->ctx->cmd_cache, ac)) {
 		ioucmd->sqe = NULL;
-		req->async_data = NULL;
-		req->flags &= ~(REQ_F_ASYNC_DATA|REQ_F_NEED_CLEANUP);
+		io_req_async_data_clear(req, REQ_F_NEED_CLEANUP);
 	}
 }
 
@@ -118,7 +118,7 @@ static void io_uring_cmd_work(struct io_kiocb *req, io_tw_token_t tw)
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	unsigned int flags = IO_URING_F_COMPLETE_DEFER;
 
-	if (io_should_terminate_tw())
+	if (io_should_terminate_tw(req->ctx))
 		flags |= IO_URING_F_TASK_DEAD;
 
 	/* task_work executor checks the deffered list completion */
@@ -126,7 +126,7 @@ static void io_uring_cmd_work(struct io_kiocb *req, io_tw_token_t tw)
 }
 
 void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,
-			void (*task_work_cb)(struct io_uring_cmd *, unsigned),
+			io_uring_cmd_tw_t task_work_cb,
 			unsigned flags)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
@@ -151,8 +151,8 @@ static inline void io_req_set_cqe32_extra(struct io_kiocb *req,
  * Called by consumers of io_uring_cmd, if they originally returned
  * -EIOCBQUEUED upon receiving the command.
  */
-void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, u64 res2,
-		       unsigned issue_flags)
+void __io_uring_cmd_done(struct io_uring_cmd *ioucmd, s32 ret, u64 res2,
+		       unsigned issue_flags, bool is_cqe32)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
@@ -165,8 +165,11 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, u64 res2,
 		req_set_fail(req);
 
 	io_req_set_res(req, ret, 0);
-	if (req->ctx->flags & IORING_SETUP_CQE32)
+	if (is_cqe32) {
+		if (req->ctx->flags & IORING_SETUP_CQE_MIXED)
+			req->cqe.flags |= IORING_CQE_F_32;
 		io_req_set_cqe32_extra(req, res2, 0);
+	}
 	io_req_uring_cleanup(req, issue_flags);
 	if (req->ctx->flags & IORING_SETUP_IOPOLL) {
 		/* order with io_iopoll_req_issued() checking ->iopoll_complete */
@@ -180,7 +183,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, u64 res2,
 		io_req_task_work_add(req);
 	}
 }
-EXPORT_SYMBOL_GPL(io_uring_cmd_done);
+EXPORT_SYMBOL_GPL(__io_uring_cmd_done);
 
 int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
@@ -194,8 +197,15 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (ioucmd->flags & ~IORING_URING_CMD_MASK)
 		return -EINVAL;
 
-	if (ioucmd->flags & IORING_URING_CMD_FIXED)
+	if (ioucmd->flags & IORING_URING_CMD_FIXED) {
+		if (ioucmd->flags & IORING_URING_CMD_MULTISHOT)
+			return -EINVAL;
 		req->buf_index = READ_ONCE(sqe->buf_index);
+	}
+
+	if (!!(ioucmd->flags & IORING_URING_CMD_MULTISHOT) !=
+	    !!(req->flags & REQ_F_BUFFER_SELECT))
+		return -EINVAL;
 
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
 
@@ -234,7 +244,7 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ctx->flags & IORING_SETUP_SQE128)
 		issue_flags |= IO_URING_F_SQE128;
-	if (ctx->flags & IORING_SETUP_CQE32)
+	if (ctx->flags & (IORING_SETUP_CQE32 | IORING_SETUP_CQE_MIXED))
 		issue_flags |= IO_URING_F_CQE32;
 	if (io_is_compat(ctx))
 		issue_flags |= IO_URING_F_COMPAT;
@@ -251,6 +261,10 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);
+	if (ioucmd->flags & IORING_URING_CMD_MULTISHOT) {
+		if (ret >= 0)
+			return IOU_ISSUE_SKIP_COMPLETE;
+	}
 	if (ret == -EAGAIN) {
 		ioucmd->flags |= IORING_URING_CMD_REISSUE;
 		return ret;
@@ -333,3 +347,54 @@ bool io_uring_cmd_post_mshot_cqe32(struct io_uring_cmd *cmd,
 		return false;
 	return io_req_post_cqe32(req, cqe);
 }
+
+/*
+ * Work with io_uring_mshot_cmd_post_cqe() together for committing the
+ * provided buffer upfront
+ */
+struct io_br_sel io_uring_cmd_buffer_select(struct io_uring_cmd *ioucmd,
+					    unsigned buf_group, size_t *len,
+					    unsigned int issue_flags)
+{
+	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
+
+	if (!(ioucmd->flags & IORING_URING_CMD_MULTISHOT))
+		return (struct io_br_sel) { .val = -EINVAL };
+
+	if (WARN_ON_ONCE(!io_do_buffer_select(req)))
+		return (struct io_br_sel) { .val = -EINVAL };
+
+	return io_buffer_select(req, len, buf_group, issue_flags);
+}
+EXPORT_SYMBOL_GPL(io_uring_cmd_buffer_select);
+
+/*
+ * Return true if this multishot uring_cmd needs to be completed, otherwise
+ * the event CQE is posted successfully.
+ *
+ * This function must use `struct io_br_sel` returned from
+ * io_uring_cmd_buffer_select() for committing the buffer in the same
+ * uring_cmd submission context.
+ */
+bool io_uring_mshot_cmd_post_cqe(struct io_uring_cmd *ioucmd,
+				 struct io_br_sel *sel, unsigned int issue_flags)
+{
+	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
+	unsigned int cflags = 0;
+
+	if (!(ioucmd->flags & IORING_URING_CMD_MULTISHOT))
+		return true;
+
+	if (sel->val > 0) {
+		cflags = io_put_kbuf(req, sel->val, sel->buf_list);
+		if (io_req_post_cqe(req, sel->val, cflags | IORING_CQE_F_MORE))
+			return false;
+	}
+
+	io_kbuf_recycle(req, sel->buf_list, issue_flags);
+	if (sel->val < 0)
+		req_set_fail(req);
+	io_req_set_res(req, sel->val, cflags);
+	return true;
+}
+EXPORT_SYMBOL_GPL(io_uring_mshot_cmd_post_cqe);

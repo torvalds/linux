@@ -161,5 +161,4 @@ static struct platform_driver hi6220_phy_driver = {
 module_platform_driver(hi6220_phy_driver);
 
 MODULE_DESCRIPTION("HISILICON HI6220 USB PHY driver");
-MODULE_ALIAS("platform:hi6220-usb-phy");
 MODULE_LICENSE("GPL");

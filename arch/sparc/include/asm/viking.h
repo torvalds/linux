@@ -110,7 +110,7 @@
 #define VIKING_PTAG_DIRTY   0x00010000   /* Block has been modified */
 #define VIKING_PTAG_SHARED  0x00000100   /* Shared with some other cache */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline void viking_flush_icache(void)
 {
@@ -250,6 +250,6 @@ static inline unsigned long viking_hwprobe(unsigned long vaddr)
 	return val;
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* !(_SPARC_VIKING_H) */

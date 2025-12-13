@@ -14,6 +14,7 @@
 #include "../libwx/wx_mbx.h"
 #include "../libwx/wx_vf.h"
 #include "../libwx/wx_vf_common.h"
+#include "../libwx/wx_ethtool.h"
 #include "ngbevf_type.h"
 
 /* ngbevf_pci_tbl - PCI Device ID Table
@@ -100,6 +101,7 @@ static int ngbevf_sw_init(struct wx *wx)
 	wx->mac.max_tx_queues = NGBEVF_MAX_TX_QUEUES;
 	wx->mac.max_rx_queues = NGBEVF_MAX_RX_QUEUES;
 	/* Enable dynamic interrupt throttling rates */
+	wx->adaptive_itr = true;
 	wx->rx_itr_setting = 1;
 	wx->tx_itr_setting = 1;
 	/* set default ring sizes */
@@ -185,6 +187,8 @@ static int ngbevf_probe(struct pci_dev *pdev,
 		goto err_pci_release_regions;
 	}
 
+	wx->driver_name = KBUILD_MODNAME;
+	wx_set_ethtool_ops_vf(netdev);
 	netdev->netdev_ops = &ngbevf_netdev_ops;
 
 	/* setup the private structure */
@@ -202,6 +206,7 @@ static int ngbevf_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_free_sw_init;
 
+	wx_get_fw_version_vf(wx);
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;

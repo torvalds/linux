@@ -392,7 +392,7 @@ static const struct v4l2_subdev_ops histo_ops = {
 static int histo_v4l2_querycap(struct file *file, void *fh,
 			       struct v4l2_capability *cap)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct vsp1_histogram *histo = vdev_to_histo(vfh->vdev);
 
 	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
@@ -409,7 +409,7 @@ static int histo_v4l2_querycap(struct file *file, void *fh,
 static int histo_v4l2_enum_format(struct file *file, void *fh,
 				  struct v4l2_fmtdesc *f)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct vsp1_histogram *histo = vdev_to_histo(vfh->vdev);
 
 	if (f->index > 0 || f->type != histo->queue.type)
@@ -423,7 +423,7 @@ static int histo_v4l2_enum_format(struct file *file, void *fh,
 static int histo_v4l2_get_format(struct file *file, void *fh,
 				 struct v4l2_format *format)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct vsp1_histogram *histo = vdev_to_histo(vfh->vdev);
 	struct v4l2_meta_format *meta = &format->fmt.meta;
 

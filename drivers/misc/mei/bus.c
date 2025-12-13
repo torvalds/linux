@@ -615,6 +615,19 @@ u8 mei_cldev_ver(const struct mei_cl_device *cldev)
 EXPORT_SYMBOL_GPL(mei_cldev_ver);
 
 /**
+ * mei_cldev_mtu - max message that client can send and receive
+ *
+ * @cldev: mei client device
+ *
+ * Return: mtu or 0 if client is not connected
+ */
+size_t mei_cldev_mtu(const struct mei_cl_device *cldev)
+{
+	return mei_cl_mtu(cldev->cl);
+}
+EXPORT_SYMBOL_GPL(mei_cldev_mtu);
+
+/**
  * mei_cldev_enabled - check whether the device is enabled
  *
  * @cldev: mei client device
@@ -637,7 +650,7 @@ EXPORT_SYMBOL_GPL(mei_cldev_enabled);
  */
 static bool mei_cl_bus_module_get(struct mei_cl_device *cldev)
 {
-	return try_module_get(cldev->bus->dev->driver->owner);
+	return try_module_get(cldev->bus->parent->driver->owner);
 }
 
 /**
@@ -647,7 +660,7 @@ static bool mei_cl_bus_module_get(struct mei_cl_device *cldev)
  */
 static void mei_cl_bus_module_put(struct mei_cl_device *cldev)
 {
-	module_put(cldev->bus->dev->driver->owner);
+	module_put(cldev->bus->parent->driver->owner);
 }
 
 /**
@@ -814,7 +827,7 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 
 	ret = mei_cl_connect(cl, cldev->me_cl, NULL);
 	if (ret < 0) {
-		dev_err(&cldev->dev, "cannot connect\n");
+		dev_dbg(&cldev->dev, "cannot connect\n");
 		mei_cl_bus_vtag_free(cldev);
 	}
 
@@ -1285,16 +1298,20 @@ static const struct bus_type mei_cl_bus_type = {
 
 static struct mei_device *mei_dev_bus_get(struct mei_device *bus)
 {
-	if (bus)
-		get_device(bus->dev);
+	if (bus) {
+		get_device(&bus->dev);
+		get_device(bus->parent);
+	}
 
 	return bus;
 }
 
 static void mei_dev_bus_put(struct mei_device *bus)
 {
-	if (bus)
-		put_device(bus->dev);
+	if (bus) {
+		put_device(bus->parent);
+		put_device(&bus->dev);
+	}
 }
 
 static void mei_cl_bus_dev_release(struct device *dev)
@@ -1328,7 +1345,7 @@ static const struct device_type mei_cl_device_type = {
 static inline void mei_cl_bus_set_name(struct mei_cl_device *cldev)
 {
 	dev_set_name(&cldev->dev, "%s-%pUl",
-		     dev_name(cldev->bus->dev),
+		     dev_name(cldev->bus->parent),
 		     mei_me_cl_uuid(cldev->me_cl));
 }
 
@@ -1357,7 +1374,7 @@ static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
 	}
 
 	device_initialize(&cldev->dev);
-	cldev->dev.parent = bus->dev;
+	cldev->dev.parent = bus->parent;
 	cldev->dev.bus    = &mei_cl_bus_type;
 	cldev->dev.type   = &mei_cl_device_type;
 	cldev->bus        = mei_dev_bus_get(bus);
@@ -1492,7 +1509,7 @@ static void mei_cl_bus_dev_init(struct mei_device *bus,
 
 	WARN_ON(!mutex_is_locked(&bus->cl_bus_lock));
 
-	dev_dbg(bus->dev, "initializing %pUl", mei_me_cl_uuid(me_cl));
+	dev_dbg(&bus->dev, "initializing %pUl", mei_me_cl_uuid(me_cl));
 
 	if (me_cl->bus_added)
 		return;
@@ -1543,7 +1560,7 @@ static void mei_cl_bus_rescan(struct mei_device *bus)
 	}
 	mutex_unlock(&bus->cl_bus_lock);
 
-	dev_dbg(bus->dev, "rescan end");
+	dev_dbg(&bus->dev, "rescan end");
 }
 
 void mei_cl_bus_rescan_work(struct work_struct *work)

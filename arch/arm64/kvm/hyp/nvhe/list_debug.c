@@ -17,7 +17,7 @@ static inline __must_check bool nvhe_check_data_corruption(bool v)
 		bool corruption = unlikely(condition);			 \
 		if (corruption) {					 \
 			if (IS_ENABLED(CONFIG_BUG_ON_DATA_CORRUPTION)) { \
-				BUG_ON(1);				 \
+				BUG();				 	 \
 			} else						 \
 				WARN_ON(1);				 \
 		}							 \

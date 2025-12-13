@@ -80,6 +80,21 @@ properties:
       - const: vsync
       - const: lcd_sys
 
+  iommus:
+    maxItems: 1
+
+  memory-region:
+    maxItems: 1
+    description:
+      A phandle to a node describing a reserved framebuffer memory region.
+      For example, the splash memory region set up by the bootloader.
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      Output port which is connected to either a Mobile Image Compressor
+      (MIC) or a DSI Master device.
+
   power-domains:
     maxItems: 1
 
@@ -92,6 +107,7 @@ required:
   - clock-names
   - interrupts
   - interrupt-names
+  - port
   - reg
 
 additionalProperties: false
@@ -118,4 +134,9 @@ examples:
                       "decon0_vclk";
         pinctrl-0 = <&lcd_clk &pwm1_out>;
         pinctrl-names = "default";
+        port {
+            decon_to_dsi: endpoint {
+                remote-endpoint = <&dsi_to_decon>;
+            };
+        };
     };

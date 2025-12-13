@@ -28,6 +28,7 @@
 #include "dcn32_hubbub.h"
 #include "dm_services.h"
 #include "reg_helper.h"
+#include "dal_asic_id.h"
 
 
 #define CTX \
@@ -70,6 +71,14 @@ static void dcn32_init_crb(struct hubbub *hubbub)
 			COMPBUF_RESERVED_SPACE_64B, hubbub2->pixel_chunk_size / 32,
 			COMPBUF_RESERVED_SPACE_ZS, hubbub2->pixel_chunk_size / 128);
 	REG_UPDATE(DCHUBBUB_DEBUG_CTRL_0, DET_DEPTH, 0x47F);
+}
+
+static void hubbub32_set_sdp_control(struct hubbub *hubbub, bool dc_control)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	REG_UPDATE(DCHUBBUB_SDPIF_CFG0,
+			SDPIF_PORT_CONTROL, dc_control);
 }
 
 void hubbub32_set_request_limit(struct hubbub *hubbub, int memory_channel_count, int words_per_channel)
@@ -754,7 +763,17 @@ static bool hubbub32_program_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
+	struct dc *dc = hubbub->ctx->dc;
 	bool wm_pending = false;
+
+	if (!safe_to_lower && dc->debug.disable_stutter_for_wm_program &&
+			(ASICREV_IS_GC_11_0_0(dc->ctx->asic_id.hw_internal_rev) ||
+			ASICREV_IS_GC_11_0_3(dc->ctx->asic_id.hw_internal_rev))) {
+		/* before raising watermarks, SDP control give to DF, stutter must be disabled */
+		wm_pending = true;
+		hubbub32_set_sdp_control(hubbub, false);
+		hubbub1_allow_self_refresh_control(hubbub, false);
+	}
 
 	if (hubbub32_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower))
 		wm_pending = true;
@@ -786,10 +805,20 @@ static bool hubbub32_program_watermarks(
 	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
 			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 0x1FF);*/
 
-	if (safe_to_lower || hubbub->ctx->dc->debug.disable_stutter)
-		hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
+	if (safe_to_lower) {
+		/* after lowering watermarks, stutter setting is restored, SDP control given to DC */
+		hubbub1_allow_self_refresh_control(hubbub, !dc->debug.disable_stutter);
 
-	hubbub32_force_usr_retraining_allow(hubbub, hubbub->ctx->dc->debug.force_usr_allow);
+		if (dc->debug.disable_stutter_for_wm_program &&
+				(ASICREV_IS_GC_11_0_0(dc->ctx->asic_id.hw_internal_rev) ||
+				ASICREV_IS_GC_11_0_3(dc->ctx->asic_id.hw_internal_rev))) {
+			hubbub32_set_sdp_control(hubbub, true);
+		}
+	} else if (dc->debug.disable_stutter) {
+		hubbub1_allow_self_refresh_control(hubbub, !dc->debug.disable_stutter);
+	}
+
+	hubbub32_force_usr_retraining_allow(hubbub, dc->debug.force_usr_allow);
 
 	return wm_pending;
 }
@@ -974,8 +1003,7 @@ void hubbub32_init(struct hubbub *hubbub)
 	ignore the "df_pre_cstate_req" from the SDP port control.
 	only the DCN will determine when to connect the SDP port
 	*/
-	REG_UPDATE(DCHUBBUB_SDPIF_CFG0,
-			SDPIF_PORT_CONTROL, 1);
+	hubbub32_set_sdp_control(hubbub, true);
 	/*Set SDP's max outstanding request to 512
 	must set the register back to 0 (max outstanding = 256) in zero frame buffer mode*/
 	REG_UPDATE(DCHUBBUB_SDPIF_CFG1,
@@ -1009,6 +1037,8 @@ static const struct hubbub_funcs hubbub32_funcs = {
 	.force_usr_retraining_allow = hubbub32_force_usr_retraining_allow,
 	.set_request_limit = hubbub32_set_request_limit,
 	.get_mall_en = hubbub32_get_mall_en,
+	.get_det_sizes = hubbub3_get_det_sizes,
+	.compbuf_config_error = hubbub3_compbuf_config_error,
 };
 
 void hubbub32_construct(struct dcn20_hubbub *hubbub2,

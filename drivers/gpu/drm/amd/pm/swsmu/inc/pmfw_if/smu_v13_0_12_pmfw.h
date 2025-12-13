@@ -135,7 +135,63 @@ typedef enum {
   GFX_DVM_MARGIN_COUNT
 } GFX_DVM_MARGIN_e;
 
-#define SMU_METRICS_TABLE_VERSION 0x13
+typedef enum{
+  SYSTEM_TEMP_UBB_FPGA,
+  SYSTEM_TEMP_UBB_FRONT,
+  SYSTEM_TEMP_UBB_BACK,
+  SYSTEM_TEMP_UBB_OAM7,
+  SYSTEM_TEMP_UBB_IBC,
+  SYSTEM_TEMP_UBB_UFPGA,
+  SYSTEM_TEMP_UBB_OAM1,
+  SYSTEM_TEMP_OAM_0_1_HSC,
+  SYSTEM_TEMP_OAM_2_3_HSC,
+  SYSTEM_TEMP_OAM_4_5_HSC,
+  SYSTEM_TEMP_OAM_6_7_HSC,
+  SYSTEM_TEMP_UBB_FPGA_0V72_VR,
+  SYSTEM_TEMP_UBB_FPGA_3V3_VR,
+  SYSTEM_TEMP_RETIMER_0_1_2_3_1V2_VR,
+  SYSTEM_TEMP_RETIMER_4_5_6_7_1V2_VR,
+  SYSTEM_TEMP_RETIMER_0_1_0V9_VR,
+  SYSTEM_TEMP_RETIMER_4_5_0V9_VR,
+  SYSTEM_TEMP_RETIMER_2_3_0V9_VR,
+  SYSTEM_TEMP_RETIMER_6_7_0V9_VR,
+  SYSTEM_TEMP_OAM_0_1_2_3_3V3_VR,
+  SYSTEM_TEMP_OAM_4_5_6_7_3V3_VR,
+  SYSTEM_TEMP_IBC_HSC,
+  SYSTEM_TEMP_IBC,
+  SYSTEM_TEMP_MAX_ENTRIES   = 32
+} SYSTEM_TEMP_e;
+
+typedef enum{
+  NODE_TEMP_RETIMER,
+  NODE_TEMP_IBC_TEMP,
+  NODE_TEMP_IBC_2_TEMP,
+  NODE_TEMP_VDD18_VR_TEMP,
+  NODE_TEMP_04_HBM_B_VR_TEMP,
+  NODE_TEMP_04_HBM_D_VR_TEMP,
+  NODE_TEMP_MAX_TEMP_ENTRIES    = 12
+} NODE_TEMP_e;
+
+typedef enum {
+  SVI_VDDCR_VDD0_TEMP,
+  SVI_VDDCR_VDD1_TEMP,
+  SVI_VDDCR_VDD2_TEMP,
+  SVI_VDDCR_VDD3_TEMP,
+  SVI_VDDCR_SOC_A_TEMP,
+  SVI_VDDCR_SOC_C_TEMP,
+  SVI_VDDCR_SOCIO_A_TEMP,
+  SVI_VDDCR_SOCIO_C_TEMP,
+  SVI_VDD_085_HBM_TEMP,
+  SVI_VDDCR_11_HBM_B_TEMP,
+  SVI_VDDCR_11_HBM_D_TEMP,
+  SVI_VDD_USR_TEMP,
+  SVI_VDDIO_11_E32_TEMP,
+  SVI_MAX_TEMP_ENTRIES,   // 13
+} SVI_TEMP_e;
+
+#define SMU_METRICS_TABLE_VERSION 0x14
+
+#define SMU_SYSTEM_METRICS_TABLE_VERSION 0x1
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint64_t AccumulationCounter;
@@ -231,10 +287,31 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint64_t GfxclkBelowHostLimitThmAcc[8];
   uint64_t GfxclkBelowHostLimitTotalAcc[8];
   uint64_t GfxclkLowUtilizationAcc[8];
+
+  uint32_t AidTemperature[4];
+  uint32_t XcdTemperature[8];
+  uint32_t HbmTemperature[8];
 } MetricsTable_t;
 
 #define SMU_VF_METRICS_TABLE_MASK (1 << 31)
 #define SMU_VF_METRICS_TABLE_VERSION (0x6 | SMU_VF_METRICS_TABLE_MASK)
+
+#pragma pack(push, 4)
+typedef struct {
+  uint64_t AccumulationCounter;                             // Last update timestamp
+  uint16_t LabelVersion;                                    // Defaults to 0.
+  uint16_t NodeIdentifier;                                  // Unique identifier to each node on system.
+  int16_t  SystemTemperatures[SYSTEM_TEMP_MAX_ENTRIES];     // Signed integer temperature value in Celsius, unused fields are set to 0xFFFF
+  int16_t  NodeTemperatures[NODE_TEMP_MAX_TEMP_ENTRIES];    // Signed integer temperature value in Celsius, unused fields are set to 0xFFFF
+  int16_t  VrTemperatures[SVI_MAX_TEMP_ENTRIES];            // Signed integer temperature value in Celsius
+  int16_t  spare[7];
+
+  //NPM: NODE POWER MANAGEMENT
+  uint32_t NodePowerLimit;
+  uint32_t NodePower;
+  uint32_t GlobalPPTResidencyAcc;
+} SystemMetricsTable_t;
+#pragma pack(pop)
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
@@ -287,6 +364,9 @@ typedef struct {
 
   // General info
   uint32_t pldmVersion[2];
+
+  //Node Power Limit
+  uint32_t MaxNodePowerLimit;
 } StaticMetricsTable_t;
 #pragma pack(pop)
 

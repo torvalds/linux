@@ -181,7 +181,7 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	config.dat = cgpio->regs + CDNS_GPIO_INPUT_VALUE;
 	config.set = cgpio->regs + CDNS_GPIO_OUTPUT_VALUE;
 	config.dirin = cgpio->regs + CDNS_GPIO_DIRECTION_MODE;
-	config.flags = BGPIOF_READ_OUTPUT_REG_SET;
+	config.flags = GPIO_GENERIC_READ_OUTPUT_REG_SET;
 
 	ret = gpio_generic_chip_init(&cgpio->gen_gc, &config);
 	if (ret) {

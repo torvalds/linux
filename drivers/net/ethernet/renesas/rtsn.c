@@ -1330,8 +1330,7 @@ static int rtsn_probe(struct platform_device *pdev)
 
 	device_set_wakeup_capable(&pdev->dev, 1);
 
-	ret = rcar_gen4_ptp_register(priv->ptp_priv, RCAR_GEN4_PTP_REG_LAYOUT,
-				     clk_get_rate(priv->clk));
+	ret = rcar_gen4_ptp_register(priv->ptp_priv, clk_get_rate(priv->clk));
 	if (ret)
 		goto error_pm;
 

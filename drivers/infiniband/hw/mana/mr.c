@@ -138,7 +138,8 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		ibdev_dbg(ibdev,
-			  "Failed to get umem for register user-mr, %d\n", err);
+			  "Failed to get umem for register user-mr, %pe\n",
+			  mr->umem);
 		goto err_free;
 	}
 
@@ -220,7 +221,8 @@ struct ib_mr *mana_ib_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 leng
 	umem_dmabuf = ib_umem_dmabuf_get_pinned(ibdev, start, length, fd, access_flags);
 	if (IS_ERR(umem_dmabuf)) {
 		err = PTR_ERR(umem_dmabuf);
-		ibdev_dbg(ibdev, "Failed to get dmabuf umem, %d\n", err);
+		ibdev_dbg(ibdev, "Failed to get dmabuf umem, %pe\n",
+			  umem_dmabuf);
 		goto err_free;
 	}
 

@@ -18,6 +18,21 @@
 
 #define MLX5HWS_BWC_POLLING_TIMEOUT 60
 
+enum mlx5hws_bwc_matcher_type {
+	/* Standalone bwc matcher. */
+	MLX5HWS_BWC_MATCHER_SIMPLE,
+	/* The first matcher of a complex matcher. When rules are inserted into
+	 * a matcher of this type, they are split into subrules and inserted
+	 * into their corresponding submatchers.
+	 */
+	MLX5HWS_BWC_MATCHER_COMPLEX_FIRST,
+	/* A submatcher that is part of a complex matcher. For most purposes
+	 * these are treated as simple matchers, except when it comes to moving
+	 * rules during resize.
+	 */
+	MLX5HWS_BWC_MATCHER_COMPLEX_SUBMATCHER,
+};
+
 struct mlx5hws_bwc_matcher_complex_data;
 
 struct mlx5hws_bwc_matcher_size {
@@ -31,9 +46,9 @@ struct mlx5hws_bwc_matcher {
 	struct mlx5hws_match_template *mt;
 	struct mlx5hws_action_template **at;
 	struct mlx5hws_bwc_matcher_complex_data *complex;
-	struct mlx5hws_bwc_matcher *complex_first_bwc_matcher;
 	u8 num_of_at;
 	u8 size_of_at_array;
+	enum mlx5hws_bwc_matcher_type matcher_type;
 	u32 priority;
 	struct mlx5hws_bwc_matcher_size rx_size;
 	struct mlx5hws_bwc_matcher_size tx_size;
@@ -43,8 +58,8 @@ struct mlx5hws_bwc_matcher {
 struct mlx5hws_bwc_rule {
 	struct mlx5hws_bwc_matcher *bwc_matcher;
 	struct mlx5hws_rule *rule;
-	struct mlx5hws_bwc_rule *isolated_bwc_rule;
-	struct mlx5hws_bwc_complex_rule_hash_node *complex_hash_node;
+	struct mlx5hws_bwc_rule *next_subrule;
+	struct mlx5hws_bwc_complex_subrule_data *subrule_data;
 	u32 flow_source;
 	u16 bwc_queue_idx;
 	bool skip_rx;

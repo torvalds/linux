@@ -258,13 +258,6 @@ struct ecryptfs_inode_info {
 	struct ecryptfs_crypt_stat crypt_stat;
 };
 
-/* dentry private data. Each dentry must keep track of a lower
- * vfsmount too. */
-struct ecryptfs_dentry_info {
-	struct path lower_path;
-	struct rcu_head rcu;
-};
-
 /**
  * ecryptfs_global_auth_tok - A key used to encrypt all new files under the mountpoint
  * @flags: Status flags
@@ -348,6 +341,7 @@ struct ecryptfs_mount_crypt_stat {
 /* superblock private data. */
 struct ecryptfs_sb_info {
 	struct super_block *wsi_sb;
+	struct vfsmount *lower_mnt;
 	struct ecryptfs_mount_crypt_stat mount_crypt_stat;
 };
 
@@ -494,22 +488,25 @@ ecryptfs_set_superblock_lower(struct super_block *sb,
 }
 
 static inline void
-ecryptfs_set_dentry_private(struct dentry *dentry,
-			    struct ecryptfs_dentry_info *dentry_info)
+ecryptfs_set_dentry_lower(struct dentry *dentry,
+			  struct dentry *lower_dentry)
 {
-	dentry->d_fsdata = dentry_info;
+	dentry->d_fsdata = lower_dentry;
 }
 
 static inline struct dentry *
 ecryptfs_dentry_to_lower(struct dentry *dentry)
 {
-	return ((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path.dentry;
+	return dentry->d_fsdata;
 }
 
-static inline const struct path *
-ecryptfs_dentry_to_lower_path(struct dentry *dentry)
+static inline struct path
+ecryptfs_lower_path(struct dentry *dentry)
 {
-	return &((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path;
+	return (struct path){
+		.mnt = ecryptfs_superblock_to_private(dentry->d_sb)->lower_mnt,
+		.dentry = ecryptfs_dentry_to_lower(dentry)
+	};
 }
 
 #define ecryptfs_printk(type, fmt, arg...) \
@@ -532,7 +529,6 @@ extern unsigned int ecryptfs_number_of_users;
 
 extern struct kmem_cache *ecryptfs_auth_tok_list_item_cache;
 extern struct kmem_cache *ecryptfs_file_info_cache;
-extern struct kmem_cache *ecryptfs_dentry_info_cache;
 extern struct kmem_cache *ecryptfs_inode_info_cache;
 extern struct kmem_cache *ecryptfs_sb_info_cache;
 extern struct kmem_cache *ecryptfs_header_cache;
@@ -557,7 +553,6 @@ int ecryptfs_encrypt_and_encode_filename(
 	size_t *encoded_name_size,
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
 	const char *name, size_t name_size);
-struct dentry *ecryptfs_lower_dentry(struct dentry *this_dentry);
 void ecryptfs_dump_hex(char *data, int bytes);
 int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 			int sg_size);

@@ -315,7 +315,6 @@ network daemons and file systems that didn't need to be disturbed.
    ideally, the reset should happen at or below the block layer,
    so that the file systems are not disturbed.
 
-   Reiserfs does not tolerate errors returned from the block device.
    Ext3fs seems to be tolerant, retrying reads/writes until it does
    succeed. Both have been only lightly tested in this scenario.
 

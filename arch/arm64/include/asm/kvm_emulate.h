@@ -220,6 +220,20 @@ static inline bool vcpu_el2_tge_is_set(const struct kvm_vcpu *vcpu)
 
 static inline bool vcpu_el2_amo_is_set(const struct kvm_vcpu *vcpu)
 {
+	/*
+	 * DDI0487L.b Known Issue D22105
+	 *
+	 * When executing at EL2 and HCR_EL2.{E2H,TGE} = {1, 0} it is
+	 * IMPLEMENTATION DEFINED whether the effective value of HCR_EL2.AMO
+	 * is the value programmed or 1.
+	 *
+	 * Make the implementation choice of treating the effective value as 1 as
+	 * we cannot subsequently catch changes to TGE or AMO that would
+	 * otherwise lead to the SError becoming deliverable.
+	 */
+	if (vcpu_is_el2(vcpu) && vcpu_el2_e2h_is_set(vcpu) && !vcpu_el2_tge_is_set(vcpu))
+		return true;
+
 	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_AMO;
 }
 
@@ -511,21 +525,29 @@ static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
 	if (vcpu_mode_is_32bit(vcpu)) {
 		*vcpu_cpsr(vcpu) |= PSR_AA32_E_BIT;
 	} else {
-		u64 sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
+		enum vcpu_sysreg r;
+		u64 sctlr;
+
+		r = vcpu_has_nv(vcpu) ? SCTLR_EL2 : SCTLR_EL1;
+
+		sctlr = vcpu_read_sys_reg(vcpu, r);
 		sctlr |= SCTLR_ELx_EE;
-		vcpu_write_sys_reg(vcpu, sctlr, SCTLR_EL1);
+		vcpu_write_sys_reg(vcpu, sctlr, r);
 	}
 }
 
 static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
 {
+	enum vcpu_sysreg r;
+	u64 bit;
+
 	if (vcpu_mode_is_32bit(vcpu))
 		return !!(*vcpu_cpsr(vcpu) & PSR_AA32_E_BIT);
 
-	if (vcpu_mode_priv(vcpu))
-		return !!(vcpu_read_sys_reg(vcpu, SCTLR_EL1) & SCTLR_ELx_EE);
-	else
-		return !!(vcpu_read_sys_reg(vcpu, SCTLR_EL1) & SCTLR_EL1_E0E);
+	r = is_hyp_ctxt(vcpu) ? SCTLR_EL2 : SCTLR_EL1;
+	bit = vcpu_mode_priv(vcpu) ? SCTLR_ELx_EE : SCTLR_EL1_E0E;
+
+	return vcpu_read_sys_reg(vcpu, r) & bit;
 }
 
 static inline unsigned long vcpu_data_guest_to_host(struct kvm_vcpu *vcpu,

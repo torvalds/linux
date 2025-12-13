@@ -115,6 +115,7 @@ static const struct hw_sequencer_funcs dcn314_funcs = {
 	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
 	.calculate_pix_rate_divider = dcn314_calculate_pix_rate_divider,
 	.setup_hpo_hw_control = dcn31_setup_hpo_hw_control,
+	.get_underflow_debug_data = dcn30_get_underflow_debug_data,
 };
 
 static const struct hwseq_private_funcs dcn314_private_funcs = {
@@ -141,6 +142,7 @@ static const struct hwseq_private_funcs dcn314_private_funcs = {
 	.enable_power_gating_plane = dcn314_enable_power_gating_plane,
 	.dpp_root_clock_control = dcn314_dpp_root_clock_control,
 	.hubp_pg_control = dcn31_hubp_pg_control,
+	.dpp_pg_control = dcn314_dpp_pg_control,
 	.program_all_writeback_pipes_in_tree = dcn30_program_all_writeback_pipes_in_tree,
 	.update_odm = dcn314_update_odm,
 	.dsc_pg_control = dcn314_dsc_pg_control,

@@ -81,6 +81,7 @@ properties:
 required:
   - compatible
   - reg
+  - clocks
   - port
 
 unevaluatedProperties: false

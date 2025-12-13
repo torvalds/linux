@@ -184,6 +184,7 @@ struct fbnic_net;
 
 void fbnic_bmc_rpc_init(struct fbnic_dev *fbd);
 void fbnic_bmc_rpc_all_multi_config(struct fbnic_dev *fbd, bool enable_host);
+void fbnic_bmc_rpc_check(struct fbnic_dev *fbd);
 
 void fbnic_reset_indir_tbl(struct fbnic_net *fbn);
 void fbnic_rss_key_fill(u32 *buffer);
@@ -200,6 +201,9 @@ struct fbnic_mac_addr *__fbnic_mc_sync(struct fbnic_dev *fbd,
 				       const unsigned char *addr);
 void fbnic_sift_macda(struct fbnic_dev *fbd);
 void fbnic_write_macda(struct fbnic_dev *fbd);
+
+void fbnic_promisc_sync(struct fbnic_dev *fbd,
+			bool uc_promisc, bool mc_promisc);
 
 struct fbnic_ip_addr *__fbnic_ip4_sync(struct fbnic_dev *fbd,
 				       struct fbnic_ip_addr *ip_addr,

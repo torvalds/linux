@@ -319,6 +319,10 @@ static int hfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	int silent = fc->sb_flags & SB_SILENT;
 	int res;
 
+	atomic64_set(&sbi->file_count, 0);
+	atomic64_set(&sbi->folder_count, 0);
+	atomic64_set(&sbi->next_id, 0);
+
 	/* load_nls_default does not fail */
 	if (sbi->nls_disk && !sbi->nls_io)
 		sbi->nls_io = load_nls_default();

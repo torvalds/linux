@@ -27,7 +27,7 @@ static uint64_t psci_cpu_on(uint64_t target_cpu, uint64_t entry_addr,
 {
 	struct arm_smccc_res res;
 
-	smccc_hvc(PSCI_0_2_FN64_CPU_ON, target_cpu, entry_addr, context_id,
+	do_smccc(PSCI_0_2_FN64_CPU_ON, target_cpu, entry_addr, context_id,
 		  0, 0, 0, 0, &res);
 
 	return res.a0;
@@ -38,7 +38,7 @@ static uint64_t psci_affinity_info(uint64_t target_affinity,
 {
 	struct arm_smccc_res res;
 
-	smccc_hvc(PSCI_0_2_FN64_AFFINITY_INFO, target_affinity, lowest_affinity_level,
+	do_smccc(PSCI_0_2_FN64_AFFINITY_INFO, target_affinity, lowest_affinity_level,
 		  0, 0, 0, 0, 0, &res);
 
 	return res.a0;
@@ -48,7 +48,7 @@ static uint64_t psci_system_suspend(uint64_t entry_addr, uint64_t context_id)
 {
 	struct arm_smccc_res res;
 
-	smccc_hvc(PSCI_1_0_FN64_SYSTEM_SUSPEND, entry_addr, context_id,
+	do_smccc(PSCI_1_0_FN64_SYSTEM_SUSPEND, entry_addr, context_id,
 		  0, 0, 0, 0, 0, &res);
 
 	return res.a0;
@@ -58,7 +58,7 @@ static uint64_t psci_system_off2(uint64_t type, uint64_t cookie)
 {
 	struct arm_smccc_res res;
 
-	smccc_hvc(PSCI_1_3_FN64_SYSTEM_OFF2, type, cookie, 0, 0, 0, 0, 0, &res);
+	do_smccc(PSCI_1_3_FN64_SYSTEM_OFF2, type, cookie, 0, 0, 0, 0, 0, &res);
 
 	return res.a0;
 }
@@ -67,7 +67,7 @@ static uint64_t psci_features(uint32_t func_id)
 {
 	struct arm_smccc_res res;
 
-	smccc_hvc(PSCI_1_0_FN_PSCI_FEATURES, func_id, 0, 0, 0, 0, 0, 0, &res);
+	do_smccc(PSCI_1_0_FN_PSCI_FEATURES, func_id, 0, 0, 0, 0, 0, 0, &res);
 
 	return res.a0;
 }
@@ -89,12 +89,13 @@ static struct kvm_vm *setup_vm(void *guest_code, struct kvm_vcpu **source,
 
 	vm = vm_create(2);
 
-	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init);
+	kvm_get_default_vcpu_target(vm, &init);
 	init.features[0] |= (1 << KVM_ARM_VCPU_PSCI_0_2);
 
 	*source = aarch64_vcpu_add(vm, 0, &init, guest_code);
 	*target = aarch64_vcpu_add(vm, 1, &init, guest_code);
 
+	kvm_arch_vm_finalize_vcpus(vm);
 	return vm;
 }
 

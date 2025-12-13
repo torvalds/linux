@@ -38,7 +38,21 @@
 
 static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-3)");
+MODULE_PARM_DESC(debug, " debug level (0-3)");
+
+static int packet_type = 0x87;
+module_param(packet_type, int, 0644);
+MODULE_PARM_DESC(packet_type,
+		 " Programmable Packet Type. Possible values:\n"
+		 "\t\t    0x87: DRM InfoFrame (Default).\n"
+		 "\t\t    0x01: Audio Clock Regeneration Packet\n"
+		 "\t\t    0x02: Audio Sample Packet\n"
+		 "\t\t    0x03: General Control Packet\n"
+		 "\t\t    0x04: ACP Packet\n"
+		 "\t\t    0x07: One Bit Audio Sample Packet\n"
+		 "\t\t    0x08: DST Audio Packet\n"
+		 "\t\t    0x09: High Bitrate Audio Stream Packet\n"
+		 "\t\t    0x0a: Gamut Metadata Packet\n");
 
 MODULE_DESCRIPTION("Toshiba TC358743 HDMI to CSI-2 bridge driver");
 MODULE_AUTHOR("Ramakrishnan Muthukrishnan <ram@rkrishnan.org>");
@@ -466,10 +480,29 @@ tc358743_debugfs_if_read(u32 type, void *priv, struct file *filp,
 	if (!is_hdmi(sd))
 		return 0;
 
-	if (type != V4L2_DEBUGFS_IF_AVI)
+	switch (type) {
+	case V4L2_DEBUGFS_IF_AVI:
+		i2c_rd(sd, PK_AVI_0HEAD, buf, PK_AVI_LEN);
+		break;
+	case V4L2_DEBUGFS_IF_AUDIO:
+		i2c_rd(sd, PK_AUD_0HEAD, buf, PK_AUD_LEN);
+		break;
+	case V4L2_DEBUGFS_IF_SPD:
+		i2c_rd(sd, PK_SPD_0HEAD, buf, PK_SPD_LEN);
+		break;
+	case V4L2_DEBUGFS_IF_HDMI:
+		i2c_rd(sd, PK_VS_0HEAD, buf, PK_VS_LEN);
+		break;
+	case V4L2_DEBUGFS_IF_DRM:
+		i2c_rd(sd, PK_ACP_0HEAD, buf, PK_ACP_LEN);
+		break;
+	default:
 		return 0;
+	}
 
-	i2c_rd(sd, PK_AVI_0HEAD, buf, PK_AVI_16BYTE - PK_AVI_0HEAD + 1);
+	if (!buf[2])
+		return -ENOENT;
+
 	len = buf[2] + 4;
 	if (len > V4L2_DEBUGFS_IF_MAX_LEN)
 		len = -ENOENT;
@@ -478,26 +511,69 @@ tc358743_debugfs_if_read(u32 type, void *priv, struct file *filp,
 	return len < 0 ? 0 : len;
 }
 
-static void print_avi_infoframe(struct v4l2_subdev *sd)
+static void print_infoframes(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct device *dev = &client->dev;
 	union hdmi_infoframe frame;
-	u8 buffer[HDMI_INFOFRAME_SIZE(AVI)] = {};
+	u8 buffer[V4L2_DEBUGFS_IF_MAX_LEN] = {};
+
+	/*
+	 * Updating the ACP TYPE here allows for dynamically
+	 * changing the type you want to monitor, without having
+	 * to reload the driver with a new packet_type module option value.
+	 *
+	 * Instead you can set it with the new value, then call
+	 * VIDIOC_LOG_STATUS.
+	 */
+	i2c_wr8(sd, TYP_ACP_SET, packet_type);
 
 	if (!is_hdmi(sd)) {
-		v4l2_info(sd, "DVI-D signal - AVI infoframe not supported\n");
+		v4l2_info(sd, "DVI-D signal - InfoFrames not supported\n");
 		return;
 	}
 
-	i2c_rd(sd, PK_AVI_0HEAD, buffer, HDMI_INFOFRAME_SIZE(AVI));
+	i2c_rd(sd, PK_AVI_0HEAD, buffer, PK_AVI_LEN);
+	if (hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer)) >= 0)
+		hdmi_infoframe_log(KERN_INFO, dev, &frame);
 
-	if (hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer)) < 0) {
-		v4l2_err(sd, "%s: unpack of AVI infoframe failed\n", __func__);
-		return;
+	i2c_rd(sd, PK_VS_0HEAD, buffer, PK_VS_LEN);
+	if (hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer)) >= 0)
+		hdmi_infoframe_log(KERN_INFO, dev, &frame);
+
+	i2c_rd(sd, PK_AUD_0HEAD, buffer, PK_AUD_LEN);
+	if (hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer)) >= 0)
+		hdmi_infoframe_log(KERN_INFO, dev, &frame);
+
+	i2c_rd(sd, PK_SPD_0HEAD, buffer, PK_SPD_LEN);
+	if (hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer)) >= 0)
+		hdmi_infoframe_log(KERN_INFO, dev, &frame);
+
+	i2c_rd(sd, PK_ACP_0HEAD, buffer, PK_ACP_LEN);
+	if (buffer[0] == packet_type) {
+		if (packet_type < 0x80)
+			v4l2_info(sd, "Packet: %*ph\n", PK_ACP_LEN, buffer);
+		else if (packet_type != 0x87)
+			v4l2_info(sd, "InfoFrame: %*ph\n", PK_ACP_LEN, buffer);
+		else if (hdmi_infoframe_unpack(&frame, buffer,
+					       sizeof(buffer)) >= 0)
+			hdmi_infoframe_log(KERN_INFO, dev, &frame);
 	}
 
-	hdmi_infoframe_log(KERN_INFO, dev, &frame);
+	i2c_rd(sd, PK_MS_0HEAD, buffer, PK_MS_LEN);
+	if (buffer[2] && buffer[2] + 3 <= PK_MS_LEN)
+		v4l2_info(sd, "MPEG Source InfoFrame: %*ph\n",
+			  buffer[2] + 3, buffer);
+
+	i2c_rd(sd, PK_ISRC1_0HEAD, buffer, PK_ISRC1_LEN);
+	if (buffer[0] == 0x05)
+		v4l2_info(sd, "ISRC1 Packet: %*ph\n",
+			  PK_ISRC1_LEN, buffer);
+
+	i2c_rd(sd, PK_ISRC2_0HEAD, buffer, PK_ISRC2_LEN);
+	if (buffer[0] == 0x06)
+		v4l2_info(sd, "ISRC2 Packet: %*ph\n",
+			  PK_ISRC2_LEN, buffer);
 }
 
 /* --------------- CTRLS --------------- */
@@ -1375,7 +1451,7 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Deep color mode: %d-bits per channel\n",
 			deep_color_mode[(i2c_rd8(sd, VI_STATUS1) &
 				MASK_S_DEEPCOLOR) >> 2]);
-	print_avi_infoframe(sd);
+	print_infoframes(sd);
 
 	return 0;
 }
@@ -2232,10 +2308,15 @@ static int tc358743_probe(struct i2c_client *client)
 	if (err < 0)
 		goto err_work_queues;
 
+	i2c_wr8(sd, TYP_ACP_SET, packet_type);
+	i2c_wr8(sd, PK_AUTO_CLR, 0xff);
+	i2c_wr8(sd, NO_PKT_CLR, MASK_NO_ACP_CLR);
+
 	state->debugfs_dir = debugfs_create_dir(sd->name, v4l2_debugfs_root());
 	state->infoframes = v4l2_debugfs_if_alloc(state->debugfs_dir,
-						  V4L2_DEBUGFS_IF_AVI, sd,
-						  tc358743_debugfs_if_read);
+			  V4L2_DEBUGFS_IF_AVI | V4L2_DEBUGFS_IF_AUDIO |
+			  V4L2_DEBUGFS_IF_SPD | V4L2_DEBUGFS_IF_HDMI |
+			  V4L2_DEBUGFS_IF_DRM, sd, tc358743_debugfs_if_read);
 
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 		  client->addr << 1, client->adapter->name);
@@ -2245,10 +2326,10 @@ static int tc358743_probe(struct i2c_client *client)
 err_work_queues:
 	cec_unregister_adapter(state->cec_adap);
 	if (!state->i2c_client->irq) {
-		timer_delete(&state->timer);
+		timer_delete_sync(&state->timer);
 		flush_work(&state->work_i2c_poll);
 	}
-	cancel_delayed_work(&state->delayed_work_enable_hotplug);
+	cancel_delayed_work_sync(&state->delayed_work_enable_hotplug);
 	mutex_destroy(&state->confctl_mutex);
 err_hdl:
 	media_entity_cleanup(&sd->entity);

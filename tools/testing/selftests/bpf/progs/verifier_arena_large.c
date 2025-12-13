@@ -240,6 +240,7 @@ int big_alloc2(void *ctx)
 			return 5;
 		bpf_arena_free_pages(&arena, (void __arena *)pg, 2);
 		page[i] = NULL;
+		barrier();
 		page[i + 1] = NULL;
 		cond_break;
 	}

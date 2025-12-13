@@ -360,7 +360,7 @@ static int meson_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 		switch (param) {
 		case PIN_CONFIG_DRIVE_STRENGTH_UA:
 		case PIN_CONFIG_OUTPUT_ENABLE:
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			arg = pinconf_to_config_argument(configs[i]);
 			break;
 
@@ -384,7 +384,7 @@ static int meson_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 		case PIN_CONFIG_OUTPUT_ENABLE:
 			ret = meson_pinconf_set_output(pc, pin, arg);
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			ret = meson_pinconf_set_output_drive(pc, pin, arg);
 			break;
 		default:
@@ -502,7 +502,7 @@ static int meson_pinconf_get(struct pinctrl_dev *pcdev, unsigned int pin,
 			return -EINVAL;
 		arg = 1;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		ret = meson_pinconf_get_output(pc, pin);
 		if (ret <= 0)
 			return -EINVAL;

@@ -22,6 +22,7 @@ properties:
       - brcm,bcm6345-gpio
       - ni,169445-nand-gpio
       - wd,mbl-gpio # Western Digital MyBook Live memory-mapped GPIO controller
+      - intel,ixp4xx-expansion-bus-mmio-gpio
 
   big-endian: true
 
@@ -89,6 +90,20 @@ properties:
     description:
       If this property is present, the controller cannot drive the GPIO lines.
 
+if:
+  properties:
+    compatible:
+      contains:
+        const: intel,ixp4xx-expansion-bus-mmio-gpio
+then:
+  $ref: /schemas/memory-controllers/intel,ixp4xx-expansion-peripheral-props.yaml#
+
+patternProperties:
+  "^.+-hog(-[0-9]+)?$":
+    type: object
+    required:
+      - gpio-hog
+
 required:
   - compatible
   - reg
@@ -96,7 +111,7 @@ required:
   - '#gpio-cells'
   - gpio-controller
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -125,4 +140,23 @@ examples:
       native-endian;
       gpio-controller;
       #gpio-cells = <2>;
+    };
+
+    bus@c4000000 {
+        compatible = "intel,ixp42x-expansion-bus-controller", "syscon";
+        reg = <0xc4000000 0x30>;
+        native-endian;
+        #address-cells = <2>;
+        #size-cells = <1>;
+        ranges = <0 0x0 0x50000000 0x01000000>;
+        dma-ranges = <0 0x0 0x50000000 0x01000000>;
+        gpio@1,0 {
+            compatible = "intel,ixp4xx-expansion-bus-mmio-gpio";
+            gpio-controller;
+            #gpio-cells = <2>;
+            big-endian;
+            reg = <1 0x00000000 0x2>;
+            reg-names = "dat";
+            intel,ixp4xx-eb-write-enable = <1>;
+        };
     };

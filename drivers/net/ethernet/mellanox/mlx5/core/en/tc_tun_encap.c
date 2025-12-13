@@ -172,8 +172,8 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 						     &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
-		mlx5_core_warn(priv->mdev, "Failed to offload cached encapsulation header, %lu\n",
-			       PTR_ERR(e->pkt_reformat));
+		mlx5_core_warn(priv->mdev, "Failed to offload cached encapsulation header, %pe\n",
+			       e->pkt_reformat);
 		return;
 	}
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
@@ -1845,8 +1845,8 @@ static int mlx5e_tc_tun_fib_event(struct notifier_block *nb, unsigned long event
 			queue_work(priv->wq, &fib_work->work);
 		} else if (IS_ERR(fib_work)) {
 			NL_SET_ERR_MSG_MOD(info->extack, "Failed to init fib work");
-			mlx5_core_warn(priv->mdev, "Failed to init fib work, %ld\n",
-				       PTR_ERR(fib_work));
+			mlx5_core_warn(priv->mdev, "Failed to init fib work, %pe\n",
+				       fib_work);
 		}
 
 		break;

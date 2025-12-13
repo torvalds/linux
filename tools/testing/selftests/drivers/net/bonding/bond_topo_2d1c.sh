@@ -39,6 +39,8 @@ g_ip4="192.0.2.254"
 s_ip6="2001:db8::1"
 c_ip6="2001:db8::10"
 g_ip6="2001:db8::254"
+mac[0]="00:0a:0b:0c:0d:01"
+mac[1]="00:0a:0b:0c:0d:02"
 
 gateway_create()
 {
@@ -62,6 +64,7 @@ server_create()
 
 	for i in $(seq 0 1); do
 		ip -n ${s_ns} link add eth${i} type veth peer name s${i} netns ${g_ns}
+		ip -n "${s_ns}" link set "eth${i}" addr "${mac[$i]}"
 
 		ip -n ${g_ns} link set s${i} up
 		ip -n ${g_ns} link set s${i} master br0

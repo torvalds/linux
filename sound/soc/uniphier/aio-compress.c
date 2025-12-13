@@ -249,7 +249,7 @@ static int uniphier_aio_compr_trigger(struct snd_soc_component *component,
 
 static int uniphier_aio_compr_pointer(struct snd_soc_component *component,
 				      struct snd_compr_stream *cstream,
-				      struct snd_compr_tstamp *tstamp)
+				      struct snd_compr_tstamp64 *tstamp)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_compr_runtime *runtime = cstream->runtime;

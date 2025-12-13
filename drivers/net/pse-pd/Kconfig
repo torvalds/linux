@@ -32,6 +32,17 @@ config PSE_PD692X0
 	  To compile this driver as a module, choose M here: the
 	  module will be called pd692x0.
 
+config PSE_SI3474
+	tristate "Si3474 PSE controller"
+	depends on I2C
+	help
+	  This module provides support for Si3474 regulator based Ethernet
+	  Power Sourcing Equipment.
+	  Only 4-pair PSE configurations are supported.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called si3474.
+
 config PSE_TPS23881
 	tristate "TPS23881 PSE controller"
 	depends on I2C

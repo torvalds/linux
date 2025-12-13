@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/marvell,berlin.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synaptics/Marvell Berlin SoC
+
+maintainers:
+  - Jisheng Zhang <jszhang@kernel.org>
+
+description:
+  According to https://www.synaptics.com/company/news/conexant-marvell
+  Synaptics has acquired the Multimedia Solutions Business of Marvell, so
+  Berlin SoCs are now Synaptics' SoCs.
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - sony,nsz-gs7
+          - const: marvell,berlin2
+          - const: marvell,berlin
+      - items:
+          - enum:
+              - google,chromecast
+              - valve,steamlink
+          - const: marvell,berlin2cd
+          - const: marvell,berlin
+      - items:
+          - enum:
+              - marvell,berlin2q-dmp
+          - const: marvell,berlin2q
+          - const: marvell,berlin
+      - items:
+          - enum:
+              - marvell,berlin4ct-dmp
+              - marvell,berlin4ct-stb
+          - const: marvell,berlin4ct
+          - const: marvell,berlin
+
+additionalProperties: true

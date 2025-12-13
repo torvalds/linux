@@ -175,6 +175,7 @@ void vm_install_exception_handler(struct kvm_vm *vm,
 void vm_install_sync_handler(struct kvm_vm *vm,
 		int vector, int ec, handler_fn handler);
 
+uint64_t *virt_get_pte_hva_at_level(struct kvm_vm *vm, vm_vaddr_t gva, int level);
 uint64_t *virt_get_pte_hva(struct kvm_vm *vm, vm_vaddr_t gva);
 
 static inline void cpu_relax(void)
@@ -299,5 +300,88 @@ void smccc_smc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
 
 /* Execute a Wait For Interrupt instruction. */
 void wfi(void);
+
+void test_wants_mte(void);
+void test_disable_default_vgic(void);
+
+bool vm_supports_el2(struct kvm_vm *vm);
+
+static inline bool test_supports_el2(void)
+{
+	struct kvm_vm *vm = vm_create(1);
+	bool supported = vm_supports_el2(vm);
+
+	kvm_vm_free(vm);
+	return supported;
+}
+
+static inline bool vcpu_has_el2(struct kvm_vcpu *vcpu)
+{
+	return vcpu->init.features[0] & BIT(KVM_ARM_VCPU_HAS_EL2);
+}
+
+#define MAPPED_EL2_SYSREG(el2, el1)		\
+	case SYS_##el1:				\
+		if (vcpu_has_el2(vcpu))		\
+			alias = SYS_##el2;	\
+		break
+
+
+static __always_inline u64 ctxt_reg_alias(struct kvm_vcpu *vcpu, u32 encoding)
+{
+	u32 alias = encoding;
+
+	BUILD_BUG_ON(!__builtin_constant_p(encoding));
+
+	switch (encoding) {
+	MAPPED_EL2_SYSREG(SCTLR_EL2,		SCTLR_EL1);
+	MAPPED_EL2_SYSREG(CPTR_EL2,		CPACR_EL1);
+	MAPPED_EL2_SYSREG(TTBR0_EL2,		TTBR0_EL1);
+	MAPPED_EL2_SYSREG(TTBR1_EL2,		TTBR1_EL1);
+	MAPPED_EL2_SYSREG(TCR_EL2,		TCR_EL1);
+	MAPPED_EL2_SYSREG(VBAR_EL2,		VBAR_EL1);
+	MAPPED_EL2_SYSREG(AFSR0_EL2,		AFSR0_EL1);
+	MAPPED_EL2_SYSREG(AFSR1_EL2,		AFSR1_EL1);
+	MAPPED_EL2_SYSREG(ESR_EL2,		ESR_EL1);
+	MAPPED_EL2_SYSREG(FAR_EL2,		FAR_EL1);
+	MAPPED_EL2_SYSREG(MAIR_EL2,		MAIR_EL1);
+	MAPPED_EL2_SYSREG(TCR2_EL2,		TCR2_EL1);
+	MAPPED_EL2_SYSREG(PIR_EL2,		PIR_EL1);
+	MAPPED_EL2_SYSREG(PIRE0_EL2,		PIRE0_EL1);
+	MAPPED_EL2_SYSREG(POR_EL2,		POR_EL1);
+	MAPPED_EL2_SYSREG(AMAIR_EL2,		AMAIR_EL1);
+	MAPPED_EL2_SYSREG(ELR_EL2,		ELR_EL1);
+	MAPPED_EL2_SYSREG(SPSR_EL2,		SPSR_EL1);
+	MAPPED_EL2_SYSREG(ZCR_EL2,		ZCR_EL1);
+	MAPPED_EL2_SYSREG(CONTEXTIDR_EL2,	CONTEXTIDR_EL1);
+	MAPPED_EL2_SYSREG(SCTLR2_EL2,		SCTLR2_EL1);
+	MAPPED_EL2_SYSREG(CNTHCTL_EL2,		CNTKCTL_EL1);
+	case SYS_SP_EL1:
+		if (!vcpu_has_el2(vcpu))
+			return ARM64_CORE_REG(sp_el1);
+
+		alias = SYS_SP_EL2;
+		break;
+	default:
+		BUILD_BUG();
+	}
+
+	return KVM_ARM64_SYS_REG(alias);
+}
+
+void kvm_get_default_vcpu_target(struct kvm_vm *vm, struct kvm_vcpu_init *init);
+
+static inline unsigned int get_current_el(void)
+{
+	return (read_sysreg(CurrentEL) >> 2) & 0x3;
+}
+
+#define do_smccc(...)				\
+do {						\
+	if (get_current_el() == 2)		\
+		smccc_smc(__VA_ARGS__);		\
+	else					\
+		smccc_hvc(__VA_ARGS__);		\
+} while (0)
 
 #endif /* SELFTEST_KVM_PROCESSOR_H */

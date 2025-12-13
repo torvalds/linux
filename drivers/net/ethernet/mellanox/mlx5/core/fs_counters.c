@@ -562,17 +562,36 @@ mlx5_fc_local_create(u32 counter_id, u32 offset, u32 bulk_size)
 	counter->id = counter_id;
 	fc_bulk->base_id = counter_id - offset;
 	fc_bulk->fs_bulk.bulk_len = bulk_size;
+	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
+	mutex_init(&fc_bulk->hws_data.lock);
 	counter->bulk = fc_bulk;
+	refcount_set(&counter->fc_local_refcount, 1);
 	return counter;
 }
 EXPORT_SYMBOL(mlx5_fc_local_create);
 
 void mlx5_fc_local_destroy(struct mlx5_fc *counter)
 {
-	if (!counter || counter->type != MLX5_FC_TYPE_LOCAL)
-		return;
-
 	kfree(counter->bulk);
 	kfree(counter);
 }
 EXPORT_SYMBOL(mlx5_fc_local_destroy);
+
+void mlx5_fc_local_get(struct mlx5_fc *counter)
+{
+	if (!counter || counter->type != MLX5_FC_TYPE_LOCAL)
+		return;
+
+	refcount_inc(&counter->fc_local_refcount);
+}
+
+void mlx5_fc_local_put(struct mlx5_fc *counter)
+{
+	if (!counter || counter->type != MLX5_FC_TYPE_LOCAL)
+		return;
+
+	if (!refcount_dec_and_test(&counter->fc_local_refcount))
+		return;
+
+	mlx5_fc_local_destroy(counter);
+}

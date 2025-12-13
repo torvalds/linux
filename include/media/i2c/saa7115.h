@@ -2,7 +2,7 @@
 /*
     saa7115.h - definition for saa7111/3/4/5 inputs and frequency flags
 
-    Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+    Copyright (C) 2006 Hans Verkuil (hverkuil@kernel.org)
 
 */
 

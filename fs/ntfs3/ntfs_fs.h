@@ -280,7 +280,7 @@ struct ntfs_sb_info {
 		__le16 flags; // Cached current VOLUME_INFO::flags, VOLUME_FLAG_DIRTY.
 		u8 major_ver;
 		u8 minor_ver;
-		char label[256];
+		char label[FSLABEL_MAX];
 		bool real_dirty; // Real fs state.
 	} volume;
 

@@ -202,8 +202,8 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 	unsigned int pos = 0, type, len;
 	union {
 		struct rds_ext_header_version version;
-		u16 rds_npaths;
-		u32 rds_gen_num;
+		__be16 rds_npaths;
+		__be32 rds_gen_num;
 	} buffer;
 	u32 new_peer_gen_num = 0;
 

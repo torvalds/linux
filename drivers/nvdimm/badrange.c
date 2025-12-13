@@ -278,8 +278,7 @@ void nvdimm_badblocks_populate(struct nd_region *nd_region,
 	}
 	nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
 
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	guard(nvdimm_bus)(&nvdimm_bus->dev);
 	badblocks_populate(&nvdimm_bus->badrange, bb, range);
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
 }
 EXPORT_SYMBOL_GPL(nvdimm_badblocks_populate);

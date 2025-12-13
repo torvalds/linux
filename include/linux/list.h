@@ -20,8 +20,16 @@
  * using the generic single-entry routines.
  */
 
+/**
+ * LIST_HEAD_INIT - initialize a &struct list_head's links to point to itself
+ * @name: name of the list_head
+ */
 #define LIST_HEAD_INIT(name) { &(name), &(name) }
 
+/**
+ * LIST_HEAD - definition of a &struct list_head with initialization values
+ * @name: name of the list_head
+ */
 #define LIST_HEAD(name) \
 	struct list_head name = LIST_HEAD_INIT(name)
 
@@ -637,6 +645,20 @@ static inline void list_splice_tail_init(struct list_head *list,
 })
 
 /**
+ * list_last_entry_or_null - get the last element from a list
+ * @ptr:	the list head to take the element from.
+ * @type:	the type of the struct this is embedded in.
+ * @member:	the name of the list_head within the struct.
+ *
+ * Note that if the list is empty, it returns NULL.
+ */
+#define list_last_entry_or_null(ptr, type, member) ({ \
+	struct list_head *head__ = (ptr); \
+	struct list_head *pos__ = READ_ONCE(head__->prev); \
+	pos__ != head__ ? list_entry(pos__, type, member) : NULL; \
+})
+
+/**
  * list_next_entry - get the next element in list
  * @pos:	the type * to cursor
  * @member:	the name of the list_head within the struct.
@@ -685,16 +707,6 @@ static inline void list_splice_tail_init(struct list_head *list,
  */
 #define list_for_each(pos, head) \
 	for (pos = (head)->next; !list_is_head(pos, (head)); pos = pos->next)
-
-/**
- * list_for_each_rcu - Iterate over a list in an RCU-safe fashion
- * @pos:	the &struct list_head to use as a loop cursor.
- * @head:	the head for your list.
- */
-#define list_for_each_rcu(pos, head)		  \
-	for (pos = rcu_dereference((head)->next); \
-	     !list_is_head(pos, (head)); \
-	     pos = rcu_dereference(pos->next))
 
 /**
  * list_for_each_continue - continue iteration over a list

@@ -28,7 +28,7 @@
 
 #include "extron-da-hd-4k-plus.h"
 
-MODULE_AUTHOR("Hans Verkuil <hansverk@cisco.com>");
+MODULE_AUTHOR("Hans Verkuil <hverkuil@kernel.org>");
 MODULE_DESCRIPTION("Extron DA HD 4K PLUS HDMI CEC driver");
 MODULE_LICENSE("GPL");
 
@@ -1252,7 +1252,7 @@ static int extron_s_output(struct file *file, void *priv, unsigned int o)
 	return o ? -EINVAL : 0;
 }
 
-static int extron_g_edid(struct file *file, void *_fh,
+static int extron_g_edid(struct file *file, void *priv,
 			 struct v4l2_edid *edid)
 {
 	struct extron_port *port = video_drvdata(file);
@@ -1280,7 +1280,7 @@ static int extron_g_edid(struct file *file, void *_fh,
 	return 0;
 }
 
-static int extron_s_edid(struct file *file, void *_fh, struct v4l2_edid *edid)
+static int extron_s_edid(struct file *file, void *priv, struct v4l2_edid *edid)
 {
 	struct extron_port *port = video_drvdata(file);
 

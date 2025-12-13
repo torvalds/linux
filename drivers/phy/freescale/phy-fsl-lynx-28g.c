@@ -188,6 +188,10 @@ static struct lynx_28g_pll *lynx_28g_pll_get(struct lynx_28g_priv *priv,
 			return pll;
 	}
 
+	/* no pll supports requested mode, either caller forgot to check
+	 * lynx_28g_supports_lane_mode, or this is a bug.
+	 */
+	dev_WARN_ONCE(priv->dev, 1, "no pll for interface %s\n", phy_modes(intf));
 	return NULL;
 }
 
@@ -276,8 +280,12 @@ static void lynx_28g_lane_set_sgmii(struct lynx_28g_lane *lane)
 	lynx_28g_lane_rmw(lane, LNaGCR0, PROTO_SEL_SGMII, PROTO_SEL_MSK);
 	lynx_28g_lane_rmw(lane, LNaGCR0, IF_WIDTH_10_BIT, IF_WIDTH_MSK);
 
-	/* Switch to the PLL that works with this interface type */
+	/* Find the PLL that works with this interface type */
 	pll = lynx_28g_pll_get(priv, PHY_INTERFACE_MODE_SGMII);
+	if (unlikely(pll == NULL))
+		return;
+
+	/* Switch to the PLL that works with this interface type */
 	lynx_28g_lane_set_pll(lane, pll);
 
 	/* Choose the portion of clock net to be used on this lane */
@@ -312,8 +320,12 @@ static void lynx_28g_lane_set_10gbaser(struct lynx_28g_lane *lane)
 	lynx_28g_lane_rmw(lane, LNaGCR0, PROTO_SEL_XFI, PROTO_SEL_MSK);
 	lynx_28g_lane_rmw(lane, LNaGCR0, IF_WIDTH_20_BIT, IF_WIDTH_MSK);
 
-	/* Switch to the PLL that works with this interface type */
+	/* Find the PLL that works with this interface type */
 	pll = lynx_28g_pll_get(priv, PHY_INTERFACE_MODE_10GBASER);
+	if (unlikely(pll == NULL))
+		return;
+
+	/* Switch to the PLL that works with this interface type */
 	lynx_28g_lane_set_pll(lane, pll);
 
 	/* Choose the portion of clock net to be used on this lane */

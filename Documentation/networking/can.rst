@@ -539,7 +539,7 @@ CAN Filter Usage Optimisation
 The CAN filters are processed in per-device filter lists at CAN frame
 reception time. To reduce the number of checks that need to be performed
 while walking through the filter lists the CAN core provides an optimized
-filter handling when the filter subscription focusses on a single CAN ID.
+filter handling when the filter subscription focuses on a single CAN ID.
 
 For the possible 2048 SFF CAN identifiers the identifier is used as an index
 to access the corresponding subscription list without any further checks.
@@ -742,7 +742,7 @@ The broadcast manager sends responses to user space in the same form:
             struct timeval ival1, ival2;    /* count and subsequent interval */
             canid_t can_id;                 /* unique can_id for task */
             __u32 nframes;                  /* number of can_frames following */
-            struct can_frame frames[0];
+            struct can_frame frames[];
     };
 
 The aligned payload 'frames' uses the same basic CAN frame structure defined
@@ -1398,10 +1398,9 @@ second bit timing has to be specified in order to enable the CAN FD bitrate.
 Additionally CAN FD capable CAN controllers support up to 64 bytes of
 payload. The representation of this length in can_frame.len and
 canfd_frame.len for userspace applications and inside the Linux network
-layer is a plain value from 0 .. 64 instead of the CAN 'data length code'.
-The data length code was a 1:1 mapping to the payload length in the Classical
-CAN frames anyway. The payload length to the bus-relevant DLC mapping is
-only performed inside the CAN drivers, preferably with the helper
+layer is a plain value from 0 .. 64 instead of the Classical CAN length
+which ranges from 0 to 8. The payload length to the bus-relevant DLC mapping
+is only performed inside the CAN drivers, preferably with the helper
 functions can_fd_dlc2len() and can_fd_len2dlc().
 
 The CAN netdevice driver capabilities can be distinguished by the network
@@ -1463,6 +1462,70 @@ Example configuring 500 kbit/s arbitration bitrate and 4 Mbit/s data bitrate::
 Example when 'fd-non-iso on' is added on this switchable CAN FD adapter::
 
    can <FD,FD-NON-ISO> state ERROR-ACTIVE (berr-counter tx 0 rx 0) restart-ms 0
+
+
+Transmitter Delay Compensation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+At high bit rates, the propagation delay from the TX pin to the RX pin of
+the transceiver might become greater than the actual bit time causing
+measurement errors: the RX pin would still be measuring the previous bit.
+
+The Transmitter Delay Compensation (thereafter, TDC) resolves this problem
+by introducing a Secondary Sample Point (SSP) equal to the distance, in
+minimum time quantum, from the start of the bit time on the TX pin to the
+actual measurement on the RX pin. The SSP is calculated as the sum of two
+configurable values: the TDC Value (TDCV) and the TDC offset (TDCO).
+
+TDC, if supported by the device, can be configured together with CAN-FD
+using the ip tool's "tdc-mode" argument as follow:
+
+**omitted**
+	When no "tdc-mode" option is provided, the kernel will automatically
+	decide whether TDC should be turned on, in which case it will
+	calculate a default TDCO and use the TDCV as measured by the
+	device. This is the recommended method to use TDC.
+
+**"tdc-mode off"**
+	TDC is explicitly disabled.
+
+**"tdc-mode auto"**
+	The user must provide the "tdco" argument. The TDCV will be
+	automatically calculated by the device. This option is only
+	available if the device supports the TDC-AUTO CAN controller mode.
+
+**"tdc-mode manual"**
+	The user must provide both the "tdco" and "tdcv" arguments. This
+	option is only available if the device supports the TDC-MANUAL CAN
+	controller mode.
+
+Note that some devices may offer an additional parameter: "tdcf" (TDC Filter
+window). If supported by your device, this can be added as an optional
+argument to either "tdc-mode auto" or "tdc-mode manual".
+
+Example configuring a 500 kbit/s arbitration bitrate, a 5 Mbit/s data
+bitrate, a TDCO of 15 minimum time quantum and a TDCV automatically measured
+by the device::
+
+    $ ip link set can0 up type can bitrate 500000 \
+                                   fd on dbitrate 4000000 \
+				   tdc-mode auto tdco 15
+    $ ip -details link show can0
+    5: can0: <NOARP,UP,LOWER_UP,ECHO> mtu 72 qdisc pfifo_fast state UP \
+             mode DEFAULT group default qlen 10
+        link/can  promiscuity 0 allmulti 0 minmtu 72 maxmtu 72
+        can <FD,TDC-AUTO> state ERROR-ACTIVE restart-ms 0
+          bitrate 500000 sample-point 0.875
+          tq 12 prop-seg 69 phase-seg1 70 phase-seg2 20 sjw 10 brp 1
+          ES582.1/ES584.1: tseg1 2..256 tseg2 2..128 sjw 1..128 brp 1..512 \
+          brp_inc 1
+          dbitrate 4000000 dsample-point 0.750
+          dtq 12 dprop-seg 7 dphase-seg1 7 dphase-seg2 5 dsjw 2 dbrp 1
+          tdco 15 tdcf 0
+          ES582.1/ES584.1: dtseg1 2..32 dtseg2 1..16 dsjw 1..8 dbrp 1..32 \
+          dbrp_inc 1
+          tdco 0..127 tdcf 0..127
+          clock 80000000
 
 
 Supported CAN Hardware

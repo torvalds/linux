@@ -24,7 +24,7 @@ uint32_t guest_random_seed;
 struct guest_random_state guest_rng;
 static uint32_t last_guest_seed;
 
-static int vcpu_mmap_sz(void);
+static size_t vcpu_mmap_sz(void);
 
 int __open_path_or_exit(const char *path, int flags, const char *enoent_help)
 {
@@ -95,7 +95,7 @@ static ssize_t get_module_param(const char *module_name, const char *param,
 	return bytes_read;
 }
 
-static int get_module_param_integer(const char *module_name, const char *param)
+int kvm_get_module_param_integer(const char *module_name, const char *param)
 {
 	/*
 	 * 16 bytes to hold a 64-bit value (1 byte per char), 1 byte for the
@@ -119,7 +119,7 @@ static int get_module_param_integer(const char *module_name, const char *param)
 	return atoi_paranoid(value);
 }
 
-static bool get_module_param_bool(const char *module_name, const char *param)
+bool kvm_get_module_param_bool(const char *module_name, const char *param)
 {
 	char value;
 	ssize_t r;
@@ -133,36 +133,6 @@ static bool get_module_param_bool(const char *module_name, const char *param)
 		return false;
 
 	TEST_FAIL("Unrecognized value '%c' for boolean module param", value);
-}
-
-bool get_kvm_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm", param);
-}
-
-bool get_kvm_intel_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm_intel", param);
-}
-
-bool get_kvm_amd_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm_amd", param);
-}
-
-int get_kvm_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm", param);
-}
-
-int get_kvm_intel_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm_intel", param);
-}
-
-int get_kvm_amd_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm_amd", param);
 }
 
 /*
@@ -517,7 +487,7 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 	guest_rng = new_guest_random_state(guest_random_seed);
 	sync_global_to_guest(vm, guest_rng);
 
-	kvm_arch_vm_post_create(vm);
+	kvm_arch_vm_post_create(vm, nr_runnable_vcpus);
 
 	return vm;
 }
@@ -555,6 +525,7 @@ struct kvm_vm *__vm_create_with_vcpus(struct vm_shape shape, uint32_t nr_vcpus,
 	for (i = 0; i < nr_vcpus; ++i)
 		vcpus[i] = vm_vcpu_add(vm, i, guest_code);
 
+	kvm_arch_vm_finalize_vcpus(vm);
 	return vm;
 }
 
@@ -770,13 +741,11 @@ static void vm_vcpu_rm(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	int ret;
 
 	if (vcpu->dirty_gfns) {
-		ret = munmap(vcpu->dirty_gfns, vm->dirty_ring_size);
-		TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
+		kvm_munmap(vcpu->dirty_gfns, vm->dirty_ring_size);
 		vcpu->dirty_gfns = NULL;
 	}
 
-	ret = munmap(vcpu->run, vcpu_mmap_sz());
-	TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
+	kvm_munmap(vcpu->run, vcpu_mmap_sz());
 
 	ret = close(vcpu->fd);
 	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
@@ -805,25 +774,23 @@ void kvm_vm_release(struct kvm_vm *vmp)
 
 	/* Free cached stats metadata and close FD */
 	kvm_stats_release(&vmp->stats);
+
+	kvm_arch_vm_release(vmp);
 }
 
 static void __vm_mem_region_delete(struct kvm_vm *vm,
 				   struct userspace_mem_region *region)
 {
-	int ret;
-
 	rb_erase(&region->gpa_node, &vm->regions.gpa_tree);
 	rb_erase(&region->hva_node, &vm->regions.hva_tree);
 	hash_del(&region->slot_node);
 
 	sparsebit_free(&region->unused_phy_pages);
 	sparsebit_free(&region->protected_phy_pages);
-	ret = munmap(region->mmap_start, region->mmap_size);
-	TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
+	kvm_munmap(region->mmap_start, region->mmap_size);
 	if (region->fd >= 0) {
 		/* There's an extra map when using shared memory. */
-		ret = munmap(region->mmap_alias, region->mmap_size);
-		TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
+		kvm_munmap(region->mmap_alias, region->mmap_size);
 		close(region->fd);
 	}
 	if (region->region.guest_memfd >= 0)
@@ -1080,12 +1047,9 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 		region->fd = kvm_memfd_alloc(region->mmap_size,
 					     src_type == VM_MEM_SRC_SHARED_HUGETLB);
 
-	region->mmap_start = mmap(NULL, region->mmap_size,
-				  PROT_READ | PROT_WRITE,
-				  vm_mem_backing_src_alias(src_type)->flag,
-				  region->fd, 0);
-	TEST_ASSERT(region->mmap_start != MAP_FAILED,
-		    __KVM_SYSCALL_ERROR("mmap()", (int)(unsigned long)MAP_FAILED));
+	region->mmap_start = kvm_mmap(region->mmap_size, PROT_READ | PROT_WRITE,
+				      vm_mem_backing_src_alias(src_type)->flag,
+				      region->fd);
 
 	TEST_ASSERT(!is_backing_src_hugetlb(src_type) ||
 		    region->mmap_start == align_ptr_up(region->mmap_start, backing_src_pagesz),
@@ -1156,12 +1120,10 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 
 	/* If shared memory, create an alias. */
 	if (region->fd >= 0) {
-		region->mmap_alias = mmap(NULL, region->mmap_size,
-					  PROT_READ | PROT_WRITE,
-					  vm_mem_backing_src_alias(src_type)->flag,
-					  region->fd, 0);
-		TEST_ASSERT(region->mmap_alias != MAP_FAILED,
-			    __KVM_SYSCALL_ERROR("mmap()",  (int)(unsigned long)MAP_FAILED));
+		region->mmap_alias = kvm_mmap(region->mmap_size,
+					      PROT_READ | PROT_WRITE,
+					      vm_mem_backing_src_alias(src_type)->flag,
+					      region->fd);
 
 		/* Align host alias address */
 		region->host_alias = align_ptr_up(region->mmap_alias, alignment);
@@ -1321,14 +1283,14 @@ void vm_guest_mem_fallocate(struct kvm_vm *vm, uint64_t base, uint64_t size,
 }
 
 /* Returns the size of a vCPU's kvm_run structure. */
-static int vcpu_mmap_sz(void)
+static size_t vcpu_mmap_sz(void)
 {
 	int dev_fd, ret;
 
 	dev_fd = open_kvm_dev_path_or_exit();
 
 	ret = ioctl(dev_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
-	TEST_ASSERT(ret >= sizeof(struct kvm_run),
+	TEST_ASSERT(ret >= 0 && ret >= sizeof(struct kvm_run),
 		    KVM_IOCTL_ERROR(KVM_GET_VCPU_MMAP_SIZE, ret));
 
 	close(dev_fd);
@@ -1369,12 +1331,10 @@ struct kvm_vcpu *__vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
 	TEST_ASSERT_VM_VCPU_IOCTL(vcpu->fd >= 0, KVM_CREATE_VCPU, vcpu->fd, vm);
 
 	TEST_ASSERT(vcpu_mmap_sz() >= sizeof(*vcpu->run), "vcpu mmap size "
-		"smaller than expected, vcpu_mmap_sz: %i expected_min: %zi",
+		"smaller than expected, vcpu_mmap_sz: %zi expected_min: %zi",
 		vcpu_mmap_sz(), sizeof(*vcpu->run));
-	vcpu->run = (struct kvm_run *) mmap(NULL, vcpu_mmap_sz(),
-		PROT_READ | PROT_WRITE, MAP_SHARED, vcpu->fd, 0);
-	TEST_ASSERT(vcpu->run != MAP_FAILED,
-		    __KVM_SYSCALL_ERROR("mmap()", (int)(unsigned long)MAP_FAILED));
+	vcpu->run = kvm_mmap(vcpu_mmap_sz(), PROT_READ | PROT_WRITE,
+			     MAP_SHARED, vcpu->fd);
 
 	if (kvm_has_cap(KVM_CAP_BINARY_STATS_FD))
 		vcpu->stats.fd = vcpu_get_stats_fd(vcpu);
@@ -1821,9 +1781,8 @@ void *vcpu_map_dirty_ring(struct kvm_vcpu *vcpu)
 			    page_size * KVM_DIRTY_LOG_PAGE_OFFSET);
 		TEST_ASSERT(addr == MAP_FAILED, "Dirty ring mapped exec");
 
-		addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, vcpu->fd,
-			    page_size * KVM_DIRTY_LOG_PAGE_OFFSET);
-		TEST_ASSERT(addr != MAP_FAILED, "Dirty ring map failed");
+		addr = __kvm_mmap(size, PROT_READ | PROT_WRITE, MAP_SHARED, vcpu->fd,
+				  page_size * KVM_DIRTY_LOG_PAGE_OFFSET);
 
 		vcpu->dirty_gfns = addr;
 		vcpu->dirty_gfns_count = size / sizeof(struct kvm_dirty_gfn);
@@ -2330,7 +2289,15 @@ void kvm_get_stat(struct kvm_binary_stats *stats, const char *name,
 	TEST_FAIL("Unable to find stat '%s'", name);
 }
 
-__weak void kvm_arch_vm_post_create(struct kvm_vm *vm)
+__weak void kvm_arch_vm_post_create(struct kvm_vm *vm, unsigned int nr_vcpus)
+{
+}
+
+__weak void kvm_arch_vm_finalize_vcpus(struct kvm_vm *vm)
+{
+}
+
+__weak void kvm_arch_vm_release(struct kvm_vm *vm)
 {
 }
 
@@ -2362,4 +2329,9 @@ bool vm_is_gpa_protected(struct kvm_vm *vm, vm_paddr_t paddr)
 
 	pg = paddr >> vm->page_shift;
 	return sparsebit_is_set(region->protected_phy_pages, pg);
+}
+
+__weak bool kvm_arch_has_default_irqchip(void)
+{
+	return false;
 }

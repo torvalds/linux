@@ -106,7 +106,7 @@ or the RCU-protected data that it points to can change concurrently.
 Like rcu_dereference(), when lockdep is enabled, RCU list and hlist
 traversal primitives check for being called from within an RCU read-side
 critical section.  However, a lockdep expression can be passed to them
-as a additional optional argument.  With this lockdep expression, these
+as an additional optional argument.  With this lockdep expression, these
 traversal primitives will complain only if the lockdep expression is
 false and they are called from outside any RCU read-side critical section.
 

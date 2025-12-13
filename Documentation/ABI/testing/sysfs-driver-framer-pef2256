@@ -1,0 +1,8 @@
+What:		/sys/bus/platform/devices/xxx/version
+Date:		Sep 2025
+Contact:	netdev@vger.kernel.org
+Description:	Reports the version of the PEF2256 framer
+
+		Access: Read
+
+		Valid values: Represented as string

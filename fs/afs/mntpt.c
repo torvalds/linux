@@ -107,7 +107,8 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 		if (size > AFS_MAXCELLNAME)
 			return -ENAMETOOLONG;
 
-		cell = afs_lookup_cell(ctx->net, p, size, NULL, false,
+		cell = afs_lookup_cell(ctx->net, p, size, NULL,
+				       AFS_LOOKUP_CELL_MOUNTPOINT,
 				       afs_cell_trace_use_lookup_mntpt);
 		if (IS_ERR(cell)) {
 			pr_err("kAFS: unable to lookup cell '%pd'\n", mntpt);
@@ -137,7 +138,8 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 
 		ret = -EINVAL;
 		if (content[size - 1] == '.')
-			ret = vfs_parse_fs_string(fc, "source", content, size - 1);
+			ret = vfs_parse_fs_qstr(fc, "source",
+						&QSTR_LEN(content, size - 1));
 		do_delayed_call(&cleanup);
 		if (ret < 0)
 			return ret;

@@ -212,7 +212,7 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 
 	fault = (mmu->permissions[index] >> pte_access) & 1;
 
-	WARN_ON(pfec & (PFERR_PK_MASK | PFERR_RSVD_MASK));
+	WARN_ON_ONCE(pfec & (PFERR_PK_MASK | PFERR_SS_MASK | PFERR_RSVD_MASK));
 	if (unlikely(mmu->pkru_mask)) {
 		u32 pkru_bits, offset;
 

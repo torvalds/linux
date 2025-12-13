@@ -53,19 +53,6 @@ config BATMAN_ADV_DAT
 	  mesh networks. If you think that your network does not need
 	  this option you can safely remove it and save some space.
 
-config BATMAN_ADV_NC
-	bool "Network Coding"
-	depends on BATMAN_ADV
-	help
-	  This option enables network coding, a mechanism that aims to
-	  increase the overall network throughput by fusing multiple
-	  packets in one transmission.
-	  Note that interfaces controlled by batman-adv must be manually
-	  configured to have promiscuous mode enabled in order to make
-	  network coding work.
-	  If you think that your network does not need this feature you
-	  can safely disable it and save some space.
-
 config BATMAN_ADV_MCAST
 	bool "Multicast optimisation"
 	depends on BATMAN_ADV && INET && !(BRIDGE=m && BATMAN_ADV=y)

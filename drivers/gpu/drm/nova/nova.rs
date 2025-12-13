@@ -5,7 +5,6 @@
 mod driver;
 mod file;
 mod gem;
-mod uapi;
 
 use crate::driver::NovaDriver;
 

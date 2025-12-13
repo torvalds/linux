@@ -149,19 +149,18 @@ pstate_check_t * const aarch32_opcode_cond_checks[16] = {
 
 int show_unhandled_signals = 0;
 
-static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
+void dump_kernel_instr(unsigned long kaddr)
 {
-	unsigned long addr = instruction_pointer(regs);
 	char str[sizeof("00000000 ") * 5 + 2 + 1], *p = str;
 	int i;
 
-	if (user_mode(regs))
+	if (!is_ttbr1_addr(kaddr))
 		return;
 
 	for (i = -4; i < 1; i++) {
 		unsigned int val, bad;
 
-		bad = aarch64_insn_read(&((u32 *)addr)[i], &val);
+		bad = aarch64_insn_read(&((u32 *)kaddr)[i], &val);
 
 		if (!bad)
 			p += sprintf(p, i == 0 ? "(%08x) " : "%08x ", val);
@@ -169,7 +168,7 @@ static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 			p += sprintf(p, i == 0 ? "(????????) " : "???????? ");
 	}
 
-	printk("%sCode: %s\n", lvl, str);
+	printk(KERN_EMERG "Code: %s\n", str);
 }
 
 #define S_SMP " SMP"
@@ -178,6 +177,7 @@ static int __die(const char *str, long err, struct pt_regs *regs)
 {
 	static int die_counter;
 	int ret;
+	unsigned long addr = instruction_pointer(regs);
 
 	pr_emerg("Internal error: %s: %016lx [#%d] " S_SMP "\n",
 		 str, err, ++die_counter);
@@ -190,7 +190,10 @@ static int __die(const char *str, long err, struct pt_regs *regs)
 	print_modules();
 	show_regs(regs);
 
-	dump_kernel_instr(KERN_EMERG, regs);
+	if (user_mode(regs))
+		return ret;
+
+	dump_kernel_instr(addr);
 
 	return ret;
 }
@@ -1015,7 +1018,7 @@ int bug_brk_handler(struct pt_regs *regs, unsigned long esr)
 	return DBG_HOOK_HANDLED;
 }
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_CFI
 int cfi_brk_handler(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long target;
@@ -1039,7 +1042,7 @@ int cfi_brk_handler(struct pt_regs *regs, unsigned long esr)
 	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 	return DBG_HOOK_HANDLED;
 }
-#endif /* CONFIG_CFI_CLANG */
+#endif /* CONFIG_CFI */
 
 int reserved_fault_brk_handler(struct pt_regs *regs, unsigned long esr)
 {

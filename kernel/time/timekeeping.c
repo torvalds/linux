@@ -83,6 +83,12 @@ static inline bool tk_is_aux(const struct timekeeper *tk)
 }
 #endif
 
+static inline void tk_update_aux_offs(struct timekeeper *tk, ktime_t offs)
+{
+	tk->offs_aux = offs;
+	tk->monotonic_to_aux = ktime_to_timespec64(offs);
+}
+
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
 
@@ -1506,7 +1512,7 @@ static int __timekeeping_inject_offset(struct tk_data *tkd, const struct timespe
 			timekeeping_restore_shadow(tkd);
 			return -EINVAL;
 		}
-		tks->offs_aux = offs;
+		tk_update_aux_offs(tks, offs);
 	}
 
 	timekeeping_update_from_shadow(tkd, TK_UPDATE_ALL);
@@ -2937,7 +2943,7 @@ static int aux_clock_set(const clockid_t id, const struct timespec64 *tnew)
 	 * xtime ("realtime") is not applicable for auxiliary clocks and
 	 * kept in sync with "monotonic".
 	 */
-	aux_tks->offs_aux = ktime_sub(timespec64_to_ktime(*tnew), tnow);
+	tk_update_aux_offs(aux_tks, ktime_sub(timespec64_to_ktime(*tnew), tnow));
 
 	timekeeping_update_from_shadow(aux_tkd, TK_UPDATE_ALL);
 	return 0;
@@ -3054,29 +3060,34 @@ static const struct attribute_group aux_clock_enable_attr_group = {
 static int __init tk_aux_sysfs_init(void)
 {
 	struct kobject *auxo, *tko = kobject_create_and_add("time", kernel_kobj);
+	int ret = -ENOMEM;
 
 	if (!tko)
-		return -ENOMEM;
+		return ret;
 
 	auxo = kobject_create_and_add("aux_clocks", tko);
-	if (!auxo) {
-		kobject_put(tko);
-		return -ENOMEM;
-	}
+	if (!auxo)
+		goto err_clean;
 
-	for (int i = 0; i <= MAX_AUX_CLOCKS; i++) {
+	for (int i = 0; i < MAX_AUX_CLOCKS; i++) {
 		char id[2] = { [0] = '0' + i, };
 		struct kobject *clk = kobject_create_and_add(id, auxo);
 
-		if (!clk)
-			return -ENOMEM;
+		if (!clk) {
+			ret = -ENOMEM;
+			goto err_clean;
+		}
 
-		int ret = sysfs_create_group(clk, &aux_clock_enable_attr_group);
-
+		ret = sysfs_create_group(clk, &aux_clock_enable_attr_group);
 		if (ret)
-			return ret;
+			goto err_clean;
 	}
 	return 0;
+
+err_clean:
+	kobject_put(auxo);
+	kobject_put(tko);
+	return ret;
 }
 late_initcall(tk_aux_sysfs_init);
 

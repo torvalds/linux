@@ -16,6 +16,13 @@
  */
 #define KVM_MMU_CACHE_MIN_PAGES	(CONFIG_PGTABLE_LEVELS - 1)
 
+/*
+ * _PAGE_MODIFIED is a SW pte bit, it records page ever written on host
+ * kernel, on secondary MMU it records the page writeable attribute, in
+ * order for fast path handling.
+ */
+#define KVM_PAGE_WRITEABLE	_PAGE_MODIFIED
+
 #define _KVM_FLUSH_PGTABLE	0x1
 #define _KVM_HAS_PGMASK		0x2
 #define kvm_pfn_pte(pfn, prot)	(((pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
@@ -52,10 +59,10 @@ static inline void kvm_set_pte(kvm_pte_t *ptep, kvm_pte_t val)
 	WRITE_ONCE(*ptep, val);
 }
 
-static inline int kvm_pte_write(kvm_pte_t pte) { return pte & _PAGE_WRITE; }
-static inline int kvm_pte_dirty(kvm_pte_t pte) { return pte & _PAGE_DIRTY; }
 static inline int kvm_pte_young(kvm_pte_t pte) { return pte & _PAGE_ACCESSED; }
 static inline int kvm_pte_huge(kvm_pte_t pte) { return pte & _PAGE_HUGE; }
+static inline int kvm_pte_dirty(kvm_pte_t pte) { return pte & __WRITEABLE; }
+static inline int kvm_pte_writeable(kvm_pte_t pte) { return pte & KVM_PAGE_WRITEABLE; }
 
 static inline kvm_pte_t kvm_pte_mkyoung(kvm_pte_t pte)
 {
@@ -69,12 +76,12 @@ static inline kvm_pte_t kvm_pte_mkold(kvm_pte_t pte)
 
 static inline kvm_pte_t kvm_pte_mkdirty(kvm_pte_t pte)
 {
-	return pte | _PAGE_DIRTY;
+	return pte | __WRITEABLE;
 }
 
 static inline kvm_pte_t kvm_pte_mkclean(kvm_pte_t pte)
 {
-	return pte & ~_PAGE_DIRTY;
+	return pte & ~__WRITEABLE;
 }
 
 static inline kvm_pte_t kvm_pte_mkhuge(kvm_pte_t pte)
@@ -85,6 +92,11 @@ static inline kvm_pte_t kvm_pte_mkhuge(kvm_pte_t pte)
 static inline kvm_pte_t kvm_pte_mksmall(kvm_pte_t pte)
 {
 	return pte & ~_PAGE_HUGE;
+}
+
+static inline kvm_pte_t kvm_pte_mkwriteable(kvm_pte_t pte)
+{
+	return pte | KVM_PAGE_WRITEABLE;
 }
 
 static inline int kvm_need_flush(kvm_ptw_ctx *ctx)

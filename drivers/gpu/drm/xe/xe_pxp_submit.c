@@ -54,8 +54,9 @@ static int allocate_vcs_execution_resources(struct xe_pxp *pxp)
 	 * Each termination is 16 DWORDS, so 4K is enough to contain a
 	 * termination for each sessions.
 	 */
-	bo = xe_bo_create_pin_map(xe, tile, NULL, SZ_4K, ttm_bo_type_kernel,
-				  XE_BO_FLAG_SYSTEM | XE_BO_FLAG_PINNED | XE_BO_FLAG_GGTT);
+	bo = xe_bo_create_pin_map_novm(xe, tile, SZ_4K, ttm_bo_type_kernel,
+				       XE_BO_FLAG_SYSTEM | XE_BO_FLAG_PINNED | XE_BO_FLAG_GGTT,
+				       false);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto out_queue;
@@ -87,7 +88,9 @@ static int allocate_gsc_client_resources(struct xe_gt *gt,
 {
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_validation_ctx ctx;
 	struct xe_hw_engine *hwe;
+	struct drm_exec exec;
 	struct xe_vm *vm;
 	struct xe_bo *bo;
 	struct xe_exec_queue *q;
@@ -101,20 +104,31 @@ static int allocate_gsc_client_resources(struct xe_gt *gt,
 	xe_assert(xe, hwe);
 
 	/* PXP instructions must be issued from PPGTT */
-	vm = xe_vm_create(xe, XE_VM_FLAG_GSC);
+	vm = xe_vm_create(xe, XE_VM_FLAG_GSC, NULL);
 	if (IS_ERR(vm))
 		return PTR_ERR(vm);
 
 	/* We allocate a single object for the batch and the in/out memory */
-	xe_vm_lock(vm, false);
-	bo = xe_bo_create_pin_map(xe, tile, vm, PXP_BB_SIZE + inout_size * 2,
-				  ttm_bo_type_kernel,
-				  XE_BO_FLAG_SYSTEM | XE_BO_FLAG_PINNED | XE_BO_FLAG_NEEDS_UC);
-	xe_vm_unlock(vm);
-	if (IS_ERR(bo)) {
-		err = PTR_ERR(bo);
-		goto vm_out;
+
+	xe_validation_guard(&ctx, &xe->val, &exec, (struct xe_val_flags){}, err) {
+		err = xe_vm_drm_exec_lock(vm, &exec);
+		drm_exec_retry_on_contention(&exec);
+		if (err)
+			break;
+
+		bo = xe_bo_create_pin_map(xe, tile, vm, PXP_BB_SIZE + inout_size * 2,
+					  ttm_bo_type_kernel,
+					  XE_BO_FLAG_SYSTEM | XE_BO_FLAG_PINNED |
+					  XE_BO_FLAG_NEEDS_UC, &exec);
+		drm_exec_retry_on_contention(&exec);
+		if (IS_ERR(bo)) {
+			err = PTR_ERR(bo);
+			xe_validation_retry_on_oom(&ctx, &err);
+			break;
+		}
 	}
+	if (err)
+		goto vm_out;
 
 	fence = xe_vm_bind_kernel_bo(vm, bo, NULL, 0, XE_CACHE_WB);
 	if (IS_ERR(fence)) {

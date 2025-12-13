@@ -9,6 +9,7 @@
 
 #define LIBIE_CHECK_STRUCT_LEN(n, X)	\
 	static_assert((n) == sizeof(struct X))
+#define LIBIE_AQ_MAX_BUF_LEN 4096
 
 /**
  * struct libie_aqc_generic - Generic structure used in adminq communication
@@ -192,8 +193,9 @@ LIBIE_CHECK_STRUCT_LEN(16, libie_aqc_list_caps);
 #define LIBIE_AQC_CAPS_TX_SCHED_TOPO_COMP_MODE		0x0085
 #define LIBIE_AQC_CAPS_NAC_TOPOLOGY			0x0087
 #define LIBIE_AQC_CAPS_FW_LAG_SUPPORT			0x0092
-#define LIBIE_AQC_BIT_ROCEV2_LAG			0x01
-#define LIBIE_AQC_BIT_SRIOV_LAG				0x02
+#define LIBIE_AQC_BIT_ROCEV2_LAG			BIT(0)
+#define LIBIE_AQC_BIT_SRIOV_LAG				BIT(1)
+#define LIBIE_AQC_BIT_SRIOV_AA_LAG			BIT(2)
 #define LIBIE_AQC_CAPS_FLEX10				0x00F1
 #define LIBIE_AQC_CAPS_CEM				0x00F2
 
@@ -220,6 +222,94 @@ struct libie_aqc_list_caps_elem {
 	__le64	rsvd2;
 };
 LIBIE_CHECK_STRUCT_LEN(32, libie_aqc_list_caps_elem);
+
+/* Admin Queue command opcodes */
+enum libie_adminq_opc {
+	/* FW Logging Commands */
+	libie_aqc_opc_fw_logs_config			= 0xFF30,
+	libie_aqc_opc_fw_logs_register			= 0xFF31,
+	libie_aqc_opc_fw_logs_query			= 0xFF32,
+	libie_aqc_opc_fw_logs_event			= 0xFF33,
+};
+
+enum libie_aqc_fw_logging_mod {
+	LIBIE_AQC_FW_LOG_ID_GENERAL = 0,
+	LIBIE_AQC_FW_LOG_ID_CTRL,
+	LIBIE_AQC_FW_LOG_ID_LINK,
+	LIBIE_AQC_FW_LOG_ID_LINK_TOPO,
+	LIBIE_AQC_FW_LOG_ID_DNL,
+	LIBIE_AQC_FW_LOG_ID_I2C,
+	LIBIE_AQC_FW_LOG_ID_SDP,
+	LIBIE_AQC_FW_LOG_ID_MDIO,
+	LIBIE_AQC_FW_LOG_ID_ADMINQ,
+	LIBIE_AQC_FW_LOG_ID_HDMA,
+	LIBIE_AQC_FW_LOG_ID_LLDP,
+	LIBIE_AQC_FW_LOG_ID_DCBX,
+	LIBIE_AQC_FW_LOG_ID_DCB,
+	LIBIE_AQC_FW_LOG_ID_XLR,
+	LIBIE_AQC_FW_LOG_ID_NVM,
+	LIBIE_AQC_FW_LOG_ID_AUTH,
+	LIBIE_AQC_FW_LOG_ID_VPD,
+	LIBIE_AQC_FW_LOG_ID_IOSF,
+	LIBIE_AQC_FW_LOG_ID_PARSER,
+	LIBIE_AQC_FW_LOG_ID_SW,
+	LIBIE_AQC_FW_LOG_ID_SCHEDULER,
+	LIBIE_AQC_FW_LOG_ID_TXQ,
+	LIBIE_AQC_FW_LOG_ID_RSVD,
+	LIBIE_AQC_FW_LOG_ID_POST,
+	LIBIE_AQC_FW_LOG_ID_WATCHDOG,
+	LIBIE_AQC_FW_LOG_ID_TASK_DISPATCH,
+	LIBIE_AQC_FW_LOG_ID_MNG,
+	LIBIE_AQC_FW_LOG_ID_SYNCE,
+	LIBIE_AQC_FW_LOG_ID_HEALTH,
+	LIBIE_AQC_FW_LOG_ID_TSDRV,
+	LIBIE_AQC_FW_LOG_ID_PFREG,
+	LIBIE_AQC_FW_LOG_ID_MDLVER,
+	LIBIE_AQC_FW_LOG_ID_MAX
+};
+
+/* Set FW Logging configuration (indirect 0xFF30)
+ * Register for FW Logging (indirect 0xFF31)
+ * Query FW Logging (indirect 0xFF32)
+ * FW Log Event (indirect 0xFF33)
+ */
+#define LIBIE_AQC_FW_LOG_CONF_UART_EN		BIT(0)
+#define LIBIE_AQC_FW_LOG_CONF_AQ_EN		BIT(1)
+#define LIBIE_AQC_FW_LOG_QUERY_REGISTERED	BIT(2)
+#define LIBIE_AQC_FW_LOG_CONF_SET_VALID		BIT(3)
+#define LIBIE_AQC_FW_LOG_AQ_REGISTER		BIT(0)
+#define LIBIE_AQC_FW_LOG_AQ_QUERY		BIT(2)
+
+#define LIBIE_AQC_FW_LOG_MIN_RESOLUTION		1
+#define LIBIE_AQC_FW_LOG_MAX_RESOLUTION		128
+
+struct libie_aqc_fw_log {
+	u8 cmd_flags;
+
+	u8 rsp_flag;
+	__le16 fw_rt_msb;
+	union {
+		struct {
+			__le32 fw_rt_lsb;
+		} sync;
+		struct {
+			__le16 log_resolution;
+			__le16 mdl_cnt;
+		} cfg;
+	} ops;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Response Buffer for:
+ *    Set Firmware Logging Configuration (0xFF30)
+ *    Query FW Logging (0xFF32)
+ */
+struct libie_aqc_fw_log_cfg_resp {
+	__le16 module_identifier;
+	u8 log_level;
+	u8 rsvd0;
+};
 
 /**
  * struct libie_aq_desc - Admin Queue (AQ) descriptor
@@ -252,6 +342,7 @@ struct libie_aq_desc {
 		struct	libie_aqc_driver_ver driver_ver;
 		struct	libie_aqc_req_res res_owner;
 		struct	libie_aqc_list_caps get_cap;
+		struct	libie_aqc_fw_log fw_log;
 	} params;
 };
 LIBIE_CHECK_STRUCT_LEN(32, libie_aq_desc);

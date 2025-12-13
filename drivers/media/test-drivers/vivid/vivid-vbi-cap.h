@@ -16,10 +16,10 @@ int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 					struct v4l2_format *f);
 int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
 					struct v4l2_format *f);
-int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format *fmt);
-int vidioc_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format *fmt);
-int vidioc_s_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format *fmt);
-int vidioc_g_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_sliced_vbi_cap *cap);
+int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv, struct v4l2_format *fmt);
+int vidioc_try_fmt_sliced_vbi_cap(struct file *file, void *priv, struct v4l2_format *fmt);
+int vidioc_s_fmt_sliced_vbi_cap(struct file *file, void *priv, struct v4l2_format *fmt);
+int vidioc_g_sliced_vbi_cap(struct file *file, void *priv, struct v4l2_sliced_vbi_cap *cap);
 
 void vivid_fill_service_lines(struct v4l2_sliced_vbi_format *vbi, u32 service_set);
 

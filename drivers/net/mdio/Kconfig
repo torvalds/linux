@@ -3,11 +3,6 @@
 # MDIO Layer Configuration
 #
 
-config MDIO_BUS
-	tristate "MDIO bus consumer layer"
-	help
-	  MDIO bus consumer layer
-
 if PHYLIB
 
 config FWNODE_MDIO

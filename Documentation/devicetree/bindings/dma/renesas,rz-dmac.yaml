@@ -21,6 +21,11 @@ properties:
               - renesas,r9a08g045-dmac # RZ/G3S
           - const: renesas,rz-dmac
 
+      - items:
+          - enum:
+              - renesas,r9a09g047-dmac # RZ/G3E
+          - const: renesas,r9a09g057-dmac
+
       - const: renesas,r9a09g057-dmac # RZ/V2H(P)
 
   reg:

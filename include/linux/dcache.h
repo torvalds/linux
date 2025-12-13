@@ -95,7 +95,10 @@ struct dentry {
 	seqcount_spinlock_t d_seq;	/* per dentry seqlock */
 	struct hlist_bl_node d_hash;	/* lookup hash list */
 	struct dentry *d_parent;	/* parent directory */
-	struct qstr d_name;
+	union {
+	struct qstr __d_name;		/* for use ONLY in fs/dcache.c */
+	const struct qstr d_name;
+	};
 	struct inode *d_inode;		/* Where the name belongs to - NULL is
 					 * negative */
 	union shortname_store d_shortname;

@@ -8,7 +8,7 @@
 #ifndef __SPARC_PCIC_H
 #define __SPARC_PCIC_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <linux/smp.h>

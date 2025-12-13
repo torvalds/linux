@@ -141,3 +141,25 @@
 		{ ATTR_TIMES_SET,	"TIMES_SET" },	\
 		{ ATTR_TOUCH,		"TOUCH"},	\
 		{ ATTR_DELEG,		"DELEG"})
+
+#define show_statx_mask(flags)					\
+	__print_flags(flags, "|",				\
+		{ STATX_TYPE,		"TYPE" },		\
+		{ STATX_MODE,		"MODE" },		\
+		{ STATX_NLINK,		"NLINK" },		\
+		{ STATX_UID,		"UID" },		\
+		{ STATX_GID,		"GID" },		\
+		{ STATX_ATIME,		"ATIME" },		\
+		{ STATX_MTIME,		"MTIME" },		\
+		{ STATX_CTIME,		"CTIME" },		\
+		{ STATX_INO,		"INO" },		\
+		{ STATX_SIZE,		"SIZE" },		\
+		{ STATX_BLOCKS,		"BLOCKS" },		\
+		{ STATX_BASIC_STATS,	"BASIC_STATS" },	\
+		{ STATX_BTIME,		"BTIME" },		\
+		{ STATX_MNT_ID,		"MNT_ID" },		\
+		{ STATX_DIOALIGN,	"DIOALIGN" },		\
+		{ STATX_MNT_ID_UNIQUE,	"MNT_ID_UNIQUE" },	\
+		{ STATX_SUBVOL,		"SUBVOL" },		\
+		{ STATX_WRITE_ATOMIC,	"WRITE_ATOMIC" },	\
+		{ STATX_DIO_READ_ALIGN,	"DIO_READ_ALIGN" })

@@ -5,7 +5,7 @@ protocol: netlink-raw
 uapi-header: linux/rtnetlink.h
 protonum: 0
 
-doc:
+doc: >-
   Address configuration over rtnetlink.
 
 definitions:

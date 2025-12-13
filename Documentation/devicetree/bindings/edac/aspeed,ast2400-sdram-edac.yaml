@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/edac/aspeed,ast2400-sdram-edac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Aspeed BMC SoC SDRAM EDAC controller
+
+maintainers:
+  - Stefan Schaeckeler <sschaeck@cisco.com>
+
+description: >
+  The Aspeed BMC SoC supports DDR3 and DDR4 memory with and without ECC (error
+  correction check).
+
+  The memory controller supports SECDED (single bit error correction, double bit
+  error detection) and single bit error auto scrubbing by reserving 8 bits for
+  every 64 bit word (effectively reducing available memory to 8/9).
+
+  Note, the bootloader must configure ECC mode in the memory controller.
+
+properties:
+  compatible:
+    enum:
+      - aspeed,ast2400-sdram-edac
+      - aspeed,ast2500-sdram-edac
+      - aspeed,ast2600-sdram-edac
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    sdram@1e6e0000 {
+        compatible = "aspeed,ast2500-sdram-edac";
+        reg = <0x1e6e0000 0x174>;
+        interrupts = <0>;
+    };

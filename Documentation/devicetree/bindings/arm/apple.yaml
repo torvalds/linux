@@ -92,10 +92,11 @@ description: |
   Devices based on the "M2" SoC:
 
   - MacBook Air (M2, 2022)
+  - MacBook Air (15-inch, M2, 2023)
   - MacBook Pro (13-inch, M2, 2022)
   - Mac mini (M2, 2023)
 
-  And devices based on the "M1 Pro", "M1 Max" and "M1 Ultra" SoCs:
+  Devices based on the "M1 Pro", "M1 Max" and "M1 Ultra" SoCs:
 
   - MacBook Pro (14-inch, M1 Pro, 2021)
   - MacBook Pro (14-inch, M1 Max, 2021)
@@ -103,6 +104,17 @@ description: |
   - MacBook Pro (16-inch, M1 Max, 2021)
   - Mac Studio (M1 Max, 2022)
   - Mac Studio (M1 Ultra, 2022)
+
+  Devices based on the "M2 Pro", "M2 Max" and "M2 Ultra" SoCs:
+
+  - MacBook Pro (14-inch, M2 Pro, 2023)
+  - MacBook Pro (14-inch, M2 Max, 2023)
+  - MacBook Pro (16-inch, M2 Pro, 2023)
+  - MacBook Pro (16-inch, M2 Max, 2023)
+  - Mac mini (M2 Pro, 2023)
+  - Mac Studio (M2 Max, 2023)
+  - Mac Studio (M2 Ultra, 2023)
+  - Mac Pro (M2 Ultra, 2023)
 
   The compatible property should follow this format:
 
@@ -279,6 +291,7 @@ properties:
         items:
           - enum:
               - apple,j413 # MacBook Air (M2, 2022)
+              - apple,j415 # MacBook Air (15-inch, M2, 2023)
               - apple,j473 # Mac mini (M2, 2023)
               - apple,j493 # MacBook Pro (13-inch, M2, 2022)
           - const: apple,t8112
@@ -306,6 +319,32 @@ properties:
           - enum:
               - apple,j375d # Mac Studio (M1 Ultra, 2022)
           - const: apple,t6002
+          - const: apple,arm-platform
+
+      - description: Apple M2 Pro SoC based platforms
+        items:
+          - enum:
+              - apple,j414s # MacBook Pro (14-inch, M2 Pro, 2023)
+              - apple,j416s # MacBook Pro (16-inch, M2 Pro, 2023)
+              - apple,j474s # Mac mini (M2 Pro, 2023)
+          - const: apple,t6020
+          - const: apple,arm-platform
+
+      - description: Apple M2 Max SoC based platforms
+        items:
+          - enum:
+              - apple,j414c # MacBook Pro (14-inch, M2 Max, 2023)
+              - apple,j416c # MacBook Pro (16-inch, M2 Max, 2023)
+              - apple,j475c # Mac Studio (M2 Max, 2023)
+          - const: apple,t6021
+          - const: apple,arm-platform
+
+      - description: Apple M2 Ultra SoC based platforms
+        items:
+          - enum:
+              - apple,j180d # Mac Pro (M2 Ultra, 2023)
+              - apple,j475d # Mac Studio (M2 Ultra, 2023)
+          - const: apple,t6022
           - const: apple,arm-platform
 
 additionalProperties: true

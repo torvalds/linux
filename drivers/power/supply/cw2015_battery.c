@@ -506,10 +506,7 @@ static int cw_battery_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		if (cw_bat->battery->charge_full_design_uah > 0)
-			val->intval = cw_bat->battery->charge_full_design_uah;
-		else
-			val->intval = 0;
+		val->intval = max(cw_bat->battery->charge_full_design_uah, 0);
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
@@ -702,8 +699,7 @@ static int cw_bat_probe(struct i2c_client *client)
 	if (!cw_bat->battery_workqueue)
 		return -ENOMEM;
 
-	devm_delayed_work_autocancel(&client->dev,
-							  &cw_bat->battery_delay_work, cw_bat_work);
+	devm_delayed_work_autocancel(&client->dev, &cw_bat->battery_delay_work, cw_bat_work);
 	queue_delayed_work(cw_bat->battery_workqueue,
 			   &cw_bat->battery_delay_work, msecs_to_jiffies(10));
 	return 0;

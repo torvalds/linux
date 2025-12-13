@@ -46,9 +46,7 @@
 
 #include "gem/i915_gem_object.h"
 #include "i915_scheduler_types.h"
-#include "i915_vma.h"
 #include "i9xx_plane_regs.h"
-#include "intel_bo.h"
 #include "intel_cdclk.h"
 #include "intel_cursor.h"
 #include "intel_display_rps.h"
@@ -57,6 +55,7 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_fbdev.h"
+#include "intel_panic.h"
 #include "intel_plane.h"
 #include "intel_psr.h"
 #include "skl_scaler.h"
@@ -1327,7 +1326,7 @@ static void intel_panic_flush(struct drm_plane *plane)
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 
-	intel_bo_panic_finish(intel_fb);
+	intel_panic_finish(intel_fb->panic);
 
 	if (crtc_state->enable_psr2_sel_fetch) {
 		/* Force a full update for psr2 */
@@ -1410,7 +1409,7 @@ static int intel_get_scanout_buffer(struct drm_plane *plane,
 				return -EOPNOTSUPP;
 		}
 		sb->private = intel_fb;
-		ret = intel_bo_panic_setup(sb);
+		ret = intel_panic_setup(intel_fb->panic, sb);
 		if (ret)
 			return ret;
 	}
@@ -1748,9 +1747,4 @@ int intel_plane_atomic_check(struct intel_atomic_state *state)
 	}
 
 	return 0;
-}
-
-u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
-{
-	return i915_ggtt_offset(plane_state->ggtt_vma);
 }

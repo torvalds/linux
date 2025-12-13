@@ -275,13 +275,12 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->vm_hub;
-	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	uint64_t fence_context = adev->fence_context + ring->idx;
 	bool needs_flush = vm->use_cpu_for_update;
 	uint64_t updates = amdgpu_vm_tlb_seq(vm);
 	int r;
 
-	*id = id_mgr->reserved;
+	*id = vm->reserved_vmid[vmhub];
 	if ((*id)->owner != vm->immediate.fence_context ||
 	    !amdgpu_vmid_compatible(*id, job) ||
 	    (*id)->flushed_updates < updates ||
@@ -474,40 +473,61 @@ bool amdgpu_vmid_uses_reserved(struct amdgpu_vm *vm, unsigned int vmhub)
 	return vm->reserved_vmid[vmhub];
 }
 
-int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev,
+/*
+ * amdgpu_vmid_alloc_reserved - reserve a specific VMID for this vm
+ * @adev: amdgpu device structure
+ * @vm: the VM to reserve an ID for
+ * @vmhub: the VMHUB which should be used
+ *
+ * Mostly used to have a reserved VMID for debugging and SPM.
+ *
+ * Returns: 0 for success, -ENOENT if an ID is already reserved.
+ */
+int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			       unsigned vmhub)
 {
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
+	struct amdgpu_vmid *id;
+	int r = 0;
 
 	mutex_lock(&id_mgr->lock);
-
-	++id_mgr->reserved_use_count;
-	if (!id_mgr->reserved) {
-		struct amdgpu_vmid *id;
-
-		id = list_first_entry(&id_mgr->ids_lru, struct amdgpu_vmid,
-				      list);
-		/* Remove from normal round robin handling */
-		list_del_init(&id->list);
-		id_mgr->reserved = id;
+	if (vm->reserved_vmid[vmhub])
+		goto unlock;
+	if (id_mgr->reserved_vmid) {
+		r = -ENOENT;
+		goto unlock;
 	}
-
+	/* Remove from normal round robin handling */
+	id = list_first_entry(&id_mgr->ids_lru, struct amdgpu_vmid, list);
+	list_del_init(&id->list);
+	vm->reserved_vmid[vmhub] = id;
+	id_mgr->reserved_vmid = true;
 	mutex_unlock(&id_mgr->lock);
+
 	return 0;
+unlock:
+	mutex_unlock(&id_mgr->lock);
+	return r;
 }
 
-void amdgpu_vmid_free_reserved(struct amdgpu_device *adev,
+/*
+ * amdgpu_vmid_free_reserved - free up a reserved VMID again
+ * @adev: amdgpu device structure
+ * @vm: the VM with the reserved ID
+ * @vmhub: the VMHUB which should be used
+ */
+void amdgpu_vmid_free_reserved(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			       unsigned vmhub)
 {
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 
 	mutex_lock(&id_mgr->lock);
-	if (!--id_mgr->reserved_use_count) {
-		/* give the reserved ID back to normal round robin */
-		list_add(&id_mgr->reserved->list, &id_mgr->ids_lru);
-		id_mgr->reserved = NULL;
+	if (vm->reserved_vmid[vmhub]) {
+		list_add(&vm->reserved_vmid[vmhub]->list,
+			&id_mgr->ids_lru);
+		vm->reserved_vmid[vmhub] = NULL;
+		id_mgr->reserved_vmid = false;
 	}
-
 	mutex_unlock(&id_mgr->lock);
 }
 
@@ -574,7 +594,6 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 
 		mutex_init(&id_mgr->lock);
 		INIT_LIST_HEAD(&id_mgr->ids_lru);
-		id_mgr->reserved_use_count = 0;
 
 		/* for GC <10, SDMA uses MMHUB so use first_kfd_vmid for both GC and MM */
 		if (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 0, 0))
@@ -593,11 +612,6 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 			amdgpu_sync_create(&id_mgr->ids[j].active);
 			list_add_tail(&id_mgr->ids[j].list, &id_mgr->ids_lru);
 		}
-	}
-	/* alloc a default reserved vmid to enforce isolation */
-	for (i = 0; i < (adev->xcp_mgr ? adev->xcp_mgr->num_xcps : 1); i++) {
-		if (adev->enforce_isolation[i] != AMDGPU_ENFORCE_ISOLATION_DISABLE)
-			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
 	}
 }
 

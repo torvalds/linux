@@ -334,7 +334,7 @@
 
 	usb20_pins: usb20 {
 		ovc {
-			pinmux =  <RZV2N_PORT_PINMUX(9, 6, 14)>; /* OVC */
+			pinmux = <RZV2N_PORT_PINMUX(9, 6, 14)>; /* OVC */
 		};
 
 		vbus {

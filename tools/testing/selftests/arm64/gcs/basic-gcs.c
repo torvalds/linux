@@ -10,6 +10,7 @@
 
 #include <sys/mman.h>
 #include <asm/mman.h>
+#include <asm/hwcap.h>
 #include <linux/sched.h>
 
 #include "kselftest.h"
@@ -386,14 +387,13 @@ int main(void)
 
 	ksft_print_header();
 
-	/*
-	 * We don't have getauxval() with nolibc so treat a failure to
-	 * read GCS state as a lack of support and skip.
-	 */
+	if (!(getauxval(AT_HWCAP) & HWCAP_GCS))
+		ksft_exit_skip("SKIP GCS not supported\n");
+
 	ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS,
 			  &gcs_mode, 0, 0, 0);
 	if (ret != 0)
-		ksft_exit_skip("Failed to read GCS state: %d\n", ret);
+		ksft_exit_fail_msg("Failed to read GCS state: %d\n", ret);
 
 	if (!(gcs_mode & PR_SHADOW_STACK_ENABLE)) {
 		gcs_mode = PR_SHADOW_STACK_ENABLE;
@@ -410,7 +410,7 @@ int main(void)
 	}
 
 	/* One last test: disable GCS, we can do this one time */
-	my_syscall5(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, 0, 0, 0, 0);
+	ret = my_syscall5(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, 0, 0, 0, 0);
 	if (ret != 0)
 		ksft_print_msg("Failed to disable GCS: %d\n", ret);
 

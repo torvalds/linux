@@ -45,7 +45,10 @@
  *   whole of a destination image with a pixel format conversion.
  */
 
-#define fh2ctx(__fh) container_of(__fh, struct dma2d_ctx, fh)
+static inline struct dma2d_ctx *file2ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct dma2d_ctx, fh);
+}
 
 static const struct dma2d_fmt formats[] = {
 	{
@@ -301,8 +304,7 @@ static int dma2d_open(struct file *file)
 	}
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	dma2d_setup_ctrls(ctx);
 
@@ -318,13 +320,13 @@ static int dma2d_open(struct file *file)
 static int dma2d_release(struct file *file)
 {
 	struct dma2d_dev *dev = video_drvdata(file);
-	struct dma2d_ctx *ctx = fh2ctx(file->private_data);
+	struct dma2d_ctx *ctx = file2ctx(file);
 
 	mutex_lock(&dev->mutex);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	mutex_unlock(&dev->mutex);
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 
@@ -341,7 +343,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
+static int vidioc_enum_fmt(struct file *file, void *priv, struct v4l2_fmtdesc *f)
 {
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
@@ -350,9 +352,9 @@ static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
 	return 0;
 }
 
-static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
+static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct dma2d_ctx *ctx = prv;
+	struct dma2d_ctx *ctx = file2ctx(file);
 	struct vb2_queue *vq;
 	struct dma2d_frame *frm;
 
@@ -375,9 +377,9 @@ static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
+static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct dma2d_ctx *ctx = prv;
+	struct dma2d_ctx *ctx = file2ctx(file);
 	struct dma2d_fmt *fmt;
 	enum v4l2_field *field;
 	u32 fourcc = f->fmt.pix.pixelformat;
@@ -418,9 +420,9 @@ static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
+static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct dma2d_ctx *ctx = prv;
+	struct dma2d_ctx *ctx = file2ctx(file);
 	struct vb2_queue *vq;
 	struct dma2d_frame *frm;
 	struct dma2d_fmt *fmt;
@@ -429,7 +431,7 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	/* Adjust all values accordingly to the hardware capabilities
 	 * and chosen format.
 	 */
-	ret = vidioc_try_fmt(file, prv, f);
+	ret = vidioc_try_fmt(file, priv, f);
 	if (ret)
 		return ret;
 

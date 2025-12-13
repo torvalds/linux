@@ -1837,7 +1837,12 @@ static void hl_release_dmabuf(struct dma_buf *dmabuf)
 	atomic_dec(&ctx->hdev->dmabuf_export_cnt);
 	hl_ctx_put(ctx);
 
-	/* Paired with get_file() in export_dmabuf() */
+	/*
+	 * Paired with get_file() in export_dmabuf().
+	 * 'ctx' can be still used here to get the file pointer, even after hl_ctx_put() was called,
+	 * because releasing the compute device file involves another reference decrement, and it
+	 * would be possible only after calling fput().
+	 */
 	fput(ctx->hpriv->file_priv->filp);
 
 	kfree(hl_dmabuf);
@@ -2332,7 +2337,7 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 		if (rc < 0)
 			goto destroy_pages;
 		npages = rc;
-		rc = -EFAULT;
+		rc = -ENOMEM;
 		goto put_pages;
 	}
 	userptr->npages = npages;

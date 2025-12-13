@@ -118,19 +118,6 @@ sub declare_function() {
 	}
 }
 
-sub declare_typed_function() {
-	my ($name, $align, $nargs) = @_;
-	if($kernel) {
-		$code .= "SYM_TYPED_FUNC_START($name)\n";
-		$code .= ".L$name:\n";
-	} else {
-		$code .= ".globl	$name\n";
-		$code .= ".type	$name,\@function,$nargs\n";
-		$code .= ".align	$align\n";
-		$code .= "$name:\n";
-	}
-}
-
 sub end_function() {
 	my ($name) = @_;
 	if($kernel) {
@@ -141,7 +128,7 @@ sub end_function() {
 }
 
 $code.=<<___ if $kernel;
-#include <linux/cfi_types.h>
+#include <linux/linkage.h>
 ___
 
 if ($avx) {
@@ -249,14 +236,14 @@ ___
 $code.=<<___ if (!$kernel);
 .extern	OPENSSL_ia32cap_P
 
-.globl	poly1305_block_init_arch
-.hidden	poly1305_block_init_arch
+.globl	poly1305_init_x86_64
+.hidden	poly1305_init_x86_64
 .globl	poly1305_blocks_x86_64
 .hidden	poly1305_blocks_x86_64
 .globl	poly1305_emit_x86_64
 .hidden	poly1305_emit_x86_64
 ___
-&declare_typed_function("poly1305_block_init_arch", 32, 3);
+&declare_function("poly1305_init_x86_64", 32, 3);
 $code.=<<___;
 	xor	%eax,%eax
 	mov	%rax,0($ctx)		# initialize hash value
@@ -311,7 +298,7 @@ $code.=<<___;
 .Lno_key:
 	RET
 ___
-&end_function("poly1305_block_init_arch");
+&end_function("poly1305_init_x86_64");
 
 &declare_function("poly1305_blocks_x86_64", 32, 4);
 $code.=<<___;
@@ -4118,9 +4105,9 @@ avx_handler:
 
 .section	.pdata
 .align	4
-	.rva	.LSEH_begin_poly1305_block_init_arch
-	.rva	.LSEH_end_poly1305_block_init_arch
-	.rva	.LSEH_info_poly1305_block_init_arch
+	.rva	.LSEH_begin_poly1305_init_x86_64
+	.rva	.LSEH_end_poly1305_init_x86_64
+	.rva	.LSEH_info_poly1305_init_x86_64
 
 	.rva	.LSEH_begin_poly1305_blocks_x86_64
 	.rva	.LSEH_end_poly1305_blocks_x86_64
@@ -4168,10 +4155,10 @@ ___
 $code.=<<___;
 .section	.xdata
 .align	8
-.LSEH_info_poly1305_block_init_arch:
+.LSEH_info_poly1305_init_x86_64:
 	.byte	9,0,0,0
 	.rva	se_handler
-	.rva	.LSEH_begin_poly1305_block_init_arch,.LSEH_begin_poly1305_block_init_arch
+	.rva	.LSEH_begin_poly1305_init_x86_64,.LSEH_begin_poly1305_init_x86_64
 
 .LSEH_info_poly1305_blocks_x86_64:
 	.byte	9,0,0,0

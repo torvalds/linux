@@ -243,7 +243,8 @@
 	HUBP_SF(HUBPREQ0_FLIP_PARAMETERS_6, REFCYC_PER_META_CHUNK_FLIP_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_VBLANK_PARAMETERS_5, REFCYC_PER_VM_GROUP_VBLANK, mask_sh),\
 	HUBP_SF(HUBPREQ0_VBLANK_PARAMETERS_6, REFCYC_PER_VM_REQ_VBLANK, mask_sh),\
-	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, VM_GROUP_SIZE, mask_sh)
+	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, VM_GROUP_SIZE, mask_sh),\
+	HUBP_SF(HUBPRET0_HUBPRET_READ_LINE_VALUE, PIPE_READ_LINE, mask_sh)
 
 bool hubp3_construct(
 		struct dcn20_hubp *hubp2,
@@ -298,6 +299,11 @@ void hubp3_read_state(struct hubp *hubp);
 void hubp3_init(struct hubp *hubp);
 
 void hubp3_clear_tiling(struct hubp *hubp);
+
+uint32_t hubp3_get_current_read_line(struct hubp *hubp);
+
+uint32_t hubp3_get_underflow_status(struct hubp *hubp);
+
 
 #endif /* __DC_HUBP_DCN30_H__ */
 

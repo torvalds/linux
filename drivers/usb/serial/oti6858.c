@@ -106,7 +106,7 @@ struct oti6858_control_pkt {
 #define PIN_DTR			0x04	/* output pin */
 #define PIN_RI			0x02	/* input pin, active low */
 #define PIN_DCD			0x01	/* input pin, active low */
-	u8	rx_bytes_avail;		/* number of bytes in rx buffer */;
+	u8	rx_bytes_avail;		/* number of bytes in rx buffer */
 };
 
 #define OTI6858_CTRL_PKT_SIZE	sizeof(struct oti6858_control_pkt)

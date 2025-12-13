@@ -1,5 +1,34 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+config CRYPTO_LIB_BLAKE2S_KUNIT_TEST
+	tristate "KUnit tests for BLAKE2s" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	# No need to select CRYPTO_LIB_BLAKE2S here, as that option doesn't
+	# exist; the BLAKE2s code is always built-in for the /dev/random driver.
+	help
+	  KUnit tests for the BLAKE2s cryptographic hash function.
+
+config CRYPTO_LIB_CURVE25519_KUNIT_TEST
+	tristate "KUnit tests for Curve25519" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_CURVE25519
+	help
+	  KUnit tests for the Curve25519 Diffie-Hellman function.
+
+config CRYPTO_LIB_MD5_KUNIT_TEST
+	tristate "KUnit tests for MD5" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_MD5
+	help
+	  KUnit tests for the MD5 cryptographic hash function and its
+	  corresponding HMAC.
+
 config CRYPTO_LIB_POLY1305_KUNIT_TEST
 	tristate "KUnit tests for Poly1305" if !KUNIT_ALL_TESTS
 	depends on KUNIT

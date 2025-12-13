@@ -79,7 +79,7 @@ void tipc_set_node_addr(struct net *net, u32 addr)
 	pr_info("Node number set to %u\n", addr);
 }
 
-char *tipc_nodeid2string(char *str, u8 *id)
+int tipc_nodeid2string(char *str, u8 *id)
 {
 	int i;
 	u8 c;
@@ -109,7 +109,7 @@ char *tipc_nodeid2string(char *str, u8 *id)
 	if (i == NODE_ID_LEN) {
 		memcpy(str, id, NODE_ID_LEN);
 		str[NODE_ID_LEN] = 0;
-		return str;
+		return i;
 	}
 
 	/* Translate to hex string */
@@ -120,5 +120,5 @@ char *tipc_nodeid2string(char *str, u8 *id)
 	for (i = NODE_ID_STR_LEN - 2; str[i] == '0'; i--)
 		str[i] = 0;
 
-	return str;
+	return i + 1;
 }

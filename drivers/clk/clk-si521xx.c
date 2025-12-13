@@ -164,15 +164,17 @@ static unsigned long si521xx_diff_recalc_rate(struct clk_hw *hw,
 	return (unsigned long)rate;
 }
 
-static long si521xx_diff_round_rate(struct clk_hw *hw, unsigned long rate,
-				    unsigned long *prate)
+static int si521xx_diff_determine_rate(struct clk_hw *hw,
+				       struct clk_rate_request *req)
 {
 	unsigned long best_parent;
 
-	best_parent = (rate / SI521XX_DIFF_MULT) * SI521XX_DIFF_DIV;
-	*prate = clk_hw_round_rate(clk_hw_get_parent(hw), best_parent);
+	best_parent = (req->rate / SI521XX_DIFF_MULT) * SI521XX_DIFF_DIV;
+	req->best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw), best_parent);
 
-	return (*prate / SI521XX_DIFF_DIV) * SI521XX_DIFF_MULT;
+	req->rate = (req->best_parent_rate / SI521XX_DIFF_DIV) * SI521XX_DIFF_MULT;
+
+	return 0;
 }
 
 static int si521xx_diff_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -208,7 +210,7 @@ static void si521xx_diff_unprepare(struct clk_hw *hw)
 }
 
 static const struct clk_ops si521xx_diff_clk_ops = {
-	.round_rate	= si521xx_diff_round_rate,
+	.determine_rate = si521xx_diff_determine_rate,
 	.set_rate	= si521xx_diff_set_rate,
 	.recalc_rate	= si521xx_diff_recalc_rate,
 	.prepare	= si521xx_diff_prepare,

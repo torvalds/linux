@@ -75,6 +75,11 @@ struct compressed_bio {
 	struct btrfs_bio bbio;
 };
 
+static inline struct btrfs_fs_info *cb_to_fs_info(const struct compressed_bio *cb)
+{
+	return cb->bbio.fs_info;
+}
+
 /* @range_end must be exclusive. */
 static inline u32 btrfs_calc_input_length(struct folio *folio, u64 range_end, u64 cur)
 {
@@ -84,11 +89,14 @@ static inline u32 btrfs_calc_input_length(struct folio *folio, u64 range_end, u6
 	return min(range_end, folio_end(folio)) - cur;
 }
 
+int btrfs_alloc_compress_wsm(struct btrfs_fs_info *fs_info);
+void btrfs_free_compress_wsm(struct btrfs_fs_info *fs_info);
+
 int __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
 
 bool btrfs_compress_level_valid(unsigned int type, int level);
-int btrfs_compress_folios(unsigned int type, int level, struct address_space *mapping,
+int btrfs_compress_folios(unsigned int type, int level, struct btrfs_inode *inode,
 			  u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out);
 int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
@@ -102,20 +110,10 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 				   bool writeback);
 void btrfs_submit_compressed_read(struct btrfs_bio *bbio);
 
-int btrfs_compress_str2level(unsigned int type, const char *str);
+int btrfs_compress_str2level(unsigned int type, const char *str, int *level_ret);
 
-struct folio *btrfs_alloc_compr_folio(void);
+struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info);
 void btrfs_free_compr_folio(struct folio *folio);
-
-enum btrfs_compression_type {
-	BTRFS_COMPRESS_NONE  = 0,
-	BTRFS_COMPRESS_ZLIB  = 1,
-	BTRFS_COMPRESS_LZO   = 2,
-	BTRFS_COMPRESS_ZSTD  = 3,
-	BTRFS_NR_COMPRESS_TYPES = 4,
-
-	BTRFS_DEFRAG_DONT_COMPRESS,
-};
 
 struct workspace_manager {
 	struct list_head idle_ws;
@@ -128,11 +126,10 @@ struct workspace_manager {
 	wait_queue_head_t ws_wait;
 };
 
-struct list_head *btrfs_get_workspace(int type, int level);
-void btrfs_put_workspace(int type, struct list_head *ws);
+struct list_head *btrfs_get_workspace(struct btrfs_fs_info *fs_info, int type, int level);
+void btrfs_put_workspace(struct btrfs_fs_info *fs_info, int type, struct list_head *ws);
 
-struct btrfs_compress_op {
-	struct workspace_manager *workspace_manager;
+struct btrfs_compress_levels {
 	/* Maximum level supported by the compression algorithm */
 	int min_level;
 	int max_level;
@@ -142,10 +139,10 @@ struct btrfs_compress_op {
 /* The heuristic workspaces are managed via the 0th workspace manager */
 #define BTRFS_NR_WORKSPACE_MANAGERS	BTRFS_NR_COMPRESS_TYPES
 
-extern const struct btrfs_compress_op btrfs_heuristic_compress;
-extern const struct btrfs_compress_op btrfs_zlib_compress;
-extern const struct btrfs_compress_op btrfs_lzo_compress;
-extern const struct btrfs_compress_op btrfs_zstd_compress;
+extern const struct btrfs_compress_levels btrfs_heuristic_compress;
+extern const struct btrfs_compress_levels btrfs_zlib_compress;
+extern const struct btrfs_compress_levels btrfs_lzo_compress;
+extern const struct btrfs_compress_levels btrfs_zstd_compress;
 
 const char* btrfs_compress_type2str(enum btrfs_compression_type type);
 bool btrfs_compress_is_valid_type(const char *str, size_t len);
@@ -155,39 +152,39 @@ int btrfs_compress_heuristic(struct btrfs_inode *inode, u64 start, u64 end);
 int btrfs_compress_filemap_get_folio(struct address_space *mapping, u64 start,
 				     struct folio **in_folio_ret);
 
-int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
+int zlib_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int zlib_decompress(struct list_head *ws, const u8 *data_in,
 		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
-struct list_head *zlib_alloc_workspace(unsigned int level);
+struct list_head *zlib_alloc_workspace(struct btrfs_fs_info *fs_info, unsigned int level);
 void zlib_free_workspace(struct list_head *ws);
-struct list_head *zlib_get_workspace(unsigned int level);
+struct list_head *zlib_get_workspace(struct btrfs_fs_info *fs_info, unsigned int level);
 
-int lzo_compress_folios(struct list_head *ws, struct address_space *mapping,
+int lzo_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int lzo_decompress(struct list_head *ws, const u8 *data_in,
 		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
-struct list_head *lzo_alloc_workspace(void);
+struct list_head *lzo_alloc_workspace(struct btrfs_fs_info *fs_info);
 void lzo_free_workspace(struct list_head *ws);
 
-int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
+int zstd_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int zstd_decompress(struct list_head *ws, const u8 *data_in,
 		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
-void zstd_init_workspace_manager(void);
-void zstd_cleanup_workspace_manager(void);
-struct list_head *zstd_alloc_workspace(int level);
+int zstd_alloc_workspace_manager(struct btrfs_fs_info *fs_info);
+void zstd_free_workspace_manager(struct btrfs_fs_info *fs_info);
+struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level);
 void zstd_free_workspace(struct list_head *ws);
-struct list_head *zstd_get_workspace(int level);
-void zstd_put_workspace(struct list_head *ws);
+struct list_head *zstd_get_workspace(struct btrfs_fs_info *fs_info, int level);
+void zstd_put_workspace(struct btrfs_fs_info *fs_info, struct list_head *ws);
 
 #endif

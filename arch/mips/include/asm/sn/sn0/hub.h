@@ -37,7 +37,7 @@
 #define UATTR_MSPEC	2
 #define UATTR_UNCAC	3
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 /*
  * Returns the local nasid into res.
  */

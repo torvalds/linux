@@ -252,29 +252,6 @@
 
 &dsi0 {
 	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
-	panel: panel@0 {
-		/* compatible will be set in board dts */
-		reg = <0>;
-		enable-gpios = <&pio 45 0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&panel_pins_default>;
-		avdd-supply = <&ppvarn_lcd>;
-		avee-supply = <&ppvarp_lcd>;
-		pp1800-supply = <&pp1800_lcd>;
-		backlight = <&backlight_lcd0>;
-		rotation = <270>;
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&dsi_out>;
-			};
-		};
-	};
-};
-
-&dsi_out {
-	remote-endpoint = <&panel_in>;
 };
 
 &gic {
@@ -435,7 +412,7 @@
 };
 
 &pio {
-	aud_pins_default: audiopins {
+	aud_pins_default: audio-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO97__FUNC_I2S2_MCK>,
 				<PINMUX_GPIO98__FUNC_I2S2_BCK>,
@@ -457,7 +434,7 @@
 		};
 	};
 
-	aud_pins_tdm_out_on: audiotdmouton {
+	aud_pins_tdm_out_on: audio-tdmout-on-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO169__FUNC_TDM_BCK_2ND>,
 				<PINMUX_GPIO170__FUNC_TDM_LRCK_2ND>,
@@ -469,7 +446,7 @@
 		};
 	};
 
-	aud_pins_tdm_out_off: audiotdmoutoff {
+	aud_pins_tdm_out_off: audio-tdmout-off-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO169__FUNC_GPIO169>,
 				<PINMUX_GPIO170__FUNC_GPIO170>,
@@ -490,22 +467,22 @@
 		};
 	};
 
-	ec_ap_int_odl: ec-ap-int-odl {
-		pins1 {
+	ec_ap_int_odl: ec-ap-int-odl-pins {
+		pins-intn {
 			pinmux = <PINMUX_GPIO151__FUNC_GPIO151>;
 			input-enable;
 			bias-pull-up;
 		};
 	};
 
-	h1_int_od_l: h1-int-od-l {
-		pins1 {
+	h1_int_od_l: h1-int-od-l-pins {
+		pins-intn {
 			pinmux = <PINMUX_GPIO153__FUNC_GPIO153>;
 			input-enable;
 		};
 	};
 
-	i2c0_pins: i2c0 {
+	i2c0_pins: i2c0-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO82__FUNC_SDA0>,
 				 <PINMUX_GPIO83__FUNC_SCL0>;
@@ -513,7 +490,7 @@
 		};
 	};
 
-	i2c1_pins: i2c1 {
+	i2c1_pins: i2c1-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO81__FUNC_SDA1>,
 				 <PINMUX_GPIO84__FUNC_SCL1>;
@@ -521,7 +498,7 @@
 		};
 	};
 
-	i2c2_pins: i2c2 {
+	i2c2_pins: i2c2-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO103__FUNC_SCL2>,
 				 <PINMUX_GPIO104__FUNC_SDA2>;
@@ -529,7 +506,7 @@
 		};
 	};
 
-	i2c3_pins: i2c3 {
+	i2c3_pins: i2c3-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO50__FUNC_SCL3>,
 				 <PINMUX_GPIO51__FUNC_SDA3>;
@@ -537,7 +514,7 @@
 		};
 	};
 
-	i2c4_pins: i2c4 {
+	i2c4_pins: i2c4-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO105__FUNC_SCL4>,
 				 <PINMUX_GPIO106__FUNC_SDA4>;
@@ -545,7 +522,7 @@
 		};
 	};
 
-	i2c5_pins: i2c5 {
+	i2c5_pins: i2c5-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO48__FUNC_SCL5>,
 				 <PINMUX_GPIO49__FUNC_SDA5>;
@@ -553,7 +530,7 @@
 		};
 	};
 
-	i2c6_pins: i2c6 {
+	i2c6_pins: i2c6-pins {
 		pins-bus {
 			pinmux = <PINMUX_GPIO11__FUNC_SCL6>,
 				 <PINMUX_GPIO12__FUNC_SDA6>;
@@ -561,7 +538,7 @@
 		};
 	};
 
-	mmc0_pins_default: mmc0-pins-default {
+	mmc0_pins_default: mmc0-default-pins {
 		pins-cmd-dat {
 			pinmux = <PINMUX_GPIO123__FUNC_MSDC0_DAT0>,
 				 <PINMUX_GPIO128__FUNC_MSDC0_DAT1>,
@@ -580,7 +557,7 @@
 		pins-clk {
 			pinmux = <PINMUX_GPIO124__FUNC_MSDC0_CLK>;
 			drive-strength = <MTK_DRIVE_14mA>;
-			mediatek,pull-down-adv = <10>;
+			mediatek,pull-down-adv = <2>;
 		};
 
 		pins-rst {
@@ -609,13 +586,13 @@
 		pins-clk {
 			pinmux = <PINMUX_GPIO124__FUNC_MSDC0_CLK>;
 			drive-strength = <MTK_DRIVE_14mA>;
-			mediatek,pull-down-adv = <10>;
+			mediatek,pull-down-adv = <2>;
 		};
 
 		pins-ds {
 			pinmux = <PINMUX_GPIO131__FUNC_MSDC0_DSL>;
 			drive-strength = <MTK_DRIVE_14mA>;
-			mediatek,pull-down-adv = <10>;
+			mediatek,pull-down-adv = <2>;
 		};
 
 		pins-rst {
@@ -625,7 +602,7 @@
 		};
 	};
 
-	mmc1_pins_default: mmc1-pins-default {
+	mmc1_pins_default: mmc1-default-pins {
 		pins-cmd-dat {
 			pinmux = <PINMUX_GPIO31__FUNC_MSDC1_CMD>,
 				 <PINMUX_GPIO32__FUNC_MSDC1_DAT0>,
@@ -633,17 +610,17 @@
 				 <PINMUX_GPIO33__FUNC_MSDC1_DAT2>,
 				 <PINMUX_GPIO30__FUNC_MSDC1_DAT3>;
 			input-enable;
-			mediatek,pull-up-adv = <10>;
+			mediatek,pull-up-adv = <2>;
 		};
 
 		pins-clk {
 			pinmux = <PINMUX_GPIO29__FUNC_MSDC1_CLK>;
 			input-enable;
-			mediatek,pull-down-adv = <10>;
+			mediatek,pull-down-adv = <2>;
 		};
 	};
 
-	mmc1_pins_uhs: mmc1-pins-uhs {
+	mmc1_pins_uhs: mmc1-uhs-pins {
 		pins-cmd-dat {
 			pinmux = <PINMUX_GPIO31__FUNC_MSDC1_CMD>,
 				 <PINMUX_GPIO32__FUNC_MSDC1_DAT0>,
@@ -652,26 +629,26 @@
 				 <PINMUX_GPIO30__FUNC_MSDC1_DAT3>;
 			drive-strength = <6>;
 			input-enable;
-			mediatek,pull-up-adv = <10>;
+			mediatek,pull-up-adv = <2>;
 		};
 
 		pins-clk {
 			pinmux = <PINMUX_GPIO29__FUNC_MSDC1_CLK>;
 			drive-strength = <8>;
-			mediatek,pull-down-adv = <10>;
+			mediatek,pull-down-adv = <2>;
 			input-enable;
 		};
 	};
 
-	panel_pins_default: panel-pins-default {
-		panel-reset {
+	panel_pins_default: panel-pins {
+		pins-panel-reset {
 			pinmux = <PINMUX_GPIO45__FUNC_GPIO45>;
 			output-low;
 			bias-pull-up;
 		};
 	};
 
-	pwm0_pin_default: pwm0-pin-default {
+	pwm0_pin_default: pwm0-pins {
 		pins1 {
 			pinmux = <PINMUX_GPIO176__FUNC_GPIO176>;
 			output-high;
@@ -682,15 +659,15 @@
 		};
 	};
 
-	scp_pins: scp {
+	scp_pins: scp-pins {
 		pins-scp-uart {
 			pinmux = <PINMUX_GPIO110__FUNC_TP_URXD1_AO>,
 				 <PINMUX_GPIO112__FUNC_TP_UTXD1_AO>;
 		};
 	};
 
-	spi0_pins: spi0 {
-		pins-spi {
+	spi0_pins: spi0-pins {
+		pins-bus {
 			pinmux = <PINMUX_GPIO85__FUNC_SPI0_MI>,
 				 <PINMUX_GPIO86__FUNC_GPIO86>,
 				 <PINMUX_GPIO87__FUNC_SPI0_MO>,
@@ -699,8 +676,8 @@
 		};
 	};
 
-	spi1_pins: spi1 {
-		pins-spi {
+	spi1_pins: spi1-pins {
+		pins-bus {
 			pinmux = <PINMUX_GPIO161__FUNC_SPI1_A_MI>,
 				 <PINMUX_GPIO162__FUNC_SPI1_A_CSB>,
 				 <PINMUX_GPIO163__FUNC_SPI1_A_MO>,
@@ -709,21 +686,21 @@
 		};
 	};
 
-	spi2_pins: spi2 {
-		pins-spi {
+	spi2_pins: spi2-pins {
+		pins-bus {
 			pinmux = <PINMUX_GPIO0__FUNC_SPI2_CSB>,
 				 <PINMUX_GPIO1__FUNC_SPI2_MO>,
 				 <PINMUX_GPIO2__FUNC_SPI2_CLK>;
 			bias-disable;
 		};
-		pins-spi-mi {
+		pins-miso {
 			pinmux = <PINMUX_GPIO94__FUNC_SPI2_MI>;
 			mediatek,pull-down-adv = <00>;
 		};
 	};
 
-	spi3_pins: spi3 {
-		pins-spi {
+	spi3_pins: spi3-pins {
+		pins-bus {
 			pinmux = <PINMUX_GPIO21__FUNC_SPI3_MI>,
 				 <PINMUX_GPIO22__FUNC_SPI3_CSB>,
 				 <PINMUX_GPIO23__FUNC_SPI3_MO>,
@@ -732,8 +709,8 @@
 		};
 	};
 
-	spi4_pins: spi4 {
-		pins-spi {
+	spi4_pins: spi4-pins {
+		pins-bus {
 			pinmux = <PINMUX_GPIO17__FUNC_SPI4_MI>,
 				 <PINMUX_GPIO18__FUNC_SPI4_CSB>,
 				 <PINMUX_GPIO19__FUNC_SPI4_MO>,
@@ -742,8 +719,8 @@
 		};
 	};
 
-	spi5_pins: spi5 {
-		pins-spi {
+	spi5_pins: spi5-pins {
+		pins-bus {
 			pinmux = <PINMUX_GPIO13__FUNC_SPI5_MI>,
 				 <PINMUX_GPIO14__FUNC_SPI5_CSB>,
 				 <PINMUX_GPIO15__FUNC_SPI5_MO>,
@@ -752,7 +729,7 @@
 		};
 	};
 
-	uart0_pins_default: uart0-pins-default {
+	uart0_pins_default: uart0-pins {
 		pins-rx {
 			pinmux = <PINMUX_GPIO95__FUNC_URXD0>;
 			input-enable;
@@ -763,7 +740,7 @@
 		};
 	};
 
-	uart1_pins_default: uart1-pins-default {
+	uart1_pins_default: uart1-pins {
 		pins-rx {
 			pinmux = <PINMUX_GPIO121__FUNC_URXD1>;
 			input-enable;
@@ -781,7 +758,7 @@
 		};
 	};
 
-	uart1_pins_sleep: uart1-pins-sleep {
+	uart1_pins_sleep: uart1-sleep-pins {
 		pins-rx {
 			pinmux = <PINMUX_GPIO121__FUNC_GPIO121>;
 			input-enable;
@@ -799,14 +776,14 @@
 		};
 	};
 
-	wifi_pins_pwrseq: wifi-pins-pwrseq {
+	wifi_pins_pwrseq: wifi-pwr-pins {
 		pins-wifi-enable {
 			pinmux = <PINMUX_GPIO119__FUNC_GPIO119>;
 			output-low;
 		};
 	};
 
-	wifi_pins_wakeup: wifi-pins-wakeup {
+	wifi_pins_wakeup: wifi-wake-pins {
 		pins-wifi-wakeup {
 			pinmux = <PINMUX_GPIO113__FUNC_GPIO113>;
 			input-enable;

@@ -40,4 +40,14 @@ int rust_helper_regulator_is_enabled(struct regulator *regulator)
 	return regulator_is_enabled(regulator);
 }
 
+int rust_helper_devm_regulator_get_enable(struct device *dev, const char *id)
+{
+	return devm_regulator_get_enable(dev, id);
+}
+
+int rust_helper_devm_regulator_get_enable_optional(struct device *dev, const char *id)
+{
+	return devm_regulator_get_enable_optional(dev, id);
+}
+
 #endif

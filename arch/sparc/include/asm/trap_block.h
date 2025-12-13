@@ -7,7 +7,7 @@
 #include <asm/hypervisor.h>
 #include <asm/asi.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* Trap handling code needs to get at a few critical values upon
  * trap entry and to process TSB misses.  These cannot be in the
@@ -91,7 +91,7 @@ extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
 	__sun_m7_2insn_patch_end;
 
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #define TRAP_PER_CPU_THREAD		0x00
 #define TRAP_PER_CPU_PGD_PADDR		0x08

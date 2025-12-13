@@ -25,7 +25,10 @@
 #include "g2d.h"
 #include "g2d-regs.h"
 
-#define fh2ctx(__fh) container_of(__fh, struct g2d_ctx, fh)
+static inline struct g2d_ctx *file2ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct g2d_ctx, fh);
+}
 
 static struct g2d_fmt formats[] = {
 	{
@@ -254,8 +257,7 @@ static int g2d_open(struct file *file)
 		return ret;
 	}
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	g2d_setup_ctrls(ctx);
 
@@ -272,13 +274,13 @@ static int g2d_open(struct file *file)
 static int g2d_release(struct file *file)
 {
 	struct g2d_dev *dev = video_drvdata(file);
-	struct g2d_ctx *ctx = fh2ctx(file->private_data);
+	struct g2d_ctx *ctx = file2ctx(file);
 
 	mutex_lock(&dev->mutex);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	mutex_unlock(&dev->mutex);
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 	v4l2_info(&dev->v4l2_dev, "instance closed\n");
@@ -295,7 +297,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
+static int vidioc_enum_fmt(struct file *file, void *priv, struct v4l2_fmtdesc *f)
 {
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
@@ -303,9 +305,9 @@ static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
 	return 0;
 }
 
-static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
+static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct g2d_ctx *ctx = prv;
+	struct g2d_ctx *ctx = file2ctx(file);
 	struct vb2_queue *vq;
 	struct g2d_frame *frm;
 
@@ -325,7 +327,7 @@ static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
+static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct g2d_fmt *fmt;
 	enum v4l2_field *field;
@@ -355,9 +357,9 @@ static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
+static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct g2d_ctx *ctx = prv;
+	struct g2d_ctx *ctx = file2ctx(file);
 	struct g2d_dev *dev = ctx->dev;
 	struct vb2_queue *vq;
 	struct g2d_frame *frm;
@@ -366,7 +368,7 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 
 	/* Adjust all values accordingly to the hardware capabilities
 	 * and chosen format. */
-	ret = vidioc_try_fmt(file, prv, f);
+	ret = vidioc_try_fmt(file, priv, f);
 	if (ret)
 		return ret;
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
@@ -395,10 +397,10 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_g_selection(struct file *file, void *prv,
+static int vidioc_g_selection(struct file *file, void *priv,
 			      struct v4l2_selection *s)
 {
-	struct g2d_ctx *ctx = prv;
+	struct g2d_ctx *ctx = file2ctx(file);
 	struct g2d_frame *f;
 
 	f = get_frame(ctx, s->type);
@@ -445,10 +447,10 @@ static int vidioc_g_selection(struct file *file, void *prv,
 	return 0;
 }
 
-static int vidioc_try_selection(struct file *file, void *prv,
+static int vidioc_try_selection(struct file *file, void *priv,
 				const struct v4l2_selection *s)
 {
-	struct g2d_ctx *ctx = prv;
+	struct g2d_ctx *ctx = file2ctx(file);
 	struct g2d_dev *dev = ctx->dev;
 	struct g2d_frame *f;
 
@@ -473,14 +475,14 @@ static int vidioc_try_selection(struct file *file, void *prv,
 	return 0;
 }
 
-static int vidioc_s_selection(struct file *file, void *prv,
+static int vidioc_s_selection(struct file *file, void *priv,
 			      struct v4l2_selection *s)
 {
-	struct g2d_ctx *ctx = prv;
+	struct g2d_ctx *ctx = file2ctx(file);
 	struct g2d_frame *f;
 	int ret;
 
-	ret = vidioc_try_selection(file, prv, s);
+	ret = vidioc_try_selection(file, priv, s);
 	if (ret)
 		return ret;
 	f = get_frame(ctx, s->type);

@@ -3,6 +3,7 @@
 #ifndef _ZL3073X_CORE_H
 #define _ZL3073X_CORE_H
 
+#include <linux/bitfield.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -67,19 +68,19 @@ struct zl3073x_synth {
  * @dev: pointer to device
  * @regmap: regmap to access device registers
  * @multiop_lock: to serialize multiple register operations
- * @clock_id: clock id of the device
  * @ref: array of input references' invariants
  * @out: array of outs' invariants
  * @synth: array of synths' invariants
  * @dplls: list of DPLLs
  * @kworker: thread for periodic work
  * @work: periodic work
+ * @clock_id: clock id of the device
+ * @phase_avg_factor: phase offset measurement averaging factor
  */
 struct zl3073x_dev {
 	struct device		*dev;
 	struct regmap		*regmap;
 	struct mutex		multiop_lock;
-	u64			clock_id;
 
 	/* Invariants */
 	struct zl3073x_ref	ref[ZL3073X_NUM_REFS];
@@ -92,6 +93,10 @@ struct zl3073x_dev {
 	/* Monitor */
 	struct kthread_worker		*kworker;
 	struct kthread_delayed_work	work;
+
+	/* Devlink parameters */
+	u64			clock_id;
+	u8			phase_avg_factor;
 };
 
 struct zl3073x_chip_info {
@@ -111,9 +116,41 @@ struct zl3073x_dev *zl3073x_devm_alloc(struct device *dev);
 int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 		      const struct zl3073x_chip_info *chip_info);
 
+int zl3073x_dev_start(struct zl3073x_dev *zldev, bool full);
+void zl3073x_dev_stop(struct zl3073x_dev *zldev);
+
+static inline u8 zl3073x_dev_phase_avg_factor_get(struct zl3073x_dev *zldev)
+{
+	return zldev->phase_avg_factor;
+}
+
+int zl3073x_dev_phase_avg_factor_set(struct zl3073x_dev *zldev, u8 factor);
+
 /**********************
  * Registers operations
  **********************/
+
+/**
+ * struct zl3073x_hwreg_seq_item - HW register write sequence item
+ * @addr: HW register to be written
+ * @value: value to be written to HW register
+ * @mask: bitmask indicating bits to be updated
+ * @wait: number of ms to wait after register write
+ */
+struct zl3073x_hwreg_seq_item {
+	u32	addr;
+	u32	value;
+	u32	mask;
+	u32	wait;
+};
+
+#define HWREG_SEQ_ITEM(_addr, _value, _mask, _wait)	\
+{							\
+	.addr	= _addr,				\
+	.value	= FIELD_PREP_CONST(_mask, _value),	\
+	.mask	= _mask,				\
+	.wait	= _wait,				\
+}
 
 int zl3073x_mb_op(struct zl3073x_dev *zldev, unsigned int op_reg, u8 op_val,
 		  unsigned int mask_reg, u16 mask_val);
@@ -126,6 +163,13 @@ int zl3073x_write_u8(struct zl3073x_dev *zldev, unsigned int reg, u8 val);
 int zl3073x_write_u16(struct zl3073x_dev *zldev, unsigned int reg, u16 val);
 int zl3073x_write_u32(struct zl3073x_dev *zldev, unsigned int reg, u32 val);
 int zl3073x_write_u48(struct zl3073x_dev *zldev, unsigned int reg, u64 val);
+int zl3073x_read_hwreg(struct zl3073x_dev *zldev, u32 addr, u32 *value);
+int zl3073x_write_hwreg(struct zl3073x_dev *zldev, u32 addr, u32 value);
+int zl3073x_update_hwreg(struct zl3073x_dev *zldev, u32 addr, u32 value,
+			 u32 mask);
+int zl3073x_write_hwreg_seq(struct zl3073x_dev *zldev,
+			    const struct zl3073x_hwreg_seq_item *seq,
+			    size_t num_items);
 
 /*****************
  * Misc operations

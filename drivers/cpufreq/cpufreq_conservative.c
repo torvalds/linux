@@ -152,9 +152,9 @@ static ssize_t sampling_down_factor_store(struct gov_attr_set *attr_set,
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	unsigned int input;
 	int ret;
-	ret = sscanf(buf, "%u", &input);
+	ret = kstrtouint(buf, 0, &input);
 
-	if (ret != 1 || input > MAX_SAMPLING_DOWN_FACTOR || input < 1)
+	if (ret || input > MAX_SAMPLING_DOWN_FACTOR || input < 1)
 		return -EINVAL;
 
 	dbs_data->sampling_down_factor = input;
@@ -168,9 +168,9 @@ static ssize_t up_threshold_store(struct gov_attr_set *attr_set,
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int input;
 	int ret;
-	ret = sscanf(buf, "%u", &input);
+	ret = kstrtouint(buf, 0, &input);
 
-	if (ret != 1 || input > 100 || input <= cs_tuners->down_threshold)
+	if (ret || input > 100 || input <= cs_tuners->down_threshold)
 		return -EINVAL;
 
 	dbs_data->up_threshold = input;
@@ -184,10 +184,10 @@ static ssize_t down_threshold_store(struct gov_attr_set *attr_set,
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int input;
 	int ret;
-	ret = sscanf(buf, "%u", &input);
+	ret = kstrtouint(buf, 0, &input);
 
 	/* cannot be lower than 1 otherwise freq will not fall */
-	if (ret != 1 || input < 1 || input >= dbs_data->up_threshold)
+	if (ret || input < 1 || input >= dbs_data->up_threshold)
 		return -EINVAL;
 
 	cs_tuners->down_threshold = input;
@@ -201,9 +201,9 @@ static ssize_t ignore_nice_load_store(struct gov_attr_set *attr_set,
 	unsigned int input;
 	int ret;
 
-	ret = sscanf(buf, "%u", &input);
-	if (ret != 1)
-		return -EINVAL;
+	ret = kstrtouint(buf, 0, &input);
+	if (ret)
+		return ret;
 
 	if (input > 1)
 		input = 1;
@@ -226,10 +226,10 @@ static ssize_t freq_step_store(struct gov_attr_set *attr_set, const char *buf,
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int input;
 	int ret;
-	ret = sscanf(buf, "%u", &input);
+	ret = kstrtouint(buf, 0, &input);
 
-	if (ret != 1)
-		return -EINVAL;
+	if (ret)
+		return ret;
 
 	if (input > 100)
 		input = 100;

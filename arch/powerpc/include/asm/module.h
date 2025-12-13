@@ -27,6 +27,7 @@ struct ppc_plt_entry {
 struct mod_arch_specific {
 #ifdef __powerpc64__
 	unsigned int stubs_section;	/* Index of stubs section in module */
+	unsigned int stub_count;	/* Number of stubs used */
 #ifdef CONFIG_PPC_KERNEL_PCREL
 	unsigned int got_section;	/* What section is the GOT? */
 	unsigned int pcpu_section;	/* .data..percpu section */

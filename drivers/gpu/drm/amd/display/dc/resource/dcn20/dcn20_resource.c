@@ -85,7 +85,7 @@
 #include "vm_helper.h"
 
 #include "link_enc_cfg.h"
-#include "link.h"
+#include "link_service.h"
 
 #define DC_LOGGER_INIT(logger)
 

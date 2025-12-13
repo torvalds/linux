@@ -797,7 +797,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	pf->pdev = pdev;
 	pf->dev_info = dev_info;
 
-	pf->wq = alloc_workqueue("nfp-%s", 0, 2, pci_name(pdev));
+	pf->wq = alloc_workqueue("nfp-%s", WQ_PERCPU, 2, pci_name(pdev));
 	if (!pf->wq) {
 		err = -ENOMEM;
 		goto err_pci_priv_unset;

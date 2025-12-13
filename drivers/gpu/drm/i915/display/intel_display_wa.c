@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_core.h"
@@ -38,4 +40,37 @@ void intel_display_wa_apply(struct intel_display *display)
 		xe_d_display_wa_apply(display);
 	else if (DISPLAY_VER(display) == 11)
 		gen11_display_wa_apply(display);
+}
+
+/*
+ * Wa_16025573575:
+ * Fixes: Issue with bitbashing on Xe3 based platforms.
+ * Workaround: Set masks bits in GPIO CTL and preserve it during bitbashing sequence.
+ */
+static bool intel_display_needs_wa_16025573575(struct intel_display *display)
+{
+	return DISPLAY_VERx100(display) == 3000 || DISPLAY_VERx100(display) == 3002;
+}
+
+/*
+ * Wa_14011503117:
+ * Fixes: Before enabling the scaler DE fatal error is masked
+ * Workaround: Unmask the DE fatal error register after enabling the scaler
+ * and after waiting of at least 1 frame.
+ */
+bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa, const char *name)
+{
+	switch (wa) {
+	case INTEL_DISPLAY_WA_16023588340:
+		return intel_display_needs_wa_16023588340(display);
+	case INTEL_DISPLAY_WA_16025573575:
+		return intel_display_needs_wa_16025573575(display);
+	case INTEL_DISPLAY_WA_14011503117:
+		return DISPLAY_VER(display) == 13;
+	default:
+		drm_WARN(display->drm, 1, "Missing Wa number: %s\n", name);
+		break;
+	}
+
+	return false;
 }

@@ -4548,12 +4548,27 @@ struct wmi_scan_event {
 	__le32 tsf_timestamp;
 } __packed;
 
+enum wmi_peer_sta_kickout_reason {
+	WMI_PEER_STA_KICKOUT_REASON_UNSPECIFIED = 0,
+	WMI_PEER_STA_KICKOUT_REASON_XRETRY = 1,
+	WMI_PEER_STA_KICKOUT_REASON_INACTIVITY = 2,
+	WMI_PEER_STA_KICKOUT_REASON_IBSS_DISCONNECT = 3,
+	WMI_PEER_STA_KICKOUT_REASON_TDLS_DISCONNECT = 4,
+	WMI_PEER_STA_KICKOUT_REASON_SA_QUERY_TIMEOUT = 5,
+	WMI_PEER_STA_KICKOUT_REASON_ROAMING_EVENT = 6,
+	WMI_PEER_STA_KICKOUT_REASON_PMF_ERROR = 7,
+};
+
 struct wmi_peer_sta_kickout_arg {
 	const u8 *mac_addr;
+	enum wmi_peer_sta_kickout_reason reason;
+	u32 rssi;
 };
 
 struct wmi_peer_sta_kickout_event {
 	struct ath12k_wmi_mac_addr_params peer_macaddr;
+	__le32 reason;
+	__le32 rssi;
 } __packed;
 
 #define WMI_ROAM_REASON_MASK		GENMASK(3, 0)
@@ -5875,9 +5890,10 @@ struct wmi_stats_event {
 } __packed;
 
 enum wmi_stats_id {
-	WMI_REQUEST_PDEV_STAT	= BIT(2),
-	WMI_REQUEST_VDEV_STAT	= BIT(3),
-	WMI_REQUEST_BCN_STAT	= BIT(11),
+	WMI_REQUEST_PDEV_STAT		= BIT(2),
+	WMI_REQUEST_VDEV_STAT		= BIT(3),
+	WMI_REQUEST_RSSI_PER_CHAIN_STAT	= BIT(8),
+	WMI_REQUEST_BCN_STAT		= BIT(11),
 };
 
 struct wmi_request_stats_cmd {
@@ -5886,6 +5902,17 @@ struct wmi_request_stats_cmd {
 	__le32 vdev_id;
 	struct ath12k_wmi_mac_addr_params peer_macaddr;
 	__le32 pdev_id;
+} __packed;
+
+struct wmi_rssi_stat_params {
+	__le32 vdev_id;
+	__le32 rssi_avg_beacon[WMI_MAX_CHAINS];
+	__le32 rssi_avg_data[WMI_MAX_CHAINS];
+	struct ath12k_wmi_mac_addr_params peer_macaddr;
+} __packed;
+
+struct wmi_per_chain_rssi_stat_params {
+	__le32 num_per_chain_rssi;
 } __packed;
 
 #define WLAN_MAX_AC 4

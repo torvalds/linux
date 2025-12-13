@@ -184,8 +184,8 @@ xrep_symlink_salvage_inline(
 	    sc->ip->i_disk_size == 1 && old_target[0] == '?')
 		return 0;
 
-	nr = min(XFS_SYMLINK_MAXLEN, xfs_inode_data_fork_size(ip));
-	strncpy(target_buf, ifp->if_data, nr);
+	nr = min(XFS_SYMLINK_MAXLEN, ifp->if_bytes);
+	memcpy(target_buf, ifp->if_data, nr);
 	return nr;
 }
 

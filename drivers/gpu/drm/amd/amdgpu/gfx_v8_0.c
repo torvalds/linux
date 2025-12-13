@@ -1220,8 +1220,7 @@ out:
 	return err;
 }
 
-static void gfx_v8_0_get_csb_buffer(struct amdgpu_device *adev,
-				    volatile u32 *buffer)
+static void gfx_v8_0_get_csb_buffer(struct amdgpu_device *adev, u32 *buffer)
 {
 	u32 count = 0;
 
@@ -2023,6 +2022,11 @@ static int gfx_v8_0_sw_init(struct amdgpu_ip_block *ip_block)
 	r = gfx_v8_0_gpu_early_init(adev);
 	if (r)
 		return r;
+
+	adev->gfx.gfx_supported_reset =
+		amdgpu_get_soft_full_reset_mask(&adev->gfx.gfx_ring[0]);
+	adev->gfx.compute_supported_reset =
+		amdgpu_get_soft_full_reset_mask(&adev->gfx.compute_ring[0]);
 
 	return 0;
 }

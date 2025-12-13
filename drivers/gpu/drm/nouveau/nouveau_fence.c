@@ -240,21 +240,6 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 	return ret;
 }
 
-void
-nouveau_fence_cancel(struct nouveau_fence *fence)
-{
-	struct nouveau_fence_chan *fctx = nouveau_fctx(fence);
-	unsigned long flags;
-
-	spin_lock_irqsave(&fctx->lock, flags);
-	if (!dma_fence_is_signaled_locked(&fence->base)) {
-		dma_fence_set_error(&fence->base, -ECANCELED);
-		if (nouveau_fence_signal(fence))
-			nvif_event_block(&fctx->event);
-	}
-	spin_unlock_irqrestore(&fctx->lock, flags);
-}
-
 bool
 nouveau_fence_done(struct nouveau_fence *fence)
 {

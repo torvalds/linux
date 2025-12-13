@@ -80,7 +80,7 @@ impl<T> ArrayLayout<T> {
     /// # Safety
     ///
     /// `len` must be a value, for which `len * size_of::<T>() <= isize::MAX` is true.
-    pub unsafe fn new_unchecked(len: usize) -> Self {
+    pub const unsafe fn new_unchecked(len: usize) -> Self {
         // INVARIANT: By the safety requirements of this function
         // `len * size_of::<T>() <= isize::MAX`.
         Self {
@@ -97,6 +97,11 @@ impl<T> ArrayLayout<T> {
     /// Returns `true` when no array elements are represented by this layout.
     pub const fn is_empty(&self) -> bool {
         self.len == 0
+    }
+
+    /// Returns the size of the [`ArrayLayout`] in bytes.
+    pub const fn size(&self) -> usize {
+        self.len() * core::mem::size_of::<T>()
     }
 }
 

@@ -153,7 +153,7 @@ static int emit_fiemap_extent(struct fiemap_extent_info *fieinfo,
 	if (cache_end > offset) {
 		if (offset == cache->offset) {
 			/*
-			 * We cached a dealloc range (found in the io tree) for
+			 * We cached a delalloc range (found in the io tree) for
 			 * a hole or prealloc extent and we have now found a
 			 * file extent item for the same offset. What we have
 			 * now is more recent and up to date, so discard what

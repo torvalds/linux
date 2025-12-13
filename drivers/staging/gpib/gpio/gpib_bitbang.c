@@ -277,8 +277,8 @@ struct bb_priv {
 	int ndac_mode;	     /* nrfd interrupt mode 0/1 -> edge/levels */
 	int dav_tx;	     /* keep trace of DAV status while sending */
 	int dav_rx;	     /* keep trace of DAV status while receiving */
-	u8 eos;	     // eos character
-	short eos_flags;     // eos mode
+	u8 eos;              /* eos character */
+	short eos_flags;     /* eos mode */
 	short eos_check;     /* eos check required in current operation ... */
 	short eos_check_8;   /* ... with byte comparison */
 	short eos_mask_7;    /* ... with 7 bit masked character */
@@ -290,14 +290,14 @@ struct bb_priv {
 	u8 *rbuf;
 	u8 *wbuf;
 	int end_flag;
-	int r_busy;	   /* 0==idle	1==busy	 */
+	int r_busy;	      /* 0==idle   1==busy */
 	int w_busy;
 	int write_done;
-	int cmd;	   /* 1 = cmd write in	progress */
+	int cmd;	      /* 1 = cmd write in progress */
 	size_t w_cnt;
 	size_t length;
 	u8 *w_buf;
-	spinlock_t rw_lock; // protect mods to rw_lock
+	spinlock_t rw_lock;   /* protect mods to rw_lock */
 	int phase;
 	int ndac_idle;
 	int ndac_seq;
@@ -726,7 +726,7 @@ static irqreturn_t bb_SRQ_interrupt(int irq, void *arg)
 static int bb_command(struct gpib_board *board, u8 *buffer,
 		      size_t length, size_t *bytes_written)
 {
-	size_t ret;
+	int ret;
 	struct bb_priv *priv = board->private_data;
 	int i;
 
@@ -1462,8 +1462,8 @@ static inline void SET_DIR_READ(struct bb_priv *priv)
 		gpiod_set_value(TE, 0);	 /* set NDAC and NRFD to transmit and DAV to receive */
 	}
 
-	gpiod_direction_output(NRFD, 0);  // hold off the talker
-	gpiod_direction_output(NDAC, 0);  // data not accepted
+	gpiod_direction_output(NRFD, 0); /* hold off the talker */
+	gpiod_direction_output(NDAC, 0); /* data not accepted */
 
 	priv->direction = DIR_READ;
 }

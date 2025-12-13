@@ -208,7 +208,7 @@ SYM_FUNC_END(feroceon_flush_user_cache_range)
  */
 	.align	5
 SYM_TYPED_FUNC_START(feroceon_coherent_kern_range)
-#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
+#ifdef CONFIG_CFI /* Fallthrough if !CFI */
 	b	feroceon_coherent_user_range
 #endif
 SYM_FUNC_END(feroceon_coherent_kern_range)

@@ -360,6 +360,8 @@ valid_fb:
 	    i915_vma_pin_fence(vma) == 0 && vma->fence)
 		plane_state->flags |= PLANE_HAS_FENCE;
 
+	plane_state->surf = i915_ggtt_offset(plane_state->ggtt_vma);
+
 	plane_state->uapi.src_x = 0;
 	plane_state->uapi.src_y = 0;
 	plane_state->uapi.src_w = fb->width << 16;

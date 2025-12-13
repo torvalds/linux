@@ -839,7 +839,7 @@ static void __init setup_control_program_code(void)
 		return;
 
 	diag_stat_inc(DIAG_STAT_X318);
-	asm volatile("diag %0,0,0x318\n" : : "d" (diag318_info.val));
+	asm volatile("diag %0,0,0x318" : : "d" (diag318_info.val));
 }
 
 /*

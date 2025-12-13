@@ -10,7 +10,7 @@
 #include "wx_vf.h"
 #include "wx_vf_lib.h"
 
-static void wx_write_eitr_vf(struct wx_q_vector *q_vector)
+void wx_write_eitr_vf(struct wx_q_vector *q_vector)
 {
 	struct wx *wx = q_vector->wx;
 	int v_idx = q_vector->v_idx;
@@ -192,7 +192,7 @@ void wx_setup_vfmrqc_vf(struct wx *wx)
 	u8 i, j;
 
 	/* Fill out hash function seeds */
-	netdev_rss_key_fill(wx->rss_key, sizeof(wx->rss_key));
+	netdev_rss_key_fill(wx->rss_key, WX_RSS_KEY_SIZE);
 	for (i = 0; i < WX_RSS_KEY_SIZE / 4; i++)
 		wr32(wx, WX_VXRSSRK(i), wx->rss_key[i]);
 

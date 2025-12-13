@@ -162,7 +162,7 @@
 		interrupts = <12 IRQ_TYPE_NONE>;
 		status = "disabled";
 
-		stmpe_touchscreen {
+		touchscreen {
 			compatible = "st,stmpe-ts";
 			st,sample-time = <4>;
 			st,mod-12b = <1>;

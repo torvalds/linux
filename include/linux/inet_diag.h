@@ -24,9 +24,6 @@ struct inet_diag_handler {
 					 bool net_admin,
 					 struct sk_buff *skb);
 
-	size_t		(*idiag_get_aux_size)(struct sock *sk,
-					      bool net_admin);
-
 	int		(*destroy)(struct sk_buff *in_skb,
 				   const struct inet_diag_req_v2 *req);
 
@@ -41,6 +38,11 @@ struct inet_diag_dump_data {
 #define inet_diag_nla_bpf_stgs req_nlas[INET_DIAG_REQ_SK_BPF_STORAGES]
 
 	struct bpf_sk_storage_diag *bpf_stg_diag;
+	bool mark_needed;	/* INET_DIAG_BC_MARK_COND present. */
+#ifdef CONFIG_SOCK_CGROUP_DATA
+	bool cgroup_needed;	/* INET_DIAG_BC_CGROUP_COND present. */
+#endif
+	bool userlocks_needed;	/* INET_DIAG_BC_AUTO present. */
 };
 
 struct inet_connection_sock;
@@ -48,18 +50,8 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		      struct sk_buff *skb, struct netlink_callback *cb,
 		      const struct inet_diag_req_v2 *req,
 		      u16 nlmsg_flags, bool net_admin);
-void inet_diag_dump_icsk(struct inet_hashinfo *h, struct sk_buff *skb,
-			 struct netlink_callback *cb,
-			 const struct inet_diag_req_v2 *r);
-int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
-			    struct netlink_callback *cb,
-			    const struct inet_diag_req_v2 *req);
 
-struct sock *inet_diag_find_one_icsk(struct net *net,
-				     struct inet_hashinfo *hashinfo,
-				     const struct inet_diag_req_v2 *req);
-
-int inet_diag_bc_sk(const struct nlattr *_bc, struct sock *sk);
+int inet_diag_bc_sk(const struct inet_diag_dump_data *cb_data, struct sock *sk);
 
 void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk);
 

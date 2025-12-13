@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <bpf/bpf.h>
 #include <linux/err.h>
 
 #include "util/ftrace.h"

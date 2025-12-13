@@ -680,12 +680,12 @@ static int dso__read_build_id(struct dso *dso)
 
 	mutex_lock(dso__lock(dso));
 	nsinfo__mountns_enter(dso__nsinfo(dso), &nsc);
-	if (filename__read_build_id(dso__long_name(dso), &bid) > 0)
+	if (filename__read_build_id(dso__long_name(dso), &bid, /*block=*/true) > 0)
 		dso__set_build_id(dso, &bid);
 	else if (dso__nsinfo(dso)) {
 		char *new_name = dso__filename_with_chroot(dso, dso__long_name(dso));
 
-		if (new_name && filename__read_build_id(new_name, &bid) > 0)
+		if (new_name && filename__read_build_id(new_name, &bid, /*block=*/true) > 0)
 			dso__set_build_id(dso, &bid);
 		free(new_name);
 	}

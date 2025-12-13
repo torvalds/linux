@@ -523,7 +523,7 @@ static int fmh_gpib_accel_write(struct gpib_board *board, u8 *buffer,
 	}
 	if (retval < 0)
 		return retval;
-	//handle sending of last byte with eoi
+	// handle sending of last byte with eoi
 	if (send_eoi) {
 		size_t num_bytes;
 
@@ -1517,6 +1517,11 @@ void fmh_gpib_detach(struct gpib_board *board)
 					   resource_size(e_priv->gpib_iomem_res));
 	}
 	fmh_gpib_generic_detach(board);
+
+	if (board->dev) {
+		put_device(board->dev);
+		board->dev = NULL;
+	}
 }
 
 static int fmh_gpib_pci_attach_impl(struct gpib_board *board,

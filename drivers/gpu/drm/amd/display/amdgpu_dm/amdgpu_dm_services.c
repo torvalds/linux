@@ -1,3 +1,4 @@
+//SPDX-License-Identifier: MIT
 /*
  * Copyright 2015 Advanced Micro Devices, Inc.
  *
@@ -52,11 +53,11 @@ void dm_perf_trace_timestamp(const char *func_name, unsigned int line, struct dc
 				    func_name, line);
 }
 
-void dm_trace_smu_msg(uint32_t msg_id, uint32_t param_in, struct dc_context *ctx)
+void dm_trace_smu_enter(uint32_t msg_id, uint32_t param_in, unsigned int delay, struct dc_context *ctx)
 {
 }
 
-void dm_trace_smu_delay(uint32_t delay, struct dc_context *ctx)
+void dm_trace_smu_exit(bool success, uint32_t response, struct dc_context *ctx)
 {
 }
 

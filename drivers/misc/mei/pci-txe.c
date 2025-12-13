@@ -87,6 +87,10 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw = to_txe_hw(dev);
 	hw->mem_addr = pcim_iomap_table(pdev);
 
+	err = mei_register(dev, &pdev->dev);
+	if (err)
+		goto end;
+
 	pci_enable_msi(pdev);
 
 	/* clear spurious interrupts */
@@ -106,21 +110,17 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		dev_err(&pdev->dev, "mei: request_threaded_irq failure. irq = %d\n",
 			pdev->irq);
-		goto end;
+		goto deregister;
 	}
 
 	if (mei_start(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");
 		err = -ENODEV;
-		goto release_irq;
+		goto deregister;
 	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, MEI_TXI_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
-
-	err = mei_register(dev, &pdev->dev);
-	if (err)
-		goto stop;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -144,12 +144,11 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-stop:
-	mei_stop(dev);
-release_irq:
+deregister:
 	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
 	free_irq(pdev->irq, dev);
+	mei_deregister(dev);
 end:
 	dev_err(&pdev->dev, "initialization failed.\n");
 	return err;
@@ -321,7 +320,7 @@ static int mei_txe_pm_runtime_resume(struct device *device)
  */
 static inline void mei_txe_set_pm_domain(struct mei_device *dev)
 {
-	struct pci_dev *pdev  = to_pci_dev(dev->dev);
+	struct pci_dev *pdev  = to_pci_dev(dev->parent);
 
 	if (pdev->dev.bus && pdev->dev.bus->pm) {
 		dev->pg_domain.ops = *pdev->dev.bus->pm;
@@ -342,7 +341,7 @@ static inline void mei_txe_set_pm_domain(struct mei_device *dev)
 static inline void mei_txe_unset_pm_domain(struct mei_device *dev)
 {
 	/* stop using pm callbacks if any */
-	dev_pm_domain_set(dev->dev, NULL);
+	dev_pm_domain_set(dev->parent, NULL);
 }
 
 static const struct dev_pm_ops mei_txe_pm_ops = {

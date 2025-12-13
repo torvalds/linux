@@ -1652,8 +1652,7 @@ reg_user_mr_dmabuf(struct ib_pd *pd, struct device *dma_device,
 				fd, access_flags);
 
 	if (IS_ERR(umem_dmabuf)) {
-		mlx5_ib_dbg(dev, "umem_dmabuf get failed (%ld)\n",
-			    PTR_ERR(umem_dmabuf));
+		mlx5_ib_dbg(dev, "umem_dmabuf get failed (%pe)\n", umem_dmabuf);
 		return ERR_CAST(umem_dmabuf);
 	}
 
@@ -1717,11 +1716,11 @@ reg_user_mr_dmabuf_by_data_direct(struct ib_pd *pd, u64 offset,
 		goto end;
 	}
 
-	/* The device's 'data direct mkey' was created without RO flags to
-	 * simplify things and allow for a single mkey per device.
-	 * Since RO is not a must, mask it out accordingly.
+	/* If no device's 'data direct mkey' with RO flags exists
+	 * mask it out accordingly.
 	 */
-	access_flags &= ~IB_ACCESS_RELAXED_ORDERING;
+	if (!dev->ddr.mkey_ro_valid)
+		access_flags &= ~IB_ACCESS_RELAXED_ORDERING;
 	crossed_mr = reg_user_mr_dmabuf(pd, &data_direct_dev->pdev->dev,
 					offset, length, virt_addr, fd,
 					access_flags, MLX5_MKC_ACCESS_MODE_KSM,

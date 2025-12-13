@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+#include <assert.h>
 #include <libgen.h>
 #include <bpf/bpf.h>
 #include <scx/common.h>
@@ -41,6 +42,7 @@ static void sigint_handler(int simple)
 static void read_stats(struct scx_simple *skel, __u64 *stats)
 {
 	int nr_cpus = libbpf_num_possible_cpus();
+	assert(nr_cpus > 0);
 	__u64 cnts[2][nr_cpus];
 	__u32 idx;
 

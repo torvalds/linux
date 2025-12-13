@@ -795,7 +795,7 @@ static int adau1977_set_sysclk(struct snd_soc_component *component,
 	struct adau1977 *adau1977 = snd_soc_component_get_drvdata(component);
 	unsigned int mask = 0;
 	unsigned int clk_src;
-	unsigned int ret;
+	int ret;
 
 	if (dir != SND_SOC_CLOCK_IN)
 		return -EINVAL;

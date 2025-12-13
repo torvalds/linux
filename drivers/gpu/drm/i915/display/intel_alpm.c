@@ -16,6 +16,14 @@
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 
+#define SILENCE_PERIOD_MIN_TIME	80
+#define SILENCE_PERIOD_MAX_TIME	180
+#define SILENCE_PERIOD_TIME	(SILENCE_PERIOD_MIN_TIME +	\
+				(SILENCE_PERIOD_MAX_TIME -	\
+				 SILENCE_PERIOD_MIN_TIME) / 2)
+
+#define LFPS_CYCLE_COUNT 10
+
 bool intel_alpm_aux_wake_supported(struct intel_dp *intel_dp)
 {
 	return intel_dp->alpm_dpcd & DP_ALPM_CAP;
@@ -44,72 +52,49 @@ void intel_alpm_init(struct intel_dp *intel_dp)
 	mutex_init(&intel_dp->alpm_parameters.lock);
 }
 
-/*
- * See Bspec: 71632 for the table
- *
- * Silence_period = tSilence,Min + ((tSilence,Max - tSilence,Min) / 2)
- *
- * Half cycle duration:
- *
- * Link rates 1.62 - 4.32 and tLFPS_Cycle = 70 ns
- * FLOOR( (Link Rate * tLFPS_Cycle) / (2 * 10) )
- *
- * Link rates 5.4 - 8.1
- * PORT_ALPM_LFPS_CTL[ LFPS Cycle Count ] = 10
- * LFPS Period chosen is the mid-point of the min:max values from the table
- * FLOOR( LFPS Period in Symbol clocks /
- * (2 * PORT_ALPM_LFPS_CTL[ LFPS Cycle Count ]) )
- */
-static bool _lnl_get_silence_period_and_lfps_half_cycle(int link_rate,
-							int *silence_period,
-							int *lfps_half_cycle)
+static int get_silence_period_symbols(const struct intel_crtc_state *crtc_state)
 {
-	switch (link_rate) {
-	case 162000:
-		*silence_period = 20;
-		*lfps_half_cycle = 5;
-		break;
-	case 216000:
-		*silence_period = 27;
-		*lfps_half_cycle = 7;
-		break;
-	case 243000:
-		*silence_period = 31;
-		*lfps_half_cycle = 8;
-		break;
-	case 270000:
-		*silence_period = 34;
-		*lfps_half_cycle = 9;
-		break;
-	case 324000:
-		*silence_period = 41;
-		*lfps_half_cycle = 11;
-		break;
-	case 432000:
-		*silence_period = 56;
-		*lfps_half_cycle = 15;
-		break;
-	case 540000:
-		*silence_period = 69;
-		*lfps_half_cycle = 12;
-		break;
-	case 648000:
-		*silence_period = 84;
-		*lfps_half_cycle = 15;
-		break;
-	case 675000:
-		*silence_period = 87;
-		*lfps_half_cycle = 15;
-		break;
-	case 810000:
-		*silence_period = 104;
-		*lfps_half_cycle = 19;
-		break;
-	default:
-		*silence_period = *lfps_half_cycle = -1;
-		return false;
+	return SILENCE_PERIOD_TIME * intel_dp_link_symbol_clock(crtc_state->port_clock) /
+		1000 / 1000;
+}
+
+static int get_lfps_cycle_min_max_time(const struct intel_crtc_state *crtc_state,
+				       int *min, int *max)
+{
+	if (crtc_state->port_clock < 540000) {
+		*min = 65 * LFPS_CYCLE_COUNT;
+		*max = 75 * LFPS_CYCLE_COUNT;
+	} else if (crtc_state->port_clock <= 810000) {
+		*min = 140;
+		*max = 800;
+	} else {
+		*min = *max = -1;
+		return -1;
 	}
-	return true;
+
+	return 0;
+}
+
+static int get_lfps_cycle_time(const struct intel_crtc_state *crtc_state)
+{
+	int tlfps_cycle_min, tlfps_cycle_max, ret;
+
+	ret = get_lfps_cycle_min_max_time(crtc_state, &tlfps_cycle_min,
+					  &tlfps_cycle_max);
+	if (ret)
+		return ret;
+
+	return tlfps_cycle_min +  (tlfps_cycle_max - tlfps_cycle_min) / 2;
+}
+
+static int get_lfps_half_cycle_clocks(const struct intel_crtc_state *crtc_state)
+{
+	int lfps_cycle_time = get_lfps_cycle_time(crtc_state);
+
+	if (lfps_cycle_time < 0)
+		return -1;
+
+	return lfps_cycle_time * crtc_state->port_clock / 1000 / 1000 / (2 * LFPS_CYCLE_COUNT);
 }
 
 /*
@@ -131,21 +116,19 @@ static bool _lnl_get_silence_period_and_lfps_half_cycle(int link_rate,
  * tML_PHY_LOCK = TPS4 Length * ( 10 / (Link Rate in MHz) )
  * TPS4 Length = 252 Symbols
  */
-static int _lnl_compute_aux_less_wake_time(int port_clock)
+static int _lnl_compute_aux_less_wake_time(const struct intel_crtc_state *crtc_state)
 {
 	int tphy2_p2_to_p0 = 12 * 1000;
-	int tlfps_period_max = 800;
-	int tsilence_max = 180;
 	int t1 = 50 * 1000;
 	int tps4 = 252;
 	/* port_clock is link rate in 10kbit/s units */
-	int tml_phy_lock = 1000 * 1000 * tps4 / port_clock;
+	int tml_phy_lock = 1000 * 1000 * tps4 / crtc_state->port_clock;
 	int num_ml_phy_lock = 7 + DIV_ROUND_UP(6500, tml_phy_lock) + 1;
 	int t2 = num_ml_phy_lock * tml_phy_lock;
 	int tcds = 1 * t2;
 
-	return DIV_ROUND_UP(tphy2_p2_to_p0 + tlfps_period_max + tsilence_max +
-			    t1 + tcds, 1000);
+	return DIV_ROUND_UP(tphy2_p2_to_p0 + get_lfps_cycle_time(crtc_state) +
+			    SILENCE_PERIOD_TIME + t1 + tcds, 1000);
 }
 
 static int
@@ -157,13 +140,13 @@ _lnl_compute_aux_less_alpm_params(struct intel_dp *intel_dp,
 		lfps_half_cycle;
 
 	aux_less_wake_time =
-		_lnl_compute_aux_less_wake_time(crtc_state->port_clock);
+		_lnl_compute_aux_less_wake_time(crtc_state);
 	aux_less_wake_lines = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode,
 						       aux_less_wake_time);
+	silence_period = get_silence_period_symbols(crtc_state);
 
-	if (!_lnl_get_silence_period_and_lfps_half_cycle(crtc_state->port_clock,
-							 &silence_period,
-							 &lfps_half_cycle))
+	lfps_half_cycle = get_lfps_half_cycle_clocks(crtc_state);
+	if (lfps_half_cycle < 0)
 		return false;
 
 	if (aux_less_wake_lines > ALPM_CTL_AUX_LESS_WAKE_TIME_MASK ||
@@ -406,7 +389,7 @@ void intel_alpm_port_configure(struct intel_dp *intel_dp,
 			PORT_ALPM_CTL_MAX_PHY_SWING_HOLD(0) |
 			PORT_ALPM_CTL_SILENCE_PERIOD(
 				intel_dp->alpm_parameters.silence_period_sym_clocks);
-		lfps_ctl_val = PORT_ALPM_LFPS_CTL_LFPS_CYCLE_COUNT(10) |
+		lfps_ctl_val = PORT_ALPM_LFPS_CTL_LFPS_CYCLE_COUNT(LFPS_CYCLE_COUNT) |
 			PORT_ALPM_LFPS_CTL_LFPS_HALF_CYCLE_DURATION(
 				intel_dp->alpm_parameters.lfps_half_cycle_num_of_syms) |
 			PORT_ALPM_LFPS_CTL_FIRST_LFPS_HALF_CYCLE_DURATION(

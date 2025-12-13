@@ -756,7 +756,6 @@ void setsockopt_ull_check(int fd, int level, int optname,
 fail:
 	fprintf(stderr, "%s  val %llu\n", errmsg, val);
 	exit(EXIT_FAILURE);
-;
 }
 
 /* Set "int" socket option and check that it's indeed set */

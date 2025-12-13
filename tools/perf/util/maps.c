@@ -477,6 +477,7 @@ static int __maps__insert(struct maps *maps, struct map *new)
 	}
 	/* Insert the value at the end. */
 	maps_by_address[nr_maps] = map__get(new);
+	map__set_kmap_maps(new, maps);
 	if (maps_by_name)
 		maps_by_name[nr_maps] = map__get(new);
 
@@ -501,8 +502,6 @@ static int __maps__insert(struct maps *maps, struct map *new)
 	}
 	if (map__end(new) < map__start(new))
 		RC_CHK_ACCESS(maps)->ends_broken = true;
-
-	map__set_kmap_maps(new, maps);
 
 	return 0;
 }
@@ -891,6 +890,7 @@ static int __maps__fixup_overlap_and_insert(struct maps *maps, struct map *new)
 		if (before) {
 			map__put(maps_by_address[i]);
 			maps_by_address[i] = before;
+			map__set_kmap_maps(before, maps);
 
 			if (maps_by_name) {
 				map__put(maps_by_name[ni]);
@@ -918,6 +918,7 @@ static int __maps__fixup_overlap_and_insert(struct maps *maps, struct map *new)
 			 */
 			map__put(maps_by_address[i]);
 			maps_by_address[i] = map__get(new);
+			map__set_kmap_maps(new, maps);
 
 			if (maps_by_name) {
 				map__put(maps_by_name[ni]);
@@ -942,13 +943,12 @@ static int __maps__fixup_overlap_and_insert(struct maps *maps, struct map *new)
 				 */
 				map__put(maps_by_address[i]);
 				maps_by_address[i] = map__get(new);
+				map__set_kmap_maps(new, maps);
 
 				if (maps_by_name) {
 					map__put(maps_by_name[ni]);
 					maps_by_name[ni] = map__get(new);
 				}
-
-				map__set_kmap_maps(new, maps);
 
 				check_invariants(maps);
 				return err;
@@ -1019,6 +1019,7 @@ int maps__copy_from(struct maps *dest, struct maps *parent)
 				err = unwind__prepare_access(dest, new, NULL);
 				if (!err) {
 					dest_maps_by_address[i] = new;
+					map__set_kmap_maps(new, dest);
 					if (dest_maps_by_name)
 						dest_maps_by_name[i] = map__get(new);
 					RC_CHK_ACCESS(dest)->nr_maps = i + 1;

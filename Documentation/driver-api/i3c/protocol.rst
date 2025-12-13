@@ -165,8 +165,8 @@ The first thing attached to an HDR command is the HDR mode. There are currently
 for more details):
 
 * HDR-DDR: Double Data Rate mode
-* HDR-TSP: Ternary Symbol Pure. Only usable on busses with no I2C devices
-* HDR-TSL: Ternary Symbol Legacy. Usable on busses with I2C devices
+* HDR-TSP: Ternary Symbol Pure. Only usable on buses with no I2C devices
+* HDR-TSL: Ternary Symbol Legacy. Usable on buses with I2C devices
 
 When sending an HDR command, the whole bus has to enter HDR mode, which is done
 using a broadcast CCC command.

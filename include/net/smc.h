@@ -15,7 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
-#include "linux/ism.h"
+#include <linux/dibs.h>
 
 struct sock;
 
@@ -27,62 +27,15 @@ struct smc_hashinfo {
 };
 
 /* SMCD/ISM device driver interface */
-struct smcd_dmb {
-	u64 dmb_tok;
-	u64 rgid;
-	u32 dmb_len;
-	u32 sba_idx;
-	u32 vlan_valid;
-	u32 vlan_id;
-	void *cpu_addr;
-	dma_addr_t dma_addr;
-};
-
-#define ISM_EVENT_DMB	0
-#define ISM_EVENT_GID	1
-#define ISM_EVENT_SWR	2
-
 #define ISM_RESERVED_VLANID	0x1FFF
-
-#define ISM_ERROR	0xFFFF
-
-struct smcd_dev;
 
 struct smcd_gid {
 	u64	gid;
 	u64	gid_ext;
 };
 
-struct smcd_ops {
-	int (*query_remote_gid)(struct smcd_dev *dev, struct smcd_gid *rgid,
-				u32 vid_valid, u32 vid);
-	int (*register_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb,
-			    void *client);
-	int (*unregister_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
-	int (*move_data)(struct smcd_dev *dev, u64 dmb_tok, unsigned int idx,
-			 bool sf, unsigned int offset, void *data,
-			 unsigned int size);
-	int (*supports_v2)(void);
-	void (*get_local_gid)(struct smcd_dev *dev, struct smcd_gid *gid);
-	u16 (*get_chid)(struct smcd_dev *dev);
-	struct device* (*get_dev)(struct smcd_dev *dev);
-
-	/* optional operations */
-	int (*add_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
-	int (*del_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
-	int (*set_vlan_required)(struct smcd_dev *dev);
-	int (*reset_vlan_required)(struct smcd_dev *dev);
-	int (*signal_event)(struct smcd_dev *dev, struct smcd_gid *rgid,
-			    u32 trigger_irq, u32 event_code, u64 info);
-	int (*support_dmb_nocopy)(struct smcd_dev *dev);
-	int (*attach_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
-	int (*detach_dmb)(struct smcd_dev *dev, u64 token);
-};
-
 struct smcd_dev {
-	const struct smcd_ops *ops;
-	void *priv;
-	void *client;
+	struct dibs_dev *dibs;
 	struct list_head list;
 	spinlock_t lock;
 	struct smc_connection **conn;

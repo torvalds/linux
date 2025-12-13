@@ -291,7 +291,6 @@ static int ads1119_single_conversion(struct ads1119_state *st,
 	*val = sign_extend32(sample, chan->scan_type.realbits - 1);
 	ret = IIO_VAL_INT;
 pdown:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	return ret;
 }
@@ -470,7 +469,6 @@ static int ads1119_triggered_buffer_postdisable(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
@@ -693,8 +691,7 @@ static int ads1119_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "Failed to allocate IIO device\n");
+		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 	st->client = client;
@@ -750,8 +747,7 @@ static int ads1119_probe(struct i2c_client *client)
 						  indio_dev->name,
 						  iio_device_id(indio_dev));
 		if (!st->trig)
-			return dev_err_probe(dev, -ENOMEM,
-					     "Failed to allocate IIO trigger\n");
+			return -ENOMEM;
 
 		st->trig->ops = &ads1119_trigger_ops;
 		iio_trigger_set_drvdata(st->trig, indio_dev);
@@ -778,8 +774,7 @@ static int ads1119_probe(struct i2c_client *client)
 
 	ret = devm_add_action_or_reset(dev, ads1119_powerdown, st);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add powerdown action\n");
+		return ret;
 
 	return devm_iio_device_register(dev, indio_dev);
 }

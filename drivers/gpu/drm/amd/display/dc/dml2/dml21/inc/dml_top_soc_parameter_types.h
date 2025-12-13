@@ -96,6 +96,8 @@ struct dml2_soc_power_management_parameters {
 	double g7_temperature_read_blackout_us;
 	double stutter_enter_plus_exit_latency_us;
 	double stutter_exit_latency_us;
+	double low_power_stutter_enter_plus_exit_latency_us;
+	double low_power_stutter_exit_latency_us;
 	double z8_stutter_enter_plus_exit_latency_us;
 	double z8_stutter_exit_latency_us;
 	double z8_min_idle_time;

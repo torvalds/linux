@@ -1168,6 +1168,16 @@ static void srcu_flip(struct srcu_struct *ssp)
 	 * counter update.  Note that both this memory barrier and the
 	 * one in srcu_readers_active_idx_check() provide the guarantee
 	 * for __srcu_read_lock().
+	 *
+	 * Note that this is a performance optimization, in which we spend
+	 * an otherwise unnecessary smp_mb() in order to reduce the number
+	 * of full per-CPU-variable scans in srcu_readers_lock_idx() and
+	 * srcu_readers_unlock_idx().  But this performance optimization
+	 * is not so optimal for SRCU-fast, where we would be spending
+	 * not smp_mb(), but rather synchronize_rcu().  At the same time,
+	 * the overhead of the smp_mb() is in the noise, so there is no
+	 * point in omitting it in the SRCU-fast case.  So the same code
+	 * is executed either way.
 	 */
 	smp_mb(); /* D */  /* Pairs with C. */
 }

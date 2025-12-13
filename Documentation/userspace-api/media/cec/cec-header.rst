@@ -6,5 +6,6 @@
 CEC Header File
 ***************
 
-.. kernel-include:: $BUILDDIR/cec.h.rst
-
+.. kernel-include:: include/uapi/linux/cec.h
+    :generate-cross-refs:
+    :exception-file: cec.h.rst.exceptions

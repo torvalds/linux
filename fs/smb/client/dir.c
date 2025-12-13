@@ -200,8 +200,8 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 
 	full_path = build_path_from_dentry(direntry, page);
 	if (IS_ERR(full_path)) {
-		free_dentry_path(page);
-		return PTR_ERR(full_path);
+		rc = PTR_ERR(full_path);
+		goto out;
 	}
 
 	/* If we're caching, we need to be able to fill in around partial writes. */
@@ -322,13 +322,14 @@ retry_open:
 		list_for_each_entry(parent_cfid, &tcon->cfids->entries, entry) {
 			if (parent_cfid->dentry == direntry->d_parent) {
 				cifs_dbg(FYI, "found a parent cached file handle\n");
-				if (parent_cfid->has_lease && parent_cfid->time) {
+				if (is_valid_cached_dir(parent_cfid)) {
 					lease_flags
 						|= SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET_LE;
 					memcpy(fid->parent_lease_key,
 					       parent_cfid->fid.lease_key,
 					       SMB2_LEASE_KEY_SIZE);
 					parent_cfid->dirents.is_valid = false;
+					parent_cfid->dirents.is_failed = true;
 				}
 				break;
 			}
@@ -484,8 +485,6 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	 * in network traffic in the other paths.
 	 */
 	if (!(oflags & O_CREAT)) {
-		struct dentry *res;
-
 		/*
 		 * Check for hashed negative dentry. We have already revalidated
 		 * the dentry and it is fine. No need to perform another lookup.
@@ -493,11 +492,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		if (!d_in_lookup(direntry))
 			return -ENOENT;
 
-		res = cifs_lookup(inode, direntry, 0);
-		if (IS_ERR(res))
-			return PTR_ERR(res);
-
-		return finish_no_open(file, res);
+		return finish_no_open(file, cifs_lookup(inode, direntry, 0));
 	}
 
 	xid = get_xid();
@@ -683,6 +678,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	const char *full_path;
 	void *page;
 	int retry_count = 0;
+	struct dentry *de;
 
 	xid = get_xid();
 
@@ -694,16 +690,15 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	cifs_sb = CIFS_SB(parent_dir_inode->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
-		free_xid(xid);
-		return ERR_CAST(tlink);
+		de = ERR_CAST(tlink);
+		goto free_xid;
 	}
 	pTcon = tlink_tcon(tlink);
 
 	rc = check_name(direntry, pTcon);
 	if (unlikely(rc)) {
-		cifs_put_tlink(tlink);
-		free_xid(xid);
-		return ERR_PTR(rc);
+		de = ERR_PTR(rc);
+		goto put_tlink;
 	}
 
 	/* can not grab the rename sem here since it would
@@ -712,16 +707,38 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	page = alloc_dentry_path();
 	full_path = build_path_from_dentry(direntry, page);
 	if (IS_ERR(full_path)) {
-		cifs_put_tlink(tlink);
-		free_xid(xid);
-		free_dentry_path(page);
-		return ERR_CAST(full_path);
+		de = ERR_CAST(full_path);
+		goto free_dentry_path;
 	}
 
 	if (d_really_is_positive(direntry)) {
 		cifs_dbg(FYI, "non-NULL inode in lookup\n");
 	} else {
+		struct cached_fid *cfid = NULL;
+
 		cifs_dbg(FYI, "NULL inode in lookup\n");
+
+		/*
+		 * We can only rely on negative dentries having the same
+		 * spelling as the cached dirent if case insensitivity is
+		 * forced on mount.
+		 *
+		 * XXX: if servers correctly announce Case Sensitivity Search
+		 * on GetInfo of FileFSAttributeInformation, then we can take
+		 * correct action even if case insensitive is not forced on
+		 * mount.
+		 */
+		if (pTcon->nocase && !open_cached_dir_by_dentry(pTcon, direntry->d_parent, &cfid)) {
+			/*
+			 * dentry is negative and parent is fully cached:
+			 * we can assume file does not exist
+			 */
+			if (cfid->dirents.is_valid) {
+				close_cached_dir(cfid);
+				goto out;
+			}
+			close_cached_dir(cfid);
+		}
 	}
 	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n",
 		 full_path, d_inode(direntry));
@@ -755,24 +772,29 @@ again:
 		}
 		newInode = ERR_PTR(rc);
 	}
+
+out:
+	de = d_splice_alias(newInode, direntry);
+free_dentry_path:
 	free_dentry_path(page);
+put_tlink:
 	cifs_put_tlink(tlink);
+free_xid:
 	free_xid(xid);
-	return d_splice_alias(newInode, direntry);
+	return de;
 }
 
 static int
 cifs_d_revalidate(struct inode *dir, const struct qstr *name,
 		  struct dentry *direntry, unsigned int flags)
 {
-	struct inode *inode;
-	int rc;
-
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	if (d_really_is_positive(direntry)) {
-		inode = d_inode(direntry);
+		int rc;
+		struct inode *inode = d_inode(direntry);
+
 		if ((flags & LOOKUP_REVAL) && !CIFS_CACHE_READ(CIFS_I(inode)))
 			CIFS_I(inode)->time = 0; /* force reval */
 
@@ -811,6 +833,22 @@ cifs_d_revalidate(struct inode *dir, const struct qstr *name,
 			}
 
 			return 1;
+		}
+	} else {
+		struct cifs_sb_info *cifs_sb = CIFS_SB(dir->i_sb);
+		struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+		struct cached_fid *cfid;
+
+		if (!open_cached_dir_by_dentry(tcon, direntry->d_parent, &cfid)) {
+			/*
+			 * dentry is negative and parent is fully cached:
+			 * we can assume file does not exist
+			 */
+			if (cfid->dirents.is_valid) {
+				close_cached_dir(cfid);
+				return 1;
+			}
+			close_cached_dir(cfid);
 		}
 	}
 

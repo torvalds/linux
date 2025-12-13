@@ -219,7 +219,7 @@ mock_sched_timedout_job(struct drm_sched_job *sched_job)
 	unsigned long flags;
 
 	if (job->flags & DRM_MOCK_SCHED_JOB_DONT_RESET) {
-		job->flags &= ~DRM_MOCK_SCHED_JOB_DONT_RESET;
+		job->flags |= DRM_MOCK_SCHED_JOB_RESET_SKIPPED;
 		return DRM_GPU_SCHED_STAT_NO_HANG;
 	}
 

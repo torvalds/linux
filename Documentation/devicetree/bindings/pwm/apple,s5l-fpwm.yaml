@@ -17,8 +17,9 @@ properties:
     items:
       - enum:
           - apple,t8103-fpwm
-          - apple,t6000-fpwm
           - apple,t8112-fpwm
+          - apple,t6000-fpwm
+          - apple,t6020-fpwm
       - const: apple,s5l-fpwm
 
   reg:

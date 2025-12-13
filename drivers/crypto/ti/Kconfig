@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CRYPTO_DEV_TI_DTHEV2
+	tristate "Support for TI DTHE V2 cryptography engine"
+	depends on ARCH_K3 || COMPILE_TEST
+	select CRYPTO_ENGINE
+	select CRYPTO_SKCIPHER
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	help
+	  This enables support for the TI DTHE V2 hw cryptography engine
+	  which can be found on TI K3 SOCs. Selecting this enables use
+	  of hardware offloading for cryptographic algorithms on
+	  these devices, providing enhanced resistance against side-channel
+	  attacks.

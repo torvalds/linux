@@ -194,9 +194,9 @@ void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
-	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+	struct dentry *debugfs_root = gvt->gt->i915->drm.debugfs_root;
 
-	if (minor->debugfs_root && gvt->debugfs_root) {
+	if (debugfs_root && gvt->debugfs_root) {
 		debugfs_remove_recursive(vgpu->debugfs);
 		vgpu->debugfs = NULL;
 	}
@@ -208,9 +208,9 @@ void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_debugfs_init(struct intel_gvt *gvt)
 {
-	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+	struct dentry *debugfs_root = gvt->gt->i915->drm.debugfs_root;
 
-	gvt->debugfs_root = debugfs_create_dir("gvt", minor->debugfs_root);
+	gvt->debugfs_root = debugfs_create_dir("gvt", debugfs_root);
 
 	debugfs_create_ulong("num_tracked_mmio", 0444, gvt->debugfs_root,
 			     &gvt->mmio.num_tracked_mmio);
@@ -222,9 +222,9 @@ void intel_gvt_debugfs_init(struct intel_gvt *gvt)
  */
 void intel_gvt_debugfs_clean(struct intel_gvt *gvt)
 {
-	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+	struct dentry *debugfs_root = gvt->gt->i915->drm.debugfs_root;
 
-	if (minor->debugfs_root) {
+	if (debugfs_root) {
 		debugfs_remove_recursive(gvt->debugfs_root);
 		gvt->debugfs_root = NULL;
 	}

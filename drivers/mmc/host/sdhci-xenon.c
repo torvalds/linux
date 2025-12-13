@@ -622,7 +622,6 @@ static void xenon_remove(struct platform_device *pdev)
 	clk_disable_unprepare(pltfm_host->clk);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int xenon_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -635,9 +634,7 @@ static int xenon_suspend(struct device *dev)
 	priv->restore_needed = true;
 	return ret;
 }
-#endif
 
-#ifdef CONFIG_PM
 static int xenon_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -685,14 +682,10 @@ out:
 	clk_disable_unprepare(pltfm_host->clk);
 	return ret;
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops sdhci_xenon_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(xenon_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(xenon_runtime_suspend,
-			   xenon_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(xenon_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(xenon_runtime_suspend, xenon_runtime_resume, NULL)
 };
 
 static const struct of_device_id sdhci_xenon_dt_ids[] = {
@@ -721,7 +714,7 @@ static struct platform_driver sdhci_xenon_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_xenon_dt_ids,
 		.acpi_match_table = ACPI_PTR(sdhci_xenon_acpi_ids),
-		.pm = &sdhci_xenon_dev_pm_ops,
+		.pm = pm_ptr(&sdhci_xenon_dev_pm_ops),
 	},
 	.probe	= xenon_probe,
 	.remove = xenon_remove,

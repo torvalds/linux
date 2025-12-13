@@ -16,6 +16,7 @@ ip_local_port_range
 ipsec
 ipv6_flowlabel
 ipv6_flowlabel_mgr
+ipv6_fragmentation
 log.txt
 msg_oob
 msg_zerocopy
@@ -44,6 +45,7 @@ skf_net_off
 socket
 so_incoming_cpu
 so_netns_cookie
+so_peek_off
 so_txtime
 so_rcv_listener
 stress_reuseport_listen
@@ -51,6 +53,7 @@ tap
 tcp_fastopen_backup_key
 tcp_inq
 tcp_mmap
+tcp_port_share
 tfo
 timestamping
 tls

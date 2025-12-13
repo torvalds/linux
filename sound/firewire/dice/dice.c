@@ -238,9 +238,8 @@ static void dice_bus_reset(struct fw_unit *unit)
 	/* The handler address register becomes initialized. */
 	snd_dice_transaction_reinit(dice);
 
-	mutex_lock(&dice->mutex);
+	guard(mutex)(&dice->mutex);
 	snd_dice_stream_update_duplex(dice);
-	mutex_unlock(&dice->mutex);
 }
 
 #define DICE_INTERFACE	0x000001

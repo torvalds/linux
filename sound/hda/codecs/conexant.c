@@ -32,7 +32,7 @@ struct conexant_spec {
 
 	unsigned int parse_flags; /* flag for snd_hda_parse_pin_defcfg() */
 
-	/* OPLC XO specific */
+	/* OLPC XO specific */
 	bool recording;
 	bool dc_enable;
 	unsigned int dc_input_bias; /* offset into olpc_xo_dc_bias */
@@ -407,7 +407,7 @@ static void cxt_fixup_headset_mic(struct hda_codec *codec,
 	}
 }
 
-/* OPLC XO 1.5 fixup */
+/* OLPC XO 1.5 fixup */
 
 /* OLPC XO-1.5 supports DC input mode (e.g. for use with analog sensors)
  * through the microphone jack.

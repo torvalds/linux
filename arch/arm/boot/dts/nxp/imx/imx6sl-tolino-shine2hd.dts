@@ -84,7 +84,7 @@
 		led-1 {
 			label = "tolinoshine2hd:white:backlightboost";
 			gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "off";
+			linux,default-trigger = "none";
 		};
 	};
 

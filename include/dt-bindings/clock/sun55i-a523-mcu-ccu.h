@@ -1,0 +1,54 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR MIT) */
+/*
+ * Copyright (C) 2025 Chen-Yu Tsai <wens@csie.org>
+ */
+
+#ifndef _DT_BINDINGS_CLK_SUN55I_A523_MCU_CCU_H_
+#define _DT_BINDINGS_CLK_SUN55I_A523_MCU_CCU_H_
+
+#define CLK_MCU_PLL_AUDIO1	0
+#define CLK_MCU_PLL_AUDIO1_DIV2	1
+#define CLK_MCU_PLL_AUDIO1_DIV5	2
+#define CLK_MCU_AUDIO_OUT	3
+#define CLK_MCU_DSP		4
+#define CLK_MCU_I2S0		5
+#define CLK_MCU_I2S1		6
+#define CLK_MCU_I2S2		7
+#define CLK_MCU_I2S3		8
+#define CLK_MCU_I2S3_ASRC	9
+#define CLK_BUS_MCU_I2S0	10
+#define CLK_BUS_MCU_I2S1	11
+#define CLK_BUS_MCU_I2S2	12
+#define CLK_BUS_MCU_I2S3	13
+#define CLK_MCU_SPDIF_TX	14
+#define CLK_MCU_SPDIF_RX	15
+#define CLK_BUS_MCU_SPDIF	16
+#define CLK_MCU_DMIC		17
+#define CLK_BUS_MCU_DMIC	18
+#define CLK_MCU_AUDIO_CODEC_DAC	19
+#define CLK_MCU_AUDIO_CODEC_ADC	20
+#define CLK_BUS_MCU_AUDIO_CODEC	21
+#define CLK_BUS_MCU_DSP_MSGBOX	22
+#define CLK_BUS_MCU_DSP_CFG	23
+#define CLK_BUS_MCU_NPU_HCLK	24
+#define CLK_BUS_MCU_NPU_ACLK	25
+#define CLK_MCU_TIMER0		26
+#define CLK_MCU_TIMER1		27
+#define CLK_MCU_TIMER2		28
+#define CLK_MCU_TIMER3		29
+#define CLK_MCU_TIMER4		30
+#define CLK_MCU_TIMER5		31
+#define CLK_BUS_MCU_TIMER	32
+#define CLK_BUS_MCU_DMA		33
+#define CLK_MCU_TZMA0		34
+#define CLK_MCU_TZMA1		35
+#define CLK_BUS_MCU_PUBSRAM	36
+#define CLK_MCU_MBUS_DMA	37
+#define CLK_MCU_MBUS		38
+#define CLK_MCU_RISCV		39
+#define CLK_BUS_MCU_RISCV_CFG	40
+#define CLK_BUS_MCU_RISCV_MSGBOX	41
+#define CLK_MCU_PWM0		42
+#define CLK_BUS_MCU_PWM0	43
+
+#endif /* _DT_BINDINGS_CLK_SUN55I_A523_MCU_CCU_H_ */

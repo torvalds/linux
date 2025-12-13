@@ -3,8 +3,7 @@
 menuconfig TEE
 	tristate "Trusted Execution Environment support"
 	depends on HAVE_ARM_SMCCC || COMPILE_TEST || CPU_SUP_AMD
-	select CRYPTO
-	select CRYPTO_SHA1
+	select CRYPTO_LIB_SHA1
 	select DMA_SHARED_BUFFER
 	select GENERIC_ALLOCATOR
 	help
@@ -13,8 +12,14 @@ menuconfig TEE
 
 if TEE
 
+config TEE_DMABUF_HEAPS
+	bool
+	depends on HAS_DMA && DMABUF_HEAPS
+	default y
+
 source "drivers/tee/optee/Kconfig"
 source "drivers/tee/amdtee/Kconfig"
 source "drivers/tee/tstee/Kconfig"
+source "drivers/tee/qcomtee/Kconfig"
 
 endif

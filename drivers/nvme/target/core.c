@@ -513,15 +513,14 @@ static int nvmet_p2pmem_ns_enable(struct nvmet_ns *ns)
 	return 0;
 }
 
-/*
- * Note: ctrl->subsys->lock should be held when calling this function
- */
 static void nvmet_p2pmem_ns_add_p2p(struct nvmet_ctrl *ctrl,
 				    struct nvmet_ns *ns)
 {
 	struct device *clients[2];
 	struct pci_dev *p2p_dev;
 	int ret;
+
+	lockdep_assert_held(&ctrl->subsys->lock);
 
 	if (!ctrl->p2p_client || !ns->use_p2pmem)
 		return;
@@ -1539,14 +1538,13 @@ bool nvmet_host_allowed(struct nvmet_subsys *subsys, const char *hostnqn)
 	return false;
 }
 
-/*
- * Note: ctrl->subsys->lock should be held when calling this function
- */
 static void nvmet_setup_p2p_ns_map(struct nvmet_ctrl *ctrl,
 		struct device *p2p_client)
 {
 	struct nvmet_ns *ns;
 	unsigned long idx;
+
+	lockdep_assert_held(&ctrl->subsys->lock);
 
 	if (!p2p_client)
 		return;
@@ -1557,13 +1555,12 @@ static void nvmet_setup_p2p_ns_map(struct nvmet_ctrl *ctrl,
 		nvmet_p2pmem_ns_add_p2p(ctrl, ns);
 }
 
-/*
- * Note: ctrl->subsys->lock should be held when calling this function
- */
 static void nvmet_release_p2p_ns_map(struct nvmet_ctrl *ctrl)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
+
+	lockdep_assert_held(&ctrl->subsys->lock);
 
 	radix_tree_for_each_slot(slot, &ctrl->p2p_ns_map, &iter, 0)
 		pci_dev_put(radix_tree_deref_slot(slot));

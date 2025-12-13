@@ -11,6 +11,12 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
+#ifdef __KERNEL__
+#include <linux/stddef.h>	/* for offsetof */
+#else
+#include <stddef.h>		/* for offsetof */
+#endif
+
 /*
  * Fibre Channel Switch - Enhanced Link Services definitions.
  * From T11 FC-LS Rev 1.2 June 7, 2005.
@@ -1109,12 +1115,15 @@ struct fc_els_fpin {
 
 /* Diagnostic Function Descriptor - FPIN Registration */
 struct fc_df_desc_fpin_reg {
-	__be32		desc_tag;	/* FPIN Registration (0x00030001) */
-	__be32		desc_len;	/* Length of Descriptor (in bytes).
-					 * Size of descriptor excluding
-					 * desc_tag and desc_len fields.
-					 */
-	__be32		count;		/* Number of desc_tags elements */
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(fc_df_desc_fpin_reg_hdr, __hdr, /* no attrs */,
+		__be32		desc_tag; /* FPIN Registration (0x00030001) */
+		__be32		desc_len; /* Length of Descriptor (in bytes).
+					   * Size of descriptor excluding
+					   * desc_tag and desc_len fields.
+					   */
+		__be32		count;	  /* Number of desc_tags elements */
+	);
 	__be32		desc_tags[];	/* Array of Descriptor Tags.
 					 * Each tag indicates a function
 					 * supported by the N_Port (request)
@@ -1124,33 +1133,44 @@ struct fc_df_desc_fpin_reg {
 					 * See ELS_FN_DTAG_xxx for tag values.
 					 */
 };
+_Static_assert(offsetof(struct fc_df_desc_fpin_reg, desc_tags) == sizeof(struct fc_df_desc_fpin_reg_hdr),
+	      "struct member likely outside of __struct_group()");
 
 /*
  * ELS_RDF - Register Diagnostic Functions
  */
 struct fc_els_rdf {
-	__u8		fpin_cmd;	/* command (0x19) */
-	__u8		fpin_zero[3];	/* specified as zero - part of cmd */
-	__be32		desc_len;	/* Length of Descriptor List (in bytes).
-					 * Size of ELS excluding fpin_cmd,
-					 * fpin_zero and desc_len fields.
-					 */
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(fc_els_rdf_hdr, __hdr, /* no attrs */,
+		__u8		fpin_cmd;	/* command (0x19) */
+		__u8		fpin_zero[3];	/* specified as zero - part of cmd */
+		__be32		desc_len;	/* Length of Descriptor List (in bytes).
+						 * Size of ELS excluding fpin_cmd,
+						 * fpin_zero and desc_len fields.
+						 */
+	);
 	struct fc_tlv_desc	desc[];	/* Descriptor list */
 };
+_Static_assert(offsetof(struct fc_els_rdf, desc) == sizeof(struct fc_els_rdf_hdr),
+	       "struct member likely outside of __struct_group()");
 
 /*
  * ELS RDF LS_ACC Response.
  */
 struct fc_els_rdf_resp {
-	struct fc_els_ls_acc	acc_hdr;
-	__be32			desc_list_len;	/* Length of response (in
-						 * bytes). Excludes acc_hdr
-						 * and desc_list_len fields.
-						 */
-	struct fc_els_lsri_desc	lsri;
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(fc_els_rdf_resp_hdr, __hdr, /* no attrs */,
+		struct fc_els_ls_acc	acc_hdr;
+		__be32			desc_list_len;	/* Length of response (in
+							 * bytes). Excludes acc_hdr
+							 * and desc_list_len fields.
+							 */
+		struct fc_els_lsri_desc	lsri;
+	);
 	struct fc_tlv_desc	desc[];	/* Supported Descriptor list */
 };
-
+_Static_assert(offsetof(struct fc_els_rdf_resp, desc) == sizeof(struct fc_els_rdf_resp_hdr),
+	       "struct member likely outside of __struct_group()");
 
 /*
  * Diagnostic Capability Descriptors for EDC ELS

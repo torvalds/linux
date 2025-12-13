@@ -2,7 +2,7 @@
 /*
  * vp27smpx - driver version 0.0.1
  *
- * Copyright (C) 2007 Hans Verkuil <hverkuil@xs4all.nl>
+ * Copyright (C) 2007 Hans Verkuil <hverkuil@kernel.org>
  *
  * Based on a tvaudio patch from Takahiro Adachi <tadachi@tadachi-net.com>
  * and Kazuhiko Kawakami <kazz-0@mail.goo.ne.jp>

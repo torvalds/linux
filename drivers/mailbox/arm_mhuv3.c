@@ -945,7 +945,7 @@ static irqreturn_t mhuv3_mbx_comb_interrupt(int irq, void *arg)
 			if (IS_ERR(data)) {
 				dev_err(dev,
 					"Failed to read in-band data. err:%ld\n",
-					PTR_ERR(no_free_ptr(data)));
+					PTR_ERR(data));
 				goto rx_ack;
 			}
 		}

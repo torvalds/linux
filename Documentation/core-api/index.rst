@@ -24,6 +24,7 @@ it.
    printk-index
    symbol-namespaces
    asm-annotations
+   real-time/index
 
 Data structures and low-level utilities
 =======================================

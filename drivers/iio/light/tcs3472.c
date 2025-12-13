@@ -64,11 +64,6 @@ struct tcs3472_data {
 	u8 control;
 	u8 atime;
 	u8 apers;
-	/* Ensure timestamp is naturally aligned */
-	struct {
-		u16 chans[4];
-		aligned_s64 timestamp;
-	} scan;
 };
 
 static const struct iio_event_spec tcs3472_events[] = {
@@ -377,6 +372,11 @@ static irqreturn_t tcs3472_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct tcs3472_data *data = iio_priv(indio_dev);
 	int i, j = 0;
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		u16 chans[4];
+		aligned_s64 timestamp;
+	} scan = { };
 
 	int ret = tcs3472_req_data(data);
 	if (ret < 0)
@@ -388,10 +388,10 @@ static irqreturn_t tcs3472_trigger_handler(int irq, void *p)
 		if (ret < 0)
 			goto done;
 
-		data->scan.chans[j++] = ret;
+		scan.chans[j++] = ret;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
+	iio_push_to_buffers_with_ts(indio_dev, &scan, sizeof(scan),
 		iio_get_time_ns(indio_dev));
 
 done:

@@ -17,6 +17,7 @@
 #include <net/page_pool/helpers.h>
 #include <net/page_pool/memory_provider.h>
 #include <net/sock.h>
+#include <net/tcp.h>
 #include <trace/events/page_pool.h>
 
 #include "devmem.h"
@@ -176,6 +177,7 @@ err_close_rxq:
 
 struct net_devmem_dmabuf_binding *
 net_devmem_bind_dmabuf(struct net_device *dev,
+		       struct device *dma_dev,
 		       enum dma_data_direction direction,
 		       unsigned int dmabuf_fd, struct netdev_nl_sock *priv,
 		       struct netlink_ext_ack *extack)
@@ -187,6 +189,11 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	unsigned int sg_idx, i;
 	unsigned long virtual;
 	int err;
+
+	if (!dma_dev) {
+		NL_SET_ERR_MSG(extack, "Device doesn't support DMA");
+		return ERR_PTR(-EOPNOTSUPP);
+	}
 
 	dmabuf = dma_buf_get(dmabuf_fd);
 	if (IS_ERR(dmabuf))
@@ -209,7 +216,7 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	binding->dmabuf = dmabuf;
 	binding->direction = direction;
 
-	binding->attachment = dma_buf_attach(binding->dmabuf, dev->dev.parent);
+	binding->attachment = dma_buf_attach(binding->dmabuf, dma_dev);
 	if (IS_ERR(binding->attachment)) {
 		err = PTR_ERR(binding->attachment);
 		NL_SET_ERR_MSG(extack, "Failed to bind dmabuf to device");
@@ -351,7 +358,8 @@ struct net_devmem_dmabuf_binding *net_devmem_get_binding(struct sock *sk,
 							 unsigned int dmabuf_id)
 {
 	struct net_devmem_dmabuf_binding *binding;
-	struct dst_entry *dst = __sk_dst_get(sk);
+	struct net_device *dst_dev;
+	struct dst_entry *dst;
 	int err = 0;
 
 	binding = net_devmem_lookup_dmabuf(dmabuf_id);
@@ -360,16 +368,35 @@ struct net_devmem_dmabuf_binding *net_devmem_get_binding(struct sock *sk,
 		goto out_err;
 	}
 
+	rcu_read_lock();
+	dst = __sk_dst_get(sk);
+	/* If dst is NULL (route expired), attempt to rebuild it. */
+	if (unlikely(!dst)) {
+		if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk)) {
+			err = -EHOSTUNREACH;
+			goto out_unlock;
+		}
+		dst = __sk_dst_get(sk);
+		if (unlikely(!dst)) {
+			err = -ENODEV;
+			goto out_unlock;
+		}
+	}
+
 	/* The dma-addrs in this binding are only reachable to the corresponding
 	 * net_device.
 	 */
-	if (!dst || !dst->dev || dst->dev->ifindex != binding->dev->ifindex) {
+	dst_dev = dst_dev_rcu(dst);
+	if (unlikely(!dst_dev) || unlikely(dst_dev != binding->dev)) {
 		err = -ENODEV;
-		goto out_err;
+		goto out_unlock;
 	}
 
+	rcu_read_unlock();
 	return binding;
 
+out_unlock:
+	rcu_read_unlock();
 out_err:
 	if (binding)
 		net_devmem_dmabuf_binding_put(binding);

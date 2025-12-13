@@ -167,7 +167,7 @@ void nilfs_folio_bug(struct folio *folio)
 	printk(KERN_CRIT "NILFS_FOLIO_BUG(%p): cnt=%d index#=%llu flags=0x%lx "
 	       "mapping=%p ino=%lu\n",
 	       folio, folio_ref_count(folio),
-	       (unsigned long long)folio->index, folio->flags, m, ino);
+	       (unsigned long long)folio->index, folio->flags.f, m, ino);
 
 	head = folio_buffers(folio);
 	if (head) {

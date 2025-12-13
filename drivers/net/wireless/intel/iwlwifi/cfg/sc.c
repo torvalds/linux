@@ -9,11 +9,11 @@
 #include "iwl-prph.h"
 #include "fw/api/txq.h"
 
-/* Highest firmware API version supported */
-#define IWL_SC_UCODE_API_MAX	102
+/* Highest firmware core release supported */
+#define IWL_SC_UCODE_CORE_MAX	99
 
 /* Lowest firmware API version supported */
-#define IWL_SC_UCODE_API_MIN	98
+#define IWL_SC_UCODE_API_MIN	100
 
 /* NVM versions */
 #define IWL_SC_NVM_VERSION		0x0a1d
@@ -78,7 +78,7 @@ static const struct iwl_family_base_params iwl_sc_base = {
 		},
 	},
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
-	.ucode_api_max = IWL_SC_UCODE_API_MAX,
+	.ucode_api_max = ENCODE_CORE_AS_API(IWL_SC_UCODE_CORE_MAX),
 	.ucode_api_min = IWL_SC_UCODE_API_MIN,
 };
 
@@ -94,8 +94,8 @@ const struct iwl_mac_cfg iwl_sc_mac_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
-IWL_FW_AND_PNVM(IWL_SC_A_FM_B_FW_PRE, IWL_SC_UCODE_API_MAX);
-IWL_FW_AND_PNVM(IWL_SC_A_FM_C_FW_PRE, IWL_SC_UCODE_API_MAX);
-IWL_FW_AND_PNVM(IWL_SC_A_WH_A_FW_PRE, IWL_SC_UCODE_API_MAX);
-IWL_FW_AND_PNVM(IWL_SC2_A_FM_C_FW_PRE, IWL_SC_UCODE_API_MAX);
-IWL_FW_AND_PNVM(IWL_SC2_A_WH_A_FW_PRE, IWL_SC_UCODE_API_MAX);
+IWL_CORE_FW(IWL_SC_A_FM_B_FW_PRE, IWL_SC_UCODE_CORE_MAX);
+IWL_CORE_FW(IWL_SC_A_FM_C_FW_PRE, IWL_SC_UCODE_CORE_MAX);
+IWL_CORE_FW(IWL_SC_A_WH_A_FW_PRE, IWL_SC_UCODE_CORE_MAX);
+IWL_CORE_FW(IWL_SC2_A_FM_C_FW_PRE, IWL_SC_UCODE_CORE_MAX);
+IWL_CORE_FW(IWL_SC2_A_WH_A_FW_PRE, IWL_SC_UCODE_CORE_MAX);

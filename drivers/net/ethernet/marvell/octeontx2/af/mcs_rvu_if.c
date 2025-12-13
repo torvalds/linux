@@ -913,7 +913,7 @@ int rvu_mcs_init(struct rvu *rvu)
 	/* Initialize the wq for handling mcs interrupts */
 	INIT_LIST_HEAD(&rvu->mcs_intrq_head);
 	INIT_WORK(&rvu->mcs_intr_work, mcs_intr_handler_task);
-	rvu->mcs_intr_wq = alloc_workqueue("mcs_intr_wq", 0, 0);
+	rvu->mcs_intr_wq = alloc_workqueue("mcs_intr_wq", WQ_PERCPU, 0);
 	if (!rvu->mcs_intr_wq) {
 		dev_err(rvu->dev, "mcs alloc workqueue failed\n");
 		return -ENOMEM;

@@ -786,6 +786,18 @@ static ssize_t check_direct_IO(struct btrfs_fs_info *fs_info,
 	if (iov_iter_alignment(iter) & blocksize_mask)
 		return -EINVAL;
 
+	/*
+	 * For bs > ps support, we heavily rely on large folios to make sure no
+	 * block will cross large folio boundaries.
+	 *
+	 * But memory provided by direct IO is only virtually contiguous, not
+	 * physically contiguous, and will break the btrfs' large folio requirement.
+	 *
+	 * So for bs > ps support, all direct IOs should fallback to buffered ones.
+	 */
+	if (fs_info->sectorsize > PAGE_SIZE)
+		return -EINVAL;
+
 	return 0;
 }
 

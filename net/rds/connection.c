@@ -57,16 +57,17 @@ static struct hlist_head *rds_conn_bucket(const struct in6_addr *laddr,
 	static u32 rds6_hash_secret __read_mostly;
 	static u32 rds_hash_secret __read_mostly;
 
-	u32 lhash, fhash, hash;
+	__be32 lhash, fhash;
+	u32 hash;
 
 	net_get_random_once(&rds_hash_secret, sizeof(rds_hash_secret));
 	net_get_random_once(&rds6_hash_secret, sizeof(rds6_hash_secret));
 
-	lhash = (__force u32)laddr->s6_addr32[3];
+	lhash = laddr->s6_addr32[3];
 #if IS_ENABLED(CONFIG_IPV6)
-	fhash = __ipv6_addr_jhash(faddr, rds6_hash_secret);
+	fhash = (__force __be32)__ipv6_addr_jhash(faddr, rds6_hash_secret);
 #else
-	fhash = (__force u32)faddr->s6_addr32[3];
+	fhash = faddr->s6_addr32[3];
 #endif
 	hash = __inet_ehashfn(lhash, 0, fhash, 0, rds_hash_secret);
 

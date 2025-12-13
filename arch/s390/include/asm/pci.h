@@ -145,7 +145,6 @@ struct zpci_dev {
 	u8		has_resources	: 1;
 	u8		is_physfn	: 1;
 	u8		util_str_avail	: 1;
-	u8		irqs_registered	: 1;
 	u8		tid_avail	: 1;
 	u8		rtr_avail	: 1; /* Relaxed translation allowed */
 	unsigned int	devfn;		/* DEVFN part of the RID*/
@@ -245,6 +244,16 @@ int clp_refresh_fh(u32 fid, u32 *fh);
 
 /* UID */
 void update_uid_checking(bool new);
+
+/* Firmware Sysfs */
+int __init __zpci_fw_sysfs_init(void);
+
+static inline int __init zpci_fw_sysfs_init(void)
+{
+	if (IS_ENABLED(CONFIG_SYSFS))
+		return __zpci_fw_sysfs_init();
+	return 0;
+}
 
 /* IOMMU Interface */
 int zpci_init_iommu(struct zpci_dev *zdev);

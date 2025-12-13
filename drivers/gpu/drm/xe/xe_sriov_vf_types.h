@@ -9,6 +9,8 @@
 #include <linux/types.h>
 #include <linux/workqueue_types.h>
 
+#include "xe_sriov_vf_ccs_types.h"
+
 /**
  * struct xe_sriov_vf_relay_version - PF ABI version details.
  */
@@ -35,7 +37,15 @@ struct xe_device_vf {
 		struct work_struct worker;
 		/** @migration.gt_flags: Per-GT request flags for VF migration recovery */
 		unsigned long gt_flags;
+		/**
+		 * @migration.enabled: flag indicating if migration support
+		 * was enabled or not due to missing prerequisites
+		 */
+		bool enabled;
 	} migration;
+
+	/** @ccs: VF CCS state data */
+	struct xe_sriov_vf_ccs ccs;
 };
 
 #endif

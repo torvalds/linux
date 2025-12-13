@@ -72,6 +72,11 @@ def ksft_true(a, comment=""):
         _fail("Check failed", a, "does not eval to True", comment)
 
 
+def ksft_not_none(a, comment=""):
+    if a is None:
+        _fail("Check failed", a, "is None", comment)
+
+
 def ksft_in(a, b, comment=""):
     if a not in b:
         _fail("Check failed", a, "not in", b, comment)
@@ -90,6 +95,11 @@ def ksft_is(a, b, comment=""):
 def ksft_ge(a, b, comment=""):
     if a < b:
         _fail("Check failed", a, "<", b, comment)
+
+
+def ksft_gt(a, b, comment=""):
+    if a <= b:
+        _fail("Check failed", a, "<=", b, comment)
 
 
 def ksft_lt(a, b, comment=""):

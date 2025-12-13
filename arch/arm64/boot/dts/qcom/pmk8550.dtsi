@@ -64,7 +64,7 @@
 			};
 		};
 
-		pmk8550_gpios: gpio@8800 {
+		pmk8550_gpios: gpio@b800 {
 			compatible = "qcom,pmk8550-gpio", "qcom,spmi-gpio";
 			reg = <0xb800>;
 			gpio-controller;

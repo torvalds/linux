@@ -51,7 +51,6 @@ enum {
  * @lock: mutex protecting the structure's members below
  * @format: media bus format at the sensor's source pad
  * @clock: pointer to &struct clk.
- * @clock_frequency: clock frequency
  * @power_count: stores state if device is powered
  */
 struct s5k6a3 {
@@ -63,7 +62,6 @@ struct s5k6a3 {
 	struct mutex lock;
 	struct v4l2_mbus_framefmt format;
 	struct clk *clock;
-	u32 clock_frequency;
 	int power_count;
 };
 
@@ -192,10 +190,6 @@ static int __s5k6a3_power_on(struct s5k6a3 *sensor)
 	int i = S5K6A3_SUPP_VDDA;
 	int ret;
 
-	ret = clk_set_rate(sensor->clock, sensor->clock_frequency);
-	if (ret < 0)
-		return ret;
-
 	ret = pm_runtime_get(sensor->dev);
 	if (ret < 0)
 		goto error_rpm_put;
@@ -292,21 +286,17 @@ static int s5k6a3_probe(struct i2c_client *client)
 	mutex_init(&sensor->lock);
 	sensor->dev = dev;
 
-	sensor->clock = devm_clk_get(sensor->dev, S5K6A3_CLK_NAME);
+	sensor->clock = devm_v4l2_sensor_clk_get_legacy(sensor->dev,
+							S5K6A3_CLK_NAME, false,
+							S5K6A3_DEFAULT_CLK_FREQ);
 	if (IS_ERR(sensor->clock))
-		return PTR_ERR(sensor->clock);
+		return dev_err_probe(sensor->dev, PTR_ERR(sensor->clock),
+				     "failed to get extclk\n");
 
 	sensor->gpio_reset = devm_gpiod_get(dev, NULL, GPIOD_OUT_HIGH);
 	ret = PTR_ERR_OR_ZERO(sensor->gpio_reset);
 	if (ret)
 		return ret;
-
-	if (of_property_read_u32(dev->of_node, "clock-frequency",
-				 &sensor->clock_frequency)) {
-		sensor->clock_frequency = S5K6A3_DEFAULT_CLK_FREQ;
-		dev_info(dev, "using default %u Hz clock frequency\n",
-					sensor->clock_frequency);
-	}
 
 	for (i = 0; i < S5K6A3_NUM_SUPPLIES; i++)
 		sensor->supplies[i].supply = s5k6a3_supply_names[i];

@@ -210,7 +210,7 @@ static struct {
 			},
 			.interleave_ways = 0,
 			.granularity = 4,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_VOLATILE,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_256M * 4UL,
@@ -225,7 +225,7 @@ static struct {
 			},
 			.interleave_ways = 1,
 			.granularity = 4,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_VOLATILE,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_256M * 8UL,
@@ -240,7 +240,7 @@ static struct {
 			},
 			.interleave_ways = 0,
 			.granularity = 4,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_256M * 4UL,
@@ -255,7 +255,7 @@ static struct {
 			},
 			.interleave_ways = 1,
 			.granularity = 4,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_256M * 8UL,
@@ -270,7 +270,7 @@ static struct {
 			},
 			.interleave_ways = 0,
 			.granularity = 4,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_256M * 4UL,
@@ -285,7 +285,7 @@ static struct {
 			},
 			.interleave_ways = 0,
 			.granularity = 4,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_VOLATILE,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_256M,
@@ -302,7 +302,7 @@ static struct {
 			.interleave_arithmetic = ACPI_CEDT_CFMWS_ARITHMETIC_XOR,
 			.interleave_ways = 0,
 			.granularity = 4,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_256M * 8UL,
@@ -318,7 +318,7 @@ static struct {
 			.interleave_arithmetic = ACPI_CEDT_CFMWS_ARITHMETIC_XOR,
 			.interleave_ways = 1,
 			.granularity = 0,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_256M * 8UL,
@@ -334,7 +334,7 @@ static struct {
 			.interleave_arithmetic = ACPI_CEDT_CFMWS_ARITHMETIC_XOR,
 			.interleave_ways = 8,
 			.granularity = 1,
-			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_HOSTONLYMEM |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = FAKE_QTG_ID,
 			.window_size = SZ_512M * 6UL,
@@ -643,15 +643,8 @@ static struct cxl_hdm *mock_cxl_setup_hdm(struct cxl_port *port,
 	return cxlhdm;
 }
 
-static int mock_cxl_add_passthrough_decoder(struct cxl_port *port)
-{
-	dev_err(&port->dev, "unexpected passthrough decoder for cxl_test\n");
-	return -EOPNOTSUPP;
-}
-
-
 struct target_map_ctx {
-	int *target_map;
+	u32 *target_map;
 	int index;
 	int target_count;
 };
@@ -818,15 +811,21 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 		 */
 		if (WARN_ON(!dev))
 			continue;
+
 		cxlsd = to_cxl_switch_decoder(dev);
 		if (i == 0) {
 			/* put cxl_mem.4 second in the decode order */
-			if (pdev->id == 4)
+			if (pdev->id == 4) {
 				cxlsd->target[1] = dport;
-			else
+				cxld->target_map[1] = dport->port_id;
+			} else {
 				cxlsd->target[0] = dport;
-		} else
+				cxld->target_map[0] = dport->port_id;
+			}
+		} else {
 			cxlsd->target[0] = dport;
+			cxld->target_map[0] = dport->port_id;
+		}
 		cxld = &cxlsd->cxld;
 		cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 		cxld->flags = CXL_DECODER_F_ENABLE;
@@ -863,9 +862,7 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 		target_count = NR_CXL_SWITCH_PORTS;
 
 	for (i = 0; i < NR_CXL_PORT_DECODERS; i++) {
-		int target_map[CXL_DECODER_MAX_INTERLEAVE] = { 0 };
 		struct target_map_ctx ctx = {
-			.target_map = target_map,
 			.target_count = target_count,
 		};
 		struct cxl_decoder *cxld;
@@ -894,6 +891,8 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 			cxld = &cxled->cxld;
 		}
 
+		ctx.target_map = cxld->target_map;
+
 		mock_init_hdm_decoder(cxld);
 
 		if (target_count) {
@@ -905,7 +904,7 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 			}
 		}
 
-		rc = cxl_decoder_add_locked(cxld, target_map);
+		rc = cxl_decoder_add_locked(cxld);
 		if (rc) {
 			put_device(&cxld->dev);
 			dev_err(&port->dev, "Failed to add decoder\n");
@@ -921,10 +920,42 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 	return 0;
 }
 
-static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
+static int __mock_cxl_decoders_setup(struct cxl_port *port)
+{
+	struct cxl_hdm *cxlhdm;
+
+	cxlhdm = mock_cxl_setup_hdm(port, NULL);
+	if (IS_ERR(cxlhdm)) {
+		if (PTR_ERR(cxlhdm) != -ENODEV)
+			dev_err(&port->dev, "Failed to map HDM decoder capability\n");
+		return PTR_ERR(cxlhdm);
+	}
+
+	return mock_cxl_enumerate_decoders(cxlhdm, NULL);
+}
+
+static int mock_cxl_switch_port_decoders_setup(struct cxl_port *port)
+{
+	if (is_cxl_root(port) || is_cxl_endpoint(port))
+		return -EOPNOTSUPP;
+
+	return __mock_cxl_decoders_setup(port);
+}
+
+static int mock_cxl_endpoint_decoders_setup(struct cxl_port *port)
+{
+	if (!is_cxl_endpoint(port))
+		return -EOPNOTSUPP;
+
+	return __mock_cxl_decoders_setup(port);
+}
+
+static int get_port_array(struct cxl_port *port,
+			  struct platform_device ***port_array,
+			  int *port_array_size)
 {
 	struct platform_device **array;
-	int i, array_size;
+	int array_size;
 
 	if (port->depth == 1) {
 		if (is_multi_bridge(port->uport_dev)) {
@@ -958,6 +989,22 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 		return -ENXIO;
 	}
 
+	*port_array = array;
+	*port_array_size = array_size;
+
+	return 0;
+}
+
+static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
+{
+	struct platform_device **array;
+	int i, array_size;
+	int rc;
+
+	rc = get_port_array(port, &array, &array_size);
+	if (rc)
+		return rc;
+
 	for (i = 0; i < array_size; i++) {
 		struct platform_device *pdev = array[i];
 		struct cxl_dport *dport;
@@ -977,6 +1024,36 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 	}
 
 	return 0;
+}
+
+static struct cxl_dport *mock_cxl_add_dport_by_dev(struct cxl_port *port,
+						   struct device *dport_dev)
+{
+	struct platform_device **array;
+	int rc, i, array_size;
+
+	rc = get_port_array(port, &array, &array_size);
+	if (rc)
+		return ERR_PTR(rc);
+
+	for (i = 0; i < array_size; i++) {
+		struct platform_device *pdev = array[i];
+
+		if (pdev->dev.parent != port->uport_dev) {
+			dev_dbg(&port->dev, "%s: mismatch parent %s\n",
+				dev_name(port->uport_dev),
+				dev_name(pdev->dev.parent));
+			continue;
+		}
+
+		if (&pdev->dev != dport_dev)
+			continue;
+
+		return devm_cxl_add_dport(port, &pdev->dev, pdev->id,
+					  CXL_RESOURCE_NONE);
+	}
+
+	return ERR_PTR(-ENODEV);
 }
 
 /*
@@ -1035,11 +1112,11 @@ static struct cxl_mock_ops cxl_mock_ops = {
 	.acpi_table_parse_cedt = mock_acpi_table_parse_cedt,
 	.acpi_evaluate_integer = mock_acpi_evaluate_integer,
 	.acpi_pci_find_root = mock_acpi_pci_find_root,
+	.devm_cxl_switch_port_decoders_setup = mock_cxl_switch_port_decoders_setup,
+	.devm_cxl_endpoint_decoders_setup = mock_cxl_endpoint_decoders_setup,
 	.devm_cxl_port_enumerate_dports = mock_cxl_port_enumerate_dports,
-	.devm_cxl_setup_hdm = mock_cxl_setup_hdm,
-	.devm_cxl_add_passthrough_decoder = mock_cxl_add_passthrough_decoder,
-	.devm_cxl_enumerate_decoders = mock_cxl_enumerate_decoders,
 	.cxl_endpoint_parse_cdat = mock_cxl_endpoint_parse_cdat,
+	.devm_cxl_add_dport_by_dev = mock_cxl_add_dport_by_dev,
 	.list = LIST_HEAD_INIT(cxl_mock_ops.list),
 };
 

@@ -140,32 +140,25 @@ harmony_enable_interrupts(struct snd_harmony *h)
 static void
 harmony_mute(struct snd_harmony *h)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&h->mixer_lock, flags);
+	guard(spinlock_irqsave)(&h->mixer_lock);
 	harmony_wait_for_control(h);
 	harmony_write(h, HARMONY_GAINCTL, HARMONY_GAIN_SILENCE);
-	spin_unlock_irqrestore(&h->mixer_lock, flags);
 }
 
 static void
 harmony_unmute(struct snd_harmony *h)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&h->mixer_lock, flags);
+	guard(spinlock_irqsave)(&h->mixer_lock);
 	harmony_wait_for_control(h);
 	harmony_write(h, HARMONY_GAINCTL, h->st.gain);
-	spin_unlock_irqrestore(&h->mixer_lock, flags);
 }
 
 static void
 harmony_set_control(struct snd_harmony *h)
 {
 	u32 ctrl;
-	unsigned long flags;
 
-	spin_lock_irqsave(&h->lock, flags);
+	guard(spinlock_irqsave)(&h->lock);
 
 	ctrl = (HARMONY_CNTL_C      |
 		(h->st.format << 6) |
@@ -174,8 +167,6 @@ harmony_set_control(struct snd_harmony *h)
 
 	harmony_wait_for_control(h);
 	harmony_write(h, HARMONY_CNTL, ctrl);
-
-	spin_unlock_irqrestore(&h->lock, flags);
 }
 
 static irqreturn_t
@@ -184,53 +175,53 @@ snd_harmony_interrupt(int irq, void *dev)
 	u32 dstatus;
 	struct snd_harmony *h = dev;
 
-	spin_lock(&h->lock);
-	harmony_disable_interrupts(h);
-	harmony_wait_for_control(h);
-	dstatus = harmony_read(h, HARMONY_DSTATUS);
-	spin_unlock(&h->lock);
+	scoped_guard(spinlock, &h->lock) {
+		harmony_disable_interrupts(h);
+		harmony_wait_for_control(h);
+		dstatus = harmony_read(h, HARMONY_DSTATUS);
+	}
 
 	if (dstatus & HARMONY_DSTATUS_PN) {
 		if (h->psubs && h->st.playing) {
-			spin_lock(&h->lock);
-			h->pbuf.buf += h->pbuf.count; /* PAGE_SIZE */
-			h->pbuf.buf %= h->pbuf.size; /* MAX_BUFS*PAGE_SIZE */
+			scoped_guard(spinlock, &h->lock) {
+				h->pbuf.buf += h->pbuf.count; /* PAGE_SIZE */
+				h->pbuf.buf %= h->pbuf.size; /* MAX_BUFS*PAGE_SIZE */
 
-			harmony_write(h, HARMONY_PNXTADD, 
-				      h->pbuf.addr + h->pbuf.buf);
-			h->stats.play_intr++;
-			spin_unlock(&h->lock);
+				harmony_write(h, HARMONY_PNXTADD,
+					      h->pbuf.addr + h->pbuf.buf);
+				h->stats.play_intr++;
+			}
                         snd_pcm_period_elapsed(h->psubs);
 		} else {
-			spin_lock(&h->lock);
-			harmony_write(h, HARMONY_PNXTADD, h->sdma.addr);
-			h->stats.silence_intr++;
-			spin_unlock(&h->lock);
+			scoped_guard(spinlock, &h->lock) {
+				harmony_write(h, HARMONY_PNXTADD, h->sdma.addr);
+				h->stats.silence_intr++;
+			}
 		}
 	}
 
 	if (dstatus & HARMONY_DSTATUS_RN) {
 		if (h->csubs && h->st.capturing) {
-			spin_lock(&h->lock);
-			h->cbuf.buf += h->cbuf.count;
-			h->cbuf.buf %= h->cbuf.size;
+			scoped_guard(spinlock, &h->lock) {
+				h->cbuf.buf += h->cbuf.count;
+				h->cbuf.buf %= h->cbuf.size;
 
-			harmony_write(h, HARMONY_RNXTADD,
-				      h->cbuf.addr + h->cbuf.buf);
-			h->stats.rec_intr++;
-			spin_unlock(&h->lock);
+				harmony_write(h, HARMONY_RNXTADD,
+					      h->cbuf.addr + h->cbuf.buf);
+				h->stats.rec_intr++;
+			}
                         snd_pcm_period_elapsed(h->csubs);
 		} else {
-			spin_lock(&h->lock);
-			harmony_write(h, HARMONY_RNXTADD, h->gdma.addr);
-			h->stats.graveyard_intr++;
-			spin_unlock(&h->lock);
+			scoped_guard(spinlock, &h->lock) {
+				harmony_write(h, HARMONY_RNXTADD, h->gdma.addr);
+				h->stats.graveyard_intr++;
+			}
 		}
 	}
 
-	spin_lock(&h->lock);
-	harmony_enable_interrupts(h);
-	spin_unlock(&h->lock);
+	scoped_guard(spinlock, &h->lock) {
+		harmony_enable_interrupts(h);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -297,7 +288,7 @@ snd_harmony_playback_trigger(struct snd_pcm_substream *ss, int cmd)
 	if (h->st.capturing)
 		return -EBUSY;
 
-	spin_lock(&h->lock);
+	guard(spinlock)(&h->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		h->st.playing = 1;
@@ -316,11 +307,9 @@ snd_harmony_playback_trigger(struct snd_pcm_substream *ss, int cmd)
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	default:
-		spin_unlock(&h->lock);
 		snd_BUG();
 		return -EINVAL;
 	}
-	spin_unlock(&h->lock);
 	
 	return 0;
 }
@@ -333,7 +322,7 @@ snd_harmony_capture_trigger(struct snd_pcm_substream *ss, int cmd)
 	if (h->st.playing)
 		return -EBUSY;
 
-	spin_lock(&h->lock);
+	guard(spinlock)(&h->lock);
         switch (cmd) {
         case SNDRV_PCM_TRIGGER_START:
 		h->st.capturing = 1;
@@ -352,11 +341,9 @@ snd_harmony_capture_trigger(struct snd_pcm_substream *ss, int cmd)
         case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
         case SNDRV_PCM_TRIGGER_SUSPEND:
 	default:
-		spin_unlock(&h->lock);
 		snd_BUG();
                 return -EINVAL;
         }
-	spin_unlock(&h->lock);
 		
         return 0;
 }
@@ -674,7 +661,7 @@ snd_harmony_volume_get(struct snd_kcontrol *kc,
 	int invert = (kc->private_value >> 24) & 0xff;
 	int left, right;
 	
-	spin_lock_irq(&h->mixer_lock);
+	guard(spinlock_irq)(&h->mixer_lock);
 
 	left = (h->st.gain >> shift_left) & mask;
 	right = (h->st.gain >> shift_right) & mask;
@@ -686,8 +673,6 @@ snd_harmony_volume_get(struct snd_kcontrol *kc,
 	ucontrol->value.integer.value[0] = left;
 	if (shift_left != shift_right)
 		ucontrol->value.integer.value[1] = right;
-
-	spin_unlock_irq(&h->mixer_lock);
 
 	return 0;
 }  
@@ -704,7 +689,7 @@ snd_harmony_volume_put(struct snd_kcontrol *kc,
 	int left, right;
 	int old_gain = h->st.gain;
 	
-	spin_lock_irq(&h->mixer_lock);
+	guard(spinlock_irq)(&h->mixer_lock);
 
 	left = ucontrol->value.integer.value[0] & mask;
 	if (invert)
@@ -722,8 +707,6 @@ snd_harmony_volume_put(struct snd_kcontrol *kc,
 
 	snd_harmony_set_new_gain(h);
 
-	spin_unlock_irq(&h->mixer_lock);
-	
 	return h->st.gain != old_gain;
 }
 
@@ -743,12 +726,10 @@ snd_harmony_captureroute_get(struct snd_kcontrol *kc,
 	struct snd_harmony *h = snd_kcontrol_chip(kc);
 	int value;
 	
-	spin_lock_irq(&h->mixer_lock);
+	guard(spinlock_irq)(&h->mixer_lock);
 
 	value = (h->st.gain >> HARMONY_GAIN_IS_SHIFT) & 1;
 	ucontrol->value.enumerated.item[0] = value;
-
-	spin_unlock_irq(&h->mixer_lock);
 
 	return 0;
 }  
@@ -761,7 +742,7 @@ snd_harmony_captureroute_put(struct snd_kcontrol *kc,
 	int value;
 	int old_gain = h->st.gain;
 	
-	spin_lock_irq(&h->mixer_lock);
+	guard(spinlock_irq)(&h->mixer_lock);
 
 	value = ucontrol->value.enumerated.item[0] & 1;
 	h->st.gain &= ~HARMONY_GAIN_IS_MASK;
@@ -769,8 +750,6 @@ snd_harmony_captureroute_put(struct snd_kcontrol *kc,
 
 	snd_harmony_set_new_gain(h);
 
-	spin_unlock_irq(&h->mixer_lock);
-	
 	return h->st.gain != old_gain;
 }
 

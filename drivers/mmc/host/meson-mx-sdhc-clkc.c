@@ -84,10 +84,8 @@ static int meson_mx_sdhc_gate_clk_hw_register(struct device *dev,
 		return ret;
 
 	clk_bulk_data[bulk_index].clk = devm_clk_hw_get_clk(dev, hw, name_suffix);
-	if (IS_ERR(clk_bulk_data[bulk_index].clk))
-		return PTR_ERR(clk_bulk_data[bulk_index].clk);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(clk_bulk_data[bulk_index].clk);
 }
 
 int meson_mx_sdhc_register_clkc(struct device *dev, void __iomem *base,

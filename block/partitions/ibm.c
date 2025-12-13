@@ -358,7 +358,7 @@ int ibm_partition(struct parsed_partitions *state)
 		goto out_nolab;
 	/* set start if not filled by getgeo function e.g. virtblk */
 	geo->start = get_start_sect(bdev);
-	if (disk->fops->getgeo(bdev, geo))
+	if (disk->fops->getgeo(disk, geo))
 		goto out_freeall;
 	if (!fn || fn(disk, info)) {
 		kfree(info);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2023 Advanced Micro Devices, Inc.
  *
@@ -30,7 +31,7 @@
 #include "amdgpu_dm.h"
 #include "modules/power/power_helpers.h"
 #include "dmub/inc/dmub_cmd.h"
-#include "dc/inc/link.h"
+#include "dc/inc/link_service.h"
 
 /*
  * amdgpu_dm_link_supports_replay() - check if the link supports replay

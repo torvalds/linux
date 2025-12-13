@@ -970,8 +970,6 @@ static void tty3270_resize(struct raw3270_view *view,
 	char **old_rcl_lines, **new_rcl_lines;
 	char *old_prompt, *new_prompt;
 	char *old_input, *new_input;
-	struct tty_struct *tty;
-	struct winsize ws;
 	size_t prompt_sz;
 	int new_allocated, old_allocated = tp->allocated_lines;
 
@@ -1023,14 +1021,14 @@ static void tty3270_resize(struct raw3270_view *view,
 	kfree(old_prompt);
 	tty3270_free_recall(old_rcl_lines);
 	tty3270_set_timer(tp, 1);
-	/* Informat tty layer about new size */
-	tty = tty_port_tty_get(&tp->port);
-	if (!tty)
-		return;
-	ws.ws_row = tty3270_tty_rows(tp);
-	ws.ws_col = tp->view.cols;
-	tty_do_resize(tty, &ws);
-	tty_kref_put(tty);
+	/* Inform the tty layer about new size */
+	scoped_guard(tty_port_tty, &tp->port) {
+		struct winsize ws = {
+			.ws_row = tty3270_tty_rows(tp),
+			.ws_col = tp->view.cols,
+		};
+		tty_do_resize(scoped_tty(), &ws);
+	}
 	return;
 out_screen:
 	tty3270_free_screen(screen, new_rows);

@@ -180,10 +180,16 @@ void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
 
 const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 					       const char *caller_message,
-					       u8 link_index);
+					       u8 link_index, bool nullchk);
 
 #define rtw89_mgnt_chan_get(rtwdev, link_index) \
-	__rtw89_mgnt_chan_get(rtwdev, __func__, link_index)
+	__rtw89_mgnt_chan_get(rtwdev, __func__, link_index, false)
+
+static inline const struct rtw89_chan *
+rtw89_mgnt_chan_get_or_null(struct rtw89_dev *rtwdev, u8 link_index)
+{
+	return __rtw89_mgnt_chan_get(rtwdev, NULL, link_index, true);
+}
 
 struct rtw89_mcc_links_info {
 	struct rtw89_vif_link *links[NUM_OF_RTW89_MCC_ROLES];

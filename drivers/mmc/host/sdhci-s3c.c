@@ -681,7 +681,6 @@ static void sdhci_s3c_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sc->clk_io);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sdhci_s3c_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -698,9 +697,7 @@ static int sdhci_s3c_resume(struct device *dev)
 
 	return sdhci_resume_host(host);
 }
-#endif
 
-#ifdef CONFIG_PM
 static int sdhci_s3c_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -730,12 +727,10 @@ static int sdhci_s3c_runtime_resume(struct device *dev)
 	sdhci_runtime_resume_host(host, 0);
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sdhci_s3c_pmops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sdhci_s3c_suspend, sdhci_s3c_resume)
-	SET_RUNTIME_PM_OPS(sdhci_s3c_runtime_suspend, sdhci_s3c_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(sdhci_s3c_suspend, sdhci_s3c_resume)
+	RUNTIME_PM_OPS(sdhci_s3c_runtime_suspend, sdhci_s3c_runtime_resume, NULL)
 };
 
 static const struct platform_device_id sdhci_s3c_driver_ids[] = {
@@ -770,7 +765,7 @@ static struct platform_driver sdhci_s3c_driver = {
 		.name	= "s3c-sdhci",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(sdhci_s3c_dt_match),
-		.pm	= &sdhci_s3c_pmops,
+		.pm	= pm_ptr(&sdhci_s3c_pmops),
 	},
 };
 

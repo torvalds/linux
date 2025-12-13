@@ -10,6 +10,7 @@
 #define ALL_TC2PFC		0xff
 #define CQP_COMPL_WAIT_TIME_MS	10
 #define CQP_TIMEOUT_THRESHOLD	500
+#define CQP_DEF_CMPL_TIMEOUT_THRESHOLD	2500
 
 /* init operations */
 int irdma_sc_dev_init(enum irdma_vers ver, struct irdma_sc_dev *dev,

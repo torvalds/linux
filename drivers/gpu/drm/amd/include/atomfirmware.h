@@ -211,7 +211,7 @@ atom_bios_string          = "ATOM"
 };
 */
 
-#pragma pack(1)                          /* BIOS data must use byte aligment*/
+#pragma pack(1)                          /* BIOS data must use byte alignment*/
 
 enum atombios_image_offset{
   OFFSET_TO_ATOM_ROM_HEADER_POINTER          = 0x00000048,
@@ -255,8 +255,8 @@ struct atom_rom_header_v2_2
   uint16_t subsystem_vendor_id;
   uint16_t subsystem_id;
   uint16_t pci_info_offset;
-  uint16_t masterhwfunction_offset;      //Offest for SW to get all command function offsets, Don't change the position
-  uint16_t masterdatatable_offset;       //Offest for SW to get all data table offsets, Don't change the position
+  uint16_t masterhwfunction_offset;      //Offset for SW to get all command function offsets, Don't change the position
+  uint16_t masterdatatable_offset;       //Offset for SW to get all data table offsets, Don't change the position
   uint16_t reserved;
   uint32_t pspdirtableoffset;
 };
@@ -453,7 +453,7 @@ struct atom_dtd_format
   uint8_t   refreshrate;
 };
 
-/* atom_dtd_format.modemiscinfo defintion */
+/* atom_dtd_format.modemiscinfo definition */
 enum atom_dtd_format_modemiscinfo{
   ATOM_HSYNC_POLARITY    = 0x0002,
   ATOM_VSYNC_POLARITY    = 0x0004,
@@ -678,7 +678,7 @@ struct lcd_info_v2_1
   uint32_t reserved1[8];
 };
 
-/* lcd_info_v2_1.panel_misc defintion */
+/* lcd_info_v2_1.panel_misc definition */
 enum atom_lcd_info_panel_misc{
   ATOM_PANEL_MISC_FPDI            =0x0002,
 };
@@ -716,7 +716,7 @@ enum atom_gpio_pin_assignment_gpio_id {
   /* gpio_id pre-define id for multiple usage */
   /* GPIO use to control PCIE_VDDC in certain SLT board */
   PCIE_VDDC_CONTROL_GPIO_PINID = 56,
-  /* if PP_AC_DC_SWITCH_GPIO_PINID in Gpio_Pin_LutTable, AC/DC swithing feature is enable */
+  /* if PP_AC_DC_SWITCH_GPIO_PINID in Gpio_Pin_LutTable, AC/DC switching feature is enable */
   PP_AC_DC_SWITCH_GPIO_PINID = 60,
   /* VDDC_REGULATOR_VRHOT_GPIO_PINID in Gpio_Pin_LutTable, VRHot feature is enable */
   VDDC_VRHOT_GPIO_PINID = 61,
@@ -734,7 +734,7 @@ enum atom_gpio_pin_assignment_gpio_id {
 struct atom_gpio_pin_lut_v2_1
 {
   struct  atom_common_table_header  table_header;
-  /*the real number of this included in the structure is calcualted by using the (whole structure size - the header size)/size of atom_gpio_pin_lut  */
+  /*the real number of this included in the structure is calculated by using the (whole structure size - the header size)/size of atom_gpio_pin_lut  */
   struct  atom_gpio_pin_assignment  gpio_pin[];
 };
 
@@ -997,7 +997,7 @@ enum atom_connector_layout_info_mini_type_def {
 
 enum atom_display_device_tag_def{
   ATOM_DISPLAY_LCD1_SUPPORT            = 0x0002, //an embedded display is either an LVDS or eDP signal type of display
-  ATOM_DISPLAY_LCD2_SUPPORT			       = 0x0020, //second edp device tag 0x0020 for backward compability
+  ATOM_DISPLAY_LCD2_SUPPORT            = 0x0020, //second edp device tag 0x0020 for backward compatibility
   ATOM_DISPLAY_DFP1_SUPPORT            = 0x0008,
   ATOM_DISPLAY_DFP2_SUPPORT            = 0x0080,
   ATOM_DISPLAY_DFP3_SUPPORT            = 0x0200,
@@ -1011,7 +1011,7 @@ struct atom_display_object_path_v2
 {
   uint16_t display_objid;                  //Connector Object ID or Misc Object ID
   uint16_t disp_recordoffset;
-  uint16_t encoderobjid;                   //first encoder closer to the connector, could be either an external or intenal encoder
+  uint16_t encoderobjid;                   //first encoder closer to the connector, could be either an external or internal encoder
   uint16_t extencoderobjid;                //2nd encoder after the first encoder, from the connector point of view;
   uint16_t encoder_recordoffset;
   uint16_t extencoder_recordoffset;
@@ -1023,7 +1023,7 @@ struct atom_display_object_path_v2
 struct atom_display_object_path_v3 {
 	uint16_t display_objid; //Connector Object ID or Misc Object ID
 	uint16_t disp_recordoffset;
-	uint16_t encoderobjid; //first encoder closer to the connector, could be either an external or intenal encoder
+	uint16_t encoderobjid; //first encoder closer to the connector, could be either an external or internal encoder
 	uint16_t reserved1; //only on USBC case, otherwise always = 0
 	uint16_t reserved2; //reserved and always = 0
 	uint16_t reserved3; //reserved and always = 0
@@ -3547,7 +3547,7 @@ struct atom_voltage_object_header_v4{
 enum atom_voltage_object_mode 
 {
    VOLTAGE_OBJ_GPIO_LUT              =  0,        //VOLTAGE and GPIO Lookup table ->atom_gpio_voltage_object_v4
-   VOLTAGE_OBJ_VR_I2C_INIT_SEQ       =  3,        //VOLTAGE REGULATOR INIT sequece through I2C -> atom_i2c_voltage_object_v4
+   VOLTAGE_OBJ_VR_I2C_INIT_SEQ       =  3,        //VOLTAGE REGULATOR INIT sequence through I2C -> atom_i2c_voltage_object_v4
    VOLTAGE_OBJ_PHASE_LUT             =  4,        //Set Vregulator Phase lookup table ->atom_gpio_voltage_object_v4
    VOLTAGE_OBJ_SVID2                 =  7,        //Indicate voltage control by SVID2 ->atom_svid2_voltage_object_v4
    VOLTAGE_OBJ_EVV                   =  8, 
@@ -3585,7 +3585,7 @@ struct atom_gpio_voltage_object_v4
 {
    struct atom_voltage_object_header_v4 header;  // voltage mode = VOLTAGE_OBJ_GPIO_LUT or VOLTAGE_OBJ_PHASE_LUT
    uint8_t  gpio_control_id;                     // default is 0 which indicate control through CG VID mode 
-   uint8_t  gpio_entry_num;                      // indiate the entry numbers of Votlage/Gpio value Look up table
+   uint8_t  gpio_entry_num;                      // indicate the entry numbers of Votlage/Gpio value Look up table
    uint8_t  phase_delay_us;                      // phase delay in unit of micro second
    uint8_t  reserved;   
    uint32_t gpio_mask_val;                         // GPIO Mask value
@@ -4507,8 +4507,8 @@ struct amd_acpi_description_header{
 struct uefi_acpi_vfct{
   struct   amd_acpi_description_header sheader;
   uint8_t  tableUUID[16];    //0x24
-  uint32_t vbiosimageoffset; //0x34. Offset to the first GOP_VBIOS_CONTENT block from the beginning of the stucture.
-  uint32_t lib1Imageoffset;  //0x38. Offset to the first GOP_LIB1_CONTENT block from the beginning of the stucture.
+  uint32_t vbiosimageoffset; //0x34. Offset to the first GOP_VBIOS_CONTENT block from the beginning of the structure.
+  uint32_t lib1Imageoffset;  //0x38. Offset to the first GOP_LIB1_CONTENT block from the beginning of the structure.
   uint32_t reserved[4];      //0x3C
 };
 
@@ -4540,7 +4540,7 @@ struct gop_lib1_content {
 /* 
   ***************************************************************************
                    Scratch Register definitions
-  Each number below indicates which scratch regiser request, Active and 
+  Each number below indicates which scratch register request, Active and
   Connect all share the same definitions as display_device_tag defines
   *************************************************************************** 
 */   

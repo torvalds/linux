@@ -141,23 +141,6 @@ config RADIO_TIMBERDALE
 	  found behind the Timberdale FPGA on the Russellville board.
 	  Enabling this driver will automatically select the DSP and tuner.
 
-config RADIO_WL1273
-	tristate "Texas Instruments WL1273 I2C FM Radio"
-	depends on I2C
-	select MFD_CORE
-	select MFD_WL1273_CORE
-	select FW_LOADER
-	help
-	  Choose Y here if you have this FM radio chip.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux 2 API.  Information on
-	  this API and pointers to "v4l2" programs may be found at
-	  <file:Documentation/userspace-api/media/index.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-wl1273.
-
 config USB_DSBR
 	tristate "D-Link/GemTek USB FM radio support"
 	depends on USB

@@ -488,8 +488,8 @@ static int mlx5_esw_bridge_switchdev_event(struct notifier_block *nb,
 							       fdb_info,
 							       br_offloads);
 		if (IS_ERR(work)) {
-			WARN_ONCE(1, "Failed to init switchdev work, err=%ld",
-				  PTR_ERR(work));
+			WARN_ONCE(1, "Failed to init switchdev work, err=%pe",
+				  work);
 			return notifier_from_errno(PTR_ERR(work));
 		}
 
@@ -527,7 +527,8 @@ void mlx5e_rep_bridge_init(struct mlx5e_priv *priv)
 	br_offloads = mlx5_esw_bridge_init(esw);
 	rtnl_unlock();
 	if (IS_ERR(br_offloads)) {
-		esw_warn(mdev, "Failed to init esw bridge (err=%ld)\n", PTR_ERR(br_offloads));
+		esw_warn(mdev, "Failed to init esw bridge (err=%pe)\n",
+			 br_offloads);
 		return;
 	}
 

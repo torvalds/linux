@@ -103,7 +103,7 @@ static struct kmem_cache *btrfs_trans_handle_cachep;
  * | attached to transid N+1.			    |
  * |						    |
  * | To next stage:				    |
- * |  Until all tree blocks are super blocks are    |
+ * |  Until all tree blocks and super blocks are    |
  * |  written to block devices			    |
  * V						    |
  * Transaction N [[TRANS_STATE_COMPLETED]]	    V
@@ -404,7 +404,7 @@ loop:
  */
 static int record_root_in_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       int force)
+			       bool force)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret = 0;
@@ -1569,7 +1569,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 * qgroup counters could end up wrong.
 	 */
 	ret = btrfs_run_delayed_refs(trans, U64_MAX);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
@@ -1641,7 +1641,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *parent_root;
 	struct btrfs_block_rsv *rsv;
 	struct btrfs_inode *parent_inode = pending->dir;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_dir_item *dir_item;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
@@ -1694,10 +1694,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 			goto clear_skip_qgroup;
 	}
 
-	key.objectid = objectid;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-
 	rsv = trans->block_rsv;
 	trans->block_rsv = &pending->block_rsv;
 	trans->bytes_reserved = trans->block_rsv->reserved;
@@ -1714,7 +1710,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 * insert the directory item
 	 */
 	ret = btrfs_set_inode_index(parent_inode, &index);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
@@ -1735,7 +1731,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_create_qgroup(trans, objectid);
 	if (ret && ret != -EEXIST) {
-		if (ret != -ENOTCONN || btrfs_qgroup_enabled(fs_info)) {
+		if (unlikely(ret != -ENOTCONN || btrfs_qgroup_enabled(fs_info))) {
 			btrfs_abort_transaction(trans, ret);
 			goto fail;
 		}
@@ -1748,13 +1744,13 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 * snapshot
 	 */
 	ret = btrfs_run_delayed_items(trans);
-	if (ret) {	/* Transaction aborted */
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
 
 	ret = record_root_in_trans(trans, root, 0);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
@@ -1789,7 +1785,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	old = btrfs_lock_root_node(root);
 	ret = btrfs_cow_block(trans, root, old, NULL, 0, &old,
 			      BTRFS_NESTING_COW);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_tree_unlock(old);
 		free_extent_buffer(old);
 		btrfs_abort_transaction(trans, ret);
@@ -1800,21 +1796,23 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	/* clean up in any case */
 	btrfs_tree_unlock(old);
 	free_extent_buffer(old);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
 	/* see comments in should_cow_block() */
 	set_bit(BTRFS_ROOT_FORCE_COW, &root->state);
-	smp_wmb();
+	smp_mb__after_atomic();
 
 	btrfs_set_root_node(new_root_item, tmp);
 	/* record when the snapshot was created in key.offset */
+	key.objectid = objectid;
+	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = trans->transid;
 	ret = btrfs_insert_root(trans, tree_root, &key, new_root_item);
 	btrfs_tree_unlock(tmp);
 	free_extent_buffer(tmp);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
@@ -1826,7 +1824,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				 btrfs_root_id(parent_root),
 				 btrfs_ino(parent_inode), index,
 				 &fname.disk_name);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
@@ -1841,7 +1839,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_reloc_post_snapshot(trans, pending);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
@@ -1864,7 +1862,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_dir_item(trans, &fname.disk_name,
 				    parent_inode, &key, BTRFS_FT_DIR,
 				    index);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
@@ -1874,14 +1872,14 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	inode_set_mtime_to_ts(&parent_inode->vfs_inode,
 			      inode_set_ctime_current(&parent_inode->vfs_inode));
 	ret = btrfs_update_inode_fallback(trans, parent_inode);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
 	ret = btrfs_uuid_tree_add(trans, new_root_item->uuid,
 				  BTRFS_UUID_KEY_SUBVOL,
 				  objectid);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
@@ -1889,7 +1887,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		ret = btrfs_uuid_tree_add(trans, new_root_item->received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  objectid);
-		if (ret && ret != -EEXIST) {
+		if (unlikely(ret && ret != -EEXIST)) {
 			btrfs_abort_transaction(trans, ret);
 			goto fail;
 		}
@@ -1907,7 +1905,6 @@ free_fname:
 free_pending:
 	kfree(new_root_item);
 	pending->root_item = NULL;
-	btrfs_free_path(path);
 	pending->path = NULL;
 
 	return ret;
@@ -2423,7 +2420,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * them.
 	 *
 	 * We needn't worry that this operation will corrupt the snapshots,
-	 * because all the tree which are snapshoted will be forced to COW
+	 * because all the tree which are snapshotted will be forced to COW
 	 * the nodes and leaves.
 	 */
 	ret = btrfs_run_delayed_items(trans);
@@ -2657,9 +2654,9 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_fs_info *fs_info)
 
 	if (btrfs_header_backref_rev(root->node) <
 			BTRFS_MIXED_BACKREF_REV)
-		ret = btrfs_drop_snapshot(root, 0, 0);
+		ret = btrfs_drop_snapshot(root, false, false);
 	else
-		ret = btrfs_drop_snapshot(root, 1, 0);
+		ret = btrfs_drop_snapshot(root, true, false);
 
 	btrfs_put_root(root);
 	return (ret < 0) ? 0 : 1;

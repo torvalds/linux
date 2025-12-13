@@ -268,7 +268,7 @@ static void zonefs_handle_io_error(struct inode *inode, struct blk_zone *zone,
 	 * Check the zone condition: if the zone is not "bad" (offline or
 	 * read-only), read errors are simply signaled to the IO issuer as long
 	 * as there is no inconsistency between the inode size and the amount of
-	 * data writen in the zone (data_size).
+	 * data written in the zone (data_size).
 	 */
 	data_size = zonefs_check_zone_condition(sb, z, zone);
 	isize = i_size_read(inode);
@@ -282,7 +282,7 @@ static void zonefs_handle_io_error(struct inode *inode, struct blk_zone *zone,
 	 * For the latter case, the cause may be a write IO error or an external
 	 * action on the device. Two error patterns exist:
 	 * 1) The inode size is lower than the amount of data in the zone:
-	 *    a write operation partially failed and data was writen at the end
+	 *    a write operation partially failed and data was written at the end
 	 *    of the file. This can happen in the case of a large direct IO
 	 *    needing several BIOs and/or write requests to be processed.
 	 * 2) The inode size is larger than the amount of data in the zone:

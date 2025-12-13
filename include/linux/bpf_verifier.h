@@ -26,28 +26,6 @@
 /* Patch buffer size */
 #define INSN_BUF_SIZE 32
 
-/* Liveness marks, used for registers and spilled-regs (in stack slots).
- * Read marks propagate upwards until they find a write mark; they record that
- * "one of this state's descendants read this reg" (and therefore the reg is
- * relevant for states_equal() checks).
- * Write marks collect downwards and do not propagate; they record that "the
- * straight-line code that reached this state (from its parent) wrote this reg"
- * (and therefore that reads propagated from this state or its descendants
- * should not propagate to its parent).
- * A state with a write mark can receive read marks; it just won't propagate
- * them to its parent, since the write mark is a property, not of the state,
- * but of the link between it and its parent.  See mark_reg_read() and
- * mark_stack_slot_read() in kernel/bpf/verifier.c.
- */
-enum bpf_reg_liveness {
-	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
-	REG_LIVE_READ32 = 0x1, /* reg was read, so we're sensitive to initial value */
-	REG_LIVE_READ64 = 0x2, /* likewise, but full 64-bit content matters */
-	REG_LIVE_READ = REG_LIVE_READ32 | REG_LIVE_READ64,
-	REG_LIVE_WRITTEN = 0x4, /* reg was written first, screening off later reads */
-	REG_LIVE_DONE = 0x8, /* liveness won't be updating this register anymore */
-};
-
 #define ITER_PREFIX "bpf_iter_"
 
 enum bpf_iter_state {
@@ -212,8 +190,6 @@ struct bpf_reg_state {
 	 * allowed and has the same effect as bpf_sk_release(sk).
 	 */
 	u32 ref_obj_id;
-	/* parentage chain for liveness checking */
-	struct bpf_reg_state *parent;
 	/* Inside the callee two registers can be both PTR_TO_STACK like
 	 * R1=fp-8 and R2=fp-8, but one of them points to this function stack
 	 * while another to the caller's stack. To differentiate them 'frameno'
@@ -226,7 +202,6 @@ struct bpf_reg_state {
 	 * patching which only happens after main verification finished.
 	 */
 	s32 subreg_def;
-	enum bpf_reg_liveness live;
 	/* if (!precise && SCALAR_VALUE) min/max/tnum don't affect safety */
 	bool precise;
 };
@@ -445,6 +420,7 @@ struct bpf_verifier_state {
 
 	bool speculative;
 	bool in_sleepable;
+	bool cleaned;
 
 	/* first and last insn idx of this verifier state */
 	u32 first_insn_idx;
@@ -665,6 +641,7 @@ struct bpf_subprog_info {
 	/* 'start' has to be the first field otherwise find_subprog() won't work */
 	u32 start; /* insn idx of function entry point */
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
+	u32 postorder_start; /* The idx to the env->cfg.insn_postorder */
 	u16 stack_depth; /* max. stack depth used by this function */
 	u16 stack_extra;
 	/* offsets in range [stack_depth .. fastcall_stack_off)
@@ -744,6 +721,8 @@ struct bpf_scc_info {
 	struct bpf_scc_visit visits[];
 };
 
+struct bpf_liveness;
+
 /* single container for all structs
  * one verifier_env per bpf_check() call
  */
@@ -794,7 +773,10 @@ struct bpf_verifier_env {
 	struct {
 		int *insn_state;
 		int *insn_stack;
-		/* vector of instruction indexes sorted in post-order */
+		/*
+		 * vector of instruction indexes sorted in post-order, grouped by subprogram,
+		 * see bpf_subprog_info->postorder_start.
+		 */
 		int *insn_postorder;
 		int cur_stack;
 		/* current position in the insn_postorder vector */
@@ -842,6 +824,7 @@ struct bpf_verifier_env {
 	struct bpf_insn insn_buf[INSN_BUF_SIZE];
 	struct bpf_insn epilogue_buf[INSN_BUF_SIZE];
 	struct bpf_scc_callchain callchain_buf;
+	struct bpf_liveness *liveness;
 	/* array of pointers to bpf_scc_info indexed by SCC id */
 	struct bpf_scc_info **scc_info;
 	u32 scc_cnt;
@@ -875,13 +858,15 @@ __printf(3, 4) void verbose_linfo(struct bpf_verifier_env *env,
 #define verifier_bug_if(cond, env, fmt, args...)						\
 	({											\
 		bool __cond = (cond);								\
-		if (unlikely(__cond)) {								\
-			BPF_WARN_ONCE(1, "verifier bug: " fmt "(" #cond ")\n", ##args);		\
-			bpf_log(&env->log, "verifier bug: " fmt "(" #cond ")\n", ##args);	\
-		}										\
+		if (unlikely(__cond))								\
+			verifier_bug(env, fmt " (" #cond ")", ##args);				\
 		(__cond);									\
 	})
-#define verifier_bug(env, fmt, args...) verifier_bug_if(1, env, fmt, ##args)
+#define verifier_bug(env, fmt, args...)								\
+	({											\
+		BPF_WARN_ONCE(1, "verifier bug: " fmt "\n", ##args);				\
+		bpf_log(&env->log, "verifier bug: " fmt "\n", ##args);				\
+	})
 
 static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 {
@@ -962,6 +947,7 @@ static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)
 	case BPF_PROG_TYPE_STRUCT_OPS:
 		return prog->aux->jits_use_priv_stack;
 	case BPF_PROG_TYPE_LSM:
+	case BPF_PROG_TYPE_SYSCALL:
 		return false;
 	default:
 		return true;
@@ -1061,5 +1047,22 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_verifie
 			  u32 frameno, bool print_all);
 void print_insn_state(struct bpf_verifier_env *env, const struct bpf_verifier_state *vstate,
 		      u32 frameno);
+
+struct bpf_subprog_info *bpf_find_containing_subprog(struct bpf_verifier_env *env, int off);
+int bpf_jmp_offset(struct bpf_insn *insn);
+int bpf_insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2]);
+void bpf_fmt_stack_mask(char *buf, ssize_t buf_sz, u64 stack_mask);
+bool bpf_calls_callback(struct bpf_verifier_env *env, int insn_idx);
+
+int bpf_stack_liveness_init(struct bpf_verifier_env *env);
+void bpf_stack_liveness_free(struct bpf_verifier_env *env);
+int bpf_update_live_stack(struct bpf_verifier_env *env);
+int bpf_mark_stack_read(struct bpf_verifier_env *env, u32 frameno, u32 insn_idx, u64 mask);
+void bpf_mark_stack_write(struct bpf_verifier_env *env, u32 frameno, u64 mask);
+int bpf_reset_stack_write_marks(struct bpf_verifier_env *env, u32 insn_idx);
+int bpf_commit_stack_write_marks(struct bpf_verifier_env *env);
+int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_state *st);
+bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 spi);
+void bpf_reset_live_stack_callchain(struct bpf_verifier_env *env);
 
 #endif /* _LINUX_BPF_VERIFIER_H */

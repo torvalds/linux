@@ -1120,6 +1120,11 @@ static inline int snd_soc_card_is_instantiated(struct snd_soc_card *card)
 	return card && card->instantiated;
 }
 
+static inline struct snd_soc_dapm_context *snd_soc_card_to_dapm(struct snd_soc_card *card)
+{
+	return &card->dapm;
+}
+
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
 struct snd_soc_pcm_runtime {
 	struct device *dev;

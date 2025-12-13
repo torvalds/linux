@@ -361,7 +361,7 @@ void btrfs_drew_read_lock(struct btrfs_drew_lock *lock)
 	atomic_inc(&lock->readers);
 
 	/*
-	 * Ensure the pending reader count is perceieved BEFORE this reader
+	 * Ensure the pending reader count is perceived BEFORE this reader
 	 * goes to sleep in case of active writers. This guarantees new writers
 	 * won't be allowed and that the current reader will be woken up when
 	 * the last active writer finishes its jobs.

@@ -83,10 +83,10 @@
 		compatible = "ti,lp8733";
 		reg = <0x60>;
 
-		buck0-in-supply =<&vsys_3v3>;
-		buck1-in-supply =<&vsys_3v3>;
-		ldo0-in-supply =<&evm_5v0>;
-		ldo1-in-supply =<&evm_5v0>;
+		buck0-in-supply = <&vsys_3v3>;
+		buck1-in-supply = <&vsys_3v3>;
+		ldo0-in-supply = <&evm_5v0>;
+		ldo1-in-supply = <&evm_5v0>;
 
 		lp8733_regulators: regulators {
 			lp8733_buck0_reg: buck0 {
@@ -131,10 +131,10 @@
 		compatible = "ti,lp8732";
 		reg = <0x61>;
 
-		buck0-in-supply =<&vsys_3v3>;
-		buck1-in-supply =<&vsys_3v3>;
-		ldo0-in-supply =<&vsys_3v3>;
-		ldo1-in-supply =<&vsys_3v3>;
+		buck0-in-supply = <&vsys_3v3>;
+		buck1-in-supply = <&vsys_3v3>;
+		ldo0-in-supply = <&vsys_3v3>;
+		ldo1-in-supply = <&vsys_3v3>;
 
 		lp8732_regulators: regulators {
 			lp8732_buck0_reg: buck0 {

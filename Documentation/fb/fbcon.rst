@@ -39,11 +39,13 @@ Also, you will need to select at least one compiled-in font, but if
 you don't do anything, the kernel configuration tool will select one for you,
 usually an 8x16 font.
 
-GOTCHA: A common bug report is enabling the framebuffer without enabling the
-framebuffer console.  Depending on the driver, you may get a blanked or
-garbled display, but the system still boots to completion.  If you are
-fortunate to have a driver that does not alter the graphics chip, then you
-will still get a VGA console.
+.. admonition:: GOTCHA
+
+   A common bug report is enabling the framebuffer without enabling the
+   framebuffer console.  Depending on the driver, you may get a blanked or
+   garbled display, but the system still boots to completion.  If you are
+   fortunate to have a driver that does not alter the graphics chip, then you
+   will still get a VGA console.
 
 B. Loading
 ==========
@@ -74,6 +76,7 @@ Possible scenarios:
 	 over the console.
 
 C. Boot options
+===============
 
 	 The framebuffer console has several, largely unknown, boot options
 	 that can change its behavior.
@@ -116,9 +119,10 @@ C. Boot options
 	outside the given range will still be controlled by the standard
 	console driver.
 
-	NOTE: For x86 machines, the standard console is the VGA console which
-	is typically located on the same video card.  Thus, the consoles that
-	are controlled by the VGA console will be garbled.
+	.. note::
+	   For x86 machines, the standard console is the VGA console which
+	   is typically located on the same video card.  Thus, the consoles that
+	   are controlled by the VGA console will be garbled.
 
 4. fbcon=rotate:<n>
 
@@ -140,10 +144,11 @@ C. Boot options
 	Console rotation will only become available if Framebuffer Console
 	Rotation support is compiled in your kernel.
 
-	NOTE: This is purely console rotation.  Any other applications that
-	use the framebuffer will remain at their 'normal' orientation.
-	Actually, the underlying fb driver is totally ignorant of console
-	rotation.
+	.. note::
+	   This is purely console rotation.  Any other applications that
+	   use the framebuffer will remain at their 'normal' orientation.
+	   Actually, the underlying fb driver is totally ignorant of console
+	   rotation.
 
 5. fbcon=margin:<color>
 
@@ -172,7 +177,8 @@ C. Boot options
 	The value 'n' overrides the number of bootup logos. 0 disables the
 	logo, and -1 gives the default which is the number of online CPUs.
 
-C. Attaching, Detaching and Unloading
+D. Attaching, Detaching and Unloading
+=====================================
 
 Before going on to how to attach, detach and unload the framebuffer console, an
 illustration of the dependencies may help.
@@ -249,11 +255,11 @@ restored properly. The following is one of the several methods that you can do:
        echo 1 > /sys/class/vtconsole/vtcon1/bind
 
 8. Once fbcon is unbound, all drivers registered to the system will also
-become unbound.  This means that fbcon and individual framebuffer drivers
-can be unloaded or reloaded at will. Reloading the drivers or fbcon will
-automatically bind the console, fbcon and the drivers together. Unloading
-all the drivers without unloading fbcon will make it impossible for the
-console to bind fbcon.
+   become unbound.  This means that fbcon and individual framebuffer drivers
+   can be unloaded or reloaded at will. Reloading the drivers or fbcon will
+   automatically bind the console, fbcon and the drivers together. Unloading
+   all the drivers without unloading fbcon will make it impossible for the
+   console to bind fbcon.
 
 Notes for vesafb users:
 =======================

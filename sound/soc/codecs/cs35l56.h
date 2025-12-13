@@ -20,8 +20,6 @@
 #define CS35L56_SDW_GEN_INT_MASK_1	0xc1
 #define CS35L56_SDW_INT_MASK_CODEC_IRQ	BIT(0)
 
-#define CS35L56_SDW_INVALID_BUS_SCALE	0xf
-
 #define CS35L56_RX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 #define CS35L56_TX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE \
 			    | SNDRV_PCM_FMTBIT_S32_LE)
@@ -52,7 +50,6 @@ struct cs35l56_private {
 	u8 asp_slot_count;
 	bool tdm_mode;
 	bool sysclk_set;
-	u8 old_sdw_clock_scale;
 	u8 sdw_link_num;
 	u8 sdw_unique_id;
 };

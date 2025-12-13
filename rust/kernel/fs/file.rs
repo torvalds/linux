@@ -10,8 +10,10 @@
 use crate::{
     bindings,
     cred::Credential,
-    error::{code::*, Error, Result},
-    types::{ARef, AlwaysRefCounted, NotThreadSafe, Opaque},
+    error::{code::*, to_result, Error, Result},
+    fmt,
+    sync::aref::{ARef, AlwaysRefCounted},
+    types::{NotThreadSafe, Opaque},
 };
 use core::ptr;
 
@@ -398,9 +400,8 @@ impl FileDescriptorReservation {
     pub fn get_unused_fd_flags(flags: u32) -> Result<Self> {
         // SAFETY: FFI call, there are no safety requirements on `flags`.
         let fd: i32 = unsafe { bindings::get_unused_fd_flags(flags) };
-        if fd < 0 {
-            return Err(Error::from_errno(fd));
-        }
+        to_result(fd)?;
+
         Ok(Self {
             fd: fd as u32,
             _not_send: NotThreadSafe,
@@ -447,9 +448,9 @@ impl Drop for FileDescriptorReservation {
     }
 }
 
-/// Represents the `EBADF` error code.
+/// Represents the [`EBADF`] error code.
 ///
-/// Used for methods that can only fail with `EBADF`.
+/// Used for methods that can only fail with [`EBADF`].
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct BadFdError;
 
@@ -460,8 +461,8 @@ impl From<BadFdError> for Error {
     }
 }
 
-impl core::fmt::Debug for BadFdError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Debug for BadFdError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("EBADF")
     }
 }

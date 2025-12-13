@@ -59,6 +59,9 @@
 # EXPORT_SYMBOL (namespace)
 / __kstrtabns_/d
 
+# MODULE_DEVICE_TABLE (symbol name)
+/ __mod_device_table__/d
+
 # ---------------------------------------------------------------------------
 # Ignored suffixes
 #  (do not forget '$' after each pattern)
@@ -78,6 +81,9 @@
 # ppc
 / _SDA_BASE_$/d
 / _SDA2_BASE_$/d
+
+# MODULE_INFO()
+/ __UNIQUE_ID_modinfo[0-9]*$/d
 
 # ---------------------------------------------------------------------------
 # Ignored patterns

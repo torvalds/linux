@@ -41,5 +41,5 @@ void fbnic_fw_log_disable(struct fbnic_dev *fbd);
 int fbnic_fw_log_init(struct fbnic_dev *fbd);
 void fbnic_fw_log_free(struct fbnic_dev *fbd);
 int fbnic_fw_log_write(struct fbnic_dev *fbd, u64 index, u32 timestamp,
-		       char *msg);
+		       const char *msg);
 #endif /* _FBNIC_FW_LOG_H_ */

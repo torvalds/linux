@@ -2754,7 +2754,7 @@ scsih_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 /**
  * scsih_bios_param - fetch head, sector, cylinder info for a disk
  * @sdev: scsi device struct
- * @bdev: pointer to block device context
+ * @unused: pointer to gendisk
  * @capacity: device size (in 512 byte sectors)
  * @params: three element array to place output:
  *              params[0] number of heads (max 255)
@@ -2762,7 +2762,7 @@ scsih_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
  *              params[2] number of cylinders
  */
 static int
-scsih_bios_param(struct scsi_device *sdev, struct block_device *bdev,
+scsih_bios_param(struct scsi_device *sdev, struct gendisk *unused,
 	sector_t capacity, int params[])
 {
 	int		heads;

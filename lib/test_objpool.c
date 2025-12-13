@@ -164,7 +164,7 @@ static enum hrtimer_restart ot_hrtimer_handler(struct hrtimer *hrt)
 	/* do bulk-testings for objects pop/push */
 	item->worker(item, 1);
 
-	hrtimer_forward(hrt, hrt->base->get_time(), item->hrtcycle);
+	hrtimer_forward_now(hrt, item->hrtcycle);
 	return HRTIMER_RESTART;
 }
 

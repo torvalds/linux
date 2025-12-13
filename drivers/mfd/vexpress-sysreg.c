@@ -5,6 +5,7 @@
  */
 
 #include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/mfd/core.h>
@@ -96,9 +97,11 @@ static struct mfd_cell vexpress_sysreg_cells[] = {
 
 static int vexpress_sysreg_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip *mmc_gpio_chip;
+	struct gpio_generic_chip_config config;
 	struct resource *mem;
 	void __iomem *base;
-	struct gpio_chip *mmc_gpio_chip;
+	int ret;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem)
@@ -116,10 +119,22 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 	if (!mmc_gpio_chip)
 		return -ENOMEM;
-	bgpio_init(mmc_gpio_chip, &pdev->dev, 0x4, base + SYS_MCI,
-			NULL, NULL, NULL, NULL, 0);
-	mmc_gpio_chip->ngpio = 2;
-	devm_gpiochip_add_data(&pdev->dev, mmc_gpio_chip, NULL);
+
+	config = (struct gpio_generic_chip_config) {
+		.dev = &pdev->dev,
+		.sz = 4,
+		.dat = base + SYS_MCI,
+	};
+
+	ret = gpio_generic_chip_init(mmc_gpio_chip, &config);
+	if (ret)
+		return ret;
+
+	mmc_gpio_chip->gc.ngpio = 2;
+
+	ret = devm_gpiochip_add_data(&pdev->dev, &mmc_gpio_chip->gc, NULL);
+	if (ret)
+		return ret;
 
 	return devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_AUTO,
 			vexpress_sysreg_cells,

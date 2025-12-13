@@ -14,6 +14,7 @@
 #define rts5264_reg_to_aspm(reg) \
 	(((~(reg) >> 28) & 0x02) | (((reg) >> 28) & 0x01))
 #define rts5264_reg_check_reverse_socket(reg)	((reg) & 0x04)
+#define rts5264_reg_check_wp_reverse(reg)		((reg) & 0x8000)
 #define rts5264_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 22) & 0x03)
 #define rts5264_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 16) & 0x03)
 #define rts5264_reg_to_rtd3(reg)		((reg) & 0x08)

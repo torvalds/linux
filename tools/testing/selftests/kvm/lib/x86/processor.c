@@ -6,6 +6,7 @@
 #include "linux/bitmap.h"
 #include "test_util.h"
 #include "kvm_util.h"
+#include "pmu.h"
 #include "processor.h"
 #include "sev.h"
 
@@ -22,6 +23,39 @@ bool host_cpu_is_amd;
 bool host_cpu_is_intel;
 bool is_forced_emulation_enabled;
 uint64_t guest_tsc_khz;
+
+const char *ex_str(int vector)
+{
+	switch (vector) {
+#define VEC_STR(v) case v##_VECTOR: return "#" #v
+	case DE_VECTOR: return "no exception";
+	case KVM_MAGIC_DE_VECTOR: return "#DE";
+	VEC_STR(DB);
+	VEC_STR(NMI);
+	VEC_STR(BP);
+	VEC_STR(OF);
+	VEC_STR(BR);
+	VEC_STR(UD);
+	VEC_STR(NM);
+	VEC_STR(DF);
+	VEC_STR(TS);
+	VEC_STR(NP);
+	VEC_STR(SS);
+	VEC_STR(GP);
+	VEC_STR(PF);
+	VEC_STR(MF);
+	VEC_STR(AC);
+	VEC_STR(MC);
+	VEC_STR(XM);
+	VEC_STR(VE);
+	VEC_STR(CP);
+	VEC_STR(HV);
+	VEC_STR(VC);
+	VEC_STR(SX);
+	default: return "#??";
+#undef VEC_STR
+	}
+}
 
 static void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent)
 {
@@ -557,7 +591,7 @@ static bool kvm_fixup_exception(struct ex_regs *regs)
 		return false;
 
 	if (regs->vector == DE_VECTOR)
-		return false;
+		regs->vector = KVM_MAGIC_DE_VECTOR;
 
 	regs->rip = regs->r11;
 	regs->r9 = regs->vector;
@@ -625,7 +659,7 @@ void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 		REPORT_GUEST_ASSERT(uc);
 }
 
-void kvm_arch_vm_post_create(struct kvm_vm *vm)
+void kvm_arch_vm_post_create(struct kvm_vm *vm, unsigned int nr_vcpus)
 {
 	int r;
 
@@ -638,6 +672,7 @@ void kvm_arch_vm_post_create(struct kvm_vm *vm)
 	sync_global_to_guest(vm, host_cpu_is_intel);
 	sync_global_to_guest(vm, host_cpu_is_amd);
 	sync_global_to_guest(vm, is_forced_emulation_enabled);
+	sync_global_to_guest(vm, pmu_errata_mask);
 
 	if (is_sev_vm(vm)) {
 		struct kvm_sev_init init = { 0 };
@@ -1269,6 +1304,8 @@ void kvm_selftest_arch_init(void)
 	host_cpu_is_intel = this_cpu_is_intel();
 	host_cpu_is_amd = this_cpu_is_amd();
 	is_forced_emulation_enabled = kvm_is_forced_emulation_enabled();
+
+	kvm_init_pmu_errata();
 }
 
 bool sys_clocksource_is_based_on_tsc(void)
@@ -1280,4 +1317,9 @@ bool sys_clocksource_is_based_on_tsc(void)
 	free(clk_name);
 
 	return ret;
+}
+
+bool kvm_arch_has_default_irqchip(void)
+{
+	return true;
 }

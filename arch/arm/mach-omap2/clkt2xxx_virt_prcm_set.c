@@ -70,8 +70,8 @@ static unsigned long omap2_table_mpu_recalc(struct clk_hw *clk,
  * Some might argue L3-DDR, others ARM, others IVA. This code is simple and
  * just uses the ARM rates.
  */
-static long omap2_round_to_table_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long *parent_rate)
+static int omap2_determine_rate_to_table(struct clk_hw *hw,
+					 struct clk_rate_request *req)
 {
 	const struct prcm_config *ptr;
 	long highest_rate;
@@ -87,10 +87,12 @@ static long omap2_round_to_table_rate(struct clk_hw *hw, unsigned long rate,
 		highest_rate = ptr->mpu_speed;
 
 		/* Can check only after xtal frequency check */
-		if (ptr->mpu_speed <= rate)
+		if (ptr->mpu_speed <= req->rate)
 			break;
 	}
-	return highest_rate;
+	req->rate = highest_rate;
+
+	return 0;
 }
 
 /* Sets basic clocks based on the specified rate */
@@ -215,7 +217,7 @@ static void omap2xxx_clkt_vps_late_init(void)
 static const struct clk_ops virt_prcm_set_ops = {
 	.recalc_rate	= &omap2_table_mpu_recalc,
 	.set_rate	= &omap2_select_table_rate,
-	.round_rate	= &omap2_round_to_table_rate,
+	.determine_rate = &omap2_determine_rate_to_table,
 };
 
 /**

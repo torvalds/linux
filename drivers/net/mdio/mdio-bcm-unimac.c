@@ -215,7 +215,9 @@ static int unimac_mdio_clk_set(struct unimac_mdio_priv *priv)
 
 	div = (rate / (2 * priv->clk_freq)) - 1;
 	if (div & ~MDIO_CLK_DIV_MASK) {
-		pr_warn("Incorrect MDIO clock frequency, ignoring\n");
+		dev_warn(priv->mii_bus->parent,
+			 "Ignoring MDIO clock frequency request: %d vs. rate: %ld\n",
+			 priv->clk_freq, rate);
 		ret = 0;
 		goto out;
 	}

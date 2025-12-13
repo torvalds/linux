@@ -12,7 +12,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20250404
+#define ACPI_CA_VERSION                 0x20250807
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -212,6 +212,12 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_osi_data, 0);
  * a reduced HW machine, and that flag is duplicated here for convenience.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_reduced_hardware, FALSE);
+
+/*
+ * ACPI Global Lock is mainly used for systems with SMM, so no-SMM systems
+ * (such as loong_arch) may not have and not use Global Lock.
+ */
+ACPI_INIT_GLOBAL(u8, acpi_gbl_use_global_lock, TRUE);
 
 /*
  * Maximum timeout for While() loop iterations before forced method abort.

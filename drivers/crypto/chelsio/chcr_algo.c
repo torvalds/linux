@@ -51,7 +51,6 @@
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
-#include <crypto/hash.h>
 #include <crypto/gcm.h>
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
@@ -277,88 +276,60 @@ static void get_aes_decrypt_key(unsigned char *dec_key,
 	}
 }
 
-static struct crypto_shash *chcr_alloc_shash(unsigned int ds)
+static int chcr_prepare_hmac_key(const u8 *raw_key, unsigned int raw_key_len,
+				 int digestsize, void *istate, void *ostate)
 {
-	struct crypto_shash *base_hash = ERR_PTR(-EINVAL);
+	__be32 *istate32 = istate, *ostate32 = ostate;
+	__be64 *istate64 = istate, *ostate64 = ostate;
+	union {
+		struct hmac_sha1_key sha1;
+		struct hmac_sha224_key sha224;
+		struct hmac_sha256_key sha256;
+		struct hmac_sha384_key sha384;
+		struct hmac_sha512_key sha512;
+	} k;
 
-	switch (ds) {
+	switch (digestsize) {
 	case SHA1_DIGEST_SIZE:
-		base_hash = crypto_alloc_shash("sha1", 0, 0);
+		hmac_sha1_preparekey(&k.sha1, raw_key, raw_key_len);
+		for (int i = 0; i < ARRAY_SIZE(k.sha1.istate.h); i++) {
+			istate32[i] = cpu_to_be32(k.sha1.istate.h[i]);
+			ostate32[i] = cpu_to_be32(k.sha1.ostate.h[i]);
+		}
 		break;
 	case SHA224_DIGEST_SIZE:
-		base_hash = crypto_alloc_shash("sha224", 0, 0);
+		hmac_sha224_preparekey(&k.sha224, raw_key, raw_key_len);
+		for (int i = 0; i < ARRAY_SIZE(k.sha224.key.istate.h); i++) {
+			istate32[i] = cpu_to_be32(k.sha224.key.istate.h[i]);
+			ostate32[i] = cpu_to_be32(k.sha224.key.ostate.h[i]);
+		}
 		break;
 	case SHA256_DIGEST_SIZE:
-		base_hash = crypto_alloc_shash("sha256", 0, 0);
+		hmac_sha256_preparekey(&k.sha256, raw_key, raw_key_len);
+		for (int i = 0; i < ARRAY_SIZE(k.sha256.key.istate.h); i++) {
+			istate32[i] = cpu_to_be32(k.sha256.key.istate.h[i]);
+			ostate32[i] = cpu_to_be32(k.sha256.key.ostate.h[i]);
+		}
 		break;
 	case SHA384_DIGEST_SIZE:
-		base_hash = crypto_alloc_shash("sha384", 0, 0);
+		hmac_sha384_preparekey(&k.sha384, raw_key, raw_key_len);
+		for (int i = 0; i < ARRAY_SIZE(k.sha384.key.istate.h); i++) {
+			istate64[i] = cpu_to_be64(k.sha384.key.istate.h[i]);
+			ostate64[i] = cpu_to_be64(k.sha384.key.ostate.h[i]);
+		}
 		break;
 	case SHA512_DIGEST_SIZE:
-		base_hash = crypto_alloc_shash("sha512", 0, 0);
+		hmac_sha512_preparekey(&k.sha512, raw_key, raw_key_len);
+		for (int i = 0; i < ARRAY_SIZE(k.sha512.key.istate.h); i++) {
+			istate64[i] = cpu_to_be64(k.sha512.key.istate.h[i]);
+			ostate64[i] = cpu_to_be64(k.sha512.key.ostate.h[i]);
+		}
 		break;
+	default:
+		return -EINVAL;
 	}
-
-	return base_hash;
-}
-
-static int chcr_compute_partial_hash(struct shash_desc *desc,
-				     char *iopad, char *result_hash,
-				     int digest_size)
-{
-	struct sha1_state sha1_st;
-	struct sha256_state sha256_st;
-	struct sha512_state sha512_st;
-	int error;
-
-	if (digest_size == SHA1_DIGEST_SIZE) {
-		error = crypto_shash_init(desc) ?:
-			crypto_shash_update(desc, iopad, SHA1_BLOCK_SIZE) ?:
-			crypto_shash_export_core(desc, &sha1_st);
-		memcpy(result_hash, sha1_st.state, SHA1_DIGEST_SIZE);
-	} else if (digest_size == SHA224_DIGEST_SIZE) {
-		error = crypto_shash_init(desc) ?:
-			crypto_shash_update(desc, iopad, SHA256_BLOCK_SIZE) ?:
-			crypto_shash_export_core(desc, &sha256_st);
-		memcpy(result_hash, sha256_st.state, SHA256_DIGEST_SIZE);
-
-	} else if (digest_size == SHA256_DIGEST_SIZE) {
-		error = crypto_shash_init(desc) ?:
-			crypto_shash_update(desc, iopad, SHA256_BLOCK_SIZE) ?:
-			crypto_shash_export_core(desc, &sha256_st);
-		memcpy(result_hash, sha256_st.state, SHA256_DIGEST_SIZE);
-
-	} else if (digest_size == SHA384_DIGEST_SIZE) {
-		error = crypto_shash_init(desc) ?:
-			crypto_shash_update(desc, iopad, SHA512_BLOCK_SIZE) ?:
-			crypto_shash_export_core(desc, &sha512_st);
-		memcpy(result_hash, sha512_st.state, SHA512_DIGEST_SIZE);
-
-	} else if (digest_size == SHA512_DIGEST_SIZE) {
-		error = crypto_shash_init(desc) ?:
-			crypto_shash_update(desc, iopad, SHA512_BLOCK_SIZE) ?:
-			crypto_shash_export_core(desc, &sha512_st);
-		memcpy(result_hash, sha512_st.state, SHA512_DIGEST_SIZE);
-	} else {
-		error = -EINVAL;
-		pr_err("Unknown digest size %d\n", digest_size);
-	}
-	return error;
-}
-
-static void chcr_change_order(char *buf, int ds)
-{
-	int i;
-
-	if (ds == SHA512_DIGEST_SIZE) {
-		for (i = 0; i < (ds / sizeof(u64)); i++)
-			*((__be64 *)buf + i) =
-				cpu_to_be64(*((u64 *)buf + i));
-	} else {
-		for (i = 0; i < (ds / sizeof(u32)); i++)
-			*((__be32 *)buf + i) =
-				cpu_to_be32(*((u32 *)buf + i));
-	}
+	memzero_explicit(&k, sizeof(k));
+	return 0;
 }
 
 static inline int is_hmac(struct crypto_tfm *tfm)
@@ -1547,11 +1518,6 @@ static int get_alg_config(struct algo_param *params,
 	return 0;
 }
 
-static inline void chcr_free_shash(struct crypto_shash *base_hash)
-{
-		crypto_free_shash(base_hash);
-}
-
 /**
  *	create_hash_wr - Create hash work request
  *	@req: Cipher req base
@@ -2202,53 +2168,13 @@ static int chcr_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 			     unsigned int keylen)
 {
 	struct hmac_ctx *hmacctx = HMAC_CTX(h_ctx(tfm));
-	unsigned int digestsize = crypto_ahash_digestsize(tfm);
-	unsigned int bs = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
-	unsigned int i, err = 0, updated_digestsize;
-
-	SHASH_DESC_ON_STACK(shash, hmacctx->base_hash);
 
 	/* use the key to calculate the ipad and opad. ipad will sent with the
 	 * first request's data. opad will be sent with the final hash result
 	 * ipad in hmacctx->ipad and opad in hmacctx->opad location
 	 */
-	shash->tfm = hmacctx->base_hash;
-	if (keylen > bs) {
-		err = crypto_shash_digest(shash, key, keylen,
-					  hmacctx->ipad);
-		if (err)
-			goto out;
-		keylen = digestsize;
-	} else {
-		memcpy(hmacctx->ipad, key, keylen);
-	}
-	memset(hmacctx->ipad + keylen, 0, bs - keylen);
-	unsafe_memcpy(hmacctx->opad, hmacctx->ipad, bs,
-		      "fortified memcpy causes -Wrestrict warning");
-
-	for (i = 0; i < bs / sizeof(int); i++) {
-		*((unsigned int *)(&hmacctx->ipad) + i) ^= IPAD_DATA;
-		*((unsigned int *)(&hmacctx->opad) + i) ^= OPAD_DATA;
-	}
-
-	updated_digestsize = digestsize;
-	if (digestsize == SHA224_DIGEST_SIZE)
-		updated_digestsize = SHA256_DIGEST_SIZE;
-	else if (digestsize == SHA384_DIGEST_SIZE)
-		updated_digestsize = SHA512_DIGEST_SIZE;
-	err = chcr_compute_partial_hash(shash, hmacctx->ipad,
-					hmacctx->ipad, digestsize);
-	if (err)
-		goto out;
-	chcr_change_order(hmacctx->ipad, updated_digestsize);
-
-	err = chcr_compute_partial_hash(shash, hmacctx->opad,
-					hmacctx->opad, digestsize);
-	if (err)
-		goto out;
-	chcr_change_order(hmacctx->opad, updated_digestsize);
-out:
-	return err;
+	return chcr_prepare_hmac_key(key, keylen, crypto_ahash_digestsize(tfm),
+				     hmacctx->ipad, hmacctx->opad);
 }
 
 static int chcr_aes_xts_setkey(struct crypto_skcipher *cipher, const u8 *key,
@@ -2344,28 +2270,9 @@ static int chcr_hmac_init(struct ahash_request *areq)
 
 static int chcr_hmac_cra_init(struct crypto_tfm *tfm)
 {
-	struct chcr_context *ctx = crypto_tfm_ctx(tfm);
-	struct hmac_ctx *hmacctx = HMAC_CTX(ctx);
-	unsigned int digestsize =
-		crypto_ahash_digestsize(__crypto_ahash_cast(tfm));
-
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct chcr_ahash_req_ctx));
-	hmacctx->base_hash = chcr_alloc_shash(digestsize);
-	if (IS_ERR(hmacctx->base_hash))
-		return PTR_ERR(hmacctx->base_hash);
 	return chcr_device_init(crypto_tfm_ctx(tfm));
-}
-
-static void chcr_hmac_cra_exit(struct crypto_tfm *tfm)
-{
-	struct chcr_context *ctx = crypto_tfm_ctx(tfm);
-	struct hmac_ctx *hmacctx = HMAC_CTX(ctx);
-
-	if (hmacctx->base_hash) {
-		chcr_free_shash(hmacctx->base_hash);
-		hmacctx->base_hash = NULL;
-	}
 }
 
 inline void chcr_aead_common_exit(struct aead_request *req)
@@ -3557,15 +3464,12 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	struct chcr_authenc_ctx *actx = AUTHENC_CTX(aeadctx);
 	/* it contains auth and cipher key both*/
 	struct crypto_authenc_keys keys;
-	unsigned int bs, subtype;
+	unsigned int subtype;
 	unsigned int max_authsize = crypto_aead_alg(authenc)->maxauthsize;
-	int err = 0, i, key_ctx_len = 0;
+	int err = 0, key_ctx_len = 0;
 	unsigned char ck_size = 0;
-	unsigned char pad[CHCR_HASH_MAX_BLOCK_SIZE_128] = { 0 };
-	struct crypto_shash *base_hash = ERR_PTR(-EINVAL);
 	struct algo_param param;
 	int align;
-	u8 *o_ptr = NULL;
 
 	crypto_aead_clear_flags(aeadctx->sw_cipher, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(aeadctx->sw_cipher, crypto_aead_get_flags(authenc)
@@ -3613,68 +3517,26 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 		get_aes_decrypt_key(actx->dec_rrkey, aeadctx->key,
 			    aeadctx->enckey_len << 3);
 	}
-	base_hash  = chcr_alloc_shash(max_authsize);
-	if (IS_ERR(base_hash)) {
-		pr_err("Base driver cannot be loaded\n");
+
+	align = KEYCTX_ALIGN_PAD(max_authsize);
+	err = chcr_prepare_hmac_key(keys.authkey, keys.authkeylen, max_authsize,
+				    actx->h_iopad,
+				    actx->h_iopad + param.result_size + align);
+	if (err)
 		goto out;
-	}
-	{
-		SHASH_DESC_ON_STACK(shash, base_hash);
 
-		shash->tfm = base_hash;
-		bs = crypto_shash_blocksize(base_hash);
-		align = KEYCTX_ALIGN_PAD(max_authsize);
-		o_ptr =  actx->h_iopad + param.result_size + align;
+	key_ctx_len = sizeof(struct _key_ctx) + roundup(keys.enckeylen, 16) +
+		      (param.result_size + align) * 2;
+	aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, param.mk_size, 0, 1,
+						key_ctx_len >> 4);
+	actx->auth_mode = param.auth_mode;
 
-		if (keys.authkeylen > bs) {
-			err = crypto_shash_digest(shash, keys.authkey,
-						  keys.authkeylen,
-						  o_ptr);
-			if (err) {
-				pr_err("Base driver cannot be loaded\n");
-				goto out;
-			}
-			keys.authkeylen = max_authsize;
-		} else
-			memcpy(o_ptr, keys.authkey, keys.authkeylen);
+	memzero_explicit(&keys, sizeof(keys));
+	return 0;
 
-		/* Compute the ipad-digest*/
-		memset(pad + keys.authkeylen, 0, bs - keys.authkeylen);
-		memcpy(pad, o_ptr, keys.authkeylen);
-		for (i = 0; i < bs >> 2; i++)
-			*((unsigned int *)pad + i) ^= IPAD_DATA;
-
-		if (chcr_compute_partial_hash(shash, pad, actx->h_iopad,
-					      max_authsize))
-			goto out;
-		/* Compute the opad-digest */
-		memset(pad + keys.authkeylen, 0, bs - keys.authkeylen);
-		memcpy(pad, o_ptr, keys.authkeylen);
-		for (i = 0; i < bs >> 2; i++)
-			*((unsigned int *)pad + i) ^= OPAD_DATA;
-
-		if (chcr_compute_partial_hash(shash, pad, o_ptr, max_authsize))
-			goto out;
-
-		/* convert the ipad and opad digest to network order */
-		chcr_change_order(actx->h_iopad, param.result_size);
-		chcr_change_order(o_ptr, param.result_size);
-		key_ctx_len = sizeof(struct _key_ctx) +
-			roundup(keys.enckeylen, 16) +
-			(param.result_size + align) * 2;
-		aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, param.mk_size,
-						0, 1, key_ctx_len >> 4);
-		actx->auth_mode = param.auth_mode;
-		chcr_free_shash(base_hash);
-
-		memzero_explicit(&keys, sizeof(keys));
-		return 0;
-	}
 out:
 	aeadctx->enckey_len = 0;
 	memzero_explicit(&keys, sizeof(keys));
-	if (!IS_ERR(base_hash))
-		chcr_free_shash(base_hash);
 	return -EINVAL;
 }
 
@@ -4490,7 +4352,6 @@ static int chcr_register_alg(void)
 
 			if (driver_algs[i].type == CRYPTO_ALG_TYPE_HMAC) {
 				a_hash->halg.base.cra_init = chcr_hmac_cra_init;
-				a_hash->halg.base.cra_exit = chcr_hmac_cra_exit;
 				a_hash->init = chcr_hmac_init;
 				a_hash->setkey = chcr_ahash_setkey;
 				a_hash->halg.base.cra_ctxsize = SZ_AHASH_H_CTX;

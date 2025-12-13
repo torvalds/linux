@@ -1644,9 +1644,6 @@ static void msi_domain_free_locked(struct device *dev, struct msi_ctrl *ctrl)
 	else
 		__msi_domain_free_irqs(dev, domain, ctrl);
 
-	if (ops->msi_post_free)
-		ops->msi_post_free(domain, dev);
-
 	if (info->flags & MSI_FLAG_FREE_MSI_DESCS)
 		msi_domain_free_descs(dev, ctrl);
 }

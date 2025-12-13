@@ -6,3 +6,6 @@
 
 pub mod file;
 pub use self::file::{File, LocalFile};
+
+mod kiocb;
+pub use self::kiocb::Kiocb;

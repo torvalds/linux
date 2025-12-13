@@ -97,7 +97,7 @@ struct intel_guc_ct {
 	/** @stall_time: time of first time a CTB submission is stalled */
 	ktime_t stall_time;
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GUC)
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 	int dead_ct_reason;
 	bool dead_ct_reported;
 	struct work_struct dead_ct_worker;

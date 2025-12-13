@@ -652,7 +652,7 @@
 	status = "okay";
 };
 
-&pcie0_ep{
+&pcie0_ep {
 	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
 	phy-names = "pcie-phy";
 	pinctrl-0 = <&pinctrl_pcieb>;

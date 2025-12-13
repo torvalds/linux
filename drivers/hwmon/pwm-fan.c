@@ -64,6 +64,7 @@ struct pwm_fan_ctx {
 
 	u64 pwm_duty_cycle_from_stopped;
 	u32 pwm_usec_from_stopped;
+	u8 pwm_shutdown;
 };
 
 /* This handler assumes self resetting edge triggered interrupt. */
@@ -484,9 +485,14 @@ static void pwm_fan_cleanup(void *__ctx)
 	struct pwm_fan_ctx *ctx = __ctx;
 
 	timer_delete_sync(&ctx->rpm_timer);
-	/* Switch off everything */
-	ctx->enable_mode = pwm_disable_reg_disable;
-	pwm_fan_power_off(ctx, true);
+	if (ctx->pwm_shutdown) {
+		ctx->enable_mode = pwm_enable_reg_enable;
+		__set_pwm(ctx, ctx->pwm_shutdown);
+	} else {
+		/* Switch off everything */
+		ctx->enable_mode = pwm_disable_reg_disable;
+		pwm_fan_power_off(ctx, true);
+	}
 }
 
 static int pwm_fan_probe(struct platform_device *pdev)
@@ -498,6 +504,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	int ret;
 	const struct hwmon_channel_info **channels;
 	u32 initial_pwm, pwm_min_from_stopped = 0;
+	u32 pwm_shutdown_percent = 0;
 	u32 *fan_channel_config;
 	int channel_count = 1;	/* We always have a PWM channel. */
 	int i;
@@ -647,6 +654,11 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 		channels[1] = &ctx->fan_channel;
 	}
+
+	ret = device_property_read_u32(dev, "fan-shutdown-percent",
+				       &pwm_shutdown_percent);
+	if (!ret && pwm_shutdown_percent)
+		ctx->pwm_shutdown = (clamp(pwm_shutdown_percent, 0, 100) * 255) / 100;
 
 	ret = device_property_read_u32(dev, "fan-stop-to-start-percent",
 				       &pwm_min_from_stopped);

@@ -63,6 +63,6 @@ examples:
             vdd-supply = <&adc_vdd>;
             vref-supply = <&adc_vref>;
             spi-max-frequency = <1000000>;
-            shutdown-gpios = <&gpio 26 1>;
+            shutdown-gpios = <&gpio 26 GPIO_ACTIVE_LOW>;
         };
     };

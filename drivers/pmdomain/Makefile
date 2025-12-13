@@ -5,6 +5,7 @@ obj-y					+= apple/
 obj-y					+= arm/
 obj-y					+= bcm/
 obj-y					+= imx/
+obj-y					+= marvell/
 obj-y					+= mediatek/
 obj-y					+= qcom/
 obj-y					+= renesas/

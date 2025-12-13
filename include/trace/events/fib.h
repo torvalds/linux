@@ -7,6 +7,8 @@
 
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <net/flow.h>
+#include <net/inet_dscp.h>
 #include <net/ip_fib.h>
 #include <linux/tracepoint.h>
 
@@ -44,7 +46,7 @@ TRACE_EVENT(fib_table_lookup,
 		__entry->err = err;
 		__entry->oif = flp->flowi4_oif;
 		__entry->iif = flp->flowi4_iif;
-		__entry->tos = flp->flowi4_tos;
+		__entry->tos = inet_dscp_to_dsfield(flp->flowi4_dscp);
 		__entry->scope = flp->flowi4_scope;
 		__entry->flags = flp->flowi4_flags;
 

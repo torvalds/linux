@@ -69,17 +69,17 @@ DEFINE_SIMPLE_ATTRIBUTE(pxp_terminate_fops, pxp_terminate_get, pxp_terminate_set
 
 void intel_pxp_debugfs_register(struct intel_pxp *pxp)
 {
-	struct drm_minor *minor;
+	struct dentry *debugfs_root;
 	struct dentry *pxproot;
 
 	if (!intel_pxp_is_supported(pxp))
 		return;
 
-	minor = pxp->ctrl_gt->i915->drm.primary;
-	if (!minor->debugfs_root)
+	debugfs_root = pxp->ctrl_gt->i915->drm.debugfs_root;
+	if (!debugfs_root)
 		return;
 
-	pxproot = debugfs_create_dir("pxp", minor->debugfs_root);
+	pxproot = debugfs_create_dir("pxp", debugfs_root);
 	if (IS_ERR(pxproot))
 		return;
 

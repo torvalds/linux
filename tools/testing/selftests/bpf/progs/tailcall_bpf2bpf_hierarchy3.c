@@ -2,6 +2,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
+#include "bpf_test_utils.h"
 
 int classifier_0(struct __sk_buff *skb);
 
@@ -52,6 +53,8 @@ SEC("tc")
 int tailcall_bpf2bpf_hierarchy_3(struct __sk_buff *skb)
 {
 	int ret = 0;
+
+	clobber_regs_stack();
 
 	bpf_tail_call_static(skb, &jmp_table0, 0);
 

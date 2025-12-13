@@ -294,6 +294,16 @@ config MTK_CMDQ_MBOX
 	  critical time limitation, such as updating display configuration
 	  during the vblank.
 
+config MTK_GPUEB_MBOX
+	tristate "MediaTek GPUEB Mailbox Support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  The MediaTek GPUEB mailbox is used to communicate with the embedded
+	  controller in charge of GPU frequency and power management on some
+	  MediaTek SoCs, such as the MT8196.
+	  Say Y or m here if you want to support the MT8196 SoC in your kernel
+	  build.
+
 config ZYNQMP_IPI_MBOX
 	tristate "Xilinx ZynqMP IPI Mailbox"
 	depends on ARCH_ZYNQMP && OF
@@ -368,5 +378,16 @@ config BCM74110_MAILBOX
 	  SoCs. The mailbox is a communication channel between the host
 	  processor and coprocessor that handles various power management task
 	  and more.
+
+config RISCV_SBI_MPXY_MBOX
+	tristate "RISC-V SBI Message Proxy (MPXY) Mailbox"
+	depends on RISCV_SBI
+	default RISCV
+	help
+	  Mailbox driver implementation for RISC-V SBI Message Proxy (MPXY)
+	  extension. This mailbox driver is used to send messages to the
+	  remote processor through the SBI implementation (M-mode firmware
+	  or HS-mode hypervisor). Say Y here if you want to have this support.
+	  If unsure say N.
 
 endif

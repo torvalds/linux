@@ -12,6 +12,7 @@
 #include <linux/seq_file.h>
 #include <linux/proc_ns.h>
 #include <linux/export.h>
+#include <linux/nstree.h>
 #include <linux/time.h>
 #include <linux/slab.h>
 #include <linux/cred.h>
@@ -88,25 +89,23 @@ static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 		goto fail;
 
 	err = -ENOMEM;
-	ns = kmalloc(sizeof(*ns), GFP_KERNEL_ACCOUNT);
+	ns = kzalloc(sizeof(*ns), GFP_KERNEL_ACCOUNT);
 	if (!ns)
 		goto fail_dec;
-
-	refcount_set(&ns->ns.count, 1);
 
 	ns->vvar_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!ns->vvar_page)
 		goto fail_free;
 
-	err = ns_alloc_inum(&ns->ns);
+	err = ns_common_init(ns);
 	if (err)
 		goto fail_free_page;
 
 	ns->ucounts = ucounts;
-	ns->ns.ops = &timens_operations;
 	ns->user_ns = get_user_ns(user_ns);
 	ns->offsets = old_ns->offsets;
 	ns->frozen_offsets = false;
+	ns_tree_add(ns);
 	return ns;
 
 fail_free_page:
@@ -130,7 +129,7 @@ fail:
  *
  * Return: timens_for_children namespace or ERR_PTR.
  */
-struct time_namespace *copy_time_ns(unsigned long flags,
+struct time_namespace *copy_time_ns(u64 flags,
 	struct user_namespace *user_ns, struct time_namespace *old_ns)
 {
 	if (!(flags & CLONE_NEWTIME))
@@ -253,16 +252,13 @@ out:
 
 void free_time_ns(struct time_namespace *ns)
 {
+	ns_tree_remove(ns);
 	dec_time_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 	__free_page(ns->vvar_page);
-	kfree(ns);
-}
-
-static struct time_namespace *to_time_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct time_namespace, ns);
+	/* Concurrent nstree traversal depends on a grace period. */
+	kfree_rcu(ns, ns.ns_rcu);
 }
 
 static struct ns_common *timens_get(struct task_struct *task)
@@ -466,7 +462,6 @@ out:
 
 const struct proc_ns_operations timens_operations = {
 	.name		= "time",
-	.type		= CLONE_NEWTIME,
 	.get		= timens_get,
 	.put		= timens_put,
 	.install	= timens_install,
@@ -476,7 +471,6 @@ const struct proc_ns_operations timens_operations = {
 const struct proc_ns_operations timens_for_children_operations = {
 	.name		= "time_for_children",
 	.real_ns_name	= "time",
-	.type		= CLONE_NEWTIME,
 	.get		= timens_for_children_get,
 	.put		= timens_put,
 	.install	= timens_install,
@@ -484,9 +478,15 @@ const struct proc_ns_operations timens_for_children_operations = {
 };
 
 struct time_namespace init_time_ns = {
-	.ns.count	= REFCOUNT_INIT(3),
+	.ns.ns_type	= ns_common_type(&init_time_ns),
+	.ns.__ns_ref	= REFCOUNT_INIT(3),
 	.user_ns	= &init_user_ns,
-	.ns.inum	= PROC_TIME_INIT_INO,
+	.ns.inum	= ns_init_inum(&init_time_ns),
 	.ns.ops		= &timens_operations,
 	.frozen_offsets	= true,
 };
+
+void __init time_ns_init(void)
+{
+	ns_tree_add(&init_time_ns);
+}

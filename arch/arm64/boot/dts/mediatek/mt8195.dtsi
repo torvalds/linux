@@ -1588,9 +1588,6 @@
 
 			power-domains = <&spm MT8195_POWER_DOMAIN_PCIE_MAC_P0>;
 
-			resets = <&infracfg_ao MT8195_INFRA_RST2_PCIE_P0_SWRST>;
-			reset-names = "mac";
-
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc0 0>,
@@ -3039,7 +3036,7 @@
 			#size-cells = <2>;
 		};
 
-		jpgdec-master {
+		jpeg-decoder@1a040000 {
 			compatible = "mediatek,mt8195-jpgdec";
 			power-domains = <&spm MT8195_POWER_DOMAIN_VDEC1>;
 			iommus = <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA0>,
@@ -3050,11 +3047,12 @@
 				 <&iommu_vdo M4U_PORT_L19_JPGDEC_BUFF_OFFSET0>;
 			#address-cells = <2>;
 			#size-cells = <2>;
-			ranges;
+			ranges = <0 0 0 0x1a040000 0 0x20000>,
+				 <1 0 0 0x1b040000 0 0x10000>;
 
-			jpgdec@1a040000 {
+			jpgdec@0,0 {
 				compatible = "mediatek,mt8195-jpgdec-hw";
-				reg = <0 0x1a040000 0 0x10000>;/* JPGDEC_C0 */
+				reg = <0 0 0 0x10000>;/* JPGDEC_C0 */
 				iommus = <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA0>,
 					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BSDMA0>,
 					 <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA1>,
@@ -3067,9 +3065,9 @@
 				power-domains = <&spm MT8195_POWER_DOMAIN_VDEC0>;
 			};
 
-			jpgdec@1a050000 {
+			jpgdec@0,10000 {
 				compatible = "mediatek,mt8195-jpgdec-hw";
-				reg = <0 0x1a050000 0 0x10000>;/* JPGDEC_C1 */
+				reg = <0 0 0x10000 0x10000>;/* JPGDEC_C1 */
 				iommus = <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA0>,
 					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BSDMA0>,
 					 <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA1>,
@@ -3082,9 +3080,9 @@
 				power-domains = <&spm MT8195_POWER_DOMAIN_VDEC1>;
 			};
 
-			jpgdec@1b040000 {
+			jpgdec@1,0 {
 				compatible = "mediatek,mt8195-jpgdec-hw";
-				reg = <0 0x1b040000 0 0x10000>;/* JPGDEC_C2 */
+				reg = <1 0 0 0x10000>;/* JPGDEC_C2 */
 				iommus = <&iommu_vpp M4U_PORT_L20_JPGDEC_WDMA0>,
 					 <&iommu_vpp M4U_PORT_L20_JPGDEC_BSDMA0>,
 					 <&iommu_vpp M4U_PORT_L20_JPGDEC_WDMA1>,
@@ -3113,7 +3111,7 @@
 		};
 
 
-		jpgenc-master {
+		jpeg-encoder@1a030000 {
 			compatible = "mediatek,mt8195-jpgenc";
 			power-domains = <&spm MT8195_POWER_DOMAIN_VENC_CORE1>;
 			iommus = <&iommu_vpp M4U_PORT_L20_JPGENC_Y_RDMA>,
@@ -3122,11 +3120,12 @@
 					<&iommu_vpp M4U_PORT_L20_JPGENC_BSDMA>;
 			#address-cells = <2>;
 			#size-cells = <2>;
-			ranges;
+			ranges = <0 0 0 0x1a030000 0 0x10000>,
+				 <1 0 0 0x1b030000 0 0x10000>;
 
-			jpgenc@1a030000 {
+			jpgenc@0,0 {
 				compatible = "mediatek,mt8195-jpgenc-hw";
-				reg = <0 0x1a030000 0 0x10000>;
+				reg = <0 0 0 0x10000>;
 				iommus = <&iommu_vdo M4U_PORT_L19_JPGENC_Y_RDMA>,
 						<&iommu_vdo M4U_PORT_L19_JPGENC_C_RDMA>,
 						<&iommu_vdo M4U_PORT_L19_JPGENC_Q_TABLE>,
@@ -3137,9 +3136,9 @@
 				power-domains = <&spm MT8195_POWER_DOMAIN_VENC>;
 			};
 
-			jpgenc@1b030000 {
+			jpgenc@1,0 {
 				compatible = "mediatek,mt8195-jpgenc-hw";
-				reg = <0 0x1b030000 0 0x10000>;
+				reg = <1 0 0 0x10000>;
 				iommus = <&iommu_vpp M4U_PORT_L20_JPGENC_Y_RDMA>,
 						<&iommu_vpp M4U_PORT_L20_JPGENC_C_RDMA>,
 						<&iommu_vpp M4U_PORT_L20_JPGENC_Q_TABLE>,

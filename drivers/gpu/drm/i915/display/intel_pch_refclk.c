@@ -17,16 +17,22 @@
 
 static void lpt_fdi_reset_mphy(struct intel_display *display)
 {
+	int ret;
+
 	intel_de_rmw(display, SOUTH_CHICKEN2, 0, FDI_MPHY_IOSFSB_RESET_CTL);
 
-	if (wait_for_us(intel_de_read(display, SOUTH_CHICKEN2) &
-			FDI_MPHY_IOSFSB_RESET_STATUS, 100))
+	ret = intel_de_wait_custom(display, SOUTH_CHICKEN2,
+				   FDI_MPHY_IOSFSB_RESET_STATUS, FDI_MPHY_IOSFSB_RESET_STATUS,
+				   100, 0, NULL);
+	if (ret)
 		drm_err(display->drm, "FDI mPHY reset assert timeout\n");
 
 	intel_de_rmw(display, SOUTH_CHICKEN2, FDI_MPHY_IOSFSB_RESET_CTL, 0);
 
-	if (wait_for_us((intel_de_read(display, SOUTH_CHICKEN2) &
-			 FDI_MPHY_IOSFSB_RESET_STATUS) == 0, 100))
+	ret = intel_de_wait_custom(display, SOUTH_CHICKEN2,
+				   FDI_MPHY_IOSFSB_RESET_STATUS, 0,
+				   100, 0, NULL);
+	if (ret)
 		drm_err(display->drm, "FDI mPHY reset de-assert timeout\n");
 }
 

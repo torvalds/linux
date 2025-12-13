@@ -79,7 +79,7 @@
 #error PMD_SHIFT must equal HPAGE_SHIFT for transparent huge pages.
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern unsigned long VMALLOC_END;
 
@@ -106,7 +106,7 @@ bool kern_addr_valid(unsigned long addr);
 	pr_err("%s:%d: bad pgd %p(%016lx) seen at (%pS)\n",		\
 	       __FILE__, __LINE__, &(e), pgd_val(e), __builtin_return_address(0))
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 /* PTE bits which are the same in SUN4U and SUN4V format.  */
 #define _PAGE_VALID	  _AC(0x8000000000000000,UL) /* Valid TTE            */
@@ -191,7 +191,7 @@ bool kern_addr_valid(unsigned long addr);
 /* We borrow bit 20 to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	_AC(0x0000000000100000, UL)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 pte_t mk_pte_io(unsigned long, pgprot_t, int, unsigned long);
 
@@ -1177,6 +1177,6 @@ extern unsigned long pte_leaf_size(pte_t pte);
 
 #endif /* CONFIG_HUGETLB_PAGE */
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #endif /* !(_SPARC64_PGTABLE_H) */

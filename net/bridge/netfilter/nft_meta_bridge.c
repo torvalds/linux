@@ -59,6 +59,13 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 		nft_reg_store_be16(dest, htons(p_proto));
 		return;
 	}
+	case NFT_META_BRI_IIFHWADDR:
+		br_dev = nft_meta_get_bridge(in);
+		if (!br_dev)
+			goto err;
+
+		memcpy(dest, br_dev->dev_addr, ETH_ALEN);
+		return;
 	default:
 		return nft_meta_get_eval(expr, regs, pkt);
 	}
@@ -85,6 +92,9 @@ static int nft_meta_bridge_get_init(const struct nft_ctx *ctx,
 	case NFT_META_BRI_IIFPVID:
 	case NFT_META_BRI_IIFVPROTO:
 		len = sizeof(u16);
+		break;
+	case NFT_META_BRI_IIFHWADDR:
+		len = ETH_ALEN;
 		break;
 	default:
 		return nft_meta_get_init(ctx, expr, tb);
@@ -175,6 +185,7 @@ static int nft_meta_bridge_set_validate(const struct nft_ctx *ctx,
 
 	switch (priv->key) {
 	case NFT_META_BRI_BROUTE:
+	case NFT_META_BRI_IIFHWADDR:
 		hooks = 1 << NF_BR_PRE_ROUTING;
 		break;
 	default:

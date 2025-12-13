@@ -18,7 +18,7 @@ optical drives, test equipment, and medical devices) to a host computer.
 
 Although the old parallel (fast/wide/ultra) SCSI bus has largely fallen
 out of use, the SCSI command set is more widely used than ever to
-communicate with devices over a number of different busses.
+communicate with devices over a number of different buses.
 
 The `SCSI protocol <https://www.t10.org/scsi-3.htm>`__ is a big-endian
 peer-to-peer packet based protocol. SCSI commands are 6, 10, 12, or 16
@@ -286,7 +286,7 @@ Parallel SCSI (SPI) transport class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The file drivers/scsi/scsi_transport_spi.c defines transport
-attributes for traditional (fast/wide/ultra) SCSI busses.
+attributes for traditional (fast/wide/ultra) SCSI buses.
 
 .. kernel-doc:: drivers/scsi/scsi_transport_spi.c
    :export:

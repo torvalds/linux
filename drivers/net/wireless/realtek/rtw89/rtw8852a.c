@@ -426,6 +426,35 @@ static const struct rtw89_reg_def rtw8852a_dcfo_comp = {
 	R_DCFO_COMP_S0, B_DCFO_COMP_S0_MSK
 };
 
+static const struct rtw89_reg_def rtw8852a_nhm_th[RTW89_NHM_TH_NUM] = {
+	{R_NHM_CFG, B_NHM_TH0_MSK},
+	{R_NHM_TH1, B_NHM_TH1_MSK},
+	{R_NHM_TH1, B_NHM_TH2_MSK},
+	{R_NHM_TH1, B_NHM_TH3_MSK},
+	{R_NHM_TH1, B_NHM_TH4_MSK},
+	{R_NHM_TH5, B_NHM_TH5_MSK},
+	{R_NHM_TH5, B_NHM_TH6_MSK},
+	{R_NHM_TH5, B_NHM_TH7_MSK},
+	{R_NHM_TH5, B_NHM_TH8_MSK},
+	{R_NHM_TH9, B_NHM_TH9_MSK},
+	{R_NHM_TH9, B_NHM_TH10_MSK},
+};
+
+static const struct rtw89_reg_def rtw8852a_nhm_rpt[RTW89_NHM_RPT_NUM] = {
+	{R_NHM_CNT0, B_NHM_CNT0_MSK},
+	{R_NHM_CNT0, B_NHM_CNT1_MSK},
+	{R_NHM_CNT2, B_NHM_CNT2_MSK},
+	{R_NHM_CNT2, B_NHM_CNT3_MSK},
+	{R_NHM_CNT4, B_NHM_CNT4_MSK},
+	{R_NHM_CNT4, B_NHM_CNT5_MSK},
+	{R_NHM_CNT6, B_NHM_CNT6_MSK},
+	{R_NHM_CNT6, B_NHM_CNT7_MSK},
+	{R_NHM_CNT8, B_NHM_CNT8_MSK},
+	{R_NHM_CNT8, B_NHM_CNT9_MSK},
+	{R_NHM_CNT10, B_NHM_CNT10_MSK},
+	{R_NHM_CNT10, B_NHM_CNT11_MSK},
+};
+
 static const struct rtw89_imr_info rtw8852a_imr_info = {
 	.wdrls_imr_set		= B_AX_WDRLS_IMR_SET,
 	.wsec_imr_reg		= R_AX_SEC_DEBUG,
@@ -2080,10 +2109,17 @@ static void rtw8852a_query_ppdu(struct rtw89_dev *rtwdev,
 {
 	u8 path;
 	u8 *rx_power = phy_ppdu->rssi;
+	u8 raw;
 
-	if (!status->signal)
-		status->signal = RTW89_RSSI_RAW_TO_DBM(max(rx_power[RF_PATH_A],
-							   rx_power[RF_PATH_B]));
+	if (!status->signal) {
+		if (phy_ppdu->to_self)
+			raw = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
+		else
+			raw = max(rx_power[RF_PATH_A], rx_power[RF_PATH_B]);
+
+		status->signal = RTW89_RSSI_RAW_TO_DBM(raw);
+	}
+
 	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
 		status->chains |= BIT(path);
 		status->chain_signal[path] = RTW89_RSSI_RAW_TO_DBM(rx_power[path]);
@@ -2142,6 +2178,7 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.query_rxdesc		= rtw89_core_query_rxdesc,
 	.fill_txdesc		= rtw89_core_fill_txdesc,
 	.fill_txdesc_fwcmd	= rtw89_core_fill_txdesc,
+	.get_ch_dma		= rtw89_core_get_ch_dma,
 	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path,
 	.mac_cfg_gnt		= rtw89_mac_cfg_gnt,
 	.stop_sch_tx		= rtw89_mac_stop_sch_tx,
@@ -2220,6 +2257,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.support_ant_gain	= false,
 	.support_tas		= false,
 	.support_sar_by_ant	= false,
+	.support_noise		= true,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= false,
 	.rx_freq_frome_ie	= true,
@@ -2282,6 +2320,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.cfo_hw_comp            = false,
 	.dcfo_comp		= &rtw8852a_dcfo_comp,
 	.dcfo_comp_sft		= 10,
+	.nhm_report		= &rtw8852a_nhm_rpt,
+	.nhm_th			= &rtw8852a_nhm_th,
 	.imr_info		= &rtw8852a_imr_info,
 	.imr_dmac_table		= NULL,
 	.imr_cmac_table		= NULL,

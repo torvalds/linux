@@ -153,6 +153,7 @@ struct otx2_dev_stats {
 	u64 tx_bcast_frames;
 	u64 tx_mcast_frames;
 	u64 tx_drops;
+	atomic_long_t tx_discards;
 };
 
 /* Driver counted stats */

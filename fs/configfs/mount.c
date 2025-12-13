@@ -36,7 +36,7 @@ static void configfs_free_inode(struct inode *inode)
 
 static const struct super_operations configfs_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.free_inode	= configfs_free_inode,
 };
 

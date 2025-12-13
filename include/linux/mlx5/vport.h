@@ -135,4 +135,6 @@ int mlx5_nic_vport_unaffiliate_multiport(struct mlx5_core_dev *port_mdev);
 u64 mlx5_query_nic_system_image_guid(struct mlx5_core_dev *mdev);
 int mlx5_vport_get_other_func_cap(struct mlx5_core_dev *dev, u16 vport, void *out,
 				  u16 opmod);
+int mlx5_vport_get_vhca_id(struct mlx5_core_dev *dev, u16 vport, u16 *vhca_id);
+
 #endif /* __MLX5_VPORT_H__ */

@@ -27,7 +27,7 @@ static void sha1_blocks(struct sha1_block_state *state,
 }
 
 #define sha1_mod_init_arch sha1_mod_init_arch
-static inline void sha1_mod_init_arch(void)
+static void sha1_mod_init_arch(void)
 {
 	unsigned long cfr;
 

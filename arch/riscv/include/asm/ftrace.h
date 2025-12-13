@@ -13,7 +13,7 @@
 #endif
 
 #define ARCH_SUPPORTS_FTRACE_OPS 1
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern void *return_address(unsigned int level);
 
@@ -112,7 +112,7 @@ do {									\
 #define MCOUNT_JALR_SIZE	4
 #define MCOUNT_NOP4_SIZE	4
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct dyn_ftrace;
 int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
 #define ftrace_init_nop ftrace_init_nop
@@ -235,7 +235,7 @@ static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs, unsi
 
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* CONFIG_DYNAMIC_FTRACE */
 

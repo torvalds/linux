@@ -862,7 +862,7 @@ struct nfs_getaclres {
 	size_t				acl_len;
 	size_t				acl_data_offset;
 	int				acl_flags;
-	struct page *			acl_scratch;
+	struct folio *			acl_scratch;
 };
 
 struct nfs_setattrres {
@@ -1596,7 +1596,7 @@ struct nfs42_listxattrsargs {
 
 struct nfs42_listxattrsres {
 	struct nfs4_sequence_res	seq_res;
-	struct page			*scratch;
+	struct folio			*scratch;
 	void				*xattr_buf;
 	size_t				xattr_len;
 	u64				cookie;
@@ -1659,6 +1659,7 @@ struct nfs_pgio_header {
 	void			*netfs;
 #endif
 
+	unsigned short		retrans;
 	int			pnfs_error;
 	int			error;		/* merge with pnfs_error */
 	unsigned int		good_bytes;	/* boundary of good data */

@@ -454,7 +454,7 @@ void blk_mq_free_sched_tags_batch(struct xarray *et_table,
 }
 
 struct elevator_tags *blk_mq_alloc_sched_tags(struct blk_mq_tag_set *set,
-		unsigned int nr_hw_queues)
+		unsigned int nr_hw_queues, unsigned int nr_requests)
 {
 	unsigned int nr_tags;
 	int i;
@@ -470,13 +470,8 @@ struct elevator_tags *blk_mq_alloc_sched_tags(struct blk_mq_tag_set *set,
 			nr_tags * sizeof(struct blk_mq_tags *), gfp);
 	if (!et)
 		return NULL;
-	/*
-	 * Default to double of smaller one between hw queue_depth and
-	 * 128, since we don't split into sync/async like the old code
-	 * did. Additionally, this is a per-hw queue depth.
-	 */
-	et->nr_requests = 2 * min_t(unsigned int, set->queue_depth,
-			BLKDEV_DEFAULT_RQ);
+
+	et->nr_requests = nr_requests;
 	et->nr_hw_queues = nr_hw_queues;
 
 	if (blk_mq_is_shared_tags(set->flags)) {
@@ -521,7 +516,8 @@ int blk_mq_alloc_sched_tags_batch(struct xarray *et_table,
 		 * concurrently.
 		 */
 		if (q->elevator) {
-			et = blk_mq_alloc_sched_tags(set, nr_hw_queues);
+			et = blk_mq_alloc_sched_tags(set, nr_hw_queues,
+					blk_mq_default_nr_requests(set));
 			if (!et)
 				goto out_unwind;
 			if (xa_insert(et_table, q->id, et, gfp))
@@ -561,7 +557,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e,
 	if (blk_mq_is_shared_tags(flags)) {
 		/* Shared tags are stored at index 0 in @et->tags. */
 		q->sched_shared_tags = et->tags[0];
-		blk_mq_tag_update_sched_shared_tags(q);
+		blk_mq_tag_update_sched_shared_tags(q, et->nr_requests);
 	}
 
 	queue_for_each_hw_ctx(q, hctx, i) {

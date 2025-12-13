@@ -7,8 +7,6 @@
 
 #include <linux/cpufeature.h>
 
-#include <crypto/internal/simd.h>
-
 #include <asm/neon.h>
 #include <asm/simd.h>
 
@@ -25,7 +23,7 @@ static inline u16 crc_t10dif_arch(u16 crc, const u8 *data, size_t length)
 {
 	if (length >= CRC_T10DIF_PMULL_CHUNK_SIZE) {
 		if (static_branch_likely(&have_pmull)) {
-			if (crypto_simd_usable()) {
+			if (likely(may_use_simd())) {
 				kernel_neon_begin();
 				crc = crc_t10dif_pmull_p64(crc, data, length);
 				kernel_neon_end();
@@ -33,7 +31,7 @@ static inline u16 crc_t10dif_arch(u16 crc, const u8 *data, size_t length)
 			}
 		} else if (length > CRC_T10DIF_PMULL_CHUNK_SIZE &&
 			   static_branch_likely(&have_asimd) &&
-			   crypto_simd_usable()) {
+			   likely(may_use_simd())) {
 			u8 buf[16];
 
 			kernel_neon_begin();
@@ -47,7 +45,7 @@ static inline u16 crc_t10dif_arch(u16 crc, const u8 *data, size_t length)
 }
 
 #define crc_t10dif_mod_init_arch crc_t10dif_mod_init_arch
-static inline void crc_t10dif_mod_init_arch(void)
+static void crc_t10dif_mod_init_arch(void)
 {
 	if (cpu_have_named_feature(ASIMD)) {
 		static_branch_enable(&have_asimd);

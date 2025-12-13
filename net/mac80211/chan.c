@@ -659,19 +659,8 @@ bool ieee80211_is_radar_required(struct ieee80211_local *local,
 
 	for_each_sdata_link(local, link) {
 		if (link->radar_required) {
-			if (wiphy->n_radio < 2)
-				return true;
-
 			chan = link->conf->chanreq.oper.chan;
 			radio_idx = cfg80211_get_radio_idx_by_chan(wiphy, chan);
-			/*
-			 * The radio index (radio_idx) is expected to be valid,
-			 * as it's derived from a channel tied to a link. If
-			 * it's invalid (i.e., negative), return true to avoid
-			 * potential issues with radar-sensitive operations.
-			 */
-			if (radio_idx < 0)
-				return true;
 
 			if (ieee80211_is_radio_idx_in_scan_req(wiphy, req,
 							       radio_idx))
@@ -1301,7 +1290,7 @@ ieee80211_link_chanctx_reservation_complete(struct ieee80211_link_data *link)
 				 &link->csa.finalize_work);
 		break;
 	case NL80211_IFTYPE_STATION:
-		wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+		wiphy_hrtimer_work_queue(sdata->local->hw.wiphy,
 					 &link->u.mgd.csa.switch_work, 0);
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:

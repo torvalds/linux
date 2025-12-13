@@ -14,6 +14,8 @@
 #include <linux/exportfs.h>
 #include <linux/nfs4.h>
 
+#include "export.h"
+
 /*
  * The file handle starts with a sequence of four-byte words.
  * The first word contains a version number (1) and three descriptor bytes
@@ -220,6 +222,7 @@ extern char * SVCFH_fmt(struct svc_fh *fhp);
 __be32	fh_verify(struct svc_rqst *, struct svc_fh *, umode_t, int);
 __be32	fh_verify_local(struct net *, struct svc_cred *, struct auth_domain *,
 			struct svc_fh *, umode_t, int);
+__be32	fh_getattr(const struct svc_fh *fhp, struct kstat *stat);
 __be32	fh_compose(struct svc_fh *, struct svc_export *, struct dentry *, struct svc_fh *);
 __be32	fh_update(struct svc_fh *);
 void	fh_put(struct svc_fh *);
@@ -269,6 +272,41 @@ static inline bool fh_fsid_match(const struct knfsd_fh *fh1,
 	if (memcmp(fsid1, fsid2, key_len(fh1->fh_fsid_type)) != 0)
 		return false;
 	return true;
+}
+
+/**
+ * fh_want_write - Get write access to an export
+ * @fhp: File handle of file to be written
+ *
+ * Caller must invoke fh_drop_write() when its write operation
+ * is complete.
+ *
+ * Returns 0 if the file handle's export can be written to. Otherwise
+ * the export is not prepared for updates, and the returned negative
+ * errno value reflects the reason for the failure.
+ */
+static inline int fh_want_write(struct svc_fh *fhp)
+{
+	int ret;
+
+	if (fhp->fh_want_write)
+		return 0;
+	ret = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	if (!ret)
+		fhp->fh_want_write = true;
+	return ret;
+}
+
+/**
+ * fh_drop_write - Release write access on an export
+ * @fhp: File handle of file on which fh_want_write() was previously called
+ */
+static inline void fh_drop_write(struct svc_fh *fhp)
+{
+	if (fhp->fh_want_write) {
+		fhp->fh_want_write = false;
+		mnt_drop_write(fhp->fh_export->ex_path.mnt);
+	}
 }
 
 /**

@@ -190,6 +190,12 @@
 			reg = <0x12>;
 			syna,sensor-type = <1>;
 		};
+
+		rmi4-f1a@1a {
+			reg = <0x1a>;
+			/* Keys listed from right to left */
+			linux,keycodes = <KEY_APPSELECT KEY_HOMEPAGE KEY_BACK>;
+		};
 	};
 };
 

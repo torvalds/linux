@@ -326,10 +326,14 @@ struct sof_ipc4_base_module_cfg {
 #define SOF_IPC4_MOD_INSTANCE_SHIFT		16
 #define SOF_IPC4_MOD_INSTANCE_MASK		GENMASK(23, 16)
 #define SOF_IPC4_MOD_INSTANCE(x)		((x) << SOF_IPC4_MOD_INSTANCE_SHIFT)
+#define SOF_IPC4_MOD_INSTANCE_GET(x)		(((x) & SOF_IPC4_MOD_INSTANCE_MASK) \
+						 >> SOF_IPC4_MOD_INSTANCE_SHIFT)
 
 #define SOF_IPC4_MOD_ID_SHIFT			0
 #define SOF_IPC4_MOD_ID_MASK			GENMASK(15, 0)
 #define SOF_IPC4_MOD_ID(x)			((x) << SOF_IPC4_MOD_ID_SHIFT)
+#define SOF_IPC4_MOD_ID_GET(x)			(((x) & SOF_IPC4_MOD_ID_MASK) \
+						 >> SOF_IPC4_MOD_ID_SHIFT)
 
 /* init module ipc msg */
 #define SOF_IPC4_MOD_EXT_PARAM_SIZE_SHIFT	0

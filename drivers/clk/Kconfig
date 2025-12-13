@@ -364,6 +364,7 @@ config COMMON_CLK_LOCHNAGAR
 config COMMON_CLK_NPCM8XX
 	tristate "Clock driver for the NPCM8XX SoC Family"
 	depends on ARCH_NPCM || COMPILE_TEST
+	select AUXILIARY_BUS
 	help
 	  This driver supports the clocks on the Nuvoton BMC NPCM8XX SoC Family,
 	  all the clocks are initialized by the bootloader, so this driver
@@ -501,6 +502,15 @@ config COMMON_CLK_SP7021
 	  Not all features of the PLL are currently supported
 	  by the driver.
 
+config COMMON_CLK_RPMI
+	tristate "Clock driver based on RISC-V RPMI"
+	depends on RISCV || COMPILE_TEST
+	depends on MAILBOX
+	default RISCV
+	help
+	  Support for clocks based on the clock service group defined by
+	  the RISC-V platform management interface (RPMI) specification.
+
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
 source "drivers/clk/baikal-t1/Kconfig"
@@ -511,6 +521,7 @@ source "drivers/clk/imx/Kconfig"
 source "drivers/clk/ingenic/Kconfig"
 source "drivers/clk/keystone/Kconfig"
 source "drivers/clk/mediatek/Kconfig"
+source "drivers/clk/mmp/Kconfig"
 source "drivers/clk/meson/Kconfig"
 source "drivers/clk/mstar/Kconfig"
 source "drivers/clk/microchip/Kconfig"

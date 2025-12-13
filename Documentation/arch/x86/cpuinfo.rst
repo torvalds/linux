@@ -11,7 +11,7 @@ The list of feature flags in /proc/cpuinfo is not complete and
 represents an ill-fated attempt from long time ago to put feature flags
 in an easy to find place for userspace.
 
-However, the amount of feature flags is growing by the CPU generation,
+However, the number of feature flags is growing with each CPU generation,
 leading to unparseable and unwieldy /proc/cpuinfo.
 
 What is more, those feature flags do not even need to be in that file

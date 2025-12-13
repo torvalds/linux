@@ -27,17 +27,19 @@ static const struct snmp_mib tls_mib_list[] = {
 	SNMP_MIB_ITEM("TlsTxRekeyOk", LINUX_MIB_TLSTXREKEYOK),
 	SNMP_MIB_ITEM("TlsTxRekeyError", LINUX_MIB_TLSTXREKEYERROR),
 	SNMP_MIB_ITEM("TlsRxRekeyReceived", LINUX_MIB_TLSRXREKEYRECEIVED),
-	SNMP_MIB_SENTINEL
 };
 
 static int tls_statistics_seq_show(struct seq_file *seq, void *v)
 {
-	unsigned long buf[LINUX_MIB_TLSMAX] = {};
+	unsigned long buf[ARRAY_SIZE(tls_mib_list)];
+	const int cnt = ARRAY_SIZE(tls_mib_list);
 	struct net *net = seq->private;
 	int i;
 
-	snmp_get_cpu_field_batch(buf, tls_mib_list, net->mib.tls_statistics);
-	for (i = 0; tls_mib_list[i].name; i++)
+	memset(buf, 0, sizeof(buf));
+	snmp_get_cpu_field_batch_cnt(buf, tls_mib_list, cnt,
+				     net->mib.tls_statistics);
+	for (i = 0; i < cnt; i++)
 		seq_printf(seq, "%-32s\t%lu\n", tls_mib_list[i].name, buf[i]);
 
 	return 0;

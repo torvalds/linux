@@ -233,7 +233,6 @@ struct kimage *do_kimage_alloc_init(void)
 	if (!image)
 		return NULL;
 
-	image->head = 0;
 	image->entry = &image->head;
 	image->last_entry = &image->head;
 	image->control_page = ~0; /* By default this does not apply */

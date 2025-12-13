@@ -15,7 +15,7 @@ int quiet;		/* Level of quietness */
 unsigned int reservenum;/* Number of memory reservation slots */
 int minsize;		/* Minimum blob size */
 int padsize;		/* Additional padding to blob */
-int alignsize;		/* Additional padding to blob accroding to the alignsize */
+int alignsize;		/* Additional padding to blob according to the alignsize */
 int phandle_format = PHANDLE_EPAPR;	/* Use linux,phandle or phandle properties */
 int generate_symbols;	/* enable symbols & fixup support */
 int generate_fixups;		/* suppress generation of fixups on symbol support */
@@ -289,7 +289,9 @@ int main(int argc, char *argv[])
 		if (!depfile)
 			die("Couldn't open dependency file %s: %s\n", depname,
 			    strerror(errno));
-		fprintf(depfile, "%s:", outname);
+
+		fprint_path_escaped(depfile, outname);
+		fputc(':', depfile);
 	}
 
 	if (inform == NULL)

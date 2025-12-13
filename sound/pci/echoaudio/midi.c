@@ -167,9 +167,8 @@ static void snd_echo_midi_input_trigger(struct snd_rawmidi_substream *substream,
 	struct echoaudio *chip = substream->rmidi->private_data;
 
 	if (up != chip->midi_input_enabled) {
-		spin_lock_irq(&chip->lock);
+		guard(spinlock_irq)(&chip->lock);
 		enable_midi_input(chip, up);
-		spin_unlock_irq(&chip->lock);
 		chip->midi_input_enabled = up;
 	}
 }
@@ -201,14 +200,13 @@ static int snd_echo_midi_output_open(struct snd_rawmidi_substream *substream)
 static void snd_echo_midi_output_write(struct timer_list *t)
 {
 	struct echoaudio *chip = timer_container_of(chip, t, timer);
-	unsigned long flags;
 	int bytes, sent, time;
 	unsigned char buf[MIDI_OUT_BUFFER_SIZE - 1];
 
 	/* No interrupts are involved: we have to check at regular intervals
 	if the card's output buffer has room for new data. */
 	sent = 0;
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	chip->midi_full = 0;
 	if (!snd_rawmidi_transmit_empty(chip->midi_out)) {
 		bytes = snd_rawmidi_transmit_peek(chip->midi_out, buf,
@@ -242,7 +240,6 @@ static void snd_echo_midi_output_write(struct timer_list *t)
 		dev_dbg(chip->card->dev,
 			"Timer armed(%d)\n", ((time * HZ + 999) / 1000));
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 
@@ -251,25 +248,29 @@ static void snd_echo_midi_output_trigger(struct snd_rawmidi_substream *substream
 					 int up)
 {
 	struct echoaudio *chip = substream->rmidi->private_data;
+	bool remove_timer = false;
 
 	dev_dbg(chip->card->dev, "snd_echo_midi_output_trigger(%d)\n", up);
-	spin_lock_irq(&chip->lock);
-	if (up) {
-		if (!chip->tinuse) {
-			timer_setup(&chip->timer, snd_echo_midi_output_write,
-				    0);
-			chip->tinuse = 1;
-		}
-	} else {
-		if (chip->tinuse) {
-			chip->tinuse = 0;
-			spin_unlock_irq(&chip->lock);
-			timer_delete_sync(&chip->timer);
-			dev_dbg(chip->card->dev, "Timer removed\n");
-			return;
+	scoped_guard(spinlock_irq, &chip->lock) {
+		if (up) {
+			if (!chip->tinuse) {
+				timer_setup(&chip->timer, snd_echo_midi_output_write,
+					    0);
+				chip->tinuse = 1;
+			}
+		} else {
+			if (chip->tinuse) {
+				chip->tinuse = 0;
+				remove_timer = true;
+			}
 		}
 	}
-	spin_unlock_irq(&chip->lock);
+
+	if (remove_timer) {
+		timer_delete_sync(&chip->timer);
+		dev_dbg(chip->card->dev, "Timer removed\n");
+		return;
+	}
 
 	if (up && !chip->midi_full)
 		snd_echo_midi_output_write(&chip->timer);

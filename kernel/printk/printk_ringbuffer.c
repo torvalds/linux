@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <kunit/visibility.h>
 #include <linux/kernel.h>
 #include <linux/irqflags.h>
 #include <linux/string.h>
@@ -393,25 +394,21 @@ static unsigned int to_blk_size(unsigned int size)
  * Sanity checker for reserve size. The ringbuffer code assumes that a data
  * block does not exceed the maximum possible size that could fit within the
  * ringbuffer. This function provides that basic size check so that the
- * assumption is safe.
+ * assumption is safe. In particular, it guarantees that data_push_tail() will
+ * never attempt to push the tail beyond the head.
  */
 static bool data_check_size(struct prb_data_ring *data_ring, unsigned int size)
 {
-	struct prb_data_block *db = NULL;
-
+	/* Data-less blocks take no space. */
 	if (size == 0)
 		return true;
 
 	/*
-	 * Ensure the alignment padded size could possibly fit in the data
-	 * array. The largest possible data block must still leave room for
-	 * at least the ID of the next block.
+	 * If data blocks were allowed to be larger than half the data ring
+	 * size, a wrapping data block could require more space than the full
+	 * ringbuffer.
 	 */
-	size = to_blk_size(size);
-	if (size > DATA_SIZE(data_ring) - sizeof(db->id))
-		return false;
-
-	return true;
+	return to_blk_size(size) <= DATA_SIZE(data_ring) / 2;
 }
 
 /* Query the state of a descriptor. */
@@ -1051,8 +1048,17 @@ static char *data_alloc(struct printk_ringbuffer *rb, unsigned int size,
 	do {
 		next_lpos = get_next_lpos(data_ring, begin_lpos, size);
 
-		if (!data_push_tail(rb, next_lpos - DATA_SIZE(data_ring))) {
-			/* Failed to allocate, specify a data-less block. */
+		/*
+		 * data_check_size() prevents data block allocation that could
+		 * cause illegal ringbuffer states. But double check that the
+		 * used space will not be bigger than the ring buffer. Wrapped
+		 * messages need to reserve more space, see get_next_lpos().
+		 *
+		 * Specify a data-less block when the check or the allocation
+		 * fails.
+		 */
+		if (WARN_ON_ONCE(next_lpos - begin_lpos > DATA_SIZE(data_ring)) ||
+		    !data_push_tail(rb, next_lpos - DATA_SIZE(data_ring))) {
 			blk_lpos->begin = FAILED_LPOS;
 			blk_lpos->next = FAILED_LPOS;
 			return NULL;
@@ -1140,8 +1146,18 @@ static char *data_realloc(struct printk_ringbuffer *rb, unsigned int size,
 		return &blk->data[0];
 	}
 
-	if (!data_push_tail(rb, next_lpos - DATA_SIZE(data_ring)))
+	/*
+	 * data_check_size() prevents data block reallocation that could
+	 * cause illegal ringbuffer states. But double check that the
+	 * new used space will not be bigger than the ring buffer. Wrapped
+	 * messages need to reserve more space, see get_next_lpos().
+	 *
+	 * Specify failure when the check or the allocation fails.
+	 */
+	if (WARN_ON_ONCE(next_lpos - blk_lpos->begin > DATA_SIZE(data_ring)) ||
+	    !data_push_tail(rb, next_lpos - DATA_SIZE(data_ring))) {
 		return NULL;
+	}
 
 	/* The memory barrier involvement is the same as data_alloc:A. */
 	if (!atomic_long_try_cmpxchg(&data_ring->head_lpos, &head_lpos,
@@ -1685,6 +1701,7 @@ fail:
 	memset(r, 0, sizeof(*r));
 	return false;
 }
+EXPORT_SYMBOL_IF_KUNIT(prb_reserve);
 
 /* Commit the data (possibly finalizing it) and restore interrupts. */
 static void _prb_commit(struct prb_reserved_entry *e, unsigned long state_val)
@@ -1759,6 +1776,7 @@ void prb_commit(struct prb_reserved_entry *e)
 	if (head_id != e->id)
 		desc_make_final(e->rb, e->id);
 }
+EXPORT_SYMBOL_IF_KUNIT(prb_commit);
 
 /**
  * prb_final_commit() - Commit and finalize (previously reserved) data to
@@ -2143,7 +2161,7 @@ static bool _prb_read_valid(struct printk_ringbuffer *rb, u64 *seq,
 			 * But it would have the sequence number returned
 			 * by "prb_next_reserve_seq() - 1".
 			 */
-			if (this_cpu_in_panic() &&
+			if (panic_on_this_cpu() &&
 			    (!debug_non_panic_cpus || legacy_allow_panic_sync) &&
 			    ((*seq + 1) < prb_next_reserve_seq(rb))) {
 				(*seq)++;
@@ -2184,6 +2202,7 @@ bool prb_read_valid(struct printk_ringbuffer *rb, u64 seq,
 {
 	return _prb_read_valid(rb, &seq, r, NULL);
 }
+EXPORT_SYMBOL_IF_KUNIT(prb_read_valid);
 
 /**
  * prb_read_valid_info() - Non-blocking read of meta data for a requested
@@ -2333,6 +2352,7 @@ void prb_init(struct printk_ringbuffer *rb,
 	infos[0].seq = -(u64)_DESCS_COUNT(descbits);
 	infos[_DESCS_COUNT(descbits) - 1].seq = 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(prb_init);
 
 /**
  * prb_record_text_space() - Query the full actual used ringbuffer space for

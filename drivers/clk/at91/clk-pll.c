@@ -231,13 +231,15 @@ static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,
 	return bestrate;
 }
 
-static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-					unsigned long *parent_rate)
+static int clk_pll_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
 
-	return clk_pll_get_best_div_mul(pll, rate, *parent_rate,
-					NULL, NULL, NULL);
+	req->rate = clk_pll_get_best_div_mul(pll, req->rate, req->best_parent_rate,
+					     NULL, NULL, NULL);
+
+	return 0;
 }
 
 static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -302,7 +304,7 @@ static const struct clk_ops pll_ops = {
 	.unprepare = clk_pll_unprepare,
 	.is_prepared = clk_pll_is_prepared,
 	.recalc_rate = clk_pll_recalc_rate,
-	.round_rate = clk_pll_round_rate,
+	.determine_rate = clk_pll_determine_rate,
 	.set_rate = clk_pll_set_rate,
 	.save_context = clk_pll_save_context,
 	.restore_context = clk_pll_restore_context,

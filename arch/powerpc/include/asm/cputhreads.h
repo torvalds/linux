@@ -2,7 +2,7 @@
 #ifndef _ASM_POWERPC_CPUTHREADS_H
 #define _ASM_POWERPC_CPUTHREADS_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/cpumask.h>
 #include <asm/cpu_has_feature.h>
 
@@ -107,7 +107,7 @@ static inline u32 get_tensr(void)
 void book3e_start_thread(int thread, unsigned long addr);
 void book3e_stop_thread(int thread);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define INVALID_THREAD_HWID	0x0fff
 

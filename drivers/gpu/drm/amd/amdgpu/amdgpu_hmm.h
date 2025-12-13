@@ -33,7 +33,7 @@
 
 int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
 			       uint64_t start, uint64_t npages, bool readonly,
-			       void *owner, struct page **pages,
+			       void *owner,
 			       struct hmm_range **phmm_range);
 bool amdgpu_hmm_range_get_pages_done(struct hmm_range *hmm_range);
 

@@ -904,7 +904,7 @@ static const char * const vsense_trigger_groups[] = {
 };
 
 static const struct pinfunction qdu1000_functions[] = {
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(cmo_pri),
 	MSM_PIN_FUNCTION(si5518_int),
 	MSM_PIN_FUNCTION(atest_char),

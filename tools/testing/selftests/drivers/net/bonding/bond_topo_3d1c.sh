@@ -26,6 +26,7 @@
 #  +-------------------------------------+
 
 source bond_topo_2d1c.sh
+mac[2]="00:0a:0b:0c:0d:03"
 
 setup_prepare()
 {
@@ -36,6 +37,7 @@ setup_prepare()
 	# Add the extra device as we use 3 down links for bond0
 	local i=2
 	ip -n ${s_ns} link add eth${i} type veth peer name s${i} netns ${g_ns}
+	ip -n "${s_ns}" link set "eth${i}" addr "${mac[$i]}"
 	ip -n ${g_ns} link set s${i} up
 	ip -n ${g_ns} link set s${i} master br0
 	ip -n ${s_ns} link set eth${i} master bond0

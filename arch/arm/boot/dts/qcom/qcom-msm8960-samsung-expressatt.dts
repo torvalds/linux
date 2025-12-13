@@ -71,6 +71,11 @@
 &sdcc3 {
 	vmmc-supply = <&pm8921_l6>;
 	vqmmc-supply = <&pm8921_l7>;
+
+	pinctrl-0 = <&sdcc3_default_state>;
+	pinctrl-1 = <&sdcc3_sleep_state>;
+	pinctrl-names = "default", "sleep";
+
 	status = "okay";
 };
 

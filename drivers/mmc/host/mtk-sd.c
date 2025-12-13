@@ -3278,7 +3278,7 @@ static void msdc_restore_reg(struct msdc_host *host)
 		__msdc_enable_sdio_irq(host, 1);
 }
 
-static int __maybe_unused msdc_runtime_suspend(struct device *dev)
+static int msdc_runtime_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct msdc_host *host = mmc_priv(mmc);
@@ -3300,7 +3300,7 @@ static int __maybe_unused msdc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused msdc_runtime_resume(struct device *dev)
+static int msdc_runtime_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct msdc_host *host = mmc_priv(mmc);
@@ -3323,7 +3323,7 @@ static int __maybe_unused msdc_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused msdc_suspend(struct device *dev)
+static int msdc_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct msdc_host *host = mmc_priv(mmc);
@@ -3348,7 +3348,7 @@ static int __maybe_unused msdc_suspend(struct device *dev)
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused msdc_resume(struct device *dev)
+static int msdc_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct msdc_host *host = mmc_priv(mmc);
@@ -3360,8 +3360,8 @@ static int __maybe_unused msdc_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops msdc_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(msdc_suspend, msdc_resume)
-	SET_RUNTIME_PM_OPS(msdc_runtime_suspend, msdc_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(msdc_suspend, msdc_resume)
+	RUNTIME_PM_OPS(msdc_runtime_suspend, msdc_runtime_resume, NULL)
 };
 
 static struct platform_driver mt_msdc_driver = {
@@ -3371,7 +3371,7 @@ static struct platform_driver mt_msdc_driver = {
 		.name = "mtk-msdc",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = msdc_of_ids,
-		.pm = &msdc_dev_pm_ops,
+		.pm = pm_ptr(&msdc_dev_pm_ops),
 	},
 };
 

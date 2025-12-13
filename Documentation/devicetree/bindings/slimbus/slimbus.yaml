@@ -68,8 +68,6 @@ additionalProperties: true
 
 examples:
   - |
-    #include <dt-bindings/clock/qcom,gcc-msm8960.h>
-    #include <dt-bindings/clock/qcom,lcc-msm8960.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     soc {
@@ -78,17 +76,14 @@ examples:
         ranges;
 
         slim@28080000 {
-            compatible = "qcom,apq8064-slim", "qcom,slim";
-            reg = <0x28080000 0x2000>, <0x80207c 4>;
-            reg-names = "ctrl", "slew";
-            interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&lcc SLIMBUS_SRC>, <&lcc AUDIO_SLIMBUS_CLK>;
-            clock-names = "iface", "core";
+            compatible = "qcom,slim-ngd-v1.5.0";
+            reg = <0x091c0000 0x2c000>;
+            interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
             #address-cells = <2>;
             #size-cells = <0>;
 
             audio-codec@1,0 {
-                compatible = "slim217,60";
+                compatible = "slim217,1a0";
                 reg = <1 0>;
             };
         };

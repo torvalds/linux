@@ -432,9 +432,8 @@ static int snd_mts64_ctl_smpte_switch_get(struct snd_kcontrol* kctl,
 {
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
 
-	spin_lock_irq(&mts->lock);
+	guard(spinlock_irq)(&mts->lock);
 	uctl->value.integer.value[0] = mts->smpte_switch;
-	spin_unlock_irq(&mts->lock);
 
 	return 0;
 }
@@ -445,14 +444,12 @@ static int snd_mts64_ctl_smpte_switch_put(struct snd_kcontrol* kctl,
 					  struct snd_ctl_elem_value *uctl)
 {
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
-	int changed = 0;
 	int val = !!uctl->value.integer.value[0];
 
-	spin_lock_irq(&mts->lock);
+	guard(spinlock_irq)(&mts->lock);
 	if (mts->smpte_switch == val)
-		goto __out;
+		return 0;
 
-	changed = 1;
 	mts->smpte_switch = val;
 	if (mts->smpte_switch) {
 		mts64_smpte_start(mts->pardev->port,
@@ -462,9 +459,7 @@ static int snd_mts64_ctl_smpte_switch_put(struct snd_kcontrol* kctl,
 	} else {
 		mts64_smpte_stop(mts->pardev->port);
 	}
-__out:
-	spin_unlock_irq(&mts->lock);
-	return changed;
+	return 1;
 }
 
 static const struct snd_kcontrol_new mts64_ctl_smpte_switch = {
@@ -515,9 +510,8 @@ static int snd_mts64_ctl_smpte_time_get(struct snd_kcontrol *kctl,
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
 	int idx = kctl->private_value;
 
-	spin_lock_irq(&mts->lock);
+	guard(spinlock_irq)(&mts->lock);
 	uctl->value.integer.value[0] = mts->time[idx];
-	spin_unlock_irq(&mts->lock);
 
 	return 0;
 }
@@ -528,16 +522,14 @@ static int snd_mts64_ctl_smpte_time_put(struct snd_kcontrol *kctl,
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
 	int idx = kctl->private_value;
 	unsigned int time = uctl->value.integer.value[0] % 60;
-	int changed = 0;
 
-	spin_lock_irq(&mts->lock);
+	guard(spinlock_irq)(&mts->lock);
 	if (mts->time[idx] != time) {
-		changed = 1;
 		mts->time[idx] = time;
+		return 1;
 	}
-	spin_unlock_irq(&mts->lock);
 
-	return changed;
+	return 0;
 }
 
 static const struct snd_kcontrol_new mts64_ctl_smpte_time_hours = {
@@ -600,9 +592,8 @@ static int snd_mts64_ctl_smpte_fps_get(struct snd_kcontrol *kctl,
 {
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
 
-	spin_lock_irq(&mts->lock);
+	guard(spinlock_irq)(&mts->lock);
 	uctl->value.enumerated.item[0] = mts->fps;
-	spin_unlock_irq(&mts->lock);
 
 	return 0;
 }
@@ -611,18 +602,16 @@ static int snd_mts64_ctl_smpte_fps_put(struct snd_kcontrol *kctl,
 				       struct snd_ctl_elem_value *uctl)
 {
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
-	int changed = 0;
 
 	if (uctl->value.enumerated.item[0] >= 5)
 		return -EINVAL;
-	spin_lock_irq(&mts->lock);
+	guard(spinlock_irq)(&mts->lock);
 	if (mts->fps != uctl->value.enumerated.item[0]) {
-		changed = 1;
 		mts->fps = uctl->value.enumerated.item[0];
+		return 1;
 	}
-	spin_unlock_irq(&mts->lock);
 
-	return changed;
+	return 0;
 }
 
 static const struct snd_kcontrol_new mts64_ctl_smpte_fps = {
@@ -687,15 +676,14 @@ static int snd_mts64_rawmidi_open(struct snd_rawmidi_substream *substream)
 static int snd_mts64_rawmidi_close(struct snd_rawmidi_substream *substream)
 {
 	struct mts64 *mts = substream->rmidi->private_data;
-	unsigned long flags;
 
 	--(mts->open_count);
 	if (mts->open_count == 0) {
 		/* We need the spinlock_irqsave here because we can still
 		   have IRQs at this point */
-		spin_lock_irqsave(&mts->lock, flags);
-		mts64_device_close(mts);
-		spin_unlock_irqrestore(&mts->lock, flags);
+		scoped_guard(spinlock_irqsave, &mts->lock) {
+			mts64_device_close(mts);
+		}
 
 		msleep(500);
 
@@ -710,29 +698,24 @@ static void snd_mts64_rawmidi_output_trigger(struct snd_rawmidi_substream *subst
 {
 	struct mts64 *mts = substream->rmidi->private_data;
 	u8 data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mts->lock, flags);
+	guard(spinlock_irqsave)(&mts->lock);
 	while (snd_rawmidi_transmit_peek(substream, &data, 1) == 1) {
 		mts64_write_midi(mts, data, substream->number+1);
 		snd_rawmidi_transmit_ack(substream, 1);
 	}
-	spin_unlock_irqrestore(&mts->lock, flags);
 }
 
 static void snd_mts64_rawmidi_input_trigger(struct snd_rawmidi_substream *substream,
 					    int up)
 {
 	struct mts64 *mts = substream->rmidi->private_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mts->lock, flags);
+	guard(spinlock_irqsave)(&mts->lock);
 	if (up)
 		mts->mode[substream->number] |= MTS64_MODE_INPUT_TRIGGERED;
 	else
  		mts->mode[substream->number] &= ~MTS64_MODE_INPUT_TRIGGERED;
-	
-	spin_unlock_irqrestore(&mts->lock, flags);
 }
 
 static const struct snd_rawmidi_ops snd_mts64_rawmidi_output_ops = {
@@ -819,7 +802,7 @@ static void snd_mts64_interrupt(void *private)
 	if (!mts)
 		return;
 
-	spin_lock(&mts->lock);
+	guard(spinlock)(&mts->lock);
 	ret = mts64_read(mts->pardev->port);
 	data = ret & 0x00ff;
 	status = ret >> 8;
@@ -828,13 +811,11 @@ static void snd_mts64_interrupt(void *private)
 		mts->current_midi_input_port = mts64_map_midi_input(data);
 	} else {
 		if (mts->current_midi_input_port == -1) 
-			goto __out;
+			return;
 		substream = mts->midi_input_substream[mts->current_midi_input_port];
 		if (mts->mode[substream->number] & MTS64_MODE_INPUT_TRIGGERED)
 			snd_rawmidi_receive(substream, &data, 1);
 	}
-__out:
-	spin_unlock(&mts->lock);
 }
 
 static void snd_mts64_attach(struct parport *p)

@@ -107,6 +107,8 @@ struct ib_sa_device {
 struct ib_sa_query {
 	void (*callback)(struct ib_sa_query *sa_query, int status,
 			 struct ib_sa_mad *mad);
+	void (*rmpp_callback)(struct ib_sa_query *sa_query, int status,
+			      struct ib_mad_recv_wc *mad);
 	void (*release)(struct ib_sa_query *);
 	struct ib_sa_client    *client;
 	struct ib_sa_port      *port;
@@ -146,6 +148,13 @@ struct ib_sa_classport_info_query {
 
 struct ib_sa_mcmember_query {
 	void (*callback)(int, struct ib_sa_mcmember_rec *, void *);
+	void *context;
+	struct ib_sa_query sa_query;
+};
+
+struct ib_sa_service_query {
+	void (*callback)(int status, struct sa_service_rec *rec,
+			 unsigned int num_services, void *context);
 	void *context;
 	struct ib_sa_query sa_query;
 };
@@ -684,6 +693,58 @@ static const struct ib_field guidinfo_rec_table[] = {
 	  .size_bits    = 512 },
 };
 
+#define SERVICE_REC_FIELD(field) \
+	.struct_offset_bytes = offsetof(struct sa_service_rec, field),     \
+	.struct_size_bytes   = sizeof_field(struct sa_service_rec, field), \
+	.field_name          = "sa_service_rec:" #field
+
+static const struct ib_field service_rec_table[] = {
+	{ SERVICE_REC_FIELD(id),
+	  .offset_words = 0,
+	  .offset_bits  = 0,
+	  .size_bits    = 64 },
+	{ SERVICE_REC_FIELD(gid),
+	  .offset_words = 2,
+	  .offset_bits  = 0,
+	  .size_bits    = 128 },
+	{ SERVICE_REC_FIELD(pkey),
+	  .offset_words = 6,
+	  .offset_bits  = 0,
+	  .size_bits    = 16 },
+	{ RESERVED,
+	  .offset_words = 6,
+	  .offset_bits  = 16,
+	  .size_bits    = 16 },
+	{ SERVICE_REC_FIELD(lease),
+	  .offset_words = 7,
+	  .offset_bits  = 0,
+	  .size_bits    = 32 },
+	{ SERVICE_REC_FIELD(key),
+	  .offset_words = 8,
+	  .offset_bits  = 0,
+	  .size_bits    = 128 },
+	{ SERVICE_REC_FIELD(name),
+	  .offset_words = 12,
+	  .offset_bits  = 0,
+	  .size_bits    = 512 },
+	{ SERVICE_REC_FIELD(data_8),
+	  .offset_words = 28,
+	  .offset_bits  = 0,
+	  .size_bits    = 128 },
+	{ SERVICE_REC_FIELD(data_16),
+	  .offset_words = 32,
+	  .offset_bits  = 0,
+	  .size_bits    = 128 },
+	{ SERVICE_REC_FIELD(data_32),
+	  .offset_words = 36,
+	  .offset_bits  = 0,
+	  .size_bits    = 128 },
+	{ SERVICE_REC_FIELD(data_64),
+	  .offset_words = 40,
+	  .offset_bits  = 0,
+	  .size_bits    = 128 },
+};
+
 #define RDMA_PRIMARY_PATH_MAX_REC_NUM 3
 
 static inline void ib_sa_disable_local_svc(struct ib_sa_query *query)
@@ -1013,6 +1074,8 @@ int ib_nl_handle_set_timeout(struct sk_buff *skb,
 	if (timeout > IB_SA_LOCAL_SVC_TIMEOUT_MAX)
 		timeout = IB_SA_LOCAL_SVC_TIMEOUT_MAX;
 
+	spin_lock_irqsave(&ib_nl_request_lock, flags);
+
 	delta = timeout - sa_local_svc_timeout_ms;
 	if (delta < 0)
 		abs_delta = -delta;
@@ -1020,7 +1083,6 @@ int ib_nl_handle_set_timeout(struct sk_buff *skb,
 		abs_delta = delta;
 
 	if (delta != 0) {
-		spin_lock_irqsave(&ib_nl_request_lock, flags);
 		sa_local_svc_timeout_ms = timeout;
 		list_for_each_entry(query, &ib_nl_request_list, list) {
 			if (delta < 0 && abs_delta > query->timeout)
@@ -1038,8 +1100,9 @@ int ib_nl_handle_set_timeout(struct sk_buff *skb,
 		if (delay)
 			mod_delayed_work(ib_nl_wq, &ib_nl_timed_work,
 					 (unsigned long)delay);
-		spin_unlock_irqrestore(&ib_nl_request_lock, flags);
 	}
+
+	spin_unlock_irqrestore(&ib_nl_request_lock, flags);
 
 settimeout_out:
 	return 0;
@@ -1390,6 +1453,20 @@ void ib_sa_pack_path(struct sa_path_rec *rec, void *attribute)
 }
 EXPORT_SYMBOL(ib_sa_pack_path);
 
+void ib_sa_pack_service(struct sa_service_rec *rec, void *attribute)
+{
+	ib_pack(service_rec_table, ARRAY_SIZE(service_rec_table), rec,
+		attribute);
+}
+EXPORT_SYMBOL(ib_sa_pack_service);
+
+void ib_sa_unpack_service(void *attribute, struct sa_service_rec *rec)
+{
+	ib_unpack(service_rec_table, ARRAY_SIZE(service_rec_table), attribute,
+		  rec);
+}
+EXPORT_SYMBOL(ib_sa_unpack_service);
+
 static bool ib_sa_opa_pathrecord_support(struct ib_sa_client *client,
 					 struct ib_sa_device *sa_dev,
 					 u32 port_num)
@@ -1479,12 +1556,82 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 	}
 }
 
+#define IB_SA_DATA_OFFS 56
+#define IB_SERVICE_REC_SZ 176
+
+static void ib_unpack_service_rmpp(struct sa_service_rec *rec,
+				   struct ib_mad_recv_wc *mad_wc,
+				   int num_services)
+{
+	unsigned int cp_sz, data_i, data_size, rec_i = 0, buf_i = 0;
+	struct ib_mad_recv_buf *mad_buf;
+	u8 buf[IB_SERVICE_REC_SZ];
+	u8 *data;
+
+	data_size = sizeof(((struct ib_sa_mad *) mad_buf->mad)->data);
+
+	list_for_each_entry(mad_buf, &mad_wc->rmpp_list, list) {
+		data = ((struct ib_sa_mad *) mad_buf->mad)->data;
+		data_i = 0;
+		while (data_i < data_size && rec_i < num_services) {
+			cp_sz = min(IB_SERVICE_REC_SZ - buf_i,
+				    data_size - data_i);
+			memcpy(buf + buf_i, data + data_i, cp_sz);
+			data_i += cp_sz;
+			buf_i += cp_sz;
+			if (buf_i == IB_SERVICE_REC_SZ) {
+				ib_sa_unpack_service(buf, rec + rec_i);
+				buf_i = 0;
+				rec_i++;
+			}
+		}
+	}
+}
+
+static void ib_sa_service_rec_callback(struct ib_sa_query *sa_query, int status,
+				       struct ib_mad_recv_wc *mad_wc)
+{
+	struct ib_sa_service_query *query =
+		container_of(sa_query, struct ib_sa_service_query, sa_query);
+	struct sa_service_rec *rec;
+	int num_services;
+
+	if (!mad_wc || !mad_wc->recv_buf.mad) {
+		query->callback(status, NULL, 0, query->context);
+		return;
+	}
+
+	num_services = (mad_wc->mad_len - IB_SA_DATA_OFFS) / IB_SERVICE_REC_SZ;
+	if (!num_services) {
+		query->callback(-ENODATA, NULL, 0, query->context);
+		return;
+	}
+
+	rec = kmalloc_array(num_services, sizeof(*rec), GFP_KERNEL);
+	if (!rec) {
+		query->callback(-ENOMEM, NULL, 0, query->context);
+		return;
+	}
+
+	ib_unpack_service_rmpp(rec, mad_wc, num_services);
+	query->callback(status, rec, num_services, query->context);
+	kfree(rec);
+}
+
 static void ib_sa_path_rec_release(struct ib_sa_query *sa_query)
 {
 	struct ib_sa_path_query *query =
 		container_of(sa_query, struct ib_sa_path_query, sa_query);
 
 	kfree(query->conv_pr);
+	kfree(query);
+}
+
+static void ib_sa_service_rec_release(struct ib_sa_query *sa_query)
+{
+	struct ib_sa_service_query *query =
+		container_of(sa_query, struct ib_sa_service_query, sa_query);
+
 	kfree(query);
 }
 
@@ -1617,6 +1764,101 @@ err1:
 	return ret;
 }
 EXPORT_SYMBOL(ib_sa_path_rec_get);
+
+/**
+ * ib_sa_service_rec_get - Start a Service get query
+ * @client: SA client
+ * @device: device to send query on
+ * @port_num: port number to send query on
+ * @rec: Service Record to send in query
+ * @comp_mask: component mask to send in query
+ * @timeout_ms: time to wait for response
+ * @gfp_mask: GFP mask to use for internal allocations
+ * @callback: function called when query completes, times out or is
+ * canceled
+ * @context: opaque user context passed to callback
+ * @sa_query: query context, used to cancel query
+ *
+ * Send a Service Record Get query to the SA to look up a path.  The
+ * callback function will be called when the query completes (or
+ * fails); status is 0 for a successful response, -EINTR if the query
+ * is canceled, -ETIMEDOUT is the query timed out, or -EIO if an error
+ * occurred sending the query.  The resp parameter of the callback is
+ * only valid if status is 0.
+ *
+ * If the return value of ib_sa_service_rec_get() is negative, it is an
+ * error code. Otherwise it is a query ID that can be used to cancel
+ * the query.
+ */
+int ib_sa_service_rec_get(struct ib_sa_client *client,
+			  struct ib_device *device, u32 port_num,
+			  struct sa_service_rec *rec,
+			  ib_sa_comp_mask comp_mask,
+			  unsigned long timeout_ms, gfp_t gfp_mask,
+			  void (*callback)(int status,
+					   struct sa_service_rec *resp,
+					   unsigned int num_services,
+					   void *context),
+			  void *context, struct ib_sa_query **sa_query)
+{
+	struct ib_sa_device *sa_dev = ib_get_client_data(device, &sa_client);
+	struct ib_sa_service_query *query;
+	struct ib_mad_agent *agent;
+	struct ib_sa_port   *port;
+	struct ib_sa_mad *mad;
+	int ret;
+
+	if (!sa_dev)
+		return -ENODEV;
+
+	port = &sa_dev->port[port_num - sa_dev->start_port];
+	agent = port->agent;
+
+	query = kzalloc(sizeof(*query), gfp_mask);
+	if (!query)
+		return -ENOMEM;
+
+	query->sa_query.port = port;
+
+	ret = alloc_mad(&query->sa_query, gfp_mask);
+	if (ret)
+		goto err1;
+
+	ib_sa_client_get(client);
+	query->sa_query.client = client;
+	query->callback        = callback;
+	query->context         = context;
+
+	mad = query->sa_query.mad_buf->mad;
+	init_mad(&query->sa_query, agent);
+
+	query->sa_query.rmpp_callback = callback ? ib_sa_service_rec_callback :
+		NULL;
+	query->sa_query.release = ib_sa_service_rec_release;
+	mad->mad_hdr.method	= IB_MGMT_METHOD_GET_TABLE;
+	mad->mad_hdr.attr_id	= cpu_to_be16(IB_SA_ATTR_SERVICE_REC);
+	mad->sa_hdr.comp_mask	= comp_mask;
+
+	ib_sa_pack_service(rec, mad->data);
+
+	*sa_query = &query->sa_query;
+	query->sa_query.mad_buf->context[1] = rec;
+
+	ret = send_mad(&query->sa_query, timeout_ms, gfp_mask);
+	if (ret < 0)
+		goto err2;
+
+	return ret;
+
+err2:
+	*sa_query = NULL;
+	ib_sa_client_put(query->sa_query.client);
+	free_mad(&query->sa_query);
+err1:
+	kfree(query);
+	return ret;
+}
+EXPORT_SYMBOL(ib_sa_service_rec_get);
 
 static void ib_sa_mcmember_rec_callback(struct ib_sa_query *sa_query,
 					int status, struct ib_sa_mad *mad)
@@ -1987,22 +2229,28 @@ static void send_handler(struct ib_mad_agent *agent,
 {
 	struct ib_sa_query *query = mad_send_wc->send_buf->context[0];
 	unsigned long flags;
+	int status = 0;
 
-	if (query->callback)
+	if (query->callback || query->rmpp_callback) {
 		switch (mad_send_wc->status) {
 		case IB_WC_SUCCESS:
 			/* No callback -- already got recv */
 			break;
 		case IB_WC_RESP_TIMEOUT_ERR:
-			query->callback(query, -ETIMEDOUT, NULL);
+			status = -ETIMEDOUT;
 			break;
 		case IB_WC_WR_FLUSH_ERR:
-			query->callback(query, -EINTR, NULL);
+			status = -EINTR;
 			break;
 		default:
-			query->callback(query, -EIO, NULL);
+			status = -EIO;
 			break;
 		}
+
+		if (status)
+			query->callback ? query->callback(query, status, NULL) :
+				query->rmpp_callback(query, status, NULL);
+	}
 
 	xa_lock_irqsave(&queries, flags);
 	__xa_erase(&queries, query->id);
@@ -2019,17 +2267,25 @@ static void recv_handler(struct ib_mad_agent *mad_agent,
 			 struct ib_mad_recv_wc *mad_recv_wc)
 {
 	struct ib_sa_query *query;
+	struct ib_mad *mad;
+
 
 	if (!send_buf)
 		return;
 
 	query = send_buf->context[0];
-	if (query->callback) {
+	mad = mad_recv_wc->recv_buf.mad;
+
+	if (query->rmpp_callback) {
 		if (mad_recv_wc->wc->status == IB_WC_SUCCESS)
-			query->callback(query,
-					mad_recv_wc->recv_buf.mad->mad_hdr.status ?
-					-EINVAL : 0,
-					(struct ib_sa_mad *) mad_recv_wc->recv_buf.mad);
+			query->rmpp_callback(query, mad->mad_hdr.status ?
+					     -EINVAL : 0, mad_recv_wc);
+		else
+			query->rmpp_callback(query, -EIO, NULL);
+	} else if (query->callback) {
+		if (mad_recv_wc->wc->status == IB_WC_SUCCESS)
+			query->callback(query, mad->mad_hdr.status ?
+					-EINVAL : 0, (struct ib_sa_mad *)mad);
 		else
 			query->callback(query, -EIO, NULL);
 	}
@@ -2181,8 +2437,9 @@ static int ib_sa_add_one(struct ib_device *device)
 
 		sa_dev->port[i].agent =
 			ib_register_mad_agent(device, i + s, IB_QPT_GSI,
-					      NULL, 0, send_handler,
-					      recv_handler, sa_dev, 0);
+					      NULL, IB_MGMT_RMPP_VERSION,
+					      send_handler, recv_handler,
+					      sa_dev, 0);
 		if (IS_ERR(sa_dev->port[i].agent)) {
 			ret = PTR_ERR(sa_dev->port[i].agent);
 			goto err;

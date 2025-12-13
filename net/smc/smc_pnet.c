@@ -169,7 +169,7 @@ static int smc_pnet_remove_by_pnetid(struct net *net, char *pnet_name)
 			pr_warn_ratelimited("smc: smcd device %s "
 					    "erased user defined pnetid "
 					    "%.16s\n",
-					    dev_name(smcd->ops->get_dev(smcd)),
+					    dev_name(&smcd->dibs->dev),
 					    smcd->pnetid);
 			memset(smcd->pnetid, 0, SMC_MAX_PNETID_LEN);
 			smcd->pnetid_by_user = false;
@@ -332,8 +332,11 @@ static struct smcd_dev *smc_pnet_find_smcd(char *smcd_name)
 
 	mutex_lock(&smcd_dev_list.mutex);
 	list_for_each_entry(smcd_dev, &smcd_dev_list.list, list) {
-		if (!strncmp(dev_name(smcd_dev->ops->get_dev(smcd_dev)),
-			     smcd_name, IB_DEVICE_NAME_MAX - 1))
+		if (!strncmp(dev_name(&smcd_dev->dibs->dev), smcd_name,
+			     IB_DEVICE_NAME_MAX - 1) ||
+		    (smcd_dev->dibs->dev.parent &&
+		     !strncmp(dev_name(smcd_dev->dibs->dev.parent), smcd_name,
+			      IB_DEVICE_NAME_MAX - 1)))
 			goto out;
 	}
 	smcd_dev = NULL;
@@ -413,7 +416,6 @@ static int smc_pnet_add_ib(struct smc_pnettable *pnettable, char *ib_name,
 	bool smcddev_applied = true;
 	bool ibdev_applied = true;
 	struct smcd_dev *smcd;
-	struct device *dev;
 	bool new_ibdev;
 
 	/* try to apply the pnetid to active devices */
@@ -431,10 +433,8 @@ static int smc_pnet_add_ib(struct smc_pnettable *pnettable, char *ib_name,
 	if (smcd) {
 		smcddev_applied = smc_pnet_apply_smcd(smcd, pnet_name);
 		if (smcddev_applied) {
-			dev = smcd->ops->get_dev(smcd);
-			pr_warn_ratelimited("smc: smcd device %s "
-					    "applied user defined pnetid "
-					    "%.16s\n", dev_name(dev),
+			pr_warn_ratelimited("smc: smcd device %s applied user defined pnetid %.16s\n",
+					    dev_name(&smcd->dibs->dev),
 					    smcd->pnetid);
 		}
 	}
@@ -450,7 +450,7 @@ static int smc_pnet_add_ib(struct smc_pnettable *pnettable, char *ib_name,
 		return -ENOMEM;
 	new_pe->type = SMC_PNET_IB;
 	memcpy(new_pe->pnet_name, pnet_name, SMC_MAX_PNETID_LEN);
-	strncpy(new_pe->ib_name, ib_name, IB_DEVICE_NAME_MAX);
+	strscpy(new_pe->ib_name, ib_name);
 	new_pe->ib_port = ib_port;
 
 	new_ibdev = true;
@@ -1126,37 +1126,38 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
  */
 void smc_pnet_find_roce_resource(struct sock *sk, struct smc_init_info *ini)
 {
-	struct dst_entry *dst = sk_dst_get(sk);
+	struct net_device *dev;
+	struct dst_entry *dst;
 
-	if (!dst)
-		goto out;
-	if (!dst->dev)
-		goto out_rel;
+	rcu_read_lock();
+	dst = __sk_dst_get(sk);
+	dev = dst ? dst_dev_rcu(dst) : NULL;
+	dev_hold(dev);
+	rcu_read_unlock();
 
-	smc_pnet_find_roce_by_pnetid(dst->dev, ini);
-
-out_rel:
-	dst_release(dst);
-out:
-	return;
+	if (dev) {
+		smc_pnet_find_roce_by_pnetid(dev, ini);
+		dev_put(dev);
+	}
 }
 
 void smc_pnet_find_ism_resource(struct sock *sk, struct smc_init_info *ini)
 {
-	struct dst_entry *dst = sk_dst_get(sk);
+	struct net_device *dev;
+	struct dst_entry *dst;
 
 	ini->ism_dev[0] = NULL;
-	if (!dst)
-		goto out;
-	if (!dst->dev)
-		goto out_rel;
 
-	smc_pnet_find_ism_by_pnetid(dst->dev, ini);
+	rcu_read_lock();
+	dst = __sk_dst_get(sk);
+	dev = dst ? dst_dev_rcu(dst) : NULL;
+	dev_hold(dev);
+	rcu_read_unlock();
 
-out_rel:
-	dst_release(dst);
-out:
-	return;
+	if (dev) {
+		smc_pnet_find_ism_by_pnetid(dev, ini);
+		dev_put(dev);
+	}
 }
 
 /* Lookup and apply a pnet table entry to the given ib device.
@@ -1192,7 +1193,6 @@ int smc_pnetid_by_table_ib(struct smc_ib_device *smcibdev, u8 ib_port)
  */
 int smc_pnetid_by_table_smcd(struct smcd_dev *smcddev)
 {
-	const char *ib_name = dev_name(smcddev->ops->get_dev(smcddev));
 	struct smc_pnettable *pnettable;
 	struct smc_pnetentry *tmp_pe;
 	struct smc_net *sn;
@@ -1205,7 +1205,13 @@ int smc_pnetid_by_table_smcd(struct smcd_dev *smcddev)
 	mutex_lock(&pnettable->lock);
 	list_for_each_entry(tmp_pe, &pnettable->pnetlist, list) {
 		if (tmp_pe->type == SMC_PNET_IB &&
-		    !strncmp(tmp_pe->ib_name, ib_name, IB_DEVICE_NAME_MAX)) {
+		    (!strncmp(tmp_pe->ib_name,
+			       dev_name(&smcddev->dibs->dev),
+			       sizeof(tmp_pe->ib_name)) ||
+		     (smcddev->dibs->dev.parent &&
+		      !strncmp(tmp_pe->ib_name,
+			       dev_name(smcddev->dibs->dev.parent),
+			       sizeof(tmp_pe->ib_name))))) {
 			smc_pnet_apply_smcd(smcddev, tmp_pe->pnet_name);
 			rc = 0;
 			break;

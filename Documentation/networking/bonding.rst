@@ -193,6 +193,15 @@ ad_actor_sys_prio
 	This parameter has effect only in 802.3ad mode and is available through
 	SysFs interface.
 
+actor_port_prio
+
+	In an AD system, this specifies the port priority. The allowed range
+	is 1 - 65535. If the value is not specified, it takes 255 as the
+	default value.
+
+	This parameter has effect only in 802.3ad mode and is available through
+	netlink interface.
+
 ad_actor_system
 
 	In an AD system, this specifies the mac-address for the actor in
@@ -241,10 +250,18 @@ ad_select
 		ports (slaves).  Reselection occurs as described under the
 		"bandwidth" setting, above.
 
-	The bandwidth and count selection policies permit failover of
-	802.3ad aggregations when partial failure of the active aggregator
-	occurs.  This keeps the aggregator with the highest availability
-	(either in bandwidth or in number of ports) active at all times.
+	actor_port_prio or 3
+
+		The active aggregator is chosen by the highest total sum of
+		actor port priorities across its active ports. Note this
+		priority is actor_port_prio, not per port prio, which is
+		used for primary reselect.
+
+	The bandwidth, count and actor_port_prio selection policies permit
+	failover of 802.3ad aggregations when partial failure of the active
+	aggregator occurs. This keeps the aggregator with the highest
+	availability (either in bandwidth, number of ports, or total value
+	of port priorities) active at all times.
 
 	This option was added in bonding version 3.4.0.
 
@@ -582,10 +599,8 @@ miimon
 	This determines how often the link state of each slave is
 	inspected for link failures.  A value of zero disables MII
 	link monitoring.  A value of 100 is a good starting point.
-	The use_carrier option, below, affects how the link state is
-	determined.  See the High Availability section for additional
-	information.  The default value is 100 if arp_interval is not
-	set.
+
+	The default value is 100 if arp_interval is not set.
 
 min_links
 
@@ -896,25 +911,14 @@ updelay
 
 use_carrier
 
-	Specifies whether or not miimon should use MII or ETHTOOL
-	ioctls vs. netif_carrier_ok() to determine the link
-	status. The MII or ETHTOOL ioctls are less efficient and
-	utilize a deprecated calling sequence within the kernel.  The
-	netif_carrier_ok() relies on the device driver to maintain its
-	state with netif_carrier_on/off; at this writing, most, but
-	not all, device drivers support this facility.
+	Obsolete option that previously selected between MII /
+	ETHTOOL ioctls and netif_carrier_ok() to determine link
+	state.
 
-	If bonding insists that the link is up when it should not be,
-	it may be that your network device driver does not support
-	netif_carrier_on/off.  The default state for netif_carrier is
-	"carrier on," so if a driver does not support netif_carrier,
-	it will appear as if the link is always up.  In this case,
-	setting use_carrier to 0 will cause bonding to revert to the
-	MII / ETHTOOL ioctl method to determine the link state.
+	All link state checks are now done with netif_carrier_ok().
 
-	A value of 1 enables the use of netif_carrier_ok(), a value of
-	0 will use the deprecated MII / ETHTOOL ioctls.  The default
-	value is 1.
+	For backwards compatibility, this option's value may be inspected
+	or set.  The only valid setting is 1.
 
 xmit_hash_policy
 
@@ -2036,22 +2040,8 @@ depending upon the device driver to maintain its carrier state, by
 querying the device's MII registers, or by making an ethtool query to
 the device.
 
-If the use_carrier module parameter is 1 (the default value),
-then the MII monitor will rely on the driver for carrier state
-information (via the netif_carrier subsystem).  As explained in the
-use_carrier parameter information, above, if the MII monitor fails to
-detect carrier loss on the device (e.g., when the cable is physically
-disconnected), it may be that the driver does not support
-netif_carrier.
-
-If use_carrier is 0, then the MII monitor will first query the
-device's (via ioctl) MII registers and check the link state.  If that
-request fails (not just that it returns carrier down), then the MII
-monitor will make an ethtool ETHTOOL_GLINK request to attempt to obtain
-the same information.  If both methods fail (i.e., the driver either
-does not support or had some error in processing both the MII register
-and ethtool requests), then the MII monitor will assume the link is
-up.
+The MII monitor relies on the driver for carrier state information (via
+the netif_carrier subsystem).
 
 8. Potential Sources of Trouble
 ===============================
@@ -2134,34 +2124,6 @@ In this case, the following can be added to config files in
 This will load tg3 and e1000 modules before loading the bonding one.
 Full documentation on this can be found in the modprobe.d and modprobe
 manual pages.
-
-8.3. Painfully Slow Or No Failed Link Detection By Miimon
----------------------------------------------------------
-
-By default, bonding enables the use_carrier option, which
-instructs bonding to trust the driver to maintain carrier state.
-
-As discussed in the options section, above, some drivers do
-not support the netif_carrier_on/_off link state tracking system.
-With use_carrier enabled, bonding will always see these links as up,
-regardless of their actual state.
-
-Additionally, other drivers do support netif_carrier, but do
-not maintain it in real time, e.g., only polling the link state at
-some fixed interval.  In this case, miimon will detect failures, but
-only after some long period of time has expired.  If it appears that
-miimon is very slow in detecting link failures, try specifying
-use_carrier=0 to see if that improves the failure detection time.  If
-it does, then it may be that the driver checks the carrier state at a
-fixed interval, but does not cache the MII register values (so the
-use_carrier=0 method of querying the registers directly works).  If
-use_carrier=0 does not improve the failover, then the driver may cache
-the registers, or the problem may be elsewhere.
-
-Also, remember that miimon only checks for the device's
-carrier state.  It has no way to determine the state of devices on or
-beyond other ports of a switch, or if a switch is refusing to pass
-traffic while still maintaining carrier on.
 
 9. SNMP agents
 ===============

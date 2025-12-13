@@ -728,6 +728,354 @@ static const int gaudi2_dma_core_async_event_id[] = {
 	[DMA_CORE_ID_KDMA] = GAUDI2_EVENT_KDMA0_CORE,
 };
 
+const char *gaudi2_engine_id_str[] = {
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_EDMA_0),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_EDMA_1),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_MME),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_TPC_0),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_TPC_1),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_TPC_2),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_TPC_3),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_TPC_4),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_TPC_5),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_DEC_0),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_DEC_1),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_EDMA_0),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_EDMA_1),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_MME),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_TPC_0),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_TPC_1),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_TPC_2),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_TPC_3),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_TPC_4),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_TPC_5),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_DEC_0),
+	__stringify(GAUDI2_DCORE1_ENGINE_ID_DEC_1),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_EDMA_0),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_EDMA_1),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_MME),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_TPC_0),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_TPC_1),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_TPC_2),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_TPC_3),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_TPC_4),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_TPC_5),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_DEC_0),
+	__stringify(GAUDI2_DCORE2_ENGINE_ID_DEC_1),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_EDMA_0),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_EDMA_1),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_MME),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_TPC_0),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_TPC_1),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_TPC_2),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_TPC_3),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_TPC_4),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_TPC_5),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_DEC_0),
+	__stringify(GAUDI2_DCORE3_ENGINE_ID_DEC_1),
+	__stringify(GAUDI2_DCORE0_ENGINE_ID_TPC_6),
+	__stringify(GAUDI2_ENGINE_ID_PDMA_0),
+	__stringify(GAUDI2_ENGINE_ID_PDMA_1),
+	__stringify(GAUDI2_ENGINE_ID_ROT_0),
+	__stringify(GAUDI2_ENGINE_ID_ROT_1),
+	__stringify(GAUDI2_PCIE_ENGINE_ID_DEC_0),
+	__stringify(GAUDI2_PCIE_ENGINE_ID_DEC_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC0_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC0_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC1_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC1_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC2_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC2_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC3_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC3_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC4_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC4_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC5_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC5_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC6_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC6_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC7_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC7_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC8_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC8_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC9_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC9_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC10_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC10_1),
+	__stringify(GAUDI2_ENGINE_ID_NIC11_0),
+	__stringify(GAUDI2_ENGINE_ID_NIC11_1),
+	__stringify(GAUDI2_ENGINE_ID_PCIE),
+	__stringify(GAUDI2_ENGINE_ID_PSOC),
+	__stringify(GAUDI2_ENGINE_ID_ARC_FARM),
+	__stringify(GAUDI2_ENGINE_ID_KDMA),
+	__stringify(GAUDI2_ENGINE_ID_SIZE),
+};
+
+const char *gaudi2_queue_id_str[] = {
+	__stringify(GAUDI2_QUEUE_ID_PDMA_0_0),
+	__stringify(GAUDI2_QUEUE_ID_PDMA_0_1),
+	__stringify(GAUDI2_QUEUE_ID_PDMA_0_2),
+	__stringify(GAUDI2_QUEUE_ID_PDMA_0_3),
+	__stringify(GAUDI2_QUEUE_ID_PDMA_1_0),
+	__stringify(GAUDI2_QUEUE_ID_PDMA_1_1),
+	__stringify(GAUDI2_QUEUE_ID_PDMA_1_2),
+	__stringify(GAUDI2_QUEUE_ID_PDMA_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_EDMA_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_EDMA_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_EDMA_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_EDMA_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_EDMA_1_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_EDMA_1_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_EDMA_1_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_EDMA_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_MME_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_MME_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_MME_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_MME_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_1_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_1_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_1_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_2_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_2_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_2_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_2_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_3_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_3_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_3_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_3_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_4_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_4_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_4_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_4_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_5_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_5_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_5_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_5_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_6_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_6_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_6_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE0_TPC_6_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_EDMA_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_EDMA_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_EDMA_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_EDMA_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_EDMA_1_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_EDMA_1_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_EDMA_1_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_EDMA_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_MME_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_MME_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_MME_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_MME_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_1_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_1_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_1_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_2_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_2_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_2_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_2_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_3_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_3_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_3_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_3_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_4_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_4_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_4_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_4_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_5_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_5_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_5_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE1_TPC_5_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_EDMA_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_EDMA_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_EDMA_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_EDMA_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_EDMA_1_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_EDMA_1_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_EDMA_1_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_EDMA_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_MME_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_MME_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_MME_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_MME_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_1_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_1_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_1_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_2_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_2_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_2_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_2_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_3_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_3_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_3_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_3_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_4_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_4_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_4_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_4_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_5_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_5_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_5_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE2_TPC_5_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_EDMA_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_EDMA_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_EDMA_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_EDMA_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_EDMA_1_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_EDMA_1_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_EDMA_1_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_EDMA_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_MME_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_MME_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_MME_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_MME_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_0_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_0_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_0_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_0_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_1_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_1_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_1_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_1_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_2_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_2_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_2_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_2_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_3_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_3_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_3_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_3_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_4_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_4_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_4_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_4_3),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_5_0),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_5_1),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_5_2),
+	__stringify(GAUDI2_QUEUE_ID_DCORE3_TPC_5_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_0_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_0_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_0_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_0_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_1_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_1_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_1_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_1_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_2_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_2_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_2_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_2_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_3_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_3_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_3_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_3_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_4_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_4_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_4_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_4_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_5_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_5_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_5_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_5_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_6_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_6_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_6_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_6_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_7_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_7_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_7_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_7_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_8_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_8_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_8_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_8_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_9_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_9_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_9_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_9_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_10_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_10_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_10_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_10_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_11_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_11_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_11_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_11_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_12_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_12_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_12_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_12_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_13_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_13_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_13_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_13_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_14_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_14_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_14_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_14_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_15_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_15_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_15_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_15_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_16_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_16_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_16_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_16_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_17_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_17_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_17_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_17_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_18_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_18_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_18_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_18_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_19_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_19_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_19_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_19_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_20_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_20_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_20_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_20_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_21_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_21_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_21_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_21_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_22_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_22_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_22_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_22_3),
+	__stringify(GAUDI2_QUEUE_ID_NIC_23_0),
+	__stringify(GAUDI2_QUEUE_ID_NIC_23_1),
+	__stringify(GAUDI2_QUEUE_ID_NIC_23_2),
+	__stringify(GAUDI2_QUEUE_ID_NIC_23_3),
+	__stringify(GAUDI2_QUEUE_ID_ROT_0_0),
+	__stringify(GAUDI2_QUEUE_ID_ROT_0_1),
+	__stringify(GAUDI2_QUEUE_ID_ROT_0_2),
+	__stringify(GAUDI2_QUEUE_ID_ROT_0_3),
+	__stringify(GAUDI2_QUEUE_ID_ROT_1_0),
+	__stringify(GAUDI2_QUEUE_ID_ROT_1_1),
+	__stringify(GAUDI2_QUEUE_ID_ROT_1_2),
+	__stringify(GAUDI2_QUEUE_ID_ROT_1_3),
+	__stringify(GAUDI2_QUEUE_ID_CPU_PQ),
+	__stringify(GAUDI2_QUEUE_ID_SIZE),
+};
+
 static const char * const gaudi2_qm_sei_error_cause[GAUDI2_NUM_OF_QM_SEI_ERR_CAUSE] = {
 	"qman sei intr",
 	"arc sei intr"
@@ -3150,7 +3498,6 @@ static int gaudi2_early_init(struct hl_device *hdev)
 	rc = hl_fw_read_preboot_status(hdev);
 	if (rc) {
 		if (hdev->reset_on_preboot_fail)
-			/* we are already on failure flow, so don't check if hw_fini fails. */
 			hdev->asic_funcs->hw_fini(hdev, true, false);
 		goto pci_fini;
 	}
@@ -3160,6 +3507,13 @@ static int gaudi2_early_init(struct hl_device *hdev)
 		rc = hdev->asic_funcs->hw_fini(hdev, true, false);
 		if (rc) {
 			dev_err(hdev->dev, "failed to reset HW in dirty state (%d)\n", rc);
+			goto pci_fini;
+		}
+
+		rc = hl_fw_read_preboot_status(hdev);
+		if (rc) {
+			if (hdev->reset_on_preboot_fail)
+				hdev->asic_funcs->hw_fini(hdev, true, false);
 			goto pci_fini;
 		}
 	}
@@ -4836,7 +5190,7 @@ static void gaudi2_halt_engines(struct hl_device *hdev, bool hard_reset, bool fw
 	else
 		wait_timeout_ms = GAUDI2_RESET_WAIT_MSEC;
 
-	if (fw_reset)
+	if (fw_reset || hdev->cpld_shutdown)
 		goto skip_engines;
 
 	gaudi2_stop_dma_qmans(hdev);
@@ -6484,6 +6838,13 @@ static int gaudi2_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 			VM_DONTCOPY | VM_NORESERVE);
 
 #ifdef _HAS_DMA_MMAP_COHERENT
+	/*
+	 * If dma_alloc_coherent() returns a vmalloc address, set VM_MIXEDMAP
+	 * so vm_insert_page() can handle it safely. Without this, the kernel
+	 * may BUG_ON due to VM_PFNMAP.
+	 */
+	if (is_vmalloc_addr(cpu_addr))
+		vm_flags_set(vma, VM_MIXEDMAP);
 
 	rc = dma_mmap_coherent(hdev->dev, vma, cpu_addr, dma_addr, size);
 	if (rc)
@@ -6774,7 +7135,8 @@ static int gaudi2_validate_cb_address(struct hl_device *hdev, struct hl_cs_parse
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 
 	if (!gaudi2_is_queue_enabled(hdev, parser->hw_queue_id)) {
-		dev_err(hdev->dev, "h/w queue %d is disabled\n", parser->hw_queue_id);
+		dev_err(hdev->dev, "h/w queue %s is disabled\n",
+		GAUDI2_QUEUE_ID_TO_STR(parser->hw_queue_id));
 		return -EINVAL;
 	}
 
@@ -7026,7 +7388,8 @@ static int gaudi2_test_queue_send_msg_short(struct hl_device *hdev, u32 hw_queue
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, pkt_size, msg_info->dma_addr);
 	if (rc)
 		dev_err(hdev->dev,
-			"Failed to send msg_short packet to H/W queue %d\n", hw_queue_id);
+			"Failed to send msg_short packet to H/W queue %s\n",
+			GAUDI2_QUEUE_ID_TO_STR(hw_queue_id));
 
 	return rc;
 }
@@ -7052,8 +7415,8 @@ static int gaudi2_test_queue_wait_completion(struct hl_device *hdev, u32 hw_queu
 			timeout_usec);
 
 	if (rc == -ETIMEDOUT) {
-		dev_err(hdev->dev, "H/W queue %d test failed (SOB_OBJ_0 == 0x%x)\n",
-			hw_queue_id, tmp);
+		dev_err(hdev->dev, "H/W queue %s test failed (SOB_OBJ_0 == 0x%x)\n",
+			GAUDI2_QUEUE_ID_TO_STR(hw_queue_id), tmp);
 		rc = -EIO;
 	}
 
@@ -9603,8 +9966,8 @@ static int hl_arc_event_handle(struct hl_device *hdev, u16 event_type,
 		q = (struct hl_engine_arc_dccm_queue_full_irq *) &payload;
 
 		gaudi2_print_event(hdev, event_type, true,
-				"ARC DCCM Full event: EngId: %u, Intr_type: %u, Qidx: %u",
-				engine_id, intr_type, q->queue_index);
+				"ARC DCCM Full event: Eng: %s, Intr_type: %u, Qidx: %u",
+				GAUDI2_ENG_ID_TO_STR(engine_id), intr_type, q->queue_index);
 		return 1;
 	default:
 		gaudi2_print_event(hdev, event_type, true, "Unknown ARC event type");
@@ -10172,7 +10535,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		dev_err(hdev->dev, "CPLD shutdown event, reset reason: 0x%llx\n",
 						le64_to_cpu(eq_entry->data[0]));
 		error_count = GAUDI2_NA_EVENT_CAUSE;
-		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		hl_eq_cpld_shutdown_event_handle(hdev, event_type, &event_mask);
 		break;
 
 	case GAUDI2_EVENT_CPU_PKT_SANITY_FAILED:
@@ -10260,6 +10623,7 @@ reset_device:
 	if (event_mask & HL_NOTIFIER_EVENT_GENERAL_HW_ERR)
 		hl_handle_critical_hw_err(hdev, event_type, &event_mask);
 
+	hl_debugfs_cfg_access_history_dump(hdev);
 	event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
 	hl_device_cond_reset(hdev, reset_flags, event_mask);
 }
@@ -10296,8 +10660,8 @@ static int gaudi2_memset_memory_chunk_using_edma_qm(struct hl_device *hdev,
 
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, pkt_size, phys_addr);
 	if (rc)
-		dev_err(hdev->dev, "Failed to send lin_dma packet to H/W queue %d\n",
-				hw_queue_id);
+		dev_err(hdev->dev, "Failed to send lin_dma packet to H/W queue %s\n",
+				GAUDI2_QUEUE_ID_TO_STR(hw_queue_id));
 
 	return rc;
 }
@@ -10437,7 +10801,7 @@ end:
 				(u64 *)(lin_dma_pkts_arr), DEBUGFS_WRITE64);
 	WREG32(sob_addr, 0);
 
-	kfree(lin_dma_pkts_arr);
+	kvfree(lin_dma_pkts_arr);
 
 	return rc;
 }

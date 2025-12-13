@@ -8,11 +8,7 @@
 //!
 //! Reference: <https://www.kernel.org/doc/html/latest/security/credentials.html>
 
-use crate::{
-    bindings,
-    task::Kuid,
-    types::{AlwaysRefCounted, Opaque},
-};
+use crate::{bindings, sync::aref::AlwaysRefCounted, task::Kuid, types::Opaque};
 
 /// Wraps the kernel's `struct cred`.
 ///
@@ -52,6 +48,12 @@ impl Credential {
         // SAFETY: The safety requirements guarantee the validity of the dereference, while the
         // `Credential` type being transparent makes the cast ok.
         unsafe { &*ptr.cast() }
+    }
+
+    /// Returns a raw pointer to the inner credential.
+    #[inline]
+    pub fn as_ptr(&self) -> *const bindings::cred {
+        self.0.get()
     }
 
     /// Get the id for this security context.

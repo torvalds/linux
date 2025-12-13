@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/marvell/marvell,dove.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Dove SoC
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - compulab,cm-a510
+              - solidrun,cubox
+              - globalscale,d2plug
+              - globalscale,d3plug
+              - marvell,dove-db
+          - const: marvell,dove
+      - items:
+          - const: solidrun,cubox-es
+          - const: solidrun,cubox
+          - const: marvell,dove
+      - items:
+          - const: compulab,sbc-a510
+          - const: compulab,cm-a510
+          - const: marvell,dove
+
+additionalProperties: true

@@ -20,38 +20,6 @@
 #include "guest_modes.h"
 #include "ucall_common.h"
 
-#ifdef __aarch64__
-#include "arm64/vgic.h"
-
-static int gic_fd;
-
-static void arch_setup_vm(struct kvm_vm *vm, unsigned int nr_vcpus)
-{
-	/*
-	 * The test can still run even if hardware does not support GICv3, as it
-	 * is only an optimization to reduce guest exits.
-	 */
-	gic_fd = vgic_v3_setup(vm, nr_vcpus, 64);
-}
-
-static void arch_cleanup_vm(struct kvm_vm *vm)
-{
-	if (gic_fd > 0)
-		close(gic_fd);
-}
-
-#else /* __aarch64__ */
-
-static void arch_setup_vm(struct kvm_vm *vm, unsigned int nr_vcpus)
-{
-}
-
-static void arch_cleanup_vm(struct kvm_vm *vm)
-{
-}
-
-#endif
-
 /* How many host loops to run by default (one KVM_GET_DIRTY_LOG for each loop)*/
 #define TEST_HOST_LOOP_N		2UL
 
@@ -165,8 +133,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	if (dirty_log_manual_caps)
 		vm_enable_cap(vm, KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2,
 			      dirty_log_manual_caps);
-
-	arch_setup_vm(vm, nr_vcpus);
 
 	/* Start the iterations */
 	iteration = 0;
@@ -285,7 +251,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	}
 
 	memstress_free_bitmaps(bitmaps, p->slots);
-	arch_cleanup_vm(vm);
 	memstress_destroy_vm(vm);
 }
 

@@ -33,7 +33,6 @@ enum mount_flags {
 	MNT_NOSYMFOLLOW	= 0x80,
 
 	MNT_SHRINKABLE	= 0x100,
-	MNT_WRITE_HOLD	= 0x200,
 
 	MNT_INTERNAL	= 0x4000,
 
@@ -52,7 +51,7 @@ enum mount_flags {
 				  | MNT_READONLY | MNT_NOSYMFOLLOW,
 	MNT_ATIME_MASK = MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME,
 
-	MNT_INTERNAL_FLAGS = MNT_WRITE_HOLD | MNT_INTERNAL | MNT_DOOMED |
+	MNT_INTERNAL_FLAGS = MNT_INTERNAL | MNT_DOOMED |
 			     MNT_SYNC_UMOUNT | MNT_LOCKED
 };
 
@@ -77,7 +76,7 @@ extern void mntput(struct vfsmount *mnt);
 extern struct vfsmount *mntget(struct vfsmount *mnt);
 extern void mnt_make_shortterm(struct vfsmount *mnt);
 extern struct vfsmount *mnt_clone_internal(const struct path *path);
-extern bool __mnt_is_readonly(struct vfsmount *mnt);
+extern bool __mnt_is_readonly(const struct vfsmount *mnt);
 extern bool mnt_may_suid(struct vfsmount *mnt);
 
 extern struct vfsmount *clone_private_mount(const struct path *path);
@@ -104,8 +103,8 @@ extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
 int do_mount(const char *, const char __user *,
 		     const char *, unsigned long, void *);
-extern struct path *collect_paths(const struct path *, struct path *, unsigned);
-extern void drop_collected_paths(struct path *, struct path *);
+extern const struct path *collect_paths(const struct path *, struct path *, unsigned);
+extern void drop_collected_paths(const struct path *, const struct path *);
 extern void kern_unmount_array(struct vfsmount *mnt[], unsigned int num);
 
 extern int cifs_root_data(char **dev, char **opts);

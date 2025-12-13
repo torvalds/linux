@@ -716,16 +716,15 @@ static void print_device_list(struct snd_info_buffer *buffer,
 {
 	int i, curr = -1;
 	u8 dev_list[AC_MAX_DEV_LIST_LEN];
-	int devlist_len;
+	unsigned int devlist_len;
 
 	devlist_len = snd_hda_get_devices(codec, nid, dev_list,
 					AC_MAX_DEV_LIST_LEN);
-	snd_iprintf(buffer, "  Devices: %d\n", devlist_len);
-	if (devlist_len <= 0)
+	snd_iprintf(buffer, "  Devices: %u\n", devlist_len);
+	if (devlist_len == 0)
 		return;
 
-	curr = snd_hda_codec_read(codec, nid, 0,
-				AC_VERB_GET_DEVICE_SEL, 0);
+	curr = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DEVICE_SEL, 0);
 
 	for (i = 0; i < devlist_len; i++) {
 		if (i == curr)
@@ -782,7 +781,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 	fg = codec->core.afg;
 	if (!fg)
 		return;
-	snd_hda_power_up(codec);
+	CLASS(snd_hda_power, pm)(codec);
 	snd_iprintf(buffer, "Default PCM:\n");
 	print_pcm_caps(buffer, codec, fg);
 	snd_iprintf(buffer, "Default Amp-In caps: ");
@@ -795,7 +794,6 @@ static void print_codec_info(struct snd_info_entry *entry,
 	nodes = snd_hda_get_sub_nodes(codec, fg, &nid);
 	if (! nid || nodes < 0) {
 		snd_iprintf(buffer, "Invalid AFG subtree\n");
-		snd_hda_power_down(codec);
 		return;
 	}
 
@@ -932,7 +930,6 @@ static void print_codec_info(struct snd_info_entry *entry,
 
 		kfree(conn);
 	}
-	snd_hda_power_down(codec);
 }
 
 /*

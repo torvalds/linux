@@ -144,7 +144,7 @@ int uv_destroy_folio(struct folio *folio)
 	folio_get(folio);
 	rc = uv_destroy(folio_to_phys(folio));
 	if (!rc)
-		clear_bit(PG_arch_1, &folio->flags);
+		clear_bit(PG_arch_1, &folio->flags.f);
 	folio_put(folio);
 	return rc;
 }
@@ -193,7 +193,7 @@ int uv_convert_from_secure_folio(struct folio *folio)
 	folio_get(folio);
 	rc = uv_convert_from_secure(folio_to_phys(folio));
 	if (!rc)
-		clear_bit(PG_arch_1, &folio->flags);
+		clear_bit(PG_arch_1, &folio->flags.f);
 	folio_put(folio);
 	return rc;
 }
@@ -289,7 +289,7 @@ static int __make_folio_secure(struct folio *folio, struct uv_cb_header *uvcb)
 	expected = expected_folio_refs(folio) + 1;
 	if (!folio_ref_freeze(folio, expected))
 		return -EBUSY;
-	set_bit(PG_arch_1, &folio->flags);
+	set_bit(PG_arch_1, &folio->flags.f);
 	/*
 	 * If the UVC does not succeed or fail immediately, we don't want to
 	 * loop for long, or we might get stall notifications.
@@ -483,18 +483,18 @@ int arch_make_folio_accessible(struct folio *folio)
 	 *    convert_to_secure.
 	 * As secure pages are never large folios, both variants can co-exists.
 	 */
-	if (!test_bit(PG_arch_1, &folio->flags))
+	if (!test_bit(PG_arch_1, &folio->flags.f))
 		return 0;
 
 	rc = uv_pin_shared(folio_to_phys(folio));
 	if (!rc) {
-		clear_bit(PG_arch_1, &folio->flags);
+		clear_bit(PG_arch_1, &folio->flags.f);
 		return 0;
 	}
 
 	rc = uv_convert_from_secure(folio_to_phys(folio));
 	if (!rc) {
-		clear_bit(PG_arch_1, &folio->flags);
+		clear_bit(PG_arch_1, &folio->flags.f);
 		return 0;
 	}
 
@@ -866,8 +866,8 @@ static int find_secret_in_page(const u8 secret_id[UV_SECRET_ID_LEN],
 	return -ENOENT;
 }
 
-/*
- * Do the actual search for `uv_get_secret_metadata`.
+/**
+ * uv_find_secret() - search secret metadata for a given secret id.
  * @secret_id: search pattern.
  * @list: ephemeral buffer space
  * @secret: output data, containing the secret's metadata.

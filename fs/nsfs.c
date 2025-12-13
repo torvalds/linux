@@ -13,11 +13,25 @@
 #include <linux/nsfs.h>
 #include <linux/uaccess.h>
 #include <linux/mnt_namespace.h>
+#include <linux/ipc_namespace.h>
+#include <linux/time_namespace.h>
+#include <linux/utsname.h>
+#include <linux/exportfs.h>
+#include <linux/nstree.h>
+#include <net/net_namespace.h>
 
 #include "mount.h"
 #include "internal.h"
 
 static struct vfsmount *nsfs_mnt;
+
+static struct path nsfs_root_path = {};
+
+void nsfs_get_root(struct path *path)
+{
+	*path = nsfs_root_path;
+	path_get(path);
+}
 
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg);
@@ -139,7 +153,7 @@ static int copy_ns_info_to_user(const struct mnt_namespace *mnt_ns,
 	 * the size value will be set to the size the kernel knows about.
 	 */
 	kinfo->size		= min(usize, sizeof(*kinfo));
-	kinfo->mnt_ns_id	= mnt_ns->seq;
+	kinfo->mnt_ns_id	= mnt_ns->ns.ns_id;
 	kinfo->nr_mounts	= READ_ONCE(mnt_ns->nr_mounts);
 	/* Subtract the root mount of the mount namespace. */
 	if (kinfo->nr_mounts)
@@ -163,15 +177,18 @@ static bool nsfs_ioctl_valid(unsigned int cmd)
 	case NS_GET_TGID_FROM_PIDNS:
 	case NS_GET_PID_IN_PIDNS:
 	case NS_GET_TGID_IN_PIDNS:
-		return (_IOC_TYPE(cmd) == _IOC_TYPE(cmd));
+	case NS_GET_ID:
+		return true;
 	}
 
 	/* Extensible ioctls require some extra handling. */
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(NS_MNT_GET_INFO):
+		return extensible_ioctl_valid(cmd, NS_MNT_GET_INFO, MNT_NS_INFO_SIZE_VER0);
 	case _IOC_NR(NS_MNT_GET_NEXT):
+		return extensible_ioctl_valid(cmd, NS_MNT_GET_NEXT, MNT_NS_INFO_SIZE_VER0);
 	case _IOC_NR(NS_MNT_GET_PREV):
-		return (_IOC_TYPE(cmd) == _IOC_TYPE(cmd));
+		return extensible_ioctl_valid(cmd, NS_MNT_GET_PREV, MNT_NS_INFO_SIZE_VER0);
 	}
 
 	return false;
@@ -202,26 +219,14 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			return -EINVAL;
 		return open_related_ns(ns, ns->ops->get_parent);
 	case NS_GET_NSTYPE:
-		return ns->ops->type;
+		return ns->ns_type;
 	case NS_GET_OWNER_UID:
-		if (ns->ops->type != CLONE_NEWUSER)
+		if (ns->ns_type != CLONE_NEWUSER)
 			return -EINVAL;
 		user_ns = container_of(ns, struct user_namespace, ns);
 		argp = (uid_t __user *) arg;
 		uid = from_kuid_munged(current_user_ns(), user_ns->owner);
 		return put_user(uid, argp);
-	case NS_GET_MNTNS_ID: {
-		__u64 __user *idp;
-		__u64 id;
-
-		if (ns->ops->type != CLONE_NEWNS)
-			return -EINVAL;
-
-		mnt_ns = container_of(ns, struct mnt_namespace, ns);
-		idp = (__u64 __user *)arg;
-		id = mnt_ns->seq;
-		return put_user(id, idp);
-	}
 	case NS_GET_PID_FROM_PIDNS:
 		fallthrough;
 	case NS_GET_TGID_FROM_PIDNS:
@@ -229,7 +234,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 	case NS_GET_PID_IN_PIDNS:
 		fallthrough;
 	case NS_GET_TGID_IN_PIDNS: {
-		if (ns->ops->type != CLONE_NEWPID)
+		if (ns->ns_type != CLONE_NEWPID)
 			return -EINVAL;
 
 		ret = -ESRCH;
@@ -267,6 +272,18 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			ret = -ESRCH;
 		return ret;
 	}
+	case NS_GET_MNTNS_ID:
+		if (ns->ns_type != CLONE_NEWNS)
+			return -EINVAL;
+		fallthrough;
+	case NS_GET_ID: {
+		__u64 __user *idp;
+		__u64 id;
+
+		idp = (__u64 __user *)arg;
+		id = ns->ns_id;
+		return put_user(id, idp);
+	}
 	}
 
 	/* extensible ioctls */
@@ -276,7 +293,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		struct mnt_ns_info __user *uinfo = (struct mnt_ns_info __user *)arg;
 		size_t usize = _IOC_SIZE(ioctl);
 
-		if (ns->ops->type != CLONE_NEWNS)
+		if (ns->ns_type != CLONE_NEWNS)
 			return -EINVAL;
 
 		if (!uinfo)
@@ -297,7 +314,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		struct file *f __free(fput) = NULL;
 		size_t usize = _IOC_SIZE(ioctl);
 
-		if (ns->ops->type != CLONE_NEWNS)
+		if (ns->ns_type != CLONE_NEWNS)
 			return -EINVAL;
 
 		if (usize < MNT_NS_INFO_SIZE_VER0)
@@ -415,12 +432,166 @@ static const struct stashed_operations nsfs_stashed_ops = {
 	.put_data = nsfs_put_data,
 };
 
+#define NSFS_FID_SIZE_U32_VER0 (NSFS_FILE_HANDLE_SIZE_VER0 / sizeof(u32))
+#define NSFS_FID_SIZE_U32_LATEST (NSFS_FILE_HANDLE_SIZE_LATEST / sizeof(u32))
+
+static int nsfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
+			  struct inode *parent)
+{
+	struct nsfs_file_handle *fid = (struct nsfs_file_handle *)fh;
+	struct ns_common *ns = inode->i_private;
+	int len = *max_len;
+
+	if (parent)
+		return FILEID_INVALID;
+
+	if (len < NSFS_FID_SIZE_U32_VER0) {
+		*max_len = NSFS_FID_SIZE_U32_LATEST;
+		return FILEID_INVALID;
+	} else if (len > NSFS_FID_SIZE_U32_LATEST) {
+		*max_len = NSFS_FID_SIZE_U32_LATEST;
+	}
+
+	fid->ns_id	= ns->ns_id;
+	fid->ns_type	= ns->ns_type;
+	fid->ns_inum	= inode->i_ino;
+	return FILEID_NSFS;
+}
+
+static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
+					int fh_len, int fh_type)
+{
+	struct path path __free(path_put) = {};
+	struct nsfs_file_handle *fid = (struct nsfs_file_handle *)fh;
+	struct user_namespace *owning_ns = NULL;
+	struct ns_common *ns;
+	int ret;
+
+	if (fh_len < NSFS_FID_SIZE_U32_VER0)
+		return NULL;
+
+	/* Check that any trailing bytes are zero. */
+	if ((fh_len > NSFS_FID_SIZE_U32_LATEST) &&
+	    memchr_inv((void *)fid + NSFS_FID_SIZE_U32_LATEST, 0,
+		       fh_len - NSFS_FID_SIZE_U32_LATEST))
+		return NULL;
+
+	switch (fh_type) {
+	case FILEID_NSFS:
+		break;
+	default:
+		return NULL;
+	}
+
+	scoped_guard(rcu) {
+		ns = ns_tree_lookup_rcu(fid->ns_id, fid->ns_type);
+		if (!ns)
+			return NULL;
+
+		VFS_WARN_ON_ONCE(ns->ns_id != fid->ns_id);
+		VFS_WARN_ON_ONCE(ns->ns_type != fid->ns_type);
+
+		if (ns->inum != fid->ns_inum)
+			return NULL;
+
+		if (!__ns_ref_get(ns))
+			return NULL;
+	}
+
+	switch (ns->ns_type) {
+#ifdef CONFIG_CGROUPS
+	case CLONE_NEWCGROUP:
+		if (!current_in_namespace(to_cg_ns(ns)))
+			owning_ns = to_cg_ns(ns)->user_ns;
+		break;
+#endif
+#ifdef CONFIG_IPC_NS
+	case CLONE_NEWIPC:
+		if (!current_in_namespace(to_ipc_ns(ns)))
+			owning_ns = to_ipc_ns(ns)->user_ns;
+		break;
+#endif
+	case CLONE_NEWNS:
+		if (!current_in_namespace(to_mnt_ns(ns)))
+			owning_ns = to_mnt_ns(ns)->user_ns;
+		break;
+#ifdef CONFIG_NET_NS
+	case CLONE_NEWNET:
+		if (!current_in_namespace(to_net_ns(ns)))
+			owning_ns = to_net_ns(ns)->user_ns;
+		break;
+#endif
+#ifdef CONFIG_PID_NS
+	case CLONE_NEWPID:
+		if (!current_in_namespace(to_pid_ns(ns))) {
+			owning_ns = to_pid_ns(ns)->user_ns;
+		} else if (!READ_ONCE(to_pid_ns(ns)->child_reaper)) {
+			ns->ops->put(ns);
+			return ERR_PTR(-EPERM);
+		}
+		break;
+#endif
+#ifdef CONFIG_TIME_NS
+	case CLONE_NEWTIME:
+		if (!current_in_namespace(to_time_ns(ns)))
+			owning_ns = to_time_ns(ns)->user_ns;
+		break;
+#endif
+#ifdef CONFIG_USER_NS
+	case CLONE_NEWUSER:
+		if (!current_in_namespace(to_user_ns(ns)))
+			owning_ns = to_user_ns(ns);
+		break;
+#endif
+#ifdef CONFIG_UTS_NS
+	case CLONE_NEWUTS:
+		if (!current_in_namespace(to_uts_ns(ns)))
+			owning_ns = to_uts_ns(ns)->user_ns;
+		break;
+#endif
+	default:
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	if (owning_ns && !ns_capable(owning_ns, CAP_SYS_ADMIN)) {
+		ns->ops->put(ns);
+		return ERR_PTR(-EPERM);
+	}
+
+	/* path_from_stashed() unconditionally consumes the reference. */
+	ret = path_from_stashed(&ns->stashed, nsfs_mnt, ns, &path);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return no_free_ptr(path.dentry);
+}
+
+static int nsfs_export_permission(struct handle_to_path_ctx *ctx,
+				   unsigned int oflags)
+{
+	/* nsfs_fh_to_dentry() performs all permission checks. */
+	return 0;
+}
+
+static struct file *nsfs_export_open(const struct path *path, unsigned int oflags)
+{
+	return file_open_root(path, "", oflags, 0);
+}
+
+static const struct export_operations nsfs_export_operations = {
+	.encode_fh	= nsfs_encode_fh,
+	.fh_to_dentry	= nsfs_fh_to_dentry,
+	.open		= nsfs_export_open,
+	.permission	= nsfs_export_permission,
+};
+
 static int nsfs_init_fs_context(struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx = init_pseudo(fc, NSFS_MAGIC);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->ops = &nsfs_ops;
+	ctx->eops = &nsfs_export_operations;
 	ctx->dops = &ns_dentry_operations;
 	fc->s_fs_info = (void *)&nsfs_stashed_ops;
 	return 0;
@@ -438,4 +609,6 @@ void __init nsfs_init(void)
 	if (IS_ERR(nsfs_mnt))
 		panic("can't set nsfs up\n");
 	nsfs_mnt->mnt_sb->s_flags &= ~SB_NOUSER;
+	nsfs_root_path.mnt = nsfs_mnt;
+	nsfs_root_path.dentry = nsfs_mnt->mnt_root;
 }

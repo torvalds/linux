@@ -492,7 +492,7 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
-	u32 ret;
+	int ret;
 	u32 max_qpn = exclude_prefix == RVT_AIP_QP_PREFIX ?
 		RVT_AIP_QPN_MAX : RVT_QPN_MAX;
 
@@ -510,7 +510,8 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 		else
 			qpt->flags |= n;
 		spin_unlock(&qpt->lock);
-		goto bail;
+
+		return ret;
 	}
 
 	qpn = qpt->last + qpt->incr;
@@ -530,7 +531,8 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 			if (!test_and_set_bit(offset, map->page)) {
 				qpt->last = qpn;
 				ret = qpn;
-				goto bail;
+
+				return ret;
 			}
 			offset += qpt->incr;
 			/*
@@ -565,10 +567,7 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 		qpn = mk_qpn(qpt, map, offset);
 	}
 
-	ret = -ENOMEM;
-
-bail:
-	return ret;
+	return -ENOMEM;
 }
 
 /**

@@ -77,7 +77,7 @@ static int byt_cht_cx2072x_init(struct snd_soc_pcm_runtime *rtd)
 					   byt_cht_cx2072x_acpi_gpios))
 		dev_warn(rtd->dev, "Unable to add GPIO mapping table\n");
 
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	/* set the default PLL rate, the clock is handled by the codec driver */
 	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_codec(rtd, 0), CX2072X_MCLK_EXTERNAL_PLL,

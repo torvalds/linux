@@ -396,7 +396,7 @@ static void reg_write(struct snd_ice1712 *ice, unsigned int reg,
 {
 	unsigned int tmp;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	/* set direction of used GPIOs*/
 	/* all outputs */
 	tmp = 0x00ffff;
@@ -429,7 +429,6 @@ static void reg_write(struct snd_ice1712 *ice, unsigned int reg,
 	ice->gpio.set_mask(ice, 0xffffff);
 	/* outputs only 8-15 */
 	ice->gpio.set_dir(ice, 0x00ff00);
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 static unsigned int get_scr(struct snd_ice1712 *ice)

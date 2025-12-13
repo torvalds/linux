@@ -88,11 +88,16 @@ int rxgk_decrypt_skb(const struct krb5_enctype *krb5,
 		*_offset += offset;
 		*_len = len;
 		break;
+	case -EBADMSG: /* Checksum mismatch. */
 	case -EPROTO:
-	case -EBADMSG:
 		*_error_code = RXGK_SEALEDINCON;
 		break;
+	case -EMSGSIZE:
+		*_error_code = RXGK_PACKETSHORT;
+		break;
+	case -ENOPKG: /* Would prefer RXGK_BADETYPE, but not available for YFS. */
 	default:
+		*_error_code = RXGK_INCONSISTENCY;
 		break;
 	}
 
@@ -127,11 +132,16 @@ int rxgk_verify_mic_skb(const struct krb5_enctype *krb5,
 		*_offset += offset;
 		*_len = len;
 		break;
+	case -EBADMSG: /* Checksum mismatch */
 	case -EPROTO:
-	case -EBADMSG:
 		*_error_code = RXGK_SEALEDINCON;
 		break;
+	case -EMSGSIZE:
+		*_error_code = RXGK_PACKETSHORT;
+		break;
+	case -ENOPKG: /* Would prefer RXGK_BADETYPE, but not available for YFS. */
 	default:
+		*_error_code = RXGK_INCONSISTENCY;
 		break;
 	}
 

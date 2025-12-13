@@ -3,7 +3,7 @@
     tda9840 - i2c-driver for the tda9840 by SGS Thomson
 
     Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
-    Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
+    Copyright (C) 2008 Hans Verkuil <hverkuil@kernel.org>
 
     The tda9840 is a stereo/dual sound processor with digital
     identification. It can be found at address 0x84 on the i2c-bus.

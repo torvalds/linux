@@ -65,7 +65,7 @@ are case sensitive, so for example when you create a file FOO, you can use
 'cat FOO', 'cat Foo', 'cat foo' or 'cat F*' but not 'cat f*'. Note, that you
 also won't be able to compile linux kernel (and maybe other things) on HPFS
 because kernel creates different files with names like bootsect.S and
-bootsect.s. When searching for file thats name has characters >= 128, codepages
+bootsect.s. When searching for file whose name has characters >= 128, codepages
 are used - see below.
 OS/2 ignores dots and spaces at the end of file name, so this driver does as
 well. If you create 'a. ...', the file 'a' will be created, but you can still

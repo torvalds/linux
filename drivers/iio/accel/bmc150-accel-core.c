@@ -332,13 +332,10 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
-	if (on) {
+	if (on)
 		ret = pm_runtime_resume_and_get(dev);
-	} else {
-		pm_runtime_mark_last_busy(dev);
+	else
 		ret = pm_runtime_put_autosuspend(dev);
-	}
-
 	if (ret < 0) {
 		dev_err(dev,
 			"Failed: %s for %d\n", __func__, on);
@@ -525,6 +522,10 @@ static int bmc150_accel_set_interrupt(struct bmc150_accel_data *data, int i,
 	struct bmc150_accel_interrupt *intr = &data->interrupts[i];
 	const struct bmc150_accel_interrupt_info *info = intr->info;
 	int ret;
+
+	/* We do not always have an IRQ */
+	if (data->irq <= 0)
+		return 0;
 
 	if (state) {
 		if (atomic_inc_return(&intr->users) > 1)
@@ -1699,6 +1700,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	}
 
 	if (irq > 0) {
+		data->irq = irq;
 		ret = devm_request_threaded_irq(dev, irq,
 						bmc150_accel_irq_handler,
 						bmc150_accel_irq_thread_handler,

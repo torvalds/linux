@@ -138,7 +138,7 @@ struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_flow_steering *fs,
 	flow = mlx5_add_flow_rules(ft->t, spec, &flow_act, &dest, 1);
 
 	if (IS_ERR(flow))
-		fs_err(fs, "mlx5_add_flow_rules() failed, flow is %ld\n", PTR_ERR(flow));
+		fs_err(fs, "mlx5_add_flow_rules() failed, flow is %pe\n", flow);
 
 out:
 	kvfree(spec);

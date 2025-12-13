@@ -12,6 +12,7 @@ Next (GCN), Radeon DNA (RDNA), and Compute DNA (CDNA) architectures.
    module-parameters
    gc/index
    display/index
+   userq
    flashing
    xgmi
    ras

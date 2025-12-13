@@ -278,7 +278,7 @@ static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 	}
 
 	/*
-	 * For absolute symlinks it is not possible to determinate
+	 * For absolute symlinks it is not possible to determine
 	 * if it should point to directory or file.
 	 */
 	if (symname[0] == '/') {

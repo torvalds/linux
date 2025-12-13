@@ -1216,13 +1216,13 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		if (umem->length < cq->size) {
 			ibdev_dbg(&dev->ibdev, "External memory too small\n");
 			err = -EINVAL;
-			goto err_free_mem;
+			goto err_out;
 		}
 
 		if (!ib_umem_is_contiguous(umem)) {
 			ibdev_dbg(&dev->ibdev, "Non contiguous CQ unsupported\n");
 			err = -EINVAL;
-			goto err_free_mem;
+			goto err_out;
 		}
 
 		cq->cpu_addr = NULL;
@@ -1251,7 +1251,7 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	err = efa_com_create_cq(&dev->edev, &params, &result);
 	if (err)
-		goto err_free_mem;
+		goto err_free_mapped;
 
 	resp.db_off = result.db_off;
 	resp.cq_idx = result.cq_idx;
@@ -1299,12 +1299,10 @@ err_remove_mmap:
 	efa_cq_user_mmap_entries_remove(cq);
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
-err_free_mem:
-	if (umem)
-		ib_umem_release(umem);
-	else
-		efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size, DMA_FROM_DEVICE);
-
+err_free_mapped:
+	if (!umem)
+		efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
+				DMA_FROM_DEVICE);
 err_out:
 	atomic64_inc(&dev->stats.create_cq_err);
 	return err;
@@ -1788,7 +1786,8 @@ struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 						access_flags);
 	if (IS_ERR(umem_dmabuf)) {
 		err = PTR_ERR(umem_dmabuf);
-		ibdev_dbg(&dev->ibdev, "Failed to get dmabuf umem[%d]\n", err);
+		ibdev_dbg(&dev->ibdev, "Failed to get dmabuf umem[%pe]\n",
+			  umem_dmabuf);
 		goto err_free;
 	}
 
@@ -1832,7 +1831,8 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		ibdev_dbg(&dev->ibdev,
-			  "Failed to pin and map user space memory[%d]\n", err);
+			  "Failed to pin and map user space memory[%pe]\n",
+			  mr->umem);
 		goto err_free;
 	}
 

@@ -33,7 +33,11 @@ enum rdma_cm_event_type {
 	RDMA_CM_EVENT_MULTICAST_JOIN,
 	RDMA_CM_EVENT_MULTICAST_ERROR,
 	RDMA_CM_EVENT_ADDR_CHANGE,
-	RDMA_CM_EVENT_TIMEWAIT_EXIT
+	RDMA_CM_EVENT_TIMEWAIT_EXIT,
+	RDMA_CM_EVENT_ADDRINFO_RESOLVED,
+	RDMA_CM_EVENT_ADDRINFO_ERROR,
+	RDMA_CM_EVENT_USER,
+	RDMA_CM_EVENT_INTERNAL,
 };
 
 const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
@@ -63,6 +67,9 @@ struct rdma_route {
 	 * 2 - Both primary and alternate path are available
 	 */
 	int num_pri_alt_paths;
+
+	unsigned int num_service_recs;
+	struct sa_service_rec *service_recs;
 };
 
 struct rdma_conn_param {
@@ -93,6 +100,7 @@ struct rdma_cm_event {
 	union {
 		struct rdma_conn_param	conn;
 		struct rdma_ud_param	ud;
+		u64			arg;
 	} param;
 	struct rdma_ucm_ece ece;
 };
@@ -196,6 +204,17 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
  * into an RDMA address before calling this routine.
  */
 int rdma_resolve_route(struct rdma_cm_id *id, unsigned long timeout_ms);
+
+/**
+ * rdma_resolve_ib_service - Resolve the IB service record of the
+ *   service with the given service ID or name.
+ *
+ * This function is optional in the rdma cm flow. It is called on the client
+ * side of a connection, before calling rdma_resolve_route. The resolution
+ * can be done once per rdma_cm_id.
+ */
+int rdma_resolve_ib_service(struct rdma_cm_id *id,
+			    struct rdma_ucm_ib_service *ibs);
 
 /**
  * rdma_create_qp - Allocate a QP and associate it with the specified RDMA

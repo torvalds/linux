@@ -108,7 +108,6 @@ static const struct regmap_config ipq_cmn_pll_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = 0x7fc,
-	.fast_io = true,
 };
 
 static const struct cmn_pll_fixed_output_clk ipq5018_output_clks[] = {

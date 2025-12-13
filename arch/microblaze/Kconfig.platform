@@ -8,10 +8,10 @@
 menu "Platform options"
 
 config OPT_LIB_FUNCTION
-	bool "Optimalized lib function"
+	bool "Optimized lib function"
 	default y
 	help
-	  Allows turn on optimalized library function (memcpy and memmove).
+	  Turns on optimized library functions (memcpy and memmove).
 	  They are optimized by using word alignment. This will work
 	  fine if both source and destination are aligned on the same
 	  boundary. However, if they are aligned on different boundaries
@@ -19,13 +19,13 @@ config OPT_LIB_FUNCTION
 	  on MicroBlaze systems without a barrel shifter.
 
 config OPT_LIB_ASM
-	bool "Optimalized lib function ASM"
+	bool "Optimized lib function ASM"
 	depends on OPT_LIB_FUNCTION && (XILINX_MICROBLAZE0_USE_BARREL = 1)
 	depends on CPU_BIG_ENDIAN
 	default n
 	help
-	  Allows turn on optimalized library function (memcpy and memmove).
-	  Function are written in asm code.
+	  Turns on optimized library functions (memcpy and memmove).
+	  They are written in assembly.
 
 # Definitions for MICROBLAZE0
 comment "Definitions for MICROBLAZE0"

@@ -1,0 +1,7 @@
+Kconfig:46:warning: config symbol defined without type
+Kconfig:7: error: transitional symbols can only have help sections
+Kconfig:14: error: transitional symbols can only have help sections
+Kconfig:21: error: transitional symbols can only have help sections
+Kconfig:28: error: transitional symbols can only have help sections
+Kconfig:32: error: transitional symbols can only have help sections
+Kconfig:42: error: transitional symbols can only have help sections

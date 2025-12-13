@@ -126,7 +126,7 @@ __setup("debugpat", pat_debug_setup);
 
 static inline enum page_cache_mode get_page_memtype(struct page *pg)
 {
-	unsigned long pg_flags = pg->flags & _PGMT_MASK;
+	unsigned long pg_flags = pg->flags.f & _PGMT_MASK;
 
 	if (pg_flags == _PGMT_WB)
 		return _PAGE_CACHE_MODE_WB;
@@ -161,10 +161,10 @@ static inline void set_page_memtype(struct page *pg,
 		break;
 	}
 
-	old_flags = READ_ONCE(pg->flags);
+	old_flags = READ_ONCE(pg->flags.f);
 	do {
 		new_flags = (old_flags & _PGMT_CLEAR_MASK) | memtype_flags;
-	} while (!try_cmpxchg(&pg->flags, &old_flags, new_flags));
+	} while (!try_cmpxchg(&pg->flags.f, &old_flags, new_flags));
 }
 #else
 static inline enum page_cache_mode get_page_memtype(struct page *pg)

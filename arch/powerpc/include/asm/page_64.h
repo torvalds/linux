@@ -35,7 +35,7 @@
 #define ESID_MASK_1T		0xffffff0000000000UL
 #define GET_ESID_1T(x)		(((x) >> SID_SHIFT_1T) & SID_MASK_1T)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/cache.h>
 
 typedef unsigned long pte_basic_t;
@@ -82,7 +82,7 @@ extern void copy_page(void *to, void *from);
 /* Log 2 of page table size */
 extern u64 ppc64_pft_size;
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define VM_DATA_DEFAULT_FLAGS \
 	(is_32bit_task() ? \

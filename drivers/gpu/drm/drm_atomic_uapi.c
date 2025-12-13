@@ -1078,19 +1078,20 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 		}
 
 		if (async_flip) {
-			/* check if the prop does a nop change */
-			if ((prop != config->prop_fb_id &&
-			     prop != config->prop_in_fence_fd &&
-			     prop != config->prop_fb_damage_clips)) {
-				ret = drm_atomic_plane_get_property(plane, plane_state,
-								    prop, &old_val);
-				ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+			/* no-op changes are always allowed */
+			ret = drm_atomic_plane_get_property(plane, plane_state,
+							    prop, &old_val);
+			ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+
+			/* fail everything that isn't no-op or a pure flip */
+			if (ret && prop != config->prop_fb_id &&
+			    prop != config->prop_in_fence_fd &&
+			    prop != config->prop_fb_damage_clips) {
+				break;
 			}
 
-			/* ask the driver if this non-primary plane is supported */
-			if (plane->type != DRM_PLANE_TYPE_PRIMARY) {
-				ret = -EINVAL;
-
+			if (ret && plane->type != DRM_PLANE_TYPE_PRIMARY) {
+				/* ask the driver if this non-primary plane is supported */
 				if (plane_funcs && plane_funcs->atomic_async_check)
 					ret = plane_funcs->atomic_async_check(plane, state, true);
 

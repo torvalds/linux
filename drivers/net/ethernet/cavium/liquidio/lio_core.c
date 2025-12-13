@@ -472,7 +472,7 @@ int setup_rx_oom_poll_fn(struct net_device *netdev)
 		q_no = lio->linfo.rxpciq[q].s.q_no;
 		wq = &lio->rxq_status_wq[q_no];
 		wq->wq = alloc_workqueue("rxq-oom-status",
-					 WQ_MEM_RECLAIM, 0);
+					 WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 		if (!wq->wq) {
 			dev_err(&oct->pci_dev->dev, "unable to create cavium rxq oom status wq\n");
 			return -ENOMEM;

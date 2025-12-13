@@ -808,7 +808,6 @@ static int thp7312_s_stream(struct v4l2_subdev *sd, int enable)
 	if (!enable) {
 		thp7312_stream_enable(thp7312, false);
 
-		pm_runtime_mark_last_busy(thp7312->dev);
 		pm_runtime_put_autosuspend(thp7312->dev);
 
 		v4l2_subdev_unlock_state(sd_state);
@@ -839,7 +838,6 @@ static int thp7312_s_stream(struct v4l2_subdev *sd, int enable)
 	goto finish_unlock;
 
 finish_pm:
-	pm_runtime_mark_last_busy(thp7312->dev);
 	pm_runtime_put_autosuspend(thp7312->dev);
 finish_unlock:
 	v4l2_subdev_unlock_state(sd_state);
@@ -1147,7 +1145,6 @@ static int thp7312_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_mark_last_busy(thp7312->dev);
 	pm_runtime_put_autosuspend(thp7312->dev);
 
 	return ret;
@@ -2183,7 +2180,6 @@ static int thp7312_probe(struct i2c_client *client)
 	 * Decrease the PM usage count. The device will get suspended after the
 	 * autosuspend delay, turning the power off.
 	 */
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	dev_info(dev, "THP7312 firmware version %02u.%02u\n",

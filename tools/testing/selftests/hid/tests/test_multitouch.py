@@ -1752,6 +1752,52 @@ class TestWin8TSConfidence(BaseTest.TestWin8Multitouch):
         assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
 
 
+    @pytest.mark.skip_if_uhdev(
+        lambda uhdev: "Confidence" not in uhdev.fields,
+        "Device not compatible, missing Confidence usage",
+    )
+    def test_mt_confidence_bad_multi_release(self):
+        """Check for the sticky finger being properly detected.
+
+        We first inject 3 fingers, then release only the second.
+        After 100 ms, we should receive a generated event about the
+        2 missing fingers being released.
+        """
+        uhdev = self.uhdev
+        evdev = uhdev.get_evdev()
+
+        # send 3 touches
+        t0 = Touch(1, 50, 10)
+        t1 = Touch(2, 150, 100)
+        t2 = Touch(3, 250, 200)
+        r = uhdev.event([t0, t1, t2])
+        events = uhdev.next_sync_events()
+        self.debug_reports(r, uhdev, events)
+
+        # release the second
+        t1.tipswitch = False
+        r = uhdev.event([t1])
+        events = uhdev.next_sync_events()
+        self.debug_reports(r, uhdev, events)
+
+        # only the second is released
+        assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] != -1
+        assert evdev.slots[1][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
+        assert evdev.slots[2][libevdev.EV_ABS.ABS_MT_TRACKING_ID] != -1
+
+        # wait for the timer to kick in
+        time.sleep(0.2)
+
+        events = uhdev.next_sync_events()
+        self.debug_reports([], uhdev, events)
+
+        # now all 3 fingers are released
+        assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH, 0) in events
+        assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
+        assert evdev.slots[1][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
+        assert evdev.slots[2][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
+
+
 class TestElanXPS9360(BaseTest.TestWin8Multitouch):
     def create_device(self):
         return Digitizer(
@@ -2085,4 +2131,13 @@ class Testsynaptics_06cb_ce08(BaseTest.TestPTP):
             physical="Vendor Usage 1",
             input_info=(BusType.I2C, 0x06CB, 0xCE08),
             rdesc="05 01 09 02 a1 01 85 02 09 01 a1 00 05 09 19 01 29 02 15 00 25 01 75 01 95 02 81 02 95 06 81 01 05 01 09 30 09 31 15 81 25 7f 75 08 95 02 81 06 c0 c0 05 01 09 02 a1 01 85 18 09 01 a1 00 05 09 19 01 29 03 46 00 00 15 00 25 01 75 01 95 03 81 02 95 05 81 01 05 01 09 30 09 31 15 81 25 7f 75 08 95 02 81 06 c0 c0 06 00 ff 09 02 a1 01 85 20 09 01 a1 00 09 03 15 00 26 ff 00 35 00 46 ff 00 75 08 95 05 81 02 c0 c0 05 0d 09 05 a1 01 85 03 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 f8 04 75 10 55 0e 65 11 09 30 35 00 46 24 04 95 01 81 02 46 30 02 26 a0 02 09 31 81 02 c0 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 f8 04 75 10 55 0e 65 11 09 30 35 00 46 24 04 95 01 81 02 46 30 02 26 a0 02 09 31 81 02 c0 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 f8 04 75 10 55 0e 65 11 09 30 35 00 46 24 04 95 01 81 02 46 30 02 26 a0 02 09 31 81 02 c0 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 f8 04 75 10 55 0e 65 11 09 30 35 00 46 24 04 95 01 81 02 46 30 02 26 a0 02 09 31 81 02 c0 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 f8 04 75 10 55 0e 65 11 09 30 35 00 46 24 04 95 01 81 02 46 30 02 26 a0 02 09 31 81 02 c0 05 0d 55 0c 66 01 10 47 ff ff 00 00 27 ff ff 00 00 75 10 95 01 09 56 81 02 09 54 25 7f 95 01 75 08 81 02 05 09 09 01 25 01 75 01 95 01 81 02 95 07 81 03 05 0d 85 08 09 55 09 59 75 04 95 02 25 0f b1 02 85 0d 09 60 75 01 95 01 15 00 25 01 b1 02 95 07 b1 03 85 07 06 00 ff 09 c5 15 00 26 ff 00 75 08 96 00 01 b1 02 c0 05 0d 09 0e a1 01 85 04 09 22 a1 02 09 52 15 00 25 0a 75 08 95 01 b1 02 c0 09 22 a1 00 85 06 09 57 09 58 75 01 95 02 25 01 b1 02 95 06 b1 03 c0 c0 06 00 ff 09 01 a1 01 85 09 09 02 15 00 26 ff 00 75 08 95 14 91 02 85 0a 09 03 15 00 26 ff 00 75 08 95 14 91 02 85 0b 09 04 15 00 26 ff 00 75 08 95 45 81 02 85 0c 09 05 15 00 26 ff 00 75 08 95 45 81 02 85 0f 09 06 15 00 26 ff 00 75 08 95 03 b1 02 85 0e 09 07 15 00 26 ff 00 75 08 95 01 b1 02 c0",
+        )
+
+class Testsynaptics_06cb_ce26(TestWin8TSConfidence):
+    def create_device(self):
+        return PTP(
+            "uhid test synaptics_06cb_ce26",
+            max_contacts=5,
+            input_info=(BusType.I2C, 0x06CB, 0xCE26),
+            rdesc="05 01 09 02 a1 01 85 02 09 01 a1 00 05 09 19 01 29 02 15 00 25 01 75 01 95 02 81 02 95 06 81 01 05 01 09 30 09 31 15 81 25 7f 75 08 95 02 81 06 c0 c0 05 0d 09 05 a1 01 85 03 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 45 05 75 10 55 0e 65 11 09 30 35 00 46 64 04 95 01 81 02 46 a2 02 26 29 03 09 31 81 02 c0 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 45 05 75 10 55 0e 65 11 09 30 35 00 46 64 04 95 01 81 02 46 a2 02 26 29 03 09 31 81 02 c0 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 45 05 75 10 55 0e 65 11 09 30 35 00 46 64 04 95 01 81 02 46 a2 02 26 29 03 09 31 81 02 c0 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 45 05 75 10 55 0e 65 11 09 30 35 00 46 64 04 95 01 81 02 46 a2 02 26 29 03 09 31 81 02 c0 05 0d 09 22 a1 02 15 00 25 01 09 47 09 42 95 02 75 01 81 02 95 01 75 03 25 05 09 51 81 02 75 01 95 03 81 03 05 01 15 00 26 45 05 75 10 55 0e 65 11 09 30 35 00 46 64 04 95 01 81 02 46 a2 02 26 29 03 09 31 81 02 c0 05 0d 55 0c 66 01 10 47 ff ff 00 00 27 ff ff 00 00 75 10 95 01 09 56 81 02 09 54 25 7f 95 01 75 08 81 02 05 09 09 01 25 01 75 01 95 01 81 02 95 07 81 03 05 0d 85 08 09 55 09 59 75 04 95 02 25 0f b1 02 85 0d 09 60 75 01 95 01 15 00 25 01 b1 02 95 07 b1 03 85 07 06 00 ff 09 c5 15 00 26 ff 00 75 08 96 00 01 b1 02 c0 05 0d 09 0e a1 01 85 04 09 22 a1 02 09 52 15 00 25 0a 75 08 95 01 b1 02 c0 09 22 a1 00 85 06 09 57 09 58 75 01 95 02 25 01 b1 02 95 06 b1 03 c0 c0 06 00 ff 09 01 a1 01 85 09 09 02 15 00 26 ff 00 75 08 95 14 91 02 85 0a 09 03 15 00 26 ff 00 75 08 95 14 91 02 85 0b 09 04 15 00 26 ff 00 75 08 95 3d 81 02 85 0c 09 05 15 00 26 ff 00 75 08 95 3d 81 02 85 0f 09 06 15 00 26 ff 00 75 08 95 03 b1 02 85 0e 09 07 15 00 26 ff 00 75 08 95 01 b1 02 c0",
         )

@@ -25,8 +25,9 @@ definitions:
 attribute-sets:
   -
     name: team
-    doc:
-      The team nested layout of get/set msg looks like
+    doc: |
+      The team nested layout of get/set msg looks like::
+
           [TEAM_ATTR_LIST_OPTION]
               [TEAM_ATTR_ITEM_OPTION]
                   [TEAM_ATTR_OPTION_*], ...
@@ -39,6 +40,7 @@ attribute-sets:
               [TEAM_ATTR_ITEM_PORT]
                   [TEAM_ATTR_PORT_*], ...
               ...
+
     name-prefix: team-attr-
     attributes:
       -

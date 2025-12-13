@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/silabs,si570.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Silicon Labs Si570/Si571/Si598/Si599 programmable I2C clock generator
+
+maintainers:
+  - Soren Brinkmann <soren.brinkmann@xilinx.com>
+
+description: >
+  Silicon Labs 570, 571, 598 and 599 programmable I2C clock generators. Details
+  about the devices can be found in the data sheets[1][2].
+
+  [1] Si570/571 Data Sheet
+      https://www.silabs.com/Support%20Documents/TechnicalDocs/si570.pdf
+  [2] Si598/599 Data Sheet
+      https://www.silabs.com/Support%20Documents/TechnicalDocs/si598-99.pdf
+
+properties:
+  compatible:
+    enum:
+      - silabs,si570
+      - silabs,si571
+      - silabs,si598
+      - silabs,si599
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 0
+
+  factory-fout:
+    description: Factory-set default frequency in Hz.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  temperature-stability:
+    description: Temperature stability of the device in PPM.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 7
+      - 20
+      - 50
+      - 100
+
+  clock-output-names:
+    maxItems: 1
+
+  clock-frequency:
+    description: Output frequency to generate at boot; can be reprogrammed at runtime.
+
+  silabs,skip-recall:
+    description: Skip the NVM-to-RAM recall operation during boot.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+  - factory-fout
+  - temperature-stability
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        clock-generator@5d {
+            compatible = "silabs,si570";
+            reg = <0x5d>;
+            #clock-cells = <0>;
+            temperature-stability = <50>;
+            factory-fout = <156250000>;
+        };
+    };

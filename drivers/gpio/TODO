@@ -131,11 +131,6 @@ Work items:
   helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
   this with dry-coding and sending to maintainers to test
 
-- Move the MMIO GPIO specific fields out of struct gpio_chip into a
-  dedicated structure. Currently every GPIO chip has them if gpio-mmio is
-  enabled in Kconfig even if it itself doesn't register with the helper
-  library.
-
 -------------------------------------------------------------------------------
 
 Generic regmap GPIO
@@ -173,18 +168,6 @@ A small number of drivers have been converted (pl061, tegra186, msm,
 amd, apple), and can be used as examples of how to proceed with this
 conversion. Note that drivers using the generic irqchip framework
 cannot be converted yet, but watch this space!
-
--------------------------------------------------------------------------------
-
-Convert all GPIO chips to using the new, value returning line setters
-
-struct gpio_chip's set() and set_multiple() callbacks are now deprecated. They
-return void and thus do not allow drivers to indicate failure to set the line
-value back to the caller.
-
-We've now added new variants - set_rv() and set_multiple_rv() that return an
-integer. Let's convert all GPIO drivers treewide to use the new callbacks,
-remove the old ones and finally rename the new ones back to the old names.
 
 -------------------------------------------------------------------------------
 

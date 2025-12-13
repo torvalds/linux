@@ -52,6 +52,11 @@ struct comp_fh {
 	u32 offs;
 };
 
+static inline struct comp_fh *to_comp_fh(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct comp_fh, fh);
+}
+
 static LIST_HEAD(video_devices);
 static DEFINE_SPINLOCK(list_lock);
 
@@ -91,9 +96,7 @@ static int comp_vdev_open(struct file *filp)
 
 	fh->mdev = mdev;
 	v4l2_fh_init(&fh->fh, vdev);
-	filp->private_data = fh;
-
-	v4l2_fh_add(&fh->fh);
+	v4l2_fh_add(&fh->fh, filp);
 
 	ret = most_start_channel(mdev->iface, mdev->ch_idx, &comp);
 	if (ret) {
@@ -104,7 +107,7 @@ static int comp_vdev_open(struct file *filp)
 	return 0;
 
 err_rm:
-	v4l2_fh_del(&fh->fh);
+	v4l2_fh_del(&fh->fh, filp);
 	v4l2_fh_exit(&fh->fh);
 
 err_dec:
@@ -115,7 +118,7 @@ err_dec:
 
 static int comp_vdev_close(struct file *filp)
 {
-	struct comp_fh *fh = filp->private_data;
+	struct comp_fh *fh = to_comp_fh(filp);
 	struct most_video_dev *mdev = fh->mdev;
 	struct mbo *mbo, *tmp;
 
@@ -140,7 +143,7 @@ static int comp_vdev_close(struct file *filp)
 	most_stop_channel(mdev->iface, mdev->ch_idx, &comp);
 	mdev->mute = false;
 
-	v4l2_fh_del(&fh->fh);
+	v4l2_fh_del(&fh->fh, filp);
 	v4l2_fh_exit(&fh->fh);
 
 	atomic_dec(&mdev->access_ref);
@@ -151,7 +154,7 @@ static int comp_vdev_close(struct file *filp)
 static ssize_t comp_vdev_read(struct file *filp, char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct comp_fh *fh = filp->private_data;
+	struct comp_fh *fh = to_comp_fh(filp);
 	struct most_video_dev *mdev = fh->mdev;
 	int ret = 0;
 
@@ -200,7 +203,7 @@ static ssize_t comp_vdev_read(struct file *filp, char __user *buf,
 
 static __poll_t comp_vdev_poll(struct file *filp, poll_table *wait)
 {
-	struct comp_fh *fh = filp->private_data;
+	struct comp_fh *fh = to_comp_fh(filp);
 	struct most_video_dev *mdev = fh->mdev;
 	__poll_t mask = 0;
 

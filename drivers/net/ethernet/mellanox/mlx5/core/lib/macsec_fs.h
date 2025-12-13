@@ -12,6 +12,21 @@
 #define MLX5_MACSEC_METADATA_MARKER(metadata)  ((((metadata) >> 30) & 0x3)  == 0x1)
 #define MLX5_MACSEC_RX_METADAT_HANDLE(metadata)  ((metadata) & MLX5_MACSEC_RX_FS_ID_MASK)
 
+/* MACsec TX flow steering */
+#define MLX5_ETH_WQE_FT_META_MACSEC_MASK \
+	(MLX5_ETH_WQE_FT_META_MACSEC | MLX5_ETH_WQE_FT_META_MACSEC_FS_ID_MASK)
+#define MLX5_ETH_WQE_FT_META_MACSEC_SHIFT MLX5_ETH_WQE_FT_META_SHIFT
+
+/* MACsec fs_id handling for steering */
+#define mlx5_macsec_fs_set_tx_fs_id(fs_id) \
+	(((MLX5_ETH_WQE_FT_META_MACSEC) >> MLX5_ETH_WQE_FT_META_MACSEC_SHIFT) \
+	 | ((fs_id) << 2))
+
+#define MLX5_MACSEC_TX_METADATA(fs_id) \
+	(mlx5_macsec_fs_set_tx_fs_id(fs_id) << \
+	 MLX5_ETH_WQE_FT_META_MACSEC_SHIFT)
+
+/* MACsec fs_id uses 4 bits, supports up to 16 interfaces */
 #define MLX5_MACSEC_NUM_OF_SUPPORTED_INTERFACES 16
 
 struct mlx5_macsec_fs;

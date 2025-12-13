@@ -116,6 +116,36 @@ properties:
           - const: xlnx,zynqmp-zcu111
           - const: xlnx,zynqmp
 
+      - description: Xilinx Kria SOMs K24
+        minItems: 3
+        items:
+          enum:
+            - xlnx,zynqmp-sm-k24-rev1
+            - xlnx,zynqmp-sm-k24-revB
+            - xlnx,zynqmp-sm-k24-revA
+            - xlnx,zynqmp-sm-k24
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp
+          - contains:
+              const: xlnx,zynqmp-sm-k24
+
+      - description: Xilinx Kria SOMs K24 (starter)
+        minItems: 3
+        items:
+          enum:
+            - xlnx,zynqmp-smk-k24-rev1
+            - xlnx,zynqmp-smk-k24-revB
+            - xlnx,zynqmp-smk-k24-revA
+            - xlnx,zynqmp-smk-k24
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp
+          - contains:
+              const: xlnx,zynqmp-smk-k24
+
       - description: Xilinx Kria SOMs
         minItems: 3
         items:
@@ -147,6 +177,57 @@ properties:
               const: xlnx,zynqmp
           - contains:
               const: xlnx,zynqmp-smk-k26
+
+      - description: Xilinx Kria SOM KD240 revA/B/1
+        minItems: 3
+        items:
+          enum:
+            - xlnx,zynqmp-sk-kd240-rev1
+            - xlnx,zynqmp-sk-kd240-revB
+            - xlnx,zynqmp-sk-kd240-revA
+            - xlnx,zynqmp-sk-kd240
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp-sk-kd240-revA
+          - contains:
+              const: xlnx,zynqmp-sk-kd240
+          - contains:
+              const: xlnx,zynqmp
+
+      - description: Xilinx Kria SOM KR260 revA/Y/Z
+        minItems: 3
+        items:
+          enum:
+            - xlnx,zynqmp-sk-kr260-revA
+            - xlnx,zynqmp-sk-kr260-revY
+            - xlnx,zynqmp-sk-kr260-revZ
+            - xlnx,zynqmp-sk-kr260
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp-sk-kr260-revA
+          - contains:
+              const: xlnx,zynqmp-sk-kr260
+          - contains:
+              const: xlnx,zynqmp
+
+      - description: Xilinx Kria SOM KR260 rev2/1/B
+        minItems: 3
+        items:
+          enum:
+            - xlnx,zynqmp-sk-kr260-rev2
+            - xlnx,zynqmp-sk-kr260-rev1
+            - xlnx,zynqmp-sk-kr260-revB
+            - xlnx,zynqmp-sk-kr260
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp-sk-kr260-revB
+          - contains:
+              const: xlnx,zynqmp-sk-kr260
+          - contains:
+              const: xlnx,zynqmp
 
       - description: Xilinx Kria SOM KV260 revA/Y/Z
         minItems: 3

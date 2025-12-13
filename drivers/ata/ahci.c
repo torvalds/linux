@@ -689,40 +689,50 @@ MODULE_PARM_DESC(mask_port_map,
 		 "where <pci_dev> is the PCI ID of an AHCI controller in the "
 		 "form \"domain:bus:dev.func\"");
 
-static void ahci_apply_port_map_mask(struct device *dev,
-				     struct ahci_host_priv *hpriv, char *mask_s)
+static char *ahci_mask_port_ext;
+module_param_named(mask_port_ext, ahci_mask_port_ext, charp, 0444);
+MODULE_PARM_DESC(mask_port_ext,
+		 "32-bits mask to ignore the external/hotplug capability of ports. "
+		 "Valid values are: "
+		 "\"<mask>\" to apply the same mask to all AHCI controller "
+		 "devices, and \"<pci_dev>=<mask>,<pci_dev>=<mask>,...\" to "
+		 "specify different masks for the controllers specified, "
+		 "where <pci_dev> is the PCI ID of an AHCI controller in the "
+		 "form \"domain:bus:dev.func\"");
+
+static u32 ahci_port_mask(struct device *dev, char *mask_s)
 {
 	unsigned int mask;
 
 	if (kstrtouint(mask_s, 0, &mask)) {
 		dev_err(dev, "Invalid port map mask\n");
-		return;
+		return 0;
 	}
 
-	hpriv->mask_port_map = mask;
+	return mask;
 }
 
-static void ahci_get_port_map_mask(struct device *dev,
-				   struct ahci_host_priv *hpriv)
+static u32 ahci_get_port_mask(struct device *dev, char *mask_p)
 {
 	char *param, *end, *str, *mask_s;
 	char *name;
+	u32 mask = 0;
 
-	if (!strlen(ahci_mask_port_map))
-		return;
+	if (!mask_p || !strlen(mask_p))
+		return 0;
 
-	str = kstrdup(ahci_mask_port_map, GFP_KERNEL);
+	str = kstrdup(mask_p, GFP_KERNEL);
 	if (!str)
-		return;
+		return 0;
 
 	/* Handle single mask case */
 	if (!strchr(str, '=')) {
-		ahci_apply_port_map_mask(dev, hpriv, str);
+		mask = ahci_port_mask(dev, str);
 		goto free;
 	}
 
 	/*
-	 * Mask list case: parse the parameter to apply the mask only if
+	 * Mask list case: parse the parameter to get the mask only if
 	 * the device name matches.
 	 */
 	param = str;
@@ -752,11 +762,13 @@ static void ahci_get_port_map_mask(struct device *dev,
 			param++;
 		}
 
-		ahci_apply_port_map_mask(dev, hpriv, mask_s);
+		mask = ahci_port_mask(dev, mask_s);
 	}
 
 free:
 	kfree(str);
+
+	return mask;
 }
 
 static void ahci_pci_save_initial_config(struct pci_dev *pdev,
@@ -782,8 +794,10 @@ static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 	}
 
 	/* Handle port map masks passed as module parameter. */
-	if (ahci_mask_port_map)
-		ahci_get_port_map_mask(&pdev->dev, hpriv);
+	hpriv->mask_port_map =
+		ahci_get_port_mask(&pdev->dev, ahci_mask_port_map);
+	hpriv->mask_port_ext =
+		ahci_get_port_mask(&pdev->dev, ahci_mask_port_ext);
 
 	ahci_save_initial_config(&pdev->dev, hpriv);
 }
@@ -1757,11 +1771,20 @@ static void ahci_mark_external_port(struct ata_port *ap)
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 tmp;
 
-	/* mark external ports (hotplug-capable, eSATA) */
+	/*
+	 * Mark external ports (hotplug-capable, eSATA), unless we were asked to
+	 * ignore this feature.
+	 */
 	tmp = readl(port_mmio + PORT_CMD);
 	if (((tmp & PORT_CMD_ESP) && (hpriv->cap & HOST_CAP_SXS)) ||
-	    (tmp & PORT_CMD_HPCP))
+	    (tmp & PORT_CMD_HPCP)) {
+		if (hpriv->mask_port_ext & (1U << ap->port_no)) {
+			ata_port_info(ap,
+				"Ignoring external/hotplug capability\n");
+			return;
+		}
 		ap->pflags |= ATA_PFLAG_EXTERNAL;
+	}
 }
 
 static void ahci_update_initial_lpm_policy(struct ata_port *ap)

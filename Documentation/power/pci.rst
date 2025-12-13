@@ -472,7 +472,7 @@ in the device tree from the root bridge to a leaf device contains both of them).
 The pci_pm_suspend_noirq() routine is executed after suspend_device_irqs() has
 been called, which means that the device driver's interrupt handler won't be
 invoked while this routine is running.  It first checks if the device's driver
-implements legacy PCI suspends routines (Section 3), in which case the legacy
+implements legacy PCI suspend routines (Section 3), in which case the legacy
 late suspend routine is called and its result is returned (the standard
 configuration registers of the device are saved if the driver's callback hasn't
 done that).  Second, if the device driver's struct dev_pm_ops object is not
@@ -544,7 +544,7 @@ result is then returned).
 The resume phase is carried out asynchronously for PCI devices, like the
 suspend phase described above, which means that if two PCI devices don't depend
 on each other in a known way, the pci_pm_resume() routine may be executed for
-the both of them in parallel.
+both of them in parallel.
 
 The pci_pm_complete() routine only executes the device driver's pm->complete()
 callback, if defined.

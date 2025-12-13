@@ -116,7 +116,6 @@ extern struct list_head pcmcia_socket_list;
 extern const struct class pcmcia_socket_class;
 
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);
-struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr);
 
 void pcmcia_parse_uevents(struct pcmcia_socket *socket, unsigned int events);
 #define PCMCIA_UEVENT_EJECT	0x0001

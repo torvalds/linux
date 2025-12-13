@@ -157,7 +157,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		goto out_bmd;
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, req_op(rq));
+	bio_init_inline(bio, NULL, nr_pages, req_op(rq));
 
 	if (map_data) {
 		nr_pages = 1U << map_data->page_order;
@@ -253,10 +253,11 @@ static void blk_mq_map_bio_put(struct bio *bio)
 static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 		unsigned int nr_vecs, gfp_t gfp_mask)
 {
+	struct block_device *bdev = rq->q->disk ? rq->q->disk->part0 : NULL;
 	struct bio *bio;
 
 	if (rq->cmd_flags & REQ_ALLOC_CACHE && (nr_vecs <= BIO_INLINE_VECS)) {
-		bio = bio_alloc_bioset(NULL, nr_vecs, rq->cmd_flags, gfp_mask,
+		bio = bio_alloc_bioset(bdev, nr_vecs, rq->cmd_flags, gfp_mask,
 					&fs_bio_set);
 		if (!bio)
 			return NULL;
@@ -264,7 +265,7 @@ static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 		bio = bio_kmalloc(nr_vecs, gfp_mask);
 		if (!bio)
 			return NULL;
-		bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs, req_op(rq));
+		bio_init_inline(bio, bdev, nr_vecs, req_op(rq));
 	}
 	return bio;
 }
@@ -282,7 +283,11 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 	bio = blk_rq_map_bio_alloc(rq, nr_vecs, gfp_mask);
 	if (!bio)
 		return -ENOMEM;
-	ret = bio_iov_iter_get_pages(bio, iter);
+	/*
+	 * No alignment requirements on our part to support arbitrary
+	 * passthrough commands.
+	 */
+	ret = bio_iov_iter_get_pages(bio, iter, 0);
 	if (ret)
 		goto out_put;
 	ret = blk_rq_append_bio(rq, bio);
@@ -326,7 +331,7 @@ static struct bio *bio_map_kern(void *data, unsigned int len, enum req_op op,
 	bio = bio_kmalloc(nr_vecs, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs, op);
+	bio_init_inline(bio, NULL, nr_vecs, op);
 	if (is_vmalloc_addr(data)) {
 		bio->bi_private = data;
 		if (!bio_add_vmalloc(bio, data, len)) {
@@ -392,7 +397,7 @@ static struct bio *bio_copy_kern(void *data, unsigned int len, enum req_op op,
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, op);
+	bio_init_inline(bio, NULL, nr_pages, op);
 
 	while (len) {
 		struct page *page;
@@ -443,7 +448,7 @@ int blk_rq_append_bio(struct request *rq, struct bio *bio)
 	int ret;
 
 	/* check that the data layout matches the hardware restrictions */
-	ret = bio_split_rw_at(bio, lim, &nr_segs, max_bytes);
+	ret = bio_split_io_at(bio, lim, &nr_segs, max_bytes, 0);
 	if (ret) {
 		/* if we would have to split the bio, copy instead */
 		if (ret > 0)

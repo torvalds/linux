@@ -333,7 +333,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp{
+	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SD1_CLK_USDHC1_CLK         	0x194
 			MX8MM_IOMUXC_SD1_CMD_USDHC1_CMD         	0x1d4

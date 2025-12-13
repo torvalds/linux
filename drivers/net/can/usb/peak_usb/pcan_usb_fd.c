@@ -2,7 +2,8 @@
 /*
  * CAN driver for PEAK System PCAN-USB FD / PCAN-USB Pro FD adapter
  *
- * Copyright (C) 2013-2014 Stephane Grosjean <s.grosjean@peak-system.com>
+ * Copyright (C) 2013-2025 PEAK System-Technik GmbH
+ * Author: Stéphane Grosjean <stephane.grosjean@hms-networks.com>
  */
 #include <linux/ethtool.h>
 #include <linux/module.h>

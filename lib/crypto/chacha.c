@@ -1,114 +1,70 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * The "hash function" used as the core of the ChaCha stream cipher (RFC7539)
+ * The ChaCha stream cipher (RFC7539)
  *
  * Copyright (C) 2015 Martin Willi
  */
 
+#include <crypto/algapi.h> // for crypto_xor_cpy
 #include <crypto/chacha.h>
-#include <linux/bitops.h>
-#include <linux/bug.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/unaligned.h>
+#include <linux/module.h>
 
-static void chacha_permute(struct chacha_state *state, int nrounds)
+static void __maybe_unused
+chacha_crypt_generic(struct chacha_state *state, u8 *dst, const u8 *src,
+		     unsigned int bytes, int nrounds)
 {
-	u32 *x = state->x;
-	int i;
+	/* aligned to potentially speed up crypto_xor() */
+	u8 stream[CHACHA_BLOCK_SIZE] __aligned(sizeof(long));
 
-	/* whitelist the allowed round counts */
-	WARN_ON_ONCE(nrounds != 20 && nrounds != 12);
-
-	for (i = 0; i < nrounds; i += 2) {
-		x[0]  += x[4];    x[12] = rol32(x[12] ^ x[0],  16);
-		x[1]  += x[5];    x[13] = rol32(x[13] ^ x[1],  16);
-		x[2]  += x[6];    x[14] = rol32(x[14] ^ x[2],  16);
-		x[3]  += x[7];    x[15] = rol32(x[15] ^ x[3],  16);
-
-		x[8]  += x[12];   x[4]  = rol32(x[4]  ^ x[8],  12);
-		x[9]  += x[13];   x[5]  = rol32(x[5]  ^ x[9],  12);
-		x[10] += x[14];   x[6]  = rol32(x[6]  ^ x[10], 12);
-		x[11] += x[15];   x[7]  = rol32(x[7]  ^ x[11], 12);
-
-		x[0]  += x[4];    x[12] = rol32(x[12] ^ x[0],   8);
-		x[1]  += x[5];    x[13] = rol32(x[13] ^ x[1],   8);
-		x[2]  += x[6];    x[14] = rol32(x[14] ^ x[2],   8);
-		x[3]  += x[7];    x[15] = rol32(x[15] ^ x[3],   8);
-
-		x[8]  += x[12];   x[4]  = rol32(x[4]  ^ x[8],   7);
-		x[9]  += x[13];   x[5]  = rol32(x[5]  ^ x[9],   7);
-		x[10] += x[14];   x[6]  = rol32(x[6]  ^ x[10],  7);
-		x[11] += x[15];   x[7]  = rol32(x[7]  ^ x[11],  7);
-
-		x[0]  += x[5];    x[15] = rol32(x[15] ^ x[0],  16);
-		x[1]  += x[6];    x[12] = rol32(x[12] ^ x[1],  16);
-		x[2]  += x[7];    x[13] = rol32(x[13] ^ x[2],  16);
-		x[3]  += x[4];    x[14] = rol32(x[14] ^ x[3],  16);
-
-		x[10] += x[15];   x[5]  = rol32(x[5]  ^ x[10], 12);
-		x[11] += x[12];   x[6]  = rol32(x[6]  ^ x[11], 12);
-		x[8]  += x[13];   x[7]  = rol32(x[7]  ^ x[8],  12);
-		x[9]  += x[14];   x[4]  = rol32(x[4]  ^ x[9],  12);
-
-		x[0]  += x[5];    x[15] = rol32(x[15] ^ x[0],   8);
-		x[1]  += x[6];    x[12] = rol32(x[12] ^ x[1],   8);
-		x[2]  += x[7];    x[13] = rol32(x[13] ^ x[2],   8);
-		x[3]  += x[4];    x[14] = rol32(x[14] ^ x[3],   8);
-
-		x[10] += x[15];   x[5]  = rol32(x[5]  ^ x[10],  7);
-		x[11] += x[12];   x[6]  = rol32(x[6]  ^ x[11],  7);
-		x[8]  += x[13];   x[7]  = rol32(x[7]  ^ x[8],   7);
-		x[9]  += x[14];   x[4]  = rol32(x[4]  ^ x[9],   7);
+	while (bytes >= CHACHA_BLOCK_SIZE) {
+		chacha_block_generic(state, stream, nrounds);
+		crypto_xor_cpy(dst, src, stream, CHACHA_BLOCK_SIZE);
+		bytes -= CHACHA_BLOCK_SIZE;
+		dst += CHACHA_BLOCK_SIZE;
+		src += CHACHA_BLOCK_SIZE;
+	}
+	if (bytes) {
+		chacha_block_generic(state, stream, nrounds);
+		crypto_xor_cpy(dst, src, stream, bytes);
 	}
 }
 
-/**
- * chacha_block_generic - generate one keystream block and increment block counter
- * @state: input state matrix
- * @out: output keystream block
- * @nrounds: number of rounds (20 or 12; 20 is recommended)
- *
- * This is the ChaCha core, a function from 64-byte strings to 64-byte strings.
- * The caller has already converted the endianness of the input.  This function
- * also handles incrementing the block counter in the input matrix.
- */
-void chacha_block_generic(struct chacha_state *state,
-			  u8 out[CHACHA_BLOCK_SIZE], int nrounds)
+#ifdef CONFIG_CRYPTO_LIB_CHACHA_ARCH
+#include "chacha.h" /* $(SRCARCH)/chacha.h */
+#else
+#define chacha_crypt_arch chacha_crypt_generic
+#define hchacha_block_arch hchacha_block_generic
+#endif
+
+void chacha_crypt(struct chacha_state *state, u8 *dst, const u8 *src,
+		  unsigned int bytes, int nrounds)
 {
-	struct chacha_state permuted_state = *state;
-	int i;
-
-	chacha_permute(&permuted_state, nrounds);
-
-	for (i = 0; i < ARRAY_SIZE(state->x); i++)
-		put_unaligned_le32(permuted_state.x[i] + state->x[i],
-				   &out[i * sizeof(u32)]);
-
-	state->x[12]++;
+	chacha_crypt_arch(state, dst, src, bytes, nrounds);
 }
-EXPORT_SYMBOL(chacha_block_generic);
+EXPORT_SYMBOL_GPL(chacha_crypt);
 
-/**
- * hchacha_block_generic - abbreviated ChaCha core, for XChaCha
- * @state: input state matrix
- * @out: the output words
- * @nrounds: number of rounds (20 or 12; 20 is recommended)
- *
- * HChaCha is the ChaCha equivalent of HSalsa and is an intermediate step
- * towards XChaCha (see https://cr.yp.to/snuffle/xsalsa-20081128.pdf).  HChaCha
- * skips the final addition of the initial state, and outputs only certain words
- * of the state.  It should not be used for streaming directly.
- */
-void hchacha_block_generic(const struct chacha_state *state,
-			   u32 out[HCHACHA_OUT_WORDS], int nrounds)
+void hchacha_block(const struct chacha_state *state,
+		   u32 out[HCHACHA_OUT_WORDS], int nrounds)
 {
-	struct chacha_state permuted_state = *state;
-
-	chacha_permute(&permuted_state, nrounds);
-
-	memcpy(&out[0], &permuted_state.x[0], 16);
-	memcpy(&out[4], &permuted_state.x[12], 16);
+	hchacha_block_arch(state, out, nrounds);
 }
-EXPORT_SYMBOL(hchacha_block_generic);
+EXPORT_SYMBOL_GPL(hchacha_block);
+
+#ifdef chacha_mod_init_arch
+static int __init chacha_mod_init(void)
+{
+	chacha_mod_init_arch();
+	return 0;
+}
+subsys_initcall(chacha_mod_init);
+
+static void __exit chacha_mod_exit(void)
+{
+}
+module_exit(chacha_mod_exit);
+#endif
+
+MODULE_DESCRIPTION("ChaCha stream cipher (RFC7539)");
+MODULE_LICENSE("GPL");

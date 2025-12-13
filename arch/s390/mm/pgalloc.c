@@ -14,14 +14,18 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
-unsigned long *crst_table_alloc(struct mm_struct *mm)
+unsigned long *crst_table_alloc_noprof(struct mm_struct *mm)
 {
-	struct ptdesc *ptdesc = pagetable_alloc(GFP_KERNEL, CRST_ALLOC_ORDER);
+	gfp_t gfp = GFP_KERNEL_ACCOUNT;
+	struct ptdesc *ptdesc;
 	unsigned long *table;
 
+	if (mm == &init_mm)
+		gfp &= ~__GFP_ACCOUNT;
+	ptdesc = pagetable_alloc_noprof(gfp, CRST_ALLOC_ORDER);
 	if (!ptdesc)
 		return NULL;
-	table = ptdesc_to_virt(ptdesc);
+	table = ptdesc_address(ptdesc);
 	__arch_set_page_dat(table, 1UL << CRST_ALLOC_ORDER);
 	return table;
 }
@@ -112,14 +116,14 @@ err_p4d:
 
 #ifdef CONFIG_PGSTE
 
-struct ptdesc *page_table_alloc_pgste(struct mm_struct *mm)
+struct ptdesc *page_table_alloc_pgste_noprof(struct mm_struct *mm)
 {
 	struct ptdesc *ptdesc;
 	u64 *table;
 
-	ptdesc = pagetable_alloc(GFP_KERNEL, 0);
+	ptdesc = pagetable_alloc_noprof(GFP_KERNEL_ACCOUNT, 0);
 	if (ptdesc) {
-		table = (u64 *)ptdesc_to_virt(ptdesc);
+		table = (u64 *)ptdesc_address(ptdesc);
 		__arch_set_page_dat(table, 1);
 		memset64(table, _PAGE_INVALID, PTRS_PER_PTE);
 		memset64(table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
@@ -134,19 +138,22 @@ void page_table_free_pgste(struct ptdesc *ptdesc)
 
 #endif /* CONFIG_PGSTE */
 
-unsigned long *page_table_alloc(struct mm_struct *mm)
+unsigned long *page_table_alloc_noprof(struct mm_struct *mm)
 {
+	gfp_t gfp = GFP_KERNEL_ACCOUNT;
 	struct ptdesc *ptdesc;
 	unsigned long *table;
 
-	ptdesc = pagetable_alloc(GFP_KERNEL, 0);
+	if (mm == &init_mm)
+		gfp &= ~__GFP_ACCOUNT;
+	ptdesc = pagetable_alloc_noprof(gfp, 0);
 	if (!ptdesc)
 		return NULL;
 	if (!pagetable_pte_ctor(mm, ptdesc)) {
 		pagetable_free(ptdesc);
 		return NULL;
 	}
-	table = ptdesc_to_virt(ptdesc);
+	table = ptdesc_address(ptdesc);
 	__arch_set_page_dat(table, 1);
 	memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
 	memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
@@ -238,7 +245,7 @@ static inline unsigned long base_lra(unsigned long address)
 	unsigned long real;
 
 	asm volatile(
-		"	lra	%0,0(%1)\n"
+		"	lra	%0,0(%1)"
 		: "=d" (real) : "a" (address) : "cc");
 	return real;
 }

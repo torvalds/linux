@@ -5,12 +5,15 @@
  */
 
 #include <linux/clk.h>
-#include <linux/device.h>
+#include <linux/dev_printk.h>
+#include <linux/err.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/spi/offload/provider.h>
+#include <linux/spi/offload/types.h>
+#include <linux/types.h>
 
 static bool adi_util_sigma_delta_match(struct spi_offload_trigger *trigger,
 				       enum spi_offload_trigger_type type,

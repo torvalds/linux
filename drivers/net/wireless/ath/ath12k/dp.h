@@ -184,7 +184,7 @@ struct ath12k_pdev_dp {
 #define DP_REO_REINJECT_RING_SIZE	32
 #define DP_RX_RELEASE_RING_SIZE		1024
 #define DP_REO_EXCEPTION_RING_SIZE	128
-#define DP_REO_CMD_RING_SIZE		128
+#define DP_REO_CMD_RING_SIZE		256
 #define DP_REO_STATUS_RING_SIZE		2048
 #define DP_RXDMA_BUF_RING_SIZE		4096
 #define DP_RX_MAC_BUF_RING_SIZE		2048
@@ -389,14 +389,18 @@ struct ath12k_dp {
 	struct dp_srng reo_dst_ring[DP_REO_DST_RING_MAX];
 	struct dp_tx_ring tx_ring[DP_TCL_NUM_RING_MAX];
 	struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
-	struct list_head reo_cmd_list;
+	struct list_head reo_cmd_update_rx_queue_list;
 	struct list_head reo_cmd_cache_flush_list;
 	u32 reo_cmd_cache_flush_count;
-
 	/* protects access to below fields,
-	 * - reo_cmd_list
+	 * - reo_cmd_update_rx_queue_list
 	 * - reo_cmd_cache_flush_list
 	 * - reo_cmd_cache_flush_count
+	 */
+	spinlock_t reo_rxq_flush_lock;
+	struct list_head reo_cmd_list;
+	/* protects access to below fields,
+	 * - reo_cmd_list
 	 */
 	spinlock_t reo_cmd_lock;
 	struct ath12k_hp_update_timer reo_cmd_timer;

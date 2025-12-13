@@ -31,7 +31,9 @@ properties:
           - fairphone,fp4-sndcard
           - fairphone,fp5-sndcard
           - qcom,apq8096-sndcard
+          - qcom,glymur-sndcard
           - qcom,qcm6490-idp-sndcard
+          - qcom,qcs615-sndcard
           - qcom,qcs6490-rb3gen2-sndcard
           - qcom,qcs8275-sndcard
           - qcom,qcs9075-sndcard

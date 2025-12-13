@@ -79,8 +79,14 @@ struct fbnic_mac {
 	bool (*pcs_get_link)(struct fbnic_dev *fbd);
 	int (*pcs_get_link_event)(struct fbnic_dev *fbd);
 
+	void (*get_fec_stats)(struct fbnic_dev *fbd, bool reset,
+			      struct fbnic_fec_stats *fec_stats);
+	void (*get_pcs_stats)(struct fbnic_dev *fbd, bool reset,
+			      struct fbnic_pcs_stats *pcs_stats);
 	void (*get_eth_mac_stats)(struct fbnic_dev *fbd, bool reset,
 				  struct fbnic_eth_mac_stats *mac_stats);
+	void (*get_pause_stats)(struct fbnic_dev *fbd, bool reset,
+				struct fbnic_pause_stats *pause_stats);
 	void (*get_eth_ctrl_stats)(struct fbnic_dev *fbd, bool reset,
 				   struct fbnic_eth_ctrl_stats *ctrl_stats);
 	void (*get_rmon_stats)(struct fbnic_dev *fbd, bool reset,

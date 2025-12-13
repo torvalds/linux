@@ -140,7 +140,7 @@ static int dmirror_bounce_init(struct dmirror_bounce *bounce,
 static bool dmirror_is_private_zone(struct dmirror_device *mdevice)
 {
 	return (mdevice->zone_device_type ==
-		HMM_DMIRROR_MEMORY_DEVICE_PRIVATE) ? true : false;
+		HMM_DMIRROR_MEMORY_DEVICE_PRIVATE);
 }
 
 static enum migrate_vma_direction

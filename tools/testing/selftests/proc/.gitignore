@@ -7,6 +7,7 @@
 /proc-loadavg-001
 /proc-maps-race
 /proc-multiple-procfs
+/proc-net-dev-lseek
 /proc-empty-vm
 /proc-pid-vm
 /proc-self-map-files-001
@@ -18,6 +19,7 @@
 /proc-tid0
 /proc-uptime-001
 /proc-uptime-002
+/proc-pidns
 /read
 /self
 /setns-dcache

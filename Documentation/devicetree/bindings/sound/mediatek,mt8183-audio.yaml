@@ -1,0 +1,228 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/mediatek,mt8183-audio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Mediatek AFE PCM controller for mt8183
+
+maintainers:
+  - Julien Massot <jmassot@collabora.com>
+
+properties:
+  compatible:
+    const: mediatek,mt8183-audio
+
+  interrupts:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: audiosys
+
+  power-domains:
+    maxItems: 1
+
+  memory-region:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: AFE clock
+      - description: ADDA DAC clock
+      - description: ADDA DAC pre-distortion clock
+      - description: ADDA ADC clock
+      - description: ADDA6 ADC clock
+      - description: Audio low-jitter 22.5792m clock
+      - description: Audio low-jitter 24.576m clock
+      - description: Audio PLL1 tuner clock
+      - description: Audio PLL2 tuner clock
+      - description: I2S1 bit clock
+      - description: I2S2 bit clock
+      - description: I2S3 bit clock
+      - description: I2S4 bit clock
+      - description: Audio Time-Division Multiplexing interface clock
+      - description: Powerdown Audio test model clock
+      - description: Audio infra sys clock
+      - description: Audio infra 26M clock
+      - description: Mux for audio clock
+      - description: Mux for audio internal bus clock
+      - description: Mux main divider by 4
+      - description: Primary audio mux
+      - description: Primary audio PLL
+      - description: Secondary audio mux
+      - description: Secondary audio PLL
+      - description: Primary audio en-generator clock
+      - description: Primary PLL divider by 4 for IEC
+      - description: Secondary audio en-generator clock
+      - description: Secondary PLL divider by 8 for IEC
+      - description: Mux selector for I2S port 0
+      - description: Mux selector for I2S port 1
+      - description: Mux selector for I2S port 2
+      - description: Mux selector for I2S port 3
+      - description: Mux selector for I2S port 4
+      - description: Mux selector for I2S port 5
+      - description: APLL1 and APLL2 divider for I2S port 0
+      - description: APLL1 and APLL2 divider for I2S port 1
+      - description: APLL1 and APLL2 divider for I2S port 2
+      - description: APLL1 and APLL2 divider for I2S port 3
+      - description: APLL1 and APLL2 divider for I2S port 4
+      - description: APLL1 and APLL2 divider for IEC
+      - description: 26MHz clock for audio subsystem
+
+  clock-names:
+    items:
+      - const: aud_afe_clk
+      - const: aud_dac_clk
+      - const: aud_dac_predis_clk
+      - const: aud_adc_clk
+      - const: aud_adc_adda6_clk
+      - const: aud_apll22m_clk
+      - const: aud_apll24m_clk
+      - const: aud_apll1_tuner_clk
+      - const: aud_apll2_tuner_clk
+      - const: aud_i2s1_bclk_sw
+      - const: aud_i2s2_bclk_sw
+      - const: aud_i2s3_bclk_sw
+      - const: aud_i2s4_bclk_sw
+      - const: aud_tdm_clk
+      - const: aud_tml_clk
+      - const: aud_infra_clk
+      - const: mtkaif_26m_clk
+      - const: top_mux_audio
+      - const: top_mux_aud_intbus
+      - const: top_syspll_d2_d4
+      - const: top_mux_aud_1
+      - const: top_apll1_ck
+      - const: top_mux_aud_2
+      - const: top_apll2_ck
+      - const: top_mux_aud_eng1
+      - const: top_apll1_d8
+      - const: top_mux_aud_eng2
+      - const: top_apll2_d8
+      - const: top_i2s0_m_sel
+      - const: top_i2s1_m_sel
+      - const: top_i2s2_m_sel
+      - const: top_i2s3_m_sel
+      - const: top_i2s4_m_sel
+      - const: top_i2s5_m_sel
+      - const: top_apll12_div0
+      - const: top_apll12_div1
+      - const: top_apll12_div2
+      - const: top_apll12_div3
+      - const: top_apll12_div4
+      - const: top_apll12_divb
+      - const: top_clk26m_clk
+
+required:
+  - compatible
+  - interrupts
+  - resets
+  - reset-names
+  - power-domains
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt8183-clk.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/power/mt8183-power.h>
+    #include <dt-bindings/reset/mt8183-resets.h>
+
+    audio-controller {
+        compatible = "mediatek,mt8183-audio";
+        interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_LOW>;
+        resets = <&watchdog MT8183_TOPRGU_AUDIO_SW_RST>;
+        reset-names = "audiosys";
+        power-domains = <&spm MT8183_POWER_DOMAIN_AUDIO>;
+        clocks = <&audiosys CLK_AUDIO_AFE>,
+                 <&audiosys CLK_AUDIO_DAC>,
+                 <&audiosys CLK_AUDIO_DAC_PREDIS>,
+                 <&audiosys CLK_AUDIO_ADC>,
+                 <&audiosys CLK_AUDIO_PDN_ADDA6_ADC>,
+                 <&audiosys CLK_AUDIO_22M>,
+                 <&audiosys CLK_AUDIO_24M>,
+                 <&audiosys CLK_AUDIO_APLL_TUNER>,
+                 <&audiosys CLK_AUDIO_APLL2_TUNER>,
+                 <&audiosys CLK_AUDIO_I2S1>,
+                 <&audiosys CLK_AUDIO_I2S2>,
+                 <&audiosys CLK_AUDIO_I2S3>,
+                 <&audiosys CLK_AUDIO_I2S4>,
+                 <&audiosys CLK_AUDIO_TDM>,
+                 <&audiosys CLK_AUDIO_TML>,
+                 <&infracfg CLK_INFRA_AUDIO>,
+                 <&infracfg CLK_INFRA_AUDIO_26M_BCLK>,
+                 <&topckgen CLK_TOP_MUX_AUDIO>,
+                 <&topckgen CLK_TOP_MUX_AUD_INTBUS>,
+                 <&topckgen CLK_TOP_SYSPLL_D2_D4>,
+                 <&topckgen CLK_TOP_MUX_AUD_1>,
+                 <&topckgen CLK_TOP_APLL1_CK>,
+                 <&topckgen CLK_TOP_MUX_AUD_2>,
+                 <&topckgen CLK_TOP_APLL2_CK>,
+                 <&topckgen CLK_TOP_MUX_AUD_ENG1>,
+                 <&topckgen CLK_TOP_APLL1_D8>,
+                 <&topckgen CLK_TOP_MUX_AUD_ENG2>,
+                 <&topckgen CLK_TOP_APLL2_D8>,
+                 <&topckgen CLK_TOP_MUX_APLL_I2S0>,
+                 <&topckgen CLK_TOP_MUX_APLL_I2S1>,
+                 <&topckgen CLK_TOP_MUX_APLL_I2S2>,
+                 <&topckgen CLK_TOP_MUX_APLL_I2S3>,
+                 <&topckgen CLK_TOP_MUX_APLL_I2S4>,
+                 <&topckgen CLK_TOP_MUX_APLL_I2S5>,
+                 <&topckgen CLK_TOP_APLL12_DIV0>,
+                 <&topckgen CLK_TOP_APLL12_DIV1>,
+                 <&topckgen CLK_TOP_APLL12_DIV2>,
+                 <&topckgen CLK_TOP_APLL12_DIV3>,
+                 <&topckgen CLK_TOP_APLL12_DIV4>,
+                 <&topckgen CLK_TOP_APLL12_DIVB>,
+                 <&clk26m>;
+      clock-names = "aud_afe_clk",
+                    "aud_dac_clk",
+                    "aud_dac_predis_clk",
+                    "aud_adc_clk",
+                    "aud_adc_adda6_clk",
+                    "aud_apll22m_clk",
+                    "aud_apll24m_clk",
+                    "aud_apll1_tuner_clk",
+                    "aud_apll2_tuner_clk",
+                    "aud_i2s1_bclk_sw",
+                    "aud_i2s2_bclk_sw",
+                    "aud_i2s3_bclk_sw",
+                    "aud_i2s4_bclk_sw",
+                    "aud_tdm_clk",
+                    "aud_tml_clk",
+                    "aud_infra_clk",
+                    "mtkaif_26m_clk",
+                    "top_mux_audio",
+                    "top_mux_aud_intbus",
+                    "top_syspll_d2_d4",
+                    "top_mux_aud_1",
+                    "top_apll1_ck",
+                    "top_mux_aud_2",
+                    "top_apll2_ck",
+                    "top_mux_aud_eng1",
+                    "top_apll1_d8",
+                    "top_mux_aud_eng2",
+                    "top_apll2_d8",
+                    "top_i2s0_m_sel",
+                    "top_i2s1_m_sel",
+                    "top_i2s2_m_sel",
+                    "top_i2s3_m_sel",
+                    "top_i2s4_m_sel",
+                    "top_i2s5_m_sel",
+                    "top_apll12_div0",
+                    "top_apll12_div1",
+                    "top_apll12_div2",
+                    "top_apll12_div3",
+                    "top_apll12_div4",
+                    "top_apll12_divb",
+                    "top_clk26m_clk";
+    };
+
+...

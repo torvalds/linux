@@ -17,7 +17,7 @@ static __always_inline int __atomic_read(const int *ptr)
 	int val;
 
 	asm volatile(
-		"	l	%[val],%[ptr]\n"
+		"	l	%[val],%[ptr]"
 		: [val] "=d" (val) : [ptr] "R" (*ptr));
 	return val;
 }
@@ -26,11 +26,11 @@ static __always_inline void __atomic_set(int *ptr, int val)
 {
 	if (__builtin_constant_p(val) && val >= S16_MIN && val <= S16_MAX) {
 		asm volatile(
-			"	mvhi	%[ptr],%[val]\n"
+			"	mvhi	%[ptr],%[val]"
 			: [ptr] "=Q" (*ptr) : [val] "K" (val));
 	} else {
 		asm volatile(
-			"	st	%[val],%[ptr]\n"
+			"	st	%[val],%[ptr]"
 			: [ptr] "=R" (*ptr) : [val] "d" (val));
 	}
 }
@@ -40,7 +40,7 @@ static __always_inline long __atomic64_read(const long *ptr)
 	long val;
 
 	asm volatile(
-		"	lg	%[val],%[ptr]\n"
+		"	lg	%[val],%[ptr]"
 		: [val] "=d" (val) : [ptr] "RT" (*ptr));
 	return val;
 }
@@ -49,11 +49,11 @@ static __always_inline void __atomic64_set(long *ptr, long val)
 {
 	if (__builtin_constant_p(val) && val >= S16_MIN && val <= S16_MAX) {
 		asm volatile(
-			"	mvghi	%[ptr],%[val]\n"
+			"	mvghi	%[ptr],%[val]"
 			: [ptr] "=Q" (*ptr) : [val] "K" (val));
 	} else {
 		asm volatile(
-			"	stg	%[val],%[ptr]\n"
+			"	stg	%[val],%[ptr]"
 			: [ptr] "=RT" (*ptr) : [val] "d" (val));
 	}
 }
@@ -66,7 +66,7 @@ static __always_inline op_type op_name(op_type val, op_type *ptr)	\
 	op_type old;							\
 									\
 	asm volatile(							\
-		op_string "	%[old],%[val],%[ptr]\n"			\
+		op_string "	%[old],%[val],%[ptr]"			\
 		op_barrier						\
 		: [old] "=d" (old), [ptr] "+QS" (*ptr)			\
 		: [val] "d" (val) : "cc", "memory");			\
@@ -75,7 +75,7 @@ static __always_inline op_type op_name(op_type val, op_type *ptr)	\
 
 #define __ATOMIC_OPS(op_name, op_type, op_string)			\
 	__ATOMIC_OP(op_name, op_type, op_string, "")			\
-	__ATOMIC_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
+	__ATOMIC_OP(op_name##_barrier, op_type, op_string, "\nbcr 14,0")
 
 __ATOMIC_OPS(__atomic_add, int, "laa")
 __ATOMIC_OPS(__atomic_and, int, "lan")
@@ -94,14 +94,14 @@ __ATOMIC_OPS(__atomic64_xor, long, "laxg")
 static __always_inline void op_name(op_type val, op_type *ptr)		\
 {									\
 	asm volatile(							\
-		op_string "	%[ptr],%[val]\n"			\
+		op_string "	%[ptr],%[val]"				\
 		op_barrier						\
 		: [ptr] "+QS" (*ptr) : [val] "i" (val) : "cc", "memory");\
 }
 
 #define __ATOMIC_CONST_OPS(op_name, op_type, op_string)			\
 	__ATOMIC_CONST_OP(op_name, op_type, op_string, "")		\
-	__ATOMIC_CONST_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
+	__ATOMIC_CONST_OP(op_name##_barrier, op_type, op_string, "\nbcr 14,0")
 
 __ATOMIC_CONST_OPS(__atomic_add_const, int, "asi")
 __ATOMIC_CONST_OPS(__atomic64_add_const, long, "agsi")
@@ -179,7 +179,7 @@ static __always_inline bool op_name(op_type val, op_type *ptr)		\
 	int cc;								\
 									\
 	asm volatile(							\
-		op_string "	%[tmp],%[val],%[ptr]\n"			\
+		op_string "	%[tmp],%[val],%[ptr]"			\
 		op_barrier						\
 		: "=@cc" (cc), [tmp] "=d" (tmp), [ptr] "+QS" (*ptr)	\
 		: [val] "d" (val)					\
@@ -189,7 +189,7 @@ static __always_inline bool op_name(op_type val, op_type *ptr)		\
 
 #define __ATOMIC_TEST_OPS(op_name, op_type, op_string)			\
 	__ATOMIC_TEST_OP(op_name, op_type, op_string, "")		\
-	__ATOMIC_TEST_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
+	__ATOMIC_TEST_OP(op_name##_barrier, op_type, op_string, "\nbcr 14,0")
 
 __ATOMIC_TEST_OPS(__atomic_add_and_test, int, "laal")
 __ATOMIC_TEST_OPS(__atomic64_add_and_test, long, "laalg")
@@ -203,7 +203,7 @@ static __always_inline bool op_name(op_type val, op_type *ptr)		\
 	int cc;								\
 									\
 	asm volatile(							\
-		op_string "	%[ptr],%[val]\n"			\
+		op_string "	%[ptr],%[val]"				\
 		op_barrier						\
 		: "=@cc" (cc), [ptr] "+QS" (*ptr)			\
 		: [val] "i" (val)					\
@@ -213,7 +213,7 @@ static __always_inline bool op_name(op_type val, op_type *ptr)		\
 
 #define __ATOMIC_CONST_TEST_OPS(op_name, op_type, op_string)		\
 	__ATOMIC_CONST_TEST_OP(op_name, op_type, op_string, "")		\
-	__ATOMIC_CONST_TEST_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
+	__ATOMIC_CONST_TEST_OP(op_name##_barrier, op_type, op_string, "\nbcr 14,0")
 
 __ATOMIC_CONST_TEST_OPS(__atomic_add_const_and_test, int, "alsi")
 __ATOMIC_CONST_TEST_OPS(__atomic64_add_const_and_test, long, "algsi")

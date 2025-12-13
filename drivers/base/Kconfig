@@ -167,6 +167,12 @@ config PM_QOS_KUNIT_TEST
 	depends on KUNIT=y
 	default KUNIT_ALL_TESTS
 
+config PM_RUNTIME_KUNIT_TEST
+	tristate "KUnit Tests for runtime PM" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on PM
+	default KUNIT_ALL_TESTS
+
 config HMEM_REPORTING
 	bool
 	default n

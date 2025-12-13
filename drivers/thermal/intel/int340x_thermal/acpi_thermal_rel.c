@@ -220,9 +220,6 @@ static int acpi_parse_psvt(acpi_handle handle, int *psvt_count, struct psvt **ps
 	int i, result = 0;
 	struct psvt *psvts;
 
-	if (!acpi_has_method(handle, "PSVT"))
-		return -ENODEV;
-
 	status = acpi_evaluate_object(handle, "PSVT", NULL, &buffer);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;

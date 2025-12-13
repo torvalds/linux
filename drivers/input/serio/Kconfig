@@ -276,8 +276,8 @@ config SERIO_OLPC_APSP
 
 config HYPERV_KEYBOARD
 	tristate "Microsoft Synthetic Keyboard driver"
-	depends on HYPERV
-	default HYPERV
+	depends on HYPERV_VMBUS
+	default HYPERV_VMBUS
 	help
 	  Select this option to enable the Hyper-V Keyboard driver.
 

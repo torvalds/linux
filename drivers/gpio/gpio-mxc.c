@@ -481,7 +481,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	config.dat = port->base + GPIO_PSR;
 	config.set = port->base + GPIO_DR;
 	config.dirout = port->base + GPIO_GDIR;
-	config.flags = BGPIOF_READ_OUTPUT_REG_SET;
+	config.flags = GPIO_GENERIC_READ_OUTPUT_REG_SET;
 
 	err = gpio_generic_chip_init(&port->gen_gc, &config);
 	if (err)

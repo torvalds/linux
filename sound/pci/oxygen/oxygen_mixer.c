@@ -31,10 +31,9 @@ static int dac_volume_get(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 	unsigned int i;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	for (i = 0; i < chip->model.dac_channels_mixer; ++i)
 		value->value.integer.value[i] = chip->dac_volume[i];
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -46,7 +45,7 @@ static int dac_volume_put(struct snd_kcontrol *ctl,
 	int changed;
 
 	changed = 0;
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	for (i = 0; i < chip->model.dac_channels_mixer; ++i)
 		if (value->value.integer.value[i] != chip->dac_volume[i]) {
 			chip->dac_volume[i] = value->value.integer.value[i];
@@ -54,7 +53,6 @@ static int dac_volume_put(struct snd_kcontrol *ctl,
 		}
 	if (changed)
 		chip->model.update_dac_volume(chip);
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -63,9 +61,8 @@ static int dac_mute_get(struct snd_kcontrol *ctl,
 {
 	struct oxygen *chip = ctl->private_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	value->value.integer.value[0] = !chip->dac_mute;
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -75,13 +72,12 @@ static int dac_mute_put(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 	int changed;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	changed = (!value->value.integer.value[0]) != chip->dac_mute;
 	if (changed) {
 		chip->dac_mute = !value->value.integer.value[0];
 		chip->model.update_dac_mute(chip);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -114,9 +110,8 @@ static int upmix_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	value->value.enumerated.item[0] = chip->dac_routing;
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -188,13 +183,12 @@ static int upmix_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 
 	if (value->value.enumerated.item[0] >= count)
 		return -EINVAL;
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	changed = value->value.enumerated.item[0] != chip->dac_routing;
 	if (changed) {
 		chip->dac_routing = value->value.enumerated.item[0];
 		oxygen_update_dac_routing(chip);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -203,9 +197,8 @@ static int spdif_switch_get(struct snd_kcontrol *ctl,
 {
 	struct oxygen *chip = ctl->private_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	value->value.integer.value[0] = chip->spdif_playback_enable;
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -279,7 +272,7 @@ static int spdif_switch_put(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 	int changed;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	changed = value->value.integer.value[0] != chip->spdif_playback_enable;
 	if (changed) {
 		chip->spdif_playback_enable = !!value->value.integer.value[0];
@@ -287,7 +280,6 @@ static int spdif_switch_put(struct snd_kcontrol *ctl,
 		oxygen_update_spdif_source(chip);
 		spin_unlock_irq(&chip->reg_lock);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -336,9 +328,8 @@ static int spdif_default_get(struct snd_kcontrol *ctl,
 {
 	struct oxygen *chip = ctl->private_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	oxygen_to_iec958(chip->spdif_bits, value);
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -350,14 +341,13 @@ static int spdif_default_put(struct snd_kcontrol *ctl,
 	int changed;
 
 	new_bits = iec958_to_oxygen(value);
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	changed = new_bits != chip->spdif_bits;
 	if (changed) {
 		chip->spdif_bits = new_bits;
 		if (!(chip->pcm_active & (1 << PCM_SPDIF)))
 			write_spdif_bits(chip, new_bits);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -376,9 +366,8 @@ static int spdif_pcm_get(struct snd_kcontrol *ctl,
 {
 	struct oxygen *chip = ctl->private_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	oxygen_to_iec958(chip->spdif_pcm_bits, value);
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -390,14 +379,13 @@ static int spdif_pcm_put(struct snd_kcontrol *ctl,
 	int changed;
 
 	new_bits = iec958_to_oxygen(value);
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	changed = new_bits != chip->spdif_pcm_bits;
 	if (changed) {
 		chip->spdif_pcm_bits = new_bits;
 		if (chip->pcm_active & (1 << PCM_SPDIF))
 			write_spdif_bits(chip, new_bits);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -444,7 +432,7 @@ static int spdif_bit_switch_put(struct snd_kcontrol *ctl,
 	u32 oldreg, newreg;
 	int changed;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	oldreg = oxygen_read32(chip, OXYGEN_SPDIF_CONTROL);
 	if (value->value.integer.value[0])
 		newreg = oldreg | bit;
@@ -453,7 +441,6 @@ static int spdif_bit_switch_put(struct snd_kcontrol *ctl,
 	changed = newreg != oldreg;
 	if (changed)
 		oxygen_write32(chip, OXYGEN_SPDIF_CONTROL, newreg);
-	spin_unlock_irq(&chip->reg_lock);
 	return changed;
 }
 
@@ -488,7 +475,7 @@ static int monitor_put(struct snd_kcontrol *ctl,
 	u8 oldreg, newreg;
 	int changed;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	oldreg = oxygen_read8(chip, OXYGEN_ADC_MONITOR);
 	if ((!!value->value.integer.value[0] ^ !!invert) != 0)
 		newreg = oldreg | bit;
@@ -497,7 +484,6 @@ static int monitor_put(struct snd_kcontrol *ctl,
 	changed = newreg != oldreg;
 	if (changed)
 		oxygen_write8(chip, OXYGEN_ADC_MONITOR, newreg);
-	spin_unlock_irq(&chip->reg_lock);
 	return changed;
 }
 
@@ -511,9 +497,8 @@ static int ac97_switch_get(struct snd_kcontrol *ctl,
 	int invert = ctl->private_value & (1 << 16);
 	u16 reg;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = oxygen_read_ac97(chip, codec, index);
-	mutex_unlock(&chip->mutex);
 	if (!(reg & (1 << bitnr)) ^ !invert)
 		value->value.integer.value[0] = 1;
 	else
@@ -550,7 +535,7 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 	u16 oldreg, newreg;
 	int change;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	oldreg = oxygen_read_ac97(chip, codec, index);
 	newreg = oldreg;
 	if (!value->value.integer.value[0] ^ !invert)
@@ -579,7 +564,6 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 						 CM9780_GPO0, CM9780_GPO0);
 		}
 	}
-	mutex_unlock(&chip->mutex);
 	return change;
 }
 
@@ -604,9 +588,8 @@ static int ac97_volume_get(struct snd_kcontrol *ctl,
 	unsigned int index = ctl->private_value & 0xff;
 	u16 reg;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = oxygen_read_ac97(chip, codec, index);
-	mutex_unlock(&chip->mutex);
 	if (!stereo) {
 		value->value.integer.value[0] = 31 - (reg & 0x1f);
 	} else {
@@ -626,7 +609,7 @@ static int ac97_volume_put(struct snd_kcontrol *ctl,
 	u16 oldreg, newreg;
 	int change;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	oldreg = oxygen_read_ac97(chip, codec, index);
 	if (!stereo) {
 		newreg = oldreg & ~0x1f;
@@ -639,7 +622,6 @@ static int ac97_volume_put(struct snd_kcontrol *ctl,
 	change = newreg != oldreg;
 	if (change)
 		oxygen_write_ac97(chip, codec, index, newreg);
-	mutex_unlock(&chip->mutex);
 	return change;
 }
 
@@ -656,10 +638,9 @@ static int mic_fmic_source_get(struct snd_kcontrol *ctl,
 {
 	struct oxygen *chip = ctl->private_data;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	value->value.enumerated.item[0] =
 		!!(oxygen_read_ac97(chip, 0, CM9780_JACK) & CM9780_FMIC2MIC);
-	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -670,7 +651,7 @@ static int mic_fmic_source_put(struct snd_kcontrol *ctl,
 	u16 oldreg, newreg;
 	int change;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	oldreg = oxygen_read_ac97(chip, 0, CM9780_JACK);
 	if (value->value.enumerated.item[0])
 		newreg = oldreg | CM9780_FMIC2MIC;
@@ -679,7 +660,6 @@ static int mic_fmic_source_put(struct snd_kcontrol *ctl,
 	change = newreg != oldreg;
 	if (change)
 		oxygen_write_ac97(chip, 0, CM9780_JACK, newreg);
-	mutex_unlock(&chip->mutex);
 	return change;
 }
 
@@ -699,9 +679,8 @@ static int ac97_fp_rec_volume_get(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 	u16 reg;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = oxygen_read_ac97(chip, 1, AC97_REC_GAIN);
-	mutex_unlock(&chip->mutex);
 	value->value.integer.value[0] = reg & 7;
 	value->value.integer.value[1] = (reg >> 8) & 7;
 	return 0;
@@ -714,7 +693,7 @@ static int ac97_fp_rec_volume_put(struct snd_kcontrol *ctl,
 	u16 oldreg, newreg;
 	int change;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	oldreg = oxygen_read_ac97(chip, 1, AC97_REC_GAIN);
 	newreg = oldreg & ~0x0707;
 	newreg = newreg | (value->value.integer.value[0] & 7);
@@ -722,7 +701,6 @@ static int ac97_fp_rec_volume_put(struct snd_kcontrol *ctl,
 	change = newreg != oldreg;
 	if (change)
 		oxygen_write_ac97(chip, 1, AC97_REC_GAIN, newreg);
-	mutex_unlock(&chip->mutex);
 	return change;
 }
 

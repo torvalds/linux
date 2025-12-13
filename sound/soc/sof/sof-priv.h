@@ -838,7 +838,11 @@ int sof_stream_pcm_close(struct snd_sof_dev *sdev,
 			 struct snd_pcm_substream *substream);
 
 /* SOF client support */
+struct sof_client_dev;
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_CLIENT)
+struct snd_sof_dev *sof_client_dev_to_sof_dev(struct sof_client_dev *cdev);
+
 int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
 			    const void *data, size_t size);
 void sof_client_dev_unregister(struct snd_sof_dev *sdev, const char *name, u32 id);
@@ -849,6 +853,11 @@ void sof_client_fw_state_dispatcher(struct snd_sof_dev *sdev);
 int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state);
 int sof_resume_clients(struct snd_sof_dev *sdev);
 #else /* CONFIG_SND_SOC_SOF_CLIENT */
+static inline struct snd_sof_dev *
+sof_client_dev_to_sof_dev(struct sof_client_dev *cdev) {
+	return NULL;
+}
+
 static inline int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name,
 					  u32 id, const void *data, size_t size)
 {

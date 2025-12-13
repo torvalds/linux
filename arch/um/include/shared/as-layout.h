@@ -23,8 +23,9 @@
 #define STUB_START stub_start
 #define STUB_CODE STUB_START
 #define STUB_DATA (STUB_CODE + UM_KERN_PAGE_SIZE)
-#define STUB_DATA_PAGES 2 /* must be a power of two */
-#define STUB_END (STUB_DATA + STUB_DATA_PAGES * UM_KERN_PAGE_SIZE)
+#define STUB_DATA_PAGES 2
+#define STUB_SIZE ((1 + STUB_DATA_PAGES) * UM_KERN_PAGE_SIZE)
+#define STUB_END (STUB_START + STUB_SIZE)
 
 #ifndef __ASSEMBLER__
 

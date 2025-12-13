@@ -4,7 +4,7 @@ name: conntrack
 protocol: netlink-raw
 protonum: 12
 
-doc:
+doc: >-
   Netfilter connection tracking subsystem over nfnetlink
 
 definitions:
@@ -575,8 +575,8 @@ operations:
             - nat-dst
             - timeout
             - mark
-            - counter-orig
-            - counter-reply
+            - counters-orig
+            - counters-reply
             - use
             - id
             - nat-dst
@@ -591,7 +591,6 @@ operations:
         request:
           value: 0x101
           attributes:
-            - nfgen-family
             - mark
             - filter
             - status
@@ -608,8 +607,8 @@ operations:
             - nat-dst
             - timeout
             - mark
-            - counter-orig
-            - counter-reply
+            - counters-orig
+            - counters-reply
             - use
             - id
             - nat-dst

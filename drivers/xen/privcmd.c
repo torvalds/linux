@@ -271,7 +271,7 @@ static long privcmd_ioctl_mmap(struct file *file, void __user *udata)
 	struct mmap_gfn_state state;
 
 	/* We only support privcmd_ioctl_mmap_batch for non-auto-translated. */
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return -ENOSYS;
 
 	if (copy_from_user(&mmapcmd, udata, sizeof(mmapcmd)))
@@ -353,7 +353,7 @@ static int mmap_batch_fn(void *data, int nr, void *state)
 	struct page **cur_pages = NULL;
 	int ret;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		cur_pages = &pages[st->index];
 
 	BUG_ON(nr < 0);
@@ -535,7 +535,7 @@ static long privcmd_ioctl_mmap_batch(
 			ret = -EINVAL;
 			goto out_unlock;
 		}
-		if (xen_feature(XENFEAT_auto_translated_physmap)) {
+		if (!xen_pv_domain()) {
 			ret = alloc_empty_pages(vma, nr_pages);
 			if (ret < 0)
 				goto out_unlock;
@@ -779,8 +779,7 @@ static long privcmd_ioctl_mmap_resource(struct file *file,
 		goto out;
 	}
 
-	if (IS_ENABLED(CONFIG_XEN_AUTO_XLATE) &&
-	    xen_feature(XENFEAT_auto_translated_physmap)) {
+	if (IS_ENABLED(CONFIG_XEN_AUTO_XLATE) && !xen_pv_domain()) {
 		unsigned int nr = DIV_ROUND_UP(kdata.num, XEN_PFN_PER_PAGE);
 		struct page **pages;
 		unsigned int i;
@@ -811,8 +810,7 @@ static long privcmd_ioctl_mmap_resource(struct file *file,
 	if (rc)
 		goto out;
 
-	if (IS_ENABLED(CONFIG_XEN_AUTO_XLATE) &&
-	    xen_feature(XENFEAT_auto_translated_physmap)) {
+	if (IS_ENABLED(CONFIG_XEN_AUTO_XLATE) && !xen_pv_domain()) {
 		rc = xen_remap_vma_range(vma, kdata.addr, kdata.num << PAGE_SHIFT);
 	} else {
 		unsigned int domid =
@@ -1591,7 +1589,7 @@ static void privcmd_close(struct vm_area_struct *vma)
 	int numgfns = (vma->vm_end - vma->vm_start) >> XEN_PAGE_SHIFT;
 	int rc;
 
-	if (!xen_feature(XENFEAT_auto_translated_physmap) || !numpgs || !pages)
+	if (xen_pv_domain() || !numpgs || !pages)
 		return;
 
 	rc = xen_unmap_domain_gfn_range(vma, numgfns, pages);

@@ -234,39 +234,51 @@ static unsigned long icst_recalc_rate(struct clk_hw *hw,
 	return icst->rate;
 }
 
-static long icst_round_rate(struct clk_hw *hw, unsigned long rate,
-			    unsigned long *prate)
+static int icst_determine_rate(struct clk_hw *hw,
+			       struct clk_rate_request *req)
 {
 	struct clk_icst *icst = to_icst(hw);
 	struct icst_vco vco;
 
 	if (icst->ctype == ICST_INTEGRATOR_AP_CM ||
 	    icst->ctype == ICST_INTEGRATOR_CP_CM_CORE) {
-		if (rate <= 12000000)
-			return 12000000;
-		if (rate >= 160000000)
-			return 160000000;
-		/* Slam to closest megahertz */
-		return DIV_ROUND_CLOSEST(rate, 1000000) * 1000000;
+		if (req->rate <= 12000000)
+			req->rate = 12000000;
+		else if (req->rate >= 160000000)
+			req->rate = 160000000;
+		else {
+			/* Slam to closest megahertz */
+			req->rate = DIV_ROUND_CLOSEST(req->rate, 1000000) * 1000000;
+		}
+
+		return 0;
 	}
 
 	if (icst->ctype == ICST_INTEGRATOR_CP_CM_MEM) {
-		if (rate <= 6000000)
-			return 6000000;
-		if (rate >= 66000000)
-			return 66000000;
-		/* Slam to closest 0.5 megahertz */
-		return DIV_ROUND_CLOSEST(rate, 500000) * 500000;
+		if (req->rate <= 6000000)
+			req->rate = 6000000;
+		else if (req->rate >= 66000000)
+			req->rate = 66000000;
+		else {
+			/* Slam to closest 0.5 megahertz */
+			req->rate = DIV_ROUND_CLOSEST(req->rate, 500000) * 500000;
+		}
+
+		return 0;
 	}
 
 	if (icst->ctype == ICST_INTEGRATOR_AP_SYS) {
 		/* Divides between 3 and 50 MHz in steps of 0.25 MHz */
-		if (rate <= 3000000)
-			return 3000000;
-		if (rate >= 50000000)
-			return 5000000;
-		/* Slam to closest 0.25 MHz */
-		return DIV_ROUND_CLOSEST(rate, 250000) * 250000;
+		if (req->rate <= 3000000)
+			req->rate = 3000000;
+		else if (req->rate >= 50000000)
+			req->rate = 5000000;
+		else {
+			/* Slam to closest 0.25 MHz */
+			req->rate = DIV_ROUND_CLOSEST(req->rate, 250000) * 250000;
+		}
+
+		return 0;
 	}
 
 	if (icst->ctype == ICST_INTEGRATOR_AP_PCI) {
@@ -274,14 +286,20 @@ static long icst_round_rate(struct clk_hw *hw, unsigned long rate,
 		 * If we're below or less than halfway from 25 to 33 MHz
 		 * select 25 MHz
 		 */
-		if (rate <= 25000000 || rate < 29000000)
-			return 25000000;
-		/* Else just return the default frequency */
-		return 33000000;
+		if (req->rate <= 25000000 || req->rate < 29000000)
+			req->rate = 25000000;
+		else {
+			/* Else just return the default frequency */
+			req->rate = 33000000;
+		}
+
+		return 0;
 	}
 
-	vco = icst_hz_to_vco(icst->params, rate);
-	return icst_hz(icst->params, vco);
+	vco = icst_hz_to_vco(icst->params, req->rate);
+	req->rate = icst_hz(icst->params, vco);
+
+	return 0;
 }
 
 static int icst_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -329,7 +347,7 @@ static int icst_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops icst_ops = {
 	.recalc_rate = icst_recalc_rate,
-	.round_rate = icst_round_rate,
+	.determine_rate = icst_determine_rate,
 	.set_rate = icst_set_rate,
 };
 

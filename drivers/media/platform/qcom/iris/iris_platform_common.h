@@ -7,6 +7,7 @@
 #define __IRIS_PLATFORM_COMMON_H__
 
 #include <linux/bits.h>
+#include "iris_buffer.h"
 
 struct iris_core;
 struct iris_inst;
@@ -21,7 +22,13 @@ struct iris_inst;
 #define DEFAULT_MAX_HOST_BUF_COUNT		64
 #define DEFAULT_MAX_HOST_BURST_BUF_COUNT	256
 #define DEFAULT_FPS				30
-#define NUM_MBS_8K				((8192 * 4352) / 256)
+#define MAXIMUM_FPS				480
+#define NUM_MBS_8K                             ((8192 * 4352) / 256)
+#define MIN_QP_8BIT				1
+#define MAX_QP					51
+#define MAX_QP_HEVC				63
+#define DEFAULT_QP				20
+#define BITRATE_DEFAULT			20000000
 
 enum stage_type {
 	STAGE_1 = 1,
@@ -38,11 +45,15 @@ extern struct iris_platform_data qcs8300_data;
 extern struct iris_platform_data sm8250_data;
 extern struct iris_platform_data sm8550_data;
 extern struct iris_platform_data sm8650_data;
+extern struct iris_platform_data sm8750_data;
 
 enum platform_clk_type {
-	IRIS_AXI_CLK,
+	IRIS_AXI_CLK, /* AXI0 in case of platforms with multiple AXI clocks */
 	IRIS_CTRL_CLK,
 	IRIS_HW_CLK,
+	IRIS_AXI1_CLK,
+	IRIS_CTRL_FREERUN_CLK,
+	IRIS_HW_FREERUN_CLK,
 };
 
 struct platform_clk_data {
@@ -78,6 +89,8 @@ struct platform_inst_caps {
 	u32 mb_cycles_fw;
 	u32 mb_cycles_fw_vpp;
 	u32 num_comv;
+	u32 max_frame_rate;
+	u32 max_operating_rate;
 };
 
 enum platform_inst_fw_cap_type {
@@ -88,6 +101,7 @@ enum platform_inst_fw_cap_type {
 	LEVEL_HEVC,
 	LEVEL_VP9,
 	INPUT_BUF_HOST_MAX_COUNT,
+	OUTPUT_BUF_HOST_MAX_COUNT,
 	STAGE,
 	PIPE,
 	POC,
@@ -95,6 +109,37 @@ enum platform_inst_fw_cap_type {
 	BIT_DEPTH,
 	RAP_FRAME,
 	TIER,
+	HEADER_MODE,
+	PREPEND_SPSPPS_TO_IDR,
+	BITRATE,
+	BITRATE_PEAK,
+	BITRATE_MODE,
+	FRAME_SKIP_MODE,
+	FRAME_RC_ENABLE,
+	GOP_SIZE,
+	ENTROPY_MODE,
+	MIN_FRAME_QP_H264,
+	MIN_FRAME_QP_HEVC,
+	MAX_FRAME_QP_H264,
+	MAX_FRAME_QP_HEVC,
+	I_FRAME_MIN_QP_H264,
+	I_FRAME_MIN_QP_HEVC,
+	P_FRAME_MIN_QP_H264,
+	P_FRAME_MIN_QP_HEVC,
+	B_FRAME_MIN_QP_H264,
+	B_FRAME_MIN_QP_HEVC,
+	I_FRAME_MAX_QP_H264,
+	I_FRAME_MAX_QP_HEVC,
+	P_FRAME_MAX_QP_H264,
+	P_FRAME_MAX_QP_HEVC,
+	B_FRAME_MAX_QP_H264,
+	B_FRAME_MAX_QP_HEVC,
+	I_FRAME_QP_H264,
+	I_FRAME_QP_HEVC,
+	P_FRAME_QP_H264,
+	P_FRAME_QP_HEVC,
+	B_FRAME_QP_H264,
+	B_FRAME_QP_HEVC,
 	INST_FW_CAP_MAX,
 };
 
@@ -149,6 +194,7 @@ struct iris_platform_data {
 	void (*init_hfi_command_ops)(struct iris_core *core);
 	void (*init_hfi_response_ops)(struct iris_core *core);
 	struct iris_inst *(*get_instance)(void);
+	u32 (*get_vpu_buffer_size)(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 	const struct vpu_ops *vpu_ops;
 	void (*set_preset_registers)(struct iris_core *core);
 	const struct icc_info *icc_tbl;
@@ -169,8 +215,10 @@ struct iris_platform_data {
 	const char *fwname;
 	u32 pas_id;
 	struct platform_inst_caps *inst_caps;
-	struct platform_inst_fw_cap *inst_fw_caps;
-	u32 inst_fw_caps_size;
+	struct platform_inst_fw_cap *inst_fw_caps_dec;
+	u32 inst_fw_caps_dec_size;
+	struct platform_inst_fw_cap *inst_fw_caps_enc;
+	u32 inst_fw_caps_enc_size;
 	struct tz_cp_config *tz_cp_config_data;
 	u32 core_arch;
 	u32 hw_response_timeout;
@@ -179,14 +227,20 @@ struct iris_platform_data {
 	u32 max_session_count;
 	/* max number of macroblocks per frame supported */
 	u32 max_core_mbpf;
-	const u32 *input_config_params_default;
-	unsigned int input_config_params_default_size;
-	const u32 *input_config_params_hevc;
-	unsigned int input_config_params_hevc_size;
-	const u32 *input_config_params_vp9;
-	unsigned int input_config_params_vp9_size;
-	const u32 *output_config_params;
-	unsigned int output_config_params_size;
+	/* max number of macroblocks per second supported */
+	u32 max_core_mbps;
+	const u32 *dec_input_config_params_default;
+	unsigned int dec_input_config_params_default_size;
+	const u32 *dec_input_config_params_hevc;
+	unsigned int dec_input_config_params_hevc_size;
+	const u32 *dec_input_config_params_vp9;
+	unsigned int dec_input_config_params_vp9_size;
+	const u32 *dec_output_config_params;
+	unsigned int dec_output_config_params_size;
+	const u32 *enc_input_config_params;
+	unsigned int enc_input_config_params_size;
+	const u32 *enc_output_config_params;
+	unsigned int enc_output_config_params_size;
 	const u32 *dec_input_prop;
 	unsigned int dec_input_prop_size;
 	const u32 *dec_output_prop_avc;
@@ -199,6 +253,10 @@ struct iris_platform_data {
 	unsigned int dec_ip_int_buf_tbl_size;
 	const u32 *dec_op_int_buf_tbl;
 	unsigned int dec_op_int_buf_tbl_size;
+	const u32 *enc_ip_int_buf_tbl;
+	unsigned int enc_ip_int_buf_tbl_size;
+	const u32 *enc_op_int_buf_tbl;
+	unsigned int enc_op_int_buf_tbl_size;
 };
 
 #endif

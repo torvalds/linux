@@ -198,7 +198,10 @@ static int tegra186_bpmp_dram_init(struct tegra_bpmp *bpmp)
 
 	err = of_reserved_mem_region_to_resource(bpmp->dev->of_node, 0, &res);
 	if (err < 0) {
-		dev_warn(bpmp->dev, "failed to parse memory region: %d\n", err);
+		if (err != -ENODEV)
+			dev_warn(bpmp->dev,
+				 "failed to parse memory region: %d\n", err);
+
 		return err;
 	}
 

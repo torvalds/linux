@@ -2426,7 +2426,7 @@ static int gaudi2_config_bmon(struct hl_device *hdev, struct hl_debug_params *pa
 		WREG32(base_reg + mmBMON_ADDRH_E3_OFFSET, 0);
 		WREG32(base_reg + mmBMON_REDUCTION_OFFSET, 0);
 		WREG32(base_reg + mmBMON_STM_TRC_OFFSET, 0x7 | (0xA << 8));
-		WREG32(base_reg + mmBMON_CR_OFFSET, 0x77 | 0xf << 24);
+		WREG32(base_reg + mmBMON_CR_OFFSET, 0x41);
 	}
 
 	return 0;

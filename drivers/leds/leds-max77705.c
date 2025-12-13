@@ -180,7 +180,7 @@ static int max77705_add_led(struct device *dev, struct regmap *regmap, struct fw
 
 		ret = fwnode_property_read_u32(np, "reg", &reg);
 		if (ret || reg >= MAX77705_LED_NUM_LEDS)
-			ret = -EINVAL;
+			return -EINVAL;
 
 		info = devm_kcalloc(dev, num_channels, sizeof(*info), GFP_KERNEL);
 		if (!info)

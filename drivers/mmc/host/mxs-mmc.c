@@ -680,7 +680,6 @@ static void mxs_mmc_remove(struct platform_device *pdev)
 	clk_disable_unprepare(ssp->clk);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mxs_mmc_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
@@ -699,9 +698,8 @@ static int mxs_mmc_resume(struct device *dev)
 
 	return clk_prepare_enable(ssp->clk);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(mxs_mmc_pm_ops, mxs_mmc_suspend, mxs_mmc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mxs_mmc_pm_ops, mxs_mmc_suspend, mxs_mmc_resume);
 
 static struct platform_driver mxs_mmc_driver = {
 	.probe		= mxs_mmc_probe,
@@ -709,7 +707,7 @@ static struct platform_driver mxs_mmc_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm	= &mxs_mmc_pm_ops,
+		.pm	= pm_sleep_ptr(&mxs_mmc_pm_ops),
 		.of_match_table = mxs_mmc_dt_ids,
 	},
 };

@@ -56,7 +56,7 @@ static void ltl_task_init(struct task_struct *task, bool task_creation)
 	ltl_atoms_fetch(task, mon);
 }
 
-static void handle_task_newtask(void *data, struct task_struct *task, unsigned long flags)
+static void handle_task_newtask(void *data, struct task_struct *task, u64 flags)
 {
 	ltl_task_init(task, true);
 }

@@ -9,7 +9,7 @@
 
 #include <uapi/asm/traps.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /* This is for V8 compliant Sparc CPUS */
 struct tt_entry {
 	unsigned long inst_one;
@@ -21,5 +21,5 @@ struct tt_entry {
 /* We set this to _start in system setup. */
 extern struct tt_entry *sparc_ttable;
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 #endif /* !(_SPARC_TRAPS_H) */

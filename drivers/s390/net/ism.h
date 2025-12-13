@@ -5,11 +5,13 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/ism.h>
-#include <net/smc.h>
+#include <linux/dibs.h>
 #include <asm/pci_insn.h>
 
 #define UTIL_STR_LEN	16
+#define ISM_ERROR	0xFFFF
+
+#define ISM_NR_DMBS	1920
 
 /*
  * Do not use the first word of the DMB bits to ensure 8 byte aligned access.
@@ -31,6 +33,23 @@
 #define ISM_SIGNAL_IEQ	0xE
 #define ISM_UNREG_SBA	0x11
 #define ISM_UNREG_IEQ	0x12
+
+enum ism_event_type {
+	ISM_EVENT_BUF = 0x00,
+	ISM_EVENT_DEV = 0x01,
+	ISM_EVENT_SWR = 0x02
+};
+
+enum ism_event_code {
+	ISM_BUF_DMB_UNREGISTERED = 0x04,
+	ISM_BUF_USING_ISM_DEV_DISABLED = 0x08,
+	ISM_BUF_OWNING_ISM_DEV_IN_ERR_STATE = 0x02,
+	ISM_BUF_USING_ISM_DEV_IN_ERR_STATE = 0x03,
+	ISM_BUF_VLAN_MISMATCH_WITH_OWNER = 0x05,
+	ISM_BUF_VLAN_MISMATCH_WITH_USER = 0x06,
+	ISM_DEV_GID_DISABLED = 0x07,
+	ISM_DEV_GID_ERR_STATE = 0x01
+};
 
 struct ism_req_hdr {
 	u32 cmd;
@@ -65,6 +84,15 @@ union ism_reg_ieq {
 	} response;
 } __aligned(16);
 
+/* ISM-vPCI devices provide 64 Bit GIDs
+ * Map them to ISM UUID GIDs like this:
+ *  _________________________________________
+ * | 64 Bit ISM-vPCI GID | 00000000_00000000 |
+ *  -----------------------------------------
+ * This will be interpreted as a UIID variant, that is reserved
+ * for NCS backward compatibility. So it will not collide with
+ * proper UUIDs.
+ */
 union ism_read_gid {
 	struct {
 		struct ism_req_hdr hdr;
@@ -174,6 +202,14 @@ struct ism_eq_header {
 	u64 : 64;
 };
 
+struct ism_event {
+	u32 type;
+	u32 code;
+	u64 tok;
+	u64 time;
+	u64 info;
+};
+
 struct ism_eq {
 	struct ism_eq_header header;
 	struct ism_event entry[15];
@@ -186,6 +222,19 @@ struct ism_sba {
 	u32 dmb_bits[ISM_NR_DMBS / 32];
 	u32 reserved[3];
 	u16 dmbe_mask[ISM_NR_DMBS];
+};
+
+struct ism_dev {
+	spinlock_t cmd_lock; /* serializes cmds */
+	struct dibs_dev *dibs;
+	struct pci_dev *pdev;
+	struct ism_sba *sba;
+	dma_addr_t sba_dma_addr;
+	DECLARE_BITMAP(sba_bitmap, ISM_NR_DMBS);
+
+	struct ism_eq *ieq;
+	dma_addr_t ieq_dma_addr;
+	int ieq_idx;
 };
 
 #define ISM_CREATE_REQ(dmb, idx, sf, offset)		\

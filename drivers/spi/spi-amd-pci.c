@@ -38,7 +38,7 @@ static int amd_spi_pci_probe(struct pci_dev *pdev,
 	/* Allocate storage for host and driver private data */
 	host = devm_spi_alloc_host(dev, sizeof(struct amd_spi));
 	if (!host)
-		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI host\n");
+		return -ENOMEM;
 
 	amd_spi = spi_controller_get_devdata(host);
 
@@ -47,8 +47,7 @@ static int amd_spi_pci_probe(struct pci_dev *pdev,
 	amd_spi->io_remap_addr = devm_ioremap(dev, io_base_addr, AMD_HID2_MEM_SIZE);
 
 	if (!amd_spi->io_remap_addr)
-		return dev_err_probe(dev, -ENOMEM,
-				"ioremap of SPI registers failed\n");
+		return -ENOMEM;
 
 	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
 

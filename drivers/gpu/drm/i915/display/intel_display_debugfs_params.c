@@ -7,7 +7,6 @@
 #include <linux/kernel.h>
 
 #include <drm/drm_drv.h>
-#include <drm/drm_file.h>
 
 #include "intel_display_core.h"
 #include "intel_display_debugfs_params.h"
@@ -154,14 +153,14 @@ intel_display_debugfs_create_uint(const char *name, umode_t mode,
 /* add a subdirectory with files for each intel display param */
 void intel_display_debugfs_params(struct intel_display *display)
 {
-	struct drm_minor *minor = display->drm->primary;
+	struct dentry *debugfs_root = display->drm->debugfs_root;
 	struct dentry *dir;
 	char dirname[16];
 
 	snprintf(dirname, sizeof(dirname), "%s_params", display->drm->driver->name);
-	dir = debugfs_lookup(dirname, minor->debugfs_root);
+	dir = debugfs_lookup(dirname, debugfs_root);
 	if (!dir)
-		dir = debugfs_create_dir(dirname, minor->debugfs_root);
+		dir = debugfs_create_dir(dirname, debugfs_root);
 	if (IS_ERR(dir))
 		return;
 

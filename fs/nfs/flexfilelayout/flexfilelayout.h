@@ -21,6 +21,8 @@
  * due to network error etc. */
 #define NFS4_FLEXFILE_LAYOUT_MAX_MIRROR_CNT 4096
 
+#define NFS4_FLEXFILE_LAYOUT_MAX_STRIPE_CNT 4096
+
 /* LAYOUTSTATS report interval in ms */
 #define FF_LAYOUTSTATS_REPORT_INTERVAL (60000L)
 #define FF_LAYOUTSTATS_MAXDEV 4
@@ -71,12 +73,12 @@ struct nfs4_ff_layoutstat {
 	struct nfs4_ff_busy_timer busy_timer;
 };
 
-struct nfs4_ff_layout_mirror {
-	struct pnfs_layout_hdr		*layout;
-	struct list_head		mirrors;
-	u32				ds_count;
-	u32				efficiency;
+struct nfs4_ff_layout_mirror;
+
+struct nfs4_ff_layout_ds_stripe {
+	struct nfs4_ff_layout_mirror   *mirror;
 	struct nfs4_deviceid		devid;
+	u32				efficiency;
 	struct nfs4_ff_layout_ds	*mirror_ds;
 	u32				fh_versions_cnt;
 	struct nfs_fh			*fh_versions;
@@ -84,12 +86,19 @@ struct nfs4_ff_layout_mirror {
 	const struct cred __rcu		*ro_cred;
 	const struct cred __rcu		*rw_cred;
 	struct nfs_file_localio		nfl;
-	refcount_t			ref;
-	spinlock_t			lock;
-	unsigned long			flags;
 	struct nfs4_ff_layoutstat	read_stat;
 	struct nfs4_ff_layoutstat	write_stat;
 	ktime_t				start_time;
+};
+
+struct nfs4_ff_layout_mirror {
+	struct pnfs_layout_hdr		*layout;
+	struct list_head		mirrors;
+	u32				dss_count;
+	struct nfs4_ff_layout_ds_stripe *dss;
+	refcount_t			ref;
+	spinlock_t			lock;
+	unsigned long			flags;
 	u32				report_interval;
 };
 
@@ -150,12 +159,12 @@ FF_LAYOUT_COMP(struct pnfs_layout_segment *lseg, u32 idx)
 }
 
 static inline struct nfs4_deviceid_node *
-FF_LAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg, u32 idx)
+FF_LAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg, u32 idx, u32 dss_id)
 {
 	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, idx);
 
 	if (mirror != NULL) {
-		struct nfs4_ff_layout_ds *mirror_ds = mirror->mirror_ds;
+		struct nfs4_ff_layout_ds *mirror_ds = mirror->dss[dss_id].mirror_ds;
 
 		if (!IS_ERR_OR_NULL(mirror_ds))
 			return &mirror_ds->id_node;
@@ -182,9 +191,22 @@ ff_layout_no_read_on_rw(struct pnfs_layout_segment *lseg)
 }
 
 static inline int
-nfs4_ff_layout_ds_version(const struct nfs4_ff_layout_mirror *mirror)
+nfs4_ff_layout_ds_version(const struct nfs4_ff_layout_mirror *mirror, u32 dss_id)
 {
-	return mirror->mirror_ds->ds_versions[0].version;
+	return mirror->dss[dss_id].mirror_ds->ds_versions[0].version;
+}
+
+static inline u32
+nfs4_ff_layout_calc_dss_id(const u64 stripe_unit, const u32 dss_count, const loff_t offset)
+{
+	u64 tmp = offset;
+
+	if (dss_count == 1 || stripe_unit == 0)
+		return 0;
+
+	do_div(tmp, stripe_unit);
+
+	return do_div(tmp, dss_count);
 }
 
 struct nfs4_ff_layout_ds *
@@ -193,9 +215,9 @@ nfs4_ff_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 void nfs4_ff_layout_put_deviceid(struct nfs4_ff_layout_ds *mirror_ds);
 void nfs4_ff_layout_free_deviceid(struct nfs4_ff_layout_ds *mirror_ds);
 int ff_layout_track_ds_error(struct nfs4_flexfile_layout *flo,
-			     struct nfs4_ff_layout_mirror *mirror, u64 offset,
-			     u64 length, int status, enum nfs_opnum4 opnum,
-			     gfp_t gfp_flags);
+			     struct nfs4_ff_layout_mirror *mirror,
+			     u32 dss_id, u64 offset, u64 length, int status,
+			     enum nfs_opnum4 opnum, gfp_t gfp_flags);
 void ff_layout_send_layouterror(struct pnfs_layout_segment *lseg);
 int ff_layout_encode_ds_ioerr(struct xdr_stream *xdr, const struct list_head *head);
 void ff_layout_free_ds_ioerr(struct list_head *head);
@@ -204,23 +226,27 @@ unsigned int ff_layout_fetch_ds_ioerr(struct pnfs_layout_hdr *lo,
 		struct list_head *head,
 		unsigned int maxnum);
 struct nfs_fh *
-nfs4_ff_layout_select_ds_fh(struct nfs4_ff_layout_mirror *mirror);
+nfs4_ff_layout_select_ds_fh(struct nfs4_ff_layout_mirror *mirror, u32 dss_id);
 void
 nfs4_ff_layout_select_ds_stateid(const struct nfs4_ff_layout_mirror *mirror,
-		nfs4_stateid *stateid);
+				 u32 dss_id,
+				 nfs4_stateid *stateid);
 
 struct nfs4_pnfs_ds *
 nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 			  struct nfs4_ff_layout_mirror *mirror,
+			  u32 dss_id,
 			  bool fail_return);
 
 struct rpc_clnt *
 nfs4_ff_find_or_create_ds_client(struct nfs4_ff_layout_mirror *mirror,
 				 struct nfs_client *ds_clp,
-				 struct inode *inode);
+				 struct inode *inode,
+				 u32 dss_id);
 const struct cred *ff_layout_get_ds_cred(struct nfs4_ff_layout_mirror *mirror,
 					 const struct pnfs_layout_range *range,
-					 const struct cred *mdscred);
+					 const struct cred *mdscred,
+					 u32 dss_id);
 bool ff_layout_avoid_mds_available_ds(struct pnfs_layout_segment *lseg);
 bool ff_layout_avoid_read_on_rw(struct pnfs_layout_segment *lseg);
 

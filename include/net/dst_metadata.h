@@ -3,6 +3,7 @@
 #define __NET_DST_METADATA_H 1
 
 #include <linux/skbuff.h>
+#include <net/ip.h>
 #include <net/ip_tunnels.h>
 #include <net/macsec.h>
 #include <net/dst.h>
@@ -220,9 +221,15 @@ static inline struct metadata_dst *ip_tun_rx_dst(struct sk_buff *skb,
 						 int md_size)
 {
 	const struct iphdr *iph = ip_hdr(skb);
+	struct metadata_dst *tun_dst;
 
-	return __ip_tun_set_dst(iph->saddr, iph->daddr, iph->tos, iph->ttl,
-				0, flags, tunnel_id, md_size);
+	tun_dst = __ip_tun_set_dst(iph->saddr, iph->daddr, iph->tos, iph->ttl,
+				   0, flags, tunnel_id, md_size);
+
+	if (tun_dst && (iph->frag_off & htons(IP_DF)))
+		__set_bit(IP_TUNNEL_DONT_FRAGMENT_BIT,
+			  tun_dst->u.tun_info.key.tun_flags);
+	return tun_dst;
 }
 
 static inline struct metadata_dst *__ipv6_tun_set_dst(const struct in6_addr *saddr,

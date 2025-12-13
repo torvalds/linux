@@ -34,7 +34,7 @@ struct btrfs_zoned_device_info;
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
 
 /*
- * Arbitratry maximum size of one discard request to limit potentially long time
+ * Arbitrary maximum size of one discard request to limit potentially long time
  * spent in blkdev_issue_discard().
  */
 #define BTRFS_MAX_DISCARD_CHUNK_SIZE	(SZ_1G)
@@ -495,7 +495,7 @@ struct btrfs_discard_stripe {
 };
 
 /*
- * Context for IO subsmission for device stripe.
+ * Context for IO submission for device stripe.
  *
  * - Track the unfinished mirrors for mirror based profiles
  *   Mirror based profiles are SINGLE/DUP/RAID1/RAID10.

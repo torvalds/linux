@@ -17,7 +17,7 @@
 #include "reset.h"
 
 static const struct qcom_reset_map lpass_audiocc_sm6115_resets[] = {
-	[LPASS_AUDIO_SWR_RX_CGCR] =  { .reg = 0x98, .bit = 1, .udelay = 500 },
+	[LPASS_AUDIO_SWR_RX_CGCR] = { .reg = 0x98, .bit = 1, .udelay = 500 },
 };
 
 static struct regmap_config lpass_audiocc_sm6115_regmap_config = {

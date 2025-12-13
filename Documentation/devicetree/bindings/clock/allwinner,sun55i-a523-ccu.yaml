@@ -19,6 +19,7 @@ properties:
   compatible:
     enum:
       - allwinner,sun55i-a523-ccu
+      - allwinner,sun55i-a523-mcu-ccu
       - allwinner,sun55i-a523-r-ccu
 
   reg:
@@ -26,11 +27,11 @@ properties:
 
   clocks:
     minItems: 4
-    maxItems: 5
+    maxItems: 9
 
   clock-names:
     minItems: 4
-    maxItems: 5
+    maxItems: 9
 
 required:
   - "#clock-cells"
@@ -62,6 +63,38 @@ allOf:
             - const: losc
             - const: iosc
             - const: losc-fanout
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - allwinner,sun55i-a523-mcu-ccu
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: High Frequency Oscillator (usually at 24MHz)
+            - description: Low Frequency Oscillator (usually at 32kHz)
+            - description: Internal Oscillator
+            - description: Audio PLL (4x)
+            - description: Peripherals PLL 0 (300 MHz output)
+            - description: DSP module clock
+            - description: MBUS clock
+            - description: PRCM AHB clock
+            - description: PRCM APB0 clock
+
+        clock-names:
+          items:
+            - const: hosc
+            - const: losc
+            - const: iosc
+            - const: pll-audio0-4x
+            - const: pll-periph0-300m
+            - const: dsp
+            - const: mbus
+            - const: r-ahb
+            - const: r-apb0
 
   - if:
       properties:

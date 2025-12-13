@@ -335,9 +335,26 @@ consider doing refcnt != 0 check, especially when returning a KF_ACQUIRE
 pointer. Note as well that a KF_ACQUIRE kfunc that is KF_RCU should very likely
 also be KF_RET_NULL.
 
+2.4.8 KF_RCU_PROTECTED flag
+---------------------------
+
+The KF_RCU_PROTECTED flag is used to indicate that the kfunc must be invoked in
+an RCU critical section. This is assumed by default in non-sleepable programs,
+and must be explicitly ensured by calling ``bpf_rcu_read_lock`` for sleepable
+ones.
+
+If the kfunc returns a pointer value, this flag also enforces that the returned
+pointer is RCU protected, and can only be used while the RCU critical section is
+active.
+
+The flag is distinct from the ``KF_RCU`` flag, which only ensures that its
+arguments are at least RCU protected pointers. This may transitively imply that
+RCU protection is ensured, but it does not work in cases of kfuncs which require
+RCU protection but do not take RCU protected arguments.
+
 .. _KF_deprecated_flag:
 
-2.4.8 KF_DEPRECATED flag
+2.4.9 KF_DEPRECATED flag
 ------------------------
 
 The KF_DEPRECATED flag is used for kfuncs which are scheduled to be

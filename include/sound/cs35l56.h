@@ -85,7 +85,9 @@
 #define CS35L56_DSP1_XMEM_UNPACKED24_0			0x2800000
 #define CS35L56_DSP1_FW_VER				0x2800010
 #define CS35L56_DSP1_HALO_STATE				0x28021E0
+#define CS35L56_B2_DSP1_HALO_STATE			0x2803D20
 #define CS35L56_DSP1_PM_CUR_STATE			0x2804308
+#define CS35L56_B2_DSP1_PM_CUR_STATE			0x2804678
 #define CS35L56_DSP1_XMEM_UNPACKED24_8191		0x2807FFC
 #define CS35L56_DSP1_CORE_BASE				0x2B80000
 #define CS35L56_DSP1_SCRATCH1				0x2B805C0
@@ -107,8 +109,8 @@
 #define CS35L56_DSP1_PMEM_5114				0x3804FE8
 
 #define CS35L63_DSP1_FW_VER				CS35L56_DSP1_FW_VER
-#define CS35L63_DSP1_HALO_STATE				0x280396C
-#define CS35L63_DSP1_PM_CUR_STATE			0x28042C8
+#define CS35L63_DSP1_HALO_STATE				0x2803C04
+#define CS35L63_DSP1_PM_CUR_STATE			0x2804518
 #define CS35L63_PROTECTION_STATUS			0x340009C
 #define CS35L63_TRANSDUCER_ACTUAL_PS			0x34000F4
 #define CS35L63_MAIN_RENDER_USER_MUTE			0x3400020
@@ -306,6 +308,7 @@ struct cs35l56_base {
 	struct gpio_desc *reset_gpio;
 	struct cs35l56_spi_payload *spi_payload_buf;
 	const struct cs35l56_fw_reg *fw_reg;
+	const struct cirrus_amp_cal_controls *calibration_controls;
 };
 
 static inline bool cs35l56_is_otp_register(unsigned int reg)
@@ -335,9 +338,6 @@ extern const struct regmap_config cs35l56_regmap_spi;
 extern const struct regmap_config cs35l56_regmap_sdw;
 extern const struct regmap_config cs35l63_regmap_i2c;
 extern const struct regmap_config cs35l63_regmap_sdw;
-
-extern const struct cs35l56_fw_reg cs35l56_fw_reg;
-extern const struct cs35l56_fw_reg cs35l63_fw_reg;
 
 extern const struct cirrus_amp_cal_controls cs35l56_calibration_controls;
 

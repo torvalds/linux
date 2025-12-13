@@ -357,10 +357,9 @@ static void snd_cs4231_busy_wait(struct snd_cs4231 *chip)
 
 static void snd_cs4231_mce_up(struct snd_cs4231 *chip)
 {
-	unsigned long flags;
 	int timeout;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	snd_cs4231_ready(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT)
@@ -376,7 +375,6 @@ static void snd_cs4231_mce_up(struct snd_cs4231 *chip)
 	if (!(timeout & CS4231_MCE))
 		__cs4231_writeb(chip, chip->mce_bit | (timeout & 0x1f),
 				CS4231U(chip, REGSEL));
-	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static void snd_cs4231_mce_down(struct snd_cs4231 *chip)
@@ -486,7 +484,6 @@ static int snd_cs4231_trigger(struct snd_pcm_substream *substream, int cmd)
 	{
 		unsigned int what = 0;
 		struct snd_pcm_substream *s;
-		unsigned long flags;
 
 		snd_pcm_group_for_each_entry(s, substream) {
 			if (s == chip->playback_substream) {
@@ -498,7 +495,7 @@ static int snd_cs4231_trigger(struct snd_pcm_substream *substream, int cmd)
 			}
 		}
 
-		spin_lock_irqsave(&chip->lock, flags);
+		guard(spinlock_irqsave)(&chip->lock);
 		if (cmd == SNDRV_PCM_TRIGGER_START) {
 			cs4231_dma_trigger(substream, what, 1);
 			chip->image[CS4231_IFACE_CTRL] |= what;
@@ -508,7 +505,6 @@ static int snd_cs4231_trigger(struct snd_pcm_substream *substream, int cmd)
 		}
 		snd_cs4231_out(chip, CS4231_IFACE_CTRL,
 			       chip->image[CS4231_IFACE_CTRL]);
-		spin_unlock_irqrestore(&chip->lock, flags);
 		break;
 	}
 	default:
@@ -564,14 +560,11 @@ static unsigned char snd_cs4231_get_format(struct snd_cs4231 *chip, int format,
 
 static void snd_cs4231_calibrate_mute(struct snd_cs4231 *chip, int mute)
 {
-	unsigned long flags;
-
 	mute = mute ? 1 : 0;
-	spin_lock_irqsave(&chip->lock, flags);
-	if (chip->calibrate_mute == mute) {
-		spin_unlock_irqrestore(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
+	if (chip->calibrate_mute == mute)
 		return;
-	}
+
 	if (!mute) {
 		snd_cs4231_dout(chip, CS4231_LEFT_INPUT,
 				chip->image[CS4231_LEFT_INPUT]);
@@ -599,31 +592,27 @@ static void snd_cs4231_calibrate_mute(struct snd_cs4231 *chip, int mute)
 	snd_cs4231_dout(chip, CS4231_MONO_CTRL,
 			mute ? 0xc0 : chip->image[CS4231_MONO_CTRL]);
 	chip->calibrate_mute = mute;
-	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static void snd_cs4231_playback_format(struct snd_cs4231 *chip,
 				       struct snd_pcm_hw_params *params,
 				       unsigned char pdfr)
 {
-	unsigned long flags;
-
-	mutex_lock(&chip->mce_mutex);
+	guard(mutex)(&chip->mce_mutex);
 	snd_cs4231_calibrate_mute(chip, 1);
 
 	snd_cs4231_mce_up(chip);
 
-	spin_lock_irqsave(&chip->lock, flags);
-	snd_cs4231_out(chip, CS4231_PLAYBK_FORMAT,
-		       (chip->image[CS4231_IFACE_CTRL] & CS4231_RECORD_ENABLE) ?
-		       (pdfr & 0xf0) | (chip->image[CS4231_REC_FORMAT] & 0x0f) :
-		       pdfr);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		snd_cs4231_out(chip, CS4231_PLAYBK_FORMAT,
+			       (chip->image[CS4231_IFACE_CTRL] & CS4231_RECORD_ENABLE) ?
+			       (pdfr & 0xf0) | (chip->image[CS4231_REC_FORMAT] & 0x0f) :
+			       pdfr);
+	}
 
 	snd_cs4231_mce_down(chip);
 
 	snd_cs4231_calibrate_mute(chip, 0);
-	mutex_unlock(&chip->mce_mutex);
 }
 
 static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
@@ -632,7 +621,7 @@ static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->mce_mutex);
+	guard(mutex)(&chip->mce_mutex);
 	snd_cs4231_calibrate_mute(chip, 1);
 
 	snd_cs4231_mce_up(chip);
@@ -653,7 +642,6 @@ static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
 	snd_cs4231_mce_down(chip);
 
 	snd_cs4231_calibrate_mute(chip, 0);
-	mutex_unlock(&chip->mce_mutex);
 }
 
 /*
@@ -669,11 +657,10 @@ static unsigned long snd_cs4231_timer_resolution(struct snd_timer *timer)
 
 static int snd_cs4231_timer_start(struct snd_timer *timer)
 {
-	unsigned long flags;
 	unsigned int ticks;
 	struct snd_cs4231 *chip = snd_timer_chip(timer);
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	ticks = timer->sticks;
 	if ((chip->image[CS4231_ALT_FEATURE_1] & CS4231_TIMER_ENABLE) == 0 ||
 	    (unsigned char)(ticks >> 8) != chip->image[CS4231_TIMER_HIGH] ||
@@ -688,44 +675,39 @@ static int snd_cs4231_timer_start(struct snd_timer *timer)
 			       chip->image[CS4231_ALT_FEATURE_1] |
 					CS4231_TIMER_ENABLE);
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
 
 static int snd_cs4231_timer_stop(struct snd_timer *timer)
 {
-	unsigned long flags;
 	struct snd_cs4231 *chip = snd_timer_chip(timer);
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	chip->image[CS4231_ALT_FEATURE_1] &= ~CS4231_TIMER_ENABLE;
 	snd_cs4231_out(chip, CS4231_ALT_FEATURE_1,
 		       chip->image[CS4231_ALT_FEATURE_1]);
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
 
 static void snd_cs4231_init(struct snd_cs4231 *chip)
 {
-	unsigned long flags;
-
 	snd_cs4231_mce_down(chip);
 
 #ifdef SNDRV_DEBUG_MCE
 	pr_debug("init: (1)\n");
 #endif
 	snd_cs4231_mce_up(chip);
-	spin_lock_irqsave(&chip->lock, flags);
-	chip->image[CS4231_IFACE_CTRL] &= ~(CS4231_PLAYBACK_ENABLE |
-					    CS4231_PLAYBACK_PIO |
-					    CS4231_RECORD_ENABLE |
-					    CS4231_RECORD_PIO |
-					    CS4231_CALIB_MODE);
-	chip->image[CS4231_IFACE_CTRL] |= CS4231_AUTOCALIB;
-	snd_cs4231_out(chip, CS4231_IFACE_CTRL, chip->image[CS4231_IFACE_CTRL]);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		chip->image[CS4231_IFACE_CTRL] &= ~(CS4231_PLAYBACK_ENABLE |
+						    CS4231_PLAYBACK_PIO |
+						    CS4231_RECORD_ENABLE |
+						    CS4231_RECORD_PIO |
+						    CS4231_CALIB_MODE);
+		chip->image[CS4231_IFACE_CTRL] |= CS4231_AUTOCALIB;
+		snd_cs4231_out(chip, CS4231_IFACE_CTRL, chip->image[CS4231_IFACE_CTRL]);
+	}
 	snd_cs4231_mce_down(chip);
 
 #ifdef SNDRV_DEBUG_MCE
@@ -733,10 +715,10 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 #endif
 
 	snd_cs4231_mce_up(chip);
-	spin_lock_irqsave(&chip->lock, flags);
-	snd_cs4231_out(chip, CS4231_ALT_FEATURE_1,
-			chip->image[CS4231_ALT_FEATURE_1]);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		snd_cs4231_out(chip, CS4231_ALT_FEATURE_1,
+			       chip->image[CS4231_ALT_FEATURE_1]);
+	}
 	snd_cs4231_mce_down(chip);
 
 #ifdef SNDRV_DEBUG_MCE
@@ -744,16 +726,16 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 		 chip->image[CS4231_ALT_FEATURE_1]);
 #endif
 
-	spin_lock_irqsave(&chip->lock, flags);
-	snd_cs4231_out(chip, CS4231_ALT_FEATURE_2,
-			chip->image[CS4231_ALT_FEATURE_2]);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		snd_cs4231_out(chip, CS4231_ALT_FEATURE_2,
+			       chip->image[CS4231_ALT_FEATURE_2]);
+	}
 
 	snd_cs4231_mce_up(chip);
-	spin_lock_irqsave(&chip->lock, flags);
-	snd_cs4231_out(chip, CS4231_PLAYBK_FORMAT,
-			chip->image[CS4231_PLAYBK_FORMAT]);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		snd_cs4231_out(chip, CS4231_PLAYBK_FORMAT,
+			       chip->image[CS4231_PLAYBK_FORMAT]);
+	}
 	snd_cs4231_mce_down(chip);
 
 #ifdef SNDRV_DEBUG_MCE
@@ -761,9 +743,9 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 #endif
 
 	snd_cs4231_mce_up(chip);
-	spin_lock_irqsave(&chip->lock, flags);
-	snd_cs4231_out(chip, CS4231_REC_FORMAT, chip->image[CS4231_REC_FORMAT]);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		snd_cs4231_out(chip, CS4231_REC_FORMAT, chip->image[CS4231_REC_FORMAT]);
+	}
 	snd_cs4231_mce_down(chip);
 
 #ifdef SNDRV_DEBUG_MCE
@@ -773,20 +755,15 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 
 static int snd_cs4231_open(struct snd_cs4231 *chip, unsigned int mode)
 {
-	unsigned long flags;
-
-	mutex_lock(&chip->open_mutex);
-	if ((chip->mode & mode)) {
-		mutex_unlock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
+	if ((chip->mode & mode))
 		return -EAGAIN;
-	}
 	if (chip->mode & CS4231_MODE_OPEN) {
 		chip->mode |= mode;
-		mutex_unlock(&chip->open_mutex);
 		return 0;
 	}
 	/* ok. now enable and ack CODEC IRQ */
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	snd_cs4231_out(chip, CS4231_IRQ_STATUS, CS4231_PLAYBACK_IRQ |
 		       CS4231_RECORD_IRQ |
 		       CS4231_TIMER_IRQ);
@@ -798,11 +775,8 @@ static int snd_cs4231_open(struct snd_cs4231 *chip, unsigned int mode)
 		       CS4231_RECORD_IRQ |
 		       CS4231_TIMER_IRQ);
 	snd_cs4231_out(chip, CS4231_IRQ_STATUS, 0);
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	chip->mode = mode;
-	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -810,12 +784,10 @@ static void snd_cs4231_close(struct snd_cs4231 *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
 	chip->mode &= ~mode;
-	if (chip->mode & CS4231_MODE_OPEN) {
-		mutex_unlock(&chip->open_mutex);
+	if (chip->mode & CS4231_MODE_OPEN)
 		return;
-	}
 	snd_cs4231_calibrate_mute(chip, 1);
 
 	/* disable IRQ */
@@ -851,7 +823,6 @@ static void snd_cs4231_close(struct snd_cs4231 *chip, unsigned int mode)
 	snd_cs4231_calibrate_mute(chip, 0);
 
 	chip->mode = 0;
-	mutex_unlock(&chip->open_mutex);
 }
 
 /*
@@ -905,25 +876,18 @@ static int snd_cs4231_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_cs4231 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned long flags;
-	int ret = 0;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 
 	chip->image[CS4231_IFACE_CTRL] &= ~(CS4231_PLAYBACK_ENABLE |
 					    CS4231_PLAYBACK_PIO);
 
-	if (WARN_ON(runtime->period_size > 0xffff + 1)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (WARN_ON(runtime->period_size > 0xffff + 1))
+		return -EINVAL;
 
 	chip->p_periods_sent = 0;
 
-out:
-	spin_unlock_irqrestore(&chip->lock, flags);
-
-	return ret;
+	return 0;
 }
 
 static int snd_cs4231_capture_hw_params(struct snd_pcm_substream *substream,
@@ -943,27 +907,23 @@ static int snd_cs4231_capture_hw_params(struct snd_pcm_substream *substream,
 static int snd_cs4231_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_cs4231 *chip = snd_pcm_substream_chip(substream);
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	chip->image[CS4231_IFACE_CTRL] &= ~(CS4231_RECORD_ENABLE |
 					    CS4231_RECORD_PIO);
 
 
 	chip->c_periods_sent = 0;
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
 
 static void snd_cs4231_overrange(struct snd_cs4231 *chip)
 {
-	unsigned long flags;
 	unsigned char res;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	res = snd_cs4231_in(chip, CS4231_TEST_INIT);
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	/* detect overrange only above 0dB; may be user selectable? */
 	if (res & (0x08 | 0x02))
@@ -1022,7 +982,6 @@ static snd_pcm_uframes_t snd_cs4231_capture_pointer(
 
 static int snd_cs4231_probe(struct snd_cs4231 *chip)
 {
-	unsigned long flags;
 	int i;
 	int id = 0;
 	int vers = 0;
@@ -1033,11 +992,10 @@ static int snd_cs4231_probe(struct snd_cs4231 *chip)
 		if (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT)
 			msleep(2);
 		else {
-			spin_lock_irqsave(&chip->lock, flags);
+			guard(spinlock_irqsave)(&chip->lock);
 			snd_cs4231_out(chip, CS4231_MISC_INFO, CS4231_MODE2);
 			id = snd_cs4231_in(chip, CS4231_MISC_INFO) & 0x0f;
 			vers = snd_cs4231_in(chip, CS4231_VERSION);
-			spin_unlock_irqrestore(&chip->lock, flags);
 			if (id == 0x0a)
 				break;	/* this is valid value */
 		}
@@ -1047,14 +1005,12 @@ static int snd_cs4231_probe(struct snd_cs4231 *chip)
 	if (id != 0x0a)
 		return -ENODEV;	/* no valid device found */
 
-	spin_lock_irqsave(&chip->lock, flags);
-
-	/* clear any pendings IRQ */
-	__cs4231_readb(chip, CS4231U(chip, STATUS));
-	__cs4231_writeb(chip, 0, CS4231U(chip, STATUS));
-	mb();
-
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		/* clear any pendings IRQ */
+		__cs4231_readb(chip, CS4231U(chip, STATUS));
+		__cs4231_writeb(chip, 0, CS4231U(chip, STATUS));
+		mb();
+	}
 
 	chip->image[CS4231_MISC_INFO] = CS4231_MODE2;
 	chip->image[CS4231_IFACE_CTRL] =
@@ -1068,12 +1024,10 @@ static int snd_cs4231_probe(struct snd_cs4231 *chip)
 
 	snd_cs4231_mce_down(chip);
 
-	spin_lock_irqsave(&chip->lock, flags);
-
-	for (i = 0; i < 32; i++)	/* ok.. fill all CS4231 registers */
-		snd_cs4231_out(chip, i, *ptr++);
-
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		for (i = 0; i < 32; i++)	/* ok.. fill all CS4231 registers */
+			snd_cs4231_out(chip, i, *ptr++);
+	}
 
 	snd_cs4231_mce_up(chip);
 
@@ -1282,14 +1236,12 @@ static int snd_cs4231_get_mux(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	ucontrol->value.enumerated.item[0] =
 		(chip->image[CS4231_LEFT_INPUT] & CS4231_MIXS_ALL) >> 6;
 	ucontrol->value.enumerated.item[1] =
 		(chip->image[CS4231_RIGHT_INPUT] & CS4231_MIXS_ALL) >> 6;
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -1298,7 +1250,6 @@ static int snd_cs4231_put_mux(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	unsigned short left, right;
 	int change;
 
@@ -1308,7 +1259,7 @@ static int snd_cs4231_put_mux(struct snd_kcontrol *kcontrol,
 	left = ucontrol->value.enumerated.item[0] << 6;
 	right = ucontrol->value.enumerated.item[1] << 6;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 
 	left = (chip->image[CS4231_LEFT_INPUT] & ~CS4231_MIXS_ALL) | left;
 	right = (chip->image[CS4231_RIGHT_INPUT] & ~CS4231_MIXS_ALL) | right;
@@ -1316,8 +1267,6 @@ static int snd_cs4231_put_mux(struct snd_kcontrol *kcontrol,
 		 right != chip->image[CS4231_RIGHT_INPUT];
 	snd_cs4231_out(chip, CS4231_LEFT_INPUT, left);
 	snd_cs4231_out(chip, CS4231_RIGHT_INPUT, right);
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return change;
 }
@@ -1340,17 +1289,14 @@ static int snd_cs4231_get_single(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 
 	ucontrol->value.integer.value[0] = (chip->image[reg] >> shift) & mask;
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	if (invert)
 		ucontrol->value.integer.value[0] =
@@ -1363,7 +1309,6 @@ static int snd_cs4231_put_single(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
@@ -1376,13 +1321,11 @@ static int snd_cs4231_put_single(struct snd_kcontrol *kcontrol,
 		val = mask - val;
 	val <<= shift;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 
 	val = (chip->image[reg] & ~(mask << shift)) | val;
 	change = val != chip->image[reg];
 	snd_cs4231_out(chip, reg, val);
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return change;
 }
@@ -1405,7 +1348,6 @@ static int snd_cs4231_get_double(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int shift_left = (kcontrol->private_value >> 16) & 0x07;
@@ -1413,14 +1355,12 @@ static int snd_cs4231_get_double(struct snd_kcontrol *kcontrol,
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 
 	ucontrol->value.integer.value[0] =
 		(chip->image[left_reg] >> shift_left) & mask;
 	ucontrol->value.integer.value[1] =
 		(chip->image[right_reg] >> shift_right) & mask;
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	if (invert) {
 		ucontrol->value.integer.value[0] =
@@ -1436,7 +1376,6 @@ static int snd_cs4231_put_double(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int shift_left = (kcontrol->private_value >> 16) & 0x07;
@@ -1455,7 +1394,7 @@ static int snd_cs4231_put_double(struct snd_kcontrol *kcontrol,
 	val1 <<= shift_left;
 	val2 <<= shift_right;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 
 	val1 = (chip->image[left_reg] & ~(mask << shift_left)) | val1;
 	val2 = (chip->image[right_reg] & ~(mask << shift_right)) | val2;
@@ -1463,8 +1402,6 @@ static int snd_cs4231_put_double(struct snd_kcontrol *kcontrol,
 	change |= val2 != chip->image[right_reg];
 	snd_cs4231_out(chip, left_reg, val1);
 	snd_cs4231_out(chip, right_reg, val2);
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return change;
 }
@@ -1610,7 +1547,6 @@ out_err:
 
 static irqreturn_t snd_cs4231_sbus_interrupt(int irq, void *dev_id)
 {
-	unsigned long flags;
 	unsigned char status;
 	u32 csr;
 	struct snd_cs4231 *chip = dev_id;
@@ -1647,9 +1583,8 @@ static irqreturn_t snd_cs4231_sbus_interrupt(int irq, void *dev_id)
 		snd_cs4231_overrange(chip);
 
 	/* ACK the CS4231 interrupt. */
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	snd_cs4231_outm(chip, CS4231_IRQ_STATUS, ~CS4231_ALL_IRQS | ~status, 0);
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -1661,42 +1596,34 @@ static irqreturn_t snd_cs4231_sbus_interrupt(int irq, void *dev_id)
 static int sbus_dma_request(struct cs4231_dma_control *dma_cont,
 			    dma_addr_t bus_addr, size_t len)
 {
-	unsigned long flags;
 	u32 test, csr;
-	int err;
 	struct sbus_dma_info *base = &dma_cont->sbus_info;
 
 	if (len >= (1 << 24))
 		return -EINVAL;
-	spin_lock_irqsave(&base->lock, flags);
+	guard(spinlock_irqsave)(&base->lock);
 	csr = sbus_readl(base->regs + APCCSR);
-	err = -EINVAL;
 	test = APC_CDMA_READY;
 	if (base->dir == APC_PLAY)
 		test = APC_PDMA_READY;
 	if (!(csr & test))
-		goto out;
-	err = -EBUSY;
+		return -EINVAL;
 	test = APC_XINT_CNVA;
 	if (base->dir == APC_PLAY)
 		test = APC_XINT_PNVA;
 	if (!(csr & test))
-		goto out;
-	err = 0;
+		return -EBUSY;
 	sbus_writel(bus_addr, base->regs + base->dir + APCNVA);
 	sbus_writel(len, base->regs + base->dir + APCNC);
-out:
-	spin_unlock_irqrestore(&base->lock, flags);
-	return err;
+	return 0;
 }
 
 static void sbus_dma_prepare(struct cs4231_dma_control *dma_cont, int d)
 {
-	unsigned long flags;
 	u32 csr, test;
 	struct sbus_dma_info *base = &dma_cont->sbus_info;
 
-	spin_lock_irqsave(&base->lock, flags);
+	guard(spinlock_irqsave)(&base->lock);
 	csr = sbus_readl(base->regs + APCCSR);
 	test =  APC_GENL_INT | APC_PLAY_INT | APC_XINT_ENA |
 		APC_XINT_PLAY | APC_XINT_PEMP | APC_XINT_GENL |
@@ -1706,16 +1633,14 @@ static void sbus_dma_prepare(struct cs4231_dma_control *dma_cont, int d)
 			APC_XINT_CAPT | APC_XINT_CEMP | APC_XINT_GENL;
 	csr |= test;
 	sbus_writel(csr, base->regs + APCCSR);
-	spin_unlock_irqrestore(&base->lock, flags);
 }
 
 static void sbus_dma_enable(struct cs4231_dma_control *dma_cont, int on)
 {
-	unsigned long flags;
 	u32 csr, shift;
 	struct sbus_dma_info *base = &dma_cont->sbus_info;
 
-	spin_lock_irqsave(&base->lock, flags);
+	guard(spinlock_irqsave)(&base->lock);
 	if (!on) {
 		sbus_writel(0, base->regs + base->dir + APCNC);
 		sbus_writel(0, base->regs + base->dir + APCNVA);
@@ -1740,8 +1665,6 @@ static void sbus_dma_enable(struct cs4231_dma_control *dma_cont, int on)
 	else
 		csr &= ~(APC_CDMA_READY << shift);
 	sbus_writel(csr, base->regs + APCCSR);
-
-	spin_unlock_irqrestore(&base->lock, flags);
 }
 
 static unsigned int sbus_dma_addr(struct cs4231_dma_control *dma_cont)

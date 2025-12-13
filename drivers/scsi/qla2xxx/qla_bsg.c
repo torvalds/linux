@@ -3106,8 +3106,8 @@ static bool qla_bsg_found(struct qla_qpair *qpair, struct bsg_job *bsg_job)
 	switch (rval) {
 	case QLA_SUCCESS:
 		/* Wait for the command completion. */
-		ratov_j = ha->r_a_tov / 10 * 4 * 1000;
-		ratov_j = msecs_to_jiffies(ratov_j);
+		ratov_j = ha->r_a_tov / 10 * 4;
+		ratov_j = secs_to_jiffies(ratov_j);
 
 		if (!wait_for_completion_timeout(&comp, ratov_j)) {
 			ql_log(ql_log_info, vha, 0x7089,

@@ -927,6 +927,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_legacy_fast_update = true,
 	.using_dml2 = false,
 	.disable_dsc_power_gate = true,
+	.min_disp_clk_khz = 100000,
 };
 
 static const struct dc_panel_config panel_config_defaults = {

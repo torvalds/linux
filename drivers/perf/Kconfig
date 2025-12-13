@@ -178,6 +178,15 @@ config FSL_IMX9_DDR_PMU
 	 can give information about memory throughput and other related
 	 events.
 
+config FUJITSU_UNCORE_PMU
+	tristate "Fujitsu Uncore PMU"
+	depends on (ARM64 && ACPI) || (COMPILE_TEST && 64BIT)
+	 help
+	 Provides support for the Uncore performance monitor unit (PMU)
+	 in Fujitsu processors.
+	 Adds the Uncore PMU into the perf events subsystem for
+	 monitoring Uncore events.
+
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI

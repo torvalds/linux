@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/fsi/fsi-master-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: fsi-master-gpio
+
+maintainers:
+  - Eddie James <eajames@linux.ibm.com>
+
+allOf:
+  - $ref: /schemas/fsi/fsi-controller.yaml
+
+properties:
+  compatible:
+    items:
+      - const: fsi-master-gpio
+
+  clock-gpios:
+    description: GPIO for FSI clock
+    maxItems: 1
+
+  data-gpios:
+    description: GPIO for FSI data signal
+    maxItems: 1
+
+  enable-gpios:
+    description: GPIO for enable signal
+    maxItems: 1
+
+  trans-gpios:
+    description: GPIO for voltage translator enable
+    maxItems: 1
+
+  mux-gpios:
+    description: GPIO for pin multiplexing with other functions (eg, external
+      FSI masters)
+    maxItems: 1
+
+  no-gpio-delays:
+    description:
+      Don't add extra delays between GPIO accesses. This is useful when the HW
+      GPIO block is running at a low enough frequency.
+    type: boolean
+
+required:
+  - compatible
+  - clock-gpios
+  - data-gpios
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    fsi-master {
+        compatible = "fsi-master-gpio";
+        clock-gpios = <&gpio 0>;
+        data-gpios = <&gpio 1>;
+        enable-gpios = <&gpio 2>;
+        trans-gpios = <&gpio 3>;
+        mux-gpios = <&gpio 4>;
+    };

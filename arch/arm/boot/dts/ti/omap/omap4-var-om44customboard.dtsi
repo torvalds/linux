@@ -194,7 +194,7 @@
 	pinctrl-0 = <&mcspi1_pins>;
 	status = "okay";
 
-	eth@0 {
+	ethernet@0 {
 		compatible = "ks8851";
 		pinctrl-names = "default";
 		pinctrl-0 = <&ks8851_irq_pins>;

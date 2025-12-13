@@ -592,9 +592,9 @@ static int init_clocks(struct device *dev, const struct caam_imx_data *data)
 	int ret;
 
 	ctrlpriv->num_clks = data->num_clks;
-	ctrlpriv->clks = devm_kmemdup(dev, data->clks,
-				      data->num_clks * sizeof(data->clks[0]),
-				      GFP_KERNEL);
+	ctrlpriv->clks = devm_kmemdup_array(dev, data->clks,
+					    data->num_clks, sizeof(*data->clks),
+					    GFP_KERNEL);
 	if (!ctrlpriv->clks)
 		return -ENOMEM;
 
@@ -703,12 +703,12 @@ static int caam_ctrl_rng_init(struct device *dev)
 			 */
 			if (needs_entropy_delay_adjustment())
 				ent_delay = 12000;
-			if (!(ctrlpriv->rng4_sh_init || inst_handles)) {
+			if (!inst_handles) {
 				dev_info(dev,
 					 "Entropy delay = %u\n",
 					 ent_delay);
 				kick_trng(dev, ent_delay);
-				ent_delay += 400;
+				ent_delay = ent_delay * 2;
 			}
 			/*
 			 * if instantiate_rng(...) fails, the loop will rerun

@@ -268,6 +268,8 @@ static void dwmac4_dma_rx_chan_op_mode(struct stmmac_priv *priv,
 
 	mtl_rx_op = readl(ioaddr + MTL_CHAN_RX_OP_MODE(dwmac4_addrs, channel));
 
+	mtl_rx_op |= MTL_OP_MODE_DIS_TCP_EF;
+
 	if (mode == SF_DMA_MODE) {
 		pr_debug("GMAC: enable RX store and forward mode\n");
 		mtl_rx_op |= MTL_OP_MODE_RSF;

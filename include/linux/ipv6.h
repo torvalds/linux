@@ -214,18 +214,21 @@ struct inet6_cork {
 
 /* struct ipv6_pinfo - ipv6 private area */
 struct ipv6_pinfo {
+	/* Used in tx path (inet6_csk_route_socket(), ip6_xmit()) */
 	struct in6_addr 	saddr;
-	struct in6_pktinfo	sticky_pktinfo;
-	const struct in6_addr		*daddr_cache;
-#ifdef CONFIG_IPV6_SUBTREES
-	const struct in6_addr		*saddr_cache;
-#endif
-
 	__be32			flow_label;
-	__u32			frag_size;
-
+	u32			dst_cookie;
+	struct ipv6_txoptions __rcu	*opt;
 	s16			hop_limit;
+	u8			pmtudisc;
+	u8			tclass;
+#ifdef CONFIG_IPV6_SUBTREES
+	bool			saddr_cache;
+#endif
+	bool			daddr_cache;
+
 	u8			mcast_hops;
+	u32			frag_size;
 
 	int			ucast_oif;
 	int			mcast_oif;
@@ -233,7 +236,7 @@ struct ipv6_pinfo {
 	/* pktoption flags */
 	union {
 		struct {
-			__u16	srcrt:1,
+			u16	srcrt:1,
 				osrcrt:1,
 			        rxinfo:1,
 			        rxoinfo:1,
@@ -250,29 +253,25 @@ struct ipv6_pinfo {
 				recvfragsize:1;
 				/* 1 bits hole */
 		} bits;
-		__u16		all;
+		u16		all;
 	} rxopt;
 
 	/* sockopt flags */
-	__u8			srcprefs;	/* 001: prefer temporary address
+	u8			srcprefs;	/* 001: prefer temporary address
 						 * 010: prefer public address
 						 * 100: prefer care-of address
 						 */
-	__u8			pmtudisc;
-	__u8			min_hopcount;
-	__u8			tclass;
+	u8			min_hopcount;
 	__be32			rcv_flowinfo;
+	struct in6_pktinfo	sticky_pktinfo;
 
-	__u32			dst_cookie;
+	struct sk_buff		*pktoptions;
+	struct sk_buff		*rxpmtu;
+	struct inet6_cork	cork;
 
 	struct ipv6_mc_socklist	__rcu *ipv6_mc_list;
 	struct ipv6_ac_socklist	*ipv6_ac_list;
 	struct ipv6_fl_socklist __rcu *ipv6_fl_list;
-
-	struct ipv6_txoptions __rcu	*opt;
-	struct sk_buff		*pktoptions;
-	struct sk_buff		*rxpmtu;
-	struct inet6_cork	cork;
 };
 
 /* We currently use available bits from inet_sk(sk)->inet_flags,
@@ -295,7 +294,7 @@ struct raw6_sock {
 	__u32			offset;		/* checksum offset  */
 	struct icmp6_filter	filter;
 	__u32			ip6mr_table;
-
+	struct numa_drop_counters drop_counters;
 	struct ipv6_pinfo	inet6;
 };
 

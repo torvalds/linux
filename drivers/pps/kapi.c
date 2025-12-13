@@ -109,15 +109,12 @@ struct pps_device *pps_register_source(struct pps_source_info *info,
 	if (err < 0) {
 		pr_err("%s: unable to create char device\n",
 					info->name);
-		goto kfree_pps;
+		goto pps_register_source_exit;
 	}
 
 	dev_dbg(&pps->dev, "new PPS source %s\n", info->name);
 
 	return pps;
-
-kfree_pps:
-	kfree(pps);
 
 pps_register_source_exit:
 	pr_err("%s: unable to register source\n", info->name);

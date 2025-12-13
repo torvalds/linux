@@ -66,6 +66,7 @@ enum MES_SCH_API_OPCODE {
 	MES_SCH_API_SET_SE_MODE			= 17,
 	MES_SCH_API_SET_GANG_SUBMIT		= 18,
 	MES_SCH_API_SET_HW_RSRC_1               = 19,
+	MES_SCH_API_INV_TLBS                    = 20,
 
 	MES_SCH_API_MAX = 0xFF
 };
@@ -286,7 +287,8 @@ union MESAPI_SET_HW_RESOURCES {
 				uint32_t limit_single_process : 1;
 				uint32_t unmapped_doorbell_handling: 2;
 				uint32_t enable_mes_fence_int: 1;
-				uint32_t reserved : 10;
+				uint32_t enable_lr_compute_wa : 1;
+				uint32_t reserved : 9;
 			};
 			uint32_t uint32_all;
 		};
@@ -865,6 +867,35 @@ union MESAPI__SET_GANG_SUBMIT {
 		union MES_API_HEADER	header;
 		struct MES_API_STATUS	api_status;
 		struct SET_GANG_SUBMIT	set_gang_submit;
+	};
+
+	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
+};
+
+/*
+ * @inv_sel        0-select pasid as input to do the invalidation , 1-select vmid
+ * @flush_type     0-old style, 1-light weight, 2-heavyweight, 3-heavyweight2
+ * @inv_sel_id     specific pasid when inv_sel is 0 and specific vmid if inv_sel is 1
+ * @hub_id         0-gc_hub, 1-mm_hub
+ */
+struct INV_TLBS {
+	uint8_t     inv_sel;
+	uint8_t     flush_type;
+	uint16_t    inv_sel_id;
+	uint32_t    hub_id;
+	/* If following two inv_range setting are all 0 , whole VM will be invalidated,
+	 * otherwise only required range be invalidated
+	 */
+	uint64_t    inv_range_va_start;
+	uint64_t    inv_range_size;
+	uint64_t    reserved;
+};
+
+union MESAPI__INV_TLBS {
+	struct {
+		union MES_API_HEADER    header;
+		struct MES_API_STATUS   api_status;
+		struct INV_TLBS         invalidate_tlbs;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];

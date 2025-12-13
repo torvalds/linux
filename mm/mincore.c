@@ -47,6 +47,47 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
 	return 0;
 }
 
+static unsigned char mincore_swap(swp_entry_t entry, bool shmem)
+{
+	struct swap_info_struct *si;
+	struct folio *folio = NULL;
+	unsigned char present = 0;
+
+	if (!IS_ENABLED(CONFIG_SWAP)) {
+		WARN_ON(1);
+		return 0;
+	}
+
+	/*
+	 * Shmem mapping may contain swapin error entries, which are
+	 * absent. Page table may contain migration or hwpoison
+	 * entries which are always uptodate.
+	 */
+	if (non_swap_entry(entry))
+		return !shmem;
+
+	/*
+	 * Shmem mapping lookup is lockless, so we need to grab the swap
+	 * device. mincore page table walk locks the PTL, and the swap
+	 * device is stable, avoid touching the si for better performance.
+	 */
+	if (shmem) {
+		si = get_swap_device(entry);
+		if (!si)
+			return 0;
+	}
+	folio = swap_cache_get_folio(entry);
+	if (shmem)
+		put_swap_device(si);
+	/* The swap cache space contains either folio, shadow or NULL */
+	if (folio && !xa_is_value(folio)) {
+		present = folio_test_uptodate(folio);
+		folio_put(folio);
+	}
+
+	return present;
+}
+
 /*
  * Later we can get more picky about what "in core" means precisely.
  * For now, simply check to see if the page is in the page cache,
@@ -64,8 +105,15 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t index)
 	 * any other file mapping (ie. marked !present and faulted in with
 	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
 	 */
-	folio = filemap_get_incore_folio(mapping, index);
-	if (!IS_ERR(folio)) {
+	folio = filemap_get_entry(mapping, index);
+	if (folio) {
+		if (xa_is_value(folio)) {
+			if (shmem_mapping(mapping))
+				return mincore_swap(radix_to_swp_entry(folio),
+						    true);
+			else
+				return 0;
+		}
 		present = folio_test_uptodate(folio);
 		folio_put(folio);
 	}
@@ -143,23 +191,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 			for (i = 0; i < step; i++)
 				vec[i] = 1;
 		} else { /* pte is a swap entry */
-			swp_entry_t entry = pte_to_swp_entry(pte);
-
-			if (non_swap_entry(entry)) {
-				/*
-				 * migration or hwpoison entries are always
-				 * uptodate
-				 */
-				*vec = 1;
-			} else {
-#ifdef CONFIG_SWAP
-				*vec = mincore_page(swap_address_space(entry),
-						    swap_cache_index(entry));
-#else
-				WARN_ON(1);
-				*vec = 1;
-#endif
-			}
+			*vec = mincore_swap(pte_to_swp_entry(pte), false);
 		}
 		vec += step;
 	}

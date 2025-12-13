@@ -462,7 +462,7 @@ int service_operation(struct orangefs_kernel_op_s *op,
 	((ORANGEFS_SB(inode->i_sb)->flags & ORANGEFS_OPT_INTR) ? \
 		ORANGEFS_OP_INTERRUPTIBLE : 0)
 
-#define fill_default_sys_attrs(sys_attr, type, mode)			\
+#define fill_default_sys_attrs(sys_attr, mode)			\
 do {									\
 	sys_attr.owner = from_kuid(&init_user_ns, current_fsuid()); \
 	sys_attr.group = from_kgid(&init_user_ns, current_fsgid()); \

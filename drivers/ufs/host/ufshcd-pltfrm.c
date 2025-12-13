@@ -430,6 +430,39 @@ int ufshcd_negotiate_pwr_params(const struct ufs_host_params *host_params,
 }
 EXPORT_SYMBOL_GPL(ufshcd_negotiate_pwr_params);
 
+/**
+ * ufshcd_parse_gear_limits - Parse DT-based gear and rate limits for UFS
+ * @hba: Pointer to UFS host bus adapter instance
+ * @host_params: Pointer to UFS host parameters structure to be updated
+ *
+ * This function reads optional device tree properties to apply
+ * platform-specific constraints.
+ *
+ * "limit-hs-gear": Specifies the max HS gear.
+ * "limit-gear-rate": Specifies the max High-Speed rate.
+ */
+void ufshcd_parse_gear_limits(struct ufs_hba *hba, struct ufs_host_params *host_params)
+{
+	struct device_node *np = hba->dev->of_node;
+	u32 hs_gear;
+	const char *hs_rate;
+
+	if (!of_property_read_u32(np, "limit-hs-gear", &hs_gear)) {
+		host_params->hs_tx_gear = hs_gear;
+		host_params->hs_rx_gear = hs_gear;
+	}
+
+	if (!of_property_read_string(np, "limit-gear-rate", &hs_rate)) {
+		if (!strcmp(hs_rate, "rate-a"))
+			host_params->hs_rate = PA_HS_MODE_A;
+		else if (!strcmp(hs_rate, "rate-b"))
+			host_params->hs_rate = PA_HS_MODE_B;
+		else
+			dev_warn(hba->dev, "Invalid rate: %s\n", hs_rate);
+	}
+}
+EXPORT_SYMBOL_GPL(ufshcd_parse_gear_limits);
+
 void ufshcd_init_host_params(struct ufs_host_params *host_params)
 {
 	*host_params = (struct ufs_host_params){

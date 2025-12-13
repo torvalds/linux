@@ -22,6 +22,7 @@ properties:
         items:
           - enum:
               - qcom,qcm2290-cpufreq-hw
+              - qcom,qcs615-cpufreq-hw
               - qcom,sc7180-cpufreq-hw
               - qcom,sc8180x-cpufreq-hw
               - qcom,sdm670-cpufreq-hw
@@ -132,6 +133,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,qcs615-cpufreq-hw
               - qcom,qdu1000-cpufreq-epss
               - qcom,sa8255p-cpufreq-epss
               - qcom,sa8775p-cpufreq-epss

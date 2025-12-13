@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -499,7 +501,6 @@ static void icl_tc_port_assert_ref_held(struct intel_display *display,
 
 static void icl_tc_cold_exit(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret, tries = 0;
 
 	while (1) {
@@ -514,7 +515,7 @@ static void icl_tc_cold_exit(struct intel_display *display)
 		msleep(1);
 
 	/* TODO: turn failure into a error as soon i915 CI updates ICL IFWI */
-	drm_dbg_kms(&i915->drm, "TC cold block %s\n", ret ? "failed" :
+	drm_dbg_kms(display->drm, "TC cold block %s\n", ret ? "failed" :
 		    "succeeded");
 }
 
@@ -527,6 +528,8 @@ icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
 	bool is_tbt = power_well->desc->is_tc_tbt;
 	bool timeout_expected;
+	u32 val;
+	int ret;
 
 	icl_tc_port_assert_ref_held(display, power_well, dig_port);
 
@@ -553,10 +556,11 @@ icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 
 		tc_port = TGL_AUX_PW_TO_TC_PORT(i915_power_well_instance(power_well)->hsw.idx);
 
-		if (wait_for(intel_dkl_phy_read(display, DKL_CMN_UC_DW_27(tc_port)) &
-			     DKL_CMN_UC_DW27_UC_HEALTH, 1))
-			drm_warn(display->drm,
-				 "Timeout waiting TC uC health\n");
+		ret = poll_timeout_us(val = intel_dkl_phy_read(display, DKL_CMN_UC_DW_27(tc_port)),
+				      val & DKL_CMN_UC_DW27_UC_HEALTH,
+				      100, 1000, false);
+		if (ret)
+			drm_warn(display->drm, "Timeout waiting TC uC health\n");
 	}
 }
 
@@ -1122,6 +1126,8 @@ static void vlv_set_power_well(struct intel_display *display,
 	u32 mask;
 	u32 state;
 	u32 ctrl;
+	u32 val;
+	int ret;
 
 	mask = PUNIT_PWRGT_MASK(pw_idx);
 	state = enable ? PUNIT_PWRGT_PWR_ON(pw_idx) :
@@ -1129,10 +1135,8 @@ static void vlv_set_power_well(struct intel_display *display,
 
 	vlv_punit_get(display->drm);
 
-#define COND \
-	((vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS) & mask) == state)
-
-	if (COND)
+	val = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS);
+	if ((val & mask) == state)
 		goto out;
 
 	ctrl = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_CTRL);
@@ -1140,13 +1144,14 @@ static void vlv_set_power_well(struct intel_display *display,
 	ctrl |= state;
 	vlv_punit_write(display->drm, PUNIT_REG_PWRGT_CTRL, ctrl);
 
-	if (wait_for(COND, 100))
+	ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS),
+			      (val & mask) == state,
+			      500, 100 * 1000, false);
+	if (ret)
 		drm_err(display->drm,
 			"timeout setting power well state %08x (%08x)\n",
 			state,
 			vlv_punit_read(display->drm, PUNIT_REG_PWRGT_CTRL));
-
-#undef COND
 
 out:
 	vlv_punit_put(display->drm);
@@ -1208,7 +1213,7 @@ static void vlv_init_display_clock_gating(struct intel_display *display)
 	 * (and never recovering) in this case. intel_dsi_post_disable() will
 	 * clear it when we turn off the display.
 	 */
-	intel_de_rmw(display, DSPCLK_GATE_D(display),
+	intel_de_rmw(display, VLV_DSPCLK_GATE_D,
 		     ~DPOUNIT_CLOCK_GATE_DISABLE, VRHUNIT_CLOCK_GATE_DISABLE);
 
 	/*
@@ -1711,23 +1716,24 @@ static void chv_set_pipe_power_well(struct intel_display *display,
 	enum pipe pipe = PIPE_A;
 	u32 state;
 	u32 ctrl;
+	int ret;
 
 	state = enable ? DP_SSS_PWR_ON(pipe) : DP_SSS_PWR_GATE(pipe);
 
 	vlv_punit_get(display->drm);
 
-#define COND \
-	((vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM) & DP_SSS_MASK(pipe)) == state)
-
-	if (COND)
+	ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
+	if ((ctrl & DP_SSS_MASK(pipe)) == state)
 		goto out;
 
-	ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
 	ctrl &= ~DP_SSC_MASK(pipe);
 	ctrl |= enable ? DP_SSC_PWR_ON(pipe) : DP_SSC_PWR_GATE(pipe);
 	vlv_punit_write(display->drm, PUNIT_REG_DSPSSPM, ctrl);
 
-	if (wait_for(COND, 100))
+	ret = poll_timeout_us(ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM),
+			      (ctrl & DP_SSS_MASK(pipe)) == state,
+			      500, 100 * 1000, false);
+	if (ret)
 		drm_err(display->drm,
 			"timeout setting power well state %08x (%08x)\n",
 			state,
@@ -1765,7 +1771,6 @@ static void chv_pipe_power_well_disable(struct intel_display *display,
 static void
 tgl_tc_cold_request(struct intel_display *display, bool block)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u8 tries = 0;
 	int ret;
 
@@ -1798,10 +1803,9 @@ tgl_tc_cold_request(struct intel_display *display, bool block)
 	}
 
 	if (ret)
-		drm_err(&i915->drm, "TC cold %sblock failed\n",
-			block ? "" : "un");
+		drm_err(display->drm, "TC cold %sblock failed\n", block ? "" : "un");
 	else
-		drm_dbg_kms(&i915->drm, "TC cold %sblock succeeded\n",
+		drm_dbg_kms(display->drm, "TC cold %sblock succeeded\n",
 			    block ? "" : "un");
 }
 

@@ -39,6 +39,12 @@ typedef u8 __bitwise dscp_t;
 
 #define INET_DSCP_MASK 0xfc
 
+/* A few places in the IPv4 code need to ignore the three high order bits of
+ * DSCP because of backward compatibility (as these bits used to represent the
+ * IPv4 Precedence in RFC 791's TOS field and were ignored).
+ */
+#define INET_DSCP_LEGACY_TOS_MASK ((__force dscp_t)0x1c)
+
 static inline dscp_t inet_dsfield_to_dscp(__u8 dsfield)
 {
 	return (__force dscp_t)(dsfield & INET_DSCP_MASK);

@@ -406,6 +406,16 @@ config RTC_DRV_MAX77686
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max77686.
 
+config RTC_DRV_SPACEMIT_P1
+	tristate "SpacemiT P1 RTC"
+	depends on ARCH_SPACEMIT || COMPILE_TEST
+	select MFD_SPACEMIT_P1
+	default ARCH_SPACEMIT
+	help
+	  Enable support for the RTC function in the SpacemiT P1 PMIC.
+	  This driver can also be built as a module, which will be called
+	  "spacemit-p1-rtc".
+
 config RTC_DRV_NCT3018Y
 	tristate "Nuvoton NCT3018Y"
 	depends on OF
@@ -415,6 +425,16 @@ config RTC_DRV_NCT3018Y
 
 	   This driver can also be built as a module, if so, the module will be
 	   called "rtc-nct3018y".
+
+config RTC_DRV_NCT6694
+	tristate "Nuvoton NCT6694 RTC support"
+	depends on MFD_NCT6694
+	help
+	  If you say yes to this option, support will be included for Nuvoton
+	  NCT6694, a USB device to RTC.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called rtc-nct6694.
 
 config RTC_DRV_RK808
 	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 RTC"
@@ -2034,20 +2054,6 @@ config RTC_DRV_RENESAS_RTCA3
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-rtca3".
 
-comment "HID Sensor RTC drivers"
-
-config RTC_DRV_HID_SENSOR_TIME
-	tristate "HID Sensor Time"
-	depends on USB_HID
-	depends on HID_SENSOR_HUB && IIO
-	select HID_SENSOR_IIO_COMMON
-	help
-	  Say yes here to build support for the HID Sensors of type Time.
-	  This drivers makes such sensors available as RTCs.
-
-	  If this driver is compiled as a module, it will be named
-	  rtc-hid-sensor-time.
-
 config RTC_DRV_GOLDFISH
 	tristate "Goldfish Real Time Clock"
 	depends on HAS_IOMEM
@@ -2121,5 +2127,19 @@ config RTC_DRV_S32G
 
 	  This RTC module can be used as a wakeup source.
 	  Please note that it is not battery-powered.
+
+comment "HID Sensor RTC drivers"
+
+config RTC_DRV_HID_SENSOR_TIME
+	tristate "HID Sensor Time"
+	depends on USB_HID
+	depends on HID_SENSOR_HUB && IIO
+	select HID_SENSOR_IIO_COMMON
+	help
+	  Say yes here to build support for the HID Sensors of type Time.
+	  This drivers makes such sensors available as RTCs.
+
+	  If this driver is compiled as a module, it will be named
+	  rtc-hid-sensor-time.
 
 endif # RTC_CLASS

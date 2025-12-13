@@ -56,10 +56,10 @@ properties:
       Regulator for supply voltage to VIN pin
 
   ti,rx-gain-reduction-db:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Specify an RX gain reduction to reduce antenna sensitivity with 5dB per
-      increment, with a maximum of 15dB. Supported values: [0, 5, 10, 15].
+      increment, with a maximum of 15dB.
+    enum: [ 0, 5, 10, 15]
 
 required:
   - compatible

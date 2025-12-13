@@ -77,12 +77,13 @@
 			status = "disabled";
 		};
 
-		dma: dma@31000000 {
+		dma: dma-controller@31000000 {
 			compatible = "arm,pl080", "arm,primecell";
 			reg = <0x31000000 0x1000>;
 			interrupts = <28 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk LPC32XX_CLK_DMA>;
 			clock-names = "apb_pclk";
+			#dma-cells = <2>;
 		};
 
 		usb {
@@ -224,8 +225,8 @@
 				status = "disabled";
 			};
 
-			sd: sd@20098000 {
-				compatible = "arm,pl18x", "arm,primecell";
+			sd: mmc@20098000 {
+				compatible = "arm,pl180", "arm,primecell";
 				reg = <0x20098000 0x1000>;
 				interrupts = <15 IRQ_TYPE_LEVEL_HIGH>,
 					     <13 IRQ_TYPE_LEVEL_HIGH>;
@@ -298,11 +299,11 @@
 				clocks = <&clk LPC32XX_CLK_I2C2>;
 			};
 
-			mpwm: mpwm@400e8000 {
+			mpwm: pwm@400e8000 {
 				compatible = "nxp,lpc3220-motor-pwm";
 				reg = <0x400e8000 0x78>;
+				#pwm-cells = <3>;
 				status = "disabled";
-				#pwm-cells = <2>;
 			};
 		};
 

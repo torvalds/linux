@@ -44,7 +44,7 @@ static __always_inline void memcpy_split_src(char *dest, const char *src1,
  * gives us all the type checking.
  *
  * The extent buffer pages stored in the array folios may not form a contiguous
- * phyusical range, but the API functions assume the linear offset to the range
+ * physical range, but the API functions assume the linear offset to the range
  * from 0 to metadata node size.
  */
 

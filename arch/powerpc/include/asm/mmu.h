@@ -137,7 +137,7 @@
 				MMU_FTR_CI_LARGE_PAGE
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE | MMU_FTR_NO_SLBIE_B
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/bug.h>
 #include <asm/cputable.h>
 #include <asm/page.h>
@@ -332,7 +332,7 @@ static inline bool strict_module_rwx_enabled(void)
 {
 	return IS_ENABLED(CONFIG_STRICT_MODULE_RWX) && strict_kernel_rwx_enabled();
 }
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /* The kernel use the constants below to index in the page sizes array.
  * The use of fixed constants for this purpose is better for performances
@@ -377,7 +377,7 @@ static inline bool strict_module_rwx_enabled(void)
 #include <asm/book3s/64/mmu.h>
 #else /* CONFIG_PPC_BOOK3S_64 */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /* MMU initialization */
 extern void early_init_mmu(void);
 extern void early_init_mmu_secondary(void);
@@ -388,7 +388,7 @@ static inline void mmu_early_init_devtree(void) { }
 static inline void pkey_early_init_devtree(void) {}
 
 extern void *abatron_pteptrs[2];
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif
 
 #if defined(CONFIG_PPC_BOOK3S_32)

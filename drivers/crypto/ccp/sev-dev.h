@@ -42,7 +42,6 @@ struct sev_device {
 
 	struct sev_vdata *vdata;
 
-	int state;
 	unsigned int int_rcvd;
 	wait_queue_head_t int_queue;
 	struct sev_misc_dev *misc;
@@ -57,6 +56,11 @@ struct sev_device {
 	bool cmd_buf_backup_active;
 
 	bool snp_initialized;
+
+	struct sev_user_data_status sev_plat_status;
+
+	struct sev_user_data_snp_status snp_plat_status;
+	struct snp_feature_info snp_feat_info_0;
 };
 
 int sev_dev_init(struct psp_device *psp);
@@ -64,5 +68,8 @@ void sev_dev_destroy(struct psp_device *psp);
 
 void sev_pci_init(void);
 void sev_pci_exit(void);
+
+struct page *snp_alloc_hv_fixed_pages(unsigned int num_2mb_pages);
+void snp_free_hv_fixed_pages(struct page *page);
 
 #endif /* __SEV_DEV_H */

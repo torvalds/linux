@@ -2328,8 +2328,8 @@ out:
  * To avoid blocking kernel daemons, such as lockd, that need to acquire POSIX
  * locks, the ->lock() interface may return asynchronously, before the lock has
  * been granted or denied by the underlying filesystem, if (and only if)
- * lm_grant is set. Additionally EXPORT_OP_ASYNC_LOCK in export_operations
- * flags need to be set.
+ * lm_grant is set. Additionally FOP_ASYNC_LOCK in file_operations fop_flags
+ * need to be set.
  *
  * Callers expecting ->lock() to return asynchronously will only use F_SETLK,
  * not F_SETLKW; they will set FL_SLEEP if (and only if) the request is for a

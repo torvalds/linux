@@ -75,6 +75,7 @@ struct mlx5hws_context_attr {
 struct mlx5hws_table_attr {
 	enum mlx5hws_table_type type;
 	u32 level;
+	u16 uid;
 };
 
 enum mlx5hws_matcher_flow_src {
@@ -734,7 +735,6 @@ mlx5hws_action_create_push_vlan(struct mlx5hws_context *ctx, u32 flags);
  * @num_dest: The number of dests attributes.
  * @dests: The destination array. Each contains a destination action and can
  *	   have additional actions.
- * @ignore_flow_level: Whether to turn on 'ignore_flow_level' for this dest.
  * @flags: Action creation flags (enum mlx5hws_action_flags).
  *
  * Return: pointer to mlx5hws_action on success NULL otherwise.
@@ -742,7 +742,7 @@ mlx5hws_action_create_push_vlan(struct mlx5hws_context *ctx, u32 flags);
 struct mlx5hws_action *
 mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx, size_t num_dest,
 				 struct mlx5hws_action_dest_attr *dests,
-				 bool ignore_flow_level, u32 flags);
+				 u32 flags);
 
 /**
  * mlx5hws_action_create_insert_header - Create insert header action.

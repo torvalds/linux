@@ -35,8 +35,8 @@ and bit-banged data signals:
 		     <&gpio1 15 0>;
 
 In the above example, &gpio1 uses 2 cells to specify a gpio. The first cell is
-a local offset to the GPIO line and the second cell represent consumer flags,
-such as if the consumer desire the line to be active low (inverted) or open
+a local offset to the GPIO line and the second cell represents consumer flags,
+such as if the consumer desires the line to be active low (inverted) or open
 drain. This is the recommended practice.
 
 The exact meaning of each specifier cell is controller specific, and must be
@@ -59,7 +59,7 @@ GPIO pin number, and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
 Optional standard bitfield specifiers for the last cell:
 
 - Bit 0: 0 means active high, 1 means active low
-- Bit 1: 0 mean push-pull wiring, see:
+- Bit 1: 0 means push-pull wiring, see:
            https://en.wikipedia.org/wiki/Push-pull_output
          1 means single-ended wiring, see:
            https://en.wikipedia.org/wiki/Single-ended_triode
@@ -176,7 +176,7 @@ example of a name from an SoC's reference manual) would not be desirable.
 
 In either case placeholders are discouraged: rather use the "" (blank
 string) if the use of the GPIO line is undefined in your design. Ideally,
-try to add comments to the dts file describing the naming the convention
+try to add comments to the dts file describing the naming convention
 you have chosen, and specifying from where the names are derived.
 
 The names are assigned starting from line offset 0, from left to right,
@@ -304,7 +304,7 @@ pins 50..69.
 It is also possible to use pin groups for gpio ranges when pin groups are the
 easiest and most convenient mapping.
 
-Both both <pinctrl-base> and <count> must set to 0 when using named pin groups
+Both <pinctrl-base> and <count> must be set to 0 when using named pin groups
 names.
 
 The property gpio-ranges-group-names must contain exactly one string for each
@@ -313,7 +313,7 @@ range.
 Elements of gpio-ranges-group-names must contain the name of a pin group
 defined in the respective pin controller. The number of pins/GPIO lines in the
 range is the number of pins in that pin group. The number of pins of that
-group is defined int the implementation and not in the device tree.
+group is defined in the implementation and not in the device tree.
 
 If numerical and named pin groups are mixed, the string corresponding to a
 numerical pin range in gpio-ranges-group-names must be empty.

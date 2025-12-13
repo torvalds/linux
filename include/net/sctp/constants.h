@@ -296,9 +296,8 @@ enum { SCTP_MAX_GABS = 16 };
 					 */
 #define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if no mtu disc */
 
-#define SCTP_SECRET_SIZE 32		/* Number of octets in a 256 bits. */
-
-#define SCTP_SIGNATURE_SIZE 20	        /* size of a SLA-1 signature */
+#define SCTP_COOKIE_KEY_SIZE 32	/* size of cookie HMAC key */
+#define SCTP_COOKIE_MAC_SIZE 32	/* size of HMAC field in cookies */
 
 #define SCTP_COOKIE_MULTIPLE 32 /* Pad out our cookie to make our hash
 				 * functions simpler to write.
@@ -417,16 +416,12 @@ enum {
 	SCTP_AUTH_HMAC_ID_RESERVED_0,
 	SCTP_AUTH_HMAC_ID_SHA1,
 	SCTP_AUTH_HMAC_ID_RESERVED_2,
-#if defined (CONFIG_CRYPTO_SHA256) || defined (CONFIG_CRYPTO_SHA256_MODULE)
 	SCTP_AUTH_HMAC_ID_SHA256,
-#endif
 	__SCTP_AUTH_HMAC_MAX
 };
 
 #define SCTP_AUTH_HMAC_ID_MAX	__SCTP_AUTH_HMAC_MAX - 1
 #define SCTP_AUTH_NUM_HMACS 	__SCTP_AUTH_HMAC_MAX
-#define SCTP_SHA1_SIG_SIZE 20
-#define SCTP_SHA256_SIG_SIZE 32
 
 /*  SCTP-AUTH, Section 3.2
  *     The chunk types for INIT, INIT-ACK, SHUTDOWN-COMPLETE and AUTH chunks

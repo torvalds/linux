@@ -1,0 +1,158 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/embedded-controller/kontron,sl28cpld.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Kontron's sl28cpld board management controller
+
+maintainers:
+  - Michael Walle <michael@walle.cc>
+
+description: |
+  The board management controller may contain different IP blocks like
+  watchdog, fan monitoring, PWM controller, interrupt controller and a
+  GPIO controller.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - kontron,sa67mcu
+          - const: kontron,sl28cpld
+      - const: kontron,sl28cpld
+
+  reg:
+    description:
+      I2C device address.
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  "#interrupt-cells":
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+patternProperties:
+  "^gpio(@[0-9a-f]+)?$":
+    $ref: /schemas/gpio/kontron,sl28cpld-gpio.yaml
+
+  "^hwmon(@[0-9a-f]+)?$":
+    $ref: /schemas/hwmon/kontron,sl28cpld-hwmon.yaml
+
+  "^interrupt-controller(@[0-9a-f]+)?$":
+    $ref: /schemas/interrupt-controller/kontron,sl28cpld-intc.yaml
+
+  "^pwm(@[0-9a-f]+)?$":
+    $ref: /schemas/pwm/kontron,sl28cpld-pwm.yaml
+
+  "^watchdog(@[0-9a-f]+)?$":
+    $ref: /schemas/watchdog/kontron,sl28cpld-wdt.yaml
+
+required:
+  - "#address-cells"
+  - "#size-cells"
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        sl28cpld@4a {
+            compatible = "kontron,sl28cpld";
+            reg = <0x4a>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            watchdog@4 {
+                compatible = "kontron,sl28cpld-wdt";
+                reg = <0x4>;
+                kontron,assert-wdt-timeout-pin;
+            };
+
+            hwmon@b {
+                compatible = "kontron,sl28cpld-fan";
+                reg = <0xb>;
+            };
+
+            pwm@c {
+                compatible = "kontron,sl28cpld-pwm";
+                reg = <0xc>;
+                #pwm-cells = <2>;
+            };
+
+            pwm@e {
+                compatible = "kontron,sl28cpld-pwm";
+                reg = <0xe>;
+                #pwm-cells = <2>;
+            };
+
+            gpio@10 {
+                compatible = "kontron,sl28cpld-gpio";
+                reg = <0x10>;
+                interrupts-extended = <&gpio2 6
+                               IRQ_TYPE_EDGE_FALLING>;
+
+                gpio-controller;
+                #gpio-cells = <2>;
+                gpio-line-names = "a", "b", "c";
+
+                interrupt-controller;
+                #interrupt-cells = <2>;
+            };
+
+            gpio@15 {
+                compatible = "kontron,sl28cpld-gpio";
+                reg = <0x15>;
+                interrupts-extended = <&gpio2 6
+                               IRQ_TYPE_EDGE_FALLING>;
+
+                gpio-controller;
+                #gpio-cells = <2>;
+
+                interrupt-controller;
+                #interrupt-cells = <2>;
+            };
+
+            gpio@1a {
+                compatible = "kontron,sl28cpld-gpo";
+                reg = <0x1a>;
+
+                gpio-controller;
+                #gpio-cells = <2>;
+            };
+
+            gpio@1b {
+                compatible = "kontron,sl28cpld-gpi";
+                reg = <0x1b>;
+
+                gpio-controller;
+                #gpio-cells = <2>;
+            };
+
+            interrupt-controller@1c {
+                compatible = "kontron,sl28cpld-intc";
+                reg = <0x1c>;
+                interrupts-extended = <&gpio2 6
+                               IRQ_TYPE_EDGE_FALLING>;
+
+                interrupt-controller;
+                #interrupt-cells = <2>;
+            };
+        };
+    };

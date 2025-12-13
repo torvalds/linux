@@ -18,6 +18,7 @@
 #include <asm/processor.h>
 #include <asm/insn.h>
 #include <asm/mmu_context.h>
+#include <asm/nops.h>
 
 /* Post-execution fixups. */
 
@@ -310,25 +311,32 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 
 #ifdef CONFIG_X86_64
 
+struct uretprobe_syscall_args {
+	unsigned long r11;
+	unsigned long cx;
+	unsigned long ax;
+};
+
 asm (
 	".pushsection .rodata\n"
 	".global uretprobe_trampoline_entry\n"
 	"uretprobe_trampoline_entry:\n"
-	"pushq %rax\n"
-	"pushq %rcx\n"
-	"pushq %r11\n"
-	"movq $" __stringify(__NR_uretprobe) ", %rax\n"
+	"push %rax\n"
+	"push %rcx\n"
+	"push %r11\n"
+	"mov $" __stringify(__NR_uretprobe) ", %rax\n"
 	"syscall\n"
 	".global uretprobe_syscall_check\n"
 	"uretprobe_syscall_check:\n"
-	"popq %r11\n"
-	"popq %rcx\n"
-
-	/* The uretprobe syscall replaces stored %rax value with final
+	"pop %r11\n"
+	"pop %rcx\n"
+	/*
+	 * The uretprobe syscall replaces stored %rax value with final
 	 * return address, so we don't restore %rax in here and just
 	 * call ret.
 	 */
-	"retq\n"
+	"ret\n"
+	"int3\n"
 	".global uretprobe_trampoline_end\n"
 	"uretprobe_trampoline_end:\n"
 	".popsection\n"
@@ -338,7 +346,7 @@ extern u8 uretprobe_trampoline_entry[];
 extern u8 uretprobe_trampoline_end[];
 extern u8 uretprobe_syscall_check[];
 
-void *arch_uprobe_trampoline(unsigned long *psize)
+void *arch_uretprobe_trampoline(unsigned long *psize)
 {
 	static uprobe_opcode_t insn = UPROBE_SWBP_INSN;
 	struct pt_regs *regs = task_pt_regs(current);
@@ -365,7 +373,8 @@ static unsigned long trampoline_check_ip(unsigned long tramp)
 SYSCALL_DEFINE0(uretprobe)
 {
 	struct pt_regs *regs = task_pt_regs(current);
-	unsigned long err, ip, sp, r11_cx_ax[3], tramp;
+	struct uretprobe_syscall_args args;
+	unsigned long err, ip, sp, tramp;
 
 	/* If there's no trampoline, we are called from wrong place. */
 	tramp = uprobe_get_trampoline_vaddr();
@@ -376,15 +385,15 @@ SYSCALL_DEFINE0(uretprobe)
 	if (unlikely(regs->ip != trampoline_check_ip(tramp)))
 		goto sigill;
 
-	err = copy_from_user(r11_cx_ax, (void __user *)regs->sp, sizeof(r11_cx_ax));
+	err = copy_from_user(&args, (void __user *)regs->sp, sizeof(args));
 	if (err)
 		goto sigill;
 
 	/* expose the "right" values of r11/cx/ax/sp to uprobe_consumer/s */
-	regs->r11 = r11_cx_ax[0];
-	regs->cx  = r11_cx_ax[1];
-	regs->ax  = r11_cx_ax[2];
-	regs->sp += sizeof(r11_cx_ax);
+	regs->r11 = args.r11;
+	regs->cx  = args.cx;
+	regs->ax  = args.ax;
+	regs->sp += sizeof(args);
 	regs->orig_ax = -1;
 
 	ip = regs->ip;
@@ -400,21 +409,21 @@ SYSCALL_DEFINE0(uretprobe)
 	 */
 	if (regs->sp != sp || shstk_is_enabled())
 		return regs->ax;
-	regs->sp -= sizeof(r11_cx_ax);
+	regs->sp -= sizeof(args);
 
 	/* for the case uprobe_consumer has changed r11/cx */
-	r11_cx_ax[0] = regs->r11;
-	r11_cx_ax[1] = regs->cx;
+	args.r11 = regs->r11;
+	args.cx  = regs->cx;
 
 	/*
 	 * ax register is passed through as return value, so we can use
 	 * its space on stack for ip value and jump to it through the
 	 * trampoline's ret instruction
 	 */
-	r11_cx_ax[2] = regs->ip;
+	args.ax  = regs->ip;
 	regs->ip = ip;
 
-	err = copy_to_user((void __user *)regs->sp, r11_cx_ax, sizeof(r11_cx_ax));
+	err = copy_to_user((void __user *)regs->sp, &args, sizeof(args));
 	if (err)
 		goto sigill;
 
@@ -608,6 +617,581 @@ static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		*sr = utask->autask.saved_scratch_register;
 	}
 }
+
+static int tramp_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma)
+{
+	return -EPERM;
+}
+
+static struct page *tramp_mapping_pages[2] __ro_after_init;
+
+static struct vm_special_mapping tramp_mapping = {
+	.name   = "[uprobes-trampoline]",
+	.mremap = tramp_mremap,
+	.pages  = tramp_mapping_pages,
+};
+
+struct uprobe_trampoline {
+	struct hlist_node	node;
+	unsigned long		vaddr;
+};
+
+static bool is_reachable_by_call(unsigned long vtramp, unsigned long vaddr)
+{
+	long delta = (long)(vaddr + 5 - vtramp);
+
+	return delta >= INT_MIN && delta <= INT_MAX;
+}
+
+static unsigned long find_nearest_trampoline(unsigned long vaddr)
+{
+	struct vm_unmapped_area_info info = {
+		.length     = PAGE_SIZE,
+		.align_mask = ~PAGE_MASK,
+	};
+	unsigned long low_limit, high_limit;
+	unsigned long low_tramp, high_tramp;
+	unsigned long call_end = vaddr + 5;
+
+	if (check_add_overflow(call_end, INT_MIN, &low_limit))
+		low_limit = PAGE_SIZE;
+
+	high_limit = call_end + INT_MAX;
+
+	/* Search up from the caller address. */
+	info.low_limit = call_end;
+	info.high_limit = min(high_limit, TASK_SIZE);
+	high_tramp = vm_unmapped_area(&info);
+
+	/* Search down from the caller address. */
+	info.low_limit = max(low_limit, PAGE_SIZE);
+	info.high_limit = call_end;
+	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+	low_tramp = vm_unmapped_area(&info);
+
+	if (IS_ERR_VALUE(high_tramp) && IS_ERR_VALUE(low_tramp))
+		return -ENOMEM;
+	if (IS_ERR_VALUE(high_tramp))
+		return low_tramp;
+	if (IS_ERR_VALUE(low_tramp))
+		return high_tramp;
+
+	/* Return address that's closest to the caller address. */
+	if (call_end - low_tramp < high_tramp - call_end)
+		return low_tramp;
+	return high_tramp;
+}
+
+static struct uprobe_trampoline *create_uprobe_trampoline(unsigned long vaddr)
+{
+	struct pt_regs *regs = task_pt_regs(current);
+	struct mm_struct *mm = current->mm;
+	struct uprobe_trampoline *tramp;
+	struct vm_area_struct *vma;
+
+	if (!user_64bit_mode(regs))
+		return NULL;
+
+	vaddr = find_nearest_trampoline(vaddr);
+	if (IS_ERR_VALUE(vaddr))
+		return NULL;
+
+	tramp = kzalloc(sizeof(*tramp), GFP_KERNEL);
+	if (unlikely(!tramp))
+		return NULL;
+
+	tramp->vaddr = vaddr;
+	vma = _install_special_mapping(mm, tramp->vaddr, PAGE_SIZE,
+				VM_READ|VM_EXEC|VM_MAYEXEC|VM_MAYREAD|VM_DONTCOPY|VM_IO,
+				&tramp_mapping);
+	if (IS_ERR(vma)) {
+		kfree(tramp);
+		return NULL;
+	}
+	return tramp;
+}
+
+static struct uprobe_trampoline *get_uprobe_trampoline(unsigned long vaddr, bool *new)
+{
+	struct uprobes_state *state = &current->mm->uprobes_state;
+	struct uprobe_trampoline *tramp = NULL;
+
+	if (vaddr > TASK_SIZE || vaddr < PAGE_SIZE)
+		return NULL;
+
+	hlist_for_each_entry(tramp, &state->head_tramps, node) {
+		if (is_reachable_by_call(tramp->vaddr, vaddr)) {
+			*new = false;
+			return tramp;
+		}
+	}
+
+	tramp = create_uprobe_trampoline(vaddr);
+	if (!tramp)
+		return NULL;
+
+	*new = true;
+	hlist_add_head(&tramp->node, &state->head_tramps);
+	return tramp;
+}
+
+static void destroy_uprobe_trampoline(struct uprobe_trampoline *tramp)
+{
+	/*
+	 * We do not unmap and release uprobe trampoline page itself,
+	 * because there's no easy way to make sure none of the threads
+	 * is still inside the trampoline.
+	 */
+	hlist_del(&tramp->node);
+	kfree(tramp);
+}
+
+void arch_uprobe_init_state(struct mm_struct *mm)
+{
+	INIT_HLIST_HEAD(&mm->uprobes_state.head_tramps);
+}
+
+void arch_uprobe_clear_state(struct mm_struct *mm)
+{
+	struct uprobes_state *state = &mm->uprobes_state;
+	struct uprobe_trampoline *tramp;
+	struct hlist_node *n;
+
+	hlist_for_each_entry_safe(tramp, n, &state->head_tramps, node)
+		destroy_uprobe_trampoline(tramp);
+}
+
+static bool __in_uprobe_trampoline(unsigned long ip)
+{
+	struct vm_area_struct *vma = vma_lookup(current->mm, ip);
+
+	return vma && vma_is_special_mapping(vma, &tramp_mapping);
+}
+
+static bool in_uprobe_trampoline(unsigned long ip)
+{
+	struct mm_struct *mm = current->mm;
+	bool found, retry = true;
+	unsigned int seq;
+
+	rcu_read_lock();
+	if (mmap_lock_speculate_try_begin(mm, &seq)) {
+		found = __in_uprobe_trampoline(ip);
+		retry = mmap_lock_speculate_retry(mm, seq);
+	}
+	rcu_read_unlock();
+
+	if (retry) {
+		mmap_read_lock(mm);
+		found = __in_uprobe_trampoline(ip);
+		mmap_read_unlock(mm);
+	}
+	return found;
+}
+
+/*
+ * See uprobe syscall trampoline; the call to the trampoline will push
+ * the return address on the stack, the trampoline itself then pushes
+ * cx, r11 and ax.
+ */
+struct uprobe_syscall_args {
+	unsigned long ax;
+	unsigned long r11;
+	unsigned long cx;
+	unsigned long retaddr;
+};
+
+SYSCALL_DEFINE0(uprobe)
+{
+	struct pt_regs *regs = task_pt_regs(current);
+	struct uprobe_syscall_args args;
+	unsigned long ip, sp, sret;
+	int err;
+
+	/* Allow execution only from uprobe trampolines. */
+	if (!in_uprobe_trampoline(regs->ip))
+		return -ENXIO;
+
+	err = copy_from_user(&args, (void __user *)regs->sp, sizeof(args));
+	if (err)
+		goto sigill;
+
+	ip = regs->ip;
+
+	/*
+	 * expose the "right" values of ax/r11/cx/ip/sp to uprobe_consumer/s, plus:
+	 * - adjust ip to the probe address, call saved next instruction address
+	 * - adjust sp to the probe's stack frame (check trampoline code)
+	 */
+	regs->ax  = args.ax;
+	regs->r11 = args.r11;
+	regs->cx  = args.cx;
+	regs->ip  = args.retaddr - 5;
+	regs->sp += sizeof(args);
+	regs->orig_ax = -1;
+
+	sp = regs->sp;
+
+	err = shstk_pop((u64 *)&sret);
+	if (err == -EFAULT || (!err && sret != args.retaddr))
+		goto sigill;
+
+	handle_syscall_uprobe(regs, regs->ip);
+
+	/*
+	 * Some of the uprobe consumers has changed sp, we can do nothing,
+	 * just return via iret.
+	 */
+	if (regs->sp != sp) {
+		/* skip the trampoline call */
+		if (args.retaddr - 5 == regs->ip)
+			regs->ip += 5;
+		return regs->ax;
+	}
+
+	regs->sp -= sizeof(args);
+
+	/* for the case uprobe_consumer has changed ax/r11/cx */
+	args.ax  = regs->ax;
+	args.r11 = regs->r11;
+	args.cx  = regs->cx;
+
+	/* keep return address unless we are instructed otherwise */
+	if (args.retaddr - 5 != regs->ip)
+		args.retaddr = regs->ip;
+
+	if (shstk_push(args.retaddr) == -EFAULT)
+		goto sigill;
+
+	regs->ip = ip;
+
+	err = copy_to_user((void __user *)regs->sp, &args, sizeof(args));
+	if (err)
+		goto sigill;
+
+	/* ensure sysret, see do_syscall_64() */
+	regs->r11 = regs->flags;
+	regs->cx  = regs->ip;
+	return 0;
+
+sigill:
+	force_sig(SIGILL);
+	return -1;
+}
+
+asm (
+	".pushsection .rodata\n"
+	".balign " __stringify(PAGE_SIZE) "\n"
+	"uprobe_trampoline_entry:\n"
+	"push %rcx\n"
+	"push %r11\n"
+	"push %rax\n"
+	"mov $" __stringify(__NR_uprobe) ", %rax\n"
+	"syscall\n"
+	"pop %rax\n"
+	"pop %r11\n"
+	"pop %rcx\n"
+	"ret\n"
+	"int3\n"
+	".balign " __stringify(PAGE_SIZE) "\n"
+	".popsection\n"
+);
+
+extern u8 uprobe_trampoline_entry[];
+
+static int __init arch_uprobes_init(void)
+{
+	tramp_mapping_pages[0] = virt_to_page(uprobe_trampoline_entry);
+	return 0;
+}
+
+late_initcall(arch_uprobes_init);
+
+enum {
+	EXPECT_SWBP,
+	EXPECT_CALL,
+};
+
+struct write_opcode_ctx {
+	unsigned long base;
+	int expect;
+};
+
+static int is_call_insn(uprobe_opcode_t *insn)
+{
+	return *insn == CALL_INSN_OPCODE;
+}
+
+/*
+ * Verification callback used by int3_update uprobe_write calls to make sure
+ * the underlying instruction is as expected - either int3 or call.
+ */
+static int verify_insn(struct page *page, unsigned long vaddr, uprobe_opcode_t *new_opcode,
+		       int nbytes, void *data)
+{
+	struct write_opcode_ctx *ctx = data;
+	uprobe_opcode_t old_opcode[5];
+
+	uprobe_copy_from_page(page, ctx->base, (uprobe_opcode_t *) &old_opcode, 5);
+
+	switch (ctx->expect) {
+	case EXPECT_SWBP:
+		if (is_swbp_insn(&old_opcode[0]))
+			return 1;
+		break;
+	case EXPECT_CALL:
+		if (is_call_insn(&old_opcode[0]))
+			return 1;
+		break;
+	}
+
+	return -1;
+}
+
+/*
+ * Modify multi-byte instructions by using INT3 breakpoints on SMP.
+ * We completely avoid using stop_machine() here, and achieve the
+ * synchronization using INT3 breakpoints and SMP cross-calls.
+ * (borrowed comment from smp_text_poke_batch_finish)
+ *
+ * The way it is done:
+ *   - Add an INT3 trap to the address that will be patched
+ *   - SMP sync all CPUs
+ *   - Update all but the first byte of the patched range
+ *   - SMP sync all CPUs
+ *   - Replace the first byte (INT3) by the first byte of the replacing opcode
+ *   - SMP sync all CPUs
+ */
+static int int3_update(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+		       unsigned long vaddr, char *insn, bool optimize)
+{
+	uprobe_opcode_t int3 = UPROBE_SWBP_INSN;
+	struct write_opcode_ctx ctx = {
+		.base = vaddr,
+	};
+	int err;
+
+	/*
+	 * Write int3 trap.
+	 *
+	 * The swbp_optimize path comes with breakpoint already installed,
+	 * so we can skip this step for optimize == true.
+	 */
+	if (!optimize) {
+		ctx.expect = EXPECT_CALL;
+		err = uprobe_write(auprobe, vma, vaddr, &int3, 1, verify_insn,
+				   true /* is_register */, false /* do_update_ref_ctr */,
+				   &ctx);
+		if (err)
+			return err;
+	}
+
+	smp_text_poke_sync_each_cpu();
+
+	/* Write all but the first byte of the patched range. */
+	ctx.expect = EXPECT_SWBP;
+	err = uprobe_write(auprobe, vma, vaddr + 1, insn + 1, 4, verify_insn,
+			   true /* is_register */, false /* do_update_ref_ctr */,
+			   &ctx);
+	if (err)
+		return err;
+
+	smp_text_poke_sync_each_cpu();
+
+	/*
+	 * Write first byte.
+	 *
+	 * The swbp_unoptimize needs to finish uprobe removal together
+	 * with ref_ctr update, using uprobe_write with proper flags.
+	 */
+	err = uprobe_write(auprobe, vma, vaddr, insn, 1, verify_insn,
+			   optimize /* is_register */, !optimize /* do_update_ref_ctr */,
+			   &ctx);
+	if (err)
+		return err;
+
+	smp_text_poke_sync_each_cpu();
+	return 0;
+}
+
+static int swbp_optimize(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+			 unsigned long vaddr, unsigned long tramp)
+{
+	u8 call[5];
+
+	__text_gen_insn(call, CALL_INSN_OPCODE, (const void *) vaddr,
+			(const void *) tramp, CALL_INSN_SIZE);
+	return int3_update(auprobe, vma, vaddr, call, true /* optimize */);
+}
+
+static int swbp_unoptimize(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+			   unsigned long vaddr)
+{
+	return int3_update(auprobe, vma, vaddr, auprobe->insn, false /* optimize */);
+}
+
+static int copy_from_vaddr(struct mm_struct *mm, unsigned long vaddr, void *dst, int len)
+{
+	unsigned int gup_flags = FOLL_FORCE|FOLL_SPLIT_PMD;
+	struct vm_area_struct *vma;
+	struct page *page;
+
+	page = get_user_page_vma_remote(mm, vaddr, gup_flags, &vma);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
+	uprobe_copy_from_page(page, vaddr, dst, len);
+	put_page(page);
+	return 0;
+}
+
+static bool __is_optimized(uprobe_opcode_t *insn, unsigned long vaddr)
+{
+	struct __packed __arch_relative_insn {
+		u8 op;
+		s32 raddr;
+	} *call = (struct __arch_relative_insn *) insn;
+
+	if (!is_call_insn(insn))
+		return false;
+	return __in_uprobe_trampoline(vaddr + 5 + call->raddr);
+}
+
+static int is_optimized(struct mm_struct *mm, unsigned long vaddr)
+{
+	uprobe_opcode_t insn[5];
+	int err;
+
+	err = copy_from_vaddr(mm, vaddr, &insn, 5);
+	if (err)
+		return err;
+	return __is_optimized((uprobe_opcode_t *)&insn, vaddr);
+}
+
+static bool should_optimize(struct arch_uprobe *auprobe)
+{
+	return !test_bit(ARCH_UPROBE_FLAG_OPTIMIZE_FAIL, &auprobe->flags) &&
+		test_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags);
+}
+
+int set_swbp(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+	     unsigned long vaddr)
+{
+	if (should_optimize(auprobe)) {
+		/*
+		 * We could race with another thread that already optimized the probe,
+		 * so let's not overwrite it with int3 again in this case.
+		 */
+		int ret = is_optimized(vma->vm_mm, vaddr);
+		if (ret < 0)
+			return ret;
+		if (ret)
+			return 0;
+	}
+	return uprobe_write_opcode(auprobe, vma, vaddr, UPROBE_SWBP_INSN,
+				   true /* is_register */);
+}
+
+int set_orig_insn(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+		  unsigned long vaddr)
+{
+	if (test_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags)) {
+		int ret = is_optimized(vma->vm_mm, vaddr);
+		if (ret < 0)
+			return ret;
+		if (ret) {
+			ret = swbp_unoptimize(auprobe, vma, vaddr);
+			WARN_ON_ONCE(ret);
+			return ret;
+		}
+	}
+	return uprobe_write_opcode(auprobe, vma, vaddr, *(uprobe_opcode_t *)&auprobe->insn,
+				   false /* is_register */);
+}
+
+static int __arch_uprobe_optimize(struct arch_uprobe *auprobe, struct mm_struct *mm,
+				  unsigned long vaddr)
+{
+	struct uprobe_trampoline *tramp;
+	struct vm_area_struct *vma;
+	bool new = false;
+	int err = 0;
+
+	vma = find_vma(mm, vaddr);
+	if (!vma)
+		return -EINVAL;
+	tramp = get_uprobe_trampoline(vaddr, &new);
+	if (!tramp)
+		return -EINVAL;
+	err = swbp_optimize(auprobe, vma, vaddr, tramp->vaddr);
+	if (WARN_ON_ONCE(err) && new)
+		destroy_uprobe_trampoline(tramp);
+	return err;
+}
+
+void arch_uprobe_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
+{
+	struct mm_struct *mm = current->mm;
+	uprobe_opcode_t insn[5];
+
+	if (!should_optimize(auprobe))
+		return;
+
+	mmap_write_lock(mm);
+
+	/*
+	 * Check if some other thread already optimized the uprobe for us,
+	 * if it's the case just go away silently.
+	 */
+	if (copy_from_vaddr(mm, vaddr, &insn, 5))
+		goto unlock;
+	if (!is_swbp_insn((uprobe_opcode_t*) &insn))
+		goto unlock;
+
+	/*
+	 * If we fail to optimize the uprobe we set the fail bit so the
+	 * above should_optimize will fail from now on.
+	 */
+	if (__arch_uprobe_optimize(auprobe, mm, vaddr))
+		set_bit(ARCH_UPROBE_FLAG_OPTIMIZE_FAIL, &auprobe->flags);
+
+unlock:
+	mmap_write_unlock(mm);
+}
+
+static bool insn_is_nop(struct insn *insn)
+{
+	return insn->opcode.nbytes == 1 && insn->opcode.bytes[0] == 0x90;
+}
+
+static bool insn_is_nopl(struct insn *insn)
+{
+	if (insn->opcode.nbytes != 2)
+		return false;
+
+	if (insn->opcode.bytes[0] != 0x0f || insn->opcode.bytes[1] != 0x1f)
+		return false;
+
+	if (!insn->modrm.nbytes)
+		return false;
+
+	if (X86_MODRM_REG(insn->modrm.bytes[0]) != 0)
+		return false;
+
+	/* 0f 1f /0 - NOPL */
+	return true;
+}
+
+static bool can_optimize(struct insn *insn, unsigned long vaddr)
+{
+	if (!insn->x86_64 || insn->length != 5)
+		return false;
+
+	if (!insn_is_nop(insn) && !insn_is_nopl(insn))
+		return false;
+
+	/* We can't do cross page atomic writes yet. */
+	return PAGE_SIZE - (vaddr & ~PAGE_MASK) >= 5;
+}
 #else /* 32-bit: */
 /*
  * No RIP-relative addressing on 32-bit
@@ -620,6 +1204,10 @@ static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 }
 static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
+}
+static bool can_optimize(struct insn *insn, unsigned long vaddr)
+{
+	return false;
 }
 #endif /* CONFIG_X86_64 */
 
@@ -979,13 +1567,16 @@ static int push_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
  */
 int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long addr)
 {
-	struct insn insn;
 	u8 fix_ip_or_call = UPROBE_FIX_IP;
+	struct insn insn;
 	int ret;
 
 	ret = uprobe_init_insn(auprobe, &insn, is_64bit_mm(mm));
 	if (ret)
 		return ret;
+
+	if (can_optimize(&insn, addr))
+		set_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags);
 
 	ret = branch_setup_xol_ops(auprobe, &insn);
 	if (ret != -ENOSYS)

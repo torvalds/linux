@@ -385,12 +385,16 @@ static int amd_hfi_metadata_parser(struct platform_device *pdev,
 	amd_hfi_data->pcct_entry = pcct_entry;
 	pcct_ext = (struct acpi_pcct_ext_pcc_slave *)pcct_entry;
 
-	if (pcct_ext->length <= 0)
-		return -EINVAL;
+	if (pcct_ext->length <= 0) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	amd_hfi_data->shmem = devm_kzalloc(amd_hfi_data->dev, pcct_ext->length, GFP_KERNEL);
-	if (!amd_hfi_data->shmem)
-		return -ENOMEM;
+	if (!amd_hfi_data->shmem) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	pcc_chan->shmem_base_addr = pcct_ext->base_address;
 	pcc_chan->shmem_size = pcct_ext->length;
@@ -398,6 +402,8 @@ static int amd_hfi_metadata_parser(struct platform_device *pdev,
 	/* parse the shared memory info from the PCCT table */
 	ret = amd_hfi_fill_metadata(amd_hfi_data);
 
+out:
+	/* Don't leak any ACPI memory */
 	acpi_put_table(pcct_tbl);
 
 	return ret;

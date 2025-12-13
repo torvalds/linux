@@ -843,7 +843,7 @@ static int hns3_dbg_bd_file_init(struct hnae3_handle *handle, u32 cmd)
 
 	entry_dir = hns3_dbg_dentry[hns3_dbg_cmd[cmd].dentry].dentry;
 	max_queue_num = hns3_get_max_available_channels(handle);
-	data = devm_kzalloc(&handle->pdev->dev, max_queue_num * sizeof(*data),
+	data = devm_kcalloc(&handle->pdev->dev, max_queue_num, sizeof(*data),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;

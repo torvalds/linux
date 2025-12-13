@@ -3240,7 +3240,7 @@ static int blogic_resetadapter(struct blogic_adapter *adapter, bool hard_reset)
   the BIOS, and a warning may be displayed.
 */
 
-static int blogic_diskparam(struct scsi_device *sdev, struct block_device *dev,
+static int blogic_diskparam(struct scsi_device *sdev, struct gendisk *disk,
 		sector_t capacity, int *params)
 {
 	struct blogic_adapter *adapter =
@@ -3261,7 +3261,7 @@ static int blogic_diskparam(struct scsi_device *sdev, struct block_device *dev,
 		diskparam->sectors = 32;
 	}
 	diskparam->cylinders = (unsigned long) capacity / (diskparam->heads * diskparam->sectors);
-	buf = scsi_bios_ptable(dev);
+	buf = scsi_bios_ptable(disk);
 	if (buf == NULL)
 		return 0;
 	/*
@@ -3715,7 +3715,6 @@ static void __exit blogic_exit(void)
 
 __setup("BusLogic=", blogic_setup);
 
-#ifdef MODULE
 /*static const struct pci_device_id blogic_pci_tbl[] = {
 	{ PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -3725,13 +3724,12 @@ __setup("BusLogic=", blogic_setup);
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }
 };*/
-static const struct pci_device_id blogic_pci_tbl[] = {
+static const struct pci_device_id blogic_pci_tbl[] __maybe_unused = {
 	{PCI_DEVICE(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER_NC)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_FLASHPOINT)},
 	{0, },
 };
-#endif
 MODULE_DEVICE_TABLE(pci, blogic_pci_tbl);
 
 module_init(blogic_init);

@@ -25,7 +25,6 @@ TC_INDIRECT_SCOPE int tcf_vlan_act(struct sk_buff *skb,
 {
 	struct tcf_vlan *v = to_vlan(a);
 	struct tcf_vlan_params *p;
-	int action;
 	int err;
 	u16 tci;
 
@@ -37,8 +36,6 @@ TC_INDIRECT_SCOPE int tcf_vlan_act(struct sk_buff *skb,
 	 */
 	if (skb_at_tc_ingress(skb))
 		skb_push_rcsum(skb, skb->mac_len);
-
-	action = READ_ONCE(v->tcf_action);
 
 	p = rcu_dereference_bh(v->vlan_p);
 
@@ -97,7 +94,7 @@ out:
 		skb_pull_rcsum(skb, skb->mac_len);
 
 	skb_reset_mac_len(skb);
-	return action;
+	return p->action;
 
 drop:
 	tcf_action_inc_drop_qstats(&v->common);
@@ -255,6 +252,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			   ETH_ALEN);
 	}
 
+	p->action = parm->action;
 	spin_lock_bh(&v->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	p = rcu_replace_pointer(v->vlan_p, p, lockdep_is_held(&v->tcf_lock));
@@ -297,9 +295,9 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	};
 	struct tcf_t t;
 
-	spin_lock_bh(&v->tcf_lock);
-	opt.action = v->tcf_action;
-	p = rcu_dereference_protected(v->vlan_p, lockdep_is_held(&v->tcf_lock));
+	rcu_read_lock();
+	p = rcu_dereference(v->vlan_p);
+	opt.action = p->action;
 	opt.v_action = p->tcfv_action;
 	if (nla_put(skb, TCA_VLAN_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -325,12 +323,12 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	tcf_tm_dump(&t, &v->tcf_tm);
 	if (nla_put_64bit(skb, TCA_VLAN_TM, sizeof(t), &t, TCA_VLAN_PAD))
 		goto nla_put_failure;
-	spin_unlock_bh(&v->tcf_lock);
+	rcu_read_unlock();
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock_bh(&v->tcf_lock);
+	rcu_read_unlock();
 	nlmsg_trim(skb, b);
 	return -1;
 }

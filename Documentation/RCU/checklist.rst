@@ -69,7 +69,13 @@ over a rather long period of time, but improvements are always welcome!
 	Explicit disabling of preemption (preempt_disable(), for example)
 	can serve as rcu_read_lock_sched(), but is less readable and
 	prevents lockdep from detecting locking issues.  Acquiring a
-	spinlock also enters an RCU read-side critical section.
+	raw spinlock also enters an RCU read-side critical section.
+
+	The guard(rcu)() and scoped_guard(rcu) primitives designate
+	the remainder of the current scope or the next statement,
+	respectively, as the RCU read-side critical section.  Use of
+	these guards can be less error-prone than rcu_read_lock(),
+	rcu_read_unlock(), and friends.
 
 	Please note that you *cannot* rely on code known to be built
 	only in non-preemptible kernels.  Such code can and will break,
@@ -405,9 +411,11 @@ over a rather long period of time, but improvements are always welcome!
 13.	Unlike most flavors of RCU, it *is* permissible to block in an
 	SRCU read-side critical section (demarked by srcu_read_lock()
 	and srcu_read_unlock()), hence the "SRCU": "sleepable RCU".
-	Please note that if you don't need to sleep in read-side critical
-	sections, you should be using RCU rather than SRCU, because RCU
-	is almost always faster and easier to use than is SRCU.
+	As with RCU, guard(srcu)() and scoped_guard(srcu) forms are
+	available, and often provide greater ease of use.  Please note
+	that if you don't need to sleep in read-side critical sections,
+	you should be using RCU rather than SRCU, because RCU is almost
+	always faster and easier to use than is SRCU.
 
 	Also unlike other forms of RCU, explicit initialization and
 	cleanup is required either at build time via DEFINE_SRCU()
@@ -443,10 +451,13 @@ over a rather long period of time, but improvements are always welcome!
 	real-time workloads than is synchronize_rcu_expedited().
 
 	It is also permissible to sleep in RCU Tasks Trace read-side
-	critical section, which are delimited by rcu_read_lock_trace() and
-	rcu_read_unlock_trace().  However, this is a specialized flavor
-	of RCU, and you should not use it without first checking with
-	its current users.  In most cases, you should instead use SRCU.
+	critical section, which are delimited by rcu_read_lock_trace()
+	and rcu_read_unlock_trace().  However, this is a specialized
+	flavor of RCU, and you should not use it without first checking
+	with its current users.  In most cases, you should instead
+	use SRCU.  As with RCU and SRCU, guard(rcu_tasks_trace)() and
+	scoped_guard(rcu_tasks_trace) are available, and often provide
+	greater ease of use.
 
 	Note that rcu_assign_pointer() relates to SRCU just as it does to
 	other forms of RCU, but instead of rcu_dereference() you should

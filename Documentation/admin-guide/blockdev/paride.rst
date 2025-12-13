@@ -118,7 +118,7 @@ and high-level drivers that you would use:
 	================	============	========
 
 All parports and all protocol drivers are probed automatically unless probe=0
-parameter is used. So just "modprobe epat" is enough for a Imation SuperDisk
+parameter is used. So just "modprobe epat" is enough for an Imation SuperDisk
 drive to work.
 
 Manual device creation::

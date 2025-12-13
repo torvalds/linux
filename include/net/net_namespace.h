@@ -204,7 +204,7 @@ struct net {
 extern struct net init_net;
 
 #ifdef CONFIG_NET_NS
-struct net *copy_net_ns(unsigned long flags, struct user_namespace *user_ns,
+struct net *copy_net_ns(u64 flags, struct user_namespace *user_ns,
 			struct net *old_net);
 
 void net_ns_get_ownership(const struct net *net, kuid_t *uid, kgid_t *gid);
@@ -218,7 +218,7 @@ extern struct task_struct *cleanup_net_task;
 #else /* CONFIG_NET_NS */
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
-static inline struct net *copy_net_ns(unsigned long flags,
+static inline struct net *copy_net_ns(u64 flags,
 	struct user_namespace *user_ns, struct net *old_net)
 {
 	if (flags & CLONE_NEWNET)
@@ -262,10 +262,15 @@ void ipx_unregister_sysctl(void);
 #ifdef CONFIG_NET_NS
 void __put_net(struct net *net);
 
+static inline struct net *to_net_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct net, ns);
+}
+
 /* Try using get_net_track() instead */
 static inline struct net *get_net(struct net *net)
 {
-	refcount_inc(&net->ns.count);
+	ns_ref_inc(net);
 	return net;
 }
 
@@ -276,7 +281,7 @@ static inline struct net *maybe_get_net(struct net *net)
 	 * exists.  If the reference count is zero this
 	 * function fails and returns NULL.
 	 */
-	if (!refcount_inc_not_zero(&net->ns.count))
+	if (!ns_ref_get(net))
 		net = NULL;
 	return net;
 }
@@ -284,7 +289,7 @@ static inline struct net *maybe_get_net(struct net *net)
 /* Try using put_net_track() instead */
 static inline void put_net(struct net *net)
 {
-	if (refcount_dec_and_test(&net->ns.count))
+	if (ns_ref_put(net))
 		__put_net(net);
 }
 
@@ -296,7 +301,7 @@ int net_eq(const struct net *net1, const struct net *net2)
 
 static inline int check_net(const struct net *net)
 {
-	return refcount_read(&net->ns.count) != 0;
+	return ns_ref_read(net) != 0;
 }
 
 void net_drop_ns(void *);

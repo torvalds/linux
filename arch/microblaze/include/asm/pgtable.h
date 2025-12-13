@@ -10,14 +10,14 @@
 
 #include <asm/setup.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern int mem_init_done;
 #endif
 
 #include <asm-generic/pgtable-nopmd.h>
 
 #ifdef __KERNEL__
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/sched.h>
 #include <linux/threads.h>
@@ -39,7 +39,7 @@ extern pte_t *va_to_pte(unsigned long address);
 #define VMALLOC_START	(CONFIG_KERNEL_START + CONFIG_LOWMEM_SIZE)
 #define VMALLOC_END	ioremap_bot
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * Macro to mark a page protection value as "uncacheable".
@@ -99,7 +99,6 @@ extern pte_t *va_to_pte(unsigned long address);
 #define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
-#define FIRST_USER_PGD_NR	0
 
 #define USER_PGD_PTRS (PAGE_OFFSET >> PGDIR_SHIFT)
 #define KERNEL_PGD_PTRS (PTRS_PER_PGD-USER_PGD_PTRS)
@@ -208,7 +207,7 @@ extern pte_t *va_to_pte(unsigned long address);
  * Also, write permissions imply read permissions.
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
@@ -216,7 +215,7 @@ extern pte_t *va_to_pte(unsigned long address);
 extern unsigned long empty_zero_page[1024];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define pte_none(pte)		((pte_val(pte) & ~_PTE_NONE_MASK) == 0)
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
@@ -237,7 +236,7 @@ extern unsigned long empty_zero_page[1024];
 #define pfn_pte(pfn, prot) \
 	__pte(((pte_basic_t)(pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
@@ -436,13 +435,13 @@ extern int mem_init_done;
 
 asmlinkage void __init mmu_init(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __KERNEL__ */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern unsigned long ioremap_bot, ioremap_base;
 
 void setup_memory(void);
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_MICROBLAZE_PGTABLE_H */

@@ -87,20 +87,21 @@ qed_fw_fatal_reporter_recover(struct devlink_health_reporter *reporter,
 	return 0;
 }
 
+#define QED_REPORTER_FW_GRACEFUL_PERIOD 0
+
 static const struct devlink_health_reporter_ops qed_fw_fatal_reporter_ops = {
 		.name = "fw_fatal",
 		.recover = qed_fw_fatal_reporter_recover,
 		.dump = qed_fw_fatal_reporter_dump,
+		.default_graceful_period = QED_REPORTER_FW_GRACEFUL_PERIOD,
 };
-
-#define QED_REPORTER_FW_GRACEFUL_PERIOD 0
 
 void qed_fw_reporters_create(struct devlink *devlink)
 {
 	struct qed_devlink *dl = devlink_priv(devlink);
 
-	dl->fw_reporter = devlink_health_reporter_create(devlink, &qed_fw_fatal_reporter_ops,
-							 QED_REPORTER_FW_GRACEFUL_PERIOD, dl);
+	dl->fw_reporter = devlink_health_reporter_create(devlink,
+		&qed_fw_fatal_reporter_ops, dl);
 	if (IS_ERR(dl->fw_reporter)) {
 		DP_NOTICE(dl->cdev, "Failed to create fw reporter, err = %ld\n",
 			  PTR_ERR(dl->fw_reporter));

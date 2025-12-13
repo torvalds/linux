@@ -42,7 +42,7 @@ static void afs_volume_init_callback(struct afs_volume *volume)
 	list_for_each_entry(vnode, &volume->open_mmaps, cb_mmap_link) {
 		if (vnode->cb_v_check != atomic_read(&volume->cb_v_break)) {
 			afs_clear_cb_promise(vnode, afs_cb_promise_clear_vol_init_cb);
-			queue_work(system_unbound_wq, &vnode->cb_work);
+			queue_work(system_dfl_wq, &vnode->cb_work);
 		}
 	}
 
@@ -90,7 +90,7 @@ void __afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reas
 		if (reason != afs_cb_break_for_deleted &&
 		    vnode->status.type == AFS_FTYPE_FILE &&
 		    atomic_read(&vnode->cb_nr_mmap))
-			queue_work(system_unbound_wq, &vnode->cb_work);
+			queue_work(system_dfl_wq, &vnode->cb_work);
 
 		trace_afs_cb_break(&vnode->fid, vnode->cb_break, reason, true);
 	} else {

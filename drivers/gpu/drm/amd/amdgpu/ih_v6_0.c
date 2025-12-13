@@ -587,8 +587,7 @@ static int ih_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 	/* use gpu virtual address for ih ring
 	 * until ih_checken is programmed to allow
 	 * use bus address for ih ring by psp bl */
-	use_bus_addr =
-		(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) ? false : true;
+	use_bus_addr = adev->firmware.load_type != AMDGPU_FW_LOAD_PSP;
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, IH_RING_SIZE, use_bus_addr);
 	if (r)
 		return r;

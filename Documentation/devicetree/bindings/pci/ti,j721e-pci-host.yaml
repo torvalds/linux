@@ -99,6 +99,9 @@ properties:
     additionalProperties: false
 
     properties:
+      '#address-cells':
+        const: 0
+
       interrupt-controller: true
 
       '#interrupt-cells':

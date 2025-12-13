@@ -4,7 +4,7 @@
 
 #include <asm/cache.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 /*
  * We can't do CPP stringification and concatination directly into the section
  * name for some reason, so these macros can do it for us.
@@ -167,6 +167,6 @@ name:
 // find label from _within_ sname
 #define ABS_ADDR(label, sname) (label - start_ ## sname + sname ## _start)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif	/* _ASM_POWERPC_HEAD_64_H */

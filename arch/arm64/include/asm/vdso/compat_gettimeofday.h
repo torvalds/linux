@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2018 ARM Limited
  */
-#ifndef __ASM_VDSO_GETTIMEOFDAY_H
-#define __ASM_VDSO_GETTIMEOFDAY_H
+#ifndef __ASM_VDSO_COMPAT_GETTIMEOFDAY_H
+#define __ASM_VDSO_COMPAT_GETTIMEOFDAY_H
 
 #ifndef __ASSEMBLY__
 
@@ -163,4 +163,4 @@ static inline bool vdso_clocksource_ok(const struct vdso_clock *vc)
 
 #endif /* !__ASSEMBLY__ */
 
-#endif /* __ASM_VDSO_GETTIMEOFDAY_H */
+#endif /* __ASM_VDSO_COMPAT_GETTIMEOFDAY_H */

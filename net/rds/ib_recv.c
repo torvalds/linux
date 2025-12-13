@@ -1034,7 +1034,7 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 		rds_ib_stats_inc(s_ib_rx_ring_empty);
 
 	if (rds_ib_ring_low(&ic->i_recv_ring)) {
-		rds_ib_recv_refill(conn, 0, GFP_NOWAIT | __GFP_NOWARN);
+		rds_ib_recv_refill(conn, 0, GFP_NOWAIT);
 		rds_ib_stats_inc(s_ib_rx_refill_from_cq);
 	}
 }

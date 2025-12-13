@@ -44,7 +44,7 @@ Each segment in the list also stores:
  * the size of each folio and
  * three 1-bit marks per folio,
 
-but hese should not be accessed directly as the underlying data structure may
+but these should not be accessed directly as the underlying data structure may
 change, but rather the access functions outlined below should be used.
 
 The facility can be made accessible by::

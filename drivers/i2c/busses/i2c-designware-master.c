@@ -901,7 +901,6 @@ done:
 	i2c_dw_release_lock(dev);
 
 done_nolock:
-	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
 	return ret;
@@ -1068,11 +1067,10 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	if (!(dev->flags & ACCESS_POLLING)) {
 		ret = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr,
 				       irq_flags, dev_name(dev->dev), dev);
-		if (ret) {
-			dev_err(dev->dev, "failure requesting irq %i: %d\n",
-				dev->irq, ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev->dev, ret,
+					     "failure requesting irq %i: %d\n",
+					     dev->irq, ret);
 	}
 
 	ret = i2c_dw_init_recovery_info(dev);

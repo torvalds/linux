@@ -4439,6 +4439,8 @@ out:
 		txq_pcpu->count += frags;
 		aggr_txq->count += frags;
 
+		skb_tx_timestamp(skb);
+
 		/* Enable transmit */
 		wmb();
 		mvpp2_aggr_txq_pend_desc_add(port, frags);
@@ -5252,14 +5254,14 @@ static int mvpp2_ethtool_get_ts_info(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
+	ethtool_op_get_ts_info(dev, info);
 	if (!port->hwtstamp)
-		return -EOPNOTSUPP;
+		return 0;
 
 	info->phc_index = mvpp22_tai_ptp_clock_index(port->priv->tai);
-	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_TX_HARDWARE |
-				SOF_TIMESTAMPING_RX_HARDWARE |
-				SOF_TIMESTAMPING_RAW_HARDWARE;
+	info->so_timestamping |= SOF_TIMESTAMPING_TX_HARDWARE |
+				 SOF_TIMESTAMPING_RX_HARDWARE |
+				 SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
 			 BIT(HWTSTAMP_TX_ON);
 	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
@@ -6222,6 +6224,12 @@ static struct mvpp2_port *mvpp2_pcs_gmac_to_port(struct phylink_pcs *pcs)
 	return container_of(pcs, struct mvpp2_port, pcs_gmac);
 }
 
+static unsigned int mvpp2_xjg_pcs_inband_caps(struct phylink_pcs *pcs,
+					      phy_interface_t interface)
+{
+	return LINK_INBAND_DISABLE;
+}
+
 static void mvpp2_xlg_pcs_get_state(struct phylink_pcs *pcs,
 				    unsigned int neg_mode,
 				    struct phylink_link_state *state)
@@ -6256,6 +6264,7 @@ static int mvpp2_xlg_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 }
 
 static const struct phylink_pcs_ops mvpp2_phylink_xlg_pcs_ops = {
+	.pcs_inband_caps = mvpp2_xjg_pcs_inband_caps,
 	.pcs_get_state = mvpp2_xlg_pcs_get_state,
 	.pcs_config = mvpp2_xlg_pcs_config,
 };

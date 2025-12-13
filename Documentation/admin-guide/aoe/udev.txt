@@ -2,7 +2,7 @@
 # They may be installed along the following lines.  Check the section
 # 8 udev manpage to see whether your udev supports SUBSYSTEM, and
 # whether it uses one or two equal signs for SUBSYSTEM and KERNEL.
-# 
+#
 #   ecashin@makki ~$ su
 #   Password:
 #   bash# find /etc -type f -name udev.conf
@@ -13,7 +13,7 @@
 #   10-wacom.rules  50-udev.rules
 #   bash# cp /path/to/linux/Documentation/admin-guide/aoe/udev.txt \
 #           /etc/udev/rules.d/60-aoe.rules
-#  
+#
 
 # aoe char devices
 SUBSYSTEM=="aoe", KERNEL=="discover",	NAME="etherd/%k", GROUP="disk", MODE="0220"
@@ -22,5 +22,5 @@ SUBSYSTEM=="aoe", KERNEL=="interfaces",	NAME="etherd/%k", GROUP="disk", MODE="02
 SUBSYSTEM=="aoe", KERNEL=="revalidate",	NAME="etherd/%k", GROUP="disk", MODE="0220"
 SUBSYSTEM=="aoe", KERNEL=="flush",	NAME="etherd/%k", GROUP="disk", MODE="0220"
 
-# aoe block devices     
+# aoe block devices
 KERNEL=="etherd*",       GROUP="disk"

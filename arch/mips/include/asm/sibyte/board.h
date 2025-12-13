@@ -19,7 +19,7 @@
 #include <asm/sibyte/bigsur.h>
 #endif
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #ifdef LEDS_PHYS
 #define setleds(t0, t1, c0, c1, c2, c3) \
@@ -46,6 +46,6 @@ extern void setleds(char *str);
 #define setleds(s) do { } while (0)
 #endif /* LEDS_PHYS */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _SIBYTE_BOARD_H */

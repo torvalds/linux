@@ -1598,7 +1598,7 @@ static int setup_feedback_loop(struct device *dev, struct device_node *np,
 		if (desc->n_linear_ranges && desc->linear_ranges) {
 			struct linear_range *new;
 
-			new = devm_kzalloc(dev, desc->n_linear_ranges *
+			new = devm_kcalloc(dev, desc->n_linear_ranges,
 					   sizeof(struct linear_range),
 					   GFP_KERNEL);
 			if (!new)
@@ -1613,6 +1613,8 @@ static int setup_feedback_loop(struct device *dev, struct device_node *np,
 				step /= r1;
 
 				new[j].min = min;
+				new[j].min_sel = desc->linear_ranges[j].min_sel;
+				new[j].max_sel = desc->linear_ranges[j].max_sel;
 				new[j].step = step;
 
 				dev_dbg(dev, "%s: old range min %d, step %d\n",

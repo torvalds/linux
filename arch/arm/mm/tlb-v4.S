@@ -52,7 +52,7 @@ SYM_FUNC_END(v4_flush_user_tlb_range)
  *	- start - virtual address (may not be aligned)
  *	- end   - virtual address (may not be aligned)
  */
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_CFI
 SYM_TYPED_FUNC_START(v4_flush_kern_tlb_range)
 	b	.v4_flush_kern_tlb_range
 SYM_FUNC_END(v4_flush_kern_tlb_range)

@@ -591,7 +591,7 @@ static bool dce_i2c_hw_engine_submit_payload(struct dce_i2c_hw *dce_i2c_hw,
 			DCE_I2C_TRANSACTION_ACTION_I2C_WRITE;
 
 
-	request.address = (uint8_t) ((payload->address << 1) | !payload->write);
+	request.address = (uint8_t) ((payload->address << 1) | (payload->write ? 0 : 1));
 	request.length = payload->length;
 	request.data = payload->data;
 

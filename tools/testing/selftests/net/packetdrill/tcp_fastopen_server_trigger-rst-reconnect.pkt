@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0
+`./defaults.sh
+ ./set_sysctls.py /proc/sys/net/ipv4/tcp_timestamps=0`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 0:10(10) win 32792 <mss 1460,nop,nop,sackOK,nop,nop,FO TFO_COOKIE>
+   +0 > S. 0:0(0) ack 11 win 65535 <mss 1460,nop,nop,sackOK>
+
+// sk->sk_state is TCP_SYN_RECV
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert tcpi_state == TCP_SYN_RECV, tcpi_state }%
+
+// tcp_disconnect() sets sk->sk_state to TCP_CLOSE
+   +0 connect(4, AF_UNSPEC, ...) = 0
+   +0 > R. 1:1(0) ack 11 win 65535
+   +0 %{ assert tcpi_state == TCP_CLOSE, tcpi_state }%
+
+// connect() sets sk->sk_state to TCP_SYN_SENT
+   +0 fcntl(4, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+   +0 connect(4, ..., ...) = -1 EINPROGRESS (Operation is now in progress)
+   +0 > S 0:0(0) win 65535 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 %{ assert tcpi_state == TCP_SYN_SENT, tcpi_state }%
+
+// tp->fastopen_rsk must be NULL
+   +1 > S 0:0(0) win 65535 <mss 1460,nop,nop,sackOK,nop,wscale 8>

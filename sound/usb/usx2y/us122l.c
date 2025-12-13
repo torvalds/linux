@@ -97,10 +97,10 @@ static vm_fault_t usb_stream_hwdep_vm_fault(struct vm_fault *vmf)
 	struct us122l *us122l = vmf->vma->vm_private_data;
 	struct usb_stream *s;
 
-	mutex_lock(&us122l->mutex);
+	guard(mutex)(&us122l->mutex);
 	s = us122l->sk.s;
 	if (!s)
-		goto unlock;
+		return VM_FAULT_SIGBUS;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
 	if (offset < PAGE_ALIGN(s->read_size)) {
@@ -108,21 +108,17 @@ static vm_fault_t usb_stream_hwdep_vm_fault(struct vm_fault *vmf)
 	} else {
 		offset -= PAGE_ALIGN(s->read_size);
 		if (offset >= PAGE_ALIGN(s->write_size))
-			goto unlock;
+			return VM_FAULT_SIGBUS;
 
 		vaddr = us122l->sk.write_page + offset;
 	}
 	page = virt_to_page(vaddr);
 
 	get_page(page);
-	mutex_unlock(&us122l->mutex);
 
 	vmf->page = page;
 
 	return 0;
-unlock:
-	mutex_unlock(&us122l->mutex);
-	return VM_FAULT_SIGBUS;
 }
 
 
@@ -163,12 +159,11 @@ static int usb_stream_hwdep_release(struct snd_hwdep *hw, struct file *file)
 	usb_autopm_put_interface(iface);
 	if (us122l->first == file)
 		us122l->first = NULL;
-	mutex_lock(&us122l->mutex);
+	guard(mutex)(&us122l->mutex);
 	if (us122l->master == file)
 		us122l->master = us122l->slave;
 
 	us122l->slave = NULL;
-	mutex_unlock(&us122l->mutex);
 	return 0;
 }
 
@@ -179,23 +174,19 @@ static int usb_stream_hwdep_mmap(struct snd_hwdep *hw,
 	struct us122l	*us122l = hw->private_data;
 	unsigned long offset;
 	struct usb_stream *s;
-	int err = 0;
 	bool read;
 
 	offset = area->vm_pgoff << PAGE_SHIFT;
-	mutex_lock(&us122l->mutex);
+	guard(mutex)(&us122l->mutex);
 	s = us122l->sk.s;
 	read = offset < s->read_size;
-	if (read && area->vm_flags & VM_WRITE) {
-		err = -EPERM;
-		goto out;
-	}
+	if (read && area->vm_flags & VM_WRITE)
+		return -EPERM;
 	/* if userspace tries to mmap beyond end of our buffer, fail */
 	if (size > PAGE_ALIGN(read ? s->read_size : s->write_size)) {
 		dev_warn(hw->card->dev, "%s: size %lu > %u\n", __func__,
 			 size, read ? s->read_size : s->write_size);
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	area->vm_ops = &usb_stream_hwdep_vm_ops;
@@ -203,9 +194,7 @@ static int usb_stream_hwdep_mmap(struct snd_hwdep *hw,
 	if (!read)
 		vm_flags_set(area, VM_DONTEXPAND);
 	area->vm_private_data = us122l;
-out:
-	mutex_unlock(&us122l->mutex);
-	return err;
+	return 0;
 }
 
 static __poll_t usb_stream_hwdep_poll(struct snd_hwdep *hw,
@@ -361,7 +350,7 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 
 	snd_power_wait(hw->card);
 
-	mutex_lock(&us122l->mutex);
+	guard(mutex)(&us122l->mutex);
 	s = us122l->sk.s;
 	if (!us122l->master) {
 		us122l->master = file;
@@ -381,7 +370,6 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 			err = 1;
 	}
 unlock:
-	mutex_unlock(&us122l->mutex);
 	wake_up_all(&us122l->sk.sleep);
 	return err;
 }
@@ -577,9 +565,9 @@ static void snd_us122l_disconnect(struct usb_interface *intf)
 	snd_card_disconnect(card);
 
 	us122l = US122L(card);
-	mutex_lock(&us122l->mutex);
-	us122l_stop(us122l);
-	mutex_unlock(&us122l->mutex);
+	scoped_guard(mutex, &us122l->mutex) {
+		us122l_stop(us122l);
+	}
 
 	/* release the midi resources */
 	list_for_each(p, &us122l->midi_list) {
@@ -611,9 +599,8 @@ static int snd_us122l_suspend(struct usb_interface *intf, pm_message_t message)
 	list_for_each(p, &us122l->midi_list)
 		snd_usbmidi_input_stop(p);
 
-	mutex_lock(&us122l->mutex);
+	guard(mutex)(&us122l->mutex);
 	usb_stream_stop(&us122l->sk);
-	mutex_unlock(&us122l->mutex);
 
 	return 0;
 }
@@ -633,7 +620,7 @@ static int snd_us122l_resume(struct usb_interface *intf)
 	if (!us122l)
 		return 0;
 
-	mutex_lock(&us122l->mutex);
+	guard(mutex)(&us122l->mutex);
 	/* needed, doesn't restart without: */
 	if (us122l->is_us144) {
 		err = usb_set_interface(us122l->dev, 0, 1);
@@ -664,7 +651,6 @@ static int snd_us122l_resume(struct usb_interface *intf)
 	list_for_each(p, &us122l->midi_list)
 		snd_usbmidi_input_start(p);
 unlock:
-	mutex_unlock(&us122l->mutex);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return err;
 }
@@ -685,12 +671,6 @@ static const struct usb_device_id snd_us122l_usb_id_table[] = {
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =	0x0644,
 		.idProduct =	USB_ID_US122MKII
-	},
-	{
-		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
-		.idVendor =	0x0644,
-		.idProduct =	USB_ID_US144MKII,
-		.driver_info =	US122L_FLAG_US144
 	},
 	{ /* terminator */ }
 };

@@ -126,9 +126,9 @@ config FB_ACORN
 config FB_CLPS711X
 	tristate "CLPS711X LCD support"
 	depends on FB && (ARCH_CLPS711X || COMPILE_TEST)
+	depends on LCD_CLASS_DEVICE
 	select FB_IOMEM_HELPERS
 	select FB_MODE_HELPERS
-	select LCD_CLASS_DEVICE
 	select VIDEOMODE_HELPERS
 	help
 	  Say Y to enable the Framebuffer driver for the Cirrus Logic
@@ -150,7 +150,7 @@ config FB_IMX
 	tristate "Freescale i.MX1/21/25/27 LCD support"
 	depends on FB && HAVE_CLK && HAS_IOMEM
 	depends on ARCH_MXC || COMPILE_TEST
-	select LCD_CLASS_DEVICE
+	depends on LCD_CLASS_DEVICE
 	select FB_IOMEM_HELPERS
 	select FB_MODE_HELPERS
 	select VIDEOMODE_HELPERS
@@ -948,9 +948,6 @@ config FB_RADEON
 	  a framebuffer device.  There are both PCI and AGP versions.  You
 	  don't need to choose this to run the Radeon in plain VGA mode.
 
-	  There is a product page at
-	  https://products.amd.com/en-us/GraphicCardResult.aspx
-
 config FB_RADEON_I2C
 	bool "DDC/I2C for ATI Radeon support"
 	depends on FB_RADEON
@@ -1060,6 +1057,7 @@ config FB_S3
 	select FB_TILEBLITTING
 	select FB_SVGALIB
 	select VGASTATE
+	select FB_CFB_REV_PIXELS_IN_BYTE
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
 	help
 	  Driver for graphics boards with S3 Trio / S3 Virge chip.
@@ -1773,12 +1771,15 @@ config FB_BROADSHEET
 	  a bridge adapter.
 
 config FB_HYPERV
-	tristate "Microsoft Hyper-V Synthetic Video support"
-	depends on FB && HYPERV
+	tristate "Microsoft Hyper-V Synthetic Video support (DEPRECATED)"
+	depends on FB && HYPERV_VMBUS
 	select DMA_CMA if HAVE_DMA_CONTIGUOUS && CMA
 	select FB_IOMEM_HELPERS_DEFERRED
 	help
 	  This framebuffer driver supports Microsoft Hyper-V Synthetic Video.
+
+	  This driver is deprecated, please use the Hyper-V DRM driver at
+	  drivers/gpu/drm/hyperv (CONFIG_DRM_HYPERV) instead.
 
 config FB_SIMPLE
 	tristate "Simple framebuffer support"

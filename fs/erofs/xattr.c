@@ -482,6 +482,7 @@ int erofs_xattr_prefixes_init(struct super_block *sb)
 	erofs_off_t pos = (erofs_off_t)sbi->xattr_prefix_start << 2;
 	struct erofs_xattr_prefix_item *pfs;
 	int ret = 0, i, len;
+	bool plain = erofs_sb_has_plain_xattr_pfx(sbi);
 
 	if (!sbi->xattr_prefix_count)
 		return 0;
@@ -490,9 +491,15 @@ int erofs_xattr_prefixes_init(struct super_block *sb)
 	if (!pfs)
 		return -ENOMEM;
 
-	if (sbi->packed_inode)
-		buf.mapping = sbi->packed_inode->i_mapping;
-	else
+	if (!plain) {
+		if (erofs_sb_has_metabox(sbi))
+			(void)erofs_init_metabuf(&buf, sb, true);
+		else if (sbi->packed_inode)
+			buf.mapping = sbi->packed_inode->i_mapping;
+		else
+			plain = true;
+	}
+	if (plain)
 		(void)erofs_init_metabuf(&buf, sb, false);
 
 	for (i = 0; i < sbi->xattr_prefix_count; i++) {

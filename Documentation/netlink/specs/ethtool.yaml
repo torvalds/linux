@@ -205,6 +205,9 @@ definitions:
       -
         name: gtp-teid
       -
+        name: ip6-fl
+        doc: IPv6 Flow Label
+      -
         name: discard
         value: 31
 
@@ -1217,6 +1220,30 @@ attribute-sets:
         type: nest
         nested-attributes: tunnel-udp
   -
+    name: fec-hist
+    attr-cnt-name: --ethtool-a-fec-hist-cnt
+    attributes:
+      -
+        name: pad
+        type: pad
+      -
+        name: bin-low
+        type: u32
+        doc: Low bound of FEC bin (inclusive)
+      -
+        name: bin-high
+        type: u32
+        doc: High bound of FEC bin (inclusive)
+      -
+        name: bin-val
+        type: uint
+        doc: Error count in the bin (optional if per-lane values exist)
+      -
+        name: bin-val-per-lane
+        type: binary
+        sub-type: u64
+        doc: An array of per-lane error counters in the bin (optional)
+  -
     name: fec-stat
     attr-cnt-name: __ethtool-a-fec-stat-cnt
     attributes:
@@ -1239,6 +1266,11 @@ attribute-sets:
         name: corr-bits
         type: binary
         sub-type: u64
+      -
+        name: hist
+        type: nest
+        multi-attr: True
+        nested-attributes: fec-hist
   -
     name: fec
     attr-cnt-name: __ethtool-a-fec-cnt

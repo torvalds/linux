@@ -286,7 +286,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(set_task_ioprio);
 
-int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
+int __copy_io(u64 clone_flags, struct task_struct *tsk)
 {
 	struct io_context *ioc = current->io_context;
 

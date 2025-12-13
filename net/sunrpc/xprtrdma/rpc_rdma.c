@@ -190,7 +190,7 @@ rpcrdma_alloc_sparse_pages(struct xdr_buf *buf)
 	ppages = buf->pages + (buf->page_base >> PAGE_SHIFT);
 	while (len > 0) {
 		if (!*ppages)
-			*ppages = alloc_page(GFP_NOWAIT | __GFP_NOWARN);
+			*ppages = alloc_page(GFP_NOWAIT);
 		if (!*ppages)
 			return -ENOBUFS;
 		ppages++;

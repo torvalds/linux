@@ -320,6 +320,7 @@
 
 		gic: interrupt-controller@f0800000 {
 			compatible = "arm,gic-v3";
+			#address-cells = <0>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			reg = <0x0 0xf0800000 0 0x10000>,	/* GICD */

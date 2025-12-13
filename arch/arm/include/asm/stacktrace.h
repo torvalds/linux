@@ -2,8 +2,9 @@
 #ifndef __ASM_STACKTRACE_H
 #define __ASM_STACKTRACE_H
 
-#include <asm/ptrace.h>
 #include <linux/llist.h>
+#include <asm/ptrace.h>
+#include <asm/sections.h>
 
 struct stackframe {
 	/*

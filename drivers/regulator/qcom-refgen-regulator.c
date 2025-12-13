@@ -94,7 +94,6 @@ static const struct regmap_config qcom_refgen_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.fast_io = true,
 };
 
 static int qcom_refgen_probe(struct platform_device *pdev)

@@ -775,11 +775,6 @@ v4l2_fh 结构体提供一个保存用于 V4L2 框架的文件句柄特定数据
 如果 video_device 标志，新驱动
 必须使用 v4l2_fh 结构体，因为它也用于实现优先级处理（VIDIOC_G/S_PRIORITY）。
 
-v4l2_fh 的用户（位于 V4l2 框架中，并非驱动）可通过测试
-video_device->flags 中的 V4L2_FL_USES_V4L2_FH 位得知驱动是否使用
-v4l2_fh 作为他的 file->private_data 指针。这个位会在调用 v4l2_fh_init()
-时被设置。
-
 v4l2_fh 结构体作为驱动自身文件句柄结构体的一部分被分配，且驱动在
 其打开函数中将 file->private_data 指向它。
 
@@ -812,18 +807,17 @@ int my_open(struct file *file)
 
 	...
 
-	file->private_data = &my_fh->fh;
-	v4l2_fh_add(&my_fh->fh);
+	v4l2_fh_add(&my_fh->fh, file);
 	return 0;
 }
 
 int my_release(struct file *file)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
 
 	...
-	v4l2_fh_del(&my_fh->fh);
+	v4l2_fh_del(&my_fh->fh, file);
 	v4l2_fh_exit(&my_fh->fh);
 	kfree(my_fh);
 	return 0;
@@ -836,12 +830,12 @@ void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
   初始化文件句柄。这*必须*在驱动的 v4l2_file_operations->open()
   函数中执行。
 
-void v4l2_fh_add(struct v4l2_fh *fh)
+void v4l2_fh_add(struct v4l2_fh *fh, struct file *filp)
 
   添加一个 v4l2_fh 到 video_device 文件句柄列表。一旦文件句柄
   初始化完成就必须调用。
 
-void v4l2_fh_del(struct v4l2_fh *fh)
+void v4l2_fh_del(struct v4l2_fh *fh, struct file *filp)
 
   从 video_device() 中解除文件句柄的关联。文件句柄的退出函数也
   将被调用。

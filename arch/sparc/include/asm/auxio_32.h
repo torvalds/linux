@@ -29,7 +29,7 @@
 #define AUXIO_FLPY_EJCT   0x02    /* Eject floppy disk.  Write only. */
 #define AUXIO_LED         0x01    /* On if set, off if unset. Read/Write */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * NOTE: these routines are implementation dependent--
@@ -75,7 +75,7 @@ do { \
 	} \
 } while (0)
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 
 /* AUXIO2 (Power Off Control) */

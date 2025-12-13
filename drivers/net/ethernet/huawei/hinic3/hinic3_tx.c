@@ -55,9 +55,9 @@ void hinic3_free_txqs(struct net_device *netdev)
 static void hinic3_set_buf_desc(struct hinic3_sq_bufdesc *buf_descs,
 				dma_addr_t addr, u32 len)
 {
-	buf_descs->hi_addr = upper_32_bits(addr);
-	buf_descs->lo_addr = lower_32_bits(addr);
-	buf_descs->len  = len;
+	buf_descs->hi_addr = cpu_to_le32(upper_32_bits(addr));
+	buf_descs->lo_addr = cpu_to_le32(lower_32_bits(addr));
+	buf_descs->len = cpu_to_le32(len);
 }
 
 static int hinic3_tx_map_skb(struct net_device *netdev, struct sk_buff *skb,
@@ -81,10 +81,10 @@ static int hinic3_tx_map_skb(struct net_device *netdev, struct sk_buff *skb,
 
 	dma_info[0].len = skb_headlen(skb);
 
-	wqe_desc->hi_addr = upper_32_bits(dma_info[0].dma);
-	wqe_desc->lo_addr = lower_32_bits(dma_info[0].dma);
+	wqe_desc->hi_addr = cpu_to_le32(upper_32_bits(dma_info[0].dma));
+	wqe_desc->lo_addr = cpu_to_le32(lower_32_bits(dma_info[0].dma));
 
-	wqe_desc->ctrl_len = dma_info[0].len;
+	wqe_desc->ctrl_len = cpu_to_le32(dma_info[0].len);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		frag = &(skb_shinfo(skb)->frags[i]);
@@ -116,6 +116,7 @@ err_unmap_page:
 	}
 	dma_unmap_single(&pdev->dev, dma_info[0].dma, dma_info[0].len,
 			 DMA_TO_DEVICE);
+
 	return err;
 }
 
@@ -136,6 +137,23 @@ static void hinic3_tx_unmap_skb(struct net_device *netdev,
 
 	dma_unmap_single(&pdev->dev, dma_info[0].dma,
 			 dma_info[0].len, DMA_TO_DEVICE);
+}
+
+static void free_all_tx_skbs(struct net_device *netdev, u32 sq_depth,
+			     struct hinic3_tx_info *tx_info_arr)
+{
+	struct hinic3_tx_info *tx_info;
+	u32 idx;
+
+	for (idx = 0; idx < sq_depth; idx++) {
+		tx_info = &tx_info_arr[idx];
+		if (tx_info->skb) {
+			hinic3_tx_unmap_skb(netdev, tx_info->skb,
+					    tx_info->dma_info);
+			dev_kfree_skb_any(tx_info->skb);
+			tx_info->skb = NULL;
+		}
+	}
 }
 
 union hinic3_ip {
@@ -197,7 +215,8 @@ static int hinic3_tx_csum(struct hinic3_txq *txq, struct hinic3_sq_task *task,
 		union hinic3_ip ip;
 		u8 l4_proto;
 
-		task->pkt_info0 |= SQ_TASK_INFO0_SET(1, TUNNEL_FLAG);
+		task->pkt_info0 |= cpu_to_le32(SQ_TASK_INFO0_SET(1,
+								 TUNNEL_FLAG));
 
 		ip.hdr = skb_network_header(skb);
 		if (ip.v4->version == 4) {
@@ -226,7 +245,7 @@ static int hinic3_tx_csum(struct hinic3_txq *txq, struct hinic3_sq_task *task,
 		}
 	}
 
-	task->pkt_info0 |= SQ_TASK_INFO0_SET(1, INNER_L4_EN);
+	task->pkt_info0 |= cpu_to_le32(SQ_TASK_INFO0_SET(1, INNER_L4_EN));
 
 	return 1;
 }
@@ -255,26 +274,28 @@ static void get_inner_l3_l4_type(struct sk_buff *skb, union hinic3_ip *ip,
 	}
 }
 
-static void hinic3_set_tso_info(struct hinic3_sq_task *task, u32 *queue_info,
+static void hinic3_set_tso_info(struct hinic3_sq_task *task, __le32 *queue_info,
 				enum hinic3_l4_offload_type l4_offload,
 				u32 offset, u32 mss)
 {
 	if (l4_offload == HINIC3_L4_OFFLOAD_TCP) {
-		*queue_info |= SQ_CTRL_QUEUE_INFO_SET(1, TSO);
-		task->pkt_info0 |= SQ_TASK_INFO0_SET(1, INNER_L4_EN);
+		*queue_info |= cpu_to_le32(SQ_CTRL_QUEUE_INFO_SET(1, TSO));
+		task->pkt_info0 |= cpu_to_le32(SQ_TASK_INFO0_SET(1,
+								 INNER_L4_EN));
 	} else if (l4_offload == HINIC3_L4_OFFLOAD_UDP) {
-		*queue_info |= SQ_CTRL_QUEUE_INFO_SET(1, UFO);
-		task->pkt_info0 |= SQ_TASK_INFO0_SET(1, INNER_L4_EN);
+		*queue_info |= cpu_to_le32(SQ_CTRL_QUEUE_INFO_SET(1, UFO));
+		task->pkt_info0 |= cpu_to_le32(SQ_TASK_INFO0_SET(1,
+								 INNER_L4_EN));
 	}
 
 	/* enable L3 calculation */
-	task->pkt_info0 |= SQ_TASK_INFO0_SET(1, INNER_L3_EN);
+	task->pkt_info0 |= cpu_to_le32(SQ_TASK_INFO0_SET(1, INNER_L3_EN));
 
-	*queue_info |= SQ_CTRL_QUEUE_INFO_SET(offset >> 1, PLDOFF);
+	*queue_info |= cpu_to_le32(SQ_CTRL_QUEUE_INFO_SET(offset >> 1, PLDOFF));
 
 	/* set MSS value */
-	*queue_info &= ~SQ_CTRL_QUEUE_INFO_MSS_MASK;
-	*queue_info |= SQ_CTRL_QUEUE_INFO_SET(mss, MSS);
+	*queue_info &= cpu_to_le32(~SQ_CTRL_QUEUE_INFO_MSS_MASK);
+	*queue_info |= cpu_to_le32(SQ_CTRL_QUEUE_INFO_SET(mss, MSS));
 }
 
 static __sum16 csum_magic(union hinic3_ip *ip, unsigned short proto)
@@ -284,7 +305,7 @@ static __sum16 csum_magic(union hinic3_ip *ip, unsigned short proto)
 		csum_ipv6_magic(&ip->v6->saddr, &ip->v6->daddr, 0, proto, 0);
 }
 
-static int hinic3_tso(struct hinic3_sq_task *task, u32 *queue_info,
+static int hinic3_tso(struct hinic3_sq_task *task, __le32 *queue_info,
 		      struct sk_buff *skb)
 {
 	enum hinic3_l4_offload_type l4_offload;
@@ -305,15 +326,17 @@ static int hinic3_tso(struct hinic3_sq_task *task, u32 *queue_info,
 	if (skb->encapsulation) {
 		u32 gso_type = skb_shinfo(skb)->gso_type;
 		/* L3 checksum is always enabled */
-		task->pkt_info0 |= SQ_TASK_INFO0_SET(1, OUT_L3_EN);
-		task->pkt_info0 |= SQ_TASK_INFO0_SET(1, TUNNEL_FLAG);
+		task->pkt_info0 |= cpu_to_le32(SQ_TASK_INFO0_SET(1, OUT_L3_EN));
+		task->pkt_info0 |= cpu_to_le32(SQ_TASK_INFO0_SET(1,
+								 TUNNEL_FLAG));
 
 		l4.hdr = skb_transport_header(skb);
 		ip.hdr = skb_network_header(skb);
 
 		if (gso_type & SKB_GSO_UDP_TUNNEL_CSUM) {
 			l4.udp->check = ~csum_magic(&ip, IPPROTO_UDP);
-			task->pkt_info0 |= SQ_TASK_INFO0_SET(1, OUT_L4_EN);
+			task->pkt_info0 |=
+				cpu_to_le32(SQ_TASK_INFO0_SET(1, OUT_L4_EN));
 		}
 
 		ip.hdr = skb_inner_network_header(skb);
@@ -343,13 +366,14 @@ static void hinic3_set_vlan_tx_offload(struct hinic3_sq_task *task,
 	 * 2=select TPID2 in IPSU, 3=select TPID3 in IPSU,
 	 * 4=select TPID4 in IPSU
 	 */
-	task->vlan_offload = SQ_TASK_INFO3_SET(vlan_tag, VLAN_TAG) |
-			     SQ_TASK_INFO3_SET(vlan_tpid, VLAN_TPID) |
-			     SQ_TASK_INFO3_SET(1, VLAN_TAG_VALID);
+	task->vlan_offload =
+		cpu_to_le32(SQ_TASK_INFO3_SET(vlan_tag, VLAN_TAG) |
+			    SQ_TASK_INFO3_SET(vlan_tpid, VLAN_TPID) |
+			    SQ_TASK_INFO3_SET(1, VLAN_TAG_VALID));
 }
 
 static u32 hinic3_tx_offload(struct sk_buff *skb, struct hinic3_sq_task *task,
-			     u32 *queue_info, struct hinic3_txq *txq)
+			     __le32 *queue_info, struct hinic3_txq *txq)
 {
 	u32 offload = 0;
 	int tso_cs_en;
@@ -440,39 +464,41 @@ static u16 hinic3_set_wqe_combo(struct hinic3_txq *txq,
 }
 
 static void hinic3_prepare_sq_ctrl(struct hinic3_sq_wqe_combo *wqe_combo,
-				   u32 queue_info, int nr_descs, u16 owner)
+				   __le32 queue_info, int nr_descs, u16 owner)
 {
 	struct hinic3_sq_wqe_desc *wqe_desc = wqe_combo->ctrl_bd0;
 
 	if (wqe_combo->wqe_type == SQ_WQE_COMPACT_TYPE) {
 		wqe_desc->ctrl_len |=
-		    SQ_CTRL_SET(SQ_NORMAL_WQE, DATA_FORMAT) |
-		    SQ_CTRL_SET(wqe_combo->wqe_type, EXTENDED) |
-		    SQ_CTRL_SET(owner, OWNER);
+			cpu_to_le32(SQ_CTRL_SET(SQ_NORMAL_WQE, DATA_FORMAT) |
+				    SQ_CTRL_SET(wqe_combo->wqe_type, EXTENDED) |
+				    SQ_CTRL_SET(owner, OWNER));
 
 		/* compact wqe queue_info will transfer to chip */
 		wqe_desc->queue_info = 0;
 		return;
 	}
 
-	wqe_desc->ctrl_len |= SQ_CTRL_SET(nr_descs, BUFDESC_NUM) |
-			      SQ_CTRL_SET(wqe_combo->task_type, TASKSECT_LEN) |
-			      SQ_CTRL_SET(SQ_NORMAL_WQE, DATA_FORMAT) |
-			      SQ_CTRL_SET(wqe_combo->wqe_type, EXTENDED) |
-			      SQ_CTRL_SET(owner, OWNER);
+	wqe_desc->ctrl_len |=
+		cpu_to_le32(SQ_CTRL_SET(nr_descs, BUFDESC_NUM) |
+			    SQ_CTRL_SET(wqe_combo->task_type, TASKSECT_LEN) |
+			    SQ_CTRL_SET(SQ_NORMAL_WQE, DATA_FORMAT) |
+			    SQ_CTRL_SET(wqe_combo->wqe_type, EXTENDED) |
+			    SQ_CTRL_SET(owner, OWNER));
 
 	wqe_desc->queue_info = queue_info;
-	wqe_desc->queue_info |= SQ_CTRL_QUEUE_INFO_SET(1, UC);
+	wqe_desc->queue_info |= cpu_to_le32(SQ_CTRL_QUEUE_INFO_SET(1, UC));
 
 	if (!SQ_CTRL_QUEUE_INFO_GET(wqe_desc->queue_info, MSS)) {
 		wqe_desc->queue_info |=
-		    SQ_CTRL_QUEUE_INFO_SET(HINIC3_TX_MSS_DEFAULT, MSS);
+		    cpu_to_le32(SQ_CTRL_QUEUE_INFO_SET(HINIC3_TX_MSS_DEFAULT, MSS));
 	} else if (SQ_CTRL_QUEUE_INFO_GET(wqe_desc->queue_info, MSS) <
 		   HINIC3_TX_MSS_MIN) {
 		/* mss should not be less than 80 */
-		wqe_desc->queue_info &= ~SQ_CTRL_QUEUE_INFO_MSS_MASK;
+		wqe_desc->queue_info &=
+		    cpu_to_le32(~SQ_CTRL_QUEUE_INFO_MSS_MASK);
 		wqe_desc->queue_info |=
-		    SQ_CTRL_QUEUE_INFO_SET(HINIC3_TX_MSS_MIN, MSS);
+		    cpu_to_le32(SQ_CTRL_QUEUE_INFO_SET(HINIC3_TX_MSS_MIN, MSS));
 	}
 }
 
@@ -482,12 +508,13 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 {
 	struct hinic3_sq_wqe_combo wqe_combo = {};
 	struct hinic3_tx_info *tx_info;
-	u32 offload, queue_info = 0;
 	struct hinic3_sq_task task;
 	u16 wqebb_cnt, num_sge;
+	__le32 queue_info = 0;
 	u16 saved_wq_prod_idx;
 	u16 owner, pi = 0;
 	u8 saved_sq_owner;
+	u32 offload;
 	int err;
 
 	if (unlikely(skb->len < MIN_SKB_LEN)) {
@@ -575,6 +602,7 @@ netdev_tx_t hinic3_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 err_drop_pkt:
 	dev_kfree_skb_any(skb);
+
 	return NETDEV_TX_OK;
 }
 
@@ -623,6 +651,90 @@ void hinic3_flush_txqs(struct net_device *netdev)
 
 #define HINIC3_BDS_PER_SQ_WQEBB \
 	(HINIC3_SQ_WQEBB_SIZE / sizeof(struct hinic3_sq_bufdesc))
+
+int hinic3_alloc_txqs_res(struct net_device *netdev, u16 num_sq,
+			  u32 sq_depth, struct hinic3_dyna_txq_res *txqs_res)
+{
+	struct hinic3_dyna_txq_res *tqres;
+	int idx;
+
+	for (idx = 0; idx < num_sq; idx++) {
+		tqres = &txqs_res[idx];
+
+		tqres->tx_info = kcalloc(sq_depth, sizeof(*tqres->tx_info),
+					 GFP_KERNEL);
+		if (!tqres->tx_info)
+			goto err_free_tqres;
+
+		tqres->bds = kcalloc(sq_depth * HINIC3_BDS_PER_SQ_WQEBB +
+				     HINIC3_MAX_SQ_SGE, sizeof(*tqres->bds),
+				     GFP_KERNEL);
+		if (!tqres->bds) {
+			kfree(tqres->tx_info);
+			goto err_free_tqres;
+		}
+	}
+
+	return 0;
+
+err_free_tqres:
+	while (idx > 0) {
+		idx--;
+		tqres = &txqs_res[idx];
+
+		kfree(tqres->bds);
+		kfree(tqres->tx_info);
+	}
+
+	return -ENOMEM;
+}
+
+void hinic3_free_txqs_res(struct net_device *netdev, u16 num_sq,
+			  u32 sq_depth, struct hinic3_dyna_txq_res *txqs_res)
+{
+	struct hinic3_dyna_txq_res *tqres;
+	int idx;
+
+	for (idx = 0; idx < num_sq; idx++) {
+		tqres = &txqs_res[idx];
+
+		free_all_tx_skbs(netdev, sq_depth, tqres->tx_info);
+		kfree(tqres->bds);
+		kfree(tqres->tx_info);
+	}
+}
+
+int hinic3_configure_txqs(struct net_device *netdev, u16 num_sq,
+			  u32 sq_depth, struct hinic3_dyna_txq_res *txqs_res)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_dyna_txq_res *tqres;
+	struct hinic3_txq *txq;
+	u16 q_id;
+	u32 idx;
+
+	for (q_id = 0; q_id < num_sq; q_id++) {
+		txq = &nic_dev->txqs[q_id];
+		tqres = &txqs_res[q_id];
+
+		txq->q_depth = sq_depth;
+		txq->q_mask = sq_depth - 1;
+
+		txq->tx_stop_thrs = min(HINIC3_DEFAULT_STOP_THRS,
+					sq_depth / 20);
+		txq->tx_start_thrs = min(HINIC3_DEFAULT_START_THRS,
+					 sq_depth / 10);
+
+		txq->tx_info = tqres->tx_info;
+		for (idx = 0; idx < sq_depth; idx++)
+			txq->tx_info[idx].dma_info =
+				&tqres->bds[idx * HINIC3_BDS_PER_SQ_WQEBB];
+
+		txq->sq = &nic_dev->nic_io->sq[q_id];
+	}
+
+	return 0;
+}
 
 bool hinic3_tx_poll(struct hinic3_txq *txq, int budget)
 {

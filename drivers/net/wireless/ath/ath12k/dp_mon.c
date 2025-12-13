@@ -1441,6 +1441,34 @@ static void ath12k_dp_mon_parse_rx_msdu_end_err(u32 info, u32 *errmap)
 }
 
 static void
+ath12k_parse_cmn_usr_info(const struct hal_phyrx_common_user_info *cmn_usr_info,
+			  struct hal_rx_mon_ppdu_info *ppdu_info)
+{
+	struct hal_rx_radiotap_eht *eht = &ppdu_info->eht_info.eht;
+	u32 known, data, cp_setting, ltf_size;
+
+	known = __le32_to_cpu(eht->known);
+	known |= IEEE80211_RADIOTAP_EHT_KNOWN_GI |
+		IEEE80211_RADIOTAP_EHT_KNOWN_EHT_LTF;
+	eht->known = cpu_to_le32(known);
+
+	cp_setting = le32_get_bits(cmn_usr_info->info0,
+				   HAL_RX_CMN_USR_INFO0_CP_SETTING);
+	ltf_size = le32_get_bits(cmn_usr_info->info0,
+				 HAL_RX_CMN_USR_INFO0_LTF_SIZE);
+
+	data = __le32_to_cpu(eht->data[0]);
+	data |= u32_encode_bits(cp_setting, IEEE80211_RADIOTAP_EHT_DATA0_GI);
+	data |= u32_encode_bits(ltf_size, IEEE80211_RADIOTAP_EHT_DATA0_LTF);
+	eht->data[0] = cpu_to_le32(data);
+
+	if (!ppdu_info->ltf_size)
+		ppdu_info->ltf_size = ltf_size;
+	if (!ppdu_info->gi)
+		ppdu_info->gi = cp_setting;
+}
+
+static void
 ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
 				    const struct hal_rx_msdu_end *msdu_end)
 {
@@ -1627,25 +1655,22 @@ ath12k_dp_mon_rx_parse_status_tlv(struct ath12k *ar,
 		const struct hal_rx_phyrx_rssi_legacy_info *rssi = tlv_data;
 
 		info[0] = __le32_to_cpu(rssi->info0);
-		info[1] = __le32_to_cpu(rssi->info1);
+		info[2] = __le32_to_cpu(rssi->info2);
 
 		/* TODO: Please note that the combined rssi will not be accurate
 		 * in MU case. Rssi in MU needs to be retrieved from
 		 * PHYRX_OTHER_RECEIVE_INFO TLV.
 		 */
 		ppdu_info->rssi_comb =
-			u32_get_bits(info[1],
-				     HAL_RX_PHYRX_RSSI_LEGACY_INFO_INFO1_RSSI_COMB);
+			u32_get_bits(info[2],
+				     HAL_RX_RSSI_LEGACY_INFO_INFO2_RSSI_COMB_PPDU);
 
 		ppdu_info->bw = u32_get_bits(info[0],
-					     HAL_RX_PHYRX_RSSI_LEGACY_INFO_INFO0_RX_BW);
+					     HAL_RX_RSSI_LEGACY_INFO_INFO0_RX_BW);
 		break;
 	}
-	case HAL_PHYRX_OTHER_RECEIVE_INFO: {
-		const struct hal_phyrx_common_user_info *cmn_usr_info = tlv_data;
-
-		ppdu_info->gi = le32_get_bits(cmn_usr_info->info0,
-					      HAL_RX_PHY_CMN_USER_INFO0_GI);
+	case HAL_PHYRX_COMMON_USER_INFO: {
+		ath12k_parse_cmn_usr_info(tlv_data, ppdu_info);
 		break;
 	}
 	case HAL_RX_PPDU_START_USER_INFO:
@@ -2154,8 +2179,12 @@ static void ath12k_dp_mon_update_radiotap(struct ath12k *ar,
 	spin_unlock_bh(&ar->data_lock);
 
 	rxs->flag |= RX_FLAG_MACTIME_START;
-	rxs->signal = ppduinfo->rssi_comb + noise_floor;
 	rxs->nss = ppduinfo->nss + 1;
+	if (test_bit(WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT,
+		     ar->ab->wmi_ab.svc_map))
+		rxs->signal = ppduinfo->rssi_comb;
+	else
+		rxs->signal = ppduinfo->rssi_comb + noise_floor;
 
 	if (ppduinfo->userstats[ppduinfo->userid].ampdu_present) {
 		rxs->flag |= RX_FLAG_AMPDU_DETAILS;
@@ -2244,6 +2273,7 @@ static void ath12k_dp_mon_update_radiotap(struct ath12k *ar,
 
 static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
 					  struct sk_buff *msdu,
+					  const struct hal_rx_mon_ppdu_info *ppduinfo,
 					  struct ieee80211_rx_status *status,
 					  u8 decap)
 {
@@ -2257,7 +2287,6 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 	struct ieee80211_sta *pubsta = NULL;
 	struct ath12k_peer *peer;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
-	struct ath12k_dp_rx_info rx_info;
 	bool is_mcbc = rxcb->is_mcbc;
 	bool is_eapol_tkip = rxcb->is_eapol;
 
@@ -2271,8 +2300,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 	}
 
 	spin_lock_bh(&ar->ab->base_lock);
-	rx_info.addr2_present = false;
-	peer = ath12k_dp_rx_h_find_peer(ar->ab, msdu, &rx_info);
+	peer = ath12k_peer_find_by_id(ar->ab, ppduinfo->peer_id);
 	if (peer && peer->sta) {
 		pubsta = peer->sta;
 		if (pubsta->valid_links) {
@@ -2365,7 +2393,7 @@ static int ath12k_dp_mon_rx_deliver(struct ath12k *ar,
 			decap = mon_mpdu->decap_format;
 
 		ath12k_dp_mon_update_radiotap(ar, ppduinfo, mon_skb, rxs);
-		ath12k_dp_mon_rx_deliver_msdu(ar, napi, mon_skb, rxs, decap);
+		ath12k_dp_mon_rx_deliver_msdu(ar, napi, mon_skb, ppduinfo, rxs, decap);
 		mon_skb = skb_next;
 	} while (mon_skb);
 	rxs->flag = 0;

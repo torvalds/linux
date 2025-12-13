@@ -29,8 +29,13 @@
 #include "b53_priv.h"
 
 #define BCM63XX_EPHY_REG 0x3C
+#define BCM63268_GPHY_REG 0x54
+
+#define GPHY_CTRL_LOW_PWR	BIT(3)
+#define GPHY_CTRL_IDDQ_BIAS	BIT(0)
 
 struct b53_phy_info {
+	u32 gphy_port_mask;
 	u32 ephy_enable_mask;
 	u32 ephy_port_mask;
 	u32 ephy_bias_bit;
@@ -65,6 +70,7 @@ static const struct b53_phy_info bcm6368_ephy_info = {
 static const u32 bcm63268_ephy_offsets[] = {4, 9, 14};
 
 static const struct b53_phy_info bcm63268_ephy_info = {
+	.gphy_port_mask = BIT(3),
 	.ephy_enable_mask = GENMASK(4, 0),
 	.ephy_port_mask = GENMASK((ARRAY_SIZE(bcm63268_ephy_offsets) - 1), 0),
 	.ephy_bias_bit = 24,
@@ -290,13 +296,30 @@ static int bcm63xx_ephy_set(struct b53_device *dev, int port, bool enable)
 	return regmap_update_bits(gpio_ctrl, BCM63XX_EPHY_REG, mask, val);
 }
 
+static int bcm63268_gphy_set(struct b53_device *dev, bool enable)
+{
+	struct b53_mmap_priv *priv = dev->priv;
+	struct regmap *gpio_ctrl = priv->gpio_ctrl;
+	u32 mask = GPHY_CTRL_IDDQ_BIAS | GPHY_CTRL_LOW_PWR;
+	u32 val = 0;
+
+	if (!enable)
+		val = mask;
+
+	return regmap_update_bits(gpio_ctrl, BCM63268_GPHY_REG, mask, val);
+}
+
 static void b53_mmap_phy_enable(struct b53_device *dev, int port)
 {
 	struct b53_mmap_priv *priv = dev->priv;
 	int ret = 0;
 
-	if (priv->phy_info && (BIT(port) & priv->phy_info->ephy_port_mask))
-		ret = bcm63xx_ephy_set(dev, port, true);
+	if (priv->phy_info) {
+		if (BIT(port) & priv->phy_info->ephy_port_mask)
+			ret = bcm63xx_ephy_set(dev, port, true);
+		else if (BIT(port) & priv->phy_info->gphy_port_mask)
+			ret = bcm63268_gphy_set(dev, true);
+	}
 
 	if (!ret)
 		priv->phys_enabled |= BIT(port);
@@ -307,8 +330,12 @@ static void b53_mmap_phy_disable(struct b53_device *dev, int port)
 	struct b53_mmap_priv *priv = dev->priv;
 	int ret = 0;
 
-	if (priv->phy_info && (BIT(port) & priv->phy_info->ephy_port_mask))
-		ret = bcm63xx_ephy_set(dev, port, false);
+	if (priv->phy_info) {
+		if (BIT(port) & priv->phy_info->ephy_port_mask)
+			ret = bcm63xx_ephy_set(dev, port, false);
+		else if (BIT(port) & priv->phy_info->gphy_port_mask)
+			ret = bcm63268_gphy_set(dev, false);
+	}
 
 	if (!ret)
 		priv->phys_enabled &= ~BIT(port);

@@ -69,6 +69,12 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 
+	op->more_files = kvcalloc(2, sizeof(struct afs_vnode_param), GFP_KERNEL);
+	if (!op->more_files) {
+		afs_put_operation(op);
+		return -ENOMEM;
+	}
+
 	afs_op_set_vnode(op, 0, dvnode);
 	afs_op_set_vnode(op, 1, dvnode);
 	op->file[0].dv_delta = 1;
@@ -77,6 +83,11 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 	op->file[1].modification = true;
 	op->file[0].update_ctime = true;
 	op->file[1].update_ctime = true;
+	op->more_files[0].vnode		= AFS_FS_I(d_inode(old));
+	op->more_files[0].speculative	= true;
+	op->more_files[1].vnode		= AFS_FS_I(d_inode(new));
+	op->more_files[1].speculative	= true;
+	op->nr_files = 4;
 
 	op->dentry		= old;
 	op->dentry_2		= new;

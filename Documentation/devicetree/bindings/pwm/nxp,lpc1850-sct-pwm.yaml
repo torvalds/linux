@@ -48,7 +48,7 @@ examples:
     pwm@40000000 {
         compatible = "nxp,lpc1850-sct-pwm";
         reg = <0x40000000 0x1000>;
-        clocks =<&ccu1 CLK_CPU_SCT>;
+        clocks = <&ccu1 CLK_CPU_SCT>;
         clock-names = "pwm";
         #pwm-cells = <3>;
     };

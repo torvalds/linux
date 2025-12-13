@@ -621,14 +621,12 @@ ap_ec_spi: &spi10 {
 };
 
 &usb_1 {
-	status = "okay";
-};
-
-&usb_1_dwc3 {
 	dr_mode = "host";
 
 	#address-cells = <1>;
 	#size-cells = <0>;
+
+	status = "okay";
 
 	/* 2.x hub on port 1 */
 	usb_hub_2_x: hub@1 {

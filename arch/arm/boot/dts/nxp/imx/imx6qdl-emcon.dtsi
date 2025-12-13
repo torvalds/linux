@@ -33,7 +33,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_emcon_wake>;
 
-		wake {
+		key-wake {
 			label = "Wake";
 			linux,code = <KEY_WAKEUP>;
 			gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;
@@ -225,6 +225,8 @@
 		pinctrl-0 = <&pinctrl_pmic>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 
 		onkey {
 			compatible = "dlg,da9063-onkey";

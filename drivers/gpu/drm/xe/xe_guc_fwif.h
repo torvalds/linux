@@ -15,6 +15,7 @@
 #define G2H_LEN_DW_SCHED_CONTEXT_MODE_SET	4
 #define G2H_LEN_DW_DEREGISTER_CONTEXT		3
 #define G2H_LEN_DW_TLB_INVALIDATE		3
+#define G2H_LEN_DW_G2G_NOTIFY_MIN		3
 
 #define GUC_ID_MAX			65535
 #define GUC_ID_UNKNOWN			0xffffffff
@@ -45,6 +46,11 @@
 #define GUC_MAX_ENGINE_CLASSES		16
 #define GUC_MAX_INSTANCES_PER_CLASS	32
 
+#define GUC_CONTEXT_NORMAL			0
+#define GUC_CONTEXT_COMPRESSION_SAVE		1
+#define GUC_CONTEXT_COMPRESSION_RESTORE	2
+#define GUC_CONTEXT_COUNT			(GUC_CONTEXT_COMPRESSION_RESTORE + 1)
+
 /* Helper for context registration H2G */
 struct guc_ctxt_registration_info {
 	u32 flags;
@@ -60,6 +66,7 @@ struct guc_ctxt_registration_info {
 	u32 hwlrca_hi;
 };
 #define CONTEXT_REGISTRATION_FLAG_KMD	BIT(0)
+#define CONTEXT_REGISTRATION_FLAG_TYPE	GENMASK(2, 1)
 
 /* 32-bit KLV structure as used by policy updates and others */
 struct guc_klv_generic_dw_t {
@@ -84,13 +91,10 @@ struct guc_update_exec_queue_policy {
 #define   GUC_LOG_NOTIFY_ON_HALF_FULL	BIT(1)
 #define   GUC_LOG_CAPTURE_ALLOC_UNITS	BIT(2)
 #define   GUC_LOG_LOG_ALLOC_UNITS	BIT(3)
-#define   GUC_LOG_CRASH_SHIFT		4
-#define   GUC_LOG_CRASH_MASK		(0x3 << GUC_LOG_CRASH_SHIFT)
-#define   GUC_LOG_DEBUG_SHIFT		6
-#define   GUC_LOG_DEBUG_MASK	        (0xF << GUC_LOG_DEBUG_SHIFT)
-#define   GUC_LOG_CAPTURE_SHIFT		10
-#define   GUC_LOG_CAPTURE_MASK	        (0x3 << GUC_LOG_CAPTURE_SHIFT)
-#define   GUC_LOG_BUF_ADDR_SHIFT	12
+#define   GUC_LOG_CRASH			REG_GENMASK(5, 4)
+#define   GUC_LOG_DEBUG			REG_GENMASK(9, 6)
+#define   GUC_LOG_CAPTURE		REG_GENMASK(11, 10)
+#define   GUC_LOG_BUF_ADDR		REG_GENMASK(31, 12)
 
 #define GUC_CTL_WA			1
 #define   GUC_WA_GAM_CREDITS		BIT(10)
@@ -103,28 +107,23 @@ struct guc_update_exec_queue_policy {
 #define   GUC_WA_RENDER_RST_RC6_EXIT	BIT(19)
 #define   GUC_WA_RCS_REGS_IN_CCS_REGS_LIST	BIT(21)
 #define   GUC_WA_ENABLE_TSC_CHECK_ON_RC6	BIT(22)
+#define   GUC_WA_SAVE_RESTORE_MCFG_REG_AT_MC6	BIT(25)
 
 #define GUC_CTL_FEATURE			2
 #define   GUC_CTL_ENABLE_SLPC		BIT(2)
 #define   GUC_CTL_ENABLE_LITE_RESTORE	BIT(4)
+#define   GUC_CTL_ENABLE_PSMI_LOGGING	BIT(7)
 #define   GUC_CTL_DISABLE_SCHEDULER	BIT(14)
 
 #define GUC_CTL_DEBUG			3
-#define   GUC_LOG_VERBOSITY_SHIFT	0
-#define   GUC_LOG_VERBOSITY_LOW		(0 << GUC_LOG_VERBOSITY_SHIFT)
-#define   GUC_LOG_VERBOSITY_MED		(1 << GUC_LOG_VERBOSITY_SHIFT)
-#define   GUC_LOG_VERBOSITY_HIGH	(2 << GUC_LOG_VERBOSITY_SHIFT)
-#define   GUC_LOG_VERBOSITY_ULTRA	(3 << GUC_LOG_VERBOSITY_SHIFT)
-#define	  GUC_LOG_VERBOSITY_MIN		0
+#define   GUC_LOG_VERBOSITY		REG_GENMASK(1, 0)
 #define	  GUC_LOG_VERBOSITY_MAX		3
-#define	  GUC_LOG_VERBOSITY_MASK	0x0000000f
-#define	  GUC_LOG_DESTINATION_MASK	(3 << 4)
-#define   GUC_LOG_DISABLED		(1 << 6)
-#define   GUC_PROFILE_ENABLED		(1 << 7)
+#define	  GUC_LOG_DESTINATION		REG_GENMASK(5, 4)
+#define   GUC_LOG_DISABLED		BIT(6)
+#define   GUC_PROFILE_ENABLED		BIT(7)
 
 #define GUC_CTL_ADS			4
-#define   GUC_ADS_ADDR_SHIFT		1
-#define   GUC_ADS_ADDR_MASK		(0xFFFFF << GUC_ADS_ADDR_SHIFT)
+#define   GUC_ADS_ADDR			REG_GENMASK(21, 1)
 
 #define GUC_CTL_DEVID			5
 

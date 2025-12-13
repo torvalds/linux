@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. */
 
+#include <linux/mlx5/vport.h>
+
 #include "reporter_vnic.h"
 #include "en_stats.h"
 #include "devlink.h"
@@ -105,6 +107,15 @@ void mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
 	}
 	if (MLX5_CAP_GEN(dev, nic_cap_reg))
 		mlx5_reporter_vnic_diagnose_counter_icm(dev, fmsg, vport_num, other_vport);
+	if (MLX5_CAP_GEN(dev, vnic_env_cnt_bar_uar_access))
+		devlink_fmsg_u32_pair_put(fmsg, "bar_uar_access",
+					  VNIC_ENV_GET(&vnic, bar_uar_access));
+	if (MLX5_CAP_GEN(dev, vnic_env_cnt_odp_page_fault)) {
+		devlink_fmsg_u32_pair_put(fmsg, "odp_local_triggered_page_fault",
+					  VNIC_ENV_GET(&vnic, odp_local_triggered_page_fault));
+		devlink_fmsg_u32_pair_put(fmsg, "odp_remote_triggered_page_fault",
+					  VNIC_ENV_GET(&vnic, odp_remote_triggered_page_fault));
+	}
 
 	devlink_fmsg_obj_nest_end(fmsg);
 	devlink_fmsg_pair_nest_end(fmsg);
@@ -133,11 +144,11 @@ void mlx5_reporter_vnic_create(struct mlx5_core_dev *dev)
 	health->vnic_reporter =
 		devlink_health_reporter_create(devlink,
 					       &mlx5_reporter_vnic_ops,
-					       0, dev);
+					       dev);
 	if (IS_ERR(health->vnic_reporter))
 		mlx5_core_warn(dev,
-			       "Failed to create vnic reporter, err = %ld\n",
-			       PTR_ERR(health->vnic_reporter));
+			       "Failed to create vnic reporter, err = %pe\n",
+			       health->vnic_reporter);
 }
 
 void mlx5_reporter_vnic_destroy(struct mlx5_core_dev *dev)

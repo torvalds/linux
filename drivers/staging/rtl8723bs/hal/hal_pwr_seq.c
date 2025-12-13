@@ -8,7 +8,7 @@
 /*
 *
 This file includes all kinds of Power Action event for RTL8723B
-and corresponding hardware configurtions which are released from HW SD.
+and corresponding hardware configurations which are released from HW SD.
 
 Major Change History:
 	When       Who               What

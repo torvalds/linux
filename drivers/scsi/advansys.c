@@ -7096,7 +7096,7 @@ static int advansys_reset(struct scsi_cmnd *scp)
  * ip[2]: cylinders
  */
 static int
-advansys_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+advansys_biosparam(struct scsi_device *sdev, struct gendisk *unused,
 		   sector_t capacity, int ip[])
 {
 	struct asc_board *boardp = shost_priv(sdev->host);

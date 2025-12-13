@@ -96,6 +96,7 @@ config ARCH_TEGRA_210_SOC
 config ARCH_TEGRA_186_SOC
 	bool "NVIDIA Tegra186 SoC"
 	depends on !CPU_BIG_ENDIAN
+	select PINCTRL_TEGRA186
 	select MAILBOX
 	select SOC_TEGRA_PMC
 	help

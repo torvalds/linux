@@ -241,7 +241,6 @@ struct chcr_aead_ctx {
 };
 
 struct hmac_ctx {
-	struct crypto_shash *base_hash;
 	u8 ipad[CHCR_HASH_MAX_BLOCK_SIZE_128];
 	u8 opad[CHCR_HASH_MAX_BLOCK_SIZE_128];
 };

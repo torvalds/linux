@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -23,64 +24,72 @@
 #define xstr(s) #s
 #define str(s) xstr(s)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define CPIO_HDR_LEN 110
+#define CPIO_TRAILER "TRAILER!!!"
+#define padlen(_off, _align) (((_align) - ((_off) & ((_align) - 1))) % (_align))
 
+/* zero-padding the filename field for data alignment is limited by PATH_MAX */
+static char padding[PATH_MAX];
 static unsigned int offset;
 static unsigned int ino = 721;
 static time_t default_mtime;
 static bool do_file_mtime;
 static bool do_csum = false;
+static int outfd = STDOUT_FILENO;
+static unsigned int dalign;
 
 struct file_handler {
 	const char *type;
 	int (*handler)(const char *line);
 };
 
-static void push_string(const char *name)
+static int push_buf(const char *name, size_t name_len)
 {
-	unsigned int name_len = strlen(name) + 1;
+	ssize_t len;
 
-	fputs(name, stdout);
-	putchar(0);
+	len = write(outfd, name, name_len);
+	if (len != name_len)
+		return -1;
+
 	offset += name_len;
+	return 0;
 }
 
-static void push_pad (void)
+static int push_pad(size_t padlen)
 {
-	while (offset & 3) {
-		putchar(0);
-		offset++;
-	}
+	ssize_t len = 0;
+
+	if (!padlen)
+		return 0;
+
+	if (padlen < sizeof(padding))
+		len = write(outfd, padding, padlen);
+	if (len != padlen)
+		return -1;
+
+	offset += padlen;
+	return 0;
 }
 
-static void push_rest(const char *name)
+static int push_rest(const char *name, size_t name_len)
 {
-	unsigned int name_len = strlen(name) + 1;
-	unsigned int tmp_ofs;
+	ssize_t len;
 
-	fputs(name, stdout);
-	putchar(0);
+	len = write(outfd, name, name_len);
+	if (len != name_len)
+		return -1;
+
 	offset += name_len;
 
-	tmp_ofs = name_len + 110;
-	while (tmp_ofs & 3) {
-		putchar(0);
-		offset++;
-		tmp_ofs++;
-	}
+	return push_pad(padlen(name_len + CPIO_HDR_LEN, 4));
 }
 
-static void push_hdr(const char *s)
+static int cpio_trailer(void)
 {
-	fputs(s, stdout);
-	offset += 110;
-}
+	int len;
+	unsigned int namesize = sizeof(CPIO_TRAILER);
 
-static void cpio_trailer(void)
-{
-	char s[256];
-	const char name[] = "TRAILER!!!";
-
-	sprintf(s, "%s%08X%08X%08lX%08lX%08X%08lX"
+	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
 		0,			/* ino */
@@ -94,25 +103,32 @@ static void cpio_trailer(void)
 		0,			/* minor */
 		0,			/* rmajor */
 		0,			/* rminor */
-		(unsigned)strlen(name)+1, /* namesize */
+		namesize,		/* namesize */
 		0);			/* chksum */
-	push_hdr(s);
-	push_rest(name);
+	offset += len;
 
-	while (offset % 512) {
-		putchar(0);
-		offset++;
-	}
+	if (len != CPIO_HDR_LEN ||
+	    push_rest(CPIO_TRAILER, namesize) < 0 ||
+	    push_pad(padlen(offset, 512)) < 0)
+		return -1;
+
+	if (fsync(outfd) < 0 && errno != EINVAL)
+		return -1;
+
+	return 0;
 }
 
 static int cpio_mkslink(const char *name, const char *target,
 			 unsigned int mode, uid_t uid, gid_t gid)
 {
-	char s[256];
+	int len;
+	unsigned int namesize, targetsize = strlen(target) + 1;
 
 	if (name[0] == '/')
 		name++;
-	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
+	namesize = strlen(name) + 1;
+
+	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
 		ino++,			/* ino */
@@ -121,19 +137,24 @@ static int cpio_mkslink(const char *name, const char *target,
 		(long) gid,		/* gid */
 		1,			/* nlink */
 		(long) default_mtime,	/* mtime */
-		(unsigned)strlen(target)+1, /* filesize */
+		targetsize,		/* filesize */
 		3,			/* major */
 		1,			/* minor */
 		0,			/* rmajor */
 		0,			/* rminor */
-		(unsigned)strlen(name) + 1,/* namesize */
+		namesize,		/* namesize */
 		0);			/* chksum */
-	push_hdr(s);
-	push_string(name);
-	push_pad();
-	push_string(target);
-	push_pad();
+	offset += len;
+
+	if (len != CPIO_HDR_LEN ||
+	    push_buf(name, namesize) < 0 ||
+	    push_pad(padlen(offset, 4)) < 0 ||
+	    push_buf(target, targetsize) < 0 ||
+	    push_pad(padlen(offset, 4)) < 0)
+		return -1;
+
 	return 0;
+
 }
 
 static int cpio_mkslink_line(const char *line)
@@ -157,11 +178,14 @@ static int cpio_mkslink_line(const char *line)
 static int cpio_mkgeneric(const char *name, unsigned int mode,
 		       uid_t uid, gid_t gid)
 {
-	char s[256];
+	int len;
+	unsigned int namesize;
 
 	if (name[0] == '/')
 		name++;
-	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
+	namesize = strlen(name) + 1;
+
+	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
 		ino++,			/* ino */
@@ -175,10 +199,14 @@ static int cpio_mkgeneric(const char *name, unsigned int mode,
 		1,			/* minor */
 		0,			/* rmajor */
 		0,			/* rminor */
-		(unsigned)strlen(name) + 1,/* namesize */
+		namesize,		/* namesize */
 		0);			/* chksum */
-	push_hdr(s);
-	push_rest(name);
+	offset += len;
+
+	if (len != CPIO_HDR_LEN ||
+	    push_rest(name, namesize) < 0)
+		return -1;
+
 	return 0;
 }
 
@@ -246,7 +274,8 @@ static int cpio_mknod(const char *name, unsigned int mode,
 		       uid_t uid, gid_t gid, char dev_type,
 		       unsigned int maj, unsigned int min)
 {
-	char s[256];
+	int len;
+	unsigned int namesize;
 
 	if (dev_type == 'b')
 		mode |= S_IFBLK;
@@ -255,7 +284,9 @@ static int cpio_mknod(const char *name, unsigned int mode,
 
 	if (name[0] == '/')
 		name++;
-	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
+	namesize = strlen(name) + 1;
+
+	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
 		ino++,			/* ino */
@@ -269,10 +300,14 @@ static int cpio_mknod(const char *name, unsigned int mode,
 		1,			/* minor */
 		maj,			/* rmajor */
 		min,			/* rminor */
-		(unsigned)strlen(name) + 1,/* namesize */
+		namesize,		/* namesize */
 		0);			/* chksum */
-	push_hdr(s);
-	push_rest(name);
+	offset += len;
+
+	if (len != CPIO_HDR_LEN ||
+	    push_rest(name, namesize) < 0)
+		return -1;
+
 	return 0;
 }
 
@@ -324,16 +359,15 @@ static int cpio_mkfile(const char *name, const char *location,
 			unsigned int mode, uid_t uid, gid_t gid,
 			unsigned int nlinks)
 {
-	char s[256];
 	struct stat buf;
 	unsigned long size;
-	int file;
-	int retval;
+	int file, retval, len;
 	int rc = -1;
 	time_t mtime;
-	int namesize;
+	int namesize, namepadlen;
 	unsigned int i;
 	uint32_t csum = 0;
+	ssize_t this_read;
 
 	mode |= S_IFREG;
 
@@ -378,15 +412,28 @@ static int cpio_mkfile(const char *name, const char *location,
 	}
 
 	size = 0;
+	namepadlen = 0;
 	for (i = 1; i <= nlinks; i++) {
-		/* data goes on last link */
-		if (i == nlinks)
-			size = buf.st_size;
-
 		if (name[0] == '/')
 			name++;
 		namesize = strlen(name) + 1;
-		sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
+
+		/* data goes on last link, after any alignment padding */
+		if (i == nlinks)
+			size = buf.st_size;
+
+		if (dalign && size > dalign) {
+			namepadlen = padlen(offset + CPIO_HDR_LEN + namesize,
+					    dalign);
+			if (namesize + namepadlen > PATH_MAX) {
+				fprintf(stderr,
+					"%s: best-effort alignment %u missed\n",
+					name, dalign);
+				namepadlen = 0;
+			}
+		}
+
+		len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 		       "%08lX%08X%08X%08X%08X%08X%08X",
 			do_csum ? "070702" : "070701", /* magic */
 			ino,			/* ino */
@@ -400,15 +447,28 @@ static int cpio_mkfile(const char *name, const char *location,
 			1,			/* minor */
 			0,			/* rmajor */
 			0,			/* rminor */
-			namesize,		/* namesize */
+			namesize + namepadlen,	/* namesize */
 			size ? csum : 0);	/* chksum */
-		push_hdr(s);
-		push_string(name);
-		push_pad();
+		offset += len;
+
+		if (len != CPIO_HDR_LEN ||
+		    push_buf(name, namesize) < 0 ||
+		    push_pad(namepadlen ? namepadlen : padlen(offset, 4)) < 0)
+			goto error;
+
+		if (size) {
+			this_read = copy_file_range(file, NULL, outfd, NULL, size, 0);
+			if (this_read > 0) {
+				if (this_read > size)
+					goto error;
+				offset += this_read;
+				size -= this_read;
+			}
+			/* short or failed copy falls back to read/write... */
+		}
 
 		while (size) {
 			unsigned char filebuf[65536];
-			ssize_t this_read;
 			size_t this_size = MIN(size, sizeof(filebuf));
 
 			this_read = read(file, filebuf, this_size);
@@ -417,14 +477,15 @@ static int cpio_mkfile(const char *name, const char *location,
 				goto error;
 			}
 
-			if (fwrite(filebuf, this_read, 1, stdout) != 1) {
+			if (write(outfd, filebuf, this_read) != this_read) {
 				fprintf(stderr, "writing filebuf failed\n");
 				goto error;
 			}
 			offset += this_read;
 			size -= this_read;
 		}
-		push_pad();
+		if (push_pad(padlen(offset, 4)) < 0)
+			goto error;
 
 		name += namesize;
 	}
@@ -509,7 +570,7 @@ static int cpio_mkfile_line(const char *line)
 static void usage(const char *prog)
 {
 	fprintf(stderr, "Usage:\n"
-		"\t%s [-t <timestamp>] [-c] <cpio_list>\n"
+		"\t%s [-t <timestamp>] [-c] [-o <output_file>] [-a <data_align>] <cpio_list>\n"
 		"\n"
 		"<cpio_list> is a file containing newline separated entries that\n"
 		"describe the files to be included in the initramfs archive:\n"
@@ -546,7 +607,11 @@ static void usage(const char *prog)
 		"as mtime for symlinks, directories, regular and special files.\n"
 		"The default is to use the current time for all files, but\n"
 		"preserve modification time for regular files.\n"
-		"-c: calculate and store 32-bit checksums for file data.\n",
+		"-c: calculate and store 32-bit checksums for file data.\n"
+		"<output_file>: write cpio to this file instead of stdout\n"
+		"<data_align>: attempt to align file data by zero-padding the\n"
+		"filename field up to data_align. Must be a multiple of 4.\n"
+		"Alignment is best-effort; PATH_MAX limits filename padding.\n",
 		prog);
 }
 
@@ -588,7 +653,7 @@ int main (int argc, char *argv[])
 
 	default_mtime = time(NULL);
 	while (1) {
-		int opt = getopt(argc, argv, "t:ch");
+		int opt = getopt(argc, argv, "t:cho:a:");
 		char *invalid;
 
 		if (opt == -1)
@@ -606,6 +671,25 @@ int main (int argc, char *argv[])
 			break;
 		case 'c':
 			do_csum = true;
+			break;
+		case 'o':
+			outfd = open(optarg,
+				     O_WRONLY | O_CREAT | O_LARGEFILE | O_TRUNC,
+				     0600);
+			if (outfd < 0) {
+				fprintf(stderr, "failed to open %s\n", optarg);
+				usage(argv[0]);
+				exit(1);
+			}
+			break;
+		case 'a':
+			dalign = strtoul(optarg, &invalid, 10);
+			if (!*optarg || *invalid || (dalign & 3)) {
+				fprintf(stderr, "Invalid data_align: %s\n",
+						optarg);
+				usage(argv[0]);
+				exit(1);
+			}
 			break;
 		case 'h':
 		case '?':
@@ -691,7 +775,7 @@ int main (int argc, char *argv[])
 		}
 	}
 	if (ec == 0)
-		cpio_trailer();
+		ec = cpio_trailer();
 
 	exit(ec);
 }

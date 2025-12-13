@@ -745,12 +745,12 @@ static void emu1010_clock_event(struct snd_emu10k1 *emu)
 {
 	struct snd_ctl_elem_id id;
 
-	spin_lock_irq(&emu->reg_lock);
-	// This is the only thing that can actually happen.
-	emu->emu1010.clock_source = emu->emu1010.clock_fallback;
-	emu->emu1010.wclock = 1 - emu->emu1010.clock_source;
-	snd_emu1010_update_clock(emu);
-	spin_unlock_irq(&emu->reg_lock);
+	scoped_guard(spinlock_irq, &emu->reg_lock) {
+		// This is the only thing that can actually happen.
+		emu->emu1010.clock_source = emu->emu1010.clock_fallback;
+		emu->emu1010.wclock = 1 - emu->emu1010.clock_source;
+		snd_emu1010_update_clock(emu);
+	}
 	snd_ctl_build_ioff(&id, emu->ctl_clock_source, 0);
 	snd_ctl_notify(emu->card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
 }
@@ -768,7 +768,7 @@ static void emu1010_work(struct work_struct *work)
 		return;
 #endif
 
-	snd_emu1010_fpga_lock(emu);
+	guard(snd_emu1010_fpga_lock)(emu);
 
 	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &sts);
 
@@ -779,8 +779,6 @@ static void emu1010_work(struct work_struct *work)
 
 	if (sts & EMU_HANA_IRQ_WCLK_CHANGED)
 		emu1010_clock_event(emu);
-
-	snd_emu1010_fpga_unlock(emu);
 }
 
 static void emu1010_interrupt(struct snd_emu10k1 *emu)
@@ -814,13 +812,13 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	 * Proper init follows in snd_emu10k1_init(). */
 	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK, emu->port + HCFG);
 
-	snd_emu1010_fpga_lock(emu);
+	guard(snd_emu1010_fpga_lock)(emu);
 
 	dev_info(emu->card->dev, "emu1010: Loading Hana Firmware\n");
 	err = snd_emu1010_load_firmware(emu, 0, &emu->firmware);
 	if (err < 0) {
 		dev_info(emu->card->dev, "emu1010: Loading Firmware failed\n");
-		goto fail;
+		return err;
 	}
 
 	/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
@@ -830,8 +828,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		dev_info(emu->card->dev,
 			 "emu1010: Loading Hana Firmware file failed, reg = 0x%x\n",
 			 reg);
-		err = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
 
 	dev_info(emu->card->dev, "emu1010: Hana Firmware loaded\n");
@@ -891,9 +888,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	// so it is safe to simply enable the outputs.
 	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
 
-fail:
-	snd_emu1010_fpga_unlock(emu);
-	return err;
+	return 0;
 }
 /*
  *  Create the EMU10K1 instance

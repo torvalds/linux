@@ -59,7 +59,7 @@
  * clears the BUSY flag after control is returned to it.
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 typedef int launch_state_t;
 typedef void (*launch_proc_t)(u64 call_parm);
@@ -101,6 +101,6 @@ typedef struct launch_s {
 #define LAUNCH_FLASH	(*(void (*)(void)) \
 			 IP27PROM_FLASHLEDS)
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _ASM_SN_LAUNCH_H */

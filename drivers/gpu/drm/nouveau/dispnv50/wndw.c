@@ -786,23 +786,47 @@ nv50_wndw_destroy(struct drm_plane *plane)
 }
 
 /* This function assumes the format has already been validated against the plane
- * and the modifier was validated against the device-wides modifier list at FB
+ * and the modifier was validated against the device-wide modifier list at FB
  * creation time.
  */
 static bool nv50_plane_format_mod_supported(struct drm_plane *plane,
 					    u32 format, u64 modifier)
 {
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	const struct drm_format_info *info = drm_format_info(format);
 	uint8_t i;
 
+	/* All chipsets can display all formats in linear layout */
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
 	if (drm->client.device.info.chipset < 0xc0) {
-		const struct drm_format_info *info = drm_format_info(format);
 		const uint8_t kind = (modifier >> 12) & 0xff;
 
 		if (!format) return false;
 
 		for (i = 0; i < info->num_planes; i++)
 			if ((info->cpp[i] != 4) && kind != 0x70) return false;
+	} else if (drm->client.device.info.chipset >= 0x1b2) {
+		const uint8_t slayout = ((modifier >> 22) & 0x1) |
+			((modifier >> 25) & 0x6);
+
+		if (!format)
+			return false;
+
+		/*
+		 * Note in practice this implies only formats where cpp is equal
+		 * for each plane, or >= 4 for all planes, are supported.
+		 */
+		for (i = 0; i < info->num_planes; i++) {
+			if (((info->cpp[i] == 2) && slayout != 3) ||
+			    ((info->cpp[i] == 1) && slayout != 2) ||
+			    ((info->cpp[i] >= 4) && slayout != 1))
+				return false;
+
+			/* 24-bit not supported. It has yet another layout */
+			WARN_ON(info->cpp[i] == 3);
+		}
 	}
 
 	return true;

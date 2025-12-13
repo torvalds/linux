@@ -11,6 +11,7 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/delay.h>
+#include <linux/dev_printk.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -18,10 +19,11 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/gpio_keys.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
-#include <linux/input.h>
+#include <linux/gpio/property.h>
+#include <linux/input-event-codes.h>
+#include <linux/property.h>
 
 
 #define DRIVER_NAME		"barco-p50-gpio"
@@ -78,44 +80,57 @@ static const char * const gpio_names[] = {
 	[P50_GPIO_LINE_BTN] = "identify-button",
 };
 
-
-static struct gpiod_lookup_table p50_gpio_led_table = {
-	.dev_id = "leds-gpio",
-	.table = {
-		GPIO_LOOKUP_IDX(DRIVER_NAME, P50_GPIO_LINE_LED, NULL, 0, GPIO_ACTIVE_HIGH),
-		{}
-	}
+static const struct software_node gpiochip_node = {
+	.name = DRIVER_NAME,
 };
 
 /* GPIO LEDs */
-static struct gpio_led leds[] = {
-	{ .name = "identify" }
+static const struct software_node gpio_leds_node = {
+	.name = "gpio-leds-identify",
 };
 
-static struct gpio_led_platform_data leds_pdata = {
-	.num_leds = ARRAY_SIZE(leds),
-	.leds = leds,
+static const struct property_entry identify_led_props[] = {
+	PROPERTY_ENTRY_GPIO("gpios", &gpiochip_node, P50_GPIO_LINE_LED, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node identify_led_node = {
+	.parent = &gpio_leds_node,
+	.name = "identify",
+	.properties = identify_led_props,
 };
 
 /* GPIO keyboard */
-static struct gpio_keys_button buttons[] = {
-	{
-		.code = KEY_VENDOR,
-		.gpio = P50_GPIO_LINE_BTN,
-		.active_low = 1,
-		.type = EV_KEY,
-		.value = 1,
-	},
+static const struct property_entry gpio_keys_props[] = {
+	PROPERTY_ENTRY_STRING("label", "identify"),
+	PROPERTY_ENTRY_U32("poll-interval", 100),
+	{ }
 };
 
-static struct gpio_keys_platform_data keys_pdata = {
-	.buttons = buttons,
-	.nbuttons = ARRAY_SIZE(buttons),
-	.poll_interval = 100,
-	.rep = 0,
-	.name = "identify",
+static const struct software_node gpio_keys_node = {
+	.name = "gpio-keys-identify",
+	.properties = gpio_keys_props,
 };
 
+static struct property_entry vendor_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_VENDOR),
+	PROPERTY_ENTRY_GPIO("gpios", &gpiochip_node, P50_GPIO_LINE_BTN, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node vendor_key_node = {
+	.parent = &gpio_keys_node,
+	.properties = vendor_key_props,
+};
+
+static const struct software_node *p50_swnodes[] = {
+	&gpiochip_node,
+	&gpio_leds_node,
+	&identify_led_node,
+	&gpio_keys_node,
+	&vendor_key_node,
+	NULL
+};
 
 /* low level access routines */
 
@@ -285,6 +300,16 @@ static int p50_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 
 static int p50_gpio_probe(struct platform_device *pdev)
 {
+	struct platform_device_info key_info = {
+		.name	= "gpio-keys-polled",
+		.id	= PLATFORM_DEVID_NONE,
+		.parent	= &pdev->dev,
+	};
+	struct platform_device_info led_info = {
+		.name	= "leds-gpio",
+		.id	= PLATFORM_DEVID_NONE,
+		.parent	= &pdev->dev,
+	};
 	struct p50_gpio *p50;
 	struct resource *res;
 	int ret;
@@ -339,25 +364,20 @@ static int p50_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	gpiod_add_lookup_table(&p50_gpio_led_table);
+	ret = software_node_register_node_group(p50_swnodes);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to register software nodes");
 
-	p50->leds_pdev = platform_device_register_data(&pdev->dev,
-		"leds-gpio", PLATFORM_DEVID_NONE, &leds_pdata, sizeof(leds_pdata));
-
+	led_info.fwnode = software_node_fwnode(&gpio_leds_node);
+	p50->leds_pdev = platform_device_register_full(&led_info);
 	if (IS_ERR(p50->leds_pdev)) {
 		ret = PTR_ERR(p50->leds_pdev);
 		dev_err(&pdev->dev, "Could not register leds-gpio: %d\n", ret);
 		goto err_leds;
 	}
 
-	/* gpio-keys-polled uses old-style gpio interface, pass the right identifier */
-	buttons[0].gpio += p50->gc.base;
-
-	p50->keys_pdev =
-		platform_device_register_data(&pdev->dev, "gpio-keys-polled",
-					      PLATFORM_DEVID_NONE,
-					      &keys_pdata, sizeof(keys_pdata));
-
+	key_info.fwnode = software_node_fwnode(&gpio_keys_node);
+	p50->keys_pdev = platform_device_register_full(&key_info);
 	if (IS_ERR(p50->keys_pdev)) {
 		ret = PTR_ERR(p50->keys_pdev);
 		dev_err(&pdev->dev, "Could not register gpio-keys-polled: %d\n", ret);
@@ -369,7 +389,7 @@ static int p50_gpio_probe(struct platform_device *pdev)
 err_keys:
 	platform_device_unregister(p50->leds_pdev);
 err_leds:
-	gpiod_remove_lookup_table(&p50_gpio_led_table);
+	software_node_unregister_node_group(p50_swnodes);
 
 	return ret;
 }
@@ -381,7 +401,7 @@ static void p50_gpio_remove(struct platform_device *pdev)
 	platform_device_unregister(p50->keys_pdev);
 	platform_device_unregister(p50->leds_pdev);
 
-	gpiod_remove_lookup_table(&p50_gpio_led_table);
+	software_node_unregister_node_group(p50_swnodes);
 }
 
 static struct platform_driver p50_gpio_driver = {

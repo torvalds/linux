@@ -2,14 +2,4 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (mips)"
 
-config CRYPTO_MD5_OCTEON
-	tristate "Digests: MD5 (OCTEON)"
-	depends on CPU_CAVIUM_OCTEON
-	select CRYPTO_MD5
-	select CRYPTO_HASH
-	help
-	  MD5 message digest algorithm (RFC1321)
-
-	  Architecture: mips OCTEON using crypto instructions, when available
-
 endmenu

@@ -31,7 +31,12 @@ description: |
 
 properties:
   compatible:
-    const: st,stm32mp25-lvds
+    oneOf:
+      - items:
+          - enum:
+              - st,stm32mp255-lvds
+          - const: st,stm32mp25-lvds
+      - const: st,stm32mp25-lvds
 
   "#clock-cells":
     const: 0
@@ -52,6 +57,12 @@ properties:
       - const: ref
 
   resets:
+    maxItems: 1
+
+  access-controllers:
+    maxItems: 1
+
+  power-domains:
     maxItems: 1
 
   ports:

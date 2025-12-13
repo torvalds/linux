@@ -68,8 +68,7 @@ mlxsw_only_on_spectrum 2+ || exit
 
 h1_create()
 {
-	simple_if_init $h1
-	defer simple_if_fini $h1
+	adf_simple_if_init $h1
 
 	vlan_create $h1 111 v$h1 192.0.2.33/28
 	defer vlan_destroy $h1 111
@@ -78,8 +77,7 @@ h1_create()
 
 h2_create()
 {
-	simple_if_init $h2
-	defer simple_if_fini $h2
+	adf_simple_if_init $h2
 
 	vlan_create $h2 111 v$h2 192.0.2.34/28
 	defer vlan_destroy $h2 111
@@ -178,8 +176,7 @@ setup_prepare()
 
 	h2mac=$(mac_get $h2)
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	h1_create
 	h2_create

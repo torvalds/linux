@@ -534,8 +534,9 @@
 		realtek,jd-src = <1>;
 
 		AVDD-supply = <&mt6359_vio18_ldo_reg>;
+		DBVDD-supply = <&mt6359_vio18_ldo_reg>;
 		MICVDD-supply = <&pp3300_z2>;
-		VBAT-supply = <&pp3300_z5>;
+		LDO1-IN-supply = <&mt6359_vio18_ldo_reg>;
 	};
 };
 

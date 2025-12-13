@@ -15,135 +15,256 @@
 
 #include <linux/dmi.h>
 #include <linux/err.h>
-#include <linux/gpio_keys.h>
 #include <linux/gpio/machine.h>
-#include <linux/input.h>
+#include <linux/gpio/property.h>
+#include <linux/input-event-codes.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #define TINK_GPIO_DRIVER_NAME "gpio_ich"
 
+static const struct software_node gpio_ich_node = {
+	.name = TINK_GPIO_DRIVER_NAME,
+};
+
 /* LEDs */
-static const struct gpio_led tink_leds[] = {
-	{
-		.name = "mx100:green:internet",
-		.default_trigger = "default-on",
-	},
-	{
-		.name = "mx100:green:lan2",
-	},
-	{
-		.name = "mx100:green:lan3",
-	},
-	{
-		.name = "mx100:green:lan4",
-	},
-	{
-		.name = "mx100:green:lan5",
-	},
-	{
-		.name = "mx100:green:lan6",
-	},
-	{
-		.name = "mx100:green:lan7",
-	},
-	{
-		.name = "mx100:green:lan8",
-	},
-	{
-		.name = "mx100:green:lan9",
-	},
-	{
-		.name = "mx100:green:lan10",
-	},
-	{
-		.name = "mx100:green:lan11",
-	},
-	{
-		.name = "mx100:green:ha",
-	},
-	{
-		.name = "mx100:orange:ha",
-	},
-	{
-		.name = "mx100:green:usb",
-	},
-	{
-		.name = "mx100:orange:usb",
-	},
+static const struct software_node tink_gpio_leds_node = {
+	.name = "meraki-mx100-leds",
 };
 
-static const struct gpio_led_platform_data tink_leds_pdata = {
-	.num_leds	= ARRAY_SIZE(tink_leds),
-	.leds		= tink_leds,
+static const struct property_entry tink_internet_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:internet"),
+	PROPERTY_ENTRY_STRING("linux,default-trigger", "default-on"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 11, GPIO_ACTIVE_LOW),
+	{ }
 };
 
-static struct gpiod_lookup_table tink_leds_table = {
-	.dev_id = "leds-gpio",
-	.table = {
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 11,
-				NULL, 0, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 18,
-				NULL, 1, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 20,
-				NULL, 2, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 22,
-				NULL, 3, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 23,
-				NULL, 4, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 32,
-				NULL, 5, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 34,
-				NULL, 6, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 35,
-				NULL, 7, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 36,
-				NULL, 8, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 37,
-				NULL, 9, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 48,
-				NULL, 10, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 16,
-				NULL, 11, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 7,
-				NULL, 12, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 21,
-				NULL, 13, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 19,
-				NULL, 14, GPIO_ACTIVE_LOW),
-		{} /* Terminating entry */
-	}
+static const struct software_node tink_internet_led_node = {
+	.name = "internet-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_internet_led_props,
+};
+
+static const struct property_entry tink_lan2_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan2"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 18, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan2_led_node = {
+	.name = "lan2-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan2_led_props,
+};
+
+static const struct property_entry tink_lan3_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan3"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 20, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan3_led_node = {
+	.name = "lan3-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan3_led_props,
+};
+
+static const struct property_entry tink_lan4_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan4"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 22, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan4_led_node = {
+	.name = "lan4-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan4_led_props,
+};
+
+static const struct property_entry tink_lan5_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan5"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 23, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan5_led_node = {
+	.name = "lan5-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan5_led_props,
+};
+
+static const struct property_entry tink_lan6_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan6"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 32, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan6_led_node = {
+	.name = "lan6-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan6_led_props,
+};
+
+static const struct property_entry tink_lan7_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan7"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 34, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan7_led_node = {
+	.name = "lan7-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan7_led_props,
+};
+
+static const struct property_entry tink_lan8_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan8"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 35, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan8_led_node = {
+	.name = "lan8-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan8_led_props,
+};
+
+static const struct property_entry tink_lan9_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan9"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 36, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan9_led_node = {
+	.name = "lan9-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan9_led_props,
+};
+
+static const struct property_entry tink_lan10_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan10"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 37, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan10_led_node = {
+	.name = "lan10-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan10_led_props,
+};
+
+static const struct property_entry tink_lan11_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:lan11"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 48, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node tink_lan11_led_node = {
+	.name = "lan11-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_lan11_led_props,
+};
+
+static const struct property_entry tink_ha_green_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:ha"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 16, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node tink_ha_green_led_node = {
+	.name = "ha-green-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_ha_green_led_props,
+};
+
+static const struct property_entry tink_ha_orange_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:orange:ha"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 7, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node tink_ha_orange_led_node = {
+	.name = "ha-orange-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_ha_orange_led_props,
+};
+
+static const struct property_entry tink_usb_green_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:green:usb"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 21, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node tink_usb_green_led_node = {
+	.name = "usb-green-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_usb_green_led_props,
+};
+
+static const struct property_entry tink_usb_orange_led_props[] = {
+	PROPERTY_ENTRY_STRING("label", "mx100:orange:usb"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 19, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node tink_usb_orange_led_node = {
+	.name = "usb-orange-led",
+	.parent = &tink_gpio_leds_node,
+	.properties = tink_usb_orange_led_props,
 };
 
 /* Reset Button */
-static struct gpio_keys_button tink_buttons[] = {
-	{
-		.desc			= "Reset",
-		.type			= EV_KEY,
-		.code			= KEY_RESTART,
-		.active_low             = 1,
-		.debounce_interval      = 100,
-	},
+static const struct property_entry tink_gpio_keys_props[] = {
+	PROPERTY_ENTRY_U32("poll-interval", 20),
+	{ }
 };
 
-static const struct gpio_keys_platform_data tink_buttons_pdata = {
-	.buttons	= tink_buttons,
-	.nbuttons	= ARRAY_SIZE(tink_buttons),
-	.poll_interval  = 20,
-	.rep		= 0,
-	.name		= "mx100-keys",
+static const struct software_node tink_gpio_keys_node = {
+	.name = "mx100-keys",
+	.properties = tink_gpio_keys_props,
 };
 
-static struct gpiod_lookup_table tink_keys_table = {
-	.dev_id = "gpio-keys-polled",
-	.table = {
-		GPIO_LOOKUP_IDX(TINK_GPIO_DRIVER_NAME, 60,
-				NULL, 0, GPIO_ACTIVE_LOW),
-		{} /* Terminating entry */
-	}
+static const struct property_entry tink_reset_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_RESTART),
+	PROPERTY_ENTRY_STRING("label", "Reset"),
+	PROPERTY_ENTRY_GPIO("gpios", &gpio_ich_node, 60, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("linux,input-type", EV_KEY),
+	PROPERTY_ENTRY_U32("debounce-interval", 100),
+	{ }
+};
+
+static const struct software_node tink_reset_key_node = {
+	.name = "reset",
+	.parent = &tink_gpio_keys_node,
+	.properties = tink_reset_key_props,
+};
+
+static const struct software_node *tink_swnodes[] = {
+	&gpio_ich_node,
+	/* LEDs nodes */
+	&tink_gpio_leds_node,
+	&tink_internet_led_node,
+	&tink_lan2_led_node,
+	&tink_lan3_led_node,
+	&tink_lan4_led_node,
+	&tink_lan5_led_node,
+	&tink_lan6_led_node,
+	&tink_lan7_led_node,
+	&tink_lan8_led_node,
+	&tink_lan9_led_node,
+	&tink_lan10_led_node,
+	&tink_lan11_led_node,
+	&tink_ha_green_led_node,
+	&tink_ha_orange_led_node,
+	&tink_usb_green_led_node,
+	&tink_usb_orange_led_node,
+	/* Keys nodes */
+	&tink_gpio_keys_node,
+	&tink_reset_key_node,
+	NULL
 };
 
 /* Board setup */
@@ -161,22 +282,17 @@ MODULE_DEVICE_TABLE(dmi, tink_systems);
 static struct platform_device *tink_leds_pdev;
 static struct platform_device *tink_keys_pdev;
 
-static struct platform_device * __init tink_create_dev(
-	const char *name, const void *pdata, size_t sz)
-{
-	struct platform_device *pdev;
-
-	pdev = platform_device_register_data(NULL,
-		name, PLATFORM_DEVID_NONE, pdata, sz);
-	if (IS_ERR(pdev))
-		pr_err("failed registering %s: %ld\n", name, PTR_ERR(pdev));
-
-	return pdev;
-}
-
 static int __init tink_board_init(void)
 {
-	int ret;
+	struct platform_device_info keys_info = {
+		.name = "gpio-keys-polled",
+		.id = PLATFORM_DEVID_NONE,
+	};
+	struct platform_device_info leds_info = {
+		.name = "leds-gpio",
+		.id = PLATFORM_DEVID_NONE,
+	};
+	int err;
 
 	if (!dmi_first_match(tink_systems))
 		return -ENODEV;
@@ -188,30 +304,35 @@ static int __init tink_board_init(void)
 	 */
 	outl(inl(0x530) | BIT(28), 0x530);
 
-	gpiod_add_lookup_table(&tink_leds_table);
-	gpiod_add_lookup_table(&tink_keys_table);
-
-	tink_leds_pdev = tink_create_dev("leds-gpio",
-		&tink_leds_pdata, sizeof(tink_leds_pdata));
-	if (IS_ERR(tink_leds_pdev)) {
-		ret = PTR_ERR(tink_leds_pdev);
-		goto err;
+	err = software_node_register_node_group(tink_swnodes);
+	if (err) {
+		pr_err("failed to register software nodes: %d\n", err);
+		return err;
 	}
 
-	tink_keys_pdev = tink_create_dev("gpio-keys-polled",
-		&tink_buttons_pdata, sizeof(tink_buttons_pdata));
+	leds_info.fwnode = software_node_fwnode(&tink_gpio_leds_node);
+	tink_leds_pdev = platform_device_register_full(&leds_info);
+	if (IS_ERR(tink_leds_pdev)) {
+		err = PTR_ERR(tink_leds_pdev);
+		pr_err("failed to create LED device: %d\n", err);
+		goto err_unregister_swnodes;
+	}
+
+	keys_info.fwnode = software_node_fwnode(&tink_gpio_keys_node);
+	tink_keys_pdev = platform_device_register_full(&keys_info);
 	if (IS_ERR(tink_keys_pdev)) {
-		ret = PTR_ERR(tink_keys_pdev);
-		platform_device_unregister(tink_leds_pdev);
-		goto err;
+		err = PTR_ERR(tink_keys_pdev);
+		pr_err("failed to create key device: %d\n", err);
+		goto err_unregister_leds;
 	}
 
 	return 0;
 
-err:
-	gpiod_remove_lookup_table(&tink_keys_table);
-	gpiod_remove_lookup_table(&tink_leds_table);
-	return ret;
+err_unregister_leds:
+	platform_device_unregister(tink_leds_pdev);
+err_unregister_swnodes:
+	software_node_unregister_node_group(tink_swnodes);
+	return err;
 }
 module_init(tink_board_init);
 
@@ -219,8 +340,7 @@ static void __exit tink_board_exit(void)
 {
 	platform_device_unregister(tink_keys_pdev);
 	platform_device_unregister(tink_leds_pdev);
-	gpiod_remove_lookup_table(&tink_keys_table);
-	gpiod_remove_lookup_table(&tink_leds_table);
+	software_node_unregister_node_group(tink_swnodes);
 }
 module_exit(tink_board_exit);
 

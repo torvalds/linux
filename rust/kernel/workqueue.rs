@@ -356,18 +356,11 @@ struct ClosureWork<T> {
     func: Option<T>,
 }
 
-impl<T> ClosureWork<T> {
-    fn project(self: Pin<&mut Self>) -> &mut Option<T> {
-        // SAFETY: The `func` field is not structurally pinned.
-        unsafe { &mut self.get_unchecked_mut().func }
-    }
-}
-
 impl<T: FnOnce()> WorkItem for ClosureWork<T> {
     type Pointer = Pin<KBox<Self>>;
 
     fn run(mut this: Pin<KBox<Self>>) {
-        if let Some(func) = this.as_mut().project().take() {
+        if let Some(func) = this.as_mut().project().func.take() {
             (func)()
         }
     }

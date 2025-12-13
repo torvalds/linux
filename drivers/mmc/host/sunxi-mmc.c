@@ -1495,7 +1495,6 @@ static void sunxi_mmc_remove(struct platform_device *pdev)
 	dma_free_coherent(&pdev->dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
 }
 
-#ifdef CONFIG_PM
 static int sunxi_mmc_runtime_resume(struct device *dev)
 {
 	struct mmc_host	*mmc = dev_get_drvdata(dev);
@@ -1530,14 +1529,10 @@ static int sunxi_mmc_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sunxi_mmc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(sunxi_mmc_runtime_suspend,
-			   sunxi_mmc_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(sunxi_mmc_runtime_suspend, sunxi_mmc_runtime_resume, NULL)
 };
 
 static struct platform_driver sunxi_mmc_driver = {
@@ -1545,7 +1540,7 @@ static struct platform_driver sunxi_mmc_driver = {
 		.name	= "sunxi-mmc",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sunxi_mmc_of_match,
-		.pm = &sunxi_mmc_pm_ops,
+		.pm = pm_ptr(&sunxi_mmc_pm_ops),
 	},
 	.probe		= sunxi_mmc_probe,
 	.remove		= sunxi_mmc_remove,

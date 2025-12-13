@@ -392,7 +392,7 @@ static void tcp_probe_timer(struct sock *sk)
 	int max_probes;
 
 	if (tp->packets_out || !skb) {
-		icsk->icsk_probes_out = 0;
+		WRITE_ONCE(icsk->icsk_probes_out, 0);
 		icsk->icsk_probes_tstamp = 0;
 		return;
 	}
@@ -444,7 +444,7 @@ static void tcp_update_rto_stats(struct sock *sk)
 		tp->total_rto_recoveries++;
 		tp->rto_stamp = tcp_time_stamp_ms(tp);
 	}
-	icsk->icsk_retransmits++;
+	WRITE_ONCE(icsk->icsk_retransmits, icsk->icsk_retransmits + 1);
 	tp->total_rto++;
 }
 
@@ -839,7 +839,7 @@ static void tcp_keepalive_timer(struct timer_list *t)
 			goto out;
 		}
 		if (tcp_write_wakeup(sk, LINUX_MIB_TCPKEEPALIVE) <= 0) {
-			icsk->icsk_probes_out++;
+			WRITE_ONCE(icsk->icsk_probes_out, icsk->icsk_probes_out + 1);
 			elapsed = keepalive_intvl_when(tp);
 		} else {
 			/* If keepalive was lost due to local congestion,

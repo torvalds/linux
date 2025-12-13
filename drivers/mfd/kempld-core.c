@@ -141,10 +141,8 @@ static int kempld_create_platform_device(const struct kempld_platform_data *pdat
 	};
 
 	kempld_pdev = platform_device_register_full(&pdevinfo);
-	if (IS_ERR(kempld_pdev))
-		return PTR_ERR(kempld_pdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(kempld_pdev);
 }
 
 /**
@@ -779,22 +777,26 @@ MODULE_DEVICE_TABLE(dmi, kempld_dmi_table);
 static int __init kempld_init(void)
 {
 	const struct dmi_system_id *id;
-	int ret = -ENODEV;
 
-	for (id = dmi_first_match(kempld_dmi_table); id; id = dmi_first_match(id + 1)) {
-		/* Check, if user asked for the exact device ID match */
-		if (force_device_id[0] && !strstr(id->ident, force_device_id))
-			continue;
-
-		ret = kempld_create_platform_device(&kempld_platform_data_generic);
-		if (ret)
-			continue;
-
-		break;
+	/*
+	 * This custom DMI iteration allows the driver to be initialized in three ways:
+	 * - When a forced_device_id string matches any ident in the kempld_dmi_table,
+	 *   regardless of whether the DMI device is present in the system dmi table.
+	 * - When a matching entry is present in the DMI system tabe.
+	 * - Through alternative mechanisms like ACPI.
+	 */
+	if (force_device_id[0]) {
+		for (id = kempld_dmi_table; id->matches[0].slot != DMI_NONE; id++)
+			if (strstr(id->ident, force_device_id))
+				if (!kempld_create_platform_device(&kempld_platform_data_generic))
+					break;
+		if (id->matches[0].slot == DMI_NONE)
+			return -ENODEV;
+	} else {
+		for (id = dmi_first_match(kempld_dmi_table); id; id = dmi_first_match(id+1))
+			if (kempld_create_platform_device(&kempld_platform_data_generic))
+				break;
 	}
-	if (ret)
-		return ret;
-
 	return platform_driver_register(&kempld_driver);
 }
 

@@ -42,8 +42,6 @@ static irqreturn_t mc13783_ts_handler(int irq, void *data)
 {
 	struct mc13783_ts_priv *priv = data;
 
-	mc13xxx_irq_ack(priv->mc13xxx, irq);
-
 	/*
 	 * Kick off reading coordinates. Note that if work happens already
 	 * be queued for future execution (it rearms itself) it will not
@@ -136,8 +134,6 @@ static int mc13783_ts_open(struct input_dev *dev)
 	int ret;
 
 	mc13xxx_lock(priv->mc13xxx);
-
-	mc13xxx_irq_ack(priv->mc13xxx, MC13XXX_IRQ_TS);
 
 	ret = mc13xxx_irq_request(priv->mc13xxx, MC13XXX_IRQ_TS,
 		mc13783_ts_handler, MC13783_TS_NAME, priv);

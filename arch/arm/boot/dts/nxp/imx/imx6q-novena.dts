@@ -265,7 +265,7 @@
 		reg = <0x1c>;
 	};
 
-	rtc: pcf8523@68 {
+	rtc: rtc@68 {
 		compatible = "nxp,pcf8523";
 		reg = <0x68>;
 	};
@@ -288,7 +288,7 @@
 		vio-supply = <&reg_3p3v>;
 		vcc-supply = <&reg_3p3v>;
 
-		stmpe_touchscreen {
+		touchscreen {
 			compatible = "st,stmpe-ts";
 			st,sample-time = <4>;
 			st,mod-12b = <1>;

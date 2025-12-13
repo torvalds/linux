@@ -1,0 +1,138 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Author: Taishi Shimizu <s.taishi14142@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
+#include <dt-bindings/leds/common.h>
+
+/ {
+	compatible = "buffalo,wxr-1750dhp", "brcm,bcm4708";
+	model = "Buffalo WXR-1750DHP";
+
+	memory@0 {
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x08000000>;
+		device_type = "memory";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-aoss {
+			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
+			label = "AOSS";
+			linux,code = <KEY_WPS_BUTTON>;
+		};
+
+		/* GPIO 3 is a switch button with AUTO / MANUAL. */
+		button-manual {
+			gpios = <&chipcommon 3 GPIO_ACTIVE_HIGH>;
+			label = "MANUAL";
+			linux,code = <BTN_0>;
+			linux,input-type = <EV_SW>;
+		};
+
+		button-restart {
+			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+		};
+
+		/* GPIO 8 and 9 are a tri-state switch button with
+		 * ROUTER / AP / WB.
+		 */
+		button-router {
+			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
+			label = "ROUTER";
+			linux,code = <BTN_1>;
+			linux,input-type = <EV_SW>;
+		};
+
+		button-wb {
+			gpios = <&chipcommon 9 GPIO_ACTIVE_LOW>;
+			label = "WB";
+			linux,code = <BTN_2>;
+			linux,input-type = <EV_SW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-internet {
+			color = <LED_COLOR_ID_WHITE>;
+			function = "internet";
+			gpios = <&chipcommon 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-power0 {
+			color = <LED_COLOR_ID_AMBER>;
+			function = LED_FUNCTION_POWER;
+			gpios = <&chipcommon 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-power1 {
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_POWER;
+			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-router0 {
+			color = <LED_COLOR_ID_AMBER>;
+			function = "router";
+			gpios = <&chipcommon 14 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-router1 {
+			color = <LED_COLOR_ID_WHITE>;
+			function = "router";
+			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-usb {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_USB;
+			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "usbport";
+			trigger-sources = <&xhci_port1 &ehci_port1 &ohci_port1>;
+		};
+	};
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@0 {
+			label = "wan";
+		};
+
+		port@1 {
+			label = "lan4";
+		};
+
+		port@2 {
+			label = "lan3";
+		};
+
+		port@3 {
+			label = "lan2";
+		};
+
+		port@4 {
+			label = "lan1";
+		};
+	};
+};
+
+&usb3 {
+	vcc-gpio = <&chipcommon 10 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3_phy {
+	status = "okay";
+};

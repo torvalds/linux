@@ -1128,7 +1128,6 @@ out:
 		cdns_i2c_set_mode(CDNS_I2C_MODE_SLAVE, id);
 #endif
 
-	pm_runtime_mark_last_busy(id->dev);
 	pm_runtime_put_autosuspend(id->dev);
 	return ret;
 }

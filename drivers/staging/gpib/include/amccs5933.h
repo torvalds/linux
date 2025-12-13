@@ -24,7 +24,7 @@ extern inline int INCOMING_MAILBOX_REG(unsigned int mailbox)
 enum {
 	OUTBOX_EMPTY_INTR_BIT = 0x10,	// enable outbox empty interrupt
 	INBOX_FULL_INTR_BIT = 0x1000,	// enable inbox full interrupt
-	INBOX_INTR_CS_BIT = 0x20000, // read, or write clear inbox full interrupt
+	INBOX_INTR_CS_BIT = 0x20000,	// read, or write clear inbox full interrupt
 	INTR_ASSERTED_BIT = 0x800000,	// read only, interrupt asserted
 };
 
@@ -52,7 +52,7 @@ extern inline int OUTBOX_SELECT_BITS(unsigned int mailbox)
 	return (mailbox & 0x3) << 2;
 };
 
-//BMCSR bits
+// BMCSR bits
 enum {
 	MBOX_FLAGS_RESET_BIT = 0x08000000,	// resets mailbox empty/full flags
 };

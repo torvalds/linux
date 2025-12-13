@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Basic TFO server test
+//
+// Server w/o TCP_FASTOPEN socket option
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:10(10) win 32792 <mss 1460,sackOK,FO TFO_COOKIE>
+
+// Data is ignored since TCP_FASTOPEN is not set on the listener
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK>
+
+   +0 accept(3, ..., ...) = -1 EAGAIN (Resource temporarily unavailable)
+
+// The above should block until ack comes in below.
+   +0 < . 1:31(30) ack 1 win 5840
+   +0 accept(3, ..., ...) = 4
+
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) == 0, tcpi_options }%
+   +0 read(4, ..., 512) = 30

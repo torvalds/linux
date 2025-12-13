@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/marvell/marvell,armada390.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 39x Platforms
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - items:
+          - const: marvell,a390-db
+          - const: marvell,armada390
+      - items:
+          - enum:
+              - marvell,a398-db
+          - const: marvell,armada398
+          - const: marvell,armada390
+      - items:
+          - enum:
+              - marvell,a395-gp
+          - const: marvell,armada395
+          - const: marvell,armada390
+
+additionalProperties: true

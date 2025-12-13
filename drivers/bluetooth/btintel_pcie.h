@@ -132,6 +132,8 @@ enum btintel_pcie_tlv_type {
 	BTINTEL_CNVI_TOP,
 	BTINTEL_DUMP_TIME,
 	BTINTEL_FW_BUILD,
+	BTINTEL_VENDOR,
+	BTINTEL_DRIVER
 };
 
 /* causes for the MBOX interrupts */

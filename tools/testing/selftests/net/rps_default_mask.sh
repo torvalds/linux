@@ -54,16 +54,16 @@ cleanup
 
 echo 1 > /proc/sys/net/core/rps_default_mask
 setup
-chk_rps "changing rps_default_mask dont affect existing devices" "" lo $INITIAL_RPS_DEFAULT_MASK
+chk_rps "changing rps_default_mask doesn't affect existing devices" "" lo $INITIAL_RPS_DEFAULT_MASK
 
 echo 3 > /proc/sys/net/core/rps_default_mask
-chk_rps "changing rps_default_mask dont affect existing netns" $NETNS lo 0
+chk_rps "changing rps_default_mask doesn't affect existing netns" $NETNS lo 0
 
 ip link add name $VETH type veth peer netns $NETNS name $VETH
 ip link set dev $VETH up
 ip -n $NETNS link set dev $VETH up
-chk_rps "changing rps_default_mask affect newly created devices" "" $VETH 3
-chk_rps "changing rps_default_mask don't affect newly child netns[II]" $NETNS $VETH 0
+chk_rps "changing rps_default_mask affects newly created devices" "" $VETH 3
+chk_rps "changing rps_default_mask doesn't affect newly child netns[II]" $NETNS $VETH 0
 ip link del dev $VETH
 ip netns del $NETNS
 
@@ -72,8 +72,8 @@ chk_rps "rps_default_mask is 0 by default in child netns" "$NETNS" lo 0
 
 ip netns exec $NETNS sysctl -qw net.core.rps_default_mask=1
 ip link add name $VETH type veth peer netns $NETNS name $VETH
-chk_rps "changing rps_default_mask in child ns don't affect the main one" "" lo $INITIAL_RPS_DEFAULT_MASK
+chk_rps "changing rps_default_mask in child ns doesn't affect the main one" "" lo $INITIAL_RPS_DEFAULT_MASK
 chk_rps "changing rps_default_mask in child ns affects new childns devices" $NETNS $VETH 1
-chk_rps "changing rps_default_mask in child ns don't affect existing devices" $NETNS lo 0
+chk_rps "changing rps_default_mask in child ns doesn't affect existing devices" $NETNS lo 0
 
 exit $ret

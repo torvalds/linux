@@ -1407,7 +1407,7 @@ static const char * const vsense_trigger_groups[] = {
 };
 
 static const struct pinfunction x1e80100_functions[] = {
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(RESOUT_GPIO),
 	MSM_PIN_FUNCTION(aon_cci),
 	MSM_PIN_FUNCTION(aoss_cti),

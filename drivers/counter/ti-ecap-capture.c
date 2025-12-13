@@ -465,11 +465,6 @@ static irqreturn_t ecap_cnt_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void ecap_cnt_pm_disable(void *dev)
-{
-	pm_runtime_disable(dev);
-}
-
 static int ecap_cnt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -523,12 +518,9 @@ static int ecap_cnt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, counter_dev);
 
-	pm_runtime_enable(dev);
-
-	/* Register a cleanup callback to care for disabling PM */
-	ret = devm_add_action_or_reset(dev, ecap_cnt_pm_disable, dev);
+	ret = devm_pm_runtime_enable(dev);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to add pm disable action\n");
+		return ret;
 
 	ret = devm_counter_add(dev, counter_dev);
 	if (ret)

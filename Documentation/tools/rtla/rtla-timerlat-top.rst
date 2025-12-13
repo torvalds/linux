@@ -1,3 +1,5 @@
+.. |tool| replace:: timerlat top
+
 ====================
 rtla-timerlat-top
 ====================

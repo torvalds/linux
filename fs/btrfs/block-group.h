@@ -63,7 +63,7 @@ enum btrfs_discard_state {
  * CHUNK_ALLOC_FORCE means it must try to allocate one
  *
  * CHUNK_ALLOC_FORCE_FOR_EXTENT like CHUNK_ALLOC_FORCE but called from
- * find_free_extent() that also activaes the zone
+ * find_free_extent() that also activates the zone
  */
 enum btrfs_chunk_alloc_enum {
 	CHUNK_ALLOC_NO_FORCE,

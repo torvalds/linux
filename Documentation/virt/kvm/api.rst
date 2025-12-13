@@ -1229,6 +1229,9 @@ It is not possible to read back a pending external abort (injected via
 KVM_SET_VCPU_EVENTS or otherwise) because such an exception is always delivered
 directly to the virtual CPU).
 
+Calling this ioctl on a vCPU that hasn't been initialized will return
+-ENOEXEC.
+
 ::
 
   struct kvm_vcpu_events {
@@ -1309,6 +1312,8 @@ exceptions by manipulating individual registers using the KVM_SET_ONE_REG API.
 
 See KVM_GET_VCPU_EVENTS for the data structure.
 
+Calling this ioctl on a vCPU that hasn't been initialized will return
+-ENOEXEC.
 
 4.33 KVM_GET_DEBUGREGS
 ----------------------
@@ -2908,6 +2913,16 @@ such as set vcpu counter or reset vcpu, and they have the following id bit patte
 
   0x9030 0000 0002 <reg:16>
 
+x86 MSR registers have the following id bit patterns::
+  0x2030 0002 <msr number:32>
+
+Following are the KVM-defined registers for x86:
+
+======================= ========= =============================================
+    Encoding            Register  Description
+======================= ========= =============================================
+  0x2030 0003 0000 0000 SSP       Shadow Stack Pointer
+======================= ========= =============================================
 
 4.69 KVM_GET_ONE_REG
 --------------------
@@ -3074,6 +3089,12 @@ This IOCTL replaces the obsolete KVM_GET_PIT.
 
 Sets the state of the in-kernel PIT model. Only valid after KVM_CREATE_PIT2.
 See KVM_GET_PIT2 for details on struct kvm_pit_state2.
+
+.. Tip::
+  ``KVM_SET_PIT2`` strictly adheres to the spec of Intel 8254 PIT.  For example,
+  a ``count`` value of 0 in ``struct kvm_pit_channel_state`` is interpreted as
+  65536, which is the maximum count value. Refer to `Intel 8254 programmable
+  interval timer <https://www.scs.stanford.edu/10wi-cs140/pintos/specs/8254.pdf>`_.
 
 This IOCTL replaces the obsolete KVM_SET_PIT.
 
@@ -3582,7 +3603,7 @@ VCPU matching underlying host.
 ---------------------
 
 :Capability: basic
-:Architectures: arm64, mips, riscv
+:Architectures: arm64, mips, riscv, x86 (if KVM_CAP_ONE_REG)
 :Type: vcpu ioctl
 :Parameters: struct kvm_reg_list (in/out)
 :Returns: 0 on success; -1 on error
@@ -3625,6 +3646,8 @@ Note that s390 does not support KVM_GET_REG_LIST for historical reasons
 
 - KVM_REG_S390_GBEA
 
+Note, for x86, all MSRs enumerated by KVM_GET_MSR_INDEX_LIST are supported as
+type KVM_X86_REG_TYPE_MSR, but are NOT enumerated via KVM_GET_REG_LIST.
 
 4.85 KVM_ARM_SET_DEVICE_ADDR (deprecated)
 -----------------------------------------
@@ -6413,6 +6436,24 @@ into the guest_memfd instance.  For a given guest_memfd file, there can be at
 most one mapping per page, i.e. binding multiple memory regions to a single
 guest_memfd range is not allowed (any number of memory regions can be bound to
 a single guest_memfd file, but the bound ranges must not overlap).
+
+The capability KVM_CAP_GUEST_MEMFD_FLAGS enumerates the `flags` that can be
+specified via KVM_CREATE_GUEST_MEMFD.  Currently defined flags:
+
+  ============================ ================================================
+  GUEST_MEMFD_FLAG_MMAP        Enable using mmap() on the guest_memfd file
+                               descriptor.
+  GUEST_MEMFD_FLAG_INIT_SHARED Make all memory in the file shared during
+                               KVM_CREATE_GUEST_MEMFD (memory files created
+                               without INIT_SHARED will be marked private).
+                               Shared memory can be faulted into host userspace
+                               page tables. Private memory cannot.
+  ============================ ================================================
+
+When the KVM MMU performs a PFN lookup to service a guest fault and the backing
+guest_memfd has the GUEST_MEMFD_FLAG_MMAP set, then the fault will always be
+consumed from guest_memfd, regardless of whether it is a shared or a private
+fault.
 
 See KVM_SET_USER_MEMORY_REGION2 for additional details.
 

@@ -359,7 +359,7 @@ static int icl_get_qgv_points(struct intel_display *display,
 
 		for (i = 0; i < qi->num_psf_points; i++)
 			drm_dbg_kms(display->drm,
-				    "PSF GV %d: CLK=%d \n",
+				    "PSF GV %d: CLK=%d\n",
 				    i, qi->psf_points[i].clk);
 	}
 

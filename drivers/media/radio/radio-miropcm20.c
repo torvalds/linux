@@ -23,7 +23,7 @@
  * This code has been reintroduced and converted to use
  * the new V4L2 RDS API by:
  *
- * Hans Verkuil <hansverk@cisco.com>
+ * Hans Verkuil <hverkuil@kernel.org>
  */
 
 #include <linux/module.h>

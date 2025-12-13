@@ -52,24 +52,19 @@ int ntmp_init_cbdr(struct netc_cbdr *cbdr, struct device *dev,
 	cbdr->addr_base_align = PTR_ALIGN(cbdr->addr_base,
 					  NTMP_BASE_ADDR_ALIGN);
 
-	cbdr->next_to_clean = 0;
-	cbdr->next_to_use = 0;
 	spin_lock_init(&cbdr->ring_lock);
+
+	cbdr->next_to_use = netc_read(cbdr->regs.pir);
+	cbdr->next_to_clean = netc_read(cbdr->regs.cir);
 
 	/* Step 1: Configure the base address of the Control BD Ring */
 	netc_write(cbdr->regs.bar0, lower_32_bits(cbdr->dma_base_align));
 	netc_write(cbdr->regs.bar1, upper_32_bits(cbdr->dma_base_align));
 
-	/* Step 2: Configure the producer index register */
-	netc_write(cbdr->regs.pir, cbdr->next_to_clean);
-
-	/* Step 3: Configure the consumer index register */
-	netc_write(cbdr->regs.cir, cbdr->next_to_use);
-
-	/* Step4: Configure the number of BDs of the Control BD Ring */
+	/* Step 2: Configure the number of BDs of the Control BD Ring */
 	netc_write(cbdr->regs.lenr, cbdr->bd_num);
 
-	/* Step 5: Enable the Control BD Ring */
+	/* Step 3: Enable the Control BD Ring */
 	netc_write(cbdr->regs.mr, NETC_CBDR_MR_EN);
 
 	return 0;

@@ -36,11 +36,6 @@ struct snmp_mib {
 	.entry = _entry,			\
 }
 
-#define SNMP_MIB_SENTINEL {	\
-	.name = NULL,		\
-	.entry = 0,		\
-}
-
 /*
  * We use unsigned longs for most mibs but u64 for ipstats.
  */

@@ -41,7 +41,7 @@ struct link_capabilities {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(linkmodes);
 };
 
-int phy_caps_init(void);
+int __init phy_caps_init(void);
 
 size_t phy_caps_speeds(unsigned int *speeds, size_t size,
 		       unsigned long *linkmodes);

@@ -161,6 +161,11 @@ int is_apmf_func_supported(struct amd_pmf_dev *pdev, unsigned long index)
 	return !!(pdev->supported_func & BIT(index - 1));
 }
 
+int is_apmf_bios_input_notifications_supported(struct amd_pmf_dev *pdev)
+{
+	return !!(pdev->notifications & CUSTOM_BIOS_INPUT_BITS);
+}
+
 int apts_get_static_slider_granular_v2(struct amd_pmf_dev *pdev,
 				       struct amd_pmf_apts_granular_output *data, u32 apts_idx)
 {
@@ -315,10 +320,24 @@ int apmf_get_sbios_requests_v2(struct amd_pmf_dev *pdev, struct apmf_sbios_req_v
 	return apmf_if_call_store_buffer(pdev, APMF_FUNC_SBIOS_REQUESTS, req, sizeof(*req));
 }
 
+int apmf_get_sbios_requests_v1(struct amd_pmf_dev *pdev, struct apmf_sbios_req_v1 *req)
+{
+	return apmf_if_call_store_buffer(pdev, APMF_FUNC_SBIOS_REQUESTS, req, sizeof(*req));
+}
+
 int apmf_get_sbios_requests(struct amd_pmf_dev *pdev, struct apmf_sbios_req *req)
 {
 	return apmf_if_call_store_buffer(pdev, APMF_FUNC_SBIOS_REQUESTS,
 									 req, sizeof(*req));
+}
+
+static void amd_pmf_handle_early_preq(struct amd_pmf_dev *pdev)
+{
+	if (!pdev->cb_flag)
+		return;
+
+	amd_pmf_invoke_cmd_enact(pdev);
+	pdev->cb_flag = false;
 }
 
 static void apmf_event_handler_v2(acpi_handle handle, u32 event, void *data)
@@ -329,8 +348,32 @@ static void apmf_event_handler_v2(acpi_handle handle, u32 event, void *data)
 	guard(mutex)(&pmf_dev->cb_mutex);
 
 	ret = apmf_get_sbios_requests_v2(pmf_dev, &pmf_dev->req);
-	if (ret)
+	if (ret) {
 		dev_err(pmf_dev->dev, "Failed to get v2 SBIOS requests: %d\n", ret);
+		return;
+	}
+
+	dev_dbg(pmf_dev->dev, "Pending request (preq): 0x%x\n", pmf_dev->req.pending_req);
+
+	amd_pmf_handle_early_preq(pmf_dev);
+}
+
+static void apmf_event_handler_v1(acpi_handle handle, u32 event, void *data)
+{
+	struct amd_pmf_dev *pmf_dev = data;
+	int ret;
+
+	guard(mutex)(&pmf_dev->cb_mutex);
+
+	ret = apmf_get_sbios_requests_v1(pmf_dev, &pmf_dev->req1);
+	if (ret) {
+		dev_err(pmf_dev->dev, "Failed to get v1 SBIOS requests: %d\n", ret);
+		return;
+	}
+
+	dev_dbg(pmf_dev->dev, "Pending request (preq1): 0x%x\n", pmf_dev->req1.pending_req);
+
+	amd_pmf_handle_early_preq(pmf_dev);
 }
 
 static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
@@ -385,6 +428,7 @@ static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
 
 	pdev->pmf_if_version = output.version;
 
+	pdev->notifications =  output.notification_mask;
 	return 0;
 }
 
@@ -421,6 +465,11 @@ int apmf_get_dyn_slider_def_dc(struct amd_pmf_dev *pdev, struct apmf_dyn_slider_
 	return apmf_if_call_store_buffer(pdev, APMF_FUNC_DYN_SLIDER_DC, data, sizeof(*data));
 }
 
+static apmf_event_handler_t apmf_event_handlers[] = {
+	[PMF_IF_V1] = apmf_event_handler_v1,
+	[PMF_IF_V2] = apmf_event_handler_v2,
+};
+
 int apmf_install_handler(struct amd_pmf_dev *pmf_dev)
 {
 	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
@@ -440,13 +489,26 @@ int apmf_install_handler(struct amd_pmf_dev *pmf_dev)
 		apmf_event_handler(ahandle, 0, pmf_dev);
 	}
 
-	if (pmf_dev->smart_pc_enabled && pmf_dev->pmf_if_version == PMF_IF_V2) {
+	if (!pmf_dev->smart_pc_enabled)
+		return -EINVAL;
+
+	switch (pmf_dev->pmf_if_version) {
+	case PMF_IF_V1:
+		if (!is_apmf_bios_input_notifications_supported(pmf_dev))
+			break;
+		fallthrough;
+	case PMF_IF_V2:
 		status = acpi_install_notify_handler(ahandle, ACPI_ALL_NOTIFY,
-						     apmf_event_handler_v2, pmf_dev);
+				apmf_event_handlers[pmf_dev->pmf_if_version], pmf_dev);
 		if (ACPI_FAILURE(status)) {
-			dev_err(pmf_dev->dev, "failed to install notify handler for custom BIOS inputs\n");
+			dev_err(pmf_dev->dev,
+				"failed to install notify handler v%d for custom BIOS inputs\n",
+				pmf_dev->pmf_if_version);
 			return -ENODEV;
 		}
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -500,8 +562,21 @@ void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
 	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS))
 		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY, apmf_event_handler);
 
-	if (pmf_dev->smart_pc_enabled && pmf_dev->pmf_if_version == PMF_IF_V2)
-		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY, apmf_event_handler_v2);
+	if (!pmf_dev->smart_pc_enabled)
+		return;
+
+	switch (pmf_dev->pmf_if_version) {
+	case PMF_IF_V1:
+		if (!is_apmf_bios_input_notifications_supported(pmf_dev))
+			break;
+		fallthrough;
+	case PMF_IF_V2:
+		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY,
+					   apmf_event_handlers[pmf_dev->pmf_if_version]);
+		break;
+	default:
+		break;
+	}
 }
 
 int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)

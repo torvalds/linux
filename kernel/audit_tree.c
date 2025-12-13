@@ -93,8 +93,10 @@ static struct kmem_cache *audit_tree_mark_cachep __ro_after_init;
 static struct audit_tree *alloc_tree(const char *s)
 {
 	struct audit_tree *tree;
+	size_t sz;
 
-	tree = kmalloc(struct_size(tree, pathname, strlen(s) + 1), GFP_KERNEL);
+	sz = strlen(s) + 1;
+	tree = kmalloc(struct_size(tree, pathname, sz), GFP_KERNEL);
 	if (tree) {
 		refcount_set(&tree->count, 1);
 		tree->goner = 0;
@@ -103,7 +105,7 @@ static struct audit_tree *alloc_tree(const char *s)
 		INIT_LIST_HEAD(&tree->list);
 		INIT_LIST_HEAD(&tree->same_root);
 		tree->root = NULL;
-		strcpy(tree->pathname, s);
+		strscpy(tree->pathname, s, sz);
 	}
 	return tree;
 }
@@ -678,7 +680,7 @@ void audit_trim_trees(void)
 		struct audit_tree *tree;
 		struct path path;
 		struct audit_node *node;
-		struct path *paths;
+		const struct path *paths;
 		struct path array[16];
 		int err;
 
@@ -701,7 +703,7 @@ void audit_trim_trees(void)
 			struct audit_chunk *chunk = find_chunk(node);
 			/* this could be NULL if the watch is dying else where... */
 			node->index |= 1U<<31;
-			for (struct path *p = paths; p->dentry; p++) {
+			for (const struct path *p = paths; p->dentry; p++) {
 				struct inode *inode = p->dentry->d_inode;
 				if (inode_to_key(inode) == chunk->key) {
 					node->index &= ~(1U<<31);
@@ -740,9 +742,9 @@ void audit_put_tree(struct audit_tree *tree)
 	put_tree(tree);
 }
 
-static int tag_mounts(struct path *paths, struct audit_tree *tree)
+static int tag_mounts(const struct path *paths, struct audit_tree *tree)
 {
-	for (struct path *p = paths; p->dentry; p++) {
+	for (const struct path *p = paths; p->dentry; p++) {
 		int err = tag_chunk(p->dentry->d_inode, tree);
 		if (err)
 			return err;
@@ -805,7 +807,7 @@ int audit_add_tree_rule(struct audit_krule *rule)
 	struct audit_tree *seed = rule->tree, *tree;
 	struct path path;
 	struct path array[16];
-	struct path *paths;
+	const struct path *paths;
 	int err;
 
 	rule->tree = NULL;
@@ -877,7 +879,7 @@ int audit_tag_tree(char *old, char *new)
 	int failed = 0;
 	struct path path1, path2;
 	struct path array[16];
-	struct path *paths;
+	const struct path *paths;
 	int err;
 
 	err = kern_path(new, 0, &path2);

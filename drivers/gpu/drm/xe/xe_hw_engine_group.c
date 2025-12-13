@@ -103,8 +103,8 @@ int xe_hw_engine_setup_groups(struct xe_gt *gt)
 			break;
 		case XE_ENGINE_CLASS_OTHER:
 			break;
-		default:
-			drm_warn(&xe->drm, "NOT POSSIBLE");
+		case XE_ENGINE_CLASS_MAX:
+			xe_gt_assert(gt, false);
 		}
 	}
 
@@ -213,17 +213,13 @@ static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group
 
 		err = q->ops->suspend_wait(q);
 		if (err)
-			goto err_suspend;
+			return err;
 	}
 
 	if (need_resume)
 		xe_hw_engine_group_resume_faulting_lr_jobs(group);
 
 	return 0;
-
-err_suspend:
-	up_write(&group->mode_sem);
-	return err;
 }
 
 /**

@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/nls.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
@@ -242,8 +243,11 @@ static int usb251xb_check_dev_children(struct device *dev, void *child)
 static int usb251x_check_gpio_chip(struct usb251xb *hub)
 {
 	struct gpio_chip *gc = gpiod_to_chip(hub->gpio_reset);
-	struct i2c_adapter *adap = hub->i2c->adapter;
+	struct i2c_adapter *adap;
 	int ret;
+
+	if (!hub->i2c)
+		return 0;
 
 	if (!hub->gpio_reset)
 		return 0;
@@ -251,6 +255,7 @@ static int usb251x_check_gpio_chip(struct usb251xb *hub)
 	if (!gc)
 		return -EINVAL;
 
+	adap = hub->i2c->adapter;
 	ret = usb251xb_check_dev_children(&adap->dev, gc->parent);
 	if (ret) {
 		dev_err(hub->dev, "Reset GPIO chip is at the same i2c-bus\n");
@@ -271,7 +276,8 @@ static void usb251xb_reset(struct usb251xb *hub)
 	if (!hub->gpio_reset)
 		return;
 
-	i2c_lock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
+	if (hub->i2c)
+		i2c_lock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
 
 	gpiod_set_value_cansleep(hub->gpio_reset, 1);
 	usleep_range(1, 10);	/* >=1us RESET_N asserted */
@@ -280,7 +286,8 @@ static void usb251xb_reset(struct usb251xb *hub)
 	/* wait for hub recovery/stabilization */
 	usleep_range(500, 750);	/* >=500us after RESET_N deasserted */
 
-	i2c_unlock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
+	if (hub->i2c)
+		i2c_unlock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
 }
 
 static int usb251xb_connect(struct usb251xb *hub)
@@ -288,6 +295,12 @@ static int usb251xb_connect(struct usb251xb *hub)
 	struct device *dev = hub->dev;
 	int err, i;
 	char i2c_wb[USB251XB_I2C_REG_SZ];
+
+	if (!hub->i2c) {
+		usb251xb_reset(hub);
+		dev_info(dev, "hub is put in default configuration.\n");
+		return 0;
+	}
 
 	memset(i2c_wb, 0, USB251XB_I2C_REG_SZ);
 
@@ -698,18 +711,13 @@ static int usb251xb_i2c_probe(struct i2c_client *i2c)
 	return usb251xb_probe(hub);
 }
 
-static int __maybe_unused usb251xb_suspend(struct device *dev)
+static int usb251xb_suspend(struct usb251xb *hub)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct usb251xb *hub = i2c_get_clientdata(client);
-
 	return regulator_disable(hub->vdd);
 }
 
-static int __maybe_unused usb251xb_resume(struct device *dev)
+static int usb251xb_resume(struct usb251xb *hub)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct usb251xb *hub = i2c_get_clientdata(client);
 	int err;
 
 	err = regulator_enable(hub->vdd);
@@ -719,7 +727,23 @@ static int __maybe_unused usb251xb_resume(struct device *dev)
 	return usb251xb_connect(hub);
 }
 
-static SIMPLE_DEV_PM_OPS(usb251xb_pm_ops, usb251xb_suspend, usb251xb_resume);
+static int usb251xb_i2c_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct usb251xb *hub = i2c_get_clientdata(client);
+
+	return usb251xb_suspend(hub);
+}
+
+static int usb251xb_i2c_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct usb251xb *hub = i2c_get_clientdata(client);
+
+	return usb251xb_resume(hub);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(usb251xb_i2c_pm_ops, usb251xb_i2c_suspend, usb251xb_i2c_resume);
 
 static const struct i2c_device_id usb251xb_id[] = {
 	{ "usb2422" },
@@ -739,13 +763,71 @@ static struct i2c_driver usb251xb_i2c_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = usb251xb_of_match,
-		.pm = &usb251xb_pm_ops,
+		.pm = pm_sleep_ptr(&usb251xb_i2c_pm_ops),
 	},
 	.probe = usb251xb_i2c_probe,
 	.id_table = usb251xb_id,
 };
 
-module_i2c_driver(usb251xb_i2c_driver);
+static int usb251xb_plat_probe(struct platform_device *pdev)
+{
+	struct usb251xb *hub;
+
+	hub = devm_kzalloc(&pdev->dev, sizeof(*hub), GFP_KERNEL);
+	if (!hub)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, hub);
+	hub->dev = &pdev->dev;
+
+	return usb251xb_probe(hub);
+}
+
+static int usb251xb_plat_suspend(struct device *dev)
+{
+	return usb251xb_suspend(dev_get_drvdata(dev));
+}
+
+static int usb251xb_plat_resume(struct device *dev)
+{
+	return usb251xb_resume(dev_get_drvdata(dev));
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(usb251xb_plat_pm_ops, usb251xb_plat_suspend, usb251xb_plat_resume);
+
+static struct platform_driver usb251xb_plat_driver = {
+	.driver = {
+		.name = DRIVER_NAME,
+		.of_match_table = usb251xb_of_match,
+		.pm = pm_sleep_ptr(&usb251xb_plat_pm_ops),
+	},
+	.probe		= usb251xb_plat_probe,
+};
+
+static int __init usb251xb_init(void)
+{
+	int err;
+
+	err = i2c_add_driver(&usb251xb_i2c_driver);
+	if (err)
+		return err;
+
+	err = platform_driver_register(&usb251xb_plat_driver);
+	if (err) {
+		i2c_del_driver(&usb251xb_i2c_driver);
+		return err;
+	}
+
+	return 0;
+}
+module_init(usb251xb_init);
+
+static void __exit usb251xb_exit(void)
+{
+	platform_driver_unregister(&usb251xb_plat_driver);
+	i2c_del_driver(&usb251xb_i2c_driver);
+}
+module_exit(usb251xb_exit);
 
 MODULE_AUTHOR("Richard Leitner <richard.leitner@skidata.com>");
 MODULE_DESCRIPTION("USB251x/xBi USB 2.0 Hub Controller Driver");

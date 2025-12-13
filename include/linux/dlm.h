@@ -88,12 +88,43 @@ int dlm_new_lockspace(const char *name, const char *cluster,
 		      int *ops_result, dlm_lockspace_t **lockspace);
 
 /*
+ * dlm_release_lockspace() release_option values:
+ *
+ * DLM_RELEASE_NO_LOCKS returns -EBUSY if any locks (lkb's)
+ *   exist in the local lockspace.
+ *
+ * DLM_RELEASE_UNUSED previous value that is no longer used.
+ *
+ * DLM_RELEASE_NORMAL releases the lockspace regardless of any
+ *   locks managed in the local lockspace.
+ *
+ * DLM_RELEASE_NO_EVENT release the lockspace regardless of any
+ *   locks managed in the local lockspace, and does not submit
+ *   a leave event to the cluster manager, so other nodes will
+ *   not be notified that the node should be removed from the
+ *   list of lockspace members.
+ *
+ * DLM_RELEASE_RECOVER like DLM_RELEASE_NORMAL, but the remaining
+ *   nodes will handle the removal of the node as if the node
+ *   had failed, e.g. the recover_slot() callback would be used.
+ */
+#define DLM_RELEASE_NO_LOCKS		0
+#define DLM_RELEASE_UNUSED		1
+#define DLM_RELEASE_NORMAL		2
+#define DLM_RELEASE_NO_EVENT		3
+#define DLM_RELEASE_RECOVER		4
+#define __DLM_RELEASE_MAX		DLM_RELEASE_RECOVER
+
+/*
  * dlm_release_lockspace
  *
  * Stop a lockspace.
+ *
+ * release_option: see DLM_RELEASE values above.
  */
 
-int dlm_release_lockspace(dlm_lockspace_t *lockspace, int force);
+int dlm_release_lockspace(dlm_lockspace_t *lockspace,
+			  unsigned int release_option);
 
 /*
  * dlm_lock

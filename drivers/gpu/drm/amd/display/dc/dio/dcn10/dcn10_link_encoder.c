@@ -812,7 +812,7 @@ bool dcn10_link_encoder_validate_output_with_stream(
 					enc10, &stream->timing);
 	break;
 	case SIGNAL_TYPE_EDP:
-		is_valid = (stream->timing.pixel_encoding == PIXEL_ENCODING_RGB) ? true : false;
+		is_valid = stream->timing.pixel_encoding == PIXEL_ENCODING_RGB;
 	break;
 	case SIGNAL_TYPE_VIRTUAL:
 		is_valid = true;

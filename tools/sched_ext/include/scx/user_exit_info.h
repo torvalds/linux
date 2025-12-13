@@ -10,54 +10,10 @@
 #ifndef __USER_EXIT_INFO_H
 #define __USER_EXIT_INFO_H
 
-#ifdef LSP
-#define __bpf__
-#include "../vmlinux.h"
-#endif
-
-enum uei_sizes {
-	UEI_REASON_LEN		= 128,
-	UEI_MSG_LEN		= 1024,
-	UEI_DUMP_DFL_LEN	= 32768,
-};
-
-struct user_exit_info {
-	int		kind;
-	s64		exit_code;
-	char		reason[UEI_REASON_LEN];
-	char		msg[UEI_MSG_LEN];
-};
-
-#ifdef __bpf__
-
-#ifndef LSP
-#include "vmlinux.h"
-#endif
-#include <bpf/bpf_core_read.h>
-
-#define UEI_DEFINE(__name)							\
-	char RESIZABLE_ARRAY(data, __name##_dump);				\
-	const volatile u32 __name##_dump_len;					\
-	struct user_exit_info __name SEC(".data")
-
-#define UEI_RECORD(__uei_name, __ei) ({						\
-	bpf_probe_read_kernel_str(__uei_name.reason,				\
-				  sizeof(__uei_name.reason), (__ei)->reason);	\
-	bpf_probe_read_kernel_str(__uei_name.msg,				\
-				  sizeof(__uei_name.msg), (__ei)->msg);		\
-	bpf_probe_read_kernel_str(__uei_name##_dump,				\
-				  __uei_name##_dump_len, (__ei)->dump);		\
-	if (bpf_core_field_exists((__ei)->exit_code))				\
-		__uei_name.exit_code = (__ei)->exit_code;			\
-	/* use __sync to force memory barrier */				\
-	__sync_val_compare_and_swap(&__uei_name.kind, __uei_name.kind,		\
-				    (__ei)->kind);				\
-})
-
-#else	/* !__bpf__ */
-
 #include <stdio.h>
 #include <stdbool.h>
+
+#include "user_exit_info_common.h"
 
 /* no need to call the following explicitly if SCX_OPS_LOAD() is used */
 #define UEI_SET_SIZE(__skel, __ops_name, __uei_name) ({					\
@@ -114,5 +70,4 @@ enum uei_ecode_mask {
 
 #define UEI_ECODE_RESTART(__ecode)	(UEI_ECODE_SYS_ACT((__ecode)) == SCX_ECODE_ACT_RESTART)
 
-#endif	/* __bpf__ */
 #endif	/* __USER_EXIT_INFO_H */

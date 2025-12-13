@@ -331,7 +331,7 @@ static const struct rtc_class_ops s3c_rtcops = {
 	.alarm_irq_enable = s3c_rtc_setaie,
 };
 
-static void s3c24xx_rtc_enable(struct s3c_rtc *info)
+static void s3c6410_rtc_enable(struct s3c_rtc *info)
 {
 	unsigned int con, tmp;
 
@@ -359,19 +359,6 @@ static void s3c24xx_rtc_enable(struct s3c_rtc *info)
 		writew(tmp & ~S3C2410_RTCCON_CLKRST,
 		       info->base + S3C2410_RTCCON);
 	}
-}
-
-static void s3c24xx_rtc_disable(struct s3c_rtc *info)
-{
-	unsigned int con;
-
-	con = readw(info->base + S3C2410_RTCCON);
-	con &= ~S3C2410_RTCCON_RTCEN;
-	writew(con, info->base + S3C2410_RTCCON);
-
-	con = readb(info->base + S3C2410_TICNT);
-	con &= ~S3C2410_TICNT_ENABLE;
-	writeb(con, info->base + S3C2410_TICNT);
 }
 
 static void s3c6410_rtc_disable(struct s3c_rtc *info)
@@ -538,53 +525,21 @@ static int s3c_rtc_resume(struct device *dev)
 #endif
 static SIMPLE_DEV_PM_OPS(s3c_rtc_pm_ops, s3c_rtc_suspend, s3c_rtc_resume);
 
-static void s3c24xx_rtc_irq(struct s3c_rtc *info, int mask)
-{
-	rtc_update_irq(info->rtc, 1, RTC_AF | RTC_IRQF);
-}
-
 static void s3c6410_rtc_irq(struct s3c_rtc *info, int mask)
 {
 	rtc_update_irq(info->rtc, 1, RTC_AF | RTC_IRQF);
 	writeb(mask, info->base + S3C2410_INTP);
 }
 
-static const struct s3c_rtc_data s3c2410_rtc_data = {
-	.irq_handler		= s3c24xx_rtc_irq,
-	.enable			= s3c24xx_rtc_enable,
-	.disable		= s3c24xx_rtc_disable,
-};
-
-static const struct s3c_rtc_data s3c2416_rtc_data = {
-	.irq_handler		= s3c24xx_rtc_irq,
-	.enable			= s3c24xx_rtc_enable,
-	.disable		= s3c24xx_rtc_disable,
-};
-
-static const struct s3c_rtc_data s3c2443_rtc_data = {
-	.irq_handler		= s3c24xx_rtc_irq,
-	.enable			= s3c24xx_rtc_enable,
-	.disable		= s3c24xx_rtc_disable,
-};
-
 static const struct s3c_rtc_data s3c6410_rtc_data = {
 	.needs_src_clk		= true,
 	.irq_handler		= s3c6410_rtc_irq,
-	.enable			= s3c24xx_rtc_enable,
+	.enable			= s3c6410_rtc_enable,
 	.disable		= s3c6410_rtc_disable,
 };
 
 static const __maybe_unused struct of_device_id s3c_rtc_dt_match[] = {
 	{
-		.compatible = "samsung,s3c2410-rtc",
-		.data = &s3c2410_rtc_data,
-	}, {
-		.compatible = "samsung,s3c2416-rtc",
-		.data = &s3c2416_rtc_data,
-	}, {
-		.compatible = "samsung,s3c2443-rtc",
-		.data = &s3c2443_rtc_data,
-	}, {
 		.compatible = "samsung,s3c6410-rtc",
 		.data = &s3c6410_rtc_data,
 	}, {

@@ -431,10 +431,10 @@ static int snd_bt87x_close(struct snd_pcm_substream *substream)
 {
 	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
 
-	spin_lock_irq(&chip->reg_lock);
-	chip->reg_control |= CTL_A_PWRDN;
-	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
-	spin_unlock_irq(&chip->reg_lock);
+	scoped_guard(spinlock_irq, &chip->reg_lock) {
+		chip->reg_control |= CTL_A_PWRDN;
+		snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
+	}
 
 	chip->substream = NULL;
 	clear_bit(0, &chip->opened);
@@ -466,20 +466,19 @@ static int snd_bt87x_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int decimation;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	chip->reg_control &= ~(CTL_DA_SDR_MASK | CTL_DA_SBR);
 	decimation = (ANALOG_CLOCK + runtime->rate / 4) / runtime->rate;
 	chip->reg_control |= decimation << CTL_DA_SDR_SHIFT;
 	if (runtime->format == SNDRV_PCM_FORMAT_S8)
 		chip->reg_control |= CTL_DA_SBR;
 	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
 static int snd_bt87x_start(struct snd_bt87x *chip)
 {
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	chip->current_line = 0;
 	chip->reg_control |= CTL_FIFO_ENABLE | CTL_RISC_ENABLE | CTL_ACAP_EN;
 	snd_bt87x_writel(chip, REG_RISC_STRT_ADD, chip->dma_risc.addr);
@@ -487,18 +486,16 @@ static int snd_bt87x_start(struct snd_bt87x *chip)
 			 chip->line_bytes | (chip->lines << 16));
 	snd_bt87x_writel(chip, REG_INT_MASK, chip->interrupt_mask);
 	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
-	spin_unlock(&chip->reg_lock);
 	return 0;
 }
 
 static int snd_bt87x_stop(struct snd_bt87x *chip)
 {
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	chip->reg_control &= ~(CTL_FIFO_ENABLE | CTL_RISC_ENABLE | CTL_ACAP_EN);
 	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
 	snd_bt87x_writel(chip, REG_INT_MASK, 0);
 	snd_bt87x_writel(chip, REG_INT_STAT, MY_INTERRUPTS);
-	spin_unlock(&chip->reg_lock);
 	return 0;
 }
 
@@ -560,13 +557,12 @@ static int snd_bt87x_capture_volume_put(struct snd_kcontrol *kcontrol,
 	u32 old_control;
 	int changed;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	old_control = chip->reg_control;
 	chip->reg_control = (chip->reg_control & ~CTL_A_GAIN_MASK)
 		| (value->value.integer.value[0] << CTL_A_GAIN_SHIFT);
 	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
 	changed = old_control != chip->reg_control;
-	spin_unlock_irq(&chip->reg_lock);
 	return changed;
 }
 
@@ -596,13 +592,12 @@ static int snd_bt87x_capture_boost_put(struct snd_kcontrol *kcontrol,
 	u32 old_control;
 	int changed;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	old_control = chip->reg_control;
 	chip->reg_control = (chip->reg_control & ~CTL_A_G2X)
 		| (value->value.integer.value[0] ? CTL_A_G2X : 0);
 	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
 	changed = chip->reg_control != old_control;
-	spin_unlock_irq(&chip->reg_lock);
 	return changed;
 }
 
@@ -638,13 +633,12 @@ static int snd_bt87x_capture_source_put(struct snd_kcontrol *kcontrol,
 	u32 old_control;
 	int changed;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	old_control = chip->reg_control;
 	chip->reg_control = (chip->reg_control & ~CTL_A_SEL_MASK)
 		| (value->value.enumerated.item[0] << CTL_A_SEL_SHIFT);
 	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
 	changed = chip->reg_control != old_control;
-	spin_unlock_irq(&chip->reg_lock);
 	return changed;
 }
 

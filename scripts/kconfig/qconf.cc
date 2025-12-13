@@ -1377,6 +1377,19 @@ ConfigMainWindow::ConfigMainWindow(void)
 	ConfigList::showPromptAction = new QAction("Show Prompt Options", optGroup);
 	ConfigList::showPromptAction->setCheckable(true);
 
+	switch (configList->optMode) {
+	case allOpt:
+		ConfigList::showAllAction->setChecked(true);
+		break;
+	case promptOpt:
+		ConfigList::showPromptAction->setChecked(true);
+		break;
+	case normalOpt:
+	default:
+		ConfigList::showNormalAction->setChecked(true);
+		break;
+	}
+
 	QAction *showDebugAction = new QAction("Show Debug Info", this);
 	  showDebugAction->setCheckable(true);
 	connect(showDebugAction, &QAction::toggled,

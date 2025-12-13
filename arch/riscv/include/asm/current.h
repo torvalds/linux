@@ -13,7 +13,7 @@
 #include <linux/bug.h>
 #include <linux/compiler.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct task_struct;
 
@@ -35,6 +35,6 @@ static __always_inline struct task_struct *get_current(void)
 
 register unsigned long current_stack_pointer __asm__("sp");
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_RISCV_CURRENT_H */

@@ -1378,6 +1378,9 @@ static void rt722_sdca_dmic_preset(struct rt722_sdca_priv *rt722)
 		/* PHYtiming TDZ/TZD control */
 		regmap_write(rt722->regmap, 0x2f03, 0x06);
 
+		if (rt722->hw_vid == RT722_VB)
+			regmap_write(rt722->regmap, 0x2f52, 0x00);
+
 		/* clear flag */
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT0, RT722_SDCA_CTL_FUNC_STATUS, 0),
@@ -1414,6 +1417,9 @@ static void rt722_sdca_amp_preset(struct rt722_sdca_priv *rt722)
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_OT23,
 				RT722_SDCA_CTL_VENDOR_DEF, CH_08), 0x04);
+
+		if (rt722->hw_vid == RT722_VB)
+			regmap_write(rt722->regmap, 0x2f54, 0x00);
 
 		/* clear flag */
 		regmap_write(rt722->regmap,
@@ -1506,6 +1512,9 @@ static void rt722_sdca_jack_preset(struct rt722_sdca_priv *rt722)
 		rt722_sdca_index_write(rt722, RT722_VENDOR_REG, RT722_DIGITAL_MISC_CTRL4,
 			0x0010);
 
+		if (rt722->hw_vid == RT722_VB)
+			regmap_write(rt722->regmap, 0x2f51, 0x00);
+
 		/* clear flag */
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT0, RT722_SDCA_CTL_FUNC_STATUS, 0),
@@ -1516,6 +1525,7 @@ static void rt722_sdca_jack_preset(struct rt722_sdca_priv *rt722)
 int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt722_sdca_priv *rt722 = dev_get_drvdata(dev);
+	unsigned int val;
 
 	rt722->disable_irq = false;
 
@@ -1544,6 +1554,10 @@ int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	}
 
 	pm_runtime_get_noresume(&slave->dev);
+
+	rt722_sdca_index_read(rt722, RT722_VENDOR_REG, RT722_JD_PRODUCT_NUM, &val);
+	rt722->hw_vid = (val & 0x0f00) >> 8;
+	dev_dbg(&slave->dev, "%s hw_vid=0x%x\n", __func__, rt722->hw_vid);
 
 	rt722_sdca_dmic_preset(rt722);
 	rt722_sdca_amp_preset(rt722);

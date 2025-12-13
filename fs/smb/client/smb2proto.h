@@ -39,12 +39,6 @@ extern struct mid_q_entry *smb2_setup_async_request(
 			struct TCP_Server_Info *server, struct smb_rqst *rqst);
 extern struct cifs_tcon *smb2_find_smb_tcon(struct TCP_Server_Info *server,
 						__u64 ses_id, __u32  tid);
-extern int smb2_calc_signature(struct smb_rqst *rqst,
-				struct TCP_Server_Info *server,
-				bool allocate_crypto);
-extern int smb3_calc_signature(struct smb_rqst *rqst,
-				struct TCP_Server_Info *server,
-				bool allocate_crypto);
 extern void smb2_echo_request(struct work_struct *work);
 extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
 extern bool smb2_is_valid_oplock_break(char *buffer,
@@ -295,10 +289,10 @@ extern int smb2_validate_and_copy_iov(unsigned int offset,
 extern void smb2_copy_fs_info_to_kstatfs(
 	 struct smb2_fs_full_size_info *pfs_inf,
 	 struct kstatfs *kst);
-extern int smb311_crypto_shash_allocate(struct TCP_Server_Info *server);
-extern int smb311_update_preauth_hash(struct cifs_ses *ses,
-				      struct TCP_Server_Info *server,
-				      struct kvec *iov, int nvec);
+extern int smb3_crypto_shash_allocate(struct TCP_Server_Info *server);
+extern void smb311_update_preauth_hash(struct cifs_ses *ses,
+				       struct TCP_Server_Info *server,
+				       struct kvec *iov, int nvec);
 extern int smb2_query_info_compound(const unsigned int xid,
 				    struct cifs_tcon *tcon,
 				    const char *path, u32 desired_access,
@@ -317,5 +311,8 @@ int posix_info_sid_size(const void *beg, const void *end);
 int smb2_make_nfs_node(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev);
+int smb2_rename_pending_delete(const char *full_path,
+			       struct dentry *dentry,
+			       const unsigned int xid);
 
 #endif			/* _SMB2PROTO_H */

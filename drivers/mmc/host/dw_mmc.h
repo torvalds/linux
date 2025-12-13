@@ -541,6 +541,9 @@ extern void dw_mci_remove(struct dw_mci *host);
 #ifdef CONFIG_PM
 extern int dw_mci_runtime_suspend(struct device *device);
 extern int dw_mci_runtime_resume(struct device *device);
+#else
+static inline int dw_mci_runtime_suspend(struct device *device) { return -EOPNOTSUPP; }
+static inline int dw_mci_runtime_resume(struct device *device) { return -EOPNOTSUPP; }
 #endif
 
 /**

@@ -470,7 +470,7 @@ static int renoir_od_edit_dpm_table(struct smu_context *smu,
 static int renoir_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 {
 	uint32_t min = 0, max = 0;
-	uint32_t ret = 0;
+	int ret = 0;
 
 	ret = smu_cmn_send_smc_msg_with_param(smu,
 								SMU_MSG_GetMinGfxclkFrequency,

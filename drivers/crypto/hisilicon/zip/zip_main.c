@@ -65,6 +65,7 @@
 #define HZIP_SRAM_ECC_ERR_NUM_SHIFT	16
 #define HZIP_SRAM_ECC_ERR_ADDR_SHIFT	24
 #define HZIP_CORE_INT_MASK_ALL		GENMASK(12, 0)
+#define HZIP_AXI_ERROR_MASK		(BIT(2) | BIT(3))
 #define HZIP_SQE_SIZE			128
 #define HZIP_PF_DEF_Q_NUM		64
 #define HZIP_PF_DEF_Q_BASE		0
@@ -80,6 +81,7 @@
 #define HZIP_ALG_GZIP_BIT		GENMASK(3, 2)
 #define HZIP_ALG_DEFLATE_BIT		GENMASK(5, 4)
 #define HZIP_ALG_LZ77_BIT		GENMASK(7, 6)
+#define HZIP_ALG_LZ4_BIT		GENMASK(9, 8)
 
 #define HZIP_BUF_SIZE			22
 #define HZIP_SQE_MASK_OFFSET		64
@@ -95,10 +97,16 @@
 #define HZIP_PREFETCH_ENABLE		(~(BIT(26) | BIT(17) | BIT(0)))
 #define HZIP_SVA_PREFETCH_DISABLE	BIT(26)
 #define HZIP_SVA_DISABLE_READY		(BIT(26) | BIT(30))
+#define HZIP_SVA_PREFETCH_NUM		GENMASK(18, 16)
+#define HZIP_SVA_STALL_NUM		GENMASK(15, 0)
 #define HZIP_SHAPER_RATE_COMPRESS	750
 #define HZIP_SHAPER_RATE_DECOMPRESS	140
-#define HZIP_DELAY_1_US		1
-#define HZIP_POLL_TIMEOUT_US	1000
+#define HZIP_DELAY_1_US			1
+#define HZIP_POLL_TIMEOUT_US		1000
+#define HZIP_WAIT_SVA_READY		500000
+#define HZIP_READ_SVA_STATUS_TIMES	3
+#define HZIP_WAIT_US_MIN		10
+#define HZIP_WAIT_US_MAX		20
 
 /* clock gating */
 #define HZIP_PEH_CFG_AUTO_GATE		0x3011A8
@@ -110,6 +118,9 @@
 
 /* zip comp high performance */
 #define HZIP_HIGH_PERF_OFFSET		0x301208
+
+#define HZIP_LIT_LEN_EN_OFFSET		0x301204
+#define HZIP_LIT_LEN_EN_EN		BIT(4)
 
 enum {
 	HZIP_HIGH_COMP_RATE,
@@ -141,6 +152,12 @@ static const struct qm_dev_alg zip_dev_algs[] = { {
 	}, {
 		.alg_msk = HZIP_ALG_LZ77_BIT,
 		.alg = "lz77_zstd\n",
+	}, {
+		.alg_msk = HZIP_ALG_LZ77_BIT,
+		.alg = "lz77_only\n",
+	}, {
+		.alg_msk = HZIP_ALG_LZ4_BIT,
+		.alg = "lz4\n",
 	},
 };
 
@@ -448,10 +465,23 @@ bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg)
 	return false;
 }
 
-static int hisi_zip_set_high_perf(struct hisi_qm *qm)
+static void hisi_zip_literal_set(struct hisi_qm *qm)
 {
 	u32 val;
-	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl_relaxed(qm->io_base + HZIP_LIT_LEN_EN_OFFSET);
+	val &= ~HZIP_LIT_LEN_EN_EN;
+
+	/* enable literal length in stream mode compression */
+	writel(val, qm->io_base + HZIP_LIT_LEN_EN_OFFSET);
+}
+
+static void hisi_zip_set_high_perf(struct hisi_qm *qm)
+{
+	u32 val;
 
 	val = readl_relaxed(qm->io_base + HZIP_HIGH_PERF_OFFSET);
 	if (perf_mode == HZIP_HIGH_COMP_PERF)
@@ -461,33 +491,33 @@ static int hisi_zip_set_high_perf(struct hisi_qm *qm)
 
 	/* Set perf mode */
 	writel(val, qm->io_base + HZIP_HIGH_PERF_OFFSET);
-	ret = readl_relaxed_poll_timeout(qm->io_base + HZIP_HIGH_PERF_OFFSET,
-					 val, val == perf_mode, HZIP_DELAY_1_US,
-					 HZIP_POLL_TIMEOUT_US);
-	if (ret)
-		pci_err(qm->pdev, "failed to set perf mode\n");
-
-	return ret;
 }
 
-static void hisi_zip_open_sva_prefetch(struct hisi_qm *qm)
+static int hisi_zip_wait_sva_ready(struct hisi_qm *qm, __u32 offset, __u32 mask)
 {
-	u32 val;
-	int ret;
+	u32 val, try_times = 0;
+	u8 count = 0;
 
-	if (!test_bit(QM_SUPPORT_SVA_PREFETCH, &qm->caps))
-		return;
+	/*
+	 * Read the register value every 10-20us. If the value is 0 for three
+	 * consecutive times, the SVA module is ready.
+	 */
+	do {
+		val = readl(qm->io_base + offset);
+		if (val & mask)
+			count = 0;
+		else if (++count == HZIP_READ_SVA_STATUS_TIMES)
+			break;
 
-	/* Enable prefetch */
-	val = readl_relaxed(qm->io_base + HZIP_PREFETCH_CFG);
-	val &= HZIP_PREFETCH_ENABLE;
-	writel(val, qm->io_base + HZIP_PREFETCH_CFG);
+		usleep_range(HZIP_WAIT_US_MIN, HZIP_WAIT_US_MAX);
+	} while (++try_times < HZIP_WAIT_SVA_READY);
 
-	ret = readl_relaxed_poll_timeout(qm->io_base + HZIP_PREFETCH_CFG,
-					 val, !(val & HZIP_SVA_PREFETCH_DISABLE),
-					 HZIP_DELAY_1_US, HZIP_POLL_TIMEOUT_US);
-	if (ret)
-		pci_err(qm->pdev, "failed to open sva prefetch\n");
+	if (try_times == HZIP_WAIT_SVA_READY) {
+		pci_err(qm->pdev, "failed to wait sva prefetch ready\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 static void hisi_zip_close_sva_prefetch(struct hisi_qm *qm)
@@ -507,6 +537,35 @@ static void hisi_zip_close_sva_prefetch(struct hisi_qm *qm)
 					 HZIP_DELAY_1_US, HZIP_POLL_TIMEOUT_US);
 	if (ret)
 		pci_err(qm->pdev, "failed to close sva prefetch\n");
+
+	(void)hisi_zip_wait_sva_ready(qm, HZIP_SVA_TRANS, HZIP_SVA_STALL_NUM);
+}
+
+static void hisi_zip_open_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (!test_bit(QM_SUPPORT_SVA_PREFETCH, &qm->caps))
+		return;
+
+	/* Enable prefetch */
+	val = readl_relaxed(qm->io_base + HZIP_PREFETCH_CFG);
+	val &= HZIP_PREFETCH_ENABLE;
+	writel(val, qm->io_base + HZIP_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + HZIP_PREFETCH_CFG,
+					 val, !(val & HZIP_SVA_PREFETCH_DISABLE),
+					 HZIP_DELAY_1_US, HZIP_POLL_TIMEOUT_US);
+	if (ret) {
+		pci_err(qm->pdev, "failed to open sva prefetch\n");
+		hisi_zip_close_sva_prefetch(qm);
+		return;
+	}
+
+	ret = hisi_zip_wait_sva_ready(qm, HZIP_SVA_TRANS, HZIP_SVA_PREFETCH_NUM);
+	if (ret)
+		hisi_zip_close_sva_prefetch(qm);
 }
 
 static void hisi_zip_enable_clock_gate(struct hisi_qm *qm)
@@ -530,6 +589,7 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	void __iomem *base = qm->io_base;
 	u32 dcomp_bm, comp_bm;
 	u32 zip_core_en;
+	int ret;
 
 	/* qm user domain */
 	writel(AXUSER_BASE, base + QM_ARUSER_M_CFG_1);
@@ -565,6 +625,7 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 		writel(AXUSER_BASE, base + HZIP_DATA_WUSER_32_63);
 		writel(AXUSER_BASE, base + HZIP_SGL_RUSER_32_63);
 	}
+	hisi_zip_open_sva_prefetch(qm);
 
 	/* let's open all compression/decompression cores */
 
@@ -580,9 +641,19 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	       CQC_CACHE_WB_ENABLE | FIELD_PREP(SQC_CACHE_WB_THRD, 1) |
 	       FIELD_PREP(CQC_CACHE_WB_THRD, 1), base + QM_CACHE_CTL);
 
+	hisi_zip_set_high_perf(qm);
+	hisi_zip_literal_set(qm);
 	hisi_zip_enable_clock_gate(qm);
 
-	return hisi_dae_set_user_domain(qm);
+	ret = hisi_dae_set_user_domain(qm);
+	if (ret)
+		goto close_sva_prefetch;
+
+	return 0;
+
+close_sva_prefetch:
+	hisi_zip_close_sva_prefetch(qm);
+	return ret;
 }
 
 static void hisi_zip_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
@@ -592,8 +663,7 @@ static void hisi_zip_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
 	val1 = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
 	if (enable) {
 		val1 |= HZIP_AXI_SHUTDOWN_ENABLE;
-		val2 = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-				ZIP_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+		val2 = qm->err_info.dev_err.shutdown_mask;
 	} else {
 		val1 &= ~HZIP_AXI_SHUTDOWN_ENABLE;
 		val2 = 0x0;
@@ -607,7 +677,8 @@ static void hisi_zip_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
 
 static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 {
-	u32 nfe, ce;
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
 
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_MASK_ALL,
@@ -616,33 +687,29 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 		return;
 	}
 
-	nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_NFE_MASK_CAP, qm->cap_ver);
-	ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CE_MASK_CAP, qm->cap_ver);
-
 	/* clear ZIP hw error source if having */
-	writel(ce | nfe | HZIP_CORE_INT_RAS_FE_ENB_MASK, qm->io_base + HZIP_CORE_INT_SOURCE);
+	writel(err_mask, qm->io_base + HZIP_CORE_INT_SOURCE);
 
 	/* configure error type */
-	writel(ce, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
-	writel(HZIP_CORE_INT_RAS_FE_ENB_MASK, qm->io_base + HZIP_CORE_INT_RAS_FE_ENB);
-	writel(nfe, qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
+	writel(dev_err->ce, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
+	writel(dev_err->fe, qm->io_base + HZIP_CORE_INT_RAS_FE_ENB);
+	writel(dev_err->nfe, qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
 
 	hisi_zip_master_ooo_ctrl(qm, true);
 
 	/* enable ZIP hw error interrupts */
-	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
+	writel(~err_mask, qm->io_base + HZIP_CORE_INT_MASK_REG);
 
 	hisi_dae_hw_error_enable(qm);
 }
 
 static void hisi_zip_hw_error_disable(struct hisi_qm *qm)
 {
-	u32 nfe, ce;
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
 
 	/* disable ZIP hw error interrupts */
-	nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_NFE_MASK_CAP, qm->cap_ver);
-	ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CE_MASK_CAP, qm->cap_ver);
-	writel(ce | nfe | HZIP_CORE_INT_RAS_FE_ENB_MASK, qm->io_base + HZIP_CORE_INT_MASK_REG);
+	writel(err_mask, qm->io_base + HZIP_CORE_INT_MASK_REG);
 
 	hisi_zip_master_ooo_ctrl(qm, false);
 
@@ -1116,10 +1183,18 @@ static void hisi_zip_clear_hw_err_status(struct hisi_qm *qm, u32 err_sts)
 
 static void hisi_zip_disable_error_report(struct hisi_qm *qm, u32 err_type)
 {
-	u32 nfe_mask;
+	u32 nfe_mask = qm->err_info.dev_err.nfe;
 
-	nfe_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_NFE_MASK_CAP, qm->cap_ver);
 	writel(nfe_mask & (~err_type), qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
+}
+
+static void hisi_zip_enable_error_report(struct hisi_qm *qm)
+{
+	u32 nfe_mask = qm->err_info.dev_err.nfe;
+	u32 ce_mask = qm->err_info.dev_err.ce;
+
+	writel(nfe_mask, qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
+	writel(ce_mask, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
 }
 
 static void hisi_zip_open_axi_master_ooo(struct hisi_qm *qm)
@@ -1160,16 +1235,18 @@ static enum acc_err_result hisi_zip_get_err_result(struct hisi_qm *qm)
 	/* Get device hardware new error status */
 	err_status = hisi_zip_get_hw_err_status(qm);
 	if (err_status) {
-		if (err_status & qm->err_info.ecc_2bits_mask)
+		if (err_status & qm->err_info.dev_err.ecc_2bits_mask)
 			qm->err_status.is_dev_ecc_mbit = true;
 		hisi_zip_log_hw_error(qm, err_status);
 
-		if (err_status & qm->err_info.dev_reset_mask) {
+		if (err_status & qm->err_info.dev_err.reset_mask) {
 			/* Disable the same error reporting until device is recovered. */
 			hisi_zip_disable_error_report(qm, err_status);
-			return ACC_ERR_NEED_RESET;
+			zip_result = ACC_ERR_NEED_RESET;
 		} else {
 			hisi_zip_clear_hw_err_status(qm, err_status);
+			/* Avoid firmware disable error report, re-enable. */
+			hisi_zip_enable_error_report(qm);
 		}
 	}
 
@@ -1185,7 +1262,7 @@ static bool hisi_zip_dev_is_abnormal(struct hisi_qm *qm)
 	u32 err_status;
 
 	err_status = hisi_zip_get_hw_err_status(qm);
-	if (err_status & qm->err_info.dev_shutdown_mask)
+	if (err_status & qm->err_info.dev_err.shutdown_mask)
 		return true;
 
 	return hisi_dae_dev_is_abnormal(qm);
@@ -1196,23 +1273,59 @@ static int hisi_zip_set_priv_status(struct hisi_qm *qm)
 	return hisi_dae_close_axi_master_ooo(qm);
 }
 
+static void hisi_zip_disable_axi_error(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
+	u32 val;
+
+	val = ~(err_mask & (~HZIP_AXI_ERROR_MASK));
+	writel(val, qm->io_base + HZIP_CORE_INT_MASK_REG);
+
+	if (qm->ver > QM_HW_V2)
+		writel(dev_err->shutdown_mask & (~HZIP_AXI_ERROR_MASK),
+		       qm->io_base + HZIP_OOO_SHUTDOWN_SEL);
+}
+
+static void hisi_zip_enable_axi_error(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
+
+	/* clear axi error source */
+	writel(HZIP_AXI_ERROR_MASK, qm->io_base + HZIP_CORE_INT_SOURCE);
+
+	writel(~err_mask, qm->io_base + HZIP_CORE_INT_MASK_REG);
+
+	if (qm->ver > QM_HW_V2)
+		writel(dev_err->shutdown_mask, qm->io_base + HZIP_OOO_SHUTDOWN_SEL);
+}
+
 static void hisi_zip_err_info_init(struct hisi_qm *qm)
 {
 	struct hisi_qm_err_info *err_info = &qm->err_info;
+	struct hisi_qm_err_mask *qm_err = &err_info->qm_err;
+	struct hisi_qm_err_mask *dev_err = &err_info->dev_err;
 
-	err_info->fe = HZIP_CORE_INT_RAS_FE_ENB_MASK;
-	err_info->ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_QM_CE_MASK_CAP, qm->cap_ver);
-	err_info->nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-					    ZIP_QM_NFE_MASK_CAP, qm->cap_ver);
-	err_info->ecc_2bits_mask = HZIP_CORE_INT_STATUS_M_ECC;
-	err_info->qm_shutdown_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-							 ZIP_QM_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
-	err_info->dev_shutdown_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-							  ZIP_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
-	err_info->qm_reset_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-						      ZIP_QM_RESET_MASK_CAP, qm->cap_ver);
-	err_info->dev_reset_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-						       ZIP_RESET_MASK_CAP, qm->cap_ver);
+	qm_err->fe = HZIP_CORE_INT_RAS_FE_ENB_MASK;
+	qm_err->ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_QM_CE_MASK_CAP, qm->cap_ver);
+	qm_err->nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+					  ZIP_QM_NFE_MASK_CAP, qm->cap_ver);
+	qm_err->ecc_2bits_mask = QM_ECC_MBIT;
+	qm_err->reset_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+						 ZIP_QM_RESET_MASK_CAP, qm->cap_ver);
+	qm_err->shutdown_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+						    ZIP_QM_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+
+	dev_err->fe = HZIP_CORE_INT_RAS_FE_ENB_MASK;
+	dev_err->ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CE_MASK_CAP, qm->cap_ver);
+	dev_err->nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_NFE_MASK_CAP, qm->cap_ver);
+	dev_err->ecc_2bits_mask = HZIP_CORE_INT_STATUS_M_ECC;
+	dev_err->shutdown_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+						     ZIP_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+	dev_err->reset_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+						  ZIP_RESET_MASK_CAP, qm->cap_ver);
+
 	err_info->msi_wr_port = HZIP_WR_PORT;
 	err_info->acpi_rst = "ZRST";
 }
@@ -1232,6 +1345,8 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.get_err_result		= hisi_zip_get_err_result,
 	.set_priv_status	= hisi_zip_set_priv_status,
 	.dev_is_abnormal	= hisi_zip_dev_is_abnormal,
+	.disable_axi_error	= hisi_zip_disable_axi_error,
+	.enable_axi_error	= hisi_zip_enable_axi_error,
 };
 
 static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
@@ -1251,11 +1366,6 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	if (ret)
 		return ret;
 
-	ret = hisi_zip_set_high_perf(qm);
-	if (ret)
-		return ret;
-
-	hisi_zip_open_sva_prefetch(qm);
 	hisi_qm_dev_err_init(qm);
 	hisi_zip_debug_regs_clear(qm);
 
@@ -1273,7 +1383,7 @@ static int zip_pre_store_cap_reg(struct hisi_qm *qm)
 	size_t i, size;
 
 	size = ARRAY_SIZE(zip_cap_query_info);
-	zip_cap = devm_kzalloc(&pdev->dev, sizeof(*zip_cap) * size, GFP_KERNEL);
+	zip_cap = devm_kcalloc(&pdev->dev, size, sizeof(*zip_cap), GFP_KERNEL);
 	if (!zip_cap)
 		return -ENOMEM;
 

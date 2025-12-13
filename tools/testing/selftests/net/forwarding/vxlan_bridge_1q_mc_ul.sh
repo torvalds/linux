@@ -119,16 +119,15 @@ source lib.sh
 
 h1_create()
 {
-	simple_if_init "$h1"
-	defer simple_if_fini "$h1"
+	adf_simple_if_init "$h1"
 
-	ip_link_add "$h1.10" master "v$h1" link "$h1" type vlan id 10
-	ip_link_set_up "$h1.10"
-	ip_addr_add "$h1.10" 192.0.2.1/28
+	adf_ip_link_add "$h1.10" master "v$h1" link "$h1" type vlan id 10
+	adf_ip_link_set_up "$h1.10"
+	adf_ip_addr_add "$h1.10" 192.0.2.1/28
 
-	ip_link_add "$h1.20" master "v$h1" link "$h1" type vlan id 20
-	ip_link_set_up "$h1.20"
-	ip_addr_add "$h1.20" 2001:db8:1::1/64
+	adf_ip_link_add "$h1.20" master "v$h1" link "$h1" type vlan id 20
+	adf_ip_link_set_up "$h1.20"
+	adf_ip_addr_add "$h1.20" 2001:db8:1::1/64
 }
 
 install_capture()
@@ -152,51 +151,51 @@ install_capture()
 h2_create()
 {
 	# $h2
-	ip_link_set_up "$h2"
+	adf_ip_link_set_up "$h2"
 
 	# H2
 	vrf_create "v$h2"
 	defer vrf_destroy "v$h2"
 
-	ip_link_set_up "v$h2"
+	adf_ip_link_set_up "v$h2"
 
 	# br2
-	ip_link_add br2 type bridge vlan_filtering 0 mcast_snooping 0
-	ip_link_set_master br2 "v$h2"
-	ip_link_set_up br2
+	adf_ip_link_add br2 type bridge vlan_filtering 0 mcast_snooping 0
+	adf_ip_link_set_master br2 "v$h2"
+	adf_ip_link_set_up br2
 
 	# $h2
-	ip_link_set_master "$h2" br2
+	adf_ip_link_set_master "$h2" br2
 	install_capture "$h2"
 
 	# v1$h2
-	ip_link_set_up "v1$h2"
-	ip_link_set_master "v1$h2" br2
+	adf_ip_link_set_up "v1$h2"
+	adf_ip_link_set_master "v1$h2" br2
 }
 
 h3_create()
 {
 	# $h3
-	ip_link_set_up "$h3"
+	adf_ip_link_set_up "$h3"
 
 	# H3
 	vrf_create "v$h3"
 	defer vrf_destroy "v$h3"
 
-	ip_link_set_up "v$h3"
+	adf_ip_link_set_up "v$h3"
 
 	# br3
-	ip_link_add br3 type bridge vlan_filtering 0 mcast_snooping 0
-	ip_link_set_master br3 "v$h3"
-	ip_link_set_up br3
+	adf_ip_link_add br3 type bridge vlan_filtering 0 mcast_snooping 0
+	adf_ip_link_set_master br3 "v$h3"
+	adf_ip_link_set_up br3
 
 	# $h3
-	ip_link_set_master "$h3" br3
+	adf_ip_link_set_master "$h3" br3
 	install_capture "$h3"
 
 	# v1$h3
-	ip_link_set_up "v1$h3"
-	ip_link_set_master "v1$h3" br3
+	adf_ip_link_set_up "v1$h3"
+	adf_ip_link_set_master "v1$h3" br3
 }
 
 switch_create()
@@ -205,35 +204,35 @@ switch_create()
 
 	# br1
 	swp1_mac=$(mac_get "$swp1")
-	ip_link_add br1 type bridge vlan_filtering 1 \
+	adf_ip_link_add br1 type bridge vlan_filtering 1 \
 			    vlan_default_pvid 0 mcast_snooping 0
-	ip_link_set_addr br1 "$swp1_mac"
-	ip_link_set_up br1
+	adf_ip_link_set_addr br1 "$swp1_mac"
+	adf_ip_link_set_up br1
 
 	# A dummy to force the IPv6 OIF=0 test to install a suitable MC route on
 	# $IPMR to be deterministic. Also used for the IPv6 RX!=TX ping test.
-	ip_link_add "X$IPMR" up type dummy
+	adf_ip_link_add "X$IPMR" up type dummy
 
 	# IPMR
-	ip_link_add "$IPMR" up type dummy
-	ip_addr_add "$IPMR" 192.0.2.100/28
-	ip_addr_add "$IPMR" 2001:db8:4::1/64
+	adf_ip_link_add "$IPMR" up type dummy
+	adf_ip_addr_add "$IPMR" 192.0.2.100/28
+	adf_ip_addr_add "$IPMR" 2001:db8:4::1/64
 
 	# $swp1
-	ip_link_set_up "$swp1"
-	ip_link_set_master "$swp1" br1
-	bridge_vlan_add vid 10 dev "$swp1"
-	bridge_vlan_add vid 20 dev "$swp1"
+	adf_ip_link_set_up "$swp1"
+	adf_ip_link_set_master "$swp1" br1
+	adf_bridge_vlan_add vid 10 dev "$swp1"
+	adf_bridge_vlan_add vid 20 dev "$swp1"
 
 	# $swp2
-	ip_link_set_up "$swp2"
-	ip_addr_add "$swp2" 192.0.2.33/28
-	ip_addr_add "$swp2" 2001:db8:2::1/64
+	adf_ip_link_set_up "$swp2"
+	adf_ip_addr_add "$swp2" 192.0.2.33/28
+	adf_ip_addr_add "$swp2" 2001:db8:2::1/64
 
 	# $swp3
-	ip_link_set_up "$swp3"
-	ip_addr_add "$swp3" 192.0.2.65/28
-	ip_addr_add "$swp3" 2001:db8:3::1/64
+	adf_ip_link_set_up "$swp3"
+	adf_ip_addr_add "$swp3" 192.0.2.65/28
+	adf_ip_addr_add "$swp3" 2001:db8:3::1/64
 }
 
 vx_create()
@@ -241,11 +240,11 @@ vx_create()
 	local name=$1; shift
 	local vid=$1; shift
 
-	ip_link_add "$name" up type vxlan dstport "$VXPORT" \
+	adf_ip_link_add "$name" up type vxlan dstport "$VXPORT" \
 		nolearning noudpcsum tos inherit ttl 16 \
 		"$@"
-	ip_link_set_master "$name" br1
-	bridge_vlan_add vid "$vid" dev "$name" pvid untagged
+	adf_ip_link_set_master "$name" br1
+	adf_bridge_vlan_add vid "$vid" dev "$name" pvid untagged
 }
 export -f vx_create
 
@@ -290,39 +289,38 @@ ns_init_common()
 	local ipv6_host=$1; shift
 
 	# v2$h2 / v2$h3
-	ip_link_set_up "$if_in"
-	ip_addr_add "$if_in" "$ipv4_in"
-	ip_addr_add "$if_in" "$ipv6_in"
+	adf_ip_link_set_up "$if_in"
+	adf_ip_addr_add "$if_in" "$ipv4_in"
+	adf_ip_addr_add "$if_in" "$ipv6_in"
 
 	# br1
-	ip_link_add br1 type bridge vlan_filtering 1 \
+	adf_ip_link_add br1 type bridge vlan_filtering 1 \
 		    vlan_default_pvid 0 mcast_snooping 0
-	ip_link_set_up br1
+	adf_ip_link_set_up br1
 
 	# vx10, vx20
 	vx10_create local "${ipv4_in%/*}" group "$GROUP4" dev "$if_in"
 	vx20_create local "${ipv6_in%/*}" group "$GROUP6" dev "$if_in"
 
 	# w1
-	ip_link_add w1 type veth peer name w2
-	ip_link_set_master w1 br1
-	ip_link_set_up w1
-	bridge_vlan_add vid 10 dev w1
-	bridge_vlan_add vid 20 dev w1
+	adf_ip_link_add w1 type veth peer name w2
+	adf_ip_link_set_master w1 br1
+	adf_ip_link_set_up w1
+	adf_bridge_vlan_add vid 10 dev w1
+	adf_bridge_vlan_add vid 20 dev w1
 
 	# w2
-	simple_if_init w2
-	defer simple_if_fini w2
+	adf_simple_if_init w2
 
 	# w2.10
-	ip_link_add w2.10 master vw2 link w2 type vlan id 10
-	ip_link_set_up w2.10
-	ip_addr_add w2.10 "$ipv4_host"
+	adf_ip_link_add w2.10 master vw2 link w2 type vlan id 10
+	adf_ip_link_set_up w2.10
+	adf_ip_addr_add w2.10 "$ipv4_host"
 
 	# w2.20
-	ip_link_add w2.20 master vw2 link w2 type vlan id 20
-	ip_link_set_up w2.20
-	ip_addr_add w2.20 "$ipv6_host"
+	adf_ip_link_add w2.20 master vw2 link w2 type vlan id 20
+	adf_ip_link_set_up w2.20
+	adf_ip_addr_add w2.20 "$ipv6_host"
 }
 export -f ns_init_common
 
@@ -371,14 +369,11 @@ setup_prepare()
 	swp3=${NETIFS[p5]}
 	h3=${NETIFS[p6]}
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
+	adf_forwarding_enable
 
-	forwarding_enable
-	defer forwarding_restore
-
-	ip_link_add "v1$h2" type veth peer name "v2$h2"
-	ip_link_add "v1$h3" type veth peer name "v2$h3"
+	adf_ip_link_add "v1$h2" type veth peer name "v2$h2"
+	adf_ip_link_add "v1$h3" type veth peer name "v2$h3"
 
 	h1_create
 	h2_create
@@ -720,7 +715,7 @@ ipv4_mcroute_fdb_oif0_sep()
 {
 	adf_install_sg_sep
 
-	ip_addr_add lo 192.0.2.120/28
+	adf_ip_addr_add lo 192.0.2.120/28
 	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add dev vx10 00:00:00:00:00:00 self static dst "$GROUP4"
@@ -731,7 +726,7 @@ ipv4_mcroute_fdb_oif0_sep_rx()
 {
 	adf_install_sg_sep_rx lo
 
-	ip_addr_add lo 192.0.2.120/28
+	adf_ip_addr_add lo 192.0.2.120/28
 	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add dev vx10 00:00:00:00:00:00 self static dst "$GROUP4"
@@ -742,7 +737,7 @@ ipv4_mcroute_fdb_sep_rx()
 {
 	adf_install_sg_sep_rx lo
 
-	ip_addr_add lo 192.0.2.120/28
+	adf_ip_addr_add lo 192.0.2.120/28
 	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add \
@@ -754,7 +749,7 @@ ipv6_mcroute_fdb_sep_rx()
 {
 	adf_install_sg_sep_rx "X$IPMR"
 
-	ip_addr_add "X$IPMR" 2001:db8:5::1/64
+	adf_ip_addr_add "X$IPMR" 2001:db8:5::1/64
 	vx20_create_wait local 2001:db8:5::1 group "$GROUP6" dev "$IPMR" mcroute
 	bridge -6 fdb del dev vx20 00:00:00:00:00:00
 	bridge -6 fdb add dev vx20 00:00:00:00:00:00 \

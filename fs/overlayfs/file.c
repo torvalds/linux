@@ -120,7 +120,7 @@ static bool ovl_is_real_file(const struct file *realfile,
 }
 
 static struct file *ovl_real_file_path(const struct file *file,
-				       struct path *realpath)
+				       const struct path *realpath)
 {
 	struct ovl_file *of = file->private_data;
 	struct file *realfile = of->realfile;
@@ -369,11 +369,6 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (!ovl_should_sync(OVL_FS(inode->i_sb)))
 		ifl &= ~(IOCB_DSYNC | IOCB_SYNC);
 
-	/*
-	 * Overlayfs doesn't support deferred completions, don't copy
-	 * this property in case it is set by the issuer.
-	 */
-	ifl &= ~IOCB_DIO_CALLER_COMP;
 	ret = backing_file_write_iter(realfile, iter, iocb, ifl, &ctx);
 
 out_unlock:

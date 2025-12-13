@@ -1062,16 +1062,9 @@ static void gicv5_set_cpuif_idbits(void)
 #ifdef CONFIG_KVM
 static struct gic_kvm_info gic_v5_kvm_info __initdata;
 
-static bool __init gicv5_cpuif_has_gcie_legacy(void)
-{
-	u64 idr0 = read_sysreg_s(SYS_ICC_IDR0_EL1);
-	return !!FIELD_GET(ICC_IDR0_EL1_GCIE_LEGACY, idr0);
-}
-
 static void __init gic_of_setup_kvm_info(struct device_node *node)
 {
 	gic_v5_kvm_info.type = GIC_V5;
-	gic_v5_kvm_info.has_gcie_v3_compat = gicv5_cpuif_has_gcie_legacy();
 
 	/* GIC Virtual CPU interface maintenance interrupt */
 	gic_v5_kvm_info.no_maint_irq_mask = false;

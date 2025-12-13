@@ -148,6 +148,36 @@
 			status = "disabled";
 		};
 
+		i2c2: i2c@c600000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x0 0x0c600000 0x0 0x10000>;
+			interrupts = <GIC_SPI 532 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_AON_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLAON>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_AON_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLAON>;
+			resets = <&bpmp TEGRA264_RESET_I2C2>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c3: i2c@c610000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x0 0x0c610000 0x0 0x10000>;
+			interrupts = <GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_AON_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLAON>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_AON_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLAON>;
+			resets = <&bpmp TEGRA264_RESET_I2C3>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
 		pmc: pmc@c800000 {
 			compatible = "nvidia,tegra264-pmc";
 			reg = <0x0 0x0c800000 0x0 0x100000>,
@@ -270,6 +300,201 @@
 
 			#iommu-cells = <1>;
 			dma-coherent;
+		};
+
+		i2c14: i2c@c410000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c410000 0x0 0x10000>;
+			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C14>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c15: i2c@c420000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c420000 0x0 0x10000>;
+			interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C15>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c16: i2c@c430000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c430000 0x0 0x10000>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C16>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c0: i2c@c630000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c630000 0x0 0x10000>;
+			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C0>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c1: i2c@c640000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c640000 0x0 0x10000>;
+			interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C1>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c4: i2c@c650000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c650000 0x0 0x10000>;
+			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C4>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c6: i2c@c670000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c670000 0x0 0x10000>;
+			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C6>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c7: i2c@c680000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c680000 0x0 0x10000>;
+			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C7>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c8: i2c@c690000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c690000 0x0 0x10000>;
+			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C8>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c9: i2c@c6a0000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c6a0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C9>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c10: i2c@c6b0000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c6b0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C10>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c11: i2c@c6c0000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c6c0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C11>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		i2c12: i2c@c6d0000 {
+			compatible = "nvidia,tegra264-i2c";
+			reg = <0x00 0x0c6d0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
+				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA264_CLK_TOP_I2C>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_I2C12>;
+			reset-names = "i2c";
+			status = "disabled";
 		};
 
 		gic: interrupt-controller@46000000 {

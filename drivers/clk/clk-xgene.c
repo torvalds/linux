@@ -271,23 +271,28 @@ static unsigned long xgene_clk_pmd_recalc_rate(struct clk_hw *hw,
 	return ret;
 }
 
-static long xgene_clk_pmd_round_rate(struct clk_hw *hw, unsigned long rate,
-				     unsigned long *parent_rate)
+static int xgene_clk_pmd_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
 	struct xgene_clk_pmd *fd = to_xgene_clk_pmd(hw);
 	u64 ret, scale;
 
-	if (!rate || rate >= *parent_rate)
-		return *parent_rate;
+	if (!req->rate || req->rate >= req->best_parent_rate) {
+		req->rate = req->best_parent_rate;
+
+		return 0;
+	}
 
 	/* freq = parent_rate * scaler / denom */
-	ret = rate * fd->denom;
-	scale = DIV_ROUND_UP_ULL(ret, *parent_rate);
+	ret = req->rate * fd->denom;
+	scale = DIV_ROUND_UP_ULL(ret, req->best_parent_rate);
 
-	ret = (u64)*parent_rate * scale;
+	ret = (u64)req->best_parent_rate * scale;
 	do_div(ret, fd->denom);
 
-	return ret;
+	req->rate = ret;
+
+	return 0;
 }
 
 static int xgene_clk_pmd_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -333,7 +338,7 @@ static int xgene_clk_pmd_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops xgene_clk_pmd_ops = {
 	.recalc_rate = xgene_clk_pmd_recalc_rate,
-	.round_rate = xgene_clk_pmd_round_rate,
+	.determine_rate = xgene_clk_pmd_determine_rate,
 	.set_rate = xgene_clk_pmd_set_rate,
 };
 
@@ -593,23 +598,25 @@ static int xgene_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	return parent_rate / divider_save;
 }
 
-static long xgene_clk_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *prate)
+static int xgene_clk_determine_rate(struct clk_hw *hw,
+				    struct clk_rate_request *req)
 {
 	struct xgene_clk *pclk = to_xgene_clk(hw);
-	unsigned long parent_rate = *prate;
+	unsigned long parent_rate = req->best_parent_rate;
 	u32 divider;
 
 	if (pclk->param.divider_reg) {
 		/* Let's compute the divider */
-		if (rate > parent_rate)
-			rate = parent_rate;
-		divider = parent_rate / rate;   /* Rounded down */
+		if (req->rate > parent_rate)
+			req->rate = parent_rate;
+		divider = parent_rate / req->rate;   /* Rounded down */
 	} else {
 		divider = 1;
 	}
 
-	return parent_rate / divider;
+	req->rate = parent_rate / divider;
+
+	return 0;
 }
 
 static const struct clk_ops xgene_clk_ops = {
@@ -618,7 +625,7 @@ static const struct clk_ops xgene_clk_ops = {
 	.is_enabled = xgene_clk_is_enabled,
 	.recalc_rate = xgene_clk_recalc_rate,
 	.set_rate = xgene_clk_set_rate,
-	.round_rate = xgene_clk_round_rate,
+	.determine_rate = xgene_clk_determine_rate,
 };
 
 static struct clk *xgene_register_clk(struct device *dev,

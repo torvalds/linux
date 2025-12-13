@@ -276,7 +276,7 @@ static int sof_es8316_init(struct snd_soc_pcm_runtime *runtime)
 	int num_routes;
 	int ret;
 
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	if (quirk & SOC_ES8336_HEADSET_MIC1) {
 		custom_map = sof_es8316_headset_mic1_map;

@@ -41,4 +41,19 @@ pvr_power_put(struct pvr_device *pvr_dev)
 int pvr_power_domains_init(struct pvr_device *pvr_dev);
 void pvr_power_domains_fini(struct pvr_device *pvr_dev);
 
+/**
+ * struct pvr_power_sequence_ops - Platform specific power sequence operations.
+ * @init: Pointer to the platform-specific initialization function.
+ * @power_on: Pointer to the platform-specific power on function.
+ * @power_off: Pointer to the platform-specific power off function.
+ */
+struct pvr_power_sequence_ops {
+	int (*init)(struct pvr_device *pvr_dev);
+	int (*power_on)(struct pvr_device *pvr_dev);
+	int (*power_off)(struct pvr_device *pvr_dev);
+};
+
+extern const struct pvr_power_sequence_ops pvr_power_sequence_ops_manual;
+extern const struct pvr_power_sequence_ops pvr_power_sequence_ops_pwrseq;
+
 #endif /* PVR_POWER_H */

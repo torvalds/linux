@@ -145,7 +145,7 @@ DECLARE_EVENT_CLASS(habanalabs_comms_template,
 		__entry->op_str = op_str;
 	),
 
-	TP_printk("%s: cms: %s",
+	TP_printk("%s: cmd: %s",
 		__get_str(dname),
 		__entry->op_str)
 );

@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_wait_util.h"
 #include "intel_gt.h"
 #include "intel_gt_mcr.h"
 #include "intel_gt_print.h"

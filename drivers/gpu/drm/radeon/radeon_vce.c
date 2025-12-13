@@ -86,7 +86,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 
 	r = request_firmware(&rdev->vce_fw, fw_name, rdev->dev);
 	if (r) {
-		dev_err(rdev->dev, "radeon_vce: Can't load firmware \"%s\"\n",
+		dev_err(rdev->dev, "radeon_vce: can't load firmware \"%s\"\n",
 			fw_name);
 		return r;
 	}
@@ -126,7 +126,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 
 	rdev->vce.fw_version = (start << 24) | (mid << 16) | (end << 8);
 
-	/* we can only work with this fw version for now */
+	/* we can only work with these fw versions for now */
 	if ((rdev->vce.fw_version != ((40 << 24) | (2 << 16) | (2 << 8))) &&
 	    (rdev->vce.fw_version != ((50 << 24) | (0 << 16) | (1 << 8))) &&
 	    (rdev->vce.fw_version != ((50 << 24) | (1 << 16) | (2 << 8))))
@@ -281,7 +281,7 @@ static void radeon_vce_idle_work_handler(struct work_struct *work)
  *
  * @rdev: radeon_device pointer
  *
- * Make sure VCE is powerd up when we want to use it
+ * Make sure VCE is powered up when we want to use it
  */
 void radeon_vce_note_usage(struct radeon_device *rdev)
 {

@@ -52,6 +52,48 @@ static inline void cpu_set_fpu_fcsr_mask(struct cpuinfo_loongarch *c)
 	c->fpu_mask = ~(fcsr0 ^ fcsr1) & ~mask;
 }
 
+/* simd = -1/0/128/256 */
+static unsigned int simd = -1U;
+
+static int __init cpu_setup_simd(char *str)
+{
+	get_option(&str, &simd);
+	pr_info("Set SIMD width = %u\n", simd);
+
+	return 0;
+}
+
+early_param("simd", cpu_setup_simd);
+
+static int __init cpu_final_simd(void)
+{
+	struct cpuinfo_loongarch *c = &cpu_data[0];
+
+	if (simd < 128) {
+		c->options &= ~LOONGARCH_CPU_LSX;
+		elf_hwcap &= ~HWCAP_LOONGARCH_LSX;
+	}
+
+	if (simd < 256) {
+		c->options &= ~LOONGARCH_CPU_LASX;
+		elf_hwcap &= ~HWCAP_LOONGARCH_LASX;
+	}
+
+	simd = 0;
+
+	if (c->options & LOONGARCH_CPU_LSX)
+		simd = 128;
+
+	if (c->options & LOONGARCH_CPU_LASX)
+		simd = 256;
+
+	pr_info("Final SIMD width = %u\n", simd);
+
+	return 0;
+}
+
+arch_initcall(cpu_final_simd);
+
 static inline void set_elf_platform(int cpu, const char *plat)
 {
 	if (cpu == 0)
@@ -115,6 +157,8 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_TLB;
 	if (config & CPUCFG1_IOCSR)
 		c->options |= LOONGARCH_CPU_IOCSR;
+	if (config & CPUCFG1_MSGINT)
+		c->options |= LOONGARCH_CPU_MSGINT;
 	if (config & CPUCFG1_UAL) {
 		c->options |= LOONGARCH_CPU_UAL;
 		elf_hwcap |= HWCAP_LOONGARCH_UAL;
@@ -134,13 +178,13 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		elf_hwcap |= HWCAP_LOONGARCH_FPU;
 	}
 #ifdef CONFIG_CPU_HAS_LSX
-	if (config & CPUCFG2_LSX) {
+	if ((config & CPUCFG2_LSX) && (simd >= 128)) {
 		c->options |= LOONGARCH_CPU_LSX;
 		elf_hwcap |= HWCAP_LOONGARCH_LSX;
 	}
 #endif
 #ifdef CONFIG_CPU_HAS_LASX
-	if (config & CPUCFG2_LASX) {
+	if ((config & CPUCFG2_LASX) && (simd >= 256)) {
 		c->options |= LOONGARCH_CPU_LASX;
 		elf_hwcap |= HWCAP_LOONGARCH_LASX;
 	}
@@ -233,7 +277,7 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 	uint32_t config;
 	uint64_t *vendor = (void *)(&cpu_full_name[VENDOR_OFFSET]);
 	uint64_t *cpuname = (void *)(&cpu_full_name[CPUNAME_OFFSET]);
-	const char *core_name = "Unknown";
+	const char *core_name = id_to_core_name(c->processor_id);
 
 	switch (BIT(fls(c->isa_level) - 1)) {
 	case LOONGARCH_CPU_ISA_LA32R:
@@ -247,34 +291,22 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 		break;
 	}
 
-	switch (c->processor_id & PRID_SERIES_MASK) {
-	case PRID_SERIES_LA132:
-		core_name = "LA132";
-		break;
-	case PRID_SERIES_LA264:
-		core_name = "LA264";
-		break;
-	case PRID_SERIES_LA364:
-		core_name = "LA364";
-		break;
-	case PRID_SERIES_LA464:
-		core_name = "LA464";
-		break;
-	case PRID_SERIES_LA664:
-		core_name = "LA664";
-		break;
-	}
-
 	pr_info("%s Processor probed (%s Core)\n", __cpu_family[cpu], core_name);
 
-	if (!cpu_has_iocsr)
+	if (!cpu_has_iocsr) {
+		__cpu_full_name[cpu] = "Unknown";
 		return;
-
-	if (!__cpu_full_name[cpu])
-		__cpu_full_name[cpu] = cpu_full_name;
+	}
 
 	*vendor = iocsr_read64(LOONGARCH_IOCSR_VENDOR);
 	*cpuname = iocsr_read64(LOONGARCH_IOCSR_CPUNAME);
+
+	if (!__cpu_full_name[cpu]) {
+		if (((char *)vendor)[0] == 0)
+			__cpu_full_name[cpu] = "Unknown";
+		else
+			__cpu_full_name[cpu] = cpu_full_name;
+	}
 
 	config = iocsr_read32(LOONGARCH_IOCSR_FEATURES);
 	if (config & IOCSRF_CSRIPI)
@@ -289,6 +321,8 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 		c->options |= LOONGARCH_CPU_EIODECODE;
 	if (config & IOCSRF_AVEC)
 		c->options |= LOONGARCH_CPU_AVECINT;
+	if (config & IOCSRF_REDIRECT)
+		c->options |= LOONGARCH_CPU_REDIRECTINT;
 	if (config & IOCSRF_VM)
 		c->options |= LOONGARCH_CPU_HYPERVISOR;
 }

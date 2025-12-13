@@ -8,6 +8,8 @@
  * https://wiki.analog.com/resources/fpga/docs/hdl/regmap
  */
 
+#include <linux/types.h>
+
 #ifndef ADI_AXI_COMMON_H_
 #define ADI_AXI_COMMON_H_
 
@@ -20,6 +22,25 @@
 #define ADI_AXI_PCORE_VER_MAJOR(version)	(((version) >> 16) & 0xff)
 #define ADI_AXI_PCORE_VER_MINOR(version)	(((version) >> 8) & 0xff)
 #define ADI_AXI_PCORE_VER_PATCH(version)	((version) & 0xff)
+
+/**
+ * adi_axi_pcore_ver_gteq() - check if a version is satisfied
+ * @version: the full version read from the hardware
+ * @major: the major version to compare against
+ * @minor: the minor version to compare against
+ *
+ * ADI AXI IP Cores use semantic versioning, so this can be used to check for
+ * feature availability.
+ *
+ * Return: true if the version is greater than or equal to the specified
+ *         major and minor version, false otherwise.
+ */
+static inline bool adi_axi_pcore_ver_gteq(u32 version, u32 major, u32 minor)
+{
+	return ADI_AXI_PCORE_VER_MAJOR(version) > (major) ||
+	       (ADI_AXI_PCORE_VER_MAJOR(version) == (major) &&
+		ADI_AXI_PCORE_VER_MINOR(version) >= (minor));
+}
 
 #define ADI_AXI_INFO_FPGA_TECH(info)            (((info) >> 24) & 0xff)
 #define ADI_AXI_INFO_FPGA_FAMILY(info)          (((info) >> 16) & 0xff)

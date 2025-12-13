@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES.
 
+#include "../devlink.h"
 #include "en.h"
 #include "pcie_cong_event.h"
 
@@ -23,6 +24,7 @@ struct mlx5e_pcie_cong_stats {
 	u32 pci_bw_inbound_low;
 	u32 pci_bw_outbound_high;
 	u32 pci_bw_outbound_low;
+	u32 pci_bw_stale_event;
 };
 
 struct mlx5e_pcie_cong_event {
@@ -41,13 +43,6 @@ struct mlx5e_pcie_cong_event {
 	struct mlx5e_pcie_cong_stats stats;
 };
 
-/* In units of 0.01 % */
-static const struct mlx5e_pcie_cong_thresh default_thresh_config = {
-	.inbound_high = 9000,
-	.inbound_low = 7500,
-	.outbound_high = 9000,
-	.outbound_low = 7500,
-};
 
 static const struct counter_desc mlx5e_pcie_cong_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_pcie_cong_stats,
@@ -58,6 +53,8 @@ static const struct counter_desc mlx5e_pcie_cong_stats_desc[] = {
 			     pci_bw_outbound_high) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_pcie_cong_stats,
 			     pci_bw_outbound_low) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_pcie_cong_stats,
+			     pci_bw_stale_event) },
 };
 
 #define NUM_PCIE_CONG_COUNTERS ARRAY_SIZE(mlx5e_pcie_cong_stats_desc)
@@ -218,8 +215,10 @@ static void mlx5e_pcie_cong_event_work(struct work_struct *work)
 	}
 
 	changes = cong_event->state ^ new_cong_state;
-	if (!changes)
+	if (!changes) {
+		cong_event->stats.pci_bw_stale_event++;
 		return;
+	}
 
 	cong_event->state = new_cong_state;
 
@@ -249,14 +248,76 @@ static int mlx5e_pcie_cong_event_handler(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int
+mlx5e_pcie_cong_get_thresh_config(struct mlx5_core_dev *dev,
+				  struct mlx5e_pcie_cong_thresh *config)
+{
+	u32 ids[4] = {
+		MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_LOW,
+		MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_HIGH,
+		MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_LOW,
+		MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_HIGH,
+	};
+	struct devlink *devlink = priv_to_devlink(dev);
+	union devlink_param_value val[4];
+
+	for (int i = 0; i < 4; i++) {
+		u32 id = ids[i];
+		int err;
+
+		err = devl_param_driverinit_value_get(devlink, id, &val[i]);
+		if (err)
+			return err;
+	}
+
+	config->inbound_low = val[0].vu16;
+	config->inbound_high = val[1].vu16;
+	config->outbound_low = val[2].vu16;
+	config->outbound_high = val[3].vu16;
+
+	return 0;
+}
+
+static int
+mlx5e_thresh_config_validate(struct mlx5_core_dev *mdev,
+			     const struct mlx5e_pcie_cong_thresh *config)
+{
+	int err = 0;
+
+	if (config->inbound_low >= config->inbound_high) {
+		err = -EINVAL;
+		mlx5_core_err(mdev, "PCIe inbound congestion threshold configuration invalid: low (%u) >= high (%u).\n",
+			      config->inbound_low, config->inbound_high);
+	}
+
+	if (config->outbound_low >= config->outbound_high) {
+		err = -EINVAL;
+		mlx5_core_err(mdev, "PCIe outbound congestion threshold configuration invalid: low (%u) >= high (%u).\n",
+			      config->outbound_low, config->outbound_high);
+	}
+
+	return err;
+}
+
 int mlx5e_pcie_cong_event_init(struct mlx5e_priv *priv)
 {
+	struct mlx5e_pcie_cong_thresh thresh_config = {};
 	struct mlx5e_pcie_cong_event *cong_event;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
 	if (!mlx5_pcie_cong_event_supported(mdev))
 		return 0;
+
+	err = mlx5e_pcie_cong_get_thresh_config(mdev, &thresh_config);
+	if (WARN_ON(err))
+		return err;
+
+	err = mlx5e_thresh_config_validate(mdev, &thresh_config);
+	if (err) {
+		mlx5_core_err(mdev, "PCIe congestion event feature disabled\n");
+		return err;
+	}
 
 	cong_event = kvzalloc_node(sizeof(*cong_event), GFP_KERNEL,
 				   mdev->priv.numa_node);
@@ -269,7 +330,7 @@ int mlx5e_pcie_cong_event_init(struct mlx5e_priv *priv)
 
 	cong_event->priv = priv;
 
-	err = mlx5_cmd_pcie_cong_event_set(mdev, &default_thresh_config,
+	err = mlx5_cmd_pcie_cong_event_set(mdev, &thresh_config,
 					   &cong_event->obj_id);
 	if (err) {
 		mlx5_core_warn(mdev, "Error creating a PCIe congestion event object\n");

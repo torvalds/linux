@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <linux/export.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <asm/mshyperv.h>
 
 static int hv_map_interrupt(union hv_device_id device_id, bool level,
@@ -289,59 +290,99 @@ static void hv_teardown_msi_irq(struct pci_dev *dev, struct irq_data *irqd)
 	(void)hv_unmap_msi_interrupt(dev, &old_entry);
 }
 
-static void hv_msi_free_irq(struct irq_domain *domain,
-			    struct msi_domain_info *info, unsigned int virq)
-{
-	struct irq_data *irqd = irq_get_irq_data(virq);
-	struct msi_desc *desc;
-
-	if (!irqd)
-		return;
-
-	desc = irq_data_get_msi_desc(irqd);
-	if (!desc || !desc->irq || WARN_ON_ONCE(!dev_is_pci(desc->dev)))
-		return;
-
-	hv_teardown_msi_irq(to_pci_dev(desc->dev), irqd);
-}
-
 /*
  * IRQ Chip for MSI PCI/PCI-X/PCI-Express Devices,
  * which implement the MSI or MSI-X Capability Structure.
  */
 static struct irq_chip hv_pci_msi_controller = {
 	.name			= "HV-PCI-MSI",
-	.irq_unmask		= pci_msi_unmask_irq,
-	.irq_mask		= pci_msi_mask_irq,
 	.irq_ack		= irq_chip_ack_parent,
-	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.irq_compose_msi_msg	= hv_irq_compose_msi_msg,
-	.irq_set_affinity	= msi_domain_set_affinity,
-	.flags			= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MOVE_DEFERRED,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
 };
 
-static struct msi_domain_ops pci_msi_domain_ops = {
-	.msi_free		= hv_msi_free_irq,
-	.msi_prepare		= pci_msi_prepare,
+static bool hv_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
+				 struct irq_domain *real_parent, struct msi_domain_info *info)
+{
+	struct irq_chip *chip = info->chip;
+
+	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
+		return false;
+
+	chip->flags |= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MOVE_DEFERRED;
+
+	info->ops->msi_prepare = pci_msi_prepare;
+
+	return true;
+}
+
+#define HV_MSI_FLAGS_SUPPORTED	(MSI_GENERIC_FLAGS_MASK | MSI_FLAG_PCI_MSIX)
+#define HV_MSI_FLAGS_REQUIRED	(MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS)
+
+static struct msi_parent_ops hv_msi_parent_ops = {
+	.supported_flags	= HV_MSI_FLAGS_SUPPORTED,
+	.required_flags		= HV_MSI_FLAGS_REQUIRED,
+	.bus_select_token	= DOMAIN_BUS_NEXUS,
+	.bus_select_mask	= MATCH_PCI_MSI,
+	.chip_flags		= MSI_CHIP_FLAG_SET_ACK,
+	.prefix			= "HV-",
+	.init_dev_msi_info	= hv_init_dev_msi_info,
 };
 
-static struct msi_domain_info hv_pci_msi_domain_info = {
-	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-			  MSI_FLAG_PCI_MSIX,
-	.ops		= &pci_msi_domain_ops,
-	.chip		= &hv_pci_msi_controller,
-	.handler	= handle_edge_irq,
-	.handler_name	= "edge",
+static int hv_msi_domain_alloc(struct irq_domain *d, unsigned int virq, unsigned int nr_irqs,
+			       void *arg)
+{
+	/*
+	 * TODO: The allocation bits of hv_irq_compose_msi_msg(), i.e. everything except
+	 * entry_to_msi_msg() should be in here.
+	 */
+
+	int ret;
+
+	ret = irq_domain_alloc_irqs_parent(d, virq, nr_irqs, arg);
+	if (ret)
+		return ret;
+
+	for (int i = 0; i < nr_irqs; ++i) {
+		irq_domain_set_info(d, virq + i, 0, &hv_pci_msi_controller, NULL,
+				    handle_edge_irq, NULL, "edge");
+	}
+	return 0;
+}
+
+static void hv_msi_domain_free(struct irq_domain *d, unsigned int virq, unsigned int nr_irqs)
+{
+	for (int i = 0; i < nr_irqs; ++i) {
+		struct irq_data *irqd = irq_domain_get_irq_data(d, virq);
+		struct msi_desc *desc;
+
+		desc = irq_data_get_msi_desc(irqd);
+		if (!desc || !desc->irq || WARN_ON_ONCE(!dev_is_pci(desc->dev)))
+			continue;
+
+		hv_teardown_msi_irq(to_pci_dev(desc->dev), irqd);
+	}
+	irq_domain_free_irqs_top(d, virq, nr_irqs);
+}
+
+static const struct irq_domain_ops hv_msi_domain_ops = {
+	.select	= msi_lib_irq_domain_select,
+	.alloc	= hv_msi_domain_alloc,
+	.free	= hv_msi_domain_free,
 };
 
 struct irq_domain * __init hv_create_pci_msi_domain(void)
 {
 	struct irq_domain *d = NULL;
-	struct fwnode_handle *fn;
 
-	fn = irq_domain_alloc_named_fwnode("HV-PCI-MSI");
-	if (fn)
-		d = pci_msi_create_irq_domain(fn, &hv_pci_msi_domain_info, x86_vector_domain);
+	struct irq_domain_info info = {
+		.fwnode		= irq_domain_alloc_named_fwnode("HV-PCI-MSI"),
+		.ops		= &hv_msi_domain_ops,
+		.parent		= x86_vector_domain,
+	};
+
+	if (info.fwnode)
+		d = msi_create_parent_irq_domain(&info, &hv_msi_parent_ops);
 
 	/* No point in going further if we can't get an irq domain */
 	BUG_ON(!d);

@@ -18,6 +18,7 @@ properties:
       - enum:
           - ampire,am8001280g
           - bananapi,lhr050h41
+          - bestar,bsd1218-a101kl68
           - feixin,k101-im2byl02
           - raspberrypi,dsi-7inch
           - startek,kd050hdfia020

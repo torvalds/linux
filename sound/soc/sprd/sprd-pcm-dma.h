@@ -19,7 +19,7 @@ struct sprd_compr_playinfo {
 	int total_time;
 	int current_time;
 	int total_data_length;
-	int current_data_offset;
+	u64 current_data_offset;
 };
 
 struct sprd_compr_params {
@@ -46,7 +46,7 @@ struct sprd_compr_ops {
 	int (*stop)(int str_id);
 	int (*pause)(int str_id);
 	int (*pause_release)(int str_id);
-	int (*drain)(int received_total);
+	int (*drain)(u64 received_total);
 	int (*set_params)(int str_id, struct sprd_compr_params *params);
 };
 

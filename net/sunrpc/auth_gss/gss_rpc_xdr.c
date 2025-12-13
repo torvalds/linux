@@ -794,12 +794,12 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 	struct gssx_res_accept_sec_context *res = data;
 	u32 value_follows;
 	int err;
-	struct page *scratch;
+	struct folio *scratch;
 
-	scratch = alloc_page(GFP_KERNEL);
+	scratch = folio_alloc(GFP_KERNEL, 0);
 	if (!scratch)
 		return -ENOMEM;
-	xdr_set_scratch_page(xdr, scratch);
+	xdr_set_scratch_folio(xdr, scratch);
 
 	/* res->status */
 	err = gssx_dec_status(xdr, &res->status);
@@ -844,6 +844,6 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 	err = gssx_dec_option_array(xdr, &res->options);
 
 out_free:
-	__free_page(scratch);
+	folio_put(scratch);
 	return err;
 }

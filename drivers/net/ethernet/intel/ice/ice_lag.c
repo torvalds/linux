@@ -10,12 +10,17 @@
 #define ICE_LAG_RES_SHARED	BIT(14)
 #define ICE_LAG_RES_VALID	BIT(15)
 
-#define LACP_TRAIN_PKT_LEN		16
-static const u8 lacp_train_pkt[LACP_TRAIN_PKT_LEN] = { 0, 0, 0, 0, 0, 0,
-						       0, 0, 0, 0, 0, 0,
-						       0x88, 0x09, 0, 0 };
+#define ICE_TRAIN_PKT_LEN		16
+static const u8 lacp_train_pkt[ICE_TRAIN_PKT_LEN] = { 0, 0, 0, 0, 0, 0,
+						      0, 0, 0, 0, 0, 0,
+						      0x88, 0x09, 0, 0 };
+static const u8 act_act_train_pkt[ICE_TRAIN_PKT_LEN] = { 0, 0, 0, 0, 0, 0,
+							 0, 0, 0, 0, 0, 0,
+							 0, 0, 0, 0 };
 
 #define ICE_RECIPE_LEN			64
+#define ICE_LAG_SRIOV_CP_RECIPE		10
+
 static const u8 ice_dflt_vsi_rcp[ICE_RECIPE_LEN] = {
 	0x05, 0, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0x85, 0, 0x01, 0, 0, 0, 0xff, 0xff, 0x08, 0, 0, 0, 0, 0, 0, 0,
@@ -46,10 +51,10 @@ static void ice_lag_set_primary(struct ice_lag *lag)
 }
 
 /**
- * ice_lag_set_backup - set PF LAG state to Backup
+ * ice_lag_set_bkup - set PF LAG state to Backup
  * @lag: LAG info struct
  */
-static void ice_lag_set_backup(struct ice_lag *lag)
+static void ice_lag_set_bkup(struct ice_lag *lag)
 {
 	struct ice_pf *pf = lag->pf;
 
@@ -96,6 +101,28 @@ static bool netif_is_same_ice(struct ice_pf *pf, struct net_device *netdev)
 		return false;
 
 	return true;
+}
+
+/**
+ * ice_lag_config_eswitch - configure eswitch to work with LAG
+ * @lag: lag info struct
+ * @netdev: active network interface device struct
+ *
+ * Updates all port representors in eswitch to use @netdev for Tx.
+ *
+ * Configures the netdev to keep dst metadata (also used in representor Tx).
+ * This is required for an uplink without switchdev mode configured.
+ */
+static void ice_lag_config_eswitch(struct ice_lag *lag,
+				   struct net_device *netdev)
+{
+	struct ice_repr *repr;
+	unsigned long id;
+
+	xa_for_each(&lag->pf->eswitch.reprs, id, repr)
+		repr->dst->u.port_info.lower_dev = netdev;
+
+	netif_keep_dst(netdev);
 }
 
 /**
@@ -210,13 +237,12 @@ ice_lag_cfg_fltr(struct ice_lag *lag, u32 act, u16 recipe_id, u16 *rule_idx,
 		 u8 direction, bool add)
 {
 	struct ice_sw_rule_lkup_rx_tx *s_rule;
+	struct ice_hw *hw = &lag->pf->hw;
 	u16 s_rule_sz, vsi_num;
-	struct ice_hw *hw;
 	u8 *eth_hdr;
 	u32 opc;
 	int err;
 
-	hw = &lag->pf->hw;
 	vsi_num = ice_get_hw_vsi_num(hw, 0);
 
 	s_rule_sz = ICE_SW_RULE_RX_TX_ETH_HDR_SIZE(s_rule);
@@ -314,26 +340,15 @@ ice_lag_cfg_drop_fltr(struct ice_lag *lag, bool add)
 }
 
 /**
- * ice_lag_cfg_pf_fltrs - set filters up for new active port
+ * ice_lag_cfg_pf_fltrs_act_bkup - set filters up for new active port
  * @lag: local interfaces lag struct
- * @ptr: opaque data containing notifier event
+ * @bonding_info: netdev event bonding info
  */
 static void
-ice_lag_cfg_pf_fltrs(struct ice_lag *lag, void *ptr)
+ice_lag_cfg_pf_fltrs_act_bkup(struct ice_lag *lag,
+			      struct netdev_bonding_info *bonding_info)
 {
-	struct netdev_notifier_bonding_info *info;
-	struct netdev_bonding_info *bonding_info;
-	struct net_device *event_netdev;
-	struct device *dev;
-
-	event_netdev = netdev_notifier_info_to_dev(ptr);
-	/* not for this netdev */
-	if (event_netdev != lag->netdev)
-		return;
-
-	info = (struct netdev_notifier_bonding_info *)ptr;
-	bonding_info = &info->bonding_info;
-	dev = ice_pf_to_dev(lag->pf);
+	struct device *dev = ice_pf_to_dev(lag->pf);
 
 	/* interface not active - remove old default VSI rule */
 	if (bonding_info->slave.state && lag->pf_rx_rule_id) {
@@ -350,6 +365,105 @@ ice_lag_cfg_pf_fltrs(struct ice_lag *lag, void *ptr)
 			dev_err(dev, "Error adding new default VSI filter\n");
 		if (lag->lport_rule_idx && ice_lag_cfg_drop_fltr(lag, false))
 			dev_err(dev, "Error removing old drop filter\n");
+	}
+}
+
+/**
+ * ice_lag_cfg_lp_fltr - configure lport filters
+ * @lag: local interface's lag struct
+ * @add: add or remove rule
+ * @cp: control packet only or general PF lport rule
+ */
+static void
+ice_lag_cfg_lp_fltr(struct ice_lag *lag, bool add, bool cp)
+{
+	struct ice_sw_rule_lkup_rx_tx *s_rule;
+	struct ice_vsi *vsi = lag->pf->vsi[0];
+	u16 buf_len, opc;
+
+	buf_len = ICE_SW_RULE_RX_TX_HDR_SIZE(s_rule, ICE_TRAIN_PKT_LEN);
+	s_rule = kzalloc(buf_len, GFP_KERNEL);
+	if (!s_rule) {
+		netdev_warn(lag->netdev, "-ENOMEM error configuring CP filter\n");
+		return;
+	}
+
+	if (add) {
+		if (cp) {
+			s_rule->recipe_id =
+				cpu_to_le16(ICE_LAG_SRIOV_CP_RECIPE);
+			memcpy(s_rule->hdr_data, lacp_train_pkt,
+			       ICE_TRAIN_PKT_LEN);
+		} else {
+			s_rule->recipe_id = cpu_to_le16(lag->act_act_recipe);
+			memcpy(s_rule->hdr_data, act_act_train_pkt,
+			       ICE_TRAIN_PKT_LEN);
+		}
+
+		s_rule->src = cpu_to_le16(vsi->port_info->lport);
+		s_rule->act = cpu_to_le32(ICE_FWD_TO_VSI |
+					  ICE_SINGLE_ACT_LAN_ENABLE |
+					  ICE_SINGLE_ACT_VALID_BIT |
+					  FIELD_PREP(ICE_SINGLE_ACT_VSI_ID_M,
+						     vsi->vsi_num));
+		s_rule->hdr_len = cpu_to_le16(ICE_TRAIN_PKT_LEN);
+		s_rule->hdr.type = cpu_to_le16(ICE_AQC_SW_RULES_T_LKUP_RX);
+		opc = ice_aqc_opc_add_sw_rules;
+	} else {
+		opc = ice_aqc_opc_remove_sw_rules;
+		if (cp)
+			s_rule->index = cpu_to_le16(lag->cp_rule_idx);
+		else
+			s_rule->index = cpu_to_le16(lag->act_act_rule_idx);
+	}
+	if (ice_aq_sw_rules(&lag->pf->hw, s_rule, buf_len, 1, opc, NULL)) {
+		netdev_warn(lag->netdev, "Error %s %s rule for aggregate\n",
+			    add ? "ADDING" : "REMOVING",
+			    cp ? "CONTROL PACKET" : "LPORT");
+		goto err_cp_free;
+	}
+
+	if (add) {
+		if (cp)
+			lag->cp_rule_idx = le16_to_cpu(s_rule->index);
+		else
+			lag->act_act_rule_idx = le16_to_cpu(s_rule->index);
+	} else {
+		if (cp)
+			lag->cp_rule_idx = 0;
+		else
+			lag->act_act_rule_idx = 0;
+	}
+
+err_cp_free:
+	kfree(s_rule);
+}
+
+/**
+ * ice_lag_cfg_pf_fltrs - set filters up for PF traffic
+ * @lag: local interfaces lag struct
+ * @ptr: opaque data containing notifier event
+ */
+static void
+ice_lag_cfg_pf_fltrs(struct ice_lag *lag, void *ptr)
+{
+	struct netdev_notifier_bonding_info *info = ptr;
+	struct netdev_bonding_info *bonding_info;
+	struct net_device *event_netdev;
+
+	event_netdev = netdev_notifier_info_to_dev(ptr);
+	if (event_netdev != lag->netdev)
+		return;
+
+	bonding_info = &info->bonding_info;
+
+	if (lag->bond_aa) {
+		if (lag->need_fltr_cfg) {
+			ice_lag_cfg_lp_fltr(lag, true, false);
+			lag->need_fltr_cfg = false;
+		}
+	} else {
+		ice_lag_cfg_pf_fltrs_act_bkup(lag, bonding_info);
 	}
 }
 
@@ -402,12 +516,11 @@ static u16
 ice_lag_qbuf_recfg(struct ice_hw *hw, struct ice_aqc_cfg_txqs_buf *qbuf,
 		   u16 vsi_num, u16 numq, u8 tc)
 {
+	struct ice_pf *pf = hw->back;
 	struct ice_q_ctx *q_ctx;
 	u16 qid, count = 0;
-	struct ice_pf *pf;
 	int i;
 
-	pf = hw->back;
 	for (i = 0; i < numq; i++) {
 		q_ctx = ice_get_lan_q_ctx(hw, vsi_num, tc, i);
 		if (!q_ctx) {
@@ -577,7 +690,7 @@ ice_lag_move_vf_node_tc(struct ice_lag *lag, u8 oldport, u8 newport,
 	}
 
 	if (ice_aq_cfg_lan_txq(&lag->pf->hw, qbuf, qbuf_size, valq, oldport,
-			       newport, NULL)) {
+			       newport, ICE_AQC_Q_CFG_TC_CHNG, NULL)) {
 		dev_warn(dev, "Failure to configure queues for LAG failover\n");
 		goto qbuf_err;
 	}
@@ -677,54 +790,6 @@ ice_lag_move_single_vf_nodes(struct ice_lag *lag, u8 oldport, u8 newport,
 }
 
 /**
- * ice_lag_move_new_vf_nodes - Move Tx scheduling nodes for a VF if required
- * @vf: the VF to move Tx nodes for
- *
- * Called just after configuring new VF queues. Check whether the VF Tx
- * scheduling nodes need to be updated to fail over to the active port. If so,
- * move them now.
- */
-void ice_lag_move_new_vf_nodes(struct ice_vf *vf)
-{
-	struct ice_lag_netdev_list ndlist;
-	u8 pri_port, act_port;
-	struct ice_lag *lag;
-	struct ice_vsi *vsi;
-	struct ice_pf *pf;
-
-	vsi = ice_get_vf_vsi(vf);
-
-	if (WARN_ON(!vsi))
-		return;
-
-	if (WARN_ON(vsi->type != ICE_VSI_VF))
-		return;
-
-	pf = vf->pf;
-	lag = pf->lag;
-
-	mutex_lock(&pf->lag_mutex);
-	if (!lag->bonded)
-		goto new_vf_unlock;
-
-	pri_port = pf->hw.port_info->lport;
-	act_port = lag->active_port;
-
-	if (lag->upper_netdev)
-		ice_lag_build_netdev_list(lag, &ndlist);
-
-	if (ice_is_feature_supported(pf, ICE_F_SRIOV_LAG) &&
-	    lag->bonded && lag->primary && pri_port != act_port &&
-	    !list_empty(lag->netdev_head))
-		ice_lag_move_single_vf_nodes(lag, pri_port, act_port, vsi->idx);
-
-	ice_lag_destroy_netdev_list(lag, &ndlist);
-
-new_vf_unlock:
-	mutex_unlock(&pf->lag_mutex);
-}
-
-/**
  * ice_lag_move_vf_nodes - move Tx scheduling nodes for all VFs to new port
  * @lag: lag info struct
  * @oldport: lport of previous interface
@@ -767,61 +832,6 @@ void ice_lag_move_vf_nodes_cfg(struct ice_lag *lag, u8 src_prt, u8 dst_prt)
 	ice_lag_destroy_netdev_list(lag, &ndlist);
 }
 
-#define ICE_LAG_SRIOV_CP_RECIPE		10
-#define ICE_LAG_SRIOV_TRAIN_PKT_LEN	16
-
-/**
- * ice_lag_cfg_cp_fltr - configure filter for control packets
- * @lag: local interface's lag struct
- * @add: add or remove rule
- */
-static void
-ice_lag_cfg_cp_fltr(struct ice_lag *lag, bool add)
-{
-	struct ice_sw_rule_lkup_rx_tx *s_rule = NULL;
-	struct ice_vsi *vsi;
-	u16 buf_len, opc;
-
-	vsi = lag->pf->vsi[0];
-
-	buf_len = ICE_SW_RULE_RX_TX_HDR_SIZE(s_rule,
-					     ICE_LAG_SRIOV_TRAIN_PKT_LEN);
-	s_rule = kzalloc(buf_len, GFP_KERNEL);
-	if (!s_rule) {
-		netdev_warn(lag->netdev, "-ENOMEM error configuring CP filter\n");
-		return;
-	}
-
-	if (add) {
-		s_rule->hdr.type = cpu_to_le16(ICE_AQC_SW_RULES_T_LKUP_RX);
-		s_rule->recipe_id = cpu_to_le16(ICE_LAG_SRIOV_CP_RECIPE);
-		s_rule->src = cpu_to_le16(vsi->port_info->lport);
-		s_rule->act = cpu_to_le32(ICE_FWD_TO_VSI |
-					  ICE_SINGLE_ACT_LAN_ENABLE |
-					  ICE_SINGLE_ACT_VALID_BIT |
-					  FIELD_PREP(ICE_SINGLE_ACT_VSI_ID_M, vsi->vsi_num));
-		s_rule->hdr_len = cpu_to_le16(ICE_LAG_SRIOV_TRAIN_PKT_LEN);
-		memcpy(s_rule->hdr_data, lacp_train_pkt, LACP_TRAIN_PKT_LEN);
-		opc = ice_aqc_opc_add_sw_rules;
-	} else {
-		opc = ice_aqc_opc_remove_sw_rules;
-		s_rule->index = cpu_to_le16(lag->cp_rule_idx);
-	}
-	if (ice_aq_sw_rules(&lag->pf->hw, s_rule, buf_len, 1, opc, NULL)) {
-		netdev_warn(lag->netdev, "Error %s CP rule for fail-over\n",
-			    add ? "ADDING" : "REMOVING");
-		goto cp_free;
-	}
-
-	if (add)
-		lag->cp_rule_idx = le16_to_cpu(s_rule->index);
-	else
-		lag->cp_rule_idx = 0;
-
-cp_free:
-	kfree(s_rule);
-}
-
 /**
  * ice_lag_prepare_vf_reset - helper to adjust vf lag for reset
  * @lag: lag struct for interface that owns VF
@@ -835,11 +845,20 @@ u8 ice_lag_prepare_vf_reset(struct ice_lag *lag)
 	u8 pri_prt, act_prt;
 
 	if (lag && lag->bonded && lag->primary && lag->upper_netdev) {
-		pri_prt = lag->pf->hw.port_info->lport;
-		act_prt = lag->active_port;
-		if (act_prt != pri_prt && act_prt != ICE_LAG_INVALID_PORT) {
-			ice_lag_move_vf_nodes_cfg(lag, act_prt, pri_prt);
-			return act_prt;
+		if (!lag->bond_aa) {
+			pri_prt = lag->pf->hw.port_info->lport;
+			act_prt = lag->active_port;
+			if (act_prt != pri_prt &&
+			    act_prt != ICE_LAG_INVALID_PORT) {
+				ice_lag_move_vf_nodes_cfg(lag, act_prt, pri_prt);
+				return act_prt;
+			}
+		} else {
+			if (lag->port_bitmap & ICE_LAGS_M) {
+				lag->port_bitmap &= ~ICE_LAGS_M;
+				ice_lag_aa_failover(lag, ICE_LAGP_IDX, NULL);
+				lag->port_bitmap |= ICE_LAGS_M;
+			}
 		}
 	}
 
@@ -857,10 +876,15 @@ void ice_lag_complete_vf_reset(struct ice_lag *lag, u8 act_prt)
 {
 	u8 pri_prt;
 
-	if (lag && lag->bonded && lag->primary &&
-	    act_prt != ICE_LAG_INVALID_PORT) {
-		pri_prt = lag->pf->hw.port_info->lport;
-		ice_lag_move_vf_nodes_cfg(lag, pri_prt, act_prt);
+	if (lag && lag->bonded && lag->primary) {
+		if (!lag->bond_aa) {
+			pri_prt = lag->pf->hw.port_info->lport;
+			if (act_prt != ICE_LAG_INVALID_PORT)
+				ice_lag_move_vf_nodes_cfg(lag, pri_prt,
+							  act_prt);
+		} else {
+			ice_lag_aa_failover(lag, ICE_LAGS_IDX, NULL);
+		}
 	}
 }
 
@@ -873,13 +897,12 @@ void ice_lag_complete_vf_reset(struct ice_lag *lag, u8 act_prt)
  */
 static void ice_lag_info_event(struct ice_lag *lag, void *ptr)
 {
-	struct netdev_notifier_bonding_info *info;
+	struct netdev_notifier_bonding_info *info = ptr;
 	struct netdev_bonding_info *bonding_info;
 	struct net_device *event_netdev;
 	const char *lag_netdev_name;
 
 	event_netdev = netdev_notifier_info_to_dev(ptr);
-	info = ptr;
 	lag_netdev_name = netdev_name(lag->netdev);
 	bonding_info = &info->bonding_info;
 
@@ -897,12 +920,301 @@ static void ice_lag_info_event(struct ice_lag *lag, void *ptr)
 	}
 
 	if (bonding_info->slave.state)
-		ice_lag_set_backup(lag);
+		ice_lag_set_bkup(lag);
 	else
 		ice_lag_set_primary(lag);
 
 lag_out:
 	ice_display_lag_info(lag);
+}
+
+/**
+ * ice_lag_aa_qbuf_recfg - fill a single queue buffer for recfg cmd
+ * @hw: HW struct that contains the queue context
+ * @qbuf: pointer to single queue buffer
+ * @vsi_num: index of the VF VSI in PF space
+ * @qnum: queue index
+ *
+ * Return: Zero on success, error code on failure.
+ */
+static int
+ice_lag_aa_qbuf_recfg(struct ice_hw *hw, struct ice_aqc_cfg_txqs_buf *qbuf,
+		      u16 vsi_num, int qnum)
+{
+	struct ice_pf *pf = hw->back;
+	struct ice_q_ctx *q_ctx;
+	u16 q_id;
+
+	q_ctx = ice_get_lan_q_ctx(hw, vsi_num, 0, qnum);
+	if (!q_ctx) {
+		dev_dbg(ice_hw_to_dev(hw), "LAG queue %d no Q context\n", qnum);
+		return -ENOENT;
+	}
+
+	if (q_ctx->q_teid == ICE_INVAL_TEID) {
+		dev_dbg(ice_hw_to_dev(hw), "LAG queue %d INVAL TEID\n", qnum);
+		return -EINVAL;
+	}
+
+	if (q_ctx->q_handle == ICE_INVAL_Q_HANDLE) {
+		dev_dbg(ice_hw_to_dev(hw), "LAG queue %d INVAL Q HANDLE\n", qnum);
+		return -EINVAL;
+	}
+
+	q_id = pf->vsi[vsi_num]->txq_map[q_ctx->q_handle];
+	qbuf->queue_info[0].q_handle = cpu_to_le16(q_id);
+	qbuf->queue_info[0].tc = 0;
+	qbuf->queue_info[0].q_teid = cpu_to_le32(q_ctx->q_teid);
+
+	return 0;
+}
+
+/**
+ * ice_lag_aa_move_vf_qs - Move some/all VF queues to destination
+ * @lag: primary interface's lag struct
+ * @dest: index of destination port
+ * @vsi_num: index of VF VSI in PF space
+ * @all: if true move all queues to destination
+ * @odd: VF wide q indicator for odd/even
+ * @e_pf: PF struct for the event interface
+ *
+ * the parameter "all" is to control whether we are splitting the queues
+ * between two interfaces or moving them all to the destination interface
+ */
+static void ice_lag_aa_move_vf_qs(struct ice_lag *lag, u8 dest, u16 vsi_num,
+				  bool all, bool *odd, struct ice_pf *e_pf)
+{
+	DEFINE_RAW_FLEX(struct ice_aqc_cfg_txqs_buf, qbuf, queue_info, 1);
+	struct ice_hw *old_hw, *new_hw, *pri_hw, *sec_hw;
+	struct device *dev = ice_pf_to_dev(lag->pf);
+	struct ice_vsi_ctx *pv_ctx, *sv_ctx;
+	struct ice_lag_netdev_list ndlist;
+	u16 num_q, qbuf_size, sec_vsi_num;
+	u8 pri_lport, sec_lport;
+	u32 pvf_teid, svf_teid;
+	u16 vf_id;
+
+	vf_id = lag->pf->vsi[vsi_num]->vf->vf_id;
+	/* If sec_vf[] not defined, then no second interface to share with */
+	if (lag->sec_vf[vf_id])
+		sec_vsi_num = lag->sec_vf[vf_id]->idx;
+	else
+		return;
+
+	pri_lport = lag->bond_lport_pri;
+	sec_lport = lag->bond_lport_sec;
+
+	if (pri_lport == ICE_LAG_INVALID_PORT ||
+	    sec_lport == ICE_LAG_INVALID_PORT)
+		return;
+
+	if (!e_pf)
+		ice_lag_build_netdev_list(lag, &ndlist);
+
+	pri_hw = &lag->pf->hw;
+	if (e_pf && lag->pf != e_pf)
+		sec_hw = &e_pf->hw;
+	else
+		sec_hw = ice_lag_find_hw_by_lport(lag, sec_lport);
+
+	if (!pri_hw || !sec_hw)
+		return;
+
+	if (dest == ICE_LAGP_IDX) {
+		struct ice_vsi *vsi;
+
+		vsi = ice_get_main_vsi(lag->pf);
+		if (!vsi)
+			return;
+
+		old_hw = sec_hw;
+		new_hw = pri_hw;
+		ice_lag_config_eswitch(lag, vsi->netdev);
+	} else {
+		struct ice_pf *sec_pf = sec_hw->back;
+		struct ice_vsi *vsi;
+
+		vsi = ice_get_main_vsi(sec_pf);
+		if (!vsi)
+			return;
+
+		old_hw = pri_hw;
+		new_hw = sec_hw;
+		ice_lag_config_eswitch(lag, vsi->netdev);
+	}
+
+	pv_ctx = ice_get_vsi_ctx(pri_hw, vsi_num);
+	if (!pv_ctx) {
+		dev_warn(dev, "Unable to locate primary VSI %d context for LAG failover\n",
+			 vsi_num);
+		return;
+	}
+
+	sv_ctx = ice_get_vsi_ctx(sec_hw, sec_vsi_num);
+	if (!sv_ctx) {
+		dev_warn(dev, "Unable to locate secondary VSI %d context for LAG failover\n",
+			 vsi_num);
+		return;
+	}
+
+	num_q = pv_ctx->num_lan_q_entries[0];
+	qbuf_size = __struct_size(qbuf);
+
+	/* Suspend traffic for primary VSI VF */
+	pvf_teid = le32_to_cpu(pv_ctx->sched.vsi_node[0]->info.node_teid);
+	ice_sched_suspend_resume_elems(pri_hw, 1, &pvf_teid, true);
+
+	/* Suspend traffic for secondary VSI VF */
+	svf_teid = le32_to_cpu(sv_ctx->sched.vsi_node[0]->info.node_teid);
+	ice_sched_suspend_resume_elems(sec_hw, 1, &svf_teid, true);
+
+	for (int i = 0; i < num_q; i++) {
+		struct ice_sched_node *n_prt, *q_node, *parent;
+		struct ice_port_info *pi, *new_pi;
+		struct ice_vsi_ctx *src_ctx;
+		struct ice_sched_node *p;
+		struct ice_q_ctx *q_ctx;
+		u16 dst_vsi_num;
+
+		pi = old_hw->port_info;
+		new_pi = new_hw->port_info;
+
+		*odd = !(*odd);
+		if ((dest == ICE_LAGP_IDX && *odd && !all) ||
+		    (dest == ICE_LAGS_IDX && !(*odd) && !all) ||
+		    lag->q_home[vf_id][i] == dest)
+			continue;
+
+		if (dest == ICE_LAGP_IDX)
+			dst_vsi_num = vsi_num;
+		else
+			dst_vsi_num = sec_vsi_num;
+
+		n_prt = ice_sched_get_free_qparent(new_hw->port_info,
+						   dst_vsi_num, 0,
+						   ICE_SCHED_NODE_OWNER_LAN);
+		if (!n_prt)
+			continue;
+
+		q_ctx = ice_get_lan_q_ctx(pri_hw, vsi_num, 0, i);
+		if (!q_ctx)
+			continue;
+
+		if (dest == ICE_LAGP_IDX)
+			src_ctx = sv_ctx;
+		else
+			src_ctx = pv_ctx;
+
+		q_node = ice_sched_find_node_by_teid(src_ctx->sched.vsi_node[0],
+						     q_ctx->q_teid);
+		if (!q_node)
+			continue;
+
+		qbuf->src_parent_teid = q_node->info.parent_teid;
+		qbuf->dst_parent_teid = n_prt->info.node_teid;
+
+		/* Move the node in the HW/FW */
+		if (ice_lag_aa_qbuf_recfg(pri_hw, qbuf, vsi_num, i))
+			continue;
+
+		if (dest == ICE_LAGP_IDX)
+			ice_aq_cfg_lan_txq(pri_hw, qbuf, qbuf_size, 1,
+					   sec_lport, pri_lport,
+					   ICE_AQC_Q_CFG_MOVE_TC_CHNG,
+					   NULL);
+		else
+			ice_aq_cfg_lan_txq(pri_hw, qbuf, qbuf_size, 1,
+					   pri_lport, sec_lport,
+					   ICE_AQC_Q_CFG_MOVE_TC_CHNG,
+					   NULL);
+
+		/* Move the node in the SW */
+		parent = q_node->parent;
+		if (!parent)
+			continue;
+
+		for (int n = 0; n < parent->num_children; n++) {
+			int j;
+
+			if (parent->children[n] != q_node)
+				continue;
+
+			for (j = n + 1; j < parent->num_children;
+			     j++) {
+				parent->children[j - 1] =
+					parent->children[j];
+			}
+			parent->children[j] = NULL;
+			parent->num_children--;
+			break;
+		}
+
+		p = pi->sib_head[0][q_node->tx_sched_layer];
+		while (p) {
+			if (p->sibling == q_node) {
+				p->sibling = q_node->sibling;
+				break;
+			}
+			p = p->sibling;
+		}
+
+		if (pi->sib_head[0][q_node->tx_sched_layer] == q_node)
+			pi->sib_head[0][q_node->tx_sched_layer] =
+				q_node->sibling;
+
+		q_node->parent = n_prt;
+		q_node->info.parent_teid = n_prt->info.node_teid;
+		q_node->sibling = NULL;
+		p = new_pi->sib_head[0][q_node->tx_sched_layer];
+		if (p) {
+			while (p) {
+				if (!p->sibling) {
+					p->sibling = q_node;
+					break;
+				}
+				p = p->sibling;
+			}
+		} else {
+			new_pi->sib_head[0][q_node->tx_sched_layer] =
+				q_node;
+		}
+
+		n_prt->children[n_prt->num_children++] = q_node;
+		lag->q_home[vf_id][i] = dest;
+	}
+
+	ice_sched_suspend_resume_elems(pri_hw, 1, &pvf_teid, false);
+	ice_sched_suspend_resume_elems(sec_hw, 1, &svf_teid, false);
+
+	if (!e_pf)
+		ice_lag_destroy_netdev_list(lag, &ndlist);
+}
+
+/**
+ * ice_lag_aa_failover - move VF queues in A/A mode
+ * @lag: primary lag struct
+ * @dest: index of destination port
+ * @e_pf: PF struct for event port
+ */
+void ice_lag_aa_failover(struct ice_lag *lag, u8 dest, struct ice_pf *e_pf)
+{
+	bool odd = true, all = false;
+	int i;
+
+	/* Primary can be a target if down (cleanup), but secondary can't */
+	if (dest == ICE_LAGS_IDX && !(lag->port_bitmap & ICE_LAGS_M))
+		return;
+
+	/* Move all queues to a destination if only one port is active,
+	 * or no ports are active and dest is primary.
+	 */
+	if ((lag->port_bitmap ^ (ICE_LAGP_M | ICE_LAGS_M)) ||
+	    (!lag->port_bitmap && dest == ICE_LAGP_IDX))
+		all = true;
+
+	ice_for_each_vsi(lag->pf, i)
+		if (lag->pf->vsi[i] && lag->pf->vsi[i]->type == ICE_VSI_VF)
+			ice_lag_aa_move_vf_qs(lag, dest, i, all, &odd, e_pf);
 }
 
 /**
@@ -921,13 +1233,12 @@ ice_lag_reclaim_vf_tc(struct ice_lag *lag, struct ice_hw *src_hw, u16 vsi_num,
 	u16 numq, valq, num_moved, qbuf_size;
 	u16 buf_size = __struct_size(buf);
 	struct ice_aqc_cfg_txqs_buf *qbuf;
+	struct ice_hw *hw = &lag->pf->hw;
 	struct ice_sched_node *n_prt;
 	__le32 teid, parent_teid;
 	struct ice_vsi_ctx *ctx;
-	struct ice_hw *hw;
 	u32 tmp_teid;
 
-	hw = &lag->pf->hw;
 	ctx = ice_get_vsi_ctx(hw, vsi_num);
 	if (!ctx) {
 		dev_warn(dev, "Unable to locate VSI context for LAG reclaim\n");
@@ -968,7 +1279,7 @@ ice_lag_reclaim_vf_tc(struct ice_lag *lag, struct ice_hw *src_hw, u16 vsi_num,
 
 	if (ice_aq_cfg_lan_txq(hw, qbuf, qbuf_size, numq,
 			       src_hw->port_info->lport, hw->port_info->lport,
-			       NULL)) {
+			       ICE_AQC_Q_CFG_TC_CHNG, NULL)) {
 		dev_warn(dev, "Failure to configure queues for LAG failover\n");
 		goto reclaim_qerr;
 	}
@@ -1039,36 +1350,15 @@ static void ice_lag_link(struct ice_lag *lag)
 
 	lag->bonded = true;
 	lag->role = ICE_LAG_UNSET;
+	lag->need_fltr_cfg = true;
 	netdev_info(lag->netdev, "Shared SR-IOV resources in bond are active\n");
 }
 
 /**
- * ice_lag_config_eswitch - configure eswitch to work with LAG
- * @lag: lag info struct
- * @netdev: active network interface device struct
- *
- * Updates all port representors in eswitch to use @netdev for Tx.
- *
- * Configures the netdev to keep dst metadata (also used in representor Tx).
- * This is required for an uplink without switchdev mode configured.
- */
-static void ice_lag_config_eswitch(struct ice_lag *lag,
-				   struct net_device *netdev)
-{
-	struct ice_repr *repr;
-	unsigned long id;
-
-	xa_for_each(&lag->pf->eswitch.reprs, id, repr)
-		repr->dst->u.port_info.lower_dev = netdev;
-
-	netif_keep_dst(netdev);
-}
-
-/**
- * ice_lag_unlink - handle unlink event
+ * ice_lag_act_bkup_unlink - handle unlink event for A/B bond
  * @lag: LAG info struct
  */
-static void ice_lag_unlink(struct ice_lag *lag)
+static void ice_lag_act_bkup_unlink(struct ice_lag *lag)
 {
 	u8 pri_port, act_port, loc_port;
 	struct ice_pf *pf = lag->pf;
@@ -1104,10 +1394,32 @@ static void ice_lag_unlink(struct ice_lag *lag)
 			}
 		}
 	}
+}
 
-	lag->bonded = false;
-	lag->role = ICE_LAG_NONE;
-	lag->upper_netdev = NULL;
+/**
+ * ice_lag_aa_unlink - handle unlink event for Active-Active bond
+ * @lag: LAG info struct
+ */
+static void ice_lag_aa_unlink(struct ice_lag *lag)
+{
+	struct ice_lag *pri_lag;
+
+	if (lag->primary) {
+		pri_lag = lag;
+		lag->port_bitmap &= ~ICE_LAGP_M;
+	} else {
+		pri_lag = ice_lag_find_primary(lag);
+		if (pri_lag)
+			pri_lag->port_bitmap &= ICE_LAGS_M;
+	}
+
+	if (pri_lag) {
+		ice_lag_aa_failover(pri_lag, ICE_LAGP_IDX, lag->pf);
+		if (lag->primary)
+			pri_lag->bond_lport_pri = ICE_LAG_INVALID_PORT;
+		else
+			pri_lag->bond_lport_sec = ICE_LAG_INVALID_PORT;
+	}
 }
 
 /**
@@ -1123,10 +1435,20 @@ static void ice_lag_link_unlink(struct ice_lag *lag, void *ptr)
 	if (netdev != lag->netdev)
 		return;
 
-	if (info->linking)
+	if (info->linking) {
 		ice_lag_link(lag);
-	else
-		ice_lag_unlink(lag);
+	} else {
+		if (lag->bond_aa)
+			ice_lag_aa_unlink(lag);
+		else
+			ice_lag_act_bkup_unlink(lag);
+
+		lag->bonded = false;
+		lag->role = ICE_LAG_NONE;
+		lag->upper_netdev = NULL;
+		lag->bond_aa = false;
+		lag->need_fltr_cfg = false;
+	}
 }
 
 /**
@@ -1224,11 +1546,8 @@ ice_lag_set_swid(u16 primary_swid, struct ice_lag *local_lag,
  */
 static void ice_lag_primary_swid(struct ice_lag *lag, bool link)
 {
-	struct ice_hw *hw;
-	u16 swid;
-
-	hw = &lag->pf->hw;
-	swid = hw->port_info->sw_id;
+	struct ice_hw *hw = &lag->pf->hw;
+	u16 swid = hw->port_info->sw_id;
 
 	if (ice_share_res(hw, ICE_AQC_RES_TYPE_SWID, link, swid))
 		dev_warn(ice_pf_to_dev(lag->pf), "Failure to set primary interface shared status\n");
@@ -1241,11 +1560,9 @@ static void ice_lag_primary_swid(struct ice_lag *lag, bool link)
  */
 static void ice_lag_add_prune_list(struct ice_lag *lag, struct ice_pf *event_pf)
 {
-	u16 num_vsi, rule_buf_sz, vsi_list_id, event_vsi_num, prim_vsi_idx;
-	struct ice_sw_rule_vsi_list *s_rule = NULL;
+	u16 rule_buf_sz, vsi_list_id, event_vsi_num, prim_vsi_idx, num_vsi = 1;
+	struct ice_sw_rule_vsi_list *s_rule;
 	struct device *dev;
-
-	num_vsi = 1;
 
 	dev = ice_pf_to_dev(lag->pf);
 	event_vsi_num = event_pf->vsi[0]->vsi_num;
@@ -1282,11 +1599,9 @@ static void ice_lag_add_prune_list(struct ice_lag *lag, struct ice_pf *event_pf)
  */
 static void ice_lag_del_prune_list(struct ice_lag *lag, struct ice_pf *event_pf)
 {
-	u16 num_vsi, vsi_num, vsi_idx, rule_buf_sz, vsi_list_id;
-	struct ice_sw_rule_vsi_list *s_rule = NULL;
+	u16 vsi_num, vsi_idx, rule_buf_sz, vsi_list_id, num_vsi = 1;
+	struct ice_sw_rule_vsi_list *s_rule;
 	struct device *dev;
-
-	num_vsi = 1;
 
 	dev = ice_pf_to_dev(lag->pf);
 	vsi_num = event_pf->vsi[0]->vsi_num;
@@ -1335,6 +1650,11 @@ static void ice_lag_init_feature_support_flag(struct ice_pf *pf)
 		ice_set_feature_support(pf, ICE_F_SRIOV_LAG);
 	else
 		ice_clear_feature_support(pf, ICE_F_SRIOV_LAG);
+
+	if (caps->sriov_aa_lag && ice_pkg_has_lport_extract(&pf->hw))
+		ice_set_feature_support(pf, ICE_F_SRIOV_AA_LAG);
+	else
+		ice_clear_feature_support(pf, ICE_F_SRIOV_AA_LAG);
 }
 
 /**
@@ -1344,11 +1664,10 @@ static void ice_lag_init_feature_support_flag(struct ice_pf *pf)
  */
 static void ice_lag_changeupper_event(struct ice_lag *lag, void *ptr)
 {
-	struct netdev_notifier_changeupper_info *info;
+	struct netdev_notifier_changeupper_info *info = ptr;
 	struct ice_lag *primary_lag;
 	struct net_device *netdev;
 
-	info = ptr;
 	netdev = netdev_notifier_info_to_dev(ptr);
 
 	/* not for this netdev */
@@ -1369,6 +1688,9 @@ static void ice_lag_changeupper_event(struct ice_lag *lag, void *ptr)
 			/* Configure primary's SWID to be shared */
 			ice_lag_primary_swid(lag, true);
 			primary_lag = lag;
+			lag->bond_lport_pri = lag->pf->hw.port_info->lport;
+			lag->bond_lport_sec = ICE_LAG_INVALID_PORT;
+			lag->port_bitmap = 0;
 		} else {
 			u16 swid;
 
@@ -1378,16 +1700,29 @@ static void ice_lag_changeupper_event(struct ice_lag *lag, void *ptr)
 			swid = primary_lag->pf->hw.port_info->sw_id;
 			ice_lag_set_swid(swid, lag, true);
 			ice_lag_add_prune_list(primary_lag, lag->pf);
-			ice_lag_cfg_drop_fltr(lag, true);
+			primary_lag->bond_lport_sec =
+				lag->pf->hw.port_info->lport;
 		}
 		/* add filter for primary control packets */
-		ice_lag_cfg_cp_fltr(lag, true);
+		ice_lag_cfg_lp_fltr(lag, true, true);
 	} else {
 		if (!primary_lag && lag->primary)
 			primary_lag = lag;
 
+		if (primary_lag) {
+			for (int i = 0; i < ICE_MAX_SRIOV_VFS; i++) {
+				if (primary_lag->sec_vf[i]) {
+					ice_vsi_release(primary_lag->sec_vf[i]);
+					primary_lag->sec_vf[i] = NULL;
+				}
+			}
+		}
+
 		if (!lag->primary) {
 			ice_lag_set_swid(0, lag, false);
+			if (primary_lag)
+				primary_lag->bond_lport_sec =
+					ICE_LAG_INVALID_PORT;
 		} else {
 			if (primary_lag && lag->primary) {
 				ice_lag_primary_swid(lag, false);
@@ -1395,7 +1730,7 @@ static void ice_lag_changeupper_event(struct ice_lag *lag, void *ptr)
 			}
 		}
 		/* remove filter for control packets */
-		ice_lag_cfg_cp_fltr(lag, false);
+		ice_lag_cfg_lp_fltr(lag, false, !lag->bond_aa);
 	}
 }
 
@@ -1408,7 +1743,7 @@ static void ice_lag_changeupper_event(struct ice_lag *lag, void *ptr)
  */
 static void ice_lag_monitor_link(struct ice_lag *lag, void *ptr)
 {
-	struct netdev_notifier_changeupper_info *info;
+	struct netdev_notifier_changeupper_info *info = ptr;
 	struct ice_hw *prim_hw, *active_hw;
 	struct net_device *event_netdev;
 	struct ice_pf *pf;
@@ -1421,19 +1756,34 @@ static void ice_lag_monitor_link(struct ice_lag *lag, void *ptr)
 	if (!netif_is_same_ice(lag->pf, event_netdev))
 		return;
 
+	if (info->upper_dev != lag->upper_netdev)
+		return;
+
+	if (info->linking)
+		return;
+
 	pf = lag->pf;
 	prim_hw = &pf->hw;
 	prim_port = prim_hw->port_info->lport;
 
-	info = (struct netdev_notifier_changeupper_info *)ptr;
-	if (info->upper_dev != lag->upper_netdev)
-		return;
+	/* Since there are only two interfaces allowed in SRIOV+LAG, if
+	 * one port is leaving, then nodes need to be on primary
+	 * interface.
+	 */
+	if (lag->bond_aa) {
+		struct ice_netdev_priv *e_ndp;
+		struct ice_pf *e_pf;
 
-	if (!info->linking) {
-		/* Since there are only two interfaces allowed in SRIOV+LAG, if
-		 * one port is leaving, then nodes need to be on primary
-		 * interface.
-		 */
+		e_ndp = netdev_priv(event_netdev);
+		e_pf = e_ndp->vsi->back;
+
+		if (lag->bond_lport_pri != ICE_LAG_INVALID_PORT &&
+		    lag->port_bitmap & ICE_LAGS_M) {
+			lag->port_bitmap &= ~ICE_LAGS_M;
+			ice_lag_aa_failover(lag, ICE_LAGP_IDX, e_pf);
+			lag->bond_lport_sec = ICE_LAG_INVALID_PORT;
+		}
+	} else {
 		if (prim_port != lag->active_port &&
 		    lag->active_port != ICE_LAG_INVALID_PORT) {
 			active_hw = ice_lag_find_hw_by_lport(lag,
@@ -1445,34 +1795,24 @@ static void ice_lag_monitor_link(struct ice_lag *lag, void *ptr)
 }
 
 /**
- * ice_lag_monitor_active - main PF keep track of which port is active
+ * ice_lag_monitor_act_bkup - keep track of which port is active in A/B LAG
  * @lag: lag info struct
- * @ptr: opaque data containing notifier event
+ * @b_info: bonding info
+ * @event_netdev: net_device got target netdev
  *
  * This function is for the primary PF to monitor changes in which port is
  * active and handle changes for SRIOV VF functionality
  */
-static void ice_lag_monitor_active(struct ice_lag *lag, void *ptr)
+static void ice_lag_monitor_act_bkup(struct ice_lag *lag,
+				     struct netdev_bonding_info *b_info,
+				     struct net_device *event_netdev)
 {
-	struct net_device *event_netdev, *event_upper;
-	struct netdev_notifier_bonding_info *info;
-	struct netdev_bonding_info *bonding_info;
 	struct ice_netdev_priv *event_np;
 	struct ice_pf *pf, *event_pf;
 	u8 prim_port, event_port;
 
-	if (!lag->primary)
-		return;
-
 	pf = lag->pf;
 	if (!pf)
-		return;
-
-	event_netdev = netdev_notifier_info_to_dev(ptr);
-	rcu_read_lock();
-	event_upper = netdev_master_upper_dev_get_rcu(event_netdev);
-	rcu_read_unlock();
-	if (!netif_is_ice(event_netdev) || event_upper != lag->upper_netdev)
 		return;
 
 	event_np = netdev_priv(event_netdev);
@@ -1480,10 +1820,7 @@ static void ice_lag_monitor_active(struct ice_lag *lag, void *ptr)
 	event_port = event_pf->hw.port_info->lport;
 	prim_port = pf->hw.port_info->lport;
 
-	info = (struct netdev_notifier_bonding_info *)ptr;
-	bonding_info = &info->bonding_info;
-
-	if (!bonding_info->slave.state) {
+	if (!b_info->slave.state) {
 		/* if no port is currently active, then nodes and filters exist
 		 * on primary port, check if we need to move them
 		 */
@@ -1520,6 +1857,128 @@ static void ice_lag_monitor_active(struct ice_lag *lag, void *ptr)
 }
 
 /**
+ * ice_lag_aa_clear_spoof - adjust the placeholder VSI spoofing for A/A LAG
+ * @vsi: placeholder VSI to adjust
+ */
+static void ice_lag_aa_clear_spoof(struct ice_vsi *vsi)
+{
+	ice_vsi_update_security(vsi, ice_vsi_ctx_clear_antispoof);
+}
+
+/**
+ * ice_lag_monitor_act_act - Keep track of active ports in A/A LAG
+ * @lag: lag struct for primary interface
+ * @b_info: bonding_info for event
+ * @event_netdev: net_device for target netdev
+ */
+static void ice_lag_monitor_act_act(struct ice_lag *lag,
+				    struct netdev_bonding_info *b_info,
+				    struct net_device *event_netdev)
+{
+	struct ice_netdev_priv *event_np;
+	u8 prim_port, event_port;
+	struct ice_pf *event_pf;
+
+	event_np = netdev_priv(event_netdev);
+	event_pf = event_np->vsi->back;
+	event_port = event_pf->hw.port_info->lport;
+	prim_port = lag->pf->hw.port_info->lport;
+
+	if (b_info->slave.link == BOND_LINK_UP) {
+		/* Port is coming up */
+		if (prim_port == event_port) {
+			/* Processing event for primary interface */
+			if (lag->bond_lport_pri == ICE_LAG_INVALID_PORT)
+				return;
+
+			if (!(lag->port_bitmap & ICE_LAGP_M)) {
+				/* Primary port was not marked up before, move
+				 * some|all VF queues to it and mark as up
+				 */
+				lag->port_bitmap |= ICE_LAGP_M;
+				ice_lag_aa_failover(lag, ICE_LAGP_IDX, event_pf);
+			}
+		} else {
+			if (lag->bond_lport_sec == ICE_LAG_INVALID_PORT)
+				return;
+
+			/* Create placeholder VSIs on secondary PF.
+			 * The placeholder is necessary so that we have
+			 * an element that represents the VF on the secondary
+			 * interface's scheduling tree.  This will be a tree
+			 * root for scheduling nodes when they are moved to
+			 * the secondary interface.
+			 */
+			if (!lag->sec_vf[0]) {
+				struct ice_vsi_cfg_params params = {};
+				struct ice_vsi *nvsi;
+				struct ice_vf *vf;
+				unsigned int bkt;
+
+				params.type = ICE_VSI_VF;
+				params.port_info = event_pf->hw.port_info;
+				params.flags = ICE_VSI_FLAG_INIT;
+
+				ice_for_each_vf(lag->pf, bkt, vf) {
+					params.vf = vf;
+					nvsi = ice_vsi_setup(event_pf,
+							     &params);
+					ice_lag_aa_clear_spoof(nvsi);
+					lag->sec_vf[vf->vf_id] = nvsi;
+				}
+			}
+
+			if (!(lag->port_bitmap & ICE_LAGS_M)) {
+				/* Secondary port was not marked up before,
+				 * move some|all VF queues to it and mark as up
+				 */
+				lag->port_bitmap |= ICE_LAGS_M;
+				ice_lag_aa_failover(lag, ICE_LAGS_IDX, event_pf);
+			}
+		}
+	} else {
+		/* Port is going down */
+		if (prim_port == event_port) {
+			lag->port_bitmap &= ~ICE_LAGP_M;
+			ice_lag_aa_failover(lag, ICE_LAGS_IDX, event_pf);
+		} else {
+			lag->port_bitmap &= ~ICE_LAGS_M;
+			ice_lag_aa_failover(lag, ICE_LAGP_IDX, event_pf);
+		}
+	}
+}
+
+/**
+ * ice_lag_monitor_info - Calls relevant A/A or A/B monitoring function
+ * @lag: lag info struct
+ * @ptr: opaque data containing notifier event
+ *
+ * This function is for the primary PF to monitor changes in which port is
+ * active and handle changes for SRIOV VF functionality
+ */
+static void ice_lag_monitor_info(struct ice_lag *lag, void *ptr)
+{
+	struct netdev_notifier_bonding_info *info = ptr;
+	struct net_device *event_netdev, *event_upper;
+	struct netdev_bonding_info *bonding_info;
+
+	if (!lag->primary)
+		return;
+
+	event_netdev = netdev_notifier_info_to_dev(ptr);
+	bonding_info = &info->bonding_info;
+	rcu_read_lock();
+	event_upper = netdev_master_upper_dev_get_rcu(event_netdev);
+	rcu_read_unlock();
+	if (!netif_is_ice(event_netdev) || event_upper != lag->upper_netdev)
+		return;
+
+	if (lag->bond_aa)
+		ice_lag_monitor_act_act(lag, bonding_info, event_netdev);
+	else
+		ice_lag_monitor_act_bkup(lag, bonding_info, event_netdev);
+}
+/**
  * ice_lag_chk_comp - evaluate bonded interface for feature support
  * @lag: lag info struct
  * @ptr: opaque data for netdev event info
@@ -1527,12 +1986,20 @@ static void ice_lag_monitor_active(struct ice_lag *lag, void *ptr)
 static bool
 ice_lag_chk_comp(struct ice_lag *lag, void *ptr)
 {
+	struct netdev_notifier_bonding_info *info = ptr;
 	struct net_device *event_netdev, *event_upper;
-	struct netdev_notifier_bonding_info *info;
 	struct netdev_bonding_info *bonding_info;
 	struct list_head *tmp;
 	struct device *dev;
 	int count = 0;
+
+	/* All members need to know if bond A/A or A/B */
+	bonding_info = &info->bonding_info;
+	lag->bond_mode = bonding_info->master.bond_mode;
+	if (lag->bond_mode != BOND_MODE_ACTIVEBACKUP)
+		lag->bond_aa = true;
+	else
+		lag->bond_aa = false;
 
 	if (!lag->primary)
 		return true;
@@ -1554,13 +2021,9 @@ ice_lag_chk_comp(struct ice_lag *lag, void *ptr)
 		return false;
 	}
 
-	info = (struct netdev_notifier_bonding_info *)ptr;
-	bonding_info = &info->bonding_info;
-	lag->bond_mode = bonding_info->master.bond_mode;
-	if (lag->bond_mode != BOND_MODE_ACTIVEBACKUP) {
-		dev_info(dev, "Bond Mode not ACTIVE-BACKUP - VF LAG disabled\n");
+	if (lag->bond_aa && !ice_is_feature_supported(lag->pf,
+						      ICE_F_SRIOV_AA_LAG))
 		return false;
-	}
 
 	list_for_each(tmp, lag->netdev_head) {
 		struct ice_dcbx_cfg *dcb_cfg, *peer_dcb_cfg;
@@ -1664,10 +2127,9 @@ ice_lag_unregister(struct ice_lag *lag, struct net_device *event_netdev)
 static void
 ice_lag_monitor_rdma(struct ice_lag *lag, void *ptr)
 {
-	struct netdev_notifier_changeupper_info *info;
+	struct netdev_notifier_changeupper_info *info = ptr;
 	struct net_device *netdev;
 
-	info = ptr;
 	netdev = netdev_notifier_info_to_dev(ptr);
 
 	if (netdev != lag->netdev)
@@ -1715,12 +2177,30 @@ static void ice_lag_chk_disabled_bond(struct ice_lag *lag, void *ptr)
  */
 static void ice_lag_disable_sriov_bond(struct ice_lag *lag)
 {
-	struct ice_netdev_priv *np;
-	struct ice_pf *pf;
+	struct ice_netdev_priv *np = netdev_priv(lag->netdev);
+	struct ice_pf *pf = np->vsi->back;
 
-	np = netdev_priv(lag->netdev);
-	pf = np->vsi->back;
 	ice_clear_feature_support(pf, ICE_F_SRIOV_LAG);
+	ice_clear_feature_support(pf, ICE_F_SRIOV_AA_LAG);
+}
+
+/**
+ * ice_lag_preset_drop_fltr - preset drop filter for A/B bonds
+ * @lag: local lag struct
+ * @ptr: opaque data containing event
+ *
+ * Sets the initial drop filter for secondary interface in an
+ * active-backup bond
+ */
+static void ice_lag_preset_drop_fltr(struct ice_lag *lag, void *ptr)
+{
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+
+	if (netdev != lag->netdev || lag->primary || !lag->need_fltr_cfg)
+		return;
+
+	ice_lag_cfg_drop_fltr(lag, true);
+	lag->need_fltr_cfg = false;
 }
 
 /**
@@ -1761,9 +2241,11 @@ static void ice_lag_process_event(struct work_struct *work)
 				ice_lag_unregister(lag_work->lag, netdev);
 				goto lag_cleanup;
 			}
-			ice_lag_monitor_active(lag_work->lag,
-					       &lag_work->info.bonding_info);
 			ice_lag_cfg_pf_fltrs(lag_work->lag,
+					     &lag_work->info.bonding_info);
+			ice_lag_preset_drop_fltr(lag_work->lag,
+						 &lag_work->info.bonding_info);
+			ice_lag_monitor_info(lag_work->lag,
 					     &lag_work->info.bonding_info);
 		}
 		ice_lag_info_event(lag_work->lag, &lag_work->info.bonding_info);
@@ -1837,9 +2319,8 @@ ice_lag_event_handler(struct notifier_block *notif_blk, unsigned long event,
 	lag_work->lag = lag;
 	lag_work->event = event;
 	if (event == NETDEV_CHANGEUPPER) {
-		struct netdev_notifier_changeupper_info *info;
+		struct netdev_notifier_changeupper_info *info = ptr;
 
-		info = ptr;
 		upper_netdev = info->upper_dev;
 	} else {
 		upper_netdev = netdev_master_upper_dev_get(netdev);
@@ -1889,10 +2370,8 @@ ice_lag_event_handler(struct notifier_block *notif_blk, unsigned long event,
  */
 static int ice_register_lag_handler(struct ice_lag *lag)
 {
+	struct notifier_block *notif_blk = &lag->notif_block;
 	struct device *dev = ice_pf_to_dev(lag->pf);
-	struct notifier_block *notif_blk;
-
-	notif_blk = &lag->notif_block;
 
 	if (!notif_blk->notifier_call) {
 		notif_blk->notifier_call = ice_lag_event_handler;
@@ -1912,10 +2391,9 @@ static int ice_register_lag_handler(struct ice_lag *lag)
  */
 static void ice_unregister_lag_handler(struct ice_lag *lag)
 {
+	struct notifier_block *notif_blk = &lag->notif_block;
 	struct device *dev = ice_pf_to_dev(lag->pf);
-	struct notifier_block *notif_blk;
 
-	notif_blk = &lag->notif_block;
 	if (notif_blk->notifier_call) {
 		unregister_netdevice_notifier(notif_blk);
 		dev_dbg(dev, "LAG event handler unregistered\n");
@@ -1977,13 +2455,12 @@ ice_lag_move_vf_nodes_tc_sync(struct ice_lag *lag, struct ice_hw *dest_hw,
 	u16 numq, valq, num_moved, qbuf_size;
 	u16 buf_size = __struct_size(buf);
 	struct ice_aqc_cfg_txqs_buf *qbuf;
+	struct ice_hw *hw = &lag->pf->hw;
 	struct ice_sched_node *n_prt;
 	__le32 teid, parent_teid;
 	struct ice_vsi_ctx *ctx;
-	struct ice_hw *hw;
 	u32 tmp_teid;
 
-	hw = &lag->pf->hw;
 	ctx = ice_get_vsi_ctx(hw, vsi_num);
 	if (!ctx) {
 		dev_warn(dev, "LAG rebuild failed after reset due to VSI Context failure\n");
@@ -2020,7 +2497,8 @@ ice_lag_move_vf_nodes_tc_sync(struct ice_lag *lag, struct ice_hw *dest_hw,
 	}
 
 	if (ice_aq_cfg_lan_txq(hw, qbuf, qbuf_size, numq, hw->port_info->lport,
-			       dest_hw->port_info->lport, NULL)) {
+			       dest_hw->port_info->lport,
+			       ICE_AQC_Q_CFG_TC_CHNG, NULL)) {
 		dev_warn(dev, "Failure to configure queues for LAG reset rebuild\n");
 		goto sync_qerr;
 	}
@@ -2116,9 +2594,13 @@ int ice_init_lag(struct ice_pf *pf)
 	lag->netdev = vsi->netdev;
 	lag->role = ICE_LAG_NONE;
 	lag->active_port = ICE_LAG_INVALID_PORT;
+	lag->port_bitmap = 0x0;
 	lag->bonded = false;
+	lag->bond_aa = false;
+	lag->need_fltr_cfg = false;
 	lag->upper_netdev = NULL;
 	lag->notif_block.notifier_call = NULL;
+	memset(lag->sec_vf, 0, sizeof(lag->sec_vf));
 
 	err = ice_register_lag_handler(lag);
 	if (err) {
@@ -2136,6 +2618,11 @@ int ice_init_lag(struct ice_pf *pf)
 	if (err)
 		goto free_rcp_res;
 
+	err = ice_create_lag_recipe(&pf->hw, &lag->act_act_recipe,
+				    ice_lport_rcp, 1);
+	if (err)
+		goto  free_lport_res;
+
 	/* associate recipes to profiles */
 	for (n = 0; n < ICE_PROFID_IPV6_GTPU_IPV6_TCP_INNER; n++) {
 		err = ice_aq_get_recipe_to_profile(&pf->hw, n,
@@ -2145,7 +2632,8 @@ int ice_init_lag(struct ice_pf *pf)
 
 		if (recipe_bits & BIT(ICE_SW_LKUP_DFLT)) {
 			recipe_bits |= BIT(lag->pf_recipe) |
-				       BIT(lag->lport_recipe);
+				       BIT(lag->lport_recipe) |
+				       BIT(lag->act_act_recipe);
 			ice_aq_map_recipe_to_profile(&pf->hw, n,
 						     recipe_bits, NULL);
 		}
@@ -2156,9 +2644,13 @@ int ice_init_lag(struct ice_pf *pf)
 	dev_dbg(dev, "INIT LAG complete\n");
 	return 0;
 
+free_lport_res:
+	ice_free_hw_res(&pf->hw, ICE_AQC_RES_TYPE_RECIPE, 1,
+			&lag->lport_recipe);
+
 free_rcp_res:
 	ice_free_hw_res(&pf->hw, ICE_AQC_RES_TYPE_RECIPE, 1,
-			&pf->lag->pf_recipe);
+			&lag->pf_recipe);
 lag_error:
 	kfree(lag);
 	pf->lag = NULL;
@@ -2174,9 +2666,7 @@ lag_error:
  */
 void ice_deinit_lag(struct ice_pf *pf)
 {
-	struct ice_lag *lag;
-
-	lag = pf->lag;
+	struct ice_lag *lag = pf->lag;
 
 	if (!lag)
 		return;
@@ -2245,11 +2735,15 @@ void ice_lag_rebuild(struct ice_pf *pf)
 			ice_lag_move_vf_nodes_sync(prim_lag, &pf->hw);
 	}
 
-	ice_lag_cfg_cp_fltr(lag, true);
+	if (!lag->bond_aa) {
+		ice_lag_cfg_lp_fltr(lag, true, true);
+		if (lag->pf_rx_rule_id)
+			if (ice_lag_cfg_dflt_fltr(lag, true))
+				dev_err(ice_pf_to_dev(pf), "Error adding default VSI rule in rebuild\n");
+	} else {
+		ice_lag_cfg_lp_fltr(lag, true, false);
+	}
 
-	if (lag->pf_rx_rule_id)
-		if (ice_lag_cfg_dflt_fltr(lag, true))
-			dev_err(ice_pf_to_dev(pf), "Error adding default VSI rule in rebuild\n");
 
 	ice_clear_rdma_cap(pf);
 lag_rebuild_out:

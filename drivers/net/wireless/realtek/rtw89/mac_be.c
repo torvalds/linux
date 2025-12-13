@@ -56,6 +56,7 @@ static const struct rtw89_port_reg rtw89_port_base_be = {
 	.ptcl_dbg = R_BE_PTCL_DBG,
 	.ptcl_dbg_info = R_BE_PTCL_DBG_INFO,
 	.bcn_drop_all = R_BE_BCN_DROP_ALL0,
+	.bcn_psr_rpt = R_BE_BCN_PSR_RPT_P0,
 	.hiq_win = {R_BE_P0MB_HGQ_WINDOW_CFG_0, R_BE_PORT_HGQ_WINDOW_CFG,
 		    R_BE_PORT_HGQ_WINDOW_CFG + 1, R_BE_PORT_HGQ_WINDOW_CFG + 2,
 		    R_BE_PORT_HGQ_WINDOW_CFG + 3},

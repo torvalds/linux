@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/nuvoton,npcm750-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Nuvoton NPCM Watchdog
+
+maintainers:
+  - Joel Stanley <joel@jms.id.au>
+
+description:
+  Nuvoton NPCM timer module provides five 24-bit timer counters, and a watchdog.
+  The watchdog supports a pre-timeout interrupt that fires 10ms before the
+  expiry.
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - nuvoton,npcm750-wdt
+          - nuvoton,wpcm450-wdt
+      - items:
+          - enum:
+              - nuvoton,npcm845-wdt
+          - const: nuvoton,npcm750-wdt
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency:
+    description: Frequency in Hz of the clock that drives the NPCM timer.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/nuvoton,npcm7xx-clock.h>
+
+    watchdog@f000801c {
+        compatible = "nuvoton,npcm750-wdt";
+        interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+        reg = <0xf000801c 0x4>;
+        clocks = <&clk NPCM7XX_CLK_TIMER>;
+    };

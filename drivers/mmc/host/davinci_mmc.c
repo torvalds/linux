@@ -588,7 +588,7 @@ static void mmc_davinci_request(struct mmc_host *mmc, struct mmc_request *req)
 		cpu_relax();
 	}
 	if (mmcst1 & MMCST1_BUSY) {
-		dev_err(mmc_dev(host->mmc), "still BUSY? bad ... \n");
+		dev_err(mmc_dev(host->mmc), "still BUSY? bad ...\n");
 		req->cmd->error = -ETIMEDOUT;
 		mmc_request_done(mmc, req);
 		return;
@@ -1347,7 +1347,6 @@ static void davinci_mmcsd_remove(struct platform_device *pdev)
 	clk_disable_unprepare(host->clk);
 }
 
-#ifdef CONFIG_PM
 static int davinci_mmcsd_suspend(struct device *dev)
 {
 	struct mmc_davinci_host *host = dev_get_drvdata(dev);
@@ -1373,21 +1372,14 @@ static int davinci_mmcsd_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops davinci_mmcsd_pm = {
-	.suspend        = davinci_mmcsd_suspend,
-	.resume         = davinci_mmcsd_resume,
-};
-
-#define davinci_mmcsd_pm_ops (&davinci_mmcsd_pm)
-#else
-#define davinci_mmcsd_pm_ops NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(davinci_mmcsd_pm_ops,
+				davinci_mmcsd_suspend, davinci_mmcsd_resume);
 
 static struct platform_driver davinci_mmcsd_driver = {
 	.driver		= {
 		.name	= "davinci_mmc",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm	= davinci_mmcsd_pm_ops,
+		.pm	= pm_sleep_ptr(&davinci_mmcsd_pm_ops),
 		.of_match_table = davinci_mmc_dt_ids,
 	},
 	.probe		= davinci_mmcsd_probe,

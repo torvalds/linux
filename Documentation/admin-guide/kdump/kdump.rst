@@ -471,7 +471,7 @@ Notes on loading the dump-capture kernel:
   performance degradation. To enable multi-cpu support, you should bring up an
   SMP dump-capture kernel and specify maxcpus/nr_cpus options while loading it.
 
-* For s390x there are two kdump modes: If a ELF header is specified with
+* For s390x there are two kdump modes: If an ELF header is specified with
   the elfcorehdr= kernel parameter, it is used by the kdump kernel as it
   is done on all other architectures. If no elfcorehdr= kernel parameter is
   specified, the s390x kdump kernel dynamically creates the header. The

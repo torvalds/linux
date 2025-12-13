@@ -116,7 +116,7 @@ cache_strategy=%s      Select a strategy for cached decompression from now on:
                                    cluster for further reading. It still does
                                    in-place I/O decompression for the rest
                                    compressed physical clusters;
-                       readaround  Cache the both ends of incomplete compressed
+                       readaround  Cache both ends of incomplete compressed
                                    physical clusters for further reading.
                                    It still does in-place I/O decompression
                                    for the rest compressed physical clusters.

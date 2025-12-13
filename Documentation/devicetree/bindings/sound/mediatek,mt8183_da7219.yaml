@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/mediatek,mt8183_da7219.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek MT8183 sound card with external codecs
+
+maintainers:
+  - Julien Massot <jmassot@collabora.com>
+
+description:
+  MediaTek MT8183 SoC-based sound cards with DA7219 as headset codec,
+  and MAX98357A, RT1015 or RT1015P as speaker amplifiers. Optionally includes HDMI codec.
+
+properties:
+  compatible:
+    enum:
+      - mediatek,mt8183_da7219_max98357
+      - mediatek,mt8183_da7219_rt1015
+      - mediatek,mt8183_da7219_rt1015p
+
+  mediatek,headset-codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the DA7219 headset codec.
+
+  mediatek,platform:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the MT8183 ASoC platform (e.g., AFE node).
+
+  mediatek,hdmi-codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Optional phandle to the HDMI codec (e.g., IT6505).
+
+required:
+  - compatible
+  - mediatek,headset-codec
+  - mediatek,platform
+
+additionalProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "mediatek,mt8183_da7219_max98357";
+        mediatek,headset-codec = <&da7219>;
+        mediatek,hdmi-codec = <&it6505dptx>;
+        mediatek,platform = <&afe>;
+    };

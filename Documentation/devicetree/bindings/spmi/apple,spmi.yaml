@@ -16,12 +16,20 @@ allOf:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - apple,t8103-spmi
-          - apple,t6000-spmi
-          - apple,t8112-spmi
-      - const: apple,spmi
+    oneOf:
+      - items:
+          - enum:
+              - apple,t6020-spmi
+              - apple,t8012-spmi
+              - apple,t8015-spmi
+          - const: apple,t8103-spmi
+      - items:
+          - enum:
+              # Do not add additional SoC to this list.
+              - apple,t8103-spmi
+              - apple,t6000-spmi
+              - apple,t8112-spmi
+          - const: apple,spmi
 
   reg:
     maxItems: 1

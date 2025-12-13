@@ -119,6 +119,9 @@ static void __rtw89_enter_lps_link(struct rtw89_dev *rtwdev,
 
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_FW_CTRL);
 	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
+
+	if (RTW89_CHK_FW_FEATURE(BEACON_TRACKING, &rtwdev->fw))
+		rtw89_fw_h2c_pwr_lvl(rtwdev, rtwvif_link);
 }
 
 static void __rtw89_leave_lps(struct rtw89_dev *rtwdev,

@@ -134,47 +134,72 @@ The above command can be used with -v to get more debug information.
 
 After the system starts, use `delaytop` to get the system-wide delay information,
 which includes system-wide PSI information and Top-N high-latency tasks.
+Note: PSI support requires `CONFIG_PSI=y` and `psi=1` for full functionality.
 
-`delaytop` supports sorting by CPU latency in descending order by default,
-displays the top 20 high-latency tasks by default, and refreshes the latency
-data every 2 seconds by default.
+`delaytop` is an interactive tool for monitoring system pressure and task delays.
+It supports multiple sorting options, display modes, and real-time keyboard controls.
 
-Get PSI information and Top-N tasks delay, since system boot::
+Basic usage with default settings (sorts by CPU delay, shows top 20 tasks, refreshes every 2 seconds)::
 
 	bash# ./delaytop
-	System Pressure Information: (avg10/avg60/avg300/total)
-	CPU some:       0.0%/   0.0%/   0.0%/     345(ms)
+	System Pressure Information: (avg10/avg60vg300/total)
+	CPU some:       0.0%/   0.0%/   0.0%/  106137(ms)
 	CPU full:       0.0%/   0.0%/   0.0%/       0(ms)
 	Memory full:    0.0%/   0.0%/   0.0%/       0(ms)
 	Memory some:    0.0%/   0.0%/   0.0%/       0(ms)
-	IO full:        0.0%/   0.0%/   0.0%/      65(ms)
-	IO some:        0.0%/   0.0%/   0.0%/      79(ms)
+	IO full:        0.0%/   0.0%/   0.0%/    2240(ms)
+	IO some:        0.0%/   0.0%/   0.0%/    2783(ms)
 	IRQ full:       0.0%/   0.0%/   0.0%/       0(ms)
-	Top 20 processes (sorted by CPU delay):
-	  PID   TGID  COMMAND          CPU(ms)  IO(ms) SWAP(ms) RCL(ms) THR(ms) CMP(ms)  WP(ms) IRQ(ms)
-	----------------------------------------------------------------------------------------------
-	  161    161  zombie_memcg_re   1.40    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	  130    130  blkcg_punt_bio    1.37    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	  444    444  scsi_tmf_0        0.73    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	 1280   1280  rsyslogd          0.53    0.04    0.00    0.00    0.00    0.00    0.00    0.00
-	   12     12  ksoftirqd/0       0.47    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	 1277   1277  nbd-server        0.44    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	  308    308  kworker/2:2-sys   0.41    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	   55     55  netns             0.36    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	 1187   1187  acpid             0.31    0.03    0.00    0.00    0.00    0.00    0.00    0.00
-	 6184   6184  kworker/1:2-sys   0.24    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	  186    186  kaluad            0.24    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	   18     18  ksoftirqd/1       0.24    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	  185    185  kmpath_rdacd      0.23    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	  190    190  kstrp             0.23    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	 2759   2759  agetty            0.20    0.03    0.00    0.00    0.00    0.00    0.00    0.00
-	 1190   1190  kworker/0:3-sys   0.19    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	 1272   1272  sshd              0.15    0.04    0.00    0.00    0.00    0.00    0.00    0.00
-	 1156   1156  license           0.15    0.11    0.00    0.00    0.00    0.00    0.00    0.00
-	  134    134  md                0.13    0.00    0.00    0.00    0.00    0.00    0.00    0.00
-	 6142   6142  kworker/3:2-xfs   0.13    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	[o]sort [M]memverbose [q]quit
+	Top 20 processes (sorted by cpu delay):
+		PID      TGID  COMMAND           CPU(ms)   IO(ms)  IRQ(ms)  MEM(ms)
+	------------------------------------------------------------------------
+		110       110  kworker/15:0H-s   27.91     0.00     0.00     0.00
+		57        57  cpuhp/7            3.18     0.00     0.00     0.00
+		99        99  cpuhp/14           2.97     0.00     0.00     0.00
+		51        51  cpuhp/6            0.90     0.00     0.00     0.00
+		44        44  kworker/4:0H-sy    0.80     0.00     0.00     0.00
+		60        60  ksoftirqd/7        0.74     0.00     0.00     0.00
+		76        76  idle_inject/10     0.31     0.00     0.00     0.00
+		100       100  idle_inject/14     0.30     0.00     0.00     0.00
+		1309      1309  systemsettings     0.29     0.00     0.00     0.00
+		45        45  cpuhp/5            0.22     0.00     0.00     0.00
+		63        63  cpuhp/8            0.20     0.00     0.00     0.00
+		87        87  cpuhp/12           0.18     0.00     0.00     0.00
+		93        93  cpuhp/13           0.17     0.00     0.00     0.00
+		1265      1265  acpid              0.17     0.00     0.00     0.00
+		1552      1552  sshd               0.17     0.00     0.00     0.00
+		2584      2584  sddm-helper        0.16     0.00     0.00     0.00
+		1284      1284  rtkit-daemon       0.15     0.00     0.00     0.00
+		1326      1326  nde-netfilter      0.14     0.00     0.00     0.00
+		27        27  cpuhp/2            0.13     0.00     0.00     0.00
+		631       631  kworker/11:2-rc    0.11     0.00     0.00     0.00
 
-Dynamic interactive interface of delaytop::
+Interactive keyboard controls during runtime::
+
+	o - Select sort field (CPU, IO, IRQ, Memory, etc.)
+	M - Toggle display mode (Default/Memory Verbose)
+	q - Quit
+
+Available sort fields(use -s/--sort or interactive command)::
+
+	cpu(c)       - CPU delay
+	blkio(i)     - I/O delay
+	irq(q)       - IRQ delay
+	mem(m)       - Total memory delay
+	swapin(s)    - Swapin delay (memory verbose mode only)
+	freepages(r) - Freepages reclaim delay (memory verbose mode only)
+	thrashing(t) - Thrashing delay (memory verbose mode only)
+	compact(p)   - Compaction delay (memory verbose mode only)
+	wpcopy(w)    - Write page copy delay (memory verbose mode only)
+
+Advanced usage examples::
+
+	# ./delaytop -s blkio
+	Sorted by IO delay
+
+	# ./delaytop -s mem -M
+	Sorted by memory delay in memory verbose mode
 
 	# ./delaytop -p pid
 	Print delayacct stats

@@ -795,7 +795,6 @@ static const struct regmap_config rk_hdptx_phy_regmap_config = {
 	.val_bits = 32,
 	.writeable_reg = rk_hdptx_phy_is_rw_reg,
 	.readable_reg = rk_hdptx_phy_is_rw_reg,
-	.fast_io = true,
 	.max_register = 0x18b4,
 };
 

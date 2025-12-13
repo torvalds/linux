@@ -228,10 +228,9 @@ static int snd_opti9xx_init(struct snd_opti9xx *chip,
 static unsigned char snd_opti9xx_read(struct snd_opti9xx *chip,
 				      unsigned char reg)
 {
-	unsigned long flags;
 	unsigned char retval = 0xff;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	outb(chip->password, chip->mc_base + chip->pwd_reg);
 
 	switch (chip->hardware) {
@@ -265,16 +264,13 @@ static unsigned char snd_opti9xx_read(struct snd_opti9xx *chip,
 		dev_err(chip->card->dev, "chip %d not supported\n", chip->hardware);
 	}
 
-	spin_unlock_irqrestore(&chip->lock, flags);
 	return retval;
 }
 
 static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 			      unsigned char value)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	outb(chip->password, chip->mc_base + chip->pwd_reg);
 
 	switch (chip->hardware) {
@@ -307,8 +303,6 @@ static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 	default:
 		dev_err(chip->card->dev, "chip %d not supported\n", chip->hardware);
 	}
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 
@@ -659,9 +653,6 @@ static int snd_opti9xx_read_check(struct snd_card *card,
 				  struct snd_opti9xx *chip)
 {
 	unsigned char value;
-#ifdef OPTi93X
-	unsigned long flags;
-#endif
 
 	chip->res_mc_base =
 		devm_request_region(card->dev, chip->mc_base,
@@ -680,10 +671,10 @@ static int snd_opti9xx_read_check(struct snd_card *card,
 	if (!chip->res_mc_indir)
 		return -EBUSY;
 
-	spin_lock_irqsave(&chip->lock, flags);
-	outb(chip->password, chip->mc_base + chip->pwd_reg);
-	outb(((chip->mc_indir_index & 0x1f0) >> 4), chip->mc_base);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		outb(chip->password, chip->mc_base + chip->pwd_reg);
+		outb(((chip->mc_indir_index & 0x1f0) >> 4), chip->mc_base);
+	}
 
 	value = snd_opti9xx_read(chip, OPTi9XX_MC_REG(7));
 	snd_opti9xx_write(chip, OPTi9XX_MC_REG(7), 0xff - value);

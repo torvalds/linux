@@ -26,12 +26,17 @@
 #define PHY_ID_AQR111	0x03a1b610
 #define PHY_ID_AQR111B0	0x03a1b612
 #define PHY_ID_AQR112	0x03a1b662
-#define PHY_ID_AQR412	0x03a1b712
+#define PHY_ID_AQR412	0x03a1b6f2
+#define PHY_ID_AQR412C	0x03a1b712
 #define PHY_ID_AQR113	0x31c31c40
 #define PHY_ID_AQR113C	0x31c31c12
 #define PHY_ID_AQR114C	0x31c31c22
+#define PHY_ID_AQR115	0x31c31c63
 #define PHY_ID_AQR115C	0x31c31c33
 #define PHY_ID_AQR813	0x31c31cb2
+
+#define MDIO_PHYXS_VEND_PROV2			0xc441
+#define MDIO_PHYXS_VEND_PROV2_USX_AN		BIT(3)
 
 #define MDIO_PHYXS_VEND_IF_STATUS		0xe812
 #define MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK	GENMASK(7, 3)
@@ -82,6 +87,9 @@
 
 #define MDIO_AN_TX_VEND_INT_MASK2		0xd401
 #define MDIO_AN_TX_VEND_INT_MASK2_LINK		BIT(0)
+
+#define PMAPMD_FW_MISC_ID			0xc41d
+#define PMAPMD_FW_MISC_VER			0xc41e
 
 #define PMAPMD_RSVD_VEND_PROV			0xe400
 #define PMAPMD_RSVD_VEND_PROV_MDI_CONF		GENMASK(1, 0)
@@ -465,7 +473,7 @@ static int aqr105_config_aneg(struct phy_device *phydev)
 	return genphy_c45_check_and_restart_aneg(phydev, changed);
 }
 
-static int aqr105_read_rate(struct phy_device *phydev)
+static int aqr_gen1_read_rate(struct phy_device *phydev)
 {
 	int val;
 
@@ -504,8 +512,31 @@ static int aqr105_read_rate(struct phy_device *phydev)
 	return 0;
 }
 
-static int aqr105_read_status(struct phy_device *phydev)
+/* Quad port PHYs like AQR412(C) have 4 system interfaces, but they can also be
+ * used with a single system interface over which all 4 ports are multiplexed
+ * (10G-QXGMII). To the MDIO registers, this mode is indistinguishable from
+ * USXGMII (which implies a single 10G port).
+ *
+ * To not rely solely on the device tree, we allow the regular system interface
+ * detection to work as usual, but we replace USXGMII with 10G-QXGMII based on
+ * the specific fingerprint of firmware images that are known to be for MUSX.
+ */
+static phy_interface_t aqr_translate_interface(struct phy_device *phydev,
+					       phy_interface_t interface)
 {
+	struct aqr107_priv *priv = phydev->priv;
+
+	if (phy_id_compare(phydev->drv->phy_id, PHY_ID_AQR412C, phydev->drv->phy_id_mask) &&
+	    priv->fingerprint == AQR_G3_V4_3_C_AQR_NXP_SPF_30841_MUSX_ID40019_VER1198 &&
+	    interface == PHY_INTERFACE_MODE_USXGMII)
+		return PHY_INTERFACE_MODE_10G_QXGMII;
+
+	return interface;
+}
+
+static int aqr_gen1_read_status(struct phy_device *phydev)
+{
+	phy_interface_t interface;
 	int ret;
 	int val;
 
@@ -531,155 +562,65 @@ static int aqr105_read_status(struct phy_device *phydev)
 
 	switch (FIELD_GET(MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK, val)) {
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KR:
-		phydev->interface = PHY_INTERFACE_MODE_10GKR;
+		interface = PHY_INTERFACE_MODE_10GKR;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KX:
-		phydev->interface = PHY_INTERFACE_MODE_1000BASEKX;
+		interface = PHY_INTERFACE_MODE_1000BASEKX;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XFI:
-		phydev->interface = PHY_INTERFACE_MODE_10GBASER;
+		interface = PHY_INTERFACE_MODE_10GBASER;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_USXGMII:
-		phydev->interface = PHY_INTERFACE_MODE_USXGMII;
+		interface = PHY_INTERFACE_MODE_USXGMII;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XAUI:
-		phydev->interface = PHY_INTERFACE_MODE_XAUI;
+		interface = PHY_INTERFACE_MODE_XAUI;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_SGMII:
-		phydev->interface = PHY_INTERFACE_MODE_SGMII;
+		interface = PHY_INTERFACE_MODE_SGMII;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_RXAUI:
-		phydev->interface = PHY_INTERFACE_MODE_RXAUI;
+		interface = PHY_INTERFACE_MODE_RXAUI;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OCSGMII:
-		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
+		interface = PHY_INTERFACE_MODE_2500BASEX;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OFF:
 	default:
 		phydev->link = false;
-		phydev->interface = PHY_INTERFACE_MODE_NA;
+		interface = PHY_INTERFACE_MODE_NA;
 		break;
 	}
+
+	phydev->interface = aqr_translate_interface(phydev, interface);
 
 	/* Read rate from vendor register */
-	return aqr105_read_rate(phydev);
+	return aqr_gen1_read_rate(phydev);
 }
 
-static int aqr107_read_rate(struct phy_device *phydev)
+static int aqr_gen2_read_status(struct phy_device *phydev)
 {
-	u32 config_reg;
-	int val;
+	struct aqr107_priv *priv = phydev->priv;
+	int i, ret;
 
-	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_STATUS1);
-	if (val < 0)
-		return val;
-
-	if (val & MDIO_AN_TX_VEND_STATUS1_FULL_DUPLEX)
-		phydev->duplex = DUPLEX_FULL;
-	else
-		phydev->duplex = DUPLEX_HALF;
-
-	switch (FIELD_GET(MDIO_AN_TX_VEND_STATUS1_RATE_MASK, val)) {
-	case MDIO_AN_TX_VEND_STATUS1_10BASET:
-		phydev->speed = SPEED_10;
-		config_reg = VEND1_GLOBAL_CFG_10M;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_100BASETX:
-		phydev->speed = SPEED_100;
-		config_reg = VEND1_GLOBAL_CFG_100M;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_1000BASET:
-		phydev->speed = SPEED_1000;
-		config_reg = VEND1_GLOBAL_CFG_1G;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_2500BASET:
-		phydev->speed = SPEED_2500;
-		config_reg = VEND1_GLOBAL_CFG_2_5G;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_5000BASET:
-		phydev->speed = SPEED_5000;
-		config_reg = VEND1_GLOBAL_CFG_5G;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_10GBASET:
-		phydev->speed = SPEED_10000;
-		config_reg = VEND1_GLOBAL_CFG_10G;
-		break;
-	default:
-		phydev->speed = SPEED_UNKNOWN;
-		return 0;
-	}
-
-	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, config_reg);
-	if (val < 0)
-		return val;
-
-	if (FIELD_GET(VEND1_GLOBAL_CFG_RATE_ADAPT, val) ==
-	    VEND1_GLOBAL_CFG_RATE_ADAPT_PAUSE)
-		phydev->rate_matching = RATE_MATCH_PAUSE;
-	else
-		phydev->rate_matching = RATE_MATCH_NONE;
-
-	return 0;
-}
-
-static int aqr107_read_status(struct phy_device *phydev)
-{
-	int val, ret;
-
-	ret = aqr_read_status(phydev);
+	ret = aqr_gen1_read_status(phydev);
 	if (ret)
 		return ret;
 
-	if (!phydev->link || phydev->autoneg == AUTONEG_DISABLE)
-		return 0;
+	for (i = 0; i < AQR_NUM_GLOBAL_CFG; i++) {
+		struct aqr_global_syscfg *syscfg = &priv->global_cfg[i];
 
-	/* The status register is not immediately correct on line side link up.
-	 * Poll periodically until it reflects the correct ON state.
-	 * Only return fail for read error, timeout defaults to OFF state.
-	 */
-	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PHYXS,
-					MDIO_PHYXS_VEND_IF_STATUS, val,
-					(FIELD_GET(MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK, val) !=
-					MDIO_PHYXS_VEND_IF_STATUS_TYPE_OFF),
-					AQR107_OP_IN_PROG_SLEEP,
-					AQR107_OP_IN_PROG_TIMEOUT, false);
-	if (ret && ret != -ETIMEDOUT)
-		return ret;
+		if (syscfg->speed != phydev->speed)
+			continue;
 
-	switch (FIELD_GET(MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK, val)) {
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KR:
-		phydev->interface = PHY_INTERFACE_MODE_10GKR;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KX:
-		phydev->interface = PHY_INTERFACE_MODE_1000BASEKX;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XFI:
-		phydev->interface = PHY_INTERFACE_MODE_10GBASER;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_USXGMII:
-		phydev->interface = PHY_INTERFACE_MODE_USXGMII;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XAUI:
-		phydev->interface = PHY_INTERFACE_MODE_XAUI;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_SGMII:
-		phydev->interface = PHY_INTERFACE_MODE_SGMII;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_RXAUI:
-		phydev->interface = PHY_INTERFACE_MODE_RXAUI;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OCSGMII:
-		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OFF:
-	default:
-		phydev->link = false;
-		phydev->interface = PHY_INTERFACE_MODE_NA;
+		if (syscfg->rate_adapt == AQR_RATE_ADAPT_PAUSE)
+			phydev->rate_matching = RATE_MATCH_PAUSE;
+		else
+			phydev->rate_matching = RATE_MATCH_NONE;
 		break;
 	}
 
-	/* Read possibly downshifted rate from vendor register */
-	return aqr107_read_rate(phydev);
+	return 0;
 }
 
 static int aqr107_get_downshift(struct phy_device *phydev, u8 *data)
@@ -764,27 +705,46 @@ int aqr_wait_reset_complete(struct phy_device *phydev)
 	return ret;
 }
 
-static void aqr107_chip_info(struct phy_device *phydev)
+static int aqr_build_fingerprint(struct phy_device *phydev)
 {
 	u8 fw_major, fw_minor, build_id, prov_id;
+	struct aqr107_priv *priv = phydev->priv;
+	u16 misc_id, misc_ver;
 	int val;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
 	if (val < 0)
-		return;
+		return val;
 
 	fw_major = FIELD_GET(VEND1_GLOBAL_FW_ID_MAJOR, val);
 	fw_minor = FIELD_GET(VEND1_GLOBAL_FW_ID_MINOR, val);
 
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_RSVD_STAT1);
 	if (val < 0)
-		return;
+		return val;
 
 	build_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_FW_BUILD_ID, val);
 	prov_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_PROV_ID, val);
 
-	phydev_dbg(phydev, "FW %u.%u, Build %u, Provisioning %u\n",
-		   fw_major, fw_minor, build_id, prov_id);
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_FW_MISC_ID);
+	if (val < 0)
+		return val;
+
+	misc_id = val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_FW_MISC_VER);
+	if (val < 0)
+		return val;
+
+	misc_ver = val;
+
+	priv->fingerprint = AQR_FW_FINGERPRINT(fw_major, fw_minor, build_id,
+					       prov_id, misc_id, misc_ver);
+
+	phydev_dbg(phydev, "FW %u.%u, Build %u, Provisioning %u, Misc ID %u, Version %u\n",
+		   fw_major, fw_minor, build_id, prov_id, misc_id, misc_ver);
+
+	return 0;
 }
 
 static int aqr107_config_mdi(struct phy_device *phydev)
@@ -810,7 +770,7 @@ static int aqr107_config_mdi(struct phy_device *phydev)
 			      mdi_conf | PMAPMD_RSVD_VEND_PROV_MDI_FORCE);
 }
 
-static int aqr107_config_init(struct phy_device *phydev)
+static int aqr_gen1_config_init(struct phy_device *phydev)
 {
 	struct aqr107_priv *priv = phydev->priv;
 	u32 led_idx;
@@ -822,6 +782,7 @@ static int aqr107_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    phydev->interface != PHY_INTERFACE_MODE_XGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_USXGMII &&
+	    phydev->interface != PHY_INTERFACE_MODE_10G_QXGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_10GKR &&
 	    phydev->interface != PHY_INTERFACE_MODE_10GBASER &&
 	    phydev->interface != PHY_INTERFACE_MODE_XAUI &&
@@ -832,8 +793,14 @@ static int aqr107_config_init(struct phy_device *phydev)
 	     "Your devicetree is out of date, please update it. The AQR107 family doesn't support XGMII, maybe you mean USXGMII.\n");
 
 	ret = aqr_wait_reset_complete(phydev);
-	if (!ret)
-		aqr107_chip_info(phydev);
+	if (!ret) {
+		/* The PHY might work without a firmware image, so only build a
+		 * fingerprint if the firmware was initialized.
+		 */
+		ret = aqr_build_fingerprint(phydev);
+		if (ret)
+			return ret;
+	}
 
 	ret = aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
 	if (ret)
@@ -859,20 +826,145 @@ static int aqr107_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static int aqcs109_config_init(struct phy_device *phydev)
+/* Walk the media-speed configuration registers to determine which
+ * host-side serdes modes may be used by the PHY depending on the
+ * negotiated media speed.
+ */
+static int aqr_gen2_read_global_syscfg(struct phy_device *phydev)
+{
+	struct aqr107_priv *priv = phydev->priv;
+	unsigned int serdes_mode, rate_adapt;
+	phy_interface_t interface;
+	int i, val;
+
+	for (i = 0; i < AQR_NUM_GLOBAL_CFG; i++) {
+		struct aqr_global_syscfg *syscfg = &priv->global_cfg[i];
+
+		syscfg->speed = aqr_global_cfg_regs[i].speed;
+
+		val = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				   aqr_global_cfg_regs[i].reg);
+		if (val < 0)
+			return val;
+
+		serdes_mode = FIELD_GET(VEND1_GLOBAL_CFG_SERDES_MODE, val);
+		rate_adapt = FIELD_GET(VEND1_GLOBAL_CFG_RATE_ADAPT, val);
+
+		switch (serdes_mode) {
+		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI:
+			if (rate_adapt == VEND1_GLOBAL_CFG_RATE_ADAPT_USX)
+				interface = PHY_INTERFACE_MODE_USXGMII;
+			else
+				interface = PHY_INTERFACE_MODE_10GBASER;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI5G:
+			interface = PHY_INTERFACE_MODE_5GBASER;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_OCSGMII:
+			interface = PHY_INTERFACE_MODE_2500BASEX;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_SGMII:
+			interface = PHY_INTERFACE_MODE_SGMII;
+			break;
+
+		default:
+			phydev_warn(phydev, "unrecognised serdes mode %u\n",
+				    serdes_mode);
+			interface = PHY_INTERFACE_MODE_NA;
+			break;
+		}
+
+		syscfg->interface = aqr_translate_interface(phydev, interface);
+
+		switch (rate_adapt) {
+		case VEND1_GLOBAL_CFG_RATE_ADAPT_NONE:
+			syscfg->rate_adapt = AQR_RATE_ADAPT_NONE;
+			break;
+		case VEND1_GLOBAL_CFG_RATE_ADAPT_USX:
+			syscfg->rate_adapt = AQR_RATE_ADAPT_USX;
+			break;
+		case VEND1_GLOBAL_CFG_RATE_ADAPT_PAUSE:
+			syscfg->rate_adapt = AQR_RATE_ADAPT_PAUSE;
+			break;
+		default:
+			phydev_warn(phydev, "unrecognized rate adapt mode %u\n",
+				    rate_adapt);
+			break;
+		}
+
+		phydev_dbg(phydev,
+			   "Media speed %d uses host interface %s with %s\n",
+			   syscfg->speed, phy_modes(syscfg->interface),
+			   syscfg->rate_adapt == AQR_RATE_ADAPT_NONE ? "no rate adaptation" :
+			   syscfg->rate_adapt == AQR_RATE_ADAPT_PAUSE ? "rate adaptation through flow control" :
+			   syscfg->rate_adapt == AQR_RATE_ADAPT_USX ? "rate adaptation through symbol replication" :
+			   "unrecognized rate adaptation type");
+	}
+
+	return 0;
+}
+
+static int aqr_gen2_fill_interface_modes(struct phy_device *phydev)
+{
+	unsigned long *possible = phydev->possible_interfaces;
+	struct aqr107_priv *priv = phydev->priv;
+	phy_interface_t interface;
+	int i, val, ret;
+
+	/* It's been observed on some models that - when coming out of suspend
+	 * - the FW signals that the PHY is ready but the GLOBAL_CFG registers
+	 * continue on returning zeroes for some time. Let's poll the 100M
+	 * register until it returns a real value as both 113c and 115c support
+	 * this mode.
+	 */
+	if (priv->wait_on_global_cfg) {
+		ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
+						VEND1_GLOBAL_CFG_100M, val,
+						val != 0, 1000, 100000, false);
+		if (ret)
+			return ret;
+	}
+
+	ret = aqr_gen2_read_global_syscfg(phydev);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < AQR_NUM_GLOBAL_CFG; i++) {
+		interface = priv->global_cfg[i].interface;
+		if (interface != PHY_INTERFACE_MODE_NA)
+			__set_bit(interface, possible);
+	}
+
+	return 0;
+}
+
+static int aqr_gen2_config_init(struct phy_device *phydev)
 {
 	int ret;
 
+	ret = aqr_gen1_config_init(phydev);
+	if (ret)
+		return ret;
+
+	return aqr_gen2_fill_interface_modes(phydev);
+}
+
+static int aqr_gen3_config_init(struct phy_device *phydev)
+{
+	return aqr_gen2_config_init(phydev);
+}
+
+static int aqcs109_config_init(struct phy_device *phydev)
+{
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX)
 		return -ENODEV;
 
-	ret = aqr_wait_reset_complete(phydev);
-	if (!ret)
-		aqr107_chip_info(phydev);
-
-	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
+	return aqr_gen2_config_init(phydev);
 }
 
 static void aqr107_link_change_notify(struct phy_device *phydev)
@@ -920,7 +1012,7 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 		phydev_info(phydev, "Aquantia 1000Base-T2 mode active\n");
 }
 
-static int aqr107_wait_processor_intensive_op(struct phy_device *phydev)
+static int aqr_gen1_wait_processor_intensive_op(struct phy_device *phydev)
 {
 	int val, err;
 
@@ -944,17 +1036,16 @@ static int aqr107_wait_processor_intensive_op(struct phy_device *phydev)
 	return 0;
 }
 
-static int aqr107_get_rate_matching(struct phy_device *phydev,
-				    phy_interface_t iface)
+static int aqr_gen2_get_rate_matching(struct phy_device *phydev,
+				      phy_interface_t iface)
 {
 	if (iface == PHY_INTERFACE_MODE_10GBASER ||
-	    iface == PHY_INTERFACE_MODE_2500BASEX ||
-	    iface == PHY_INTERFACE_MODE_NA)
+	    iface == PHY_INTERFACE_MODE_2500BASEX)
 		return RATE_MATCH_PAUSE;
 	return RATE_MATCH_NONE;
 }
 
-static int aqr107_suspend(struct phy_device *phydev)
+static int aqr_gen1_suspend(struct phy_device *phydev)
 {
 	int err;
 
@@ -963,10 +1054,10 @@ static int aqr107_suspend(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	return aqr107_wait_processor_intensive_op(phydev);
+	return aqr_gen1_wait_processor_intensive_op(phydev);
 }
 
-static int aqr107_resume(struct phy_device *phydev)
+static int aqr_gen1_resume(struct phy_device *phydev)
 {
 	int err;
 
@@ -975,89 +1066,7 @@ static int aqr107_resume(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	return aqr107_wait_processor_intensive_op(phydev);
-}
-
-static const u16 aqr_global_cfg_regs[] = {
-	VEND1_GLOBAL_CFG_10M,
-	VEND1_GLOBAL_CFG_100M,
-	VEND1_GLOBAL_CFG_1G,
-	VEND1_GLOBAL_CFG_2_5G,
-	VEND1_GLOBAL_CFG_5G,
-	VEND1_GLOBAL_CFG_10G
-};
-
-static int aqr107_fill_interface_modes(struct phy_device *phydev)
-{
-	unsigned long *possible = phydev->possible_interfaces;
-	unsigned int serdes_mode, rate_adapt;
-	phy_interface_t interface;
-	int i, val;
-
-	/* Walk the media-speed configuration registers to determine which
-	 * host-side serdes modes may be used by the PHY depending on the
-	 * negotiated media speed.
-	 */
-	for (i = 0; i < ARRAY_SIZE(aqr_global_cfg_regs); i++) {
-		val = phy_read_mmd(phydev, MDIO_MMD_VEND1,
-				   aqr_global_cfg_regs[i]);
-		if (val < 0)
-			return val;
-
-		serdes_mode = FIELD_GET(VEND1_GLOBAL_CFG_SERDES_MODE, val);
-		rate_adapt = FIELD_GET(VEND1_GLOBAL_CFG_RATE_ADAPT, val);
-
-		switch (serdes_mode) {
-		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI:
-			if (rate_adapt == VEND1_GLOBAL_CFG_RATE_ADAPT_USX)
-				interface = PHY_INTERFACE_MODE_USXGMII;
-			else
-				interface = PHY_INTERFACE_MODE_10GBASER;
-			break;
-
-		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI5G:
-			interface = PHY_INTERFACE_MODE_5GBASER;
-			break;
-
-		case VEND1_GLOBAL_CFG_SERDES_MODE_OCSGMII:
-			interface = PHY_INTERFACE_MODE_2500BASEX;
-			break;
-
-		case VEND1_GLOBAL_CFG_SERDES_MODE_SGMII:
-			interface = PHY_INTERFACE_MODE_SGMII;
-			break;
-
-		default:
-			phydev_warn(phydev, "unrecognised serdes mode %u\n",
-				    serdes_mode);
-			interface = PHY_INTERFACE_MODE_NA;
-			break;
-		}
-
-		if (interface != PHY_INTERFACE_MODE_NA)
-			__set_bit(interface, possible);
-	}
-
-	return 0;
-}
-
-static int aqr113c_fill_interface_modes(struct phy_device *phydev)
-{
-	int val, ret;
-
-	/* It's been observed on some models that - when coming out of suspend
-	 * - the FW signals that the PHY is ready but the GLOBAL_CFG registers
-	 * continue on returning zeroes for some time. Let's poll the 100M
-	 * register until it returns a real value as both 113c and 115c support
-	 * this mode.
-	 */
-	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
-					VEND1_GLOBAL_CFG_100M, val, val != 0,
-					1000, 100000, false);
-	if (ret)
-		return ret;
-
-	return aqr107_fill_interface_modes(phydev);
+	return aqr_gen1_wait_processor_intensive_op(phydev);
 }
 
 static int aqr115c_get_features(struct phy_device *phydev)
@@ -1085,11 +1094,14 @@ static int aqr111_get_features(struct phy_device *phydev)
 	return 0;
 }
 
-static int aqr113c_config_init(struct phy_device *phydev)
+static int aqr_gen4_config_init(struct phy_device *phydev)
 {
+	struct aqr107_priv *priv = phydev->priv;
 	int ret;
 
-	ret = aqr107_config_init(phydev);
+	priv->wait_on_global_cfg = true;
+
+	ret = aqr_gen3_config_init(phydev);
 	if (ret < 0)
 		return ret;
 
@@ -1098,11 +1110,55 @@ static int aqr113c_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = aqr107_wait_processor_intensive_op(phydev);
-	if (ret)
-		return ret;
+	return aqr_gen1_wait_processor_intensive_op(phydev);
+}
 
-	return aqr113c_fill_interface_modes(phydev);
+static unsigned int aqr_gen2_inband_caps(struct phy_device *phydev,
+					 phy_interface_t interface)
+{
+	if (interface == PHY_INTERFACE_MODE_SGMII ||
+	    interface == PHY_INTERFACE_MODE_USXGMII ||
+	    interface == PHY_INTERFACE_MODE_10G_QXGMII)
+		return LINK_INBAND_ENABLE | LINK_INBAND_DISABLE;
+
+	return 0;
+}
+
+static int aqr_gen2_config_inband(struct phy_device *phydev, unsigned int modes)
+{
+	struct aqr107_priv *priv = phydev->priv;
+
+	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII ||
+	    phydev->interface == PHY_INTERFACE_MODE_10G_QXGMII) {
+		u16 set = 0;
+
+		if (modes == LINK_INBAND_ENABLE)
+			set = MDIO_PHYXS_VEND_PROV2_USX_AN;
+
+		return phy_modify_mmd(phydev, MDIO_MMD_PHYXS,
+				      MDIO_PHYXS_VEND_PROV2,
+				      MDIO_PHYXS_VEND_PROV2_USX_AN, set);
+	}
+
+	for (int i = 0; i < AQR_NUM_GLOBAL_CFG; i++) {
+		struct aqr_global_syscfg *syscfg = &priv->global_cfg[i];
+		u16 set = 0;
+		int err;
+
+		if (syscfg->interface != phydev->interface)
+			continue;
+
+		if (modes == LINK_INBAND_ENABLE)
+			set = VEND1_GLOBAL_CFG_AUTONEG_ENA;
+
+		err = phy_modify_mmd(phydev, MDIO_MMD_VEND1,
+				     aqr_global_cfg_regs[i].reg,
+				     VEND1_GLOBAL_CFG_AUTONEG_ENA, set);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int aqr107_probe(struct phy_device *phydev)
@@ -1144,13 +1200,13 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQR105",
 	.get_features	= aqr105_get_features,
 	.probe		= aqr107_probe,
-	.config_init	= aqr107_config_init,
+	.config_init	= aqr_gen1_config_init,
 	.config_aneg    = aqr105_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr105_read_status,
-	.suspend	= aqr107_suspend,
-	.resume		= aqr107_resume,
+	.read_status	= aqr_gen1_read_status,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR106),
@@ -1164,16 +1220,16 @@ static struct phy_driver aqr_driver[] = {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR107),
 	.name		= "Aquantia AQR107",
 	.probe		= aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init	= aqr107_config_init,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init	= aqr_gen2_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend	= aqr107_suspend,
-	.resume		= aqr107_resume,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
@@ -1183,21 +1239,23 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
 	.name		= "Aquantia AQCS109",
 	.probe		= aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
 	.config_init	= aqcs109_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend	= aqr107_suspend,
-	.resume		= aqr107_resume,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
@@ -1208,21 +1266,23 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR111),
 	.name		= "Aquantia AQR111",
 	.probe		= aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init	= aqr107_config_init,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init	= aqr_gen3_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend	= aqr107_suspend,
-	.resume		= aqr107_resume,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
@@ -1233,21 +1293,23 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR111B0),
 	.name		= "Aquantia AQR111B0",
 	.probe		= aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init	= aqr107_config_init,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init	= aqr_gen3_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend	= aqr107_suspend,
-	.resume		= aqr107_resume,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
@@ -1258,6 +1320,8 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),
@@ -1266,20 +1330,23 @@ static struct phy_driver aqr_driver[] = {
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
 	.read_status	= aqr_read_status,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR112),
 	.name		= "Aquantia AQR112",
 	.probe		= aqr107_probe,
+	.config_init	= aqr_gen3_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend	= aqr107_suspend,
-	.resume		= aqr107_resume,
-	.read_status	= aqr107_read_status,
-	.get_rate_matching = aqr107_get_rate_matching,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
+	.read_status	= aqr_gen2_read_status,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
@@ -1289,39 +1356,65 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR412),
 	.name		= "Aquantia AQR412",
 	.probe		= aqr107_probe,
+	.config_init	= aqr_gen3_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend	= aqr107_suspend,
-	.resume		= aqr107_resume,
-	.read_status	= aqr107_read_status,
-	.get_rate_matching = aqr107_get_rate_matching,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
+	.read_status	= aqr_gen2_read_status,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
 	.link_change_notify = aqr107_link_change_notify,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
+},
+{
+	PHY_ID_MATCH_MODEL(PHY_ID_AQR412C),
+	.name		= "Aquantia AQR412C",
+	.probe		= aqr107_probe,
+	.config_init	= aqr_gen3_config_init,
+	.config_aneg    = aqr_config_aneg,
+	.config_intr	= aqr_config_intr,
+	.handle_interrupt = aqr_handle_interrupt,
+	.get_tunable    = aqr107_get_tunable,
+	.set_tunable    = aqr107_set_tunable,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
+	.read_status	= aqr_gen2_read_status,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.get_sset_count = aqr107_get_sset_count,
+	.get_strings	= aqr107_get_strings,
+	.get_stats	= aqr107_get_stats,
+	.link_change_notify = aqr107_link_change_notify,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR113),
 	.name		= "Aquantia AQR113",
 	.probe          = aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init    = aqr113c_config_init,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init    = aqr_gen4_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt       = aqr_handle_interrupt,
-	.read_status    = aqr107_read_status,
+	.read_status    = aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend        = aqr107_suspend,
-	.resume         = aqr107_resume,
+	.suspend        = aqr_gen1_suspend,
+	.resume         = aqr_gen1_resume,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings    = aqr107_get_strings,
 	.get_stats      = aqr107_get_stats,
@@ -1331,21 +1424,23 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR113C),
 	.name           = "Aquantia AQR113C",
 	.probe          = aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init    = aqr113c_config_init,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init    = aqr_gen4_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt       = aqr_handle_interrupt,
-	.read_status    = aqr107_read_status,
+	.read_status    = aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend        = aqr107_suspend,
-	.resume         = aqr107_resume,
+	.suspend        = aqr_gen1_suspend,
+	.resume         = aqr_gen1_resume,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings    = aqr107_get_strings,
 	.get_stats      = aqr107_get_stats,
@@ -1355,21 +1450,23 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps    = aqr_gen2_inband_caps,
+	.config_inband  = aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR114C),
 	.name           = "Aquantia AQR114C",
 	.probe          = aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init    = aqr107_config_init,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init    = aqr_gen4_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status    = aqr107_read_status,
+	.read_status    = aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend        = aqr107_suspend,
-	.resume         = aqr107_resume,
+	.suspend        = aqr_gen1_suspend,
+	.resume         = aqr_gen1_resume,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings    = aqr107_get_strings,
 	.get_stats      = aqr107_get_stats,
@@ -1380,21 +1477,50 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps    = aqr_gen2_inband_caps,
+	.config_inband  = aqr_gen2_config_inband,
+},
+{
+	PHY_ID_MATCH_MODEL(PHY_ID_AQR115),
+	.name		= "Aquantia AQR115",
+	.probe		= aqr107_probe,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init	= aqr_gen4_config_init,
+	.config_aneg	= aqr_config_aneg,
+	.config_intr	= aqr_config_intr,
+	.handle_interrupt = aqr_handle_interrupt,
+	.read_status	= aqr_gen2_read_status,
+	.get_tunable    = aqr107_get_tunable,
+	.set_tunable    = aqr107_set_tunable,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
+	.get_sset_count	= aqr107_get_sset_count,
+	.get_strings	= aqr107_get_strings,
+	.get_stats	= aqr107_get_stats,
+	.get_features	= aqr115c_get_features,
+	.link_change_notify = aqr107_link_change_notify,
+	.led_brightness_set = aqr_phy_led_brightness_set,
+	.led_hw_is_supported = aqr_phy_led_hw_is_supported,
+	.led_hw_control_set = aqr_phy_led_hw_control_set,
+	.led_hw_control_get = aqr_phy_led_hw_control_get,
+	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR115C),
 	.name           = "Aquantia AQR115C",
 	.probe          = aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init    = aqr113c_config_init,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init    = aqr_gen4_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status    = aqr107_read_status,
+	.read_status    = aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend        = aqr107_suspend,
-	.resume         = aqr107_resume,
+	.suspend        = aqr_gen1_suspend,
+	.resume         = aqr_gen1_resume,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings    = aqr107_get_strings,
 	.get_stats      = aqr107_get_stats,
@@ -1405,21 +1531,23 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR813),
 	.name		= "Aquantia AQR813",
 	.probe		= aqr107_probe,
-	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init	= aqr107_config_init,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init	= aqr_gen4_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
-	.suspend	= aqr107_suspend,
-	.resume		= aqr107_resume,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
@@ -1429,6 +1557,8 @@ static struct phy_driver aqr_driver[] = {
 	.led_hw_control_set = aqr_phy_led_hw_control_set,
 	.led_hw_control_get = aqr_phy_led_hw_control_get,
 	.led_polarity_set = aqr_phy_led_polarity_set,
+	.inband_caps	= aqr_gen2_inband_caps,
+	.config_inband	= aqr_gen2_config_inband,
 },
 };
 
@@ -1446,9 +1576,11 @@ static const struct mdio_device_id __maybe_unused aqr_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR111B0) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR112) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR412) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR412C) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR113) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR113C) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR114C) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR115) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR115C) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR813) },
 	{ }

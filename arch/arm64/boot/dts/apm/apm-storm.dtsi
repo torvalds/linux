@@ -103,6 +103,7 @@
 
 	gic: interrupt-controller@78010000 {
 		compatible = "arm,cortex-a15-gic";
+		#address-cells = <0>;
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x0 0x78010000 0x0 0x1000>,	/* GIC Dist */
@@ -112,9 +113,9 @@
 		interrupts = <1 9 0xf04>;	/* GIC Maintenence IRQ */
 	};
 
-	refclk: refclk {
+	refclk: clock-100000000 {
 		compatible = "fixed-clock";
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 		clock-frequency = <100000000>;
 		clock-output-names = "refclk";
 	};
@@ -133,6 +134,16 @@
 		interrupts = <1 12 0xff04>;
 	};
 
+	i2cslimpro {
+		compatible = "apm,xgene-slimpro-i2c";
+		mboxes = <&mailbox 0>;
+	};
+
+	hwmonslimpro {
+		compatible = "apm,xgene-slimpro-hwmon";
+		mboxes = <&mailbox 7>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -148,28 +159,25 @@
 			pcppll: pcppll@17000100 {
 				compatible = "apm,xgene-pcppll-clock";
 				#clock-cells = <1>;
-				clocks = <&refclk 0>;
+				clocks = <&refclk>;
 				clock-names = "pcppll";
 				reg = <0x0 0x17000100 0x0 0x1000>;
 				clock-output-names = "pcppll";
-				type = <0>;
 			};
 
 			socpll: socpll@17000120 {
 				compatible = "apm,xgene-socpll-clock";
 				#clock-cells = <1>;
-				clocks = <&refclk 0>;
+				clocks = <&refclk>;
 				clock-names = "socpll";
 				reg = <0x0 0x17000120 0x0 0x1000>;
 				clock-output-names = "socpll";
-				type = <1>;
 			};
 
 			socplldiv2: socplldiv2  {
 				compatible = "fixed-factor-clock";
-				#clock-cells = <1>;
+				#clock-cells = <0>;
 				clocks = <&socpll 0>;
-				clock-names = "socplldiv2";
 				clock-mult = <1>;
 				clock-div = <2>;
 				clock-output-names = "socplldiv2";
@@ -178,7 +186,7 @@
 			ahbclk: ahbclk@17000000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x17000000 0x0 0x2000>;
 				reg-names = "div-reg";
 				divider-offset = <0x164>;
@@ -190,7 +198,7 @@
 			sdioclk: sdioclk@1f2ac000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f2ac000 0x0 0x1000
 					0x0 0x17000000 0x0 0x2000>;
 				reg-names = "csr-reg", "div-reg";
@@ -207,7 +215,7 @@
 			ethclk: ethclk {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				clock-names = "ethclk";
 				reg = <0x0 0x17000000 0x0 0x1000>;
 				reg-names = "div-reg";
@@ -229,7 +237,7 @@
 			sge0clk: sge0clk@1f21c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f21c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				csr-mask = <0xa>;
@@ -240,7 +248,7 @@
 			xge0clk: xge0clk@1f61c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f61c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				csr-mask = <0x3>;
@@ -251,7 +259,7 @@
 				compatible = "apm,xgene-device-clock";
 				status = "disabled";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f62c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				csr-mask = <0x3>;
@@ -261,7 +269,7 @@
 			sataphy1clk: sataphy1clk@1f21c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f21c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "sataphy1clk";
@@ -275,7 +283,7 @@
 			sataphy2clk: sataphy1clk@1f22c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f22c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "sataphy2clk";
@@ -289,7 +297,7 @@
 			sataphy3clk: sataphy1clk@1f23c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f23c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "sataphy3clk";
@@ -303,7 +311,7 @@
 			sata01clk: sata01clk@1f21c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f21c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "sata01clk";
@@ -316,7 +324,7 @@
 			sata23clk: sata23clk@1f22c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f22c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "sata23clk";
@@ -329,7 +337,7 @@
 			sata45clk: sata45clk@1f23c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f23c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "sata45clk";
@@ -342,7 +350,7 @@
 			rtcclk: rtcclk@17000000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x17000000 0x0 0x2000>;
 				reg-names = "csr-reg";
 				csr-offset = <0xc>;
@@ -355,7 +363,7 @@
 			rngpkaclk: rngpkaclk@17000000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x17000000 0x0 0x2000>;
 				reg-names = "csr-reg";
 				csr-offset = <0xc>;
@@ -369,7 +377,7 @@
 				status = "disabled";
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f2bc000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "pcie0clk";
@@ -379,7 +387,7 @@
 				status = "disabled";
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f2cc000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "pcie1clk";
@@ -389,7 +397,7 @@
 				status = "disabled";
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f2dc000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "pcie2clk";
@@ -399,7 +407,7 @@
 				status = "disabled";
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f50c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "pcie3clk";
@@ -409,7 +417,7 @@
 				status = "disabled";
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f51c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "pcie4clk";
@@ -418,7 +426,7 @@
 			dmaclk: dmaclk@1f27c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
+				clocks = <&socplldiv2>;
 				reg = <0x0 0x1f27c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "dmaclk";
@@ -760,16 +768,6 @@
 					<0x0 0x7 0x4>;
 		};
 
-		i2cslimpro {
-			compatible = "apm,xgene-slimpro-i2c";
-			mboxes = <&mailbox 0>;
-		};
-
-		hwmonslimpro {
-			compatible = "apm,xgene-slimpro-hwmon";
-			mboxes = <&mailbox 7>;
-		};
-
 		serial0: serial@1c020000 {
 			status = "disabled";
 			compatible = "ns16550a";
@@ -849,7 +847,6 @@
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x10512000 0x0 0x1000>;
 			interrupts = <0 0x44 0x4>;
-			#clock-cells = <1>;
 			clocks = <&ahbclk 0>;
 		};
 

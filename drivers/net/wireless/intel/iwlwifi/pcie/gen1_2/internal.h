@@ -400,6 +400,11 @@ struct iwl_pcie_txqs {
  * @me_recheck_wk: worker to recheck WiAMT/CSME presence
  * @invalid_tx_cmd: invalid TX command buffer
  * @wait_command_queue: wait queue for sync commands
+ * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
+ *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @dev_cmd_pool_name: name for the TX command allocation pool
+ * @pm_support: set to true in start_hw if link pm is supported
+ * @ltr_enabled: set to true if the LTR is enabled
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -506,6 +511,12 @@ struct iwl_trans_pcie {
 	struct iwl_dma_ptr invalid_tx_cmd;
 
 	wait_queue_head_t wait_command_queue;
+
+	struct kmem_cache *dev_cmd_pool;
+	char dev_cmd_pool_name[50];
+
+	bool pm_support;
+	bool ltr_enabled;
 };
 
 static inline struct iwl_trans_pcie *
@@ -783,6 +794,23 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	return le16_to_cpu(tb->hi_n_len) >> 4;
 }
 
+static inline struct iwl_device_tx_cmd *
+iwl_pcie_gen1_2_alloc_tx_cmd(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	return kmem_cache_zalloc(trans_pcie->dev_cmd_pool, GFP_ATOMIC);
+}
+
+static inline void
+iwl_pcie_gen1_2_free_tx_cmd(struct iwl_trans *trans,
+			    struct iwl_device_tx_cmd *dev_cmd)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	kmem_cache_free(trans_pcie->dev_cmd_pool, dev_cmd);
+}
+
 void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		      struct sk_buff_head *skbs, bool is_flush);
 void iwl_pcie_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
@@ -818,6 +846,8 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 			    trans_pcie->fh_init_mask);
 		iwl_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
 			    trans_pcie->hw_init_mask);
+		trans_pcie->fh_mask = 0;
+		trans_pcie->hw_mask = 0;
 	}
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
 }
@@ -1000,6 +1030,7 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 	} else {
 		iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD,
 			    trans_pcie->fh_init_mask);
+		trans_pcie->fh_mask = 0;
 		iwl_enable_hw_int_msk_msix(trans,
 					   MSIX_HW_INT_CAUSES_REG_RF_KILL);
 	}
@@ -1047,7 +1078,7 @@ static inline void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans) { }
 void iwl_pcie_rx_allocator_work(struct work_struct *data);
 
 /* common trans ops for all generations transports */
-void iwl_trans_pcie_op_mode_enter(struct iwl_trans *trans);
+void iwl_pcie_gen1_2_op_mode_enter(struct iwl_trans *trans);
 int _iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 int iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans);
@@ -1064,9 +1095,8 @@ iwl_trans_pcie_dump_data(struct iwl_trans *trans, u32 dump_mask,
 			 const struct iwl_dump_sanitize_ops *sanitize_ops,
 			 void *sanitize_ctx);
 int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
-			     enum iwl_d3_status *status,
-			     bool test,  bool reset);
-int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test, bool reset);
+			     bool reset);
+int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool reset);
 void iwl_trans_pci_interrupts(struct iwl_trans *trans, bool enable);
 void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans);
 void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
@@ -1081,6 +1111,7 @@ int iwl_pci_gen1_2_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *ent,
 			 const struct iwl_mac_cfg *mac_cfg,
 			 u8 __iomem *hw_base, u32 hw_rev);
+void iwl_pcie_gen1_2_remove(struct iwl_trans *trans);
 
 /* transport gen 1 exported functions */
 void iwl_trans_pcie_fw_alive(struct iwl_trans *trans);
@@ -1105,6 +1136,7 @@ int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 			   struct iwl_dma_ptr *ptr, size_t size);
 void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr);
 void iwl_pcie_apply_destination(struct iwl_trans *trans);
+int iwl_pcie_gen1_2_activate_nic(struct iwl_trans *trans);
 
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
@@ -1124,4 +1156,17 @@ int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
 int iwl_trans_pcie_rxq_dma_data(struct iwl_trans *trans, int queue,
 				struct iwl_trans_rxq_dma_data *data);
 
+static inline bool iwl_pcie_gen1_is_pm_supported(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	return trans_pcie->pm_support;
+}
+
+static inline bool iwl_pcie_gen1_2_is_ltr_enabled(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	return trans_pcie->ltr_enabled;
+}
 #endif /* __iwl_trans_int_pcie_h__ */

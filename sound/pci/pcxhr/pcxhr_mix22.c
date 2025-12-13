@@ -710,9 +710,9 @@ static int hr222_mic_vol_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
-	mutex_lock(&chip->mgr->mixer_mutex);
+
+	guard(mutex)(&chip->mgr->mixer_mutex);
 	ucontrol->value.integer.value[0] = chip->mic_volume;
-	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -721,13 +721,13 @@ static int hr222_mic_vol_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 	int changed = 0;
-	mutex_lock(&chip->mgr->mixer_mutex);
+
+	guard(mutex)(&chip->mgr->mixer_mutex);
 	if (chip->mic_volume != ucontrol->value.integer.value[0]) {
 		changed = 1;
 		chip->mic_volume = ucontrol->value.integer.value[0];
 		hr222_update_analog_audio_level(chip, 1, 0);
 	}
-	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 
@@ -760,9 +760,9 @@ static int hr222_mic_boost_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
-	mutex_lock(&chip->mgr->mixer_mutex);
+
+	guard(mutex)(&chip->mgr->mixer_mutex);
 	ucontrol->value.integer.value[0] = chip->mic_boost;
-	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -771,13 +771,13 @@ static int hr222_mic_boost_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 	int changed = 0;
-	mutex_lock(&chip->mgr->mixer_mutex);
+
+	guard(mutex)(&chip->mgr->mixer_mutex);
 	if (chip->mic_boost != ucontrol->value.integer.value[0]) {
 		changed = 1;
 		chip->mic_boost = ucontrol->value.integer.value[0];
 		hr222_micro_boost(chip->mgr, chip->mic_boost);
 	}
-	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 
@@ -800,9 +800,9 @@ static int hr222_phantom_power_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
-	mutex_lock(&chip->mgr->mixer_mutex);
+
+	guard(mutex)(&chip->mgr->mixer_mutex);
 	ucontrol->value.integer.value[0] = chip->phantom_power;
-	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -812,14 +812,13 @@ static int hr222_phantom_power_put(struct snd_kcontrol *kcontrol,
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 	int power, changed = 0;
 
-	mutex_lock(&chip->mgr->mixer_mutex);
+	guard(mutex)(&chip->mgr->mixer_mutex);
 	power = !!ucontrol->value.integer.value[0];
 	if (chip->phantom_power != power) {
 		hr222_phantom_power(chip->mgr, power);
 		chip->phantom_power = power;
 		changed = 1;
 	}
-	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 

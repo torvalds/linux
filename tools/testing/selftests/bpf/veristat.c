@@ -181,6 +181,12 @@ struct var_preset {
 	bool applied;
 };
 
+enum dump_mode {
+	DUMP_NONE = 0,
+	DUMP_XLATED = 1,
+	DUMP_JITED = 2,
+};
+
 static struct env {
 	char **filenames;
 	int filename_cnt;
@@ -227,6 +233,7 @@ static struct env {
 	char orig_cgroup[PATH_MAX];
 	char stat_cgroup[PATH_MAX];
 	int memory_peak_fd;
+	__u32 dump_mode;
 } env;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
@@ -271,6 +278,7 @@ const char argp_program_doc[] =
 enum {
 	OPT_LOG_FIXED = 1000,
 	OPT_LOG_SIZE = 1001,
+	OPT_DUMP = 1002,
 };
 
 static const struct argp_option opts[] = {
@@ -295,6 +303,7 @@ static const struct argp_option opts[] = {
 	  "Force BPF verifier failure on register invariant violation (BPF_F_TEST_REG_INVARIANTS program flag)" },
 	{ "top-src-lines", 'S', "N", 0, "Emit N most frequent source code lines" },
 	{ "set-global-vars", 'G', "GLOBAL", 0, "Set global variables provided in the expression, for example \"var1 = 1\"" },
+	{ "dump", OPT_DUMP, "DUMP_MODE", OPTION_ARG_OPTIONAL, "Print BPF program dump (xlated, jited)" },
 	{},
 };
 
@@ -425,6 +434,16 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (err) {
 			fprintf(stderr, "Failed to collect BPF object files: %d\n", err);
 			return err;
+		}
+		break;
+	case OPT_DUMP:
+		if (!arg || strcasecmp(arg, "xlated") == 0) {
+			env.dump_mode |= DUMP_XLATED;
+		} else if (strcasecmp(arg, "jited") == 0) {
+			env.dump_mode |= DUMP_JITED;
+		} else {
+			fprintf(stderr, "Unrecognized dump mode '%s'\n", arg);
+			return -EINVAL;
 		}
 		break;
 	default:
@@ -1554,6 +1573,36 @@ static int parse_rvalue(const char *val, struct rvalue *rvalue)
 	return 0;
 }
 
+static void dump(__u32 prog_id, enum dump_mode mode, const char *file_name, const char *prog_name)
+{
+	char command[64], buf[4096];
+	FILE *fp;
+	int status;
+
+	status = system("command -v bpftool > /dev/null 2>&1");
+	if (status != 0) {
+		fprintf(stderr, "bpftool is not available, can't print program dump\n");
+		return;
+	}
+	snprintf(command, sizeof(command), "bpftool prog dump %s id %u",
+		 mode == DUMP_JITED ? "jited" : "xlated", prog_id);
+	fp = popen(command, "r");
+	if (!fp) {
+		fprintf(stderr, "bpftool failed with error: %d\n", errno);
+		return;
+	}
+
+	printf("DUMP (%s) %s/%s:\n", mode == DUMP_JITED ? "JITED" : "XLATED", file_name, prog_name);
+	while (fgets(buf, sizeof(buf), fp))
+		fputs(buf, stdout);
+	fprintf(stdout, "\n");
+
+	if (ferror(fp))
+		fprintf(stderr, "Failed to dump BPF prog with error: %d\n", errno);
+
+	pclose(fp);
+}
+
 static int process_prog(const char *filename, struct bpf_object *obj, struct bpf_program *prog)
 {
 	const char *base_filename = basename(strdupa(filename));
@@ -1630,8 +1679,13 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 
 	memset(&info, 0, info_len);
 	fd = bpf_program__fd(prog);
-	if (fd > 0 && bpf_prog_get_info_by_fd(fd, &info, &info_len) == 0)
+	if (fd > 0 && bpf_prog_get_info_by_fd(fd, &info, &info_len) == 0) {
 		stats->stats[JITED_SIZE] = info.jited_prog_len;
+		if (env.dump_mode & DUMP_JITED)
+			dump(info.id, DUMP_JITED, base_filename, prog_name);
+		if (env.dump_mode & DUMP_XLATED)
+			dump(info.id, DUMP_XLATED, base_filename, prog_name);
+	}
 
 	parse_verif_log(buf, buf_sz, stats);
 

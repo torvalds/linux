@@ -77,9 +77,9 @@ static void nfhd_submit_bio(struct bio *bio)
 	bio_endio(bio);
 }
 
-static int nfhd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+static int nfhd_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
-	struct nfhd_device *dev = bdev->bd_disk->private_data;
+	struct nfhd_device *dev = disk->private_data;
 
 	geo->cylinders = dev->blocks >> (6 - dev->bshift);
 	geo->heads = 4;

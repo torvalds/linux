@@ -175,10 +175,10 @@ static void rtw89_pci_clr_idx_all_be(struct rtw89_dev *rtwdev)
 	rtw89_write32(rtwdev, R_BE_RXBD_RWPTR_CLR1_V1,
 		      B_BE_CLR_RXQ0_IDX | B_BE_CLR_RPQ0_IDX);
 
-	rx_ring = &rtwpci->rx_rings[RTW89_RXCH_RXQ];
+	rx_ring = &rtwpci->rx.rings[RTW89_RXCH_RXQ];
 	rtw89_write16(rtwdev, R_BE_RXQ0_RXBD_IDX_V1, rx_ring->bd_ring.len - 1);
 
-	rx_ring = &rtwpci->rx_rings[RTW89_RXCH_RPQ];
+	rx_ring = &rtwpci->rx.rings[RTW89_RXCH_RPQ];
 	rtw89_write16(rtwdev, R_BE_RPQ0_RXBD_IDX_V1, rx_ring->bd_ring.len - 1);
 }
 
@@ -665,13 +665,25 @@ static int __maybe_unused rtw89_pci_resume_be(struct device *dev)
 SIMPLE_DEV_PM_OPS(rtw89_pm_ops_be, rtw89_pci_suspend_be, rtw89_pci_resume_be);
 EXPORT_SYMBOL(rtw89_pm_ops_be);
 
-const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
+const struct rtw89_pci_isr_def rtw89_pci_isr_be = {
 	.isr_rdu = B_BE_RDU_CH1_INT_V1 | B_BE_RDU_CH0_INT_V1,
 	.isr_halt_c2h = B_BE_HALT_C2H_INT,
 	.isr_wdt_timeout = B_BE_WDT_TIMEOUT_INT,
 	.isr_clear_rpq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RPQ0_ISR_V1},
 	.isr_clear_rxq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RX0P2_ISR_V1},
+};
+EXPORT_SYMBOL(rtw89_pci_isr_be);
 
+const struct rtw89_pci_isr_def rtw89_pci_isr_be_v1 = {
+	.isr_rdu = B_BE_PCIE_RDU_CH1_INT | B_BE_PCIE_RDU_CH0_INT,
+	.isr_halt_c2h = B_BE_HALT_C2H_INT,
+	.isr_wdt_timeout = B_BE_WDT_TIMEOUT_INT,
+	.isr_clear_rpq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RPQ0_ISR_V1},
+	.isr_clear_rxq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RX0P2_ISR_V1},
+};
+EXPORT_SYMBOL(rtw89_pci_isr_be_v1);
+
+const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.mac_pre_init = rtw89_pci_ops_mac_pre_init_be,
 	.mac_pre_deinit = rtw89_pci_ops_mac_pre_deinit_be,
 	.mac_post_init = rtw89_pci_ops_mac_post_init_be,

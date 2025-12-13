@@ -40,7 +40,7 @@ void test_stacktrace_map_skip(void)
 	skel->bss->control = 1;
 
 	/* for every element in stackid_hmap, we can find a corresponding one
-	 * in stackmap, and vise versa.
+	 * in stackmap, and vice versa.
 	 */
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (!ASSERT_OK(err, "compare_map_keys stackid_hmap vs. stackmap"))

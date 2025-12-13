@@ -20,7 +20,7 @@ sometimes quite different) ethernet controllers connected to the same
 management bus, it is difficult to ensure safe use of the bus.
 
 Since the PHYs are devices, and the management busses through which they are
-accessed are, in fact, busses, the PHY Abstraction Layer treats them as such.
+accessed are, in fact, busses, the PHY Abstraction Layer (PAL) treats them as such.
 In doing so, it has these goals:
 
 #. Increase code-reuse

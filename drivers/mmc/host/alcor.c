@@ -1129,7 +1129,6 @@ static void alcor_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	mmc_remove_host(mmc);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int alcor_pci_sdmmc_suspend(struct device *dev)
 {
 	struct alcor_sdmmc_host *host = dev_get_drvdata(dev);
@@ -1150,10 +1149,9 @@ static int alcor_pci_sdmmc_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(alcor_mmc_pm_ops, alcor_pci_sdmmc_suspend,
-			 alcor_pci_sdmmc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(alcor_mmc_pm_ops, alcor_pci_sdmmc_suspend,
+				alcor_pci_sdmmc_resume);
 
 static const struct platform_device_id alcor_pci_sdmmc_ids[] = {
 	{
@@ -1171,7 +1169,7 @@ static struct platform_driver alcor_pci_sdmmc_driver = {
 	.driver		= {
 		.name	= DRV_NAME_ALCOR_PCI_SDMMC,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm	= &alcor_mmc_pm_ops
+		.pm	= pm_sleep_ptr(&alcor_mmc_pm_ops),
 	},
 };
 module_platform_driver(alcor_pci_sdmmc_driver);

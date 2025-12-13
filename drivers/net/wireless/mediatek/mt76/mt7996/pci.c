@@ -87,6 +87,7 @@ static int mt7996_pci_hif2_probe(struct pci_dev *pdev)
 	hif->dev = &pdev->dev;
 	hif->regs = pcim_iomap_table(pdev)[0];
 	hif->irq = pdev->irq;
+	pcie_bandwidth_available(pdev, NULL, &hif->speed, &hif->width);
 	spin_lock_bh(&hif_lock);
 	list_add(&hif->list, &hif_list);
 	spin_unlock_bh(&hif_lock);
@@ -137,6 +138,7 @@ static int mt7996_pci_probe(struct pci_dev *pdev,
 	mdev = &dev->mt76;
 	mt7996_wfsys_reset(dev);
 	hif2 = mt7996_pci_init_hif2(pdev);
+	dev->hif2 = hif2;
 
 	ret = mt7996_mmio_wed_init(dev, pdev, false, &irq);
 	if (ret < 0)
@@ -161,7 +163,6 @@ static int mt7996_pci_probe(struct pci_dev *pdev,
 
 	if (hif2) {
 		hif2_dev = container_of(hif2->dev, struct pci_dev, dev);
-		dev->hif2 = hif2;
 
 		ret = mt7996_mmio_wed_init(dev, hif2_dev, true, &hif2_irq);
 		if (ret < 0)

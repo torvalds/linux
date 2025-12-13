@@ -23,6 +23,22 @@
 #include "util.h"
 #include "version_gen.h"
 
+void fprint_path_escaped(FILE *fp, const char *path)
+{
+	const char *p = path;
+
+	while (*p) {
+		if (*p == ' ') {
+			fputc('\\', fp);
+			fputc(' ', fp);
+		} else {
+			fputc(*p, fp);
+		}
+
+		p++;
+	}
+}
+
 char *xstrdup(const char *s)
 {
 	int len = strlen(s) + 1;

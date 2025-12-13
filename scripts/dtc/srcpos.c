@@ -160,8 +160,10 @@ FILE *srcfile_relative_open(const char *fname, char **fullnamep)
 			    strerror(errno));
 	}
 
-	if (depfile)
-		fprintf(depfile, " %s", fullname);
+	if (depfile) {
+		fputc(' ', depfile);
+		fprint_path_escaped(depfile, fullname);
+	}
 
 	if (fullnamep)
 		*fullnamep = fullname;
@@ -283,6 +285,17 @@ struct srcpos *srcpos_extend(struct srcpos *pos, struct srcpos *newtail)
 	for (p = pos; p->next != NULL; p = p->next);
 	p->next = newtail;
 	return pos;
+}
+
+void srcpos_free(struct srcpos *pos)
+{
+	struct srcpos *p_next;
+
+	while (pos) {
+		p_next = pos->next;
+		free(pos);
+		pos = p_next;
+	}
 }
 
 char *
