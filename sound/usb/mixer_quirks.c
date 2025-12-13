@@ -2545,6 +2545,7 @@ static int snd_rme_get_status1(struct snd_kcontrol *kcontrol,
 	struct usb_mixer_elem_list *list = snd_kcontrol_chip(kcontrol);
 	struct snd_usb_audio *chip = list->mixer->chip;
 
+	*status1 = 0;
 	CLASS(snd_usb_lock, pm)(chip);
 	if (pm.err < 0)
 		return pm.err;
