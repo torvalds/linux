@@ -10,6 +10,7 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/kmod.h>
@@ -670,7 +671,7 @@ static int __init ocfs2_stack_glue_init(void)
 {
 	int ret;
 
-	strcpy(cluster_stack_name, OCFS2_STACK_PLUGIN_O2CB);
+	strscpy(cluster_stack_name, OCFS2_STACK_PLUGIN_O2CB);
 
 	ocfs2_table_header = register_sysctl("fs/ocfs2/nm", ocfs2_nm_table);
 	if (!ocfs2_table_header) {

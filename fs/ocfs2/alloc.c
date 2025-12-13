@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/quotaops.h>
@@ -1037,7 +1038,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 			memset(bhs[i]->b_data, 0, osb->sb->s_blocksize);
 			eb = (struct ocfs2_extent_block *) bhs[i]->b_data;
 			/* Ok, setup the minimal stuff here. */
-			strcpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
+			strscpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
 			eb->h_blkno = cpu_to_le64(first_blkno);
 			eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
 			eb->h_suballoc_slot =
@@ -3654,7 +3655,6 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 			 * So we use the new rightmost path.
 			 */
 			ocfs2_mv_path(right_path, left_path);
-			left_path = NULL;
 		} else
 			ocfs2_complete_edge_insert(handle, left_path,
 						   right_path, subtree_index);
@@ -6164,7 +6164,7 @@ static int ocfs2_get_truncate_log_info(struct ocfs2_super *osb,
 	struct buffer_head *bh = NULL;
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
-	unsigned int tl_count;
+	unsigned int tl_count, tl_used;
 
 	inode = ocfs2_get_system_file_inode(osb,
 					   TRUNCATE_LOG_SYSTEM_INODE,
@@ -6185,8 +6185,10 @@ static int ocfs2_get_truncate_log_info(struct ocfs2_super *osb,
 	di = (struct ocfs2_dinode *)bh->b_data;
 	tl = &di->id2.i_dealloc;
 	tl_count = le16_to_cpu(tl->tl_count);
+	tl_used = le16_to_cpu(tl->tl_used);
 	if (unlikely(tl_count > ocfs2_truncate_recs_per_inode(osb->sb) ||
-		     tl_count == 0)) {
+		     tl_count == 0 ||
+		     tl_used > tl_count)) {
 		status = -EFSCORRUPTED;
 		iput(inode);
 		brelse(bh);
@@ -6744,7 +6746,7 @@ static int ocfs2_reuse_blk_from_dealloc(handle_t *handle,
 		/* We can't guarantee that buffer head is still cached, so
 		 * polutlate the extent block again.
 		 */
-		strcpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
+		strscpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
 		eb->h_blkno = cpu_to_le64(bf->free_blk);
 		eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
 		eb->h_suballoc_slot = cpu_to_le16(real_slot);

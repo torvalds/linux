@@ -434,7 +434,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 	BUG_ON(buffer_jbd(bh));
 	ocfs2_check_super_or_backup(osb->sb, bh->b_blocknr);
 
-	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb)) {
+	if (unlikely(ocfs2_emergency_state(osb))) {
 		ret = -EROFS;
 		mlog_errno(ret);
 		goto out;

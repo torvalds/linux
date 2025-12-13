@@ -49,9 +49,13 @@
 #include "ocfs2_trace.h"
 
 struct ocfs2_xattr_def_value_root {
-	struct ocfs2_xattr_value_root	xv;
-	struct ocfs2_extent_rec		er;
+	/* Must be last as it ends in a flexible-array member. */
+	TRAILING_OVERLAP(struct ocfs2_xattr_value_root, xv, xr_list.l_recs,
+		struct ocfs2_extent_rec		er;
+	);
 };
+static_assert(offsetof(struct ocfs2_xattr_def_value_root, xv.xr_list.l_recs) ==
+	      offsetof(struct ocfs2_xattr_def_value_root, er));
 
 struct ocfs2_xattr_bucket {
 	/* The inode these xattrs are associated with */
@@ -971,13 +975,39 @@ static int ocfs2_xattr_ibody_list(struct inode *inode,
 	struct ocfs2_xattr_header *header = NULL;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	int ret = 0;
+	u16 xattr_count;
+	size_t max_entries;
+	u16 inline_size;
 
 	if (!(oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL))
 		return ret;
 
+	inline_size = le16_to_cpu(di->i_xattr_inline_size);
+
+	/* Validate inline size is reasonable */
+	if (inline_size > inode->i_sb->s_blocksize ||
+	    inline_size < sizeof(struct ocfs2_xattr_header)) {
+		ocfs2_error(inode->i_sb,
+			    "Invalid xattr inline size %u in inode %llu\n",
+			    inline_size,
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno);
+		return -EFSCORRUPTED;
+	}
+
 	header = (struct ocfs2_xattr_header *)
-		 ((void *)di + inode->i_sb->s_blocksize -
-		 le16_to_cpu(di->i_xattr_inline_size));
+		 ((void *)di + inode->i_sb->s_blocksize - inline_size);
+
+	xattr_count = le16_to_cpu(header->xh_count);
+	max_entries = (inline_size - sizeof(struct ocfs2_xattr_header)) /
+		       sizeof(struct ocfs2_xattr_entry);
+
+	if (xattr_count > max_entries) {
+		ocfs2_error(inode->i_sb,
+			    "xattr entry count %u exceeds maximum %zu in inode %llu\n",
+			    xattr_count, max_entries,
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno);
+		return -EFSCORRUPTED;
+	}
 
 	ret = ocfs2_xattr_list_entries(inode, header, buffer, buffer_size);
 
