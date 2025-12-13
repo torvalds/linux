@@ -760,7 +760,9 @@ config PWM_TEGRA
 
 config PWM_TH1520
 	tristate "TH1520 PWM support"
+	depends on ARCH_THEAD || COMPILE_TEST
 	depends on RUST
+	depends on HAS_IOMEM && COMMON_CLK
 	select RUST_PWM_ABSTRACTIONS
 	help
 	  This option enables the driver for the PWM controller found on the
