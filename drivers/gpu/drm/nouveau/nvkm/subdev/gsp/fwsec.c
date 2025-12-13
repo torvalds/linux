@@ -259,18 +259,16 @@ nvkm_gsp_fwsec_v3(struct nvkm_gsp *gsp, const char *name,
 }
 
 static int
-nvkm_gsp_fwsec(struct nvkm_gsp *gsp, const char *name, u32 init_cmd)
+nvkm_gsp_fwsec_init(struct nvkm_gsp *gsp, struct nvkm_falcon_fw *fw, const char *name, u32 init_cmd)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	const union nvfw_falcon_ucode_desc *desc;
 	struct nvbios_pmuE flcn_ucode;
-	u8 idx, ver, hdr;
 	u32 data;
 	u16 size, vers;
-	struct nvkm_falcon_fw fw = {};
-	u32 mbox0 = 0;
+	u8 idx, ver, hdr;
 	int ret;
 
 	/* Lookup in VBIOS. */
@@ -291,8 +289,8 @@ nvkm_gsp_fwsec(struct nvkm_gsp *gsp, const char *name, u32 init_cmd)
 	vers = (desc->v2.Hdr & 0x0000ff00) >> 8;
 
 	switch (vers) {
-	case 2: ret = nvkm_gsp_fwsec_v2(gsp, name, &desc->v2, size, init_cmd, &fw); break;
-	case 3: ret = nvkm_gsp_fwsec_v3(gsp, name, &desc->v3, size, init_cmd, &fw); break;
+	case 2: ret = nvkm_gsp_fwsec_v2(gsp, name, &desc->v2, size, init_cmd, fw); break;
+	case 3: ret = nvkm_gsp_fwsec_v3(gsp, name, &desc->v3, size, init_cmd, fw); break;
 	default:
 		nvkm_error(subdev, "%s(v%d): version unknown\n", name, vers);
 		return -EINVAL;
@@ -303,13 +301,17 @@ nvkm_gsp_fwsec(struct nvkm_gsp *gsp, const char *name, u32 init_cmd)
 		return ret;
 	}
 
-	/* Boot. */
-	ret = nvkm_falcon_fw_boot(&fw, subdev, true, &mbox0, NULL, 0, 0);
-	nvkm_falcon_fw_dtor(&fw);
-	if (ret)
-		return ret;
-
 	return 0;
+}
+
+static int
+nvkm_gsp_fwsec_boot(struct nvkm_gsp *gsp, struct nvkm_falcon_fw *fw)
+{
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	u32 mbox0 = 0;
+
+	/* Boot */
+	return nvkm_falcon_fw_boot(fw, subdev, true, &mbox0, NULL, 0, 0);
 }
 
 int
@@ -320,7 +322,7 @@ nvkm_gsp_fwsec_sb(struct nvkm_gsp *gsp)
 	int ret;
 	u32 err;
 
-	ret = nvkm_gsp_fwsec(gsp, "fwsec-sb", NVFW_FALCON_APPIF_DMEMMAPPER_CMD_SB);
+	ret = nvkm_gsp_fwsec_boot(gsp, &gsp->fws.falcon.sb);
 	if (ret)
 		return ret;
 
@@ -335,26 +337,47 @@ nvkm_gsp_fwsec_sb(struct nvkm_gsp *gsp)
 }
 
 int
+nvkm_gsp_fwsec_sb_ctor(struct nvkm_gsp *gsp)
+{
+	return nvkm_gsp_fwsec_init(gsp, &gsp->fws.falcon.sb, "fwsec-sb",
+				   NVFW_FALCON_APPIF_DMEMMAPPER_CMD_SB);
+}
+
+void
+nvkm_gsp_fwsec_sb_dtor(struct nvkm_gsp *gsp)
+{
+	nvkm_falcon_fw_dtor(&gsp->fws.falcon.sb);
+}
+
+int
 nvkm_gsp_fwsec_frts(struct nvkm_gsp *gsp)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_falcon_fw fw = {};
 	int ret;
 	u32 err, wpr2_lo, wpr2_hi;
 
-	ret = nvkm_gsp_fwsec(gsp, "fwsec-frts", NVFW_FALCON_APPIF_DMEMMAPPER_CMD_FRTS);
+	ret = nvkm_gsp_fwsec_init(gsp, &fw, "fwsec-frts", NVFW_FALCON_APPIF_DMEMMAPPER_CMD_FRTS);
 	if (ret)
 		return ret;
+
+	ret = nvkm_gsp_fwsec_boot(gsp, &fw);
+	if (ret)
+		goto fwsec_dtor;
 
 	/* Verify. */
 	err = nvkm_rd32(device, 0x001400 + (0xe * 4)) >> 16;
 	if (err) {
 		nvkm_error(subdev, "fwsec-frts: 0x%04x\n", err);
-		return -EIO;
+		ret = -EIO;
+	} else {
+		wpr2_lo = nvkm_rd32(device, 0x1fa824);
+		wpr2_hi = nvkm_rd32(device, 0x1fa828);
+		nvkm_debug(subdev, "fwsec-frts: WPR2 @ %08x - %08x\n", wpr2_lo, wpr2_hi);
 	}
 
-	wpr2_lo = nvkm_rd32(device, 0x1fa824);
-	wpr2_hi = nvkm_rd32(device, 0x1fa828);
-	nvkm_debug(subdev, "fwsec-frts: WPR2 @ %08x - %08x\n", wpr2_lo, wpr2_hi);
-	return 0;
+fwsec_dtor:
+	nvkm_falcon_fw_dtor(&fw);
+	return ret;
 }
