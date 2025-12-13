@@ -862,11 +862,12 @@ u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes)
 /**
  * ecryptfs_cipher_code_to_string
  * @str: Destination to write out the cipher name
+ * @size: Destination buffer size
  * @cipher_code: The code to convert to cipher name string
  *
  * Returns zero on success
  */
-int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code)
+int ecryptfs_cipher_code_to_string(char *str, size_t size, u8 cipher_code)
 {
 	int rc = 0;
 	int i;
@@ -874,7 +875,8 @@ int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code)
 	str[0] = '\0';
 	for (i = 0; i < ARRAY_SIZE(ecryptfs_cipher_code_str_map); i++)
 		if (cipher_code == ecryptfs_cipher_code_str_map[i].cipher_code)
-			strcpy(str, ecryptfs_cipher_code_str_map[i].cipher_str);
+			strscpy(str, ecryptfs_cipher_code_str_map[i].cipher_str,
+				size);
 	if (str[0] == '\0') {
 		ecryptfs_printk(KERN_WARNING, "Cipher code not recognized: "
 				"[%d]\n", cipher_code);

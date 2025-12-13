@@ -911,7 +911,9 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	s->fnek_sig_hex[ECRYPTFS_SIG_SIZE_HEX] = '\0';
 	(*packet_size) += ECRYPTFS_SIG_SIZE;
 	s->cipher_code = data[(*packet_size)++];
-	rc = ecryptfs_cipher_code_to_string(s->cipher_string, s->cipher_code);
+	rc = ecryptfs_cipher_code_to_string(s->cipher_string,
+					    sizeof(s->cipher_string),
+					    s->cipher_code);
 	if (rc) {
 		printk(KERN_WARNING "%s: Cipher code [%d] is invalid\n",
 		       __func__, s->cipher_code);
@@ -1129,7 +1131,9 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	memcpy(crypt_stat->key, auth_tok->session_key.decrypted_key,
 	       auth_tok->session_key.decrypted_key_size);
 	crypt_stat->key_size = auth_tok->session_key.decrypted_key_size;
-	rc = ecryptfs_cipher_code_to_string(crypt_stat->cipher, cipher_code);
+	rc = ecryptfs_cipher_code_to_string(crypt_stat->cipher,
+					    sizeof(crypt_stat->cipher),
+					    cipher_code);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Cipher code [%d] is invalid\n",
 				cipher_code);
@@ -1395,6 +1399,7 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out_free;
 	}
 	rc = ecryptfs_cipher_code_to_string(crypt_stat->cipher,
+					    sizeof(crypt_stat->cipher),
 					    (u16)data[(*packet_size)]);
 	if (rc)
 		goto out_free;

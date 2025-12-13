@@ -571,7 +571,7 @@ int ecryptfs_read_and_validate_header_region(struct inode *inode);
 int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
 					    struct inode *inode);
 u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes);
-int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code);
+int ecryptfs_cipher_code_to_string(char *str, size_t size, u8 cipher_code);
 void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat);
 int ecryptfs_generate_key_packet_set(char *dest_base,
 				     struct ecryptfs_crypt_stat *crypt_stat,
