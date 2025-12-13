@@ -4019,22 +4019,10 @@ static int shmem_whiteout(struct mnt_idmap *idmap,
 	whiteout = d_alloc(old_dentry->d_parent, &old_dentry->d_name);
 	if (!whiteout)
 		return -ENOMEM;
-
 	error = shmem_mknod(idmap, old_dir, whiteout,
 			    S_IFCHR | WHITEOUT_MODE, WHITEOUT_DEV);
 	dput(whiteout);
-	if (error)
-		return error;
-
-	/*
-	 * Cheat and hash the whiteout while the old dentry is still in
-	 * place, instead of playing games with FS_RENAME_DOES_D_MOVE.
-	 *
-	 * d_lookup() will consistently find one of them at this point,
-	 * not sure which one, but that isn't even important.
-	 */
-	d_rehash(whiteout);
-	return 0;
+	return error;
 }
 
 /*
