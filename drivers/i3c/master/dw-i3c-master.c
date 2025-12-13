@@ -902,9 +902,9 @@ rpm_out:
 	return ret;
 }
 
-static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
-				    struct i3c_priv_xfer *i3c_xfers,
-				    int i3c_nxfers)
+static int dw_i3c_master_i3c_xfers(struct i3c_dev_desc *dev,
+				   struct i3c_xfer *i3c_xfers,
+				   int i3c_nxfers, enum i3c_xfer_mode mode)
 {
 	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
@@ -1498,7 +1498,7 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.do_daa = dw_i3c_master_daa,
 	.supports_ccc_cmd = dw_i3c_master_supports_ccc_cmd,
 	.send_ccc_cmd = dw_i3c_master_send_ccc_cmd,
-	.priv_xfers = dw_i3c_master_priv_xfers,
+	.i3c_xfers = dw_i3c_master_i3c_xfers,
 	.attach_i2c_dev = dw_i3c_master_attach_i2c_dev,
 	.detach_i2c_dev = dw_i3c_master_detach_i2c_dev,
 	.i2c_xfers = dw_i3c_master_i2c_xfers,

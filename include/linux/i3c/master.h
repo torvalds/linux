@@ -417,12 +417,8 @@ struct i3c_bus {
  *		      all CCC commands are supported.
  * @send_ccc_cmd: send a CCC command
  *		  This method is mandatory.
- * @priv_xfers: do one or several private I3C SDR transfers
- *		This method is mandatory when i3c_xfers is not implemented. It
- *		is deprecated.
- * @i3c_xfers: do one or several I3C SDR or HDR transfers
- *	       This method is mandatory when priv_xfers is not implemented but
- *	       should be implemented instead of priv_xfers.
+ * @i3c_xfers: do one or several I3C SDR or HDR transfers.
+ *	       This method is mandatory.
  * @attach_i2c_dev: called every time an I2C device is attached to the bus.
  *		    This is a good place to attach master controller specific
  *		    data to I2C devices.
@@ -478,10 +474,6 @@ struct i3c_master_controller_ops {
 				 const struct i3c_ccc_cmd *cmd);
 	int (*send_ccc_cmd)(struct i3c_master_controller *master,
 			    struct i3c_ccc_cmd *cmd);
-	/* Deprecated, please use i3c_xfers() */
-	int (*priv_xfers)(struct i3c_dev_desc *dev,
-			  struct i3c_priv_xfer *xfers,
-			  int nxfers);
 	int (*i3c_xfers)(struct i3c_dev_desc *dev,
 			 struct i3c_xfer *xfers,
 			 int nxfers, enum i3c_xfer_mode mode);
