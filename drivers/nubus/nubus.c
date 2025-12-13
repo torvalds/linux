@@ -41,6 +41,10 @@ module_param_named(populate_procfs, nubus_populate_procfs, bool, 0);
 
 LIST_HEAD(nubus_func_rsrcs);
 
+static struct device nubus_parent = {
+	.init_name	= "nubus",
+};
+
 /* Meaning of "bytelanes":
 
    The card ROM may appear on any or all bytes of each long word in
@@ -829,7 +833,7 @@ static void __init nubus_add_board(int slot, int bytelanes)
 		list_add_tail(&fres->list, &nubus_func_rsrcs);
 	}
 
-	if (nubus_device_register(board))
+	if (nubus_device_register(&nubus_parent, board))
 		put_device(&board->dev);
 }
 
@@ -882,9 +886,11 @@ static int __init nubus_init(void)
 		return 0;
 
 	nubus_proc_init();
-	err = nubus_parent_device_register();
-	if (err)
+	err = device_register(&nubus_parent);
+	if (err) {
+		put_device(&nubus_parent);
 		return err;
+	}
 	nubus_scan_bus();
 	return 0;
 }
