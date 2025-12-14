@@ -16,6 +16,7 @@ obj-$(CONFIG_PHY_NXP_PTN3222)		+= phy-nxp-ptn3222.o
 obj-$(CONFIG_PHY_SPACEMIT_K1_PCIE)	+= phy-spacemit-k1-pcie.o
 obj-y					+= allwinner/	\
 					   amlogic/	\
+					   apple/	\
 					   broadcom/	\
 					   cadence/	\
 					   freescale/	\

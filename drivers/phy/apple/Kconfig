@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+config PHY_APPLE_ATC
+	tristate "Apple Type-C PHY"
+	depends on (ARM64 && ARCH_APPLE) || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	depends on TYPEC
+	select GENERIC_PHY
+	select APPLE_TUNABLE
+	help
+	  Enable this to add support for the Apple Type-C PHY found in
+	  Apple Silicon M-series SoCs. This PHY supports USB2,
+	  USB3, USB4, Thunderbolt, and DisplayPort.
+
+	  If M is selected the module will be called 'phy-apple-atc'.
