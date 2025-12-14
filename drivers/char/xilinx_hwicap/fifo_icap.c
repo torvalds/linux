@@ -48,7 +48,7 @@
 
 #define XHI_GIER_GIE_MASK 0x80000000 /* Global Interrupt enable Mask */
 
-/**
+/*
  * HwIcap Device Interrupt Status/Enable Registers
  *
  * Interrupt Status Register (IPISR) : This register holds the
@@ -102,6 +102,8 @@ static inline void fifo_icap_fifo_write(struct hwicap_drvdata *drvdata,
  * @drvdata: a pointer to the drvdata.
  *
  * This function will silently fail if the fifo is empty.
+ *
+ * Returns: 32-bit data from the Read FIFO
  **/
 static inline u32 fifo_icap_fifo_read(struct hwicap_drvdata *drvdata)
 {
@@ -156,6 +158,8 @@ static inline void fifo_icap_start_readback(struct hwicap_drvdata *drvdata)
  * D2 - Always 1
  * D1 - Always 1
  * D0 - Done bit
+ *
+ * Returns: the 32-bit ICAP status register
  **/
 u32 fifo_icap_get_status(struct hwicap_drvdata *drvdata)
 {
@@ -165,8 +169,11 @@ u32 fifo_icap_get_status(struct hwicap_drvdata *drvdata)
 }
 
 /**
- * fifo_icap_busy - Return true if the ICAP is still processing a transaction.
+ * fifo_icap_busy - Check the ICAP busy status.
  * @drvdata: a pointer to the drvdata.
+ *
+ * Returns: %true if the ICAP is still processing a transaction,
+ *	otherwise %false
  **/
 static inline u32 fifo_icap_busy(struct hwicap_drvdata *drvdata)
 {
@@ -178,7 +185,7 @@ static inline u32 fifo_icap_busy(struct hwicap_drvdata *drvdata)
  * fifo_icap_write_fifo_vacancy - Query the write fifo available space.
  * @drvdata: a pointer to the drvdata.
  *
- * Return the number of words that can be safely pushed into the write fifo.
+ * Returns: the number of words that can be safely pushed into the write fifo.
  **/
 static inline u32 fifo_icap_write_fifo_vacancy(
 		struct hwicap_drvdata *drvdata)
@@ -190,7 +197,7 @@ static inline u32 fifo_icap_write_fifo_vacancy(
  * fifo_icap_read_fifo_occupancy - Query the read fifo available data.
  * @drvdata: a pointer to the drvdata.
  *
- * Return the number of words that can be safely read from the read fifo.
+ * Returns: the number of words that can be safely read from the read fifo.
  **/
 static inline u32 fifo_icap_read_fifo_occupancy(
 		struct hwicap_drvdata *drvdata)
@@ -205,10 +212,12 @@ static inline u32 fifo_icap_read_fifo_occupancy(
  *		ICAP device.
  * @num_words: the number of words (32 bit) to write to the ICAP
  *		device.
-
+ *
  * This function writes the given user data to the Write FIFO in
  * polled mode and starts the transfer of the data to
  * the ICAP device.
+ *
+ * Returns: %0 on success or %-errno on failure.
  **/
 int fifo_icap_set_configuration(struct hwicap_drvdata *drvdata,
 		u32 *frame_buffer, u32 num_words)
@@ -280,11 +289,13 @@ int fifo_icap_set_configuration(struct hwicap_drvdata *drvdata,
 /**
  * fifo_icap_get_configuration - Read configuration data from the device.
  * @drvdata: a pointer to the drvdata.
- * @data: Address of the data representing the partial bitstream
- * @size: the size of the partial bitstream in 32 bit words.
+ * @frame_buffer: Address of the data representing the partial bitstream
+ * @num_words: the size of the partial bitstream in 32 bit words.
  *
  * This function reads the specified number of words from the ICAP device in
  * the polled mode.
+ *
+ * Returns: %0 on success or %-errno on failure.
  */
 int fifo_icap_get_configuration(struct hwicap_drvdata *drvdata,
 		u32 *frame_buffer, u32 num_words)
@@ -347,7 +358,7 @@ int fifo_icap_get_configuration(struct hwicap_drvdata *drvdata,
 }
 
 /**
- * buffer_icap_reset - Reset the logic of the icap device.
+ * fifo_icap_reset - Reset the logic of the icap device.
  * @drvdata: a pointer to the drvdata.
  *
  * This function forces the software reset of the complete HWICAP device.
