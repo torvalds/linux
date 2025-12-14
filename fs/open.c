@@ -592,11 +592,11 @@ SYSCALL_DEFINE1(chroot, const char __user *, filename)
 	struct path path;
 	int error;
 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
-	struct filename *name = getname(filename);
+	CLASS(filename, name)(filename);
 retry:
 	error = filename_lookup(AT_FDCWD, name, lookup_flags, &path, NULL);
 	if (error)
-		goto out;
+		return error;
 
 	error = path_permission(&path, MAY_EXEC | MAY_CHDIR);
 	if (error)
@@ -606,19 +606,14 @@ retry:
 	if (!ns_capable(current_user_ns(), CAP_SYS_CHROOT))
 		goto dput_and_out;
 	error = security_path_chroot(&path);
-	if (error)
-		goto dput_and_out;
-
-	set_fs_root(current->fs, &path);
-	error = 0;
+	if (!error)
+		set_fs_root(current->fs, &path);
 dput_and_out:
 	path_put(&path);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
-out:
-	putname(name);
 	return error;
 }
 
