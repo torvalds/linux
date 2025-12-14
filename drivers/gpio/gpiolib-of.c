@@ -634,6 +634,7 @@ static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 	return ERR_PTR(-ENOENT);
 }
 
+#if IS_ENABLED(CONFIG_SND_SOC_MT2701_CS42448)
 static struct gpio_desc *of_find_mt2701_gpio(struct device_node *np,
 					     const char *con_id,
 					     unsigned int idx,
@@ -665,6 +666,7 @@ static struct gpio_desc *of_find_mt2701_gpio(struct device_node *np,
 
 	return desc;
 }
+#endif
 
 /*
  * Trigger sources are special, they allow us to use any GPIO as a LED trigger
@@ -699,7 +701,9 @@ typedef struct gpio_desc *(*of_find_gpio_quirk)(struct device_node *np,
 						enum of_gpio_flags *of_flags);
 static const of_find_gpio_quirk of_find_gpio_quirks[] = {
 	of_find_gpio_rename,
+#if IS_ENABLED(CONFIG_SND_SOC_MT2701_CS42448)
 	of_find_mt2701_gpio,
+#endif
 	of_find_trigger_gpio,
 	NULL
 };
