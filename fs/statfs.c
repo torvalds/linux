@@ -99,7 +99,7 @@ int user_statfs(const char __user *pathname, struct kstatfs *st)
 	struct path path;
 	int error;
 	unsigned int lookup_flags = LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT;
-	struct filename *name = getname(pathname);
+	CLASS(filename, name)(pathname);
 retry:
 	error = filename_lookup(AT_FDCWD, name, lookup_flags, &path, NULL);
 	if (!error) {
@@ -110,7 +110,6 @@ retry:
 			goto retry;
 		}
 	}
-	putname(name);
 	return error;
 }
 
