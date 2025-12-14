@@ -365,17 +365,13 @@ retry:
 int vfs_fstatat(int dfd, const char __user *filename,
 			      struct kstat *stat, int flags)
 {
-	int ret;
-	int statx_flags = flags | AT_NO_AUTOMOUNT;
-	struct filename *name = getname_maybe_null(filename, flags);
+	CLASS(filename_maybe_null, name)(filename, flags);
 
 	if (!name && dfd >= 0)
 		return vfs_fstat(dfd, stat);
 
-	ret = vfs_statx(dfd, name, statx_flags, stat, STATX_BASIC_STATS);
-	putname(name);
-
-	return ret;
+	return vfs_statx(dfd, name, flags | AT_NO_AUTOMOUNT,
+			 stat, STATX_BASIC_STATS);
 }
 
 #ifdef __ARCH_WANT_OLD_STAT
@@ -810,16 +806,12 @@ SYSCALL_DEFINE5(statx,
 		unsigned int, mask,
 		struct statx __user *, buffer)
 {
-	int ret;
-	struct filename *name = getname_maybe_null(filename, flags);
+	CLASS(filename_maybe_null, name)(filename, flags);
 
 	if (!name && dfd >= 0)
 		return do_statx_fd(dfd, flags & ~AT_NO_AUTOMOUNT, mask, buffer);
 
-	ret = do_statx(dfd, name, flags, mask, buffer);
-	putname(name);
-
-	return ret;
+	return do_statx(dfd, name, flags, mask, buffer);
 }
 
 #if defined(CONFIG_COMPAT) && defined(__ARCH_WANT_COMPAT_STAT)
