@@ -1226,7 +1226,7 @@ gpio_aggregator_line_release(struct config_item *item)
 	kfree(line);
 }
 
-static struct configfs_item_operations gpio_aggregator_line_item_ops = {
+static const struct configfs_item_operations gpio_aggregator_line_item_ops = {
 	.release	= gpio_aggregator_line_release,
 };
 
@@ -1247,7 +1247,7 @@ static void gpio_aggregator_device_release(struct config_item *item)
 	gpio_aggregator_free(aggr);
 }
 
-static struct configfs_item_operations gpio_aggregator_device_item_ops = {
+static const struct configfs_item_operations gpio_aggregator_device_item_ops = {
 	.release	= gpio_aggregator_device_release,
 };
 
@@ -1292,7 +1292,7 @@ gpio_aggregator_device_make_group(struct config_group *group, const char *name)
 	return &line->group;
 }
 
-static struct configfs_group_operations gpio_aggregator_device_group_ops = {
+static const struct configfs_group_operations gpio_aggregator_device_group_ops = {
 	.make_group	= gpio_aggregator_device_make_group,
 };
 
@@ -1328,7 +1328,7 @@ gpio_aggregator_make_group(struct config_group *group, const char *name)
 	return &aggr->group;
 }
 
-static struct configfs_group_operations gpio_aggregator_group_ops = {
+static const struct configfs_group_operations gpio_aggregator_group_ops = {
 	.make_group	= gpio_aggregator_make_group,
 };
 
