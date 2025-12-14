@@ -4402,8 +4402,6 @@ SYSCALL_DEFINE5(move_mount,
 {
 	struct path to_path __free(path_put) = {};
 	struct path from_path __free(path_put) = {};
-	struct filename *to_name __free(putname) = NULL;
-	struct filename *from_name __free(putname) = NULL;
 	unsigned int lflags, uflags;
 	enum mnt_tree_flags_t mflags = 0;
 	int ret = 0;
@@ -4425,7 +4423,7 @@ SYSCALL_DEFINE5(move_mount,
 	if (flags & MOVE_MOUNT_T_EMPTY_PATH)
 		uflags = AT_EMPTY_PATH;
 
-	to_name = getname_maybe_null(to_pathname, uflags);
+	CLASS(filename_maybe_null,to_name)(to_pathname, uflags);
 	if (!to_name && to_dfd >= 0) {
 		CLASS(fd_raw, f_to)(to_dfd);
 		if (fd_empty(f_to))
@@ -4448,7 +4446,7 @@ SYSCALL_DEFINE5(move_mount,
 	if (flags & MOVE_MOUNT_F_EMPTY_PATH)
 		uflags = AT_EMPTY_PATH;
 
-	from_name = getname_maybe_null(from_pathname, uflags);
+	CLASS(filename_maybe_null,from_name)(from_pathname, uflags);
 	if (!from_name && from_dfd >= 0) {
 		CLASS(fd_raw, f_from)(from_dfd);
 		if (fd_empty(f_from))
