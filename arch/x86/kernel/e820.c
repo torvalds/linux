@@ -617,7 +617,7 @@ __init static void e820__update_table_kexec(void)
 	e820__update_table(e820_table_kexec);
 }
 
-#define MAX_GAP_END 0x100000000ull
+#define MAX_GAP_END SZ_4G
 
 /*
  * Search for a gap in the E820 memory space from 0 to MAX_GAP_END (4GB).
@@ -696,7 +696,7 @@ __init void e820__setup_pci_gap(void)
 		pr_err("Cannot find an available gap in the 32-bit address range\n");
 		pr_err("PCI devices with unassigned 32-bit BARs may not work!\n");
 #else
-		max_gap_start = 0x10000000;
+		max_gap_start = SZ_256M;
 #endif
 	}
 
@@ -1080,7 +1080,7 @@ __initdata static struct resource *e820_res;
 __init static bool e820_device_region(enum e820_type type, struct resource *res)
 {
 	/* This is the legacy BIOS/DOS ROM-shadow + MMIO region: */
-	if (res->start < (1ULL<<20))
+	if (res->start < SZ_1M)
 		return false;
 
 	/*
