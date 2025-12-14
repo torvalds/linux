@@ -5,8 +5,7 @@
  * Copyright (C) 2011  Chris Boot <bootc@bootc.net>
  */
 
-#define KMSG_COMPONENT "sbp_target"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "sbp_target: " fmt
 
 #include <linux/kernel.h>
 #include <linux/module.h>
