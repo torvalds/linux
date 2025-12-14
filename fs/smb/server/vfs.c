@@ -54,7 +54,6 @@ static int ksmbd_vfs_path_lookup(struct ksmbd_share_config *share_conf,
 				 struct path *path, bool for_remove)
 {
 	struct qstr last;
-	struct filename *filename __free(putname) = NULL;
 	const struct path *root_share_path = &share_conf->vfs_path;
 	int err, type;
 	struct dentry *d;
@@ -66,7 +65,7 @@ static int ksmbd_vfs_path_lookup(struct ksmbd_share_config *share_conf,
 		flags |= LOOKUP_BENEATH;
 	}
 
-	filename = getname_kernel(pathname);
+	CLASS(filename_kernel, filename)(pathname);
 	err = vfs_path_parent_lookup(filename, flags,
 				     path, &last, &type,
 				     root_share_path);
@@ -664,7 +663,6 @@ int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
 	struct path new_path;
 	struct qstr new_last;
 	struct renamedata rd;
-	struct filename *to;
 	struct ksmbd_share_config *share_conf = work->tcon->share_conf;
 	struct ksmbd_file *parent_fp;
 	int new_type;
@@ -673,7 +671,7 @@ int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
 	if (ksmbd_override_fsids(work))
 		return -ENOMEM;
 
-	to = getname_kernel(newname);
+	CLASS(filename_kernel, to)(newname);
 
 retry:
 	err = vfs_path_parent_lookup(to, lookup_flags | LOOKUP_BENEATH,
@@ -732,7 +730,6 @@ out2:
 		goto retry;
 	}
 out1:
-	putname(to);
 	ksmbd_revert_fsids(work);
 	return err;
 }
