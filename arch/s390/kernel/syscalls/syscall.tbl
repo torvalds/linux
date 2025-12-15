@@ -397,3 +397,4 @@
 468	common	file_getattr			sys_file_getattr
 469	common	file_setattr			sys_file_setattr
 470	common	listns				sys_listns
+471	common	rseq_slice_yield		sys_rseq_slice_yield

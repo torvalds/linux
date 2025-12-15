@@ -553,6 +553,27 @@ die:
 	return -EFAULT;
 }
 
+/**
+ * sys_rseq_slice_yield - yield the current processor side effect free if a
+ *			  task granted with a time slice extension is done with
+ *			  the critical work before being forced out.
+ *
+ * Return: 1 if the task successfully yielded the CPU within the granted slice.
+ *         0 if the slice extension was either never granted or was revoked by
+ *	     going over the granted extension, using a syscall other than this one
+ *	     or being scheduled out earlier due to a subsequent interrupt.
+ *
+ * The syscall does not schedule because the syscall entry work immediately
+ * relinquishes the CPU and schedules if required.
+ */
+SYSCALL_DEFINE0(rseq_slice_yield)
+{
+	int yielded = !!current->rseq.slice.yielded;
+
+	current->rseq.slice.yielded = 0;
+	return yielded;
+}
+
 static int __init rseq_slice_cmdline(char *str)
 {
 	bool on;
