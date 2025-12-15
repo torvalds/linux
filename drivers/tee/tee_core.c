@@ -1405,6 +1405,22 @@ const struct bus_type tee_bus_type = {
 };
 EXPORT_SYMBOL_GPL(tee_bus_type);
 
+int __tee_client_driver_register(struct tee_client_driver *tee_driver,
+				 struct module *owner)
+{
+	tee_driver->driver.owner = owner;
+	tee_driver->driver.bus = &tee_bus_type;
+
+	return driver_register(&tee_driver->driver);
+}
+EXPORT_SYMBOL_GPL(__tee_client_driver_register);
+
+void tee_client_driver_unregister(struct tee_client_driver *tee_driver)
+{
+	driver_unregister(&tee_driver->driver);
+}
+EXPORT_SYMBOL_GPL(tee_client_driver_unregister);
+
 static int __init tee_init(void)
 {
 	int rc;
