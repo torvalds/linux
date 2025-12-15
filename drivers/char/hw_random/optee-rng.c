@@ -281,24 +281,12 @@ static struct tee_client_driver optee_rng_driver = {
 	.id_table	= optee_rng_id_table,
 	.driver		= {
 		.name		= DRIVER_NAME,
-		.bus		= &tee_bus_type,
 		.probe		= optee_rng_probe,
 		.remove		= optee_rng_remove,
 	},
 };
 
-static int __init optee_rng_mod_init(void)
-{
-	return driver_register(&optee_rng_driver.driver);
-}
-
-static void __exit optee_rng_mod_exit(void)
-{
-	driver_unregister(&optee_rng_driver.driver);
-}
-
-module_init(optee_rng_mod_init);
-module_exit(optee_rng_mod_exit);
+module_tee_client_driver(optee_rng_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Sumit Garg <sumit.garg@linaro.org>");
