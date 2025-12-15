@@ -635,7 +635,8 @@ static void tas2783_set_calib_params_to_device(struct tas2783_prv *tas_dev, u32 
 	}
 
 	if (device_num == dev_count)
-		dev_err(tas_dev->dev, "device not found\n");
+		dev_err(tas_dev->dev,
+			"unique id not found in the calib data\n");
 	else
 		dev_dbg(tas_dev->dev, "calib data update done\n");
 }
