@@ -5552,10 +5552,29 @@ nfsd_change_deleg_cb(struct file_lease *onlist, int arg,
 		return -EAGAIN;
 }
 
+/**
+ *  nfsd4_deleg_lm_open_conflict - see if the given file points to an inode that has
+ *				   an existing open that would conflict with the
+ *				   desired lease.
+ * @filp:	file to check
+ * @arg:	type of lease that we're trying to acquire
+ *
+ * The kernel will call into this operation to determine whether there
+ * are conflicting opens that may prevent the deleg from being granted.
+ * For nfsd, that check is done at a higher level, so this trivially
+ * returns 0.
+ */
+static int
+nfsd4_deleg_lm_open_conflict(struct file *filp, int arg)
+{
+	return 0;
+}
+
 static const struct lease_manager_operations nfsd_lease_mng_ops = {
 	.lm_breaker_owns_lease = nfsd_breaker_owns_lease,
 	.lm_break = nfsd_break_deleg_cb,
 	.lm_change = nfsd_change_deleg_cb,
+	.lm_open_conflict = nfsd4_deleg_lm_open_conflict,
 };
 
 static __be32 nfsd4_check_seqid(struct nfsd4_compound_state *cstate, struct nfs4_stateowner *so, u32 seqid)

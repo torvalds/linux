@@ -369,10 +369,19 @@ locks_dispose_list(struct list_head *dispose)
 	while (!list_empty(dispose)) {
 		flc = list_first_entry(dispose, struct file_lock_core, flc_list);
 		list_del_init(&flc->flc_list);
-		if (flc->flc_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT))
-			locks_free_lease(file_lease(flc));
-		else
-			locks_free_lock(file_lock(flc));
+		locks_free_lock(file_lock(flc));
+	}
+}
+
+static void
+lease_dispose_list(struct list_head *dispose)
+{
+	struct file_lock_core *flc;
+
+	while (!list_empty(dispose)) {
+		flc = list_first_entry(dispose, struct file_lock_core, flc_list);
+		list_del_init(&flc->flc_list);
+		locks_free_lease(file_lease(flc));
 	}
 }
 
@@ -576,10 +585,50 @@ lease_setup(struct file_lease *fl, void **priv)
 	__f_setown(filp, task_pid(current), PIDTYPE_TGID, 0);
 }
 
+/**
+ * lease_open_conflict - see if the given file points to an inode that has
+ *			 an existing open that would conflict with the
+ *			 desired lease.
+ * @filp:	file to check
+ * @arg:	type of lease that we're trying to acquire
+ *
+ * Check to see if there's an existing open fd on this file that would
+ * conflict with the lease we're trying to set.
+ */
+static int
+lease_open_conflict(struct file *filp, const int arg)
+{
+	struct inode *inode = file_inode(filp);
+	int self_wcount = 0, self_rcount = 0;
+
+	if (arg == F_RDLCK)
+		return inode_is_open_for_write(inode) ? -EAGAIN : 0;
+	else if (arg != F_WRLCK)
+		return 0;
+
+	/*
+	 * Make sure that only read/write count is from lease requestor.
+	 * Note that this will result in denying write leases when i_writecount
+	 * is negative, which is what we want.  (We shouldn't grant write leases
+	 * on files open for execution.)
+	 */
+	if (filp->f_mode & FMODE_WRITE)
+		self_wcount = 1;
+	else if (filp->f_mode & FMODE_READ)
+		self_rcount = 1;
+
+	if (atomic_read(&inode->i_writecount) != self_wcount ||
+	    atomic_read(&inode->i_readcount) != self_rcount)
+		return -EAGAIN;
+
+	return 0;
+}
+
 static const struct lease_manager_operations lease_manager_ops = {
 	.lm_break = lease_break_callback,
 	.lm_change = lease_modify,
 	.lm_setup = lease_setup,
+	.lm_open_conflict = lease_open_conflict,
 };
 
 /*
@@ -1620,7 +1669,7 @@ restart:
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
 
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 	error = wait_event_interruptible_timeout(new_fl->c.flc_wait,
 						 list_empty(&new_fl->c.flc_blocked_member),
 						 break_time);
@@ -1643,7 +1692,7 @@ restart:
 out:
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 free_lock:
 	locks_free_lease(new_fl);
 	return error;
@@ -1727,7 +1776,7 @@ static int __fcntl_getlease(struct file *filp, unsigned int flavor)
 		spin_unlock(&ctx->flc_lock);
 		percpu_up_read(&file_rwsem);
 
-		locks_dispose_list(&dispose);
+		lease_dispose_list(&dispose);
 	}
 	return type;
 }
@@ -1742,52 +1791,6 @@ int fcntl_getdeleg(struct file *filp, struct delegation *deleg)
 	if (deleg->d_flags != 0 || deleg->__pad != 0)
 		return -EINVAL;
 	deleg->d_type = __fcntl_getlease(filp, FL_DELEG);
-	return 0;
-}
-
-/**
- * check_conflicting_open - see if the given file points to an inode that has
- *			    an existing open that would conflict with the
- *			    desired lease.
- * @filp:	file to check
- * @arg:	type of lease that we're trying to acquire
- * @flags:	current lock flags
- *
- * Check to see if there's an existing open fd on this file that would
- * conflict with the lease we're trying to set.
- */
-static int
-check_conflicting_open(struct file *filp, const int arg, int flags)
-{
-	struct inode *inode = file_inode(filp);
-	int self_wcount = 0, self_rcount = 0;
-
-	if (flags & FL_LAYOUT)
-		return 0;
-	if (flags & FL_DELEG)
-		/* We leave these checks to the caller */
-		return 0;
-
-	if (arg == F_RDLCK)
-		return inode_is_open_for_write(inode) ? -EAGAIN : 0;
-	else if (arg != F_WRLCK)
-		return 0;
-
-	/*
-	 * Make sure that only read/write count is from lease requestor.
-	 * Note that this will result in denying write leases when i_writecount
-	 * is negative, which is what we want.  (We shouldn't grant write leases
-	 * on files open for execution.)
-	 */
-	if (filp->f_mode & FMODE_WRITE)
-		self_wcount = 1;
-	else if (filp->f_mode & FMODE_READ)
-		self_rcount = 1;
-
-	if (atomic_read(&inode->i_writecount) != self_wcount ||
-	    atomic_read(&inode->i_readcount) != self_rcount)
-		return -EAGAIN;
-
 	return 0;
 }
 
@@ -1827,7 +1830,7 @@ generic_add_lease(struct file *filp, int arg, struct file_lease **flp, void **pr
 	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	time_out_leases(inode, &dispose);
-	error = check_conflicting_open(filp, arg, lease->c.flc_flags);
+	error = lease->fl_lmops->lm_open_conflict(filp, arg);
 	if (error)
 		goto out;
 
@@ -1884,7 +1887,7 @@ generic_add_lease(struct file *filp, int arg, struct file_lease **flp, void **pr
 	 * precedes these checks.
 	 */
 	smp_mb();
-	error = check_conflicting_open(filp, arg, lease->c.flc_flags);
+	error = lease->fl_lmops->lm_open_conflict(filp, arg);
 	if (error) {
 		locks_unlink_lock_ctx(&lease->c);
 		goto out;
@@ -1896,7 +1899,7 @@ out_setup:
 out:
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 	if (is_deleg)
 		inode_unlock(inode);
 	if (!error && !my_fl)
@@ -1932,7 +1935,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 		error = fl->fl_lmops->lm_change(victim, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 	return error;
 }
 
@@ -2727,7 +2730,7 @@ locks_remove_lease(struct file *filp, struct file_lock_context *ctx)
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
 
-	locks_dispose_list(&dispose);
+	lease_dispose_list(&dispose);
 }
 
 /*
