@@ -892,6 +892,19 @@ void sof_ipc4_mic_privacy_state_change(struct snd_sof_dev *sdev, bool state)
 	struct sof_ipc4_msg msg;
 	u32 data = state;
 
+	/*
+	 * The mic privacy change notification's role is to notify the running
+	 * firmware that there is a change in mic privacy state from whatever
+	 * the state was before - since the firmware booted up or since the
+	 * previous change during runtime.
+	 *
+	 * If the firmware has not been booted up, there is no need to send
+	 * change notification (the firmware is not booted up).
+	 * The firmware checks the current state during its boot.
+	 */
+	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE)
+		return;
+
 	msg.primary = SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
 	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	msg.primary |= SOF_IPC4_MOD_ID(SOF_IPC4_MOD_INIT_BASEFW_MOD_ID);
