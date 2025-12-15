@@ -2759,37 +2759,29 @@ int acpi_bus_register_early_device(int type)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_register_early_device);
 
+static void acpi_bus_add_fixed_device_object(enum acpi_bus_device_type type)
+{
+	struct acpi_device *adev = NULL;
+
+	acpi_add_single_object(&adev, NULL, type, false);
+	if (adev) {
+		adev->flags.match_driver = true;
+		if (device_attach(&adev->dev) >= 0)
+			device_init_wakeup(&adev->dev, true);
+		else
+			dev_dbg(&adev->dev, "No driver\n");
+
+		acpi_default_enumeration(adev);
+	}
+}
+
 static void acpi_bus_scan_fixed(void)
 {
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON)) {
-		struct acpi_device *adev = NULL;
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON))
+		acpi_bus_add_fixed_device_object(ACPI_BUS_TYPE_POWER_BUTTON);
 
-		acpi_add_single_object(&adev, NULL, ACPI_BUS_TYPE_POWER_BUTTON,
-				       false);
-		if (adev) {
-			adev->flags.match_driver = true;
-			if (device_attach(&adev->dev) >= 0)
-				device_init_wakeup(&adev->dev, true);
-			else
-				dev_dbg(&adev->dev, "No driver\n");
-
-			acpi_default_enumeration(adev);
-		}
-	}
-
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON)) {
-		struct acpi_device *adev = NULL;
-
-		acpi_add_single_object(&adev, NULL, ACPI_BUS_TYPE_SLEEP_BUTTON,
-				       false);
-		if (adev) {
-			adev->flags.match_driver = true;
-			if (device_attach(&adev->dev) < 0)
-				dev_dbg(&adev->dev, "No driver\n");
-
-			acpi_default_enumeration(adev);
-		}
-	}
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON))
+		acpi_bus_add_fixed_device_object(ACPI_BUS_TYPE_SLEEP_BUTTON);
 }
 
 static void __init acpi_get_spcr_uart_addr(void)
