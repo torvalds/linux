@@ -117,6 +117,8 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 bool intel_dp_source_supports_tps3(struct intel_display *display);
 bool intel_dp_source_supports_tps4(struct intel_display *display);
 
+int intel_dp_link_bw_overhead(int link_clock, int lane_count, int hdisplay,
+			      int dsc_slice_count, int bpp_x16, unsigned long flags);
 int intel_dp_link_required(int pixel_clock, int bpp);
 int intel_dp_effective_data_rate(int pixel_clock, int bpp_x16,
 				 int bw_overhead);

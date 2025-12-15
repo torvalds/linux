@@ -424,6 +424,32 @@ static int intel_dp_min_lane_count(struct intel_dp *intel_dp)
 	return 1;
 }
 
+int intel_dp_link_bw_overhead(int link_clock, int lane_count, int hdisplay,
+			      int dsc_slice_count, int bpp_x16, unsigned long flags)
+{
+	int overhead;
+
+	WARN_ON(flags & ~(DRM_DP_BW_OVERHEAD_MST | DRM_DP_BW_OVERHEAD_SSC_REF_CLK |
+			  DRM_DP_BW_OVERHEAD_FEC));
+
+	if (drm_dp_is_uhbr_rate(link_clock))
+		flags |= DRM_DP_BW_OVERHEAD_UHBR;
+
+	if (dsc_slice_count)
+		flags |= DRM_DP_BW_OVERHEAD_DSC;
+
+	overhead = drm_dp_bw_overhead(lane_count, hdisplay,
+				      dsc_slice_count,
+				      bpp_x16,
+				      flags);
+
+	/*
+	 * TODO: clarify whether a minimum required by the fixed FEC overhead
+	 * in the bspec audio programming sequence is required here.
+	 */
+	return max(overhead, intel_dp_bw_fec_overhead(flags & DRM_DP_BW_OVERHEAD_FEC));
+}
+
 /*
  * The required data bandwidth for a mode with given pixel clock and bpp. This
  * is the required net bandwidth independent of the data bandwidth efficiency.

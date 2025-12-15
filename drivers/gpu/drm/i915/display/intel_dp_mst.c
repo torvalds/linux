@@ -180,26 +180,16 @@ static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	unsigned long flags = DRM_DP_BW_OVERHEAD_MST;
-	int overhead;
 
-	flags |= intel_dp_is_uhbr(crtc_state) ? DRM_DP_BW_OVERHEAD_UHBR : 0;
 	flags |= ssc ? DRM_DP_BW_OVERHEAD_SSC_REF_CLK : 0;
 	flags |= crtc_state->fec_enable ? DRM_DP_BW_OVERHEAD_FEC : 0;
 
-	if (dsc_slice_count)
-		flags |= DRM_DP_BW_OVERHEAD_DSC;
-
-	overhead = drm_dp_bw_overhead(crtc_state->lane_count,
-				      adjusted_mode->hdisplay,
-				      dsc_slice_count,
-				      bpp_x16,
-				      flags);
-
-	/*
-	 * TODO: clarify whether a minimum required by the fixed FEC overhead
-	 * in the bspec audio programming sequence is required here.
-	 */
-	return max(overhead, intel_dp_bw_fec_overhead(crtc_state->fec_enable));
+	return intel_dp_link_bw_overhead(crtc_state->port_clock,
+					 crtc_state->lane_count,
+					 adjusted_mode->hdisplay,
+					 dsc_slice_count,
+					 bpp_x16,
+					 flags);
 }
 
 static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
