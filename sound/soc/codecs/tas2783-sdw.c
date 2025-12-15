@@ -1060,66 +1060,6 @@ static s32 tas_init(struct tas2783_prv *tas_dev)
 	return ret;
 }
 
-static s32 tas_read_prop(struct sdw_slave *slave)
-{
-	struct sdw_slave_prop *prop = &slave->prop;
-	s32 nval;
-	s32 i, j;
-	u32 bit;
-	unsigned long addr;
-	struct sdw_dpn_prop *dpn;
-
-	prop->scp_int1_mask =
-		SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY;
-	prop->quirks = SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY;
-
-	prop->paging_support = true;
-
-	/* first we need to allocate memory for set bits in port lists */
-	prop->source_ports = 0x04; /* BITMAP: 00000100 */
-	prop->sink_ports = 0x2; /* BITMAP:  00000010 */
-
-	nval = hweight32(prop->source_ports);
-	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					  sizeof(*prop->src_dpn_prop), GFP_KERNEL);
-	if (!prop->src_dpn_prop)
-		return -ENOMEM;
-
-	i = 0;
-	dpn = prop->src_dpn_prop;
-	addr = prop->source_ports;
-	for_each_set_bit(bit, &addr, 32) {
-		dpn[i].num = bit;
-		dpn[i].type = SDW_DPN_FULL;
-		dpn[i].simple_ch_prep_sm = false;
-		dpn[i].ch_prep_timeout = 10;
-		i++;
-	}
-
-	/* do this again for sink now */
-	nval = hweight32(prop->sink_ports);
-	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					   sizeof(*prop->sink_dpn_prop), GFP_KERNEL);
-	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
-
-	j = 0;
-	dpn = prop->sink_dpn_prop;
-	addr = prop->sink_ports;
-	for_each_set_bit(bit, &addr, 32) {
-		dpn[j].num = bit;
-		dpn[j].type = SDW_DPN_FULL;
-		dpn[j].simple_ch_prep_sm = false;
-		dpn[j].ch_prep_timeout = 10;
-		j++;
-	}
-
-	/* set the timeout values */
-	prop->clk_stop_timeout = 200;
-
-	return 0;
-}
-
 static s32 tas2783_sdca_dev_suspend(struct device *dev)
 {
 	struct tas2783_prv *tas_dev = dev_get_drvdata(dev);
@@ -1272,7 +1212,6 @@ static s32 tas_update_status(struct sdw_slave *slave,
 }
 
 static const struct sdw_slave_ops tas_sdw_ops = {
-	.read_prop	= tas_read_prop,
 	.update_status	= tas_update_status,
 };
 
@@ -1289,6 +1228,11 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 	struct tas2783_prv *tas_dev;
 	struct sdca_function_data *function_data = NULL;
 	int ret, i;
+
+	ret = sdw_slave_read_prop(peripheral);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "slave property read failed");
 
 	tas_dev = devm_kzalloc(dev, sizeof(*tas_dev), GFP_KERNEL);
 	if (!tas_dev)
