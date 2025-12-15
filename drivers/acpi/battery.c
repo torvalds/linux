@@ -1279,9 +1279,7 @@ static void acpi_battery_remove(struct acpi_device *device)
 	device_init_wakeup(&device->dev, 0);
 	unregister_pm_notifier(&battery->pm_nb);
 
-	guard(mutex)(&battery->update_lock);
-
-	sysfs_remove_battery(battery);
+	sysfs_battery_cleanup(battery);
 }
 
 /* this is needed to learn about changes made in suspended state */
