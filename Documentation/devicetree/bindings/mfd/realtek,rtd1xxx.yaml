@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/realtek,rtd1xxx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek RTD1xxx system controllers
+
+maintainers:
+  - Andreas Färber <afaerber@suse.de>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - realtek,rtd1293-crt
+          - realtek,rtd1293-iso
+          - realtek,rtd1293-misc
+          - realtek,rtd1293-sb2
+          - realtek,rtd1293-scpu-wrapper
+          - realtek,rtd1295-crt
+          - realtek,rtd1295-iso
+          - realtek,rtd1295-misc
+          - realtek,rtd1295-sb2
+          - realtek,rtd1295-scpu-wrapper
+          - realtek,rtd1296-crt
+          - realtek,rtd1296-iso
+          - realtek,rtd1296-misc
+          - realtek,rtd1296-sb2
+          - realtek,rtd1296-scpu-wrapper
+          - realtek,rtd1395-crt
+          - realtek,rtd1395-iso
+          - realtek,rtd1395-misc
+          - realtek,rtd1395-sb2
+          - realtek,rtd1395-scpu-wrapper
+          - realtek,rtd1619-crt
+          - realtek,rtd1619-iso
+          - realtek,rtd1619-misc
+          - realtek,rtd1619-sb2
+          - realtek,rtd1619-scpu-wrapper
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  reg-io-width:
+    const: 4
+
+  ranges: true
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+patternProperties:
+  '@[0-9a-f]+$':
+    type: object
+
+    required:
+      - compatible
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
