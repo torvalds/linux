@@ -547,9 +547,9 @@ static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
 		return 0;
 }
 
-static int optee_rtc_probe(struct device *dev)
+static int optee_rtc_probe(struct tee_client_device *rtc_device)
 {
-	struct tee_client_device *rtc_device = to_tee_client_device(dev);
+	struct device *dev = &rtc_device->dev;
 	struct tee_ioctl_open_session_arg sess2_arg = {0};
 	struct tee_ioctl_open_session_arg sess_arg = {0};
 	struct optee_rtc *priv;
@@ -682,8 +682,9 @@ out_ctx:
 	return err;
 }
 
-static int optee_rtc_remove(struct device *dev)
+static void optee_rtc_remove(struct tee_client_device *rtc_device)
 {
+	struct device *dev = &rtc_device->dev;
 	struct optee_rtc *priv = dev_get_drvdata(dev);
 
 	if (priv->features & TA_RTC_FEATURE_ALARM) {
@@ -696,8 +697,6 @@ static int optee_rtc_remove(struct device *dev)
 	tee_shm_free(priv->shm);
 	tee_client_close_session(priv->ctx, priv->session_id);
 	tee_client_close_context(priv->ctx);
-
-	return 0;
 }
 
 static int optee_rtc_suspend(struct device *dev)
@@ -724,10 +723,10 @@ MODULE_DEVICE_TABLE(tee, optee_rtc_id_table);
 
 static struct tee_client_driver optee_rtc_driver = {
 	.id_table	= optee_rtc_id_table,
+	.probe		= optee_rtc_probe,
+	.remove		= optee_rtc_remove,
 	.driver		= {
 		.name		= "optee_rtc",
-		.probe		= optee_rtc_probe,
-		.remove		= optee_rtc_remove,
 		.pm		= pm_sleep_ptr(&optee_rtc_pm_ops),
 	},
 };
