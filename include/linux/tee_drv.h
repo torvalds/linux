@@ -315,6 +315,9 @@ struct tee_client_device {
  * @driver:		driver structure
  */
 struct tee_client_driver {
+	int (*probe)(struct tee_client_device *);
+	void (*remove)(struct tee_client_device *);
+	void (*shutdown)(struct tee_client_device *);
 	const struct tee_client_device_id *id_table;
 	struct device_driver driver;
 };
