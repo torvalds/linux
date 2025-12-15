@@ -41,7 +41,7 @@ static inline void arch_enter_lazy_mmu_mode(void)
 	batch->active = 1;
 }
 
-static inline void arch_leave_lazy_mmu_mode(void)
+static inline void arch_flush_lazy_mmu_mode(void)
 {
 	struct ppc64_tlb_batch *batch;
 
@@ -51,11 +51,20 @@ static inline void arch_leave_lazy_mmu_mode(void)
 
 	if (batch->index)
 		__flush_tlb_pending(batch);
+}
+
+static inline void arch_leave_lazy_mmu_mode(void)
+{
+	struct ppc64_tlb_batch *batch;
+
+	if (radix_enabled())
+		return;
+	batch = this_cpu_ptr(&ppc64_tlb_batch);
+
+	arch_flush_lazy_mmu_mode();
 	batch->active = 0;
 	preempt_enable();
 }
-
-#define arch_flush_lazy_mmu_mode()      do {} while (0)
 
 extern void hash__tlbiel_all(unsigned int action);
 
