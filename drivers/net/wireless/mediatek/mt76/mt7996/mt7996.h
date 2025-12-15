@@ -748,6 +748,7 @@ void mt7996_mcu_exit(struct mt7996_dev *dev);
 int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag);
 int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
 int mt7996_mcu_set_sniffer_mode(struct mt7996_phy *phy, bool enabled);
+int mt7996_mcu_set_dup_wtbl(struct mt7996_dev *dev);
 
 static inline bool mt7996_has_hwrro(struct mt7996_dev *dev)
 {

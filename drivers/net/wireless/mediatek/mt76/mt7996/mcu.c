@@ -4033,7 +4033,6 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
 
 int mt7996_mcu_get_chip_config(struct mt7996_dev *dev, u32 *cap)
 {
-#define NIC_CAP	3
 #define UNI_EVENT_CHIP_CONFIG_EFUSE_VERSION	0x21
 	struct {
 		u8 _rsv[4];
@@ -4041,7 +4040,7 @@ int mt7996_mcu_get_chip_config(struct mt7996_dev *dev, u32 *cap)
 		__le16 tag;
 		__le16 len;
 	} __packed req = {
-		.tag = cpu_to_le16(NIC_CAP),
+		.tag = cpu_to_le16(UNI_CHIP_CONFIG_NIC_CAPA),
 		.len = cpu_to_le16(sizeof(req) - 4),
 	};
 	struct sk_buff *skb;
@@ -5047,4 +5046,26 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode)
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(CP_SUPPORT),
 				 &cp_mode, sizeof(cp_mode), true);
+}
+
+int mt7996_mcu_set_dup_wtbl(struct mt7996_dev *dev)
+{
+#define DUP_WTBL_NUM	80
+	struct {
+		u8 _rsv[4];
+
+		__le16 tag;
+		__le16 len;
+		__le16 base;
+		__le16 num;
+		u8 _rsv2[4];
+	} __packed req = {
+		.tag = cpu_to_le16(UNI_CHIP_CONFIG_DUP_WTBL),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.base = cpu_to_le16(MT7996_WTBL_STA - DUP_WTBL_NUM + 1),
+		.num = cpu_to_le16(DUP_WTBL_NUM),
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(CHIP_CONFIG), &req,
+				 sizeof(req), true);
 }

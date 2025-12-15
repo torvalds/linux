@@ -798,6 +798,11 @@ enum {
 	UNI_CHANNEL_RX_PATH,
 };
 
+enum {
+	UNI_CHIP_CONFIG_NIC_CAPA = 3,
+	UNI_CHIP_CONFIG_DUP_WTBL = 4,
+};
+
 #define MT7996_BSS_UPDATE_MAX_SIZE	(sizeof(struct bss_req_hdr) +		\
 					 sizeof(struct mt76_connac_bss_basic_tlv) +	\
 					 sizeof(struct bss_rlm_tlv) +		\
