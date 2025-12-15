@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/types.h>
@@ -1208,26 +1209,26 @@ static void sysfs_battery_cleanup(struct acpi_battery *battery)
 	sysfs_remove_battery(battery);
 }
 
-static int acpi_battery_add(struct acpi_device *device)
+static int acpi_battery_probe(struct platform_device *pdev)
 {
-	int result = 0;
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_battery *battery;
-
-	if (!device)
-		return -EINVAL;
+	int result;
 
 	if (device->dep_unmet)
 		return -EPROBE_DEFER;
 
-	battery = devm_kzalloc(&device->dev, sizeof(*battery), GFP_KERNEL);
+	battery = devm_kzalloc(&pdev->dev, sizeof(*battery), GFP_KERNEL);
 	if (!battery)
 		return -ENOMEM;
+
+	platform_set_drvdata(pdev, battery);
+
 	battery->device = device;
 	strscpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
-	device->driver_data = battery;
 
-	result = devm_mutex_init(&device->dev, &battery->update_lock);
+	result = devm_mutex_init(&pdev->dev, &battery->update_lock);
 	if (result)
 		return result;
 
@@ -1246,7 +1247,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	if (result)
 		goto fail;
 
-	device_init_wakeup(&device->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	result = acpi_dev_install_notify_handler(device, ACPI_ALL_NOTIFY,
 						 acpi_battery_notify, battery);
@@ -1256,7 +1257,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	return 0;
 
 fail_pm:
-	device_init_wakeup(&device->dev, 0);
+	device_init_wakeup(&pdev->dev, false);
 	unregister_pm_notifier(&battery->pm_nb);
 fail:
 	sysfs_battery_cleanup(battery);
@@ -1264,19 +1265,18 @@ fail:
 	return result;
 }
 
-static void acpi_battery_remove(struct acpi_device *device)
+static void acpi_battery_remove(struct platform_device *pdev)
 {
-	struct acpi_battery *battery;
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_battery *battery = platform_get_drvdata(pdev);
 
-	if (!device || !acpi_driver_data(device))
+	if (!device || !battery)
 		return;
-
-	battery = acpi_driver_data(device);
 
 	acpi_dev_remove_notify_handler(device, ACPI_ALL_NOTIFY,
 				       acpi_battery_notify);
 
-	device_init_wakeup(&device->dev, 0);
+	device_init_wakeup(&pdev->dev, false);
 	unregister_pm_notifier(&battery->pm_nb);
 
 	sysfs_battery_cleanup(battery);
@@ -1285,12 +1285,8 @@ static void acpi_battery_remove(struct acpi_device *device)
 /* this is needed to learn about changes made in suspended state */
 static int acpi_battery_resume(struct device *dev)
 {
-	struct acpi_battery *battery;
+	struct acpi_battery *battery = dev_get_drvdata(dev);
 
-	if (!dev)
-		return -EINVAL;
-
-	battery = acpi_driver_data(to_acpi_device(dev));
 	if (!battery)
 		return -EINVAL;
 
@@ -1304,16 +1300,15 @@ static int acpi_battery_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(acpi_battery_pm, NULL, acpi_battery_resume);
 
-static struct acpi_driver acpi_battery_driver = {
-	.name = "battery",
-	.class = ACPI_BATTERY_CLASS,
-	.ids = battery_device_ids,
-	.ops = {
-		.add = acpi_battery_add,
-		.remove = acpi_battery_remove,
-		},
-	.drv.pm = pm_sleep_ptr(&acpi_battery_pm),
-	.drv.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+static struct platform_driver acpi_battery_driver = {
+	.probe = acpi_battery_probe,
+	.remove = acpi_battery_remove,
+	.driver = {
+		.name = "acpi-battery",
+		.acpi_match_table = battery_device_ids,
+		.pm = pm_sleep_ptr(&acpi_battery_pm),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	},
 };
 
 static int __init acpi_battery_init(void)
@@ -1323,12 +1318,12 @@ static int __init acpi_battery_init(void)
 
 	dmi_check_system(bat_dmi_table);
 
-	return acpi_bus_register_driver(&acpi_battery_driver);
+	return platform_driver_register(&acpi_battery_driver);
 }
 
 static void __exit acpi_battery_exit(void)
 {
-	acpi_bus_unregister_driver(&acpi_battery_driver);
+	platform_driver_unregister(&acpi_battery_driver);
 	battery_hook_exit();
 }
 
