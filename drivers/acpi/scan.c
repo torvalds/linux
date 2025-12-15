@@ -2764,15 +2764,8 @@ static void acpi_bus_add_fixed_device_object(enum acpi_bus_device_type type)
 	struct acpi_device *adev = NULL;
 
 	acpi_add_single_object(&adev, NULL, type, false);
-	if (adev) {
-		adev->flags.match_driver = true;
-		if (device_attach(&adev->dev) >= 0)
-			device_init_wakeup(&adev->dev, true);
-		else
-			dev_dbg(&adev->dev, "No driver\n");
-
+	if (adev)
 		acpi_default_enumeration(adev);
-	}
 }
 
 static void acpi_bus_scan_fixed(void)
