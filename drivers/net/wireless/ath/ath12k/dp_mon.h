@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_DP_MON_H
@@ -11,6 +11,12 @@
 
 #define ATH12K_MON_RX_DOT11_OFFSET	5
 #define ATH12K_MON_RX_PKT_OFFSET	8
+
+#define ATH12K_LE32_DEC_ENC(value, dec_bits, enc_bits)	\
+		u32_encode_bits(le32_get_bits(value, dec_bits), enc_bits)
+
+#define ATH12K_LE64_DEC_ENC(value, dec_bits, enc_bits) \
+		u32_encode_bits(le64_get_bits(value, dec_bits), enc_bits)
 
 enum dp_monitor_mode {
 	ATH12K_DP_TX_MONITOR_MODE,
@@ -77,31 +83,41 @@ struct dp_mon_tx_ppdu_info {
 	struct dp_mon_mpdu *tx_mon_mpdu;
 };
 
-enum hal_rx_mon_status
-ath12k_dp_mon_rx_parse_mon_status(struct ath12k *ar,
-				  struct ath12k_mon_data *pmon,
-				  struct sk_buff *skb,
-				  struct napi_struct *napi);
 int ath12k_dp_mon_buf_replenish(struct ath12k_base *ab,
 				struct dp_rxdma_mon_ring *buf_ring,
 				int req_entries);
 int ath12k_dp_mon_status_bufs_replenish(struct ath12k_base *ab,
 					struct dp_rxdma_mon_ring *rx_ring,
 					int req_entries);
-int ath12k_dp_mon_process_ring(struct ath12k_base *ab, int mac_id,
-			       struct napi_struct *napi, int budget,
-			       enum dp_monitor_mode monitor_mode);
-struct sk_buff *ath12k_dp_mon_tx_alloc_skb(void);
-enum dp_mon_tx_tlv_status
-ath12k_dp_mon_tx_status_get_num_user(u16 tlv_tag,
-				     struct hal_tlv_hdr *tx_tlv,
-				     u8 *num_users);
-enum hal_rx_mon_status
-ath12k_dp_mon_tx_parse_mon_status(struct ath12k *ar,
-				  struct ath12k_mon_data *pmon,
-				  struct sk_buff *skb,
-				  struct napi_struct *napi,
-				  u32 ppdu_id);
 void ath12k_dp_mon_rx_process_ulofdma(struct hal_rx_mon_ppdu_info *ppdu_info);
-int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget, struct napi_struct *napi);
+void
+ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k_base *ab,
+				      struct hal_rx_mon_ppdu_info *ppdu_info);
+void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k_dp_link_peer *peer,
+					   struct hal_rx_mon_ppdu_info *ppdu_info);
+int ath12k_dp_pkt_set_pktlen(struct sk_buff *skb, u32 len);
+struct sk_buff
+*ath12k_dp_rx_alloc_mon_status_buf(struct ath12k_base *ab,
+				   struct dp_rxdma_mon_ring *rx_ring,
+				   int *buf_id);
+u32 ath12k_dp_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id);
+int
+ath12k_dp_mon_parse_status_buf(struct ath12k_pdev_dp *dp_pdev,
+			       struct ath12k_mon_data *pmon,
+			       const struct dp_mon_packet_info *packet_info);
+void ath12k_dp_mon_update_radiotap(struct ath12k_pdev_dp *dp_pdev,
+				   struct hal_rx_mon_ppdu_info *ppduinfo,
+				   struct sk_buff *mon_skb,
+				   struct ieee80211_rx_status *rxs);
+void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
+				   struct napi_struct *napi,
+				   struct sk_buff *msdu,
+				   const struct hal_rx_mon_ppdu_info *ppduinfo,
+				   struct ieee80211_rx_status *status,
+				   u8 decap);
+struct sk_buff *
+ath12k_dp_mon_rx_merg_msdus(struct ath12k_pdev_dp *dp_pdev,
+			    struct dp_mon_mpdu *mon_mpdu,
+			    struct hal_rx_mon_ppdu_info *ppdu_info,
+			    struct ieee80211_rx_status *rxs);
 #endif
