@@ -1014,6 +1014,8 @@ u8 intel_dp_dsc_get_slice_count(const struct intel_connector *connector,
 				int num_joined_pipes)
 {
 	struct intel_display *display = to_intel_display(connector);
+	u32 sink_slice_count_mask =
+		drm_dp_dsc_sink_slice_count_mask(connector->dp.dsc_dpcd, false);
 	u8 min_slice_count, i;
 	int max_slice_width;
 	int tp_rgb_yuv444;
@@ -1085,9 +1087,9 @@ u8 intel_dp_dsc_get_slice_count(const struct intel_connector *connector,
 		    (!HAS_DSC_3ENGINES(display) || num_joined_pipes != 4))
 			continue;
 
-		if (test_slice_count >
-		    drm_dp_dsc_sink_max_slice_count(connector->dp.dsc_dpcd, false))
-			break;
+		if (!(drm_dp_dsc_slice_count_to_mask(test_slice_count) &
+		      sink_slice_count_mask))
+			continue;
 
 		 /*
 		  * Bigjoiner needs small joiner to be enabled.
@@ -1104,8 +1106,14 @@ u8 intel_dp_dsc_get_slice_count(const struct intel_connector *connector,
 			return test_slice_count;
 	}
 
-	drm_dbg_kms(display->drm, "Unsupported Slice Count %d\n",
-		    min_slice_count);
+	/* Print slice count 1,2,4,..24 if bit#0,1,3,..23 is set in the mask. */
+	sink_slice_count_mask <<= 1;
+	drm_dbg_kms(display->drm,
+		    "[CONNECTOR:%d:%s] Unsupported slice count (min: %d, sink supported: %*pbl)\n",
+		    connector->base.base.id, connector->base.name,
+		    min_slice_count,
+		    (int)BITS_PER_TYPE(sink_slice_count_mask), &sink_slice_count_mask);
+
 	return 0;
 }
 
