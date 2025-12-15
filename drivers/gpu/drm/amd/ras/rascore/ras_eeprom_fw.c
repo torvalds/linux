@@ -161,3 +161,32 @@ int ras_fw_erase_ras_table(struct ras_core_context *ras_core,
 	return sys_func->mp1_send_eeprom_msg(ras_core,
 			RAS_SMU_EraseRasTable, 0, result);
 }
+
+int ras_fw_eeprom_reset_table(struct ras_core_context *ras_core)
+{
+	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
+	u32 erase_res = 0;
+	int res;
+
+	mutex_lock(&control->ras_tbl_mutex);
+
+	res = ras_fw_erase_ras_table(ras_core, &erase_res);
+	if (res || erase_res) {
+		RAS_DEV_WARN(ras_core->dev, "RAS EEPROM reset failed, res:%d result:%d",
+									res, erase_res);
+		if (!res)
+			res = -EIO;
+	}
+
+	control->ras_num_recs = 0;
+	control->bad_channel_bitmap = 0;
+	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_PAGE_NUM,
+		&control->ras_num_recs);
+	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_CHANNEL_BITMAP,
+		&control->bad_channel_bitmap);
+	control->update_channel_flag = false;
+
+	mutex_unlock(&control->ras_tbl_mutex);
+
+	return res;
+}

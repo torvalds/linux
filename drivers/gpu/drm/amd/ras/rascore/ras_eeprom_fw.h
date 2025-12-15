@@ -24,6 +24,31 @@
 #ifndef __RAS_EEPROM_FW_H__
 #define __RAS_EEPROM_FW_H__
 
+struct ras_fw_eeprom_control {
+	uint32_t version;
+	/* record threshold */
+	int record_threshold_config;
+	uint32_t record_threshold_count;
+	bool update_channel_flag;
+
+	/* Number of records in the table.
+	 */
+	u32 ras_num_recs;
+
+	/* Maximum possible number of records
+	 * we could store, i.e. the maximum capacity
+	 * of the table.
+	 */
+	u32 ras_max_record_count;
+
+	/* Protect table access via this mutex.
+	 */
+	struct mutex ras_tbl_mutex;
+
+	/* Record channel info which occurred bad pages
+	 */
+	u32 bad_channel_bitmap;
+};
 
 void ras_fw_init_feature_flags(struct ras_core_context *ras_core);
 bool ras_fw_eeprom_supported(struct ras_core_context *ras_core);
@@ -41,5 +66,6 @@ int ras_fw_get_badpage_ipid(struct ras_core_context *ras_core,
 				    uint16_t index, uint64_t *ipid);
 int ras_fw_erase_ras_table(struct ras_core_context *ras_core,
 				   uint32_t *result);
+int ras_fw_eeprom_reset_table(struct ras_core_context *ras_core);
 
 #endif
