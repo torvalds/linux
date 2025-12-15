@@ -962,12 +962,24 @@ mt7996_post_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct cfg80211_chan_def *chandef = &link_conf->chanreq.oper;
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mt7996_phy *phy = mt7996_band_phy(dev, chandef->chan->band);
-	int ret;
+	struct mt7996_vif_link *link;
+	int ret = -EINVAL;
 
 	mutex_lock(&dev->mt76.mutex);
 
+	link = mt7996_vif_conf_link(dev, vif, link_conf);
+	if (!link)
+		goto out;
+
+	ret = mt7996_mcu_update_bss_rfch(phy, link);
+	if (ret)
+		goto out;
+
+	ieee80211_iterate_stations_mtx(hw, mt7996_mcu_update_sta_rec_bw, link);
+
 	ret = mt7996_mcu_rdd_resume_tx(phy);
 
+out:
 	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
