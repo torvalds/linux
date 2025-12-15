@@ -491,9 +491,13 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 	save_count = data->count - eeprom_record_num;
 	/* only new entries are saved */
 	if (save_count > 0) {
-		if (ras_eeprom_append(ras_core,
-					   &data->bps[eeprom_record_num],
-					   save_count)) {
+		if (ras_fw_eeprom_supported(ras_core))
+			ret = ras_fw_eeprom_append(ras_core, &data->bps[eeprom_record_num],
+					save_count);
+		else
+			ret = ras_eeprom_append(ras_core, &data->bps[eeprom_record_num],
+					save_count);
+		if (ret) {
 			RAS_DEV_ERR(ras_core->dev, "Failed to save EEPROM table data!");
 			ret = -EIO;
 			goto exit;

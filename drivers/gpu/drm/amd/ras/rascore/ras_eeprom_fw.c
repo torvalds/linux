@@ -220,3 +220,42 @@ bool ras_fw_eeprom_check_safety_watermark(struct ras_core_context *ras_core)
 
 	return ret;
 }
+
+int ras_fw_eeprom_append(struct ras_core_context *ras_core,
+			   struct eeprom_umc_record *record, const u32 num)
+{
+	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
+	int threshold_config = control->record_threshold_config;
+	int i, bad_page_count;
+
+	mutex_lock(&control->ras_tbl_mutex);
+
+	for (i = 0; i < num; i++) {
+		/* update bad channel bitmap */
+		if ((record[i].mem_channel < BITS_PER_TYPE(control->bad_channel_bitmap)) &&
+			!(control->bad_channel_bitmap & (1 << record[i].mem_channel))) {
+			control->bad_channel_bitmap |= 1 << record[i].mem_channel;
+			control->update_channel_flag = true;
+		}
+	}
+	control->ras_num_recs += num;
+
+	bad_page_count = ras_umc_get_badpage_count(ras_core);
+
+	if (threshold_config != 0 &&
+		bad_page_count > control->record_threshold_count) {
+		RAS_DEV_WARN(ras_core->dev,
+			"Saved bad pages %d reaches threshold value %d\n",
+			bad_page_count, control->record_threshold_count);
+
+		if ((threshold_config != WARN_NONSTOP_OVER_THRESHOLD) &&
+			(threshold_config != NONSTOP_OVER_THRESHOLD))
+			ras_core->is_rma = true;
+
+		/* ignore the -ENOTSUPP return value */
+		ras_core_event_notify(ras_core, RAS_EVENT_ID__DEVICE_RMA, NULL);
+	}
+
+	mutex_unlock(&control->ras_tbl_mutex);
+	return 0;
+}
